@@ -1,64 +1,64 @@
-# CRUD操作 — SELECT / INSERT / UPDATE / DELETE 完全ガイド
+# CRUD Operations — Complete Guide to SELECT / INSERT / UPDATE / DELETE
 
-> CRUDはCreate（作成）、Read（読取）、Update（更新）、Delete（削除）の頭文字であり、データベース操作の最も基本的な4つの操作を表す。あらゆるアプリケーションのデータ層はこの4操作の組み合わせで構成される。
-
----
-
-## この章で学ぶこと
-
-1. SELECT文の完全な構文と論理的実行順序を正確に理解する
-2. INSERT / UPDATE / DELETE の安全な実行パターンとトランザクション活用法を身につける
-3. RETURNING句、UPSERT、論理削除など実務で頻出する応用パターンを習得する
-4. 各操作のパフォーマンス特性とアンチパターンを把握する
+> CRUD stands for Create, Read, Update, and Delete — the four most fundamental database operations. The data layer of every application is built from combinations of these four operations.
 
 ---
 
-## 前提知識
+## What You Will Learn
 
-- [00-sql-overview.md](./00-sql-overview.md) — SQL概要、リレーショナルモデルの基礎、RDBMS選定
-- SQLの基本的なデータ型（INTEGER、VARCHAR、DATE、DECIMAL等）の理解
-- ../../security-fundamentals/docs/01-web-security/ — SQLインジェクション対策（推奨）
+1. Understand the complete syntax and logical execution order of SELECT statements
+2. Learn safe execution patterns for INSERT / UPDATE / DELETE and how to leverage transactions
+3. Master practical patterns such as the RETURNING clause, UPSERT, and soft deletes
+4. Understand the performance characteristics and anti-patterns of each operation
 
 ---
 
-## 1. SELECT — データの読み取り
+## Prerequisites
 
-SELECTはSQLの中で最も頻繁に使用される文であり、データベースからデータを取得する唯一の手段である。SELECTの理解はSQLマスタリーの基盤となる。
+- [00-sql-overview.md](./00-sql-overview.md) — SQL overview, relational model fundamentals, RDBMS selection
+- Understanding of basic SQL data types (INTEGER, VARCHAR, DATE, DECIMAL, etc.)
+- ../../security-fundamentals/docs/01-web-security/ — SQL injection countermeasures (recommended)
 
-### 1.1 SELECT文の論理的実行順序
+---
 
-SELECT文は「書く順序」と「実行される順序」が異なるという点が、多くの初学者が躓くポイントである。
+## 1. SELECT — Reading Data
+
+SELECT is the most frequently used SQL statement and the only means of retrieving data from a database. Understanding SELECT is the foundation of SQL mastery.
+
+### 1.1 Logical Execution Order of SELECT
+
+One of the most common stumbling blocks for beginners is that the order in which you *write* a SELECT statement differs from the order in which it is *executed*.
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│              SELECT文の論理的実行順序                  │
+│         Logical Execution Order of SELECT             │
 │                                                      │
-│   書く順序              実行順序                      │
-│   ─────────            ─────────                     │
+│   Written Order         Execution Order              │
+│   ─────────────         ────────────────             │
 │   SELECT   ──────┐    ① FROM / JOIN                  │
-│   FROM     ◀─────┤    ② ON (結合条件)                │
-│   WHERE    ──────┤    ③ WHERE (行フィルタ)            │
-│   GROUP BY ──────┤    ④ GROUP BY (グループ化)         │
-│   HAVING   ──────┤    ⑤ HAVING (グループフィルタ)     │
-│   SELECT   ──────┤    ⑥ SELECT (式の評価、エイリアス) │
-│   DISTINCT ──────┤    ⑦ DISTINCT (重複排除)           │
-│   ORDER BY ──────┤    ⑧ ORDER BY (並べ替え)           │
-│   LIMIT    ──────┘    ⑨ LIMIT / OFFSET (件数制限)    │
+│   FROM     ◀─────┤    ② ON (join condition)          │
+│   WHERE    ──────┤    ③ WHERE (row filter)            │
+│   GROUP BY ──────┤    ④ GROUP BY (grouping)           │
+│   HAVING   ──────┤    ⑤ HAVING (group filter)        │
+│   SELECT   ──────┤    ⑥ SELECT (expression eval, alias)│
+│   DISTINCT ──────┤    ⑦ DISTINCT (deduplication)     │
+│   ORDER BY ──────┤    ⑧ ORDER BY (sorting)           │
+│   LIMIT    ──────┘    ⑨ LIMIT / OFFSET (row limit)   │
 │                                                      │
-│   重要な帰結:                                        │
-│   - WHERE句でSELECTのエイリアスは使えない            │
-│     (WHEREが先に実行されるため)                       │
-│   - ORDER BY句ではSELECTのエイリアスが使える         │
-│     (ORDER BYが後に実行されるため)                    │
-│   - HAVING句では集約関数が使える                      │
-│     (GROUP BYの後に実行されるため)                    │
+│   Key implications:                                  │
+│   - SELECT aliases cannot be used in WHERE           │
+│     (WHERE executes before SELECT)                   │
+│   - SELECT aliases can be used in ORDER BY           │
+│     (ORDER BY executes after SELECT)                 │
+│   - Aggregate functions can be used in HAVING        │
+│     (HAVING executes after GROUP BY)                 │
 └──────────────────────────────────────────────────────┘
 ```
 
-### コード例1: SELECT文の完全な構文と実行順序
+### Code Example 1: Complete SELECT Syntax and Execution Order
 
 ```sql
--- テーブル準備
+-- Table setup
 CREATE TABLE departments (
     id   INTEGER PRIMARY KEY,
     name VARCHAR(50) NOT NULL
@@ -83,54 +83,54 @@ INSERT INTO employees (name, department_id, salary, status, hired_date) VALUES
     ('伊藤五郎', 2, 480000, 'inactive', '2017-10-01'),
     ('渡辺六子', 1, 510000, 'active', '2019-01-15');
 
--- SELECT文の完全な構文例
+-- Full SELECT syntax example
 SELECT DISTINCT
-    d.name AS department,              -- ⑥ 列を選択・計算
-    COUNT(*) AS employee_count,        -- ⑥ 集約関数の評価
-    AVG(e.salary) AS avg_salary        -- ⑥ 集約関数の評価
-FROM employees e                       -- ① テーブルを特定
-    INNER JOIN departments d           -- ① テーブル結合
-        ON e.department_id = d.id      -- ② 結合条件の評価
-WHERE e.status = 'active'              -- ③ 行レベルのフィルタ
-GROUP BY d.name                        -- ④ グループ化
-HAVING COUNT(*) >= 2                   -- ⑤ グループレベルのフィルタ
-ORDER BY avg_salary DESC               -- ⑧ 並べ替え
-LIMIT 10;                              -- ⑨ 件数制限
+    d.name AS department,              -- ⑥ Select and compute columns
+    COUNT(*) AS employee_count,        -- ⑥ Evaluate aggregate function
+    AVG(e.salary) AS avg_salary        -- ⑥ Evaluate aggregate function
+FROM employees e                       -- ① Identify table
+    INNER JOIN departments d           -- ① Join table
+        ON e.department_id = d.id      -- ② Evaluate join condition
+WHERE e.status = 'active'              -- ③ Row-level filter
+GROUP BY d.name                        -- ④ Grouping
+HAVING COUNT(*) >= 2                   -- ⑤ Group-level filter
+ORDER BY avg_salary DESC               -- ⑧ Sorting
+LIMIT 10;                              -- ⑨ Row limit
 ```
 
-### コード例2: WHERE句の全条件パターン
+### Code Example 2: All WHERE Clause Condition Patterns
 
 ```sql
--- === 比較演算子 ===
-SELECT * FROM products WHERE price > 1000;               -- より大きい
-SELECT * FROM products WHERE price >= 1000;              -- 以上
-SELECT * FROM products WHERE price < 5000;               -- より小さい
-SELECT * FROM products WHERE price <= 5000;              -- 以下
-SELECT * FROM products WHERE price <> 1000;              -- 等しくない（標準SQL）
-SELECT * FROM products WHERE price != 1000;              -- 等しくない（多くのRDBMSで使用可）
+-- === Comparison operators ===
+SELECT * FROM products WHERE price > 1000;               -- Greater than
+SELECT * FROM products WHERE price >= 1000;              -- Greater than or equal
+SELECT * FROM products WHERE price < 5000;               -- Less than
+SELECT * FROM products WHERE price <= 5000;              -- Less than or equal
+SELECT * FROM products WHERE price <> 1000;              -- Not equal (standard SQL)
+SELECT * FROM products WHERE price != 1000;              -- Not equal (supported by most RDBMSs)
 
--- === 範囲 ===
+-- === Range ===
 SELECT * FROM products WHERE price BETWEEN 1000 AND 5000;
--- ↑ price >= 1000 AND price <= 5000 と同等（両端を含む）
+-- ↑ Equivalent to price >= 1000 AND price <= 5000 (inclusive on both ends)
 
--- === パターンマッチ（LIKE） ===
-SELECT * FROM users WHERE name LIKE '田中%';             -- 前方一致
-SELECT * FROM users WHERE email LIKE '%@gmail.com';      -- 後方一致
-SELECT * FROM users WHERE name LIKE '%太%';              -- 部分一致
-SELECT * FROM users WHERE code LIKE 'A_B';               -- _ = 任意の1文字
--- LIKE のエスケープ
-SELECT * FROM products WHERE name LIKE '%25\%%' ESCAPE '\';  -- '%'を含む
+-- === Pattern matching (LIKE) ===
+SELECT * FROM users WHERE name LIKE '田中%';             -- Prefix match
+SELECT * FROM users WHERE email LIKE '%@gmail.com';      -- Suffix match
+SELECT * FROM users WHERE name LIKE '%太%';              -- Contains match
+SELECT * FROM users WHERE code LIKE 'A_B';               -- _ = any single character
+-- Escaping in LIKE
+SELECT * FROM products WHERE name LIKE '%25\%%' ESCAPE '\';  -- Contains '%'
 
--- === NULL判定 ===
--- 重要: = NULL は動作しない（3値論理のため）
-SELECT * FROM users WHERE phone IS NULL;                  -- NULLの行
-SELECT * FROM users WHERE phone IS NOT NULL;              -- NULLでない行
+-- === NULL checks ===
+-- Important: = NULL does not work (three-valued logic)
+SELECT * FROM users WHERE phone IS NULL;                  -- Rows where phone is NULL
+SELECT * FROM users WHERE phone IS NOT NULL;              -- Rows where phone is not NULL
 
 -- === IN / NOT IN ===
 SELECT * FROM orders WHERE status IN ('pending', 'processing', 'shipped');
 SELECT * FROM orders WHERE status NOT IN ('cancelled', 'refunded');
 
--- === 複合条件（AND / OR） ===
+-- === Compound conditions (AND / OR) ===
 SELECT * FROM products
 WHERE (category = 'electronics' OR category = 'books')
   AND price < 5000
@@ -149,7 +149,7 @@ WHERE salary > ALL (
     SELECT AVG(salary) FROM employees GROUP BY department_id
 );
 
--- === CASE式をWHEREで使用 ===
+-- === CASE expression in WHERE ===
 SELECT * FROM orders
 WHERE CASE
     WHEN priority = 'high' THEN total_amount > 0
@@ -158,19 +158,19 @@ WHERE CASE
 END;
 ```
 
-### コード例3: SELECT句の応用テクニック
+### Code Example 3: Advanced SELECT Clause Techniques
 
 ```sql
--- === 計算列 ===
+-- === Computed columns ===
 SELECT
     name,
     salary,
-    salary * 12 AS annual_salary,                    -- 年収
-    salary * 12 * 1.1 AS annual_with_bonus,          -- 年収+賞与
-    ROUND(salary / 160, 0) AS hourly_rate            -- 時給換算
+    salary * 12 AS annual_salary,                    -- Annual salary
+    salary * 12 * 1.1 AS annual_with_bonus,          -- Annual salary + bonus
+    ROUND(salary / 160, 0) AS hourly_rate            -- Hourly rate equivalent
 FROM employees;
 
--- === CASE式（条件分岐） ===
+-- === CASE expression (conditional branching) ===
 SELECT
     name,
     salary,
@@ -180,38 +180,38 @@ SELECT
         WHEN salary >= 400000 THEN 'B'
         ELSE 'C'
     END AS grade,
-    -- CASE式の簡略形（単純CASE）
+    -- Simplified CASE expression (simple CASE)
     CASE status
-        WHEN 'active'   THEN '在籍'
-        WHEN 'inactive' THEN '休職'
-        WHEN 'retired'  THEN '退職'
-        ELSE '不明'
+        WHEN 'active'   THEN 'Active'
+        WHEN 'inactive' THEN 'On Leave'
+        WHEN 'retired'  THEN 'Retired'
+        ELSE 'Unknown'
     END AS status_label
 FROM employees;
 
--- === COALESCE（最初の非NULL値） ===
+-- === COALESCE (first non-NULL value) ===
 SELECT
     name,
-    COALESCE(phone, mobile, email, '連絡先なし') AS primary_contact
+    COALESCE(phone, mobile, email, 'No contact') AS primary_contact
 FROM employees;
 
--- === NULLIF（2値が等しければNULL） ===
--- 0除算防止パターン
+-- === NULLIF (returns NULL if two values are equal) ===
+-- Pattern to prevent division by zero
 SELECT
     department_id,
     total_revenue,
     total_cost,
-    total_revenue / NULLIF(total_cost, 0) AS cost_ratio  -- 0除算を回避
+    total_revenue / NULLIF(total_cost, 0) AS cost_ratio  -- Avoid division by zero
 FROM department_financials;
 
--- === 型変換（CAST） ===
+-- === Type conversion (CAST) ===
 SELECT
     CAST(price AS INTEGER) AS rounded_price,
     CAST(created_at AS DATE) AS created_date,
-    CAST(quantity AS VARCHAR(10)) || '個' AS quantity_text
+    CAST(quantity AS VARCHAR(10)) || ' units' AS quantity_text
 FROM products;
 
--- === サブクエリとの組み合わせ ===
+-- === Combined with subqueries ===
 SELECT
     e.name,
     e.salary,
@@ -222,22 +222,22 @@ FROM employees e
 ORDER BY diff_from_avg DESC;
 ```
 
-### 1.2 ORDER BYの詳細
+### 1.2 ORDER BY Details
 
 ```sql
--- 基本的なソート
-SELECT * FROM employees ORDER BY salary DESC;                -- 降順
-SELECT * FROM employees ORDER BY salary ASC;                 -- 昇順（デフォルト）
-SELECT * FROM employees ORDER BY department_id ASC, salary DESC;  -- 複合ソート
+-- Basic sorting
+SELECT * FROM employees ORDER BY salary DESC;                -- Descending
+SELECT * FROM employees ORDER BY salary ASC;                 -- Ascending (default)
+SELECT * FROM employees ORDER BY department_id ASC, salary DESC;  -- Multi-column sort
 
--- NULLの並び順制御
-SELECT * FROM employees ORDER BY department_id NULLS FIRST;  -- NULLを先頭
-SELECT * FROM employees ORDER BY department_id NULLS LAST;   -- NULLを末尾
+-- Controlling NULL sort order
+SELECT * FROM employees ORDER BY department_id NULLS FIRST;  -- NULLs first
+SELECT * FROM employees ORDER BY department_id NULLS LAST;   -- NULLs last
 
--- 列番号によるソート（可読性が低いため非推奨だが知っておくべき）
-SELECT name, salary FROM employees ORDER BY 2 DESC;  -- 2番目の列 = salary
+-- Sorting by column number (not recommended due to poor readability, but good to know)
+SELECT name, salary FROM employees ORDER BY 2 DESC;  -- 2nd column = salary
 
--- CASE式でカスタムソート
+-- Custom sort order with CASE expression
 SELECT * FROM orders
 ORDER BY
     CASE status
@@ -250,28 +250,28 @@ ORDER BY
     created_at DESC;
 ```
 
-### 1.3 DISTINCT と LIMIT
+### 1.3 DISTINCT and LIMIT
 
 ```sql
--- DISTINCT: 重複行の排除
+-- DISTINCT: Remove duplicate rows
 SELECT DISTINCT department_id FROM employees;
 
--- DISTINCT ON (PostgreSQL固有): 各グループの最初の行のみ
+-- DISTINCT ON (PostgreSQL-specific): Only the first row per group
 SELECT DISTINCT ON (department_id) *
 FROM employees
 ORDER BY department_id, salary DESC;
--- → 各部署で最も給与の高い社員1名ずつ
+-- → Returns the highest-paid employee from each department
 
--- LIMIT / OFFSET: ページネーション
+-- LIMIT / OFFSET: Pagination
 SELECT * FROM products
 ORDER BY created_at DESC
-LIMIT 20 OFFSET 0;     -- 1ページ目（1-20件）
+LIMIT 20 OFFSET 0;     -- Page 1 (rows 1-20)
 
 SELECT * FROM products
 ORDER BY created_at DESC
-LIMIT 20 OFFSET 20;    -- 2ページ目（21-40件）
+LIMIT 20 OFFSET 20;    -- Page 2 (rows 21-40)
 
--- 標準SQL: FETCH FIRST
+-- Standard SQL: FETCH FIRST
 SELECT * FROM products
 ORDER BY created_at DESC
 OFFSET 20 ROWS
@@ -280,74 +280,74 @@ FETCH NEXT 20 ROWS ONLY;
 
 ---
 
-## 2. INSERT — データの作成
+## 2. INSERT — Creating Data
 
-### 2.1 INSERTの内部動作
+### 2.1 Internal Processing of INSERT
 
-INSERTが実行されると、内部的に以下の処理が行われる:
+When INSERT is executed, the following processing occurs internally:
 
 ```
-┌──────────────── INSERT の内部処理フロー ────────────────┐
-│                                                          │
-│  ① 構文解析・権限チェック                                │
-│      └→ テーブル存在確認、カラム型チェック                │
-│  ② 制約チェック                                         │
-│      ├→ NOT NULL 制約                                   │
-│      ├→ UNIQUE / PRIMARY KEY 制約                       │
-│      ├→ FOREIGN KEY 制約（参照先の存在確認）             │
-│      ├→ CHECK 制約                                      │
-│      └→ 排他制約（PostgreSQL EXCLUDE）                   │
-│  ③ DEFAULT値・GENERATED列の計算                          │
-│  ④ トリガー実行（BEFORE INSERT）                         │
-│  ⑤ 行の挿入（WALへの書き込み → バッファプール更新）      │
-│  ⑥ インデックスの更新（全関連インデックス）               │
-│  ⑦ トリガー実行（AFTER INSERT）                          │
-│  ⑧ RETURNING句の評価（PostgreSQL）                       │
-│                                                          │
-│  ※ これら全体がトランザクション内で原子的に実行される      │
-└──────────────────────────────────────────────────────────┘
+┌──────────────── INSERT Internal Processing Flow ────────────────┐
+│                                                                  │
+│  ① Parse and check permissions                                   │
+│      └→ Verify table existence, check column types              │
+│  ② Constraint checks                                             │
+│      ├→ NOT NULL constraint                                      │
+│      ├→ UNIQUE / PRIMARY KEY constraint                          │
+│      ├→ FOREIGN KEY constraint (verify referenced row exists)    │
+│      ├→ CHECK constraint                                         │
+│      └→ Exclusion constraint (PostgreSQL EXCLUDE)                │
+│  ③ Compute DEFAULT values and GENERATED columns                  │
+│  ④ Execute triggers (BEFORE INSERT)                              │
+│  ⑤ Insert row (write to WAL → update buffer pool)               │
+│  ⑥ Update indexes (all related indexes)                          │
+│  ⑦ Execute triggers (AFTER INSERT)                               │
+│  ⑧ Evaluate RETURNING clause (PostgreSQL)                        │
+│                                                                  │
+│  * All of the above is executed atomically within a transaction  │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-### コード例4: 各種INSERTパターン
+### Code Example 4: Various INSERT Patterns
 
 ```sql
--- === 基本的なINSERT（単一行） ===
+-- === Basic INSERT (single row) ===
 INSERT INTO employees (name, department_id, salary, hired_date)
 VALUES ('山田太郎', 10, 400000, '2024-04-01');
 
--- === 複数行の一括INSERT ===
--- パフォーマンス: 個別INSERTの10〜100倍高速
+-- === Bulk INSERT (multiple rows) ===
+-- Performance: 10~100x faster than individual INSERTs
 INSERT INTO employees (name, department_id, salary, hired_date)
 VALUES
     ('鈴木花子', 20, 450000, '2024-04-01'),
     ('佐藤次郎', 10, 380000, '2024-04-01'),
     ('高橋三郎', 30, 420000, '2024-04-01');
 
--- === SELECTの結果をINSERT ===
--- データ移行・アーカイブに最適
+-- === INSERT from SELECT result ===
+-- Ideal for data migration and archiving
 INSERT INTO employee_archive (name, department_id, salary, archived_at)
 SELECT name, department_id, salary, CURRENT_TIMESTAMP
 FROM employees
 WHERE status = 'retired';
 
--- === RETURNING句で挿入結果を取得（PostgreSQL） ===
--- アプリケーション側で自動生成されたIDを即座に取得可能
+-- === RETURNING clause to get inserted result (PostgreSQL) ===
+-- Immediately retrieve auto-generated IDs on the application side
 INSERT INTO employees (name, department_id, salary)
 VALUES ('新人一号', 10, 350000)
 RETURNING id, name, created_at;
 -- → id=42, name='新人一号', created_at='2024-04-01 10:30:00'
 
 -- === DEFAULT VALUES ===
--- 全列がDEFAULT値またはNULL許可の場合
+-- When all columns have DEFAULT values or allow NULL
 INSERT INTO audit_log DEFAULT VALUES;
 
 -- === INSERT with CTE ===
--- 複雑な変換を伴う挿入
+-- Insert with complex transformations
 WITH source_data AS (
     SELECT
         name,
         department_id,
-        salary * 1.05 AS adjusted_salary  -- 5%昇給した金額で挿入
+        salary * 1.05 AS adjusted_salary  -- Insert with 5% raise applied
     FROM employees
     WHERE status = 'active' AND hired_date < '2020-01-01'
 )
@@ -356,11 +356,11 @@ SELECT name, department_id, adjusted_salary, CURRENT_TIMESTAMP
 FROM source_data;
 ```
 
-### コード例5: UPSERT（存在すれば更新、なければ挿入）
+### Code Example 5: UPSERT (Update if exists, Insert if not)
 
 ```sql
 -- === PostgreSQL: ON CONFLICT ===
--- user_settingsテーブル: (user_id, key) がUNIQUE制約
+-- user_settings table: (user_id, key) has a UNIQUE constraint
 CREATE TABLE user_settings (
     user_id    INTEGER NOT NULL,
     key        VARCHAR(100) NOT NULL,
@@ -369,27 +369,27 @@ CREATE TABLE user_settings (
     PRIMARY KEY (user_id, key)
 );
 
--- 存在すればvalueを更新、なければ新規挿入
+-- Update value if exists, otherwise insert new row
 INSERT INTO user_settings (user_id, key, value)
 VALUES (1, 'theme', 'dark')
 ON CONFLICT (user_id, key)
 DO UPDATE SET
-    value = EXCLUDED.value,          -- EXCLUDED = 挿入しようとした値
+    value = EXCLUDED.value,          -- EXCLUDED = the value that was attempted to be inserted
     updated_at = CURRENT_TIMESTAMP;
 
--- ON CONFLICT DO NOTHING: 重複を無視（エラーを出さない）
+-- ON CONFLICT DO NOTHING: Ignore duplicates (no error)
 INSERT INTO user_settings (user_id, key, value)
 VALUES (1, 'theme', 'dark')
 ON CONFLICT (user_id, key) DO NOTHING;
 
--- 条件付きUPSERT: 既存値より新しい場合のみ更新
+-- Conditional UPSERT: Only update if the new value is newer
 INSERT INTO cache_entries (key, value, version)
 VALUES ('user:1', '{"name":"田中"}', 5)
 ON CONFLICT (key)
 DO UPDATE SET
     value = EXCLUDED.value,
     version = EXCLUDED.version
-WHERE cache_entries.version < EXCLUDED.version;  -- バージョンが新しい場合のみ
+WHERE cache_entries.version < EXCLUDED.version;  -- Only if version is newer
 
 -- === MySQL: ON DUPLICATE KEY UPDATE ===
 INSERT INTO user_settings (user_id, setting_key, setting_value)
@@ -410,82 +410,82 @@ WHEN NOT MATCHED THEN
 
 ---
 
-## 3. UPDATE — データの更新
+## 3. UPDATE — Updating Data
 
-### 3.1 UPDATEの安全な実行手順
+### 3.1 Safe UPDATE Execution Procedure
 
-本番環境でUPDATEを実行する際は、以下のプロトコルに従うことが推奨される:
+When executing UPDATE in a production environment, following this protocol is recommended:
 
 ```
-┌──────────── 安全なUPDATE実行プロトコル ────────────┐
-│                                                      │
-│  Step 1: 対象行の確認                                │
-│  ┌──────────────────────────────────────────┐      │
-│  │ SELECT * FROM employees                   │      │
-│  │ WHERE department_id = 10                  │      │
-│  │   AND performance_rating >= 4;            │      │
-│  │ -- → 5行ヒット（期待通りか確認）          │      │
-│  └──────────────────────────────────────────┘      │
-│                                                      │
-│  Step 2: トランザクション開始                         │
-│  ┌──────────────────────────────────────────┐      │
-│  │ BEGIN;                                    │      │
-│  └──────────────────────────────────────────┘      │
-│                                                      │
-│  Step 3: UPDATE実行                                  │
-│  ┌──────────────────────────────────────────┐      │
-│  │ UPDATE employees                          │      │
-│  │ SET salary = salary * 1.05                │      │
-│  │ WHERE department_id = 10                  │      │
-│  │   AND performance_rating >= 4;            │      │
-│  │ -- → UPDATE 5 (件数が一致するか確認)      │      │
-│  └──────────────────────────────────────────┘      │
-│                                                      │
-│  Step 4: 結果確認                                    │
-│  ┌──────────────────────────────────────────┐      │
-│  │ SELECT * FROM employees                   │      │
-│  │ WHERE department_id = 10                  │      │
-│  │   AND performance_rating >= 4;            │      │
-│  │ -- → 変更後の値が期待通りか確認           │      │
-│  └──────────────────────────────────────────┘      │
-│                                                      │
-│  Step 5: 確定 or 取消                                │
-│  ┌──────────────────────────────────────────┐      │
-│  │ COMMIT;    -- 問題なければ確定            │      │
-│  │ -- ROLLBACK;  -- 問題あれば取り消し       │      │
-│  └──────────────────────────────────────────┘      │
-└──────────────────────────────────────────────────────┘
+┌──────────── Safe UPDATE Execution Protocol ────────────┐
+│                                                        │
+│  Step 1: Verify target rows                            │
+│  ┌──────────────────────────────────────────┐         │
+│  │ SELECT * FROM employees                   │         │
+│  │ WHERE department_id = 10                  │         │
+│  │   AND performance_rating >= 4;            │         │
+│  │ -- → 5 rows hit (verify as expected)      │         │
+│  └──────────────────────────────────────────┘         │
+│                                                        │
+│  Step 2: Begin transaction                             │
+│  ┌──────────────────────────────────────────┐         │
+│  │ BEGIN;                                    │         │
+│  └──────────────────────────────────────────┘         │
+│                                                        │
+│  Step 3: Execute UPDATE                                │
+│  ┌──────────────────────────────────────────┐         │
+│  │ UPDATE employees                          │         │
+│  │ SET salary = salary * 1.05                │         │
+│  │ WHERE department_id = 10                  │         │
+│  │   AND performance_rating >= 4;            │         │
+│  │ -- → UPDATE 5 (verify row count matches)  │         │
+│  └──────────────────────────────────────────┘         │
+│                                                        │
+│  Step 4: Verify result                                 │
+│  ┌──────────────────────────────────────────┐         │
+│  │ SELECT * FROM employees                   │         │
+│  │ WHERE department_id = 10                  │         │
+│  │   AND performance_rating >= 4;            │         │
+│  │ -- → Verify updated values are as expected│         │
+│  └──────────────────────────────────────────┘         │
+│                                                        │
+│  Step 5: Commit or rollback                            │
+│  ┌──────────────────────────────────────────┐         │
+│  │ COMMIT;    -- Commit if no issues         │         │
+│  │ -- ROLLBACK;  -- Rollback if issues found │         │
+│  └──────────────────────────────────────────┘         │
+└────────────────────────────────────────────────────────┘
 ```
 
-### コード例6: 各種UPDATEパターン
+### Code Example 6: Various UPDATE Patterns
 
 ```sql
--- === 基本的なUPDATE ===
+-- === Basic UPDATE ===
 UPDATE employees
 SET salary = 500000
 WHERE employee_id = 42;
 
--- === 複数列の同時更新 ===
+-- === Update multiple columns simultaneously ===
 UPDATE employees
 SET salary = salary * 1.05,
     updated_at = CURRENT_TIMESTAMP
 WHERE department_id = 10
   AND performance_rating >= 4;
 
--- === 計算式を使った更新 ===
--- 全社員の給与を等級に応じて昇給
+-- === Update using expressions ===
+-- Raise salaries for all employees based on their grade
 UPDATE employees
 SET salary = CASE
-    WHEN grade = 'S' THEN salary * 1.10   -- S等級: 10%昇給
-    WHEN grade = 'A' THEN salary * 1.07   -- A等級: 7%昇給
-    WHEN grade = 'B' THEN salary * 1.05   -- B等級: 5%昇給
-    ELSE salary * 1.03                     -- その他: 3%昇給
+    WHEN grade = 'S' THEN salary * 1.10   -- Grade S: 10% raise
+    WHEN grade = 'A' THEN salary * 1.07   -- Grade A: 7% raise
+    WHEN grade = 'B' THEN salary * 1.05   -- Grade B: 5% raise
+    ELSE salary * 1.03                     -- Others: 3% raise
 END,
 updated_at = CURRENT_TIMESTAMP
 WHERE status = 'active';
 
--- === JOINを使ったUPDATE（PostgreSQL） ===
--- 禁止顧客の未処理注文をキャンセル
+-- === UPDATE with JOIN (PostgreSQL) ===
+-- Cancel pending orders of banned customers
 UPDATE orders o
 SET status = 'cancelled',
     cancelled_at = NOW(),
@@ -495,7 +495,7 @@ WHERE o.customer_id = c.id
   AND c.is_banned = TRUE
   AND o.status = 'pending';
 
--- === JOINを使ったUPDATE（MySQL） ===
+-- === UPDATE with JOIN (MySQL) ===
 -- UPDATE orders o
 -- INNER JOIN customers c ON o.customer_id = c.id
 -- SET o.status = 'cancelled',
@@ -503,21 +503,21 @@ WHERE o.customer_id = c.id
 -- WHERE c.is_banned = TRUE
 --   AND o.status = 'pending';
 
--- === サブクエリを使ったUPDATE ===
+-- === UPDATE with subquery ===
 UPDATE products
 SET price = price * 0.9
 WHERE category_id IN (
     SELECT id FROM categories WHERE name = 'セール対象'
 );
 
--- === RETURNING句で更新結果を確認（PostgreSQL） ===
+-- === RETURNING clause to confirm update result (PostgreSQL) ===
 UPDATE employees
 SET salary = salary * 1.10
 WHERE department_id = 20
 RETURNING id, name, salary AS new_salary;
 
--- === CTEを使った複雑なUPDATE ===
--- 部署平均を下回る社員を最低ラインまで引き上げ
+-- === Complex UPDATE with CTE ===
+-- Raise salaries of employees below the department average to a minimum floor
 WITH dept_min AS (
     SELECT department_id, AVG(salary) * 0.8 AS min_salary
     FROM employees
@@ -535,117 +535,117 @@ RETURNING e.id, e.name, e.salary AS adjusted_salary;
 
 ---
 
-## 4. DELETE — データの削除
+## 4. DELETE — Deleting Data
 
-### 4.1 物理削除 vs 論理削除
+### 4.1 Hard Delete vs Soft Delete
 
 ```
-┌──────────── 物理削除 vs 論理削除 ──────────────┐
-│                                                  │
-│  物理削除（Hard Delete）                         │
-│  ┌─────────────────────────────────────┐       │
-│  │ DELETE FROM users WHERE id = 42;     │       │
-│  │                                      │       │
-│  │ メリット:                             │       │
-│  │ - テーブルがシンプルに保たれる         │       │
-│  │ - ストレージを即座に解放              │       │
-│  │ - クエリにフィルタ条件不要            │       │
-│  │                                      │       │
-│  │ デメリット:                            │       │
-│  │ - 復元が困難（バックアップのみ）       │       │
-│  │ - 監査証跡が残らない                  │       │
-│  │ - 外部キー制約の連鎖削除リスク        │       │
-│  └─────────────────────────────────────┘       │
-│                                                  │
-│  論理削除（Soft Delete）                         │
-│  ┌─────────────────────────────────────┐       │
-│  │ UPDATE users                         │       │
-│  │ SET deleted_at = CURRENT_TIMESTAMP,  │       │
-│  │     status = 'deleted'               │       │
-│  │ WHERE id = 42;                       │       │
-│  │                                      │       │
-│  │ メリット:                             │       │
-│  │ - 復元が容易（フラグを戻すだけ）      │       │
-│  │ - 監査証跡が残る                      │       │
-│  │ - 参照整合性が維持される              │       │
-│  │                                      │       │
-│  │ デメリット:                            │       │
-│  │ - 全クエリにWHERE deleted_at IS NULLが必要│   │
-│  │ - ストレージが増大し続ける            │       │
-│  │ - UNIQUE制約の設計が複雑化            │       │
-│  └─────────────────────────────────────┘       │
-│                                                  │
-│  推奨: 論理削除 + 定期的なアーカイブ/パージ      │
-└──────────────────────────────────────────────────┘
+┌──────────── Hard Delete vs Soft Delete ────────────────┐
+│                                                        │
+│  Hard Delete (Physical Delete)                         │
+│  ┌─────────────────────────────────────┐              │
+│  │ DELETE FROM users WHERE id = 42;     │              │
+│  │                                      │              │
+│  │ Pros:                                │              │
+│  │ - Keeps the table simple             │              │
+│  │ - Immediately frees storage          │              │
+│  │ - No filter conditions needed        │              │
+│  │                                      │              │
+│  │ Cons:                                │              │
+│  │ - Difficult to recover (backup only) │              │
+│  │ - No audit trail remains             │              │
+│  │ - Risk of cascading FK deletes       │              │
+│  └─────────────────────────────────────┘              │
+│                                                        │
+│  Soft Delete (Logical Delete)                          │
+│  ┌─────────────────────────────────────┐              │
+│  │ UPDATE users                         │              │
+│  │ SET deleted_at = CURRENT_TIMESTAMP,  │              │
+│  │     status = 'deleted'               │              │
+│  │ WHERE id = 42;                       │              │
+│  │                                      │              │
+│  │ Pros:                                │              │
+│  │ - Easy to recover (just reset flag)  │              │
+│  │ - Audit trail is preserved           │              │
+│  │ - Referential integrity is maintained│              │
+│  │                                      │              │
+│  │ Cons:                                │              │
+│  │ - All queries need WHERE deleted_at IS NULL│        │
+│  │ - Storage keeps growing              │              │
+│  │ - UNIQUE constraint design gets complex│            │
+│  └─────────────────────────────────────┘              │
+│                                                        │
+│  Recommendation: Soft delete + periodic archive/purge  │
+└────────────────────────────────────────────────────────┘
 ```
 
-### コード例7: 安全なDELETEパターン
+### Code Example 7: Safe DELETE Patterns
 
 ```sql
--- === 基本的なDELETE ===
+-- === Basic DELETE ===
 DELETE FROM sessions
 WHERE expires_at < CURRENT_TIMESTAMP;
 
--- === JOINを使ったDELETE（PostgreSQL: USING句） ===
+-- === DELETE with JOIN (PostgreSQL: USING clause) ===
 DELETE FROM order_items oi
 USING orders o
 WHERE oi.order_id = o.id
   AND o.status = 'cancelled';
 
--- === RETURNING句で削除した行を取得 ===
+-- === RETURNING clause to retrieve deleted rows ===
 DELETE FROM notifications
 WHERE user_id = 42 AND read_at IS NOT NULL
 RETURNING id, message, created_at;
 
--- === 論理削除（ソフトデリート）の実装パターン ===
--- 基本パターン
+-- === Soft delete implementation pattern ===
+-- Basic pattern
 UPDATE users
 SET deleted_at = CURRENT_TIMESTAMP,
     status = 'deleted',
-    -- 個人情報の匿名化（GDPR対応）
+    -- Anonymize personal information (GDPR compliance)
     email = 'deleted_' || id || '@deleted.example.com',
-    name = '削除済みユーザー'
+    name = 'Deleted User'
 WHERE id = 42;
 
--- 論理削除対応のビュー
+-- View for soft delete support
 CREATE VIEW active_users AS
 SELECT * FROM users WHERE deleted_at IS NULL;
 
--- 論理削除 + UNIQUE制約の問題と解決
--- 問題: deleted_atがNULLの行同士でのみUNIQUEを保証したい
--- PostgreSQL: 部分インデックスで解決
+-- Soft delete + UNIQUE constraint issue and solution
+-- Problem: We want UNIQUE to apply only among rows where deleted_at IS NULL
+-- PostgreSQL: Solve with a partial index
 CREATE UNIQUE INDEX idx_users_email_active
 ON users (email)
 WHERE deleted_at IS NULL;
 
--- === TRUNCATE: テーブル全行の高速削除（DDL操作） ===
+-- === TRUNCATE: Fast deletion of all rows in a table (DDL operation) ===
 TRUNCATE TABLE temp_import_data;
--- ※ WHERE句使用不可
--- ※ TRUNCATEはロールバック不可（MySQL）、PostgreSQLでは可能
--- ※ トリガーが発火しない
--- ※ 自動連番がリセットされる
+-- * WHERE clause cannot be used
+-- * TRUNCATE cannot be rolled back (MySQL), but can be in PostgreSQL
+-- * Triggers do not fire
+-- * Auto-increment sequences are reset
 
--- === CASCADE付きTRUNCATE ===
--- 外部キーで参照されているテーブルも同時にTRUNCATE
-TRUNCATE TABLE orders CASCADE;  -- order_itemsも同時にTRUNCATE
+-- === TRUNCATE with CASCADE ===
+-- Also TRUNCATE tables that reference this one via foreign keys
+TRUNCATE TABLE orders CASCADE;  -- Also TRUNCATEs order_items
 
--- === DELETEの安全な実行（トランザクション） ===
+-- === Safe DELETE execution (with transaction) ===
 BEGIN;
-    -- Step 1: 削除対象の確認
+    -- Step 1: Verify rows to delete
     SELECT COUNT(*) FROM logs WHERE created_at < '2023-01-01';
-    -- → 15,000行
+    -- → 15,000 rows
 
-    -- Step 2: 削除実行
+    -- Step 2: Execute delete
     DELETE FROM logs WHERE created_at < '2023-01-01';
     -- → DELETE 15000
 
-    -- Step 3: 確認して確定
+    -- Step 3: Verify and commit
     SELECT COUNT(*) FROM logs WHERE created_at < '2023-01-01';
-    -- → 0行（期待通り）
+    -- → 0 rows (as expected)
 COMMIT;
 
--- === 大量データの分割削除（ロック時間を短くする） ===
--- 一度に全件削除するとロック時間が長くなるため、バッチで実行
+-- === Batch deletion of large datasets (to minimize lock time) ===
+-- Deleting all rows at once can cause long lock times; process in batches instead
 DO $$
 DECLARE
     deleted_count INTEGER;
@@ -655,12 +655,12 @@ BEGIN
         WHERE id IN (
             SELECT id FROM logs
             WHERE created_at < '2023-01-01'
-            LIMIT 10000  -- 1回あたり10,000件ずつ
+            LIMIT 10000  -- Delete 10,000 rows per iteration
         );
         GET DIAGNOSTICS deleted_count = ROW_COUNT;
         EXIT WHEN deleted_count = 0;
 
-        -- 他のトランザクションに実行機会を与える
+        -- Give other transactions a chance to run
         PERFORM pg_sleep(0.1);
     END LOOP;
 END $$;
@@ -668,165 +668,165 @@ END $$;
 
 ---
 
-## 5. CRUD操作のデータフロー全体像
+## 5. Overall Data Flow of CRUD Operations
 
 ```
-┌─────────────────── CRUD操作のライフサイクル ──────────────────┐
+┌─────────────────── CRUD Operation Lifecycle ──────────────────┐
 │                                                               │
-│  アプリケーション層                                            │
+│  Application Layer                                            │
 │  ┌───────────────────────────────────────────┐               │
-│  │  ORM / クエリビルダー / 生SQL              │               │
-│  │  パラメータバインド（SQLインジェクション防止）│               │
+│  │  ORM / Query Builder / Raw SQL            │               │
+│  │  Parameter binding (SQL injection prevention)│            │
 │  └──────────────────┬────────────────────────┘               │
 │                     │                                         │
-│  データベース接続層   ▼                                        │
+│  Database Connection Layer   ▼                                │
 │  ┌───────────────────────────────────────────┐               │
-│  │  接続プーリング（PgBouncer等）             │               │
-│  │  プリペアドステートメント                   │               │
+│  │  Connection pooling (PgBouncer, etc.)     │               │
+│  │  Prepared statements                      │               │
 │  └──────────────────┬────────────────────────┘               │
 │                     │                                         │
-│  データベースエンジン ▼                                        │
+│  Database Engine    ▼                                         │
 │  ┌───────────────────────────────────────────┐               │
 │  │                                           │               │
-│  │  INSERT INTO → 制約チェック → 行追加      │               │
-│  │                → インデックス更新          │               │
+│  │  INSERT INTO → constraint check → add row │               │
+│  │                → update indexes           │               │
 │  │                                           │               │
-│  │  SELECT FROM → 実行計画生成 → データ取得   │               │
-│  │              → フィルタ → ソート → 返却    │               │
+│  │  SELECT FROM → generate plan → fetch data │               │
+│  │              → filter → sort → return     │               │
 │  │                                           │               │
-│  │  UPDATE SET  → 行ロック → 旧バージョン保持 │               │
-│  │             → 新値書き込み → ロック解放     │               │
+│  │  UPDATE SET  → row lock → save old version│               │
+│  │             → write new value → release   │               │
 │  │                                           │               │
-│  │  DELETE FROM → 行ロック → 論理/物理削除    │               │
-│  │             → 領域管理 → ロック解放        │               │
+│  │  DELETE FROM → row lock → logical/physical│               │
+│  │             → space management → release  │               │
 │  │                                           │               │
 │  └───────────────────────────────────────────┘               │
 │                                                               │
-│  WAL（Write-Ahead Log） → ディスクへの永続化                  │
+│  WAL (Write-Ahead Log) → Persisted to disk                   │
 └───────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 比較表
+## Comparison Tables
 
-### DELETE vs TRUNCATE vs DROP 比較表
+### DELETE vs TRUNCATE vs DROP
 
-| 特徴 | DELETE | TRUNCATE | DROP |
-|------|--------|----------|------|
-| 操作種別 | DML | DDL | DDL |
-| WHERE句 | 使用可能 | 使用不可 | 使用不可 |
-| ロールバック | 可能 | DB依存（PG可、MySQL不可） | DB依存 |
-| 速度 | 遅い（行単位ログ） | 高速（ページ単位） | 高速 |
-| トリガー発火 | する | しない | しない |
-| 自動連番リセット | しない | する | N/A |
-| 領域解放 | しない（VACUUM必要） | する | する |
-| テーブル構造 | 残る | 残る | 消える |
-| 権限 | DML権限 | DDL権限 | DDL権限 |
-| 外部キー制約 | 制約チェックあり | CASCADEが必要な場合あり | CASCADE指定可 |
+| Feature | DELETE | TRUNCATE | DROP |
+|---------|--------|----------|------|
+| Operation type | DML | DDL | DDL |
+| WHERE clause | Supported | Not supported | Not supported |
+| Rollback | Possible | DB-dependent (PG: yes, MySQL: no) | DB-dependent |
+| Speed | Slow (row-level logging) | Fast (page-level) | Fast |
+| Trigger fires | Yes | No | No |
+| Auto-increment reset | No | Yes | N/A |
+| Storage freed | No (VACUUM required) | Yes | Yes |
+| Table structure | Remains | Remains | Removed |
+| Required privileges | DML | DDL | DDL |
+| Foreign key constraints | Constraint checked | May require CASCADE | Can specify CASCADE |
 
-### INSERT方式の比較表
+### INSERT Method Comparison
 
-| 方式 | 用途 | 速度 | 安全性 | RDBMS |
-|------|------|------|--------|-------|
-| 単一行INSERT | 個別レコード追加 | 低 | 高 | 全DB |
-| 複数行INSERT | バッチ挿入（〜1000行） | 中 | 高 | 全DB |
-| INSERT...SELECT | データ移行/複製 | 高 | 中 | 全DB |
-| COPY / LOAD DATA | 大量データ投入（万〜億行） | 最速 | 低 | PG / MySQL |
-| UPSERT | 冪等な挿入/更新 | 中 | 高 | 全DB（構文異なる） |
-| INSERT...RETURNING | IDの即時取得 | 中 | 高 | PostgreSQL |
-| バルクINSERT (ORM) | アプリ層での最適化 | 中〜高 | 高 | 全DB |
+| Method | Use Case | Speed | Safety | RDBMS |
+|--------|----------|-------|--------|-------|
+| Single-row INSERT | Individual record insertion | Low | High | All |
+| Multi-row INSERT | Batch insert (~1000 rows) | Medium | High | All |
+| INSERT...SELECT | Data migration/copy | High | Medium | All |
+| COPY / LOAD DATA | Bulk data import (millions~billions) | Fastest | Low | PG / MySQL |
+| UPSERT | Idempotent insert/update | Medium | High | All (syntax varies) |
+| INSERT...RETURNING | Immediate ID retrieval | Medium | High | PostgreSQL |
+| Bulk INSERT (ORM) | Application-layer optimization | Medium~High | High | All |
 
-### UPDATE/DELETE方式の比較表
+### UPDATE/DELETE Method Comparison
 
-| 方式 | 用途 | ロック影響 | 推奨場面 |
-|------|------|----------|---------|
-| 単純WHERE | 少量行の更新/削除 | 小 | 日常操作 |
-| JOIN/FROM付き | 関連テーブルに基づく更新 | 中 | データ連携 |
-| サブクエリ付き | 複雑な条件の更新 | 中〜大 | 条件が複合的 |
-| CTE付き | 計算結果に基づく更新 | 中 | 集約値での更新 |
-| バッチ分割 | 大量行の更新/削除 | 小（分割） | 本番大量更新 |
-| RETURNING付き | 更新結果の即時確認 | 小 | 監査・ログ |
+| Method | Use Case | Lock Impact | Recommended For |
+|--------|----------|-------------|-----------------|
+| Simple WHERE | Update/delete small number of rows | Low | Routine operations |
+| With JOIN/FROM | Update based on related table | Medium | Data integration |
+| With subquery | Update with complex conditions | Medium~High | Multi-condition updates |
+| With CTE | Update based on computed results | Medium | Updates using aggregates |
+| Batch split | Update/delete large datasets | Low (split) | Large production updates |
+| With RETURNING | Immediate confirmation of result | Low | Auditing, logging |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: WHERE句なしのUPDATE/DELETE
+### Anti-Pattern 1: UPDATE/DELETE Without a WHERE Clause
 
 ```sql
--- NG: 全行が更新されてしまう！
+-- NG: All rows will be updated!
 UPDATE employees SET salary = 0;
--- → 全社員の給与が0になる
+-- → Every employee's salary becomes 0
 
--- NG: 全行が削除されてしまう！
+-- NG: All rows will be deleted!
 DELETE FROM employees;
--- → 全社員のデータが消える
+-- → All employee data is gone
 
--- OK: 必ずWHERE句で対象を限定
+-- OK: Always specify target rows with a WHERE clause
 UPDATE employees SET salary = 500000 WHERE employee_id = 42;
 
--- 安全策1: 先にSELECTで確認
+-- Safety measure 1: Verify with SELECT first
 SELECT COUNT(*), MIN(salary), MAX(salary) FROM employees
 WHERE department_id = 99;
--- → 5行、320000〜480000（妥当か確認）
+-- → 5 rows, 320000~480000 (verify it looks reasonable)
 
 DELETE FROM employees WHERE department_id = 99;
 
--- 安全策2: トランザクションで囲む
+-- Safety measure 2: Wrap in a transaction
 BEGIN;
     DELETE FROM employees WHERE department_id = 99;
-    -- DELETE 5 ← 件数が期待通りか確認
-    -- 問題なければ → COMMIT;
-    -- 問題あれば → ROLLBACK;
+    -- DELETE 5 ← Verify the row count is as expected
+    -- If OK → COMMIT;
+    -- If not → ROLLBACK;
 COMMIT;
 
--- 安全策3: 本番DBではsafe_updateモード有効化（MySQL）
+-- Safety measure 3: Enable safe_update mode in production DBs (MySQL)
 -- SET sql_safe_updates = 1;
--- → WHERE句のないUPDATE/DELETEがエラーになる
+-- → UPDATE/DELETE without a WHERE clause will result in an error
 ```
 
-**WHY**: WHERE句のないUPDATEやDELETEは、データベースの全行に影響する。本番環境での「うっかり全件削除」は、企業にとって致命的な損失になりうる。この問題は「プログラマーの注意力」ではなく「仕組み」で防ぐべきである。
+**WHY**: UPDATE and DELETE without a WHERE clause affect every row in the database. An accidental "delete all" in a production environment can be a fatal loss for a company. This problem should be prevented through *systems and processes*, not developer vigilance.
 
-### アンチパターン2: SELECT * の濫用
+### Anti-Pattern 2: Overuse of SELECT *
 
 ```sql
--- NG: 不要な列まで全て取得
+-- NG: Retrieve all columns, including unnecessary ones
 SELECT * FROM orders;
 
--- 問題点:
--- 1. ネットワーク帯域の浪費（BLOB/TEXT列がある場合は特に深刻）
---    例: 100万行 × 不要なBLOB列 = 数GBのネットワーク転送
--- 2. テーブル構造変更時にアプリケーションが壊れる
---    例: 列の追加/削除/順序変更でORMのマッピングが崩れる
--- 3. インデックスオンリースキャン（カバリングインデックス）が効かない
---    例: CREATE INDEX ON orders(status, customer_id)があっても
---         SELECT * では全行ヒープアクセスが必要
--- 4. 実行計画が非効率になる
---    不要な列のデシリアライズ、メモリ消費、ソートコスト増大
+-- Problems:
+-- 1. Wastes network bandwidth (especially severe with BLOB/TEXT columns)
+--    Example: 1 million rows × unnecessary BLOB column = GB-scale network transfer
+-- 2. Application breaks when table structure changes
+--    Example: ORM mappings break when columns are added/removed/reordered
+-- 3. Index-only scans (covering indexes) do not apply
+--    Example: Even with CREATE INDEX ON orders(status, customer_id),
+--             SELECT * requires full heap access for every row
+-- 4. Execution plan becomes inefficient
+--    Unnecessary column deserialization, memory consumption, increased sort cost
 
--- OK: 必要な列だけ明示的に指定
+-- OK: Explicitly specify only the needed columns
 SELECT order_id, customer_id, total_amount, status
 FROM orders
 WHERE status = 'pending';
 
--- 例外: 対話的な探索やデバッグ時にはSELECT *は許容される
--- ただしLIMITを付ける
+-- Exception: SELECT * is acceptable during interactive exploration or debugging
+-- However, always add LIMIT
 SELECT * FROM orders LIMIT 10;
 ```
 
-**WHY**: SELECT *は「必要十分なデータだけを取得する」というデータベース操作の基本原則に反する。特に大規模テーブルでは、不要な列の転送コストが積算されてパフォーマンスに深刻な影響を与える。
+**WHY**: SELECT * violates the fundamental principle of database operations: "retrieve only the necessary and sufficient data." Especially in large tables, the accumulated transfer cost of unnecessary columns can have a serious performance impact.
 
-### アンチパターン3: 文字列連結でSQLを組み立てる
+### Anti-Pattern 3: Building SQL by String Concatenation
 
 ```sql
--- NG: SQLインジェクションの脆弱性
--- Python疑似コード
+-- NG: SQL injection vulnerability
+-- Python pseudocode
 -- query = f"SELECT * FROM users WHERE name = '{user_input}'"
 -- user_input = "'; DROP TABLE users; --"
 -- → SELECT * FROM users WHERE name = ''; DROP TABLE users; --'
 
--- OK: パラメータバインド（プリペアドステートメント）
+-- OK: Parameter binding (prepared statements)
 -- Python (psycopg2)
 -- cursor.execute("SELECT * FROM users WHERE name = %s", (user_input,))
 -- Java (JDBC)
@@ -835,7 +835,7 @@ SELECT * FROM orders LIMIT 10;
 -- Node.js (pg)
 -- client.query('SELECT * FROM users WHERE name = $1', [userInput])
 
--- PostgreSQLでのプリペアドステートメント
+-- Prepared statement in PostgreSQL
 PREPARE get_user (TEXT) AS
 SELECT * FROM users WHERE name = $1;
 
@@ -844,15 +844,15 @@ EXECUTE get_user('田中太郎');
 DEALLOCATE get_user;
 ```
 
-**WHY**: SQLインジェクションは最も古くから知られ、最も被害の大きいWebアプリケーションの脆弱性の一つ。パラメータバインドを使えば、ユーザー入力がSQL構文として解釈されることを防止できる。
+**WHY**: SQL injection is one of the oldest-known and most damaging web application vulnerabilities. Using parameter binding prevents user input from being interpreted as SQL syntax.
 
 ---
 
-## 実践演習
+## Hands-on Exercises
 
-### 演習1（基礎）: 従業員データの基本CRUD
+### Exercise 1 (Basic): Basic CRUD on Employee Data
 
-以下のテーブル定義に対して、指定されたCRUD操作をSQLで記述せよ。
+Write SQL for the specified CRUD operations against the table definitions below.
 
 ```sql
 CREATE TABLE departments (
@@ -871,20 +871,20 @@ CREATE TABLE employees (
 );
 ```
 
-1. departments テーブルに「営業」「開発」「人事」を挿入せよ
-2. employees テーブルに5名の社員を挿入せよ（複数行INSERT使用）
-3. 開発部門の社員のみを給与の高い順に取得せよ
-4. 営業部門の全社員の給与を5%昇給させよ
-5. 「退職」status の社員を論理削除（status='deleted', deleted_atを設定）せよ
+1. Insert "Sales", "Engineering", and "HR" into the departments table
+2. Insert 5 employees into the employees table (use multi-row INSERT)
+3. Retrieve only the employees in the Engineering department, ordered by salary descending
+4. Give all employees in the Sales department a 5% salary raise
+5. Soft-delete employees with status 'retired' (set status='deleted' and deleted_at)
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```sql
--- 1. departments テーブルへの挿入
+-- 1. Insert into departments table
 INSERT INTO departments (name) VALUES ('営業'), ('開発'), ('人事');
 
--- 2. employees テーブルへの5名挿入
+-- 2. Insert 5 employees
 INSERT INTO employees (name, email, department_id, salary, status, hired_date) VALUES
     ('田中太郎', 'tanaka@example.com', 1, 450000, 'active', '2020-04-01'),
     ('鈴木花子', 'suzuki@example.com', 2, 520000, 'active', '2019-07-15'),
@@ -892,25 +892,25 @@ INSERT INTO employees (name, email, department_id, salary, status, hired_date) V
     ('高橋三郎', 'takahashi@example.com', 2, 600000, 'active', '2018-04-01'),
     ('山田四郎', 'yamada@example.com', 3, 420000, 'active', '2022-04-01');
 
--- 3. 開発部門の社員を給与順で取得
+-- 3. Retrieve Engineering department employees ordered by salary
 SELECT e.id, e.name, e.salary
 FROM employees e
     INNER JOIN departments d ON e.department_id = d.id
 WHERE d.name = '開発'
 ORDER BY e.salary DESC;
 
--- 4. 営業部門の全社員を5%昇給
+-- 4. Give Sales department employees a 5% raise
 UPDATE employees
 SET salary = salary * 1.05
 WHERE department_id = (SELECT id FROM departments WHERE name = '営業');
--- または
+-- Or alternatively
 UPDATE employees e
 SET salary = salary * 1.05
 FROM departments d
 WHERE e.department_id = d.id AND d.name = '営業';
 
--- 5. 退職者の論理削除
--- まずdeleted_at列を追加（既存テーブルの変更）
+-- 5. Soft-delete retired employees
+-- First add the deleted_at column (modify existing table)
 ALTER TABLE employees ADD COLUMN deleted_at TIMESTAMP;
 
 UPDATE employees
@@ -921,16 +921,16 @@ WHERE status = 'retired';
 
 </details>
 
-### 演習2（応用）: 安全な大量データ操作
+### Exercise 2 (Intermediate): Safe Bulk Data Operations
 
-以下のシナリオでSQLを記述せよ。全ての操作はトランザクション内で安全に実行すること。
+Write SQL for the following scenarios. All operations must be executed safely within a transaction.
 
-1. `products`テーブルで、在庫数が0の商品の価格を10%値下げし、結果をRETURNINGで確認せよ
-2. `orders`テーブルで、2023年より前に作成され、statusが'completed'の注文をアーカイブテーブルに移動（INSERT...SELECT → DELETE）せよ
-3. `user_sessions`テーブルで、24時間以上前に期限切れのセッションを削除する「バッチ削除」を記述せよ（1回の削除は5000件以内）
+1. In the `products` table, reduce the price of products with zero stock by 10%, and confirm the result with RETURNING
+2. In the `orders` table, move orders created before 2023 with status 'completed' to an archive table (INSERT...SELECT → DELETE)
+3. Write a "batch delete" for the `user_sessions` table to delete sessions that expired more than 24 hours ago (limit each delete to 5000 rows)
 
 ```sql
--- テーブル定義
+-- Table definitions
 CREATE TABLE products (
     id    SERIAL PRIMARY KEY,
     name  VARCHAR(100) NOT NULL,
@@ -957,24 +957,24 @@ CREATE TABLE user_sessions (
 ```
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```sql
--- 1. 在庫切れ商品の10%値下げ（RETURNING付き）
+-- 1. 10% price reduction for out-of-stock products (with RETURNING)
 BEGIN;
-    -- 対象確認
+    -- Verify targets
     SELECT id, name, price, stock FROM products WHERE stock = 0;
 
-    -- 値下げ実行
+    -- Execute price reduction
     UPDATE products
     SET price = ROUND(price * 0.9, 2)
     WHERE stock = 0
     RETURNING id, name, price AS new_price;
 COMMIT;
 
--- 2. 古い完了注文のアーカイブ移動
+-- 2. Archive old completed orders
 BEGIN;
-    -- Step 1: アーカイブテーブルへコピー
+    -- Step 1: Copy to archive table
     INSERT INTO orders_archive (id, customer_id, total, status, created_at)
     SELECT id, customer_id, total, status, created_at
     FROM orders
@@ -982,18 +982,18 @@ BEGIN;
       AND status = 'completed';
     -- → INSERT 0 12345
 
-    -- Step 2: コピー完了を確認してから元テーブルから削除
+    -- Step 2: Delete from original table only after confirming copy is done
     DELETE FROM orders
     WHERE created_at < '2023-01-01'
       AND status = 'completed';
-    -- → DELETE 12345（件数がINSERTと一致することを確認）
+    -- → DELETE 12345 (verify row count matches INSERT)
 
-    -- Step 3: 確認
+    -- Step 3: Verify
     SELECT COUNT(*) FROM orders_archive WHERE created_at < '2023-01-01';
     -- → 12345
 COMMIT;
 
--- 3. 期限切れセッションのバッチ削除
+-- 3. Batch deletion of expired sessions
 DO $$
 DECLARE
     batch_size CONSTANT INTEGER := 5000;
@@ -1006,17 +1006,17 @@ BEGIN
             SELECT id FROM user_sessions
             WHERE expires_at < CURRENT_TIMESTAMP - INTERVAL '24 hours'
             LIMIT batch_size
-            FOR UPDATE SKIP LOCKED  -- ロック競合を回避
+            FOR UPDATE SKIP LOCKED  -- Avoid lock contention
         );
         GET DIAGNOSTICS deleted_count = ROW_COUNT;
         total_deleted := total_deleted + deleted_count;
 
-        -- 進捗ログ（RAISE NOTICEはPostgreSQL固有）
+        -- Progress log (RAISE NOTICE is PostgreSQL-specific)
         RAISE NOTICE 'Deleted % sessions (total: %)', deleted_count, total_deleted;
 
-        EXIT WHEN deleted_count < batch_size;  -- 残りがバッチサイズ未満なら終了
+        EXIT WHEN deleted_count < batch_size;  -- Exit when remaining rows are less than batch size
 
-        -- 他のトランザクションに実行機会を与える
+        -- Give other transactions a chance to run
         PERFORM pg_sleep(0.1);
     END LOOP;
 
@@ -1024,23 +1024,23 @@ BEGIN
 END $$;
 ```
 
-**ポイント:**
-- `FOR UPDATE SKIP LOCKED`で他トランザクションがロック中の行をスキップ（デッドロック防止）
-- バッチサイズを制限することでロック時間を短縮
-- `PERFORM pg_sleep(0.1)`で他トランザクションに実行機会を与える
+**Key Points:**
+- `FOR UPDATE SKIP LOCKED` skips rows already locked by other transactions (prevents deadlocks)
+- Limiting batch size reduces lock duration
+- `PERFORM pg_sleep(0.1)` gives other transactions a chance to execute
 
 </details>
 
-### 演習3（発展）: UPSERTとRETURNINGの組み合わせ
+### Exercise 3 (Advanced): Combining UPSERT and RETURNING
 
-ECサイトのカート機能を実装せよ。以下の要件を満たすSQLを記述すること。
+Implement a shopping cart feature for an e-commerce site. Write SQL that satisfies the following requirements.
 
-要件:
-1. カートに商品を追加する際、既に同じ商品があれば数量を加算する（UPSERT）
-2. カートの内容を商品名・価格付きで取得する
-3. カートの合計金額を計算する
-4. カートから特定商品を削除し、削除した内容をRETURNINGで返す
-5. カートの有効期限チェック（30日以上前のカートを自動削除）
+Requirements:
+1. When adding a product to the cart, if the same product already exists, add to its quantity (UPSERT)
+2. Retrieve the cart contents with product name and price
+3. Calculate the total amount of the cart
+4. Remove a specific product from the cart and return the removed item using RETURNING
+5. Check for expired carts (auto-delete carts not updated in over 30 days)
 
 ```sql
 CREATE TABLE cart_items (
@@ -1055,10 +1055,10 @@ CREATE TABLE cart_items (
 ```
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```sql
--- 1. カートに商品を追加（UPSERT: 既存なら数量加算）
+-- 1. Add product to cart (UPSERT: add to quantity if already exists)
 INSERT INTO cart_items (user_id, product_id, quantity)
 VALUES (42, 101, 2)
 ON CONFLICT (user_id, product_id)
@@ -1066,9 +1066,9 @@ DO UPDATE SET
     quantity = cart_items.quantity + EXCLUDED.quantity,
     updated_at = CURRENT_TIMESTAMP
 RETURNING id, product_id, quantity AS total_quantity;
--- → 既にquantity=3だった場合: total_quantity=5
+-- → If quantity was already 3: total_quantity=5
 
--- 2. カートの内容を商品情報付きで取得
+-- 2. Retrieve cart contents with product information
 SELECT
     ci.id AS cart_item_id,
     p.name AS product_name,
@@ -1081,7 +1081,7 @@ FROM cart_items ci
 WHERE ci.user_id = 42
 ORDER BY ci.added_at;
 
--- 3. カートの合計金額
+-- 3. Total cart amount
 SELECT
     ci.user_id,
     COUNT(*) AS item_count,
@@ -1092,13 +1092,13 @@ FROM cart_items ci
 WHERE ci.user_id = 42
 GROUP BY ci.user_id;
 
--- 4. カートから特定商品を削除（RETURNING付き）
+-- 4. Remove a specific product from the cart (with RETURNING)
 DELETE FROM cart_items
 WHERE user_id = 42 AND product_id = 101
 RETURNING id, product_id, quantity;
 -- → id=7, product_id=101, quantity=5
 
--- 5. 期限切れカートの自動削除
+-- 5. Auto-delete expired carts
 WITH expired_carts AS (
     DELETE FROM cart_items
     WHERE updated_at < CURRENT_TIMESTAMP - INTERVAL '30 days'
@@ -1113,7 +1113,7 @@ GROUP BY user_id;
 -- → user_id=15, items_removed=3, total_quantity_removed=8
 -- → user_id=23, items_removed=1, total_quantity_removed=2
 
--- ボーナス: カート内容の一括更新（数量変更）
+-- Bonus: Bulk update of cart contents (quantity changes)
 UPDATE cart_items
 SET quantity = new_data.quantity,
     updated_at = CURRENT_TIMESTAMP
@@ -1127,43 +1127,43 @@ WHERE cart_items.user_id = new_data.user_id
 RETURNING cart_items.product_id, cart_items.quantity;
 ```
 
-**設計のポイント:**
-- UPSERTにより「カートに追加」が冪等操作になる（同じリクエストを何度実行しても安全）
-- RETURNING句により追加のSELECTクエリが不要（ラウンドトリップ削減）
-- CTEとDELETE...RETURNINGの組み合わせで削除と集計を1クエリで実行
+**Design Points:**
+- UPSERT makes "add to cart" an idempotent operation (safe to execute the same request multiple times)
+- RETURNING eliminates the need for an additional SELECT query (reduces round trips)
+- Combining CTE with DELETE...RETURNING executes deletion and aggregation in a single query
 
 </details>
 
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Misconfigured settings file | Verify the settings file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout value, add retry logic |
+| Out of memory | Increased data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Verify executing user's permissions, review configuration |
+| Data inconsistency | Race condition in concurrent processing | Introduce locking mechanism, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace and identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Stepwise verification**: Use log output or a debugger to verify hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1171,7 +1171,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input and output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
         logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
@@ -1187,86 +1187,86 @@ def debug_decorator(func):
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
         raise ValueError("空のデータ")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O wait**: Review disk and network I/O status
+4. **Check concurrent connections**: Review connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem Type | Diagnostic Tool | Solution |
+|--------------|----------------|----------|
+| High CPU load | cProfile, py-spy | Algorithm improvements, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Asynchronous I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes judgment criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to prioritize | When to compromise |
+|-----------|--------------------|--------------------|
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① Team size?                                   │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to ②              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② Deployment frequency?                        │
+│    ├─ Weekly or less → Monolith + modular split  │
+│    └─ Daily / multiple times → Go to ③          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ Team independence?                           │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Costs**
+- A fast short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can cause project delays
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows the right tool for the job but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- Higher abstraction offers better reusability but can make debugging harder
+- Lower abstraction is more intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Create an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1276,17 +1276,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision made"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1294,7 +1294,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1302,7 +1302,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
         md += f"## 背景\n{self.context}\n\n"
         md += f"## 決定\n{self.decision}\n\n"
@@ -1319,9 +1319,9 @@ class ArchitectureDecisionRecord:
 
 ## FAQ
 
-### Q1: UPDATE文で「変更前の値」を参照できるか？
+### Q1: Can I reference the "old value" in an UPDATE statement?
 
-PostgreSQLではRETURNING句で更新後の値を取得できるが、更新前の値は直接取得できない。更新前の値が必要な場合はCTEを使う:
+In PostgreSQL, the RETURNING clause retrieves the value *after* the update, but the value before the update cannot be retrieved directly. If you need the old value, use a CTE:
 
 ```sql
 WITH old AS (
@@ -1334,7 +1334,7 @@ RETURNING id,
 -- → id=42, old_salary=450000, new_salary=495000
 ```
 
-別の方法として、監査トリガーを設定する:
+Another approach is to set up an audit trigger:
 
 ```sql
 CREATE TABLE salary_audit (
@@ -1362,104 +1362,104 @@ CREATE TRIGGER trg_salary_audit
     EXECUTE FUNCTION log_salary_change();
 ```
 
-### Q2: 大量データのINSERTを高速化するには？
+### Q2: How can I speed up large-volume INSERTs?
 
-速度目安と推奨方法:
+Speed estimates and recommended methods:
 
-| 方法 | 速度目安（100万行） | 推奨場面 |
-|------|-------------------|---------|
-| 個別INSERT | 数十分 | 使用しない |
-| 複数行INSERT（1000行/バッチ） | 数分 | 小〜中規模 |
-| COPY文（PostgreSQL） | 数十秒 | 大規模データ投入 |
-| LOAD DATA（MySQL） | 数十秒 | 大規模データ投入 |
-| インデックス無効化 + COPY + 再作成 | 数秒〜十数秒 | 初期データ投入 |
+| Method | Speed estimate (1M rows) | Recommended For |
+|--------|--------------------------|-----------------|
+| Individual INSERT | Tens of minutes | Do not use |
+| Multi-row INSERT (1000 rows/batch) | Several minutes | Small~medium scale |
+| COPY (PostgreSQL) | Tens of seconds | Large-scale data import |
+| LOAD DATA (MySQL) | Tens of seconds | Large-scale data import |
+| Disable indexes + COPY + rebuild | Seconds~tens of seconds | Initial data load |
 
 ```sql
--- PostgreSQL: COPY文（最速）
+-- PostgreSQL: COPY (fastest)
 COPY employees (name, department_id, salary, hired_date)
 FROM '/path/to/data.csv'
 WITH (FORMAT CSV, HEADER TRUE, DELIMITER ',');
 
--- さらに高速化する場合
+-- For even faster performance
 BEGIN;
-    -- 1. インデックスを一時的に無効化
+    -- 1. Temporarily disable indexes
     ALTER TABLE employees DISABLE TRIGGER ALL;
     DROP INDEX IF EXISTS idx_employees_dept;
 
-    -- 2. COPY実行
+    -- 2. Execute COPY
     COPY employees FROM '/path/to/data.csv' WITH (FORMAT CSV, HEADER);
 
-    -- 3. インデックスを再作成
+    -- 3. Rebuild indexes
     CREATE INDEX idx_employees_dept ON employees(department_id);
     ALTER TABLE employees ENABLE TRIGGER ALL;
 
-    -- 4. 統計情報の更新
+    -- 4. Update statistics
     ANALYZE employees;
 COMMIT;
 ```
 
-### Q3: 論理削除と物理削除のどちらを使うべきか？
+### Q3: Should I use soft delete or hard delete?
 
-判断基準:
+Decision criteria:
 
-| 条件 | 推奨 |
-|------|------|
-| 法規制で保存義務がある | 論理削除 |
-| ユーザーに「元に戻す」機能を提供 | 論理削除 |
-| 監査証跡が必要 | 論理削除 |
-| データ量が多くストレージ制約がある | 物理削除 + アーカイブ |
-| GDPR等で「忘れられる権利」に対応 | 物理削除（匿名化後） |
-| テーブル設計をシンプルに保ちたい | 物理削除 |
+| Condition | Recommendation |
+|-----------|----------------|
+| Legal requirement to retain records | Soft delete |
+| Providing "undo" functionality to users | Soft delete |
+| Audit trail required | Soft delete |
+| Large data volume with storage constraints | Hard delete + archive |
+| GDPR "right to be forgotten" compliance | Hard delete (after anonymization) |
+| Want to keep table design simple | Hard delete |
 
-実務では**論理削除 + 定期的なアーカイブ/パージ**が最もバランスの良い選択である。論理削除したデータは一定期間後にアーカイブテーブルに移動し、さらに一定期間後に物理削除する。
+In practice, **soft delete + periodic archive/purge** is the most balanced choice. Soft-deleted data is moved to an archive table after a certain period, and then physically deleted after another period.
 
-### Q4: RETURNING句はどのRDBMSで使えるか？
+### Q4: Which RDBMSs support the RETURNING clause?
 
-| RDBMS | RETURNING対応 | 代替手段 |
-|-------|-------------|---------|
-| PostgreSQL | INSERT/UPDATE/DELETE全対応 | - |
-| SQLite | INSERT/UPDATE/DELETE全対応 (3.35.0+) | - |
-| MySQL | なし | `LAST_INSERT_ID()` / `SELECT` |
-| SQL Server | `OUTPUT`句（同等機能） | `SCOPE_IDENTITY()` |
-| Oracle | `RETURNING INTO`（PL/SQL内で使用） | シーケンス.CURRVAL |
+| RDBMS | RETURNING Support | Alternative |
+|-------|-------------------|-------------|
+| PostgreSQL | Full support for INSERT/UPDATE/DELETE | - |
+| SQLite | Full support for INSERT/UPDATE/DELETE (3.35.0+) | - |
+| MySQL | Not supported | `LAST_INSERT_ID()` / `SELECT` |
+| SQL Server | `OUTPUT` clause (equivalent feature) | `SCOPE_IDENTITY()` |
+| Oracle | `RETURNING INTO` (within PL/SQL) | sequence.CURRVAL |
 
-### Q5: 1つのINSERT文で挿入できる最大行数は？
+### Q5: What is the maximum number of rows insertable in a single INSERT statement?
 
-| RDBMS | 最大行数 | 推奨バッチサイズ |
-|-------|---------|----------------|
-| PostgreSQL | 制限なし（メモリ依存） | 1,000〜10,000行 |
-| MySQL | 制限なし（max_allowed_packet依存） | 1,000行程度 |
-| SQLite | 500行（コンパイル時設定） | 500行 |
-| SQL Server | 1,000行（リテラル値の場合） | 1,000行 |
-
----
-
-## まとめ
-
-| 操作 | SQL文 | 要注意点 |
-|------|-------|----------|
-| CREATE | `INSERT INTO ... VALUES` | 制約違反、重複キー、バッチサイズ |
-| READ | `SELECT ... FROM ... WHERE` | 実行順序理解、SELECT *回避、インデックス活用 |
-| UPDATE | `UPDATE ... SET ... WHERE` | WHERE句忘れ防止、トランザクション使用 |
-| DELETE | `DELETE FROM ... WHERE` | WHERE句忘れ防止、論理/物理削除の選択 |
-| UPSERT | `ON CONFLICT DO UPDATE` | 方言差が大きい、冪等性の設計 |
-| RETURNING | `INSERT/UPDATE/DELETE ... RETURNING` | PostgreSQL/SQLiteで使用可能 |
-| 安全策 | `BEGIN` → 確認 → `COMMIT/ROLLBACK` | 本番操作は必ずトランザクション |
-| パラメータバインド | `$1` / `?` / `%s` | SQLインジェクション防止の必須手段 |
+| RDBMS | Max rows | Recommended batch size |
+|-------|----------|------------------------|
+| PostgreSQL | No limit (memory-dependent) | 1,000~10,000 rows |
+| MySQL | No limit (max_allowed_packet-dependent) | ~1,000 rows |
+| SQLite | 500 rows (compile-time setting) | 500 rows |
+| SQL Server | 1,000 rows (for literal values) | 1,000 rows |
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [02-joins.md](./02-joins.md) — 複数テーブルを結合するJOINの全種類
-- [03-aggregation.md](./03-aggregation.md) — GROUP BYと集約関数によるデータ分析
-- [04-subqueries.md](./04-subqueries.md) — サブクエリの活用パターン
-- [../01-advanced/02-transactions.md](../01-advanced/02-transactions.md) — トランザクション管理の詳細
-- ../../security-fundamentals/docs/01-web-security/ — SQLインジェクション対策
+| Operation | SQL Statement | Key Cautions |
+|-----------|---------------|--------------|
+| CREATE | `INSERT INTO ... VALUES` | Constraint violations, duplicate keys, batch size |
+| READ | `SELECT ... FROM ... WHERE` | Understand execution order, avoid SELECT *, leverage indexes |
+| UPDATE | `UPDATE ... SET ... WHERE` | Prevent missing WHERE clause, use transactions |
+| DELETE | `DELETE FROM ... WHERE` | Prevent missing WHERE clause, choose soft/hard delete |
+| UPSERT | `ON CONFLICT DO UPDATE` | Dialect differences are large; design for idempotency |
+| RETURNING | `INSERT/UPDATE/DELETE ... RETURNING` | Available in PostgreSQL/SQLite |
+| Safety | `BEGIN` → verify → `COMMIT/ROLLBACK` | Always use transactions for production operations |
+| Parameter binding | `$1` / `?` / `%s` | Essential means of SQL injection prevention |
 
 ---
 
-## 参考文献
+## What to Read Next
+
+- [02-joins.md](./02-joins.md) — All types of JOINs for combining multiple tables
+- [03-aggregation.md](./03-aggregation.md) — Data analysis with GROUP BY and aggregate functions
+- [04-subqueries.md](./04-subqueries.md) — Practical patterns for subqueries
+- [../01-advanced/02-transactions.md](../01-advanced/02-transactions.md) — In-depth transaction management
+- ../../security-fundamentals/docs/01-web-security/ — SQL injection countermeasures
+
+---
+
+## References
 
 1. PostgreSQL Documentation — "Data Manipulation" https://www.postgresql.org/docs/current/dml.html
 2. PostgreSQL Documentation — "INSERT" https://www.postgresql.org/docs/current/sql-insert.html
