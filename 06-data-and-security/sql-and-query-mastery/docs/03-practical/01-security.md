@@ -1,230 +1,234 @@
-# DBセキュリティ — 認証・認可・暗号化・SQLインジェクション・監査
+# DB Security — Authentication, Authorization, Encryption, SQL Injection, and Auditing
 
-> データベースセキュリティは多層防御（Defense in Depth）の原則に基づき、ネットワーク、認証、認可、暗号化、入力検証、監査の各層で脅威を防ぐ包括的な取り組みである。SQLインジェクションは20年以上にわたりOWASP Top 10に入り続ける最も深刻な攻撃手法であり、パラメータ化クエリによる完全な防御が必須だ。本章ではPostgreSQLを中心に、データベースセキュリティの設計・実装・運用を内部実装レベルまで含めて徹底的に解説する。
-
----
-
-## この章で学ぶこと
-
-1. **多層防御の設計思想** — ネットワーク層からアプリケーション層まで、なぜ多層で守る必要があるのかを理解する
-2. **PostgreSQLの認証・認可モデル** — pg_hba.conf、ロール、権限、Row Level Security（RLS）の内部動作と実装を習得する
-3. **SQLインジェクションの完全防御** — 攻撃原理の理解から、パラメータ化クエリ、動的SQLのエスケープ、ORM利用時の注意点まで網羅する
-4. **データの暗号化** — 転送中（TLS）、保存時（列レベル暗号化、ディスク暗号化）の実装方法を理解する
-5. **監査ログの実装と運用** — トリガーベースの監査、pgAudit、変更履歴の追跡を実装できるようになる
+> Database security is a comprehensive effort to defend against threats at every layer — network, authentication, authorization, encryption, input validation, and auditing — based on the principle of Defense in Depth. SQL injection has remained in the OWASP Top 10 for over 20 years and is the most critical attack vector; complete defense through parameterized queries is mandatory. This chapter covers the design, implementation, and operation of database security centered on PostgreSQL, including internal implementation details.
 
 ---
 
-## 前提知識
+## What You Will Learn
 
-本章を理解するには以下の知識が必要です。
-
-- [SQLの基礎](../00-basics/00-sql-overview.md) — SELECT/INSERT/UPDATE/DELETEの基本操作
-- [トランザクション](../01-advanced/02-transactions.md) — ACID特性とトランザクション分離レベル
-- [PostgreSQL機能](./00-postgresql-features.md) — JSONB、トリガー、PL/pgSQLの基本
-- セキュリティ基礎 — 情報セキュリティの基本概念
-- 暗号化基礎 — ハッシュ、対称鍵暗号、公開鍵暗号の基礎
+1. **Defense-in-Depth Design Philosophy** — Understand why layered protection from the network layer to the application layer is necessary
+2. **PostgreSQL Authentication and Authorization Model** — Master pg_hba.conf, roles, privileges, and Row Level Security (RLS) internals and implementation
+3. **Complete SQL Injection Defense** — Cover everything from understanding attack principles to parameterized queries, escaping dynamic SQL, and ORM considerations
+4. **Data Encryption** — Understand how to implement encryption in transit (TLS) and at rest (column-level encryption, disk encryption)
+5. **Audit Log Implementation and Operations** — Learn to implement trigger-based auditing, pgAudit, and change history tracking
 
 ---
 
-## 1. 多層防御の設計思想
+## Prerequisites
 
-### 1.1 なぜ多層防御が必要なのか
+The following knowledge is required to understand this chapter.
 
-データベースセキュリティで最も重要な原則は「単一の防御層に依存しない」ことだ。ファイアウォールが突破されても認証がある、認証が突破されても認可で制限される、認可をすり抜けても暗号化でデータが保護される。どの層が破られても次の層で攻撃を阻止する。
+- [SQL Basics](../00-basics/00-sql-overview.md) — Basic SELECT/INSERT/UPDATE/DELETE operations
+- [Transactions](../01-advanced/02-transactions.md) — ACID properties and transaction isolation levels
+- [PostgreSQL Features](./00-postgresql-features.md) — Basics of JSONB, triggers, and PL/pgSQL
+- Security Fundamentals — Basic concepts of information security
+- Cryptography Basics — Fundamentals of hashing, symmetric encryption, and public key cryptography
+
+---
+
+## 1. Defense-in-Depth Design Philosophy
+
+### 1.1 Why Defense in Depth is Necessary
+
+The most important principle in database security is "do not rely on a single layer of defense." If the firewall is breached, authentication is still in place; if authentication is bypassed, authorization restricts access; if authorization is circumvented, encryption protects the data. Each layer blocks the attack even if the previous one is compromised.
 
 ```
-┌──────────── DBセキュリティの多層防御 ──────────────────┐
+┌──────────── DB Security Defense in Depth ──────────────────┐
 │                                                         │
-│  Layer 1: ネットワーク                                   │
+│  Layer 1: Network                                        │
 │  ┌─────────────────────────────────────────────────┐   │
-│  │ ファイアウォール / VPC / セキュリティグループ     │   │
-│  │ pg_hba.conf（接続元IP制限）                      │   │
-│  │ ポート変更（5432以外）/ VPN / SSH トンネル       │   │
+│  │ Firewall / VPC / Security Groups                │   │
+│  │ pg_hba.conf (source IP restrictions)            │   │
+│  │ Port change (non-5432) / VPN / SSH tunnel       │   │
 │  └─────────────────────────────────────────────────┘   │
-│  WHY: 不正な接続元を物理的にブロック                     │
+│  WHY: Physically block unauthorized connection sources  │
 │                                                         │
-│  Layer 2: 認証 (Authentication) — 「誰であるか」         │
+│  Layer 2: Authentication — "Who are you?"               │
 │  ┌─────────────────────────────────────────────────┐   │
-│  │ パスワード（SCRAM-SHA-256推奨、MD5非推奨）       │   │
-│  │ クライアント証明書（mTLS）                        │   │
-│  │ LDAP / Active Directory / Kerberos統合           │   │
-│  │ peer認証（ローカルUnixソケット）                  │   │
+│  │ Password (SCRAM-SHA-256 recommended, MD5 avoid)  │   │
+│  │ Client certificates (mTLS)                       │   │
+│  │ LDAP / Active Directory / Kerberos integration   │   │
+│  │ peer authentication (local Unix socket)          │   │
 │  └─────────────────────────────────────────────────┘   │
-│  WHY: 正当なユーザーのみが接続できることを保証           │
+│  WHY: Ensure only legitimate users can connect          │
 │                                                         │
-│  Layer 3: 認可 (Authorization) — 「何ができるか」        │
+│  Layer 3: Authorization — "What can you do?"            │
 │  ┌─────────────────────────────────────────────────┐   │
-│  │ GRANT/REVOKE（テーブル・カラム・スキーマ単位）    │   │
-│  │ Row Level Security（行単位のアクセス制御）        │   │
-│  │ 最小権限の原則（Principle of Least Privilege）    │   │
+│  │ GRANT/REVOKE (table, column, schema level)       │   │
+│  │ Row Level Security (row-level access control)    │   │
+│  │ Principle of Least Privilege                     │   │
 │  └─────────────────────────────────────────────────┘   │
-│  WHY: 認証済みユーザーでも必要最小限の操作のみ許可       │
+│  WHY: Grant only the minimum operations even to         │
+│       authenticated users                               │
 │                                                         │
-│  Layer 4: 入力検証                                       │
+│  Layer 4: Input Validation                              │
 │  ┌─────────────────────────────────────────────────┐   │
-│  │ パラメータ化クエリ（SQLインジェクション防御）     │   │
-│  │ 入力のバリデーション・サニタイズ                  │   │
-│  │ ストアドプロシージャによるAPI層の抽象化           │   │
+│  │ Parameterized queries (SQL injection defense)    │   │
+│  │ Input validation and sanitization                │   │
+│  │ Abstracting the API layer via stored procedures  │   │
 │  └─────────────────────────────────────────────────┘   │
-│  WHY: 悪意のある入力によるクエリ改ざんを完全阻止         │
+│  WHY: Completely prevent query tampering via            │
+│       malicious input                                   │
 │                                                         │
-│  Layer 5: 暗号化                                         │
+│  Layer 5: Encryption                                    │
 │  ┌─────────────────────────────────────────────────┐   │
-│  │ TLS通信（転送中暗号化）                          │   │
-│  │ 列レベル暗号化（pgcrypto: AES-256, bcrypt）      │   │
-│  │ ディスク暗号化（LUKS, AWS EBS Encryption）       │   │
-│  │ バックアップ暗号化                                │   │
+│  │ TLS communication (encryption in transit)        │   │
+│  │ Column-level encryption (pgcrypto: AES-256,      │   │
+│  │   bcrypt)                                        │   │
+│  │ Disk encryption (LUKS, AWS EBS Encryption)       │   │
+│  │ Backup encryption                                │   │
 │  └─────────────────────────────────────────────────┘   │
-│  WHY: データ漏洩時でも内容の読み取りを防止               │
+│  WHY: Prevent reading data even if it is leaked         │
 │                                                         │
-│  Layer 6: 監査                                           │
+│  Layer 6: Auditing                                      │
 │  ┌─────────────────────────────────────────────────┐   │
-│  │ クエリログ / pgAudit                              │   │
-│  │ 変更履歴テーブル（audit_log）                     │   │
-│  │ 異常検知 / アラート                               │   │
+│  │ Query logs / pgAudit                             │   │
+│  │ Change history table (audit_log)                 │   │
+│  │ Anomaly detection / alerting                     │   │
 │  └─────────────────────────────────────────────────┘   │
-│  WHY: 侵害発生時の原因究明と証跡保全                     │
-└─────────────────────────────────────────────────────────┘
+│  WHY: Root-cause analysis and evidence preservation     │
+│       when a breach occurs                              │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. 認証と認可
+## 2. Authentication and Authorization
 
-### コード例1: pg_hba.confとロール・権限の設計
+### Code Example 1: pg_hba.conf and Role/Privilege Design
 
 ```sql
--- ===== pg_hba.conf の設定例 =====
--- pg_hba.confはPostgreSQLの認証制御ファイル
--- 接続元、データベース、ユーザーごとに認証方式を指定する
--- 上から順に評価され、最初に一致するルールが適用される
+-- ===== pg_hba.conf configuration example =====
+-- pg_hba.conf is PostgreSQL's authentication control file
+-- Authentication method is specified per connection source, database, and user
+-- Rules are evaluated top to bottom; the first matching rule is applied
 
 -- TYPE    DATABASE    USER           ADDRESS         METHOD
 -- -------------------------------------------------------
--- # ローカル接続: OS認証（peer）
+-- # Local connections: OS authentication (peer)
 -- local   all         postgres                       peer
 -- local   all         all                            peer
 --
--- # 同一ホスト: パスワード認証（SCRAM-SHA-256推奨）
+-- # Same host: password authentication (SCRAM-SHA-256 recommended)
 -- host    all         all            127.0.0.1/32    scram-sha-256
 -- host    all         all            ::1/128         scram-sha-256
 --
--- # アプリケーションサーバー: 特定IPからのみ許可
+-- # Application server: allow only from specific IP
 -- host    myapp_db    app_user       10.0.1.0/24     scram-sha-256
 -- host    myapp_db    app_readonly   10.0.1.0/24     scram-sha-256
 --
--- # 管理者: VPN経由のみ許可（証明書認証）
+-- # Admin: allow only via VPN (certificate authentication)
 -- hostssl all         admin_user     10.10.0.0/16    cert
 --
--- # その他: 全て拒否（最重要！）
+-- # All others: deny (most important!)
 -- host    all         all            0.0.0.0/0       reject
 -- host    all         all            ::/0            reject
 
--- WHY SCRAM-SHA-256？
--- MD5は以下の脆弱性がある:
--- 1. パスワード + ユーザー名をMD5ハッシュするだけ（ソルトが固定）
--- 2. レインボーテーブル攻撃に弱い
--- 3. ハッシュ値が漏洩するとリプレイ攻撃可能
--- SCRAM-SHA-256はチャレンジレスポンス方式で、これらの問題を解決
+-- WHY SCRAM-SHA-256?
+-- MD5 has the following vulnerabilities:
+-- 1. Simply hashes password + username with MD5 (fixed salt)
+-- 2. Vulnerable to rainbow table attacks
+-- 3. If the hash is leaked, replay attacks are possible
+-- SCRAM-SHA-256 uses a challenge-response mechanism that resolves these issues
 
--- pg_hba.confの変更後はリロードが必要
+-- A reload is required after changing pg_hba.conf
 SELECT pg_reload_conf();
 
--- ===== ロール設計（最小権限の原則）=====
+-- ===== Role design (Principle of Least Privilege) =====
 
--- 1. 読み取り専用ロール（分析・レポート用）
+-- 1. Read-only role (for analytics/reporting)
 CREATE ROLE app_readonly
     LOGIN
     PASSWORD 'readonly_secure_password_2024!'
-    CONNECTION LIMIT 10   -- 同時接続数を制限
-    VALID UNTIL '2027-12-31';  -- パスワード有効期限
+    CONNECTION LIMIT 10   -- limit concurrent connections
+    VALID UNTIL '2027-12-31';  -- password expiry
 
--- 2. アプリケーション用ロール（CRUD操作）
+-- 2. Application role (CRUD operations)
 CREATE ROLE app_readwrite
     LOGIN
     PASSWORD 'readwrite_secure_password_2024!'
     CONNECTION LIMIT 30;
 
--- 3. マイグレーション用ロール（DDL操作）
+-- 3. Migration role (DDL operations)
 CREATE ROLE app_migration
     LOGIN
     PASSWORD 'migration_secure_password_2024!'
     CREATEDB
     CONNECTION LIMIT 3;
 
--- 4. 管理者ロール（最小限の使用に限定）
+-- 4. Admin role (limit to minimal use)
 CREATE ROLE app_admin
     LOGIN
     PASSWORD 'admin_secure_password_2024!'
     CREATEDB CREATEROLE
     CONNECTION LIMIT 2;
 
--- ===== グループロールによる権限継承 =====
+-- ===== Privilege inheritance via group roles =====
 
--- 開発チームグループ
-CREATE ROLE developers NOLOGIN;  -- ログイン不可のグループロール
+-- Development team group
+CREATE ROLE developers NOLOGIN;  -- group role, cannot log in
 GRANT app_readwrite TO developers;
 
--- 個別の開発者ユーザー
+-- Individual developer users
 CREATE ROLE dev_tanaka LOGIN PASSWORD '...';
 CREATE ROLE dev_suzuki LOGIN PASSWORD '...';
 GRANT developers TO dev_tanaka;
 GRANT developers TO dev_suzuki;
 
--- ===== スキーマレベルの権限 =====
+-- ===== Schema-level privileges =====
 
--- まずスキーマのUSAGE権限（これがないとスキーマ内を何も参照できない）
+-- First, grant USAGE on the schema (without this, nothing in the schema can be accessed)
 GRANT USAGE ON SCHEMA public TO app_readonly;
 GRANT USAGE, CREATE ON SCHEMA public TO app_readwrite;
 
--- ===== テーブルレベルの権限 =====
+-- ===== Table-level privileges =====
 
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO app_readonly;
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public
     TO app_readwrite;
 
--- 将来作成されるテーブルにもデフォルト権限を設定（重要！）
+-- Set default privileges for tables created in the future (important!)
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
     GRANT SELECT ON TABLES TO app_readonly;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO app_readwrite;
 
--- シーケンスの権限（SERIALカラムのINSERTに必要）
+-- Sequence privileges (needed for INSERT on SERIAL columns)
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO app_readwrite;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
     GRANT USAGE ON SEQUENCES TO app_readwrite;
 
--- ===== 列レベルの権限 =====
+-- ===== Column-level privileges =====
 
--- 特定のカラムのみ参照を許可（給与情報を隠す例）
+-- Allow access to specific columns only (example: hiding salary info)
 REVOKE SELECT ON users FROM app_readonly;
 GRANT SELECT (id, name, email, department, created_at) ON users
     TO app_readonly;
--- → app_readonlyはsalary, password_hashカラムを参照できない
+-- → app_readonly cannot access the salary or password_hash columns
 
--- ===== 権限の確認 =====
+-- ===== Verifying privileges =====
 
--- テーブル権限の確認
+-- Check table privileges
 SELECT grantee, table_name, privilege_type
 FROM information_schema.table_privileges
 WHERE table_schema = 'public'
 ORDER BY grantee, table_name;
 
--- ロールのメンバーシップ確認
+-- Check role membership
 SELECT r.rolname AS role, m.rolname AS member
 FROM pg_auth_members am
 JOIN pg_roles r ON am.roleid = r.oid
 JOIN pg_roles m ON am.member = m.oid;
 ```
 
-### コード例2: Row Level Security（RLS）の実装
+### Code Example 2: Row Level Security (RLS) Implementation
 
 ```sql
--- ===== RLSの仕組み =====
--- RLSはテーブルの各行に対してアクセスポリシーを設定する機能
--- SQLのWHERE句に自動的に条件が追加される（透過的に動作）
+-- ===== How RLS works =====
+-- RLS is a feature that sets access policies on each row of a table
+-- Conditions are automatically added to the SQL WHERE clause (works transparently)
 
--- テーブル作成
+-- Create table
 CREATE TABLE documents (
     id          SERIAL PRIMARY KEY,
     title       VARCHAR(200) NOT NULL,
@@ -236,22 +240,22 @@ CREATE TABLE documents (
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
--- RLSの有効化
+-- Enable RLS
 ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
 
--- WHY: RLSはデフォルトで無効。テーブル所有者は常にRLSをバイパスする
--- FORCE ROW LEVEL SECURITY で所有者にも適用可能
+-- WHY: RLS is disabled by default. The table owner always bypasses RLS
+-- Use FORCE ROW LEVEL SECURITY to apply it to owners as well
 ALTER TABLE documents FORCE ROW LEVEL SECURITY;
 
--- ===== ポリシー設計 =====
+-- ===== Policy design =====
 
--- ポリシー1: ユーザーは自分が所有するドキュメントに対して全操作可能
+-- Policy 1: Users can perform all operations on documents they own
 CREATE POLICY doc_owner_all ON documents
     FOR ALL
     USING (owner_id = current_setting('app.current_user_id')::INTEGER)
     WITH CHECK (owner_id = current_setting('app.current_user_id')::INTEGER);
 
--- ポリシー2: 同じ部門のドキュメント（visibility='department'）は参照可能
+-- Policy 2: Documents in the same department (visibility='department') can be viewed
 CREATE POLICY doc_department_read ON documents
     FOR SELECT
     USING (
@@ -259,32 +263,32 @@ CREATE POLICY doc_department_read ON documents
         AND department = current_setting('app.current_department')
     );
 
--- ポリシー3: 公開ドキュメントは全員が参照可能
+-- Policy 3: Public documents can be viewed by everyone
 CREATE POLICY doc_public_read ON documents
     FOR SELECT
     USING (visibility = 'public');
 
--- ポリシー4: 管理者は全ドキュメントに対して全操作可能
+-- Policy 4: Admins can perform all operations on all documents
 CREATE POLICY doc_admin_all ON documents
     FOR ALL
     TO app_admin
     USING (TRUE)
     WITH CHECK (TRUE);
 
--- ===== アプリケーションからの使用 =====
+-- ===== Usage from application =====
 
--- アプリケーションはリクエストごとにセッション変数を設定
--- （通常はミドルウェアやコネクション初期化で行う）
+-- Application sets session variables per request
+-- (usually done in middleware or connection initialization)
 SET app.current_user_id = '42';
 SET app.current_department = 'engineering';
 
--- このSELECTは自動的に以下のいずれかに該当する行のみ返す:
--- 1. owner_id = 42 のドキュメント
--- 2. department = 'engineering' かつ visibility = 'department'
+-- This SELECT automatically returns only rows matching any of:
+-- 1. Documents where owner_id = 42
+-- 2. department = 'engineering' and visibility = 'department'
 -- 3. visibility = 'public'
 SELECT * FROM documents;
 
--- ===== マルチテナントRLS =====
+-- ===== Multi-tenant RLS =====
 
 CREATE TABLE tenant_orders (
     id          SERIAL PRIMARY KEY,
@@ -297,130 +301,132 @@ CREATE TABLE tenant_orders (
 
 ALTER TABLE tenant_orders ENABLE ROW LEVEL SECURITY;
 
--- テナント分離ポリシー
+-- Tenant isolation policy
 CREATE POLICY tenant_isolation ON tenant_orders
     FOR ALL
     USING (tenant_id = current_setting('app.tenant_id')::INTEGER)
     WITH CHECK (tenant_id = current_setting('app.tenant_id')::INTEGER);
 
--- インデックス（RLSのパフォーマンスに直結）
+-- Index (directly affects RLS performance)
 CREATE INDEX idx_tenant_orders_tenant ON tenant_orders (tenant_id);
 
--- WHY tenant_idにインデックス？
--- RLSは各クエリにWHERE tenant_id = ... を自動追加する
--- インデックスがないと全行スキャンが必要になり、パフォーマンスが劣化する
+-- WHY index on tenant_id?
+-- RLS automatically adds WHERE tenant_id = ... to every query
+-- Without an index, a full table scan is required, degrading performance
 
--- ===== RLSの動作確認 =====
+-- ===== Verifying RLS behavior =====
 
--- ポリシーの一覧確認
+-- List all policies
 SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
 FROM pg_policies
 WHERE tablename = 'documents';
 
--- EXPLAIN ANALYZEでポリシーが適用されていることを確認
+-- Verify the policy is applied using EXPLAIN ANALYZE
 SET app.current_user_id = '42';
 EXPLAIN ANALYZE SELECT * FROM documents;
--- → Filter: (owner_id = 42) が追加されているはず
+-- → Filter: (owner_id = 42) should be added
 ```
 
 ---
 
-## 3. SQLインジェクション
+## 3. SQL Injection
 
-### 3.1 攻撃原理の深い理解
+### 3.1 Deep Understanding of Attack Principles
 
 ```
-┌───────── SQLインジェクションの原理 ──────────────────────┐
+┌───────── SQL Injection Principles ──────────────────────┐
 │                                                           │
-│  ■ 根本原因: SQL文字列の中にユーザー入力を直接結合する    │
-│    → 「データ」が「コード」として解釈される                │
+│  ■ Root cause: Directly concatenating user input into    │
+│    an SQL string                                          │
+│    → "Data" is interpreted as "code"                     │
 │                                                           │
-│  ■ 正常なクエリ:                                          │
+│  ■ Normal query:                                          │
 │  query = "SELECT * FROM users WHERE email = '" + input    │
 │  input = "tanaka@example.com"                             │
 │  → SELECT * FROM users WHERE email = 'tanaka@example.com' │
 │                                                           │
-│  ■ 攻撃1: 認証バイパス                                    │
+│  ■ Attack 1: Authentication bypass                        │
 │  input = "' OR '1'='1"                                    │
 │  → SELECT * FROM users WHERE email = '' OR '1'='1'        │
-│  → 全行が返される（常にTRUE）                             │
+│  → All rows are returned (always TRUE)                    │
 │                                                           │
-│  ■ 攻撃2: データ破壊                                      │
+│  ■ Attack 2: Data destruction                             │
 │  input = "'; DROP TABLE users; --"                        │
 │  → SELECT * FROM users WHERE email = '';                  │
 │    DROP TABLE users; --'                                   │
-│  → テーブルが削除される！                                  │
+│  → The table is deleted!                                  │
 │                                                           │
-│  ■ 攻撃3: データ窃取（UNION-based）                       │
+│  ■ Attack 3: Data theft (UNION-based)                     │
 │  input = "' UNION SELECT username, password FROM          │
 │           admin_users --"                                  │
-│  → 管理者のパスワードが取得される                          │
+│  → Admin passwords are retrieved                          │
 │                                                           │
-│  ■ 攻撃4: ブラインドSQLi（時間ベース）                    │
+│  ■ Attack 4: Blind SQLi (time-based)                      │
 │  input = "' AND (SELECT pg_sleep(5)) IS NOT NULL --"      │
-│  → レスポンスが5秒遅延 → 脆弱性の確認                     │
+│  → Response delays by 5 seconds → confirms vulnerability  │
 │                                                           │
-│  ■ 攻撃5: 二次SQLインジェクション                         │
-│  → ユーザー名に "admin'--" を登録                         │
-│  → パスワードリセット処理で:                               │
+│  ■ Attack 5: Second-order SQL injection                   │
+│  → Register "admin'--" as a username                      │
+│  → During password reset:                                 │
 │    UPDATE users SET pass='...' WHERE name='admin'--'      │
-│  → admin のパスワードが変更される                          │
+│  → The admin's password is changed                        │
 │                                                           │
-│  ■ 根本的な対策:                                          │
-│  パラメータ化クエリ（プリペアドステートメント）             │
-│  → ユーザー入力はデータとしてのみ扱われ、                 │
-│    SQL構文として解釈されない                                │
-│  → SQL文の構造が固定され、入力値で変化しない              │
+│  ■ Fundamental countermeasure:                            │
+│  Parameterized queries (prepared statements)              │
+│  → User input is treated only as data,                   │
+│    never interpreted as SQL syntax                        │
+│  → The structure of the SQL statement is fixed            │
+│    and does not change based on input values              │
 └───────────────────────────────────────────────────────────┘
 ```
 
-### コード例3: SQLインジェクションの完全防御
+### Code Example 3: Complete SQL Injection Defense
 
 ```sql
--- ===== 各言語でのパラメータ化クエリ =====
+-- ===== Parameterized queries in each language =====
 
--- ■ PostgreSQL プリペアドステートメント（SQL直接）
+-- ■ PostgreSQL prepared statements (direct SQL)
 PREPARE find_user_by_email (TEXT) AS
     SELECT id, name, email FROM users WHERE email = $1;
 
 EXECUTE find_user_by_email('user@example.com');
 DEALLOCATE find_user_by_email;
 
--- WHY プリペアドステートメントで防御できるのか？
--- 1. SQL文の構造（パース木）がPREPARE時に確定する
--- 2. EXECUTE時のパラメータは「値」としてのみバインドされる
--- 3. パラメータ内の ' や ; はSQL構文として解釈されない
--- 4. つまり「データ」と「コード」が完全に分離される
+-- WHY do prepared statements provide defense?
+-- 1. The SQL structure (parse tree) is determined at PREPARE time
+-- 2. Parameters at EXECUTE time are bound only as "values"
+-- 3. ' and ; inside parameters are not interpreted as SQL syntax
+-- 4. That is, "data" and "code" are completely separated
 ```
 
 ```python
-# ■ Python (psycopg2) — 正しいパラメータバインディング
+# ■ Python (psycopg2) — correct parameter binding
 
 import psycopg2
 
 conn = psycopg2.connect("dbname=myapp user=app_user")
 cur = conn.cursor()
 
-# NG: 文字列フォーマット（SQLインジェクション脆弱！）
+# NG: string formatting (SQL injection vulnerability!)
 # user_input = "'; DROP TABLE users; --"
 # cur.execute(f"SELECT * FROM users WHERE email = '{user_input}'")
 # → SELECT * FROM users WHERE email = ''; DROP TABLE users; --'
 
-# OK: パラメータバインディング（%sプレースホルダ）
+# OK: parameter binding (%s placeholder)
 user_input = "user@example.com"
 cur.execute("SELECT * FROM users WHERE email = %s", (user_input,))
-# → psycopg2がエスケープ処理を行い、安全にバインド
+# → psycopg2 performs escaping and binds safely
 
-# OK: 名前付きパラメータ
+# OK: named parameters
 cur.execute(
     "SELECT * FROM users WHERE email = %(email)s AND status = %(status)s",
     {"email": user_input, "status": "active"}
 )
 
-# NG: executeの引数を使わずに自分で組み立てるのもNG
+# NG: building the string manually without using execute's arguments is also NG
 # cur.execute("SELECT * FROM users WHERE email = '%s'" % user_input)
 
-# IN句の安全な処理（psycopg2のタプル対応）
+# Safe handling of IN clause (psycopg2 tuple support)
 user_ids = [1, 2, 3, 4, 5]
 cur.execute("SELECT * FROM users WHERE id = ANY(%s)", (user_ids,))
 
@@ -428,7 +434,7 @@ conn.close()
 ```
 
 ```typescript
-// ■ Node.js (pg) — パラメータ化クエリ
+// ■ Node.js (pg) — parameterized queries
 
 import { Pool } from 'pg';
 
@@ -436,27 +442,27 @@ const pool = new Pool({
   connectionString: 'postgres://app_user:pass@localhost:5432/myapp',
 });
 
-// NG: テンプレートリテラル（SQLインジェクション脆弱！）
+// NG: template literals (SQL injection vulnerability!)
 // const result = await pool.query(
 //   `SELECT * FROM users WHERE email = '${userInput}'`
 // );
 
-// OK: パラメータ化クエリ（$1, $2, ... プレースホルダ）
+// OK: parameterized query ($1, $2, ... placeholders)
 const userInput = 'user@example.com';
 const result = await pool.query(
   'SELECT * FROM users WHERE email = $1 AND status = $2',
   [userInput, 'active']
 );
 
-// OK: IN句の安全な処理
+// OK: safe handling of IN clause
 const userIds = [1, 2, 3, 4, 5];
 const inResult = await pool.query(
   'SELECT * FROM users WHERE id = ANY($1::int[])',
   [userIds]
 );
 
-// NG: 動的なテーブル名・カラム名はパラメータ化できない
-// → ホワイトリストで検証する
+// NG: dynamic table names and column names cannot be parameterized
+// → validate with a whitelist
 const allowedColumns = ['name', 'email', 'department'];
 const sortColumn = allowedColumns.includes(userColumn) ? userColumn : 'name';
 const sortResult = await pool.query(
@@ -466,7 +472,7 @@ const sortResult = await pool.query(
 ```
 
 ```go
-// ■ Go (database/sql) — パラメータ化クエリ
+// ■ Go (database/sql) — parameterized queries
 
 package main
 
@@ -477,7 +483,7 @@ import (
 )
 
 func findUserByEmail(db *sql.DB, email string) (*User, error) {
-    // OK: $1 プレースホルダでパラメータバインド
+    // OK: parameter binding with $1 placeholder
     var user User
     err := db.QueryRow(
         "SELECT id, name, email FROM users WHERE email = $1",
@@ -489,23 +495,23 @@ func findUserByEmail(db *sql.DB, email string) (*User, error) {
     return &user, nil
 }
 
-// NG: fmt.Sprintfでクエリを組み立てるのはNG
+// NG: building queries with fmt.Sprintf is NG
 // query := fmt.Sprintf("SELECT * FROM users WHERE email = '%s'", email)
 // db.Query(query)
 ```
 
 ```sql
--- ===== 動的SQLが必要な場合のエスケープ（PL/pgSQL）=====
+-- ===== Escaping when dynamic SQL is necessary (PL/pgSQL) =====
 
--- テーブル名やカラム名は$1パラメータにできないため、
--- 動的SQLが必要になる場合がある。その場合は以下の関数を使う。
+-- Table names and column names cannot use $1 parameters,
+-- so dynamic SQL may be required. Use the following functions in those cases.
 
--- quote_ident: 識別子（テーブル名、カラム名）のエスケープ
--- quote_literal: リテラル値のエスケープ
--- format('%I', ...): 識別子のエスケープ
--- format('%L', ...): リテラル値のエスケープ
+-- quote_ident: escape identifiers (table names, column names)
+-- quote_literal: escape literal values
+-- format('%I', ...): escape identifiers
+-- format('%L', ...): escape literal values
 
--- 方法1: quote_ident + quote_literal
+-- Method 1: quote_ident + quote_literal
 CREATE OR REPLACE FUNCTION search_by_column(
     p_table TEXT,
     p_column TEXT,
@@ -519,16 +525,16 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 方法2: format()関数（推奨、より読みやすい）
+-- Method 2: format() function (recommended, more readable)
 CREATE OR REPLACE FUNCTION search_by_column_v2(
     p_table TEXT,
     p_column TEXT,
     p_value TEXT
 ) RETURNS SETOF RECORD AS $$
 BEGIN
-    -- %I = 識別子（自動的にダブルクォートでエスケープ）
-    -- %L = リテラル値（自動的にシングルクォートでエスケープ）
-    -- %s = 文字列そのまま（エスケープなし、使用注意）
+    -- %I = identifier (automatically escaped with double quotes)
+    -- %L = literal value (automatically escaped with single quotes)
+    -- %s = string as-is (no escaping, use with caution)
     RETURN QUERY EXECUTE format(
         'SELECT * FROM %I WHERE %I = %L',
         p_table, p_column, p_value
@@ -536,7 +542,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 方法3: USING句でパラメータをバインド（最も安全）
+-- Method 3: Bind parameters using the USING clause (safest)
 CREATE OR REPLACE FUNCTION search_by_column_v3(
     p_table TEXT,
     p_column TEXT,
@@ -546,11 +552,11 @@ BEGIN
     RETURN QUERY EXECUTE format(
         'SELECT * FROM %I WHERE %I = $1',
         p_table, p_column
-    ) USING p_value;  -- $1にp_valueをバインド
+    ) USING p_value;  -- bind p_value to $1
 END;
 $$ LANGUAGE plpgsql;
 
--- ===== テーブル名・カラム名のホワイトリスト検証 =====
+-- ===== Whitelist validation for table names and column names =====
 CREATE OR REPLACE FUNCTION safe_search(
     p_table TEXT,
     p_column TEXT,
@@ -560,7 +566,7 @@ DECLARE
     allowed_tables TEXT[] := ARRAY['users', 'products', 'orders'];
     allowed_columns TEXT[] := ARRAY['name', 'email', 'status'];
 BEGIN
-    -- ホワイトリスト検証
+    -- Whitelist validation
     IF NOT (p_table = ANY(allowed_tables)) THEN
         RAISE EXCEPTION 'Invalid table name: %', p_table;
     END IF;
@@ -577,138 +583,143 @@ $$ LANGUAGE plpgsql;
 
 ---
 
-## 4. 暗号化
+## 4. Encryption
 
-### 4.1 暗号化の3つのレイヤー
+### 4.1 Three Layers of Encryption
 
 ```
-┌──────── 暗号化の3つのレイヤー ────────────────────────┐
+┌──────── Three Layers of Encryption ────────────────────┐
 │                                                        │
-│  1. 転送中の暗号化 (Encryption in Transit)              │
+│  1. Encryption in Transit                              │
 │  ┌──────────────────────────────────────────────────┐ │
-│  │ クライアント ←── TLS 1.3 ──→ PostgreSQL          │ │
-│  │ • サーバー証明書 + オプションでクライアント証明書 │ │
-│  │ • pg_hba.conf で hostssl のみ許可                │ │
-│  │ • sslmode=verify-full で中間者攻撃を防止         │ │
+│  │ Client ←── TLS 1.3 ──→ PostgreSQL                │ │
+│  │ • Server certificate + optional client cert      │ │
+│  │ • Allow only hostssl in pg_hba.conf              │ │
+│  │ • Use sslmode=verify-full to prevent MITM        │ │
 │  └──────────────────────────────────────────────────┘ │
 │                                                        │
-│  2. 保存時の暗号化 — 列レベル (Column-level)            │
+│  2. Encryption at Rest — Column-level                  │
 │  ┌──────────────────────────────────────────────────┐ │
-│  │ pgcrypto拡張: pgp_sym_encrypt / pgp_sym_decrypt  │ │
-│  │ • 機密カラム（SSN、カード番号等）を個別に暗号化   │ │
-│  │ • アプリケーション層で暗号化する方がセキュア       │ │
-│  │   （DBに鍵を渡さないため）                        │ │
+│  │ pgcrypto extension: pgp_sym_encrypt /            │ │
+│  │   pgp_sym_decrypt                                │ │
+│  │ • Encrypt sensitive columns individually         │ │
+│  │   (SSN, card numbers, etc.)                      │ │
+│  │ • Encrypting at the application layer is more    │ │
+│  │   secure (no key handed to DB)                   │ │
 │  └──────────────────────────────────────────────────┘ │
 │                                                        │
-│  3. 保存時の暗号化 — ディスクレベル (Disk-level)         │
+│  3. Encryption at Rest — Disk-level                    │
 │  ┌──────────────────────────────────────────────────┐ │
-│  │ • AWS: EBS Encryption / RDS Encryption            │ │
-│  │ • Linux: LUKS (dm-crypt)                          │ │
-│  │ • PostgreSQL: pgcrypto + pg_tde（透過的暗号化）   │ │
-│  │ • ディスクを盗まれてもデータを読めない             │ │
+│  │ • AWS: EBS Encryption / RDS Encryption           │ │
+│  │ • Linux: LUKS (dm-crypt)                         │ │
+│  │ • PostgreSQL: pgcrypto + pg_tde                  │ │
+│  │   (transparent encryption)                       │ │
+│  │ • Data is unreadable even if disk is stolen      │ │
 │  └──────────────────────────────────────────────────┘ │
 │                                                        │
-│  WHY 3レイヤー全て必要か？                              │
-│  • TLSなし → 通信の盗聴でパスワード・データが漏洩      │
-│  • 列暗号化なし → DBバックアップ漏洩で機密データ流出   │
-│  • ディスク暗号化なし → 物理ディスク盗難でデータ流出   │
+│  WHY are all 3 layers necessary?                       │
+│  • No TLS → passwords/data leaked via eavesdropping   │
+│  • No column encryption → sensitive data exposed      │
+│    if DB backup leaks                                  │
+│  • No disk encryption → data exposed if physical disk │
+│    is stolen                                           │
 └────────────────────────────────────────────────────────┘
 ```
 
-### コード例4: 暗号化の実装
+### Code Example 4: Implementing Encryption
 
 ```sql
--- ===== pgcrypto拡張の有効化 =====
+-- ===== Enable pgcrypto extension =====
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
--- ===== パスワードのハッシュ化 =====
+-- ===== Password hashing =====
 
--- WHY bcrypt？
--- 1. ソルト自動生成（レインボーテーブル攻撃を防止）
--- 2. コストパラメータで計算量を調整可能（ブルートフォース耐性）
--- 3. 意図的に遅い（GPU並列攻撃に対する耐性）
--- コスト12 → 1ハッシュあたり約250ms（現在の推奨値）
+-- WHY bcrypt?
+-- 1. Automatically generates a salt (prevents rainbow table attacks)
+-- 2. Cost parameter allows adjusting computation (brute force resistance)
+-- 3. Intentionally slow (resistance to GPU-parallel attacks)
+-- Cost 12 → ~250ms per hash (current recommended value)
 
--- ユーザーテーブル
+-- User table
 CREATE TABLE secure_users (
     id            SERIAL PRIMARY KEY,
     email         VARCHAR(255) NOT NULL UNIQUE,
-    password_hash VARCHAR(60) NOT NULL,  -- bcryptハッシュは60文字固定
+    password_hash VARCHAR(60) NOT NULL,  -- bcrypt hash is always 60 characters
     created_at    TIMESTAMPTZ DEFAULT NOW()
 );
 
--- パスワード登録
+-- Register password
 INSERT INTO secure_users (email, password_hash) VALUES (
     'user@example.com',
     crypt('user_password_2024!', gen_salt('bf', 12))
     --                          ~~~~~~~~  ~~  ~~
-    --                          アルゴリズム|  コスト
-    --                          (bf=bcrypt) |
-    --                                      12（2^12=4096回反復）
+    --                          algorithm |   cost
+    --                          (bf=bcrypt)|
+    --                                     12 (2^12=4096 iterations)
 );
 
--- パスワード検証
+-- Verify password
 SELECT id, email FROM secure_users
 WHERE email = 'user@example.com'
   AND password_hash = crypt('user_password_2024!', password_hash);
   --                        ~~~~~~~~~~~~~~~~~~~   ~~~~~~~~~~~~~~
-  --                        入力パスワード         保存済みハッシュからソルトを抽出
--- → 一致すれば行が返る、不一致ならNULL
+  --                        input password        extract salt from stored hash
+-- → returns a row on match, NULL on mismatch
 
--- ===== 列レベルの暗号化（AES-256） =====
+-- ===== Column-level encryption (AES-256) =====
 
--- 機密データテーブル
+-- Sensitive data table
 CREATE TABLE sensitive_data (
     id               SERIAL PRIMARY KEY,
     user_id          INTEGER NOT NULL REFERENCES secure_users(id),
-    -- 暗号化されたデータ（BYTEA型で格納）
+    -- Encrypted data (stored as BYTEA type)
     ssn_encrypted    BYTEA,
     card_encrypted   BYTEA,
-    -- メタデータ（暗号化不要）
+    -- Metadata (no encryption needed)
     data_type        VARCHAR(20) NOT NULL,
     created_at       TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 暗号化して格納
--- 鍵は環境変数や鍵管理サービス（AWS KMS等）から取得すべき
+-- Encrypt and store
+-- Key should be retrieved from an environment variable or key management service (AWS KMS, etc.)
 INSERT INTO sensitive_data (user_id, ssn_encrypted, data_type) VALUES (
     1,
     pgp_sym_encrypt('123-45-6789', current_setting('app.encryption_key')),
     'ssn'
 );
 
--- 復号して取得
+-- Decrypt and retrieve
 SELECT
     user_id,
     pgp_sym_decrypt(ssn_encrypted, current_setting('app.encryption_key')) AS ssn
 FROM sensitive_data
 WHERE user_id = 1;
 
--- WHY アプリケーション層での暗号化がより安全か？
--- DB層暗号化: 暗号化キーがSQL文やセッション変数に含まれる
---   → クエリログに記録される可能性がある
---   → DBの特権ユーザーが復号可能
--- アプリ層暗号化: キーはアプリケーションメモリ内のみ
---   → DBには暗号化済みバイナリのみ格納される
---   → DBが漏洩してもキーなしでは復号できない
+-- WHY is application-layer encryption more secure?
+-- DB-layer encryption: the encryption key is included in SQL or session variables
+--   → may be recorded in query logs
+--   → privileged DB users can decrypt
+-- App-layer encryption: key exists only in application memory
+--   → only encrypted binary is stored in DB
+--   → data cannot be decrypted without the key even if DB is leaked
 ```
 
-### コード例5: TLS設定と接続セキュリティ
+### Code Example 5: TLS Configuration and Connection Security
 
 ```sql
--- ===== postgresql.conf でのTLS設定 =====
+-- ===== TLS configuration in postgresql.conf =====
 -- ssl = on
 -- ssl_cert_file = '/etc/ssl/certs/server.crt'
 -- ssl_key_file = '/etc/ssl/private/server.key'
--- ssl_ca_file = '/etc/ssl/certs/ca.crt'           -- クライアント証明書検証用
--- ssl_min_protocol_version = 'TLSv1.3'            -- TLS 1.3以上を強制
--- ssl_ciphers = 'HIGH:!aNULL:!MD5:!3DES:!RC4'     -- 強い暗号スイートのみ
+-- ssl_ca_file = '/etc/ssl/certs/ca.crt'           -- for client certificate verification
+-- ssl_min_protocol_version = 'TLSv1.3'            -- enforce TLS 1.3 or higher
+-- ssl_ciphers = 'HIGH:!aNULL:!MD5:!3DES:!RC4'     -- strong cipher suites only
 
--- pg_hba.conf でSSL接続を強制
+-- Enforce SSL connections in pg_hba.conf
 -- hostssl  all  all  0.0.0.0/0  scram-sha-256
--- hostnossl all  all  0.0.0.0/0  reject   -- 非SSL接続を全て拒否
+-- hostnossl all  all  0.0.0.0/0  reject   -- reject all non-SSL connections
 
--- ===== TLS接続の確認 =====
+-- ===== Verify TLS connections =====
 SELECT
     datname AS database,
     usename AS user,
@@ -720,61 +731,61 @@ FROM pg_stat_ssl
     JOIN pg_stat_activity USING (pid)
 WHERE pid != pg_backend_pid();
 
--- 非SSL接続がないかチェック
+-- Check for non-SSL connections
 SELECT COUNT(*) AS non_ssl_connections
 FROM pg_stat_ssl
     JOIN pg_stat_activity USING (pid)
 WHERE NOT ssl AND usename != 'postgres';
 
--- ===== アプリケーション接続文字列での指定 =====
+-- ===== Specifying in application connection strings =====
 -- Python:
 -- postgresql://user:pass@host:5432/db?sslmode=verify-full&sslrootcert=/path/ca.crt
 --
--- sslmodeの選択:
--- disable      → SSLなし（NG）
--- allow        → SSLを試みるがなくてもOK（NG）
--- prefer       → SSLを優先するがなくてもOK（不十分）
--- require      → SSLを強制するが証明書は検証しない（中間者攻撃に弱い）
--- verify-ca    → SSL + CA証明書を検証（推奨最低ライン）
--- verify-full  → SSL + CA + ホスト名を検証（推奨）
+-- sslmode options:
+-- disable      → No SSL (NG)
+-- allow        → Tries SSL but OK without it (NG)
+-- prefer       → Prefers SSL but OK without it (insufficient)
+-- require      → Forces SSL but does not verify cert (vulnerable to MITM)
+-- verify-ca    → SSL + verify CA certificate (recommended minimum)
+-- verify-full  → SSL + verify CA + verify hostname (recommended)
 ```
 
 ---
 
-## 5. 監査ログ
+## 5. Audit Logs
 
-### コード例6: トリガーベースの監査ログ
+### Code Example 6: Trigger-based Audit Logging
 
 ```sql
--- ===== 監査ログテーブル =====
+-- ===== Audit log table =====
 CREATE TABLE audit_log (
     id          BIGSERIAL PRIMARY KEY,
     table_name  VARCHAR(100) NOT NULL,
-    record_id   TEXT,                    -- 変更されたレコードのID
+    record_id   TEXT,                    -- ID of the changed record
     operation   VARCHAR(10) NOT NULL     -- INSERT, UPDATE, DELETE
                 CHECK (operation IN ('INSERT', 'UPDATE', 'DELETE')),
-    old_data    JSONB,                   -- 変更前のデータ（UPDATE, DELETEのみ）
-    new_data    JSONB,                   -- 変更後のデータ（INSERT, UPDATEのみ）
-    changed_fields TEXT[],               -- UPDATEで変更されたフィールド名
+    old_data    JSONB,                   -- data before change (UPDATE, DELETE only)
+    new_data    JSONB,                   -- data after change (INSERT, UPDATE only)
+    changed_fields TEXT[],               -- field names changed in UPDATE
     changed_by  VARCHAR(100) NOT NULL DEFAULT current_user,
-    app_user_id INTEGER,                 -- アプリケーションレベルのユーザーID
+    app_user_id INTEGER,                 -- application-level user ID
     client_ip   INET DEFAULT inet_client_addr(),
     session_id  TEXT,
     changed_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- パーティション（月次で分割、古い監査ログの管理が容易に）
+-- Partitioning (monthly partitions make managing old audit logs easier)
 -- CREATE TABLE audit_log (...) PARTITION BY RANGE (changed_at);
 -- CREATE TABLE audit_log_2024_01 PARTITION OF audit_log
 --     FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
 
--- インデックス
+-- Indexes
 CREATE INDEX idx_audit_log_table_op ON audit_log (table_name, operation);
 CREATE INDEX idx_audit_log_changed_at ON audit_log (changed_at);
 CREATE INDEX idx_audit_log_record_id ON audit_log (table_name, record_id);
 CREATE INDEX idx_audit_log_app_user ON audit_log (app_user_id);
 
--- ===== 汎用監査トリガー関数 =====
+-- ===== Generic audit trigger function =====
 CREATE OR REPLACE FUNCTION audit_trigger_func()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -784,7 +795,7 @@ DECLARE
     new_json JSONB;
     col TEXT;
 BEGIN
-    -- レコードIDの取得（主キー名が'id'であると仮定）
+    -- Retrieve the record ID (assumes primary key column is named 'id')
     IF TG_OP = 'DELETE' THEN
         record_pk := OLD.id::TEXT;
         old_json := to_jsonb(OLD);
@@ -796,7 +807,7 @@ BEGIN
         old_json := to_jsonb(OLD);
         new_json := to_jsonb(NEW);
 
-        -- 変更されたフィールドを特定
+        -- Identify changed fields
         FOR col IN SELECT key FROM jsonb_each(new_json)
         LOOP
             IF old_json->col IS DISTINCT FROM new_json->col THEN
@@ -804,7 +815,7 @@ BEGIN
             END IF;
         END LOOP;
 
-        -- 変更がない場合はスキップ（updated_atのみの更新など）
+        -- Skip if no changes (e.g., only updated_at was updated)
         IF array_length(changed, 1) IS NULL OR
            changed = ARRAY['updated_at'] THEN
             RETURN NEW;
@@ -830,7 +841,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- ===== 監査対象テーブルにトリガーを設定 =====
+-- ===== Set up triggers on audit target tables =====
 CREATE TRIGGER audit_users
     AFTER INSERT OR UPDATE OR DELETE ON users
     FOR EACH ROW EXECUTE FUNCTION audit_trigger_func();
@@ -839,9 +850,9 @@ CREATE TRIGGER audit_orders
     AFTER INSERT OR UPDATE OR DELETE ON orders
     FOR EACH ROW EXECUTE FUNCTION audit_trigger_func();
 
--- ===== 監査ログの照会 =====
+-- ===== Querying audit logs =====
 
--- 特定ユーザーの全変更履歴
+-- Full change history for a specific user
 SELECT
     changed_at,
     table_name,
@@ -854,7 +865,7 @@ WHERE app_user_id = 42
 ORDER BY changed_at DESC
 LIMIT 20;
 
--- 特定レコードの変更履歴（タイムライン）
+-- Change history for a specific record (timeline)
 SELECT
     changed_at,
     operation,
@@ -874,26 +885,26 @@ WHERE table_name = 'users' AND record_id = '42'
 GROUP BY changed_at, operation, changed_fields, old_data, new_data, changed_by
 ORDER BY changed_at;
 
--- ===== pgAudit（より高度な監査）=====
--- pgAudit拡張はSQLレベルの詳細な監査ログを提供する
+-- ===== pgAudit (more advanced auditing) =====
+-- The pgAudit extension provides detailed SQL-level audit logging
 -- CREATE EXTENSION IF NOT EXISTS pgaudit;
 --
--- -- postgresql.confでの設定
--- pgaudit.log = 'ddl, write, role'  -- DDL, 書き込み, ロール変更を記録
--- pgaudit.log_catalog = off         -- システムカタログへのアクセスは除外
--- pgaudit.role = 'auditor'          -- 監査対象ロール
+-- -- Configuration in postgresql.conf
+-- pgaudit.log = 'ddl, write, role'  -- record DDL, writes, role changes
+-- pgaudit.log_catalog = off         -- exclude access to system catalogs
+-- pgaudit.role = 'auditor'          -- role to audit
 
--- pgAuditの出力例:
+-- pgAudit sample output:
 -- AUDIT: SESSION,1,1,DDL,CREATE TABLE,,,CREATE TABLE users (...),<not logged>
 -- AUDIT: SESSION,2,1,WRITE,INSERT,TABLE,public.users,INSERT INTO users ...
 ```
 
-### コード例7: セキュリティビューとモニタリング
+### Code Example 7: Security Views and Monitoring
 
 ```sql
--- ===== セキュリティダッシュボード用ビュー =====
+-- ===== Views for a security dashboard =====
 
--- 1. 現在のアクティブ接続一覧
+-- 1. Current active connections list
 CREATE VIEW v_active_connections AS
 SELECT
     pid,
@@ -911,11 +922,11 @@ FROM pg_stat_activity
 WHERE pid != pg_backend_pid()
 ORDER BY backend_start;
 
--- 2. 失敗したログイン試行の監視
--- postgresql.confで log_connections = on, log_disconnections = on を設定
--- ログファイルから FATAL: password authentication failed を監視
+-- 2. Monitor failed login attempts
+-- Set log_connections = on, log_disconnections = on in postgresql.conf
+-- Monitor log files for: FATAL: password authentication failed
 
--- 3. 長時間実行クエリの検出
+-- 3. Detect long-running queries
 CREATE VIEW v_long_running_queries AS
 SELECT
     pid,
@@ -930,7 +941,7 @@ WHERE state = 'active'
   AND pid != pg_backend_pid()
 ORDER BY duration DESC;
 
--- 4. ロック待ちの検出
+-- 4. Detect lock contention
 CREATE VIEW v_lock_contention AS
 SELECT
     blocked.pid AS blocked_pid,
@@ -946,129 +957,129 @@ JOIN pg_locks gl ON gl.pid != blocked.pid
     AND gl.transactionid = bl.transactionid AND gl.granted
 JOIN pg_stat_activity blocking ON blocking.pid = gl.pid;
 
--- 5. スーパーユーザー接続の検出
+-- 5. Detect superuser connections
 SELECT usename, client_addr, backend_start
 FROM pg_stat_activity
 WHERE usename = 'postgres'
-  AND client_addr IS NOT NULL;  -- リモートからのpostgres接続は要警戒
+  AND client_addr IS NOT NULL;  -- remote postgres connections warrant attention
 ```
 
 ---
 
-## 認証方式比較表
+## Authentication Method Comparison
 
-| 方式 | セキュリティ | 設定容易性 | パスワード送信 | 用途 | 推奨 |
-|------|:---:|:---:|:---:|------|:---:|
-| trust | 最低（認証なし） | 最も簡単 | なし | 開発環境ローカルのみ | 開発のみ |
-| password (平文) | 低 | 簡単 | 平文 | 使用禁止 | NG |
-| md5 | 中（非推奨） | 簡単 | MD5ハッシュ | レガシー互換のみ | 非推奨 |
-| scram-sha-256 | 高 | 簡単 | チャレンジ応答 | 一般的なパスワード認証 | 推奨 |
-| peer / ident | 高 | 中 | なし（OS認証） | ローカルUnix接続 | ローカル推奨 |
-| cert (mTLS) | 最高 | 複雑 | なし（証明書） | TLSクライアント証明書 | 最高推奨 |
-| ldap | 高 | 複雑 | LDAP経由 | 企業AD/LDAP統合 | 企業環境推奨 |
-| gss (Kerberos) | 最高 | 最も複雑 | なし（チケット） | エンタープライズSSO | 大規模推奨 |
-| radius | 高 | 複雑 | RADIUS経由 | 二要素認証統合 | 用途次第 |
+| Method | Security | Ease of Setup | Password Transmission | Use Case | Recommended |
+|--------|:---:|:---:|:---:|------|:---:|
+| trust | Lowest (no auth) | Easiest | None | Local dev only | Dev only |
+| password (plaintext) | Low | Easy | Plaintext | Prohibited | NG |
+| md5 | Medium (deprecated) | Easy | MD5 hash | Legacy compat only | Not recommended |
+| scram-sha-256 | High | Easy | Challenge-response | General password auth | Recommended |
+| peer / ident | High | Medium | None (OS auth) | Local Unix connections | Recommended for local |
+| cert (mTLS) | Highest | Complex | None (certificate) | TLS client certificates | Highest recommendation |
+| ldap | High | Complex | Via LDAP | Enterprise AD/LDAP integration | Recommended for enterprise |
+| gss (Kerberos) | Highest | Most complex | None (ticket) | Enterprise SSO | Recommended for large scale |
+| radius | High | Complex | Via RADIUS | Two-factor auth integration | Depends on use case |
 
-## 権限レベル比較表
+## Privilege Level Comparison
 
-| レベル | 対象 | 設定方法 | 粒度 | 使用例 |
-|--------|------|---------|------|--------|
-| クラスタ | PostgreSQL全体 | CREATE ROLE + 属性 | 最も粗い | SUPERUSER, CREATEDB, CREATEROLE |
-| データベース | 特定DB | GRANT CONNECT | DB単位 | 特定DBへの接続許可 |
-| スキーマ | 名前空間 | GRANT USAGE/CREATE | スキーマ単位 | スキーマ内オブジェクトの参照 |
-| テーブル | 個別テーブル | GRANT SELECT/INSERT/... | テーブル単位 | CRUD操作の許可 |
-| 列 | 個別カラム | GRANT SELECT(col) | カラム単位 | 特定列のみ参照許可 |
-| 行 | 個別レコード | CREATE POLICY (RLS) | 行単位 | マルチテナント分離 |
+| Level | Target | Configuration Method | Granularity | Example |
+|-------|--------|---------------------|-------------|---------|
+| Cluster | Entire PostgreSQL | CREATE ROLE + attributes | Coarsest | SUPERUSER, CREATEDB, CREATEROLE |
+| Database | Specific DB | GRANT CONNECT | Per DB | Allow connection to specific DB |
+| Schema | Namespace | GRANT USAGE/CREATE | Per schema | Access objects within schema |
+| Table | Individual table | GRANT SELECT/INSERT/... | Per table | Allow CRUD operations |
+| Column | Individual column | GRANT SELECT(col) | Per column | Allow access to specific columns only |
+| Row | Individual record | CREATE POLICY (RLS) | Per row | Multi-tenant isolation |
 
-## SQLインジェクション対策方法比較表
+## SQL Injection Defense Method Comparison
 
-| 対策方法 | 防御効果 | 適用場面 | 注意点 |
-|---------|:---:|---------|--------|
-| パラメータ化クエリ | 完全 | 値のバインド | テーブル名・カラム名には使えない |
-| quote_ident / format(%I) | 完全 | 動的テーブル名・カラム名 | ホワイトリスト検証と併用推奨 |
-| quote_literal / format(%L) | 完全 | 動的リテラル値 | パラメータ化クエリが使えない場合のみ |
-| ホワイトリスト検証 | 完全 | 動的識別子 | 許可リストのメンテナンスが必要 |
-| エスケープ関数 | 高い | レガシーコード | 漏れのリスクがあるため非推奨 |
-| ORMのAPIのみ使用 | 高い | 一般的なCRUD | Raw SQL使用時は要注意 |
-| WAF | 補助的 | 外部防御層 | 単独では不十分、バイパス手法あり |
+| Defense Method | Defense Effect | Application | Notes |
+|---------------|:---:|------------|-------|
+| Parameterized queries | Complete | Value binding | Cannot be used for table/column names |
+| quote_ident / format(%I) | Complete | Dynamic table/column names | Recommended combined with whitelist validation |
+| quote_literal / format(%L) | Complete | Dynamic literal values | Only when parameterized queries are not available |
+| Whitelist validation | Complete | Dynamic identifiers | Requires maintenance of the allowlist |
+| Escape functions | High | Legacy code | Not recommended due to risk of omissions |
+| ORM API only | High | General CRUD | Be careful when using raw SQL |
+| WAF | Supplementary | Outer defense layer | Insufficient alone; bypass techniques exist |
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### アンチパターン1: アプリケーションにスーパーユーザーで接続
+### Anti-pattern 1: Connecting to Applications as Superuser
 
 ```sql
--- NG: 全アプリケーションがpostgresユーザー（スーパーユーザー）で接続
--- 接続文字列: postgres://postgres:password@db:5432/myapp
+-- NG: all applications connect as the postgres user (superuser)
+-- Connection string: postgres://postgres:password@db:5432/myapp
 
--- 問題点:
--- 1. 全テーブルの読み書き削除が可能
--- 2. DROP DATABASE も実行可能
--- 3. システムカタログの変更も可能
--- 4. RLSが無効化される（スーパーユーザーはバイパス）
--- 5. SQLインジェクション時の被害が最大化
--- 6. 監査ログで操作者の特定が困難
+-- Problems:
+-- 1. Read/write/delete on all tables is possible
+-- 2. DROP DATABASE can also be executed
+-- 3. System catalog modifications are possible
+-- 4. RLS is bypassed (superuser bypasses RLS)
+-- 5. Damage is maximized on SQL injection
+-- 6. Difficult to identify who performed an operation in audit logs
 
--- OK: 最小権限の原則に基づいたロール設計
+-- OK: role design based on the Principle of Least Privilege
 CREATE ROLE web_app LOGIN PASSWORD 'secure_password_here'
-    CONNECTION LIMIT 30     -- 接続数制限
-    NOSUPERUSER             -- 明示的にスーパーユーザー権限を拒否
-    NOCREATEDB              -- DB作成権限なし
-    NOCREATEROLE;           -- ロール作成権限なし
+    CONNECTION LIMIT 30     -- connection limit
+    NOSUPERUSER             -- explicitly deny superuser privilege
+    NOCREATEDB              -- no DB creation privilege
+    NOCREATEROLE;           -- no role creation privilege
 
--- 必要最小限の権限のみ付与
+-- Grant only the minimum necessary privileges
 GRANT SELECT, INSERT, UPDATE ON customers, orders, order_items TO web_app;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO web_app;
--- DELETE権限は付与しない → 論理削除（deleted_atカラム）を使用
--- DDL権限（CREATE TABLE等）も付与しない → マイグレーション専用ロールを別に用意
+-- Do not grant DELETE → use logical deletion (deleted_at column)
+-- Do not grant DDL (CREATE TABLE, etc.) → set up a separate role for migrations
 ```
 
-### アンチパターン2: 機密データの平文保存
+### Anti-pattern 2: Storing Sensitive Data in Plaintext
 
 ```sql
--- NG (レベル1): パスワードを平文で保存
+-- NG (Level 1): store passwords in plaintext
 CREATE TABLE bad_users_v1 (
     id       SERIAL PRIMARY KEY,
     email    VARCHAR(255),
-    password VARCHAR(255)  -- 平文のまま格納！
+    password VARCHAR(255)  -- stored as plaintext!
 );
--- → データベースにアクセスできる全員がパスワードを読める
--- → バックアップファイルからも読める
+-- → Anyone who can access the database can read passwords
+-- → Also readable from backup files
 
--- NG (レベル2): MD5でハッシュ（脆弱）
+-- NG (Level 2): hash with MD5 (vulnerable)
 INSERT INTO users (email, password_hash) VALUES
 ('user@example.com', md5('password123'));
 -- → md5('password123') = '482c811da5d5b4bc6d497ffa98491e38'
--- → レインボーテーブルで瞬時に解読可能
--- → ソルトなしなので同じパスワードは同じハッシュになる
+-- → Can be cracked instantly with rainbow tables
+-- → Without salt, same password always produces the same hash
 
--- NG (レベル3): SHA-256でハッシュ（ソルトなし）
+-- NG (Level 3): hash with SHA-256 (no salt)
 INSERT INTO users (email, password_hash) VALUES
 ('user@example.com', encode(digest('password123', 'sha256'), 'hex'));
--- → ソルトなしなので同じパスワードは同じハッシュ
--- → GPUで高速に総当たり可能
+-- → Without salt, same password always produces the same hash
+-- → Can be brute-forced quickly with GPUs
 
--- OK: bcryptでハッシュ（ソルト自動生成、意図的に遅い）
+-- OK: hash with bcrypt (auto-generated salt, intentionally slow)
 INSERT INTO users (email, password_hash) VALUES
 ('user@example.com', crypt('password123', gen_salt('bf', 12)));
--- → ソルトが自動生成される
--- → コスト12で約250ms/ハッシュ → 総当たり困難
--- → 同じパスワードでも毎回異なるハッシュ値になる
+-- → Salt is generated automatically
+-- → Cost 12 → ~250ms/hash → brute force is impractical
+-- → Even the same password produces a different hash each time
 ```
 
-### アンチパターン3: RLSポリシーのないマルチテナント
+### Anti-pattern 3: Multi-tenant Without RLS Policies
 
 ```sql
--- NG: アプリケーション層のみでテナント分離
--- WHERE tenant_id = ? をアプリの全クエリに手動で追加
+-- NG: tenant isolation only at the application layer
+-- Manually adding WHERE tenant_id = ? to every query in the app
 
--- 問題点:
--- 1. 一箇所でもWHERE句の追加を忘れるとデータ漏洩
--- 2. 直接DBアクセスするツール（psql等）からは制御できない
--- 3. ORMのリレーション読み込みでフィルタが漏れる可能性
+-- Problems:
+-- 1. Omitting WHERE clause in even one place causes a data leak
+-- 2. Cannot be controlled from tools with direct DB access (psql, etc.)
+-- 3. ORM relation loading may miss the filter
 
--- OK: RLSでデータベースレベルのテナント分離を保証
+-- OK: guarantee database-level tenant isolation with RLS
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders FORCE ROW LEVEL SECURITY;
 
@@ -1077,29 +1088,29 @@ CREATE POLICY tenant_isolation ON orders
     USING (tenant_id = current_setting('app.tenant_id')::INTEGER)
     WITH CHECK (tenant_id = current_setting('app.tenant_id')::INTEGER);
 
--- → どんなクエリを実行しても、自テナントのデータしか見えない
--- → psqlから直接SELECTしても、RLSが適用される
--- → WITH CHECKにより、他テナントのデータを挿入することも防止
+-- → No matter what query is run, only the current tenant's data is visible
+-- → RLS is applied even with a direct SELECT from psql
+-- → WITH CHECK also prevents inserting data for another tenant
 ```
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1（基礎）: ロールと権限の設計
+### Exercise 1 (Basic): Role and Privilege Design
 
-**課題**: 以下の要件を満たすロールと権限設計を実装してください。
+**Task**: Implement a role and privilege design that meets the following requirements.
 
-- `api_service`: Webアプリ用。customers, orders, productsテーブルのCRUD（DELETEは除く）
-- `analytics_user`: 分析用。全テーブルのSELECTのみ。salary列は除外
-- `migration_runner`: マイグレーション用。DDL操作が可能
-- 各ロールの接続数制限を設定
+- `api_service`: For the web app. CRUD on customers, orders, products tables (excluding DELETE)
+- `analytics_user`: For analytics. SELECT only on all tables. Exclude the salary column
+- `migration_runner`: For migrations. DDL operations allowed
+- Set connection limits for each role
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```sql
--- ロール作成
+-- Create roles
 CREATE ROLE api_service
     LOGIN PASSWORD 'api_service_secure_2024!'
     CONNECTION LIMIT 30
@@ -1115,25 +1126,25 @@ CREATE ROLE migration_runner
     CONNECTION LIMIT 3
     NOSUPERUSER CREATEDB NOCREATEROLE;
 
--- スキーマ権限
+-- Schema privileges
 GRANT USAGE ON SCHEMA public TO api_service, analytics_user;
 GRANT USAGE, CREATE ON SCHEMA public TO migration_runner;
 
--- api_service: SELECT, INSERT, UPDATE（DELETEなし）
+-- api_service: SELECT, INSERT, UPDATE (no DELETE)
 GRANT SELECT, INSERT, UPDATE ON customers, orders, products TO api_service;
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO api_service;
 
--- analytics_user: SELECT のみ（salary列を除外）
+-- analytics_user: SELECT only (exclude salary column)
 GRANT SELECT ON orders, products TO analytics_user;
--- customers テーブルはsalary列を除いて付与
+-- Grant customers table excluding salary column
 GRANT SELECT (id, name, email, department, created_at) ON customers
     TO analytics_user;
 
--- migration_runner: DDL操作
+-- migration_runner: DDL operations
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO migration_runner;
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO migration_runner;
 
--- デフォルト権限（将来のテーブルにも適用）
+-- Default privileges (also applies to future tables)
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
     GRANT SELECT, INSERT, UPDATE ON TABLES TO api_service;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
@@ -1141,7 +1152,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
     GRANT USAGE ON SEQUENCES TO api_service;
 
--- 確認
+-- Verify
 SELECT grantee, table_name, privilege_type
 FROM information_schema.table_privileges
 WHERE table_schema = 'public'
@@ -1151,21 +1162,21 @@ ORDER BY grantee, table_name, privilege_type;
 
 </details>
 
-### 演習2（応用）: マルチテナントRLSの実装
+### Exercise 2 (Intermediate): Multi-tenant RLS Implementation
 
-**課題**: SaaS型のプロジェクト管理ツールを想定し、以下の要件を満たすRLSを実装してください。
+**Task**: Assuming a SaaS project management tool, implement RLS that meets the following requirements.
 
-- テナント分離: 異なるテナントのデータは一切参照できない
-- ロール制御: テナント内で admin/member/viewer の3つのロールを持つ
-- admin: 全操作可能
-- member: 自分が作成したタスクのCRUD + 他のタスクの参照
-- viewer: 参照のみ
+- Tenant isolation: data from different tenants is completely inaccessible
+- Role control: three roles within a tenant — admin/member/viewer
+- admin: all operations allowed
+- member: CRUD on tasks they created + view other tasks
+- viewer: view only
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```sql
--- テーブル定義
+-- Table definition
 CREATE TABLE tenant_users (
     id          SERIAL PRIMARY KEY,
     tenant_id   INTEGER NOT NULL,
@@ -1185,11 +1196,11 @@ CREATE TABLE tasks (
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
--- RLS有効化
+-- Enable RLS
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE tasks FORCE ROW LEVEL SECURITY;
 
--- セッション変数を取得するヘルパー関数
+-- Helper functions to retrieve session variables
 CREATE OR REPLACE FUNCTION get_current_tenant_id() RETURNS INTEGER AS $$
 BEGIN
     RETURN current_setting('app.tenant_id')::INTEGER;
@@ -1214,12 +1225,12 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$ LANGUAGE plpgsql STABLE;
 
--- ポリシー1: テナント分離（全ロール共通）
+-- Policy 1: tenant isolation (applies to all roles)
 CREATE POLICY tenant_isolation ON tasks
     FOR ALL
     USING (tenant_id = get_current_tenant_id());
 
--- ポリシー2: admin は全操作可能
+-- Policy 2: admin can perform all operations
 CREATE POLICY admin_all ON tasks
     FOR ALL
     USING (
@@ -1231,7 +1242,7 @@ CREATE POLICY admin_all ON tasks
         AND get_current_user_role() = 'admin'
     );
 
--- ポリシー3: member は参照は全て可能
+-- Policy 3: member can view all tasks
 CREATE POLICY member_select ON tasks
     FOR SELECT
     USING (
@@ -1239,7 +1250,7 @@ CREATE POLICY member_select ON tasks
         AND get_current_user_role() = 'member'
     );
 
--- ポリシー4: member は自分が作成したタスクのみCUD
+-- Policy 4: member can CUD only their own tasks
 CREATE POLICY member_modify ON tasks
     FOR ALL
     USING (
@@ -1253,7 +1264,7 @@ CREATE POLICY member_modify ON tasks
         AND creator_id = get_current_user_id()
     );
 
--- ポリシー5: viewer は参照のみ
+-- Policy 5: viewer can only view
 CREATE POLICY viewer_select ON tasks
     FOR SELECT
     USING (
@@ -1261,34 +1272,34 @@ CREATE POLICY viewer_select ON tasks
         AND get_current_user_role() = 'viewer'
     );
 
--- インデックス
+-- Indexes
 CREATE INDEX idx_tasks_tenant ON tasks (tenant_id);
 CREATE INDEX idx_tasks_creator ON tasks (tenant_id, creator_id);
 
--- テスト
+-- Test
 SET app.tenant_id = '1';
 SET app.current_user_id = '10';
 SET app.user_role = 'member';
-SELECT * FROM tasks;  -- テナント1のタスクのみ表示
+SELECT * FROM tasks;  -- shows only tenant 1 tasks
 ```
 
 </details>
 
-### 演習3（発展）: 包括的セキュリティ監査システム
+### Exercise 3 (Advanced): Comprehensive Security Audit System
 
-**課題**: 以下の要件を満たす包括的なセキュリティ監査システムを設計・実装してください。
+**Task**: Design and implement a comprehensive security audit system that meets the following requirements.
 
-- 対象テーブルの全CRUD操作を監査ログに記録
-- 変更されたフィールドのbefore/afterを記録
-- アプリケーションユーザーID、IPアドレスを記録
-- 不正な操作パターン（短時間の大量DELETE等）を検出するビュー
-- 監査ログの月次パーティション
+- Record all CRUD operations on target tables to the audit log
+- Record before/after for each changed field
+- Record application user ID and IP address
+- Views to detect suspicious operation patterns (e.g., mass DELETE in a short time)
+- Monthly partitioning of the audit log
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```sql
--- 監査ログテーブル（パーティション対応）
+-- Audit log table (with partitioning support)
 CREATE TABLE security_audit_log (
     id              BIGSERIAL,
     table_name      VARCHAR(100) NOT NULL,
@@ -1308,20 +1319,20 @@ CREATE TABLE security_audit_log (
     PRIMARY KEY (id, occurred_at)
 ) PARTITION BY RANGE (occurred_at);
 
--- 月次パーティション作成
+-- Create monthly partitions
 CREATE TABLE security_audit_log_2024_01 PARTITION OF security_audit_log
     FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
 CREATE TABLE security_audit_log_2024_02 PARTITION OF security_audit_log
     FOR VALUES FROM ('2024-02-01') TO ('2024-03-01');
--- ... 以降も同様
+-- ... and so on
 
--- インデックス
+-- Indexes
 CREATE INDEX idx_sal_table_op ON security_audit_log (table_name, operation);
 CREATE INDEX idx_sal_occurred ON security_audit_log (occurred_at);
 CREATE INDEX idx_sal_app_user ON security_audit_log (app_user_id);
 CREATE INDEX idx_sal_risk ON security_audit_log (risk_level) WHERE risk_level != 'normal';
 
--- 監査トリガー関数（リスクレベル自動判定付き）
+-- Audit trigger function (with automatic risk level determination)
 CREATE OR REPLACE FUNCTION security_audit_func()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -1332,11 +1343,11 @@ DECLARE
     v_risk VARCHAR(10) := 'normal';
     col TEXT;
 BEGIN
-    -- リスクレベル判定
+    -- Determine risk level
     IF TG_OP = 'DELETE' THEN
         v_record_pk := OLD.id::TEXT;
         v_old_json := to_jsonb(OLD);
-        v_risk := 'elevated';  -- DELETEは常にelevated
+        v_risk := 'elevated';  -- DELETE is always elevated
     ELSIF TG_OP = 'INSERT' THEN
         v_record_pk := NEW.id::TEXT;
         v_new_json := to_jsonb(NEW);
@@ -1352,7 +1363,7 @@ BEGIN
             END IF;
         END LOOP;
 
-        -- 機密フィールドの変更はelevated
+        -- Changes to sensitive fields are elevated
         IF v_changed && ARRAY['password_hash', 'email', 'role', 'status'] THEN
             v_risk := 'elevated';
         END IF;
@@ -1374,7 +1385,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 不正操作パターン検出ビュー
+-- View for detecting suspicious operation patterns
 CREATE VIEW v_suspicious_activities AS
 SELECT
     app_user_id,
@@ -1413,88 +1424,88 @@ HAVING COUNT(*) > 5;
 
 ## FAQ
 
-### Q1: RLS（Row Level Security）はパフォーマンスに影響するか？
+### Q1: Does RLS (Row Level Security) affect performance?
 
-RLSポリシーは各クエリにWHERE条件として追加されるため、適切なインデックスがあればオーバーヘッドは最小限（通常1-5%以下）。ただし以下の場合は注意が必要:
+RLS policies are added as WHERE conditions to each query, so with proper indexes, the overhead is minimal (typically less than 1-5%). However, care is needed in the following cases:
 
-- 複雑なポリシー（サブクエリを含む）: JOINやサブクエリを含むポリシーは実行計画を複雑にする
-- 多数のポリシー: 同じテーブルに10以上のポリシーがあるとOR条件が増えて遅くなる
-- current_setting()の頻繁な呼び出し: ポリシー内でcurrent_setting()を使う場合は STABLE 関数でラップするとプランナが最適化しやすくなる
+- Complex policies (containing subqueries): Policies with JOINs or subqueries can complicate the execution plan
+- Many policies: Having 10 or more policies on the same table can slow things down due to increased OR conditions
+- Frequent calls to current_setting(): When using current_setting() in policies, wrapping it in a STABLE function makes it easier for the planner to optimize
 
-EXPLAIN ANALYZEで実行計画を確認し、ポリシーのフィルタ条件にインデックスが使われていることを確認すべき。
+Use EXPLAIN ANALYZE to verify the execution plan and confirm that indexes are used for the policy filter conditions.
 
-### Q2: データベースのバックアップも暗号化すべきか？
+### Q2: Should database backups also be encrypted?
 
-必須。バックアップファイルには全データが含まれるため、本番環境と同等以上のセキュリティが必要。
+Mandatory. Backup files contain all data, so they require the same or higher level of security as production.
 
-- pg_dump出力: GPGで暗号化するか、暗号化ストレージに保存
-- WALアーカイブ: aws s3 cpやgsutil cpで送信する場合はServer-Side Encryption（SSE）を有効化
-- クラウドバックアップ: AWS RDSは自動的にAES-256で暗号化（デフォルト有効）
-- バックアップ転送: 必ずTLS（scp/sftp）を使用。FTPやrsync without SSHは厳禁
+- pg_dump output: Encrypt with GPG or store in encrypted storage
+- WAL archives: Enable Server-Side Encryption (SSE) when sending via aws s3 cp or gsutil cp
+- Cloud backups: AWS RDS automatically encrypts with AES-256 (enabled by default)
+- Backup transfer: Always use TLS (scp/sftp). FTP or rsync without SSH is strictly prohibited
 
-### Q3: SQLインジェクション以外のインジェクション攻撃は？
+### Q3: What injection attacks exist beyond SQL injection?
 
-- **OSコマンドインジェクション**: PostgreSQLの `COPY FROM PROGRAM` コマンドの悪用。スーパーユーザー権限で任意のOSコマンドを実行可能
-- **LDAPインジェクション**: LDAP認証設定時のフィルタ式への攻撃
-- **NoSQLインジェクション**: MongoDBの `$where` 句やJavaScriptインジェクション
-- **ORM経由のインジェクション**: Raw SQL機能や動的フィルタの不適切な使用でSQLインジェクションが発生する場合がある
-- **二次インジェクション**: 一度DBに保存されたデータが、別のクエリで使用される際にインジェクションが発生
+- **OS Command Injection**: Abuse of PostgreSQL's `COPY FROM PROGRAM` command. Allows executing arbitrary OS commands with superuser privileges
+- **LDAP Injection**: Attacks against filter expressions when LDAP authentication is configured
+- **NoSQL Injection**: Attacks on MongoDB's `$where` clause or JavaScript injection
+- **ORM-based injection**: SQL injection can occur when using raw SQL features or dynamic filters improperly
+- **Second-order injection**: Injection occurs when data previously stored in the DB is used in another query
 
-ORMを使っていてもRaw SQLメソッド（Prismaの`$queryRaw`、SQLAlchemyの`text()`等）を使う場合は、必ずパラメータバインドを行うこと。詳細は[ORM比較](./03-orm-comparison.md)を参照。
+Even when using an ORM, always use parameter binding when calling raw SQL methods (Prisma's `$queryRaw`, SQLAlchemy's `text()`, etc.). See [ORM Comparison](./03-orm-comparison.md) for details.
 
-### Q4: password_hashをSELECTから除外するベストプラクティスは？
+### Q4: What are best practices for excluding password_hash from SELECT?
 
-1. **列レベル権限**: `REVOKE SELECT(password_hash) ON users FROM app_readonly;`
-2. **ビュー**: password_hashを含まないビューを作成し、アプリはビュー経由でアクセス
-3. **アプリケーション層**: SELECT時に明示的にカラムを指定（`SELECT *` を禁止）
-4. **RLS**: password_hashを必要としない操作ではRLSで行全体を制限
+1. **Column-level privilege**: `REVOKE SELECT(password_hash) ON users FROM app_readonly;`
+2. **Views**: Create a view that does not include password_hash, and have the app access through the view
+3. **Application layer**: Explicitly specify columns on SELECT (prohibit `SELECT *`)
+4. **RLS**: For operations that do not need password_hash, restrict the entire row with RLS
 
-ORMではPrismaの `select` やSQLAlchemyの `defer` でカラムの遅延読み込みを設定できる。
+In ORMs, Prisma's `select` and SQLAlchemy's `defer` can configure deferred column loading.
 
-### Q5: スーパーユーザーを使わないと実行できない操作は？
+### Q5: What operations require superuser and cannot be avoided?
 
-- CREATE EXTENSION（拡張機能のインストール）
-- pg_hba.confの変更リロード
-- postgresql.confのパラメータ変更
-- REPLICATION権限の付与
-- シグナル送信（pg_cancel_backend, pg_terminate_backend）
-- ファイルシステムアクセス（COPY TO/FROM ファイル）
+- CREATE EXTENSION (installing extensions)
+- Reloading changes to pg_hba.conf
+- Changing parameters in postgresql.conf
+- Granting REPLICATION privilege
+- Sending signals (pg_cancel_backend, pg_terminate_backend)
+- File system access (COPY TO/FROM file)
 
-これらはCI/CDパイプラインやインフラ自動化で行い、日常的なアプリケーション操作では使用しない設計にすべき。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| 多層防御 | ネットワーク → 認証 → 認可 → 入力検証 → 暗号化 → 監査の6層 |
-| 最小権限の原則 | アプリ用ロールには必要最小限の権限のみ。SUPERUSERは禁止 |
-| pg_hba.conf | 最後に`reject`ルールを置く。scram-sha-256を使用 |
-| RLS | 行レベルのアクセス制御。マルチテナント分離に必須 |
-| SQLインジェクション | パラメータ化クエリで100%防止。動的SQLにはformat(%I, %L)を使用 |
-| パスワード | bcrypt (gen_salt('bf', 12))でハッシュ。MD5/SHA-256は不可 |
-| 暗号化 | TLS通信(verify-full) + 列レベル暗号化 + ディスク暗号化 + バックアップ暗号化 |
-| 監査 | audit_logテーブル + pgAuditで全操作を記録。月次パーティション推奨 |
-| モニタリング | アクティブ接続、長時間クエリ、ロック競合を常時監視 |
+These should be performed in CI/CD pipelines or infrastructure automation, and the design should avoid using them for day-to-day application operations.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [00-postgresql-features.md](./00-postgresql-features.md) — pgcrypto、pg_trgm等の活用
-- [02-performance-tuning.md](./02-performance-tuning.md) — セキュリティ設定とパフォーマンスの両立
-- [03-orm-comparison.md](./03-orm-comparison.md) — ORMのSQLインジェクション対策
-- セキュリティ概要 — 情報セキュリティの全体像
-- OWASP Top 10 — Web脆弱性トップ10
-- インジェクション — SQLi以外のインジェクション攻撃
-- TLS/証明書 — TLSの仕組みと証明書管理
-- パスワードセキュリティ — パスワードハッシュの詳細
-- RBAC — ロールベースアクセス制御
+| Topic | Key Point |
+|-------|-----------|
+| Defense in Depth | 6 layers: network → authentication → authorization → input validation → encryption → auditing |
+| Principle of Least Privilege | App roles get only the minimum required privileges. SUPERUSER is prohibited |
+| pg_hba.conf | Place a `reject` rule at the end. Use scram-sha-256 |
+| RLS | Row-level access control. Essential for multi-tenant isolation |
+| SQL Injection | 100% prevention with parameterized queries. Use format(%I, %L) for dynamic SQL |
+| Passwords | Hash with bcrypt (gen_salt('bf', 12)). MD5/SHA-256 are not acceptable |
+| Encryption | TLS communication (verify-full) + column-level encryption + disk encryption + backup encryption |
+| Auditing | Record all operations with audit_log table + pgAudit. Monthly partitioning recommended |
+| Monitoring | Continuously monitor active connections, long-running queries, and lock contention |
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+- [00-postgresql-features.md](./00-postgresql-features.md) — Using pgcrypto, pg_trgm, and more
+- [02-performance-tuning.md](./02-performance-tuning.md) — Balancing security settings and performance
+- [03-orm-comparison.md](./03-orm-comparison.md) — SQL injection countermeasures in ORMs
+- Security Overview — The big picture of information security
+- OWASP Top 10 — Top 10 web vulnerabilities
+- Injection — Injection attacks beyond SQLi
+- TLS/Certificates — How TLS works and certificate management
+- Password Security — Details of password hashing
+- RBAC — Role-based access control
+
+---
+
+## References
 
 1. PostgreSQL Documentation — "Client Authentication" https://www.postgresql.org/docs/current/client-authentication.html
 2. PostgreSQL Documentation — "Row Security Policies" https://www.postgresql.org/docs/current/ddl-rowsecurity.html
