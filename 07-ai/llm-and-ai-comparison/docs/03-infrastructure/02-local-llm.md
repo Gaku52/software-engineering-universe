@@ -1,25 +1,25 @@
-# ローカル LLM — Ollama・llama.cpp・量子化
+# Local LLM — Ollama, llama.cpp, and Quantization
 
-> ローカル LLM は大規模言語モデルを自社サーバーやローカルマシン上で実行する手法であり、データプライバシー、レイテンシ、コスト、オフライン動作の要件を満たすための重要な選択肢である。
+> Local LLMs are an approach to running large language models on your own servers or local machines, offering an important option for meeting data privacy, latency, cost, and offline operation requirements.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **ローカル実行の仕組みと量子化** — GGUF、GPTQ、AWQ による効率化とメモリ・品質のトレードオフ
-2. **主要ツールの使い方** — Ollama、llama.cpp、vLLM、TGI の実践的な導入手順
-3. **GPU/CPU 選定とパフォーマンス最適化** — ハードウェア要件、推論速度の向上手法
+1. **How local execution and quantization work** — Efficiency gains and the memory/quality trade-offs of GGUF, GPTQ, and AWQ
+2. **Using the major tools** — Practical setup procedures for Ollama, llama.cpp, vLLM, and TGI
+3. **GPU/CPU selection and performance optimization** — Hardware requirements and techniques for improving inference speed
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [ベクトル DB — Pinecone・Weaviate・pgvector・Qdrant](./01-vector-databases.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Vector DB — Pinecone, Weaviate, pgvector, Qdrant](./01-vector-databases.md)
 
 ---
 
-## 1. ローカル LLM の全体像
+## 1. Overview of Local LLMs
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -50,9 +50,9 @@
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.1 ローカル LLM を選ぶべきケース
+### 1.1 When to Choose a Local LLM
 
-ローカル LLM は万能ではなく、特定の条件下で大きな優位性を持つ。以下のディシジョンマトリクスで判断する。
+Local LLMs are not a universal solution — they offer a significant advantage under specific conditions. Use the following decision matrix to evaluate your situation.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -74,7 +74,7 @@
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 ローカル LLM のアーキテクチャパターン
+### 1.2 Local LLM Architecture Patterns
 
 ```python
 from dataclasses import dataclass
@@ -146,9 +146,9 @@ for config in configs:
 
 ---
 
-## 2. 量子化の仕組み
+## 2. How Quantization Works
 
-### 2.1 量子化とは
+### 2.1 What Is Quantization?
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -178,21 +178,21 @@ for config in configs:
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 量子化形式の比較
+### 2.2 Comparison of Quantization Formats
 
-| 形式 | ビット幅 | 実行環境 | 品質 | 速度 | 主な用途 |
-|------|---------|---------|------|------|---------|
-| GGUF (Q4_K_M) | 4-5 bit | CPU + GPU | 高 | 中 | Ollama, llama.cpp |
-| GGUF (Q8_0) | 8 bit | CPU + GPU | 最高 | 遅 | 品質重視 |
-| GGUF (Q2_K) | 2-3 bit | CPU + GPU | 低 | 最速 | メモリ極小環境 |
-| GPTQ | 4 bit | GPU 必須 | 高 | 高速 | vLLM, TGI |
-| AWQ | 4 bit | GPU 必須 | 最高 | 高速 | vLLM (推奨) |
-| EETQ | 8 bit | GPU 必須 | 最高 | 高速 | TGI |
-| bitsandbytes | 4/8 bit | GPU 必須 | 高 | 中 | Transformers 統合 |
+| Format | Bit width | Runtime | Quality | Speed | Primary use case |
+|--------|-----------|---------|---------|-------|-----------------|
+| GGUF (Q4_K_M) | 4-5 bit | CPU + GPU | High | Medium | Ollama, llama.cpp |
+| GGUF (Q8_0) | 8 bit | CPU + GPU | Highest | Slow | Quality-first |
+| GGUF (Q2_K) | 2-3 bit | CPU + GPU | Low | Fastest | Minimal-memory environments |
+| GPTQ | 4 bit | GPU required | High | Fast | vLLM, TGI |
+| AWQ | 4 bit | GPU required | Highest | Fast | vLLM (recommended) |
+| EETQ | 8 bit | GPU required | Highest | Fast | TGI |
+| bitsandbytes | 4/8 bit | GPU required | High | Medium | Transformers integration |
 
-### 2.3 GGUF 量子化の詳細
+### 2.3 GGUF Quantization in Detail
 
-GGUF (GPT-Generated Unified Format) は llama.cpp が定義したモデルフォーマットで、CPU・GPU 双方での推論をサポートする。量子化バリエーションの名前の読み方を理解することが重要。
+GGUF (GPT-Generated Unified Format) is a model format defined by llama.cpp that supports inference on both CPU and GPU. Understanding how quantization variant names are read is important.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -220,31 +220,31 @@ GGUF (GPT-Generated Unified Format) は llama.cpp が定義したモデルフォ
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 2.4 GPTQ と AWQ の違い
+### 2.4 Differences Between GPTQ and AWQ
 
 ```python
-# GPTQ 量子化: キャリブレーションデータ依存の後量子化
-# → 特定のデータセットを使って最適な量子化パラメータを決定
-# → GPU 推論に最適化
+# GPTQ quantization: post-training quantization dependent on calibration data
+# → Determines optimal quantization parameters using a specific dataset
+# → Optimized for GPU inference
 
 # AWQ (Activation-aware Weight Quantization):
-# → 「重要な重み」を特定し、それらを保護しながら量子化
-# → GPTQ より高品質な場合が多い
+# → Identifies "important weights" and protects them during quantization
+# → Often higher quality than GPTQ
 
-# 比較表
+# Comparison table
 """
-特性          GPTQ                    AWQ
-──────       ──────                  ──────
-量子化手法    レイヤーごとの最適化     活性化ベースの重要度分析
-品質          高い                    やや高い（GPTQ以上）
-速度          高速                    高速
-キャリブ      必要 (128-256サンプル)  必要 (少量でOK)
-互換性        vLLM, TGI, AutoGPTQ    vLLM, TGI, AutoAWQ
-推奨場面      一般的なGPU推論         品質重視のGPU推論
+Property      GPTQ                    AWQ
+──────        ──────                  ──────
+Method        Layer-wise optimization Activation-based importance analysis
+Quality       High                    Slightly higher (exceeds GPTQ)
+Speed         Fast                    Fast
+Calibration   Required (128-256 samples)  Required (small amount OK)
+Compatibility vLLM, TGI, AutoGPTQ    vLLM, TGI, AutoAWQ
+Recommended   General GPU inference   Quality-focused GPU inference
 """
 ```
 
-### 2.5 自分で量子化を実行する
+### 2.5 Running Quantization Yourself
 
 ```python
 # AutoGPTQ を使った GPTQ 量子化
@@ -319,7 +319,7 @@ model.save_quantized(output_dir)
 tokenizer.save_pretrained(output_dir)
 ```
 
-### 2.6 HuggingFace → GGUF 変換
+### 2.6 HuggingFace → GGUF Conversion
 
 ```bash
 # llama.cpp の convert スクリプトを使用
@@ -363,7 +363,7 @@ python convert_hf_to_gguf.py \
 
 ## 3. Ollama
 
-### 3.1 インストールと基本操作
+### 3.1 Installation and Basic Usage
 
 ```bash
 # macOS / Linux: インストール
@@ -381,7 +381,7 @@ ollama run llama3.1:8b
 ollama list
 ```
 
-### 3.2 Ollama API (OpenAI 互換)
+### 3.2 Ollama API (OpenAI-Compatible)
 
 ```python
 from openai import OpenAI
@@ -413,7 +413,7 @@ for chunk in stream:
         print(chunk.choices[0].delta.content, end="", flush=True)
 ```
 
-### 3.3 Modelfile でカスタマイズ
+### 3.3 Customizing with a Modelfile
 
 ```dockerfile
 # Modelfile: カスタムモデル定義
@@ -438,7 +438,7 @@ ollama create python-expert -f Modelfile
 ollama run python-expert
 ```
 
-### 3.4 Ollama の高度な管理
+### 3.4 Advanced Ollama Management
 
 ```bash
 # モデルの詳細情報
@@ -461,7 +461,7 @@ export OLLAMA_MAX_LOADED_MODELS=2          # 同時ロードモデル数
 export OLLAMA_KEEP_ALIVE=5m                # モデルのメモリ保持時間
 ```
 
-### 3.5 Ollama でカスタム GGUF を使う
+### 3.5 Using a Custom GGUF with Ollama
 
 ```dockerfile
 # Modelfile: カスタム GGUF モデル
@@ -485,7 +485,7 @@ ollama create my-custom -f Modelfile
 ollama run my-custom
 ```
 
-### 3.6 Ollama Python ライブラリ (ネイティブ)
+### 3.6 Ollama Python Library (Native)
 
 ```python
 import ollama
@@ -525,7 +525,7 @@ for model in models["models"]:
 
 ## 4. llama.cpp
 
-### 4.1 ビルドと実行
+### 4.1 Build and Run
 
 ```bash
 # ビルド (macOS - Metal対応)
@@ -548,7 +548,7 @@ cmake --build build --config Release
     --threads 8     # CPUスレッド数
 ```
 
-### 4.2 Python バインディング
+### 4.2 Python Bindings
 
 ```python
 from llama_cpp import Llama
@@ -574,7 +574,7 @@ output = llm.create_chat_completion(
 print(output["choices"][0]["message"]["content"])
 ```
 
-### 4.3 llama.cpp サーバーの詳細設定
+### 4.3 Detailed llama.cpp Server Configuration
 
 ```bash
 # 高度なサーバー設定
@@ -596,7 +596,7 @@ print(output["choices"][0]["message"]["content"])
     --metrics               # Prometheus メトリクス有効化
 ```
 
-### 4.4 llama-cpp-python の高度な使い方
+### 4.4 Advanced llama-cpp-python Usage
 
 ```python
 from llama_cpp import Llama
@@ -643,7 +643,7 @@ output = llm.create_chat_completion(
 # → 必ず {"name": "...", "age": ...} 形式で出力
 ```
 
-### 4.5 speculative decoding (投機的デコード)
+### 4.5 Speculative Decoding
 
 ```bash
 # 大きなモデルの推論を小さなモデルで加速
@@ -668,9 +668,9 @@ output = llm.create_chat_completion(
 
 ---
 
-## 5. vLLM (高スループット推論)
+## 5. vLLM (High-Throughput Inference)
 
-### 5.1 vLLM サーバー
+### 5.1 vLLM Server
 
 ```bash
 # インストール
@@ -696,7 +696,7 @@ response = client.chat.completions.create(
 )
 ```
 
-### 5.2 バッチ推論 (オフライン)
+### 5.2 Batch Inference (Offline)
 
 ```python
 from vllm import LLM, SamplingParams
@@ -721,7 +721,7 @@ for output in outputs:
     print(output.outputs[0].text[:100])
 ```
 
-### 5.3 vLLM の高度な設定
+### 5.3 Advanced vLLM Configuration
 
 ```bash
 # プロダクション向け vLLM 設定
@@ -775,7 +775,7 @@ outputs_code = llm.generate(
 )
 ```
 
-### 5.4 vLLM vs TGI 比較
+### 5.4 vLLM vs TGI Comparison
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -805,7 +805,7 @@ outputs_code = llm.generate(
 
 ---
 
-## 6. ハードウェア要件
+## 6. Hardware Requirements
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -832,7 +832,7 @@ outputs_code = llm.generate(
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 6.1 GPU 選定ガイド
+### 6.1 GPU Selection Guide
 
 ```python
 # GPU 選定の意思決定ツール
@@ -896,7 +896,7 @@ for gpu in recommend_gpu(70, "Q4_K_M"):
           f"価格:{gpu['price']}")
 ```
 
-### 6.2 Apple Silicon でのパフォーマンス最適化
+### 6.2 Performance Optimization on Apple Silicon
 
 ```bash
 # Apple Silicon 最適化の確認
@@ -945,36 +945,36 @@ print(f"生成トークン: {tokens}, 時間: {elapsed:.2f}s, 速度: {tokens/el
 
 ---
 
-## 7. 比較表
+## 7. Comparison Tables
 
-### 7.1 推論エンジン比較
+### 7.1 Inference Engine Comparison
 
-| 特徴 | Ollama | llama.cpp | vLLM | TGI |
-|------|--------|-----------|------|-----|
-| 導入容易性 | 最高 | 中 | 中 | 中 |
-| CPU 推論 | 対応 | 最適 | 非推奨 | 非推奨 |
-| GPU 推論 | 対応 | 対応 | 最適 | 最適 |
-| Apple Silicon | 最適 | 最適 | 限定的 | 非対応 |
-| 量子化形式 | GGUF | GGUF | GPTQ/AWQ/FP16 | GPTQ/AWQ/EETQ |
-| バッチ推論 | 限定的 | 限定的 | 最適 | 最適 |
-| OpenAI互換 | 対応 | 対応 | 対応 | 対応 |
-| マルチGPU | N/A | 限定的 | 最適 | 最適 |
-| 用途 | 個人開発 | カスタマイズ | プロダクション | プロダクション |
+| Feature | Ollama | llama.cpp | vLLM | TGI |
+|---------|--------|-----------|------|-----|
+| Ease of setup | Highest | Medium | Medium | Medium |
+| CPU inference | Supported | Best | Not recommended | Not recommended |
+| GPU inference | Supported | Supported | Best | Best |
+| Apple Silicon | Best | Best | Limited | Not supported |
+| Quantization formats | GGUF | GGUF | GPTQ/AWQ/FP16 | GPTQ/AWQ/EETQ |
+| Batch inference | Limited | Limited | Best | Best |
+| OpenAI-compatible | Supported | Supported | Supported | Supported |
+| Multi-GPU | N/A | Limited | Best | Best |
+| Use case | Personal development | Custom setups | Production | Production |
 
-### 7.2 量子化品質比較 (Llama 3.1 8B 基準)
+### 7.2 Quantization Quality Comparison (Llama 3.1 8B baseline)
 
-| 量子化 | サイズ | MMLU | 推論速度 (tok/s) | 推奨度 |
-|--------|-------|------|------------------|--------|
-| FP16 | 16GB | 68.4 | 40 (A100) | 品質最優先 |
-| Q8_0 | 8.5GB | 68.2 | 55 (A100) | バランス |
-| Q5_K_M | 5.7GB | 67.8 | 70 (A100) | 高品質+小型 |
-| Q4_K_M | 4.9GB | 67.1 | 80 (A100) | 推奨 |
-| Q3_K_M | 3.9GB | 65.5 | 90 (A100) | メモリ重視 |
-| Q2_K | 3.2GB | 60.2 | 100 (A100) | 最小限 |
+| Quantization | Size | MMLU | Inference speed (tok/s) | Recommendation |
+|--------------|------|------|-------------------------|----------------|
+| FP16 | 16GB | 68.4 | 40 (A100) | Quality-first |
+| Q8_0 | 8.5GB | 68.2 | 55 (A100) | Balanced |
+| Q5_K_M | 5.7GB | 67.8 | 70 (A100) | High quality + compact |
+| Q4_K_M | 4.9GB | 67.1 | 80 (A100) | Recommended |
+| Q3_K_M | 3.9GB | 65.5 | 90 (A100) | Memory-focused |
+| Q2_K | 3.2GB | 60.2 | 100 (A100) | Minimal |
 
 ---
 
-## 8. Docker でのデプロイ
+## 8. Deployment with Docker
 
 ```yaml
 # docker-compose.yml
@@ -1017,7 +1017,7 @@ volumes:
   huggingface-cache:
 ```
 
-### 8.1 Kubernetes でのデプロイ
+### 8.1 Kubernetes Deployment
 
 ```yaml
 # kubernetes/deployment.yaml
@@ -1114,12 +1114,12 @@ spec:
           averageValue: "80"
 ```
 
-### 8.2 プロダクション向けリバースプロキシ設定
+### 8.2 Reverse Proxy Configuration for Production
 
 ```nginx
-# nginx.conf — ローカル LLM のリバースプロキシ
+# nginx.conf — reverse proxy for local LLM
 upstream vllm_backend {
-    least_conn;  # 最小接続数によるロードバランシング
+    least_conn;  # load balancing by minimum connections
     server 127.0.0.1:8000;
     server 127.0.0.1:8001;
 }
@@ -1131,7 +1131,7 @@ server {
     ssl_certificate     /etc/ssl/certs/llm.crt;
     ssl_certificate_key /etc/ssl/private/llm.key;
 
-    # レート制限
+    # rate limiting
     limit_req_zone $binary_remote_addr zone=llm:10m rate=10r/s;
 
     location /v1/ {
@@ -1141,21 +1141,21 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
 
-        # ストリーミング対応
+        # streaming support
         proxy_http_version 1.1;
         proxy_set_header Connection "";
         proxy_buffering off;
         proxy_cache off;
 
-        # タイムアウト設定 (LLM は応答に時間がかかる)
+        # timeout settings (LLM responses can take time)
         proxy_read_timeout 300s;
         proxy_send_timeout 300s;
 
-        # リクエストサイズ制限
+        # request size limit
         client_max_body_size 10M;
     }
 
-    # ヘルスチェック
+    # health check
     location /health {
         proxy_pass http://vllm_backend/health;
     }
@@ -1164,9 +1164,9 @@ server {
 
 ---
 
-## 9. パフォーマンス最適化
+## 9. Performance Optimization
 
-### 9.1 推論速度のボトルネック分析
+### 9.1 Bottleneck Analysis for Inference Speed
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -1199,7 +1199,7 @@ server {
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 9.2 KV Cache の最適化
+### 9.2 KV Cache Optimization
 
 ```python
 # KV Cache はコンテキスト長に比例してメモリを消費
@@ -1223,7 +1223,7 @@ server {
 """
 ```
 
-### 9.3 パフォーマンス計測ツール
+### 9.3 Performance Measurement Tools
 
 ```python
 import time
@@ -1288,81 +1288,81 @@ def benchmark_model(
 
 ---
 
-## 10. トラブルシューティング
+## 10. Troubleshooting
 
-### 10.1 よくある問題と解決策
+### 10.1 Common Problems and Solutions
 
 ```python
-# === 問題 1: OOM (Out of Memory) ===
-# エラー: "CUDA out of memory" / "Killed" (Linux OOM Killer)
+# === Problem 1: OOM (Out of Memory) ===
+# Error: "CUDA out of memory" / "Killed" (Linux OOM Killer)
 
-# 解決策:
+# Solutions:
 troubleshoot_oom = """
-1. モデルサイズの確認
+1. Check model size
    $ ollama show llama3.1:8b --modelfile
-   → VRAM 要件を確認
+   → Verify VRAM requirements
 
-2. GPU メモリ使用状況の確認
+2. Check GPU memory usage
    $ nvidia-smi
-   → 他のプロセスが GPU を使用していないか
+   → Ensure no other processes are using the GPU
 
-3. 量子化レベルを下げる
+3. Lower quantization level
    Q8_0 (8GB) → Q4_K_M (4.9GB) → Q3_K_M (3.9GB)
 
-4. GPU レイヤー数を減らす (CPU オフロード)
-   llama-server -m model.gguf -ngl 20  # 一部だけGPU
+4. Reduce the number of GPU layers (CPU offload)
+   llama-server -m model.gguf -ngl 20  # GPU only for some layers
 
-5. コンテキスト長を短縮
+5. Shorten context length
    -c 8192 → -c 4096 → -c 2048
 
-6. バッチサイズを削減
+6. Reduce batch size
    --batch-size 2048 → --batch-size 512
 """
 
-# === 問題 2: 推論が遅い ===
+# === Problem 2: Slow inference ===
 troubleshoot_slow = """
-1. GPU が使われているか確認
-   $ nvidia-smi  # GPU 使用率が 0% なら CPU で実行されている
-   → -ngl パラメータを確認 (-1 で全レイヤー GPU)
+1. Verify GPU is being used
+   $ nvidia-smi  # If GPU utilization is 0%, the model is running on CPU
+   → Check the -ngl parameter (-1 means all layers on GPU)
 
-2. Metal が有効か確認 (Apple Silicon)
+2. Check if Metal is enabled (Apple Silicon)
    $ ollama run llama3.1 --verbose 2>&1 | grep metal
 
-3. CPU スレッド数の最適化
-   NVIDIA GPU: --threads $(nproc)  # 全コア
-   Apple Silicon: --threads 1      # 1スレッドが最速の場合あり
+3. Optimize CPU thread count
+   NVIDIA GPU: --threads $(nproc)  # all cores
+   Apple Silicon: --threads 1      # 1 thread may be fastest
 
-4. メモリマッピングの確認
-   --mlock  # メモリロックでスワップ防止
-   --no-mmap  # メモリマップ無効 (大モデル)
+4. Check memory mapping settings
+   --mlock  # lock memory to prevent swapping
+   --no-mmap  # disable memory map (for large models)
 
-5. Flash Attention の有効化
-   --flash-attn  # llama.cpp サーバー
+5. Enable Flash Attention
+   --flash-attn  # llama.cpp server
 """
 
-# === 問題 3: 出力品質が悪い ===
+# === Problem 3: Poor output quality ===
 troubleshoot_quality = """
-1. 量子化レベルの確認
-   Q2_K は大幅な品質劣化あり → Q4_K_M 以上推奨
+1. Check quantization level
+   Q2_K causes significant quality degradation → Q4_K_M or higher recommended
 
-2. チャットテンプレートの確認
-   Ollama: Modelfile の TEMPLATE が正しいか
-   llama.cpp: --chat-template パラメータ
+2. Verify chat template
+   Ollama: check if TEMPLATE in Modelfile is correct
+   llama.cpp: --chat-template parameter
 
-3. システムプロンプトの設定
-   日本語タスクには日本語システムプロンプトが必須
+3. Set system prompt
+   Japanese tasks require a Japanese system prompt
 
-4. Temperature/Top-p の調整
-   正確性重視: temperature=0.1, top_p=0.9
-   創造性重視: temperature=0.8, top_p=0.95
+4. Tune Temperature/Top-p
+   For accuracy: temperature=0.1, top_p=0.9
+   For creativity: temperature=0.8, top_p=0.95
 
-5. モデル選択の見直し
-   日本語 → Qwen 2.5 を優先
-   英語 → Llama 3.1 が安定
+5. Reconsider model selection
+   Japanese → prefer Qwen 2.5
+   English → Llama 3.1 is stable
 """
 ```
 
-### 10.2 デバッグユーティリティ
+### 10.2 Debug Utilities
 
 ```python
 import subprocess
@@ -1452,50 +1452,50 @@ for quant, info in reqs.items():
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-patterns
 
-### アンチパターン 1: GPU メモリ不足での強制実行
+### Anti-pattern 1: Forcing Execution with Insufficient GPU Memory
 
 ```bash
-# NG: 24GB GPUで70Bモデル (FP16) を実行しようとする
-# → OOM (Out of Memory) エラー、またはスワッピングで極端に低速
+# NG: attempting to run a 70B model (FP16) on a 24GB GPU
+# → OOM (Out of Memory) error, or extremely slow due to swapping
 
-# OK: 適切な量子化レベルを選択
-ollama pull llama3.1:70b-q4_0  # Q4量子化: ~40GB必要
-# さらに: GPU-CPU分割 (一部レイヤーをCPUで実行)
-llama-server -m model.gguf -ngl 30  # 30レイヤーだけGPU
+# OK: choose an appropriate quantization level
+ollama pull llama3.1:70b-q4_0  # Q4 quantization: requires ~40GB
+# alternatively: GPU-CPU split (run some layers on CPU)
+llama-server -m model.gguf -ngl 30  # only 30 layers on GPU
 ```
 
-### アンチパターン 2: ローカル LLM で API モデルと同等の品質を期待
+### Anti-pattern 2: Expecting Cloud API-Level Quality from a Local LLM
 
 ```
-# NG: "7B Q4 モデルで GPT-4o と同じ品質が出るはず"
-# → 7B Q4 は GPT-4o の 1/100 以下のパラメータ規模
+# NG: "A 7B Q4 model should produce the same quality as GPT-4o"
+# → A 7B Q4 model has less than 1/100th the parameter scale of GPT-4o
 
-# OK: 適切な期待値設定
-# - 7B Q4: 簡単な質疑応答、分類、要約には十分
-# - 70B Q4: GPT-3.5 Turbo レベルの品質
-# - 用途を絞ってファインチューニングすれば小型でも高精度
+# OK: set appropriate expectations
+# - 7B Q4: sufficient for simple Q&A, classification, and summarization
+# - 70B Q4: quality comparable to GPT-3.5 Turbo
+# - fine-tuning for a narrow use case can achieve high accuracy even with small models
 ```
 
-### アンチパターン 3: セキュリティ無視のデプロイ
+### Anti-pattern 3: Deploying Without Security Considerations
 
 ```python
-# NG: ローカル LLM サーバーを認証なしで外部公開
+# NG: exposing a local LLM server publicly without authentication
 """
-ollama serve  # デフォルトで 0.0.0.0:11434
-# → インターネットから誰でもアクセス可能!
+ollama serve  # binds to 0.0.0.0:11434 by default
+# → accessible from anyone on the internet!
 """
 
-# OK: 認証とネットワーク制限を設定
+# OK: configure authentication and network restrictions
 """
-# 1. ローカルホストのみにバインド
+# 1. bind to localhost only
 export OLLAMA_HOST=127.0.0.1:11434
 
-# 2. リバースプロキシで認証を追加
-# nginx で API Key 認証
+# 2. add authentication via reverse proxy
+# API Key authentication with nginx
 
-# 3. ファイアウォールで制限
+# 3. restrict with firewall
 ufw allow from 192.168.1.0/24 to any port 11434
 ufw deny 11434
 """
@@ -1505,79 +1505,68 @@ ufw deny 11434
 
 ## 12. FAQ
 
-### Q1: Apple Silicon (M1/M2/M3) でローカル LLM は実用的か?
+### Q1: Are local LLMs practical on Apple Silicon (M1/M2/M3)?
 
-十分に実用的。Metal フレームワーク経由で GPU アクセラレーションが効き、
-M2 Pro (16GB) で 7B Q4 が 30-40 tok/s、M3 Max (48GB) で 34B Q4 が 15-20 tok/s 程度。
-Ollama が Apple Silicon を最もよくサポートしている。
+Fully practical. GPU acceleration works via the Metal framework, and an M2 Pro (16GB) achieves 30–40 tok/s with a 7B Q4 model; an M3 Max (48GB) achieves 15–20 tok/s with a 34B Q4 model. Ollama provides the best Apple Silicon support.
 
-### Q2: ローカル LLM と API モデルの損益分岐点は?
+### Q2: What is the break-even point between local LLMs and API models?
 
-RTX 4090 (¥25万) で 7B モデルを運用する場合、GPT-4o mini API のコストと比較して、
-月間約 50 万リクエスト以上でローカルが有利になる (電気代含む)。
-ただし、運用工数 (モデル更新、障害対応) を考慮すると、100 万リクエスト以上が現実的な損益分岐点。
+Running a 7B model on an RTX 4090 (approx. ¥250,000), compared to GPT-4o mini API costs, local becomes advantageous at roughly 500,000+ requests per month (including electricity). However, factoring in operational overhead (model updates, incident response), 1 million+ requests per month is a more realistic break-even point.
 
-### Q3: ファインチューニングしたモデルをローカルで実行するには?
+### Q3: How do I run a fine-tuned model locally?
 
-LoRA / QLoRA でファインチューニング → LoRA アダプタをマージ → GGUF に変換 → Ollama で実行。
-`llama.cpp` の `convert` スクリプトで HuggingFace 形式 → GGUF 変換が可能。
-Ollama では `FROM` に HuggingFace モデルを指定する Modelfile で直接実行もできる。
+Fine-tune with LoRA/QLoRA → merge the LoRA adapter → convert to GGUF → run with Ollama. The `convert` script in `llama.cpp` handles HuggingFace format → GGUF conversion. With Ollama, you can also run models directly by specifying a HuggingFace model in a `FROM` Modelfile.
 
-### Q4: 複数モデルを同時に実行できるか?
+### Q4: Can multiple models run simultaneously?
 
-Ollama では `OLLAMA_MAX_LOADED_MODELS` 環境変数で同時ロードモデル数を設定可能。
-VRAM に余裕があれば 2-3 モデルの同時ロードが可能。
-vLLM では複数の `--model` は非対応だが、複数インスタンスを異なるポートで起動する方法がある。
-用途に応じてルーティングする構成が実用的。
+With Ollama, the `OLLAMA_MAX_LOADED_MODELS` environment variable controls how many models can be loaded at once. If VRAM allows, 2–3 models can be loaded simultaneously. vLLM does not support multiple `--model` arguments, but you can run multiple instances on different ports and route traffic based on use case.
 
-### Q5: GGUF と GPTQ/AWQ はどう使い分ける?
+### Q5: How do I choose between GGUF and GPTQ/AWQ?
 
-CPU 推論 or Apple Silicon → GGUF 一択。NVIDIA GPU のみの環境で最大スループットを求めるなら GPTQ/AWQ。
-vLLM を使う場合は AWQ が品質・速度のバランスが最良。
-Ollama / llama.cpp を使う場合は GGUF (Q4_K_M) が最も安定。
+CPU inference or Apple Silicon → GGUF is the only choice. For NVIDIA GPU-only environments where maximum throughput is needed, use GPTQ/AWQ. When using vLLM, AWQ offers the best quality-speed balance. For Ollama/llama.cpp, GGUF (Q4_K_M) is the most stable option.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most critical factor. Writing actual code and verifying behavior deepens understanding far more than theory alone.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping straight to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is applied frequently in day-to-day development work, especially during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 推奨 |
-|------|------|
-| 個人開発・試用 | Ollama (最も簡単) |
-| CPU推論 | llama.cpp (GGUF Q4_K_M) |
-| GPU高スループット | vLLM (AWQ/GPTQ) |
+| Item | Recommendation |
+|------|---------------|
+| Personal development / evaluation | Ollama (easiest) |
+| CPU inference | llama.cpp (GGUF Q4_K_M) |
+| High-throughput GPU inference | vLLM (AWQ/GPTQ) |
 | Apple Silicon | Ollama + GGUF |
-| 推奨量子化 | Q4_K_M (品質・サイズのバランス最良) |
-| 推奨モデル (日本語) | Qwen 2.5 7B / 14B |
-| 最低ハードウェア | 8GB RAM + 4コアCPU (7B Q4) |
+| Recommended quantization | Q4_K_M (best quality/size balance) |
+| Recommended model (Japanese) | Qwen 2.5 7B / 14B |
+| Minimum hardware | 8GB RAM + 4-core CPU (7B Q4) |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [03-evaluation.md](./03-evaluation.md) — ローカルモデルの品質評価
-- [01-vector-databases.md](./01-vector-databases.md) — ローカル LLM + ベクトル DB で完全ローカル RAG
-- [../01-models/03-open-source.md](../01-models/03-open-source.md) — OSS モデルの選定
+- [03-evaluation.md](./03-evaluation.md) — Quality evaluation of local models
+- [01-vector-databases.md](./01-vector-databases.md) — Fully local RAG with local LLM + vector DB
+- [../01-models/03-open-source.md](../01-models/03-open-source.md) — Selecting OSS models
 
 ---
 
-## 参考文献
+## References
 
 1. Ollama, "Documentation," https://ollama.com/
 2. Gerganov, "llama.cpp," https://github.com/ggerganov/llama.cpp
