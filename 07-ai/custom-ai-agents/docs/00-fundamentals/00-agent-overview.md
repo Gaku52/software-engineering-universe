@@ -1,116 +1,118 @@
-# AIエージェント概要
+# AI Agent Overview
 
-> LLMを頭脳として持ち、ツールを手足として使い、自律的にタスクを遂行するソフトウェアシステム――AIエージェントの定義・種類・アーキテクチャを体系的に解説する。
+> A software system that uses an LLM as its brain and tools as its hands and feet, autonomously executing tasks — this guide provides a systematic explanation of AI agent definitions, types, and architectures.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. AIエージェントの定義と従来のチャットボットとの根本的な違い
-2. エージェントの5つの主要アーキテクチャパターンと選択基準
-3. エージェントループ（Perceive-Think-Act）の内部構造と実装原理
+1. The definition of AI agents and their fundamental differences from traditional chatbots
+2. The five major architectural patterns for agents and how to choose among them
+3. The internal structure and implementation principles of the agent loop (Perceive-Think-Act)
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. AIエージェントとは何か
+## 1. What Is an AI Agent?
 
-### 1.1 定義
+### 1.1 Definition
 
-AIエージェントとは **目標を与えられると、環境を観察し、推論し、ツールを使って行動するシステム** である。従来のチャットボットが「質問→回答」の1ターンで終わるのに対し、エージェントは **複数ステップを自律的に計画・実行・評価** するループを持つ。
+An AI agent is **a system that, when given a goal, observes its environment, reasons, and takes actions using tools**. While a traditional chatbot completes a single turn of "question → answer," an agent has a loop that **autonomously plans, executes, and evaluates multiple steps**.
 
 ```
-従来のチャットボット:
-  ユーザー → [LLM] → 回答（1ターン完結）
+Traditional chatbot:
+  User → [LLM] → Answer (single turn)
 
-AIエージェント:
-  ユーザー → [計画] → [ツール実行] → [結果観察] → [再計画] → ... → 最終回答
+AI Agent:
+  User → [Plan] → [Tool execution] → [Observe result] → [Re-plan] → ... → Final answer
 ```
 
-### 1.2 エージェントの3要素
+### 1.2 The Three Elements of an Agent
 
 ```
 +---------------------------------------------------+
-|                  AI エージェント                     |
+|                    AI Agent                        |
 |                                                     |
 |  +-------------+  +-----------+  +---------------+  |
-|  |   頭脳      |  |   記憶    |  |   手足        |  |
+|  |   Brain     |  |  Memory   |  |    Tools      |  |
 |  |  (LLM)      |  | (Memory)  |  |  (Tools)      |  |
 |  |             |  |           |  |               |  |
-|  | - 推論      |  | - 短期    |  | - Web検索     |  |
-|  | - 計画      |  | - 長期    |  | - コード実行  |  |
-|  | - 判断      |  | - 外部DB  |  | - API呼出     |  |
+|  | - Reasoning |  | - Short   |  | - Web search  |  |
+|  | - Planning  |  |   term    |  | - Code exec   |  |
+|  | - Judgment  |  | - Long    |  | - API calls   |  |
+|  |             |  |   term    |  |               |  |
+|  |             |  | - Ext DB  |  |               |  |
 |  +-------------+  +-----------+  +---------------+  |
 +---------------------------------------------------+
 ```
 
-### 1.3 エージェントの歴史と発展
+### 1.3 History and Evolution of Agents
 
-AIエージェントの概念は1950年代のサイバネティクスまで遡るが、LLMベースのエージェントが実用化されたのは2023年以降である。
+The concept of AI agents dates back to cybernetics in the 1950s, but LLM-based agents became practical only after 2023.
 
 ```
-AIエージェントの発展タイムライン
+AI Agent Development Timeline
 
-1950s  サイバネティクス（フィードバックループ）
-1980s  エキスパートシステム（ルールベース推論）
-1990s  BDIアーキテクチャ（信念-欲求-意図モデル）
-2000s  マルチエージェントシステム研究
-2017   Transformer登場（Attention Is All You Need）
-2022   ChatGPT発表 → LLMの実用化
-2023   AutoGPT/BabyAGI → LLMエージェントブーム
-       ReAct論文 → 推論+行動パターンの確立
-       LangChain/LangGraph → フレームワーク成熟
-2024   Claude Code, Devin → 実用レベルのコーディングエージェント
-       MCP(Model Context Protocol) → ツール標準化
-       マルチエージェントフレームワーク成熟
-2025   Claude Agent SDK → 公式エージェント構築ツール
-       企業での本番採用が加速
+1950s  Cybernetics (feedback loops)
+1980s  Expert systems (rule-based reasoning)
+1990s  BDI architecture (Belief-Desire-Intention model)
+2000s  Multi-agent systems research
+2017   Transformer introduced (Attention Is All You Need)
+2022   ChatGPT launched → LLMs go mainstream
+2023   AutoGPT/BabyAGI → LLM agent boom
+       ReAct paper → reasoning + acting pattern established
+       LangChain/LangGraph → framework maturation
+2024   Claude Code, Devin → production-level coding agents
+       MCP (Model Context Protocol) → tool standardization
+       Multi-agent framework maturation
+2025   Claude Agent SDK → official agent building toolkit
+       Enterprise adoption accelerates
 ```
 
-### 1.4 エージェントの構成要素詳細
+### 1.4 Detailed Agent Components
 
 ```python
-# エージェントの構成要素を詳細に定義する
+# Detailed definition of agent components
 from dataclasses import dataclass, field
 from typing import Callable, Any, Protocol
 from enum import Enum
 
 class AgentCapability(Enum):
-    """エージェントの能力分類"""
-    REASONING = "reasoning"       # 推論能力
-    PLANNING = "planning"         # 計画立案能力
-    TOOL_USE = "tool_use"         # ツール使用能力
-    MEMORY = "memory"             # 記憶能力
-    LEARNING = "learning"         # 学習能力（メタ認知）
-    COMMUNICATION = "communication"  # 通信能力（マルチエージェント用）
+    """Agent capability classifications"""
+    REASONING = "reasoning"       # Reasoning ability
+    PLANNING = "planning"         # Planning ability
+    TOOL_USE = "tool_use"         # Tool use ability
+    MEMORY = "memory"             # Memory ability
+    LEARNING = "learning"         # Learning ability (metacognition)
+    COMMUNICATION = "communication"  # Communication ability (for multi-agent)
 
 class ToolCategory(Enum):
-    """ツールの分類"""
-    INFORMATION = "information"   # 情報取得（検索、読み取り）
-    COMPUTATION = "computation"   # 計算（数値計算、コード実行）
-    COMMUNICATION = "communication"  # 通信（メール送信、API呼び出し）
-    MANIPULATION = "manipulation"    # 操作（ファイル操作、DB操作）
+    """Tool classifications"""
+    INFORMATION = "information"   # Information retrieval (search, read)
+    COMPUTATION = "computation"   # Computation (numerical, code execution)
+    COMMUNICATION = "communication"  # Communication (send email, API calls)
+    MANIPULATION = "manipulation"    # Manipulation (file ops, DB ops)
 
 @dataclass
 class ToolDefinition:
-    """ツールの定義"""
+    """Tool definition"""
     name: str
     description: str
     category: ToolCategory
     parameters: dict
     function: Callable
-    is_destructive: bool = False  # 破壊的操作かどうか
-    requires_approval: bool = False  # 人間の承認が必要か
-    rate_limit: int = 0  # 1分あたりの最大呼び出し回数（0=無制限）
+    is_destructive: bool = False  # Whether the operation is destructive
+    requires_approval: bool = False  # Whether human approval is required
+    rate_limit: int = 0  # Max calls per minute (0=unlimited)
 
 @dataclass
 class AgentProfile:
-    """エージェントのプロファイル"""
+    """Agent profile"""
     name: str
     role: str
     capabilities: list[AgentCapability]
@@ -127,145 +129,145 @@ class AgentProfile:
         return [t for t in self.tools if t.category == category]
 
     def get_safe_tools(self) -> list[ToolDefinition]:
-        """非破壊的なツールのみ取得"""
+        """Retrieve only non-destructive tools"""
         return [t for t in self.tools if not t.is_destructive]
 ```
 
 ---
 
-## 2. チャットボット vs エージェント
+## 2. Chatbot vs. Agent
 
-| 特性 | チャットボット | AIエージェント |
-|------|---------------|---------------|
-| ターン数 | 1ターン（Q&A） | 複数ターン（ループ） |
-| ツール使用 | なし or 限定的 | 複数ツールを自律選択 |
-| 計画能力 | なし | タスク分解・優先順位付け |
-| 状態管理 | 会話履歴のみ | 短期/長期メモリ |
-| 自律性 | ユーザー主導 | 目標駆動で自律行動 |
-| エラー回復 | 不可 | 再試行・代替手段の選択 |
-| 典型例 | FAQ対応 | コーディング・リサーチ |
+| Property | Chatbot | AI Agent |
+|----------|---------|----------|
+| Turns | 1 turn (Q&A) | Multiple turns (loop) |
+| Tool use | None or limited | Autonomously selects multiple tools |
+| Planning | None | Task decomposition and prioritization |
+| State management | Conversation history only | Short-term/long-term memory |
+| Autonomy | User-driven | Goal-driven autonomous action |
+| Error recovery | Not possible | Retry and select alternatives |
+| Typical use | FAQ handling | Coding, research |
 
-### 2.1 具体的な比較シナリオ
+### 2.1 Concrete Comparison Scenario
 
 ```
-シナリオ: 「来週の出張の準備をして」
+Scenario: "Prepare for my business trip next week"
 
-チャットボット:
-  → "出張の準備には以下をお勧めします:
-     1. 航空券の予約
-     2. ホテルの予約
-     3. 持ち物リストの作成
+Chatbot:
+  → "Here are recommendations for preparing for a business trip:
+     1. Book flights
+     2. Book a hotel
+     3. Create a packing list
      ..."
-  （情報提供のみ）
+  (information provision only)
 
-AIエージェント:
-  Step 1: カレンダーを確認 → 出張日程を特定
-  Step 2: 出張先と目的を確認（ユーザーに質問）
-  Step 3: 航空券を検索・比較 → 最適な便を提案
-  Step 4: ユーザーの承認を得て予約実行
-  Step 5: 出張先のホテルを検索・予約
-  Step 6: 経路・天気を調べて持ち物リスト作成
-  Step 7: 社内システムで出張申請を提出
-  Step 8: 完了報告
-  （実際に行動を起こす）
+AI Agent:
+  Step 1: Check calendar → identify trip dates
+  Step 2: Confirm destination and purpose (ask user)
+  Step 3: Search and compare flights → suggest best options
+  Step 4: Get user approval and make reservation
+  Step 5: Search and book hotel at destination
+  Step 6: Look up route and weather, create packing list
+  Step 7: Submit travel request in internal system
+  Step 8: Report completion
+  (actually takes action)
 ```
 
-### 2.2 エージェントの優位性が発揮される条件
+### 2.2 Conditions Where Agents Outperform
 
 ```
-エージェントが有効な条件チェックリスト:
+Checklist of conditions where agents are effective:
 
-[✓] 複数ステップが必要
-[✓] 途中で判断が必要（条件分岐）
-[✓] 外部データの取得が必要
-[✓] 試行錯誤が発生しうる
-[✓] ツール/APIの使用が必要
-[✓] 中間結果に基づく次のアクションが変わる
+[✓] Multiple steps are required
+[✓] Decisions needed along the way (branching logic)
+[✓] External data retrieval is needed
+[✓] Trial and error may occur
+[✓] Tool/API usage is required
+[✓] The next action depends on intermediate results
 
-エージェントが不要な条件:
-[✗] 単純な質問応答
-[✗] テンプレート的な処理
-[✗] 即時応答が必須（レイテンシ制約）
-[✗] 100%の正確性が必要（人間の確認なし）
+Conditions where agents are unnecessary:
+[✗] Simple Q&A
+[✗] Template-based processing
+[✗] Immediate response required (latency constraints)
+[✗] 100% accuracy required (without human review)
 ```
 
 ---
 
-## 3. エージェントの種類
+## 3. Types of Agents
 
-### 3.1 分類体系
+### 3.1 Classification System
 
 ```
-AIエージェントの分類
-├── 反応型（Reactive）
-│   └── 入力→即応答。内部状態なし
-├── 熟慮型（Deliberative）
-│   └── 計画→実行→評価のループ
-├── ハイブリッド型
-│   └── 反応＋熟慮の組み合わせ
-├── マルチエージェント
-│   └── 複数エージェントの協調
-└── 自律型（Autonomous）
-    └── 長時間の自律実行
+AI Agent Classifications
+├── Reactive
+│   └── Input → immediate response. No internal state
+├── Deliberative
+│   └── Plan → execute → evaluate loop
+├── Hybrid
+│   └── Combination of reactive and deliberative
+├── Multi-agent
+│   └── Coordination among multiple agents
+└── Autonomous
+    └── Long-running autonomous execution
 ```
 
-### 3.2 種類比較表
+### 3.2 Type Comparison Table
 
-| 種類 | 計画 | ツール | メモリ | 複雑度 | 代表例 |
-|------|------|--------|--------|--------|--------|
-| 反応型 | なし | 限定的 | なし | 低 | 簡易チャット |
-| 熟慮型 | あり | 複数 | 短期 | 中 | ReActエージェント |
-| ハイブリッド | あり | 複数 | 短期+長期 | 中-高 | LangChain Agent |
-| マルチ | あり | 分散 | 共有 | 高 | CrewAI |
-| 自律型 | 高度 | 広範 | 永続 | 最高 | Devin, Claude Code |
+| Type | Planning | Tools | Memory | Complexity | Examples |
+|------|----------|-------|--------|------------|---------|
+| Reactive | None | Limited | None | Low | Simple chat |
+| Deliberative | Yes | Multiple | Short-term | Medium | ReAct agent |
+| Hybrid | Yes | Multiple | Short+Long term | Medium-High | LangChain Agent |
+| Multi | Yes | Distributed | Shared | High | CrewAI |
+| Autonomous | Advanced | Broad | Persistent | Highest | Devin, Claude Code |
 
-### 3.3 各種類の詳細な特性
+### 3.3 Detailed Characteristics of Each Type
 
 ```python
-# 反応型エージェントの実装例
+# Example implementation of a reactive agent
 class ReactiveAgent:
-    """入力に対して即座に反応する最もシンプルなエージェント"""
+    """The simplest agent that immediately responds to input"""
 
     def __init__(self, llm, tools):
         self.llm = llm
         self.tools = tools
 
     def respond(self, user_input: str) -> str:
-        """状態を持たず、入力に即応答"""
-        # ツールが必要か判断
+        """Responds immediately without maintaining state"""
+        # Determine if a tool is needed
         tool_needed = self.llm.classify(user_input,
             categories=["direct_answer", "tool_needed"])
 
         if tool_needed == "direct_answer":
             return self.llm.generate(user_input)
 
-        # 最も適切なツールを1つ選択して実行
+        # Select and execute the single most appropriate tool
         tool = self.llm.select_tool(user_input, self.tools)
         result = tool.execute(user_input)
         return self.llm.synthesize(user_input, result)
 
-# 熟慮型エージェントの実装例
+# Example implementation of a deliberative agent
 class DeliberativeAgent:
-    """計画-実行-評価のサイクルを持つエージェント"""
+    """An agent with a plan-execute-evaluate cycle"""
 
     def __init__(self, llm, tools, max_iterations=10):
         self.llm = llm
         self.tools = tools
         self.max_iterations = max_iterations
-        self.scratchpad = []  # 思考の記録
+        self.scratchpad = []  # Record of thoughts
 
     def run(self, goal: str) -> str:
-        # Phase 1: 計画
+        # Phase 1: Planning
         plan = self._plan(goal)
 
         for i in range(self.max_iterations):
-            # Phase 2: 次のアクションを決定
+            # Phase 2: Decide next action
             action = self._decide_next_action(plan, self.scratchpad)
 
             if action.is_final:
                 return action.content
 
-            # Phase 3: アクション実行
+            # Phase 3: Execute action
             result = self._execute(action)
             self.scratchpad.append({
                 "thought": action.thought,
@@ -273,34 +275,34 @@ class DeliberativeAgent:
                 "result": result
             })
 
-            # Phase 4: 計画の見直し
+            # Phase 4: Revise the plan
             if self._needs_replan(plan, self.scratchpad):
                 plan = self._replan(goal, self.scratchpad)
 
         return self._summarize_progress()
 
-# ハイブリッド型エージェントの実装例
+# Example implementation of a hybrid agent
 class HybridAgent:
-    """反応型と熟慮型を組み合わせたエージェント"""
+    """An agent combining reactive and deliberative approaches"""
 
     def __init__(self, reactive: ReactiveAgent, deliberative: DeliberativeAgent):
         self.reactive = reactive
         self.deliberative = deliberative
 
     def handle(self, user_input: str) -> str:
-        # 入力の複雑さを評価
+        # Assess the complexity of the input
         complexity = self._assess_complexity(user_input)
 
         if complexity == "simple":
-            # 単純な質問 → 反応型で即応答
+            # Simple question → immediate response via reactive
             return self.reactive.respond(user_input)
         else:
-            # 複雑なタスク → 熟慮型で計画的に実行
+            # Complex task → deliberative planned execution
             return self.deliberative.run(user_input)
 
     def _assess_complexity(self, user_input: str) -> str:
-        """入力の複雑さを判定"""
-        # ステップ数、ツール必要性、曖昧さ等で判断
+        """Assess the complexity of the input"""
+        # Judge based on number of steps, tool requirements, ambiguity, etc.
         indicators = {
             "multiple_steps": any(w in user_input for w in ["そして", "その後", "次に"]),
             "tool_needed": any(w in user_input for w in ["検索", "計算", "作成", "実行"]),
@@ -312,12 +314,12 @@ class HybridAgent:
 
 ---
 
-## 4. エージェントアーキテクチャ
+## 4. Agent Architecture
 
-### 4.1 基本ループ: Perceive-Think-Act
+### 4.1 Basic Loop: Perceive-Think-Act
 
 ```python
-# エージェントの基本ループ（概念コード）
+# Basic agent loop (conceptual code)
 class SimpleAgent:
     def __init__(self, llm, tools, memory):
         self.llm = llm
@@ -325,17 +327,17 @@ class SimpleAgent:
         self.memory = memory
 
     def run(self, goal: str) -> str:
-        """目標を受け取り、完了まで自律実行する"""
+        """Receives a goal and executes autonomously until completion"""
         self.memory.add("goal", goal)
 
         while not self.is_done():
-            # 1. Perceive: 現在の状態を観察
+            # 1. Perceive: observe current state
             context = self.memory.get_context()
 
-            # 2. Think: 次のアクションを推論
+            # 2. Think: reason about the next action
             action = self.llm.decide(context, self.tools)
 
-            # 3. Act: ツールを実行
+            # 3. Act: execute tool
             if action.type == "tool_call":
                 result = self.tools.execute(action)
                 self.memory.add("observation", result)
@@ -345,10 +347,10 @@ class SimpleAgent:
         return self.memory.get_summary()
 ```
 
-### 4.2 ReActパターン
+### 4.2 ReAct Pattern
 
 ```python
-# ReAct (Reasoning + Acting) パターン
+# ReAct (Reasoning + Acting) pattern
 REACT_PROMPT = """
 以下の形式で思考と行動を繰り返してください：
 
@@ -370,17 +372,17 @@ class ReActAgent:
         if "Final Answer:" in response:
             return {"type": "answer", "content": response}
 
-        # Action を解析してツール実行
+        # Parse Action and execute tool
         tool_name, args = self.parse_action(response)
         result = self.toolstool_name
 
         return {"type": "observation", "content": result}
 ```
 
-### 4.3 Function Calling パターン
+### 4.3 Function Calling Pattern
 
 ```python
-# OpenAI / Anthropic スタイルの Function Calling
+# OpenAI / Anthropic style Function Calling
 import anthropic
 
 client = anthropic.Anthropic()
@@ -413,7 +415,7 @@ def agent_loop(user_message):
         if response.stop_reason == "end_turn":
             return response.content[0].text
 
-        # ツール呼び出しを処理
+        # Process tool calls
         for block in response.content:
             if block.type == "tool_use":
                 result = execute_tool(block.name, block.input)
@@ -426,12 +428,12 @@ def agent_loop(user_message):
                 })
 ```
 
-### 4.4 Plan-and-Execute パターン
+### 4.4 Plan-and-Execute Pattern
 
 ```python
-# Plan-and-Execute パターンの完全な実装
+# Complete implementation of the Plan-and-Execute pattern
 class PlanAndExecuteAgent:
-    """先に全体計画を立ててから順に実行するパターン"""
+    """A pattern that creates a full plan upfront then executes steps sequentially"""
 
     def __init__(self, planner_llm, executor_llm, tools):
         self.planner = planner_llm
@@ -439,26 +441,26 @@ class PlanAndExecuteAgent:
         self.tools = tools
 
     def run(self, goal: str) -> str:
-        # Phase 1: 計画立案
+        # Phase 1: Create plan
         plan = self._create_plan(goal)
 
-        # Phase 2: 順次実行
+        # Phase 2: Sequential execution
         results = []
         for i, step in enumerate(plan):
             print(f"Step {i+1}/{len(plan)}: {step}")
             result = self._execute_step(step, results)
             results.append({"step": step, "result": result})
 
-            # 計画の見直しが必要か確認
+            # Check whether the plan needs revision
             if self._needs_replan(goal, plan, results):
                 remaining_plan = self._replan(goal, results, plan[i+1:])
                 plan = plan[:i+1] + remaining_plan
 
-        # Phase 3: 結果の統合
+        # Phase 3: Synthesize results
         return self._synthesize(goal, results)
 
     def _create_plan(self, goal: str) -> list[str]:
-        """目標を具体的なステップに分解"""
+        """Decompose the goal into concrete steps"""
         response = self.planner.generate(f"""
 目標: {goal}
 
@@ -476,10 +478,10 @@ class PlanAndExecuteAgent:
         return self._parse_steps(response)
 
     def _execute_step(self, step: str, previous_results: list) -> str:
-        """個別のステップを実行"""
+        """Execute an individual step"""
         context = "\n".join([
             f"- {r['step']}: {r['result'][:200]}"
-            for r in previous_results[-3:]  # 直近3件の結果のみ
+            for r in previous_results[-3:]  # Only the last 3 results
         ])
 
         response = self.executor.generate(f"""
@@ -496,7 +498,7 @@ class PlanAndExecuteAgent:
         return response
 ```
 
-### 4.5 アーキテクチャの全体図
+### 4.5 Full Architecture Diagram
 
 ```
 +------------------------------------------------------------+
@@ -521,30 +523,30 @@ class PlanAndExecuteAgent:
 +------------------------------------------------------------+
 ```
 
-### 4.6 アーキテクチャパターンの比較表
+### 4.6 Architecture Pattern Comparison Table
 
-| パターン | 計画性 | 柔軟性 | 実装難度 | 適用場面 |
-|----------|--------|--------|---------|---------|
-| ReAct | 低（逐次的） | 高 | 低 | 汎用タスク |
-| Function Calling | 低（逐次的） | 高 | 低 | API連携 |
-| Plan-and-Execute | 高（事前計画） | 中 | 中 | 構造化タスク |
-| Tree of Thoughts | 最高（探索的） | 最高 | 高 | 複雑な推論 |
-| Reflexion | 中（振り返り） | 高 | 中 | 品質重視タスク |
+| Pattern | Planning | Flexibility | Implementation Difficulty | Use Cases |
+|---------|----------|-------------|--------------------------|-----------|
+| ReAct | Low (sequential) | High | Low | General tasks |
+| Function Calling | Low (sequential) | High | Low | API integrations |
+| Plan-and-Execute | High (upfront plan) | Medium | Medium | Structured tasks |
+| Tree of Thoughts | Highest (exploratory) | Highest | High | Complex reasoning |
+| Reflexion | Medium (reflective) | High | Medium | Quality-focused tasks |
 
 ---
 
-## 5. エージェントの構成要素
+## 5. Agent Components
 
-### 5.1 コンポーネント詳細
+### 5.1 Component Details
 
 ```python
-# エージェントの主要コンポーネントの実装例
+# Example implementation of the main agent components
 from dataclasses import dataclass, field
 from typing import Callable
 
 @dataclass
 class Tool:
-    """エージェントが使用するツール"""
+    """Tool used by an agent"""
     name: str
     description: str
     function: Callable
@@ -552,50 +554,50 @@ class Tool:
 
 @dataclass
 class Memory:
-    """エージェントの記憶"""
-    short_term: list = field(default_factory=list)   # 現在タスクの文脈
-    long_term: dict = field(default_factory=dict)     # 永続的な知識
-    working: dict = field(default_factory=dict)       # 一時的な作業領域
+    """Agent memory"""
+    short_term: list = field(default_factory=list)   # Context for current task
+    long_term: dict = field(default_factory=dict)     # Persistent knowledge
+    working: dict = field(default_factory=dict)       # Temporary working area
 
 @dataclass
 class AgentConfig:
-    """エージェントの設定"""
+    """Agent configuration"""
     model: str = "claude-sonnet-4-20250514"
-    max_steps: int = 20           # 最大ステップ数
-    temperature: float = 0.0      # 決定論的な出力
+    max_steps: int = 20           # Maximum number of steps
+    temperature: float = 0.0      # Deterministic output
     max_tokens: int = 4096
     tools: list = field(default_factory=list)
     system_prompt: str = ""
 ```
 
-### 5.2 プロンプトエンジニアリングの原則
+### 5.2 Prompt Engineering Principles
 
-エージェントのシステムプロンプトは通常のチャットとは異なり、行動規範を明確に定義する必要がある。
+An agent's system prompt differs from ordinary chat and must clearly define behavioral guidelines.
 
 ```python
-# エージェント向けシステムプロンプトの設計パターン
+# Design patterns for agent system prompts
 class AgentPromptBuilder:
-    """エージェント用のシステムプロンプトを構造的に構築する"""
+    """Constructs system prompts for agents in a structured way"""
 
     @staticmethod
     def build(role: str, tools: list, constraints: list,
               examples: list = None) -> str:
         prompt_parts = []
 
-        # 1. 役割定義
+        # 1. Role definition
         prompt_parts.append(f"## 役割\nあなたは{role}です。")
 
-        # 2. 利用可能なツール
+        # 2. Available tools
         tool_descriptions = "\n".join([
             f"- **{t.name}**: {t.description}" for t in tools
         ])
         prompt_parts.append(f"## 利用可能なツール\n{tool_descriptions}")
 
-        # 3. 行動規範
+        # 3. Behavioral guidelines
         constraint_list = "\n".join([f"- {c}" for c in constraints])
         prompt_parts.append(f"## 行動規範\n{constraint_list}")
 
-        # 4. 思考プロセス
+        # 4. Thought process
         prompt_parts.append("""## 思考プロセス
 1. まず目標を明確化する
 2. 必要な情報を特定する
@@ -604,13 +606,13 @@ class AgentPromptBuilder:
 5. 目標が達成されたか判断する
 6. 未達成なら次のアクションを計画する""")
 
-        # 5. 出力形式
+        # 5. Output format
         prompt_parts.append("""## 出力形式
 - 作業の意図を簡潔に説明してからツールを使用する
 - 結果を分析して次のステップを判断する
 - 最終回答は構造化して提供する""")
 
-        # 6. 例示（Few-shot）
+        # 6. Examples (Few-shot)
         if examples:
             example_text = "\n\n".join([
                 f"### 例 {i+1}\n入力: {e['input']}\n出力: {e['output']}"
@@ -620,7 +622,7 @@ class AgentPromptBuilder:
 
         return "\n\n".join(prompt_parts)
 
-# 使用例
+# Usage example
 system_prompt = AgentPromptBuilder.build(
     role="シニアソフトウェアエンジニア",
     tools=[read_file_tool, write_file_tool, run_tests_tool],
@@ -633,58 +635,58 @@ system_prompt = AgentPromptBuilder.build(
 )
 ```
 
-### 5.3 ツール設計のベストプラクティス
+### 5.3 Tool Design Best Practices
 
 ```python
-# ツール設計のガイドライン
+# Tool design guidelines
 class ToolDesignGuidelines:
     """
-    良いツール設計の原則:
+    Principles of good tool design:
 
-    1. 単一責任の原則: 1ツール = 1機能
-    2. 明確な命名: 動詞_名詞 形式（search_web, read_file）
-    3. 詳細な説明: 何をするか + いつ使うか + 入出力
-    4. 適切な粒度: 粗すぎず細かすぎず
-    5. エラーハンドリング: 失敗時の情報を充実させる
-    6. 冪等性: 可能な限り同じ入力→同じ出力
+    1. Single responsibility: 1 tool = 1 function
+    2. Clear naming: verb_noun format (search_web, read_file)
+    3. Detailed description: what it does + when to use it + inputs/outputs
+    4. Appropriate granularity: not too coarse, not too fine
+    5. Error handling: provide rich information on failure
+    6. Idempotency: same input → same output whenever possible
     """
 
     @staticmethod
     def validate_tool_definition(tool: dict) -> list[str]:
-        """ツール定義の品質をチェック"""
+        """Check the quality of a tool definition"""
         issues = []
 
-        # 名前のチェック
+        # Check name
         if not tool.get("name"):
-            issues.append("名前が未定義")
+            issues.append("Name is undefined")
         elif "_" not in tool["name"]:
-            issues.append("名前は動詞_名詞形式が推奨（例: search_web）")
+            issues.append("Name should follow verb_noun format (e.g., search_web)")
 
-        # 説明のチェック
+        # Check description
         desc = tool.get("description", "")
         if len(desc) < 20:
-            issues.append("説明が短すぎます（最低20文字）")
+            issues.append("Description is too short (minimum 20 characters)")
         if "使用" not in desc and "use" not in desc.lower():
-            issues.append("いつ使うかの説明が推奨されます")
+            issues.append("A description of when to use the tool is recommended")
 
-        # パラメータのチェック
+        # Check parameters
         schema = tool.get("input_schema", {})
         props = schema.get("properties", {})
         for param_name, param_def in props.items():
             if "description" not in param_def:
-                issues.append(f"パラメータ '{param_name}' に説明がありません")
+                issues.append(f"Parameter '{param_name}' has no description")
 
         return issues
 ```
 
 ---
 
-## 6. エージェントの実装パターン詳細
+## 6. Detailed Implementation Patterns
 
-### 6.1 イベント駆動エージェント
+### 6.1 Event-Driven Agent
 
 ```python
-# イベント駆動型のエージェント実装
+# Event-driven agent implementation
 from typing import Protocol
 from dataclasses import dataclass
 import asyncio
@@ -699,7 +701,7 @@ class AgentEvent:
     timestamp: float
 
 class EventDrivenAgent:
-    """イベント駆動型のエージェント"""
+    """Event-driven agent"""
 
     def __init__(self, llm, tools):
         self.llm = llm
@@ -712,7 +714,7 @@ class EventDrivenAgent:
         self.handlers[event_type] = handler
 
     async def run(self):
-        """イベントループ"""
+        """Event loop"""
         while True:
             event = await self.event_queue.get()
             handler = self.handlers.get(event.type)
@@ -732,7 +734,7 @@ class EventDrivenAgent:
                     ))
 
     async def submit(self, event_type: str, data: dict):
-        """イベントを投入"""
+        """Submit an event"""
         await self.event_queue.put(AgentEvent(
             type=event_type,
             data=data,
@@ -740,22 +742,22 @@ class EventDrivenAgent:
         ))
 ```
 
-### 6.2 ストリーミングエージェント
+### 6.2 Streaming Agent
 
 ```python
-# ストリーミング対応のエージェント
+# Streaming-capable agent
 import anthropic
 from typing import AsyncGenerator
 
 class StreamingAgent:
-    """リアルタイムにトークンをストリーミングするエージェント"""
+    """An agent that streams tokens in real time"""
 
     def __init__(self):
         self.client = anthropic.Anthropic()
 
     async def run_streaming(self, user_message: str,
                             tools: list) -> AsyncGenerator[dict, None]:
-        """ストリーミングでエージェントの出力を返す"""
+        """Returns agent output via streaming"""
         messages = [{"role": "user", "content": user_message}]
 
         while True:
@@ -781,7 +783,7 @@ class StreamingAgent:
                 yield {"type": "complete", "text": current_text}
                 return
 
-            # ツール呼び出し処理
+            # Process tool calls
             tool_results = []
             for block in response.content:
                 if block.type == "tool_use":
@@ -806,21 +808,21 @@ class StreamingAgent:
             messages.append({"role": "user", "content": tool_results})
 ```
 
-### 6.3 コンテキスト管理パターン
+### 6.3 Context Management Pattern
 
 ```python
-# 効率的なコンテキスト管理
+# Efficient context management
 class ContextManager:
-    """エージェントのコンテキストウィンドウを効率的に管理する"""
+    """Efficiently manages an agent's context window"""
 
     def __init__(self, max_tokens: int = 100000):
         self.max_tokens = max_tokens
         self.messages: list[dict] = []
         self.system_prompt: str = ""
-        self.pinned_context: list[str] = []  # 常に含めるコンテキスト
+        self.pinned_context: list[str] = []  # Context always included
 
     def estimate_tokens(self, text: str) -> int:
-        """トークン数を概算（1文字≒1.5トークンで日本語を概算）"""
+        """Rough token count estimate (approx 1.5 tokens per character for Japanese)"""
         return int(len(text) * 1.5)
 
     def get_current_tokens(self) -> int:
@@ -834,12 +836,12 @@ class ContextManager:
         self._trim_if_needed()
 
     def _trim_if_needed(self):
-        """コンテキストが上限を超えたら古いメッセージを要約"""
+        """Summarize old messages when context exceeds the limit"""
         while self.get_current_tokens() > self.max_tokens * 0.8:
             if len(self.messages) <= 4:
-                break  # 最低限のメッセージは保持
+                break  # Keep the minimum number of messages
 
-            # 古いメッセージを要約して圧縮
+            # Summarize and compress older messages
             old_messages = self.messages[:len(self.messages)//2]
             summary = self._summarize(old_messages)
 
@@ -848,16 +850,16 @@ class ContextManager:
             ] + self.messages[len(self.messages)//2:]
 
     def _summarize(self, messages: list) -> str:
-        """メッセージ群を要約"""
+        """Summarize a group of messages"""
         content = "\n".join([f"{m['role']}: {str(m['content'])[:200]}" for m in messages])
         return f"[要約] {content[:500]}"
 
     def pin_context(self, context: str):
-        """常に含めるコンテキストを追加"""
+        """Add context that is always included"""
         self.pinned_context.append(context)
 
     def get_messages_for_api(self) -> list:
-        """API呼び出し用のメッセージリストを取得"""
+        """Get the message list for API calls"""
         result = []
         if self.pinned_context:
             result.append({
@@ -870,19 +872,19 @@ class ContextManager:
 
 ---
 
-## 6. アンチパターン
+## 6. Anti-Patterns
 
-### アンチパターン1: 無限ループエージェント
+### Anti-Pattern 1: Infinite Loop Agent
 
 ```python
-# NG: 停止条件がないエージェント
+# NG: Agent with no stopping condition
 class BadAgent:
     def run(self, goal):
-        while True:  # 永遠に終わらない可能性
+        while True:  # May never terminate
             action = self.think(goal)
             self.execute(action)
 
-# OK: 最大ステップ数とタイムアウトを設定
+# OK: Set a maximum step count and timeout
 class GoodAgent:
     def run(self, goal, max_steps=20, timeout=300):
         for step in range(max_steps):
@@ -892,19 +894,19 @@ class GoodAgent:
             if action.is_final:
                 return action.result
             self.execute(action)
-        return self.summarize_progress()  # 途中経過を返す
+        return self.summarize_progress()  # Return intermediate progress
 ```
 
-### アンチパターン2: ツール定義の曖昧さ
+### Anti-Pattern 2: Ambiguous Tool Definitions
 
 ```python
-# NG: 曖昧なツール説明
+# NG: Vague tool description
 bad_tool = {
     "name": "search",
-    "description": "検索する"  # 何を？ どう？
+    "description": "検索する"  # What? How?
 }
 
-# OK: 具体的で明確なツール説明
+# OK: Specific and clear tool description
 good_tool = {
     "name": "web_search",
     "description": "指定されたクエリでGoogle検索を実行し、上位10件の結果（タイトル、URL、スニペット）を返す。事実確認や最新情報の取得に使用する。",
@@ -926,22 +928,22 @@ good_tool = {
 }
 ```
 
-### アンチパターン3: コンテキスト爆発
+### Anti-Pattern 3: Context Explosion
 
 ```python
-# NG: ツール結果を全て保持してコンテキストが爆発
+# NG: Accumulating all tool results causes context explosion
 class ContextExplosionAgent:
     def run(self, goal):
         messages = [{"role": "user", "content": goal}]
         for _ in range(100):
             response = llm.generate(messages=messages)
             tool_result = execute(response)
-            # 巨大な結果がそのまま蓄積
+            # Huge results accumulate as-is
             messages.append({"role": "assistant", "content": response})
             messages.append({"role": "user", "content": tool_result})
-        # → 数万トークンに膨張、コスト爆発
+        # → Grows to tens of thousands of tokens, cost explosion
 
-# OK: コンテキストマネージャーで管理
+# OK: Manage with a context manager
 class ManagedAgent:
     def __init__(self):
         self.context_manager = ContextManager(max_tokens=50000)
@@ -952,23 +954,23 @@ class ManagedAgent:
             messages = self.context_manager.get_messages_for_api()
             response = llm.generate(messages=messages)
 
-            # 結果を要約してから追加
+            # Summarize results before adding
             result = execute(response)
             summarized = summarize_if_large(result, max_chars=2000)
             self.context_manager.add_message("assistant", str(response))
             self.context_manager.add_message("user", summarized)
 ```
 
-### アンチパターン4: エラーハンドリングの欠如
+### Anti-Pattern 4: Missing Error Handling
 
 ```python
-# NG: エラー時にクラッシュ
+# NG: Crashes on error
 class FragileAgent:
     def run(self, goal):
-        result = self.tools"search"  # ツールがない → KeyError
-        return result  # ネットワークエラー → 未処理例外
+        result = self.tools"search"  # Tool missing → KeyError
+        return result  # Network error → unhandled exception
 
-# OK: 多層的なエラーハンドリング
+# OK: Multi-layer error handling
 class RobustAgent:
     def run(self, goal):
         try:
@@ -976,49 +978,49 @@ class RobustAgent:
                 action = self.decide_action(goal)
 
                 if action.tool not in self.tools:
-                    self.report_error(f"ツール '{action.tool}' は利用できません")
+                    self.report_error(f"Tool '{action.tool}' is not available")
                     continue
 
                 try:
                     result = self.toolsaction.tool
                 except TimeoutError:
-                    result = "タイムアウト。再試行してください。"
+                    result = "Timed out. Please retry."
                 except Exception as e:
-                    result = f"エラー: {type(e).__name__}: {e}"
+                    result = f"Error: {type(e).__name__}: {e}"
 
                 self.memory.add(action, result)
 
         except Exception as e:
-            return f"エージェントでエラーが発生しました: {e}\n部分的な結果: {self.get_partial_results()}"
+            return f"An error occurred in the agent: {e}\nPartial results: {self.get_partial_results()}"
 ```
 
 ---
 
-## 7. パフォーマンス最適化
+## 7. Performance Optimization
 
-### 7.1 レイテンシ最適化
+### 7.1 Latency Optimization
 
 ```
-エージェントのレイテンシ構成
+Agent latency breakdown
 
-典型的な1ステップ:
-  [LLM推論]     1-5秒    ████████████████████
-  [ツール実行]   0.1-2秒   ████
-  [結果処理]     0.01秒    █
+Typical single step:
+  [LLM inference]    1-5 sec   ████████████████████
+  [Tool execution]   0.1-2 sec ████
+  [Result handling]  0.01 sec  █
 
-5ステップのタスク:
-  合計: 5-35秒
+5-step task:
+  Total: 5-35 sec
 
-最適化レバー:
-1. モデル選択: Haiku(高速) vs Sonnet(バランス) vs Opus(高品質)
-2. 並列ツール呼び出し: 独立したツールは同時実行
-3. ストリーミング: 部分結果を即座に返す
-4. キャッシュ: 同じ入力に対する結果をキャッシュ
-5. プロンプト最適化: 不要なコンテキストを削減
+Optimization levers:
+1. Model selection: Haiku (fast) vs Sonnet (balanced) vs Opus (high quality)
+2. Parallel tool calls: run independent tools simultaneously
+3. Streaming: return partial results immediately
+4. Caching: cache results for identical inputs
+5. Prompt optimization: reduce unnecessary context
 ```
 
 ```python
-# パフォーマンス最適化の実装例
+# Performance optimization implementation example
 import asyncio
 import hashlib
 from functools import lru_cache
@@ -1029,12 +1031,12 @@ class OptimizedAgent:
         self.metrics = {"total_time": 0, "cache_hits": 0, "api_calls": 0}
 
     async def run_optimized(self, goal: str) -> str:
-        """最適化されたエージェントループ"""
+        """Optimized agent loop"""
         start = time.time()
         messages = [{"role": "user", "content": goal}]
 
         for step in range(self.max_steps):
-            # キャッシュチェック
+            # Cache check
             cache_key = self._make_cache_key(messages)
             if cache_key in self.cache:
                 self.metrics["cache_hits"] += 1
@@ -1048,55 +1050,55 @@ class OptimizedAgent:
                 self.metrics["total_time"] = time.time() - start
                 return self._extract_text(response)
 
-            # 並列ツール実行
+            # Parallel tool execution
             tool_calls = [b for b in response.content if b.type == "tool_use"]
             if len(tool_calls) > 1:
                 results = await self._execute_tools_parallel(tool_calls)
             else:
                 results = [await self._execute_tool_async(tool_calls[0])]
 
-            # メッセージ更新
+            # Update messages
             messages.append({"role": "assistant", "content": response.content})
             messages.append({"role": "user", "content": results})
 
         self.metrics["total_time"] = time.time() - start
-        return "最大ステップ数到達"
+        return "Maximum steps reached"
 
     async def _execute_tools_parallel(self, tool_calls):
-        """複数のツール呼び出しを並列に実行"""
+        """Execute multiple tool calls in parallel"""
         tasks = [
             self._execute_tool_async(tc) for tc in tool_calls
         ]
         return await asyncio.gather(*tasks)
 
     def _make_cache_key(self, messages: list) -> str:
-        content = str(messages[-3:])  # 直近3メッセージでキーを生成
+        content = str(messages[-3:])  # Generate key from last 3 messages
         return hashlib.md5(content.encode()).hexdigest()
 
     def get_performance_report(self) -> str:
         return (
-            f"総実行時間: {self.metrics['total_time']:.1f}秒\n"
-            f"API呼び出し: {self.metrics['api_calls']}回\n"
-            f"キャッシュヒット: {self.metrics['cache_hits']}回\n"
-            f"キャッシュ率: {self.metrics['cache_hits']/(self.metrics['api_calls']+self.metrics['cache_hits'])*100:.0f}%"
+            f"Total execution time: {self.metrics['total_time']:.1f}s\n"
+            f"API calls: {self.metrics['api_calls']}\n"
+            f"Cache hits: {self.metrics['cache_hits']}\n"
+            f"Cache rate: {self.metrics['cache_hits']/(self.metrics['api_calls']+self.metrics['cache_hits'])*100:.0f}%"
         )
 ```
 
-### 7.2 コスト最適化
+### 7.2 Cost Optimization
 
 ```python
-# コスト最適化のためのモデルルーティング
+# Model routing for cost optimization
 class CostOptimizedAgent:
-    """タスクの複雑さに応じてモデルを使い分ける"""
+    """Uses different models depending on task complexity"""
 
     MODELS = {
-        "fast": "claude-haiku-4-20250514",     # 分類、ルーティング用
-        "balanced": "claude-sonnet-4-20250514", # 一般的なタスク
-        "powerful": "claude-opus-4-20250514",   # 複雑な推論
+        "fast": "claude-haiku-4-20250514",     # For classification and routing
+        "balanced": "claude-sonnet-4-20250514", # General tasks
+        "powerful": "claude-opus-4-20250514",   # Complex reasoning
     }
 
     def select_model(self, task_type: str, complexity: str) -> str:
-        """タスクとその複雑さに応じたモデル選択"""
+        """Select a model based on task type and complexity"""
         model_map = {
             ("classification", "any"): "fast",
             ("routing", "any"): "fast",
@@ -1107,12 +1109,12 @@ class CostOptimizedAgent:
             ("coding", "any"): "balanced",
         }
 
-        # 複雑さに関わらないタスク
+        # Tasks independent of complexity
         key = (task_type, "any")
         if key in model_map:
             return self.MODELS[model_map[key]]
 
-        # 複雑さを考慮するタスク
+        # Tasks that consider complexity
         key = (task_type, complexity)
         tier = model_map.get(key, "balanced")
         return self.MODELS[tier]
@@ -1120,25 +1122,25 @@ class CostOptimizedAgent:
 
 ---
 
-## 8. トラブルシューティングガイド
+## 8. Troubleshooting Guide
 
-### 8.1 よくある問題と解決策
+### 8.1 Common Issues and Solutions
 
-| 症状 | 原因 | 解決策 |
-|------|------|--------|
-| 同じツールを何度も呼ぶ | ループ検出がない | 直近N回の呼び出しパターンを監視 |
-| 途中で止まる | コンテキスト超過 | メッセージの圧縮・要約を実装 |
-| 的外れなツール選択 | ツール説明が不明確 | 説明文の改善、使用例の追加 |
-| コストが高すぎる | 不要なステップが多い | max_stepsの調整、モデルルーティング |
-| 最終回答の品質が低い | コンテキスト汚染 | 関連情報のみを含めるフィルタリング |
-| タイムアウト | ツール実行が遅い | タイムアウト設定、非同期実行 |
+| Symptom | Cause | Solution |
+|---------|-------|---------|
+| Same tool called repeatedly | No loop detection | Monitor call patterns over last N steps |
+| Stops midway | Context overflow | Implement message compression and summarization |
+| Wrong tool selected | Unclear tool description | Improve description, add usage examples |
+| Cost too high | Too many unnecessary steps | Adjust max_steps, implement model routing |
+| Poor quality final answer | Context contamination | Filter to include only relevant information |
+| Timeout | Slow tool execution | Set timeouts, use async execution |
 
-### 8.2 デバッグ手法
+### 8.2 Debugging Techniques
 
 ```python
-# エージェントのデバッグツール
+# Agent debugging tool
 class AgentDebugger:
-    """エージェントの実行をトレース・分析するデバッグツール"""
+    """Debug tool for tracing and analyzing agent execution"""
 
     def __init__(self):
         self.trace = []
@@ -1155,44 +1157,44 @@ class AgentDebugger:
         })
 
     def print_trace(self):
-        """実行トレースを可視化"""
+        """Visualize the execution trace"""
         print("=" * 60)
-        print("エージェント実行トレース")
+        print("Agent Execution Trace")
         print("=" * 60)
 
         total_tokens = 0
         for entry in self.trace:
             print(f"\n--- Step {entry['step']} ---")
-            print(f"  思考: {entry['thought']}")
-            print(f"  行動: {entry['action']}")
-            print(f"  結果: {entry['result']}")
-            print(f"  トークン: {entry['tokens']:,}")
+            print(f"  Thought: {entry['thought']}")
+            print(f"  Action:  {entry['action']}")
+            print(f"  Result:  {entry['result']}")
+            print(f"  Tokens:  {entry['tokens']:,}")
             total_tokens += entry['tokens']
 
         print(f"\n{'=' * 60}")
-        print(f"合計ステップ: {len(self.trace)}")
-        print(f"合計トークン: {total_tokens:,}")
-        print(f"推定コスト: ${total_tokens * 3 / 1_000_000:.4f}")
+        print(f"Total steps:  {len(self.trace)}")
+        print(f"Total tokens: {total_tokens:,}")
+        print(f"Estimated cost: ${total_tokens * 3 / 1_000_000:.4f}")
 
     def detect_loops(self) -> list[str]:
-        """ループパターンを検出"""
+        """Detect loop patterns"""
         issues = []
         actions = [t["action"] for t in self.trace]
 
-        # 同じアクションの連続
+        # Consecutive identical actions
         for i in range(len(actions) - 2):
             if actions[i] == actions[i+1] == actions[i+2]:
                 issues.append(
-                    f"Step {i}-{i+2}: '{actions[i]}' が3回連続呼び出し"
+                    f"Step {i}-{i+2}: '{actions[i]}' called 3 times in a row"
                 )
 
-        # 合計呼び出し回数
+        # Total call counts
         from collections import Counter
         counts = Counter(actions)
         for action, count in counts.most_common(3):
             if count > 5:
                 issues.append(
-                    f"'{action}' が{count}回呼び出し（過剰の可能性）"
+                    f"'{action}' called {count} times (possibly excessive)"
                 )
 
         return issues
@@ -1200,86 +1202,86 @@ class AgentDebugger:
 
 ---
 
-## 9. 設計チェックリスト
+## 9. Design Checklist
 
-エージェントを設計する際の確認項目:
+Items to verify when designing an agent:
 
 ```
-[ ] 目標の明確化
-    [ ] タスクの範囲が定義されている
-    [ ] 成功基準が明確である
-    [ ] 想定ステップ数が見積もられている
+[ ] Goal clarification
+    [ ] Task scope is defined
+    [ ] Success criteria are clear
+    [ ] Expected step count is estimated
 
-[ ] ツール設計
-    [ ] 各ツールの説明が具体的で明確
-    [ ] 入力パラメータに制約が設定されている
-    [ ] エラーレスポンスが構造化されている
-    [ ] 破壊的操作にはガードレールがある
+[ ] Tool design
+    [ ] Each tool's description is specific and clear
+    [ ] Input parameters have constraints
+    [ ] Error responses are structured
+    [ ] Destructive operations have guardrails
 
-[ ] メモリ設計
-    [ ] 短期記憶の容量制限がある
-    [ ] コンテキスト圧縮の仕組みがある
-    [ ] 必要に応じて長期記憶を利用
+[ ] Memory design
+    [ ] Short-term memory has a capacity limit
+    [ ] A context compression mechanism exists
+    [ ] Long-term memory is used when appropriate
 
-[ ] 安全性
-    [ ] 最大ステップ数が設定されている
-    [ ] タイムアウトが設定されている
-    [ ] コスト上限が設定されている
-    [ ] 破壊的操作の前に確認を求める
+[ ] Safety
+    [ ] Maximum step count is set
+    [ ] Timeout is set
+    [ ] Cost limit is set
+    [ ] Confirmation is requested before destructive operations
 
-[ ] エラー処理
-    [ ] ツール実行の再試行ロジックがある
-    [ ] 代替手段のフォールバックがある
-    [ ] 部分的な結果を返す仕組みがある
+[ ] Error handling
+    [ ] Retry logic exists for tool execution
+    [ ] Fallback alternatives exist
+    [ ] A mechanism to return partial results exists
 
-[ ] 監視
-    [ ] 各ステップのログが記録される
-    [ ] トークン使用量が追跡される
-    [ ] 異常パターンの検出がある
+[ ] Monitoring
+    [ ] Logs are recorded for each step
+    [ ] Token usage is tracked
+    [ ] Abnormal patterns are detected
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement appropriate error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise in basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
             raise ValueError("入力値がNoneです")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1297,17 +1299,17 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise in advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1315,7 +1317,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1326,14 +1328,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1341,7 +1343,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1349,13 +1351,13 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
@@ -1366,27 +1368,27 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1395,7 +1397,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1417,102 +1419,102 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithmic complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 ---
 
 ## 10. FAQ
 
-### Q1: AIエージェントとRAGの違いは？
+### Q1: What is the difference between an AI agent and RAG?
 
-RAG（Retrieval-Augmented Generation）は **情報検索 + 生成** の仕組みであり、エージェントの一構成要素として使われることが多い。エージェントはRAGに加えてツール実行・計画・状態管理の能力を持つ。RAGは「知識の拡張」、エージェントは「行動の自律化」と考えるとわかりやすい。
+RAG (Retrieval-Augmented Generation) is a mechanism of **information retrieval + generation** and is often used as one component of an agent. An agent has capabilities beyond RAG, including tool execution, planning, and state management. A helpful way to think about it: RAG is "knowledge expansion," while agents are "action autonomy."
 
-### Q2: エージェントに適さないタスクは？
+### Q2: What tasks are unsuitable for agents?
 
-以下のタスクにはエージェントは過剰である:
-- **単純なQ&A**: 1ターンで答えが出る質問
-- **テンプレート的処理**: 入力→出力が固定のタスク
-- **リアルタイム性が必要**: レイテンシが許容できない場合（エージェントは複数ステップを要するため遅い）
+Agents are overkill for the following tasks:
+- **Simple Q&A**: questions with answers that fit in a single turn
+- **Template-based processing**: tasks with fixed input → output
+- **Real-time required**: cases where latency is not acceptable (agents are slower because they require multiple steps)
 
-逆に、**調査・コーディング・データ分析** など試行錯誤が必要なタスクにはエージェントが有効。
+Conversely, agents are effective for tasks requiring trial and error, such as **research, coding, and data analysis**.
 
-### Q3: どのLLMがエージェントに最適か？
+### Q3: Which LLM is best for agents?
 
-2025年時点では以下が有力:
-- **Claude 3.5 Sonnet / Claude 4 系**: ツール使用が安定、コーディング能力が高い
-- **GPT-4o / GPT-4 Turbo**: Function Callingの安定性
-- **Gemini 1.5 Pro**: 長文コンテキスト（100万トークン）
+As of 2025, the leading options are:
+- **Claude 3.5 Sonnet / Claude 4 series**: stable tool use, strong coding ability
+- **GPT-4o / GPT-4 Turbo**: stable Function Calling
+- **Gemini 1.5 Pro**: long context (1 million tokens)
 
-選択基準は「ツール呼び出しの安定性」「指示追従性」「コスト」の3軸で評価する。
+Evaluation criteria are three axes: "stability of tool calls," "instruction-following ability," and "cost."
 
-### Q4: エージェントの実行コストはどの程度か？
+### Q4: What are the typical execution costs for agents?
 
-タスクの複雑さとモデルによるが、目安は以下の通り:
+Depending on task complexity and model, rough estimates are as follows:
 
-| タスク種別 | ステップ数 | 推定コスト（Claude Sonnet） |
-|-----------|-----------|--------------------------|
-| 単純な検索+回答 | 2-3 | $0.01-0.05 |
-| ファイル操作 | 5-10 | $0.05-0.20 |
-| コーディング | 10-20 | $0.20-1.00 |
-| 複雑なリサーチ | 20-50 | $1.00-5.00 |
-| プロジェクト全体 | 50-200 | $5.00-50.00 |
+| Task Type | Steps | Estimated Cost (Claude Sonnet) |
+|-----------|-------|-------------------------------|
+| Simple search + answer | 2-3 | $0.01-0.05 |
+| File operations | 5-10 | $0.05-0.20 |
+| Coding | 10-20 | $0.20-1.00 |
+| Complex research | 20-50 | $1.00-5.00 |
+| Entire project | 50-200 | $5.00-50.00 |
 
-### Q5: エージェントの品質をどう保証するか？
+### Q5: How do you ensure agent quality?
 
-3つのレイヤーで品質を保証する:
+Quality is ensured at three layers:
 
-1. **設計時**: ツール定義の品質チェック、プロンプトのテスト
-2. **実行時**: ガードレール、ループ検出、コスト制限
-3. **事後評価**: 成功率の測定、LLM-as-Judge、人間レビュー
+1. **Design time**: tool definition quality checks, prompt testing
+2. **Runtime**: guardrails, loop detection, cost limits
+3. **Post-evaluation**: measuring success rates, LLM-as-Judge, human review
 
-### Q6: マルチモーダルエージェントとは？
+### Q6: What is a multimodal agent?
 
-テキストだけでなく画像・音声・動画を入出力として扱えるエージェント。例えば:
-- スクリーンショットを見て操作を行うUI操作エージェント
-- 図面を読み取って設計レビューを行うエージェント
-- 音声入力で指示を受けて作業するハンズフリーエージェント
+An agent that can handle images, audio, and video as input and output, not just text. Examples:
+- A UI operation agent that looks at screenshots and performs actions
+- An agent that reads diagrams and conducts design reviews
+- A hands-free agent that receives instructions via voice and performs work
 
-Claude 3.5以降はマルチモーダル対応しており、画像入力を含むエージェントの構築が可能。
+Claude 3.5 and later support multimodal input, enabling the construction of agents that include image input.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and moving on to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
-|------|------|
-| 定義 | 目標駆動で自律的に計画・実行するLLMシステム |
-| 3要素 | 頭脳（LLM）・記憶（Memory）・手足（Tools） |
-| 基本ループ | Perceive → Think → Act の反復 |
-| 主要パターン | ReAct, Function Calling, Plan-and-Execute |
-| 種類 | 反応型・熟慮型・ハイブリッド・マルチ・自律型 |
-| 成功の鍵 | 明確なツール定義・停止条件・エラー処理 |
+| Item | Content |
+|------|---------|
+| Definition | An LLM system that autonomously plans and executes in a goal-driven manner |
+| 3 elements | Brain (LLM), Memory, Tools |
+| Basic loop | Perceive → Think → Act, repeated |
+| Key patterns | ReAct, Function Calling, Plan-and-Execute |
+| Types | Reactive, Deliberative, Hybrid, Multi-agent, Autonomous |
+| Keys to success | Clear tool definitions, stopping conditions, error handling |
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [01-agent-frameworks.md](./01-agent-frameworks.md) — 主要フレームワークの詳細比較
-- [02-tool-use.md](./02-tool-use.md) — ツール使用の実装パターン
-- [03-memory-systems.md](./03-memory-systems.md) — メモリシステムの設計
+- [01-agent-frameworks.md](./01-agent-frameworks.md) — Detailed comparison of major frameworks
+- [02-tool-use.md](./02-tool-use.md) — Tool use implementation patterns
+- [03-memory-systems.md](./03-memory-systems.md) — Memory system design
 
-## 参考文献
+## References
 
 1. Anthropic, "Building effective agents" (2024) — https://docs.anthropic.com/en/docs/build-with-claude/agentic
 2. Yao, S. et al., "ReAct: Synergizing Reasoning and Acting in Language Models" (2023) — https://arxiv.org/abs/2210.03629
