@@ -1,134 +1,135 @@
-# インシデント対応
+# Incident Response
 
-> インシデント対応フローの設計、CSIRT の組織体制、フォレンジック調査の手法、自動化による封じ込めまで、セキュリティインシデント発生時に迅速かつ正確に対応するためのガイド。インシデント対応は「技術」だけでなく「プロセス」と「人」の三位一体で成り立つ。
+> A guide for responding swiftly and accurately to security incidents — covering incident response flow design, CSIRT organizational structure, forensic investigation techniques, and automated containment. Incident response is built on three pillars: technology, process, and people.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **インシデント対応フロー** -- 準備から復旧・教訓までの 6 段階プロセスと各フェーズの具体的アクション
-2. **CSIRT の組織と役割** -- インシデント対応チームの構成、責任分担、エスカレーションパス
-3. **フォレンジック調査** -- 証拠保全、タイムライン分析、根本原因の特定手法と法的要件
-4. **自動化と演習** -- SOAR による対応自動化、プレイブック設計、机上演習の実施方法
+1. **Incident Response Flow** -- A 6-phase process from preparation to recovery and lessons learned, with specific actions for each phase
+2. **CSIRT Organization and Roles** -- Incident response team structure, responsibility assignment, and escalation paths
+3. **Forensic Investigation** -- Evidence preservation, timeline analysis, root cause identification techniques, and legal requirements
+4. **Automation and Exercises** -- SOAR-based response automation, playbook design, and tabletop exercise implementation
 
-## 前提知識
+## Prerequisites
 
-- セキュリティの基本概念 -- CIA トライアドの理解
-- ネットワークセキュリティ -- ファイアウォール・IDS の基礎
-- 暗号化の基礎 -- ハッシュ関数・署名の理解
-- [監視/ログ](./01-monitoring-logging.md) -- ログ収集・SIEM の基礎
+- Basic security concepts -- Understanding of the CIA triad
+- Network security -- Fundamentals of firewalls and IDS
+- Cryptography basics -- Understanding of hash functions and signatures
+- [Monitoring/Logging](./01-monitoring-logging.md) -- Fundamentals of log collection and SIEM
 
 ---
 
-## 1. インシデント対応の全体像
+## 1. Overview of Incident Response
 
-### なぜインシデント対応が重要なのか
+### Why Incident Response Matters
 
-インシデント対応（Incident Response: IR）が重要な理由は、セキュリティ侵害が「起きるかどうか」ではなく「いつ起きるか」の問題だからである。IBM の Cost of a Data Breach Report 2024 によると、データ侵害の平均コストは 488 万ドルであり、インシデント対応チームと IR 計画を持つ組織はそうでない組織に比べて平均 226 万ドルのコスト削減を実現している。
+Incident Response (IR) is critical because a security breach is not a matter of "if" but "when." According to IBM's Cost of a Data Breach Report 2024, the average cost of a data breach is $4.88 million, and organizations with incident response teams and IR plans save an average of $2.26 million compared to those without.
 
 ```
-インシデント対応の投資対効果:
+Return on Investment for Incident Response:
 
-  IR 計画なし:
-    検知まで平均 277 日
-    封じ込めまで平均 70 日
-    平均コスト: $4.88M
-    ブランド毀損、顧客離反、法的制裁
+  Without IR plan:
+    Average 277 days to detection
+    Average 70 days to containment
+    Average cost: $4.88M
+    Brand damage, customer churn, legal penalties
 
-  IR 計画あり + 訓練済み:
-    検知まで平均 200 日以下
-    封じ込めまで平均 55 日以下
-    平均コスト: $2.62M（46% 削減）
-    迅速な復旧、信頼維持
+  With IR plan + trained team:
+    Detection in under 200 days on average
+    Containment in under 55 days on average
+    Average cost: $2.62M (46% reduction)
+    Rapid recovery, maintained trust
 ```
 
-### NIST SP 800-61 に基づく対応フロー
+### Response Flow Based on NIST SP 800-61
 
 ```
 +------+     +--------+     +---------+     +----------+
-| 準備  | --> | 検知/   | --> | 封じ込め | --> | 根絶/    |
-|      |     | 分析    |     |         |     | 復旧     |
+| Prep | --> | Detect/| --> | Contain | --> | Eradicate|
+|      |     | Analyze|     |         |     | /Recover |
 +------+     +--------+     +---------+     +----------+
    ^                                              |
    |              +----------+                    |
-   +--------------| 教訓/    |<-------------------+
-                  | 改善     |
+   +--------------| Lessons  |<-------------------+
+                  | Learned  |
                   +----------+
 
-※ このサイクルは一方向ではなく、状況に応じて前のフェーズに戻ることがある
-※ 例: 封じ込め中に新たな侵害を検知 → 検知/分析フェーズに戻る
+* This cycle is not strictly one-directional; returning to a previous phase is common
+* Example: A new breach detected during containment → return to Detection/Analysis phase
 ```
 
-### 各フェーズの詳細
+### Phase Details
 
 ```
 +----------------------------------------------------------+
-|  Phase 1: 準備 (Preparation)                              |
-|  +-- インシデント対応計画の策定と経営層の承認               |
-|  +-- CSIRT メンバーの任命と訓練                             |
-|  +-- 連絡先リスト (エスカレーションパス) の整備              |
-|  +-- ツール・環境の整備 (フォレンジックキット)               |
-|  +-- 定期的な机上演習 (Tabletop Exercise)                  |
-|  +-- コミュニケーション手段の確保 (帯域外通信)              |
+|  Phase 1: Preparation                                     |
+|  +-- Develop incident response plan and obtain executive  |
+|      approval                                             |
+|  +-- Appoint and train CSIRT members                      |
+|  +-- Maintain contact lists (escalation paths)            |
+|  +-- Prepare tools and environment (forensic kit)         |
+|  +-- Conduct regular Tabletop Exercises                   |
+|  +-- Secure communication channels (out-of-band)          |
 |----------------------------------------------------------|
-|  Phase 2: 検知と分析 (Detection & Analysis)               |
-|  +-- アラートのトリアージ (真偽判定)                        |
-|  +-- 影響範囲の特定 (横展開の有無)                         |
-|  +-- 重大度の判定 (Severity Level)                         |
-|  +-- タイムライン構築の開始                                |
-|  +-- IOC (Indicator of Compromise) の収集                 |
+|  Phase 2: Detection and Analysis                          |
+|  +-- Alert triage (true/false positive determination)     |
+|  +-- Identify scope of impact (lateral movement check)    |
+|  +-- Determine Severity Level                             |
+|  +-- Begin timeline construction                          |
+|  +-- Collect IOCs (Indicators of Compromise)              |
 |----------------------------------------------------------|
-|  Phase 3: 封じ込め (Containment)                          |
-|  +-- 短期: 被害拡大の即座の阻止                            |
-|  +-- 長期: 恒久対策までの暫定対応                          |
-|  +-- 証拠保全 (フォレンジックイメージ取得)                  |
-|  +-- 攻撃者への通知を避ける (検知を悟られない)              |
+|  Phase 3: Containment                                     |
+|  +-- Short-term: Immediate stop of damage spread          |
+|  +-- Long-term: Interim measures until permanent fix      |
+|  +-- Evidence preservation (forensic imaging)             |
+|  +-- Avoid alerting the attacker (do not reveal detection)|
 |----------------------------------------------------------|
-|  Phase 4: 根絶 (Eradication)                              |
-|  +-- マルウェアの除去                                     |
-|  +-- 脆弱性の修正                                        |
-|  +-- 侵害されたアカウントの無効化と再作成                   |
-|  +-- バックドアの検出と除去                                |
+|  Phase 4: Eradication                                     |
+|  +-- Remove malware                                       |
+|  +-- Patch vulnerabilities                                |
+|  +-- Disable and recreate compromised accounts            |
+|  +-- Detect and remove backdoors                          |
 |----------------------------------------------------------|
-|  Phase 5: 復旧 (Recovery)                                 |
-|  +-- システムの段階的な復旧                                |
-|  +-- 監視強化期間の設定 (最低 30 日)                       |
-|  +-- 正常性の確認 (ベースライン比較)                       |
-|  +-- ステークホルダーへの状況報告                          |
+|  Phase 5: Recovery                                        |
+|  +-- Staged system restoration                            |
+|  +-- Set enhanced monitoring period (minimum 30 days)     |
+|  +-- Verify normal operation (baseline comparison)        |
+|  +-- Status updates to stakeholders                       |
 |----------------------------------------------------------|
-|  Phase 6: 教訓 (Lessons Learned)                          |
-|  +-- ポストモーテム (事後レビュー) の実施                    |
-|  +-- 対応手順の改善                                       |
-|  +-- 再発防止策の実施と追跡                                |
-|  +-- メトリクス (MTTD/MTTR) の記録                        |
+|  Phase 6: Lessons Learned                                 |
+|  +-- Conduct post-incident review (post-mortem)           |
+|  +-- Improve response procedures                          |
+|  +-- Implement and track recurrence prevention measures   |
+|  +-- Record metrics (MTTD/MTTR)                           |
 +----------------------------------------------------------+
 ```
 
-### 対応フローの比較 -- 成熟度別
+### Response Flow Comparison -- By Maturity Level
 
-| 成熟度 | 検知 | 封じ込め | 復旧 | 教訓 |
-|--------|------|---------|------|------|
-| Level 1 (初期) | 手動・偶発的 | 場当たり的 | 再構築 | 実施しない |
-| Level 2 (管理) | SIEM アラート | 手順書あり | 手順に従い実施 | 実施するが形式的 |
-| Level 3 (定義) | 相関分析・脅威インテル | 自動+手動 | 段階的・検証済み | Blameless で実施 |
-| Level 4 (最適化) | ML 異常検知・SOAR | 自動封じ込め | 自動復旧・IaC | 継続的改善サイクル |
+| Maturity | Detection | Containment | Recovery | Lessons Learned |
+|----------|-----------|-------------|----------|-----------------|
+| Level 1 (Initial) | Manual, ad hoc | Reactive, improvised | Full rebuild | Not performed |
+| Level 2 (Managed) | SIEM alerts | Runbooks available | Follow procedures | Performed but superficial |
+| Level 3 (Defined) | Correlation analysis, threat intel | Automated + manual | Staged, validated | Conducted blameless |
+| Level 4 (Optimized) | ML anomaly detection, SOAR | Automated containment | Automated recovery, IaC | Continuous improvement cycle |
 
 ---
 
-## 2. 重大度レベルの定義
+## 2. Severity Level Definitions
 
-### インシデント重大度
+### Incident Severity
 
-| レベル | 定義 | 対応時間 | 例 | エスカレーション先 |
-|--------|------|---------|-----|-------------------|
-| SEV-1 (Critical) | サービス停止・大規模データ漏洩 | 15分以内に対応開始 | ランサムウェア、DB 全件漏洩 | 経営層・法務・広報 |
-| SEV-2 (High) | サービス劣化・限定的データ漏洩 | 1時間以内に対応開始 | 不正アクセス、DDoS | 部門長・セキュリティチーム |
-| SEV-3 (Medium) | 潜在的リスク・小規模影響 | 24時間以内に対応開始 | フィッシング成功、マルウェア検知 | セキュリティチーム |
-| SEV-4 (Low) | 軽微な問題・情報収集 | 1週間以内に対応 | ポートスキャン、誤設定 | オンコール担当 |
+| Level | Definition | Response Time | Examples | Escalation Target |
+|-------|------------|---------------|---------|-------------------|
+| SEV-1 (Critical) | Service outage or large-scale data breach | Begin response within 15 minutes | Ransomware, full DB leak | Executive, legal, PR |
+| SEV-2 (High) | Service degradation or limited data breach | Begin response within 1 hour | Unauthorized access, DDoS | Department head, security team |
+| SEV-3 (Medium) | Potential risk or minor impact | Begin response within 24 hours | Successful phishing, malware detected | Security team |
+| SEV-4 (Low) | Minor issue or reconnaissance | Respond within 1 week | Port scan, misconfiguration | On-call personnel |
 
-### 重大度の判定基準
+### Severity Assessment Logic
 
 ```python
 """
-インシデント重大度の自動判定ロジック
+Automatic incident severity assessment logic
 """
 from enum import IntEnum
 from dataclasses import dataclass
@@ -206,48 +207,48 @@ print(f"判定結果: SEV-{severity}")  # 判定結果: SEV-1
 
 ---
 
-## 3. CSIRT の組織体制
+## 3. CSIRT Organizational Structure
 
-### CSIRT の構成
+### CSIRT Composition
 
 ```
 +----------------------------------------------------------+
-|                  CSIRT 組織構成                              |
+|                  CSIRT Organization                       |
 |----------------------------------------------------------|
 |                                                          |
 |  Incident Commander (IC)                                 |
-|  +-- インシデント全体の指揮・意思決定                       |
-|  +-- 経営層へのエスカレーション判断                          |
-|  +-- リソース配分の決定                                    |
+|  +-- Overall command and decision-making for incidents   |
+|  +-- Determines escalation to executive leadership       |
+|  +-- Resource allocation decisions                       |
 |                                                          |
 |  Technical Lead                                          |
-|  +-- 技術的な調査・分析の統括                               |
-|  +-- 封じ込め・根絶の技術判断                               |
-|  +-- フォレンジック作業の監督                               |
+|  +-- Oversees technical investigation and analysis       |
+|  +-- Technical decisions for containment and eradication |
+|  +-- Supervises forensic work                            |
 |                                                          |
 |  Communications Lead                                     |
-|  +-- 社内外への情報発信                                    |
-|  +-- 顧客・規制当局への通知                                |
-|  +-- ステータスページの更新                                |
+|  +-- Internal and external information dissemination     |
+|  +-- Customer and regulatory authority notifications     |
+|  +-- Status page updates                                 |
 |                                                          |
-|  Scribe (記録係)                                          |
-|  +-- 全てのアクションとタイムラインの記録                    |
-|  +-- 意思決定の理由の文書化                                |
-|  +-- ポストモーテム用データの収集                           |
+|  Scribe                                                  |
+|  +-- Records all actions and timeline events             |
+|  +-- Documents rationale behind decisions                |
+|  +-- Collects data for post-mortem                       |
 |                                                          |
 |  Responders                                              |
-|  +-- ログ分析・フォレンジック担当                           |
-|  +-- インフラ・ネットワーク担当                             |
-|  +-- アプリケーション担当                                  |
+|  +-- Log analysis and forensics                          |
+|  +-- Infrastructure and network                          |
+|  +-- Application                                         |
 |                                                          |
 |  Support                                                 |
-|  +-- 法務 (法的助言、証拠保全要件)                          |
-|  +-- 広報 (外部コミュニケーション)                          |
-|  +-- HR (内部脅威の場合)                                   |
+|  +-- Legal (legal advice, evidence preservation req.)    |
+|  +-- PR (external communications)                        |
+|  +-- HR (in cases involving insider threats)             |
 +----------------------------------------------------------+
 ```
 
-### オンコールローテーション設計
+### On-Call Rotation Design
 
 ```python
 """
@@ -325,35 +326,35 @@ print(f"今週の担当: Primary={current['primary']}, Secondary={current['secon
 
 ---
 
-## 4. インシデント対応プレイブック
+## 4. Incident Response Playbooks
 
-### プレイブックの設計原則
+### Playbook Design Principles
 
 ```
-プレイブックの構成要素:
+Playbook Components:
 
   ┌─────────────────────────────────────────────────────┐
-  │  1. トリガー条件                                      │
-  │     → どのアラート/イベントでこのプレイブックを使うか    │
+  │  1. Trigger Conditions                               │
+  │     → Which alerts/events activate this playbook    │
   │                                                     │
-  │  2. 初動対応 (最初の 15 分)                            │
-  │     → チェックリスト形式で迷わず実行できる内容          │
+  │  2. Initial Response (first 15 minutes)              │
+  │     → Checklist format for clear, decisive action   │
   │                                                     │
-  │  3. 調査手順                                          │
-  │     → 何をどの順番で調べるか                           │
+  │  3. Investigation Procedures                         │
+  │     → What to check and in what order               │
   │                                                     │
-  │  4. 封じ込め手順                                      │
-  │     → 具体的なコマンド・操作手順                       │
+  │  4. Containment Procedures                           │
+  │     → Specific commands and operational steps       │
   │                                                     │
-  │  5. エスカレーション基準                               │
-  │     → どの時点で誰に連絡するか                        │
+  │  5. Escalation Criteria                              │
+  │     → At what point to contact whom                 │
   │                                                     │
-  │  6. コミュニケーションテンプレート                       │
-  │     → 社内/社外への通知文テンプレート                   │
+  │  6. Communication Templates                          │
+  │     → Notification templates for internal/external  │
   └─────────────────────────────────────────────────────┘
 ```
 
-### ランサムウェア対応プレイブック
+### Ransomware Response Playbook
 
 ```python
 """
@@ -425,20 +426,20 @@ RANSOMWARE_PLAYBOOK = {
         },
     ],
     "communication_templates": {
-        "internal": "全社員へ: セキュリティインシデントを検知し対応中です。不審なメールを開かず、IT部門の指示に従ってください。",
-        "customer": "お客様へ: 現在セキュリティインシデントの調査を行っています。お客様データへの影響については調査完了後速やかにお知らせします。",
-        "regulatory": "監督機関御中: [組織名]においてセキュリティインシデントが発生し、現在対応中です。詳細は追って報告いたします。",
+        "internal": "To all staff: A security incident has been detected and is being addressed. Do not open suspicious emails and follow IT department instructions.",
+        "customer": "To our customers: We are currently investigating a security incident. We will notify you promptly regarding any impact to your data once the investigation is complete.",
+        "regulatory": "To the regulatory authority: A security incident has occurred at [Organization Name] and we are currently responding. Details will be reported subsequently.",
     },
     "do_not": [
-        "身代金を支払わない (法務と相談の上判断)",
-        "攻撃者と直接コンタクトしない",
-        "感染システムを電源オフしない (メモリ証拠が消失)",
-        "個人の判断で情報を公開しない",
+        "Do not pay the ransom (consult with legal before deciding)",
+        "Do not contact the attacker directly",
+        "Do not power off the infected system (memory evidence will be lost)",
+        "Do not disclose information based on individual judgment",
     ],
 }
 ```
 
-### AWS での自動封じ込め
+### Automated Containment on AWS
 
 ```python
 """
@@ -629,59 +630,61 @@ print(json.dumps(result, indent=2))
 
 ---
 
-## 5. フォレンジック調査
+## 5. Forensic Investigation
 
-### フォレンジック手順の全体像
+### Forensic Investigation Overview
 
 ```
 +----------------------------------------------------------+
-|              デジタルフォレンジック手順                       |
+|              Digital Forensics Procedures                 |
 |----------------------------------------------------------|
 |                                                          |
-|  1. 証拠保全 (Preservation)                               |
-|     +-- ディスクイメージの取得 (dd, FTK Imager)            |
-|     +-- メモリダンプの取得 (LiME, WinPmem, Volatility)    |
-|     +-- ネットワークキャプチャ (tcpdump, Wireshark)        |
-|     +-- ハッシュ値の記録 (SHA-256)                        |
-|     +-- Chain of Custody (証拠の連鎖) を文書化             |
+|  1. Preservation                                         |
+|     +-- Acquire disk images (dd, FTK Imager)             |
+|     +-- Acquire memory dumps (LiME, WinPmem, Volatility) |
+|     +-- Network capture (tcpdump, Wireshark)             |
+|     +-- Record hash values (SHA-256)                     |
+|     +-- Document Chain of Custody                        |
 |                                                          |
-|  2. タイムライン分析 (Analysis)                            |
-|     +-- ログの時系列整理                                  |
-|     +-- ファイルシステムのタイムスタンプ分析                 |
-|     +-- 攻撃者の行動を時系列で再構築                       |
-|     +-- IOC のクロスリファレンス                            |
+|  2. Timeline Analysis                                    |
+|     +-- Organize logs chronologically                    |
+|     +-- Analyze filesystem timestamps                    |
+|     +-- Reconstruct attacker activity in chronological   |
+|         order                                            |
+|     +-- Cross-reference IOCs                             |
 |                                                          |
-|  3. マルウェア分析 (Malware Analysis)                     |
-|     +-- 静的解析: ハッシュ確認、文字列抽出                  |
-|     +-- 動的解析: サンドボックス実行                        |
-|     +-- IOC (Indicator of Compromise) の抽出              |
-|     +-- YARA ルールによるパターンマッチ                     |
+|  3. Malware Analysis                                     |
+|     +-- Static analysis: hash check, string extraction   |
+|     +-- Dynamic analysis: sandbox execution              |
+|     +-- Extract IOCs (Indicators of Compromise)          |
+|     +-- Pattern matching with YARA rules                 |
 |                                                          |
-|  4. 報告書作成 (Reporting)                                |
-|     +-- 発見事項のまとめ                                  |
-|     +-- 根本原因の特定                                    |
-|     +-- 再発防止策の提言                                  |
-|     +-- 法的手続きに使える形式での文書化                    |
+|  4. Reporting                                            |
+|     +-- Summarize findings                               |
+|     +-- Identify root cause                              |
+|     +-- Recommend recurrence prevention measures        |
+|     +-- Document in format suitable for legal proceedings|
 +----------------------------------------------------------+
 ```
 
-### 証拠保全 -- Chain of Custody
+### Evidence Preservation -- Chain of Custody
 
 ```
-Chain of Custody (証拠の連鎖) の重要性:
+Importance of Chain of Custody:
 
-  法的に有効な証拠とするために必要な記録:
+  Records required to make evidence legally valid:
   ┌────────────────────────────────────────────────────┐
-  │  1. 誰が証拠を取得したか (取得者名)                   │
-  │  2. いつ取得したか (日時・タイムゾーン)                │
-  │  3. どこから取得したか (デバイス・場所)                │
-  │  4. どのように取得したか (ツール・手順)                │
-  │  5. 取得後の保管場所・アクセス者の記録                 │
-  │  6. 証拠の完全性の証明 (ハッシュ値)                    │
+  │  1. Who collected the evidence (name of collector)  │
+  │  2. When it was collected (date/time/timezone)      │
+  │  3. Where it was collected from (device/location)   │
+  │  4. How it was collected (tools/procedures)         │
+  │  5. Record of storage location and access after     │
+  │     collection                                      │
+  │  6. Proof of evidence integrity (hash value)        │
   └────────────────────────────────────────────────────┘
 ```
 
-### ログ分析の実践
+### Practical Log Analysis
 
 ```bash
 # CloudTrail ログから不審な活動を検索
@@ -852,39 +855,39 @@ for event in suspicious:
 
 ## 6. SOAR (Security Orchestration, Automation and Response)
 
-### SOAR の全体像
+### SOAR Overview
 
 ```
-SOAR の役割:
+Role of SOAR:
 
   ┌─────────────────────────────────────────────────────┐
-  │  1. Orchestration (オーケストレーション)               │
-  │     → 複数のセキュリティツールを連携                    │
-  │     → SIEM + EDR + FW + Ticketing の統合              │
+  │  1. Orchestration                                    │
+  │     → Integrate multiple security tools             │
+  │     → Unify SIEM + EDR + FW + Ticketing             │
   │                                                     │
-  │  2. Automation (自動化)                               │
-  │     → 定型的な対応手順の自動実行                       │
-  │     → IOC のブロックリスト自動追加                     │
-  │     → 封じ込めアクションの自動実行                     │
+  │  2. Automation                                       │
+  │     → Automatically execute routine response steps  │
+  │     → Automatically add IOCs to blocklists          │
+  │     → Automatically execute containment actions     │
   │                                                     │
-  │  3. Response (対応)                                   │
-  │     → プレイブックに基づく標準化された対応              │
-  │     → ケース管理とコラボレーション                     │
-  │     → メトリクスの自動収集                             │
+  │  3. Response                                         │
+  │     → Standardized response based on playbooks      │
+  │     → Case management and collaboration             │
+  │     → Automatic metrics collection                  │
   └─────────────────────────────────────────────────────┘
 
-主要 SOAR ツール:
+Major SOAR Tools:
 
-  ツール          | 種別       | 特徴
-  ──────────────┼──────────┼─────────────────────
-  Palo Alto XSOAR| 商用       | 豊富な統合、ML 搭載
-  Splunk SOAR    | 商用       | Splunk SIEM と統合
-  Shuffle        | OSS        | 無料、Docker ベース
-  TheHive        | OSS        | ケース管理に強み
-  AWS Step Func. | クラウド    | AWS ネイティブ連携
+  Tool             | Type        | Features
+  ─────────────────┼─────────────┼─────────────────────
+  Palo Alto XSOAR  | Commercial  | Rich integrations, ML-powered
+  Splunk SOAR      | Commercial  | Integrated with Splunk SIEM
+  Shuffle          | OSS         | Free, Docker-based
+  TheHive          | OSS         | Strong case management
+  AWS Step Func.   | Cloud       | Native AWS integration
 ```
 
-### Step Functions による自動対応フロー
+### Automated Response Flow with Step Functions
 
 ```python
 """
@@ -971,87 +974,90 @@ STATE_MACHINE = {
 
 ---
 
-## 7. ポストモーテム
+## 7. Post-Mortem
 
-### Blameless ポストモーテムの原則
+### Principles of Blameless Post-Mortems
 
 ```
-Blameless ポストモーテムが重要な理由:
+Why Blameless Post-Mortems Matter:
 
-  NG: 「山田さんが設定を間違えた」
-  OK: 「設定変更プロセスにバリデーションチェックがなかった」
+  BAD: "Yamada made a configuration error"
+  GOOD: "The configuration change process lacked a validation check"
 
   ┌─────────────────────────────────────────────────────┐
-  │  Blameless ポストモーテムの原則:                       │
+  │  Blameless Post-Mortem Principles:                   │
   │                                                     │
-  │  1. 人ではなくプロセスに焦点を当てる                   │
-  │  2. 「なぜそのアクションが合理的に見えたか」を理解する  │
-  │  3. 再発防止策はシステム/プロセスの改善に向ける        │
-  │  4. 学習の文化を醸成する                              │
-  │  5. 参加者が安全に発言できる環境を確保する            │
+  │  1. Focus on process, not people                    │
+  │  2. Understand why the action seemed reasonable     │
+  │     at the time                                     │
+  │  3. Direct prevention measures toward system/       │
+  │     process improvements                            │
+  │  4. Foster a culture of learning                    │
+  │  5. Ensure a safe environment for all participants  │
+  │     to speak openly                                 │
   └─────────────────────────────────────────────────────┘
 ```
 
-### ポストモーテムテンプレート
+### Post-Mortem Template
 
 ```markdown
-# インシデントポストモーテム
+# Incident Post-Mortem
 
-## 基本情報
-- インシデントID: INC-2025-042
-- 発生日時: 2025-03-15 14:30 JST
-- 検知日時: 2025-03-15 14:35 JST (MTTD: 5分)
-- 解決日時: 2025-03-15 18:20 JST (MTTR: 3時間50分)
-- 重大度: SEV-2
-- Incident Commander: 山田太郎
+## Basic Information
+- Incident ID: INC-2025-042
+- Occurrence time: 2025-03-15 14:30 JST
+- Detection time: 2025-03-15 14:35 JST (MTTD: 5 minutes)
+- Resolution time: 2025-03-15 18:20 JST (MTTR: 3 hours 50 minutes)
+- Severity: SEV-2
+- Incident Commander: Taro Yamada
 
-## サマリ
-S3 バケットの設定ミスにより、顧客データが4時間にわたり
-パブリックアクセス可能な状態になっていた。
+## Summary
+An S3 bucket misconfiguration left customer data publicly accessible
+for 4 hours.
 
-## 影響
-- 影響を受けたユーザー数: 0 (外部アクセスなし)
-- データ漏洩: なし (CloudTrail で確認済み)
-- SLA 違反: なし
-- 金銭的影響: なし
+## Impact
+- Affected users: 0 (no external access occurred)
+- Data breach: None (confirmed via CloudTrail)
+- SLA violation: None
+- Financial impact: None
 
-## タイムライン
-- 14:30 - Terraform apply でバケットポリシーが変更
-- 14:35 - AWS Config ルール違反を検知、アラート発報
-- 14:40 - IC がインシデント宣言、対応開始
-- 14:50 - パブリックアクセスブロックを手動で有効化 (封じ込め)
-- 15:30 - CloudTrail でアクセスログを分析
-- 16:00 - 外部からのアクセスがないことを確認
-- 18:00 - Terraform コードの修正とデプロイ
-- 18:20 - インシデントクローズ
+## Timeline
+- 14:30 - Terraform apply changed the bucket policy
+- 14:35 - AWS Config rule violation detected, alert triggered
+- 14:40 - IC declared incident, response initiated
+- 14:50 - Public access block manually enabled (containment)
+- 15:30 - CloudTrail access logs analyzed
+- 16:00 - Confirmed no external access occurred
+- 18:00 - Terraform code fixed and deployed
+- 18:20 - Incident closed
 
-## 根本原因
-Terraform モジュールの更新時に、S3 パブリックアクセスブロック
-のリソースが誤って削除された。PR レビューで見落とされた。
+## Root Cause
+During a Terraform module update, the S3 public access block resource was
+accidentally removed. This was missed during the PR review.
 
-## 寄与因子
-1. Terraform の plan 出力が長く、削除されたリソースを見落とした
-2. IaC のセキュリティスキャン (tfsec) が CI に未導入だった
-3. S3 SCP による組織レベルの制御がなかった
+## Contributing Factors
+1. Terraform plan output was long, making it easy to miss the deleted resource
+2. IaC security scanning (tfsec) had not been integrated into CI
+3. No organization-level S3 SCP control existed
 
-## うまくいったこと
-- AWS Config による自動検知が 5 分以内に機能した
-- IC の迅速な判断で封じ込めが 20 分以内に完了した
+## What Went Well
+- AWS Config automatic detection worked within 5 minutes
+- The IC's swift decision led to containment within 20 minutes
 
-## 改善が必要なこと
-- IaC のセキュリティスキャンがなかった
-- PR レビューのセキュリティ観点チェックリストがなかった
+## Areas for Improvement
+- No IaC security scanning was in place
+- No security-focused checklist existed for PR reviews
 
-## 再発防止策 (Action Items)
-| ID | 対策 | 担当 | 期限 | 状態 |
-|----|------|------|------|------|
-| 1 | tfsec/Checkov を CI/CD に統合 | 鈴木 | 2025-03-22 | TODO |
-| 2 | AWS Config の自動修復ルールを追加 | 佐藤 | 2025-03-29 | TODO |
-| 3 | S3 SCP で組織全体のパブリックアクセスを禁止 | 田中 | 2025-04-05 | TODO |
-| 4 | PR レビューチェックリストにセキュリティ項目を追加 | 山田 | 2025-03-19 | TODO |
+## Recurrence Prevention (Action Items)
+| ID | Measure | Owner | Due | Status |
+|----|---------|-------|-----|--------|
+| 1 | Integrate tfsec/Checkov into CI/CD | Suzuki | 2025-03-22 | TODO |
+| 2 | Add AWS Config auto-remediation rules | Sato | 2025-03-29 | TODO |
+| 3 | Block org-wide public S3 access via SCP | Tanaka | 2025-04-05 | TODO |
+| 4 | Add security items to PR review checklist | Yamada | 2025-03-19 | TODO |
 ```
 
-### インシデントメトリクスの追跡
+### Tracking Incident Metrics
 
 ```python
 """
@@ -1131,31 +1137,31 @@ def calculate_team_metrics(incidents: list[IncidentMetrics]) -> dict:
 
 ---
 
-## 8. 机上演習 (Tabletop Exercise)
+## 8. Tabletop Exercise
 
-### 演習の設計と実施
+### Exercise Design and Execution
 
 ```
-机上演習の進め方:
+How to Run a Tabletop Exercise:
 
   ┌─────────────────────────────────────────────────────┐
-  │  準備 (演習の 2 週間前)                                │
-  │  +-- シナリオの作成 (現実的な脅威に基づく)              │
-  │  +-- 参加者の選定 (CSIRT + 関連部門)                   │
-  │  +-- ファシリテーターの任命                            │
-  │  +-- 注入イベント (Inject) の準備                      │
+  │  Preparation (2 weeks before the exercise)           │
+  │  +-- Create scenarios (based on realistic threats)   │
+  │  +-- Select participants (CSIRT + related depts.)    │
+  │  +-- Appoint a facilitator                           │
+  │  +-- Prepare inject events                           │
   │                                                     │
-  │  実施 (2-4 時間)                                      │
-  │  +-- シナリオの提示                                   │
-  │  +-- 各フェーズでの判断と対応を議論                    │
-  │  +-- Inject で状況を変化させる                         │
-  │  +-- 参加者全員の発言を促す                            │
+  │  Execution (2-4 hours)                               │
+  │  +-- Present the scenario                            │
+  │  +-- Discuss decisions and responses at each phase   │
+  │  +-- Use injects to change the situation             │
+  │  +-- Encourage all participants to contribute        │
   │                                                     │
-  │  事後 (1 週間以内)                                     │
-  │  +-- 発見事項のまとめ                                 │
-  │  +-- ギャップの特定                                   │
-  │  +-- 改善 Action Items の策定                          │
-  │  +-- 次回演習の計画                                   │
+  │  Follow-up (within 1 week)                           │
+  │  +-- Summarize findings                              │
+  │  +-- Identify gaps                                   │
+  │  +-- Define improvement action items                 │
+  │  +-- Plan the next exercise                          │
   └─────────────────────────────────────────────────────┘
 ```
 
@@ -1171,39 +1177,39 @@ class TabletopScenario:
 
     SCENARIOS = [
         {
-            "title": "ランサムウェア攻撃",
-            "description": "月曜朝、複数の社員から「ファイルが開けない」と報告。"
-                          "デスクトップにランサムノートが表示されている。",
+            "title": "Ransomware Attack",
+            "description": "On Monday morning, multiple employees report they cannot open files. "
+                          "A ransom note is displayed on their desktops.",
             "injects": [
-                "感染は Active Directory 経由で拡大中。ドメインコントローラーにも到達。",
-                "攻撃者から「48時間以内にビットコインで身代金を支払え」とメール。",
-                "記者から「御社がサイバー攻撃を受けたという情報がある」と問い合わせ。",
-                "バックアップサーバーも暗号化されていることが判明。",
+                "The infection is spreading via Active Directory and has reached the domain controller.",
+                "The attacker sends an email: 'Pay the ransom in Bitcoin within 48 hours.'",
+                "A reporter contacts you: 'We have information that your company has been hit by a cyberattack.'",
+                "It is discovered that the backup server has also been encrypted.",
             ],
             "discussion_points": [
-                "最初の 15 分で何をすべきか?",
-                "ネットワーク全体を遮断するか? 部分的に隔離するか?",
-                "身代金を支払うべきか? 法的・倫理的な観点は?",
-                "顧客・取引先への通知のタイミングと内容は?",
-                "バックアップが使えない場合の復旧戦略は?",
+                "What should be done in the first 15 minutes?",
+                "Should the entire network be shut down, or should isolation be partial?",
+                "Should the ransom be paid? What are the legal and ethical considerations?",
+                "What is the timing and content of notifications to customers and business partners?",
+                "What is the recovery strategy if backups are unavailable?",
             ],
         },
         {
-            "title": "内部犯行によるデータ持ち出し",
-            "description": "退職予定の社員が大量のファイルを個人デバイスにコピーしている"
-                          "というアラートが DLP ツールから発報。",
+            "title": "Insider Threat Data Exfiltration",
+            "description": "A DLP tool triggers an alert indicating that an employee scheduled for departure "
+                          "is copying a large volume of files to a personal device.",
             "injects": [
-                "該当社員は顧客リストと技術文書 500 件をダウンロード済み。",
-                "社員は「業務に必要な作業」と主張。",
-                "競合他社に転職予定であることが判明。",
-                "過去 3 ヶ月分のアクセスログを確認すると、不自然なパターンが見つかる。",
+                "The employee has already downloaded 500 customer lists and technical documents.",
+                "The employee claims it was 'work-related activity.'",
+                "It is revealed the employee is transferring to a competitor.",
+                "A review of the past 3 months of access logs reveals an unusual pattern.",
             ],
             "discussion_points": [
-                "HR とどのタイミングで連携するか?",
-                "法務部門をいつ巻き込むか?",
-                "社員のアクセス権をいつ無効化するか?",
-                "証拠保全のために何をすべきか?",
-                "法的措置を取る場合の手順は?",
+                "At what point should HR be involved?",
+                "When should the legal team be brought in?",
+                "When should the employee's access rights be revoked?",
+                "What should be done to preserve evidence?",
+                "What are the procedures if legal action is pursued?",
             ],
         },
     ]
@@ -1220,167 +1226,169 @@ class TabletopScenario:
 
 
 # 使用例
-scenario = TabletopScenario.generate("ランサムウェア")
-print(f"シナリオ: {scenario['title']}")
-print(f"状況: {scenario['description']}")
-print("\n議論ポイント:")
+scenario = TabletopScenario.generate("Ransomware")
+print(f"Scenario: {scenario['title']}")
+print(f"Situation: {scenario['description']}")
+print("\nDiscussion Points:")
 for i, point in enumerate(scenario['discussion_points'], 1):
     print(f"  {i}. {point}")
 ```
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### アンチパターン 1: 証拠を破壊してしまう
-
-```
-NG:
-  → 感染サーバを即座に再起動・再構築
-  → ログを消去してクリーンな状態に
-  → マルウェアファイルを削除
-  → 「とにかく早く復旧させろ」で証拠を上書き
-
-  結果: 根本原因が特定できない、法的証拠が使えない、再発する
-
-OK:
-  → まずディスクイメージとメモリダンプを取得
-  → ログを読み取り専用で保全 (別の安全な場所にコピー)
-  → 隔離した上で調査を実施
-  → Chain of Custody を記録
-  → フォレンジック担当者の指示に従う
-```
-
-### アンチパターン 2: インシデント対応計画の未策定
+### Anti-Pattern 1: Destroying Evidence
 
 ```
-NG:
-  → 「インシデントが起きたら考える」
-  → 連絡先リストが存在しない
-  → 役割分担が決まっていない
-  → 計画はあるが一度も訓練していない
+BAD:
+  → Immediately reboot or rebuild the infected server
+  → Clear logs to restore a clean state
+  → Delete malware files
+  → Overwrite evidence in the rush to "restore service immediately"
 
-  結果: パニック、対応の遅延、意思決定の混乱
+  Result: Root cause cannot be identified, legal evidence is unusable,
+          the incident recurs
 
-OK:
-  → 対応計画を文書化し定期的に更新
-  → 四半期ごとに机上演習を実施
-  → 年次でレッドチーム演習を実施
-  → 計画の実効性をメトリクスで検証
+GOOD:
+  → First acquire a disk image and memory dump
+  → Preserve logs as read-only (copy to a separate, secure location)
+  → Investigate while keeping the system isolated
+  → Maintain Chain of Custody records
+  → Follow the instructions of the forensic investigator
 ```
 
-### アンチパターン 3: 全てを手動で対応する
+### Anti-Pattern 2: No Incident Response Plan
 
 ```
-NG:
-  → 全ての封じ込めアクションを手動実行
-  → スクリプト化されていない繰り返し作業
-  → 夜間・休日は対応開始まで数時間
-  → 対応者のスキルに品質が依存
+BAD:
+  → "We'll figure it out if an incident happens"
+  → No contact list exists
+  → Roles and responsibilities are undefined
+  → A plan exists but has never been practiced
 
-  結果: 対応の遅延、ヒューマンエラー、対応品質のばらつき
+  Result: Panic, delayed response, confused decision-making
 
-OK:
-  → SOAR による自動封じ込めの導入
-  → プレイブックのスクリプト化
-  → 低〜中リスクの自動対応フロー構築
-  → 高リスクは自動検知+人間の判断で対応
+GOOD:
+  → Document the response plan and update it regularly
+  → Conduct tabletop exercises quarterly
+  → Conduct red team exercises annually
+  → Validate plan effectiveness with metrics
+```
+
+### Anti-Pattern 3: Handling Everything Manually
+
+```
+BAD:
+  → Execute all containment actions manually
+  → Repetitive tasks that have not been scripted
+  → During nights and weekends, hours pass before response begins
+  → Response quality depends on the individual responder's skill
+
+  Result: Delayed response, human error, inconsistent response quality
+
+GOOD:
+  → Introduce SOAR for automated containment
+  → Script playbooks
+  → Build automated response flows for low-to-medium risk incidents
+  → Use automated detection + human judgment for high-risk incidents
 ```
 
 ---
 
-## 10. 実践演習
+## 10. Practice Exercises
 
-### 演習 1: インシデント重大度の判定 (基礎)
+### Exercise 1: Incident Severity Assessment (Basic)
 
-以下のインシデントの重大度 (SEV-1 〜 SEV-4) を判定し、その理由と初動対応を述べよ。
+Determine the severity level (SEV-1 to SEV-4) for each of the following incidents and describe your reasoning and initial response.
 
-1. 社内の開発者が誤って本番 DB のテーブルを DROP した
-2. 外部のセキュリティ研究者から XSS 脆弱性の報告を受けた
-3. GuardDuty が EC2 インスタンスから暗号通貨マイニング通信を検知した
-4. 社員 50 名がフィッシングメールのリンクをクリックした
+1. A developer accidentally drops a production DB table
+2. An external security researcher reports an XSS vulnerability
+3. GuardDuty detects cryptocurrency mining traffic from an EC2 instance
+4. 50 employees click on a link in a phishing email
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answers</summary>
 
 1. **DROP TABLE -- SEV-1 (Critical)**
-   - 理由: 本番データの消失はサービス停止に直結。データ復旧にバックアップからのリストアが必要
-   - 初動: バックアップの確認、リストア開始、影響範囲の特定、ユーザーへの通知
+   - Reason: Loss of production data directly causes service outage. Restoring data requires recovering from backup.
+   - Initial response: Verify backup, begin restore, identify scope of impact, notify users
 
-2. **XSS 報告 -- SEV-3 (Medium)**
-   - 理由: 外部研究者による責任ある開示。攻撃が実行された証拠がなければ潜在的リスク
-   - 初動: 脆弱性の再現確認、WAF ルール追加 (暫定)、修正パッチ開発の優先度決定
+2. **XSS Report -- SEV-3 (Medium)**
+   - Reason: Responsible disclosure by an external researcher. If there is no evidence of an active attack, it is a potential risk.
+   - Initial response: Reproduce the vulnerability, add a WAF rule (interim), determine priority for developing a fix patch
 
-3. **暗号通貨マイニング -- SEV-2 (High)**
-   - 理由: EC2 が侵害されている。ラテラルムーブメントや追加の侵害の可能性
-   - 初動: EC2 の隔離 (SG 変更)、メモリ/ディスクの証拠保全、侵入経路の調査
+3. **Cryptocurrency Mining -- SEV-2 (High)**
+   - Reason: EC2 has been compromised. Potential for lateral movement and additional breaches.
+   - Initial response: Isolate the EC2 instance (change SG), preserve memory/disk evidence, investigate entry point
 
-4. **フィッシング 50 名クリック -- SEV-2 (High)**
-   - 理由: 50 名が潜在的に侵害。クレデンシャル窃取やマルウェア感染の可能性
-   - 初動: 対象者全員のパスワード強制リセット、セッション無効化、対象端末のスキャン
+4. **Phishing -- 50 Employees Clicked -- SEV-2 (High)**
+   - Reason: 50 employees are potentially compromised. Risk of credential theft and malware infection.
+   - Initial response: Force password reset for all affected users, invalidate sessions, scan affected endpoints
 </details>
 
-### 演習 2: ポストモーテムの作成 (応用)
+### Exercise 2: Writing a Post-Mortem (Applied)
 
-以下のシナリオに基づいて、Blameless ポストモーテムを作成せよ。
+Based on the following scenario, write a Blameless post-mortem.
 
-**シナリオ:** 深夜 2:00 に Web アプリケーションが全面停止。原因は、当日 18:00 にデプロイされたコード変更がメモリリークを引き起こし、6 時間かけて全インスタンスが OOM (Out of Memory) でクラッシュした。アラートは設定されていたが、Slack 通知のみでオンコール担当者は睡眠中で気づかなかった。
+**Scenario:** At 2:00 AM, a web application goes completely offline. The cause was a code change deployed at 6:00 PM the previous day that introduced a memory leak, causing all instances to crash with OOM (Out of Memory) errors after 6 hours. An alert was configured but only sent Slack notifications, and the on-call engineer was asleep and did not notice.
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```markdown
-# インシデントポストモーテム
+# Incident Post-Mortem
 
-## 基本情報
-- インシデントID: INC-2025-047
-- 発生日時: 2025-04-10 02:00 JST
-- 検知日時: 2025-04-10 02:45 JST (ユーザー報告で検知)
-- 解決日時: 2025-04-10 04:30 JST
-- 重大度: SEV-1
-- MTTD: 45分, MTTR: 2時間30分
+## Basic Information
+- Incident ID: INC-2025-047
+- Occurrence time: 2025-04-10 02:00 JST
+- Detection time: 2025-04-10 02:45 JST (detected via user report)
+- Resolution time: 2025-04-10 04:30 JST
+- Severity: SEV-1
+- MTTD: 45 minutes, MTTR: 2 hours 30 minutes
 
-## サマリ
-18:00 のデプロイに含まれるコード変更がメモリリークを引き起こし、
-6時間後に全インスタンスが OOM でクラッシュ、サービス全面停止。
+## Summary
+A code change included in the 18:00 deployment introduced a memory leak
+that caused all instances to crash with OOM errors 6 hours later,
+resulting in a complete service outage.
 
-## 根本原因
-新機能のコードで HTTP コネクションプールが適切に close されて
-おらず、リクエストごとにメモリが蓄積。
+## Root Cause
+An HTTP connection pool in the new feature code was not properly closed,
+causing memory to accumulate with each request.
 
-## 寄与因子
-1. メモリ使用量の閾値アラートはあったが、Slack 通知のみだった
-2. 負荷テスト (長時間実行) がデプロイ前に行われなかった
-3. カナリアデプロイではなく全インスタンス同時デプロイだった
-4. ロールバック手順が文書化されていなかった
+## Contributing Factors
+1. Memory usage threshold alerts existed but only sent Slack notifications
+2. Long-duration load testing was not performed before deployment
+3. All instances were deployed simultaneously rather than using canary deployment
+4. Rollback procedures were not documented
 
-## うまくいったこと
-- ユーザー報告後の対応は迅速だった
-- ロールバック自体は 30 分で完了した
+## What Went Well
+- Response after the user report was prompt
+- The rollback itself was completed within 30 minutes
 
-## 再発防止策
-| 対策 | 担当 | 期限 |
-|------|------|------|
-| PagerDuty への通知チャネル追加 | インフラチーム | 1週間 |
-| カナリアデプロイの導入 | SRE | 1ヶ月 |
-| 長時間負荷テストの CI 追加 | QA | 2週間 |
-| メモリリーク検知の自動テスト追加 | 開発チーム | 2週間 |
+## Recurrence Prevention
+| Measure | Owner | Due |
+|---------|-------|-----|
+| Add PagerDuty notification channel | Infrastructure team | 1 week |
+| Introduce canary deployment | SRE | 1 month |
+| Add long-duration load test to CI | QA | 2 weeks |
+| Add automated memory leak detection test | Dev team | 2 weeks |
 ```
 </details>
 
-### 演習 3: 自動封じ込めスクリプトの設計 (発展)
+### Exercise 3: Designing an Automated Containment Script (Advanced)
 
-以下の要件を満たすインシデント自動封じ込めシステムを設計せよ。
+Design an automated incident containment system that meets the following requirements.
 
-**要件:**
-- GuardDuty が「S3 バケットへの匿名アクセス」を検知した場合、自動で S3 バケットのパブリックアクセスをブロックする
-- 元の設定をタグに保存する (復旧用)
-- 証跡として CloudWatch Logs にアクション記録を出力する
-- SNS で セキュリティチームに通知する
-- 誤検知の場合のロールバック手順も設計する
+**Requirements:**
+- When GuardDuty detects "anonymous access to an S3 bucket," automatically block public access to the S3 bucket
+- Save the original configuration to tags (for recovery)
+- Output an action record to CloudWatch Logs as an audit trail
+- Notify the security team via SNS
+- Also design a rollback procedure for false positives
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```python
 """
@@ -1486,7 +1494,7 @@ def rollback_containment(bucket_name: str, incident_id: str) -> dict:
             break
 
     if not original_config:
-        raise ValueError("元の設定が見つかりません")
+        raise ValueError("Original configuration not found")
 
     # 元の設定に復元
     s3.put_public_access_block(
@@ -1514,81 +1522,81 @@ def rollback_containment(bucket_name: str, incident_id: str) -> dict:
 
 ## 11. FAQ
 
-### Q1. インシデント対応チームの最小構成は?
+### Q1. What is the minimum team composition for an incident response team?
 
-小規模組織では、IC (兼 Technical Lead) 1名、Responder 1-2名、Communications Lead 1名の 3-4名が最小構成である。重要なのは役割の明確化と、緊急時の連絡手段の確保である。外部の CSIRT サービス (MDR: Managed Detection and Response) を契約し、不足する専門性を補完するのも有効である。チームが小さい場合でも、プレイブックの整備と定期的な訓練を行うことで対応品質を担保できる。
+For small organizations, a minimum of 3-4 people is sufficient: 1 IC (who also serves as Technical Lead), 1-2 Responders, and 1 Communications Lead. The key is to clearly define roles and secure emergency communication channels. Contracting an external CSIRT service (MDR: Managed Detection and Response) to supplement missing expertise is also effective. Even with a small team, maintaining well-prepared playbooks and conducting regular exercises will ensure response quality.
 
-### Q2. フォレンジック調査を外部委託すべきタイミングは?
+### Q2. When should forensic investigation be outsourced?
 
-以下のいずれかに該当する場合は外部委託を検討すべきである:
-- 法的手続き (訴訟、法執行機関への報告) が想定される場合 -- 証拠の法的有効性を確保するため
-- 組織内にフォレンジックの専門スキルがない場合
-- 内部犯行の可能性がある場合 -- 内部メンバーによる証拠隠滅リスクを排除
-- インシデントの規模が大きく内部リソースでは対応しきれない場合
-- サイバー保険の適用条件として外部調査が求められる場合
+Consider outsourcing if any of the following apply:
+- Legal proceedings are anticipated (lawsuits, law enforcement reporting) -- to ensure the legal validity of evidence
+- The organization lacks internal forensic expertise
+- Insider threat is suspected -- to eliminate the risk of evidence tampering by internal members
+- The scale of the incident exceeds internal response capacity
+- External investigation is required as a condition of cyber insurance coverage
 
-### Q3. インシデント後の情報公開はどこまで行うべきか?
+### Q3. How much information should be disclosed after an incident?
 
-個人データの漏洩がある場合は GDPR (72時間以内) や個人情報保護法に基づく通知義務がある。それ以外でも、影響を受けた顧客・パートナーには誠実に開示すべきである。公開する情報は「何が起きたか」「影響範囲」「取った対策」「今後の防止策」を含め、攻撃者に利する技術的詳細 (使用されたエクスプロイト、内部ネットワーク構成等) は含めない。透明性は信頼を維持する上で重要だが、法務と広報と連携して開示範囲を慎重に決定する。
+If personal data has been breached, notification obligations apply under GDPR (within 72 hours) or applicable data protection laws. Beyond legal requirements, affected customers and partners should be informed honestly. Disclosures should include "what happened," "the scope of impact," "actions taken," and "future prevention measures." Technical details that could benefit the attacker (exploits used, internal network structure, etc.) should not be included. While transparency is important for maintaining trust, the scope of disclosure should be carefully determined in coordination with legal and PR teams.
 
-### Q4. 身代金を支払うべきか?
+### Q4. Should ransom be paid?
 
-一般的に推奨されない。理由: (1) 支払ってもデータが復元される保証がない、(2) 犯罪組織の資金源となる、(3) 再攻撃のリスクが高まる、(4) 一部の国では制裁対象組織への支払いが法的に問題になる。ただし、人命に関わる場合やバックアップが完全に失われた場合は、法務・経営層と協議の上で判断する。FBI や警察庁サイバー犯罪対策課への相談も検討する。
+It is generally not recommended. Reasons: (1) There is no guarantee that data will be restored after payment, (2) It funds criminal organizations, (3) It increases the risk of repeat attacks, (4) In some countries, paying organizations on sanctions lists may be legally problematic. However, when human life is at risk or when backups have been completely lost, the decision should be made in consultation with legal counsel and executive leadership. Consulting the FBI or the relevant law enforcement cybercrime unit is also worth considering.
 
-### Q5. インシデント対応の成熟度を評価するには?
+### Q5. How do you assess incident response maturity?
 
-NIST の Cybersecurity Framework (CSF) の「Respond」カテゴリや、SANS の Incident Response Maturity Model を基に評価する。主要な評価指標は: (1) MTTD/MTTR の推移、(2) プレイブックのカバー率、(3) 訓練の実施頻度と結果、(4) 自動化の導入率、(5) ポストモーテムの実施率と Action Items の完了率。
+Evaluate based on the "Respond" category of the NIST Cybersecurity Framework (CSF) or the SANS Incident Response Maturity Model. Key evaluation indicators include: (1) trends in MTTD/MTTR, (2) playbook coverage rate, (3) frequency and results of exercises, (4) automation adoption rate, (5) post-mortem completion rate and action item completion rate.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| 対応フロー | 準備→検知→封じ込め→根絶→復旧→教訓の6段階 |
-| 重大度 | SEV-1 (15分) から SEV-4 (1週間) の対応 SLA |
-| CSIRT | IC・Technical Lead・Communications Lead・Scribe の役割明確化 |
-| 封じ込め | ネットワーク隔離→証拠保全→影響範囲確認 |
-| フォレンジック | ディスク/メモリイメージ取得、Chain of Custody、タイムライン分析 |
-| SOAR | 自動封じ込め・プレイブック実行による対応速度向上 |
-| ポストモーテム | 非難なし (Blameless)、根本原因と再発防止策に集中 |
-| メトリクス | MTTD・MTTR・MTTC を継続的に計測し改善 |
-| 訓練 | 四半期の机上演習、年次のレッドチーム演習 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [監視/ログ](./01-monitoring-logging.md) -- インシデント検知の基盤となる監視体制
-- [コンプライアンス](./02-compliance.md) -- インシデント報告の法的義務 (GDPR 72時間ルール等)
-- [セキュリティ文化](./03-security-culture.md) -- 組織全体のセキュリティ意識向上と DevSecOps
-- 認証と認可の基礎 -- 侵害後のクレデンシャル管理
-- [クラウドセキュリティ](../05-cloud-security/01-aws-security.md) -- AWS 環境でのセキュリティ対応
+| Item | Key Point |
+|------|-----------|
+| Response Flow | 6-phase cycle: Preparation → Detection → Containment → Eradication → Recovery → Lessons Learned |
+| Severity | Response SLAs ranging from SEV-1 (15 minutes) to SEV-4 (1 week) |
+| CSIRT | Clear role definition: IC, Technical Lead, Communications Lead, Scribe |
+| Containment | Network isolation → evidence preservation → scope confirmation |
+| Forensics | Disk/memory imaging, Chain of Custody, timeline analysis |
+| SOAR | Automated containment and playbook execution for faster response |
+| Post-Mortem | Blameless approach, focused on root cause and recurrence prevention |
+| Metrics | Continuous measurement and improvement of MTTD, MTTR, and MTTC |
+| Exercises | Quarterly tabletop exercises, annual red team exercises |
 
 ---
 
-## 参考文献
+## Further Reading
+
+- [Monitoring/Logging](./01-monitoring-logging.md) -- Monitoring infrastructure underpinning incident detection
+- [Compliance](./02-compliance.md) -- Legal obligations for incident reporting (GDPR 72-hour rule, etc.)
+- [Security Culture](./03-security-culture.md) -- Organization-wide security awareness and DevSecOps
+- Authentication and Authorization Basics -- Credential management after a breach
+- [Cloud Security](../05-cloud-security/01-aws-security.md) -- Security response in AWS environments
+
+---
+
+## References
 
 1. **NIST SP 800-61 Rev.2 -- Computer Security Incident Handling Guide** -- https://csrc.nist.gov/publications/detail/sp/800-61/rev-2/final
 2. **SANS Incident Handler's Handbook** -- https://www.sans.org/white-papers/incident-handlers-handbook/
 3. **PagerDuty Incident Response Documentation** -- https://response.pagerduty.com/
 4. **Google SRE Book -- Managing Incidents** -- https://sre.google/sre-book/managing-incidents/
-5. **MITRE ATT&CK Framework** -- https://attack.mitre.org/ -- 攻撃者の戦術・技術・手順 (TTP) の分類体系
+5. **MITRE ATT&CK Framework** -- https://attack.mitre.org/ -- Classification system for attacker tactics, techniques, and procedures (TTPs)
 6. **IBM Cost of a Data Breach Report 2024** -- https://www.ibm.com/reports/data-breach
