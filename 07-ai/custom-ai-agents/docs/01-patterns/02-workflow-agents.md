@@ -1,135 +1,135 @@
-# ワークフローエージェント
+# Workflow Agents
 
-> DAG・条件分岐・並列実行――事前定義されたフローに従いつつ、LLMの判断で動的に経路を選択するワークフローエージェントの設計と実装。
+> DAGs, conditional branching, and parallel execution — designing and implementing workflow agents that follow predefined flows while dynamically selecting paths through LLM decisions.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. ワークフローエージェントとフリーフォームエージェントの違いと使い分け
-2. DAG（有向非巡回グラフ）ベースのフロー設計と条件分岐の実装
-3. LangGraphを用いた状態管理付きワークフローの構築パターン
-4. 並列実行・サブワークフロー・動的フロー生成の実践手法
-5. エラーハンドリング・チェックポイント・リトライ戦略
-6. 本番運用のためのモニタリング・コスト最適化・テスト手法
+1. The difference between workflow agents and free-form agents, and when to use each
+2. DAG (Directed Acyclic Graph)-based flow design and conditional branching implementation
+3. Patterns for building stateful workflows with LangGraph
+4. Practical techniques for parallel execution, subworkflows, and dynamic flow generation
+5. Error handling, checkpointing, and retry strategies
+6. Monitoring, cost optimization, and testing approaches for production use
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [マルチエージェント](./01-multi-agent.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Multi-Agent](./01-multi-agent.md)
 
 ---
 
-## 1. ワークフローエージェントとは
+## 1. What Are Workflow Agents?
 
-### 1.1 フリーフォーム vs ワークフロー
-
-```
-フリーフォームエージェント:
-  目標 → [LLMが自由に判断] → ... → 結果
-  ・LLMが毎ステップ何をするか決定
-  ・柔軟だが予測困難
-
-ワークフローエージェント:
-  目標 → [ノード1] → [条件] → [ノード2a or 2b] → [ノード3] → 結果
-  ・事前定義されたフローに従う
-  ・各ノードでLLMが処理を実行
-  ・予測可能で制御しやすい
-```
-
-### 1.2 位置づけ
+### 1.1 Free-Form vs. Workflow
 
 ```
-制御の度合いスペクトラム
+Free-Form Agent:
+  Goal → [LLM decides freely] → ... → Result
+  · LLM decides what to do at each step
+  · Flexible but unpredictable
 
- 完全手動                                    完全自律
+Workflow Agent:
+  Goal → [Node 1] → [Condition] → [Node 2a or 2b] → [Node 3] → Result
+  · Follows a predefined flow
+  · LLM executes processing at each node
+  · Predictable and easy to control
+```
+
+### 1.2 Positioning
+
+```
+Control Spectrum
+
+ Fully Manual                              Fully Autonomous
  +--------+-----------+-------------+--------+
- | 固定   | ワーク    | シングル     | 自律   |
- | パイプ | フロー    | エージェント | エージ |
- | ライン | エージェント| (ReAct)    | ェント |
+ | Fixed  | Workflow  | Single      | Auton- |
+ | pipe-  | Agent     | Agent       | omous  |
+ | line   |           | (ReAct)     | Agent  |
  +--------+-----------+-------------+--------+
            ^^^^^^^^^^^^
-           この章の範囲
+           Scope of this chapter
 
- フロー: 開発者が設計
- ノード内処理: LLMが実行
+ Flow: designed by the developer
+ In-node processing: executed by LLM
 ```
 
-### 1.3 ワークフローエージェントの判断フローチャート
+### 1.3 Decision Flowchart for Workflow Agents
 
 ```
-ワークフローエージェントを選ぶべきか？
+Should you use a workflow agent?
 
-Q1: タスクの手順は事前に定義できるか？
-├─ YES → Q2へ
-└─ NO  → フリーフォームエージェント（ReAct/自律型）を検討
+Q1: Can the task steps be defined in advance?
+├─ YES → Go to Q2
+└─ NO  → Consider a free-form agent (ReAct / autonomous)
 
-Q2: 各ステップでLLMの判断が必要か？
-├─ YES → Q3へ
-└─ NO  → 固定パイプライン（LLM不要）で十分
+Q2: Does each step require LLM judgment?
+├─ YES → Go to Q3
+└─ NO  → A fixed pipeline (no LLM needed) is sufficient
 
-Q3: 実行パスの分岐は予測可能か？
-├─ YES → ワークフローエージェントが最適
-└─ NO  → ハイブリッド（ワークフロー＋自律ノード）を検討
+Q3: Are the execution path branches predictable?
+├─ YES → A workflow agent is the best fit
+└─ NO  → Consider a hybrid (workflow + autonomous nodes)
 
-Q4: 並列実行で高速化できるステップがあるか？
-├─ YES → 並列ワークフローパターンを採用
-└─ NO  → 直列ワークフローで十分
+Q4: Are there steps that can be parallelized for speed?
+├─ YES → Adopt a parallel workflow pattern
+└─ NO  → A sequential workflow is sufficient
 
-Q5: 処理の再現性・監査が必要か？
-├─ YES → ワークフロー＋チェックポイントが必須
-└─ NO  → シンプルなワークフローで開始
+Q5: Is reproducibility or auditability of processing required?
+├─ YES → Workflow + checkpoints are essential
+└─ NO  → Start with a simple workflow
 ```
 
-### 1.4 典型的なユースケース
+### 1.4 Typical Use Cases
 
 ```
-ユースケース別ワークフロー適合度
+Workflow Suitability by Use Case
 
-高い適合度:
-  ・カスタマーサポートの問い合わせ処理
-  ・コンテンツ生成パイプライン（記事作成→レビュー→公開）
-  ・ドキュメント処理（解析→分類→要約→格納）
-  ・コードレビュー自動化（解析→問題検出→修正提案→適用）
-  ・データETLパイプライン（抽出→変換→品質チェック→ロード）
+High suitability:
+  · Customer support inquiry processing
+  · Content generation pipeline (write → review → publish)
+  · Document processing (parse → classify → summarize → store)
+  · Automated code review (analyze → detect issues → suggest fixes → apply)
+  · Data ETL pipeline (extract → transform → quality check → load)
 
-中程度:
-  ・リサーチアシスタント（情報収集→分析→レポート）
-  ・メール/メッセージの自動返信
-  ・レポート自動生成
+Moderate:
+  · Research assistant (gather info → analyze → report)
+  · Automated email/message replies
+  · Automated report generation
 
-低い適合度:
-  ・自由対話型チャットボット
-  ・探索的なデータ分析
-  ・創造的なブレインストーミング
+Low suitability:
+  · Free-form conversational chatbot
+  · Exploratory data analysis
+  · Creative brainstorming
 ```
 
 ---
 
-## 2. DAGベースのフロー設計
+## 2. DAG-Based Flow Design
 
-### 2.1 DAGとは
+### 2.1 What Is a DAG?
 
 ```
-DAG (Directed Acyclic Graph) 例: ドキュメント処理パイプライン
+DAG (Directed Acyclic Graph) Example: Document Processing Pipeline
 
-  [入力受付] ──→ [言語判定] ──→ [翻訳?] ──→ [要約] ──→ [出力]
-                     |              ^
-                     |  日本語       | 英語
-                     +──(不要)──→───+
+  [Intake] ──→ [Detect Language] ──→ [Translate?] ──→ [Summarize] ──→ [Output]
+                     |                    ^
+                     |  Japanese           | English
+                     +──(skip) ──→────────+
                      |
-                     v 他言語
-                  [翻訳実行] ─────→──+
+                     v Other language
+                  [Run Translation] ─────→──+
 
-※ サイクル（ループ）がない = 必ず終了する
+※ No cycles (loops) = guaranteed termination
 ```
 
-### 2.2 基本的なワークフロー実装
+### 2.2 Basic Workflow Implementation
 
 ```python
-# DAGベースのワークフローエンジン
+# DAG-based workflow engine
 from dataclasses import dataclass, field
 from typing import Callable, Any
 from enum import Enum
@@ -139,11 +139,11 @@ import logging
 logger = logging.getLogger(__name__)
 
 class NodeType(Enum):
-    LLM = "llm"           # LLM処理ノード
-    TOOL = "tool"          # ツール実行ノード
-    CONDITION = "condition" # 条件分岐ノード
-    PARALLEL = "parallel"   # 並列実行ノード
-    SUBWORKFLOW = "subworkflow"  # サブワークフローノード
+    LLM = "llm"           # LLM processing node
+    TOOL = "tool"          # Tool execution node
+    CONDITION = "condition" # Conditional branch node
+    PARALLEL = "parallel"   # Parallel execution node
+    SUBWORKFLOW = "subworkflow"  # Subworkflow node
 
 class NodeStatus(Enum):
     PENDING = "pending"
@@ -154,7 +154,7 @@ class NodeStatus(Enum):
 
 @dataclass
 class NodeExecution:
-    """ノード実行の記録"""
+    """Record of node execution"""
     node_name: str
     status: NodeStatus
     start_time: float
@@ -172,10 +172,10 @@ class WorkflowNode:
     type: NodeType
     handler: Callable
     next_nodes: list[str] = field(default_factory=list)
-    condition: Callable = None  # 条件分岐用
-    retry_count: int = 0       # リトライ回数
-    timeout: float = 30.0      # タイムアウト秒数
-    description: str = ""      # ノードの説明
+    condition: Callable = None  # For conditional branching
+    retry_count: int = 0       # Number of retries
+    timeout: float = 30.0      # Timeout in seconds
+    description: str = ""      # Node description
 
 class WorkflowEngine:
     def __init__(self, name: str = "default"):
@@ -193,7 +193,7 @@ class WorkflowEngine:
         self.nodes[node.name] = node
 
     def add_hook(self, event: str, callback: Callable):
-        """フックを追加"""
+        """Add a hook"""
         if event in self.hooks:
             self.hooks[event].append(callback)
 
@@ -202,7 +202,7 @@ class WorkflowEngine:
             hook(**kwargs)
 
     def _execute_node(self, node: WorkflowNode) -> Any:
-        """ノードを実行（リトライ付き）"""
+        """Execute a node (with retry)"""
         last_error = None
         for attempt in range(node.retry_count + 1):
             try:
@@ -212,9 +212,9 @@ class WorkflowEngine:
                 return result
             except Exception as e:
                 last_error = e
-                logger.warning(f"ノード {node.name} 失敗 (試行 {attempt + 1}): {e}")
+                logger.warning(f"Node {node.name} failed (attempt {attempt + 1}): {e}")
                 if attempt < node.retry_count:
-                    time.sleep(2 ** attempt)  # 指数バックオフ
+                    time.sleep(2 ** attempt)  # Exponential backoff
 
         self._execute_hooks("on_error", node=node, error=last_error)
         raise last_error
@@ -231,14 +231,14 @@ class WorkflowEngine:
                 status=NodeStatus.RUNNING,
                 start_time=time.time()
             )
-            logger.info(f"実行中: {node.name} ({node.type.value})")
+            logger.info(f"Running: {node.name} ({node.type.value})")
 
             try:
                 if node.type == NodeType.CONDITION:
                     branch = node.condition(self.state)
                     current = branch
                     execution.status = NodeStatus.COMPLETED
-                    execution.result = f"分岐先: {branch}"
+                    execution.result = f"Branch: {branch}"
                 elif node.type == NodeType.PARALLEL:
                     results = self._run_parallel(node.next_nodes)
                     self.state["parallel_results"] = results
@@ -253,7 +253,7 @@ class WorkflowEngine:
             except Exception as e:
                 execution.status = NodeStatus.FAILED
                 execution.error = str(e)
-                logger.error(f"ノード {node.name} で致命的エラー: {e}")
+                logger.error(f"Fatal error in node {node.name}: {e}")
                 raise
             finally:
                 execution.end_time = time.time()
@@ -262,8 +262,8 @@ class WorkflowEngine:
         return self.state
 
     def get_execution_summary(self) -> str:
-        """実行サマリーを取得"""
-        lines = [f"ワークフロー '{self.name}' 実行結果:"]
+        """Get execution summary"""
+        lines = [f"Workflow '{self.name}' execution result:"]
         total_duration = 0
         for ex in self.execution_log:
             status_icon = "✓" if ex.status == NodeStatus.COMPLETED else "✗"
@@ -272,38 +272,38 @@ class WorkflowEngine:
                 f"({ex.status.value})"
             )
             total_duration += ex.duration
-        lines.append(f"  合計時間: {total_duration:.2f}s")
+        lines.append(f"  Total time: {total_duration:.2f}s")
         return "\n".join(lines)
 ```
 
-### 2.3 条件分岐の実装
+### 2.3 Implementing Conditional Branching
 
 ```python
-# 条件分岐を含むワークフロー
+# Workflow with conditional branching
 import anthropic
 
 client = anthropic.Anthropic()
 
 def classify_inquiry(message: str) -> str:
-    """問い合わせをLLMで分類"""
+    """Classify an inquiry using LLM"""
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=50,
         messages=[{
             "role": "user",
-            "content": f"""以下の問い合わせを分類してください。
-カテゴリ: billing, technical, general
-1単語で回答: {message}"""
+            "content": f"""Classify the following inquiry.
+Categories: billing, technical, general
+Answer in one word: {message}"""
         }]
     )
     return response.content[0].text.strip().lower()
 
 def handle_billing_inquiry(state: dict) -> str:
-    """請求関連の対応"""
+    """Handle billing-related inquiries"""
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=500,
-        system="あなたは請求担当のサポートエージェントです。丁寧かつ正確に回答してください。",
+        system="You are a billing support agent. Respond politely and accurately.",
         messages=[{
             "role": "user",
             "content": state["user_message"]
@@ -312,11 +312,11 @@ def handle_billing_inquiry(state: dict) -> str:
     return response.content[0].text
 
 def handle_technical_inquiry(state: dict) -> str:
-    """技術関連の対応"""
+    """Handle technical inquiries"""
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=1000,
-        system="あなたは技術サポートエージェントです。技術的な問題を解決してください。",
+        system="You are a technical support agent. Resolve technical issues.",
         messages=[{
             "role": "user",
             "content": state["user_message"]
@@ -325,7 +325,7 @@ def handle_technical_inquiry(state: dict) -> str:
     return response.content[0].text
 
 def handle_general_inquiry(state: dict) -> str:
-    """一般問い合わせの対応"""
+    """Handle general inquiries"""
     response = client.messages.create(
         model="claude-haiku-3-20240307",
         max_tokens=300,
@@ -337,33 +337,33 @@ def handle_general_inquiry(state: dict) -> str:
     return response.content[0].text
 
 def generate_response(state: dict) -> str:
-    """最終回答を整形"""
-    # 分類結果に応じた結果を取得
+    """Format the final answer"""
+    # Get the result corresponding to the classification
     classification = state.get("classify_result", "general")
     handler_key = f"handle_{classification}_result"
-    raw_response = state.get(handler_key, "回答を生成できませんでした")
+    raw_response = state.get(handler_key, "Unable to generate a response")
 
     return f"""
-【カテゴリ】{classification}
-【回答】
+[Category] {classification}
+[Response]
 {raw_response}
 
-何かご不明な点がございましたらお気軽にお問い合わせください。
+Please feel free to contact us if you have any further questions.
 """
 
 def build_support_workflow():
-    engine = WorkflowEngine(name="カスタマーサポート")
+    engine = WorkflowEngine(name="Customer Support")
 
-    # ノード1: 問い合わせ分類
+    # Node 1: Classify inquiry
     engine.add_node(WorkflowNode(
         name="classify",
         type=NodeType.LLM,
         handler=lambda state: classify_inquiry(state["user_message"]),
         next_nodes=["route"],
-        description="問い合わせ内容をLLMで分類"
+        description="Classify inquiry content using LLM"
     ))
 
-    # ノード2: ルーティング（条件分岐）
+    # Node 2: Routing (conditional branch)
     engine.add_node(WorkflowNode(
         name="route",
         type=NodeType.CONDITION,
@@ -373,80 +373,80 @@ def build_support_workflow():
             "technical": "handle_technical",
             "general": "handle_general"
         }.get(state["classify_result"], "handle_general"),
-        description="分類結果に基づいてルーティング"
+        description="Route based on classification result"
     ))
 
-    # ノード3a: 請求対応
+    # Node 3a: Billing support
     engine.add_node(WorkflowNode(
         name="handle_billing",
         type=NodeType.LLM,
         handler=lambda state: handle_billing_inquiry(state),
         next_nodes=["respond"],
         retry_count=2,
-        description="請求関連の問い合わせに回答"
+        description="Respond to billing-related inquiries"
     ))
 
-    # ノード3b: 技術対応
+    # Node 3b: Technical support
     engine.add_node(WorkflowNode(
         name="handle_technical",
         type=NodeType.LLM,
         handler=lambda state: handle_technical_inquiry(state),
         next_nodes=["respond"],
         retry_count=2,
-        description="技術的な問い合わせに回答"
+        description="Respond to technical inquiries"
     ))
 
-    # ノード3c: 一般対応
+    # Node 3c: General support
     engine.add_node(WorkflowNode(
         name="handle_general",
         type=NodeType.LLM,
         handler=lambda state: handle_general_inquiry(state),
         next_nodes=["respond"],
         retry_count=1,
-        description="一般的な問い合わせに回答"
+        description="Respond to general inquiries"
     ))
 
-    # ノード4: 回答生成
+    # Node 4: Generate response
     engine.add_node(WorkflowNode(
         name="respond",
         type=NodeType.LLM,
         handler=lambda state: generate_response(state),
         next_nodes=[],
-        description="最終回答を整形して返す"
+        description="Format and return the final response"
     ))
 
     return engine
 
-# 実行
+# Execution
 workflow = build_support_workflow()
 result = workflow.run("classify", {
-    "user_message": "先月の請求額が間違っています"
+    "user_message": "Last month's invoice amount is incorrect"
 })
 print(workflow.get_execution_summary())
 ```
 
-### 2.4 動的フロー生成
+### 2.4 Dynamic Flow Generation
 
 ```python
-# LLMがワークフロー自体を生成するパターン
+# Pattern where LLM generates the workflow itself
 import json
 
 class DynamicWorkflowBuilder:
-    """LLMの判断でワークフローを動的に構築"""
+    """Dynamically builds a workflow based on LLM decisions"""
 
     def __init__(self, client: anthropic.Anthropic):
         self.client = client
         self.available_handlers = {}
 
     def register_handler(self, name: str, handler: Callable, description: str):
-        """利用可能なハンドラーを登録"""
+        """Register an available handler"""
         self.available_handlers[name] = {
             "handler": handler,
             "description": description
         }
 
     def build_workflow(self, task_description: str) -> WorkflowEngine:
-        """タスク記述からワークフローを自動生成"""
+        """Auto-generate a workflow from a task description"""
         handler_descriptions = "\n".join(
             f"- {name}: {info['description']}"
             for name, info in self.available_handlers.items()
@@ -457,29 +457,29 @@ class DynamicWorkflowBuilder:
             max_tokens=2000,
             messages=[{
                 "role": "user",
-                "content": f"""以下のタスクを処理するワークフローをJSON形式で設計してください。
+                "content": f"""Design a workflow in JSON format to process the following task.
 
-タスク: {task_description}
+Task: {task_description}
 
-利用可能なハンドラー:
+Available handlers:
 {handler_descriptions}
 
-出力形式:
+Output format:
 {{
     "nodes": [
         {{
-            "name": "ノード名",
-            "handler": "ハンドラー名",
-            "next": ["次のノード名"],
+            "name": "node name",
+            "handler": "handler name",
+            "next": ["next node name"],
             "type": "llm|condition|parallel"
         }}
     ],
-    "start_node": "最初のノード名"
+    "start_node": "first node name"
 }}"""
             }]
         )
 
-        # JSONを解析してワークフローを構築
+        # Parse JSON and build workflow
         workflow_spec = json.loads(response.content[0].text)
         engine = WorkflowEngine(name=f"dynamic_{task_description[:20]}")
 
@@ -497,35 +497,35 @@ class DynamicWorkflowBuilder:
 
         return engine, workflow_spec["start_node"]
 
-# 使用例
+# Usage example
 builder = DynamicWorkflowBuilder(client)
 builder.register_handler(
     "extract_text", extract_text_from_pdf,
-    "PDFからテキストを抽出"
+    "Extract text from a PDF"
 )
 builder.register_handler(
     "translate", translate_text,
-    "テキストを翻訳"
+    "Translate text"
 )
 builder.register_handler(
     "summarize", summarize_text,
-    "テキストを要約"
+    "Summarize text"
 )
 
 workflow, start = builder.build_workflow(
-    "英語のPDFを読み取り、日本語に翻訳して要約する"
+    "Read an English PDF, translate it to Japanese, and summarize it"
 )
 result = workflow.run(start, {"pdf_path": "document.pdf"})
 ```
 
 ---
 
-## 3. LangGraphによるワークフロー
+## 3. Workflows with LangGraph
 
-### 3.1 LangGraphの状態グラフ
+### 3.1 LangGraph State Graph
 
 ```
-LangGraph の状態グラフモデル
+LangGraph State Graph Model
 
 +--------+     +--------+     +----------+     +--------+
 | START  |---->| Node A |---->| Condition|---->| Node B |
@@ -536,35 +536,35 @@ LangGraph の状態グラフモデル
                                | Node C |------>|  END   |
                                +--------+       +--------+
 
-各ノードは State を受け取り、更新された State を返す
-条件エッジは State の内容に基づいて次のノードを決定
+Each node receives State and returns an updated State
+Conditional edges determine the next node based on State content
 ```
 
-### 3.2 LangGraph実装例
+### 3.2 LangGraph Implementation Example
 
 ```python
-# LangGraphによるワークフローエージェント
+# Workflow agent using LangGraph
 from langgraph.graph import StateGraph, END
 from typing import TypedDict, Literal, Annotated
 from operator import add
 
-# 状態の型定義
+# State type definition
 class AgentState(TypedDict):
     messages: list
     current_step: str
     classification: str
     draft: str
     review_result: str
-    review_count: Annotated[int, "レビュー回数"]
+    review_count: Annotated[int, "Number of reviews"]
     final_output: str
     token_usage: Annotated[list[dict], add]
 
-# ノード関数
+# Node functions
 def classify_request(state: AgentState) -> AgentState:
-    """リクエストを分類する"""
+    """Classify the request"""
     messages = state["messages"]
     result = llm.invoke(
-        f"以下のリクエストを 'simple' / 'complex' に分類:\n{messages[-1]}"
+        f"Classify the following request as 'simple' or 'complex':\n{messages[-1]}"
     )
     return {
         "classification": result.content.strip(),
@@ -572,21 +572,21 @@ def classify_request(state: AgentState) -> AgentState:
     }
 
 def handle_simple(state: AgentState) -> AgentState:
-    """簡単なリクエストを処理"""
-    draft = llm.invoke(f"簡潔に回答: {state['messages'][-1]}")
+    """Handle a simple request"""
+    draft = llm.invoke(f"Answer concisely: {state['messages'][-1]}")
     return {
         "draft": draft.content,
         "token_usage": [{"node": "handle_simple", "tokens": draft.usage_metadata}]
     }
 
 def handle_complex(state: AgentState) -> AgentState:
-    """複雑なリクエストを処理"""
+    """Handle a complex request"""
     context = ""
     if state.get("review_result") and "FAIL" in state["review_result"]:
-        context = f"\n\n前回のフィードバック: {state['review_result']}"
+        context = f"\n\nPrevious feedback: {state['review_result']}"
 
     draft = llm.invoke(
-        f"詳細に回答: {state['messages'][-1]}{context}"
+        f"Answer in detail: {state['messages'][-1]}{context}"
     )
     return {
         "draft": draft.content,
@@ -594,9 +594,9 @@ def handle_complex(state: AgentState) -> AgentState:
     }
 
 def review(state: AgentState) -> AgentState:
-    """回答をレビュー"""
+    """Review the answer"""
     result = llm.invoke(
-        f"回答の品質を評価。PASS/FAIL（FAILの場合は理由も記載）:\n{state['draft']}"
+        f"Evaluate the quality of this answer. PASS/FAIL (include reason if FAIL):\n{state['draft']}"
     )
     return {
         "review_result": result.content.strip(),
@@ -605,30 +605,30 @@ def review(state: AgentState) -> AgentState:
     }
 
 def finalize(state: AgentState) -> AgentState:
-    """最終出力を生成"""
+    """Generate final output"""
     return {"final_output": state["draft"]}
 
-# 条件分岐関数
+# Conditional routing functions
 def route_by_classification(state: AgentState) -> Literal["simple", "complex"]:
     return "simple" if "simple" in state["classification"] else "complex"
 
 def route_by_review(state: AgentState) -> Literal["revise", "finalize"]:
-    # 最大3回のレビューで打ち切り
+    # Stop after 3 reviews at most
     if state.get("review_count", 0) >= 3:
         return "finalize"
     return "finalize" if "PASS" in state["review_result"] else "revise"
 
-# グラフ構築
+# Build graph
 workflow = StateGraph(AgentState)
 
-# ノード追加
+# Add nodes
 workflow.add_node("classify", classify_request)
 workflow.add_node("handle_simple", handle_simple)
 workflow.add_node("handle_complex", handle_complex)
 workflow.add_node("review", review)
 workflow.add_node("finalize", finalize)
 
-# エッジ追加
+# Add edges
 workflow.set_entry_point("classify")
 workflow.add_conditional_edges("classify", route_by_classification, {
     "simple": "handle_simple",
@@ -638,61 +638,61 @@ workflow.add_edge("handle_simple", "review")
 workflow.add_edge("handle_complex", "review")
 workflow.add_conditional_edges("review", route_by_review, {
     "finalize": "finalize",
-    "revise": "handle_complex"  # やり直し
+    "revise": "handle_complex"  # Redo
 })
 workflow.add_edge("finalize", END)
 
-# コンパイル・実行
+# Compile and run
 app = workflow.compile()
 result = app.invoke({
-    "messages": ["マイクロサービスのベストプラクティスを教えて"],
+    "messages": ["What are the best practices for microservices?"],
     "current_step": "", "classification": "", "draft": "",
     "review_result": "", "review_count": 0,
     "final_output": "", "token_usage": []
 })
 ```
 
-### 3.3 LangGraphチェックポイント
+### 3.3 LangGraph Checkpoints
 
 ```python
-# チェックポイント機能付きワークフロー
+# Workflow with checkpoint functionality
 from langgraph.checkpoint.sqlite import SqliteSaver
 from langgraph.checkpoint.postgres import PostgresSaver
 import sqlite3
 
-# SQLiteチェックポイント（開発用）
+# SQLite checkpoint (for development)
 def create_workflow_with_checkpoint():
-    """チェックポイント機能付きワークフロー"""
+    """Workflow with checkpoint functionality"""
     conn = sqlite3.connect("workflow_checkpoints.db")
     memory = SqliteSaver(conn)
 
     workflow = StateGraph(AgentState)
-    # ... ノードとエッジを追加 ...
+    # ... add nodes and edges ...
 
-    # チェックポイント付きでコンパイル
+    # Compile with checkpointer
     app = workflow.compile(checkpointer=memory)
 
-    # スレッドIDで実行状態を管理
+    # Manage execution state by thread ID
     config = {"configurable": {"thread_id": "support-001"}}
 
-    # 実行（途中で失敗しても再開可能）
+    # Execute (can be resumed even if it fails midway)
     try:
         result = app.invoke(initial_state, config)
     except Exception as e:
-        print(f"エラー発生: {e}")
-        # 最後のチェックポイントから状態を取得
+        print(f"Error occurred: {e}")
+        # Retrieve state from the last checkpoint
         state = app.get_state(config)
-        print(f"最後の成功ノード: {state.values}")
+        print(f"Last successful node: {state.values}")
 
-        # 状態を修正して再開
-        app.update_state(config, {"draft": "修正済みドラフト"})
-        result = app.invoke(None, config)  # Noneで前回の状態から再開
+        # Fix state and resume
+        app.update_state(config, {"draft": "Revised draft"})
+        result = app.invoke(None, config)  # None resumes from previous state
 
     return result
 
-# PostgreSQLチェックポイント（本番用）
+# PostgreSQL checkpoint (for production)
 def create_production_workflow():
-    """本番環境向けチェックポイント"""
+    """Checkpoint for production environment"""
     from psycopg_pool import ConnectionPool
 
     pool = ConnectionPool(
@@ -700,33 +700,33 @@ def create_production_workflow():
         max_size=20
     )
     memory = PostgresSaver(pool)
-    memory.setup()  # テーブル作成
+    memory.setup()  # Create tables
 
     workflow = StateGraph(AgentState)
-    # ... ノード追加 ...
+    # ... add nodes ...
     app = workflow.compile(checkpointer=memory)
 
     return app
 ```
 
-### 3.4 LangGraphストリーミング
+### 3.4 LangGraph Streaming
 
 ```python
-# ストリーミング実行
+# Streaming execution
 async def stream_workflow():
-    """ワークフローの進捗をリアルタイムで取得"""
+    """Retrieve workflow progress in real time"""
     app = create_workflow()
 
-    # ノードごとの出力をストリーミング
+    # Stream output per node
     async for event in app.astream(
         initial_state,
         config={"configurable": {"thread_id": "stream-001"}}
     ):
         for node_name, output in event.items():
-            print(f"[{node_name}] 完了:")
-            print(f"  出力: {json.dumps(output, ensure_ascii=False, indent=2)}")
+            print(f"[{node_name}] Completed:")
+            print(f"  Output: {json.dumps(output, ensure_ascii=False, indent=2)}")
 
-    # トークン単位のストリーミング
+    # Token-level streaming
     async for event in app.astream_events(
         initial_state,
         config={"configurable": {"thread_id": "stream-002"}},
@@ -736,17 +736,17 @@ async def stream_workflow():
             chunk = event["data"]["chunk"]
             print(chunk.content, end="", flush=True)
         elif event["event"] == "on_chain_end":
-            print(f"\n--- {event['name']} 完了 ---")
+            print(f"\n--- {event['name']} completed ---")
 ```
 
 ---
 
-## 4. 並列実行パターン
+## 4. Parallel Execution Patterns
 
-### 4.1 基本的な並列実行
+### 4.1 Basic Parallel Execution
 
 ```python
-# 並列ノードの実装
+# Parallel node implementation
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 from typing import NamedTuple
@@ -768,7 +768,7 @@ class ParallelWorkflow:
         state: dict,
         timeout: float = 60.0
     ) -> list[ParallelResult]:
-        """複数のノードを並列に実行（タイムアウト付き）"""
+        """Run multiple nodes in parallel (with timeout)"""
 
         async def execute_with_tracking(node: WorkflowNode) -> ParallelResult:
             start = time.time()
@@ -789,7 +789,7 @@ class ParallelWorkflow:
                     result=None,
                     duration=time.time() - start,
                     success=False,
-                    error=f"タイムアウト ({node.timeout}s)"
+                    error=f"Timeout ({node.timeout}s)"
                 )
             except Exception as e:
                 return ParallelResult(
@@ -803,7 +803,7 @@ class ParallelWorkflow:
         tasks = [execute_with_tracking(node) for node in nodes]
         results = await asyncio.gather(*tasks)
 
-        # 結果をステートに統合
+        # Merge results into state
         for pr in results:
             if pr.success:
                 state[f"{pr.node_name}_result"] = pr.result
@@ -812,14 +812,14 @@ class ParallelWorkflow:
 
         return list(results)
 
-# 使用例: 複数情報源からの並列収集
+# Usage example: parallel collection from multiple sources
 async def parallel_research(state: dict) -> dict:
-    """複数ソースから並列にデータ収集"""
+    """Collect data in parallel from multiple sources"""
     query = state["query"]
 
     async def search_academic(q: str) -> list[dict]:
-        # Semantic Scholar APIなど
-        await asyncio.sleep(1)  # シミュレーション
+        # Semantic Scholar API etc.
+        await asyncio.sleep(1)  # Simulation
         return [{"title": "Paper A", "source": "academic"}]
 
     async def search_news(q: str) -> list[dict]:
@@ -844,23 +844,23 @@ async def parallel_research(state: dict) -> dict:
     }
 ```
 
-### 4.2 Fan-Out / Fan-In パターン
+### 4.2 Fan-Out / Fan-In Pattern
 
 ```python
-# Fan-Out / Fan-In: 入力を分割して並列処理し、結果を集約
+# Fan-Out / Fan-In: split input, process in parallel, aggregate results
 class FanOutFanInWorkflow:
-    """大量データを分割して並列処理するワークフロー"""
+    """Workflow that splits large datasets for parallel processing"""
 
     def __init__(self, client: anthropic.Anthropic, max_concurrent: int = 5):
         self.client = client
         self.semaphore = asyncio.Semaphore(max_concurrent)
 
     async def fan_out(self, items: list, chunk_size: int = 10) -> list[list]:
-        """入力をチャンクに分割"""
+        """Split input into chunks"""
         return [items[i:i+chunk_size] for i in range(0, len(items), chunk_size)]
 
     async def process_chunk(self, chunk: list, prompt_template: str) -> list[dict]:
-        """1チャンクをLLMで処理"""
+        """Process one chunk with LLM"""
         async with self.semaphore:
             items_text = "\n".join(str(item) for item in chunk)
             response = self.client.messages.create(
@@ -874,82 +874,82 @@ class FanOutFanInWorkflow:
             return {"chunk_result": response.content[0].text}
 
     async def fan_in(self, results: list[dict]) -> dict:
-        """並列処理の結果を集約"""
+        """Aggregate results from parallel processing"""
         all_results = []
         for r in results:
             all_results.append(r["chunk_result"])
 
-        # 集約結果をLLMで統合
+        # Combine aggregated results with LLM
         combined = "\n---\n".join(all_results)
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=2000,
             messages=[{
                 "role": "user",
-                "content": f"以下の分析結果を統合して総合レポートを作成:\n{combined}"
+                "content": f"Integrate the following analysis results into a comprehensive report:\n{combined}"
             }]
         )
         return {"summary": response.content[0].text}
 
     async def run(self, items: list, prompt_template: str) -> dict:
-        """Fan-Out → 並列処理 → Fan-In の完全フロー"""
+        """Complete flow: Fan-Out → parallel processing → Fan-In"""
         # Fan-Out
         chunks = await self.fan_out(items)
-        print(f"  {len(chunks)}チャンクに分割")
+        print(f"  Split into {len(chunks)} chunks")
 
-        # 並列処理
+        # Parallel processing
         tasks = [self.process_chunk(chunk, prompt_template) for chunk in chunks]
         results = await asyncio.gather(*tasks)
-        print(f"  {len(results)}チャンク処理完了")
+        print(f"  {len(results)} chunks processed")
 
         # Fan-In
         summary = await self.fan_in(list(results))
         return summary
 
-# 使用例: 1000件のレビューを並列分析
+# Usage example: parallel analysis of 1000 reviews
 async def analyze_reviews():
     workflow = FanOutFanInWorkflow(client, max_concurrent=10)
 
-    reviews = load_reviews()  # 1000件のレビュー
+    reviews = load_reviews()  # 1000 reviews
     result = await workflow.run(
         items=reviews,
-        prompt_template="以下のレビューを感情分析（positive/negative/neutral）:\n{items}"
+        prompt_template="Perform sentiment analysis (positive/negative/neutral) on the following reviews:\n{items}"
     )
     print(result["summary"])
 ```
 
-### 4.3 Map-Reduce ワークフロー
+### 4.3 Map-Reduce Workflow
 
 ```python
-# LangGraphでのMap-Reduce実装
+# Map-Reduce implementation with LangGraph
 from langgraph.graph import StateGraph, END
 from typing import TypedDict, Annotated
 from operator import add
 
 class MapReduceState(TypedDict):
     documents: list[str]
-    summaries: Annotated[list[str], add]  # addで結果をマージ
+    summaries: Annotated[list[str], add]  # merge results with add
     final_summary: str
 
 def map_summarize(state: MapReduceState) -> MapReduceState:
-    """各ドキュメントを個別に要約（Mapフェーズ）"""
+    """Summarize each document individually (Map phase)"""
     summaries = []
     for doc in state["documents"]:
-        response = llm.invoke(f"以下を100文字で要約:\n{doc}")
+        response = llm.invoke(f"Summarize the following in 100 words:\n{doc}")
         summaries.append(response.content)
     return {"summaries": summaries}
 
 def reduce_combine(state: MapReduceState) -> MapReduceState:
-    """要約を統合（Reduceフェーズ）"""
+    """Consolidate summaries (Reduce phase)"""
     all_summaries = "\n".join(
         f"{i+1}. {s}" for i, s in enumerate(state["summaries"])
     )
     response = llm.invoke(
-        f"以下の要約を統合して総合的なサマリーを作成:\n{all_summaries}"
+        f"Integrate the following summaries into a comprehensive overview:\n{all_summaries}"
     )
     return {"final_summary": response.content}
 
-# グラフ構築
+# Build graph
 map_reduce = StateGraph(MapReduceState)
 map_reduce.add_node("map", map_summarize)
 map_reduce.add_node("reduce", reduce_combine)
@@ -962,82 +962,82 @@ app = map_reduce.compile()
 
 ---
 
-## 5. ワークフローパターン比較
+## 5. Workflow Pattern Comparison
 
-### 5.1 フロー形状別比較
+### 5.1 Comparison by Flow Shape
 
-| パターン | 形状 | 特徴 | 適用場面 | 実装難度 |
-|----------|------|------|---------|---------|
-| 直列 | A→B→C | 最もシンプル | パイプライン処理 | 低 |
-| 条件分岐 | A→B or C | 入力に応じた経路 | ルーティング | 低 |
-| 並列 | A→[B,C]→D | 独立タスクの同時実行 | データ収集 | 中 |
-| ループ | A→B→A(条件付き) | 品質基準まで繰り返し | レビュー/改善 | 中 |
-| Fan-Out/In | A→[B1..Bn]→C | 大量データの分散処理 | バッチ分析 | 高 |
-| サブワークフロー | A→[Sub]→B | 再利用可能な子フロー | 共通処理の部品化 | 中 |
-| 動的生成 | LLMがフロー設計 | 柔軟だが予測困難 | 汎用タスク | 高 |
+| Pattern | Shape | Characteristics | Use Cases | Implementation Difficulty |
+|---------|-------|-----------------|-----------|--------------------------|
+| Sequential | A→B→C | Simplest | Pipeline processing | Low |
+| Conditional branch | A→B or C | Path based on input | Routing | Low |
+| Parallel | A→[B,C]→D | Simultaneous execution of independent tasks | Data collection | Medium |
+| Loop | A→B→A (conditional) | Repeat until quality criteria met | Review/improvement | Medium |
+| Fan-Out/In | A→[B1..Bn]→C | Distributed processing of large datasets | Batch analysis | High |
+| Subworkflow | A→[Sub]→B | Reusable child flows | Componentizing common processing | Medium |
+| Dynamic generation | LLM designs flow | Flexible but unpredictable | General-purpose tasks | High |
 
-### 5.2 ワークフロー vs 自律エージェント
+### 5.2 Workflow vs. Autonomous Agent
 
-| 観点 | ワークフロー | 自律エージェント |
-|------|------------|----------------|
-| 制御性 | 高（予測可能） | 低（非決定的） |
-| 柔軟性 | 中（設計済みパス内） | 高（任意の行動可能） |
-| デバッグ | 容易（各ノード個別） | 困難（自由行動） |
-| コスト | 予測可能 | 予測困難 |
-| 設計コスト | 高（事前設計必要） | 低（プロンプトのみ） |
-| 信頼性 | 高 | 中 |
-| レイテンシ | 最適化可能（並列化） | 最適化困難 |
-| 監査性 | 高（実行ログ明確） | 低（行動が不定） |
-| 適用場面 | 業務プロセス自動化 | 探索的タスク |
+| Perspective | Workflow | Autonomous Agent |
+|-------------|----------|-----------------|
+| Controllability | High (predictable) | Low (non-deterministic) |
+| Flexibility | Medium (within designed paths) | High (arbitrary actions possible) |
+| Debugging | Easy (each node individually) | Difficult (free actions) |
+| Cost | Predictable | Unpredictable |
+| Design cost | High (requires upfront design) | Low (prompt only) |
+| Reliability | High | Medium |
+| Latency | Optimizable (parallelization) | Hard to optimize |
+| Auditability | High (clear execution log) | Low (actions are indeterminate) |
+| Use cases | Business process automation | Exploratory tasks |
 
-### 5.3 パターン選択の意思決定マトリクス
+### 5.3 Pattern Selection Decision Matrix
 
 ```
-パターン選択ガイド
+Pattern Selection Guide
 
-                    タスクの複雑さ
-                    低い        高い
-フローの    固定   │ 直列       │ サブワークフロー │
-予測可能性         │ パイプライン │ 階層型フロー     │
-            ───────┼────────────┼──────────────────┤
-            変動   │ 条件分岐    │ 動的生成 +       │
-                   │ ワークフロー│ ハイブリッド      │
+                    Task Complexity
+                    Low           High
+Flow         Fixed │ Sequential   │ Subworkflow      │
+Predictab-         │ Pipeline     │ Hierarchical     │
+ility       ───────┼──────────────┼──────────────────┤
+            Varies │ Conditional  │ Dynamic          │
+                   │ Workflow     │ + Hybrid         │
 
-データ量     少量  │ 直列/条件分岐│
-            大量  │ Fan-Out/In  │ Map-Reduce      │
+Data volume  Small │ Sequential/Conditional │
+             Large │ Fan-Out/In   │ Map-Reduce       │
 
-リアルタイム性
-            必要  │ ストリーミング + 並列実行       │
-            不要  │ バッチ処理 + チェックポイント    │
+Real-time
+  Required  │ Streaming + Parallel Execution          │
+  Not needed│ Batch Processing + Checkpoints          │
 ```
 
 ---
 
-## 6. 状態管理
+## 6. State Management
 
-### 6.1 状態管理パターンの概要
+### 6.1 Overview of State Management Patterns
 
 ```
-状態管理のパターン
+State Management Patterns
 
-1. 受け渡し方式
+1. Pass-through approach
    [Node A] --state--> [Node B] --state--> [Node C]
-   各ノードが state を受け取り、更新して次に渡す
+   Each node receives state, updates it, and passes it to the next
 
-2. 中央集権方式
+2. Centralized approach
    [Node A] --update-->                <--read-- [Node B]
                         [State Store]
    [Node C] --update-->                <--read-- [Node D]
 
-3. イベント方式
+3. Event-based approach
    [Node A] --event--> [Event Bus] --notify--> [Node B]
                                    --notify--> [Node C]
 ```
 
-### 6.2 型安全な状態管理
+### 6.2 Type-Safe State Management
 
 ```python
-# Pydanticを使った型安全な状態管理
+# Type-safe state management using Pydantic
 from pydantic import BaseModel, Field, validator
 from typing import Optional
 from datetime import datetime
@@ -1052,28 +1052,28 @@ class WorkflowPhase(Enum):
     FAILED = "failed"
 
 class WorkflowState(BaseModel):
-    """ワークフローの状態（型安全）"""
-    # 基本情報
+    """Workflow state (type-safe)"""
+    # Basic information
     workflow_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     user_input: str
     step: int = 0
     phase: WorkflowPhase = WorkflowPhase.INTAKE
 
-    # 処理結果
+    # Processing results
     classification: Optional[str] = None
     intermediate_results: list[str] = Field(default_factory=list)
     final_output: Optional[str] = None
 
-    # エラー管理
+    # Error management
     errors: list[str] = Field(default_factory=list)
     retry_counts: dict[str, int] = Field(default_factory=dict)
 
-    # メタデータ
+    # Metadata
     metadata: dict = Field(default_factory=dict)
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: datetime = Field(default_factory=datetime.now)
 
-    # トークン使用量追跡
+    # Token usage tracking
     total_input_tokens: int = 0
     total_output_tokens: int = 0
 
@@ -1084,14 +1084,14 @@ class WorkflowState(BaseModel):
         return v
 
     def advance(self) -> "WorkflowState":
-        """ステップを進める"""
+        """Advance to the next step"""
         return self.model_copy(update={
             "step": self.step + 1,
             "updated_at": datetime.now()
         })
 
     def add_result(self, result: str) -> "WorkflowState":
-        """中間結果を追加"""
+        """Add an intermediate result"""
         new_results = self.intermediate_results + [result]
         return self.model_copy(update={
             "intermediate_results": new_results,
@@ -1099,7 +1099,7 @@ class WorkflowState(BaseModel):
         })
 
     def add_error(self, error: str, node_name: str = "") -> "WorkflowState":
-        """エラーを記録"""
+        """Record an error"""
         new_errors = self.errors + [f"[{node_name}] {error}"]
         retry = self.retry_counts.copy()
         if node_name:
@@ -1111,14 +1111,14 @@ class WorkflowState(BaseModel):
         })
 
     def track_tokens(self, input_tokens: int, output_tokens: int) -> "WorkflowState":
-        """トークン使用量を追跡"""
+        """Track token usage"""
         return self.model_copy(update={
             "total_input_tokens": self.total_input_tokens + input_tokens,
             "total_output_tokens": self.total_output_tokens + output_tokens,
         })
 
     def transition_to(self, phase: WorkflowPhase) -> "WorkflowState":
-        """フェーズを遷移"""
+        """Transition to a new phase"""
         return self.model_copy(update={
             "phase": phase,
             "updated_at": datetime.now()
@@ -1126,22 +1126,22 @@ class WorkflowState(BaseModel):
 
     @property
     def estimated_cost(self) -> float:
-        """推定コスト（USD）- Claude Sonnet基準"""
+        """Estimated cost (USD) - based on Claude Sonnet"""
         input_cost = self.total_input_tokens * 3.0 / 1_000_000
         output_cost = self.total_output_tokens * 15.0 / 1_000_000
         return input_cost + output_cost
 ```
 
-### 6.3 永続化可能な状態ストア
+### 6.3 Persistable State Store
 
 ```python
-# Redis/SQLiteバックエンドの状態ストア
+# State store with Redis/SQLite backend
 import json
 import sqlite3
 from abc import ABC, abstractmethod
 
 class StateStore(ABC):
-    """状態ストアの抽象基底クラス"""
+    """Abstract base class for state stores"""
 
     @abstractmethod
     def save(self, workflow_id: str, state: WorkflowState) -> None:
@@ -1156,7 +1156,7 @@ class StateStore(ABC):
         pass
 
 class SQLiteStateStore(StateStore):
-    """SQLiteベースの状態ストア"""
+    """SQLite-based state store"""
 
     def __init__(self, db_path: str = "workflow_states.db"):
         self.conn = sqlite3.connect(db_path)
@@ -1208,7 +1208,7 @@ class SQLiteStateStore(StateStore):
         return [row[0] for row in rows]
 
 class RedisStateStore(StateStore):
-    """Redisベースの状態ストア（高速アクセス）"""
+    """Redis-based state store (high-speed access)"""
 
     def __init__(self, redis_url: str = "redis://localhost:6379"):
         import redis
@@ -1219,7 +1219,7 @@ class RedisStateStore(StateStore):
         key = f"{self.prefix}{workflow_id}"
         self.redis.set(key, state.model_dump_json())
         self.redis.sadd(f"{self.prefix}index:{state.phase.value}", workflow_id)
-        # TTL: 30日
+        # TTL: 30 days
         self.redis.expire(key, 30 * 24 * 3600)
 
     def load(self, workflow_id: str) -> Optional[WorkflowState]:
@@ -1234,7 +1234,7 @@ class RedisStateStore(StateStore):
                 m.decode()
                 for m in self.redis.smembers(f"{self.prefix}index:{status}")
             ]
-        # 全件取得
+        # Retrieve all
         keys = self.redis.keys(f"{self.prefix}*")
         return [
             k.decode().replace(self.prefix, "")
@@ -1245,12 +1245,12 @@ class RedisStateStore(StateStore):
 
 ---
 
-## 7. エラーハンドリングとリトライ
+## 7. Error Handling and Retries
 
-### 7.1 ノードレベルのエラーハンドリング
+### 7.1 Node-Level Error Handling
 
 ```python
-# 堅牢なエラーハンドリング付きワークフロー
+# Workflow with robust error handling
 from dataclasses import dataclass
 from typing import Optional
 import traceback
@@ -1265,7 +1265,7 @@ class NodeError:
     timestamp: float
 
 class ResilientWorkflowEngine(WorkflowEngine):
-    """障害耐性のあるワークフローエンジン"""
+    """Fault-tolerant workflow engine"""
 
     def __init__(self, name: str, state_store: Optional[StateStore] = None):
         super().__init__(name)
@@ -1275,15 +1275,15 @@ class ResilientWorkflowEngine(WorkflowEngine):
         self.errors: list[NodeError] = []
 
     def set_error_handler(self, node_name: str, handler: Callable):
-        """ノード固有のエラーハンドラーを設定"""
+        """Set a node-specific error handler"""
         self.error_handlers[node_name] = handler
 
     def set_fallback(self, node_name: str, fallback: Callable):
-        """フォールバック処理を設定"""
+        """Set fallback processing"""
         self.fallback_handlers[node_name] = fallback
 
     def _execute_node_resilient(self, node: WorkflowNode) -> Any:
-        """耐障害性のあるノード実行"""
+        """Fault-tolerant node execution"""
         for attempt in range(node.retry_count + 1):
             try:
                 return node.handler(self.state)
@@ -1298,31 +1298,31 @@ class ResilientWorkflowEngine(WorkflowEngine):
                 )
                 self.errors.append(error)
 
-                # ノード固有のエラーハンドラー
+                # Node-specific error handler
                 if node.name in self.error_handlers:
                     should_retry = self.error_handlersnode.name
                     if not should_retry:
                         break
 
                 if attempt < node.retry_count:
-                    wait = min(2 ** attempt * 1.0, 30.0)  # 最大30秒
+                    wait = min(2 ** attempt * 1.0, 30.0)  # max 30 seconds
                     logger.warning(
-                        f"リトライ {attempt+1}/{node.retry_count}: "
-                        f"{node.name} ({wait:.1f}s待機)"
+                        f"Retry {attempt+1}/{node.retry_count}: "
+                        f"{node.name} (waiting {wait:.1f}s)"
                     )
                     time.sleep(wait)
 
-        # 全リトライ失敗 → フォールバック
+        # All retries failed → fallback
         if node.name in self.fallback_handlers:
-            logger.info(f"フォールバック実行: {node.name}")
+            logger.info(f"Running fallback: {node.name}")
             return self.fallback_handlersnode.name
 
         raise RuntimeError(
-            f"ノード '{node.name}' が {node.retry_count + 1}回の試行後に失敗"
+            f"Node '{node.name}' failed after {node.retry_count + 1} attempts"
         )
 
     def run(self, start_node: str, initial_state: dict) -> dict:
-        """チェックポイント付き実行"""
+        """Execute with checkpointing"""
         self.state = initial_state
         workflow_id = self.state.get("workflow_id", str(time.time()))
         current = start_node
@@ -1330,7 +1330,7 @@ class ResilientWorkflowEngine(WorkflowEngine):
         while current:
             node = self.nodes[current]
 
-            # チェックポイント保存
+            # Save checkpoint
             if self.state_store:
                 ws = WorkflowState(
                     workflow_id=workflow_id,
@@ -1351,47 +1351,47 @@ class ResilientWorkflowEngine(WorkflowEngine):
             except Exception as e:
                 self.state["workflow_error"] = str(e)
                 self.state["failed_node"] = node.name
-                logger.error(f"ワークフロー停止: {node.name} - {e}")
+                logger.error(f"Workflow stopped: {node.name} - {e}")
                 break
 
         return self.state
 
-# 使用例
+# Usage example
 engine = ResilientWorkflowEngine("resilient_support", SQLiteStateStore())
 
-# エラーハンドラー設定
+# Set error handler
 def handle_llm_error(error: NodeError, state: dict) -> bool:
-    """LLMエラーのハンドリング"""
+    """Handle LLM errors"""
     if "rate_limit" in error.message.lower():
-        time.sleep(60)  # レート制限時は60秒待機
-        return True  # リトライする
+        time.sleep(60)  # Wait 60 seconds on rate limit
+        return True  # Retry
     if "overloaded" in error.message.lower():
-        return True  # リトライする
-    return False  # リトライしない
+        return True  # Retry
+    return False  # Do not retry
 
 engine.set_error_handler("handle_technical", handle_llm_error)
 
-# フォールバック設定
+# Set fallback
 engine.set_fallback(
     "handle_technical",
-    lambda state: "申し訳ございません。技術チームに転送いたします。"
+    lambda state: "We apologize. Your inquiry is being transferred to the technical team."
 )
 ```
 
-### 7.2 サーキットブレーカーパターン
+### 7.2 Circuit Breaker Pattern
 
 ```python
-# ワークフローノード用サーキットブレーカー
+# Circuit breaker for workflow nodes
 from enum import Enum
 import threading
 
 class CircuitState(Enum):
-    CLOSED = "closed"      # 正常
-    OPEN = "open"          # 遮断中
-    HALF_OPEN = "half_open"  # 試行中
+    CLOSED = "closed"      # Normal
+    OPEN = "open"          # Tripped
+    HALF_OPEN = "half_open"  # Probing
 
 class CircuitBreaker:
-    """ワークフローノード用サーキットブレーカー"""
+    """Circuit breaker for workflow nodes"""
 
     def __init__(
         self,
@@ -1438,16 +1438,16 @@ class CircuitBreaker:
             if self.failure_count >= self.failure_threshold:
                 self.state = CircuitState.OPEN
                 logger.warning(
-                    f"サーキットブレーカー OPEN: "
-                    f"{self.failure_count}回連続失敗"
+                    f"Circuit breaker OPEN: "
+                    f"{self.failure_count} consecutive failures"
                 )
 
 def with_circuit_breaker(breaker: CircuitBreaker):
-    """サーキットブレーカーデコレータ"""
+    """Circuit breaker decorator"""
     def decorator(func):
         def wrapper(*args, **kwargs):
             if not breaker.can_execute():
-                raise RuntimeError("サーキットブレーカーが開いています")
+                raise RuntimeError("Circuit breaker is open")
             try:
                 result = func(*args, **kwargs)
                 breaker.record_success()
@@ -1458,7 +1458,7 @@ def with_circuit_breaker(breaker: CircuitBreaker):
         return wrapper
     return decorator
 
-# 使用例
+# Usage example
 llm_breaker = CircuitBreaker(failure_threshold=3, recovery_timeout=120)
 
 @with_circuit_breaker(llm_breaker)
@@ -1473,14 +1473,14 @@ def call_llm_with_breaker(state: dict) -> str:
 
 ---
 
-## 8. サブワークフロー
+## 8. Subworkflows
 
-### 8.1 サブワークフローの設計
+### 8.1 Subworkflow Design
 
 ```python
-# 再利用可能なサブワークフロー
+# Reusable subworkflows
 class SubWorkflow:
-    """独立してテスト・再利用できるサブワークフロー"""
+    """Subworkflow that can be independently tested and reused"""
 
     def __init__(self, name: str):
         self.name = name
@@ -1489,36 +1489,36 @@ class SubWorkflow:
         self.output_schema: dict = {}
 
     def define_interface(self, input_keys: list[str], output_keys: list[str]):
-        """入出力インターフェースを定義"""
+        """Define the input/output interface"""
         self.input_schema = {k: True for k in input_keys}
         self.output_schema = {k: True for k in output_keys}
 
     def validate_input(self, state: dict) -> bool:
-        """入力の検証"""
+        """Validate input"""
         missing = [k for k in self.input_schema if k not in state]
         if missing:
-            raise ValueError(f"必須入力が不足: {missing}")
+            raise ValueError(f"Missing required inputs: {missing}")
         return True
 
     def execute(self, input_state: dict, start_node: str) -> dict:
-        """サブワークフローを実行"""
+        """Execute the subworkflow"""
         self.validate_input(input_state)
         result = self.engine.run(start_node, input_state)
 
-        # 出力のみを返す
+        # Return only the output
         output = {k: result.get(k) for k in self.output_schema}
         return output
 
-# サブワークフロー: テキスト品質チェック
+# Subworkflow: text quality check
 def build_quality_check_subworkflow() -> SubWorkflow:
-    """テキスト品質チェックのサブワークフロー"""
+    """Subworkflow for text quality checking"""
     sub = SubWorkflow("quality_check")
     sub.define_interface(
         input_keys=["text", "criteria"],
         output_keys=["quality_score", "issues", "improved_text"]
     )
 
-    # 文法チェックノード
+    # Grammar check node
     sub.engine.add_node(WorkflowNode(
         name="grammar_check",
         type=NodeType.LLM,
@@ -1526,7 +1526,7 @@ def build_quality_check_subworkflow() -> SubWorkflow:
         next_nodes=["style_check"]
     ))
 
-    # スタイルチェックノード
+    # Style check node
     sub.engine.add_node(WorkflowNode(
         name="style_check",
         type=NodeType.LLM,
@@ -1534,7 +1534,7 @@ def build_quality_check_subworkflow() -> SubWorkflow:
         next_nodes=["score"]
     ))
 
-    # スコアリングノード
+    # Scoring node
     sub.engine.add_node(WorkflowNode(
         name="score",
         type=NodeType.LLM,
@@ -1544,13 +1544,13 @@ def build_quality_check_subworkflow() -> SubWorkflow:
 
     return sub
 
-# メインワークフローからサブワークフローを呼び出し
+# Call subworkflow from main workflow
 quality_checker = build_quality_check_subworkflow()
 
 def content_pipeline():
     engine = WorkflowEngine("content_pipeline")
 
-    # 記事生成ノード
+    # Article generation node
     engine.add_node(WorkflowNode(
         name="generate",
         type=NodeType.LLM,
@@ -1558,7 +1558,7 @@ def content_pipeline():
         next_nodes=["quality_check"]
     ))
 
-    # サブワークフロー呼び出しノード
+    # Subworkflow invocation node
     engine.add_node(WorkflowNode(
         name="quality_check",
         type=NodeType.SUBWORKFLOW,
@@ -1569,7 +1569,7 @@ def content_pipeline():
         next_nodes=["publish"]
     ))
 
-    # 公開ノード
+    # Publish node
     engine.add_node(WorkflowNode(
         name="publish",
         type=NodeType.TOOL,
@@ -1582,12 +1582,12 @@ def content_pipeline():
 
 ---
 
-## 9. 実践的なワークフロー事例
+## 9. Practical Workflow Examples
 
-### 9.1 コードレビューワークフロー
+### 9.1 Code Review Workflow
 
 ```python
-# 自動コードレビューワークフロー
+# Automated code review workflow
 from langgraph.graph import StateGraph, END
 from typing import TypedDict, Literal
 
@@ -1603,76 +1603,75 @@ class CodeReviewState(TypedDict):
     approval_status: str  # "approved", "changes_requested", "blocked"
 
 def detect_language(state: CodeReviewState) -> CodeReviewState:
-    """プログラミング言語を検出"""
+    """Detect the programming language"""
     response = client.messages.create(
         model="claude-haiku-3-20240307",
         max_tokens=20,
         messages=[{
             "role": "user",
-            "content": f"このコードの言語を1単語で: {state['code'][:500]}"
+            "content": f"Name the language of this code in one word: {state['code'][:500]}"
         }]
     )
     return {"language": response.content[0].text.strip().lower()}
 
 def run_static_analysis(state: CodeReviewState) -> CodeReviewState:
-    """静的解析を実行"""
+    """Run static analysis"""
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=2000,
         messages=[{
             "role": "user",
-            "content": f"""以下の{state['language']}コードを静的解析してください。
-JSON形式で結果を返してください:
+            "content": f"""Perform static analysis on the following {state['language']} code.
+Return the result in JSON format:
 {{"complexity": "low/medium/high", "issues": [...], "metrics": {{}}}}
 
-コード:
+Code:
 {state['code']}"""
         }]
     )
     return {"static_analysis": json.loads(response.content[0].text)}
 
 def check_security(state: CodeReviewState) -> CodeReviewState:
-    """セキュリティチェック"""
+    """Security check"""
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=2000,
-        system="セキュリティ専門のコードレビュアーとして脆弱性を分析してください。",
+        system="Analyze vulnerabilities as a security-expert code reviewer.",
         messages=[{
             "role": "user",
-            "content": f"""以下のコードのセキュリティ脆弱性を検出:
-- SQLインジェクション
+            "content": f"""Detect security vulnerabilities in the following code:
+- SQL injection
 - XSS
-- 認証/認可の不備
-- 機密情報のハードコード
+- Authentication/authorization flaws
+- Hardcoded sensitive information
 
-JSON配列で返してください。
-
-コード:
+Return as a JSON array.
+Code:
 {state['code']}"""
         }]
     )
     return {"security_issues": json.loads(response.content[0].text)}
 
 def check_performance(state: CodeReviewState) -> CodeReviewState:
-    """パフォーマンスチェック"""
+    """Performance check"""
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=1500,
         messages=[{
             "role": "user",
-            "content": f"""パフォーマンス観点でコードレビュー:
-- N+1クエリ
-- メモリリーク
-- 不要なループ
-- キャッシュ未使用
+            "content": f"""Code review from a performance perspective:
+- N+1 queries
+- Memory leaks
+- Unnecessary loops
+- Missing caching
 
-JSON配列で: {state['code']}"""
+As a JSON array: {state['code']}"""
         }]
     )
     return {"performance_issues": json.loads(response.content[0].text)}
 
 def generate_review_summary(state: CodeReviewState) -> CodeReviewState:
-    """レビューサマリーを生成"""
+    """Generate a review summary"""
     total_issues = (
         len(state.get("security_issues", []))
         + len(state.get("performance_issues", []))
@@ -1696,12 +1695,12 @@ def generate_review_summary(state: CodeReviewState) -> CodeReviewState:
         max_tokens=1000,
         messages=[{
             "role": "user",
-            "content": f"""以下のレビュー結果を要約:
-セキュリティ: {json.dumps(state.get('security_issues', []), ensure_ascii=False)}
-パフォーマンス: {json.dumps(state.get('performance_issues', []), ensure_ascii=False)}
-ステータス: {status}
+            "content": f"""Summarize the following review results:
+Security: {json.dumps(state.get('security_issues', []), ensure_ascii=False)}
+Performance: {json.dumps(state.get('performance_issues', []), ensure_ascii=False)}
+Status: {status}
 
-Markdown形式でレビューサマリーを作成:"""
+Create a review summary in Markdown format:"""
         }]
     )
 
@@ -1710,7 +1709,7 @@ Markdown形式でレビューサマリーを作成:"""
         "approval_status": status
     }
 
-# グラフ構築
+# Build graph
 review_flow = StateGraph(CodeReviewState)
 
 review_flow.add_node("detect_lang", detect_language)
@@ -1721,7 +1720,7 @@ review_flow.add_node("summarize", generate_review_summary)
 
 review_flow.set_entry_point("detect_lang")
 review_flow.add_edge("detect_lang", "static_analysis")
-# 静的解析後、セキュリティとパフォーマンスを並列実行
+# After static analysis, run security and performance checks in parallel
 review_flow.add_edge("static_analysis", "security_check")
 review_flow.add_edge("static_analysis", "performance_check")
 review_flow.add_edge("security_check", "summarize")
@@ -1731,10 +1730,10 @@ review_flow.add_edge("summarize", END)
 code_reviewer = review_flow.compile()
 ```
 
-### 9.2 コンテンツ生成パイプライン
+### 9.2 Content Generation Pipeline
 
 ```python
-# ブログ記事自動生成ワークフロー
+# Blog post auto-generation workflow
 class ContentState(TypedDict):
     topic: str
     target_audience: str
@@ -1747,84 +1746,83 @@ class ContentState(TypedDict):
     metadata: dict
 
 def research_topic(state: ContentState) -> ContentState:
-    """トピックをリサーチ"""
+    """Research the topic"""
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=2000,
         messages=[{
             "role": "user",
-            "content": f"""以下のトピックについてリサーチして、
-記事のアウトラインを作成してください。
+            "content": f"""Research the following topic and create an article outline.
 
-トピック: {state['topic']}
-対象読者: {state['target_audience']}
+Topic: {state['topic']}
+Target audience: {state['target_audience']}
 
-アウトライン形式:
-1. 導入部
-2. 本文（3-5セクション）
-3. まとめ
-各セクションに含めるべきポイントを箇条書きで。"""
+Outline format:
+1. Introduction
+2. Body (3-5 sections)
+3. Conclusion
+Use bullet points for the key points to include in each section."""
         }]
     )
     return {"outline": response.content[0].text}
 
 def extract_seo_keywords(state: ContentState) -> ContentState:
-    """SEOキーワードを抽出"""
+    """Extract SEO keywords"""
     response = client.messages.create(
         model="claude-haiku-3-20240307",
         max_tokens=200,
         messages=[{
             "role": "user",
-            "content": f"トピック「{state['topic']}」のSEOキーワードを10個、JSON配列で:"
+            "content": f"Give me 10 SEO keywords for the topic \"{state['topic']}\" as a JSON array:"
         }]
     )
     return {"seo_keywords": json.loads(response.content[0].text)}
 
 def write_draft(state: ContentState) -> ContentState:
-    """記事のドラフトを執筆"""
+    """Write the article draft"""
     feedback_context = ""
     if state.get("review_feedback"):
-        feedback_context = f"\n\n前回のフィードバック:\n{state['review_feedback']}"
+        feedback_context = f"\n\nPrevious feedback:\n{state['review_feedback']}"
 
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=4000,
         messages=[{
             "role": "user",
-            "content": f"""以下のアウトラインに従って記事を執筆してください。
+            "content": f"""Write an article following the outline below.
 
-アウトライン:
+Outline:
 {state['outline']}
 
-SEOキーワード（自然に組み込む）:
+SEO keywords (incorporate naturally):
 {', '.join(state.get('seo_keywords', []))}
 {feedback_context}
 
-Markdown形式で2000-3000文字程度の記事を書いてください。"""
+Write an article of approximately 2000-3000 words in Markdown format."""
         }]
     )
     return {"draft": response.content[0].text}
 
 def review_article(state: ContentState) -> ContentState:
-    """記事をレビュー"""
+    """Review the article"""
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=1000,
         messages=[{
             "role": "user",
-            "content": f"""以下の記事を編集者としてレビューしてください。
+            "content": f"""Review the following article as an editor.
 
-記事:
+Article:
 {state['draft']}
 
-評価基準:
-1. 正確性
-2. 読みやすさ
-3. SEO最適化
-4. 対象読者への適切さ
+Evaluation criteria:
+1. Accuracy
+2. Readability
+3. SEO optimization
+4. Appropriateness for the target audience
 
-最初の行に PASS または FAIL を記載し、
-FAILの場合は具体的な改善点を列挙してください。"""
+Write PASS or FAIL on the first line.
+If FAIL, list specific improvements."""
         }]
     )
     result = response.content[0].text
@@ -1835,7 +1833,7 @@ FAILの場合は具体的な改善点を列挙してください。"""
     }
 
 def finalize_article(state: ContentState) -> ContentState:
-    """記事を最終化"""
+    """Finalize the article"""
     return {
         "final_article": state["draft"],
         "metadata": {
@@ -1848,7 +1846,7 @@ def finalize_article(state: ContentState) -> ContentState:
 def route_review(state: ContentState) -> Literal["revise", "finalize"]:
     return "finalize" if state.get("review_pass", False) else "revise"
 
-# グラフ構築
+# Build graph
 content_flow = StateGraph(ContentState)
 content_flow.add_node("research", research_topic)
 content_flow.add_node("seo", extract_seo_keywords)
@@ -1871,19 +1869,19 @@ content_pipeline = content_flow.compile()
 
 ---
 
-## 10. モニタリングとオブザーバビリティ
+## 10. Monitoring and Observability
 
-### 10.1 ワークフローメトリクス
+### 10.1 Workflow Metrics
 
 ```python
-# ワークフロー実行のメトリクス収集
+# Metrics collection for workflow execution
 from dataclasses import dataclass, field
 from collections import defaultdict
 import statistics
 
 @dataclass
 class WorkflowMetrics:
-    """ワークフロー実行メトリクスの収集と分析"""
+    """Collection and analysis of workflow execution metrics"""
 
     executions: list[dict] = field(default_factory=list)
     node_durations: dict[str, list[float]] = field(
@@ -1897,7 +1895,7 @@ class WorkflowMetrics:
     )
 
     def record_execution(self, execution_log: list[NodeExecution]):
-        """実行ログからメトリクスを記録"""
+        """Record metrics from an execution log"""
         execution_data = {
             "timestamp": time.time(),
             "nodes": [],
@@ -1921,7 +1919,7 @@ class WorkflowMetrics:
         self.executions.append(execution_data)
 
     def get_bottleneck_nodes(self, top_n: int = 3) -> list[dict]:
-        """ボトルネックノードを特定"""
+        """Identify bottleneck nodes"""
         bottlenecks = []
         for node_name, durations in self.node_durations.items():
             if len(durations) >= 3:
@@ -1942,61 +1940,61 @@ class WorkflowMetrics:
         )[:top_n]
 
     def generate_report(self) -> str:
-        """メトリクスレポートを生成"""
+        """Generate a metrics report"""
         total = len(self.executions)
         success = sum(1 for e in self.executions if e["success"])
 
         report = [
-            f"=== ワークフローメトリクスレポート ===",
-            f"総実行回数: {total}",
-            f"成功率: {success/total*100:.1f}%",
+            f"=== Workflow Metrics Report ===",
+            f"Total executions: {total}",
+            f"Success rate: {success/total*100:.1f}%",
             f"",
-            f"--- ノード別パフォーマンス ---"
+            f"--- Per-Node Performance ---"
         ]
 
         for b in self.get_bottleneck_nodes(10):
             report.append(
                 f"  {b['node']}: "
-                f"平均 {b['avg_duration']:.2f}s, "
+                f"avg {b['avg_duration']:.2f}s, "
                 f"P95 {b['p95_duration']:.2f}s, "
-                f"失敗率 {b['failure_rate']*100:.1f}%"
+                f"failure rate {b['failure_rate']*100:.1f}%"
             )
 
         return "\n".join(report)
 ```
 
-### 10.2 可視化ダッシュボード
+### 10.2 Visualization Dashboard
 
 ```python
-# Streamlitベースのワークフロー監視ダッシュボード
+# Streamlit-based workflow monitoring dashboard
 import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
 from datetime import datetime, timedelta
 
 def workflow_dashboard(metrics: WorkflowMetrics):
-    """ワークフロー監視ダッシュボード"""
-    st.title("ワークフローモニタリング")
+    """Workflow monitoring dashboard"""
+    st.title("Workflow Monitoring")
 
-    # KPIカード
+    # KPI cards
     col1, col2, col3, col4 = st.columns(4)
     total = len(metrics.executions)
     success = sum(1 for e in metrics.executions if e["success"])
 
-    col1.metric("総実行回数", total)
-    col2.metric("成功率", f"{success/max(total,1)*100:.1f}%")
+    col1.metric("Total Executions", total)
+    col2.metric("Success Rate", f"{success/max(total,1)*100:.1f}%")
     col3.metric(
-        "平均実行時間",
+        "Avg Execution Time",
         f"{statistics.mean([e['total_duration'] for e in metrics.executions]):.1f}s"
     )
     col4.metric(
-        "アクティブ実行",
+        "Active Executions",
         sum(1 for e in metrics.executions
             if time.time() - e["timestamp"] < 60)
     )
 
-    # ノード別実行時間のヒートマップ
-    st.subheader("ノード別パフォーマンス")
+    # Per-node execution time heatmap
+    st.subheader("Per-Node Performance")
     bottlenecks = metrics.get_bottleneck_nodes(10)
     if bottlenecks:
         fig = px.bar(
@@ -2005,12 +2003,12 @@ def workflow_dashboard(metrics: WorkflowMetrics):
             y="avg_duration",
             color="failure_rate",
             color_continuous_scale="RdYlGn_r",
-            title="ノード別平均実行時間と失敗率"
+            title="Average Execution Time and Failure Rate per Node"
         )
         st.plotly_chart(fig)
 
-    # 実行時間のトレンド
-    st.subheader("実行時間トレンド")
+    # Execution time trend
+    st.subheader("Execution Time Trend")
     if metrics.executions:
         times = [e["timestamp"] for e in metrics.executions]
         durations = [e["total_duration"] for e in metrics.executions]
@@ -2019,23 +2017,23 @@ def workflow_dashboard(metrics: WorkflowMetrics):
             x=[datetime.fromtimestamp(t) for t in times],
             y=durations,
             mode="lines+markers",
-            name="実行時間"
+            name="Execution Time"
         ))
         st.plotly_chart(fig)
 
-# Streamlitアプリとして実行: streamlit run dashboard.py
+# Run as Streamlit app: streamlit run dashboard.py
 ```
 
 ---
 
-## 11. コスト最適化
+## 11. Cost Optimization
 
-### 11.1 ノード別モデル選択
+### 11.1 Per-Node Model Selection
 
 ```python
-# コスト効率を最大化するモデル選択戦略
+# Model selection strategy for maximum cost efficiency
 class ModelSelector:
-    """ノードの特性に応じてモデルを選択"""
+    """Select a model based on node characteristics"""
 
     MODELS = {
         "fast": {
@@ -2063,7 +2061,7 @@ class ModelSelector:
 
     @staticmethod
     def select_for_node(node_type: str, complexity: str = "medium") -> dict:
-        """ノードタイプと複雑さに基づいてモデルを選択"""
+        """Select a model based on node type and complexity"""
         selection_matrix = {
             # (node_type, complexity) → model_tier
             ("classify", "low"): "fast",
@@ -2085,9 +2083,9 @@ class ModelSelector:
         )
         return ModelSelector.MODELS[tier]
 
-# コスト追跡付きワークフロー
+# Workflow with cost tracking
 class CostTracker:
-    """ワークフロー全体のコストを追跡"""
+    """Track total cost across the workflow"""
 
     def __init__(self, budget_limit: float = 1.0):
         self.budget_limit = budget_limit  # USD
@@ -2096,7 +2094,7 @@ class CostTracker:
 
     def track(self, node_name: str, input_tokens: int,
               output_tokens: int, model: str) -> float:
-        """コストを記録"""
+        """Record cost"""
         model_info = next(
             (m for m in ModelSelector.MODELS.values() if m["name"] == model),
             ModelSelector.MODELS["balanced"]
@@ -2112,14 +2110,14 @@ class CostTracker:
 
         if self.total_cost > self.budget_limit * 0.8:
             logger.warning(
-                f"コスト警告: ${self.total_cost:.4f} / ${self.budget_limit}"
+                f"Cost warning: ${self.total_cost:.4f} / ${self.budget_limit}"
             )
 
         return cost
 
     def get_summary(self) -> str:
-        """コストサマリー"""
-        lines = [f"総コスト: ${self.total_cost:.4f}"]
+        """Cost summary"""
+        lines = [f"Total cost: ${self.total_cost:.4f}"]
         for node, cost in sorted(
             self.node_costs.items(), key=lambda x: x[1], reverse=True
         ):
@@ -2128,36 +2126,36 @@ class CostTracker:
         return "\n".join(lines)
 ```
 
-### 11.2 キャッシュ戦略
+### 11.2 Caching Strategy
 
 ```python
-# ワークフローノードのキャッシュ
+# Cache for workflow nodes
 import hashlib
 from functools import lru_cache
 
 class WorkflowCache:
-    """ワークフローノード結果のキャッシュ"""
+    """Cache for workflow node results"""
 
     def __init__(self, backend: str = "memory", ttl: int = 3600):
         self.ttl = ttl
         self.cache: dict[str, dict] = {}
 
     def _make_key(self, node_name: str, input_data: str) -> str:
-        """キャッシュキーを生成"""
+        """Generate a cache key"""
         content = f"{node_name}:{input_data}"
         return hashlib.sha256(content.encode()).hexdigest()
 
     def get(self, node_name: str, input_data: str) -> Optional[Any]:
-        """キャッシュから取得"""
+        """Retrieve from cache"""
         key = self._make_key(node_name, input_data)
         entry = self.cache.get(key)
         if entry and time.time() - entry["timestamp"] < self.ttl:
-            logger.info(f"キャッシュヒット: {node_name}")
+            logger.info(f"Cache hit: {node_name}")
             return entry["result"]
         return None
 
     def set(self, node_name: str, input_data: str, result: Any):
-        """キャッシュに保存"""
+        """Save to cache"""
         key = self._make_key(node_name, input_data)
         self.cache[key] = {
             "result": result,
@@ -2166,7 +2164,7 @@ class WorkflowCache:
         }
 
     def get_stats(self) -> dict:
-        """キャッシュ統計"""
+        """Cache statistics"""
         valid = sum(
             1 for e in self.cache.values()
             if time.time() - e["timestamp"] < self.ttl
@@ -2177,13 +2175,13 @@ class WorkflowCache:
             "expired_entries": len(self.cache) - valid
         }
 
-# キャッシュ付きノード実行
-cache = WorkflowCache(ttl=1800)  # 30分
+# Node execution with caching
+cache = WorkflowCache(ttl=1800)  # 30 minutes
 
 def cached_node_handler(node_name: str, handler: Callable) -> Callable:
-    """キャッシュ付きのノードハンドラーを生成"""
+    """Generate a cached node handler"""
     def wrapper(state: dict) -> Any:
-        # 入力のハッシュをキーにする
+        # Use a hash of the input as the key
         input_key = json.dumps(
             {k: v for k, v in state.items() if not k.endswith("_result")},
             sort_keys=True, default=str
@@ -2202,40 +2200,40 @@ def cached_node_handler(node_name: str, handler: Callable) -> Callable:
 
 ---
 
-## 12. テスト
+## 12. Testing
 
-### 12.1 ノード単体テスト
+### 12.1 Node Unit Tests
 
 ```python
-# ワークフローノードのテスト
+# Testing workflow nodes
 import pytest
 from unittest.mock import patch, MagicMock
 
 class TestWorkflowNodes:
-    """ノード単体テスト"""
+    """Node unit tests"""
 
     def test_classify_billing(self):
-        """請求分類のテスト"""
+        """Test billing classification"""
         with patch("anthropic.Anthropic") as mock_client:
             mock_response = MagicMock()
             mock_response.content = [MagicMock(text="billing")]
             mock_client.return_value.messages.create.return_value = mock_response
 
-            result = classify_inquiry("請求額が間違っています")
+            result = classify_inquiry("The invoice amount is incorrect")
             assert result == "billing"
 
     def test_classify_technical(self):
-        """技術分類のテスト"""
+        """Test technical classification"""
         with patch("anthropic.Anthropic") as mock_client:
             mock_response = MagicMock()
             mock_response.content = [MagicMock(text="technical")]
             mock_client.return_value.messages.create.return_value = mock_response
 
-            result = classify_inquiry("APIがエラーを返します")
+            result = classify_inquiry("The API is returning an error")
             assert result == "technical"
 
     def test_routing_condition(self):
-        """ルーティング条件のテスト"""
+        """Test routing condition"""
         state = {"classify_result": "billing"}
         route_fn = lambda s: {
             "billing": "handle_billing",
@@ -2249,10 +2247,10 @@ class TestWorkflowNodes:
         assert route_fn(state) == "handle_general"
 
 class TestWorkflowEngine:
-    """ワークフローエンジンのテスト"""
+    """Workflow engine tests"""
 
     def test_linear_workflow(self):
-        """直列ワークフローのテスト"""
+        """Test sequential workflow"""
         engine = WorkflowEngine("test")
 
         engine.add_node(WorkflowNode(
@@ -2273,7 +2271,7 @@ class TestWorkflowEngine:
         assert result["step2_result"] == "result2_result1"
 
     def test_conditional_workflow(self):
-        """条件分岐ワークフローのテスト"""
+        """Test conditional branch workflow"""
         engine = WorkflowEngine("test_conditional")
 
         engine.add_node(WorkflowNode(
@@ -2308,14 +2306,14 @@ class TestWorkflowEngine:
         assert "handle_b_result" not in result
 
     def test_retry_on_failure(self):
-        """リトライのテスト"""
+        """Test retry behavior"""
         call_count = 0
 
         def flaky_handler(state):
             nonlocal call_count
             call_count += 1
             if call_count < 3:
-                raise RuntimeError("一時的なエラー")
+                raise RuntimeError("Temporary error")
             return "success"
 
         engine = WorkflowEngine("test_retry")
@@ -2332,13 +2330,13 @@ class TestWorkflowEngine:
         assert call_count == 3
 
 class TestWorkflowState:
-    """状態管理のテスト"""
+    """State management tests"""
 
     def test_state_advance(self):
         state = WorkflowState(user_input="test")
         new_state = state.advance()
         assert new_state.step == 1
-        assert state.step == 0  # 元の状態は不変
+        assert state.step == 0  # Original state is immutable
 
     def test_state_add_result(self):
         state = WorkflowState(user_input="test")
@@ -2358,16 +2356,16 @@ class TestWorkflowState:
         assert state.estimated_cost > 0
 ```
 
-### 12.2 統合テスト
+### 12.2 Integration Tests
 
 ```python
-# ワークフロー統合テスト
+# Workflow integration tests
 class TestSupportWorkflowIntegration:
-    """サポートワークフローの統合テスト"""
+    """Integration tests for the support workflow"""
 
     @pytest.fixture
     def mock_llm(self):
-        """LLMのモック"""
+        """Mock LLM"""
         with patch("anthropic.Anthropic") as mock:
             def create_response(text):
                 resp = MagicMock()
@@ -2375,17 +2373,17 @@ class TestSupportWorkflowIntegration:
                 return resp
 
             mock.return_value.messages.create.side_effect = [
-                create_response("billing"),      # classify
-                create_response("請求内容の確認"),  # handle_billing
-                create_response("最終回答")        # respond
+                create_response("billing"),             # classify
+                create_response("Billing confirmation"),  # handle_billing
+                create_response("Final response")         # respond
             ]
             yield mock
 
     def test_billing_flow(self, mock_llm):
-        """請求フローの統合テスト"""
+        """Integration test for billing flow"""
         workflow = build_support_workflow()
         result = workflow.run("classify", {
-            "user_message": "先月の請求額が違います"
+            "user_message": "Last month's invoice amount is incorrect"
         })
 
         assert result["classify_result"] == "billing"
@@ -2393,10 +2391,10 @@ class TestSupportWorkflowIntegration:
         assert "respond_result" in result
 
     def test_execution_log(self, mock_llm):
-        """実行ログの検証"""
+        """Verify execution log"""
         workflow = build_support_workflow()
         workflow.run("classify", {
-            "user_message": "テスト問い合わせ"
+            "user_message": "Test inquiry"
         })
 
         log = workflow.execution_log
@@ -2407,100 +2405,100 @@ class TestSupportWorkflowIntegration:
 
 ---
 
-## 13. アンチパターン
+## 13. Anti-Patterns
 
-### アンチパターン1: 過度に複雑なDAG
+### Anti-Pattern 1: Overly Complex DAG
 
 ```
-# NG: 20ノード以上のモノリシックなDAG
+# BAD: Monolithic DAG with 20+ nodes
 [A]→[B]→[C]→[D]→[E]→[F]→[G]→[H]→[I]→[J]→...
  ↓   ↓   ↓   ↓   ↓   ↓   ↓
 [K] [L] [M] [N] [O] [P] [Q]
- 理解不能、メンテナンス不能
+ Incomprehensible, unmaintainable
 
-# OK: サブワークフローに分割
-[メインフロー]
-  [受付] → [サブフロー:分析] → [サブフロー:処理] → [出力]
+# GOOD: Split into subworkflows
+[Main Flow]
+  [Intake] → [Subflow: Analysis] → [Subflow: Processing] → [Output]
 
-各サブフローは5ノード以下で独立してテスト可能
+Each subflow has 5 nodes or fewer and can be tested independently
 ```
 
-### アンチパターン2: 状態の暗黙的依存
+### Anti-Pattern 2: Implicit State Dependencies
 
 ```python
-# NG: グローバル変数で状態を共有
-global_state = {}  # どのノードが何を書き込んだか追跡不能
+# BAD: Sharing state via global variables
+global_state = {}  # No way to track which node wrote what
 
 def node_a(state):
-    global_state["temp"] = "value"  # 副作用!
+    global_state["temp"] = "value"  # Side effect!
 
-# OK: 明示的な状態の受け渡し
+# GOOD: Explicit state passing
 def node_a(state: WorkflowState) -> WorkflowState:
     return state.model_copy(update={"classification": "technical"})
 ```
 
-### アンチパターン3: 無制限ループ
+### Anti-Pattern 3: Unbounded Loops
 
 ```python
-# NG: ループ回数制限なし
+# BAD: No loop iteration limit
 def route_review(state):
     if state["review_result"] == "FAIL":
-        return "revise"  # 永遠にループする可能性
+        return "revise"  # May loop forever
     return "finalize"
 
-# OK: 最大回数を制限
+# GOOD: Limit maximum iterations
 def route_review(state):
     if state.get("review_count", 0) >= 3:
-        return "finalize"  # 3回で強制終了
+        return "finalize"  # Force exit after 3 iterations
     if state["review_result"] == "FAIL":
         return "revise"
     return "finalize"
 ```
 
-### アンチパターン4: エラーハンドリングの欠如
+### Anti-Pattern 4: Missing Error Handling
 
 ```python
-# NG: エラーを握りつぶす
+# BAD: Swallowing errors silently
 def node_handler(state):
     try:
         return call_llm(state)
     except:
-        return ""  # 空文字を返して続行
+        return ""  # Return empty string and continue
 
-# OK: 適切なエラーハンドリング
+# GOOD: Proper error handling
 def node_handler(state):
     try:
         return call_llm(state)
     except anthropic.RateLimitError:
         time.sleep(60)
-        return call_llm(state)  # リトライ
+        return call_llm(state)  # Retry
     except anthropic.APIError as e:
         logger.error(f"API error: {e}")
-        raise  # ワークフローエンジンに伝播
+        raise  # Propagate to workflow engine
 ```
 
-### アンチパターン5: 全ノードで同じモデル
+### Anti-Pattern 5: Using the Same Model for All Nodes
 
 ```python
-# NG: 全ノードで最高性能モデルを使用（コスト爆発）
+# BAD: Using the highest-performance model for all nodes (cost explosion)
 def classify(state):
     return client.messages.create(
-        model="claude-opus-4-20250514",  # 分類に高性能モデルは不要
+        model="claude-opus-4-20250514",  # A powerful model is unnecessary for classification
         max_tokens=10,
         messages=[...]
     )
 
-# OK: ノード特性に合わせたモデル選択
+# GOOD: Choose models suited to each node's characteristics
 def classify(state):
     return client.messages.create(
-        model="claude-haiku-3-20240307",  # 分類は高速・安価で十分
+        model="claude-haiku-3-20240307",  # Fast and cheap is sufficient for classification
         max_tokens=10,
         messages=[...]
     )
 
 def generate_detailed_report(state):
     return client.messages.create(
-        model="claude-sonnet-4-20250514",  # 生成は高品質モデル
+        model="claude-sonnet-4-20250514",  # High-quality model for generation
         max_tokens=4000,
         messages=[...]
     )
@@ -2510,83 +2508,83 @@ def generate_detailed_report(state):
 
 ## 14. FAQ
 
-### Q1: ワークフローにサイクル（ループ）を含めてよいか？
+### Q1: Can a workflow include cycles (loops)?
 
-含めてよい。ただし「DAG」は定義上サイクルを含まないため、サイクルがある場合は「状態グラフ」と呼ぶ。LangGraphはサイクルを明示的にサポートしている。重要なのは **最大反復回数の制限** を必ず設けること。
+Yes. However, since a "DAG" by definition contains no cycles, a graph with cycles is called a "state graph." LangGraph explicitly supports cycles. The important thing is to always set a **maximum iteration limit**.
 
-### Q2: ワークフローの各ノードに異なるLLMを使ってよいか？
+### Q2: Can different LLMs be used for each workflow node?
 
-推奨される。例えば:
-- **分類ノード**: 高速・安価なモデル（Claude Haiku）
-- **生成ノード**: 高品質なモデル（Claude Sonnet）
-- **レビューノード**: 最高品質のモデル（Claude Opus）
+This is recommended. For example:
+- **Classification nodes**: Fast, inexpensive model (Claude Haiku)
+- **Generation nodes**: High-quality model (Claude Sonnet)
+- **Review nodes**: Top-quality model (Claude Opus)
 
-コストと品質のバランスを各ノードで最適化できるのがワークフローの利点。
+The ability to optimize cost and quality at each node is one of the advantages of workflows.
 
-### Q3: エラーが発生したノードの再実行は？
+### Q3: How should a failed node be re-executed?
 
-**チェックポイント方式** を推奨する。各ノードの完了時に状態を永続化し、失敗時はその時点から再開する。LangGraphにはチェックポイント機能が組み込まれている。
+The **checkpoint approach** is recommended. Persist the state when each node completes, and resume from that point on failure. LangGraph has checkpointing built in.
 
-### Q4: ワークフローの実行時間が長すぎる場合の対策は？
+### Q4: What should be done when workflow execution takes too long?
 
-1. **並列化**: 独立したノードを並列実行する
-2. **モデル最適化**: 軽量タスクにはHaikuを使用する
-3. **キャッシュ**: 同一入力に対する結果をキャッシュする
-4. **タイムアウト**: 各ノードにタイムアウトを設定する
-5. **非同期実行**: 時間のかかるノードはバックグラウンドで実行する
+1. **Parallelize**: Run independent nodes in parallel
+2. **Model optimization**: Use Haiku for lightweight tasks
+3. **Caching**: Cache results for identical inputs
+4. **Timeouts**: Set a timeout for each node
+5. **Async execution**: Run time-consuming nodes in the background
 
-### Q5: ワークフローのバージョン管理はどうすべきか？
+### Q5: How should workflow versioning be managed?
 
-ワークフロー定義をコードとして管理し、バージョン番号を付与する。実行中のワークフローは作成時のバージョンで動作を保証する。新バージョンへの移行はロールバック可能な形で段階的に行う。
+Manage workflow definitions as code and assign version numbers. Running workflows are guaranteed to operate on the version they were created with. Migrate to new versions gradually in a rollback-safe manner.
 
-### Q6: ワークフローエージェントとマイクロサービスの関係は？
+### Q6: What is the relationship between workflow agents and microservices?
 
-ワークフローの各ノードは独立したマイクロサービスとして実装可能。ただし、LLMコールを含むノードはステートレスに設計し、状態は外部ストア（Redis/PostgreSQL）で管理するのがベストプラクティス。Kubernetes上ではArgo Workflowsと組み合わせることも有効。
+Each node in a workflow can be implemented as an independent microservice. However, best practice is to design nodes that include LLM calls as stateless, managing state in an external store (Redis/PostgreSQL). On Kubernetes, combining with Argo Workflows is also effective.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
-|------|------|
-| ワークフロー | 事前定義されたフローに従うエージェント |
-| DAG | ノード+エッジの有向非巡回グラフ |
-| 条件分岐 | LLMの判断で経路を選択 |
-| 並列実行 | 独立ノードを同時に処理（Fan-Out/In、Map-Reduce） |
-| 状態管理 | 型安全な状態オブジェクトの受け渡し |
-| エラーハンドリング | リトライ、サーキットブレーカー、フォールバック |
-| チェックポイント | 途中失敗からの再開を保証 |
-| コスト最適化 | ノード別モデル選択とキャッシュ |
-| モニタリング | 実行メトリクス収集とボトルネック分析 |
-| 原則 | 制御性と柔軟性のバランスを取る |
+| Item | Description |
+|------|-------------|
+| Workflow | An agent that follows a predefined flow |
+| DAG | A directed acyclic graph of nodes and edges |
+| Conditional branching | LLM-driven path selection |
+| Parallel execution | Simultaneous processing of independent nodes (Fan-Out/In, Map-Reduce) |
+| State management | Passing type-safe state objects between nodes |
+| Error handling | Retry, circuit breaker, and fallback |
+| Checkpoints | Guaranteed resumability from mid-flow failures |
+| Cost optimization | Per-node model selection and caching |
+| Monitoring | Execution metrics collection and bottleneck analysis |
+| Principle | Balance controllability with flexibility |
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [03-autonomous-agents.md](./03-autonomous-agents.md) — 自律エージェントの設計
-- [../02-implementation/01-langgraph.md](../02-implementation/01-langgraph.md) — LangGraphの詳細実装
-- [../03-applications/02-customer-support.md](../03-applications/02-customer-support.md) — サポートワークフローの実例
+- [03-autonomous-agents.md](./03-autonomous-agents.md) — Designing autonomous agents
+- [../02-implementation/01-langgraph.md](../02-implementation/01-langgraph.md) — Detailed LangGraph implementation
+- [../03-applications/02-customer-support.md](../03-applications/02-customer-support.md) — Real-world support workflow examples
 
-## 参考文献
+## References
 
 1. LangGraph Documentation — https://langchain-ai.github.io/langgraph/
 2. Anthropic, "Building effective agents - Workflows" (2024) — https://docs.anthropic.com/en/docs/build-with-claude/agentic
 3. AWS, "Step Functions" — https://docs.aws.amazon.com/step-functions/
-4. Temporal.io — ワークフローオーケストレーション — https://temporal.io/
-5. Prefect — データワークフロー管理 — https://www.prefect.io/
+4. Temporal.io — Workflow orchestration — https://temporal.io/
+5. Prefect — Data workflow management — https://www.prefect.io/
