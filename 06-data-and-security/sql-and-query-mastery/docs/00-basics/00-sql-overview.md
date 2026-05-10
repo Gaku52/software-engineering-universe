@@ -1,154 +1,154 @@
-# SQL概要 — 歴史・RDBMS・方言・リレーショナルモデル
+# SQL Overview — History, RDBMS, Dialects, and the Relational Model
 
-> SQLはリレーショナルデータベースを操作するための宣言型言語であり、1970年代の誕生以来、データ管理の世界標準として君臨し続けている。本章ではSQLの歴史的背景からリレーショナルモデルの理論、主要RDBMSの特徴と選定基準、SQL方言の違い、そしてSQLの分類体系までを体系的に学ぶ。
-
----
-
-## この章で学ぶこと
-
-1. SQLの歴史的経緯とリレーショナルモデルの理論的背景を理解する
-2. 主要RDBMSの特徴・アーキテクチャ・選定基準を把握する
-3. SQL方言の違いと移植性を意識した書き方を身につける
-4. SQLの分類体系（DDL/DML/DCL/TCL/DQL）を正確に区別できるようになる
+> SQL is a declarative language for manipulating relational databases. Since its birth in the 1970s, it has remained the world standard for data management. This chapter systematically covers SQL's historical background, the theory of the relational model, the characteristics and selection criteria of major RDBMSs, differences in SQL dialects, and SQL's classification system.
 
 ---
 
-## 前提知識
+## What You Will Learn
 
-- コンピュータサイエンスの基礎（データ構造の概念）
-- テキストエディタやターミナルの基本操作
-- security-fundamentals 00-basics — データ保護の基本概念（推奨）
-
-> 本章はSQL学習の入口であり、プログラミング経験がなくても読み進められるように構成している。
+1. Understand SQL's historical context and the theoretical background of the relational model
+2. Grasp the characteristics, architecture, and selection criteria of major RDBMSs
+3. Learn how to write SQL that is aware of dialect differences and portability
+4. Be able to accurately distinguish SQL's classification system (DDL/DML/DCL/TCL/DQL)
 
 ---
 
-## 1. SQLの歴史
+## Prerequisites
 
-### 1.1 リレーショナルモデルの誕生
+- Computer science fundamentals (concepts of data structures)
+- Basic operation of a text editor or terminal
+- security-fundamentals 00-basics — Basic concepts of data protection (recommended)
 
-1970年、IBM研究所のEdgar F. Coddが論文「A Relational Model of Data for Large Shared Data Banks」を発表した。この論文がリレーショナルデータベースの理論的基盤となり、以後50年以上にわたってデータ管理の主流パラダイムとして君臨し続けている。
+> This chapter is the entry point for learning SQL and is structured so that it can be read even without programming experience.
 
-Coddの画期的な点は、データの物理的格納方法とデータの論理的操作を完全に分離した点にある。それまでのデータベースシステム（階層型、ネットワーク型）では、データの物理的な格納構造を知らなければデータにアクセスできなかった。Coddのリレーショナルモデルは「データは表（リレーション）として論理的に表現し、集合演算で操作する」という宣言的アプローチを提唱した。
+---
 
-### 1.2 SQLの歴史年表
+## 1. History of SQL
+
+### 1.1 The Birth of the Relational Model
+
+In 1970, Edgar F. Codd of IBM Research published the paper "A Relational Model of Data for Large Shared Data Banks." This paper became the theoretical foundation for relational databases and has remained the dominant paradigm for data management for over 50 years since.
+
+Codd's breakthrough was the complete separation of the physical storage of data from the logical manipulation of data. In previous database systems (hierarchical, network-type), you could not access data without knowing the physical storage structure. Codd's relational model proposed a declarative approach: "data is logically represented as tables (relations) and manipulated using set operations."
+
+### 1.2 SQL History Timeline
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                     SQLの歴史年表                              │
+│                     SQL History Timeline                       │
 ├──────────┬───────────────────────────────────────────────────┤
-│   1970   │ E.F. Codd がリレーショナルモデル発表                │
-│   1974   │ IBM が SEQUEL (後のSQL) を開発 — System R プロジェクト│
-│   1977   │ Larry Ellison が Software Development Labs 設立     │
-│   1979   │ Oracle V2 (初の商用RDBMS) リリース                  │
-│   1983   │ IBM DB2 リリース                                    │
-│   1986   │ SQL-86 (ANSI初の標準化)                             │
-│   1989   │ SQL-89 (整合性制約の追加)                           │
-│   1992   │ SQL-92 (大幅拡張、現在の基盤、JOIN構文の標準化)     │
-│   1995   │ MySQL 1.0 リリース                                  │
-│   1996   │ PostgreSQL 6.0 リリース (Ingres後継)                │
-│   1999   │ SQL:1999 (再帰クエリ、トリガー、オブジェクト指向拡張)│
-│   2000   │ SQLite 1.0 リリース                                 │
-│   2003   │ SQL:2003 (ウィンドウ関数、XML、MERGE文)             │
-│   2006   │ SQL:2006 (XQuery統合)                               │
-│   2008   │ SQL:2008 (TRUNCATE、FETCH FIRST)                   │
-│   2011   │ SQL:2011 (テンポラルデータ、期間述語)               │
-│   2016   │ SQL:2016 (JSON、行パターン認識、多態テーブル関数)   │
-│   2023   │ SQL:2023 (プロパティグラフクエリ、SQL/PGQ)          │
+│   1970   │ E.F. Codd publishes the relational model           │
+│   1974   │ IBM develops SEQUEL (later SQL) — System R project │
+│   1977   │ Larry Ellison founds Software Development Labs     │
+│   1979   │ Oracle V2 (first commercial RDBMS) released        │
+│   1983   │ IBM DB2 released                                   │
+│   1986   │ SQL-86 (first ANSI standardization)                │
+│   1989   │ SQL-89 (addition of integrity constraints)         │
+│   1992   │ SQL-92 (major expansion, current foundation, JOIN syntax standardized) │
+│   1995   │ MySQL 1.0 released                                 │
+│   1996   │ PostgreSQL 6.0 released (successor to Ingres)      │
+│   1999   │ SQL:1999 (recursive queries, triggers, OO extensions) │
+│   2000   │ SQLite 1.0 released                                │
+│   2003   │ SQL:2003 (window functions, XML, MERGE statement)  │
+│   2006   │ SQL:2006 (XQuery integration)                      │
+│   2008   │ SQL:2008 (TRUNCATE, FETCH FIRST)                   │
+│   2011   │ SQL:2011 (temporal data, period predicates)        │
+│   2016   │ SQL:2016 (JSON, row pattern recognition, polymorphic table functions) │
+│   2023   │ SQL:2023 (property graph queries, SQL/PGQ)         │
 └──────────┴───────────────────────────────────────────────────┘
 ```
 
-### 1.3 「SQL」の読み方と名称の由来
+### 1.3 How to Read "SQL" and the Origin of the Name
 
-SQLの前身は「SEQUEL」（Structured English Query Language）であり、IBM System Rプロジェクトで開発された。商標上の問題から「SQL」に改名されたが、歴史的経緯から「シークェル（sequel）」と呼ぶ人も多い。ISO/ANSI標準では「SQL」が正式名称であり、読み方は「エス・キュー・エル」が公式である。
+SQL's predecessor was "SEQUEL" (Structured English Query Language), developed in the IBM System R project. Due to trademark issues it was renamed "SQL," but many people still call it "sequel" due to this history. In the ISO/ANSI standard, "SQL" is the official name, and "S-Q-L" (spelled out) is the official pronunciation.
 
-なお、「Structured Query Language」の略とされることが多いが、これは後付けの解釈であり、現在のISO標準では「SQL」は何の略語でもなく、それ自体が正式名称として定義されている。
+Note that it is often said to stand for "Structured Query Language," but this is a retroactive interpretation; in the current ISO standard, "SQL" is not an acronym for anything and is defined as an official name in its own right.
 
-### 1.4 宣言型言語としてのSQL
+### 1.4 SQL as a Declarative Language
 
-SQLは手続き型言語（C、Java、Python等）とは根本的に異なる**宣言型言語**である。
+SQL is a **declarative language** that is fundamentally different from procedural languages (C, Java, Python, etc.).
 
 ```
-┌──────────────── 手続き型 vs 宣言型 ────────────────┐
-│                                                      │
-│  手続き型（HOW — どうやるか）                         │
-│  ┌────────────────────────────────────────────┐    │
-│  │ 1. ファイルを開く                            │    │
-│  │ 2. 1行ずつ読み込む                           │    │
-│  │ 3. 条件に合う行を配列に追加する               │    │
-│  │ 4. 配列を並べ替える                           │    │
-│  │ 5. 先頭10件を取り出す                         │    │
-│  └────────────────────────────────────────────┘    │
-│                                                      │
-│  宣言型（WHAT — 何が欲しいか）                       │
-│  ┌────────────────────────────────────────────┐    │
-│  │ SELECT * FROM users                         │    │
-│  │ WHERE age >= 20                              │    │
-│  │ ORDER BY name                                │    │
-│  │ LIMIT 10;                                    │    │
-│  │                                              │    │
-│  │ → 「どうやって」取得するかはDBエンジンに任せる │    │
-│  └────────────────────────────────────────────┘    │
-│                                                      │
-│  宣言型のメリット:                                    │
-│  - 実装の詳細を知らなくてよい                         │
-│  - オプティマイザが最適な実行計画を自動選択           │
-│  - データ量やインデックスの変化に自動対応             │
-└──────────────────────────────────────────────────────┘
+┌──────────────── Procedural vs. Declarative ────────────────┐
+│                                                              │
+│  Procedural (HOW — how to do it)                             │
+│  ┌────────────────────────────────────────────┐            │
+│  │ 1. Open the file                            │            │
+│  │ 2. Read line by line                        │            │
+│  │ 3. Add matching rows to an array            │            │
+│  │ 4. Sort the array                           │            │
+│  │ 5. Extract the first 10 items               │            │
+│  └────────────────────────────────────────────┘            │
+│                                                              │
+│  Declarative (WHAT — what you want)                          │
+│  ┌────────────────────────────────────────────┐            │
+│  │ SELECT * FROM users                         │            │
+│  │ WHERE age >= 20                              │            │
+│  │ ORDER BY name                                │            │
+│  │ LIMIT 10;                                    │            │
+│  │                                              │            │
+│  │ → Leave "how" to retrieve to the DB engine  │            │
+│  └────────────────────────────────────────────┘            │
+│                                                              │
+│  Benefits of declarative:                                    │
+│  - No need to know implementation details                    │
+│  - The optimizer automatically selects the best plan        │
+│  - Automatically adapts to changes in data volume and index │
+└──────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. リレーショナルモデルの基礎概念
+## 2. Fundamental Concepts of the Relational Model
 
-### 2.1 数学的基盤
+### 2.1 Mathematical Foundation
 
-リレーショナルモデルは集合論と一階述語論理に基づいている。
+The relational model is based on set theory and first-order predicate logic.
 
-- **ドメイン（定義域）**: ある属性が取りうる値の集合。例えば「年齢」のドメインは0〜150の整数
-- **リレーション（関係）**: ドメインの直積の部分集合。実装上はテーブルに対応
-- **タプル（組）**: リレーションの要素。実装上は行（レコード）に対応
-- **属性（アトリビュート）**: リレーションの各列。実装上はカラムに対応
-- **候補キー**: タプルを一意に特定できる属性の最小集合
-- **主キー（Primary Key）**: 候補キーの中から選ばれた代表
-- **外部キー（Foreign Key）**: 他のリレーションの主キーを参照する属性
+- **Domain**: The set of values that an attribute can take. For example, the domain of "age" is integers from 0 to 150.
+- **Relation**: A subset of the Cartesian product of domains. Corresponds to a table in practice.
+- **Tuple**: An element of a relation. Corresponds to a row (record) in practice.
+- **Attribute**: Each column of a relation. Corresponds to a column in practice.
+- **Candidate key**: The minimal set of attributes that can uniquely identify a tuple.
+- **Primary Key**: The representative selected from the candidate keys.
+- **Foreign Key**: An attribute that references the primary key of another relation.
 
-### コード例1: リレーション（テーブル）の基本
+### Code Example 1: Basics of a Relation (Table)
 
 ```sql
--- リレーション = テーブル
--- タプル     = 行（レコード）
--- 属性       = 列（カラム）
--- ドメイン   = 列が取りうる値の範囲（データ型 + 制約）
+-- Relation = Table
+-- Tuple    = Row (record)
+-- Attribute = Column
+-- Domain   = The range of values a column can take (data type + constraints)
 
 CREATE TABLE employees (
-    employee_id   INTEGER PRIMARY KEY,          -- 主キー（候補キーから選択）
-    name          VARCHAR(100) NOT NULL,        -- 属性（NOT NULL制約 = ドメインからNULLを除外）
-    email         VARCHAR(255) UNIQUE NOT NULL, -- 属性（UNIQUE制約 = 候補キー）
-    department_id INTEGER,                      -- 外部キー（参照整合性）
+    employee_id   INTEGER PRIMARY KEY,          -- Primary key (selected from candidate keys)
+    name          VARCHAR(100) NOT NULL,        -- Attribute (NOT NULL constraint = excludes NULL from domain)
+    email         VARCHAR(255) UNIQUE NOT NULL, -- Attribute (UNIQUE constraint = candidate key)
+    department_id INTEGER,                      -- Foreign key (referential integrity)
     salary        DECIMAL(10, 2)
-        CHECK (salary >= 0),                    -- CHECK制約 = ドメインの制限
-    hired_date    DATE NOT NULL,                -- 属性
+        CHECK (salary >= 0),                    -- CHECK constraint = domain restriction
+    hired_date    DATE NOT NULL,                -- Attribute
     FOREIGN KEY (department_id) REFERENCES departments(id)
 );
 
--- 1タプル（行）を挿入
+-- Insert 1 tuple (row)
 INSERT INTO employees (employee_id, name, email, department_id, salary, hired_date)
-VALUES (1, '田中太郎', 'tanaka@example.com', 10, 450000.00, '2020-04-01');
+VALUES (1, 'Taro Tanaka', 'tanaka@example.com', 10, 450000.00, '2020-04-01');
 
--- リレーショナル代数の「選択」演算 = WHERE句
+-- "Selection" operation in relational algebra = WHERE clause
 SELECT * FROM employees WHERE salary > 400000;
 
--- リレーショナル代数の「射影」演算 = SELECTで列を指定
+-- "Projection" operation in relational algebra = specifying columns in SELECT
 SELECT name, salary FROM employees;
 ```
 
-### コード例2: 集合演算の基本
+### Code Example 2: Basics of Set Operations
 
 ```sql
--- リレーショナル代数の集合演算をSQLで表現
+-- Expressing relational algebra set operations in SQL
 
--- 準備: 2つの互換なリレーションを作成
+-- Preparation: create two compatible relations
 CREATE TABLE employees_tokyo (
     name VARCHAR(100),
     role VARCHAR(50)
@@ -159,75 +159,75 @@ CREATE TABLE employees_osaka (
     role VARCHAR(50)
 );
 
-INSERT INTO employees_tokyo VALUES ('田中', '開発'), ('鈴木', '営業'), ('佐藤', '開発');
-INSERT INTO employees_osaka VALUES ('鈴木', '営業'), ('高橋', '企画'), ('山田', '開発');
+INSERT INTO employees_tokyo VALUES ('Tanaka', 'Development'), ('Suzuki', 'Sales'), ('Sato', 'Development');
+INSERT INTO employees_osaka VALUES ('Suzuki', 'Sales'), ('Takahashi', 'Planning'), ('Yamada', 'Development');
 
--- 和（UNION）: 2つの結果セットを結合（重複排除）
+-- Union (UNION): combine two result sets (remove duplicates)
 SELECT name, role FROM employees_tokyo
 UNION
 SELECT name, role FROM employees_osaka;
--- → 田中, 鈴木, 佐藤, 高橋, 山田 （鈴木は1回だけ）
+-- → Tanaka, Suzuki, Sato, Takahashi, Yamada (Suzuki appears only once)
 
--- UNION ALL: 重複を排除しない（高速）
+-- UNION ALL: does not remove duplicates (faster)
 SELECT name, role FROM employees_tokyo
 UNION ALL
 SELECT name, role FROM employees_osaka;
--- → 田中, 鈴木, 佐藤, 鈴木, 高橋, 山田 （鈴木が2回）
+-- → Tanaka, Suzuki, Sato, Suzuki, Takahashi, Yamada (Suzuki appears twice)
 
--- 差（EXCEPT）: 左にのみ存在する行
+-- Difference (EXCEPT): rows that exist only on the left
 SELECT name, role FROM employees_tokyo
 EXCEPT
 SELECT name, role FROM employees_osaka;
--- → 田中, 佐藤 （東京だけにいる社員）
+-- → Tanaka, Sato (employees only in Tokyo)
 
--- 積（INTERSECT）: 両方に存在する行
+-- Intersection (INTERSECT): rows that exist in both
 SELECT name, role FROM employees_tokyo
 INTERSECT
 SELECT name, role FROM employees_osaka;
--- → 鈴木 （両方にいる社員）
+-- → Suzuki (employee in both)
 ```
 
-### 2.2 リレーショナルモデルの構造図
+### 2.2 Structural Diagram of the Relational Model
 
 ```
-┌──────────────────── リレーション (employees) ─────────────────────┐
-│                                                                    │
-│  ┌─────────┬──────────┬───────────┬────────────┬────────────┐    │
-│  │ emp_id  │  name    │  email    │ dept_id    │ hired_date │    │
-│  ├─────────┼──────────┼───────────┼────────────┼────────────┤    │ ← スキーマ
-│  │    1    │ 田中太郎 │ tanaka@.. │     10     │ 2020-04-01 │    │ ← タプル1
-│  │    2    │ 鈴木花子 │ suzuki@.. │     20     │ 2019-07-15 │    │ ← タプル2
-│  │    3    │ 佐藤次郎 │ sato@..   │     10     │ 2021-01-10 │    │ ← タプル3
-│  └─────────┴──────────┴───────────┴────────────┴────────────┘    │
-│                                                                    │
-│  スキーマ: employees(emp_id: INT, name: VARCHAR, ...)              │
-│  度数（degree）: 属性の数 = 5                                       │
-│  基数（cardinality）: タプルの数 = 3                                │
-│  主キー: employee_id（各タプルを一意に識別）                        │
-│  外部キー: department_id → departments(id)                         │
-│  候補キー: {employee_id}, {email}                                  │
-└────────────────────────────────────────────────────────────────────┘
+┌──────────────────── Relation (employees) ─────────────────────┐
+│                                                                  │
+│  ┌─────────┬──────────┬───────────┬────────────┬────────────┐  │
+│  │ emp_id  │  name    │  email    │ dept_id    │ hired_date │  │
+│  ├─────────┼──────────┼───────────┼────────────┼────────────┤  │ ← Schema
+│  │    1    │ Taro T.  │ tanaka@.. │     10     │ 2020-04-01 │  │ ← Tuple 1
+│  │    2    │ Hanako S.│ suzuki@.. │     20     │ 2019-07-15 │  │ ← Tuple 2
+│  │    3    │ Jiro S.  │ sato@..   │     10     │ 2021-01-10 │  │ ← Tuple 3
+│  └─────────┴──────────┴───────────┴────────────┴────────────┘  │
+│                                                                  │
+│  Schema: employees(emp_id: INT, name: VARCHAR, ...)              │
+│  Degree: number of attributes = 5                                │
+│  Cardinality: number of tuples = 3                               │
+│  Primary key: employee_id (uniquely identifies each tuple)       │
+│  Foreign key: department_id → departments(id)                    │
+│  Candidate keys: {employee_id}, {email}                          │
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.3 正規化の概要
+### 2.3 Overview of Normalization
 
-正規化はリレーショナルモデルの重要な設計原則であり、データの冗長性を排除し、更新異常を防ぐ手法である。
+Normalization is an important design principle of the relational model — a technique that eliminates data redundancy and prevents update anomalies.
 
 ```sql
--- 非正規化状態（アンチパターン）
--- 1つのテーブルに全情報を詰め込む
+-- Denormalized state (anti-pattern)
+-- Cramming all information into one table
 CREATE TABLE orders_denormalized (
     order_id      INTEGER,
-    customer_name VARCHAR(100),     -- 顧客名が注文ごとに重複
-    customer_email VARCHAR(255),    -- メールも重複
-    product_name  VARCHAR(100),     -- 商品名も重複
-    product_price DECIMAL(10, 2),   -- 価格も重複
+    customer_name VARCHAR(100),     -- Customer name is duplicated per order
+    customer_email VARCHAR(255),    -- Email is also duplicated
+    product_name  VARCHAR(100),     -- Product name is also duplicated
+    product_price DECIMAL(10, 2),   -- Price is also duplicated
     quantity      INTEGER,
     order_date    DATE
 );
 
--- 正規化後（第3正規形）
--- 各エンティティを独立したテーブルに分離
+-- After normalization (Third Normal Form)
+-- Separate each entity into independent tables
 CREATE TABLE customers (
     id    INTEGER PRIMARY KEY,
     name  VARCHAR(100) NOT NULL,
@@ -251,103 +251,111 @@ CREATE TABLE order_items (
     order_id   INTEGER NOT NULL REFERENCES orders(id),
     product_id INTEGER NOT NULL REFERENCES products(id),
     quantity   INTEGER NOT NULL CHECK (quantity > 0),
-    unit_price DECIMAL(10, 2) NOT NULL  -- 注文時点の価格を保存
+    unit_price DECIMAL(10, 2) NOT NULL  -- Store the price at the time of the order
 );
 ```
 
-### 2.4 ACID特性
+### 2.4 ACID Properties
 
-リレーショナルデータベースの信頼性を支える4つの性質。
+Four properties that underpin the reliability of relational databases.
 
 ```
-┌──────────────────── ACID特性 ────────────────────┐
-│                                                    │
-│  A = Atomicity（原子性）                           │
-│  ┌─────────────────────────────────────────┐     │
-│  │ トランザクションは「全て成功」か             │     │
-│  │ 「全て失敗（ロールバック）」のどちらか       │     │
-│  │ 例: 送金 = 引き出し + 入金を不可分に         │     │
-│  └─────────────────────────────────────────┘     │
-│                                                    │
-│  C = Consistency（一貫性）                         │
-│  ┌─────────────────────────────────────────┐     │
-│  │ トランザクション前後でデータの整合性が保たれる│     │
-│  │ 例: 外部キー制約、CHECK制約を常に満たす      │     │
-│  └─────────────────────────────────────────┘     │
-│                                                    │
-│  I = Isolation（分離性）                           │
-│  ┌─────────────────────────────────────────┐     │
-│  │ 並行トランザクションが互いに干渉しない       │     │
-│  │ 例: 2人が同時に同じ口座を操作しても正しい結果│     │
-│  └─────────────────────────────────────────┘     │
-│                                                    │
-│  D = Durability（永続性）                          │
-│  ┌─────────────────────────────────────────┐     │
-│  │ COMMITされたデータはシステム障害後も失われない│     │
-│  │ 例: WAL（Write-Ahead Logging）による保証     │     │
-│  └─────────────────────────────────────────┘     │
-└────────────────────────────────────────────────────┘
+┌──────────────────── ACID Properties ────────────────────┐
+│                                                           │
+│  A = Atomicity                                            │
+│  ┌─────────────────────────────────────────┐            │
+│  │ A transaction is either "all success"   │            │
+│  │ or "all failure (rollback)" — never     │            │
+│  │ partial. Ex: transfer = withdraw +      │            │
+│  │ deposit as an indivisible unit          │            │
+│  └─────────────────────────────────────────┘            │
+│                                                           │
+│  C = Consistency                                          │
+│  ┌─────────────────────────────────────────┐            │
+│  │ Data integrity is maintained before     │            │
+│  │ and after a transaction.                │            │
+│  │ Ex: foreign key and CHECK constraints   │            │
+│  │ are always satisfied                    │            │
+│  └─────────────────────────────────────────┘            │
+│                                                           │
+│  I = Isolation                                            │
+│  ┌─────────────────────────────────────────┐            │
+│  │ Concurrent transactions do not          │            │
+│  │ interfere with each other.              │            │
+│  │ Ex: two people operating the same       │            │
+│  │ account simultaneously still yields    │            │
+│  │ a correct result                        │            │
+│  └─────────────────────────────────────────┘            │
+│                                                           │
+│  D = Durability                                           │
+│  ┌─────────────────────────────────────────┐            │
+│  │ COMMITted data is not lost even after   │            │
+│  │ a system failure.                       │            │
+│  │ Ex: guaranteed by WAL                   │            │
+│  │ (Write-Ahead Logging)                   │            │
+│  └─────────────────────────────────────────┘            │
+└───────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. 主要RDBMS
+## 3. Major RDBMSs
 
-### 3.1 PostgreSQLの特徴と内部アーキテクチャ
+### 3.1 PostgreSQL: Characteristics and Internal Architecture
 
-PostgreSQLは「世界で最も先進的なオープンソースリレーショナルデータベース」を標榜し、SQL標準への準拠度が高く、拡張性に優れる。
+PostgreSQL bills itself as "the world's most advanced open-source relational database," with a high degree of conformance to the SQL standard and excellent extensibility.
 
-**内部アーキテクチャの特徴:**
-- **MVCC（Multi-Version Concurrency Control）**: 行の各バージョンを保持し、読み取りと書き込みが互いにブロックしない
-- **WAL（Write-Ahead Logging）**: 変更をまずログに書き込み、クラッシュ後もデータを復元可能にする
-- **プロセスベースアーキテクチャ**: 各接続に独立したプロセスを割り当て
+**Internal architecture characteristics:**
+- **MVCC (Multi-Version Concurrency Control)**: Maintains multiple versions of each row so that reads and writes do not block each other.
+- **WAL (Write-Ahead Logging)**: Writes changes to a log first, making it possible to recover data after a crash.
+- **Process-based architecture**: Assigns an independent process to each connection.
 
-### コード例3: PostgreSQLの特徴的な機能
+### Code Example 3: Distinctive Features of PostgreSQL
 
 ```sql
--- PostgreSQL: 高度なデータ型と拡張性
+-- PostgreSQL: Advanced data types and extensibility
 
--- 配列型: 1カラムに複数値を格納
+-- Array type: store multiple values in a single column
 CREATE TABLE products (
     id       SERIAL PRIMARY KEY,
     name     TEXT NOT NULL,
-    tags     TEXT[],                    -- 配列型
-    metadata JSONB,                     -- JSONBバイナリ型（GINインデックス対応）
-    price    NUMRANGE,                  -- 範囲型（価格帯を表現）
-    search   TSVECTOR                   -- 全文検索用ベクトル
+    tags     TEXT[],                    -- Array type
+    metadata JSONB,                     -- JSONB binary type (supports GIN index)
+    price    NUMRANGE,                  -- Range type (express a price range)
+    search   TSVECTOR                   -- Vector for full-text search
 );
 
--- サンプルデータ挿入
+-- Insert sample data
 INSERT INTO products (name, tags, metadata, price, search) VALUES (
-    'オーガニック味噌',
+    'Organic Miso',
     ARRAY['organic', 'japanese', 'fermented'],
     '{"category": "food", "origin": "Japan", "weight_g": 500}',
     NUMRANGE(300, 500),
-    to_tsvector('japanese', 'オーガニック 味噌 国産 大豆')
+    to_tsvector('japanese', 'organic miso domestic soybean')
 );
 
--- 配列の検索: ANY演算子
+-- Array search: ANY operator
 SELECT * FROM products WHERE 'organic' = ANY(tags);
 
--- 配列の包含: @>演算子
+-- Array containment: @> operator
 SELECT * FROM products WHERE tags @> ARRAY['organic', 'japanese'];
 
--- JSONB内の検索: @>演算子（包含）
+-- Search inside JSONB: @> operator (containment)
 SELECT * FROM products WHERE metadata @> '{"category": "food"}';
 
--- JSONB内の値を取得: ->>演算子
+-- Get a value inside JSONB: ->> operator
 SELECT name, metadata->>'origin' AS origin FROM products;
 
--- 範囲型の検索: @>演算子（値が範囲内か）
+-- Range type search: @> operator (is value within range?)
 SELECT * FROM products WHERE price @> 350;
 
--- 全文検索: @@演算子
-SELECT * FROM products WHERE search @@ to_tsquery('japanese', 'オーガニック & 味噌');
+-- Full-text search: @@ operator
+SELECT * FROM products WHERE search @@ to_tsquery('japanese', 'organic & miso');
 
--- テーブル継承（PostgreSQL固有）
+-- Table inheritance (PostgreSQL-specific)
 CREATE TABLE employees_2024 () INHERITS (employees);
 
--- GENERATED COLUMNS（計算列）
+-- GENERATED COLUMNS (computed columns)
 CREATE TABLE orders_v2 (
     id         SERIAL PRIMARY KEY,
     quantity   INTEGER NOT NULL,
@@ -355,7 +363,7 @@ CREATE TABLE orders_v2 (
     total      DECIMAL(10, 2) GENERATED ALWAYS AS (quantity * unit_price) STORED
 );
 
--- LATERAL JOIN: FROM句での相関サブクエリ
+-- LATERAL JOIN: correlated subquery in FROM clause
 SELECT d.name, top3.*
 FROM departments d
 CROSS JOIN LATERAL (
@@ -367,21 +375,21 @@ CROSS JOIN LATERAL (
 ) top3;
 ```
 
-### 3.2 MySQLの特徴
+### 3.2 MySQL: Characteristics
 
-MySQLは世界で最も広く使われているオープンソースRDBMSの一つであり、特にWebアプリケーション（LAMP/LEMPスタック）との親和性が高い。
+MySQL is one of the most widely used open-source RDBMSs in the world, particularly well-suited for web applications (LAMP/LEMP stack).
 
-**内部アーキテクチャの特徴:**
-- **プラガブルストレージエンジン**: InnoDB、MyISAM等を用途に応じて選択可能
-- **スレッドベースアーキテクチャ**: 各接続にスレッドを割り当て（PostgreSQLはプロセス）
-- **InnoDB**: MVCC、外部キー、トランザクションを完全サポートするデフォルトエンジン
+**Internal architecture characteristics:**
+- **Pluggable storage engines**: InnoDB, MyISAM, etc. can be selected according to the use case.
+- **Thread-based architecture**: Assigns a thread to each connection (PostgreSQL uses processes).
+- **InnoDB**: The default engine that fully supports MVCC, foreign keys, and transactions.
 
-### コード例4: MySQLの特徴的な機能
+### Code Example 4: Distinctive Features of MySQL
 
 ```sql
--- MySQL: 広い普及率とシンプルな運用
+-- MySQL: Wide adoption and simple operation
 
--- AUTO_INCREMENTとエンジン指定
+-- AUTO_INCREMENT and engine specification
 CREATE TABLE articles (
     id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     title      VARCHAR(255) NOT NULL,
@@ -390,30 +398,30 @@ CREATE TABLE articles (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
-    -- MySQLのフルテキストインデックス
+    -- MySQL full-text index
     FULLTEXT INDEX ft_body (body)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- フルテキスト検索（ブーリアンモード）
+-- Full-text search (boolean mode)
 SELECT * FROM articles
-WHERE MATCH(body) AGAINST('データベース +設計 -NoSQL' IN BOOLEAN MODE);
+WHERE MATCH(body) AGAINST('database +design -NoSQL' IN BOOLEAN MODE);
 
--- ON DUPLICATE KEY UPDATE（UPSERT）
+-- ON DUPLICATE KEY UPDATE (UPSERT)
 INSERT INTO user_settings (user_id, setting_key, setting_value)
 VALUES (1, 'theme', 'dark')
 ON DUPLICATE KEY UPDATE
     setting_value = VALUES(setting_value),
     updated_at = NOW();
 
--- REPLACE INTO（存在すれば削除→挿入）
+-- REPLACE INTO (delete then insert if exists)
 REPLACE INTO cache_table (cache_key, cache_value, expires_at)
-VALUES ('user:1:profile', '{"name":"田中"}', DATE_ADD(NOW(), INTERVAL 1 HOUR));
+VALUES ('user:1:profile', '{"name":"Tanaka"}', DATE_ADD(NOW(), INTERVAL 1 HOUR));
 
--- JSON型（MySQL 5.7+）
+-- JSON type (MySQL 5.7+)
 CREATE TABLE events (
     id   BIGINT AUTO_INCREMENT PRIMARY KEY,
     data JSON NOT NULL,
-    -- 仮想生成列 + インデックス
+    -- Virtual generated column + index
     event_type VARCHAR(50) GENERATED ALWAYS AS (data->>'$.type') VIRTUAL,
     INDEX idx_event_type (event_type)
 );
@@ -421,7 +429,7 @@ CREATE TABLE events (
 INSERT INTO events (data) VALUES ('{"type": "login", "user_id": 42, "ip": "192.168.1.1"}');
 SELECT * FROM events WHERE data->>'$.type' = 'login';
 
--- Window Functions（MySQL 8.0+）
+-- Window Functions (MySQL 8.0+)
 SELECT
     name,
     department_id,
@@ -430,42 +438,42 @@ SELECT
 FROM employees;
 ```
 
-### 3.3 SQLiteの特徴
+### 3.3 SQLite: Characteristics
 
-SQLiteは「サーバーレス」のRDBMSであり、データベース全体が単一ファイルに格納される。モバイルアプリ、組み込みシステム、テスト環境、デスクトップアプリケーションに広く使われている。
+SQLite is a "serverless" RDBMS where the entire database is stored in a single file. It is widely used in mobile apps, embedded systems, test environments, and desktop applications.
 
-### コード例5: SQLiteの特徴的な機能
+### Code Example 5: Distinctive Features of SQLite
 
 ```sql
--- SQLite: 組み込み型、サーバー不要
--- ファイル1つがデータベース全体（またはインメモリ :memory:）
+-- SQLite: embedded, no server required
+-- A single file is the entire database (or in-memory via :memory:)
 
--- 動的型付け（型アフィニティ）
--- SQLiteは列に宣言された型を「ヒント」として使い、実際にはどんな値でも格納可能
+-- Dynamic typing (type affinity)
+-- SQLite uses the declared column type as a "hint"; in practice any value can be stored
 CREATE TABLE settings (
     key   TEXT PRIMARY KEY,
-    value ANY              -- どんな型でも格納可能
+    value ANY              -- any type can be stored
 );
 
 INSERT INTO settings VALUES ('max_retry', 3);          -- INTEGER
 INSERT INTO settings VALUES ('api_url', 'https://example.com');  -- TEXT
-INSERT INTO settings VALUES ('enabled', 1);            -- INTEGER (SQLiteにBOOLEAN型はない)
+INSERT INTO settings VALUES ('enabled', 1);            -- INTEGER (SQLite has no BOOLEAN type)
 INSERT INTO settings VALUES ('ratio', 3.14);           -- REAL
 
--- typeof()で実際の型を確認
+-- Check the actual type with typeof()
 SELECT key, value, typeof(value) FROM settings;
 -- max_retry | 3    | integer
 -- api_url   | https://example.com | text
 -- enabled   | 1    | integer
 -- ratio     | 3.14 | real
 
--- JSON拡張（SQLite 3.38.0+ で組み込み）
+-- JSON extension (built-in since SQLite 3.38.0+)
 CREATE TABLE logs (
     id   INTEGER PRIMARY KEY AUTOINCREMENT,
-    data TEXT NOT NULL  -- JSON文字列として格納
+    data TEXT NOT NULL  -- stored as a JSON string
 );
 
-INSERT INTO logs (data) VALUES ('{"level": "error", "message": "接続失敗", "code": 500}');
+INSERT INTO logs (data) VALUES ('{"level": "error", "message": "Connection failed", "code": 500}');
 
 SELECT
     json_extract(data, '$.level') AS level,
@@ -473,38 +481,38 @@ SELECT
 FROM logs
 WHERE json_extract(data, '$.level') = 'error';
 
--- UPSERT（SQLite 3.24.0+）
+-- UPSERT (SQLite 3.24.0+)
 INSERT INTO settings (key, value)
 VALUES ('max_retry', 5)
 ON CONFLICT(key) DO UPDATE SET value = excluded.value;
 
--- WAL（Write-Ahead Logging）モードで並行読み取り性能を向上
+-- Improve concurrent read performance with WAL (Write-Ahead Logging) mode
 -- PRAGMA journal_mode=WAL;
 ```
 
-### コード例6: SQL Serverの特徴的な機能
+### Code Example 6: Distinctive Features of SQL Server
 
 ```sql
--- SQL Server: エンタープライズ向け、.NETとの統合が深い
+-- SQL Server: enterprise-oriented, deep integration with .NET
 
--- IDENTITY列（自動連番）
+-- IDENTITY column (auto-increment)
 CREATE TABLE orders (
-    order_id   INT IDENTITY(1,1) PRIMARY KEY,  -- 1から1ずつ増加
+    order_id   INT IDENTITY(1,1) PRIMARY KEY,  -- increments by 1 starting from 1
     order_date DATETIME2 DEFAULT SYSDATETIME(),
     customer_id INT NOT NULL,
     total_amount DECIMAL(12, 2)
 );
 
--- TOP N（SQL Serverのページネーション）
+-- TOP N (SQL Server pagination)
 SELECT TOP 10 * FROM orders ORDER BY order_date DESC;
 
--- OFFSET-FETCH（SQL:2008標準に準拠）
+-- OFFSET-FETCH (conforms to SQL:2008 standard)
 SELECT * FROM orders
 ORDER BY order_date DESC
 OFFSET 20 ROWS
 FETCH NEXT 10 ROWS ONLY;
 
--- MERGE文（UPSERT + DELETE を1文で）
+-- MERGE statement (UPSERT + DELETE in one statement)
 MERGE INTO user_settings AS target
 USING (VALUES (1, 'theme', 'dark')) AS source (user_id, setting_key, setting_value)
 ON target.user_id = source.user_id AND target.setting_key = source.setting_key
@@ -514,154 +522,154 @@ WHEN NOT MATCHED THEN
     INSERT (user_id, setting_key, setting_value)
     VALUES (source.user_id, source.setting_key, source.setting_value);
 
--- STRING_AGG（文字列集約、SQL Server 2017+）
+-- STRING_AGG (string aggregation, SQL Server 2017+)
 SELECT
     department_id,
     STRING_AGG(name, ', ') WITHIN GROUP (ORDER BY name) AS members
 FROM employees
 GROUP BY department_id;
 
--- IIF（条件式の簡略記法）
+-- IIF (shorthand for conditional expression)
 SELECT name, salary,
-    IIF(salary >= 500000, '高給', '一般') AS grade
+    IIF(salary >= 500000, 'High', 'Standard') AS grade
 FROM employees;
 ```
 
-### 3.4 主要RDBMS比較表
+### 3.4 Major RDBMS Comparison Table
 
-| 特徴 | PostgreSQL | MySQL | SQLite | SQL Server | Oracle |
-|------|-----------|-------|--------|------------|--------|
-| ライセンス | PostgreSQL License (BSD系) | GPL v2/商用 | パブリックドメイン | 商用 (Express版は無料) | 商用 |
-| 最大DB容量 | 無制限 | 256TB (InnoDB) | 281TB | 524PB | 無制限 |
-| 最大行サイズ | 1.6TB | 65,535バイト | 1GB | 8,060バイト | 制限なし |
-| 同時接続数 | 数千（設定依存） | 数千 | 単一書き込み | 32,767 | 設定依存 |
-| MVCC | あり | あり (InnoDB) | WALモードで近似 | あり | あり |
-| JSON対応 | JSONB（GINインデックス、高速） | JSON（5.7+） | JSON1拡張 | JSON (2016+) | JSON (21c+) |
-| 全文検索 | 組み込み（多言語対応） | 組み込み（InnoDB/MyISAM） | FTS5拡張 | 組み込み | Oracle Text |
-| レプリケーション | ストリーミング/ロジカル | グループ/非同期 | なし | Always On AG | Data Guard |
-| パーティショニング | 宣言的 (10+) | ネイティブ | なし | ネイティブ | ネイティブ |
-| 拡張性 | 非常に高い（Extension） | 中程度（Plugin） | 低い | 高い | 高い |
-| 学習コスト | 中程度 | 低い | 非常に低い | 中程度 | 高い |
-| 主な用途 | 汎用/地理情報/分析 | Web/LAMP | 組み込み/モバイル | エンタープライズ/.NET | ミッションクリティカル |
+| Feature | PostgreSQL | MySQL | SQLite | SQL Server | Oracle |
+|---------|-----------|-------|--------|------------|--------|
+| License | PostgreSQL License (BSD-style) | GPL v2/Commercial | Public Domain | Commercial (Express edition is free) | Commercial |
+| Max DB Size | Unlimited | 256TB (InnoDB) | 281TB | 524PB | Unlimited |
+| Max Row Size | 1.6TB | 65,535 bytes | 1GB | 8,060 bytes | No limit |
+| Concurrent Connections | Thousands (config-dependent) | Thousands | Single writer | 32,767 | Config-dependent |
+| MVCC | Yes | Yes (InnoDB) | Approximated in WAL mode | Yes | Yes |
+| JSON Support | JSONB (GIN index, fast) | JSON (5.7+) | JSON1 extension | JSON (2016+) | JSON (21c+) |
+| Full-Text Search | Built-in (multilingual) | Built-in (InnoDB/MyISAM) | FTS5 extension | Built-in | Oracle Text |
+| Replication | Streaming/Logical | Group/Async | None | Always On AG | Data Guard |
+| Partitioning | Declarative (10+) | Native | None | Native | Native |
+| Extensibility | Very high (Extension) | Medium (Plugin) | Low | High | High |
+| Learning Cost | Moderate | Low | Very low | Moderate | High |
+| Primary Use Cases | General-purpose/GIS/Analytics | Web/LAMP | Embedded/Mobile | Enterprise/.NET | Mission-critical |
 
-### 3.5 RDBMS内部アーキテクチャの共通構造
+### 3.5 Common Internal Architecture of RDBMSs
 
 ```
-┌──────────────── RDBMS の内部アーキテクチャ ────────────────┐
-│                                                             │
-│  クライアント                                               │
-│      │                                                      │
-│      ▼                                                      │
-│  ┌───────────────────────┐                                 │
-│  │   接続マネージャ       │  接続プーリング、認証             │
-│  └───────────┬───────────┘                                 │
-│              ▼                                              │
-│  ┌───────────────────────┐                                 │
-│  │   パーサー             │  SQL文の構文解析 → パースツリー  │
-│  └───────────┬───────────┘                                 │
-│              ▼                                              │
-│  ┌───────────────────────┐                                 │
-│  │   オプティマイザ       │  統計情報に基づく実行計画選択     │
-│  │   (クエリプランナー)   │  コストベース最適化              │
-│  └───────────┬───────────┘                                 │
-│              ▼                                              │
-│  ┌───────────────────────┐                                 │
-│  │   エグゼキュータ       │  実行計画に従いデータを取得      │
-│  └───────────┬───────────┘                                 │
-│              ▼                                              │
-│  ┌───────────────────────┐                                 │
-│  │   ストレージエンジン   │  バッファプール、ディスクI/O     │
-│  │   + トランザクション   │  WAL、MVCC、ロック管理           │
-│  │   マネージャ           │                                  │
-│  └───────────────────────┘                                 │
-│                                                             │
-│  SQL文のライフサイクル:                                      │
-│  文字列 → パース → 最適化 → 実行 → 結果返却                 │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────── Internal Architecture of an RDBMS ────────────────┐
+│                                                                      │
+│  Client                                                              │
+│      │                                                               │
+│      ▼                                                               │
+│  ┌───────────────────────┐                                          │
+│  │   Connection Manager  │  Connection pooling, authentication       │
+│  └───────────┬───────────┘                                          │
+│              ▼                                                       │
+│  ┌───────────────────────┐                                          │
+│  │   Parser              │  SQL syntax analysis → parse tree        │
+│  └───────────┬───────────┘                                          │
+│              ▼                                                       │
+│  ┌───────────────────────┐                                          │
+│  │   Optimizer           │  Execution plan selection based on stats │
+│  │   (Query Planner)     │  Cost-based optimization                 │
+│  └───────────┬───────────┘                                          │
+│              ▼                                                       │
+│  ┌───────────────────────┐                                          │
+│  │   Executor            │  Retrieve data according to the plan     │
+│  └───────────┬───────────┘                                          │
+│              ▼                                                       │
+│  ┌───────────────────────┐                                          │
+│  │   Storage Engine      │  Buffer pool, disk I/O                   │
+│  │   + Transaction       │  WAL, MVCC, lock management              │
+│  │   Manager             │                                          │
+│  └───────────────────────┘                                          │
+│                                                                      │
+│  SQL statement lifecycle:                                            │
+│  String → Parse → Optimize → Execute → Return result                │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 4. SQL方言の違い
+## 4. SQL Dialect Differences
 
-SQL標準は広範だが、各RDBMSの実装範囲と独自拡張は大きく異なる。移植性の高いコードを書くには、方言差を正確に把握する必要がある。
+The SQL standard is broad, but the scope of implementation and proprietary extensions vary greatly among RDBMSs. To write portable code, you need to accurately understand dialect differences.
 
-### 4.1 方言比較表（主要操作）
+### 4.1 Dialect Comparison Table (Key Operations)
 
-| 操作 | 標準SQL / PostgreSQL | MySQL | SQLite | SQL Server |
-|------|---------------------|-------|--------|------------|
-| 文字列結合 | `'A' \|\| 'B'` | `CONCAT('A','B')` | `'A' \|\| 'B'` | `'A' + 'B'` / `CONCAT` |
+| Operation | Standard SQL / PostgreSQL | MySQL | SQLite | SQL Server |
+|-----------|--------------------------|-------|--------|------------|
+| String concatenation | `'A' \|\| 'B'` | `CONCAT('A','B')` | `'A' \|\| 'B'` | `'A' + 'B'` / `CONCAT` |
 | LIMIT | `LIMIT 10` | `LIMIT 10` | `LIMIT 10` | `TOP 10` / `FETCH NEXT 10 ROWS ONLY` |
 | UPSERT | `ON CONFLICT DO UPDATE` | `ON DUPLICATE KEY UPDATE` | `ON CONFLICT DO UPDATE` | `MERGE` |
-| 自動連番 | `SERIAL` / `GENERATED` | `AUTO_INCREMENT` | `AUTOINCREMENT` | `IDENTITY` |
-| 日付取得 | `CURRENT_TIMESTAMP` | `NOW()` / `CURRENT_TIMESTAMP` | `datetime('now')` | `GETDATE()` / `SYSDATETIME()` |
+| Auto-increment | `SERIAL` / `GENERATED` | `AUTO_INCREMENT` | `AUTOINCREMENT` | `IDENTITY` |
+| Current timestamp | `CURRENT_TIMESTAMP` | `NOW()` / `CURRENT_TIMESTAMP` | `datetime('now')` | `GETDATE()` / `SYSDATETIME()` |
 | BOOLEAN | `TRUE` / `FALSE` | `TRUE` / `FALSE` (=1/0) | `1` / `0` | `BIT` (1/0) |
-| IF式 | `CASE WHEN` | `IF()` / `CASE` | `CASE WHEN` / `IIF` | `IIF()` / `CASE` |
-| 日付差分 | `age()` / `-` 演算子 | `DATEDIFF()` | `julianday()` | `DATEDIFF()` |
-| 正規表現 | `~` / `~*` | `REGEXP` | なし (拡張で可) | なし (CLR) |
-| 配列型 | `TEXT[]` | なし (JSON代替) | なし | なし |
+| IF expression | `CASE WHEN` | `IF()` / `CASE` | `CASE WHEN` / `IIF` | `IIF()` / `CASE` |
+| Date difference | `age()` / `-` operator | `DATEDIFF()` | `julianday()` | `DATEDIFF()` |
+| Regular expression | `~` / `~*` | `REGEXP` | None (available via extension) | None (CLR) |
+| Array type | `TEXT[]` | None (JSON substitute) | None | None |
 | CTE | `WITH` / `WITH RECURSIVE` | `WITH RECURSIVE` (8.0+) | `WITH RECURSIVE` (3.8.3+) | `WITH` |
-| ウィンドウ関数 | 全対応 | 8.0+ | 3.25.0+ | 全対応 |
+| Window functions | Full support | 8.0+ | 3.25.0+ | Full support |
 
-### 4.2 方言比較表（日付操作）
+### 4.2 Dialect Comparison Table (Date Operations)
 
-| 操作 | PostgreSQL | MySQL | SQLite | SQL Server |
-|------|-----------|-------|--------|------------|
-| 現在日時 | `NOW()` / `CURRENT_TIMESTAMP` | `NOW()` | `datetime('now')` | `GETDATE()` |
-| 日付加算 | `date + INTERVAL '1 day'` | `DATE_ADD(date, INTERVAL 1 DAY)` | `datetime(date, '+1 day')` | `DATEADD(DAY, 1, date)` |
-| 日付差分 | `date1 - date2` | `DATEDIFF(date1, date2)` | `julianday(d1) - julianday(d2)` | `DATEDIFF(DAY, d2, d1)` |
-| 年の取得 | `EXTRACT(YEAR FROM date)` | `YEAR(date)` | `strftime('%Y', date)` | `YEAR(date)` |
-| 月初日 | `DATE_TRUNC('month', date)` | `DATE_FORMAT(date, '%Y-%m-01')` | `date(date, 'start of month')` | `DATEFROMPARTS(YEAR(d), MONTH(d), 1)` |
-| 書式変換 | `TO_CHAR(date, 'YYYY-MM-DD')` | `DATE_FORMAT(date, '%Y-%m-%d')` | `strftime('%Y-%m-%d', date)` | `FORMAT(date, 'yyyy-MM-dd')` |
+| Operation | PostgreSQL | MySQL | SQLite | SQL Server |
+|-----------|-----------|-------|--------|------------|
+| Current datetime | `NOW()` / `CURRENT_TIMESTAMP` | `NOW()` | `datetime('now')` | `GETDATE()` |
+| Date addition | `date + INTERVAL '1 day'` | `DATE_ADD(date, INTERVAL 1 DAY)` | `datetime(date, '+1 day')` | `DATEADD(DAY, 1, date)` |
+| Date difference | `date1 - date2` | `DATEDIFF(date1, date2)` | `julianday(d1) - julianday(d2)` | `DATEDIFF(DAY, d2, d1)` |
+| Extract year | `EXTRACT(YEAR FROM date)` | `YEAR(date)` | `strftime('%Y', date)` | `YEAR(date)` |
+| First day of month | `DATE_TRUNC('month', date)` | `DATE_FORMAT(date, '%Y-%m-01')` | `date(date, 'start of month')` | `DATEFROMPARTS(YEAR(d), MONTH(d), 1)` |
+| Format conversion | `TO_CHAR(date, 'YYYY-MM-DD')` | `DATE_FORMAT(date, '%Y-%m-%d')` | `strftime('%Y-%m-%d', date)` | `FORMAT(date, 'yyyy-MM-dd')` |
 
-### コード例7: 移植性の高いSQL
+### Code Example 7: Writing Portable SQL
 
 ```sql
--- 方言差を最小化する書き方のパターン
+-- Patterns for minimizing dialect differences
 
--- (1) ページネーション: OFFSET-FETCH（SQL:2008標準）を使う
--- PostgreSQL, SQL Server, SQLite (3.35.0+) で動作
+-- (1) Pagination: use OFFSET-FETCH (SQL:2008 standard)
+-- Works in PostgreSQL, SQL Server, SQLite (3.35.0+)
 SELECT employee_id, name, salary
 FROM employees
 ORDER BY salary DESC
 OFFSET 20 ROWS
 FETCH NEXT 10 ROWS ONLY;
 
--- (2) CASE式は全RDBMSで使用可能
+-- (2) CASE expression is available in all RDBMSs
 SELECT name, salary,
     CASE
-        WHEN salary >= 600000 THEN '高給'
-        WHEN salary >= 400000 THEN '中給'
-        ELSE '標準'
+        WHEN salary >= 600000 THEN 'High'
+        WHEN salary >= 400000 THEN 'Mid'
+        ELSE 'Standard'
     END AS salary_grade
 FROM employees;
 
--- (3) COALESCE: NULL代替（全RDBMSで使用可能）
-SELECT name, COALESCE(phone, email, '連絡先不明') AS contact
+-- (3) COALESCE: NULL substitution (available in all RDBMSs)
+SELECT name, COALESCE(phone, email, 'No contact info') AS contact
 FROM employees;
 
--- (4) 日付リテラルの標準記法
+-- (4) Standard date literal notation
 SELECT * FROM orders
 WHERE order_date >= DATE '2024-01-01'
   AND order_date <  DATE '2025-01-01';
 
--- (5) CAST式は全RDBMSで使用可能
+-- (5) CAST expression is available in all RDBMSs
 SELECT CAST(price AS INTEGER) AS rounded_price FROM products;
 
--- (6) EXISTS/NOT EXISTS は全RDBMSで同一動作
+-- (6) EXISTS/NOT EXISTS behaves identically in all RDBMSs
 SELECT * FROM customers c
 WHERE EXISTS (
     SELECT 1 FROM orders o WHERE o.customer_id = c.id
 );
 ```
 
-### コード例8: 方言差の吸収パターン（アプリケーション設計）
+### Code Example 8: Patterns for Absorbing Dialect Differences (Application Design)
 
 ```sql
--- 方言差をアプリケーション層で吸収する設計パターン
+-- Design patterns for absorbing dialect differences in the application layer
 
--- パターン1: ビューで方言を隠蔽
--- PostgreSQL用
+-- Pattern 1: Hide dialect differences with a view
+-- For PostgreSQL
 CREATE VIEW v_monthly_sales AS
 SELECT
     DATE_TRUNC('month', sale_date) AS month,
@@ -669,7 +677,7 @@ SELECT
 FROM sales
 GROUP BY DATE_TRUNC('month', sale_date);
 
--- MySQL用（同じ論理だが関数が異なる）
+-- For MySQL (same logic, but different functions)
 -- CREATE VIEW v_monthly_sales AS
 -- SELECT
 --     DATE_FORMAT(sale_date, '%Y-%m-01') AS month,
@@ -677,15 +685,15 @@ GROUP BY DATE_TRUNC('month', sale_date);
 -- FROM sales
 -- GROUP BY DATE_FORMAT(sale_date, '%Y-%m-01');
 
--- パターン2: 条件付きINSERT（方言差が大きい）
--- 標準的なアプローチ: アプリケーション側でIF-ELSE
+-- Pattern 2: Conditional INSERT (major dialect differences)
+-- Standard approach: IF-ELSE in the application layer
 -- PostgreSQL: INSERT ... ON CONFLICT DO UPDATE
 -- MySQL:      INSERT ... ON DUPLICATE KEY UPDATE
 -- SQL Server: MERGE
 -- SQLite:     INSERT ... ON CONFLICT DO UPDATE
 
--- パターン3: ストアドプロシージャで方言を吸収
--- PostgreSQLの例
+-- Pattern 3: Absorb dialect differences with stored procedures
+-- PostgreSQL example
 CREATE OR REPLACE FUNCTION upsert_setting(
     p_user_id INTEGER,
     p_key TEXT,
@@ -699,48 +707,48 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 呼び出し側はRDBMSを意識しない
+-- The caller does not need to be aware of the RDBMS
 SELECT upsert_setting(1, 'theme', 'dark');
 ```
 
 ---
 
-## 5. SQLの分類
+## 5. SQL Classification
 
-SQLは操作の性質に応じて5つのカテゴリに分類される。
+SQL is classified into five categories according to the nature of the operation.
 
 ```
-┌──────────────────────── SQL言語の分類 ──────────────────────────┐
-│                                                                  │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐       │
-│  │   DDL    │  │   DML    │  │   DCL    │  │   TCL    │       │
-│  │          │  │          │  │          │  │          │       │
-│  │ CREATE   │  │ INSERT   │  │ GRANT    │  │ BEGIN    │       │
-│  │ ALTER    │  │ UPDATE   │  │ REVOKE   │  │ COMMIT   │       │
-│  │ DROP     │  │ DELETE   │  │          │  │ ROLLBACK │       │
-│  │ TRUNCATE │  │ MERGE    │  │          │  │ SAVEPOINT│       │
-│  │ RENAME   │  │ SELECT   │  │          │  │          │       │
-│  │ COMMENT  │  │          │  │          │  │          │       │
-│  └──────────┘  └──────────┘  └──────────┘  └──────────┘       │
-│                                                                  │
-│  DDL = Data Definition Language    （データ定義言語）             │
-│  DML = Data Manipulation Language  （データ操作言語）             │
-│  DCL = Data Control Language       （データ制御言語）             │
-│  TCL = Transaction Control Language（トランザクション制御言語）   │
-│                                                                  │
-│  ※ DQL (Data Query Language) としてSELECTを独立分類する場合もある │
-│  ※ 分類はRDBMSや教科書により若干異なる                            │
-└──────────────────────────────────────────────────────────────────┘
+┌──────────────────────── SQL Language Classification ──────────────────────────┐
+│                                                                                 │
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐                      │
+│  │   DDL    │  │   DML    │  │   DCL    │  │   TCL    │                      │
+│  │          │  │          │  │          │  │          │                      │
+│  │ CREATE   │  │ INSERT   │  │ GRANT    │  │ BEGIN    │                      │
+│  │ ALTER    │  │ UPDATE   │  │ REVOKE   │  │ COMMIT   │                      │
+│  │ DROP     │  │ DELETE   │  │          │  │ ROLLBACK │                      │
+│  │ TRUNCATE │  │ MERGE    │  │          │  │ SAVEPOINT│                      │
+│  │ RENAME   │  │ SELECT   │  │          │  │          │                      │
+│  │ COMMENT  │  │          │  │          │  │          │                      │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘                      │
+│                                                                                 │
+│  DDL = Data Definition Language                                                 │
+│  DML = Data Manipulation Language                                               │
+│  DCL = Data Control Language                                                    │
+│  TCL = Transaction Control Language                                             │
+│                                                                                 │
+│  * SELECT is sometimes independently classified as DQL (Data Query Language)   │
+│  * Classification varies slightly between RDBMSs and textbooks                 │
+└─────────────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 5.1 各分類の詳細
+### 5.1 Details of Each Classification
 
-### コード例9: DDL（Data Definition Language）
+### Code Example 9: DDL (Data Definition Language)
 
 ```sql
--- DDL: データベースオブジェクトの構造を定義・変更・削除
+-- DDL: Define, modify, and delete the structure of database objects
 
--- CREATE: オブジェクトの作成
+-- CREATE: create an object
 CREATE TABLE departments (
     id   INTEGER PRIMARY KEY,
     name VARCHAR(50) NOT NULL UNIQUE,
@@ -752,181 +760,183 @@ CREATE INDEX idx_employees_dept ON employees(department_id);
 CREATE VIEW v_active_employees AS
 SELECT * FROM employees WHERE status = 'active';
 
--- ALTER: オブジェクトの変更
+-- ALTER: modify an object
 ALTER TABLE employees ADD COLUMN phone VARCHAR(20);
 ALTER TABLE employees ALTER COLUMN name SET NOT NULL;
 ALTER TABLE employees DROP COLUMN phone;
 ALTER TABLE employees RENAME COLUMN name TO full_name;
 
--- DROP: オブジェクトの削除
+-- DROP: delete an object
 DROP TABLE IF EXISTS temp_data;
 DROP INDEX IF EXISTS idx_old;
 DROP VIEW IF EXISTS v_old_view;
 
--- TRUNCATE: テーブルの全行削除（DDL操作、高速）
+-- TRUNCATE: delete all rows in a table (DDL operation, fast)
 TRUNCATE TABLE log_entries;
 
--- COMMENT: オブジェクトにコメントを付与（PostgreSQL）
-COMMENT ON TABLE employees IS '従業員マスタテーブル';
-COMMENT ON COLUMN employees.salary IS '月額基本給（円）';
+-- COMMENT: add a comment to an object (PostgreSQL)
+COMMENT ON TABLE employees IS 'Employee master table';
+COMMENT ON COLUMN employees.salary IS 'Monthly base salary (JPY)';
 ```
 
-### コード例10: DCL（Data Control Language）とTCL
+### Code Example 10: DCL (Data Control Language) and TCL
 
 ```sql
--- DCL: データアクセス権限の制御
+-- DCL: Control data access permissions
 
--- GRANT: 権限の付与
+-- GRANT: grant permissions
 GRANT SELECT, INSERT ON employees TO app_user;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO admin_user;
 GRANT USAGE ON SEQUENCE employees_id_seq TO app_user;
 
--- REVOKE: 権限の剥奪
+-- REVOKE: revoke permissions
 REVOKE DELETE ON employees FROM app_user;
 REVOKE ALL PRIVILEGES ON employees FROM public;
 
--- ROLEの作成と管理
+-- Create and manage ROLEs
 CREATE ROLE readonly_user LOGIN PASSWORD 'secure_password';
 GRANT SELECT ON ALL TABLES IN SCHEMA public TO readonly_user;
 
--- TCL: トランザクションの制御
+-- TCL: Control transactions
 
--- 基本的なトランザクション
+-- Basic transaction
 BEGIN;
     UPDATE accounts SET balance = balance - 10000 WHERE id = 1;
     UPDATE accounts SET balance = balance + 10000 WHERE id = 2;
 COMMIT;
 
--- SAVEPOINT: 部分的なロールバック
+-- SAVEPOINT: partial rollback
 BEGIN;
     INSERT INTO orders (customer_id, total) VALUES (1, 5000);
     SAVEPOINT before_items;
 
     INSERT INTO order_items (order_id, product_id) VALUES (100, 1);
-    -- エラーが発生した場合、SAVEPOINTまで戻す
+    -- If an error occurs, roll back to the SAVEPOINT
     -- ROLLBACK TO SAVEPOINT before_items;
 
     INSERT INTO order_items (order_id, product_id) VALUES (100, 2);
 COMMIT;
 ```
 
-### 5.2 SQL分類の詳細比較表
+### 5.2 Detailed Comparison Table of SQL Classifications
 
-| 分類 | 目的 | 主要コマンド | ロールバック可否 | 暗黙COMMIT |
-|------|------|-------------|----------------|-----------|
-| DDL | 構造定義 | CREATE, ALTER, DROP, TRUNCATE | DB依存 | 多くのRDBMSでYes |
-| DML | データ操作 | INSERT, UPDATE, DELETE, SELECT | Yes | No |
-| DCL | 権限制御 | GRANT, REVOKE | DB依存 | 多くのRDBMSでYes |
-| TCL | トランザクション | BEGIN, COMMIT, ROLLBACK, SAVEPOINT | N/A | N/A |
+| Classification | Purpose | Key Commands | Rollback Possible | Implicit COMMIT |
+|---------------|---------|-------------|-------------------|-----------------|
+| DDL | Structure definition | CREATE, ALTER, DROP, TRUNCATE | DB-dependent | Yes in most RDBMSs |
+| DML | Data manipulation | INSERT, UPDATE, DELETE, SELECT | Yes | No |
+| DCL | Permission control | GRANT, REVOKE | DB-dependent | Yes in most RDBMSs |
+| TCL | Transactions | BEGIN, COMMIT, ROLLBACK, SAVEPOINT | N/A | N/A |
 
 ---
 
-## 6. SQL学習のロードマップ
+## 6. SQL Learning Roadmap
 
 ```
-┌──────────────── SQL学習のロードマップ ────────────────┐
+┌──────────────── SQL Learning Roadmap ────────────────┐
 │                                                        │
-│  Level 1: 基礎（本章 + 00-basics）                     │
+│  Level 1: Basics (this chapter + 00-basics)            │
 │  ┌──────────────────────────────────────────┐         │
-│  │ SQL概要 → CRUD → JOIN → 集約 → サブクエリ │         │
+│  │ SQL Overview → CRUD → JOIN → Aggregation │         │
+│  │ → Subqueries                             │         │
 │  └──────────────────────────────────────────┘         │
 │           │                                            │
 │           ▼                                            │
-│  Level 2: 応用（01-advanced）                          │
+│  Level 2: Applied (01-advanced)                        │
 │  ┌──────────────────────────────────────────┐         │
-│  │ ウィンドウ関数 → CTE → トランザクション     │         │
-│  │ → インデックス → クエリ最適化              │         │
+│  │ Window functions → CTE → Transactions    │         │
+│  │ → Indexes → Query optimization           │         │
 │  └──────────────────────────────────────────┘         │
 │           │                                            │
 │           ▼                                            │
-│  Level 3: 設計（02-design）                            │
+│  Level 3: Design (02-design)                           │
 │  ┌──────────────────────────────────────────┐         │
-│  │ 正規化 → スキーマ設計 → 制約 → ER図        │         │
+│  │ Normalization → Schema design →          │         │
+│  │ Constraints → ER diagrams                │         │
 │  └──────────────────────────────────────────┘         │
 │           │                                            │
 │           ▼                                            │
-│  Level 4: 実践（03-practical）                         │
+│  Level 4: Practical (03-practical)                     │
 │  ┌──────────────────────────────────────────┐         │
-│  │ マイグレーション → バックアップ → 監視      │         │
-│  │ → セキュリティ → パフォーマンスチューニング │         │
+│  │ Migrations → Backup → Monitoring         │         │
+│  │ → Security → Performance tuning          │         │
 │  └──────────────────────────────────────────┘         │
 └────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: SQL方言に依存した設計
+### Anti-Pattern 1: Design That Depends on SQL Dialects
 
 ```sql
--- NG: MySQL固有の構文に依存
-SELECT * FROM users LIMIT 10, 20;  -- offset, limitの順序がMySQL固有
--- さらにMySQLのGROUP BY拡張に依存
+-- NG: depending on MySQL-specific syntax
+SELECT * FROM users LIMIT 10, 20;  -- offset, limit order is MySQL-specific
+-- further depending on MySQL's GROUP BY extension
 SELECT department_id, name, MAX(salary)
 FROM employees
 GROUP BY department_id;
--- → MySQLではnameが不定値で返る（ONLY_FULL_GROUP_BY無効時）
--- → PostgreSQLでは即エラー
+-- → In MySQL, name returns an indeterminate value (when ONLY_FULL_GROUP_BY is disabled)
+-- → In PostgreSQL this is an immediate error
 
--- OK: 標準SQLに近い書き方
+-- OK: writing closer to standard SQL
 SELECT * FROM users
 ORDER BY id
 OFFSET 10 ROWS
-FETCH NEXT 20 ROWS ONLY;  -- SQL:2008標準
+FETCH NEXT 20 ROWS ONLY;  -- SQL:2008 standard
 
--- OK: GROUP BYの正しい使用
+-- OK: correct use of GROUP BY
 SELECT department_id, MIN(name), MAX(salary)
 FROM employees
 GROUP BY department_id;
 ```
 
-**問題点**: 特定のRDBMSにロックインされ、将来の移行コストが膨大になる。また、MySQLのGROUP BY拡張は非決定的な結果を返すため、バグの温床となる。
+**Problem**: You become locked into a specific RDBMS, and the future migration cost becomes enormous. Also, MySQL's GROUP BY extension returns non-deterministic results and becomes a source of bugs.
 
-**WHY**: 方言依存のコードは「動く」が「正しくない」ことがある。標準SQLを基盤にすることで、コードの移植性だけでなく正確性も確保できる。
+**WHY**: Dialect-dependent code may "work" but can be "incorrect." By basing your code on standard SQL, you can ensure not only portability but also correctness.
 
-### アンチパターン2: RDBMSの選定を後回しにする
+### Anti-Pattern 2: Deferring RDBMS Selection
 
 ```
-プロジェクト初期に「とりあえずSQLite」で開発 → 本番で突然PostgreSQLに変更
-→ SQLiteにない機能を多用していて大規模な書き直しが発生
+Starting development with "SQLite for now" → suddenly switching to PostgreSQL in production
+→ Many features not available in SQLite were used, causing a large-scale rewrite
 
-具体的に困る例:
+Specific examples of problems:
 ┌──────────────────────────────────────────────────────┐
-│ SQLiteにない/異なる機能          │ 移行時の問題       │
-├──────────────────────────────────┼────────────────────┤
-│ 並行書き込み（単一ライター）      │ 本番で競合エラー   │
-│ ALTER TABLE制約（変更が限定的）   │ マイグレーション困難│
-│ 権限管理（なし）                 │ セキュリティ未設計  │
-│ ENUM型（なし）                   │ バリデーション漏れ  │
-│ ストアドプロシージャ（なし）      │ ロジック再実装     │
-│ DATE/TIME型（文字列で代替）       │ 日付計算の全面修正 │
-└──────────────────────────────────┴────────────────────┘
+│ Features absent/different in SQLite  │ Problems on migration │
+├──────────────────────────────────────┼──────────────────────┤
+│ Concurrent writes (single writer)    │ Race condition errors in production │
+│ ALTER TABLE restrictions (limited)   │ Difficult migrations │
+│ Permission management (none)         │ Security not designed │
+│ ENUM type (none)                     │ Validation gaps       │
+│ Stored procedures (none)             │ Logic must be reimplemented │
+│ DATE/TIME type (string substitute)   │ Complete rewrite of date arithmetic │
+└──────────────────────────────────────┴──────────────────────┘
 ```
 
-**対策**:
-- 開発初期から本番と同じRDBMSを使用する
-- Docker / docker-compose で環境構築を容易にする
-- テスト環境もSQLite以外を使う（docker-compose.test.yml等）
+**Countermeasures**:
+- Use the same RDBMS in development as in production from the start
+- Use Docker / docker-compose to make environment setup easy
+- Also use something other than SQLite in test environments (e.g., docker-compose.test.yml)
 
-### アンチパターン3: NULLの3値論理を無視する
+### Anti-Pattern 3: Ignoring NULL's Three-Valued Logic
 
 ```sql
--- NG: NULLとの比較は常にUNKNOWN
+-- NG: comparison with NULL is always UNKNOWN
 SELECT * FROM employees WHERE department_id = NULL;
--- → 結果は常に0行！（NULL = NULL は UNKNOWN）
+-- → result is always 0 rows! (NULL = NULL is UNKNOWN)
 
 SELECT * FROM employees WHERE department_id != 10;
--- → department_id が NULL の行は含まれない！
+-- → rows where department_id IS NULL are not included!
 
--- OK: IS NULL / IS NOT NULL を使用
+-- OK: use IS NULL / IS NOT NULL
 SELECT * FROM employees WHERE department_id IS NULL;
 
--- OK: NULLを考慮した条件
+-- OK: condition that accounts for NULL
 SELECT * FROM employees
 WHERE department_id != 10 OR department_id IS NULL;
 
--- NULLの3値論理:
+-- NULL's three-valued logic:
 -- TRUE AND NULL    = NULL (UNKNOWN)
 -- FALSE AND NULL   = FALSE
 -- TRUE OR NULL     = TRUE
@@ -934,129 +944,129 @@ WHERE department_id != 10 OR department_id IS NULL;
 -- NOT NULL         = NULL (UNKNOWN)
 ```
 
-**WHY**: SQLは2値論理（TRUE/FALSE）ではなく3値論理（TRUE/FALSE/UNKNOWN）を採用している。NULLとの演算結果は常にUNKNOWNであり、WHERE句でUNKNOWNは「条件を満たさない」として扱われる。
+**WHY**: SQL uses three-valued logic (TRUE/FALSE/UNKNOWN) rather than two-valued logic (TRUE/FALSE). The result of any operation involving NULL is always UNKNOWN, and UNKNOWN in a WHERE clause is treated as "condition not satisfied."
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1（基礎）: RDBMSの特徴を整理する
+### Exercise 1 (Basic): Organize RDBMS Characteristics
 
-以下の要件に対して最適なRDBMSを選び、その理由を述べよ。
+For each of the following requirements, choose the most suitable RDBMS and explain why.
 
-1. 個人ブログアプリ（月間PV 1,000以下、予算ゼロ）
-2. ECサイト（同時接続 100、決済処理あり、将来の拡張性重視）
-3. IoTデバイスの組み込みデータストア（メモリ制約あり、サーバー接続不可）
-4. 大企業の基幹システム（SLA 99.99%、24時間サポート必須）
-5. 地理情報システム（GIS）で位置データを頻繁に扱う
+1. Personal blog app (monthly PV under 1,000, zero budget)
+2. E-commerce site (100 concurrent connections, payment processing, emphasis on future scalability)
+3. Embedded data store for an IoT device (memory constrained, no server connection possible)
+4. Core system for a large enterprise (SLA 99.99%, 24-hour support required)
+5. Geographic Information System (GIS) that frequently handles location data
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
-1. **SQLite** — サーバー不要で設定ゼロ。ファイル1つで完結し、小規模サイトには十分な性能。VPS不要ならさらにコスト削減。ただしWordPress等のCMSを使うならMySQL/MariaDB。
+1. **SQLite** — No server needed, zero configuration. Runs as a single file and has sufficient performance for a small site. Further cost reduction if no VPS is needed. However, if using a CMS like WordPress, use MySQL/MariaDB.
 
-2. **PostgreSQL** — ACID準拠のトランザクションで決済処理の信頼性を確保。JSONB、パーティショニング、ロジカルレプリケーション等の拡張機能で将来の成長にも対応。オープンソースで商用利用にも制限なし。
+2. **PostgreSQL** — ACID-compliant transactions ensure the reliability of payment processing. Extended features such as JSONB, partitioning, and logical replication accommodate future growth. Open source with no restrictions on commercial use.
 
-3. **SQLite** — サーバープロセスが不要で、ライブラリとしてアプリケーションに組み込める。フットプリントが小さく（約700KB）、設定ファイルも不要。Android/iOS標準のデータベースエンジン。
+3. **SQLite** — No server process needed; can be embedded in applications as a library. Small footprint (about 700KB), no configuration files needed. The standard database engine on Android/iOS.
 
-4. **Oracle Database** または **SQL Server** — 24時間有人サポート、高可用性構成（Oracle RAC / SQL Server Always On）、包括的な監視ツール、SLA保証を提供。コストは高いが、ダウンタイムのビジネスインパクトが大きい場合は正当化される。
+4. **Oracle Database** or **SQL Server** — Provide 24-hour staffed support, high-availability configuration (Oracle RAC / SQL Server Always On), comprehensive monitoring tools, and SLA guarantees. Cost is high, but justified when the business impact of downtime is large.
 
-5. **PostgreSQL + PostGIS** — PostGIS拡張により、空間インデックス（GiST/SP-GiST）、地理演算関数（ST_Distance、ST_Contains等）、座標系変換を標準サポート。オープンソースでGIS分野のデファクトスタンダード。
+5. **PostgreSQL + PostGIS** — The PostGIS extension provides standard support for spatial indexes (GiST/SP-GiST), geographic functions (ST_Distance, ST_Contains, etc.), and coordinate system conversions. Open source and the de facto standard in the GIS field.
 
 </details>
 
-### 演習2（応用）: SQL方言の移植性を検証する
+### Exercise 2 (Applied): Verify SQL Dialect Portability
 
-以下のMySQL固有のSQLを、PostgreSQLと標準SQLに書き換えよ。
+Rewrite the following MySQL-specific SQL for PostgreSQL and standard SQL.
 
 ```sql
--- MySQL版
+-- MySQL version
 SELECT
     id,
     IF(status = 1, 'active', 'inactive') AS status_label,
     DATE_FORMAT(created_at, '%Y年%m月%d日') AS formatted_date,
     GROUP_CONCAT(tag SEPARATOR ', ') AS tags
 FROM articles
-WHERE MATCH(body) AGAINST('データベース' IN BOOLEAN MODE)
+WHERE MATCH(body) AGAINST('database' IN BOOLEAN MODE)
 GROUP BY id
 LIMIT 5, 10;
 ```
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```sql
--- PostgreSQL版
+-- PostgreSQL version
 SELECT
     id,
     CASE WHEN status = 1 THEN 'active' ELSE 'inactive' END AS status_label,
     TO_CHAR(created_at, 'YYYY"年"MM"月"DD"日"') AS formatted_date,
     STRING_AGG(tag, ', ') AS tags
 FROM articles
-WHERE search_vector @@ to_tsquery('japanese', 'データベース')
-    -- 注: search_vectorはTSVECTOR型のカラム（事前にGINインデックス作成が必要）
+WHERE search_vector @@ to_tsquery('english', 'database')
+    -- Note: search_vector is a TSVECTOR column (a GIN index must be created in advance)
 GROUP BY id
-ORDER BY id  -- OFFSET-FETCHにはORDER BYが必要
+ORDER BY id  -- ORDER BY is required for OFFSET-FETCH
 OFFSET 5 ROWS
 FETCH NEXT 10 ROWS ONLY;
 
--- 標準SQL版（全文検索は標準SQLに含まれないため、LIKE代替）
+-- Standard SQL version (full-text search is not part of standard SQL, so LIKE is used as a substitute)
 SELECT
     id,
     CASE WHEN status = 1 THEN 'active' ELSE 'inactive' END AS status_label,
-    -- 標準SQLの日付書式変換はRDBMS依存が大きいため、アプリ層で処理推奨
+    -- Date format conversion in standard SQL has large dialect differences; processing in the app layer is recommended
     CAST(created_at AS DATE) AS sale_date,
-    -- STRING_AGGは SQL:2023 で標準化された（LISTAGG はOracleの先行実装）
+    -- STRING_AGG was standardized in SQL:2023 (LISTAGG was Oracle's earlier implementation)
     LISTAGG(tag, ', ') WITHIN GROUP (ORDER BY tag) AS tags
 FROM articles
-WHERE body LIKE '%データベース%'  -- 全文検索の代替（性能は劣る）
+WHERE body LIKE '%database%'  -- substitute for full-text search (lower performance)
 GROUP BY id
 ORDER BY id
 OFFSET 5 ROWS
 FETCH NEXT 10 ROWS ONLY;
 ```
 
-**移植のポイント:**
-- `IF()` → `CASE WHEN ... THEN ... ELSE ... END`（標準SQL）
-- `DATE_FORMAT()` → `TO_CHAR()`（PostgreSQL）/ アプリ層での変換
-- `GROUP_CONCAT()` → `STRING_AGG()`（PostgreSQL）/ `LISTAGG()`（Oracle/標準）
-- `MATCH ... AGAINST` → `@@` + `to_tsquery()`（PostgreSQL）/ `LIKE`（汎用）
-- `LIMIT offset, count` → `OFFSET ... ROWS FETCH NEXT ... ROWS ONLY`（標準SQL）
+**Key points for migration:**
+- `IF()` → `CASE WHEN ... THEN ... ELSE ... END` (standard SQL)
+- `DATE_FORMAT()` → `TO_CHAR()` (PostgreSQL) / conversion in the app layer
+- `GROUP_CONCAT()` → `STRING_AGG()` (PostgreSQL) / `LISTAGG()` (Oracle/standard)
+- `MATCH ... AGAINST` → `@@` + `to_tsquery()` (PostgreSQL) / `LIKE` (general)
+- `LIMIT offset, count` → `OFFSET ... ROWS FETCH NEXT ... ROWS ONLY` (standard SQL)
 
 </details>
 
-### 演習3（発展）: リレーショナルモデルの原則に基づいた設計
+### Exercise 3 (Advanced): Design Based on Relational Model Principles
 
-以下の非正規化されたスプレッドシートデータを、第3正規形のテーブル設計に変換せよ。CREATE TABLE文、制約、サンプルデータのINSERT文、および「全注文の詳細を表示するSELECT文」を記述すること。
+Convert the following denormalized spreadsheet data into a third normal form table design. Write CREATE TABLE statements, constraints, sample INSERT statements, and a SELECT statement to display all order details.
 
 ```
-注文ID | 注文日      | 顧客名   | 顧客メール        | 商品名    | 単価  | 数量 | 配送先住所
-1      | 2024-01-15 | 田中太郎 | tanaka@mail.com  | ノートPC  | 80000 | 1    | 東京都新宿区1-1
-1      | 2024-01-15 | 田中太郎 | tanaka@mail.com  | マウス    | 3000  | 2    | 東京都新宿区1-1
-2      | 2024-01-16 | 鈴木花子 | suzuki@mail.com  | キーボード | 5000  | 1    | 大阪府大阪市2-2
+Order ID | Order Date  | Customer Name | Customer Email   | Product Name | Unit Price | Qty | Shipping Address
+1        | 2024-01-15  | Taro Tanaka   | tanaka@mail.com  | Laptop       | 80000      | 1   | 1-1 Shinjuku, Tokyo
+1        | 2024-01-15  | Taro Tanaka   | tanaka@mail.com  | Mouse        | 3000       | 2   | 1-1 Shinjuku, Tokyo
+2        | 2024-01-16  | Hanako Suzuki | suzuki@mail.com  | Keyboard     | 5000       | 1   | 2-2 Osaka City, Osaka
 ```
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```sql
--- 第3正規形への分解
+-- Decomposition into third normal form
 
--- 1. 顧客テーブル（顧客情報の重複を排除）
+-- 1. Customer table (eliminate duplication of customer data)
 CREATE TABLE customers (
     id    SERIAL PRIMARY KEY,
     name  VARCHAR(100) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE
 );
 
--- 2. 商品テーブル（商品情報の重複を排除）
+-- 2. Product table (eliminate duplication of product data)
 CREATE TABLE products (
     id    SERIAL PRIMARY KEY,
     name  VARCHAR(100) NOT NULL,
     price DECIMAL(10, 2) NOT NULL CHECK (price >= 0)
 );
 
--- 3. 注文テーブル（注文ヘッダー）
+-- 3. Order table (order header)
 CREATE TABLE orders (
     id              SERIAL PRIMARY KEY,
     customer_id     INTEGER NOT NULL REFERENCES customers(id),
@@ -1064,37 +1074,37 @@ CREATE TABLE orders (
     shipping_address TEXT NOT NULL
 );
 
--- 4. 注文明細テーブル（注文と商品の多対多関係）
+-- 4. Order items table (many-to-many relationship between orders and products)
 CREATE TABLE order_items (
     id         SERIAL PRIMARY KEY,
     order_id   INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
     product_id INTEGER NOT NULL REFERENCES products(id),
     unit_price DECIMAL(10, 2) NOT NULL CHECK (unit_price >= 0),
-        -- 注文時点の価格を保存（商品マスタの価格変更の影響を受けない）
+        -- Store the price at the time of the order (not affected by price changes in the product master)
     quantity   INTEGER NOT NULL CHECK (quantity > 0),
-    UNIQUE (order_id, product_id)  -- 同一注文内での商品重複を防止
+    UNIQUE (order_id, product_id)  -- prevent duplicate products within the same order
 );
 
--- サンプルデータ
+-- Sample data
 INSERT INTO customers (id, name, email) VALUES
-    (1, '田中太郎', 'tanaka@mail.com'),
-    (2, '鈴木花子', 'suzuki@mail.com');
+    (1, 'Taro Tanaka', 'tanaka@mail.com'),
+    (2, 'Hanako Suzuki', 'suzuki@mail.com');
 
 INSERT INTO products (id, name, price) VALUES
-    (1, 'ノートPC', 80000),
-    (2, 'マウス', 3000),
-    (3, 'キーボード', 5000);
+    (1, 'Laptop', 80000),
+    (2, 'Mouse', 3000),
+    (3, 'Keyboard', 5000);
 
 INSERT INTO orders (id, customer_id, order_date, shipping_address) VALUES
-    (1, 1, '2024-01-15', '東京都新宿区1-1'),
-    (2, 2, '2024-01-16', '大阪府大阪市2-2');
+    (1, 1, '2024-01-15', '1-1 Shinjuku, Tokyo'),
+    (2, 2, '2024-01-16', '2-2 Osaka City, Osaka');
 
 INSERT INTO order_items (order_id, product_id, unit_price, quantity) VALUES
-    (1, 1, 80000, 1),  -- 注文1: ノートPC x 1
-    (1, 2, 3000, 2),   -- 注文1: マウス x 2
-    (2, 3, 5000, 1);   -- 注文2: キーボード x 1
+    (1, 1, 80000, 1),  -- Order 1: Laptop x 1
+    (1, 2, 3000, 2),   -- Order 1: Mouse x 2
+    (2, 3, 5000, 1);   -- Order 2: Keyboard x 1
 
--- 全注文の詳細を表示するクエリ
+-- Query to display all order details
 SELECT
     o.id AS order_id,
     o.order_date,
@@ -1111,7 +1121,7 @@ FROM orders o
     INNER JOIN products p ON oi.product_id = p.id
 ORDER BY o.id, p.name;
 
--- 注文ごとの合計金額
+-- Total amount per order
 SELECT
     o.id AS order_id,
     c.name AS customer_name,
@@ -1123,11 +1133,11 @@ GROUP BY o.id, c.name
 ORDER BY o.id;
 ```
 
-**設計のポイント:**
-- `unit_price`を`order_items`に持たせることで、商品マスタの価格変更が過去の注文に影響しない
-- `ON DELETE CASCADE`で注文削除時に明細も自動削除
-- `UNIQUE (order_id, product_id)`で同一商品の重複明細を防止
-- `CHECK`制約でドメイン（価格≥0、数量>0）を保証
+**Key design points:**
+- Storing `unit_price` in `order_items` means past orders are not affected by changes to product prices in the master table.
+- `ON DELETE CASCADE` automatically deletes line items when an order is deleted.
+- `UNIQUE (order_id, product_id)` prevents duplicate line items for the same product.
+- `CHECK` constraints guarantee domain rules (price ≥ 0, quantity > 0).
 
 </details>
 
@@ -1135,91 +1145,91 @@ ORDER BY o.id;
 
 ## FAQ
 
-### Q1: SQLは「古い技術」ではないのか？
+### Q1: Isn't SQL an "old technology"?
 
-SQLは1970年代に生まれたが、SQL:2023まで継続的に拡張されている。JSON対応、グラフクエリ（SQL/PGQ）、時系列データ、行パターン認識など現代的な機能が追加され続けており、むしろ適用範囲は広がっている。
+SQL was born in the 1970s, but has been continuously extended through SQL:2023. Modern features such as JSON support, graph queries (SQL/PGQ), time-series data, and row pattern recognition continue to be added, and its scope of application is actually growing.
 
-NoSQLブームの後、多くのNoSQLデータベースがSQLライクなクエリ言語を採用した（CassandraのCQL、CouchbaseのN1QL、Google BigQueryのSQL方言など）事実が、SQLの設計の優秀さを証明している。さらに、NewSQLと呼ばれる分散データベース（CockroachDB、TiDB、YugabyteDB等）もSQLインターフェースを採用しており、SQLは分散システムにおいても標準的なアクセス言語となっている。
+After the NoSQL boom, many NoSQL databases adopted SQL-like query languages (Cassandra's CQL, Couchbase's N1QL, Google BigQuery's SQL dialect, etc.), which proves the excellence of SQL's design. Furthermore, distributed databases called NewSQL (CockroachDB, TiDB, YugabyteDB, etc.) also adopt SQL interfaces, making SQL the standard access language even in distributed systems.
 
-### Q2: どのRDBMSを選べばよいか？
+### Q2: Which RDBMS should I choose?
 
-判断基準は以下の通り:
+The criteria for judgment are as follows:
 
-| 条件 | 推奨RDBMS | 理由 |
-|------|----------|------|
-| 個人/小規模プロジェクト | SQLite | ゼロ設定、ファイル1つで完結 |
-| Webアプリ（汎用） | PostgreSQL | 機能の豊富さ、拡張性、標準SQL準拠 |
-| 既存のLAMP環境 | MySQL / MariaDB | エコシステムの充実、運用実績 |
-| .NET / Azure環境 | SQL Server | Visual Studio/Azureとの統合 |
-| 大規模ミッションクリティカル | Oracle | サポート品質、RAC、実績 |
-| GIS / 地理情報 | PostgreSQL + PostGIS | 空間データ処理のデファクト |
-| 分析 / DWH | PostgreSQL / BigQuery | 分析関数の充実 |
+| Condition | Recommended RDBMS | Reason |
+|-----------|------------------|--------|
+| Personal/small project | SQLite | Zero configuration, runs as a single file |
+| General web app | PostgreSQL | Rich features, extensibility, standard SQL conformance |
+| Existing LAMP environment | MySQL / MariaDB | Mature ecosystem, proven operation |
+| .NET / Azure environment | SQL Server | Integration with Visual Studio/Azure |
+| Large-scale mission-critical | Oracle | Support quality, RAC, track record |
+| GIS / geographic information | PostgreSQL + PostGIS | De facto standard for spatial data processing |
+| Analytics / DWH | PostgreSQL / BigQuery | Rich analytic functions |
 
-### Q3: 標準SQLだけ学べばどのRDBMSでも使えるか？
+### Q3: Can I use any RDBMS if I only learn standard SQL?
 
-基本的なCRUD操作（SELECT, INSERT, UPDATE, DELETE）とJOINは標準SQLで書ける。ただし、以下の領域は方言差が大きい:
+Basic CRUD operations (SELECT, INSERT, UPDATE, DELETE) and JOINs can be written in standard SQL. However, the following areas have large dialect differences:
 
-- **日付/時刻関数**: `DATE_TRUNC` vs `DATE_FORMAT` vs `strftime` vs `DATEPART`
-- **文字列関数**: `||` vs `CONCAT` vs `+`
-- **ページネーション**: `LIMIT` vs `TOP` vs `FETCH FIRST`
+- **Date/time functions**: `DATE_TRUNC` vs `DATE_FORMAT` vs `strftime` vs `DATEPART`
+- **String functions**: `||` vs `CONCAT` vs `+`
+- **Pagination**: `LIMIT` vs `TOP` vs `FETCH FIRST`
 - **UPSERT**: `ON CONFLICT` vs `ON DUPLICATE KEY` vs `MERGE`
-- **全文検索**: `@@` / `to_tsquery` vs `MATCH ... AGAINST` vs FTS5
-- **ストアドプロシージャ**: PL/pgSQL vs MySQL Stored Procedures vs T-SQL
+- **Full-text search**: `@@` / `to_tsquery` vs `MATCH ... AGAINST` vs FTS5
+- **Stored procedures**: PL/pgSQL vs MySQL Stored Procedures vs T-SQL
 
-標準SQLを基盤としつつ、使用するRDBMS固有の機能も把握することが実務では必要。ORMを使う場合でも、生成されるSQLを理解できることが重要である。
+In practice it is necessary to use standard SQL as a foundation while also understanding the features specific to the RDBMS you are using. Even when using an ORM, it is important to be able to understand the SQL that is generated.
 
-### Q4: SQLとNoSQLはどう使い分けるか？
+### Q4: How do I choose between SQL and NoSQL?
 
-| 基準 | SQL (RDBMS) | NoSQL |
-|------|------------|-------|
-| データ構造 | 固定スキーマ、正規化 | 柔軟/スキーマレス |
-| 整合性 | ACID（強い整合性） | BASE（結果整合性が多い） |
-| スケーリング | 垂直スケーリングが主 | 水平スケーリングが得意 |
-| クエリ | 複雑なJOIN、集約 | キーバリュー、ドキュメント検索 |
-| 適する場面 | 業務データ、会計、在庫 | ログ、キャッシュ、IoT、SNS |
+| Criterion | SQL (RDBMS) | NoSQL |
+|-----------|------------|-------|
+| Data structure | Fixed schema, normalized | Flexible/schema-less |
+| Consistency | ACID (strong consistency) | BASE (eventual consistency in many cases) |
+| Scaling | Primarily vertical scaling | Good at horizontal scaling |
+| Queries | Complex JOINs, aggregations | Key-value, document search |
+| Suitable for | Business data, accounting, inventory | Logs, cache, IoT, social media |
 
-実際のプロダクションでは両方を併用するケースが多い（例: PostgreSQL + Redis + Elasticsearch）。
+In actual production, it is common to use both together (e.g., PostgreSQL + Redis + Elasticsearch).
 
-### Q5: SQL学習の効率的な方法は？
+### Q5: What is the most efficient way to learn SQL?
 
-1. **まず手を動かす**: SQLite（設定不要）かDockerでPostgreSQLを起動し、実際にクエリを書く
-2. **順序を守る**: SELECT → WHERE → JOIN → GROUP BY → サブクエリ → ウィンドウ関数の順で学ぶ
-3. **実データで練習**: 公開データセット（Kaggle、data.go.jp等）を取り込んで分析する
-4. **EXPLAINを使う**: 実行計画を確認する習慣をつける
-5. **1日1問**: LeetCode SQL、HackerRank SQL等で毎日練習する
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| SQLの本質 | リレーショナルモデルに基づく宣言型データ操作言語。「何が欲しいか」を記述する |
-| 理論的基盤 | 集合論と一階述語論理。Coddの12の規則 |
-| 標準規格 | SQL:2023が最新。SQL-92が広く実装された基盤。継続的に拡張中 |
-| 主要RDBMS | PostgreSQL（汎用）、MySQL（Web）、SQLite（組み込み）、SQL Server/Oracle（エンタープライズ） |
-| ACID特性 | 原子性・一貫性・分離性・永続性。トランザクションの信頼性を保証 |
-| SQL分類 | DDL（定義）/ DML（操作）/ DCL（制御）/ TCL（トランザクション）の4分類 |
-| 方言対策 | 標準SQLを基盤に、RDBMS固有機能は意識的に分離。ビューやプロシージャで抽象化 |
-| NULL | 3値論理（TRUE/FALSE/UNKNOWN）。`= NULL`ではなく`IS NULL`を使う |
-| 選定基準 | 規模、チームスキル、既存インフラ、ライセンス費用、将来の拡張性 |
+1. **Get your hands dirty first**: Launch SQLite (no setup needed) or PostgreSQL with Docker and actually write queries.
+2. **Follow the order**: Learn in sequence — SELECT → WHERE → JOIN → GROUP BY → Subqueries → Window functions.
+3. **Practice with real data**: Import public datasets (Kaggle, data.gov, etc.) and analyze them.
+4. **Use EXPLAIN**: Get in the habit of checking execution plans.
+5. **One problem a day**: Practice daily with LeetCode SQL, HackerRank SQL, etc.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [01-crud-operations.md](./01-crud-operations.md) — SELECT/INSERT/UPDATE/DELETEの詳細と安全な実行パターン
-- [02-joins.md](./02-joins.md) — JOINの全種類と使い分け
-- [03-aggregation.md](./03-aggregation.md) — GROUP BYと集約関数による分析
-- [00-normalization.md](../02-design/00-normalization.md) — 正規化の理論と実践
-- ../../security-fundamentals/docs/00-basics/ — セキュリティ基礎（SQLインジェクション防止を含む）
+| Item | Key Point |
+|------|-----------|
+| The essence of SQL | A declarative data manipulation language based on the relational model. Describes "what you want." |
+| Theoretical foundation | Set theory and first-order predicate logic. Codd's 12 rules. |
+| Standards | SQL:2023 is the latest. SQL-92 is the widely implemented foundation. Continuously extended. |
+| Major RDBMSs | PostgreSQL (general-purpose), MySQL (web), SQLite (embedded), SQL Server/Oracle (enterprise) |
+| ACID properties | Atomicity, Consistency, Isolation, Durability. Guarantees the reliability of transactions. |
+| SQL classification | DDL (definition) / DML (manipulation) / DCL (control) / TCL (transaction) — four categories. |
+| Handling dialects | Base on standard SQL; consciously separate RDBMS-specific features. Abstract with views and procedures. |
+| NULL | Three-valued logic (TRUE/FALSE/UNKNOWN). Use `IS NULL`, not `= NULL`. |
+| Selection criteria | Scale, team skills, existing infrastructure, license costs, future scalability. |
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+- [01-crud-operations.md](./01-crud-operations.md) — Details of SELECT/INSERT/UPDATE/DELETE and safe execution patterns
+- [02-joins.md](./02-joins.md) — All types of JOINs and when to use each
+- [03-aggregation.md](./03-aggregation.md) — Analysis with GROUP BY and aggregate functions
+- [00-normalization.md](../02-design/00-normalization.md) — Theory and practice of normalization
+- ../../security-fundamentals/docs/00-basics/ — Security fundamentals (including SQL injection prevention)
+
+---
+
+## References
 
 1. Codd, E.F. (1970). "A Relational Model of Data for Large Shared Data Banks". *Communications of the ACM*, 13(6), 377-387.
-2. ISO/IEC 9075:2023 — Information technology — Database languages — SQL（最新SQL標準規格）
+2. ISO/IEC 9075:2023 — Information technology — Database languages — SQL (latest SQL standard)
 3. PostgreSQL Documentation — https://www.postgresql.org/docs/current/
 4. Date, C.J. (2019). *SQL and Relational Theory: How to Write Accurate SQL Code*. 3rd Edition. O'Reilly Media.
 5. Karwin, B. (2010). *SQL Antipatterns: Avoiding the Pitfalls of Database Programming*. Pragmatic Bookshelf.
