@@ -1,56 +1,56 @@
-# 認証脆弱性
+# Authentication Vulnerabilities
 
-> パスワード管理、セッション管理、ブルートフォース対策、多要素認証、JWTセキュリティを中心に、安全な認証システムの設計と実装方法を包括的に解説する。認証は「あなたは誰か」を確認するプロセスであり、その脆弱性は直接的な不正アクセスにつながるため、セキュリティにおいて最も重要な領域の一つである。
+> A comprehensive guide to designing and implementing secure authentication systems, focusing on password management, session management, brute-force protection, multi-factor authentication, and JWT security. Authentication is the process of confirming "who you are," and its vulnerabilities lead directly to unauthorized access, making it one of the most critical areas in security.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **安全なパスワード管理**（ハッシュ化、ポリシー、漏洩チェック、MFA）の実装方法を理解する
-2. **セッション管理**の脆弱性パターンと堅牢な実装手法を習得する
-3. **ブルートフォース対策**とアカウントロックアウトの適切な設計を身につける
-4. **JWT の安全な使用**と攻撃パターンへの防御手法を理解する
-5. **多要素認証（MFA）**の各方式の特性と実装上の注意点を把握する
+1. How to implement **secure password management** (hashing, policies, breach checking, MFA)
+2. Vulnerability patterns in **session management** and robust implementation techniques
+3. Proper design of **brute-force protection** and account lockout
+4. How to use **JWT securely** and defend against attack patterns
+5. The characteristics of each **multi-factor authentication (MFA)** method and implementation considerations
 
-## 前提知識
+## Prerequisites
 
-- [セキュリティ概要](../00-basics/00-security-overview.md) -- CIA三要素と基本的なセキュリティ概念
-- [脅威モデリング](../00-basics/01-threat-modeling.md) -- 攻撃者の動機とリスク評価手法
-- 認証と認可の違い -- 認証(AuthN)と認可(AuthZ)の基本
-- [暗号基礎](../02-cryptography/00-crypto-basics.md) -- ハッシュ関数と暗号化の基礎
-- HTTP の基本（Cookie、ヘッダ、ステータスコード）を理解していること
+- [Security Overview](../00-basics/00-security-overview.md) -- CIA triad and basic security concepts
+- [Threat Modeling](../00-basics/01-threat-modeling.md) -- Attacker motivations and risk assessment
+- Difference between authentication and authorization -- Basics of AuthN vs. AuthZ
+- [Cryptography Basics](../02-cryptography/00-crypto-basics.md) -- Fundamentals of hash functions and encryption
+- Understanding of HTTP basics (cookies, headers, status codes)
 
 ---
 
-## 1. パスワード管理
+## 1. Password Management
 
-### 1.1 なぜパスワードハッシュが重要なのか
+### 1.1 Why Password Hashing Matters
 
-パスワードを適切にハッシュ化する理由は「**データベースが漏洩した場合の被害を最小化する**」ことである。企業のデータベースが流出する事件は毎年発生しており、平文や不適切なハッシュで保存されたパスワードは即座に悪用される。
+The reason for properly hashing passwords is to **minimize damage in the event of a database breach**. Incidents where corporate databases are leaked occur every year, and passwords stored in plaintext or with inadequate hashing are immediately exploited.
 
-適切なハッシュアルゴリズムを使用すれば、たとえデータベース全体が漏洩しても、攻撃者がパスワードを復元するには莫大な計算コストが必要となり、実質的に不可能にできる。
+Using a proper hashing algorithm means that even if the entire database is leaked, attackers would need an enormous computational cost to recover passwords, making it practically impossible.
 
-### 1.2 パスワードハッシュの進化
+### 1.2 The Evolution of Password Hashing
 
 ```
-パスワード保存方式の進化と問題点:
+Evolution of password storage methods and their issues:
 
-  NG: 平文保存      "password123"                → 即座に悪用可能
-  NG: MD5           "482c811da5d5b4bc..."         → 高速すぎる、レインボーテーブル攻撃
-  NG: SHA-256       "ef92b778bafe..."             → 高速すぎる、GPU で毎秒数十億回計算可能
-  NG: SHA-256+salt  "a1b2c3..." + salt            → ソルトがあっても高速すぎる
-  OK: bcrypt        "$2b$12$LJ3..."               → 意図的に低速、ソルト内蔵、コスト調整可能
-  OK: scrypt        (メモリハード)                  → GPU/ASIC 耐性あり
-  OK: Argon2id      "$argon2id$v=19$..."           → メモリハード + CPU ハード、現在の最推奨
+  NG: Plaintext       "password123"                → Immediately exploitable
+  NG: MD5             "482c811da5d5b4bc..."         → Too fast, rainbow table attacks
+  NG: SHA-256         "ef92b778bafe..."             → Too fast, billions of computations per second with GPU
+  NG: SHA-256+salt    "a1b2c3..." + salt            → Still too fast even with salt
+  OK: bcrypt          "$2b$12$LJ3..."               → Intentionally slow, built-in salt, adjustable cost
+  OK: scrypt          (memory-hard)                  → GPU/ASIC resistant
+  OK: Argon2id        "$argon2id$v=19$..."           → Memory-hard + CPU-hard, currently most recommended
 
-  ポイント:
-  - パスワードハッシュは「遅い」ことが正義
-  - 汎用ハッシュ(MD5/SHA)は速度が求められる用途向け
-  - パスワード専用ハッシュ(bcrypt/Argon2id)は意図的に低速
+  Key points:
+  - For password hashing, being "slow" is a virtue
+  - General-purpose hashes (MD5/SHA) are designed for speed
+  - Password-specific hashes (bcrypt/Argon2id) are intentionally slow
 ```
 
-### 1.3 安全なパスワードハッシュ実装
+### 1.3 Secure Password Hashing Implementation
 
 ```python
-# コード例1: Argon2id によるパスワードハッシュ管理
+# Code Example 1: Password hash management using Argon2id
 import hashlib
 import requests
 from argon2 import PasswordHasher
@@ -58,18 +58,18 @@ from argon2.exceptions import VerifyMismatchError
 
 
 class PasswordManager:
-    """安全なパスワード管理クラス
+    """Secure password management class
 
-    Argon2id を使用し、パスワードのハッシュ化・検証・ポリシーチェックを提供する。
-    Argon2id は Argon2i（サイドチャネル耐性）と Argon2d（GPU耐性）を
-    組み合わせたハイブリッドモードであり、OWASP が第一推奨とするアルゴリズムである。
+    Uses Argon2id to provide password hashing, verification, and policy checking.
+    Argon2id is a hybrid mode combining Argon2i (side-channel resistance) and Argon2d (GPU resistance),
+    and is the first-choice algorithm recommended by OWASP.
     """
 
     def __init__(self):
-        # OWASP 推奨パラメータ（2024年時点）
-        # - time_cost: 反復回数（大きいほど低速=安全）
-        # - memory_cost: メモリ使用量 KB（大きいほど GPU/ASIC 耐性向上）
-        # - parallelism: 並列度（CPU コア数に合わせる）
+        # OWASP recommended parameters (as of 2024)
+        # - time_cost: number of iterations (higher = slower = more secure)
+        # - memory_cost: memory usage in KB (higher = more GPU/ASIC resistance)
+        # - parallelism: degree of parallelism (match to CPU core count)
         self.ph = PasswordHasher(
             time_cost=3,
             memory_cost=65536,  # 64 MB
@@ -77,57 +77,57 @@ class PasswordManager:
         )
 
     def hash_password(self, password: str) -> str:
-        """パスワードを Argon2id でハッシュ化
+        """Hash a password using Argon2id
 
-        ソルトは自動生成・ハッシュ文字列に埋め込まれる。
+        Salt is automatically generated and embedded in the hash string.
         """
         return self.ph.hash(password)
 
     def verify_password(self, password: str, hashed: str) -> bool:
-        """パスワードを検証（タイミング攻撃耐性あり）"""
+        """Verify a password (timing-attack resistant)"""
         try:
             return self.ph.verify(hashed, password)
         except VerifyMismatchError:
             return False
 
     def needs_rehash(self, hashed: str) -> bool:
-        """パラメータが古い場合に再ハッシュが必要か判定
+        """Determine if rehashing is needed when parameters are outdated
 
-        アルゴリズムのパラメータを強化した場合、
-        ログイン成功時に自動的に再ハッシュを行うための判定。
+        Used to automatically rehash upon successful login
+        when the algorithm parameters have been strengthened.
         """
         return self.ph.check_needs_rehash(hashed)
 
     def validate_policy(self, password: str) -> list:
-        """NIST SP 800-63B 準拠のパスワードポリシー検証
+        """Password policy validation compliant with NIST SP 800-63B
 
-        NISTガイドラインのポイント:
-        - 最小8文字（推奨12文字以上）
-        - 最大64文字以上を許容
-        - 文字種の強制は不要（ユーザビリティ低下のため）
-        - 漏洩パスワードリストとの照合は必須
+        Key points of NIST guidelines:
+        - Minimum 8 characters (12+ recommended)
+        - Accept at least 64 characters maximum
+        - No mandatory character type requirements (reduces usability)
+        - Checking against breached password lists is mandatory
         """
         errors = []
         if len(password) < 12:
-            errors.append("12文字以上必要です")
+            errors.append("Password must be at least 12 characters")
         if len(password) > 128:
-            errors.append("128文字以下にしてください")
+            errors.append("Password must be 128 characters or fewer")
         if not any(c.isupper() for c in password):
-            errors.append("大文字を1文字以上含めてください")
+            errors.append("Password must contain at least one uppercase letter")
         if not any(c.islower() for c in password):
-            errors.append("小文字を1文字以上含めてください")
+            errors.append("Password must contain at least one lowercase letter")
         if not any(c.isdigit() for c in password):
-            errors.append("数字を1文字以上含めてください")
-        # 漏洩パスワードチェック（Have I Been Pwned API）
+            errors.append("Password must contain at least one digit")
+        # Breached password check (Have I Been Pwned API)
         if self._is_breached(password):
-            errors.append("このパスワードは過去のデータ漏洩に含まれています")
+            errors.append("This password has appeared in a past data breach")
         return errors
 
     def _is_breached(self, password: str) -> bool:
-        """HIBPのk-匿名性APIでパスワード漏洩チェック
+        """Check password breach using HIBP's k-anonymity API
 
-        パスワードの SHA-1 ハッシュの先頭5文字のみを送信するため、
-        パスワード自体がネットワーク上に流れることはない。
+        Only the first 5 characters of the SHA-1 hash of the password are sent,
+        so the password itself never travels over the network.
         """
         sha1 = hashlib.sha1(password.encode()).hexdigest().upper()
         prefix, suffix = sha1[:5], sha1[5:]
@@ -138,60 +138,60 @@ class PasswordManager:
             )
             return suffix in resp.text
         except requests.RequestException:
-            # API障害時は安全側に倒す（ブロックしない）
+            # On API failure, err on the safe side (do not block)
             return False
 
 
-# 使用例
+# Usage example
 pm = PasswordManager()
 
-# ポリシーチェック
+# Policy check
 errors = pm.validate_policy("MyS3cur3P@ssw0rd!")
 if errors:
-    print(f"ポリシー違反: {errors}")
+    print(f"Policy violations: {errors}")
 else:
-    # ハッシュ化と保存
+    # Hash and store
     hashed = pm.hash_password("MyS3cur3P@ssw0rd!")
-    print(f"ハッシュ値: {hashed}")
-    # 例: $argon2id$v=19$m=65536,t=3,p=4$salt$hash
+    print(f"Hash: {hashed}")
+    # e.g. $argon2id$v=19$m=65536,t=3,p=4$salt$hash
 
-    # 検証
+    # Verification
     print(pm.verify_password("MyS3cur3P@ssw0rd!", hashed))  # True
     print(pm.verify_password("wrong", hashed))               # False
 
-    # ログイン時の再ハッシュチェック
+    # Rehash check on login
     if pm.needs_rehash(hashed):
         new_hash = pm.hash_password("MyS3cur3P@ssw0rd!")
-        print("パラメータが更新されたため再ハッシュしました")
+        print("Parameters updated — rehashed password")
 ```
 
-### 1.4 bcrypt との比較実装
+### 1.4 Comparison Implementation with bcrypt
 
 ```python
-# コード例2: bcrypt によるパスワードハッシュ（レガシーシステム向け）
+# Code Example 2: Password hashing with bcrypt (for legacy systems)
 import bcrypt
 
 
 class BcryptPasswordManager:
-    """bcrypt によるパスワード管理
+    """Password management using bcrypt
 
-    Argon2id が使えない環境（古い Python/ライブラリ制約）向け。
-    bcrypt は 1999 年から使用されている実績のあるアルゴリズム。
+    For environments where Argon2id is unavailable (old Python/library constraints).
+    bcrypt is a battle-tested algorithm in use since 1999.
 
-    WHY bcrypt の cost factor が重要か:
-    - cost=10: 約 100ms/hash（2015 年の標準）
-    - cost=12: 約 400ms/hash（2024 年の推奨）
-    - cost=14: 約 1.6s/hash（高セキュリティ環境）
-    ハードウェアの進化に合わせて cost を上げることで安全性を維持する。
+    WHY the bcrypt cost factor matters:
+    - cost=10: ~100ms/hash (2015 standard)
+    - cost=12: ~400ms/hash (2024 recommendation)
+    - cost=14: ~1.6s/hash (high-security environments)
+    Security is maintained by increasing cost as hardware improves.
     """
 
-    DEFAULT_ROUNDS = 12  # 2024年推奨値
+    DEFAULT_ROUNDS = 12  # 2024 recommended value
 
     def hash_password(self, password: str) -> str:
-        """bcrypt ハッシュ化（ソルト自動生成）"""
-        # bcrypt は内部で 72 バイトに切り詰めるため注意
+        """bcrypt hashing (automatic salt generation)"""
+        # Note: bcrypt truncates internally at 72 bytes
         if len(password.encode("utf-8")) > 72:
-            # 長いパスワードは事前に SHA-256 でハッシュ
+            # Pre-hash long passwords with SHA-256
             import hashlib
             password = hashlib.sha256(password.encode()).hexdigest()
 
@@ -199,7 +199,7 @@ class BcryptPasswordManager:
         return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
 
     def verify_password(self, password: str, hashed: str) -> bool:
-        """パスワードを検証"""
+        """Verify a password"""
         if len(password.encode("utf-8")) > 72:
             import hashlib
             password = hashlib.sha256(password.encode()).hexdigest()
@@ -210,88 +210,89 @@ class BcryptPasswordManager:
         )
 
 
-# 使用例
+# Usage example
 bpm = BcryptPasswordManager()
 hashed = bpm.hash_password("SecurePass123!")
 print(bpm.verify_password("SecurePass123!", hashed))  # True
 ```
 
-### 1.5 パスワードハッシュアルゴリズム比較
+### 1.5 Password Hashing Algorithm Comparison
 
-| アルゴリズム | メモリハード | GPU耐性 | 推奨度 | 計算コスト調整 | 備考 |
-|-------------|:---------:|:------:|:-----:|:----------:|------|
-| MD5 | - | - | 使用禁止 | 不可 | 高速すぎる、衝突発見済み |
-| SHA-256 | - | - | 不適 | 不可 | パスワード用途には不向き |
-| PBKDF2 | - | 低 | 条件付き | 反復回数 | FIPS 140-2準拠が必要な場合 |
-| bcrypt | - | 中 | 推奨 | rounds | 72バイト制限あり |
-| scrypt | あり | 高 | 推奨 | N, r, p | パラメータ調整が複雑 |
-| Argon2id | あり | 最高 | 最推奨 | time, memory, parallelism | Password Hashing Competition 優勝 |
+| Algorithm | Memory-Hard | GPU Resistance | Recommendation | Cost Tuning | Notes |
+|-----------|:-----------:|:--------------:|:--------------:|:-----------:|-------|
+| MD5 | - | - | Forbidden | No | Too fast, collisions found |
+| SHA-256 | - | - | Not suitable | No | Not intended for passwords |
+| PBKDF2 | - | Low | Conditional | Iteration count | Required for FIPS 140-2 compliance |
+| bcrypt | - | Medium | Recommended | rounds | 72-byte limit |
+| scrypt | Yes | High | Recommended | N, r, p | Complex parameter tuning |
+| Argon2id | Yes | Best | Most Recommended | time, memory, parallelism | Winner of Password Hashing Competition |
 
 ---
 
-## 2. セッション管理
+## 2. Session Management
 
-### 2.1 セッション管理の全体像
+### 2.1 Overview of Session Management
 
-セッション管理はステートレスな HTTP プロトコル上でユーザーの状態を維持する仕組みである。セッション管理の脆弱性は、攻撃者がユーザーになりすますことを可能にするため、認証と同等に重要である。
+Session management is a mechanism for maintaining user state over the stateless HTTP protocol. Session management vulnerabilities allow attackers to impersonate users, making it just as critical as authentication itself.
 
 ```
-セッション管理のフロー:
+Session management flow:
 
-  クライアント                            サーバー
+  Client                                  Server
     |                                       |
     |-- POST /login (credentials) -------> |
-    |                                       |-- 認証成功
-    |                                       |-- セッションID生成
-    |                                       |   (暗号学的乱数 256bit以上)
+    |                                       |-- Authentication success
+    |                                       |-- Generate session ID
+    |                                       |   (cryptographically random, 256+ bits)
     |<-- Set-Cookie: sid=<random> --------- |
     |    HttpOnly; Secure; SameSite=Lax     |
     |    Path=/; Max-Age=3600               |
     |                                       |
     |-- GET /dashboard ------------------>  |
-    |   Cookie: sid=<random>                |-- セッション検証
-    |                                       |   1. セッションID存在確認
-    |                                       |   2. 絶対タイムアウト確認
-    |                                       |   3. アイドルタイムアウト確認
-    |                                       |   4. UA/IPの一貫性確認
-    |                                       |-- ユーザー情報取得
-    |<-- 200 OK (ダッシュボード) ----------- |
+    |   Cookie: sid=<random>                |-- Session validation
+    |                                       |   1. Verify session ID exists
+    |                                       |   2. Check absolute timeout
+    |                                       |   3. Check idle timeout
+    |                                       |   4. Verify UA/IP consistency
+    |                                       |-- Retrieve user information
+    |<-- 200 OK (dashboard) -------------- |
     |                                       |
     |-- POST /logout -------------------->  |
-    |                                       |-- サーバー側セッション破棄
-    |                                       |-- 関連データ削除
+    |                                       |-- Destroy server-side session
+    |                                       |-- Delete associated data
     |<-- Set-Cookie: sid=; Max-Age=0 -----  |
 ```
 
-### 2.2 セッション管理の脆弱性パターン
+### 2.2 Session Management Vulnerability Patterns
 
 ```
-セッション管理の主要な脅威:
+Major threats to session management:
 
   +--------------------------------------------------+
-  | 1. セッション固定攻撃 (Session Fixation)            |
-  |    攻撃者が事前にセッションIDを設定し、               |
-  |    ログイン後もそのIDが使い回される                    |
-  |    対策: ログイン成功時にセッションIDを再生成          |
+  | 1. Session Fixation Attack                        |
+  |    Attacker pre-sets a session ID,                |
+  |    which continues to be used after login         |
+  |    Mitigation: Regenerate session ID on login     |
   +--------------------------------------------------+
-  | 2. セッションハイジャック                            |
-  |    ネットワーク盗聴やXSSでセッションIDを窃取          |
-  |    対策: Secure属性, HttpOnly属性, HTTPS必須        |
+  | 2. Session Hijacking                              |
+  |    Steal session ID via network sniffing or XSS   |
+  |    Mitigation: Secure attribute, HttpOnly, HTTPS  |
   +--------------------------------------------------+
-  | 3. セッション予測                                   |
-  |    推測可能なセッションIDを使用                       |
-  |    対策: 暗号学的安全乱数 (secrets.token_hex)       |
+  | 3. Session Prediction                             |
+  |    Using predictable session IDs                  |
+  |    Mitigation: Cryptographically secure random    |
+  |                (secrets.token_hex)                |
   +--------------------------------------------------+
-  | 4. セッション情報のクライアント側保存                  |
-  |    Cookie にユーザーIDや権限を直接格納               |
-  |    対策: サーバー側セッションストア                    |
+  | 4. Client-Side Session Storage                    |
+  |    Storing user ID or roles directly in cookies   |
+  |    Mitigation: Server-side session store          |
   +--------------------------------------------------+
 ```
 
-### 2.3 セキュアなセッション管理の実装
+### 2.3 Implementing Secure Session Management
 
 ```python
-# コード例3: セキュアなセッション管理
+# Code Example 3: Secure session management
 import secrets
 import time
 import hashlib
@@ -299,39 +300,39 @@ from typing import Optional, Dict
 
 
 class SecureSessionManager:
-    """安全なセッション管理
+    """Secure session management
 
-    WHY 各設計判断が必要か:
-    - SESSION_ID_LENGTH=32: 256ビットのエントロピーで推測攻撃を防止
-      (2^256 の組み合わせ → ブルートフォース不可能)
-    - SESSION_TIMEOUT=3600: セッション固定攻撃の時間窓を制限
-    - IDLE_TIMEOUT=1800: 離席時のセッション悪用を防止
-    - UA ハッシュ検証: セッションハイジャックの検知
+    WHY each design decision is necessary:
+    - SESSION_ID_LENGTH=32: 256 bits of entropy prevents guessing attacks
+      (2^256 combinations → brute-force impossible)
+    - SESSION_TIMEOUT=3600: Limits the time window for session fixation attacks
+    - IDLE_TIMEOUT=1800: Prevents session abuse when the user is away
+    - UA hash verification: Detects session hijacking
     """
 
-    SESSION_ID_LENGTH = 32   # 32バイト = 256ビットのエントロピー
-    SESSION_TIMEOUT = 3600   # 絶対タイムアウト: 1時間
-    IDLE_TIMEOUT = 1800      # アイドルタイムアウト: 30分
-    MAX_SESSIONS_PER_USER = 5  # 同時セッション数制限
+    SESSION_ID_LENGTH = 32   # 32 bytes = 256 bits of entropy
+    SESSION_TIMEOUT = 3600   # Absolute timeout: 1 hour
+    IDLE_TIMEOUT = 1800      # Idle timeout: 30 minutes
+    MAX_SESSIONS_PER_USER = 5  # Limit on concurrent sessions
 
     def __init__(self):
-        # 本番環境では Redis 等の外部ストアを使用
+        # Use an external store such as Redis in production
         self.sessions: Dict[str, dict] = {}
 
     def create_session(self, user_id: str, ip: str,
                        user_agent: str) -> str:
-        """認証成功後にセッションを作成
+        """Create a session after successful authentication
 
         Returns:
-            暗号学的に安全なセッションID文字列
+            Cryptographically secure session ID string
         """
-        # 同時セッション数の制限
+        # Limit the number of concurrent sessions
         user_sessions = [
             sid for sid, data in self.sessions.items()
             if data["user_id"] == user_id
         ]
         if len(user_sessions) >= self.MAX_SESSIONS_PER_USER:
-            # 最も古いセッションを削除
+            # Remove the oldest session
             oldest = min(user_sessions,
                         key=lambda s: self.sessions[s]["created_at"])
             self.destroy_session(oldest)
@@ -351,13 +352,13 @@ class SecureSessionManager:
 
     def validate_session(self, session_id: str, ip: str,
                          user_agent: str) -> Optional[str]:
-        """セッションの検証
+        """Validate a session
 
-        検証項目:
-        1. セッションの存在確認
-        2. 絶対タイムアウト（作成から一定時間経過）
-        3. アイドルタイムアウト（最終アクティビティから一定時間経過）
-        4. User-Agent の一貫性（セッションハイジャック検知）
+        Validation checks:
+        1. Session existence
+        2. Absolute timeout (time elapsed since creation)
+        3. Idle timeout (time elapsed since last activity)
+        4. User-Agent consistency (session hijacking detection)
         """
         session = self.sessions.get(session_id)
         if not session:
@@ -365,52 +366,52 @@ class SecureSessionManager:
 
         now = time.time()
 
-        # 絶対タイムアウトチェック
+        # Absolute timeout check
         if now - session["created_at"] > self.SESSION_TIMEOUT:
             self.destroy_session(session_id)
             return None
 
-        # アイドルタイムアウトチェック
+        # Idle timeout check
         if now - session["last_activity"] > self.IDLE_TIMEOUT:
             self.destroy_session(session_id)
             return None
 
-        # User-Agent の変更を検出（セッションハイジャックの兆候）
+        # Detect User-Agent change (sign of session hijacking)
         ua_hash = hashlib.sha256(user_agent.encode()).hexdigest()
         if session["user_agent_hash"] != ua_hash:
             self.destroy_session(session_id)
             return None
 
-        # 最終アクティビティ更新
+        # Update last activity
         session["last_activity"] = now
         return session["user_id"]
 
     def regenerate_session(self, old_session_id: str) -> Optional[str]:
-        """セッションIDの再生成（権限昇格時に必須）
+        """Regenerate session ID (required on privilege escalation)
 
-        WHY: ログイン前に攻撃者が設定したセッションIDが
-        ログイン後も使い回されるとセッション固定攻撃が成立する。
-        ログイン成功・権限変更時に必ずセッションIDを再生成する。
+        WHY: If an attacker pre-set a session ID before login and
+        it continues to be used after login, a session fixation attack succeeds.
+        Always regenerate the session ID on successful login or privilege change.
         """
         session = self.sessions.get(old_session_id)
         if not session:
             return None
-        # 旧セッションを削除
+        # Delete old session
         del self.sessions[old_session_id]
-        # 新セッションIDで同じデータを登録
+        # Register the same data under a new session ID
         new_session_id = secrets.token_hex(self.SESSION_ID_LENGTH)
         session["last_activity"] = time.time()
         self.sessions[new_session_id] = session
         return new_session_id
 
     def destroy_session(self, session_id: str) -> None:
-        """セッションの破棄"""
+        """Destroy a session"""
         self.sessions.pop(session_id, None)
 
     def destroy_all_user_sessions(self, user_id: str) -> int:
-        """特定ユーザーの全セッションを破棄
+        """Destroy all sessions for a specific user
 
-        用途: パスワード変更時、アカウント侵害検出時
+        Use cases: password change, account compromise detection
         """
         to_delete = [
             sid for sid, data in self.sessions.items()
@@ -421,14 +422,14 @@ class SecureSessionManager:
         return len(to_delete)
 
     def get_active_sessions(self, user_id: str) -> list:
-        """ユーザーのアクティブセッション一覧を取得
+        """Get a list of active sessions for a user
 
-        ユーザーが自分の全セッションを確認・管理できるようにする。
+        Allows users to view and manage all their own sessions.
         """
         now = time.time()
         return [
             {
-                "session_id": sid[:8] + "...",  # 先頭のみ表示
+                "session_id": sid[:8] + "...",  # Show only the prefix
                 "created_at": data["created_at"],
                 "last_activity": data["last_activity"],
                 "ip": data["ip"],
@@ -439,84 +440,85 @@ class SecureSessionManager:
         ]
 
 
-# 使用例
+# Usage example
 sm = SecureSessionManager()
 
-# ログイン成功時
+# On successful login
 session_id = sm.create_session(
     "user123", "192.168.1.100", "Mozilla/5.0..."
 )
-print(f"セッション作成: {session_id[:16]}...")
+print(f"Session created: {session_id[:16]}...")
 
-# セッションID再生成（権限昇格時）
+# Session ID regeneration (on privilege escalation)
 new_session_id = sm.regenerate_session(session_id)
-print(f"セッション再生成: {new_session_id[:16]}...")
+print(f"Session regenerated: {new_session_id[:16]}...")
 
-# セッション検証
+# Session validation
 user_id = sm.validate_session(
     new_session_id, "192.168.1.100", "Mozilla/5.0..."
 )
-print(f"認証ユーザー: {user_id}")  # user123
+print(f"Authenticated user: {user_id}")  # user123
 
-# ログアウト時
+# On logout
 sm.destroy_session(new_session_id)
 ```
 
-### 2.4 Cookie 属性の設計
+### 2.4 Cookie Attribute Design
 
-| 属性 | 設定値 | 目的 | 設定しない場合のリスク |
-|------|--------|------|---------------------|
-| `HttpOnly` | `true` | JavaScript からのアクセスを禁止 | XSS でセッションID窃取 |
-| `Secure` | `true` | HTTPS のみで送信 | 平文通信で盗聴される |
-| `SameSite` | `Lax` or `Strict` | クロスサイトリクエストでの送信を制限 | CSRF 攻撃のリスク |
-| `Path` | `/` | Cookie の送信範囲 | 不要な範囲に送信される |
-| `Max-Age` | `3600` | Cookie の有効期間 | ブラウザ終了まで永続 |
-| `Domain` | 省略推奨 | Cookie の送信先ドメイン | サブドメインに漏洩 |
+| Attribute | Value | Purpose | Risk if Not Set |
+|-----------|-------|---------|----------------|
+| `HttpOnly` | `true` | Prevent access from JavaScript | Session ID stolen via XSS |
+| `Secure` | `true` | Send over HTTPS only | Intercepted over plaintext communication |
+| `SameSite` | `Lax` or `Strict` | Restrict sending on cross-site requests | Risk of CSRF attacks |
+| `Path` | `/` | Scope of cookie transmission | Sent to unintended paths |
+| `Max-Age` | `3600` | Cookie lifetime | Persists until browser closes |
+| `Domain` | Omit (recommended) | Target domain for cookie | Leaked to subdomains |
 
 ---
 
-## 3. ブルートフォース対策
+## 3. Brute-Force Protection
 
-### 3.1 多層防御の設計
+### 3.1 Defense-in-Depth Design
 
-ブルートフォース攻撃は単純だが効果的な攻撃であり、単一の対策では不十分である。複数の防御層を組み合わせることで、攻撃の成功率を実質的にゼロにする。
+Brute-force attacks are simple but effective, and a single countermeasure is insufficient. Combining multiple layers of defense makes the attack success rate virtually zero.
 
 ```
-ブルートフォース対策の層:
+Layers of brute-force protection:
 
   +--------------------------------------------------+
-  |  Layer 1: レートリミット                           |
-  |  - IP単位: 10回/分                                |
-  |  - アカウント単位: 5回/5分                         |
-  |  - グローバル: 異常な認証失敗率を検知               |
+  |  Layer 1: Rate Limiting                           |
+  |  - Per IP: 10 attempts/minute                     |
+  |  - Per account: 5 attempts/5 minutes              |
+  |  - Global: Detect abnormal authentication failure |
   +--------------------------------------------------+
-  |  Layer 2: プログレッシブ遅延                       |
-  |  - 1回目失敗: 即応答                              |
-  |  - 2回目失敗: 1秒待機                             |
-  |  - 3回目失敗: 2秒待機                             |
-  |  - 5回目失敗: 15秒待機                            |
-  |  ※一定時間の応答遅延で自動化攻撃を非効率にする      |
+  |  Layer 2: Progressive Delay                       |
+  |  - 1st failure: Immediate response                |
+  |  - 2nd failure: 1-second wait                     |
+  |  - 3rd failure: 2-second wait                     |
+  |  - 5th failure: 15-second wait                    |
+  |  * Response delays make automated attacks          |
+  |    inefficient                                    |
   +--------------------------------------------------+
   |  Layer 3: CAPTCHA                                 |
-  |  - 3回失敗後にCAPTCHA表示                         |
-  |  - reCAPTCHA v3 (スコアベース) が推奨              |
+  |  - Show CAPTCHA after 3 failures                  |
+  |  - reCAPTCHA v3 (score-based) is recommended      |
   +--------------------------------------------------+
-  |  Layer 4: アカウントロックアウト                    |
-  |  - 10回失敗: 30分ロック                           |
-  |  - 一定期間後に自動解除                            |
-  |  - ※DoS攻撃に悪用されないよう自動解除必須          |
+  |  Layer 4: Account Lockout                         |
+  |  - 10 failures: 30-minute lock                    |
+  |  - Auto-unlock after a set period                 |
+  |  * Auto-unlock is mandatory to prevent DoS abuse  |
   +--------------------------------------------------+
-  |  Layer 5: 異常検知                                 |
-  |  - 同一IPから複数アカウントへの試行                 |
-  |  - 地理的に不自然なログイン                        |
-  |  - Credential Stuffing パターンの検知              |
+  |  Layer 5: Anomaly Detection                       |
+  |  - Attempts on multiple accounts from same IP     |
+  |  - Geographically unusual logins                  |
+  |  - Credential Stuffing pattern detection          |
   +--------------------------------------------------+
 ```
 
-### 3.2 ブルートフォース対策の実装
+### 3.2 Implementing Brute-Force Protection
 
 ```python
-# コード例4: ブルートフォース対策の多層実装
+# Code Example 4: Multi-layer brute-force protection implementation
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -525,7 +527,7 @@ from typing import Dict
 
 @dataclass
 class LoginAttempt:
-    """ログイン試行の追跡データ"""
+    """Login attempt tracking data"""
     count: int = 0
     first_attempt: float = 0
     last_attempt: float = 0
@@ -533,19 +535,19 @@ class LoginAttempt:
 
 
 class BruteForceProtection:
-    """ブルートフォース攻撃対策
+    """Brute-force attack protection
 
-    WHY プログレッシブ遅延とロックアウトを組み合わせるか:
-    - 遅延だけ: 攻撃を遅くするが止められない
-    - ロックアウトだけ: 正規ユーザーを DoS できてしまう
-    - 組み合わせ: 攻撃を遅くし、最終的に停止させつつ、
-      自動解除で正規ユーザーへの影響を最小化する
+    WHY combine progressive delay with lockout:
+    - Delay alone: Slows attacks but cannot stop them
+    - Lockout alone: Can DoS legitimate users
+    - Combined: Slows attacks and ultimately stops them,
+      while auto-unlock minimizes impact on legitimate users
     """
 
     MAX_ATTEMPTS = 5
-    LOCKOUT_DURATION = 1800  # 30分
-    WINDOW = 300             # 5分間のウィンドウ
-    PROGRESSIVE_DELAYS = [0, 1, 2, 4, 8, 15]  # 秒
+    LOCKOUT_DURATION = 1800  # 30 minutes
+    WINDOW = 300             # 5-minute window
+    PROGRESSIVE_DELAYS = [0, 1, 2, 4, 8, 15]  # seconds
 
     def __init__(self):
         self.account_attempts: Dict[str, LoginAttempt] = defaultdict(
@@ -554,20 +556,20 @@ class BruteForceProtection:
         self.ip_attempts: Dict[str, LoginAttempt] = defaultdict(LoginAttempt)
 
     def check_and_record(self, username: str, ip: str) -> dict:
-        """ログイン試行を確認・記録する
+        """Check and record a login attempt
 
-        アカウント単位とIP単位の両方でチェックする。
-        Credential Stuffing 攻撃（同一IPから多数のアカウントへの試行）
-        を検知するため、IP単位のチェックも重要。
+        Checks both per-account and per-IP.
+        Per-IP checking is also important to detect
+        Credential Stuffing attacks (many accounts targeted from the same IP).
         """
-        # アカウント単位のチェック
+        # Per-account check
         account_result = self._check_identifier(
             self.account_attempts, username
         )
         if not account_result["allowed"]:
             return account_result
 
-        # IP単位のチェック（より緩いレート）
+        # Per-IP check (more lenient rate)
         ip_result = self._check_identifier(
             self.ip_attempts, ip, max_attempts=20
         )
@@ -580,14 +582,14 @@ class BruteForceProtection:
     def _check_identifier(self, attempts_store: dict,
                           identifier: str,
                           max_attempts: int = None) -> dict:
-        """識別子に対するチェックと記録"""
+        """Check and record attempts for an identifier"""
         if max_attempts is None:
             max_attempts = self.MAX_ATTEMPTS
 
         attempt = attempts_store[identifier]
         now = time.time()
 
-        # ロックアウト中かチェック
+        # Check if locked out
         if attempt.locked_until > now:
             remaining = int(attempt.locked_until - now)
             return {
@@ -596,18 +598,18 @@ class BruteForceProtection:
                 "retry_after": remaining,
             }
 
-        # ウィンドウのリセット
+        # Reset window
         if now - attempt.first_attempt > self.WINDOW:
             attempt.count = 0
             attempt.first_attempt = now
 
-        # 試行回数の記録
+        # Record attempt
         if attempt.count == 0:
             attempt.first_attempt = now
         attempt.count += 1
         attempt.last_attempt = now
 
-        # ロックアウト判定
+        # Lockout judgment
         if attempt.count >= max_attempts:
             attempt.locked_until = now + self.LOCKOUT_DURATION
             return {
@@ -616,7 +618,7 @@ class BruteForceProtection:
                 "retry_after": self.LOCKOUT_DURATION,
             }
 
-        # プログレッシブ遅延
+        # Progressive delay
         delay_idx = min(attempt.count, len(self.PROGRESSIVE_DELAYS) - 1)
         delay = self.PROGRESSIVE_DELAYS[delay_idx]
 
@@ -628,14 +630,14 @@ class BruteForceProtection:
         }
 
     def reset(self, username: str) -> None:
-        """ログイン成功時にカウンターをリセット"""
+        """Reset counter on successful login"""
         self.account_attempts.pop(username, None)
 
     def is_credential_stuffing(self, ip: str, threshold: int = 10) -> bool:
-        """Credential Stuffing 攻撃の検知
+        """Detect Credential Stuffing attacks
 
-        同一IPから短時間に多数の異なるアカウントへログインを
-        試行するパターンを検知する。
+        Detects the pattern of attempting to log in to many different
+        accounts from the same IP in a short period.
         """
         ip_attempt = self.ip_attempts.get(ip)
         if ip_attempt and ip_attempt.count >= threshold:
@@ -643,52 +645,52 @@ class BruteForceProtection:
         return False
 
 
-# 使用例
+# Usage example
 protection = BruteForceProtection()
 
-# ログイン試行
+# Login attempt
 result = protection.check_and_record("admin", "192.168.1.100")
-print(f"許可: {result['allowed']}")
-print(f"残り試行: {result.get('attempts_remaining')}")
+print(f"Allowed: {result['allowed']}")
+print(f"Attempts remaining: {result.get('attempts_remaining')}")
 
-# 5回失敗後
+# After 5 failures
 for _ in range(5):
     result = protection.check_and_record("admin", "192.168.1.100")
 
-print(f"ロックアウト: {not result['allowed']}")
-print(f"解除まで: {result.get('retry_after')}秒")
+print(f"Locked out: {not result['allowed']}")
+print(f"Unlock in: {result.get('retry_after')} seconds")
 
-# ログイン成功時のリセット
+# Reset on successful login
 protection.reset("admin")
 ```
 
 ---
 
-## 4. 多要素認証（MFA）
+## 4. Multi-Factor Authentication (MFA)
 
-### 4.1 MFA の認証要素
+### 4.1 MFA Authentication Factors
 
 ```
-多要素認証の3つの要素:
+Three factors of multi-factor authentication:
 
   +------------------+     +------------------+     +------------------+
-  |  知識要素 (SYK)   |     |  所持要素 (SYH)   |     |  生体要素 (SYA)   |
+  |  Knowledge (SYK)  |     |  Possession (SYH) |     |  Inherence (SYA)  |
   |  Something You   |     |  Something You   |     |  Something You   |
   |  Know             |     |  Have             |     |  Are              |
   +------------------+     +------------------+     +------------------+
-  |  パスワード       |     |  スマートフォン    |     |  指紋             |
-  |  PIN              |     |  ハードウェアトークン|    |  顔認証           |
-  |  秘密の質問       |     |  セキュリティキー  |     |  虹彩             |
+  |  Password        |     |  Smartphone       |     |  Fingerprint      |
+  |  PIN             |     |  Hardware token   |     |  Face recognition |
+  |  Security answer |     |  Security key     |     |  Iris             |
   +------------------+     +------------------+     +------------------+
 
-  MFA = 異なるカテゴリの要素を2つ以上組み合わせる
-  ※同じカテゴリ2つ（パスワード+PIN）は MFA にならない
+  MFA = Combining 2 or more factors from different categories
+  * Two factors from the same category (password + PIN) does not qualify as MFA
 ```
 
-### 4.2 TOTP の実装
+### 4.2 Implementing TOTP
 
 ```python
-# コード例5: TOTP（Time-based One-Time Password）の実装
+# Code Example 5: TOTP (Time-based One-Time Password) implementation
 import hmac
 import hashlib
 import struct
@@ -698,23 +700,23 @@ import secrets
 
 
 class TOTP:
-    """RFC 6238 準拠の TOTP 実装
+    """TOTP implementation compliant with RFC 6238
 
-    WHY TOTP が広く使われるか:
-    - サーバーとクライアントが時刻のみを共有すれば良い
-    - 通信不要（オフラインで生成可能）
-    - Google Authenticator 等の標準アプリで利用可能
-    - SMS OTP と異なり SIM スワップ攻撃に耐性がある
+    WHY TOTP is widely used:
+    - Server and client only need to share the current time
+    - No network required (can be generated offline)
+    - Compatible with standard apps like Google Authenticator
+    - Unlike SMS OTP, resistant to SIM swap attacks
     """
 
     def __init__(self, secret: bytes, digits: int = 6,
                  period: int = 30, algorithm=hashlib.sha1):
         """
         Args:
-            secret: 共有シークレット（最低160ビット推奨）
-            digits: OTP の桁数（6桁が標準）
-            period: コード更新間隔（30秒が標準）
-            algorithm: HMACアルゴリズム（SHA-1が標準、SHA-256も可）
+            secret: Shared secret (minimum 160 bits recommended)
+            digits: Number of OTP digits (6 is standard)
+            period: Code refresh interval (30 seconds is standard)
+            algorithm: HMAC algorithm (SHA-1 is standard, SHA-256 also supported)
         """
         self.secret = secret
         self.digits = digits
@@ -723,20 +725,20 @@ class TOTP:
 
     @classmethod
     def generate_secret(cls) -> str:
-        """新しい TOTP シークレットを生成
+        """Generate a new TOTP secret
 
-        Base32エンコードで返す（QRコード/手入力用）。
-        20バイト = 160ビットのエントロピー。
+        Returned in Base32 encoding (for QR codes / manual entry).
+        20 bytes = 160 bits of entropy.
         """
         return base64.b32encode(secrets.token_bytes(20)).decode()
 
     def generate_code(self, timestamp: float = None) -> str:
-        """現在の TOTP コードを生成
+        """Generate the current TOTP code
 
-        内部処理:
-        1. 現在時刻を period で割ってカウンター値を算出
-        2. カウンター値を HMAC でハッシュ
-        3. Dynamic Truncation で 6 桁の数値を抽出
+        Internal process:
+        1. Divide current time by period to get counter value
+        2. Hash counter value with HMAC
+        3. Extract 6-digit number via Dynamic Truncation
         """
         if timestamp is None:
             timestamp = time.time()
@@ -751,12 +753,12 @@ class TOTP:
         return str(code).zfill(self.digits)
 
     def verify(self, code: str, window: int = 1) -> bool:
-        """TOTP コードを検証
+        """Verify a TOTP code
 
-        WHY window が必要か:
-        サーバーとクライアントの時刻にわずかなズレがあっても
-        認証が成功するよう、前後 window ステップ分を許容する。
-        window=1 の場合、前後30秒（合計90秒間）有効。
+        WHY a window is needed:
+        Allowing the previous and next window steps ensures authentication
+        succeeds even with slight clock skew between server and client.
+        With window=1, valid for ±30 seconds (90 seconds total).
         """
         now = time.time()
         for offset in range(-window, window + 1):
@@ -769,9 +771,9 @@ class TOTP:
 
     def get_provisioning_uri(self, account: str,
                              issuer: str) -> str:
-        """QRコード用のプロビジョニングURIを生成
+        """Generate provisioning URI for QR code
 
-        Google Authenticator 等のアプリで読み取るためのURI。
+        URI for reading with apps like Google Authenticator.
         """
         secret_b32 = base64.b32encode(self.secret).decode()
         return (
@@ -784,90 +786,92 @@ class TOTP:
         )
 
 
-# 使用例
+# Usage example
 secret_b32 = TOTP.generate_secret()
-print(f"シークレット: {secret_b32}")
+print(f"Secret: {secret_b32}")
 
 secret_bytes = base64.b32decode(secret_b32)
 totp = TOTP(secret_bytes)
 
-# QRコード用URI
+# QR code URI
 uri = totp.get_provisioning_uri("user@example.com", "MyApp")
-print(f"プロビジョニングURI: {uri}")
+print(f"Provisioning URI: {uri}")
 
-# コード生成と検証
+# Code generation and verification
 code = totp.generate_code()
-print(f"現在のコード: {code}")
-print(f"検証結果: {totp.verify(code)}")  # True
+print(f"Current code: {code}")
+print(f"Verification result: {totp.verify(code)}")  # True
 ```
 
-### 4.3 認証方式の比較
+### 4.3 Authentication Method Comparison
 
-| 方式 | セキュリティ | ユーザビリティ | コスト | フィッシング耐性 | SIMスワップ耐性 |
-|------|:--------:|:--------:|:-----:|:--------:|:--------:|
-| パスワードのみ | 低 | 高 | 低 | なし | - |
-| パスワード + SMS OTP | 中 | 中 | 中 | 低 | なし |
-| パスワード + TOTP | 高 | 中 | 低 | 低 | あり |
-| パスワード + プッシュ通知 | 高 | 高 | 中 | 中 | あり |
-| パスワード + FIDO2/WebAuthn | 最高 | 高 | 中 | 高 | あり |
-| パスキー（Passkeys） | 最高 | 最高 | 低 | 最高 | あり |
+| Method | Security | Usability | Cost | Phishing Resistance | SIM Swap Resistance |
+|--------|:--------:|:---------:|:----:|:-------------------:|:-------------------:|
+| Password only | Low | High | Low | None | - |
+| Password + SMS OTP | Medium | Medium | Medium | Low | None |
+| Password + TOTP | High | Medium | Low | Low | Yes |
+| Password + Push notification | High | High | Medium | Medium | Yes |
+| Password + FIDO2/WebAuthn | Highest | High | Medium | High | Yes |
+| Passkeys | Highest | Highest | Low | Highest | Yes |
 
 ```
-認証方式の推奨フロー（2024年〜）:
+Recommended authentication flow (2024 onwards):
 
-  新規システム設計
+  New system design
     |
-    +-- パスキー（Passkeys）対応可能か？
-    |     YES → パスキーを第一選択肢として実装
-    |     NO  → FIDO2/WebAuthn を検討
+    +-- Can Passkeys be supported?
+    |     YES → Implement Passkeys as the first choice
+    |     NO  → Consider FIDO2/WebAuthn
     |
-    +-- ハードウェアキー配布可能か？
-    |     YES → FIDO2 セキュリティキー
-    |     NO  → TOTP (Google Authenticator 等)
+    +-- Can hardware keys be distributed?
+    |     YES → FIDO2 security keys
+    |     NO  → TOTP (Google Authenticator, etc.)
     |
-    +-- 最終手段（非推奨）
-          → SMS OTP（SIMスワップ、SS7攻撃のリスクあり）
+    +-- Last resort (not recommended)
+          → SMS OTP (risk of SIM swap and SS7 attacks)
 ```
 
 ---
 
-## 5. JWT の安全な使用
+## 5. Secure Use of JWT
 
-### 5.1 JWT の脅威モデル
+### 5.1 JWT Threat Model
 
 ```
-JWT に対する主要な攻撃:
+Major attacks against JWT:
 
   +--------------------------------------------------+
-  | 1. Algorithm None 攻撃                            |
-  |    ヘッダの alg を "none" に変更し署名をバイパス      |
-  |    対策: algorithms パラメータで許可する             |
-  |          アルゴリズムを明示的に指定                  |
+  | 1. Algorithm None Attack                          |
+  |    Change the header's alg to "none" to bypass    |
+  |    signature verification                         |
+  |    Mitigation: Explicitly specify allowed          |
+  |    algorithms via the algorithms parameter        |
   +--------------------------------------------------+
-  | 2. Algorithm Confusion 攻撃                       |
-  |    RS256 (非対称) を HS256 (対称) に変更し          |
-  |    公開鍵を共通鍵として署名を偽造                    |
-  |    対策: アルゴリズムをサーバー側で固定               |
+  | 2. Algorithm Confusion Attack                     |
+  |    Change RS256 (asymmetric) to HS256 (symmetric) |
+  |    and forge signatures using the public key      |
+  |    Mitigation: Fix algorithm on the server side   |
   +--------------------------------------------------+
-  | 3. 署名未検証                                      |
-  |    ペイロードだけデコードして検証なしで使用            |
-  |    対策: jwt.decode() 時に必ず verify=True          |
+  | 3. Signature Not Verified                         |
+  |    Only decoding the payload without verification |
+  |    Mitigation: Always use verify=True in          |
+  |    jwt.decode()                                   |
   +--------------------------------------------------+
-  | 4. 長すぎる有効期限                                 |
-  |    有効期限が数日〜無期限に設定されている              |
-  |    対策: アクセストークン 15分、リフレッシュ 7日       |
+  | 4. Excessively Long Expiry                        |
+  |    Token validity set to days or indefinite       |
+  |    Mitigation: Access token 15 min, refresh 7 days|
   +--------------------------------------------------+
-  | 5. JWTの即時無効化不能                              |
-  |    ステートレスなため、発行済みトークンを              |
-  |    即座に無効化できない                              |
-  |    対策: 短い有効期限 + ブラックリスト                |
+  | 5. Inability to Immediately Revoke JWT            |
+  |    Stateless nature prevents immediate            |
+  |    invalidation of issued tokens                  |
+  |    Mitigation: Short expiry + blacklist           |
   +--------------------------------------------------+
 ```
 
-### 5.2 安全な JWT 実装
+### 5.2 Implementing JWT Securely
 
 ```python
-# コード例6: JWT の安全な実装
+# Code Example 6: Secure JWT implementation
 import jwt
 import time
 import secrets
@@ -875,23 +879,23 @@ from typing import Optional
 
 
 class SecureJWT:
-    """安全な JWT トークン管理
+    """Secure JWT token management
 
-    WHY HS256 ではなく RS256 を推奨するか:
-    - HS256: 署名と検証に同じ秘密鍵を使用
-      → 検証側にも秘密鍵を共有する必要がある
-      → マイクロサービスでは鍵の配布が問題になる
-    - RS256: 秘密鍵で署名、公開鍵で検証
-      → 検証側には公開鍵のみ配布すればよい
-      → JWKS エンドポイントで公開鍵を自動配布可能
+    WHY RS256 is preferred over HS256:
+    - HS256: Same secret key used for signing and verification
+      → Verification side must also have the secret key
+      → Key distribution becomes an issue in microservices
+    - RS256: Sign with private key, verify with public key
+      → Only the public key needs to be distributed to verifiers
+      → Public key can be auto-distributed via JWKS endpoint
     """
 
-    # トークンのブラックリスト（即時無効化用）
+    # Token blacklist (for immediate revocation)
     _blacklist: set = set()
 
     def __init__(self, secret_key: str, algorithm: str = "HS256"):
         self.secret_key = secret_key
-        # 安全でないアルゴリズムを拒否
+        # Reject insecure algorithms
         allowed_algorithms = {"HS256", "HS384", "HS512",
                               "RS256", "RS384", "RS512",
                               "ES256", "ES384", "ES512"}
@@ -904,10 +908,10 @@ class SecureJWT:
 
     def create_token(self, user_id: str, roles: list,
                      expires_in: int = 900) -> str:
-        """アクセストークンを生成（デフォルト15分）
+        """Generate an access token (default 15 minutes)
 
-        最小権限の原則: トークンには必要最小限の情報のみ含める。
-        個人情報（メールアドレス等）はトークンに含めない。
+        Principle of least privilege: include only the minimum necessary
+        information in the token. Do not include PII (e.g. email addresses).
         """
         now = int(time.time())
         payload = {
@@ -916,19 +920,19 @@ class SecureJWT:
             "iat": now,
             "exp": now + expires_in,
             "nbf": now,                      # Not Before
-            "jti": secrets.token_hex(16),    # JWT ID（リプレイ防止）
-            "iss": "myapp",                  # 発行者
-            "aud": "myapp-api",              # 対象者
+            "jti": secrets.token_hex(16),    # JWT ID (replay prevention)
+            "iss": "myapp",                  # Issuer
+            "aud": "myapp-api",              # Audience
         }
         return jwt.encode(payload, self.secret_key,
                           algorithm=self.algorithm)
 
     def create_refresh_token(self, user_id: str,
                              expires_in: int = 604800) -> str:
-        """リフレッシュトークンを生成（デフォルト7日）
+        """Generate a refresh token (default 7 days)
 
-        リフレッシュトークンはアクセストークンの再発行にのみ使用。
-        スコープを制限し、DBに保存して管理する。
+        Refresh tokens are used only for re-issuing access tokens.
+        Limit scope and manage by storing in DB.
         """
         now = int(time.time())
         payload = {
@@ -943,22 +947,22 @@ class SecureJWT:
                           algorithm=self.algorithm)
 
     def verify_token(self, token: str) -> Optional[dict]:
-        """トークンを検証
+        """Verify a token
 
-        検証項目:
-        1. 署名の正当性（改竄検知）
-        2. 有効期限（exp）
-        3. 発行時刻（iat）
-        4. Not Before（nbf）
-        5. 発行者（iss）
-        6. 対象者（aud）
-        7. ブラックリストチェック
+        Verification checks:
+        1. Signature validity (tamper detection)
+        2. Expiry (exp)
+        3. Issued at (iat)
+        4. Not Before (nbf)
+        5. Issuer (iss)
+        6. Audience (aud)
+        7. Blacklist check
         """
         try:
             payload = jwt.decode(
                 token,
                 self.secret_key,
-                algorithms=[self.algorithm],  # リスト形式で明示指定
+                algorithms=[self.algorithm],  # Explicitly specified as list
                 options={
                     "require": ["exp", "iat", "sub", "iss"],
                     "verify_exp": True,
@@ -969,24 +973,23 @@ class SecureJWT:
                 audience="myapp-api",
             )
 
-            # ブラックリストチェック
+            # Blacklist check
             if payload.get("jti") in self._blacklist:
                 return None
 
             return payload
         except jwt.ExpiredSignatureError:
-            return None  # トークン期限切れ
+            return None  # Token expired
         except jwt.InvalidTokenError:
-            return None  # その他の検証エラー
+            return None  # Other validation error
 
     def revoke_token(self, token: str) -> bool:
-        """トークンを即座に無効化（ブラックリスト方式）
+        """Immediately revoke a token (blacklist approach)
 
-        短い有効期限と組み合わせることで、
-        ブラックリストのサイズを制限する。
+        Combined with short expiry to limit the blacklist size.
         """
         try:
-            # 署名検証なしでペイロードを取得（jti のみ必要）
+            # Get payload without signature verification (only jti needed)
             payload = jwt.decode(
                 token,
                 self.secret_key,
@@ -1002,45 +1005,45 @@ class SecureJWT:
         return False
 
 
-# 使用例
+# Usage example
 jwt_manager = SecureJWT("my-secret-key-at-least-256-bits-long!!")
 
-# アクセストークン生成
+# Generate access token
 access_token = jwt_manager.create_token("user123", ["viewer"])
-print(f"アクセストークン: {access_token[:50]}...")
+print(f"Access token: {access_token[:50]}...")
 
-# リフレッシュトークン生成
+# Generate refresh token
 refresh_token = jwt_manager.create_refresh_token("user123")
 
-# トークン検証
+# Verify token
 payload = jwt_manager.verify_token(access_token)
-print(f"ペイロード: {payload}")
+print(f"Payload: {payload}")
 
-# トークン無効化
+# Revoke token
 jwt_manager.revoke_token(access_token)
 revoked_result = jwt_manager.verify_token(access_token)
-print(f"無効化後の検証: {revoked_result}")  # None
+print(f"Verification after revocation: {revoked_result}")  # None
 ```
 
-### 5.3 JWT とセッションの使い分け
+### 5.3 Choosing Between JWT and Sessions
 
-| 観点 | セッションベース | JWT |
-|------|---------------|-----|
-| 状態管理 | サーバー側（ステートフル） | クライアント側（ステートレス） |
-| スケーラビリティ | セッションストアが必要 | サーバー間の状態共有不要 |
-| 即時無効化 | セッション削除で即座に無効化 | ブラックリスト等の追加実装が必要 |
-| トークンサイズ | セッションID のみ（小） | ペイロード含む（大） |
-| 適するアーキテクチャ | モノリス、サーバーレンダリング | マイクロサービス、SPA |
-| 実装の複雑さ | 低（フレームワーク支援あり） | 中（セキュリティ考慮点多数） |
+| Aspect | Session-Based | JWT |
+|--------|--------------|-----|
+| State management | Server-side (stateful) | Client-side (stateless) |
+| Scalability | Requires session store | No inter-server state sharing needed |
+| Immediate revocation | Instant via session deletion | Requires additional implementation (blacklist, etc.) |
+| Token size | Session ID only (small) | Includes payload (large) |
+| Suitable architecture | Monolith, server-side rendering | Microservices, SPA |
+| Implementation complexity | Low (framework support available) | Medium (many security considerations) |
 
 ---
 
-## 6. パスワードリセットのセキュリティ
+## 6. Password Reset Security
 
-### 6.1 安全なパスワードリセットフロー
+### 6.1 Secure Password Reset Flow
 
 ```python
-# コード例7: セキュアなパスワードリセットの実装
+# Code Example 7: Secure password reset implementation
 import secrets
 import time
 import hashlib
@@ -1048,32 +1051,32 @@ from typing import Optional, Tuple
 
 
 class PasswordResetManager:
-    """安全なパスワードリセット管理
+    """Secure password reset management
 
-    パスワードリセットの脆弱性パターン:
-    1. 推測可能なリセットトークン（連番、タイムスタンプベース）
-    2. トークンの有効期限なし
-    3. トークンの使い回し（リプレイ攻撃）
-    4. ユーザーの存在有無が推測可能なエラーメッセージ
+    Common password reset vulnerability patterns:
+    1. Predictable reset tokens (sequential, timestamp-based)
+    2. No token expiry
+    3. Token reuse (replay attacks)
+    4. Error messages that reveal whether a user exists
     """
 
-    TOKEN_EXPIRY = 3600  # 1時間
-    TOKEN_LENGTH = 32    # 256ビット
+    TOKEN_EXPIRY = 3600  # 1 hour
+    TOKEN_LENGTH = 32    # 256 bits
 
     def __init__(self):
         self.reset_tokens: dict = {}
 
     def request_reset(self, email: str) -> Tuple[str, str]:
-        """パスワードリセットをリクエスト
+        """Request a password reset
 
-        セキュリティ上の注意:
-        - ユーザーの存在有無に関わらず同じレスポンスを返す
-        - レートリミットを適用（同一メールへの連続リクエストを制限）
+        Security considerations:
+        - Return the same response regardless of whether the user exists
+        - Apply rate limiting (restrict consecutive requests to the same email)
         """
-        # 暗号学的に安全なトークンを生成
+        # Generate a cryptographically secure token
         token = secrets.token_urlsafe(self.TOKEN_LENGTH)
 
-        # トークンをハッシュ化して保存（DB漏洩時の保護）
+        # Hash the token before storing (protection against DB leaks)
         token_hash = hashlib.sha256(token.encode()).hexdigest()
 
         self.reset_tokens[token_hash] = {
@@ -1085,220 +1088,221 @@ class PasswordResetManager:
         return token, token_hash
 
     def verify_and_consume(self, token: str) -> Optional[str]:
-        """リセットトークンを検証して消費（一回限り使用）"""
+        """Verify and consume the reset token (single use only)"""
         token_hash = hashlib.sha256(token.encode()).hexdigest()
         data = self.reset_tokens.get(token_hash)
 
         if not data:
             return None
 
-        # 有効期限チェック
+        # Expiry check
         if time.time() - data["created_at"] > self.TOKEN_EXPIRY:
             del self.reset_tokens[token_hash]
             return None
 
-        # 使用済みチェック
+        # Already-used check
         if data["used"]:
-            # トークンの再利用はセキュリティインシデントの可能性
+            # Token reuse may indicate a security incident
             del self.reset_tokens[token_hash]
             return None
 
-        # トークンを使用済みとしてマーク
+        # Mark token as used
         data["used"] = True
 
         return data["email"]
 
 
-# 使用例
+# Usage example
 reset_mgr = PasswordResetManager()
 token, _ = reset_mgr.request_reset("user@example.com")
 email = reset_mgr.verify_and_consume(token)
-print(f"リセット対象: {email}")
+print(f"Reset target: {email}")
 
-# 2回目の使用は失敗
+# Second use fails
 email2 = reset_mgr.verify_and_consume(token)
-print(f"再利用: {email2}")  # None
+print(f"Reuse: {email2}")  # None
 ```
 
 ---
 
-## 7. Credential Stuffing 対策
+## 7. Credential Stuffing Protection
 
 ```
-Credential Stuffing 攻撃の仕組み:
+How Credential Stuffing attacks work:
 
-  攻撃者
+  Attacker
     |
-    |-- 漏洩したメール/パスワードリスト（数百万件）
-    |   (他サイトのデータ漏洩から入手)
+    |-- Leaked email/password list (millions of entries)
+    |   (obtained from other site data breaches)
     |
-    |-- 自動化ツールで標的サイトにログイン試行
+    |-- Automated tool attempts login on target site
     |   ┌──────────────────────────────────────┐
     |   │  user1@mail.com / pass123            │
     |   │  user2@mail.com / qwerty             │
     |   │  user3@mail.com / letmein            │
-    |   │  ...（数百万回）                      │
+    |   │  ...(millions of attempts)           │
     |   └──────────────────────────────────────┘
     |
-    +-- パスワード使い回しユーザーのアカウントに不正アクセス
+    +-- Unauthorized access to accounts of users who reuse passwords
 
-  対策:
-  1. HIBP API でパスワード漏洩チェック
-  2. IP ベースのレートリミット
-  3. CAPTCHA（自動化ツール対策）
-  4. MFA（パスワード漏洩しても突破されない）
-  5. 異常ログイン検知（新しいデバイス/場所からの通知）
+  Mitigations:
+  1. HIBP API to check for breached passwords
+  2. IP-based rate limiting
+  3. CAPTCHA (against automated tools)
+  4. MFA (cannot be bypassed even if password is leaked)
+  5. Anomaly login detection (notify on new device/location)
 ```
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: パスワードの平文/可逆暗号化保存
+### Anti-Pattern 1: Storing Passwords in Plaintext or Reversible Encryption
 
 ```python
-# NG: パスワードを平文で保存
+# NG: Storing password in plaintext
 def save_user(username, password):
     db.execute(
         "INSERT INTO users (username, password) VALUES (?, ?)",
-        (username, password)  # 平文！
+        (username, password)  # Plaintext!
     )
 
-# NG: AES等の可逆暗号化で保存
+# NG: Storing with reversible encryption (e.g. AES)
 from cryptography.fernet import Fernet
 key = Fernet.generate_key()
 def save_user_encrypted(username, password):
     encrypted = Fernet(key).encrypt(password.encode())
     db.execute(
         "INSERT INTO users (username, password) VALUES (?, ?)",
-        (username, encrypted)  # 復号可能 = 鍵が漏洩すれば全滅
+        (username, encrypted)  # Decryptable = total compromise if key leaks
     )
 
-# OK: Argon2id で一方向ハッシュ化
+# OK: One-way hashing with Argon2id
 from argon2 import PasswordHasher
 ph = PasswordHasher()
 def save_user_secure(username, password):
-    hashed = ph.hash(password)  # 復元不可能
+    hashed = ph.hash(password)  # Cannot be reversed
     db.execute(
         "INSERT INTO users (username, password_hash) VALUES (?, ?)",
         (username, hashed)
     )
 ```
 
-**なぜ危険か**: 平文保存はデータベース漏洩時に即座に全ユーザーのパスワードが露出する。可逆暗号化は暗号鍵の漏洩で同じ結果になる。パスワードは復元する必要がないため、必ず一方向ハッシュを使用する。
+**Why this is dangerous**: Plaintext storage exposes all user passwords immediately upon database breach. Reversible encryption leads to the same result if the encryption key is leaked. Since passwords never need to be recovered, always use one-way hashing.
 
-### アンチパターン2: JWT の `algorithm: "none"` 攻撃
+### Anti-Pattern 2: JWT `algorithm: "none"` Attack
 
 ```python
-# NG: アルゴリズムを検証しない
+# NG: Not validating the algorithm
 import jwt
-payload = jwt.decode(token, secret, algorithms=None)  # 全アルゴリズム許可
+payload = jwt.decode(token, secret, algorithms=None)  # All algorithms allowed
 
-# NG: デフォルト設定のまま使用（ライブラリによっては none を許可）
+# NG: Using default settings (some libraries allow "none" by default)
 payload = jwt.decode(token, secret)
 
-# OK: 許可するアルゴリズムを明示的に指定
+# OK: Explicitly specify allowed algorithms
 payload = jwt.decode(
     token,
     secret,
-    algorithms=["HS256"],  # HS256 のみ許可
+    algorithms=["HS256"],  # Allow only HS256
     options={"require": ["exp", "iss"]},
 )
 ```
 
-**なぜ危険か**: 攻撃者が JWT ヘッダの `alg` を `"none"` に変更すると、署名検証がスキップされ、任意のペイロードで認証をバイパスできる。2015 年に多くの JWT ライブラリでこの脆弱性が発見された（CVE-2015-9235）。
+**Why this is dangerous**: If an attacker changes the `alg` field in the JWT header to `"none"`, signature verification is skipped, allowing authentication to be bypassed with any arbitrary payload. This vulnerability was discovered in many JWT libraries in 2015 (CVE-2015-9235).
 
-### アンチパターン3: セッション固定攻撃に無防備
+### Anti-Pattern 3: Vulnerable to Session Fixation Attacks
 
 ```python
-# NG: ログイン前後でセッションIDが変わらない
+# NG: Session ID does not change after login
 @app.route("/login", methods=["POST"])
 def login():
     if authenticate(request.form["username"], request.form["password"]):
         session["user_id"] = get_user_id(request.form["username"])
         return redirect("/dashboard")
-        # セッションIDは変わらない！攻撃者が事前に仕込んだIDがそのまま使われる
+        # Session ID unchanged! The ID pre-set by the attacker is still in use
 
-# OK: ログイン成功時にセッションIDを再生成
+# OK: Regenerate session ID on successful login
 @app.route("/login", methods=["POST"])
 def login_secure():
     if authenticate(request.form["username"], request.form["password"]):
-        session.regenerate()  # セッションIDを再生成
+        session.regenerate()  # Regenerate session ID
         session["user_id"] = get_user_id(request.form["username"])
         return redirect("/dashboard")
 ```
 
-**なぜ危険か**: 攻撃者が事前にセッションIDをユーザーのブラウザに設定し、ユーザーがそのIDでログインすると、攻撃者も同じセッションIDでアクセスできてしまう。
+**Why this is dangerous**: An attacker pre-sets a session ID in the user's browser. When the user logs in with that ID, the attacker can access the same session using the same session ID.
 
-### アンチパターン4: エラーメッセージからのユーザー列挙
+### Anti-Pattern 4: User Enumeration via Error Messages
 
 ```python
-# NG: ユーザーの存在を推測可能なエラーメッセージ
+# NG: Error messages that reveal whether a user exists
 def login(username, password):
     user = find_user(username)
     if not user:
-        return {"error": "ユーザーが見つかりません"}  # ユーザー存在が分かる
+        return {"error": "User not found"}  # Reveals user existence
     if not verify_password(password, user.password_hash):
-        return {"error": "パスワードが間違っています"}  # ユーザーは存在する
+        return {"error": "Incorrect password"}  # Confirms user exists
 
-# OK: 同一のエラーメッセージ
+# OK: Use the same error message for all cases
 def login_secure(username, password):
     user = find_user(username)
     if not user or not verify_password(password, user.password_hash if user else "dummy"):
-        return {"error": "ユーザー名またはパスワードが間違っています"}
+        return {"error": "Invalid username or password"}
 ```
 
 ---
 
 ## FAQ
 
-### Q1: パスワードの最大長は制限すべきですか?
+### Q1: Should I set a maximum password length?
 
-128文字程度の上限は設定すべきである。Argon2id や bcrypt はパスワードをハッシュ化する際に計算コストがかかるが、極端に長いパスワード（数万文字等）を送信されると DoS 攻撃になり得る。ただし、bcrypt 固有の 72 バイト制限には注意が必要で、それ以上のパスワードは事前に SHA-256 等でハッシュしてから bcrypt に渡す方法がある。NIST SP 800-63B では最低でも 64 文字以上を受け入れることを推奨している。
+An upper limit of around 128 characters should be set. Argon2id and bcrypt incur computational cost when hashing passwords, and extremely long passwords (e.g. tens of thousands of characters) can become a DoS vector. Note that bcrypt has a specific 72-byte limit — passwords longer than that should be pre-hashed with SHA-256 before passing to bcrypt. NIST SP 800-63B recommends accepting at least 64 characters.
 
-### Q2: セッションIDはどこに保存すべきですか?
+### Q2: Where should session IDs be stored?
 
-`HttpOnly` + `Secure` + `SameSite` 属性付きの Cookie が推奨される。localStorage は XSS に脆弱（JavaScript からアクセス可能）であり、URL パラメータは Referer ヘッダやブラウザ履歴から漏洩する危険がある。sessionStorage はタブを閉じると消えるため、ユーザビリティの観点からも Cookie が最適である。
+Cookies with `HttpOnly` + `Secure` + `SameSite` attributes are recommended. `localStorage` is vulnerable to XSS (accessible from JavaScript), and URL parameters risk leaking through the Referer header or browser history. `sessionStorage` disappears when the tab is closed, so cookies are optimal from a usability perspective as well.
 
-### Q3: JWT とセッションベース認証のどちらを使うべきですか?
+### Q3: Should I use JWT or session-based authentication?
 
-アーキテクチャと要件に依存する。モノリスアプリケーションではセッションベースが推奨される（シンプルで即時無効化が容易）。マイクロサービスや SPA では JWT が適している（サーバー間の状態共有不要）。ただし、JWT には即座にトークンを無効化できないという課題があるため、短い有効期限（15分）とリフレッシュトークン（7日）の組み合わせ + ブラックリスト機能が必要である。
+It depends on your architecture and requirements. For monolithic applications, session-based authentication is recommended (simpler, easy immediate revocation). For microservices or SPAs, JWT is more suitable (no inter-server state sharing needed). However, since JWT cannot immediately revoke tokens, a combination of short expiry (15 minutes), refresh tokens (7 days), and blacklist functionality is required.
 
-### Q4: SMS OTP はなぜ非推奨になったのですか?
+### Q4: Why is SMS OTP discouraged?
 
-NIST SP 800-63B で SMS OTP は「制限付き（restricted）」の認証手段とされた。理由は以下の通り:
-- **SIM スワップ攻撃**: 攻撃者が携帯キャリアを騙して被害者の電話番号を別の SIM に移す
-- **SS7 プロトコルの脆弱性**: 通信経路上で SMS を傍受可能
-- **マルウェア**: スマートフォン上のマルウェアが SMS を読み取る
-代替として TOTP やFIDO2/WebAuthn が推奨される。
+NIST SP 800-63B classifies SMS OTP as a "restricted" authentication method. Reasons include:
+- **SIM swap attacks**: Attackers trick mobile carriers into transferring the victim's phone number to a different SIM
+- **SS7 protocol vulnerabilities**: SMS can be intercepted on the communication path
+- **Malware**: Malware on smartphones can read SMS messages
 
-### Q5: パスワードレス認証は安全ですか?
+TOTP or FIDO2/WebAuthn is recommended as an alternative.
 
-パスキー（Passkeys）に代表されるパスワードレス認証は、従来のパスワード認証より安全性が高い。公開鍵暗号ベースでフィッシング耐性があり、生体認証と組み合わせることでユーザビリティも向上する。FIDO Alliance と W3C が標準化を推進しており、Apple・Google・Microsoft が対応済みである。2024年以降の新規システムでは第一候補として検討すべきである。
+### Q5: Is passwordless authentication secure?
+
+Passwordless authentication represented by Passkeys is more secure than traditional password authentication. It is based on public-key cryptography, has phishing resistance, and combining it with biometric authentication also improves usability. The FIDO Alliance and W3C are driving standardization, and Apple, Google, and Microsoft have already adopted it. For new systems from 2024 onwards, it should be considered as the first choice.
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1（基礎）: パスワードポリシーチェッカーの実装
+### Exercise 1 (Basic): Implement a Password Policy Checker
 
-以下の要件を満たすパスワードポリシーチェッカーを実装せよ。
+Implement a password policy checker that meets the following requirements.
 
-**要件**:
-- 最小12文字、最大128文字
-- 大文字・小文字・数字をそれぞれ1文字以上含む
-- 過去に使用したパスワード3件との重複を禁止
-- 一般的な弱いパスワード（"password", "123456" 等）を拒否
+**Requirements**:
+- Minimum 12 characters, maximum 128 characters
+- At least one uppercase letter, one lowercase letter, and one digit
+- Prohibit reuse of the last 3 passwords
+- Reject commonly weak passwords (e.g., "password", "123456")
 
 <details>
-<summary>模範解答</summary>
+<summary>Reference Answer</summary>
 
 ```python
 import hashlib
 from typing import List, Optional
 
 
-# よく使われる弱いパスワードリスト（実運用ではより大きなリストを使用）
+# List of commonly weak passwords (use a larger list in production)
 COMMON_PASSWORDS = {
     "password", "123456", "12345678", "qwerty", "abc123",
     "monkey", "1234567", "letmein", "trustno1", "dragon",
@@ -1308,92 +1312,92 @@ COMMON_PASSWORDS = {
 
 
 class PasswordPolicyChecker:
-    """パスワードポリシーチェッカー"""
+    """Password policy checker"""
 
     MIN_LENGTH = 12
     MAX_LENGTH = 128
     HISTORY_SIZE = 3
 
     def __init__(self):
-        # ユーザーごとのパスワード履歴（ハッシュで保存）
+        # Per-user password history (stored as hashes)
         self.password_history: dict = {}
 
     def check(self, password: str, user_id: str = None) -> List[str]:
-        """パスワードポリシーをチェック"""
+        """Check password policy"""
         errors = []
 
-        # 長さチェック
+        # Length check
         if len(password) < self.MIN_LENGTH:
-            errors.append(f"{self.MIN_LENGTH}文字以上必要です")
+            errors.append(f"Password must be at least {self.MIN_LENGTH} characters")
         if len(password) > self.MAX_LENGTH:
-            errors.append(f"{self.MAX_LENGTH}文字以下にしてください")
+            errors.append(f"Password must be {self.MAX_LENGTH} characters or fewer")
 
-        # 文字種チェック
+        # Character type check
         if not any(c.isupper() for c in password):
-            errors.append("大文字を1文字以上含めてください")
+            errors.append("Password must contain at least one uppercase letter")
         if not any(c.islower() for c in password):
-            errors.append("小文字を1文字以上含めてください")
+            errors.append("Password must contain at least one lowercase letter")
         if not any(c.isdigit() for c in password):
-            errors.append("数字を1文字以上含めてください")
+            errors.append("Password must contain at least one digit")
 
-        # 弱いパスワードチェック
+        # Weak password check
         if password.lower() in COMMON_PASSWORDS:
-            errors.append("一般的すぎるパスワードは使用できません")
+            errors.append("Password is too common")
 
-        # パスワード履歴チェック
+        # Password history check
         if user_id and user_id in self.password_history:
             pw_hash = hashlib.sha256(password.encode()).hexdigest()
             if pw_hash in self.password_history[user_id]:
                 errors.append(
-                    f"直近{self.HISTORY_SIZE}件と同じパスワードは使用できません"
+                    f"Cannot reuse any of your last {self.HISTORY_SIZE} passwords"
                 )
 
         return errors
 
     def record_password(self, user_id: str, password: str) -> None:
-        """パスワード履歴に記録"""
+        """Record password in history"""
         pw_hash = hashlib.sha256(password.encode()).hexdigest()
         if user_id not in self.password_history:
             self.password_history[user_id] = []
         history = self.password_history[user_id]
         history.append(pw_hash)
-        # 履歴サイズを制限
+        # Limit history size
         if len(history) > self.HISTORY_SIZE:
             history.pop(0)
 
 
-# テスト
+# Tests
 checker = PasswordPolicyChecker()
 
-# 弱いパスワード
+# Weak password
 print(checker.check("password"))
-# ['12文字以上必要です', '数字を1文字以上含めてください', '一般的すぎるパスワードは使用できません']
+# ['Password must be at least 12 characters', 'Password must contain at least one digit', 'Password is too common']
 
-# 強いパスワード
+# Strong password
 print(checker.check("MyStr0ngP@ssword2024"))
 # []
 
-# パスワード履歴チェック
+# Password history check
 checker.record_password("user1", "MyStr0ngP@ssword2024")
 print(checker.check("MyStr0ngP@ssword2024", "user1"))
-# ['直近3件と同じパスワードは使用できません']
+# ['Cannot reuse any of your last 3 passwords']
 ```
 
 </details>
 
-### 演習2（応用）: レートリミット付きログインAPIの実装
+### Exercise 2 (Intermediate): Implement a Rate-Limited Login API
 
-Flask を使用して、以下の要件を満たすログイン API を実装せよ。
+Using Flask, implement a login API that meets the following requirements.
 
-**要件**:
-- Argon2id でパスワードを検証
-- IP単位とアカウント単位のレートリミット
-- 3回失敗後に遅延を増加
-- 5回失敗後にアカウントロック（30分）
-- ログイン成功時にセッションIDを発行
+**Requirements**:
+- Verify passwords using Argon2id
+- Rate limiting per IP and per account
+- Increase delay after 3 failures
+- Lock account after 5 failures (30 minutes)
+- Issue session ID on successful login
 
 <details>
-<summary>模範解答</summary>
+<summary>Reference Answer</summary>
 
 ```python
 import time
@@ -1408,13 +1412,13 @@ from argon2.exceptions import VerifyMismatchError
 app = Flask(__name__)
 ph = PasswordHasher()
 
-# 模擬ユーザーデータベース
+# Mock user database
 users_db = {
     "admin": ph.hash("AdminP@ss123!"),
     "user1": ph.hash("User1P@ss456!"),
 }
 
-# セッションストア
+# Session store
 sessions = {}
 
 
@@ -1425,7 +1429,7 @@ class AttemptTracker:
     locked_until: float = 0.0
 
 
-# レートリミットトラッカー
+# Rate limit trackers
 account_attempts = defaultdict(AttemptTracker)
 ip_attempts = defaultdict(AttemptTracker)
 
@@ -1436,7 +1440,7 @@ WINDOW = 300
 
 
 def check_rate_limit(tracker: AttemptTracker) -> dict:
-    """レートリミットのチェック"""
+    """Check rate limit"""
     now = time.time()
     if tracker.locked_until > now:
         return {"blocked": True, "retry_after": int(tracker.locked_until - now)}
@@ -1447,7 +1451,7 @@ def check_rate_limit(tracker: AttemptTracker) -> dict:
 
 
 def record_failure(tracker: AttemptTracker):
-    """失敗を記録"""
+    """Record a failure"""
     now = time.time()
     if tracker.count == 0:
         tracker.first_attempt = now
@@ -1465,7 +1469,7 @@ def login():
     username = data["username"]
     client_ip = request.remote_addr
 
-    # IPレートリミット
+    # IP rate limit
     ip_check = check_rate_limit(ip_attempts[client_ip])
     if ip_check["blocked"]:
         return jsonify({
@@ -1473,7 +1477,7 @@ def login():
             "retry_after": ip_check["retry_after"],
         }), 429
 
-    # アカウントレートリミット
+    # Account rate limit
     acct_check = check_rate_limit(account_attempts[username])
     if acct_check["blocked"]:
         return jsonify({
@@ -1481,12 +1485,12 @@ def login():
             "retry_after": acct_check["retry_after"],
         }), 429
 
-    # 遅延の適用
+    # Apply delay
     delay_idx = min(acct_check.get("count", 0), len(DELAYS) - 1)
     if DELAYS[delay_idx] > 0:
         time.sleep(DELAYS[delay_idx])
 
-    # 認証
+    # Authentication
     password_hash = users_db.get(username)
     if not password_hash:
         record_failure(account_attempts[username])
@@ -1500,10 +1504,10 @@ def login():
         record_failure(ip_attempts[client_ip])
         return jsonify({"error": "Invalid credentials"}), 401
 
-    # 成功: カウンターリセット
+    # Success: reset counter
     account_attempts.pop(username, None)
 
-    # セッション発行
+    # Issue session
     session_id = secrets.token_hex(32)
     sessions[session_id] = {
         "user_id": username,
@@ -1528,18 +1532,18 @@ if __name__ == "__main__":
 
 </details>
 
-### 演習3（発展）: JWT リフレッシュトークンローテーションの実装
+### Exercise 3 (Advanced): Implement JWT Refresh Token Rotation
 
-以下の要件を満たす JWT トークン管理システムを設計・実装せよ。
+Design and implement a JWT token management system that meets the following requirements.
 
-**要件**:
-- アクセストークン（15分）とリフレッシュトークン（7日）のペア発行
-- リフレッシュトークンのローテーション（使用するたびに新しいものと交換）
-- リフレッシュトークンの再利用検知（盗難検出）
-- トークンファミリー管理（同一ログインセッション由来のトークン追跡）
+**Requirements**:
+- Issue access token (15 min) and refresh token (7 days) as a pair
+- Refresh token rotation (exchange for a new one on each use)
+- Detect refresh token reuse (theft detection)
+- Token family management (track tokens originating from the same login session)
 
 <details>
-<summary>模範解答</summary>
+<summary>Reference Answer</summary>
 
 ```python
 import jwt
@@ -1549,30 +1553,30 @@ from typing import Optional, Tuple
 
 
 class TokenRotationManager:
-    """JWT リフレッシュトークンローテーション
+    """JWT refresh token rotation
 
-    リフレッシュトークン再利用検知の仕組み:
-    - リフレッシュトークンは使い捨て（一度使ったら無効化）
-    - 同一ログインから派生するトークンを「ファミリー」として追跡
-    - 使用済みトークンが再度使われた場合、
-      そのファミリー全体を無効化（盗難を検知）
+    How refresh token reuse detection works:
+    - Refresh tokens are single-use (invalidated after one use)
+    - Tokens derived from the same login are tracked as a "family"
+    - If a used token is used again,
+      the entire family is invalidated (theft detected)
     """
 
     def __init__(self, secret: str):
         self.secret = secret
-        # ファミリーID → {使用済みトークンのjtiリスト, 最新のjti}
+        # family ID → {list of used token jtis, latest jti}
         self.token_families: dict = {}
-        # jti → ファミリーID のマッピング
+        # jti → family ID mapping
         self.jti_to_family: dict = {}
-        # 無効化されたファミリー
+        # Revoked families
         self.revoked_families: set = set()
 
     def create_token_pair(self, user_id: str,
                           family_id: str = None) -> Tuple[str, str]:
-        """アクセストークンとリフレッシュトークンのペアを生成"""
+        """Generate an access token and refresh token pair"""
         now = int(time.time())
 
-        # 新規ログインの場合はファミリーIDを生成
+        # Generate family ID for new login
         if family_id is None:
             family_id = secrets.token_hex(16)
             self.token_families[family_id] = {
@@ -1581,17 +1585,17 @@ class TokenRotationManager:
                 "user_id": user_id,
             }
 
-        # アクセストークン（15分）
+        # Access token (15 minutes)
         access_jti = secrets.token_hex(16)
         access_token = jwt.encode({
             "sub": user_id,
             "type": "access",
             "jti": access_jti,
             "iat": now,
-            "exp": now + 900,  # 15分
+            "exp": now + 900,  # 15 minutes
         }, self.secret, algorithm="HS256")
 
-        # リフレッシュトークン（7日）
+        # Refresh token (7 days)
         refresh_jti = secrets.token_hex(16)
         refresh_token = jwt.encode({
             "sub": user_id,
@@ -1599,20 +1603,20 @@ class TokenRotationManager:
             "jti": refresh_jti,
             "family": family_id,
             "iat": now,
-            "exp": now + 604800,  # 7日
+            "exp": now + 604800,  # 7 days
         }, self.secret, algorithm="HS256")
 
-        # ファミリーの最新jtiを更新
+        # Update latest jti in family
         self.token_families[family_id]["latest_jti"] = refresh_jti
         self.jti_to_family[refresh_jti] = family_id
 
         return access_token, refresh_token
 
     def refresh(self, refresh_token: str) -> Optional[Tuple[str, str]]:
-        """リフレッシュトークンで新しいトークンペアを取得
+        """Get a new token pair using a refresh token
 
-        ローテーション: 古いリフレッシュトークンは無効化され、
-        新しいペアが返される。
+        Rotation: the old refresh token is invalidated and
+        a new pair is returned.
         """
         try:
             payload = jwt.decode(
@@ -1627,7 +1631,7 @@ class TokenRotationManager:
         family_id = payload["family"]
         user_id = payload["sub"]
 
-        # ファミリーが無効化されている場合
+        # Check if family has been revoked
         if family_id in self.revoked_families:
             return None
 
@@ -1635,81 +1639,81 @@ class TokenRotationManager:
         if not family:
             return None
 
-        # 再利用検知: このjtiが既に使用済みの場合
+        # Reuse detection: if this jti has already been used
         if jti in family["used_jtis"]:
-            # トークン盗難を検知！ファミリー全体を無効化
+            # Token theft detected! Revoke the entire family
             self.revoked_families.add(family_id)
-            print(f"[ALERT] トークン再利用検知: family={family_id}")
+            print(f"[ALERT] Token reuse detected: family={family_id}")
             return None
 
-        # 現在のjtiを使用済みとしてマーク
+        # Mark current jti as used
         family["used_jtis"].add(jti)
 
-        # 新しいトークンペアを生成
+        # Generate new token pair
         return self.create_token_pair(user_id, family_id)
 
     def revoke_family(self, family_id: str) -> None:
-        """ファミリー全体を無効化（ログアウト時等）"""
+        """Revoke the entire family (e.g. on logout)"""
         self.revoked_families.add(family_id)
 
 
-# 使用例
+# Usage example
 manager = TokenRotationManager("secret-key-256-bits-long!!!!!!!!")
 
-# 初回ログイン
+# Initial login
 access, refresh = manager.create_token_pair("user123")
-print("=== 初回ログイン ===")
+print("=== Initial Login ===")
 print(f"Access: {access[:50]}...")
 print(f"Refresh: {refresh[:50]}...")
 
-# リフレッシュ（正常）
+# Refresh (normal)
 new_access, new_refresh = manager.refresh(refresh)
-print("\n=== リフレッシュ（正常） ===")
+print("\n=== Refresh (normal) ===")
 print(f"New Access: {new_access[:50]}...")
 
-# 古いリフレッシュトークンの再利用（盗難検知）
-result = manager.refresh(refresh)  # 使用済みトークン
-print(f"\n=== 再利用検知 ===")
-print(f"結果: {result}")  # None（ファミリー全体が無効化）
+# Reuse of old refresh token (theft detection)
+result = manager.refresh(refresh)  # Used token
+print(f"\n=== Reuse Detection ===")
+print(f"Result: {result}")  # None (entire family revoked)
 
-# 新しいリフレッシュトークンも無効化されている
+# New refresh token is also revoked
 result2 = manager.refresh(new_refresh)
-print(f"新トークンも無効: {result2}")  # None
+print(f"New token also invalid: {result2}")  # None
 ```
 
 </details>
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 推奨対策 | 重要度 |
-|------|---------|--------|
-| パスワードハッシュ | Argon2id（第一推奨）/ bcrypt | 必須 |
-| セッションID | 256ビット以上の暗号学的乱数 | 必須 |
-| セッション管理 | HttpOnly/Secure Cookie + 絶対/アイドルタイムアウト | 必須 |
-| セッション固定対策 | ログイン時のセッションID再生成 | 必須 |
-| ブルートフォース対策 | レートリミット + プログレッシブ遅延 + ロックアウト | 必須 |
-| MFA | FIDO2/WebAuthn またはTOTP（SMS OTPは非推奨） | 強く推奨 |
-| JWT | 短い有効期限 + アルゴリズム明示指定 + aud/iss 検証 | 条件付き推奨 |
-| パスワードリセット | 暗号学的トークン + ハッシュ保存 + 一回限り使用 | 必須 |
-| Credential Stuffing | HIBP チェック + 異常ログイン検知 + MFA | 強く推奨 |
-
----
-
-## 次に読むべきガイド
-
-- [暗号基礎](../02-cryptography/00-crypto-basics.md) -- ハッシュ関数と暗号化アルゴリズムの詳細
-- [APIセキュリティ](../03-network-security/02-api-security.md) -- OAuth 2.0/JWT を使った API 認証の詳細
-- [セキュアコーディング](../04-application-security/00-secure-coding.md) -- セキュアコーディング全般
-- パスワードセキュリティ -- パスワード管理のさらなる深掘り
-- 多要素認証 -- MFA 実装の詳細ガイド
-- セッション vs トークン -- セッションとトークンの比較
-- JWT Deep Dive -- JWT の詳細な仕組みと攻撃手法
+| Item | Recommended Measure | Priority |
+|------|---------------------|----------|
+| Password hashing | Argon2id (first choice) / bcrypt | Required |
+| Session ID | Cryptographically secure random, 256+ bits | Required |
+| Session management | HttpOnly/Secure Cookie + absolute/idle timeout | Required |
+| Session fixation prevention | Regenerate session ID on login | Required |
+| Brute-force protection | Rate limiting + progressive delay + lockout | Required |
+| MFA | FIDO2/WebAuthn or TOTP (SMS OTP not recommended) | Strongly recommended |
+| JWT | Short expiry + explicit algorithm + aud/iss verification | Conditionally recommended |
+| Password reset | Cryptographic token + hashed storage + single use | Required |
+| Credential Stuffing | HIBP check + anomaly login detection + MFA | Strongly recommended |
 
 ---
 
-## 参考文献
+## What to Read Next
+
+- [Cryptography Basics](../02-cryptography/00-crypto-basics.md) -- Details on hash functions and encryption algorithms
+- [API Security](../03-network-security/02-api-security.md) -- API authentication details using OAuth 2.0/JWT
+- [Secure Coding](../04-application-security/00-secure-coding.md) -- Secure coding in general
+- Password Security -- Deeper dive into password management
+- Multi-Factor Authentication -- Detailed MFA implementation guide
+- Session vs Token -- Comparison of sessions and tokens
+- JWT Deep Dive -- Detailed mechanisms and attack methods for JWT
+
+---
+
+## References
 
 1. **OWASP Authentication Cheat Sheet** -- https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html
 2. **OWASP Session Management Cheat Sheet** -- https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html
