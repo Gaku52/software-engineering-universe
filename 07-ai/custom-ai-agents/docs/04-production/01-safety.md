@@ -1,138 +1,138 @@
-# AI エージェントの安全性 -- ガードレール・人間監視・制限
+# AI Agent Safety -- Guardrails, Human Oversight, and Restrictions
 
-> 自律的に行動する AI エージェントが暴走せず、安全かつ制御可能に動作するための技術的ガードレール、人間によるオーバーサイト、権限制限の設計パターンを体系的に学ぶ。
-
----
-
-## この章で学ぶこと
-
-1. **ガードレール設計** -- 入力検証、出力フィルタリング、アクション制限による多層防御の実装
-2. **人間監視 (Human-in-the-Loop)** -- 承認ワークフロー、エスカレーション、介入メカニズムの設計
-3. **権限制限とサンドボックス** -- 最小権限の原則、リソース制限、実行環境の隔離
-4. **プロンプトインジェクション対策** -- 攻撃パターンの理解と防御手法の実装
-5. **監査とコンプライアンス** -- 全操作の記録、追跡可能性の確保、規制対応
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [デプロイ](./00-deployment.md) の内容を理解していること
+> A systematic study of technical guardrails, human oversight, and permission restrictions designed to ensure that autonomously acting AI agents operate safely and in a controllable manner without going out of control.
 
 ---
 
-## 1. エージェント安全性の全体像
+## What You Will Learn
 
-### 1.1 安全性の多層防御モデル
+1. **Guardrail Design** -- Implementing multi-layered defense through input validation, output filtering, and action restrictions
+2. **Human-in-the-Loop** -- Designing approval workflows, escalation, and intervention mechanisms
+3. **Permission Restrictions and Sandboxing** -- Least privilege principle, resource limits, and execution environment isolation
+4. **Prompt Injection Countermeasures** -- Understanding attack patterns and implementing defensive techniques
+5. **Auditing and Compliance** -- Recording all operations, ensuring traceability, and meeting regulatory requirements
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Deployment](./00-deployment.md)
+
+---
+
+## 1. Overview of Agent Safety
+
+### 1.1 Defense-in-Depth Model for Safety
 
 ```
 +------------------------------------------------------------------+
-|                    多層防御アーキテクチャ                           |
+|                    Defense-in-Depth Architecture                   |
 +------------------------------------------------------------------+
 |                                                                    |
-|  Layer 1: 入力ガード                                               |
+|  Layer 1: Input Guard                                              |
 |  +------------------------------------------------------------+  |
-|  | プロンプトインジェクション検出 | 入力バリデーション | レート制限 |  |
-|  +------------------------------------------------------------+  |
-|                              |                                     |
-|  Layer 2: エージェントコア                                         |
-|  +------------------------------------------------------------+  |
-|  | システムプロンプト | ツール権限制御 | コンテキスト制限          |  |
+|  | Prompt Injection Detection | Input Validation | Rate Limiting|  |
 |  +------------------------------------------------------------+  |
 |                              |                                     |
-|  Layer 3: アクションガード                                         |
+|  Layer 2: Agent Core                                               |
 |  +------------------------------------------------------------+  |
-|  | ツール呼び出し検証 | 破壊的操作の承認 | 実行前確認             |  |
-|  +------------------------------------------------------------+  |
-|                              |                                     |
-|  Layer 4: 出力ガード                                               |
-|  +------------------------------------------------------------+  |
-|  | 有害性チェック | PII検出 | 品質検証 | 一貫性チェック            |  |
+|  | System Prompt | Tool Permission Control | Context Limits   |  |
 |  +------------------------------------------------------------+  |
 |                              |                                     |
-|  Layer 5: 実行環境                                                 |
+|  Layer 3: Action Guard                                             |
 |  +------------------------------------------------------------+  |
-|  | サンドボックス | リソース制限 | ネットワーク制限 | タイムアウト  |  |
+|  | Tool Call Validation | Destructive Op Approval | Pre-confirm |  |
+|  +------------------------------------------------------------+  |
+|                              |                                     |
+|  Layer 4: Output Guard                                             |
+|  +------------------------------------------------------------+  |
+|  | Toxicity Check | PII Detection | Quality Validation | Consistency|
+|  +------------------------------------------------------------+  |
+|                              |                                     |
+|  Layer 5: Execution Environment                                    |
+|  +------------------------------------------------------------+  |
+|  | Sandbox | Resource Limits | Network Restrictions | Timeout  |  |
 |  +------------------------------------------------------------+  |
 |                                                                    |
 +------------------------------------------------------------------+
 ```
 
-### 1.2 エージェントのリスクマトリクス
+### 1.2 Agent Risk Matrix
 
 ```
-影響度
-  高 |  監視必須     承認必須     禁止
-     |  (メール送信)  (課金操作)   (データ削除)
-     |
-  中 |  ログ記録     監視必須     承認必須
-     |  (検索)       (ファイル作成) (外部API)
-     |
-  低 |  制限なし     ログ記録     監視必須
-     |  (計算)       (読み取り)    (設定変更)
-     +----------------------------------------
-        低           中           高
-                   可逆性の低さ (非可逆度)
+Impact
+ High |  Monitoring Required  Approval Required  Prohibited
+      |  (Email sending)      (Billing ops)      (Data deletion)
+      |
+  Med |  Log Recording        Monitoring Required  Approval Required
+      |  (Search)             (File creation)      (External API)
+      |
+  Low |  Unrestricted         Log Recording        Monitoring Required
+      |  (Computation)        (Read operations)    (Config changes)
+      +----------------------------------------
+         Low                  Med                  High
+                         Irreversibility (Non-reversibility)
 ```
 
-### 1.3 安全性設計のフレームワーク
+### 1.3 Safety Design Framework
 
 ```
-安全性設計の4原則
+4 Principles of Safety Design
 
-1. Defense in Depth（多層防御）
-   - 単一の防御手段に依存しない
-   - 各レイヤーが独立して機能する
-   - 1つのレイヤーが突破されても他が防御
+1. Defense in Depth
+   - Do not rely on a single defensive measure
+   - Each layer functions independently
+   - Other layers defend even if one layer is breached
 
-2. Least Privilege（最小権限）
-   - 必要最小限の権限のみ付与
-   - セッションごとに動的に権限を調整
-   - デフォルトは拒否（deny by default）
+2. Least Privilege
+   - Grant only the minimum necessary permissions
+   - Dynamically adjust permissions per session
+   - Default to deny (deny by default)
 
-3. Fail Safe（安全側への障害）
-   - 判断に迷う場合は安全な選択をする
-   - システム障害時はエージェントを停止
-   - 不明な入力は拒否する
+3. Fail Safe
+   - Choose the safe option when in doubt
+   - Stop the agent when system failures occur
+   - Reject unknown inputs
 
-4. Auditability（監査可能性）
-   - 全操作をログに記録
-   - 意思決定の根拠を追跡可能にする
-   - 事後分析が可能な粒度で記録
+4. Auditability
+   - Log all operations
+   - Make decision rationale traceable
+   - Record at granularity sufficient for post-hoc analysis
 ```
 
 ---
 
-## 2. ガードレール設計
+## 2. Guardrail Design
 
-### 2.1 ツールコール検証システム
+### 2.1 Tool Call Validation System
 
 ```python
-# コード例 1: ツールコールのガードレール実装
+# Code Example 1: Implementing guardrails for tool calls
 from dataclasses import dataclass
 from enum import Enum
 from typing import Callable, Any
 import re
 
 class ActionLevel(Enum):
-    ALLOW = "allow"          # 自動許可
-    LOG = "log"              # ログ記録して許可
-    CONFIRM = "confirm"      # 人間の確認が必要
-    DENY = "deny"            # 拒否
+    ALLOW = "allow"          # Auto-allow
+    LOG = "log"              # Log and allow
+    CONFIRM = "confirm"      # Requires human confirmation
+    DENY = "deny"            # Deny
 
 @dataclass
 class ToolPolicy:
-    """各ツールのセキュリティポリシー"""
+    """Security policy for each tool"""
     tool_name: str
     default_level: ActionLevel
     max_calls_per_session: int
-    allowed_parameters: dict | None  # パラメータの許容値
-    validators: list[Callable]       # カスタムバリデータ
+    allowed_parameters: dict | None  # Allowed parameter values
+    validators: list[Callable]       # Custom validators
 
 class ToolGuardrail:
-    """ツール呼び出しのガードレール"""
+    """Guardrail for tool calls"""
 
     def __init__(self, policies: list[ToolPolicy]):
         self.policies = {p.tool_name: p for p in policies}
@@ -140,43 +140,43 @@ class ToolGuardrail:
 
     async def check(self, tool_name: str, parameters: dict,
                      context: dict) -> tuple[ActionLevel, str]:
-        """ツール呼び出しを検証し、アクションレベルを返す"""
+        """Validate a tool call and return the action level"""
 
         policy = self.policies.get(tool_name)
         if policy is None:
-            return ActionLevel.DENY, f"未登録のツール: {tool_name}"
+            return ActionLevel.DENY, f"Unregistered tool: {tool_name}"
 
-        # 1. 呼び出し回数チェック
+        # 1. Call count check
         count = self.call_counts.get(tool_name, 0)
         if count >= policy.max_calls_per_session:
             return ActionLevel.DENY, (
-                f"セッション上限超過: {tool_name} "
+                f"Session limit exceeded: {tool_name} "
                 f"({count}/{policy.max_calls_per_session})"
             )
 
-        # 2. パラメータ検証
+        # 2. Parameter validation
         if policy.allowed_parameters:
             for param, allowed in policy.allowed_parameters.items():
                 value = parameters.get(param)
                 if value is not None and value not in allowed:
                     return ActionLevel.DENY, (
-                        f"パラメータ '{param}' の値 '{value}' は"
-                        f"許可されていません"
+                        f"Value '{value}' for parameter '{param}' "
+                        f"is not permitted"
                     )
 
-        # 3. カスタムバリデータ
+        # 3. Custom validators
         for validator in policy.validators:
             result = await validator(parameters, context)
             if not result["ok"]:
                 return ActionLevel.DENY, result["reason"]
 
-        # 4. 呼び出しカウント更新
+        # 4. Update call count
         self.call_counts[tool_name] = count + 1
 
         return policy.default_level, "OK"
 
 
-# ポリシーの定義例
+# Example policy definitions
 policies = [
     ToolPolicy(
         tool_name="web_search",
@@ -211,26 +211,26 @@ policies = [
 ]
 ```
 
-### 2.2 出力フィルタリング
+### 2.2 Output Filtering
 
 ```python
-# コード例 2: エージェント出力の安全性フィルタリング
+# Code Example 2: Safety filtering for agent output
 class OutputGuardrail:
-    """エージェントの出力をフィルタリングする"""
+    """Filters agent output"""
 
-    # PII パターン
+    # PII patterns
     PII_PATTERNS = {
         "email": r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}",
         "phone_jp": r"0\d{1,4}-?\d{1,4}-?\d{3,4}",
         "credit_card": r"\b\d{4}[-\s]?\d{4}[-\s]?\d{4}[-\s]?\d{4}\b",
-        "my_number": r"\b\d{4}\s?\d{4}\s?\d{4}\b",  # マイナンバー
+        "my_number": r"\b\d{4}\s?\d{4}\s?\d{4}\b",  # My Number (Japan)
     }
 
     async def filter_output(self, output: str, context: dict) -> dict:
-        """出力を検証し、必要に応じてフィルタリングする"""
+        """Validate output and filter as necessary"""
         issues = []
 
-        # 1. PII 検出
+        # 1. PII detection
         pii_found = self._detect_pii(output)
         if pii_found:
             output = self._mask_pii(output, pii_found)
@@ -240,7 +240,7 @@ class OutputGuardrail:
                 "action": "masked"
             })
 
-        # 2. 有害性チェック
+        # 2. Toxicity check
         toxicity = await self._check_toxicity(output)
         if toxicity["score"] > 0.8:
             issues.append({
@@ -249,19 +249,19 @@ class OutputGuardrail:
                 "action": "blocked"
             })
             return {
-                "output": "[安全性フィルタにより出力がブロックされました]",
+                "output": "[Output blocked by safety filter]",
                 "issues": issues,
                 "blocked": True
             }
 
-        # 3. 機密情報の漏洩チェック
+        # 3. Confidential information leak check
         if self._contains_system_prompt(output, context):
             issues.append({
                 "type": "system_prompt_leak",
                 "action": "blocked"
             })
             return {
-                "output": "[システム情報の漏洩を検出しブロックしました]",
+                "output": "[System information leak detected and blocked]",
                 "issues": issues,
                 "blocked": True
             }
@@ -289,13 +289,13 @@ class OutputGuardrail:
         return text
 ```
 
-### 2.3 入力検証とインジェクション対策
+### 2.3 Input Validation and Injection Countermeasures
 
 ```python
 class InputGuardrail:
-    """エージェントへの入力を検証し、攻撃を防ぐ"""
+    """Validates input to the agent and prevents attacks"""
 
-    # インジェクション検出パターン
+    # Injection detection patterns
     INJECTION_PATTERNS = [
         r"ignore\s+(previous|above|all)\s+(instructions?|prompts?)",
         r"you\s+are\s+now\s+a",
@@ -316,18 +316,18 @@ class InputGuardrail:
 
     async def validate_input(self, user_input: str,
                              context: dict) -> dict:
-        """入力を検証し、安全性を評価する"""
+        """Validate input and assess its safety"""
         issues = []
 
-        # 1. 基本的な長さチェック
+        # 1. Basic length check
         if len(user_input) > 100_000:
             return {
                 "valid": False,
-                "reason": "入力が長すぎます（100,000文字以上）",
+                "reason": "Input is too long (100,000 characters or more)",
                 "issues": [{"type": "input_too_long"}]
             }
 
-        # 2. パターンベースのインジェクション検出
+        # 2. Pattern-based injection detection
         for pattern in self._compiled_patterns:
             if pattern.search(user_input):
                 issues.append({
@@ -336,14 +336,14 @@ class InputGuardrail:
                     "severity": "high"
                 })
 
-        # 3. エンコーディング攻撃の検出
+        # 3. Encoding attack detection
         if self._detect_encoding_attack(user_input):
             issues.append({
                 "type": "encoding_attack",
                 "severity": "high"
             })
 
-        # 4. 不可視文字の検出
+        # 4. Invisible character detection
         invisible_chars = self._detect_invisible_characters(user_input)
         if invisible_chars:
             issues.append({
@@ -352,7 +352,7 @@ class InputGuardrail:
                 "severity": "medium"
             })
 
-        # 5. LLMベースのインジェクション検出（高精度・低速）
+        # 5. LLM-based injection detection (high accuracy, slower)
         if issues:
             llm_check = await self._llm_injection_check(user_input)
             issues.append({
@@ -372,9 +372,9 @@ class InputGuardrail:
         }
 
     def _detect_encoding_attack(self, text: str) -> bool:
-        """Base64、Unicode等のエンコーディング攻撃を検出"""
+        """Detect encoding attacks via Base64, Unicode, etc."""
         import base64
-        # Base64でエンコードされた命令の検出
+        # Detect instructions encoded in Base64
         for word in text.split():
             try:
                 decoded = base64.b64decode(word).decode("utf-8")
@@ -386,11 +386,11 @@ class InputGuardrail:
         return False
 
     def _detect_invisible_characters(self, text: str) -> list[int]:
-        """ゼロ幅文字などの不可視文字を検出"""
+        """Detect invisible characters such as zero-width characters"""
         invisible = []
         invisible_ranges = [
-            (0x200B, 0x200F),  # ゼロ幅スペース等
-            (0x2028, 0x202F),  # 行/段落区切り等
+            (0x200B, 0x200F),  # Zero-width spaces, etc.
+            (0x2028, 0x202F),  # Line/paragraph separators, etc.
             (0xFEFF, 0xFEFF),  # BOM
         ]
         for i, char in enumerate(text):
@@ -401,8 +401,8 @@ class InputGuardrail:
         return invisible
 
     def _sanitize(self, text: str) -> str:
-        """入力をサニタイズして安全な形に変換"""
-        # 不可視文字の除去
+        """Sanitize input and convert to a safe form"""
+        # Remove invisible characters
         cleaned = ""
         for char in text:
             code = ord(char)
@@ -414,16 +414,16 @@ class InputGuardrail:
         return cleaned
 
     async def _llm_injection_check(self, text: str) -> dict:
-        """LLMを使った高精度なインジェクション検出"""
-        prompt = f"""以下のテキストがプロンプトインジェクション攻撃を
-含むかどうかを判定してください。
+        """High-accuracy injection detection using an LLM"""
+        prompt = f"""Determine whether the following text contains
+a prompt injection attack.
 
-テキスト:
+Text:
 ---
 {text[:2000]}
 ---
 
-JSON形式で回答してください:
+Please respond in JSON format:
 {{"is_injection": true/false, "confidence": 0.0-1.0, "reason": "..."}}"""
 
         response = await self.classifier_llm.create(
@@ -436,38 +436,38 @@ JSON形式で回答してください:
 
 ---
 
-## 3. 人間監視 (Human-in-the-Loop)
+## 3. Human-in-the-Loop
 
-### 3.1 承認ワークフロー
+### 3.1 Approval Workflow
 
 ```
 +------------------------------------------------------------------+
-|                    Human-in-the-Loop パターン                      |
+|                    Human-in-the-Loop Patterns                      |
 +------------------------------------------------------------------+
 |                                                                    |
-|  パターン A: 事前承認 (Pre-Approval)                               |
-|  エージェント → [計画提示] → 人間承認 → 実行                       |
-|  用途: 高リスク操作、不可逆な変更                                  |
+|  Pattern A: Pre-Approval                                           |
+|  Agent → [Present Plan] → Human Approval → Execute                |
+|  Use case: High-risk operations, irreversible changes              |
 |                                                                    |
-|  パターン B: 事後確認 (Post-Verification)                          |
-|  エージェント → 実行 → [結果提示] → 人間確認 → 確定/取消           |
-|  用途: 中リスク操作、取り消し可能な変更                            |
+|  Pattern B: Post-Verification                                      |
+|  Agent → Execute → [Present Results] → Human Review → Confirm/Undo|
+|  Use case: Medium-risk operations, reversible changes              |
 |                                                                    |
-|  パターン C: 監視 (Monitoring)                                     |
-|  エージェント → 実行 → ログ記録 → [異常時のみ] → 人間アラート      |
-|  用途: 低リスク操作、大量の定型処理                                |
+|  Pattern C: Monitoring                                             |
+|  Agent → Execute → Log → [Anomaly Only] → Human Alert             |
+|  Use case: Low-risk operations, high-volume routine processing     |
 |                                                                    |
-|  パターン D: エスカレーション (Escalation)                         |
-|  エージェント → 自信度判定 → [低自信度] → 人間に委譲               |
-|                           → [高自信度] → 自動実行                  |
-|  用途: 判断の確実性が変動する場面                                  |
+|  Pattern D: Escalation                                             |
+|  Agent → Confidence Assessment → [Low Confidence] → Delegate Human |
+|                                → [High Confidence] → Auto-Execute  |
+|  Use case: Situations where decision certainty varies              |
 +------------------------------------------------------------------+
 ```
 
-### 3.2 承認ワークフローの実装
+### 3.2 Implementing the Approval Workflow
 
 ```python
-# コード例 3: Human-in-the-Loop 承認フロー
+# Code Example 3: Human-in-the-Loop approval flow
 import asyncio
 from enum import Enum
 
@@ -478,7 +478,7 @@ class ApprovalStatus(Enum):
     TIMEOUT = "timeout"
 
 class HumanApprovalGate:
-    """人間の承認を要求するゲート"""
+    """Gate that requires human approval"""
 
     def __init__(self, notification_service, timeout_seconds=300):
         self.notification_service = notification_service
@@ -489,11 +489,11 @@ class HumanApprovalGate:
                                 parameters: dict,
                                 risk_level: str,
                                 reviewer_id: str) -> ApprovalStatus:
-        """人間の承認をリクエストし、結果を待つ"""
+        """Request human approval and wait for the result"""
 
         request_id = str(uuid.uuid4())
 
-        # 承認リクエストを通知
+        # Notify of the approval request
         await self.notification_service.send(
             to=reviewer_id,
             message={
@@ -506,12 +506,12 @@ class HumanApprovalGate:
             }
         )
 
-        # 承認待ちの Future を作成
+        # Create a Future to await approval
         future = asyncio.get_event_loop().create_future()
         self.pending_requests[request_id] = future
 
         try:
-            # タイムアウト付きで承認を待つ
+            # Wait for approval with a timeout
             result = await asyncio.wait_for(future, timeout=self.timeout)
             return result
         except asyncio.TimeoutError:
@@ -522,14 +522,14 @@ class HumanApprovalGate:
     async def submit_decision(self, request_id: str,
                                status: ApprovalStatus,
                                comment: str = ""):
-        """レビューアーが承認/拒否を提出する"""
+        """Reviewer submits an approval or rejection"""
         future = self.pending_requests.get(request_id)
         if future and not future.done():
             future.set_result(status)
 
 
 class SafeAgent:
-    """安全なエージェント実行フレームワーク"""
+    """Safe agent execution framework"""
 
     def __init__(self, llm, tools, guardrail, approval_gate):
         self.llm = llm
@@ -539,9 +539,9 @@ class SafeAgent:
 
     async def execute_action(self, tool_name: str,
                               parameters: dict, context: dict):
-        """ガードレール付きでアクションを実行する"""
+        """Execute an action with guardrails"""
 
-        # Step 1: ガードレールチェック
+        # Step 1: Guardrail check
         level, reason = await self.guardrail.check(
             tool_name, parameters, context
         )
@@ -550,7 +550,7 @@ class SafeAgent:
             return {"status": "denied", "reason": reason}
 
         if level == ActionLevel.CONFIRM:
-            # Step 2: 人間の承認を要求
+            # Step 2: Request human approval
             status = await self.approval_gate.request_approval(
                 action_description=f"{tool_name}({parameters})",
                 parameters=parameters,
@@ -561,7 +561,7 @@ class SafeAgent:
             if status != ApprovalStatus.APPROVED:
                 return {"status": "rejected", "approval": status.value}
 
-        # Step 3: 実行
+        # Step 3: Execute
         try:
             result = await self.tools[tool_name].execute(parameters)
             return {"status": "success", "result": result}
@@ -569,11 +569,11 @@ class SafeAgent:
             return {"status": "error", "error": str(e)}
 ```
 
-### 3.3 自信度ベースのエスカレーション
+### 3.3 Confidence-Based Escalation
 
 ```python
 class ConfidenceBasedEscalation:
-    """エージェントの自信度に基づくエスカレーション判定"""
+    """Escalation decision-making based on agent confidence"""
 
     def __init__(
         self,
@@ -590,12 +590,12 @@ class ConfidenceBasedEscalation:
         agent_response: dict,
         context: dict
     ) -> dict:
-        """レスポンスの自信度を評価し、ルーティングを決定"""
+        """Evaluate response confidence and determine routing"""
 
         confidence = await self._assess_confidence(agent_response)
 
         if confidence >= self.auto_threshold:
-            # 高自信度: 自動実行
+            # High confidence: auto-execute
             return {
                 "action": "auto_execute",
                 "confidence": confidence,
@@ -603,16 +603,16 @@ class ConfidenceBasedEscalation:
             }
 
         elif confidence >= self.confirm_threshold:
-            # 中自信度: 簡易確認
+            # Medium confidence: quick confirmation
             return {
                 "action": "quick_confirm",
                 "confidence": confidence,
                 "response": agent_response,
-                "message": "エージェントの回答を確認してください"
+                "message": "Please review the agent's response"
             }
 
         elif confidence >= self.escalate_threshold:
-            # 低自信度: 詳細確認
+            # Low confidence: detailed review
             return {
                 "action": "detailed_review",
                 "confidence": confidence,
@@ -620,35 +620,35 @@ class ConfidenceBasedEscalation:
                 "alternatives": await self._generate_alternatives(
                     agent_response, context
                 ),
-                "message": "複数の選択肢から適切なものを選んでください"
+                "message": "Please select the most appropriate option from multiple alternatives"
             }
 
         else:
-            # 非常に低い自信度: 人間に完全委譲
+            # Very low confidence: full delegation to human
             return {
                 "action": "full_escalation",
                 "confidence": confidence,
                 "context_summary": self._summarize_context(context),
-                "message": "エージェントが適切に処理できません。"
-                          "人間の対応が必要です。"
+                "message": "The agent cannot handle this appropriately. "
+                          "Human intervention is required."
             }
 
     async def _assess_confidence(self, response: dict) -> float:
-        """レスポンスの自信度を評価"""
+        """Assess the confidence of a response"""
         factors = []
 
-        # 1. LLMの自己評価
+        # 1. LLM self-assessment
         if "confidence" in response:
             factors.append(response["confidence"])
 
-        # 2. 複数回答の一致度
+        # 2. Consistency across multiple responses
         if "alternatives" in response:
             consistency = self._measure_consistency(
                 response["primary"], response["alternatives"]
             )
             factors.append(consistency)
 
-        # 3. ツール呼び出し結果の信頼性
+        # 3. Reliability of tool call results
         if "tool_results" in response:
             tool_reliability = self._assess_tool_results(
                 response["tool_results"]
@@ -660,47 +660,47 @@ class ConfidenceBasedEscalation:
 
 ---
 
-## 4. 権限制限とサンドボックス
+## 4. Permission Restrictions and Sandboxing
 
-### 4.1 最小権限設計
+### 4.1 Least Privilege Design
 
 ```python
-# コード例 4: ロールベースのエージェント権限管理
+# Code Example 4: Role-based agent permission management
 from dataclasses import dataclass, field
 
 @dataclass
 class AgentPermissions:
-    """エージェントの権限定義"""
+    """Agent permission definitions"""
 
-    # ファイルシステム
+    # Filesystem
     allowed_read_paths: list[str] = field(default_factory=list)
     allowed_write_paths: list[str] = field(default_factory=list)
     max_file_size_mb: int = 10
 
-    # ネットワーク
+    # Network
     allowed_domains: list[str] = field(default_factory=list)
     blocked_domains: list[str] = field(
         default_factory=lambda: ["*.internal", "localhost"]
     )
     max_requests_per_minute: int = 30
 
-    # コード実行
+    # Code execution
     allow_code_execution: bool = False
     allowed_languages: list[str] = field(default_factory=list)
     max_execution_time_seconds: int = 30
     max_memory_mb: int = 256
 
-    # 外部サービス
+    # External services
     allowed_tools: list[str] = field(default_factory=list)
     denied_tools: list[str] = field(default_factory=list)
 
-    # リソース制限
+    # Resource limits
     max_tokens_per_session: int = 100_000
     max_tool_calls_per_session: int = 50
     session_timeout_minutes: int = 60
 
 
-# ロール別のプリセット
+# Role-based presets
 ROLE_PRESETS = {
     "researcher": AgentPermissions(
         allowed_read_paths=["/data/public/", "/data/research/"],
@@ -732,28 +732,28 @@ ROLE_PRESETS = {
 }
 ```
 
-### 4.2 サンドボックス実行環境
+### 4.2 Sandbox Execution Environment
 
 ```python
-# コード例 5: Docker ベースのサンドボックスでコードを実行する
+# Code Example 5: Safely execute agent code in a Docker-based sandbox
 import docker
 import tempfile
 import os
 
 class CodeSandbox:
-    """Docker コンテナ内でエージェントのコードを安全に実行する"""
+    """Safely execute agent code inside a Docker container"""
 
     def __init__(self, permissions: AgentPermissions):
         self.client = docker.from_env()
         self.permissions = permissions
 
     async def execute(self, code: str, language: str = "python") -> dict:
-        """サンドボックス内でコードを実行する"""
+        """Execute code inside the sandbox"""
 
         if language not in self.permissions.allowed_languages:
-            return {"error": f"言語 '{language}' は許可されていません"}
+            return {"error": f"Language '{language}' is not permitted"}
 
-        # 一時ファイルにコードを書き出す
+        # Write code to a temporary file
         with tempfile.NamedTemporaryFile(
             mode='w', suffix='.py', delete=False
         ) as f:
@@ -767,18 +767,18 @@ class CodeSandbox:
                 volumes={
                     code_path: {"bind": "/code/script.py", "mode": "ro"}
                 },
-                # セキュリティ制限
+                # Security restrictions
                 mem_limit=f"{self.permissions.max_memory_mb}m",
                 cpu_period=100000,
-                cpu_quota=50000,     # CPU 50%制限
-                network_disabled=True,  # ネットワーク無効
-                read_only=True,      # ファイルシステム読み取り専用
+                cpu_quota=50000,     # 50% CPU limit
+                network_disabled=True,  # Network disabled
+                read_only=True,      # Filesystem read-only
                 security_opt=["no-new-privileges"],
-                # タイムアウト
+                # Timeout
                 detach=True,
             )
 
-            # 実行完了を待つ（タイムアウト付き）
+            # Wait for execution to complete (with timeout)
             result = container.wait(
                 timeout=self.permissions.max_execution_time_seconds
             )
@@ -793,9 +793,9 @@ class CodeSandbox:
             }
 
         except docker.errors.ContainerError as e:
-            return {"error": f"実行エラー: {e}"}
+            return {"error": f"Execution error: {e}"}
         except Exception as e:
-            return {"error": f"サンドボックスエラー: {e}"}
+            return {"error": f"Sandbox error: {e}"}
         finally:
             os.unlink(code_path)
             try:
@@ -804,11 +804,11 @@ class CodeSandbox:
                 pass
 ```
 
-### 4.3 動的権限制御
+### 4.3 Dynamic Permission Control
 
 ```python
 class DynamicPermissionManager:
-    """セッション中にエージェントの権限を動的に調整"""
+    """Dynamically adjust agent permissions during a session"""
 
     def __init__(self, base_permissions: AgentPermissions):
         self.base = base_permissions
@@ -822,7 +822,7 @@ class DynamicPermissionManager:
         resource_name: str,
         justification: str
     ) -> dict:
-        """権限昇格をリクエスト"""
+        """Request a permission elevation"""
         request = {
             "type": resource_type,
             "resource": resource_name,
@@ -839,7 +839,7 @@ class DynamicPermissionManager:
         resource_name: str,
         duration_minutes: int = 10
     ):
-        """一時的な権限付与"""
+        """Grant a temporary permission"""
         if resource_type == "tool":
             if resource_name not in self.current.allowed_tools:
                 self.current.allowed_tools.append(resource_name)
@@ -850,7 +850,7 @@ class DynamicPermissionManager:
             if resource_name not in self.current.allowed_write_paths:
                 self.current.allowed_write_paths.append(resource_name)
 
-        # 一定時間後に権限を自動回収
+        # Automatically revoke the permission after a set time
         asyncio.get_event_loop().call_later(
             duration_minutes * 60,
             self._revoke_permission,
@@ -859,22 +859,22 @@ class DynamicPermissionManager:
         )
 
     def record_violation(self, violation_type: str, details: str):
-        """権限違反を記録し、必要に応じて権限を縮小"""
+        """Record a permission violation and reduce permissions if necessary"""
         self.violation_count += 1
 
         if self.violation_count >= 3:
-            # 3回以上の違反で権限を縮小
+            # Reduce permissions after 3 or more violations
             self._reduce_permissions()
 
         if self.violation_count >= 5:
-            # 5回以上でセッション停止
+            # Terminate session after 5 or more violations
             raise SecurityViolationError(
-                f"権限違反が{self.violation_count}回に達しました。"
-                "セッションを終了します。"
+                f"Permission violations have reached {self.violation_count}. "
+                "Terminating session."
             )
 
     def _reduce_permissions(self):
-        """権限を段階的に縮小"""
+        """Progressively reduce permissions"""
         self.current.max_tool_calls_per_session = max(
             10,
             self.current.max_tool_calls_per_session // 2
@@ -883,7 +883,7 @@ class DynamicPermissionManager:
         self.current.allowed_write_paths = []
 
     def _revoke_permission(self, resource_type: str, resource_name: str):
-        """一時権限を回収"""
+        """Revoke a temporary permission"""
         if resource_type == "tool":
             if (resource_name in self.current.allowed_tools
                     and resource_name not in self.base.allowed_tools):
@@ -892,9 +892,9 @@ class DynamicPermissionManager:
 
 ---
 
-## 5. 監査とコンプライアンス
+## 5. Auditing and Compliance
 
-### 5.1 監査ログの実装
+### 5.1 Implementing Audit Logs
 
 ```python
 import json
@@ -915,7 +915,7 @@ class AuditEventType(Enum):
     ESCALATION = "escalation"
 
 class AuditLogger:
-    """全エージェント操作の監査ログを記録"""
+    """Records audit logs for all agent operations"""
 
     def __init__(self, storage_backend):
         self.storage = storage_backend
@@ -929,7 +929,7 @@ class AuditLogger:
         details: dict,
         metadata: dict | None = None
     ):
-        """監査イベントを記録"""
+        """Record an audit event"""
         event = {
             "event_id": str(uuid.uuid4()),
             "event_type": event_type.value,
@@ -941,7 +941,7 @@ class AuditLogger:
             "metadata": metadata or {},
         }
 
-        # 改ざん防止のためハッシュチェーンを使用
+        # Use a hash chain to prevent tampering
         event["hash"] = self._compute_hash(event)
         event["previous_hash"] = await self._get_last_hash(session_id)
 
@@ -950,7 +950,7 @@ class AuditLogger:
             value=json.dumps(event)
         )
 
-        # 重大イベントは即時通知
+        # Immediately notify for critical events
         if event_type in (
             AuditEventType.PERMISSION_VIOLATION,
             AuditEventType.GUARDRAIL_TRIGGERED,
@@ -958,7 +958,7 @@ class AuditLogger:
             await self._notify_security_team(event)
 
     def _compute_hash(self, event: dict) -> str:
-        """イベントのハッシュを計算"""
+        """Compute the hash of an event"""
         import hashlib
         content = json.dumps(
             {k: v for k, v in event.items() if k != "hash"},
@@ -967,7 +967,7 @@ class AuditLogger:
         return hashlib.sha256(content.encode()).hexdigest()
 
     async def _get_last_hash(self, session_id: str) -> str:
-        """直前のイベントハッシュを取得"""
+        """Retrieve the hash of the previous event"""
         last_event = await self.storage.get_last(f"audit:{session_id}")
         if last_event:
             return json.loads(last_event)["hash"]
@@ -977,7 +977,7 @@ class AuditLogger:
         self,
         session_id: str
     ) -> dict:
-        """セッションの監査レポートを生成"""
+        """Generate an audit report for a session"""
         events = await self.storage.get_all(f"audit:{session_id}")
         parsed = [json.loads(e) for e in events]
 
@@ -1018,7 +1018,7 @@ class AuditLogger:
         return report
 
     def _verify_hash_chain(self, events: list[dict]) -> bool:
-        """ハッシュチェーンの整合性を検証"""
+        """Verify the integrity of the hash chain"""
         for i, event in enumerate(events):
             expected_hash = self._compute_hash(event)
             if event["hash"] != expected_hash:
@@ -1028,18 +1028,18 @@ class AuditLogger:
         return True
 ```
 
-### 5.2 コンプライアンスチェッカー
+### 5.2 Compliance Checker
 
 ```python
 class ComplianceChecker:
-    """規制要件に基づくコンプライアンスチェック"""
+    """Compliance checks based on regulatory requirements"""
 
     def __init__(self, regulations: list[str]):
         self.regulations = regulations
         self.rules = self._load_rules(regulations)
 
     def _load_rules(self, regulations: list[str]) -> dict:
-        """規制ごとのルールを読み込み"""
+        """Load rules for each regulation"""
         all_rules = {
             "GDPR": {
                 "data_retention_days": 30,
@@ -1066,7 +1066,7 @@ class ComplianceChecker:
                 "requires_encryption_in_transit": True,
                 "change_management_required": True,
             },
-            "APPI": {  # 個人情報保護法（日本）
+            "APPI": {  # Act on Protection of Personal Information (Japan)
                 "requires_purpose_specification": True,
                 "requires_consent_for_third_party": True,
                 "data_breach_notification_required": True,
@@ -1081,11 +1081,11 @@ class ComplianceChecker:
         data_categories: list[str],
         context: dict
     ) -> dict:
-        """アクションがコンプライアンス要件を満たすか検証"""
+        """Verify that an action meets compliance requirements"""
         violations = []
 
         for reg_name, rules in self.rules.items():
-            # PII/PHI カテゴリのチェック
+            # PII/PHI category check
             sensitive_cats = rules.get(
                 "pii_categories",
                 rules.get("phi_categories", [])
@@ -1100,7 +1100,7 @@ class ComplianceChecker:
                         "severity": "high"
                     })
 
-            # 暗号化チェック
+            # Encryption check
             if rules.get("requires_encryption"):
                 if not context.get("encryption_enabled"):
                     violations.append({
@@ -1118,40 +1118,40 @@ class ComplianceChecker:
 
 ---
 
-## 6. 監視とアラート
+## 6. Monitoring and Alerts
 
-### 6.1 エージェント行動の監視ダッシュボード
+### 6.1 Agent Behavior Monitoring Dashboard
 
 ```
 +------------------------------------------------------------------+
-|                エージェント監視ダッシュボード                       |
+|                Agent Monitoring Dashboard                          |
 +------------------------------------------------------------------+
 |                                                                    |
-|  リアルタイム指標:                                                 |
+|  Real-time Metrics:                                                |
 |  +------------------+  +------------------+  +------------------+ |
-|  | アクティブ       |  | ツール呼び出し   |  | エラー率         | |
-|  | セッション: 142  |  | QPS: 2,340      |  | 0.3%             | |
-|  +------------------+  +------------------+  +------------------+ |
-|                                                                    |
-|  +------------------+  +------------------+  +------------------+ |
-|  | 承認待ち: 7      |  | 拒否された       |  | 平均セッション   | |
-|  |                  |  | アクション: 23   |  | 時間: 4.2min     | |
+|  | Active           |  | Tool Calls       |  | Error Rate       | |
+|  | Sessions: 142    |  | QPS: 2,340       |  | 0.3%             | |
 |  +------------------+  +------------------+  +------------------+ |
 |                                                                    |
-|  アラート条件:                                                     |
-|  [!] 同一ツールの連続呼び出し > 10回/分                            |
-|  [!] エラー率 > 5%                                                 |
-|  [!] セッション時間 > 30分                                         |
-|  [!] 拒否されたアクション率 > 10%                                  |
-|  [!] トークン消費量 > 80% of limit                                 |
+|  +------------------+  +------------------+  +------------------+ |
+|  | Pending          |  | Rejected         |  | Avg Session      | |
+|  | Approvals: 7     |  | Actions: 23      |  | Duration: 4.2min | |
+|  +------------------+  +------------------+  +------------------+ |
+|                                                                    |
+|  Alert Conditions:                                                 |
+|  [!] Consecutive calls to same tool > 10/min                       |
+|  [!] Error rate > 5%                                               |
+|  [!] Session duration > 30 minutes                                 |
+|  [!] Rejected action rate > 10%                                    |
+|  [!] Token consumption > 80% of limit                              |
 +------------------------------------------------------------------+
 ```
 
-### 6.2 異常検知パターン
+### 6.2 Anomaly Detection Patterns
 
 ```python
 class AnomalyDetector:
-    """エージェントの異常行動を検知"""
+    """Detects anomalous agent behavior"""
 
     def __init__(self):
         self.baselines: dict[str, dict] = {}
@@ -1162,10 +1162,10 @@ class AnomalyDetector:
         session_id: str,
         metrics: dict
     ) -> list[dict]:
-        """セッションメトリクスの異常を検知"""
+        """Detect anomalies in session metrics"""
         anomalies = []
 
-        # 1. ループ検出: 同一ツールの連続呼び出し
+        # 1. Loop detection: consecutive calls to the same tool
         if metrics.get("consecutive_same_tool", 0) > 5:
             anomalies.append({
                 "type": "tool_loop_detected",
@@ -1175,7 +1175,7 @@ class AnomalyDetector:
                 "action": "pause_agent"
             })
 
-        # 2. 異常なトークン消費
+        # 2. Abnormal token consumption
         avg_tokens = self.baselines.get(
             "avg_tokens_per_step", 500
         )
@@ -1188,7 +1188,7 @@ class AnomalyDetector:
                 "action": "log_and_continue"
             })
 
-        # 3. 失敗率の急上昇
+        # 3. Sudden spike in failure rate
         if metrics.get("recent_error_rate", 0) > 0.5:
             anomalies.append({
                 "type": "high_error_rate",
@@ -1197,7 +1197,7 @@ class AnomalyDetector:
                 "action": "escalate_to_human"
             })
 
-        # 4. 権限外のリソースアクセス試行
+        # 4. Attempted access to unauthorized resources
         if metrics.get("permission_denied_count", 0) > 3:
             anomalies.append({
                 "type": "repeated_permission_violation",
@@ -1206,7 +1206,7 @@ class AnomalyDetector:
                 "action": "terminate_session"
             })
 
-        # 5. 応答時間の異常
+        # 5. Abnormal response time
         if metrics.get("step_duration_seconds", 0) > 120:
             anomalies.append({
                 "type": "long_running_step",
@@ -1220,248 +1220,248 @@ class AnomalyDetector:
 
 ---
 
-## 7. パターン比較
+## 7. Pattern Comparison
 
-### 7.1 安全性パターンの比較
+### 7.1 Comparison of Safety Patterns
 
-| パターン | 安全性 | ユーザー体験 | 実装コスト | 適用場面 |
-|----------|--------|-------------|-----------|---------|
-| 全操作事前承認 | 極高 | 低 (遅延大) | 低 | 金融、医療 |
-| リスクベース承認 | 高 | 中 | 中 | 一般業務 |
-| 事後監視 + 取消 | 中 | 高 | 中 | 社内ツール |
-| 自信度ベースエスカレーション | 中-高 | 高 | 高 | カスタマーサポート |
-| サンドボックス + ログ | 中 | 高 | 高 | 開発・研究 |
+| Pattern | Safety | User Experience | Implementation Cost | Use Case |
+|---------|--------|-----------------|---------------------|----------|
+| Pre-approval for all operations | Very High | Low (high latency) | Low | Finance, Healthcare |
+| Risk-based approval | High | Medium | Medium | General business |
+| Post-monitoring + undo | Medium | High | Medium | Internal tools |
+| Confidence-based escalation | Medium-High | High | High | Customer support |
+| Sandbox + logging | Medium | High | High | Development, Research |
 
-### 7.2 エージェント権限モデルの比較
+### 7.2 Comparison of Agent Permission Models
 
-| モデル | 粒度 | 柔軟性 | 管理コスト | 適用場面 |
-|--------|------|--------|-----------|---------|
-| ホワイトリスト | ツール単位 | 低 | 低 | シンプルなエージェント |
-| RBAC | ロール単位 | 中 | 中 | 組織内エージェント |
-| ABAC | 属性ベース | 高 | 高 | 複雑な権限要件 |
-| Capability-based | 能力トークン | 高 | 高 | マルチエージェント |
+| Model | Granularity | Flexibility | Management Cost | Use Case |
+|-------|-------------|-------------|-----------------|----------|
+| Whitelist | Per-tool | Low | Low | Simple agents |
+| RBAC | Per-role | Medium | Medium | Organizational agents |
+| ABAC | Attribute-based | High | High | Complex permission requirements |
+| Capability-based | Capability tokens | High | High | Multi-agent |
 
-### 7.3 インジェクション対策手法の比較
+### 7.3 Comparison of Injection Countermeasure Techniques
 
-| 手法 | 検出精度 | レイテンシ | コスト | 誤検知率 |
-|------|---------|-----------|--------|---------|
-| パターンマッチング | 中 | 極低 | なし | 中 |
-| LLMベース分類 | 高 | 中 | API費用 | 低 |
-| 入力サニタイズ | 低 | 極低 | なし | なし |
-| プロンプト分離 | 高 | なし | なし | なし |
-| 出力検証 | 中 | 低 | なし | 低 |
-| 多層組み合わせ | 最高 | 中 | 中 | 最低 |
-
----
-
-## 8. アンチパターン
-
-### アンチパターン 1: 「全権限を付与した汎用エージェント」
-
-```
-[誤り] エージェントに全ツール・全リソースへのアクセスを許可する
-
-  「何でもできるAIアシスタント」
-  → ファイル削除、メール送信、API呼び出しが全て自動実行
-  → プロンプトインジェクションで全権限が悪用される
-
-[正解] 最小権限の原則を適用する
-  1. タスクに必要なツールのみを許可
-  2. アクセス可能なファイル/ディレクトリを制限
-  3. ネットワークアクセスをホワイトリストで管理
-  4. セッションごとに権限を動的に付与
-```
-
-### アンチパターン 2: 「エージェントのループを放置」
-
-```
-[誤り] エージェントが無限ループや反復的な無意味な操作を
-       検出・停止する仕組みがない
-
-実際に起きた問題:
-  - 同じ API を数千回呼び出してレート制限に到達
-  - ファイルの読み書きを繰り返してディスクを圧迫
-  - トークンを大量消費してコストが爆発
-
-[正解] ループ検出とリソース制限を実装する
-  - 同一ツールの連続呼び出し検出 (> N回で停止)
-  - セッションあたりのトークン上限
-  - ツール呼び出し回数の上限
-  - タイムアウトの設定
-  - コスト上限の設定（$XX/セッション）
-```
-
-### アンチパターン 3: 「出力を信頼して検証しない」
-
-```
-[誤り] エージェントの出力をフィルタリングせずにユーザーに提示
-
-問題:
-  - PII（個人情報）の漏洩
-  - システムプロンプトの漏洩
-  - 有害なコンテンツの出力
-  - ハルシネーションを事実として提示
-
-[正解] 出力ガードレールを必ず実装する
-  - PII検出 + マスキング
-  - 有害性スコアリング
-  - システムプロンプト漏洩チェック
-  - 事実検証（可能な場合）
-```
-
-### アンチパターン 4: 「監査ログなしの運用」
-
-```
-[誤り] エージェントの行動を記録せず、事後分析ができない
-
-問題:
-  - インシデント発生時に原因特定ができない
-  - コンプライアンス監査に対応できない
-  - 改善のためのデータが蓄積されない
-
-[正解] 全操作の監査ログを記録する
-  - ツール呼び出し: 名前、パラメータ、結果
-  - 意思決定: 自信度、選択理由
-  - ガードレール: トリガー回数、ブロック内容
-  - ユーザーインタラクション: 承認/拒否の履歴
-```
+| Technique | Detection Accuracy | Latency | Cost | False Positive Rate |
+|-----------|-------------------|---------|------|---------------------|
+| Pattern matching | Medium | Very Low | None | Medium |
+| LLM-based classification | High | Medium | API cost | Low |
+| Input sanitization | Low | Very Low | None | None |
+| Prompt separation | High | None | None | None |
+| Output validation | Medium | Low | None | Low |
+| Multi-layer combination | Highest | Medium | Medium | Lowest |
 
 ---
 
-## 9. 実装チェックリスト
+## 8. Anti-Patterns
 
-### 9.1 安全性実装チェックリスト
+### Anti-Pattern 1: "General-Purpose Agent with Full Permissions"
 
 ```
-必須レベル（Must Have）:
-[ ] 入力バリデーション（長さ、形式）
-[ ] プロンプトインジェクション検出（パターンベース）
-[ ] ツール呼び出し権限制御（ホワイトリスト）
-[ ] 出力フィルタリング（PII検出）
-[ ] セッションタイムアウト
-[ ] トークン使用量の上限
-[ ] ツール呼び出し回数の上限
-[ ] 全操作の監査ログ
-[ ] エラーハンドリングとフォールバック
+[Wrong] Granting the agent access to all tools and all resources
 
-推奨レベル（Should Have）:
-[ ] LLMベースのインジェクション検出
-[ ] リスクベースの承認ワークフロー
-[ ] サンドボックス実行環境
-[ ] ループ検出と自動停止
-[ ] コスト制限と予算管理
-[ ] 異常検知アラート
-[ ] ロールベースの権限管理
+  "An AI assistant that can do anything"
+  → File deletion, email sending, and API calls are all executed automatically
+  → A prompt injection attack exploits all permissions
 
-高度レベル（Nice to Have）:
-[ ] 自信度ベースのエスカレーション
-[ ] 動的権限制御
-[ ] コンプライアンスチェッカー
-[ ] ハッシュチェーンによるログ改ざん防止
-[ ] A/Bテスト付き安全性評価
-[ ] 多言語対応のPII検出
+[Correct] Apply the principle of least privilege
+  1. Allow only the tools necessary for the task
+  2. Restrict accessible files/directories
+  3. Manage network access with a whitelist
+  4. Grant permissions dynamically per session
+```
+
+### Anti-Pattern 2: "Ignoring Agent Loops"
+
+```
+[Wrong] No mechanism to detect and stop the agent when it enters
+        an infinite loop or performs repetitive, meaningless operations
+
+Real problems that have occurred:
+  - Called the same API thousands of times, hitting rate limits
+  - Repeatedly read and wrote files, filling up disk space
+  - Consumed large amounts of tokens, causing costs to explode
+
+[Correct] Implement loop detection and resource limits
+  - Detect consecutive calls to the same tool (stop after > N calls)
+  - Per-session token limit
+  - Limit on number of tool calls
+  - Timeout settings
+  - Cost limit settings ($ XX/session)
+```
+
+### Anti-Pattern 3: "Trusting Output Without Validation"
+
+```
+[Wrong] Presenting agent output to users without filtering
+
+Problems:
+  - Leakage of PII (personally identifiable information)
+  - Leakage of the system prompt
+  - Output of harmful content
+  - Presenting hallucinations as facts
+
+[Correct] Always implement output guardrails
+  - PII detection + masking
+  - Toxicity scoring
+  - System prompt leak check
+  - Fact verification (when possible)
+```
+
+### Anti-Pattern 4: "Operating Without Audit Logs"
+
+```
+[Wrong] Not recording agent actions, making post-hoc analysis impossible
+
+Problems:
+  - Cannot identify the cause when an incident occurs
+  - Cannot respond to compliance audits
+  - No data accumulation for improvement
+
+[Correct] Record audit logs for all operations
+  - Tool calls: name, parameters, results
+  - Decision-making: confidence, reason for choice
+  - Guardrails: trigger count, blocked content
+  - User interactions: history of approvals/rejections
+```
+
+---
+
+## 9. Implementation Checklist
+
+### 9.1 Safety Implementation Checklist
+
+```
+Must Have:
+[ ] Input validation (length, format)
+[ ] Prompt injection detection (pattern-based)
+[ ] Tool call permission control (whitelist)
+[ ] Output filtering (PII detection)
+[ ] Session timeout
+[ ] Token usage limit
+[ ] Tool call count limit
+[ ] Audit logs for all operations
+[ ] Error handling and fallback
+
+Should Have:
+[ ] LLM-based injection detection
+[ ] Risk-based approval workflow
+[ ] Sandbox execution environment
+[ ] Loop detection and automatic stop
+[ ] Cost limits and budget management
+[ ] Anomaly detection alerts
+[ ] Role-based permission management
+
+Nice to Have:
+[ ] Confidence-based escalation
+[ ] Dynamic permission control
+[ ] Compliance checker
+[ ] Hash chain log tamper prevention
+[ ] Safety evaluation with A/B testing
+[ ] Multi-language PII detection
 ```
 
 ---
 
 ## 10. FAQ
 
-### Q1: エージェントにどの程度の自律性を与えるべきですか？
+### Q1: How much autonomy should I give to an agent?
 
-**A:** リスクと業務効率のバランスで段階的に決定します。
+**A:** Determine this incrementally based on a balance between risk and operational efficiency.
 
-- **Level 1 (推薦)**: エージェントが提案し、人間が全て実行する
-- **Level 2 (承認付き実行)**: エージェントが実行計画を立て、人間が承認後に実行する
-- **Level 3 (監視付き自律)**: エージェントが自律実行し、人間は監視のみ。異常時に介入
-- **Level 4 (完全自律)**: エージェントが完全に自律実行。定期的な事後レビューのみ
+- **Level 1 (Recommendation)**: The agent suggests, and humans execute everything
+- **Level 2 (Approval-gated execution)**: The agent draws up an execution plan, and humans execute it after approval
+- **Level 3 (Supervised autonomy)**: The agent executes autonomously, and humans only monitor. Intervene on anomalies
+- **Level 4 (Full autonomy)**: The agent executes completely autonomously. Only periodic post-hoc review
 
-本番環境では Level 2-3 から始め、信頼性が実証された後に Level を上げることを推奨します。
+In production environments, it is recommended to start at Level 2-3 and raise the level only after reliability has been demonstrated.
 
-### Q2: マルチエージェント環境での安全性はどう設計しますか？
+### Q2: How do you design safety in a multi-agent environment?
 
-**A:** 以下の原則を適用します。
+**A:** Apply the following principles.
 
-1. **エージェント間の権限分離**: 各エージェントは独自の権限セットを持ち、他のエージェントの権限を継承しない
-2. **通信チャネルの制限**: エージェント間の通信は定義済みのプロトコルに限定し、直接的なプロンプト注入を防止
-3. **オーケストレーターの監視**: 中央のオーケストレーターが全エージェントのアクションを監視し、異常な協調動作を検出
-4. **最終決定権の集約**: 重要な意思決定は単一のエージェント（またはオーケストレーター）に集約
+1. **Permission separation between agents**: Each agent has its own set of permissions and does not inherit the permissions of other agents
+2. **Restricting communication channels**: Communication between agents is limited to defined protocols to prevent direct prompt injection
+3. **Orchestrator monitoring**: A central orchestrator monitors the actions of all agents and detects anomalous coordinated behavior
+4. **Centralizing final decision authority**: Critical decisions are centralized in a single agent (or the orchestrator)
 
-### Q3: コスト爆発を防ぐにはどうすればよいですか？
+### Q3: How can I prevent cost explosions?
 
-**A:** 多層的なコスト制限を設けます。
+**A:** Establish multi-layered cost limits.
 
-- **セッション単位**: 1セッションあたりの最大トークン数と最大ツール呼び出し数を設定
-- **ユーザー単位**: 1日/月あたりの利用上限を設定
-- **組織単位**: 月間予算の上限を設定し、閾値でアラート（80%, 90%, 95%）
-- **リアルタイム監視**: コスト監視ダッシュボードで異常な消費パターンを検出
-- **自動停止**: 予算の 100% に達したら全エージェントを自動停止
+- **Per session**: Set maximum token count and maximum tool call count per session
+- **Per user**: Set a daily/monthly usage limit
+- **Per organization**: Set a monthly budget cap, with alerts at thresholds (80%, 90%, 95%)
+- **Real-time monitoring**: Detect abnormal consumption patterns with a cost monitoring dashboard
+- **Auto-stop**: Automatically stop all agents when 100% of the budget is reached
 
-### Q4: プロンプトインジェクション対策の優先順位は？
+### Q4: What is the priority order for prompt injection countermeasures?
 
-**A:** 以下の順に実装を推奨します。
+**A:** Implementation is recommended in the following order.
 
-1. **システムプロンプトの分離**: ユーザー入力とシステム命令を明確に分離（コストゼロで効果大）
-2. **パターンマッチング**: 既知のインジェクションパターンを検出（低コスト・即時実装可能）
-3. **入力サニタイズ**: 不可視文字やエンコーディング攻撃の除去
-4. **出力検証**: システムプロンプトの漏洩やPII漏洩をチェック
-5. **LLMベース分類**: 高精度だがコストがかかるため、疑わしい入力のみに適用
+1. **System prompt separation**: Clearly separate user input from system instructions (zero cost, high effect)
+2. **Pattern matching**: Detect known injection patterns (low cost, immediately implementable)
+3. **Input sanitization**: Remove invisible characters and encoding attacks
+4. **Output validation**: Check for system prompt leaks and PII leaks
+5. **LLM-based classification**: High accuracy but costly, so apply only to suspicious inputs
 
-### Q5: セキュリティインシデント発生時の対応手順は？
+### Q5: What is the response procedure when a security incident occurs?
 
-**A:** 以下のフローに従います。
+**A:** Follow this flow.
 
-1. **即時対応**: 該当セッションを即座に停止し、エージェントの操作を凍結
-2. **影響範囲の特定**: 監査ログから影響を受けたユーザー・データを特定
-3. **証拠保全**: 関連ログ・メトリクス・スナップショットを保全
-4. **通知**: 影響を受けたユーザーおよび関係者に通知（規制要件に応じて）
-5. **根本原因分析**: インシデントの原因を特定し、再発防止策を策定
-6. **改善実施**: ガードレール・権限設定・検出ロジックを更新
+1. **Immediate response**: Immediately stop the relevant session and freeze agent operations
+2. **Identify scope of impact**: Use audit logs to identify affected users and data
+3. **Evidence preservation**: Preserve related logs, metrics, and snapshots
+4. **Notification**: Notify affected users and stakeholders (as required by regulations)
+5. **Root cause analysis**: Identify the cause of the incident and formulate preventive measures
+6. **Implement improvements**: Update guardrails, permission settings, and detection logic
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just from theory, but from actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 11. まとめ
-
-| 安全対策 | 実装方法 | 目的 | 優先度 |
-|----------|----------|------|--------|
-| ツール権限制御 | ホワイトリスト + ポリシー | 不正操作の防止 | 必須 |
-| 入力ガードレール | パターン + ML 検出 | インジェクション防止 | 必須 |
-| 出力フィルタリング | PII検出 + 有害性チェック | 情報漏洩・有害出力防止 | 必須 |
-| 人間承認ゲート | 非同期ワークフロー | 高リスク操作の制御 | 推奨 |
-| サンドボックス | Docker + リソース制限 | 実行環境の隔離 | 推奨 |
-| ループ検出 | 呼び出しパターン監視 | リソース浪費の防止 | 推奨 |
-| 監査ログ | 全操作の記録 + ハッシュチェーン | 追跡可能性の確保 | 必須 |
-| コスト制限 | 多層的な予算制御 | コスト爆発の防止 | 推奨 |
-| コンプライアンス | 規制ルール自動チェック | 法規制への準拠 | 業界依存 |
-| 動的権限 | セッション中の権限調整 | きめ細かい制御 | 高度 |
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## 11. Summary
 
-- [AI セーフティ](../../../llm-and-ai-comparison/docs/04-ethics/00-ai-safety.md) -- アライメント・レッドチームの技術的手法
-- [AI ガバナンス](../../../llm-and-ai-comparison/docs/04-ethics/01-ai-governance.md) -- 規制・ポリシーの動向
-- [責任ある AI](../../../ai-analysis-guide/docs/03-applied/03-responsible-ai.md) -- 公平性・説明可能性・プライバシーの実装
+| Safety Measure | Implementation Method | Purpose | Priority |
+|----------------|-----------------------|---------|----------|
+| Tool permission control | Whitelist + policies | Prevent unauthorized operations | Required |
+| Input guardrails | Pattern + ML detection | Prevent injection | Required |
+| Output filtering | PII detection + toxicity check | Prevent information leaks and harmful output | Required |
+| Human approval gate | Async workflow | Control high-risk operations | Recommended |
+| Sandbox | Docker + resource limits | Isolate execution environment | Recommended |
+| Loop detection | Call pattern monitoring | Prevent resource waste | Recommended |
+| Audit logs | Record all operations + hash chain | Ensure traceability | Required |
+| Cost limits | Multi-layered budget control | Prevent cost explosions | Recommended |
+| Compliance | Automated regulatory rule checks | Adherence to laws and regulations | Industry-dependent |
+| Dynamic permissions | In-session permission adjustment | Fine-grained control | Advanced |
 
 ---
 
-## 参考文献
+## Further Reading
+
+- [AI Safety](../../../llm-and-ai-comparison/docs/04-ethics/00-ai-safety.md) -- Technical methods for alignment and red-teaming
+- [AI Governance](../../../llm-and-ai-comparison/docs/04-ethics/01-ai-governance.md) -- Trends in regulations and policy
+- [Responsible AI](../../../ai-analysis-guide/docs/03-applied/03-responsible-ai.md) -- Implementing fairness, explainability, and privacy
+
+---
+
+## References
 
 1. Wunderwuzzi. (2024). "Prompt Injection and AI Agents: Threats, Defenses, and Real-world Scenarios." *Embracethered*. https://embracethered.com/blog/
 2. Yao, S. et al. (2023). "ReAct: Synergizing Reasoning and Acting in Language Models." *ICLR 2023*. https://arxiv.org/abs/2210.03629
