@@ -1,241 +1,241 @@
-# 暗号基礎
+# Cryptography Basics
 
-> 対称鍵暗号、非対称鍵暗号、ハッシュ関数、MAC、暗号化モード（AES-GCM）、ハイブリッド暗号方式を体系的に解説し、安全な暗号実装の基盤を構築する。暗号技術はセキュリティの土台であり、「なぜそのアルゴリズムを選ぶのか」「なぜその使い方が危険なのか」を理解することが、安全なシステム設計の第一歩である。
+> A systematic guide to symmetric-key cryptography, asymmetric-key cryptography, hash functions, MACs, encryption modes (AES-GCM), and hybrid encryption schemes — building the foundation for secure cryptographic implementation. Cryptography is the bedrock of security; understanding "why we choose a particular algorithm" and "why a certain usage is dangerous" is the first step toward designing secure systems.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **対称鍵暗号と非対称鍵暗号**の仕組み、特徴、使い分けを理解する
-2. **ハッシュ関数と MAC**の違いと適切な用途を習得する
-3. **AES-GCM** による認証付き暗号の正しい実装方法を身につける
-4. **ハイブリッド暗号方式**（エンベロープ暗号化）の設計パターンを理解する
-5. **暗号の選定基準**とアンチパターンを把握し、実務で正しい判断ができるようになる
+1. Understand the mechanics, characteristics, and appropriate use cases of **symmetric-key and asymmetric-key cryptography**
+2. Master the differences between **hash functions and MACs** and their proper applications
+3. Learn how to correctly implement authenticated encryption with **AES-GCM**
+4. Understand the design pattern of **hybrid encryption** (envelope encryption)
+5. Grasp **cryptographic selection criteria** and anti-patterns to make sound decisions in practice
 
-## 前提知識
+## Prerequisites
 
-- [セキュリティ概要](../00-basics/00-security-overview.md) -- CIA 三要素（機密性・完全性・可用性）
-- [セキュリティ原則](../00-basics/02-security-principles.md) -- 最小権限・多層防御等の基本原則
-- Python の基本的なプログラミング知識
-- ビットとバイトの概念（128ビット = 16バイト等）
+- [Security Overview](../00-basics/00-security-overview.md) -- CIA triad (Confidentiality, Integrity, Availability)
+- [Security Principles](../00-basics/02-security-principles.md) -- Least privilege, defense-in-depth, and other foundational principles
+- Basic Python programming knowledge
+- Understanding of bits and bytes (e.g., 128 bits = 16 bytes)
 
 ---
 
-## 1. 暗号の分類と全体像
+## 1. Classification and Overview of Cryptography
 
-### 1.1 暗号技術の体系
+### 1.1 The Cryptographic Taxonomy
 
-暗号技術は大きく「可逆な処理（暗号化）」と「不可逆な処理（ハッシュ/MAC）」に分かれる。それぞれの技術がどのような場面で使われるかを理解することが重要である。
+Cryptographic techniques are broadly divided into "reversible operations (encryption)" and "irreversible operations (hash/MAC)". Understanding when each technique applies is essential.
 
 ```
-暗号技術の全体像:
+Overview of Cryptographic Techniques:
 
-                        暗号技術
+                        Cryptography
                           |
             +-------------+-------------+
             |                           |
-        暗号化                      ハッシュ/MAC
-        (可逆)                      (不可逆)
-        「元に戻せる」              「元に戻せない」
+        Encryption                 Hash/MAC
+        (Reversible)               (Irreversible)
+        "Can be undone"            "Cannot be undone"
             |                           |
     +-------+-------+           +-------+-------+
     |               |           |               |
-  対称鍵          非対称鍵     ハッシュ関数      MAC
+  Symmetric       Asymmetric  Hash Function     MAC
   (AES)          (RSA, ECC)   (SHA-256)      (HMAC)
     |               |           |               |
-  共通鍵1つ      公開鍵+秘密鍵  完全性検証      認証+完全性
-  高速           低速          改ざん検知      鍵付き改ざん検知
+  One shared key  Public+Private  Integrity    Auth+Integrity
+  Fast            Slow          Tamper detect  Keyed tamper detect
 
-  実際のシステムではこれらを組み合わせて使う:
-  - TLS: 非対称鍵で鍵交換 → 対称鍵でデータ暗号化
-  - デジタル署名: ハッシュ → 非対称鍵で署名
-  - パスワード保存: 専用ハッシュ（Argon2id）
+  Real systems combine these:
+  - TLS: asymmetric key exchange → symmetric encryption for data
+  - Digital signatures: hash → signed with asymmetric key
+  - Password storage: dedicated hash (Argon2id)
 ```
 
-### 1.2 暗号技術の用途別選択ガイド
+### 1.2 Use-Case Selection Guide
 
 ```
-用途別の暗号技術選択:
+Cryptographic technique selection by use case:
 
   +------------------------------------------+
-  | やりたいこと         → 使う技術           |
+  | Goal                  → Technique         |
   |------------------------------------------|
-  | データを秘匿したい   → AES-256-GCM       |
-  | 改ざんを検知したい   → SHA-256 / HMAC    |
-  | パスワードを保存     → Argon2id / bcrypt |
-  | 鍵を安全に交換       → ECDH / RSA-OAEP  |
-  | 文書に署名           → ECDSA / RSA-PSS  |
-  | 通信を暗号化         → TLS 1.3          |
-  | 大量データを暗号化   → エンベロープ暗号化  |
+  | Conceal data          → AES-256-GCM       |
+  | Detect tampering      → SHA-256 / HMAC    |
+  | Store passwords       → Argon2id / bcrypt |
+  | Exchange keys safely  → ECDH / RSA-OAEP  |
+  | Sign documents        → ECDSA / RSA-PSS  |
+  | Encrypt communication → TLS 1.3          |
+  | Encrypt bulk data     → Envelope encryption|
   +------------------------------------------+
 ```
 
-| 用途 | 推奨アルゴリズム | 鍵長 | 備考 |
-|------|----------------|------|------|
-| データ暗号化 | AES-256-GCM | 256ビット | 認証付き暗号が必須 |
-| ファイル完全性検証 | SHA-256 / SHA-3 | - | 衝突耐性が重要 |
-| メッセージ認証 | HMAC-SHA256 | 256ビット | 鍵付きハッシュ |
-| パスワード保存 | Argon2id | - | メモリハード必須 |
-| デジタル署名 | ECDSA (P-256) | 256ビット | RSA-4096 も可 |
-| 鍵交換 | ECDH (X25519) | 256ビット | 前方秘匿性確保 |
+| Use Case | Recommended Algorithm | Key Length | Notes |
+|----------|-----------------------|------------|-------|
+| Data encryption | AES-256-GCM | 256 bits | Authenticated encryption required |
+| File integrity verification | SHA-256 / SHA-3 | - | Collision resistance is critical |
+| Message authentication | HMAC-SHA256 | 256 bits | Keyed hash |
+| Password storage | Argon2id | - | Memory-hardness required |
+| Digital signatures | ECDSA (P-256) | 256 bits | RSA-4096 also acceptable |
+| Key exchange | ECDH (X25519) | 256 bits | Ensures forward secrecy |
 
 ---
 
-## 2. 対称鍵暗号
+## 2. Symmetric-Key Cryptography
 
-### 2.1 対称鍵暗号の基本概念
+### 2.1 Basic Concepts of Symmetric-Key Cryptography
 
-対称鍵暗号は同じ鍵で暗号化と復号を行う方式である。高速で大量データの暗号化に適するが、鍵の安全な配送が課題となる。
+Symmetric-key cryptography uses the same key for both encryption and decryption. It is fast and well-suited for encrypting large volumes of data, but securely distributing the key is a challenge.
 
 ```
-対称鍵暗号の仕組み:
+How symmetric-key cryptography works:
 
-  送信者                              受信者
+  Sender                              Receiver
     |                                   |
-    |  平文: "Hello, World!"           |
-    |     ↓ 暗号化 (共通鍵K)           |
-    |  暗号文: "x8f3k2m9..."           |
+    |  Plaintext: "Hello, World!"      |
+    |     ↓ Encrypt (shared key K)     |
+    |  Ciphertext: "x8f3k2m9..."       |
     |                                   |
-    |--- 暗号文を送信 ----------------> |
-    |                                   |  暗号文: "x8f3k2m9..."
-    |                                   |     ↓ 復号 (共通鍵K)
-    |                                   |  平文: "Hello, World!"
+    |--- Send ciphertext -------------> |
+    |                                   |  Ciphertext: "x8f3k2m9..."
+    |                                   |     ↓ Decrypt (shared key K)
+    |                                   |  Plaintext: "Hello, World!"
     |                                   |
-    +-- 共通鍵K は安全な方法で共有済み --+
+    +-- Shared key K distributed via secure channel --+
 
-  課題: 鍵配送問題
-  - N人が互いに通信するには N×(N-1)/2 個の鍵が必要
-  - 10人 → 45個、100人 → 4,950個の鍵管理が必要
-  - → 非対称鍵暗号やKMS で解決する
+  Problem: The key distribution problem
+  - N parties communicating with each other need N×(N-1)/2 keys
+  - 10 people → 45 keys; 100 people → 4,950 keys to manage
+  - → Solved using asymmetric-key cryptography or a KMS
 ```
 
-### 2.2 AES-GCM による認証付き暗号
+### 2.2 Authenticated Encryption with AES-GCM
 
 ```python
-# コード例1: AES-256-GCM による認証付き暗号
+# Code example 1: Authenticated encryption with AES-256-GCM
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 import os
 
 
 class AESEncryptor:
-    """AES-256-GCM による認証付き暗号化
+    """Authenticated encryption with AES-256-GCM
 
-    WHY AES-GCM を推奨するか:
-    - 暗号化と認証を同時に行う（Authenticated Encryption with Associated Data）
-    - 改ざん検知機能内蔵（認証タグによる完全性保証）
-    - 高速（AES-NI ハードウェアアクセラレーション対応）
-    - NIST 推奨、TLS 1.3 のデフォルト暗号スイート
+    WHY AES-GCM is recommended:
+    - Performs encryption and authentication simultaneously (Authenticated Encryption with Associated Data)
+    - Built-in tamper detection (integrity guaranteed by authentication tag)
+    - Fast (supports AES-NI hardware acceleration)
+    - NIST-recommended; default cipher suite in TLS 1.3
 
-    WHY ノンス（Nonce）が重要か:
-    - 同じ鍵で同じノンスを使うと暗号文から平文の情報が漏洩する
-    - GCM のノンスは同一鍵で絶対に再利用してはならない
-    - 96ビットのランダムノンスなら 2^32 回まで安全に使用可能
+    WHY the nonce is critical:
+    - Reusing the same nonce with the same key leaks information about the plaintext
+    - In GCM, the nonce must never be reused with the same key
+    - A 96-bit random nonce is safe for up to 2^32 encryptions per key
     """
 
-    KEY_SIZE = 32   # 256ビット
-    NONCE_SIZE = 12  # 96ビット（GCM推奨）
+    KEY_SIZE = 32   # 256 bits
+    NONCE_SIZE = 12  # 96 bits (GCM recommended)
 
     def __init__(self, key: bytes = None):
         if key is None:
             key = AESGCM.generate_key(bit_length=256)
         if len(key) != self.KEY_SIZE:
-            raise ValueError(f"鍵長は{self.KEY_SIZE}バイトである必要があります")
+            raise ValueError(f"Key length must be {self.KEY_SIZE} bytes")
         self._aesgcm = AESGCM(key)
         self._key = key
 
     def encrypt(self, plaintext: bytes,
                 associated_data: bytes = None) -> bytes:
-        """暗号化（ノンス + 暗号文 + 認証タグを返す）
+        """Encrypt and return nonce + ciphertext + authentication tag
 
         Args:
-            plaintext: 暗号化するデータ
-            associated_data: 追加認証データ（AAD）
-                暗号化はしないが、改ざんを検知したいデータ。
-                例: メタデータ、ヘッダ情報
+            plaintext: Data to encrypt
+            associated_data: Additional Authenticated Data (AAD)
+                Data that is not encrypted but whose tampering you want to detect.
+                Examples: metadata, header information
 
         Returns:
-            nonce(12バイト) + ciphertext + tag(16バイト)
+            nonce(12 bytes) + ciphertext + tag(16 bytes)
         """
         nonce = os.urandom(self.NONCE_SIZE)
         ciphertext = self._aesgcm.encrypt(nonce, plaintext, associated_data)
-        return nonce + ciphertext  # ノンスを先頭に付加
+        return nonce + ciphertext  # Prepend nonce
 
     def decrypt(self, data: bytes,
                 associated_data: bytes = None) -> bytes:
-        """復号（ノンスを分離してから復号）
+        """Decrypt by separating the nonce first
 
-        認証タグの検証に失敗した場合は例外が発生する。
-        これにより改ざんされたデータの復号を防止する。
+        An exception is raised if authentication tag verification fails.
+        This prevents decryption of tampered data.
         """
         nonce = data[:self.NONCE_SIZE]
         ciphertext = data[self.NONCE_SIZE:]
         return self._aesgcm.decrypt(nonce, ciphertext, associated_data)
 
 
-# 使用例
+# Usage example
 encryptor = AESEncryptor()
 
-# 基本的な暗号化/復号
+# Basic encrypt/decrypt
 plaintext = b"This is a secret message"
 encrypted = encryptor.encrypt(plaintext)
 decrypted = encryptor.decrypt(encrypted)
 assert decrypted == plaintext
-print(f"暗号化成功: {len(encrypted)} バイト")
+print(f"Encryption successful: {len(encrypted)} bytes")
 
-# AAD（追加認証データ）付き暗号化
-# メタデータは暗号化しないが、改ざんを検知したい場合
+# Encrypt with AAD (Additional Authenticated Data)
+# When you want to detect tampering on metadata without encrypting it
 aad = b"metadata:user_id=123"
 encrypted_with_aad = encryptor.encrypt(plaintext, aad)
 decrypted_with_aad = encryptor.decrypt(encrypted_with_aad, aad)
 assert decrypted_with_aad == plaintext
 
-# AADが異なると復号に失敗する（改ざん検知）
+# Decryption fails if AAD differs (tamper detection)
 try:
     encryptor.decrypt(encrypted_with_aad, b"tampered_metadata")
 except Exception as e:
-    print(f"改ざん検知: {type(e).__name__}")
+    print(f"Tamper detected: {type(e).__name__}")
 ```
 
-### 2.3 暗号化モードの比較
+### 2.3 Comparison of Encryption Modes
 
-| モード | 認証 | 並列処理 | パディング | ノンス再利用の影響 | 推奨度 |
-|--------|:----:|:-------:|:---------:|:---------------:|:-----:|
-| ECB | なし | 可 | 必要 | - | 使用禁止 |
-| CBC | なし | 復号のみ | 必要 | IV漏洩 | 条件付き |
-| CTR | なし | 可 | 不要 | 平文漏洩 | 条件付き |
-| GCM | あり | 可 | 不要 | 認証鍵漏洩 | 推奨 |
-| CCM | あり | 不可 | 不要 | 安全性低下 | 可 |
-| ChaCha20-Poly1305 | あり | 不可 | 不要 | 認証鍵漏洩 | 推奨 |
+| Mode | Authentication | Parallel Processing | Padding | Impact of Nonce Reuse | Recommendation |
+|------|:--------------:|:-------------------:|:-------:|:---------------------:|:--------------:|
+| ECB | No | Yes | Required | - | Prohibited |
+| CBC | No | Decrypt only | Required | IV leakage | Conditional |
+| CTR | No | Yes | Not required | Plaintext leakage | Conditional |
+| GCM | Yes | Yes | Not required | Auth key leakage | Recommended |
+| CCM | Yes | No | Not required | Security degradation | Acceptable |
+| ChaCha20-Poly1305 | Yes | No | Not required | Auth key leakage | Recommended |
 
 ```
-ECB モードの問題（同一平文ブロック → 同一暗号文ブロック）:
+ECB mode problem (identical plaintext block → identical ciphertext block):
 
-  平文ブロック:  [AAAA][BBBB][AAAA][CCCC]
-  ECB 暗号化:   [xxxx][yyyy][xxxx][zzzz]  ← 同一パターンが漏洩!
-  CBC/GCM:      [abcd][efgh][ijkl][mnop]  ← パターンが完全に隠蔽
+  Plaintext blocks: [AAAA][BBBB][AAAA][CCCC]
+  ECB encrypted:    [xxxx][yyyy][xxxx][zzzz]  ← Identical pattern leaks!
+  CBC/GCM:          [abcd][efgh][ijkl][mnop]  ← Pattern fully concealed
 
-  有名な例: ECB モードで暗号化された画像
-  - 暗号化後も画像の輪郭が見える（ECBペンギン問題）
-  - CBC/GCM で暗号化するとランダムノイズになる
+  Famous example: an image encrypted with ECB mode
+  - The image's outlines remain visible after encryption (ECB penguin problem)
+  - Encrypting with CBC/GCM produces random noise
 ```
 
-### 2.4 ChaCha20-Poly1305（AES-GCM の代替）
+### 2.4 ChaCha20-Poly1305 (Alternative to AES-GCM)
 
 ```python
-# コード例2: ChaCha20-Poly1305 による暗号化
+# Code example 2: Encryption with ChaCha20-Poly1305
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 import os
 
 
 class ChaChaEncryptor:
-    """ChaCha20-Poly1305 による認証付き暗号化
+    """Authenticated encryption with ChaCha20-Poly1305
 
-    WHY ChaCha20 を検討するか:
-    - AES-NI 非対応環境（古いCPU、ARM等）で AES-GCM より高速
-    - ソフトウェア実装でもサイドチャネル攻撃に耐性がある
-    - TLS 1.3 で AES-GCM と並ぶ標準暗号スイート
-    - Google が多くのサービスで採用（特にモバイル向け）
+    WHY consider ChaCha20:
+    - Faster than AES-GCM on environments without AES-NI (older CPUs, ARM, etc.)
+    - Software implementations are resistant to side-channel attacks
+    - A standard cipher suite in TLS 1.3 alongside AES-GCM
+    - Adopted by Google in many services (especially for mobile)
     """
 
-    NONCE_SIZE = 12  # 96ビット
+    NONCE_SIZE = 12  # 96 bits
 
     def __init__(self, key: bytes = None):
         if key is None:
@@ -244,86 +244,87 @@ class ChaChaEncryptor:
 
     def encrypt(self, plaintext: bytes,
                 associated_data: bytes = None) -> bytes:
-        """暗号化"""
+        """Encrypt"""
         nonce = os.urandom(self.NONCE_SIZE)
         ciphertext = self._cipher.encrypt(nonce, plaintext, associated_data)
         return nonce + ciphertext
 
     def decrypt(self, data: bytes,
                 associated_data: bytes = None) -> bytes:
-        """復号"""
+        """Decrypt"""
         nonce = data[:self.NONCE_SIZE]
         ciphertext = data[self.NONCE_SIZE:]
         return self._cipher.decrypt(nonce, ciphertext, associated_data)
 
 
-# 使用例
+# Usage example
 chacha = ChaChaEncryptor()
 encrypted = chacha.encrypt(b"Secret data for mobile app")
 decrypted = chacha.decrypt(encrypted)
-print(f"ChaCha20 復号結果: {decrypted}")
+print(f"ChaCha20 decrypted: {decrypted}")
 ```
 
 ---
 
-## 3. 非対称鍵暗号
+## 3. Asymmetric-Key Cryptography
 
-### 3.1 非対称鍵暗号の基本概念
+### 3.1 Basic Concepts of Asymmetric-Key Cryptography
 
-公開鍵と秘密鍵のペアを使用する方式。鍵配送問題を解決するが、処理速度は対称鍵暗号の100〜1000倍遅い。
+A scheme using a pair of public and private keys. It solves the key distribution problem, but is 100–1000 times slower than symmetric-key cryptography.
 
 ```
-非対称鍵暗号の仕組み:
+How asymmetric-key cryptography works:
 
-  ■ 暗号化（機密性）:
-  送信者                              受信者
+  Encryption (Confidentiality):
+  Sender                              Receiver
     |                                   |
-    |  受信者の公開鍵で暗号化           |
-    |  → 受信者の秘密鍵でのみ復号可能  |
+    |  Encrypt with receiver's public key   |
+    |  → Decryptable only with receiver's private key |
     |                                   |
-  ■ デジタル署名（認証・完全性）:
-  送信者                              受信者
+  Digital Signatures (Authentication & Integrity):
+  Sender                              Receiver
     |                                   |
-    |  送信者の秘密鍵で署名             |
-    |  → 送信者の公開鍵で検証可能       |
-    |  → 送信者の身元と改ざんがないことを確認 |
+    |  Sign with sender's private key   |
+    |  → Verifiable with sender's public key |
+    |  → Confirms sender's identity and absence of tampering |
 
-  ■ RSA vs ECC の違い:
+  RSA vs ECC comparison:
   +----------+------------------+------------------+
-  | 項目     | RSA              | ECC (楕円曲線)    |
+  | Property | RSA              | ECC (Elliptic Curve)|
   +----------+------------------+------------------+
-  | 数学基盤 | 大きな素数の積の  | 楕円曲線上の      |
-  |          | 素因数分解困難性  | 離散対数問題      |
+  | Math     | Hardness of      | Discrete logarithm|
+  |          | factoring large  | problem on        |
+  |          | prime products   | elliptic curves   |
   +----------+------------------+------------------+
-  | 鍵長     | 2048-4096ビット  | 256-384ビット     |
-  | 速度     | 遅い             | 速い              |
-  | 鍵サイズ | 大きい           | 小さい            |
+  | Key size | 2048-4096 bits   | 256-384 bits      |
+  | Speed    | Slow             | Fast              |
+  | Key size | Large            | Small             |
   +----------+------------------+------------------+
 ```
 
-### 3.2 RSA と ECDSA の実装
+### 3.2 RSA and ECDSA Implementation
 
 ```python
-# コード例3: RSA と ECDSA の鍵生成・署名・検証
+# Code example 3: Key generation, signing, and verification with RSA and ECDSA
 from cryptography.hazmat.primitives.asymmetric import rsa, ec, padding
 from cryptography.hazmat.primitives import hashes, serialization
 
 
 class AsymmetricCrypto:
-    """非対称鍵暗号の操作
+    """Asymmetric-key cryptographic operations
 
-    RSA と ECC の使い分け:
-    - RSA-4096: 互換性が最も高い、レガシーシステムとの接続
-    - ECDSA P-256: 新規システムの標準、TLS 証明書
-    - Ed25519: 最新の署名アルゴリズム、最高速度
+    Choosing between RSA and ECC:
+    - RSA-4096: Highest compatibility, for legacy system integration
+    - ECDSA P-256: Standard for new systems, TLS certificates
+    - Ed25519: Latest signing algorithm, highest speed
     """
 
     @staticmethod
     def generate_rsa_keypair(key_size: int = 4096):
-        """RSA 鍵ペアの生成
+        """Generate an RSA key pair
 
-        公開指数 65537 (0x10001) は標準的な値で、
-        暗号化の効率とセキュリティのバランスが良い。
+        The public exponent 65537 (0x10001) is a standard value that
+        strikes a good balance between encryption efficiency and security.
         """
         private_key = rsa.generate_private_key(
             public_exponent=65537,
@@ -333,10 +334,10 @@ class AsymmetricCrypto:
 
     @staticmethod
     def generate_ec_keypair(curve=None):
-        """ECC 鍵ペアの生成
+        """Generate an ECC key pair
 
-        P-256 (secp256r1): NIST 推奨、最も広くサポート
-        P-384 (secp384r1): より高セキュリティ
+        P-256 (secp256r1): NIST-recommended, most widely supported
+        P-384 (secp384r1): Higher security level
         """
         if curve is None:
             curve = ec.SECP256R1()
@@ -345,12 +346,12 @@ class AsymmetricCrypto:
 
     @staticmethod
     def rsa_sign(private_key, message: bytes) -> bytes:
-        """RSA-PSS 署名
+        """RSA-PSS signing
 
-        WHY PKCS#1 v1.5 ではなく PSS を使うか:
-        - PSS（Probabilistic Signature Scheme）はランダム性を含む
-        - 同じメッセージに対しても毎回異なる署名が生成される
-        - 数学的に証明されたセキュリティを持つ
+        WHY PSS rather than PKCS#1 v1.5:
+        - PSS (Probabilistic Signature Scheme) incorporates randomness
+        - Produces a different signature for the same message each time
+        - Has mathematically proven security
         """
         return private_key.sign(
             message,
@@ -363,7 +364,7 @@ class AsymmetricCrypto:
 
     @staticmethod
     def rsa_verify(public_key, message: bytes, signature: bytes) -> bool:
-        """RSA-PSS 署名の検証"""
+        """Verify an RSA-PSS signature"""
         try:
             public_key.verify(
                 signature,
@@ -380,7 +381,7 @@ class AsymmetricCrypto:
 
     @staticmethod
     def ec_sign(private_key, message: bytes) -> bytes:
-        """ECDSA 署名"""
+        """ECDSA signing"""
         return private_key.sign(
             message,
             ec.ECDSA(hashes.SHA256()),
@@ -388,7 +389,7 @@ class AsymmetricCrypto:
 
     @staticmethod
     def ec_verify(public_key, message: bytes, signature: bytes) -> bool:
-        """ECDSA 署名の検証"""
+        """Verify an ECDSA signature"""
         try:
             public_key.verify(
                 signature,
@@ -401,7 +402,7 @@ class AsymmetricCrypto:
 
     @staticmethod
     def export_public_key_pem(public_key) -> str:
-        """公開鍵を PEM 形式でエクスポート"""
+        """Export public key in PEM format"""
         return public_key.public_bytes(
             encoding=serialization.Encoding.PEM,
             format=serialization.PublicFormat.SubjectPublicKeyInfo,
@@ -409,7 +410,7 @@ class AsymmetricCrypto:
 
     @staticmethod
     def export_private_key_pem(private_key, passphrase: bytes = None) -> str:
-        """秘密鍵を PEM 形式でエクスポート（暗号化オプション付き）"""
+        """Export private key in PEM format (with optional encryption)"""
         encryption = (
             serialization.BestAvailableEncryption(passphrase)
             if passphrase
@@ -422,110 +423,110 @@ class AsymmetricCrypto:
         ).decode()
 
 
-# 使用例
+# Usage example
 crypto = AsymmetricCrypto()
 
-# RSA 署名
+# RSA signing
 rsa_priv, rsa_pub = crypto.generate_rsa_keypair()
 message = b"Important document"
 rsa_sig = crypto.rsa_sign(rsa_priv, message)
-print(f"RSA 署名検証: {crypto.rsa_verify(rsa_pub, message, rsa_sig)}")  # True
+print(f"RSA signature verification: {crypto.rsa_verify(rsa_pub, message, rsa_sig)}")  # True
 
-# ECDSA 署名
+# ECDSA signing
 ec_priv, ec_pub = crypto.generate_ec_keypair()
 ec_sig = crypto.ec_sign(ec_priv, message)
-print(f"ECDSA 署名検証: {crypto.ec_verify(ec_pub, message, ec_sig)}")  # True
+print(f"ECDSA signature verification: {crypto.ec_verify(ec_pub, message, ec_sig)}")  # True
 
-# 公開鍵のエクスポート
+# Export public key
 pem = crypto.export_public_key_pem(ec_pub)
-print(f"公開鍵 PEM:\n{pem[:100]}...")
+print(f"Public key PEM:\n{pem[:100]}...")
 ```
 
-### 3.3 対称鍵暗号と非対称鍵暗号の比較
+### 3.3 Comparison of Symmetric and Asymmetric Key Cryptography
 
-| 特性 | 対称鍵暗号 | 非対称鍵暗号 |
-|------|-----------|------------|
-| 鍵の数 | 1つ（共通鍵） | 2つ（公開鍵+秘密鍵） |
-| 速度 | 高速（100-1000倍） | 低速 |
-| 鍵配送 | 安全な経路が必要 | 公開鍵は自由に配布可 |
-| 用途 | 大量データの暗号化 | 鍵交換、デジタル署名 |
-| 代表例 | AES-256-GCM | RSA-4096, ECDSA P-256 |
-| 鍵長 | 128/256ビット | 2048/4096ビット（RSA） |
-| 量子コンピュータ耐性 | AES-256 は安全 | RSA/ECC は破られる可能性 |
+| Property | Symmetric-Key | Asymmetric-Key |
+|----------|--------------|----------------|
+| Number of keys | 1 (shared key) | 2 (public key + private key) |
+| Speed | Fast (100-1000x) | Slow |
+| Key distribution | Requires secure channel | Public key can be freely shared |
+| Use cases | Bulk data encryption | Key exchange, digital signatures |
+| Examples | AES-256-GCM | RSA-4096, ECDSA P-256 |
+| Key length | 128/256 bits | 2048/4096 bits (RSA) |
+| Quantum resistance | AES-256 is safe | RSA/ECC may be broken |
 
 ---
 
-## 4. ハッシュ関数
+## 4. Hash Functions
 
-### 4.1 ハッシュ関数の特性
+### 4.1 Properties of Hash Functions
 
 ```
-ハッシュ関数の特性:
+Properties of hash functions:
 
-  入力（任意長）    --> ハッシュ関数 --> 出力（固定長）
+  Input (arbitrary length)  --> Hash function --> Output (fixed length)
 
-  "hello"           --> SHA-256     --> 2cf24dba5fb0a30e...
-  "hello!"          --> SHA-256     --> ce06092fb948d9ff...
-  (1ビットの変化で出力が大きく変化 = 雪崩効果 / Avalanche Effect)
+  "hello"                   --> SHA-256       --> 2cf24dba5fb0a30e...
+  "hello!"                  --> SHA-256       --> ce06092fb948d9ff...
+  (A 1-bit change causes a large change in output = Avalanche Effect)
 
-  必須特性:
-  1. 一方向性     : ハッシュ値から元データを復元不可
-  2. 衝突耐性     : 同じハッシュ値を持つ異なる入力を見つけるのが困難
-  3. 第二原像耐性 : 特定の入力と同じハッシュ値を持つ別の入力を見つけるのが困難
-  4. 雪崩効果     : 入力の微小な変化で出力が大きく変化する
+  Required properties:
+  1. One-wayness         : Cannot recover the original data from the hash value
+  2. Collision resistance: Difficult to find two different inputs with the same hash
+  3. Second preimage resistance: Difficult to find another input with the same hash as a given input
+  4. Avalanche effect    : Small changes in input produce large changes in output
 
-  ハッシュ関数の選択:
+  Hash function selection:
   +-------------+----------+--------+-------------------+
-  | アルゴリズム | 出力長   | 状態   | 用途              |
+  | Algorithm   | Output   | Status | Use Case          |
   +-------------+----------+--------+-------------------+
-  | MD5         | 128ビット | 廃止   | 使用禁止          |
-  | SHA-1       | 160ビット | 廃止   | 使用禁止(衝突発見) |
-  | SHA-256     | 256ビット | 現役   | データ完全性検証   |
-  | SHA-3       | 可変     | 現役   | SHA-2の代替       |
-  | BLAKE2      | 可変     | 現役   | 高速ハッシュ       |
+  | MD5         | 128 bits | Retired| Do not use        |
+  | SHA-1       | 160 bits | Retired| Do not use (collision found) |
+  | SHA-256     | 256 bits | Active | Data integrity    |
+  | SHA-3       | Variable | Active | SHA-2 alternative |
+  | BLAKE2      | Variable | Active | High-speed hashing|
   +-------------+----------+--------+-------------------+
 ```
 
-### 4.2 安全なハッシュ関数の使い方
+### 4.2 Safe Usage of Hash Functions
 
 ```python
-# コード例4: ハッシュ関数の安全な使い方
+# Code example 4: Safe usage of hash functions
 import hashlib
 import hmac
 
 
 class SecureHash:
-    """安全なハッシュ操作
+    """Safe hash operations
 
-    ハッシュ関数は「元に戻せない」一方向関数であり、
-    暗号化（元に戻せる）とは根本的に異なる。
+    Hash functions are one-way (irreversible) functions,
+    fundamentally different from encryption (reversible).
     """
 
     @staticmethod
     def sha256(data: bytes) -> str:
-        """SHA-256 ハッシュ（データの完全性検証用）
+        """SHA-256 hash (for data integrity verification)
 
-        用途: ファイルのチェックサム、データの改ざん検知
-        用途外: パスワード保存（Argon2id を使うこと）
+        Use for: file checksums, tamper detection
+        Not for: password storage (use Argon2id instead)
         """
         return hashlib.sha256(data).hexdigest()
 
     @staticmethod
     def sha3_256(data: bytes) -> str:
-        """SHA-3-256 ハッシュ（SHA-2 の代替）
+        """SHA-3-256 hash (alternative to SHA-2)
 
-        SHA-3 は SHA-2 とは異なる数学的構造（Keccak）を持つ。
-        SHA-2 に脆弱性が発見された場合のフォールバック。
+        SHA-3 has a different mathematical structure (Keccak) from SHA-2.
+        Fallback in case a vulnerability is discovered in SHA-2.
         """
         return hashlib.sha3_256(data).hexdigest()
 
     @staticmethod
     def file_hash(filepath: str, algorithm: str = "sha256") -> str:
-        """大きなファイルのハッシュをストリーミング計算
+        """Compute hash of a large file using streaming
 
-        WHY ストリーミングが必要か:
-        - 数GBのファイルを一度にメモリに読み込むとOOMが発生する
-        - 8KB ずつ読み込むことでメモリ使用量を一定に保つ
+        WHY streaming is necessary:
+        - Loading a multi-GB file into memory at once causes OOM
+        - Reading in 8KB chunks keeps memory usage constant
         """
         h = hashlib.new(algorithm)
         with open(filepath, "rb") as f:
@@ -535,96 +536,96 @@ class SecureHash:
 
     @staticmethod
     def constant_time_compare(a: str, b: str) -> bool:
-        """タイミング攻撃を防ぐ比較
+        """Comparison that prevents timing attacks
 
-        WHY 通常の == ではダメか:
-        - a == b は最初の不一致バイトで比較を打ち切る
-        - 攻撃者は応答時間の差から正しいバイトを推測できる
-        - hmac.compare_digest は常に全バイトを比較する
+        WHY plain == is insufficient:
+        - a == b short-circuits at the first mismatched byte
+        - Attackers can infer correct bytes from response time differences
+        - hmac.compare_digest always compares all bytes
         """
         return hmac.compare_digest(a.encode(), b.encode())
 
 
-# 使用例
+# Usage example
 sh = SecureHash()
 
-# データの完全性検証
+# Integrity verification
 data = b"Important document content"
 hash_value = sh.sha256(data)
 print(f"SHA-256: {hash_value}")
 
-# 改ざん検知
-modified_data = b"Important document contenT"  # 末尾1文字変更
+# Tamper detection
+modified_data = b"Important document contenT"  # Last character changed
 modified_hash = sh.sha256(modified_data)
-print(f"改ざん検知: {hash_value != modified_hash}")  # True
+print(f"Tamper detected: {hash_value != modified_hash}")  # True
 
-# 安全な比較
-print(f"一致: {sh.constant_time_compare(hash_value, hash_value)}")  # True
+# Safe comparison
+print(f"Match: {sh.constant_time_compare(hash_value, hash_value)}")  # True
 ```
 
 ---
 
-## 5. MAC（Message Authentication Code）
+## 5. MAC (Message Authentication Code)
 
-### 5.1 ハッシュと MAC の違い
+### 5.1 Difference Between Hash and MAC
 
 ```
-ハッシュ vs MAC の違い:
+Hash vs MAC:
 
-  ハッシュ (SHA-256):
-    - 入力: メッセージのみ
-    - 出力: ハッシュ値
-    - 用途: 誰でも計算可能 → 完全性のみ保証
-    - 問題: 攻撃者もハッシュを再計算できる
+  Hash (SHA-256):
+    - Input: message only
+    - Output: hash value
+    - Use: anyone can compute → guarantees integrity only
+    - Problem: an attacker can also recompute the hash
 
   MAC (HMAC-SHA256):
-    - 入力: メッセージ + 秘密鍵
-    - 出力: MAC 値（認証タグ）
-    - 用途: 鍵を知る者のみ計算可能 → 完全性 + 認証
-    - 利点: 攻撃者は鍵を知らないので偽造不可能
+    - Input: message + secret key
+    - Output: MAC value (authentication tag)
+    - Use: only those with the key can compute → integrity + authentication
+    - Advantage: attacker cannot forge without the key
 
-  具体例:
-    API リクエストの改ざん防止
-    - ハッシュだけ: 攻撃者がリクエストを変更してハッシュも再計算
-    - HMAC: 秘密鍵がないと正しい MAC を計算できない
+  Concrete example:
+    Preventing tampering of API requests
+    - Hash alone: attacker modifies request and recomputes hash
+    - HMAC: cannot compute the correct MAC without the secret key
 ```
 
-### 5.2 HMAC の実装
+### 5.2 HMAC Implementation
 
 ```python
-# コード例5: HMAC によるメッセージ認証
+# Code example 5: Message authentication with HMAC
 import hmac
 import hashlib
 import time
 
 
 class MessageAuthenticator:
-    """HMAC によるメッセージ認証
+    """Message authentication with HMAC
 
-    HMAC の内部構造:
+    Internal structure of HMAC:
     HMAC(K, M) = H((K ^ opad) || H((K ^ ipad) || M))
-    - 二重ハッシュ構造で Length Extension 攻撃を防止
-    - 鍵をそのままハッシュに含めるとLength Extension攻撃に脆弱
+    - Double-hash structure prevents Length Extension attacks
+    - Including the key directly in the hash is vulnerable to Length Extension attacks
     """
 
     def __init__(self, key: bytes):
         if len(key) < 32:
-            raise ValueError("鍵は最低32バイト（256ビット）必要です")
+            raise ValueError("Key must be at least 32 bytes (256 bits)")
         self.key = key
 
     def create_mac(self, message: bytes) -> str:
-        """メッセージの MAC を計算"""
+        """Compute the MAC for a message"""
         return hmac.new(self.key, message, hashlib.sha256).hexdigest()
 
     def verify_mac(self, message: bytes, mac: str) -> bool:
-        """MAC を検証（タイミング攻撃対策済み）"""
+        """Verify MAC (with timing attack protection)"""
         expected = self.create_mac(message)
         return hmac.compare_digest(expected, mac)
 
     def create_signed_message(self, message: bytes) -> bytes:
-        """タイムスタンプ付き署名メッセージを生成
+        """Generate a signed message with timestamp
 
-        用途: 一時的な URL、API トークン、CSRF トークン
+        Use cases: temporary URLs, API tokens, CSRF tokens
         """
         timestamp = str(int(time.time())).encode()
         payload = timestamp + b"." + message
@@ -633,11 +634,11 @@ class MessageAuthenticator:
 
     def verify_signed_message(self, signed: bytes,
                                max_age: int = 300) -> bytes:
-        """署名メッセージを検証（有効期限チェック付き）
+        """Verify a signed message (with expiry check)
 
         Args:
-            signed: 署名付きメッセージ
-            max_age: 最大有効期間（秒）
+            signed: Signed message
+            max_age: Maximum valid duration (seconds)
         """
         parts = signed.rsplit(b".", 1)
         if len(parts) != 2:
@@ -655,55 +656,55 @@ class MessageAuthenticator:
         return message
 
 
-# 使用例
+# Usage example
 auth = MessageAuthenticator(b"secret-key-32-bytes-long!!!!!!!!")
 
-# 基本的な MAC の計算と検証
+# Basic MAC computation and verification
 message = b"payment:100:USD"
 mac_value = auth.create_mac(message)
 print(f"MAC: {mac_value}")
-print(f"検証: {auth.verify_mac(message, mac_value)}")  # True
-print(f"改ざん検知: {auth.verify_mac(b'payment:999:USD', mac_value)}")  # False
+print(f"Verify: {auth.verify_mac(message, mac_value)}")  # True
+print(f"Tamper detected: {auth.verify_mac(b'payment:999:USD', mac_value)}")  # False
 
-# タイムスタンプ付き署名メッセージ
+# Signed message with timestamp
 signed = auth.create_signed_message(b"action=approve&id=123")
 original = auth.verify_signed_message(signed, max_age=60)
-print(f"検証済みメッセージ: {original}")
+print(f"Verified message: {original}")
 ```
 
 ---
 
-## 6. ハイブリッド暗号方式
+## 6. Hybrid Encryption
 
-### 6.1 なぜハイブリッド方式が必要なのか
+### 6.1 Why Hybrid Encryption Is Necessary
 
-実際のシステムでは、対称鍵暗号と非対称鍵暗号を組み合わせるハイブリッド方式が標準的に使われる。これは両者の長所を組み合わせた設計である。
+In real-world systems, the standard approach is hybrid encryption — combining symmetric and asymmetric cryptography. This design leverages the strengths of both.
 
 ```
-ハイブリッド暗号のフロー（エンベロープ暗号化）:
+Hybrid encryption flow (envelope encryption):
 
-  送信者                                    受信者
+  Sender                                    Receiver
     |                                         |
-    |-- 1. ランダムなAESデータ鍵を生成         |
-    |-- 2. データ鍵でメッセージを暗号化(高速)   |
-    |-- 3. 受信者の公開鍵でデータ鍵を暗号化     |
+    |-- 1. Generate a random AES data key     |
+    |-- 2. Encrypt message with data key (fast)|
+    |-- 3. Encrypt data key with receiver's public key |
     |                                         |
-    |-- [暗号化データ鍵] + [暗号化データ] -->  |
+    |-- [Encrypted data key] + [Encrypted data] --> |
     |                                         |
-    |                  4. 秘密鍵でデータ鍵を復号 |
-    |                  5. データ鍵でデータを復号  |
+    |                  4. Decrypt data key with private key |
+    |                  5. Decrypt data with data key        |
 
-  WHY ハイブリッドが必要か:
-  - 対称鍵暗号は高速だが鍵配送問題がある
-  - 非対称鍵暗号は鍵配送を解決するが遅い
-  - → 非対称鍵暗号で「鍵」だけ安全に送り、
-      実データは対称鍵暗号で高速に暗号化する
+  WHY hybrid encryption is necessary:
+  - Symmetric cryptography is fast but has the key distribution problem
+  - Asymmetric cryptography solves key distribution but is slow
+  - → Use asymmetric cryptography to securely send only the "key",
+      then use symmetric cryptography to encrypt the actual data quickly
 ```
 
-### 6.2 ハイブリッド暗号の実装
+### 6.2 Hybrid Encryption Implementation
 
 ```python
-# コード例6: ハイブリッド暗号（エンベロープ暗号化）
+# Code example 6: Hybrid encryption (envelope encryption)
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -711,10 +712,10 @@ import os
 
 
 class HybridEncryption:
-    """ハイブリッド暗号方式（RSA + AES-GCM）
+    """Hybrid encryption (RSA + AES-GCM)
 
-    TLS、PGP、S/MIME 等の実際のプロトコルと同じ設計パターン。
-    AWS KMS のエンベロープ暗号化もこの原理に基づく。
+    The same design pattern used by real protocols such as TLS, PGP, and S/MIME.
+    AWS KMS envelope encryption is also based on this principle.
     """
 
     def __init__(self):
@@ -724,23 +725,23 @@ class HybridEncryption:
         self.public_key = self.private_key.public_key()
 
     def encrypt(self, plaintext: bytes) -> dict:
-        """ハイブリッド暗号化
+        """Hybrid encryption
 
-        ステップ:
-        1. ランダムな AES 鍵（データ鍵）を生成
-        2. データ鍵でデータを暗号化（AES-GCM: 高速）
-        3. データ鍵を RSA 公開鍵で暗号化（RSA-OAEP: 安全な鍵配送）
-        4. 平文のデータ鍵をメモリから消去
+        Steps:
+        1. Generate a random AES key (data key)
+        2. Encrypt data with the data key (AES-GCM: fast)
+        3. Encrypt the data key with the RSA public key (RSA-OAEP: secure key transport)
+        4. Zero out the plaintext data key from memory
         """
-        # 1. ランダムな AES 鍵を生成
+        # 1. Generate a random AES key
         data_key = AESGCM.generate_key(bit_length=256)
 
-        # 2. データ鍵でデータを暗号化
+        # 2. Encrypt data with the data key
         nonce = os.urandom(12)
         aesgcm = AESGCM(data_key)
         encrypted_data = aesgcm.encrypt(nonce, plaintext, None)
 
-        # 3. データ鍵を RSA 公開鍵で暗号化
+        # 3. Encrypt the data key with the RSA public key
         encrypted_key = self.public_key.encrypt(
             data_key,
             padding.OAEP(
@@ -750,7 +751,7 @@ class HybridEncryption:
             ),
         )
 
-        # 4. 平文データ鍵をゼロクリア（セキュリティのため）
+        # 4. Zero out the plaintext data key (for security)
         data_key = b"\x00" * len(data_key)
 
         return {
@@ -760,8 +761,8 @@ class HybridEncryption:
         }
 
     def decrypt(self, package: dict) -> bytes:
-        """ハイブリッド復号"""
-        # 1. RSA 秘密鍵でデータ鍵を復号
+        """Hybrid decryption"""
+        # 1. Decrypt the data key with the RSA private key
         data_key = self.private_key.decrypt(
             package["encrypted_key"],
             padding.OAEP(
@@ -770,82 +771,82 @@ class HybridEncryption:
                 label=None,
             ),
         )
-        # 2. データ鍵でデータを復号
+        # 2. Decrypt data with the data key
         aesgcm = AESGCM(data_key)
         plaintext = aesgcm.decrypt(
             package["nonce"], package["encrypted_data"], None
         )
 
-        # データ鍵をゼロクリア
+        # Zero out the data key
         data_key = b"\x00" * len(data_key)
 
         return plaintext
 
 
-# 使用例
+# Usage example
 hybrid = HybridEncryption()
 plaintext = b"Sensitive financial data: account=123456, balance=1000000"
 
-# 暗号化
+# Encrypt
 package = hybrid.encrypt(plaintext)
-print(f"暗号化データ鍵: {len(package['encrypted_key'])} バイト")
-print(f"暗号化データ: {len(package['encrypted_data'])} バイト")
+print(f"Encrypted data key: {len(package['encrypted_key'])} bytes")
+print(f"Encrypted data: {len(package['encrypted_data'])} bytes")
 
-# 復号
+# Decrypt
 decrypted = hybrid.decrypt(package)
 assert decrypted == plaintext
-print(f"復号成功: {decrypted.decode()}")
+print(f"Decryption successful: {decrypted.decode()}")
 ```
 
 ---
 
-## 7. ポスト量子暗号（PQC）
+## 7. Post-Quantum Cryptography (PQC)
 
-量子コンピュータの発展により、現在の RSA や ECC が将来的に破られる可能性がある。NIST はポスト量子暗号の標準化を進めている。
+As quantum computers advance, current RSA and ECC algorithms may be broken in the future. NIST is progressing the standardization of post-quantum cryptography.
 
 ```
-量子コンピュータの脅威:
+Threats from quantum computers:
 
-  現在の暗号             量子コンピュータの影響
+  Current cryptography          Impact of quantum computers
   +------------------+  +----------------------------------+
-  | RSA              |  | Shor のアルゴリズムで破られる       |
-  | ECDSA / ECDH     |  | Shor のアルゴリズムで破られる       |
-  | AES-128          |  | Grover で探索空間が半減 → AES-256 推奨 |
-  | AES-256          |  | 安全（128ビット相当のセキュリティ）  |
-  | SHA-256          |  | 安全（128ビット相当のセキュリティ）  |
+  | RSA              |  | Broken by Shor's algorithm        |
+  | ECDSA / ECDH     |  | Broken by Shor's algorithm        |
+  | AES-128          |  | Grover halves search space → use AES-256 |
+  | AES-256          |  | Safe (equivalent to 128-bit security)   |
+  | SHA-256          |  | Safe (equivalent to 128-bit security)   |
   +------------------+  +----------------------------------+
 
-  NIST PQC 標準化（2024年発表）:
-  - ML-KEM (CRYSTALS-Kyber): 鍵カプセル化メカニズム
-  - ML-DSA (CRYSTALS-Dilithium): デジタル署名
-  - SLH-DSA (SPHINCS+): ハッシュベース署名（バックアップ）
+  NIST PQC standardization (announced 2024):
+  - ML-KEM (CRYSTALS-Kyber): Key encapsulation mechanism
+  - ML-DSA (CRYSTALS-Dilithium): Digital signatures
+  - SLH-DSA (SPHINCS+): Hash-based signatures (backup)
 
-  対応方針:
-  1. 「Harvest Now, Decrypt Later」攻撃に備える
-     → 今の暗号文を保存し、量子コンピュータで将来復号する攻撃
-  2. AES-256 を使用し対称鍵暗号の安全性を確保
-  3. ハイブリッドモード（従来暗号 + PQC）への移行を計画
+  Recommended approach:
+  1. Prepare for "Harvest Now, Decrypt Later" attacks
+     → Attackers store ciphertext now and decrypt it later with a quantum computer
+  2. Use AES-256 to ensure the security of symmetric cryptography
+  3. Plan migration to hybrid mode (classical cryptography + PQC)
 ```
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: 独自暗号アルゴリズムの発明
+### Anti-Pattern 1: Inventing Custom Cryptographic Algorithms
 
 ```python
-# NG: 独自の暗号化アルゴリズム（XOR暗号の例）
+# BAD: Custom encryption algorithm (XOR cipher example)
 def my_encrypt(data: bytes, key: bytes) -> bytes:
-    """独自暗号: 単純なXOR"""
+    """Custom cipher: simple XOR"""
     return bytes(a ^ b for a, b in zip(data, key * (len(data) // len(key) + 1)))
 
-# 問題点:
-# - 鍵の再利用でパターンが漏洩する
-# - 暗号学的な安全性が証明されていない
-# - 認証機能がない（改ざん検知不可）
-# - 既知平文攻撃で鍵が復元される
+# Problems:
+# - Key reuse leaks patterns
+# - Cryptographic security is not proven
+# - No authentication (cannot detect tampering)
+# - Key can be recovered via known-plaintext attack
 
-# OK: 標準アルゴリズムを使用
+# GOOD: Use a standard algorithm
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 key = AESGCM.generate_key(bit_length=256)
 aesgcm = AESGCM(key)
@@ -853,87 +854,87 @@ nonce = os.urandom(12)
 ciphertext = aesgcm.encrypt(nonce, data, None)
 ```
 
-**なぜ危険か**: 暗号の安全性は数十年にわたる学術的な検証によって証明されるものであり、独自実装は未知の脆弱性を含む可能性が極めて高い。「**Don't roll your own crypto**」は暗号分野の鉄則である。
+**Why it is dangerous**: Cryptographic security is proven through decades of academic scrutiny; custom implementations are extremely likely to contain unknown vulnerabilities. **"Don't roll your own crypto"** is the iron rule of the cryptography field.
 
-### アンチパターン2: ECB モードの使用
+### Anti-Pattern 2: Using ECB Mode
 
 ```python
-# NG: AES-ECB モード
+# BAD: AES-ECB mode
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 cipher = Cipher(algorithms.AES(key), modes.ECB())
-# → 同一平文ブロック = 同一暗号文ブロック → パターン漏洩
+# → Identical plaintext block = identical ciphertext block → pattern leakage
 
-# OK: AES-GCM（認証付き暗号モード）
+# GOOD: AES-GCM (authenticated encryption mode)
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 aesgcm = AESGCM(key)
 ciphertext = aesgcm.encrypt(nonce, plaintext, aad)
-# → パターン隠蔽 + 改ざん検知
+# → Pattern concealed + tamper detection
 ```
 
-**なぜ危険か**: ECB モードは各ブロックを独立に暗号化するため、同一の平文ブロックが同一の暗号文ブロックに変換され、データのパターンが漏洩する。
+**Why it is dangerous**: ECB mode encrypts each block independently, so identical plaintext blocks map to identical ciphertext blocks, leaking data patterns.
 
-### アンチパターン3: ノンス/IV の再利用
+### Anti-Pattern 3: Nonce/IV Reuse
 
 ```python
-# NG: 固定ノンスの使用
-nonce = b"\x00" * 12  # 固定ノンス
+# BAD: Using a fixed nonce
+nonce = b"\x00" * 12  # Fixed nonce
 for message in messages:
-    ciphertext = aesgcm.encrypt(nonce, message, None)  # 同じノンスを再利用
+    ciphertext = aesgcm.encrypt(nonce, message, None)  # Same nonce reused
 
-# OK: 毎回ランダムなノンスを生成
+# GOOD: Generate a fresh random nonce each time
 import os
 for message in messages:
-    nonce = os.urandom(12)  # 毎回新しいノンス
+    nonce = os.urandom(12)  # New nonce each time
     ciphertext = aesgcm.encrypt(nonce, message, None)
 ```
 
-**なぜ危険か**: AES-GCM で同じ鍵・同じノンスで2つのメッセージを暗号化すると、認証鍵が漏洩し、暗号文の偽造が可能になる（Forbidden Attack）。
+**Why it is dangerous**: Encrypting two messages with the same key and the same nonce in AES-GCM leaks the authentication key and enables ciphertext forgery (Forbidden Attack).
 
-### アンチパターン4: 暗号化のみで認証なし
+### Anti-Pattern 4: Encryption Without Authentication
 
 ```python
-# NG: CBC モードで暗号化のみ（認証なし）
+# BAD: Encryption only with CBC mode (no authentication)
 cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
 encryptor = cipher.encryptor()
 ciphertext = encryptor.update(plaintext) + encryptor.finalize()
-# → 暗号文の改ざんを検知できない（Padding Oracle Attack のリスク）
+# → Cannot detect ciphertext tampering (risk of Padding Oracle Attack)
 
-# OK: GCM（認証付き暗号）
+# GOOD: GCM (authenticated encryption)
 aesgcm = AESGCM(key)
 ciphertext = aesgcm.encrypt(nonce, plaintext, None)
-# → 暗号文が改ざんされると復号時に例外が発生
+# → An exception is raised if the ciphertext is tampered with during decryption
 ```
 
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Misconfigured settings file | Check the path and format of the settings file |
+| Timeout | Network latency / insufficient resources | Adjust timeout value; add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing; implement pagination |
+| Permission error | Insufficient access rights | Verify execution user permissions; review settings |
+| Data inconsistency | Race condition in concurrent processing | Introduce locking mechanisms; manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace and identify where it occurred
+2. **Establish reproducibility**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Incremental verification**: Use logging or a debugger to test hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debug utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -941,102 +942,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with a profiling tool
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O waits**: Review disk and network I/O status
+4. **Check concurrent connection count**: Review connection pool state
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Issue Type | Diagnostic Tool | Mitigation |
+|-----------|----------------|------------|
+| High CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology decisions.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to prioritize | When it can be relaxed |
+|----------|--------------------|------------------------|
+| Performance | Real-time processing, large-scale data | Admin dashboards, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① What is the team size?                       │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → go to ②              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② How frequent are deployments?                │
+│    ├─ Weekly or less → Monolith + module split  │
+│    └─ Daily / multiple times → go to ③          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ How independent are the teams?               │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. long-term cost**
+- A faster short-term approach can become technical debt in the long run
+- Conversely, over-engineering incurs high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. flexibility**
+- A unified tech stack reduces learning costs
+- Adopting diverse technologies enables the right tool for the job, but increases operational overhead
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- Higher abstraction improves reusability but can make debugging harder
+- Lower abstraction is more intuitive but tends to produce code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1046,17 +1047,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision made"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1064,7 +1065,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1072,15 +1073,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1088,53 +1089,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum viable feature set
+- Automated tests only for the critical path
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't over-optimize (YAGNI principle)
+- Get user feedback as early as possible
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Incrementally updating a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Use the Strangler Fig pattern for gradual migration
+- Create Characterization Tests first when existing tests are absent
+- Use an API gateway to coexist old and new systems
+- Perform data migration incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work | Estimated Duration | Risk |
+|-------|------|--------------------|------|
+| 1. Analysis | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration start | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate central features | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers working on the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Use Domain-Driven Design to clearly define boundaries
+- Assign ownership per team
+- Manage shared libraries via InnerSource
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1147,20 +1148,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """Inter-team API contract"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1169,7 +1170,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1190,65 +1191,65 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** Systems where millisecond-level response times are required
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Technique | Effect | Implementation Cost | Applicable When |
+|------------------------|--------|---------------------|-----------------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-bound operations |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low-Medium | High | CPU-bound operations |
 ---
 
 ## FAQ
 
-### Q1: AES-128 と AES-256 のどちらを使うべきですか?
+### Q1: Should I use AES-128 or AES-256?
 
-一般的には AES-256 が推奨される。AES-128 も現時点で十分な安全性を持ち、破られる可能性は実質的にない。しかし、量子コンピュータ時代の到来を考慮すると、AES-256 の方がより長期的な安全マージンがある（Grover のアルゴリズムで探索空間が半減しても 128 ビットの安全性を維持）。パフォーマンス差はAES-NI対応CPUではほぼ無視できるため、特別な理由がなければ AES-256 を選択する。
+AES-256 is generally recommended. AES-128 is also sufficiently secure at present and is practically unbreakable. However, considering the advent of quantum computers, AES-256 provides a longer security margin (even if Grover's algorithm halves the search space, 128-bit security is maintained). The performance difference is negligible on AES-NI-capable CPUs, so choose AES-256 unless there is a specific reason not to.
 
-### Q2: ハッシュ関数は暗号化の代わりに使えますか?
+### Q2: Can a hash function be used in place of encryption?
 
-使えない。ハッシュ関数は一方向関数であり、ハッシュ値から元データを復元できない。データの完全性検証やパスワード保存には適するが、復号が必要なユースケースでは暗号化を使用する。逆に、暗号化はハッシュの代わりにはならない（パスワードは暗号化ではなくハッシュで保存する）。
+No. Hash functions are one-way; the original data cannot be recovered from the hash value. They are appropriate for data integrity verification and password storage, but encryption must be used when decryption is required. Conversely, encryption cannot replace hashing (passwords should be stored using hashing, not encryption).
 
-### Q3: RSA の鍵長はどれくらい必要ですか?
+### Q3: What RSA key length is needed?
 
-2048 ビット以上が最低要件、4096 ビットが推奨。ただし、ECDSA の P-256 曲線は RSA-3072 と同等のセキュリティレベルを持ち、鍵サイズが小さく処理も高速なため、新規システムでは ECDSA の採用を検討すべきである。量子コンピュータ耐性を考慮すると、いずれ PQC への移行が必要になる。
+2048 bits is the minimum; 4096 bits is recommended. However, ECDSA with the P-256 curve offers equivalent security to RSA-3072 with a smaller key size and faster processing, so new systems should consider adopting ECDSA. Given quantum computer threats, migration to PQC will eventually be necessary.
 
-### Q4: なぜ「暗号化」と「ハッシュ化」を使い分ける必要がありますか?
+### Q4: Why must "encryption" and "hashing" be used differently?
 
-目的が異なるためである。暗号化は「元に戻す（復号する）」ことを前提とした可逆処理であり、通信の秘匿やデータの保護に使う。ハッシュ化は「元に戻さない」ことを前提とした不可逆処理であり、パスワード保存やデータの完全性検証に使う。パスワードを暗号化で保存すると、暗号鍵が漏洩した時点で全パスワードが復元されるため、ハッシュ化が正しい選択である。
+Because they serve different purposes. Encryption is a reversible process that assumes the ability to "recover (decrypt)" the original; it is used for concealing communications and protecting data. Hashing is an irreversible process that assumes the data will "not be recovered"; it is used for password storage and data integrity verification. Storing passwords with encryption means all passwords can be recovered if the encryption key leaks, making hashing the correct choice.
 
-### Q5: GCM モードでノンスが重複するとどうなりますか?
+### Q5: What happens if a nonce is duplicated in GCM mode?
 
-同じ鍵で同じノンスを使って2つの異なるメッセージを暗号化すると、以下の問題が発生する:
-1. 2つの暗号文の XOR から平文の XOR が求まる
-2. 認証鍵（GHASH鍵）が漏洩し、認証タグの偽造が可能になる
-これを「Forbidden Attack」と呼ぶ。96ビットのランダムノンスなら、同一鍵で約 2^32 回（約43億回）の暗号化まで安全に使用できる（誕生日問題の閾値）。それ以上使う場合は鍵をローテーションする。
+Encrypting two different messages with the same key and the same nonce causes the following problems:
+1. XOR-ing the two ciphertexts yields the XOR of the plaintexts
+2. The authentication key (GHASH key) is leaked, enabling forgery of authentication tags
+This is called the "Forbidden Attack". With a 96-bit random nonce, encryption is safe for approximately 2^32 (about 4.3 billion) encryptions per key (the birthday problem threshold). Beyond that, rotate the key.
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1（基礎）: ファイル暗号化ツールの実装
+### Exercise 1 (Basic): Implement a File Encryption Tool
 
-AES-256-GCM を使用して、ファイルの暗号化・復号を行うツールを実装せよ。
+Implement a tool that encrypts and decrypts files using AES-256-GCM.
 
-**要件**:
-- パスワードから暗号鍵を導出（PBKDF2 または Argon2 使用）
-- ソルトをランダム生成し暗号文に含める
-- 暗号化ファイルの形式: salt(16B) + nonce(12B) + ciphertext + tag(16B)
+**Requirements**:
+- Derive an encryption key from a password (using PBKDF2 or Argon2)
+- Generate a random salt and include it in the ciphertext
+- Encrypted file format: salt(16B) + nonce(12B) + ciphertext + tag(16B)
 
 <details>
-<summary>模範解答</summary>
+<summary>Reference answer</summary>
 
 ```python
 import os
@@ -1259,15 +1260,15 @@ from cryptography.hazmat.primitives import hashes
 
 
 class FileEncryptor:
-    """パスワードベースのファイル暗号化ツール"""
+    """Password-based file encryption tool"""
 
     SALT_SIZE = 16
     NONCE_SIZE = 12
     KEY_SIZE = 32  # AES-256
-    ITERATIONS = 600000  # OWASP 推奨値（2024年）
+    ITERATIONS = 600000  # OWASP recommended value (2024)
 
     def _derive_key(self, password: str, salt: bytes) -> bytes:
-        """パスワードから暗号鍵を導出"""
+        """Derive an encryption key from a password"""
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=self.KEY_SIZE,
@@ -1278,52 +1279,52 @@ class FileEncryptor:
 
     def encrypt_file(self, input_path: str, output_path: str,
                      password: str) -> None:
-        """ファイルを暗号化"""
-        # ソルトとノンスを生成
+        """Encrypt a file"""
+        # Generate salt and nonce
         salt = os.urandom(self.SALT_SIZE)
         nonce = os.urandom(self.NONCE_SIZE)
 
-        # パスワードから鍵を導出
+        # Derive key from password
         key = self._derive_key(password, salt)
         aesgcm = AESGCM(key)
 
-        # ファイルを読み込んで暗号化
+        # Read and encrypt file
         with open(input_path, "rb") as f:
             plaintext = f.read()
 
         ciphertext = aesgcm.encrypt(nonce, plaintext, None)
 
-        # salt + nonce + ciphertext を書き込み
+        # Write salt + nonce + ciphertext
         with open(output_path, "wb") as f:
             f.write(salt + nonce + ciphertext)
 
-        print(f"暗号化完了: {output_path}")
+        print(f"Encryption complete: {output_path}")
 
     def decrypt_file(self, input_path: str, output_path: str,
                      password: str) -> None:
-        """ファイルを復号"""
+        """Decrypt a file"""
         with open(input_path, "rb") as f:
             data = f.read()
 
-        # salt と nonce を分離
+        # Separate salt and nonce
         salt = data[:self.SALT_SIZE]
         nonce = data[self.SALT_SIZE:self.SALT_SIZE + self.NONCE_SIZE]
         ciphertext = data[self.SALT_SIZE + self.NONCE_SIZE:]
 
-        # パスワードから鍵を導出
+        # Derive key from password
         key = self._derive_key(password, salt)
         aesgcm = AESGCM(key)
 
-        # 復号
+        # Decrypt
         plaintext = aesgcm.decrypt(nonce, ciphertext, None)
 
         with open(output_path, "wb") as f:
             f.write(plaintext)
 
-        print(f"復号完了: {output_path}")
+        print(f"Decryption complete: {output_path}")
 
 
-# 使用例
+# Usage example
 encryptor = FileEncryptor()
 # encryptor.encrypt_file("secret.txt", "secret.enc", "MyPassword123!")
 # encryptor.decrypt_file("secret.enc", "secret_decrypted.txt", "MyPassword123!")
@@ -1331,18 +1332,18 @@ encryptor = FileEncryptor()
 
 </details>
 
-### 演習2（応用）: デジタル署名による文書検証システム
+### Exercise 2 (Applied): Document Verification System Using Digital Signatures
 
-ECDSA を使用して、文書の署名と検証を行うシステムを実装せよ。
+Implement a system for signing and verifying documents using ECDSA.
 
-**要件**:
-- 鍵ペアの生成と PEM 形式での保存/読み込み
-- 文書（バイト列）への署名
-- 署名の検証
-- 署名付き文書パッケージの作成（文書 + 署名 + 公開鍵のバンドル）
+**Requirements**:
+- Generate a key pair and save/load it in PEM format
+- Sign a document (byte sequence)
+- Verify the signature
+- Create a signed document package (bundle of document + signature + public key)
 
 <details>
-<summary>模範解答</summary>
+<summary>Reference answer</summary>
 
 ```python
 import json
@@ -1352,19 +1353,19 @@ from cryptography.hazmat.primitives import hashes, serialization
 
 
 class DocumentSigner:
-    """ECDSA によるデジタル署名システム"""
+    """Digital signature system using ECDSA"""
 
     def __init__(self):
         self.private_key = ec.generate_private_key(ec.SECP256R1())
         self.public_key = self.private_key.public_key()
 
     def sign(self, document: bytes) -> bytes:
-        """文書に署名"""
+        """Sign a document"""
         return self.private_key.sign(document, ec.ECDSA(hashes.SHA256()))
 
     @staticmethod
     def verify(public_key, document: bytes, signature: bytes) -> bool:
-        """署名を検証"""
+        """Verify a signature"""
         try:
             public_key.verify(signature, document, ec.ECDSA(hashes.SHA256()))
             return True
@@ -1372,7 +1373,7 @@ class DocumentSigner:
             return False
 
     def create_signed_package(self, document: bytes) -> str:
-        """署名付き文書パッケージを JSON 形式で作成"""
+        """Create a signed document package in JSON format"""
         signature = self.sign(document)
         pub_pem = self.public_key.public_bytes(
             serialization.Encoding.PEM,
@@ -1387,7 +1388,7 @@ class DocumentSigner:
 
     @staticmethod
     def verify_package(package_json: str) -> dict:
-        """署名付きパッケージを検証"""
+        """Verify a signed package"""
         package = json.loads(package_json)
         document = base64.b64decode(package["document"])
         signature = base64.b64decode(package["signature"])
@@ -1402,31 +1403,31 @@ class DocumentSigner:
         }
 
 
-# テスト
+# Test
 signer = DocumentSigner()
 doc = b"Contract: Party A agrees to pay Party B $1000"
 
-# 署名付きパッケージの作成と検証
+# Create and verify signed package
 package = signer.create_signed_package(doc)
 result = DocumentSigner.verify_package(package)
-print(f"署名検証: {result['valid']}")  # True
-print(f"文書: {result['document'].decode()}")
+print(f"Signature verification: {result['valid']}")  # True
+print(f"Document: {result['document'].decode()}")
 ```
 
 </details>
 
-### 演習3（発展）: 鍵交換プロトコルの実装
+### Exercise 3 (Advanced): Implement a Key Exchange Protocol
 
-ECDH（楕円曲線ディフィー・ヘルマン）鍵交換を実装し、2者間で安全に共通鍵を確立するプロトコルを設計せよ。
+Implement ECDH (Elliptic Curve Diffie-Hellman) key exchange and design a protocol for two parties to securely establish a shared key.
 
-**要件**:
-- ECDH による鍵交換
-- 派生した共有秘密から AES 鍵を導出（HKDF 使用）
-- 導出した鍵で AES-GCM 暗号化通信
-- 前方秘匿性（Perfect Forward Secrecy）の実現
+**Requirements**:
+- Key exchange via ECDH
+- Derive an AES key from the derived shared secret (using HKDF)
+- Encrypted AES-GCM communication using the derived key
+- Achieve Perfect Forward Secrecy
 
 <details>
-<summary>模範解答</summary>
+<summary>Reference answer</summary>
 
 ```python
 from cryptography.hazmat.primitives.asymmetric import ec
@@ -1437,25 +1438,25 @@ import os
 
 
 class SecureChannel:
-    """ECDH 鍵交換 + AES-GCM による安全な通信チャネル
+    """Secure communication channel using ECDH key exchange + AES-GCM
 
-    前方秘匿性: 各セッションで新しい一時鍵ペアを生成するため、
-    長期秘密鍵が漏洩しても過去の通信は解読されない。
+    Forward secrecy: A new ephemeral key pair is generated per session,
+    so past communications cannot be decrypted even if the long-term private key is leaked.
     """
 
     def __init__(self):
-        # 一時鍵ペア（エフェメラル鍵）を生成
+        # Generate ephemeral key pair
         self._private_key = ec.generate_private_key(ec.SECP256R1())
         self.public_key = self._private_key.public_key()
         self._shared_key = None
 
     def derive_shared_key(self, peer_public_key) -> None:
-        """相手の公開鍵から共有秘密を導出"""
-        # ECDH で共有秘密を計算
+        """Derive a shared secret from the peer's public key"""
+        # Compute shared secret via ECDH
         shared_secret = self._private_key.exchange(
             ec.ECDH(), peer_public_key
         )
-        # HKDF で AES 鍵を導出
+        # Derive AES key via HKDF
         self._shared_key = HKDF(
             algorithm=hashes.SHA256(),
             length=32,
@@ -1464,28 +1465,28 @@ class SecureChannel:
         ).derive(shared_secret)
 
     def encrypt(self, plaintext: bytes) -> bytes:
-        """共有鍵で暗号化"""
+        """Encrypt with the shared key"""
         if not self._shared_key:
-            raise RuntimeError("鍵交換が完了していません")
+            raise RuntimeError("Key exchange has not been completed")
         nonce = os.urandom(12)
         aesgcm = AESGCM(self._shared_key)
         return nonce + aesgcm.encrypt(nonce, plaintext, None)
 
     def decrypt(self, data: bytes) -> bytes:
-        """共有鍵で復号"""
+        """Decrypt with the shared key"""
         if not self._shared_key:
-            raise RuntimeError("鍵交換が完了していません")
+            raise RuntimeError("Key exchange has not been completed")
         nonce = data[:12]
         ciphertext = data[12:]
         aesgcm = AESGCM(self._shared_key)
         return aesgcm.decrypt(nonce, ciphertext, None)
 
 
-# 使用例: Alice と Bob の安全な通信
+# Usage example: Secure communication between Alice and Bob
 alice = SecureChannel()
 bob = SecureChannel()
 
-# 公開鍵の交換（安全でないチャネルでOK）
+# Exchange public keys (safe over an insecure channel)
 alice.derive_shared_key(bob.public_key)
 bob.derive_shared_key(alice.public_key)
 
@@ -1506,35 +1507,35 @@ print(f"Alice received: {decrypted_reply.decode()}")
 
 ---
 
-## まとめ
+## Summary
 
-| 技術 | 用途 | 推奨アルゴリズム | 鍵長 |
-|------|------|----------------|------|
-| 対称鍵暗号 | データの暗号化 | AES-256-GCM / ChaCha20-Poly1305 | 256ビット |
-| 非対称鍵暗号 | 鍵交換、デジタル署名 | ECDSA P-256, RSA-4096 | 256ビット / 4096ビット |
-| ハッシュ関数 | 完全性検証 | SHA-256, SHA-3 | - |
-| MAC | メッセージ認証 | HMAC-SHA256 | 256ビット |
-| パスワードハッシュ | パスワード保存 | Argon2id, bcrypt | - |
-| 鍵交換 | 共通鍵の確立 | ECDH (X25519, P-256) | 256ビット |
-| ハイブリッド暗号 | 大量データの安全な暗号化 | RSA-OAEP + AES-GCM | - |
-
----
-
-## 次に読むべきガイド
-
-- [TLS/証明書](./01-tls-certificates.md) -- TLS ハンドシェイクと証明書管理
-- [鍵管理](./02-key-management.md) -- 鍵のライフサイクルと管理手法
-- [認証脆弱性](../01-web-security/04-auth-vulnerabilities.md) -- パスワードハッシュの実践
-- [ネットワークセキュリティ基礎](../03-network-security/00-network-security-basics.md) -- 暗号化通信の上位レイヤー
-- パスワードセキュリティ -- パスワードハッシュの詳細
+| Technique | Use Case | Recommended Algorithm | Key Length |
+|-----------|----------|-----------------------|------------|
+| Symmetric-key cryptography | Data encryption | AES-256-GCM / ChaCha20-Poly1305 | 256 bits |
+| Asymmetric-key cryptography | Key exchange, digital signatures | ECDSA P-256, RSA-4096 | 256 bits / 4096 bits |
+| Hash functions | Integrity verification | SHA-256, SHA-3 | - |
+| MAC | Message authentication | HMAC-SHA256 | 256 bits |
+| Password hashing | Password storage | Argon2id, bcrypt | - |
+| Key exchange | Establishing a shared key | ECDH (X25519, P-256) | 256 bits |
+| Hybrid encryption | Secure encryption of bulk data | RSA-OAEP + AES-GCM | - |
 
 ---
 
-## 参考文献
+## Recommended Next Reading
+
+- [TLS/Certificates](./01-tls-certificates.md) -- TLS handshake and certificate management
+- [Key Management](./02-key-management.md) -- Key lifecycle and management techniques
+- [Authentication Vulnerabilities](../01-web-security/04-auth-vulnerabilities.md) -- Practical password hashing
+- [Network Security Basics](../03-network-security/00-network-security-basics.md) -- Upper layers of encrypted communication
+- Password Security -- Details on password hashing
+
+---
+
+## References
 
 1. **NIST SP 800-175B: Guideline for Using Cryptographic Standards** -- https://csrc.nist.gov/publications/detail/sp/800-175b/rev-1/final
-2. **Christof Paar & Jan Pelzl, "Understanding Cryptography"** -- Springer（暗号学の教科書として最高水準）
+2. **Christof Paar & Jan Pelzl, "Understanding Cryptography"** -- Springer (a premier cryptography textbook)
 3. **OWASP Cryptographic Storage Cheat Sheet** -- https://cheatsheetseries.owasp.org/cheatsheets/Cryptographic_Storage_Cheat_Sheet.html
 4. **NIST Post-Quantum Cryptography Standards** -- https://csrc.nist.gov/projects/post-quantum-cryptography
-5. **Dan Boneh & Victor Shoup, "A Graduate Course in Applied Cryptography"** -- https://toc.cryptobook.us/ （無料で読める暗号学の決定版テキスト）
+5. **Dan Boneh & Victor Shoup, "A Graduate Course in Applied Cryptography"** -- https://toc.cryptobook.us/ (definitive free cryptography text)
 6. **RFC 5116: An Interface and Algorithms for Authenticated Encryption** -- https://datatracker.ietf.org/doc/html/rfc5116
