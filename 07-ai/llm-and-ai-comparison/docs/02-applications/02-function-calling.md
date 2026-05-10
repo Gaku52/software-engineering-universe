@@ -1,106 +1,110 @@
-# Function Calling — ツール使用・スキーマ定義・エラーハンドリング
+# Function Calling — Tool Use, Schema Definition, and Error Handling
 
-> Function Calling は LLM が外部ツール (API、データベース、計算機等) を構造化された形式で呼び出す仕組みであり、LLM を「考えるだけ」の存在から「行動できる」エージェントへ進化させる中核技術である。
+> Function Calling is a mechanism that enables LLMs to invoke external tools (APIs, databases, calculators, etc.) in a structured format. It is the core technology that evolves an LLM from an entity that merely "thinks" into an agent capable of "acting."
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **Function Calling の仕組みと設計原理** — LLM がどのように関数呼び出しを判断し、引数を生成するか
-2. **スキーマ定義のベストプラクティス** — JSON Schema による関数定義、パラメータ設計、説明文の書き方
-3. **実践的なエラーハンドリングとセキュリティ** — 障害時のフォールバック、入力検証、権限管理
-4. **マルチツールオーケストレーション** — ツールチェイン、並列実行、動的ツール選択
-5. **本番環境での運用パターン** — モニタリング、コスト最適化、テスト戦略
+1. **How Function Calling Works and Its Design Principles** — How an LLM decides to call a function and generates arguments
+2. **Best Practices for Schema Definition** — Defining functions with JSON Schema, parameter design, and writing descriptions
+3. **Practical Error Handling and Security** — Fallbacks on failure, input validation, and permission management
+4. **Multi-Tool Orchestration** — Tool chains, parallel execution, and dynamic tool selection
+5. **Production Operation Patterns** — Monitoring, cost optimization, and testing strategies
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [RAG — 検索拡張生成・チャンク分割・リランキング](./01-rag.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [RAG — Retrieval-Augmented Generation, Chunking, and Reranking](./01-rag.md)
 
 ---
 
-## 1. Function Calling の仕組み
+## 1. How Function Calling Works
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│           Function Calling の実行フロー                    │
+│           Function Calling Execution Flow                  │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  1. ユーザー: 「東京の明日の天気を教えて」                │
+│  1. User: "Tell me tomorrow's weather in Tokyo"          │
 │     │                                                    │
 │     ▼                                                    │
-│  2. LLM: 関数呼び出しが必要と判断                         │
+│  2. LLM: Determines a function call is needed            │
 │     → get_weather(city="Tokyo", date="2025-03-15")       │
 │     │                                                    │
 │     ▼                                                    │
-│  3. アプリ: 関数を実行し結果を取得                        │
-│     → {"temp": 18, "condition": "晴れ", ...}             │
+│  3. App: Executes the function and retrieves the result  │
+│     → {"temp": 18, "condition": "Sunny", ...}            │
 │     │                                                    │
 │     ▼                                                    │
-│  4. LLM: 結果を自然言語で回答                             │
-│     → 「明日の東京は晴れで、気温は18度の予想です。」      │
+│  4. LLM: Responds in natural language                    │
+│     → "Tomorrow in Tokyo will be sunny with a high       │
+│        of 18 degrees."                                   │
 │                                                          │
 │  ┌──────────────────────────────────────────────┐        │
-│  │  重要: LLM は関数を直接実行しない             │        │
-│  │  LLM は「どの関数を、どの引数で呼ぶか」を     │        │
-│  │  JSON で出力するだけ。実行はアプリ側の責任。   │        │
+│  │  Important: The LLM does NOT execute         │        │
+│  │  functions directly. It only outputs JSON    │        │
+│  │  specifying "which function with what args." │        │
+│  │  Execution is the application's responsibility.│       │
 │  └──────────────────────────────────────────────┘        │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.1 Function Calling の内部メカニズム
+### 1.1 The Internal Mechanism of Function Calling
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│           LLM 内部での Function Calling 判断プロセス              │
+│       The LLM's Internal Function Calling Decision Process        │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  ユーザー入力 + ツール定義 (システムプロンプトに埋め込まれる)      │
+│  User Input + Tool Definitions (embedded in the system prompt)  │
 │       │                                                        │
 │       ▼                                                        │
 │  ┌──────────────────────┐                                      │
-│  │  意図分析              │                                      │
-│  │  - ツール呼び出しが    │                                      │
-│  │    必要か判定          │                                      │
-│  │  - どのツールが適切か  │                                      │
+│  │  Intent Analysis      │                                      │
+│  │  - Determine if a    │                                      │
+│  │    tool call is      │                                      │
+│  │    needed            │                                      │
+│  │  - Which tool fits   │                                      │
 │  └──────┬───────────────┘                                      │
 │         │                                                      │
 │    ┌────┴────┐                                                 │
 │    ▼         ▼                                                 │
-│  [直接回答]  [ツール呼び出し]                                    │
-│              │                                                  │
-│              ▼                                                  │
+│  [Direct    [Tool Call]                                        │
+│  Response]   │                                                 │
+│              ▼                                                 │
 │  ┌──────────────────────┐                                      │
-│  │  引数生成              │                                      │
-│  │  - JSON Schema に従い  │                                      │
-│  │    引数を構造化出力    │                                      │
-│  │  - required の検証     │                                      │
-│  │  - enum の制約チェック │                                      │
+│  │  Argument Generation  │                                      │
+│  │  - Structured output │                                      │
+│  │    per JSON Schema   │                                      │
+│  │  - Validates required│                                      │
+│  │  - Checks enum       │                                      │
+│  │    constraints       │                                      │
 │  └──────────────────────┘                                      │
 │                                                                 │
-│  ポイント:                                                      │
-│  - ツール定義の description が判断の最大の手がかり               │
-│  - パラメータの description も引数生成精度に直結                 │
-│  - ツール数が増えると選択精度が低下 (20個以下推奨)               │
+│  Key Points:                                                    │
+│  - The tool's description is the primary cue for selection      │
+│  - Parameter descriptions directly impact argument accuracy     │
+│  - Selection accuracy degrades as tool count grows (max 20 rec.)│
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 Function Calling vs 他のアプローチ
+### 1.2 Function Calling vs. Other Approaches
 
-| アプローチ | 仕組み | 精度 | 柔軟性 | 導入コスト |
+| Approach | Mechanism | Accuracy | Flexibility | Setup Cost |
 |-----------|--------|------|--------|----------|
-| Function Calling (ネイティブ) | LLM API の組み込み機能 | 高 | 中 | 低 |
-| ReAct プロンプティング | プロンプトでツール使用を指示 | 中 | 高 | 低 |
-| Code Interpreter | LLM がコードを生成して実行 | 高 | 最高 | 中 |
-| プラグインシステム | LLM にプラグイン一覧を提供 | 中〜高 | 高 | 高 |
-| MCP (Model Context Protocol) | 標準化されたツール接続 | 高 | 最高 | 中 |
+| Function Calling (Native) | Built-in LLM API feature | High | Medium | Low |
+| ReAct Prompting | Instructs tool use via prompt | Medium | High | Low |
+| Code Interpreter | LLM generates and executes code | High | Highest | Medium |
+| Plugin System | Provides LLM with a list of plugins | Medium–High | High | High |
+| MCP (Model Context Protocol) | Standardized tool connection | High | Highest | Medium |
 
 ---
 
-## 2. プロバイダ別の実装
+## 2. Provider-Specific Implementations
 
 ### 2.1 OpenAI Function Calling
 
@@ -110,7 +114,7 @@ import json
 
 client = OpenAI()
 
-# ツール定義
+# Tool definition
 tools = [
     {
         "type": "function",
@@ -140,7 +144,7 @@ tools = [
     }
 ]
 
-# LLM呼び出し
+# LLM call
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[{"role": "user", "content": "東京の明日の天気は？"}],
@@ -148,7 +152,7 @@ response = client.chat.completions.create(
     tool_choice="auto",  # auto / required / none / {"type":"function","function":{"name":"..."}}
 )
 
-# Function Call の処理
+# Processing the Function Call
 message = response.choices[0].message
 if message.tool_calls:
     for tool_call in message.tool_calls:
@@ -156,10 +160,10 @@ if message.tool_calls:
         arguments = json.loads(tool_call.function.arguments)
         print(f"関数: {function_name}, 引数: {arguments}")
 
-        # 実際の関数を実行
+        # Execute the actual function
         result = execute_function(function_name, arguments)
 
-        # 結果を LLM に返す
+        # Return the result to the LLM
         follow_up = client.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -183,7 +187,7 @@ from pydantic import BaseModel
 
 client = OpenAI()
 
-# Pydantic モデルでスキーマを定義 (Structured Output)
+# Define schema with a Pydantic model (Structured Output)
 class FlightSearch(BaseModel):
     origin: str
     destination: str
@@ -196,7 +200,7 @@ class FlightSearchResult(BaseModel):
     total_count: int
     cheapest_price: float
 
-# Structured Output を使ったツール定義
+# Tool definition using Structured Output
 tools = [
     {
         "type": "function",
@@ -204,7 +208,7 @@ tools = [
             "name": "search_flights",
             "description": "フライトを検索します",
             "parameters": FlightSearch.model_json_schema(),
-            "strict": True,  # Structured Output モード
+            "strict": True,  # Structured Output mode
         },
     }
 ]
@@ -215,10 +219,10 @@ response = client.chat.completions.create(
     tools=tools,
 )
 
-# strict: True により、スキーマに完全に準拠した引数が保証される
+# With strict: True, arguments are guaranteed to fully conform to the schema
 if response.choices[0].message.tool_calls:
     args = json.loads(response.choices[0].message.tool_calls[0].function.arguments)
-    validated = FlightSearch(**args)  # Pydantic で追加検証
+    validated = FlightSearch(**args)  # Additional validation with Pydantic
     print(validated)
 ```
 
@@ -229,7 +233,7 @@ from anthropic import Anthropic
 
 client = Anthropic()
 
-# ツール定義
+# Tool definition
 tools = [
     {
         "name": "get_weather",
@@ -258,12 +262,12 @@ response = client.messages.create(
     messages=[{"role": "user", "content": "東京の天気を教えて"}],
 )
 
-# tool_use ブロックを処理
+# Process tool_use blocks
 for block in response.content:
     if block.type == "tool_use":
         print(f"ツール: {block.name}, 入力: {block.input}")
 
-        # 結果を返す
+        # Return the result
         result = execute_function(block.name, block.input)
 
         follow_up = client.messages.create(
@@ -296,7 +300,7 @@ import json
 client = Anthropic()
 
 def stream_with_tools(user_message: str, tools: list):
-    """ストリーミング対応のツール使用"""
+    """Tool use with streaming support"""
 
     messages = [{"role": "user", "content": user_message}]
 
@@ -324,7 +328,7 @@ def stream_with_tools(user_message: str, tools: list):
                     text_content += event.delta.text
                     print(event.delta.text, end="", flush=True)
 
-        # ツール呼び出しがある場合は実行
+        # Execute tool calls if present
         for tool_block in tool_use_blocks:
             input_data = json.loads(tool_block["input_json"])
             result = execute_function(tool_block["name"], input_data)
@@ -338,7 +342,7 @@ import google.generativeai as genai
 
 genai.configure(api_key="YOUR_API_KEY")
 
-# 関数宣言
+# Function declaration
 get_weather = genai.protos.FunctionDeclaration(
     name="get_weather",
     description="指定された都市の天気予報を取得します",
@@ -357,45 +361,45 @@ model = genai.GenerativeModel("gemini-1.5-pro", tools=[tool])
 
 response = model.generate_content("東京の明日の天気は？")
 
-# function_call を処理
+# Process function_call
 for part in response.parts:
     if fn := part.function_call:
         print(f"関数: {fn.name}, 引数: {dict(fn.args)}")
 ```
 
-### 2.6 Gemini 自動関数実行モード
+### 2.6 Gemini Automatic Function Execution Mode
 
 ```python
 import google.generativeai as genai
 
 def get_weather_impl(city: str, date: str = None) -> dict:
-    """実際の天気取得関数"""
-    # API コール等の実装
+    """Actual weather retrieval function"""
+    # API call implementation, etc.
     return {"city": city, "temp": 22, "condition": "晴れ"}
 
-# 自動関数実行モード: LLM が関数呼び出しを出力すると自動で実行
+# Automatic function execution mode: executes automatically when LLM outputs a function call
 model = genai.GenerativeModel(
     "gemini-1.5-pro",
-    tools=[get_weather_impl],  # Python 関数を直接渡す
+    tools=[get_weather_impl],  # Pass Python function directly
 )
 
-# enable_automatic_function_calling で自動実行
+# Automatic execution enabled with enable_automatic_function_calling
 chat = model.start_chat(enable_automatic_function_calling=True)
 response = chat.send_message("東京の明日の天気は？")
 
-# → 関数が自動実行され、最終回答が直接返される
+# → Function is executed automatically and the final answer is returned directly
 print(response.text)
 # "東京の明日の天気は晴れで、気温は22度の予想です。"
 ```
 
 ---
 
-## 3. スキーマ設計のベストプラクティス
+## 3. Best Practices for Schema Design
 
-### 3.1 良いスキーマの書き方
+### 3.1 Writing Good Schemas
 
 ```python
-# OK: 詳細な説明と制約を持つスキーマ
+# Good: Schema with detailed descriptions and constraints
 good_schema = {
     "name": "search_products",
     "description": (
@@ -442,29 +446,29 @@ good_schema = {
 }
 ```
 
-### 3.2 スキーマ設計チェックリスト
+### 3.2 Schema Design Checklist
 
 ```python
 def validate_tool_schema(schema: dict) -> list[str]:
-    """ツールスキーマの品質チェック"""
+    """Quality check for tool schemas"""
 
     warnings = []
 
-    # 1. 関数名のチェック
+    # 1. Check function name
     name = schema.get("name", "")
     if not name:
         warnings.append("ERROR: name が未定義")
     elif "_" not in name and len(name) > 15:
         warnings.append("WARNING: 関数名が長すぎます。snake_case で簡潔に")
 
-    # 2. description のチェック
+    # 2. Check description
     desc = schema.get("description", "")
     if len(desc) < 20:
         warnings.append("WARNING: description が短すぎます (20文字以上推奨)")
     if "例" not in desc and "example" not in desc.lower():
         warnings.append("HINT: description に使用例を含めると精度向上")
 
-    # 3. パラメータのチェック
+    # 3. Check parameters
     params = schema.get("parameters", {}).get("properties", {})
     for param_name, param_def in params.items():
         param_desc = param_def.get("description", "")
@@ -476,7 +480,7 @@ def validate_tool_schema(schema: dict) -> list[str]:
                     f"HINT: パラメータ '{param_name}' に enum または format を追加すると精度向上"
                 )
 
-    # 4. required のチェック
+    # 4. Check required
     required = schema.get("parameters", {}).get("required", [])
     if not required:
         warnings.append("HINT: required パラメータを明示すると LLM の判断が改善")
@@ -484,7 +488,7 @@ def validate_tool_schema(schema: dict) -> list[str]:
     return warnings
 
 
-# 使用例
+# Usage example
 schema = {
     "name": "query_db",
     "description": "DBを検索",
@@ -506,10 +510,10 @@ for issue in issues:
 # HINT: required パラメータを明示すると LLM の判断が改善
 ```
 
-### 3.3 複雑なスキーマのパターン
+### 3.3 Patterns for Complex Schemas
 
 ```python
-# パターン1: ネストされたオブジェクト
+# Pattern 1: Nested objects
 nested_schema = {
     "name": "create_order",
     "description": "注文を作成します",
@@ -555,7 +559,7 @@ nested_schema = {
     },
 }
 
-# パターン2: 条件分岐のあるスキーマ (oneOf)
+# Pattern 2: Schema with conditional branching (oneOf)
 conditional_schema = {
     "name": "process_payment",
     "description": "支払いを処理します。クレジットカードまたは銀行振込を選択",
@@ -591,38 +595,40 @@ conditional_schema = {
 }
 ```
 
-### 3.4 プロバイダ別のスキーマ形式
+### 3.4 Schema Formats by Provider
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│        プロバイダ別 Function Calling 仕様比較              │
+│     Function Calling Specification Comparison by Provider  │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
 │  OpenAI                                                  │
 │  ├── tools[].function.parameters (JSON Schema)           │
 │  ├── tool_choice: auto / required / none / specific      │
 │  ├── parallel_tool_calls: true/false                     │
-│  └── Structured Output (response_format) と併用可        │
+│  └── Can be combined with Structured Output              │
+│      (response_format)                                   │
 │                                                          │
 │  Anthropic                                               │
 │  ├── tools[].input_schema (JSON Schema)                  │
 │  ├── tool_choice: auto / any / tool (specific)           │
-│  ├── 並列ツール呼び出し対応                               │
-│  └── <thinking> タグで推論過程を表示可能                  │
+│  ├── Supports parallel tool calls                        │
+│  └── Can display reasoning via <thinking> tags           │
 │                                                          │
 │  Google Gemini                                           │
-│  ├── FunctionDeclaration (protobuf形式)                  │
+│  ├── FunctionDeclaration (protobuf format)               │
 │  ├── function_calling_config: AUTO / ANY / NONE          │
-│  ├── allowed_function_names で制限可能                    │
-│  └── 自動関数実行モード (automatic_function_calling)     │
+│  ├── Can restrict with allowed_function_names            │
+│  └── Automatic function execution mode                   │
+│      (automatic_function_calling)                        │
 └──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 4. 複数ツールのオーケストレーション
+## 4. Multi-Tool Orchestration
 
-### 4.1 ツールチェイン
+### 4.1 Tool Chains
 
 ```python
 import json
@@ -630,7 +636,7 @@ from openai import OpenAI
 
 client = OpenAI()
 
-# 複数のツール定義
+# Multiple tool definitions
 tools = [
     {
         "type": "function",
@@ -682,7 +688,7 @@ tools = [
 ]
 
 def agent_loop(user_message: str):
-    """マルチツール対応のエージェントループ"""
+    """Agent loop supporting multiple tools"""
     messages = [{"role": "user", "content": user_message}]
 
     while True:
@@ -696,9 +702,9 @@ def agent_loop(user_message: str):
         messages.append(message)
 
         if not message.tool_calls:
-            return message.content  # 最終回答
+            return message.content  # Final answer
 
-        # 全ツール呼び出しを処理
+        # Process all tool calls
         for tool_call in message.tool_calls:
             result = execute_function(
                 tool_call.function.name,
@@ -710,11 +716,11 @@ def agent_loop(user_message: str):
                 "content": json.dumps(result, ensure_ascii=False),
             })
 
-# 使用例: 複数ツールが連鎖的に呼ばれる
+# Usage example: Multiple tools are called in a chain
 answer = agent_loop("来週の月曜日に東京から大阪への出張を手配して。ホテルも1泊必要です。")
 ```
 
-### 4.2 並列ツール実行
+### 4.2 Parallel Tool Execution
 
 ```python
 import asyncio
@@ -724,13 +730,13 @@ from openai import OpenAI
 client = OpenAI()
 
 async def execute_tools_parallel(tool_calls: list) -> list[dict]:
-    """複数のツール呼び出しを並列実行"""
+    """Execute multiple tool calls in parallel"""
 
     async def execute_one(tool_call):
         name = tool_call.function.name
         args = json.loads(tool_call.function.arguments)
 
-        # 各ツールを非同期で実行
+        # Execute each tool asynchronously
         result = await asyncio.to_thread(execute_function, name, args)
         return {
             "role": "tool",
@@ -738,13 +744,13 @@ async def execute_tools_parallel(tool_calls: list) -> list[dict]:
             "content": json.dumps(result, ensure_ascii=False),
         }
 
-    # 全ツールを並列実行
+    # Execute all tools in parallel
     results = await asyncio.gather(
         *[execute_one(tc) for tc in tool_calls],
         return_exceptions=True,
     )
 
-    # エラーハンドリング
+    # Error handling
     tool_results = []
     for result, tool_call in zip(results, tool_calls):
         if isinstance(result, Exception):
@@ -760,7 +766,7 @@ async def execute_tools_parallel(tool_calls: list) -> list[dict]:
 
 
 async def agent_loop_async(user_message: str, max_iterations: int = 10):
-    """非同期エージェントループ (並列ツール実行対応)"""
+    """Asynchronous agent loop with parallel tool execution support"""
     messages = [{"role": "user", "content": user_message}]
 
     for _ in range(max_iterations):
@@ -768,7 +774,7 @@ async def agent_loop_async(user_message: str, max_iterations: int = 10):
             model="gpt-4o",
             messages=messages,
             tools=tools,
-            parallel_tool_calls=True,  # 並列呼び出しを有効化
+            parallel_tool_calls=True,  # Enable parallel calls
         )
 
         message = response.choices[0].message
@@ -777,21 +783,21 @@ async def agent_loop_async(user_message: str, max_iterations: int = 10):
         if not message.tool_calls:
             return message.content
 
-        # 並列実行
+        # Parallel execution
         tool_results = await execute_tools_parallel(message.tool_calls)
         messages.extend(tool_results)
 
-    return "処理が上限に達しました。"
+    return "Processing reached the maximum limit."
 ```
 
-### 4.3 動的ツール選択 (ツールルーティング)
+### 4.3 Dynamic Tool Selection (Tool Routing)
 
 ```python
 from openai import OpenAI
 
 client = OpenAI()
 
-# 全ツール定義 (大量にある場合)
+# All tool definitions (when there are many)
 ALL_TOOLS = {
     "weather": [weather_tool_1, weather_tool_2],
     "travel": [flight_tool, hotel_tool, car_tool],
@@ -801,9 +807,9 @@ ALL_TOOLS = {
 }
 
 def select_relevant_tools(user_message: str, max_tools: int = 10) -> list:
-    """ユーザーメッセージに基づいてツールを動的に選択"""
+    """Dynamically select tools based on the user's message"""
 
-    # 1. LLM でカテゴリを判定
+    # 1. Determine category using LLM
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{
@@ -818,43 +824,43 @@ def select_relevant_tools(user_message: str, max_tools: int = 10) -> list:
 
     categories = [c.strip() for c in response.choices[0].message.content.split(",")]
 
-    # 2. 該当カテゴリのツールを集約
+    # 2. Aggregate tools from matched categories
     selected = []
     for cat in categories:
         if cat in ALL_TOOLS:
             selected.extend(ALL_TOOLS[cat])
 
-    # 3. ツール数が多すぎる場合は制限
+    # 3. Limit the number of tools if too many
     return selected[:max_tools]
 
 
 def agent_with_dynamic_tools(user_message: str):
-    """動的ツール選択付きエージェント"""
-    # Step 1: 関連ツールを選択
+    """Agent with dynamic tool selection"""
+    # Step 1: Select relevant tools
     relevant_tools = select_relevant_tools(user_message)
 
-    # Step 2: 選択されたツールでエージェントループ
+    # Step 2: Run agent loop with selected tools
     return agent_loop(user_message, tools=relevant_tools)
 ```
 
-### 4.4 ツール結果の圧縮
+### 4.4 Compressing Tool Results
 
 ```python
 def compress_tool_result(result: dict, max_length: int = 2000) -> str:
-    """ツール実行結果を LLM フレンドリーなサイズに圧縮"""
+    """Compress tool execution results to an LLM-friendly size"""
 
     result_str = json.dumps(result, ensure_ascii=False)
 
     if len(result_str) <= max_length:
         return result_str
 
-    # 方法1: キーの優先度による切り詰め
+    # Method 1: Truncate by key priority
     if isinstance(result, dict):
         priority_keys = ["summary", "title", "name", "status", "error", "count"]
         compressed = {}
         remaining_budget = max_length
 
-        # 優先キーを先に追加
+        # Add priority keys first
         for key in priority_keys:
             if key in result:
                 value = result[key]
@@ -863,7 +869,7 @@ def compress_tool_result(result: dict, max_length: int = 2000) -> str:
                     compressed[key] = value
                     remaining_budget -= len(entry)
 
-        # 残りのキーを追加
+        # Add remaining keys
         for key, value in result.items():
             if key not in compressed:
                 entry = json.dumps({key: value}, ensure_ascii=False)
@@ -873,24 +879,24 @@ def compress_tool_result(result: dict, max_length: int = 2000) -> str:
 
         return json.dumps(compressed, ensure_ascii=False)
 
-    # 方法2: リスト結果の件数制限
+    # Method 2: Limit list results by count
     if isinstance(result, list):
-        truncated = result[:10]  # 最初の10件のみ
+        truncated = result[:10]  # First 10 items only
         return json.dumps({
             "items": truncated,
             "total_count": len(result),
             "truncated": len(result) > 10,
         }, ensure_ascii=False)
 
-    # 方法3: 文字列の切り詰め
+    # Method 3: Truncate string
     return result_str[:max_length] + "... (truncated)"
 ```
 
 ---
 
-## 5. エラーハンドリング
+## 5. Error Handling
 
-### 5.1 堅牢なエラーハンドリング
+### 5.1 Robust Error Handling
 
 ```python
 import json
@@ -908,9 +914,9 @@ class FunctionCallError(Exception):
     pass
 
 def safe_execute_function(name: str, arguments: dict) -> dict[str, Any]:
-    """安全な関数実行ラッパー"""
+    """Safe function execution wrapper"""
 
-    # 1. 関数の存在確認
+    # 1. Verify function exists
     registry = {
         "get_weather": get_weather,
         "search_products": search_products,
@@ -924,7 +930,7 @@ def safe_execute_function(name: str, arguments: dict) -> dict[str, Any]:
             "suggestion": f"Available functions: {list(registry.keys())}",
         }
 
-    # 2. 引数の検証
+    # 2. Validate arguments
     try:
         validated_args = validate_arguments(name, arguments)
     except ValueError as e:
@@ -933,19 +939,19 @@ def safe_execute_function(name: str, arguments: dict) -> dict[str, Any]:
             "status": FunctionCallStatus.ERROR.value,
         }
 
-    # 3. 権限チェック
+    # 3. Permission check
     if not check_permission(name, current_user):
         return {
             "error": f"Permission denied for function: {name}",
             "status": FunctionCallStatus.UNAUTHORIZED.value,
         }
 
-    # 4. 実行 (タイムアウト付き)
+    # 4. Execute with timeout
     try:
         import asyncio
         result = asyncio.wait_for(
             registryname,
-            timeout=10.0,  # 10秒タイムアウト
+            timeout=10.0,  # 10-second timeout
         )
         return {"result": result, "status": FunctionCallStatus.SUCCESS.value}
     except asyncio.TimeoutError:
@@ -961,22 +967,22 @@ def safe_execute_function(name: str, arguments: dict) -> dict[str, Any]:
         }
 
 def validate_arguments(function_name: str, args: dict) -> dict:
-    """引数の検証とサニタイズ"""
-    # SQLインジェクション等の防止
+    """Validate and sanitize arguments"""
+    # Prevent SQL injection, etc.
     for key, value in args.items():
         if isinstance(value, str):
             if any(dangerous in value.lower() for dangerous in
                    ["drop table", "delete from", "; --", "' or '1'='1"]):
                 raise ValueError(f"Potentially dangerous input in {key}")
 
-            # XSS 対策
+            # XSS countermeasure
             if "<script" in value.lower():
                 raise ValueError(f"Script tags not allowed in {key}")
 
     return args
 ```
 
-### 5.2 リトライとフォールバック
+### 5.2 Retry and Fallback
 
 ```python
 import time
@@ -989,7 +995,7 @@ class RetryConfig:
     exponential_base: float = 2.0
 
 def with_retry(config: RetryConfig = RetryConfig()):
-    """リトライデコレータ"""
+    """Retry decorator"""
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -1011,26 +1017,26 @@ def with_retry(config: RetryConfig = RetryConfig()):
 
 
 class ToolExecutor:
-    """フォールバック付きツール実行"""
+    """Tool executor with fallback support"""
 
     def __init__(self):
         self.fallbacks: dict[str, list[callable]] = {}
 
     def register_fallback(self, tool_name: str, fallback_fn: callable):
-        """ツールにフォールバック関数を登録"""
+        """Register a fallback function for a tool"""
         if tool_name not in self.fallbacks:
             self.fallbacks[tool_name] = []
         self.fallbacks[tool_name].append(fallback_fn)
 
     async def execute(self, name: str, args: dict) -> dict:
-        """フォールバックチェイン付き実行"""
+        """Execute with fallback chain"""
 
-        # プライマリ実行
+        # Primary execution
         result = await safe_execute_function(name, args)
         if result["status"] == "success":
             return result
 
-        # フォールバック実行
+        # Fallback execution
         if name in self.fallbacks:
             for fallback_fn in self.fallbacks[name]:
                 try:
@@ -1043,24 +1049,24 @@ class ToolExecutor:
                 except Exception:
                     continue
 
-        return result  # 全フォールバック失敗時
+        return result  # When all fallbacks fail
 
 
-# 使用例
+# Usage example
 executor = ToolExecutor()
 
-# プライマリ: OpenWeather API
-# フォールバック1: WeatherAPI
-# フォールバック2: キャッシュから返す
+# Primary: OpenWeather API
+# Fallback 1: WeatherAPI
+# Fallback 2: Return from cache
 executor.register_fallback("get_weather", get_weather_from_backup_api)
 executor.register_fallback("get_weather", get_weather_from_cache)
 ```
 
-### 5.3 LLM への適切なエラー通知
+### 5.3 Reporting Errors to the LLM Appropriately
 
 ```python
 def format_error_for_llm(error_result: dict) -> str:
-    """エラーを LLM が理解しやすい形式にフォーマット"""
+    """Format errors in a way the LLM can understand"""
 
     status = error_result.get("status", "error")
     error_msg = error_result.get("error", "Unknown error")
@@ -1096,36 +1102,36 @@ def format_error_for_llm(error_result: dict) -> str:
 
 ---
 
-## 6. セキュリティ
+## 6. Security
 
-### 6.1 権限管理フレームワーク
+### 6.1 Permission Management Framework
 
 ```python
 from enum import Enum
 from dataclasses import dataclass
 
 class PermissionLevel(Enum):
-    PUBLIC = "public"           # 誰でも使用可能
-    AUTHENTICATED = "authenticated"  # ログインユーザーのみ
-    ADMIN = "admin"             # 管理者のみ
-    SYSTEM = "system"           # システム内部のみ
+    PUBLIC = "public"           # Anyone can use
+    AUTHENTICATED = "authenticated"  # Logged-in users only
+    ADMIN = "admin"             # Administrators only
+    SYSTEM = "system"           # Internal system use only
 
 @dataclass
 class ToolPermission:
     tool_name: str
     required_level: PermissionLevel
     allowed_roles: list[str] | None = None
-    rate_limit: int | None = None  # 1分あたりの呼び出し上限
-    requires_confirmation: bool = False  # ユーザー確認が必要
+    rate_limit: int | None = None  # Maximum calls per minute
+    requires_confirmation: bool = False  # User confirmation required
 
-# ツール権限設定
+# Tool permission settings
 TOOL_PERMISSIONS = {
     "search_products": ToolPermission("search_products", PermissionLevel.PUBLIC),
     "get_user_profile": ToolPermission("get_user_profile", PermissionLevel.AUTHENTICATED),
     "create_order": ToolPermission(
         "create_order",
         PermissionLevel.AUTHENTICATED,
-        requires_confirmation=True,  # 注文前に確認
+        requires_confirmation=True,  # Confirm before placing order
     ),
     "delete_user": ToolPermission(
         "delete_user",
@@ -1135,13 +1141,13 @@ TOOL_PERMISSIONS = {
     ),
     "execute_sql": ToolPermission(
         "execute_sql",
-        PermissionLevel.SYSTEM,  # API 経由では呼び出し不可
+        PermissionLevel.SYSTEM,  # Cannot be called via API
     ),
 }
 
 class PermissionChecker:
     def check(self, tool_name: str, user: dict) -> tuple[bool, str]:
-        """ツール使用権限をチェック"""
+        """Check permission to use a tool"""
         perm = TOOL_PERMISSIONS.get(tool_name)
         if not perm:
             return False, f"Unknown tool: {tool_name}"
@@ -1149,17 +1155,17 @@ class PermissionChecker:
         user_level = user.get("permission_level", "public")
         user_roles = user.get("roles", [])
 
-        # レベルチェック
+        # Level check
         level_order = [e.value for e in PermissionLevel]
         if level_order.index(user_level) < level_order.index(perm.required_level.value):
             return False, f"Insufficient permission level: requires {perm.required_level.value}"
 
-        # ロールチェック
+        # Role check
         if perm.allowed_roles:
             if not any(role in perm.allowed_roles for role in user_roles):
                 return False, f"Required roles: {perm.allowed_roles}"
 
-        # レートリミットチェック
+        # Rate limit check
         if perm.rate_limit:
             current_count = get_rate_limit_count(tool_name, user["id"])
             if current_count >= perm.rate_limit:
@@ -1168,49 +1174,49 @@ class PermissionChecker:
         return True, "OK"
 ```
 
-### 6.2 入力サニタイゼーション
+### 6.2 Input Sanitization
 
 ```python
 import re
 from typing import Any
 
 class InputSanitizer:
-    """LLM が生成した引数のサニタイゼーション"""
+    """Sanitization of arguments generated by the LLM"""
 
     DANGEROUS_PATTERNS = [
-        r";\s*--",               # SQL コメント
-        r"'\s*OR\s*'1'\s*=\s*'1", # SQL インジェクション
-        r"DROP\s+TABLE",          # SQL 破壊コマンド
+        r";\s*--",               # SQL comment
+        r"'\s*OR\s*'1'\s*=\s*'1", # SQL injection
+        r"DROP\s+TABLE",          # SQL destructive command
         r"<script[^>]*>",        # XSS
-        r"\{\{.*\}\}",           # テンプレートインジェクション
-        r"\$\{.*\}",             # テンプレートリテラル
-        r"__import__",           # Python コード注入
-        r"eval\s*\(",            # eval 実行
-        r"exec\s*\(",            # exec 実行
+        r"\{\{.*\}\}",           # Template injection
+        r"\$\{.*\}",             # Template literal
+        r"__import__",           # Python code injection
+        r"eval\s*\(",            # eval execution
+        r"exec\s*\(",            # exec execution
     ]
 
     @classmethod
     def sanitize(cls, args: dict, schema: dict) -> dict:
-        """スキーマに基づいて引数をサニタイズ"""
+        """Sanitize arguments based on the schema"""
 
         sanitized = {}
         properties = schema.get("parameters", {}).get("properties", {})
 
         for key, value in args.items():
             if key not in properties:
-                continue  # スキーマに定義されていないパラメータは除去
+                continue  # Remove parameters not defined in schema
 
             prop_def = properties[key]
 
-            # 型チェック
+            # Type check
             expected_type = prop_def.get("type")
             value = cls._coerce_type(value, expected_type)
 
-            # 文字列のサニタイズ
+            # Sanitize strings
             if isinstance(value, str):
                 value = cls._sanitize_string(value, prop_def)
 
-            # 数値の範囲チェック
+            # Clamp numbers to range
             if isinstance(value, (int, float)):
                 value = cls._clamp_number(value, prop_def)
 
@@ -1220,17 +1226,17 @@ class InputSanitizer:
 
     @classmethod
     def _sanitize_string(cls, value: str, prop_def: dict) -> str:
-        """文字列のサニタイズ"""
-        # 危険なパターンのチェック
+        """Sanitize a string value"""
+        # Check for dangerous patterns
         for pattern in cls.DANGEROUS_PATTERNS:
             if re.search(pattern, value, re.IGNORECASE):
                 raise ValueError(f"Dangerous input detected: matches pattern {pattern}")
 
-        # enum チェック
+        # Enum check
         if "enum" in prop_def and value not in prop_def["enum"]:
             raise ValueError(f"Value '{value}' not in allowed enum: {prop_def['enum']}")
 
-        # 最大長チェック
+        # Max length check
         max_length = prop_def.get("maxLength", 10000)
         if len(value) > max_length:
             value = value[:max_length]
@@ -1239,7 +1245,7 @@ class InputSanitizer:
 
     @classmethod
     def _clamp_number(cls, value: float, prop_def: dict) -> float:
-        """数値の範囲制限"""
+        """Clamp a number to its defined range"""
         if "minimum" in prop_def:
             value = max(value, prop_def["minimum"])
         if "maximum" in prop_def:
@@ -1248,7 +1254,7 @@ class InputSanitizer:
 
     @classmethod
     def _coerce_type(cls, value: Any, expected_type: str) -> Any:
-        """型の変換"""
+        """Convert value to the expected type"""
         try:
             if expected_type == "integer":
                 return int(value)
@@ -1263,11 +1269,11 @@ class InputSanitizer:
         return value
 ```
 
-### 6.3 確認フロー
+### 6.3 Confirmation Flow
 
 ```python
 class ConfirmationManager:
-    """破壊的操作の確認フロー"""
+    """Confirmation flow for destructive operations"""
 
     DESTRUCTIVE_ACTIONS = {
         "delete_user": "ユーザー '{name}' を完全に削除します。この操作は取り消せません。",
@@ -1277,11 +1283,11 @@ class ConfirmationManager:
     }
 
     def needs_confirmation(self, tool_name: str) -> bool:
-        """確認が必要か判定"""
+        """Determine if confirmation is required"""
         return tool_name in self.DESTRUCTIVE_ACTIONS
 
     def generate_confirmation_message(self, tool_name: str, args: dict) -> str:
-        """確認メッセージを生成"""
+        """Generate a confirmation message"""
         template = self.DESTRUCTIVE_ACTIONS.get(tool_name, "この操作を実行しますか？")
         try:
             return template.format(**args)
@@ -1289,7 +1295,7 @@ class ConfirmationManager:
             return template
 
     def create_pending_action(self, tool_name: str, args: dict) -> dict:
-        """保留中のアクションを作成"""
+        """Create a pending action"""
         import uuid
         action_id = str(uuid.uuid4())
         return {
@@ -1304,60 +1310,60 @@ class ConfirmationManager:
 
 ---
 
-## 7. 比較表
+## 7. Comparison Tables
 
-### 7.1 プロバイダ別 Function Calling 機能比較
+### 7.1 Function Calling Feature Comparison by Provider
 
-| 機能 | OpenAI | Anthropic | Google Gemini |
+| Feature | OpenAI | Anthropic | Google Gemini |
 |------|--------|-----------|--------------|
-| 並列呼び出し | 対応 | 対応 | 対応 |
-| ストリーミング | 対応 | 対応 | 対応 |
-| 強制呼び出し | tool_choice | tool_choice | function_calling_config |
-| 最大ツール数 | 128 | 制限なし(推奨20) | 制限なし |
-| ネストJSON | 対応 | 対応 | 対応 |
-| Structured Output | 対応 | JSON Mode | 対応 |
-| 自動実行 | なし | なし | あり (opt-in) |
-| MCP 対応 | 対応 | 対応 (ネイティブ) | 対応 |
+| Parallel calls | Supported | Supported | Supported |
+| Streaming | Supported | Supported | Supported |
+| Forced call | tool_choice | tool_choice | function_calling_config |
+| Max tools | 128 | No limit (rec. 20) | No limit |
+| Nested JSON | Supported | Supported | Supported |
+| Structured Output | Supported | JSON Mode | Supported |
+| Auto execution | No | No | Yes (opt-in) |
+| MCP support | Supported | Supported (native) | Supported |
 
-### 7.2 ユースケース別のツール設計
+### 7.2 Tool Design by Use Case
 
-| ユースケース | ツール数 | 設計パターン | 注意点 |
+| Use Case | Number of Tools | Design Pattern | Notes |
 |-------------|---------|------------|--------|
-| 天気Bot | 1-2 | 単一ツール | シンプルに保つ |
-| ECアシスタント | 5-10 | ツールチェイン | 状態管理が重要 |
-| 社内業務Bot | 10-20 | ルーター型 | 権限管理必須 |
-| 自律エージェント | 20+ | ReAct パターン | ループ上限設定 |
-| マルチモーダル | 5-15 | パイプライン | 入出力型の整合性 |
+| Weather Bot | 1–2 | Single tool | Keep it simple |
+| E-commerce Assistant | 5–10 | Tool chain | State management is critical |
+| Internal Business Bot | 10–20 | Router pattern | Permission management required |
+| Autonomous Agent | 20+ | ReAct pattern | Set iteration limits |
+| Multimodal | 5–15 | Pipeline | Ensure input/output type consistency |
 
 ---
 
-## 8. MCP (Model Context Protocol) との連携
+## 8. Integration with MCP (Model Context Protocol)
 
-### 8.1 MCP 概要
+### 8.1 MCP Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│              MCP (Model Context Protocol) アーキテクチャ          │
+│           MCP (Model Context Protocol) Architecture              │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  ┌──────────┐      ┌──────────┐      ┌──────────────────┐     │
 │  │  LLM     │      │  MCP     │      │  MCP Server      │     │
-│  │  Client  │◀────▶│  Host    │◀────▶│  (ツール提供)     │     │
-│  │  (Claude │      │ (アプリ)  │      │  - DB検索        │     │
-│  │   GPT等)  │      │          │      │  - API呼び出し   │     │
-│  └──────────┘      └──────────┘      │  - ファイル操作   │     │
+│  │  Client  │◀────▶│  Host    │◀────▶│  (Tool Provider) │     │
+│  │  (Claude │      │  (App)   │      │  - DB Search     │     │
+│  │   GPT等)  │      │          │      │  - API Calls     │     │
+│  └──────────┘      └──────────┘      │  - File Ops      │     │
 │                                       └──────────────────┘     │
 │                                                                 │
-│  利点:                                                          │
-│  - ツール定義の標準化 (プロバイダ間で共通)                        │
-│  - ツールの再利用性向上                                          │
-│  - セキュリティの一元管理                                        │
-│  - ツールの動的発見と登録                                        │
+│  Benefits:                                                      │
+│  - Standardized tool definitions (common across providers)      │
+│  - Improved tool reusability                                    │
+│  - Centralized security management                              │
+│  - Dynamic tool discovery and registration                      │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 8.2 MCP Server の実装
+### 8.2 Implementing an MCP Server
 
 ```python
 from mcp.server import Server
@@ -1367,9 +1373,9 @@ server = Server("weather-server")
 
 @server.tool("get_weather")
 async def get_weather(city: str, date: str = None) -> list[TextContent]:
-    """指定された都市の天気予報を取得します"""
+    """Retrieves the weather forecast for the specified city"""
 
-    # 実際の API 呼び出し
+    # Actual API call
     weather_data = await fetch_weather_api(city, date)
 
     return [TextContent(
@@ -1385,7 +1391,7 @@ async def get_weather(city: str, date: str = None) -> list[TextContent]:
 
 @server.tool("get_forecast")
 async def get_forecast(city: str, days: int = 7) -> list[TextContent]:
-    """指定された都市の週間天気予報を取得します"""
+    """Retrieves the weekly weather forecast for the specified city"""
 
     forecast_data = await fetch_forecast_api(city, days)
 
@@ -1395,7 +1401,7 @@ async def get_forecast(city: str, days: int = 7) -> list[TextContent]:
     )]
 
 
-# サーバー起動
+# Start the server
 if __name__ == "__main__":
     import asyncio
     from mcp.server.stdio import stdio_server
@@ -1405,12 +1411,12 @@ if __name__ == "__main__":
 
 ---
 
-## 9. 実務ユースケース
+## 9. Real-World Use Cases
 
-### 9.1 カスタマーサポート Bot
+### 9.1 Customer Support Bot
 
 ```python
-# カスタマーサポート向けツール定義
+# Tool definitions for customer support
 support_tools = [
     {
         "type": "function",
@@ -1504,19 +1510,19 @@ support_tools = [
 
 
 class CustomerSupportAgent:
-    """カスタマーサポートエージェント"""
+    """Customer support agent"""
 
     def __init__(self, client: OpenAI):
         self.client = client
-        self.system_prompt = """あなたは親切で丁寧なカスタマーサポートアシスタントです。
+        self.system_prompt = """You are a friendly and polite customer support assistant.
 
-ルール:
-1. まず FAQ を検索し、一般的な質問には FAQ の回答を使用してください
-2. 注文に関する質問では、必ず注文番号を確認してください
-3. 返品希望の場合は、返品資格を確認してから手続きを案内してください
-4. 自動対応できない場合は、サポートチケットを作成してください
-5. 個人情報 (クレジットカード番号等) は決して求めないでください
-6. 常に丁寧語で対応してください"""
+Rules:
+1. First search the FAQ and use its answers for common questions
+2. For order-related questions, always confirm the order number
+3. For return requests, verify return eligibility before guiding the process
+4. If automatic resolution is not possible, create a support ticket
+5. Never request personal information such as credit card numbers
+6. Always respond politely"""
 
     async def handle(self, user_message: str, conversation_history: list) -> str:
         messages = [
@@ -1528,7 +1534,7 @@ class CustomerSupportAgent:
         return await agent_loop_async(messages, tools=support_tools, max_iterations=5)
 ```
 
-### 9.2 データ分析アシスタント
+### 9.2 Data Analysis Assistant
 
 ```python
 analysis_tools = [
@@ -1562,7 +1568,7 @@ analysis_tools = [
         "type": "function",
         "function": {
             "name": "create_chart",
-            "description": "データからグラフを生成します",
+            "description": "Generate a chart from data",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1573,7 +1579,7 @@ analysis_tools = [
                     "title": {"type": "string"},
                     "data": {
                         "type": "object",
-                        "description": "x: ラベル配列, y: 値配列",
+                        "description": "x: label array, y: value array",
                         "properties": {
                             "x": {"type": "array", "items": {"type": "string"}},
                             "y": {"type": "array", "items": {"type": "number"}},
@@ -1588,14 +1594,14 @@ analysis_tools = [
         "type": "function",
         "function": {
             "name": "calculate_statistics",
-            "description": "数値配列の統計量を計算します (平均、中央値、標準偏差等)",
+            "description": "Calculate statistics for a numeric array (mean, median, standard deviation, etc.)",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "values": {
                         "type": "array",
                         "items": {"type": "number"},
-                        "description": "数値の配列",
+                        "description": "Array of numbers",
                     },
                     "metrics": {
                         "type": "array",
@@ -1603,7 +1609,7 @@ analysis_tools = [
                             "type": "string",
                             "enum": ["mean", "median", "std", "min", "max", "percentiles"],
                         },
-                        "description": "計算する統計量",
+                        "description": "Statistics to calculate",
                     },
                 },
                 "required": ["values"],
@@ -1613,7 +1619,7 @@ analysis_tools = [
 ]
 ```
 
-### 9.3 DevOps 自動化エージェント
+### 9.3 DevOps Automation Agent
 
 ```python
 devops_tools = [
@@ -1621,7 +1627,7 @@ devops_tools = [
         "type": "function",
         "function": {
             "name": "get_service_status",
-            "description": "サービスの稼働状態を確認します",
+            "description": "Check the operational status of a service",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1642,7 +1648,7 @@ devops_tools = [
         "type": "function",
         "function": {
             "name": "get_metrics",
-            "description": "サービスのメトリクスを取得します (CPU, メモリ, レスポンスタイム等)",
+            "description": "Retrieve service metrics (CPU, memory, response time, etc.)",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1654,7 +1660,7 @@ devops_tools = [
                     "time_range": {
                         "type": "string",
                         "enum": ["1h", "6h", "24h", "7d", "30d"],
-                        "description": "集計期間",
+                        "description": "Aggregation period",
                     },
                 },
                 "required": ["service_name", "metric_type"],
@@ -1665,7 +1671,7 @@ devops_tools = [
         "type": "function",
         "function": {
             "name": "scale_service",
-            "description": "サービスのレプリカ数をスケールします。本番環境は確認が必要です。",
+            "description": "Scale the number of replicas for a service. Production environments require confirmation.",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1685,7 +1691,7 @@ devops_tools = [
         "type": "function",
         "function": {
             "name": "get_logs",
-            "description": "サービスのログを取得します",
+            "description": "Retrieve logs for a service",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1696,7 +1702,7 @@ devops_tools = [
                         "enum": ["error", "warn", "info", "debug"],
                     },
                     "time_range": {"type": "string"},
-                    "search_query": {"type": "string", "description": "ログ内検索キーワード"},
+                    "search_query": {"type": "string", "description": "Keyword to search within logs"},
                 },
                 "required": ["service_name", "environment"],
             },
@@ -1707,9 +1713,9 @@ devops_tools = [
 
 ---
 
-## 10. テスト戦略
+## 10. Testing Strategy
 
-### 10.1 ツールスキーマのテスト
+### 10.1 Testing Tool Schemas
 
 ```python
 import pytest
@@ -1717,18 +1723,18 @@ import json
 from jsonschema import validate, ValidationError
 
 class TestToolSchemas:
-    """ツールスキーマのバリデーションテスト"""
+    """Validation tests for tool schemas"""
 
     def test_schema_is_valid_json_schema(self):
-        """各ツールのスキーマが有効な JSON Schema であること"""
+        """Each tool's schema should be a valid JSON Schema"""
         for tool in tools:
             schema = tool["function"]["parameters"]
-            # JSON Schema Draft 7 に準拠しているか
+            # Conforms to JSON Schema Draft 7?
             assert schema["type"] == "object"
             assert "properties" in schema
 
     def test_required_fields_exist_in_properties(self):
-        """required に指定されたフィールドが properties に存在すること"""
+        """Fields listed in required should exist in properties"""
         for tool in tools:
             schema = tool["function"]["parameters"]
             required = schema.get("required", [])
@@ -1737,30 +1743,30 @@ class TestToolSchemas:
                 assert field in properties, f"Required field '{field}' not in properties"
 
     def test_enum_values_are_valid(self):
-        """enum 値が空でないこと"""
+        """Enum values should not be empty"""
         for tool in tools:
             for prop_name, prop_def in tool["function"]["parameters"].get("properties", {}).items():
                 if "enum" in prop_def:
                     assert len(prop_def["enum"]) > 0, f"Empty enum in {prop_name}"
 
     def test_all_tools_have_description(self):
-        """全ツールに description があること"""
+        """All tools should have a description"""
         for tool in tools:
             assert tool["function"].get("description"), f"Missing description for {tool['function']['name']}"
 
     def test_all_parameters_have_description(self):
-        """全パラメータに description があること"""
+        """All parameters should have a description"""
         for tool in tools:
             for prop_name, prop_def in tool["function"]["parameters"].get("properties", {}).items():
                 assert prop_def.get("description"), f"Missing description for {prop_name}"
 
 
 class TestToolExecution:
-    """ツール実行のテスト"""
+    """Tests for tool execution"""
 
     @pytest.mark.asyncio
     async def test_valid_arguments_succeed(self):
-        """有効な引数で正常終了すること"""
+        """Should complete successfully with valid arguments"""
         result = await safe_execute_function(
             "get_weather",
             {"city": "Tokyo", "date": "2025-03-15"},
@@ -1769,7 +1775,7 @@ class TestToolExecution:
 
     @pytest.mark.asyncio
     async def test_invalid_arguments_return_error(self):
-        """無効な引数でエラーが返ること"""
+        """Should return an error with invalid arguments"""
         result = await safe_execute_function(
             "get_weather",
             {"city": "'; DROP TABLE users; --"},
@@ -1778,7 +1784,7 @@ class TestToolExecution:
 
     @pytest.mark.asyncio
     async def test_unknown_function_returns_error(self):
-        """存在しない関数でエラーが返ること"""
+        """Should return an error for a non-existent function"""
         result = await safe_execute_function(
             "nonexistent_function",
             {},
@@ -1787,23 +1793,23 @@ class TestToolExecution:
 
     @pytest.mark.asyncio
     async def test_timeout_handling(self):
-        """タイムアウトが正しく処理されること"""
+        """Timeout should be handled correctly"""
         result = await safe_execute_function(
             "slow_function",
-            {"delay": 30},  # 30秒のスリープ
+            {"delay": 30},  # 30-second sleep
         )
         assert result["status"] == "timeout"
 ```
 
-### 10.2 LLM との統合テスト
+### 10.2 Integration Testing with the LLM
 
 ```python
 class TestLLMFunctionCalling:
-    """LLM の関数呼び出し判断のテスト"""
+    """Tests for the LLM's function calling decisions"""
 
     @pytest.mark.asyncio
     async def test_correct_function_selection(self):
-        """適切な関数が選択されること"""
+        """The appropriate function should be selected"""
         test_cases = [
             {
                 "input": "東京の天気を教えて",
@@ -1831,7 +1837,7 @@ class TestLLMFunctionCalling:
 
     @pytest.mark.asyncio
     async def test_no_function_call_when_unnecessary(self):
-        """関数呼び出しが不要な場合は直接回答すること"""
+        """Should respond directly when no function call is needed"""
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": "こんにちは、元気ですか？"}],
@@ -1844,9 +1850,9 @@ class TestLLMFunctionCalling:
 
 ---
 
-## 11. モニタリングとコスト最適化
+## 11. Monitoring and Cost Optimization
 
-### 11.1 Function Calling のメトリクス
+### 11.1 Function Calling Metrics
 
 ```python
 import time
@@ -1854,7 +1860,7 @@ from dataclasses import dataclass, field
 
 @dataclass
 class FunctionCallMetrics:
-    """Function Calling のメトリクス"""
+    """Metrics for Function Calling"""
     function_name: str
     arguments: dict
     execution_time_ms: float = 0
@@ -1865,13 +1871,13 @@ class FunctionCallMetrics:
     retry_count: int = 0
 
 class FunctionCallMonitor:
-    """Function Calling のモニタリング"""
+    """Monitoring for Function Calling"""
 
     def __init__(self, metrics_backend):
         self.backend = metrics_backend
 
     def track(self, metrics: FunctionCallMetrics):
-        """メトリクスを記録"""
+        """Record metrics"""
         self.backend.histogram(
             "function_call.execution_time",
             metrics.execution_time_ms,
@@ -1897,7 +1903,7 @@ class FunctionCallMonitor:
                 },
             )
 
-        # トークン使用量
+        # Token usage
         if metrics.token_usage:
             self.backend.histogram(
                 "function_call.tokens",
@@ -1906,35 +1912,35 @@ class FunctionCallMonitor:
             )
 ```
 
-### 11.2 コスト最適化
+### 11.2 Cost Optimization
 
 ```python
 class CostOptimizer:
-    """Function Calling のコスト最適化"""
+    """Cost optimization for Function Calling"""
 
     def __init__(self):
         self.tool_usage_stats: dict[str, int] = {}
 
     def optimize_tool_set(self, tools: list, user_context: dict) -> list:
-        """ユーザーコンテキストに基づいてツールセットを最適化"""
+        """Optimize the tool set based on user context"""
 
-        # 1. 使用頻度の低いツールを除外
-        min_usage = 10  # 過去30日で10回未満は除外
+        # 1. Exclude infrequently used tools
+        min_usage = 10  # Exclude tools used fewer than 10 times in the past 30 days
         frequently_used = [
             t for t in tools
             if self.tool_usage_stats.get(t["function"]["name"], 0) >= min_usage
         ]
 
-        # 2. ユーザーの権限に基づいてフィルタ
+        # 2. Filter based on user permissions
         authorized = [
             t for t in frequently_used
             if check_permission(t["function"]["name"], user_context)
         ]
 
-        # 3. ツール数を制限 (トークンコスト削減)
+        # 3. Limit the number of tools (reduce token cost)
         max_tools = 15
         if len(authorized) > max_tools:
-            # 使用頻度順でソートして上位のみ
+            # Sort by frequency and take the top ones
             authorized.sort(
                 key=lambda t: self.tool_usage_stats.get(t["function"]["name"], 0),
                 reverse=True,
@@ -1944,9 +1950,9 @@ class CostOptimizer:
         return authorized
 
     def estimate_cost(self, tools: list, model: str = "gpt-4o") -> dict:
-        """ツール定義のトークンコストを推定"""
+        """Estimate the token cost of tool definitions"""
         tools_json = json.dumps(tools, ensure_ascii=False)
-        estimated_tokens = len(tools_json) // 4  # 概算
+        estimated_tokens = len(tools_json) // 4  # Rough estimate
 
         cost_per_1k_tokens = {
             "gpt-4o": 0.005,
@@ -1965,52 +1971,52 @@ class CostOptimizer:
 
 ---
 
-## 12. アンチパターン
+## 12. Anti-Patterns
 
-### アンチパターン 1: 無制限のツール実行ループ
+### Anti-Pattern 1: Unbounded Tool Execution Loop
 
 ```python
-# NG: ツール呼び出しの回数制限なし
+# Bad: No limit on the number of tool calls
 while True:
     response = call_llm(messages, tools)
     if not response.tool_calls:
         break
-    # → LLM が無限にツールを呼び続ける可能性
+    # → The LLM may keep calling tools indefinitely
 
-# OK: 明示的なループ上限
+# Good: Explicit iteration limit
 MAX_ITERATIONS = 10
 for i in range(MAX_ITERATIONS):
     response = call_llm(messages, tools)
     if not response.tool_calls:
         break
-    # ツール実行...
+    # Execute tools...
 else:
-    return "処理が複雑すぎるため、上限に達しました。質問を分割してください。"
+    return "The task is too complex; the iteration limit has been reached. Please break your question into smaller parts."
 ```
 
-### アンチパターン 2: 関数説明の不足
+### Anti-Pattern 2: Insufficient Function Description
 
 ```python
-# NG: 説明が不十分
+# Bad: Insufficient description
 bad_tool = {
     "name": "query_db",
-    "description": "DBを検索",  # 何のDB？何を検索？
+    "description": "DBを検索",  # Which DB? What does it search?
     "parameters": {
         "type": "object",
         "properties": {
-            "q": {"type": "string"},  # 何を入れる？
+            "q": {"type": "string"},  # What goes here?
         },
     },
 }
 
-# OK: 具体的で明確な説明
+# Good: Specific and clear description
 good_tool = {
     "name": "search_employee_database",
     "description": (
-        "社内の従業員データベースを検索します。"
-        "名前、部署、スキルで検索できます。"
-        "結果には氏名、部署、役職、メールアドレスが含まれます。"
-        "個人情報のため、正当な業務目的でのみ使用してください。"
+        "Searches the internal employee database. "
+        "You can search by name, department, or skill. "
+        "Results include full name, department, title, and email address. "
+        "This contains personal information; use only for legitimate business purposes."
     ),
     "parameters": {
         "type": "object",
@@ -2030,14 +2036,14 @@ good_tool = {
 }
 ```
 
-### アンチパターン 3: ツール結果の肥大化
+### Anti-Pattern 3: Bloated Tool Results
 
 ```python
-# NG: 巨大な結果をそのまま返す
-result = database.query("SELECT * FROM products")  # 10,000 行
-return json.dumps(result)  # 数MB のJSON → コンテキストを浪費
+# Bad: Returning a massive result as-is
+result = database.query("SELECT * FROM products")  # 10,000 rows
+return json.dumps(result)  # Several MB of JSON → wastes context
 
-# OK: 必要な情報のみ返す
+# Good: Return only necessary information
 result = database.query("SELECT id, name, price FROM products LIMIT 20")
 return json.dumps({
     "items": result,
@@ -2047,24 +2053,24 @@ return json.dumps({
 }, ensure_ascii=False)
 ```
 
-### アンチパターン 4: 権限チェックの欠如
+### Anti-Pattern 4: Missing Permission Checks
 
 ```python
-# NG: LLM の指示をそのまま実行
+# Bad: Executing LLM instructions as-is
 def execute_sql(query: str):
-    return db.execute(query)  # DELETE や DROP も実行される
+    return db.execute(query)  # DELETE and DROP can also be executed
 
-# OK: 権限チェックとクエリの制限
+# Good: Permission checks and query restrictions
 def execute_sql(query: str):
-    # SELECT のみ許可
+    # Allow SELECT only
     if not query.strip().upper().startswith("SELECT"):
         return {"error": "Only SELECT queries are allowed"}
 
-    # テーブルのホワイトリスト
+    # Table whitelist
     allowed_tables = {"products", "orders", "categories"}
-    # ... テーブル名のチェック
+    # ... Check table names
 
-    # LIMIT の強制
+    # Enforce LIMIT
     if "LIMIT" not in query.upper():
         query += " LIMIT 100"
 
@@ -2075,79 +2081,79 @@ def execute_sql(query: str):
 
 ## 13. FAQ
 
-### Q1: Function Calling と Structured Output の違いは?
+### Q1: What is the difference between Function Calling and Structured Output?
 
-Function Calling は LLM に外部ツールの呼び出し意図を表明させる仕組み。実際の実行はアプリ側。
-Structured Output は LLM の出力を JSON Schema に厳密に従わせる仕組み。ツール呼び出しではなく出力フォーマットの制御。
-両者は組み合わせ可能で、「ツール呼び出し結果を構造化 JSON で整形して返す」といった使い方ができる。
+Function Calling is a mechanism that lets the LLM express its intent to invoke an external tool. The actual execution happens on the application side.
+Structured Output is a mechanism that forces the LLM's output to strictly conform to a JSON Schema. It controls the output format rather than invoking a tool.
+The two can be combined — for example, "format the tool call result as structured JSON and return it."
 
-### Q2: LLM が間違った関数や引数を選んだ場合の対処は?
+### Q2: What should I do if the LLM selects the wrong function or arguments?
 
-まずスキーマの description を改善する (最も効果的)。
-enum で選択肢を明示する、examples を含める、否定形の指示 (「この関数はXXには使わないでください」) を追加する。
-それでも改善しない場合は、アプリ側でバリデーション + LLM への再試行リクエストで対処する。
+The most effective approach is to improve the `description` in the schema.
+Add enum values to make options explicit, include examples, and add negative instructions (e.g., "Do not use this function for XX").
+If the problem persists, handle it on the application side with validation and retry requests to the LLM.
 
-### Q3: Function Calling のコストへの影響は?
+### Q3: What is the cost impact of Function Calling?
 
-ツール定義はシステムプロンプトの一部としてトークンにカウントされる。
-10個のツール定義で約 500-1000 トークン追加されるのが一般的。
-ツール数が多い場合は、ユーザーの意図に応じて渡すツールセットを動的にフィルタリングするとコスト削減できる。
+Tool definitions are counted as tokens, as part of the system prompt.
+It is common to add approximately 500–1,000 tokens for 10 tool definitions.
+When the number of tools is large, you can reduce costs by dynamically filtering the tool set passed to the model based on the user's intent.
 
-### Q4: 並列ツール呼び出しはどう制御する?
+### Q4: How do I control parallel tool calls?
 
-OpenAI: `parallel_tool_calls=True/False` で制御。Anthropic: デフォルトで並列対応、ツール間の依存関係は LLM が自動判断。順序保証が必要な場合は、ツールの description に「この関数は search_flights の結果を受けて実行してください」と明記する。
+OpenAI: Control with `parallel_tool_calls=True/False`. Anthropic: Supports parallel calls by default; the LLM automatically determines dependencies between tools. When ordering is required, explicitly state it in the tool's `description`, e.g., "Execute this function after receiving results from search_flights."
 
-### Q5: ストリーミングと Function Calling は併用できる?
+### Q5: Can streaming and Function Calling be used together?
 
-全主要プロバイダで対応している。OpenAI の場合、ストリーミング中に `tool_calls` チャンクが部分的に送信されるため、`function.arguments` を蓄積してから JSON パースする必要がある。Anthropic は `content_block_delta` イベントで `partial_json` を受信し、完了時にパースする。
+All major providers support this. With OpenAI, `tool_calls` chunks are sent incrementally during streaming, so you need to accumulate `function.arguments` before JSON-parsing. With Anthropic, `partial_json` is received via `content_block_delta` events and parsed upon completion.
 
-### Q6: MCP と従来の Function Calling の使い分けは?
+### Q6: How do I choose between MCP and traditional Function Calling?
 
-MCP はツール提供側を標準化するプロトコル。複数の LLM プロバイダで同じツールを使いたい場合、ツールをマイクロサービスとして独立させたい場合に有効。小規模なプロジェクトや単一プロバイダ利用の場合は従来の Function Calling で十分。
+MCP is a protocol that standardizes the tool-provider side. It is beneficial when you want to use the same tools across multiple LLM providers, or when you want to isolate tools as microservices. For small-scale projects or single-provider usage, traditional Function Calling is sufficient.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the core concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in professional settings?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work, particularly during code reviews and architectural design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
+| Item | Details |
 |------|------|
-| 本質 | LLM が「どの関数を、どの引数で呼ぶか」を構造化出力 |
-| 実行責任 | アプリケーション側 (LLM は実行しない) |
-| スキーマ | JSON Schema で定義、description が精度に直結 |
-| エラー対策 | タイムアウト、ループ上限、入力検証、権限チェック |
-| 並列呼び出し | 主要プロバイダ全て対応 |
-| セキュリティ | 入力サニタイゼーション、権限管理、確認フロー |
-| テスト | スキーマ検証、統合テスト、LLM 判断テスト |
-| 発展形 | AI Agent (ReAct、Plan-and-Execute)、MCP |
+| Essence | The LLM produces structured output specifying "which function with what arguments" |
+| Execution Responsibility | The application side (the LLM does not execute) |
+| Schema | Defined with JSON Schema; descriptions directly affect accuracy |
+| Error Countermeasures | Timeouts, iteration limits, input validation, permission checks |
+| Parallel Calls | Supported by all major providers |
+| Security | Input sanitization, permission management, confirmation flows |
+| Testing | Schema validation, integration tests, LLM decision tests |
+| Advanced Forms | AI Agents (ReAct, Plan-and-Execute), MCP |
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
-- [03-embeddings.md](./03-embeddings.md) — Function Calling の結果をベクトル化して活用
-- [01-rag.md](./01-rag.md) — RAG パイプラインでの Function Calling 統合
-- [../03-infrastructure/00-api-integration.md](../03-infrastructure/00-api-integration.md) — API 統合の実践
+- [03-embeddings.md](./03-embeddings.md) — Using Function Calling results as vectors
+- [01-rag.md](./01-rag.md) — Integrating Function Calling in RAG pipelines
+- [../03-infrastructure/00-api-integration.md](../03-infrastructure/00-api-integration.md) — Practical API integration
 
 ---
 
-## 参考文献
+## References
 
 1. OpenAI, "Function Calling Guide," https://platform.openai.com/docs/guides/function-calling
 2. Anthropic, "Tool Use Documentation," https://docs.anthropic.com/claude/docs/tool-use
