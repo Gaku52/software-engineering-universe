@@ -1,102 +1,101 @@
-# データエージェント
+# Data Agents
 
-> 分析・可視化・洞察――データベースのクエリ、統計分析、グラフ生成を自律的に行うデータ分析エージェントの設計と実装。
+> Analytics, visualization, and insights — design and implementation of data analysis agents that autonomously query databases, perform statistical analysis, and generate charts.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. 自然言語からSQLへの変換（Text-to-SQL）とデータ分析パイプラインの設計
-2. データ可視化の自動生成とインサイト抽出の実装パターン
-3. データエージェントの安全性（読み取り専用、インジェクション防止）の確保
-4. 複数データソースを横断する統合分析エージェントの構築
-5. 本番運用におけるキャッシュ戦略、コスト最適化、モニタリング
+1. Text-to-SQL conversion and data analysis pipeline design
+2. Implementation patterns for automatic visualization generation and insight extraction
+3. Ensuring data agent safety (read-only access, injection prevention)
+4. Building integrated analysis agents that span multiple data sources
+5. Caching strategies, cost optimization, and monitoring for production use
 
+## Prerequisites
 
-## 前提知識
+Having the following knowledge before reading this guide will deepen your understanding:
 
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [カスタマーサポートエージェント](./02-customer-support.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Customer Support Agents](./02-customer-support.md)
 
 ---
 
-## 1. データエージェントの全体像
+## 1. Overview of Data Agents
 
 ```
-データエージェントのパイプライン
+Data Agent Pipeline
 
-[自然言語の質問]
-  "先月の売上トップ10商品は？"
+[Natural Language Question]
+  "What are the top 10 products by sales last month?"
        |
        v
-[質問理解] ── スキーマ情報を参照
+[Question Understanding] ── References schema information
        |
        v
-[SQL生成] ── Text-to-SQL
+[SQL Generation] ── Text-to-SQL
        |
        v
-[SQL検証] ── 安全性チェック（READ ONLY）
+[SQL Validation] ── Safety check (READ ONLY)
        |
        v
-[SQL実行] ── DB接続・クエリ実行
+[SQL Execution] ── DB connection & query execution
        |
        v
-[結果分析] ── 統計処理、パターン検出
+[Result Analysis] ── Statistical processing, pattern detection
        |
        v
-[可視化生成] ── グラフ・チャート作成
+[Visualization] ── Graph & chart creation
        |
        v
-[インサイト] ── 自然言語での洞察
+[Insights] ── Natural language insights
 ```
 
-### 1.1 データエージェントの分類
+### 1.1 Types of Data Agents
 
 ```
-データエージェントの種類
+Types of Data Agents
 
 ┌────────────────┬────────────────┬────────────────┐
-│  クエリエージェント │  分析エージェント  │ レポートエージェント │
+│  Query Agent   │ Analysis Agent │ Report Agent   │
 │                │                │                │
-│ 自然言語→SQL   │ 統計分析・ML    │ 定期レポート生成  │
-│ 単発の質問応答  │ 多段階の分析    │ ダッシュボード更新 │
-│ 即時レスポンス  │ 深い洞察の抽出  │ スケジュール実行  │
+│ NL → SQL       │ Statistical/ML │ Periodic report│
+│ Single Q&A     │ Multi-step     │ Dashboard      │
+│ Instant result │ Deep insights  │ Scheduled run  │
 └────────────────┴────────────────┴────────────────┘
          │                │                │
          v                v                v
 ┌────────────────┬────────────────┬────────────────┐
-│ パイプライン     │ 探索的エージェント│ 異常検知エージェント│
-│ エージェント     │                │                │
-│ ETL自動化      │ 仮説生成→検証   │ データ品質監視   │
-│ データ変換      │ 反復的な深掘り  │ アラート通知     │
-│ 品質チェック    │ レポート作成    │ 自動対応        │
+│ Pipeline       │ Exploratory    │ Anomaly        │
+│ Agent          │ Agent          │ Detection Agent│
+│ ETL automation │ Hypothesis→    │ Data quality   │
+│ Data transform │ Validation     │ monitoring     │
+│ Quality check  │ Iterative drill│ Alert & action │
 └────────────────┴────────────────┴────────────────┘
 ```
 
-### 1.2 アーキテクチャの全体構成
+### 1.2 Overall Architecture
 
 ```python
-# データエージェントのアーキテクチャ全体像
+# Data agent architecture overview
 from dataclasses import dataclass, field
 from typing import Optional
 from enum import Enum
 
 class AgentRole(Enum):
-    QUERY = "query"           # 単発クエリ実行
-    ANALYST = "analyst"       # 多段階分析
-    REPORTER = "reporter"     # レポート生成
-    MONITOR = "monitor"       # 異常検知・監視
+    QUERY = "query"           # Single query execution
+    ANALYST = "analyst"       # Multi-step analysis
+    REPORTER = "reporter"     # Report generation
+    MONITOR = "monitor"       # Anomaly detection & monitoring
 
 @dataclass
 class DataAgentConfig:
-    """データエージェントの統合設定"""
+    """Integrated configuration for data agents"""
     role: AgentRole
-    db_connections: dict[str, str]        # 名前→接続文字列
-    max_rows: int = 1000                  # 結果の最大行数
-    max_query_time_seconds: int = 30      # クエリタイムアウト
-    enable_caching: bool = True           # 結果キャッシュ
-    cache_ttl_seconds: int = 300          # キャッシュTTL
+    db_connections: dict[str, str]        # name → connection string
+    max_rows: int = 1000                  # Maximum result rows
+    max_query_time_seconds: int = 30      # Query timeout
+    enable_caching: bool = True           # Result caching
+    cache_ttl_seconds: int = 300          # Cache TTL
     pii_columns: set[str] = field(
         default_factory=lambda: {"email", "phone", "ssn", "credit_card", "address"}
     )
@@ -106,12 +105,12 @@ class DataAgentConfig:
     model_name: str = "claude-sonnet-4-20250514"
     max_retries: int = 3
     enable_visualization: bool = True
-    log_queries: bool = True              # クエリログ記録
-    cost_limit_per_session: float = 1.0   # セッションあたりのAPI費用上限（USD）
+    log_queries: bool = True              # Query logging
+    cost_limit_per_session: float = 1.0   # API cost limit per session (USD)
 
 @dataclass
 class QueryResult:
-    """クエリ結果の標準形式"""
+    """Standard format for query results"""
     query: str
     columns: list[str]
     rows: list[tuple]
@@ -122,21 +121,21 @@ class QueryResult:
     cached: bool = False
 
     def to_dataframe(self):
-        """pandas DataFrameに変換"""
+        """Convert to pandas DataFrame"""
         import pandas as pd
         return pd.DataFrame(self.rows, columns=self.columns)
 
     def summary(self) -> str:
-        """結果の要約を文字列で返す"""
+        """Return a summary of results as a string"""
         if self.error:
-            return f"エラー: {self.error}"
+            return f"Error: {self.error}"
         lines = [
-            f"カラム: {', '.join(self.columns)}",
-            f"行数: {self.row_count}{'（切り詰め済み）' if self.truncated else ''}",
-            f"実行時間: {self.execution_time_ms:.1f}ms",
+            f"Columns: {', '.join(self.columns)}",
+            f"Row count: {self.row_count}{'(truncated)' if self.truncated else ''}",
+            f"Execution time: {self.execution_time_ms:.1f}ms",
         ]
         if self.cached:
-            lines.append("（キャッシュ結果）")
+            lines.append("(Cached result)")
         return "\n".join(lines)
 ```
 
@@ -144,7 +143,7 @@ class QueryResult:
 
 ## 2. Text-to-SQL
 
-### 2.1 基本実装
+### 2.1 Basic Implementation
 
 ```python
 # Text-to-SQL エージェント
@@ -165,7 +164,7 @@ class TextToSQLAgent:
         self._query_log: list[dict] = []
 
     def _get_schema(self) -> str:
-        """データベーススキーマを取得"""
+        """Retrieve database schema"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute(
@@ -176,16 +175,16 @@ class TextToSQLAgent:
         return "\n".join(s[0] for s in schemas if s[0])
 
     def query(self, question: str) -> dict:
-        """自然言語の質問をSQLに変換して実行"""
+        """Convert a natural language question to SQL and execute it"""
 
-        # 1. SQL生成
+        # 1. SQL generation
         sql = self._generate_sql(question)
 
-        # 2. 安全性チェック
+        # 2. Safety check
         if not self._is_safe_query(sql):
-            return {"error": "安全でないクエリが検出されました"}
+            return {"error": "Unsafe query detected"}
 
-        # 3. キャッシュチェック
+        # 3. Cache check
         cache_key = self._cache_key(sql)
         if self.config.enable_caching and cache_key in self._query_cache:
             cached = self._query_cache[cache_key]
@@ -194,16 +193,16 @@ class TextToSQLAgent:
                 "question": question,
                 "sql": sql,
                 "results": {"columns": cached.columns, "rows": cached.rows},
-                "interpretation": "（キャッシュされた結果）",
+                "interpretation": "(Cached result)",
                 "cached": True
             }
 
-        # 4. 実行
+        # 4. Execution
         start_time = time.time()
         results = self._execute_sql(sql)
         execution_time = (time.time() - start_time) * 1000
 
-        # 5. ログ記録
+        # 5. Log recording
         if self.config.log_queries:
             self._query_log.append({
                 "question": question,
@@ -213,7 +212,7 @@ class TextToSQLAgent:
                 "timestamp": time.time()
             })
 
-        # 6. 結果の解釈
+        # 6. Result interpretation
         interpretation = self._interpret_results(question, sql, results)
 
         return {
@@ -225,34 +224,34 @@ class TextToSQLAgent:
         }
 
     def _cache_key(self, sql: str) -> str:
-        """SQLからキャッシュキーを生成"""
+        """Generate a cache key from SQL"""
         return hashlib.sha256(sql.strip().lower().encode()).hexdigest()
 
     def _generate_sql(self, question: str) -> str:
-        """自然言語をSQLに変換"""
+        """Convert natural language to SQL"""
         response = self.client.messages.create(
             model=self.config.model_name,
             max_tokens=1024,
             messages=[{"role": "user", "content": f"""
-データベーススキーマ:
+Database schema:
 {self.schema}
 
-以下の質問に対するSQLクエリを生成してください。
-SELECTのみ使用可能です（INSERT/UPDATE/DELETEは不可）。
+Generate a SQL query for the following question.
+Only SELECT is allowed (INSERT/UPDATE/DELETE are not permitted).
 
-質問: {question}
+Question: {question}
 
-SQLクエリのみを出力（説明不要）:
+Output only the SQL query (no explanation):
 """}]
         )
         sql = response.content[0].text.strip()
-        # ```sql ... ``` の形式を処理
+        # Handle ```sql ... ``` format
         if sql.startswith("```"):
             sql = sql.split("\n", 1)[1].rsplit("```", 1)[0]
         return sql.strip()
 
     def _is_safe_query(self, sql: str) -> bool:
-        """SQLの安全性をチェック"""
+        """Check SQL safety"""
         dangerous_keywords = [
             "INSERT", "UPDATE", "DELETE", "DROP", "ALTER",
             "CREATE", "TRUNCATE", "EXEC", "EXECUTE",
@@ -262,76 +261,76 @@ SQLクエリのみを出力（説明不要）:
         return not any(kw in sql_upper for kw in dangerous_keywords)
 
     def _execute_sql(self, sql: str) -> list:
-        """SQLを実行"""
+        """Execute SQL"""
         conn = sqlite3.connect(self.db_path)
-        conn.execute("PRAGMA query_only = ON")  # 読み取り専用を強制
+        conn.execute("PRAGMA query_only = ON")  # Enforce read-only
         cursor = conn.cursor()
         try:
             cursor.execute(sql)
             columns = [desc[0] for desc in cursor.description] if cursor.description else []
             rows = cursor.fetchall()
-            return {"columns": columns, "rows": rows[:1000]}  # 最大1000行
+            return {"columns": columns, "rows": rows[:1000]}  # Max 1000 rows
         except Exception as e:
             return {"error": str(e)}
         finally:
             conn.close()
 
     def _interpret_results(self, question: str, sql: str, results: dict) -> str:
-        """結果を自然言語で解釈"""
+        """Interpret results in natural language"""
         response = self.client.messages.create(
             model=self.config.model_name,
             max_tokens=1024,
             messages=[{"role": "user", "content": f"""
-質問: {question}
-実行SQL: {sql}
-結果: {json.dumps(results, ensure_ascii=False)[:3000]}
+Question: {question}
+Executed SQL: {sql}
+Results: {json.dumps(results, ensure_ascii=False)[:3000]}
 
-結果を分かりやすく日本語で解釈してください。
-重要な数値やトレンドがあれば指摘してください。
+Interpret the results clearly in English.
+Point out important numbers or trends if any.
 """}]
         )
         return response.content[0].text
 ```
 
-### 2.2 スキーマ情報の強化
+### 2.2 Enhanced Schema Information
 
 ```python
 # スキーマに説明を付加して精度向上
 ENHANCED_SCHEMA = """
--- 商品テーブル
+-- Products table
 CREATE TABLE products (
     id INTEGER PRIMARY KEY,
-    name TEXT NOT NULL,           -- 商品名
-    category TEXT NOT NULL,        -- カテゴリ（electronics, clothing, food, etc.）
-    price REAL NOT NULL,           -- 税抜価格（円）
-    stock INTEGER DEFAULT 0,       -- 在庫数
+    name TEXT NOT NULL,           -- Product name
+    category TEXT NOT NULL,        -- Category (electronics, clothing, food, etc.)
+    price REAL NOT NULL,           -- Price before tax (JPY)
+    stock INTEGER DEFAULT 0,       -- Stock count
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- 注文テーブル
+-- Orders table
 CREATE TABLE orders (
     id INTEGER PRIMARY KEY,
-    customer_id INTEGER NOT NULL,  -- 顧客ID
-    product_id INTEGER NOT NULL,   -- 商品ID
-    quantity INTEGER NOT NULL,     -- 数量
-    total_price REAL NOT NULL,     -- 合計金額（税込）
+    customer_id INTEGER NOT NULL,  -- Customer ID
+    product_id INTEGER NOT NULL,   -- Product ID
+    quantity INTEGER NOT NULL,     -- Quantity
+    total_price REAL NOT NULL,     -- Total amount (tax included)
     status TEXT DEFAULT 'pending', -- pending/confirmed/shipped/delivered/cancelled
     ordered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (product_id) REFERENCES products(id)
 );
 
--- サンプルデータの例:
--- products: (1, 'ワイヤレスイヤホン', 'electronics', 12800, 150, '2025-01-01')
+-- Sample data examples:
+-- products: (1, 'Wireless Earbuds', 'electronics', 12800, 150, '2025-01-01')
 -- orders: (1, 101, 1, 2, 28160, 'delivered', '2025-01-15')
 """
 ```
 
-### 2.3 動的スキーマ選択
+### 2.3 Dynamic Schema Selection
 
 ```python
 # 大規模DB向け: 質問に関連するテーブルだけを選択
 class SchemaSelector:
-    """100+テーブルのDBから関連テーブルを自動選択"""
+    """Automatically selects relevant tables from a DB with 100+ tables"""
 
     def __init__(self, db_path: str):
         self.client = anthropic.Anthropic()
@@ -339,7 +338,7 @@ class SchemaSelector:
         self.table_catalog = self._build_catalog()
 
     def _build_catalog(self) -> dict[str, str]:
-        """全テーブルの名前と説明のカタログを作成"""
+        """Build a catalog of all table names and descriptions"""
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         cursor.execute("SELECT name, sql FROM sqlite_master WHERE type='table'")
@@ -349,19 +348,19 @@ class SchemaSelector:
         catalog = {}
         for name, sql in tables:
             if sql:
-                # テーブル名とカラム名を抽出して要約
+                # Extract table and column names to create a summary
                 catalog[name] = self._summarize_table(name, sql)
         return catalog
 
     def _summarize_table(self, name: str, create_sql: str) -> str:
-        """テーブルのCREATE文からカラム名のリストを抽出"""
+        """Extract column names from a CREATE statement"""
         import re
         columns = re.findall(r'(\w+)\s+(INTEGER|TEXT|REAL|BLOB|DATETIME|BOOLEAN)', create_sql)
         col_list = ", ".join(f"{c[0]}({c[1]})" for c in columns)
         return f"{name}: {col_list}"
 
     def select_tables(self, question: str, max_tables: int = 5) -> list[str]:
-        """質問に関連するテーブルを選択"""
+        """Select tables relevant to the question"""
         catalog_text = "\n".join(
             f"- {name}: {desc}" for name, desc in self.table_catalog.items()
         )
@@ -370,21 +369,21 @@ class SchemaSelector:
             model="claude-sonnet-4-20250514",
             max_tokens=256,
             messages=[{"role": "user", "content": f"""
-以下のテーブル一覧から、質問に回答するために必要なテーブルを最大{max_tables}個選んでください。
+From the following table list, select up to {max_tables} tables needed to answer the question.
 
-テーブル一覧:
+Table list:
 {catalog_text}
 
-質問: {question}
+Question: {question}
 
-テーブル名のみをカンマ区切りで出力:
+Output only the table names, comma-separated:
 """}]
         )
         selected = response.content[0].text.strip().split(",")
         return [t.strip() for t in selected if t.strip() in self.table_catalog]
 
     def get_selected_schema(self, question: str) -> str:
-        """質問に関連するテーブルのCREATE文のみを返す"""
+        """Return only the CREATE statements for tables relevant to the question"""
         selected = self.select_tables(question)
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
@@ -403,18 +402,18 @@ class SchemaSelector:
         return "\n\n".join(schemas)
 ```
 
-### 2.4 Few-shot SQL生成
+### 2.4 Few-shot SQL Generation
 
 ```python
 # Few-shot例を使ったSQL生成精度の向上
 class FewShotSQLGenerator:
-    """類似質問のSQL例を使って生成精度を向上"""
+    """Improve SQL generation accuracy using similar question examples"""
 
     def __init__(self, db_path: str):
         self.client = anthropic.Anthropic()
         self.db_path = db_path
         self.schema = self._get_schema(db_path)
-        # Few-shot例のストア（本番ではベクトルDBを使用）
+        # Few-shot example store (use vector DB in production)
         self.examples: list[dict] = []
 
     def _get_schema(self, db_path: str) -> str:
@@ -426,7 +425,7 @@ class FewShotSQLGenerator:
         return "\n".join(s[0] for s in schemas if s[0])
 
     def add_example(self, question: str, sql: str, description: str = ""):
-        """Few-shot例を追加"""
+        """Add a few-shot example"""
         self.examples.append({
             "question": question,
             "sql": sql,
@@ -434,7 +433,7 @@ class FewShotSQLGenerator:
         })
 
     def find_similar_examples(self, question: str, top_k: int = 3) -> list[dict]:
-        """質問に類似するFew-shot例を検索（簡易版: キーワードマッチ）"""
+        """Find few-shot examples similar to the question (simple: keyword matching)"""
         import re
         question_words = set(re.findall(r'\w+', question.lower()))
         scored = []
@@ -446,16 +445,16 @@ class FewShotSQLGenerator:
         return [ex for _, ex in scored[:top_k]]
 
     def generate_sql(self, question: str) -> str:
-        """Few-shot例を含めたSQL生成"""
+        """Generate SQL using few-shot examples"""
         similar = self.find_similar_examples(question)
 
         examples_text = ""
         if similar:
-            examples_text = "参考例:\n"
+            examples_text = "Reference examples:\n"
             for i, ex in enumerate(similar, 1):
                 examples_text += f"""
-例{i}:
-  質問: {ex['question']}
+Example {i}:
+  Question: {ex['question']}
   SQL: {ex['sql']}
 """
 
@@ -463,16 +462,16 @@ class FewShotSQLGenerator:
             model="claude-sonnet-4-20250514",
             max_tokens=1024,
             messages=[{"role": "user", "content": f"""
-データベーススキーマ:
+Database schema:
 {self.schema}
 
 {examples_text}
 
-質問: {question}
+Question: {question}
 
-上記の参考例を参考にして、SQLクエリを生成してください。
-SELECTのみ使用可能です。
-SQLクエリのみを出力:
+Using the above reference examples, generate a SQL query.
+Only SELECT is allowed.
+Output only the SQL query:
 """}]
         )
         sql = response.content[0].text.strip()
@@ -481,27 +480,27 @@ SQLクエリのみを出力:
         return sql.strip()
 
     def learn_from_correction(self, question: str, corrected_sql: str):
-        """ユーザーの修正からFew-shot例として学習"""
+        """Learn from user corrections as few-shot examples"""
         self.add_example(
             question=question,
             sql=corrected_sql,
-            description="ユーザー修正済み"
+            description="User-corrected"
         )
 ```
 
-### 2.5 SQLバリデーションの高度化
+### 2.5 Advanced SQL Validation
 
 ```python
 import sqlparse
 from typing import Optional
 
 class SQLValidator:
-    """多層のSQLバリデーション"""
+    """Multi-layer SQL validation"""
 
-    # 許可する構文要素
+    # Allowed statement types
     ALLOWED_STATEMENT_TYPES = {"SELECT"}
 
-    # 禁止するキーワード（大文字）
+    # Forbidden keywords (uppercase)
     FORBIDDEN_KEYWORDS = {
         "INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE",
         "TRUNCATE", "EXEC", "EXECUTE", "GRANT", "REVOKE",
@@ -509,14 +508,14 @@ class SQLValidator:
         "ATTACH", "DETACH", "VACUUM", "REINDEX", "ANALYZE",
     }
 
-    # 禁止する関数（SQLインジェクション対策）
+    # Forbidden functions (SQL injection countermeasures)
     FORBIDDEN_FUNCTIONS = {
         "LOAD_FILE", "INTO OUTFILE", "INTO DUMPFILE",
         "SLEEP", "BENCHMARK", "WAITFOR",
     }
 
     def validate(self, sql: str) -> tuple[bool, Optional[str]]:
-        """SQLを検証し、(is_valid, error_message)を返す"""
+        """Validate SQL and return (is_valid, error_message)"""
         checks = [
             self._check_statement_type,
             self._check_forbidden_keywords,
@@ -535,34 +534,34 @@ class SQLValidator:
         return True, None
 
     def _check_statement_type(self, sql: str) -> tuple[bool, Optional[str]]:
-        """ステートメントタイプの検証"""
+        """Validate statement type"""
         parsed = sqlparse.parse(sql)
         if not parsed:
-            return False, "空のSQL"
+            return False, "Empty SQL"
         stmt_type = parsed[0].get_type()
         if stmt_type and stmt_type.upper() not in self.ALLOWED_STATEMENT_TYPES:
-            return False, f"許可されていないステートメント: {stmt_type}"
+            return False, f"Disallowed statement type: {stmt_type}"
         return True, None
 
     def _check_forbidden_keywords(self, sql: str) -> tuple[bool, Optional[str]]:
-        """禁止キーワードの検出"""
+        """Detect forbidden keywords"""
         tokens = sqlparse.parse(sql)[0].flatten()
         for token in tokens:
             if token.ttype is sqlparse.tokens.Keyword:
                 if token.value.upper() in self.FORBIDDEN_KEYWORDS:
-                    return False, f"禁止キーワード: {token.value}"
+                    return False, f"Forbidden keyword: {token.value}"
         return True, None
 
     def _check_forbidden_functions(self, sql: str) -> tuple[bool, Optional[str]]:
-        """禁止関数の検出"""
+        """Detect forbidden functions"""
         sql_upper = sql.upper()
         for func in self.FORBIDDEN_FUNCTIONS:
             if func in sql_upper:
-                return False, f"禁止関数: {func}"
+                return False, f"Forbidden function: {func}"
         return True, None
 
     def _check_subquery_depth(self, sql: str, max_depth: int = 3) -> tuple[bool, Optional[str]]:
-        """サブクエリのネスト深さ制限"""
+        """Limit subquery nesting depth"""
         depth = 0
         max_found = 0
         for char in sql:
@@ -572,35 +571,35 @@ class SQLValidator:
             elif char == ')':
                 depth -= 1
         if max_found > max_depth:
-            return False, f"サブクエリが深すぎます（深さ{max_found}、最大{max_depth}）"
+            return False, f"Subquery too deeply nested (depth {max_found}, max {max_depth})"
         return True, None
 
     def _check_union_count(self, sql: str, max_unions: int = 5) -> tuple[bool, Optional[str]]:
-        """UNION句の数を制限"""
+        """Limit the number of UNION clauses"""
         union_count = sql.upper().count("UNION")
         if union_count > max_unions:
-            return False, f"UNION句が多すぎます（{union_count}個、最大{max_unions}）"
+            return False, f"Too many UNION clauses ({union_count}, max {max_unions})"
         return True, None
 
     def _check_comment_injection(self, sql: str) -> tuple[bool, Optional[str]]:
-        """コメントインジェクション検出"""
+        """Detect comment injection"""
         if "--" in sql or "/*" in sql:
-            return False, "SQLコメントは許可されていません"
+            return False, "SQL comments are not allowed"
         return True, None
 
     def _check_semicolon(self, sql: str) -> tuple[bool, Optional[str]]:
-        """複数ステートメント防止"""
+        """Prevent multiple statements"""
         statements = [s.strip() for s in sql.split(";") if s.strip()]
         if len(statements) > 1:
-            return False, "複数ステートメントは許可されていません"
+            return False, "Multiple statements are not allowed"
         return True, None
 ```
 
 ---
 
-## 3. データ可視化
+## 3. Data Visualization
 
-### 3.1 グラフ自動生成
+### 3.1 Automatic Chart Generation
 
 ```python
 # Pythonコード生成によるグラフ作成
@@ -609,57 +608,57 @@ class DataVisualizer:
         self.client = anthropic.Anthropic()
 
     def generate_chart(self, data: dict, chart_request: str) -> str:
-        """データに基づいてグラフを生成するPythonコードを作成"""
+        """Generate Python code to create a chart based on the data"""
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=2048,
             messages=[{"role": "user", "content": f"""
-以下のデータに基づいて、matplotlibでグラフを作成するPythonコードを生成してください。
+Generate Python code to create a matplotlib chart based on the following data.
 
-データ:
-カラム: {data['columns']}
-行数: {len(data['rows'])}
-先頭5行: {data['rows'][:5]}
+Data:
+Columns: {data['columns']}
+Row count: {len(data['rows'])}
+First 5 rows: {data['rows'][:5]}
 
-要望: {chart_request}
+Request: {chart_request}
 
-ルール:
-- matplotlib + pandas を使用
-- 日本語フォントは 'Hiragino Sans' を使用
-- plt.savefig('chart.png', dpi=150, bbox_inches='tight') で保存
-- 見やすい配色を使う
+Rules:
+- Use matplotlib + pandas
+- Use 'DejaVu Sans' as the font
+- Save with plt.savefig('chart.png', dpi=150, bbox_inches='tight')
+- Use readable color scheme
 """}]
         )
         return response.content[0].text
 
     def auto_visualize(self, data: dict) -> str:
-        """データの特性に応じて最適なグラフを自動選択"""
+        """Automatically select the best chart type based on data characteristics"""
         num_columns = len(data["columns"])
         num_rows = len(data["rows"])
 
         if num_rows == 0:
-            return "データがありません"
+            return "No data available"
 
-        # データの特性を分析
+        # Analyze data characteristics
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=512,
             messages=[{"role": "user", "content": f"""
-以下のデータに最適なグラフ種類を1つ選んでください。
+Choose one optimal chart type for the following data.
 
-カラム: {data['columns']}
-先頭3行: {data['rows'][:3]}
-行数: {num_rows}
+Columns: {data['columns']}
+First 3 rows: {data['rows'][:3]}
+Row count: {num_rows}
 
-選択肢: bar（棒）, line（折れ線）, pie（円）, scatter（散布）, heatmap（ヒートマップ）, table（表のまま）
+Options: bar, line, pie, scatter, heatmap, table
 
-最適なグラフ種類とその理由を1行で:
+Output the best chart type and a one-line reason:
 """}]
         )
         return response.content[0].text
 ```
 
-### 3.2 高度な可視化テンプレート
+### 3.2 Advanced Visualization Templates
 
 ```python
 import matplotlib.pyplot as plt
@@ -668,14 +667,14 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
-# 日本語フォント設定
+# Japanese font settings
 matplotlib.rcParams['font.family'] = 'Hiragino Sans'
 matplotlib.rcParams['axes.unicode_minus'] = False
 
 class ChartTemplates:
-    """再利用可能なグラフテンプレート集"""
+    """Collection of reusable chart templates"""
 
-    # 共通のカラーパレット
+    # Common color palette
     COLORS = [
         '#4e79a7', '#f28e2b', '#e15759', '#76b7b2',
         '#59a14f', '#edc948', '#b07aa1', '#ff9da7',
@@ -684,29 +683,29 @@ class ChartTemplates:
 
     @staticmethod
     def sales_trend(df: pd.DataFrame, date_col: str, value_col: str,
-                    title: str = "売上推移", output_path: str = "chart.png"):
-        """売上推移の折れ線グラフ"""
+                    title: str = "Sales Trend", output_path: str = "chart.png"):
+        """Line chart showing sales trend"""
         fig, ax = plt.subplots(figsize=(12, 6))
 
         ax.plot(df[date_col], df[value_col],
                 color=ChartTemplates.COLORS[0],
                 linewidth=2, marker='o', markersize=4)
 
-        # 移動平均線を追加
+        # Add moving average line
         if len(df) >= 7:
             ma7 = df[value_col].rolling(window=7).mean()
             ax.plot(df[date_col], ma7,
                     color=ChartTemplates.COLORS[1],
                     linewidth=1.5, linestyle='--',
-                    label='7日移動平均')
+                    label='7-day moving average')
 
         ax.set_title(title, fontsize=16, fontweight='bold', pad=15)
-        ax.set_xlabel("日付", fontsize=12)
-        ax.set_ylabel("金額（円）", fontsize=12)
+        ax.set_xlabel("Date", fontsize=12)
+        ax.set_ylabel("Amount (JPY)", fontsize=12)
         ax.legend(fontsize=10)
         ax.grid(True, alpha=0.3)
 
-        # Y軸のフォーマット（千円単位）
+        # Format Y axis (in thousands)
         ax.yaxis.set_major_formatter(
             matplotlib.ticker.FuncFormatter(lambda x, p: f'{x/1000:.0f}K')
         )
@@ -719,9 +718,9 @@ class ChartTemplates:
 
     @staticmethod
     def category_comparison(df: pd.DataFrame, cat_col: str, value_col: str,
-                            title: str = "カテゴリ比較",
+                            title: str = "Category Comparison",
                             output_path: str = "chart.png"):
-        """カテゴリ別の横棒グラフ"""
+        """Horizontal bar chart comparing categories"""
         fig, ax = plt.subplots(figsize=(10, max(6, len(df) * 0.4)))
 
         sorted_df = df.sort_values(value_col, ascending=True)
@@ -730,14 +729,14 @@ class ChartTemplates:
 
         bars = ax.barh(sorted_df[cat_col], sorted_df[value_col], color=colors)
 
-        # 値ラベルを追加
+        # Add value labels
         for bar, val in zip(bars, sorted_df[value_col]):
             ax.text(bar.get_width() + max(sorted_df[value_col]) * 0.01,
                     bar.get_y() + bar.get_height() / 2,
                     f'{val:,.0f}', va='center', fontsize=10)
 
         ax.set_title(title, fontsize=16, fontweight='bold', pad=15)
-        ax.set_xlabel("金額（円）", fontsize=12)
+        ax.set_xlabel("Amount (JPY)", fontsize=12)
         ax.grid(True, axis='x', alpha=0.3)
 
         plt.tight_layout()
@@ -747,9 +746,9 @@ class ChartTemplates:
 
     @staticmethod
     def pie_chart(df: pd.DataFrame, label_col: str, value_col: str,
-                  title: str = "構成比", output_path: str = "chart.png",
+                  title: str = "Composition", output_path: str = "chart.png",
                   top_n: int = 8):
-        """円グラフ（上位N個＋その他）"""
+        """Pie chart (top N + others)"""
         fig, ax = plt.subplots(figsize=(10, 8))
 
         sorted_df = df.sort_values(value_col, ascending=False)
@@ -758,7 +757,7 @@ class ChartTemplates:
             top = sorted_df.head(top_n)
             other_sum = sorted_df.iloc[top_n:][value_col].sum()
             other_row = pd.DataFrame({
-                label_col: ["その他"],
+                label_col: ["Others"],
                 value_col: [other_sum]
             })
             plot_df = pd.concat([top, other_row], ignore_index=True)
@@ -785,9 +784,9 @@ class ChartTemplates:
         return output_path
 
     @staticmethod
-    def heatmap(df: pd.DataFrame, title: str = "ヒートマップ",
+    def heatmap(df: pd.DataFrame, title: str = "Heatmap",
                 output_path: str = "chart.png"):
-        """相関行列やクロス集計のヒートマップ"""
+        """Heatmap for correlation matrices or cross-tabulations"""
         fig, ax = plt.subplots(figsize=(10, 8))
 
         numeric_df = df.select_dtypes(include=[np.number])
@@ -802,7 +801,7 @@ class ChartTemplates:
         ax.set_xticklabels(corr.columns, rotation=45, ha='right')
         ax.set_yticklabels(corr.columns)
 
-        # 値を各セルに表示
+        # Display values in each cell
         for i in range(len(corr)):
             for j in range(len(corr)):
                 text_color = 'white' if abs(corr.iloc[i, j]) > 0.5 else 'black'
@@ -819,10 +818,10 @@ class ChartTemplates:
     @staticmethod
     def multi_metric_dashboard(
         data: dict[str, pd.DataFrame],
-        title: str = "ダッシュボード",
+        title: str = "Dashboard",
         output_path: str = "dashboard.png"
     ):
-        """複数指標のダッシュボード（2x2グリッド）"""
+        """Dashboard with multiple metrics (2x2 grid)"""
         fig, axes = plt.subplots(2, 2, figsize=(16, 12))
         fig.suptitle(title, fontsize=20, fontweight='bold', y=0.98)
 
@@ -845,7 +844,7 @@ class ChartTemplates:
         return output_path
 ```
 
-### 3.3 インタラクティブ可視化
+### 3.3 Interactive Visualization
 
 ```python
 # Plotlyを使ったインタラクティブグラフ生成
@@ -854,15 +853,15 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
 class InteractiveVisualizer:
-    """Plotlyベースのインタラクティブ可視化"""
+    """Plotly-based interactive visualization"""
 
     def sales_dashboard(self, df: pd.DataFrame) -> go.Figure:
-        """売上ダッシュボード"""
+        """Sales dashboard"""
         fig = make_subplots(
             rows=2, cols=2,
             subplot_titles=(
-                '日次売上推移', 'カテゴリ別売上',
-                '時間帯別注文数', '顧客セグメント'
+                'Daily Sales Trend', 'Sales by Category',
+                'Orders by Hour', 'Customer Segments'
             ),
             specs=[
                 [{"type": "scatter"}, {"type": "bar"}],
@@ -870,26 +869,26 @@ class InteractiveVisualizer:
             ]
         )
 
-        # 日次売上
+        # Daily sales
         if 'date' in df.columns and 'revenue' in df.columns:
             fig.add_trace(
                 go.Scatter(x=df['date'], y=df['revenue'],
-                           mode='lines+markers', name='売上'),
+                           mode='lines+markers', name='Revenue'),
                 row=1, col=1
             )
 
-        # カテゴリ別
+        # By category
         if 'category' in df.columns and 'revenue' in df.columns:
             cat_data = df.groupby('category')['revenue'].sum().reset_index()
             fig.add_trace(
                 go.Bar(x=cat_data['category'], y=cat_data['revenue'],
-                       name='カテゴリ'),
+                       name='Category'),
                 row=1, col=2
             )
 
         fig.update_layout(
             height=800,
-            title_text="売上ダッシュボード",
+            title_text="Sales Dashboard",
             showlegend=True,
             template="plotly_white"
         )
@@ -897,8 +896,8 @@ class InteractiveVisualizer:
 
     def time_series_with_anomaly(self, df: pd.DataFrame,
                                  date_col: str, value_col: str) -> go.Figure:
-        """異常値ハイライト付き時系列グラフ"""
-        # 異常値の検出（IQR法）
+        """Time series chart with anomaly highlighting"""
+        # Anomaly detection (IQR method)
         q1 = df[value_col].quantile(0.25)
         q3 = df[value_col].quantile(0.75)
         iqr = q3 - q1
@@ -912,32 +911,32 @@ class InteractiveVisualizer:
 
         fig.add_trace(go.Scatter(
             x=normal[date_col], y=normal[value_col],
-            mode='lines+markers', name='通常値',
+            mode='lines+markers', name='Normal',
             line=dict(color='#4e79a7')
         ))
 
         fig.add_trace(go.Scatter(
             x=anomalies[date_col], y=anomalies[value_col],
-            mode='markers', name='異常値',
+            mode='markers', name='Anomaly',
             marker=dict(color='red', size=12, symbol='x')
         ))
 
-        # 正常範囲の帯を追加
+        # Add normal range band
         fig.add_hrect(
             y0=lower, y1=upper,
             fillcolor="lightgreen", opacity=0.1,
-            annotation_text="正常範囲"
+            annotation_text="Normal range"
         )
 
         fig.update_layout(
-            title="時系列データ（異常値ハイライト）",
+            title="Time Series Data (Anomaly Highlighted)",
             template="plotly_white",
             height=500
         )
         return fig
 ```
 
-### 3.4 分析パイプライン
+### 3.4 Analysis Pipeline
 
 ```python
 # 複数ステップの分析パイプライン
@@ -946,25 +945,25 @@ class AnalysisPipeline:
         self.client = anthropic.Anthropic()
 
     def comprehensive_analysis(self, db_path: str, topic: str) -> dict:
-        """トピックに関する包括的なデータ分析"""
+        """Comprehensive data analysis on a given topic"""
         agent = TextToSQLAgent(db_path)
 
-        # Step 1: 概要統計
-        overview = agent.query(f"{topic}の全体概要（件数、合計、平均）")
+        # Step 1: Summary statistics
+        overview = agent.query(f"Overall summary of {topic} (count, total, average)")
 
-        # Step 2: トレンド分析
-        trend = agent.query(f"{topic}の月次推移")
+        # Step 2: Trend analysis
+        trend = agent.query(f"Monthly trend for {topic}")
 
-        # Step 3: トップN分析
-        top_items = agent.query(f"{topic}のトップ10")
+        # Step 3: Top N analysis
+        top_items = agent.query(f"Top 10 items for {topic}")
 
-        # Step 4: 分布分析
-        distribution = agent.query(f"{topic}のカテゴリ別分布")
+        # Step 4: Distribution analysis
+        distribution = agent.query(f"Distribution by category for {topic}")
 
-        # Step 5: 前期比較
-        comparison = agent.query(f"{topic}の前月比較")
+        # Step 5: Period comparison
+        comparison = agent.query(f"Month-over-month comparison for {topic}")
 
-        # Step 6: 統合インサイト
+        # Step 6: Integrated insights
         insights = self._generate_insights({
             "overview": overview,
             "trend": trend,
@@ -983,59 +982,59 @@ class AnalysisPipeline:
         }
 
     def _generate_insights(self, analysis_results: dict) -> str:
-        """複数の分析結果を統合してインサイトを生成"""
+        """Integrate multiple analysis results to generate insights"""
         results_text = json.dumps(analysis_results, ensure_ascii=False, default=str)[:5000]
 
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=2048,
             messages=[{"role": "user", "content": f"""
-以下の分析結果を統合して、ビジネスインサイトを3-5個抽出してください。
+From the following analysis results, extract 3-5 business insights.
 
-分析結果:
+Analysis results:
 {results_text}
 
-各インサイトには以下を含めてください:
-1. 発見事項（何が分かったか）
-2. ビジネスへの影響（なぜ重要か）
-3. 推奨アクション（何をすべきか）
+For each insight include the following:
+1. Finding (what was discovered)
+2. Business impact (why it matters)
+3. Recommended action (what to do)
 
-フォーマット:
-### インサイト1: [タイトル]
-- 発見: ...
-- 影響: ...
-- アクション: ...
+Format:
+### Insight 1: [Title]
+- Finding: ...
+- Impact: ...
+- Action: ...
 """}]
         )
         return response.content[0].text
 
     def anomaly_analysis(self, db_path: str, metric: str,
-                         period: str = "過去30日") -> dict:
-        """異常値検出と原因分析"""
+                         period: str = "last 30 days") -> dict:
+        """Anomaly detection and root cause analysis"""
         agent = TextToSQLAgent(db_path)
 
-        # Step 1: ベースラインデータの取得
+        # Step 1: Retrieve baseline data
         baseline = agent.query(
-            f"{metric}の{period}の日次データ（日付、値）"
+            f"Daily data (date, value) for {metric} over {period}"
         )
 
-        # Step 2: 統計的な異常検出
+        # Step 2: Statistical anomaly detection
         stats = agent.query(
-            f"{metric}の{period}の平均、標準偏差、最小、最大"
+            f"Mean, standard deviation, min, and max of {metric} over {period}"
         )
 
-        # Step 3: 異常日の特定
+        # Step 3: Identify anomalous days
         anomalies = agent.query(
-            f"{metric}が通常の2倍以上または半分以下だった日"
+            f"Days when {metric} was more than twice the normal or less than half"
         )
 
-        # Step 4: 異常の原因候補を分析
+        # Step 4: Analyze potential causes
         if anomalies.get("results", {}).get("rows"):
             cause_analysis = self._analyze_causes(
                 agent, metric, anomalies
             )
         else:
-            cause_analysis = "異常値は検出されませんでした"
+            cause_analysis = "No anomalies detected"
 
         return {
             "baseline": baseline,
@@ -1046,16 +1045,16 @@ class AnalysisPipeline:
 
     def _analyze_causes(self, agent: TextToSQLAgent,
                         metric: str, anomalies: dict) -> str:
-        """異常値の原因を分析"""
+        """Analyze root causes of anomalies"""
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=1024,
             messages=[{"role": "user", "content": f"""
-{metric}で異常値が検出されました:
+Anomalies were detected in {metric}:
 {json.dumps(anomalies, ensure_ascii=False, default=str)[:2000]}
 
-この異常の原因として考えられるものを3つ挙げ、
-それぞれ確認するためのSQLクエリを提案してください。
+List 3 possible causes for these anomalies, and for each
+suggest a SQL query to investigate further.
 """}]
         )
         return response.content[0].text
@@ -1063,16 +1062,16 @@ class AnalysisPipeline:
 
 ---
 
-## 4. 複数データソースの統合
+## 4. Integrating Multiple Data Sources
 
-### 4.1 マルチソースエージェント
+### 4.1 Multi-Source Agent
 
 ```python
 # 複数のデータソースを横断する分析エージェント
 from abc import ABC, abstractmethod
 
 class DataSource(ABC):
-    """データソースの抽象インターフェース"""
+    """Abstract interface for data sources"""
 
     @abstractmethod
     def get_schema(self) -> str:
@@ -1199,7 +1198,7 @@ class PostgreSQLSource(DataSource):
 
 
 class MultiSourceAgent:
-    """複数データソースを横断する分析エージェント"""
+    """Analysis agent that spans multiple data sources"""
 
     def __init__(self, sources: dict[str, DataSource]):
         self.sources = sources
@@ -1207,27 +1206,27 @@ class MultiSourceAgent:
         self.validator = SQLValidator()
 
     def query(self, question: str) -> dict:
-        """自然言語の質問に対して適切なデータソースを選択して実行"""
+        """Select the appropriate data source and execute query for a natural language question"""
 
-        # 1. 関連するデータソースの選択
+        # 1. Select the relevant data source
         source_name = self._select_source(question)
         source = self.sources[source_name]
 
-        # 2. スキーマを取得
+        # 2. Retrieve schema
         schema = source.get_schema()
 
-        # 3. SQL生成
+        # 3. SQL generation
         sql = self._generate_sql(question, schema, source_name)
 
-        # 4. バリデーション
+        # 4. Validation
         is_valid, error = self.validator.validate(sql)
         if not is_valid:
-            return {"error": f"SQLバリデーションエラー: {error}"}
+            return {"error": f"SQL validation error: {error}"}
 
-        # 5. 実行
+        # 5. Execution
         result = source.execute_query(sql)
 
-        # 6. 解釈
+        # 6. Interpretation
         interpretation = self._interpret(question, result)
 
         return {
@@ -1239,8 +1238,8 @@ class MultiSourceAgent:
         }
 
     def cross_source_analysis(self, question: str) -> dict:
-        """複数データソースにまたがる分析"""
-        # 各ソースから関連データを収集
+        """Analysis spanning multiple data sources"""
+        # Collect relevant data from each source
         partial_results = {}
         for name, source in self.sources.items():
             schema = source.get_schema()
@@ -1251,7 +1250,7 @@ class MultiSourceAgent:
                 if is_valid:
                     partial_results[name] = source.execute_query(sql)
 
-        # 結果を統合して分析
+        # Integrate results and analyze
         unified_insight = self._unify_results(question, partial_results)
         return {
             "question": question,
@@ -1260,7 +1259,7 @@ class MultiSourceAgent:
         }
 
     def _select_source(self, question: str) -> str:
-        """質問に最適なデータソースを選択"""
+        """Select the most suitable data source for the question"""
         source_descriptions = []
         for name, source in self.sources.items():
             schema_summary = source.get_schema()[:500]
@@ -1270,14 +1269,14 @@ class MultiSourceAgent:
             model="claude-sonnet-4-20250514",
             max_tokens=64,
             messages=[{"role": "user", "content": f"""
-以下のデータソースから、質問に最適なものを1つ選んでください。
+From the following data sources, select the one best suited to answer the question.
 
-データソース:
+Data sources:
 {chr(10).join(source_descriptions)}
 
-質問: {question}
+Question: {question}
 
-データソース名のみ出力:
+Output only the data source name:
 """}]
         )
         name = response.content[0].text.strip()
@@ -1288,12 +1287,12 @@ class MultiSourceAgent:
             model="claude-sonnet-4-20250514",
             max_tokens=1024,
             messages=[{"role": "user", "content": f"""
-データソース: {source_name}
-スキーマ:
+Data source: {source_name}
+Schema:
 {schema}
 
-質問: {question}
-SELECTのみ使用可能。SQLクエリのみ出力:
+Question: {question}
+Only SELECT is allowed. Output only the SQL query:
 """}]
         )
         sql = response.content[0].text.strip()
@@ -1303,19 +1302,19 @@ SELECTのみ使用可能。SQLクエリのみ出力:
 
     def _decompose_question(self, question: str, source_name: str,
                             schema: str) -> Optional[str]:
-        """質問をデータソースごとのサブ質問に分解"""
+        """Decompose a question into sub-questions per data source"""
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=256,
             messages=[{"role": "user", "content": f"""
-元の質問: {question}
+Original question: {question}
 
-データソース「{source_name}」のスキーマ:
+Schema for data source "{source_name}":
 {schema[:500]}
 
-このデータソースで回答可能な部分があれば、
-そのサブ質問を出力してください。
-回答不可能なら「SKIP」と出力:
+If this data source can answer part of the question,
+output the sub-question for that part.
+If not answerable, output "SKIP":
 """}]
         )
         result = response.content[0].text.strip()
@@ -1326,12 +1325,12 @@ SELECTのみ使用可能。SQLクエリのみ出力:
             model="claude-sonnet-4-20250514",
             max_tokens=1024,
             messages=[{"role": "user", "content": f"""
-質問: {question}
+Question: {question}
 SQL: {result.query}
-結果: カラム={result.columns}, 行数={result.row_count}
-先頭5行: {result.rows[:5]}
+Result: columns={result.columns}, row count={result.row_count}
+First 5 rows: {result.rows[:5]}
 
-結果を日本語で解釈してください:
+Interpret the results in English:
 """}]
         )
         return response.content[0].text
@@ -1341,20 +1340,20 @@ SQL: {result.query}
         summaries = []
         for name, result in partial_results.items():
             summaries.append(
-                f"[{name}] {result.summary()}\n先頭3行: {result.rows[:3]}"
+                f"[{name}] {result.summary()}\nFirst 3 rows: {result.rows[:3]}"
             )
 
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=2048,
             messages=[{"role": "user", "content": f"""
-質問: {question}
+Question: {question}
 
-各データソースからの結果:
+Results from each data source:
 {chr(10).join(summaries)}
 
-複数のデータソースの結果を統合して、
-包括的な回答を日本語で作成してください:
+Integrate the results from multiple data sources and
+create a comprehensive answer in English:
 """}]
         )
         return response.content[0].text
@@ -1362,31 +1361,31 @@ SQL: {result.query}
 
 ---
 
-## 5. 安全性設計
+## 5. Safety Design
 
 ```
-データエージェントのセキュリティ層
+Data Agent Security Layers
 
-Layer 1: クエリ生成制限
-  └── SELECT文のみ生成するようプロンプトで制約
+Layer 1: Query generation restriction
+  └── Constrain prompt to generate only SELECT statements
 
-Layer 2: SQLバリデーション
-  └── 生成されたSQLの構文を静的解析
+Layer 2: SQL validation
+  └── Static analysis of generated SQL syntax
 
-Layer 3: DB接続制限
-  └── READ ONLYユーザーで接続
+Layer 3: DB connection restriction
+  └── Connect with READ ONLY user
 
-Layer 4: 結果サイズ制限
-  └── 最大行数、最大カラム数を制限
+Layer 4: Result size limit
+  └── Limit maximum rows and columns
 
-Layer 5: 機密データマスキング
-  └── PII（個人情報）を除外
+Layer 5: Sensitive data masking
+  └── Exclude PII (personally identifiable information)
 
-Layer 6: クエリレート制限
-  └── 単位時間あたりのクエリ数を制限
+Layer 6: Query rate limiting
+  └── Limit number of queries per unit time
 
-Layer 7: 監査ログ
-  └── 全クエリの記録と異常検知
+Layer 7: Audit logging
+  └── Record all queries and detect anomalies
 ```
 
 ```python
@@ -1409,46 +1408,46 @@ class SecureDataAgent:
         self._audit_log: list[dict] = []
 
     def execute_safely(self, sql: str, user_id: str = "anonymous") -> dict:
-        """多層セキュリティを適用してクエリを実行"""
+        """Execute query with multi-layer security applied"""
         start_time = time.time()
 
-        # Layer 0: レート制限チェック
+        # Layer 0: Rate limit check
         if not self._rate_limiter.allow(user_id):
             self._log_audit(user_id, sql, "RATE_LIMITED")
-            return {"error": "レート制限に達しました。しばらくしてから再試行してください"}
+            return {"error": "Rate limit reached. Please try again later."}
 
-        # Layer 1: 構文バリデーション
+        # Layer 1: Syntax validation
         is_valid, error = self.validator.validate(sql)
         if not is_valid:
             self._log_audit(user_id, sql, f"VALIDATION_FAILED: {error}")
-            return {"error": f"SQLバリデーションエラー: {error}"}
+            return {"error": f"SQL validation error: {error}"}
 
-        # Layer 2: SQLインジェクション検出
+        # Layer 2: SQL injection detection
         if self._detect_injection(sql):
             self._log_audit(user_id, sql, "INJECTION_DETECTED")
-            logger.warning(f"SQLインジェクション検出: user={user_id}, sql={sql[:100]}")
-            return {"error": "不正なクエリパターンが検出されました"}
+            logger.warning(f"SQL injection detected: user={user_id}, sql={sql[:100]}")
+            return {"error": "Malicious query pattern detected"}
 
-        # Layer 3: READ ONLY接続
+        # Layer 3: READ ONLY connection
         conn = self._get_readonly_connection()
 
         try:
             cursor = conn.cursor()
 
-            # Layer 4: クエリタイムアウト設定
+            # Layer 4: Query timeout
             cursor.execute(f"SET statement_timeout = '30s'")
             cursor.execute(sql)
 
-            # Layer 5: 結果サイズ制限
+            # Layer 5: Result size limit
             columns = [desc[0] for desc in cursor.description]
             if len(columns) > self.max_columns:
                 self._log_audit(user_id, sql, "TOO_MANY_COLUMNS")
-                return {"error": f"カラム数が多すぎます（{len(columns)}、最大{self.max_columns}）"}
+                return {"error": f"Too many columns ({len(columns)}, max {self.max_columns})"}
 
             results = cursor.fetchmany(self.max_rows)
             truncated = cursor.fetchone() is not None
 
-            # Layer 6: PIIマスキング
+            # Layer 6: PII masking
             masked_results = self._mask_pii(columns, results)
 
             elapsed = (time.time() - start_time) * 1000
@@ -1469,17 +1468,17 @@ class SecureDataAgent:
             conn.close()
 
     def _detect_injection(self, sql: str) -> bool:
-        """SQLインジェクションパターンの検出"""
+        """Detect SQL injection patterns"""
         injection_patterns = [
-            r";\s*(DROP|DELETE|UPDATE|INSERT|ALTER|CREATE)",  # 複数文+危険操作
-            r"UNION\s+ALL\s+SELECT\s+NULL",                  # UNION NULLパターン
+            r";\s*(DROP|DELETE|UPDATE|INSERT|ALTER|CREATE)",  # Multiple statements + dangerous ops
+            r"UNION\s+ALL\s+SELECT\s+NULL",                  # UNION NULL pattern
             r"'\s*OR\s+'1'\s*=\s*'1",                        # OR 1=1
-            r"'\s*OR\s+1\s*=\s*1",                           # OR 1=1(数値)
-            r"CHAR\s*\(\s*\d+\s*\)",                         # CHAR関数
-            r"0x[0-9a-fA-F]+",                               # 16進リテラル
-            r"INFORMATION_SCHEMA",                            # メタデータアクセス
-            r"pg_catalog",                                    # PostgreSQLカタログ
-            r"sqlite_master",                                 # SQLiteマスターテーブル
+            r"'\s*OR\s+1\s*=\s*1",                           # OR 1=1 (numeric)
+            r"CHAR\s*\(\s*\d+\s*\)",                         # CHAR function
+            r"0x[0-9a-fA-F]+",                               # Hex literals
+            r"INFORMATION_SCHEMA",                            # Metadata access
+            r"pg_catalog",                                    # PostgreSQL catalog
+            r"sqlite_master",                                 # SQLite master table
         ]
         for pattern in injection_patterns:
             if re.search(pattern, sql, re.IGNORECASE):
@@ -1487,7 +1486,7 @@ class SecureDataAgent:
         return False
 
     def _get_readonly_connection(self):
-        """読み取り専用のDB接続を返す"""
+        """Return a read-only DB connection"""
         import psycopg2
         conn = psycopg2.connect(
             host=self.db_config["host"],
@@ -1500,7 +1499,7 @@ class SecureDataAgent:
         return conn
 
     def _mask_pii(self, columns: list, rows: list) -> list:
-        """個人情報カラムをマスク"""
+        """Mask personally identifiable information columns"""
         pii_indices = {
             i for i, col in enumerate(columns)
             if col.lower() in self.pii_columns
@@ -1519,7 +1518,7 @@ class SecureDataAgent:
 
     def _log_audit(self, user_id: str, sql: str, status: str,
                    execution_time_ms: float = 0):
-        """監査ログの記録"""
+        """Record audit log entry"""
         entry = {
             "timestamp": datetime.now().isoformat(),
             "user_id": user_id,
@@ -1531,7 +1530,7 @@ class SecureDataAgent:
         logger.info(f"AUDIT: {status} user={user_id} time={execution_time_ms:.1f}ms")
 
     def get_audit_summary(self, hours: int = 24) -> dict:
-        """監査ログのサマリー"""
+        """Summary of audit logs"""
         cutoff = datetime.now() - timedelta(hours=hours)
         recent = [
             e for e in self._audit_log
@@ -1548,7 +1547,7 @@ class SecureDataAgent:
 
 
 class RateLimiter:
-    """スライディングウィンドウ方式のレート制限"""
+    """Sliding window rate limiter"""
 
     def __init__(self, max_queries: int = 100, window_seconds: int = 3600):
         self.max_queries = max_queries
@@ -1556,11 +1555,11 @@ class RateLimiter:
         self._requests: dict[str, list[float]] = defaultdict(list)
 
     def allow(self, user_id: str) -> bool:
-        """リクエストを許可するか判定"""
+        """Determine whether to allow the request"""
         now = time.time()
         cutoff = now - self.window_seconds
 
-        # 期限切れのリクエストを削除
+        # Remove expired requests
         self._requests[user_id] = [
             t for t in self._requests[user_id] if t > cutoff
         ]
@@ -1572,7 +1571,7 @@ class RateLimiter:
         return True
 
     def remaining(self, user_id: str) -> int:
-        """残りのリクエスト数"""
+        """Remaining number of requests"""
         now = time.time()
         cutoff = now - self.window_seconds
         current = len([t for t in self._requests.get(user_id, []) if t > cutoff])
@@ -1581,9 +1580,9 @@ class RateLimiter:
 
 ---
 
-## 6. キャッシュとパフォーマンス最適化
+## 6. Caching and Performance Optimization
 
-### 6.1 クエリキャッシュ
+### 6.1 Query Cache
 
 ```python
 import hashlib
@@ -1594,7 +1593,7 @@ from typing import Optional
 
 @dataclass
 class CacheEntry:
-    """キャッシュエントリ"""
+    """Cache entry"""
     result: QueryResult
     created_at: float
     ttl_seconds: float
@@ -1607,7 +1606,7 @@ class CacheEntry:
 
 
 class QueryCache:
-    """階層キャッシュ: メモリ → ディスク"""
+    """Tiered cache: Memory → Disk"""
 
     def __init__(self, max_memory_entries: int = 100,
                  disk_cache_dir: Optional[str] = None,
@@ -1622,10 +1621,10 @@ class QueryCache:
             self.disk_dir.mkdir(parents=True, exist_ok=True)
 
     def get(self, sql: str) -> Optional[QueryResult]:
-        """キャッシュからクエリ結果を取得"""
+        """Retrieve query result from cache"""
         key = self._key(sql)
 
-        # メモリキャッシュを確認
+        # Check memory cache
         if key in self._memory:
             entry = self._memory[key]
             if not entry.is_expired:
@@ -1636,7 +1635,7 @@ class QueryCache:
             else:
                 del self._memory[key]
 
-        # ディスクキャッシュを確認
+        # Check disk cache
         if self.disk_dir:
             disk_path = self.disk_dir / f"{key}.pkl"
             if disk_path.exists():
@@ -1644,7 +1643,7 @@ class QueryCache:
                     with open(disk_path, "rb") as f:
                         entry = pickle.load(f)
                     if not entry.is_expired:
-                        # メモリに昇格
+                        # Promote to memory
                         self._memory[key] = entry
                         entry.access_count += 1
                         entry.last_accessed = time.time()
@@ -1660,7 +1659,7 @@ class QueryCache:
 
     def put(self, sql: str, result: QueryResult,
             ttl: Optional[float] = None):
-        """クエリ結果をキャッシュに保存"""
+        """Store query result in cache"""
         key = self._key(sql)
         entry = CacheEntry(
             result=result,
@@ -1669,33 +1668,33 @@ class QueryCache:
             last_accessed=time.time()
         )
 
-        # メモリキャッシュに保存
+        # Store in memory cache
         if len(self._memory) >= self.max_memory:
             self._evict()
         self._memory[key] = entry
 
-        # ディスクキャッシュにも保存
+        # Also store in disk cache
         if self.disk_dir:
             disk_path = self.disk_dir / f"{key}.pkl"
             with open(disk_path, "wb") as f:
                 pickle.dump(entry, f)
 
     def invalidate(self, sql: str):
-        """特定のキャッシュを無効化"""
+        """Invalidate a specific cache entry"""
         key = self._key(sql)
         self._memory.pop(key, None)
         if self.disk_dir:
             (self.disk_dir / f"{key}.pkl").unlink(missing_ok=True)
 
     def clear(self):
-        """全キャッシュをクリア"""
+        """Clear all cache"""
         self._memory.clear()
         if self.disk_dir:
             for f in self.disk_dir.glob("*.pkl"):
                 f.unlink()
 
     def stats(self) -> dict:
-        """キャッシュ統計"""
+        """Cache statistics"""
         total = self._stats["hits"] + self._stats["misses"]
         hit_rate = self._stats["hits"] / total if total > 0 else 0
         return {
@@ -1709,7 +1708,7 @@ class QueryCache:
         return hashlib.sha256(normalized.encode()).hexdigest()[:16]
 
     def _evict(self):
-        """LRU方式でキャッシュを削除"""
+        """Evict cache using LRU policy"""
         if not self._memory:
             return
         oldest_key = min(
@@ -1719,14 +1718,14 @@ class QueryCache:
         self._stats["evictions"] += 1
 ```
 
-### 6.2 クエリ最適化
+### 6.2 Query Optimization
 
 ```python
 class QueryOptimizer:
-    """生成されたSQLクエリの最適化"""
+    """Optimize generated SQL queries"""
 
     def optimize(self, sql: str, schema: str) -> str:
-        """SQLクエリを最適化"""
+        """Optimize a SQL query"""
         optimizations = [
             self._add_limit_if_missing,
             self._optimize_select_star,
@@ -1740,7 +1739,7 @@ class QueryOptimizer:
         return optimized
 
     def _add_limit_if_missing(self, sql: str, schema: str) -> str:
-        """LIMITがない場合に追加"""
+        """Add LIMIT if not present"""
         sql_upper = sql.upper().strip()
         if "LIMIT" not in sql_upper and "GROUP BY" not in sql_upper:
             if not sql.strip().endswith(";"):
@@ -1750,16 +1749,16 @@ class QueryOptimizer:
         return sql
 
     def _optimize_select_star(self, sql: str, schema: str) -> str:
-        """SELECT * を必要なカラムに限定（ログ出力のみ）"""
+        """Limit SELECT * to necessary columns (log output only)"""
         if "SELECT *" in sql.upper() or "SELECT  *" in sql.upper():
             logger.info(
-                "パフォーマンス警告: SELECT * の使用を検出。"
-                "必要なカラムのみを指定することを推奨します。"
+                "Performance warning: SELECT * detected. "
+                "It is recommended to specify only the needed columns."
             )
         return sql
 
     def _suggest_index_hints(self, sql: str, schema: str) -> str:
-        """インデックス利用のヒントを出力"""
+        """Output index usage hints"""
         where_match = re.search(r'WHERE\s+(.+?)(?:GROUP|ORDER|LIMIT|$)',
                                 sql, re.IGNORECASE | re.DOTALL)
         if where_match:
@@ -1767,66 +1766,66 @@ class QueryOptimizer:
             columns = re.findall(r'(\w+)\s*[=<>!]', where_clause)
             if columns:
                 logger.info(
-                    f"推奨インデックス: WHERE句で使用されるカラム {columns} "
-                    "にインデックスがあるか確認してください。"
+                    f"Recommended indexes: Check whether columns {columns} "
+                    "used in the WHERE clause have indexes."
                 )
         return sql
 ```
 
 ---
 
-## 7. 比較表
+## 7. Comparison Tables
 
-### 7.1 Text-to-SQLアプローチ比較
+### 7.1 Text-to-SQL Approach Comparison
 
-| アプローチ | 精度 | 柔軟性 | 実装コスト | 安全性 | スケーラビリティ |
+| Approach | Accuracy | Flexibility | Implementation Cost | Safety | Scalability |
 |-----------|------|--------|-----------|--------|--------------|
-| 直接SQL生成 | 中 | 高 | 低 | 低 | 中 |
-| テンプレートベース | 高 | 低 | 中 | 高 | 低 |
-| Few-shot + 検証 | 高 | 中 | 中 | 中 | 高 |
-| Self-correction | 最高 | 高 | 高 | 中 | 高 |
-| パース→SQL | 高 | 中 | 高 | 高 | 中 |
-| 動的スキーマ選択 | 高 | 高 | 高 | 高 | 最高 |
+| Direct SQL generation | Medium | High | Low | Low | Medium |
+| Template-based | High | Low | Medium | High | Low |
+| Few-shot + validation | High | Medium | Medium | Medium | High |
+| Self-correction | Highest | High | High | Medium | High |
+| Parse → SQL | High | Medium | High | High | Medium |
+| Dynamic schema selection | High | High | High | High | Highest |
 
-### 7.2 データ分析ツール比較
+### 7.2 Data Analysis Tool Comparison
 
-| ツール | 対話的 | SQL不要 | 可視化 | コスト | カスタマイズ性 |
+| Tool | Interactive | No SQL | Visualization | Cost | Customizability |
 |--------|--------|---------|--------|--------|-------------|
-| データエージェント | はい | はい | 自動 | API費用 | 高 |
-| Jupyter Notebook | 手動 | いいえ | 手動コード | 無料 | 最高 |
-| Tableau / Looker | GUI | はい | ドラッグ&ドロップ | 高額 | 中 |
-| pandas + matplotlib | 手動 | いいえ | 手動コード | 無料 | 最高 |
-| Metabase | GUI | はい | テンプレート | 無料/有料 | 低 |
-| Streamlit + LLM | はい | はい | コード生成 | API費用 | 高 |
+| Data Agent | Yes | Yes | Automatic | API cost | High |
+| Jupyter Notebook | Manual | No | Manual code | Free | Highest |
+| Tableau / Looker | GUI | Yes | Drag & drop | Expensive | Medium |
+| pandas + matplotlib | Manual | No | Manual code | Free | Highest |
+| Metabase | GUI | Yes | Templates | Free/Paid | Low |
+| Streamlit + LLM | Yes | Yes | Code generation | API cost | High |
 
-### 7.3 データソース別の接続方式
+### 7.3 Connection Methods by Data Source
 
-| データソース | 接続方式 | READ ONLY設定 | 備考 |
+| Data Source | Connection Method | READ ONLY Setting | Notes |
 |-------------|---------|--------------|------|
-| SQLite | ファイルパス | PRAGMA query_only | ローカル開発向け |
-| PostgreSQL | psycopg2 | SET SESSION READ ONLY | 本番推奨 |
-| MySQL | mysql-connector | READ ONLYユーザー | 権限設定が必要 |
-| BigQuery | google-cloud-bigquery | IAMロール | コスト注意（スキャン課金） |
-| Snowflake | snowflake-connector | WAREHOUSE READONLY | クレジット消費に注意 |
-| DuckDB | duckdb | access_mode='read_only' | 分析特化、高速 |
+| SQLite | File path | PRAGMA query_only | For local development |
+| PostgreSQL | psycopg2 | SET SESSION READ ONLY | Recommended for production |
+| MySQL | mysql-connector | READ ONLY user | Requires permission setup |
+| BigQuery | google-cloud-bigquery | IAM role | Watch costs (scan billing) |
+| Snowflake | snowflake-connector | WAREHOUSE READONLY | Watch credit usage |
+| DuckDB | duckdb | access_mode='read_only' | Analytics-focused, high performance |
 
 ---
 
-## 8. エラーハンドリングと自己修正
+## 8. Error Handling and Self-Correction
 
-### 8.1 基本の自己修正パターン
+### 8.1 Basic Self-Correction Pattern
 
 ```python
 # SQL生成の自己修正パターン
 class SelfCorrectingAgent(TextToSQLAgent):
     def query_with_retry(self, question: str, max_retries: int = 3) -> dict:
-        """SQLエラー時に自己修正して再試行"""
+        """Self-correct and retry on SQL errors"""
         sql = self._generate_sql(question)
         errors_history = []
 
         for attempt in range(max_retries):
             if not self._is_safe_query(sql):
-                return {"error": "安全でないクエリ"}
+                return {"error": "Unsafe query"}
 
             results = self._execute_sql(sql)
 
@@ -1838,71 +1837,71 @@ class SelfCorrectingAgent(TextToSQLAgent):
                     "errors_history": errors_history
                 }
 
-            # エラー履歴を蓄積
+            # Accumulate error history
             errors_history.append({
                 "attempt": attempt + 1,
                 "sql": sql,
                 "error": results["error"]
             })
 
-            # エラーからの自己修正
+            # Self-correct based on error
             sql = self._fix_sql(question, sql, results["error"], errors_history)
 
         return {
-            "error": f"{max_retries}回試行後も失敗",
+            "error": f"Failed after {max_retries} attempts",
             "errors_history": errors_history
         }
 
     def _fix_sql(self, question: str, bad_sql: str, error: str,
                  history: list[dict]) -> str:
-        """エラーメッセージに基づいてSQLを修正"""
+        """Fix SQL based on the error message"""
         history_text = ""
         if len(history) > 1:
-            history_text = "\n過去の試行:\n"
+            history_text = "\nPrevious attempts:\n"
             for h in history[:-1]:
-                history_text += f"  SQL: {h['sql']}\n  エラー: {h['error']}\n"
+                history_text += f"  SQL: {h['sql']}\n  Error: {h['error']}\n"
 
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=1024,
             messages=[{"role": "user", "content": f"""
-以下のSQLがエラーになりました。修正してください。
+The following SQL produced an error. Please fix it.
 
-スキーマ: {self.schema}
-元の質問: {question}
-失敗したSQL: {bad_sql}
-エラー: {error}
+Schema: {self.schema}
+Original question: {question}
+Failed SQL: {bad_sql}
+Error: {error}
 {history_text}
-重要: 過去に失敗した同じSQLを生成しないでください。
-修正したSQLのみ出力:
+Important: Do not generate the same SQL that previously failed.
+Output only the corrected SQL:
 """}]
         )
         return response.content[0].text.strip()
 ```
 
-### 8.2 段階的クエリ分解
+### 8.2 Stepwise Query Decomposition
 
 ```python
 class DecomposingAgent:
-    """複雑な質問を段階的に分解して実行"""
+    """Stepwise decomposition and execution of complex questions"""
 
     def __init__(self, db_path: str):
         self.client = anthropic.Anthropic()
         self.agent = TextToSQLAgent(db_path)
 
     def query_complex(self, question: str) -> dict:
-        """複雑な質問を分解して順次実行"""
+        """Decompose a complex question and execute sequentially"""
 
-        # Step 1: 質問の複雑度を判定
+        # Step 1: Assess question complexity
         complexity = self._assess_complexity(question)
 
         if complexity == "simple":
             return self.agent.query(question)
 
-        # Step 2: サブ質問に分解
+        # Step 2: Decompose into sub-questions
         sub_questions = self._decompose(question)
 
-        # Step 3: 各サブ質問を順次実行
+        # Step 3: Execute each sub-question sequentially
         sub_results = []
         for i, sq in enumerate(sub_questions):
             result = self.agent.query(sq)
@@ -1912,7 +1911,7 @@ class DecomposingAgent:
                 "step": i + 1
             })
 
-        # Step 4: 結果を統合
+        # Step 4: Integrate results
         final_answer = self._synthesize(question, sub_results)
 
         return {
@@ -1923,33 +1922,33 @@ class DecomposingAgent:
         }
 
     def _assess_complexity(self, question: str) -> str:
-        """質問の複雑度を判定"""
+        """Assess the complexity of the question"""
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=32,
             messages=[{"role": "user", "content": f"""
-以下の質問を1つのSQLで回答できますか？
+Can the following question be answered with a single SQL query?
 
-質問: {question}
+Question: {question}
 
-回答: 「simple」または「complex」のみ
+Answer: output only "simple" or "complex"
 """}]
         )
         return response.content[0].text.strip().lower()
 
     def _decompose(self, question: str) -> list[str]:
-        """質問をサブ質問に分解"""
+        """Decompose a question into sub-questions"""
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=512,
             messages=[{"role": "user", "content": f"""
-以下の複雑な質問を、それぞれ1つのSQLで回答できるサブ質問に分解してください。
+Decompose the following complex question into sub-questions,
+each answerable with a single SQL query.
 
-質問: {question}
+Question: {question}
+Database schema: {self.agent.schema}
 
-データベーススキーマ: {self.agent.schema}
-
-サブ質問を番号付きリストで出力（各行1つのサブ質問）:
+Output sub-questions as a numbered list (one per line):
 """}]
         )
         lines = response.content[0].text.strip().split("\n")
@@ -1960,23 +1959,23 @@ class DecomposingAgent:
         ]
 
     def _synthesize(self, question: str, sub_results: list[dict]) -> str:
-        """サブ結果を統合して最終回答を生成"""
+        """Integrate sub-results to generate a final answer"""
         results_text = ""
         for sr in sub_results:
             results_text += f"""
 Step {sr['step']}: {sr['sub_question']}
-結果: {json.dumps(sr['result'].get('results', {}), ensure_ascii=False, default=str)[:500]}
+Result: {json.dumps(sr['result'].get('results', {}), ensure_ascii=False, default=str)[:500]}
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=1024,
             messages=[{"role": "user", "content": f"""
-元の質問: {question}
+Original question: {question}
 
-各ステップの結果:
+Results from each step:
 {results_text}
 
-これらの結果を統合して、元の質問に対する包括的な回答を作成してください:
+Integrate these results and create a comprehensive answer to the original question:
 """}]
         )
         return response.content[0].text
@@ -1984,29 +1983,29 @@ Step {sr['step']}: {sr['sub_question']}
 
 ---
 
-## 9. 本番運用パターン
+## 9. Production Patterns
 
-### 9.1 Streamlitベースのデータ分析UI
+### 9.1 Streamlit-based Data Analysis UI
 
 ```python
 # streamlit_app.py
 import streamlit as st
 
 def main():
-    st.set_page_config(page_title="データ分析エージェント", layout="wide")
-    st.title("データ分析エージェント")
+    st.set_page_config(page_title="Data Analysis Agent", layout="wide")
+    st.title("Data Analysis Agent")
 
-    # サイドバー: 設定
+    # Sidebar: Settings
     with st.sidebar:
-        st.header("設定")
-        db_path = st.text_input("データベースパス", "data/sample.db")
-        model = st.selectbox("モデル", [
+        st.header("Settings")
+        db_path = st.text_input("Database path", "data/sample.db")
+        model = st.selectbox("Model", [
             "claude-sonnet-4-20250514",
             "claude-haiku-4-20250514"
         ])
-        max_rows = st.slider("最大行数", 10, 1000, 100)
+        max_rows = st.slider("Max rows", 10, 1000, 100)
 
-    # エージェントの初期化
+    # Initialize agent
     if "agent" not in st.session_state:
         config = DataAgentConfig(
             role=AgentRole.QUERY,
@@ -2017,26 +2016,26 @@ def main():
         st.session_state.agent = SelfCorrectingAgent(db_path, config)
         st.session_state.history = []
 
-    # チャット履歴の表示
+    # Display chat history
     for entry in st.session_state.history:
         with st.chat_message("user"):
             st.write(entry["question"])
         with st.chat_message("assistant"):
             st.write(entry["interpretation"])
             if entry.get("sql"):
-                with st.expander("実行SQL"):
+                with st.expander("Executed SQL"):
                     st.code(entry["sql"], language="sql")
             if entry.get("chart_path"):
                 st.image(entry["chart_path"])
 
-    # 入力
-    question = st.chat_input("データについて質問してください")
+    # Input
+    question = st.chat_input("Ask a question about your data")
     if question:
         with st.chat_message("user"):
             st.write(question)
 
         with st.chat_message("assistant"):
-            with st.spinner("分析中..."):
+            with st.spinner("Analyzing..."):
                 result = st.session_state.agent.query_with_retry(question)
 
             if "error" in result:
@@ -2044,10 +2043,10 @@ def main():
             else:
                 st.write(result.get("interpretation", ""))
 
-                with st.expander("実行SQL"):
+                with st.expander("Executed SQL"):
                     st.code(result["sql"], language="sql")
 
-                # 結果テーブル
+                # Result table
                 if result.get("results", {}).get("rows"):
                     import pandas as pd
                     df = pd.DataFrame(
@@ -2056,12 +2055,12 @@ def main():
                     )
                     st.dataframe(df, use_container_width=True)
 
-                    # 自動可視化
+                    # Auto visualization
                     visualizer = DataVisualizer()
                     chart_type = visualizer.auto_visualize(result["results"])
-                    st.info(f"推奨グラフ: {chart_type}")
+                    st.info(f"Recommended chart: {chart_type}")
 
-                # 履歴に追加
+                # Add to history
                 st.session_state.history.append({
                     "question": question,
                     "sql": result.get("sql"),
@@ -2072,7 +2071,7 @@ if __name__ == "__main__":
     main()
 ```
 
-### 9.2 APIサーバー
+### 9.2 API Server
 
 ```python
 # FastAPIベースのデータ分析APIサーバー
@@ -2084,10 +2083,10 @@ import uvicorn
 app = FastAPI(title="Data Agent API", version="1.0.0")
 
 class QueryRequest(BaseModel):
-    question: str = Field(..., description="自然言語の質問")
-    db_name: str = Field(default="main", description="データベース名")
-    max_rows: int = Field(default=100, le=1000, description="最大行数")
-    enable_visualization: bool = Field(default=False, description="可視化を含む")
+    question: str = Field(..., description="Natural language question")
+    db_name: str = Field(default="main", description="Database name")
+    max_rows: int = Field(default=100, le=1000, description="Maximum rows")
+    enable_visualization: bool = Field(default=False, description="Include visualization")
 
 class QueryResponse(BaseModel):
     question: str
@@ -2101,20 +2100,20 @@ class QueryResponse(BaseModel):
     chart_url: Optional[str] = None
 
 class AnalysisRequest(BaseModel):
-    topic: str = Field(..., description="分析トピック")
+    topic: str = Field(..., description="Analysis topic")
     db_name: str = Field(default="main")
     analysis_type: str = Field(
         default="comprehensive",
-        description="分析タイプ: comprehensive, trend, anomaly"
+        description="Analysis type: comprehensive, trend, anomaly"
     )
 
-# グローバルエージェントインスタンス
+# Global agent instances
 agents: dict[str, SecureDataAgent] = {}
 cache = QueryCache(max_memory_entries=500, default_ttl=300)
 
 @app.on_event("startup")
 async def startup():
-    """起動時にエージェントを初期化"""
+    """Initialize agents on startup"""
     db_configs = {
         "main": {"host": "localhost", "dbname": "analytics", "readonly_user": "reader"},
         "logs": {"host": "localhost", "dbname": "logs", "readonly_user": "reader"},
@@ -2124,13 +2123,13 @@ async def startup():
 
 @app.post("/query", response_model=QueryResponse)
 async def query(request: QueryRequest):
-    """自然言語でデータを問い合わせ"""
+    """Query data using natural language"""
     if request.db_name not in agents:
-        raise HTTPException(404, f"データベース '{request.db_name}' が見つかりません")
+        raise HTTPException(404, f"Database '{request.db_name}' not found")
 
     agent = agents[request.db_name]
 
-    # キャッシュチェック（SQLが不明なため質問ベース）
+    # Cache check (question-based since SQL is unknown)
     cache_key = f"{request.db_name}:{request.question}"
     cached_result = cache.get(cache_key)
     if cached_result:
@@ -2140,7 +2139,7 @@ async def query(request: QueryRequest):
             columns=cached_result.columns,
             rows=[list(r) for r in cached_result.rows],
             row_count=cached_result.row_count,
-            interpretation="（キャッシュ結果）",
+            interpretation="(Cached result)",
             execution_time_ms=0,
             cached=True
         )
@@ -2164,7 +2163,7 @@ async def query(request: QueryRequest):
 
 @app.post("/analyze")
 async def analyze(request: AnalysisRequest):
-    """包括的なデータ分析を実行"""
+    """Run comprehensive data analysis"""
     pipeline = AnalysisPipeline()
     try:
         if request.analysis_type == "comprehensive":
@@ -2176,7 +2175,7 @@ async def analyze(request: AnalysisRequest):
                 request.db_name, request.topic
             )
         else:
-            raise HTTPException(400, f"未対応の分析タイプ: {request.analysis_type}")
+            raise HTTPException(400, f"Unsupported analysis type: {request.analysis_type}")
 
         return result
     except Exception as e:
@@ -2194,7 +2193,7 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
 ```
 
-### 9.3 Slackボット統合
+### 9.3 Slack Bot Integration
 
 ```python
 # Slackボットとしてデータエージェントを運用
@@ -2206,37 +2205,37 @@ agent = SelfCorrectingAgent("data/analytics.db")
 
 @slack_app.event("app_mention")
 def handle_mention(event, say):
-    """メンション時にデータ分析を実行"""
+    """Run data analysis when mentioned"""
     question = event["text"].split(">", 1)[-1].strip()
     user = event["user"]
 
     if not question:
-        say("質問を入力してください。例: @DataBot 先月の売上は？")
+        say("Please enter a question. Example: @DataBot What were last month's sales?")
         return
 
-    say(f"<@{user}> 分析中です... :hourglass:")
+    say(f"<@{user}> Analyzing... :hourglass:")
 
     try:
         result = agent.query_with_retry(question)
 
         if "error" in result:
-            say(f"<@{user}> エラー: {result['error']}")
+            say(f"<@{user}> Error: {result['error']}")
             return
 
-        # 結果をフォーマット
+        # Format results
         blocks = [
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*質問:* {question}"
+                    "text": f"*Question:* {question}"
                 }
             },
             {
                 "type": "section",
                 "text": {
                     "type": "mrkdwn",
-                    "text": f"*回答:*\n{result.get('interpretation', '結果なし')}"
+                    "text": f"*Answer:*\n{result.get('interpretation', 'No result')}"
                 }
             },
             {
@@ -2248,7 +2247,7 @@ def handle_mention(event, say):
             }
         ]
 
-        # テーブル形式の結果（10行まで）
+        # Table-formatted results (up to 10 rows)
         results_data = result.get("results", {})
         if results_data.get("rows"):
             columns = results_data["columns"]
@@ -2265,18 +2264,18 @@ def handle_mention(event, say):
         say(blocks=blocks)
 
     except Exception as e:
-        say(f"<@{user}> 予期しないエラーが発生しました: {str(e)}")
+        say(f"<@{user}> An unexpected error occurred: {str(e)}")
 
 @slack_app.command("/data-query")
 def handle_command(ack, say, command):
-    """スラッシュコマンドでのクエリ実行"""
+    """Execute query via slash command"""
     ack()
     question = command["text"]
     user = command["user_id"]
 
     result = agent.query_with_retry(question)
     if "error" in result:
-        say(f"<@{user}> エラー: {result['error']}")
+        say(f"<@{user}> Error: {result['error']}")
     else:
         say(f"<@{user}>\n{result.get('interpretation', '')}")
 
@@ -2287,15 +2286,15 @@ if __name__ == "__main__":
 
 ---
 
-## 10. モニタリングとコスト管理
+## 10. Monitoring and Cost Management
 
-### 10.1 コスト追跡
+### 10.1 Cost Tracking
 
 ```python
 class CostTracker:
-    """API呼び出しコストの追跡"""
+    """Track API call costs"""
 
-    # Anthropic APIの料金（2025年時点の概算、USD）
+    # Anthropic API pricing (approximate as of 2025, USD)
     PRICING = {
         "claude-sonnet-4-20250514": {"input": 3.0 / 1_000_000, "output": 15.0 / 1_000_000},
         "claude-haiku-4-20250514": {"input": 0.25 / 1_000_000, "output": 1.25 / 1_000_000},
@@ -2306,7 +2305,7 @@ class CostTracker:
 
     def record(self, session_id: str, model: str,
                input_tokens: int, output_tokens: int):
-        """API呼び出しを記録"""
+        """Record an API call"""
         pricing = self.PRICING.get(model, {"input": 0, "output": 0})
         cost = (input_tokens * pricing["input"] +
                 output_tokens * pricing["output"])
@@ -2320,11 +2319,11 @@ class CostTracker:
         })
 
     def session_cost(self, session_id: str) -> float:
-        """セッションの合計コスト"""
+        """Total cost for a session"""
         return sum(e["cost_usd"] for e in self._sessions.get(session_id, []))
 
     def daily_report(self) -> dict:
-        """日次コストレポート"""
+        """Daily cost report"""
         today = datetime.now().date()
         today_start = datetime.combine(today, datetime.min.time()).timestamp()
 
@@ -2350,18 +2349,18 @@ class CostTracker:
         }
 ```
 
-### 10.2 パフォーマンスモニタリング
+### 10.2 Performance Monitoring
 
 ```python
 class PerformanceMonitor:
-    """クエリパフォーマンスの監視"""
+    """Monitor query performance"""
 
     def __init__(self):
         self._metrics: list[dict] = []
 
     def record_query(self, sql: str, execution_time_ms: float,
                      row_count: int, success: bool):
-        """クエリメトリクスを記録"""
+        """Record query metrics"""
         self._metrics.append({
             "timestamp": time.time(),
             "sql_length": len(sql),
@@ -2371,10 +2370,10 @@ class PerformanceMonitor:
         })
 
     def get_summary(self, last_n: int = 100) -> dict:
-        """パフォーマンスサマリー"""
+        """Performance summary"""
         recent = self._metrics[-last_n:]
         if not recent:
-            return {"message": "メトリクスなし"}
+            return {"message": "No metrics"}
 
         times = [m["execution_time_ms"] for m in recent]
         success_count = sum(1 for m in recent if m["success"])
@@ -2392,7 +2391,7 @@ class PerformanceMonitor:
         }
 
     def slow_queries(self, threshold_ms: float = 5000) -> list[dict]:
-        """スロークエリの検出"""
+        """Detect slow queries"""
         return [
             m for m in self._metrics
             if m["execution_time_ms"] > threshold_ms
@@ -2401,9 +2400,9 @@ class PerformanceMonitor:
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
-### アンチパターン1: 全データの取得
+### Anti-Pattern 1: Fetching All Data
 
 ```python
 # NG: テーブル全体をLLMに渡す
@@ -2424,46 +2423,46 @@ LIMIT 30
 """
 ```
 
-### アンチパターン2: スキーマ情報なしでのSQL生成
+### Anti-Pattern 2: Generating SQL Without Schema Information
 
 ```python
 # NG: スキーマを渡さずにSQL生成
-llm.generate("売上を教えて")  # テーブル名もカラム名も知らない → ハルシネーション
+llm.generate("Show me sales")  # Doesn't know table or column names → hallucination
 
 # OK: スキーマ + サンプルデータを必ず提供
 llm.generate(f"""
-スキーマ: {schema}
-サンプル行: {sample_rows}
-質問: 売上を教えて
+Schema: {schema}
+Sample rows: {sample_rows}
+Question: Show me sales
 """)
 ```
 
-### アンチパターン3: 書き込み権限での接続
+### Anti-Pattern 3: Connecting with Write Permissions
 
 ```python
 # NG: 管理者権限でデータエージェントを接続
 conn = psycopg2.connect(
-    user="admin",      # 全権限あり
+    user="admin",      # Full privileges
     password="secret",
     dbname="production"
 )
 
 # OK: 読み取り専用ユーザーで接続
 conn = psycopg2.connect(
-    user="readonly_agent",  # SELECT権限のみ
+    user="readonly_agent",  # SELECT only
     password="readonly_pass",
     dbname="production"
 )
 conn.set_session(readonly=True)
 ```
 
-### アンチパターン4: エラーハンドリングなしの本番運用
+### Anti-Pattern 4: Running in Production Without Error Handling
 
 ```python
 # NG: エラーを握りつぶす
 def query(question):
     sql = generate_sql(question)
-    return execute(sql)  # エラー時にクラッシュ
+    return execute(sql)  # Crashes on error
 
 # OK: 多層のエラーハンドリング
 def query_safely(question):
@@ -2471,61 +2470,61 @@ def query_safely(question):
         sql = generate_sql(question)
         is_valid, error = validator.validate(sql)
         if not is_valid:
-            return {"error": f"バリデーション失敗: {error}", "sql": sql}
+            return {"error": f"Validation failed: {error}", "sql": sql}
 
         result = execute_with_timeout(sql, timeout=30)
         if result.error:
-            # 自己修正を試行
+            # Attempt self-correction
             corrected = self_correct(question, sql, result.error)
             result = execute_with_timeout(corrected, timeout=30)
 
         return result
     except TimeoutError:
-        return {"error": "クエリがタイムアウトしました（30秒）"}
+        return {"error": "Query timed out (30 seconds)"}
     except Exception as e:
-        logger.error(f"予期しないエラー: {e}", exc_info=True)
-        return {"error": "内部エラーが発生しました"}
+        logger.error(f"Unexpected error: {e}", exc_info=True)
+        return {"error": "An internal error occurred"}
 ```
 
-### アンチパターン5: キャッシュなしの同一クエリ繰り返し
+### Anti-Pattern 5: Repeating the Same Query Without Caching
 
 ```python
 # NG: 同じ質問を毎回LLMに送信
 for department in departments:
-    # 50部門 × (SQL生成 + 解釈) = 100回のAPI呼び出し
-    result = agent.query(f"{department}の売上は？")
+    # 50 departments × (SQL generation + interpretation) = 100 API calls
+    result = agent.query(f"What are the sales for {department}?")
 
 # OK: パラメータ化 + キャッシュ
-template_sql = agent.generate_sql("各部門の売上は？")
+template_sql = agent.generate_sql("What are the sales by department?")
 # → SELECT department, SUM(revenue) FROM sales GROUP BY department
-result = agent.execute(template_sql)  # 1回のDB呼び出しで全部門取得
+result = agent.execute(template_sql)  # Get all departments with one DB call
 ```
 
 ---
 
-## 12. 実務シナリオ別ガイド
+## 12. Practical Scenario Guides
 
-### シナリオ1: ECサイトの売上分析
+### Scenario 1: E-Commerce Sales Analysis
 
 ```python
 # ECサイト分析エージェントの具体的な使用例
 class ECommerceAnalyst:
-    """ECサイト専用の分析エージェント"""
+    """Data analysis agent specialized for e-commerce"""
 
     def __init__(self, db_path: str):
         self.agent = SelfCorrectingAgent(db_path)
         self.visualizer = DataVisualizer()
 
     def daily_report(self) -> dict:
-        """日次売上レポートの自動生成"""
+        """Automatically generate a daily sales report"""
         queries = {
-            "summary": "本日の売上合計、注文数、平均注文額",
-            "hourly": "本日の時間帯別売上推移",
-            "top_products": "本日の売上トップ10商品",
-            "categories": "本日のカテゴリ別売上構成比",
-            "comparison": "前日比と前週同日比の売上比較",
-            "new_customers": "本日の新規顧客数と売上",
-            "cancellations": "本日のキャンセル件数と金額"
+            "summary": "Today's total sales, order count, and average order value",
+            "hourly": "Today's hourly sales trend",
+            "top_products": "Today's top 10 products by sales",
+            "categories": "Today's sales composition by category",
+            "comparison": "Sales comparison vs yesterday and same day last week",
+            "new_customers": "Today's new customer count and their sales",
+            "cancellations": "Today's cancellation count and amount"
         }
 
         results = {}
@@ -2535,60 +2534,60 @@ class ECommerceAnalyst:
         return results
 
     def customer_cohort_analysis(self, months: int = 6) -> dict:
-        """顧客コホート分析"""
+        """Customer cohort analysis"""
         return self.agent.query_with_retry(f"""
-過去{months}ヶ月の月別顧客コホート分析:
-各月に初回購入した顧客グループが、
-その後の各月にどれだけリピート購入したかを
-月別のリテンション率で表示
+Monthly customer cohort analysis for the past {months} months:
+Show the retention rate for each cohort of customers
+who made their first purchase in a given month,
+and how many returned in subsequent months.
 """)
 
     def product_recommendation_data(self, product_id: int) -> dict:
-        """商品レコメンデーション用データ"""
+        """Data for product recommendations"""
         return self.agent.query_with_retry(f"""
-商品ID {product_id} と一緒に購入されることが多い商品トップ10
-（同じ注文に含まれている商品を集計）
+Top 10 products most frequently purchased together with product ID {product_id}
+(aggregate products in the same order)
 """)
 ```
 
-### シナリオ2: SaaS指標ダッシュボード
+### Scenario 2: SaaS Metrics Dashboard
 
 ```python
 class SaaSMetricsAgent:
-    """SaaS KPI自動分析エージェント"""
+    """SaaS KPI automated analysis agent"""
 
     def __init__(self, db_path: str):
         self.agent = SelfCorrectingAgent(db_path)
 
     def calculate_mrr(self) -> dict:
-        """月次経常収益（MRR）の計算"""
+        """Calculate Monthly Recurring Revenue (MRR)"""
         return self.agent.query_with_retry("""
-今月のMRR（Monthly Recurring Revenue）を計算:
-- 新規MRR: 今月新規契約の月額合計
-- 拡大MRR: 今月アップグレードした顧客の差額合計
-- 縮小MRR: 今月ダウングレードした顧客の差額合計
-- 解約MRR: 今月解約した顧客の月額合計
-- 純MRR: 新規 + 拡大 - 縮小 - 解約
+Calculate this month's MRR (Monthly Recurring Revenue):
+- New MRR: total monthly fees from new contracts this month
+- Expansion MRR: total upgrade differences for customers this month
+- Contraction MRR: total downgrade differences for customers this month
+- Churned MRR: total monthly fees from customers who cancelled this month
+- Net MRR: New + Expansion - Contraction - Churned
 """)
 
     def churn_analysis(self) -> dict:
-        """解約分析"""
+        """Churn analysis"""
         return self.agent.query_with_retry("""
-過去12ヶ月の月別解約率と解約理由の分析:
-- 月別の解約顧客数と解約率
-- 解約理由のカテゴリ別内訳
-- プラン別の解約率比較
-- 解約前の利用状況（最終ログイン日からの日数）
+Monthly churn rate and reason analysis for the past 12 months:
+- Monthly churn count and rate
+- Breakdown of churn reasons by category
+- Churn rate comparison by plan
+- Usage before churn (days since last login)
 """)
 
     def ltv_analysis(self) -> dict:
-        """顧客生涯価値（LTV）分析"""
+        """Customer Lifetime Value (LTV) analysis"""
         return self.agent.query_with_retry("""
-プラン別の顧客LTV（Life Time Value）分析:
-- 各プランの平均契約期間（月数）
-- 各プランの月額料金
-- 計算LTV = 月額料金 × 平均契約期間
-- プラン別の顧客数
+LTV (Life Time Value) analysis by plan:
+- Average contract duration (months) per plan
+- Monthly fee per plan
+- Calculated LTV = monthly fee × average contract duration
+- Customer count per plan
 """)
 ```
 
@@ -2596,27 +2595,27 @@ class SaaSMetricsAgent:
 
 ## 13. FAQ
 
-### Q1: 大規模データベース（100+テーブル）でのText-to-SQLの精度は？
+### Q1: What is the Text-to-SQL accuracy for large databases (100+ tables)?
 
-テーブル数が多い場合、すべてのスキーマをプロンプトに含めるとノイズが増えて精度が下がる。対策:
-- **関連テーブルの自動選択**: 質問から関連テーブルを2段階で絞り込み（1段目: キーワードマッチ、2段目: LLM選択）
-- **スキーマ要約**: テーブルのdescriptionのみ先に渡し、選択後にCREATE TABLE文を渡す
-- **SchemaSelector クラス**: セクション2.3で実装した動的スキーマ選択を使用
+When there are many tables, including all schemas in the prompt adds noise and reduces accuracy. Mitigation strategies:
+- **Automatic relevant table selection**: Narrow down related tables in two steps (step 1: keyword matching, step 2: LLM selection)
+- **Schema summarization**: Pass only table descriptions first, then provide CREATE TABLE statements after selection
+- **SchemaSelector class**: Use the dynamic schema selection implemented in section 2.3
 
-### Q2: リアルタイムダッシュボードへの応用は？
+### Q2: Can data agents be applied to real-time dashboards?
 
-データエージェントはアドホック分析に適しているが、リアルタイムダッシュボードには向かない（レイテンシ+コスト）。推奨アプローチ:
-- **アドホック分析**: データエージェント
-- **定期レポート**: エージェントで一度クエリを生成 → 定期実行に移行
-- **リアルタイム**: 従来のBIツール（Metabase等）
+Data agents are well suited for ad-hoc analysis but are not ideal for real-time dashboards (latency + cost). Recommended approach:
+- **Ad-hoc analysis**: Data agent
+- **Periodic reports**: Generate query once with agent → migrate to scheduled execution
+- **Real-time**: Traditional BI tools (e.g., Metabase)
 
-### Q3: データの鮮度をどう保証する？
+### Q3: How do you guarantee data freshness?
 
-- **タイムスタンプ付きの回答**: 「このデータは2025年1月31日時点のものです」
-- **データ更新日時の確認**: メタデータテーブルで最終更新日を確認
-- **キャッシュ有効期限**: 同じクエリのキャッシュに有効期限を設定
+- **Timestamped responses**: "This data is as of January 31, 2025"
+- **Check data update time**: Verify last update date via metadata table
+- **Cache expiration**: Set expiration on cached results for the same query
 
-### Q4: Text-to-SQLの精度を測定するには？
+### Q4: How do you measure Text-to-SQL accuracy?
 
 ```python
 # SQL生成精度のベンチマーク
@@ -2638,7 +2637,7 @@ class SQLAccuracyBenchmark:
         results = []
         for tc in self.test_cases:
             generated = self.agent._generate_sql(tc["question"])
-            # 結果ベースの比較（SQL文字列ではなく実行結果で判定）
+            # Result-based comparison (judge by execution result, not SQL string)
             gen_result = self.agent._execute_sql(generated)
             exp_result = self.agent._execute_sql(tc["expected_sql"])
 
@@ -2660,22 +2659,22 @@ class SQLAccuracyBenchmark:
         }
 ```
 
-### Q5: コスト削減のベストプラクティスは？
+### Q5: What are the best practices for cost reduction?
 
-| 戦略 | 効果 | 実装難易度 |
+| Strategy | Effect | Implementation Difficulty |
 |------|------|-----------|
-| クエリキャッシュ | 同一質問のAPI呼び出し削減 | 低 |
-| 小さいモデルで事前分類 | SQL生成以外をHaikuで処理 | 低 |
-| Few-shot例でプロンプト最適化 | トークン数削減+精度向上 | 中 |
-| バッチ処理（定期レポート化） | リアルタイム呼び出し削減 | 中 |
-| スキーマ圧縮 | 入力トークン削減 | 中 |
+| Query cache | Reduces API calls for duplicate questions | Low |
+| Pre-classification with smaller model | Use Haiku for non-SQL generation tasks | Low |
+| Prompt optimization with few-shot examples | Reduces tokens + improves accuracy | Medium |
+| Batch processing (periodic reports) | Reduces real-time calls | Medium |
+| Schema compression | Reduces input tokens | Medium |
 
-### Q6: 複数のデータベース方言への対応は？
+### Q6: How do you handle multiple database dialects?
 
 ```python
 # データベース方言の抽象化
 class SQLDialect:
-    """SQL方言の差異を吸収"""
+    """Abstraction layer for SQL dialect differences"""
 
     DIALECTS = {
         "sqlite": {
@@ -2700,9 +2699,9 @@ class SQLDialect:
 
     @classmethod
     def get_prompt_hint(cls, dialect: str) -> str:
-        """SQL方言のヒントをプロンプトに含める"""
+        """Include SQL dialect hints in the prompt"""
         d = cls.DIALECTS.get(dialect, {})
-        hints = [f"データベース: {dialect}"]
+        hints = [f"Database: {dialect}"]
         for key, val in d.items():
             hints.append(f"  {key}: {val}")
         return "\n".join(hints)
@@ -2713,45 +2712,37 @@ class SQLDialect:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
+| Item | Content |
 |------|------|
-| コアフロー | 質問理解→SQL生成→検証→実行→分析→可視化 |
-| Text-to-SQL | スキーマ情報+質問→SELECT文を生成（Few-shot強化） |
-| 安全性 | 7層防御: バリデーション→READ ONLY→PIIマスキング→レート制限→監査ログ |
-| 可視化 | データ特性に応じた自動グラフ選択（matplotlib/Plotly） |
-| 自己修正 | SQLエラー時にエラー履歴を含めて修正（最大3回） |
-| 複数ソース | DataSource抽象化で異種DB横断分析 |
-| キャッシュ | メモリ→ディスクの階層キャッシュ、LRU方式 |
-| 本番運用 | Streamlit UI / FastAPI / Slackボット |
-| 核心原則 | 集計してからLLMに渡す。全データを読まない |
+| Core flow | Question understanding → SQL generation → validation → execution → analysis → visualization |
+| Text-to-SQL | Schema info + question → generate SELECT statement (enhanced with few-shot) |
+| Safety | 7-layer defense: validation → READ ONLY → PII masking → rate limiting → audit logging |
+| Visualization | Automatic chart selection based on data characteristics (matplotlib/Plotly) |
+| Self-correction | On SQL error, correct with error history (up to 3 retries) |
+| Multiple sources | Cross-DB analysis with DataSource abstraction |
+| Cache | Tiered memory → disk cache, LRU eviction |
+| Production | Streamlit UI / FastAPI / Slack bot |
+| Core principle | Aggregate before passing to LLM. Never read all raw data |
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [../04-production/00-deployment.md](../04-production/00-deployment.md) -- データエージェントのデプロイ
-- [../00-fundamentals/03-memory-systems.md](../00-fundamentals/03-memory-systems.md) -- RAGとベクトル検索
-- [../01-patterns/02-workflow-agents.md](../01-patterns/02-workflow-agents.md) -- 分析ワークフロー
-- [../02-implementation/04-evaluation.md](../02-implementation/04-evaluation.md) -- 評価とベンチマーク
-
-## 参考文献
-
-1. Rajkumar, N. et al., "Evaluating the Text-to-SQL Capabilities of Large Language Models" (2022) -- https://arxiv.org/abs/2204.00498
-2. Pourreza, M. et al., "DIN-SQL: Decomposed In-Context Learning of Text-to-SQL with Self-Correction" (2023) -- https://arxiv.org/abs/2304.11015
-3. Vanna AI -- https://vanna.ai/
-4. LangChain SQL Agent -- https://python.langchain.com/docs/use_cases/sql/
-5. Anthropic Tool Use Documentation -- https://docs.anthropic.com/en/docs/build-with-claude/tool-use
+- [../04-production/00-deployment.md](../04-production/00-deployment.md) -- Deploying data agents
+- [../00-fundamentals/03-memory-systems.md](../00-fundamentals/03-memory-systems.md) -- RAG and vector search
+- [../01-patterns/02-workflow-agents.md](../01-patterns/02-workflow-agents.md) -- Analysis workflows
+- [../02-implementation/04-evaluation.md](../02-implementation/04-evaluation.md) -- Evaluation and benchmarking
