@@ -1,60 +1,64 @@
-# セキュリティ概要
+# Security Overview
 
-> 情報セキュリティの根幹であるCIA三原則から、追加属性、脅威分類、リスク評価、主要フレームワーク、多層防御、セキュリティ組織文化まで体系的に解説する。セキュリティの全体像を俯瞰し、以降の各章で深掘りする内容の基盤を構築する。
+> A systematic overview of information security, from the foundational CIA Triad, to additional attributes, threat classification, risk assessment, major frameworks, defense in depth, and security culture. This chapter establishes the big picture of security and builds the foundation for deeper exploration in subsequent chapters.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **CIA三原則**（機密性・完全性・可用性）の意味と相互関係、トレードオフを理解する
-2. **脅威の分類とリスク評価**の基本プロセスおよび定量的・定性的手法を把握する
-3. **主要セキュリティフレームワーク**（NIST CSF, ISO 27001, CIS Controls 等）の特徴と使い分けを知る
-4. **多層防御とセキュリティ開発ライフサイクル**の設計思想を身につける
+1. Understand the meaning, interrelationships, and trade-offs of the **CIA Triad** (Confidentiality, Integrity, Availability)
+2. Grasp the basic process and quantitative/qualitative methods of **threat classification and risk assessment**
+3. Learn the characteristics and appropriate use of **major security frameworks** (NIST CSF, ISO 27001, CIS Controls, etc.)
+4. Acquire the design philosophy behind **defense in depth and the Security Development Lifecycle**
 
-## 前提知識
+## Prerequisites
 
-- プログラミングの基礎（Python の基本構文が読めること）
-- ネットワークの基礎（HTTP、TCP/IP の概要）
-- [../01-web-security/00-owasp-top10.md](../01-web-security/00-owasp-top10.md) -- OWASP Top 10（本章を読了後に推奨）
-- [../../../authentication-and-authorization/docs/00-fundamentals/](../../../authentication-and-authorization/docs/00-fundamentals/) -- 認証・認可の基礎（関連知識）
+- Programming basics (ability to read basic Python syntax)
+- Networking basics (overview of HTTP and TCP/IP)
+- [../01-web-security/00-owasp-top10.md](../01-web-security/00-owasp-top10.md) -- OWASP Top 10 (recommended after reading this chapter)
+- [../../../authentication-and-authorization/docs/00-fundamentals/](../../../authentication-and-authorization/docs/00-fundamentals/) -- Authentication and Authorization Fundamentals (related knowledge)
 
 ---
 
-## 1. 情報セキュリティとは何か
+## 1. What Is Information Security?
 
-情報セキュリティとは、情報資産を**脅威**から保護し、事業継続性を確保するための活動全般を指す。技術的対策だけでなく、組織・人・プロセスを含む包括的な取り組みである。
+Information security refers to the full set of activities aimed at protecting information assets from **threats** and ensuring business continuity. It is a comprehensive effort that encompasses not only technical controls but also organizational, human, and process dimensions.
 
-### 1.1 情報セキュリティの3つの柱
+### 1.1 The Three Pillars of Information Security
 
 ```
 +------------------------------------------------------------------+
-|                  情報セキュリティの3つの柱                          |
+|                  The Three Pillars of Information Security        |
 |                                                                  |
 |  +------------------+  +------------------+  +------------------+|
-|  |  技術的対策       |  |  組織的対策       |  |  人的対策        ||
+|  |  Technical       |  |  Organizational  |  |  Human           ||
+|  |  Controls        |  |  Controls        |  |  Controls        ||
 |  |                  |  |                  |  |                  ||
-|  | - 暗号化         |  | - ポリシー策定    |  | - セキュリティ   ||
-|  | - アクセス制御    |  | - リスク管理      |  |   意識教育      ||
-|  | - IDS/IPS        |  | - インシデント     |  | - 訓練・演習    ||
-|  | - FW/WAF         |  |   対応手順       |  | - 内部規程遵守  ||
-|  | - 脆弱性管理     |  | - 事業継続計画    |  | - ソーシャル     ||
-|  | - ログ監視       |  | - コンプライアンス |  |   エンジニアリ  ||
-|  |                  |  |                  |  |   ング対策      ||
+|  | - Encryption     |  | - Policy         |  | - Security       ||
+|  | - Access Control |  |   Development    |  |   Awareness      ||
+|  | - IDS/IPS        |  | - Risk           |  |   Training       ||
+|  | - FW/WAF         |  |   Management     |  | - Drills &       ||
+|  | - Vulnerability  |  | - Incident       |  |   Exercises      ||
+|  |   Management     |  |   Response       |  | - Internal       ||
+|  | - Log Monitoring |  | - BCP            |  |   Policy         ||
+|  |                  |  | - Compliance     |  |   Compliance     ||
+|  |                  |  |                  |  | - Social Eng.    ||
+|  |                  |  |                  |  |   Countermeasures||
 |  +------------------+  +------------------+  +------------------+|
 |                                                                  |
-|  すべてが連携して初めて効果的なセキュリティが実現する                  |
+|  Effective security is only achieved when all pillars work together|
 +------------------------------------------------------------------+
 ```
 
-### WHY: なぜ情報セキュリティが重要なのか
+### WHY: Why Is Information Security Important?
 
-情報セキュリティは単なる技術的課題ではなく、ビジネスそのものである。以下の理由から、組織にとって不可欠な要素となっている。
+Information security is not merely a technical challenge — it is the business itself. It has become an indispensable element for organizations for the following reasons:
 
-1. **法的義務**: GDPR、個人情報保護法、PCI DSS 等の規制に違反すると、巨額の罰金が科される
-2. **ビジネスリスク**: データ漏洩1件あたりの平均コストは約445万ドル（IBM 2023年調査）
-3. **信頼の喪失**: セキュリティインシデントは顧客信頼の失墜に直結し、回復に数年を要する
-4. **サプライチェーンリスク**: 自社だけでなく取引先・パートナーにも影響が波及する
+1. **Legal obligations**: Violations of regulations such as GDPR, personal information protection laws, and PCI DSS can result in enormous fines
+2. **Business risk**: The average cost per data breach is approximately $4.45 million (IBM 2023 report)
+3. **Loss of trust**: Security incidents directly lead to a collapse of customer trust and can take years to recover from
+4. **Supply chain risk**: The impact extends not only to your own organization but also to business partners and vendors
 
 ```python
-# コード例1: セキュリティインシデントのコスト試算モデル
+# Code Example 1: Cost estimation model for security incidents
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -124,9 +128,9 @@ print(breach.summary())
 
 ---
 
-## 2. CIA三原則
+## 2. The CIA Triad
 
-情報セキュリティの最も基本的な原則は **CIA triad** と呼ばれる3つの要素で構成される。すべてのセキュリティ活動はこの三原則の達成を目指している。
+The most fundamental principle of information security is composed of three elements known as the **CIA triad**. All security activities aim to achieve these three principles.
 
 ```
                     Confidentiality
@@ -147,14 +151,14 @@ CIA三原則: すべてのセキュリティ活動の基盤
 - 1つでも欠けると全体が崩壊する
 ```
 
-### 2.1 機密性（Confidentiality）
+### 2.1 Confidentiality
 
-許可された者だけが情報にアクセスできる状態を保つこと。不正なアクセスからデータを守ることが核心である。
+Ensuring that only authorized parties can access information. The core is protecting data from unauthorized access.
 
-**なぜ重要か**: 機密性が破られると、個人情報漏洩、企業秘密の流出、競争優位性の喪失が発生する。GDPR違反の場合、全世界年間売上の4%または2,000万ユーロの罰金が科される可能性がある。
+**Why it matters**: When confidentiality is breached, personal data leaks, corporate secrets are exposed, and competitive advantage is lost. In the case of GDPR violations, fines of up to 4% of global annual turnover or €20 million may be imposed.
 
 ```python
-# コード例2: ロールベースアクセス制御（RBAC）による機密性の確保
+# Code Example 2: Ensuring confidentiality with Role-Based Access Control (RBAC)
 import hashlib
 import hmac
 import logging
@@ -282,14 +286,14 @@ print(acl.check_permission(viewer_user, Permission.READ, "customer_data"))
 # => False
 ```
 
-### 2.2 完全性（Integrity）
+### 2.2 Integrity
 
-情報が不正に改ざんされていないことを保証すること。データが正確で信頼できる状態を維持することが核心である。
+Ensuring that information has not been tampered with by unauthorized parties. The core is maintaining data in an accurate and trustworthy state.
 
-**なぜ重要か**: 完全性が破られると、金融取引の改ざん、医療記録の変更、ソフトウェアの改竄（サプライチェーン攻撃）等が発生する。SolarWinds事件（2020年）では、ビルドシステムにバックドアが仕込まれ、18,000以上の組織が影響を受けた。
+**Why it matters**: When integrity is breached, financial transactions can be altered, medical records changed, and software tampered with (supply chain attacks). In the SolarWinds incident (2020), a backdoor was inserted into a build system, affecting more than 18,000 organizations.
 
 ```python
-# コード例3: ハッシュチェーンによるデータ完全性の検証
+# Code Example 3: Verifying data integrity with a hash chain
 import hashlib
 import hmac
 import json
@@ -384,14 +388,14 @@ print(f"エラー: {result['errors']}")
 # => エラー: ['Record 1: ハッシュ不一致（改ざん検出）']
 ```
 
-### 2.3 可用性（Availability）
+### 2.3 Availability
 
-必要なときに情報やサービスが利用可能であること。サービスの継続性と信頼性を保つことが核心である。
+Ensuring that information and services are accessible when needed. The core is maintaining service continuity and reliability.
 
-**なぜ重要か**: 可用性が破られると、サービス停止による売上損失、SLA違反による違約金、ブランドイメージの毀損が発生する。AWSの大規模障害（2021年12月）では、Netflix、Disney+、Ring 等の多くのサービスが影響を受け、数時間のダウンタイムが発生した。
+**Why it matters**: When availability is breached, service outages cause revenue losses, SLA violations incur penalties, and brand image is damaged. The major AWS outage (December 2021) affected many services including Netflix, Disney+, and Ring, resulting in hours of downtime.
 
 ```python
-# コード例4: 可用性監視とフェイルオーバー制御
+# Code Example 4: Availability monitoring and failover control
 import time
 from typing import List, Dict, Optional, Callable
 from dataclasses import dataclass, field
@@ -502,58 +506,58 @@ selected = monitor.select_healthy_endpoint()
 print(f"Selected endpoint: {selected}")
 ```
 
-### 2.4 CIA三原則の相互関係とトレードオフ
+### 2.4 Interrelationships and Trade-offs of the CIA Triad
 
-CIA三原則は相互に影響し合い、場合によってはトレードオフが発生する。
+The three elements of the CIA Triad influence each other and can produce trade-offs in certain situations.
 
 ```
-CIA三原則のトレードオフ:
+CIA Triad Trade-offs:
 
-  機密性 ←─────→ 可用性
-   強い暗号化        迅速なアクセス
-   厳格な認証        利便性
-   アクセス制限       サービス継続
+  Confidentiality ←─────→ Availability
+   Strong encryption        Fast access
+   Strict authentication    Convenience
+   Access restrictions      Service continuity
 
       \               /
        \             /
         \           /
-         完全性
-         データの正確性
-         改ざん検知
-         監査証跡
+         Integrity
+         Data accuracy
+         Tamper detection
+         Audit trail
 
-トレードオフの例:
-- 暗号化を強化（機密性↑）→ パフォーマンス低下（可用性↓）
-- アクセス制限を緩和（可用性↑）→ 不正アクセスリスク増（機密性↓）
-- 監査ログ大量保存（完全性↑）→ ストレージ圧迫（可用性↓）
+Trade-off examples:
+- Strengthen encryption (Confidentiality↑) → Performance degradation (Availability↓)
+- Relax access restrictions (Availability↑) → Increased unauthorized access risk (Confidentiality↓)
+- Store large volumes of audit logs (Integrity↑) → Storage pressure (Availability↓)
 ```
 
-| 原則 | 脅威例 | 対策例 | 失敗時の影響 | 業界別重点 |
-|------|--------|--------|-------------|----------|
-| 機密性 | 不正アクセス、盗聴、内部犯行 | 暗号化、アクセス制御、DLP | 情報漏洩、プライバシー侵害、規制違反 | 金融、医療、政府 |
-| 完全性 | データ改ざん、MITM、マルウェア | ハッシュ、デジタル署名、バージョン管理 | 不正取引、信頼性喪失、法的問題 | 金融、製造、ヘルスケア |
-| 可用性 | DDoS、障害、災害、ランサムウェア | 冗長構成、CDN、BCP/DR、バックアップ | サービス停止、売上損失、SLA違反 | EC、SaaS、インフラ |
+| Principle | Threat Examples | Countermeasure Examples | Impact When Breached | Industry Priority |
+|-----------|-----------------|------------------------|----------------------|-------------------|
+| Confidentiality | Unauthorized access, eavesdropping, insider threats | Encryption, access control, DLP | Data leaks, privacy violations, regulatory breaches | Finance, healthcare, government |
+| Integrity | Data tampering, MITM, malware | Hashing, digital signatures, version control | Fraudulent transactions, loss of trust, legal issues | Finance, manufacturing, healthcare |
+| Availability | DDoS, failures, disasters, ransomware | Redundancy, CDN, BCP/DR, backups | Service outages, revenue losses, SLA violations | E-commerce, SaaS, infrastructure |
 
-### 業界別CIA優先度
+### Industry CIA Priorities
 
-| 業界 | 最優先 | 理由 |
-|------|--------|------|
-| 金融（銀行） | 完全性 | 取引データの正確性が生命線 |
-| 医療 | 可用性 | 緊急時にシステムが使えないと人命に関わる |
-| 軍事/政府 | 機密性 | 国家機密の保護が最優先 |
-| EC/小売 | 可用性 | サービス停止が直接の売上損失 |
-| 個人情報取扱 | 機密性 | GDPRや個人情報保護法への準拠 |
-| 製造/IoT | 完全性 | 制御データの改ざんが物理的被害に直結 |
+| Industry | Top Priority | Reason |
+|----------|-------------|--------|
+| Finance (banking) | Integrity | Accuracy of transaction data is critical |
+| Healthcare | Availability | System unavailability in emergencies can cost lives |
+| Military/government | Confidentiality | Protection of state secrets is the top priority |
+| E-commerce/retail | Availability | Service outages directly cause revenue losses |
+| Personal data handlers | Confidentiality | Compliance with GDPR and personal information protection laws |
+| Manufacturing/IoT | Integrity | Tampering with control data can cause physical harm |
 
 ---
 
-## 3. 追加のセキュリティ属性
+## 3. Additional Security Attributes
 
-CIA三原則に加えて、ISO 27001等で定義される以下の属性も重要視される。これらは「拡張CIA」とも呼ばれる。
+Beyond the CIA Triad, the following attributes defined in ISO 27001 and other standards are also important. These are sometimes called the "extended CIA."
 
 ```
 +-------------------------------------------------------------------+
-|                  拡張セキュリティ属性                                |
+|                  Extended Security Attributes                      |
 |                                                                   |
 |  +--------------+  +--------------+  +-----------+  +-----------+ |
 |  | 真正性       |  | 責任追跡性    |  | 否認防止   |  | 信頼性    | |
@@ -576,17 +580,17 @@ CIA三原則に加えて、ISO 27001等で定義される以下の属性も重�
 +-------------------------------------------------------------------+
 ```
 
-| 属性 | 説明 | 実現手段 | 実例 |
-|------|------|---------|------|
-| 真正性（Authenticity） | 情報の送信元が本物であること | デジタル署名、PKI、証明書検証 | メールのDKIM署名 |
-| 責任追跡性（Accountability） | 行為者を特定・追跡できること | 監査ログ、アクセスログ、SIEM | AWS CloudTrail |
-| 否認防止（Non-repudiation） | 行為を後から否定できないこと | タイムスタンプ、電子署名 | 電子契約サービス |
-| 信頼性（Reliability） | システムが一貫して期待通りに動作 | テスト、冗長設計、品質管理 | SLA 99.99% |
-| プライバシー | 個人情報の適切な取扱い | データ最小化、匿名化、同意管理 | GDPR準拠 |
-| 安全性（Safety） | 物理的な安全の確保 | フェイルセーフ設計、安全装置 | 産業制御システム |
+| Attribute | Description | Implementation | Example |
+|-----------|-------------|----------------|---------|
+| Authenticity | The source of information is genuine | Digital signatures, PKI, certificate validation | DKIM email signatures |
+| Accountability | Actors can be identified and traced | Audit logs, access logs, SIEM | AWS CloudTrail |
+| Non-repudiation | Actions cannot be denied after the fact | Timestamps, electronic signatures | Electronic contract services |
+| Reliability | The system operates consistently as expected | Testing, redundant design, quality management | SLA 99.99% |
+| Privacy | Appropriate handling of personal information | Data minimization, anonymization, consent management | GDPR compliance |
+| Safety | Ensuring physical safety | Fail-safe design, safety mechanisms | Industrial control systems |
 
 ```python
-# コード例5: 監査ログによる責任追跡性の実装
+# Code Example 5: Implementing accountability with audit logs
 import json
 import time
 import hashlib
@@ -698,71 +702,72 @@ print(f"ログ完全性: {integrity['integrity']}")
 
 ---
 
-## 4. 脅威の分類
+## 4. Threat Classification
 
-セキュリティ脅威を体系的に分類し理解することは、効果的な対策を立てるための前提である。
+Systematically classifying and understanding security threats is a prerequisite for implementing effective countermeasures.
 
-### 4.1 脅威の発生源による分類
+### 4.1 Classification by Threat Origin
 
 ```
 +-------------------------------------------------------------------+
-|                    脅威の分類体系                                    |
+|                    Threat Classification System                    |
 |                                                                   |
-|  +--- 外部脅威 ---+   +--- 内部脅威 ---+   +--- 環境脅威 ---+     |
-|  |                |   |                |   |                |     |
-|  | - APT          |   | - 内部犯行     |   | - 自然災害     |     |
-|  | - ランサムウェア |   | - 過失         |   | - 停電         |     |
-|  | - フィッシング  |   | - ソーシャル    |   | - 火災         |     |
-|  | - DDoS         |   |   エンジニア   |   | - パンデミック  |     |
-|  | - ゼロデイ     |   |   リング被害   |   | - 水害         |     |
-|  | - サプライ     |   | - BYOD        |   |                |     |
-|  |   チェーン     |   | - シャドーIT   |   |                |     |
-|  +----------------+   +----------------+   +----------------+     |
+|  +--- External ---+   +--- Internal ---+   +--- Environmental ---+|
+|  |                |   |                |   |                     ||
+|  | - APT          |   | - Insider      |   | - Natural disasters ||
+|  | - Ransomware   |   |   threats      |   | - Power outages     ||
+|  | - Phishing     |   | - Negligence   |   | - Fire              ||
+|  | - DDoS         |   | - Social       |   | - Pandemics         ||
+|  | - Zero-day     |   |   engineering  |   | - Flooding          ||
+|  | - Supply       |   |   victims      |   |                     ||
+|  |   chain        |   | - BYOD         |   |                     ||
+|  |   attacks      |   | - Shadow IT    |   |                     ||
+|  +----------------+   +----------------+   +---------------------+|
 |                                                                   |
-|  対策の方向性:                                                     |
-|  外部 → FW、IDS/IPS、脅威インテリジェンス                           |
-|  内部 → アクセス制御、DLP、教育訓練                                 |
-|  環境 → BCP/DR、冗長化、バックアップ                                |
+|  Mitigation directions:                                           |
+|  External → FW, IDS/IPS, threat intelligence                     |
+|  Internal → Access control, DLP, security training               |
+|  Environmental → BCP/DR, redundancy, backups                     |
 +-------------------------------------------------------------------+
 ```
 
-### 4.2 STRIDE脅威モデル
+### 4.2 STRIDE Threat Model
 
-STRIDE はMicrosoftが開発した脅威分類フレームワークで、6つのカテゴリで脅威を整理する。
+STRIDE is a threat classification framework developed by Microsoft that organizes threats into six categories.
 
-| カテゴリ | 英語名 | 脅かされるCIA属性 | 攻撃例 | 対策 |
-|---------|--------|-----------------|--------|------|
-| S: なりすまし | Spoofing | 真正性 | フィッシング、セッションハイジャック | MFA、証明書認証 |
-| T: 改ざん | Tampering | 完全性 | SQLインジェクション、MITM | ハッシュ、署名 |
-| R: 否認 | Repudiation | 否認防止 | ログの消去 | 監査ログ、署名 |
-| I: 情報漏洩 | Information Disclosure | 機密性 | ディレクトリリスティング | 暗号化、ACL |
-| D: サービス妨害 | Denial of Service | 可用性 | DDoS、リソース枯渇 | CDN、レートリミット |
-| E: 権限昇格 | Elevation of Privilege | 認可 | バッファオーバーフロー | 最小権限、サンドボックス |
+| Category | Name | Threatened CIA Attribute | Attack Examples | Countermeasures |
+|----------|------|--------------------------|-----------------|-----------------|
+| S: Spoofing | Spoofing | Authenticity | Phishing, session hijacking | MFA, certificate authentication |
+| T: Tampering | Tampering | Integrity | SQL injection, MITM | Hashing, signatures |
+| R: Repudiation | Repudiation | Non-repudiation | Log deletion | Audit logs, signatures |
+| I: Information Disclosure | Information Disclosure | Confidentiality | Directory listing | Encryption, ACL |
+| D: Denial of Service | Denial of Service | Availability | DDoS, resource exhaustion | CDN, rate limiting |
+| E: Elevation of Privilege | Elevation of Privilege | Authorization | Buffer overflow | Least privilege, sandboxing |
 
-詳細は [01-threat-modeling.md](./01-threat-modeling.md) で解説する。
+For details, see [01-threat-modeling.md](./01-threat-modeling.md).
 
 ---
 
-## 5. リスク評価
+## 5. Risk Assessment
 
-リスク評価は「何を守るべきか」「どの脅威が最も危険か」を定量的・定性的に判断するプロセスである。
+Risk assessment is the process of determining — both quantitatively and qualitatively — "what needs to be protected" and "which threats are most dangerous."
 
-### 5.1 リスクの計算式
+### 5.1 The Risk Formula
 
 ```
-リスク = 脅威 × 脆弱性 × 影響度
+Risk = Threat × Vulnerability × Impact
 
-  脅威（Threat）: 攻撃の発生可能性
-  脆弱性（Vulnerability）: 弱点の存在
-  影響度（Impact）: 攻撃成功時の被害
+  Threat: Likelihood of an attack occurring
+  Vulnerability: Existence of a weakness
+  Impact: Damage if the attack succeeds
 
-  リスク = 高 × 高 × 高 → 最優先で対処
-  リスク = 高 × 低 × 高 → 脆弱性緩和が効果的
-  リスク = 低 × 高 × 低 → 監視で十分
+  Risk = High × High × High → Address as top priority
+  Risk = High × Low × High → Vulnerability mitigation is effective
+  Risk = Low × High × Low → Monitoring is sufficient
 ```
 
 ```python
-# コード例6: リスクマトリクスの生成と可視化
+# Code Example 6: Generating and visualizing a risk matrix
 from dataclasses import dataclass
 from typing import List, Tuple
 
@@ -847,138 +852,138 @@ for risk in sorted(risks, key=lambda r: r.risk_score, reverse=True):
           f"推奨={risk.recommended_action}")
 ```
 
-### 5.2 定量的リスク評価 vs 定性的リスク評価
+### 5.2 Quantitative vs. Qualitative Risk Assessment
 
-| 特性 | 定量的評価 | 定性的評価 |
-|------|----------|----------|
-| 表現方法 | 金額（ALE = SLE x ARO） | レベル（高/中/低） |
-| 精度 | 高い（データに基づく） | 主観的（経験に基づく） |
-| コスト | 高い（データ収集が必要） | 低い（専門家判断で可能） |
-| 適用場面 | 経営判断、保険、投資対効果分析 | 初期評価、小規模プロジェクト |
-| 代表的手法 | ALE分析、モンテカルロ法 | リスクマトリクス、DREAD |
+| Characteristic | Quantitative Assessment | Qualitative Assessment |
+|----------------|------------------------|------------------------|
+| Expression | Monetary value (ALE = SLE × ARO) | Level (High/Medium/Low) |
+| Precision | High (data-driven) | Subjective (experience-based) |
+| Cost | High (data collection required) | Low (expert judgment sufficient) |
+| Use cases | Executive decisions, insurance, ROI analysis | Initial assessment, small projects |
+| Representative methods | ALE analysis, Monte Carlo | Risk matrix, DREAD |
 
 ---
 
-## 6. セキュリティフレームワーク
+## 6. Security Frameworks
 
-### 6.1 主要フレームワーク比較
+### 6.1 Major Framework Comparison
 
-| フレームワーク | 発行元 | 特徴 | 対象 | 認証 | コスト |
-|---------------|--------|------|------|------|-------|
-| NIST CSF | 米国NIST | 5つの機能、柔軟性が高い | 全業種 | なし | 無料 |
-| ISO 27001 | ISO/IEC | ISMS構築要求事項、国際標準 | 全業種（特に国際取引） | あり | 認証取得に費用要 |
-| CIS Controls | CIS | 優先順位付き具体的対策18項目 | IT運用チーム | なし | 無料 |
-| SOC 2 | AICPA | Trust Services Criteria | クラウドサービス提供者 | あり | 監査費用要 |
-| PCI DSS | PCI SSC | カード情報保護12要件 | 決済関連事業者 | あり | 準拠評価費用要 |
-| NIST SP 800-53 | 米国NIST | 包括的セキュリティ管理策 | 米国政府機関 | なし | 無料 |
+| Framework | Publisher | Characteristics | Target | Certification | Cost |
+|-----------|-----------|-----------------|--------|---------------|------|
+| NIST CSF | US NIST | Five functions, highly flexible | All industries | None | Free |
+| ISO 27001 | ISO/IEC | ISMS requirements, international standard | All industries (especially international trade) | Yes | Certification fees required |
+| CIS Controls | CIS | 18 prioritized, concrete controls | IT operations teams | None | Free |
+| SOC 2 | AICPA | Trust Services Criteria | Cloud service providers | Yes | Audit fees required |
+| PCI DSS | PCI SSC | 12 requirements for card data protection | Payment-related businesses | Yes | Compliance assessment fees required |
+| NIST SP 800-53 | US NIST | Comprehensive security controls | US government agencies | None | Free |
 
-### 6.2 NIST サイバーセキュリティフレームワーク 2.0
+### 6.2 NIST Cybersecurity Framework 2.0
 
 ```
-NIST CSF 2.0 の6つの機能（Governが追加）:
+NIST CSF 2.0 - Six Functions (Govern added):
 
                     +----------+
-                    | ガバナンス |
                     | Govern   |
                     +----+-----+
                          |
 +----------+    +--------v-+    +----------+
-|  特定    | -> |  防御    | -> |  検知    |
-| Identify |    | Protect  |    | Detect   |
+| Identify | -> | Protect  | -> | Detect   |
 +----------+    +----------+    +----------+
                                       |
 +----------+    +----------+          |
-|  復旧    | <- |  対応    | <--------+
-| Recover  |    | Respond  |
+| Recover  | <- | Respond  | <--------+
 +----------+    +----------+
 
-各機能は独立しておらず、ガバナンスが全体を統括する
+The functions are not independent; Govern oversees the entire cycle
 ```
 
-| 機能 | 目的 | 主な活動 | 成果物例 |
-|------|------|---------|---------|
-| ガバナンス（Govern） | 組織の方針と戦略 | リスクマネジメント戦略、役割定義 | セキュリティポリシー |
-| 特定（Identify） | 資産・リスクの把握 | 資産管理、リスク評価、環境分析 | 資産台帳、リスク登録簿 |
-| 防御（Protect） | 脅威からの保護 | アクセス制御、暗号化、教育訓練 | アクセス制御基準 |
-| 検知（Detect） | 異常の検出 | 監視、ログ分析、侵入検知 | SIEM設定、アラートルール |
-| 対応（Respond） | インシデント対応 | 分析、封じ込め、通知、報告 | インシデント対応手順 |
-| 復旧（Recover） | 事業の復旧 | 復旧計画実行、改善活動 | DR計画、復旧手順 |
+| Function | Purpose | Key Activities | Deliverable Examples |
+|----------|---------|----------------|----------------------|
+| Govern | Organizational policy and strategy | Risk management strategy, role definitions | Security policy |
+| Identify | Understanding assets and risks | Asset management, risk assessment, environment analysis | Asset inventory, risk register |
+| Protect | Protection from threats | Access control, encryption, training | Access control standards |
+| Detect | Anomaly detection | Monitoring, log analysis, intrusion detection | SIEM configuration, alert rules |
+| Respond | Incident response | Analysis, containment, notification, reporting | Incident response procedures |
+| Recover | Business recovery | Recovery plan execution, improvement activities | DR plan, recovery procedures |
 
 ---
 
-## 7. セキュリティの実践的アプローチ
+## 7. Practical Security Approaches
 
-### 7.1 多層防御（Defense in Depth）
+### 7.1 Defense in Depth
 
-単一の防御に依存せず、複数の独立した防御層を重ねて攻撃の成功率を下げる戦略。城の防御に例えると、堀・城壁・門番・兵士・天守閣の多層構造に相当する。
+A strategy of layering multiple independent defenses rather than relying on a single protection mechanism, reducing the probability of a successful attack. Analogous to the layered defenses of a castle: moat, walls, gatekeepers, soldiers, and keep.
 
 ```
-多層防御モデル（外側から内側へ）:
+Defense in Depth Model (outer to inner):
 
 +------------------------------------------------------------------+
-|  L1: 物理セキュリティ（入退室管理、施錠、監視カメラ）                |
+|  L1: Physical Security (access control, locks, surveillance)      |
 |  +------------------------------------------------------------+  |
-|  |  L2: ネットワーク（FW、IDS/IPS、セグメンテーション、VPN）     |  |
+|  |  L2: Network (FW, IDS/IPS, segmentation, VPN)             |  |
 |  |  +------------------------------------------------------+  |  |
-|  |  |  L3: ホスト（OS強化、AV/EDR、パッチ管理、HIDS）        |  |  |
+|  |  |  L3: Host (OS hardening, AV/EDR, patch mgmt, HIDS)   |  |  |
 |  |  |  +--------------------------------------------------+|  |  |
-|  |  |  |  L4: アプリ（入力検証、認証、認可、暗号化、WAF）    ||  |  |
+|  |  |  |  L4: Application (input validation, authn, authz, ||  |  |
+|  |  |  |                   encryption, WAF)                ||  |  |
 |  |  |  |  +----------------------------------------------+||  |  |
-|  |  |  |  |  L5: データ（暗号化、分類、DLP、バックアップ）  |||  |  |
+|  |  |  |  |  L5: Data (encryption, classification, DLP,   |||  |  |
+|  |  |  |  |           backups)                            |||  |  |
 |  |  |  |  +----------------------------------------------+||  |  |
 |  |  |  +--------------------------------------------------+|  |  |
 |  |  +------------------------------------------------------+  |  |
 |  +------------------------------------------------------------+  |
 +------------------------------------------------------------------+
 
-攻撃者は全ての層を突破しなければデータに到達できない
-各層は独立して動作し、1つが突破されても残りが防御する
+An attacker must breach all layers to reach the data
+Each layer operates independently; if one is breached, the rest continue to defend
 ```
 
-### 7.2 セキュリティ開発ライフサイクル（SDL）
+### 7.2 Security Development Lifecycle (SDL)
 
 ```
-SDL の各フェーズ:
+SDL Phases:
 
-  要件定義        設計           実装           テスト         運用
+  Requirements    Design        Implementation  Testing       Operations
   +----------+  +----------+  +----------+  +----------+  +----------+
-  | セキュリ |  | 脅威モデ  |  | セキュア  |  | 脆弱性   |  | 監視     |
-  | ティ要件 |->| リング   |->| コーディ |->| スキャン  |->| パッチ   |
-  | 定義     |  | レビュー  |  | ング     |  | ペンテスト|  | 管理     |
+  | Security |  | Threat   |  | Secure   |  | Vuln.    |  | Monitor- |
+  | require- |->| modeling |->| coding   |->| scanning |->| ing      |
+  | ments    |  | & review |  |          |  | Pentest  |  | Patch    |
   +----------+  +----------+  +----------+  +----------+  +----------+
        |             |             |             |             |
-  リスク評価    アーキテクチャ  SAST/SCA      DAST/IAST    インシデント
-  コンプライ   セキュリティ   コードレビュー  レッドチーム   対応
-  アンス確認   パターン       依存性管理     バグバウンティ  BCP/DR
+  Risk assess.  Architecture  SAST/SCA      DAST/IAST    Incident
+  Compliance    security      Code review   Red team     response
+  check         patterns      Dep. mgmt.    Bug bounty   BCP/DR
 ```
 
-### 7.3 ゼロトラストアーキテクチャ
+### 7.3 Zero Trust Architecture
 
-「社内ネットワーク = 安全」という前提を捨て、すべてのアクセスを検証するアプローチ。
+An approach that abandons the assumption that "internal networks are safe" and verifies every access request.
 
 ```
-従来の境界防御:                    ゼロトラスト:
+Traditional perimeter defense:          Zero Trust:
 
-  +--- 外部(危険) ---+              +--+    +--+    +--+
-  |                  |              |検|    |検|    |検|
-  |  FW  +-- 内部 --|              |証| -> |証| -> |証|
-  |  ==  | (安全)   |              +--+    +--+    +--+
-  |      +----------|              毎回     毎回    毎回
-  +------------------+              検証    検証    検証
-
-  FWが破られると内部は無防備        すべてのアクセスで認証・認可
+  +--- External (dangerous) ---+          +--+    +--+    +--+
+  |                            |          |Ve|    |Ve|    |Ve|
+  |  FW  +--- Internal --------|          |ri| -> |ri| -> |ri|
+  |  ==  |  (safe)             |          |fy|    |fy|    |fy|
+  |      +---------------------|          +--+    +--+    +--+
+  +----------------------------+         Every   Every   Every
+                                         request request request
+  Once FW is breached, the              Authentication & authorization
+  interior is defenseless               on every access
 ```
 
-詳細は [02-security-principles.md](./02-security-principles.md) で解説する。
+For details, see [02-security-principles.md](./02-security-principles.md).
 
 ---
 
-## 8. セキュリティメトリクス
+## 8. Security Metrics
 
-セキュリティの効果を測定するための指標。「測定できないものは管理できない」の原則に基づく。
+Indicators for measuring the effectiveness of security. Based on the principle: "You can't manage what you can't measure."
 
 ```python
-# コード例7: セキュリティメトリクスダッシュボード
+# Code Example 7: Security metrics dashboard
 from dataclasses import dataclass, field
 from typing import List, Dict
 from datetime import datetime, timedelta
@@ -1074,11 +1079,11 @@ print(metrics.generate_report())
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### アンチパターン1: セキュリティ後付け（Bolt-on Security）
+### Anti-pattern 1: Bolt-on Security
 
-開発完了後にセキュリティを追加しようとするパターン。設計段階からセキュリティを組み込む「Security by Design」が正しいアプローチである。
+Attempting to add security after development is complete. The correct approach is "Security by Design" — building security in from the design stage.
 
 ```python
 # NG: 後からセキュリティを追加
@@ -1119,9 +1124,9 @@ class UserServiceGood:
             raise ValueError("特殊文字を含める必要があります")
 ```
 
-### アンチパターン2: 単一防御線への依存（Single Point of Security）
+### Anti-pattern 2: Single Point of Security
 
-ファイアウォールだけ、暗号化だけ、WAFだけに頼るパターン。1つの防御が突破されると全てが失われる。
+Relying only on a firewall, only on encryption, or only on a WAF. If a single defense is breached, everything is lost.
 
 ```python
 # NG: ファイアウォールだけに依存
@@ -1160,9 +1165,9 @@ class SecureApp:
         return self.sanitize_output(result)
 ```
 
-### アンチパターン3: セキュリティ・スルー・オブスキュリティ
+### Anti-pattern 3: Security Through Obscurity
 
-秘密であることだけに依存するセキュリティ。カスタムの暗号アルゴリズム、推測しにくいURL、ソースコードの非公開だけに頼る考え方。
+Relying solely on secrecy — custom encryption algorithms, hard-to-guess URLs, or keeping source code closed — as the primary security mechanism.
 
 ```python
 # NG: 秘密のURLだけで保護
@@ -1182,79 +1187,79 @@ def admin_panel_secure():
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1（基礎）: CIA三原則の分析
+### Exercise 1 (Basic): CIA Triad Analysis
 
-以下のセキュリティインシデントについて、CIA三原則のどれが脅かされているか分類し、適切な対策を提案してください。
+For each of the following security incidents, classify which element(s) of the CIA Triad are threatened and propose appropriate countermeasures.
 
-1. ランサムウェアがファイルサーバーを暗号化し、業務データにアクセスできなくなった
-2. 社員が顧客リストを個人のUSBドライブにコピーして持ち出した
-3. 攻撃者がWebサイトの価格表を改ざんし、商品が100円で購入できるようになった
-4. DDoS攻撃によりECサイトが3時間ダウンした
-5. 開発者がGitHubの公開リポジトリにAPIキーをコミットした
+1. Ransomware encrypted the file server, making business data inaccessible
+2. An employee copied a customer list to a personal USB drive and took it outside
+3. An attacker tampered with a website's price list, making products purchasable for 100 yen
+4. A DDoS attack took down an e-commerce site for 3 hours
+5. A developer committed an API key to a public GitHub repository
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
-1. **ランサムウェアによるファイル暗号化**
-   - 脅かされるCIA: **可用性**（データにアクセスできない）+ **機密性**（データが窃取される可能性）
-   - 対策:
-     - 定期的なオフラインバックアップ（3-2-1ルール）
-     - EDR/EPPの導入
-     - ネットワークセグメンテーション
-     - ユーザー教育（フィッシング対策）
-     - インシデント対応手順の策定
+1. **Ransomware file encryption**
+   - CIA threatened: **Availability** (data is inaccessible) + **Confidentiality** (data may be exfiltrated)
+   - Countermeasures:
+     - Regular offline backups (3-2-1 rule)
+     - Deploy EDR/EPP
+     - Network segmentation
+     - User education (phishing countermeasures)
+     - Establish incident response procedures
 
-2. **顧客リストの持ち出し**
-   - 脅かされるCIA: **機密性**（許可されていない者がデータにアクセス）
-   - 対策:
-     - DLP（Data Loss Prevention）の導入
-     - USBポートの無効化/制限
-     - ファイルアクセスの監査ログ
-     - データ分類ポリシーの策定
-     - 退職時のアクセス権限の即時無効化
+2. **Customer list exfiltration**
+   - CIA threatened: **Confidentiality** (unauthorized parties accessed data)
+   - Countermeasures:
+     - Deploy DLP (Data Loss Prevention)
+     - Disable/restrict USB ports
+     - File access audit logs
+     - Establish data classification policy
+     - Immediately revoke access rights upon employee departure
 
-3. **価格表の改ざん**
-   - 脅かされるCIA: **完全性**（データが不正に変更された）
-   - 対策:
-     - Webアプリケーションの入力バリデーション
-     - WAFの導入
-     - データベースの変更監査ログ
-     - 重要データの変更にはダブルチェック（4-eyes principle）
-     - バージョン管理とロールバック機能
+3. **Price list tampering**
+   - CIA threatened: **Integrity** (data was modified without authorization)
+   - Countermeasures:
+     - Input validation for web applications
+     - Deploy WAF
+     - Database change audit logs
+     - Double-check for critical data changes (four-eyes principle)
+     - Version control and rollback capability
 
-4. **DDoS攻撃によるダウン**
-   - 脅かされるCIA: **可用性**（サービスが利用できない）
-   - 対策:
-     - CDNの利用（CloudFlare、AWS Shield等）
-     - レートリミットの設定
-     - オートスケーリングの設定
-     - DDoS対策サービスの導入
-     - 冗長構成（マルチリージョン）
+4. **DDoS attack causing downtime**
+   - CIA threatened: **Availability** (service is unavailable)
+   - Countermeasures:
+     - Use CDN (CloudFlare, AWS Shield, etc.)
+     - Configure rate limiting
+     - Configure auto-scaling
+     - Adopt DDoS mitigation services
+     - Redundant configuration (multi-region)
 
-5. **APIキーの公開**
-   - 脅かされるCIA: **機密性**（秘密情報が公開された）
-   - 対策:
-     - pre-commitフックによるシークレット検出（git-secrets、truffleHog）
-     - 環境変数やシークレット管理サービスの使用（AWS Secrets Manager等）
-     - APIキーの即時ローテーション
-     - GitHubのシークレットスキャン機能の有効化
-     - .gitignoreの適切な設定
+5. **API key exposure**
+   - CIA threatened: **Confidentiality** (secret information was made public)
+   - Countermeasures:
+     - Detect secrets with pre-commit hooks (git-secrets, truffleHog)
+     - Use environment variables or secret management services (AWS Secrets Manager, etc.)
+     - Immediately rotate the API key
+     - Enable GitHub secret scanning
+     - Proper .gitignore configuration
 </details>
 
-### 演習2（応用）: リスク評価ツールの実装
+### Exercise 2 (Applied): Implementing a Risk Assessment Tool
 
-以下の要件を満たすリスク評価ツールを実装してください。
+Implement a risk assessment tool that meets the following requirements:
 
-1. リスク項目を登録できる（名前、脅威レベル、脆弱性レベル、影響度、各1-5）
-2. リスクスコアを自動計算する
-3. リスクレベル（Critical/High/Medium/Low）を判定する
-4. 優先順位順にソートしてレポートを出力する
-5. 対策ステータス（未対策/対策中/対策済み）を管理できる
+1. Register risk items (name, threat level, vulnerability level, impact — each 1–5)
+2. Automatically calculate risk scores
+3. Determine risk level (Critical/High/Medium/Low)
+4. Sort by priority and output a report
+5. Manage mitigation status (Not started / In progress / Completed)
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```python
 from dataclasses import dataclass, field
@@ -1397,161 +1402,161 @@ print(tool.generate_report())
 ```
 </details>
 
-### 演習3（発展）: セキュリティフレームワーク適用計画
+### Exercise 3 (Advanced): Security Framework Application Plan
 
-あなたの組織がクラウドベースのSaaSサービスを提供するスタートアップ（社員50名）だとします。顧客から「SOC 2 Type II 監査レポート」の提出を求められました。以下を策定してください。
+Suppose your organization is a cloud-based SaaS startup with 50 employees. A customer has asked you to submit a "SOC 2 Type II audit report." Draft the following:
 
-1. SOC 2の5つのTrust Services Criteria（TSC）と自社の現状ギャップを分析する
-2. 各TSCに対する具体的な対策を最低3つ提案する
-3. 実装の優先順位とタイムライン（6ヶ月計画）を作成する
+1. Analyze the gap between your current state and SOC 2's five Trust Services Criteria (TSC)
+2. Propose at least three specific countermeasures for each TSC
+3. Create an implementation priority order and timeline (6-month plan)
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
-**1. Trust Services Criteria と現状ギャップ分析**
+**1. Trust Services Criteria and Current State Gap Analysis**
 
-| TSC | 基準 | 想定される現状 | ギャップ |
-|-----|------|-------------|---------|
-| Security（セキュリティ） | 不正アクセスからの保護 | 基本的なFW、パスワード認証あり | MFA未導入、IDSなし、脆弱性管理なし |
-| Availability（可用性） | サービスの安定稼働 | 単一リージョン、手動復旧 | DR計画なし、SLA未定義、冗長化不足 |
-| Processing Integrity（処理の完全性） | データ処理の正確性 | 基本的なバリデーションあり | 監査証跡不足、変更管理プロセスなし |
-| Confidentiality（機密性） | 機密データの保護 | HTTPS通信 | データ分類なし、保存時暗号化なし、DLPなし |
-| Privacy（プライバシー） | 個人情報の適切な管理 | プライバシーポリシーあり | データマッピング不足、同意管理不備 |
+| TSC | Standard | Assumed Current State | Gap |
+|-----|----------|-----------------------|-----|
+| Security | Protection from unauthorized access | Basic FW, password authentication in place | MFA not deployed, no IDS, no vulnerability management |
+| Availability | Stable service operation | Single region, manual recovery | No DR plan, SLA undefined, insufficient redundancy |
+| Processing Integrity | Accuracy of data processing | Basic validation in place | Insufficient audit trail, no change management process |
+| Confidentiality | Protection of confidential data | HTTPS communication | No data classification, no encryption at rest, no DLP |
+| Privacy | Appropriate handling of personal information | Privacy policy in place | Insufficient data mapping, inadequate consent management |
 
-**2. 各TSCの対策（各3つ以上）**
+**2. Countermeasures for Each TSC (3+ each)**
 
 Security:
-- MFAの全社導入（Google Workspace + Okta）
-- 脆弱性スキャナーの導入（Snyk + Trivy）
-- セキュリティ意識教育プログラムの実施（四半期ごと）
-- WAFの導入（AWS WAF）
+- Deploy MFA company-wide (Google Workspace + Okta)
+- Introduce vulnerability scanners (Snyk + Trivy)
+- Implement security awareness training program (quarterly)
+- Deploy WAF (AWS WAF)
 
 Availability:
-- マルチAZ構成への移行
-- DR計画の策定とテスト
-- SLA定義（99.9%目標）とステータスページ
-- 自動スケーリングの設定
+- Migrate to multi-AZ configuration
+- Establish and test DR plan
+- Define SLA (99.9% target) and create status page
+- Configure auto-scaling
 
 Processing Integrity:
-- CI/CDパイプラインでの自動テスト
-- データベース変更の監査ログ
-- 変更管理プロセス（RFC）の導入
+- Automated testing in CI/CD pipeline
+- Database change audit logs
+- Introduce change management process (RFC)
 
 Confidentiality:
-- データ分類ポリシーの策定と実施
-- 保存時暗号化（AWS KMS）
-- DLP の導入（Google Workspace DLP）
+- Establish and enforce data classification policy
+- Encryption at rest (AWS KMS)
+- Deploy DLP (Google Workspace DLP)
 
 Privacy:
-- データマッピングとRoPA作成
-- プライバシー影響評価（PIA）の実施
-- 同意管理プラットフォームの導入
+- Create data mapping and RoPA
+- Conduct Privacy Impact Assessment (PIA)
+- Deploy consent management platform
 
-**3. 6ヶ月タイムライン**
+**3. 6-Month Timeline**
 
 ```
-Month 1-2: 基盤整備
-  - セキュリティポリシー策定
-  - データ分類ポリシー策定
-  - MFA導入（最優先）
-  - 脆弱性スキャナー導入
+Month 1-2: Foundation
+  - Establish security policy
+  - Establish data classification policy
+  - Deploy MFA (top priority)
+  - Introduce vulnerability scanner
 
-Month 3-4: 技術的対策
-  - 保存時暗号化の実装
-  - WAF導入
-  - マルチAZ移行
-  - 監査ログの整備
+Month 3-4: Technical controls
+  - Implement encryption at rest
+  - Deploy WAF
+  - Migrate to multi-AZ
+  - Set up audit logs
 
-Month 5-6: プロセスと監査準備
-  - 変更管理プロセス導入
-  - セキュリティ教育プログラム実施
-  - DR計画策定とテスト
-  - SOC 2 Type I の事前評価（Readiness Assessment）
+Month 5-6: Process & audit preparation
+  - Introduce change management process
+  - Conduct security training program
+  - Establish and test DR plan
+  - Pre-assessment for SOC 2 Type I (Readiness Assessment)
 ```
 
-この6ヶ月計画完了後、SOC 2 Type I 監査を受け、更に6-12ヶ月の運用実績を積んでType II 監査に臨む流れが標準的である。
+After completing this 6-month plan, undergo SOC 2 Type I audit, then accumulate an additional 6–12 months of operational history before proceeding to Type II audit — this is the standard approach.
 </details>
 
 ---
 
 ## FAQ
 
-### Q1: CIA三原則の中で最も重要なのはどれですか?
+### Q1: Which element of the CIA Triad is most important?
 
-業種やシステムによって優先度は異なる。金融系では完全性（取引データの正確性）、医療系では可用性（緊急時のシステム利用）、個人情報を扱うシステムでは機密性が重視される傾向がある。重要なのは、自組織のコンテキストに応じてバランスを取ることであり、1つの要素だけに偏らないことである。
+Priority varies by industry and system. Finance systems tend to prioritize integrity (accuracy of transaction data), healthcare systems prioritize availability (system access in emergencies), and systems handling personal data prioritize confidentiality. What matters is striking a balance appropriate to your organization's context — not overweighting any single element.
 
-### Q2: セキュリティフレームワークはどれを選べばよいですか?
+### Q2: Which security framework should I choose?
 
-組織の規模、業種、規制要件によって異なる。以下が一般的な選択フローである:
-- **まず NIST CSF** で全体像を把握（無料、柔軟）
-- **国際取引がある場合**: ISO 27001 認証の取得を検討
-- **クレジットカード処理**: PCI DSS 準拠は必須
-- **SaaS事業者**: SOC 2 認証が顧客から求められることが多い
-- **IT運用チーム向け**: CIS Controls で具体的な対策リストを参照
+It depends on the organization's size, industry, and regulatory requirements. Here is a general decision flow:
+- **Start with NIST CSF** for a comprehensive overview (free, flexible)
+- **For international transactions**: Consider pursuing ISO 27001 certification
+- **For credit card processing**: PCI DSS compliance is mandatory
+- **For SaaS providers**: SOC 2 certification is frequently required by customers
+- **For IT operations teams**: Refer to CIS Controls for a concrete list of actions
 
-### Q3: リスク評価はどの頻度で行うべきですか?
+### Q3: How often should risk assessments be conducted?
 
-最低でも年1回の定期的な見直しに加え、以下のタイミングでも実施すべきである:
-- システムの大規模変更時
-- 新規サービス・機能のリリース前
-- 新しい脅威や脆弱性の発見時
-- セキュリティインシデント発生後
-- 組織の合併・買収時
-- 法規制の変更時
+At a minimum, a periodic review should be conducted at least once a year, with additional assessments at the following times:
+- Major system changes
+- Before launching new services or features
+- Upon discovery of new threats or vulnerabilities
+- After a security incident
+- During mergers or acquisitions
+- When regulations change
 
-### Q4: セキュリティ対策のROI（投資対効果）はどう計算しますか?
+### Q4: How do you calculate the ROI of security controls?
 
-定量的には ALE（年間損失予測額）の削減額と対策コストを比較する。
+Quantitatively, compare the reduction in ALE (Annual Loss Expectancy) with the cost of controls.
 
 ```
-ROI = (対策前ALE - 対策後ALE - 年間対策コスト) / 年間対策コスト x 100%
+ROI = (ALE before controls - ALE after controls - Annual control cost) / Annual control cost × 100%
 
-ALE = SLE(単一損失予測額) x ARO(年間発生率)
+ALE = SLE (Single Loss Expectancy) × ARO (Annual Rate of Occurrence)
 
-例: SQLインジェクション対策
-  SLE: $500,000（データ漏洩時の損害額）
-  ARO: 0.3（年間30%の確率で発生）
-  対策前ALE: $150,000
-  対策後ALE: $15,000（ARO を 0.03 に低減）
-  年間対策コスト: $30,000
-  ROI = (150,000 - 15,000 - 30,000) / 30,000 x 100% = 350%
+Example: SQL injection mitigation
+  SLE: $500,000 (damage from a data breach)
+  ARO: 0.3 (30% probability of occurrence per year)
+  ALE before controls: $150,000
+  ALE after controls: $15,000 (ARO reduced to 0.03)
+  Annual control cost: $30,000
+  ROI = (150,000 - 15,000 - 30,000) / 30,000 × 100% = 350%
 ```
 
-### Q5: 小規模組織でもセキュリティフレームワークは必要ですか?
+### Q5: Do small organizations need security frameworks?
 
-規模に関わらず、体系的なアプローチは必要である。ただし、小規模組織では以下のように簡略化できる:
-- CIS Controls の Implementation Group 1（IG1: 基本的な56のセーフガード）から始める
-- NIST CSF の Core を参考に、最低限の資産管理とリスク評価を実施
-- 全てを完璧にする必要はなく、リスクベースで優先順位をつけて段階的に実施
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| CIA三原則 | 機密性・完全性・可用性のバランスが情報セキュリティの基盤。業界により優先度は異なる |
-| 拡張属性 | 真正性・責任追跡性・否認防止・信頼性も含めた包括的なセキュリティ確保が必要 |
-| 脅威分類 | STRIDE等のフレームワークで体系的に脅威を特定・分類する |
-| リスク評価 | 脅威 x 脆弱性 x 影響度でリスクを定量化し、対策の優先順位を決定する |
-| フレームワーク | NIST CSF, ISO 27001, CIS Controls 等を組織の要件に応じて選択する |
-| 多層防御 | 複数の独立した防御層を重ねて、単一障害点を排除する |
-| SDL | 開発ライフサイクルの全フェーズにセキュリティ活動を統合する |
-| メトリクス | MTTR、脆弱性密度等の指標でセキュリティの効果を継続的に測定する |
+Regardless of size, a systematic approach is necessary. However, small organizations can simplify as follows:
+- Start with CIS Controls Implementation Group 1 (IG1: 56 basic safeguards)
+- Use the NIST CSF Core as a reference for minimum asset management and risk assessment
+- There is no need to do everything perfectly — prioritize based on risk and implement incrementally
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [01-threat-modeling.md](./01-threat-modeling.md) -- STRIDE、DREAD、アタックツリーを用いた脅威モデリングの詳細
-- [02-security-principles.md](./02-security-principles.md) -- 最小権限、ゼロトラスト、セキュアバイデフォルト等の設計原則
-- [../01-web-security/00-owasp-top10.md](../01-web-security/00-owasp-top10.md) -- Webセキュリティの具体的な脆弱性と対策
-- [../../../authentication-and-authorization/docs/00-fundamentals/](../../../authentication-and-authorization/docs/00-fundamentals/) -- 認証・認可の基礎（CIA三原則の機密性に直結）
-- [../02-cryptography/](../02-cryptography/) -- 暗号技術の詳細（CIA三原則の機密性・完全性の実装手段）
+| Topic | Key Points |
+|-------|-----------|
+| CIA Triad | Balance of confidentiality, integrity, and availability forms the foundation of information security; priorities differ by industry |
+| Extended attributes | Comprehensive security requires authenticity, accountability, non-repudiation, and reliability in addition to CIA |
+| Threat classification | Use frameworks like STRIDE to systematically identify and classify threats |
+| Risk assessment | Quantify risk as Threat × Vulnerability × Impact and determine countermeasure priorities |
+| Frameworks | Select from NIST CSF, ISO 27001, CIS Controls, etc., based on organizational requirements |
+| Defense in depth | Layer multiple independent defenses to eliminate single points of failure |
+| SDL | Integrate security activities across every phase of the development lifecycle |
+| Metrics | Continuously measure security effectiveness using indicators like MTTR and vulnerability density |
 
 ---
 
-## 参考文献
+## Recommended Next Reading
+
+- [01-threat-modeling.md](./01-threat-modeling.md) -- Detailed threat modeling using STRIDE, DREAD, and attack trees
+- [02-security-principles.md](./02-security-principles.md) -- Design principles such as least privilege, zero trust, and secure by default
+- [../01-web-security/00-owasp-top10.md](../01-web-security/00-owasp-top10.md) -- Specific web security vulnerabilities and countermeasures
+- [../../../authentication-and-authorization/docs/00-fundamentals/](../../../authentication-and-authorization/docs/00-fundamentals/) -- Authentication and authorization fundamentals (directly related to the confidentiality aspect of CIA)
+- [../02-cryptography/](../02-cryptography/) -- Cryptographic technology details (implementation means for confidentiality and integrity in CIA)
+
+---
+
+## References
 
 1. NIST Cybersecurity Framework 2.0 -- https://www.nist.gov/cyberframework
 2. ISO/IEC 27001:2022 Information security management systems -- https://www.iso.org/standard/27001
