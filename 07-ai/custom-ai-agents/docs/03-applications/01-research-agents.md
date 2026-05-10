@@ -1,95 +1,95 @@
-# リサーチエージェント
+# Research Agents
 
-> 情報収集・分析・要約――複数の情報源から自律的にデータを収集し、構造化されたリサーチレポートを生成するエージェントの設計と実装。
+> Information gathering, analysis, and summarization — design and implementation of agents that autonomously collect data from multiple sources and generate structured research reports.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. リサーチエージェントの情報収集パイプラインと多段階フィルタリングの設計
-2. Web検索・文書解析・データ統合の実装パターン
-3. 信頼性の高いリサーチ出力のための検証と引用管理の仕組み
-4. 専門分野別のリサーチエージェント実装
-5. 大規模情報の要約・統合テクニック
+1. Information gathering pipeline and multi-stage filtering design for research agents
+2. Implementation patterns for web search, document parsing, and data integration
+3. Mechanisms for validation and citation management to produce reliable research output
+4. Research agent implementations for specific domains
+5. Techniques for summarizing and integrating large volumes of information
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+The following knowledge will help you get more out of this guide:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [コーディングエージェント](./00-coding-agents.md) の内容を理解していること
-
----
-
-## 1. リサーチエージェントの全体像
-
-```
-リサーチエージェントのパイプライン
-
-[目標設定]
-    |
-    v
-[クエリ生成] -- 目標を複数の検索クエリに分解
-    |
-    v
-[情報収集] -- Web検索、DB検索、文書読み取り
-    |            +-- 検索エンジン
-    |            +-- 学術論文DB (Semantic Scholar等)
-    |            +-- 社内ドキュメント
-    |            +-- API / データベース
-    v
-[フィルタリング] -- 関連性・信頼性の評価
-    |
-    v
-[分析・統合] -- 情報の構造化、矛盾の解決
-    |
-    v
-[レポート生成] -- 構造化された出力、引用付き
-    |
-    v
-[品質チェック] -- 事実確認、バイアスチェック
-```
-
-### 1.1 リサーチの深度レベル
-
-```
-リサーチの深度スペクトラム
-
-Level 1: クイック調査（1-2分）
-  - 検索1-2回
-  - 上位結果のスニペットのみ
-  - 用途: 事実確認、定義確認
-
-Level 2: 標準調査（5-10分）
-  - 検索3-5回
-  - 2-3ページの詳細読み込み
-  - クロスチェック1回
-  - 用途: 一般的な調査、ブリーフィング
-
-Level 3: 深掘り調査（15-30分）
-  - 検索5-10回
-  - 5+ページの詳細読み込み
-  - 学術論文の調査
-  - 複数回のクロスチェック
-  - 用途: 意思決定支援、詳細レポート
-
-Level 4: 包括的調査（1-2時間）
-  - 多段階のリサーチサイクル
-  - 10+ページの詳細読み込み
-  - 学術論文の精読
-  - データの定量分析
-  - 専門家意見の調査
-  - 用途: 戦略レポート、市場調査
-```
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Coding Agents](./00-coding-agents.md)
 
 ---
 
-## 2. 基本的なリサーチエージェント
+## 1. Overview of Research Agents
 
-### 2.1 完全な実装
+```
+Research Agent Pipeline
+
+[Goal Setting]
+    |
+    v
+[Query Generation] -- Decompose goal into multiple search queries
+    |
+    v
+[Information Gathering] -- Web search, DB search, document reading
+    |            +-- Search engines
+    |            +-- Academic paper DBs (Semantic Scholar, etc.)
+    |            +-- Internal documents
+    |            +-- APIs / Databases
+    v
+[Filtering] -- Evaluate relevance and reliability
+    |
+    v
+[Analysis & Integration] -- Structuring information, resolving contradictions
+    |
+    v
+[Report Generation] -- Structured output with citations
+    |
+    v
+[Quality Check] -- Fact verification, bias check
+```
+
+### 1.1 Research Depth Levels
+
+```
+Research Depth Spectrum
+
+Level 1: Quick Survey (1-2 minutes)
+  - 1-2 searches
+  - Top result snippets only
+  - Use case: fact checking, definition lookup
+
+Level 2: Standard Survey (5-10 minutes)
+  - 3-5 searches
+  - Detailed reading of 2-3 pages
+  - 1 cross-check
+  - Use case: general research, briefings
+
+Level 3: Deep Dive (15-30 minutes)
+  - 5-10 searches
+  - Detailed reading of 5+ pages
+  - Academic paper research
+  - Multiple cross-checks
+  - Use case: decision support, detailed reports
+
+Level 4: Comprehensive Survey (1-2 hours)
+  - Multi-stage research cycles
+  - Detailed reading of 10+ pages
+  - Close reading of academic papers
+  - Quantitative data analysis
+  - Expert opinion research
+  - Use case: strategy reports, market research
+```
+
+---
+
+## 2. Basic Research Agent
+
+### 2.1 Complete Implementation
 
 ```python
-# リサーチエージェントの実装
+# Research agent implementation
 import anthropic
 import json
 from dataclasses import dataclass, field
@@ -153,7 +153,7 @@ class ResearchAgent:
         ]
 
     def research(self, topic: str, depth: str = "standard") -> str:
-        """トピックについてリサーチを実行"""
+        """Execute research on a topic"""
         system_prompt = f"""あなたは優秀なリサーチアナリストです。
 以下のルールに従ってリサーチを実施してください:
 
@@ -204,7 +204,7 @@ class ResearchAgent:
             })
             messages.append({"role": "user", "content": tool_results})
 
-        return "リサーチが完了できませんでした"
+        return "Research could not be completed"
 
     def _execute_tool(self, name: str, args: dict) -> str:
         if name == "web_search":
@@ -217,10 +217,10 @@ class ResearchAgent:
             return self._search_papers(
                 args["query"], args.get("year_from")
             )
-        return "不明なツール"
+        return "Unknown tool"
 
     def _web_search(self, query: str, num_results: int) -> str:
-        # 実際にはSerpAPI、Google Custom Search等を使用
+        # In practice, use SerpAPI, Google Custom Search, etc.
         pass
 
     def _read_webpage(self, url: str) -> str:
@@ -249,39 +249,39 @@ class ResearchAgent:
         )
 ```
 
-### 2.2 多段階リサーチ
+### 2.2 Multi-Stage Research
 
 ```python
-# 深いリサーチのための多段階パイプライン
+# Multi-stage pipeline for deep research
 class DeepResearchAgent:
     def research(self, topic: str) -> str:
-        # Phase 1: 広く浅く調査
+        # Phase 1: Broad and shallow survey
         overview = self._broad_search(topic)
 
-        # Phase 2: 重要テーマを特定
+        # Phase 2: Identify key themes
         key_themes = self._identify_themes(overview)
 
-        # Phase 3: 各テーマを深掘り
+        # Phase 3: Deep dive into each theme
         detailed_findings = {}
         for theme in key_themes:
             detailed_findings[theme] = self._deep_dive(theme)
 
-        # Phase 4: 統合レポート生成
+        # Phase 4: Generate integrated report
         report = self._synthesize(topic, detailed_findings)
 
-        # Phase 5: 事実確認
+        # Phase 5: Fact checking
         verified_report = self._fact_check(report)
 
         return verified_report
 ```
 
-### 2.3 構造化出力付きリサーチ
+### 2.3 Research with Structured Output
 
 ```python
 from pydantic import BaseModel, Field
 
 class ResearchFinding(BaseModel):
-    """個別の調査結果"""
+    """Individual research finding"""
     claim: str = Field(description="主張・事実")
     evidence: str = Field(description="根拠")
     source_url: str = Field(description="情報源URL")
@@ -290,7 +290,7 @@ class ResearchFinding(BaseModel):
     )
 
 class ResearchReport(BaseModel):
-    """構造化されたリサーチレポート"""
+    """Structured research report"""
     title: str
     executive_summary: str = Field(description="要約（300字以内）")
     key_findings: list[ResearchFinding]
@@ -299,7 +299,7 @@ class ResearchReport(BaseModel):
     recommendations: list[str] = Field(description="推奨事項")
 
 class StructuredResearchAgent:
-    """構造化出力を返すリサーチエージェント"""
+    """Research agent that returns structured output"""
 
     def __init__(self):
         self.client = anthropic.Anthropic()
@@ -310,17 +310,17 @@ class StructuredResearchAgent:
         topic: str,
         depth: str = "standard"
     ) -> ResearchReport:
-        """構造化されたリサーチレポートを生成"""
-        # Phase 1: 通常のリサーチ実行
+        """Generate a structured research report"""
+        # Phase 1: Run standard research
         raw_report = self.base_agent.research(topic, depth)
 
-        # Phase 2: 構造化されたJSONに変換
+        # Phase 2: Convert to structured JSON
         structured = await self._structurize(raw_report)
 
         return structured
 
     async def _structurize(self, raw_report: str) -> ResearchReport:
-        """生のレポートを構造化形式に変換"""
+        """Convert raw report to structured format"""
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
@@ -357,29 +357,29 @@ JSON形式に変換してください。
 
 ---
 
-## 3. 情報の信頼性評価
+## 3. Evaluating Information Reliability
 
-### 3.1 信頼性ピラミッド
+### 3.1 Reliability Pyramid
 
 ```
-情報源の信頼性ピラミッド
+Source Reliability Pyramid
 
          /\
-        /  \     一次資料（論文、公式データ）
-       /    \    信頼度: 最高
+        /  \     Primary sources (papers, official data)
+       /    \    Reliability: Highest
       /------\
-     /        \   二次資料（ニュース記事、専門メディア）
-    /          \  信頼度: 高
+     /        \   Secondary sources (news articles, specialized media)
+    /          \  Reliability: High
    /------------\
-  /              \ 三次資料（ブログ、SNS、Wikipedia）
- /                \ 信頼度: 中-低
+  /              \ Tertiary sources (blogs, social media, Wikipedia)
+ /                \ Reliability: Medium-Low
 /------------------\
 ```
 
-### 3.2 信頼性スコアリングの実装
+### 3.2 Reliability Scoring Implementation
 
 ```python
-# 情報源の信頼性スコアリング
+# Source reliability scoring
 class SourceReliabilityScorer:
     DOMAIN_SCORES = {
         "arxiv.org": 0.9,
@@ -397,34 +397,34 @@ class SourceReliabilityScorer:
         "twitter.com": 0.2,
     }
 
-    # ドメインカテゴリ別デフォルトスコア
+    # Default scores by domain category
     CATEGORY_SCORES = {
-        ".gov": 0.85,     # 政府機関
-        ".edu": 0.8,      # 教育機関
-        ".org": 0.6,      # 非営利団体
-        ".ac.jp": 0.8,    # 日本の大学
-        ".go.jp": 0.85,   # 日本の政府機関
+        ".gov": 0.85,     # Government agencies
+        ".edu": 0.8,      # Educational institutions
+        ".org": 0.6,      # Non-profit organizations
+        ".ac.jp": 0.8,    # Japanese universities
+        ".go.jp": 0.85,   # Japanese government agencies
     }
 
     def score(self, url: str, content: str) -> float:
-        """情報源の信頼性をスコアリング"""
+        """Score the reliability of a source"""
         from urllib.parse import urlparse
         domain = urlparse(url).netloc
 
-        # ドメインベースのスコア
+        # Domain-based score
         domain_score = self._get_domain_score(domain)
 
-        # 引用の有無
+        # Presence of citations
         has_citations = any(
             marker in content
             for marker in ["[1]", "参考文献", "References", "doi:"]
         )
         citation_bonus = 0.1 if has_citations else 0
 
-        # 日付の新しさ
+        # Recency of date
         recency_bonus = self._check_recency(content)
 
-        # コンテンツの質的指標
+        # Content quality indicators
         quality_bonus = self._assess_content_quality(content)
 
         return min(
@@ -433,29 +433,29 @@ class SourceReliabilityScorer:
         )
 
     def _get_domain_score(self, domain: str) -> float:
-        """ドメインからスコアを取得"""
-        # 完全一致
+        """Get score from domain"""
+        # Exact match
         if domain in self.DOMAIN_SCORES:
             return self.DOMAIN_SCORES[domain]
 
-        # サブドメインチェック
+        # Subdomain check
         for known_domain, score in self.DOMAIN_SCORES.items():
             if domain.endswith(f".{known_domain}"):
                 return score
 
-        # カテゴリチェック
+        # Category check
         for suffix, score in self.CATEGORY_SCORES.items():
             if domain.endswith(suffix):
                 return score
 
-        return 0.5  # デフォルト
+        return 0.5  # Default
 
     def _check_recency(self, content: str) -> float:
-        """コンテンツの新しさを評価"""
+        """Evaluate recency of content"""
         import re
         from datetime import datetime
 
-        # 年号のパターンを検出
+        # Detect year patterns
         years = re.findall(r'20[12]\d', content)
         if years:
             latest_year = max(int(y) for y in years)
@@ -468,35 +468,35 @@ class SourceReliabilityScorer:
             elif diff <= 3:
                 return 0.0
             else:
-                return -0.05  # 古い情報はペナルティ
+                return -0.05  # Penalty for old information
         return 0.0
 
     def _assess_content_quality(self, content: str) -> float:
-        """コンテンツの質的指標を評価"""
+        """Evaluate qualitative indicators of content"""
         bonus = 0.0
 
-        # データや数値の含有率
+        # Density of data and numbers
         import re
         numbers = re.findall(r'\d+\.?\d*%|\$[\d,]+|\d{4}年', content)
         if len(numbers) > 5:
             bonus += 0.05
 
-        # 構造化されたコンテンツ
+        # Structured content
         if content.count('\n') > 20:
             bonus += 0.02
 
-        # 長さ（詳細な記事ほど信頼性が高い傾向）
+        # Length (longer articles tend to be more reliable)
         if len(content) > 3000:
             bonus += 0.03
 
         return min(bonus, 0.1)
 ```
 
-### 3.3 クロスチェックの実装
+### 3.3 Cross-Check Implementation
 
 ```python
 class CrossChecker:
-    """複数ソース間のクロスチェックを実施"""
+    """Performs cross-checking across multiple sources"""
 
     def __init__(self, llm_client):
         self.client = llm_client
@@ -506,7 +506,7 @@ class CrossChecker:
         claim: str,
         sources: list[dict]
     ) -> dict:
-        """主張を複数ソースでクロスチェック"""
+        """Cross-check a claim against multiple sources"""
         supporting = []
         contradicting = []
         neutral = []
@@ -522,7 +522,7 @@ class CrossChecker:
             else:
                 neutral.append(source)
 
-        # 信頼度の計算
+        # Calculate confidence
         total_weight = sum(
             s.get("reliability", 0.5)
             for s in supporting + contradicting
@@ -559,7 +559,7 @@ class CrossChecker:
     async def _check_alignment(
         self, claim: str, content: str
     ) -> dict:
-        """コンテンツが主張を支持するか判定"""
+        """Determine whether content supports the claim"""
         response = self.client.messages.create(
             model="claude-haiku-4-20250514",
             max_tokens=200,
@@ -579,17 +579,17 @@ JSON形式で回答:
 
 ---
 
-## 4. 専門分野別リサーチエージェント
+## 4. Domain-Specific Research Agents
 
-### 4.1 市場調査エージェント
+### 4.1 Market Research Agent
 
 ```python
 class MarketResearchAgent(ResearchAgent):
-    """市場調査に特化したリサーチエージェント"""
+    """Research agent specialized in market research"""
 
     def __init__(self):
         super().__init__()
-        # 市場調査専用ツールを追加
+        # Add market research-specific tools
         self.tools.extend([
             {
                 "name": "search_industry_report",
@@ -634,7 +634,7 @@ class MarketResearchAgent(ResearchAgent):
         industry: str,
         region: str = "global"
     ) -> str:
-        """包括的な市場分析を実施"""
+        """Conduct a comprehensive market analysis"""
         return self.research(
             topic=f"""
 {industry} の市場分析（地域: {region}）
@@ -657,7 +657,7 @@ class MarketResearchAgent(ResearchAgent):
         target_company: str,
         competitors: list[str]
     ) -> str:
-        """競合分析を実施"""
+        """Conduct competitive analysis"""
         competitor_list = ", ".join(competitors)
         return self.research(
             topic=f"""
@@ -679,18 +679,18 @@ class MarketResearchAgent(ResearchAgent):
         )
 ```
 
-### 4.2 学術リサーチエージェント
+### 4.2 Academic Research Agent
 
 ```python
 class AcademicResearchAgent(ResearchAgent):
-    """学術論文の調査に特化したエージェント"""
+    """Agent specialized in academic paper research"""
 
     def literature_review(
         self,
         topic: str,
         year_range: tuple[int, int] = (2020, 2025)
     ) -> str:
-        """文献レビューを実施"""
+        """Conduct a literature review"""
         return self.research(
             topic=f"""
 学術文献レビュー: {topic}
@@ -729,7 +729,7 @@ Semantic Scholar での論文検索を活用してください。
         paper_title: str,
         paper_abstract: str
     ) -> str:
-        """関連研究を調査"""
+        """Research related work"""
         return self.research(
             topic=f"""
 以下の論文の関連研究を調査してください。
@@ -752,18 +752,18 @@ Semantic Scholar での論文検索を活用してください。
         )
 ```
 
-### 4.3 技術調査エージェント
+### 4.3 Technology Research Agent
 
 ```python
 class TechResearchAgent(ResearchAgent):
-    """技術調査に特化したエージェント"""
+    """Agent specialized in technology research"""
 
     def technology_comparison(
         self,
         technologies: list[str],
         criteria: list[str]
     ) -> str:
-        """技術比較調査"""
+        """Technology comparison research"""
         tech_list = ", ".join(technologies)
         criteria_list = ", ".join(criteria)
 
@@ -794,7 +794,7 @@ GitHubスター数、NPMダウンロード数などの
         technology: str,
         version: str
     ) -> str:
-        """セキュリティ脆弱性の調査"""
+        """Research security vulnerabilities"""
         return self.research(
             topic=f"""
 {technology} v{version} のセキュリティ脆弱性調査
@@ -816,48 +816,48 @@ NVD、GitHub Security Advisory等を
 
 ---
 
-## 5. リサーチパターン比較
+## 5. Research Pattern Comparison
 
-### 5.1 リサーチ戦略比較
+### 5.1 Research Strategy Comparison
 
-| 戦略 | 深さ | 時間 | コスト | 適用場面 |
-|------|------|------|--------|---------|
-| 広浅検索 | 低 | 短 | 低 | 概要把握 |
-| 深掘り検索 | 高 | 長 | 中 | 特定トピック調査 |
-| 多段階リサーチ | 高 | 最長 | 高 | 包括的レポート |
-| 比較調査 | 中 | 中 | 中 | 選択肢の比較 |
-| トレンド分析 | 中 | 中-長 | 中 | 時系列変化の把握 |
-| 文献レビュー | 最高 | 最長 | 最高 | 学術研究 |
+| Strategy | Depth | Time | Cost | Use Case |
+|----------|-------|------|------|----------|
+| Broad-shallow search | Low | Short | Low | Overview |
+| Deep-dive search | High | Long | Medium | Specific topic research |
+| Multi-stage research | High | Longest | High | Comprehensive reports |
+| Comparative research | Medium | Medium | Medium | Comparing options |
+| Trend analysis | Medium | Medium-Long | Medium | Tracking changes over time |
+| Literature review | Highest | Longest | Highest | Academic research |
 
-### 5.2 出力形式比較
+### 5.2 Output Format Comparison
 
-| 形式 | 用途 | 長さ | 含むもの |
-|------|------|------|---------|
-| サマリー | 迅速な情報共有 | 100-300字 | 要点3-5個 |
-| ブリーフィング | 意思決定支援 | 500-1000字 | 要点+根拠+推奨 |
-| レポート | 詳細分析 | 2000-5000字 | 全セクション+引用 |
-| データシート | 定量比較 | 表形式 | 数値+比較表 |
-| ホワイトペーパー | 深い洞察 | 5000-15000字 | 分析+図表+引用 |
+| Format | Use Case | Length | Contents |
+|--------|----------|--------|----------|
+| Summary | Quick information sharing | 100-300 words | 3-5 key points |
+| Briefing | Decision support | 500-1000 words | Key points + rationale + recommendations |
+| Report | Detailed analysis | 2000-5000 words | All sections + citations |
+| Data sheet | Quantitative comparison | Tabular | Numbers + comparison tables |
+| White paper | Deep insights | 5000-15000 words | Analysis + charts + citations |
 
-### 5.3 情報源の比較
+### 5.3 Source Comparison
 
-| 情報源 | 信頼性 | 最新性 | アクセス | 用途 |
-|--------|--------|--------|---------|------|
-| 学術論文 | 最高 | 中 | Semantic Scholar | 基礎研究 |
-| 公式ドキュメント | 高 | 高 | 直接アクセス | 技術調査 |
-| ニュースメディア | 中-高 | 最高 | Web検索 | トレンド |
-| 業界レポート | 高 | 中 | 有料/Web | 市場調査 |
-| ブログ/SNS | 低-中 | 高 | Web検索 | 実践知 |
-| 政府統計 | 最高 | 低-中 | 公開データ | 定量分析 |
+| Source | Reliability | Recency | Access | Use Case |
+|--------|-------------|---------|--------|----------|
+| Academic papers | Highest | Medium | Semantic Scholar | Foundational research |
+| Official documentation | High | High | Direct access | Technical research |
+| News media | Medium-High | Highest | Web search | Trends |
+| Industry reports | High | Medium | Paid/Web | Market research |
+| Blogs/Social media | Low-Medium | High | Web search | Practical knowledge |
+| Government statistics | Highest | Low-Medium | Public data | Quantitative analysis |
 
 ---
 
-## 6. 引用管理
+## 6. Citation Management
 
-### 6.1 引用管理システム
+### 6.1 Citation Management System
 
 ```python
-# 引用管理システム
+# Citation management system
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -878,7 +878,7 @@ class CitationManager:
         self._counter = 0
 
     def add(self, title: str, url: str, **kwargs) -> str:
-        """引用を追加し、参照番号を返す"""
+        """Add a citation and return the reference number"""
         self._counter += 1
         citation = Citation(
             id=self._counter, title=title, url=url, **kwargs
@@ -887,8 +887,8 @@ class CitationManager:
         return f"[{self._counter}]"
 
     def format_references(self) -> str:
-        """参考文献セクションを生成"""
-        lines = ["## 参考文献\n"]
+        """Generate a references section"""
+        lines = ["## References\n"]
         for c in self.citations:
             line = f"[{c.id}] {c.title}"
             if c.author:
@@ -900,14 +900,14 @@ class CitationManager:
         return "\n".join(lines)
 
     def get_citation(self, citation_id: int) -> Citation | None:
-        """IDで引用を取得"""
+        """Retrieve a citation by ID"""
         for c in self.citations:
             if c.id == citation_id:
                 return c
         return None
 
     def verify_all_cited(self, report: str) -> list[int]:
-        """レポート内で引用されていないソースを検出"""
+        """Detect sources not cited in the report"""
         import re
         cited_ids = set(
             int(m) for m in re.findall(r'\[(\d+)\]', report)
@@ -917,7 +917,7 @@ class CitationManager:
         return sorted(uncited)
 
     def export_bibtex(self) -> str:
-        """BibTeX形式でエクスポート"""
+        """Export in BibTeX format"""
         entries = []
         for c in self.citations:
             entry = f"""@misc{{ref{c.id},
@@ -933,32 +933,32 @@ class CitationManager:
 
 ---
 
-## 7. 並列リサーチ
+## 7. Parallel Research
 
-### 7.1 アーキテクチャ
+### 7.1 Architecture
 
 ```
-並列リサーチのアーキテクチャ
+Parallel Research Architecture
 
-                    [トピック分解]
+                    [Topic Decomposition]
                     /     |     \
                    v      v      v
-            [サブトピック1] [サブトピック2] [サブトピック3]
+            [Subtopic 1] [Subtopic 2] [Subtopic 3]
                    |      |      |
                    v      v      v
-            [検索+読取]  [検索+読取]  [検索+読取]
+            [Search+Read] [Search+Read] [Search+Read]
                    \      |      /
                     v     v     v
-                    [結果統合]
+                    [Result Integration]
                        |
                        v
-                    [レポート生成]
+                    [Report Generation]
 ```
 
-### 7.2 非同期並列リサーチの実装
+### 7.2 Async Parallel Research Implementation
 
 ```python
-# 非同期並列リサーチ
+# Async parallel research
 import asyncio
 
 class ParallelResearchAgent:
@@ -971,14 +971,14 @@ class ParallelResearchAgent:
         topic: str,
         sub_topics: list[str]
     ) -> str:
-        """サブトピックを並列に調査"""
+        """Research subtopics in parallel"""
         tasks = [
             self._research_with_limit(sub)
             for sub in sub_topics
         ]
         results = await asyncio.gather(*tasks)
 
-        # 結果を統合
+        # Integrate results
         combined = "\n\n".join(
             f"## {topic}\n{result}"
             for topic, result in zip(sub_topics, results)
@@ -987,12 +987,12 @@ class ParallelResearchAgent:
         return await self._synthesize_report(topic, combined)
 
     async def _research_with_limit(self, subtopic: str) -> str:
-        """同時実行数を制限してリサーチ"""
+        """Research with concurrency limit"""
         async with self.semaphore:
             return await self._research_subtopic(subtopic)
 
     async def _research_subtopic(self, subtopic: str) -> str:
-        """個別のサブトピックを調査"""
+        """Research an individual subtopic"""
         search_results = await self._async_search(subtopic)
         relevant_pages = await self._filter_and_read(search_results)
         return await self._summarize(subtopic, relevant_pages)
@@ -1002,7 +1002,7 @@ class ParallelResearchAgent:
         topic: str,
         combined_findings: str
     ) -> str:
-        """全サブトピックの結果を統合レポートにまとめる"""
+        """Synthesize all subtopic results into an integrated report"""
         response = await self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
@@ -1031,13 +1031,13 @@ class ParallelResearchAgent:
 
 ---
 
-## 8. 大規模情報の要約テクニック
+## 8. Summarization Techniques for Large Volumes of Information
 
-### 8.1 Map-Reduce要約パターン
+### 8.1 Map-Reduce Summarization Pattern
 
 ```python
 class MapReduceSummarizer:
-    """大量テキストのMap-Reduce要約"""
+    """Map-Reduce summarization for large volumes of text"""
 
     def __init__(self, llm_client, chunk_size: int = 3000):
         self.client = llm_client
@@ -1048,9 +1048,9 @@ class MapReduceSummarizer:
         documents: list[str],
         final_prompt: str
     ) -> str:
-        """Map-Reduceパターンで大量文書を要約"""
+        """Summarize large document sets using Map-Reduce pattern"""
 
-        # Map: 各文書を個別に要約
+        # Map: Summarize each document individually
         chunk_summaries = []
         for doc in documents:
             chunks = self._split_into_chunks(doc)
@@ -1058,9 +1058,9 @@ class MapReduceSummarizer:
                 summary = await self._summarize_chunk(chunk)
                 chunk_summaries.append(summary)
 
-        # Reduce: チャンク要約を統合
+        # Reduce: Integrate chunk summaries
         while len(chunk_summaries) > 1:
-            # 3-5個ずつ統合
+            # Merge 3-5 at a time
             batches = [
                 chunk_summaries[i:i+4]
                 for i in range(0, len(chunk_summaries), 4)
@@ -1070,14 +1070,14 @@ class MapReduceSummarizer:
                 for batch in batches
             ]
 
-        # Final: 最終要約
+        # Final: Generate final summary
         final = await self._finalize(
             chunk_summaries[0], final_prompt
         )
         return final
 
     def _split_into_chunks(self, text: str) -> list[str]:
-        """テキストをチャンクに分割"""
+        """Split text into chunks"""
         words = text.split()
         chunks = []
         current = []
@@ -1097,7 +1097,7 @@ class MapReduceSummarizer:
         return chunks
 
     async def _summarize_chunk(self, chunk: str) -> str:
-        """個別チャンクを要約"""
+        """Summarize an individual chunk"""
         response = await self.client.messages.create(
             model="claude-haiku-4-20250514",
             max_tokens=500,
@@ -1109,7 +1109,7 @@ class MapReduceSummarizer:
         return response.content[0].text
 
     async def _merge_summaries(self, summaries: list[str]) -> str:
-        """複数の要約を統合"""
+        """Merge multiple summaries"""
         combined = "\n---\n".join(summaries)
         response = await self.client.messages.create(
             model="claude-haiku-4-20250514",
@@ -1122,28 +1122,28 @@ class MapReduceSummarizer:
         return response.content[0].text
 ```
 
-### 8.2 Refine要約パターン
+### 8.2 Refine Summarization Pattern
 
 ```python
 class RefineSummarizer:
-    """逐次的に要約を改善していくパターン"""
+    """Pattern that iteratively improves summaries"""
 
     async def summarize(
         self,
         documents: list[str],
         topic: str
     ) -> str:
-        """Refineパターンで要約を逐次改善"""
+        """Iteratively improve summaries using Refine pattern"""
         current_summary = ""
 
         for i, doc in enumerate(documents):
             if i == 0:
-                # 最初の文書から初期要約を作成
+                # Create initial summary from the first document
                 current_summary = await self._initial_summary(
                     doc, topic
                 )
             else:
-                # 新しい文書の情報で要約を改善
+                # Improve summary with information from new document
                 current_summary = await self._refine_summary(
                     current_summary, doc, topic
                 )
@@ -1153,7 +1153,7 @@ class RefineSummarizer:
     async def _initial_summary(
         self, doc: str, topic: str
     ) -> str:
-        """初期要約の作成"""
+        """Create initial summary"""
         response = await self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=1000,
@@ -1176,7 +1176,7 @@ class RefineSummarizer:
         new_doc: str,
         topic: str
     ) -> str:
-        """新しい情報で要約を改善"""
+        """Improve summary with new information"""
         response = await self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=1000,
@@ -1202,101 +1202,100 @@ class RefineSummarizer:
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### アンチパターン1: 検索結果の鵜呑み
+### Anti-Pattern 1: Blindly Trusting Search Results
 
 ```python
-# NG: 最初の検索結果をそのまま使用
-results = search("AI市場規模")
-return results[0]["snippet"]  # 古い or 不正確な可能性
+# BAD: Use the first search result as-is
+results = search("AI market size")
+return results[0]["snippet"]  # May be outdated or inaccurate
 
-# OK: 複数ソースでクロスチェック
-results = search("AI市場規模 2025")
+# GOOD: Cross-check with multiple sources
+results = search("AI market size 2025")
 page1 = read(results[0]["url"])
 page2 = read(results[1]["url"])
 page3 = read(results[2]["url"])
-# 3つのソースで一致する情報のみ採用
+# Only accept information that is consistent across all 3 sources
 ```
 
-### アンチパターン2: バイアスのある検索
+### Anti-Pattern 2: Biased Search
 
 ```python
-# NG: 結論に合う情報だけ探す
-search("AIエージェント 問題点")  # ネガティブな情報のみ
+# BAD: Only look for information that supports a conclusion
+search("AI agents problems")  # Only negative information
 
-# OK: バランスの取れた調査
-search("AIエージェント 利点 メリット")
-search("AIエージェント 課題 限界")
-search("AIエージェント 事例 成功")
-search("AIエージェント 失敗 教訓")
+# GOOD: Balanced research
+search("AI agents benefits advantages")
+search("AI agents challenges limitations")
+search("AI agents case studies success")
+search("AI agents failures lessons")
 ```
 
-### アンチパターン3: 引用なしのリサーチ
+### Anti-Pattern 3: Research Without Citations
 
 ```
-# NG: ソースを記載せずにファクトを記述
-"AIエージェント市場は2025年に1000億ドルに達する見込みです。"
+# BAD: State facts without sources
+"The AI agent market is expected to reach $100 billion in 2025."
 
-# OK: 必ず引用を付ける
-"AIエージェント市場は2025年に1000億ドルに達する見込みです [1]。"
+# GOOD: Always include citations
+"The AI agent market is expected to reach $100 billion in 2025 [1]."
 [1] Gartner, "AI Agent Market Forecast", 2024
 ```
 
-### アンチパターン4: 古い情報の無検証な使用
+### Anti-Pattern 4: Using Outdated Information Without Verification
 
 ```
-# NG: 日付を確認せずに情報を使用
-"ChatGPTの月間アクティブユーザーは1億人です"  # 2023年のデータかも
+# BAD: Use information without checking its date
+"ChatGPT has 100 million monthly active users"  # May be 2023 data
 
-# OK: 日付を明記し、最新性を確認
-"2025年1月時点で、ChatGPTの月間アクティブユーザーは
-約3億人と報告されている [1]。なお、この数値は急速に
-変化する可能性がある。"
+# GOOD: Specify the date and verify recency
+"As of January 2025, ChatGPT's monthly active users are reported to be
+approximately 300 million [1]. Note that this figure may change rapidly."
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement appropriate error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
             raise ValueError("入力値がNoneです")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1314,17 +1313,17 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following functionality.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1332,7 +1331,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1343,14 +1342,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1358,7 +1357,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1366,13 +1365,13 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
@@ -1383,27 +1382,27 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1412,7 +1411,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1434,40 +1433,40 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be conscious of algorithmic complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Misconfigured config file | Verify config file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Growing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check executing user permissions, review settings |
+| Data inconsistency | Concurrency conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Stepwise verification**: Use log output or a debugger to validate hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1475,7 +1474,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator to log function input and output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
         logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
@@ -1491,86 +1490,86 @@ def debug_decorator(func):
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
         raise ValueError("空のデータ")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check I/O waits**: Review disk and network I/O status
+4. **Check concurrent connections**: Review connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem Type | Diagnostic Tool | Solution |
+|--------------|----------------|----------|
+| CPU load | cProfile, py-spy | Algorithm improvements, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | Prioritize when | Can compromise when |
+|-----------|----------------|---------------------|
+| Performance | Real-time processing, large-scale data | Admin interfaces, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│          Architecture Selection Flow             │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                      │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to 2              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. How frequent are deployments?               │
+│    ├─ Weekly or less → Monolith + modules       │
+│    └─ Daily/multiple times → Go to 3            │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How much team independence is needed?       │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A fast approach in the short term can become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction improves reusability but can make debugging harder
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Create an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1580,17 +1579,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1598,7 +1597,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1606,15 +1605,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1623,85 +1622,85 @@ class ArchitectureDecisionRecord:
 
 ## 10. FAQ
 
-### Q1: リサーチエージェントの精度を上げるには？
+### Q1: How can I improve the accuracy of a research agent?
 
-- **クエリの多様化**: 同じトピックを異なる角度から検索
-- **ソースの多様化**: Web、論文、公式ドキュメント等を組み合わせ
-- **クロスチェック**: 重要な事実は3つ以上のソースで確認
-- **新しさの重視**: 日付の新しい情報を優先
-- **構造化出力**: JSON等の構造化形式で一貫性を確保
+- **Diversify queries**: Search the same topic from different angles
+- **Diversify sources**: Combine web, papers, official documentation, etc.
+- **Cross-check**: Verify important facts with 3 or more sources
+- **Prioritize recency**: Prefer more recently dated information
+- **Structured output**: Use structured formats like JSON for consistency
 
-### Q2: ハルシネーション（でっち上げ）の防止策は？
+### Q2: How do I prevent hallucination (making things up)?
 
-- **引用必須**: すべての事実にソースURLを紐付け
-- **検索結果の原文引用**: パラフレーズでなく原文を引用
-- **「見つからなかった」の許容**: 情報がない場合は正直に報告
-- **数値の慎重な扱い**: 統計データは必ず原典を確認
-- **自信度の表明**: 不確実な情報には信頼度を付記
+- **Require citations**: Associate every fact with a source URL
+- **Quote original text from search results**: Quote the original rather than paraphrasing
+- **Allow "not found"**: Report honestly when information is not available
+- **Handle numbers carefully**: Always verify statistical data against the original source
+- **Express confidence levels**: Annotate uncertain information with a confidence score
 
-### Q3: 大量の情報をどう要約するか？
+### Q3: How do I summarize large volumes of information?
 
-Map-Reduceパターンが有効:
-1. **Map**: 各ページを個別に要約（200-300字）
-2. **Reduce**: 個別要約を統合して最終要約を生成
-3. **Refine**: 最終要約を目標に照らして改善
+The Map-Reduce pattern is effective:
+1. **Map**: Summarize each page individually (200-300 words)
+2. **Reduce**: Integrate individual summaries to generate a final summary
+3. **Refine**: Improve the final summary against the objective
 
-これにより、コンテキストウィンドウの制限内で大量情報を処理可能。
+This allows processing large amounts of information within the context window limit.
 
-### Q4: リアルタイムデータの扱い方は？
+### Q4: How should real-time data be handled?
 
-- **タイムスタンプの明記**: 全データに取得日時を記録
-- **鮮度の警告**: 古いデータには「N日前の情報」と注記
-- **更新頻度の設定**: 定期的にリサーチを再実行するスケジュール
-- **キャッシュ戦略**: 変化の少ない情報はキャッシュ、頻繁に変化する情報は毎回取得
+- **Record timestamps**: Record retrieval date/time for all data
+- **Freshness warnings**: Annotate older data with "information from N days ago"
+- **Set update frequency**: Schedule periodic re-runs of research
+- **Caching strategy**: Cache slowly-changing information; always fetch rapidly-changing information
 
-### Q5: コスト最適化のコツは？
+### Q5: What are tips for cost optimization?
 
-- **深度の適切な設定**: 全てのリサーチをdeepにする必要はない
-- **モデルの使い分け**: 要約にはHaiku、分析にはSonnet/Opus
-- **キャッシュの活用**: 同じ検索クエリの結果をキャッシュ
-- **並列化の制御**: 同時実行数を制限してAPIコストを管理
-- **段階的な深掘り**: まず浅く調査し、必要な部分だけ深掘り
+- **Set appropriate depth**: Not every research task needs to be "deep"
+- **Use the right model**: Use Haiku for summarization, Sonnet/Opus for analysis
+- **Leverage caching**: Cache results for the same search queries
+- **Control parallelism**: Limit concurrent executions to manage API costs
+- **Progressive deep-diving**: Start with a shallow survey and only deep-dive where needed
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just from theory but from actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
-|------|------|
-| パイプライン | クエリ生成->収集->フィルタ->分析->レポート |
-| 信頼性 | 情報源のスコアリング + クロスチェック |
-| 引用管理 | すべての事実にソースを紐付け |
-| 並列化 | サブトピックごとに並列調査 |
-| 要約手法 | Map-Reduce / Refine パターン |
-| 品質保証 | 複数ソース照合、バイアス排除 |
-| 専門分野 | 市場調査、学術研究、技術調査 |
-| 核心原則 | 「正確さ」>「網羅性」>「速度」 |
+| Item | Content |
+|------|---------|
+| Pipeline | Query generation -> Collection -> Filtering -> Analysis -> Report |
+| Reliability | Source scoring + cross-checking |
+| Citation management | Associate every fact with a source |
+| Parallelization | Parallel research per subtopic |
+| Summarization techniques | Map-Reduce / Refine patterns |
+| Quality assurance | Multi-source verification, bias elimination |
+| Specialized domains | Market research, academic research, technology research |
+| Core principle | "Accuracy" > "Comprehensiveness" > "Speed" |
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [02-customer-support.md](./02-customer-support.md) -- カスタマーサポートエージェント
-- [03-data-agents.md](./03-data-agents.md) -- データ分析エージェント
-- [../01-patterns/01-multi-agent.md](../01-patterns/01-multi-agent.md) -- マルチエージェントでの協調リサーチ
+- [02-customer-support.md](./02-customer-support.md) -- Customer support agents
+- [03-data-agents.md](./03-data-agents.md) -- Data analysis agents
+- [../01-patterns/01-multi-agent.md](../01-patterns/01-multi-agent.md) -- Collaborative research with multi-agents
 
-## 参考文献
+## References
 
 1. Nakano, R. et al., "WebGPT: Browser-assisted question-answering with human feedback" (2022) -- https://arxiv.org/abs/2112.09332
 2. Trivedi, H. et al., "Interleaving Retrieval with Chain-of-Thought Reasoning for Knowledge-Intensive Multi-Step Questions" (2023) -- https://arxiv.org/abs/2212.10509
