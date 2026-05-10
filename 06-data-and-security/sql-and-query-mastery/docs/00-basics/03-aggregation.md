@@ -1,67 +1,67 @@
-# 集約 -- GROUP BY・HAVING・集約関数
+# Aggregation -- GROUP BY, HAVING, and Aggregate Functions
 
-> 集約操作は複数行のデータを要約して単一の値に変換する処理であり、レポーティングや分析クエリの基盤となる。集約関数はSQL標準で定義された基本操作であり、GROUP BYやHAVINGと組み合わせることで、あらゆるビジネスレポートの土台を構築できる。
+> Aggregation operations summarize multiple rows of data into a single value, forming the foundation of reporting and analytical queries. Aggregate functions are defined in the SQL standard and, combined with GROUP BY and HAVING, provide the building blocks for any business report.
 
-## 前提知識
+## Prerequisites
 
-- SELECT / WHERE / FROM の基本構文（01-select.md）
-- データ型（数値型、文字列型、日付型）の基礎知識
-- NULL の概念と三値論理の理解
+- Basic syntax of SELECT / WHERE / FROM (01-select.md)
+- Foundational knowledge of data types (numeric, string, date)
+- Understanding of NULL and three-valued logic
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. 主要な集約関数（COUNT, SUM, AVG, MIN, MAX）の動作と内部実装の理解
-2. GROUP BYとHAVINGの正しい使い方と実行順序の完全理解
-3. GROUPING SETS、ROLLUP、CUBEによる多次元集約
-4. 統計関数（STDDEV, VARIANCE, PERCENTILE）と文字列・配列集約
-5. 集約クエリのパフォーマンス最適化と実行計画の読み方
-6. RDBMS間の集約関数の互換性と移植時の注意点
+1. How major aggregate functions (COUNT, SUM, AVG, MIN, MAX) work and their internal implementation
+2. Correct usage of GROUP BY and HAVING, and a complete understanding of execution order
+3. Multi-dimensional aggregation with GROUPING SETS, ROLLUP, and CUBE
+4. Statistical functions (STDDEV, VARIANCE, PERCENTILE) and string/array aggregation
+5. Performance optimization of aggregate queries and how to read execution plans
+6. Compatibility of aggregate functions across RDBMSs and migration considerations
 
 ---
 
-## 1. 集約関数の基本
+## 1. Basics of Aggregate Functions
 
-### 集約関数の内部動作
+### Internal Behavior of Aggregate Functions
 
 ```
-┌──────── 集約関数の内部処理フロー ──────────────────────────┐
-│                                                             │
-│  入力行: [100, NULL, 200, NULL, 300, 150, 200]             │
-│                                                             │
-│  ■ COUNT(*):                                                │
-│    全行をカウント → 7                                       │
-│    NULLを含む全行が対象                                     │
-│                                                             │
-│  ■ COUNT(col):                                              │
-│    NULLを除外してカウント → 5                               │
-│    [100, 200, 300, 150, 200]                                │
-│                                                             │
-│  ■ COUNT(DISTINCT col):                                     │
-│    ユニーク値をカウント → 4                                 │
-│    {100, 150, 200, 300}                                     │
-│                                                             │
-│  ■ SUM(col):                                                │
-│    NULLを除外して合計 → 950                                 │
-│    100 + 200 + 300 + 150 + 200                              │
-│                                                             │
-│  ■ AVG(col):                                                │
-│    NULLを除外して平均 → 190 （= 950 / 5）                  │
-│    ※ 7件の平均ではなく5件の平均であることに注意！           │
-│                                                             │
-│  ■ MIN(col) / MAX(col):                                     │
-│    NULLを除外して最小/最大 → 100 / 300                     │
-│                                                             │
-│  ★ 重要: 全行がNULLの場合                                  │
-│    COUNT(*) → 行数（0以上）                                 │
-│    COUNT(col) → 0                                           │
-│    SUM/AVG/MIN/MAX → NULL（0ではない！）                    │
-└─────────────────────────────────────────────────────────────┘
+┌──────── Internal Processing Flow of Aggregate Functions ───────────┐
+│                                                                     │
+│  Input rows: [100, NULL, 200, NULL, 300, 150, 200]                 │
+│                                                                     │
+│  ■ COUNT(*):                                                        │
+│    Counts all rows → 7                                              │
+│    All rows including NULLs are counted                             │
+│                                                                     │
+│  ■ COUNT(col):                                                      │
+│    Excludes NULLs and counts → 5                                    │
+│    [100, 200, 300, 150, 200]                                        │
+│                                                                     │
+│  ■ COUNT(DISTINCT col):                                             │
+│    Counts unique values → 4                                         │
+│    {100, 150, 200, 300}                                             │
+│                                                                     │
+│  ■ SUM(col):                                                        │
+│    Excludes NULLs and sums → 950                                    │
+│    100 + 200 + 300 + 150 + 200                                      │
+│                                                                     │
+│  ■ AVG(col):                                                        │
+│    Excludes NULLs and averages → 190 (= 950 / 5)                   │
+│    NOTE: This is the average of 5 rows, not 7!                      │
+│                                                                     │
+│  ■ MIN(col) / MAX(col):                                             │
+│    Excludes NULLs → min: 100 / max: 300                             │
+│                                                                     │
+│  ★ Important: When all rows are NULL                                │
+│    COUNT(*) → row count (0 or more)                                 │
+│    COUNT(col) → 0                                                   │
+│    SUM/AVG/MIN/MAX → NULL (not 0!)                                  │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### コード例1: 基本的な集約関数
+### Code Example 1: Basic Aggregate Functions
 
 ```sql
--- サンプルテーブル
+-- Sample table
 CREATE TABLE sales (
     id          SERIAL PRIMARY KEY,
     product     VARCHAR(50),
@@ -73,7 +73,7 @@ CREATE TABLE sales (
     salesperson VARCHAR(50)
 );
 
--- サンプルデータ挿入
+-- Insert sample data
 INSERT INTO sales (product, category, amount, quantity, sale_date, region, salesperson) VALUES
     ('ノートPC', '家電', 89000, 2, '2024-01-15', '東京', '田中'),
     ('マウス', '周辺機器', 3500, 10, '2024-01-20', '東京', '佐藤'),
@@ -86,69 +86,69 @@ INSERT INTO sales (product, category, amount, quantity, sale_date, region, sales
     ('デスクトップPC', '家電', 120000, 1, '2024-04-15', '福岡', '高橋'),
     ('Webカメラ', '周辺機器', 5000, 8, '2024-04-20', '東京', '佐藤');
 
--- 基本集約関数
+-- Basic aggregate functions
 SELECT
-    COUNT(*)          AS total_rows,        -- 全行数: 10
-    COUNT(amount)     AS non_null_count,    -- NULL以外の行数: 10
-    COUNT(DISTINCT category) AS categories, -- ユニーク値数: 2
-    SUM(amount)       AS total_sales,       -- 合計
-    AVG(amount)       AS avg_sale,          -- 平均
-    MIN(amount)       AS min_sale,          -- 最小
-    MAX(amount)       AS max_sale,          -- 最大
-    MIN(sale_date)    AS first_sale,        -- 最古日
-    MAX(sale_date)    AS last_sale          -- 最新日
+    COUNT(*)          AS total_rows,        -- Total row count: 10
+    COUNT(amount)     AS non_null_count,    -- Non-NULL row count: 10
+    COUNT(DISTINCT category) AS categories, -- Unique value count: 2
+    SUM(amount)       AS total_sales,       -- Total
+    AVG(amount)       AS avg_sale,          -- Average
+    MIN(amount)       AS min_sale,          -- Minimum
+    MAX(amount)       AS max_sale,          -- Maximum
+    MIN(sale_date)    AS first_sale,        -- Earliest date
+    MAX(sale_date)    AS last_sale          -- Latest date
 FROM sales;
 
--- 条件付き集約（CASE式を使用）
+-- Conditional aggregation (using CASE expressions)
 SELECT
     COUNT(*) AS total,
     SUM(CASE WHEN category = '家電' THEN amount ELSE 0 END) AS electronics_total,
     SUM(CASE WHEN category = '周辺機器' THEN amount ELSE 0 END) AS peripheral_total,
     AVG(CASE WHEN region = '東京' THEN amount END) AS tokyo_avg,
-    -- NULLが返る行はAVGの分母に含まれない
+    -- Rows returning NULL are not included in the AVG denominator
     COUNT(CASE WHEN amount > 50000 THEN 1 END) AS high_value_count
 FROM sales;
 ```
 
-### コード例2: COUNT の3つの使い方と注意点
+### Code Example 2: Three Uses of COUNT and Their Caveats
 
 ```sql
--- COUNT(*): NULLを含む全行を数える
+-- COUNT(*): Counts all rows including NULLs
 SELECT COUNT(*) FROM employees;           -- → 100
 
--- COUNT(column): NULLを除いた行を数える
-SELECT COUNT(phone) FROM employees;       -- → 85 (15人はNULL)
+-- COUNT(column): Counts rows excluding NULLs
+SELECT COUNT(phone) FROM employees;       -- → 85 (15 have NULL)
 
--- COUNT(DISTINCT column): ユニーク値を数える
+-- COUNT(DISTINCT column): Counts unique values
 SELECT COUNT(DISTINCT department_id) FROM employees;  -- → 8
 
--- ★ COUNT(DISTINCT) の複数列版（PostgreSQL）
+-- ★ Multi-column COUNT(DISTINCT) (PostgreSQL)
 SELECT COUNT(DISTINCT (department_id, status)) FROM employees;
--- → (department_id, status) の組み合わせのユニーク数
+-- → Count of unique (department_id, status) combinations
 
--- ★ 注意: 全行NULLの場合の挙動
+-- ★ Caution: Behavior when all rows are NULL
 CREATE TABLE empty_test (val INTEGER);
 INSERT INTO empty_test VALUES (NULL), (NULL), (NULL);
 
 SELECT
-    COUNT(*)    AS star,   -- 3（行数は数える）
-    COUNT(val)  AS col,    -- 0（NULLは除外）
-    SUM(val)    AS total,  -- NULL（0ではない！）
+    COUNT(*)    AS star,   -- 3 (counts rows)
+    COUNT(val)  AS col,    -- 0 (NULLs excluded)
+    SUM(val)    AS total,  -- NULL (not 0!)
     AVG(val)    AS average -- NULL
 FROM empty_test;
 
--- SUM/AVGがNULLのとき0にしたい場合
+-- If you want SUM/AVG to return 0 when NULL
 SELECT COALESCE(SUM(val), 0) AS safe_sum FROM empty_test;
 ```
 
-### コード例3: 集約関数とNULLの詳細
+### Code Example 3: NULL Behavior in Aggregate Functions in Detail
 
 ```sql
--- NULLの影響を実演
+-- Demonstrating the impact of NULL
 CREATE TABLE scores (
     student_id INTEGER,
     subject    VARCHAR(20),
-    score      INTEGER  -- NULLは未受験を表す
+    score      INTEGER  -- NULL means the exam was not taken
 );
 
 INSERT INTO scores VALUES
@@ -156,19 +156,19 @@ INSERT INTO scores VALUES
     (2, '数学', 70), (2, '英語', NULL), (2, '国語', 60),
     (3, '数学', NULL), (3, '英語', NULL), (3, '国語', NULL);
 
--- 生徒別の集計
+-- Aggregation per student
 SELECT
     student_id,
-    COUNT(*) AS total_subjects,           -- 全科目数
-    COUNT(score) AS taken_subjects,       -- 受験科目数
-    SUM(score) AS total_score,            -- 合計点（NULLは無視）
-    AVG(score) AS avg_score,              -- 平均点（受験科目のみ）
-    AVG(COALESCE(score, 0)) AS avg_with_zero  -- 未受験を0点として計算
+    COUNT(*) AS total_subjects,           -- Total subjects
+    COUNT(score) AS taken_subjects,       -- Subjects taken
+    SUM(score) AS total_score,            -- Total score (NULLs ignored)
+    AVG(score) AS avg_score,              -- Average (taken subjects only)
+    AVG(COALESCE(score, 0)) AS avg_with_zero  -- Treat untaken as 0
 FROM scores
 GROUP BY student_id
 ORDER BY student_id;
 
--- 結果:
+-- Result:
 -- student_id | total | taken | sum | avg  | avg_with_zero
 -- 1          | 3     | 2     | 170 | 85.0 | 56.67
 -- 2          | 3     | 2     | 130 | 65.0 | 43.33
@@ -179,33 +179,33 @@ ORDER BY student_id;
 
 ## 2. GROUP BY
 
-### SQL論理実行順序
+### SQL Logical Execution Order
 
 ```
-┌──────── SQL論理実行順序（集約を含む場合）────────────────────┐
-│                                                              │
-│  ① FROM / JOIN     テーブルの結合・直積の生成               │
-│  ② WHERE           行レベルのフィルタ（集約前）             │
-│  ③ GROUP BY        行のグループ化                           │
-│  ④ 集約関数の計算   SUM, COUNT, AVG等の計算                 │
-│  ⑤ HAVING          グループレベルのフィルタ（集約後）       │
-│  ⑥ SELECT          列の選択・式の計算                       │
-│  ⑦ DISTINCT        重複の排除                               │
-│  ⑧ ORDER BY        ソート                                   │
-│  ⑨ LIMIT/OFFSET    結果の制限                               │
-│                                                              │
-│  ★ 重要ルール:                                              │
-│  - WHERE句では集約関数は使用不可（③の前に実行されるため）    │
-│  - SELECT句の非集約列は全てGROUP BYに含める必要がある        │
-│  - ORDER BY句では集約関数のエイリアスを使用可能              │
-│  - HAVING句では集約関数を使用可能                            │
-└──────────────────────────────────────────────────────────────┘
+┌──────── SQL Logical Execution Order (with Aggregation) ──────────────┐
+│                                                                       │
+│  ① FROM / JOIN     Join tables and generate the Cartesian product    │
+│  ② WHERE           Row-level filter (before aggregation)             │
+│  ③ GROUP BY        Group rows                                        │
+│  ④ Aggregate       Evaluate SUM, COUNT, AVG, etc.                   │
+│  ⑤ HAVING          Group-level filter (after aggregation)            │
+│  ⑥ SELECT          Select columns and evaluate expressions           │
+│  ⑦ DISTINCT        Remove duplicates                                 │
+│  ⑧ ORDER BY        Sort                                              │
+│  ⑨ LIMIT/OFFSET    Limit results                                     │
+│                                                                       │
+│  ★ Key rules:                                                        │
+│  - Aggregate functions cannot be used in WHERE (executed before ③)   │
+│  - All non-aggregate columns in SELECT must appear in GROUP BY        │
+│  - Aliases of aggregate functions can be used in ORDER BY             │
+│  - Aggregate functions can be used in HAVING                          │
+└───────────────────────────────────────────────────────────────────────┘
 ```
 
-### コード例4: GROUP BYの基本と応用
+### Code Example 4: GROUP BY Basics and Applications
 
 ```sql
--- 基本: カテゴリ別の売上集計
+-- Basic: Sales aggregation by category
 SELECT
     category,
     COUNT(*) AS sales_count,
@@ -217,7 +217,7 @@ FROM sales
 GROUP BY category
 ORDER BY total_amount DESC;
 
--- 複数列でグループ化
+-- Group by multiple columns
 SELECT
     category,
     region,
@@ -227,7 +227,7 @@ FROM sales
 GROUP BY category, region
 ORDER BY category, total_amount DESC;
 
--- 式でグループ化（月別集計）
+-- Group by expression (monthly aggregation)
 SELECT
     DATE_TRUNC('month', sale_date) AS month,
     SUM(amount) AS monthly_total,
@@ -237,7 +237,7 @@ FROM sales
 GROUP BY DATE_TRUNC('month', sale_date)
 ORDER BY month;
 
--- 年月 + カテゴリのクロス集計
+-- Cross-tabulation by year-month + category
 SELECT
     TO_CHAR(sale_date, 'YYYY-MM') AS year_month,
     category,
@@ -247,7 +247,7 @@ FROM sales
 GROUP BY TO_CHAR(sale_date, 'YYYY-MM'), category
 ORDER BY year_month, category;
 
--- CASE式でグループ化（金額帯別）
+-- Group by CASE expression (by price range)
 SELECT
     CASE
         WHEN amount < 5000 THEN '低額（5千未満）'
@@ -267,73 +267,73 @@ GROUP BY
 ORDER BY avg;
 ```
 
-### GROUP BY の実行フロー
+### GROUP BY Execution Flow
 
 ```
-┌─────────────────── GROUP BY 処理の流れ ──────────────────────────┐
-│                                                                   │
-│  元テーブル (sales)                                                │
-│  ┌──────────┬──────────┬──────────┐                              │
-│  │ category │ region   │ amount   │                              │
-│  ├──────────┼──────────┼──────────┤                              │
-│  │ 食品     │ 東京     │ 1000     │                              │
-│  │ 食品     │ 大阪     │ 1500     │                              │
-│  │ 家電     │ 東京     │ 5000     │                              │
-│  │ 食品     │ 東京     │ 2000     │                              │
-│  │ 家電     │ 大阪     │ 3000     │                              │
-│  └──────────┴──────────┴──────────┘                              │
-│       │                                                           │
-│       ▼ GROUP BY category                                         │
-│  ┌──────────┬────────────────────────────┐                       │
-│  │ category │ グループ内の行              │                       │
-│  ├──────────┼────────────────────────────┤                       │
-│  │ 食品     │ {1000, 1500, 2000}         │ → SUM=4500, AVG=1500 │
-│  │ 家電     │ {5000, 3000}               │ → SUM=8000, AVG=4000 │
-│  └──────────┴────────────────────────────┘                       │
-│       │                                                           │
-│       ▼ 集約関数の適用                                             │
-│  ┌──────────┬───────┬───────┬───────┐                            │
-│  │ category │ COUNT │ SUM   │ AVG   │                            │
-│  ├──────────┼───────┼───────┼───────┤                            │
-│  │ 食品     │ 3     │ 4500  │ 1500  │                            │
-│  │ 家電     │ 2     │ 8000  │ 4000  │                            │
-│  └──────────┴───────┴───────┴───────┘                            │
-│                                                                   │
-│  ★ GROUP BYの内部実装（PostgreSQL）:                              │
-│  ┌──────────────────────────────────────────────┐                │
-│  │ HashAggregate: ハッシュテーブルでグループ化   │                │
-│  │ - work_mem内に収まる場合に使用                │                │
-│  │ - O(N) の計算量                               │                │
-│  │                                               │                │
-│  │ GroupAggregate: ソート済みデータをスキャン     │                │
-│  │ - インデックスが利用可能な場合に高速           │                │
-│  │ - ソート + 1パスの計算量                       │                │
-│  │                                               │                │
-│  │ Mixed: PostgreSQL 13+ ではハッシュが溢れたら  │                │
-│  │ ディスクにスピルする機能が追加                 │                │
-│  └──────────────────────────────────────────────┘                │
-└───────────────────────────────────────────────────────────────────┘
+┌─────────────────── GROUP BY Processing Flow ─────────────────────────┐
+│                                                                       │
+│  Source table (sales)                                                  │
+│  ┌──────────┬──────────┬──────────┐                                  │
+│  │ category │ region   │ amount   │                                  │
+│  ├──────────┼──────────┼──────────┤                                  │
+│  │ 食品     │ 東京     │ 1000     │                                  │
+│  │ 食品     │ 大阪     │ 1500     │                                  │
+│  │ 家電     │ 東京     │ 5000     │                                  │
+│  │ 食品     │ 東京     │ 2000     │                                  │
+│  │ 家電     │ 大阪     │ 3000     │                                  │
+│  └──────────┴──────────┴──────────┘                                  │
+│       │                                                               │
+│       ▼ GROUP BY category                                             │
+│  ┌──────────┬────────────────────────────┐                           │
+│  │ category │ Rows within group          │                           │
+│  ├──────────┼────────────────────────────┤                           │
+│  │ 食品     │ {1000, 1500, 2000}         │ → SUM=4500, AVG=1500     │
+│  │ 家電     │ {5000, 3000}               │ → SUM=8000, AVG=4000     │
+│  └──────────┴────────────────────────────┘                           │
+│       │                                                               │
+│       ▼ Apply aggregate functions                                     │
+│  ┌──────────┬───────┬───────┬───────┐                                │
+│  │ category │ COUNT │ SUM   │ AVG   │                                │
+│  ├──────────┼───────┼───────┼───────┤                                │
+│  │ 食品     │ 3     │ 4500  │ 1500  │                                │
+│  │ 家電     │ 2     │ 8000  │ 4000  │                                │
+│  └──────────┴───────┴───────┴───────┘                                │
+│                                                                       │
+│  ★ Internal implementation of GROUP BY (PostgreSQL):                 │
+│  ┌──────────────────────────────────────────────┐                    │
+│  │ HashAggregate: Groups managed in hash table  │                    │
+│  │ - Used when data fits within work_mem         │                    │
+│  │ - O(N) time complexity                        │                    │
+│  │                                               │                    │
+│  │ GroupAggregate: Scans pre-sorted data         │                    │
+│  │ - Fast when an index is available             │                    │
+│  │ - Sort + one-pass time complexity             │                    │
+│  │                                               │                    │
+│  │ Mixed: PostgreSQL 13+ supports disk spill     │                    │
+│  │ when hash aggregate overflows memory          │                    │
+│  └──────────────────────────────────────────────┘                    │
+└───────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
 ## 3. HAVING
 
-### コード例5: HAVINGによるグループのフィルタリング
+### Code Example 5: Filtering Groups with HAVING
 
 ```sql
--- WHEREは行をフィルタ、HAVINGはグループをフィルタ
+-- WHERE filters rows; HAVING filters groups
 SELECT
     category,
     COUNT(*) AS sales_count,
     SUM(amount) AS total_amount
 FROM sales
-WHERE sale_date >= '2024-01-01'     -- ① 行レベルのフィルタ（集約前）
+WHERE sale_date >= '2024-01-01'     -- ① Row-level filter (before aggregation)
 GROUP BY category
-HAVING SUM(amount) >= 10000         -- ② グループレベルのフィルタ（集約後）
+HAVING SUM(amount) >= 10000         -- ② Group-level filter (after aggregation)
 ORDER BY total_amount DESC;
 
--- 実用例: 注文回数が5回以上の顧客
+-- Practical example: Customers with 5 or more orders
 SELECT
     customer_id,
     COUNT(*) AS order_count,
@@ -343,7 +343,7 @@ GROUP BY customer_id
 HAVING COUNT(*) >= 5
 ORDER BY lifetime_value DESC;
 
--- 実用例: 重複データの検出
+-- Practical example: Detecting duplicate data
 SELECT
     email,
     COUNT(*) AS duplicate_count
@@ -351,7 +351,7 @@ FROM users
 GROUP BY email
 HAVING COUNT(*) > 1;
 
--- 実用例: 集約結果の複数条件フィルタ
+-- Practical example: Multiple conditions on aggregate results
 SELECT
     category,
     region,
@@ -365,78 +365,80 @@ HAVING COUNT(*) >= 2
    AND AVG(amount) > 3000
 ORDER BY total DESC;
 
--- 実用例: HAVINGでサブクエリを使用
+-- Practical example: Using a subquery in HAVING
 SELECT
     category,
     AVG(amount) AS avg_amount
 FROM sales
 GROUP BY category
 HAVING AVG(amount) > (SELECT AVG(amount) FROM sales);
--- → 全体平均より高い平均金額のカテゴリのみ
+-- → Only categories whose average is above the overall average
 ```
 
-### WHERE vs HAVING の実行タイミング
+### Execution Timing: WHERE vs HAVING
 
 ```
-┌──────────── WHERE vs HAVING の違い ─────────────────────┐
-│                                                          │
-│  FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY  │
-│           │                   │                          │
-│    ┌──────┴──────┐    ┌──────┴──────┐                   │
-│    │  WHERE      │    │  HAVING     │                   │
-│    │  行をフィルタ│    │グループを    │                   │
-│    │  集約前      │    │フィルタ      │                   │
-│    │  集約関数    │    │  集約後      │                   │
-│    │  使用不可    │    │  集約関数    │                   │
-│    │  インデックス│    │  使用可能    │                   │
-│    │  利用可能    │    │  インデックス│                   │
-│    │             │    │  利用不可    │                   │
-│    └─────────────┘    └─────────────┘                   │
-│                                                          │
-│  ★ パフォーマンスの鉄則:                                │
-│  「WHEREで書ける条件はWHEREに書く」                      │
-│                                                          │
-│  例: WHERE amount > 100     ← 各行で判定（高速）        │
-│      HAVING SUM(amount) > 10000 ← グループで判定        │
-│                                                          │
-│  NG: HAVING category = '家電'                            │
-│  OK: WHERE category = '家電'                             │
-│  → 同じ結果だがWHEREの方が先にフィルタされ高速          │
-└──────────────────────────────────────────────────────────┘
+┌──────────── Differences Between WHERE and HAVING ──────────────────┐
+│                                                                     │
+│  FROM → WHERE → GROUP BY → HAVING → SELECT → ORDER BY              │
+│           │                   │                                     │
+│    ┌──────┴──────┐    ┌──────┴──────┐                              │
+│    │  WHERE      │    │  HAVING     │                              │
+│    │  Filters    │    │  Filters    │                              │
+│    │  rows       │    │  groups     │                              │
+│    │  Before     │    │  After      │                              │
+│    │  aggregation│    │  aggregation│                              │
+│    │  Cannot use │    │  Can use    │                              │
+│    │  aggregate  │    │  aggregate  │                              │
+│    │  functions  │    │  functions  │                              │
+│    │  Index      │    │  No index   │                              │
+│    │  usable     │    │  available  │                              │
+│    └─────────────┘    └─────────────┘                              │
+│                                                                     │
+│  ★ Performance rule of thumb:                                      │
+│  "Put any condition expressible in WHERE into WHERE"                │
+│                                                                     │
+│  Example: WHERE amount > 100       ← Per-row check (fast)          │
+│           HAVING SUM(amount) > 10000 ← Per-group check             │
+│                                                                     │
+│  Bad:  HAVING category = '家電'                                     │
+│  Good: WHERE category = '家電'                                      │
+│  → Same result, but WHERE filters earlier and is faster             │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 4. 高度な集約
+## 4. Advanced Aggregation
 
-### コード例6: GROUPING SETS / ROLLUP / CUBE
+### Code Example 6: GROUPING SETS / ROLLUP / CUBE
 
 ```sql
--- GROUPING SETS: 複数の集約レベルを一度に取得
+-- GROUPING SETS: Retrieve multiple aggregation levels at once
 SELECT
     category,
     region,
     SUM(amount) AS total
 FROM sales
 GROUP BY GROUPING SETS (
-    (category, region),  -- カテゴリ × 地域
-    (category),          -- カテゴリ別小計
-    (region),            -- 地域別小計
-    ()                   -- 総計
+    (category, region),  -- category × region
+    (category),          -- subtotal by category
+    (region),            -- subtotal by region
+    ()                   -- grand total
 )
 ORDER BY category NULLS LAST, region NULLS LAST;
 
--- ROLLUP: 階層的な小計 + 総計
+-- ROLLUP: Hierarchical subtotals + grand total
 -- ROLLUP(A, B) = GROUPING SETS((A,B), (A), ())
 SELECT
-    COALESCE(category, '【総計】') AS category,
-    COALESCE(region, '【小計】') AS region,
+    COALESCE(category, '【Grand Total】') AS category,
+    COALESCE(region, '【Subtotal】') AS region,
     SUM(amount) AS total,
     COUNT(*) AS cnt
 FROM sales
 GROUP BY ROLLUP (category, region);
 
--- CUBE: 全組み合わせの集約
+-- CUBE: All combinations of aggregation
 -- CUBE(A, B) = GROUPING SETS((A,B), (A), (B), ())
 SELECT
     category,
@@ -445,11 +447,11 @@ SELECT
 FROM sales
 GROUP BY CUBE (category, region);
 
--- GROUPING関数: NULLが「集約によるもの」か「データのNULL」かを区別
+-- GROUPING function: Distinguish whether NULL is from aggregation or actual data
 SELECT
-    CASE WHEN GROUPING(category) = 1 THEN '【全カテゴリ】'
+    CASE WHEN GROUPING(category) = 1 THEN '【All Categories】'
          ELSE category END AS category,
-    CASE WHEN GROUPING(region) = 1 THEN '【全地域】'
+    CASE WHEN GROUPING(region) = 1 THEN '【All Regions】'
          ELSE region END AS region,
     SUM(amount) AS total,
     GROUPING(category) AS is_cat_total,
@@ -459,7 +461,7 @@ FROM sales
 GROUP BY CUBE (category, region)
 ORDER BY GROUPING(category, region), category, region;
 
--- 部分ROLLUP: 一部の列のみROLLUP
+-- Partial ROLLUP: Apply ROLLUP to a subset of columns
 SELECT
     category,
     region,
@@ -467,45 +469,46 @@ SELECT
     SUM(amount) AS total
 FROM sales
 GROUP BY category, ROLLUP(region, TO_CHAR(sale_date, 'YYYY-MM'));
--- → categoryは常に存在し、region→monthの階層でROLLUP
+-- → category always present; ROLLUP applied on region → month hierarchy
 ```
 
-### ROLLUP / CUBE / GROUPING SETS の展開図
+### Expansion Diagram: ROLLUP / CUBE / GROUPING SETS
 
 ```
-┌──────── ROLLUP vs CUBE vs GROUPING SETS ───────────────────────┐
-│                                                                 │
-│  GROUP BY ROLLUP(A, B, C) は以下と等価:                         │
-│  GROUP BY GROUPING SETS(                                        │
-│      (A, B, C),   -- 詳細                                      │
-│      (A, B),      -- Cの小計                                   │
-│      (A),         -- B,Cの小計                                  │
-│      ()           -- 総計                                       │
-│  )                                                              │
-│  → N+1 = 4グループ（列数+1）                                   │
-│                                                                 │
-│  GROUP BY CUBE(A, B, C) は以下と等価:                           │
-│  GROUP BY GROUPING SETS(                                        │
-│      (A, B, C),   (A, B),   (A, C),   (B, C),                  │
-│      (A),         (B),      (C),                                │
-│      ()                                                         │
-│  )                                                              │
-│  → 2^N = 8グループ（2の列数乗）                                │
-│                                                                 │
-│  ★ パフォーマンスへの影響:                                     │
-│  ┌───────────────────────────────────────┐                     │
-│  │ CUBE(A,B,C,D) → 2^4 = 16グループ     │                     │
-│  │ CUBE(A,B,C,D,E) → 2^5 = 32グループ   │                     │
-│  │ 列数が増えると指数的にグループ数が増加 │                     │
-│  │ → CUBEは3列以下で使用を推奨          │                     │
-│  └───────────────────────────────────────┘                     │
-└─────────────────────────────────────────────────────────────────┘
+┌──────── ROLLUP vs CUBE vs GROUPING SETS ───────────────────────────┐
+│                                                                     │
+│  GROUP BY ROLLUP(A, B, C) is equivalent to:                        │
+│  GROUP BY GROUPING SETS(                                            │
+│      (A, B, C),   -- detail                                        │
+│      (A, B),      -- subtotal of C                                 │
+│      (A),         -- subtotal of B, C                              │
+│      ()           -- grand total                                    │
+│  )                                                                  │
+│  → N+1 = 4 groups (number of columns + 1)                          │
+│                                                                     │
+│  GROUP BY CUBE(A, B, C) is equivalent to:                          │
+│  GROUP BY GROUPING SETS(                                            │
+│      (A, B, C),   (A, B),   (A, C),   (B, C),                     │
+│      (A),         (B),      (C),                                   │
+│      ()                                                             │
+│  )                                                                  │
+│  → 2^N = 8 groups (2 to the power of the number of columns)        │
+│                                                                     │
+│  ★ Performance impact:                                             │
+│  ┌───────────────────────────────────────┐                         │
+│  │ CUBE(A,B,C,D) → 2^4 = 16 groups      │                         │
+│  │ CUBE(A,B,C,D,E) → 2^5 = 32 groups    │                         │
+│  │ Group count grows exponentially       │                         │
+│  │ → Recommended to use CUBE with ≤3    │                         │
+│  │   columns                             │                         │
+│  └───────────────────────────────────────┘                         │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### コード例7: FILTER句（PostgreSQL / SQLite）
+### Code Example 7: FILTER Clause (PostgreSQL / SQLite)
 
 ```sql
--- FILTER句: 条件付き集約をCASE式より簡潔に書ける
+-- FILTER clause: More concise conditional aggregation than CASE expressions
 SELECT
     category,
     COUNT(*) AS total_count,
@@ -520,69 +523,69 @@ SELECT
 FROM sales
 GROUP BY category;
 
--- FILTER句とCASE式の比較
--- FILTER（PostgreSQL推奨）:
+-- Comparison: FILTER clause vs CASE expression
+-- FILTER (recommended in PostgreSQL):
 SELECT COUNT(*) FILTER (WHERE status = 'active') AS active_count FROM users;
 
--- CASE（全RDBMS対応）:
+-- CASE (works in all RDBMSs):
 SELECT COUNT(CASE WHEN status = 'active' THEN 1 END) AS active_count FROM users;
--- または
+-- Or:
 SELECT SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) AS active_count FROM users;
 ```
 
-### コード例8: 統計関数
+### Code Example 8: Statistical Functions
 
 ```sql
--- 分散と標準偏差
+-- Variance and standard deviation
 SELECT
     department_id,
     COUNT(*) AS emp_count,
     AVG(salary) AS avg_salary,
-    STDDEV_SAMP(salary) AS salary_stddev,      -- 標本標準偏差（N-1）
-    STDDEV_POP(salary) AS salary_stddev_pop,   -- 母標準偏差（N）
-    VAR_SAMP(salary) AS salary_variance,       -- 標本分散
-    VAR_POP(salary) AS salary_variance_pop     -- 母分散
+    STDDEV_SAMP(salary) AS salary_stddev,      -- Sample std dev (N-1)
+    STDDEV_POP(salary) AS salary_stddev_pop,   -- Population std dev (N)
+    VAR_SAMP(salary) AS salary_variance,       -- Sample variance
+    VAR_POP(salary) AS salary_variance_pop     -- Population variance
 FROM employees
 GROUP BY department_id
-HAVING COUNT(*) >= 3;  -- 統計値は3件以上で意味がある
+HAVING COUNT(*) >= 3;  -- Statistical values are meaningful with 3+ records
 
--- 中央値（PERCENTILE_CONT）
+-- Median (PERCENTILE_CONT)
 SELECT
     department_id,
     AVG(salary) AS mean_salary,
     PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY salary) AS median_salary,
     PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY salary) AS q1_salary,
     PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY salary) AS q3_salary,
-    -- 四分位範囲（IQR）
+    -- Interquartile range (IQR)
     PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY salary)
     - PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY salary) AS iqr,
-    -- 最頻値（モード）はMODE()で取得（PostgreSQL）
+    -- Mode via MODE() (PostgreSQL)
     MODE() WITHIN GROUP (ORDER BY salary) AS mode_salary
 FROM employees
 GROUP BY department_id;
 
--- PERCENTILE_DISC: 離散値（実際に存在する値を返す）
+-- PERCENTILE_DISC: Discrete value (returns an actually existing value)
 SELECT
     department_id,
     PERCENTILE_DISC(0.5) WITHIN GROUP (ORDER BY salary) AS median_exact
 FROM employees
 GROUP BY department_id;
--- PERCENTILE_CONTは補間値を返すが、PERCENTILE_DISCは実在する値を返す
+-- PERCENTILE_CONT returns an interpolated value; PERCENTILE_DISC returns an existing value
 
--- 相関係数と回帰分析
+-- Correlation coefficient and regression analysis
 SELECT
-    CORR(age, salary) AS correlation,           -- 相関係数
-    REGR_SLOPE(salary, age) AS slope,           -- 回帰直線の傾き
-    REGR_INTERCEPT(salary, age) AS intercept,   -- 回帰直線の切片
-    REGR_R2(salary, age) AS r_squared,          -- 決定係数
-    REGR_COUNT(salary, age) AS valid_pairs      -- 有効なペア数
+    CORR(age, salary) AS correlation,           -- Correlation coefficient
+    REGR_SLOPE(salary, age) AS slope,           -- Slope of regression line
+    REGR_INTERCEPT(salary, age) AS intercept,   -- Intercept of regression line
+    REGR_R2(salary, age) AS r_squared,          -- Coefficient of determination
+    REGR_COUNT(salary, age) AS valid_pairs      -- Number of valid pairs
 FROM employees;
 ```
 
-### コード例9: 文字列集約と配列集約
+### Code Example 9: String and Array Aggregation
 
 ```sql
--- 文字列集約（STRING_AGG / GROUP_CONCAT）
+-- String aggregation (STRING_AGG / GROUP_CONCAT)
 -- PostgreSQL / SQL Server
 SELECT
     department_id,
@@ -595,16 +598,16 @@ GROUP BY department_id;
 -- SELECT department_id, GROUP_CONCAT(name ORDER BY name SEPARATOR ', ')
 -- FROM employees GROUP BY department_id;
 
--- 配列集約（PostgreSQL固有）
+-- Array aggregation (PostgreSQL-specific)
 SELECT
     department_id,
     ARRAY_AGG(name ORDER BY hired_date) AS members_by_tenure,
-    ARRAY_AGG(DISTINCT department_id) AS depts,  -- 重複排除
+    ARRAY_AGG(DISTINCT department_id) AS depts,  -- Remove duplicates
     ARRAY_AGG(salary ORDER BY salary DESC) AS salaries_desc
 FROM employees
 GROUP BY department_id;
 
--- JSON集約（PostgreSQL 9.5+ / MySQL 5.7+）
+-- JSON aggregation (PostgreSQL 9.5+ / MySQL 5.7+)
 -- PostgreSQL
 SELECT
     department_id,
@@ -618,100 +621,102 @@ SELECT
 FROM employees
 GROUP BY department_id;
 
--- BOOL集約（PostgreSQL）
+-- Boolean aggregation (PostgreSQL)
 SELECT
     department_id,
-    BOOL_AND(is_active) AS all_active,   -- 全員active？
-    BOOL_OR(is_manager) AS has_manager,  -- マネージャーがいる？
-    EVERY(salary > 300000) AS all_above_300k  -- 全員30万超？
+    BOOL_AND(is_active) AS all_active,   -- Are all active?
+    BOOL_OR(is_manager) AS has_manager,  -- Is there a manager?
+    EVERY(salary > 300000) AS all_above_300k  -- All above 300k?
 FROM employees
 GROUP BY department_id;
 
--- BIT集約
+-- Bit aggregation
 SELECT
     department_id,
-    BIT_AND(permissions) AS common_perms,  -- 共通権限（AND）
-    BIT_OR(permissions) AS union_perms     -- 権限の和（OR）
+    BIT_AND(permissions) AS common_perms,  -- Common permissions (AND)
+    BIT_OR(permissions) AS union_perms     -- Union of permissions (OR)
 FROM employees
 GROUP BY department_id;
 ```
 
 ---
 
-## 5. パフォーマンス最適化
+## 5. Performance Optimization
 
-### 集約クエリの実行計画
+### Execution Plans for Aggregate Queries
 
 ```
-┌──────── 集約クエリの実行計画の読み方 ──────────────────────────┐
-│                                                                │
-│  ■ HashAggregate                                               │
-│  ┌────────────────────────────────────────────┐               │
-│  │ 動作: ハッシュテーブルでグループを管理       │               │
-│  │ 特徴:                                       │               │
-│  │ - 入力の事前ソートが不要                     │               │
-│  │ - work_mem内に収まる場合に高速               │               │
-│  │ - メモリ使用量 = グループ数 × 行サイズ       │               │
-│  │ 使われる場面:                                │               │
-│  │ - グループ数が少ない〜中程度                 │               │
-│  │ - ORDER BYがない                             │               │
-│  │ - 適切なインデックスがない                   │               │
-│  └────────────────────────────────────────────┘               │
-│                                                                │
-│  ■ GroupAggregate                                              │
-│  ┌────────────────────────────────────────────┐               │
-│  │ 動作: ソート済みデータを1パスでグループ化    │               │
-│  │ 特徴:                                       │               │
-│  │ - 入力がソート済み（インデックス or Sort）   │               │
-│  │ - メモリ使用量が少ない（1グループ分のみ）    │               │
-│  │ - ORDER BY + GROUP BYが同一列なら有利        │               │
-│  │ 使われる場面:                                │               │
-│  │ - GROUP BY列にインデックスがある             │               │
-│  │ - ORDER BY + GROUP BYを兼ねられる            │               │
-│  │ - work_memが不足している                     │               │
-│  └────────────────────────────────────────────┘               │
-│                                                                │
-│  ■ PostgreSQL 13+ の改善                                       │
-│  ┌────────────────────────────────────────────┐               │
-│  │ - HashAggregateのディスクスピル対応           │               │
-│  │ - 複数GROUP BYセットの効率的な処理            │               │
-│  │ - Incremental Sort との組み合わせ             │               │
-│  └────────────────────────────────────────────┘               │
-└────────────────────────────────────────────────────────────────┘
+┌──────── Reading Execution Plans for Aggregate Queries ─────────────┐
+│                                                                     │
+│  ■ HashAggregate                                                    │
+│  ┌────────────────────────────────────────────┐                    │
+│  │ Behavior: Groups managed via hash table    │                    │
+│  │ Characteristics:                           │                    │
+│  │ - No pre-sorting of input required         │                    │
+│  │ - Fast when fits in work_mem               │                    │
+│  │ - Memory usage = groups × row size         │                    │
+│  │ Used when:                                 │                    │
+│  │ - Few to moderate number of groups         │                    │
+│  │ - No ORDER BY                              │                    │
+│  │ - No suitable index available              │                    │
+│  └────────────────────────────────────────────┘                    │
+│                                                                     │
+│  ■ GroupAggregate                                                   │
+│  ┌────────────────────────────────────────────┐                    │
+│  │ Behavior: One-pass grouping on sorted data │                    │
+│  │ Characteristics:                           │                    │
+│  │ - Input is pre-sorted (index or Sort node) │                    │
+│  │ - Low memory usage (one group at a time)   │                    │
+│  │ - Advantageous when ORDER BY + GROUP BY    │                    │
+│  │   share the same columns                   │                    │
+│  │ Used when:                                 │                    │
+│  │ - Index exists on GROUP BY column          │                    │
+│  │ - Can combine ORDER BY + GROUP BY          │                    │
+│  │ - work_mem is insufficient                 │                    │
+│  └────────────────────────────────────────────┘                    │
+│                                                                     │
+│  ■ Improvements in PostgreSQL 13+                                   │
+│  ┌────────────────────────────────────────────┐                    │
+│  │ - Disk spill support for HashAggregate     │                    │
+│  │ - Efficient processing of multiple GROUP   │                    │
+│  │   BY sets                                  │                    │
+│  │ - Integration with Incremental Sort        │                    │
+│  └────────────────────────────────────────────┘                    │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### コード例10: パフォーマンス最適化の実践
+### Code Example 10: Practical Performance Optimization
 
 ```sql
--- ■ インデックスによる最適化
--- GROUP BY列にインデックスがあるとGroupAggregateが使われやすい
+-- ■ Optimization via indexes
+-- An index on the GROUP BY column encourages GroupAggregate
 CREATE INDEX idx_sales_category ON sales (category);
 CREATE INDEX idx_sales_cat_region ON sales (category, region);
 
--- 実行計画の確認
+-- Check the execution plan
 EXPLAIN (ANALYZE, BUFFERS)
 SELECT category, SUM(amount)
 FROM sales
 GROUP BY category;
 
--- ■ WHERE句で先にフィルタ（最も効果的な最適化）
--- NG: 全行を読んでからHAVINGでフィルタ
+-- ■ Pre-filter with WHERE (most effective optimization)
+-- Bad: Read all rows, then filter with HAVING after GROUP BY
 SELECT region, SUM(amount)
 FROM sales
 GROUP BY region
-HAVING region IN ('東京', '大阪');  -- 全行をGROUP BY後にフィルタ
+HAVING region IN ('東京', '大阪');  -- Filters all rows after GROUP BY
 
--- OK: WHEREで先に絞り込み
+-- Good: Filter rows with WHERE first
 SELECT region, SUM(amount)
 FROM sales
-WHERE region IN ('東京', '大阪')     -- 先に行を絞る（インデックス利用可）
+WHERE region IN ('東京', '大阪')     -- Narrow rows first (index usable)
 GROUP BY region;
 
--- ■ 部分インデックスの活用
+-- ■ Using partial indexes
 CREATE INDEX idx_sales_active ON sales (category, amount)
 WHERE sale_date >= '2024-01-01';
 
--- ■ マテリアライズドビューによるキャッシュ（PostgreSQL）
+-- ■ Caching with materialized views (PostgreSQL)
 CREATE MATERIALIZED VIEW mv_monthly_sales AS
 SELECT
     DATE_TRUNC('month', sale_date) AS month,
@@ -725,18 +730,18 @@ GROUP BY DATE_TRUNC('month', sale_date), category, region;
 
 CREATE UNIQUE INDEX ON mv_monthly_sales (month, category, region);
 
--- 更新
+-- Refresh
 REFRESH MATERIALIZED VIEW CONCURRENTLY mv_monthly_sales;
 
--- ■ 近似集約（大規模データ向け）
--- PostgreSQL拡張: HyperLogLog（概算COUNT DISTINCT）
--- HLLを使えば数十億行のCOUNT DISTINCTを定数メモリで計算可能
+-- ■ Approximate aggregation (for large-scale data)
+-- PostgreSQL extension: HyperLogLog (approximate COUNT DISTINCT)
+-- HLL computes COUNT DISTINCT over billions of rows in constant memory
 -- CREATE EXTENSION hll;
 -- SELECT hll_cardinality(hll_add_agg(hll_hash_text(user_id)))
 -- FROM huge_events;
 
--- ■ work_memの調整
-SET work_mem = '256MB';  -- HashAggregateのメモリ上限を引き上げ
+-- ■ Adjusting work_mem
+SET work_mem = '256MB';  -- Raise the memory limit for HashAggregate
 EXPLAIN (ANALYZE, BUFFERS)
 SELECT category, region, COUNT(*)
 FROM large_table
@@ -745,54 +750,54 @@ GROUP BY category, region;
 
 ---
 
-## 6. RDBMS間の互換性
+## 6. Cross-RDBMS Compatibility
 
-### 集約関数サポート比較表
+### Aggregate Function Support Comparison
 
-| 関数 | PostgreSQL | MySQL 8.0+ | SQL Server | Oracle | SQLite |
-|------|-----------|------------|------------|--------|--------|
-| COUNT/SUM/AVG/MIN/MAX | 対応 | 対応 | 対応 | 対応 | 対応 |
-| COUNT(DISTINCT) | 対応 | 対応 | 対応 | 対応 | 対応 |
-| STRING_AGG | 対応(9.0+) | GROUP_CONCAT | 対応(2017+) | LISTAGG | GROUP_CONCAT |
-| ARRAY_AGG | 対応 | 非対応 | 非対応 | 非対応 | 非対応 |
-| JSON_AGG | 対応(9.5+) | JSON_ARRAYAGG | 非対応 | JSON_ARRAYAGG | 非対応 |
-| FILTER句 | 対応(9.4+) | 非対応 | 非対応 | 非対応 | 対応(3.30+) |
-| BOOL_AND/BOOL_OR | 対応 | BIT_AND/BIT_OR | 非対応 | 非対応 | 非対応 |
-| PERCENTILE_CONT | 対応 | 非対応 | PERCENTILE_CONT | 対応 | 非対応 |
-| MODE() | 対応 | 非対応 | 非対応 | STATS_MODE | 非対応 |
-| STDDEV_SAMP/POP | 対応 | 対応 | STDEV/STDEVP | 対応 | 非対応 |
-| CORR/REGR_* | 対応 | 非対応 | 非対応 | 対応 | 非対応 |
-| GROUPING SETS | 対応(9.5+) | 非対応 | 対応 | 対応 | 非対応 |
-| ROLLUP | 対応(9.5+) | 対応 | 対応 | 対応 | 非対応 |
-| CUBE | 対応(9.5+) | 非対応 | 対応 | 対応 | 非対応 |
-| GROUPING() | 対応 | 対応(8.0+) | 対応 | 対応 | 非対応 |
+| Function | PostgreSQL | MySQL 8.0+ | SQL Server | Oracle | SQLite |
+|----------|-----------|------------|------------|--------|--------|
+| COUNT/SUM/AVG/MIN/MAX | Supported | Supported | Supported | Supported | Supported |
+| COUNT(DISTINCT) | Supported | Supported | Supported | Supported | Supported |
+| STRING_AGG | Supported (9.0+) | GROUP_CONCAT | Supported (2017+) | LISTAGG | GROUP_CONCAT |
+| ARRAY_AGG | Supported | Not supported | Not supported | Not supported | Not supported |
+| JSON_AGG | Supported (9.5+) | JSON_ARRAYAGG | Not supported | JSON_ARRAYAGG | Not supported |
+| FILTER clause | Supported (9.4+) | Not supported | Not supported | Not supported | Supported (3.30+) |
+| BOOL_AND/BOOL_OR | Supported | BIT_AND/BIT_OR | Not supported | Not supported | Not supported |
+| PERCENTILE_CONT | Supported | Not supported | PERCENTILE_CONT | Supported | Not supported |
+| MODE() | Supported | Not supported | Not supported | STATS_MODE | Not supported |
+| STDDEV_SAMP/POP | Supported | Supported | STDEV/STDEVP | Supported | Not supported |
+| CORR/REGR_* | Supported | Not supported | Not supported | Supported | Not supported |
+| GROUPING SETS | Supported (9.5+) | Not supported | Supported | Supported | Not supported |
+| ROLLUP | Supported (9.5+) | Supported | Supported | Supported | Not supported |
+| CUBE | Supported (9.5+) | Not supported | Supported | Supported | Not supported |
+| GROUPING() | Supported | Supported (8.0+) | Supported | Supported | Not supported |
 
-### RDBMS固有の構文
+### RDBMS-Specific Syntax
 
 ```sql
--- ■ MySQL: GROUP_CONCATの注意
--- デフォルト最大長は1024バイト（切り詰められる！）
+-- ■ MySQL: GROUP_CONCAT caveats
+-- Default maximum length is 1024 bytes (gets truncated!)
 SET GROUP_CONCAT_MAX_LEN = 1000000;
 SELECT department_id,
        GROUP_CONCAT(name ORDER BY name SEPARATOR ', ') AS members
 FROM employees
 GROUP BY department_id;
 
--- ■ MySQL: WITH ROLLUP構文
+-- ■ MySQL: WITH ROLLUP syntax
 SELECT category, region, SUM(amount)
 FROM sales
 GROUP BY category, region WITH ROLLUP;
--- ※ CUBE, GROUPING SETSは非対応
+-- NOTE: CUBE and GROUPING SETS are not supported
 
--- ■ SQL Server: STRING_AGGの注意
--- SQL Server 2017+で対応。それ以前はFOR XML PATHを使用
+-- ■ SQL Server: STRING_AGG notes
+-- Supported from SQL Server 2017+. Use FOR XML PATH for earlier versions.
 SELECT
     department_id,
     STRING_AGG(name, ', ') WITHIN GROUP (ORDER BY name) AS members
 FROM employees
 GROUP BY department_id;
 
--- ■ Oracle: LISTAGG（文字列集約）
+-- ■ Oracle: LISTAGG (string aggregation)
 SELECT
     department_id,
     LISTAGG(name, ', ') WITHIN GROUP (ORDER BY name) AS members
@@ -809,115 +814,115 @@ GROUP BY department_id;
 
 ---
 
-## 集約関数一覧表
+## Aggregate Function Reference
 
-| 関数 | 説明 | NULL扱い | 使用例 | 注意点 |
-|------|------|---------|--------|--------|
-| COUNT(*) | 全行数 | 含む | `COUNT(*)` | NULLも数える |
-| COUNT(col) | 非NULL行数 | 除外 | `COUNT(email)` | NULL行は除外 |
-| COUNT(DISTINCT col) | ユニーク値数 | 除外 | `COUNT(DISTINCT category)` | メモリ消費大 |
-| SUM(col) | 合計 | 除外 | `SUM(amount)` | 全NULLでNULL返却 |
-| AVG(col) | 平均 | 除外 | `AVG(salary)` | 分母はNULL除外後の件数 |
-| MIN(col) | 最小値 | 除外 | `MIN(price)` | 文字列・日付にも使用可 |
-| MAX(col) | 最大値 | 除外 | `MAX(created_at)` | 文字列・日付にも使用可 |
-| STRING_AGG | 文字列結合 | 除外 | `STRING_AGG(name, ',')` | MySQL:GROUP_CONCAT |
-| ARRAY_AGG | 配列化 | 含む | `ARRAY_AGG(tag)` | PostgreSQL固有 |
-| JSON_AGG | JSON配列化 | 含む | `JSON_AGG(col)` | PostgreSQL 9.5+ |
-| BOOL_AND/OR | 論理積/和 | 除外 | `BOOL_AND(is_active)` | PostgreSQL固有 |
-| EVERY | 全件TRUE判定 | 除外 | `EVERY(score > 60)` | BOOL_ANDのエイリアス |
-| STDDEV_SAMP | 標本標準偏差 | 除外 | `STDDEV_SAMP(salary)` | N-1で除算 |
-| STDDEV_POP | 母標準偏差 | 除外 | `STDDEV_POP(salary)` | Nで除算 |
-| VAR_SAMP | 標本分散 | 除外 | `VAR_SAMP(salary)` | N-1で除算 |
-| VAR_POP | 母分散 | 除外 | `VAR_POP(salary)` | Nで除算 |
-| PERCENTILE_CONT | 連続パーセンタイル | 除外 | `PERCENTILE_CONT(0.5)` | 補間値を返す |
-| PERCENTILE_DISC | 離散パーセンタイル | 除外 | `PERCENTILE_DISC(0.5)` | 実在値を返す |
-| MODE | 最頻値 | 除外 | `MODE() WITHIN GROUP(...)` | PostgreSQL固有 |
-| CORR | 相関係数 | 除外 | `CORR(x, y)` | -1.0 〜 1.0 |
+| Function | Description | NULL Handling | Usage Example | Notes |
+|----------|-------------|--------------|---------------|-------|
+| COUNT(*) | Total row count | Included | `COUNT(*)` | Counts NULLs too |
+| COUNT(col) | Non-NULL row count | Excluded | `COUNT(email)` | NULL rows excluded |
+| COUNT(DISTINCT col) | Unique value count | Excluded | `COUNT(DISTINCT category)` | High memory usage |
+| SUM(col) | Sum | Excluded | `SUM(amount)` | Returns NULL if all NULL |
+| AVG(col) | Average | Excluded | `AVG(salary)` | Denominator excludes NULLs |
+| MIN(col) | Minimum value | Excluded | `MIN(price)` | Works on strings and dates too |
+| MAX(col) | Maximum value | Excluded | `MAX(created_at)` | Works on strings and dates too |
+| STRING_AGG | Concatenated string | Excluded | `STRING_AGG(name, ',')` | MySQL: GROUP_CONCAT |
+| ARRAY_AGG | Array | Included | `ARRAY_AGG(tag)` | PostgreSQL-specific |
+| JSON_AGG | JSON array | Included | `JSON_AGG(col)` | PostgreSQL 9.5+ |
+| BOOL_AND/OR | Logical AND/OR | Excluded | `BOOL_AND(is_active)` | PostgreSQL-specific |
+| EVERY | TRUE for all rows | Excluded | `EVERY(score > 60)` | Alias for BOOL_AND |
+| STDDEV_SAMP | Sample standard deviation | Excluded | `STDDEV_SAMP(salary)` | Divided by N-1 |
+| STDDEV_POP | Population standard deviation | Excluded | `STDDEV_POP(salary)` | Divided by N |
+| VAR_SAMP | Sample variance | Excluded | `VAR_SAMP(salary)` | Divided by N-1 |
+| VAR_POP | Population variance | Excluded | `VAR_POP(salary)` | Divided by N |
+| PERCENTILE_CONT | Continuous percentile | Excluded | `PERCENTILE_CONT(0.5)` | Returns interpolated value |
+| PERCENTILE_DISC | Discrete percentile | Excluded | `PERCENTILE_DISC(0.5)` | Returns existing value |
+| MODE | Mode (most frequent value) | Excluded | `MODE() WITHIN GROUP(...)` | PostgreSQL-specific |
+| CORR | Correlation coefficient | Excluded | `CORR(x, y)` | Range: -1.0 to 1.0 |
 
-## ROLLUP vs CUBE vs GROUPING SETS 比較表
+## ROLLUP vs CUBE vs GROUPING SETS Comparison
 
-| 機能 | 生成される集約 | 行数目安 | 用途 | 対応RDBMS |
-|------|---------------|---------|------|-----------|
-| GROUP BY A, B | (A, B) | グループ数 | 基本集約 | 全RDBMS |
-| ROLLUP(A, B) | (A,B), (A), () | N+1 レベル | 帳票の小計行 | PG, SS, Oracle |
-| CUBE(A, B) | (A,B), (A), (B), () | 2^N 組み合わせ | 多次元分析 | PG, SS, Oracle |
-| GROUPING SETS | 明示指定 | 指定数分 | 柔軟な集約 | PG, SS, Oracle |
+| Feature | Groups Generated | Approximate Row Count | Use Case | Supported RDBMSs |
+|---------|-----------------|----------------------|----------|-----------------|
+| GROUP BY A, B | (A, B) | Number of groups | Basic aggregation | All RDBMSs |
+| ROLLUP(A, B) | (A,B), (A), () | N+1 levels | Subtotal rows in reports | PG, SS, Oracle |
+| CUBE(A, B) | (A,B), (A), (B), () | 2^N combinations | Multi-dimensional analysis | PG, SS, Oracle |
+| GROUPING SETS | Explicitly specified | As specified | Flexible aggregation | PG, SS, Oracle |
 
 ---
 
-## エッジケース
+## Edge Cases
 
-### エッジケース1: 空テーブルに対する集約
+### Edge Case 1: Aggregation on an Empty Table
 
 ```sql
--- 空テーブル（行が0件）に対する集約
+-- Aggregation on an empty table (0 rows)
 CREATE TABLE empty_table (amount INTEGER);
 
 SELECT
-    COUNT(*)   AS cnt,      -- 0（空でも1行返る）
-    SUM(amount) AS total,   -- NULL（0ではない！）
+    COUNT(*)   AS cnt,      -- 0 (still returns 1 row)
+    SUM(amount) AS total,   -- NULL (not 0!)
     AVG(amount) AS avg,     -- NULL
     MIN(amount) AS mn,      -- NULL
     MAX(amount) AS mx       -- NULL
 FROM empty_table;
--- → 結果: 1行が返る（0行ではない）
+-- → 1 row is returned (not 0 rows)
 
--- GROUP BYを付けた場合
+-- With GROUP BY
 SELECT amount, COUNT(*) FROM empty_table GROUP BY amount;
--- → 結果: 0行（グループ自体が存在しない）
+-- → 0 rows (no groups exist)
 
--- ★ 安全な書き方
+-- ★ Safe approach
 SELECT COALESCE(SUM(amount), 0) AS safe_total FROM empty_table;
 ```
 
-### エッジケース2: GROUP BYとNULL
+### Edge Case 2: GROUP BY and NULL
 
 ```sql
--- NULLは1つのグループとして扱われる
+-- NULL is treated as a single group
 INSERT INTO sales (product, category, amount, quantity, sale_date, region) VALUES
     ('不明商品', NULL, 1000, 1, '2024-05-01', NULL);
 
 SELECT category, COUNT(*), SUM(amount)
 FROM sales
 GROUP BY category;
--- → NULLも1つのグループとして集約される
--- → (NULL, 1, 1000) が結果に含まれる
+-- → NULL is aggregated as a single group
+-- → (NULL, 1, 1000) is included in the results
 
--- COALESCE で明示的に扱う
-SELECT COALESCE(category, '未分類') AS category, COUNT(*)
+-- Handling NULL explicitly with COALESCE
+SELECT COALESCE(category, 'Uncategorized') AS category, COUNT(*)
 FROM sales
-GROUP BY COALESCE(category, '未分類');
+GROUP BY COALESCE(category, 'Uncategorized');
 ```
 
-### エッジケース3: DISTINCT + 集約の組み合わせ
+### Edge Case 3: DISTINCT Combined with Aggregation
 
 ```sql
--- COUNT(DISTINCT)のメモリ消費
--- 大テーブルでCOUNT(DISTINCT)を使うとハッシュテーブルのメモリ消費が大きい
-SELECT COUNT(DISTINCT user_id) FROM huge_events;  -- 数百万ユニーク値
+-- Memory consumption of COUNT(DISTINCT)
+-- Using COUNT(DISTINCT) on a large table consumes significant memory for the hash table
+SELECT COUNT(DISTINCT user_id) FROM huge_events;  -- Millions of unique values
 
--- 近似でよい場合の代替手段
--- PostgreSQL: HyperLogLog拡張
+-- Alternatives when approximation is acceptable
+-- PostgreSQL: HyperLogLog extension
 -- BigQuery: APPROX_COUNT_DISTINCT(user_id)
 -- Redshift: APPROXIMATE COUNT(DISTINCT user_id)
 
--- 複数DISTINCT集約は非効率
--- NG: 2つのDISTINCT（2つのハッシュテーブルが必要）
+-- Multiple DISTINCT aggregations are inefficient
+-- Bad: Two DISTINCT operations (requires two hash tables)
 SELECT
     COUNT(DISTINCT user_id) AS unique_users,
     COUNT(DISTINCT product_id) AS unique_products
 FROM orders;
 
--- OK: サブクエリで分割（大テーブルの場合）
+-- Good: Split into subqueries (for large tables)
 SELECT
     (SELECT COUNT(DISTINCT user_id) FROM orders) AS unique_users,
     (SELECT COUNT(DISTINCT product_id) FROM orders) AS unique_products;
 ```
 
-### エッジケース4: 浮動小数点の集約精度
+### Edge Case 4: Floating-Point Precision in Aggregation
 
 ```sql
--- DECIMAL型とFLOAT型のSUM精度の違い
+-- Difference in SUM precision between DECIMAL and FLOAT
 CREATE TABLE float_test (
     val_decimal DECIMAL(10,2),
     val_float   FLOAT
@@ -926,40 +931,40 @@ CREATE TABLE float_test (
 INSERT INTO float_test VALUES (0.1, 0.1), (0.2, 0.2), (0.3, 0.3);
 
 SELECT
-    SUM(val_decimal) AS decimal_sum,  -- 0.60（正確）
-    SUM(val_float) AS float_sum       -- 0.6000000000000001（誤差あり）
+    SUM(val_decimal) AS decimal_sum,  -- 0.60 (exact)
+    SUM(val_float) AS float_sum       -- 0.6000000000000001 (rounding error)
 FROM float_test;
 
--- 金額計算では必ずDECIMAL/NUMERICを使用すること
+-- Always use DECIMAL/NUMERIC for monetary calculations
 ```
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: GROUP BYに含めない列をSELECTする
+### Anti-Pattern 1: Selecting a Column Not in GROUP BY
 
 ```sql
--- NG: nameはGROUP BYに含まれていない
+-- Bad: name is not included in GROUP BY
 SELECT department_id, name, AVG(salary)
 FROM employees
 GROUP BY department_id;
--- → PostgreSQLではエラー
--- → MySQLでは不定値が返る（ONLY_FULL_GROUP_BY無効時）
+-- → Error in PostgreSQL
+-- → Returns an indeterminate value in MySQL (when ONLY_FULL_GROUP_BY is disabled)
 
--- OK: GROUP BYに含めるか、集約関数で包む
+-- Good: Include in GROUP BY or wrap in an aggregate function
 SELECT department_id, MIN(name) AS first_name, AVG(salary)
 FROM employees
 GROUP BY department_id;
 
--- OK: ウィンドウ関数を使う
+-- Good: Use a window function
 SELECT DISTINCT
     department_id,
     FIRST_VALUE(name) OVER (PARTITION BY department_id ORDER BY salary DESC),
     AVG(salary) OVER (PARTITION BY department_id)
 FROM employees;
 
--- OK: 最高給与者の名前を取得（サブクエリ）
+-- Good: Retrieve the top earner's name via a subquery
 SELECT
     e.department_id,
     e.name AS top_earner,
@@ -973,50 +978,50 @@ INNER JOIN (
    AND e.salary = d.max_salary;
 ```
 
-### アンチパターン2: AVGのNULL問題を無視する
+### Anti-Pattern 2: Ignoring the NULL Problem with AVG
 
 ```sql
--- NGパターン: NULLの影響を考慮しない
--- データ: [100, NULL, 200, NULL, 300]
+-- Bad pattern: Not considering the impact of NULL
+-- Data: [100, NULL, 200, NULL, 300]
 SELECT AVG(score) FROM tests;
--- → 200（3件の平均）、NULLを含む5件の平均ではない！
+-- → 200 (average of 3 rows), not the average of 5 rows including NULLs!
 
--- OK: NULLを0として扱いたい場合は明示する
+-- Good: Explicitly treat NULL as 0 when desired
 SELECT AVG(COALESCE(score, 0)) FROM tests;
--- → 120（5件の平均）
+-- → 120 (average of 5 rows)
 
--- OK: NULL行を除外した上での平均が正しい場合
+-- Good: When the average excluding NULLs is intended
 SELECT AVG(score) FROM tests WHERE score IS NOT NULL;
--- → 200（明示的にNULL除外）
+-- → 200 (explicitly excludes NULLs)
 ```
 
-### アンチパターン3: HAVINGでWHEREの仕事をさせる
+### Anti-Pattern 3: Doing WHERE's Job in HAVING
 
 ```sql
--- NG: 行レベルの条件をHAVINGに書く
+-- Bad: Writing a row-level condition in HAVING
 SELECT region, SUM(amount) AS total
 FROM sales
 GROUP BY region
-HAVING region = '東京';  -- WHERE で書くべき
+HAVING region = '東京';  -- Should be in WHERE
 
--- OK: WHEREで先にフィルタ
+-- Good: Pre-filter with WHERE
 SELECT region, SUM(amount) AS total
 FROM sales
 WHERE region = '東京'
 GROUP BY region;
--- → WHEREの方がインデックスを利用でき高速
+-- → WHERE can use an index and is faster
 ```
 
-### アンチパターン4: 不要なDISTINCTとGROUP BYの併用
+### Anti-Pattern 4: Unnecessary DISTINCT Combined with GROUP BY
 
 ```sql
--- NG: GROUP BYの結果はすでにユニーク
+-- Bad: GROUP BY results are already unique
 SELECT DISTINCT category, COUNT(*)
 FROM sales
 GROUP BY category;
--- DISTINCTは無意味（GROUP BYで既にユニーク化されている）
+-- DISTINCT is meaningless (GROUP BY already ensures uniqueness)
 
--- OK: DISTINCTを削除
+-- Good: Remove DISTINCT
 SELECT category, COUNT(*)
 FROM sales
 GROUP BY category;
@@ -1024,62 +1029,64 @@ GROUP BY category;
 
 ---
 
-## セキュリティに関する注意
+## Security Considerations
 
 ```
-┌──────── セキュリティ上の考慮点 ────────────────────────────┐
-│                                                            │
-│  ■ 集約によるデータ漏洩                                    │
-│  ┌──────────────────────────────────────────────┐         │
-│  │ - COUNT(*)の結果から行の存在を推測可能         │         │
-│  │ - MIN/MAXから個別の値が特定されうる            │         │
-│  │ - GROUP BYの結果が1件のグループは個人特定可能  │         │
-│  │                                               │         │
-│  │ 対策:                                         │         │
-│  │ - HAVING COUNT(*) >= k で少数グループを隠す    │         │
-│  │   （k-匿名性の確保）                          │         │
-│  │ - ビューで集約結果のみ公開                     │         │
-│  │ - 行レベルセキュリティ（RLS）の活用            │         │
-│  └──────────────────────────────────────────────┘         │
-│                                                            │
-│  ■ SQLインジェクションとGROUP BY                           │
-│  ┌──────────────────────────────────────────────┐         │
-│  │ - GROUP BY列を動的に生成する場合:              │         │
-│  │   NG: "GROUP BY " + user_input                │         │
-│  │   OK: ホワイトリストで許可列を制限             │         │
-│  │                                               │         │
-│  │ - 例（Python）:                                │         │
-│  │   allowed = {'category', 'region', 'month'}   │         │
-│  │   if col not in allowed: raise ValueError     │         │
-│  └──────────────────────────────────────────────┘         │
-│                                                            │
-│  ■ パフォーマンスDoS                                       │
-│  ┌──────────────────────────────────────────────┐         │
-│  │ - CUBE(A,B,C,D,E)は2^5=32グループを生成       │         │
-│  │ - 大テーブルへの無制限集約はリソースを大量消費  │         │
-│  │ - statement_timeoutを設定して保護              │         │
-│  │ - ユーザー向けクエリにはLIMITを必ず付与        │         │
-│  └──────────────────────────────────────────────┘         │
-└────────────────────────────────────────────────────────────┘
+┌──────── Security Considerations ──────────────────────────────────┐
+│                                                                    │
+│  ■ Data leakage via aggregation                                    │
+│  ┌──────────────────────────────────────────────┐                 │
+│  │ - COUNT(*) results can reveal row existence  │                 │
+│  │ - MIN/MAX can pinpoint individual values      │                 │
+│  │ - A GROUP BY group with 1 row can identify   │                 │
+│  │   an individual                               │                 │
+│  │                                               │                 │
+│  │ Countermeasures:                              │                 │
+│  │ - Use HAVING COUNT(*) >= k to hide small      │                 │
+│  │   groups (k-anonymity)                        │                 │
+│  │ - Expose only aggregated results via views    │                 │
+│  │ - Leverage row-level security (RLS)           │                 │
+│  └──────────────────────────────────────────────┘                 │
+│                                                                    │
+│  ■ SQL injection and GROUP BY                                      │
+│  ┌──────────────────────────────────────────────┐                 │
+│  │ - When dynamically building GROUP BY columns: │                 │
+│  │   Bad: "GROUP BY " + user_input               │                 │
+│  │   Good: Restrict allowed columns via whitelist│                 │
+│  │                                               │                 │
+│  │ - Example (Python):                           │                 │
+│  │   allowed = {'category', 'region', 'month'}   │                 │
+│  │   if col not in allowed: raise ValueError     │                 │
+│  └──────────────────────────────────────────────┘                 │
+│                                                                    │
+│  ■ Performance DoS                                                 │
+│  ┌──────────────────────────────────────────────┐                 │
+│  │ - CUBE(A,B,C,D,E) generates 2^5=32 groups    │                 │
+│  │ - Unrestricted aggregation on large tables    │                 │
+│  │   consumes enormous resources                 │                 │
+│  │ - Set statement_timeout to protect            │                 │
+│  │ - Always add LIMIT to user-facing queries     │                 │
+│  └──────────────────────────────────────────────┘                 │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 演習問題
+## Exercises
 
-### 演習1: 基礎 -- 集約関数とGROUP BY
+### Exercise 1: Basics -- Aggregate Functions and GROUP BY
 
 ```sql
--- 問題: salesテーブルに対して以下のクエリを書きなさい。
--- Q1: カテゴリ別の売上件数・合計金額・平均金額・最大金額を求めよ
--- Q2: 地域別で、売上件数が2件以上のものだけを合計金額降順で表示せよ
--- Q3: 月別（YYYY-MM形式）の売上合計と前月からの増減を表示せよ
+-- Problem: Write the following queries against the sales table.
+-- Q1: Find the sales count, total amount, average amount, and maximum amount per category.
+-- Q2: Show only regions with 2 or more sales, ordered by total amount descending.
+-- Q3: Show the monthly sales total (in YYYY-MM format) and the change from the previous month.
 ```
 
-**模範解答:**
+**Model Answer:**
 
 ```sql
--- Q1: カテゴリ別集計
+-- Q1: Aggregation by category
 SELECT
     category,
     COUNT(*) AS sales_count,
@@ -1090,7 +1097,7 @@ FROM sales
 GROUP BY category
 ORDER BY total_amount DESC;
 
--- Q2: 地域別（2件以上）
+-- Q2: By region (2 or more sales)
 SELECT
     region,
     COUNT(*) AS sales_count,
@@ -1100,7 +1107,7 @@ GROUP BY region
 HAVING COUNT(*) >= 2
 ORDER BY total_amount DESC;
 
--- Q3: 月別推移（ウィンドウ関数との組み合わせ）
+-- Q3: Monthly trend (combined with window functions)
 WITH monthly AS (
     SELECT
         TO_CHAR(sale_date, 'YYYY-MM') AS month,
@@ -1117,25 +1124,25 @@ FROM monthly
 ORDER BY month;
 ```
 
-### 演習2: 応用 -- ROLLUP/CUBEと条件付き集約
+### Exercise 2: Applied -- ROLLUP/CUBE and Conditional Aggregation
 
 ```sql
--- 問題:
--- Q1: カテゴリ・地域のROLLUPで階層的小計を含む帳票を作成せよ
---     （小計行と総計行にはラベルを付けること）
--- Q2: 四半期別（Q1-Q4）のカテゴリ別売上をクロス集計（ピボット）せよ
--- Q3: 担当者別に、1万円以上の取引回数と1万円未満の取引回数を横持ちで表示せよ
+-- Problem:
+-- Q1: Use ROLLUP on category and region to create a report with hierarchical subtotals.
+--     (Label subtotal and grand total rows.)
+-- Q2: Create a cross-tabulation (pivot) of category sales by quarter (Q1-Q4).
+-- Q3: For each salesperson, display the number of transactions >= 10,000 and < 10,000 side by side.
 ```
 
-**模範解答:**
+**Model Answer:**
 
 ```sql
--- Q1: ROLLUP + GROUPING関数
+-- Q1: ROLLUP + GROUPING function
 SELECT
-    CASE WHEN GROUPING(category) = 1 THEN '★総計'
+    CASE WHEN GROUPING(category) = 1 THEN '★Grand Total'
          ELSE category END AS category,
     CASE WHEN GROUPING(region) = 1 THEN
-        CASE WHEN GROUPING(category) = 1 THEN '' ELSE '☆小計' END
+        CASE WHEN GROUPING(category) = 1 THEN '' ELSE '☆Subtotal' END
     ELSE region END AS region,
     SUM(amount) AS total_amount,
     COUNT(*) AS cnt
@@ -1143,7 +1150,7 @@ FROM sales
 GROUP BY ROLLUP(category, region)
 ORDER BY GROUPING(category, region), category, region;
 
--- Q2: クロス集計（ピボットテーブル）
+-- Q2: Cross-tabulation (pivot table)
 SELECT
     category,
     SUM(amount) FILTER (WHERE EXTRACT(QUARTER FROM sale_date) = 1) AS q1,
@@ -1155,7 +1162,7 @@ FROM sales
 GROUP BY category
 ORDER BY annual_total DESC;
 
--- FILTER句が使えないRDBMSの場合
+-- For RDBMSs that do not support the FILTER clause
 SELECT
     category,
     SUM(CASE WHEN EXTRACT(QUARTER FROM sale_date) = 1 THEN amount ELSE 0 END) AS q1,
@@ -1164,7 +1171,7 @@ SELECT
 FROM sales
 GROUP BY category;
 
--- Q3: 条件別カウント
+-- Q3: Count by condition
 SELECT
     salesperson,
     COUNT(*) AS total_transactions,
@@ -1178,20 +1185,22 @@ GROUP BY salesperson
 ORDER BY total_transactions DESC;
 ```
 
-### 演習3: 上級 -- 統計分析と実践的な集約
+### Exercise 3: Advanced -- Statistical Analysis and Practical Aggregation
 
 ```sql
--- 問題:
--- Q1: 各カテゴリの売上金額の標準偏差と変動係数（CV = 標準偏差/平均）を求めよ
--- Q2: 売上金額の分布を10個のバケット（デシル）に分割し、各バケットの件数と
---     金額範囲を表示せよ
--- Q3: 担当者別の売上推移で、3回移動平均を計算し、トレンド（上昇/下降）を判定せよ
+-- Problem:
+-- Q1: Find the standard deviation and coefficient of variation (CV = std dev / mean)
+--     for the sales amount of each category.
+-- Q2: Divide sales amounts into 10 buckets (deciles) and display the count and
+--     amount range for each bucket.
+-- Q3: For each salesperson's sales trend, compute a 3-period moving average
+--     and determine the trend (rising/falling).
 ```
 
-**模範解答:**
+**Model Answer:**
 
 ```sql
--- Q1: 変動係数
+-- Q1: Coefficient of variation
 SELECT
     category,
     COUNT(*) AS cnt,
@@ -1202,7 +1211,7 @@ FROM sales
 GROUP BY category
 HAVING COUNT(*) >= 2;
 
--- Q2: デシル分析（NTILE使用）
+-- Q2: Decile analysis (using NTILE)
 WITH deciles AS (
     SELECT
         amount,
@@ -1220,7 +1229,7 @@ FROM deciles
 GROUP BY decile
 ORDER BY decile;
 
--- Q3: 移動平均とトレンド判定
+-- Q3: Moving average and trend determination
 WITH sales_ordered AS (
     SELECT
         salesperson,
@@ -1257,84 +1266,84 @@ ORDER BY salesperson, sale_date;
 
 ## FAQ
 
-### Q1: WHEREとHAVINGはどう使い分けるか？
+### Q1: How should I use WHERE vs HAVING?
 
-WHEREは個々の行に対するフィルタ（集約前）、HAVINGはグループに対するフィルタ（集約後）。集約関数を使わない条件は必ずWHEREに書く。WHEREで先にフィルタすることで処理対象行数が減り、パフォーマンスが向上する。HAVINGは `SUM(amount) > 10000` のように集約結果を条件にする場合にのみ使用する。
+WHERE is a filter on individual rows (before aggregation); HAVING is a filter on groups (after aggregation). Conditions that do not use aggregate functions must always be placed in WHERE. Pre-filtering with WHERE reduces the number of rows to process and improves performance. Use HAVING only when the condition involves an aggregate result, such as `SUM(amount) > 10000`.
 
-### Q2: COUNT(*)とCOUNT(1)に性能差はあるか？
+### Q2: Is there a performance difference between COUNT(*) and COUNT(1)?
 
-現代のRDBMS（PostgreSQL, MySQL, SQL Server, Oracle）では差はない。オプティマイザが同じ実行計画を生成する。`COUNT(*)`がSQL標準で意図が明確なため推奨。`COUNT(column)`は意味が異なり（NULL除外）、意図せずに使うとバグの原因になる。
+In modern RDBMSs (PostgreSQL, MySQL, SQL Server, Oracle) there is no difference. The optimizer generates the same execution plan for both. `COUNT(*)` is recommended as it is the SQL standard and its intent is clear. `COUNT(column)` has a different meaning (excludes NULLs) and can introduce bugs if used unintentionally.
 
-### Q3: GROUP BYで日付を扱う場合の注意点は？
+### Q3: What should I be aware of when using dates in GROUP BY?
 
-TIMESTAMP型でGROUP BYすると秒単位やミリ秒単位でグループ化されるため、意図通りに集約されない。`DATE_TRUNC('day', timestamp_col)`や`CAST(... AS DATE)`で丸める必要がある。タイムゾーンにも注意が必要で、`DATE_TRUNC('day', timestamp_col AT TIME ZONE 'Asia/Tokyo')`のように明示する。
+Grouping by a TIMESTAMP column groups by the second or millisecond, which may not produce the intended aggregation. You need to round the value using `DATE_TRUNC('day', timestamp_col)` or `CAST(... AS DATE)`. Be careful with time zones as well — specify them explicitly, as in `DATE_TRUNC('day', timestamp_col AT TIME ZONE 'Asia/Tokyo')`.
 
-### Q4: GROUP BYの列番号指定（GROUP BY 1, 2）は安全か？
+### Q4: Is it safe to use column numbers in GROUP BY (e.g., GROUP BY 1, 2)?
 
-SQL標準外だが多くのRDBMSで対応。列の追加や順序変更でバグが生じるため、本番コードでは列名を明示的に指定することを推奨。ただし、アドホッククエリでは便利。
+This is non-standard SQL but supported by many RDBMSs. It is recommended to use explicit column names in production code because adding or reordering columns can introduce bugs. It is, however, convenient for ad hoc queries.
 
-### Q5: 集約関数をネストできるか？
+### Q5: Can aggregate functions be nested?
 
-直接のネストは不可。`SUM(COUNT(*))` はエラー。ただし、ウィンドウ関数を介せば `SUM(COUNT(*)) OVER ()` のように書ける。これはGROUP BY後の結果に対してウィンドウ集約を行う。
+Direct nesting is not allowed. `SUM(COUNT(*))` is an error. However, you can write `SUM(COUNT(*)) OVER ()` using a window function. This applies a window aggregate to the results after the GROUP BY.
 
-### Q6: SUM()がオーバーフローする場合の対策は？
+### Q6: What should I do if SUM() overflows?
 
-INTEGER型の列をSUMするとBIGINT型で計算される（PostgreSQL）。それでも不足する場合は `SUM(amount::NUMERIC)` でNUMERIC型にキャストする。NUMERIC型は任意精度のため事実上オーバーフローしない。
-
----
-
-## トラブルシューティング
-
-### 症状1: GROUP BYの結果が期待と異なる
-
-**原因:** TIMESTAMP列でGROUP BYしており、秒やミリ秒の違いで別グループになっている。
-
-**解決:** `DATE_TRUNC('day', col)` で丸める。`EXPLAIN` でグループ数を確認する。
-
-### 症状2: AVGの結果が予想より高い/低い
-
-**原因:** NULL行がAVGの分母から除外されている。5件中2件がNULLの場合、分母は3になる。
-
-**解決:** `AVG(COALESCE(col, 0))` でNULLを0として計算するか、意図通りの動作か確認する。
-
-### 症状3: GROUP BYクエリが極端に遅い
-
-**原因:** (1) HashAggregateのwork_mem不足でディスクスピル発生、(2) GROUP BY列にインデックスがない、(3) WHERE句のフィルタが不十分。
-
-**解決:** (1) `SET work_mem = '256MB'`、(2) GROUP BY列の複合インデックス追加、(3) WHERE句で先にフィルタ、(4) マテリアライズドビューの検討。
-
-### 症状4: STRING_AGG/GROUP_CONCATの結果が切り詰められる
-
-**原因:** MySQL の `GROUP_CONCAT_MAX_LEN`（デフォルト1024）の制限。
-
-**解決:** `SET GROUP_CONCAT_MAX_LEN = 1000000;` で上限を引き上げる。PostgreSQLのSTRING_AGGにはこの制限はない。
+Summing an INTEGER column is computed as BIGINT (PostgreSQL). If that is still insufficient, cast it to NUMERIC: `SUM(amount::NUMERIC)`. The NUMERIC type has arbitrary precision and practically never overflows.
 
 ---
 
-## まとめ
+## Troubleshooting
 
-| 項目 | 要点 |
-|------|------|
-| 集約関数 | COUNT, SUM, AVG, MIN, MAX が基本5関数。NULLの扱いを理解必須 |
-| NULLの扱い | COUNT(*)以外はNULLを除外して計算。全NULL時はSUM/AVG=NULL |
-| GROUP BY | SELECT句の非集約列は全てGROUP BYに含める。式でのグループ化も可 |
-| HAVING | GROUP BY後のフィルタ。集約関数が使用可能。WHEREと使い分ける |
-| ROLLUP/CUBE | 階層的/多次元的な小計を一度のクエリで取得。CUBEは列数に注意 |
-| FILTER句 | 条件別集約をCASE式より簡潔に書ける（PostgreSQL / SQLite） |
-| 統計関数 | STDDEV, VARIANCE, PERCENTILE_CONT, CORR等で高度な分析可能 |
-| パフォーマンス | WHERE先行フィルタ、インデックス、work_mem調整が基本戦略 |
+### Symptom 1: GROUP BY Results Don't Match Expectations
+
+**Cause:** Grouping by a TIMESTAMP column, where differences in seconds or milliseconds create separate groups.
+
+**Solution:** Round with `DATE_TRUNC('day', col)`. Check the number of groups with `EXPLAIN`.
+
+### Symptom 2: AVG Result is Higher or Lower Than Expected
+
+**Cause:** NULL rows are excluded from the AVG denominator. If 2 of 5 rows are NULL, the denominator becomes 3.
+
+**Solution:** Use `AVG(COALESCE(col, 0))` to treat NULL as 0, or verify that the current behavior is intentional.
+
+### Symptom 3: GROUP BY Query is Extremely Slow
+
+**Cause:** (1) HashAggregate disk spill due to insufficient work_mem, (2) No index on the GROUP BY column, (3) Insufficient row filtering in WHERE.
+
+**Solution:** (1) `SET work_mem = '256MB'`, (2) Add a composite index on the GROUP BY column, (3) Pre-filter with WHERE, (4) Consider a materialized view.
+
+### Symptom 4: STRING_AGG/GROUP_CONCAT Result is Truncated
+
+**Cause:** MySQL's `GROUP_CONCAT_MAX_LEN` limit (default: 1024).
+
+**Solution:** Raise the limit with `SET GROUP_CONCAT_MAX_LEN = 1000000;`. PostgreSQL's STRING_AGG does not have this restriction.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [04-subqueries.md](./04-subqueries.md) -- 集約結果をサブクエリで活用
-- [00-window-functions.md](../01-advanced/00-window-functions.md) -- ウィンドウ関数で行ごとの集約
-- [04-query-optimization.md](../01-advanced/04-query-optimization.md) -- 集約クエリの最適化
+| Topic | Key Points |
+|-------|-----------|
+| Aggregate Functions | COUNT, SUM, AVG, MIN, MAX are the 5 basic functions. Understanding NULL behavior is essential. |
+| NULL Handling | All functions except COUNT(*) exclude NULLs. SUM/AVG return NULL when all values are NULL. |
+| GROUP BY | All non-aggregate columns in SELECT must be in GROUP BY. Grouping by expressions is also possible. |
+| HAVING | Filters after GROUP BY. Aggregate functions can be used. Use alongside WHERE appropriately. |
+| ROLLUP/CUBE | Obtain hierarchical/multi-dimensional subtotals in a single query. Be mindful of column count with CUBE. |
+| FILTER Clause | Write conditional aggregation more concisely than CASE expressions (PostgreSQL / SQLite). |
+| Statistical Functions | Advanced analysis possible with STDDEV, VARIANCE, PERCENTILE_CONT, CORR, and more. |
+| Performance | Pre-filtering with WHERE, using indexes, and tuning work_mem are the fundamental strategies. |
 
 ---
 
-## 参考文献
+## What to Read Next
+
+- [04-subqueries.md](./04-subqueries.md) -- Using aggregate results in subqueries
+- [00-window-functions.md](../01-advanced/00-window-functions.md) -- Per-row aggregation with window functions
+- [04-query-optimization.md](../01-advanced/04-query-optimization.md) -- Optimizing aggregate queries
+
+---
+
+## References
 
 1. PostgreSQL Documentation -- "Aggregate Functions" https://www.postgresql.org/docs/current/functions-aggregate.html
 2. PostgreSQL Documentation -- "Querying a Table: GROUP BY and HAVING" https://www.postgresql.org/docs/current/queries-table-expressions.html#QUERIES-GROUP
