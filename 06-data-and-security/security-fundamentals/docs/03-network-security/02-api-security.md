@@ -1,133 +1,133 @@
-# API セキュリティ
+# API Security
 
-> OAuth 2.0/JWT による認証認可、レートリミットによる過負荷防止、入力検証による攻撃防御、GraphQL セキュリティまで、API を安全に公開するための包括的ガイド
+> A comprehensive guide to securely exposing APIs — covering OAuth 2.0/JWT authentication and authorization, rate limiting to prevent overload, input validation to defend against attacks, and GraphQL security.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **API の脅威モデル** -- OWASP API Security Top 10 の各脆弱性カテゴリとその実装レベルでの防御
-2. **OAuth 2.0 / OpenID Connect** -- 認可フロー選択、PKCE、トークン管理、失効管理
-3. **JWT の安全な実装** -- 署名検証、クレーム検証、トークンストレージ、リフレッシュ戦略
-4. **レートリミットと API 保護** -- アルゴリズム比較、分散レートリミット、DDoS 防御
-5. **入力検証とスキーマバリデーション** -- OpenAPI、express-validator、Zod によるサーバサイド検証
-6. **GraphQL セキュリティ** -- クエリ深度制限、コスト解析、イントロスペクション制御
+1. **API Threat Model** -- Each vulnerability category in the OWASP API Security Top 10 and implementation-level defenses
+2. **OAuth 2.0 / OpenID Connect** -- Authorization flow selection, PKCE, token management, and revocation
+3. **Secure JWT Implementation** -- Signature verification, claim validation, token storage, and refresh strategies
+4. **Rate Limiting and API Protection** -- Algorithm comparison, distributed rate limiting, and DDoS defense
+5. **Input Validation and Schema Validation** -- Server-side validation using OpenAPI, express-validator, and Zod
+6. **GraphQL Security** -- Query depth limiting, cost analysis, and introspection control
 
-### 前提知識
+### Prerequisites
 
-- HTTP/HTTPS プロトコルの基本 (メソッド、ステータスコード、ヘッダ)
-- REST API の設計原則
-- JSON の構造と操作
-- Node.js または Python の基本的なサーバサイド開発経験
+- Basics of HTTP/HTTPS protocol (methods, status codes, headers)
+- REST API design principles
+- JSON structure and manipulation
+- Basic server-side development experience with Node.js or Python
 
 ---
 
-## 1. API の脅威モデル
+## 1. API Threat Model
 
-### API アーキテクチャと攻撃面
+### API Architecture and Attack Surface
 
 ```
-                    攻撃面の全体像
+                    Overview of the Attack Surface
 
-クライアント          API Gateway         バックエンド
-  |                      |                    |
-  |  [認証攻撃]           |                    |
-  |  - Credential        |                    |
-  |    Stuffing          |                    |
-  |  - Brute Force       |                    |
-  |  - Token Theft       |                    |
-  |                      |                    |
-  +------- HTTPS ------->|                    |
-  |                      |  [認可攻撃]         |
-  |                      |  - BOLA            |
-  |                      |  - BFLA            |
-  |                      |  - Mass Assignment |
-  |                      |                    |
-  |                      +------ gRPC ------->|
-  |                      |                    |
-  |                      |                    |  [バックエンド攻撃]
-  |                      |                    |  - Injection
-  |                      |                    |  - SSRF
-  |                      |                    |  - Business Logic
-  |                      |                    |
-  |<----- Response ------|<---- Response -----|
-  |                      |                    |
-  |  [レスポンス攻撃]     |                    |
-  |  - データ過剰露出     |                    |
-  |  - エラー情報漏洩     |                    |
+Client           API Gateway          Backend
+  |                    |                  |
+  |  [Auth Attacks]    |                  |
+  |  - Credential      |                  |
+  |    Stuffing        |                  |
+  |  - Brute Force     |                  |
+  |  - Token Theft     |                  |
+  |                    |                  |
+  +------- HTTPS ----->|                  |
+  |                    |  [Authz Attacks] |
+  |                    |  - BOLA          |
+  |                    |  - BFLA          |
+  |                    |  - Mass Assign.  |
+  |                    |                  |
+  |                    +------ gRPC ----->|
+  |                    |                  |
+  |                    |                  |  [Backend Attacks]
+  |                    |                  |  - Injection
+  |                    |                  |  - SSRF
+  |                    |                  |  - Business Logic
+  |                    |                  |
+  |<----- Response ----|<---- Response ---|
+  |                    |                  |
+  |  [Response Attacks]|                  |
+  |  - Excessive Data  |                  |
+  |  - Error Leakage   |                  |
 ```
 
-### OWASP API Security Top 10 (2023) 詳細
+### OWASP API Security Top 10 (2023) Details
 
 ```
 +------+------------------------------------------------+-----------+
-| 順位 | 脆弱性                                          | 深刻度    |
+| Rank | Vulnerability                                   | Severity  |
 +------+------------------------------------------------+-----------+
 | API1 | Broken Object Level Authorization (BOLA)       | Critical  |
-|      | → 他ユーザのリソースに不正アクセス                |           |
+|      | → Unauthorized access to other users' resources|           |
 +------+------------------------------------------------+-----------+
 | API2 | Broken Authentication                          | Critical  |
-|      | → 認証メカニズムの欠陥                           |           |
+|      | → Flaws in authentication mechanisms           |           |
 +------+------------------------------------------------+-----------+
 | API3 | Broken Object Property Level Authorization     | High      |
-|      | → オブジェクトのプロパティレベルでの認可不備       |           |
+|      | → Missing authorization at property level      |           |
 +------+------------------------------------------------+-----------+
 | API4 | Unrestricted Resource Consumption              | High      |
-|      | → リソース消費の制限なし (DoS)                   |           |
+|      | → No limits on resource consumption (DoS)      |           |
 +------+------------------------------------------------+-----------+
 | API5 | Broken Function Level Authorization            | High      |
-|      | → 管理者機能への不正アクセス                      |           |
+|      | → Unauthorized access to admin functions       |           |
 +------+------------------------------------------------+-----------+
 | API6 | Unrestricted Access to Sensitive Business Flow | Medium    |
-|      | → ビジネスロジックの悪用                          |           |
+|      | → Abuse of business logic                      |           |
 +------+------------------------------------------------+-----------+
 | API7 | Server Side Request Forgery (SSRF)             | High      |
-|      | → サーバ側からの不正なリクエスト                  |           |
+|      | → Unauthorized requests originating from server|           |
 +------+------------------------------------------------+-----------+
 | API8 | Security Misconfiguration                      | Medium    |
-|      | → セキュリティ設定の不備                          |           |
+|      | → Inadequate security configuration            |           |
 +------+------------------------------------------------+-----------+
 | API9 | Improper Inventory Management                  | Medium    |
-|      | → API のバージョン・エンドポイント管理不備         |           |
+|      | → Poor API version/endpoint management         |           |
 +------+------------------------------------------------+-----------+
 | API10| Unsafe Consumption of APIs                     | Medium    |
-|      | → 外部 API の安全でない利用                       |           |
+|      | → Insecure use of external APIs                |           |
 +------+------------------------------------------------+-----------+
 ```
 
-### API1: BOLA (Broken Object Level Authorization) の詳細
+### API1: BOLA (Broken Object Level Authorization) Details
 
 ```
-攻撃シナリオ:
+Attack Scenario:
 
-正規ユーザ (user_id=123):
-  GET /api/orders/1001 → 200 OK (自分の注文)
+Legitimate user (user_id=123):
+  GET /api/orders/1001 → 200 OK (their own order)
 
-攻撃者 (user_id=456):
-  GET /api/orders/1001 → 200 OK (他人の注文が見えてしまう!)
-  GET /api/orders/1002 → 200 OK (連番で全注文を列挙)
+Attacker (user_id=456):
+  GET /api/orders/1001 → 200 OK (another user's order is visible!)
+  GET /api/orders/1002 → 200 OK (enumerating all orders sequentially)
 
-BOLA の種類:
+Types of BOLA:
   1. IDOR (Insecure Direct Object Reference)
      → /api/users/123/profile → /api/users/124/profile
 
-  2. パラメータ操作
+  2. Parameter Tampering
      → POST /api/transfer {"from": "my-account", "to": "attacker"}
      → POST /api/transfer {"from": "victim-account", "to": "attacker"}
 
-  3. UUID でも安全ではない
-     → UUID を推測できなくても、レスポンスの中に他のリソースの
-        UUID が含まれていれば攻撃可能
+  3. UUIDs are not inherently safe
+     → Even if UUIDs cannot be guessed, if other resource UUIDs
+        are included in a response, the attack becomes possible
 ```
 
 ```javascript
-// BOLA 防御の実装パターン (Express.js)
+// BOLA defense implementation pattern (Express.js)
 
-// NG: オブジェクトIDのみで認可チェックなし
+// NG: No authorization check on object ID alone
 app.get('/api/orders/:orderId', async (req, res) => {
   const order = await Order.findById(req.params.orderId);
-  res.json(order);  // 他人の注文も取得できてしまう
+  res.json(order);  // Other users' orders can be retrieved
 });
 
-// OK: ミドルウェアパターンでオブジェクト所有者の検証
+// OK: Middleware pattern to verify resource ownership
 function authorizeResource(model, ownerField = 'userId') {
   return async (req, res, next) => {
     const resource = await model.findById(req.params.id);
@@ -135,7 +135,7 @@ function authorizeResource(model, ownerField = 'userId') {
       return res.status(404).json({ error: 'Resource not found' });
     }
     if (resource[ownerField].toString() !== req.user.id) {
-      // 注意: 403 ではなく 404 を返すことで、リソースの存在を隠す
+      // Note: Return 404 instead of 403 to hide resource existence
       return res.status(404).json({ error: 'Resource not found' });
     }
     req.resource = resource;
@@ -147,25 +147,25 @@ app.get('/api/orders/:id', authenticate, authorizeResource(Order), (req, res) =>
   res.json(req.resource);
 });
 
-// OK: クエリレベルでの所有者フィルタリング (より安全)
+// OK: Owner filtering at query level (more secure)
 app.get('/api/orders/:orderId', authenticate, async (req, res) => {
   const order = await Order.findOne({
     _id: req.params.orderId,
-    userId: req.user.id,  // 認証ユーザのIDで絞り込み
+    userId: req.user.id,  // Filter by authenticated user's ID
   });
   if (!order) return res.status(404).json({ error: 'Not found' });
   res.json(order);
 });
 
-// OK: RBAC + ABAC の組み合わせ
+// OK: Combining RBAC + ABAC
 app.get('/api/orders/:orderId', authenticate, async (req, res) => {
   const order = await Order.findById(req.params.orderId);
   if (!order) return res.status(404).json({ error: 'Not found' });
 
-  // 管理者は全注文にアクセス可能
+  // Admins can access all orders
   if (req.user.role === 'admin') return res.json(order);
 
-  // サポート担当は自部門の注文のみ
+  // Support staff can only access orders from their department
   if (req.user.role === 'support') {
     if (order.department !== req.user.department) {
       return res.status(404).json({ error: 'Not found' });
@@ -173,7 +173,7 @@ app.get('/api/orders/:orderId', authenticate, async (req, res) => {
     return res.json(order);
   }
 
-  // 一般ユーザは自分の注文のみ
+  // Regular users can only access their own orders
   if (order.userId.toString() !== req.user.id) {
     return res.status(404).json({ error: 'Not found' });
   }
@@ -181,21 +181,21 @@ app.get('/api/orders/:orderId', authenticate, async (req, res) => {
 });
 ```
 
-### API3: Mass Assignment 防御
+### API3: Mass Assignment Defense
 
 ```javascript
-// NG: リクエストボディをそのまま使う
+// NG: Using the request body as-is
 app.put('/api/users/:id', authenticate, async (req, res) => {
   const user = await User.findByIdAndUpdate(req.params.id, req.body);
-  // 攻撃者が {"role": "admin", "verified": true} を送信可能!
+  // Attacker can send {"role": "admin", "verified": true}!
   res.json(user);
 });
 
-// OK: 許可フィールドのホワイトリスト
+// OK: Whitelist of allowed fields
 const ALLOWED_USER_FIELDS = ['name', 'email', 'bio', 'avatar'];
 
 app.put('/api/users/:id', authenticate, async (req, res) => {
-  // ホワイトリストでフィルタリング
+  // Filter using whitelist
   const updates = {};
   for (const field of ALLOWED_USER_FIELDS) {
     if (req.body[field] !== undefined) {
@@ -204,9 +204,9 @@ app.put('/api/users/:id', authenticate, async (req, res) => {
   }
 
   const user = await User.findOneAndUpdate(
-    { _id: req.params.id, _id: req.user.id },  // 所有者チェック
+    { _id: req.params.id, _id: req.user.id },  // Ownership check
     { $set: updates },
-    { new: true, select: '-password -__v' }     // パスワードを除外
+    { new: true, select: '-password -__v' }     // Exclude password
   );
 
   if (!user) return res.status(404).json({ error: 'Not found' });
@@ -218,40 +218,40 @@ app.put('/api/users/:id', authenticate, async (req, res) => {
 
 ## 2. OAuth 2.0 / OpenID Connect
 
-### 認可フロー選択ガイド
+### Authorization Flow Selection Guide
 
 ```
-アプリケーションの種類は?
+What type of application is it?
   |
-  +-- サーバサイド Web アプリ
-  |   → Authorization Code Flow (+ PKCE 推奨)
-  |   理由: client_secret をサーバ側で安全に保管可能
+  +-- Server-side Web App
+  |   → Authorization Code Flow (+ PKCE recommended)
+  |   Reason: client_secret can be stored safely on server
   |
   +-- SPA (Single Page Application)
-  |   → Authorization Code Flow + PKCE (必須)
-  |   理由: client_secret をブラウザに保管できない
-  |   注意: Implicit Flow は非推奨 (RFC 9700)
+  |   → Authorization Code Flow + PKCE (required)
+  |   Reason: client_secret cannot be stored in the browser
+  |   Note: Implicit Flow is deprecated (RFC 9700)
   |
-  +-- モバイルアプリ / デスクトップ
+  +-- Mobile App / Desktop
   |   → Authorization Code Flow + PKCE
-  |   理由: client_secret をクライアントに保管できない
-  |   注意: カスタム URL スキームでリダイレクト
+  |   Reason: client_secret cannot be stored on client
+  |   Note: Redirect via custom URL scheme
   |
-  +-- マシン間通信 (M2M)
+  +-- Machine-to-Machine (M2M)
   |   → Client Credentials Flow
-  |   理由: ユーザの関与なし、サーバ間の直接認証
+  |   Reason: No user involvement, direct server-to-server auth
   |
-  +-- IoT / 入力制限デバイス
+  +-- IoT / Limited-input Devices
       → Device Authorization Flow (RFC 8628)
-      理由: ブラウザやキーボードがないデバイス
+      Reason: Devices without browser or keyboard
 ```
 
-### Authorization Code Flow + PKCE の詳細
+### Authorization Code Flow + PKCE Details
 
 ```
 Browser/App              Auth Server              Resource Server
     |                         |                         |
-    | (1) code_verifier を生成 (暗号学的にランダムな43-128文字)
+    | (1) Generate code_verifier (cryptographically random, 43-128 chars)
     | code_challenge = BASE64URL(SHA256(code_verifier))
     |                         |                         |
     |-- (2) /authorize -----> |                         |
@@ -259,22 +259,22 @@ Browser/App              Auth Server              Resource Server
     |   + client_id           |                         |
     |   + redirect_uri        |                         |
     |   + scope=openid email  |                         |
-    |   + state=random123     | (CSRF 防止)              |
+    |   + state=random123     | (CSRF prevention)       |
     |   + code_challenge      |                         |
     |   + code_challenge_method=S256                    |
     |                         |                         |
-    |  <-- (3) ログイン画面 -- |                         |
-    |  -- ユーザ認証 -------> |                         |
+    |  <-- (3) Login page --  |                         |
+    |  -- User auth --------> |                         |
     |                         |                         |
     |  <-- (4) redirect ------|                         |
     |   + code=authcode123    |                         |
-    |   + state=random123     | (state を検証)           |
+    |   + state=random123     | (Verify state)          |
     |                         |                         |
     |-- (5) POST /token ----->|                         |
     |   + grant_type=         |                         |
     |     authorization_code  |                         |
     |   + code=authcode123    |                         |
-    |   + code_verifier       | (PKCE 検証)             |
+    |   + code_verifier       | (PKCE verification)    |
     |   + redirect_uri        |                         |
     |   + client_id           |                         |
     |                         |                         |
@@ -291,17 +291,17 @@ Browser/App              Auth Server              Resource Server
     |  <-- (8) Response ------+-----------------------  |
 ```
 
-### PKCE の実装 (Node.js)
+### PKCE Implementation (Node.js)
 
 ```javascript
 const crypto = require('crypto');
 
-// PKCE code_verifier と code_challenge の生成
+// Generate PKCE code_verifier and code_challenge
 function generatePKCE() {
-  // code_verifier: 暗号学的にランダムな 43-128 文字
+  // code_verifier: cryptographically random, 43-128 characters
   const verifier = crypto.randomBytes(32).toString('base64url');
 
-  // code_challenge: SHA-256 ハッシュの Base64URL エンコード
+  // code_challenge: Base64URL encoding of SHA-256 hash
   const challenge = crypto
     .createHash('sha256')
     .update(verifier)
@@ -310,13 +310,13 @@ function generatePKCE() {
   return { verifier, challenge };
 }
 
-// 認可リクエストの構築
+// Build authorization request
 function buildAuthorizationUrl(config) {
   const { verifier, challenge } = generatePKCE();
   const state = crypto.randomBytes(16).toString('hex');
 
-  // state と verifier をセッションに保存
-  // (SPA の場合は sessionStorage に保存)
+  // Save state and verifier to session
+  // (For SPA, save to sessionStorage)
 
   const params = new URLSearchParams({
     response_type: 'code',
@@ -326,7 +326,7 @@ function buildAuthorizationUrl(config) {
     state: state,
     code_challenge: challenge,
     code_challenge_method: 'S256',
-    // nonce: OIDC の場合、リプレイ攻撃防止
+    // nonce: For OIDC, prevents replay attacks
     nonce: crypto.randomBytes(16).toString('hex'),
   });
 
@@ -337,7 +337,7 @@ function buildAuthorizationUrl(config) {
   };
 }
 
-// トークン交換
+// Token exchange
 async function exchangeCodeForTokens(code, verifier, config) {
   const response = await fetch(config.tokenEndpoint, {
     method: 'POST',
@@ -347,7 +347,7 @@ async function exchangeCodeForTokens(code, verifier, config) {
       code: code,
       redirect_uri: config.redirectUri,
       client_id: config.clientId,
-      code_verifier: verifier,  // PKCE: code_verifier を送信
+      code_verifier: verifier,  // PKCE: send code_verifier
     }),
   });
 
@@ -360,10 +360,10 @@ async function exchangeCodeForTokens(code, verifier, config) {
 }
 ```
 
-### トークンのリフレッシュとローテーション
+### Token Refresh and Rotation
 
 ```javascript
-// リフレッシュトークンのローテーション実装
+// Refresh token rotation implementation
 async function refreshAccessToken(refreshToken, config) {
   const response = await fetch(config.tokenEndpoint, {
     method: 'POST',
@@ -377,7 +377,7 @@ async function refreshAccessToken(refreshToken, config) {
 
   if (!response.ok) {
     const error = await response.json();
-    // リフレッシュトークンが無効 → 再ログインが必要
+    // Refresh token is invalid → re-login required
     if (error.error === 'invalid_grant') {
       throw new AuthenticationError('Session expired, please login again');
     }
@@ -385,16 +385,16 @@ async function refreshAccessToken(refreshToken, config) {
   }
 
   const tokens = await response.json();
-  // ローテーション: 新しい refresh_token が返される
-  // 古い refresh_token は無効化される (一度きりの使用)
+  // Rotation: a new refresh_token is returned
+  // The old refresh_token is invalidated (single use)
   return {
     accessToken: tokens.access_token,
-    refreshToken: tokens.refresh_token,  // 新しいリフレッシュトークン
+    refreshToken: tokens.refresh_token,  // New refresh token
     expiresIn: tokens.expires_in,
   };
 }
 
-// Axios インターセプタでの自動リフレッシュ
+// Auto-refresh with Axios interceptor
 const api = axios.create({ baseURL: 'https://api.example.com' });
 let isRefreshing = false;
 let failedQueue = [];
@@ -406,7 +406,7 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
-        // 既にリフレッシュ中なら、完了を待つ
+        // Already refreshing — wait for completion
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         }).then((token) => {
@@ -425,7 +425,7 @@ api.interceptors.response.use(
         );
         storeTokens(accessToken, refreshToken);
 
-        // キューに溜まったリクエストを再実行
+        // Retry queued requests
         failedQueue.forEach(({ resolve }) => resolve(accessToken));
         failedQueue = [];
 
@@ -434,7 +434,7 @@ api.interceptors.response.use(
       } catch (refreshError) {
         failedQueue.forEach(({ reject }) => reject(refreshError));
         failedQueue = [];
-        // セッション無効化 → ログイン画面へ
+        // Invalidate session → redirect to login
         logout();
         throw refreshError;
       } finally {
@@ -449,12 +449,12 @@ api.interceptors.response.use(
 
 ---
 
-## 3. JWT の安全な実装
+## 3. Secure JWT Implementation
 
-### JWT の構造と検証
+### JWT Structure and Verification
 
 ```
-JWT の構造:
+JWT Structure:
 
 Header.Payload.Signature
   |       |        |
@@ -462,43 +462,43 @@ Header.Payload.Signature
 
 eyJhbGci.eyJzdWIi.SflKxwRJ
   |       |        |
-  +-------+--------+-- Base64URL エンコード (暗号化ではない!)
+  +-------+--------+-- Base64URL encoded (NOT encrypted!)
           |
           v
   {
-    "sub": "user123",      ← ユーザ識別子
-    "iss": "auth.example.com", ← 発行者
-    "aud": "api.example.com",  ← 対象 API
-    "exp": 1700000000,     ← 有効期限 (UNIX timestamp)
-    "iat": 1699999100,     ← 発行時刻
-    "jti": "unique-id-123", ← トークン一意識別子
-    "scope": "read write",  ← 認可スコープ
+    "sub": "user123",      ← User identifier
+    "iss": "auth.example.com", ← Issuer
+    "aud": "api.example.com",  ← Target API
+    "exp": 1700000000,     ← Expiry time (UNIX timestamp)
+    "iat": 1699999100,     ← Issued-at time
+    "jti": "unique-id-123", ← Unique token identifier
+    "scope": "read write",  ← Authorization scope
     "email": "user@example.com"
   }
 
-署名アルゴリズム:
-  HS256: HMAC-SHA256 (対称鍵) → M2M、単一サーバ向け
-  RS256: RSA-SHA256 (非対称鍵) → 一般的な推奨
-  ES256: ECDSA-SHA256 (楕円曲線) → 高速 + 短い鍵長
-  EdDSA: Ed25519 (最新) → 最高速 + 最短鍵長
+Signature Algorithms:
+  HS256: HMAC-SHA256 (symmetric key) → M2M, single server
+  RS256: RSA-SHA256 (asymmetric key) → General recommendation
+  ES256: ECDSA-SHA256 (elliptic curve) → Fast + short key length
+  EdDSA: Ed25519 (latest) → Fastest + shortest key length
 ```
 
-### JWT 検証ミドルウェア (Node.js)
+### JWT Verification Middleware (Node.js)
 
 ```javascript
 const jwt = require('jsonwebtoken');
 const jwksClient = require('jwks-rsa');
 
-// JWKS クライアント (公開鍵を自動取得 + キャッシュ)
+// JWKS client (auto-fetches and caches public keys)
 const client = jwksClient({
   jwksUri: 'https://auth.example.com/.well-known/jwks.json',
-  cache: true,            // 鍵をキャッシュ
-  cacheMaxAge: 600000,    // 10分間キャッシュ
-  rateLimit: true,        // レートリミット
+  cache: true,            // Cache keys
+  cacheMaxAge: 600000,    // Cache for 10 minutes
+  rateLimit: true,        // Rate limiting
   jwksRequestsPerMinute: 10,
 });
 
-// kid から署名検証鍵を取得
+// Retrieve signing key by kid
 function getSigningKey(kid) {
   return new Promise((resolve, reject) => {
     client.getSigningKey(kid, (err, key) => {
@@ -508,7 +508,7 @@ function getSigningKey(kid) {
   });
 }
 
-// JWT 検証ミドルウェア
+// JWT verification middleware
 async function verifyToken(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
@@ -521,30 +521,30 @@ async function verifyToken(req, res, next) {
   const token = authHeader.slice(7);
 
   try {
-    // Step 1: ヘッダをデコード (検証前) して kid を取得
+    // Step 1: Decode header (before verification) to get kid
     const decoded = jwt.decode(token, { complete: true });
     if (!decoded || !decoded.header.kid) {
       return res.status(401).json({ error: 'Invalid token format' });
     }
 
-    // Step 2: アルゴリズムがホワイトリストにあるか確認
+    // Step 2: Confirm algorithm is on the whitelist
     if (!['RS256', 'ES256'].includes(decoded.header.alg)) {
       return res.status(401).json({ error: 'Unsupported algorithm' });
     }
 
-    // Step 3: JWKS から公開鍵を取得
+    // Step 3: Fetch public key from JWKS
     const publicKey = await getSigningKey(decoded.header.kid);
 
-    // Step 4: 署名検証 + クレーム検証
+    // Step 4: Verify signature + validate claims
     const payload = jwt.verify(token, publicKey, {
-      algorithms: ['RS256', 'ES256'],  // 許可アルゴリズムを明示
+      algorithms: ['RS256', 'ES256'],  // Explicitly specify allowed algorithms
       issuer: 'https://auth.example.com',
       audience: 'https://api.example.com',
-      clockTolerance: 30,  // 時刻ずれ許容 (秒)
-      maxAge: '1h',        // 発行からの最大経過時間
+      clockTolerance: 30,  // Clock skew tolerance (seconds)
+      maxAge: '1h',        // Maximum age since issuance
     });
 
-    // Step 5: 追加のカスタム検証
+    // Step 5: Additional custom validation
     if (!payload.scope) {
       return res.status(403).json({ error: 'No scope in token' });
     }
@@ -565,13 +565,13 @@ async function verifyToken(req, res, next) {
         message: 'Token signature verification failed',
       });
     }
-    // 予期しないエラーの詳細は返さない
+    // Do not return details of unexpected errors
     console.error('Token verification error:', err);
     return res.status(401).json({ error: 'Authentication failed' });
   }
 }
 
-// スコープベースの認可ミドルウェア
+// Scope-based authorization middleware
 function requireScope(...requiredScopes) {
   return (req, res, next) => {
     const tokenScopes = (req.user.scope || '').split(' ');
@@ -587,98 +587,98 @@ function requireScope(...requiredScopes) {
   };
 }
 
-// 使用例
+// Usage examples
 app.get('/api/users', verifyToken, requireScope('users:read'), getUsers);
 app.post('/api/users', verifyToken, requireScope('users:write'), createUser);
 app.delete('/api/users/:id', verifyToken, requireScope('users:delete'), deleteUser);
 ```
 
-### JWT クレームのベストプラクティス
+### JWT Claims Best Practices
 
-| クレーム | 必須 | 説明 | 検証方法 |
-|---------|------|------|---------|
-| `iss` | はい | トークン発行者 | 期待する発行者と完全一致 |
-| `sub` | はい | ユーザ/クライアント識別子 | DB のユーザ ID と照合 |
-| `aud` | はい | 対象 API (受信者) | 自 API の識別子と一致 |
-| `exp` | はい | 有効期限 (短め: 15分-1時間) | 現在時刻 < exp |
-| `iat` | はい | 発行時刻 | 未来の iat を拒否 |
-| `nbf` | 推奨 | 有効開始時刻 | 現在時刻 >= nbf |
-| `jti` | 推奨 | トークン一意識別子 | リプレイ攻撃防止用に記録 |
-| `scope` | 推奨 | 認可スコープ | 要求操作に必要なスコープを確認 |
-| `azp` | 条件付 | 認可されたクライアント | クライアント ID と照合 |
+| Claim | Required | Description | Validation |
+|-------|----------|-------------|------------|
+| `iss` | Yes | Token issuer | Exact match with expected issuer |
+| `sub` | Yes | User/client identifier | Match against DB user ID |
+| `aud` | Yes | Target API (recipient) | Match against this API's identifier |
+| `exp` | Yes | Expiry time (short: 15min–1hr) | Current time < exp |
+| `iat` | Yes | Issued-at time | Reject future iat values |
+| `nbf` | Recommended | Not-before time | Current time >= nbf |
+| `jti` | Recommended | Unique token identifier | Record for replay attack prevention |
+| `scope` | Recommended | Authorization scope | Verify required scope for operation |
+| `azp` | Conditional | Authorized client | Match against client ID |
 
-### JWT のストレージ戦略
+### JWT Storage Strategy
 
 ```
-ストレージ別リスク比較:
+Risk Comparison by Storage Type:
 
 +------------------+-----------+-------+--------+----------+
-| ストレージ        | XSS 耐性  | CSRF  | 有効範囲 | 推奨度   |
+| Storage          | XSS Safe  | CSRF  | Scope  | Recommend|
 +------------------+-----------+-------+--------+----------+
-| localStorage     | 脆弱      | 安全  | タブ間  | 非推奨   |
-| sessionStorage   | 脆弱      | 安全  | タブ内  | 条件付   |
-| Cookie (HttpOnly)| 安全      | 脆弱  | 自動送信| 推奨     |
-| Cookie + SameSite| 安全      | 安全  | 自動送信| 最推奨   |
-| メモリ (変数)     | 安全      | 安全  | タブ内  | 推奨     |
+| localStorage     | Vulnerable| Safe  | Cross-tab | Not recommended |
+| sessionStorage   | Vulnerable| Safe  | Same-tab  | Conditional     |
+| Cookie (HttpOnly)| Safe      | Vuln. | Auto-send | Recommended     |
+| Cookie + SameSite| Safe      | Safe  | Auto-send | Best            |
+| Memory (variable)| Safe      | Safe  | Same-tab  | Recommended     |
 +------------------+-----------+-------+--------+----------+
 
-推奨パターン (BFF: Backend For Frontend):
-  1. Access Token → メモリ変数に保持 (XSS/CSRF 両方に安全)
+Recommended Pattern (BFF: Backend For Frontend):
+  1. Access Token → Hold in memory variable (safe from both XSS and CSRF)
   2. Refresh Token → HttpOnly + Secure + SameSite=Strict Cookie
-  3. BFF がトークン管理を代行 → SPA はセッション Cookie のみ使用
+  3. BFF handles token management → SPA uses only session cookie
 ```
 
 ---
 
-## 4. レートリミット
+## 4. Rate Limiting
 
-### レートリミットのアルゴリズム
+### Rate Limiting Algorithms
 
 ```
-1. Token Bucket (トークンバケット):
+1. Token Bucket:
    +-------------------+
-   |  ○ ○ ○ ○ ○ ○ ○   |  バケット容量 = 10
-   |  (トークン)        |  補充レート = 1/秒
+   |  ○ ○ ○ ○ ○ ○ ○   |  Bucket capacity = 10
+   |  (tokens)         |  Refill rate = 1/sec
    +-------------------+
-   リクエスト → トークンを1個消費
-   トークンなし → 429 Too Many Requests
-   特徴: バーストを許容 (溜まったトークン分)
+   Request → consume 1 token
+   No token → 429 Too Many Requests
+   Characteristic: allows bursts (up to bucket capacity)
 
-2. Leaky Bucket (漏れバケット):
+2. Leaky Bucket:
    +---+
-   | ● | ← リクエストが入る
+   | ● | ← Requests enter
    | ● |
-   | ● |    一定レートで
-   +---+    処理される
+   | ● |    Processed at
+   +---+    fixed rate
      |        ↓
      ● → → → API
 
-   特徴: リクエストを平滑化、バースト不可
+   Characteristic: smooths requests, no bursting
 
 3. Fixed Window Counter:
    |--- Window 1 ---|--- Window 2 ---|
    |  count = 8     |  count = 3     |
    |  limit = 10    |  limit = 10    |
    +----------------+----------------+
-   問題: ウィンドウ境界でバーストが発生
-   (Window 1 の末尾 8 + Window 2 の先頭 10 = 18 リクエスト)
+   Problem: Burst possible at window boundary
+   (Window 1 trailing 8 + Window 2 leading 10 = 18 requests)
 
 4. Sliding Window Log:
-   |------ 60秒ウィンドウ ------| → スライド →
-   |  *  *   *  * *  *  *  *   |  リクエスト数 = 8
-   |                           |  上限 = 10 → OK
-   +---------------------------+
-   特徴: 正確だがメモリ消費が大きい
+   |------ 60-second window ------| → slides →
+   |  *  *   *  * *  *  *  *   |  count = 8
+   |                             |  limit = 10 → OK
+   +-----------------------------+
+   Characteristic: Accurate but high memory usage
 
-5. Sliding Window Counter (推奨):
-   |--- 前の窓 ---|--- 現在の窓 ---|
-   |  count=6    |  count=3      |
-   |  重み=30%   |  重み=100%    |
-   推定: 6*0.3 + 3*1.0 = 4.8 → 上限 10 以内
-   特徴: 精度と効率のバランスが良い
+5. Sliding Window Counter (recommended):
+   |--- Previous window ---|--- Current window ---|
+   |  count=6              |  count=3             |
+   |  weight=30%           |  weight=100%         |
+   Estimate: 6*0.3 + 3*1.0 = 4.8 → within limit 10
+   Characteristic: Good balance of accuracy and efficiency
 ```
 
-### Redis ベースの分散レートリミッター (Python)
+### Redis-Based Distributed Rate Limiter (Python)
 
 ```python
 import redis
@@ -695,15 +695,15 @@ def rate_limit(
     key_func=None,
     scope: str = 'default'
 ):
-    """スライディングウィンドウ方式の分散レートリミッター"""
+    """Distributed rate limiter using sliding window approach"""
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            # クライアント識別
+            # Client identification
             if key_func:
                 client_id = key_func()
             else:
-                # API キー > 認証ユーザ > IP アドレス の優先順位
+                # Priority: API key > authenticated user > IP address
                 client_id = (
                     request.headers.get('X-API-Key') or
                     getattr(g, 'user_id', None) or
@@ -711,30 +711,30 @@ def rate_limit(
                     request.remote_addr
                 )
 
-            # レートリミットキー (スコープ + エンドポイント + クライアント)
+            # Rate limit key (scope + endpoint + client)
             key = f"ratelimit:{scope}:{f.__name__}:{hashlib.sha256(client_id.encode()).hexdigest()[:16]}"
             now = time.time()
 
-            # Lua スクリプトでアトミックに処理 (Redis の競合状態を防止)
+            # Atomic processing via Lua script (prevents Redis race conditions)
             lua_script = """
             local key = KEYS[1]
             local now = tonumber(ARGV[1])
             local window = tonumber(ARGV[2])
             local max_requests = tonumber(ARGV[3])
 
-            -- 古いエントリを削除
+            -- Remove old entries
             redis.call('ZREMRANGEBYSCORE', key, 0, now - window)
 
-            -- 現在のリクエスト数を取得
+            -- Get current request count
             local current = redis.call('ZCARD', key)
 
             if current < max_requests then
-                -- 制限内: リクエストを記録
+                -- Within limit: record request
                 redis.call('ZADD', key, now, now .. '-' .. math.random(1000000))
                 redis.call('EXPIRE', key, window)
                 return {current + 1, 0}
             else
-                -- 制限超過: 最も古いエントリからリセット時間を計算
+                -- Limit exceeded: calculate reset time from oldest entry
                 local oldest = redis.call('ZRANGE', key, 0, 0, 'WITHSCORES')
                 local reset_at = oldest[2] + window
                 return {current, reset_at}
@@ -745,7 +745,7 @@ def rate_limit(
             current_count = int(result[0])
             reset_at = float(result[1])
 
-            # レスポンスヘッダ (RFC 7231 + draft-ietf-httpapi-ratelimit-headers)
+            # Response headers (RFC 7231 + draft-ietf-httpapi-ratelimit-headers)
             headers = {
                 'X-RateLimit-Limit': str(max_requests),
                 'X-RateLimit-Remaining': str(max(0, max_requests - current_count)),
@@ -762,7 +762,7 @@ def rate_limit(
                 }), 429, headers
 
             response = f(*args, **kwargs)
-            # Flask のレスポンスにヘッダを追加
+            # Add headers to Flask response
             if isinstance(response, tuple):
                 body, status = response[0], response[1]
                 return body, status, headers
@@ -771,7 +771,7 @@ def rate_limit(
         return wrapper
     return decorator
 
-# 使用例: エンドポイントごとに異なるレートリミット
+# Usage: Different rate limits per endpoint
 @app.route('/api/data')
 @rate_limit(max_requests=100, window_seconds=60, scope='general')
 def get_data():
@@ -788,45 +788,45 @@ def export_data():
     return jsonify({'job_id': '...'})
 ```
 
-### レートリミット戦略の比較
+### Rate Limiting Strategy Comparison
 
-| 戦略 | メモリ | 精度 | 実装複雑度 | バースト対応 | 分散環境 |
-|------|--------|------|-----------|------------|---------|
-| Fixed Window | 低 | 低 (境界問題) | 低 | 不可 | 容易 |
-| Sliding Window Log | 高 | 高 | 中 | 可 | 中 |
-| Sliding Window Counter | 中 | 中 | 中 | 可 | 容易 |
-| Token Bucket | 低 | 高 | 低 | 可 (バースト許容) | 中 |
-| Leaky Bucket | 低 | 高 | 低 | 不可 (平滑化) | 中 |
+| Strategy | Memory | Accuracy | Implementation | Burst Support | Distributed |
+|----------|--------|----------|----------------|---------------|-------------|
+| Fixed Window | Low | Low (boundary issue) | Low | No | Easy |
+| Sliding Window Log | High | High | Medium | Yes | Medium |
+| Sliding Window Counter | Medium | Medium | Medium | Yes | Easy |
+| Token Bucket | Low | High | Low | Yes (burst allowed) | Medium |
+| Leaky Bucket | Low | High | Low | No (smoothed) | Medium |
 
-### 多層防御のレートリミット設計
+### Multi-Layer Rate Limiting Design
 
 ```
-クライアント → CDN/WAF → API Gateway → アプリケーション
+Client → CDN/WAF → API Gateway → Application
 
 Layer 1: CDN/WAF (Cloudflare, AWS WAF)
-  - IP ベースのレートリミット: 1000 req/min/IP
-  - Geographic ブロック
-  - Bot 検出
+  - IP-based rate limiting: 1000 req/min/IP
+  - Geographic blocking
+  - Bot detection
 
 Layer 2: API Gateway (Kong, AWS API Gateway)
-  - API キーベースのレートリミット: 100 req/min/key
-  - プランベースの制限 (Free: 100, Pro: 1000, Enterprise: 10000)
-  - バースト制限
+  - API key-based rate limiting: 100 req/min/key
+  - Plan-based limits (Free: 100, Pro: 1000, Enterprise: 10000)
+  - Burst limiting
 
-Layer 3: アプリケーション
-  - ユーザベースの細かいレートリミット
-  - エンドポイントごとの制限
-  - ビジネスロジック固有の制限 (パスワード試行回数等)
+Layer 3: Application
+  - Fine-grained user-based rate limiting
+  - Per-endpoint limits
+  - Business logic-specific limits (e.g., password attempt count)
 ```
 
 ---
 
-## 5. 入力検証とスキーマバリデーション
+## 5. Input Validation and Schema Validation
 
-### OpenAPI スキーマ定義
+### OpenAPI Schema Definition
 
 ```yaml
-# OpenAPI 3.0 でのセキュアなスキーマ定義
+# Secure schema definition in OpenAPI 3.0
 openapi: '3.0.3'
 info:
   title: Secure API
@@ -861,28 +861,28 @@ components:
     CreateUserRequest:
       type: object
       required: [name, email]
-      additionalProperties: false  # 未定義フィールドを拒否
+      additionalProperties: false  # Reject undefined fields
       properties:
         name:
           type: string
           minLength: 1
           maxLength: 100
           pattern: '^[a-zA-Z\s\-]+$'
-          description: 名前 (英字、スペース、ハイフンのみ)
+          description: Name (letters, spaces, and hyphens only)
         email:
           type: string
           format: email
           maxLength: 254
-          description: メールアドレス (RFC 5321 準拠)
+          description: Email address (RFC 5321 compliant)
         age:
           type: integer
           minimum: 0
           maximum: 150
-          description: 年齢 (0-150)
+          description: Age (0-150)
         bio:
           type: string
           maxLength: 500
-          description: 自己紹介 (HTML タグは除去)
+          description: Bio (HTML tags are stripped)
 
     UserResponse:
       type: object
@@ -926,14 +926,14 @@ components:
       bearerFormat: JWT
 ```
 
-### Zod によるバリデーション (TypeScript)
+### Validation with Zod (TypeScript)
 
 ```typescript
 import { z } from 'zod';
 import { Request, Response, NextFunction } from 'express';
 import DOMPurify from 'isomorphic-dompurify';
 
-// スキーマ定義
+// Schema definition
 const CreateUserSchema = z.object({
   name: z
     .string()
@@ -958,16 +958,16 @@ const CreateUserSchema = z.object({
   bio: z
     .string()
     .max(500, 'Bio must be 500 characters or less')
-    .transform(s => DOMPurify.sanitize(s, { ALLOWED_TAGS: [] }))  // HTML 除去
+    .transform(s => DOMPurify.sanitize(s, { ALLOWED_TAGS: [] }))  // Strip HTML
     .optional(),
-}).strict();  // 未定義フィールドを拒否
+}).strict();  // Reject undefined fields
 
-// パスパラメータ
+// Path parameters
 const UserIdSchema = z.object({
   id: z.string().uuid('Invalid user ID format'),
 });
 
-// クエリパラメータ
+// Query parameters
 const PaginationSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
   limit: z.coerce.number().int().min(1).max(100).default(20),
@@ -975,7 +975,7 @@ const PaginationSchema = z.object({
   order: z.enum(['asc', 'desc']).default('desc'),
 });
 
-// バリデーションミドルウェア
+// Validation middleware
 function validate<T extends z.ZodType>(schema: T, source: 'body' | 'params' | 'query' = 'body') {
   return (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse(req[source]);
@@ -991,13 +991,13 @@ function validate<T extends z.ZodType>(schema: T, source: 'body' | 'params' | 'q
       });
     }
 
-    // バリデーション済みデータで上書き (transform 済み)
+    // Overwrite with validated data (after transform)
     req[source] = result.data;
     next();
   };
 }
 
-// 使用例
+// Usage examples
 app.post('/api/users',
   verifyToken,
   validate(CreateUserSchema, 'body'),
@@ -1017,7 +1017,7 @@ app.get('/api/users',
 );
 ```
 
-### Express.js での入力検証 (express-validator)
+### Input Validation in Express.js (express-validator)
 
 ```javascript
 const { body, param, query, validationResult } = require('express-validator');
@@ -1025,7 +1025,7 @@ const createDOMPurify = require('dompurify');
 const { JSDOM } = require('jsdom');
 const DOMPurify = createDOMPurify(new JSDOM('').window);
 
-// バリデーションルール
+// Validation rules
 const createUserValidation = [
   body('name')
     .trim()
@@ -1049,7 +1049,7 @@ const createUserValidation = [
     .customSanitizer(value => DOMPurify.sanitize(value, { ALLOWED_TAGS: [] })),
 ];
 
-// バリデーション結果の処理
+// Handle validation result
 function validate(req, res, next) {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -1058,7 +1058,7 @@ function validate(req, res, next) {
       details: errors.array().map(e => ({
         field: e.path,
         message: e.msg,
-        value: undefined,  // 入力値を返さない (シークレット漏洩防止)
+        value: undefined,  // Do not return input value (prevents secret leakage)
       })),
     });
   }
@@ -1070,17 +1070,17 @@ app.post('/api/users', createUserValidation, validate, createUser);
 
 ---
 
-## 6. API セキュリティヘッダと CORS
+## 6. API Security Headers and CORS
 
-### セキュリティヘッダの設定
+### Security Header Configuration
 
 ```javascript
 const helmet = require('helmet');
 
-// Helmet で基本的なセキュリティヘッダを設定
+// Configure basic security headers with Helmet
 app.use(helmet());
 
-// CORS の適切な設定
+// Proper CORS configuration
 const cors = require('cors');
 const allowedOrigins = [
   'https://app.example.com',
@@ -1089,7 +1089,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: (origin, callback) => {
-    // サーバ間通信 (origin なし) は許可
+    // Allow server-to-server communication (no origin)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) {
       return callback(null, true);
@@ -1100,28 +1100,28 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Request-ID'],
   exposedHeaders: ['X-RateLimit-Limit', 'X-RateLimit-Remaining', 'X-RateLimit-Reset'],
   credentials: true,
-  maxAge: 86400,       // preflight キャッシュ (24時間)
+  maxAge: 86400,       // Preflight cache (24 hours)
   optionsSuccessStatus: 204,
 }));
 
-// 追加のセキュリティヘッダ
+// Additional security headers
 app.use((req, res, next) => {
-  // レスポンスの MIME タイプを強制
+  // Enforce MIME type of response
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  // クリックジャッキング防止
+  // Prevent clickjacking
   res.setHeader('X-Frame-Options', 'DENY');
-  // API レスポンスをキャッシュしない
+  // Do not cache API responses
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.setHeader('Pragma', 'no-cache');
-  // API バージョンと廃止情報
+  // API version and deprecation information
   res.setHeader('API-Version', 'v1');
-  // リクエストトレーシング
+  // Request tracing
   res.setHeader('X-Request-ID', req.headers['x-request-id'] || crypto.randomUUID());
   next();
 });
 ```
 
-### CORS の動作フロー
+### CORS Flow
 
 ```
 Simple Request (GET/POST with simple headers):
@@ -1149,65 +1149,65 @@ Preflight Request (PUT/DELETE/Custom headers):
   Server → 200 OK
            Access-Control-Allow-Origin: https://app.example.com
 
-NG パターン:
+Bad Patterns:
   Access-Control-Allow-Origin: *
-  → credentials: true と併用不可
-  → 任意のオリジンからアクセス可能 (セキュリティリスク)
+  → Cannot be combined with credentials: true
+  → Allows access from any origin (security risk)
 ```
 
 ---
 
-## 7. GraphQL セキュリティ
+## 7. GraphQL Security
 
-### GraphQL 固有のリスクと対策
+### GraphQL-Specific Risks and Countermeasures
 
 ```
-GraphQL の脅威モデル:
+GraphQL Threat Model:
 
-1. クエリ深度攻撃 (Depth Attack):
+1. Depth Attack:
    query {
      user {
        posts {
          comments {
            author {
              posts {
-               comments { ... }  # 無限にネスト
+               comments { ... }  # Infinitely nested
              }
            }
          }
        }
      }
    }
-   → 対策: depth-limit プラグイン (最大深度 = 7-10)
+   → Mitigation: depth-limit plugin (max depth = 7-10)
 
-2. クエリ幅攻撃 (Breadth Attack):
+2. Breadth Attack:
    query {
      user1: user(id: "1") { name }
      user2: user(id: "2") { name }
      user3: user(id: "3") { name }
-     ... # 数千のエイリアス
+     ... # thousands of aliases
    }
-   → 対策: クエリコスト解析 + 制限
+   → Mitigation: query cost analysis + limits
 
-3. イントロスペクション情報漏洩:
+3. Introspection Information Disclosure:
    query {
      __schema {
        types { name fields { name type { name } } }
      }
    }
-   → 対策: 本番でイントロスペクションを無効化
+   → Mitigation: Disable introspection in production
 
-4. バッチ攻撃:
+4. Batch Attacks:
    [
      {"query": "mutation { login(email: \"a\", pass: \"1\") { token } }"},
      {"query": "mutation { login(email: \"a\", pass: \"2\") { token } }"},
-     ... # 大量のログイン試行
+     ... # many login attempts
    ]
-   → 対策: バッチリクエスト数の制限
+   → Mitigation: Limit number of batch requests
 ```
 
 ```javascript
-// Apollo Server セキュリティ設定
+// Apollo Server security configuration
 const { ApolloServer } = require('@apollo/server');
 const depthLimit = require('graphql-depth-limit');
 const { createComplexityLimitRule } = require('graphql-validation-complexity');
@@ -1215,13 +1215,13 @@ const { createComplexityLimitRule } = require('graphql-validation-complexity');
 const server = new ApolloServer({
   typeDefs,
   resolvers,
-  // イントロスペクションを本番で無効化
+  // Disable introspection in production
   introspection: process.env.NODE_ENV !== 'production',
-  // バリデーションルール
+  // Validation rules
   validationRules: [
-    // クエリ深度制限 (最大 10)
+    // Query depth limit (max 10)
     depthLimit(10),
-    // クエリ複雑度制限
+    // Query complexity limit
     createComplexityLimitRule(1000, {
       scalarCost: 1,
       objectCost: 2,
@@ -1231,9 +1231,9 @@ const server = new ApolloServer({
       },
     }),
   ],
-  // エラーフォーマット (内部エラーを隠す)
+  // Error formatting (hide internal errors)
   formatError: (error) => {
-    // スタックトレースを除去
+    // Remove stack trace
     if (process.env.NODE_ENV === 'production') {
       return {
         message: error.message,
@@ -1245,7 +1245,7 @@ const server = new ApolloServer({
     return error;
   },
   plugins: [
-    // クエリサイズ制限
+    // Query size limit
     {
       async requestDidStart() {
         return {
@@ -1264,28 +1264,28 @@ const server = new ApolloServer({
 
 ---
 
-## 8. API バージョニングとライフサイクル
+## 8. API Versioning and Lifecycle
 
-### バージョニング戦略の比較
+### Versioning Strategy Comparison
 
-| 方式 | 例 | メリット | デメリット |
-|------|-----|---------|----------|
-| URL パス | `/v1/users` | 明確、キャッシュ容易 | URL が変わる |
-| ヘッダ | `Accept: application/vnd.api.v1+json` | URL 不変 | 発見しにくい |
-| クエリパラメータ | `/users?version=1` | 簡単 | キャッシュに影響 |
-| Content Negotiation | `Accept: application/json; version=1` | RESTful | 実装複雑 |
+| Approach | Example | Pros | Cons |
+|----------|---------|------|------|
+| URL path | `/v1/users` | Clear, easy to cache | URL changes |
+| Header | `Accept: application/vnd.api.v1+json` | URL stays same | Hard to discover |
+| Query parameter | `/users?version=1` | Simple | Affects caching |
+| Content Negotiation | `Accept: application/json; version=1` | RESTful | Complex implementation |
 
-### API の廃止プロセス
+### API Deprecation Process
 
 ```javascript
-// 非推奨 API のヘッダ通知
+// Deprecation notification via headers
 function deprecateEndpoint(sunsetDate, link) {
   return (req, res, next) => {
     res.setHeader('Deprecation', 'true');
     res.setHeader('Sunset', sunsetDate);  // RFC 8594
     res.setHeader('Link', `<${link}>; rel="successor-version"`);
 
-    // 廃止直前は Warning ヘッダも追加
+    // Also add Warning header when approaching sunset
     const sunset = new Date(sunsetDate);
     const daysUntilSunset = Math.ceil((sunset - new Date()) / (1000 * 60 * 60 * 24));
     if (daysUntilSunset <= 30) {
@@ -1298,7 +1298,7 @@ function deprecateEndpoint(sunsetDate, link) {
   };
 }
 
-// v1 は 2025-06-01 に廃止
+// v1 is deprecated on 2025-06-01
 app.use('/api/v1',
   deprecateEndpoint('2025-06-01', 'https://api.example.com/v2'),
   v1Router
@@ -1308,45 +1308,45 @@ app.use('/api/v2', v2Router);
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### アンチパターン 1: JWT の `alg: none` 許可
+### Anti-Pattern 1: Allowing `alg: none` in JWT
 
 ```javascript
-// NG: アルゴリズムを検証しない
+// NG: Not validating the algorithm
 const payload = jwt.verify(token, secret);
-// 攻撃者が alg: "none" でトークンを偽造 → 署名検証がスキップされる
+// Attacker can forge a token with alg: "none" → signature verification is skipped
 
-// NG: HS256 と RS256 の混同
+// NG: Confusing HS256 and RS256
 const payload = jwt.verify(token, publicKey);
-// 攻撃者が alg を "HS256" に変更し、公開鍵を対称鍵として使用
+// Attacker changes alg to "HS256" and uses the public key as the symmetric key
 
-// OK: 許可するアルゴリズムを明示指定
+// OK: Explicitly specify allowed algorithms
 const payload = jwt.verify(token, publicKey, {
-  algorithms: ['RS256'],  // none, HS256 などを拒否
+  algorithms: ['RS256'],  // Reject none, HS256, etc.
   issuer: 'https://auth.example.com',
   audience: 'https://api.example.com',
 });
 ```
 
-**影響**: 攻撃者が `alg: none` でトークンを偽造し、任意のユーザになりすませる。`alg` 混同攻撃では公開鍵を HMAC の秘密鍵として使い、有効な署名を生成できる。
+**Impact**: An attacker can forge a token with `alg: none` and impersonate any user. In an `alg` confusion attack, the public key can be used as an HMAC secret key to generate a valid signature.
 
-### アンチパターン 2: エラーレスポンスでの情報漏洩
+### Anti-Pattern 2: Information Leakage in Error Responses
 
 ```javascript
-// NG: 内部情報を露出するエラーレスポンス
+// NG: Error response that exposes internal information
 app.use((err, req, res, next) => {
   res.status(500).json({
-    error: err.message,        // "ECONNREFUSED 10.0.1.5:5432" → DB の IP が漏洩
-    stack: err.stack,          // ファイルパスが漏洩
-    query: err.sql,            // SQL クエリが漏洩
-    config: app.get('config'), // 設定情報が漏洩
+    error: err.message,        // "ECONNREFUSED 10.0.1.5:5432" → DB IP exposed
+    stack: err.stack,          // File paths exposed
+    query: err.sql,            // SQL query exposed
+    config: app.get('config'), // Config information exposed
   });
 });
 
-// OK: 安全なエラーレスポンス
+// OK: Safe error response
 app.use((err, req, res, next) => {
-  // 内部ログには詳細を記録
+  // Log full details internally
   const requestId = req.headers['x-request-id'] || crypto.randomUUID();
   console.error({
     requestId,
@@ -1357,27 +1357,27 @@ app.use((err, req, res, next) => {
     userId: req.user?.id,
   });
 
-  // クライアントには最小限の情報のみ
+  // Return minimal information to client
   const statusCode = err.statusCode || 500;
   res.status(statusCode).json({
     error: statusCode >= 500 ? 'Internal Server Error' : err.message,
-    requestId,  // サポートへの問い合わせ用
+    requestId,  // For support inquiries
   });
 });
 ```
 
-**影響**: 内部 IP、DB スキーマ、ファイルパス、使用ライブラリのバージョンなどが攻撃者に露出し、より標的を絞った攻撃が可能になる。
+**Impact**: Internal IPs, DB schemas, file paths, and library versions are exposed to attackers, enabling more targeted attacks.
 
-### アンチパターン 3: レスポンスでのデータ過剰露出
+### Anti-Pattern 3: Excessive Data Exposure in Responses
 
 ```javascript
-// NG: DB のレコードをそのまま返す
+// NG: Returning DB records as-is
 app.get('/api/users/:id', async (req, res) => {
   const user = await User.findById(req.params.id);
-  res.json(user);  // password_hash, internal_notes, ssn 等も含まれる
+  res.json(user);  // Includes password_hash, internal_notes, ssn, etc.
 });
 
-// OK: レスポンス DTO でフィールドを明示的に選択
+// OK: Explicitly select fields using a response DTO
 function toUserDTO(user) {
   return {
     id: user.id,
@@ -1385,13 +1385,13 @@ function toUserDTO(user) {
     email: user.email,
     avatar: user.avatar,
     createdAt: user.createdAt,
-    // password_hash, ssn, internal_notes は含めない
+    // Excludes password_hash, ssn, internal_notes
   };
 }
 
 app.get('/api/users/:id', authenticate, async (req, res) => {
   const user = await User.findById(req.params.id)
-    .select('id name email avatar createdAt');  // DB クエリでも制限
+    .select('id name email avatar createdAt');  // Also restrict at DB query level
   if (!user) return res.status(404).json({ error: 'Not found' });
   res.json(toUserDTO(user));
 });
@@ -1399,58 +1399,58 @@ app.get('/api/users/:id', authenticate, async (req, res) => {
 
 ---
 
-## 10. エッジケース
+## 10. Edge Cases
 
-### エッジケース 1: JWT の時刻同期問題
+### Edge Case 1: JWT Clock Synchronization Issues
 
-サーバ間の時刻がずれている場合、JWT の `exp` や `nbf` の検証が不正確になる。NTP 同期が遅延した場合、有効なトークンが拒否されたり、期限切れトークンが受理される。
+If clocks are out of sync between servers, validation of JWT `exp` and `nbf` can be inaccurate. When NTP sync is delayed, valid tokens may be rejected or expired tokens may be accepted.
 
 ```javascript
-// 対策: clockTolerance で許容範囲を設定
+// Mitigation: Set tolerance using clockTolerance
 jwt.verify(token, key, {
   algorithms: ['RS256'],
-  clockTolerance: 30,  // 30秒の時刻ずれを許容
+  clockTolerance: 30,  // Allow 30-second clock skew
 });
 
-// 追加対策: iat が未来でないことを確認
+// Additional: Confirm iat is not in the future
 if (payload.iat > Math.floor(Date.now() / 1000) + 60) {
   throw new Error('Token issued in the future');
 }
 ```
 
-### エッジケース 2: レートリミットの分散環境での不整合
+### Edge Case 2: Rate Limit Inconsistency in Distributed Environments
 
-複数の API サーバが存在する場合、インメモリのレートリミッタではサーバごとにカウントが分散し、実際の制限が緩くなる。
+When multiple API servers exist, in-memory rate limiters count per-server, causing the actual limit to be looser than intended.
 
 ```
-サーバ A: count = 50 (limit = 100)
-サーバ B: count = 50 (limit = 100)
-→ 実際には 100 リクエストが通過 (想定の 100 と一致)
+Server A: count = 50 (limit = 100)
+Server B: count = 50 (limit = 100)
+→ Actually 100 requests pass through (matches intended limit of 100)
 
-問題: ロードバランサのラウンドロビンが不均一な場合
-サーバ A: count = 90 (limit = 100)
-サーバ B: count = 10 (limit = 100)
-→ サーバ B 経由ならさらに 90 リクエスト可能
+Problem: When load balancer's round-robin is uneven
+Server A: count = 90 (limit = 100)
+Server B: count = 10 (limit = 100)
+→ 90 more requests can still pass through Server B
 
-対策: Redis などの中央ストアで一元管理
+Mitigation: Centralize management using a shared store like Redis
 ```
 
-### エッジケース 3: Unicode 正規化による入力検証バイパス
+### Edge Case 3: Input Validation Bypass via Unicode Normalization
 
-Unicode の正規化形式 (NFC, NFD, NFKC, NFKD) の違いを利用して、入力検証をバイパスする攻撃がある。
+Differences in Unicode normalization forms (NFC, NFD, NFKC, NFKD) can be exploited to bypass input validation.
 
 ```javascript
-// 例: "admin" の視覚的に同一な Unicode 文字
+// Example: Visually identical Unicode characters for "admin"
 const normalAdmin = 'admin';        // U+0061, U+0064, U+006D, U+0069, U+006E
 const trickAdmin = '\u0430dmin';    // U+0430 (Cyrillic 'a'), rest is Latin
 
 normalAdmin === trickAdmin;  // false
 normalAdmin.normalize('NFKC') === trickAdmin.normalize('NFKC');  // false
 
-// 対策: 入力を NFKC 正規化してから検証
+// Mitigation: Normalize input to NFKC before validation
 function sanitizeUsername(input) {
   const normalized = input.normalize('NFKC');
-  // ASCII 以外の文字を含む場合は拒否
+  // Reject if input contains non-ASCII characters
   if (!/^[a-zA-Z0-9_\-]+$/.test(normalized)) {
     throw new Error('Username contains invalid characters');
   }
@@ -1460,47 +1460,47 @@ function sanitizeUsername(input) {
 
 ---
 
-## 11. パフォーマンス考慮事項
+## 11. Performance Considerations
 
-### 認証・認可のパフォーマンス
+### Authentication and Authorization Performance
 
-| 方式 | レイテンシ | スケーラビリティ | ステートレス |
-|------|----------|----------------|------------|
-| セッション (DB) | ~5-10ms | 低 (DB ボトルネック) | ステートフル |
-| セッション (Redis) | ~1-3ms | 中 | ステートフル |
-| JWT (HS256) | ~0.1ms | 高 | ステートレス |
-| JWT (RS256) | ~0.5-1ms | 高 | ステートレス |
-| JWT + JWKS | ~1-3ms (初回) | 高 | ステートレス |
-| API Key (DB lookup) | ~3-5ms | 中 | ステートフル |
-| API Key (cache) | ~0.5ms | 高 | 準ステートレス |
-| mTLS | ~2-5ms (handshake) | 高 | ステートレス |
+| Method | Latency | Scalability | Stateless |
+|--------|---------|-------------|-----------|
+| Session (DB) | ~5-10ms | Low (DB bottleneck) | Stateful |
+| Session (Redis) | ~1-3ms | Medium | Stateful |
+| JWT (HS256) | ~0.1ms | High | Stateless |
+| JWT (RS256) | ~0.5-1ms | High | Stateless |
+| JWT + JWKS | ~1-3ms (first time) | High | Stateless |
+| API Key (DB lookup) | ~3-5ms | Medium | Stateful |
+| API Key (cache) | ~0.5ms | High | Quasi-stateless |
+| mTLS | ~2-5ms (handshake) | High | Stateless |
 
-### API レスポンス最適化
+### API Response Optimization
 
 ```
 +----------------------------------+-------------------+
-| 手法                              | 効果              |
+| Technique                        | Effect            |
 +----------------------------------+-------------------+
-| ページネーション (cursor-based)    | レスポンスサイズ   |
-| フィールド選択 (?fields=id,name)  | レスポンスサイズ   |
-| 圧縮 (gzip/br)                   | 転送サイズ 60-80% |
-| ETag + 304 Not Modified          | 不要な転送を削減   |
-| Connection: keep-alive           | TCP ハンドシェイク |
-| HTTP/2 multiplexing              | 並列リクエスト     |
-| CDN キャッシュ (public API)       | オリジン負荷      |
+| Pagination (cursor-based)        | Response size     |
+| Field selection (?fields=id,name)| Response size     |
+| Compression (gzip/br)            | Transfer size 60-80% |
+| ETag + 304 Not Modified          | Reduce unnecessary transfers |
+| Connection: keep-alive           | TCP handshake     |
+| HTTP/2 multiplexing              | Parallel requests |
+| CDN cache (public API)           | Origin load       |
 +----------------------------------+-------------------+
 ```
 
 ---
 
-## 12. 演習問題
+## 12. Exercises
 
-### 演習 1: BOLA 防御の実装 (初級)
+### Exercise 1: Implementing BOLA Defense (Beginner)
 
-以下のエンドポイントに BOLA (Broken Object Level Authorization) 防御を実装しなさい。
+Implement BOLA (Broken Object Level Authorization) defense for the following endpoints.
 
 ```javascript
-// 修正対象
+// Target for fix
 app.get('/api/documents/:docId', async (req, res) => {
   const doc = await Document.findById(req.params.docId);
   res.json(doc);
@@ -1512,121 +1512,121 @@ app.put('/api/documents/:docId', async (req, res) => {
 });
 ```
 
-**要件**:
-1. 認証ミドルウェアを追加する
-2. ドキュメントの所有者のみが GET/PUT できるようにする
-3. 管理者は全ドキュメントにアクセスできる
-4. 存在しないドキュメントと権限がないドキュメントを区別しない (情報漏洩防止)
-5. Mass Assignment 防御も実装する
+**Requirements**:
+1. Add authentication middleware
+2. Allow only the document owner to perform GET/PUT
+3. Administrators can access all documents
+4. Do not distinguish between non-existent and unauthorized documents (to prevent information leakage)
+5. Also implement Mass Assignment defense
 
-### 演習 2: JWT + レートリミット統合 (中級)
+### Exercise 2: JWT + Rate Limit Integration (Intermediate)
 
-以下の要件を満たす API サーバを実装しなさい。
+Implement an API server that meets the following requirements.
 
-**要件**:
-1. JWKS による JWT 検証ミドルウェア
-2. スコープベースの認可 (users:read, users:write, admin)
-3. Redis ベースのレートリミット (認証ユーザ: 100req/min, 匿名: 10req/min)
-4. OpenAPI 3.0 スキーマに準拠した入力検証
-5. セキュリティヘッダの設定 (CORS, CSP, etc.)
+**Requirements**:
+1. JWT verification middleware using JWKS
+2. Scope-based authorization (users:read, users:write, admin)
+3. Redis-based rate limiting (authenticated users: 100req/min, anonymous: 10req/min)
+4. Input validation conforming to OpenAPI 3.0 schema
+5. Security header configuration (CORS, CSP, etc.)
 
-### 演習 3: GraphQL セキュリティ監査 (上級)
+### Exercise 3: GraphQL Security Audit (Advanced)
 
-既存の GraphQL API に以下のセキュリティ対策を追加しなさい。
+Add the following security measures to an existing GraphQL API.
 
-**要件**:
-1. クエリ深度制限 (最大 7)
-2. クエリコスト解析 (最大コスト 500)
-3. イントロスペクション無効化 (本番)
-4. バッチリクエスト数の制限 (最大 5)
-5. Persisted Queries (ホワイトリスト方式)
-6. フィールドレベルの認可 (sensitive フィールドは admin のみ)
+**Requirements**:
+1. Query depth limit (max 7)
+2. Query cost analysis (max cost 500)
+3. Disable introspection (in production)
+4. Limit number of batch requests (max 5)
+5. Persisted Queries (whitelist approach)
+6. Field-level authorization (sensitive fields for admin only)
 
 ---
 
-## 13. トラブルシューティング
+## 13. Troubleshooting
 
-| 問題 | 原因 | 解決策 |
-|------|------|--------|
-| CORS preflight が 403 | OPTIONS メソッドが処理されていない | CORS ミドルウェアを最初に配置 |
-| JWT expired エラーが頻発 | トークン有効期限が短すぎる | リフレッシュ戦略を実装 + clockTolerance 設定 |
-| レートリミットが効かない | インメモリカウンタ + 複数サーバ | Redis で一元管理 |
-| API キーが漏洩した | Git にコミット / ログに出力 | キーローテーション + シークレット管理ツール |
-| 429 が返らず 502 が返る | バックエンドが過負荷でクラッシュ | API Gateway でレートリミット |
-| GraphQL N+1 問題 | DataLoader 未使用 | DataLoader でバッチ化 |
-| SSRF via redirect | URL 検証後にリダイレクト | リダイレクトを無効化 + IP 検証 |
-| Cookie が送信されない | SameSite 設定不一致 | SameSite=None + Secure (cross-origin) |
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| CORS preflight returns 403 | OPTIONS method not handled | Place CORS middleware first |
+| JWT expired errors occur frequently | Token expiry is too short | Implement refresh strategy + set clockTolerance |
+| Rate limiting not working | In-memory counter + multiple servers | Centralize with Redis |
+| API key leaked | Committed to Git / printed in logs | Rotate key + use secret management tool |
+| 429 not returned, 502 returned instead | Backend overloaded and crashed | Apply rate limiting at API Gateway |
+| GraphQL N+1 problem | DataLoader not used | Batch with DataLoader |
+| SSRF via redirect | Redirect after URL validation | Disable redirects + validate IP |
+| Cookie not sent | SameSite setting mismatch | SameSite=None + Secure (cross-origin) |
 
 ---
 
 ## 14. FAQ
 
-### Q1. API キーと OAuth トークンはどう使い分けるか?
+### Q1. How should API keys and OAuth tokens be used differently?
 
-API キーはクライアントの識別とレートリミットに使用し、認可の判断には使わない。ユーザに紐づく操作には OAuth 2.0 のアクセストークンを使用する。M2M 通信で細かい認可が不要な場合は Client Credentials フローで取得したトークンを使う。API キーはリクエストヘッダ (`X-API-Key`) で送信し、URL のクエリパラメータには含めない (ログに残るため)。
+API keys are used for client identification and rate limiting, not for authorization decisions. Use OAuth 2.0 access tokens for operations tied to a user. For M2M communication where fine-grained authorization is not needed, use a token obtained via the Client Credentials flow. Send API keys in request headers (`X-API-Key`) and do not include them in URL query parameters (they end up in logs).
 
-### Q2. アクセストークンの有効期限はどのくらいが適切か?
+### Q2. What is an appropriate expiry time for access tokens?
 
-アクセストークンは 15 分から 1 時間が一般的である。短いほどセキュリティは向上するが、ユーザ体験とリフレッシュトークンの負荷が増す。リフレッシュトークンは 7-30 日とし、ローテーション (使い捨て) を必須にする。高セキュリティ環境 (金融、医療) ではアクセストークン 5-15 分、リフレッシュトークン 1-7 日が推奨される。
+Access tokens are commonly 15 minutes to 1 hour. Shorter durations improve security but increase user experience overhead and refresh token load. Set refresh tokens to 7–30 days and require rotation (single use). For high-security environments (finance, healthcare), access tokens of 5–15 minutes and refresh tokens of 1–7 days are recommended.
 
-### Q3. API のバージョニングとセキュリティの関係は?
+### Q3. What is the relationship between API versioning and security?
 
-古い API バージョンにはセキュリティパッチが適用されにくいため、サポートするバージョン数を最小限に保つ。非推奨 API にはサンセット期限を設け、`Sunset` ヘッダと `Deprecation` ヘッダで通知する。廃止した API は 410 Gone を返し、移行先 URL を含める。
+Older API versions are less likely to receive security patches, so minimize the number of supported versions. Set sunset dates for deprecated APIs and notify clients via `Sunset` and `Deprecation` headers. Deprecated APIs should return 410 Gone and include the migration URL.
 
-### Q4. REST と GraphQL でセキュリティの違いは?
+### Q4. What are the security differences between REST and GraphQL?
 
-REST は URL ベースで認可しやすいが、over-fetching/under-fetching の問題がある。GraphQL は柔軟だが、クエリ深度攻撃、バッチ攻撃、コスト攻撃の固有リスクがある。GraphQL では Persisted Queries (クエリのホワイトリスト) を本番で有効にすることで、任意のクエリ実行を防止できる。
+REST is easier to authorize based on URLs but has over-fetching/under-fetching issues. GraphQL is flexible but has inherent risks such as depth attacks, batch attacks, and cost attacks. In production, enabling Persisted Queries (query whitelist) in GraphQL prevents execution of arbitrary queries.
 
-### Q5. API Gateway はどのセキュリティ機能を担当すべきか?
+### Q5. What security functions should the API Gateway handle?
 
-API Gateway は認証 (JWT 検証)、レートリミット、IP ブロック、TLS 終端、リクエストサイズ制限を担当する。認可 (BOLA、BFLA) はビジネスロジックに依存するため、アプリケーション層で実装する。API Gateway に認可を集約すると、ポリシーが複雑化してメンテナンスが困難になる。
+The API Gateway should handle authentication (JWT verification), rate limiting, IP blocking, TLS termination, and request size limits. Authorization (BOLA, BFLA) depends on business logic and should be implemented at the application layer. Centralizing authorization in the API Gateway makes policies complex and difficult to maintain.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping straight to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| BOLA 防御 | オブジェクトレベルの認可チェックを全エンドポイントに実装 |
-| OAuth 2.0 | Authorization Code + PKCE を標準採用。Implicit は非推奨 |
-| JWT | alg 固定、iss/aud/exp を必ず検証、短い有効期限、JWKS で鍵管理 |
-| リフレッシュ | トークンローテーション必須、リプレイ検知、自動リフレッシュ |
-| レートリミット | Redis で分散管理、多層防御 (CDN/Gateway/App)、エンドポイント別制限 |
-| 入力検証 | Zod/express-validator + OpenAPI スキーマ、ホワイトリスト方式 |
-| CORS | 許可オリジンを明示指定、ワイルドカード禁止、credentials に注意 |
-| GraphQL | 深度制限 + コスト解析 + イントロスペクション無効化 |
-| エラー処理 | 内部情報を露出しない、requestId でトレーシング |
-| バージョニング | Sunset/Deprecation ヘッダで段階的廃止 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [セキュアコーディング](../04-application-security/00-secure-coding.md) -- コードレベルでの攻撃防御
-- [ネットワークセキュリティ基礎](./00-network-security-basics.md) -- ネットワーク層の防御
-- [TLS/証明書](../02-cryptography/01-tls-certificates.md) -- 通信暗号化の基盤
-- [OWASP Top 10](../01-web-security/00-owasp-top10.md) -- Web アプリケーションの脆弱性
+| Item | Key Points |
+|------|------------|
+| BOLA Defense | Implement object-level authorization checks on all endpoints |
+| OAuth 2.0 | Adopt Authorization Code + PKCE as standard. Implicit Flow is deprecated |
+| JWT | Fix alg, always verify iss/aud/exp, short expiry, manage keys with JWKS |
+| Refresh | Token rotation required, replay detection, auto-refresh |
+| Rate Limiting | Distribute management with Redis, multi-layer defense (CDN/Gateway/App), per-endpoint limits |
+| Input Validation | Zod/express-validator + OpenAPI schema, whitelist approach |
+| CORS | Explicitly specify allowed origins, no wildcards, be careful with credentials |
+| GraphQL | Depth limiting + cost analysis + disable introspection |
+| Error Handling | Do not expose internal information, use requestId for tracing |
+| Versioning | Gradual deprecation with Sunset/Deprecation headers |
 
 ---
 
-## 参考文献
+## What to Read Next
+
+- [Secure Coding](../04-application-security/00-secure-coding.md) -- Defending against attacks at the code level
+- [Network Security Basics](./00-network-security-basics.md) -- Defenses at the network layer
+- [TLS/Certificates](../02-cryptography/01-tls-certificates.md) -- Foundations of communication encryption
+- [OWASP Top 10](../01-web-security/00-owasp-top10.md) -- Web application vulnerabilities
+
+---
+
+## References
 
 1. **OWASP API Security Top 10 (2023)** -- https://owasp.org/API-Security/
 2. **RFC 6749 -- The OAuth 2.0 Authorization Framework** -- https://datatracker.ietf.org/doc/html/rfc6749
