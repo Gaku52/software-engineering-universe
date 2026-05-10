@@ -1,79 +1,79 @@
-# 回帰 — 線形/多項式/Ridge/Lasso
+# Regression — Linear / Polynomial / Ridge / Lasso
 
-> 連続値を予測する回帰手法の理論と実装を、正則化まで含めて体系的に理解する
+> Systematically understand regression techniques for predicting continuous values, including regularization
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **線形回帰の数理** — 最小二乗法、正規方程式、勾配降下法の原理
-2. **正則化回帰** — Ridge（L2）、Lasso（L1）、ElasticNetによる過学習抑制
-3. **多項式回帰と非線形拡張** — 特徴量の非線形変換と適切な次数選択
-4. **高度な回帰手法** — ロバスト回帰、ベイズ回帰、量子回帰
-5. **実務的な回帰分析** — 残差分析、特徴量エンジニアリング、パイプライン構築
+1. **Mathematics of Linear Regression** — Principles of least squares, normal equations, and gradient descent
+2. **Regularized Regression** — Overfitting suppression with Ridge (L2), Lasso (L1), and ElasticNet
+3. **Polynomial Regression and Nonlinear Extensions** — Nonlinear feature transforms and appropriate degree selection
+4. **Advanced Regression Methods** — Robust regression, Bayesian regression, and quantile regression
+5. **Practical Regression Analysis** — Residual analysis, feature engineering, and pipeline construction
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. 線形回帰の基礎
+## 1. Fundamentals of Linear Regression
 
-### 1.1 最小二乗法の幾何学的解釈
+### 1.1 Geometric Interpretation of Least Squares
 
 ```
-y (目的変数)
+y (target variable)
 │
 │         *
 │       /  *
 │     /   *     ŷ = β₀ + β₁x
 │   / *
-│ / *            残差 (y - ŷ) の二乗和を最小化
+│ / *            Minimize the sum of squared residuals (y - ŷ)
 │*
-└──────────────── x (説明変数)
+└──────────────── x (explanatory variable)
 
-正規方程式: β = (X^T X)^(-1) X^T y
+Normal equation: β = (X^T X)^(-1) X^T y
 
-    残差の視覚化:
+    Residual visualization:
     │    *
-    │    |   ← 残差 e = y - ŷ
+    │    |   ← residual e = y - ŷ
     │    ŷ
     │   /
     │  /
 ```
 
-### 1.2 線形回帰の仮定（ガウス・マルコフの定理）
+### 1.2 Assumptions of Linear Regression (Gauss-Markov Theorem)
 
 ```
-最小二乗推定量（OLS）が最良線形不偏推定量（BLUE）であるための条件:
+Conditions for OLS (Ordinary Least Squares) to be the Best Linear Unbiased Estimator (BLUE):
 
-1. 線形性:      y = Xβ + ε  （パラメータに対して線形）
-2. 不偏性:      E[ε] = 0    （誤差の期待値がゼロ）
-3. 等分散性:    Var(ε) = σ²I （誤差の分散が一定）
-4. 無相関:      Cov(εᵢ, εⱼ) = 0  （i≠j, 誤差間に相関なし）
-5. 外生性:      Cov(X, ε) = 0    （説明変数と誤差が無相関）
+1. Linearity:      y = Xβ + ε  (linear in parameters)
+2. Unbiasedness:   E[ε] = 0    (expected value of errors is zero)
+3. Homoscedasticity: Var(ε) = σ²I (constant error variance)
+4. No autocorrelation: Cov(εᵢ, εⱼ) = 0  (i≠j, no correlation between errors)
+5. Exogeneity:     Cov(X, ε) = 0    (explanatory variables and errors are uncorrelated)
 
-追加の仮定（推論・検定用）:
-6. 正規性:      ε ~ N(0, σ²I)  （誤差が正規分布に従う）
-7. 非多重共線性: rank(X) = p    （特徴量間に完全な線形従属がない）
+Additional assumptions (for inference and testing):
+6. Normality:      ε ~ N(0, σ²I)  (errors follow a normal distribution)
+7. No multicollinearity: rank(X) = p    (no perfect linear dependence among features)
 
-仮定が崩れた場合の影響:
-  ・ 等分散性違反 → 不均一分散 → 重み付き最小二乗法(WLS)を使用
-  ・ 無相関違反 → 自己相関 → 一般化最小二乗法(GLS)を使用
-  ・ 多重共線性 → 係数の不安定化 → Ridge回帰/VIF分析
-  ・ 正規性違反 → 検定結果が不正確 → ブートストラップ法
+Impact when assumptions are violated:
+  · Homoscedasticity violated → heteroscedasticity → use Weighted Least Squares (WLS)
+  · No autocorrelation violated → autocorrelation → use Generalized Least Squares (GLS)
+  · Multicollinearity → unstable coefficients → Ridge regression / VIF analysis
+  · Normality violated → inaccurate test results → bootstrap method
 ```
 
-### コード例1: 線形回帰の実装（ゼロから）
+### Code Example 1: Linear Regression Implementation (From Scratch)
 
 ```python
 import numpy as np
 
 class LinearRegressionFromScratch:
-    """最小二乗法による線形回帰のフル実装"""
+    """Full implementation of linear regression using least squares"""
 
     def __init__(self, method: str = "normal_equation"):
         self.method = method
@@ -85,14 +85,14 @@ class LinearRegressionFromScratch:
         n, m = X.shape
 
         if self.method == "normal_equation":
-            # 正規方程式: β = (X^T X)^(-1) X^T y
+            # Normal equation: β = (X^T X)^(-1) X^T y
             X_b = np.c_[np.ones((n, 1)), X]
             theta = np.linalg.pinv(X_b.T @ X_b) @ X_b.T @ y
             self.bias = theta[0]
             self.weights = theta[1:]
 
         elif self.method == "gradient_descent":
-            # 勾配降下法
+            # Gradient descent
             self.weights = np.zeros(m)
             self.bias = 0.0
             self.history = []
@@ -101,15 +101,15 @@ class LinearRegressionFromScratch:
                 y_pred = X @ self.weights + self.bias
                 error = y_pred - y
 
-                # 勾配の計算
+                # Compute gradients
                 dw = (2 / n) * (X.T @ error)
                 db = (2 / n) * np.sum(error)
 
-                # パラメータ更新
+                # Update parameters
                 self.weights -= lr * dw
                 self.bias -= lr * db
 
-                # MSE記録
+                # Record MSE
                 mse = np.mean(error ** 2)
                 self.history.append(mse)
 
@@ -124,33 +124,33 @@ class LinearRegressionFromScratch:
         ss_tot = np.sum((y - np.mean(y)) ** 2)
         return 1 - ss_res / ss_tot
 
-# 使用例
+# Usage example
 np.random.seed(42)
 X = np.random.randn(100, 3)
 y = 3 * X[:, 0] + 2 * X[:, 1] - 1 * X[:, 2] + 5 + np.random.randn(100) * 0.5
 
 model = LinearRegressionFromScratch(method="normal_equation")
 model.fit(X, y)
-print(f"重み: {model.weights.round(3)}")  # ≈ [3, 2, -1]
-print(f"バイアス: {model.bias:.3f}")       # ≈ 5
+print(f"Weights: {model.weights.round(3)}")  # ≈ [3, 2, -1]
+print(f"Bias: {model.bias:.3f}")              # ≈ 5
 print(f"R²: {model.r2_score(X, y):.4f}")
 ```
 
-### コード例1b: 勾配降下法のバリエーション
+### Code Example 1b: Gradient Descent Variants
 
 ```python
 import numpy as np
 import matplotlib.pyplot as plt
 
 class GradientDescentVariants:
-    """勾配降下法の各種バリエーション"""
+    """Various variants of gradient descent"""
 
     def __init__(self, n_features):
         self.weights = np.zeros(n_features)
         self.bias = 0.0
 
     def batch_gd(self, X, y, lr=0.01, n_iter=1000):
-        """バッチ勾配降下法（全データを使用）"""
+        """Batch gradient descent (uses all data)"""
         n = X.shape[0]
         history = []
 
@@ -166,12 +166,12 @@ class GradientDescentVariants:
         return history
 
     def stochastic_gd(self, X, y, lr=0.01, n_iter=1000):
-        """確率的勾配降下法（1サンプルずつ更新）"""
+        """Stochastic gradient descent (updates one sample at a time)"""
         n = X.shape[0]
         history = []
 
         for i in range(n_iter):
-            # ランダムにシャッフル
+            # Randomly shuffle
             indices = np.random.permutation(n)
 
             for idx in indices:
@@ -183,14 +183,14 @@ class GradientDescentVariants:
                 self.weights -= lr * 2 * (xi.T @ error).ravel()
                 self.bias -= lr * 2 * error[0]
 
-            # エポック終了時のMSE
+            # MSE at end of epoch
             y_pred_all = X @ self.weights + self.bias
             history.append(np.mean((y_pred_all - y) ** 2))
 
         return history
 
     def mini_batch_gd(self, X, y, lr=0.01, n_iter=1000, batch_size=32):
-        """ミニバッチ勾配降下法"""
+        """Mini-batch gradient descent"""
         n = X.shape[0]
         history = []
 
@@ -210,14 +210,14 @@ class GradientDescentVariants:
                 self.weights -= lr * (2 / batch_n) * (X_batch.T @ error)
                 self.bias -= lr * (2 / batch_n) * np.sum(error)
 
-            # エポック終了時のMSE
+            # MSE at end of epoch
             y_pred_all = X @ self.weights + self.bias
             history.append(np.mean((y_pred_all - y) ** 2))
 
         return history
 
 
-# 比較実験
+# Comparison experiment
 np.random.seed(42)
 X = np.random.randn(500, 5)
 true_w = np.array([3.0, -2.0, 1.5, 0.0, -1.0])
@@ -236,7 +236,7 @@ for method_name, method_fn in [
 
 ax.set_xlabel("Epoch")
 ax.set_ylabel("MSE")
-ax.set_title("勾配降下法のバリエーション比較")
+ax.set_title("Comparison of Gradient Descent Variants")
 ax.legend()
 ax.grid(True, alpha=0.3)
 ax.set_yscale("log")
@@ -247,62 +247,63 @@ plt.close()
 
 ---
 
-## 2. 正則化回帰
+## 2. Regularized Regression
 
-### 2.1 正則化の効果
+### 2.1 Effect of Regularization
 
 ```
-正則化なし (OLS)        Ridge (L2)              Lasso (L1)
+No Regularization (OLS)   Ridge (L2)              Lasso (L1)
 ┌──────────────┐    ┌──────────────┐    ┌──────────────┐
-│ 損失 = MSE   │    │ 損失 = MSE   │    │ 損失 = MSE   │
+│ Loss = MSE   │    │ Loss = MSE   │    │ Loss = MSE   │
 │              │    │  + λΣβ²      │    │  + λΣ|β|     │
 │              │    │              │    │              │
-│ 重みに制約   │    │ 重みを縮小   │    │ 重みをゼロに │
-│ なし         │    │ (全体的に)   │    │ (スパース)   │
+│ No weight    │    │ Shrinks      │    │ Drives       │
+│ constraints  │    │ weights      │    │ weights to   │
+│              │    │ (globally)   │    │ zero (sparse)│
 │              │    │              │    │              │
-│ 過学習リスク │    │ 多重共線性   │    │ 特徴量選択   │
-│ 高い         │    │ に強い       │    │ 効果あり     │
+│ High risk    │    │ Robust to    │    │ Feature      │
+│ of overfitting│   │ multicollin. │    │ selection    │
 └──────────────┘    └──────────────┘    └──────────────┘
 
-ElasticNet = L1 + L2 の組み合わせ
-損失 = MSE + α×ρΣ|β| + α×(1-ρ)Σβ²
-          ρ: L1比率 (0〜1)
+ElasticNet = combination of L1 + L2
+Loss = MSE + α×ρΣ|β| + α×(1-ρ)Σβ²
+          ρ: L1 ratio (0 to 1)
 ```
 
-### 2.2 正則化の数学的理解
+### 2.2 Mathematical Understanding of Regularization
 
 ```
-■ 制約付き最適化としての解釈
+■ Interpretation as Constrained Optimization
 
   Ridge:  min ||y - Xβ||²   subject to  ||β||₂ ≤ t
   Lasso:  min ||y - Xβ||²   subject to  ||β||₁ ≤ t
 
-  幾何学的解釈:
-    Ridge → L2制約 = 円（楕円）→ 解が軸上に来にくい → スパースにならない
-    Lasso → L1制約 = ひし形 → 角（軸上）に解が来やすい → スパースになる
+  Geometric interpretation:
+    Ridge → L2 constraint = circle (ellipse) → solution unlikely to fall on axis → not sparse
+    Lasso → L1 constraint = diamond → solution likely at corners (on axis) → sparse
 
   ┌──────────────────────────────────┐
   │         Ridge (L2)               │
-  │    等高線（MSE）                  │
+  │    Contour lines (MSE)           │
   │      ____                        │
-  │     /    \    ○ ← L2制約（円）    │
+  │     /    \    ○ ← L2 constraint (circle)  │
   │    |  *   |  │                    │
   │     \____/   │                    │
   │              │                    │
   │         Lasso (L1)               │
   │      ____                        │
-  │     /    \  ◇ ← L1制約（ひし形）  │
+  │     /    \  ◇ ← L1 constraint (diamond)  │
   │    |  *   | / \                   │
   │     \____/ │                     │
-  │         角に解 → βⱼ = 0          │
+  │         Corner solution → βⱼ = 0 │
   └──────────────────────────────────┘
 
-■ ベイズ的解釈
-  Ridge → 事前分布: β ~ N(0, 1/λ)  （正規分布 → MAP推定）
-  Lasso → 事前分布: β ~ Laplace(0, 1/λ)  （ラプラス分布 → MAP推定）
+■ Bayesian Interpretation
+  Ridge → Prior: β ~ N(0, 1/λ)       (normal distribution → MAP estimation)
+  Lasso → Prior: β ~ Laplace(0, 1/λ) (Laplace distribution → MAP estimation)
 ```
 
-### コード例2: 正則化回帰の比較実験
+### Code Example 2: Regularized Regression Comparison Experiment
 
 ```python
 import numpy as np
@@ -314,17 +315,17 @@ from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import cross_val_score
 
-# 高次元で多重共線性のあるデータ
+# High-dimensional data with multicollinearity
 np.random.seed(42)
 n_samples, n_features = 100, 50
 X = np.random.randn(n_samples, n_features)
-# 真のモデル: 最初の5変数だけが重要
+# True model: only the first 5 variables matter
 true_coef = np.zeros(n_features)
 true_coef[:5] = [3, -2, 1.5, -1, 0.5]
 y = X @ true_coef + np.random.randn(n_samples) * 0.5
 
 models = {
-    "線形回帰 (OLS)": LinearRegression(),
+    "Linear Regression (OLS)": LinearRegression(),
     "Ridge (α=1.0)": Ridge(alpha=1.0),
     "Ridge (α=10.0)": Ridge(alpha=10.0),
     "Lasso (α=0.1)": Lasso(alpha=0.1),
@@ -332,8 +333,8 @@ models = {
     "ElasticNet (α=0.1)": ElasticNet(alpha=0.1, l1_ratio=0.5),
 }
 
-print(f"{'モデル':25s} {'CV R²':>10s} {'非ゼロ係数':>10s}")
-print("-" * 50)
+print(f"{'Model':25s} {'CV R²':>10s} {'Non-zero coefs':>15s}")
+print("-" * 55)
 for name, model in models.items():
     pipe = make_pipeline(StandardScaler(), model)
     scores = cross_val_score(pipe, X, y, cv=5, scoring="r2")
@@ -341,21 +342,21 @@ for name, model in models.items():
     coef = pipe.named_steps[type(model).__name__.lower()].coef_ \
            if hasattr(model, "coef_") else pipe[-1].coef_
     n_nonzero = np.sum(np.abs(coef) > 1e-6)
-    print(f"{name:25s} {scores.mean():10.4f} {n_nonzero:10d}")
+    print(f"{name:25s} {scores.mean():10.4f} {n_nonzero:15d}")
 ```
 
-### コード例2b: 正則化回帰のスクラッチ実装
+### Code Example 2b: From-Scratch Implementation of Regularized Regression
 
 ```python
 import numpy as np
 
 class RegularizedRegression:
-    """Ridge/Lasso/ElasticNetのスクラッチ実装"""
+    """From-scratch implementation of Ridge / Lasso / ElasticNet"""
 
     def __init__(self, alpha=1.0, l1_ratio=0.0, method='ridge'):
         """
         method: 'ridge', 'lasso', 'elasticnet'
-        l1_ratio: ElasticNetにおけるL1の比率（0=Ridge, 1=Lasso）
+        l1_ratio: proportion of L1 in ElasticNet (0=Ridge, 1=Lasso)
         """
         self.alpha = alpha
         self.l1_ratio = l1_ratio
@@ -364,18 +365,18 @@ class RegularizedRegression:
         self.bias = None
 
     def _ridge_fit(self, X, y):
-        """Ridge回帰の閉形式解"""
+        """Closed-form solution for Ridge regression"""
         n, m = X.shape
         X_b = np.c_[np.ones((n, 1)), X]
-        # (X^T X + αI)^(-1) X^T y （バイアスには正則化適用しない）
+        # (X^T X + αI)^(-1) X^T y  (regularization not applied to bias)
         I = np.eye(m + 1)
-        I[0, 0] = 0  # バイアス項は正則化しない
+        I[0, 0] = 0  # do not regularize the bias term
         theta = np.linalg.inv(X_b.T @ X_b + self.alpha * I) @ X_b.T @ y
         self.bias = theta[0]
         self.weights = theta[1:]
 
     def _lasso_fit(self, X, y, n_iter=1000, tol=1e-6):
-        """Lasso回帰の座標降下法"""
+        """Coordinate descent for Lasso regression"""
         n, m = X.shape
         self.weights = np.zeros(m)
         self.bias = np.mean(y)
@@ -384,11 +385,11 @@ class RegularizedRegression:
             weights_old = self.weights.copy()
 
             for j in range(m):
-                # j番目の特徴量以外の予測値
+                # Prediction excluding the j-th feature
                 residual = y - self.bias - X @ self.weights + X[:, j] * self.weights[j]
                 rho = X[:, j] @ residual / n
 
-                # ソフト閾値処理（Soft Thresholding）
+                # Soft thresholding
                 if rho > self.alpha / 2:
                     self.weights[j] = (rho - self.alpha / 2) / (X[:, j] @ X[:, j] / n)
                 elif rho < -self.alpha / 2:
@@ -398,12 +399,12 @@ class RegularizedRegression:
 
             self.bias = np.mean(y - X @ self.weights)
 
-            # 収束判定
+            # Convergence check
             if np.max(np.abs(self.weights - weights_old)) < tol:
                 break
 
     def _elasticnet_fit(self, X, y, n_iter=1000, tol=1e-6):
-        """ElasticNet回帰の座標降下法"""
+        """Coordinate descent for ElasticNet regression"""
         n, m = X.shape
         self.weights = np.zeros(m)
         self.bias = np.mean(y)
@@ -445,7 +446,7 @@ class RegularizedRegression:
         return X @ self.weights + self.bias
 
 
-# 使用例
+# Usage example
 np.random.seed(42)
 X = np.random.randn(200, 20)
 true_coef = np.zeros(20)
@@ -455,51 +456,51 @@ y = X @ true_coef + 1.0 + np.random.randn(200) * 0.3
 # Ridge
 ridge = RegularizedRegression(alpha=1.0, method='ridge')
 ridge.fit(X, y)
-print(f"Ridge 非ゼロ係数: {np.sum(np.abs(ridge.weights) > 1e-4)}")
+print(f"Ridge non-zero coefs: {np.sum(np.abs(ridge.weights) > 1e-4)}")
 
 # Lasso
 lasso = RegularizedRegression(alpha=0.1, method='lasso')
 lasso.fit(X, y)
-print(f"Lasso 非ゼロ係数: {np.sum(np.abs(lasso.weights) > 1e-4)}")
+print(f"Lasso non-zero coefs: {np.sum(np.abs(lasso.weights) > 1e-4)}")
 
 # ElasticNet
 enet = RegularizedRegression(alpha=0.1, l1_ratio=0.5, method='elasticnet')
 enet.fit(X, y)
-print(f"ElasticNet 非ゼロ係数: {np.sum(np.abs(enet.weights) > 1e-4)}")
+print(f"ElasticNet non-zero coefs: {np.sum(np.abs(enet.weights) > 1e-4)}")
 ```
 
-### コード例3: 正則化パラメータの最適化
+### Code Example 3: Regularization Parameter Optimization
 
 ```python
 from sklearn.linear_model import RidgeCV, LassoCV, ElasticNetCV
 import numpy as np
 import matplotlib.pyplot as plt
 
-# RidgeCV: 最適な α を交差検証で探索
+# RidgeCV: find optimal α via cross-validation
 alphas = np.logspace(-4, 4, 100)
 
 ridge_cv = RidgeCV(alphas=alphas, cv=5)
 ridge_cv.fit(X, y)
-print(f"Ridge 最適α: {ridge_cv.alpha_:.4f}")
+print(f"Ridge optimal α: {ridge_cv.alpha_:.4f}")
 
-# LassoCV: 正則化パスで効率的に探索
+# LassoCV: efficient search along the regularization path
 lasso_cv = LassoCV(cv=5, random_state=42, max_iter=10000)
 lasso_cv.fit(X, y)
-print(f"Lasso 最適α: {lasso_cv.alpha_:.4f}")
-print(f"Lasso 非ゼロ係数: {np.sum(np.abs(lasso_cv.coef_) > 1e-6)}")
+print(f"Lasso optimal α: {lasso_cv.alpha_:.4f}")
+print(f"Lasso non-zero coefs: {np.sum(np.abs(lasso_cv.coef_) > 1e-6)}")
 
-# ElasticNetCV: αとl1_ratioの同時最適化
+# ElasticNetCV: simultaneous optimization of α and l1_ratio
 enet_cv = ElasticNetCV(
     l1_ratio=[0.1, 0.3, 0.5, 0.7, 0.9],
     cv=5, random_state=42, max_iter=10000
 )
 enet_cv.fit(X, y)
-print(f"ElasticNet 最適α: {enet_cv.alpha_:.4f}, l1_ratio: {enet_cv.l1_ratio_:.2f}")
+print(f"ElasticNet optimal α: {enet_cv.alpha_:.4f}, l1_ratio: {enet_cv.l1_ratio_:.2f}")
 
-# 正則化パスの可視化
+# Visualize regularization paths
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 
-# Ridgeの係数パス
+# Ridge coefficient path
 coefs_ridge = []
 for a in alphas:
     ridge = Ridge(alpha=a)
@@ -507,13 +508,13 @@ for a in alphas:
     coefs_ridge.append(ridge.coef_)
 
 ax1.semilogx(alphas, coefs_ridge)
-ax1.axvline(ridge_cv.alpha_, color="r", linestyle="--", label=f"最適α={ridge_cv.alpha_:.3f}")
-ax1.set_xlabel("α (正則化強度)")
-ax1.set_ylabel("係数値")
-ax1.set_title("Ridge 正則化パス")
+ax1.axvline(ridge_cv.alpha_, color="r", linestyle="--", label=f"Optimal α={ridge_cv.alpha_:.3f}")
+ax1.set_xlabel("α (regularization strength)")
+ax1.set_ylabel("Coefficient value")
+ax1.set_title("Ridge Regularization Path")
 ax1.legend()
 
-# Lassoの係数パス
+# Lasso coefficient path
 coefs_lasso = []
 for a in alphas:
     lasso = Lasso(alpha=a, max_iter=10000)
@@ -521,10 +522,10 @@ for a in alphas:
     coefs_lasso.append(lasso.coef_)
 
 ax2.semilogx(alphas, coefs_lasso)
-ax2.axvline(lasso_cv.alpha_, color="r", linestyle="--", label=f"最適α={lasso_cv.alpha_:.3f}")
-ax2.set_xlabel("α (正則化強度)")
-ax2.set_ylabel("係数値")
-ax2.set_title("Lasso 正則化パス")
+ax2.axvline(lasso_cv.alpha_, color="r", linestyle="--", label=f"Optimal α={lasso_cv.alpha_:.3f}")
+ax2.set_xlabel("α (regularization strength)")
+ax2.set_ylabel("Coefficient value")
+ax2.set_title("Lasso Regularization Path")
 ax2.legend()
 
 plt.tight_layout()
@@ -534,9 +535,9 @@ plt.close()
 
 ---
 
-## 3. 多項式回帰
+## 3. Polynomial Regression
 
-### コード例4: 多項式回帰と次数選択
+### Code Example 4: Polynomial Regression and Degree Selection
 
 ```python
 import numpy as np
@@ -546,12 +547,12 @@ from sklearn.linear_model import LinearRegression
 from sklearn.model_selection import cross_val_score
 from sklearn.pipeline import make_pipeline
 
-# 非線形データの生成
+# Generate nonlinear data
 np.random.seed(42)
 X = np.sort(np.random.uniform(-3, 3, 50)).reshape(-1, 1)
 y = 0.5 * X.ravel()**3 - 2 * X.ravel()**2 + X.ravel() + np.random.randn(50) * 3
 
-# 各次数でのフィットを比較
+# Compare fits at each degree
 degrees = [1, 2, 3, 5, 10, 20]
 fig, axes = plt.subplots(2, 3, figsize=(15, 10))
 X_plot = np.linspace(-3, 3, 200).reshape(-1, 1)
@@ -565,9 +566,9 @@ for ax, degree in zip(axes.flatten(), degrees):
     model.fit(X, y)
     y_plot = model.predict(X_plot)
 
-    ax.scatter(X, y, s=20, alpha=0.6, label="データ")
-    ax.plot(X_plot, y_plot, "r-", linewidth=2, label=f"次数={degree}")
-    ax.set_title(f"次数={degree}, CV-MSE={-scores.mean():.2f}")
+    ax.scatter(X, y, s=20, alpha=0.6, label="Data")
+    ax.plot(X_plot, y_plot, "r-", linewidth=2, label=f"Degree={degree}")
+    ax.set_title(f"Degree={degree}, CV-MSE={-scores.mean():.2f}")
     ax.set_ylim(-40, 40)
     ax.legend()
     ax.grid(True, alpha=0.3)
@@ -577,7 +578,7 @@ plt.savefig("reports/polynomial_degrees.png", dpi=150)
 plt.close()
 ```
 
-### コード例4b: バイアス-バリアンストレードオフの可視化
+### Code Example 4b: Visualizing the Bias-Variance Tradeoff
 
 ```python
 import numpy as np
@@ -588,7 +589,7 @@ from sklearn.pipeline import make_pipeline
 from sklearn.model_selection import cross_val_score
 
 def bias_variance_decomposition(X, y, degrees, n_bootstraps=100):
-    """ブートストラップによるバイアス-バリアンス分解"""
+    """Bias-variance decomposition via bootstrapping"""
 
     X_test = np.linspace(X.min(), X.max(), 200).reshape(-1, 1)
     n = len(X)
@@ -599,7 +600,7 @@ def bias_variance_decomposition(X, y, degrees, n_bootstraps=100):
         predictions = np.zeros((n_bootstraps, len(X_test)))
 
         for b in range(n_bootstraps):
-            # ブートストラップサンプル
+            # Bootstrap sample
             idx = np.random.choice(n, size=n, replace=True)
             X_boot, y_boot = X[idx], y[idx]
 
@@ -610,7 +611,7 @@ def bias_variance_decomposition(X, y, degrees, n_bootstraps=100):
             model.fit(X_boot, y_boot)
             predictions[b] = model.predict(X_test).ravel()
 
-        # 真の関数（既知の場合）
+        # True function (known in this case)
         y_true = 0.5 * X_test.ravel()**3 - 2 * X_test.ravel()**2 + X_test.ravel()
 
         mean_pred = predictions.mean(axis=0)
@@ -626,7 +627,7 @@ def bias_variance_decomposition(X, y, degrees, n_bootstraps=100):
     return results
 
 
-# 実行
+# Run
 np.random.seed(42)
 X = np.sort(np.random.uniform(-3, 3, 50)).reshape(-1, 1)
 y = 0.5 * X.ravel()**3 - 2 * X.ravel()**2 + X.ravel() + np.random.randn(50) * 3
@@ -638,9 +639,9 @@ fig, ax = plt.subplots(figsize=(10, 6))
 ax.plot(results["degree"], results["bias_sq"], "b-o", label="Bias²", linewidth=2)
 ax.plot(results["degree"], results["variance"], "r-o", label="Variance", linewidth=2)
 ax.plot(results["degree"], results["mse"], "g--o", label="MSE (Bias²+Variance)", linewidth=2)
-ax.set_xlabel("多項式の次数")
-ax.set_ylabel("誤差")
-ax.set_title("バイアス-バリアンストレードオフ")
+ax.set_xlabel("Polynomial degree")
+ax.set_ylabel("Error")
+ax.set_title("Bias-Variance Tradeoff")
 ax.legend()
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
@@ -650,9 +651,9 @@ plt.close()
 
 ---
 
-## 4. 高度な回帰手法
+## 4. Advanced Regression Methods
 
-### 4.1 ロバスト回帰
+### 4.1 Robust Regression
 
 ```python
 import numpy as np
@@ -663,19 +664,19 @@ from sklearn.linear_model import (
 from sklearn.model_selection import cross_val_score
 import matplotlib.pyplot as plt
 
-# 外れ値を含むデータ
+# Data with outliers
 np.random.seed(42)
 n = 100
 X = np.random.randn(n, 1)
 y = 3 * X.ravel() + 2 + np.random.randn(n) * 0.5
 
-# 外れ値を追加（10%）
+# Add outliers (10%)
 outlier_idx = np.random.choice(n, size=10, replace=False)
 y[outlier_idx] += np.random.randn(10) * 20
 
 models = {
-    "OLS（通常の線形回帰）": LinearRegression(),
-    "Huber回帰（ε=1.35）": HuberRegressor(epsilon=1.35),
+    "OLS (Standard Linear Regression)": LinearRegression(),
+    "Huber Regression (ε=1.35)": HuberRegressor(epsilon=1.35),
     "RANSAC": RANSACRegressor(random_state=42),
     "Theil-Sen": TheilSenRegressor(random_state=42),
 }
@@ -689,7 +690,7 @@ for ax, (name, model) in zip(axes.flatten(), models.items()):
 
     ax.scatter(X, y, alpha=0.5, s=30)
     ax.scatter(X[outlier_idx], y[outlier_idx], color='red', s=50,
-               marker='x', label='外れ値')
+               marker='x', label='Outliers')
     ax.plot(X_plot, y_pred, 'r-', linewidth=2, label=name)
     ax.set_title(name)
     ax.legend()
@@ -699,18 +700,18 @@ plt.tight_layout()
 plt.savefig("reports/robust_regression.png", dpi=150)
 plt.close()
 
-# 性能比較
-print(f"{'モデル':30s} {'傾き':>8s} {'切片':>8s}")
+# Performance comparison
+print(f"{'Model':30s} {'Slope':>8s} {'Intercept':>10s}")
 print("-" * 50)
 for name, model in models.items():
     model.fit(X, y)
     coef = model.coef_[0] if hasattr(model, 'coef_') else model.estimator_.coef_[0]
     intercept = model.intercept_ if hasattr(model, 'intercept_') else model.estimator_.intercept_
-    print(f"{name:30s} {coef:8.3f} {intercept:8.3f}")
-print(f"{'（真の値）':30s} {'3.000':>8s} {'2.000':>8s}")
+    print(f"{name:30s} {coef:8.3f} {intercept:10.3f}")
+print(f"{'(True values)':30s} {'3.000':>8s} {'2.000':>10s}")
 ```
 
-### 4.2 ベイズ線形回帰
+### 4.2 Bayesian Linear Regression
 
 ```python
 import numpy as np
@@ -719,14 +720,14 @@ from sklearn.linear_model import BayesianRidge
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.pipeline import make_pipeline
 
-# ベイズ線形回帰 — 予測の不確実性も出力
+# Bayesian linear regression — also outputs prediction uncertainty
 np.random.seed(42)
 X = np.sort(np.random.uniform(0, 10, 30)).reshape(-1, 1)
 y = np.sin(X.ravel()) + np.random.randn(30) * 0.3
 
 X_test = np.linspace(0, 10, 200).reshape(-1, 1)
 
-# ベイズRidge（多項式特徴量付き）
+# Bayesian Ridge (with polynomial features)
 model = make_pipeline(
     PolynomialFeatures(degree=7),
     BayesianRidge(
@@ -737,23 +738,23 @@ model = make_pipeline(
 )
 model.fit(X, y)
 
-# 予測と不確実性
+# Prediction and uncertainty
 y_mean, y_std = model.predict(X_test, return_std=True)
 
 fig, ax = plt.subplots(figsize=(12, 6))
-ax.scatter(X, y, color='navy', s=40, label='訓練データ')
-ax.plot(X_test, y_mean, 'r-', linewidth=2, label='予測平均')
+ax.scatter(X, y, color='navy', s=40, label='Training data')
+ax.plot(X_test, y_mean, 'r-', linewidth=2, label='Predicted mean')
 ax.fill_between(
     X_test.ravel(),
     y_mean - 2 * y_std,
     y_mean + 2 * y_std,
     alpha=0.2, color='red',
-    label='95%信頼区間'
+    label='95% confidence interval'
 )
-ax.plot(X_test, np.sin(X_test.ravel()), 'g--', linewidth=1.5, label='真の関数')
+ax.plot(X_test, np.sin(X_test.ravel()), 'g--', linewidth=1.5, label='True function')
 ax.set_xlabel("x")
 ax.set_ylabel("y")
-ax.set_title("ベイズ線形回帰 — 予測と不確実性")
+ax.set_title("Bayesian Linear Regression — Prediction and Uncertainty")
 ax.legend()
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
@@ -761,14 +762,14 @@ plt.savefig("reports/bayesian_regression.png", dpi=150)
 plt.close()
 ```
 
-### 4.3 量子回帰（Quantile Regression）
+### 4.3 Quantile Regression
 
 ```python
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.linear_model import QuantileRegressor
 
-# 不均一分散を持つデータ
+# Data with heteroscedasticity
 np.random.seed(42)
 n = 200
 X = np.random.uniform(0, 10, n).reshape(-1, 1)
@@ -792,7 +793,7 @@ for q, color, ls in zip(quantiles, colors, linestyles):
 
 ax.set_xlabel("x")
 ax.set_ylabel("y")
-ax.set_title("量子回帰 — 予測区間の推定")
+ax.set_title("Quantile Regression — Estimating Prediction Intervals")
 ax.legend()
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
@@ -802,9 +803,9 @@ plt.close()
 
 ---
 
-## 5. 多重共線性の診断と対策
+## 5. Diagnosing and Addressing Multicollinearity
 
-### 5.1 VIF（分散拡大要因）による診断
+### 5.1 Diagnosis with VIF (Variance Inflation Factor)
 
 ```python
 import numpy as np
@@ -812,13 +813,13 @@ import pandas as pd
 from sklearn.linear_model import LinearRegression
 
 def calculate_vif(X, feature_names=None):
-    """VIF（Variance Inflation Factor）の計算"""
+    """Calculate VIF (Variance Inflation Factor)"""
     if feature_names is None:
         feature_names = [f"x{i}" for i in range(X.shape[1])]
 
     vif_data = []
     for i in range(X.shape[1]):
-        # i番目の特徴量を他の全特徴量で回帰
+        # Regress the i-th feature on all other features
         X_others = np.delete(X, i, axis=1)
         y_i = X[:, i]
 
@@ -828,68 +829,68 @@ def calculate_vif(X, feature_names=None):
 
         vif = 1 / (1 - r2) if r2 < 1 else float('inf')
         vif_data.append({
-            "特徴量": feature_names[i],
+            "Feature": feature_names[i],
             "VIF": vif,
             "R²": r2,
-            "判定": "問題なし" if vif < 5 else ("要注意" if vif < 10 else "多重共線性あり")
+            "Judgment": "No issue" if vif < 5 else ("Warning" if vif < 10 else "Multicollinearity")
         })
 
     return pd.DataFrame(vif_data)
 
 
-# 使用例: 多重共線性のあるデータ
+# Usage example: data with multicollinearity
 np.random.seed(42)
 x1 = np.random.randn(100)
-x2 = 2 * x1 + np.random.randn(100) * 0.1  # x1とほぼ同じ
-x3 = np.random.randn(100)                   # 独立
-x4 = x1 + x3 + np.random.randn(100) * 0.5  # x1とx3の組み合わせ
-x5 = np.random.randn(100)                   # 独立
+x2 = 2 * x1 + np.random.randn(100) * 0.1  # almost the same as x1
+x3 = np.random.randn(100)                   # independent
+x4 = x1 + x3 + np.random.randn(100) * 0.5  # combination of x1 and x3
+x5 = np.random.randn(100)                   # independent
 
 X = np.column_stack([x1, x2, x3, x4, x5])
-feature_names = ["x1", "x2 (≈2*x1)", "x3 (独立)", "x4 (x1+x3)", "x5 (独立)"]
+feature_names = ["x1", "x2 (≈2*x1)", "x3 (independent)", "x4 (x1+x3)", "x5 (independent)"]
 
 vif_result = calculate_vif(X, feature_names)
-print("=== VIF分析結果 ===")
+print("=== VIF Analysis Results ===")
 print(vif_result.to_string(index=False))
 
-print("\n判定基準:")
-print("  VIF < 5   : 問題なし")
-print("  5 ≤ VIF < 10 : 要注意（相関が高い特徴量がある）")
-print("  VIF ≥ 10  : 多重共線性あり（対策が必要）")
+print("\nJudgment criteria:")
+print("  VIF < 5      : No issue")
+print("  5 ≤ VIF < 10 : Warning (features with high correlation exist)")
+print("  VIF ≥ 10     : Multicollinearity present (action required)")
 ```
 
-### 5.2 条件数による診断
+### 5.2 Diagnosis via Condition Number
 
 ```python
 import numpy as np
 from sklearn.preprocessing import StandardScaler
 
 def condition_number_analysis(X, feature_names=None):
-    """条件数による多重共線性の診断"""
+    """Diagnose multicollinearity using condition number"""
     X_scaled = StandardScaler().fit_transform(X)
 
-    # 特異値分解
+    # Singular value decomposition
     U, S, Vt = np.linalg.svd(X_scaled)
     condition_number = S[0] / S[-1]
 
-    print(f"条件数: {condition_number:.2f}")
-    print(f"  < 30  : 問題なし")
-    print(f"  30-100: 中程度の多重共線性")
-    print(f"  > 100 : 深刻な多重共線性")
+    print(f"Condition number: {condition_number:.2f}")
+    print(f"  < 30   : No issue")
+    print(f"  30-100 : Moderate multicollinearity")
+    print(f"  > 100  : Severe multicollinearity")
 
-    # 各特異値の情報
-    print(f"\n特異値:")
+    # Information for each singular value
+    print(f"\nSingular values:")
     for i, s in enumerate(S):
-        print(f"  σ_{i+1} = {s:.4f}  (寄与率: {s**2/np.sum(S**2)*100:.1f}%)")
+        print(f"  σ_{i+1} = {s:.4f}  (contribution: {s**2/np.sum(S**2)*100:.1f}%)")
 
     return condition_number
 ```
 
 ---
 
-## 6. 特徴量エンジニアリングと前処理
+## 6. Feature Engineering and Preprocessing
 
-### 6.1 回帰における特徴量変換
+### 6.1 Feature Transformations for Regression
 
 ```python
 import numpy as np
@@ -905,9 +906,9 @@ from sklearn.linear_model import Ridge
 from sklearn.model_selection import cross_val_score
 
 def create_feature_engineering_pipeline(X, y, feature_names):
-    """回帰のための特徴量エンジニアリングパイプライン"""
+    """Feature engineering pipeline for regression"""
 
-    # 各変換の効果を比較
+    # Compare the effect of each transformation
     transformers = {
         "StandardScaler": StandardScaler(),
         "MinMaxScaler": MinMaxScaler(),
@@ -916,7 +917,7 @@ def create_feature_engineering_pipeline(X, y, feature_names):
         "QuantileTransformer (Normal)": QuantileTransformer(output_distribution='normal'),
     }
 
-    print(f"{'変換手法':40s} {'CV R²':>10s}")
+    print(f"{'Transformation':40s} {'CV R²':>10s}")
     print("-" * 55)
 
     for name, transformer in transformers.items():
@@ -928,22 +929,22 @@ def create_feature_engineering_pipeline(X, y, feature_names):
         print(f"{name:40s} {scores.mean():10.4f} (+/- {scores.std():.4f})")
 
 
-# 非線形変換の例
+# Example of nonlinear transformations
 def add_nonlinear_features(X, feature_names):
-    """手動での非線形特徴量追加"""
+    """Manually add nonlinear features"""
     df = pd.DataFrame(X, columns=feature_names)
 
-    # 対数変換（正の値のみ）
+    # Log transformation (positive values only)
     for col in feature_names:
         if (df[col] > 0).all():
             df[f"log_{col}"] = np.log(df[col])
 
-    # 平方根変換
+    # Square root transformation
     for col in feature_names:
         if (df[col] >= 0).all():
             df[f"sqrt_{col}"] = np.sqrt(df[col])
 
-    # 交互作用項
+    # Interaction terms
     for i, col1 in enumerate(feature_names):
         for col2 in feature_names[i+1:]:
             df[f"{col1}_x_{col2}"] = df[col1] * df[col2]
@@ -951,7 +952,7 @@ def add_nonlinear_features(X, feature_names):
     return df
 
 
-# スプライン変換の例
+# Spline transformation example
 np.random.seed(42)
 X = np.random.uniform(0, 10, (200, 1))
 y = np.sin(X.ravel()) + 0.5 * X.ravel() + np.random.randn(200) * 0.3
@@ -960,14 +961,14 @@ import matplotlib.pyplot as plt
 
 fig, axes = plt.subplots(1, 3, figsize=(18, 5))
 
-# 1. 線形
+# 1. Linear
 model_linear = Pipeline([
     ("scaler", StandardScaler()),
     ("model", Ridge(alpha=0.1))
 ])
 model_linear.fit(X, y)
 
-# 2. 多項式
+# 2. Polynomial
 model_poly = Pipeline([
     ("poly", PolynomialFeatures(degree=5)),
     ("scaler", StandardScaler()),
@@ -975,7 +976,7 @@ model_poly = Pipeline([
 ])
 model_poly.fit(X, y)
 
-# 3. スプライン
+# 3. Spline
 model_spline = Pipeline([
     ("spline", SplineTransformer(n_knots=8, degree=3)),
     ("scaler", StandardScaler()),
@@ -986,9 +987,9 @@ model_spline.fit(X, y)
 X_test = np.linspace(0, 10, 200).reshape(-1, 1)
 
 for ax, (name, model) in zip(axes, [
-    ("線形", model_linear),
-    ("多項式 (degree=5)", model_poly),
-    ("Bスプライン (knots=8)", model_spline)
+    ("Linear", model_linear),
+    ("Polynomial (degree=5)", model_poly),
+    ("B-Spline (knots=8)", model_spline)
 ]):
     y_pred = model.predict(X_test)
     cv_score = cross_val_score(model, X, y, cv=5, scoring="r2").mean()
@@ -1005,9 +1006,9 @@ plt.close()
 
 ---
 
-## 7. 実践的な回帰パイプライン
+## 7. Practical Regression Pipeline
 
-### コード例5: 本番品質の回帰パイプライン
+### Code Example 5: Production-Quality Regression Pipeline
 
 ```python
 import numpy as np
@@ -1024,7 +1025,7 @@ def build_regression_pipeline(
     categorical_features: list,
     poly_degree: int = 1
 ) -> Pipeline:
-    """本番品質の回帰パイプラインを構築"""
+    """Build a production-quality regression pipeline"""
 
     numeric_transformer = Pipeline([
         ("scaler", StandardScaler()),
@@ -1047,7 +1048,7 @@ def build_regression_pipeline(
 
     return pipeline
 
-# 使用例
+# Usage example
 df = pd.DataFrame({
     "sqft": np.random.uniform(500, 3000, 200),
     "bedrooms": np.random.choice([1, 2, 3, 4, 5], 200),
@@ -1080,13 +1081,13 @@ grid = GridSearchCV(pipe, param_grid, cv=5, scoring="neg_root_mean_squared_error
 grid.fit(X_train, y_train)
 
 y_pred = grid.predict(X_test)
-print(f"最良パラメータ: {grid.best_params_}")
+print(f"Best parameters: {grid.best_params_}")
 print(f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred)):,.0f}")
 print(f"MAE:  {mean_absolute_error(y_test, y_pred):,.0f}")
 print(f"R²:   {r2_score(y_test, y_pred):.4f}")
 ```
 
-### コード例5b: 回帰モデルの包括的な評価
+### Code Example 5b: Comprehensive Regression Model Evaluation
 
 ```python
 import numpy as np
@@ -1098,14 +1099,14 @@ from sklearn.metrics import (
 from scipy import stats
 
 def comprehensive_regression_evaluation(y_true, y_pred, feature_names=None, model=None):
-    """回帰モデルの包括的な評価レポート"""
+    """Comprehensive evaluation report for a regression model"""
 
     residuals = y_true - y_pred
 
-    # メトリクス
+    # Metrics
     metrics = {
         "R²": r2_score(y_true, y_pred),
-        "Adjusted R²": None,  # 後で計算
+        "Adjusted R²": None,  # computed later
         "RMSE": np.sqrt(mean_squared_error(y_true, y_pred)),
         "MAE": mean_absolute_error(y_true, y_pred),
         "MAPE": mean_absolute_percentage_error(y_true, y_pred) * 100,
@@ -1113,203 +1114,203 @@ def comprehensive_regression_evaluation(y_true, y_pred, feature_names=None, mode
         "Median AE": np.median(np.abs(residuals)),
     }
 
-    print("=== 回帰モデル評価レポート ===\n")
+    print("=== Regression Model Evaluation Report ===\n")
     for name, value in metrics.items():
         if value is not None:
             print(f"  {name:15s}: {value:,.4f}")
 
-    # 残差分析
+    # Residual analysis
     fig, axes = plt.subplots(2, 3, figsize=(18, 10))
 
-    # 1. 予測値 vs 実際値
+    # 1. Predicted vs Actual
     ax = axes[0, 0]
     ax.scatter(y_pred, y_true, alpha=0.5, s=20)
     lims = [min(y_true.min(), y_pred.min()), max(y_true.max(), y_pred.max())]
     ax.plot(lims, lims, 'r--', linewidth=2)
-    ax.set_xlabel("予測値")
-    ax.set_ylabel("実際値")
-    ax.set_title("予測値 vs 実際値")
+    ax.set_xlabel("Predicted values")
+    ax.set_ylabel("Actual values")
+    ax.set_title("Predicted vs Actual")
     ax.grid(True, alpha=0.3)
 
-    # 2. 残差 vs 予測値（均一分散の確認）
+    # 2. Residuals vs Predicted (check homoscedasticity)
     ax = axes[0, 1]
     ax.scatter(y_pred, residuals, alpha=0.5, s=20)
     ax.axhline(y=0, color='r', linestyle='--', linewidth=2)
-    ax.set_xlabel("予測値")
-    ax.set_ylabel("残差")
-    ax.set_title("残差 vs 予測値")
+    ax.set_xlabel("Predicted values")
+    ax.set_ylabel("Residuals")
+    ax.set_title("Residuals vs Predicted")
     ax.grid(True, alpha=0.3)
 
-    # 3. QQプロット（正規性の確認）
+    # 3. Q-Q plot (check normality)
     ax = axes[0, 2]
     stats.probplot(residuals, plot=ax)
-    ax.set_title("Q-Qプロット（残差の正規性）")
+    ax.set_title("Q-Q Plot (Normality of Residuals)")
 
-    # 4. 残差のヒストグラム
+    # 4. Histogram of residuals
     ax = axes[1, 0]
     ax.hist(residuals, bins=30, edgecolor='black', alpha=0.7, density=True)
-    # 正規分布のフィット
+    # Fit normal distribution
     mu, std = residuals.mean(), residuals.std()
     x_norm = np.linspace(residuals.min(), residuals.max(), 100)
     ax.plot(x_norm, stats.norm.pdf(x_norm, mu, std), 'r-', linewidth=2)
-    ax.set_xlabel("残差")
-    ax.set_ylabel("密度")
-    ax.set_title(f"残差の分布 (平均={mu:.2f}, 標準偏差={std:.2f})")
+    ax.set_xlabel("Residuals")
+    ax.set_ylabel("Density")
+    ax.set_title(f"Residual Distribution (mean={mu:.2f}, std={std:.2f})")
 
-    # 5. スケール-位置プロット（等分散性）
+    # 5. Scale-Location plot (homoscedasticity)
     ax = axes[1, 1]
     standardized_residuals = residuals / std
     ax.scatter(y_pred, np.sqrt(np.abs(standardized_residuals)), alpha=0.5, s=20)
-    ax.set_xlabel("予測値")
-    ax.set_ylabel("√|標準化残差|")
-    ax.set_title("スケール-位置プロット")
+    ax.set_xlabel("Predicted values")
+    ax.set_ylabel("√|Standardized residuals|")
+    ax.set_title("Scale-Location Plot")
     ax.grid(True, alpha=0.3)
 
-    # 6. 残差の自己相関
+    # 6. Autocorrelation of residuals
     ax = axes[1, 2]
     from statsmodels.graphics.tsaplots import plot_acf
     try:
         plot_acf(residuals, ax=ax, lags=20)
-        ax.set_title("残差の自己相関 (ACF)")
+        ax.set_title("Residual Autocorrelation (ACF)")
     except ImportError:
         ax.bar(range(20), [np.corrcoef(residuals[:-i], residuals[i:])[0, 1]
                            if i > 0 else 1.0
                            for i in range(20)], alpha=0.7)
-        ax.set_title("残差の自己相関")
+        ax.set_title("Residual Autocorrelation")
 
     plt.tight_layout()
     plt.savefig("reports/regression_evaluation.png", dpi=150)
     plt.close()
 
-    # 統計的検定
-    print("\n=== 統計的検定 ===")
+    # Statistical tests
+    print("\n=== Statistical Tests ===")
 
-    # 正規性検定（Shapiro-Wilk）
+    # Normality test (Shapiro-Wilk)
     if len(residuals) <= 5000:
         stat, p_value = stats.shapiro(residuals)
-        print(f"  Shapiro-Wilk検定: W={stat:.4f}, p={p_value:.4f}",
-              "→ 正規性あり" if p_value > 0.05 else "→ 正規性なし")
+        print(f"  Shapiro-Wilk test: W={stat:.4f}, p={p_value:.4f}",
+              "→ Normal" if p_value > 0.05 else "→ Not normal")
 
-    # Durbin-Watson検定（自己相関）
+    # Durbin-Watson test (autocorrelation)
     dw = np.sum(np.diff(residuals) ** 2) / np.sum(residuals ** 2)
-    print(f"  Durbin-Watson統計量: {dw:.4f}",
-          "(≈2で自己相関なし, <1.5で正の自己相関, >2.5で負の自己相関)")
+    print(f"  Durbin-Watson statistic: {dw:.4f}",
+          "(≈2: no autocorrelation, <1.5: positive autocorrelation, >2.5: negative autocorrelation)")
 
     return metrics
 
 
-# 使用例
+# Usage example
 # comprehensive_regression_evaluation(y_test, y_pred)
 ```
 
 ---
 
-## 8. 回帰指標の詳細
+## 8. Regression Metrics in Detail
 
-### 8.1 評価指標一覧
+### 8.1 Metrics Overview
 
 ```
-指標            式                              特徴
+Metric         Formula                         Characteristics
 ─────────────────────────────────────────────────────────────────────
-MSE            Σ(y-ŷ)²/n                       二乗誤差、外れ値に敏感
-RMSE           √(MSE)                          MSEと同じ単位
-MAE            Σ|y-ŷ|/n                        絶対誤差、外れ値に頑健
-MAPE           Σ|(y-ŷ)/y|/n × 100              百分率誤差、yが0に近いと不安定
-R²             1 - SS_res/SS_tot               決定係数、1に近いほど良い
-Adjusted R²    1 - (1-R²)(n-1)/(n-p-1)         特徴量数で補正したR²
-AIC            n·ln(SS_res/n) + 2p             モデル選択（小さいほど良い）
-BIC            n·ln(SS_res/n) + p·ln(n)         AICよりペナルティが大きい
+MSE            Σ(y-ŷ)²/n                       Squared error, sensitive to outliers
+RMSE           √(MSE)                          Same unit as MSE
+MAE            Σ|y-ŷ|/n                        Absolute error, robust to outliers
+MAPE           Σ|(y-ŷ)/y|/n × 100              Percentage error, unstable when y is near 0
+R²             1 - SS_res/SS_tot               Coefficient of determination; higher is better
+Adjusted R²    1 - (1-R²)(n-1)/(n-p-1)         R² adjusted for number of features
+AIC            n·ln(SS_res/n) + 2p             Model selection (lower is better)
+BIC            n·ln(SS_res/n) + p·ln(n)         Higher penalty than AIC
 
-R²の注意点:
-  ・ R² = 0.9 は「予測精度が高い」とは限らない
-  ・ 特徴量を追加するとR²は必ず増加する → Adjusted R²を使う
-  ・ 外れ値の影響を大きく受ける
-  ・ 非線形モデルの評価にはR²が不適切な場合がある
+Notes on R²:
+  · R² = 0.9 does not necessarily mean high predictive accuracy
+  · Adding features always increases R² → use Adjusted R²
+  · Strongly affected by outliers
+  · R² may be inappropriate for evaluating nonlinear models
 ```
 
-### 8.2 回帰指標の使い分け
+### 8.2 Choosing the Right Regression Metric
 
 ```
-場面                        推奨指標            理由
+Situation                       Recommended metric    Reason
 ───────────────────────────────────────────────────────────
-一般的な回帰評価            RMSE + R²           標準的
-外れ値が多いデータ          MAE                 頑健性
-ビジネス報告                MAPE                理解しやすい
-モデル比較（異なる変数数）   Adjusted R²         公平な比較
-モデル選択                  AIC / BIC           情報量基準
-時系列予測                  RMSE + MAE          両方見る
-住宅価格予測                RMSLE               対数スケール
-需要予測                    MAPE + WMAPE        ビジネスKPI
+General regression evaluation   RMSE + R²             Standard
+Data with many outliers         MAE                   Robustness
+Business reporting              MAPE                  Easy to understand
+Model comparison (diff. # vars) Adjusted R²           Fair comparison
+Model selection                 AIC / BIC             Information criterion
+Time series forecasting         RMSE + MAE            Look at both
+House price prediction          RMSLE                 Log scale
+Demand forecasting              MAPE + WMAPE          Business KPI
 ```
 
 ---
 
-## 比較表
+## Comparison Tables
 
-### 回帰手法の選択ガイド
+### Regression Method Selection Guide
 
-| 手法 | 正則化 | 特徴量選択 | 多重共線性 | 計算コスト | 適用場面 |
+| Method | Regularization | Feature selection | Multicollinearity | Compute cost | Use case |
 |---|---|---|---|---|---|
-| OLS (線形回帰) | なし | 不可 | 弱い | O(n*m^2) | ベースライン、解釈重視 |
-| Ridge (L2) | L2 | 不可 | 強い | O(n*m^2) | 多重共線性、全特徴量が重要 |
-| Lasso (L1) | L1 | 可能 | 中程度 | 反復法 | スパースモデル、特徴量選択 |
-| ElasticNet | L1+L2 | 可能 | 強い | 反復法 | 高次元、グループ化された特徴量 |
-| 多項式回帰 | - | - | - | O(n*m^d) | 非線形関係がある場合 |
-| Huber回帰 | L2 | 不可 | 中程度 | 反復法 | 外れ値が少数ある場合 |
-| RANSAC | なし | 不可 | 弱い | 反復法 | 外れ値が多い場合 |
-| ベイズ回帰 | 事前分布 | 可能 | 強い | O(n*m^2) | 不確実性の推定が必要 |
-| 量子回帰 | - | - | - | 線形計画 | 予測区間の推定 |
-| スプライン回帰 | - | - | - | O(n*k) | 滑らかな非線形関係 |
+| OLS (Linear Regression) | None | No | Weak | O(n*m^2) | Baseline, interpretability |
+| Ridge (L2) | L2 | No | Strong | O(n*m^2) | Multicollinearity, all features matter |
+| Lasso (L1) | L1 | Yes | Moderate | Iterative | Sparse model, feature selection |
+| ElasticNet | L1+L2 | Yes | Strong | Iterative | High-dimensional, grouped features |
+| Polynomial Regression | - | - | - | O(n*m^d) | Nonlinear relationships |
+| Huber Regression | L2 | No | Moderate | Iterative | Few outliers |
+| RANSAC | None | No | Weak | Iterative | Many outliers |
+| Bayesian Regression | Prior | Yes | Strong | O(n*m^2) | Uncertainty estimation needed |
+| Quantile Regression | - | - | - | Linear programming | Estimating prediction intervals |
+| Spline Regression | - | - | - | O(n*k) | Smooth nonlinear relationships |
 
-### 正則化パラメータ α の効果
+### Effect of Regularization Parameter α
 
-| αの大きさ | バイアス | バリアンス | モデルの複雑度 | 係数の大きさ | 過学習リスク |
+| α value | Bias | Variance | Model complexity | Coefficient magnitude | Overfitting risk |
 |---|---|---|---|---|---|
-| α → 0 | 低い | 高い | 高い | 大きい | 高い |
-| α が小さい | やや低い | やや高い | やや高い | やや大きい | やや高い |
-| α が適切 | 中程度 | 中程度 | 適切 | 適切 | 低い |
-| α が大きい | 高い | 低い | 低い | 小さい | 低い（過少適合） |
-| α → ∞ | 最大 | 最小 | ゼロモデル | ≈ 0 | なし（過少適合） |
+| α → 0 | Low | High | High | Large | High |
+| Small α | Slightly low | Slightly high | Slightly high | Slightly large | Slightly high |
+| Appropriate α | Moderate | Moderate | Appropriate | Appropriate | Low |
+| Large α | High | Low | Low | Small | Low (underfitting) |
+| α → ∞ | Maximum | Minimum | Zero model | ≈ 0 | None (underfitting) |
 
-### スケーリング手法の比較
+### Scaling Methods Comparison
 
-| 手法 | 変換式 | 出力範囲 | 外れ値への耐性 | 使い所 |
+| Method | Transform formula | Output range | Outlier robustness | When to use |
 |---|---|---|---|---|
-| StandardScaler | (x-μ)/σ | 概ね[-3, 3] | 低い | 正則化回帰（標準） |
-| MinMaxScaler | (x-min)/(max-min) | [0, 1] | 低い | NN、距離ベース |
-| RobustScaler | (x-Q2)/(Q3-Q1) | 可変 | 高い | 外れ値が多い |
-| PowerTransformer | Box-Cox / Yeo-Johnson | 概ね正規 | 中程度 | 歪んだ分布 |
-| QuantileTransformer | 分位点変換 | [0,1] or N(0,1) | 高い | 非線形関係 |
+| StandardScaler | (x-μ)/σ | Roughly [-3, 3] | Low | Regularized regression (standard) |
+| MinMaxScaler | (x-min)/(max-min) | [0, 1] | Low | NN, distance-based methods |
+| RobustScaler | (x-Q2)/(Q3-Q1) | Variable | High | Many outliers |
+| PowerTransformer | Box-Cox / Yeo-Johnson | Roughly normal | Moderate | Skewed distributions |
+| QuantileTransformer | Quantile transform | [0,1] or N(0,1) | High | Nonlinear relationships |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: スケーリングなしの正則化
+### Anti-Pattern 1: Regularization Without Scaling
 
 ```python
-# BAD: スケーリングせずに正則化 → 単位の大きい特徴量が不当に罰される
+# BAD: regularization without scaling → features with large units are unfairly penalized
 from sklearn.linear_model import Lasso
 
-# 面積(m², 10~200) vs 部屋数(1~5) → 面積の係数が小さくなりやすい
+# Area (m², 10~200) vs. number of rooms (1~5) → area coefficient tends to be small
 lasso = Lasso(alpha=1.0)
-lasso.fit(X_train, y_train)  # 不公平な正則化
+lasso.fit(X_train, y_train)  # unfair regularization
 
-# GOOD: StandardScalerで統一してから正則化
+# GOOD: normalize with StandardScaler before regularization
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
 pipe = make_pipeline(StandardScaler(), Lasso(alpha=1.0))
-pipe.fit(X_train, y_train)  # 公平な正則化
+pipe.fit(X_train, y_train)  # fair regularization
 ```
 
-### アンチパターン2: R²だけで回帰モデルを評価
+### Anti-Pattern 2: Evaluating Regression Models with R² Alone
 
 ```python
-# BAD: R²が高い = 良いモデルとは限らない
-# R² = 0.95 でも残差に自己相関や不均一分散があれば不適切
+# BAD: high R² does not necessarily mean a good model
+# R² = 0.95 but still inappropriate if residuals have autocorrelation or heteroscedasticity
 
-# GOOD: 残差分析を必ず実施
+# GOOD: always perform residual analysis
 import matplotlib.pyplot as plt
 
 y_pred = model.predict(X_test)
@@ -1317,78 +1318,78 @@ residuals = y_test - y_pred
 
 fig, axes = plt.subplots(1, 3, figsize=(15, 4))
 
-# 1. 残差 vs 予測値（均一分散の確認）
+# 1. Residuals vs Predicted (check homoscedasticity)
 axes[0].scatter(y_pred, residuals, alpha=0.5)
 axes[0].axhline(y=0, color="r", linestyle="--")
-axes[0].set_xlabel("予測値")
-axes[0].set_ylabel("残差")
-axes[0].set_title("残差 vs 予測値")
+axes[0].set_xlabel("Predicted values")
+axes[0].set_ylabel("Residuals")
+axes[0].set_title("Residuals vs Predicted")
 
-# 2. QQプロット（正規性の確認）
+# 2. Q-Q plot (check normality)
 from scipy import stats
 stats.probplot(residuals, plot=axes[1])
-axes[1].set_title("Q-Qプロット")
+axes[1].set_title("Q-Q Plot")
 
-# 3. 残差のヒストグラム
+# 3. Histogram of residuals
 axes[2].hist(residuals, bins=30, edgecolor="black")
-axes[2].set_title("残差の分布")
+axes[2].set_title("Residual Distribution")
 
 plt.tight_layout()
 plt.savefig("reports/residual_analysis.png", dpi=150)
 ```
 
-### アンチパターン3: 目的変数の変換を忘れる
+### Anti-Pattern 3: Forgetting to Transform the Target Variable
 
 ```python
-# BAD: 右に歪んだ目的変数（価格、所得）をそのまま使う
+# BAD: using a right-skewed target variable (price, income) as-is
 model = Ridge()
-model.fit(X_train, y_train_skewed)  # 外れ値に引っ張られる
+model.fit(X_train, y_train_skewed)  # pulled by outliers
 
-# GOOD: 対数変換してから学習
+# GOOD: apply log transform before training
 import numpy as np
 
 y_train_log = np.log1p(y_train_skewed)  # log(1 + y)
 model.fit(X_train, y_train_log)
 
-# 予測値を元のスケールに戻す
+# Convert predictions back to original scale
 y_pred_log = model.predict(X_test)
 y_pred = np.expm1(y_pred_log)  # exp(y) - 1
 ```
 
-### アンチパターン4: テストデータでのフィッティング
+### Anti-Pattern 4: Fitting on Test Data
 
 ```python
-# BAD: テストデータを含めてfit_transform
+# BAD: fit_transform including test data
 scaler = StandardScaler()
-X_all_scaled = scaler.fit_transform(X_all)  # テストデータの情報がリーク
+X_all_scaled = scaler.fit_transform(X_all)  # leaks test data information
 
-# GOOD: 訓練データだけでfitし、テストデータにtransform
+# GOOD: fit on training data only, then transform test data
 scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train)  # 訓練データでfit
-X_test_scaled = scaler.transform(X_test)          # テストデータはtransformのみ
+X_train_scaled = scaler.fit_transform(X_train)  # fit on training data
+X_test_scaled = scaler.transform(X_test)          # transform only on test data
 
-# BEST: Pipelineを使って自動管理
+# BEST: use Pipeline for automatic management
 from sklearn.pipeline import make_pipeline
 pipe = make_pipeline(StandardScaler(), Ridge(alpha=1.0))
-pipe.fit(X_train, y_train)        # 内部で正しくfit_transform
-pipe.predict(X_test)               # 内部で正しくtransform
+pipe.fit(X_train, y_train)        # correct fit_transform internally
+pipe.predict(X_test)               # correct transform internally
 ```
 
-### アンチパターン5: 多重共線性を無視する
+### Anti-Pattern 5: Ignoring Multicollinearity
 
 ```python
-# BAD: 相関の高い特徴量をそのまま投入
-# 身長(cm) と 身長(inch) を両方使う → 係数が不安定
+# BAD: feeding highly correlated features as-is
+# Using both height (cm) and height (inch) → unstable coefficients
 
-# GOOD: VIF分析で確認し、対策を講じる
-# 方法1: 相関の高い片方を削除
-# 方法2: PCAで次元削減
-# 方法3: Ridge回帰で多重共線性に対処
+# GOOD: check with VIF analysis and take action
+# Option 1: remove one of the correlated features
+# Option 2: dimensionality reduction with PCA
+# Option 3: use Ridge regression to handle multicollinearity
 
 from sklearn.decomposition import PCA
 pipe = make_pipeline(
     StandardScaler(),
-    PCA(n_components=0.95),  # 分散の95%を保持
+    PCA(n_components=0.95),  # retain 95% of variance
     Ridge(alpha=1.0)
 )
 ```
@@ -1397,56 +1398,56 @@ pipe = make_pipeline(
 
 ## FAQ
 
-### Q1: RidgeとLassoのどちらを使うべき？
+### Q1: Should I use Ridge or Lasso?
 
-**A:** 不要な特徴量が多いと推測される場合はLasso（特徴量選択効果あり）。全ての特徴量がある程度重要と考えられる場合はRidge。相関の高い特徴量グループがある場合は、Lassoはグループ内の1つだけを選び他を0にする傾向があるため、ElasticNetの方が安定する。迷ったらElasticNetでL1/L2の比率も含めてCVで最適化するのが安全。
+**A:** If many features are suspected to be irrelevant, use Lasso (it has feature selection capability). If all features are considered to be somewhat important, use Ridge. When there are groups of highly correlated features, Lasso tends to select only one from each group and zero out the rest, so ElasticNet is more stable. When in doubt, use ElasticNet and optimize both the L1/L2 ratio and α via cross-validation for safety.
 
-### Q2: 線形回帰で非線形な関係は捉えられないのか？
+### Q2: Can linear regression not capture nonlinear relationships?
 
-**A:** 特徴量変換（多項式、対数、平方根等）を適用すれば、パラメータに対しては線形のまま非線形関係を表現できる。「パラメータに対する線形性」と「入力に対する線形性」は別概念。PolynomialFeaturesで交互作用や多項式項を自動生成できる。SplineTransformerを使えば区分的な非線形性も柔軟に捉えられる。
+**A:** By applying feature transformations (polynomial, log, square root, etc.), you can express nonlinear relationships while keeping the model linear in parameters. "Linear in parameters" and "linear in input" are separate concepts. `PolynomialFeatures` can automatically generate interaction and polynomial terms. `SplineTransformer` can flexibly capture piecewise nonlinearity.
 
-### Q3: 正則化の強さ（α）はどう決めるのか？
+### Q3: How do I determine the regularization strength (α)?
 
-**A:** 交差検証が標準的手法。scikit-learnのRidgeCV / LassoCV / ElasticNetCVは内部で効率的に交差検証を行う。αの探索範囲は対数スケール（10^-4〜10^4）で設定するのが一般的。LassoCVは正則化パスアルゴリズムを使うため、個別にαを試すよりも高速。
+**A:** Cross-validation is the standard approach. scikit-learn's `RidgeCV`, `LassoCV`, and `ElasticNetCV` perform efficient cross-validation internally. The search range for α is typically set on a log scale (10^-4 to 10^4). `LassoCV` uses a regularization path algorithm, making it faster than trying individual α values.
 
-### Q4: 特徴量が多い場合、Lassoで自動選択に任せて良い？
+### Q4: With many features, is it okay to rely on Lasso for automatic selection?
 
-**A:** Lassoは便利だが万能ではない。(1) 相関の高い特徴量がある場合、恣意的に1つだけ選ぶ（再現性が低い）、(2) αの値によって選択される特徴量が大きく変わる、(3) Stability Selection（ランダムサブサンプリング + Lasso を繰り返し、頻繁に選ばれる特徴量を最終選択）を使うとより安定する。
+**A:** Lasso is convenient but not a silver bullet. (1) When highly correlated features are present, it selects only one arbitrarily (low reproducibility). (2) Selected features can vary significantly with different values of α. (3) Using Stability Selection (repeatedly running Lasso on random subsamples and choosing features selected frequently) provides more stable results.
 
-### Q5: 目的変数が正の値だけの場合（価格、件数など）、何か注意が必要？
+### Q5: What special considerations are needed when the target variable is always positive (e.g., price, count)?
 
-**A:** (1) 対数変換（log1p）してから回帰するのが定石。分布の歪みが改善され、等分散性の仮定にも近づく。(2) 予測値に負の値が出ないようにする工夫が必要。(3) ポアソン回帰やガンマ回帰といった一般化線形モデル（GLM）の使用も検討。scikit-learnの`PoissonRegressor`、`GammaRegressor`が使える。
+**A:** (1) Applying a log transform (`log1p`) before regression is the standard practice — it improves distributional skew and brings the data closer to the homoscedasticity assumption. (2) Steps to prevent negative predicted values are needed. (3) Consider using Generalized Linear Models (GLMs) such as Poisson regression or Gamma regression. scikit-learn's `PoissonRegressor` and `GammaRegressor` are available.
 
-### Q6: サンプル数が少ない場合の回帰モデルはどう選ぶ？
+### Q6: How should I choose a regression model when the sample size is small?
 
-**A:** (1) 特徴量数 > サンプル数の場合、OLSは不可（ランク落ち） → Ridge/Lassoが必須、(2) Leave-One-Out CVが有効（n-1個で学習、1個でテスト）、(3) ベイズ回帰で事前知識を導入すると安定する、(4) 正則化のαは大きめに設定する（過学習を防ぐ）。
+**A:** (1) If the number of features exceeds the sample size, OLS is not applicable (rank deficiency) → Ridge/Lasso is required. (2) Leave-One-Out CV is effective (train on n-1, test on 1). (3) Bayesian regression stabilizes estimation by incorporating prior knowledge. (4) Set α larger (to prevent overfitting).
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key points |
 |---|---|
-| 線形回帰 | 最小二乗法。正規方程式 or 勾配降下法でパラメータ推定 |
-| Ridge | L2正則化。多重共線性に強い。係数を縮小するがゼロにはしない |
-| Lasso | L1正則化。不要な特徴量の係数をゼロにする（スパース性） |
-| ElasticNet | L1+L2。LassoとRidgeの長所を兼ね備える |
-| 多項式回帰 | 非線形関係を特徴量変換で捕捉。次数が高すぎると過学習 |
-| ロバスト回帰 | 外れ値に頑健（Huber, RANSAC, Theil-Sen） |
-| ベイズ回帰 | 予測の不確実性も出力。事前分布による正則化 |
-| 前処理 | スケーリング必須、VIF分析、対数変換、スプライン変換 |
-| 評価 | R²だけでなく残差分析、RMSE、MAE等を総合的に判断 |
+| Linear Regression | Least squares. Parameters estimated via normal equations or gradient descent |
+| Ridge | L2 regularization. Robust to multicollinearity. Shrinks coefficients but does not zero them out |
+| Lasso | L1 regularization. Zeros out coefficients of irrelevant features (sparsity) |
+| ElasticNet | L1+L2. Combines the advantages of Lasso and Ridge |
+| Polynomial Regression | Captures nonlinear relationships via feature transforms. High degree leads to overfitting |
+| Robust Regression | Robust to outliers (Huber, RANSAC, Theil-Sen) |
+| Bayesian Regression | Also outputs prediction uncertainty. Regularization via prior distribution |
+| Preprocessing | Scaling required, VIF analysis, log transform, spline transform |
+| Evaluation | Use residual analysis, RMSE, MAE, etc. — not just R² |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [01-classification.md](./01-classification.md) — 分類モデルの理論と実装
-- [02-clustering.md](./02-clustering.md) — 教師なし学習（クラスタリング）
+- [01-classification.md](./01-classification.md) — Theory and implementation of classification models
+- [02-clustering.md](./02-clustering.md) — Unsupervised learning (clustering)
 
 ---
 
-## 参考文献
+## References
 
 1. **Trevor Hastie, Robert Tibshirani** "Statistical Learning with Sparsity: The Lasso and Generalizations" CRC Press, 2015
 2. **scikit-learn** "Generalized Linear Models" — https://scikit-learn.org/stable/modules/linear_model.html
