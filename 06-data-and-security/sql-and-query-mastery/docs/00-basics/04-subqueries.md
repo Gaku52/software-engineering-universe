@@ -1,164 +1,163 @@
-# サブクエリ — 相関 / 非相関・EXISTS・IN
+# Subqueries — Correlated / Non-Correlated, EXISTS, IN
 
-> サブクエリはクエリの中にネストされたクエリであり、複雑な条件指定やデータ変換を単一のSQL文で表現する強力な手段である。
+> A subquery is a query nested inside another query, and is a powerful tool for expressing complex conditions or data transformations within a single SQL statement.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. 非相関サブクエリと相関サブクエリの違いと実行モデル
-2. EXISTS、IN、スカラーサブクエリの使い分け
-3. サブクエリのパフォーマンス特性とJOINへの書き換え判断
-4. LATERAL JOINとサブクエリの関係
-5. オプティマイザによるサブクエリの内部変換メカニズム
+1. The difference between non-correlated and correlated subqueries, and their execution models
+2. When to use EXISTS, IN, and scalar subqueries
+3. Performance characteristics of subqueries and when to rewrite them as JOINs
+4. The relationship between LATERAL JOIN and subqueries
+5. Internal transformation mechanisms for subqueries by the optimizer
 
-## 前提知識
+## Prerequisites
 
-- SQLの基本構文（SELECT、WHERE、JOIN）
-- 集約関数（COUNT、SUM、AVG）の基礎
-- 03-joins.md でJOINの種類を理解していること
-
----
-
-## 1. サブクエリの分類
-
-```
-┌──────────────────── サブクエリの分類 ────────────────────┐
-│                                                          │
-│  ┌──────────────────────────────────────────┐           │
-│  │ 返す結果の形状による分類                   │           │
-│  ├──────────────────┬───────────────────────┤           │
-│  │ スカラーサブクエリ │ 1行1列（単一値）      │           │
-│  │ 行サブクエリ      │ 1行N列               │           │
-│  │ テーブルサブクエリ │ N行N列               │           │
-│  └──────────────────┴───────────────────────┘           │
-│                                                          │
-│  ┌──────────────────────────────────────────┐           │
-│  │ 外部クエリとの依存関係による分類           │           │
-│  ├──────────────────┬───────────────────────┤           │
-│  │ 非相関サブクエリ  │ 独立実行可能           │           │
-│  │ 相関サブクエリ    │ 外部の行に依存         │           │
-│  └──────────────────┴───────────────────────┘           │
-│                                                          │
-│  ┌──────────────────────────────────────────┐           │
-│  │ 使用場所による分類                        │           │
-│  ├──────────────────┬───────────────────────┤           │
-│  │ WHERE句          │ 条件式として           │           │
-│  │ FROM句           │ 派生テーブルとして     │           │
-│  │ SELECT句         │ スカラー値として       │           │
-│  │ HAVING句         │ グループ条件として     │           │
-│  │ INSERT INTO ... SELECT │ データ移行として │           │
-│  │ UPDATE ... SET   │ 値の算出として         │           │
-│  │ DELETE ... WHERE │ 削除条件として         │           │
-│  └──────────────────┴───────────────────────┘           │
-└──────────────────────────────────────────────────────────┘
-```
-
-### 1.1 サブクエリの実行モデル概要
-
-```
-┌──────── サブクエリの実行モデル ────────────────┐
-│                                                  │
-│  非相関サブクエリの実行:                         │
-│  ┌──────────────────────────────┐               │
-│  │ Step 1: サブクエリを1回実行   │               │
-│  │ Step 2: 結果をメモリに保持   │               │
-│  │ Step 3: 外部クエリで結果を参照│               │
-│  │                                │               │
-│  │ 計算量: O(M) + O(N)           │               │
-│  │ M = サブクエリの処理行数       │               │
-│  │ N = 外部クエリの処理行数       │               │
-│  └──────────────────────────────┘               │
-│                                                  │
-│  相関サブクエリの実行（ナイーブな場合）:          │
-│  ┌──────────────────────────────┐               │
-│  │ 外部の各行について:           │               │
-│  │   → サブクエリを実行          │               │
-│  │   → 結果で外部行を評価        │               │
-│  │                                │               │
-│  │ 計算量: O(N * M)（最悪ケース） │               │
-│  │ ※ オプティマイザが最適化する    │               │
-│  │   場合は O(N + M) に改善       │               │
-│  └──────────────────────────────┘               │
-└──────────────────────────────────────────────────┘
-```
+- Basic SQL syntax (SELECT, WHERE, JOIN)
+- Basics of aggregate functions (COUNT, SUM, AVG)
+- Understanding of JOIN types from 03-joins.md
 
 ---
 
-## 2. 非相関サブクエリ
+## 1. Subquery Classification
 
-### コード例1: WHERE句での非相関サブクエリ
+```
+┌──────────────────── Subquery Classification ────────────────────┐
+│                                                                  │
+│  ┌──────────────────────────────────────────┐                   │
+│  │ Classification by result shape            │                   │
+│  ├──────────────────┬───────────────────────┤                   │
+│  │ Scalar subquery  │ 1 row, 1 column        │                   │
+│  │ Row subquery     │ 1 row, N columns       │                   │
+│  │ Table subquery   │ N rows, N columns      │                   │
+│  └──────────────────┴───────────────────────┘                   │
+│                                                                  │
+│  ┌──────────────────────────────────────────┐                   │
+│  │ Classification by dependency on outer query│                  │
+│  ├──────────────────┬───────────────────────┤                   │
+│  │ Non-correlated   │ Can execute independently│                 │
+│  │ Correlated       │ Depends on outer rows  │                   │
+│  └──────────────────┴───────────────────────┘                   │
+│                                                                  │
+│  ┌──────────────────────────────────────────┐                   │
+│  │ Classification by usage location          │                   │
+│  ├──────────────────┬───────────────────────┤                   │
+│  │ WHERE clause     │ As a condition         │                   │
+│  │ FROM clause      │ As a derived table     │                   │
+│  │ SELECT clause    │ As a scalar value      │                   │
+│  │ HAVING clause    │ As a group condition   │                   │
+│  │ INSERT INTO ... SELECT │ For data migration│                  │
+│  │ UPDATE ... SET   │ For value calculation  │                   │
+│  │ DELETE ... WHERE │ As a delete condition  │                   │
+│  └──────────────────┴───────────────────────┘                   │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+### 1.1 Subquery Execution Model Overview
+
+```
+┌──────── Subquery Execution Model ────────────────┐
+│                                                   │
+│  Non-correlated subquery execution:               │
+│  ┌──────────────────────────────┐                 │
+│  │ Step 1: Execute subquery once │                 │
+│  │ Step 2: Hold result in memory │                 │
+│  │ Step 3: Reference result in outer query│        │
+│  │                               │                 │
+│  │ Complexity: O(M) + O(N)       │                 │
+│  │ M = rows processed by subquery│                 │
+│  │ N = rows processed by outer query│              │
+│  └──────────────────────────────┘                 │
+│                                                   │
+│  Correlated subquery execution (naive case):      │
+│  ┌──────────────────────────────┐                 │
+│  │ For each row of the outer query:│               │
+│  │   → Execute the subquery      │                 │
+│  │   → Evaluate the outer row    │                 │
+│  │                               │                 │
+│  │ Complexity: O(N * M) (worst case)│              │
+│  │ ※ Optimizer may improve to O(N + M)│           │
+│  └──────────────────────────────┘                 │
+└───────────────────────────────────────────────────┘
+```
+
+---
+
+## 2. Non-Correlated Subqueries
+
+### Code Example 1: Non-Correlated Subquery in WHERE Clause
 
 ```sql
--- IN: サブクエリ結果のリストに含まれるか
+-- IN: checks whether value is in the subquery result list
 SELECT name, salary
 FROM employees
 WHERE department_id IN (
-    SELECT id FROM departments WHERE location = '東京'
+    SELECT id FROM departments WHERE location = 'Tokyo'
 );
 
--- 比較演算子: スカラーサブクエリ
+-- Comparison operator: scalar subquery
 SELECT name, salary
 FROM employees
 WHERE salary > (
-    SELECT AVG(salary) FROM employees  -- 全社平均を返す
+    SELECT AVG(salary) FROM employees  -- returns company-wide average
 );
 
--- ALL / ANY: 集合との比較
--- 全部署の平均給与より高い社員
+-- ALL / ANY: comparison against a set
+-- Employees earning more than the average of every department
 SELECT name, salary
 FROM employees
 WHERE salary > ALL (
     SELECT AVG(salary) FROM employees GROUP BY department_id
 );
 
--- いずれかの部署の平均給与より高い社員
+-- Employees earning more than the average of at least one department
 SELECT name, salary
 FROM employees
 WHERE salary > ANY (
     SELECT AVG(salary) FROM employees GROUP BY department_id
 );
 
--- BETWEEN とサブクエリの組み合わせ
+-- Combining BETWEEN with subqueries
 SELECT name, salary
 FROM employees
 WHERE salary BETWEEN
     (SELECT AVG(salary) - STDDEV(salary) FROM employees)
     AND
     (SELECT AVG(salary) + STDDEV(salary) FROM employees);
--- → 標準偏差の範囲内にいる社員
+-- → employees within one standard deviation of the mean
 ```
 
-#### ALL / ANY の内部動作
+#### Internal Behavior of ALL / ANY
 
 ```
-┌──────── ALL / ANY の論理的展開 ──────────────┐
-│                                                │
-│  salary > ALL (10, 20, 30)                     │
-│  ≡ salary > 10 AND salary > 20 AND salary > 30│
-│  ≡ salary > MAX(10, 20, 30)                    │
-│  ≡ salary > 30                                 │
-│                                                │
-│  salary > ANY (10, 20, 30)                     │
-│  ≡ salary > 10 OR salary > 20 OR salary > 30   │
-│  ≡ salary > MIN(10, 20, 30)                    │
-│  ≡ salary > 10                                 │
-│                                                │
-│  注意: 空集合の場合                             │
-│  salary > ALL (空) → TRUE （全ての要素が条件を   │
-│                      満たす = 要素なし = 真）    │
-│  salary > ANY (空) → FALSE                     │
-│                                                │
-│  注意: NULLが含まれる場合                       │
-│  salary > ALL (10, NULL, 30)                    │
-│  → salary > 10 AND salary > NULL AND salary > 30│
-│  → ... AND UNKNOWN AND ...                     │
-│  → 結果がUNKNOWN → フィルタされない            │
-└────────────────────────────────────────────────┘
+┌──────── Logical Expansion of ALL / ANY ──────────────┐
+│                                                        │
+│  salary > ALL (10, 20, 30)                             │
+│  ≡ salary > 10 AND salary > 20 AND salary > 30        │
+│  ≡ salary > MAX(10, 20, 30)                            │
+│  ≡ salary > 30                                         │
+│                                                        │
+│  salary > ANY (10, 20, 30)                             │
+│  ≡ salary > 10 OR salary > 20 OR salary > 30           │
+│  ≡ salary > MIN(10, 20, 30)                            │
+│  ≡ salary > 10                                         │
+│                                                        │
+│  Note: empty set case                                  │
+│  salary > ALL (empty) → TRUE (all elements satisfy    │
+│                         condition = no elements = true)│
+│  salary > ANY (empty) → FALSE                          │
+│                                                        │
+│  Note: when NULL is included                           │
+│  salary > ALL (10, NULL, 30)                           │
+│  → salary > 10 AND salary > NULL AND salary > 30       │
+│  → ... AND UNKNOWN AND ...                             │
+│  → result is UNKNOWN → row is filtered out             │
+└────────────────────────────────────────────────────────┘
 ```
 
-### コード例2: FROM句での非相関サブクエリ（派生テーブル）
+### Code Example 2: Non-Correlated Subquery in FROM Clause (Derived Table)
 
 ```sql
--- 派生テーブル: サブクエリの結果をテーブルとして使用
+-- Derived table: use the subquery result as a table
 SELECT
     dept_stats.department_name,
     dept_stats.avg_salary,
@@ -175,7 +174,7 @@ FROM (
 WHERE dept_stats.avg_salary > 500000
 ORDER BY dept_stats.avg_salary DESC;
 
--- SELECT句でのスカラーサブクエリ
+-- Scalar subquery in SELECT clause
 SELECT
     e.name,
     e.salary,
@@ -184,7 +183,7 @@ SELECT
 FROM employees e
 ORDER BY diff_from_avg DESC;
 
--- 派生テーブルの中でウィンドウ関数を使用
+-- Using a window function inside a derived table
 SELECT
     ranked.name,
     ranked.salary,
@@ -200,13 +199,13 @@ FROM (
         JOIN departments d ON e.department_id = d.id
 ) AS ranked
 WHERE ranked.salary_rank <= 3;
--- → 各部署の給与TOP3
+-- → top 3 earners per department
 ```
 
-#### 派生テーブルとCTEの比較
+#### Comparison: Derived Table vs CTE
 
 ```sql
--- 派生テーブルで書いた場合
+-- Written with a derived table
 SELECT dept_name, avg_salary
 FROM (
     SELECT d.name AS dept_name, AVG(e.salary) AS avg_salary
@@ -215,7 +214,7 @@ FROM (
 ) AS dept_stats
 WHERE avg_salary > 500000;
 
--- CTEで書いた場合（同等の結果）
+-- Written with a CTE (equivalent result)
 WITH dept_stats AS (
     SELECT d.name AS dept_name, AVG(e.salary) AS avg_salary
     FROM employees e JOIN departments d ON e.department_id = d.id
@@ -225,65 +224,65 @@ SELECT dept_name, avg_salary
 FROM dept_stats
 WHERE avg_salary > 500000;
 
--- CTEの利点:
--- 1. 同じサブクエリを複数回参照できる
--- 2. 可読性が高い（上から下に読める）
--- 3. 再帰クエリが書ける
+-- Advantages of CTEs:
+-- 1. The same subquery can be referenced multiple times
+-- 2. Better readability (can be read top to bottom)
+-- 3. Recursive queries are possible
 
--- パフォーマンスの違い（PostgreSQL 12以降）:
--- PostgreSQL 12以降ではCTEがインライン展開される（NOT MATERIALIZED）
--- → パフォーマンスは派生テーブルとほぼ同等
--- 強制的にマテリアライズしたい場合: WITH x AS MATERIALIZED (...)
+-- Performance difference (PostgreSQL 12+):
+-- PostgreSQL 12+ inlines CTEs by default (NOT MATERIALIZED)
+-- → performance is nearly equivalent to derived tables
+-- To force materialization: WITH x AS MATERIALIZED (...)
 ```
 
 ---
 
-## 3. 相関サブクエリ
+## 3. Correlated Subqueries
 
-### 相関サブクエリの実行モデル
+### Correlated Subquery Execution Model
 
 ```
-┌────────── 相関サブクエリの実行フロー ──────────┐
-│                                                 │
-│  外部クエリ: SELECT * FROM employees e          │
-│  WHERE salary > (...)                           │
-│                                                 │
-│  外部の各行について:                             │
-│  ┌─────────────────────────────────────────┐   │
-│  │ 行1: 田中 (dept=10)                     │   │
-│  │  → サブクエリ実行: AVG WHERE dept=10    │   │
-│  │  → 結果: 450000                         │   │
-│  │  → 田中の給与 > 450000 ? → 判定        │   │
-│  ├─────────────────────────────────────────┤   │
-│  │ 行2: 鈴木 (dept=20)                     │   │
-│  │  → サブクエリ実行: AVG WHERE dept=20    │   │
-│  │  → 結果: 520000                         │   │
-│  │  → 鈴木の給与 > 520000 ? → 判定        │   │
-│  ├─────────────────────────────────────────┤   │
-│  │ 行3: 佐藤 (dept=10)                     │   │
-│  │  → サブクエリ実行: AVG WHERE dept=10    │   │
-│  │  → 結果: 450000（キャッシュ可能）       │   │
-│  │  → 佐藤の給与 > 450000 ? → 判定        │   │
-│  └─────────────────────────────────────────┘   │
-│                                                 │
-│  ※ 外部の行数分だけサブクエリが実行される        │
-│  ※ ただしオプティマイザが最適化する場合がある    │
-└─────────────────────────────────────────────────┘
+┌────────── Correlated Subquery Execution Flow ──────────┐
+│                                                         │
+│  Outer query: SELECT * FROM employees e                 │
+│  WHERE salary > (...)                                   │
+│                                                         │
+│  For each outer row:                                    │
+│  ┌─────────────────────────────────────────┐            │
+│  │ Row 1: Tanaka (dept=10)                 │            │
+│  │  → Execute subquery: AVG WHERE dept=10  │            │
+│  │  → Result: 450000                       │            │
+│  │  → Tanaka's salary > 450000? → evaluate │            │
+│  ├─────────────────────────────────────────┤            │
+│  │ Row 2: Suzuki (dept=20)                 │            │
+│  │  → Execute subquery: AVG WHERE dept=20  │            │
+│  │  → Result: 520000                       │            │
+│  │  → Suzuki's salary > 520000? → evaluate │            │
+│  ├─────────────────────────────────────────┤            │
+│  │ Row 3: Sato (dept=10)                   │            │
+│  │  → Execute subquery: AVG WHERE dept=10  │            │
+│  │  → Result: 450000 (cacheable)           │            │
+│  │  → Sato's salary > 450000? → evaluate   │            │
+│  └─────────────────────────────────────────┘            │
+│                                                         │
+│  ※ The subquery is executed once per outer row          │
+│  ※ However, the optimizer may apply optimizations       │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### コード例3: 相関サブクエリ
+### Code Example 3: Correlated Subquery
 
 ```sql
--- 自部署の平均給与より高い社員を取得
+-- Retrieve employees earning above their department's average salary
 SELECT e.name, e.salary, e.department_id
 FROM employees e
 WHERE e.salary > (
     SELECT AVG(e2.salary)
     FROM employees e2
-    WHERE e2.department_id = e.department_id  -- 外部行を参照
+    WHERE e2.department_id = e.department_id  -- references the outer row
 );
 
--- 各カテゴリで最新の商品を取得
+-- Retrieve the most recently added product in each category
 SELECT p.name, p.category_id, p.created_at
 FROM products p
 WHERE p.created_at = (
@@ -292,7 +291,7 @@ WHERE p.created_at = (
     WHERE p2.category_id = p.category_id
 );
 
--- 同等のウィンドウ関数版（通常こちらが推奨）
+-- Equivalent window function version (generally preferred)
 SELECT name, category_id, created_at
 FROM (
     SELECT
@@ -302,7 +301,7 @@ FROM (
 ) sub
 WHERE rn = 1;
 
--- 相関サブクエリでの更新
+-- UPDATE with a correlated subquery
 UPDATE employees e
 SET salary = salary * 1.1
 WHERE salary < (
@@ -310,76 +309,78 @@ WHERE salary < (
     FROM employees e2
     WHERE e2.department_id = e.department_id
 );
--- → 自部署の平均以下の社員に10%昇給
+-- → give a 10% raise to employees below their department's average
 
--- 相関サブクエリでの削除
+-- DELETE with a correlated subquery
 DELETE FROM order_items oi
 WHERE NOT EXISTS (
     SELECT 1 FROM orders o
     WHERE o.id = oi.order_id
     AND o.status != 'cancelled'
 );
--- → キャンセル済み注文の明細を削除
+-- → delete line items belonging to cancelled orders
 ```
 
-### 3.1 オプティマイザによる相関サブクエリの変換
+### 3.1 Optimizer Transformations for Correlated Subqueries
 
 ```
-┌──── オプティマイザのサブクエリ最適化戦略 ─────┐
-│                                                 │
-│  1. サブクエリの非ネスト化（Unnesting）          │
-│     相関サブクエリ → JOINに変換                  │
-│     例:                                         │
-│     SELECT * FROM t1                            │
-│     WHERE t1.x IN (SELECT t2.x FROM t2          │
-│                     WHERE t2.y = t1.y)          │
-│     →                                           │
-│     SELECT t1.* FROM t1                         │
-│     SEMI JOIN t2 ON t1.x = t2.x AND t1.y = t2.y│
-│                                                 │
-│  2. サブクエリのマテリアライズ                    │
-│     非相関サブクエリの結果をハッシュテーブル化    │
-│     → 外部クエリの各行でO(1)参照                │
-│                                                 │
-│  3. EXISTS → SEMI JOINへの変換                  │
-│     PostgreSQLではEXISTSを内部的にSEMI JOINに    │
-│     変換してHash Semi Joinを使用                │
-│                                                 │
-│  4. スカラーサブクエリのキャッシュ               │
-│     同じパラメータの相関サブクエリ結果を          │
-│     再利用（dept_id=10が2回出たらキャッシュ使用）│
-│                                                 │
-│  確認方法: EXPLAIN ANALYZE で実行計画を参照      │
-└─────────────────────────────────────────────────┘
+┌──── Optimizer Subquery Optimization Strategies ─────┐
+│                                                       │
+│  1. Subquery Unnesting                                │
+│     Correlated subquery → converted to JOIN           │
+│     Example:                                          │
+│     SELECT * FROM t1                                  │
+│     WHERE t1.x IN (SELECT t2.x FROM t2               │
+│                     WHERE t2.y = t1.y)                │
+│     →                                                 │
+│     SELECT t1.* FROM t1                               │
+│     SEMI JOIN t2 ON t1.x = t2.x AND t1.y = t2.y      │
+│                                                       │
+│  2. Subquery Materialization                          │
+│     Hash-table the result of non-correlated subqueries│
+│     → O(1) lookup for each outer row                  │
+│                                                       │
+│  3. EXISTS → SEMI JOIN conversion                     │
+│     PostgreSQL internally converts EXISTS to SEMI JOIN │
+│     and uses Hash Semi Join                           │
+│                                                       │
+│  4. Scalar subquery caching                           │
+│     Reuse the result of a correlated subquery with    │
+│     the same parameters (cache hit when dept_id=10    │
+│     appears a second time)                            │
+│                                                       │
+│  How to verify: use EXPLAIN ANALYZE to inspect the    │
+│  execution plan                                       │
+└───────────────────────────────────────────────────────┘
 ```
 
 ```sql
--- オプティマイザの変換を確認する例
+-- Example to verify optimizer transformations
 EXPLAIN ANALYZE
 SELECT e.name
 FROM employees e
 WHERE e.department_id IN (
-    SELECT d.id FROM departments d WHERE d.location = '東京'
+    SELECT d.id FROM departments d WHERE d.location = 'Tokyo'
 );
 
--- PostgreSQLの実行計画（変換後）:
+-- PostgreSQL execution plan (after transformation):
 -- Hash Semi Join  (actual time=0.050..1.200 rows=500 loops=1)
 --   Hash Cond: (e.department_id = d.id)
 --   -> Seq Scan on employees e
 --   -> Hash
 --     -> Seq Scan on departments d
---       Filter: (location = '東京')
--- → INサブクエリがSEMI JOINに自動変換されている
+--       Filter: (location = 'Tokyo')
+-- → the IN subquery is automatically converted to a SEMI JOIN
 ```
 
 ---
 
 ## 4. EXISTS / NOT EXISTS
 
-### コード例4: EXISTSの活用
+### Code Example 4: Using EXISTS
 
 ```sql
--- 注文実績のある顧客を取得
+-- Retrieve customers who have placed an order
 SELECT c.name, c.email
 FROM customers c
 WHERE EXISTS (
@@ -389,7 +390,7 @@ WHERE EXISTS (
       AND o.order_date >= '2024-01-01'
 );
 
--- 注文実績のない顧客を取得
+-- Retrieve customers who have never placed an order
 SELECT c.name, c.email
 FROM customers c
 WHERE NOT EXISTS (
@@ -398,19 +399,19 @@ WHERE NOT EXISTS (
     WHERE o.customer_id = c.id
 );
 
--- EXISTS vs IN の書き換え
--- 以下は論理的に同等（パフォーマンスは異なる場合あり）
+-- Rewriting EXISTS vs IN
+-- The following are logically equivalent (performance may differ)
 
--- INバージョン
+-- IN version
 SELECT * FROM customers
 WHERE id IN (SELECT customer_id FROM orders);
 
--- EXISTSバージョン（大規模データではこちらが有利な場合が多い）
+-- EXISTS version (often more efficient for large datasets)
 SELECT * FROM customers c
 WHERE EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.id);
 
--- 複数条件のEXISTS
--- 「未出荷の注文がある」かつ「VIP顧客」
+-- EXISTS with multiple conditions
+-- Customers who are VIP AND have a pending order
 SELECT c.name, c.email
 FROM customers c
 WHERE c.tier = 'VIP'
@@ -422,40 +423,40 @@ WHERE c.tier = 'VIP'
   );
 ```
 
-#### EXISTSの内部動作
+#### Internal Mechanics of EXISTS
 
 ```
-┌──────── EXISTSの実行メカニズム ─────────────┐
-│                                                │
-│  EXISTS (SELECT 1 FROM orders WHERE ...)       │
-│                                                │
-│  動作:                                         │
-│  1. サブクエリを実行開始                        │
-│  2. 1行でも見つかった時点で TRUE を返す        │
-│  3. 残りの行は評価しない（短絡評価）           │
-│                                                │
-│  → SELECT 1 でも SELECT * でも結果は同じ       │
-│    （列の内容は評価されない）                   │
-│                                                │
-│  NOT EXISTS:                                   │
-│  1. サブクエリを実行                            │
-│  2. 1行も見つからなければ TRUE を返す          │
-│  3. 1行でも見つかった時点で FALSE を返す       │
-│                                                │
-│  パフォーマンスのポイント:                      │
-│  ┌──────────────────────────────────┐         │
-│  │ サブクエリ側のWHERE条件に         │         │
-│  │ インデックスがあれば非常に高速    │         │
-│  │ Index Scan → 1行見つけて即終了   │         │
-│  └──────────────────────────────────┘         │
-└────────────────────────────────────────────────┘
+┌──────── EXISTS Execution Mechanism ─────────────┐
+│                                                   │
+│  EXISTS (SELECT 1 FROM orders WHERE ...)          │
+│                                                   │
+│  Behavior:                                        │
+│  1. Begin executing the subquery                  │
+│  2. Return TRUE as soon as one row is found       │
+│  3. Stop evaluating remaining rows (short-circuit)│
+│                                                   │
+│  → Result is the same whether SELECT 1 or SELECT *│
+│    (column contents are not evaluated)            │
+│                                                   │
+│  NOT EXISTS:                                      │
+│  1. Execute the subquery                          │
+│  2. Return TRUE if no rows are found              │
+│  3. Return FALSE as soon as one row is found      │
+│                                                   │
+│  Performance tip:                                 │
+│  ┌──────────────────────────────────┐             │
+│  │ If the subquery's WHERE condition │             │
+│  │ has an index, it is very fast    │             │
+│  │ Index Scan → find 1 row → done   │             │
+│  └──────────────────────────────────┘             │
+└───────────────────────────────────────────────────┘
 ```
 
-### コード例5: LATERAL JOIN（相関サブクエリのFROM句版）
+### Code Example 5: LATERAL JOIN (Correlated Subquery in the FROM Clause)
 
 ```sql
--- LATERAL JOIN: 各行に対してサブクエリを実行しFROM句で使用
--- 各部署の給与TOP3を取得
+-- LATERAL JOIN: execute a subquery for each row and use it in FROM
+-- Retrieve top 3 earners per department
 SELECT d.name AS department, top3.name, top3.salary
 FROM departments d
     CROSS JOIN LATERAL (
@@ -466,9 +467,10 @@ FROM departments d
         LIMIT 3
     ) AS top3;
 
--- 従来の相関サブクエリでは困難な「各グループのN件」を簡潔に表現
+-- "Top-N per group" is hard to express with ordinary correlated subqueries
+-- but is concise with LATERAL JOIN
 
--- LATERAL JOINの別例: 最新の注文情報を横に並べる
+-- Another LATERAL JOIN example: append the latest order information as columns
 SELECT
     c.name,
     c.email,
@@ -482,9 +484,9 @@ FROM customers c
         ORDER BY o.order_date DESC
         LIMIT 1
     ) AS latest ON TRUE;
--- LEFT JOIN LATERAL ... ON TRUE で顧客に注文がない場合もNULLで返す
+-- LEFT JOIN LATERAL ... ON TRUE returns NULL for customers with no orders
 
--- LATERALで時系列データの前の行を参照
+-- Reference the previous row in time-series data using LATERAL
 SELECT
     m.month,
     m.revenue,
@@ -499,61 +501,61 @@ FROM monthly_sales m
 ORDER BY m.month;
 ```
 
-#### LATERAL JOINの実行計画
+#### LATERAL JOIN Execution Plan
 
 ```
-┌──── LATERAL JOIN vs 相関サブクエリの実行計画比較 ───┐
-│                                                      │
-│  LATERAL JOIN:                                       │
-│  Nested Loop                                         │
-│    -> Seq Scan on departments d                      │
-│    -> Limit                                          │
-│      -> Index Scan Backward on employees e           │
-│           Index Cond: (department_id = d.id)         │
-│           Sort: salary DESC                          │
-│  → 部署ごとにインデックスでTOP3を取得               │
-│  → LIMITが効くので部署あたり最大3行のみ読む         │
-│                                                      │
-│  相関サブクエリ（SELECT句）で同等のことをする場合:    │
-│  → 列ごとにサブクエリが必要 → 非常に非効率          │
-│  → TOP-Nパターンには LATERAL が最適                  │
-└──────────────────────────────────────────────────────┘
+┌──── LATERAL JOIN vs Correlated Subquery Execution Plan ───┐
+│                                                             │
+│  LATERAL JOIN:                                              │
+│  Nested Loop                                                │
+│    -> Seq Scan on departments d                             │
+│    -> Limit                                                 │
+│      -> Index Scan Backward on employees e                  │
+│           Index Cond: (department_id = d.id)                │
+│           Sort: salary DESC                                 │
+│  → Retrieves TOP 3 per department using an index           │
+│  → LIMIT applies, so at most 3 rows are read per dept      │
+│                                                             │
+│  Equivalent using correlated subqueries in SELECT clause:   │
+│  → A separate subquery is needed per column → very slow     │
+│  → LATERAL is ideal for the TOP-N pattern                   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### コード例6: 実践的なサブクエリパターン
+### Code Example 6: Practical Subquery Patterns
 
 ```sql
--- 全社員を4分位（四分位）に分類
+-- Classify all employees into four quartiles
 SELECT
     name,
     salary,
     CASE
         WHEN salary >= (SELECT PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY salary) FROM employees)
-            THEN 'Q4 (上位25%)'
+            THEN 'Q4 (Top 25%)'
         WHEN salary >= (SELECT PERCENTILE_CONT(0.50) WITHIN GROUP (ORDER BY salary) FROM employees)
             THEN 'Q3'
         WHEN salary >= (SELECT PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY salary) FROM employees)
             THEN 'Q2'
-        ELSE 'Q1 (下位25%)'
+        ELSE 'Q1 (Bottom 25%)'
     END AS quartile
 FROM employees
 ORDER BY salary DESC;
 
--- ウィンドウ関数版（推奨: サブクエリが1回で済む）
+-- Window function version (recommended: subquery runs only once)
 SELECT
     name,
     salary,
     NTILE(4) OVER (ORDER BY salary) AS quartile_num,
     CASE NTILE(4) OVER (ORDER BY salary)
-        WHEN 4 THEN 'Q4 (上位25%)'
+        WHEN 4 THEN 'Q4 (Top 25%)'
         WHEN 3 THEN 'Q3'
         WHEN 2 THEN 'Q2'
-        ELSE 'Q1 (下位25%)'
+        ELSE 'Q1 (Bottom 25%)'
     END AS quartile
 FROM employees
 ORDER BY salary DESC;
 
--- 前月比の売上比較
+-- Month-over-month sales comparison
 SELECT
     current_month.month,
     current_month.total,
@@ -569,7 +571,7 @@ LEFT JOIN (
 ) prev_month ON current_month.month = prev_month.month + INTERVAL '1 month'
 ORDER BY current_month.month;
 
--- CTEで書き直した版（DRY原則、推奨）
+-- Rewritten with CTE (DRY principle, recommended)
 WITH monthly AS (
     SELECT DATE_TRUNC('month', sale_date) AS month, SUM(amount) AS total
     FROM sales GROUP BY 1
@@ -584,11 +586,11 @@ LEFT JOIN monthly p ON c.month = p.month + INTERVAL '1 month'
 ORDER BY c.month;
 ```
 
-### コード例7: 高度なサブクエリパターン
+### Code Example 7: Advanced Subquery Patterns
 
 ```sql
--- パターン1: 存在確認と条件付き集約
--- 「直近30日に注文があり、かつ返品がない優良顧客」
+-- Pattern 1: Existence check with conditional aggregation
+-- "High-value customers who ordered in the last 30 days with no returns"
 SELECT c.id, c.name, c.email,
     (SELECT COUNT(*) FROM orders o WHERE o.customer_id = c.id
      AND o.order_date >= CURRENT_DATE - INTERVAL '30 days') AS recent_orders,
@@ -607,26 +609,26 @@ AND NOT EXISTS (
     AND r.return_date >= CURRENT_DATE - INTERVAL '30 days'
 );
 
--- パターン2: 行値コンストラクタとサブクエリ
--- 複数列の同時比較
+-- Pattern 2: Row value constructor with subquery
+-- Simultaneous comparison of multiple columns
 SELECT * FROM employees
 WHERE (department_id, salary) IN (
     SELECT department_id, MAX(salary)
     FROM employees
     GROUP BY department_id
 );
--- → 各部署の最高給与者を取得
+-- → retrieve the highest earner in each department
 
--- パターン3: INSERT ... SELECT サブクエリ
--- アーカイブテーブルへの移行
+-- Pattern 3: INSERT ... SELECT subquery
+-- Migrate data to an archive table
 INSERT INTO orders_archive (id, customer_id, order_date, total_amount)
 SELECT id, customer_id, order_date, total_amount
 FROM orders
 WHERE order_date < CURRENT_DATE - INTERVAL '2 years'
   AND status = 'delivered';
 
--- パターン4: UPDATE with サブクエリ
--- 各商品の平均評価を更新
+-- Pattern 4: UPDATE with subquery
+-- Update the average rating for each product
 UPDATE products p
 SET avg_rating = sub.avg_rating,
     review_count = sub.review_count
@@ -640,8 +642,8 @@ FROM (
 ) sub
 WHERE p.id = sub.product_id;
 
--- パターン5: DELETE with サブクエリ
--- 重複行の削除（最小IDを残す）
+-- Pattern 5: DELETE with subquery
+-- Delete duplicate rows (keep the row with the smallest ID)
 DELETE FROM employees
 WHERE id NOT IN (
     SELECT MIN(id)
@@ -649,7 +651,7 @@ WHERE id NOT IN (
     GROUP BY name, department_id, salary
 );
 
--- より安全な書き方（NOT EXISTS版）
+-- Safer alternative (NOT EXISTS version)
 DELETE FROM employees e1
 WHERE EXISTS (
     SELECT 1 FROM employees e2
@@ -662,145 +664,145 @@ WHERE EXISTS (
 
 ---
 
-## 5. サブクエリのパフォーマンス分析
+## 5. Subquery Performance Analysis
 
-### 5.1 実行計画の比較
+### 5.1 Comparing Execution Plans
 
 ```sql
--- テストデータの前提: employees 10万行, departments 50行
+-- Assumed test data: employees 100,000 rows, departments 50 rows
 
--- パターン1: INサブクエリ
+-- Pattern 1: IN subquery
 EXPLAIN ANALYZE
 SELECT * FROM employees
 WHERE department_id IN (
-    SELECT id FROM departments WHERE location = '東京'
+    SELECT id FROM departments WHERE location = 'Tokyo'
 );
--- 実行計画:
+-- Execution plan:
 -- Hash Semi Join  (cost=1.63..2500.00 rows=20000)
 --   (actual time=0.050..25.000 rows=20000 loops=1)
 --   Hash Cond: (employees.department_id = departments.id)
 --   -> Seq Scan on employees
 --   -> Hash
 --     -> Seq Scan on departments
---       Filter: (location = '東京')
+--       Filter: (location = 'Tokyo')
 -- Execution Time: 25.500 ms
 
--- パターン2: EXISTS
+-- Pattern 2: EXISTS
 EXPLAIN ANALYZE
 SELECT * FROM employees e
 WHERE EXISTS (
     SELECT 1 FROM departments d
-    WHERE d.id = e.department_id AND d.location = '東京'
+    WHERE d.id = e.department_id AND d.location = 'Tokyo'
 );
--- 実行計画（PostgreSQLでは同じ計画になることが多い）:
+-- Execution plan (often identical in PostgreSQL):
 -- Hash Semi Join  (cost=1.63..2500.00 rows=20000)
 --   (actual time=0.050..25.000 rows=20000 loops=1)
--- → オプティマイザが同じ実行計画に変換
+-- → optimizer converts to the same execution plan
 
--- パターン3: JOIN
+-- Pattern 3: JOIN
 EXPLAIN ANALYZE
 SELECT e.* FROM employees e
 JOIN departments d ON e.department_id = d.id
-WHERE d.location = '東京';
--- 実行計画:
+WHERE d.location = 'Tokyo';
+-- Execution plan:
 -- Hash Join  (cost=1.63..2500.00 rows=20000)
 --   (actual time=0.050..24.000 rows=20000 loops=1)
--- → ほぼ同じ実行計画（JOINは重複の可能性がある点に注意）
+-- → nearly identical execution plan (note: JOIN may produce duplicates)
 ```
 
-### 5.2 RDBMS間のサブクエリ最適化の差異
+### 5.2 Subquery Optimization Differences Between RDBMSs
 
 ```
-┌──── RDBMS間のサブクエリ最適化比較 ────────────┐
-│                                                  │
-│  PostgreSQL:                                     │
-│  - IN → Semi Join に自動変換                     │
-│  - EXISTS → Semi Join に自動変換                 │
-│  - 相関サブクエリ → 可能ならJOINに変換           │
-│  - CTE 12+: デフォルトでインライン展開           │
-│  - LATERAL: Nested Loop で効率的に実行           │
-│                                                  │
-│  MySQL:                                          │
-│  - 5.6以前: INサブクエリの最適化が弱い           │
-│  - 5.6+: Semi Join最適化を導入                   │
-│  - 8.0+: 派生テーブルのマージ最適化              │
-│  - 8.0+: CTE のサポート追加                      │
-│  - LATERAL: 8.0.14+でサポート                    │
-│                                                  │
-│  Oracle:                                         │
-│  - 非常に高度なサブクエリ非ネスト化              │
-│  - UNNEST / NO_UNNEST ヒントで制御可能           │
-│  - スカラーサブクエリのキャッシュが強力           │
-│                                                  │
-│  SQL Server:                                     │
-│  - Apply演算子でLATERAL相当を実装                │
-│  - サブクエリの非ネスト化が自動的                │
-│  - OPTION (RECOMPILE) で再最適化                 │
-└──────────────────────────────────────────────────┘
+┌──── Subquery Optimization Comparison by RDBMS ────────────┐
+│                                                             │
+│  PostgreSQL:                                                │
+│  - IN → automatically converted to Semi Join               │
+│  - EXISTS → automatically converted to Semi Join           │
+│  - Correlated subquery → converted to JOIN when possible   │
+│  - CTE 12+: inlined by default                             │
+│  - LATERAL: executed efficiently with Nested Loop          │
+│                                                             │
+│  MySQL:                                                     │
+│  - Before 5.6: weak optimization for IN subqueries         │
+│  - 5.6+: introduced Semi Join optimization                 │
+│  - 8.0+: derived table merge optimization                  │
+│  - 8.0+: added CTE support                                 │
+│  - LATERAL: supported from 8.0.14+                         │
+│                                                             │
+│  Oracle:                                                    │
+│  - Very advanced subquery unnesting                        │
+│  - Controllable with UNNEST / NO_UNNEST hints              │
+│  - Powerful scalar subquery caching                        │
+│                                                             │
+│  SQL Server:                                                │
+│  - Implements LATERAL-equivalent via the Apply operator    │
+│  - Subquery unnesting is automatic                         │
+│  - OPTION (RECOMPILE) for re-optimization                  │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## IN vs EXISTS vs JOIN 比較表
+## IN vs EXISTS vs JOIN Comparison
 
-| 手法 | 最適な場面 | NULLの扱い | パフォーマンス | オプティマイザ変換 |
-|------|-----------|-----------|--------------|------------------|
-| IN | サブクエリの結果が少量 | NULLがあると問題 | 小テーブル向き | Semi Join化 |
-| NOT IN | — | NULL含むと全行除外の危険 | 非推奨 | Anti Join化（不完全） |
-| EXISTS | サブクエリの結果が大量 | NULL問題なし | 大テーブル向き | Semi Join化 |
-| NOT EXISTS | 存在しない行の検索 | NULL安全 | 推奨 | Anti Join化 |
-| JOIN | 結合データが必要 | 明示的に制御可能 | 最も柔軟 | そのまま実行 |
-| LATERAL | 各行でTOP-N | N/A | TOP-Nに最適 | Nested Loop |
+| Approach | Best situation | NULL handling | Performance | Optimizer transformation |
+|----------|---------------|---------------|-------------|--------------------------|
+| IN | Small subquery result | Problematic with NULLs | Suited for small tables | Converted to Semi Join |
+| NOT IN | — | Risk of excluding all rows if NULLs present | Not recommended | Converted to Anti Join (incomplete) |
+| EXISTS | Large subquery result | No NULL issues | Suited for large tables | Converted to Semi Join |
+| NOT EXISTS | Finding rows that do not exist | NULL-safe | Recommended | Converted to Anti Join |
+| JOIN | Need joined data | Can be controlled explicitly | Most flexible | Executed as-is |
+| LATERAL | TOP-N per row | N/A | Optimal for TOP-N | Nested Loop |
 
-## サブクエリの使用場所比較表
+## Subquery Usage Location Comparison
 
-| 使用場所 | 返す形状 | 用途 | 例 | パフォーマンス注意点 |
-|---------|---------|------|-----|------------------|
-| WHERE句 | スカラー/リスト | フィルタ条件 | `WHERE x IN (SELECT ...)` | インデックスの有無が重要 |
-| FROM句 | テーブル | 派生テーブル | `FROM (SELECT ...) AS t` | マテリアライズのコスト |
-| SELECT句 | スカラー | 計算列 | `SELECT (SELECT AVG(...))` | N+1問題の原因になりうる |
-| HAVING句 | スカラー | グループフィルタ | `HAVING COUNT(*) > (SELECT ...)` | 集約後のフィルタ |
-| INSERT INTO | テーブル | データ移行 | `INSERT INTO ... SELECT` | バルク操作の性能 |
-| UPDATE SET | スカラー | 値の更新 | `SET x = (SELECT ...)` | 相関の場合行数に注意 |
-| DELETE WHERE | ブーリアン | 削除条件 | `WHERE EXISTS (SELECT ...)` | インデックスの有無が重要 |
+| Location | Result shape | Purpose | Example | Performance note |
+|----------|-------------|---------|---------|------------------|
+| WHERE clause | Scalar / list | Filter condition | `WHERE x IN (SELECT ...)` | Index presence is important |
+| FROM clause | Table | Derived table | `FROM (SELECT ...) AS t` | Materialization cost |
+| SELECT clause | Scalar | Computed column | `SELECT (SELECT AVG(...))` | Can cause N+1 problem |
+| HAVING clause | Scalar | Group filter | `HAVING COUNT(*) > (SELECT ...)` | Filter after aggregation |
+| INSERT INTO | Table | Data migration | `INSERT INTO ... SELECT` | Bulk operation performance |
+| UPDATE SET | Scalar | Value update | `SET x = (SELECT ...)` | Watch row count for correlated |
+| DELETE WHERE | Boolean | Delete condition | `WHERE EXISTS (SELECT ...)` | Index presence is important |
 
-## サブクエリ vs 代替手法 比較表
+## Subquery vs Alternative Approaches Comparison
 
-| 要件 | サブクエリ | JOIN | ウィンドウ関数 | CTE | 推奨 |
-|------|-----------|------|-------------|-----|------|
-| フィルタ条件 | WHERE IN/EXISTS | JOIN + DISTINCT | - | WITH | EXISTS推奨 |
-| 各グループのTOP-N | 相関 + LIMIT | - | ROW_NUMBER | WITH | LATERAL推奨 |
-| 集約値との比較 | スカラーサブクエリ | 自己JOIN | ウィンドウ集約 | WITH | ウィンドウ関数推奨 |
-| 前月比較 | 自己JOIN | LAG対応 | LAG() | WITH | ウィンドウ関数推奨 |
-| 存在確認 | EXISTS | LEFT JOIN IS NULL | - | WITH + EXISTS | EXISTS推奨 |
-| データ移行 | INSERT SELECT | - | - | INSERT WITH | サブクエリ推奨 |
+| Requirement | Subquery | JOIN | Window function | CTE | Recommended |
+|-------------|----------|------|-----------------|-----|-------------|
+| Filter condition | WHERE IN/EXISTS | JOIN + DISTINCT | - | WITH | EXISTS preferred |
+| TOP-N per group | Correlated + LIMIT | - | ROW_NUMBER | WITH | LATERAL preferred |
+| Compare against aggregate | Scalar subquery | Self JOIN | Window aggregate | WITH | Window function preferred |
+| Month-over-month comparison | Self JOIN | LAG support | LAG() | WITH | Window function preferred |
+| Existence check | EXISTS | LEFT JOIN IS NULL | - | WITH + EXISTS | EXISTS preferred |
+| Data migration | INSERT SELECT | - | - | INSERT WITH | Subquery preferred |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: NOT INとNULLの落とし穴
+### Anti-Pattern 1: NOT IN and the NULL Trap
 
 ```sql
--- NG: NULLが含まれるとNOT INは全行を除外する
+-- NG: NOT IN excludes all rows if any NULL is present in the subquery
 SELECT * FROM employees
 WHERE department_id NOT IN (
     SELECT department_id FROM temp_exclusions
-    -- temp_exclusionsにNULLが1行でもあると、結果は0行！
+    -- if even one NULL exists in temp_exclusions, the result is 0 rows!
 );
 
--- 理由: NULL との比較は常にUNKNOWN
+-- Reason: comparison with NULL always yields UNKNOWN
 -- x NOT IN (1, 2, NULL) → x<>1 AND x<>2 AND x<>NULL
--- → ... AND UNKNOWN → UNKNOWN → フィルタされない
+-- → ... AND UNKNOWN → UNKNOWN → row is filtered out
 
--- OK: NOT EXISTS を使う
+-- OK: use NOT EXISTS instead
 SELECT * FROM employees e
 WHERE NOT EXISTS (
     SELECT 1 FROM temp_exclusions t
     WHERE t.department_id = e.department_id
 );
 
--- OK: NOT IN でもNULLを除外すれば安全
+-- OK: safe if NULLs are excluded from NOT IN
 SELECT * FROM employees
 WHERE department_id NOT IN (
     SELECT department_id FROM temp_exclusions
@@ -809,47 +811,47 @@ WHERE department_id NOT IN (
 ```
 
 ```
-┌──── NOT IN のNULL問題の図解 ──────────────────┐
-│                                                 │
-│  employees:                                     │
-│  dept_id: 10, 20, 30                            │
-│                                                 │
-│  temp_exclusions:                                │
-│  dept_id: 10, NULL                               │
-│                                                 │
-│  NOT IN の展開:                                  │
-│  dept_id NOT IN (10, NULL)                       │
-│  = dept_id <> 10 AND dept_id <> NULL            │
-│                                                 │
-│  dept_id=20 の場合:                              │
-│  20 <> 10 → TRUE                                │
-│  20 <> NULL → UNKNOWN                           │
-│  TRUE AND UNKNOWN → UNKNOWN                     │
-│  → WHERE の結果は UNKNOWN → 行はフィルタされる  │
-│                                                 │
-│  dept_id=30 の場合:                              │
-│  30 <> 10 → TRUE                                │
-│  30 <> NULL → UNKNOWN                           │
-│  TRUE AND UNKNOWN → UNKNOWN                     │
-│  → 同様にフィルタされる                          │
-│                                                 │
-│  結果: 0行が返る（意図しない動作）               │
-└─────────────────────────────────────────────────┘
+┌──── Diagram: NOT IN and the NULL Problem ──────────────┐
+│                                                         │
+│  employees:                                             │
+│  dept_id: 10, 20, 30                                    │
+│                                                         │
+│  temp_exclusions:                                       │
+│  dept_id: 10, NULL                                      │
+│                                                         │
+│  NOT IN expansion:                                      │
+│  dept_id NOT IN (10, NULL)                              │
+│  = dept_id <> 10 AND dept_id <> NULL                   │
+│                                                         │
+│  For dept_id=20:                                        │
+│  20 <> 10 → TRUE                                        │
+│  20 <> NULL → UNKNOWN                                   │
+│  TRUE AND UNKNOWN → UNKNOWN                             │
+│  → WHERE result is UNKNOWN → row is filtered out        │
+│                                                         │
+│  For dept_id=30:                                        │
+│  30 <> 10 → TRUE                                        │
+│  30 <> NULL → UNKNOWN                                   │
+│  TRUE AND UNKNOWN → UNKNOWN                             │
+│  → also filtered out                                    │
+│                                                         │
+│  Result: 0 rows returned (unintended behavior)          │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### アンチパターン2: SELECT句の相関サブクエリの濫用
+### Anti-Pattern 2: Overuse of Correlated Subqueries in the SELECT Clause
 
 ```sql
--- NG: 行ごとにサブクエリが実行される（N+1問題と同等）
+-- NG: a subquery is executed for each row (equivalent to the N+1 problem)
 SELECT
     e.name,
     (SELECT d.name FROM departments d WHERE d.id = e.department_id) AS dept_name,
     (SELECT COUNT(*) FROM projects p WHERE p.lead_id = e.id) AS project_count,
     (SELECT MAX(r.rating) FROM reviews r WHERE r.employee_id = e.id) AS best_rating
 FROM employees e;
--- → 社員1000人なら 1000 * 3 = 3000回のサブクエリ実行
+-- → for 1,000 employees: 1000 * 3 = 3,000 subquery executions
 
--- OK: JOINと集約で1クエリに
+-- OK: rewrite with JOIN and aggregation in a single query
 SELECT
     e.name,
     d.name AS dept_name,
@@ -861,7 +863,7 @@ FROM employees e
     LEFT JOIN reviews r ON r.employee_id = e.id
 GROUP BY e.id, e.name, d.name;
 
--- OK: LATERAL JOINで集約を分離（JOINによる行爆発を防ぐ）
+-- OK: use LATERAL JOIN to separate aggregations (avoids row explosion from JOINs)
 SELECT
     e.name,
     d.name AS dept_name,
@@ -879,10 +881,10 @@ FROM employees e
     ) br ON TRUE;
 ```
 
-### アンチパターン3: 不要なサブクエリのネスト
+### Anti-Pattern 3: Unnecessary Subquery Nesting
 
 ```sql
--- NG: 不必要にネストされたサブクエリ
+-- NG: unnecessarily nested subqueries
 SELECT * FROM (
     SELECT * FROM (
         SELECT * FROM (
@@ -896,7 +898,7 @@ SELECT * FROM (
 ) AS step3
 LIMIT 10;
 
--- OK: 1つのクエリに統合
+-- OK: consolidate into a single query
 SELECT id, name, salary, department_id
 FROM employees
 WHERE salary > 500000
@@ -907,55 +909,55 @@ LIMIT 10;
 
 ---
 
-## エッジケース
+## Edge Cases
 
-### エッジケース1: 空の結果セットとの比較
+### Edge Case 1: Comparison Against an Empty Result Set
 
 ```sql
--- ALL で空集合との比較
--- salary > ALL (空集合) → TRUE（全ての要素を満たす = 空虚な真）
+-- Comparison with ALL against an empty set
+-- salary > ALL (empty set) → TRUE (vacuously true: all elements satisfy the condition)
 SELECT * FROM employees
 WHERE salary > ALL (
     SELECT salary FROM employees WHERE department_id = 999
-    -- department_id=999が存在しない場合、空集合
+    -- returns empty set if department_id=999 does not exist
 );
--- → 全社員が返される
+-- → all employees are returned
 
--- ANY で空集合との比較
--- salary > ANY (空集合) → FALSE
+-- Comparison with ANY against an empty set
+-- salary > ANY (empty set) → FALSE
 SELECT * FROM employees
 WHERE salary > ANY (
     SELECT salary FROM employees WHERE department_id = 999
 );
--- → 0行が返される
+-- → 0 rows returned
 
--- IN で空集合
--- department_id IN (空集合) → FALSE
+-- IN with an empty set
+-- department_id IN (empty set) → FALSE
 SELECT * FROM employees
 WHERE department_id IN (
-    SELECT id FROM departments WHERE location = '火星'
+    SELECT id FROM departments WHERE location = 'Mars'
 );
--- → 0行が返される
+-- → 0 rows returned
 ```
 
-### エッジケース2: 複数行を返すスカラーサブクエリ
+### Edge Case 2: Scalar Subquery Returning Multiple Rows
 
 ```sql
--- スカラーサブクエリが複数行を返すとエラー
+-- A scalar subquery that returns more than one row causes an error
 SELECT name, (
     SELECT salary FROM employees WHERE department_id = 10
-    -- 部署10に複数社員がいるとエラー！
+    -- error if department 10 has multiple employees!
 ) AS salary
 FROM departments;
 -- → ERROR: more than one row returned by a subquery
 
--- 対策1: 集約関数で1行に確定
+-- Fix 1: use an aggregate function to guarantee a single row
 SELECT name, (
     SELECT AVG(salary) FROM employees e WHERE e.department_id = d.id
 ) AS avg_salary
 FROM departments d;
 
--- 対策2: LIMIT 1 で強制的に1行
+-- Fix 2: force a single row with LIMIT 1
 SELECT name, (
     SELECT salary FROM employees e
     WHERE e.department_id = d.id
@@ -964,11 +966,11 @@ SELECT name, (
 FROM departments d;
 ```
 
-### エッジケース3: 自己参照サブクエリ
+### Edge Case 3: Self-Referencing Subquery
 
 ```sql
--- 自分自身のテーブルを参照するサブクエリ
--- 「同じ部署の全員より給与が高い社員」= 各部署の最高給与者
+-- Subquery that references the same table
+-- "Employee whose salary is >= all colleagues in the same department" = highest earner per department
 SELECT e.name, e.salary, e.department_id
 FROM employees e
 WHERE e.salary >= ALL (
@@ -976,10 +978,10 @@ WHERE e.salary >= ALL (
     WHERE e2.department_id = e.department_id
 );
 
--- 注意: 部署に1人しかいない場合も正しく動作する
--- （自分自身との比較: salary >= salary → TRUE）
+-- Note: works correctly even when a department has only one person
+-- (self-comparison: salary >= salary → TRUE)
 
--- 「自分より給与が高い同僚がいない社員」（同等だが NOT EXISTS版）
+-- "Employee who has no colleague with a higher salary" (equivalent NOT EXISTS version)
 SELECT e.name, e.salary, e.department_id
 FROM employees e
 WHERE NOT EXISTS (
@@ -991,14 +993,14 @@ WHERE NOT EXISTS (
 
 ---
 
-## 演習
+## Exercises
 
-### 演習1（基礎）: サブクエリの書き換え
+### Exercise 1 (Basic): Rewriting Subqueries
 
-以下のINサブクエリをEXISTS、JOIN、CTEの3パターンに書き換えよ。
+Rewrite the following IN subquery in three ways: using EXISTS, JOIN, and CTE.
 
 ```sql
--- 元のクエリ
+-- Original query
 SELECT * FROM products
 WHERE category_id IN (
     SELECT id FROM categories WHERE is_active = TRUE
@@ -1006,22 +1008,22 @@ WHERE category_id IN (
 ```
 
 <details>
-<summary>解答例</summary>
+<summary>Sample Answer</summary>
 
 ```sql
--- EXISTS版
+-- EXISTS version
 SELECT * FROM products p
 WHERE EXISTS (
     SELECT 1 FROM categories c
     WHERE c.id = p.category_id AND c.is_active = TRUE
 );
 
--- JOIN版
+-- JOIN version
 SELECT p.* FROM products p
 JOIN categories c ON p.category_id = c.id
 WHERE c.is_active = TRUE;
 
--- CTE版
+-- CTE version
 WITH active_categories AS (
     SELECT id FROM categories WHERE is_active = TRUE
 )
@@ -1030,17 +1032,17 @@ JOIN active_categories ac ON p.category_id = ac.id;
 ```
 </details>
 
-### 演習2（応用）: 複合条件のサブクエリ
+### Exercise 2 (Applied): Subquery with Composite Conditions
 
-以下の要件を1つのSQLで実現せよ。
+Implement the following requirement in a single SQL statement.
 
-**要件**: 各部署で「給与が部署平均以上」かつ「勤続年数が5年以上」の社員を取得し、部署平均給与と社員の給与の差分も表示する。
+**Requirement**: Retrieve employees in each department whose salary is at or above the department average AND who have been employed for at least 5 years. Also display the difference between the employee's salary and the department average.
 
 <details>
-<summary>解答例</summary>
+<summary>Sample Answer</summary>
 
 ```sql
--- 方法1: 相関サブクエリ
+-- Method 1: correlated subquery
 SELECT
     e.name,
     e.salary,
@@ -1058,7 +1060,7 @@ WHERE e.salary >= (
 )
 AND e.hired_date <= CURRENT_DATE - INTERVAL '5 years';
 
--- 方法2: ウィンドウ関数（推奨）
+-- Method 2: window function (recommended)
 SELECT name, salary, department_id, diff_from_dept_avg
 FROM (
     SELECT
@@ -1073,7 +1075,7 @@ FROM (
 WHERE salary >= dept_avg
   AND hired_date <= CURRENT_DATE - INTERVAL '5 years';
 
--- 方法3: CTEで段階的に
+-- Method 3: stepwise with CTE
 WITH dept_avg AS (
     SELECT department_id, AVG(salary) AS avg_salary
     FROM employees
@@ -1091,12 +1093,12 @@ WHERE e.salary >= da.avg_salary
 ```
 </details>
 
-### 演習3（発展）: パフォーマンス最適化
+### Exercise 3 (Advanced): Performance Optimization
 
-以下のクエリを、EXPLAIN ANALYZEの出力を参考に最適化せよ。
+Optimize the following query, using the EXPLAIN ANALYZE output as a reference.
 
 ```sql
--- 最適化前のクエリ（遅い）
+-- Slow query (before optimization)
 SELECT
     c.name,
     (SELECT COUNT(*) FROM orders o WHERE o.customer_id = c.id) AS order_count,
@@ -1107,16 +1109,16 @@ SELECT
     (SELECT MAX(o.order_date) FROM orders o WHERE o.customer_id = c.id) AS last_order
 FROM customers c
 WHERE (SELECT COUNT(*) FROM orders o WHERE o.customer_id = c.id) > 5;
--- → SELECT句で4つの相関サブクエリ + WHERE句で1つ = 5回のサブクエリ
+-- → 4 correlated subqueries in SELECT + 1 in WHERE = 5 subquery executions
 ```
 
-**ヒント**: SELECT句のサブクエリをLATERAL JOINまたはCTEに統合する。
+**Hint**: Consolidate the SELECT clause subqueries into a LATERAL JOIN or CTE.
 
 <details>
-<summary>解答例</summary>
+<summary>Sample Answer</summary>
 
 ```sql
--- 最適化版: CTEとJOINで統合
+-- Optimized version: consolidated with CTE and JOIN
 WITH customer_stats AS (
     SELECT
         o.customer_id,
@@ -1126,7 +1128,7 @@ WITH customer_stats AS (
     FROM orders o
         JOIN order_items oi ON o.id = oi.order_id
     GROUP BY o.customer_id
-    HAVING COUNT(*) > 5  -- フィルタ条件をここに移動
+    HAVING COUNT(*) > 5  -- move filter condition here
 )
 SELECT
     c.name,
@@ -1136,55 +1138,55 @@ SELECT
 FROM customers c
     JOIN customer_stats cs ON c.id = cs.customer_id;
 
--- 改善効果:
--- Before: 顧客数 × 5回のサブクエリ = O(N * 5M)
--- After:  orders/order_itemsを1回スキャン + 1回JOIN = O(M + N)
--- 顧客10万人、注文100万件の場合: 数十秒 → 数百ミリ秒
+-- Improvement:
+-- Before: customers × 5 subquery executions = O(N * 5M)
+-- After:  scan orders/order_items once + 1 JOIN = O(M + N)
+-- With 100,000 customers and 1,000,000 orders: tens of seconds → hundreds of milliseconds
 ```
 </details>
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1193,26 +1195,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: applied pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1220,7 +1222,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1231,14 +1233,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1246,7 +1248,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1254,44 +1256,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1300,7 +1302,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1315,76 +1317,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version:  {slow_time:.4f}s")
+    print(f"Fast version:  {fast_time:.6f}s")
+    print(f"Speedup:       {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be aware of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technical decisions.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | Prioritize when | Can compromise when |
+|-----------|----------------|---------------------|
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-critical, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│          Architecture Selection Flow              │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. Team size?                                   │
+│    ├─ Small (1-5)  → Monolith                    │
+│    └─ Large (10+)  → go to 2                     │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. Deployment frequency?                        │
+│    ├─ Weekly or less → Monolith + modules        │
+│    └─ Daily / multiple → go to 3                 │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. Team independence?                           │
+│    ├─ High   → Microservices                     │
+│    └─ Medium → Modular monolith                  │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs long-term cost**
+- A faster short-term approach can become technical debt in the long run
+- Conversely, over-engineering incurs high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs flexibility**
+- A unified tech stack lowers the learning cost
+- Adopting diverse technologies enables best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction improves reusability but can make debugging harder
+- Low abstraction is intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1394,17 +1396,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1412,7 +1414,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1420,15 +1422,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1437,90 +1439,91 @@ class ArchitectureDecisionRecord:
 
 ## FAQ
 
-### Q1: サブクエリとCTE（WITH句）のどちらを使うべきか？
+### Q1: Should I use a subquery or a CTE (WITH clause)?
 
-同じサブクエリを複数回参照する場合はCTEが適している（DRY原則）。1回だけ使用するならサブクエリでも問題ない。可読性の面ではCTEが優れることが多い。パフォーマンスはRDBMS依存だが、PostgreSQL 12以降はCTEのインライン展開が行われるため差は小さい。
+Use a CTE when the same subquery is referenced multiple times (DRY principle). A subquery is fine when used only once. CTEs are often more readable. Performance depends on the RDBMS, but in PostgreSQL 12+ CTEs are inlined, so the difference is minimal.
 
-### Q2: 相関サブクエリは常に遅いのか？
+### Q2: Are correlated subqueries always slow?
 
-必ずしも遅くない。オプティマイザが内部的にJOINに変換することがある。ただし、外部テーブルの行数が多い場合はJOINやウィンドウ関数への書き換えを検討すべき。EXPLAINで実行計画を確認することが重要。PostgreSQLでは相関サブクエリの結果をキャッシュする機能もある。
+Not necessarily. The optimizer may internally convert them to JOINs. However, when the outer table has many rows, consider rewriting as a JOIN or window function. Always check the execution plan with EXPLAIN. PostgreSQL also has the ability to cache correlated subquery results.
 
-### Q3: サブクエリのネストは何段まで許容されるか？
+### Q3: How deeply can subqueries be nested?
 
-技術的な制限はRDBMSによるが、可読性の観点から2段以内を推奨。3段以上のネストはCTEやビューに分解して可読性を確保する。
+There is no technical limit enforced by the RDBMS, but for readability, up to 2 levels is recommended. More than 3 levels of nesting should be decomposed into CTEs or views to maintain readability.
 
-### Q4: LATERALはいつ使うべきか？
+### Q4: When should I use LATERAL?
 
-LATERAL JOINは以下の場面で特に有効である: (1) 各グループのTOP-Nを取得する場合、(2) FROM句で外部行を参照する必要がある場合、(3) 複数の集約結果を1行に並べたい場合。通常のJOINでは表現できない「行ごとの計算」を可能にする。
+LATERAL JOIN is especially effective in the following cases: (1) retrieving TOP-N per group, (2) needing to reference outer rows in the FROM clause, (3) placing multiple aggregated results in a single row. It enables "per-row calculations" that are not possible with ordinary JOINs.
 
-### Q5: サブクエリで SELECT * は避けるべきか？
+### Q5: Should I avoid SELECT * in subqueries?
 
-EXISTS内の `SELECT *` は問題ない（オプティマイザが無視する）。ただし、IN句のサブクエリやFROM句の派生テーブルでは、必要なカラムのみを指定することで実行計画の最適化が促進される。
+`SELECT *` inside EXISTS is fine (the optimizer ignores it). However, specifying only the necessary columns in IN subqueries or derived tables in the FROM clause helps the optimizer produce better execution plans.
 
-### Q6: サブクエリの結果がNULLを含む場合の注意点は？
+### Q6: What should I watch out for when subquery results contain NULLs?
 
-IN/NOT INはNULLに対して特殊な挙動を示す。NOT INは1つでもNULLがあると全行を除外する。EXISTS/NOT EXISTSはNULLの影響を受けない。NULL安全性の観点からNOT EXISTSの使用を推奨する。
+IN/NOT IN behave specially with NULLs. NOT IN excludes all rows if even one NULL is present. EXISTS/NOT EXISTS are not affected by NULLs. From a NULL-safety perspective, NOT EXISTS is recommended.
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### サブクエリに関する一般的な問題と対処法
+### Common Subquery Problems and Solutions
 
-| 問題 | 原因 | 対処法 |
-|------|------|--------|
-| NOT INが結果を返さない | サブクエリ内にNULLがある | NOT EXISTSに書き換え |
-| スカラーサブクエリでエラー | 複数行を返している | 集約関数かLIMIT 1を追加 |
-| サブクエリが遅い | 相関サブクエリのN+1問題 | JOINまたはLATERALに書き換え |
-| 結果が重複する | INをJOINに書き換えた際の問題 | DISTINCT追加またはEXISTSに変更 |
-| メモリ不足 | 大きな非相関サブクエリのマテリアライズ | work_memの調整、分割処理 |
-| 実行計画が不安定 | 統計情報の不足 | ANALYZEで統計更新 |
+| Problem | Cause | Solution |
+|---------|-------|---------|
+| NOT IN returns no results | NULL present in subquery | Rewrite as NOT EXISTS |
+| Error in scalar subquery | Returning more than one row | Add aggregate function or LIMIT 1 |
+| Slow subquery | N+1 problem with correlated subquery | Rewrite as JOIN or LATERAL |
+| Duplicate results | Problem after rewriting IN as JOIN | Add DISTINCT or change to EXISTS |
+| Out of memory | Materializing a large non-correlated subquery | Adjust work_mem, process in chunks |
+| Unstable execution plan | Insufficient statistics | Update statistics with ANALYZE |
 
-### パフォーマンスデバッグのフロー
+### Performance Debugging Flow
 
 ```
-┌──── サブクエリのパフォーマンスデバッグ ────────┐
+┌──── Subquery Performance Debugging ────────────┐
 │                                                  │
-│  Step 1: EXPLAIN ANALYZE で実行計画を確認        │
-│  │                                              │
-│  Step 2: Nested Loop + SubPlan があるか？        │
-│  │  ├── Yes → 相関サブクエリのN+1問題          │
-│  │  │         → JOINまたはLATERALに書き換え     │
-│  │  └── No → Step 3                            │
-│  │                                              │
-│  Step 3: Seq Scan があるか？                     │
-│  │  ├── Yes → インデックスの追加を検討          │
-│  │  └── No → Step 4                            │
-│  │                                              │
-│  Step 4: 推定行数と実際の行数が乖離しているか？  │
-│  │  ├── Yes → ANALYZE でテーブル統計を更新      │
-│  │  └── No → Step 5                            │
-│  │                                              │
-│  Step 5: Hash Join / Merge Join のコスト確認     │
-│       → work_mem の調整を検討                    │
+│  Step 1: Check execution plan with EXPLAIN ANALYZE│
+│  │                                               │
+│  Step 2: Is there Nested Loop + SubPlan?         │
+│  │  ├── Yes → N+1 problem with correlated subquery│
+│  │  │         → Rewrite as JOIN or LATERAL       │
+│  │  └── No → Step 3                              │
+│  │                                               │
+│  Step 3: Is there a Seq Scan?                    │
+│  │  ├── Yes → Consider adding an index           │
+│  │  └── No → Step 4                              │
+│  │                                               │
+│  Step 4: Is the estimated row count far off the  │
+│  │       actual row count?                       │
+│  │  ├── Yes → Update table statistics with ANALYZE│
+│  │  └── No → Step 5                              │
+│  │                                               │
+│  Step 5: Check cost of Hash Join / Merge Join    │
+│       → Consider adjusting work_mem              │
 └──────────────────────────────────────────────────┘
 ```
 
 ---
 
-## セキュリティに関する注意事項
+## Security Notes
 
-### SQLインジェクションとサブクエリ
+### SQL Injection and Subqueries
 
 ```sql
--- NG: ユーザー入力をサブクエリに直接埋め込む
--- （これは擬似コード: 実際のプログラミング言語で起こる問題）
+-- NG: embedding user input directly into a subquery
+-- (pseudo-code: this is a problem that occurs in actual programming languages)
 -- query = "SELECT * FROM products WHERE id IN (" + user_input + ")"
 -- user_input = "1); DROP TABLE products; --"
 
--- OK: プリペアドステートメントを使用
+-- OK: use prepared statements
 -- Python (psycopg2)
 -- cursor.execute(
 --     "SELECT * FROM products WHERE id IN (SELECT id FROM categories WHERE name = %s)",
 --     (user_input,)
 -- )
 
--- OK: INリストにはANY + 配列パラメータを使用（PostgreSQL）
+-- OK: use ANY + array parameter for IN lists (PostgreSQL)
 -- cursor.execute(
 --     "SELECT * FROM products WHERE id = ANY(%s)",
 --     ([1, 2, 3],)
@@ -1529,30 +1532,30 @@ IN/NOT INはNULLに対して特殊な挙動を示す。NOT INは1つでもNULL�
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
-|------|------|
-| 非相関サブクエリ | 外部クエリと独立。1回だけ実行される |
-| 相関サブクエリ | 外部の各行に依存。行数分実行される可能性。オプティマイザが最適化する場合あり |
-| EXISTS | 存在確認に最適。NULL安全。短絡評価で効率的 |
-| NOT IN | NULLの罠がある。NOT EXISTSを推奨 |
-| LATERAL JOIN | FROM句での相関サブクエリ。Top-N問題に有効 |
-| パフォーマンス | EXPLAINで実行計画を確認。JOINへの書き換えを検討 |
-| オプティマイザ | IN/EXISTSはSemi Joinに自動変換されることが多い |
-| CTE | 複数回参照するサブクエリはCTEで可読性向上 |
-
----
-
-## 次に読むべきガイド
-
-- [00-window-functions.md](../01-advanced/00-window-functions.md) — ウィンドウ関数でサブクエリを置換
-- [01-cte-recursive.md](../01-advanced/01-cte-recursive.md) — CTEで複雑なサブクエリを整理
-- [04-query-optimization.md](../01-advanced/04-query-optimization.md) — サブクエリの最適化
+| Topic | Key points |
+|-------|-----------|
+| Non-correlated subquery | Independent of outer query. Executed only once |
+| Correlated subquery | Depends on each outer row. May execute once per row. Optimizer may optimize |
+| EXISTS | Best for existence checks. NULL-safe. Efficient due to short-circuit evaluation |
+| NOT IN | NULL trap exists. NOT EXISTS is recommended |
+| LATERAL JOIN | Correlated subquery in FROM clause. Effective for Top-N problems |
+| Performance | Check execution plan with EXPLAIN. Consider rewriting as JOIN |
+| Optimizer | IN/EXISTS are often automatically converted to Semi Join |
+| CTE | Use CTEs for subqueries referenced multiple times to improve readability |
 
 ---
 
-## 参考文献
+## What to Read Next
+
+- [00-window-functions.md](../01-advanced/00-window-functions.md) — Replace subqueries with window functions
+- [01-cte-recursive.md](../01-advanced/01-cte-recursive.md) — Organize complex subqueries with CTEs
+- [04-query-optimization.md](../01-advanced/04-query-optimization.md) — Optimizing subqueries
+
+---
+
+## References
 
 1. PostgreSQL Documentation — "Subquery Expressions" https://www.postgresql.org/docs/current/functions-subquery.html
 2. Celko, J. (2010). *Joe Celko's SQL for Smarties*. Morgan Kaufmann.
