@@ -1,73 +1,73 @@
-# CTE / 再帰クエリ — WITH句・階層データ
+# CTE / Recursive Queries — WITH Clause and Hierarchical Data
 
-> CTE（Common Table Expression）はクエリを論理的なブロックに分割する名前付き一時結果セットであり、再帰CTEは木構造や階層データの探索を可能にするSQLの強力な機能である。
+> A CTE (Common Table Expression) is a named temporary result set that breaks a query into logical blocks; recursive CTEs are a powerful SQL feature that enables traversal of tree structures and hierarchical data.
 
-## 前提知識
+## Prerequisites
 
-- SQL の基本構文（SELECT, JOIN, WHERE, GROUP BY）
-- サブクエリの基本概念
-- テーブル結合（INNER JOIN, LEFT JOIN）の理解
-- → SQL基礎 を事前に読むことを推奨
+- Basic SQL syntax (SELECT, JOIN, WHERE, GROUP BY)
+- Fundamental concepts of subqueries
+- Understanding of table joins (INNER JOIN, LEFT JOIN)
+- → It is recommended to read the SQL Basics guide first
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. CTEの基本構文と非再帰CTEによるクエリの構造化
-2. 再帰CTEの動作原理と終了条件の設計
-3. 階層データ、グラフ探索、連番生成など実践的なパターン
-4. CTEの内部実行メカニズムとパフォーマンス最適化
-5. DBMS別のCTE実装差異と移植性の考慮
-6. 実世界のユースケースと段階的演習
+1. Basic CTE syntax and query structuring with non-recursive CTEs
+2. How recursive CTEs work and how to design termination conditions
+3. Practical patterns such as hierarchical data, graph traversal, and sequence generation
+4. Internal execution mechanisms of CTEs and performance optimization
+5. CTE implementation differences across DBMSs and portability considerations
+6. Real-world use cases and step-by-step exercises
 
 ---
 
-## 1. 非再帰CTE（WITH句）
+## 1. Non-Recursive CTE (WITH Clause)
 
-### 1.1 CTEとは何か — 背景と動機
+### 1.1 What Is a CTE — Background and Motivation
 
-CTEは SQL:1999 標準で導入された機能であり、複雑なクエリを論理的な名前付きブロックに分割する。サブクエリのネストが深くなりがちな場面で、可読性と保守性を大幅に向上させる。
+CTEs were introduced in the SQL:1999 standard and allow complex queries to be split into logically named blocks. They dramatically improve readability and maintainability in situations where subquery nesting tends to grow deep.
 
-CTEが解決する問題を具体的に見てみよう。
+Let's take a concrete look at the problem CTEs solve.
 
 ```
-┌───────────────── サブクエリのネスト問題 ─────────────────┐
-│                                                          │
-│  SELECT *                                                │
-│  FROM (                                                  │
-│    SELECT *                                              │
-│    FROM (                                                │
-│      SELECT *                                            │
-│      FROM (                                              │
-│        SELECT ... FROM table1                            │
-│        WHERE ...                                         │
-│      ) AS sub1                                           │
-│      JOIN table2 ON ...                                  │
-│    ) AS sub2                                             │
-│    WHERE ...                                             │
-│  ) AS sub3                                               │
-│  ORDER BY ...;                                           │
-│                                                          │
-│  問題点:                                                  │
-│  ・ネストが深く読みづらい                                  │
-│  ・同じサブクエリを2箇所で使えない（コピペが必要）          │
-│  ・デバッグ時に部分実行が困難                               │
-│                                                          │
-│  CTEによる解決:                                           │
-│  WITH sub1 AS (SELECT ... FROM table1 WHERE ...)         │
-│     , sub2 AS (SELECT ... FROM sub1 JOIN table2 ON ...)  │
-│     , sub3 AS (SELECT ... FROM sub2 WHERE ...)           │
-│  SELECT * FROM sub3 ORDER BY ...;                        │
-│                                                          │
-│  利点:                                                    │
-│  ・フラットな構造で上から下へ読める                         │
-│  ・同じCTEを複数回参照可能                                 │
-│  ・各CTEを個別にテスト・デバッグ可能                        │
-└──────────────────────────────────────────────────────────┘
+┌───────────────── Subquery Nesting Problem ─────────────────┐
+│                                                             │
+│  SELECT *                                                   │
+│  FROM (                                                     │
+│    SELECT *                                                 │
+│    FROM (                                                   │
+│      SELECT *                                               │
+│      FROM (                                                 │
+│        SELECT ... FROM table1                               │
+│        WHERE ...                                            │
+│      ) AS sub1                                              │
+│      JOIN table2 ON ...                                     │
+│    ) AS sub2                                                │
+│    WHERE ...                                                │
+│  ) AS sub3                                                  │
+│  ORDER BY ...;                                              │
+│                                                             │
+│  Problems:                                                  │
+│  · Deep nesting is hard to read                             │
+│  · Cannot reuse the same subquery in two places (copy-paste)│
+│  · Hard to partially execute during debugging               │
+│                                                             │
+│  Solution with CTE:                                         │
+│  WITH sub1 AS (SELECT ... FROM table1 WHERE ...)            │
+│     , sub2 AS (SELECT ... FROM sub1 JOIN table2 ON ...)     │
+│     , sub3 AS (SELECT ... FROM sub2 WHERE ...)              │
+│  SELECT * FROM sub3 ORDER BY ...;                           │
+│                                                             │
+│  Benefits:                                                  │
+│  · Flat structure that reads top to bottom                  │
+│  · The same CTE can be referenced multiple times            │
+│  · Each CTE can be tested and debugged individually         │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 コード例1: 基本的なCTE
+### 1.2 Code Example 1: Basic CTE
 
 ```sql
--- CTEの基本構文
+-- Basic CTE syntax
 WITH department_stats AS (
     SELECT
         department_id,
@@ -87,7 +87,7 @@ FROM department_stats ds
 WHERE ds.avg_salary > 500000
 ORDER BY ds.avg_salary DESC;
 
--- 複数CTEの連鎖
+-- Chaining multiple CTEs
 WITH
 active_employees AS (
     SELECT * FROM employees WHERE status = 'active'
@@ -115,67 +115,68 @@ FROM dept_summary ds
 ORDER BY diff DESC;
 ```
 
-### 1.3 CTEの実行フロー
+### 1.3 CTE Execution Flow
 
 ```
-┌─────────────── CTE の実行フロー ───────────────────┐
+┌─────────────── CTE Execution Flow ─────────────────┐
 │                                                     │
 │  WITH                                               │
-│    cte_1 AS (SELECT ...)   ← (1) 最初に評価          │
-│    cte_2 AS (SELECT ... FROM cte_1)  ← (2) 次に評価 │
-│    cte_3 AS (SELECT ... FROM cte_2)  ← (3) 次に評価 │
-│  SELECT ... FROM cte_3     ← (4) メインクエリ実行    │
+│    cte_1 AS (SELECT ...)   ← (1) Evaluated first    │
+│    cte_2 AS (SELECT ... FROM cte_1)  ← (2) Next    │
+│    cte_3 AS (SELECT ... FROM cte_2)  ← (3) Next    │
+│  SELECT ... FROM cte_3     ← (4) Main query runs    │
 │                                                     │
-│  注意:                                              │
-│  - 各CTEは一度だけ定義、複数回参照可能               │
-│  - 前方のCTEのみ参照可能（後方参照は不可）           │
-│  - PostgreSQL 12+: インライン展開される場合あり      │
-│  - MATERIALIZED / NOT MATERIALIZED で制御可能       │
+│  Notes:                                             │
+│  - Each CTE is defined once; can be referenced      │
+│    multiple times                                   │
+│  - Can only reference earlier CTEs (no forward refs)│
+│  - PostgreSQL 12+: may be inlined by the optimizer  │
+│  - Controllable with MATERIALIZED / NOT MATERIALIZED│
 └─────────────────────────────────────────────────────┘
 ```
 
-### 1.4 CTEの内部実行メカニズム
+### 1.4 Internal CTE Execution Mechanisms
 
-DBMSがCTEを処理する方法は大きく2つに分かれる。この違いを理解することがパフォーマンス最適化の鍵となる。
+There are two main ways a DBMS processes a CTE. Understanding this difference is the key to performance optimization.
 
 ```
-┌──────────── CTE の内部実装方式 ──────────────────┐
-│                                                   │
-│  方式1: Materialization（実体化）                  │
-│  ┌─────────────────────────────────────────────┐ │
-│  │ CTEの結果を一時的なワークテーブルに格納       │ │
-│  │ → メインクエリはワークテーブルを参照          │ │
-│  │                                               │ │
-│  │ 利点: 複数回参照時に再計算を回避             │ │
-│  │ 欠点: 外側のWHERE条件がCTE内に伝播しない     │ │
-│  │       （プッシュダウンされない）               │ │
-│  └─────────────────────────────────────────────┘ │
-│                                                   │
-│  方式2: Inlining（インライン展開）                 │
-│  ┌─────────────────────────────────────────────┐ │
-│  │ CTEをサブクエリとして展開し、全体を最適化     │ │
-│  │ → オプティマイザが統合的に最適な計画を生成    │ │
-│  │                                               │ │
-│  │ 利点: WHERE条件のプッシュダウンが可能         │ │
-│  │       インデックス活用の最適化                 │ │
-│  │ 欠点: 複数回参照時に再計算のコスト            │ │
-│  └─────────────────────────────────────────────┘ │
-│                                                   │
-│  DBMS別のデフォルト動作:                          │
-│  ・PostgreSQL 11以前: 常にMaterialization          │
-│  ・PostgreSQL 12+: オプティマイザが自動判断        │
-│  ・MySQL 8.0: オプティマイザが自動判断             │
-│  ・SQL Server: 常にInlining                        │
-│  ・Oracle: 自動判断（INLINE/MATERIALIZEヒント）   │
-└───────────────────────────────────────────────────┘
+┌──────────── CTE Internal Implementation Methods ──────────────┐
+│                                                               │
+│  Method 1: Materialization                                    │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │ Stores CTE result in a temporary work table             │  │
+│  │ → Main query reads from the work table                  │  │
+│  │                                                         │  │
+│  │ Pros: Avoids re-computation on multiple references      │  │
+│  │ Cons: Outer WHERE conditions are not propagated into     │  │
+│  │       the CTE (no predicate pushdown)                   │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                                                               │
+│  Method 2: Inlining                                           │
+│  ┌─────────────────────────────────────────────────────────┐  │
+│  │ Expands the CTE as a subquery and optimizes the whole   │  │
+│  │ → Optimizer generates the best plan holistically        │  │
+│  │                                                         │  │
+│  │ Pros: Predicate pushdown is possible                    │  │
+│  │       Index usage can be optimized                      │  │
+│  │ Cons: Re-computation cost on multiple references        │  │
+│  └─────────────────────────────────────────────────────────┘  │
+│                                                               │
+│  Default behavior by DBMS:                                    │
+│  · PostgreSQL 11 and earlier: always Materialization          │
+│  · PostgreSQL 12+: optimizer decides automatically            │
+│  · MySQL 8.0: optimizer decides automatically                 │
+│  · SQL Server: always Inlining                                │
+│  · Oracle: automatic (INLINE/MATERIALIZE hints available)     │
+└───────────────────────────────────────────────────────────────┘
 ```
 
-### 1.5 コード例2: MATERIALIZED / NOT MATERIALIZEDの使い分け
+### 1.5 Code Example 2: When to Use MATERIALIZED / NOT MATERIALIZED
 
 ```sql
--- PostgreSQL 12+: 明示的な実体化制御
+-- PostgreSQL 12+: explicit materialization control
 
--- (1) 明示的に実体化（複数回参照するCTEに有効）
+-- (1) Explicitly materialize (useful for CTEs referenced multiple times)
 WITH MATERIALIZED heavy_computation AS (
     SELECT
         customer_id,
@@ -192,20 +193,20 @@ FROM heavy_computation hc
 WHERE hc.total_spent > 100000
 UNION ALL
 SELECT hc.*, c.name, c.email
-FROM heavy_computation hc  -- 2回目の参照でも再計算不要
+FROM heavy_computation hc  -- No re-computation on second reference
     JOIN customers c ON c.id = hc.customer_id
 WHERE hc.unique_products > 50;
 
--- (2) インライン展開を強制（WHERE条件のプッシュダウンを期待）
+-- (2) Force inlining (expecting predicate pushdown for WHERE conditions)
 WITH NOT MATERIALIZED filtered_orders AS (
     SELECT * FROM orders WHERE status = 'completed'
 )
 SELECT * FROM filtered_orders
 WHERE customer_id = 42;
--- → WHERE status = 'completed' AND customer_id = 42 として
---   customer_idのインデックスが活用される
+-- → Optimized as WHERE status = 'completed' AND customer_id = 42,
+--   allowing the index on customer_id to be used
 
--- (3) 実行計画の確認方法
+-- (3) How to check the execution plan
 EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
 WITH department_stats AS (
     SELECT department_id, AVG(salary) AS avg_sal
@@ -215,12 +216,12 @@ WITH department_stats AS (
 SELECT * FROM department_stats WHERE avg_sal > 500000;
 ```
 
-### 1.6 CTE内でのDML操作（PostgreSQL拡張）
+### 1.6 DML Operations Inside CTEs (PostgreSQL Extension)
 
-PostgreSQLでは、CTE内でINSERT/UPDATE/DELETEを実行し、その結果をRETURNINGで後続のクエリに渡せる。これは「書き込みCTE」や「Data-Modifying CTE」と呼ばれる。
+In PostgreSQL, you can execute INSERT/UPDATE/DELETE inside a CTE and pass the results to subsequent queries via RETURNING. This is known as a "writable CTE" or "Data-Modifying CTE."
 
 ```sql
--- 例: 古い注文をアーカイブしつつ削除し、削除件数をログに記録
+-- Example: Archive and delete old orders, then log the count of deleted rows
 WITH deleted_orders AS (
     DELETE FROM orders
     WHERE order_date < CURRENT_DATE - INTERVAL '5 years'
@@ -233,7 +234,7 @@ archived AS (
 )
 SELECT COUNT(*) AS archived_count FROM archived;
 
--- 例: UPSERTの結果をCTEで活用
+-- Example: Use UPSERT results in a CTE
 WITH upserted AS (
     INSERT INTO product_inventory (product_id, quantity)
     VALUES (101, 50)
@@ -245,130 +246,131 @@ SELECT p.name, u.quantity
 FROM upserted u JOIN products p ON p.id = u.product_id;
 ```
 
-**注意**: Data-Modifying CTEはPostgreSQL固有の拡張であり、SQL標準には含まれない。MySQL、SQL Server、Oracleでは使用できない。
+**Note**: Data-Modifying CTEs are a PostgreSQL-specific extension and are not part of the SQL standard. They are not available in MySQL, SQL Server, or Oracle.
 
 ---
 
-## 2. 再帰CTE
+## 2. Recursive CTE
 
-### 2.1 再帰CTEの基本構造
+### 2.1 Basic Structure of a Recursive CTE
 
 ```sql
--- 再帰CTEの構造
+-- Structure of a recursive CTE
 WITH RECURSIVE cte_name AS (
-    -- ベースケース（非再帰項）: 初期行を生成
+    -- Base case (non-recursive term): generates the initial rows
     SELECT initial_columns
     FROM initial_table
     WHERE initial_condition
 
-    UNION ALL  -- または UNION（重複排除）
+    UNION ALL  -- or UNION (to remove duplicates)
 
-    -- 再帰ケース（再帰項）: 前回の結果を使って次の行を生成
+    -- Recursive case (recursive term): generates next rows using the previous result
     SELECT next_columns
-    FROM cte_name  -- 自己参照
+    FROM cte_name  -- self-reference
         JOIN other_table ON ...
-    WHERE termination_condition  -- 終了条件
+    WHERE termination_condition  -- termination condition
 )
 SELECT * FROM cte_name;
 ```
 
-### 2.2 再帰CTEの実行モデル — 内部動作の詳細
+### 2.2 Recursive CTE Execution Model — Detailed Internal Behavior
 
-再帰CTEの実行はイテレーティブ（反復的）なプロセスである。内部では「ワーキングテーブル」と「中間テーブル」という2つの一時的なテーブルが使われる。
+Execution of a recursive CTE is an iterative process. Internally, two temporary tables are used: a "working table" and an "intermediate table."
 
 ```
-┌──────────── 再帰CTE の詳細実行ステップ ──────────────┐
-│                                                       │
-│  初期化:                                              │
-│  ┌─────────────────────────────────────────────────┐ │
-│  │ 1. ベースケースを実行                             │ │
-│  │ 2. 結果を「ワーキングテーブル(WT)」に格納         │ │
-│  │ 3. 同じ結果を「最終結果テーブル(RT)」にも追加     │ │
-│  └─────────────────────────────────────────────────┘ │
-│       │                                               │
-│  反復ループ (WTが空になるまで繰り返す):                │
-│  ┌─────────────────────────────────────────────────┐ │
-│  │ 1. 再帰項を実行（WTの行を入力として使用）         │ │
-│  │ 2. 結果を「中間テーブル(IT)」に格納               │ │
-│  │ 3. ITが空 → ループ終了                            │ │
-│  │ 4. ITが非空:                                      │ │
-│  │    a. ITの行をRTに追加                            │ │
-│  │    b. WTの内容をITで置き換え                      │ │
-│  │    c. ITをクリア                                  │ │
-│  │    d. ステップ1に戻る                             │ │
-│  └─────────────────────────────────────────────────┘ │
-│       │                                               │
-│  終了:                                                │
-│  ┌─────────────────────────────────────────────────┐ │
-│  │ RTの全行が最終結果として返される                   │ │
-│  └─────────────────────────────────────────────────┘ │
-│                                                       │
-│  メモリ管理:                                          │
-│  ・WTは各反復で前回の結果のみ保持（全履歴は不要）     │
-│  ・RTは全反復の結果を蓄積（最終結果の全行）           │
-│  ・UNION ALL: RTへの追加は無条件                      │
-│  ・UNION: RTに既存の行と重複する行は追加しない        │
-└───────────────────────────────────────────────────────┘
+┌──────────── Detailed Execution Steps of a Recursive CTE ──────────────┐
+│                                                                        │
+│  Initialization:                                                       │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │ 1. Execute the base case                                         │  │
+│  │ 2. Store result in the "Working Table (WT)"                      │  │
+│  │ 3. Also add the same result to the "Result Table (RT)"           │  │
+│  └──────────────────────────────────────────────────────────────────┘  │
+│       │                                                                │
+│  Iteration loop (repeat until WT is empty):                            │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │ 1. Execute the recursive term (using WT rows as input)           │  │
+│  │ 2. Store result in the "Intermediate Table (IT)"                 │  │
+│  │ 3. If IT is empty → end loop                                     │  │
+│  │ 4. If IT is non-empty:                                           │  │
+│  │    a. Add IT rows to RT                                          │  │
+│  │    b. Replace WT contents with IT                                │  │
+│  │    c. Clear IT                                                   │  │
+│  │    d. Return to step 1                                           │  │
+│  └──────────────────────────────────────────────────────────────────┘  │
+│       │                                                                │
+│  Completion:                                                           │
+│  ┌──────────────────────────────────────────────────────────────────┐  │
+│  │ All rows in RT are returned as the final result                  │  │
+│  └──────────────────────────────────────────────────────────────────┘  │
+│                                                                        │
+│  Memory management:                                                    │
+│  · WT holds only the previous iteration's result (full history         │
+│    is not needed)                                                      │
+│  · RT accumulates results from all iterations (all final rows)         │
+│  · UNION ALL: rows are always added to RT unconditionally              │
+│  · UNION: rows that already exist in RT are not added again            │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 2.3 具体例で見るステップバイステップ実行
+### 2.3 Step-by-Step Execution with a Concrete Example
 
 ```sql
--- 1から5までの連番生成で内部動作を追跡
+-- Track internal behavior with sequence generation from 1 to 5
 WITH RECURSIVE nums AS (
-    SELECT 1 AS n        -- ベースケース
+    SELECT 1 AS n        -- base case
     UNION ALL
-    SELECT n + 1         -- 再帰ケース
+    SELECT n + 1         -- recursive case
     FROM nums
-    WHERE n < 5          -- 終了条件
+    WHERE n < 5          -- termination condition
 )
 SELECT n FROM nums;
 ```
 
 ```
-┌─── ステップバイステップ実行トレース ──────────────┐
+┌─── Step-by-Step Execution Trace ──────────────────┐
 │                                                    │
-│  反復0 (ベースケース):                             │
-│    WT = {1}     RT = {1}                          │
+│  Iteration 0 (base case):                          │
+│    WT = {1}     RT = {1}                           │
 │                                                    │
-│  反復1:                                            │
-│    入力: WT = {1}                                  │
-│    再帰項実行: 1 + 1 = 2  (n=1 < 5 → OK)          │
+│  Iteration 1:                                      │
+│    Input: WT = {1}                                 │
+│    Recursive term: 1 + 1 = 2  (n=1 < 5 → OK)      │
 │    IT = {2}                                        │
-│    WT ← {2}    RT = {1, 2}                        │
+│    WT ← {2}    RT = {1, 2}                         │
 │                                                    │
-│  反復2:                                            │
-│    入力: WT = {2}                                  │
-│    再帰項実行: 2 + 1 = 3  (n=2 < 5 → OK)          │
+│  Iteration 2:                                      │
+│    Input: WT = {2}                                 │
+│    Recursive term: 2 + 1 = 3  (n=2 < 5 → OK)      │
 │    IT = {3}                                        │
-│    WT ← {3}    RT = {1, 2, 3}                     │
+│    WT ← {3}    RT = {1, 2, 3}                      │
 │                                                    │
-│  反復3:                                            │
-│    入力: WT = {3}                                  │
-│    再帰項実行: 3 + 1 = 4  (n=3 < 5 → OK)          │
+│  Iteration 3:                                      │
+│    Input: WT = {3}                                 │
+│    Recursive term: 3 + 1 = 4  (n=3 < 5 → OK)      │
 │    IT = {4}                                        │
-│    WT ← {4}    RT = {1, 2, 3, 4}                  │
+│    WT ← {4}    RT = {1, 2, 3, 4}                   │
 │                                                    │
-│  反復4:                                            │
-│    入力: WT = {4}                                  │
-│    再帰項実行: 4 + 1 = 5  (n=4 < 5 → OK)          │
+│  Iteration 4:                                      │
+│    Input: WT = {4}                                 │
+│    Recursive term: 4 + 1 = 5  (n=4 < 5 → OK)      │
 │    IT = {5}                                        │
-│    WT ← {5}    RT = {1, 2, 3, 4, 5}               │
+│    WT ← {5}    RT = {1, 2, 3, 4, 5}                │
 │                                                    │
-│  反復5:                                            │
-│    入力: WT = {5}                                  │
-│    再帰項実行: 5 + 1 = 6  (n=5 < 5 → NG! 除外)    │
-│    IT = {} (空)                                    │
-│    → ループ終了                                    │
+│  Iteration 5:                                      │
+│    Input: WT = {5}                                 │
+│    Recursive term: 5 + 1 = 6  (n=5 < 5 → NG!)     │
+│    IT = {} (empty)                                 │
+│    → Loop ends                                     │
 │                                                    │
-│  最終結果: RT = {1, 2, 3, 4, 5}                    │
+│  Final result: RT = {1, 2, 3, 4, 5}               │
 └────────────────────────────────────────────────────┘
 ```
 
-### 2.4 UNION ALL vs UNION の違いと使い分け
+### 2.4 UNION ALL vs UNION: Differences and When to Use Each
 
 ```sql
--- UNION ALL: 重複を許可（高速、一般的な選択）
+-- UNION ALL: allows duplicates (fast, the common choice)
 WITH RECURSIVE tree AS (
     SELECT id, parent_id, name FROM nodes WHERE id = 1
     UNION ALL
@@ -377,11 +379,11 @@ WITH RECURSIVE tree AS (
 )
 SELECT * FROM tree;
 
--- UNION: 重複を排除（循環グラフで自然な終了条件になる）
--- ただし行全体の比較コストが高い
+-- UNION: removes duplicates (naturally terminates in cyclic graphs)
+-- However, the cost of comparing entire rows is high
 WITH RECURSIVE reachable AS (
     SELECT node_id FROM edges WHERE source = 'A'
-    UNION  -- 既に到達済みのノードは追加しない → 自然に終了
+    UNION  -- Already-reached nodes are not added → terminates naturally
     SELECT e.node_id
     FROM edges e JOIN reachable r ON e.source = r.node_id
 )
@@ -389,33 +391,34 @@ SELECT * FROM reachable;
 ```
 
 ```
-┌──── UNION ALL vs UNION 比較 ────────────────────┐
-│                                                   │
-│  UNION ALL:                                       │
-│  ・重複チェックなし → 高速                        │
-│  ・循環グラフでは無限ループの危険                  │
-│  ・明示的な終了条件が必須                          │
-│  ・使用場面: 木構造（循環なし）、連番生成          │
-│                                                   │
-│  UNION:                                           │
-│  ・重複チェックあり → 低速（ハッシュ/ソート必要）  │
-│  ・既出行をスキップ → 循環の自然な防止             │
-│  ・使用場面: 有向グラフの到達可能性分析            │
-│                                                   │
-│  パフォーマンス目安（10万行の結果セット）:         │
-│  ・UNION ALL: ~50ms                               │
-│  ・UNION:     ~500ms (10倍程度遅い)               │
-└───────────────────────────────────────────────────┘
+┌──── UNION ALL vs UNION Comparison ──────────────────┐
+│                                                     │
+│  UNION ALL:                                         │
+│  · No duplicate check → fast                        │
+│  · Risk of infinite loop in cyclic graphs           │
+│  · Explicit termination condition required          │
+│  · Use cases: tree structures (acyclic), sequences  │
+│                                                     │
+│  UNION:                                             │
+│  · Duplicate check → slower (requires hash/sort)   │
+│  · Skips already-seen rows → natural cycle guard    │
+│  · Use cases: reachability analysis on directed     │
+│    graphs                                           │
+│                                                     │
+│  Performance estimate (100k-row result set):        │
+│  · UNION ALL: ~50ms                                 │
+│  · UNION:     ~500ms (~10x slower)                  │
+└─────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. 再帰CTEの実践パターン
+## 3. Practical Patterns for Recursive CTEs
 
-### 3.1 コード例3: 組織階層（上司-部下関係）
+### 3.1 Code Example 3: Organizational Hierarchy (Manager-Subordinate Relationships)
 
 ```sql
--- 組織ツリーの探索
+-- Traversing an organizational tree
 CREATE TABLE org_chart (
     id         INTEGER PRIMARY KEY,
     name       VARCHAR(100),
@@ -423,27 +426,27 @@ CREATE TABLE org_chart (
     title      VARCHAR(100)
 );
 
--- サンプルデータ
+-- Sample data
 INSERT INTO org_chart VALUES
-    (1, '田中太郎', NULL, 'CEO'),
-    (2, '鈴木花子', 1, 'CTO'),
-    (3, '佐藤次郎', 1, 'CFO'),
-    (4, '高橋美咲', 2, 'VP Engineering'),
-    (5, '伊藤健一', 2, 'VP Product'),
-    (6, '渡辺真理', 4, 'Sr. Engineer'),
-    (7, '山本大輔', 4, 'Sr. Engineer'),
-    (8, '中村優子', 6, 'Engineer');
+    (1, 'Tanaka Taro', NULL, 'CEO'),
+    (2, 'Suzuki Hanako', 1, 'CTO'),
+    (3, 'Sato Jiro', 1, 'CFO'),
+    (4, 'Takahashi Misaki', 2, 'VP Engineering'),
+    (5, 'Ito Kenichi', 2, 'VP Product'),
+    (6, 'Watanabe Mari', 4, 'Sr. Engineer'),
+    (7, 'Yamamoto Daisuke', 4, 'Sr. Engineer'),
+    (8, 'Nakamura Yuko', 6, 'Engineer');
 
--- 特定の社員から上位の全管理職を取得（ボトムアップ）
+-- Retrieve all managers above a specific employee (bottom-up)
 WITH RECURSIVE management_chain AS (
-    -- ベースケース: 起点の社員
+    -- Base case: the starting employee
     SELECT id, name, manager_id, title, 0 AS depth
     FROM org_chart
     WHERE id = 42
 
     UNION ALL
 
-    -- 再帰ケース: 上司を辿る
+    -- Recursive case: traverse up to the manager
     SELECT o.id, o.name, o.manager_id, o.title, mc.depth + 1
     FROM org_chart o
         INNER JOIN management_chain mc ON o.id = mc.manager_id
@@ -455,7 +458,7 @@ SELECT
 FROM management_chain
 ORDER BY depth;
 
--- 部門長から配下の全社員を取得（トップダウン）
+-- Retrieve all employees under a department head (top-down)
 WITH RECURSIVE subordinates AS (
     SELECT id, name, manager_id, title, 0 AS depth,
            ARRAY[name] AS path
@@ -468,7 +471,7 @@ WITH RECURSIVE subordinates AS (
            s.path || o.name
     FROM org_chart o
         INNER JOIN subordinates s ON o.manager_id = s.id
-    WHERE s.depth < 10  -- 無限再帰防止
+    WHERE s.depth < 10  -- prevent infinite recursion
 )
 SELECT
     REPEAT('  ', depth) || name AS tree,
@@ -478,25 +481,25 @@ FROM subordinates
 ORDER BY path;
 ```
 
-出力イメージ:
+Sample output:
 
 ```
 tree                    | title          | full_path
 ------------------------+----------------+----------------------------------
-田中太郎               | CEO            | 田中太郎
-  鈴木花子             | CTO            | 田中太郎 > 鈴木花子
-    高橋美咲           | VP Engineering | 田中太郎 > 鈴木花子 > 高橋美咲
-      渡辺真理         | Sr. Engineer   | 田中太郎 > ... > 渡辺真理
-        中村優子       | Engineer       | 田中太郎 > ... > 中村優子
-      山本大輔         | Sr. Engineer   | 田中太郎 > ... > 山本大輔
-    伊藤健一           | VP Product     | 田中太郎 > 鈴木花子 > 伊藤健一
-  佐藤次郎             | CFO            | 田中太郎 > 佐藤次郎
+Tanaka Taro            | CEO            | Tanaka Taro
+  Suzuki Hanako        | CTO            | Tanaka Taro > Suzuki Hanako
+    Takahashi Misaki   | VP Engineering | Tanaka Taro > Suzuki Hanako > Takahashi Misaki
+      Watanabe Mari    | Sr. Engineer   | Tanaka Taro > ... > Watanabe Mari
+        Nakamura Yuko  | Engineer       | Tanaka Taro > ... > Nakamura Yuko
+      Yamamoto Daisuke | Sr. Engineer   | Tanaka Taro > ... > Yamamoto Daisuke
+    Ito Kenichi        | VP Product     | Tanaka Taro > Suzuki Hanako > Ito Kenichi
+  Sato Jiro            | CFO            | Tanaka Taro > Sato Jiro
 ```
 
-### 3.2 コード例4: カテゴリツリーとパンくずリスト
+### 3.2 Code Example 4: Category Tree and Breadcrumb List
 
 ```sql
--- カテゴリの階層構造
+-- Hierarchical category structure
 CREATE TABLE categories (
     id        INTEGER PRIMARY KEY,
     name      VARCHAR(100),
@@ -504,21 +507,21 @@ CREATE TABLE categories (
 );
 
 INSERT INTO categories VALUES
-    (1, '家電', NULL),
-    (2, 'パソコン', 1),
-    (3, 'ノートPC', 2),
-    (4, '13インチ', 3),
-    (5, '15インチ', 3),
-    (6, 'デスクトップPC', 2),
-    (7, 'スマートフォン', 1),
+    (1, 'Electronics', NULL),
+    (2, 'Computers', 1),
+    (3, 'Laptops', 2),
+    (4, '13-inch', 3),
+    (5, '15-inch', 3),
+    (6, 'Desktops', 2),
+    (7, 'Smartphones', 1),
     (8, 'iPhone', 7),
     (9, 'Android', 7);
 
--- パンくずリストの生成（ボトムアップ）
+-- Generate a breadcrumb list (bottom-up)
 WITH RECURSIVE breadcrumb AS (
     SELECT id, name, parent_id, name AS path, 0 AS depth
     FROM categories
-    WHERE id = 4  -- 現在のカテゴリ: 13インチ
+    WHERE id = 4  -- current category: 13-inch
 
     UNION ALL
 
@@ -530,12 +533,12 @@ WITH RECURSIVE breadcrumb AS (
 )
 SELECT path
 FROM breadcrumb
-WHERE parent_id IS NULL;  -- ルートまで辿った結果
--- → "家電 > パソコン > ノートPC > 13インチ"
+WHERE parent_id IS NULL;  -- result after traversing up to the root
+-- → "Electronics > Computers > Laptops > 13-inch"
 
--- 全カテゴリのパンくずリストを一括生成（トップダウン）
+-- Generate breadcrumb lists for all categories at once (top-down)
 WITH RECURSIVE category_tree AS (
-    -- ルートカテゴリ
+    -- Root categories
     SELECT id, name, parent_id,
            name::TEXT AS breadcrumb,
            0 AS depth,
@@ -545,7 +548,7 @@ WITH RECURSIVE category_tree AS (
 
     UNION ALL
 
-    -- 子カテゴリ
+    -- Child categories
     SELECT c.id, c.name, c.parent_id,
            ct.breadcrumb || ' > ' || c.name,
            ct.depth + 1,
@@ -560,7 +563,7 @@ SELECT
 FROM category_tree
 ORDER BY id_path;
 
--- カテゴリとその全子孫の商品数を集計
+-- Count products in each category including all descendants
 WITH RECURSIVE category_descendants AS (
     SELECT id, id AS root_id FROM categories
     UNION ALL
@@ -578,10 +581,10 @@ GROUP BY cat.id, cat.name
 ORDER BY product_count DESC;
 ```
 
-### 3.3 コード例5: 連番生成とカレンダー
+### 3.3 Code Example 5: Sequence Generation and Calendar
 
 ```sql
--- 1〜100の連番を生成
+-- Generate numbers from 1 to 100
 WITH RECURSIVE numbers AS (
     SELECT 1 AS n
     UNION ALL
@@ -589,7 +592,7 @@ WITH RECURSIVE numbers AS (
 )
 SELECT n FROM numbers;
 
--- 日付シーケンスの生成（カレンダー）
+-- Generate a date sequence (calendar)
 WITH RECURSIVE calendar AS (
     SELECT DATE '2024-01-01' AS dt
     UNION ALL
@@ -603,10 +606,10 @@ SELECT
     TO_CHAR(dt, 'YYYY-MM') AS month
 FROM calendar;
 
--- ※ PostgreSQLではgenerate_series()の方が効率的
+-- Note: In PostgreSQL, generate_series() is more efficient
 SELECT generate_series('2024-01-01'::DATE, '2024-12-31'::DATE, '1 day') AS dt;
 
--- 実用例: 日付ごとの売上を0埋めで表示（欠損日も含める）
+-- Practical example: Display daily revenue with zero-filling (including days with no data)
 WITH RECURSIVE date_range AS (
     SELECT DATE '2024-01-01' AS dt
     UNION ALL
@@ -621,7 +624,7 @@ FROM date_range dr
 GROUP BY dr.dt
 ORDER BY dr.dt;
 
--- 応用: 時間帯別スロット生成（予約システム）
+-- Application: Generate time slots (booking system)
 WITH RECURSIVE time_slots AS (
     SELECT TIME '09:00' AS slot_start, TIME '09:30' AS slot_end
     UNION ALL
@@ -634,17 +637,17 @@ WITH RECURSIVE time_slots AS (
 SELECT
     ts.slot_start,
     ts.slot_end,
-    CASE WHEN r.id IS NOT NULL THEN '予約済' ELSE '空き' END AS status
+    CASE WHEN r.id IS NOT NULL THEN 'Booked' ELSE 'Available' END AS status
 FROM time_slots ts
     LEFT JOIN reservations r
         ON r.start_time <= ts.slot_start AND r.end_time > ts.slot_start
 ORDER BY ts.slot_start;
 ```
 
-### 3.4 コード例6: グラフの最短経路
+### 3.4 Code Example 6: Shortest Path in a Graph
 
 ```sql
--- グラフ構造（路線図）
+-- Graph structure (train route map)
 CREATE TABLE routes (
     from_station VARCHAR(50),
     to_station   VARCHAR(50),
@@ -653,15 +656,15 @@ CREATE TABLE routes (
 );
 
 INSERT INTO routes VALUES
-    ('東京', '品川', 6, '東海道線'),
-    ('品川', '横浜', 22, '東海道線'),
-    ('東京', '上野', 3, '山手線'),
-    ('上野', '大宮', 26, '京浜東北線'),
-    ('東京', '新宿', 10, '中央線'),
-    ('新宿', '池袋', 5, '山手線'),
-    ('池袋', '大宮', 30, '埼京線');
+    ('Tokyo', 'Shinagawa', 6, 'Tokaido Line'),
+    ('Shinagawa', 'Yokohama', 22, 'Tokaido Line'),
+    ('Tokyo', 'Ueno', 3, 'Yamanote Line'),
+    ('Ueno', 'Omiya', 26, 'Keihin-Tohoku Line'),
+    ('Tokyo', 'Shinjuku', 10, 'Chuo Line'),
+    ('Shinjuku', 'Ikebukuro', 5, 'Yamanote Line'),
+    ('Ikebukuro', 'Omiya', 30, 'Saikyo Line');
 
--- 東京から各駅への最短経路
+-- Shortest path from Tokyo to each station
 WITH RECURSIVE shortest_path AS (
     SELECT
         from_station,
@@ -671,7 +674,7 @@ WITH RECURSIVE shortest_path AS (
         ARRAY[line_name] AS lines,
         1 AS hops
     FROM routes
-    WHERE from_station = '東京'
+    WHERE from_station = 'Tokyo'
 
     UNION ALL
 
@@ -684,8 +687,8 @@ WITH RECURSIVE shortest_path AS (
         sp.hops + 1
     FROM shortest_path sp
         INNER JOIN routes r ON sp.to_station = r.from_station
-    WHERE NOT r.to_station = ANY(sp.path)  -- 循環防止
-      AND sp.hops < 10                     -- 深さ制限
+    WHERE NOT r.to_station = ANY(sp.path)  -- prevent cycles
+      AND sp.hops < 10                     -- depth limit
 )
 SELECT DISTINCT ON (to_station)
     to_station,
@@ -697,12 +700,12 @@ FROM shortest_path
 ORDER BY to_station, distance;
 ```
 
-### 3.5 コード例7: BOM（部品表）展開
+### 3.5 Code Example 7: BOM (Bill of Materials) Explosion
 
-製造業で頻出するBOM（Bill of Materials）の展開は、再帰CTEの代表的なユースケースである。
+BOM (Bill of Materials) explosion, which is common in manufacturing, is a representative use case for recursive CTEs.
 
 ```sql
--- 部品表テーブル
+-- Bill of Materials table
 CREATE TABLE bom (
     parent_part_id  INTEGER,
     child_part_id   INTEGER,
@@ -717,31 +720,31 @@ CREATE TABLE parts (
 );
 
 INSERT INTO parts VALUES
-    (1, '自転車', 0),
-    (2, 'フレーム', 15000),
-    (3, '前輪', 5000),
-    (4, '後輪', 5000),
-    (5, 'タイヤ', 2000),
-    (6, 'リム', 1500),
-    (7, 'スポーク', 50),
-    (8, 'ハブ', 800);
+    (1, 'Bicycle', 0),
+    (2, 'Frame', 15000),
+    (3, 'Front Wheel', 5000),
+    (4, 'Rear Wheel', 5000),
+    (5, 'Tire', 2000),
+    (6, 'Rim', 1500),
+    (7, 'Spoke', 50),
+    (8, 'Hub', 800);
 
 INSERT INTO bom VALUES
-    (1, 2, 1),    -- 自転車 = フレーム x1
-    (1, 3, 1),    -- 自転車 = 前輪 x1
-    (1, 4, 1),    -- 自転車 = 後輪 x1
-    (3, 5, 1),    -- 前輪 = タイヤ x1
-    (3, 6, 1),    -- 前輪 = リム x1
-    (3, 7, 36),   -- 前輪 = スポーク x36
-    (3, 8, 1),    -- 前輪 = ハブ x1
-    (4, 5, 1),    -- 後輪 = タイヤ x1
-    (4, 6, 1),    -- 後輪 = リム x1
-    (4, 7, 36),   -- 後輪 = スポーク x36
-    (4, 8, 1);    -- 後輪 = ハブ x1
+    (1, 2, 1),    -- Bicycle = Frame x1
+    (1, 3, 1),    -- Bicycle = Front Wheel x1
+    (1, 4, 1),    -- Bicycle = Rear Wheel x1
+    (3, 5, 1),    -- Front Wheel = Tire x1
+    (3, 6, 1),    -- Front Wheel = Rim x1
+    (3, 7, 36),   -- Front Wheel = Spoke x36
+    (3, 8, 1),    -- Front Wheel = Hub x1
+    (4, 5, 1),    -- Rear Wheel = Tire x1
+    (4, 6, 1),    -- Rear Wheel = Rim x1
+    (4, 7, 36),   -- Rear Wheel = Spoke x36
+    (4, 8, 1);    -- Rear Wheel = Hub x1
 
--- BOM展開: 自転車に必要な全部品と数量・コスト
+-- BOM explosion: all parts, quantities, and costs for a bicycle
 WITH RECURSIVE bom_explosion AS (
-    -- ベースケース: トップレベル製品
+    -- Base case: top-level product
     SELECT
         b.parent_part_id,
         b.child_part_id,
@@ -754,12 +757,12 @@ WITH RECURSIVE bom_explosion AS (
 
     UNION ALL
 
-    -- 再帰ケース: 子部品をさらに展開
+    -- Recursive case: further expand child parts
     SELECT
         b.parent_part_id,
         b.child_part_id,
         b.quantity,
-        be.total_quantity * b.quantity,  -- 累積数量
+        be.total_quantity * b.quantity,  -- cumulative quantity
         be.level + 1,
         be.path || b.child_part_id
     FROM bom b
@@ -777,10 +780,10 @@ FROM bom_explosion be
 ORDER BY be.path;
 ```
 
-### 3.6 コード例8: 文字列の再帰的分割（パーサー）
+### 3.6 Code Example 8: Recursive String Splitting (Parser)
 
 ```sql
--- カンマ区切り文字列を行に分割（再帰CTEによる実装）
+-- Split a comma-delimited string into rows (implemented with a recursive CTE)
 WITH RECURSIVE split_string AS (
     SELECT
         1 AS idx,
@@ -813,7 +816,7 @@ WITH RECURSIVE split_string AS (
     WHERE remainder <> ''
 )
 SELECT idx, token FROM split_string;
--- 結果:
+-- Result:
 -- idx | token
 -- ----+--------
 --   1 | apple
@@ -821,14 +824,14 @@ SELECT idx, token FROM split_string;
 --   3 | cherry
 --   4 | date
 
--- ※ PostgreSQL/MySQL 8.0+ ではstring_to_table()やregexp_split_to_table()を使う方が効率的
+-- Note: In PostgreSQL/MySQL 8.0+, string_to_table() or regexp_split_to_table() is more efficient
 SELECT unnest(string_to_array('apple,banana,cherry,date', ',')) AS token;
 ```
 
-### 3.7 コード例9: フィボナッチ数列と数学的漸化式
+### 3.7 Code Example 9: Fibonacci Sequence and Mathematical Recurrences
 
 ```sql
--- フィボナッチ数列の生成
+-- Generate the Fibonacci sequence
 WITH RECURSIVE fibonacci AS (
     SELECT 1 AS n, 1::BIGINT AS fib, 0::BIGINT AS prev_fib
 
@@ -843,7 +846,7 @@ WITH RECURSIVE fibonacci AS (
 )
 SELECT n, fib FROM fibonacci;
 
--- 階乗の計算
+-- Calculate factorials
 WITH RECURSIVE factorial AS (
     SELECT 1 AS n, 1::BIGINT AS fact
     UNION ALL
@@ -853,7 +856,7 @@ WITH RECURSIVE factorial AS (
 )
 SELECT n, fact FROM factorial;
 
--- 複利計算（年利5%、30年）
+-- Compound interest calculation (5% annual rate, 30 years)
 WITH RECURSIVE compound_interest AS (
     SELECT
         0 AS year,
@@ -873,26 +876,26 @@ FROM compound_interest;
 
 ---
 
-## 4. DBMS別のCTE対応状況と構文差異
+## 4. CTE Support and Syntax Differences Across DBMSs
 
-### 4.1 DBMS間の互換性比較表
+### 4.1 Compatibility Comparison Table
 
-| 機能 | PostgreSQL | MySQL 8.0+ | SQL Server | Oracle | SQLite |
-|------|-----------|------------|------------|--------|--------|
-| 非再帰CTE | 8.4+ | 8.0+ | 2005+ | 9i R2+ | 3.8.3+ |
-| 再帰CTE | 8.4+ | 8.0+ | 2005+ | 11g R2+ | 3.8.3+ |
-| RECURSIVE キーワード | 必須 | 必須 | 不要 | 不要 | 必須 |
-| MATERIALIZED ヒント | 12+ | 8.0+ | N/A | INLINE ヒント | N/A |
-| Data-Modifying CTE | 対応 | 非対応 | 対応 | 非対応 | 非対応 |
-| 最大再帰深度デフォルト | 無制限 | 1000 | 100 | 無制限 | 1000 |
-| 深度制御方法 | statement_timeout | cte_max_recursion_depth | MAXRECURSION | 自前 | 自前 |
-| CYCLE検出 (SQL:2011) | 14+ | 非対応 | 非対応 | 非対応 | 非対応 |
-| SEARCH句 (SQL:2011) | 14+ | 非対応 | 非対応 | 非対応 | 非対応 |
+| Feature | PostgreSQL | MySQL 8.0+ | SQL Server | Oracle | SQLite |
+|---------|-----------|------------|------------|--------|--------|
+| Non-recursive CTE | 8.4+ | 8.0+ | 2005+ | 9i R2+ | 3.8.3+ |
+| Recursive CTE | 8.4+ | 8.0+ | 2005+ | 11g R2+ | 3.8.3+ |
+| RECURSIVE keyword | Required | Required | Not needed | Not needed | Required |
+| MATERIALIZED hint | 12+ | 8.0+ | N/A | INLINE hint | N/A |
+| Data-Modifying CTE | Supported | Not supported | Supported | Not supported | Not supported |
+| Default max recursion depth | Unlimited | 1000 | 100 | Unlimited | 1000 |
+| Depth control method | statement_timeout | cte_max_recursion_depth | MAXRECURSION | Manual | Manual |
+| CYCLE detection (SQL:2011) | 14+ | Not supported | Not supported | Not supported | Not supported |
+| SEARCH clause (SQL:2011) | 14+ | Not supported | Not supported | Not supported | Not supported |
 
-### 4.2 DBMS別の構文例
+### 4.2 Syntax Examples by DBMS
 
 ```sql
--- PostgreSQL: WITH RECURSIVE 必須
+-- PostgreSQL: WITH RECURSIVE is required
 WITH RECURSIVE tree AS (
     SELECT id, parent_id, name, 0 AS depth FROM nodes WHERE parent_id IS NULL
     UNION ALL
@@ -901,7 +904,7 @@ WITH RECURSIVE tree AS (
 )
 SELECT * FROM tree;
 
--- SQL Server: RECURSIVE キーワード不要、MAXRECURSION で制御
+-- SQL Server: RECURSIVE keyword is not needed; control with MAXRECURSION
 WITH tree AS (
     SELECT id, parent_id, name, 0 AS depth FROM nodes WHERE parent_id IS NULL
     UNION ALL
@@ -909,9 +912,9 @@ WITH tree AS (
     FROM nodes n JOIN tree t ON n.parent_id = t.id
 )
 SELECT * FROM tree
-OPTION (MAXRECURSION 200);  -- デフォルト100を引き上げ
+OPTION (MAXRECURSION 200);  -- Raise the default of 100
 
--- MySQL 8.0: WITH RECURSIVE 必須、最大深度はシステム変数
+-- MySQL 8.0: WITH RECURSIVE is required; max depth is a system variable
 SET SESSION cte_max_recursion_depth = 5000;
 WITH RECURSIVE tree AS (
     SELECT id, parent_id, name, 0 AS depth FROM nodes WHERE parent_id IS NULL
@@ -921,8 +924,8 @@ WITH RECURSIVE tree AS (
 )
 SELECT * FROM tree;
 
--- Oracle: RECURSIVE不要、CONNECT BY も使える（レガシー）
--- CTE方式（推奨）
+-- Oracle: RECURSIVE not needed; CONNECT BY is also available (legacy)
+-- CTE style (recommended)
 WITH tree (id, parent_id, name, depth) AS (
     SELECT id, parent_id, name, 0 FROM nodes WHERE parent_id IS NULL
     UNION ALL
@@ -931,7 +934,7 @@ WITH tree (id, parent_id, name, depth) AS (
 )
 SELECT * FROM tree;
 
--- CONNECT BY方式（Oracle固有、レガシー）
+-- CONNECT BY style (Oracle-specific, legacy)
 SELECT
     id, parent_id, name,
     LEVEL - 1 AS depth,
@@ -942,23 +945,23 @@ CONNECT BY PRIOR id = parent_id
 ORDER SIBLINGS BY name;
 ```
 
-### 4.3 PostgreSQL 14+ の CYCLE / SEARCH 句
+### 4.3 PostgreSQL 14+ CYCLE / SEARCH Clauses
 
-PostgreSQL 14で SQL:2011 標準の CYCLE 句と SEARCH 句が実装された。これにより、循環検出と探索順序の制御が宣言的に記述できる。
+In PostgreSQL 14, the SQL:2011 standard CYCLE clause and SEARCH clause were implemented. These allow cycle detection and traversal order control to be expressed declaratively.
 
 ```sql
--- CYCLE句: 循環検出を宣言的に記述
+-- CYCLE clause: declare cycle detection declaratively
 WITH RECURSIVE graph_search AS (
     SELECT id, linked_id, name FROM graph WHERE id = 1
     UNION ALL
     SELECT g.id, g.linked_id, g.name
     FROM graph g JOIN graph_search gs ON g.id = gs.linked_id
 )
-CYCLE id SET is_cycle USING path  -- 循環検出
+CYCLE id SET is_cycle USING path  -- cycle detection
 SELECT * FROM graph_search WHERE NOT is_cycle;
 
--- SEARCH句: 探索順序の制御
--- 深さ優先探索（DFS）
+-- SEARCH clause: control traversal order
+-- Depth-first search (DFS)
 WITH RECURSIVE tree AS (
     SELECT id, parent_id, name FROM nodes WHERE parent_id IS NULL
     UNION ALL
@@ -968,7 +971,7 @@ WITH RECURSIVE tree AS (
 SEARCH DEPTH FIRST BY id SET ordercol
 SELECT * FROM tree ORDER BY ordercol;
 
--- 幅優先探索（BFS）
+-- Breadth-first search (BFS)
 WITH RECURSIVE tree AS (
     SELECT id, parent_id, name FROM nodes WHERE parent_id IS NULL
     UNION ALL
@@ -981,99 +984,99 @@ SELECT * FROM tree ORDER BY ordercol;
 
 ---
 
-## 5. CTE vs サブクエリ vs ビュー vs 一時テーブル 比較表
+## 5. CTE vs Subquery vs View vs Temporary Table Comparison
 
-| 特徴 | CTE (WITH) | サブクエリ | ビュー | 一時テーブル |
-|------|-----------|-----------|--------|-------------|
-| 再利用性 | クエリ内で複数回 | 1回のみ | 全クエリで使用可能 | セッション中 |
-| 再帰 | 可能 | 不可能 | 不可能 | 手動ループで代替 |
-| 永続性 | クエリ実行中のみ | クエリ実行中のみ | 永続 | セッション中 |
-| 可読性 | 高い | 低い（ネストが深い） | 高い | 高い |
-| パフォーマンス | インライン展開可 | インライン展開 | 都度展開 | インデックス作成可 |
-| 更新可能 | 不可（※PG拡張あり） | 不可 | 条件付き可能 | 可能 |
-| CREATE不要 | はい | はい | いいえ | いいえ |
-| インデックス | 不可 | 不可 | 基底テーブル依存 | 作成可能 |
-| 統計情報 | なし | なし | 基底テーブル依存 | ANALYZE可能 |
+| Feature | CTE (WITH) | Subquery | View | Temporary Table |
+|---------|-----------|----------|------|----------------|
+| Reusability | Multiple times within a query | Once only | Available across all queries | During the session |
+| Recursion | Possible | Not possible | Not possible | Replaced with manual loop |
+| Persistence | Only during query execution | Only during query execution | Persistent | During the session |
+| Readability | High | Low (deep nesting) | High | High |
+| Performance | Can be inlined | Inlined | Expanded each time | Can create indexes |
+| Updatable | No (except PG extension) | No | Conditionally yes | Yes |
+| No CREATE needed | Yes | Yes | No | No |
+| Indexes | Not possible | Not possible | Depends on base table | Can be created |
+| Statistics | None | None | Depends on base table | ANALYZE possible |
 
-### 使い分け指針
+### Selection Guidelines
 
 ```
-┌──── CTE/サブクエリ/ビュー/一時テーブル 選択フローチャート ────┐
-│                                                                │
-│  Q1: 再帰的な探索が必要か？                                    │
-│  → Yes: 再帰CTE                                               │
-│  → No: Q2へ                                                    │
-│                                                                │
-│  Q2: 同じ結果セットを複数のクエリで使うか？                     │
-│  → Yes:                                                        │
-│    Q3: パフォーマンスが重要で、インデックスが欲しいか？          │
-│    → Yes: 一時テーブル                                         │
-│    → No: ビュー（頻繁に使うならマテビューも検討）              │
-│  → No: Q4へ                                                    │
-│                                                                │
-│  Q4: 同じクエリ内で2回以上参照するか？                          │
-│  → Yes: CTE（MATERIALIZEDヒント検討）                         │
-│  → No: Q5へ                                                    │
-│                                                                │
-│  Q5: クエリのネストが深く、可読性に問題があるか？               │
-│  → Yes: CTE                                                    │
-│  → No: サブクエリ（オプティマイザに最大の自由度）               │
-└────────────────────────────────────────────────────────────────┘
+┌──── CTE / Subquery / View / Temporary Table Selection Flowchart ────┐
+│                                                                     │
+│  Q1: Is recursive traversal required?                               │
+│  → Yes: Recursive CTE                                               │
+│  → No: Go to Q2                                                     │
+│                                                                     │
+│  Q2: Will the same result set be used across multiple queries?      │
+│  → Yes:                                                             │
+│    Q3: Is performance critical and do you need indexes?             │
+│    → Yes: Temporary table                                           │
+│    → No: View (consider materialized view if used frequently)       │
+│  → No: Go to Q4                                                     │
+│                                                                     │
+│  Q4: Is it referenced two or more times within the same query?      │
+│  → Yes: CTE (consider MATERIALIZED hint)                            │
+│  → No: Go to Q5                                                     │
+│                                                                     │
+│  Q5: Is the query deeply nested and hard to read?                   │
+│  → Yes: CTE                                                         │
+│  → No: Subquery (gives the optimizer maximum freedom)               │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-## 再帰CTE の注意点比較表
+## Recursive CTE Comparison Table: Recommended vs Not Recommended
 
-| 項目 | 推奨 | 非推奨 |
-|------|------|--------|
-| 終了条件 | WHERE depth < 100 | なし（無限ループ） |
-| 循環検出 | ARRAY + ANY で経路追跡 | 検出なし |
-| 結合方法 | UNION ALL（高速） | UNION（重複排除、遅い） |
-| 深さ制限 | 明示的に設定 | 暗黙のDBデフォルト |
-| データ型 | ベースケースで明示的にCAST | 暗黙の型推論 |
-| パス追跡 | ARRAY型カラムで経路を記録 | 経路記録なし |
-| 集約関数 | CTE外で実行 | 再帰項内での集約（禁止） |
-| サブクエリ | CTE外で実行 | 再帰項内でのサブクエリ（非推奨） |
+| Item | Recommended | Not Recommended |
+|------|-------------|-----------------|
+| Termination condition | WHERE depth < 100 | None (infinite loop) |
+| Cycle detection | ARRAY + ANY to track path | No detection |
+| Join method | UNION ALL (fast) | UNION (deduplication, slow) |
+| Depth limit | Set explicitly | Rely on implicit DB default |
+| Data types | Explicit CAST in base case | Implicit type inference |
+| Path tracking | Record path in an ARRAY column | No path recording |
+| Aggregate functions | Execute outside the CTE | Aggregation in recursive term (prohibited) |
+| Subqueries | Execute outside the CTE | Subqueries in recursive term (not recommended) |
 
 ---
 
-## 6. パフォーマンス最適化
+## 6. Performance Optimization
 
-### 6.1 再帰CTEのパフォーマンス特性
+### 6.1 Performance Characteristics of Recursive CTEs
 
 ```
-┌──── 再帰CTEのコスト構造 ────────────────────────────┐
-│                                                      │
-│  全体コスト = ベースケースコスト                      │
-│             + Σ(各反復のコスト)                       │
-│             + 最終結果の処理コスト                    │
-│                                                      │
-│  各反復のコスト要因:                                  │
-│  ・ワーキングテーブルのスキャン                       │
-│  ・JOINの実行（インデックスが効くかが重要）          │
-│  ・UNION ALL/UNIONの処理                             │
-│  ・ARRAY操作（パス追跡時）                           │
-│                                                      │
-│  最適化のポイント:                                    │
-│  ・JOINカラムにインデックスを作成                     │
-│  ・ベースケースの結果セットを最小化                   │
-│  ・不要なカラムを再帰項で持ち回らない                 │
-│  ・深さ制限で不要な探索を打ち切る                     │
-└──────────────────────────────────────────────────────┘
+┌──── Cost Structure of Recursive CTEs ──────────────────────┐
+│                                                            │
+│  Total cost = base case cost                               │
+│             + Σ(cost of each iteration)                    │
+│             + cost of processing the final result          │
+│                                                            │
+│  Cost factors per iteration:                               │
+│  · Scan of the working table                               │
+│  · JOIN execution (whether indexes apply is key)           │
+│  · UNION ALL / UNION processing                            │
+│  · ARRAY operations (when tracking paths)                  │
+│                                                            │
+│  Optimization points:                                      │
+│  · Create indexes on JOIN columns                          │
+│  · Minimize the base case result set                       │
+│  · Do not carry unnecessary columns through the recursion  │
+│  · Use depth limits to cut off unnecessary traversal early │
+└────────────────────────────────────────────────────────────┘
 ```
 
-### 6.2 インデックス戦略
+### 6.2 Index Strategy
 
 ```sql
--- 階層データの場合: parent_id と id のペアにインデックス
+-- For hierarchical data: index on parent_id and id pair
 CREATE INDEX idx_org_chart_manager ON org_chart (manager_id);
 CREATE INDEX idx_categories_parent ON categories (parent_id);
 CREATE INDEX idx_bom_parent ON bom (parent_part_id);
 
--- グラフデータの場合: 開始ノードと終了ノードの両方
+-- For graph data: both start and end nodes
 CREATE INDEX idx_routes_from ON routes (from_station);
 CREATE INDEX idx_routes_to ON routes (to_station);
 
--- 実行計画の確認
+-- Check the execution plan
 EXPLAIN (ANALYZE, BUFFERS)
 WITH RECURSIVE subordinates AS (
     SELECT id, manager_id FROM org_chart WHERE id = 1
@@ -1082,42 +1085,43 @@ WITH RECURSIVE subordinates AS (
     FROM org_chart o JOIN subordinates s ON o.manager_id = s.id
 )
 SELECT * FROM subordinates;
--- CTE Scan の下に Index Scan が出ていることを確認
+-- Verify that an Index Scan appears below the CTE Scan
 ```
 
-### 6.3 大規模データでの最適化テクニック
+### 6.3 Optimization Techniques for Large Datasets
 
 ```sql
--- テクニック1: 再帰深度の動的制御
--- 必要な深さだけ探索して早期終了
+-- Technique 1: Dynamic depth control for recursion
+-- Terminate early by exploring only the required depth
 WITH RECURSIVE tree AS (
     SELECT id, parent_id, name, 0 AS depth FROM nodes WHERE id = 1
     UNION ALL
     SELECT n.id, n.parent_id, n.name, t.depth + 1
     FROM nodes n JOIN tree t ON n.parent_id = t.id
-    WHERE t.depth < 3  -- 3階層までに限定
+    WHERE t.depth < 3  -- limit to 3 levels
 )
 SELECT * FROM tree;
 
--- テクニック2: 必要なカラムだけを持ち回る
--- NG: 全カラムを再帰で持ち回る（メモリ消費大）
+-- Technique 2: Carry only the necessary columns
+-- Bad: carry all columns through the recursion (high memory usage)
 WITH RECURSIVE tree AS (
-    SELECT * FROM large_table WHERE id = 1  -- 全カラム
+    SELECT * FROM large_table WHERE id = 1  -- all columns
     UNION ALL
     SELECT lt.* FROM large_table lt JOIN tree t ON lt.parent_id = t.id
 )
 SELECT * FROM tree;
 
--- OK: IDだけ再帰で辿り、最後にJOINして全カラム取得
+-- Good: recurse only on IDs, then JOIN to get all columns at the end
 WITH RECURSIVE tree_ids AS (
-    SELECT id FROM large_table WHERE id = 1  -- IDのみ
+    SELECT id FROM large_table WHERE id = 1  -- IDs only
     UNION ALL
     SELECT lt.id FROM large_table lt JOIN tree_ids t ON lt.parent_id = t.id
 )
 SELECT lt.* FROM large_table lt JOIN tree_ids ti ON lt.id = ti.id;
 
--- テクニック3: Closure Table パターン（再帰CTEの代替）
--- 頻繁に階層クエリを実行する場合、事前にClosure Tableを構築
+-- Technique 3: Closure Table pattern (alternative to recursive CTE)
+-- For cases where hierarchical queries are executed frequently,
+-- build a Closure Table in advance
 CREATE TABLE category_closure (
     ancestor_id   INTEGER,
     descendant_id INTEGER,
@@ -1125,7 +1129,7 @@ CREATE TABLE category_closure (
     PRIMARY KEY (ancestor_id, descendant_id)
 );
 
--- Closure Tableの構築（1回だけ実行）
+-- Build the Closure Table (run once only)
 WITH RECURSIVE tree AS (
     SELECT id AS ancestor_id, id AS descendant_id, 0 AS depth
     FROM categories
@@ -1136,59 +1140,59 @@ WITH RECURSIVE tree AS (
 INSERT INTO category_closure
 SELECT * FROM tree;
 
--- Closure Tableを使えば再帰なしで子孫を取得
+-- With the Closure Table, descendants can be retrieved without recursion
 SELECT c.* FROM categories c
     JOIN category_closure cc ON c.id = cc.descendant_id
 WHERE cc.ancestor_id = 1 AND cc.depth <= 3;
 ```
 
-### 6.4 階層データ管理手法の比較
+### 6.4 Comparison of Hierarchical Data Management Approaches
 
-| 手法 | クエリ速度 | INSERT速度 | DELETE速度 | ストレージ | 実装複雑度 |
-|------|-----------|-----------|-----------|-----------|-----------|
-| 隣接リスト + 再帰CTE | 中 | 高速 | 高速 | 最小 | 低 |
-| Closure Table | 高速 | 中（テーブル更新要） | 低速（テーブル更新要） | 大 | 中 |
-| Nested Set Model | 高速 | 低速（番号振り直し） | 低速（番号振り直し） | 小 | 高 |
-| Materialized Path | 高速 | 高速 | 高速 | 中 | 中 |
-| ltree (PostgreSQL) | 高速 | 高速 | 高速 | 中 | 低 |
+| Method | Query Speed | INSERT Speed | DELETE Speed | Storage | Implementation Complexity |
+|--------|------------|-------------|-------------|---------|--------------------------|
+| Adjacency List + Recursive CTE | Medium | Fast | Fast | Minimum | Low |
+| Closure Table | Fast | Medium (requires table update) | Slow (requires table update) | Large | Medium |
+| Nested Set Model | Fast | Slow (requires renumbering) | Slow (requires renumbering) | Small | High |
+| Materialized Path | Fast | Fast | Fast | Medium | Medium |
+| ltree (PostgreSQL) | Fast | Fast | Fast | Medium | Low |
 
 ---
 
-## 7. エッジケースと落とし穴
+## 7. Edge Cases and Pitfalls
 
-### 7.1 エッジケース1: ベースケースが0行を返す
+### 7.1 Edge Case 1: Base Case Returns Zero Rows
 
 ```sql
--- ベースケースが該当なし → 再帰も実行されず、空の結果
+-- Base case returns no match → recursion is not executed; empty result
 WITH RECURSIVE tree AS (
-    SELECT id, parent_id FROM nodes WHERE id = 99999  -- 存在しないID
+    SELECT id, parent_id FROM nodes WHERE id = 99999  -- non-existent ID
     UNION ALL
     SELECT n.id, n.parent_id FROM nodes n JOIN tree t ON n.parent_id = t.id
 )
 SELECT * FROM tree;
--- → 0行（エラーにはならない）
+-- → 0 rows (no error)
 
--- 対策: COALESCE やデフォルト値で空結果に対応
+-- Countermeasure: use COALESCE or default values to handle empty results
 SELECT COALESCE(
     (SELECT COUNT(*) FROM tree WHERE depth <= 5),
     0
 ) AS descendant_count;
 ```
 
-### 7.2 エッジケース2: データ型の不一致
+### 7.2 Edge Case 2: Data Type Mismatch
 
 ```sql
--- NG: ベースケースと再帰ケースでデータ型が異なる
+-- Bad: data types differ between the base case and recursive case
 WITH RECURSIVE path AS (
     SELECT id, name FROM nodes WHERE id = 1  -- name: VARCHAR(100)
     UNION ALL
-    SELECT n.id, p.name || ' > ' || n.name   -- 結合で長さが不定
+    SELECT n.id, p.name || ' > ' || n.name   -- concatenation makes length indeterminate
     FROM nodes n JOIN path p ON n.parent_id = p.id
 )
 SELECT * FROM path;
--- → 深い階層で文字列がVARCHAR(100)を超える可能性
+-- → String may exceed VARCHAR(100) at deep levels
 
--- OK: 明示的にCAST
+-- Good: explicit CAST
 WITH RECURSIVE path AS (
     SELECT id, name::TEXT AS path_string FROM nodes WHERE id = 1
     UNION ALL
@@ -1198,20 +1202,20 @@ WITH RECURSIVE path AS (
 SELECT * FROM path;
 ```
 
-### 7.3 エッジケース3: NULL値を含む階層
+### 7.3 Edge Case 3: Hierarchy Containing NULL Values
 
 ```sql
--- parent_id が NULL のノードはルート
--- しかし、NULLの比較はIS NULLを使う必要がある
--- NG: NULL = NULL は FALSE なので結合に失敗
+-- Nodes with parent_id = NULL are root nodes
+-- However, NULL comparisons require IS NULL
+-- Bad: NULL = NULL is FALSE, so joins fail
 SELECT * FROM nodes n1 JOIN nodes n2 ON n1.parent_id = n2.id;
--- parent_id が NULL の行は結合されない（正しい動作だが注意）
+-- Rows with parent_id = NULL are not joined (correct behavior, but be aware)
 
--- ルートノードの検出
+-- Detecting root nodes
 WITH RECURSIVE tree AS (
     SELECT id, parent_id, name, 0 AS depth
     FROM nodes
-    WHERE parent_id IS NULL  -- ルートの条件
+    WHERE parent_id IS NULL  -- root condition
 
     UNION ALL
 
@@ -1221,19 +1225,19 @@ WITH RECURSIVE tree AS (
 )
 SELECT * FROM tree;
 
--- 孤児ノード（親が存在しないが parent_id が NULL でもない）の検出
+-- Detecting orphan nodes (parent_id is not NULL but the parent does not exist)
 SELECT n.*
 FROM nodes n
     LEFT JOIN nodes parent ON n.parent_id = parent.id
 WHERE n.parent_id IS NOT NULL AND parent.id IS NULL;
 ```
 
-### 7.4 エッジケース4: 複数のルートノード
+### 7.4 Edge Case 4: Multiple Root Nodes
 
 ```sql
--- 組織に複数のルート（例: グループ会社の各CEO）がある場合
+-- When an organization has multiple roots (e.g., each CEO of a group company)
 WITH RECURSIVE full_tree AS (
-    -- 全ルートから開始
+    -- Start from all roots
     SELECT id, name, manager_id, 0 AS depth, id AS root_id
     FROM org_chart
     WHERE manager_id IS NULL
@@ -1253,68 +1257,68 @@ ORDER BY root_id, depth, name;
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン1: 終了条件のない再帰CTE
+### Anti-Pattern 1: Recursive CTE Without a Termination Condition
 
 ```sql
--- NG: 無限再帰（DBがハングする）
+-- Bad: infinite recursion (DB hangs)
 WITH RECURSIVE infinite AS (
     SELECT 1 AS n
     UNION ALL
-    SELECT n + 1 FROM infinite  -- 終了条件なし！
+    SELECT n + 1 FROM infinite  -- no termination condition!
 )
 SELECT * FROM infinite;
 
--- OK: 終了条件を明示
+-- Good: make the termination condition explicit
 WITH RECURSIVE safe AS (
     SELECT 1 AS n
     UNION ALL
-    SELECT n + 1 FROM safe WHERE n < 1000  -- 明示的な上限
+    SELECT n + 1 FROM safe WHERE n < 1000  -- explicit upper limit
 )
 SELECT * FROM safe;
 
--- 安全策: PostgreSQLではstatement_timeoutを設定
+-- Safety measure: set statement_timeout in PostgreSQL
 SET statement_timeout = '5s';
 
--- MySQL: 最大再帰深度を設定
+-- MySQL: set the maximum recursion depth
 SET SESSION cte_max_recursion_depth = 5000;
 
--- SQL Server: OPTION (MAXRECURSION N) を指定
--- OPTION (MAXRECURSION 0) で無制限（危険、本番では避ける）
+-- SQL Server: specify OPTION (MAXRECURSION N)
+-- OPTION (MAXRECURSION 0) means unlimited (dangerous, avoid in production)
 ```
 
-### アンチパターン2: CTEの不必要なMATERIALIZE
+### Anti-Pattern 2: Unnecessary CTE Materialization
 
 ```sql
--- NG（PostgreSQL 11以前のデフォルト動作）: CTEが必ず実体化される
+-- Bad (default behavior in PostgreSQL 11 and earlier): CTEs are always materialized
 WITH expensive_cte AS (
     SELECT * FROM huge_table WHERE category = 'A'
 )
 SELECT * FROM expensive_cte WHERE id = 42;
--- → huge_tableのcategory='A'全行を実体化してからid=42をフィルタ
+-- → Materializes all rows with category='A' from huge_table, then filters by id=42
 
--- OK（PostgreSQL 12+）: NOT MATERIALIZEDでインライン展開を強制
+-- Good (PostgreSQL 12+): force inlining with NOT MATERIALIZED
 WITH expensive_cte AS NOT MATERIALIZED (
     SELECT * FROM huge_table WHERE category = 'A'
 )
 SELECT * FROM expensive_cte WHERE id = 42;
--- → WHERE category = 'A' AND id = 42 として最適化される
+-- → Optimized as WHERE category = 'A' AND id = 42
 ```
 
-### アンチパターン3: 再帰項内での集約関数使用
+### Anti-Pattern 3: Using Aggregate Functions in the Recursive Term
 
 ```sql
--- NG: 再帰項でSUM/COUNT/AVG等は使えない（SQLエラー）
+-- Bad: SUM/COUNT/AVG etc. cannot be used in the recursive term (SQL error)
 WITH RECURSIVE running_total AS (
     SELECT id, amount, amount AS total FROM orders WHERE id = 1
     UNION ALL
-    SELECT o.id, o.amount, SUM(o.amount) OVER ()  -- エラー!
+    SELECT o.id, o.amount, SUM(o.amount) OVER ()  -- Error!
     FROM orders o JOIN running_total rt ON o.id = rt.id + 1
 )
 SELECT * FROM running_total;
 
--- OK: 集約はCTEの外で行う
+-- Good: perform aggregation outside the CTE
 WITH RECURSIVE order_chain AS (
     SELECT id, amount FROM orders WHERE id = 1
     UNION ALL
@@ -1326,10 +1330,10 @@ SELECT id, amount, SUM(amount) OVER (ORDER BY id) AS running_total
 FROM order_chain;
 ```
 
-### アンチパターン4: 再帰CTEの過剰使用
+### Anti-Pattern 4: Overusing Recursive CTEs
 
 ```sql
--- NG: 再帰CTEで単純な連番生成（PostgreSQL）
+-- Bad: using a recursive CTE for simple sequence generation (PostgreSQL)
 WITH RECURSIVE nums AS (
     SELECT 1 AS n
     UNION ALL
@@ -1337,10 +1341,10 @@ WITH RECURSIVE nums AS (
 )
 SELECT n FROM nums;
 
--- OK: generate_series()を使う（遥かに高速）
+-- Good: use generate_series() instead (far faster)
 SELECT generate_series(1, 10000) AS n;
 
--- NG: 再帰CTEでカレンダー生成（PostgreSQL）
+-- Bad: using a recursive CTE for calendar generation (PostgreSQL)
 WITH RECURSIVE dates AS (
     SELECT CURRENT_DATE AS dt
     UNION ALL
@@ -1348,7 +1352,7 @@ WITH RECURSIVE dates AS (
 )
 SELECT dt FROM dates;
 
--- OK: generate_series()を使う
+-- Good: use generate_series() instead
 SELECT generate_series(
     CURRENT_DATE,
     CURRENT_DATE + INTERVAL '365 days',
@@ -1358,11 +1362,11 @@ SELECT generate_series(
 
 ---
 
-## 9. 演習問題
+## 9. Exercises
 
-### 演習1: 従業員の管理階層（基礎）
+### Exercise 1: Employee Management Hierarchy (Basic)
 
-以下のテーブルが与えられる。
+The following table is given.
 
 ```sql
 CREATE TABLE employees_ex (
@@ -1383,16 +1387,16 @@ INSERT INTO employees_ex VALUES
     (8, 'Heidi', 4, 480000);
 ```
 
-**問題**:
-1. Aliceを起点として、全従業員をツリー構造で表示せよ。出力にはインデントと深さを含むこと。
-2. 各マネージャーについて、直属・間接合わせた配下の人数と、配下全員の平均給与を算出せよ。
-3. 任意の従業員ID（例: 7）から最上位（Alice）までの経路を「Alice > Bob > David > Grace」の形式で表示せよ。
+**Problems**:
+1. Starting from Alice, display all employees in a tree structure. The output should include indentation and depth.
+2. For each manager, calculate the total number of direct and indirect subordinates and the average salary of all subordinates.
+3. For any given employee ID (e.g., 7), display the path to the top (Alice) in the format "Alice > Bob > David > Grace."
 
 <details>
-<summary>解答例（クリックで展開）</summary>
+<summary>Sample Answer (click to expand)</summary>
 
 ```sql
--- 問題1: ツリー構造表示
+-- Problem 1: Tree structure display
 WITH RECURSIVE org_tree AS (
     SELECT id, name, manager_id, salary, 0 AS depth, ARRAY[name] AS path
     FROM employees_ex WHERE id = 1
@@ -1403,7 +1407,7 @@ WITH RECURSIVE org_tree AS (
 SELECT REPEAT('  ', depth) || name AS tree, salary, depth
 FROM org_tree ORDER BY path;
 
--- 問題2: 配下の人数と平均給与
+-- Problem 2: Subordinate count and average salary
 WITH RECURSIVE all_subordinates AS (
     SELECT id AS manager_id, id AS subordinate_id FROM employees_ex
     UNION ALL
@@ -1412,7 +1416,7 @@ WITH RECURSIVE all_subordinates AS (
 )
 SELECT
     m.name AS manager,
-    COUNT(DISTINCT als.subordinate_id) - 1 AS subordinate_count,  -- 自身を除く
+    COUNT(DISTINCT als.subordinate_id) - 1 AS subordinate_count,  -- exclude self
     ROUND(AVG(e.salary) FILTER (WHERE als.subordinate_id <> als.manager_id), 0) AS avg_sub_salary
 FROM all_subordinates als
     JOIN employees_ex m ON m.id = als.manager_id
@@ -1421,7 +1425,7 @@ GROUP BY m.id, m.name
 HAVING COUNT(DISTINCT als.subordinate_id) > 1
 ORDER BY subordinate_count DESC;
 
--- 問題3: ボトムアップ経路
+-- Problem 3: Bottom-up path
 WITH RECURSIVE path_up AS (
     SELECT id, name, manager_id, name::TEXT AS chain
     FROM employees_ex WHERE id = 7
@@ -1434,7 +1438,7 @@ SELECT chain FROM path_up WHERE manager_id IS NULL;
 ```
 </details>
 
-### 演習2: ファイルシステムのサイズ集計（中級）
+### Exercise 2: File System Size Aggregation (Intermediate)
 
 ```sql
 CREATE TABLE filesystem (
@@ -1442,7 +1446,7 @@ CREATE TABLE filesystem (
     name      VARCHAR(255),
     parent_id INTEGER,
     is_dir    BOOLEAN,
-    size_bytes BIGINT  -- ディレクトリは0、ファイルは実サイズ
+    size_bytes BIGINT  -- directories are 0, files are actual size
 );
 
 INSERT INTO filesystem VALUES
@@ -1458,13 +1462,13 @@ INSERT INTO filesystem VALUES
     (10, 'python3', 9, false, 15728640);
 ```
 
-**問題**: 各ディレクトリについて、直下および再帰的な合計サイズを計算し、フルパスとともに表示せよ。
+**Problem**: For each directory, calculate the total size including all files and subdirectories recursively, and display it along with the full path.
 
 <details>
-<summary>解答例（クリックで展開）</summary>
+<summary>Sample Answer (click to expand)</summary>
 
 ```sql
--- フルパスの構築とサイズ集計
+-- Build full paths and aggregate sizes
 WITH RECURSIVE dir_tree AS (
     SELECT id, name, parent_id, is_dir, size_bytes,
            '/' AS full_path, ARRAY[id] AS id_path
@@ -1485,7 +1489,7 @@ dir_sizes AS (
         SUM(f.size_bytes) AS total_size,
         COUNT(*) FILTER (WHERE NOT f.is_dir) AS file_count
     FROM dir_tree d
-        JOIN dir_tree f ON f.id_path @> ARRAY[d.id]  -- d.idがfの祖先
+        JOIN dir_tree f ON f.id_path @> ARRAY[d.id]  -- d.id is an ancestor of f
     WHERE d.is_dir
     GROUP BY d.id, d.full_path
 )
@@ -1498,7 +1502,7 @@ ORDER BY full_path;
 ```
 </details>
 
-### 演習3: グラフの全経路列挙（上級）
+### Exercise 3: Enumerate All Paths in a Graph (Advanced)
 
 ```sql
 CREATE TABLE city_connections (
@@ -1508,32 +1512,32 @@ CREATE TABLE city_connections (
 );
 
 INSERT INTO city_connections VALUES
-    ('東京', '大阪', 13000),
-    ('東京', '名古屋', 10000),
-    ('名古屋', '大阪', 5000),
-    ('大阪', '福岡', 15000),
-    ('東京', '仙台', 10000),
-    ('仙台', '札幌', 16000),
-    ('名古屋', '福岡', 18000);
+    ('Tokyo', 'Osaka', 13000),
+    ('Tokyo', 'Nagoya', 10000),
+    ('Nagoya', 'Osaka', 5000),
+    ('Osaka', 'Fukuoka', 15000),
+    ('Tokyo', 'Sendai', 10000),
+    ('Sendai', 'Sapporo', 16000),
+    ('Nagoya', 'Fukuoka', 18000);
 ```
 
-**問題**:
-1. 東京から福岡への全経路（循環なし）を、コスト順に表示せよ。
-2. 東京から他の全都市への最小コスト経路を表示せよ（ダイクストラ的アプローチ）。
+**Problems**:
+1. Display all routes from Tokyo to Fukuoka (no cycles), sorted by cost.
+2. Display the minimum-cost route from Tokyo to every other city (Dijkstra-like approach).
 
 <details>
-<summary>解答例（クリックで展開）</summary>
+<summary>Sample Answer (click to expand)</summary>
 
 ```sql
--- 問題1: 東京→福岡の全経路
+-- Problem 1: All routes from Tokyo to Fukuoka
 WITH RECURSIVE all_routes AS (
     SELECT
         city_to,
         cost,
-        ARRAY['東京', city_to] AS path,
+        ARRAY['Tokyo', city_to] AS path,
         1 AS hops
     FROM city_connections
-    WHERE city_from = '東京'
+    WHERE city_from = 'Tokyo'
 
     UNION ALL
 
@@ -1552,13 +1556,13 @@ SELECT
     cost,
     hops
 FROM all_routes
-WHERE city_to = '福岡'
+WHERE city_to = 'Fukuoka'
 ORDER BY cost;
 
--- 問題2: 最小コスト経路
+-- Problem 2: Minimum-cost routes
 WITH RECURSIVE shortest AS (
-    SELECT city_to, cost, ARRAY['東京', city_to] AS path
-    FROM city_connections WHERE city_from = '東京'
+    SELECT city_to, cost, ARRAY['Tokyo', city_to] AS path
+    FROM city_connections WHERE city_from = 'Tokyo'
     UNION ALL
     SELECT cc.city_to, s.cost + cc.cost, s.path || cc.city_to
     FROM city_connections cc JOIN shortest s ON cc.city_from = s.city_to
@@ -1577,98 +1581,98 @@ ORDER BY city_to, cost;
 
 ## 10. FAQ
 
-### Q1: CTEは一時テーブルと同じか？
+### Q1: Is a CTE the same as a temporary table?
 
-異なる。CTEはクエリ実行中にのみ存在する論理的な名前付き結果セットで、一時テーブルはセッション中に永続する物理的なテーブルである。CTEは別途CREATE/DROPが不要で、クエリの可読性向上に最適。一時テーブルはインデックスの作成や統計情報の取得が可能で、大量データの中間結果を何度も参照する場合に有利。
+No. A CTE is a logically named result set that exists only during query execution, while a temporary table is a physical table that persists for the duration of the session. CTEs do not require a separate CREATE/DROP and are ideal for improving query readability. Temporary tables allow index creation and statistics collection, making them advantageous when intermediate results of large datasets need to be referenced multiple times.
 
-### Q2: 再帰CTEの最大再帰深度は？
+### Q2: What is the maximum recursion depth for a recursive CTE?
 
-PostgreSQLではデフォルトで無制限（ワーキングメモリが尽きるまで）。`SET max_recursive_iterations`や`statement_timeout`で制御できる。SQL Serverでは`OPTION (MAXRECURSION n)`で指定（デフォルト100）。MySQL 8.0では`cte_max_recursion_depth`システム変数（デフォルト1000）で制御。
+In PostgreSQL, it is unlimited by default (until working memory is exhausted). It can be controlled with `SET max_recursive_iterations` or `statement_timeout`. In SQL Server, it is specified with `OPTION (MAXRECURSION n)` (default 100). In MySQL 8.0, it is controlled by the `cte_max_recursion_depth` system variable (default 1000).
 
-### Q3: 再帰CTEとアプリケーション側のループどちらが良いか？
+### Q3: Is a recursive CTE or an application-side loop better?
 
-データベース内で完結する再帰CTEの方がネットワークラウンドトリップを避けられるため一般的に高速。ただし、各ステップで複雑なビジネスロジックが必要な場合はアプリケーション側のループが適切。目安として、単純な階層探索は再帰CTE、各ノードで外部APIコールが必要な場合はアプリ側ループが望ましい。
+A recursive CTE that completes within the database is generally faster because it avoids network round trips. However, if complex business logic is required at each step, an application-side loop is appropriate. As a rule of thumb, use a recursive CTE for simple hierarchical traversal, and an application-side loop when an external API call is needed at each node.
 
-### Q4: CTEのパフォーマンスが悪い場合の診断方法は？
+### Q4: How do you diagnose poor CTE performance?
 
-`EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)` で実行計画を確認する。注目すべきポイント:
-- **CTE Scan** ノードが出ている場合 → CTEが実体化されている。NOT MATERIALIZEDを検討
-- **WorkMem exceeded** → `work_mem` パラメータの調整が必要
-- **再帰の反復回数が多い** → 深さ制限や探索範囲の見直し
-- **Seq Scan on large table** → JOINカラムにインデックスを追加
+Use `EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)` to examine the execution plan. Key things to look for:
+- **CTE Scan** node present → the CTE is being materialized. Consider NOT MATERIALIZED
+- **WorkMem exceeded** → adjust the `work_mem` parameter
+- **High number of recursive iterations** → review depth limits and search scope
+- **Seq Scan on large table** → add an index on the JOIN column
 
-### Q5: 循環（サイクル）を含むグラフで再帰CTEを安全に使うには？
+### Q5: How can you safely use a recursive CTE with a graph that contains cycles?
 
-3つの方法がある:
-1. **ARRAY + ANY**: パスを配列で追跡し、`NOT node = ANY(path)` で既訪問ノードを除外（PostgreSQL推奨）
-2. **UNION（UNION ALLではなく）**: 重複行を自動排除（低速だが簡潔）
-3. **CYCLE句（PostgreSQL 14+）**: `CYCLE id SET is_cycle USING path` で宣言的に記述
+There are three approaches:
+1. **ARRAY + ANY**: track the path as an array and exclude already-visited nodes with `NOT node = ANY(path)` (recommended for PostgreSQL)
+2. **UNION (not UNION ALL)**: automatically deduplicates rows (slower but concise)
+3. **CYCLE clause (PostgreSQL 14+)**: declare cycle detection with `CYCLE id SET is_cycle USING path`
 
-### Q6: WITH RECURSIVEはどのようなクエリに使うべきでないか？
+### Q6: What queries should NOT use WITH RECURSIVE?
 
-以下のケースでは再帰CTEは不適切:
-- **単純な連番生成**: `generate_series()`（PostgreSQL）や数値テーブルの方が高速
-- **固定深度の階層**: 自己結合を深度分だけ重ねる方がオプティマイザに最適化の余地がある
-- **超大規模グラフ（100万ノード以上）**: 専用のグラフデータベース（Neo4j、Amazon Neptune）の検討を推奨
-- **リアルタイム性が要求される場合**: Closure TableやMaterialized Pathの事前計算を検討
+Recursive CTEs are inappropriate in the following cases:
+- **Simple sequence generation**: `generate_series()` (PostgreSQL) or a numbers table is faster
+- **Fixed-depth hierarchy**: chaining self-joins for each depth level gives the optimizer more room for optimization
+- **Very large graphs (1 million+ nodes)**: consider a dedicated graph database (Neo4j, Amazon Neptune)
+- **Cases requiring real-time performance**: consider pre-computing with a Closure Table or Materialized Path
 
-### Q7: ORM（Django、Rails、SQLAlchemy等）からCTEを使えるか？
+### Q7: Can CTEs be used from an ORM (Django, Rails, SQLAlchemy, etc.)?
 
-主要なORMはCTEをサポートしている:
-- **Django 4.2+**: `With`クラスと`.with_cte()`メソッド（django-cte ライブラリ）
-- **SQLAlchemy**: `select().cte(recursive=True)` でネイティブサポート
-- **Rails (ActiveRecord)**: Rails 7.1+ で `.with` メソッドが追加
-- **Prisma**: rawクエリで対応（ネイティブサポートは限定的）
+Major ORMs support CTEs:
+- **Django 4.2+**: `With` class and `.with_cte()` method (django-cte library)
+- **SQLAlchemy**: native support with `select().cte(recursive=True)`
+- **Rails (ActiveRecord)**: `.with` method added in Rails 7.1+
+- **Prisma**: supported via raw queries (native support is limited)
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and verifying how it behaves.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping straight to advanced material. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 11. まとめ
-
-| 項目 | 要点 |
-|------|------|
-| 非再帰CTE | クエリを論理ブロックに分割。可読性向上。複数回参照可能 |
-| 再帰CTE | WITH RECURSIVE で階層・グラフデータを探索 |
-| ベースケース | 再帰の起点。非再帰項として定義 |
-| 再帰ケース | 自己参照して次の行を生成。終了条件必須 |
-| 循環防止 | ARRAY + ANY で訪問済みノードを追跡。PostgreSQL 14+ではCYCLE句 |
-| MATERIALIZED | CTEの実体化を明示制御（PostgreSQL 12+） |
-| パフォーマンス | JOINカラムのインデックス、深さ制限、必要カラムの最小化が鍵 |
-| 代替手法 | Closure Table、Nested Set、Materialized Path、ltree |
-| DBMS差異 | RECURSIVE キーワードの要否、最大深度設定が異なる |
+Knowledge of this topic is frequently applied in day-to-day development work, particularly during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## 11. Summary
 
-- [02-transactions.md](./02-transactions.md) — CTEを含むトランザクション管理
-- [04-query-optimization.md](./04-query-optimization.md) — CTEの実行計画と最適化
-- [01-schema-design.md](../02-design/01-schema-design.md) — 階層データのスキーマ設計（隣接リスト、Closure Table、Nested Set）
+| Item | Key Points |
+|------|-----------|
+| Non-recursive CTE | Splits a query into logical blocks. Improves readability. Can be referenced multiple times |
+| Recursive CTE | Use WITH RECURSIVE to traverse hierarchical and graph data |
+| Base case | The starting point of recursion. Defined as the non-recursive term |
+| Recursive case | Self-references to generate the next rows. A termination condition is required |
+| Cycle prevention | Track visited nodes with ARRAY + ANY. PostgreSQL 14+ supports the CYCLE clause |
+| MATERIALIZED | Explicitly controls CTE materialization (PostgreSQL 12+) |
+| Performance | Key factors: indexes on JOIN columns, depth limits, minimizing carried columns |
+| Alternative approaches | Closure Table, Nested Set, Materialized Path, ltree |
+| DBMS differences | Whether the RECURSIVE keyword is required and max depth configuration differ |
 
 ---
 
-## 参考文献
+## What to Read Next
+
+- [02-transactions.md](./02-transactions.md) — Transaction management including CTEs
+- [04-query-optimization.md](./04-query-optimization.md) — CTE execution plans and optimization
+- [01-schema-design.md](../02-design/01-schema-design.md) — Schema design for hierarchical data (Adjacency List, Closure Table, Nested Set)
+
+---
+
+## References
 
 1. PostgreSQL Documentation — "WITH Queries (Common Table Expressions)" https://www.postgresql.org/docs/current/queries-with.html
 2. Winand, M. — "Modern SQL: WITH Clause" https://modern-sql.com/feature/with
 3. Karwin, B. (2010). *SQL Antipatterns*. Chapter 3: Naive Trees. Pragmatic Bookshelf.
-4. ISO/IEC 9075-2:2023 — SQL Standard Part 2: Foundation (WITH clause定義)
+4. ISO/IEC 9075-2:2023 — SQL Standard Part 2: Foundation (WITH clause definition)
 5. Celko, J. (2012). *Joe Celko's Trees and Hierarchies in SQL for Smarties*. Morgan Kaufmann.
 6. PostgreSQL Documentation — "SEARCH and CYCLE clauses" https://www.postgresql.org/docs/current/queries-with.html#QUERIES-WITH-SEARCH
 7. MySQL 8.0 Reference Manual — "WITH (Common Table Expressions)" https://dev.mysql.com/doc/refman/8.0/en/with.html
