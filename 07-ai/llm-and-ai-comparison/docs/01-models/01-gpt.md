@@ -1,57 +1,57 @@
-# GPT — OpenAI の大規模言語モデル
+# GPT — OpenAI Large Language Models
 
-> GPT-4o、o1/o3 推論モデル、API の使い方と、OpenAI エコシステムの全体像を実践的に解説する。
+> A practical guide to GPT-4o, the o1/o3 reasoning models, API usage, and an overview of the entire OpenAI ecosystem.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **GPT ファミリー**の進化と各モデル（GPT-4o、o1、o3）の特性
-2. **OpenAI API** の実践的な使い方（Chat Completions、Assistants）
-3. **推論モデル（o1/o3）**の仕組みと従来モデルとの使い分け
+1. The evolution of the **GPT family** and the characteristics of each model (GPT-4o, o1, o3)
+2. Practical usage of the **OpenAI API** (Chat Completions, Assistants)
+3. How **reasoning models (o1/o3)** work and when to use them versus standard models
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Claude — Anthropic の AI アシスタント](./00-claude.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Claude — Anthropic's AI Assistant](./00-claude.md)
 
 ---
 
-## 1. GPT ファミリーの概要
+## 1. Overview of the GPT Family
 
-### ASCII 図解 1: GPT モデルの進化
+### ASCII Diagram 1: Evolution of GPT Models
 
 ```
-GPT ファミリー進化史
-──────────────────────────────────────────────────→ 時間
+GPT Family Evolution
+──────────────────────────────────────────────────→ Time
 
 2020  GPT-3 (175B)
-      │  初の大規模 API 提供
+      │  First large-scale API offering
       ▼
 2022  ChatGPT (GPT-3.5-turbo)
-      │  対話型 AI の大衆化
+      │  Democratization of conversational AI
       ▼
-2023  GPT-4 (推定 MoE 1.8T)
-      │  マルチモーダル対応
+2023  GPT-4 (estimated MoE 1.8T)
+      │  Multimodal support
       ├── GPT-4 Turbo (128K context)
       │
       ▼
 2024  GPT-4o ("omni")
-      │  高速・低コスト・マルチモーダル統合
-      ├── GPT-4o mini (小型・高速)
+      │  Fast, low-cost, integrated multimodal
+      ├── GPT-4o mini (compact, high-speed)
       │
       ├── o1-preview / o1-mini
-      │   推論特化モデル (Chain-of-Thought 内蔵)
+      │   Reasoning-specialized models (built-in Chain-of-Thought)
       ▼
 2025  o3 / o3-mini
-      │  高度な推論能力
-      ├── GPT-4.5 (研究プレビュー)
-      └── GPT-5 (予定)
+      │  Advanced reasoning capabilities
+      ├── GPT-4.5 (research preview)
+      └── GPT-5 (planned)
 ```
 
-### コード例 1: OpenAI API の基本
+### Code Example 1: OpenAI API Basics
 
 ```python
 from openai import OpenAI
@@ -73,7 +73,7 @@ print(response.choices[0].message.content)
 print(f"トークン使用量: {response.usage}")
 ```
 
-### コード例 2: o1/o3 推論モデルの使用
+### Code Example 2: Using o1/o3 Reasoning Models
 
 ```python
 from openai import OpenAI
@@ -104,28 +104,28 @@ print(response.choices[0].message.content)
 print(f"推論トークン: {response.usage.completion_tokens_details.reasoning_tokens}")
 ```
 
-### ASCII 図解 2: GPT-4o vs o1/o3 の処理フロー
+### ASCII Diagram 2: GPT-4o vs o1/o3 Processing Flow
 
 ```
-GPT-4o (高速応答):
-ユーザー → [プロンプト] → 即座に応答生成 → 応答
-                         ~1-3秒
-                         1パスで回答
+GPT-4o (Fast Response):
+User → [Prompt] → Immediate response generation → Response
+                  ~1-3 seconds
+                  Single-pass answer
 
-o1/o3 (深い推論):
-ユーザー → [プロンプト] → 内部思考チェーン → 応答
-                         │                │
-                         │ Step 1: 問題分析│
-                         │ Step 2: 仮説    │
-                         │ Step 3: 検証    │
-                         │ Step 4: 再考    │
-                         │ ...             │
-                         └────────────────┘
-                         ~10-60秒
-                         多段階の推論
+o1/o3 (Deep Reasoning):
+User → [Prompt] → Internal reasoning chain → Response
+                  │                       │
+                  │ Step 1: Analyze problem│
+                  │ Step 2: Hypothesize    │
+                  │ Step 3: Verify         │
+                  │ Step 4: Reconsider     │
+                  │ ...                    │
+                  └───────────────────────┘
+                  ~10-60 seconds
+                  Multi-step reasoning
 ```
 
-### コード例 3: Structured Outputs（構造化出力）
+### Code Example 3: Structured Outputs
 
 ```python
 from openai import OpenAI
@@ -161,7 +161,7 @@ print(f"難易度: {article.difficulty}")
 print(f"タグ: {article.tags}")
 ```
 
-### コード例 4: Assistants API（永続的なスレッド）
+### Code Example 4: Assistants API (Persistent Threads)
 
 ```python
 from openai import OpenAI
@@ -202,7 +202,7 @@ if run.status == "completed":
                     print(block.text.value)
 ```
 
-### コード例 5: 画像生成（DALL-E 3）と画像理解の組み合わせ
+### Code Example 5: Combining Image Generation (DALL-E 3) and Image Understanding
 
 ```python
 from openai import OpenAI
@@ -238,22 +238,22 @@ print(analysis.choices[0].message.content)
 
 ---
 
-## 2. OpenAI エコシステムの全体像
+## 2. Overview of the OpenAI Ecosystem
 
-### ASCII 図解 3: OpenAI エコシステム構成
+### ASCII Diagram 3: OpenAI Ecosystem Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                  OpenAI エコシステム                        │
+│                  OpenAI Ecosystem                        │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  基盤モデル                                               │
+│  Foundation Models                                       │
 │  ┌────────────┐  ┌────────────┐  ┌────────────┐         │
 │  │ GPT-4o     │  │ o3/o3-mini │  │ GPT-4o     │         │
-│  │ (汎用)     │  │ (推論)     │  │ mini       │         │
+│  │ (General)  │  │ (Reasoning)│  │ mini       │         │
 │  └────────────┘  └────────────┘  └────────────┘         │
 │                                                          │
-│  API サービス                                             │
+│  API Services                                            │
 │  ┌────────────┐  ┌────────────┐  ┌────────────┐         │
 │  │ Chat       │  │ Assistants │  │ Batch      │         │
 │  │ Completions│  │ API        │  │ API        │         │
@@ -267,10 +267,10 @@ print(analysis.choices[0].message.content)
 │  │ tuning     │  │ API        │  │ API        │         │
 │  └────────────┘  └────────────┘  └────────────┘         │
 │                                                          │
-│  プロダクト                                               │
+│  Products                                                │
 │  ┌────────────┐  ┌────────────┐  ┌────────────┐         │
 │  │ ChatGPT    │  │ Custom     │  │ ChatGPT    │         │
-│  │ (消費者)   │  │ GPTs       │  │ Enterprise │         │
+│  │ (Consumer) │  │ GPTs       │  │ Enterprise │         │
 │  └────────────┘  └────────────┘  └────────────┘         │
 │                                                          │
 └──────────────────────────────────────────────────────────┘
@@ -278,9 +278,9 @@ print(analysis.choices[0].message.content)
 
 ---
 
-## 3. 高度な API 機能
+## 3. Advanced API Features
 
-### 3.1 Function Calling の詳細実装
+### 3.1 Detailed Implementation of Function Calling
 
 ```python
 from openai import OpenAI
@@ -346,7 +346,7 @@ tools = [
     }
 ]
 
-# 並列ツール呼び出し対応のエージェントループ
+# Agent loop with parallel tool call support
 def agent_loop(user_message: str) -> str:
     messages = [{"role": "user", "content": user_message}]
 
@@ -365,12 +365,12 @@ def agent_loop(user_message: str) -> str:
         if not message.tool_calls:
             return message.content
 
-        # 並列ツール呼び出しを全て処理
+        # Process all parallel tool calls
         for tool_call in message.tool_calls:
             func_name = tool_call.function.name
             args = json.loads(tool_call.function.arguments)
 
-            # ツール実行（実際にはAPIコール等）
+            # Execute tool (in practice, makes actual API calls, etc.)
             result = dispatch_function(func_name, args)
 
             messages.append({
@@ -382,7 +382,7 @@ def agent_loop(user_message: str) -> str:
     return "処理が上限に達しました。"
 
 def dispatch_function(name: str, args: dict) -> Any:
-    """関数名に基づいてツールを実行"""
+    """Execute tool based on function name"""
     functions = {
         "get_stock_price": lambda **a: {"price": 185.42, "currency": a.get("currency", "USD")},
         "calculate_portfolio_return": lambda **a: {"expected_return": 0.12, "risk": 0.08},
@@ -390,14 +390,14 @@ def dispatch_function(name: str, args: dict) -> Any:
     return functions.get(name, lambda **a: {"error": "Unknown function"})(**args)
 ```
 
-### 3.2 Prompt Caching の活用
+### 3.2 Leveraging Prompt Caching
 
 ```python
 from openai import OpenAI
 
 client = OpenAI()
 
-# 大きなシステムプロンプト（繰り返し使うもの）
+# Large system prompt (used repeatedly)
 LARGE_SYSTEM_PROMPT = """
 あなたは金融アナリストです。以下のルールに従ってください：
 1. 市場分析は客観的データに基づく
@@ -406,11 +406,11 @@ LARGE_SYSTEM_PROMPT = """
 ... (大量の指示テキスト)
 """
 
-# OpenAI のプロンプトキャッシュは自動的に適用される
-# 同じプレフィックスが1024トークン以上ある場合にキャッシュが効く
-# キャッシュヒット時は入力トークンのコストが50%割引
+# OpenAI prompt caching is applied automatically
+# Cache kicks in when the same prefix is 1024+ tokens
+# Cache hit reduces input token cost by 50%
 
-# キャッシュの効果を確認
+# Verify caching effect
 for query in ["銘柄Aの分析", "銘柄Bの分析", "銘柄Cの分析"]:
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -420,7 +420,7 @@ for query in ["銘柄Aの分析", "銘柄Bの分析", "銘柄Cの分析"]:
         ],
     )
 
-    # usage にキャッシュ情報が含まれる
+    # usage contains cache information
     usage = response.usage
     cached = getattr(usage, 'prompt_tokens_details', None)
     if cached:
@@ -428,7 +428,7 @@ for query in ["銘柄Aの分析", "銘柄Bの分析", "銘柄Cの分析"]:
     print(f"合計入力: {usage.prompt_tokens} tokens")
 ```
 
-### 3.3 Batch API（非同期大量処理）
+### 3.3 Batch API (Asynchronous Bulk Processing)
 
 ```python
 from openai import OpenAI
@@ -436,7 +436,7 @@ import json
 
 client = OpenAI()
 
-# 1. バッチリクエストの準備（JSONL形式）
+# 1. Prepare batch requests (JSONL format)
 batch_requests = []
 for i, query in enumerate(["分析1", "分析2", "分析3"]):
     batch_requests.append({
@@ -453,79 +453,79 @@ for i, query in enumerate(["分析1", "分析2", "分析3"]):
         }
     })
 
-# JSONL ファイルに書き出し
+# Write to JSONL file
 with open("batch_input.jsonl", "w") as f:
     for req in batch_requests:
         f.write(json.dumps(req) + "\n")
 
-# 2. ファイルアップロード
+# 2. Upload file
 batch_file = client.files.create(
     file=open("batch_input.jsonl", "rb"),
     purpose="batch"
 )
 
-# 3. バッチジョブ作成
+# 3. Create batch job
 batch_job = client.batches.create(
     input_file_id=batch_file.id,
     endpoint="/v1/chat/completions",
-    completion_window="24h",  # 24時間以内に完了
+    completion_window="24h",  # Complete within 24 hours
     metadata={"description": "大量分析バッチ"}
 )
 
 print(f"バッチID: {batch_job.id}")
 print(f"ステータス: {batch_job.status}")
 
-# 4. ステータス確認
+# 4. Check status
 status = client.batches.retrieve(batch_job.id)
 print(f"進捗: {status.request_counts}")
 
-# 5. 結果取得（完了後）
+# 5. Retrieve results (after completion)
 if status.status == "completed":
     result_file = client.files.content(status.output_file_id)
     for line in result_file.text.strip().split("\n"):
         result = json.loads(line)
         print(f"{result['custom_id']}: {result['response']['body']['choices'][0]['message']['content'][:80]}...")
 
-# コスト: 通常の50%割引で処理される
+# Cost: processed at 50% discount compared to standard pricing
 ```
 
 ---
 
-## 4. Realtime API（音声対話）
+## 4. Realtime API (Voice Interaction)
 
-### 4.1 Realtime API の概要
+### 4.1 Overview of the Realtime API
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│            GPT-4o Realtime API のアーキテクチャ            │
+│            GPT-4o Realtime API Architecture              │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  クライアント                 サーバー                    │
+│  Client                        Server                    │
 │  ┌──────────┐               ┌──────────┐               │
-│  │ マイク入力│ ──WebSocket──▶│ GPT-4o   │               │
+│  │ Mic Input │ ──WebSocket──▶│ GPT-4o   │               │
 │  │ (PCM16)  │               │ Realtime │               │
 │  └──────────┘               │          │               │
-│  ┌──────────┐               │ ・音声認識│               │
-│  │ スピーカー│ ◀──WebSocket──│ ・推論   │               │
-│  │ (PCM16)  │               │ ・音声合成│               │
+│  ┌──────────┐               │ · Speech recognition     │
+│  │ Speaker  │ ◀──WebSocket──│ · Reasoning │             │
+│  │ (PCM16)  │               │ · Speech synthesis       │
 │  └──────────┘               └──────────┘               │
 │                                                          │
-│  特徴:                                                   │
-│  - 音声→テキスト→推論→テキスト→音声 を統合処理           │
-│  - 中間のテキスト変換をスキップ可能 (低レイテンシ)       │
-│  - 会話の割り込み (バージイン) 対応                      │
-│  - 6種類の音声 (alloy, echo, fable, onyx, nova, shimmer)│
-│  - 入力: $5.00/1M tokens, 出力: $20.00/1M tokens        │
+│  Features:                                               │
+│  - Unified processing: audio→text→reasoning→text→audio  │
+│  - Skip intermediate text conversion (low latency)       │
+│  - Conversation barge-in support                         │
+│  - 6 voices (alloy, echo, fable, onyx, nova, shimmer)   │
+│  - Input: $5.00/1M tokens, Output: $20.00/1M tokens     │
 │                                                          │
-│  ユースケース:                                           │
-│  - 音声アシスタント                                      │
-│  - カスタマーサポートの音声対応                           │
-│  - 語学学習アプリ                                        │
-│  - アクセシビリティツール                                 │
+│  Use Cases:                                              │
+│  - Voice assistants                                      │
+│  - Customer support voice response                       │
+│  - Language learning apps                                │
+│  - Accessibility tools                                   │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 Realtime API の実装例
+### 4.2 Realtime API Implementation Example
 
 ```python
 import asyncio
@@ -534,7 +534,7 @@ import json
 import base64
 
 async def realtime_voice_assistant():
-    """GPT-4o Realtime API を使った音声アシスタント"""
+    """Voice assistant using GPT-4o Realtime API"""
 
     url = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview"
     headers = {
@@ -543,7 +543,7 @@ async def realtime_voice_assistant():
     }
 
     async with websockets.connect(url, extra_headers=headers) as ws:
-        # セッション設定
+        # Session configuration
         await ws.send(json.dumps({
             "type": "session.update",
             "session": {
@@ -558,7 +558,7 @@ async def realtime_voice_assistant():
                     "model": "whisper-1"
                 },
                 "turn_detection": {
-                    "type": "server_vad",  # サーバー側の音声検出
+                    "type": "server_vad",  # Server-side voice activity detection
                     "threshold": 0.5,
                     "prefix_padding_ms": 300,
                     "silence_duration_ms": 500,
@@ -582,28 +582,28 @@ async def realtime_voice_assistant():
             },
         }))
 
-        # メッセージ受信ループ
+        # Message receive loop
         async for message in ws:
             event = json.loads(message)
             event_type = event.get("type", "")
 
             if event_type == "session.created":
-                print("セッション開始")
+                print("Session started")
 
             elif event_type == "response.audio.delta":
-                # 音声チャンクを受信 → スピーカーに送信
+                # Receive audio chunk → send to speaker
                 audio_data = base64.b64decode(event["delta"])
-                # play_audio(audio_data)  # 実際の再生処理
+                # play_audio(audio_data)  # Actual playback processing
 
             elif event_type == "response.audio_transcript.delta":
-                # テキスト変換結果
+                # Transcription result
                 print(event["delta"], end="", flush=True)
 
             elif event_type == "input_audio_buffer.speech_started":
-                print("\n[音声検出開始]")
+                print("\n[Speech detection started]")
 
             elif event_type == "response.function_call_arguments.done":
-                # ツール呼び出しの処理
+                # Handle tool call
                 func_name = event.get("name")
                 args = json.loads(event.get("arguments", "{}"))
                 result = handle_function_call(func_name, args)
@@ -621,9 +621,9 @@ async def realtime_voice_assistant():
 
 ---
 
-## 5. Fine-tuning の実践
+## 5. Fine-tuning in Practice
 
-### 5.1 GPT-4o mini のファインチューニング
+### 5.1 Fine-tuning GPT-4o mini
 
 ```python
 from openai import OpenAI
@@ -631,7 +631,7 @@ import json
 
 client = OpenAI()
 
-# 1. 学習データの準備
+# 1. Prepare training data
 training_data = [
     {
         "messages": [
@@ -647,23 +647,23 @@ training_data = [
             {"role": "assistant", "content": "[理想的な要約2]"}
         ]
     },
-    # 最低50例、推奨200-500例
+    # Minimum 50 examples, recommended 200-500 examples
 ]
 
-# 2. バリデーションデータ（任意だが推奨）
-validation_data = training_data[:10]  # 10%をバリデーションに
+# 2. Validation data (optional but recommended)
+validation_data = training_data[:10]  # Use 10% for validation
 
-# JSONL ファイル作成
+# Create JSONL files
 for filename, data in [("train.jsonl", training_data), ("val.jsonl", validation_data)]:
     with open(filename, "w") as f:
         for item in data:
             f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
-# 3. ファイルアップロード
+# 3. Upload files
 train_file = client.files.create(file=open("train.jsonl", "rb"), purpose="fine-tune")
 val_file = client.files.create(file=open("val.jsonl", "rb"), purpose="fine-tune")
 
-# 4. ファインチューニングジョブ作成
+# 4. Create fine-tuning job
 job = client.fine_tuning.jobs.create(
     training_file=train_file.id,
     validation_file=val_file.id,
@@ -673,13 +673,13 @@ job = client.fine_tuning.jobs.create(
         "learning_rate_multiplier": "auto",
         "batch_size": "auto",
     },
-    suffix="tech-summarizer",  # モデル名のサフィックス
+    suffix="tech-summarizer",  # Suffix for the model name
 )
 
 print(f"ジョブID: {job.id}")
 print(f"ステータス: {job.status}")
 
-# 5. ステータス監視
+# 5. Monitor status
 import time
 while True:
     job = client.fine_tuning.jobs.retrieve(job.id)
@@ -689,7 +689,7 @@ while True:
         break
     time.sleep(60)
 
-# 6. ファインチューニング済みモデルの使用
+# 6. Use the fine-tuned model
 if job.status == "succeeded":
     ft_model = job.fine_tuned_model
     print(f"ファインチューニング済みモデル: {ft_model}")
@@ -704,7 +704,7 @@ if job.status == "succeeded":
     print(response.choices[0].message.content)
 ```
 
-### 5.2 ファインチューニングの評価と最適化
+### 5.2 Evaluating and Optimizing Fine-tuned Models
 
 ```python
 from openai import OpenAI
@@ -713,7 +713,7 @@ import json
 client = OpenAI()
 
 def evaluate_fine_tuned_model(model_id: str, test_data: list) -> dict:
-    """ファインチューニング済みモデルの品質を評価"""
+    """Evaluate the quality of a fine-tuned model"""
     results = {
         "total": len(test_data),
         "correct": 0,
@@ -722,16 +722,16 @@ def evaluate_fine_tuned_model(model_id: str, test_data: list) -> dict:
     }
 
     for item in test_data:
-        # ファインチューニング済みモデルで推論
+        # Inference with fine-tuned model
         response = client.chat.completions.create(
             model=model_id,
-            messages=item["messages"][:-1],  # アシスタント応答を除く
+            messages=item["messages"][:-1],  # Exclude assistant response
             temperature=0,
         )
         prediction = response.choices[0].message.content
         expected = item["messages"][-1]["content"]
 
-        # LLM-as-a-Judge で品質評価
+        # Quality evaluation using LLM-as-a-Judge
         judge_response = client.chat.completions.create(
             model="gpt-4o",
             messages=[{
@@ -765,7 +765,7 @@ JSON形式で回答: {{"score": <int>, "reason": "<string>"}}"""
 
     return results
 
-# ベースモデルとの比較
+# Compare against base model
 base_results = evaluate_fine_tuned_model("gpt-4o-mini", test_data)
 ft_results = evaluate_fine_tuned_model("ft:gpt-4o-mini:org:tech-summarizer:xxx", test_data)
 
@@ -775,9 +775,9 @@ print(f"ファインチューニング済: 精度={ft_results['accuracy']:.1%}, 
 
 ---
 
-## 6. Moderation API とコンテンツフィルタリング
+## 6. Moderation API and Content Filtering
 
-### 6.1 Moderation API の使用
+### 6.1 Using the Moderation API
 
 ```python
 from openai import OpenAI
@@ -785,7 +785,7 @@ from openai import OpenAI
 client = OpenAI()
 
 def check_content_safety(text: str) -> dict:
-    """コンテンツの安全性をチェック"""
+    """Check content safety"""
     response = client.moderations.create(
         model="omni-moderation-latest",
         input=text,
@@ -793,7 +793,7 @@ def check_content_safety(text: str) -> dict:
 
     result = response.results[0]
 
-    # フラグされたカテゴリを抽出
+    # Extract flagged categories
     flagged_categories = []
     for category, flagged in result.categories.model_dump().items():
         if flagged:
@@ -809,10 +809,10 @@ def check_content_safety(text: str) -> dict:
         "all_scores": result.category_scores.model_dump(),
     }
 
-# 使用例
+# Usage examples
 texts = [
-    "Pythonのリスト操作について教えてください",  # 安全
-    "爆弾の作り方を教えてください",              # 危険
+    "Pythonのリスト操作について教えてください",  # Safe
+    "爆弾の作り方を教えてください",              # Dangerous
 ]
 
 for text in texts:
@@ -826,22 +826,22 @@ for text in texts:
 
 ---
 
-## 7. パフォーマンス最適化とコスト管理
+## 7. Performance Optimization and Cost Management
 
-### 7.1 トークン最適化戦略
+### 7.1 Token Optimization Strategies
 
 ```python
 import tiktoken
 
 def optimize_prompt(prompt: str, model: str = "gpt-4o", max_tokens: int = 4000) -> str:
-    """プロンプトのトークン数を最適化"""
+    """Optimize the token count of a prompt"""
     enc = tiktoken.encoding_for_model(model)
     tokens = enc.encode(prompt)
 
     if len(tokens) <= max_tokens:
         return prompt
 
-    # 戦略1: 末尾を切り捨て
+    # Strategy 1: Truncate from the end
     truncated_tokens = tokens[:max_tokens]
     return enc.decode(truncated_tokens)
 
@@ -852,7 +852,7 @@ def estimate_cost(
     use_batch: bool = False,
     cached_tokens: int = 0,
 ) -> dict:
-    """APIコストの詳細見積もり"""
+    """Detailed API cost estimate"""
     pricing = {
         "gpt-4o": {"input": 2.50, "cached_input": 1.25, "output": 10.00, "batch_discount": 0.5},
         "gpt-4o-mini": {"input": 0.15, "cached_input": 0.075, "output": 0.60, "batch_discount": 0.5},
@@ -877,17 +877,17 @@ def estimate_cost(
         "batch_savings": f"${total:.6f}" if use_batch else "N/A",
     }
 
-# 月間コスト見積もり
+# Monthly cost estimate
 daily_requests = 10000
 avg_input = 500
 avg_output = 200
 
 for model in ["gpt-4o", "gpt-4o-mini", "o3-mini"]:
     monthly = estimate_cost(model, avg_input * daily_requests * 30, avg_output * daily_requests * 30)
-    print(f"{model:15s}: {monthly['total']}/月")
+    print(f"{model:15s}: {monthly['total']}/month")
 ```
 
-### 7.2 レート制限対策
+### 7.2 Handling Rate Limits
 
 ```python
 import asyncio
@@ -895,7 +895,7 @@ from openai import AsyncOpenAI, RateLimitError
 import time
 
 class RateLimitedClient:
-    """レート制限を考慮した OpenAI クライアント"""
+    """OpenAI client with rate limit awareness"""
 
     def __init__(self, rpm_limit: int = 500, tpm_limit: int = 150000):
         self.client = AsyncOpenAI()
@@ -905,9 +905,9 @@ class RateLimitedClient:
         self.tpm_limit = tpm_limit
 
     async def create_completion(self, **kwargs):
-        """レート制限を自動管理するリクエスト"""
+        """Request with automatic rate limit management"""
         async with self.rpm_semaphore:
-            # RPM制限チェック
+            # Check RPM limit
             now = time.time()
             self.request_times = [t for t in self.request_times if now - t < 60]
 
@@ -917,18 +917,18 @@ class RateLimitedClient:
 
             self.request_times.append(time.time())
 
-            # 指数バックオフリトライ
+            # Exponential backoff retry
             for attempt in range(5):
                 try:
                     return await self.client.chat.completions.create(**kwargs)
                 except RateLimitError:
                     wait = 2 ** attempt
-                    print(f"レート制限、{wait}秒待機...")
+                    print(f"Rate limited, waiting {wait} seconds...")
                     await asyncio.sleep(wait)
 
-            raise Exception("リトライ上限超過")
+            raise Exception("Retry limit exceeded")
 
-# 大量リクエストの並列処理
+# Parallel processing for large request volumes
 async def process_batch(queries: list[str], model: str = "gpt-4o-mini"):
     rate_client = RateLimitedClient(rpm_limit=500)
 
@@ -946,111 +946,111 @@ async def process_batch(queries: list[str], model: str = "gpt-4o-mini"):
 
 ---
 
-## 8. GPT モデル選択ガイド
+## 8. GPT Model Selection Guide
 
-### 比較表 1: GPT モデルの詳細比較
+### Comparison Table 1: Detailed GPT Model Comparison
 
-| モデル | 入力料金 | 出力料金 | コンテキスト | 速度 | 最適用途 |
-|--------|---------|---------|-------------|------|----------|
-| GPT-4o | $2.50/1M | $10.00/1M | 128K | 速い | 汎用、マルチモーダル |
-| GPT-4o mini | $0.15/1M | $0.60/1M | 128K | 非常に速い | 軽量タスク、分類 |
-| o3-mini | $1.10/1M | $4.40/1M | 200K | 中程度 | 推論、数学、コード |
-| o1 | $15.00/1M | $60.00/1M | 200K | 遅い | 高度な推論 |
-| GPT-4 Turbo | $10.00/1M | $30.00/1M | 128K | 中程度 | レガシー |
+| Model | Input Price | Output Price | Context | Speed | Best Use Case |
+|-------|------------|-------------|---------|-------|---------------|
+| GPT-4o | $2.50/1M | $10.00/1M | 128K | Fast | General purpose, multimodal |
+| GPT-4o mini | $0.15/1M | $0.60/1M | 128K | Very fast | Lightweight tasks, classification |
+| o3-mini | $1.10/1M | $4.40/1M | 200K | Moderate | Reasoning, math, code |
+| o1 | $15.00/1M | $60.00/1M | 200K | Slow | Advanced reasoning |
+| GPT-4 Turbo | $10.00/1M | $30.00/1M | 128K | Moderate | Legacy |
 
-### 比較表 2: GPT-4o vs o3 の使い分け
+### Comparison Table 2: When to Use GPT-4o vs o3
 
-| 項目 | GPT-4o | o3 / o3-mini |
-|------|--------|-------------|
-| 応答速度 | 速い (1-3秒) | 遅い (10-60秒) |
-| 単純な質問応答 | 最適 | 過剰 (非推奨) |
-| 数学・論理パズル | 良好 | 優秀 |
-| コード生成 | 優秀 | 優秀 (特に複雑なもの) |
-| 創作・文章作成 | 優秀 | 不向き |
-| temperature 制御 | 可能 | 不可 |
-| ストリーミング | 可能 | 可能 |
-| コスト効率 | 高い | 低い (推論トークンが大きい) |
+| Criterion | GPT-4o | o3 / o3-mini |
+|-----------|--------|-------------|
+| Response speed | Fast (1-3 sec) | Slow (10-60 sec) |
+| Simple Q&A | Optimal | Overkill (not recommended) |
+| Math / logic puzzles | Good | Excellent |
+| Code generation | Excellent | Excellent (especially complex) |
+| Creative writing | Excellent | Not suitable |
+| temperature control | Supported | Not supported |
+| Streaming | Supported | Supported |
+| Cost efficiency | High | Low (large reasoning token overhead) |
 
-### 比較表 3: API機能の詳細マトリクス
+### Comparison Table 3: Detailed API Feature Matrix
 
-| 機能 | GPT-4o | GPT-4o mini | o3-mini | o1 |
-|------|--------|-------------|---------|-----|
+| Feature | GPT-4o | GPT-4o mini | o3-mini | o1 |
+|---------|--------|-------------|---------|-----|
 | Chat Completions | ✅ | ✅ | ✅ | ✅ |
 | Structured Outputs | ✅ | ✅ | ✅ | ✅ |
 | Function Calling | ✅ | ✅ | ✅ | ✅ |
-| Vision (画像入力) | ✅ | ✅ | ❌ | ✅ |
+| Vision (image input) | ✅ | ✅ | ❌ | ✅ |
 | Audio (Realtime) | ✅ | ❌ | ❌ | ❌ |
-| ストリーミング | ✅ | ✅ | ✅ | ✅ |
+| Streaming | ✅ | ✅ | ✅ | ✅ |
 | Batch API | ✅ | ✅ | ✅ | ✅ |
 | Fine-tuning | ✅ | ✅ | ❌ | ❌ |
-| temperature 制御 | ✅ | ✅ | ❌ | ❌ |
+| temperature control | ✅ | ✅ | ❌ | ❌ |
 | reasoning_effort | ❌ | ❌ | ✅ | ❌ |
 | JSON Mode | ✅ | ✅ | ✅ | ✅ |
 | Prompt Caching | ✅ | ✅ | ✅ | ✅ |
 
 ---
 
-## 9. トラブルシューティング
+## 9. Troubleshooting
 
-### 9.1 よくある問題と対処法
+### 9.1 Common Issues and Solutions
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│          GPT API トラブルシューティングガイド               │
+│          GPT API Troubleshooting Guide                   │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  問題: 429 Too Many Requests                             │
-│  原因: RPM/TPM のレート制限に到達                         │
-│  対策:                                                   │
-│    1. 指数バックオフリトライの実装                         │
-│    2. Batch API への切り替え                              │
-│    3. ティアの引き上げ申請                                │
-│    4. 複数 API キーでのラウンドロビン                      │
+│  Problem: 429 Too Many Requests                          │
+│  Cause: RPM/TPM rate limit reached                       │
+│  Solutions:                                              │
+│    1. Implement exponential backoff retry                │
+│    2. Switch to Batch API                                │
+│    3. Request a tier upgrade                             │
+│    4. Round-robin across multiple API keys               │
 │                                                          │
-│  問題: 出力が途中で切れる                                 │
-│  原因: max_tokens の設定不足                              │
-│  対策:                                                   │
-│    1. max_tokens を増やす                                 │
-│    2. finish_reason を確認 ("stop" vs "length")           │
-│    3. 長い出力が必要な場合は分割リクエスト                 │
+│  Problem: Output gets cut off midway                     │
+│  Cause: Insufficient max_tokens setting                  │
+│  Solutions:                                              │
+│    1. Increase max_tokens                                │
+│    2. Check finish_reason ("stop" vs "length")           │
+│    3. Split into multiple requests for long output       │
 │                                                          │
-│  問題: JSON 出力が不正                                   │
-│  原因: モデルがJSON形式を守らない                          │
-│  対策:                                                   │
-│    1. response_format={"type": "json_object"} を使用      │
-│    2. Structured Outputs (Pydantic) を使用                │
-│    3. temperature=0 で安定化                              │
+│  Problem: Invalid JSON output                            │
+│  Cause: Model not adhering to JSON format                │
+│  Solutions:                                              │
+│    1. Use response_format={"type": "json_object"}        │
+│    2. Use Structured Outputs (Pydantic)                  │
+│    3. Stabilize with temperature=0                       │
 │                                                          │
-│  問題: o3 の応答が遅い                                   │
-│  原因: 推論トークンの生成に時間がかかる                    │
-│  対策:                                                   │
-│    1. reasoning_effort="low" で速度優先                   │
-│    2. 簡単なタスクは GPT-4o に振り分け                    │
-│    3. ストリーミングで体感速度を改善                       │
+│  Problem: o3 responses are slow                          │
+│  Cause: Time needed to generate reasoning tokens         │
+│  Solutions:                                              │
+│    1. Prioritize speed with reasoning_effort="low"       │
+│    2. Route simple tasks to GPT-4o                       │
+│    3. Improve perceived speed with streaming             │
 │                                                          │
-│  問題: コストが予想以上に高い                              │
-│  原因: トークン消費の見積もりミス                          │
-│  対策:                                                   │
-│    1. Usage API でリアルタイム消費監視                     │
-│    2. 日次予算アラートの設定                               │
-│    3. GPT-4o mini への切り替え検討                        │
-│    4. Prompt Caching の活用                               │
-│    5. Batch API (50%割引) の活用                          │
+│  Problem: Costs are higher than expected                 │
+│  Cause: Underestimated token consumption                 │
+│  Solutions:                                              │
+│    1. Monitor real-time consumption via Usage API        │
+│    2. Set daily budget alerts                            │
+│    3. Consider switching to GPT-4o mini                  │
+│    4. Leverage Prompt Caching                            │
+│    5. Use Batch API (50% discount)                       │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 9.2 デバッグのベストプラクティス
+### 9.2 Debugging Best Practices
 
 ```python
 from openai import OpenAI
 import logging
 
-# ログ設定
+# Logging configuration
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("openai_debug")
 
 def debug_api_call(prompt: str, model: str = "gpt-4o") -> dict:
-    """デバッグ情報付きの API 呼び出し"""
+    """API call with debug information"""
     client = OpenAI()
 
     import time
@@ -1074,13 +1074,13 @@ def debug_api_call(prompt: str, model: str = "gpt-4o") -> dict:
         "response_preview": response.choices[0].message.content[:200],
     }
 
-    # 推論モデルの場合
+    # For reasoning models
     if hasattr(response.usage, 'completion_tokens_details') and response.usage.completion_tokens_details:
         details = response.usage.completion_tokens_details
         if hasattr(details, 'reasoning_tokens') and details.reasoning_tokens:
             debug_info["reasoning_tokens"] = details.reasoning_tokens
 
-    # キャッシュ情報
+    # Cache information
     if hasattr(response.usage, 'prompt_tokens_details') and response.usage.prompt_tokens_details:
         details = response.usage.prompt_tokens_details
         if hasattr(details, 'cached_tokens') and details.cached_tokens:
@@ -1092,33 +1092,33 @@ def debug_api_call(prompt: str, model: str = "gpt-4o") -> dict:
 
 ---
 
-## 10. 設計パターンとベストプラクティス
+## 10. Design Patterns and Best Practices
 
-### 10.1 モデルルーティングパターン
+### 10.1 Model Routing Pattern
 
 ```python
 class GPTModelRouter:
-    """タスクの複雑さに応じてモデルを自動選択"""
+    """Automatically selects a model based on task complexity"""
 
     def __init__(self):
         self.client = OpenAI()
 
     def route(self, task: str, complexity: str = "auto") -> str:
-        """タスクに最適なモデルを選択"""
+        """Select the optimal model for a task"""
         if complexity == "auto":
             complexity = self._estimate_complexity(task)
 
         routing_table = {
-            "simple": "gpt-4o-mini",      # 分類、抽出、簡単なQA
-            "moderate": "gpt-4o",          # 文章作成、コード生成、分析
-            "complex": "o3-mini",          # 数学、論理推論、複雑なコード
-            "expert": "o1",               # 研究レベルの推論
+            "simple": "gpt-4o-mini",      # Classification, extraction, simple Q&A
+            "moderate": "gpt-4o",          # Writing, code generation, analysis
+            "complex": "o3-mini",          # Math, logical reasoning, complex code
+            "expert": "o1",               # Research-level reasoning
         }
 
         return routing_table.get(complexity, "gpt-4o")
 
     def _estimate_complexity(self, task: str) -> str:
-        """タスクの複雑さを推定（軽量モデルで判定）"""
+        """Estimate task complexity (evaluated using a lightweight model)"""
         response = self.client.chat.completions.create(
             model="gpt-4o-mini",
             messages=[{
@@ -1133,7 +1133,7 @@ class GPTModelRouter:
         return response.choices[0].message.content.strip().lower()
 
     async def execute(self, task: str) -> str:
-        """ルーティング + 実行"""
+        """Routing + execution"""
         model = self.route(task)
 
         kwargs = {
@@ -1141,7 +1141,7 @@ class GPTModelRouter:
             "messages": [{"role": "user", "content": task}],
         }
 
-        # 推論モデルの場合は max_completion_tokens を使用
+        # Use max_completion_tokens for reasoning models
         if model.startswith("o"):
             kwargs["max_completion_tokens"] = 5000
         else:
@@ -1152,11 +1152,11 @@ class GPTModelRouter:
         return response.choices[0].message.content
 ```
 
-### 10.2 フォールバックチェーン
+### 10.2 Fallback Chain
 
 ```python
 async def call_with_fallback(messages: list, **kwargs) -> str:
-    """GPT モデルのフォールバックチェーン"""
+    """GPT model fallback chain"""
 
     fallback_chain = [
         {"model": "gpt-4o", "timeout": 30},
@@ -1180,100 +1180,100 @@ async def call_with_fallback(messages: list, **kwargs) -> str:
     raise Exception(f"全モデルが失敗: {'; '.join(errors)}")
 ```
 
-### チェックリスト: GPT API 本番導入前の確認事項
+### Checklist: Pre-Production GPT API Checklist
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│          GPT API 本番導入チェックリスト                    │
+│          GPT API Pre-Production Checklist                │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  □ API キーは環境変数/シークレットマネージャで管理         │
-│  □ リトライロジック（指数バックオフ + ジッター）を実装     │
-│  □ フォールバックチェーン（複数モデル）を設定             │
-│  □ レート制限対策（トークンバケット等）を実装             │
-│  □ タイムアウトを適切に設定                               │
-│  □ 入力バリデーション（最大長、危険文字列チェック）       │
-│  □ 出力検証（JSON パース、サニタイズ）                   │
-│  □ コスト上限（日次/月次予算）を設定                      │
-│  □ 使用量のモニタリングダッシュボードを構築               │
-│  □ Moderation API でコンテンツフィルタリングを実装        │
-│  □ エラーログの収集と可視化                               │
-│  □ ストリーミング（SSE）の実装とテスト                   │
-│  □ プロンプトのバージョン管理                             │
-│  □ A/B テスト基盤の準備                                  │
-│  □ 負荷テスト（想定最大RPMでの動作確認）                 │
+│  □ API keys managed via environment variables/secret manager │
+│  □ Retry logic (exponential backoff + jitter) implemented │
+│  □ Fallback chain (multiple models) configured           │
+│  □ Rate limit handling (token bucket, etc.) implemented  │
+│  □ Timeouts configured appropriately                     │
+│  □ Input validation (max length, dangerous string check) │
+│  □ Output validation (JSON parsing, sanitization)        │
+│  □ Cost caps (daily/monthly budget) configured           │
+│  □ Usage monitoring dashboard built                      │
+│  □ Content filtering via Moderation API implemented      │
+│  □ Error log collection and visualization                │
+│  □ Streaming (SSE) implemented and tested                │
+│  □ Prompt version management in place                    │
+│  □ A/B testing infrastructure prepared                   │
+│  □ Load testing (operation at max expected RPM) done     │
 │                                                          │
 └──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### アンチパターン 1: 推論モデルの不適切な使用
-
-```
-誤: 全てのタスクに o1/o3 を使用
-  → 簡単な質問に対して不必要な推論コスト
-
-正: タスクの複雑さで使い分け
-  - 簡単な分類・抽出 → GPT-4o mini
-  - 一般的なタスク → GPT-4o
-  - 複雑な推論・数学 → o3-mini (reasoning_effort="medium")
-  - 最高精度の推論 → o1 (reasoning_effort="high")
-```
-
-### アンチパターン 2: Assistants API の過度な使用
+### Anti-pattern 1: Inappropriate Use of Reasoning Models
 
 ```
-誤: 単発の質問応答に Assistants API を使用
-  → Thread 管理のオーバーヘッド、コスト増
+Wrong: Using o1/o3 for all tasks
+  → Unnecessary reasoning cost for simple questions
 
-正: 用途に応じて API を選択
-  - 単発の質問 → Chat Completions API
-  - ファイル分析・コード実行 → Assistants API
-  - 大量バッチ処理 → Batch API
+Right: Select model based on task complexity
+  - Simple classification/extraction → GPT-4o mini
+  - General tasks → GPT-4o
+  - Complex reasoning/math → o3-mini (reasoning_effort="medium")
+  - Highest-accuracy reasoning → o1 (reasoning_effort="high")
 ```
 
-### アンチパターン 3: プロンプトキャッシュの未活用
+### Anti-pattern 2: Overuse of the Assistants API
 
 ```
-誤: 同じシステムプロンプトを毎回フル送信
-  → 大量のトークン消費、コスト増
+Wrong: Using Assistants API for one-off Q&A
+  → Thread management overhead, increased cost
 
-正: キャッシュを意識したプロンプト設計
-  - システムプロンプトを先頭に配置（変更しない部分）
-  - 1024トークン以上の共通プレフィックスを維持
-  - ユーザー入力は末尾に配置
-  → キャッシュヒットで入力コスト50%削減
+Right: Choose API based on use case
+  - One-off questions → Chat Completions API
+  - File analysis / code execution → Assistants API
+  - Large-scale batch processing → Batch API
 ```
 
-### アンチパターン 4: Fine-tuning の早すぎる着手
+### Anti-pattern 3: Not Leveraging Prompt Caching
 
 ```
-誤: 最初からFine-tuningでタスクを解決しようとする
-  → 高コスト、データ準備の工数、モデル管理の複雑化
+Wrong: Sending the same system prompt in full every time
+  → High token consumption, increased cost
 
-正: 段階的アプローチ
-  1. まずプロンプトエンジニアリングで解決を試みる
-  2. Few-shot 例を追加する
-  3. Structured Outputs で出力を制御する
-  4. それでも品質不足の場合のみ Fine-tuning を検討
+Right: Design prompts with caching in mind
+  - Place system prompt at the top (the unchanging part)
+  - Maintain a common prefix of 1024+ tokens
+  - Place user input at the end
+  → Cache hits reduce input cost by 50%
+```
+
+### Anti-pattern 4: Starting Fine-tuning Too Early
+
+```
+Wrong: Trying to solve tasks with fine-tuning from the start
+  → High cost, data preparation effort, increased model management complexity
+
+Right: Staged approach
+  1. First try to solve with prompt engineering
+  2. Add few-shot examples
+  3. Control output with Structured Outputs
+  4. Consider fine-tuning only if quality is still insufficient
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Perform input data validation
+- Implement proper error handling
+- Also create test code
 
 ```python
 # 演習1: 基本実装のテンプレート
@@ -1320,9 +1320,9 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
 # 演習2: 応用パターン
@@ -1389,9 +1389,9 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
 # 演習3: パフォーマンス最適化
@@ -1440,66 +1440,66 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm time complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 ---
 
 ## FAQ
 
-### Q1: GPT-4o と GPT-4 Turbo の違いは？
+### Q1: What is the difference between GPT-4o and GPT-4 Turbo?
 
-**A:** GPT-4o は GPT-4 Turbo の後継で、より高速・低コスト・マルチモーダル統合が進んでいます。特にテキスト、画像、音声を統一的に扱える点が特徴です。新規プロジェクトでは GPT-4o の使用が推奨されます。
+**A:** GPT-4o is the successor to GPT-4 Turbo, offering greater speed, lower cost, and more integrated multimodal capabilities. Its ability to handle text, images, and audio in a unified way is a key differentiator. GPT-4o is recommended for new projects.
 
-### Q2: o1 と o3 の違いは？
+### Q2: What is the difference between o1 and o3?
 
-**A:** o3 は o1 の改良版で、推論能力が向上しています。o3-mini は `reasoning_effort` パラメータで推論の深さを制御でき、コスト効率が良くなっています。o1 は非推奨になりつつあり、o3-mini への移行が推奨されます。
+**A:** o3 is an improved version of o1 with enhanced reasoning capabilities. o3-mini allows control over reasoning depth via the `reasoning_effort` parameter, making it more cost-efficient. o1 is gradually being deprecated, and migration to o3-mini is recommended.
 
-### Q3: OpenAI API の利用制限を上げるには？
+### Q3: How can I increase my OpenAI API usage limits?
 
-**A:** 利用実績に応じて自動的にティアが上がります。Tier 1（$5 支払い）から始まり、Tier 5（$200+ 支払い）まであります。急ぎの場合は OpenAI のセールスチームに連絡して上限引き上げを依頼できます。
+**A:** Tiers are raised automatically based on usage history. It starts at Tier 1 ($5 spent) and goes up to Tier 5 ($200+ spent). If you need a faster increase, you can contact the OpenAI sales team to request a limit increase.
 
-### Q4: GPT-4o mini と GPT-4o の品質差はどの程度ですか？
+### Q4: How large is the quality difference between GPT-4o mini and GPT-4o?
 
-**A:** ベンチマーク上、GPT-4o mini は GPT-4o の約 90-95% の性能を発揮します。分類、要約、簡単なQAではほぼ同等ですが、複雑な推論、長文の論理構成、微妙なニュアンスの理解では差が出ます。コスト差が約17倍あるため、まず mini で試して品質不足の場合に 4o に切り替えるアプローチが推奨されます。
+**A:** In benchmarks, GPT-4o mini delivers approximately 90-95% of GPT-4o's performance. For classification, summarization, and simple Q&A the gap is minimal, but differences emerge with complex reasoning, long-form logical structure, and understanding subtle nuances. Given a roughly 17x cost difference, the recommended approach is to start with mini and upgrade to 4o if quality is insufficient.
 
-### Q5: Structured Outputs と JSON Mode の違いは？
+### Q5: What is the difference between Structured Outputs and JSON Mode?
 
-**A:** JSON Mode (`response_format={"type": "json_object"}`) はJSONであることを保証しますが、スキーマの遵守は保証しません。Structured Outputs (`response_format=TechArticle` のようにPydanticモデルを指定) はスキーマに100%準拠したJSONを生成します。信頼性の高いデータ抽出にはStructured Outputsが推奨されます。
+**A:** JSON Mode (`response_format={"type": "json_object"}`) guarantees the output is JSON, but does not guarantee schema compliance. Structured Outputs (specifying a Pydantic model like `response_format=TechArticle`) generates JSON that is 100% compliant with the schema. Structured Outputs are recommended for reliable data extraction.
 
-### Q6: Batch API はいつ使うべきですか？
+### Q6: When should I use the Batch API?
 
-**A:** リアルタイム応答が不要な大量処理に最適です。例えば、数千件のメール分類、大量ドキュメントの要約生成、データセットのラベリングなどです。コストが通常の50%割引になり、24時間以内に結果が返されます。日次のバッチ処理が発生するワークフローでは積極的に活用すべきです。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| GPT-4o | 高速・低コスト・マルチモーダルの汎用モデル |
-| GPT-4o mini | 超低コストの軽量モデル、分類・抽出に最適 |
-| o1/o3 | 内蔵 CoT による深い推論、数学・コードに強い |
-| Structured Outputs | Pydantic スキーマで確実に構造化 JSON を取得 |
-| Assistants API | ファイル分析、コード実行、永続スレッド |
-| Batch API | 大量処理を 50% 割引で非同期実行 |
-| Realtime API | WebSocket 経由の低レイテンシ音声対話 |
-| Prompt Caching | 同一プレフィックスで入力コスト 50% 削減 |
-| Fine-tuning | GPT-4o mini で効率的にドメイン特化 |
-| Moderation | コンテンツの安全性を自動チェック |
+**A:** It is ideal for large-scale processing where real-time responses are not required. Examples include classifying thousands of emails, generating summaries for large numbers of documents, and labeling datasets. Costs are discounted 50% compared to standard pricing and results are returned within 24 hours. It should be actively used for workflows with daily batch processing needs.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [02-gemini.md](./02-gemini.md) — Google Gemini の特徴
-- [04-model-comparison.md](./04-model-comparison.md) — 全モデルの横断比較
-- [../02-applications/02-function-calling.md](../02-applications/02-function-calling.md) — Function Calling の詳細
+| Item | Key Points |
+|------|------------|
+| GPT-4o | Fast, low-cost, multimodal general-purpose model |
+| GPT-4o mini | Ultra-low-cost lightweight model, ideal for classification and extraction |
+| o1/o3 | Deep reasoning via built-in CoT, strong at math and code |
+| Structured Outputs | Reliably obtain structured JSON using a Pydantic schema |
+| Assistants API | File analysis, code execution, persistent threads |
+| Batch API | Asynchronous bulk processing at 50% discount |
+| Realtime API | Low-latency voice interaction via WebSocket |
+| Prompt Caching | Reduce input cost by 50% with identical prefixes |
+| Fine-tuning | Efficient domain specialization with GPT-4o mini |
+| Moderation | Automatic safety check for content |
 
 ---
 
-## 参考文献
+## Recommended Next Guides
+
+- [02-gemini.md](./02-gemini.md) — Features of Google Gemini
+- [04-model-comparison.md](./04-model-comparison.md) — Cross-model comparison
+- [../02-applications/02-function-calling.md](../02-applications/02-function-calling.md) — Function Calling in depth
+
+---
+
+## References
 
 1. OpenAI. (2024). "GPT-4o System Card." https://openai.com/index/gpt-4o-system-card/
 2. OpenAI. (2024). "Learning to Reason with LLMs (o1)." https://openai.com/index/learning-to-reason-with-llms/
