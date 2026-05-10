@@ -1,179 +1,190 @@
-# データモデリング — スター / スノーフレーク・次元モデル
+# Data Modeling — Star / Snowflake / Dimensional Models
 
-> データモデリングはビジネス要件をデータ構造に変換する技法であり、OLTP向けの正規化モデルとOLAP向けの次元モデル（スター/スノーフレーク）を使い分けることで、トランザクション処理と分析の両方に最適な設計を実現する。
+> Data modeling is the practice of translating business requirements into data structures. By choosing between normalized models for OLTP and dimensional models (star/snowflake) for OLAP, you can achieve an optimal design for both transactional processing and analytical workloads.
 
-## 前提知識
+## Prerequisites
 
-- SQL の基本（SELECT, JOIN, GROUP BY, 集約関数）
-- 正規化の基本概念（[00-normalization.md](./00-normalization.md)）
-- スキーマ設計の基礎（[01-schema-design.md](./01-schema-design.md)）
+- SQL basics (SELECT, JOIN, GROUP BY, aggregate functions)
+- Fundamentals of normalization ([00-normalization.md](./00-normalization.md))
+- Schema design basics ([01-schema-design.md](./01-schema-design.md))
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. OLTPモデルとOLAPモデルの本質的な違いと内部アーキテクチャ
-2. スタースキーマとスノーフレークスキーマの構造と使い分け
-3. ファクトテーブルとディメンションテーブルの設計パターン
-4. SCD（Slowly Changing Dimensions）の全タイプと実装
-5. Kimball方式 vs Inmon方式のデータウェアハウス設計
-6. Data Vault 2.0 モデリング
-7. ETL/ELTパイプラインの設計と実装
-8. マテリアライズドビューの高度な活用
+1. The essential differences between OLTP and OLAP models and their internal architectures
+2. The structure and use cases of star schema and snowflake schema
+3. Design patterns for fact tables and dimension tables
+4. All SCD (Slowly Changing Dimensions) types and their implementations
+5. Kimball vs. Inmon data warehouse design approaches
+6. Data Vault 2.0 modeling
+7. ETL/ELT pipeline design and implementation
+8. Advanced use of materialized views
 
 ---
 
-## 1. OLTP vs OLAP — 内部アーキテクチャの違い
+## 1. OLTP vs OLAP — Internal Architecture Differences
 
-### 1.1 概念的な違い
+### 1.1 Conceptual Differences
 
 ```
 ┌────────────── OLTP vs OLAP ──────────────────┐
 │                                               │
 │  OLTP (Online Transaction Processing)         │
 │  ┌─────────────────────────────────────────┐ │
-│  │ 目的: 業務処理（注文、更新、削除）       │ │
-│  │ 特徴: 少数行の読み書き、高頻度           │ │
-│  │ 設計: 正規化（3NF）                      │ │
-│  │ 例:   ECサイトの注文処理                 │ │
+│  │ Purpose: Business operations (orders,   │ │
+│  │          updates, deletes)              │ │
+│  │ Traits:  Reads/writes few rows, high    │ │
+│  │          frequency                      │ │
+│  │ Design:  Normalized (3NF)               │ │
+│  │ Example: E-commerce order processing   │ │
 │  └─────────────────────────────────────────┘ │
 │                     │                         │
 │                ETL / ELT                      │
 │                     │                         │
 │  OLAP (Online Analytical Processing)          │
 │  ┌─────────────────────────────────────────┐ │
-│  │ 目的: 分析・レポーティング               │ │
-│  │ 特徴: 大量行の読み取り、集約             │ │
-│  │ 設計: 非正規化（スタースキーマ）          │ │
-│  │ 例:   月次売上レポート、KPIダッシュボード │ │
+│  │ Purpose: Analytics & reporting          │ │
+│  │ Traits:  Reads large volumes, aggregate │ │
+│  │ Design:  Denormalized (star schema)     │ │
+│  │ Example: Monthly sales reports,        │ │
+│  │          KPI dashboards                │ │
 │  └─────────────────────────────────────────┘ │
 └───────────────────────────────────────────────┘
 ```
 
-### 1.2 ストレージエンジンの違い
+### 1.2 Storage Engine Differences
 
-OLTPとOLAPの性能差は、ストレージエンジンのアーキテクチャに起因する。
+The performance gap between OLTP and OLAP stems from differences in storage engine architecture.
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
 │               Row-Oriented vs Column-Oriented                 │
 │                                                               │
-│  Row Store (OLTP向け: PostgreSQL, MySQL)                      │
+│  Row Store (for OLTP: PostgreSQL, MySQL)                      │
 │  ┌─────────────────────────────────────────────┐             │
-│  │  行1: [id=1, name="田中", age=30, city="東京"] │          │
-│  │  行2: [id=2, name="鈴木", age=25, city="大阪"] │          │
-│  │  行3: [id=3, name="佐藤", age=35, city="福岡"] │          │
+│  │  Row 1: [id=1, name="Tanaka", age=30,        │            │
+│  │          city="Tokyo"]                       │            │
+│  │  Row 2: [id=2, name="Suzuki", age=25,        │            │
+│  │          city="Osaka"]                       │            │
+│  │  Row 3: [id=3, name="Sato", age=35,          │            │
+│  │          city="Fukuoka"]                     │            │
 │  │                                               │           │
-│  │  → 1行の全カラムが連続して格納                 │           │
-│  │  → INSERT/UPDATE/DELETE が高速                  │           │
-│  │  → SELECT * WHERE id = 1 が高速               │           │
+│  │  → All columns of one row stored contiguously │           │
+│  │  → INSERT/UPDATE/DELETE are fast              │           │
+│  │  → SELECT * WHERE id = 1 is fast             │           │
 │  └─────────────────────────────────────────────┘             │
 │                                                               │
-│  Column Store (OLAP向け: ClickHouse, Redshift, BigQuery)      │
+│  Column Store (for OLAP: ClickHouse, Redshift, BigQuery)      │
 │  ┌─────────────────────────────────────────────┐             │
-│  │  id列:   [1, 2, 3, ...]                      │            │
-│  │  name列: ["田中", "鈴木", "佐藤", ...]        │            │
-│  │  age列:  [30, 25, 35, ...]                   │            │
-│  │  city列: ["東京", "大阪", "福岡", ...]        │            │
+│  │  id col:   [1, 2, 3, ...]                    │            │
+│  │  name col: ["Tanaka", "Suzuki", "Sato", ...] │            │
+│  │  age col:  [30, 25, 35, ...]                 │            │
+│  │  city col: ["Tokyo", "Osaka", "Fukuoka", ...] │           │
 │  │                                               │           │
-│  │  → 同一カラムが連続して格納                    │           │
-│  │  → SUM(age), AVG(age) 等の集約が高速          │           │
-│  │  → 圧縮効率が高い（同型データが連続）          │           │
+│  │  → Values of the same column stored           │           │
+│  │    contiguously                               │           │
+│  │  → SUM(age), AVG(age) and other aggregates   │           │
+│  │    are fast                                   │           │
+│  │  → High compression efficiency (same-type    │           │
+│  │    data stored consecutively)                │           │
 │  └─────────────────────────────────────────────┘             │
 └───────────────────────────────────────────────────────────────┘
 ```
 
-### 1.3 詳細比較表
+### 1.3 Detailed Comparison Table
 
-| 特性 | OLTP | OLAP |
-|------|------|------|
-| **主な操作** | INSERT/UPDATE/DELETE | SELECT（集約） |
-| **対象行数** | 数行〜数十行 | 数万〜数億行 |
-| **同時ユーザー** | 数千〜数万 | 数人〜数十人 |
-| **レスポンス要件** | ミリ秒 | 秒〜分 |
-| **正規化レベル** | 3NF/BCNF | 非正規化（スター） |
-| **インデックス** | B-Tree（ポイントクエリ） | ビットマップ、Zone Map |
-| **ストレージ** | Row Store | Column Store |
-| **圧縮** | 低（行単位では非効率） | 高（同型データ連続） |
-| **結合パターン** | 多テーブルJOIN | スター型JOIN |
-| **トランザクション** | ACID 必須 | 結果整合性で十分 |
-| **代表製品** | PostgreSQL, MySQL | BigQuery, Redshift, Snowflake |
+| Characteristic | OLTP | OLAP |
+|----------------|------|------|
+| **Primary operations** | INSERT/UPDATE/DELETE | SELECT (aggregation) |
+| **Rows accessed** | A few to tens of rows | Tens of thousands to billions |
+| **Concurrent users** | Thousands to tens of thousands | A few to tens |
+| **Response requirements** | Milliseconds | Seconds to minutes |
+| **Normalization level** | 3NF/BCNF | Denormalized (star) |
+| **Indexes** | B-Tree (point queries) | Bitmap, Zone Map |
+| **Storage** | Row Store | Column Store |
+| **Compression** | Low (row-level is inefficient) | High (same-type data consecutive) |
+| **Join patterns** | Multi-table JOINs | Star-type JOINs |
+| **Transactions** | ACID required | Eventual consistency sufficient |
+| **Representative products** | PostgreSQL, MySQL | BigQuery, Redshift, Snowflake |
 
 ---
 
-## 2. スタースキーマ
+## 2. Star Schema
 
-### 2.1 設計原理 — Kimball 方式
+### 2.1 Design Principles — Kimball Approach
 
-Ralph Kimball が提唱した次元モデリングは、以下の4ステップで設計する。
+Dimensional modeling as advocated by Ralph Kimball follows a 4-step design process.
 
 ```
-┌───────── Kimball 次元モデリング 4ステップ ──────────┐
-│                                                      │
-│  Step 1: ビジネスプロセスの選択                       │
-│  │  「何の分析をしたいか？」                         │
-│  │  例: 売上分析、在庫分析、顧客行動分析             │
-│  ▼                                                   │
-│  Step 2: 粒度（Grain）の決定                         │
-│  │  「ファクト1行は何を表すか？」                    │
-│  │  例: 1商品・1トランザクション・1日                │
-│  ▼                                                   │
-│  Step 3: ディメンションの特定                        │
-│  │  「どの切り口で分析するか？」                     │
-│  │  例: 日付、商品、顧客、店舗                       │
-│  ▼                                                   │
-│  Step 4: ファクト（メジャー）の特定                   │
-│     「何を計測するか？」                             │
-│     例: 数量、金額、利益                             │
-└──────────────────────────────────────────────────────┘
+┌───────── Kimball Dimensional Modeling 4 Steps ──────────┐
+│                                                          │
+│  Step 1: Select the Business Process                     │
+│  │  "What do we want to analyze?"                       │
+│  │  Examples: Sales, inventory, customer behavior       │
+│  ▼                                                       │
+│  Step 2: Declare the Grain                               │
+│  │  "What does one row of the fact table represent?"    │
+│  │  Examples: 1 product / 1 transaction / 1 day        │
+│  ▼                                                       │
+│  Step 3: Identify the Dimensions                         │
+│  │  "By which dimensions will we slice the data?"       │
+│  │  Examples: Date, product, customer, store            │
+│  ▼                                                       │
+│  Step 4: Identify the Facts (Measures)                   │
+│     "What will we measure?"                             │
+│     Examples: Quantity, amount, profit                  │
+└──────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 ファクトテーブルの3類型
+### 2.2 Three Types of Fact Tables
 
-ファクトテーブルは、記録する内容に応じて3つの類型に分類される。
+Fact tables are classified into three types based on what they record.
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│               ファクトテーブル 3類型                       │
+│               Three Types of Fact Tables                 │
 │                                                          │
-│  1. トランザクションファクト                              │
+│  1. Transaction Fact                                     │
 │     ┌────────────────────────────────────────┐          │
-│     │ 1行 = 1イベント（購入、クリック等）     │          │
-│     │ 粒度: 最も細かい                       │          │
-│     │ 例: fact_sales（1購入 = 1行）          │          │
-│     │ 特徴: 行数が最も多い、追記のみ          │          │
+│     │ 1 row = 1 event (purchase, click, etc.)│          │
+│     │ Grain: Finest level                    │          │
+│     │ Example: fact_sales (1 purchase = 1 row)│         │
+│     │ Traits: Highest row count, append-only │          │
 │     └────────────────────────────────────────┘          │
 │                                                          │
-│  2. 定期スナップショットファクト                          │
+│  2. Periodic Snapshot Fact                               │
 │     ┌────────────────────────────────────────┐          │
-│     │ 1行 = 一定期間の状態                    │          │
-│     │ 粒度: 日次/週次/月次                    │          │
-│     │ 例: fact_daily_balance（日次残高）       │          │
-│     │ 特徴: 期間ごとに固定行数                │          │
+│     │ 1 row = state over a fixed period       │          │
+│     │ Grain: Daily/weekly/monthly             │          │
+│     │ Example: fact_daily_balance             │          │
+│     │ Traits: Fixed row count per period      │          │
 │     └────────────────────────────────────────┘          │
 │                                                          │
-│  3. 累積スナップショットファクト                          │
+│  3. Accumulating Snapshot Fact                           │
 │     ┌────────────────────────────────────────┐          │
-│     │ 1行 = ライフサイクル全体                │          │
-│     │ 粒度: プロセス単位                      │          │
-│     │ 例: fact_order_lifecycle（注文→出荷→配達）│         │
-│     │ 特徴: 行が更新される（マイルストーン追加）│         │
+│     │ 1 row = entire lifecycle                │          │
+│     │ Grain: Per process                      │          │
+│     │ Example: fact_order_lifecycle           │          │
+│     │         (order → shipment → delivery)  │          │
+│     │ Traits: Rows are updated (milestones    │          │
+│     │         added)                          │          │
 │     └────────────────────────────────────────┘          │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### コード例1: スタースキーマの実装（3類型すべて）
+### Code Example 1: Star Schema Implementation (All Three Types)
 
 ```sql
 -- ==============================================
--- トランザクションファクト
+-- Transaction Fact
 -- ==============================================
 CREATE TABLE fact_sales (
     sale_id         BIGSERIAL PRIMARY KEY,
-    -- ディメンションキー（外部キー）
+    -- Dimension keys (foreign keys)
     date_key        INTEGER NOT NULL REFERENCES dim_date(date_key),
     product_key     INTEGER NOT NULL REFERENCES dim_product(product_key),
     customer_key    INTEGER NOT NULL REFERENCES dim_customer(customer_key),
     store_key       INTEGER NOT NULL REFERENCES dim_store(store_key),
-    -- メジャー（計測値）
+    -- Measures
     quantity        INTEGER NOT NULL,
     unit_price      DECIMAL(10, 2) NOT NULL,
     discount_amount DECIMAL(10, 2) DEFAULT 0,
@@ -183,7 +194,7 @@ CREATE TABLE fact_sales (
                     (total_amount - cost_amount) STORED
 );
 
--- パーティショニング（大量データ対応）
+-- Partitioning (for large data volumes)
 CREATE TABLE fact_sales_partitioned (
     sale_id         BIGSERIAL,
     date_key        INTEGER NOT NULL,
@@ -200,20 +211,20 @@ CREATE TABLE fact_sales_partitioned (
     PRIMARY KEY (sale_id, date_key)
 ) PARTITION BY RANGE (date_key);
 
--- 月別パーティション
+-- Monthly partitions
 CREATE TABLE fact_sales_202401 PARTITION OF fact_sales_partitioned
     FOR VALUES FROM (20240101) TO (20240201);
 CREATE TABLE fact_sales_202402 PARTITION OF fact_sales_partitioned
     FOR VALUES FROM (20240201) TO (20240301);
 
 -- ==============================================
--- 定期スナップショットファクト
+-- Periodic Snapshot Fact
 -- ==============================================
 CREATE TABLE fact_daily_inventory (
     date_key        INTEGER NOT NULL REFERENCES dim_date(date_key),
     product_key     INTEGER NOT NULL REFERENCES dim_product(product_key),
     store_key       INTEGER NOT NULL REFERENCES dim_store(store_key),
-    -- スナップショットメジャー
+    -- Snapshot measures
     quantity_on_hand  INTEGER NOT NULL,
     quantity_on_order INTEGER NOT NULL DEFAULT 0,
     reorder_point     INTEGER,
@@ -222,30 +233,30 @@ CREATE TABLE fact_daily_inventory (
 );
 
 -- ==============================================
--- 累積スナップショットファクト
+-- Accumulating Snapshot Fact
 -- ==============================================
 CREATE TABLE fact_order_lifecycle (
     order_key         BIGSERIAL PRIMARY KEY,
     order_id          VARCHAR(20) NOT NULL UNIQUE,
     customer_key      INTEGER NOT NULL REFERENCES dim_customer(customer_key),
-    -- マイルストーン日付キー
+    -- Milestone date keys
     order_date_key    INTEGER REFERENCES dim_date(date_key),
     ship_date_key     INTEGER REFERENCES dim_date(date_key),
     delivery_date_key INTEGER REFERENCES dim_date(date_key),
     return_date_key   INTEGER REFERENCES dim_date(date_key),
-    -- 期間メジャー
+    -- Duration measures
     days_to_ship      INTEGER,
     days_to_deliver   INTEGER,
-    -- 金額メジャー
+    -- Amount measures
     order_amount      DECIMAL(12, 2) NOT NULL,
     shipping_cost     DECIMAL(10, 2),
-    -- ステータス
+    -- Status
     current_status    VARCHAR(20) NOT NULL DEFAULT 'ordered'
 );
 
--- ディメンションテーブル（外周）: 分析の切り口
+-- Dimension tables (surrounding): analytical perspectives
 CREATE TABLE dim_date (
-    date_key      INTEGER PRIMARY KEY,  -- YYYYMMDD形式
+    date_key      INTEGER PRIMARY KEY,  -- YYYYMMDD format
     full_date     DATE NOT NULL,
     year          SMALLINT NOT NULL,
     quarter       SMALLINT NOT NULL,
@@ -258,7 +269,7 @@ CREATE TABLE dim_date (
     is_holiday    BOOLEAN DEFAULT FALSE,
     fiscal_year   SMALLINT,
     fiscal_quarter SMALLINT,
-    -- 分析用の追加属性
+    -- Additional attributes for analysis
     year_month    VARCHAR(7) NOT NULL,    -- '2024-01'
     year_quarter  VARCHAR(7) NOT NULL,    -- '2024-Q1'
     day_of_year   SMALLINT NOT NULL,
@@ -269,14 +280,14 @@ CREATE TABLE dim_date (
 
 CREATE TABLE dim_product (
     product_key     SERIAL PRIMARY KEY,
-    product_id      VARCHAR(20) NOT NULL,  -- ビジネスキー
+    product_id      VARCHAR(20) NOT NULL,  -- Business key
     product_name    VARCHAR(200) NOT NULL,
     category        VARCHAR(100),
     subcategory     VARCHAR(100),
     brand           VARCHAR(100),
     supplier        VARCHAR(200),
     unit_cost       DECIMAL(10, 2),
-    -- SCD Type 2 用
+    -- For SCD Type 2
     effective_from  DATE NOT NULL,
     effective_to    DATE DEFAULT '9999-12-31',
     is_current      BOOLEAN DEFAULT TRUE
@@ -306,39 +317,40 @@ CREATE TABLE dim_store (
 );
 ```
 
-### 2.3 スタースキーマの構造
+### 2.3 Star Schema Structure
 
 ```
-┌──────────────── スタースキーマ ─────────────────┐
-│                                                  │
-│          dim_date                                 │
-│         ┌───────┐                                │
-│         │ 日付  │                                │
-│         │ 年/月 │                                │
-│         │ 曜日  │                                │
-│         └───┬───┘                                │
-│             │                                    │
-│  dim_product│        dim_customer                 │
-│  ┌───────┐  │  ┌────────────┐  ┌───────┐        │
-│  │ 商品  │──┼──│ fact_sales │──│ 顧客  │        │
-│  │ カテゴリ│  │  │ (ファクト)  │  │ 地域  │        │
-│  │ ブランド│  │  │  数量      │  │ セグメント│     │
-│  └───────┘  │  │  金額      │  └───────┘        │
-│             │  │  利益      │                    │
-│         ┌───┴──│            │                    │
-│         │      └────────────┘                    │
-│  dim_store                                       │
-│  ┌───────┐                                       │
-│  │ 店舗  │  ★ 中心にファクト、周囲にディメンション │
-│  │ 地域  │  → 星型（スター）に見える             │
-│  └───────┘                                       │
-└──────────────────────────────────────────────────┘
+┌──────────────── Star Schema ─────────────────┐
+│                                               │
+│          dim_date                             │
+│         ┌───────┐                             │
+│         │ Date  │                             │
+│         │ Year/ │                             │
+│         │ Month │                             │
+│         │ Weekday│                            │
+│         └───┬───┘                             │
+│             │                                 │
+│  dim_product│        dim_customer             │
+│  ┌───────┐  │  ┌────────────┐  ┌───────┐     │
+│  │Product│──┼──│ fact_sales │──│Customer│    │
+│  │Category│  │  │  (fact)    │  │ Region │    │
+│  │Brand  │  │  │  Quantity  │  │ Segment│    │
+│  └───────┘  │  │  Amount    │  └───────┘     │
+│             │  │  Profit    │                 │
+│         ┌───┴──│            │                 │
+│         │      └────────────┘                 │
+│  dim_store                                    │
+│  ┌───────┐                                    │
+│  │ Store │  ★ Fact in center, dimensions      │
+│  │ Region│    surrounding it                  │
+│  └───────┘  → Resembles a star shape          │
+└───────────────────────────────────────────────┘
 ```
 
-### 2.4 日付ディメンションの自動生成
+### 2.4 Auto-generating the Date Dimension
 
 ```sql
--- 日付ディメンションを20年分自動生成
+-- Auto-generate 20 years of date dimension data
 INSERT INTO dim_date
 SELECT
     TO_CHAR(d, 'YYYYMMDD')::INTEGER AS date_key,
@@ -351,8 +363,8 @@ SELECT
     EXTRACT(DOW FROM d)::SMALLINT AS day_of_week,
     TO_CHAR(d, 'Day') AS day_name,
     EXTRACT(DOW FROM d) IN (0, 6) AS is_weekend,
-    FALSE AS is_holiday,  -- 後で祝日マスタから更新
-    -- 会計年度（4月始まり）
+    FALSE AS is_holiday,  -- Update later from holiday master
+    -- Fiscal year (starting in April)
     CASE WHEN EXTRACT(MONTH FROM d) >= 4
          THEN EXTRACT(YEAR FROM d)::SMALLINT
          ELSE (EXTRACT(YEAR FROM d) - 1)::SMALLINT
@@ -369,7 +381,7 @@ SELECT
     d = (DATE_TRUNC('quarter', d) + INTERVAL '3 months - 1 day')::DATE AS is_quarter_end
 FROM generate_series('2015-01-01'::DATE, '2034-12-31'::DATE, '1 day') AS d;
 
--- 日本の祝日を反映（例）
+-- Apply public holidays (example)
 UPDATE dim_date SET is_holiday = TRUE
 WHERE full_date IN ('2024-01-01', '2024-01-08', '2024-02-11', '2024-02-12',
                     '2024-02-23', '2024-03-20', '2024-04-29', '2024-05-03',
@@ -381,44 +393,45 @@ WHERE full_date IN ('2024-01-01', '2024-01-08', '2024-02-11', '2024-02-12',
 
 ---
 
-## 3. スノーフレークスキーマ
+## 3. Snowflake Schema
 
-### 3.1 構造と設計原理
+### 3.1 Structure and Design Principles
 
-スノーフレークスキーマは、ディメンションテーブルをさらに正規化した形式である。
+The snowflake schema is a form where dimension tables are further normalized.
 
 ```
-┌──────── スノーフレークスキーマ ────────┐
-│                                        │
-│  dim_category                          │
-│  ┌──────────┐                          │
-│  │ カテゴリ  │                          │
-│  └────┬─────┘                          │
-│       │                                │
-│  dim_subcategory                       │
-│  ┌──────────┐    dim_date              │
-│  │ サブカテゴリ│  ┌──────┐              │
-│  └────┬─────┘  │ 日付  │              │
-│       │        └──┬───┘              │
-│  dim_product      │                    │
-│  ┌──────────┐     │   dim_customer     │
-│  │ 商品     │─────┼───│ 顧客     │    │
-│  └──────────┘     │   └────┬─────┘    │
-│              fact_sales    │           │
-│              ┌────────┐   dim_region   │
-│              │ファクト │   ┌──────┐    │
-│              └────────┘   │ 地域  │    │
-│                            └──────┘    │
-│                                        │
-│  ★ ディメンションが多段階に正規化      │
-│  → 雪の結晶（スノーフレーク）に見える  │
-└────────────────────────────────────────┘
+┌──────── Snowflake Schema ────────┐
+│                                  │
+│  dim_category                    │
+│  ┌──────────┐                    │
+│  │ Category │                    │
+│  └────┬─────┘                    │
+│       │                          │
+│  dim_subcategory                 │
+│  ┌──────────┐    dim_date        │
+│  │Subcategory│  ┌──────┐         │
+│  └────┬─────┘  │ Date │         │
+│       │        └──┬───┘         │
+│  dim_product      │              │
+│  ┌──────────┐     │  dim_customer│
+│  │ Product  │─────┼──│ Customer ││
+│  └──────────┘     │  └────┬─────┘│
+│              fact_sales   │      │
+│              ┌────────┐  dim_region│
+│              │  Fact  │  ┌──────┐ │
+│              └────────┘  │Region│ │
+│                           └──────┘ │
+│                                  │
+│  ★ Dimensions are normalized     │
+│    in multiple levels            │
+│  → Resembles a snowflake shape   │
+└──────────────────────────────────┘
 ```
 
-### コード例2: スノーフレークスキーマ
+### Code Example 2: Snowflake Schema
 
 ```sql
--- スノーフレーク: ディメンションをさらに正規化
+-- Snowflake: further normalize dimension tables
 CREATE TABLE dim_category (
     category_key  SERIAL PRIMARY KEY,
     category_name VARCHAR(100) NOT NULL,
@@ -445,7 +458,7 @@ CREATE TABLE dim_product_snowflake (
     unit_cost       DECIMAL(10, 2)
 );
 
--- 地域の正規化
+-- Normalize geography
 CREATE TABLE dim_country (
     country_key  SERIAL PRIMARY KEY,
     country_name VARCHAR(100) NOT NULL,
@@ -465,7 +478,7 @@ CREATE TABLE dim_city (
     population  INTEGER
 );
 
--- スノーフレークでの分析クエリ（JOINが増える）
+-- Analysis query with snowflake schema (more JOINs required)
 SELECT
     c.category_name,
     sc.subcategory_name,
@@ -481,102 +494,102 @@ GROUP BY c.category_name, sc.subcategory_name, b.brand_name
 ORDER BY revenue DESC;
 ```
 
-### 3.2 スターとスノーフレークの選択フロー
+### 3.2 Schema Selection Decision Flow
 
 ```
-┌───────── スキーマ選択フロー ─────────┐
-│                                      │
-│  Q: ディメンションの更新頻度は？     │
-│  │                                   │
-│  ├─ 高い（日次以上）                 │
-│  │  → スノーフレーク候補             │
-│  │  （正規化で更新箇所を局所化）     │
-│  │                                   │
-│  └─ 低い（月次以下）                 │
-│     │                               │
-│     Q: BIツールのユーザーは？        │
-│     │                               │
-│     ├─ 非技術者が多い               │
-│     │  → スター推奨                 │
-│     │  （JOINが少なくシンプル）      │
-│     │                               │
-│     └─ エンジニアが多い             │
-│        │                            │
-│        Q: ストレージ制約は？         │
-│        │                            │
-│        ├─ 厳しい → スノーフレーク   │
-│        └─ 余裕   → スター          │
-└──────────────────────────────────────┘
+┌───────── Schema Selection Flow ─────────┐
+│                                         │
+│  Q: How often are dimensions updated?   │
+│  │                                      │
+│  ├─ Frequently (daily or more)          │
+│  │  → Snowflake candidate               │
+│  │  (normalization localizes updates)   │
+│  │                                      │
+│  └─ Infrequently (monthly or less)      │
+│     │                                   │
+│     Q: Who are the BI tool users?       │
+│     │                                   │
+│     ├─ Mostly non-technical users       │
+│     │  → Star recommended               │
+│     │  (fewer JOINs, simpler)           │
+│     │                                   │
+│     └─ Mostly engineers                 │
+│        │                                │
+│        Q: Storage constraints?          │
+│        │                                │
+│        ├─ Tight → Snowflake             │
+│        └─ Sufficient → Star             │
+└─────────────────────────────────────────┘
 ```
 
 ---
 
-## 4. SCD（Slowly Changing Dimensions）— 全タイプ詳解
+## 4. SCD (Slowly Changing Dimensions) — All Types Explained
 
-### 4.1 SCD全タイプの概要
+### 4.1 Overview of All SCD Types
 
 ```
-┌─────────────── SCD タイプ一覧 ────────────────┐
-│                                                │
-│  Type 0: 固定（変更しない）                     │
-│  Type 1: 上書き（履歴なし）                     │
-│  Type 2: 新行追加（完全な履歴）                 │
-│  Type 3: 前回値カラム（直近1回の変更）          │
-│  Type 4: 履歴テーブル分離                       │
-│  Type 6: ハイブリッド（1+2+3の組合せ）          │
-│                                                │
-│  ※ Type 5, Type 7 もあるが実務ではまれ         │
-└────────────────────────────────────────────────┘
+┌─────────────── SCD Types Overview ────────────────┐
+│                                                    │
+│  Type 0: Fixed (no changes)                        │
+│  Type 1: Overwrite (no history)                    │
+│  Type 2: Add new row (full history)                │
+│  Type 3: Previous value column (last 1 change)     │
+│  Type 4: Separate history table                    │
+│  Type 6: Hybrid (combination of 1+2+3)             │
+│                                                    │
+│  * Types 5 and 7 exist but are rare in practice    │
+└────────────────────────────────────────────────────┘
 ```
 
-### コード例3: SCD Type 1 / 2 / 3
+### Code Example 3: SCD Type 1 / 2 / 3
 
 ```sql
 -- ==============================================
--- SCD Type 0: 固定 — 初回ロード後に変更しない
+-- SCD Type 0: Fixed — no changes after initial load
 -- ==============================================
--- 生年月日、初回登録日など不変の属性に使用
--- 特別な処理は不要。UPDATE を行わないだけ。
+-- Used for immutable attributes such as date of birth, registration date
+-- No special processing required — simply never UPDATE.
 
 -- ==============================================
--- SCD Type 1: 上書き（履歴なし）
+-- SCD Type 1: Overwrite (no history)
 -- ==============================================
 UPDATE dim_customer
-SET city = '大阪', region = '関西'
+SET city = 'Osaka', region = 'Kansai'
 WHERE customer_id = 'C001' AND is_current = TRUE;
 
--- メリット: シンプル、ストレージ効率が良い
--- デメリット: 変更前の状態を一切追跡できない
+-- Advantage: Simple, storage-efficient
+-- Disadvantage: Previous state is completely untracked
 
 -- ==============================================
--- SCD Type 2: 新行追加（完全な履歴）
+-- SCD Type 2: Add new row (full history)
 -- ==============================================
--- Step 1: 旧行を無効化
+-- Step 1: Expire the old row
 UPDATE dim_customer
 SET effective_to = CURRENT_DATE - 1, is_current = FALSE
 WHERE customer_id = 'C001' AND is_current = TRUE;
 
--- Step 2: 新行を追加
+-- Step 2: Insert the new row
 INSERT INTO dim_customer (customer_id, customer_name, segment, city, region,
                           country, effective_from, effective_to, is_current)
-VALUES ('C001', '田中太郎', 'Premium', '大阪', '関西',
-        '日本', CURRENT_DATE, '9999-12-31', TRUE);
+VALUES ('C001', 'Taro Tanaka', 'Premium', 'Osaka', 'Kansai',
+        'Japan', CURRENT_DATE, '9999-12-31', TRUE);
 
--- SCD Type 2 のクエリ: 特定時点の状態を参照
+-- SCD Type 2 query: look up state at a specific point in time
 SELECT * FROM dim_customer
 WHERE customer_id = 'C001'
   AND '2024-06-15' BETWEEN effective_from AND effective_to;
 
--- SCD Type 2 の自動化（トリガー/プロシージャ）
+-- Automate SCD Type 2 (trigger/procedure)
 CREATE OR REPLACE FUNCTION scd2_update_customer()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- 旧行を無効化
+    -- Expire the old row
     UPDATE dim_customer
     SET effective_to = CURRENT_DATE - 1, is_current = FALSE
     WHERE customer_id = NEW.customer_id AND is_current = TRUE;
 
-    -- 新行のメタデータを設定
+    -- Set metadata for the new row
     NEW.effective_from := CURRENT_DATE;
     NEW.effective_to := '9999-12-31';
     NEW.is_current := TRUE;
@@ -586,29 +599,29 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ==============================================
--- SCD Type 3: 現在値と前回値を列で保持
+-- SCD Type 3: Keep current and previous values as columns
 -- ==============================================
 ALTER TABLE dim_customer ADD COLUMN previous_city VARCHAR(100);
 ALTER TABLE dim_customer ADD COLUMN city_changed_at DATE;
 
 UPDATE dim_customer
 SET previous_city = city,
-    city = '大阪',
+    city = 'Osaka',
     city_changed_at = CURRENT_DATE
 WHERE customer_id = 'C001';
 
--- 変更前後の比較クエリ
+-- Query to compare before and after change
 SELECT customer_id, customer_name,
-       previous_city AS "旧住所",
-       city AS "新住所",
-       city_changed_at AS "変更日"
+       previous_city AS "Previous City",
+       city AS "New City",
+       city_changed_at AS "Change Date"
 FROM dim_customer
 WHERE previous_city IS NOT NULL;
 
 -- ==============================================
--- SCD Type 4: 履歴テーブル分離
+-- SCD Type 4: Separate history table
 -- ==============================================
--- 現在テーブル（常に最新）
+-- Current table (always holds the latest state)
 CREATE TABLE dim_customer_current (
     customer_key    SERIAL PRIMARY KEY,
     customer_id     VARCHAR(20) NOT NULL UNIQUE,
@@ -618,7 +631,7 @@ CREATE TABLE dim_customer_current (
     region          VARCHAR(50)
 );
 
--- 履歴テーブル（変更ログ）
+-- History table (change log)
 CREATE TABLE dim_customer_history (
     history_id      BIGSERIAL PRIMARY KEY,
     customer_id     VARCHAR(20) NOT NULL,
@@ -631,16 +644,16 @@ CREATE TABLE dim_customer_history (
     change_type     VARCHAR(10) NOT NULL  -- INSERT/UPDATE/DELETE
 );
 
--- 変更時のトリガー
+-- Trigger to track changes
 CREATE OR REPLACE FUNCTION scd4_track_changes()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- 旧行の終了時刻を設定
+    -- Set end time for the old row
     UPDATE dim_customer_history
     SET effective_to = NOW()
     WHERE customer_id = OLD.customer_id AND effective_to IS NULL;
 
-    -- 新行を履歴に追加
+    -- Add the new row to history
     INSERT INTO dim_customer_history
         (customer_id, customer_name, segment, city, region,
          effective_from, change_type)
@@ -657,164 +670,166 @@ CREATE TRIGGER trg_customer_scd4
     FOR EACH ROW EXECUTE FUNCTION scd4_track_changes();
 
 -- ==============================================
--- SCD Type 6: ハイブリッド（1+2+3）
+-- SCD Type 6: Hybrid (1+2+3)
 -- ==============================================
 CREATE TABLE dim_customer_type6 (
     customer_key    SERIAL PRIMARY KEY,
     customer_id     VARCHAR(20) NOT NULL,
     customer_name   VARCHAR(200) NOT NULL,
-    -- Type 2 属性
-    historical_city VARCHAR(100) NOT NULL,  -- 行作成時の値
+    -- Type 2 attributes
+    historical_city VARCHAR(100) NOT NULL,  -- Value at row creation time
     effective_from  DATE NOT NULL,
     effective_to    DATE DEFAULT '9999-12-31',
     is_current      BOOLEAN DEFAULT TRUE,
-    -- Type 1 属性（全行に最新値をバックフィル）
-    current_city    VARCHAR(100) NOT NULL,   -- 常に最新値
-    -- Type 3 属性
+    -- Type 1 attribute (backfilled with latest value across all rows)
+    current_city    VARCHAR(100) NOT NULL,   -- Always the latest value
+    -- Type 3 attribute
     previous_city   VARCHAR(100)
 );
 
--- Type 6 更新手順
--- 1. 旧行を無効化
+-- Type 6 update procedure
+-- 1. Expire the old row
 UPDATE dim_customer_type6
 SET effective_to = CURRENT_DATE - 1, is_current = FALSE,
-    current_city = '大阪',  -- Type 1: 全行の current を更新
-    previous_city = historical_city  -- Type 3: 前回値保持
+    current_city = 'Osaka',  -- Type 1: update current across all rows
+    previous_city = historical_city  -- Type 3: retain previous value
 WHERE customer_id = 'C001' AND is_current = TRUE;
 
--- 2. 新行を追加 (Type 2)
+-- 2. Insert new row (Type 2)
 INSERT INTO dim_customer_type6
     (customer_id, customer_name, historical_city, current_city,
      previous_city, effective_from)
-VALUES ('C001', '田中太郎', '大阪', '大阪', '東京', CURRENT_DATE);
+VALUES ('C001', 'Taro Tanaka', 'Osaka', 'Osaka', 'Tokyo', CURRENT_DATE);
 
--- 3. 過去の全行の current_city も更新 (Type 1)
+-- 3. Update current_city on all historical rows too (Type 1)
 UPDATE dim_customer_type6
-SET current_city = '大阪'
+SET current_city = 'Osaka'
 WHERE customer_id = 'C001';
 ```
 
-### SCD (Slowly Changing Dimension) 比較表
+### SCD (Slowly Changing Dimension) Comparison Table
 
-| Type | 方式 | 履歴 | 実装複雑度 | ストレージ | 用途 |
-|------|------|------|-----------|-----------|------|
-| Type 0 | 変更しない | なし | 最も簡単 | 最小 | 不変マスタ（生年月日等） |
-| Type 1 | 上書き | なし | 簡単 | 最小 | 現在値のみ必要（typo修正等） |
-| Type 2 | 新行追加 | 完全 | 複雑 | 大 | 時系列分析 |
-| Type 3 | 前回値カラム | 直近1回 | 中程度 | 小 | 変更前後比較 |
-| Type 4 | 履歴テーブル分離 | 完全 | やや複雑 | 中 | 大量履歴・監査要件 |
-| Type 6 | 1+2+3 の組合せ | 完全+現在値 | 最も複雑 | 最大 | 高度な分析 |
+| Type | Approach | History | Implementation Complexity | Storage | Use Case |
+|------|----------|---------|--------------------------|---------|----------|
+| Type 0 | No changes | None | Simplest | Minimal | Immutable master data (date of birth, etc.) |
+| Type 1 | Overwrite | None | Simple | Minimal | Current value only needed (typo correction, etc.) |
+| Type 2 | Add new row | Full | Complex | Large | Time-series analysis |
+| Type 3 | Previous value column | Last 1 change | Moderate | Small | Before/after comparison |
+| Type 4 | Separate history table | Full | Somewhat complex | Medium | Large volume history, audit requirements |
+| Type 6 | Combination of 1+2+3 | Full + current value | Most complex | Largest | Advanced analytics |
 
 ---
 
-## 5. Kimball 方式 vs Inmon 方式
+## 5. Kimball vs. Inmon Approach
 
-### 5.1 アーキテクチャの比較
+### 5.1 Architecture Comparison
 
 ```
-┌──────────────── Kimball 方式 ─────────────────┐
-│                                                │
-│  OLTP ──┐                                      │
-│  OLTP ──┼─ ETL → ┌──────────────────────┐     │
-│  OLTP ──┘        │  Data Warehouse      │     │
-│                   │  (次元モデル)         │     │
-│                   │  ┌─────────────────┐ │     │
-│                   │  │ スタースキーマ   │ │     │
-│                   │  │ ファクト+ディメン │ │     │
-│                   │  └─────────────────┘ │     │
-│                   └──────────┬───────────┘     │
-│                              │                  │
-│                          BIツール               │
-│  ★ ボトムアップ: 業務部門のニーズから構築      │
-│  ★ 短期で成果: 数ヶ月で1つのデータマートを構築  │
-│  ★ 非技術者にも分かりやすい                    │
-└────────────────────────────────────────────────┘
+┌──────────────── Kimball Approach ─────────────────┐
+│                                                    │
+│  OLTP ──┐                                          │
+│  OLTP ──┼─ ETL → ┌──────────────────────┐         │
+│  OLTP ──┘        │  Data Warehouse      │         │
+│                   │  (Dimensional Model) │         │
+│                   │  ┌─────────────────┐ │         │
+│                   │  │  Star Schema    │ │         │
+│                   │  │ Fact+Dimensions │ │         │
+│                   │  └─────────────────┘ │         │
+│                   └──────────┬───────────┘         │
+│                              │                     │
+│                          BI Tools                  │
+│  ★ Bottom-up: Built from business unit needs       │
+│  ★ Quick results: One data mart in a few months    │
+│  ★ Understandable by non-technical users           │
+└────────────────────────────────────────────────────┘
 
-┌──────────────── Inmon 方式 ────────────────────┐
-│                                                │
-│  OLTP ──┐                                      │
-│  OLTP ──┼─ ETL → ┌──────────────────────┐     │
-│  OLTP ──┘        │  EDW (Enterprise DW) │     │
-│                   │  (3NF 正規化)        │     │
-│                   └──────────┬───────────┘     │
-│                              │                  │
-│              ┌───────────────┼───────────────┐  │
-│              ▼               ▼               ▼  │
-│        ┌──────────┐  ┌──────────┐  ┌──────────┐│
-│        │Data Mart │  │Data Mart │  │Data Mart ││
-│        │(売上)    │  │(在庫)    │  │(顧客)    ││
-│        │スタースキーマ│  │スタースキーマ│  │スタースキーマ││
-│        └──────────┘  └──────────┘  └──────────┘│
-│                                                │
-│  ★ トップダウン: 全社の統合データモデルを先に設計│
-│  ★ 長期投資: 構築に時間がかかるが一貫性が高い   │
-│  ★ EDWが「単一の真実の源」                     │
-└────────────────────────────────────────────────┘
+┌──────────────── Inmon Approach ────────────────────┐
+│                                                    │
+│  OLTP ──┐                                          │
+│  OLTP ──┼─ ETL → ┌──────────────────────┐         │
+│  OLTP ──┘        │  EDW (Enterprise DW) │         │
+│                   │  (3NF Normalized)    │         │
+│                   └──────────┬───────────┘         │
+│                              │                     │
+│              ┌───────────────┼───────────────┐     │
+│              ▼               ▼               ▼     │
+│        ┌──────────┐  ┌──────────┐  ┌──────────┐   │
+│        │Data Mart │  │Data Mart │  │Data Mart │   │
+│        │ (Sales)  │  │(Inventory│  │(Customer)│   │
+│        │Star Schema│  │Star Schema│  │Star Schema│  │
+│        └──────────┘  └──────────┘  └──────────┘   │
+│                                                    │
+│  ★ Top-down: Enterprise-wide integrated model      │
+│    designed first                                  │
+│  ★ Long-term investment: Takes time to build,      │
+│    but high consistency                            │
+│  ★ EDW is the "single source of truth"             │
+└────────────────────────────────────────────────────┘
 ```
 
-### 5.2 比較表
+### 5.2 Comparison Table
 
-| 特性 | Kimball 方式 | Inmon 方式 |
-|------|-------------|-----------|
-| **アプローチ** | ボトムアップ | トップダウン |
-| **中心構造** | 次元モデル（スター） | 3NF 正規化 EDW |
-| **構築期間** | 短い（数ヶ月/マート） | 長い（年単位） |
-| **初期コスト** | 低い | 高い |
-| **スケーラビリティ** | データマート追加で拡張 | EDW を拡張 |
-| **データ統合** | Conformed Dimensions で統合 | EDW で一元管理 |
-| **冗長性** | 高い（非正規化） | 低い（正規化） |
-| **ユーザー** | 業務部門中心 | IT部門中心 |
-| **適用規模** | 中小〜中規模 | 大企業 |
-| **業界標準** | 現在の主流 | 金融・通信等の大企業 |
+| Characteristic | Kimball Approach | Inmon Approach |
+|----------------|-----------------|----------------|
+| **Approach** | Bottom-up | Top-down |
+| **Core structure** | Dimensional model (star) | 3NF normalized EDW |
+| **Build time** | Short (months per mart) | Long (years) |
+| **Initial cost** | Low | High |
+| **Scalability** | Expand by adding data marts | Expand the EDW |
+| **Data integration** | Unified via Conformed Dimensions | Centrally managed in EDW |
+| **Redundancy** | High (denormalized) | Low (normalized) |
+| **Primary users** | Business units | IT departments |
+| **Scale** | Small to medium enterprises | Large enterprises |
+| **Industry standard** | Currently dominant | Large enterprises in finance/telecoms |
 
 ---
 
 ## 6. Data Vault 2.0
 
-### 6.1 概要
+### 6.1 Overview
 
-Data Vault は、Hub（ビジネスキー）、Link（リレーション）、Satellite（属性・履歴）の3要素で構成される。
+Data Vault consists of three elements: Hub (business keys), Link (relationships), and Satellite (attributes and history).
 
 ```
-┌──────────── Data Vault 2.0 構造 ──────────────┐
-│                                                │
-│  Hub (ビジネスキー)                             │
-│  ┌────────────────────────┐                    │
-│  │ hub_customer           │                    │
-│  │ - hub_customer_hk (PK) │ ← ハッシュキー     │
-│  │ - customer_id (BK)     │ ← ビジネスキー     │
-│  │ - load_date            │                    │
-│  │ - record_source        │                    │
-│  └───────────┬────────────┘                    │
-│              │                                  │
-│  Satellite (属性・履歴)                         │
-│  ┌────────────────────────┐                    │
-│  │ sat_customer           │                    │
-│  │ - hub_customer_hk (FK) │                    │
-│  │ - load_date (PK)       │                    │
-│  │ - name, city, region   │ ← 属性群           │
-│  │ - hash_diff            │ ← 変更検知用       │
-│  │ - record_source        │                    │
-│  └────────────────────────┘                    │
-│                                                │
-│  Link (リレーション)                            │
-│  ┌────────────────────────┐                    │
-│  │ lnk_customer_order     │                    │
-│  │ - link_hk (PK)         │                    │
-│  │ - hub_customer_hk (FK) │                    │
-│  │ - hub_order_hk (FK)    │                    │
-│  │ - load_date            │                    │
-│  │ - record_source        │                    │
-│  └────────────────────────┘                    │
-└────────────────────────────────────────────────┘
+┌──────────── Data Vault 2.0 Structure ──────────────┐
+│                                                     │
+│  Hub (Business Keys)                                │
+│  ┌────────────────────────┐                         │
+│  │ hub_customer           │                         │
+│  │ - hub_customer_hk (PK) │ ← Hash key             │
+│  │ - customer_id (BK)     │ ← Business key         │
+│  │ - load_date            │                         │
+│  │ - record_source        │                         │
+│  └───────────┬────────────┘                         │
+│              │                                      │
+│  Satellite (Attributes & History)                   │
+│  ┌────────────────────────┐                         │
+│  │ sat_customer           │                         │
+│  │ - hub_customer_hk (FK) │                         │
+│  │ - load_date (PK)       │                         │
+│  │ - name, city, region   │ ← Attribute group       │
+│  │ - hash_diff            │ ← For change detection  │
+│  │ - record_source        │                         │
+│  └────────────────────────┘                         │
+│                                                     │
+│  Link (Relationships)                               │
+│  ┌────────────────────────┐                         │
+│  │ lnk_customer_order     │                         │
+│  │ - link_hk (PK)         │                         │
+│  │ - hub_customer_hk (FK) │                         │
+│  │ - hub_order_hk (FK)    │                         │
+│  │ - load_date            │                         │
+│  │ - record_source        │                         │
+│  └────────────────────────┘                         │
+└─────────────────────────────────────────────────────┘
 ```
 
-### コード例4: Data Vault 2.0 実装
+### Code Example 4: Data Vault 2.0 Implementation
 
 ```sql
--- Hub: ビジネスキーの一意管理
+-- Hub: Unique management of business keys
 CREATE TABLE hub_customer (
-    hub_customer_hk  CHAR(32) PRIMARY KEY,  -- MD5ハッシュ
+    hub_customer_hk  CHAR(32) PRIMARY KEY,  -- MD5 hash
     customer_id      VARCHAR(20) NOT NULL UNIQUE,
     load_date        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     record_source    VARCHAR(100) NOT NULL
@@ -827,7 +842,7 @@ CREATE TABLE hub_product (
     record_source    VARCHAR(100) NOT NULL
 );
 
--- Satellite: 属性と履歴
+-- Satellite: Attributes and history
 CREATE TABLE sat_customer (
     hub_customer_hk  CHAR(32) NOT NULL REFERENCES hub_customer(hub_customer_hk),
     load_date        TIMESTAMPTZ NOT NULL,
@@ -836,12 +851,12 @@ CREATE TABLE sat_customer (
     segment          VARCHAR(50),
     city             VARCHAR(100),
     region           VARCHAR(50),
-    hash_diff        CHAR(32) NOT NULL,  -- 属性のハッシュ（変更検知用）
+    hash_diff        CHAR(32) NOT NULL,  -- Hash of attributes (for change detection)
     record_source    VARCHAR(100) NOT NULL,
     PRIMARY KEY (hub_customer_hk, load_date)
 );
 
--- Link: エンティティ間のリレーション
+-- Link: Relationship between entities
 CREATE TABLE lnk_sale (
     lnk_sale_hk      CHAR(32) PRIMARY KEY,
     hub_customer_hk   CHAR(32) REFERENCES hub_customer(hub_customer_hk),
@@ -850,7 +865,7 @@ CREATE TABLE lnk_sale (
     record_source     VARCHAR(100) NOT NULL
 );
 
--- Link Satellite: リンクの属性
+-- Link Satellite: Attributes of the link
 CREATE TABLE sat_sale (
     lnk_sale_hk   CHAR(32) NOT NULL REFERENCES lnk_sale(lnk_sale_hk),
     load_date      TIMESTAMPTZ NOT NULL,
@@ -862,37 +877,37 @@ CREATE TABLE sat_sale (
     PRIMARY KEY (lnk_sale_hk, load_date)
 );
 
--- ハッシュキー生成の例
+-- Example of hash key generation
 INSERT INTO hub_customer (hub_customer_hk, customer_id, record_source)
 VALUES (
-    MD5('C001'),  -- ビジネスキーのハッシュ
+    MD5('C001'),  -- Hash of the business key
     'C001',
     'erp_system'
 )
-ON CONFLICT (hub_customer_hk) DO NOTHING;  -- 冪等性
+ON CONFLICT (hub_customer_hk) DO NOTHING;  -- Idempotency
 ```
 
-### 6.2 モデリング手法比較
+### 6.2 Modeling Approach Comparison
 
-| 特性 | Star Schema | Data Vault 2.0 | 3NF (Inmon EDW) |
-|------|------------|-----------------|-----------------|
-| **目的** | 分析・レポーティング | 統合・監査・履歴 | 統合データ管理 |
-| **柔軟性** | 低（スキーマ変更大） | 高（Hub/Sat追加で拡張） | 中 |
-| **履歴管理** | SCD（要設計） | 自動（Satellite） | 要設計 |
-| **ロード速度** | 中（変換が必要） | 高速（並列ロード） | 中 |
-| **クエリ性能** | 最高（非正規化） | 低（多数JOIN） | 中 |
-| **監査追跡** | 限定的 | 完全（record_source） | 限定的 |
-| **冪等性** | 要設計 | 自然に実現 | 要設計 |
-| **学習コスト** | 低 | 高 | 中 |
-| **用途** | BIレイヤー | ストレージレイヤー | EDW |
+| Characteristic | Star Schema | Data Vault 2.0 | 3NF (Inmon EDW) |
+|----------------|------------|-----------------|-----------------|
+| **Purpose** | Analytics & reporting | Integration, audit & history | Integrated data management |
+| **Flexibility** | Low (schema changes are large) | High (extend by adding Hub/Sat) | Medium |
+| **History management** | SCD (requires design) | Automatic (Satellite) | Requires design |
+| **Load speed** | Medium (transformation required) | Fast (parallel loading) | Medium |
+| **Query performance** | Best (denormalized) | Low (many JOINs) | Medium |
+| **Audit trail** | Limited | Complete (record_source) | Limited |
+| **Idempotency** | Requires design | Naturally achieved | Requires design |
+| **Learning cost** | Low | High | Medium |
+| **Use case** | BI layer | Storage layer | EDW |
 
 ---
 
-## 7. コード例4: 分析クエリの実践
+## 7. Code Example 4: Analytical Queries in Practice
 
 ```sql
 -- =============================================
--- 月別・カテゴリ別の売上分析
+-- Monthly and category-level sales analysis
 -- =============================================
 SELECT
     dd.year,
@@ -913,7 +928,7 @@ GROUP BY dd.year, dd.month, dd.month_name, dp.category
 ORDER BY dd.month, revenue DESC;
 
 -- =============================================
--- YoY（前年比）比較
+-- YoY (Year-over-Year) comparison
 -- =============================================
 WITH yearly AS (
     SELECT
@@ -936,18 +951,18 @@ FROM yearly c
 ORDER BY yoy_growth DESC;
 
 -- =============================================
--- RFM分析（Recency, Frequency, Monetary）
+-- RFM Analysis (Recency, Frequency, Monetary)
 -- =============================================
 WITH customer_rfm AS (
     SELECT
         dc.customer_id,
         dc.customer_name,
         dc.segment,
-        -- Recency: 最終購入からの日数
+        -- Recency: days since last purchase
         CURRENT_DATE - MAX(dd.full_date) AS recency_days,
-        -- Frequency: 購入回数
+        -- Frequency: number of purchases
         COUNT(DISTINCT dd.full_date) AS frequency,
-        -- Monetary: 総購入金額
+        -- Monetary: total purchase amount
         SUM(fs.total_amount) AS monetary
     FROM fact_sales fs
         JOIN dim_customer dc ON fs.customer_key = dc.customer_key
@@ -957,9 +972,9 @@ WITH customer_rfm AS (
 ),
 rfm_scored AS (
     SELECT *,
-        NTILE(5) OVER (ORDER BY recency_days ASC) AS r_score,   -- 最近ほど高い
-        NTILE(5) OVER (ORDER BY frequency DESC)    AS f_score,   -- 頻度高いほど高い
-        NTILE(5) OVER (ORDER BY monetary DESC)     AS m_score    -- 金額大きいほど高い
+        NTILE(5) OVER (ORDER BY recency_days ASC) AS r_score,   -- Higher = more recent
+        NTILE(5) OVER (ORDER BY frequency DESC)    AS f_score,   -- Higher = more frequent
+        NTILE(5) OVER (ORDER BY monetary DESC)     AS m_score    -- Higher = more spending
     FROM customer_rfm
 )
 SELECT
@@ -972,17 +987,17 @@ SELECT
     r_score || f_score || m_score AS rfm_segment,
     CASE
         WHEN r_score >= 4 AND f_score >= 4 AND m_score >= 4 THEN 'VIP'
-        WHEN r_score >= 4 AND f_score >= 3 THEN 'ロイヤル'
-        WHEN r_score >= 3 AND f_score <= 2 THEN '新規有望'
-        WHEN r_score <= 2 AND f_score >= 3 THEN '休眠（要再活性化）'
-        WHEN r_score <= 2 AND f_score <= 2 THEN '離反リスク'
-        ELSE '一般'
+        WHEN r_score >= 4 AND f_score >= 3 THEN 'Loyal'
+        WHEN r_score >= 3 AND f_score <= 2 THEN 'Promising New'
+        WHEN r_score <= 2 AND f_score >= 3 THEN 'Dormant (Needs Re-activation)'
+        WHEN r_score <= 2 AND f_score <= 2 THEN 'At-Risk Churn'
+        ELSE 'General'
     END AS customer_type
 FROM rfm_scored
 ORDER BY monetary DESC;
 
 -- =============================================
--- コホート分析（月別リテンション率）
+-- Cohort Analysis (Monthly Retention Rate)
 -- =============================================
 WITH first_purchase AS (
     SELECT
@@ -1024,11 +1039,11 @@ ORDER BY cohort, month_number;
 
 ---
 
-## 8. コード例5: ETLパイプライン
+## 8. Code Example 5: ETL Pipeline
 
 ```sql
 -- =============================================
--- ステージングテーブルへの生データロード
+-- Load raw data into staging table
 -- =============================================
 CREATE TABLE stg_sales_raw (
     transaction_id  VARCHAR(50),
@@ -1042,7 +1057,7 @@ CREATE TABLE stg_sales_raw (
     loaded_at       TIMESTAMPTZ DEFAULT NOW()
 );
 
--- データ品質チェック用テーブル
+-- Table for data quality check logs
 CREATE TABLE etl_quality_log (
     log_id          BIGSERIAL PRIMARY KEY,
     batch_id        VARCHAR(50) NOT NULL,
@@ -1054,48 +1069,48 @@ CREATE TABLE etl_quality_log (
 );
 
 -- =============================================
--- データ品質チェック
+-- Data quality checks
 -- =============================================
 CREATE OR REPLACE FUNCTION etl_data_quality_check(p_batch_id VARCHAR)
 RETURNS TABLE(check_name VARCHAR, result VARCHAR, affected INT) AS $$
 BEGIN
-    -- Check 1: NULL チェック
+    -- Check 1: NULL check
     INSERT INTO etl_quality_log (batch_id, check_name, check_result, affected_rows, details)
     SELECT p_batch_id, 'null_check',
            CASE WHEN COUNT(*) = 0 THEN 'PASS' ELSE 'FAIL' END,
            COUNT(*),
-           'transaction_id, sale_date, product_code に NULL あり'
+           'NULLs found in transaction_id, sale_date, or product_code'
     FROM stg_sales_raw
     WHERE loaded_at > (SELECT COALESCE(MAX(checked_at), '1970-01-01') FROM etl_quality_log)
       AND (transaction_id IS NULL OR sale_date IS NULL OR product_code IS NULL);
 
-    -- Check 2: 数値範囲チェック
+    -- Check 2: Numeric range check
     INSERT INTO etl_quality_log (batch_id, check_name, check_result, affected_rows, details)
     SELECT p_batch_id, 'range_check',
            CASE WHEN COUNT(*) = 0 THEN 'PASS' ELSE 'WARN' END,
            COUNT(*),
-           'quantity <= 0 または unit_price <= 0 の行あり'
+           'Rows found where quantity <= 0 or unit_price <= 0'
     FROM stg_sales_raw
     WHERE quantity <= 0 OR unit_price <= 0;
 
-    -- Check 3: 参照整合性チェック
+    -- Check 3: Referential integrity check
     INSERT INTO etl_quality_log (batch_id, check_name, check_result, affected_rows, details)
     SELECT p_batch_id, 'referential_check',
            CASE WHEN COUNT(*) = 0 THEN 'PASS' ELSE 'FAIL' END,
            COUNT(*),
-           '対応するディメンションが見つからないレコード'
+           'Records with no matching dimension found'
     FROM stg_sales_raw s
     WHERE NOT EXISTS (
         SELECT 1 FROM dim_product dp
         WHERE dp.product_id = s.product_code AND dp.is_current
     );
 
-    -- Check 4: 重複チェック
+    -- Check 4: Duplicate check
     INSERT INTO etl_quality_log (batch_id, check_name, check_result, affected_rows, details)
     SELECT p_batch_id, 'duplicate_check',
            CASE WHEN COUNT(*) = 0 THEN 'PASS' ELSE 'WARN' END,
            COUNT(*),
-           '重複 transaction_id あり'
+           'Duplicate transaction_id found'
     FROM (
         SELECT transaction_id, COUNT(*) AS cnt
         FROM stg_sales_raw
@@ -1111,25 +1126,25 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- =============================================
--- ステージングからファクトテーブルへの変換・ロード
+-- Transform and load from staging to fact table
 -- =============================================
 CREATE OR REPLACE FUNCTION etl_load_fact_sales(p_batch_id VARCHAR)
 RETURNS INTEGER AS $$
 DECLARE
     v_rows_loaded INTEGER;
 BEGIN
-    -- 品質チェック実行
+    -- Run quality checks
     PERFORM etl_data_quality_check(p_batch_id);
 
-    -- FAILがあれば中止
+    -- Abort if any FAIL results exist
     IF EXISTS (
         SELECT 1 FROM etl_quality_log
         WHERE batch_id = p_batch_id AND check_result = 'FAIL'
     ) THEN
-        RAISE EXCEPTION 'データ品質チェック失敗: batch_id=%', p_batch_id;
+        RAISE EXCEPTION 'Data quality check failed: batch_id=%', p_batch_id;
     END IF;
 
-    -- ファクトテーブルへロード
+    -- Load into the fact table
     INSERT INTO fact_sales (
         date_key, product_key, customer_key, store_key,
         quantity, unit_price, discount_amount, total_amount, cost_amount
@@ -1153,7 +1168,7 @@ BEGIN
 
     GET DIAGNOSTICS v_rows_loaded = ROW_COUNT;
 
-    -- ロードログ記録
+    -- Log the load
     INSERT INTO fact_sales_load_log (batch_id, rows_loaded, loaded_at)
     VALUES (p_batch_id, v_rows_loaded, NOW());
 
@@ -1162,7 +1177,7 @@ END;
 $$ LANGUAGE plpgsql;
 ```
 
-### 8.1 ETL vs ELT の比較
+### 8.1 ETL vs ELT Comparison
 
 ```
 ┌──────────── ETL vs ELT ──────────────────┐
@@ -1170,40 +1185,41 @@ $$ LANGUAGE plpgsql;
 │  ETL (Extract-Transform-Load)             │
 │  ┌────────┐  ┌──────────┐  ┌────────┐   │
 │  │Extract │→ │Transform │→ │ Load   │   │
-│  │(抽出)  │  │(変換)    │  │(ロード)│   │
 │  └────────┘  └──────────┘  └────────┘   │
-│  外部ツールで変換後にDWHにロード          │
-│  例: Informatica, Talend, dbt           │
+│  Transform outside DWH, then load        │
+│  Examples: Informatica, Talend, dbt      │
 │                                           │
 │  ELT (Extract-Load-Transform)             │
 │  ┌────────┐  ┌────────┐  ┌──────────┐   │
 │  │Extract │→ │ Load   │→ │Transform │   │
-│  │(抽出)  │  │(ロード)│  │(変換)    │   │
 │  └────────┘  └────────┘  └──────────┘   │
-│  生データをDWHにロード後、DWH内で変換      │
-│  例: BigQuery + dbt, Snowflake + dbt    │
+│  Load raw data into DWH, transform       │
+│  inside DWH                              │
+│  Examples: BigQuery + dbt,               │
+│            Snowflake + dbt               │
 │                                           │
-│  近年はELTが主流（DWHの処理能力が向上）    │
+│  ELT is now mainstream (DWH processing   │
+│  power has improved)                     │
 └───────────────────────────────────────────┘
 ```
 
-| 特性 | ETL | ELT |
-|------|-----|-----|
-| **変換場所** | 外部サーバー | DWH内 |
-| **スケーラビリティ** | 変換サーバーに依存 | DWHのスケールを活用 |
-| **生データ保持** | 通常は変換後のみ | 生データも保持可能 |
-| **柔軟性** | 変換ロジック変更→再処理が大変 | SQLで変換→再処理が容易 |
-| **コスト** | ETLサーバーのコスト | DWHの計算コスト |
-| **代表ツール** | Informatica, Talend | dbt, Dataform |
-| **適用場面** | レガシー環境 | クラウドDWH |
+| Characteristic | ETL | ELT |
+|----------------|-----|-----|
+| **Transformation location** | External server | Inside DWH |
+| **Scalability** | Depends on transformation server | Leverages DWH scale |
+| **Raw data retention** | Usually only transformed data | Raw data can be retained |
+| **Flexibility** | Changing transform logic requires reprocessing | SQL transforms — easy to reprocess |
+| **Cost** | ETL server costs | DWH compute costs |
+| **Representative tools** | Informatica, Talend | dbt, Dataform |
+| **Use case** | Legacy environments | Cloud DWH |
 
 ---
 
-## 9. コード例6: マテリアライズドビューの活用
+## 9. Code Example 6: Using Materialized Views
 
 ```sql
 -- =============================================
--- 月次サマリーのマテリアライズドビュー
+-- Materialized view for monthly summary
 -- =============================================
 CREATE MATERIALIZED VIEW mv_monthly_summary AS
 SELECT
@@ -1231,24 +1247,24 @@ WITH DATA;
 CREATE UNIQUE INDEX idx_mv_monthly ON mv_monthly_summary
     (year, month, category, region, store_name);
 
--- 差分リフレッシュ（CONCURRENTLY = 読み取りブロックなし）
+-- Incremental refresh (CONCURRENTLY = no read blocking)
 REFRESH MATERIALIZED VIEW CONCURRENTLY mv_monthly_summary;
 
 -- =============================================
--- マテリアライズドビューの自動リフレッシュ（pg_cron）
+-- Automatic materialized view refresh (pg_cron)
 -- =============================================
--- pg_cron 拡張を使った定期リフレッシュ
--- CREATE EXTENSION pg_cron;  -- 要インストール
+-- Scheduled refresh using the pg_cron extension
+-- CREATE EXTENSION pg_cron;  -- requires installation
 -- SELECT cron.schedule(
 --     'refresh_monthly_summary',
---     '0 2 * * *',  -- 毎日2時に実行
+--     '0 2 * * *',  -- Run at 2 AM every day
 --     'REFRESH MATERIALIZED VIEW CONCURRENTLY mv_monthly_summary'
 -- );
 
 -- =============================================
--- 階層的マテリアライズドビュー戦略
+-- Hierarchical materialized view strategy
 -- =============================================
--- Level 1: 日次集計（最も細かい集約）
+-- Level 1: Daily summary (finest granularity)
 CREATE MATERIALIZED VIEW mv_daily_sales AS
 SELECT
     date_key,
@@ -1262,7 +1278,7 @@ FROM fact_sales
 GROUP BY date_key, product_key, store_key
 WITH DATA;
 
--- Level 2: 月次集計（日次ビューから構築 — より高速にリフレッシュ可能）
+-- Level 2: Monthly summary (built from daily view — faster to refresh)
 CREATE MATERIALIZED VIEW mv_monthly_product AS
 SELECT
     dd.year,
@@ -1281,41 +1297,41 @@ GROUP BY dd.year, dd.month, dp.product_name, dp.category
 WITH DATA;
 ```
 
-### 9.1 RDBMS別マテリアライズドビュー比較
+### 9.1 Materialized View Support by RDBMS
 
-| 機能 | PostgreSQL | Oracle | SQL Server | MySQL |
-|------|-----------|--------|-----------|-------|
-| **マテリアライズドビュー** | あり | あり | Indexed View | なし（手動実装） |
-| **CONCURRENTLY リフレッシュ** | あり | 一部（ON COMMIT） | N/A | N/A |
-| **自動リフレッシュ** | pg_cron で実現 | ON COMMIT / ON DEMAND | N/A | N/A |
-| **差分リフレッシュ** | UNIQUE INDEX 必須 | マテリアライズドビューログ | 自動 | N/A |
-| **クエリリライト** | なし | あり（自動適用） | あり（自動適用） | なし |
-
----
-
-## スタースキーマ vs スノーフレークスキーマ 比較表
-
-| 特徴 | スタースキーマ | スノーフレークスキーマ |
-|------|-------------|-------------------|
-| ディメンション構造 | 非正規化（1テーブル） | 正規化（複数テーブル） |
-| JOINの数 | 少ない | 多い |
-| クエリの複雑さ | シンプル | 複雑 |
-| クエリ性能 | 高速 | やや遅い |
-| ストレージ | 冗長（大きい） | 効率的（小さい） |
-| ETLの複雑さ | シンプル | やや複雑 |
-| 更新整合性 | 要注意 | 容易 |
-| BI ツール互換性 | 高い | 中程度 |
-| ディメンション数 | 少なくて済む | テーブル数が増加 |
-| 学習コスト | 低い | 中程度 |
+| Feature | PostgreSQL | Oracle | SQL Server | MySQL |
+|---------|-----------|--------|-----------|-------|
+| **Materialized views** | Yes | Yes | Indexed View | No (manual implementation) |
+| **CONCURRENTLY refresh** | Yes | Partial (ON COMMIT) | N/A | N/A |
+| **Automatic refresh** | Via pg_cron | ON COMMIT / ON DEMAND | N/A | N/A |
+| **Incremental refresh** | Requires UNIQUE INDEX | Materialized view log | Automatic | N/A |
+| **Query rewrite** | No | Yes (auto-applied) | Yes (auto-applied) | No |
 
 ---
 
-## アンチパターン
+## Star Schema vs Snowflake Schema Comparison Table
 
-### アンチパターン1: OLTPスキーマで分析クエリを実行
+| Feature | Star Schema | Snowflake Schema |
+|---------|-------------|-----------------|
+| Dimension structure | Denormalized (1 table) | Normalized (multiple tables) |
+| Number of JOINs | Few | Many |
+| Query complexity | Simple | Complex |
+| Query performance | Fast | Slightly slower |
+| Storage | Redundant (larger) | Efficient (smaller) |
+| ETL complexity | Simple | Somewhat complex |
+| Update consistency | Requires care | Easier |
+| BI tool compatibility | High | Moderate |
+| Number of dimensions | Fewer needed | More tables required |
+| Learning cost | Low | Moderate |
+
+---
+
+## Anti-Patterns
+
+### Anti-Pattern 1: Running Analytical Queries on an OLTP Schema
 
 ```sql
--- NG: 正規化されたOLTPスキーマで複雑な分析
+-- BAD: Complex analysis on a normalized OLTP schema
 SELECT
     EXTRACT(YEAR FROM o.order_date) AS year,
     c.name AS category,
@@ -1330,62 +1346,62 @@ FROM orders o
     JOIN regions r ON a.region_id = r.id
 WHERE o.status = 'delivered'
 GROUP BY 1, 2, 3;
--- → 6テーブルJOIN、大量データで非常に遅い
--- → OLTPのロック競合でトランザクション処理にも悪影響
+-- → 6-table JOIN, extremely slow with large data volumes
+-- → Lock contention on OLTP tables degrades transactional processing
 
--- OK: 分析用のスタースキーマを別途構築
+-- GOOD: Build a separate star schema for analytics
 SELECT year, category, region, SUM(revenue)
 FROM mv_monthly_summary
 GROUP BY year, category, region;
 ```
 
-### アンチパターン2: ファクトテーブルに文字列を直接格納
+### Anti-Pattern 2: Storing Strings Directly in Fact Tables
 
 ```sql
--- NG: ファクトに文字列ディメンションを直接格納
+-- BAD: Store dimension attributes directly in the fact table
 CREATE TABLE fact_sales_bad (
-    product_name   VARCHAR(200),  -- ← ディメンション属性がファクトに
+    product_name   VARCHAR(200),  -- ← Dimension attribute in fact table
     category_name  VARCHAR(100),
     customer_name  VARCHAR(200),
     amount         DECIMAL(10,2)
 );
--- → 冗長、更新困難、ストレージ浪費
--- → 商品名変更時に全行UPDATEが必要
+-- → Redundant, difficult to update, wastes storage
+-- → Requires UPDATE on every row when a product name changes
 
--- OK: サロゲートキーでディメンションを参照
+-- GOOD: Reference dimensions via surrogate keys
 CREATE TABLE fact_sales_good (
     product_key   INTEGER REFERENCES dim_product(product_key),
     customer_key  INTEGER REFERENCES dim_customer(customer_key),
     amount        DECIMAL(10,2)
 );
--- → INTEGER は4バイト、VARCHAR(200) は最大200バイト
--- → ファクトテーブルが1億行の場合、約18GB以上の差
+-- → INTEGER is 4 bytes, VARCHAR(200) is up to 200 bytes
+-- → Difference is over 18 GB with 100 million rows in the fact table
 ```
 
-### アンチパターン3: 粒度の混在
+### Anti-Pattern 3: Mixing Granularities
 
 ```sql
--- NG: 1つのファクトテーブルに異なる粒度のデータを混在
+-- BAD: Mixing data at different granularities in one fact table
 CREATE TABLE fact_mixed_bad (
     date_key     INTEGER,
     product_key  INTEGER,
     store_key    INTEGER,
-    -- トランザクションレベルの属性
+    -- Transaction-level attributes
     transaction_id  VARCHAR(50),
     line_item_qty   INTEGER,
-    -- 日次集計レベルの属性
+    -- Daily aggregate-level attributes
     daily_total     DECIMAL(12,2),
     daily_count     INTEGER
 );
--- → 粒度が不明確でJOINや集約が正しく行えない
+-- → Unclear grain; JOINs and aggregations cannot be done correctly
 
--- OK: 粒度ごとにテーブルを分離
-CREATE TABLE fact_sales_transaction (  -- トランザクション粒度
+-- GOOD: Separate tables for each granularity
+CREATE TABLE fact_sales_transaction (  -- Transaction grain
     sale_id BIGSERIAL PRIMARY KEY,
     date_key INTEGER, product_key INTEGER, store_key INTEGER,
     quantity INTEGER, amount DECIMAL(12,2)
 );
-CREATE TABLE fact_sales_daily (  -- 日次スナップショット粒度
+CREATE TABLE fact_sales_daily (  -- Daily snapshot grain
     date_key INTEGER, product_key INTEGER, store_key INTEGER,
     total_quantity INTEGER, total_amount DECIMAL(12,2),
     transaction_count INTEGER,
@@ -1395,48 +1411,48 @@ CREATE TABLE fact_sales_daily (  -- 日次スナップショット粒度
 
 ---
 
-## エッジケース
+## Edge Cases
 
-### エッジケース1: 遅延データ（Late Arriving Facts/Dimensions）
+### Edge Case 1: Late Arriving Facts/Dimensions
 
 ```sql
--- 問題: 12/15の売上データが12/20に届いた場合
--- ファクトは正しい date_key を使えば問題ない
+-- Problem: Sales data for Dec 15 arrives on Dec 20
+-- The fact can simply use the correct date_key — no issue
 
--- 問題: ディメンションが遅延（顧客登録前に購入データが到着）
--- 対策: "Unknown" ディメンション行を用意
+-- Problem: Late-arriving dimension (purchase data arrives before customer is registered)
+-- Solution: Prepare an "Unknown" dimension row
 INSERT INTO dim_customer (customer_key, customer_id, customer_name, segment,
                           city, region, country, effective_from, is_current)
-VALUES (0, 'UNKNOWN', '不明', '不明', '不明', '不明', '不明',
+VALUES (0, 'UNKNOWN', 'Unknown', 'Unknown', 'Unknown', 'Unknown', 'Unknown',
         '1900-01-01', TRUE);
 
--- 後で正しいディメンションが到着したらファクトを更新
+-- Once the correct dimension arrives, update the fact
 UPDATE fact_sales
 SET customer_key = (
     SELECT customer_key FROM dim_customer
     WHERE customer_id = 'C999' AND is_current
 )
-WHERE customer_key = 0;  -- Unknown を正しいキーに差し替え
+WHERE customer_key = 0;  -- Replace Unknown with the correct key
 ```
 
-### エッジケース2: 多対多ディメンション（Bridge Table）
+### Edge Case 2: Many-to-Many Dimensions (Bridge Table)
 
 ```sql
--- 問題: 1つの商品に複数のプロモーションが同時適用
--- → ファクトとディメンションが多対多
+-- Problem: A single product has multiple promotions applied simultaneously
+-- → Many-to-many relationship between fact and dimension
 
--- Bridge テーブルで解決
+-- Solve with a Bridge table
 CREATE TABLE bridge_promotion (
     promotion_group_key INTEGER NOT NULL,
     promotion_key       INTEGER NOT NULL REFERENCES dim_promotion(promotion_key),
-    weight_factor       DECIMAL(5,4) NOT NULL,  -- 寄与率（合計=1.0）
+    weight_factor       DECIMAL(5,4) NOT NULL,  -- Contribution rate (sum = 1.0)
     PRIMARY KEY (promotion_group_key, promotion_key)
 );
 
--- ファクトは promotion_group_key を参照
+-- Fact table references promotion_group_key
 ALTER TABLE fact_sales ADD COLUMN promotion_group_key INTEGER;
 
--- クエリ時
+-- Query
 SELECT dp.promotion_name,
        SUM(fs.total_amount * bp.weight_factor) AS attributed_revenue
 FROM fact_sales fs
@@ -1445,24 +1461,24 @@ FROM fact_sales fs
 GROUP BY dp.promotion_name;
 ```
 
-### エッジケース3: Junk Dimension（低基数属性の統合）
+### Edge Case 3: Junk Dimension (Consolidating Low-Cardinality Attributes)
 
 ```sql
--- 問題: is_online, is_gift_wrapped, payment_type 等の
--- 低基数のフラグ/コード属性がファクトに散在
+-- Problem: Low-cardinality flags/codes such as is_online, is_gift_wrapped,
+-- payment_type scattered across the fact table
 
--- Junk Dimension で統合
+-- Consolidate with a Junk Dimension
 CREATE TABLE dim_transaction_profile (
     profile_key     SERIAL PRIMARY KEY,
     is_online       BOOLEAN NOT NULL,
     is_gift_wrapped BOOLEAN NOT NULL,
     payment_type    VARCHAR(20) NOT NULL,
     delivery_type   VARCHAR(20) NOT NULL,
-    -- 2 * 2 * 4 * 3 = 48 行で全組み合わせをカバー
+    -- 2 * 2 * 4 * 3 = 48 rows cover all combinations
     UNIQUE (is_online, is_gift_wrapped, payment_type, delivery_type)
 );
 
--- 全組み合わせを事前投入
+-- Pre-populate all combinations
 INSERT INTO dim_transaction_profile
     (is_online, is_gift_wrapped, payment_type, delivery_type)
 SELECT
@@ -1473,27 +1489,27 @@ FROM
     (VALUES ('credit'), ('debit'), ('cash'), ('transfer')) AS p(pay),
     (VALUES ('standard'), ('express'), ('pickup')) AS d(delivery);
 
--- ファクトテーブルは profile_key 1つで参照
+-- Fact table references just one profile_key
 ALTER TABLE fact_sales ADD COLUMN profile_key INTEGER
     REFERENCES dim_transaction_profile(profile_key);
 ```
 
 ---
 
-## 演習問題
+## Exercises
 
-### 演習1: 基礎 — スタースキーマ設計
+### Exercise 1: Basic — Star Schema Design
 
-以下の要件でスタースキーマを設計せよ。
+Design a star schema for the following requirements.
 
-**要件**: オンライン書店の売上分析
-- 分析の切り口: 書籍（ジャンル、著者、出版社）、顧客（年齢層、地域）、日付、配送方法
-- 計測値: 販売数量、売上金額、割引額、配送コスト
+**Requirements**: Sales analysis for an online bookstore
+- Analytical dimensions: Books (genre, author, publisher), customers (age group, region), date, shipping method
+- Measures: Sales quantity, revenue, discount amount, shipping cost
 
-**解答例**:
+**Sample Solution**:
 
 ```sql
--- ファクトテーブル
+-- Fact table
 CREATE TABLE fact_book_sales (
     sale_id         BIGSERIAL PRIMARY KEY,
     date_key        INTEGER NOT NULL REFERENCES dim_date(date_key),
@@ -1506,7 +1522,7 @@ CREATE TABLE fact_book_sales (
     delivery_cost   DECIMAL(8, 2) NOT NULL
 );
 
--- ディメンション: 書籍
+-- Dimension: Books
 CREATE TABLE dim_book (
     book_key     SERIAL PRIMARY KEY,
     isbn         VARCHAR(20) NOT NULL,
@@ -1522,52 +1538,52 @@ CREATE TABLE dim_book (
     is_current     BOOLEAN DEFAULT TRUE
 );
 
--- ディメンション: 読者
+-- Dimension: Readers
 CREATE TABLE dim_reader (
     reader_key   SERIAL PRIMARY KEY,
     reader_id    VARCHAR(20) NOT NULL,
     reader_name  VARCHAR(200),
-    age_group    VARCHAR(20),  -- '10代', '20代', ...
+    age_group    VARCHAR(20),  -- 'Teens', '20s', etc.
     prefecture   VARCHAR(20),
-    region       VARCHAR(20),  -- '関東', '関西', ...
+    region       VARCHAR(20),  -- 'Kanto', 'Kansai', etc.
     member_since DATE,
     effective_from DATE NOT NULL,
     effective_to   DATE DEFAULT '9999-12-31',
     is_current     BOOLEAN DEFAULT TRUE
 );
 
--- ディメンション: 配送方法
+-- Dimension: Delivery methods
 CREATE TABLE dim_delivery (
     delivery_key    SERIAL PRIMARY KEY,
-    delivery_method VARCHAR(50) NOT NULL,  -- '通常配送', '翌日配送', 'コンビニ受取'
+    delivery_method VARCHAR(50) NOT NULL,  -- 'Standard', 'Next Day', 'Convenience Store Pickup'
     carrier         VARCHAR(100),
     is_free         BOOLEAN DEFAULT FALSE
 );
 ```
 
-### 演習2: 応用 — SCD Type 2 の実装
+### Exercise 2: Intermediate — Implementing SCD Type 2
 
-dim_book テーブルで、書籍の価格改定が発生した場合の SCD Type 2 更新を SQL で実装せよ。
+Implement SCD Type 2 updates in SQL for the `dim_book` table when a book price revision occurs.
 
-**解答例**:
+**Sample Solution**:
 
 ```sql
--- トランザクション内で実行（原子性を保証）
+-- Execute within a transaction (guarantees atomicity)
 BEGIN;
 
--- 旧行を無効化
+-- Expire the old row
 UPDATE dim_book
 SET effective_to = CURRENT_DATE - 1,
     is_current = FALSE
 WHERE isbn = '978-4-XXX-XXXXX-X'
   AND is_current = TRUE;
 
--- 新行を追加（価格のみ変更）
+-- Insert new row (price change only)
 INSERT INTO dim_book (isbn, title, genre, sub_genre, author, publisher,
                       publish_date, list_price, effective_from, is_current)
 SELECT isbn, title, genre, sub_genre, author, publisher,
        publish_date,
-       1980.00,  -- 新価格
+       1980.00,  -- New price
        CURRENT_DATE,
        TRUE
 FROM dim_book
@@ -1579,28 +1595,28 @@ LIMIT 1;
 
 COMMIT;
 
--- 検証: 時点別の価格を確認
+-- Verify: check prices at each point in time
 SELECT isbn, title, list_price, effective_from, effective_to, is_current
 FROM dim_book
 WHERE isbn = '978-4-XXX-XXXXX-X'
 ORDER BY effective_from;
 ```
 
-### 演習3: 発展 — ETL パイプラインの品質チェック設計
+### Exercise 3: Advanced — ETL Pipeline Quality Check Design
 
-以下の要件を満たすデータ品質チェックプロシージャを設計せよ。
+Design a data quality check procedure that meets the following requirements.
 
-**要件**:
-1. ステージングテーブルの NULL チェック（必須カラム）
-2. 数値の範囲チェック（数量 > 0、金額 > 0）
-3. 参照整合性チェック（全ディメンションに対応するキーが存在するか）
-4. チェック結果をログテーブルに記録
-5. FAIL があれば後続のロードを中止
+**Requirements**:
+1. NULL check on staging table (required columns)
+2. Numeric range check (quantity > 0, amount > 0)
+3. Referential integrity check (do all dimensions have corresponding keys?)
+4. Log check results to a log table
+5. Abort subsequent loading if any FAIL occurs
 
-**解答例**: 上記コード例5の `etl_data_quality_check` 関数および `etl_load_fact_sales` 関数を参照。追加で以下のような時間整合性チェックも有効。
+**Sample Solution**: Refer to the `etl_data_quality_check` and `etl_load_fact_sales` functions in Code Example 5 above. In addition, a temporal consistency check like the following is also useful:
 
 ```sql
--- 時間整合性チェック: 未来の日付がないか
+-- Temporal consistency check: no future dates
 INSERT INTO etl_quality_log (batch_id, check_name, check_result, affected_rows)
 SELECT 'batch_001', 'future_date_check',
        CASE WHEN COUNT(*) = 0 THEN 'PASS' ELSE 'FAIL' END,
@@ -1608,7 +1624,7 @@ SELECT 'batch_001', 'future_date_check',
 FROM stg_sales_raw
 WHERE sale_date > CURRENT_DATE;
 
--- 重複トランザクションチェック: ファクトテーブルとの重複
+-- Duplicate transaction check: detect duplicates against the fact table
 INSERT INTO etl_quality_log (batch_id, check_name, check_result, affected_rows)
 SELECT 'batch_001', 'fact_duplicate_check',
        CASE WHEN COUNT(*) = 0 THEN 'PASS' ELSE 'WARN' END,
@@ -1616,7 +1632,7 @@ SELECT 'batch_001', 'fact_duplicate_check',
 FROM stg_sales_raw s
 WHERE EXISTS (
     SELECT 1 FROM fact_sales f
-    -- ビジネスキーの組み合わせで重複判定
+    -- Detect duplicates by combination of business keys
     WHERE f.date_key = TO_CHAR(s.sale_date, 'YYYYMMDD')::INTEGER
 );
 ```
@@ -1625,60 +1641,60 @@ WHERE EXISTS (
 
 ## FAQ
 
-### Q1: スタースキーマとスノーフレークのどちらを選ぶべきか？
+### Q1: Which should I choose — star schema or snowflake?
 
-BIツールとの連携やアドホックな分析にはスタースキーマが推奨される。JOINが少なく直感的でクエリ性能も高い。スノーフレークはストレージ効率を重視する場合や、ディメンションの更新頻度が高い場合に選択する。Kimball方式（スター）が業界標準。
+Star schema is recommended for BI tool integration and ad hoc analysis. It has fewer JOINs, is intuitive, and delivers higher query performance. Choose snowflake when storage efficiency is a priority or when dimensions are updated frequently. The Kimball approach (star) is the industry standard.
 
-### Q2: ファクトテーブルにはどの粒度を選ぶべきか？
+### Q2: What grain should I choose for a fact table?
 
-最も細かい粒度（トランザクションレベル）で設計し、集約は後から行う。粒度を粗くすると後から詳細分析ができなくなる。ただし、ストレージとパフォーマンスの制約がある場合は日次/月次サマリーのファクトテーブルも併用する。
+Design at the finest possible grain (transaction level) and aggregate later. Choosing a coarser grain prevents detailed analysis in the future. However, when storage and performance constraints exist, use daily/monthly summary fact tables alongside the transaction-level table.
 
-### Q3: 日付ディメンションテーブルは本当に必要か？
+### Q3: Is a date dimension table really necessary?
 
-必須。DATE型のまま使うと年度、四半期、祝日、会計年度などの判定が毎クエリで必要になる。事前計算した日付ディメンションは分析を大幅に効率化する。通常20年分でも約7300行と小さい。
+Yes. Using raw DATE types forces every query to compute fiscal year, quarter, holidays, and other calculations on the fly. A pre-computed date dimension greatly improves analytical efficiency. 20 years of data is only about 7,300 rows — very small.
 
-### Q4: Data Vault と Star Schema の使い分けは？
+### Q4: How do I choose between Data Vault and Star Schema?
 
-Data Vault はデータウェアハウスの「ストレージレイヤー」として使い、エンドユーザー向けの「プレゼンテーションレイヤー」にはスタースキーマを使うのが一般的。Data Vault は監査証跡や履歴の完全な保持に優れるが、クエリが複雑になるため直接BIツールに接続することは推奨されない。
+It is common practice to use Data Vault as the "storage layer" of the data warehouse and star schema as the "presentation layer" for end users. Data Vault excels at maintaining a complete audit trail and history, but queries are complex, so connecting BI tools directly to it is not recommended.
 
-### Q5: dbt を使う場合、次元モデルはどう構築する？
+### Q5: How do I build dimensional models when using dbt?
 
-dbt ではモデルを `staging`（生データ整形）、`intermediate`（中間変換）、`marts`（最終的な次元モデル）の3層に分けるのが一般的。ファクト/ディメンションは `marts` レイヤーに配置し、SCD Type 2 は dbt の `snapshot` 機能で自動化できる。
-
----
-
-## トラブルシューティング
-
-| 症状 | 原因 | 対策 |
-|------|------|------|
-| ファクトテーブルのJOINが遅い | ディメンションキーにインデックスがない | FK列にインデックスを作成 |
-| マテリアライズドビューのリフレッシュが遅い | UNIQUE INDEX がない | CONCURRENTLY 用のUNIQUE INDEX を作成 |
-| SCD Type 2 で行が重複 | is_current の更新漏れ | トランザクション内で UPDATE → INSERT |
-| ETL後にファクトの行数が想定より少ない | INNER JOIN で不一致行が除外 | LEFT JOIN + NULL チェックで原因特定 |
-| 日付ディメンションに歯抜けがある | generate_series の範囲不足 | 十分な期間で再生成 |
-| 集計クエリの結果が正しくない | ファクトの粒度とJOINの不整合 | 粒度の確認、GROUP BY の見直し |
-| カラムストア（Redshift等）での UPDATE が遅い | カラムストアは UPDATE 非効率 | DELETE + INSERT（再挿入）パターンに変更 |
+With dbt, models are typically split into three layers: `staging` (raw data shaping), `intermediate` (intermediate transformations), and `marts` (final dimensional models). Facts and dimensions are placed in the `marts` layer, and SCD Type 2 can be automated using dbt's `snapshot` feature.
 
 ---
 
-## パフォーマンス考慮事項
+## Troubleshooting
 
-1. **ファクトテーブルのパーティショニング**: date_key でのRANGEパーティションが最も効果的。月別または四半期別に分割することで、不要なパーティションの読み飛ばし（Partition Pruning）が発生し、大幅な高速化が可能。
-
-2. **ビットマップインデックス**: OLAP環境では、低基数カラム（性別、地域等）にはビットマップインデックスが有効。ただし PostgreSQL にはネイティブのビットマップインデックスはなく、実行時にBitmap Index Scanとして最適化される。Oracle では CREATE BITMAP INDEX が利用可能。
-
-3. **圧縮**: ファクトテーブルは同一パターンのデータが多いため、テーブルレベルの圧縮が効果的。PostgreSQL では TOAST 圧縮が自動適用、Redshift では ENCODE 指定、BigQuery は自動圧縮。
-
-4. **統計情報の更新**: 大量ロード後は必ず ANALYZE を実行。クエリプランナーが正確な統計に基づいてJOIN順序やスキャン方式を選択できるようにする。
+| Symptom | Cause | Solution |
+|---------|-------|----------|
+| JOINs on fact table are slow | No index on dimension key columns | Create indexes on FK columns |
+| Materialized view refresh is slow | No UNIQUE INDEX | Create a UNIQUE INDEX for CONCURRENTLY |
+| Duplicate rows with SCD Type 2 | is_current not updated properly | Run UPDATE → INSERT within a transaction |
+| Fewer fact rows than expected after ETL | Mismatched rows excluded by INNER JOIN | Use LEFT JOIN + NULL check to identify the cause |
+| Gaps in date dimension | Insufficient range in generate_series | Regenerate with a sufficient date range |
+| Aggregate query results are incorrect | Mismatch between fact grain and JOIN | Verify grain, review GROUP BY |
+| UPDATE is slow on column store (Redshift, etc.) | Column stores are inefficient for UPDATE | Switch to DELETE + INSERT (re-insert) pattern |
 
 ---
 
-## セキュリティ考慮事項
+## Performance Considerations
 
-1. **行レベルセキュリティ（RLS）**: 部門ごとに閲覧可能なデータを制限する場合、RLS を活用。
+1. **Partitioning fact tables**: RANGE partitioning on `date_key` is most effective. Splitting by month or quarter enables partition pruning, which skips irrelevant partitions and provides significant speedups.
+
+2. **Bitmap indexes**: In OLAP environments, bitmap indexes are effective for low-cardinality columns (gender, region, etc.). Note that PostgreSQL has no native bitmap index type — the optimizer applies Bitmap Index Scan automatically at query time. Oracle supports `CREATE BITMAP INDEX`.
+
+3. **Compression**: Fact tables contain many repeated patterns, making table-level compression highly effective. PostgreSQL applies TOAST compression automatically; Redshift supports `ENCODE` specifications; BigQuery compresses automatically.
+
+4. **Statistics updates**: Always run `ANALYZE` after a large data load. This allows the query planner to choose JOIN order and scan methods based on accurate statistics.
+
+---
+
+## Security Considerations
+
+1. **Row-Level Security (RLS)**: Use RLS to restrict which data each department can view.
 
 ```sql
--- 部門別のデータアクセス制御
+-- Department-level data access control
 ALTER TABLE fact_sales ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY sales_region_policy ON fact_sales
@@ -1688,38 +1704,38 @@ CREATE POLICY sales_region_policy ON fact_sales
     ));
 ```
 
-2. **個人情報の分離**: 顧客ディメンションの個人識別情報（PII）は別テーブルに分離し、分析用ディメンションには匿名化/集約された属性のみを含める。
+2. **Isolating personally identifiable information (PII)**: Store PII from customer dimensions in a separate table, and include only anonymized or aggregated attributes in the analytical dimension.
 
-3. **マスキング**: 開発環境やテスト環境では、本番データのコピーに対してデータマスキングを適用する。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| OLTP vs OLAP | トランザクション→正規化、分析→次元モデル |
-| スタースキーマ | ファクト（中心）+ ディメンション（外周）、業界標準 |
-| スノーフレーク | ディメンションを正規化。JOINが増加、ストレージ効率は向上 |
-| ファクトテーブル | 3類型: トランザクション / スナップショット / 累積 |
-| ディメンション | 分析の切り口。SCD で変更履歴を管理（Type 0-6） |
-| Kimball vs Inmon | ボトムアップ vs トップダウン。現在は Kimball が主流 |
-| Data Vault 2.0 | Hub/Link/Satellite。監査・履歴に強い。ストレージレイヤー向け |
-| ETL/ELT | クラウド時代はELT（dbt等）が主流 |
-| マテリアライズドビュー | 階層的構築で効率的なリフレッシュを実現 |
+3. **Masking**: Apply data masking to copies of production data in development and test environments.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [00-normalization.md](./00-normalization.md) — 正規化の理論（OLTP向け）
-- [02-performance-tuning.md](../03-practical/02-performance-tuning.md) — 分析クエリのチューニング
-- [00-postgresql-features.md](../03-practical/00-postgresql-features.md) — JSONB等の活用
-- [01-schema-design.md](./01-schema-design.md) — テーブル設計の実践パターン
+| Topic | Key Points |
+|-------|-----------|
+| OLTP vs OLAP | Transactions → normalized; analytics → dimensional model |
+| Star schema | Fact (center) + dimensions (surrounding); industry standard |
+| Snowflake | Normalized dimensions; more JOINs, better storage efficiency |
+| Fact tables | 3 types: transaction / snapshot / accumulating |
+| Dimensions | Analytical perspectives; change history managed with SCD (Types 0–6) |
+| Kimball vs Inmon | Bottom-up vs top-down; Kimball is now dominant |
+| Data Vault 2.0 | Hub/Link/Satellite; strong for auditing & history; suited for storage layer |
+| ETL/ELT | ELT (dbt, etc.) is mainstream in the cloud era |
+| Materialized views | Hierarchical construction enables efficient refresh |
 
 ---
 
-## 参考文献
+## Further Reading
+
+- [00-normalization.md](./00-normalization.md) — Normalization theory (for OLTP)
+- [02-performance-tuning.md](../03-practical/02-performance-tuning.md) — Tuning analytical queries
+- [00-postgresql-features.md](../03-practical/00-postgresql-features.md) — Using JSONB and other features
+- [01-schema-design.md](./01-schema-design.md) — Practical patterns for table design
+
+---
+
+## References
 
 1. Kimball, R. & Ross, M. (2013). *The Data Warehouse Toolkit: The Definitive Guide to Dimensional Modeling*. 3rd Edition. Wiley.
 2. Inmon, W.H. (2005). *Building the Data Warehouse*. 4th Edition. Wiley.
