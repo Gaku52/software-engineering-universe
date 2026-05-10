@@ -1,95 +1,95 @@
-# Claude — Anthropic の AI アシスタント
+# Claude — Anthropic's AI Assistant
 
-> Constitutional AI を基盤とする Claude ファミリーの特徴、API 活用法、他モデルとの差別化ポイントを解説する。
+> An overview of the Claude model family built on Constitutional AI, covering API usage, and key differentiators from other models.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **Claude ファミリー**の各モデル（Haiku / Sonnet / Opus）の特性と使い分け
-2. **Constitutional AI** の原理と Claude の安全性設計
-3. **Claude API** の実践的な使い方とベストプラクティス
-4. **Extended Thinking** による高精度推論
-5. **Claude Code** とエージェント的活用
-6. **MCP (Model Context Protocol)** によるツール統合
+1. Characteristics and use cases for each **Claude family** model (Haiku / Sonnet / Opus)
+2. The principles of **Constitutional AI** and Claude's safety design
+3. Practical usage and best practices for the **Claude API**
+4. High-accuracy reasoning with **Extended Thinking**
+5. **Claude Code** and agentic workflows
+6. Tool integration via **MCP (Model Context Protocol)**
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. Claude ファミリーの概要
+## 1. Overview of the Claude Family
 
-### ASCII 図解 1: Claude モデルファミリー
+### ASCII Diagram 1: Claude Model Family
 
 ```
-Claude モデルファミリー (2024-2025)
+Claude Model Family (2024-2025)
 ┌────────────────────────────────────────────────────────────┐
 │                                                            │
-│  Claude 3.5 / 4 ファミリー                                  │
+│  Claude 3.5 / 4 Family                                     │
 │                                                            │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐     │
 │  │    Haiku     │  │   Sonnet    │  │    Opus     │     │
 │  │              │  │              │  │              │     │
-│  │ 超高速       │  │ バランス     │  │ 最高性能     │     │
-│  │ 最低コスト    │  │ コスパ最強   │  │ 複雑推論     │     │
-│  │ 分類/抽出    │  │ 汎用        │  │ 研究/分析    │     │
-│  │ リアルタイム  │  │ コーディング │  │ 長文創作     │     │
+│  │ Ultra-fast   │  │ Balanced     │  │ Best         │     │
+│  │ Lowest cost  │  │ Best value   │  │ performance  │     │
+│  │ Classification│  │ General      │  │ Complex      │     │
+│  │ Real-time    │  │ Coding       │  │ Research     │     │
 │  └──────────────┘  └──────────────┘  └──────────────┘     │
 │                                                            │
-│  性能:   Haiku ←───── Sonnet ────── Opus ──→ 高            │
-│  速度:   Haiku ──→ 高  Sonnet ──── Opus ←─── 低            │
-│  コスト: Haiku ←── 低  Sonnet ──── Opus ──→ 高             │
+│  Performance: Haiku ←───── Sonnet ────── Opus ──→ High     │
+│  Speed:       Haiku ──→ Fast  Sonnet ──── Opus ←─── Slow   │
+│  Cost:        Haiku ←── Low   Sonnet ──── Opus ──→ High    │
 │                                                            │
-│  共通: 200K コンテキスト、マルチモーダル対応、ツール使用      │
+│  Common: 200K context, multimodal support, tool use        │
 │                                                            │
-│  Claude 4 Opus の追加機能:                                  │
-│  ├── Extended Thinking（拡張思考モード）                     │
-│  ├── 超長文の正確な理解と生成                                │
-│  ├── 高度なコード理解・デバッグ                              │
-│  └── マルチステップの複雑な推論                              │
+│  Claude 4 Opus additional features:                        │
+│  ├── Extended Thinking mode                                │
+│  ├── Accurate understanding and generation of long text    │
+│  ├── Advanced code comprehension and debugging             │
+│  └── Multi-step complex reasoning                          │
 │                                                            │
 └────────────────────────────────────────────────────────────┘
 ```
 
-### 1.1 モデル選択の判断基準
+### 1.1 Criteria for Choosing a Model
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│              Claude モデル選択ガイド                         │
+│              Claude Model Selection Guide                   │
 ├────────────────────────────────────────────────────────────┤
 │                                                            │
-│  Haiku を選ぶべき場面:                                      │
-│  ├── 大量のテキスト分類（感情分析、カテゴリ分類）            │
-│  ├── シンプルなデータ抽出（名前、日付、金額の取得）          │
-│  ├── 定型的な応答生成（FAQ、テンプレート記入）              │
-│  ├── リアルタイム応答が必要（チャットボット）               │
-│  ├── コスト制約が厳しい大量処理                             │
-│  └── 前処理/フィルタリング（ルーティングの前段）            │
+│  When to choose Haiku:                                     │
+│  ├── Bulk text classification (sentiment, category)        │
+│  ├── Simple data extraction (names, dates, amounts)        │
+│  ├── Templated response generation (FAQ, form filling)     │
+│  ├── Real-time responses required (chatbots)               │
+│  ├── High-volume processing with tight cost constraints    │
+│  └── Pre-processing / filtering (before routing)          │
 │                                                            │
-│  Sonnet を選ぶべき場面:                                     │
-│  ├── コード生成・レビュー                                   │
-│  ├── 文書作成・翻訳                                        │
-│  ├── 中程度の分析・要約                                     │
-│  ├── ツール使用を伴うタスク                                 │
-│  ├── RAG パイプラインの回答生成                             │
-│  └── コストと品質のバランスが重要な場面                      │
+│  When to choose Sonnet:                                    │
+│  ├── Code generation and review                            │
+│  ├── Document writing and translation                      │
+│  ├── Moderate analysis and summarization                   │
+│  ├── Tasks involving tool use                              │
+│  ├── Answer generation in RAG pipelines                    │
+│  └── When balance between cost and quality matters         │
 │                                                            │
-│  Opus を選ぶべき場面:                                       │
-│  ├── 複雑な多段階推論（数学、論理パズル）                   │
-│  ├── 大規模コードベースの理解・リファクタリング              │
-│  ├── 研究論文の深い分析・批評                               │
-│  ├── 長文の創作・編集                                       │
-│  ├── 微妙なニュアンスの理解が必要な場面                      │
-│  └── Extended Thinking が有効な複雑問題                     │
+│  When to choose Opus:                                      │
+│  ├── Complex multi-step reasoning (math, logic puzzles)    │
+│  ├── Understanding and refactoring large codebases         │
+│  ├── Deep analysis and critique of research papers         │
+│  ├── Long-form creative writing and editing                │
+│  ├── When subtle nuance comprehension is required          │
+│  └── Complex problems where Extended Thinking helps        │
 │                                                            │
 └────────────────────────────────────────────────────────────┘
 ```
 
-### コード例 1: Claude API の基本使用法
+### Code Example 1: Basic Claude API Usage
 
 ```python
 import anthropic
@@ -113,7 +113,7 @@ print(f"モデル: {response.model}")
 print(f"停止理由: {response.stop_reason}")
 ```
 
-### コード例 2: ストリーミング応答
+### Code Example 2: Streaming Responses
 
 ```python
 import anthropic
@@ -142,7 +142,7 @@ with client.messages.stream(
     print(f"出力トークン: {final_message.usage.output_tokens}")
 ```
 
-### コード例 3: マルチターン会話
+### Code Example 3: Multi-turn Conversation
 
 ```python
 import anthropic
@@ -210,7 +210,7 @@ print(conv.chat("ネストされた場合はどうなりますか？"))
 print(f"\n統計: {conv.get_stats()}")
 ```
 
-### コード例 4: Vision（画像理解）
+### Code Example 4: Vision (Image Understanding)
 
 ```python
 import anthropic
@@ -313,7 +313,7 @@ print(result)
 
 ## 2. Constitutional AI
 
-### ASCII 図解 2: Constitutional AI の仕組み
+### ASCII Diagram 2: How Constitutional AI Works
 
 ```
 Constitutional AI (CAI) のプロセス:
@@ -355,35 +355,36 @@ Phase 2: RLAIF (RL from AI Feedback)
   RLAIF: AI が原則に基づいて判定 → 低コスト、一貫性が高い、スケール可能
 ```
 
-### 2.1 Claude の安全性の実務的影響
+### 2.1 Practical Impact of Claude's Safety Properties
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│          Claude の安全性特性がプロダクトに与える影響          │
+│    Impact of Claude's Safety Characteristics on Products    │
 ├────────────────────────────────────────────────────────────┤
 │                                                            │
-│  利点:                                                     │
-│  ├── ガードレールが組み込み済み → 追加の安全対策が軽量     │
-│  ├── 不適切な出力が少ない → ブランドリスクの低減           │
-│  ├── 不確実性の表明 → ハルシネーションの自己申告           │
-│  ├── 拒否の品質が高い → ユーザー体験を損なわない拒否      │
-│  └── 多言語での安全性 → 日本語でも安全性が維持される       │
+│  Advantages:                                               │
+│  ├── Built-in guardrails → lighter additional safety work  │
+│  ├── Fewer inappropriate outputs → reduced brand risk      │
+│  ├── Uncertainty disclosure → self-reported hallucinations │
+│  ├── High-quality refusals → refusals that don't hurt UX   │
+│  └── Multilingual safety → safety maintained in Japanese   │
 │                                                            │
-│  注意点:                                                   │
-│  ├── 過度な安全性 → 正当なリクエストの過剰拒否（稀に）    │
-│  ├── 医療/法律の免責 → 常に「専門家に相談」と付記        │
-│  ├── 創作の制限 → 暴力的/性的な創作コンテンツに制限      │
-│  └── 最新情報 → 学習データの期限がある                    │
+│  Caveats:                                                  │
+│  ├── Over-safety → occasional over-refusal of valid requests│
+│  ├── Medical/legal disclaimers → always appends "consult   │
+│  │   a professional"                                       │
+│  ├── Creative limits → restrictions on violent/sexual content│
+│  └── Knowledge cutoff → training data has an expiry date  │
 │                                                            │
-│  対策:                                                     │
-│  ├── システムプロンプトで許容範囲を明示                    │
-│  ├── コンテキストを十分に提供して誤解を防ぐ                │
-│  └── 必要に応じて Anthropic のカスタム対応を相談           │
+│  Mitigations:                                              │
+│  ├── Explicitly state allowed scope in the system prompt   │
+│  ├── Provide sufficient context to prevent misunderstanding │
+│  └── Consult Anthropic for custom handling if needed       │
 │                                                            │
 └────────────────────────────────────────────────────────────┘
 ```
 
-### コード例 5: システムプロンプトでの安全性活用
+### Code Example 5: Leveraging Safety Properties via System Prompts
 
 ```python
 import anthropic
@@ -417,9 +418,9 @@ print(response.content[0].text)
 
 ---
 
-## 3. Claude API の高度な機能
+## 3. Advanced Claude API Features
 
-### 3.1 Extended Thinking（拡張思考）
+### 3.1 Extended Thinking
 
 ```python
 import anthropic
@@ -463,44 +464,44 @@ print(f"\n思考トークン: {response.usage.cache_creation_input_tokens}")
 print(f"出力トークン: {response.usage.output_tokens}")
 ```
 
-### ASCII 図解 3: Extended Thinking の仕組み
+### ASCII Diagram 3: How Extended Thinking Works
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│              Extended Thinking の動作                       │
+│              How Extended Thinking Works                    │
 ├────────────────────────────────────────────────────────────┤
 │                                                            │
-│  通常モード:                                               │
-│  入力 ──→ [Claude の推論] ──→ 出力                         │
-│            (内部で完結)                                     │
+│  Standard mode:                                            │
+│  Input ──→ [Claude's reasoning] ──→ Output                 │
+│             (internal, not visible)                        │
 │                                                            │
-│  Extended Thinking モード:                                 │
-│  入力 ──→ [<thinking>...</thinking>] ──→ 出力              │
-│            思考過程が明示される                              │
-│            ├── 問題の分解                                   │
-│            ├── 複数のアプローチの検討                        │
-│            ├── トレードオフの分析                            │
-│            ├── 自己検証と修正                               │
-│            └── 結論の導出                                   │
+│  Extended Thinking mode:                                   │
+│  Input ──→ [<thinking>...</thinking>] ──→ Output           │
+│             Reasoning process is made explicit             │
+│             ├── Problem decomposition                      │
+│             ├── Evaluation of multiple approaches          │
+│             ├── Trade-off analysis                         │
+│             ├── Self-verification and correction           │
+│             └── Conclusion derivation                      │
 │                                                            │
-│  効果:                                                     │
-│  ├── 数学・論理問題: 正解率 +20-40%                        │
-│  ├── コード生成: バグ率 -30%                               │
-│  ├── 複雑な分析: 根拠の透明化                              │
-│  └── トークンコスト: 思考分が追加（budget で制御可能）       │
+│  Effects:                                                  │
+│  ├── Math / logic problems: accuracy +20-40%               │
+│  ├── Code generation: bug rate -30%                        │
+│  ├── Complex analysis: transparent reasoning               │
+│  └── Token cost: additional thinking tokens (budget-capped)│
 │                                                            │
-│  いつ使うべきか:                                           │
-│  ✓ 複雑な多段階推論                                       │
-│  ✓ 高精度が求められる分析                                  │
-│  ✓ 数学的・論理的問題                                     │
-│  ✗ 単純な応答生成                                          │
-│  ✗ リアルタイム性が重要                                    │
-│  ✗ コスト最適化が優先                                      │
+│  When to use:                                              │
+│  ✓ Complex multi-step reasoning                            │
+│  ✓ Analysis requiring high accuracy                        │
+│  ✓ Mathematical / logical problems                         │
+│  ✗ Simple response generation                              │
+│  ✗ When real-time response is critical                     │
+│  ✗ When cost optimization is the priority                  │
 │                                                            │
 └────────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 ツール使用（Function Calling）
+### 3.2 Tool Use (Function Calling)
 
 ```python
 import anthropic
@@ -622,7 +623,7 @@ def chat_with_tools(user_message: str) -> str:
 print(chat_with_tools("東京の天気を調べて、それに基づいた服装アドバイスをください"))
 ```
 
-### 3.3 プロンプトキャッシュ
+### 3.3 Prompt Caching
 
 ```python
 import anthropic
@@ -679,7 +680,7 @@ print(f"2回目 - キャッシュ読み取り: {response2.usage.cache_read_input
 # → キャッシュヒットにより大幅なコスト削減
 ```
 
-### 3.4 バッチ API
+### 3.4 Batch API
 
 ```python
 import anthropic
@@ -721,9 +722,9 @@ if batch_status.processing_status == "ended":
 
 ---
 
-## 4. Claude Code とエージェント活用
+## 4. Claude Code and Agentic Workflows
 
-### ASCII 図解 4: Claude Code のアーキテクチャ
+### ASCII Diagram 4: Claude Code Architecture
 
 ```
 ┌────────────────────────────────────────────────────────────┐
@@ -731,41 +732,41 @@ if batch_status.processing_status == "ended":
 ├────────────────────────────────────────────────────────────┤
 │                                                            │
 │  ┌──────────┐    ┌──────────────┐    ┌──────────────┐     │
-│  │ ユーザー  │ →  │ Claude Code  │ →  │ Claude API   │     │
-│  │ (ターミナル)│    │ CLI          │    │ (Opus/Sonnet)│     │
+│  │   User   │ →  │ Claude Code  │ →  │ Claude API   │     │
+│  │ (terminal)│    │ CLI          │    │ (Opus/Sonnet)│     │
 │  └──────────┘    └──────┬───────┘    └──────────────┘     │
 │                         │                                  │
-│                    利用可能なツール                          │
+│                    Available Tools                         │
 │                    ┌─────────────────┐                     │
-│                    │ Read    - ファイル読み取り              │
-│                    │ Write   - ファイル書き込み              │
-│                    │ Edit    - ファイル編集                  │
-│                    │ Bash    - コマンド実行                  │
-│                    │ Glob    - ファイル検索                  │
-│                    │ Grep    - テキスト検索                  │
-│                    │ Task    - サブタスク委任                │
-│                    │ MCP     - 外部ツール統合                │
+│                    │ Read    - File reading                 │
+│                    │ Write   - File writing                 │
+│                    │ Edit    - File editing                 │
+│                    │ Bash    - Command execution            │
+│                    │ Glob    - File search                  │
+│                    │ Grep    - Text search                  │
+│                    │ Task    - Subtask delegation           │
+│                    │ MCP     - External tool integration    │
 │                    └─────────────────┘                     │
 │                                                            │
-│  ワークフロー:                                              │
-│  1. ユーザーが自然言語で指示                                │
-│  2. Claude がタスクを分解                                   │
-│  3. 必要なツールを選択・実行                                │
-│  4. 結果を確認・修正を繰り返し                              │
-│  5. 最終結果を報告                                          │
+│  Workflow:                                                 │
+│  1. User gives instructions in natural language            │
+│  2. Claude decomposes the task                             │
+│  3. Selects and executes the necessary tools               │
+│  4. Reviews results and iterates with corrections          │
+│  5. Reports the final outcome                              │
 │                                                            │
-│  特徴:                                                     │
-│  ├── エージェント的な自律実行                               │
-│  ├── ファイルシステムの直接操作                              │
-│  ├── Git 操作（commit, diff, etc.）                        │
-│  ├── テスト実行と修正のループ                               │
-│  ├── MCP によるツール拡張                                   │
-│  └── /compact でメモリ管理                                  │
+│  Features:                                                 │
+│  ├── Autonomous agentic execution                          │
+│  ├── Direct filesystem manipulation                        │
+│  ├── Git operations (commit, diff, etc.)                   │
+│  ├── Test execution and fix loop                           │
+│  ├── Tool extension via MCP                                │
+│  └── Memory management with /compact                       │
 │                                                            │
 └────────────────────────────────────────────────────────────┘
 ```
 
-### コード例 6: MCP サーバーの実装
+### Code Example 6: MCP Server Implementation
 
 ```python
 """
@@ -859,9 +860,9 @@ mcp_config = {
 
 ---
 
-## 5. 実践的なユースケース
+## 5. Practical Use Cases
 
-### 5.1 コードレビューアシスタント
+### 5.1 Code Review Assistant
 
 ```python
 import anthropic
@@ -939,7 +940,7 @@ review = reviewer.review_file("src/api/handlers.py")
 print(review)
 ```
 
-### 5.2 ドキュメント分析パイプライン
+### 5.2 Document Analysis Pipeline
 
 ```python
 import anthropic
@@ -1030,26 +1031,26 @@ class DocumentAnalyzer:
 
 ---
 
-## 6. コスト最適化
+## 6. Cost Optimization
 
-### 比較表 1: Claude モデルの詳細比較
+### Comparison Table 1: Detailed Claude Model Comparison
 
-| 項目 | Haiku | Sonnet | Opus |
+| Item | Haiku | Sonnet | Opus |
 |------|-------|--------|------|
-| 最適用途 | 分類、抽出、軽量タスク | 汎用、コーディング、分析 | 複雑推論、研究、創作 |
-| 入力料金 (/1M tokens) | $0.80 | $3.00 | $15.00 |
-| 出力料金 (/1M tokens) | $4.00 | $15.00 | $75.00 |
-| キャッシュ読み取り | $0.08 | $0.30 | $1.50 |
-| バッチ入力 | $0.40 | $1.50 | $7.50 |
-| バッチ出力 | $2.00 | $7.50 | $37.50 |
-| コンテキスト長 | 200K | 200K | 200K |
-| 速度 (tokens/sec) | 非常に速い | 速い | 中程度 |
-| Extended Thinking | なし | なし | あり |
-| コーディング能力 | 良好 | 優秀 | 最高 |
-| 推論能力 | 良好 | 優秀 | 最高 |
-| ビジョン対応 | あり | あり | あり |
+| Best for | Classification, extraction, lightweight tasks | General use, coding, analysis | Complex reasoning, research, creative work |
+| Input price (/1M tokens) | $0.80 | $3.00 | $15.00 |
+| Output price (/1M tokens) | $4.00 | $15.00 | $75.00 |
+| Cache read | $0.08 | $0.30 | $1.50 |
+| Batch input | $0.40 | $1.50 | $7.50 |
+| Batch output | $2.00 | $7.50 | $37.50 |
+| Context length | 200K | 200K | 200K |
+| Speed (tokens/sec) | Very fast | Fast | Moderate |
+| Extended Thinking | No | No | Yes |
+| Coding capability | Good | Excellent | Best |
+| Reasoning capability | Good | Excellent | Best |
+| Vision support | Yes | Yes | Yes |
 
-### コスト最適化戦略
+### Cost Optimization Strategies
 
 ```python
 from dataclasses import dataclass
@@ -1137,74 +1138,74 @@ print(f"キャッシュあり: ${with_cache.cost_usd:.4f}")
 print(f"節約率: {(1 - with_cache.cost_usd/no_cache.cost_usd)*100:.1f}%")
 ```
 
-### 比較表 2: Claude vs 他モデルの特徴比較
+### Comparison Table 2: Claude vs Other Models
 
-| 特徴 | Claude 4 | GPT-4o | Gemini 2.0 Pro | DeepSeek V3 |
-|------|----------|--------|----------------|-------------|
-| 安全性アプローチ | Constitutional AI | RLHF | 非公開 | RLHF |
-| コンテキスト長 | 200K | 128K | 1M+ | 128K |
-| Extended Thinking | あり (Opus) | o1-pro 別モデル | Flash Thinking | R1 別モデル |
-| 日本語能力 | 優秀 | 優秀 | 良好 | 良好 |
-| コード生成 | 最高水準 | 優秀 | 良好 | 優秀 |
-| 長文理解 | 非常に優秀 | 良好 | 最高 | 良好 |
-| ツール使用 | 優秀 | 優秀 | 良好 | 限定的 |
-| バッチ API | あり (50%引) | あり (50%引) | あり | なし |
-| プロンプトキャッシュ | あり (90%引) | あり | コンテキストキャッシュ | なし |
-| 価格帯 | 中程度 | 中程度 | 中程度 | 低価格 |
-| オープンソース | なし | なし | なし | あり |
+| Feature | Claude 4 | GPT-4o | Gemini 2.0 Pro | DeepSeek V3 |
+|---------|----------|--------|----------------|-------------|
+| Safety approach | Constitutional AI | RLHF | Undisclosed | RLHF |
+| Context length | 200K | 128K | 1M+ | 128K |
+| Extended Thinking | Yes (Opus) | o1-pro separate model | Flash Thinking | R1 separate model |
+| Japanese capability | Excellent | Excellent | Good | Good |
+| Code generation | Best-in-class | Excellent | Good | Excellent |
+| Long-text comprehension | Very strong | Good | Best | Good |
+| Tool use | Excellent | Excellent | Good | Limited |
+| Batch API | Yes (50% off) | Yes (50% off) | Yes | No |
+| Prompt caching | Yes (90% off) | Yes | Context caching | No |
+| Pricing tier | Moderate | Moderate | Moderate | Low |
+| Open source | No | No | No | Yes |
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### アンチパターン 1: モデル選択の固定化
-
-```
-誤: 全タスクで Opus を使用
-  → コストが不必要に高い、レイテンシも増大
-
-正: タスクに応じてモデルを使い分ける
-  Haiku: 分類、感情分析、簡単な質問応答、前処理
-  Sonnet: コード生成、文書作成、一般的な分析、RAG回答
-  Opus: 複雑な推論、研究レベルの分析、長文創作、Extended Thinking
-
-  コスト例（1日1万リクエスト、平均1K入力/500出力トークン）:
-  - 全て Opus: $285/日 = $8,550/月
-  - 全て Sonnet: $57/日 = $1,710/月
-  - 混合（Haiku 70% + Sonnet 25% + Opus 5%）: $22/日 = $660/月
-```
-
-### アンチパターン 2: プロンプトキャッシュの未活用
+### Anti-pattern 1: Always Using the Same Model
 
 ```
-誤: 同じシステムプロンプトや共通コンテキストを毎回フル送信
-  → 大量のトークン消費、レイテンシ増加
+Wrong: Use Opus for all tasks
+  → Unnecessarily high cost and increased latency
 
-正: Claude のプロンプトキャッシュを活用
-  - 1024トークン以上の共通部分を cache_control で指定
-  - 2回目以降は 90% のコスト削減
-  - TTL は 5 分（最後のアクセスから）
+Right: Choose the model based on the task
+  Haiku: Classification, sentiment analysis, simple Q&A, pre-processing
+  Sonnet: Code generation, document writing, general analysis, RAG answers
+  Opus: Complex reasoning, research-level analysis, long-form creative writing, Extended Thinking
 
-  効果の例:
-  50Kトークンのドキュメントを10回質問する場合
-  - キャッシュなし: $1.50 (50K × 10 × $3/1M)
-  - キャッシュあり: $0.285 (50K × $3/1M + 50K × 9 × $0.30/1M)
-  → 81% のコスト削減
+  Cost example (10,000 requests/day, avg 1K input / 500 output tokens):
+  - All Opus:   $285/day = $8,550/month
+  - All Sonnet: $57/day  = $1,710/month
+  - Mixed (Haiku 70% + Sonnet 25% + Opus 5%): $22/day = $660/month
 ```
 
-### アンチパターン 3: ストリーミング未使用
+### Anti-pattern 2: Not Using Prompt Caching
 
 ```
-誤: 常にブロッキングで全体の応答を待つ
-  → ユーザーは長時間白い画面を見る
+Wrong: Send the same system prompt or shared context in full every time
+  → High token consumption, increased latency
 
-正: ストリーミングを活用して体感レイテンシを改善
-  - Time to First Token (TTFT) が重要
-  - Sonnet の TTFT は通常 200-500ms
-  - フル応答の 500-3000ms を待つ必要がない
+Right: Use Claude's prompt caching
+  - Mark shared sections of 1024+ tokens with cache_control
+  - 90% cost reduction from the second request onwards
+  - TTL is 5 minutes (from the last access)
+
+  Example impact:
+  Querying a 50K-token document 10 times:
+  - Without cache: $1.50  (50K × 10 × $3/1M)
+  - With cache:    $0.285 (50K × $3/1M + 50K × 9 × $0.30/1M)
+  → 81% cost reduction
 ```
 
-### アンチパターン 4: エラーハンドリングの欠如
+### Anti-pattern 3: Not Using Streaming
+
+```
+Wrong: Always wait for the full response in blocking mode
+  → Users stare at a blank screen for a long time
+
+Right: Use streaming to improve perceived latency
+  - Time to First Token (TTFT) is what matters most
+  - Sonnet's TTFT is typically 200-500ms
+  - No need to wait for the full 500-3000ms response
+```
+
+### Anti-pattern 4: Missing Error Handling
 
 ```python
 # NG: エラーハンドリングなし
@@ -1239,16 +1240,16 @@ def safe_call(messages, model="claude-sonnet-4-20250514"):
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
 # 演習1: 基本実装のテンプレート
@@ -1295,9 +1296,9 @@ def test_exercise1():
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
 # 演習2: 応用パターン
@@ -1364,9 +1365,9 @@ def test_advanced():
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
 # 演習3: パフォーマンス最適化
@@ -1415,90 +1416,90 @@ def benchmark():
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm time complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 ---
 
 ## FAQ
 
-### Q1: Claude の最大の強みは何ですか？
+### Q1: What is Claude's greatest strength?
 
-**A:** 複数の強みがありますが、特に以下が際立っています:
-1. **長文コンテキストの理解力**: 200Kトークンのコンテキストを実用的に活用でき、大規模コードベースや長文ドキュメントの分析に適している
-2. **安全性**: Constitutional AI による組み込みの安全性が、プロダクション利用時のリスクを低減する
-3. **コーディング能力**: 特に Claude Code との組み合わせで、エージェント的なコーディング支援が可能
-4. **日本語能力**: 自然な日本語での応答品質が高い
+**A:** Claude has multiple strengths, but the following stand out in particular:
+1. **Long-context comprehension**: Can practically leverage a 200K-token context window, making it well-suited for analyzing large codebases and lengthy documents
+2. **Safety**: Built-in safety via Constitutional AI reduces risk in production use
+3. **Coding capability**: Especially combined with Claude Code, it enables agentic coding assistance
+4. **Japanese language quality**: Produces high-quality, natural responses in Japanese
 
-### Q2: Claude API のレートリミットはどうなっていますか？
+### Q2: How does Claude API rate limiting work?
 
-**A:** ティア制で管理されています:
-- **Tier 1**: ~50 RPM, ~40K TPM/日
-- **Tier 2**: ~1000 RPM, ~80K TPM/日
-- **Tier 3**: ~2000 RPM, ~160K TPM/日
-- **Tier 4**: ~4000 RPM, ~400K TPM/日
+**A:** It is managed in tiers:
+- **Tier 1**: ~50 RPM, ~40K TPM/day
+- **Tier 2**: ~1000 RPM, ~80K TPM/day
+- **Tier 3**: ~2000 RPM, ~160K TPM/day
+- **Tier 4**: ~4000 RPM, ~400K TPM/day
 
-バッチ API を使えばリミットの影響を大幅に軽減できます。利用額に応じてティアが自動昇格します。
+Using the Batch API significantly reduces the impact of rate limits. Tiers are automatically upgraded based on usage spend.
 
-### Q3: Claude Code とは何ですか？
+### Q3: What is Claude Code?
 
-**A:** Anthropic 公式の CLI ツールで、ターミナルから Claude と対話しながらコーディングができます。ファイルの読み書き、Git 操作、テスト実行などをエージェント的に行え、MCP（Model Context Protocol）で外部ツールとも統合できます。VS Code の拡張機能としても利用可能です。
+**A:** Claude Code is Anthropic's official CLI tool that lets you interact with Claude from the terminal while coding. It can perform file reads and writes, Git operations, and test execution in an agentic manner, and integrates with external tools via MCP (Model Context Protocol). It is also available as a VS Code extension.
 
-### Q4: Extended Thinking はいつ使うべきですか？
+### Q4: When should I use Extended Thinking?
 
-**A:** 以下の場面で特に効果的です:
-- 数学的・論理的な問題の解決
-- 複雑なコードのデバッグ
-- 多角的な分析が必要な場面
-- 高精度が求められるが、レイテンシは許容できる場合
+**A:** It is particularly effective in the following situations:
+- Solving mathematical or logical problems
+- Debugging complex code
+- Situations requiring multi-faceted analysis
+- When high accuracy is required but latency is acceptable
 
-budget_tokens で思考量を制御でき、コストとのバランスを取れます。
+You can control the amount of thinking with `budget_tokens` to balance cost and quality.
 
-### Q5: プロンプトキャッシュの最適な使い方は？
+### Q5: What is the best way to use prompt caching?
 
-**A:** 以下のパターンが効果的です:
-- **RAG パイプライン**: 取得したドキュメントをキャッシュし、同じドキュメントに対する複数の質問を処理
-- **コードレビュー**: コードベースをキャッシュし、異なる観点でレビュー
-- **長いシステムプロンプト**: 詳細な指示をキャッシュ
-- 最低1024トークン以上のブロックが対象、TTLは5分
+**A:** The following patterns are effective:
+- **RAG pipelines**: Cache retrieved documents and handle multiple queries against the same document
+- **Code review**: Cache the codebase and review from different perspectives
+- **Long system prompts**: Cache detailed instructions
+- Minimum block size is 1024 tokens; TTL is 5 minutes
 
-### Q6: Claude でハルシネーションを防ぐにはどうすればよいですか？
+### Q6: How can I prevent hallucinations with Claude?
 
-**A:** 複数のアプローチを組み合わせます:
-1. **RAG の活用**: 事実に基づく回答が必要な場合、外部知識を注入する
-2. **引用の要求**: 「根拠を明示してください」「情報源を示してください」
-3. **不確実性の表明を促す**: 「確信がない場合はそう述べてください」
-4. **温度を0に設定**: 事実確認では決定的な出力を使用
-5. **検証ステップの追加**: 回答後に自己検証させる
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| Claude ファミリー | Haiku（速度）/ Sonnet（バランス）/ Opus（性能）の3段階 |
-| Constitutional AI | 憲法原則に基づく自己批評でアラインメント |
-| API 機能 | メッセージ、ストリーミング、ツール使用、ビジョン対応 |
-| Extended Thinking | Opus で利用可能な拡張思考モード |
-| コンテキスト | 200K トークンの長文コンテキスト |
-| プロンプトキャッシュ | 繰り返しコンテキストのコストを 90% 削減 |
-| バッチ API | 大量リクエストを 50% コスト削減で処理 |
-| Claude Code | CLI ベースのAIコーディングアシスタント |
-| MCP | Model Context Protocol によるツール統合 |
+**A:** Combine multiple approaches:
+1. **Use RAG**: Inject external knowledge when factual answers are required
+2. **Request citations**: "Please provide the basis for your answer" / "Please cite your sources"
+3. **Encourage uncertainty disclosure**: "If you are not confident, please say so"
+4. **Set temperature to 0**: Use deterministic output for fact verification
+5. **Add a verification step**: Have the model self-verify its answer after responding
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [01-gpt.md](./01-gpt.md) -- GPT ファミリーとの比較
-- [04-model-comparison.md](./04-model-comparison.md) -- 全モデルの横断比較
-- [../02-applications/02-function-calling.md](../02-applications/02-function-calling.md) -- Function Calling の詳細
+| Item | Key Point |
+|------|-----------|
+| Claude family | Three tiers: Haiku (speed) / Sonnet (balance) / Opus (performance) |
+| Constitutional AI | Alignment through self-critique based on constitutional principles |
+| API features | Messages, streaming, tool use, vision support |
+| Extended Thinking | Extended reasoning mode available on Opus |
+| Context | Long-context window of 200K tokens |
+| Prompt caching | Reduces repeated context costs by 90% |
+| Batch API | Processes large volumes of requests at 50% cost reduction |
+| Claude Code | CLI-based AI coding assistant |
+| MCP | Tool integration via Model Context Protocol |
 
 ---
 
-## 参考文献
+## Further Reading
+
+- [01-gpt.md](./01-gpt.md) -- Comparison with the GPT family
+- [04-model-comparison.md](./04-model-comparison.md) -- Cross-model comparison
+- [../02-applications/02-function-calling.md](../02-applications/02-function-calling.md) -- Function Calling in depth
+
+---
+
+## References
 
 1. Anthropic. (2023). "Claude's Constitution." https://www.anthropic.com/index/claudes-constitution
 2. Bai, Y. et al. (2022). "Constitutional AI: Harmlessness from AI Feedback." *arXiv:2212.08073*. https://arxiv.org/abs/2212.08073
