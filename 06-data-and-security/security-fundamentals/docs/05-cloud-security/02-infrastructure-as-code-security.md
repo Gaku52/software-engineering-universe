@@ -1,243 +1,244 @@
-# IaC セキュリティ
+# IaC Security
 
-> tfsec、Checkov によるインフラコードの自動セキュリティチェック、ポリシー as コードによるガバナンス適用まで、Infrastructure as Code のセキュリティを体系的に学ぶ
+> A systematic approach to Infrastructure as Code security — from automated security checks of infrastructure code using tfsec and Checkov, to governance enforcement through Policy as Code
 
-## 前提知識
+## Prerequisites
 
-- Terraform / CloudFormation の基本的な構文と概念
-- クラウドインフラ (AWS/GCP/Azure) の基本的なサービス理解
-- CI/CD パイプラインの基礎知識
+- Basic syntax and concepts of Terraform / CloudFormation
+- Basic understanding of cloud infrastructure services (AWS/GCP/Azure)
+- Fundamentals of CI/CD pipelines
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **IaC のセキュリティリスク** — Terraform/CloudFormation コードに潜む設定ミスとその影響
-2. **静的解析ツール** — tfsec、Checkov、KICS、Trivy によるセキュリティポリシーの自動検証
-3. **ポリシー as コード** — OPA/Rego、Sentinel によるカスタムポリシーの実装
-4. **ドリフト検知** — IaC と実インフラの乖離を検出し是正する手法
-5. **CI/CD 統合** — セキュリティゲートをパイプラインに組み込む実践手法
-6. **シークレット管理** — IaC コードからの機密情報の排除
+1. **IaC Security Risks** — Misconfigurations lurking in Terraform/CloudFormation code and their impact
+2. **Static Analysis Tools** — Automated security policy validation using tfsec, Checkov, KICS, and Trivy
+3. **Policy as Code** — Implementing custom policies with OPA/Rego and Sentinel
+4. **Drift Detection** — Techniques for detecting and correcting discrepancies between IaC and actual infrastructure
+5. **CI/CD Integration** — Practical methods for embedding security gates into pipelines
+6. **Secret Management** — Eliminating sensitive information from IaC code
 
 ---
 
-## 1. IaC セキュリティの重要性
+## 1. The Importance of IaC Security
 
-### なぜ IaC セキュリティが必要なのか
+### Why IaC Security Matters
 
-IaC (Infrastructure as Code) は本来、インフラ構成の一貫性と再現性を高めるために導入される。しかし、IaC コード自体にセキュリティ上の問題が含まれている場合、その問題はコードを適用するたびに**大規模に再現**される。手動設定であれば1つの環境にのみ影響する設定ミスが、IaC では全環境に同時にデプロイされてしまう。
+IaC (Infrastructure as Code) is originally introduced to improve consistency and reproducibility of infrastructure configurations. However, when security issues exist within the IaC code itself, those issues are **reproduced at scale** every time the code is applied. A misconfiguration that would only affect one environment in a manual setup is deployed to all environments simultaneously with IaC.
 
-#### IaC セキュリティの3つの脅威モデル
+#### Three Threat Models in IaC Security
 
 ```
 +------------------------------------------------------------------+
-|          IaC セキュリティにおける脅威モデル                          |
+|          Threat Models in IaC Security                           |
 |------------------------------------------------------------------|
 |                                                                  |
-|  [脅威1: 設定ミス (Misconfiguration)]                             |
-|  +-- 最も頻発するリスク                                           |
-|  +-- S3 バケットの公開設定、SG の過剰許可など                      |
-|  +-- 2023年のクラウドセキュリティインシデントの 60%以上が設定ミス    |
-|  +-- IaC により設定ミスが大規模に展開される                        |
+|  [Threat 1: Misconfiguration]                                    |
+|  +-- Most frequently occurring risk                              |
+|  +-- S3 bucket public exposure, overly permissive SGs, etc.     |
+|  +-- Over 60% of cloud security incidents in 2023 were          |
+|  |   caused by misconfiguration                                  |
+|  +-- IaC causes misconfigurations to be deployed at scale       |
 |                                                                  |
-|  [脅威2: シークレット漏洩 (Secrets Exposure)]                     |
-|  +-- ハードコードされた認証情報                                    |
-|  +-- Git 履歴に残るシークレット                                   |
-|  +-- Terraform state ファイル内の機密データ                       |
-|  +-- 出力変数 (output) によるシークレットの露出                    |
+|  [Threat 2: Secrets Exposure]                                    |
+|  +-- Hardcoded credentials                                       |
+|  +-- Secrets remaining in Git history                           |
+|  +-- Sensitive data inside Terraform state files                |
+|  +-- Secrets exposed via output variables                       |
 |                                                                  |
-|  [脅威3: サプライチェーン攻撃 (Supply Chain)]                     |
-|  +-- 悪意のある Terraform モジュール                               |
-|  +-- 改竄された Provider プラグイン                                |
-|  +-- 信頼されないレジストリからのモジュール取得                     |
-|  +-- モジュールのバージョン固定忘れ                                |
+|  [Threat 3: Supply Chain Attacks]                                |
+|  +-- Malicious Terraform modules                                 |
+|  +-- Tampered provider plugins                                   |
+|  +-- Fetching modules from untrusted registries                 |
+|  +-- Forgetting to pin module versions                          |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### IaC で起きるセキュリティ問題の分類
+### Classification of Security Issues in IaC
 
 ```
 +------------------------------------------------------------------+
-|         IaC の典型的なセキュリティ問題                               |
+|         Typical Security Issues in IaC                           |
 |------------------------------------------------------------------|
 |                                                                  |
-|  [ネットワーク]                                                   |
-|  +-- Security Group で 0.0.0.0/0:22 を許可                      |
-|  +-- NACL のデフォルト全許可                                      |
-|  +-- VPC ピアリングの過剰な許可                                   |
-|  +-- VPC Endpoint の未設定（パブリック経路でのAPI通信）             |
-|  +-- パブリックサブネットへの不要なリソース配置                     |
+|  [Network]                                                       |
+|  +-- Security Group allows 0.0.0.0/0:22                        |
+|  +-- NACL default allow-all                                     |
+|  +-- Overly permissive VPC peering                             |
+|  +-- VPC Endpoint not configured (API traffic over public path) |
+|  +-- Unnecessary resources placed in public subnets            |
 |                                                                  |
-|  [データ保護]                                                     |
-|  +-- S3 バケットのパブリックアクセス                               |
-|  +-- RDS/EBS の暗号化未設定                                      |
-|  +-- ログの暗号化未設定                                           |
-|  +-- バックアップの暗号化・保持期間未設定                          |
-|  +-- クロスリージョンレプリケーション未設定                         |
+|  [Data Protection]                                               |
+|  +-- S3 bucket public access                                    |
+|  +-- RDS/EBS encryption not configured                         |
+|  +-- Log encryption not configured                             |
+|  +-- Backup encryption and retention period not configured     |
+|  +-- Cross-region replication not configured                   |
 |                                                                  |
-|  [認証・認可]                                                     |
-|  +-- IAM ポリシーの * (全許可)                                    |
-|  +-- ハードコードされた認証情報                                    |
-|  +-- MFA 未設定のリソース                                         |
-|  +-- 過剰な権限のサービスロール                                    |
-|  +-- AssumeRole の Principal 制限不足                             |
+|  [Authentication & Authorization]                                |
+|  +-- IAM policy with * (full permissions)                       |
+|  +-- Hardcoded credentials                                      |
+|  +-- MFA not configured for resources                          |
+|  +-- Service roles with excessive permissions                  |
+|  +-- Insufficient Principal restriction in AssumeRole          |
 |                                                                  |
-|  [ログ・監視]                                                     |
-|  +-- CloudTrail 無効                                            |
-|  +-- VPC Flow Logs 未設定                                        |
-|  +-- アクセスログ未有効化                                         |
-|  +-- CloudWatch アラーム未設定                                   |
-|  +-- GuardDuty/SecurityHub 未有効化                              |
+|  [Logging & Monitoring]                                          |
+|  +-- CloudTrail disabled                                        |
+|  +-- VPC Flow Logs not configured                              |
+|  +-- Access logging not enabled                                |
+|  +-- CloudWatch alarms not configured                          |
+|  +-- GuardDuty/SecurityHub not enabled                         |
 |                                                                  |
-|  [コンプライアンス]                                                |
-|  +-- タグ付け規則の不遵守                                         |
-|  +-- リージョン制限の未適用                                       |
-|  +-- データ保持ポリシーの未実装                                    |
-|  +-- 暗号化基準の不遵守                                           |
+|  [Compliance]                                                    |
+|  +-- Non-compliance with tagging rules                         |
+|  +-- Region restrictions not applied                           |
+|  +-- Data retention policies not implemented                   |
+|  +-- Non-compliance with encryption standards                  |
 |                                                                  |
 +------------------------------------------------------------------+
 ```
 
-### IaC のセキュリティチェックのタイミング
+### Timing of IaC Security Checks
 
-セキュリティチェックは「シフトレフト」の原則に従い、できるだけ早い段階で実施することが重要である。問題の発見が遅れるほど修正コストは指数関数的に増加する。
+Security checks should be performed as early as possible, following the "shift-left" principle. The later a problem is discovered, the more the remediation cost increases exponentially.
 
 ```
-開発者 PC         CI/CD              デプロイ前            ランタイム
-    |                |                    |                    |
-  [pre-commit]    [ビルド]            [Plan/Apply]         [ドリフト検知]
-    |                |                    |                    |
-  tfsec           Checkov             Sentinel/OPA         AWS Config
-  trivy           KICS                (ポリシーゲート)       Prowler
-  (IDE連携)       tfsec                                     (定期スキャン)
-  git-secrets     trivy                                    driftctl
+Developer PC      CI/CD           Pre-Deploy           Runtime
+    |                |                  |                  |
+  [pre-commit]    [Build]           [Plan/Apply]       [Drift Detection]
+    |                |                  |                  |
+  tfsec           Checkov           Sentinel/OPA       AWS Config
+  trivy           KICS              (Policy Gate)      Prowler
+  (IDE integration) tfsec                              (Periodic Scan)
+  git-secrets     trivy                                driftctl
                   Snyk IaC
-    |                |                    |                    |
-  コスト:低       コスト:中             コスト:高             コスト:最高
-  発見速度:最速   発見速度:速           発見速度:中           発見速度:遅
+    |                |                  |                  |
+  Cost: Low       Cost: Medium      Cost: High         Cost: Highest
+  Speed: Fastest  Speed: Fast       Speed: Medium      Speed: Slow
 ```
 
-#### セキュリティチェックのレイヤー構造
+#### Layer Structure of Security Checks
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│              IaC セキュリティチェック レイヤー              │
+│          IaC Security Check Layers                      │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
-│  Layer 5: ランタイム監視                                  │
-│  ├── AWS Config Rules（リソース準拠チェック）              │
-│  ├── Prowler（CIS ベンチマーク定期スキャン）               │
-│  └── ドリフト検知（terraform plan -detailed-exitcode）   │
+│  Layer 5: Runtime Monitoring                            │
+│  ├── AWS Config Rules (Resource compliance checks)      │
+│  ├── Prowler (CIS benchmark periodic scans)             │
+│  └── Drift detection (terraform plan -detailed-exitcode)│
 │                                                         │
-│  Layer 4: ポリシーゲート                                  │
-│  ├── OPA/Conftest（terraform plan JSON 検証）            │
-│  ├── Sentinel（Terraform Cloud/Enterprise）              │
+│  Layer 4: Policy Gate                                   │
+│  ├── OPA/Conftest (terraform plan JSON validation)      │
+│  ├── Sentinel (Terraform Cloud/Enterprise)              │
 │  └── AWS Service Control Policies                       │
 │                                                         │
-│  Layer 3: CI/CD パイプライン                              │
-│  ├── Checkov（マルチフレームワーク静的解析）               │
-│  ├── tfsec / trivy config（Terraform 特化解析）          │
-│  ├── KICS（Checkmarx IaC スキャナ）                      │
-│  └── SARIF → GitHub Security タブ連携                   │
+│  Layer 3: CI/CD Pipeline                                │
+│  ├── Checkov (multi-framework static analysis)          │
+│  ├── tfsec / trivy config (Terraform-specific analysis) │
+│  ├── KICS (Checkmarx IaC scanner)                       │
+│  └── SARIF → GitHub Security tab integration            │
 │                                                         │
-│  Layer 2: Pre-commit フック                               │
-│  ├── tfsec / trivy（ローカルスキャン）                    │
+│  Layer 2: Pre-commit Hooks                              │
+│  ├── tfsec / trivy (local scan)                         │
 │  ├── terraform fmt / validate                           │
-│  ├── git-secrets / gitleaks（シークレット検知）           │
-│  └── tflint（Terraform リンター）                        │
+│  ├── git-secrets / gitleaks (secret detection)          │
+│  └── tflint (Terraform linter)                          │
 │                                                         │
-│  Layer 1: IDE 統合                                        │
-│  ├── VS Code tfsec 拡張機能                              │
-│  ├── VS Code Checkov 拡張機能                            │
-│  └── IntelliJ Terraform プラグイン                       │
+│  Layer 1: IDE Integration                               │
+│  ├── VS Code tfsec extension                            │
+│  ├── VS Code Checkov extension                          │
+│  └── IntelliJ Terraform plugin                          │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. tfsec (Terraform セキュリティスキャナ)
+## 2. tfsec (Terraform Security Scanner)
 
-### tfsec の内部アーキテクチャ
+### Internal Architecture of tfsec
 
-tfsec は Terraform のHCLコードを解析し、セキュリティルール違反を検出する静的解析ツールである。現在は Aqua Security の Trivy に統合されつつあるが、tfsec 単体としても広く使われている。
+tfsec is a static analysis tool that parses Terraform HCL code and detects security rule violations. It is currently being integrated into Aqua Security's Trivy, but is still widely used as a standalone tool.
 
 ```
-┌─────────────────── tfsec 内部処理フロー ───────────────────┐
-│                                                            │
-│  1. HCL パーサー                                           │
-│     ├── .tf ファイルを AST（抽象構文木）に変換               │
-│     ├── 変数の解決（variables.tf, terraform.tfvars）       │
-│     └── モジュール参照の解決                                │
-│                                                            │
-│  2. リソースグラフ構築                                       │
-│     ├── リソース間の依存関係を解析                           │
-│     ├── 属性の参照チェーン（例: SG → EC2）を追跡             │
-│     └── data source の評価                                 │
-│                                                            │
-│  3. ルールエンジン                                          │
-│     ├── 組み込みルール（~1000 ルール）                      │
-│     ├── カスタムルール（YAML/JSON/Rego）                    │
-│     └── 各ルールがリソースを検査                            │
-│                                                            │
-│  4. 結果レポーター                                          │
-│     ├── テキスト / JSON / SARIF / CSV / JUnit             │
-│     ├── 重大度レベル: CRITICAL, HIGH, MEDIUM, LOW          │
-│     └── 修正推奨事項の提示                                  │
-│                                                            │
-└────────────────────────────────────────────────────────────┘
+┌─────────────────── tfsec Internal Processing Flow ───────────────────┐
+│                                                                        │
+│  1. HCL Parser                                                         │
+│     ├── Converts .tf files to AST (Abstract Syntax Tree)              │
+│     ├── Resolves variables (variables.tf, terraform.tfvars)           │
+│     └── Resolves module references                                     │
+│                                                                        │
+│  2. Resource Graph Construction                                        │
+│     ├── Analyzes dependencies between resources                       │
+│     ├── Tracks attribute reference chains (e.g., SG → EC2)           │
+│     └── Evaluates data sources                                        │
+│                                                                        │
+│  3. Rule Engine                                                        │
+│     ├── Built-in rules (~1000 rules)                                  │
+│     ├── Custom rules (YAML/JSON/Rego)                                 │
+│     └── Each rule inspects resources                                  │
+│                                                                        │
+│  4. Result Reporter                                                    │
+│     ├── Text / JSON / SARIF / CSV / JUnit                             │
+│     ├── Severity levels: CRITICAL, HIGH, MEDIUM, LOW                  │
+│     └── Presents fix recommendations                                  │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
-### tfsec の使い方
+### How to Use tfsec
 
 ```bash
-# インストール
+# Install
 brew install tfsec
 
-# または Trivy 経由（推奨：tfsec は Trivy に統合済み）
+# Or via Trivy (recommended: tfsec is already integrated into Trivy)
 brew install trivy
 trivy config .
 
-# 基本スキャン実行
+# Basic scan
 tfsec .
 
-# 特定の重大度以上のみ
+# Only above a specific severity
 tfsec --minimum-severity HIGH .
 
-# JSON 出力 (CI/CD 向け)
+# JSON output (for CI/CD)
 tfsec --format json --out results.json .
 
-# SARIF 出力 (GitHub Security タブ連携)
+# SARIF output (GitHub Security tab integration)
 tfsec --format sarif --out results.sarif .
 
-# JUnit 出力 (Jenkins 連携)
+# JUnit output (Jenkins integration)
 tfsec --format junit --out results.xml .
 
-# 特定のディレクトリを除外
+# Exclude a specific directory
 tfsec --exclude-path modules/legacy .
 
-# 特定のルールを無効化
+# Disable a specific rule
 tfsec --exclude aws-s3-enable-versioning .
 
-# カスタムルールファイルを指定
+# Specify a custom rule file
 tfsec --custom-check-dir ./custom-rules .
 
-# Terraform 変数ファイルを指定
+# Specify a Terraform variables file
 tfsec --tfvars-file production.tfvars .
 
-# ソフトフェイル（CI を止めずに結果だけ出力）
+# Soft fail (output results without stopping CI)
 tfsec --soft-fail .
 ```
 
-### tfsec の検出例と修正
+### tfsec Detection Examples and Fixes
 
 ```hcl
-# NG: tfsec が検出する問題（複数のセキュリティ違反）
+# NG: Issues detected by tfsec (multiple security violations)
 resource "aws_s3_bucket" "data" {
   bucket = "my-data-bucket"
-  # aws-s3-enable-bucket-encryption: 暗号化未設定
-  # aws-s3-enable-bucket-logging: アクセスログ未設定
-  # aws-s3-enable-versioning: バージョニング未設定
-  # aws-s3-block-public-acls: パブリックアクセスブロック未設定
+  # aws-s3-enable-bucket-encryption: encryption not configured
+  # aws-s3-enable-bucket-logging: access logging not configured
+  # aws-s3-enable-versioning: versioning not configured
+  # aws-s3-block-public-acls: public access block not configured
 }
 
 resource "aws_security_group_rule" "ssh" {
@@ -252,12 +253,12 @@ resource "aws_security_group_rule" "ssh" {
 resource "aws_db_instance" "main" {
   engine         = "postgres"
   instance_class = "db.t3.medium"
-  # aws-rds-encrypt-instance-storage-data: 暗号化未設定
-  # aws-rds-no-public-db-access: パブリックアクセス制御未設定
-  # aws-rds-enable-performance-insights: パフォーマンスインサイト未設定
+  # aws-rds-encrypt-instance-storage-data: encryption not configured
+  # aws-rds-no-public-db-access: public access control not configured
+  # aws-rds-enable-performance-insights: performance insights not configured
 }
 
-# OK: 修正後（セキュリティベストプラクティス準拠）
+# OK: After fix (compliant with security best practices)
 resource "aws_s3_bucket" "data" {
   bucket = "my-data-bucket"
 
@@ -340,10 +341,10 @@ resource "aws_db_instance" "main" {
 }
 ```
 
-### tfsec のインライン抑制
+### tfsec Inline Suppression
 
 ```hcl
-# 特定のルールを正当な理由で抑制
+# Suppress a specific rule with a valid reason
 resource "aws_security_group_rule" "https" {
   type              = "ingress"
   from_port         = 443
@@ -353,14 +354,14 @@ resource "aws_security_group_rule" "https" {
   security_group_id = aws_security_group.alb.id
 }
 
-# 複数ルールの同時抑制
+# Suppress multiple rules simultaneously
 resource "aws_s3_bucket" "public_assets" {
   bucket = "my-public-assets"
   #tfsec:ignore:aws-s3-block-public-acls -- CDN origin for public assets
   #tfsec:ignore:aws-s3-block-public-policy -- Intentionally public
 }
 
-# 有効期限付き抑制 (tfsec 1.28+)
+# Suppression with expiry date (tfsec 1.28+)
 resource "aws_instance" "legacy" {
   ami           = "ami-xxx"
   instance_type = "t3.micro"
@@ -368,7 +369,7 @@ resource "aws_instance" "legacy" {
 }
 ```
 
-### tfsec カスタムルール
+### tfsec Custom Rules
 
 ```yaml
 # .tfsec/custom_checks.yaml
@@ -422,115 +423,115 @@ checks:
 
 ---
 
-## 3. Checkov (マルチフレームワーク対応)
+## 3. Checkov (Multi-Framework Support)
 
-### Checkov の特徴
+### Features of Checkov
 
-| 項目 | tfsec | Checkov | KICS | Trivy |
+| Item | tfsec | Checkov | KICS | Trivy |
 |------|-------|---------|------|-------|
-| 対応 IaC | Terraform | TF, CFn, K8s, ARM, Docker, Helm | 多数 | TF, CFn, K8s, Docker, Helm |
-| ルール数 | ~1000 | ~2500 | ~2000 | ~1500 |
-| カスタムポリシー | YAML/Rego | Python/YAML/Rego | Rego | Rego |
-| グラフベース解析 | 部分的 | あり (依存関係解析) | なし | 部分的 |
-| SCA 機能 | なし | あり (OSS脆弱性) | なし | あり |
-| CI/CD 統合 | GitHub Action | GitHub Action, pre-commit | GitHub Action | GitHub Action |
-| 修正提案 | 部分的 | あり (自動修正PR) | なし | 部分的 |
-| ライセンス管理 | なし | あり | なし | あり |
-| 実行速度 | 高速 | 中程度 | 中程度 | 高速 |
+| Supported IaC | Terraform | TF, CFn, K8s, ARM, Docker, Helm | Many | TF, CFn, K8s, Docker, Helm |
+| Number of rules | ~1000 | ~2500 | ~2000 | ~1500 |
+| Custom policies | YAML/Rego | Python/YAML/Rego | Rego | Rego |
+| Graph-based analysis | Partial | Yes (dependency analysis) | No | Partial |
+| SCA capability | No | Yes (OSS vulnerabilities) | No | Yes |
+| CI/CD integration | GitHub Action | GitHub Action, pre-commit | GitHub Action | GitHub Action |
+| Fix suggestions | Partial | Yes (auto-fix PRs) | No | Partial |
+| License management | No | Yes | No | Yes |
+| Execution speed | Fast | Moderate | Moderate | Fast |
 
-### Checkov の内部アーキテクチャ
+### Internal Architecture of Checkov
 
 ```
-┌─────────────────── Checkov 内部処理フロー ─────────────────┐
-│                                                            │
-│  1. フレームワーク検出                                      │
-│     ├── ファイル拡張子/内容からフレームワークを判定           │
-│     ├── .tf → Terraform                                   │
-│     ├── template.yaml → CloudFormation                    │
-│     ├── Dockerfile → Dockerfile                           │
-│     └── deployment.yaml → Kubernetes                      │
-│                                                            │
-│  2. パーサー（フレームワーク別）                              │
-│     ├── TerraformParser → HCL AST                         │
-│     ├── CFNParser → YAML/JSON DOM                         │
-│     ├── KubernetesParser → YAML DOM                       │
-│     └── DockerfileParser → 命令リスト                      │
-│                                                            │
-│  3. リソースグラフ（Checkov 独自機能）                       │
-│     ├── リソース間の参照・依存関係を解析                     │
-│     ├── 例: SG ← EC2 の関係を追跡                          │
-│     ├── グラフベースのポリシー評価が可能                     │
-│     └── 複数リソースにまたがるルールを記述可能               │
-│                                                            │
-│  4. チェックランナー                                        │
-│     ├── Python チェック（BaseResourceCheck）                │
-│     ├── YAML チェック                                      │
-│     ├── グラフチェック                                      │
-│     └── External チェック（GitHub URL から取得）             │
-│                                                            │
-│  5. 結果レポーター                                          │
-│     ├── CLI / JSON / SARIF / JUnit / CSV / CycloneDX     │
-│     └── Bridgecrew プラットフォーム連携                     │
-│                                                            │
-└────────────────────────────────────────────────────────────┘
+┌─────────────────── Checkov Internal Processing Flow ─────────────────┐
+│                                                                        │
+│  1. Framework Detection                                                │
+│     ├── Determines framework from file extension/content             │
+│     ├── .tf → Terraform                                               │
+│     ├── template.yaml → CloudFormation                                │
+│     ├── Dockerfile → Dockerfile                                       │
+│     └── deployment.yaml → Kubernetes                                  │
+│                                                                        │
+│  2. Parser (per framework)                                             │
+│     ├── TerraformParser → HCL AST                                     │
+│     ├── CFNParser → YAML/JSON DOM                                      │
+│     ├── KubernetesParser → YAML DOM                                    │
+│     └── DockerfileParser → Instruction list                           │
+│                                                                        │
+│  3. Resource Graph (Checkov's unique feature)                         │
+│     ├── Analyzes references and dependencies between resources        │
+│     ├── e.g., tracks the relationship SG ← EC2                       │
+│     ├── Enables graph-based policy evaluation                        │
+│     └── Allows rules spanning multiple resources                     │
+│                                                                        │
+│  4. Check Runner                                                       │
+│     ├── Python checks (BaseResourceCheck)                             │
+│     ├── YAML checks                                                   │
+│     ├── Graph checks                                                  │
+│     └── External checks (fetched from GitHub URL)                    │
+│                                                                        │
+│  5. Result Reporter                                                    │
+│     ├── CLI / JSON / SARIF / JUnit / CSV / CycloneDX                 │
+│     └── Bridgecrew platform integration                               │
+│                                                                        │
+└────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Checkov の使い方
+### How to Use Checkov
 
 ```bash
-# インストール
+# Install
 pip install checkov
 
-# Terraform スキャン
+# Terraform scan
 checkov -d . --framework terraform
 
-# Kubernetes マニフェストスキャン
+# Kubernetes manifest scan
 checkov -d ./k8s/ --framework kubernetes
 
-# Dockerfile スキャン
+# Dockerfile scan
 checkov --file Dockerfile --framework dockerfile
 
-# Helm チャートスキャン
+# Helm chart scan
 checkov -d ./charts/ --framework helm
 
-# CloudFormation スキャン
+# CloudFormation scan
 checkov --file template.yaml --framework cloudformation
 
-# 複数フレームワーク同時スキャン
+# Scan multiple frameworks simultaneously
 checkov -d . --framework terraform,kubernetes,dockerfile
 
-# 特定のチェックのみ実行
+# Run only specific checks
 checkov -d . --check CKV_AWS_18,CKV_AWS_19,CKV_AWS_21
 
-# 特定のチェックをスキップ
+# Skip specific checks
 checkov -d . --skip-check CKV_AWS_999
 
-# 出力形式
+# Output formats
 checkov -d . -o json > checkov-results.json
 checkov -d . -o sarif > checkov-results.sarif
 checkov -d . -o junitxml > checkov-results.xml
 checkov -d . -o cyclonedx > checkov-sbom.xml
 
-# カスタムポリシーディレクトリを指定
+# Specify custom policy directory
 checkov -d . --external-checks-dir ./custom_checks
 
-# 外部チェック（GitHub から取得）
+# External checks (fetched from GitHub)
 checkov -d . --external-checks-git "https://github.com/myorg/checkov-policies"
 
-# コンパクト出力（パスしたチェックを非表示）
+# Compact output (hide passed checks)
 checkov -d . --compact
 
-# 既知の問題を無視（ベースライン）
+# Ignore known issues (baseline)
 checkov -d . --baseline checkov-baseline.json
 
-# ベースラインの作成
+# Create a baseline
 checkov -d . --create-baseline
 
-# SCA スキャン (依存関係の脆弱性チェック)
+# SCA scan (vulnerability check for dependencies)
 checkov -d . --framework sca_package
 ```
 
-### Checkov カスタムポリシー (Python)
+### Checkov Custom Policies (Python)
 
 ```python
 # custom_checks/s3_naming_convention.py
@@ -538,7 +539,7 @@ from checkov.terraform.checks.resource.base_resource_check import BaseResourceCh
 from checkov.common.models.enums import CheckResult, CheckCategories
 
 class S3NamingConvention(BaseResourceCheck):
-    """S3 バケット名が命名規則に従っているか"""
+    """Checks whether the S3 bucket name follows naming conventions"""
 
     def __init__(self):
         name = "S3 bucket follows naming convention: {env}-{service}-{purpose}"
@@ -550,7 +551,7 @@ class S3NamingConvention(BaseResourceCheck):
 
     def scan_resource_conf(self, conf):
         bucket_name = conf.get("bucket", [""])[0]
-        # 命名規則: {env}-{service}-{purpose}
+        # Naming convention: {env}-{service}-{purpose}
         valid_prefixes = ["prod-", "stg-", "dev-", "shared-"]
         if any(bucket_name.startswith(prefix) for prefix in valid_prefixes):
             return CheckResult.PASSED
@@ -565,7 +566,7 @@ from checkov.terraform.checks.resource.base_resource_check import BaseResourceCh
 from checkov.common.models.enums import CheckResult, CheckCategories
 
 class RDSBackupRetention(BaseResourceCheck):
-    """RDS のバックアップ保持期間が 30 日以上であること"""
+    """Checks that RDS backup retention period is at least 30 days"""
 
     def __init__(self):
         name = "RDS backup retention period is at least 30 days"
@@ -592,7 +593,7 @@ from checkov.terraform.checks.resource.base_resource_check import BaseResourceCh
 from checkov.common.models.enums import CheckResult, CheckCategories
 
 class EC2IMDSv2Required(BaseResourceCheck):
-    """EC2 インスタンスで IMDSv2 が必須であること"""
+    """Checks that IMDSv2 is required on EC2 instances"""
 
     def __init__(self):
         name = "EC2 instance requires IMDSv2"
@@ -618,7 +619,7 @@ class EC2IMDSv2Required(BaseResourceCheck):
 check = EC2IMDSv2Required()
 ```
 
-### Checkov グラフベースポリシー (YAML)
+### Checkov Graph-Based Policy (YAML)
 
 ```yaml
 # custom_checks/graph/s3_has_encryption_and_logging.yaml
@@ -642,17 +643,17 @@ definition:
       operator: exists
 ```
 
-### Checkov のインライン抑制
+### Checkov Inline Suppression
 
 ```hcl
-# Checkov のインライン抑制（HCL コメント）
+# Checkov inline suppression (HCL comment)
 resource "aws_s3_bucket" "public_website" {
   bucket = "my-public-website"
   #checkov:skip=CKV_AWS_18: "Intentionally public - static website hosting"
   #checkov:skip=CKV_AWS_19: "Public website does not require encryption"
 }
 
-# 複数チェックの同時抑制
+# Suppress multiple checks simultaneously
 resource "aws_instance" "bastion" {
   #checkov:skip=CKV_AWS_88: "Bastion host requires public IP"
   #checkov:skip=CKV_AWS_135: "EBS optimization not needed for t3.micro"
@@ -662,12 +663,12 @@ resource "aws_instance" "bastion" {
 }
 ```
 
-### .checkov.yaml 設定ファイル
+### .checkov.yaml Configuration File
 
 ```yaml
 # .checkov.yaml
 ---
-# グローバル設定
+# Global settings
 compact: true
 directory:
   - "terraform/"
@@ -677,115 +678,115 @@ framework:
   - kubernetes
   - dockerfile
 
-# 除外するチェック
+# Checks to exclude
 skip-check:
-  - CKV_AWS_999  # 組織のポリシーで例外
+  - CKV_AWS_999  # Exception based on organizational policy
 
-# 除外するパス
+# Paths to exclude
 skip-path:
   - "terraform/modules/legacy/"
   - "terraform/sandbox/"
 
-# カスタムチェック
+# Custom checks
 external-checks-dir:
   - "custom_checks/"
 
-# 出力形式
+# Output format
 output:
   - cli
   - sarif
 
-# ソフトフェイル（CI を止めない）
+# Soft fail (does not stop CI)
 soft-fail: false
 
-# ソフトフェイル対象のチェック
+# Checks subject to soft fail
 soft-fail-on:
-  - CKV_AWS_18  # 一時的に許可
+  - CKV_AWS_18  # Temporarily allowed
 
-# ハードフェイル対象のチェック
+# Checks subject to hard fail
 hard-fail-on:
-  - CKV_AWS_145  # S3 暗号化は絶対必須
-  - CKV_AWS_19   # S3 暗号化（旧ルール）
+  - CKV_AWS_145  # S3 encryption is absolutely mandatory
+  - CKV_AWS_19   # S3 encryption (legacy rule)
 ```
 
 ---
 
-## 4. KICS と Trivy（追加の静的解析ツール）
+## 4. KICS and Trivy (Additional Static Analysis Tools)
 
 ### KICS (Keeping Infrastructure as Code Secure)
 
 ```bash
-# Docker で実行
+# Run with Docker
 docker run -v $(pwd):/path checkmarx/kics:latest scan \
   --path /path \
   --output-path /path/results \
   --type Terraform,Kubernetes,Dockerfile
 
-# レポート形式
+# Report formats
 docker run -v $(pwd):/path checkmarx/kics:latest scan \
   --path /path \
   --report-formats "sarif,json,html" \
   --output-path /path/results
 ```
 
-### Trivy (統合セキュリティスキャナ)
+### Trivy (Unified Security Scanner)
 
 ```bash
-# IaC スキャン（tfsec 後継）
+# IaC scan (successor to tfsec)
 trivy config .
 
-# 特定フレームワーク
+# Specific framework
 trivy config --tf-vars production.tfvars .
 
-# 特定の重大度のみ
+# Only specific severity levels
 trivy config --severity HIGH,CRITICAL .
 
-# JSON 出力
+# JSON output
 trivy config --format json --output results.json .
 
-# Rego カスタムポリシー
+# Rego custom policies
 trivy config --policy ./policies --namespaces custom .
 
-# コンテナイメージスキャン（IaC + 脆弱性統合）
+# Container image scan (IaC + vulnerability integrated)
 trivy image myapp:latest
 
-# ファイルシステムスキャン（IaC + シークレット + 脆弱性）
+# Filesystem scan (IaC + secrets + vulnerabilities)
 trivy fs --scanners vuln,secret,misconfig .
 ```
 
-### ツール選定ガイド
+### Tool Selection Guide
 
 ```
-┌─────────────────── ツール選定フローチャート ─────────────────┐
-│                                                             │
-│  Q: どのフレームワークを使っているか?                        │
-│                                                             │
-│  Terraform のみ                                             │
-│  └→ tfsec / trivy config（高速でシンプル）                  │
-│                                                             │
-│  Terraform + Kubernetes + Dockerfile                        │
-│  └→ Checkov（マルチフレームワーク対応 + グラフ解析）        │
-│                                                             │
-│  多数のフレームワーク + カスタムポリシー重視                  │
-│  └→ KICS（広範なフレームワーク対応）                        │
-│                                                             │
-│  統合セキュリティ（IaC + コンテナ + SCA）                   │
-│  └→ Trivy（Aqua Security 統合プラットフォーム）             │
-│                                                             │
-│  エンタープライズ（Terraform Cloud/Enterprise 使用）         │
-│  └→ Sentinel（HashiCorp 純正ポリシーエンジン）              │
-│                                                             │
-│  推奨: 複数ツールの併用                                      │
-│  └→ tfsec(ローカル) + Checkov(CI) + OPA(ポリシーゲート)    │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────── Tool Selection Flowchart ─────────────────┐
+│                                                               │
+│  Q: Which framework are you using?                           │
+│                                                               │
+│  Terraform only                                              │
+│  └→ tfsec / trivy config (fast and simple)                   │
+│                                                               │
+│  Terraform + Kubernetes + Dockerfile                         │
+│  └→ Checkov (multi-framework support + graph analysis)       │
+│                                                               │
+│  Many frameworks + emphasis on custom policies               │
+│  └→ KICS (broad framework support)                           │
+│                                                               │
+│  Unified security (IaC + containers + SCA)                   │
+│  └→ Trivy (Aqua Security unified platform)                   │
+│                                                               │
+│  Enterprise (using Terraform Cloud/Enterprise)               │
+│  └→ Sentinel (HashiCorp native policy engine)                │
+│                                                               │
+│  Recommended: Use multiple tools together                    │
+│  └→ tfsec(local) + Checkov(CI) + OPA(policy gate)           │
+│                                                               │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. CI/CD 統合
+## 5. CI/CD Integration
 
-### GitHub Actions での統合パイプライン
+### Integrated Pipeline with GitHub Actions
 
 ```yaml
 # .github/workflows/iac-security.yaml
@@ -844,7 +845,7 @@ jobs:
           output: 'trivy.sarif'
           severity: 'HIGH,CRITICAL'
 
-      # --- SARIF アップロード ---
+      # --- SARIF Upload ---
       - name: Upload tfsec SARIF
         if: always()
         uses: github/codeql-action/upload-sarif@v3
@@ -859,14 +860,14 @@ jobs:
           sarif_file: checkov.sarif
           category: checkov
 
-      # --- PR コメント ---
+      # --- PR Comment ---
       - name: Post Results to PR
         if: always() && github.event_name == 'pull_request'
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            // 各ツールの結果を読み取ってPRにコメント
+            // Read results from each tool and comment on PR
             const body = `## IaC Security Scan Results
             - tfsec: ✅ / ❌
             - Checkov: ✅ / ❌
@@ -880,7 +881,7 @@ jobs:
             });
 ```
 
-### GitLab CI での統合
+### Integration with GitLab CI
 
 ```yaml
 # .gitlab-ci.yml
@@ -920,7 +921,7 @@ terraform-plan:
     - conftest test tfplan.json --policy policy/
 ```
 
-### Pre-commit フック設定
+### Pre-commit Hook Configuration
 
 ```yaml
 # .pre-commit-config.yaml
@@ -953,31 +954,31 @@ repos:
 
 ---
 
-## 6. ポリシー as コード (OPA / Sentinel)
+## 6. Policy as Code (OPA / Sentinel)
 
 ### OPA (Open Policy Agent) + Rego
 
-OPA は CNCF 卒業プロジェクトであり、汎用的なポリシーエンジンとして広く採用されている。Rego はOPA のポリシー記述言語で、宣言的にポリシーを定義できる。
+OPA is a CNCF graduated project and is widely adopted as a general-purpose policy engine. Rego is OPA's policy description language that allows you to define policies declaratively.
 
-#### Rego の基本構文
+#### Basic Rego Syntax
 
 ```rego
-# Rego の基本構文
+# Rego basic syntax
 package terraform.rules
 
-# インポート
+# Imports
 import input
 import future.keywords.in
 import future.keywords.if
 import future.keywords.contains
 
-# ヘルパー関数
+# Helper function
 is_aws_resource(type) if startswith(type, "aws_")
 
-# 定数定義
+# Constant definition
 allowed_regions := {"ap-northeast-1", "us-east-1", "eu-west-1"}
 
-# deny ルール: 条件を満たすとポリシー違反
+# deny rule: triggers a policy violation when condition is met
 deny contains msg if {
     some resource_type, name
     resource := input.resource[resource_type][name]
@@ -989,7 +990,7 @@ deny contains msg if {
     )
 }
 
-# ヘルパー: 必須タグの存在チェック
+# Helper: check for required tags
 has_required_tags(resource) if {
     required := {"Environment", "Team", "CostCenter"}
     tags := object.keys(resource.tags)
@@ -998,7 +999,7 @@ has_required_tags(resource) if {
 }
 ```
 
-#### S3 セキュリティポリシー
+#### S3 Security Policy
 
 ```rego
 # policy/terraform/s3.rego
@@ -1008,7 +1009,7 @@ import future.keywords.in
 import future.keywords.if
 import future.keywords.contains
 
-# S3 バケットの暗号化を必須化
+# Require S3 bucket encryption
 deny contains msg if {
     some name
     resource := input.resource.aws_s3_bucket[name]
@@ -1022,7 +1023,7 @@ has_encryption(bucket_name) if {
     config.bucket == bucket_name
 }
 
-# パブリックアクセスブロックを必須化
+# Require public access block
 deny contains msg if {
     some name
     resource := input.resource.aws_s3_bucket[name]
@@ -1040,7 +1041,7 @@ has_public_access_block(bucket_name) if {
     block.restrict_public_buckets == true
 }
 
-# バージョニングを必須化
+# Require versioning
 deny contains msg if {
     some name
     resource := input.resource.aws_s3_bucket[name]
@@ -1055,7 +1056,7 @@ has_versioning(bucket_name) if {
     ver.versioning_configuration.status == "Enabled"
 }
 
-# KMS 暗号化を推奨 (SSE-S3 ではなく SSE-KMS)
+# Recommend KMS encryption (SSE-KMS instead of SSE-S3)
 warn contains msg if {
     some config_name
     config := input.resource.aws_s3_bucket_server_side_encryption_configuration[config_name]
@@ -1069,7 +1070,7 @@ warn contains msg if {
 }
 ```
 
-#### IAM セキュリティポリシー
+#### IAM Security Policy
 
 ```rego
 # policy/terraform/iam.rego
@@ -1079,7 +1080,7 @@ import future.keywords.in
 import future.keywords.if
 import future.keywords.contains
 
-# ワイルドカード Action の禁止
+# Prohibit wildcard Actions
 deny contains msg if {
     some name
     policy := input.resource.aws_iam_policy[name]
@@ -1090,7 +1091,7 @@ deny contains msg if {
     msg := sprintf("IAM policy '%s': Wildcard (*) actions are not allowed", [name])
 }
 
-# ワイルドカード Action の禁止 (配列内)
+# Prohibit wildcard Actions (inside arrays)
 deny contains msg if {
     some name
     policy := input.resource.aws_iam_policy[name]
@@ -1101,7 +1102,7 @@ deny contains msg if {
     msg := sprintf("IAM policy '%s': Wildcard (*) actions are not allowed", [name])
 }
 
-# ワイルドカード Resource の禁止
+# Prohibit wildcard Resources
 deny contains msg if {
     some name
     policy := input.resource.aws_iam_policy[name]
@@ -1111,7 +1112,7 @@ deny contains msg if {
     msg := sprintf("IAM policy '%s': Wildcard (*) resource is not allowed. Specify exact ARN.", [name])
 }
 
-# 管理者ポリシー (AdministratorAccess) の直接アタッチ禁止
+# Prohibit direct attachment of administrator policy (AdministratorAccess)
 deny contains msg if {
     some name
     attachment := input.resource.aws_iam_policy_attachment[name]
@@ -1119,7 +1120,7 @@ deny contains msg if {
     msg := sprintf("IAM policy attachment '%s': AdministratorAccess should not be directly attached", [name])
 }
 
-# インラインポリシーの使用を警告
+# Warn about use of inline policies
 warn contains msg if {
     some name
     policy := input.resource.aws_iam_role_policy[name]
@@ -1127,7 +1128,7 @@ warn contains msg if {
 }
 ```
 
-#### ネットワークセキュリティポリシー
+#### Network Security Policy
 
 ```rego
 # policy/terraform/network.rego
@@ -1137,7 +1138,7 @@ import future.keywords.in
 import future.keywords.if
 import future.keywords.contains
 
-# SSH の全世界公開を禁止
+# Prohibit SSH open to the world
 deny contains msg if {
     some name
     rule := input.resource.aws_security_group_rule[name]
@@ -1149,7 +1150,7 @@ deny contains msg if {
     msg := sprintf("Security group rule '%s': SSH (port 22) must not be open to 0.0.0.0/0", [name])
 }
 
-# RDP の全世界公開を禁止
+# Prohibit RDP open to the world
 deny contains msg if {
     some name
     rule := input.resource.aws_security_group_rule[name]
@@ -1161,7 +1162,7 @@ deny contains msg if {
     msg := sprintf("Security group rule '%s': RDP (port 3389) must not be open to 0.0.0.0/0", [name])
 }
 
-# データベースポートの全世界公開を禁止
+# Prohibit database ports open to the world
 db_ports := {3306, 5432, 1433, 27017, 6379}
 
 deny contains msg if {
@@ -1177,39 +1178,39 @@ deny contains msg if {
 }
 ```
 
-### Conftest による OPA ポリシーテスト
+### Testing OPA Policies with Conftest
 
 ```bash
-# Terraform plan を JSON に変換
+# Convert Terraform plan to JSON
 terraform plan -out=tfplan
 terraform show -json tfplan > tfplan.json
 
-# OPA ポリシーでテスト
+# Test with OPA policies
 conftest test tfplan.json --policy policy/
 
-# 出力例:
+# Example output:
 # FAIL - tfplan.json - terraform.s3 - S3 bucket 'data' must have encryption
 # FAIL - tfplan.json - terraform.iam - IAM policy 'admin': Wildcard (*) actions not allowed
 # WARN - tfplan.json - terraform.iam - Prefer managed policies over inline policies
 # 5 tests, 2 passed, 1 warnings, 2 failures
 
-# 特定のネームスペースのみテスト
+# Test only a specific namespace
 conftest test tfplan.json --policy policy/ --namespace terraform.s3
 
-# JSON 出力
+# JSON output
 conftest test tfplan.json --policy policy/ --output json
 
-# ポリシーのユニットテスト
+# Unit test for policies
 conftest verify --policy policy/
 ```
 
-### OPA ポリシーのユニットテスト
+### Unit Tests for OPA Policies
 
 ```rego
 # policy/tests/s3_test.rego
 package terraform.s3
 
-# テストデータ: 暗号化なし → deny
+# Test data: no encryption → deny
 test_deny_s3_without_encryption {
     deny with input as {
         "resource": {
@@ -1222,7 +1223,7 @@ test_deny_s3_without_encryption {
     }
 }
 
-# テストデータ: 暗号化あり → deny なし
+# Test data: with encryption → no deny
 test_allow_s3_with_encryption {
     count(deny) == 0 with input as {
         "resource": {
@@ -1264,7 +1265,7 @@ test_allow_s3_with_encryption {
 ```
 
 ```bash
-# ポリシーテストの実行
+# Run policy tests
 opa test policy/ -v
 # policy/tests/s3_test.rego:
 # data.terraform.s3.test_deny_s3_without_encryption: PASS
@@ -1277,37 +1278,37 @@ opa test policy/ -v
 # sentinel/s3-encryption.sentinel
 import "tfplan/v2" as tfplan
 
-# S3 バケットの暗号化ルール
+# S3 bucket encryption rule
 s3_buckets = filter tfplan.resource_changes as _, rc {
     rc.type is "aws_s3_bucket" and
     rc.mode is "managed" and
     (rc.change.actions contains "create" or rc.change.actions contains "update")
 }
 
-# 全 S3 バケットが暗号化設定を持つことを検証
+# Validate that all S3 buckets have encryption configured
 encryption_required = rule {
     all s3_buckets as _, bucket {
         bucket.change.after is not null
     }
 }
 
-# メインルール
+# Main rule
 main = rule {
     encryption_required
 }
 ```
 
-### ポリシーリポジトリ構成
+### Policy Repository Structure
 
 ```
 policy/
   ├── terraform/
-  │   ├── s3.rego           # S3 ポリシー
-  │   ├── iam.rego          # IAM ポリシー
-  │   ├── network.rego      # ネットワークポリシー
-  │   ├── encryption.rego   # 暗号化ポリシー
-  │   ├── tagging.rego      # タグ付けポリシー
-  │   └── compliance.rego   # コンプライアンスポリシー
+  │   ├── s3.rego           # S3 policies
+  │   ├── iam.rego          # IAM policies
+  │   ├── network.rego      # Network policies
+  │   ├── encryption.rego   # Encryption policies
+  │   ├── tagging.rego      # Tagging policies
+  │   └── compliance.rego   # Compliance policies
   ├── kubernetes/
   │   ├── pod_security.rego
   │   ├── network_policy.rego
@@ -1316,72 +1317,72 @@ policy/
   │   ├── base_image.rego
   │   └── user.rego
   ├── tests/
-  │   ├── s3_test.rego      # ポリシーのユニットテスト
+  │   ├── s3_test.rego      # Policy unit tests
   │   ├── iam_test.rego
   │   └── network_test.rego
   ├── lib/
-  │   └── helpers.rego      # 共通ヘルパー関数
+  │   └── helpers.rego      # Shared helper functions
   └── README.md
 ```
 
 ---
 
-## 7. シークレット管理と IaC
+## 7. Secret Management and IaC
 
-### IaC コードにおけるシークレット漏洩の防止
+### Preventing Secret Leakage in IaC Code
 
 ```
-┌──────────── シークレット漏洩の経路 ─────────────┐
-│                                                  │
-│  1. ハードコード                                 │
-│     ├── .tf ファイルに直接記述                    │
-│     ├── terraform.tfvars に平文記述              │
-│     └── 変数のデフォルト値に記述                  │
-│                                                  │
-│  2. State ファイル                               │
-│     ├── terraform.tfstate に平文保存              │
-│     ├── plan ファイルに含まれる値                 │
-│     └── output 変数の sensitive 未設定            │
-│                                                  │
-│  3. Git 履歴                                     │
-│     ├── 過去のコミットにシークレットが残存         │
-│     ├── .gitignore の不足                        │
-│     └── ブランチ削除しても履歴は残る              │
-│                                                  │
-│  4. CI/CD ログ                                   │
-│     ├── terraform plan の出力に値が表示           │
-│     ├── 環境変数のデバッグ出力                    │
-│     └── エラーメッセージに含まれる値              │
-│                                                  │
-└──────────────────────────────────────────────────┘
+┌──────────── Secret Leakage Pathways ─────────────┐
+│                                                   │
+│  1. Hardcoding                                    │
+│     ├── Written directly in .tf files             │
+│     ├── Written in plaintext in terraform.tfvars  │
+│     └── Written in variable default values        │
+│                                                   │
+│  2. State Files                                   │
+│     ├── Stored in plaintext in terraform.tfstate  │
+│     ├── Values included in plan files             │
+│     └── sensitive not set on output variables     │
+│                                                   │
+│  3. Git History                                   │
+│     ├── Secrets remain in past commits            │
+│     ├── Insufficient .gitignore entries           │
+│     └── History remains even after branch deletion│
+│                                                   │
+│  4. CI/CD Logs                                    │
+│     ├── Values displayed in terraform plan output │
+│     ├── Debug output of environment variables     │
+│     └── Values included in error messages        │
+│                                                   │
+└───────────────────────────────────────────────────┘
 ```
 
-### シークレット検知ツール
+### Secret Detection Tools
 
 ```bash
-# gitleaks: Git リポジトリのシークレットスキャン
+# gitleaks: Secret scan for Git repositories
 gitleaks detect --source . --report-format json --report-path gitleaks-report.json
 
-# git-secrets: AWS 認証情報に特化
+# git-secrets: Specialized for AWS credentials
 git secrets --scan
 
-# trufflehog: エントロピーベースの検知
+# trufflehog: Entropy-based detection
 trufflehog filesystem --directory . --json
 
-# Trivy のシークレットスキャン
+# Trivy secret scan
 trivy fs --scanners secret .
 ```
 
-### Terraform でのシークレット管理ベストプラクティス
+### Terraform Secret Management Best Practices
 
 ```hcl
-# NG: ハードコードされたシークレット
+# NG: Hardcoded secrets
 resource "aws_db_instance" "main" {
   username = "admin"
-  password = "SuperSecret123!"  # 絶対にやってはいけない
+  password = "SuperSecret123!"  # Never do this
 }
 
-# OK: Secrets Manager から取得
+# OK: Retrieve from Secrets Manager
 data "aws_secretsmanager_secret_version" "db_credentials" {
   secret_id = "myapp/db/credentials"
 }
@@ -1395,66 +1396,66 @@ resource "aws_db_instance" "main" {
   password = local.db_creds.password
 }
 
-# OK: 変数 + CI/CD 環境変数
+# OK: Variables + CI/CD environment variables
 variable "db_password" {
   type      = string
-  sensitive = true  # plan 出力で非表示
+  sensitive = true  # Hidden in plan output
 }
 
 resource "aws_db_instance" "main" {
   username = "admin"
-  password = var.db_password  # TF_VAR_db_password 環境変数から
+  password = var.db_password  # From TF_VAR_db_password environment variable
 }
 
-# output の sensitive マーク
+# Mark output as sensitive
 output "db_endpoint" {
   value     = aws_db_instance.main.endpoint
-  sensitive = false  # エンドポイントは公開可
+  sensitive = false  # Endpoint can be made public
 }
 
 output "db_password" {
   value     = aws_db_instance.main.password
-  sensitive = true  # シークレットは非表示
+  sensitive = true  # Secrets are hidden
 }
 ```
 
 ---
 
-## 8. ドリフト検知
+## 8. Drift Detection
 
-### ドリフトとは
+### What Is Drift?
 
-IaC コード (あるべき状態) と実際のインフラ (現在の状態) の間に生じる乖離をドリフトと呼ぶ。ドリフトは手動変更、別のツールによる変更、または外部要因によって発生する。
+Drift refers to the discrepancy that arises between the IaC code (desired state) and the actual infrastructure (current state). Drift occurs due to manual changes, changes made by other tools, or external factors.
 
 ```
-IaC コード (あるべき状態)     実際のインフラ (現在の状態)
-+-----------------------+    +-----------------------+
-| SG: port 443 のみ許可 |    | SG: port 443 + 22     |
-|                       | != |  (手動で SSH 追加)     |
-| 暗号化: 有効           |    | 暗号化: 有効           |
-| タグ: Env=production  |    | タグ: Env=prod (変更) |
-+-----------------------+    +-----------------------+
-                                  ↑
-                              ドリフト (乖離)
+IaC Code (Desired State)         Actual Infrastructure (Current State)
++-----------------------+         +-----------------------+
+| SG: allow port 443    |         | SG: port 443 + 22     |
+|                       |  !=     |  (SSH added manually) |
+| Encryption: Enabled   |         | Encryption: Enabled   |
+| Tag: Env=production   |         | Tag: Env=prod (changed)|
++-----------------------+         +-----------------------+
+                                       ↑
+                                   Drift (discrepancy)
 
-発生原因:
-  1. コンソールからの手動変更
-  2. 他チームの直接 API 操作
-  3. AWS の自動更新（セキュリティパッチなど）
-  4. 別の IaC コードによる変更
-  5. インシデント対応時の緊急変更
+Causes:
+  1. Manual changes from the console
+  2. Direct API operations by other teams
+  3. Automatic AWS updates (security patches, etc.)
+  4. Changes made by other IaC code
+  5. Emergency changes during incident response
 ```
 
-### ドリフト検知の手法
+### Drift Detection Methods
 
 ```bash
-# Terraform でドリフト検知
+# Drift detection with Terraform
 terraform plan -detailed-exitcode
-# Exit code 0 = 変更なし
-# Exit code 1 = エラー
-# Exit code 2 = ドリフトあり
+# Exit code 0 = no changes
+# Exit code 1 = error
+# Exit code 2 = drift detected
 
-# 定期実行スクリプト
+# Periodic execution script
 #!/bin/bash
 terraform init -backend=true
 terraform plan -detailed-exitcode -out=drift-check.plan 2>&1
@@ -1463,121 +1464,122 @@ EXIT_CODE=$?
 if [ $EXIT_CODE -eq 2 ]; then
     echo "DRIFT DETECTED!"
     terraform show -json drift-check.plan > drift-report.json
-    # Slack 通知等
+    # Slack notification, etc.
 fi
 
-# AWS Config でドリフト検知 (CloudFormation)
+# Drift detection with AWS Config (CloudFormation)
 aws cloudformation detect-stack-drift --stack-name my-stack
 aws cloudformation describe-stack-drift-detection-status \
     --stack-drift-detection-id <detection-id>
 
-# driftctl (専用ツール - 非推奨、後継は snyk)
+# driftctl (dedicated tool - deprecated, successor is snyk)
 driftctl scan --from tfstate://terraform.tfstate
 
 # Terraform Cloud/Enterprise
-# ドリフト検知が自動的に実行される（Health Assessment）
+# Drift detection runs automatically (Health Assessment)
 ```
 
-### ドリフト修復戦略
+### Drift Remediation Strategies
 
 ```
-┌─────────────── ドリフト修復戦略 ────────────────┐
-│                                                  │
-│  戦略1: コードに合わせる（推奨）                  │
-│  ├── terraform apply で IaC コードの状態に戻す    │
-│  ├── 手動変更を完全に巻き戻す                    │
-│  └── IaC が Single Source of Truth              │
-│                                                  │
-│  戦略2: コードを実態に合わせる                    │
-│  ├── terraform import で取り込み                  │
-│  ├── .tf ファイルを現状に合わせて更新             │
-│  └── 変更に正当な理由がある場合                   │
-│                                                  │
-│  戦略3: 選択的修復                                │
-│  ├── セキュリティ関連のドリフトは即時修復          │
-│  ├── 非セキュリティのドリフトは計画的に対応        │
-│  └── -target オプションでリソース単位の適用       │
-│                                                  │
-│  推奨アプローチ:                                  │
-│  ├── 本番環境: 手動変更を禁止するポリシー          │
-│  ├── ドリフト検知を CI/CD で定期実行              │
-│  └── セキュリティドリフトは自動修復               │
-│                                                  │
-└──────────────────────────────────────────────────┘
+┌─────────────── Drift Remediation Strategies ─────────────────┐
+│                                                               │
+│  Strategy 1: Align to Code (Recommended)                     │
+│  ├── Use terraform apply to revert to IaC code state         │
+│  ├── Completely roll back manual changes                     │
+│  └── IaC serves as Single Source of Truth                   │
+│                                                               │
+│  Strategy 2: Align Code to Reality                           │
+│  ├── Import with terraform import                            │
+│  ├── Update .tf files to match current state                 │
+│  └── When there is a valid reason for the change            │
+│                                                               │
+│  Strategy 3: Selective Remediation                           │
+│  ├── Security-related drift: immediate remediation           │
+│  ├── Non-security drift: address in a planned manner         │
+│  └── Use -target option to apply per resource               │
+│                                                               │
+│  Recommended Approach:                                        │
+│  ├── Production environment: policy prohibiting manual changes│
+│  ├── Run drift detection periodically in CI/CD               │
+│  └── Auto-remediate security drift                          │
+│                                                               │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 9. Terraform モジュールのセキュリティ
+## 9. Terraform Module Security
 
-### サプライチェーンリスク
+### Supply Chain Risks
 
 ```
-┌──────── Terraform モジュール サプライチェーン ────────┐
-│                                                      │
-│  リスク1: 悪意のあるモジュール                        │
-│  ├── 非公式レジストリからのモジュール                  │
-│  ├── 見た目は正常だがバックドアを含む                  │
-│  └── IAM ロールの追加作成、データ外部送信など          │
-│                                                      │
-│  リスク2: バージョン固定忘れ                          │
-│  ├── source = "terraform-aws-modules/vpc/aws"        │
-│  ├── version 未指定 → 最新版を自動取得               │
-│  └── 破壊的変更やセキュリティ劣化のリスク             │
-│                                                      │
-│  リスク3: Provider プラグインの改竄                   │
-│  ├── 非公式ミラーからの取得                           │
-│  ├── チェックサム未検証                               │
-│  └── .terraform.lock.hcl の不管理                    │
-│                                                      │
-│  対策:                                               │
-│  ├── 公式レジストリのモジュールのみ使用               │
-│  ├── version 制約を必ず記述                           │
-│  ├── .terraform.lock.hcl をバージョン管理             │
-│  ├── モジュールのコードレビュー                       │
-│  └── プライベートレジストリの運用                     │
-│                                                      │
-└──────────────────────────────────────────────────────┘
+┌──────── Terraform Module Supply Chain ────────┐
+│                                               │
+│  Risk 1: Malicious Modules                   │
+│  ├── Modules from unofficial registries       │
+│  ├── Appear normal but contain backdoors      │
+│  └── Extra IAM role creation, data exfil, etc.│
+│                                               │
+│  Risk 2: Forgetting to Pin Versions          │
+│  ├── source = "terraform-aws-modules/vpc/aws" │
+│  ├── No version specified → auto-fetch latest │
+│  └── Risk of breaking changes or security    │
+│      degradation                             │
+│                                               │
+│  Risk 3: Tampered Provider Plugins           │
+│  ├── Fetched from unofficial mirrors          │
+│  ├── Checksums not verified                  │
+│  └── .terraform.lock.hcl not managed         │
+│                                               │
+│  Countermeasures:                             │
+│  ├── Use only official registry modules      │
+│  ├── Always specify version constraints      │
+│  ├── Include .terraform.lock.hcl in VCS      │
+│  ├── Code review of modules                  │
+│  └── Operate a private registry             │
+│                                               │
+└───────────────────────────────────────────────┘
 ```
 
-### セキュアなモジュール利用
+### Secure Module Usage
 
 ```hcl
-# NG: バージョン未固定
+# NG: No version pinning
 module "vpc" {
   source = "terraform-aws-modules/vpc/aws"
-  # version 未指定 → 危険
+  # No version specified → dangerous
 }
 
-# OK: バージョン固定 + 制約
+# OK: Pinned version + constraint
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 5.0"  # 5.x の範囲で最新
+  version = "~> 5.0"  # Latest within the 5.x range
 }
 
-# OK: 厳密な固定
+# OK: Strict pinning
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "5.4.0"  # 完全固定
+  version = "5.4.0"  # Fully fixed
 }
 
-# OK: プライベートレジストリ
+# OK: Private registry
 module "vpc" {
   source  = "app.terraform.io/myorg/vpc/aws"
   version = "2.1.0"
 }
 
-# OK: Git リポジトリ（タグ固定）
+# OK: Git repository (pinned tag)
 module "vpc" {
   source = "git::https://github.com/myorg/terraform-modules.git//vpc?ref=v2.1.0"
 }
 ```
 
-### .terraform.lock.hcl の管理
+### Managing .terraform.lock.hcl
 
 ```hcl
-# .terraform.lock.hcl はバージョン管理に含める
-# → Provider のバージョンとハッシュを固定
+# .terraform.lock.hcl should be included in version control
+# → Pins provider versions and hashes
 
 provider "registry.terraform.io/hashicorp/aws" {
   version     = "5.31.0"
@@ -1590,10 +1592,10 @@ provider "registry.terraform.io/hashicorp/aws" {
 ```
 
 ```bash
-# lock ファイルの更新
+# Update the lock file
 terraform init -upgrade
 
-# プラットフォーム固定（CI/CD 環境を指定）
+# Pin platforms (specify CI/CD environments)
 terraform providers lock \
   -platform=linux_amd64 \
   -platform=darwin_amd64 \
@@ -1602,28 +1604,28 @@ terraform providers lock \
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン 1: Terraform state ファイルの不安全な管理
+### Anti-Pattern 1: Insecure Terraform State File Management
 
 ```hcl
-# NG: ローカルに state を保存 (暗号化なし、共有不可)
+# NG: State stored locally (no encryption, not shareable)
 terraform {
   backend "local" {}
 }
 
-# NG: S3 バックエンドだが暗号化・ロックなし
+# NG: S3 backend but no encryption or locking
 terraform {
   backend "s3" {
     bucket = "my-terraform-state"
     key    = "terraform.tfstate"
     region = "ap-northeast-1"
-    # encrypt 未指定 → 暗号化されない
-    # dynamodb_table 未指定 → ロックなし
+    # encrypt not specified → not encrypted
+    # dynamodb_table not specified → no locking
   }
 }
 
-# OK: リモート state + 暗号化 + ロック + アクセス制限
+# OK: Remote state + encryption + locking + access restrictions
 terraform {
   backend "s3" {
     bucket         = "my-terraform-state"
@@ -1633,88 +1635,88 @@ terraform {
     kms_key_id     = "arn:aws:kms:ap-northeast-1:123456:key/xxx"
     dynamodb_table = "terraform-state-lock"
 
-    # state バケットへのアクセスを制限
-    # (バケットポリシーで特定 IAM ロールのみ許可)
+    # Restrict access to state bucket
+    # (Allow only specific IAM roles via bucket policy)
   }
 }
 ```
 
-**影響**: state ファイルにはシークレット情報 (パスワード、APIキーなど) が含まれる可能性がある。平文でS3に保存された場合、バケットへのアクセス権を持つ全員がシークレットを閲覧できる。ロックがない場合、同時実行でインフラが破壊される可能性がある。
+**Impact**: State files may contain sensitive information (passwords, API keys, etc.). When stored in plaintext on S3, anyone with access to the bucket can view the secrets. Without locking, concurrent execution can corrupt the infrastructure.
 
-### アンチパターン 2: IaC スキャンの CI/CD 非統合
-
-```
-NG: 開発者がローカルでのみスキャンを実行
-  → 忘れたり、結果を無視したりする
-  → レビュアーがセキュリティ問題を見逃す
-  → 本番環境に問題のあるコードがデプロイされる
-
-OK: CI/CD でスキャンを強制し、失敗時はマージをブロック
-  → PR のマージ条件に tfsec/Checkov のパスを含める
-  → Branch Protection Rule で必須ステータスチェックに設定
-  → 結果を SARIF で GitHub Security タブに集約
-  → Slack/Teams で結果を通知
-```
-
-### アンチパターン 3: 例外の無管理
+### Anti-Pattern 2: Not Integrating IaC Scans into CI/CD
 
 ```
-NG: 抑制コメントを理由なく大量に追加
+NG: Developer runs scans only locally
+  → Easily forgotten or results ignored
+  → Reviewers miss security issues
+  → Code with problems is deployed to production
+
+OK: Enforce scans in CI/CD and block merges on failure
+  → Include tfsec/Checkov pass as a PR merge requirement
+  → Set as required status check in Branch Protection Rules
+  → Aggregate results as SARIF in the GitHub Security tab
+  → Notify results via Slack/Teams
+```
+
+### Anti-Pattern 3: Unmanaged Exceptions
+
+```
+NG: Adding suppression comments in large quantities without justification
   #tfsec:ignore:aws-s3-enable-bucket-encryption
   #checkov:skip=CKV_AWS_19
 
-  → セキュリティチェックが形骸化
-  → 本来修正すべき問題が放置される
+  → Security checks become a formality
+  → Issues that should be fixed are left unaddressed
 
-OK: 例外管理プロセスの確立
-  → 抑制には必ず理由コメントを付ける
-  → 有効期限を設定する（:exp:2024-12-31）
-  → 定期的に抑制をレビューし、不要な例外を削除
-  → 例外の数をメトリクスとして監視
+OK: Establish an exception management process
+  → Always add a justification comment with suppressions
+  → Set an expiry date (:exp:2024-12-31)
+  → Regularly review suppressions and remove unnecessary exceptions
+  → Monitor the number of exceptions as a metric
 ```
 
-### アンチパターン 4: IaC とコンソールの並行管理
+### Anti-Pattern 4: Parallel Management of IaC and Console
 
 ```
-NG: 一部のリソースは IaC、一部はコンソールで管理
-  → ドリフトが常態化
-  → 「どちらが正しいか」が不明に
-  → 障害時の切り戻しが困難
+NG: Some resources managed by IaC, others by console
+  → Drift becomes the norm
+  → It becomes unclear which is correct
+  → Rollback during incidents becomes difficult
 
-OK: IaC を Single Source of Truth とする
-  → 全リソースを IaC で管理
-  → コンソール操作は読み取り専用（ReadOnlyAccess）
-  → 緊急時のコンソール変更は事後に IaC に反映
-  → terraform import で既存リソースを取り込み
+OK: Treat IaC as the Single Source of Truth
+  → Manage all resources with IaC
+  → Console operations are read-only (ReadOnlyAccess)
+  → Emergency console changes are later reflected in IaC
+  → Import existing resources with terraform import
 ```
 
 ---
 
-## 11. 演習問題
+## 11. Exercises
 
-### 演習 1: tfsec / Checkov による脆弱性検出と修正
+### Exercise 1: Vulnerability Detection and Remediation with tfsec / Checkov
 
-以下の Terraform コードに含まれるセキュリティ問題を全て特定し、修正せよ。
+Identify all security issues in the following Terraform code and fix them.
 
 ```hcl
-# 演習用コード（問題あり）
+# Exercise code (contains issues)
 provider "aws" {
   region     = "ap-northeast-1"
-  access_key = "AKIA..."       # 問題1
-  secret_key = "wJal..."       # 問題2
+  access_key = "AKIA..."       # Issue 1
+  secret_key = "wJal..."       # Issue 2
 }
 
 resource "aws_s3_bucket" "data" {
   bucket = "company-data"
-  acl    = "public-read"       # 問題3
+  acl    = "public-read"       # Issue 3
 }
 
 resource "aws_instance" "web" {
   ami           = "ami-xxx"
   instance_type = "t3.micro"
-  # 問題4: metadata_options 未設定（IMDSv1 がデフォルト）
-  # 問題5: vpc_security_group_ids 未設定
-  # 問題6: monitoring 未有効化
+  # Issue 4: metadata_options not set (IMDSv1 is the default)
+  # Issue 5: vpc_security_group_ids not set
+  # Issue 6: monitoring not enabled
 }
 
 resource "aws_security_group" "web" {
@@ -1724,14 +1726,14 @@ resource "aws_security_group" "web" {
     from_port   = 0
     to_port     = 65535
     protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]  # 問題7
+    cidr_blocks = ["0.0.0.0/0"]  # Issue 7
   }
 
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]  # 問題8（意図的ならOK）
+    cidr_blocks = ["0.0.0.0/0"]  # Issue 8 (OK if intentional)
   }
 }
 
@@ -1739,109 +1741,109 @@ resource "aws_db_instance" "main" {
   engine            = "mysql"
   instance_class    = "db.t3.medium"
   username          = "admin"
-  password          = "password123"   # 問題9
-  publicly_accessible = true          # 問題10
-  # 問題11: storage_encrypted 未設定
-  # 問題12: backup_retention_period 未設定
+  password          = "password123"   # Issue 9
+  publicly_accessible = true          # Issue 10
+  # Issue 11: storage_encrypted not set
+  # Issue 12: backup_retention_period not set
 }
 ```
 
-**目標**: 全12個の問題を修正し、tfsec / Checkov でエラー0件にすること。
+**Goal**: Fix all 12 issues and achieve zero errors with tfsec / Checkov.
 
-### 演習 2: OPA ポリシーの作成
+### Exercise 2: Creating OPA Policies
 
-以下の要件を満たす OPA ポリシーを Rego で作成せよ。
+Create OPA policies in Rego that satisfy the following requirements.
 
-1. 全 EC2 インスタンスに `Environment`, `Team`, `CostCenter` タグが必須
-2. RDS インスタンスは `publicly_accessible = false` であること
-3. S3 バケット名は `{env}-{team}-` で始まること（env は prod/stg/dev のいずれか）
-4. Security Group のインバウンドルールで port 22 が 0.0.0.0/0 に公開されていないこと
-5. 各ルールに対応するユニットテストを作成すること
+1. All EC2 instances must have `Environment`, `Team`, and `CostCenter` tags
+2. RDS instances must have `publicly_accessible = false`
+3. S3 bucket names must start with `{env}-{team}-` (env must be one of prod/stg/dev)
+4. Inbound rules in Security Groups must not expose port 22 to 0.0.0.0/0
+5. Write unit tests for each rule
 
-### 演習 3: CI/CD パイプラインの構築
+### Exercise 3: Building a CI/CD Pipeline
 
-以下の要件を満たす GitHub Actions ワークフローを作成せよ。
+Create a GitHub Actions workflow that satisfies the following requirements.
 
-1. PR 作成時に tfsec, Checkov, gitleaks を実行
-2. 全ツールの結果を SARIF で GitHub Security タブにアップロード
-3. CRITICAL/HIGH の検出がある場合は PR のマージをブロック
-4. 結果のサマリーを PR コメントに投稿
-5. terraform plan の出力に対して Conftest でポリシーチェック
+1. Run tfsec, Checkov, and gitleaks when a PR is created
+2. Upload results from all tools to the GitHub Security tab as SARIF
+3. Block PR merges when CRITICAL/HIGH findings are detected
+4. Post a summary of results as a PR comment
+5. Run Conftest policy checks against terraform plan output
 
 ---
 
 ## 12. FAQ
 
-### Q1. tfsec と Checkov のどちらを使うべきか?
+### Q1. Which should I use: tfsec or Checkov?
 
-Terraform のみを使っている場合は tfsec (現在は Trivy に統合) が高速でシンプルである。Terraform に加えて Kubernetes、Dockerfile、CloudFormation なども管理している場合は Checkov のマルチフレームワーク対応が有利である。両方を併用することで検出漏れを減らせる。エンタープライズ環境では Checkov の SCA 機能やグラフベース解析が価値を発揮する。
+If you are only using Terraform, tfsec (now integrated into Trivy) is fast and simple. If you manage Terraform as well as Kubernetes, Dockerfile, and CloudFormation, Checkov's multi-framework support has an advantage. Using both together reduces the chance of missed detections. In enterprise environments, Checkov's SCA capabilities and graph-based analysis provide additional value.
 
-### Q2. OPA ポリシーの管理はどうすべきか?
+### Q2. How should OPA policies be managed?
 
-ポリシーは専用の Git リポジトリで管理し、CI/CD で自動テストする。ポリシーの変更にもレビュープロセスを適用する。OPA のテストフレームワーク (`opa test`) でポリシーのユニットテストを書き、意図しない許可・拒否を防ぐ。ポリシーのバージョニングを行い、段階的なロールアウト (warn → deny) を推奨する。
+Manage policies in a dedicated Git repository and automate testing with CI/CD. Apply a review process to policy changes as well. Write unit tests for policies using OPA's test framework (`opa test`) to prevent unintended allows or denials. Version your policies and follow a staged rollout approach (warn → deny).
 
-### Q3. 既存インフラを IaC 化する際のセキュリティ考慮は?
+### Q3. What security considerations apply when converting existing infrastructure to IaC?
 
-`terraform import` で既存リソースを IaC に取り込んだ後、即座に tfsec/Checkov でスキャンする。多数のセキュリティ問題が見つかる場合は優先度をつけて段階的に修正する。ドリフト検知を有効にして IaC 外の手動変更を検出する。取り込み時に state ファイルにシークレットが含まれるため、バックエンドの暗号化を確認すること。
+After importing existing resources into IaC with `terraform import`, immediately scan with tfsec/Checkov. If many security issues are found, prioritize and fix them incrementally. Enable drift detection to detect manual changes made outside of IaC. Since state files may contain secrets during import, confirm that backend encryption is enabled.
 
-### Q4. IaC スキャンで大量の false positive が出る場合はどうするか?
+### Q4. What should I do when IaC scans produce a large number of false positives?
 
-まず、false positive のパターンを分析する。特定のルールが常に false positive を出す場合は `.checkov.yaml` や tfsec の設定で除外する。正当な例外は理由付きのインラインコメントで抑制する。組織固有の要件は、組み込みルールを無効にした上でカスタムポリシーで代替する。false positive 率をメトリクスとして追跡し、定期的にルールセットを見直す。
+First, analyze the pattern of false positives. If a specific rule consistently produces false positives, exclude it in `.checkov.yaml` or tfsec configuration. Suppress legitimate exceptions with inline comments explaining the reason. For organization-specific requirements, disable the built-in rule and replace it with a custom policy. Track the false positive rate as a metric and periodically review the rule set.
 
-### Q5. Terraform Cloud/Enterprise の Sentinel と OPA のどちらを使うべきか?
+### Q5. Should I use Terraform Cloud/Enterprise's Sentinel or OPA?
 
-Terraform Cloud/Enterprise を使用しているなら Sentinel が自然な選択である（terraform plan のコンテキストに直接アクセスできる）。マルチツール環境（Terraform + Kubernetes + CI/CD パイプライン）では OPA が汎用的で統一的なポリシーエンジンとして機能する。OPA は CNCF 卒業プロジェクトであり、エコシステムが広い。
+If you are using Terraform Cloud/Enterprise, Sentinel is the natural choice (it can access the terraform plan context directly). In multi-tool environments (Terraform + Kubernetes + CI/CD pipelines), OPA functions as a versatile and unified policy engine. OPA is a CNCF graduated project with a broad ecosystem.
 
-### Q6. IaC セキュリティの成熟度をどう評価するか?
+### Q6. How do I assess the maturity of IaC security?
 
-以下の段階で評価する。Level 1: ローカルでのアドホックなスキャン。Level 2: CI/CD に統合されたスキャン。Level 3: ポリシー as コードによるゲート。Level 4: ドリフト検知と自動修復。Level 5: 全リソースの IaC 化 + 継続的コンプライアンス監視。まずは Level 2 を目指し、段階的に成熟度を上げていく。
+Evaluate using the following levels. Level 1: Ad-hoc scans run locally. Level 2: Scans integrated into CI/CD. Level 3: Policy as Code gates. Level 4: Drift detection and auto-remediation. Level 5: All resources managed by IaC + continuous compliance monitoring. Start by aiming for Level 2 and progressively increase maturity.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping straight to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| IaC のリスク | 設定ミスがコードに残り、大規模に展開される |
-| tfsec / Trivy | Terraform 特化の高速スキャナ。Trivy に統合済み |
-| Checkov | マルチフレームワーク対応の包括的スキャナ。グラフベース解析が強み |
-| KICS | Checkmarx 提供の広範なフレームワーク対応スキャナ |
-| OPA/Rego | カスタムポリシーの定義と自動適用。CNCF 卒業プロジェクト |
-| Sentinel | Terraform Cloud/Enterprise 専用のポリシーエンジン |
-| CI/CD 統合 | PR のマージ条件にスキャンパスを必須化。SARIF で結果集約 |
-| ドリフト検知 | IaC と実インフラの乖離を継続的に検出。定期実行を推奨 |
-| State 管理 | リモート + 暗号化 + ロックで安全に管理 |
-| シークレット | IaC コードにハードコードしない。Secrets Manager を活用 |
-| モジュール | バージョン固定、公式レジストリ、lock ファイル管理 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [AWSセキュリティ](./01-aws-security.md) — IaC で設定する AWS セキュリティサービス
-- [クラウドセキュリティ基礎](./00-cloud-security-basics.md) — IAM と暗号化の基礎
-- [コンテナセキュリティ](../04-application-security/02-container-security.md) — Kubernetes マニフェストのセキュリティ
+| Item | Key Points |
+|------|------------|
+| IaC Risks | Misconfigurations remain in code and are deployed at scale |
+| tfsec / Trivy | Fast Terraform-specific scanner. Now integrated into Trivy |
+| Checkov | Comprehensive multi-framework scanner. Graph-based analysis is a strength |
+| KICS | Broad framework coverage scanner provided by Checkmarx |
+| OPA/Rego | Define and automatically enforce custom policies. CNCF graduated project |
+| Sentinel | Policy engine dedicated to Terraform Cloud/Enterprise |
+| CI/CD Integration | Make scan pass a mandatory PR merge requirement. Aggregate results with SARIF |
+| Drift Detection | Continuously detect discrepancies between IaC and actual infrastructure. Periodic execution recommended |
+| State Management | Manage securely with remote + encryption + locking |
+| Secrets | Do not hardcode in IaC code. Use Secrets Manager |
+| Modules | Pin versions, use official registry, manage lock file |
 
 ---
 
-## 参考文献
+## Further Reading
+
+- [AWS Security](./01-aws-security.md) — AWS security services configured with IaC
+- [Cloud Security Basics](./00-cloud-security-basics.md) — IAM and encryption fundamentals
+- [Container Security](../04-application-security/02-container-security.md) — Security for Kubernetes manifests
+
+---
+
+## References
 
 1. **Checkov Documentation** — https://www.checkov.io/
 2. **tfsec Documentation** — https://aquasecurity.github.io/tfsec/
