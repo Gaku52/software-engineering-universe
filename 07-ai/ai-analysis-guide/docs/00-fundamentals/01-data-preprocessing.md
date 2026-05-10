@@ -1,60 +1,60 @@
-# データ前処理 — 欠損値、正規化、特徴量エンジニアリング
+# Data Preprocessing — Missing Values, Normalization, and Feature Engineering
 
-> 生データを機械学習モデルが消化できる形に変換する全手法を網羅的に解説する
+> A comprehensive guide to transforming raw data into a form that machine learning models can consume
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **欠損値処理** — 欠損のパターン分析と適切な補完戦略の選択
-2. **スケーリングと正規化** — StandardScaler、MinMaxScaler、RobustScaler の使い分け
-3. **カテゴリ変数のエンコーディング** — ワンホット、ターゲット、頻度エンコーディングの実装
-4. **特徴量エンジニアリング** — ドメイン知識を活かした特徴量設計と自動生成
-5. **外れ値処理** — 検出・除去・変換の実践手法
-6. **データ品質管理** — バリデーション、パイプライン構築、再現性の確保
+1. **Missing value handling** — Analyzing missing patterns and choosing the right imputation strategy
+2. **Scaling and normalization** — When to use StandardScaler, MinMaxScaler, and RobustScaler
+3. **Categorical variable encoding** — Implementing one-hot, target, and frequency encoding
+4. **Feature engineering** — Designing and auto-generating features using domain knowledge
+5. **Outlier handling** — Practical techniques for detection, removal, and transformation
+6. **Data quality management** — Validation, pipeline construction, and reproducibility
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will help you get more out of it:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [AI解析概要 — データサイエンスとMLの全体像](./00-ai-analysis-overview.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [AI Analysis Overview — The Big Picture of Data Science and ML](./00-ai-analysis-overview.md)
 
 ---
 
-## 1. 欠損値の分析と処理
+## 1. Analyzing and Handling Missing Values
 
-### 欠損パターンの分類
+### Classifying Missing Patterns
 
 ```
-欠損のメカニズム（Rubin, 1976）
+Missing Data Mechanisms (Rubin, 1976)
 ┌──────────────────────────────────────────────────────┐
 │                                                      │
 │  MCAR (Missing Completely at Random)                 │
-│  ├── 欠損は完全にランダム                            │
-│  ├── 例: センサーの一時的な故障                      │
-│  └── 対処: リストワイズ削除でも偏りなし              │
+│  ├── Missingness is entirely random                  │
+│  ├── Example: Temporary sensor failure               │
+│  └── Response: Listwise deletion causes no bias      │
 │                                                      │
 │  MAR (Missing at Random)                             │
-│  ├── 欠損は他の観測変数に依存                        │
-│  ├── 例: 高齢者ほど収入を回答しない                  │
-│  └── 対処: 多重代入法が有効                          │
+│  ├── Missingness depends on other observed variables │
+│  ├── Example: Older respondents skip income question │
+│  └── Response: Multiple imputation is effective      │
 │                                                      │
 │  MNAR (Missing Not at Random)                        │
-│  ├── 欠損は欠損値自身に依存                          │
-│  ├── 例: 高収入者ほど収入を隠す                      │
-│  └── 対処: ドメイン知識に基づくモデル化が必要        │
+│  ├── Missingness depends on the missing value itself │
+│  ├── Example: High earners hide their income         │
+│  └── Response: Domain-knowledge-based modeling needed│
 │                                                      │
 └──────────────────────────────────────────────────────┘
 
-MCAR の検定:
-  Little の MCAR テスト:
-    H0: データは MCAR である
-    p > 0.05 → MCAR と判断（削除可能）
-    p ≤ 0.05 → MAR または MNAR（補完が望ましい）
+Testing for MCAR:
+  Little's MCAR test:
+    H0: Data is MCAR
+    p > 0.05 → Judged as MCAR (deletion acceptable)
+    p ≤ 0.05 → MAR or MNAR (imputation preferred)
 ```
 
-### コード例1: 欠損値の可視化と分析
+### Code Example 1: Visualizing and Analyzing Missing Values
 
 ```python
 import pandas as pd
@@ -63,57 +63,57 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 def analyze_missing(df: pd.DataFrame) -> pd.DataFrame:
-    """欠損値の詳細分析レポートを生成"""
+    """Generate a detailed missing-value analysis report"""
     missing = df.isnull().sum()
     missing_pct = (missing / len(df)) * 100
 
     report = pd.DataFrame({
-        "欠損数": missing,
-        "欠損率(%)": missing_pct.round(2),
-        "データ型": df.dtypes,
-        "ユニーク数": df.nunique(),
-        "非欠損数": df.notnull().sum(),
+        "Missing Count": missing,
+        "Missing Rate (%)": missing_pct.round(2),
+        "Data Type": df.dtypes,
+        "Unique Count": df.nunique(),
+        "Non-Missing Count": df.notnull().sum(),
     })
-    report = report[report["欠損数"] > 0].sort_values("欠損率(%)", ascending=False)
+    report = report[report["Missing Count"] > 0].sort_values("Missing Rate (%)", ascending=False)
 
-    # 推奨アクションの追加
+    # Add recommended actions
     actions = []
     for _, row in report.iterrows():
-        pct = row["欠損率(%)"]
+        pct = row["Missing Rate (%)"]
         if pct > 80:
-            actions.append("列削除推奨")
+            actions.append("Recommend dropping column")
         elif pct > 50:
-            actions.append("モデルベース補完 or 削除")
+            actions.append("Model-based imputation or drop")
         elif pct > 10:
-            actions.append("KNN/MICE補完")
+            actions.append("KNN/MICE imputation")
         elif pct > 5:
-            actions.append("中央値/最頻値補完")
+            actions.append("Median/mode imputation")
         else:
-            actions.append("単純補完で十分")
-    report["推奨アクション"] = actions
+            actions.append("Simple imputation sufficient")
+    report["Recommended Action"] = actions
 
     return report
 
 def plot_missing_heatmap(df: pd.DataFrame) -> None:
-    """欠損パターンのヒートマップを描画"""
+    """Draw a heatmap of missing patterns"""
     fig, axes = plt.subplots(1, 2, figsize=(18, 6))
 
-    # 左: 欠損パターンのヒートマップ
+    # Left: heatmap of missing patterns
     sns.heatmap(df.isnull(), cbar=True, yticklabels=False,
                 cmap="viridis", ax=axes[0])
-    axes[0].set_title("欠損値パターン（黄色 = 欠損）")
+    axes[0].set_title("Missing Value Pattern (yellow = missing)")
 
-    # 右: 列ごとの欠損率バーチャート
+    # Right: bar chart of missing rate per column
     missing_pct = (df.isnull().sum() / len(df) * 100).sort_values(ascending=True)
     missing_pct = missing_pct[missing_pct > 0]
     if len(missing_pct) > 0:
         missing_pct.plot(kind="barh", ax=axes[1], color="coral")
-        axes[1].set_xlabel("欠損率 (%)")
-        axes[1].set_title("列ごとの欠損率")
-        axes[1].axvline(x=50, color="red", linestyle="--", alpha=0.5, label="50%ライン")
+        axes[1].set_xlabel("Missing Rate (%)")
+        axes[1].set_title("Missing Rate per Column")
+        axes[1].axvline(x=50, color="red", linestyle="--", alpha=0.5, label="50% line")
         axes[1].legend()
     else:
-        axes[1].text(0.5, 0.5, "欠損値なし", ha="center", va="center",
+        axes[1].text(0.5, 0.5, "No missing values", ha="center", va="center",
                      fontsize=14, transform=axes[1].transAxes)
 
     plt.tight_layout()
@@ -121,10 +121,10 @@ def plot_missing_heatmap(df: pd.DataFrame) -> None:
     plt.close()
 
 def analyze_missing_correlations(df: pd.DataFrame) -> pd.DataFrame:
-    """欠損値間の相関を分析（共起パターンの発見）"""
+    """Analyze correlations among missing values (discovering co-occurrence patterns)"""
     missing_cols = df.columns[df.isnull().any()].tolist()
     if len(missing_cols) < 2:
-        print("欠損値のある列が2つ未満のため相関分析不可")
+        print("Fewer than 2 columns with missing values; correlation analysis not possible")
         return pd.DataFrame()
 
     missing_indicator = df[missing_cols].isnull().astype(int)
@@ -133,14 +133,14 @@ def analyze_missing_correlations(df: pd.DataFrame) -> pd.DataFrame:
     fig, ax = plt.subplots(figsize=(10, 8))
     sns.heatmap(corr, annot=True, fmt=".2f", cmap="RdBu_r",
                 center=0, ax=ax, vmin=-1, vmax=1)
-    ax.set_title("欠損値の相関行列")
+    ax.set_title("Missing Value Correlation Matrix")
     plt.tight_layout()
     plt.savefig("reports/missing_correlation.png", dpi=150)
     plt.close()
 
     return corr
 
-# 使用例
+# Usage example
 np.random.seed(42)
 n = 1000
 df = pd.DataFrame({
@@ -148,19 +148,19 @@ df = pd.DataFrame({
     "income": np.random.lognormal(10, 1, n),
     "education_years": np.random.randint(6, 20, n).astype(float),
     "satisfaction": np.random.normal(3.5, 1, n),
-    "city": np.random.choice(["東京", "大阪", "福岡", "名古屋"], n),
+    "city": np.random.choice(["Tokyo", "Osaka", "Fukuoka", "Nagoya"], n),
 })
 
-# 現実的な欠損パターンの作成
-# MAR: 若い人ほど収入を回答しない
+# Create realistic missing patterns
+# MAR: younger people are less likely to report income
 mask_income = (df["age"] < 30) & (np.random.random(n) < 0.3)
 df.loc[mask_income, "income"] = np.nan
 
-# MCAR: ランダムな欠損
+# MCAR: random missingness
 mask_age = np.random.random(n) < 0.05
 df.loc[mask_age, "age"] = np.nan
 
-# 連動した欠損: satisfactionが欠損するとeducation_yearsも欠損しやすい
+# Co-occurring missingness: if satisfaction is missing, education_years is also more likely to be missing
 mask_sat = np.random.random(n) < 0.1
 df.loc[mask_sat, "satisfaction"] = np.nan
 df.loc[mask_sat & (np.random.random(n) < 0.7), "education_years"] = np.nan
@@ -170,7 +170,7 @@ print(report)
 plot_missing_heatmap(df)
 ```
 
-### コード例2: 欠損値補完戦略
+### Code Example 2: Missing Value Imputation Strategies
 
 ```python
 import pandas as pd
@@ -181,7 +181,7 @@ from sklearn.impute import IterativeImputer
 from sklearn.ensemble import RandomForestRegressor
 
 class MissingValueHandler:
-    """欠損値処理の統合クラス"""
+    """Unified class for missing value handling"""
 
     def __init__(self, strategy: str = "auto"):
         self.strategy = strategy
@@ -190,14 +190,14 @@ class MissingValueHandler:
 
     def fit_transform(self, df: pd.DataFrame,
                       add_indicator: bool = True) -> pd.DataFrame:
-        """欠損値を分析して適切な補完を実行
+        """Analyze missing values and apply appropriate imputation
 
         Parameters
         ----------
         df : pd.DataFrame
-            入力データフレーム
+            Input dataframe
         add_indicator : bool
-            欠損フラグ列を追加するか（デフォルト: True）
+            Whether to add missing-flag columns (default: True)
         """
         result = df.copy()
 
@@ -207,31 +207,31 @@ class MissingValueHandler:
 
             missing_rate = df[col].isnull().mean()
 
-            # 欠損フラグ列の追加（欠損自体が情報を持つ場合に有用）
+            # Add a missing-flag column (useful when missingness itself carries information)
             if add_indicator and missing_rate > 0.01:
                 result[f"{col}_is_missing"] = df[col].isnull().astype(int)
                 self.missing_flags.append(f"{col}_is_missing")
 
-            # 欠損率80%以上 → 列削除を推奨
+            # Missing rate >= 80% → recommend dropping the column
             if missing_rate > 0.8:
-                print(f"WARNING: {col}: 欠損率{missing_rate:.0%} → 列削除を推奨")
+                print(f"WARNING: {col}: missing rate {missing_rate:.0%} → recommend dropping column")
                 result.drop(columns=[col], inplace=True)
                 continue
 
             if pd.api.types.is_numeric_dtype(df[col]):
                 if missing_rate < 0.05:
-                    # 少量欠損 → 中央値で補完
+                    # Low missingness → impute with median
                     median_val = df[col].median()
                     result[col].fillna(median_val, inplace=True)
                     self.imputers[col] = ("median", median_val)
                 elif missing_rate < 0.30:
-                    # 中程度の欠損 → KNN補完
+                    # Moderate missingness → KNN imputation
                     imputer = KNNImputer(n_neighbors=5, weights="distance")
                     numeric_cols = df.select_dtypes(include="number").columns.tolist()
                     result[numeric_cols] = imputer.fit_transform(df[numeric_cols])
                     self.imputers[col] = ("knn", imputer)
                 else:
-                    # 多めの欠損 → 反復的補完（MICE相当）
+                    # High missingness → iterative imputation (equivalent to MICE)
                     imputer = IterativeImputer(
                         estimator=RandomForestRegressor(
                             n_estimators=50, random_state=42
@@ -242,7 +242,7 @@ class MissingValueHandler:
                     result[numeric_cols] = imputer.fit_transform(df[numeric_cols])
                     self.imputers[col] = ("iterative", imputer)
             else:
-                # カテゴリ変数 → 最頻値 or "Unknown"
+                # Categorical variable → mode or "Unknown"
                 mode_val = df[col].mode()[0] if not df[col].mode().empty else "Unknown"
                 result[col].fillna(mode_val, inplace=True)
                 self.imputers[col] = ("mode", mode_val)
@@ -250,7 +250,7 @@ class MissingValueHandler:
         return result
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        """学習済みの補完パラメータで新しいデータを変換"""
+        """Transform new data using learned imputation parameters"""
         result = df.copy()
 
         for col, (strategy, param) in self.imputers.items():
@@ -265,7 +265,7 @@ class MissingValueHandler:
                 numeric_cols = df.select_dtypes(include="number").columns.tolist()
                 result[numeric_cols] = param.transform(df[numeric_cols])
 
-        # 欠損フラグ列の追加
+        # Add missing-flag columns
         for flag_col in self.missing_flags:
             orig_col = flag_col.replace("_is_missing", "")
             if orig_col in df.columns:
@@ -274,30 +274,30 @@ class MissingValueHandler:
         return result
 
     def report(self) -> None:
-        """補完戦略のレポートを表示"""
+        """Display a report of imputation strategies"""
         print("=" * 60)
-        print("欠損値補完レポート")
+        print("Missing Value Imputation Report")
         print("=" * 60)
         for col, (strategy, param) in self.imputers.items():
             if strategy == "median":
-                print(f"  {col}: 中央値補完 (値={param:.2f})")
+                print(f"  {col}: median imputation (value={param:.2f})")
             elif strategy == "mode":
-                print(f"  {col}: 最頻値補完 (値={param})")
+                print(f"  {col}: mode imputation (value={param})")
             elif strategy == "knn":
-                print(f"  {col}: KNN補完 (k=5, 距離加重)")
+                print(f"  {col}: KNN imputation (k=5, distance-weighted)")
             elif strategy == "iterative":
-                print(f"  {col}: 反復的補完 (RandomForest, max_iter=10)")
+                print(f"  {col}: iterative imputation (RandomForest, max_iter=10)")
         if self.missing_flags:
-            print(f"\n  欠損フラグ列: {len(self.missing_flags)}個追加")
+            print(f"\n  Missing flag columns added: {len(self.missing_flags)}")
 
 handler = MissingValueHandler()
 df_clean = handler.fit_transform(df)
 handler.report()
-print(f"\n補完前: {df.shape}, 補完後: {df_clean.shape}")
-print(f"残りの欠損: {df_clean.isnull().sum().sum()}")
+print(f"\nBefore imputation: {df.shape}, After imputation: {df_clean.shape}")
+print(f"Remaining missing values: {df_clean.isnull().sum().sum()}")
 ```
 
-### コード例2b: 多重代入法（Multiple Imputation）の実装
+### Code Example 2b: Implementing Multiple Imputation
 
 ```python
 import numpy as np
@@ -309,9 +309,10 @@ from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import f1_score
 
 def multiple_imputation(df, n_imputations=5, random_state=42):
-    """多重代入法による補完と推論の不確実性の推定
+    """Multiple imputation to estimate inference uncertainty
 
-    複数回の補完を行い、結果のばらつきから推論の不確実性を評価する
+    Performs imputation multiple times and evaluates inference
+    uncertainty from the variability of results.
     """
     imputed_datasets = []
 
@@ -320,7 +321,7 @@ def multiple_imputation(df, n_imputations=5, random_state=42):
             estimator=BayesianRidge(),
             max_iter=20,
             random_state=random_state + i,
-            sample_posterior=True  # 事後分布からサンプリング
+            sample_posterior=True  # Sample from posterior distribution
         )
         numeric_cols = df.select_dtypes(include="number").columns
         imputed = df.copy()
@@ -330,82 +331,83 @@ def multiple_imputation(df, n_imputations=5, random_state=42):
     return imputed_datasets
 
 def pool_results(imputed_datasets, col):
-    """Rubinのルールで結果を統合
+    """Pool results using Rubin's rules
 
-    複数の補完結果を統合して、点推定値と信頼区間を計算する
+    Combines multiple imputation results to compute point estimates
+    and confidence intervals.
     """
     m = len(imputed_datasets)
     estimates = [ds[col].values for ds in imputed_datasets]
 
-    # 点推定: 各補完データセットの平均の平均
+    # Point estimate: mean of per-dataset means
     Q_bar = np.mean([np.mean(est) for est in estimates])
 
-    # Within-imputation variance（各補完内の分散の平均）
+    # Within-imputation variance (mean of within-dataset variances)
     W = np.mean([np.var(est) for est in estimates])
 
-    # Between-imputation variance（補完間の分散）
+    # Between-imputation variance
     B = np.var([np.mean(est) for est in estimates])
 
-    # Total variance (Rubinのルール)
+    # Total variance (Rubin's rules)
     T = W + (1 + 1/m) * B
 
-    # 信頼区間
+    # Confidence interval
     se = np.sqrt(T)
     ci_lower = Q_bar - 1.96 * se
     ci_upper = Q_bar + 1.96 * se
 
-    print(f"列 '{col}' の多重代入結果:")
-    print(f"  点推定値: {Q_bar:.4f}")
-    print(f"  標準誤差: {se:.4f}")
-    print(f"  95%信頼区間: [{ci_lower:.4f}, {ci_upper:.4f}]")
+    print(f"Multiple imputation results for column '{col}':")
+    print(f"  Point estimate: {Q_bar:.4f}")
+    print(f"  Standard error: {se:.4f}")
+    print(f"  95% confidence interval: [{ci_lower:.4f}, {ci_upper:.4f}]")
     print(f"  Within-variance: {W:.4f}")
     print(f"  Between-variance: {B:.4f}")
 
     return Q_bar, se, (ci_lower, ci_upper)
 
-# 使用例
+# Usage example
 # imputed_datasets = multiple_imputation(df, n_imputations=10)
 # pool_results(imputed_datasets, "income")
 ```
 
 ---
 
-## 2. スケーリングと正規化
+## 2. Scaling and Normalization
 
-### スケーリング手法の処理フロー
+### Scaling Method Processing Flow
 
 ```
-生データ                   変換後
+Raw data               After transformation
 ┌─────────┐
 │ x=1000  │  StandardScaler     z = (x - μ) / σ
-│ x=2000  │ ──────────────────> 平均0, 標準偏差1
+│ x=2000  │ ──────────────────> mean=0, std=1
 │ x=5000  │
 │ x=100   │  MinMaxScaler       z = (x - min) / (max - min)
-│         │ ──────────────────> 範囲 [0, 1]
+│         │ ──────────────────> range [0, 1]
 │         │
-│ 外れ値  │  RobustScaler       z = (x - Q2) / (Q3 - Q1)
-│ あり    │ ──────────────────> 中央値0, IQR基準
+│ outliers│  RobustScaler       z = (x - Q2) / (Q3 - Q1)
+│ present │ ──────────────────> median=0, IQR-based
 │         │
-│ 正の歪み│  Log変換            z = log(1 + x)
-│         │ ──────────────────> 歪度を緩和
+│ positive│  Log transform      z = log(1 + x)
+│ skew    │ ──────────────────> reduces skewness
 │         │
-│ 極端な  │  PowerTransformer   z = ((x^λ - 1) / λ)  (Box-Cox)
-│ 非正規  │ ──────────────────> 正規分布に近づける
+│ extreme │  PowerTransformer   z = ((x^λ - 1) / λ)  (Box-Cox)
+│ non-norm│ ──────────────────> approximates normal distribution
 │         │
-│ ベクトル│  Normalizer         z = x / ||x||₂
-│ 長統一  │ ──────────────────> L2ノルム=1（行方向）
+│ vector  │  Normalizer         z = x / ||x||₂
+│ length  │ ──────────────────> L2 norm=1 (row-wise)
 └─────────┘
 
-各手法の適用判断フロー:
-  外れ値がある? → Yes → RobustScaler
-                → No  → 分布が歪んでいる?
-                          → Yes → PowerTransformer / Log変換
-                          → No  → モデルが距離ベース?
-                                    → Yes → StandardScaler
-                                    → No  → MinMaxScaler or そのまま
+Decision flow for choosing a method:
+  Outliers present? → Yes → RobustScaler
+                   → No  → Distribution skewed?
+                             → Yes → PowerTransformer / Log transform
+                             → No  → Distance-based model?
+                                       → Yes → StandardScaler
+                                       → No  → MinMaxScaler or as-is
 ```
 
-### コード例3: スケーリング手法の比較
+### Code Example 3: Comparing Scaling Methods
 
 ```python
 import numpy as np
@@ -417,16 +419,16 @@ from sklearn.preprocessing import (
     Normalizer
 )
 
-def compare_scalers(data: np.ndarray, feature_name: str = "特徴量") -> pd.DataFrame:
-    """各スケーリング手法の結果を比較"""
+def compare_scalers(data: np.ndarray, feature_name: str = "feature") -> pd.DataFrame:
+    """Compare results from each scaling method"""
     scalers = {
-        "元データ": None,
+        "Original data": None,
         "StandardScaler": StandardScaler(),
         "MinMaxScaler": MinMaxScaler(),
         "RobustScaler": RobustScaler(),
         "MaxAbsScaler": MaxAbsScaler(),
         "PowerTransformer\n(Yeo-Johnson)": PowerTransformer(method="yeo-johnson"),
-        "QuantileTransformer\n(正規分布)": QuantileTransformer(
+        "QuantileTransformer\n(normal dist.)": QuantileTransformer(
             output_distribution="normal", random_state=42
         ),
     }
@@ -441,12 +443,12 @@ def compare_scalers(data: np.ndarray, feature_name: str = "特徴量") -> pd.Dat
             scaled = scaler.fit_transform(data.reshape(-1, 1)).flatten()
 
         results[name] = {
-            "平均": np.mean(scaled).round(3),
-            "標準偏差": np.std(scaled).round(3),
-            "最小": np.min(scaled).round(3),
-            "最大": np.max(scaled).round(3),
-            "中央値": np.median(scaled).round(3),
-            "歪度": pd.Series(scaled).skew().round(3),
+            "Mean": np.mean(scaled).round(3),
+            "Std Dev": np.std(scaled).round(3),
+            "Min": np.min(scaled).round(3),
+            "Max": np.max(scaled).round(3),
+            "Median": np.median(scaled).round(3),
+            "Skewness": pd.Series(scaled).skew().round(3),
         }
 
         axes[idx].hist(scaled, bins=50, edgecolor="black", alpha=0.7)
@@ -460,16 +462,16 @@ def compare_scalers(data: np.ndarray, feature_name: str = "特徴量") -> pd.Dat
 
     return pd.DataFrame(results).T
 
-# 外れ値を含む右に歪んだデータ
+# Right-skewed data with outliers
 np.random.seed(42)
 data_skewed = np.concatenate([
-    np.random.lognormal(3, 1, 1000),  # 通常のデータ
-    np.array([5000, 8000, 10000])     # 外れ値
+    np.random.lognormal(3, 1, 1000),  # Normal data
+    np.array([5000, 8000, 10000])     # Outliers
 ])
-print(compare_scalers(data_skewed, "収入"))
+print(compare_scalers(data_skewed, "income"))
 ```
 
-### コード例3b: スケーリングの選択を自動化
+### Code Example 3b: Automating Scaler Selection
 
 ```python
 import numpy as np
@@ -480,7 +482,7 @@ from sklearn.preprocessing import (
 )
 
 class AutoScaler:
-    """データの特性に基づいてスケーリング手法を自動選択"""
+    """Automatically select a scaling method based on data characteristics"""
 
     def __init__(self, outlier_threshold: float = 3.0,
                  skew_threshold: float = 1.0):
@@ -490,7 +492,7 @@ class AutoScaler:
         self.selected_methods = {}
 
     def _has_outliers(self, x: np.ndarray) -> bool:
-        """IQR法で外れ値を検出"""
+        """Detect outliers using the IQR method"""
         q1, q3 = np.percentile(x[~np.isnan(x)], [25, 75])
         iqr = q3 - q1
         lower = q1 - 1.5 * iqr
@@ -498,12 +500,12 @@ class AutoScaler:
         return np.any((x < lower) | (x > upper))
 
     def _is_skewed(self, x: np.ndarray) -> bool:
-        """歪度をチェック"""
+        """Check skewness"""
         skewness = stats.skew(x[~np.isnan(x)])
         return abs(skewness) > self.skew_threshold
 
     def fit_transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        """各列に最適なスケーリングを適用"""
+        """Apply the optimal scaling to each column"""
         result = df.copy()
         numeric_cols = df.select_dtypes(include="number").columns
 
@@ -518,16 +520,16 @@ class AutoScaler:
 
             if has_outliers and is_skewed:
                 scaler = PowerTransformer(method="yeo-johnson")
-                method = "PowerTransformer (外れ値+歪み対策)"
+                method = "PowerTransformer (outliers + skew)"
             elif has_outliers:
                 scaler = RobustScaler()
-                method = "RobustScaler (外れ値対策)"
+                method = "RobustScaler (outliers)"
             elif is_skewed:
                 scaler = PowerTransformer(method="yeo-johnson")
-                method = "PowerTransformer (歪み対策)"
+                method = "PowerTransformer (skew)"
             else:
                 scaler = StandardScaler()
-                method = "StandardScaler (標準)"
+                method = "StandardScaler (standard)"
 
             result[col] = scaler.fit_transform(
                 df[col].values.reshape(-1, 1)
@@ -539,7 +541,7 @@ class AutoScaler:
         return result
 
     def transform(self, df: pd.DataFrame) -> pd.DataFrame:
-        """学習済みのスケーラーで変換"""
+        """Transform using learned scalers"""
         result = df.copy()
         for col, scaler in self.scalers.items():
             if col in df.columns:
@@ -549,14 +551,14 @@ class AutoScaler:
         return result
 
     def report(self):
-        """選択されたスケーリング手法のレポート"""
+        """Report on selected scaling methods"""
         print("=" * 60)
-        print("AutoScaler 選択レポート")
+        print("AutoScaler Selection Report")
         print("=" * 60)
         for col, method in self.selected_methods.items():
             print(f"  {col:25s}: {method}")
 
-# 使用例
+# Usage example
 auto_scaler = AutoScaler()
 df_scaled = auto_scaler.fit_transform(df_clean.select_dtypes(include="number"))
 auto_scaler.report()
@@ -564,43 +566,43 @@ auto_scaler.report()
 
 ---
 
-## 3. カテゴリ変数のエンコーディング
+## 3. Categorical Variable Encoding
 
-### エンコーディング手法の体系
+### Taxonomy of Encoding Methods
 
 ```
-カテゴリ変数のエンコーディング手法:
+Categorical variable encoding methods:
 
   ┌────────────────────────────────────────────┐
-  │ カーディナリティ（ユニーク値の数）          │
+  │ Cardinality (number of unique values)       │
   └──────────────────┬───────────────────────┘
                      │
         ┌────────────┴────────────┐
-        │ 低い (< 10-15)          │ 高い (≥ 15)
+        │ Low (< 10-15)           │ High (≥ 15)
         ├─────────────────────────┤─────────────────────────
         │                        │
         │ ┌────────────────┐     │ ┌─────────────────────┐
         │ │ OneHotEncoding │     │ │ TargetEncoding      │
-        │ │ 安全・標準的   │     │ │ 目的変数の統計量    │
+        │ │ Safe, standard │     │ │ Target statistics   │
         │ └────────────────┘     │ └─────────────────────┘
         │                        │
         │ ┌────────────────┐     │ ┌─────────────────────┐
         │ │ OrdinalEncoding│     │ │ FrequencyEncoding   │
-        │ │ 順序がある場合 │     │ │ 出現頻度で置換      │
-        │ └────────────────┘     │ └─────────────────────┘
-        │                        │
-        │ ┌────────────────┐     │ ┌─────────────────────┐
-        │ │ BinaryEncoding │     │ │ HashEncoding        │
-        │ │ 2進数表現      │     │ │ ハッシュで固定次元  │
-        │ └────────────────┘     │ └─────────────────────┘
-        │                        │
+        │ │ When order     │     │ │ Replace with freq.  │
+        │ │ exists         │     │ └─────────────────────┘
+        │ └────────────────┘     │
+        │                        │ ┌─────────────────────┐
+        │ ┌────────────────┐     │ │ HashEncoding        │
+        │ │ BinaryEncoding │     │ │ Fixed dim via hash  │
+        │ │ Binary repr.   │     │ └─────────────────────┘
+        │ └────────────────┘     │
         │                        │ ┌─────────────────────┐
         │                        │ │ Embedding           │
-        │                        │ │ NN用の低次元表現    │
+        │                        │ │ Low-dim repr for NN │
         │                        │ └─────────────────────┘
 ```
 
-### コード例4: エンコーディング手法の実装
+### Code Example 4: Implementing Encoding Methods
 
 ```python
 import pandas as pd
@@ -609,13 +611,13 @@ from sklearn.preprocessing import LabelEncoder, OrdinalEncoder, OneHotEncoder
 from sklearn.model_selection import KFold
 
 class CategoryEncoder:
-    """カテゴリ変数エンコーディングの統合クラス"""
+    """Unified class for categorical variable encoding"""
 
     def __init__(self):
         self.encoders = {}
 
     def label_encode(self, series: pd.Series) -> pd.Series:
-        """ラベルエンコーディング（順序なし二値 or 順序あり）"""
+        """Label encoding (unordered binary or ordered)"""
         le = LabelEncoder()
         encoded = le.fit_transform(series.astype(str))
         self.encoders[series.name] = ("label", le)
@@ -623,14 +625,14 @@ class CategoryEncoder:
 
     def ordinal_encode(self, series: pd.Series,
                        order: list) -> pd.Series:
-        """順序付きエンコーディング（明示的な順序を指定）
+        """Ordinal encoding (specify an explicit order)
 
         Parameters
         ----------
         series : pd.Series
-            エンコード対象
+            Target to encode
         order : list
-            順序のリスト（例: ["low", "medium", "high"]）
+            Ordered list (e.g., ["low", "medium", "high"])
         """
         mapping = {val: idx for idx, val in enumerate(order)}
         encoded = series.map(mapping)
@@ -640,11 +642,11 @@ class CategoryEncoder:
     def onehot_encode(self, df: pd.DataFrame, col: str,
                       drop_first: bool = True,
                       max_categories: int = 15) -> pd.DataFrame:
-        """ワンホットエンコーディング（名義変数）"""
+        """One-hot encoding (nominal variables)"""
         n_unique = df[col].nunique()
         if n_unique > max_categories:
-            print(f"WARNING: {col} のカーディナリティ={n_unique}が高い。"
-                  f"TargetEncoding推奨。")
+            print(f"WARNING: {col} cardinality={n_unique} is high. "
+                  f"TargetEncoding recommended.")
 
         dummies = pd.get_dummies(df[col], prefix=col, drop_first=drop_first)
         result = pd.concat([df.drop(columns=[col]), dummies], axis=1)
@@ -653,20 +655,20 @@ class CategoryEncoder:
 
     def target_encode(self, df: pd.DataFrame, col: str,
                       target: str, smoothing: float = 10.0) -> pd.DataFrame:
-        """ターゲットエンコーディング（高カーディナリティ向け）
+        """Target encoding (for high-cardinality variables)
 
-        スムージングでサンプル数が少ないカテゴリの過学習を防止
+        Uses smoothing to prevent overfitting on categories with few samples.
         """
         global_mean = df[target].mean()
         agg = df.groupby(col)[target].agg(["mean", "count"])
 
-        # ベイジアンスムージング
+        # Bayesian smoothing
         smooth = (agg["count"] * agg["mean"] + smoothing * global_mean) / \
                  (agg["count"] + smoothing)
 
         result = df.copy()
         result[f"{col}_target_enc"] = result[col].map(smooth)
-        # 未知カテゴリへの対処
+        # Handle unknown categories
         result[f"{col}_target_enc"].fillna(global_mean, inplace=True)
         self.encoders[col] = ("target", {
             "mapping": smooth.to_dict(),
@@ -676,10 +678,10 @@ class CategoryEncoder:
 
     def target_encode_cv(self, df: pd.DataFrame, col: str,
                          target: str, n_splits: int = 5) -> pd.DataFrame:
-        """CVベースのターゲットエンコーディング（リーク防止版）
+        """CV-based target encoding (leak-prevention version)
 
-        交差検証の各Foldで別々にターゲットエンコーディングを行い、
-        データリークを防止する。
+        Performs target encoding separately for each fold of
+        cross-validation to prevent data leakage.
         """
         result = df.copy()
         result[f"{col}_target_enc_cv"] = np.nan
@@ -697,7 +699,7 @@ class CategoryEncoder:
         return result
 
     def frequency_encode(self, df: pd.DataFrame, col: str) -> pd.DataFrame:
-        """頻度エンコーディング（出現頻度で置換）"""
+        """Frequency encoding (replace with occurrence frequency)"""
         freq = df[col].value_counts(normalize=True)
         result = df.copy()
         result[f"{col}_freq_enc"] = result[col].map(freq)
@@ -706,7 +708,7 @@ class CategoryEncoder:
         return result
 
     def binary_encode(self, df: pd.DataFrame, col: str) -> pd.DataFrame:
-        """バイナリエンコーディング（2進数表現）"""
+        """Binary encoding (binary representation)"""
         le = LabelEncoder()
         encoded = le.fit_transform(df[col].astype(str))
         n_bits = int(np.ceil(np.log2(len(le.classes_) + 1)))
@@ -725,60 +727,60 @@ class CategoryEncoder:
         result.drop(columns=[col], inplace=True)
         return result
 
-# 使用例
+# Usage example
 df = pd.DataFrame({
-    "city": ["東京", "大阪", "東京", "福岡", "大阪", "東京", "名古屋", "福岡"],
+    "city": ["Tokyo", "Osaka", "Tokyo", "Fukuoka", "Osaka", "Tokyo", "Nagoya", "Fukuoka"],
     "size": ["S", "M", "L", "M", "S", "L", "XL", "M"],
     "price": [100, 80, 120, 70, 85, 130, 140, 75]
 })
 
 encoder = CategoryEncoder()
 
-# 名義変数: ワンホット
+# Nominal variable: one-hot
 df_encoded = encoder.onehot_encode(df, "city")
 
-# 順序変数: 順序付き
+# Ordinal variable: ordinal encoding
 df_encoded["size_ord"] = encoder.ordinal_encode(
     df["size"], order=["S", "M", "L", "XL"]
 )
 
-# 高カーディナリティ: ターゲット
+# High cardinality: target encoding
 df_encoded = encoder.target_encode(df_encoded, "size", "price")
 
-# 頻度エンコーディング
+# Frequency encoding
 df_freq = encoder.frequency_encode(df, "city")
 
-print("エンコード結果:")
+print("Encoding results:")
 print(df_encoded.head())
-print(f"\n頻度エンコーディング:")
+print(f"\nFrequency encoding:")
 ```
 
 ---
 
-## 4. 外れ値の検出と処理
+## 4. Outlier Detection and Handling
 
-### 外れ値検出手法
+### Outlier Detection Methods
 
 ```
-外れ値検出手法の分類:
+Classification of outlier detection methods:
 
-  統計的手法:
-    ├── Z-Score法: |z| > 3 を外れ値とする（正規分布前提）
-    ├── IQR法: Q1 - 1.5*IQR 未満、Q3 + 1.5*IQR 超を外れ値
-    ├── Modified Z-Score法: MAD（中央絶対偏差）ベース（頑健）
-    └── Grubbs検定: 帰無仮説検定による外れ値検出
+  Statistical methods:
+    ├── Z-Score: |z| > 3 is an outlier (assumes normal distribution)
+    ├── IQR: values below Q1 - 1.5*IQR or above Q3 + 1.5*IQR
+    ├── Modified Z-Score: MAD (median absolute deviation)-based (robust)
+    └── Grubbs test: outlier detection via null-hypothesis testing
 
-  機械学習手法:
-    ├── Isolation Forest: ランダムな分割による孤立度
-    ├── Local Outlier Factor (LOF): 局所密度に基づく検出
-    ├── One-Class SVM: 正常データの超平面からの距離
-    └── DBSCAN: ノイズ点を外れ値として検出
+  Machine learning methods:
+    ├── Isolation Forest: isolation score via random splits
+    ├── Local Outlier Factor (LOF): detection based on local density
+    ├── One-Class SVM: distance from hyperplane trained on normal data
+    └── DBSCAN: noise points detected as outliers
 
-  ドメイン知識:
-    └── ビジネスルールに基づく閾値（年齢<0 or >150 等）
+  Domain knowledge:
+    └── Business-rule thresholds (e.g., age < 0 or > 150)
 ```
 
-### コード例: 外れ値検出と処理
+### Code Example: Outlier Detection and Handling
 
 ```python
 import numpy as np
@@ -788,14 +790,14 @@ from sklearn.neighbors import LocalOutlierFactor
 import matplotlib.pyplot as plt
 
 class OutlierHandler:
-    """外れ値の検出と処理"""
+    """Outlier detection and handling"""
 
     def __init__(self):
         self.outlier_info = {}
 
     def detect_iqr(self, series: pd.Series,
                     multiplier: float = 1.5) -> pd.Series:
-        """IQR法による外れ値検出"""
+        """Outlier detection using the IQR method"""
         q1 = series.quantile(0.25)
         q3 = series.quantile(0.75)
         iqr = q3 - q1
@@ -813,22 +815,22 @@ class OutlierHandler:
             "pct_outliers": n_outliers / len(series) * 100
         }
 
-        print(f"  {series.name}: {n_outliers}個の外れ値 "
+        print(f"  {series.name}: {n_outliers} outliers "
               f"({n_outliers/len(series)*100:.1f}%), "
-              f"範囲=[{lower:.2f}, {upper:.2f}]")
+              f"range=[{lower:.2f}, {upper:.2f}]")
 
         return is_outlier
 
     def detect_zscore(self, series: pd.Series,
                        threshold: float = 3.0) -> pd.Series:
-        """Z-Score法による外れ値検出"""
+        """Outlier detection using the Z-Score method"""
         z = (series - series.mean()) / series.std()
         is_outlier = z.abs() > threshold
         return is_outlier
 
     def detect_modified_zscore(self, series: pd.Series,
                                 threshold: float = 3.5) -> pd.Series:
-        """Modified Z-Score法（MADベース、頑健）"""
+        """Modified Z-Score method (MAD-based, robust)"""
         median = series.median()
         mad = np.median(np.abs(series - median))
         modified_z = 0.6745 * (series - median) / (mad + 1e-10)
@@ -837,7 +839,7 @@ class OutlierHandler:
 
     def detect_isolation_forest(self, df: pd.DataFrame,
                                  contamination: float = 0.05) -> np.ndarray:
-        """Isolation Forestによる多変量外れ値検出"""
+        """Multivariate outlier detection using Isolation Forest"""
         numeric_cols = df.select_dtypes(include="number").columns
         iso_forest = IsolationForest(
             contamination=contamination,
@@ -845,23 +847,23 @@ class OutlierHandler:
         )
         labels = iso_forest.fit_predict(df[numeric_cols].fillna(0))
         is_outlier = labels == -1
-        print(f"  Isolation Forest: {is_outlier.sum()}個の外れ値 "
+        print(f"  Isolation Forest: {is_outlier.sum()} outliers "
               f"({is_outlier.sum()/len(df)*100:.1f}%)")
         return is_outlier
 
     def handle_outliers(self, df: pd.DataFrame, col: str,
                          method: str = "clip",
                          detection: str = "iqr") -> pd.DataFrame:
-        """外れ値の処理
+        """Handle outliers
 
         Parameters
         ----------
         method : str
-            "clip": 上下限にクリッピング
-            "remove": 外れ値行を削除
-            "nan": 外れ値をNaNに置換（後で補完）
-            "winsorize": Winsorization（パーセンタイルに収める）
-            "log": 対数変換（正の歪みのある場合）
+            "clip": clip to upper/lower bounds
+            "remove": drop rows with outliers
+            "nan": replace outliers with NaN (impute later)
+            "winsorize": winsorization (cap at percentiles)
+            "log": log transform (for positively skewed data)
         """
         result = df.copy()
 
@@ -872,7 +874,7 @@ class OutlierHandler:
         elif detection == "modified_zscore":
             is_outlier = self.detect_modified_zscore(result[col])
         else:
-            raise ValueError(f"未知の検出方法: {detection}")
+            raise ValueError(f"Unknown detection method: {detection}")
 
         if method == "clip":
             info = self.outlier_info.get(col, {})
@@ -894,7 +896,7 @@ class OutlierHandler:
 
     def visualize_outliers(self, df: pd.DataFrame,
                            columns: list = None) -> None:
-        """外れ値の可視化"""
+        """Visualize outliers"""
         if columns is None:
             columns = df.select_dtypes(include="number").columns.tolist()
 
@@ -920,7 +922,7 @@ class OutlierHandler:
         plt.savefig("reports/outlier_boxplots.png", dpi=150)
         plt.close()
 
-# 使用例
+# Usage example
 outlier_handler = OutlierHandler()
 # df_clean = outlier_handler.handle_outliers(df, "income", method="clip")
 # outlier_handler.visualize_outliers(df, ["age", "income", "satisfaction"])
@@ -928,44 +930,44 @@ outlier_handler = OutlierHandler()
 
 ---
 
-## 5. 特徴量エンジニアリング
+## 5. Feature Engineering
 
-### 特徴量エンジニアリングの体系
+### Taxonomy of Feature Engineering
 
 ```
-特徴量エンジニアリングの分類:
+Classification of feature engineering:
 
-  1. 基本変換
-     ├── 数学的変換: log, sqrt, 二乗, 逆数
-     ├── ビニング: 連続値の離散化
-     └── クリッピング: 範囲の制限
+  1. Basic transformations
+     ├── Mathematical transforms: log, sqrt, square, reciprocal
+     ├── Binning: discretizing continuous values
+     └── Clipping: limiting value range
 
-  2. 集約特徴量
-     ├── 統計量: 平均, 中央値, 最大, 最小, 標準偏差
-     ├── カウント: 出現回数, 一意値数
-     └── 比率: 対全体比率, 対グループ比率
+  2. Aggregation features
+     ├── Statistics: mean, median, max, min, std
+     ├── Counts: occurrence count, unique value count
+     └── Ratios: ratio to total, ratio to group
 
-  3. 時系列特徴量
-     ├── ラグ特徴量: 過去N期間の値
-     ├── 移動統計量: 移動平均, 移動標準偏差
-     ├── 差分特徴量: 前期比, 前年同期比
-     └── 周期特徴量: 曜日, 月, 季節のsin/cos変換
+  3. Time-series features
+     ├── Lag features: values from past N periods
+     ├── Rolling statistics: rolling mean, rolling std
+     ├── Difference features: period-over-period, year-over-year
+     └── Cyclical features: day-of-week, month, season sin/cos encoding
 
-  4. テキスト特徴量
-     ├── 文字数, 単語数, 文数
+  4. Text features
+     ├── Character count, word count, sentence count
      ├── TF-IDF
-     └── 埋め込み (Word2Vec, BERT)
+     └── Embeddings (Word2Vec, BERT)
 
-  5. 交互作用特徴量
-     ├── 乗算: A × B
-     ├── 除算: A / B
-     └── 多項式: A², A × B, B²
+  5. Interaction features
+     ├── Multiplication: A × B
+     ├── Division: A / B
+     └── Polynomial: A², A × B, B²
 
-  6. ドメイン固有特徴量
-     └── ビジネスKPI, 医療指標, 金融指標等
+  6. Domain-specific features
+     └── Business KPIs, medical indicators, financial metrics, etc.
 ```
 
-### コード例5: 時系列特徴量の自動生成
+### Code Example 5: Auto-generating Time-series Features
 
 ```python
 import pandas as pd
@@ -973,11 +975,11 @@ import numpy as np
 
 def create_datetime_features(df: pd.DataFrame,
                               date_col: str) -> pd.DataFrame:
-    """日付列から特徴量を自動生成"""
+    """Auto-generate features from a date column"""
     result = df.copy()
     dt = pd.to_datetime(result[date_col])
 
-    # 基本的な時間特徴量
+    # Basic time features
     result[f"{date_col}_year"] = dt.dt.year
     result[f"{date_col}_month"] = dt.dt.month
     result[f"{date_col}_day"] = dt.dt.day
@@ -988,37 +990,37 @@ def create_datetime_features(df: pd.DataFrame,
     result[f"{date_col}_dayofyear"] = dt.dt.dayofyear
     result[f"{date_col}_weekofyear"] = dt.dt.isocalendar().week.astype(int)
 
-    # 周期的エンコーディング（月を円形に変換）
+    # Cyclical encoding (map month to a circle)
     result[f"{date_col}_month_sin"] = np.sin(2 * np.pi * dt.dt.month / 12)
     result[f"{date_col}_month_cos"] = np.cos(2 * np.pi * dt.dt.month / 12)
 
-    # 曜日の周期的エンコーディング
+    # Cyclical encoding for day of week
     result[f"{date_col}_dow_sin"] = np.sin(2 * np.pi * dt.dt.dayofweek / 7)
     result[f"{date_col}_dow_cos"] = np.cos(2 * np.pi * dt.dt.dayofweek / 7)
 
-    # 時間帯の周期的エンコーディング
+    # Cyclical encoding for hour of day
     if dt.dt.hour.max() > 0:
         result[f"{date_col}_hour_sin"] = np.sin(2 * np.pi * dt.dt.hour / 24)
         result[f"{date_col}_hour_cos"] = np.cos(2 * np.pi * dt.dt.hour / 24)
 
-    # 月初・月末フラグ
+    # Start/end of month flags
     result[f"{date_col}_is_month_start"] = dt.dt.is_month_start.astype(int)
     result[f"{date_col}_is_month_end"] = dt.dt.is_month_end.astype(int)
 
-    # 祝日フラグ（簡易版、実務ではjpholidayパッケージ等を使用）
-    result[f"{date_col}_is_holiday"] = 0  # 拡張可能
+    # Holiday flag (simplified; use a holidays library in production)
+    result[f"{date_col}_is_holiday"] = 0  # Can be extended
 
     return result
 
 def create_lag_features(df: pd.DataFrame, col: str,
                         lags: list = [1, 7, 30],
                         group_col: str = None) -> pd.DataFrame:
-    """ラグ特徴量と移動平均を生成
+    """Generate lag features and rolling averages
 
     Parameters
     ----------
     group_col : str, optional
-        グループ単位でラグを計算する場合の列名
+        Column name to group by when computing lags
     """
     result = df.copy()
 
@@ -1038,10 +1040,10 @@ def create_lag_features(df: pd.DataFrame, col: str,
                 lag, min_periods=1
             ).std()
 
-        # 変化率
+        # Percentage change
         result[f"{col}_pct_change_{lag}"] = result[col].pct_change(periods=lag)
 
-    # EWMA（指数加重移動平均）
+    # EWMA (exponentially weighted moving average)
     for span in [7, 14, 30]:
         result[f"{col}_ewma_{span}"] = result[col].ewm(span=span).mean()
 
@@ -1049,14 +1051,14 @@ def create_lag_features(df: pd.DataFrame, col: str,
 
 def create_diff_features(df: pd.DataFrame, col: str,
                           periods: list = [1, 7]) -> pd.DataFrame:
-    """差分特徴量を生成"""
+    """Generate difference features"""
     result = df.copy()
     for period in periods:
         result[f"{col}_diff_{period}"] = result[col].diff(period)
         result[f"{col}_diff_pct_{period}"] = result[col].pct_change(period)
     return result
 
-# 使用例
+# Usage example
 df = pd.DataFrame({
     "date": pd.date_range("2024-01-01", periods=365, freq="D"),
     "sales": np.random.randint(50, 200, 365) + \
@@ -1067,11 +1069,11 @@ df = pd.DataFrame({
 df = create_datetime_features(df, "date")
 df = create_lag_features(df, "sales", lags=[1, 7, 14, 28])
 df = create_diff_features(df, "sales", periods=[1, 7])
-print(f"特徴量数: {df.shape[1]}")
+print(f"Number of features: {df.shape[1]}")
 print(df.head(30))
 ```
 
-### コード例6: 交互作用特徴量とビニング
+### Code Example 6: Interaction Features and Binning
 
 ```python
 import pandas as pd
@@ -1082,13 +1084,13 @@ from sklearn.preprocessing import PolynomialFeatures
 def create_interaction_features(df: pd.DataFrame,
                                  columns: list,
                                  operations: list = None) -> pd.DataFrame:
-    """数値列の交互作用特徴量を生成
+    """Generate interaction features from numeric columns
 
     Parameters
     ----------
     operations : list, optional
-        実行する演算のリスト。デフォルトは ["multiply", "divide"]
-        選択肢: "multiply", "divide", "add", "subtract"
+        List of operations to perform. Default is ["multiply", "divide"].
+        Choices: "multiply", "divide", "add", "subtract"
     """
     if operations is None:
         operations = ["multiply", "divide"]
@@ -1109,7 +1111,7 @@ def create_interaction_features(df: pd.DataFrame,
 
 def create_polynomial_features(df: pd.DataFrame, columns: list,
                                 degree: int = 2) -> pd.DataFrame:
-    """多項式特徴量の生成"""
+    """Generate polynomial features"""
     poly = PolynomialFeatures(degree=degree, include_bias=False,
                                interaction_only=False)
     poly_features = poly.fit_transform(df[columns])
@@ -1117,7 +1119,7 @@ def create_polynomial_features(df: pd.DataFrame, columns: list,
 
     result = df.copy()
     for i, name in enumerate(poly_names):
-        if name not in columns:  # 元の特徴量は除外
+        if name not in columns:  # Exclude original features
             result[f"poly_{name}"] = poly_features[:, i]
 
     return result
@@ -1125,14 +1127,14 @@ def create_polynomial_features(df: pd.DataFrame, columns: list,
 def create_bins(df: pd.DataFrame, col: str,
                 n_bins: int = 5, strategy: str = "quantile",
                 labels: list = None) -> pd.DataFrame:
-    """ビニング（離散化）
+    """Binning (discretization)
 
     Parameters
     ----------
     strategy : str
-        "quantile": 等頻度ビニング（各ビンのサンプル数が均等）
-        "uniform": 等幅ビニング（各ビンの幅が均等）
-        "kmeans": K-meansクラスタリングによるビニング
+        "quantile": equal-frequency binning (equal number of samples per bin)
+        "uniform": equal-width binning (equal bin widths)
+        "kmeans": binning via K-means clustering
     """
     result = df.copy()
 
@@ -1156,7 +1158,7 @@ def create_bins(df: pd.DataFrame, col: str,
 def create_aggregation_features(df: pd.DataFrame,
                                  group_col: str,
                                  agg_col: str) -> pd.DataFrame:
-    """グループ集約特徴量の生成"""
+    """Generate group aggregation features"""
     result = df.copy()
 
     agg = df.groupby(group_col)[agg_col].agg([
@@ -1166,18 +1168,18 @@ def create_aggregation_features(df: pd.DataFrame,
 
     result = result.merge(agg, left_on=group_col, right_index=True, how="left")
 
-    # 偏差特徴量: 個体値 - グループ平均
+    # Deviation feature: individual value - group mean
     mean_col = f"{agg_col}_by_{group_col}_mean"
     result[f"{agg_col}_dev_from_{group_col}_mean"] = result[agg_col] - result[mean_col]
 
-    # 比率特徴量: 個体値 / グループ平均
+    # Ratio feature: individual value / group mean
     result[f"{agg_col}_ratio_to_{group_col}_mean"] = \
         result[agg_col] / (result[mean_col] + 1e-8)
 
     return result
 ```
 
-### コード例7: テキスト特徴量の生成
+### Code Example 7: Generating Text Features
 
 ```python
 import pandas as pd
@@ -1185,29 +1187,29 @@ import numpy as np
 import re
 
 def create_text_features(df: pd.DataFrame, text_col: str) -> pd.DataFrame:
-    """テキスト列から基本的な統計特徴量を生成"""
+    """Generate basic statistical features from a text column"""
     result = df.copy()
     text = df[text_col].fillna("")
 
-    # 基本統計
+    # Basic statistics
     result[f"{text_col}_length"] = text.str.len()
     result[f"{text_col}_word_count"] = text.str.split().str.len().fillna(0)
     result[f"{text_col}_sentence_count"] = text.str.count(r'[。.!?]') + 1
     result[f"{text_col}_avg_word_length"] = \
         text.apply(lambda x: np.mean([len(w) for w in x.split()]) if x else 0)
 
-    # 特殊文字の統計
+    # Special character statistics
     result[f"{text_col}_n_digits"] = text.str.count(r'\d')
     result[f"{text_col}_n_uppercase"] = text.str.count(r'[A-Z]')
     result[f"{text_col}_n_special"] = text.str.count(r'[!@#$%^&*()]')
     result[f"{text_col}_n_urls"] = text.str.count(r'https?://\S+')
     result[f"{text_col}_n_emails"] = text.str.count(r'\S+@\S+\.\S+')
 
-    # 感嘆符・疑問符の数（感情分析の手がかり）
+    # Exclamation and question mark counts (clues for sentiment analysis)
     result[f"{text_col}_n_exclamation"] = text.str.count("!")
     result[f"{text_col}_n_question"] = text.str.count(r'\?')
 
-    # ユニーク単語比率（語彙の豊かさ）
+    # Unique word ratio (vocabulary richness)
     result[f"{text_col}_unique_word_ratio"] = text.apply(
         lambda x: len(set(x.split())) / (len(x.split()) + 1e-8) if x else 0
     )
@@ -1217,34 +1219,34 @@ def create_text_features(df: pd.DataFrame, text_col: str) -> pd.DataFrame:
 
 ---
 
-## 6. 特徴量選択
+## 6. Feature Selection
 
-### 特徴量選択手法
+### Feature Selection Methods
 
 ```
-特徴量選択の3つのアプローチ:
+Three approaches to feature selection:
 
-  1. フィルター法（統計的テスト）
-     ├── 分散フィルター: 分散が低い特徴量を除去
-     ├── 相関フィルター: 目的変数との相関が低い特徴量を除去
-     ├── 相互情報量: 非線形な関係も捉える
-     └── カイ二乗検定: カテゴリ変数の独立性検定
-     → 高速、モデル非依存
+  1. Filter methods (statistical tests)
+     ├── Variance filter: remove features with low variance
+     ├── Correlation filter: remove features with low correlation to target
+     ├── Mutual information: captures non-linear relationships too
+     └── Chi-squared test: independence test for categorical variables
+     → Fast, model-agnostic
 
-  2. ラッパー法（モデルベース）
-     ├── 前進選択法: 1つずつ特徴量を追加
-     ├── 後退消去法: 1つずつ特徴量を削除
-     └── 再帰的特徴量除去 (RFE): モデルの重要度で逐次削除
-     → 精度高、計算コスト大
+  2. Wrapper methods (model-based)
+     ├── Forward selection: add features one at a time
+     ├── Backward elimination: remove features one at a time
+     └── Recursive Feature Elimination (RFE): iterative removal by model importance
+     → High accuracy, high computational cost
 
-  3. 埋め込み法（学習過程で選択）
-     ├── L1正則化 (Lasso): 不要な係数を0にする
-     ├── 木ベースの重要度: RandomForest, XGBoost
+  3. Embedded methods (selected during training)
+     ├── L1 regularization (Lasso): sets unnecessary coefficients to 0
+     ├── Tree-based importance: RandomForest, XGBoost
      └── Permutation Importance
-     → 精度とコストのバランスが良い
+     → Good balance of accuracy and cost
 ```
 
-### コード例8: 特徴量選択の実装
+### Code Example 8: Implementing Feature Selection
 
 ```python
 import numpy as np
@@ -1257,7 +1259,7 @@ from sklearn.ensemble import RandomForestClassifier
 import matplotlib.pyplot as plt
 
 class FeatureSelector:
-    """特徴量選択の統合クラス"""
+    """Unified class for feature selection"""
 
     def __init__(self, X, y, feature_names=None):
         self.X = X
@@ -1266,27 +1268,27 @@ class FeatureSelector:
         self.scores = {}
 
     def variance_filter(self, threshold: float = 0.01) -> list:
-        """分散フィルター: 分散が閾値以下の特徴量を除去"""
+        """Variance filter: remove features with variance below the threshold"""
         selector = VarianceThreshold(threshold=threshold)
         selector.fit(self.X)
         mask = selector.get_support()
         removed = [f for f, m in zip(self.feature_names, mask) if not m]
-        print(f"分散フィルター: {len(removed)}個除去 (閾値={threshold})")
+        print(f"Variance filter: {len(removed)} removed (threshold={threshold})")
         return [f for f, m in zip(self.feature_names, mask) if m]
 
     def correlation_filter(self, threshold: float = 0.95) -> list:
-        """高相関フィルター: 相関が高いペアの一方を除去"""
+        """High-correlation filter: remove one of each highly correlated pair"""
         corr_matrix = pd.DataFrame(self.X, columns=self.feature_names).corr().abs()
         upper = corr_matrix.where(
             np.triu(np.ones(corr_matrix.shape), k=1).astype(bool)
         )
         to_drop = [col for col in upper.columns if any(upper[col] > threshold)]
-        print(f"相関フィルター: {len(to_drop)}個除去 (閾値={threshold})")
+        print(f"Correlation filter: {len(to_drop)} removed (threshold={threshold})")
         return [f for f in self.feature_names if f not in to_drop]
 
     def statistical_test(self, k: int = 10,
                           method: str = "f_classif") -> list:
-        """統計的テストによる選択"""
+        """Selection by statistical test"""
         if method == "f_classif":
             selector = SelectKBest(f_classif, k=k)
         elif method == "mutual_info":
@@ -1297,39 +1299,39 @@ class FeatureSelector:
         self.scores[method] = selector.scores_
 
         selected = [f for f, m in zip(self.feature_names, mask) if m]
-        print(f"{method}: 上位{k}個を選択")
+        print(f"{method}: top {k} selected")
         return selected
 
     def rfe_selection(self, n_features: int = 10) -> list:
-        """再帰的特徴量除去"""
+        """Recursive Feature Elimination"""
         model = RandomForestClassifier(n_estimators=100, random_state=42)
         rfe = RFE(model, n_features_to_select=n_features, step=1)
         rfe.fit(self.X, self.y)
         mask = rfe.support_
 
         selected = [f for f, m in zip(self.feature_names, mask) if m]
-        print(f"RFE: {n_features}個を選択")
+        print(f"RFE: {n_features} selected")
         return selected
 
     def importance_based(self, threshold: float = 0.01) -> list:
-        """モデルの重要度に基づく選択"""
+        """Selection based on model feature importance"""
         model = RandomForestClassifier(n_estimators=100, random_state=42)
         model.fit(self.X, self.y)
         importances = model.feature_importances_
 
         mask = importances > threshold
         selected = [f for f, m in zip(self.feature_names, mask) if m]
-        print(f"重要度ベース: {len(selected)}個を選択 (閾値={threshold})")
+        print(f"Importance-based: {len(selected)} selected (threshold={threshold})")
 
-        # 可視化
+        # Visualization
         sorted_idx = np.argsort(importances)[::-1][:20]
         fig, ax = plt.subplots(figsize=(10, 6))
         ax.barh(range(len(sorted_idx)),
                 importances[sorted_idx], align="center")
         ax.set_yticks(range(len(sorted_idx)))
         ax.set_yticklabels([self.feature_names[i] for i in sorted_idx])
-        ax.set_xlabel("重要度")
-        ax.set_title("特徴量重要度 (Top 20)")
+        ax.set_xlabel("Importance")
+        ax.set_title("Feature Importance (Top 20)")
         ax.invert_yaxis()
         plt.tight_layout()
         plt.savefig("reports/feature_importance_selection.png", dpi=150)
@@ -1337,16 +1339,16 @@ class FeatureSelector:
 
         return selected
 
-# 使用例
+# Usage example
 # selector = FeatureSelector(X_train, y_train, feature_names)
 # selected = selector.importance_based(threshold=0.01)
 ```
 
 ---
 
-## 7. データ品質管理パイプライン
+## 7. Data Quality Management Pipeline
 
-### コード例9: 統合的な前処理パイプライン
+### Code Example 9: Integrated Preprocessing Pipeline
 
 ```python
 import pandas as pd
@@ -1362,12 +1364,12 @@ from sklearn.feature_selection import VarianceThreshold
 import joblib
 
 class DataPreprocessingPipeline:
-    """実務向けデータ前処理パイプライン
+    """Production-ready data preprocessing pipeline
 
-    使い方:
-        1. fit(X_train, y_train) で学習
-        2. transform(X_test) で変換
-        3. save/load でパイプラインの永続化
+    Usage:
+        1. fit(X_train, y_train) to train
+        2. transform(X_test) to transform
+        3. save/load for pipeline persistence
     """
 
     def __init__(self, numeric_features, categorical_features,
@@ -1382,7 +1384,7 @@ class DataPreprocessingPipeline:
         self._build_pipeline()
 
     def _get_scaler(self):
-        """スケーラーの取得"""
+        """Get scaler"""
         scalers = {
             "standard": StandardScaler(),
             "minmax": MinMaxScaler(),
@@ -1392,14 +1394,14 @@ class DataPreprocessingPipeline:
         return scalers.get(self.scaler_type, StandardScaler())
 
     def _build_pipeline(self):
-        """パイプラインの構築"""
-        # 数値特徴量の処理
+        """Build the pipeline"""
+        # Numeric feature processing
         numeric_transformer = Pipeline(steps=[
             ("imputer", SimpleImputer(strategy="median")),
             ("scaler", self._get_scaler()),
         ])
 
-        # カテゴリ特徴量の処理
+        # Categorical feature processing
         categorical_transformer = Pipeline(steps=[
             ("imputer", SimpleImputer(strategy="most_frequent")),
             ("encoder", OneHotEncoder(
@@ -1413,7 +1415,7 @@ class DataPreprocessingPipeline:
             ("cat", categorical_transformer, self.categorical_features),
         ]
 
-        # 順序変数の処理（オプション）
+        # Ordinal feature processing (optional)
         if self.ordinal_features:
             ordinal_transformer = Pipeline(steps=[
                 ("imputer", SimpleImputer(strategy="most_frequent")),
@@ -1436,20 +1438,20 @@ class DataPreprocessingPipeline:
         ])
 
     def fit(self, X, y=None):
-        """パイプラインの学習"""
+        """Train the pipeline"""
         self.pipeline.fit(X, y)
         return self
 
     def transform(self, X):
-        """データの変換"""
+        """Transform data"""
         return self.pipeline.transform(X)
 
     def fit_transform(self, X, y=None):
-        """学習と変換を同時に実行"""
+        """Train and transform simultaneously"""
         return self.pipeline.fit_transform(X, y)
 
     def get_feature_names(self):
-        """変換後の特徴量名を取得"""
+        """Get feature names after transformation"""
         preprocessor = self.pipeline.named_steps["preprocessor"]
         names = []
         for name, trans, cols in preprocessor.transformers_:
@@ -1466,16 +1468,16 @@ class DataPreprocessingPipeline:
         return names
 
     def save(self, path: str):
-        """パイプラインの保存"""
+        """Save the pipeline"""
         joblib.dump(self.pipeline, path)
-        print(f"パイプラインを保存: {path}")
+        print(f"Pipeline saved: {path}")
 
     def load(self, path: str):
-        """パイプラインの読込"""
+        """Load the pipeline"""
         self.pipeline = joblib.load(path)
-        print(f"パイプラインを読込: {path}")
+        print(f"Pipeline loaded: {path}")
 
-# 使用例
+# Usage example
 pipeline = DataPreprocessingPipeline(
     numeric_features=["age", "income", "satisfaction"],
     categorical_features=["city"],
@@ -1488,106 +1490,106 @@ pipeline = DataPreprocessingPipeline(
 # pipeline.save("models/preprocessing_pipeline.joblib")
 ```
 
-### コード例10: データバリデーションチェック
+### Code Example 10: Data Validation Checks
 
 ```python
 import pandas as pd
 import numpy as np
 
 class DataValidator:
-    """データ品質のバリデーションチェック"""
+    """Data quality validation checks"""
 
     def __init__(self):
         self.rules = []
         self.results = []
 
     def add_rule(self, name: str, check_fn, severity: str = "error"):
-        """バリデーションルールの追加
+        """Add a validation rule
 
         Parameters
         ----------
         severity : str
-            "error": 修正必須
-            "warning": 注意
-            "info": 情報
+            "error": must be fixed
+            "warning": caution
+            "info": informational
         """
         self.rules.append({
             "name": name, "check_fn": check_fn, "severity": severity
         })
 
     def validate(self, df: pd.DataFrame) -> pd.DataFrame:
-        """全ルールでバリデーション実行"""
+        """Run validation against all rules"""
         self.results = []
 
         for rule in self.rules:
             passed, message = rule"check_fn"
             self.results.append({
-                "ルール": rule["name"],
-                "重要度": rule["severity"],
-                "結果": "PASS" if passed else "FAIL",
-                "詳細": message
+                "Rule": rule["name"],
+                "Severity": rule["severity"],
+                "Result": "PASS" if passed else "FAIL",
+                "Details": message
             })
 
         results_df = pd.DataFrame(self.results)
-        n_fail = (results_df["結果"] == "FAIL").sum()
-        n_error = ((results_df["結果"] == "FAIL") &
-                   (results_df["重要度"] == "error")).sum()
+        n_fail = (results_df["Result"] == "FAIL").sum()
+        n_error = ((results_df["Result"] == "FAIL") &
+                   (results_df["Severity"] == "error")).sum()
 
         print("=" * 60)
-        print(f"バリデーション結果: {len(self.results)}ルール中 "
-              f"{n_fail}個FAIL (うちエラー{n_error}個)")
+        print(f"Validation result: {n_fail} FAIL out of {len(self.results)} rules "
+              f"(errors: {n_error})")
         print("=" * 60)
         for _, row in results_df.iterrows():
-            status = "PASS" if row["結果"] == "PASS" else "FAIL"
-            print(f"  [{row['重要度']:7s}] [{status}] {row['ルール']}: {row['詳細']}")
+            status = "PASS" if row["Result"] == "PASS" else "FAIL"
+            print(f"  [{row['Severity']:7s}] [{status}] {row['Rule']}: {row['Details']}")
 
         return results_df
 
-# 使用例
+# Usage example
 validator = DataValidator()
 
-# ルールの定義
+# Define rules
 validator.add_rule(
-    "欠損率チェック",
+    "Missing rate check",
     lambda df: (
         df.isnull().mean().max() < 0.5,
-        f"最大欠損率: {df.isnull().mean().max()*100:.1f}%"
+        f"Max missing rate: {df.isnull().mean().max()*100:.1f}%"
     ),
     severity="warning"
 )
 
 validator.add_rule(
-    "重複行チェック",
+    "Duplicate row check",
     lambda df: (
         df.duplicated().sum() == 0,
-        f"重複行: {df.duplicated().sum()}行"
+        f"Duplicate rows: {df.duplicated().sum()}"
     ),
     severity="warning"
 )
 
 validator.add_rule(
-    "データ型チェック",
+    "Data type check",
     lambda df: (
         df.select_dtypes(include="object").shape[1] < df.shape[1],
-        f"object型: {df.select_dtypes(include='object').shape[1]}列"
+        f"Object-type columns: {df.select_dtypes(include='object').shape[1]}"
     ),
     severity="info"
 )
 
 validator.add_rule(
-    "無限値チェック",
+    "Infinite value check",
     lambda df: (
         not np.isinf(df.select_dtypes(include="number")).any().any(),
-        f"無限値を含む列: {df.select_dtypes(include='number').columns[np.isinf(df.select_dtypes(include='number')).any()].tolist()}"
+        f"Columns with infinite values: {df.select_dtypes(include='number').columns[np.isinf(df.select_dtypes(include='number')).any()].tolist()}"
     ),
     severity="error"
 )
 
 validator.add_rule(
-    "サンプル数チェック",
+    "Sample count check",
     lambda df: (
         len(df) >= 100,
-        f"サンプル数: {len(df)}"
+        f"Sample count: {len(df)}"
     ),
     severity="error"
 )
@@ -1597,95 +1599,95 @@ validator.add_rule(
 
 ---
 
-## 比較表
+## Comparison Tables
 
-### 欠損値補完手法の比較
+### Comparison of Missing Value Imputation Methods
 
-| 手法 | 計算コスト | 精度 | 適用場面 | 注意点 |
+| Method | Computational Cost | Accuracy | Use Case | Notes |
 |---|---|---|---|---|
-| 削除（listwise） | 極低 | - | MCAR・欠損率<5% | データ量が減る |
-| 平均値/中央値 | 低 | 低〜中 | 数値・欠損率<10% | 分散を過小評価 |
-| 最頻値 | 低 | 低〜中 | カテゴリ変数 | 分布を歪める |
-| KNN補完 | 中 | 中〜高 | MAR・数値 | スケーリング必須 |
-| 多重代入法(MICE) | 高 | 高 | MAR・多変量 | 収束確認が必要 |
-| モデルベース | 高 | 高 | 複雑な欠損パターン | 実装コスト大 |
-| 定数補完（-999等） | 極低 | 低 | 木ベースモデル限定 | 距離ベースモデルに悪影響 |
+| Deletion (listwise) | Very low | - | MCAR, missing rate < 5% | Reduces data size |
+| Mean/Median | Low | Low–Medium | Numeric, missing rate < 10% | Underestimates variance |
+| Mode | Low | Low–Medium | Categorical variables | Distorts distribution |
+| KNN imputation | Medium | Medium–High | MAR, numeric | Requires scaling |
+| Multiple imputation (MICE) | High | High | MAR, multivariate | Check convergence |
+| Model-based | High | High | Complex missing patterns | High implementation cost |
+| Constant imputation (e.g., -999) | Very low | Low | Tree-based models only | Hurts distance-based models |
 
-### スケーリング手法の選択ガイド
+### Scaling Method Selection Guide
 
-| 手法 | 数式 | 外れ値耐性 | 適用場面 | 代表的アルゴリズム |
+| Method | Formula | Outlier Robustness | Use Case | Representative Algorithms |
 |---|---|---|---|---|
-| StandardScaler | (x-μ)/σ | 弱い | 正規分布に近いデータ | SVM, ロジスティック回帰, PCA |
-| MinMaxScaler | (x-min)/(max-min) | 弱い | 固定範囲が必要な場合 | ニューラルネットワーク |
-| RobustScaler | (x-Q2)/(Q3-Q1) | 強い | 外れ値が多いデータ | 汎用 |
-| MaxAbsScaler | x/|max| | 弱い | スパースデータ | テキスト分類, スパースSVM |
-| PowerTransformer | Yeo-Johnson/Box-Cox | 中程度 | 歪んだ分布 | 汎用 |
-| QuantileTransformer | 分位数→正規/一様 | 強い | 任意の分布 | 汎用 |
-| Normalizer | x/||x|| | - | サンプル単位の正規化 | テキスト、TF-IDF |
-| Log変換 | log(1+x) | 中程度 | 右に歪んだ分布 | 汎用 |
+| StandardScaler | (x-μ)/σ | Weak | Data close to normal distribution | SVM, Logistic Regression, PCA |
+| MinMaxScaler | (x-min)/(max-min) | Weak | Fixed range required | Neural Networks |
+| RobustScaler | (x-Q2)/(Q3-Q1) | Strong | Data with many outliers | General-purpose |
+| MaxAbsScaler | x/|max| | Weak | Sparse data | Text classification, sparse SVM |
+| PowerTransformer | Yeo-Johnson/Box-Cox | Moderate | Skewed distributions | General-purpose |
+| QuantileTransformer | Quantile → normal/uniform | Strong | Arbitrary distributions | General-purpose |
+| Normalizer | x/||x|| | - | Per-sample normalization | Text, TF-IDF |
+| Log transform | log(1+x) | Moderate | Right-skewed distributions | General-purpose |
 
-### エンコーディング手法の比較
+### Encoding Method Comparison
 
-| 手法 | 次元増加 | 順序保持 | カーディナリティ | リーク危険性 | 適用場面 |
+| Method | Dimension Increase | Preserves Order | Cardinality | Leak Risk | Use Case |
 |---|---|---|---|---|---|
-| OneHot | 大 | No | 低(≤15) | なし | 名義変数 |
-| Ordinal | なし | Yes | 任意 | なし | 順序変数 |
-| Label | なし | No | 任意 | なし | 木ベースモデル |
-| Target | なし | No | 高 | あり(CV必要) | 高カーディナリティ |
-| Frequency | なし | No | 高 | なし | 出現頻度が意味を持つ場合 |
-| Binary | log₂(k) | No | 中〜高 | なし | 次元を抑えたい場合 |
-| Hash | 固定 | No | 極高 | なし | テキスト、Web特徴量 |
-| Embedding | 固定 | No | 極高 | なし | NN、大規模データ |
+| OneHot | Large | No | Low (<=15) | None | Nominal variables |
+| Ordinal | None | Yes | Any | None | Ordinal variables |
+| Label | None | No | Any | None | Tree-based models |
+| Target | None | No | High | Yes (CV needed) | High cardinality |
+| Frequency | None | No | High | None | When frequency is meaningful |
+| Binary | log₂(k) | No | Medium–High | None | When limiting dimensions |
+| Hash | Fixed | No | Very high | None | Text, web features |
+| Embedding | Fixed | No | Very high | None | NN, large-scale data |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: テストデータでの fit
+### Anti-Pattern 1: Fitting on Test Data
 
 ```python
-# BAD: テストデータでも fit してしまう
+# BAD: fitting on test data as well
 from sklearn.preprocessing import StandardScaler
 
-# 訓練データ
+# Training data
 scaler_train = StandardScaler()
 X_train = scaler_train.fit_transform(X_train)
 
-# テストデータでも fit_transform ← 情報リーク!
+# fit_transform on test data too ← information leak!
 scaler_test = StandardScaler()
 X_test = scaler_test.fit_transform(X_test)
 
-# GOOD: 訓練データの統計量でテストデータを変換
+# GOOD: transform test data using statistics from training data
 scaler = StandardScaler()
 X_train = scaler.fit_transform(X_train)
-X_test = scaler.transform(X_test)       # transform のみ
+X_test = scaler.transform(X_test)       # transform only
 ```
 
-### アンチパターン2: 高カーディナリティ変数のワンホットエンコーディング
+### Anti-Pattern 2: One-Hot Encoding High-Cardinality Variables
 
 ```python
-# BAD: ユニーク値10,000のカテゴリをワンホット → 次元爆発
-df_onehot = pd.get_dummies(df["zip_code"])  # 10,000列が追加される!
+# BAD: one-hot encoding a category with 10,000 unique values → dimension explosion
+df_onehot = pd.get_dummies(df["zip_code"])  # 10,000 columns added!
 
-# GOOD: ターゲットエンコーディング or 埋め込み層を使用
+# GOOD: use target encoding or an embedding layer
 from category_encoders import TargetEncoder
 te = TargetEncoder(smoothing=10)
 df["zip_code_encoded"] = te.fit_transform(df["zip_code"], df["target"])
 
-# または頻度エンコーディング
+# Or frequency encoding
 freq = df["zip_code"].value_counts(normalize=True)
 df["zip_code_freq"] = df["zip_code"].map(freq)
 ```
 
-### アンチパターン3: 全体での分割前に前処理
+### Anti-Pattern 3: Preprocessing Before Splitting
 
 ```python
-# BAD: 分割前にスケーリング → テストデータの情報がリーク
+# BAD: scaling before split → test data information leaks
 scaler = StandardScaler()
-X_all_scaled = scaler.fit_transform(X)  # 全データでfit
+X_all_scaled = scaler.fit_transform(X)  # fit on all data
 X_train, X_test = train_test_split(X_all_scaled, ...)
 
-# GOOD: 分割後にパイプラインで処理
+# GOOD: split first, then process via a pipeline
 from sklearn.pipeline import Pipeline
 from sklearn.model_selection import train_test_split
 
@@ -1694,17 +1696,17 @@ pipeline = Pipeline([
     ("scaler", StandardScaler()),
     ("model", SomeModel()),
 ])
-pipeline.fit(X_train, y_train)  # パイプライン内でfitされる
+pipeline.fit(X_train, y_train)  # fit happens inside the pipeline
 ```
 
-### アンチパターン4: ターゲットエンコーディングのリーク
+### Anti-Pattern 4: Leaking Target Encoding
 
 ```python
-# BAD: 訓練データ全体でターゲットエンコーディング → リーク
+# BAD: target encoding over the entire training set → leak
 mean_by_city = df.groupby("city")["target"].mean()
 df["city_target_enc"] = df["city"].map(mean_by_city)
 
-# GOOD: CVベースのターゲットエンコーディング
+# GOOD: CV-based target encoding
 from sklearn.model_selection import KFold
 
 kf = KFold(n_splits=5, shuffle=True, random_state=42)
@@ -1715,21 +1717,21 @@ for train_idx, val_idx in kf.split(df):
     df.loc[df.index[val_idx], "city_target_enc_cv"] = \
         df.iloc[val_idx]["city"].map(mean_by_city)
 
-# 欠損値はグローバル平均で補完
+# Fill missing values with global mean
 df["city_target_enc_cv"].fillna(df["target"].mean(), inplace=True)
 ```
 
-### アンチパターン5: 特徴量の多重共線性の無視
+### Anti-Pattern 5: Ignoring Multicollinearity
 
 ```python
-# BAD: 高相関の特徴量をそのまま使用 → 線形モデルが不安定に
-# 例: "身長(cm)" と "身長(inch)" の両方を含める
+# BAD: using highly correlated features as-is → linear models become unstable
+# Example: including both "height (cm)" and "height (inch)"
 
-# GOOD: VIF（分散膨張因子）で多重共線性を検出・除去
+# GOOD: detect and remove multicollinearity with VIF (Variance Inflation Factor)
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 
 def check_multicollinearity(X, feature_names, threshold=10):
-    """VIFで多重共線性をチェック"""
+    """Check multicollinearity using VIF"""
     vif_data = pd.DataFrame()
     vif_data["feature"] = feature_names
     vif_data["VIF"] = [
@@ -1739,7 +1741,7 @@ def check_multicollinearity(X, feature_names, threshold=10):
 
     high_vif = vif_data[vif_data["VIF"] > threshold]
     if len(high_vif) > 0:
-        print(f"WARNING: VIF > {threshold} の特徴量:")
+        print(f"WARNING: features with VIF > {threshold}:")
         for _, row in high_vif.iterrows():
             print(f"  {row['feature']}: VIF={row['VIF']:.1f}")
 
@@ -1748,72 +1750,72 @@ def check_multicollinearity(X, feature_names, threshold=10):
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-| 問題 | 症状 | 対処法 |
+| Problem | Symptom | Solution |
 |---|---|---|
-| テストスコアが異常に高い | CV=0.99超え | データリークを疑う。前処理のfit順序を確認 |
-| 欠損値補完後にモデルが悪化 | 補完前より精度低下 | 補完手法を変更。欠損フラグ列を追加 |
-| ワンホット後にメモリ不足 | MemoryError | sparse=True指定 or TargetEncoding |
-| 特徴量数が多すぎる | 訓練が遅い | 特徴量選択を実施。PCAで次元削減 |
-| 外れ値がモデルを歪める | 訓練誤差は低いがテスト悪い | RobustScaler or 外れ値のクリッピング |
-| カテゴリ値が本番で未知 | KeyError or NaN | handle_unknown="ignore" or デフォルト値 |
-| スケーリングしたのに精度が変わらない | 木ベースモデル使用 | 木ベースはスケーリング不要 |
-| MICE補完が収束しない | 警告メッセージ | max_iterを増加 or 特徴量を減らす |
+| Abnormally high test score | CV > 0.99 | Suspect data leakage. Check the order of fit calls in preprocessing |
+| Model degrades after imputation | Lower accuracy than before imputation | Change imputation method. Add missing-flag columns |
+| Out of memory after one-hot encoding | MemoryError | Use sparse=True or TargetEncoding |
+| Too many features | Slow training | Perform feature selection. Reduce dimensions with PCA |
+| Outliers distort the model | Low train error but poor test results | Use RobustScaler or clip outliers |
+| Unknown category value in production | KeyError or NaN | Use handle_unknown="ignore" or a default value |
+| Accuracy unchanged after scaling | Using a tree-based model | Tree-based models do not require scaling |
+| MICE imputation does not converge | Warning message | Increase max_iter or reduce the number of features |
 
 ---
 
 ## FAQ
 
-### Q1: 欠損値がある列を削除するか補完するかの判断基準は？
+### Q1: How do I decide whether to drop or impute a column with missing values?
 
-**A:** 一般的な基準: (1) 欠損率80%以上 → 削除を検討、(2) 欠損率5%未満 → 単純補完で十分、(3) 5〜80% → KNN/MICEなど高度な補完。ただし、ドメイン的に重要な列は欠損率が高くても補完する価値がある。欠損自体が情報を持つ場合（例：回答拒否）は「欠損フラグ列」を追加する。
+**A:** General guidelines: (1) missing rate >= 80% → consider dropping; (2) missing rate < 5% → simple imputation is sufficient; (3) 5–80% → use advanced imputation such as KNN/MICE. However, columns that are domain-critical may be worth imputing even at high missing rates. When missingness itself carries information (e.g., a respondent refusing to answer), add a "missing flag column."
 
-### Q2: 特徴量は多いほど良いのか？
+### Q2: Are more features always better?
 
-**A:** No。「次元の呪い」により、特徴量が多すぎると汎化性能が劣化する。特に訓練データが少ない場合は顕著。特徴量選択（SelectKBest、LASSO、相互情報量）で不要な特徴量を除去するか、PCAで次元削減する。目安として「サンプル数 / 特徴量数 > 10」を保つ。
+**A:** No. The "curse of dimensionality" causes generalization performance to degrade when there are too many features, especially with small training sets. Use feature selection (SelectKBest, LASSO, mutual information) to remove unnecessary features, or reduce dimensions with PCA. As a rule of thumb, keep "sample count / feature count > 10."
 
-### Q3: 正規化とスケーリングの違いは？
+### Q3: What is the difference between normalization and scaling?
 
-**A:** 厳密には、正規化（Normalization）は各サンプルのベクトルを単位長にする操作（L2正規化等）、スケーリング（Scaling）は各特徴量の範囲を揃える操作。ただし実務では混同されることが多い。MinMaxScalerは「正規化」と呼ばれることもあるが、正確にはスケーリングである。
+**A:** Strictly speaking, normalization maps each sample's vector to unit length (e.g., L2 normalization), while scaling adjusts the range of each feature. In practice the terms are often used interchangeably. MinMaxScaler is sometimes called "normalization," but it is technically scaling.
 
-### Q4: 木ベースモデルでもスケーリングは必要か？
+### Q4: Is scaling necessary for tree-based models?
 
-**A:** 基本的に不要。決定木、ランダムフォレスト、XGBoost、LightGBMなどの木ベースモデルは分割点の探索にスケールの影響を受けない。ただし、(1) 正則化を使う場合、(2) PCAと組み合わせる場合、(3) KNNや線形モデルとのアンサンブルの場合はスケーリングが必要。
+**A:** Generally no. Tree-based models such as decision trees, random forests, XGBoost, and LightGBM are not affected by scale when searching for split points. However, scaling is necessary when (1) using regularization, (2) combining with PCA, or (3) ensembling with KNN or linear models.
 
-### Q5: ターゲットエンコーディングでリークを防ぐには？
+### Q5: How do I prevent leakage in target encoding?
 
-**A:** (1) CVベースのターゲットエンコーディングを使う（各Foldで別々に計算）、(2) スムージングパラメータを適切に設定する（サンプル数が少ないカテゴリの過学習防止）、(3) テストデータのエンコーディングは訓練データの統計量のみで行う。
+**A:** (1) Use CV-based target encoding (compute separately for each fold); (2) set the smoothing parameter appropriately (to prevent overfitting on categories with few samples); (3) encode test data using only statistics from the training data.
 
-### Q6: 前処理の順序はどうすべきか？
+### Q6: What is the recommended order of preprocessing steps?
 
-**A:** 推奨順序: (1) 型変換（日付のパース等）、(2) 外れ値処理（必要な場合）、(3) 欠損値補完、(4) カテゴリエンコーディング、(5) 特徴量エンジニアリング、(6) スケーリング、(7) 特徴量選択。この順序をパイプラインに含めることで再現性を確保する。
+**A:** Recommended order: (1) type conversion (e.g., parsing dates), (2) outlier handling (if needed), (3) missing value imputation, (4) categorical encoding, (5) feature engineering, (6) scaling, (7) feature selection. Including this order in a pipeline ensures reproducibility.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |---|---|
-| 欠損値処理 | まず欠損パターンを分析し、MCAR/MAR/MNARに応じて戦略を選択 |
-| スケーリング | アルゴリズムに応じて選択。外れ値がある場合はRobustScaler |
-| エンコーディング | 低カーディナリティ→ワンホット、高カーディナリティ→ターゲットエンコーディング |
-| 外れ値処理 | IQR法 or Isolation Forestで検出、clip/remove/nanで処理 |
-| 特徴量設計 | ドメイン知識 + 自動生成（交互作用、時系列特徴量）を組み合わせる |
-| 特徴量選択 | フィルター法→ラッパー法→埋め込み法の順で計算コストが増加 |
-| パイプライン | 全変換をPipelineに含め、fit/transform/saveで一貫管理 |
-| データリーク防止 | テストデータへのリークを防ぐ。全変換は訓練データのみで fit |
+| Missing value handling | First analyze the missing pattern; choose a strategy based on MCAR/MAR/MNAR |
+| Scaling | Choose based on the algorithm. Use RobustScaler when outliers are present |
+| Encoding | Low cardinality → one-hot; high cardinality → target encoding |
+| Outlier handling | Detect with IQR or Isolation Forest; handle with clip/remove/nan |
+| Feature design | Combine domain knowledge with auto-generation (interactions, time-series features) |
+| Feature selection | Computational cost increases in order: filter → wrapper → embedded methods |
+| Pipeline | Include all transformations in a Pipeline; manage consistently with fit/transform/save |
+| Preventing data leakage | Prevent leakage to test data. All transformations must be fit on training data only |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Guides
 
-- [02-ml-basics.md](./02-ml-basics.md) — 前処理済みデータで機械学習モデルを構築する方法
-- [../01-classical-ml/00-regression.md](../01-classical-ml/00-regression.md) — 回帰モデルの実装
+- [02-ml-basics.md](./02-ml-basics.md) — How to build machine learning models on preprocessed data
+- [../01-classical-ml/00-regression.md](../01-classical-ml/00-regression.md) — Implementing regression models
 
 ---
 
-## 参考文献
+## References
 
 1. **Stef van Buuren** "Flexible Imputation of Missing Data" 2nd Edition, CRC Press, 2018
 2. **scikit-learn Documentation** "Preprocessing data" — https://scikit-learn.org/stable/modules/preprocessing.html
