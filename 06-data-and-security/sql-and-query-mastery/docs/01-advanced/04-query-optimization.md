@@ -1,35 +1,35 @@
-# クエリ最適化 — EXPLAIN・実行計画・統計情報・クエリリライト
+# Query Optimization — EXPLAIN, Execution Plans, Statistics, and Query Rewriting
 
-> クエリ最適化はデータベースのパフォーマンス問題の根本原因を特定し、論理的に解決するプロセスであり、EXPLAINコマンドによる実行計画の解読がその第一歩となる。本章では、EXPLAIN出力の各要素を正確に読み解き、スキャン方式・結合方式の選択基準を理解し、統計情報とクエリリライトによる最適化手法を体系的に習得する。
-
----
-
-## この章で学ぶこと
-
-1. **EXPLAIN / EXPLAIN ANALYZEの出力を正確に読み解く** — コスト計算、推定行数と実際の行数の乖離、バッファ情報の解釈
-2. **主要なスキャン方式と結合方式の特性を理解する** — Sequential Scan、Index Scan、Bitmap Scan、Nested Loop、Hash Join、Merge Join
-3. **統計情報の仕組みとクエリリライトによる最適化手法** — pg_stats、拡張統計、IN→EXISTS書き換え、CTE最適化
-4. **実践的なパフォーマンス分析ワークフロー** — pg_stat_statements、auto_explain、ボトルネック特定手法
+> Query optimization is the process of identifying the root cause of database performance issues and resolving them systematically. Reading execution plans with the EXPLAIN command is the first step. This chapter teaches you to accurately interpret every element of EXPLAIN output, understand how scan and join methods are chosen, and master optimization techniques using statistics and query rewriting.
 
 ---
 
-## 前提知識
+## What You Will Learn
 
-| トピック | 内容 | 参照先 |
+1. **Accurately read EXPLAIN / EXPLAIN ANALYZE output** — cost calculation, deviation between estimated and actual row counts, interpreting buffer information
+2. **Understand the characteristics of major scan and join methods** — Sequential Scan, Index Scan, Bitmap Scan, Nested Loop, Hash Join, Merge Join
+3. **Statistics internals and query rewriting for optimization** — pg_stats, extended statistics, IN→EXISTS rewriting, CTE optimization
+4. **Practical performance analysis workflow** — pg_stat_statements, auto_explain, bottleneck identification techniques
+
+---
+
+## Prerequisites
+
+| Topic | Content | Reference |
 |---------|------|--------|
-| SQL基礎 | SELECT/JOIN/サブクエリの構文 | [00-basics/](../00-basics/) |
-| インデックス | B-Tree、GIN、GiST の基本 | [03-indexing.md](./03-indexing.md) |
-| テーブル設計 | 正規化、制約の基本 | [00-normalization.md](../02-design/00-normalization.md) |
+| SQL Basics | SELECT/JOIN/subquery syntax | [00-basics/](../00-basics/) |
+| Indexes | B-Tree, GIN, GiST basics | [03-indexing.md](./03-indexing.md) |
+| Table Design | Normalization, constraint basics | [00-normalization.md](../02-design/00-normalization.md) |
 
 ---
 
-## 1. EXPLAINの基本
+## 1. EXPLAIN Basics
 
-### なぜEXPLAINが重要か
+### Why EXPLAIN Matters
 
-「遅いからインデックスを追加する」という安易な対応は、問題の根本原因を見落とす。EXPLAINは「なぜこのクエリが遅いのか」を科学的に診断するツールであり、データベースパフォーマンスチューニングの唯一の出発点である。
+Reflexively adding an index because a query is "slow" misses the root cause. EXPLAIN is a tool for scientifically diagnosing "why this query is slow" and is the only starting point for database performance tuning.
 
-### コード例1: EXPLAINとEXPLAIN ANALYZE
+### Code Example 1: EXPLAIN and EXPLAIN ANALYZE
 
 ```sql
 -- テスト用テーブルの準備
@@ -89,65 +89,68 @@ WHERE e.salary > 500000;
 -- Execution Time: 0.08 ms
 ```
 
-### EXPLAIN出力の読み方
+### How to Read EXPLAIN Output
 
 ```
 ┌─────────── EXPLAIN 出力の構成要素 ──────────────┐
 │                                                   │
 │  Hash Join (cost=1.09..2.24 rows=3 width=64)      │
 │  ~~~~~~~~  ~~~~~  ~~~~~~~~ ~~~~~ ~~~~~~~~         │
-│  ノード名   起動   総コスト 推定行 行幅(bytes)     │
-│             コスト                                 │
+│  Node      Startup Total    Est.  Row width       │
+│  name      cost    cost     rows  (bytes)         │
 │                                                   │
 │  (actual time=0.035..0.042 rows=5 loops=1)        │
 │  ~~~~~~~~~~~~~~~  ~~~~~~~~ ~~~~~ ~~~~~~~          │
-│  実際の起動時間   実際の総時間 実行行 ループ回数    │
+│  Actual startup   Actual   Actual Loop            │
+│  time             total    rows  count            │
+│                            time                   │
 │                                                   │
-│  コスト:                                          │
-│  ・起動コスト: 最初の行を返すまでのコスト           │
-│  ・総コスト: 全行を返すまでのコスト                │
-│  ・単位: seq_page_cost = 1.0 が基準               │
-│  ・random_page_cost = 4.0 (HDD) / 1.1 (SSD)      │
+│  Cost:                                            │
+│  · Startup cost: cost to return the first row     │
+│  · Total cost: cost to return all rows            │
+│  · Unit: seq_page_cost = 1.0 as baseline          │
+│  · random_page_cost = 4.0 (HDD) / 1.1 (SSD)      │
 │                                                   │
-│  実際の時間:                                      │
-│  ・ミリ秒単位                                     │
-│  ・loops > 1 の場合、表示値は1ループ分の平均       │
-│    → 実際の合計時間 = time × loops                │
+│  Actual time:                                     │
+│  · In milliseconds                                │
+│  · When loops > 1, the displayed value is the     │
+│    average per loop                               │
+│    → Actual total time = time × loops             │
 │                                                   │
-│  推定行 vs 実際の行（rows推定 vs actual rows）:   │
-│  ・乖離が大きい → 統計情報の問題                  │
-│  ・ANALYZE を実行して統計を更新                    │
+│  Estimated rows vs actual rows:                   │
+│  · Large deviation → statistics problem           │
+│  · Run ANALYZE to refresh statistics              │
 │                                                   │
 │  Buffers:                                         │
-│  ・shared hit: バッファキャッシュからの読み取り     │
-│  ・shared read: ディスクからの読み取り             │
-│  ・shared dirtied: 書き込まれたバッファ            │
-│  ・shared written: ディスクに書き出されたバッファ  │
+│  · shared hit: read from buffer cache             │
+│  · shared read: read from disk                    │
+│  · shared dirtied: buffers written to             │
+│  · shared written: buffers flushed to disk        │
 │                                                   │
-│  ツリーの読み方:                                   │
-│  ・インデントが深い = 先に実行される                │
-│  ・下から上に読む                                  │
-│  ・各ノードは子ノードの結果を受け取る              │
+│  Reading the tree:                                │
+│  · Deeper indent = executed first                 │
+│  · Read from bottom to top                        │
+│  · Each node receives results from its children   │
 └───────────────────────────────────────────────────┘
 ```
 
-### EXPLAIN のオプション比較表
+### EXPLAIN Options Comparison
 
-| オプション | 説明 | 安全性 | 用途 |
+| Option | Description | Safety | Use Case |
 |-----------|------|:---:|------|
-| `EXPLAIN` | 推定のみ（実行しない） | 安全 | 計画の確認 |
-| `EXPLAIN ANALYZE` | 実際に実行して実測値を表示 | DML注意 | パフォーマンス分析 |
-| `BUFFERS` | バッファI/O情報を表示 | - | I/Oボトルネック特定 |
-| `FORMAT JSON` | JSON形式で出力 | - | プログラム解析用 |
-| `FORMAT YAML` | YAML形式で出力 | - | 可読性重視 |
-| `SETTINGS` | デフォルトと異なる設定を表示 | - | 設定影響の確認 |
-| `WAL` | WAL使用量を表示 (PG13+) | - | 書き込み負荷の確認 |
+| `EXPLAIN` | Estimates only (does not execute) | Safe | Reviewing the plan |
+| `EXPLAIN ANALYZE` | Executes and shows actual measurements | Caution with DML | Performance analysis |
+| `BUFFERS` | Shows buffer I/O information | - | Identifying I/O bottlenecks |
+| `FORMAT JSON` | Outputs in JSON format | - | Programmatic analysis |
+| `FORMAT YAML` | Outputs in YAML format | - | Human readability |
+| `SETTINGS` | Shows settings that differ from defaults | - | Checking configuration impact |
+| `WAL` | Shows WAL usage (PG13+) | - | Checking write load |
 
 ---
 
-## 2. スキャン方式
+## 2. Scan Methods
 
-### コード例2: 各スキャン方式の比較
+### Code Example 2: Comparing Scan Methods
 
 ```sql
 -- ===== Sequential Scan (Seq Scan) =====
@@ -207,39 +210,39 @@ EXPLAIN ANALYZE SELECT COUNT(*) FROM employees WHERE salary > 300000;
 -- → 2ワーカー + リーダーで並列スキャン
 ```
 
-### スキャン方式の選択フロー
+### Scan Method Selection Flow
 
 ```
-┌──────── オプティマイザのスキャン方式選択 ─────────┐
+┌──────── Optimizer Scan Method Selection ──────────┐
 │                                                    │
 │  SELECT * FROM T WHERE condition                   │
 │                   │                                │
-│          選択率はどれくらい？                       │
-│          (条件に該当する行の割合)                   │
+│          What is the selectivity?                  │
+│          (fraction of rows matching condition)     │
 │                   │                                │
 │    ┌──────────────┼──────────────┐                 │
 │    │              │              │                 │
 │  ~100%         5-30%          <5%                  │
 │    │              │              │                 │
 │ Seq Scan    Bitmap Scan    Index Scan              │
-│  (全走査)   (バッチ読み)   (ランダム読み)          │
+│ (full scan) (batch read)   (random read)          │
 │                                                    │
-│  追加の判断基準:                                   │
-│  ・テーブルサイズが小さい → Seq Scan が速い        │
-│  ・SELECT に必要な列が全てインデックス内            │
+│  Additional criteria:                             │
+│  · Small table → Seq Scan is faster               │
+│  · All required columns are in the index          │
 │    → Index Only Scan                              │
-│  ・テーブルサイズが大きい + CPUコア数が多い         │
+│  · Large table + many CPU cores                   │
 │    → Parallel Seq Scan                            │
-│  ・OR条件で複数インデックスを使いたい              │
+│  · OR condition using multiple indexes            │
 │    → BitmapOr                                     │
 └────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. 結合方式
+## 3. Join Methods
 
-### コード例3: 結合方式の理解
+### Code Example 3: Understanding Join Methods
 
 ```sql
 -- ===== Nested Loop Join =====
@@ -285,46 +288,46 @@ ORDER BY o.customer_id;
 --   ->  Sort  ->  Seq Scan on large_customers
 ```
 
-### 結合方式の動作図
+### Join Method Diagrams
 
 ```
-┌────────── 3つの結合方式 ──────────────────────┐
-│                                                │
-│  Nested Loop (ネステッドループ)                 │
-│  ┌─────┐                                      │
-│  │ A(1)│ → B のインデックスで一致行を検索      │
-│  │ A(2)│ → B のインデックスで一致行を検索      │
-│  │ A(3)│ → B のインデックスで一致行を検索      │
-│  └─────┘                                      │
-│  最適: 外側が少行 + 内側にインデックス          │
-│  最悪: 両方が大テーブル + インデックスなし       │
-│                                                │
-│  Hash Join (ハッシュ結合)                       │
-│  ① Build: 小テーブルでハッシュ表構築            │
-│  ┌─────┐        ┌───────────┐                 │
-│  │  B  │ ──────►│Hash Table │                 │
-│  └─────┘ build  └─────┬─────┘                 │
-│  ② Probe: 大テーブルでハッシュ表を照合          │
-│  ┌─────┐        probe│                        │
-│  │  A  │ ────────────┘                        │
-│  └─────┘                                      │
-│  最適: 等値結合 + 小テーブルがメモリに載る      │
-│  注意: work_mem不足 → Batchesが増える → 遅い  │
-│                                                │
-│  Merge Join (マージ結合)                       │
-│  ┌─────────┐  ┌─────────┐                     │
-│  │A(sorted)│  │B(sorted)│  → 並行比較         │
-│  └─────────┘  └─────────┘                     │
-│  最適: 大テーブル同士 + インデックスでソート済み │
-│  注意: ソートのコストが大きい場合がある         │
-└────────────────────────────────────────────────┘
+┌────────── Three Join Methods ─────────────────────┐
+│                                                    │
+│  Nested Loop                                       │
+│  ┌─────┐                                          │
+│  │ A(1)│ → search matching rows in B via index    │
+│  │ A(2)│ → search matching rows in B via index    │
+│  │ A(3)│ → search matching rows in B via index    │
+│  └─────┘                                          │
+│  Best: outer has few rows + inner has index        │
+│  Worst: both tables are large + no index           │
+│                                                    │
+│  Hash Join                                         │
+│  ① Build: build hash table from smaller table     │
+│  ┌─────┐        ┌───────────┐                     │
+│  │  B  │ ──────►│Hash Table │                     │
+│  └─────┘ build  └─────┬─────┘                     │
+│  ② Probe: probe hash table with larger table       │
+│  ┌─────┐        probe│                            │
+│  │  A  │ ────────────┘                            │
+│  └─────┘                                          │
+│  Best: equi-join + smaller table fits in memory   │
+│  Note: insufficient work_mem → more Batches → slow│
+│                                                    │
+│  Merge Join                                        │
+│  ┌─────────┐  ┌─────────┐                         │
+│  │A(sorted)│  │B(sorted)│  → concurrent comparison│
+│  └─────────┘  └─────────┘                         │
+│  Best: large tables + already sorted via index     │
+│  Note: sort cost can be significant               │
+└────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 4. 統計情報
+## 4. Statistics
 
-### コード例4: 統計情報の確認と更新
+### Code Example 4: Checking and Updating Statistics
 
 ```sql
 -- テーブルの統計情報を確認
@@ -361,7 +364,7 @@ FROM pg_class
 WHERE relname = 'employees';
 ```
 
-### コード例5: 拡張統計（複数列の相関）
+### Code Example 5: Extended Statistics (Multi-Column Correlation)
 
 ```sql
 -- 拡張統計: 複数カラム間の相関を考慮した統計情報
@@ -395,9 +398,9 @@ WHERE city = '東京' AND prefecture = '東京都';
 
 ---
 
-## 5. クエリリライト
+## 5. Query Rewriting
 
-### コード例6: 非効率なクエリの書き換え
+### Code Example 6: Rewriting Inefficient Queries
 
 ```sql
 -- ===== パターン1: OR → UNION ALL =====
@@ -480,7 +483,7 @@ LIMIT 20;
 -- → Index Scanで20行だけ読む（大幅に高速）
 ```
 
-### コード例7: パフォーマンス分析クエリ
+### Code Example 7: Performance Analysis Queries
 
 ```sql
 -- ===== pg_stat_statements =====
@@ -543,9 +546,9 @@ RESET enable_bitmapscan;
 
 ---
 
-## 6. 高度な最適化テクニック
+## 6. Advanced Optimization Techniques
 
-### コード例8: パラレルクエリと work_mem チューニング
+### Code Example 8: Parallel Query and work_mem Tuning
 
 ```sql
 -- ===== パラレルクエリの制御 =====
@@ -595,7 +598,7 @@ SELECT * FROM orders ORDER BY created_at DESC;
 -- Sort Method: quicksort  Memory: 51200kB       ← メモリソート（速い）
 ```
 
-### コード例9: JITコンパイルとコスト設定
+### Code Example 9: JIT Compilation and Cost Settings
 
 ```sql
 -- ===== JIT（Just-In-Time）コンパイル =====
@@ -631,43 +634,43 @@ SET effective_cache_size = '32GB';
 
 ---
 
-## スキャン方式比較表
+## Scan Method Comparison
 
-| スキャン方式 | 適する場面 | 計算量 | I/O特性 | 並列化 |
+| Scan Method | Best For | Complexity | I/O Characteristics | Parallelizable |
 |------------|-----------|--------|---------|:---:|
-| Sequential Scan | 全行/大部分の取得 | O(N) | 順次読み | 可 |
-| Index Scan | 少数行の取得 (~5%) | O(log N) | ランダム読み | 不可* |
-| Index Only Scan | カバリングインデックスあり | O(log N) | インデックスのみ | 可 |
-| Bitmap Index Scan | 中程度の行数 (5-30%) | O(N) | バッチ読み | 可 |
-| Parallel Seq Scan | 大テーブルの全走査 | O(N/P) | 並列順次 | 可 |
+| Sequential Scan | Fetching all/most rows | O(N) | Sequential read | Yes |
+| Index Scan | Fetching few rows (~5%) | O(log N) | Random read | No* |
+| Index Only Scan | Covering index available | O(log N) | Index only | Yes |
+| Bitmap Index Scan | Moderate row count (5-30%) | O(N) | Batch read | Yes |
+| Parallel Seq Scan | Full scan of large tables | O(N/P) | Parallel sequential | Yes |
 
-*PostgreSQL 17でParallel Index Scanが導入予定
+*Parallel Index Scan planned for PostgreSQL 17
 
-## 結合方式比較表
+## Join Method Comparison
 
-| 結合方式 | 適する場面 | 計算量 | メモリ使用量 | 等値/非等値 |
+| Join Method | Best For | Complexity | Memory Usage | Equi/Non-equi |
 |---------|-----------|--------|:---:|:---:|
-| Nested Loop | 小テーブル + インデックス | O(N*M) or O(N*logM) | 小 | 両方 |
-| Hash Join | 等値結合、中テーブル | O(N+M) | 中（ハッシュ表） | 等値のみ |
-| Merge Join | 大テーブル、ソート済み | O(NlogN+MlogM) | 小 | 等値のみ |
+| Nested Loop | Small table + index | O(N*M) or O(N*logM) | Low | Both |
+| Hash Join | Equi-join, medium tables | O(N+M) | Medium (hash table) | Equi only |
+| Merge Join | Large tables, pre-sorted | O(NlogN+MlogM) | Low | Equi only |
 
-## コスト設定パラメータ比較表
+## Cost Configuration Parameters
 
-| パラメータ | デフォルト | SSD推奨 | 影響 |
+| Parameter | Default | SSD Recommended | Effect |
 |-----------|-----------|---------|------|
-| seq_page_cost | 1.0 | 1.0 | Seq Scanのコスト基準 |
-| random_page_cost | 4.0 | 1.1-1.5 | Index Scanの選択率に影響 |
-| effective_cache_size | 4GB | RAM 50-75% | Index Scanの有利さに影響 |
-| work_mem | 4MB | 64-256MB* | ソート/ハッシュのメモリ |
+| seq_page_cost | 1.0 | 1.0 | Baseline cost for Seq Scan |
+| random_page_cost | 4.0 | 1.1-1.5 | Affects Index Scan preference |
+| effective_cache_size | 4GB | 50-75% of RAM | Affects Index Scan favorability |
+| work_mem | 4MB | 64-256MB* | Memory for sort/hash operations |
 | maintenance_work_mem | 64MB | 512MB-2GB | VACUUM/CREATE INDEX |
 
-*接続数 × work_mem が搭載RAMを超えないよう注意
+*Ensure connections × work_mem does not exceed installed RAM
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: EXPLAINなしでインデックスを追加
+### Anti-Pattern 1: Adding Indexes Without Using EXPLAIN
 
 ```sql
 -- NG: 「遅いからインデックスを追加」という安易な対応
@@ -686,7 +689,7 @@ CREATE INDEX idx_orders_pending ON orders (created_at)
 WHERE status = 'pending';
 ```
 
-### アンチパターン2: 推定行数と実際の行数の乖離を無視
+### Anti-Pattern 2: Ignoring Deviation Between Estimated and Actual Row Counts
 
 ```sql
 -- 推定 rows=10 vs 実際 rows=50000 のような乖離
@@ -711,7 +714,7 @@ EXPLAIN ANALYZE SELECT * FROM orders WHERE status = 'pending';
 -- → ANALYZEと拡張統計で改善
 ```
 
-### アンチパターン3: SELECT * の安易な使用
+### Anti-Pattern 3: Careless Use of SELECT *
 
 ```sql
 -- NG: 不要なカラムまで取得
@@ -727,11 +730,11 @@ SELECT id, status, total FROM orders WHERE customer_id = 42;
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1（基礎）: EXPLAIN出力の読み解き
+### Exercise 1 (Basic): Reading EXPLAIN Output
 
-以下のEXPLAIN ANALYZE出力を読み解き、ボトルネックを特定してください。
+Read the following EXPLAIN ANALYZE output and identify the bottleneck.
 
 ```sql
 EXPLAIN (ANALYZE, BUFFERS)
@@ -767,22 +770,22 @@ LIMIT 100;
 ```
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
-**ボトルネック分析**:
+**Bottleneck Analysis**:
 
-1. **最大のボトルネック**: `Seq Scan on orders` に2300ms消費
-   - `Rows Removed by Filter: 952000` → 100万行中95%がフィルタで除外
-   - `Buffers: shared read=30000` → 大量のディスクI/O
-   - 原因: orders テーブルに適切なインデックスがない
+1. **Primary bottleneck**: `Seq Scan on orders` consuming 2300ms
+   - `Rows Removed by Filter: 952000` → 95% of 1 million rows filtered out
+   - `Buffers: shared read=30000` → heavy disk I/O
+   - Cause: no appropriate index on the orders table
 
-2. **推定行数の確認**: rows=50000 (estimated) vs rows=48000 (actual) → 統計は正確
+2. **Estimated row count check**: rows=50000 (estimated) vs rows=48000 (actual) → statistics are accurate
 
-3. **Sort**: top-N heapsort Memory: 50kB → LIMIT 100 なので効率的（問題なし）
+3. **Sort**: top-N heapsort Memory: 50kB → efficient with LIMIT 100 (no issue)
 
-4. **Hash Join**: customers のHash構築は10ms → 問題なし
+4. **Hash Join**: Hash build for customers takes 10ms → no issue
 
-**改善策**:
+**Remediation**:
 
 ```sql
 -- 部分インデックス + カバリング
@@ -794,7 +797,7 @@ WHERE status = 'delivered' AND created_at > '2024-01-01';
 -- 2500ms → 数ms に改善
 ```
 
-**改善後の実行計画**:
+**Execution plan after improvement**:
 ```
 Limit  (actual time=0.05..0.5 rows=100)
   ->  Nested Loop  (actual time=0.05..0.5 rows=100)
@@ -807,9 +810,9 @@ Limit  (actual time=0.05..0.5 rows=100)
 
 </details>
 
-### 演習2（応用）: クエリリライトによる最適化
+### Exercise 2 (Intermediate): Query Rewriting for Optimization
 
-以下のクエリを書き換えて高速化してください。
+Rewrite the following query to make it faster.
 
 ```sql
 -- 遅いクエリ: 各顧客の最新注文を取得
@@ -822,7 +825,7 @@ WHERE c.status = 'active';
 ```
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```sql
 -- 方法1: サブクエリをJOIN + GROUP BYに統合
@@ -855,20 +858,20 @@ CREATE INDEX idx_orders_customer ON orders (customer_id)
 INCLUDE (created_at, total);
 ```
 
-**解説**: 元のクエリは顧客ごとに3つのスカラーサブクエリを実行するため、顧客数×3回のordersテーブルスキャンが発生する。方法1では1回のJOIN+GROUP BYに統合し、スキャンを1回に削減。方法2のLATERAL JOINは、顧客ごとにインデックスを使った効率的な集約を行う。
+**Explanation**: The original query runs three scalar subqueries per customer, resulting in customer_count × 3 scans of the orders table. Method 1 consolidates into a single JOIN + GROUP BY, reducing scans to one. Method 2's LATERAL JOIN performs efficient per-customer aggregation using an index.
 
 </details>
 
-### 演習3（発展）: パフォーマンス監視ダッシュボード
+### Exercise 3 (Advanced): Performance Monitoring Dashboard
 
-pg_stat_statementsとpg_stat_user_tablesを使って、以下の情報を出力するクエリを作成してください。
+Using pg_stat_statements and pg_stat_user_tables, write queries that output:
 
-1. 最もCPU時間を消費するクエリTOP10
-2. キャッシュヒット率が低いテーブルTOP10
-3. 推定行数と実際の行数の乖離が大きいテーブル
+1. Top 10 queries by CPU time consumed
+2. Top 10 tables by lowest cache hit rate
+3. Tables with the largest deviation between estimated and actual row counts
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```sql
 -- 1. 最もCPU時間を消費するクエリTOP10
@@ -921,35 +924,35 @@ ORDER BY deviation_pct DESC
 LIMIT 10;
 ```
 
-**解説**: この3つのクエリで以下が分かる:
-1. どのクエリが最もリソースを消費しているか → 最適化の優先順位
-2. どのテーブルのデータがキャッシュに載っていないか → shared_buffers の増加検討
-3. どのテーブルの統計が古いか → ANALYZEの実行が必要
+**Explanation**: These three queries reveal:
+1. Which queries consume the most resources → optimization priority
+2. Which tables' data is not in cache → consider increasing shared_buffers
+3. Which tables have stale statistics → ANALYZE needs to be run
 
 </details>
 
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured settings file | Check the settings file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Growing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Verify the executing user's permissions, review configuration |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Validate incrementally**: Verify hypotheses using log output or a debugger
+5. **Fix and regression test**: After fixing, run tests for related areas too
 
 ```python
 # デバッグ用ユーティリティ
@@ -987,75 +990,75 @@ def process_data(items):
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues when they occur:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with a profiling tool
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O wait**: Examine disk and network I/O conditions
+4. **Check concurrent connections**: Check the state of the connection pool
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Remedy |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexing, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes decision criteria for technology selection.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | Prioritize when | Can compromise when |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow           │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① What is the team size?                       │
+│    ├─ Small (1-5) → Monolith                    │
+│    └─ Large (10+) → go to ②                    │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② How often do you deploy?                     │
+│    ├─ Weekly or less → Monolith + modules       │
+│    └─ Daily / multiple times → go to ③         │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ How independent are the teams?               │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from these perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A fast short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified tech stack has lower learning costs
+- Adopting diverse technologies enables the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction improves reusability but can make debugging harder
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
 # 設計判断の記録テンプレート
@@ -1112,50 +1115,50 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum viable feature set
+- Automated tests only for the critical path
+- Introduce monitoring from early on
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't chase perfection (YAGNI principle)
+- Gather user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Incrementally revamping a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- Write Characterization Tests first if existing tests are absent
+- Use an API gateway to run old and new systems side-by-side
+- Perform data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration Start | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core Migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Retire the old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers working on the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Use Domain-Driven Design to clarify boundaries
+- Assign ownership per team
+- Manage shared libraries via Inner Source
+- Design API-first to minimize inter-team dependencies
 
 ```python
 # チーム間のAPI契約定義
@@ -1214,85 +1217,85 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** Systems that require millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization Technique | Effect | Implementation Cost | When to Apply |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy workloads |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low-Medium | High | CPU-bound workloads |
 
 ---
 
-## チーム開発での活用
+## Team Development Practices
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to check during code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Naming conventions are consistent
+- [ ] Error handling is appropriate
+- [ ] Test coverage is sufficient
+- [ ] No performance regressions
+- [ ] No security issues
+- [ ] Documentation is up to date
 
-### ナレッジ共有のベストプラクティス
+### Knowledge Sharing Best Practices
 
-| 方法 | 頻度 | 対象 | 効果 |
+| Method | Frequency | Audience | Effect |
 |------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talk | Weekly | Entire team | Horizontal knowledge sharing |
+| ADR (Architecture Decision Record) | Per decision | Future members | Decision transparency |
+| Retrospective | Every 2 weeks | Entire team | Continuous improvement |
+| Mob programming | Monthly | Critical design | Building consensus |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
+        High Impact
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │ Plan│ Act │
+    │ ned │ imme│
+    │     │ diat│
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │ Log │ Next│
+    │ only│ Spri│
+    │     │ nt  │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Low Impact
+    Low Freq    High Freq
 ```
 
 ---
 
-## セキュリティの考慮事項
+## Security Considerations
 
-### 一般的な脆弱性と対策
+### Common Vulnerabilities and Mitigations
 
-| 脆弱性 | リスクレベル | 対策 | 検出方法 |
+| Vulnerability | Risk Level | Mitigation | Detection Method |
 |--------|------------|------|---------|
-| インジェクション攻撃 | 高 | 入力値のバリデーション・パラメータ化クエリ | SAST/DAST |
-| 認証の不備 | 高 | 多要素認証・セッション管理の強化 | ペネトレーションテスト |
-| 機密データの露出 | 高 | 暗号化・アクセス制御 | セキュリティ監査 |
-| 設定の不備 | 中 | セキュリティヘッダー・最小権限の原則 | 構成スキャン |
-| ログの不足 | 中 | 構造化ログ・監査証跡 | ログ分析 |
+| Injection attacks | High | Input validation, parameterized queries | SAST/DAST |
+| Broken authentication | High | Multi-factor auth, session management hardening | Penetration testing |
+| Sensitive data exposure | High | Encryption, access control | Security audit |
+| Security misconfiguration | Medium | Security headers, principle of least privilege | Configuration scanning |
+| Insufficient logging | Medium | Structured logging, audit trails | Log analysis |
 
-### セキュアコーディングのベストプラクティス
+### Secure Coding Best Practices
 
 ```python
 # セキュアコーディング例
@@ -1343,28 +1346,28 @@ hashed, salt = SecurityUtils.hash_password("my_password")
 is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 ```
 
-### セキュリティチェックリスト
+### Security Checklist
 
-- [ ] 全ての入力値がバリデーションされている
-- [ ] 機密情報がログに出力されていない
-- [ ] HTTPS が強制されている
-- [ ] CORS ポリシーが適切に設定されている
-- [ ] 依存パッケージの脆弱性スキャンが実施されている
-- [ ] エラーメッセージに内部情報が含まれていない
+- [ ] All input values are validated
+- [ ] Sensitive information is not written to logs
+- [ ] HTTPS is enforced
+- [ ] CORS policy is configured appropriately
+- [ ] Vulnerability scanning of dependency packages is performed
+- [ ] Error messages do not contain internal information
 
 ---
 
-## マイグレーションガイド
+## Migration Guide
 
-### バージョンアップ時の注意点
+### Notes for Version Upgrades
 
-| バージョン | 主な変更点 | 移行作業 | 影響範囲 |
+| Version | Key Changes | Migration Work | Scope |
 |-----------|-----------|---------|---------|
-| v1.x → v2.x | API設計の刷新 | エンドポイント変更 | 全クライアント |
-| v2.x → v3.x | 認証方式の変更 | トークン形式更新 | 認証関連 |
-| v3.x → v4.x | データモデル変更 | マイグレーションスクリプト実行 | DB関連 |
+| v1.x → v2.x | Overhauled API design | Endpoint changes | All clients |
+| v2.x → v3.x | Authentication method change | Token format update | Auth-related |
+| v3.x → v4.x | Data model change | Run migration scripts | DB-related |
 
-### 段階的移行の手順
+### Incremental Migration Steps
 
 ```python
 # マイグレーションスクリプトのテンプレート
@@ -1437,22 +1440,23 @@ class MigrationRunner:
         }
 ```
 
-### ロールバック計画
+### Rollback Plan
 
-移行作業には必ずロールバック計画を準備してください:
+Always prepare a rollback plan for migration work:
 
-1. **データのバックアップ**: 移行前に完全バックアップを取得
-2. **テスト環境での検証**: 本番と同等の環境で事前検証
-3. **段階的なロールアウト**: カナリアリリースで段階的に展開
-4. **監視の強化**: 移行中はメトリクスの監視間隔を短縮
-5. **判断基準の明確化**: ロールバックを判断する基準を事前に定義
+1. **Back up your data**: Take a full backup before migration
+2. **Validate in a test environment**: Verify in an environment equivalent to production beforehand
+3. **Staged rollout**: Deploy gradually using a canary release
+4. **Increase monitoring**: Shorten monitoring intervals during migration
+5. **Define decision criteria**: Establish rollback criteria in advance
+
 ---
 
 ## FAQ
 
-### Q1: EXPLAINとEXPLAIN ANALYZEの違いは？
+### Q1: What is the difference between EXPLAIN and EXPLAIN ANALYZE?
 
-EXPLAINは実行計画を推定するだけでクエリを実行しない（安全）。EXPLAIN ANALYZEは実際にクエリを実行して実測値を表示する。UPDATE/DELETEにEXPLAIN ANALYZEを使う場合は、トランザクション内で実行してROLLBACKすること。
+EXPLAIN only estimates the execution plan without executing the query (safe). EXPLAIN ANALYZE actually executes the query and displays measured values. When using EXPLAIN ANALYZE on UPDATE/DELETE, run it inside a transaction and ROLLBACK afterward.
 
 ```sql
 BEGIN;
@@ -1460,55 +1464,55 @@ EXPLAIN ANALYZE UPDATE orders SET status = 'cancelled' WHERE id = 42;
 ROLLBACK;  -- 実際の更新は取り消される
 ```
 
-### Q2: コスト値の単位は何か？
+### Q2: What are the units of cost values?
 
-PostgreSQLのコストは抽象的な単位で、`seq_page_cost = 1.0`（シーケンシャルページ読み取り1回）を基準とする。`random_page_cost`はデフォルト4.0（SSDでは1.1-1.5に下げることが推奨）。コスト値同士の比較は有意だが、絶対値は実時間と直接対応しない。
+PostgreSQL costs are abstract units with `seq_page_cost = 1.0` (one sequential page read) as the baseline. `random_page_cost` defaults to 4.0 (recommended 1.1-1.5 for SSD environments). Cost values are meaningful relative to each other, but absolute values do not directly correspond to real time.
 
-### Q3: パラレルクエリはいつ有効か？
+### Q3: When is parallel query effective?
 
-大テーブルのSeq Scan、大量行の集約（COUNT, SUM等）、大テーブル同士のHash Joinなどで有効。`max_parallel_workers_per_gather`（デフォルト2）で並列度を制御。小テーブルや索引アクセスではオーバーヘッドの方が大きい。テーブルサイズが`min_parallel_table_scan_size`（デフォルト8MB）未満の場合は自動的に無効化される。
+Parallel query is effective for Seq Scans of large tables, aggregations over many rows (COUNT, SUM, etc.), and Hash Joins between large tables. Parallelism is controlled by `max_parallel_workers_per_gather` (default 2). For small tables or index access, the overhead outweighs the benefit. If the table size is below `min_parallel_table_scan_size` (default 8MB), parallel query is automatically disabled.
 
-### Q4: EXPLAINでloopsが大きい場合はどう対処する？
+### Q4: What should I do when loops is large in EXPLAIN output?
 
-`loops=10000` のような場合、そのノードが10000回実行されている。表示されている時間は1ループあたりの平均なので、実際の合計時間は `actual time × loops` になる。対策:
-- Nested Loopの内側でloopsが大きい → JOINの順序をヒントで変更（`SET join_collapse_limit`）
-- 外側の結果行数を減らす（WHERE条件の追加やインデックス改善）
+When `loops=10000`, that node was executed 10,000 times. The displayed time is the average per loop, so the actual total time is `actual time × loops`. Remediation:
+- Large loops on the inner side of a Nested Loop → change the JOIN order with a hint (`SET join_collapse_limit`)
+- Reduce the outer result row count (add WHERE conditions or improve the index)
 
-### Q5: テーブルが小さいのにSeq Scanが選ばれるのはなぜ？
+### Q5: Why is Seq Scan chosen even for a small table?
 
-テーブルが数ページしかない場合、Index Scan（ランダムI/O）よりSeq Scan（順次I/O）の方が速い。これは正しいオプティマイザの判断であり、問題ではない。
+When a table spans only a few pages, a Seq Scan (sequential I/O) is faster than an Index Scan (random I/O). This is the correct optimizer decision and not a problem.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Point |
 |------|------|
-| EXPLAIN ANALYZE | 実行計画と実測値の両方を確認。最適化の唯一の出発点 |
-| 推定 vs 実際 | rowsの乖離 → ANALYZEで統計更新、拡張統計の活用 |
-| スキャン方式 | Seq / Index / Bitmap / Index Only の使い分け |
-| 結合方式 | Nested Loop / Hash / Merge の特性理解 |
-| 統計情報 | pg_stats、SET STATISTICS、拡張統計(dependencies, ndistinct, mcv) |
-| クエリリライト | OR→UNION ALL、NOT IN→NOT EXISTS、CTE最適化 |
-| work_mem | Hash JoinのBatches > 1やディスクソートはwork_mem不足のサイン |
-| 監視 | pg_stat_statementsでスロークエリ特定、auto_explainで自動記録 |
+| EXPLAIN ANALYZE | Confirm both the execution plan and measured values. The only starting point for optimization |
+| Estimated vs Actual | Row count deviation → update statistics with ANALYZE, use extended statistics |
+| Scan methods | Know when to use Seq / Index / Bitmap / Index Only |
+| Join methods | Understand the characteristics of Nested Loop / Hash / Merge |
+| Statistics | pg_stats, SET STATISTICS, extended statistics (dependencies, ndistinct, mcv) |
+| Query rewriting | OR→UNION ALL, NOT IN→NOT EXISTS, CTE optimization |
+| work_mem | Hash Join Batches > 1 or disk sorts are signs of insufficient work_mem |
+| Monitoring | Identify slow queries with pg_stat_statements, auto-record with auto_explain |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [03-indexing.md](./03-indexing.md) — インデックスの詳細設計、部分/カバリングインデックス
-- [02-transactions.md](./02-transactions.md) — トランザクションとロックの影響
-- [02-performance-tuning.md](../03-practical/02-performance-tuning.md) — 総合チューニング（接続プール、shared_buffers等）
-- [00-normalization.md](../02-design/00-normalization.md) — スキーマ設計と性能のトレードオフ
+- [03-indexing.md](./03-indexing.md) — Detailed index design, partial/covering indexes
+- [02-transactions.md](./02-transactions.md) — Impact of transactions and locks
+- [02-performance-tuning.md](../03-practical/02-performance-tuning.md) — Comprehensive tuning (connection pooling, shared_buffers, etc.)
+- [00-normalization.md](../02-design/00-normalization.md) — Trade-offs between schema design and performance
 
 ---
 
-## 参考文献
+## References
 
 1. PostgreSQL Documentation — "Using EXPLAIN" https://www.postgresql.org/docs/current/using-explain.html
 2. PostgreSQL Documentation — "Row Estimation Examples" https://www.postgresql.org/docs/current/row-estimation-examples.html
 3. Winand, M. (2012). *SQL Performance Explained*. https://use-the-index-luke.com/
 4. Citus Data — "PostgreSQL Query Optimization" https://www.citusdata.com/blog/
-5. Dalibo — "EXPLAIN depesz" https://explain.depesz.com/ — EXPLAIN出力のビジュアル解析ツール
-6. pgMustard — https://www.pgmustard.com/ — EXPLAIN出力の自動分析サービス
+5. Dalibo — "EXPLAIN depesz" https://explain.depesz.com/ — Visual analysis tool for EXPLAIN output
+6. pgMustard — https://www.pgmustard.com/ — Automated EXPLAIN output analysis service
