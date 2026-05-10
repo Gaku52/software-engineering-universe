@@ -1,63 +1,64 @@
-# LLM 評価 — ベンチマーク・LMSYS・人間評価
+# LLM Evaluation — Benchmarks, LMSYS, and Human Evaluation
 
-> LLM 評価はモデルの品質を定量的・定性的に測定する体系であり、適切な評価なしにモデル選定・プロンプト改善・ファインチューニングの判断は不可能である。自動ベンチマーク、LLM-as-a-Judge、人間評価を組み合わせた多面的評価が求められる。
+> LLM evaluation is a systematic framework for measuring model quality quantitatively and qualitatively. Without proper evaluation, decisions about model selection, prompt improvement, and fine-tuning cannot be made reliably. A multi-faceted approach combining automated benchmarks, LLM-as-a-Judge, and human evaluation is required.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **自動ベンチマークの体系と読み方** — MMLU、HumanEval、MT-Bench、Arena Elo の意味と限界
-2. **LLM-as-a-Judge の実装** — GPT-4o を評価者として使う手法、バイアス対策
-3. **実務での評価パイプライン構築** — 自社タスク評価、A/B テスト、継続的モニタリング
-4. **統計的有意性検定** — McNemar 検定、Bootstrap 法による信頼区間推定
-5. **ドメイン特化評価** — 医療・法律・コード生成の専門評価手法
-6. **コスト最適化** — 評価コストと精度のトレードオフ分析
+1. **Automated Benchmark Systems and How to Read Them** — The meaning and limitations of MMLU, HumanEval, MT-Bench, and Arena Elo
+2. **Implementing LLM-as-a-Judge** — Techniques for using GPT-4o as an evaluator, and bias mitigation strategies
+3. **Building an Evaluation Pipeline for Production** — In-house task evaluation, A/B testing, and continuous monitoring
+4. **Statistical Significance Testing** — McNemar test and confidence interval estimation using Bootstrap
+5. **Domain-Specific Evaluation** — Specialized evaluation methods for medical, legal, and code generation tasks
+6. **Cost Optimization** — Trade-off analysis between evaluation cost and accuracy
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [ローカル LLM — Ollama・llama.cpp・量子化](./02-local-llm.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Local LLM — Ollama, llama.cpp, Quantization](./02-local-llm.md)
 
 ---
 
-## 1. 評価手法の全体像
+## 1. Overview of Evaluation Methods
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│           LLM 評価手法の分類体系                           │
+│           LLM Evaluation Method Classification           │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  自動ベンチマーク (Static)                                │
-│  ├── 知識: MMLU, ARC, HellaSwag                         │
-│  ├── 推論: GSM8K, MATH, BIG-Bench Hard                  │
-│  ├── コード: HumanEval, MBPP, SWE-bench                 │
-│  ├── 多言語: MGSM, JMMLU                                │
-│  ├── 指示追従: IFEval, MT-Bench                         │
-│  └── 高難度: GPQA, LiveBench, ARC-AGI                   │
+│  Automated Benchmarks (Static)                           │
+│  ├── Knowledge: MMLU, ARC, HellaSwag                    │
+│  ├── Reasoning: GSM8K, MATH, BIG-Bench Hard             │
+│  ├── Code: HumanEval, MBPP, SWE-bench                   │
+│  ├── Multilingual: MGSM, JMMLU                          │
+│  ├── Instruction Following: IFEval, MT-Bench            │
+│  └── High Difficulty: GPQA, LiveBench, ARC-AGI          │
 │                                                          │
 │  LLM-as-a-Judge (Dynamic)                                │
-│  ├── MT-Bench: 多ターン対話を GPT-4 が 1-10 点で評価    │
-│  ├── AlpacaEval: 指示追従を GPT-4 が勝率で評価          │
-│  ├── 自社評価: カスタム評価基準 + LLM 評価者             │
-│  ├── Pairwise: 2 つの出力を比較してどちらが良いか判定   │
-│  └── Multi-Judge: 複数 LLM の合議制で評価               │
+│  ├── MT-Bench: GPT-4 scores multi-turn dialogue 1-10    │
+│  ├── AlpacaEval: GPT-4 evaluates instruction following  │
+│  │   by win rate                                         │
+│  ├── In-house: Custom criteria + LLM evaluator          │
+│  ├── Pairwise: Compare two outputs and pick the better  │
+│  └── Multi-Judge: Consensus evaluation by multiple LLMs │
 │                                                          │
-│  人間評価 (Gold Standard)                                 │
-│  ├── LMSYS Chatbot Arena: ブラインド A/B 人間投票        │
-│  ├── Elo レーティング: 対戦結果から算出                  │
-│  ├── 専門家レビュー: ドメイン専門家による品質評価        │
-│  └── Crowd Evaluation: 大規模クラウド評価               │
+│  Human Evaluation (Gold Standard)                        │
+│  ├── LMSYS Chatbot Arena: Blind A/B human voting        │
+│  ├── Elo Rating: Calculated from match results          │
+│  ├── Expert Review: Quality evaluation by domain experts│
+│  └── Crowd Evaluation: Large-scale crowd evaluation     │
 │                                                          │
-│  信頼性: 人間評価 > LLM-as-a-Judge > 自動ベンチマーク   │
-│  コスト: 人間評価 > LLM-as-a-Judge > 自動ベンチマーク   │
+│  Reliability: Human > LLM-as-a-Judge > Auto Benchmark   │
+│  Cost:        Human > LLM-as-a-Judge > Auto Benchmark   │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.1 評価成熟度モデル
+### 1.1 Evaluation Maturity Model
 
-組織の LLM 評価体制を段階的に整備するためのフレームワーク。
+A framework for incrementally building an organization's LLM evaluation system.
 
 ```python
 from dataclasses import dataclass, field
@@ -146,7 +147,7 @@ for dim, info in report["dimensions"].items():
 
 ---
 
-## 2. 主要ベンチマークの詳細
+## 2. Major Benchmarks in Detail
 
 ### 2.1 MMLU (Massive Multitask Language Understanding)
 
@@ -178,9 +179,9 @@ example = {
 }
 ```
 
-#### MMLU-Pro: 次世代知識評価
+#### MMLU-Pro: Next-Generation Knowledge Assessment
 
-MMLU の後継として設計された MMLU-Pro は、選択肢数を 10 に増やし、より深い推論を要求する。
+MMLU-Pro, designed as the successor to MMLU, increases the number of answer choices to 10 and requires deeper reasoning.
 
 ```python
 @dataclass
@@ -253,7 +254,7 @@ class MMLUProEvaluator:
         return sum(r["is_correct"] for r in reasoning) / len(reasoning)
 ```
 
-### 2.2 HumanEval (コード生成)
+### 2.2 HumanEval (Code Generation)
 
 ```python
 # HumanEval の評価方式: pass@k
@@ -282,9 +283,9 @@ def evaluate_humaneval(model, problems, n_samples=10, k=1):
     return sum(results) / len(results)
 ```
 
-#### SWE-bench: 実世界ソフトウェアエンジニアリング評価
+#### SWE-bench: Real-World Software Engineering Evaluation
 
-SWE-bench は GitHub の実際の Issue と Pull Request を用いてコード修正能力を評価する。
+SWE-bench evaluates code fixing ability using real GitHub Issues and Pull Requests.
 
 ```python
 @dataclass
@@ -363,36 +364,36 @@ class SWEBenchEvaluator:
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│          LMSYS Chatbot Arena の仕組み                     │
+│          How LMSYS Chatbot Arena Works                    │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  1. ユーザーがプロンプトを入力                             │
+│  1. User enters a prompt                                 │
 │     │                                                    │
-│  2. 2つの匿名モデルが同時に回答                          │
+│  2. Two anonymous models respond simultaneously          │
 │     ┌─────────┐    ┌─────────┐                          │
-│     │ Model A │    │ Model B │  ← モデル名は非表示      │
-│     │ (匿名)  │    │ (匿名)  │                          │
+│     │ Model A │    │ Model B │  ← Model names hidden    │
+│     │ (anon)  │    │ (anon)  │                          │
 │     └────┬────┘    └────┬────┘                          │
 │          │              │                                │
-│  3. ユーザーが「A勝利/B勝利/引き分け」を投票              │
+│  3. User votes: "A wins / B wins / Tie"                  │
 │     │                                                    │
-│  4. Elo レーティングを更新                                │
-│     ├── 高Elo = 強いモデル                               │
-│     └── 累計投票数: 200万+                               │
+│  4. Elo rating is updated                                │
+│     ├── Higher Elo = stronger model                      │
+│     └── Cumulative votes: 2M+                            │
 │                                                          │
-│  利点:                                                    │
-│  - ベンチマーク汚染の影響を受けない                       │
-│  - 実際のユーザー体験に基づく                             │
-│  - 継続的に更新される                                     │
+│  Advantages:                                             │
+│  - Not affected by benchmark contamination               │
+│  - Based on real user experience                         │
+│  - Continuously updated                                  │
 │                                                          │
-│  限界:                                                    │
-│  - 英語中心                                               │
-│  - 短い対話が多い                                         │
-│  - 専門タスクのカバレッジが薄い                           │
+│  Limitations:                                            │
+│  - English-centric                                       │
+│  - Many short dialogues                                  │
+│  - Thin coverage of specialized tasks                    │
 └──────────────────────────────────────────────────────────┘
 ```
 
-#### Elo レーティングの計算実装
+#### Elo Rating Calculation Implementation
 
 ```python
 class EloRatingSystem:
@@ -507,7 +508,7 @@ for entry in elo.leaderboard():
 
 ### 2.4 GPQA (Graduate-Level Google-Proof QA)
 
-大学院レベルの専門知識を問うベンチマーク。検索エンジンを使っても正答が困難な問題で構成される。
+A benchmark testing graduate-level specialized knowledge. It consists of questions that are difficult to answer correctly even with search engines.
 
 ```python
 gpqa_overview = {
@@ -530,7 +531,7 @@ gpqa_overview = {
 
 ### 2.5 IFEval (Instruction Following Evaluation)
 
-指示追従能力を厳密に評価するベンチマーク。
+A benchmark that rigorously evaluates instruction-following capability.
 
 ```python
 @dataclass
@@ -625,9 +626,9 @@ class IFEvalEvaluator:
 
 ---
 
-## 3. LLM-as-a-Judge の実装
+## 3. Implementing LLM-as-a-Judge
 
-### 3.1 基本的な LLM 評価
+### 3.1 Basic LLM Evaluation
 
 ```python
 from openai import OpenAI
@@ -684,7 +685,7 @@ print(f"スコア: {result['score']}/5")
 print(f"理由: {result['reason']}")
 ```
 
-### 3.2 Pairwise 比較
+### 3.2 Pairwise Comparison
 
 ```python
 def pairwise_judge(question: str, answer_a: str, answer_b: str) -> dict:
@@ -743,9 +744,9 @@ JSON: {{"winner": "1" | "2" | "tie", "reason": "<string>"}}
                 "reason": "順序入替で結果が変わったため判定困難"}
 ```
 
-### 3.3 Multi-Judge 合議制評価
+### 3.3 Multi-Judge Consensus Evaluation
 
-複数の LLM を評価者として使用し、合議制で最終判定を行う。
+Multiple LLMs are used as evaluators, and a final verdict is reached by consensus.
 
 ```python
 from collections import Counter
@@ -847,7 +848,7 @@ class MultiJudgeEvaluator:
         }
 ```
 
-### 3.4 ルーブリック定義のベストプラクティス
+### 3.4 Best Practices for Rubric Definition
 
 ```python
 class RubricBuilder:
@@ -968,9 +969,9 @@ class RubricBuilder:
 
 ---
 
-## 4. 評価パイプラインの構築
+## 4. Building an Evaluation Pipeline
 
-### 4.1 自社タスク評価データセットの作成
+### 4.1 Creating an In-House Task Evaluation Dataset
 
 ```python
 from dataclasses import dataclass
@@ -1012,7 +1013,7 @@ eval_dataset = [
 ]
 ```
 
-### 4.2 自動評価パイプライン
+### 4.2 Automated Evaluation Pipeline
 
 ```python
 import asyncio
@@ -1071,7 +1072,7 @@ def print_leaderboard(results: dict):
               f"{cats.get('qa', 0):>6.2f}")
 ```
 
-### 4.3 RAGAS (RAG 評価)
+### 4.3 RAGAS (RAG Evaluation)
 
 ```python
 from ragas import evaluate
@@ -1099,7 +1100,7 @@ print(results)
 # {faithfulness: 0.85, answer_relevancy: 0.92, context_precision: 0.78, ...}
 ```
 
-### 4.4 CI/CD 統合の評価パイプライン
+### 4.4 CI/CD-Integrated Evaluation Pipeline
 
 ```python
 import subprocess
@@ -1217,11 +1218,11 @@ class CIEvalPipeline:
 
 ---
 
-## 5. 統計的有意性検定
+## 5. Statistical Significance Testing
 
-### 5.1 McNemar 検定
+### 5.1 McNemar Test
 
-2つのモデルの性能差が統計的に有意かを検定する。
+Tests whether the performance difference between two models is statistically significant.
 
 ```python
 import numpy as np
@@ -1296,7 +1297,7 @@ print(f"有意差: {'あり' if result['significant'] else 'なし'}")
 print(f"解釈: {result['interpretation']}")
 ```
 
-### 5.2 Bootstrap 法による信頼区間
+### 5.2 Confidence Intervals via Bootstrap
 
 ```python
 class BootstrapEvaluation:
@@ -1408,40 +1409,46 @@ print(f"有意差: {'あり' if comparison['significant'] else 'なし'}")
 
 ---
 
-## 6. 評価のバイアスと対策
+## 6. Evaluation Biases and Countermeasures
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│          LLM-as-a-Judge の既知バイアス                     │
+│          Known Biases in LLM-as-a-Judge                  │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  1. Position Bias (順序バイアス)                          │
-│     → 先に提示された回答を好む傾向                       │
-│     対策: A/B 順序を入れ替えて2回評価し多数決             │
+│  1. Position Bias                                        │
+│     → Tendency to favor the answer presented first      │
+│     Countermeasure: Evaluate twice by swapping A/B order,│
+│     then take the majority vote                          │
 │                                                          │
-│  2. Verbosity Bias (冗長性バイアス)                       │
-│     → 長い回答を「より良い」と判断する傾向                │
-│     対策: 評価基準に「簡潔性」を明示的に含める            │
+│  2. Verbosity Bias                                       │
+│     → Tendency to judge longer answers as "better"      │
+│     Countermeasure: Explicitly include "conciseness" in  │
+│     the evaluation criteria                              │
 │                                                          │
-│  3. Self-Enhancement Bias (自己強化バイアス)              │
-│     → GPT-4 は GPT-4 の出力を好む傾向                   │
-│     対策: 異なるモデル (Claude) を評価者に使う            │
+│  3. Self-Enhancement Bias                                │
+│     → GPT-4 tends to favor GPT-4 outputs               │
+│     Countermeasure: Use a different model (Claude) as    │
+│     the evaluator                                        │
 │                                                          │
-│  4. Capability Bias (能力限界)                            │
-│     → 評価者が判断できない専門分野                       │
-│     対策: ドメイン専門家による人間評価で補完              │
+│  4. Capability Bias                                      │
+│     → Specialized domains beyond the evaluator's ability │
+│     Countermeasure: Supplement with human evaluation by  │
+│     domain experts                                       │
 │                                                          │
-│  5. Style Bias (スタイルバイアス)                         │
-│     → Markdown 形式や箇条書きを過度に好む傾向            │
-│     対策: 内容のみを評価する明示的な指示                  │
+│  5. Style Bias                                           │
+│     → Tendency to over-prefer Markdown or bullet points  │
+│     Countermeasure: Explicit instruction to evaluate     │
+│     content only                                         │
 │                                                          │
-│  6. Sycophancy Bias (追従バイアス)                        │
-│     → ユーザーの意見に同調する傾向                       │
-│     対策: 意見を含まない中立的な評価プロンプト            │
+│  6. Sycophancy Bias                                      │
+│     → Tendency to agree with the user's opinions        │
+│     Countermeasure: Use a neutral evaluation prompt that  │
+│     contains no opinions                                 │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 6.1 バイアス検出・定量化フレームワーク
+### 6.1 Bias Detection and Quantification Framework
 
 ```python
 class BiasDetector:
@@ -1519,9 +1526,9 @@ class BiasDetector:
 
 ---
 
-## 7. ドメイン特化評価
+## 7. Domain-Specific Evaluation
 
-### 7.1 医療 AI 評価
+### 7.1 Medical AI Evaluation
 
 ```python
 class MedicalAIEvaluator:
@@ -1607,7 +1614,7 @@ class MedicalAIEvaluator:
             return 1
 ```
 
-### 7.2 法律 AI 評価
+### 7.2 Legal AI Evaluation
 
 ```python
 class LegalAIEvaluator:
@@ -1675,7 +1682,7 @@ class LegalAIEvaluator:
         return min(5, found + 1)
 ```
 
-### 7.3 コード生成の多面的評価
+### 7.3 Multi-Dimensional Code Generation Evaluation
 
 ```python
 import subprocess
@@ -1795,9 +1802,9 @@ class CodeEvaluator:
 
 ---
 
-## 8. コスト最適化
+## 8. Cost Optimization
 
-### 8.1 評価コスト分析フレームワーク
+### 8.1 Evaluation Cost Analysis Framework
 
 ```python
 @dataclass
@@ -1862,7 +1869,7 @@ class EvalCostOptimizer:
         # 人間評価のコスト見積もり
         human_cost = num_eval_cases * num_models * 0.50  # $0.50/ケース
         strategies.append({
-            "strategy": "人間評価 (クラウドソーシング)",
+            "strategy": "Human Evaluation (crowdsourcing)",
             "cost": round(human_cost, 2),
             "quality": "highest",
         })
@@ -1881,7 +1888,7 @@ class EvalCostOptimizer:
             cheapest = strategies[0]
             max_cases = int(budget_usd / (cheapest["cost"] / num_eval_cases))
             return {
-                "recommendation": f"予算不足: {cheapest['strategy']} で {max_cases} ケースに削減",
+                "recommendation": f"Budget insufficient: reduce to {max_cases} cases with {cheapest['strategy']}",
                 "strategy": cheapest,
                 "adjusted_cases": max_cases,
             }
@@ -1924,134 +1931,134 @@ print(f"推奨: {rec['recommendation']}")
 
 ---
 
-## 9. 比較表
+## 9. Comparison Tables
 
-### 9.1 評価手法比較
+### 9.1 Evaluation Method Comparison
 
-| 手法 | コスト | 速度 | 信頼性 | スケーラビリティ | 適用場面 |
-|------|--------|------|--------|----------------|---------|
-| 自動ベンチマーク | 低 | 高速 | 中 | 高 | モデル選定の足切り |
-| LLM-as-a-Judge | 中 | 中速 | 中〜高 | 高 | 日常的な品質チェック |
-| Multi-Judge | 中〜高 | 中速 | 高 | 高 | 高信頼性が必要な評価 |
-| 人間評価 (一般) | 高 | 低速 | 高 | 低 | 最終品質検証 |
-| 専門家評価 | 最高 | 最低 | 最高 | 最低 | ドメイン固有タスク |
-| A/B テスト | 中 | 低速 | 最高 | 中 | 本番環境での比較 |
+| Method | Cost | Speed | Reliability | Scalability | Use Case |
+|--------|------|-------|-------------|-------------|----------|
+| Automated Benchmark | Low | Fast | Medium | High | Initial model screening |
+| LLM-as-a-Judge | Medium | Medium | Medium–High | High | Routine quality checks |
+| Multi-Judge | Medium–High | Medium | High | High | High-confidence evaluation |
+| Human Evaluation (general) | High | Slow | High | Low | Final quality verification |
+| Expert Evaluation | Highest | Slowest | Highest | Lowest | Domain-specific tasks |
+| A/B Test | Medium | Slow | Highest | Medium | Production comparison |
 
-### 9.2 自動評価ツール比較
+### 9.2 Automated Evaluation Tool Comparison
 
-| ツール | 主な評価対象 | 特徴 | 料金 |
-|--------|------------|------|------|
-| RAGAS | RAG パイプライン | Faithfulness, Relevancy | OSS |
-| DeepEval | LLM 全般 | 14+ メトリクス | OSS |
-| LangSmith | LLM アプリ | トレース + 評価 | 有料 |
-| Braintrust | LLM 全般 | CI/CD 統合 | 有料 |
-| HumanLoop | LLM 全般 | 人間評価統合 | 有料 |
-| Promptfoo | プロンプト評価 | CLIツール、OSS | OSS |
-| Inspect AI | LLM 全般 | UK AISI 開発、拡張性 | OSS |
+| Tool | Primary Target | Features | Pricing |
+|------|----------------|----------|---------|
+| RAGAS | RAG pipeline | Faithfulness, Relevancy | OSS |
+| DeepEval | LLM general | 14+ metrics | OSS |
+| LangSmith | LLM apps | Tracing + evaluation | Paid |
+| Braintrust | LLM general | CI/CD integration | Paid |
+| HumanLoop | LLM general | Human evaluation integration | Paid |
+| Promptfoo | Prompt evaluation | CLI tool, OSS | OSS |
+| Inspect AI | LLM general | Developed by UK AISI, extensible | OSS |
 
-### 9.3 ベンチマーク比較
+### 9.3 Benchmark Comparison
 
-| ベンチマーク | 問題数 | 形式 | 評価対象 | 汚染リスク | 更新頻度 |
-|-------------|--------|------|---------|-----------|---------|
-| MMLU | 14,042 | 4択 | 知識全般 | 高 | なし |
-| MMLU-Pro | 12,032 | 10択 | 知識+推論 | 中 | なし |
-| GPQA | 448 | 4択 | 大学院レベル | 低 | なし |
-| HumanEval | 164 | コード | コード生成 | 高 | なし |
-| SWE-bench | 2,294 | パッチ | ソフトウェア開発 | 低 | 定期 |
-| IFEval | 541 | 自由形式 | 指示追従 | 低 | なし |
-| LiveBench | 変動 | 混合 | 総合 | 最低 | 毎月 |
-| MT-Bench | 80 | 対話 | 対話品質 | 中 | なし |
-| Arena Elo | - | 対話 | 総合 (人間) | なし | 毎日 |
+| Benchmark | Questions | Format | Evaluation Target | Contamination Risk | Update Frequency |
+|-----------|-----------|--------|-------------------|--------------------|-----------------|
+| MMLU | 14,042 | 4-choice | General knowledge | High | None |
+| MMLU-Pro | 12,032 | 10-choice | Knowledge + Reasoning | Medium | None |
+| GPQA | 448 | 4-choice | Graduate level | Low | None |
+| HumanEval | 164 | Code | Code generation | High | None |
+| SWE-bench | 2,294 | Patch | Software development | Low | Periodic |
+| IFEval | 541 | Free-form | Instruction following | Low | None |
+| LiveBench | Variable | Mixed | General | Lowest | Monthly |
+| MT-Bench | 80 | Dialogue | Dialogue quality | Medium | None |
+| Arena Elo | — | Dialogue | General (human) | None | Daily |
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン 1: ベンチマークスコアのみで判断
+### Anti-Pattern 1: Judging by Benchmark Score Alone
 
 ```
-# NG: "MMLU 88点だから最高のモデルだ"
-→ MMLU は多肢選択 (知識テスト) であり、
-  要約、対話、コード生成の品質とは弱い相関
+# BAD: "This model scored 88 on MMLU so it's the best"
+→ MMLU is a multiple-choice knowledge test and weakly
+  correlates with summarization, dialogue, or code quality
 
-→ ベンチマーク汚染 (訓練データにベンチマーク問題が混入) の
-  疑いがあるモデルも存在
+→ Some models are suspected of benchmark contamination
+  (benchmark questions leaking into training data)
 
-# OK: 自社タスクの評価データセットで実測
-1. 自社タスク 100問の評価セットを作成
-2. 候補モデル 3-5 個で実行
-3. LLM-as-a-Judge + 人間サンプル評価
-4. スコアだけでなく失敗パターンも分析
+# GOOD: Measure performance on your own task evaluation dataset
+1. Create an evaluation set of 100 in-house task questions
+2. Run 3–5 candidate models
+3. LLM-as-a-Judge + human sampling evaluation
+4. Analyze failure patterns, not just scores
 ```
 
-### アンチパターン 2: 評価基準なしの主観評価
+### Anti-Pattern 2: Subjective Evaluation Without Criteria
 
 ```python
-# NG: 「何となくこっちの方が良い気がする」
-subjective_result = "Model A の方が良い"  # 根拠不明
+# BAD: "I kind of feel like this one is better"
+subjective_result = "Model A is better"  # no basis
 
-# OK: 明確な評価基準 (ルーブリック) を定義
+# GOOD: Define clear evaluation criteria (rubric)
 rubric = {
-    "正確性": {
-        5: "事実の誤りが一切ない",
-        4: "軽微な不正確さが1箇所",
-        3: "部分的に不正確だが主旨は正しい",
-        2: "複数の事実誤認がある",
-        1: "根本的に間違っている",
+    "Accuracy": {
+        5: "No factual errors whatsoever",
+        4: "One minor inaccuracy",
+        3: "Partially inaccurate but the main point is correct",
+        2: "Multiple factual errors",
+        1: "Fundamentally wrong",
     },
-    "有用性": {
-        5: "質問に完全に答えており、追加の洞察もある",
-        4: "質問に十分に答えている",
-        3: "質問に部分的に答えている",
-        2: "質問の一部にしか答えていない",
-        1: "質問に答えていない",
+    "Usefulness": {
+        5: "Fully answers the question and adds extra insights",
+        4: "Sufficiently answers the question",
+        3: "Partially answers the question",
+        2: "Only addresses part of the question",
+        1: "Does not answer the question",
     },
 }
 ```
 
-### アンチパターン 3: 統計検定なしの性能比較
+### Anti-Pattern 3: Comparing Performance Without Statistical Testing
 
 ```python
-# NG: "モデルA は 82%、モデルB は 80% だからAが優れている"
-# → 2% の差は統計的に有意でない可能性が高い
+# BAD: "Model A scored 82% and Model B scored 80%, so A is better"
+# → A 2% difference may not be statistically significant
 
-# OK: McNemar 検定 + Bootstrap 信頼区間で確認
+# GOOD: Verify with McNemar test + Bootstrap confidence intervals
 from scipy import stats
 
-# McNemar 検定
+# McNemar test
 mcnemar = McNemarTest()
 result = mcnemar.test(model_a_correct, model_b_correct)
-print(f"p値: {result['p_value']}")
+print(f"p-value: {result['p_value']}")
 
 if not result["significant"]:
-    print("有意差なし → どちらのモデルも同等の性能")
-    print("他の要因 (コスト、レイテンシ) で判断すべき")
+    print("No significant difference → both models are equivalent")
+    print("Decide based on other factors (cost, latency)")
 ```
 
-### アンチパターン 4: 評価データセットの固定化
+### Anti-Pattern 4: Never Updating the Evaluation Dataset
 
 ```
-# NG: 一度作成した評価データセットを永遠に使い続ける
-→ モデルが評価セットに過学習する可能性
-→ 新しいユースケースがカバーされない
-→ 本番データとの乖離が拡大
+# BAD: Using the same evaluation dataset indefinitely
+→ Models may overfit to the evaluation set
+→ New use cases are not covered
+→ Growing divergence from production data
 
-# OK: 定期的な評価データセットの更新サイクル
-1. 月次: 本番で検出された失敗ケースを追加
-2. 四半期: 評価セット全体の妥当性をレビュー
-3. 半年: 新しいユースケース・カテゴリの追加
-4. 年次: 評価セットの全面見直し
-5. 常時: ベンチマーク汚染の監視
+# GOOD: Regular evaluation dataset refresh cycle
+1. Monthly: Add failure cases detected in production
+2. Quarterly: Review the validity of the entire evaluation set
+3. Semi-annually: Add new use cases and categories
+4. Annually: Full review of the evaluation set
+5. Continuously: Monitor for benchmark contamination
 ```
 
-### アンチパターン 5: 単一評価者への依存
+### Anti-Pattern 5: Relying on a Single Evaluator
 
 ```python
-# NG: GPT-4o だけを評価者として使う
+# BAD: Using only GPT-4o as the evaluator
 judge_result = llm_judge(question, answer, criteria)
-# → Self-Enhancement Bias により GPT-4 出力を過大評価
+# → Self-Enhancement Bias overvalues GPT-4 outputs
 
-# OK: Multi-Judge + 人間サンプリング
+# GOOD: Multi-Judge + human sampling
 multi_judge = MultiJudgeEvaluator([
     {"name": "gpt-4o", "weight": 1.0, "call_fn": gpt4_judge},
     {"name": "claude-3.5-sonnet", "weight": 1.0, "call_fn": claude_judge},
@@ -2059,19 +2066,19 @@ multi_judge = MultiJudgeEvaluator([
 ])
 
 result = multi_judge.evaluate(question, answer, criteria)
-print(f"合議スコア: {result['final_score']}")
-print(f"評価者間一致度: {result['agreement']}")
+print(f"Consensus score: {result['final_score']}")
+print(f"Inter-rater agreement: {result['agreement']}")
 
-# さらに 10% の評価を人間が検証
+# Additionally, have humans verify 10% of evaluations
 if result["confidence"] == "low":
-    print("人間レビューに回す")
+    print("Route to human review")
 ```
 
 ---
 
-## 11. 実践的ユースケース
+## 11. Practical Use Cases
 
-### ユースケース 1: カスタマーサポートチャットボットの評価
+### Use Case 1: Evaluating a Customer Support Chatbot
 
 ```python
 class CustomerSupportEvaluator:
@@ -2155,7 +2162,7 @@ class CustomerSupportEvaluator:
         }
 ```
 
-### ユースケース 2: プロンプト回帰テスト
+### Use Case 2: Prompt Regression Testing
 
 ```python
 class PromptRegressionTester:
@@ -2224,7 +2231,7 @@ class PromptRegressionTester:
 
 ---
 
-## 12. 評価ダッシュボード構築
+## 12. Building an Evaluation Dashboard
 
 ```python
 from datetime import datetime, timedelta
@@ -2300,13 +2307,13 @@ class EvalDashboard:
     def generate_report(self, models: list[str]) -> str:
         """週次レポートの生成"""
         lines = [
-            "# LLM 評価週次レポート",
-            f"生成日: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+            "# LLM Evaluation Weekly Report",
+            f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M')}",
             "",
-            "## モデル別トレンド",
+            "## Trend by Model",
             "",
-            "| モデル | 最新スコア | 平均スコア | トレンド | 評価回数 |",
-            "|--------|-----------|-----------|---------|---------|",
+            "| Model | Latest Score | Avg Score | Trend | Evaluations |",
+            "|-------|-------------|-----------|-------|-------------|",
         ]
 
         for model in models:
@@ -2315,10 +2322,10 @@ class EvalDashboard:
                 continue
 
             trend_symbol = {
-                "improving": "上昇",
-                "declining": "下降",
-                "stable": "安定",
-            }.get(trend["trend"], "不明")
+                "improving": "Rising",
+                "declining": "Declining",
+                "stable": "Stable",
+            }.get(trend["trend"], "Unknown")
 
             lines.append(
                 f"| {model} | {trend.get('latest_score', 'N/A')} | "
@@ -2333,109 +2340,83 @@ class EvalDashboard:
 
 ## 13. FAQ
 
-### Q1: 評価データセットは何件必要か?
+### Q1: How many cases does an evaluation dataset need?
 
-最低 50 件、推奨 100-200 件。統計的に有意な差を検出するには、カテゴリあたり 30 件以上が望ましい。
-McNemar 検定で有意差検定を行う場合、p < 0.05 を得るには十分なサンプル数が必要。
-少数で始めて徐々に拡充するアプローチが現実的。
+A minimum of 50 cases, with 100–200 recommended. To detect statistically significant differences, 30 or more cases per category is desirable. When using the McNemar test to verify significance, an adequate sample size is needed to achieve p < 0.05. A practical approach is to start small and expand gradually.
 
-### Q2: LLM-as-a-Judge の評価者モデルは何を使うべき?
+### Q2: Which model should I use for LLM-as-a-Judge?
 
-GPT-4o が最も広く使われ、人間評価との一致率が高い。
-ただし Self-Enhancement Bias があるため、OpenAI モデルの評価には Claude を使うなど、
-評価者と被評価者を異なるプロバイダにすることが望ましい。
-Multi-Judge 合議制を採用すればバイアスをさらに軽減できる。
+GPT-4o is most widely used and shows high agreement with human evaluation. However, due to Self-Enhancement Bias, it is preferable to use a different provider for the evaluator than the model being evaluated — for example, use Claude when evaluating OpenAI models. Adopting a Multi-Judge consensus approach can further reduce bias.
 
-### Q3: 継続的なモデル評価はどう自動化する?
+### Q3: How do I automate continuous model evaluation?
 
-CI/CD パイプラインに評価ステップを組み込む。
-LangSmith や Braintrust でプロンプト変更ごとに自動評価を実行。
-「回帰テスト」として、過去の評価スコアを下回らないことをデプロイ条件にする。
-週次/月次で Elo レーティングを更新し、モデル乗り換え判断に使う。
+Integrate an evaluation step into the CI/CD pipeline. Use LangSmith or Braintrust to automatically run evaluations on every prompt change. Set a deployment condition where scores must not fall below past evaluation baselines, functioning as a "regression test." Update Elo ratings weekly or monthly and use them to guide model-switching decisions.
 
-### Q4: ベンチマーク汚染 (Contamination) をどう検出するか?
+### Q4: How do I detect benchmark contamination?
 
-ベンチマーク汚染は、モデルの訓練データにベンチマーク問題が含まれることで、
-スコアが不当に高くなる問題である。以下の方法で検出・対策する。
+Benchmark contamination occurs when benchmark questions are included in a model's training data, causing scores to be artificially inflated. Detect and address it using the following methods:
 
-1. **パラフレーズテスト**: 問題文を言い換えてスコアが大きく低下するか確認
-2. **n-gram 重複分析**: 訓練データとベンチマークの n-gram 重複率を計測
-3. **動的ベンチマーク**: LiveBench のように毎月新問題を生成するベンチマークを活用
-4. **Canary String**: 訓練データに特定の文字列を混入し、モデルが出力するか確認
+1. **Paraphrase test**: Rephrase the question and check if the score drops significantly
+2. **n-gram overlap analysis**: Measure n-gram overlap between training data and benchmarks
+3. **Dynamic benchmarks**: Use benchmarks like LiveBench that generate new questions every month
+4. **Canary strings**: Embed specific strings in training data and check if the model outputs them
 
-### Q5: 少ない予算で効果的な評価を行うには?
+### Q5: How do I evaluate effectively on a limited budget?
 
-段階的アプローチを推奨する。
+A staged approach is recommended:
 
-1. **第1段階 ($0)**: オープンソースベンチマーク (MMLU, HumanEval) で足切り
-2. **第2段階 ($5-10)**: GPT-4o-mini や Gemini Flash で LLM-as-a-Judge (100ケース)
-3. **第3段階 ($20-50)**: GPT-4o で Multi-Judge + 人間サンプリング (10%)
-4. **第4段階 ($100+)**: 専門家評価 + A/B テスト
+1. **Stage 1 ($0)**: Screen with open-source benchmarks (MMLU, HumanEval)
+2. **Stage 2 ($5–10)**: LLM-as-a-Judge with GPT-4o-mini or Gemini Flash (100 cases)
+3. **Stage 3 ($20–50)**: Multi-Judge with GPT-4o + human sampling (10%)
+4. **Stage 4 ($100+)**: Expert evaluation + A/B testing
 
-### Q6: 多言語評価はどう行うべきか?
+### Q6: How should multilingual evaluation be handled?
 
-英語以外の言語、特に日本語の評価には以下のアプローチが有効。
+The following approaches are effective for evaluating languages other than English, especially Japanese:
 
-1. **言語固有ベンチマーク**: JMMLU (日本語版 MMLU)、JGLUE、MGSM (多言語数学) を使用
-2. **翻訳ベースの評価**: 英語ベンチマークを高品質翻訳して使用 (ただし文化的バイアスに注意)
-3. **ネイティブ評価**: 対象言語のネイティブスピーカーによる人間評価
-4. **Cross-lingual 評価**: 入力言語と出力言語を変えた評価 (翻訳品質の確認)
+1. **Language-specific benchmarks**: Use JMMLU (Japanese MMLU), JGLUE, MGSM (multilingual math)
+2. **Translation-based evaluation**: Use high-quality translated English benchmarks (be mindful of cultural bias)
+3. **Native evaluation**: Human evaluation by native speakers of the target language
+4. **Cross-lingual evaluation**: Evaluate with different input and output languages (to verify translation quality)
 
-### Q7: 評価の再現性をどう担保するか?
+### Q7: How do I ensure reproducibility of evaluations?
 
-LLM の出力は確率的であるため、以下の対策が必要。
+Since LLM outputs are probabilistic, the following measures are necessary:
 
-1. **temperature=0 設定**: 評価者 LLM の temperature を 0 に設定
-2. **seed パラメータ**: OpenAI API の seed パラメータを固定
-3. **複数回実行**: 同一評価を 3-5 回実行し、中央値を採用
-4. **バージョン管理**: 評価データセット、プロンプト、モデルバージョンを Git 管理
-5. **結果の保存**: 全ての評価結果を JSONL 形式で永続化
+1. **Set temperature=0**: Set the evaluator LLM's temperature to 0
+2. **Seed parameter**: Fix the seed parameter in the OpenAI API
+3. **Multiple runs**: Run the same evaluation 3–5 times and use the median
+4. **Version control**: Manage evaluation datasets, prompts, and model versions with Git
+5. **Save results**: Persist all evaluation results in JSONL format
 
 ---
 
+## Summary
 
-## FAQ
-
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
-
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
-
-### Q2: 初心者がよく陥る間違いは何ですか？
-
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
-
-### Q3: 実務ではどのように活用されていますか？
-
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | 推奨 |
-|------|------|
-| モデル選定の足切り | MMLU / HumanEval / Arena Elo |
-| 日常的品質チェック | LLM-as-a-Judge (GPT-4o) |
-| 高信頼性評価 | Multi-Judge 合議制 |
-| 最終品質検証 | 人間評価 (専門家) |
-| RAG 評価 | RAGAS フレームワーク |
-| バイアス対策 | 順序入替 + 複数評価者 + バイアス検出 |
-| 有意差検定 | McNemar 検定 + Bootstrap 信頼区間 |
-| 評価データ規模 | 100-200 ケース (カテゴリ別 30+) |
-| 継続モニタリング | CI/CD 統合 + 週次レポート + ダッシュボード |
-| コスト最適化 | 段階的評価 + Mini モデル活用 |
+| Item | Recommendation |
+|------|----------------|
+| Initial model screening | MMLU / HumanEval / Arena Elo |
+| Routine quality checks | LLM-as-a-Judge (GPT-4o) |
+| High-confidence evaluation | Multi-Judge consensus |
+| Final quality verification | Human evaluation (experts) |
+| RAG evaluation | RAGAS framework |
+| Bias mitigation | Order swapping + multiple evaluators + bias detection |
+| Significance testing | McNemar test + Bootstrap confidence intervals |
+| Evaluation dataset size | 100–200 cases (30+ per category) |
+| Continuous monitoring | CI/CD integration + weekly reports + dashboard |
+| Cost optimization | Staged evaluation + mini model utilization |
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
-- [../01-models/04-model-comparison.md](../01-models/04-model-comparison.md) — 評価結果に基づくモデル選定
-- [../02-applications/00-prompt-engineering.md](../02-applications/00-prompt-engineering.md) — プロンプト改善の評価
-- [../04-ethics/00-ai-safety.md](../04-ethics/00-ai-safety.md) — 安全性評価
+- [../01-models/04-model-comparison.md](../01-models/04-model-comparison.md) — Model selection based on evaluation results
+- [../02-applications/00-prompt-engineering.md](../02-applications/00-prompt-engineering.md) — Evaluation of prompt improvements
+- [../04-ethics/00-ai-safety.md](../04-ethics/00-ai-safety.md) — Safety evaluation
 
 ---
 
-## 参考文献
+## References
 
 1. Chiang et al., "Chatbot Arena: An Open Platform for Evaluating LLMs by Human Preference," arXiv:2403.04132, 2024
 2. Zheng et al., "Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena," NeurIPS 2023
