@@ -1,29 +1,29 @@
-# セキュリティ文化
+# Security Culture
 
-> DevSecOps による開発プロセスへのセキュリティ統合、バグバウンティプログラムの運用、組織全体のセキュリティ意識を向上させるための実践ガイド
+> A practical guide for integrating security into the development process through DevSecOps, operating bug bounty programs, and building organization-wide security awareness
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **DevSecOps** — 開発・運用・セキュリティを統合した組織体制とプロセス
-2. **脅威モデリング** — 設計段階からリスクを体系的に特定する手法
-3. **バグバウンティ** — 外部研究者によるセキュリティテストの仕組みと運用
-4. **セキュリティ教育と意識向上** — 組織全体でセキュリティを自分事にする文化の構築
-5. **セキュリティメトリクスとガバナンス** — 定量的にセキュリティ状態を把握・改善する仕組み
+1. **DevSecOps** — Organizational structure and processes that integrate development, operations, and security
+2. **Threat Modeling** — Techniques for systematically identifying risks from the design stage
+3. **Bug Bounty** — How external researchers conduct security testing and how to operate such programs
+4. **Security Education and Awareness** — Building a culture where security is everyone's responsibility across the organization
+5. **Security Metrics and Governance** — Frameworks for understanding and improving security posture through quantitative measurement
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [コンプライアンス](./02-compliance.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Compliance](./02-compliance.md)
 
 ---
 
 ## 1. DevSecOps
 
-### DevOps から DevSecOps へ
+### From DevOps to DevSecOps
 
 ```
 DevOps:
@@ -39,9 +39,9 @@ DevSecOps:
   モデリング コードレビュー Trivy  ZAP    検証    スキャン  保護    異常検知
 ```
 
-従来の開発プロセスでは、セキュリティテストはリリース直前のゲートとして実施されていた。この「Shift Left」以前のアプローチには根本的な問題がある。リリース直前に発見された脆弱性は修正コストが高く、スケジュールへの影響も大きい。DevSecOps はセキュリティを開発ライフサイクルの全段階に組み込むことで、脆弱性を早期に発見し、修正コストを劇的に低減する。
+In traditional development processes, security testing was conducted as a gate just before release. This pre-"Shift Left" approach had a fundamental problem: vulnerabilities discovered right before release are expensive to fix and have a significant impact on the schedule. DevSecOps embeds security into every stage of the development lifecycle, enabling early detection of vulnerabilities and dramatically reducing the cost of remediation.
 
-### DevSecOps パイプラインの実装
+### Implementing the DevSecOps Pipeline
 
 ```yaml
 # .github/workflows/devsecops-pipeline.yml
@@ -174,46 +174,46 @@ jobs:
           working_directory: infrastructure/terraform/
 ```
 
-### DevSecOps の成熟度モデル
+### DevSecOps Maturity Model
 
 ```
 +----------------------------------------------------------+
-|          DevSecOps 成熟度モデル                             |
+|          DevSecOps Maturity Model                        |
 |----------------------------------------------------------|
 |                                                          |
-|  Level 1: 初期 (Ad Hoc)                                  |
-|  +-- セキュリティは専門チームの責任                         |
-|  +-- 手動のペネトレーションテスト (年次)                    |
-|  +-- リリース前のゲート型レビュー                          |
-|  +-- ツール導入なし、属人的な判断                          |
+|  Level 1: Initial (Ad Hoc)                               |
+|  +-- Security is the responsibility of a dedicated team  |
+|  +-- Manual penetration testing (annual)                 |
+|  +-- Gate-style review just before release               |
+|  +-- No tooling in place, decisions are person-dependent |
 |                                                          |
-|  Level 2: 管理 (Managed)                                  |
-|  +-- CI/CD にセキュリティテストを統合                      |
-|  +-- SAST/SCA の自動実行                                 |
-|  +-- セキュリティチャンピオンの任命                         |
-|  +-- 脆弱性管理プロセスの文書化                            |
+|  Level 2: Managed                                        |
+|  +-- Security testing integrated into CI/CD             |
+|  +-- Automated SAST/SCA execution                       |
+|  +-- Security champions appointed                       |
+|  +-- Vulnerability management process documented        |
 |                                                          |
-|  Level 3: 定義 (Defined)                                  |
-|  +-- 脅威モデリングが設計プロセスの一部                     |
-|  +-- セキュリティ要件が User Story に含まれる              |
-|  +-- 全開発者がセキュアコーディング研修を修了               |
-|  +-- セキュリティゲートの基準が明確に定義                   |
+|  Level 3: Defined                                        |
+|  +-- Threat modeling is part of the design process      |
+|  +-- Security requirements included in User Stories     |
+|  +-- All developers have completed secure coding training|
+|  +-- Security gate criteria clearly defined             |
 |                                                          |
-|  Level 4: 測定 (Measured)                                 |
-|  +-- セキュリティメトリクスの継続測定                       |
-|  +-- 脆弱性の平均修正時間 (MTTR) を追跡                   |
-|  +-- セキュリティ債務の可視化と管理                         |
-|  +-- ダッシュボードによるリアルタイム可視化                  |
+|  Level 4: Measured                                       |
+|  +-- Continuous measurement of security metrics         |
+|  +-- Mean Time to Remediate (MTTR) tracked              |
+|  +-- Security debt visualized and managed               |
+|  +-- Real-time visibility via dashboards                |
 |                                                          |
-|  Level 5: 最適化 (Optimized)                              |
-|  +-- セキュリティが全員の責任として浸透                     |
-|  +-- 自動修復・自動封じ込め                               |
-|  +-- 継続的な改善サイクルの確立                            |
-|  +-- AI/ML による脅威検知の高度化                          |
+|  Level 5: Optimized                                      |
+|  +-- Security is internalized as everyone's responsibility|
+|  +-- Automated remediation and containment              |
+|  +-- Continuous improvement cycle established           |
+|  +-- Advanced threat detection using AI/ML              |
 +----------------------------------------------------------+
 ```
 
-### 成熟度評価チェックリスト
+### Maturity Assessment Checklist
 
 ```python
 # DevSecOps 成熟度自動評価ツール
@@ -338,36 +338,36 @@ class MaturityAssessment:
         return recommendations
 ```
 
-### セキュリティチャンピオン制度
+### Security Champion Program
 
 ```
 +----------------------------------------------------------+
-|           セキュリティチャンピオン制度                       |
+|           Security Champion Program                      |
 |----------------------------------------------------------|
 |                                                          |
-|  セキュリティチーム (中央)                                  |
-|  +-- ポリシー策定                                        |
-|  +-- ツール選定・運用                                     |
-|  +-- 高度なインシデント対応                               |
-|  +-- チャンピオンの育成・サポート                          |
+|  Security Team (Central)                                 |
+|  +-- Policy development                                  |
+|  +-- Tool selection and operation                        |
+|  +-- Advanced incident response                          |
+|  +-- Training and supporting champions                   |
 |       |                                                  |
 |       v                                                  |
-|  セキュリティチャンピオン (各チーム 1名)                     |
-|  +-- 開発チーム A: チャンピオン A                          |
-|  +-- 開発チーム B: チャンピオン B                          |
-|  +-- 開発チーム C: チャンピオン C                          |
-|  +-- インフラチーム: チャンピオン D                         |
+|  Security Champions (1 per team)                         |
+|  +-- Development Team A: Champion A                      |
+|  +-- Development Team B: Champion B                      |
+|  +-- Development Team C: Champion C                      |
+|  +-- Infrastructure Team: Champion D                     |
 |                                                          |
-|  チャンピオンの役割:                                       |
-|  +-- チーム内のセキュリティレビュー推進                     |
-|  +-- 脅威モデリングのファシリテーション                     |
-|  +-- セキュリティツールの導入支援                          |
-|  +-- セキュリティチームとの橋渡し                          |
-|  +-- チーム内のセキュリティ意識向上                         |
+|  Champion Responsibilities:                              |
+|  +-- Drive security reviews within the team             |
+|  +-- Facilitate threat modeling sessions                |
+|  +-- Support adoption of security tooling               |
+|  +-- Act as a liaison with the security team            |
+|  +-- Raise security awareness within the team           |
 +----------------------------------------------------------+
 ```
 
-### セキュリティチャンピオン育成プログラム
+### Security Champion Development Program
 
 ```python
 # セキュリティチャンピオン管理システム
@@ -411,54 +411,54 @@ class SecurityChampion:
 
 CHAMPION_CURRICULUM = {
     "month_1": {
-        "title": "基礎",
+        "title": "Foundations",
         "topics": [
-            "OWASP Top 10 概要と実例",
-            "セキュリティレビューチェックリストの使い方",
-            "SAST/SCA ツールの結果の読み方",
+            "OWASP Top 10 overview and real-world examples",
+            "How to use the security review checklist",
+            "How to read SAST/SCA tool results",
         ],
-        "hands_on": "自チームの直近PRから脆弱性パターンを3つ特定",
+        "hands_on": "Identify 3 vulnerability patterns from recent PRs in your team",
     },
     "month_2": {
-        "title": "実践",
+        "title": "Practice",
         "topics": [
-            "脅威モデリング (STRIDE) の実施方法",
-            "セキュアコーディングパターン",
-            "認証・認可の設計レビュー",
+            "How to conduct STRIDE threat modeling",
+            "Secure coding patterns",
+            "Authentication and authorization design reviews",
         ],
-        "hands_on": "自チームのサービスで脅威モデリングを実施",
+        "hands_on": "Conduct threat modeling for your team's service",
     },
     "month_3": {
-        "title": "応用",
+        "title": "Application",
         "topics": [
-            "インシデント対応手順",
-            "脆弱性トリアージの実践",
-            "セキュリティメトリクスの分析",
+            "Incident response procedures",
+            "Practical vulnerability triage",
+            "Security metrics analysis",
         ],
-        "hands_on": "月次セキュリティレポートの作成と発表",
+        "hands_on": "Create and present a monthly security report",
     },
     "month_4_6": {
-        "title": "深化",
+        "title": "Deepening",
         "topics": [
-            "CTF チャレンジへの参加",
-            "ペネトレーションテストの基礎",
-            "クラウドセキュリティの設計パターン",
+            "Participating in CTF challenges",
+            "Basics of penetration testing",
+            "Cloud security design patterns",
         ],
-        "hands_on": "新規機能の設計段階からセキュリティレビューをリード",
+        "hands_on": "Lead security reviews from the design stage for new features",
     },
 }
 ```
 
-### DevSecOps ツールチェーン選定ガイド
+### DevSecOps Toolchain Selection Guide
 
 ```
 +--------------------------------------------------------------------+
-|              DevSecOps ツールチェーン                                  |
+|              DevSecOps Toolchain                                   |
 |--------------------------------------------------------------------|
 |                                                                    |
 | [Plan]                                                             |
-|   脅威モデリング: OWASP Threat Dragon, Microsoft TMT, IriusRisk     |
-|   セキュリティ要件: OWASP ASVS チェックリスト                         |
+|   Threat Modeling: OWASP Threat Dragon, Microsoft TMT, IriusRisk  |
+|   Security Requirements: OWASP ASVS checklist                     |
 |                                                                    |
 | [Code]                                                             |
 |   SAST: Semgrep (OSS), SonarQube, Checkmarx                       |
@@ -494,122 +494,122 @@ CHAMPION_CURRICULUM = {
 
 ---
 
-## 2. 脅威モデリング
+## 2. Threat Modeling
 
-### STRIDE フレームワーク
+### STRIDE Framework
 
-| 脅威カテゴリ | 説明 | 対策例 |
-|------------|------|--------|
-| **S**poofing (なりすまし) | 他者のアイデンティティを詐称 | 認証、MFA |
-| **T**ampering (改竄) | データや通信の不正変更 | 完全性検証、署名 |
-| **R**epudiation (否認) | 行為の否定 | 監査ログ、デジタル署名 |
-| **I**nformation Disclosure (情報漏洩) | 機密情報の不正アクセス | 暗号化、アクセス制御 |
-| **D**enial of Service (サービス妨害) | サービスの可用性低下 | レートリミット、冗長化 |
-| **E**levation of Privilege (権限昇格) | 権限の不正取得 | 最小権限、入力検証 |
+| Threat Category | Description | Countermeasure Examples |
+|----------------|-------------|------------------------|
+| **S**poofing | Impersonating another identity | Authentication, MFA |
+| **T**ampering | Unauthorized modification of data or communications | Integrity verification, signatures |
+| **R**epudiation | Denying having performed an action | Audit logs, digital signatures |
+| **I**nformation Disclosure | Unauthorized access to confidential information | Encryption, access control |
+| **D**enial of Service | Degradation of service availability | Rate limiting, redundancy |
+| **E**levation of Privilege | Unauthorized acquisition of privileges | Least privilege, input validation |
 
-### 脅威モデリングの手順
+### Threat Modeling Procedure
 
 ```
-Step 1: システムのモデル化 (Data Flow Diagram)
+Step 1: System Modeling (Data Flow Diagram)
 
   +--------+     HTTPS      +--------+     SQL      +--------+
-  | ユーザ  | ------------> | Web    | -----------> | DB     |
-  | (外部)  |              | サーバ  |              |        |
-  +--------+     認証       +--------+   内部NW     +--------+
-                Cookie           |
+  | User   | ------------> | Web    | -----------> | DB     |
+  | (Ext)  |              | Server |              |        |
+  +--------+     Auth      +--------+  Internal   +--------+
+                Cookie           |        NW
                              +--------+
-                             | 外部   |
+                             | Ext    |
                              | API    |
                              +--------+
 
-Step 2: STRIDE で脅威を列挙
-  - Spoofing: セッションハイジャック
-  - Tampering: SQLインジェクション
-  - Information Disclosure: エラーメッセージからのDB情報漏洩
+Step 2: Enumerate threats using STRIDE
+  - Spoofing: Session hijacking
+  - Tampering: SQL injection
+  - Information Disclosure: DB info leakage via error messages
   - ...
 
-Step 3: リスク評価 (DREAD or 影響度 x 発生確率)
+Step 3: Risk Assessment (DREAD or Impact x Likelihood)
 
-Step 4: 対策の決定と実装
+Step 4: Determine and implement countermeasures
 ```
 
 ### PASTA (Process for Attack Simulation and Threat Analysis)
 
 ```
 +---------------------------------------------------------------+
-|  PASTA 脅威モデリング — 7段階プロセス                             |
+|  PASTA Threat Modeling — 7-Stage Process                      |
 |---------------------------------------------------------------|
 |                                                               |
-|  Stage 1: ビジネス目標の定義                                    |
-|    → アプリケーションの目的、ビジネスインパクト、                   |
-|      コンプライアンス要件を明確化                                 |
-|    → 例: ECサイト — 決済データの保護が最優先                      |
+|  Stage 1: Define Business Objectives                          |
+|    → Clarify the application's purpose, business impact,     |
+|      and compliance requirements                              |
+|    → Example: EC site — protecting payment data is top priority|
 |                                                               |
-|  Stage 2: 技術スコープの定義                                    |
-|    → システムアーキテクチャ、データフロー、                        |
-|      技術スタックの文書化                                        |
-|    → DFD (Data Flow Diagram) の作成                            |
+|  Stage 2: Define Technical Scope                              |
+|    → Document system architecture, data flows,               |
+|      and technology stack                                     |
+|    → Create DFD (Data Flow Diagram)                           |
 |                                                               |
-|  Stage 3: アプリケーションの分解                                 |
-|    → コンポーネント間の信頼境界の特定                             |
-|    → エントリポイント、アセット、                                 |
-|      アクセス制御ポイントの列挙                                   |
+|  Stage 3: Application Decomposition                           |
+|    → Identify trust boundaries between components            |
+|    → Enumerate entry points, assets,                         |
+|      and access control points                               |
 |                                                               |
-|  Stage 4: 脅威分析                                              |
-|    → 脅威インテリジェンスの収集                                   |
-|    → 攻撃者のプロファイリング（内部/外部、スキルレベル）            |
-|    → 業界固有の脅威パターンの特定                                 |
+|  Stage 4: Threat Analysis                                     |
+|    → Gather threat intelligence                               |
+|    → Profile attackers (internal/external, skill level)      |
+|    → Identify industry-specific threat patterns              |
 |                                                               |
-|  Stage 5: 脆弱性と弱点の分析                                    |
-|    → 既存のスキャン結果の分析                                    |
-|    → 設計上の弱点の特定                                         |
-|    → CVSS スコアリング                                          |
+|  Stage 5: Vulnerability and Weakness Analysis                 |
+|    → Analyze existing scan results                           |
+|    → Identify design weaknesses                              |
+|    → CVSS scoring                                            |
 |                                                               |
-|  Stage 6: 攻撃モデリングとシミュレーション                        |
-|    → 攻撃ツリーの構築                                           |
-|    → 攻撃シナリオのシミュレーション                               |
-|    → ペネトレーションテストとの連携                               |
+|  Stage 6: Attack Modeling and Simulation                      |
+|    → Build attack trees                                      |
+|    → Simulate attack scenarios                               |
+|    → Coordinate with penetration testing                     |
 |                                                               |
-|  Stage 7: リスク分析と対策                                      |
-|    → ビジネスインパクトの定量評価                                 |
-|    → 対策の優先順位付け                                         |
-|    → 残余リスクの受容判断                                        |
+|  Stage 7: Risk Analysis and Countermeasures                   |
+|    → Quantitative assessment of business impact              |
+|    → Prioritize countermeasures                              |
+|    → Accept residual risk decisions                          |
 +---------------------------------------------------------------+
 ```
 
-### 攻撃ツリー分析
+### Attack Tree Analysis
 
 ```
-攻撃目標: ユーザアカウントの不正アクセス
+Attack Goal: Unauthorized Access to User Accounts
 │
-├── 1. 認証情報の窃取
-│   ├── 1.1 フィッシングメール [確率: 高, コスト: 低]
-│   │   ├── 1.1.1 偽ログインページへの誘導
-│   │   └── 1.1.2 マルウェア添付ファイル
-│   ├── 1.2 クレデンシャルスタッフィング [確率: 中, コスト: 低]
-│   │   └── 1.2.1 過去の漏洩DBからの認証試行
-│   ├── 1.3 キーロガー [確率: 低, コスト: 中]
-│   └── 1.4 ショルダーサーフィング [確率: 低, コスト: 低]
+├── 1. Credential Theft
+│   ├── 1.1 Phishing Email [Likelihood: High, Cost: Low]
+│   │   ├── 1.1.1 Redirect to fake login page
+│   │   └── 1.1.2 Malware email attachment
+│   ├── 1.2 Credential Stuffing [Likelihood: Medium, Cost: Low]
+│   │   └── 1.2.1 Login attempts from past leaked databases
+│   ├── 1.3 Keylogger [Likelihood: Low, Cost: Medium]
+│   └── 1.4 Shoulder Surfing [Likelihood: Low, Cost: Low]
 │
-├── 2. セッションハイジャック
-│   ├── 2.1 XSS によるCookie窃取 [確率: 中, コスト: 中]
-│   ├── 2.2 中間者攻撃 (MitM) [確率: 低, コスト: 高]
-│   └── 2.3 セッション固定攻撃 [確率: 低, コスト: 中]
+├── 2. Session Hijacking
+│   ├── 2.1 Cookie theft via XSS [Likelihood: Medium, Cost: Medium]
+│   ├── 2.2 Man-in-the-Middle (MitM) [Likelihood: Low, Cost: High]
+│   └── 2.3 Session Fixation Attack [Likelihood: Low, Cost: Medium]
 │
-├── 3. 認証バイパス
-│   ├── 3.1 パスワードリセット機能の悪用 [確率: 中, コスト: 低]
-│   │   ├── 3.1.1 予測可能なリセットトークン
-│   │   └── 3.1.2 メール傍受
-│   ├── 3.2 OAuth リダイレクト操作 [確率: 低, コスト: 中]
-│   └── 3.3 JWT アルゴリズム混同攻撃 [確率: 低, コスト: 高]
+├── 3. Authentication Bypass
+│   ├── 3.1 Abuse of password reset function [Likelihood: Medium, Cost: Low]
+│   │   ├── 3.1.1 Predictable reset tokens
+│   │   └── 3.1.2 Email interception
+│   ├── 3.2 OAuth redirect manipulation [Likelihood: Low, Cost: Medium]
+│   └── 3.3 JWT algorithm confusion attack [Likelihood: Low, Cost: High]
 │
-└── 4. 権限昇格
-    ├── 4.1 IDOR (直接オブジェクト参照) [確率: 中, コスト: 低]
-    ├── 4.2 ロールの不正変更 [確率: 低, コスト: 中]
-    └── 4.3 API パラメータ改竄 [確率: 中, コスト: 低]
+└── 4. Privilege Escalation
+    ├── 4.1 IDOR (Insecure Direct Object Reference) [Likelihood: Medium, Cost: Low]
+    ├── 4.2 Unauthorized role modification [Likelihood: Low, Cost: Medium]
+    └── 4.3 API parameter tampering [Likelihood: Medium, Cost: Low]
 ```
 
-### 脅威モデリングの実施テンプレート
+### Threat Modeling Implementation Template
 
 ```yaml
 # threat-model.yaml
@@ -705,7 +705,7 @@ review_schedule:
     - "依存ライブラリの大規模アップデート"
 ```
 
-### 脅威モデリング自動化ツール
+### Threat Modeling Automation Tools
 
 ```python
 # 脅威モデリングの自動化ヘルパー
@@ -810,80 +810,80 @@ class ThreatModelGenerator:
 
 ---
 
-## 3. バグバウンティ
+## 3. Bug Bounty
 
-### バグバウンティプログラムの設計
+### Designing a Bug Bounty Program
 
 ```
 +----------------------------------------------------------+
-|           バグバウンティプログラム                           |
+|           Bug Bounty Program                             |
 |----------------------------------------------------------|
 |                                                          |
-|  [スコープ定義]                                           |
-|  +-- 対象: app.example.com, api.example.com              |
-|  +-- 除外: staging.example.com, 社内ツール               |
-|  +-- 禁止行為: DoS, ソーシャルエンジニアリング              |
+|  [Scope Definition]                                      |
+|  +-- In scope: app.example.com, api.example.com          |
+|  +-- Out of scope: staging.example.com, internal tools   |
+|  +-- Prohibited: DoS, social engineering                 |
 |                                                          |
-|  [報奨金テーブル]                                         |
+|  [Bounty Table]                                          |
 |  +-- Critical (RCE, SQLi): $5,000 - $15,000             |
 |  +-- High (XSS, IDOR): $1,000 - $5,000                  |
-|  +-- Medium (情報漏洩): $500 - $1,000                    |
-|  +-- Low (設定ミス): $100 - $500                          |
+|  +-- Medium (Info Disclosure): $500 - $1,000             |
+|  +-- Low (Misconfiguration): $100 - $500                 |
 |                                                          |
-|  [対応 SLA]                                               |
-|  +-- 初期応答: 1営業日以内                                |
-|  +-- トリアージ: 3営業日以内                               |
-|  +-- 修正: Critical 7日, High 30日, Medium 90日          |
-|  +-- 報奨金支払い: 修正確認後 30日以内                     |
+|  [Response SLA]                                          |
+|  +-- Initial response: within 1 business day            |
+|  +-- Triage: within 3 business days                     |
+|  +-- Fix: Critical 7 days, High 30 days, Medium 90 days |
+|  +-- Bounty payment: within 30 days after fix confirmed  |
 +----------------------------------------------------------+
 ```
 
-### バグバウンティプラットフォームの比較
+### Bug Bounty Platform Comparison
 
-| 項目 | HackerOne | Bugcrowd | Intigriti |
+| Item | HackerOne | Bugcrowd | Intigriti |
 |------|-----------|----------|-----------|
-| 研究者数 | 100万+ | 50万+ | 7万+ |
-| 地域 | グローバル | グローバル | 欧州中心 |
-| 管理型 | あり | あり | あり |
-| プライベートプログラム | あり | あり | あり |
-| トリアージ代行 | あり (有料) | あり (有料) | あり (有料) |
-| 最低予算 | $1,000/月程度 | $1,000/月程度 | 要問い合わせ |
-| GDPR 対応 | あり | あり | 特に強い |
-| 日本語サポート | 限定的 | 限定的 | なし |
+| Researchers | 1M+ | 500K+ | 70K+ |
+| Region | Global | Global | Europe-centric |
+| Managed programs | Yes | Yes | Yes |
+| Private programs | Yes | Yes | Yes |
+| Triage support | Yes (paid) | Yes (paid) | Yes (paid) |
+| Minimum budget | ~$1,000/month | ~$1,000/month | Inquiry required |
+| GDPR compliance | Yes | Yes | Particularly strong |
+| Japanese support | Limited | Limited | None |
 
-### バグバウンティプログラム成熟度ロードマップ
+### Bug Bounty Program Maturity Roadmap
 
 ```
-Phase 1: 内部準備 (1-2ヶ月)
-├── VDP (Vulnerability Disclosure Policy) の策定
-├── セキュリティチームの対応体制整備
-├── インシデント対応プロセスとの連携
-├── 法務チームとの報奨金契約テンプレート準備
-└── 内部ペネトレーションテストの実施
+Phase 1: Internal Preparation (1-2 months)
+├── Establish VDP (Vulnerability Disclosure Policy)
+├── Build security team response structure
+├── Coordinate with incident response processes
+├── Prepare bounty contract templates with legal team
+└── Conduct internal penetration testing
 
-Phase 2: プライベートプログラム (3-6ヶ月)
-├── 招待制で 10-20 名の研究者を選定
-├── スコープは主要アプリケーションに限定
-├── 対応フローの検証と改善
-├── 平均対応時間 (MTTR) の測定開始
-└── 重複報告の管理プロセス確立
+Phase 2: Private Program (3-6 months)
+├── Select 10-20 researchers by invitation
+├── Limit scope to core applications
+├── Validate and improve response workflow
+├── Start measuring Mean Time to Remediate (MTTR)
+└── Establish process for managing duplicate reports
 
-Phase 3: プライベート拡大 (6-12ヶ月)
-├── 研究者を 50-100 名に拡大
-├── スコープをAPI, モバイルアプリに拡大
-├── 報奨金テーブルの見直し
-├── 四半期レポートの作成開始
-└── 自動トリアージツールの導入検討
+Phase 3: Private Expansion (6-12 months)
+├── Expand researchers to 50-100
+├── Expand scope to APIs, mobile apps
+├── Review bounty table
+├── Start creating quarterly reports
+└── Consider introducing automated triage tools
 
-Phase 4: パブリックプログラム (12ヶ月以降)
-├── 全研究者に公開
-├── フルスコープ (全公開資産)
-├── Hall of Fame ページの設置
-├── 年次レポートの公開
-└── バグバウンティイベント (Live Hacking) の検討
+Phase 4: Public Program (12+ months)
+├── Open to all researchers
+├── Full scope (all public assets)
+├── Set up Hall of Fame page
+├── Publish annual reports
+└── Consider bug bounty events (Live Hacking)
 ```
 
-### バグ報告の処理フロー
+### Bug Report Processing Flow
 
 ```python
 # バグバウンティ報告の処理自動化
@@ -1079,82 +1079,82 @@ class BugBountyWorkflow:
 
 ---
 
-## 4. セキュリティ教育
+## 4. Security Education
 
-### 教育プログラムの設計
+### Designing an Education Program
 
 ```
 +----------------------------------------------------------+
-|          セキュリティ教育プログラム                          |
+|          Security Education Program                      |
 |----------------------------------------------------------|
 |                                                          |
-|  [全社員向け (年次)]                                       |
-|  +-- フィッシング対策研修                                  |
-|  +-- パスワード管理とMFAの必要性                           |
-|  +-- SNS での情報漏洩防止                                  |
-|  +-- インシデント報告の手順                                |
-|  +-- 物理セキュリティ（クリーンデスク、尾行防止）            |
+|  [All Employees (Annual)]                                |
+|  +-- Anti-phishing training                             |
+|  +-- Password management and the need for MFA           |
+|  +-- Preventing information leaks on social media       |
+|  +-- Incident reporting procedures                      |
+|  +-- Physical security (clean desk policy, tailgating)  |
 |                                                          |
-|  [開発者向け (四半期)]                                     |
-|  +-- OWASP Top 10 ハンズオン                              |
-|  +-- セキュアコーディング演習                              |
-|  +-- 脅威モデリングワークショップ                          |
-|  +-- CTF (Capture The Flag) イベント                      |
-|  +-- セキュリティレビュー実践（PR ベース）                  |
+|  [Developers (Quarterly)]                                |
+|  +-- OWASP Top 10 hands-on                              |
+|  +-- Secure coding exercises                            |
+|  +-- Threat modeling workshops                          |
+|  +-- CTF (Capture The Flag) events                      |
+|  +-- Security review practice (PR-based)                |
 |                                                          |
-|  [セキュリティチャンピオン向け (月次)]                      |
-|  +-- 最新脆弱性のブリーフィング                            |
-|  +-- ツール活用の深掘り                                   |
-|  +-- インシデントケーススタディ                             |
-|  +-- ペネトレーションテスト基礎                            |
+|  [Security Champions (Monthly)]                          |
+|  +-- Briefing on latest vulnerabilities                 |
+|  +-- Deep-dive on tool usage                            |
+|  +-- Incident case studies                              |
+|  +-- Penetration testing fundamentals                   |
 |                                                          |
-|  [経営層向け (半期)]                                       |
-|  +-- セキュリティリスクレポート                             |
-|  +-- 投資対効果の説明                                     |
-|  +-- コンプライアンス状況の報告                             |
-|  +-- サイバー保険の評価                                   |
+|  [Management (Semi-Annual)]                              |
+|  +-- Security risk reports                              |
+|  +-- Return on investment explanation                   |
+|  +-- Compliance status reports                          |
+|  +-- Cyber insurance assessment                         |
 +----------------------------------------------------------+
 ```
 
-### セキュアコーディング研修カリキュラム
+### Secure Coding Training Curriculum
 
 ```
-Day 1: Web アプリケーションセキュリティ基礎 (4時間)
-├── 座学 (1.5h)
-│   ├── OWASP Top 10 の概要
-│   ├── 各脆弱性の実例と影響
-│   └── セキュリティの基本原則（多層防御、最小権限）
-├── ハンズオン (2h)
-│   ├── OWASP WebGoat / Juice Shop を使った攻撃体験
-│   ├── SQLインジェクションの発見と修正
-│   └── XSS の発見と修正
-└── 振り返り (0.5h)
-    └── 自社アプリに当てはまるパターンの議論
+Day 1: Web Application Security Fundamentals (4 hours)
+├── Lecture (1.5h)
+│   ├── Overview of OWASP Top 10
+│   ├── Real-world examples and impact of each vulnerability
+│   └── Fundamental security principles (defense in depth, least privilege)
+├── Hands-on (2h)
+│   ├── Attack experience using OWASP WebGoat / Juice Shop
+│   ├── Identifying and fixing SQL injection
+│   └── Identifying and fixing XSS
+└── Retrospective (0.5h)
+    └── Discussion on patterns applicable to your own application
 
-Day 2: 認証・認可とデータ保護 (4時間)
-├── 座学 (1.5h)
-│   ├── 認証の安全な実装パターン
-│   ├── JWT / セッション管理のベストプラクティス
-│   └── 暗号化とハッシュの正しい使い方
-├── ハンズオン (2h)
-│   ├── 安全なパスワードハッシュの実装
-│   ├── IDOR 脆弱性の発見と修正
-│   └── CSRF 対策の実装
-└── 振り返り (0.5h)
+Day 2: Authentication, Authorization, and Data Protection (4 hours)
+├── Lecture (1.5h)
+│   ├── Secure implementation patterns for authentication
+│   ├── JWT / session management best practices
+│   └── Correct use of encryption and hashing
+├── Hands-on (2h)
+│   ├── Implementing secure password hashing
+│   ├── Identifying and fixing IDOR vulnerabilities
+│   └── Implementing CSRF protection
+└── Retrospective (0.5h)
 
-Day 3: セキュリティテストとツール (4時間)
-├── 座学 (1h)
-│   ├── SAST/DAST/SCA の違いと使い分け
-│   └── CI/CD パイプラインへの統合方法
-├── ハンズオン (2.5h)
-│   ├── Semgrep カスタムルールの作成
-│   ├── OWASP ZAP によるスキャン実行
-│   └── Trivy による依存関係スキャン
-└── 修了テスト (0.5h)
-    └── 脆弱性のあるコードの特定と修正（実技）
+Day 3: Security Testing and Tools (4 hours)
+├── Lecture (1h)
+│   ├── Differences between SAST/DAST/SCA and when to use each
+│   └── How to integrate into CI/CD pipelines
+├── Hands-on (2.5h)
+│   ├── Creating custom Semgrep rules
+│   ├── Running scans with OWASP ZAP
+│   └── Dependency scanning with Trivy
+└── Completion Test (0.5h)
+    └── Identifying and fixing vulnerabilities in code (practical)
 ```
 
-### フィッシングシミュレーション
+### Phishing Simulation
 
 ```python
 # フィッシング訓練の管理と分析
@@ -1178,39 +1178,39 @@ class PhishingSimulator:
 
     TEMPLATES = {
         "password_reset": {
-            "subject": "【重要】パスワードの再設定が必要です",
+            "subject": "[Important] Password Reset Required",
             "difficulty": "easy",
             "indicators": [
-                "送信元ドメインが正規と異なる",
-                "URLのドメインが正規と異なる",
-                "緊急性を煽る文言",
+                "Sender domain differs from the official domain",
+                "URL domain differs from the official domain",
+                "Language creating a sense of urgency",
             ],
         },
         "invoice_payment": {
-            "subject": "請求書のご確認をお願いいたします",
+            "subject": "Please Confirm Your Invoice",
             "difficulty": "medium",
             "indicators": [
-                "添付ファイルの拡張子(.xlsm)",
-                "送信者名は正しいがアドレスが異なる",
-                "マクロの有効化を促す文言",
+                "Attachment file extension (.xlsm)",
+                "Sender name is correct but email address differs",
+                "Language prompting macro enablement",
             ],
         },
         "ceo_urgent": {
-            "subject": "至急対応をお願いします（社長より）",
+            "subject": "Urgent Action Required (from CEO)",
             "difficulty": "hard",
             "indicators": [
-                "社内のメールに似せたフォーマット",
-                "役職者の名前を使用",
-                "返信先が外部アドレス",
+                "Format resembling internal company email",
+                "Uses name of an executive",
+                "Reply-to is an external address",
             ],
         },
         "shared_document": {
-            "subject": "共有ドキュメントが更新されました",
+            "subject": "Shared document has been updated",
             "difficulty": "medium",
             "indicators": [
-                "Google/Microsoft風のフィッシングページ",
-                "OAuth認可画面を模倣",
-                "正規に見えるが微妙に異なるURL",
+                "Google/Microsoft-style phishing page",
+                "Mimics OAuth authorization screen",
+                "URL appears legitimate but is subtly different",
             ],
         },
     }
@@ -1255,16 +1255,16 @@ class PhishingSimulator:
         click_pct = stats['links_clicked'] / total * 100
         if click_pct > 30:
             stats['risk_level'] = "CRITICAL"
-            stats['recommendation'] = "即座に全社向けフィッシング研修を実施"
+            stats['recommendation'] = "Conduct company-wide phishing training immediately"
         elif click_pct > 15:
             stats['risk_level'] = "HIGH"
-            stats['recommendation'] = "対象部門の追加研修を実施"
+            stats['recommendation'] = "Conduct additional training for the affected department"
         elif click_pct > 5:
             stats['risk_level'] = "MEDIUM"
-            stats['recommendation'] = "クリックした個人への個別フォローアップ"
+            stats['recommendation'] = "Individual follow-up for those who clicked"
         else:
             stats['risk_level'] = "LOW"
-            stats['recommendation'] = "現在の研修プログラムを継続"
+            stats['recommendation'] = "Continue the current training program"
 
         return stats
 
@@ -1295,84 +1295,84 @@ class PhishingSimulator:
         return {'trend': trend, 'improvement': 'N/A', 'direction': 'insufficient_data'}
 ```
 
-### CTF (Capture The Flag) 社内イベントの運営
+### Running an Internal CTF (Capture The Flag) Event
 
 ```
 +----------------------------------------------------------+
-|          社内 CTF イベント設計                               |
+|          Internal CTF Event Design                       |
 |----------------------------------------------------------|
 |                                                          |
-|  [カテゴリと配点]                                         |
+|  [Categories and Points]                                 |
 |  Web (50-500pt)                                          |
-|  +-- SQL Injection (初級: 50pt)                          |
-|  +-- XSS + CSP Bypass (中級: 200pt)                      |
-|  +-- SSRF to Cloud Metadata (上級: 500pt)                |
+|  +-- SQL Injection (Beginner: 50pt)                      |
+|  +-- XSS + CSP Bypass (Intermediate: 200pt)              |
+|  +-- SSRF to Cloud Metadata (Advanced: 500pt)            |
 |                                                          |
 |  Crypto (50-400pt)                                       |
-|  +-- Base64 エンコード解読 (初級: 50pt)                   |
-|  +-- JWT 改竄 (中級: 200pt)                              |
-|  +-- RSA パディングオラクル (上級: 400pt)                  |
+|  +-- Base64 Decode (Beginner: 50pt)                      |
+|  +-- JWT Tampering (Intermediate: 200pt)                 |
+|  +-- RSA Padding Oracle (Advanced: 400pt)                |
 |                                                          |
 |  Forensics (100-300pt)                                   |
-|  +-- アクセスログ分析 (初級: 100pt)                       |
-|  +-- メモリダンプ解析 (中級: 200pt)                       |
-|  +-- マルウェアの挙動分析 (上級: 300pt)                   |
+|  +-- Access Log Analysis (Beginner: 100pt)               |
+|  +-- Memory Dump Analysis (Intermediate: 200pt)          |
+|  +-- Malware Behavior Analysis (Advanced: 300pt)         |
 |                                                          |
 |  Miscellaneous (50-200pt)                                |
 |  +-- OSINT (50-100pt)                                    |
-|  +-- ソーシャルエンジニアリング認識 (100pt)                |
-|  +-- セキュリティポリシー理解度 (50pt)                     |
+|  +-- Recognizing Social Engineering (100pt)              |
+|  +-- Security Policy Knowledge (50pt)                    |
 |                                                          |
-|  [運営]                                                   |
-|  +-- CTFd プラットフォーム使用                             |
-|  +-- 4時間のタイムボックス                                |
-|  +-- チーム戦 (3-4名/チーム)                              |
-|  +-- 上位チームにはセキュリティカンファレンス参加権          |
+|  [Operations]                                            |
+|  +-- CTFd platform                                       |
+|  +-- 4-hour time box                                     |
+|  +-- Team competition (3-4 members/team)                 |
+|  +-- Top teams receive security conference tickets       |
 +----------------------------------------------------------+
 ```
 
 ---
 
-## 5. セキュリティメトリクス
+## 5. Security Metrics
 
-### 測定すべき KPI
+### KPIs to Measure
 
 ```
 +----------------------------------------------------------+
-|          セキュリティ KPI ダッシュボード                      |
+|          Security KPI Dashboard                          |
 |----------------------------------------------------------|
 |                                                          |
-|  [検知]                                                   |
-|  +-- MTTD (Mean Time to Detect): 平均検知時間              |
-|  +-- 検知率: 攻撃に対するアラート発報率                     |
-|  +-- False Positive率: 誤検知の割合                        |
+|  [Detection]                                             |
+|  +-- MTTD (Mean Time to Detect)                         |
+|  +-- Detection rate: alert trigger rate per attack      |
+|  +-- False positive rate: percentage of false alerts    |
 |                                                          |
-|  [対応]                                                   |
-|  +-- MTTR (Mean Time to Respond): 平均対応時間             |
-|  +-- MTTC (Mean Time to Contain): 平均封じ込め時間         |
-|  +-- MTTF (Mean Time to Fix): 平均修正時間                |
+|  [Response]                                              |
+|  +-- MTTR (Mean Time to Respond)                        |
+|  +-- MTTC (Mean Time to Contain)                        |
+|  +-- MTTF (Mean Time to Fix)                            |
 |                                                          |
-|  [脆弱性]                                                 |
-|  +-- 未修正脆弱性数 (Critical/High/Medium/Low)             |
-|  +-- 脆弱性修正の平均日数                                  |
-|  +-- SLA内修正率 (%)                                      |
-|  +-- 再発率 (同種の脆弱性の再出現率)                        |
+|  [Vulnerabilities]                                       |
+|  +-- Open vulnerability count (Critical/High/Medium/Low)|
+|  +-- Average days to fix vulnerabilities                |
+|  +-- SLA compliance rate (%)                            |
+|  +-- Recurrence rate (same type of vulnerability)       |
 |                                                          |
-|  [プロセス]                                               |
-|  +-- セキュリティレビュー実施率                             |
-|  +-- 脅威モデリング実施率                                  |
-|  +-- パッチ適用率 (SLA 内)                                 |
-|  +-- コードカバレッジ (セキュリティテスト)                   |
+|  [Process]                                               |
+|  +-- Security review completion rate                    |
+|  +-- Threat modeling completion rate                    |
+|  +-- Patch application rate (within SLA)                |
+|  +-- Code coverage (security tests)                     |
 |                                                          |
-|  [人材]                                                   |
-|  +-- セキュリティ研修完了率                                |
-|  +-- フィッシング訓練クリック率                             |
-|  +-- セキュリティチャンピオンの充足率                       |
-|  +-- セキュリティ関連資格保有率                             |
+|  [People]                                                |
+|  +-- Security training completion rate                  |
+|  +-- Phishing simulation click rate                     |
+|  +-- Security champion coverage rate                    |
+|  +-- Security certification holding rate                |
 +----------------------------------------------------------+
 ```
 
-### セキュリティダッシュボード実装
+### Security Dashboard Implementation
 
 ```python
 # セキュリティメトリクスの自動収集と可視化
@@ -1526,21 +1526,21 @@ class SecurityDashboard:
     def _generate_highlights(self, m: SecurityMetrics) -> list[str]:
         highlights = []
         if m.open_critical == 0:
-            highlights.append("Critical脆弱性ゼロを維持")
+            highlights.append("Zero critical vulnerabilities maintained")
         if m.sla_compliance_rate >= 95:
-            highlights.append(f"SLA遵守率 {m.sla_compliance_rate}% (目標達成)")
+            highlights.append(f"SLA compliance rate {m.sla_compliance_rate}% (target achieved)")
         if m.phishing_click_rate < 5:
-            highlights.append(f"フィッシングクリック率 {m.phishing_click_rate}% (業界平均以下)")
+            highlights.append(f"Phishing click rate {m.phishing_click_rate}% (below industry average)")
         return highlights
 
     def _generate_action_items(self, m: SecurityMetrics) -> list[str]:
         items = []
         if m.open_critical > 0:
-            items.append(f"Critical脆弱性 {m.open_critical}件の即時対応")
+            items.append(f"Immediate action required for {m.open_critical} critical vulnerabilities")
         if m.training_completion_rate < 90:
-            items.append(f"セキュリティ研修未完了者への督促 (完了率: {m.training_completion_rate}%)")
+            items.append(f"Follow up with staff who have not completed security training (completion rate: {m.training_completion_rate}%)")
         if m.patch_compliance_rate < 95:
-            items.append(f"パッチ適用率の改善 (現在: {m.patch_compliance_rate}%)")
+            items.append(f"Improve patch application rate (current: {m.patch_compliance_rate}%)")
         return items
 
     def _collect_sast_findings(self) -> list:
@@ -1559,7 +1559,7 @@ class SecurityDashboard:
         return findings
 ```
 
-### メトリクス収集の自動化 (AWS)
+### Automating Metrics Collection (AWS)
 
 ```python
 # AWS 環境でのセキュリティメトリクス自動収集
@@ -1633,43 +1633,43 @@ def collect_aws_security_metrics() -> dict:
 
 ---
 
-## 6. セキュリティガバナンス
+## 6. Security Governance
 
-### セキュリティポリシーフレームワーク
+### Security Policy Framework
 
 ```
 +--------------------------------------------------------------------+
-|              セキュリティポリシー体系                                  |
+|              Security Policy Structure                             |
 |--------------------------------------------------------------------|
 |                                                                    |
-|  Level 1: セキュリティポリシー (経営層承認)                           |
-|  +-- 情報セキュリティ基本方針                                       |
-|  +-- 適用範囲、責任体制、罰則規定                                    |
-|  +-- 年次レビュー                                                  |
+|  Level 1: Security Policy (Executive approval)                     |
+|  +-- Information Security Basic Policy                            |
+|  +-- Scope, responsibilities, and penalty provisions              |
+|  +-- Annual review                                                |
 |                                                                    |
-|  Level 2: セキュリティスタンダード (CISO承認)                        |
-|  +-- アクセス制御スタンダード                                       |
-|  +-- データ分類スタンダード                                         |
-|  +-- 暗号化スタンダード                                             |
-|  +-- インシデント対応スタンダード                                    |
-|  +-- 四半期レビュー                                                |
+|  Level 2: Security Standards (CISO approval)                      |
+|  +-- Access control standard                                      |
+|  +-- Data classification standard                                 |
+|  +-- Encryption standard                                          |
+|  +-- Incident response standard                                   |
+|  +-- Quarterly review                                             |
 |                                                                    |
-|  Level 3: プロシージャ (チームリード承認)                             |
-|  +-- パスワード管理手順                                             |
-|  +-- セキュリティレビュー手順                                       |
-|  +-- 脆弱性管理手順                                                |
-|  +-- 変更管理手順                                                  |
-|  +-- 月次レビュー                                                  |
+|  Level 3: Procedures (Team lead approval)                          |
+|  +-- Password management procedures                               |
+|  +-- Security review procedures                                   |
+|  +-- Vulnerability management procedures                          |
+|  +-- Change management procedures                                 |
+|  +-- Monthly review                                               |
 |                                                                    |
-|  Level 4: ガイドライン (推奨事項)                                    |
-|  +-- セキュアコーディングガイドライン                                |
-|  +-- クラウドセキュリティガイドライン                                |
-|  +-- リモートワークセキュリティガイドライン                           |
-|  +-- 必要に応じて更新                                              |
+|  Level 4: Guidelines (Recommendations)                             |
+|  +-- Secure coding guidelines                                     |
+|  +-- Cloud security guidelines                                    |
+|  +-- Remote work security guidelines                              |
+|  +-- Updated as needed                                            |
 +--------------------------------------------------------------------+
 ```
 
-### セキュリティレビューゲートの設計
+### Security Review Gate Design
 
 ```python
 # セキュリティレビューゲートの自動化
@@ -1754,13 +1754,13 @@ class SecurityGate:
         # リスクレベル別の要件
         if risk in (RiskLevel.CRITICAL, RiskLevel.HIGH):
             if not change.has_threat_model:
-                blockers.append("脅威モデリングの実施が必要です")
+                blockers.append("Threat modeling is required")
             if not change.security_review_completed:
-                blockers.append("セキュリティチームによるレビューが必要です")
+                blockers.append("Security team review is required")
 
         if risk == RiskLevel.MEDIUM:
             if not change.security_review_completed:
-                conditions.append("セキュリティチャンピオンによるレビューを推奨")
+                conditions.append("Security champion review is recommended")
 
         if change.sast_findings_high > 0:
             conditions.append(
@@ -1777,145 +1777,145 @@ class SecurityGate:
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン 1: セキュリティはセキュリティチームだけの仕事
-
-```
-NG:
-  → セキュリティチームが全 PR をレビュー (ボトルネック化)
-  → 開発者はセキュリティに無関心
-  → 「セキュリティは邪魔」という認識
-  → リリース直前のゲート型レビューで手戻り頻発
-
-OK:
-  → セキュリティチャンピオンが各チームにいる
-  → 自動化ツールで基本チェックを開発者が実行
-  → セキュリティチームは設計レビューと高度な分析に集中
-  → 「セキュリティは品質の一部」という文化
-  → 開発早期からのセキュリティ考慮 (Shift Left)
-```
-
-### アンチパターン 2: 恐怖による動機付け
+### Anti-Pattern 1: Security Is Only the Security Team's Job
 
 ```
-NG:
-  → 「セキュリティ違反したら罰則」
-  → インシデントの犯人探し
-  → 失敗を隠す文化の醸成
-  → セキュリティ報告の抑制
+Bad:
+  → Security team reviews every PR (creating a bottleneck)
+  → Developers are indifferent to security
+  → Security is seen as an obstacle
+  → Late-stage gate reviews cause frequent rework
 
-OK:
-  → 脆弱性を見つけた人を称賛
-  → Blameless ポストモーテム
-  → 学習機会としてのインシデント共有
-  → セキュリティ改善への貢献を評価
-  → 心理的安全性の確保
+Good:
+  → Security champions are present in every team
+  → Automated tools allow developers to perform basic checks
+  → Security team focuses on design reviews and advanced analysis
+  → Culture of "security is part of quality"
+  → Security consideration from early in development (Shift Left)
 ```
 
-### アンチパターン 3: ツール偏重
+### Anti-Pattern 2: Motivation Through Fear
 
 ```
-NG:
-  → 高額なツールを導入して安心
-  → アラートの洪水で本当の脅威を見逃す
-  → ツールの結果を誰もレビューしない
-  → ツール導入 = セキュリティ対策完了という誤解
+Bad:
+  → "There will be penalties for security violations"
+  → Blame-seeking after incidents
+  → Culture of hiding failures
+  → Suppression of security reporting
 
-OK:
-  → ツールは人の判断を補助するもの
-  → アラートのチューニングと優先順位付け
-  → ツールの結果を定期的にレビューし改善
-  → プロセスと文化の改善がツールに先行する
+Good:
+  → Praise those who discover vulnerabilities
+  → Blameless postmortems
+  → Share incidents as learning opportunities
+  → Recognize contributions to security improvement
+  → Ensure psychological safety
 ```
 
-### アンチパターン 4: コンプライアンス = セキュリティ
+### Anti-Pattern 3: Over-Reliance on Tools
 
 ```
-NG:
-  → チェックリストを埋めることが目的化
-  → 監査のためだけのセキュリティ施策
-  → 実効性のないポリシー文書の山
-  → 年次監査の時だけセキュリティを意識
+Bad:
+  → Feeling secure just by purchasing expensive tools
+  → Flood of alerts causes real threats to be missed
+  → Nobody reviews tool output
+  → Misconception that tool adoption = security done
 
-OK:
-  → コンプライアンスはセキュリティのベースライン
-  → リスクベースのアプローチで優先順位付け
-  → 継続的なセキュリティ改善サイクル
-  → 自社のリスクプロファイルに合わせた対策
+Good:
+  → Tools assist human judgment
+  → Tune alerts and prioritize
+  → Regularly review and improve based on tool results
+  → Process and culture improvement precedes tooling
+```
+
+### Anti-Pattern 4: Compliance Equals Security
+
+```
+Bad:
+  → The goal becomes filling out checklists
+  → Security measures exist only for audits
+  → Mountains of ineffective policy documents
+  → Security only considered during annual audits
+
+Good:
+  → Compliance is the baseline for security
+  → Risk-based approach for prioritization
+  → Continuous security improvement cycle
+  → Countermeasures tailored to your organization's risk profile
 ```
 
 ---
 
 ## 8. FAQ
 
-### Q1. DevSecOps を導入するための最初のステップは?
+### Q1. What is the first step to adopt DevSecOps?
 
-まず CI/CD パイプラインに SAST ツール (Semgrep) と SCA ツール (Trivy) を追加し、Critical/High のみをビルドブロッカーにする。並行して各開発チームから 1 名のセキュリティチャンピオンを任命し、月次で集まりを開始する。ツールの結果を開発者にとってアクショナブルにすることが普及の鍵である。最初から全てを導入しようとせず、3ヶ月ごとに1つずつツールを追加していくインクリメンタルなアプローチが効果的である。
+Start by adding a SAST tool (Semgrep) and SCA tool (Trivy) to the CI/CD pipeline, making only Critical/High findings build blockers. At the same time, appoint one security champion from each development team and start meeting monthly. Making tool results actionable for developers is key to adoption. Rather than trying to introduce everything at once, an incremental approach of adding one tool every three months is more effective.
 
-### Q2. バグバウンティプログラムはいつ始めるべきか?
+### Q2. When should you start a bug bounty program?
 
-内部のセキュリティテスト (SAST/DAST/ペネトレーションテスト) が成熟してから始めるべきである。既知の脆弱性が多数残っている段階で始めると、大量の報告に対応しきれず、報奨金の予算も圧迫する。まずプライベートプログラム (招待制) で少数の研究者から始め、対応プロセスが安定したらパブリックに移行する。目安として、内部ペネトレーションテストでCritical/Highの脆弱性がゼロになってからが適切なタイミングである。
+You should start after internal security testing (SAST/DAST/penetration testing) has matured. Starting when many known vulnerabilities remain will overwhelm your response capacity and put pressure on the bounty budget. Begin with a private program (by invitation) with a small number of researchers, and move to public once the response process has stabilized. A good benchmark is to wait until your internal penetration tests return zero Critical/High vulnerabilities.
 
-### Q3. セキュリティ文化の効果をどう測定するか?
+### Q3. How do you measure the effectiveness of security culture?
 
-定量的指標としてフィッシング訓練のクリック率の推移、脆弱性の平均修正時間 (MTTR)、セキュリティレビュー実施率を追跡する。定性的にはセキュリティに関する質問が開発チームから自発的に上がるか、インシデント報告が迅速に行われるかを観察する。半年に一度、全社アンケートでセキュリティ意識の変化を測定することも有効である。
+Track quantitative metrics such as trends in phishing simulation click rates, mean time to remediate (MTTR) vulnerabilities, and security review completion rates. Qualitatively, observe whether security questions are being raised spontaneously by development teams and whether incidents are being reported quickly. Measuring changes in security awareness through a company-wide survey every six months is also effective.
 
-### Q4. セキュリティチャンピオンのモチベーションを維持するには?
+### Q4. How do you maintain the motivation of security champions?
 
-通常業務の 10-20% をセキュリティ活動に充てることを公式に認める。セキュリティカンファレンスへの参加費用を支援する。チャンピオン間のコミュニティを作り、定期的な知識共有の場を設ける。人事評価にセキュリティへの貢献を明示的に含める。資格取得の支援（費用補助、学習時間の確保）も効果的である。
+Officially recognize that 10-20% of their regular work can be devoted to security activities. Provide support for attending security conferences. Create a community among champions and establish a regular knowledge-sharing forum. Explicitly include security contributions in performance evaluations. Supporting certification acquisition (cost subsidies, study time) is also effective.
 
-### Q5. 小規模チームでも DevSecOps は実践できるか?
+### Q5. Can small teams practice DevSecOps?
 
-できる。小規模チームほど全員がセキュリティを意識する文化を作りやすい。まずは GitHub の Dependabot（無料）でSCAを、Semgrep（OSS）でSASTを導入する。専任のセキュリティチームがいなくても、全員がセキュリティチャンピオンとして機能する文化を目指す。重要なのはツールの数ではなく、セキュリティを開発プロセスの一部として組み込む意識である。
+Yes. The smaller the team, the easier it is to build a culture where everyone is aware of security. Start by introducing GitHub's Dependabot (free) for SCA and Semgrep (OSS) for SAST. Even without a dedicated security team, aim for a culture where everyone functions as a security champion. What matters is not the number of tools, but the mindset of embedding security as part of the development process.
 
-### Q6. セキュリティ研修の効果が出ない場合はどうするか?
+### Q6. What should you do if security training isn't producing results?
 
-座学中心の研修は効果が低い。ハンズオン形式（OWASP Juice Shop、TryHackMe、社内CTF）に切り替える。自社のコードベースから実際の脆弱性（修正済み）を題材にすると、開発者の当事者意識が高まる。研修は1回きりではなく、四半期ごとの反復が重要。学んだ内容をすぐにコードレビューで実践する場を設けることで定着率が大幅に向上する。
+Lecture-focused training has low effectiveness. Switch to hands-on formats (OWASP Juice Shop, TryHackMe, internal CTF). Using actual (already-fixed) vulnerabilities from your own codebase as training material increases developers' sense of ownership. Training should not be a one-time event — quarterly repetition is important. Providing opportunities to immediately apply what was learned during code reviews significantly improves retention.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point to keep in mind when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not just through theory but by actually writing code and confirming how it behaves.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend fully understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| DevSecOps | セキュリティを開発プロセスの全段階に統合 |
-| セキュリティチャンピオン | 各チームに 1 名、セキュリティの橋渡し役 |
-| 脅威モデリング | STRIDE/PASTA で設計段階からリスクを特定 |
-| バグバウンティ | プライベートから始め、段階的にパブリック化 |
-| セキュリティ教育 | 対象別プログラム、フィッシング訓練は定期実施 |
-| メトリクス | MTTD/MTTR、脆弱性数、研修完了率を継続測定 |
-| ガバナンス | ポリシー→スタンダード→プロシージャの階層構造 |
-| 文化 | 恐怖でなく称賛で動機付け、Blameless ポストモーテム |
+Knowledge of this topic is frequently applied in day-to-day development work, particularly during code reviews and architectural design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [インシデント対応](./00-incident-response.md) — セキュリティ文化が試される場面
-- [コンプライアンス](./02-compliance.md) — 組織的なセキュリティガバナンス
-- [セキュアコーディング](../04-application-security/00-secure-coding.md) — 開発者が身につけるべきスキル
+| Item | Key Points |
+|------|-----------|
+| DevSecOps | Integrate security into every stage of the development process |
+| Security Champions | One per team, acting as a bridge for security |
+| Threat Modeling | Identify risks from the design stage using STRIDE/PASTA |
+| Bug Bounty | Start private, gradually move to public |
+| Security Education | Role-specific programs, phishing simulations conducted regularly |
+| Metrics | Continuously measure MTTD/MTTR, vulnerability counts, training completion rates |
+| Governance | Hierarchical structure: Policy → Standard → Procedure |
+| Culture | Motivate through recognition, not fear; blameless postmortems |
 
 ---
 
-## 参考文献
+## Further Reading
+
+- [Incident Response](./00-incident-response.md) — Where security culture is put to the test
+- [Compliance](./02-compliance.md) — Organizational security governance
+- [Secure Coding](../04-application-security/00-secure-coding.md) — Skills every developer should have
+
+---
+
+## References
 
 1. **NIST Cybersecurity Framework** — https://www.nist.gov/cyberframework
 2. **OWASP DevSecOps Guideline** — https://owasp.org/www-project-devsecops-guideline/
