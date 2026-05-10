@@ -1,100 +1,104 @@
-# メモリシステム
+# Memory Systems
 
-> 短期記憶・長期記憶・RAG――AIエージェントが文脈を保持し、過去の経験から学習するためのメモリアーキテクチャを設計・実装する。
+> Short-term memory, long-term memory, and RAG — design and implement memory architectures that allow AI agents to retain context and learn from past experience.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. エージェントにおけるメモリの3層構造（短期・作業・長期）の役割と設計
-2. RAG（Retrieval-Augmented Generation）によるスケーラブルな記憶の実装
-3. メモリ戦略の選定基準と実装パターン
-4. 高度なメモリアーキテクチャ（知識グラフ、エピソード記憶、セマンティックメモリ）
-5. プロダクション環境でのメモリシステムの運用とチューニング
+1. The role and design of the three-layer memory model in agents (short-term, working, long-term)
+2. Implementing scalable memory with RAG (Retrieval-Augmented Generation)
+3. Criteria for selecting memory strategies and implementation patterns
+4. Advanced memory architectures (knowledge graphs, episodic memory, semantic memory)
+5. Operating and tuning memory systems in production environments
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [ツール使用（Tool Use）](./02-tool-use.md) の内容を理解していること
-
----
-
-## 1. メモリの必要性
-
-### 1.1 メモリがないエージェントの問題
-
-```
-メモリなしエージェント:
-  Turn 1: "私の名前は田中です" → "こんにちは田中さん"
-  Turn 2: "私の名前は？"      → "わかりません"  ← 忘れている!
-
-メモリありエージェント:
-  Turn 1: "私の名前は田中です" → "こんにちは田中さん" [記憶に保存]
-  Turn 2: "私の名前は？"      → "田中さんですね"    ← 記憶を参照
-```
-
-### 1.2 メモリの3層構造
-
-```
-エージェントメモリの3層構造
-+--------------------------------------------------------+
-|                                                          |
-|  +--------------------------------------------------+   |
-|  |  短期記憶 (Short-Term Memory)                     |   |
-|  |  - 現在の会話履歴                                  |   |
-|  |  - 直近のツール実行結果                            |   |
-|  |  - 寿命: 1セッション                              |   |
-|  +--------------------------------------------------+   |
-|                                                          |
-|  +--------------------------------------------------+   |
-|  |  作業記憶 (Working Memory)                        |   |
-|  |  - 現在のタスクの計画                              |   |
-|  |  - 中間結果のスクラッチパッド                      |   |
-|  |  - 寿命: 1タスク                                  |   |
-|  +--------------------------------------------------+   |
-|                                                          |
-|  +--------------------------------------------------+   |
-|  |  長期記憶 (Long-Term Memory)                      |   |
-|  |  - ユーザーの好み・プロフィール                    |   |
-|  |  - 過去のタスク結果                                |   |
-|  |  - 学習したパターン                                |   |
-|  |  - 寿命: 永続                                     |   |
-|  +--------------------------------------------------+   |
-|                                                          |
-+--------------------------------------------------------+
-```
-
-### 1.3 人間の記憶モデルとの対応
-
-```
-人間の記憶                    AIエージェントのメモリ
-+-----------------------+     +-----------------------+
-| 感覚記憶（数秒）       | --> | 入力バッファ           |
-| - 視覚・聴覚の一時保持  |     | - 生のリクエスト       |
-+-----------------------+     +-----------------------+
-| 短期記憶（数十秒）     | --> | コンテキストウィンドウ  |
-| - 電話番号の暗記       |     | - 会話履歴             |
-+-----------------------+     +-----------------------+
-| 作業記憶（秒〜分）     | --> | スクラッチパッド       |
-| - 暗算中の一時保持     |     | - タスク中間結果       |
-+-----------------------+     +-----------------------+
-| 長期記憶（永続）       | --> | ベクトルDB / ファイル   |
-| - エピソード記憶       |     | - 過去の会話要約       |
-| - 意味記憶            |     | - 知識ベース           |
-| - 手続き記憶          |     | - 学習パターン         |
-+-----------------------+     +-----------------------+
-```
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [Tool Use](./02-tool-use.md)
 
 ---
 
-## 2. 短期記憶の実装
+## 1. The Need for Memory
 
-### 2.1 会話バッファ
+### 1.1 Problems with Agents That Have No Memory
+
+```
+Agent without memory:
+  Turn 1: "My name is Tanaka" → "Hello, Tanaka"
+  Turn 2: "What is my name?"  → "I don't know"  ← Forgot!
+
+Agent with memory:
+  Turn 1: "My name is Tanaka" → "Hello, Tanaka" [saved to memory]
+  Turn 2: "What is my name?"  → "You are Tanaka" ← References memory
+```
+
+### 1.2 The Three-Layer Memory Model
+
+```
+Three-Layer Memory Model for Agents
++--------------------------------------------------------+
+|                                                          |
+|  +--------------------------------------------------+   |
+|  |  Short-Term Memory                               |   |
+|  |  - Current conversation history                  |   |
+|  |  - Recent tool execution results                 |   |
+|  |  - Lifespan: 1 session                          |   |
+|  +--------------------------------------------------+   |
+|                                                          |
+|  +--------------------------------------------------+   |
+|  |  Working Memory                                   |   |
+|  |  - Current task plan                             |   |
+|  |  - Scratchpad for intermediate results           |   |
+|  |  - Lifespan: 1 task                             |   |
+|  +--------------------------------------------------+   |
+|                                                          |
+|  +--------------------------------------------------+   |
+|  |  Long-Term Memory                                 |   |
+|  |  - User preferences and profile                  |   |
+|  |  - Results of past tasks                         |   |
+|  |  - Learned patterns                              |   |
+|  |  - Lifespan: Persistent                         |   |
+|  +--------------------------------------------------+   |
+|                                                          |
++--------------------------------------------------------+
+```
+
+### 1.3 Correspondence with the Human Memory Model
+
+```
+Human Memory                  AI Agent Memory
++-----------------------+     +-----------------------+
+| Sensory memory (secs)  | --> | Input buffer          |
+| - Temporary visual/    |     | - Raw request         |
+|   auditory retention   |     |                       |
++-----------------------+     +-----------------------+
+| Short-term (tens secs) | --> | Context window        |
+| - Memorizing a phone   |     | - Conversation history|
+|   number              |     |                       |
++-----------------------+     +-----------------------+
+| Working memory (s-min) | --> | Scratchpad            |
+| - Temporary hold       |     | - Task intermediate   |
+|   during mental math   |     |   results             |
++-----------------------+     +-----------------------+
+| Long-term (persistent) | --> | Vector DB / Files     |
+| - Episodic memory      |     | - Past conversation   |
+| - Semantic memory      |     |   summaries           |
+| - Procedural memory    |     | - Knowledge base      |
+|                        |     | - Learned patterns    |
++-----------------------+     +-----------------------+
+```
+
+---
+
+## 2. Implementing Short-Term Memory
+
+### 2.1 Conversation Buffer
 
 ```python
-# 最もシンプルな短期記憶: 全履歴を保持
+# Simplest short-term memory: retain all history
 class ConversationBufferMemory:
     def __init__(self):
         self.messages = []
@@ -109,10 +113,10 @@ class ConversationBufferMemory:
         self.messages = []
 ```
 
-### 2.2 スライディングウィンドウ
+### 2.2 Sliding Window
 
 ```python
-# 直近N件のメッセージのみ保持
+# Retain only the last N messages
 class SlidingWindowMemory:
     def __init__(self, window_size: int = 20):
         self.messages = []
@@ -120,7 +124,7 @@ class SlidingWindowMemory:
 
     def add(self, role: str, content: str):
         self.messages.append({"role": role, "content": content})
-        # ウィンドウを超えた古いメッセージを削除
+        # Remove old messages that exceed the window
         if len(self.messages) > self.window_size:
             self.messages = self.messages[-self.window_size:]
 
@@ -128,10 +132,10 @@ class SlidingWindowMemory:
         return self.messages.copy()
 ```
 
-### 2.3 要約メモリ
+### 2.3 Summary Memory
 
 ```python
-# 古い履歴を要約して圧縮する
+# Compress old history by summarizing it
 class SummaryMemory:
     def __init__(self, llm, max_tokens: int = 2000):
         self.llm = llm
@@ -142,21 +146,21 @@ class SummaryMemory:
     def add(self, role: str, content: str):
         self.recent_messages.append({"role": role, "content": content})
 
-        # トークン数が閾値を超えたら要約
+        # Summarize when the token count exceeds the threshold
         if self._count_tokens() > self.max_tokens:
             self._compress()
 
     def _compress(self):
-        """古いメッセージを要約に統合"""
-        old_messages = self.recent_messages[:-4]  # 直近4件は残す
+        """Merge old messages into the summary"""
+        old_messages = self.recent_messages[:-4]  # Keep last 4 messages
 
         summary_prompt = f"""
-以下の会話履歴を200字以内で要約してください。
-重要な事実、ユーザーの要望、決定事項を保持してください。
+Please summarize the following conversation history in 200 characters or less.
+Preserve important facts, user requests, and decisions.
 
-既存の要約: {self.summary}
+Existing summary: {self.summary}
 
-新しい会話:
+New conversation:
 {self._format_messages(old_messages)}
 """
         self.summary = self.llm.generate(summary_prompt)
@@ -167,20 +171,20 @@ class SummaryMemory:
         if self.summary:
             context.append({
                 "role": "system",
-                "content": f"これまでの会話の要約: {self.summary}"
+                "content": f"Summary of the conversation so far: {self.summary}"
             })
         context.extend(self.recent_messages)
         return context
 ```
 
-### 2.4 トークンベースバッファ
+### 2.4 Token-Based Buffer
 
 ```python
-# トークン数に基づいて管理する短期記憶
+# Short-term memory managed by token count
 import tiktoken
 
 class TokenBasedMemory:
-    """トークン数の上限に基づいてメッセージを管理"""
+    """Manages messages based on a maximum token count"""
 
     def __init__(self, max_tokens: int = 8000, model: str = "cl100k_base"):
         self.max_tokens = max_tokens
@@ -188,11 +192,11 @@ class TokenBasedMemory:
         self.encoder = tiktoken.get_encoding(model)
 
     def _count_tokens(self, messages: list) -> int:
-        """メッセージリストのトークン数を計算"""
+        """Calculate the token count of a message list"""
         total = 0
         for msg in messages:
             total += len(self.encoder.encode(msg["content"]))
-            total += 4  # メッセージオーバーヘッド
+            total += 4  # Message overhead
         return total
 
     def add(self, role: str, content: str):
@@ -200,10 +204,10 @@ class TokenBasedMemory:
         self._trim()
 
     def _trim(self):
-        """トークン上限を超えた場合、古いメッセージから削除"""
+        """Remove old messages when the token limit is exceeded"""
         while (self._count_tokens(self.messages) > self.max_tokens
-               and len(self.messages) > 2):  # 最低2件は保持
-            # システムメッセージは保持
+               and len(self.messages) > 2):  # Keep at least 2 messages
+            # Preserve system messages
             if self.messages[0]["role"] == "system":
                 self.messages.pop(1)
             else:
@@ -213,7 +217,7 @@ class TokenBasedMemory:
         return self.messages.copy()
 
     def get_stats(self) -> dict:
-        """メモリ使用状況を返す"""
+        """Return memory usage statistics"""
         return {
             "message_count": len(self.messages),
             "total_tokens": self._count_tokens(self.messages),
@@ -224,12 +228,12 @@ class TokenBasedMemory:
         }
 ```
 
-### 2.5 ハイブリッド短期記憶
+### 2.5 Hybrid Short-Term Memory
 
 ```python
-# 要約 + スライディングウィンドウのハイブリッド
+# Hybrid of summary + sliding window
 class HybridShortTermMemory:
-    """要約メモリとスライディングウィンドウを組み合わせる"""
+    """Combines summary memory and sliding window"""
 
     def __init__(self, llm, window_size: int = 10,
                  max_summary_length: int = 500):
@@ -238,42 +242,42 @@ class HybridShortTermMemory:
         self.max_summary_length = max_summary_length
         self.summary = ""
         self.messages = []
-        self.important_facts = []  # 重要な事実を別途保持
+        self.important_facts = []  # Store important facts separately
 
     def add(self, role: str, content: str):
         self.messages.append({"role": role, "content": content})
 
-        # 重要な事実を自動抽出
+        # Automatically extract important facts
         if role == "user":
             self._extract_facts(content)
 
-        # ウィンドウ超過時に要約
+        # Summarize when the window is exceeded
         if len(self.messages) > self.window_size:
             overflow = self.messages[:-self.window_size]
             self._update_summary(overflow)
             self.messages = self.messages[-self.window_size:]
 
     def _extract_facts(self, content: str):
-        """ユーザー入力から重要な事実を抽出"""
+        """Extract important facts from user input"""
         fact_indicators = [
-            "私の名前は", "私は", "好きな", "嫌いな",
-            "使っている", "プロジェクト", "会社"
+            "my name is", "I am", "I like", "I dislike",
+            "I use", "project", "company"
         ]
         if any(indicator in content for indicator in fact_indicators):
             self.important_facts.append(content)
-            # 重複排除（最新10件まで）
+            # Deduplicate (keep up to 10 most recent)
             self.important_facts = list(set(self.important_facts))[-10:]
 
     def _update_summary(self, overflow_messages: list):
-        """溢れたメッセージを要約に統合"""
+        """Merge overflowed messages into the summary"""
         messages_text = "\n".join(
             f"{m['role']}: {m['content']}" for m in overflow_messages
         )
-        prompt = f"""既存の要約を更新してください。
-既存の要約: {self.summary}
-新しい会話:
+        prompt = f"""Please update the existing summary.
+Existing summary: {self.summary}
+New conversation:
 {messages_text}
-{self.max_summary_length}文字以内で要約:"""
+Summarize in {self.max_summary_length} characters or less:"""
         self.summary = self.llm.generate(prompt)
 
     def get_context(self) -> list:
@@ -281,12 +285,12 @@ class HybridShortTermMemory:
         if self.summary:
             context.append({
                 "role": "system",
-                "content": f"会話の要約: {self.summary}"
+                "content": f"Conversation summary: {self.summary}"
             })
         if self.important_facts:
             context.append({
                 "role": "system",
-                "content": f"重要な事実:\n" + "\n".join(
+                "content": f"Important facts:\n" + "\n".join(
                     f"- {f}" for f in self.important_facts
                 )
             })
@@ -296,35 +300,35 @@ class HybridShortTermMemory:
 
 ---
 
-## 3. 長期記憶とRAG
+## 3. Long-Term Memory and RAG
 
-### 3.1 RAGアーキテクチャ
+### 3.1 RAG Architecture
 
 ```
-RAG (Retrieval-Augmented Generation) の流れ
+RAG (Retrieval-Augmented Generation) Flow
 
-1. インデックス構築 (オフライン)
-+----------+    チャンク化    +---------+   埋め込み    +----------+
-| ドキュメント|------------->| テキスト |------------>| ベクトル  |
-|          |               | チャンク  |              | DB       |
+1. Index Building (Offline)
++----------+    Chunking      +---------+   Embedding   +----------+
+| Documents|--------------->| Text    |-------------->| Vector   |
+|          |               | Chunks   |              | DB       |
 +----------+               +---------+              +----------+
 
-2. 検索と生成 (オンライン)
-+--------+   クエリ   +---------+   検索   +----------+
-| ユーザー|--------->|  埋め込み |-------->| ベクトル  |
-|        |          |  モデル   |         | DB       |
+2. Retrieval and Generation (Online)
++--------+   Query    +---------+   Search  +----------+
+|  User  |--------->| Embedding|-------->| Vector   |
+|        |          | Model    |         | DB       |
 +--------+          +---------+         +----+-----+
      ^                                       |
-     |              +---------+              | 上位K件
+     |              +---------+              | Top-K results
      +------<-------|   LLM   |<------<------+
-        回答        |  生成   |   文脈+質問
+        Answer      |Generate |   Context + Query
                     +---------+
 ```
 
-### 3.2 RAGの実装
+### 3.2 RAG Implementation
 
 ```python
-# RAGによる長期記憶の実装
+# Long-term memory implementation using RAG
 from sentence_transformers import SentenceTransformer
 import chromadb
 import uuid
@@ -339,7 +343,7 @@ class RAGMemory:
         )
 
     def store(self, text: str, metadata: dict = None):
-        """テキストをベクトル化して保存"""
+        """Vectorize and store text"""
         embedding = self.embedder.encode(text).tolist()
         self.collection.add(
             ids=[str(uuid.uuid4())],
@@ -349,7 +353,7 @@ class RAGMemory:
         )
 
     def retrieve(self, query: str, top_k: int = 5) -> list[str]:
-        """クエリに類似した記憶を検索"""
+        """Search for memories similar to the query"""
         query_embedding = self.embedder.encode(query).tolist()
         results = self.collection.query(
             query_embeddings=[query_embedding],
@@ -359,7 +363,7 @@ class RAGMemory:
 
     def retrieve_with_filter(self, query: str, filter_metadata: dict,
                               top_k: int = 5) -> list[str]:
-        """メタデータでフィルタリングして検索"""
+        """Search with metadata filtering"""
         query_embedding = self.embedder.encode(query).tolist()
         results = self.collection.query(
             query_embeddings=[query_embedding],
@@ -368,34 +372,34 @@ class RAGMemory:
         )
         return results["documents"][0]
 
-# 使用例
+# Usage example
 memory = RAGMemory()
 
-# 過去のタスク結果を保存
+# Store past task results
 memory.store(
-    "ユーザーはPythonのFastAPIを好み、Flaskよりも優先する",
+    "The user prefers Python's FastAPI and prioritizes it over Flask",
     metadata={"type": "preference", "user": "tanaka"}
 )
 
 memory.store(
-    "プロジェクトXのデプロイはAWS ECS + Fargateで構成",
+    "Project X deployment is configured with AWS ECS + Fargate",
     metadata={"type": "fact", "project": "X"}
 )
 
-# 検索
-relevant = memory.retrieve("このプロジェクトのインフラ構成は？")
+# Search
+relevant = memory.retrieve("What is the infrastructure configuration for this project?")
 print(relevant)
 ```
 
-### 3.3 チャンキング戦略
+### 3.3 Chunking Strategies
 
 ```python
-# テキストのチャンク化戦略
+# Text chunking strategies
 from typing import Generator
 
 def chunk_by_tokens(text: str, chunk_size: int = 500,
                      overlap: int = 50) -> Generator[str, None, None]:
-    """トークン数ベースのチャンク化（オーバーラップ付き）"""
+    """Token-count-based chunking (with overlap)"""
     words = text.split()
     for i in range(0, len(words), chunk_size - overlap):
         chunk = " ".join(words[i:i + chunk_size])
@@ -403,14 +407,14 @@ def chunk_by_tokens(text: str, chunk_size: int = 500,
             yield chunk
 
 def chunk_by_semantic(text: str) -> list[str]:
-    """セマンティック（意味的）チャンク化"""
-    # 段落、見出し、コードブロックなどの境界で分割
+    """Semantic chunking"""
+    # Split at boundaries such as paragraphs, headings, code blocks
     import re
     sections = re.split(r'\n#{1,3}\s|\n\n\n', text)
     return [s.strip() for s in sections if s.strip()]
 
 def chunk_by_recursive(text: str, max_size: int = 1000) -> list[str]:
-    """再帰的チャンク化（LangChain方式）"""
+    """Recursive chunking (LangChain style)"""
     separators = ["\n\n", "\n", ". ", " ", ""]
 
     for sep in separators:
@@ -438,15 +442,15 @@ def chunk_by_recursive(text: str, max_size: int = 1000) -> list[str]:
     return [text[:max_size]]
 ```
 
-### 3.4 ハイブリッド検索
+### 3.4 Hybrid Search
 
 ```python
-# ベクトル検索 + キーワード検索のハイブリッド
+# Hybrid of vector search + keyword search
 from rank_bm25 import BM25Okapi
 import numpy as np
 
 class HybridRetriever:
-    """ベクトル検索とBM25のハイブリッド検索"""
+    """Hybrid search combining vector search and BM25"""
 
     def __init__(self, embedder, vector_store):
         self.embedder = embedder
@@ -455,14 +459,14 @@ class HybridRetriever:
         self.bm25 = None
 
     def add_documents(self, documents: list[str], metadatas: list[dict] = None):
-        """ドキュメントを追加"""
+        """Add documents"""
         self.documents.extend(documents)
 
-        # BM25インデックスを再構築
+        # Rebuild BM25 index
         tokenized = [doc.split() for doc in self.documents]
         self.bm25 = BM25Okapi(tokenized)
 
-        # ベクトルDBにも追加
+        # Also add to vector DB
         for i, doc in enumerate(documents):
             self.vector_store.store(
                 doc,
@@ -471,18 +475,18 @@ class HybridRetriever:
 
     def search(self, query: str, top_k: int = 5,
                vector_weight: float = 0.7) -> list[dict]:
-        """ハイブリッド検索（RRF融合）"""
-        # ベクトル検索
+        """Hybrid search (RRF fusion)"""
+        # Vector search
         vector_results = self.vector_store.retrieve_with_scores(query, top_k=top_k * 2)
 
-        # BM25検索
+        # BM25 search
         tokenized_query = query.split()
         bm25_scores = self.bm25.get_scores(tokenized_query)
         bm25_top = np.argsort(bm25_scores)[-top_k * 2:][::-1]
 
         # Reciprocal Rank Fusion (RRF)
         rrf_scores = {}
-        k = 60  # RRFパラメータ
+        k = 60  # RRF parameter
 
         for rank, (doc, score) in enumerate(vector_results):
             rrf_scores[doc] = rrf_scores.get(doc, 0) + vector_weight / (k + rank + 1)
@@ -491,33 +495,33 @@ class HybridRetriever:
             doc = self.documents[idx]
             rrf_scores[doc] = rrf_scores.get(doc, 0) + (1 - vector_weight) / (k + rank + 1)
 
-        # スコア順にソート
+        # Sort by score
         sorted_results = sorted(rrf_scores.items(), key=lambda x: x[1], reverse=True)
         return [{"document": doc, "score": score} for doc, score in sorted_results[:top_k]]
 ```
 
-### 3.5 リランキング
+### 3.5 Reranking
 
 ```python
-# Cross-Encoderによるリランキング
+# Reranking with Cross-Encoder
 from sentence_transformers import CrossEncoder
 
 class Reranker:
-    """検索結果をCross-Encoderで再ランク付け"""
+    """Rerank search results with Cross-Encoder"""
 
     def __init__(self, model_name: str = "cross-encoder/ms-marco-MiniLM-L-6-v2"):
         self.model = CrossEncoder(model_name)
 
     def rerank(self, query: str, documents: list[str],
                top_k: int = 5) -> list[dict]:
-        """ドキュメントを再ランク付け"""
-        # クエリとドキュメントのペアを作成
+        """Rerank documents"""
+        # Create query-document pairs
         pairs = [(query, doc) for doc in documents]
 
-        # スコアリング
+        # Scoring
         scores = self.model.predict(pairs)
 
-        # スコア順にソート
+        # Sort by score
         scored_docs = list(zip(documents, scores))
         scored_docs.sort(key=lambda x: x[1], reverse=True)
 
@@ -526,50 +530,50 @@ class Reranker:
             for doc, score in scored_docs[:top_k]
         ]
 
-# 使用例: 検索→リランク
+# Usage example: search → rerank
 retriever = HybridRetriever(embedder, vector_store)
 reranker = Reranker()
 
-# 1段階目: ハイブリッド検索で候補を取得
+# Stage 1: Get candidates via hybrid search
 candidates = retriever.search(query, top_k=20)
 candidate_docs = [c["document"] for c in candidates]
 
-# 2段階目: Cross-Encoderで精度の高いリランキング
+# Stage 2: High-accuracy reranking with Cross-Encoder
 final_results = reranker.rerank(query, candidate_docs, top_k=5)
 ```
 
 ---
 
-## 4. 知識グラフメモリ
+## 4. Knowledge Graph Memory
 
-### 4.1 知識グラフの構造
+### 4.1 Knowledge Graph Structure
 
 ```
-知識グラフメモリ
+Knowledge Graph Memory
 
-  [田中] --所属--> [エンジニアリング部]
-    |                    |
-    |--使用言語-->  [Python]
-    |                    |
-    |--好む-->     [FastAPI] --カテゴリ--> [Webフレームワーク]
-    |                                         |
-    |--担当-->    [プロジェクトX] --使用--> [AWS ECS]
-    |                    |
-    v                    v
-  [senior]        [2024年Q3開始]
+  [Tanaka] --belongs to--> [Engineering Dept]
+    |                           |
+    |--uses language-->   [Python]
+    |                           |
+    |--prefers-->         [FastAPI] --category--> [Web Framework]
+    |                                                  |
+    |--in charge of-->  [Project X] --uses--> [AWS ECS]
+    |                           |
+    v                           v
+  [senior]              [Started Q3 2024]
 ```
 
-### 4.2 知識グラフメモリの実装
+### 4.2 Implementing Knowledge Graph Memory
 
 ```python
-# 知識グラフベースのメモリシステム
+# Knowledge graph-based memory system
 from dataclasses import dataclass
 from collections import defaultdict
 import json
 
 @dataclass
 class Triple:
-    """知識グラフのトリプル（主語-述語-目的語）"""
+    """A knowledge graph triple (subject-predicate-object)"""
     subject: str
     predicate: str
     object: str
@@ -577,16 +581,16 @@ class Triple:
     timestamp: float = 0.0
 
 class KnowledgeGraphMemory:
-    """知識グラフベースの長期記憶"""
+    """Long-term memory based on a knowledge graph"""
 
     def __init__(self, llm=None):
         self.triples: list[Triple] = []
-        self.entity_index = defaultdict(list)  # エンティティ→トリプルのインデックス
+        self.entity_index = defaultdict(list)  # Entity → triple index
         self.llm = llm
 
     def add_triple(self, subject: str, predicate: str, obj: str,
                    confidence: float = 1.0):
-        """トリプルを追加"""
+        """Add a triple"""
         import time
         triple = Triple(
             subject=subject.lower(),
@@ -600,19 +604,19 @@ class KnowledgeGraphMemory:
         self.entity_index[obj.lower()].append(triple)
 
     def extract_and_store(self, text: str):
-        """テキストから知識を自動抽出して保存"""
+        """Automatically extract knowledge from text and store it"""
         if not self.llm:
-            raise ValueError("LLMが必要です")
+            raise ValueError("LLM is required")
 
-        prompt = f"""以下のテキストから事実をトリプル形式で抽出してください。
+        prompt = f"""Extract facts from the following text in triple format.
 
-テキスト: {text}
+Text: {text}
 
-JSON形式で出力:
+Output in JSON format:
 [{{"subject": "...", "predicate": "...", "object": "..."}}]
 
-例:
-"田中さんはPythonが得意です" → [{{"subject": "田中", "predicate": "得意", "object": "Python"}}]
+Example:
+"Tanaka is good at Python" → [{{"subject": "Tanaka", "predicate": "is good at", "object": "Python"}}]
 """
         response = self.llm.generate(prompt)
         triples = json.loads(response)
@@ -620,12 +624,12 @@ JSON形式で出力:
             self.add_triple(t["subject"], t["predicate"], t["object"])
 
     def query(self, entity: str) -> list[Triple]:
-        """エンティティに関連するトリプルを検索"""
+        """Search for triples related to an entity"""
         return self.entity_index.get(entity.lower(), [])
 
     def query_relation(self, subject: str = None, predicate: str = None,
                        obj: str = None) -> list[Triple]:
-        """条件に合うトリプルを検索"""
+        """Search for triples matching the conditions"""
         results = self.triples
         if subject:
             results = [t for t in results if t.subject == subject.lower()]
@@ -636,7 +640,7 @@ JSON形式で出力:
         return results
 
     def get_subgraph(self, entity: str, depth: int = 2) -> list[Triple]:
-        """エンティティを中心とした部分グラフを取得"""
+        """Get a subgraph centered on an entity"""
         visited = set()
         result = []
         queue = [(entity.lower(), 0)]
@@ -659,69 +663,69 @@ JSON形式で出力:
         return result
 
     def to_context_string(self, entity: str, depth: int = 1) -> str:
-        """エンティティの知識をコンテキスト文字列として出力"""
+        """Output entity knowledge as a context string"""
         triples = self.get_subgraph(entity, depth)
         if not triples:
-            return f"{entity}に関する情報はありません。"
+            return f"No information found for {entity}."
 
         lines = []
         for t in triples:
-            lines.append(f"- {t.subject} は {t.predicate} {t.object}")
-        return f"{entity}に関する知識:\n" + "\n".join(lines)
+            lines.append(f"- {t.subject} {t.predicate} {t.object}")
+        return f"Knowledge about {entity}:\n" + "\n".join(lines)
 
-# 使用例
+# Usage example
 kg = KnowledgeGraphMemory(llm=llm)
-kg.add_triple("田中", "所属", "エンジニアリング部")
-kg.add_triple("田中", "使用言語", "Python")
-kg.add_triple("田中", "好むフレームワーク", "FastAPI")
-kg.add_triple("プロジェクトX", "使用インフラ", "AWS ECS")
-kg.add_triple("田中", "担当", "プロジェクトX")
+kg.add_triple("Tanaka", "belongs to", "Engineering Dept")
+kg.add_triple("Tanaka", "uses language", "Python")
+kg.add_triple("Tanaka", "preferred framework", "FastAPI")
+kg.add_triple("Project X", "uses infrastructure", "AWS ECS")
+kg.add_triple("Tanaka", "in charge of", "Project X")
 
-# 田中に関する情報を取得
-context = kg.to_context_string("田中")
+# Get information about Tanaka
+context = kg.to_context_string("Tanaka")
 print(context)
-# → 田中に関する知識:
-#    - 田中 は 所属 エンジニアリング部
-#    - 田中 は 使用言語 Python
-#    - 田中 は 好むフレームワーク FastAPI
-#    - 田中 は 担当 プロジェクトX
+# → Knowledge about Tanaka:
+#    - tanaka belongs to engineering dept
+#    - tanaka uses language python
+#    - tanaka preferred framework fastapi
+#    - tanaka in charge of project x
 ```
 
 ---
 
-## 5. エピソード記憶
+## 5. Episodic Memory
 
-### 5.1 エピソード記憶の設計
+### 5.1 Designing Episodic Memory
 
 ```
-エピソード記憶: 過去の「体験」を時系列で保存
+Episodic Memory: Store past "experiences" in chronological order
 
 Episode 1 (2024-01-15):
-  タスク: "FastAPIでCRUD APIを作成"
-  結果: 成功
-  学んだこと: "SQLAlchemyとの組み合わせが効率的"
-  困難だった点: "非同期セッション管理"
+  Task: "Create a CRUD API with FastAPI"
+  Result: Success
+  Lessons learned: "Combining with SQLAlchemy is efficient"
+  Difficulties: "Async session management"
 
 Episode 2 (2024-01-16):
-  タスク: "APIにJWT認証を追加"
-  結果: 成功（2回目の試行で）
-  学んだこと: "python-joseよりPyJWTの方がシンプル"
-  困難だった点: "トークンリフレッシュのロジック"
+  Task: "Add JWT authentication to the API"
+  Result: Success (on the 2nd attempt)
+  Lessons learned: "PyJWT is simpler than python-jose"
+  Difficulties: "Token refresh logic"
 
-→ 新しいタスクで類似状況に遭遇したら、過去のエピソードを参照
+→ When a similar situation is encountered in a new task, refer to past episodes
 ```
 
-### 5.2 エピソード記憶の実装
+### 5.2 Implementing Episodic Memory
 
 ```python
-# エピソード記憶: 過去の体験から学習
+# Episodic memory: learn from past experiences
 from dataclasses import dataclass, field
 from datetime import datetime
 import json
 
 @dataclass
 class Episode:
-    """1つのタスク実行エピソード"""
+    """A single task execution episode"""
     task: str
     actions: list[str]
     result: str
@@ -733,22 +737,22 @@ class Episode:
     tags: list[str] = field(default_factory=list)
 
 class EpisodicMemory:
-    """エピソード記憶: 過去の体験を保存・検索"""
+    """Episodic memory: store and retrieve past experiences"""
 
     def __init__(self, rag_memory: RAGMemory):
         self.episodes: list[Episode] = []
         self.rag = rag_memory
 
     def record_episode(self, episode: Episode):
-        """エピソードを記録"""
+        """Record an episode"""
         self.episodes.append(episode)
 
-        # RAGにもインデックス
+        # Also index in RAG
         episode_text = (
-            f"タスク: {episode.task}\n"
-            f"結果: {'成功' if episode.success else '失敗'}\n"
-            f"学び: {', '.join(episode.lessons_learned)}\n"
-            f"困難: {', '.join(episode.difficulties)}"
+            f"Task: {episode.task}\n"
+            f"Result: {'Success' if episode.success else 'Failure'}\n"
+            f"Lessons: {', '.join(episode.lessons_learned)}\n"
+            f"Difficulties: {', '.join(episode.difficulties)}"
         )
         self.rag.store(episode_text, metadata={
             "type": "episode",
@@ -759,9 +763,9 @@ class EpisodicMemory:
 
     def recall_similar(self, current_task: str,
                        top_k: int = 3) -> list[Episode]:
-        """現在のタスクに類似した過去のエピソードを想起"""
+        """Recall past episodes similar to the current task"""
         similar_texts = self.rag.retrieve(current_task, top_k=top_k)
-        # テキストからエピソードを復元
+        # Restore episodes from text
         recalled = []
         for text in similar_texts:
             for episode in self.episodes:
@@ -771,22 +775,22 @@ class EpisodicMemory:
         return recalled
 
     def get_lessons_for_task(self, task: str) -> str:
-        """タスクに関連する過去の教訓をまとめて返す"""
+        """Return a summary of past lessons related to the task"""
         similar = self.recall_similar(task, top_k=5)
         if not similar:
-            return "関連する過去のエピソードはありません。"
+            return "No related past episodes found."
 
         lessons = []
         for ep in similar:
             if ep.success:
-                lessons.append(f"[成功] {ep.task}: {', '.join(ep.lessons_learned)}")
+                lessons.append(f"[Success] {ep.task}: {', '.join(ep.lessons_learned)}")
             else:
-                lessons.append(f"[失敗] {ep.task}: {', '.join(ep.difficulties)}")
+                lessons.append(f"[Failure] {ep.task}: {', '.join(ep.difficulties)}")
 
-        return "過去のエピソードからの教訓:\n" + "\n".join(lessons)
+        return "Lessons from past episodes:\n" + "\n".join(lessons)
 
     def get_success_rate(self, tag: str = None) -> float:
-        """成功率を計算"""
+        """Calculate success rate"""
         episodes = self.episodes
         if tag:
             episodes = [e for e in episodes if tag in e.tags]
@@ -797,74 +801,74 @@ class EpisodicMemory:
 
 ---
 
-## 6. メモリ戦略の比較
+## 6. Comparing Memory Strategies
 
-### 6.1 短期記憶パターン比較
+### 6.1 Short-Term Memory Pattern Comparison
 
-| パターン | メモリ使用量 | 文脈保持 | コスト | 適用場面 |
-|----------|-------------|---------|--------|---------|
-| 全履歴バッファ | 高（線形増加） | 完全 | 高 | 短い会話 |
-| スライディングウィンドウ | 固定 | 直近のみ | 中 | 一般的な対話 |
-| 要約メモリ | 低 | 要約で圧縮 | 中（要約コスト） | 長い会話 |
-| トークン制限バッファ | 固定 | 制限内 | 中 | API制限意識 |
-| ハイブリッド | 中 | 要約+直近 | 中 | バランス重視 |
+| Pattern | Memory Usage | Context Retention | Cost | Use Case |
+|---------|-------------|-------------------|------|----------|
+| Full history buffer | High (linear growth) | Complete | High | Short conversations |
+| Sliding window | Fixed | Recent only | Medium | General dialogue |
+| Summary memory | Low | Compressed summary | Medium (summary cost) | Long conversations |
+| Token-limited buffer | Fixed | Within limit | Medium | API limit awareness |
+| Hybrid | Medium | Summary + recent | Medium | Balance-oriented |
 
-### 6.2 長期記憶ストア比較
+### 6.2 Long-Term Memory Store Comparison
 
-| ストア | 検索方式 | スケーラビリティ | コスト | 代表製品 |
-|--------|---------|----------------|--------|---------|
-| ベクトルDB | セマンティック | 高 | 中-高 | Pinecone, Chroma |
-| キーバリュー | 完全一致 | 高 | 低 | Redis, DynamoDB |
-| グラフDB | 関係性 | 中 | 中 | Neo4j |
-| RDBMS | SQL | 高 | 低-中 | PostgreSQL + pgvector |
-| ファイル | 全文検索 | 低 | 最低 | JSON, SQLite |
+| Store | Search Method | Scalability | Cost | Representative Products |
+|-------|--------------|-------------|------|------------------------|
+| Vector DB | Semantic | High | Medium-High | Pinecone, Chroma |
+| Key-Value | Exact match | High | Low | Redis, DynamoDB |
+| Graph DB | Relationships | Medium | Medium | Neo4j |
+| RDBMS | SQL | High | Low-Medium | PostgreSQL + pgvector |
+| File | Full-text search | Low | Lowest | JSON, SQLite |
 
-### 6.3 メモリアーキテクチャの選定フローチャート
+### 6.3 Memory Architecture Selection Flowchart
 
 ```
-メモリアーキテクチャ選定
+Memory Architecture Selection
 
-Q1: 会話は長時間続くか？
-├── NO → 全履歴バッファで十分
+Q1: Will the conversation last a long time?
+├── NO → A full history buffer is sufficient
 └── YES
-    Q2: 過去のセッションの情報が必要か？
-    ├── NO → 要約メモリ or スライディングウィンドウ
+    Q2: Is information from past sessions needed?
+    ├── NO → Summary memory or sliding window
     └── YES
-        Q3: エンティティ間の関係性が重要か？
-        ├── YES → 知識グラフ + ベクトルDB
+        Q3: Are relationships between entities important?
+        ├── YES → Knowledge graph + Vector DB
         └── NO
-            Q4: データ量は？
-            ├── 少（〜1万件） → ChromaDB（ローカル）
-            ├── 中（〜100万件） → PostgreSQL + pgvector
-            └── 大（100万件〜） → Pinecone / Milvus
+            Q4: How much data?
+            ├── Small (~10K entries)  → ChromaDB (local)
+            ├── Medium (~1M entries)  → PostgreSQL + pgvector
+            └── Large (1M+ entries)  → Pinecone / Milvus
 ```
 
 ---
 
-## 7. 統合メモリシステム
+## 7. Integrated Memory System
 
 ```python
-# 短期 + 長期を統合したメモリシステム
+# Memory system integrating short-term and long-term
 class IntegratedMemory:
     def __init__(self, llm, rag_memory: RAGMemory):
         self.short_term = SummaryMemory(llm)
-        self.working = {}  # タスク固有の作業領域
+        self.working = {}  # Task-specific working area
         self.long_term = rag_memory
 
     def add_conversation(self, role: str, content: str):
-        """会話を短期記憶に追加"""
+        """Add a conversation to short-term memory"""
         self.short_term.add(role, content)
 
     def add_fact(self, fact: str, metadata: dict = None):
-        """事実を長期記憶に保存"""
+        """Save a fact to long-term memory"""
         self.long_term.store(fact, metadata)
 
     def set_working(self, key: str, value):
-        """作業記憶に一時データを保存"""
+        """Save temporary data to working memory"""
         self.working[key] = value
 
     def get_context(self, current_query: str) -> dict:
-        """現在の文脈を統合して返す"""
+        """Return an integrated context for the current state"""
         return {
             "conversation": self.short_term.get_context(),
             "relevant_memories": self.long_term.retrieve(current_query, top_k=3),
@@ -872,7 +876,7 @@ class IntegratedMemory:
         }
 
     def end_task(self, task_summary: str):
-        """タスク終了時に結果を長期記憶に保存"""
+        """Save results to long-term memory when a task ends"""
         self.long_term.store(
             task_summary,
             metadata={"type": "task_result", "timestamp": time.time()}
@@ -880,38 +884,38 @@ class IntegratedMemory:
         self.working.clear()
 ```
 
-### 7.1 プロダクション統合メモリ
+### 7.1 Production Integrated Memory
 
 ```python
-# プロダクション対応の統合メモリシステム
+# Production-ready integrated memory system
 import time
 import logging
 from typing import Optional
 
 class ProductionMemorySystem:
-    """プロダクション環境対応の統合メモリシステム"""
+    """Integrated memory system for production environments"""
 
     def __init__(self, config: dict):
         self.logger = logging.getLogger("memory")
 
-        # 短期記憶
+        # Short-term memory
         self.short_term = HybridShortTermMemory(
             llm=config["llm"],
             window_size=config.get("window_size", 15)
         )
 
-        # 長期記憶（ベクトルDB）
+        # Long-term memory (vector DB)
         self.long_term = RAGMemory(
             collection_name=config.get("collection", "production_memory")
         )
 
-        # 知識グラフ
+        # Knowledge graph
         self.knowledge_graph = KnowledgeGraphMemory(llm=config["llm"])
 
-        # エピソード記憶
+        # Episodic memory
         self.episodic = EpisodicMemory(rag_memory=self.long_term)
 
-        # メトリクス
+        # Metrics
         self.metrics = {
             "store_count": 0,
             "retrieve_count": 0,
@@ -919,13 +923,13 @@ class ProductionMemorySystem:
             "avg_retrieve_latency": 0.0
         }
 
-        # 検索結果キャッシュ
+        # Search result cache
         self._cache = {}
         self._cache_ttl = config.get("cache_ttl", 300)
 
     def store(self, content: str, memory_type: str = "fact",
               metadata: dict = None):
-        """記憶を保存"""
+        """Save a memory"""
         meta = metadata or {}
         meta["memory_type"] = memory_type
         meta["stored_at"] = time.time()
@@ -933,16 +937,16 @@ class ProductionMemorySystem:
         self.long_term.store(content, metadata=meta)
         self.metrics["store_count"] += 1
 
-        # 知識グラフにも抽出・保存
+        # Also extract and save to knowledge graph
         try:
             self.knowledge_graph.extract_and_store(content)
         except Exception as e:
-            self.logger.warning(f"知識グラフ抽出失敗: {e}")
+            self.logger.warning(f"Knowledge graph extraction failed: {e}")
 
     def retrieve(self, query: str, top_k: int = 5,
                  use_cache: bool = True) -> dict:
-        """統合検索"""
-        # キャッシュチェック
+        """Integrated search"""
+        # Cache check
         cache_key = f"{query}:{top_k}"
         if use_cache and cache_key in self._cache:
             entry = self._cache[cache_key]
@@ -952,7 +956,7 @@ class ProductionMemorySystem:
 
         start = time.time()
 
-        # 各メモリソースから検索
+        # Search from each memory source
         result = {
             "conversation_context": self.short_term.get_context(),
             "semantic_matches": self.long_term.retrieve(query, top_k),
@@ -966,7 +970,7 @@ class ProductionMemorySystem:
         self.metrics["retrieve_count"] += 1
         self._update_avg_latency(latency)
 
-        # キャッシュに保存
+        # Save to cache
         self._cache[cache_key] = {
             "result": result,
             "timestamp": time.time()
@@ -975,34 +979,34 @@ class ProductionMemorySystem:
         return result
 
     def build_prompt_context(self, query: str) -> str:
-        """LLMに渡すコンテキスト文字列を構築"""
+        """Build context string to pass to the LLM"""
         retrieved = self.retrieve(query)
 
         parts = []
 
-        # 会話コンテキスト
+        # Conversation context
         conv = retrieved["conversation_context"]
         if conv:
-            parts.append("=== 会話履歴 ===")
+            parts.append("=== Conversation History ===")
             for msg in conv[-5:]:
                 parts.append(f"{msg['role']}: {msg['content']}")
 
-        # セマンティック検索結果
+        # Semantic search results
         matches = retrieved["semantic_matches"]
         if matches:
-            parts.append("\n=== 関連する記憶 ===")
+            parts.append("\n=== Relevant Memories ===")
             for i, match in enumerate(matches, 1):
                 parts.append(f"{i}. {match}")
 
-        # 知識グラフ
+        # Knowledge graph
         kg = retrieved["knowledge_graph"]
-        if kg and "情報はありません" not in kg:
-            parts.append(f"\n=== 知識 ===\n{kg}")
+        if kg and "No information found" not in kg:
+            parts.append(f"\n=== Knowledge ===\n{kg}")
 
-        # エピソード記憶
+        # Episodic memory
         episodes = retrieved["past_episodes"]
-        if episodes and "ありません" not in episodes:
-            parts.append(f"\n=== 過去の経験 ===\n{episodes}")
+        if episodes and "No related" not in episodes:
+            parts.append(f"\n=== Past Experiences ===\n{episodes}")
 
         return "\n".join(parts)
 
@@ -1017,58 +1021,59 @@ class ProductionMemorySystem:
 
 ---
 
-## 8. メモリのライフサイクル
+## 8. Memory Lifecycle
 
 ```
-メモリのライフサイクル管理
+Memory Lifecycle Management
 
-セッション開始
+Session Start
      |
      v
 +--------------------+
-| 長期記憶からロード   |  ← ユーザー情報、過去のタスク
+| Load from long-term |  ← User info, past tasks
 +----+---------------+
      |
      v
 +--------------------+
-| 短期記憶に会話追加   |  ← 各ターンで更新
+| Add conversation to |  ← Updated each turn
+| short-term memory  |
 +----+---------------+
      |
-     v (閾値超過?)
+     v (Threshold exceeded?)
 +--------------------+
-| 要約・圧縮          |  ← 古い履歴を要約
+| Summarize/Compress  |  ← Summarize old history
 +----+---------------+
      |
      v
 +--------------------+
-| タスク完了          |
+| Task Complete       |
 +----+---------------+
      |
      v
 +--------------------+
-| 重要情報を           |  ← 学習した事実、ユーザー好み
-| 長期記憶に保存       |
+| Save important info |  ← Learned facts, user preferences
+| to long-term memory |
 +----+---------------+
      |
      v
-セッション終了
+Session End
 ```
 
-### 8.1 メモリのガベージコレクション
+### 8.1 Memory Garbage Collection
 
 ```python
-# 不要なメモリの自動クリーンアップ
+# Automatic cleanup of unnecessary memory
 class MemoryGarbageCollector:
-    """古い・重複するメモリの自動クリーンアップ"""
+    """Automatic cleanup of old and duplicate memory"""
 
     def __init__(self, memory: RAGMemory, max_age_days: int = 90):
         self.memory = memory
         self.max_age_days = max_age_days
 
     def cleanup_old_entries(self):
-        """古いエントリを削除"""
+        """Delete old entries"""
         cutoff = time.time() - (self.max_age_days * 86400)
-        # メタデータでフィルタリングして古いエントリを特定・削除
+        # Identify and delete old entries using metadata filtering
         results = self.memory.collection.get(
             where={"stored_at": {"$lt": cutoff}}
         )
@@ -1078,7 +1083,7 @@ class MemoryGarbageCollector:
         return 0
 
     def deduplicate(self, similarity_threshold: float = 0.95):
-        """重複するメモリを統合"""
+        """Merge duplicate memories"""
         all_docs = self.memory.collection.get()
         to_delete = []
 
@@ -1086,10 +1091,10 @@ class MemoryGarbageCollector:
             for j, doc_j in enumerate(all_docs["documents"]):
                 if i >= j:
                     continue
-                # 類似度チェック
+                # Similarity check
                 similarity = self._compute_similarity(doc_i, doc_j)
                 if similarity > similarity_threshold:
-                    # 古い方を削除候補に
+                    # Mark the older one for deletion
                     to_delete.append(all_docs["ids"][j])
 
         if to_delete:
@@ -1098,8 +1103,8 @@ class MemoryGarbageCollector:
         return 0
 
     def compact_summaries(self, llm, max_per_topic: int = 5):
-        """同じトピックのメモリを要約して統合"""
-        # トピック別にグループ化
+        """Summarize and merge memories on the same topic"""
+        # Group by topic
         all_docs = self.memory.collection.get(include=["documents", "metadatas"])
         topics = defaultdict(list)
 
@@ -1107,44 +1112,44 @@ class MemoryGarbageCollector:
             topic = meta.get("topic", "general")
             topics[topic].append(doc)
 
-        # トピックごとに要約
+        # Summarize per topic
         for topic, docs in topics.items():
             if len(docs) > max_per_topic:
                 combined = "\n".join(docs)
                 summary = llm.generate(
-                    f"以下の{len(docs)}件の情報を{max_per_topic}件に要約:\n{combined}"
+                    f"Summarize the following {len(docs)} items into {max_per_topic}:\n{combined}"
                 )
-                # 古いエントリを削除し、要約を保存
-                # (実際の実装ではIDの追跡が必要)
+                # Delete old entries and save summary
+                # (actual implementation requires ID tracking)
 ```
 
 ---
 
-## 9. トラブルシューティング
+## 9. Troubleshooting
 
-### 9.1 よくある問題と解決策
+### 9.1 Common Problems and Solutions
 
-| 問題 | 原因 | 解決策 |
-|------|------|--------|
-| 記憶が見つからない | 検索クエリとチャンクのミスマッチ | チャンクサイズの調整、ハイブリッド検索の導入 |
-| 不正確な記憶の想起 | 類似だが異なる文脈の記憶 | メタデータフィルタ、リランキングの追加 |
-| メモリ肥大化 | ガベージコレクション不足 | 定期的なクリーンアップ、TTLの設定 |
-| 会話の文脈喪失 | 要約が重要情報を落とす | 重要事実の別途保存、ハイブリッド短期記憶 |
-| レイテンシ増大 | 検索対象の増大 | インデックス最適化、キャッシュ、バッチ検索 |
-| コンテキスト超過 | 取得記憶が多すぎる | top_kの制限、結果の要約 |
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Memory not found | Mismatch between search query and chunks | Adjust chunk size, introduce hybrid search |
+| Inaccurate memory recall | Similar but different-context memory | Add metadata filter, add reranking |
+| Memory bloat | Insufficient garbage collection | Periodic cleanup, set TTL |
+| Loss of conversation context | Summary drops important information | Store important facts separately, use hybrid short-term memory |
+| Increased latency | Growing search targets | Index optimization, caching, batch search |
+| Context overflow | Too many retrieved memories | Limit top_k, summarize results |
 
-### 9.2 メモリデバッグツール
+### 9.2 Memory Debugging Tools
 
 ```python
-# メモリシステムのデバッグ支援
+# Debug support for the memory system
 class MemoryDebugger:
-    """メモリシステムのデバッグ・分析ツール"""
+    """Debug and analysis tool for the memory system"""
 
     def __init__(self, memory_system):
         self.memory = memory_system
 
     def inspect_retrieval(self, query: str, top_k: int = 10) -> dict:
-        """検索結果の詳細分析"""
+        """Detailed analysis of search results"""
         results = self.memory.long_term.collection.query(
             query_texts=[query],
             n_results=top_k,
@@ -1173,7 +1178,7 @@ class MemoryDebugger:
         return analysis
 
     def check_memory_health(self) -> dict:
-        """メモリシステムの健全性チェック"""
+        """Check the health of the memory system"""
         collection = self.memory.long_term.collection
         count = collection.count()
 
@@ -1188,103 +1193,103 @@ class MemoryDebugger:
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン1: 無制限の会話履歴
+### Anti-Pattern 1: Unlimited Conversation History
 
 ```python
-# NG: 全履歴をそのままLLMに渡す
-messages = load_all_history()  # 10万トークン超え
-response = llm.generate(messages=messages)  # コンテキスト超過エラー
+# NG: Pass all history directly to the LLM
+messages = load_all_history()  # Exceeds 100K tokens
+response = llm.generate(messages=messages)  # Context overflow error
 
-# OK: 適切な圧縮戦略を適用
+# OK: Apply an appropriate compression strategy
 memory = SummaryMemory(llm, max_tokens=4000)
 for msg in load_all_history():
     memory.add(msg["role"], msg["content"])
 response = llm.generate(messages=memory.get_context())
 ```
 
-### アンチパターン2: 検索なしの長期記憶
+### Anti-Pattern 2: Long-Term Memory Without Retrieval
 
 ```python
-# NG: すべての長期記憶をプロンプトに含める
-all_memories = database.get_all()  # 大量のデータ
-prompt = f"知識: {all_memories}\n質問: {query}"
+# NG: Include all long-term memories in the prompt
+all_memories = database.get_all()  # Large amount of data
+prompt = f"Knowledge: {all_memories}\nQuestion: {query}"
 
-# OK: クエリに関連する記憶のみ検索して含める
+# OK: Search and include only memories relevant to the query
 relevant = rag_memory.retrieve(query, top_k=5)
-prompt = f"関連知識:\n{chr(10).join(relevant)}\n\n質問: {query}"
+prompt = f"Relevant knowledge:\n{chr(10).join(relevant)}\n\nQuestion: {query}"
 ```
 
-### アンチパターン3: メモリの冗長保存
+### Anti-Pattern 3: Redundant Memory Storage
 
 ```python
-# NG: 同じ情報を何度も保存
+# NG: Store the same information repeatedly
 for turn in conversation:
-    memory.store(f"ユーザーの名前は{user_name}")  # 毎ターン保存
+    memory.store(f"The user's name is {user_name}")  # Stored every turn
 
-# OK: 変更があった場合のみ保存
+# OK: Store only when there is a change
 def store_if_new(memory, key, value):
     existing = memory.retrieve(key, top_k=1)
     if not existing or existing[0] != value:
         memory.store(value, metadata={"key": key, "updated": time.time()})
 ```
 
-### アンチパターン4: チャンクサイズの不適切な設定
+### Anti-Pattern 4: Inappropriate Chunk Size Settings
 
 ```python
-# NG: チャンクが小さすぎる
-chunks = chunk_by_tokens(text, chunk_size=50)  # 文脈不足
+# NG: Chunks are too small
+chunks = chunk_by_tokens(text, chunk_size=50)  # Insufficient context
 
-# NG: チャンクが大きすぎる
-chunks = chunk_by_tokens(text, chunk_size=5000)  # ノイズが多い
+# NG: Chunks are too large
+chunks = chunk_by_tokens(text, chunk_size=5000)  # Too much noise
 
-# OK: 適切なサイズ（300-800トークン）でオーバーラップ付き
+# OK: Appropriate size (300-800 tokens) with overlap
 chunks = chunk_by_tokens(text, chunk_size=500, overlap=50)
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Perform input data validation
+- Implement appropriate error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1293,26 +1298,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following functionality.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1320,7 +1325,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1331,14 +1336,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1346,7 +1351,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1354,44 +1359,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1400,7 +1405,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1415,126 +1420,126 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup:      {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 ---
 
 ## 11. FAQ
 
-### Q1: どのベクトルDBを選ぶべきか？
+### Q1: Which vector DB should I choose?
 
-- **プロトタイプ**: ChromaDB（組み込み型、セットアップ不要）
-- **小〜中規模本番**: PostgreSQL + pgvector（既存DBを活用）
-- **大規模本番**: Pinecone（マネージド、スケーラブル）
-- **オンプレミス**: Weaviate, Milvus（セルフホスト可能）
+- **Prototype**: ChromaDB (embedded, no setup required)
+- **Small to medium production**: PostgreSQL + pgvector (leverages existing DB)
+- **Large-scale production**: Pinecone (managed, scalable)
+- **On-premises**: Weaviate, Milvus (self-hostable)
 
-### Q2: メモリに何を保存すべきか？
+### Q2: What should be stored in memory?
 
-優先度順に:
-1. **ユーザーの好み・設定**（「Pythonを好む」「簡潔な回答を希望」）
-2. **プロジェクト固有の事実**（「DBはPostgreSQLを使用」）
-3. **過去のタスク結果の要約**（「前回のレビューで指摘した3点」）
-4. **エラーと解決策のペア**（「X のエラーは Y で解決」）
+In order of priority:
+1. **User preferences and settings** ("prefers Python", "wants concise answers")
+2. **Project-specific facts** ("uses PostgreSQL for the DB")
+3. **Summaries of past task results** ("3 points raised in the previous review")
+4. **Error and solution pairs** ("error X is resolved by Y")
 
-### Q3: RAGの精度を上げるには？
+### Q3: How do I improve RAG accuracy?
 
-- **チャンクサイズの最適化**: 小さすぎると文脈不足、大きすぎるとノイズ混入。300-800トークンが一般的
-- **ハイブリッド検索**: ベクトル検索 + キーワード検索（BM25）の組み合わせ
-- **リランキング**: 検索結果をCross-Encoderで再ランク付け
-- **メタデータフィルタリング**: 検索前にカテゴリ等で絞り込み
+- **Optimize chunk size**: Too small means insufficient context, too large means noise. 300-800 tokens is typical.
+- **Hybrid search**: Combine vector search + keyword search (BM25)
+- **Reranking**: Rerank search results with Cross-Encoder
+- **Metadata filtering**: Filter by category etc. before searching
 
-### Q4: メモリの永続化方法は？
+### Q4: How do I persist memory?
 
-| 方法 | 特徴 | 適用場面 |
-|------|------|---------|
-| ファイル保存（JSON） | シンプル、バックアップ容易 | プロトタイプ |
-| SQLite | 組み込み型、SQL対応 | 小規模本番 |
-| PostgreSQL + pgvector | スケーラブル、ベクトル検索 | 本番環境 |
-| Redis | 高速、揮発性 | キャッシュ層 |
-| S3 + DynamoDB | AWS統合、コスト最適 | クラウドネイティブ |
+| Method | Features | Use Case |
+|--------|----------|----------|
+| File storage (JSON) | Simple, easy to back up | Prototype |
+| SQLite | Embedded, SQL support | Small-scale production |
+| PostgreSQL + pgvector | Scalable, vector search | Production environment |
+| Redis | Fast, volatile | Cache layer |
+| S3 + DynamoDB | AWS integration, cost-optimized | Cloud-native |
 
-### Q5: メモリの一貫性をどう保つか？
+### Q5: How do I maintain memory consistency?
 
 ```python
-# メモリの一貫性維持パターン
+# Pattern for maintaining memory consistency
 class ConsistentMemory:
     def update_fact(self, key: str, new_value: str):
-        """事実の更新時に一貫性を保つ"""
-        # 1. 古い事実を検索
+        """Maintain consistency when updating a fact"""
+        # 1. Search for the old fact
         old = self.retrieve(key, top_k=1)
 
-        # 2. 矛盾チェック
+        # 2. Contradiction check
         if old and self._contradicts(old[0], new_value):
-            # 3. 古い事実を無効化
+            # 3. Invalidate the old fact
             self.invalidate(old[0])
             self.store(
-                f"[更新] {key}: {new_value}（以前: {old[0]}）",
+                f"[Updated] {key}: {new_value} (previously: {old[0]})",
                 metadata={"type": "fact_update"}
             )
         else:
             self.store(new_value, metadata={"key": key})
 ```
 
-### Q6: エンベディングモデルの選択基準は？
+### Q6: What are the criteria for choosing an embedding model?
 
-| モデル | 次元数 | 性能 | 速度 | コスト |
-|--------|-------|------|------|--------|
-| all-MiniLM-L6-v2 | 384 | 中 | 非常に速い | 無料 |
-| all-mpnet-base-v2 | 768 | 高 | 速い | 無料 |
-| text-embedding-3-small | 1536 | 高 | API依存 | 安い |
-| text-embedding-3-large | 3072 | 最高 | API依存 | 中程度 |
-| Cohere embed-v3 | 1024 | 高 | API依存 | 中程度 |
+| Model | Dimensions | Performance | Speed | Cost |
+|-------|-----------|-------------|-------|------|
+| all-MiniLM-L6-v2 | 384 | Medium | Very fast | Free |
+| all-mpnet-base-v2 | 768 | High | Fast | Free |
+| text-embedding-3-small | 1536 | High | API-dependent | Cheap |
+| text-embedding-3-large | 3072 | Highest | API-dependent | Moderate |
+| Cohere embed-v3 | 1024 | High | API-dependent | Moderate |
 
-**推奨**: プロトタイプは all-MiniLM-L6-v2、本番は text-embedding-3-small 以上。
+**Recommendation**: Use all-MiniLM-L6-v2 for prototypes, text-embedding-3-small or above for production.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Your understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in everyday development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
-|------|------|
-| 3層構造 | 短期（セッション）・作業（タスク）・長期（永続） |
-| 短期記憶 | バッファ / スライディングウィンドウ / 要約 / ハイブリッド |
-| 長期記憶 | ベクトルDB + RAGによるセマンティック検索 |
-| 知識グラフ | エンティティ間の関係性を構造化保存 |
-| エピソード記憶 | 過去の体験（成功・失敗）から学習 |
-| チャンキング | トークン / セマンティック / 再帰的 |
-| 統合設計 | 短期+長期+知識グラフ+エピソードを統合 |
-| 核心原則 | 関連する記憶のみを効率的に取得する |
+| Item | Details |
+|------|---------|
+| Three-layer model | Short-term (session) / Working (task) / Long-term (persistent) |
+| Short-term memory | Buffer / Sliding window / Summary / Hybrid |
+| Long-term memory | Semantic search with Vector DB + RAG |
+| Knowledge graph | Structured storage of relationships between entities |
+| Episodic memory | Learn from past experiences (successes and failures) |
+| Chunking | Token-based / Semantic / Recursive |
+| Integrated design | Combine short-term + long-term + knowledge graph + episodic |
+| Core principle | Efficiently retrieve only relevant memories |
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [../01-patterns/00-single-agent.md](../01-patterns/00-single-agent.md) — シングルエージェントでのメモリ活用
-- [../01-patterns/03-autonomous-agents.md](../01-patterns/03-autonomous-agents.md) — 自律エージェントの長期記憶
-- [../02-implementation/00-langchain-agent.md](../02-implementation/00-langchain-agent.md) — LangChainでのメモリ実装
+- [../01-patterns/00-single-agent.md](../01-patterns/00-single-agent.md) — Using memory in single agents
+- [../01-patterns/03-autonomous-agents.md](../01-patterns/03-autonomous-agents.md) — Long-term memory for autonomous agents
+- [../02-implementation/00-langchain-agent.md](../02-implementation/00-langchain-agent.md) — Implementing memory with LangChain
 
-## 参考文献
+## References
 
 1. Lewis, P. et al., "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks" (2020) — https://arxiv.org/abs/2005.11401
 2. LangChain, "Memory" — https://python.langchain.com/docs/concepts/memory/
