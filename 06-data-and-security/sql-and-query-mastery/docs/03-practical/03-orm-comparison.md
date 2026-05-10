@@ -1,150 +1,150 @@
-# ORM 比較 — Prisma / TypeORM / Drizzle / SQLAlchemy
+# ORM Comparison — Prisma / TypeORM / Drizzle / SQLAlchemy
 
-> 主要 4 つの ORM を機能・パフォーマンス・開発体験の観点から比較し、プロジェクトに最適な ORM を選択するための実践ガイド。
-
----
-
-## この章で学ぶこと
-
-1. **各 ORM のアーキテクチャ** と設計思想の違い
-2. **CRUD 操作の実装比較** と型安全性の差
-3. **パフォーマンス特性** とスケーラビリティの違い
-4. **トランザクション管理** の実装パターン
-5. **マイグレーション戦略** と本番運用の考慮事項
-
-## 前提知識
-
-- TypeScript または Python の基礎知識
-- リレーショナルデータベースの基本概念（テーブル、リレーション、SQL）
-- [02-performance-tuning.md](./02-performance-tuning.md) の接続プール知識があると望ましい
+> A practical guide comparing the four major ORMs across features, performance, and developer experience to help you choose the best ORM for your project.
 
 ---
 
-## 1. ORM 選択の全体像
+## What You Will Learn
 
-### 1.1 設計思想の違い
+1. **Architecture of each ORM** and differences in design philosophy
+2. **CRUD implementation comparison** and differences in type safety
+3. **Performance characteristics** and scalability differences
+4. **Transaction management** implementation patterns
+5. **Migration strategies** and production operation considerations
+
+## Prerequisites
+
+- Basic knowledge of TypeScript or Python
+- Fundamental concepts of relational databases (tables, relations, SQL)
+- Knowledge of connection pooling from [02-performance-tuning.md](./02-performance-tuning.md) is recommended
+
+---
+
+## 1. Overview of ORM Selection
+
+### 1.1 Differences in Design Philosophy
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│               ORM の設計思想スペクトラム                 │
+│               ORM Design Philosophy Spectrum            │
 │                                                        │
-│  SQL に近い ←──────────────────────────→ 抽象度が高い   │
+│  Close to SQL ←──────────────────────────→ High abstraction │
 │                                                        │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌────────┐ │
 │  │ Drizzle  │  │SQLAlchemy│  │  Prisma  │  │TypeORM │ │
 │  │          │  │  Core    │  │          │  │        │ │
-│  │ SQL-like │  │ 表現力   │  │ 独自DSL  │  │ AR/DM  │ │
-│  │ TypeSafe │  │ 最大     │  │ 型生成   │  │ デコ   │ │
-│  └──────────┘  └──────────┘  └──────────┘  │ レータ │ │
+│  │ SQL-like │  │ Maximum  │  │ Own DSL  │  │ AR/DM  │ │
+│  │ TypeSafe │  │ Expressive│  │ Type Gen │  │ Deco   │ │
+│  └──────────┘  └──────────┘  └──────────┘  │ rators │ │
 │                                            └────────┘ │
 │                                                        │
-│  型安全 ←────────────────────────────→ 柔軟性          │
+│  Type Safe ←────────────────────────────→ Flexibility  │
 │                                                        │
 │  Drizzle ≈ Prisma > SQLAlchemy > TypeORM              │
 └────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 各 ORM の立ち位置
+### 1.2 Positioning of Each ORM
 
 ```
-                    型安全性
+                    Type Safety
                       ▲
                       │
               Prisma  │  Drizzle
                  ●    │    ●
                       │
-   ──────────────────┼──────────────────→ SQL制御度
+   ──────────────────┼──────────────────→ SQL Control
                       │
             TypeORM   │   SQLAlchemy
                 ●     │      ●
                       │
 ```
 
-### 1.3 ORMの内部アーキテクチャ
+### 1.3 ORM Internal Architecture
 
 ```
-┌──────── ORM の内部動作フロー ──────────────────┐
+┌──────── ORM Internal Operation Flow ──────────────────┐
 │                                                  │
-│  アプリケーションコード                           │
+│  Application Code                                │
 │  │                                              │
 │  ▼                                              │
 │  ┌──────────────────────────────────┐           │
-│  │ ORM レイヤー                      │           │
+│  │ ORM Layer                         │           │
 │  │  ┌─────────────────────────┐     │           │
-│  │  │ クエリビルダー           │     │           │
-│  │  │ (TypeSafe API → SQL生成)│     │           │
+│  │  │ Query Builder            │     │           │
+│  │  │ (TypeSafe API → SQL gen)│     │           │
 │  │  └───────┬─────────────────┘     │           │
 │  │          │                        │           │
 │  │  ┌───────▼─────────────────┐     │           │
-│  │  │ マッピングレイヤー       │     │           │
-│  │  │ (DB行 → オブジェクト)   │     │           │
+│  │  │ Mapping Layer            │     │           │
+│  │  │ (DB rows → Objects)     │     │           │
 │  │  └───────┬─────────────────┘     │           │
 │  │          │                        │           │
 │  │  ┌───────▼─────────────────┐     │           │
-│  │  │ 接続プール管理           │     │           │
+│  │  │ Connection Pool Manager  │     │           │
 │  │  │ (Connection Pooling)    │     │           │
 │  │  └───────┬─────────────────┘     │           │
 │  └──────────┼────────────────────────┘           │
 │             │                                    │
 │  ┌──────────▼──────────────────────┐             │
-│  │ データベースドライバ             │             │
-│  │ (pg, mysql2, better-sqlite3等) │             │
+│  │ Database Driver                  │             │
+│  │ (pg, mysql2, better-sqlite3, etc.) │             │
 │  └──────────┬──────────────────────┘             │
 │             │                                    │
 │  ┌──────────▼──────────────────────┐             │
-│  │ RDBMS (PostgreSQL, MySQL等)    │             │
+│  │ RDBMS (PostgreSQL, MySQL, etc.)│             │
 │  └─────────────────────────────────┘             │
 └──────────────────────────────────────────────────┘
 ```
 
-### 1.4 ORM パターンの分類
+### 1.4 ORM Pattern Classification
 
 ```
-┌──────── ORM デザインパターン ──────────────────┐
+┌──────── ORM Design Patterns ──────────────────┐
 │                                                  │
 │  Active Record (AR):                             │
 │  ┌──────────────────────────────────────┐       │
-│  │ モデルクラス = テーブル + CRUD操作     │       │
+│  │ Model class = Table + CRUD operations  │       │
 │  │ user.save(), user.find()              │       │
-│  │ 採用: TypeORM (一部), Rails AR        │       │
-│  │ 長所: シンプル、直感的                │       │
-│  │ 短所: ビジネスロジックとDB操作が混在  │       │
+│  │ Adopted by: TypeORM (partially), Rails AR │   │
+│  │ Pros: Simple, intuitive               │       │
+│  │ Cons: Business logic mixed with DB ops│       │
 │  └──────────────────────────────────────┘       │
 │                                                  │
 │  Data Mapper (DM):                               │
 │  ┌──────────────────────────────────────┐       │
-│  │ モデル(Entity)とDB操作(Repository)を分離│     │
+│  │ Separates Model (Entity) and DB ops (Repository)│ │
 │  │ repository.save(user)                 │       │
-│  │ 採用: TypeORM (DM mode), SQLAlchemy   │       │
-│  │ 長所: 関心の分離、テスタビリティ      │       │
-│  │ 短所: コード量が多い                  │       │
+│  │ Adopted by: TypeORM (DM mode), SQLAlchemy │   │
+│  │ Pros: Separation of concerns, testability │   │
+│  │ Cons: More code required              │       │
 │  └──────────────────────────────────────┘       │
 │                                                  │
 │  Query Builder (QB):                             │
 │  ┌──────────────────────────────────────┐       │
-│  │ SQLに近いAPI、型安全なクエリ構築      │       │
+│  │ SQL-like API, type-safe query building │       │
 │  │ db.select().from(users).where(...)    │       │
-│  │ 採用: Drizzle, Knex.js               │       │
-│  │ 長所: SQL知識が直接活かせる           │       │
-│  │ 短所: ORMの利便性が少ない             │       │
+│  │ Adopted by: Drizzle, Knex.js         │       │
+│  │ Pros: SQL knowledge transfers directly│       │
+│  │ Cons: Fewer ORM conveniences          │       │
 │  └──────────────────────────────────────┘       │
 │                                                  │
 │  Schema-First (SF):                              │
 │  ┌──────────────────────────────────────┐       │
-│  │ 独自DSLでスキーマ定義 → 型自動生成    │       │
+│  │ Define schema with own DSL → auto-generate types │ │
 │  │ schema.prisma → prisma generate       │       │
-│  │ 採用: Prisma                          │       │
-│  │ 長所: スキーマが単一の真実の源        │       │
-│  │ 短所: DSL学習コスト、柔軟性の制限     │       │
+│  │ Adopted by: Prisma                    │       │
+│  │ Pros: Schema is single source of truth│       │
+│  │ Cons: DSL learning cost, flexibility limits │  │
 │  └──────────────────────────────────────┘       │
 └──────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. 各 ORM の CRUD 実装比較
+## 2. CRUD Implementation Comparison for Each ORM
 
-### 2.1 スキーマ / モデル定義
+### 2.1 Schema / Model Definition
 
 ```typescript
 // === Prisma (schema.prisma) ===
@@ -167,7 +167,7 @@ model Post {
 ```
 
 ```typescript
-// === TypeORM (Entity デコレータ) ===
+// === TypeORM (Entity decorators) ===
 import { Entity, PrimaryGeneratedColumn, Column, OneToMany, ManyToOne } from "typeorm";
 
 @Entity()
@@ -208,7 +208,7 @@ export class Post {
 ```
 
 ```typescript
-// === Drizzle (TypeScript スキーマ) ===
+// === Drizzle (TypeScript schema) ===
 import { pgTable, uuid, varchar, text, boolean, timestamp } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
@@ -227,7 +227,7 @@ export const posts = pgTable("posts", {
   authorId: uuid("author_id").notNull().references(() => users.id),
 });
 
-// リレーション定義（Drizzleのrelational query用）
+// Relation definitions (for Drizzle relational queries)
 export const usersRelations = relations(users, ({ many }) => ({
   posts: many(posts),
 }));
@@ -241,7 +241,7 @@ export const postsRelations = relations(posts, ({ one }) => ({
 ```
 
 ```python
-# === SQLAlchemy (Mapped 型注釈) ===
+# === SQLAlchemy (Mapped type annotations) ===
 from sqlalchemy import String, Boolean, ForeignKey
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 from datetime import datetime
@@ -272,7 +272,7 @@ class Post(Base):
     author: Mapped["User"] = relationship(back_populates="posts")
 ```
 
-### 2.2 SELECT（リレーション含む）
+### 2.2 SELECT (including relations)
 
 ```typescript
 // === Prisma ===
@@ -288,7 +288,7 @@ const usersWithPosts = await prisma.user.findMany({
   take: 10,
 });
 
-// Prisma の生成SQL:
+// Prisma generated SQL:
 // SELECT "User"."id", "User"."name", "User"."email", "User"."createdAt"
 // FROM "User"
 // WHERE "User"."email" LIKE '%@example.com%'
@@ -299,7 +299,7 @@ const usersWithPosts = await prisma.user.findMany({
 // WHERE "Post"."authorId" IN ($1, $2, ...) AND "Post"."published" = true
 // ORDER BY "Post"."createdAt" DESC
 // LIMIT 5;
-// → 2クエリで実行（N+1ではない）
+// → Executed in 2 queries (not N+1)
 
 // === TypeORM ===
 const usersWithPosts = await userRepository.find({
@@ -307,7 +307,7 @@ const usersWithPosts = await userRepository.find({
   relations: { posts: true },
   take: 10,
 });
-// TypeORM ではリレーションのフィルタは QueryBuilder が必要
+// TypeORM requires QueryBuilder for filtering relations
 const usersWithPosts2 = await userRepository
   .createQueryBuilder("user")
   .leftJoinAndSelect("user.posts", "post", "post.published = :pub", { pub: true })
@@ -329,7 +329,7 @@ const usersWithPosts = await db.query.users.findMany({
   limit: 10,
 });
 
-// Drizzle のSQL-likeクエリ構築（低レベルAPI）
+// Drizzle SQL-like query building (low-level API)
 const result = await db
   .select({
     userName: users.name,
@@ -356,33 +356,33 @@ stmt = (
 )
 users_with_posts = session.scalars(stmt).all()
 
-# SQLAlchemy のローディング戦略比較
-# 1. Lazy Loading（デフォルト）: アクセス時にクエリ → N+1問題の原因
-# 2. Eager Loading (joinedload): JOINで一括取得
-# 3. Subquery Loading (selectinload): サブクエリで一括取得（推奨）
-# 4. Raise Loading (raiseload): アクセス時にエラー → N+1を検出
+# SQLAlchemy loading strategy comparison
+# 1. Lazy Loading (default): queries on access → causes N+1 problem
+# 2. Eager Loading (joinedload): fetch all at once via JOIN
+# 3. Subquery Loading (selectinload): fetch all at once via subquery (recommended)
+# 4. Raise Loading (raiseload): error on access → detects N+1
 
 stmt_joined = (
     select(User)
-    .options(joinedload(User.posts))  # LEFT JOINで取得
+    .options(joinedload(User.posts))  # Fetch with LEFT JOIN
     .limit(10)
 )
 
 stmt_subquery = (
     select(User)
-    .options(selectinload(User.posts))  # 別クエリで取得（推奨）
+    .options(selectinload(User.posts))  # Fetch with separate query (recommended)
     .limit(10)
 )
 
-# raiseload: 明示的にロードしないとエラー（N+1検出用）
+# raiseload: raises error if not explicitly loaded (for N+1 detection)
 from sqlalchemy.orm import raiseload
 stmt_strict = (
     select(User)
-    .options(raiseload(User.posts))  # user.postsアクセスでエラー
+    .options(raiseload(User.posts))  # Error on user.posts access
 )
 ```
 
-### 2.3 INSERT（バルク）
+### 2.3 INSERT (bulk)
 
 ```typescript
 // === Prisma ===
@@ -394,7 +394,7 @@ const users = await prisma.user.createMany({
   skipDuplicates: true,
 });
 
-// Prisma: ネストされたリレーション作成
+// Prisma: nested relation creation
 const userWithPosts = await prisma.user.create({
   data: {
     name: "Charlie",
@@ -444,7 +444,7 @@ session.add_all([
 ])
 session.commit()
 
-# SQLAlchemy: バルクINSERT（高速版）
+# SQLAlchemy: bulk INSERT (faster version)
 from sqlalchemy import insert
 stmt = insert(User).values([
     {"name": "Alice", "email": "alice@example.com"},
@@ -464,7 +464,7 @@ session.execute(stmt)
 session.commit()
 ```
 
-### 2.4 トランザクション管理
+### 2.4 Transaction Management
 
 ```typescript
 // === Prisma: Interactive Transaction ===
@@ -477,9 +477,9 @@ const result = await prisma.$transaction(async (tx) => {
   });
   return { user, post };
 });
-// 例外が発生すると自動ロールバック
+// Automatically rolled back if an exception occurs
 
-// Prisma: Sequential Transaction（複数操作をアトミックに）
+// Prisma: Sequential Transaction (multiple operations atomically)
 const [user, post] = await prisma.$transaction([
   prisma.user.create({ data: { name: "Bob", email: "bob@example.com" } }),
   prisma.post.create({ data: { title: "Hi", body: "!", authorId: "..." } }),
@@ -523,18 +523,18 @@ try {
 
 ```python
 # === SQLAlchemy: Session ===
-# 方法1: コンテキストマネージャ（推奨）
+# Method 1: Context manager (recommended)
 with Session(engine) as session:
-    with session.begin():  # 自動commit/rollback
+    with session.begin():  # Auto commit/rollback
         user = User(name="Alice", email="alice@example.com")
         session.add(user)
-        session.flush()  # IDを取得するためにflush
+        session.flush()  # Flush to get the ID
 
         post = Post(title="Hello", body="World", author=user)
         session.add(post)
-    # ブロック終了時に自動commit
+    # Auto commit when block exits
 
-# 方法2: 明示的なcommit/rollback
+# Method 2: Explicit commit/rollback
 session = Session(engine)
 try:
     user = User(name="Alice", email="alice@example.com")
@@ -550,158 +550,158 @@ except Exception:
 finally:
     session.close()
 
-# 方法3: ネストトランザクション（SAVEPOINT）
+# Method 3: Nested transaction (SAVEPOINT)
 with Session(engine) as session:
     with session.begin():
         session.add(User(name="Alice", email="alice@example.com"))
 
-        # ネストトランザクション（SAVEPOINT）
+        # Nested transaction (SAVEPOINT)
         with session.begin_nested():
             try:
-                session.add(User(name="Alice", email="alice@example.com"))  # 重複
+                session.add(User(name="Alice", email="alice@example.com"))  # Duplicate
                 session.flush()
             except IntegrityError:
-                pass  # SAVEPOINTにロールバック、外側は続行
+                pass  # Rollback to SAVEPOINT, outer continues
 
         session.add(User(name="Bob", email="bob@example.com"))
-    # Alice + Bob がコミット（重複Aliceはロールバック済み）
+    # Alice + Bob are committed (duplicate Alice was rolled back)
 ```
 
 ---
 
-## 3. マイグレーション比較
+## 3. Migration Comparison
 
 ```
 ┌────────────────────────────────────────────────────────┐
-│              マイグレーション方式                        │
+│              Migration Methods                          │
 │                                                        │
-│  Prisma:    スキーマファイル → prisma migrate dev       │
-│             → SQL を自動生成 → prisma migrate deploy    │
-│             ※ 宣言的 (Desired State)                    │
+│  Prisma:    Schema file → prisma migrate dev            │
+│             → Auto-generate SQL → prisma migrate deploy │
+│             * Declarative (Desired State)               │
 │                                                        │
-│  TypeORM:   Entity の変更を検知                         │
-│             → typeorm migration:generate               │
-│             → typeorm migration:run                    │
-│             ※ synchronize:true は本番禁止               │
+│  TypeORM:   Detect Entity changes                       │
+│             → typeorm migration:generate                │
+│             → typeorm migration:run                     │
+│             * synchronize:true is forbidden in production │
 │                                                        │
-│  Drizzle:   スキーマファイル → drizzle-kit generate     │
-│             → drizzle-kit migrate                      │
-│             ※ Prisma に近い宣言的アプローチ              │
+│  Drizzle:   Schema file → drizzle-kit generate          │
+│             → drizzle-kit migrate                       │
+│             * Declarative approach similar to Prisma    │
 │                                                        │
-│  SQLAlchemy: Alembic を使用                             │
+│  SQLAlchemy: Uses Alembic                               │
 │             → alembic revision --autogenerate           │
-│             → alembic upgrade head                     │
-│             ※ 自動生成 + 手動調整                       │
+│             → alembic upgrade head                      │
+│             * Auto-generate + manual adjustments        │
 └────────────────────────────────────────────────────────┘
 ```
 
-### 3.1 マイグレーション実行例
+### 3.1 Migration Execution Examples
 
 ```bash
 # === Prisma ===
-# 開発環境: スキーマの差分からマイグレーション生成
+# Development: generate migration from schema diff
 npx prisma migrate dev --name add_user_avatar
 
-# 本番環境: マイグレーション適用のみ（生成はしない）
+# Production: apply migration only (no generation)
 npx prisma migrate deploy
 
-# スキーマの状態をDBにプッシュ（プロトタイプ用、マイグレーションなし）
+# Push schema state to DB (for prototyping, no migration files)
 npx prisma db push
 
 # === Drizzle ===
-# マイグレーションファイル生成
+# Generate migration file
 npx drizzle-kit generate
 
-# マイグレーション適用
+# Apply migration
 npx drizzle-kit migrate
 
 # === TypeORM ===
-# マイグレーション生成（Entityの差分を検知）
+# Generate migration (detect Entity diff)
 npx typeorm migration:generate -n AddUserAvatar
 
-# マイグレーション適用
+# Apply migration
 npx typeorm migration:run
 
 # === SQLAlchemy + Alembic ===
-# 初期化
+# Initialize
 alembic init alembic
 
-# マイグレーション生成（自動検知）
+# Generate migration (auto-detect)
 alembic revision --autogenerate -m "add user avatar"
 
-# マイグレーション適用
+# Apply migration
 alembic upgrade head
 
-# ロールバック
+# Rollback
 alembic downgrade -1
 ```
 
-### マイグレーション機能比較
+### Migration Feature Comparison
 
-| 機能 | Prisma | TypeORM | Drizzle | Alembic (SQLAlchemy) |
-|------|--------|---------|---------|---------------------|
-| 自動生成 | ✓（スキーマ差分） | ✓（Entity差分） | ✓（スキーマ差分） | ✓（モデル差分） |
-| ロールバック | ✗（手動） | ✓ | ✗（手動） | ✓ |
-| シード | prisma db seed | 手動 | 手動 | 手動 |
-| マルチDB | ✗ | ✓ | ✗ | ✓ |
-| ベースライン | prisma migrate resolve | 手動 | 手動 | alembic stamp |
-| SQL確認 | ✓（自動保存） | ✗ | ✓（自動保存） | ✓（--sql） |
-| チーム運用 | 良好（ロックファイル） | 注意必要 | 良好 | 良好（ブランチ対応） |
+| Feature | Prisma | TypeORM | Drizzle | Alembic (SQLAlchemy) |
+|---------|--------|---------|---------|---------------------|
+| Auto-generation | ✓ (schema diff) | ✓ (Entity diff) | ✓ (schema diff) | ✓ (model diff) |
+| Rollback | ✗ (manual) | ✓ | ✗ (manual) | ✓ |
+| Seeding | prisma db seed | manual | manual | manual |
+| Multi-DB | ✗ | ✓ | ✗ | ✓ |
+| Baseline | prisma migrate resolve | manual | manual | alembic stamp |
+| SQL review | ✓ (auto-saved) | ✗ | ✓ (auto-saved) | ✓ (--sql) |
+| Team usage | Good (lock file) | Caution needed | Good | Good (branch support) |
 
 ---
 
-## 4. 比較表
+## 4. Comparison Tables
 
-### 4.1 機能比較
+### 4.1 Feature Comparison
 
-| 機能 | Prisma | TypeORM | Drizzle | SQLAlchemy |
-|------|--------|---------|---------|------------|
-| **言語** | TypeScript/JS | TypeScript/JS | TypeScript/JS | Python |
-| **パラダイム** | 独自 DSL + 型生成 | ActiveRecord / DataMapper | SQL-like TypeSafe | DataMapper (Unit of Work) |
-| **型安全性** | 高（自動生成） | 中（デコレータ依存） | 高（推論ベース） | 中（Mapped 型注釈） |
-| **生SQL** | `$queryRaw` | `query()` | `sql` テンプレート | `text()` |
-| **リレーション** | `include` / `select` | `relations` / QueryBuilder | `with` (関係クエリ) | `relationship` + Loading Strategy |
-| **マイグレーション** | Prisma Migrate | TypeORM CLI / synchronize | drizzle-kit | Alembic |
-| **接続プール** | 内蔵（Rust Engine） | 内蔵 | 外部ドライバ依存 | 内蔵 (QueuePool) |
-| **対応DB** | PostgreSQL, MySQL, SQLite, MongoDB | PostgreSQL, MySQL, SQLite, etc. | PostgreSQL, MySQL, SQLite | ほぼ全 RDBMS |
-| **トランザクション** | `$transaction` | QueryRunner / デコレータ | `db.transaction()` | Session / begin() |
-| **N+1 対策** | include で自動 | eager: true / QueryBuilder | with で自動 | selectinload / joinedload |
-| **バッチ操作** | createMany, updateMany | insert, update (QueryBuilder) | insert, update (バッチ) | bulk_insert_mappings |
+| Feature | Prisma | TypeORM | Drizzle | SQLAlchemy |
+|---------|--------|---------|---------|------------|
+| **Language** | TypeScript/JS | TypeScript/JS | TypeScript/JS | Python |
+| **Paradigm** | Custom DSL + type gen | ActiveRecord / DataMapper | SQL-like TypeSafe | DataMapper (Unit of Work) |
+| **Type Safety** | High (auto-generated) | Medium (decorator-dependent) | High (inference-based) | Medium (Mapped annotations) |
+| **Raw SQL** | `$queryRaw` | `query()` | `sql` template | `text()` |
+| **Relations** | `include` / `select` | `relations` / QueryBuilder | `with` (relational query) | `relationship` + Loading Strategy |
+| **Migrations** | Prisma Migrate | TypeORM CLI / synchronize | drizzle-kit | Alembic |
+| **Connection Pool** | Built-in (Rust Engine) | Built-in | Depends on external driver | Built-in (QueuePool) |
+| **Supported DBs** | PostgreSQL, MySQL, SQLite, MongoDB | PostgreSQL, MySQL, SQLite, etc. | PostgreSQL, MySQL, SQLite | Almost all RDBMSs |
+| **Transactions** | `$transaction` | QueryRunner / decorator | `db.transaction()` | Session / begin() |
+| **N+1 Prevention** | Auto via include | eager: true / QueryBuilder | Auto via with | selectinload / joinedload |
+| **Batch Operations** | createMany, updateMany | insert, update (QueryBuilder) | insert, update (batch) | bulk_insert_mappings |
 | **UPSERT** | upsert (4.0+) | upsert | onConflictDoUpdate | on_conflict_do_update |
-| **サブクエリ** | 限定的 | QueryBuilder で可能 | SQL template | 完全対応 |
-| **ウィンドウ関数** | $queryRaw のみ | QueryBuilder | sql template | over() で対応 |
+| **Subqueries** | Limited | Possible via QueryBuilder | SQL template | Full support |
+| **Window Functions** | $queryRaw only | QueryBuilder | sql template | Supported via over() |
 
-### 4.2 開発体験比較
+### 4.2 Developer Experience Comparison
 
-| 観点 | Prisma | TypeORM | Drizzle | SQLAlchemy |
-|------|--------|---------|---------|------------|
-| **学習コスト** | 低 | 中 | 低 | 高 |
-| **ドキュメント** | 優秀 | 良好 | 良好 | 優秀 |
-| **エラーメッセージ** | 明確 | 不明瞭な場合あり | 明確 | 詳細 |
-| **IDE 補完** | 優秀（型生成） | 良好 | 優秀（型推論） | 良好（型注釈） |
-| **デバッグ** | Prisma Studio | なし（外部ツール） | Drizzle Studio | SQLAlchemy echo |
-| **バンドルサイズ** | 大（Rust エンジン ~15MB） | 中 (~3MB) | 小 (~500KB) | N/A（サーバー） |
-| **コミュニティ** | 大 | 大（やや停滞） | 急成長中 | 巨大 |
-| **本番実績** | 多い | 多い | 増加中 | 非常に多い |
-| **テスタビリティ** | モック可能 | Repository パターン | 関数ベース | Session モック |
+| Aspect | Prisma | TypeORM | Drizzle | SQLAlchemy |
+|--------|--------|---------|---------|------------|
+| **Learning Curve** | Low | Medium | Low | High |
+| **Documentation** | Excellent | Good | Good | Excellent |
+| **Error Messages** | Clear | Sometimes unclear | Clear | Detailed |
+| **IDE Completion** | Excellent (type gen) | Good | Excellent (type inference) | Good (type annotations) |
+| **Debugging** | Prisma Studio | None (external tools) | Drizzle Studio | SQLAlchemy echo |
+| **Bundle Size** | Large (Rust engine ~15MB) | Medium (~3MB) | Small (~500KB) | N/A (server) |
+| **Community** | Large | Large (slightly stagnant) | Rapidly growing | Huge |
+| **Production Track Record** | Many | Many | Increasing | Very many |
+| **Testability** | Mockable | Repository pattern | Function-based | Session mock |
 
-### 4.3 パフォーマンス特性比較
+### 4.3 Performance Characteristics Comparison
 
-| 指標 | Prisma | TypeORM | Drizzle | SQLAlchemy |
-|------|--------|---------|---------|------------|
-| **Cold Start** | 遅い（Rust Engine起動） | 普通 | 速い | 普通 |
-| **クエリ生成速度** | 速い（Rust） | 普通 | 速い | 普通 |
-| **メモリ使用量** | 多い（Engine分） | 普通 | 少ない | 普通 |
-| **接続プール効率** | 良好（内蔵） | 良好（内蔵） | ドライバ依存 | 優秀（QueuePool） |
-| **バルクINSERT** | 良好（createMany） | やや遅い | 速い | 速い（Core API） |
-| **大量SELECT** | 良好 | 普通 | 速い | 良好（yield_per） |
-| **サーバーレス適性** | 中（Cold Start問題） | 良好 | 優秀 | 普通 |
+| Metric | Prisma | TypeORM | Drizzle | SQLAlchemy |
+|--------|--------|---------|---------|------------|
+| **Cold Start** | Slow (Rust Engine startup) | Normal | Fast | Normal |
+| **Query Generation Speed** | Fast (Rust) | Normal | Fast | Normal |
+| **Memory Usage** | High (Engine overhead) | Normal | Low | Normal |
+| **Connection Pool Efficiency** | Good (built-in) | Good (built-in) | Driver-dependent | Excellent (QueuePool) |
+| **Bulk INSERT** | Good (createMany) | Somewhat slow | Fast | Fast (Core API) |
+| **Large SELECT** | Good | Normal | Fast | Good (yield_per) |
+| **Serverless Suitability** | Medium (Cold Start issue) | Good | Excellent | Normal |
 
 ---
 
-## 5. 高度な使用パターン
+## 5. Advanced Usage Patterns
 
-### 5.1 生SQLの実行
+### 5.1 Executing Raw SQL
 
 ```typescript
 // === Prisma: $queryRaw ===
@@ -714,7 +714,7 @@ const users = await prisma.$queryRaw<User[]>`
   ORDER BY post_count DESC
 `;
 
-// === Drizzle: sql テンプレート ===
+// === Drizzle: sql template ===
 import { sql } from "drizzle-orm";
 
 const result = await db.execute(sql`
@@ -749,7 +749,7 @@ stmt = text("""
 """)
 result = session.execute(stmt, {"min_posts": min_posts}).all()
 
-# SQLAlchemy: ハイブリッド（Core + ORM）
+# SQLAlchemy: Hybrid (Core + ORM)
 from sqlalchemy import func, select
 
 stmt = (
@@ -762,13 +762,13 @@ stmt = (
 results = session.execute(stmt).all()
 ```
 
-### 5.2 複雑なクエリパターン
+### 5.2 Complex Query Patterns
 
 ```typescript
-// === Drizzle: サブクエリ ===
+// === Drizzle: Subqueries ===
 import { sql, eq, gt, and } from "drizzle-orm";
 
-// 各部署の平均給与以上の社員
+// Employees earning above their department's average salary
 const deptAvg = db
   .select({
     deptId: employees.departmentId,
@@ -785,7 +785,7 @@ const result = await db
   .where(gt(employees.salary, deptAvg.avgSalary));
 
 // === Prisma: fluent API ===
-// Prismaでは複雑なサブクエリは$queryRawが必要
+// Complex subqueries in Prisma require $queryRaw
 const result = await prisma.$queryRaw`
   SELECT e.*
   FROM employees e
@@ -798,10 +798,10 @@ const result = await prisma.$queryRaw`
 ```
 
 ```python
-# === SQLAlchemy: 複雑なサブクエリ ===
+# === SQLAlchemy: Complex subqueries ===
 from sqlalchemy import select, func
 
-# 各部署の平均給与以上の社員
+# Employees earning above their department's average salary
 dept_avg = (
     select(
         Employee.department_id,
@@ -818,7 +818,7 @@ stmt = (
 )
 results = session.scalars(stmt).all()
 
-# SQLAlchemy: ウィンドウ関数
+# SQLAlchemy: Window functions
 from sqlalchemy import over
 
 stmt = (
@@ -835,47 +835,47 @@ stmt = (
 
 ---
 
-## 6. アンチパターン
+## 6. Anti-Patterns
 
-### 6.1 TypeORM の synchronize: true を本番で使う
+### 6.1 Using TypeORM's synchronize: true in Production
 
 ```typescript
-// NG: 本番でスキーマ自動同期
+// NG: Auto schema sync in production
 const dataSource = new DataSource({
   type: "postgres",
-  synchronize: true,  // ← 本番で絶対NG！
-  // テーブルが自動変更される → データ消失リスク
+  synchronize: true,  // ← Absolutely forbidden in production!
+  // Tables get auto-modified → risk of data loss
 });
 
-// OK: マイグレーションファイルで明示的に管理
+// OK: Manage explicitly with migration files
 const dataSource = new DataSource({
   type: "postgres",
   synchronize: false,
   migrations: ["dist/migrations/*.js"],
-  migrationsRun: true,  // 起動時にマイグレーション実行
+  migrationsRun: true,  // Run migrations on startup
 });
 ```
 
-**問題点**: synchronize はテーブルを削除して再作成する場合があり、本番データが消失する。開発環境でのみ使用し、本番ではマイグレーションファイルで管理する。
+**Problem**: synchronize may drop and recreate tables, causing production data loss. Use only in development environments and manage production with migration files.
 
-### 6.2 Prisma で N+1 を発生させる
+### 6.2 Causing N+1 in Prisma
 
 ```typescript
-// NG: ループ内で個別クエリ
+// NG: Individual queries inside a loop
 const users = await prisma.user.findMany();
 for (const user of users) {
-  // ユーザーごとに1クエリ = N+1問題!
+  // 1 query per user = N+1 problem!
   const posts = await prisma.post.findMany({
     where: { authorId: user.id },
   });
   console.log(`${user.name}: ${posts.length} posts`);
 }
 
-// OK: include で1回のクエリに統合
+// OK: Consolidate into 1 query with include
 const users = await prisma.user.findMany({
   include: {
     posts: {
-      select: { id: true },  // 必要なフィールドだけ
+      select: { id: true },  // Only necessary fields
     },
   },
 });
@@ -884,20 +884,20 @@ for (const user of users) {
 }
 ```
 
-### 6.3 SQLAlchemy の暗黙的遅延ロード
+### 6.3 Implicit Lazy Loading in SQLAlchemy
 
 ```python
-# NG: async コンテキストでの遅延ロード（SQLAlchemy 2.0）
+# NG: Lazy loading in async context (SQLAlchemy 2.0)
 async def get_users():
     async with async_session() as session:
         result = await session.execute(select(User))
         users = result.scalars().all()
 
-    # セッション外でリレーションアクセス → エラー or N+1
+    # Accessing relations outside session → Error or N+1
     for user in users:
         print(user.posts)  # DetachedInstanceError or lazy load
 
-# OK: 明示的にローディング戦略を指定
+# OK: Specify loading strategy explicitly
 async def get_users_with_posts():
     async with async_session() as session:
         result = await session.execute(
@@ -905,40 +905,40 @@ async def get_users_with_posts():
         )
         users = result.scalars().all()
         for user in users:
-            print(user.posts)  # 既にロード済み
+            print(user.posts)  # Already loaded
 ```
 
-### 6.4 Drizzle での型安全性の無視
+### 6.4 Ignoring Type Safety in Drizzle
 
 ```typescript
-// NG: sql テンプレートで型を無視
+// NG: Ignoring types with sql template
 const result = await db.execute(sql`SELECT * FROM users WHERE id = ${userId}`);
-// result の型は不明確
+// result type is unclear
 
-// OK: 型安全なクエリビルダーを使用
+// OK: Use type-safe query builder
 const result = await db
   .select()
   .from(users)
   .where(eq(users.id, userId));
-// result の型は推論される: { id: string, name: string, ... }[]
+// result type is inferred: { id: string, name: string, ... }[]
 ```
 
 ---
 
-## 7. エッジケース
+## 7. Edge Cases
 
-### エッジケース1: 大量データのストリーミング
+### Edge Case 1: Streaming Large Amounts of Data
 
 ```python
-# SQLAlchemy: yield_per でメモリ効率的な大量読み取り
+# SQLAlchemy: Memory-efficient bulk reads with yield_per
 stmt = select(User).execution_options(yield_per=1000)
 for user in session.scalars(stmt):
     process(user)
-# → 1000行ずつDBから取得（全行をメモリに載せない）
+# → Fetches 1000 rows at a time from DB (doesn't load all rows into memory)
 ```
 
 ```typescript
-// Prisma: カーソルベースのページネーション
+// Prisma: Cursor-based pagination
 let cursor: string | undefined;
 while (true) {
   const users = await prisma.user.findMany({
@@ -954,15 +954,15 @@ while (true) {
 }
 ```
 
-### エッジケース2: マルチテナント
+### Edge Case 2: Multi-tenancy
 
 ```typescript
-// Prisma: RLSとクライアント拡張
+// Prisma: RLS and client extensions
 const prismaWithTenant = prisma.$extends({
   query: {
     $allModels: {
       async $allOperations({ args, query }) {
-        // 全クエリにテナントフィルタを自動追加
+        // Automatically add tenant filter to all queries
         args.where = { ...args.where, tenantId: currentTenantId };
         return query(args);
       },
@@ -972,7 +972,7 @@ const prismaWithTenant = prisma.$extends({
 ```
 
 ```python
-# SQLAlchemy: イベントフックでマルチテナント
+# SQLAlchemy: Multi-tenancy with event hooks
 from sqlalchemy import event
 
 @event.listens_for(Session, "do_orm_execute")
@@ -983,19 +983,19 @@ def _add_tenant_filter(execute_state):
         )
 ```
 
-### エッジケース3: 楽観的ロック
+### Edge Case 3: Optimistic Locking
 
 ```typescript
-// Prisma: バージョンフィールドで楽観的ロック
+// Prisma: Optimistic locking with version field
 const updated = await prisma.product.update({
   where: { id: productId, version: currentVersion },
   data: { name: "New Name", version: { increment: 1 } },
 });
-// version が一致しない場合は RecordNotFoundError
+// RecordNotFoundError if version doesn't match
 ```
 
 ```python
-# SQLAlchemy: version_id_col で楽観的ロック
+# SQLAlchemy: Optimistic locking with version_id_col
 class Product(Base):
     __tablename__ = "products"
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -1006,7 +1006,7 @@ class Product(Base):
         "version_id_col": version,
     }
 
-# 更新時にバージョン不一致でStaleDataError
+# StaleDataError on version mismatch during update
 product = session.get(Product, product_id)
 product.name = "New Name"
 session.commit()  # UPDATE ... WHERE id = ? AND version = ?
@@ -1014,23 +1014,23 @@ session.commit()  # UPDATE ... WHERE id = ? AND version = ?
 
 ---
 
-## 8. 演習
+## 8. Exercises
 
-### 演習1（基礎）: CRUD操作の実装
+### Exercise 1 (Basic): Implementing CRUD Operations
 
-以下の要件を、好みのORMで実装せよ。
+Implement the following requirements using your preferred ORM.
 
-**要件**:
-- ユーザー（name, email）と投稿（title, body, published）のCRUD
-- 未公開の投稿を持つユーザー一覧を取得するクエリ
-- ユーザー削除時に投稿もカスケード削除
+**Requirements**:
+- CRUD for users (name, email) and posts (title, body, published)
+- Query to retrieve a list of users with unpublished posts
+- Cascade delete posts when a user is deleted
 
-### 演習2（応用）: N+1問題の検出と修正
+### Exercise 2 (Intermediate): Detecting and Fixing N+1 Problems
 
-以下のコードのN+1問題を特定し、修正せよ。
+Identify the N+1 problem in the following code and fix it.
 
 ```typescript
-// 問題のあるコード
+// Problematic code
 const departments = await prisma.department.findMany();
 for (const dept of departments) {
   const employees = await prisma.employee.findMany({
@@ -1041,52 +1041,52 @@ for (const dept of departments) {
 }
 ```
 
-### 演習3（発展）: パフォーマンス比較
+### Exercise 3 (Advanced): Performance Comparison
 
-同じクエリ（1000ユーザーの一覧 + 各ユーザーの投稿数）を4つのORM全てで実装し、実行時間とメモリ使用量を比較せよ。
+Implement the same query (list of 1000 users + post count per user) using all 4 ORMs and compare execution time and memory usage.
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1095,26 +1095,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1122,7 +1122,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1133,14 +1133,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1148,7 +1148,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1156,44 +1156,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1202,7 +1202,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1217,76 +1217,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient: {slow_time:.4f}s")
+    print(f"Efficient:   {fast_time:.6f}s")
+    print(f"Speedup:     {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to prioritize | When to compromise |
+|-----------|-------------------|-------------------|
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development Speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│              Architecture Selection Flow          │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. Team size?                                   │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to 2              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. Deployment frequency?                        │
+│    ├─ Once a week or less → Monolith + modules  │
+│    └─ Daily / multiple times → Go to 3          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. Team independence?                           │
+│    ├─ High → Microservices                      │
+│    └─ Medium → Modular monolith                 │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- Faster short-term approaches can become technical debt long-term
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies enables best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction improves reusability but can make debugging harder
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1296,17 +1296,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1314,7 +1314,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1322,15 +1322,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1338,53 +1338,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on minimum viable features
+- Automated tests only for the critical path
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't over-engineer (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually renovating a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- If no existing tests, create Characterization Tests first
+- Coexist new and old systems with an API gateway
+- Migrate data in phases
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work | Estimated Duration | Risk |
+|-------|------|--------------------|------|
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Start Migration | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core Migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers working on the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with domain-driven design
+- Set ownership per team
+- Manage shared libraries using Inner Source
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1397,20 +1397,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1419,7 +1419,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1440,109 +1440,109 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** Systems requiring millisecond-level responses
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Technique | Effect | Implementation Cost | Use Case |
+|------------------------|--------|--------------------|---------| 
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low-Medium | High | CPU-bound cases |
 ---
 
 ## 9. FAQ
 
-### Q1. 新規プロジェクトではどの ORM を選ぶべき？
+### Q1. Which ORM should I choose for a new project?
 
-**A.** 言語とチームの経験で選ぶのが最良。
+**A.** Choose based on your language and team experience.
 
-- **TypeScript + 型安全重視**: Drizzle（SQL に近く、型推論が優秀）
-- **TypeScript + 生産性重視**: Prisma（スキーマファースト、ドキュメント充実）
-- **TypeScript + レガシープロジェクト**: TypeORM（既存の Express/NestJS との統合実績）
-- **Python**: SQLAlchemy（デファクトスタンダード、2.0 で大幅改善）
+- **TypeScript + type safety priority**: Drizzle (close to SQL, excellent type inference)
+- **TypeScript + productivity priority**: Prisma (schema-first, rich documentation)
+- **TypeScript + legacy projects**: TypeORM (proven integration with existing Express/NestJS)
+- **Python**: SQLAlchemy (de facto standard, greatly improved in 2.0)
 
-### Q2. Prisma の Rust エンジンはパフォーマンスに影響する？
+### Q2. Does Prisma's Rust engine affect performance?
 
-**A.** Prisma は Query Engine として Rust バイナリを使用する。これにより初回起動が遅く（Cold Start）、バンドルサイズが大きい（約 15MB）。サーバーレス環境（Lambda）では Cold Start が問題になる場合がある。Prisma 6.x 以降では軽量化が進んでいるが、Lambda で問題が出る場合は Drizzle や直接 SQL（sqlc 等）を検討する。
+**A.** Prisma uses a Rust binary as its Query Engine. This causes slow initial startup (Cold Start) and a large bundle size (~15MB). Cold Start can be an issue in serverless environments (Lambda). Prisma 6.x and later have reduced this, but if Lambda causes issues, consider Drizzle or direct SQL (e.g., sqlc).
 
-### Q3. SQLAlchemy 1.x から 2.0 への移行は大変？
+### Q3. Is migrating from SQLAlchemy 1.x to 2.0 difficult?
 
-**A.** 段階的な移行が可能。SQLAlchemy 1.4 が橋渡しバージョンで、`future=True` フラグで 2.0 スタイルを段階的に導入できる。主な変更点は:
-- `session.query()` → `select()` ステートメント
+**A.** Incremental migration is possible. SQLAlchemy 1.4 is the bridge version where the `future=True` flag lets you incrementally adopt the 2.0 style. Key changes are:
+- `session.query()` → `select()` statements
 - `Column` → `mapped_column`
-- 暗黙的な遅延読み込み → 明示的なローディング戦略
+- Implicit lazy loading → explicit loading strategies
 
-移行ガイドが公式ドキュメントに用意されており、`SQLALCHEMY_WARN_20=1` で非推奨警告を有効にして段階的に対応できる。
+A migration guide is available in the official documentation, and you can enable deprecation warnings with `SQLALCHEMY_WARN_20=1` to address them incrementally.
 
-### Q4. ORMを使わずに直接SQLを書くべきケースは？
+### Q4. When should I write raw SQL instead of using an ORM?
 
-**A.** 以下の場合はORMより直接SQLが適している:
-- **極めて複雑なクエリ**（再帰CTE、ウィンドウ関数の組み合わせ等）
-- **バッチ処理**（数百万行のバルク操作）
-- **パフォーマンスが最重要**（マイクロ秒単位の最適化）
-- **DBスペシフィックな機能**（PostgreSQLのLISTEN/NOTIFY等）
-この場合でも、sqlc（Go）やkysely（TypeScript）のような型安全なSQLツールの利用を推奨する。
+**A.** The following cases are better suited to raw SQL than an ORM:
+- **Extremely complex queries** (recursive CTEs, combinations of window functions, etc.)
+- **Batch processing** (bulk operations on millions of rows)
+- **Performance is paramount** (microsecond-level optimization)
+- **DB-specific features** (PostgreSQL LISTEN/NOTIFY, etc.)
+Even in these cases, using type-safe SQL tools such as sqlc (Go) or kysely (TypeScript) is recommended.
 
-### Q5. ORM間の移行はどの程度大変か？
+### Q5. How costly is it to migrate between ORMs?
 
-**A.** ORM間の移行は一般的に大きなコストがかかる。リポジトリパターンを採用していれば、データアクセス層のみの変更で済む。直接ORMのAPIを呼んでいる場合はビジネスロジック層まで影響が及ぶ。移行コストを最小化するには、ORMのAPIをビジネスロジックから分離するアーキテクチャ（リポジトリパターン、DAO パターン）を採用すべき。
+**A.** Migrating between ORMs is generally costly. If the repository pattern is adopted, only the data access layer needs to change. If ORM APIs are called directly in business logic, the impact extends to that layer as well. To minimize migration costs, adopt an architecture that separates ORM APIs from business logic (repository pattern, DAO pattern).
 
-### Q6. テスト環境でのORMの使い方は？
+### Q6. How should ORMs be used in test environments?
 
-**A.** 各ORMのテスト戦略:
-- **Prisma**: `prisma migrate reset` でテストDB初期化、またはモックライブラリ使用
-- **Drizzle**: テスト用のSQLite接続を使用、またはpg-memなどのインメモリDB
-- **TypeORM**: `synchronize: true` でテストDB自動生成、`dropDatabase` で初期化
-- **SQLAlchemy**: テストごとにトランザクション作成 → ロールバックでクリーンアップ
-
----
-
-## 10. トラブルシューティング
-
-| 問題 | ORM | 原因 | 対処法 |
-|------|-----|------|--------|
-| Cold Startが遅い | Prisma | Rustエンジンの起動 | Prisma Accelerate、またはDrizzleへの移行 |
-| N+1クエリ | 全ORM | リレーションの遅延ロード | include/with/selectinloadで明示的にロード |
-| マイグレーション競合 | TypeORM | synchronize使用 | マイグレーションファイルに切り替え |
-| メモリリーク | SQLAlchemy | Sessionの未クローズ | コンテキストマネージャを使用 |
-| 型エラー | TypeORM | デコレータの不足 | strict: true + experimental decorators |
-| 接続枯渇 | 全ORM | プールサイズ不足 | max接続数の調整、pgBouncer導入 |
+**A.** Testing strategies for each ORM:
+- **Prisma**: Initialize test DB with `prisma migrate reset`, or use a mock library
+- **Drizzle**: Use a SQLite connection for tests, or an in-memory DB like pg-mem
+- **TypeORM**: Auto-generate test DB with `synchronize: true`, initialize with `dropDatabase`
+- **SQLAlchemy**: Create a transaction per test → rollback for cleanup
 
 ---
 
-## 11. セキュリティ考慮事項
+## 10. Troubleshooting
+
+| Problem | ORM | Cause | Solution |
+|---------|-----|-------|----------|
+| Slow cold start | Prisma | Rust engine startup | Prisma Accelerate, or migrate to Drizzle |
+| N+1 queries | All ORMs | Lazy loading of relations | Explicitly load with include/with/selectinload |
+| Migration conflicts | TypeORM | Using synchronize | Switch to migration files |
+| Memory leak | SQLAlchemy | Session not closed | Use context manager |
+| Type errors | TypeORM | Missing decorators | strict: true + experimental decorators |
+| Connection exhaustion | All ORMs | Insufficient pool size | Adjust max connections, introduce pgBouncer |
+
+---
+
+## 11. Security Considerations
 
 ```
-┌──────── ORM セキュリティチェックリスト ────────┐
+┌──────── ORM Security Checklist ────────┐
 │                                                  │
-│  1. SQLインジェクション防止                      │
-│     ✓ ORM のクエリビルダーを使用                │
-│     ✓ 生SQLはパラメータバインドを使用           │
-│     ✗ 文字列連結でSQLを構築しない              │
+│  1. SQL Injection Prevention                     │
+│     ✓ Use ORM query builder                     │
+│     ✓ Use parameter binding for raw SQL         │
+│     ✗ Do not build SQL with string concatenation│
 │                                                  │
-│  2. 接続文字列の管理                            │
-│     ✓ 環境変数で管理                            │
-│     ✓ シークレットマネージャを使用              │
-│     ✗ ソースコードにハードコードしない          │
+│  2. Connection String Management                 │
+│     ✓ Manage with environment variables         │
+│     ✓ Use a secret manager                      │
+│     ✗ Do not hardcode in source code            │
 │                                                  │
-│  3. 権限の最小化                                │
-│     ✓ アプリ用DBユーザーにはSELECT/INSERT/      │
-│       UPDATE/DELETE のみ付与                     │
-│     ✗ スーパーユーザーで接続しない              │
+│  3. Least Privilege                              │
+│     ✓ Grant only SELECT/INSERT/                 │
+│       UPDATE/DELETE to the app DB user          │
+│     ✗ Do not connect as superuser               │
 │                                                  │
-│  4. マイグレーションの権限分離                   │
-│     ✓ マイグレーション用とアプリ用のDB          │
-│       ユーザーを分離                            │
-│     ✓ DDL権限はマイグレーション用のみ           │
+│  4. Separation of Migration Privileges           │
+│     ✓ Separate DB users for migrations          │
+│       and the application                       │
+│     ✓ DDL privileges only for migration user    │
 └──────────────────────────────────────────────────┘
 ```
 
@@ -1551,48 +1551,48 @@ contracts = [
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 12. まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| **Prisma** | スキーマファースト、型安全、Rust エンジン、学習コスト低 |
-| **TypeORM** | デコレータベース、NestJS 統合、機能豊富だがメンテナンス停滞気味 |
-| **Drizzle** | SQL-like、型推論、軽量、急成長中、サーバーレス最適 |
-| **SQLAlchemy** | Python のデファクト、表現力最大、2.0 で型安全性向上 |
-| **選定基準** | 言語 → チーム経験 → 型安全性 → パフォーマンス要件 |
-| **N+1対策** | 全ORMで明示的なローディングが必要 |
-| **マイグレーション** | 本番では必ずファイルベースのマイグレーション管理 |
-| **テスト** | リポジトリパターンでORM依存を分離 |
+Knowledge of this topic is frequently used in day-to-day development tasks. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## 12. Summary
 
-- [02-performance-tuning.md](./02-performance-tuning.md) — 接続プールとキャッシュの最適化
-- マイグレーション運用ガイド — 本番環境でのスキーマ変更戦略
-- N+1 問題完全ガイド — ORM ごとの対策パターン
+| Item | Key Points |
+|------|-----------|
+| **Prisma** | Schema-first, type-safe, Rust engine, low learning cost |
+| **TypeORM** | Decorator-based, NestJS integration, feature-rich but maintenance is somewhat stagnant |
+| **Drizzle** | SQL-like, type inference, lightweight, rapidly growing, optimized for serverless |
+| **SQLAlchemy** | Python's de facto standard, maximum expressiveness, improved type safety in 2.0 |
+| **Selection Criteria** | Language → team experience → type safety → performance requirements |
+| **N+1 Prevention** | Explicit loading is required for all ORMs |
+| **Migrations** | Always use file-based migration management in production |
+| **Testing** | Isolate ORM dependencies with the repository pattern |
 
 ---
 
-## 参考文献
+## What to Read Next
 
-1. **Prisma 公式ドキュメント** — https://www.prisma.io/docs
-2. **Drizzle ORM 公式ドキュメント** — https://orm.drizzle.team/docs/overview
-3. **SQLAlchemy 公式ドキュメント** — "SQLAlchemy 2.0 Tutorial" — https://docs.sqlalchemy.org/en/20/tutorial/
-4. **TypeORM 公式ドキュメント** — https://typeorm.io/
-5. Fowler, M. (2002). *Patterns of Enterprise Application Architecture*. Addison-Wesley. (Active Record, Data Mapper パターン)
+- [02-performance-tuning.md](./02-performance-tuning.md) — Connection pool and cache optimization
+- Migration Operations Guide — Schema change strategies for production environments
+- Complete Guide to N+1 Problems — Prevention patterns per ORM
+
+---
+
+## References
+
+1. **Prisma Official Documentation** — https://www.prisma.io/docs
+2. **Drizzle ORM Official Documentation** — https://orm.drizzle.team/docs/overview
+3. **SQLAlchemy Official Documentation** — "SQLAlchemy 2.0 Tutorial" — https://docs.sqlalchemy.org/en/20/tutorial/
+4. **TypeORM Official Documentation** — https://typeorm.io/
+5. Fowler, M. (2002). *Patterns of Enterprise Application Architecture*. Addison-Wesley. (Active Record, Data Mapper patterns)
 6. **HikariCP Wiki** — "About Pool Sizing" — https://github.com/brettwooldridge/HikariCP/wiki/About-Pool-Sizing
