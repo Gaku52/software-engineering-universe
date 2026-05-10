@@ -1,136 +1,137 @@
-# トークナイゼーション — テキストをモデルが理解する単位に変換する
+# Tokenization — Converting Text into Units the Model Understands
 
-> BPE、SentencePiece、各モデルのトークナイザの違いと、トークン数管理の実践的テクニックを学ぶ。
+> Learn the principles of BPE, SentencePiece, and the differences between model-specific tokenizers, along with practical techniques for managing token counts.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **BPE（Byte Pair Encoding）**の原理と主要な派生アルゴリズム
-2. **SentencePiece** と各モデル固有トークナイザの特性と比較
-3. **トークン数管理**の実践手法とコスト最適化
+1. The principles of **BPE (Byte Pair Encoding)** and its major derivative algorithms
+2. The characteristics and comparison of **SentencePiece** and model-specific tokenizers
+3. Practical methods for **token count management** and cost optimization
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [LLM概要 — 大規模言語モデルの基礎](./00-llm-overview.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [LLM Overview — Fundamentals of Large Language Models](./00-llm-overview.md)
 
 ---
 
-## 1. トークナイゼーションの基本
+## 1. Fundamentals of Tokenization
 
-### ASCII 図解 1: トークナイゼーションの流れ
+### ASCII Diagram 1: The Tokenization Flow
 
 ```
-入力テキスト
+Input Text
 "大規模言語モデルは素晴らしい"
         │
         ▼
 ┌─────────────────────┐
 │  Pre-tokenization   │
-│  (空白・記号で分割)   │
+│  (split by spaces   │
+│   and punctuation)  │
 └─────────┬───────────┘
           │
           ▼
 ┌─────────────────────┐
-│  サブワード分割       │
+│  Subword Splitting  │
 │  BPE / Unigram      │
 └─────────┬───────────┘
           │
           ▼
 ┌─────────────────────┐
-│  トークンID変換       │
-│  語彙テーブル参照     │
+│  Token ID Conversion│
+│  Vocabulary Lookup  │
 └─────────┬───────────┘
           │
           ▼
 [15043, 30590, 29914, 234, ...]
 ```
 
-### 1.1 トークナイゼーションの歴史と背景
+### 1.1 History and Background of Tokenization
 
-自然言語処理（NLP）におけるテキストの分割手法は、長い進化の歴史を持つ。初期のNLPシステムでは単語単位の分割（Word-level tokenization）が主流だったが、語彙外単語（OOV: Out-of-Vocabulary）の問題が深刻だった。文字単位の分割（Character-level tokenization）はOOV問題を解消するが、シーケンス長が極端に長くなり、意味的な情報が失われる。
+Text segmentation methods in natural language processing (NLP) have a long evolutionary history. Early NLP systems predominantly used word-level tokenization, but the out-of-vocabulary (OOV) problem was severe. Character-level tokenization eliminates OOV issues but results in extremely long sequences and loses semantic information.
 
-サブワード分割は、この2つのアプローチの中間に位置する画期的な手法である。頻出する単語はそのまま1つのトークンとして保持し、稀な単語はより小さな意味のある部分（サブワード）に分割する。これにより、語彙サイズを抑えながらも、あらゆるテキストを表現できるようになった。
+Subword splitting is a groundbreaking approach that sits between these two methods. Frequently occurring words are kept as a single token, while rare words are split into smaller, meaningful units (subwords). This makes it possible to represent any text while keeping vocabulary size manageable.
 
 ```
-分割手法の進化:
+Evolution of splitting methods:
 
-Word-level:        "unhappiness" → ["unhappiness"] (語彙に必要)
-                   "unhappily"  → [UNK]           (語彙外!)
+Word-level:        "unhappiness" → ["unhappiness"] (needs to be in vocabulary)
+                   "unhappily"  → [UNK]           (out of vocabulary!)
 
 Character-level:   "unhappiness" → ["u","n","h","a","p","p","i","n","e","s","s"]
-                   → 11トークン (長すぎる)
+                   → 11 tokens (too long)
 
 Subword (BPE):     "unhappiness" → ["un", "happiness"]
                    "unhappily"   → ["un", "happily"]
-                   → 語彙サイズ小、OOVなし、意味を保持
+                   → small vocabulary, no OOV, preserves meaning
 ```
 
-### 1.2 Pre-tokenization の詳細
+### 1.2 Details of Pre-tokenization
 
-Pre-tokenization はサブワード分割の前段階で、テキストを大まかな単位に分割する処理である。この段階の設計がトークナイザ全体の性能に大きく影響する。
+Pre-tokenization is the step before subword splitting that divides text into rough units. The design of this stage significantly affects the overall performance of the tokenizer.
 
 ```python
-# Pre-tokenization の各手法
+# Various pre-tokenization methods
 import re
 
 text = "Hello, World! 大規模言語モデル（LLM）は2024年に急速に発展した。"
 
-# 方法1: 空白分割（最もシンプル）
+# Method 1: Whitespace splitting (simplest)
 whitespace_tokens = text.split()
-print(f"空白分割: {whitespace_tokens}")
+print(f"Whitespace split: {whitespace_tokens}")
 # → ['Hello,', 'World!', '大規模言語モデル（LLM）は2024年に急速に発展した。']
 
-# 方法2: GPT-2/GPT-4o スタイル（正規表現ベース）
+# Method 2: GPT-2/GPT-4o style (regex-based)
 gpt2_pattern = re.compile(
     r"""'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+""",
     re.UNICODE
 )
 
-# 方法3: バイトレベル（GPT-4o, Claude）
-# 全てのテキストをUTF-8バイト列として処理
+# Method 3: Byte-level (GPT-4o, Claude)
+# Process all text as UTF-8 byte sequences
 byte_sequence = text.encode("utf-8")
-print(f"バイト数: {len(byte_sequence)}")
-# 日本語は1文字あたり3バイト（UTF-8）
+print(f"Byte count: {len(byte_sequence)}")
+# Japanese characters are 3 bytes each (UTF-8)
 
-# 方法4: SentencePiece スタイル（空白を特殊文字に）
-# 空白を "▁" (U+2581) に変換して扱う
+# Method 4: SentencePiece style (whitespace as special character)
+# Convert spaces to "▁" (U+2581)
 sp_text = "▁" + text.replace(" ", "▁")
-print(f"SentencePiece形式: {sp_text}")
+print(f"SentencePiece format: {sp_text}")
 ```
 
-### コード例 1: tiktoken（OpenAI）でトークン化
+### Code Example 1: Tokenization with tiktoken (OpenAI)
 
 ```python
 import tiktoken
 
-# GPT-4o 用エンコーダ
+# Encoder for GPT-4o
 enc = tiktoken.encoding_for_model("gpt-4o")
 
 text = "大規模言語モデルは素晴らしい技術です。"
 tokens = enc.encode(text)
 
-print(f"テキスト: {text}")
-print(f"トークン数: {len(tokens)}")
-print(f"トークンID: {tokens}")
+print(f"Text: {text}")
+print(f"Token count: {len(tokens)}")
+print(f"Token IDs: {tokens}")
 
-# 各トークンの内容を確認
+# Check the content of each token
 for token_id in tokens:
     token_bytes = enc.decode_single_token_bytes(token_id)
     print(f"  ID {token_id:>6} → {token_bytes}")
 ```
 
-### コード例 2: Hugging Face Tokenizer の比較
+### Code Example 2: Comparing Hugging Face Tokenizers
 
 ```python
 from transformers import AutoTokenizer
 
 models = {
     "GPT-4o": "Xenova/gpt-4o",
-    "Claude": "anthropic/claude-tokenizer",  # 仮想例
+    "Claude": "anthropic/claude-tokenizer",  # hypothetical example
     "Llama-3": "meta-llama/Llama-3.1-8B-Instruct",
     "Gemma-2": "google/gemma-2-9b",
 }
@@ -141,32 +142,32 @@ for name, model_id in models.items():
     try:
         tokenizer = AutoTokenizer.from_pretrained(model_id)
         tokens = tokenizer.encode(text)
-        print(f"{name:>10}: {len(tokens):>3} トークン")
+        print(f"{name:>10}: {len(tokens):>3} tokens")
     except Exception as e:
-        print(f"{name:>10}: (ロード不可)")
+        print(f"{name:>10}: (could not load)")
 ```
 
-### コード例: トークン化の詳細分析ツール
+### Code Example: Detailed Tokenization Analysis Tool
 
 ```python
 import tiktoken
 from collections import Counter
 
 class TokenAnalyzer:
-    """テキストのトークン化を詳細に分析するツール"""
+    """A tool for detailed analysis of text tokenization"""
 
     def __init__(self, model: str = "gpt-4o"):
         self.enc = tiktoken.encoding_for_model(model)
         self.model = model
 
     def analyze(self, text: str) -> dict:
-        """テキストのトークン化を詳細に分析する"""
+        """Perform detailed analysis of text tokenization"""
         tokens = self.enc.encode(text)
         token_strings = [
             self.enc.decode([t]) for t in tokens
         ]
 
-        # トークンの種類を分類
+        # Classify token types
         categories = {
             "ascii": 0,
             "japanese": 0,
@@ -203,9 +204,9 @@ class TokenAnalyzer:
         }
 
     def compare_texts(self, texts: dict[str, str]) -> None:
-        """複数テキストのトークン効率を比較する"""
-        print(f"{'テキスト':<20} {'文字数':>6} {'バイト数':>8} "
-              f"{'トークン数':>8} {'文字/トークン':>12}")
+        """Compare token efficiency across multiple texts"""
+        print(f"{'Text':<20} {'Chars':>6} {'Bytes':>8} "
+              f"{'Tokens':>8} {'Chars/Token':>12}")
         print("-" * 70)
         for name, text in texts.items():
             result = self.analyze(text)
@@ -215,7 +216,7 @@ class TokenAnalyzer:
                   f"{result['chars_per_token']:>12.2f}")
 
     def estimate_cost(self, text: str, model_pricing: dict) -> dict:
-        """テキストのAPIコストを見積もる"""
+        """Estimate the API cost for a text"""
         tokens = len(self.enc.encode(text))
         input_cost = (tokens / 1_000_000) * model_pricing["input"]
         return {
@@ -223,17 +224,17 @@ class TokenAnalyzer:
             "input_cost_usd": input_cost,
         }
 
-# 使用例
+# Usage example
 analyzer = TokenAnalyzer("gpt-4o")
 
-# 日英比較
+# English/Japanese comparison
 texts = {
-    "英語（短文）": "The quick brown fox jumps over the lazy dog.",
-    "日本語（短文）": "素早い茶色の狐が怠惰な犬を飛び越える。",
-    "英語（技術文）": "Transformer architecture uses self-attention mechanism.",
-    "日本語（技術文）": "Transformerアーキテクチャは自己注意機構を使用する。",
-    "コード": "def hello(): return 'Hello, World!'",
-    "混合": "GPT-4oは2024年にリリースされた最新のLLMです。",
+    "English (short)": "The quick brown fox jumps over the lazy dog.",
+    "Japanese (short)": "素早い茶色の狐が怠惰な犬を飛び越える。",
+    "English (technical)": "Transformer architecture uses self-attention mechanism.",
+    "Japanese (technical)": "Transformerアーキテクチャは自己注意機構を使用する。",
+    "Code": "def hello(): return 'Hello, World!'",
+    "Mixed": "GPT-4oは2024年にリリースされた最新のLLMです。",
 }
 
 analyzer.compare_texts(texts)
@@ -241,69 +242,69 @@ analyzer.compare_texts(texts)
 
 ---
 
-## 2. BPE と SentencePiece
+## 2. BPE and SentencePiece
 
-### ASCII 図解 2: BPE のマージプロセス
+### ASCII Diagram 2: The BPE Merge Process
 
 ```
-初期状態（文字単位）:
+Initial state (character-level):
 ["l", "o", "w"]  ["l", "o", "w", "e", "r"]  ["n", "e", "w"]
 
-Step 1: 最頻ペア ("l", "o") → "lo" をマージ
+Step 1: Most frequent pair ("l", "o") → merge into "lo"
 ["lo", "w"]  ["lo", "w", "e", "r"]  ["n", "e", "w"]
 
-Step 2: 最頻ペア ("lo", "w") → "low" をマージ
+Step 2: Most frequent pair ("lo", "w") → merge into "low"
 ["low"]  ["low", "e", "r"]  ["n", "e", "w"]
 
-Step 3: 最頻ペア ("e", "r") → "er" をマージ
+Step 3: Most frequent pair ("e", "r") → merge into "er"
 ["low"]  ["low", "er"]  ["n", "e", "w"]
 
-Step 4: 最頻ペア ("n", "e") → "ne" をマージ
+Step 4: Most frequent pair ("n", "e") → merge into "ne"
 ["low"]  ["low", "er"]  ["ne", "w"]
 
-Step 5: 最頻ペア ("ne", "w") → "new" をマージ
+Step 5: Most frequent pair ("ne", "w") → merge into "new"
 ["low"]  ["low", "er"]  ["new"]
 
-→ 語彙: {l, o, w, e, r, n, lo, low, er, ne, new, lower, ...}
+→ Vocabulary: {l, o, w, e, r, n, lo, low, er, ne, new, lower, ...}
 ```
 
-### 2.1 BPE のバリエーション
+### 2.1 BPE Variations
 
-BPE にはいくつかの重要なバリエーションが存在し、それぞれ異なるモデルで採用されている。
+Several important variations of BPE exist, each adopted by different models.
 
 ```
-BPE ファミリー:
+BPE family:
 
-1. 基本 BPE (Sennrich et al., 2016)
-   - 文字単位から開始し、最頻ペアをマージ
-   - 決定的: 同じコーパスからは同じ語彙が得られる
-   - 採用: 初期のGPTシリーズ
+1. Standard BPE (Sennrich et al., 2016)
+   - Starts from character level and merges most frequent pairs
+   - Deterministic: the same corpus always yields the same vocabulary
+   - Adopted by: early GPT series
 
 2. Byte-Level BPE (GPT-2/GPT-4o/Claude)
-   - バイト(0-255)を基本単位として使用
-   - 未知語が原理的に発生しない
-   - 任意の言語・記号を処理可能
-   - UTF-8 バイト列に対して BPE を適用
+   - Uses bytes (0-255) as the basic unit
+   - Unknown words are fundamentally impossible
+   - Can process any language or symbol
+   - Applies BPE to UTF-8 byte sequences
 
 3. WordPiece (BERT)
-   - BPE の亜種: マージ基準が異なる
-   - 頻度ではなく尤度の増加量でマージペアを選択
-   - "##" プレフィックスで分割されたサブワードを表記
-   - 例: "unhappiness" → ["un", "##happiness"]
+   - A variant of BPE with a different merge criterion
+   - Selects merge pairs based on likelihood increase rather than frequency
+   - Split subwords are represented with "##" prefix
+   - Example: "unhappiness" → ["un", "##happiness"]
 
 4. Unigram LM (SentencePiece)
-   - BPE とは逆: 大きな語彙から開始し、削除していく
-   - 確率的: 同じ単語に複数の分割候補があり得る
-   - 正則化効果あり（学習時のロバスト性向上）
+   - The opposite of BPE: starts with a large vocabulary and prunes it
+   - Probabilistic: a word may have multiple possible splits
+   - Provides regularization effect (improves robustness during training)
 ```
 
-### コード例 3: 簡易 BPE の実装
+### Code Example 3: Simple BPE Implementation
 
 ```python
 from collections import Counter
 
 def get_pairs(word_freqs):
-    """全ペアの出現頻度を計算"""
+    """Calculate frequency of all pairs"""
     pairs = Counter()
     for word, freq in word_freqs.items():
         symbols = word.split()
@@ -312,7 +313,7 @@ def get_pairs(word_freqs):
     return pairs
 
 def merge_pair(pair, word_freqs):
-    """最頻ペアをマージ"""
+    """Merge the most frequent pair"""
     new_word_freqs = {}
     bigram = " ".join(pair)
     replacement = "".join(pair)
@@ -321,7 +322,7 @@ def merge_pair(pair, word_freqs):
         new_word_freqs[new_word] = freq
     return new_word_freqs
 
-# 学習データの単語頻度
+# Word frequencies from training data
 word_freqs = {
     "l o w": 5,
     "l o w e r": 2,
@@ -341,17 +342,17 @@ for i in range(num_merges):
     merges.append(best_pair)
     print(f"Merge {i+1}: {best_pair} → {''.join(best_pair)}")
 
-print(f"\n最終語彙の一部: {list(word_freqs.keys())}")
+print(f"\nPart of final vocabulary: {list(word_freqs.keys())}")
 ```
 
-### コード例: Byte-Level BPE の詳細実装
+### Code Example: Detailed Byte-Level BPE Implementation
 
 ```python
 from collections import Counter, defaultdict
 from typing import Optional
 
 class ByteLevelBPE:
-    """Byte-Level BPE の教育用実装"""
+    """Educational implementation of Byte-Level BPE"""
 
     def __init__(self, vocab_size: int = 1000):
         self.vocab_size = vocab_size
@@ -359,7 +360,7 @@ class ByteLevelBPE:
         self.vocab: dict[int, bytes] = {}
 
     def _get_stats(self, ids_list: list[list[int]]) -> Counter:
-        """全てのバイトペアの出現頻度を計算"""
+        """Calculate frequency of all byte pairs"""
         counts = Counter()
         for ids in ids_list:
             for i in range(len(ids) - 1):
@@ -368,7 +369,7 @@ class ByteLevelBPE:
 
     def _merge(self, ids: list[int], pair: tuple[int, int],
                new_id: int) -> list[int]:
-        """指定ペアをマージして新しいIDに置換"""
+        """Merge the specified pair and replace with new ID"""
         new_ids = []
         i = 0
         while i < len(ids):
@@ -381,30 +382,30 @@ class ByteLevelBPE:
         return new_ids
 
     def train(self, texts: list[str]) -> None:
-        """テキストコーパスから BPE 語彙を学習する"""
-        # 初期語彙: 0-255 のバイト値
+        """Learn BPE vocabulary from a text corpus"""
+        # Initial vocabulary: byte values 0-255
         self.vocab = {i: bytes([i]) for i in range(256)}
         next_id = 256
 
-        # テキストをバイト列に変換
+        # Convert texts to byte sequences
         ids_list = [list(text.encode("utf-8")) for text in texts]
 
-        # 語彙サイズに達するまでマージを繰り返す
+        # Repeat merges until vocabulary size is reached
         while next_id < self.vocab_size:
             stats = self._get_stats(ids_list)
             if not stats:
                 break
 
-            # 最頻ペアを選択
+            # Select most frequent pair
             best_pair = max(stats, key=stats.get)
 
-            # 全テキストでマージを実行
+            # Execute merge across all texts
             ids_list = [
                 self._merge(ids, best_pair, next_id)
                 for ids in ids_list
             ]
 
-            # 語彙に追加
+            # Add to vocabulary
             self.vocab[next_id] = self.vocab[best_pair[0]] + self.vocab[best_pair[1]]
             self.merges.append(best_pair)
 
@@ -416,11 +417,11 @@ class ByteLevelBPE:
 
             next_id += 1
 
-        print(f"\n学習完了: {len(self.vocab)} トークン, "
-              f"{len(self.merges)} マージ")
+        print(f"\nTraining complete: {len(self.vocab)} tokens, "
+              f"{len(self.merges)} merges")
 
     def encode(self, text: str) -> list[int]:
-        """テキストをトークンIDのリストに変換"""
+        """Convert text to a list of token IDs"""
         ids = list(text.encode("utf-8"))
         for pair in self.merges:
             new_id = 256 + self.merges.index(pair)
@@ -428,47 +429,47 @@ class ByteLevelBPE:
         return ids
 
     def decode(self, ids: list[int]) -> str:
-        """トークンIDのリストをテキストに復元"""
+        """Restore a list of token IDs to text"""
         byte_sequence = b"".join(self.vocab[i] for i in ids)
         return byte_sequence.decode("utf-8", errors="replace")
 
-# 使用例
+# Usage example
 bpe = ByteLevelBPE(vocab_size=500)
 corpus = [
     "The quick brown fox jumps over the lazy dog.",
     "大規模言語モデルは自然言語処理の革命です。",
     "Machine learning and deep learning are transforming AI.",
-] * 100  # コーパスを繰り返して頻度を上げる
+] * 100  # Repeat corpus to increase frequency
 
 bpe.train(corpus)
 
 test_text = "The quick fox"
 encoded = bpe.encode(test_text)
 decoded = bpe.decode(encoded)
-print(f"原文: {test_text}")
-print(f"トークン数: {len(encoded)}")
-print(f"復元: {decoded}")
+print(f"Original: {test_text}")
+print(f"Token count: {len(encoded)}")
+print(f"Decoded: {decoded}")
 ```
 
-### コード例 4: SentencePiece の学習と使用
+### Code Example 4: Training and Using SentencePiece
 
 ```python
 import sentencepiece as spm
 
-# モデルの学習
+# Train the model
 spm.SentencePieceTrainer.train(
     input="corpus.txt",
     model_prefix="my_tokenizer",
     vocab_size=32000,
-    model_type="bpe",           # "unigram" も選択可能
-    character_coverage=0.9995,  # 日本語は高めに設定
+    model_type="bpe",           # "unigram" is also available
+    character_coverage=0.9995,  # Set higher for Japanese
     pad_id=3,
     unk_id=0,
     bos_id=1,
     eos_id=2,
 )
 
-# 学習済みモデルの使用
+# Use the trained model
 sp = spm.SentencePieceProcessor()
 sp.load("my_tokenizer.model")
 
@@ -476,174 +477,175 @@ text = "大規模言語モデルの性能はトークナイザに大きく依存
 tokens = sp.encode(text, out_type=str)
 ids = sp.encode(text, out_type=int)
 
-print(f"テキスト: {text}")
-print(f"トークン: {tokens}")
-print(f"ID: {ids}")
-print(f"復元: {sp.decode(ids)}")
+print(f"Text: {text}")
+print(f"Tokens: {tokens}")
+print(f"IDs: {ids}")
+print(f"Decoded: {sp.decode(ids)}")
 ```
 
-### コード例: SentencePiece の高度な設定
+### Code Example: Advanced SentencePiece Configuration
 
 ```python
 import sentencepiece as spm
 
-# 日本語に最適化した SentencePiece 学習
+# SentencePiece training optimized for Japanese
 spm.SentencePieceTrainer.train(
     input="japanese_corpus.txt",
     model_prefix="jp_tokenizer",
     vocab_size=32000,
-    model_type="unigram",        # 日本語には Unigram が適している場合が多い
-    character_coverage=0.9995,   # 日本語の文字カバレッジ
-    byte_fallback=True,          # 未知文字をバイト表現にフォールバック
-    split_by_unicode_script=True,  # Unicode スクリプト境界で分割
-    split_by_number=True,         # 数字の境界で分割
-    split_by_whitespace=True,     # 空白で分割
-    split_digits=True,            # 各桁を個別のトークンにする
+    model_type="unigram",        # Unigram is often suitable for Japanese
+    character_coverage=0.9995,   # Character coverage for Japanese
+    byte_fallback=True,          # Fall back to byte representation for unknown characters
+    split_by_unicode_script=True,  # Split at Unicode script boundaries
+    split_by_number=True,         # Split at number boundaries
+    split_by_whitespace=True,     # Split at whitespace
+    split_digits=True,            # Treat each digit as an individual token
     treat_whitespace_as_suffix=False,
     allow_whitespace_only_pieces=True,
-    normalization_rule_name="nfkc",  # Unicode 正規化
+    normalization_rule_name="nfkc",  # Unicode normalization
     num_threads=8,
-    # 特殊トークンの定義
+    # Define special tokens
     user_defined_symbols=["<code>", "</code>", "<math>", "</math>"],
     control_symbols=["<sep>", "<cls>", "<mask>"],
 )
 
-# 学習済みモデルの詳細な使用法
+# Detailed usage of the trained model
 sp = spm.SentencePieceProcessor()
 sp.load("jp_tokenizer.model")
 
 text = "GPT-4oの性能は2024年に大幅に向上した。"
 
-# 通常のエンコード
+# Standard encoding
 tokens_str = sp.encode(text, out_type=str)
 tokens_id = sp.encode(text, out_type=int)
-print(f"トークン(文字列): {tokens_str}")
-print(f"トークン(ID): {tokens_id}")
+print(f"Tokens (string): {tokens_str}")
+print(f"Tokens (ID): {tokens_id}")
 
-# N-best エンコード（複数の分割候補を取得）
+# N-best encoding (retrieve multiple split candidates)
 nbest = sp.nbest_encode(text, nbest_size=5, out_type=str)
-print(f"\nN-best 分割候補:")
+print(f"\nN-best split candidates:")
 for i, candidate in enumerate(nbest):
-    print(f"  候補{i+1}: {candidate}")
+    print(f"  Candidate {i+1}: {candidate}")
 
-# サンプリングエンコード（正則化効果）
+# Sampling encoding (regularization effect)
 for i in range(3):
     sampled = sp.encode(text, out_type=str, enable_sampling=True,
                         alpha=0.1, nbest_size=-1)
-    print(f"サンプル{i+1}: {sampled}")
+    print(f"Sample {i+1}: {sampled}")
 ```
 
-### 2.2 Unigram Language Model の仕組み
+### 2.2 How Unigram Language Model Works
 
 ```
-Unigram LM トークナイゼーション:
+Unigram LM Tokenization:
 
-BPE (ボトムアップ):
-  文字 → マージ → マージ → ... → 最終語彙
-  (小さい語彙から大きく)
+BPE (bottom-up):
+  characters → merge → merge → ... → final vocabulary
+  (grow from small vocabulary)
 
-Unigram (トップダウン):
-  巨大語彙 → 削除 → 削除 → ... → 最終語彙
-  (大きな語彙から小さく)
+Unigram (top-down):
+  huge vocabulary → prune → prune → ... → final vocabulary
+  (shrink from large vocabulary)
 
-手順:
-1. 十分に大きな初期語彙を用意
-   (例: 全てのサブストリングのうち頻出するもの)
+Procedure:
+1. Prepare a sufficiently large initial vocabulary
+   (e.g., frequently occurring substrings)
 
-2. 各語彙要素の確率 P(x_i) を EM アルゴリズムで推定
+2. Estimate probability P(x_i) for each vocabulary element using EM algorithm
 
-3. 各語彙要素を削除した場合の損失増加を計算:
+3. Calculate loss increase when each vocabulary element is removed:
    loss_i = -sum(log P(sentence | vocab \ {x_i}))
 
-4. 損失増加が最も小さい語彙要素を削除
-   (= 削除しても影響が少ないものを除去)
+4. Remove the vocabulary element with the smallest loss increase
+   (= remove elements whose removal has the least impact)
 
-5. 目標語彙サイズになるまで 2-4 を繰り返す
+5. Repeat steps 2-4 until the target vocabulary size is reached
 
-利点:
-- 確率的分割: 同じ単語に複数の分割方法があり得る
-  → 学習時の正則化効果（Subword Regularization）
-- 分割の品質がより最適に近い
+Advantages:
+- Probabilistic splitting: a word may have multiple possible splits
+  → Regularization effect during training (Subword Regularization)
+- Split quality is closer to optimal
 ```
 
-### 比較表 1: トークナイゼーション手法の比較
+### Comparison Table 1: Tokenization Method Comparison
 
-| 手法 | 特徴 | 採用モデル | 日本語対応 | 語彙サイズ |
-|------|------|-----------|-----------|-----------|
-| BPE (Byte-level) | バイト単位で未知語なし | GPT-4, Claude | 良好 | 100K-200K |
-| SentencePiece (Unigram) | 確率的サブワード分割 | LLaMA, Gemma | 良好 | 32K-128K |
-| SentencePiece (BPE) | SPP フレームワーク上のBPE | T5, mBART | 良好 | 32K-64K |
-| WordPiece | BPE の亜種 | BERT | 要調整 | 30K-50K |
-| tiktoken | OpenAI 独自の高速BPE | GPT-4o | 良好 | 100K-200K |
+| Method | Characteristics | Adopted by | Japanese Support | Vocabulary Size |
+|--------|----------------|------------|-----------------|----------------|
+| BPE (Byte-level) | No unknown words at byte level | GPT-4, Claude | Good | 100K-200K |
+| SentencePiece (Unigram) | Probabilistic subword splitting | LLaMA, Gemma | Good | 32K-128K |
+| SentencePiece (BPE) | BPE on SPP framework | T5, mBART | Good | 32K-64K |
+| WordPiece | BPE variant | BERT | Requires tuning | 30K-50K |
+| tiktoken | OpenAI's high-speed BPE | GPT-4o | Good | 100K-200K |
 
-### 比較表: 各トークナイザの実装詳細
+### Comparison Table: Implementation Details of Each Tokenizer
 
-| 特性 | tiktoken | SentencePiece | HF Tokenizers |
-|------|----------|--------------|---------------|
-| 実装言語 | Rust + Python | C++ + Python | Rust + Python |
-| 速度 (MB/s) | ~100 | ~50 | ~80 |
-| マルチスレッド | 対応 | 対応 | 対応 |
-| ストリーミング | 対応 | 限定的 | 対応 |
-| カスタム学習 | 不可 | 可能 | 可能 |
-| 語彙の拡張 | 不可 | 可能 | 可能 |
-| メモリ効率 | 高 | 中 | 高 |
-| ライセンス | MIT | Apache 2.0 | Apache 2.0 |
+| Property | tiktoken | SentencePiece | HF Tokenizers |
+|----------|----------|--------------|---------------|
+| Implementation Language | Rust + Python | C++ + Python | Rust + Python |
+| Speed (MB/s) | ~100 | ~50 | ~80 |
+| Multithreading | Supported | Supported | Supported |
+| Streaming | Supported | Limited | Supported |
+| Custom Training | Not possible | Possible | Possible |
+| Vocabulary Extension | Not possible | Possible | Possible |
+| Memory Efficiency | High | Medium | High |
+| License | MIT | Apache 2.0 | Apache 2.0 |
 
 ---
 
-## 3. トークン数管理
+## 3. Token Count Management
 
-### ASCII 図解 3: トークン数とコストの関係
+### ASCII Diagram 3: Relationship Between Token Count and Cost
 
 ```
-API コスト構造:
+API cost structure:
 ┌──────────────────────────────────────────┐
 │                                          │
-│  入力トークン        出力トークン          │
+│  Input Tokens          Output Tokens     │
 │  ┌──────────┐      ┌──────────┐         │
-│  │ システム  │      │ 生成     │         │
-│  │ プロンプト│      │ テキスト │         │
+│  │ System   │      │ Generated│         │
+│  │ Prompt   │      │ Text     │         │
 │  │          │      │          │         │
-│  │ ユーザー  │      │          │         │
-│  │ メッセージ│      │          │         │
+│  │ User     │      │          │         │
+│  │ Message  │      │          │         │
 │  └──────────┘      └──────────┘         │
 │   $X / 1M tokens    $Y / 1M tokens      │
-│   (通常 Yの方が高い)                      │
+│   (Y is usually higher)                 │
 │                                          │
-│  合計コスト = 入力数×X + 出力数×Y          │
+│  Total cost = input×X + output×Y        │
 └──────────────────────────────────────────┘
 
-例: Claude 3.5 Sonnet
-  入力: $3.00 / 1M tokens
-  出力: $15.00 / 1M tokens
+Example: Claude 3.5 Sonnet
+  Input: $3.00 / 1M tokens
+  Output: $15.00 / 1M tokens
 ```
 
-### 3.1 コンテキストウィンドウの管理
+### 3.1 Managing the Context Window
 
-コンテキストウィンドウとは、モデルが一度に処理できるトークンの最大数である。入力トークンと出力トークンの合計がこの上限を超えることはできない。
+The context window is the maximum number of tokens a model can process at once. The sum of input and output tokens cannot exceed this limit.
 
 ```
-コンテキストウィンドウの構成:
+Context window composition:
 
 ┌──────────────────────────────────────────────────┐
-│              コンテキストウィンドウ (例: 200K)       │
+│              Context Window (e.g., 200K)          │
 │                                                    │
 │  ┌────────────┐  ┌──────────┐  ┌───────────────┐ │
-│  │ システム    │  │ 会話     │  │ 予約出力      │ │
-│  │ プロンプト  │  │ 履歴     │  │ (max_tokens)  │ │
-│  │ (固定)     │  │ (可変)   │  │ (固定)        │ │
-│  │ ~2K tokens │  │ ~190K   │  │ ~8K tokens    │ │
+│  │ System     │  │ Convers- │  │ Reserved      │ │
+│  │ Prompt     │  │ ation    │  │ Output        │ │
+│  │ (fixed)    │  │ History  │  │ (max_tokens)  │ │
+│  │ ~2K tokens │  │ (variable│  │ ~8K tokens    │ │
+│  │            │  │ ~190K)   │  │ (fixed)       │ │
 │  └────────────┘  └──────────┘  └───────────────┘ │
 │                                                    │
-│  使用可能な会話履歴 = ウィンドウサイズ               │
-│                    - システムプロンプト              │
-│                    - max_tokens (出力予約)           │
+│  Available conversation history = window size     │
+│                    - system prompt                 │
+│                    - max_tokens (output reserve)   │
 └──────────────────────────────────────────────────┘
 ```
 
 ```python
 class ContextWindowManager:
-    """コンテキストウィンドウを管理するユーティリティ"""
+    """Utility for managing the context window"""
 
     MODEL_LIMITS = {
         "gpt-4o": 128_000,
@@ -663,19 +665,19 @@ class ContextWindowManager:
 
     @property
     def available_input_tokens(self) -> int:
-        """入力に使える残りトークン数"""
+        """Remaining tokens available for input"""
         return (self.context_limit
                 - self.max_output_tokens
                 - self.system_prompt_tokens)
 
     def can_fit(self, input_tokens: int) -> bool:
-        """入力がコンテキストウィンドウに収まるか"""
+        """Check if input fits within the context window"""
         return input_tokens <= self.available_input_tokens
 
     def truncate_messages(self, messages: list[dict],
                           token_counter,
                           strategy: str = "sliding_window") -> list[dict]:
-        """メッセージ履歴をコンテキストに収まるよう切り詰める"""
+        """Truncate message history to fit within the context"""
         if strategy == "sliding_window":
             return self._sliding_window(messages, token_counter)
         elif strategy == "summarize_old":
@@ -685,12 +687,12 @@ class ContextWindowManager:
 
     def _sliding_window(self, messages: list[dict],
                          token_counter) -> list[dict]:
-        """古いメッセージから削除する（最新を優先）"""
+        """Remove old messages first (prioritize latest)"""
         result = []
         total_tokens = 0
         limit = self.available_input_tokens
 
-        # 最新のメッセージから逆順に追加
+        # Add messages in reverse order from newest
         for msg in reversed(messages):
             msg_tokens = token_counter(msg["content"])
             if total_tokens + msg_tokens > limit:
@@ -702,12 +704,12 @@ class ContextWindowManager:
 
     def _summarize_old(self, messages: list[dict],
                         token_counter) -> list[dict]:
-        """古いメッセージを要約して圧縮する"""
-        # 実装例: 古い部分を要約 + 新しい部分をそのまま保持
+        """Compress old messages by summarizing them"""
+        # Example implementation: summarize old portion + keep new portion as-is
         limit = self.available_input_tokens
         half_limit = limit // 2
 
-        # 新しいメッセージ（後半）
+        # Recent messages (latter half)
         recent = []
         recent_tokens = 0
         for msg in reversed(messages):
@@ -717,30 +719,30 @@ class ContextWindowManager:
             recent.insert(0, msg)
             recent_tokens += msg_tokens
 
-        # 古いメッセージ（前半）を要約
+        # Summarize old messages (former half)
         old_messages = messages[:len(messages) - len(recent)]
         if old_messages:
             summary_msg = {
                 "role": "system",
-                "content": f"[以前の会話の要約: {len(old_messages)}件のメッセージ]"
+                "content": f"[Summary of previous conversation: {len(old_messages)} messages]"
             }
             return [summary_msg] + recent
 
         return recent
 
-# 使用例
+# Usage example
 manager = ContextWindowManager(
     model="claude-3-5-sonnet",
     max_output_tokens=4096,
     system_prompt_tokens=500,
 )
 
-print(f"モデル: {manager.model}")
-print(f"コンテキスト上限: {manager.context_limit:,} tokens")
-print(f"入力使用可能: {manager.available_input_tokens:,} tokens")
+print(f"Model: {manager.model}")
+print(f"Context limit: {manager.context_limit:,} tokens")
+print(f"Available for input: {manager.available_input_tokens:,} tokens")
 ```
 
-### コード例 5: トークン数カウントとコスト見積もり
+### Code Example 5: Token Count and Cost Estimation
 
 ```python
 import tiktoken
@@ -750,7 +752,7 @@ def estimate_cost(
     model: str = "gpt-4o",
     max_output_tokens: int = 1000
 ):
-    """APIコストの見積もり"""
+    """Estimate API cost"""
     pricing = {
         "gpt-4o":          {"input": 2.50, "output": 10.00},
         "gpt-4o-mini":     {"input": 0.15, "output": 0.60},
@@ -767,25 +769,25 @@ def estimate_cost(
         output_cost = max_output_tokens / 1_000_000 * p["output"]
         total = input_cost + output_cost
 
-        print(f"モデル: {model}")
-        print(f"入力トークン: {input_tokens:,}")
-        print(f"出力トークン(最大): {max_output_tokens:,}")
-        print(f"入力コスト: ${input_cost:.4f}")
-        print(f"出力コスト: ${output_cost:.4f}")
-        print(f"合計見積もり: ${total:.4f}")
+        print(f"Model: {model}")
+        print(f"Input tokens: {input_tokens:,}")
+        print(f"Output tokens (max): {max_output_tokens:,}")
+        print(f"Input cost: ${input_cost:.4f}")
+        print(f"Output cost: ${output_cost:.4f}")
+        print(f"Total estimate: ${total:.4f}")
 
-text = "ここに長いプロンプトが入ります。" * 100
+text = "A long prompt goes here." * 100
 estimate_cost(text, model="claude-3.5-sonnet")
 ```
 
-### 3.2 バッチ処理でのトークン最適化
+### 3.2 Token Optimization for Batch Processing
 
 ```python
 import tiktoken
 from typing import Generator
 
 class BatchTokenOptimizer:
-    """大量テキストを処理する際のトークン最適化"""
+    """Token optimization for processing large volumes of text"""
 
     def __init__(self, model: str = "gpt-4o",
                  max_tokens_per_batch: int = 100_000):
@@ -795,7 +797,7 @@ class BatchTokenOptimizer:
     def create_batches(self, texts: list[str],
                         max_tokens: int = None
                         ) -> Generator[list[str], None, None]:
-        """テキストをトークン数ベースでバッチに分割する"""
+        """Split texts into batches based on token count"""
         max_tokens = max_tokens or self.max_tokens_per_batch
         current_batch = []
         current_tokens = 0
@@ -816,7 +818,7 @@ class BatchTokenOptimizer:
 
     def truncate_to_tokens(self, text: str,
                             max_tokens: int) -> str:
-        """テキストを指定トークン数以内に切り詰める"""
+        """Truncate text to within the specified token count"""
         tokens = self.enc.encode(text)
         if len(tokens) <= max_tokens:
             return text
@@ -826,7 +828,7 @@ class BatchTokenOptimizer:
     def split_by_tokens(self, text: str,
                          chunk_size: int,
                          overlap: int = 0) -> list[str]:
-        """テキストをトークン数ベースでチャンクに分割する"""
+        """Split text into chunks based on token count"""
         tokens = self.enc.encode(text)
         chunks = []
         start = 0
@@ -839,116 +841,116 @@ class BatchTokenOptimizer:
 
         return chunks
 
-# 使用例
+# Usage example
 optimizer = BatchTokenOptimizer("gpt-4o")
 
-# 大量テキストをバッチ処理
-documents = [f"Document {i}: " + "テスト文章。" * 100 for i in range(50)]
+# Batch processing of large volumes of text
+documents = [f"Document {i}: " + "Test sentence. " * 100 for i in range(50)]
 
 for batch_idx, batch in enumerate(optimizer.create_batches(documents)):
-    print(f"バッチ {batch_idx + 1}: {len(batch)} ドキュメント")
+    print(f"Batch {batch_idx + 1}: {len(batch)} documents")
 
-# テキストのトークンベース分割
-long_text = "これは非常に長いテキストです。" * 500
+# Token-based text splitting
+long_text = "This is a very long text. " * 500
 chunks = optimizer.split_by_tokens(long_text, chunk_size=512, overlap=64)
-print(f"チャンク数: {len(chunks)}")
+print(f"Number of chunks: {len(chunks)}")
 ```
 
-### 比較表 2: モデル別トークナイザの特性
+### Comparison Table 2: Tokenizer Characteristics by Model
 
-| モデル | トークナイザ | 語彙サイズ | 日本語効率 | 特殊トークン |
-|--------|------------|-----------|-----------|-------------|
-| GPT-4o | cl100k_base+ | ~200K | 高 (改善済) | <\|endoftext\|> 等 |
-| Claude 3.5 | 独自 BPE | ~150K | 高 | 非公開 |
-| Llama 3.1 | tiktoken 派生 | 128K | 中〜高 | <\|begin_of_text\|> 等 |
-| Gemini 1.5 | SentencePiece | ~256K | 高 | 非公開 |
-| Gemma 2 | SentencePiece | 256K | 高 | <bos>, <eos> 等 |
+| Model | Tokenizer | Vocabulary Size | Japanese Efficiency | Special Tokens |
+|-------|-----------|----------------|--------------------|--------------------|
+| GPT-4o | cl100k_base+ | ~200K | High (improved) | <\|endoftext\|> etc. |
+| Claude 3.5 | Proprietary BPE | ~150K | High | Not disclosed |
+| Llama 3.1 | tiktoken-derived | 128K | Medium-High | <\|begin_of_text\|> etc. |
+| Gemini 1.5 | SentencePiece | ~256K | High | Not disclosed |
+| Gemma 2 | SentencePiece | 256K | High | <bos>, <eos> etc. |
 
-### 比較表: 言語別トークン効率の詳細
+### Comparison Table: Token Efficiency by Language
 
-| 言語 | GPT-4o | Llama 3.1 | Gemini 1.5 | 備考 |
-|------|--------|-----------|-----------|------|
-| 英語 | 1文字≒0.25トークン | 1文字≒0.25トークン | 1文字≒0.25トークン | ほぼ同等 |
-| 日本語 | 1文字≒0.7トークン | 1文字≒1.2トークン | 1文字≒0.6トークン | 差が大きい |
-| 中国語 | 1文字≒0.6トークン | 1文字≒1.0トークン | 1文字≒0.5トークン | 漢字の処理差 |
-| 韓国語 | 1文字≒0.8トークン | 1文字≒1.3トークン | 1文字≒0.7トークン | ハングル処理 |
-| コード | 1文字≒0.3トークン | 1文字≒0.3トークン | 1文字≒0.3トークン | ほぼ同等 |
-| 数式 | 1文字≒0.5トークン | 1文字≒0.5トークン | 1文字≒0.4トークン | 特殊記号依存 |
+| Language | GPT-4o | Llama 3.1 | Gemini 1.5 | Notes |
+|----------|--------|-----------|-----------|-------|
+| English | ~0.25 tokens/char | ~0.25 tokens/char | ~0.25 tokens/char | Nearly equivalent |
+| Japanese | ~0.7 tokens/char | ~1.2 tokens/char | ~0.6 tokens/char | Large variance |
+| Chinese | ~0.6 tokens/char | ~1.0 tokens/char | ~0.5 tokens/char | Difference in kanji handling |
+| Korean | ~0.8 tokens/char | ~1.3 tokens/char | ~0.7 tokens/char | Hangul processing |
+| Code | ~0.3 tokens/char | ~0.3 tokens/char | ~0.3 tokens/char | Nearly equivalent |
+| Math | ~0.5 tokens/char | ~0.5 tokens/char | ~0.4 tokens/char | Depends on special symbols |
 
 ---
 
-## 4. トークナイゼーションの実践的課題
+## 4. Practical Challenges in Tokenization
 
-### 4.1 特殊文字と Unicode の扱い
+### 4.1 Handling Special Characters and Unicode
 
 ```python
 import tiktoken
 
 enc = tiktoken.encoding_for_model("gpt-4o")
 
-# 特殊文字のトークン化を検証
+# Verify tokenization of special characters
 test_cases = {
-    "絵文字": "🎉🚀💡🔥",
-    "数式記号": "∑∫∂∇∞",
-    "CJK拡張": "𠮷𩸽𠀋",
-    "制御文字": "タブ\tと\n改行",
-    "ゼロ幅文字": "hello\u200bworld",  # ゼロ幅スペース
-    "結合文字": "がぎぐげご",  # 半濁点・濁点
+    "Emoji": "🎉🚀💡🔥",
+    "Math symbols": "∑∫∂∇∞",
+    "CJK extension": "𠮷𩸽𠀋",
+    "Control chars": "Tab\tand\nnewline",
+    "Zero-width char": "hello\u200bworld",  # zero-width space
+    "Combining chars": "がぎぐげご",  # voiced/semi-voiced marks
     "URL": "https://example.com/path?q=test&lang=ja",
     "JSON": '{"key": "value", "num": 42}',
-    "コード": 'def hello():\n    print("Hello")',
+    "Code": 'def hello():\n    print("Hello")',
 }
 
 for name, text in test_cases.items():
     tokens = enc.encode(text)
-    print(f"{name:<12}: {len(text):>3}文字 → {len(tokens):>3}トークン "
-          f"(効率: {len(text)/len(tokens):.2f}文字/トークン)")
+    print(f"{name:<15}: {len(text):>3} chars → {len(tokens):>3} tokens "
+          f"(efficiency: {len(text)/len(tokens):.2f} chars/token)")
 ```
 
-### 4.2 トークン境界の問題
+### 4.2 Token Boundary Issues
 
-トークンの分割位置が意味的に不適切な場合、モデルの理解に影響を及ぼすことがある。
+When token splits occur at semantically inappropriate positions, it can affect the model's understanding.
 
 ```python
 import tiktoken
 
 enc = tiktoken.encoding_for_model("gpt-4o")
 
-# トークン境界の問題を可視化
+# Visualize token boundary issues
 def visualize_tokenization(text: str):
-    """トークン分割を視覚的に表示する"""
+    """Visually display token splits"""
     tokens = enc.encode(text)
     result = []
     for token_id in tokens:
         token_str = enc.decode([token_id])
         result.append(f"[{token_str}]")
-    print(f"原文: {text}")
-    print(f"分割: {''.join(result)}")
-    print(f"トークン数: {len(tokens)}")
+    print(f"Original: {text}")
+    print(f"Split: {''.join(result)}")
+    print(f"Token count: {len(tokens)}")
     print()
 
-# 問題のある例
-visualize_tokenization("unhappiness")      # 正常: [un][happiness]
-visualize_tokenization("123456789")         # 数字の分割
-visualize_tokenization("user@example.com")  # メールアドレス
-visualize_tokenization("2024-03-15T10:30:00Z")  # ISO日時
-visualize_tokenization("192.168.1.1")       # IPアドレス
-visualize_tokenization("東京都千代田区丸の内1-1-1")  # 日本語住所
+# Problematic examples
+visualize_tokenization("unhappiness")      # Normal: [un][happiness]
+visualize_tokenization("123456789")         # Digit splitting
+visualize_tokenization("user@example.com")  # Email address
+visualize_tokenization("2024-03-15T10:30:00Z")  # ISO datetime
+visualize_tokenization("192.168.1.1")       # IP address
+visualize_tokenization("東京都千代田区丸の内1-1-1")  # Japanese address
 ```
 
-### 4.3 プロンプトインジェクションとトークン化
+### 4.3 Prompt Injection and Tokenization
 
 ```python
-# トークナイゼーションを利用したプロンプトインジェクション攻撃の例と対策
+# Examples of prompt injection attacks exploiting tokenization, and countermeasures
 
 class TokenSanitizer:
-    """トークンレベルでの入力サニタイズ"""
+    """Input sanitization at the token level"""
 
     DANGEROUS_TOKEN_PATTERNS = [
-        b"<|im_start|>",   # ChatML インジェクション
+        b"<|im_start|>",   # ChatML injection
         b"<|im_end|>",
         b"<|endoftext|>",
-        b"[INST]",          # Llama フォーマット
+        b"[INST]",          # Llama format
         b"[/INST]",
         b"<s>",
         b"</s>",
@@ -959,7 +961,7 @@ class TokenSanitizer:
         self.enc = tiktoken.encoding_for_model(model)
 
     def sanitize(self, text: str) -> str:
-        """危険なトークンパターンを除去する"""
+        """Remove dangerous token patterns"""
         sanitized = text
         for pattern in self.DANGEROUS_TOKEN_PATTERNS:
             pattern_str = pattern.decode("utf-8", errors="ignore")
@@ -969,38 +971,38 @@ class TokenSanitizer:
 
     def validate_token_count(self, text: str,
                               max_tokens: int) -> tuple[bool, int]:
-        """トークン数が上限以内か検証する"""
+        """Validate that token count is within the limit"""
         tokens = self.enc.encode(text)
         return len(tokens) <= max_tokens, len(tokens)
 ```
 
 ---
 
-## 5. トラブルシューティング
+## 5. Troubleshooting
 
-### 5.1 よくある問題と対処法
+### 5.1 Common Issues and Solutions
 
-| 問題 | 原因 | 対処法 |
-|------|------|--------|
-| トークン数が予想より多い | 日本語テキストの効率が悪い | トークン数ベースでチャンク分割 |
-| 復元時に文字化け | マルチバイト文字がトークン境界で分断 | バイトレベルBPE使用モデルに変更 |
-| API呼び出しが失敗する | コンテキスト長超過 | ContextWindowManager で管理 |
-| コストが予算を超過 | 出力トークンの過小見積もり | max_tokens 設定 + コスト追跡 |
-| トークン化速度が遅い | 大量テキストの逐次処理 | バッチ処理 + マルチスレッド |
-| 異なるモデル間でトークン数不一致 | トークナイザの違い | モデル固有のカウンターを使用 |
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| More tokens than expected | Poor efficiency with Japanese text | Split chunks by token count |
+| Garbled text on decode | Multibyte characters split across token boundaries | Switch to a model using byte-level BPE |
+| API calls fail | Context length exceeded | Manage with ContextWindowManager |
+| Cost exceeds budget | Underestimated output tokens | Set max_tokens + track costs |
+| Tokenization is slow | Sequential processing of large volumes of text | Batch processing + multithreading |
+| Token count mismatch across models | Differences in tokenizers | Use model-specific counters |
 
-### 5.2 デバッグテクニック
+### 5.2 Debugging Techniques
 
 ```python
 def debug_tokenization(text: str, models: list[str] = None):
-    """複数モデルのトークン化結果をデバッグ表示する"""
+    """Display tokenization results for multiple models for debugging"""
     import tiktoken
 
     if models is None:
         models = ["gpt-4o", "gpt-4o-mini"]
 
-    print(f"テキスト: {text[:50]}{'...' if len(text) > 50 else ''}")
-    print(f"文字数: {len(text)}, バイト数: {len(text.encode('utf-8'))}")
+    print(f"Text: {text[:50]}{'...' if len(text) > 50 else ''}")
+    print(f"Characters: {len(text)}, Bytes: {len(text.encode('utf-8'))}")
     print("-" * 60)
 
     for model in models:
@@ -1010,38 +1012,38 @@ def debug_tokenization(text: str, models: list[str] = None):
             decoded_tokens = [enc.decode([t]) for t in tokens]
 
             print(f"\n{model}:")
-            print(f"  トークン数: {len(tokens)}")
-            print(f"  文字/トークン: {len(text)/len(tokens):.2f}")
-            print(f"  先頭5トークン: {decoded_tokens[:5]}")
-            print(f"  末尾5トークン: {decoded_tokens[-5:]}")
+            print(f"  Token count: {len(tokens)}")
+            print(f"  Chars/token: {len(text)/len(tokens):.2f}")
+            print(f"  First 5 tokens: {decoded_tokens[:5]}")
+            print(f"  Last 5 tokens: {decoded_tokens[-5:]}")
         except Exception as e:
-            print(f"  {model}: エラー - {e}")
+            print(f"  {model}: Error - {e}")
 
-# デバッグ実行
+# Run debug
 debug_tokenization("Transformerアーキテクチャは自然言語処理に革命をもたらした。")
 ```
 
 ---
 
-## 6. パフォーマンス最適化
+## 6. Performance Optimization
 
-### 6.1 トークン化のベンチマーク
+### 6.1 Tokenizer Benchmarking
 
 ```python
 import time
 import tiktoken
 
 def benchmark_tokenizer(text: str, iterations: int = 1000):
-    """トークナイザの速度をベンチマークする"""
+    """Benchmark tokenizer speed"""
     enc = tiktoken.encoding_for_model("gpt-4o")
 
-    # エンコード速度
+    # Encoding speed
     start = time.perf_counter()
     for _ in range(iterations):
         tokens = enc.encode(text)
     encode_time = (time.perf_counter() - start) / iterations
 
-    # デコード速度
+    # Decoding speed
     tokens = enc.encode(text)
     start = time.perf_counter()
     for _ in range(iterations):
@@ -1049,28 +1051,28 @@ def benchmark_tokenizer(text: str, iterations: int = 1000):
     decode_time = (time.perf_counter() - start) / iterations
 
     text_bytes = len(text.encode("utf-8"))
-    print(f"テキストサイズ: {text_bytes:,} bytes")
-    print(f"トークン数: {len(tokens):,}")
-    print(f"エンコード: {encode_time*1000:.3f} ms "
+    print(f"Text size: {text_bytes:,} bytes")
+    print(f"Token count: {len(tokens):,}")
+    print(f"Encode: {encode_time*1000:.3f} ms "
           f"({text_bytes/encode_time/1024/1024:.1f} MB/s)")
-    print(f"デコード: {decode_time*1000:.3f} ms "
+    print(f"Decode: {decode_time*1000:.3f} ms "
           f"({text_bytes/decode_time/1024/1024:.1f} MB/s)")
 
-# ベンチマーク実行
+# Run benchmark
 short_text = "Hello, World!" * 10
 long_text = "大規模言語モデルの性能は素晴らしい。" * 1000
 
-print("=== 短いテキスト ===")
+print("=== Short Text ===")
 benchmark_tokenizer(short_text)
-print("\n=== 長いテキスト ===")
+print("\n=== Long Text ===")
 benchmark_tokenizer(long_text, iterations=100)
 ```
 
-### 6.2 メモリ効率の最適化
+### 6.2 Memory Efficiency Optimization
 
 ```python
 class StreamingTokenCounter:
-    """ストリーミング方式でメモリ効率的にトークン数をカウントする"""
+    """Count tokens in a memory-efficient streaming fashion"""
 
     def __init__(self, model: str = "gpt-4o"):
         import tiktoken
@@ -1078,7 +1080,7 @@ class StreamingTokenCounter:
 
     def count_file(self, filepath: str,
                     chunk_size: int = 1024 * 1024) -> int:
-        """ファイルをチャンク読みしてトークン数をカウント"""
+        """Count tokens by reading a file in chunks"""
         total_tokens = 0
 
         with open(filepath, "r", encoding="utf-8") as f:
@@ -1091,7 +1093,7 @@ class StreamingTokenCounter:
         return total_tokens
 
     def count_streaming(self, text_generator) -> int:
-        """ジェネレータからストリーミングでカウント"""
+        """Count tokens by streaming from a generator"""
         total_tokens = 0
         for text in text_generator:
             total_tokens += len(self.enc.encode(text))
@@ -1100,115 +1102,115 @@ class StreamingTokenCounter:
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン 1: トークン数を考慮しないプロンプト設計
+### Anti-Pattern 1: Prompt Design That Ignores Token Count
 
 ```
-誤: 冗長な指示を毎回フルに送信
-  → トークン消費が膨大、コスト爆発
+Wrong: Send verbose instructions in full every time
+  → Enormous token consumption, cost explosion
 
-# 悪い例
+# Bad example
 prompt = """
-あなたは非常に優秀なアシスタントです。あなたの役割は...
-（1000トークンのシステムプロンプト）
-""" + user_message  # 毎回 1000 トークンのオーバーヘッド
+You are a very capable assistant. Your role is...
+(1000-token system prompt)
+""" + user_message  # 1000-token overhead every time
 
-# 良い例: 簡潔なプロンプト + キャッシュ活用
-prompt = "JSON形式で回答。" + user_message
-# または API のシステムプロンプトキャッシュを活用
+# Good example: concise prompt + leverage caching
+prompt = "Reply in JSON format." + user_message
+# Or use the API's system prompt caching
 ```
 
-### アンチパターン 2: 言語によるトークン効率の無視
+### Anti-Pattern 2: Ignoring Token Efficiency by Language
 
 ```
-誤: 英語基準でトークン上限を設計
-  → 日本語では同じ内容でも 1.5〜2 倍のトークンを消費
+Wrong: Design token limits based on English
+  → Japanese may consume 1.5-2x as many tokens for the same content
 
-# 確認方法
+# How to check
 import tiktoken
 enc = tiktoken.encoding_for_model("gpt-4o")
 
 en = "The capital of Japan is Tokyo."
 ja = "日本の首都は東京です。"
 
-print(f"英語: {len(enc.encode(en))} tokens ({len(en)} chars)")
-print(f"日本語: {len(enc.encode(ja))} tokens ({len(ja)} chars)")
-# 日本語は文字数あたりのトークン数が多い傾向
+print(f"English: {len(enc.encode(en))} tokens ({len(en)} chars)")
+print(f"Japanese: {len(enc.encode(ja))} tokens ({len(ja)} chars)")
+# Japanese tends to use more tokens per character
 ```
 
-### アンチパターン 3: トークナイザの不一致
+### Anti-Pattern 3: Tokenizer Mismatch
 
 ```
-誤: GPT-4o のトークナイザで Claude のトークン数を見積もる
-  → 実際のトークン数と乖離し、コスト見積もりが不正確
+Wrong: Using the GPT-4o tokenizer to estimate Claude's token count
+  → Diverges from actual token count, leading to inaccurate cost estimates
 
-# 悪い例
+# Bad example
 import tiktoken
 enc = tiktoken.encoding_for_model("gpt-4o")
-claude_tokens = len(enc.encode(text))  # ← Claude のトークン数ではない!
+claude_tokens = len(enc.encode(text))  # ← This is NOT Claude's token count!
 
-# 良い例: 各プロバイダのトークンカウントAPIを使用
-# Anthropic: response.usage.input_tokens で正確なカウントを取得
-# または: anthropic.count_tokens() メソッド（利用可能な場合）
+# Good example: use each provider's token counting API
+# Anthropic: get accurate count via response.usage.input_tokens
+# Or: anthropic.count_tokens() method (when available)
 ```
 
-### アンチパターン 4: 特殊トークンの無視
+### Anti-Pattern 4: Ignoring Special Tokens
 
 ```
-誤: テキストのトークン数だけでコンテキスト使用量を計算する
-  → 特殊トークン（BOS, EOS, 区切り記号等）が追加される
+Wrong: Calculate context usage from text token count alone
+  → Special tokens (BOS, EOS, delimiters, etc.) are added on top
 
-# 実際のトークン使用量:
-# テキストトークン + 特殊トークン + メッセージフォーマットのオーバーヘッド
-# OpenAI: 各メッセージに約4トークンのオーバーヘッド
-# Claude: メッセージ構造に応じた追加トークン
+# Actual token usage:
+# text tokens + special tokens + message format overhead
+# OpenAI: approximately 4 tokens of overhead per message
+# Claude: additional tokens depending on message structure
 
-# 正確なカウントにはAPIのusageフィールドを参照すべき
+# Refer to the API's usage field for accurate counts
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement appropriate error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise in basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1217,26 +1219,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise in advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1244,7 +1246,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1255,14 +1257,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1270,7 +1272,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1278,44 +1280,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1324,7 +1326,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1339,76 +1341,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology decisions.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | Prioritize when | Can compromise when |
+|-----------|----------------|---------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① What is the team size?                       │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → go to ②              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② How often do you deploy?                     │
+│    ├─ Weekly or less → Monolith + modular split  │
+│    └─ Daily/multiple times → go to ③            │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ How independent are the teams?               │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze them from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A faster short-term approach can become technical debt in the long run
+- Conversely, over-engineering has a high short-term cost and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- Higher abstraction improves reusability but can make debugging harder
+- Lower abstraction is more intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision recording template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1418,17 +1420,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1436,7 +1438,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1444,15 +1446,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1461,67 +1463,67 @@ class ArchitectureDecisionRecord:
 
 ## FAQ
 
-### Q1: トークナイザが異なるモデル間でトークン数は比較できますか？
+### Q1: Can token counts be compared across models with different tokenizers?
 
-**A:** 正確な比較はできません。同じテキストでも、GPT-4o と Llama 3 ではトークン数が異なります。コスト比較する場合は、各モデルのトークナイザで個別にカウントする必要があります。ただし大まかな目安として、英語では 1 トークン ≒ 4 文字、日本語では 1 トークン ≒ 1〜2 文字が目安になります。
+**A:** Accurate comparison is not possible. The same text will have different token counts in GPT-4o vs. Llama 3. When comparing costs, you need to count separately with each model's tokenizer. However, as a rough guideline, 1 token is approximately 4 characters in English, and approximately 1-2 characters in Japanese.
 
-### Q2: コンテキストウィンドウを超えた場合どうなりますか？
+### Q2: What happens when the context window is exceeded?
 
-**A:** API はエラーを返します。対策としては、(1) テキストを要約して短縮、(2) チャンク分割して複数回に分けて処理、(3) RAG で関連部分だけ取得、(4) より長いコンテキスト長を持つモデルに切り替え、があります。
+**A:** The API returns an error. Countermeasures include: (1) summarize the text to shorten it, (2) split into chunks and process across multiple calls, (3) use RAG to retrieve only relevant portions, (4) switch to a model with a longer context length.
 
-### Q3: 日本語で最もトークン効率の良いモデルは？
+### Q3: Which model has the best token efficiency for Japanese?
 
-**A:** 2024年時点では、GPT-4o と Gemini 1.5 が日本語のトークン効率に優れています。特に GPT-4o は前世代から大幅に改善されました。Claude 3.5 も高い日本語トークン効率を持ちます。ただし、トークン効率だけでなく、単価との掛け算で実際のコストを評価してください。
+**A:** As of 2024, GPT-4o and Gemini 1.5 excel in Japanese token efficiency. GPT-4o in particular has improved significantly from the previous generation. Claude 3.5 also has high Japanese token efficiency. However, evaluate actual cost by multiplying token efficiency by the unit price, not token efficiency alone.
 
-### Q4: カスタムトークナイザを作成すべきケースはどのような場合ですか？
+### Q4: In what cases should you create a custom tokenizer?
 
-**A:** 以下のケースでカスタムトークナイザの検討が有効です。
-- **ドメイン固有の専門用語**が多い場合（医療、法律、化学式等）
-- **特殊な記号体系**を扱う場合（プログラミング言語、数式、楽譜等）
-- **ローカルLLM**を自前で学習・ファインチューニングする場合
-- **トークン効率**がコストに直結する大規模バッチ処理の場合
+**A:** A custom tokenizer is worth considering in the following cases:
+- When there are many **domain-specific technical terms** (medical, legal, chemical formulas, etc.)
+- When handling **special symbol systems** (programming languages, mathematical formulas, musical notation, etc.)
+- When training or fine-tuning a **local LLM** yourself
+- In large-scale batch processing where **token efficiency** directly impacts cost
 
-ただし、API経由で既存モデルを利用する場合は、そのモデルのトークナイザに合わせる必要があるため、カスタムトークナイザは使えません。
+However, when using an existing model via API, you must use that model's tokenizer, so a custom tokenizer cannot be used.
 
-### Q5: Prompt Caching はトークンコストにどう影響しますか？
+### Q5: How does Prompt Caching affect token costs?
 
-**A:** Prompt Caching を使うと、キャッシュされたプロンプト部分の入力コストが大幅に削減されます。Anthropic の場合、キャッシュヒット時の入力料金は通常の 10% になります。OpenAI も同様のキャッシュ機構を提供しています。長いシステムプロンプトや Few-shot 例を繰り返し使用する場合に特に効果的です。
+**A:** Using Prompt Caching significantly reduces the input cost for the cached portion of a prompt. With Anthropic, the input price on a cache hit is 10% of the normal price. OpenAI provides a similar caching mechanism. This is especially effective when reusing long system prompts or few-shot examples repeatedly.
 
-### Q6: マルチモーダル入力（画像等）のトークン換算はどうなりますか？
+### Q6: How are multimodal inputs (images, etc.) converted to tokens?
 
-**A:** 画像はピクセル数に基づいてトークン数に換算されます。
-- **OpenAI GPT-4o**: 低解像度で約85トークン、高解像度で最大約1,700トークン（512x512タイルあたり170トークン）
-- **Claude**: 画像サイズに応じて自動計算（おおよそ 1,000x1,000px で約 1,600トークン）
-- **Gemini**: 画像1枚あたり約258トークン（固定）
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| BPE | 最頻ペアを統合してサブワード語彙を構築する手法 |
-| SentencePiece | 言語非依存のトークナイゼーションフレームワーク |
-| tiktoken | OpenAI の高速 BPE 実装、GPT モデルで使用 |
-| Byte-Level BPE | バイト単位で処理、未知語が原理的に発生しない |
-| Unigram LM | トップダウン方式、確率的分割で正則化効果 |
-| 日本語効率 | 英語の 1.5〜2 倍のトークンが必要な場合が多い |
-| コスト管理 | 入力/出力トークン数の把握とプロンプト最適化が重要 |
-| コンテキスト管理 | スライディングウィンドウや要約でウィンドウ内に収める |
-| 語彙サイズ | 32K〜256K の範囲で、大きいほど効率的だが学習コスト増 |
-| Prompt Caching | 繰り返しプロンプトのコストを最大 90% 削減可能 |
+**A:** Images are converted to token counts based on pixel count.
+- **OpenAI GPT-4o**: approximately 85 tokens at low resolution, up to approximately 1,700 tokens at high resolution (170 tokens per 512x512 tile)
+- **Claude**: automatically calculated based on image size (approximately 1,600 tokens for a 1,000x1,000px image)
+- **Gemini**: approximately 258 tokens per image (fixed)
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [02-inference.md](./02-inference.md) — 推論パラメータ（温度、Top-p）の最適化
-- [../02-applications/00-prompt-engineering.md](../02-applications/00-prompt-engineering.md) — プロンプトエンジニアリングの実践
-- [../03-infrastructure/01-vector-databases.md](../03-infrastructure/01-vector-databases.md) — エンベディングとベクトルDB
+| Item | Key Point |
+|------|-----------|
+| BPE | A method that builds a subword vocabulary by merging the most frequent pairs |
+| SentencePiece | A language-independent tokenization framework |
+| tiktoken | OpenAI's high-speed BPE implementation, used by GPT models |
+| Byte-Level BPE | Processes at the byte level; unknown words are fundamentally impossible |
+| Unigram LM | Top-down approach; probabilistic splitting provides regularization effect |
+| Japanese efficiency | Often requires 1.5-2x as many tokens as English |
+| Cost management | Understanding input/output token counts and optimizing prompts is critical |
+| Context management | Use sliding window or summarization to stay within the window |
+| Vocabulary size | Ranges from 32K to 256K; larger is more efficient but increases training cost |
+| Prompt Caching | Can reduce repeated prompt costs by up to 90% |
 
 ---
 
-## 参考文献
+## What to Read Next
+
+- [02-inference.md](./02-inference.md) — Optimizing inference parameters (temperature, Top-p)
+- [../02-applications/00-prompt-engineering.md](../02-applications/00-prompt-engineering.md) — Practical prompt engineering
+- [../03-infrastructure/01-vector-databases.md](../03-infrastructure/01-vector-databases.md) — Embeddings and vector databases
+
+---
+
+## References
 
 1. Sennrich, R. et al. (2016). "Neural Machine Translation of Rare Words with Subword Units (BPE)." *ACL 2016*. https://arxiv.org/abs/1508.07909
 2. Kudo, T. & Richardson, J. (2018). "SentencePiece: A simple and language independent subword tokenizer." *EMNLP 2018*. https://arxiv.org/abs/1808.06226
