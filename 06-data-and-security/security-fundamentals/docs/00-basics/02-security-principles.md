@@ -1,110 +1,110 @@
-# セキュリティ原則
+# Security Principles
 
-> 最小権限、多層防御、ゼロトラスト、セキュアバイデフォルトなど、堅牢なシステム設計の土台となるセキュリティ原則を解説する。これらの原則は1975年にSaltzerとSchroederが発表した「The Protection of Information in Computer Systems」に端を発し、50年経った現在でもすべてのセキュアシステム設計の基盤である。
+> This guide explains the security principles that form the foundation of robust system design, including Least Privilege, Defense in Depth, Zero Trust, and Secure by Default. These principles trace back to Saltzer and Schroeder's 1975 paper "The Protection of Information in Computer Systems," and remain the bedrock of all secure system design even 50 years later.
 
-## 前提知識
+## Prerequisites
 
-- ネットワークの基礎（TCP/IP、HTTP/HTTPS）
-- 基本的な認証・認可の概念
-- 暗号化の基礎 の知識があると理解が深まる
+- Basic networking knowledge (TCP/IP, HTTP/HTTPS)
+- Basic concepts of authentication and authorization
+- A foundational understanding of cryptography will deepen comprehension
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **最小権限の原則**を適用して攻撃対象面を最小化する方法を理解する
-2. **多層防御とゼロトラスト**の設計思想を実装に落とし込む手法を習得する
-3. **セキュアバイデフォルト**の考え方でシステムを安全に初期化する技術を身につける
-4. **Saltzer & Schroederの8原則**の全体像と相互関係を把握する
-5. 各原則の**実装パターンとアンチパターン**を理解し、実プロジェクトに適用できるようになる
+1. How to apply the **Principle of Least Privilege** to minimize the attack surface
+2. How to translate the **Defense in Depth and Zero Trust** design philosophies into concrete implementations
+3. Techniques for safely initializing systems using the **Secure by Default** philosophy
+4. An overview of **Saltzer & Schroeder's 8 Principles** and their interrelationships
+5. **Implementation patterns and anti-patterns** for each principle, enabling you to apply them in real projects
 
 ---
 
-## 1. Saltzer & Schroederの8原則 — セキュリティ設計の起源
+## 1. Saltzer & Schroeder's 8 Principles — The Origins of Security Design
 
-1975年にJerome SaltzerとMichael Schroederが発表したセキュリティ設計原則は、現代のあらゆるセキュリティフレームワークの基盤である。まずこの8原則の全体像を理解する。
+The security design principles published by Jerome Saltzer and Michael Schroeder in 1975 form the foundation of every modern security framework. This section provides an overview of all eight principles.
 
 ```
-Saltzer & Schroeder の 8 原則（1975年）:
+Saltzer & Schroeder's 8 Principles (1975):
 
 +================================================================+
-|  原則                        | 現代における適用                    |
+|  Principle                   | Modern Application              |
 |================================================================|
-|  1. Economy of Mechanism     | KISS原則、シンプルな設計           |
-|     (メカニズムの経済性)      |                                   |
-|  2. Fail-Safe Defaults       | デフォルト拒否、ホワイトリスト     |
-|     (フェイルセーフデフォルト) |                                   |
-|  3. Complete Mediation        | ゼロトラスト、毎回検証            |
-|     (完全仲介)                |                                   |
-|  4. Open Design              | 公開暗号アルゴリズム              |
-|     (オープン設計)            |                                   |
-|  5. Separation of Privilege   | MFA、4-eyes principle            |
-|     (権限分離)                |                                   |
-|  6. Least Privilege           | RBAC、IAM最小権限                |
-|     (最小権限)                |                                   |
-|  7. Least Common Mechanism    | プロセス分離、サンドボックス      |
-|     (最少共有メカニズム)      |                                   |
-|  8. Psychological Acceptability| UX設計、SSO                      |
-|     (心理的受容性)            |                                   |
+|  1. Economy of Mechanism     | KISS principle, simple design   |
+|                               |                                 |
+|  2. Fail-Safe Defaults       | Default deny, allowlisting      |
+|                               |                                 |
+|  3. Complete Mediation        | Zero Trust, verify every time   |
+|                               |                                 |
+|  4. Open Design              | Public cryptographic algorithms |
+|                               |                                 |
+|  5. Separation of Privilege   | MFA, 4-eyes principle           |
+|                               |                                 |
+|  6. Least Privilege           | RBAC, minimal IAM permissions  |
+|                               |                                 |
+|  7. Least Common Mechanism    | Process isolation, sandboxing  |
+|                               |                                 |
+|  8. Psychological Acceptability| UX design, SSO                 |
 +================================================================+
 
-これらの原則は独立ではなく相互に関連する:
+These principles are not independent — they are interrelated:
 
-  最小権限 ──→ 権限分離 ──→ 完全仲介
-      │                         │
-      ▼                         ▼
-  フェイルセーフ ←── メカニズムの経済性
+  Least Privilege ──→ Separation of Privilege ──→ Complete Mediation
+      │                                                │
+      ▼                                                ▼
+  Fail-Safe Defaults ←── Economy of Mechanism
       │
       ▼
-  心理的受容性 ←── オープン設計
+  Psychological Acceptability ←── Open Design
 ```
 
-### なぜ50年前の原則が今も有効なのか
+### Why 50-Year-Old Principles Still Hold Today
 
-セキュリティの脅威は変化するが、防御の「構造」は変わらない。これらの原則は特定の技術ではなく「設計哲学」であるため、クラウドネイティブ、マイクロサービス、ゼロトラストといった現代のアーキテクチャにもそのまま適用できる。NISTのSP 800-160（Systems Security Engineering）やOWASPのSecurity Design Principlesも、この8原則を現代的に再解釈したものである。
+Security threats evolve, but the "structure" of defense does not. Because these principles describe a design philosophy rather than specific technologies, they apply directly to modern architectures such as cloud-native, microservices, and Zero Trust. NIST SP 800-160 (Systems Security Engineering) and OWASP's Security Design Principles are both modern reinterpretations of these 8 principles.
 
 ---
 
-## 2. 最小権限の原則（Principle of Least Privilege）
+## 2. Principle of Least Privilege
 
-ユーザー、プロセス、システムに対して、その業務を遂行するために必要最小限の権限のみを付与する原則。この原則は攻撃対象面（Attack Surface）を最小化し、侵害が発生した場合の被害（Blast Radius）を限定する。
+The principle of granting users, processes, and systems only the minimum permissions necessary to perform their tasks. This minimizes the attack surface and limits the blast radius in the event of a breach.
 
-### なぜ最小権限が重要か — 内部メカニズム
+### Why Least Privilege Matters — The Internal Mechanism
 
 ```
-最小権限の適用イメージ:
+Applying Least Privilege:
 
-  過剰な権限付与:                   最小権限の適用:
+  Excessive permissions:             Least Privilege applied:
   +-------------------+             +-------------------+
-  | Admin権限         |             | read:products     |
-  | - 全DB読み書き    |             | write:cart        |
-  | - ユーザー管理    |    ==>      | read:own_orders   |
-  | - サーバー設定    |             |                   |
-  | - ログ閲覧       |             | (ECサイトの一般    |
-  +-------------------+             |  ユーザーに必要な  |
-  (全権限を付与)                    |  権限のみ)        |
+  | Admin role        |             | read:products     |
+  | - Full DB read/write|           | write:cart        |
+  | - User management |    ==>      | read:own_orders   |
+  | - Server config   |             |                   |
+  | - Log access      |             | (Only permissions |
+  +-------------------+             |  needed for a     |
+  (All permissions granted)         |  standard e-comm  |
+                                    |  user)            |
                                     +-------------------+
 
-  攻撃対象面（Attack Surface）の比較:
+  Attack Surface Comparison:
 
-  過剰な権限:                         最小権限:
+  Excessive permissions:                Least Privilege:
   +---------------------------------+  +--------+
   |                                 |  |        |
-  |   攻撃者が侵害した場合          |  | 限定的 |
-  |   全システムが危険に             |  | な被害 |
+  |   If attacker gains access,     |  | Limited|
+  |   entire system is at risk      |  | damage |
   |                                 |  |        |
   +---------------------------------+  +--------+
-  Blast Radius = 全体                  Blast Radius = 最小
+  Blast Radius = entire system          Blast Radius = minimal
 ```
 
-最小権限が重要な理由は3つある。
+There are three reasons why Least Privilege is important:
 
-1. **被害の限定（Blast Radius Reduction）**: 侵害が発生しても、そのアカウントが持つ権限の範囲内でしか被害が広がらない
-2. **横展開の防止（Lateral Movement Prevention）**: 攻撃者が1つのアカウントを奪取しても、他のリソースへのアクセスが制限される
-3. **監査の簡素化（Audit Simplification）**: 各アカウントの権限が明確であるため、異常なアクセスパターンを検出しやすい
+1. **Blast Radius Reduction**: If a breach occurs, the damage is contained within the scope of that account's permissions
+2. **Lateral Movement Prevention**: Even if an attacker compromises one account, access to other resources is restricted
+3. **Audit Simplification**: Because each account's permissions are clearly defined, anomalous access patterns are easier to detect
 
-### コード例1: RBACによる最小権限の実装
+### Code Example 1: Implementing Least Privilege with RBAC
 
 ```python
-# コード例1: 最小権限を実現するRBAC（Role-Based Access Control）
+# Code example 1: RBAC (Role-Based Access Control) for Least Privilege
 from enum import Enum, auto
 from typing import Set, Dict, Optional, List
 from functools import wraps
@@ -130,7 +130,7 @@ class Role(Enum):
     ORDER_MANAGER = auto()
     ADMIN = auto()
 
-# 各ロールに最小限の権限を割り当てる
+# Assign minimum required permissions to each role
 ROLE_PERMISSIONS: Dict[Role, Set[Permission]] = {
     Role.VIEWER: {
         Permission.READ_PRODUCTS,
@@ -152,8 +152,8 @@ ROLE_PERMISSIONS: Dict[Role, Set[Permission]] = {
         Permission.MANAGE_USERS,
         Permission.VIEW_ANALYTICS,
         Permission.ADMIN_SETTINGS,
-        # 注: DELETE_DATA と EXPORT_DATA は ADMIN にも
-        # デフォルトでは付与しない（個別承認が必要）
+        # Note: DELETE_DATA and EXPORT_DATA are not granted to ADMIN
+        # by default — individual approval is required
     },
 }
 
@@ -167,31 +167,31 @@ class User:
         self.temporary_expiry = temporary_expiry
 
     def get_effective_permissions(self) -> Set[Permission]:
-        """有効な権限を計算する（ロール権限 + 一時権限）"""
+        """Calculate effective permissions (role permissions + temporary permissions)"""
         perms = ROLE_PERMISSIONS.get(self.role, set()).copy()
-        # 一時権限が期限内なら追加
+        # Add temporary permissions if within the validity window
         if (self.temporary_permissions and self.temporary_expiry
                 and datetime.now() < self.temporary_expiry):
             perms |= self.temporary_permissions
         return perms
 
 def require_permission(permission: Permission):
-    """権限チェックデコレータ — 完全仲介の原則も体現"""
+    """Permission check decorator — also embodies the Complete Mediation principle"""
     def decorator(func):
         @wraps(func)
         def wrapper(user: User, *args, **kwargs):
             effective_perms = user.get_effective_permissions()
             if permission not in effective_perms:
                 logger.warning(
-                    "権限不足: user=%s role=%s required=%s",
+                    "Insufficient permission: user=%s role=%s required=%s",
                     user.user_id, user.role.name, permission.name
                 )
                 raise PermissionError(
-                    f"権限不足: {user.role.name} には "
-                    f"{permission.name} がありません"
+                    f"Insufficient permission: {user.role.name} does not have "
+                    f"{permission.name}"
                 )
             logger.info(
-                "アクセス許可: user=%s action=%s",
+                "Access granted: user=%s action=%s",
                 user.user_id, permission.name
             )
             return func(user, *args, **kwargs)
@@ -200,28 +200,28 @@ def require_permission(permission: Permission):
 
 @require_permission(Permission.WRITE_PRODUCTS)
 def update_product(user: User, product_id: int, data: dict):
-    """商品情報を更新する（EDITOR以上の権限が必要）"""
-    # 商品更新ロジック
+    """Update product information (requires EDITOR role or above)"""
+    # Product update logic
     pass
 
 @require_permission(Permission.DELETE_DATA)
 def delete_user_data(user: User, target_user_id: str):
-    """ユーザーデータを削除する（個別承認された一時権限が必要）"""
-    # データ削除ロジック — ADMINでもデフォルトでは実行不可
+    """Delete user data (requires individually approved temporary permission)"""
+    # Data deletion logic — not executable by ADMIN by default
     pass
 
-# 使用例: 一時的な権限昇格（Just-In-Time Access）
+# Usage example: Temporary privilege escalation (Just-In-Time Access)
 admin = User("admin-001", Role.ADMIN)
-# GDPR削除リクエスト対応のため、一時的にDELETE_DATA権限を付与
+# Temporarily grant DELETE_DATA permission for a GDPR deletion request
 admin.temporary_permissions = {Permission.DELETE_DATA}
 admin.temporary_expiry = datetime.now() + timedelta(hours=1)
-# 1時間後に自動的に権限が無効化される
+# Permission is automatically revoked after 1 hour
 ```
 
-### コード例2: AWS IAMポリシーでの最小権限設計
+### Code Example 2: Least Privilege Design with AWS IAM Policies
 
 ```python
-# コード例2: AWS IAMポリシーの最小権限設計
+# Code example 2: Least Privilege design with AWS IAM policies
 import json
 from typing import List, Optional
 
@@ -232,13 +232,13 @@ def create_minimal_iam_policy(
     condition_ip_range: Optional[str] = None
 ) -> str:
     """
-    特定のS3バケット・プレフィックスにのみアクセスできるポリシーを生成。
+    Generate a policy that allows access only to a specific S3 bucket and prefix.
 
-    設計方針:
-    1. Resource は具体的に指定（ワイルドカード禁止）
-    2. Action は必要最小限（Get/Put のみ、Delete はオプション）
-    3. Condition で追加の制約を付与（IPレンジ、MFA等）
-    4. 明示的 Deny で安全ネットを張る
+    Design principles:
+    1. Specify Resource explicitly (no wildcards)
+    2. Keep Actions to the minimum required (Get/Put only; Delete is optional)
+    3. Add further constraints via Conditions (IP range, MFA, etc.)
+    4. Use explicit Deny as a safety net
     """
     statements = [
         {
@@ -263,7 +263,7 @@ def create_minimal_iam_policy(
         },
     ]
 
-    # 削除権限は明示的に要求された場合のみ付与
+    # Grant delete permission only when explicitly requested
     if allow_delete:
         statements.append({
             "Sid": "AllowDeleteWithPrefix",
@@ -275,7 +275,7 @@ def create_minimal_iam_policy(
             }
         })
 
-    # IPレンジ制約の追加
+    # Add IP range restriction
     if condition_ip_range:
         for stmt in statements:
             if stmt["Effect"] == "Allow":
@@ -284,7 +284,7 @@ def create_minimal_iam_policy(
                     "aws:SourceIp": condition_ip_range
                 }
 
-    # 明示的な拒否で安全ネットを張る
+    # Explicit deny as a safety net
     statements.append({
         "Sid": "DenyDangerousActions",
         "Effect": "Deny",
@@ -303,7 +303,7 @@ def create_minimal_iam_policy(
     }
     return json.dumps(policy, indent=2)
 
-# 使用例
+# Usage example
 print(create_minimal_iam_policy(
     "my-app-data",
     "uploads/user-123",
@@ -312,12 +312,12 @@ print(create_minimal_iam_policy(
 ))
 ```
 
-### Just-In-Time（JIT）アクセスの実装
+### Implementing Just-In-Time (JIT) Access
 
-最小権限の実践において重要なのが、必要な時にのみ権限を付与し、不要になったら即座に剥奪する「Just-In-Time Access」のアプローチである。
+A critical practice in applying Least Privilege is the Just-In-Time Access approach: grant permissions only when needed and revoke them immediately once they are no longer required.
 
 ```python
-# コード例3: JIT（Just-In-Time）アクセスマネージャー
+# Code example 3: JIT (Just-In-Time) Access Manager
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Dict, Optional, Callable
@@ -328,7 +328,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class AccessGrant:
-    """一時的なアクセス許可"""
+    """Temporary access permission"""
     user_id: str
     permission: str
     resource: str
@@ -339,7 +339,7 @@ class AccessGrant:
     revoked: bool = False
 
 class JITAccessManager:
-    """Just-In-Time アクセス管理 — 最小権限の動的実装"""
+    """Just-In-Time Access Management — Dynamic implementation of Least Privilege"""
 
     MAX_GRANT_DURATION = timedelta(hours=8)
 
@@ -357,11 +357,11 @@ class JITAccessManager:
         reason: str,
         approved_by: str,
     ) -> AccessGrant:
-        """一時的なアクセスを要求する"""
+        """Request temporary access"""
         if duration > self.MAX_GRANT_DURATION:
             raise ValueError(
-                f"最大許可時間は {self.MAX_GRANT_DURATION} です。"
-                "長期アクセスが必要な場合はロール変更を申請してください。"
+                f"Maximum grant duration is {self.MAX_GRANT_DURATION}. "
+                "Please request a role change for longer-term access."
             )
 
         now = datetime.now()
@@ -389,7 +389,7 @@ class JITAccessManager:
 
     def check_access(self, user_id: str, permission: str,
                      resource: str) -> bool:
-        """アクセス権限を確認する"""
+        """Check access permission"""
         grant_id = f"{user_id}:{permission}:{resource}"
         grant = self._grants.get(grant_id)
 
@@ -407,7 +407,7 @@ class JITAccessManager:
 
     def revoke_access(self, user_id: str, permission: str,
                       resource: str, reason: str = "manual_revoke"):
-        """アクセスを即座に取り消す"""
+        """Immediately revoke access"""
         grant_id = f"{user_id}:{permission}:{resource}"
         grant = self._grants.get(grant_id)
         if grant and not grant.revoked:
@@ -418,7 +418,7 @@ class JITAccessManager:
             )
 
     def _cleanup_expired(self):
-        """期限切れのグラントをクリーンアップする"""
+        """Clean up expired grants"""
         now = datetime.now()
         expired = [
             gid for gid, g in self._grants.items()
@@ -428,40 +428,40 @@ class JITAccessManager:
             del self._grants[gid]
 
     def _start_cleanup_loop(self):
-        """定期的なクリーンアップループ"""
+        """Periodic cleanup loop"""
         self._cleanup_expired()
         self._cleanup_timer = threading.Timer(60.0, self._start_cleanup_loop)
         self._cleanup_timer.daemon = True
         self._cleanup_timer.start()
 ```
 
-### Kubernetes における最小権限
+### Least Privilege in Kubernetes
 
 ```yaml
-# コード例4: Kubernetes RBAC — 最小権限の適用
+# Code example 4: Kubernetes RBAC — Applying Least Privilege
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   namespace: production
   name: app-deployer
 rules:
-  # Deployment の読み取りと更新のみ許可
+  # Allow only read and update for Deployments
   - apiGroups: ["apps"]
     resources: ["deployments"]
     verbs: ["get", "list", "watch", "update", "patch"]
-    # delete は含めない（誤削除防止）
-  # Pod のログ閲覧のみ許可
+    # delete is excluded (to prevent accidental deletion)
+  # Allow only viewing Pod logs
   - apiGroups: [""]
     resources: ["pods", "pods/log"]
     verbs: ["get", "list"]
-    # exec は含めない（本番コンテナ内操作を防止）
-  # ConfigMap の読み取りのみ
+    # exec is excluded (to prevent operations inside production containers)
+  # Read-only access to ConfigMaps
   - apiGroups: [""]
     resources: ["configmaps"]
     verbs: ["get", "list"]
-    # Secrets へのアクセスは別途承認が必要
+    # Access to Secrets requires separate approval
 ---
-# NG: 過剰な権限付与（クラスタ管理者権限）
+# BAD: Excessive permissions (cluster-admin role)
 # apiVersion: rbac.authorization.k8s.io/v1
 # kind: ClusterRoleBinding
 # metadata:
@@ -469,77 +469,80 @@ rules:
 # roleRef:
 #   apiGroup: rbac.authorization.k8s.io
 #   kind: ClusterRole
-#   name: cluster-admin  # ← 絶対に開発者に付与しない
+#   name: cluster-admin  # ← Never grant this to developers
 ```
 
 ---
 
-## 3. 多層防御（Defense in Depth）
+## 3. Defense in Depth
 
-単一の防御機構に依存せず、複数の独立した防御層を重ねる戦略。軍事用語の「縦深防御」に由来し、中世の城の設計（堀→城壁→内壁→天守閣）と同じ発想である。
+A strategy of layering multiple independent defensive mechanisms rather than relying on a single one. The term originates from the military concept of "defense in depth," and mirrors the design of medieval castles (moat → outer wall → inner wall → keep).
 
-### なぜ多層防御が必要か
+### Why Defense in Depth Is Necessary
 
-セキュリティにおいて「完璧な防御層」は存在しない。どんなに優れたWAFにもバイパス手法が存在し、どんなに堅牢なファイアウォールにも設定ミスの可能性がある。多層防御の核心は「1つの層が破られても、次の層が機能する」という冗長性にある。
+In security, there is no such thing as a "perfect defensive layer." Even the best WAF has bypass techniques, and even the most robust firewall can be misconfigured. The essence of Defense in Depth is redundancy: "if one layer is breached, the next layer still functions."
 
 ```
-多層防御モデル — 城の比喩:
+Defense in Depth Model — The Castle Analogy:
 
   ┌─────────────────────────────────────────────────────┐
   │                                                     │
-  │  [堀]      [城壁]     [内壁]     [天守閣]   [金庫]  │
+  │  [Moat]  [Outer Wall] [Inner Wall] [Keep]  [Vault] │
   │   │         │          │          │          │      │
   │   ▼         ▼          ▼          ▼          ▼      │
-  │  WAF/     FW/IDS    ホスト強化  アプリ層   データ層  │
-  │  CDN      ネットワーク OS/パッチ  認証/認可  暗号化  │
-  │  DDoS防御 セグメント  アンチウイルス 入力検証 DLP    │
-  │  Bot検知  VPN        HIDS       セッション  バックアップ│
-  │           mTLS       CIS        CSRF防止   監査ログ │
-  │                      Benchmark                      │
+  │  WAF/     FW/IDS    Host         App Layer  Data   │
+  │  CDN      Network   Hardening    Auth/AuthZ  Layer  │
+  │  DDoS     Segment   OS/Patches   Input Val.  Encrypt│
+  │  Bot Det. VPN       Antivirus    Session     DLP    │
+  │           mTLS      HIDS         CSRF Prot.  Backup │
+  │                     CIS                      Audit  │
+  │                     Benchmark                Log    │
   │                                                     │
-  │  攻撃者 ──→ 層1突破 ──→ 層2で検知 ──→ 層3で遮断     │
+  │  Attacker ──→ Layer 1 breached ──→ Detected Layer 2 │
+  │                                ──→ Blocked Layer 3  │
   │                                                     │
-  │  各層が独立して動作 → 1つの層が突破されても          │
-  │  次の層が防御 + 検知 + アラート送信                   │
+  │  Each layer operates independently → Even if one   │
+  │  layer is breached, the next layer defends,         │
+  │  detects, and sends alerts                          │
   └─────────────────────────────────────────────────────┘
 
-具体的な防御層の構成:
+Concrete defense layer configuration:
 
-  Layer 1: ペリメター防御
+  Layer 1: Perimeter Defense
     +-- WAF (OWASP Core Rule Set)
     +-- DDoS Mitigation (CloudFlare, AWS Shield)
     +-- Bot Detection
     +-- GeoIP Blocking
 
-  Layer 2: ネットワーク防御
+  Layer 2: Network Defense
     +-- Firewall (Security Groups, NACLs)
     +-- IDS/IPS (Suricata, AWS GuardDuty)
     +-- Network Segmentation (VPC, Subnet)
-    +-- mTLS (サービス間通信)
+    +-- mTLS (service-to-service communication)
 
-  Layer 3: ホスト防御
+  Layer 3: Host Defense
     +-- OS Hardening (CIS Benchmark)
-    +-- Patch Management (自動パッチ適用)
+    +-- Patch Management (automated patching)
     +-- Host-based IDS (OSSEC, Falco)
-    +-- Immutable Infrastructure (コンテナ)
+    +-- Immutable Infrastructure (containers)
 
-  Layer 4: アプリケーション防御
-    +-- Input Validation (サーバーサイド)
+  Layer 4: Application Defense
+    +-- Input Validation (server-side)
     +-- Authentication (MFA, OAuth2)
     +-- Authorization (RBAC, ABAC)
     +-- Session Management
 
-  Layer 5: データ防御
+  Layer 5: Data Defense
     +-- Encryption at Rest (AES-256)
     +-- Encryption in Transit (TLS 1.3)
     +-- Data Loss Prevention (DLP)
     +-- Backup & Recovery
 ```
 
-### コード例5: 多層防御チェーンの実装
+### Code Example 5: Implementing a Defense in Depth Chain
 
 ```python
-# コード例5: 多層防御の実装パターン — Chain of Responsibilityパターン
+# Code example 5: Defense in Depth implementation — Chain of Responsibility pattern
 from typing import List, Callable, Optional, Dict, Any
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -560,7 +563,7 @@ class SecurityCheckResult:
 
 @dataclass
 class SecurityRequest:
-    """セキュリティ検証対象のリクエスト"""
+    """Request subject to security validation"""
     ip: str
     method: str
     path: str
@@ -570,7 +573,7 @@ class SecurityRequest:
     timestamp: datetime = field(default_factory=datetime.now)
 
 class SecurityLayer(ABC):
-    """防御層の抽象基底クラス"""
+    """Abstract base class for a defensive layer"""
 
     @abstractmethod
     def check(self, request: SecurityRequest) -> SecurityCheckResult:
@@ -582,7 +585,7 @@ class SecurityLayer(ABC):
         pass
 
 class RateLimitLayer(SecurityLayer):
-    """Layer 1: レートリミット"""
+    """Layer 1: Rate Limiting"""
     name = "RateLimit"
 
     def __init__(self, max_requests: int = 100, window_seconds: int = 60):
@@ -593,7 +596,7 @@ class RateLimitLayer(SecurityLayer):
     def check(self, request: SecurityRequest) -> SecurityCheckResult:
         ip = request.ip
         now = datetime.now()
-        # ウィンドウ外のリクエストを除去
+        # Remove requests outside the window
         self._counters.setdefault(ip, [])
         self._counters[ip] = [
             t for t in self._counters[ip]
@@ -612,7 +615,7 @@ class RateLimitLayer(SecurityLayer):
         return SecurityCheckResult(True, self.name, "Rate limit OK")
 
 class WAFLayer(SecurityLayer):
-    """Layer 2: WAF（Web Application Firewall）"""
+    """Layer 2: WAF (Web Application Firewall)"""
     name = "WAF"
 
     DANGEROUS_PATTERNS = [
@@ -644,7 +647,7 @@ class WAFLayer(SecurityLayer):
         return SecurityCheckResult(True, self.name, "WAF check passed")
 
 class InputValidationLayer(SecurityLayer):
-    """Layer 3: 入力値検証"""
+    """Layer 3: Input Validation"""
     name = "InputValidation"
 
     MAX_FIELD_LENGTH = 10000
@@ -670,17 +673,17 @@ class InputValidationLayer(SecurityLayer):
         return SecurityCheckResult(True, self.name, "Input validation passed")
 
 class DefenseInDepth:
-    """多層防御チェーンのオーケストレーター"""
+    """Orchestrator for the Defense in Depth chain"""
 
     def __init__(self):
         self.layers: List[SecurityLayer] = []
 
     def add_layer(self, layer: SecurityLayer) -> 'DefenseInDepth':
         self.layers.append(layer)
-        return self  # メソッドチェーン対応
+        return self  # Support method chaining
 
     def validate(self, request: SecurityRequest) -> List[SecurityCheckResult]:
-        """全防御層を順に通過させる"""
+        """Pass the request through all defensive layers in order"""
         results = []
         for layer in self.layers:
             try:
@@ -691,8 +694,9 @@ class DefenseInDepth:
                         "Security check failed: layer=%s msg=%s severity=%s",
                         result.layer, result.message, result.severity
                     )
-                    # 失敗しても全層の状態を把握するため、
-                    # critical以外は検証を続行するオプションもある
+                    # There is also the option to continue checking all layers
+                    # even on failure (except for critical), to understand
+                    # the full state of the system
                     if result.severity == "critical":
                         break
             except Exception as e:
@@ -705,17 +709,17 @@ class DefenseInDepth:
         return results
 
     def is_allowed(self, request: SecurityRequest) -> bool:
-        """リクエストが全層を通過したかを判定"""
+        """Determine whether the request passed all layers"""
         results = self.validate(request)
         return all(r.passed for r in results)
 
-# 防御チェーンの構築と使用例
+# Building and using the defense chain
 defense = (DefenseInDepth()
     .add_layer(RateLimitLayer(max_requests=100))
     .add_layer(WAFLayer())
     .add_layer(InputValidationLayer()))
 
-# テスト
+# Test
 test_request = SecurityRequest(
     ip="192.168.1.100",
     method="POST",
@@ -737,124 +741,124 @@ malicious_request = SecurityRequest(
 print(defense.is_allowed(malicious_request))  # False
 ```
 
-### 多層防御における独立性の重要性
+### The Importance of Independence in Defense in Depth
 
-多層防御の効果を最大化するには、各層が**独立して動作**することが重要である。
+To maximize the effectiveness of Defense in Depth, it is crucial that each layer operates **independently**.
 
 ```
-独立性の原則:
+Independence Principle:
 
-  NG: 層同士が依存している
+  BAD: Layers depend on each other
   +--------+     +--------+     +--------+
-  | WAF    | --> | 認証   | --> | 認可   |
-  | (WAFが |     | (WAFの |     |        |
-  |  通せば |     |  結果に |     |        |
-  |  認証   |     |  依存)  |     |        |
-  |  スキップ)|   |        |     |        |
+  | WAF    | --> | AuthN  | --> | AuthZ  |
+  | (if WAF|     | (depends     |        |
+  |  passes,|    |  on WAF |    |        |
+  |  skip   |    |  result)|    |        |
+  |  AuthN) |    |        |     |        |
   +--------+     +--------+     +--------+
-  → WAFをバイパスすると全層が無効化
+  → Bypassing WAF disables all subsequent layers
 
-  OK: 各層が独立して判定
+  GOOD: Each layer makes its own independent decision
   +--------+     +--------+     +--------+
-  | WAF    | --> | 認証   | --> | 認可   |
-  | (独立   |     | (独立   |     | (独立  |
-  |  判定)  |     |  判定)  |     |  判定) |
+  | WAF    | --> | AuthN  | --> | AuthZ  |
+  | (indep.|     | (indep.|     | (indep.|
+  |  check)|     |  check)|     |  check)|
   +--------+     +--------+     +--------+
-  → 1層が突破されても他の層は正常に機能
+  → If one layer is breached, the others still function normally
 ```
 
 ---
 
-## 4. ゼロトラスト（Zero Trust）
+## 4. Zero Trust
 
-「決して信頼せず、常に検証する（Never Trust, Always Verify）」という原則。NIST SP 800-207で正式に定義されたアーキテクチャモデルで、ネットワーク境界の内外を問わず、すべてのアクセスを検証する。
+The principle of "Never Trust, Always Verify." Formally defined in NIST SP 800-207, this architectural model verifies all access regardless of whether it originates inside or outside the network perimeter.
 
-### 従来型境界防御との比較
+### Comparison with Traditional Perimeter Defense
 
 ```
-従来型 (境界防御 / Castle-and-Moat):
+Traditional (Perimeter Defense / Castle-and-Moat):
 
-  +---外部---+---内部---+
-  |          | FW |     |
-  | 攻撃者   | -- | 自由|    問題点:
-  |          |    | 移動|    1. FWを突破すると内部は無防備
-  +----------+----+-----+    2. VPN接続後の横展開が容易
-   FWを突破すると内部は無防備  3. 内部脅威に対して脆弱
-                              4. クラウド/リモートワークに不適合
+  +---External---+---Internal---+
+  |              | FW |         |
+  | Attacker     | -- | Move    |    Problems:
+  |              |    | Freely  |    1. Breaching FW leaves internal network unprotected
+  +--------------+----+---------+    2. Lateral movement after VPN connection is easy
+   Breaching FW leaves internals     3. Vulnerable to insider threats
+   unprotected                       4. Not suited for cloud / remote work
 
-ゼロトラスト:
+Zero Trust:
 
   +--+  +--+  +--+  +--+
-  |検| ->|検| ->|検| ->|検|    利点:
-  |証|  |証|  |証|  |証|    1. すべてのアクセスを毎回検証
-  +--+  +--+  +--+  +--+    2. 横展開を効果的に防止
-  毎回  毎回  毎回  毎回     3. 内部脅威にも対応
-  検証  検証  検証  検証     4. クラウドネイティブに適合
+  |V | ->|V | ->|V | ->|V |    Benefits:
+  |er|  |er|  |er|  |er|    1. Every access is verified every time
+  +--+  +--+  +--+  +--+    2. Effectively prevents lateral movement
+  Every Every Every Every   3. Addresses insider threats too
+  verify verify verify verify  4. Cloud-native compatible
 
-NIST SP 800-207 ゼロトラストの3つの基本原則:
-  1. リソースへのアクセスは、セッション単位で許可する
-  2. リソースへのアクセスは、動的ポリシーで決定する
-  3. すべての通信は、ネットワーク位置に関係なく保護する
+NIST SP 800-207 — Three Core Zero Trust Principles:
+  1. Access to resources is granted on a per-session basis
+  2. Access to resources is determined by dynamic policy
+  3. All communication is protected regardless of network location
 ```
 
-### ゼロトラストの7つの柱（CISA Zero Trust Maturity Model）
+### The 7 Pillars of Zero Trust (CISA Zero Trust Maturity Model)
 
 ```
 +================================================================+
-|         CISA ゼロトラスト成熟度モデルの7つの柱                     |
+|         CISA Zero Trust Maturity Model — 7 Pillars             |
 |================================================================|
 |                                                                |
-|  1. Identity (アイデンティティ)                                  |
-|     +-- 強力な認証 (MFA, FIDO2)                                |
-|     +-- 継続的な身元確認                                        |
-|     +-- リスクベースの認証強度調整                               |
+|  1. Identity                                                   |
+|     +-- Strong authentication (MFA, FIDO2)                    |
+|     +-- Continuous identity verification                       |
+|     +-- Risk-based authentication strength adjustment          |
 |                                                                |
-|  2. Devices (デバイス)                                          |
-|     +-- デバイスの健全性検証 (MDM, EDR)                         |
-|     +-- デバイス証明書によるデバイス認証                         |
-|     +-- BYOD vs 管理デバイスのポリシー分離                      |
+|  2. Devices                                                    |
+|     +-- Device health validation (MDM, EDR)                   |
+|     +-- Device authentication via device certificates          |
+|     +-- BYOD vs. managed device policy separation             |
 |                                                                |
-|  3. Networks (ネットワーク)                                      |
-|     +-- マイクロセグメンテーション                               |
-|     +-- 暗号化通信 (mTLS)                                      |
-|     +-- ネットワーク位置に依存しないアクセス制御                 |
+|  3. Networks                                                   |
+|     +-- Micro-segmentation                                     |
+|     +-- Encrypted communication (mTLS)                        |
+|     +-- Access control independent of network location         |
 |                                                                |
-|  4. Applications & Workloads (アプリケーション)                  |
-|     +-- アプリレベルの認証・認可                                 |
-|     +-- API ゲートウェイでの制御                                |
-|     +-- サービスメッシュ (Istio, Linkerd)                       |
+|  4. Applications & Workloads                                   |
+|     +-- Application-level authentication and authorization     |
+|     +-- Control via API gateway                               |
+|     +-- Service mesh (Istio, Linkerd)                         |
 |                                                                |
-|  5. Data (データ)                                               |
-|     +-- データ分類とラベリング                                  |
-|     +-- 暗号化 (保存時・転送時)                                 |
-|     +-- DLP (Data Loss Prevention)                             |
+|  5. Data                                                       |
+|     +-- Data classification and labeling                      |
+|     +-- Encryption (at rest and in transit)                   |
+|     +-- DLP (Data Loss Prevention)                            |
 |                                                                |
-|  6. Visibility & Analytics (可視性と分析)                        |
-|     +-- 統合ログ収集 (SIEM)                                    |
-|     +-- 行動分析 (UEBA)                                        |
-|     +-- リアルタイムリスクスコアリング                           |
+|  6. Visibility & Analytics                                     |
+|     +-- Centralized log collection (SIEM)                     |
+|     +-- Behavioral analytics (UEBA)                           |
+|     +-- Real-time risk scoring                                |
 |                                                                |
-|  7. Automation & Orchestration (自動化)                          |
-|     +-- SOAR (Security Orchestration, Automation, Response)    |
-|     +-- 自動封じ込め                                           |
-|     +-- Policy as Code                                         |
+|  7. Automation & Orchestration                                 |
+|     +-- SOAR (Security Orchestration, Automation, Response)   |
+|     +-- Automated containment                                 |
+|     +-- Policy as Code                                        |
 +================================================================+
 ```
 
-| 柱 | 説明 | 実装例 | 成熟度指標 |
+| Pillar | Description | Implementation Examples | Maturity Metric |
 |----|------|--------|-----------|
-| Identity | すべてのユーザー・サービスを認証 | MFA、FIDO2、証明書認証 | パスワードレス認証率 |
-| Devices | デバイスの正当性とセキュリティ状態を検証 | MDM、EDR、デバイス証明書 | 管理デバイス率 |
-| Networks | マイクロセグメンテーションによる通信制御 | サービスメッシュ、mTLS | mTLS カバレッジ率 |
-| Applications | アプリレベルでのアクセス制御 | OAuth2、RBAC、API Gateway | API認証カバレッジ |
-| Data | データの分類と暗号化 | 暗号化、DLP、ラベリング | 暗号化率 |
-| Visibility | 統合ログ収集と分析 | SIEM、UEBA | ログカバレッジ率 |
-| Automation | 自動検知・自動対応 | SOAR、Policy as Code | 自動対応率 |
+| Identity | Authenticate all users and services | MFA, FIDO2, certificate authentication | Passwordless authentication rate |
+| Devices | Verify device legitimacy and security posture | MDM, EDR, device certificates | Managed device rate |
+| Networks | Communication control via micro-segmentation | Service mesh, mTLS | mTLS coverage rate |
+| Applications | Access control at the application level | OAuth2, RBAC, API Gateway | API authentication coverage |
+| Data | Data classification and encryption | Encryption, DLP, labeling | Encryption rate |
+| Visibility | Centralized log collection and analysis | SIEM, UEBA | Log coverage rate |
+| Automation | Automated detection and response | SOAR, Policy as Code | Automated response rate |
 
-### コード例6: ゼロトラストポリシーエンジンの実装
+### Code Example 6: Implementing a Zero Trust Policy Engine
 
 ```python
-# コード例6: ゼロトラストリクエスト検証 — NIST SP 800-207準拠
+# Code example 6: Zero Trust request validation — compliant with NIST SP 800-207
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Optional, Dict, List, Tuple
@@ -864,7 +868,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class TrustLevel(Enum):
-    """信頼レベル — 認証強度とコンテキストに基づく"""
+    """Trust level — based on authentication strength and context"""
     UNTRUSTED = 0
     LOW = 1
     MEDIUM = 2
@@ -875,7 +879,7 @@ class DeviceTrustLevel(Enum):
     UNKNOWN = "unknown"
     UNMANAGED = "unmanaged"
     MANAGED = "managed"
-    COMPLIANT = "compliant"  # managedかつポリシー準拠
+    COMPLIANT = "compliant"  # managed and policy-compliant
 
 class NetworkLocation(Enum):
     PUBLIC = "public"
@@ -884,7 +888,7 @@ class NetworkLocation(Enum):
 
 @dataclass
 class ZeroTrustContext:
-    """ゼロトラスト検証に必要なコンテキスト"""
+    """Context required for Zero Trust verification"""
     user_id: str
     device_id: str
     device_trust_level: DeviceTrustLevel
@@ -901,7 +905,7 @@ class ZeroTrustContext:
 
 @dataclass
 class PolicyDecision:
-    """ポリシーエンジンの判定結果"""
+    """Result of the policy engine's evaluation"""
     allowed: bool
     trust_level: TrustLevel
     checks: Dict[str, bool]
@@ -910,9 +914,9 @@ class PolicyDecision:
     conditions: List[str] = field(default_factory=list)
 
 class ZeroTrustPolicyEngine:
-    """ゼロトラストポリシーエンジン — 動的・継続的検証"""
+    """Zero Trust Policy Engine — dynamic, continuous verification"""
 
-    # リソースごとの要求信頼レベル
+    # Required trust level per resource
     RESOURCE_TRUST_REQUIREMENTS: Dict[str, TrustLevel] = {
         "public_api": TrustLevel.LOW,
         "user_profile": TrustLevel.MEDIUM,
@@ -924,11 +928,11 @@ class ZeroTrustPolicyEngine:
 
     MAX_SESSION_AGE = timedelta(hours=1)
     MAX_RISK_SCORE = 0.7
-    IMPOSSIBLE_TRAVEL_THRESHOLD_KM = 500  # 1時間以内
+    IMPOSSIBLE_TRAVEL_THRESHOLD_KM = 500  # within 1 hour
 
     def evaluate(self, ctx: ZeroTrustContext,
                  resource: str, action: str) -> PolicyDecision:
-        """アクセスリクエストを全方位的に評価する"""
+        """Evaluate an access request comprehensively"""
         checks = {
             "identity_verified": self._check_identity(ctx),
             "device_compliant": self._check_device(ctx),
@@ -940,10 +944,10 @@ class ZeroTrustPolicyEngine:
             "within_business_hours": self._check_business_hours(ctx, resource),
         }
 
-        # 信頼レベルの計算
+        # Calculate trust level
         trust_level = self._calculate_trust_level(ctx, checks)
 
-        # リソースの要求レベルとの比較
+        # Compare with the resource's required level
         required_level = self.RESOURCE_TRUST_REQUIREMENTS.get(
             resource, TrustLevel.MEDIUM
         )
@@ -965,7 +969,7 @@ class ZeroTrustPolicyEngine:
             )
             decision.reason = self._get_denial_reason(checks)
 
-        # 監査ログの出力
+        # Output audit log
         logger.info(
             "ZeroTrust decision: user=%s resource=%s action=%s "
             "allowed=%s trust=%s required=%s",
@@ -991,14 +995,14 @@ class ZeroTrustPolicyEngine:
                 NetworkLocation.CORPORATE,
                 NetworkLocation.VPN,
             )
-        return True  # ゼロトラストではネットワーク位置は補助的
+        return True  # In Zero Trust, network location is supplementary
 
     def _check_mfa(self, ctx: ZeroTrustContext, resource: str) -> bool:
         sensitive_resources = {"admin_panel", "financial_data", "user_data"}
         if resource in sensitive_resources:
             if not ctx.mfa_verified:
                 return False
-            # 機密リソースではFIDO2を要求
+            # Require FIDO2 for sensitive resources
             if resource == "financial_data":
                 return ctx.mfa_method == "fido2"
         return True
@@ -1010,17 +1014,17 @@ class ZeroTrustPolicyEngine:
         return ctx.risk_score < self.MAX_RISK_SCORE
 
     def _check_impossible_travel(self, ctx: ZeroTrustContext) -> bool:
-        """不可能な移動（Impossible Travel）の検出"""
+        """Detect Impossible Travel"""
         if ctx.geo_location and ctx.previous_geo_location:
             if ctx.geo_location != ctx.previous_geo_location:
-                # 実際にはジオコーディングで距離計算
-                # ここでは異なる国の場合のみフラグ
+                # In practice, geocoding is used to calculate distance;
+                # here we flag only when countries differ
                 return False
         return True
 
     def _check_business_hours(self, ctx: ZeroTrustContext,
                               resource: str) -> bool:
-        """営業時間外のアクセスチェック"""
+        """Check for access outside business hours"""
         sensitive = {"admin_panel", "financial_data"}
         if resource in sensitive and ctx.login_hour is not None:
             return 6 <= ctx.login_hour <= 22
@@ -1028,7 +1032,7 @@ class ZeroTrustPolicyEngine:
 
     def _calculate_trust_level(self, ctx: ZeroTrustContext,
                                checks: Dict[str, bool]) -> TrustLevel:
-        """コンテキストに基づく信頼レベルの動的計算"""
+        """Dynamically calculate trust level based on context"""
         score = 0
         if checks["identity_verified"]:
             score += 1
@@ -1055,88 +1059,89 @@ class ZeroTrustPolicyEngine:
                          current: TrustLevel,
                          required: TrustLevel) -> str:
         if not checks["mfa_satisfied"]:
-            return "MFA認証が必要です"
+            return "MFA authentication is required"
         if not checks["device_compliant"]:
-            return "管理対象デバイスからアクセスしてください"
+            return "Please access from a managed device"
         if not checks["session_fresh"]:
-            return "セッションが期限切れです。再認証してください"
+            return "Session has expired. Please re-authenticate"
         if not checks["no_impossible_travel"]:
-            return "異常なアクセスパターンが検出されました。本人確認が必要です"
+            return "Anomalous access pattern detected. Identity verification required"
         if current.value < required.value:
-            return f"このリソースには {required.name} レベルの信頼が必要です"
-        return "アクセスが拒否されました。管理者に連絡してください"
+            return f"This resource requires {required.name} level trust"
+        return "Access denied. Please contact an administrator"
 
     def _get_denial_reason(self, checks: Dict[str, bool]) -> str:
         failed = [k for k, v in checks.items() if not v]
         return f"Failed checks: {', '.join(failed)}"
 ```
 
-### Google BeyondCorpの実装事例
+### Google BeyondCorp Implementation Case Study
 
-Google BeyondCorpは、ゼロトラストアーキテクチャの最も有名な実装事例である。
+Google BeyondCorp is the most well-known implementation of Zero Trust architecture.
 
 ```
-Google BeyondCorp アーキテクチャ:
+Google BeyondCorp Architecture:
 
   +---------------------------------------------------------+
-  |  従来: VPN → 社内ネットワーク → リソースに自由アクセス     |
+  |  Traditional: VPN → Corporate network → Free access     |
   +---------------------------------------------------------+
                           ↓
   +---------------------------------------------------------+
   |  BeyondCorp:                                             |
   |                                                          |
-  |  ユーザー                                                |
+  |  User                                                   |
   |    │                                                    |
   |    ▼                                                    |
   |  [Access Proxy]                                         |
-  |    │  ← ユーザー認証 (SSO + MFA)                        |
-  |    │  ← デバイス認証 (デバイス証明書)                     |
-  |    │  ← デバイスインベントリ確認                          |
-  |    │  ← アクセスポリシー評価                              |
-  |    │  ← リスクスコア確認                                 |
+  |    │  ← User authentication (SSO + MFA)                |
+  |    │  ← Device authentication (device certificate)      |
+  |    │  ← Device inventory check                         |
+  |    │  ← Access policy evaluation                       |
+  |    │  ← Risk score check                               |
   |    ▼                                                    |
-  |  [リソース]  ← VPNは不要、全通信がインターネット経由      |
+  |  [Resource]  ← No VPN required; all traffic via internet|
   +---------------------------------------------------------+
 
-  核心: ネットワーク位置ではなく、ユーザーとデバイスの
-        信頼性に基づいてアクセスを制御する
+  Core idea: Access is controlled based on the trustworthiness
+             of the user and device — not the network location
 ```
 
 ---
 
-## 5. セキュアバイデフォルト（Secure by Default）
+## 5. Secure by Default
 
-システムの初期状態を安全な構成にする原則。ユーザーが明示的に緩和しない限り、最も安全な設定が適用される。この原則は「心理的受容性」の原則と組み合わせることで、安全性とユーザビリティを両立する。
+The principle of making the initial state of a system a secure configuration. The most secure settings apply unless the user explicitly relaxes them. Combined with the principle of Psychological Acceptability, this approach achieves both security and usability.
 
-### なぜセキュアバイデフォルトが重要か
+### Why Secure by Default Matters
 
-統計的に、多くのセキュリティインシデントは「デフォルト設定のまま運用した」ことが原因で発生する。デフォルトパスワード、デフォルトで有効なデバッグモード、デフォルトで無効な暗号化など、安全でないデフォルト設定は攻撃者にとっての「低い果実（Low-Hanging Fruit）」である。
+Statistically, many security incidents are caused by systems running with default settings. Default passwords, debug mode enabled by default, encryption disabled by default — these insecure defaults are "low-hanging fruit" for attackers.
 
 ```
-セキュアバイデフォルトの考え方:
+The Secure by Default Philosophy:
 
-  安全でないデフォルト（NG）:           セキュアバイデフォルト（OK）:
+  Insecure defaults (BAD):              Secure by Default (GOOD):
   +-----------------------------+      +-----------------------------+
   | debug_mode: true            |      | debug_mode: false           |
   | tls_enabled: false          |      | tls_enabled: true           |
-  | cors_origin: "*"            |      | cors_origin: [] (空)        |
+  | cors_origin: "*"            |      | cors_origin: [] (empty)     |
   | cookie_secure: false        |      | cookie_secure: true         |
   | log_sensitive: true         |      | log_sensitive: false        |
-  | admin_password: "admin"     |      | admin_password: (未設定→   |
-  |                             |      |   初回起動時に強制変更)      |
+  | admin_password: "admin"     |      | admin_password: (not set →  |
+  |                             |      |   forced change on first    |
+  |                             |      |   startup)                  |
   +-----------------------------+      +-----------------------------+
 
-  原則:
-  - セキュリティ設定は「オプトアウト」モデル
-    (デフォルト安全、必要に応じて緩和)
-  - 緩和時には警告を表示し、理由をログに記録
-  - 本番環境での緩和は追加承認を要求
+  Principles:
+  - Security settings follow an "opt-out" model
+    (secure by default; relax only when necessary)
+  - Display warnings when relaxing; log the reason
+  - Require additional approval to relax settings in production
 ```
 
-### コード例7: セキュアバイデフォルトの設定クラス
+### Code Example 7: Secure by Default Configuration Class
 
 ```python
-# コード例7: セキュアバイデフォルトの設定クラス — 完全版
+# Code example 7: Secure by Default configuration class — complete version
 from dataclasses import dataclass, field
 from typing import List, Optional, Set
 import warnings
@@ -1146,94 +1151,94 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SecureServerConfig:
-    """セキュアバイデフォルトなサーバー設定
+    """Secure-by-default server configuration
 
-    設計方針:
-    1. すべてのデフォルト値は「最も安全な設定」
-    2. 緩和する場合は明示的なメソッド呼び出しが必要
-    3. 緩和時には警告ログを出力
-    4. 本番環境では一部の緩和を禁止
+    Design principles:
+    1. All default values represent the most secure setting
+    2. Relaxing a setting requires an explicit method call
+    3. A warning is logged whenever a setting is relaxed
+    4. Some settings cannot be relaxed in production
     """
 
-    # --- デフォルトで安全な設定 ---
-    # TLS設定
+    # --- Secure default settings ---
+    # TLS configuration
     tls_min_version: str = "TLSv1.3"
     tls_ciphers: List[str] = field(default_factory=lambda: [
         "TLS_AES_256_GCM_SHA384",
         "TLS_CHACHA20_POLY1305_SHA256",
     ])
     hsts_enabled: bool = True
-    hsts_max_age: int = 31536000  # 1年
+    hsts_max_age: int = 31536000  # 1 year
     hsts_include_subdomains: bool = True
     hsts_preload: bool = True
 
-    # セキュリティヘッダー（デフォルトで有効）
+    # Security headers (enabled by default)
     content_security_policy: str = "default-src 'self'"
     x_frame_options: str = "DENY"
     x_content_type_options: str = "nosniff"
     referrer_policy: str = "strict-origin-when-cross-origin"
     permissions_policy: str = "camera=(), microphone=(), geolocation=()"
 
-    # Cookie設定（デフォルトで安全）
+    # Cookie settings (secure by default)
     cookie_secure: bool = True
     cookie_httponly: bool = True
     cookie_samesite: str = "Strict"
-    cookie_max_age: int = 3600  # 1時間（短め）
+    cookie_max_age: int = 3600  # 1 hour (short)
 
-    # CORS（デフォルトで制限）
+    # CORS (restricted by default)
     cors_allowed_origins: List[str] = field(default_factory=list)
     cors_allow_credentials: bool = False
-    cors_max_age: int = 600  # 10分
+    cors_max_age: int = 600  # 10 minutes
 
-    # レートリミット（デフォルトで有効）
+    # Rate limiting (enabled by default)
     rate_limit_enabled: bool = True
     rate_limit_requests: int = 100
     rate_limit_window_seconds: int = 60
 
-    # ログ（デフォルトで有効）
+    # Logging (enabled by default)
     access_log_enabled: bool = True
     error_log_enabled: bool = True
-    log_sensitive_data: bool = False  # 機密データのログは無効
+    log_sensitive_data: bool = False  # Sensitive data logging is disabled
 
-    # デバッグ（デフォルトで無効）
+    # Debug (disabled by default)
     debug_mode: bool = False
     expose_stack_traces: bool = False
     expose_server_version: bool = False
 
-    # 環境
+    # Environment
     _environment: str = "production"
 
     def relax_for_development(self):
-        """開発環境用の緩和設定（本番では呼び出し禁止）"""
+        """Relaxed settings for development environments (must not be called in production)"""
         if self._environment == "production":
             raise RuntimeError(
-                "本番環境でセキュリティ設定を緩和することはできません"
+                "Security settings cannot be relaxed in a production environment"
             )
         logger.warning(
-            "セキュリティ設定を開発環境向けに緩和しています。"
-            "本番環境では絶対に使用しないでください。"
+            "Security settings are being relaxed for development. "
+            "Never use these settings in production."
         )
         self.tls_min_version = "TLSv1.2"
         self.cors_allowed_origins = ["http://localhost:3000"]
-        self.cookie_secure = False  # HTTPでの開発用
+        self.cookie_secure = False  # For HTTP-based development
         self.debug_mode = True
 
     def add_cors_origin(self, origin: str):
-        """CORS許可オリジンを追加する（監査ログ付き）"""
+        """Add a CORS allowed origin (with audit logging)"""
         if origin == "*":
             raise ValueError(
-                "CORS origin に '*' は許可されません。"
-                "具体的なオリジンを指定してください。"
+                "'*' is not allowed as a CORS origin. "
+                "Please specify a concrete origin."
             )
         logger.info("CORS origin added: %s", origin)
         self.cors_allowed_origins.append(origin)
 
     def relax_csp(self, directive: str, value: str):
-        """CSPを緩和する（警告付き）"""
+        """Relax the CSP (with warnings)"""
         if "'unsafe-inline'" in value or "'unsafe-eval'" in value:
             warnings.warn(
-                f"CSP の {directive} に unsafe ディレクティブを追加しています。"
-                "XSS のリスクが増大します。",
+                f"Adding an unsafe directive to CSP {directive}. "
+                "This increases the risk of XSS.",
                 SecurityWarning,
             )
         logger.warning("CSP relaxed: %s = %s", directive, value)
@@ -1242,7 +1247,7 @@ class SecureServerConfig:
         )
 
     def to_headers(self) -> dict:
-        """HTTPレスポンスヘッダーを生成する"""
+        """Generate HTTP response headers"""
         headers = {
             "X-Content-Type-Options": self.x_content_type_options,
             "X-Frame-Options": self.x_frame_options,
@@ -1258,190 +1263,190 @@ class SecureServerConfig:
                 hsts_value += "; preload"
             headers["Strict-Transport-Security"] = hsts_value
         if not self.expose_server_version:
-            headers["Server"] = ""  # サーバーバージョンを隠蔽
+            headers["Server"] = ""  # Hide server version
         return headers
 
     def validate(self) -> List[str]:
-        """設定の安全性を検証し、問題点を返す"""
+        """Validate configuration safety and return any issues found"""
         issues = []
         if self.debug_mode and self._environment == "production":
-            issues.append("CRITICAL: 本番環境でデバッグモードが有効です")
+            issues.append("CRITICAL: Debug mode is enabled in production")
         if not self.hsts_enabled:
-            issues.append("WARNING: HSTSが無効です")
+            issues.append("WARNING: HSTS is disabled")
         if not self.cookie_secure:
-            issues.append("WARNING: Cookieのsecureフラグが無効です")
+            issues.append("WARNING: Cookie secure flag is disabled")
         if self.cors_allowed_origins == ["*"]:
-            issues.append("CRITICAL: CORSが全オリジンに開放されています")
+            issues.append("CRITICAL: CORS is open to all origins")
         if self.expose_stack_traces:
-            issues.append("WARNING: スタックトレースが公開されています")
+            issues.append("WARNING: Stack traces are exposed")
         if self.log_sensitive_data:
-            issues.append("WARNING: 機密データのログが有効です")
+            issues.append("WARNING: Sensitive data logging is enabled")
         if self.tls_min_version < "TLSv1.2":
-            issues.append("CRITICAL: TLS 1.2未満は安全ではありません")
+            issues.append("CRITICAL: TLS versions below 1.2 are not secure")
         return issues
 
 class SecurityWarning(UserWarning):
-    """セキュリティに関する警告"""
+    """Security-related warning"""
     pass
 
-# デフォルト設定は安全
+# Default configuration is secure
 config = SecureServerConfig()
-print(config.debug_mode)         # False（安全）
-print(config.cookie_secure)      # True（安全）
-print(config.tls_min_version)    # TLSv1.3（安全）
-print(config.validate())         # []（問題なし）
+print(config.debug_mode)         # False (secure)
+print(config.cookie_secure)      # True (secure)
+print(config.tls_min_version)    # TLSv1.3 (secure)
+print(config.validate())         # [] (no issues)
 ```
 
 ---
 
-## 6. その他の重要なセキュリティ原則
+## 6. Other Important Security Principles
 
-### 6.1 フェイルセーフデフォルト（Fail-Safe Defaults）
+### 6.1 Fail-Safe Defaults
 
-障害や例外が発生した場合に、システムが安全な状態に遷移する原則。
+The principle that when a failure or exception occurs, the system transitions to a safe state.
 
 ```
-フェイルセーフのフロー:
+Fail-Safe Flow:
 
-  リクエスト --> [認可チェック]
+  Request --> [Authorization Check]
                     |
               +-----+-----+
               |           |
-           成功        失敗/エラー/タイムアウト
+           Success    Failure / Error / Timeout
               |           |
-         アクセス許可   アクセス拒否（安全側に倒す）
-                         + ログ記録
-                         + アラート送信
-                         + 管理者通知
+         Allow access   Deny access (fail safe)
+                         + Log the event
+                         + Send alert
+                         + Notify administrator
 
-  実装の核心:
-  - try/catchのcatchブロックは「許可」ではなく「拒否」を返す
-  - タイムアウト時はアクセス拒否（応答がない = 承認されていない）
-  - デフォルトのswitch/caseは「拒否」
-  - ホワイトリスト方式（許可リストにないものは拒否）
+  Implementation essentials:
+  - The catch block in try/catch should return "deny," not "allow"
+  - On timeout, deny access (no response = not approved)
+  - The default case in switch/case should be "deny"
+  - Use an allowlist approach (deny anything not on the permitted list)
 ```
 
 ```python
-# フェイルセーフの実装例
+# Fail-Safe implementation example
 def check_authorization(user_id: str, resource: str) -> bool:
-    """フェイルセーフな認可チェック"""
+    """Fail-safe authorization check"""
     try:
-        # 認可サービスに問い合わせ
+        # Query the authorization service
         result = auth_service.check(user_id, resource, timeout=5)
         if result.status == "ALLOW":
             return True
-        # DENY や UNKNOWN は全て拒否
+        # DENY or UNKNOWN are both treated as denial
         return False
     except TimeoutError:
-        # タイムアウト = 安全側に倒す = 拒否
+        # Timeout = fail safe = deny
         logger.warning("Auth check timeout for user=%s", user_id)
         return False
     except Exception as e:
-        # 予期しないエラー = 安全側に倒す = 拒否
+        # Unexpected error = fail safe = deny
         logger.error("Auth check error: %s", e)
         return False
-    # ここに到達することはないが、万が一の場合も拒否
+    # Should never reach here, but deny just in case
     # return False
 ```
 
-### 6.2 完全仲介（Complete Mediation）
+### 6.2 Complete Mediation
 
-すべてのアクセスを検証する原則。キャッシュされた認可結果に依存せず、毎回チェックを行う。
+The principle of verifying every single access. Rather than relying on cached authorization results, perform a check every time.
 
-### 6.3 メカニズムの経済性（Economy of Mechanism）
+### 6.3 Economy of Mechanism
 
-セキュリティメカニズムの設計はシンプルに保つ。コードが複雑になるほどバグが増え、バグが増えるほど脆弱性が増える。
+Keep security mechanisms simple in their design. The more complex the code, the more bugs there are; the more bugs, the more vulnerabilities.
 
-### 6.4 オープン設計（Open Design）
+### 6.4 Open Design
 
-セキュリティは秘密に依存しない。暗号アルゴリズムは公開され、公開レビューを受けたものを使用する（Kerckhoffs' principle）。独自暗号、独自プロトコルは避ける。
+Security must not depend on secrecy. Cryptographic algorithms should be publicly disclosed and have undergone public review before use (Kerckhoffs' principle). Avoid proprietary encryption and proprietary protocols.
 
-### 6.5 権限分離（Separation of Privilege）
+### 6.5 Separation of Privilege
 
-重要な操作には複数の独立した承認を要求する。4-eyes principle（二人以上の承認）やMFAがこの原則の実装である。
+Require multiple independent approvals for critical operations. The 4-eyes principle (approval by two or more people) and MFA are implementations of this principle.
 
-### 6.6 最少共有メカニズム（Least Common Mechanism）
+### 6.6 Least Common Mechanism
 
-共有リソースやメカニズムを最小化する。プロセス分離、サンドボックス、コンテナ化がこの原則の実装である。
+Minimize shared resources and mechanisms. Process isolation, sandboxing, and containerization are implementations of this principle.
 
-### 6.7 心理的受容性（Psychological Acceptability）
+### 6.7 Psychological Acceptability
 
-セキュリティメカニズムはユーザーの業務を妨げないように設計する。過度に煩雑なセキュリティは回避行動を誘発し、結果的にセキュリティを低下させる。
+Design security mechanisms so they do not interfere with users' work. Overly cumbersome security leads to workarounds, which ultimately reduce security.
 
-### 原則の総合比較表
+### Comprehensive Comparison of Principles
 
-| 原則 | 説明 | 実装例 | 違反するとどうなるか |
+| Principle | Description | Implementation Examples | Consequence of Violation |
 |------|------|--------|-------------------|
-| 最小権限 | 必要最小限の権限のみ付与 | RBAC、IAM | 侵害時の被害拡大 |
-| 多層防御 | 複数の独立した防御層 | WAF+FW+入力検証 | 単一障害点が致命的に |
-| ゼロトラスト | すべてのアクセスを検証 | mTLS、マイクロセグメンテーション | 内部からの横展開 |
-| セキュアバイデフォルト | 初期状態を安全に | 安全なデフォルト値 | デフォルト設定の悪用 |
-| フェイルセーフ | 障害時は安全な状態に | デフォルト拒否 | エラー時の不正アクセス |
-| 完全仲介 | 毎回アクセスを検証 | ミドルウェアでの認可 | キャッシュ汚染攻撃 |
-| 経済性 | 設計はシンプルに | 単純なRBAC | 複雑さによる脆弱性 |
-| オープン設計 | 秘密に依存しない | 公開暗号アルゴリズム | 秘密の漏洩で崩壊 |
-| 権限分離 | 複数の承認を要求 | MFA、4-eyes | 単一の権限奪取で侵害 |
-| 最少共有 | 共有リソースを最小化 | プロセス分離 | 共有リソース経由の攻撃 |
-| 心理的受容性 | ユーザビリティとの両立 | SSO、パスワードレス | セキュリティの回避行動 |
+| Least Privilege | Grant only the minimum necessary permissions | RBAC, IAM | Damage amplification when breached |
+| Defense in Depth | Multiple independent defensive layers | WAF + FW + input validation | Single point of failure becomes fatal |
+| Zero Trust | Verify all access | mTLS, micro-segmentation | Lateral movement from inside |
+| Secure by Default | Make the initial state secure | Safe default values | Exploitation of default settings |
+| Fail-Safe | Transition to a safe state on failure | Default deny | Unauthorized access on error |
+| Complete Mediation | Verify access every time | Authorization middleware | Cache poisoning attacks |
+| Economy of Mechanism | Keep design simple | Simple RBAC | Vulnerabilities from complexity |
+| Open Design | Do not rely on secrecy | Public cryptographic algorithms | Collapse on secret disclosure |
+| Separation of Privilege | Require multiple approvals | MFA, 4-eyes | Single privilege takeover causes breach |
+| Least Common Mechanism | Minimize shared resources | Process isolation | Attacks via shared resources |
+| Psychological Acceptability | Balance with usability | SSO, passwordless | Security avoidance behavior |
 
 ---
 
-## 7. エッジケースと注意事項
+## 7. Edge Cases and Considerations
 
-### エッジケース1: 最小権限と緊急時対応の矛盾
+### Edge Case 1: Conflict Between Least Privilege and Incident Response
 
-最小権限を厳格に適用すると、緊急時（インシデント発生時）に必要な権限がなく対応が遅れる場合がある。これに対処するために「Break Glass」（ガラスを割る）手順を用意する。
+Strictly applying Least Privilege can lead to delayed incident response when the necessary permissions are unavailable during an emergency. To address this, prepare a "Break Glass" procedure.
 
 ```python
-# Break Glass（緊急時権限昇格）の実装
+# Break Glass (emergency privilege escalation) implementation
 class BreakGlassAccess:
-    """緊急時の権限昇格メカニズム"""
+    """Emergency privilege escalation mechanism"""
 
     def activate(self, user_id: str, reason: str,
                  incident_id: str) -> str:
-        """緊急権限を有効化する"""
-        # 1. 複数チャネルでアラート送信
+        """Activate emergency permissions"""
+        # 1. Send alerts via multiple channels
         self.alert_security_team(user_id, reason, incident_id)
         self.alert_management(user_id, reason, incident_id)
 
-        # 2. 全操作を詳細にログ記録
+        # 2. Log all operations in detail
         self.enable_detailed_audit_log(user_id)
 
-        # 3. 時間制限付きの権限付与（最大2時間）
+        # 3. Grant time-limited permissions (maximum 2 hours)
         token = self.grant_emergency_access(
             user_id,
             duration=timedelta(hours=2),
             incident_id=incident_id,
         )
 
-        # 4. 自動失効タイマーの設定
+        # 4. Set up an automatic revocation timer
         self.schedule_auto_revoke(user_id, token)
 
         return token
 ```
 
-### エッジケース2: ゼロトラストとレガシーシステムの共存
+### Edge Case 2: Coexistence of Zero Trust and Legacy Systems
 
-全システムを一度にゼロトラストに移行することは現実的でない。レガシーシステムにはプロキシやゲートウェイを配置してゼロトラスト層を追加する。
+Migrating all systems to Zero Trust at once is not realistic. For legacy systems, add a Zero Trust layer by placing a proxy or gateway in front of them.
 
-### エッジケース3: セキュアバイデフォルトと後方互換性
+### Edge Case 3: Secure by Default and Backward Compatibility
 
-既存のクライアントがセキュアでない設定に依存している場合、デフォルト値の変更は破壊的変更になる。段階的な移行（まず警告→次バージョンで変更）が必要である。
+If existing clients depend on insecure settings, changing default values constitutes a breaking change. A phased migration is required (first issue warnings, then change in the next version).
 
-### エッジケース4: 多層防御のコストとパフォーマンス
+### Edge Case 4: Cost and Performance of Defense in Depth
 
-防御層を増やすほどレイテンシが増加する。各層のパフォーマンスインパクトを計測し、リスクとパフォーマンスのバランスを取る。
+Adding more defensive layers increases latency. Measure the performance impact of each layer and balance risk against performance.
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン1: 過剰な権限付与（God Mode）
+### Anti-Pattern 1: Excessive Permissions (God Mode)
 
-「面倒だから」「動かないから」という理由で管理者権限やワイルドカード権限を付与するパターン。特にIAMで `*` リソースに `*` アクションを許可するのは最も危険な設定である。
+Granting admin or wildcard permissions "because it's too much trouble" or "because nothing works." Allowing `*` actions on `*` resources in IAM is the most dangerous configuration possible.
 
 ```json
-// NG: God Mode ポリシー
+// BAD: God Mode policy
 {
   "Effect": "Allow",
   "Action": "*",
@@ -1449,153 +1454,153 @@ class BreakGlassAccess:
 }
 ```
 
-この設定は絶対に避け、具体的なアクション・リソースを指定すること。AWS IAM Access Analyzerを使用して、過剰な権限を検出・修正する。
+Always avoid this configuration and specify concrete actions and resources. Use AWS IAM Access Analyzer to detect and remediate excessive permissions.
 
-### アンチパターン2: セキュリティ by オブスキュリティ（Security by Obscurity）
+### Anti-Pattern 2: Security by Obscurity
 
-隠蔽のみに依存するセキュリティ。「管理画面のURLを推測しにくくすれば大丈夫」「ソースコードは非公開だから安全」という考えは危険である。
-
-```
-NG パターン:
-  - 管理画面: /admin-secret-xyz123  ← URLの隠蔽だけで認証なし
-  - APIキー: ソースコードにハードコード ← 非公開リポジトリだから安全?
-  - 独自暗号: 自作の暗号化アルゴリズム ← 公開レビューを受けていない
-
-OK パターン:
-  - 管理画面: /admin + 強力な認証(MFA) + IP制限 + 監査ログ
-  - APIキー: 環境変数 or Secrets Manager + ローテーション
-  - 暗号化: AES-256-GCM + AWS KMS管理鍵
-```
-
-隠蔽は**補助的な対策**にはなるが、適切な認証・認可・暗号化が前提である。
-
-### アンチパターン3: セキュリティの事後対応（Bolt-on Security）
-
-開発の最後にセキュリティを「追加」するアプローチ。設計段階からセキュリティを組み込む（Security by Design / Shift Left）べきである。
+Relying solely on concealment for security. The belief that "the admin URL is hard to guess, so we're fine" or "the source code is private, so it's safe" is dangerous.
 
 ```
-NG: ウォーターフォールでの事後対応
-  要件 → 設計 → 実装 → テスト → [セキュリティテスト] → リリース
-                                        ↑
-                                   ここで初めてセキュリティを考慮
-                                   → 設計の根本的な問題は修正困難
+BAD patterns:
+  - Admin panel: /admin-secret-xyz123  ← URL obfuscation only, no authentication
+  - API key: hardcoded in source code  ← Safe because repo is private?
+  - Encryption: home-grown algorithm   ← Has not undergone public review
 
-OK: Shift Leftアプローチ
-  [脅威モデリング] → [セキュア設計] → [SAST] → [DAST] → リリース
+GOOD patterns:
+  - Admin panel: /admin + strong auth (MFA) + IP restriction + audit log
+  - API key: environment variable or Secrets Manager + rotation
+  - Encryption: AES-256-GCM + AWS KMS-managed key
+```
+
+Obscurity can serve as a **supplementary measure**, but only on top of proper authentication, authorization, and encryption.
+
+### Anti-Pattern 3: Bolt-on Security
+
+The approach of "adding" security at the end of development. Security should be built in from the design phase (Security by Design / Shift Left).
+
+```
+BAD: Retrofitting security in a waterfall process
+  Requirements → Design → Implementation → Testing → [Security Test] → Release
+                                                          ↑
+                                              Security is first considered here
+                                              → Fundamental design flaws are hard to fix
+
+GOOD: Shift Left approach
+  [Threat Modeling] → [Secure Design] → [SAST] → [DAST] → Release
    ↑                  ↑                ↑         ↑
-   設計段階から         セキュリティ     自動      ランタイム
-   セキュリティを       アーキテクチャ   スキャン  テスト
-   考慮                レビュー
+   Security is        Security         Automated  Runtime
+   considered from    architecture     scanning   testing
+   the design phase   review
 ```
 
 ---
 
-## 9. 演習問題
+## 9. Exercises
 
-### 演習1: 最小権限のIAMポリシー設計（難易度: 基礎）
+### Exercise 1: Designing a Least Privilege IAM Policy (Difficulty: Basic)
 
-以下の要件を満たすAWS IAMポリシーをJSON形式で記述せよ。
+Write an AWS IAM policy in JSON format that satisfies the following requirements.
 
-**要件:**
-- S3バケット `data-lake-prod` の `reports/` プレフィックスに対してのみ読み取りを許可
-- 同バケットの `uploads/` プレフィックスに対してのみ書き込みを許可
-- 削除は一切禁止
-- MFA認証済みの場合のみアクセス可能
+**Requirements:**
+- Allow read access only to the `reports/` prefix in the `data-lake-prod` S3 bucket
+- Allow write access only to the `uploads/` prefix in the same bucket
+- Prohibit deletion entirely
+- Allow access only when MFA authentication is confirmed
 
-**ヒント:** Condition要素を使用してMFA制約を追加する
+**Hint:** Use the Condition element to add the MFA constraint
 
-### 演習2: 多層防御の設計（難易度: 応用）
+### Exercise 2: Defense in Depth Design (Difficulty: Applied)
 
-以下のWebアプリケーションに対して、多層防御の設計を行え。
+Design a Defense in Depth strategy for the following web application.
 
-**システム構成:**
-- フロントエンド: React SPA
-- バックエンド: Python FastAPI
-- データベース: PostgreSQL
-- インフラ: AWS ECS on Fargate
+**System configuration:**
+- Frontend: React SPA
+- Backend: Python FastAPI
+- Database: PostgreSQL
+- Infrastructure: AWS ECS on Fargate
 
-**タスク:**
-1. 最低5層の防御層を定義する
-2. 各層で使用するツール/技術を選定する
-3. 各層が独立して機能することを確認する方法を述べる
-4. 1つの層が突破された場合のシナリオと対応を記述する
+**Tasks:**
+1. Define at least 5 defensive layers
+2. Select the tools/technologies to use at each layer
+3. Describe how to verify that each layer functions independently
+4. Describe a scenario where one layer is breached and how to respond
 
-### 演習3: ゼロトラストポリシーの実装（難易度: 発展）
+### Exercise 3: Implementing a Zero Trust Policy (Difficulty: Advanced)
 
-以下のシナリオに対して、ゼロトラストポリシーを実装せよ。
+Implement a Zero Trust policy for the following scenario.
 
-**シナリオ:**
-- 従業員がカフェのWi-FiからBYOD端末で社内の顧客データにアクセスしようとしている
-- 従業員はパスワード認証済みだがMFA未実施
-- リスクスコアは0.5（中程度）
-- 前回のログインは東京からで、現在のIPアドレスは大阪
+**Scenario:**
+- An employee is attempting to access internal customer data from a café Wi-Fi using a BYOD device
+- The employee has authenticated with a password but has not completed MFA
+- Risk score is 0.5 (moderate)
+- Previous login was from Tokyo; current IP address is from Osaka
 
-**タスク:**
-1. このアクセスリクエストを許可すべきか、拒否すべきかを判断する
-2. 判断の根拠を各チェック項目ごとに説明する
-3. アクセスを許可するために必要な追加条件を列挙する
-4. 上記のZeroTrustPolicyEngineクラスを使って実装し、テストコードを書く
+**Tasks:**
+1. Decide whether this access request should be allowed or denied
+2. Explain the rationale for each check item
+3. List the additional conditions required to allow access
+4. Implement and write test code using the ZeroTrustPolicyEngine class above
 
 ---
 
-## 10. まとめ
+## 10. Summary
 
-| 原則 | 核心 | 実装のポイント | 参照規格 |
+| Principle | Core Concept | Implementation Points | Reference Standard |
 |------|------|---------------|---------|
-| 最小権限 | 必要最小限の権限のみ付与 | RBAC、IAMポリシーの精密化、JIT Access | NIST AC-6 |
-| 多層防御 | 複数の独立した防御層を重ねる | WAF+FW+入力検証+暗号化、各層の独立性 | NIST SC-3 |
-| ゼロトラスト | すべてのアクセスを検証する | mTLS、マイクロセグメンテーション、継続的検証 | NIST SP 800-207 |
-| セキュアバイデフォルト | 初期状態を安全に | 安全なデフォルト値、opt-outモデル、設定検証 | CWE-1188 |
-| フェイルセーフ | 障害時は安全な状態に | デフォルト拒否、エラー時のアクセス遮断 | NIST AC-7 |
-| 権限分離 | 重要操作には複数の承認 | MFA、4-eyes principle、Break Glass | NIST AC-5 |
-| オープン設計 | セキュリティは秘密に依存しない | 公開暗号、公開レビュー | Kerckhoffs' principle |
+| Least Privilege | Grant only the minimum necessary permissions | RBAC, refined IAM policies, JIT Access | NIST AC-6 |
+| Defense in Depth | Layer multiple independent defensive mechanisms | WAF + FW + input validation + encryption; independence of each layer | NIST SC-3 |
+| Zero Trust | Verify all access | mTLS, micro-segmentation, continuous verification | NIST SP 800-207 |
+| Secure by Default | Make the initial state secure | Safe default values, opt-out model, configuration validation | CWE-1188 |
+| Fail-Safe | Transition to a safe state on failure | Default deny, block access on error | NIST AC-7 |
+| Separation of Privilege | Require multiple approvals for critical operations | MFA, 4-eyes principle, Break Glass | NIST AC-5 |
+| Open Design | Security must not depend on secrecy | Public cryptography, public review | Kerckhoffs' principle |
 
-### 学習の次のステップ
+### Next Learning Steps
 
-1. 各原則を自身のプロジェクトに適用し、現状とのギャップ分析を行う
-2. ゼロトラストの段階的導入計画を策定する
-3. 多層防御の各層について、テストとモニタリングを実装する
+1. Apply each principle to your own projects and conduct a gap analysis against the current state
+2. Develop a phased Zero Trust adoption plan
+3. Implement tests and monitoring for each layer of your Defense in Depth strategy
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
-- [../01-web-security/00-owasp-top10.md](../01-web-security/00-owasp-top10.md) -- セキュリティ原則を具体的脆弱性対策に適用
-- [../04-application-security/00-secure-coding.md](../04-application-security/00-secure-coding.md) -- コーディングレベルでの原則適用
-- [../05-cloud-security/00-cloud-security-basics.md](../05-cloud-security/00-cloud-security-basics.md) -- クラウド環境での原則適用
-- [../06-operations/02-compliance.md](../06-operations/02-compliance.md) -- セキュリティ原則をコンプライアンス要件にマッピング
+- [../01-web-security/00-owasp-top10.md](../01-web-security/00-owasp-top10.md) -- Applying security principles to concrete vulnerability mitigation
+- [../04-application-security/00-secure-coding.md](../04-application-security/00-secure-coding.md) -- Applying principles at the coding level
+- [../05-cloud-security/00-cloud-security-basics.md](../05-cloud-security/00-cloud-security-basics.md) -- Applying principles in cloud environments
+- [../06-operations/02-compliance.md](../06-operations/02-compliance.md) -- Mapping security principles to compliance requirements
 
 ---
 
 ## FAQ
 
-### Q1: 最小権限を徹底すると開発効率が下がりませんか?
+### Q1: Won't strictly applying Least Privilege reduce development efficiency?
 
-初期設定コストは上がるが、インシデント対応コストを考えると長期的には効率的である。また、IaCで権限テンプレートを管理し、開発環境ではやや緩い権限を使いつつ、本番環境で厳格に適用するアプローチが現実的である。AWS IAM Access Analyzerを使えば、実際に使用されている権限のみに絞り込むことができる。
+The initial configuration cost increases, but when incident response costs are factored in, it is more efficient in the long run. A practical approach is to manage permission templates with IaC, use somewhat relaxed permissions in development environments, and apply strict permissions in production. Using AWS IAM Access Analyzer, you can narrow permissions down to only those actually used.
 
-### Q2: ゼロトラストは社内ネットワークでも必要ですか?
+### Q2: Is Zero Trust necessary even on internal networks?
 
-必要である。近年のセキュリティインシデントの多くは内部ネットワークからの横展開（Lateral Movement）によるものであり、VPN接続後に社内リソースへ自由にアクセスできる状態は危険である。マイクロセグメンテーションとmTLSの導入が推奨される。SolarWinds事件（2020年）やColonial Pipeline事件（2021年）は、いずれも内部ネットワークの信頼に起因するインシデントであった。
+Yes. Many recent security incidents have involved lateral movement originating from the internal network. A state where any resource can be freely accessed after a VPN connection is dangerous. Introducing micro-segmentation and mTLS is recommended. The SolarWinds incident (2020) and the Colonial Pipeline incident (2021) were both caused by implicit trust in the internal network.
 
-### Q3: セキュアバイデフォルトとユーザビリティのバランスはどう取りますか?
+### Q3: How do you balance Secure by Default with usability?
 
-安全な初期設定を提供しつつ、必要に応じてユーザーが明示的に緩和できる設計にする。例えば、CSPのデフォルトは厳格に設定し、特定のCDNが必要な場合にのみホワイトリストに追加する。「opt-out」モデルを採用し、緩和時には警告を表示する。セキュリティの「心理的受容性」の原則に従い、ユーザーの自然なワークフローを妨げない形でセキュリティを組み込むことが重要である。
+Provide a secure default configuration while designing the system so users can explicitly relax settings when needed. For example, set a strict default CSP and add only specific CDNs to the allowlist when required. Adopt an "opt-out" model and display warnings when settings are relaxed. In line with the principle of Psychological Acceptability, it is important to integrate security in a way that does not disrupt users' natural workflows.
 
-### Q4: 多層防御ではどの層を優先すべきですか?
+### Q4: Which layer should be prioritized in Defense in Depth?
 
-投資対効果（ROI）の観点からは、以下の優先順位が推奨される: (1) アプリケーション層（入力検証、認証・認可） (2) データ層（暗号化） (3) ネットワーク層（ファイアウォール、セグメンテーション） (4) ペリメター層（WAF） (5) ホスト層（OS強化）。アプリケーション層の防御は最も費用対効果が高く、多くの脆弱性を根本から防止できる。
+From a return on investment (ROI) perspective, the following priority order is recommended: (1) Application layer (input validation, authentication and authorization) (2) Data layer (encryption) (3) Network layer (firewall, segmentation) (4) Perimeter layer (WAF) (5) Host layer (OS hardening). Application-layer defenses offer the best cost-effectiveness and can prevent many vulnerabilities at their root.
 
-### Q5: ゼロトラストを段階的に導入するにはどうすればよいですか?
+### Q5: How do you introduce Zero Trust incrementally?
 
-以下の段階的アプローチが推奨される: Phase 1: アイデンティティ基盤の強化（SSO + MFA）、Phase 2: デバイス管理の導入（MDM + EDR）、Phase 3: マイクロセグメンテーションの実装、Phase 4: 継続的検証の自動化（UEBA + リスクスコアリング）。各フェーズで3-6ヶ月を見込む。
+The following phased approach is recommended: Phase 1: Strengthen the identity foundation (SSO + MFA); Phase 2: Introduce device management (MDM + EDR); Phase 3: Implement micro-segmentation; Phase 4: Automate continuous verification (UEBA + risk scoring). Allow 3–6 months per phase.
 
-### Q6: Break Glass手順はどの程度頻繁に使用されるべきですか?
+### Q6: How frequently should the Break Glass procedure be used?
 
-Break Glassは「最後の手段」であり、月に1回以上使用される場合は、通常の権限設定が不適切である可能性がある。使用頻度を追跡し、頻繁に使用されるケースについては、通常のアクセスパスを整備すべきである。全使用について事後レビューを実施し、プロセスの改善に活かす。
+Break Glass is a "last resort" and if it is being used more than once a month, the regular permission settings may be inadequate. Track usage frequency and, for cases that arise frequently, establish a proper standard access path. Conduct a post-use review for every use and apply the lessons learned to improve the process.
 
 ---
 
-## 参考文献
+## References
 
 1. Saltzer, J.H. & Schroeder, M.D., "The Protection of Information in Computer Systems" -- Proceedings of the IEEE, 1975
 2. NIST SP 800-207, "Zero Trust Architecture" -- https://csrc.nist.gov/publications/detail/sp/800-207/final
