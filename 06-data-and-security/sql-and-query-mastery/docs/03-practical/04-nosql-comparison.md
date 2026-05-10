@@ -1,98 +1,100 @@
-# NoSQL 比較
+# NoSQL Comparison
 
-> MongoDB、Redis、DynamoDB の特性を比較し、RDB との使い分けとポリグロット永続化の設計戦略を実践的に習得する。本章ではNoSQLの理論的背景から各データベースの内部アーキテクチャ、データモデリングパターン、パフォーマンス特性までを掘り下げ、プロダクション環境でのハイブリッドアーキテクチャ設計を可能にする知識を提供する。
+> Compare the characteristics of MongoDB, Redis, and DynamoDB, and practically master how to use them alongside RDBs and design strategies for polyglot persistence. This chapter dives deep from the theoretical background of NoSQL through the internal architecture of each database, data modeling patterns, and performance characteristics, providing the knowledge needed to design hybrid architectures in production environments.
 
-## 前提知識
+## Prerequisites
 
-- [01-schema-design.md](../02-design/01-schema-design.md) — RDBスキーマ設計の理解
-- [02-joins.md](../00-basics/02-joins.md) — JOINの概念理解
-- 分散システムの基礎概念（レプリケーション、パーティショニング）
+- [01-schema-design.md](../02-design/01-schema-design.md) — Understanding RDB schema design
+- [02-joins.md](../00-basics/02-joins.md) — Understanding JOIN concepts
+- Foundational concepts of distributed systems (replication, partitioning)
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **NoSQL の分類と特性** — ドキュメント型、KVS、ワイドカラム、グラフの違い
-2. **主要 NoSQL の比較** — MongoDB、Redis、DynamoDB の設計哲学と適用場面
-3. **CAP定理と整合性モデル** — 分散システムにおけるトレードオフの理解
-4. **ポリグロット永続化** — RDB と NoSQL を組み合わせたハイブリッドアーキテクチャ
-5. **データモデリングの違い** — 正規化 vs 非正規化の設計判断
-6. **移行判断フレームワーク** — RDBからNoSQLへの移行判断基準
+1. **NoSQL Classification and Characteristics** — Differences between document, KVS, wide-column, and graph types
+2. **Comparison of Major NoSQL Databases** — Design philosophies and use cases for MongoDB, Redis, and DynamoDB
+3. **CAP Theorem and Consistency Models** — Understanding tradeoffs in distributed systems
+4. **Polyglot Persistence** — Hybrid architectures combining RDB and NoSQL
+5. **Data Modeling Differences** — Design decisions between normalization and denormalization
+6. **Migration Decision Framework** — Criteria for deciding when to migrate from RDB to NoSQL
 
 ---
 
-## 1. NoSQL の分類
+## 1. NoSQL Classification
 
-### NoSQLの歴史的背景
+### Historical Background of NoSQL
 
-NoSQL（Not Only SQL）は2009年頃から普及した概念で、RDBの制約を克服するために生まれた。主な動機は以下の通り。
+NoSQL (Not Only SQL) is a concept that gained traction around 2009, born to overcome the limitations of RDBs. The main motivations were as follows.
 
 ```
-NoSQL 誕生の背景
+Background of NoSQL's Birth
 ==================
 
-2000年代後半の課題:
-  1. Web 2.0 のスケール要件
-     - 数十億ユーザーのデータ
-     - ペタバイト級のストレージ
-     - ミリ秒以下のレイテンシ
+Challenges in the late 2000s:
+  1. Scale requirements of Web 2.0
+     - Data of billions of users
+     - Petabyte-scale storage
+     - Sub-millisecond latency
 
-  2. RDB のスケーリング限界
-     - 垂直スケーリング（スケールアップ）にはハードウェア限界
-     - 水平スケーリング（シャーディング）は複雑で JOIN に制約
+  2. Scaling limits of RDBs
+     - Vertical scaling (scale-up) has hardware limits
+     - Horizontal scaling (sharding) is complex and restricts JOINs
 
-  3. スキーマの柔軟性要求
-     - アジャイル開発でのスキーマ変更頻度増加
-     - 多様なデータ形式（JSON, 画像, 時系列等）
+  3. Demand for schema flexibility
+     - Increased frequency of schema changes in agile development
+     - Diverse data formats (JSON, images, time series, etc.)
 
-  4. 可用性要件の高まり
-     - 24/7 稼働の要求
-     - 地理分散レプリケーション
+  4. Rising availability requirements
+     - Demand for 24/7 operation
+     - Geo-distributed replication
 
-主要なイノベーション:
-  2006: Google Bigtable 論文
-  2007: Amazon Dynamo 論文
-  2009: MongoDB 公開
-  2010: Redis 1.0 リリース
-  2012: DynamoDB サービス開始
+Major innovations:
+  2006: Google Bigtable paper
+  2007: Amazon Dynamo paper
+  2009: MongoDB released
+  2010: Redis 1.0 released
+  2012: DynamoDB service launched
 ```
 
-### NoSQLデータベースの分類
+### Classification of NoSQL Databases
 
 ```
-NoSQL データベースの分類
+Classification of NoSQL Databases
 ==========================
 
 +-------------------+  +-------------------+
-| ドキュメント型     |  | Key-Value 型       |
-| MongoDB, CouchDB  |  | Redis, Memcached   |
-| Firestore         |  | Valkey, KeyDB      |
-| --> JSON/BSON 文書 |  | --> 高速 KV         |
-| --> 柔軟スキーマ   |  | --> キャッシュ       |
-| --> リッチクエリ   |  | --> データ構造       |
+| Document          |  | Key-Value         |
+| MongoDB, CouchDB  |  | Redis, Memcached  |
+| Firestore         |  | Valkey, KeyDB     |
+| --> JSON/BSON docs|  | --> Fast KV       |
+| --> Flexible schema|  | --> Caching      |
+| --> Rich queries  |  | --> Data structures|
 +-------------------+  +-------------------+
 
 +-------------------+  +-------------------+
-| ワイドカラム型     |  | グラフ型           |
-| DynamoDB,Cassandra |  | Neo4j, Neptune     |
+| Wide-Column       |  | Graph             |
+| DynamoDB,Cassandra|  | Neo4j, Neptune    |
 | HBase, ScyllaDB   |  | ArangoDB, JanusGraph|
-| --> 大規模分散     |  | --> 関係性探索       |
-| --> 高書き込み     |  | --> SNS/推薦        |
-| --> 設計が鍵       |  | --> パス検索        |
+| --> Large-scale   |  | --> Relationship  |
+| --> High writes   |  |     traversal     |
+| --> Design is key |  | --> SNS/recommendations|
+|                   |  | --> Path search   |
 +-------------------+  +-------------------+
 
 +-------------------+  +-------------------+
-| 時系列型           |  | 検索エンジン       |
-| TimescaleDB,       |  | Elasticsearch      |
-| InfluxDB, QuestDB  |  | OpenSearch         |
-| --> IoT/メトリクス |  | --> 全文検索        |
-| --> 時間ベース集約 |  | --> ログ分析        |
+| Time Series       |  | Search Engine     |
+| TimescaleDB,      |  | Elasticsearch     |
+| InfluxDB, QuestDB |  | OpenSearch        |
+| --> IoT/metrics   |  | --> Full-text     |
+| --> Time-based    |  |     search        |
+|     aggregation   |  | --> Log analysis  |
 +-------------------+  +-------------------+
 ```
 
-### コード例 1: 各 NoSQL のデータモデル
+### Code Example 1: Data Models of Each NoSQL
 
 ```javascript
-// === MongoDB（ドキュメント型）===
-// 柔軟なスキーマで入れ子構造を自然に表現
+// === MongoDB (Document) ===
+// Naturally express nested structures with a flexible schema
 db.users.insertOne({
   _id: ObjectId("..."),
   name: "Taro",
@@ -118,7 +120,7 @@ db.users.insertOne({
   }
 });
 
-// ドキュメントの検索（リッチなクエリ言語）
+// Document search (rich query language)
 db.users.find({
   "address.city": "Tokyo",
   "orders.amount": { $gt: 2000 },
@@ -127,15 +129,15 @@ db.users.find({
 ```
 
 ```python
-# === Redis（Key-Value 型）===
+# === Redis (Key-Value) ===
 import redis
 r = redis.Redis()
 
-# シンプルな KV
+# Simple KV
 r.set("user:1:name", "Taro")
 r.get("user:1:name")  # → b"Taro"
 
-# Hash（オブジェクト風）
+# Hash (object-like)
 r.hset("user:1", mapping={
     "name": "Taro",
     "email": "taro@example.com",
@@ -143,51 +145,51 @@ r.hset("user:1", mapping={
 })
 r.hgetall("user:1")  # → {b"name": b"Taro", ...}
 
-# Sorted Set でランキング
+# Sorted Set for rankings
 r.zadd("leaderboard", {"user:1": 1500, "user:2": 2300, "user:3": 800})
 r.zrevrange("leaderboard", 0, 9, withscores=True)  # Top 10
 
-# List でメッセージキュー
+# List as message queue
 r.lpush("queue:emails", '{"to": "taro@example.com", "subject": "Welcome"}')
-r.brpop("queue:emails", timeout=30)  # ブロッキング取得
+r.brpop("queue:emails", timeout=30)  # Blocking retrieval
 
-# Set で集合演算
+# Set for set operations
 r.sadd("user:1:interests", "python", "sql", "redis")
 r.sadd("user:2:interests", "python", "mongodb", "go")
 r.sinter("user:1:interests", "user:2:interests")  # → {b"python"}
 
-# Stream でイベントストリーミング（Redis 5.0+）
+# Stream for event streaming (Redis 5.0+)
 r.xadd("events:orders", {"action": "created", "order_id": "123"})
 r.xread({"events:orders": "0"}, count=10)
 
-# HyperLogLog でカーディナリティ推定
+# HyperLogLog for cardinality estimation
 r.pfadd("daily_visitors:2026-02-13", "user:1", "user:2", "user:3")
-r.pfcount("daily_visitors:2026-02-13")  # → 3（推定値）
+r.pfcount("daily_visitors:2026-02-13")  # → 3 (estimated value)
 ```
 
 ```python
-# === DynamoDB（ワイドカラム型）===
+# === DynamoDB (Wide-Column) ===
 import boto3
 from decimal import Decimal
 
 dynamodb = boto3.resource('dynamodb')
 table = dynamodb.Table('MyApp')
 
-# Single Table Design: 1テーブルに複数エンティティを格納
-# PK（パーティションキー）+ SK（ソートキー）の複合キー
+# Single Table Design: store multiple entities in one table
+# Composite key of PK (partition key) + SK (sort key)
 
-# ユーザープロフィール
+# User profile
 table.put_item(Item={
     'PK': 'USER#001',
     'SK': 'PROFILE',
     'name': 'Taro',
     'email': 'taro@example.com',
     'created_at': '2026-01-01T00:00:00Z',
-    'GSI1PK': 'USER',  # GSI用
+    'GSI1PK': 'USER',  # For GSI
     'GSI1SK': 'taro@example.com'
 })
 
-# ユーザーの注文
+# User orders
 table.put_item(Item={
     'PK': 'USER#001',
     'SK': 'ORDER#2026-02-01#001',
@@ -196,13 +198,13 @@ table.put_item(Item={
     'status': 'shipped'
 })
 
-# クエリ: ユーザー001の全データ（プロフィール + 注文）
+# Query: all data for user 001 (profile + orders)
 response = table.query(
     KeyConditionExpression='PK = :pk',
     ExpressionAttributeValues={':pk': 'USER#001'}
 )
 
-# クエリ: ユーザー001の2026年2月の注文のみ
+# Query: only user 001's orders from February 2026
 response = table.query(
     KeyConditionExpression='PK = :pk AND begins_with(SK, :sk_prefix)',
     ExpressionAttributeValues={
@@ -213,10 +215,10 @@ response = table.query(
 ```
 
 ```cypher
-// === Neo4j（グラフ型）===
-// Cypher クエリ言語
+// === Neo4j (Graph) ===
+// Cypher query language
 
-// ノードとリレーションの作成
+// Creating nodes and relationships
 CREATE (taro:User {name: "Taro", email: "taro@example.com"})
 CREATE (hanako:User {name: "Hanako", email: "hanako@example.com"})
 CREATE (python:Skill {name: "Python"})
@@ -226,12 +228,12 @@ CREATE (taro)-[:HAS_SKILL {level: "expert"}]->(python)
 CREATE (taro)-[:HAS_SKILL {level: "intermediate"}]->(sql)
 CREATE (hanako)-[:HAS_SKILL {level: "expert"}]->(sql)
 
-// 友達の友達（2ホップ探索）
+// Friends of friends (2-hop traversal)
 MATCH (u:User {name: "Taro"})-[:KNOWS*2]->(fof:User)
 WHERE fof <> u
 RETURN DISTINCT fof.name
 
-// 共通スキルを持つユーザーの推薦
+// Recommend users with shared skills
 MATCH (u:User {name: "Taro"})-[:HAS_SKILL]->(s:Skill)<-[:HAS_SKILL]-(other:User)
 WHERE other <> u
 RETURN other.name, collect(s.name) AS shared_skills, count(s) AS skill_count
@@ -240,52 +242,52 @@ ORDER BY skill_count DESC
 
 ---
 
-## 2. 主要 NoSQL 比較
+## 2. Comparison of Major NoSQL Databases
 
-### 総合比較表
+### Overall Comparison Table
 
-| 特性 | MongoDB | Redis | DynamoDB | Cassandra | Neo4j |
+| Characteristic | MongoDB | Redis | DynamoDB | Cassandra | Neo4j |
 |---|---|---|---|---|---|
-| **カテゴリ** | ドキュメント | KVS + データ構造 | ワイドカラム | ワイドカラム | グラフ |
-| **データモデル** | JSON (BSON) | 文字列 + 高度なデータ構造 | アイテム (属性の集合) | 行 (カラムファミリー) | ノード + エッジ |
-| **スキーマ** | 柔軟（スキーマレス） | なし | 柔軟（キーのみ固定） | 柔軟（カラム可変） | 柔軟 |
-| **クエリ** | MQL (リッチ) | コマンドベース | Query/Scan (制限的) | CQL (SQL風) | Cypher (グラフ) |
-| **トランザクション** | マルチドキュメント (4.0+) | MULTI/EXEC | TransactWriteItems | LWT (制限的) | ACID |
-| **一貫性** | 設定可能 | 結果整合（Cluster） | 設定可能 | 設定可能 | 強一貫性 |
-| **スケーリング** | シャーディング | Cluster | 自動（フルマネージド） | リングトポロジ | フェデレーション |
-| **レイテンシ** | 1-10ms | < 1ms | 1-10ms | 1-10ms | 1-20ms |
-| **永続化** | ディスク (WiredTiger) | メモリ + オプションで永続化 | ディスク（SSD） | ディスク (SSTable) | ディスク |
-| **運用** | セルフ or Atlas | セルフ or ElastiCache | フルマネージド | セルフ or Astra | セルフ or AuraDB |
-| **コスト特性** | ストレージベース | メモリベース（高額） | リクエストベース | ストレージベース | ライセンスベース |
-| **最大データサイズ** | 実質無制限 | メモリ制約 | 400KB/item | 実質無制限 | 実質無制限 |
+| **Category** | Document | KVS + Data Structures | Wide-Column | Wide-Column | Graph |
+| **Data Model** | JSON (BSON) | Strings + advanced data structures | Items (collection of attributes) | Rows (column families) | Nodes + Edges |
+| **Schema** | Flexible (schemaless) | None | Flexible (only keys are fixed) | Flexible (variable columns) | Flexible |
+| **Query** | MQL (rich) | Command-based | Query/Scan (limited) | CQL (SQL-like) | Cypher (graph) |
+| **Transactions** | Multi-document (4.0+) | MULTI/EXEC | TransactWriteItems | LWT (limited) | ACID |
+| **Consistency** | Configurable | Eventual (Cluster) | Configurable | Configurable | Strong consistency |
+| **Scaling** | Sharding | Cluster | Automatic (fully managed) | Ring topology | Federation |
+| **Latency** | 1-10ms | < 1ms | 1-10ms | 1-10ms | 1-20ms |
+| **Persistence** | Disk (WiredTiger) | Memory + optional persistence | Disk (SSD) | Disk (SSTable) | Disk |
+| **Operations** | Self-hosted or Atlas | Self-hosted or ElastiCache | Fully managed | Self-hosted or Astra | Self-hosted or AuraDB |
+| **Cost Profile** | Storage-based | Memory-based (expensive) | Request-based | Storage-based | License-based |
+| **Max Data Size** | Virtually unlimited | Memory-constrained | 400KB/item | Virtually unlimited | Virtually unlimited |
 
-### 用途別推奨比較表
+### Recommended Database by Use Case
 
-| ユースケース | 推奨 | 理由 |
+| Use Case | Recommended | Reason |
 |---|---|---|
-| **Web アプリの主 DB** | PostgreSQL or MongoDB | 柔軟なクエリが必要 |
-| **セッション管理** | Redis | 低レイテンシ、TTL サポート |
-| **キャッシュ** | Redis | サブミリ秒応答 |
-| **リアルタイムランキング** | Redis (Sorted Set) | O(log N) のスコア操作 |
-| **IoT/時系列データ** | DynamoDB or TimescaleDB | 高書き込みスループット |
-| **全文検索** | Elasticsearch | 転置インデックス |
-| **ソーシャルグラフ** | Neo4j / Neptune | グラフ走査が高速 |
-| **E コマースカタログ** | MongoDB | 商品ごとに異なる属性 |
-| **サーバーレス API** | DynamoDB | フルマネージド、オートスケール |
-| **メッセージブローカー** | Redis Streams / Kafka | 高スループット、低レイテンシ |
-| **設定管理** | Redis / etcd | 高速読み取り、Pub/Sub |
-| **コンテンツ管理** | MongoDB | 柔軟なスキーマ、リッチクエリ |
-| **地理空間検索** | MongoDB / PostgreSQL+PostGIS | GeoJSON対応、空間インデックス |
-| **推薦エンジン** | Neo4j + Redis | グラフ走査 + キャッシュ |
-| **ログ/監査証跡** | Elasticsearch / DynamoDB | 高書き込み、検索対応 |
+| **Primary DB for web apps** | PostgreSQL or MongoDB | Flexible queries needed |
+| **Session management** | Redis | Low latency, TTL support |
+| **Caching** | Redis | Sub-millisecond response |
+| **Real-time rankings** | Redis (Sorted Set) | O(log N) score operations |
+| **IoT/time-series data** | DynamoDB or TimescaleDB | High write throughput |
+| **Full-text search** | Elasticsearch | Inverted index |
+| **Social graph** | Neo4j / Neptune | Fast graph traversal |
+| **E-commerce catalog** | MongoDB | Different attributes per product |
+| **Serverless API** | DynamoDB | Fully managed, auto-scaling |
+| **Message broker** | Redis Streams / Kafka | High throughput, low latency |
+| **Configuration management** | Redis / etcd | Fast reads, Pub/Sub |
+| **Content management** | MongoDB | Flexible schema, rich queries |
+| **Geospatial search** | MongoDB / PostgreSQL+PostGIS | GeoJSON support, spatial index |
+| **Recommendation engine** | Neo4j + Redis | Graph traversal + caching |
+| **Logs/audit trails** | Elasticsearch / DynamoDB | High writes, search support |
 
-### 内部アーキテクチャの比較
+### Internal Architecture Comparison
 
 ```
-MongoDB のアーキテクチャ
+MongoDB Architecture
 =========================
 
-  クライアント → mongos (ルーター)
+  Client → mongos (Router)
                     │
         ┌───────────┼───────────┐
         ▼           ▼           ▼
@@ -294,22 +296,22 @@ MongoDB のアーキテクチャ
     │ P   │     │ P   │     │ P   │
     │ S S │     │ S S │     │ S S │
     └─────┘     └─────┘     └─────┘
-    (レプリカセット)
+    (Replica Set)
 
-  P = Primary（書き込み）
-  S = Secondary（読み取り/フェイルオーバー）
+  P = Primary (writes)
+  S = Secondary (reads/failover)
 
-  ストレージエンジン: WiredTiger
-  - B-Tree インデックス
-  - ドキュメントレベルロック（同時実行性高い）
-  - スナップショット分離（MVCC）
-  - 圧縮（snappy, zlib, zstd）
+  Storage Engine: WiredTiger
+  - B-Tree indexes
+  - Document-level locking (high concurrency)
+  - Snapshot isolation (MVCC)
+  - Compression (snappy, zlib, zstd)
 
 
-Redis のアーキテクチャ
+Redis Architecture
 =======================
 
-  クライアント → Redis Cluster
+  Client → Redis Cluster
                     │
         ┌───────────┼───────────┐
         ▼           ▼           ▼
@@ -321,19 +323,19 @@ Redis のアーキテクチャ
 
   M = Master
   R = Replica
-  16384個のハッシュスロットにキーを分散
+  Keys are distributed across 16384 hash slots
 
-  メモリ管理:
-  - 全データをメモリ上に保持
-  - 永続化: RDB（スナップショット）/ AOF（ログ追記）
-  - メモリ上限: maxmemory 設定
-  - 退避ポリシー: allkeys-lru, volatile-ttl 等
+  Memory management:
+  - All data held in memory
+  - Persistence: RDB (snapshots) / AOF (append-only log)
+  - Memory limit: maxmemory setting
+  - Eviction policies: allkeys-lru, volatile-ttl, etc.
 
 
-DynamoDB のアーキテクチャ
+DynamoDB Architecture
 =========================
 
-  クライアント → DynamoDB エンドポイント
+  Client → DynamoDB Endpoint
                     │
         ┌───────────┼───────────┐
         ▼           ▼           ▼
@@ -345,113 +347,113 @@ DynamoDB のアーキテクチャ
    │ Replica │  │ Replica │  │ Replica │
    └─────────┘  └─────────┘  └─────────┘
 
-  パーティションキーのハッシュ値で分散
-  3つのAZに自動レプリケーション
-  容量・スループットに応じて自動分割
+  Distributed by hash of partition key
+  Automatic replication across 3 AZs
+  Automatically split based on capacity and throughput
 ```
 
 ---
 
-## 3. CAP 定理と整合性モデル
+## 3. CAP Theorem and Consistency Models
 
-### CAP 定理の正確な理解
+### Accurate Understanding of the CAP Theorem
 
 ```
-CAP 定理
+CAP Theorem
 ==========
 
-        Consistency (一貫性)
+        Consistency
            /\
           /  \
          /    \
    CA   / CP   \
   ------+------+------
   RDBMS | MongoDB*  |
-  (単一) | HBase    |
+  (single) | HBase  |
         |          |
    AP   +----------+   CP
   Cassandra        |
   DynamoDB*     Redis Cluster
   CouchDB
 
-* MongoDB, DynamoDB は設定により CA/CP/AP を選択可能
+* MongoDB and DynamoDB can be configured to select CA/CP/AP
 
-重要な誤解の訂正:
-  CAP定理は「3つから2つを選ぶ」という単純な話ではない
-  正確には:
-  「ネットワーク分断（P）が発生した時に、
-   一貫性（C）と可用性（A）のどちらを犠牲にするか」
+Correcting a common misconception:
+  The CAP theorem is not simply "choose two of three"
+  More accurately:
+  "When a network partition (P) occurs,
+   which do you sacrifice: Consistency (C) or Availability (A)?"
 
-  通常運用時（分断なし）:
-  → 3つとも概ね達成可能
-  → レイテンシ vs 一貫性のトレードオフ（PACELC定理）
+  During normal operation (no partition):
+  → All three can largely be achieved
+  → Tradeoff between latency and consistency (PACELC theorem)
 
-PACELC 定理（CAPの拡張）:
-  P（分断時）→ A or C を選択
-  E（通常時）→ L（レイテンシ）or C（一貫性）を選択
+PACELC Theorem (extension of CAP):
+  P (during partition) → Choose A or C
+  E (during normal operation) → Choose L (latency) or C (consistency)
 
-  例:
-  DynamoDB:  PA/EL（分断時は可用性、通常時は低レイテンシ優先）
-  MongoDB:   PC/EC（一貫性優先だが結果整合も可能）
-  Cassandra: PA/EL（可用性と低レイテンシ優先）
+  Examples:
+  DynamoDB:  PA/EL (availability during partition, low latency during normal)
+  MongoDB:   PC/EC (consistency-first, but eventual also possible)
+  Cassandra: PA/EL (availability and low latency first)
 ```
 
-### 整合性レベルの比較
+### Consistency Level Comparison
 
-| 整合性レベル | 説明 | 例 | トレードオフ |
+| Consistency Level | Description | Example | Tradeoff |
 |---|---|---|---|
-| 強一貫性（Strong） | 書き込み後すぐに最新値が読める | RDB、DynamoDB(ConsistentRead) | レイテンシ大、スループット低 |
-| 線形化可能性（Linearizable） | 全操作がリアルタイム順序で見える | Spanner、CockroachDB | 最も厳密、最も遅い |
-| 因果一貫性（Causal） | 因果関係のある操作の順序を保証 | MongoDB(causal sessions) | 強と結果の中間 |
-| 結果整合性（Eventual） | 最終的にはすべてのレプリカが一致 | Cassandra(ONE)、S3 | 最も高速だが古いデータの可能性 |
-| セッション一貫性 | 同一セッション内での一貫性を保証 | DynamoDB(default)、MongoDB | ユーザー体験に影響少ない |
+| Strong | Latest value readable immediately after write | RDB, DynamoDB (ConsistentRead) | High latency, low throughput |
+| Linearizable | All operations visible in real-time order | Spanner, CockroachDB | Most strict, slowest |
+| Causal | Guarantees order of causally related operations | MongoDB (causal sessions) | Between strong and eventual |
+| Eventual | All replicas eventually converge | Cassandra (ONE), S3 | Fastest but may return stale data |
+| Session | Guarantees consistency within the same session | DynamoDB (default), MongoDB | Minimal impact on user experience |
 
-### コード例 2: 一貫性レベルの設定
+### Code Example 2: Configuring Consistency Levels
 
 ```javascript
-// MongoDB: 読み取り一貫性の設定
-// 強い整合性（プライマリから読み取り）
+// MongoDB: configuring read consistency
+// Strong consistency (read from primary)
 db.orders.find({ userId: "001" }).readConcern("majority");
 
-// 結果整合性（セカンダリから読み取り、高速）
+// Eventual consistency (read from secondary, fast)
 db.orders.find({ userId: "001" }).readPref("secondaryPreferred");
 
-// 因果一貫性（セッション内）
+// Causal consistency (within session)
 const session = db.getMongo().startSession({ causalConsistency: true });
 const orders = session.getDatabase("mydb").orders;
 orders.insertOne({ userId: "001", product: "Widget" });
-// 同じセッション内では必ず上記の挿入結果が見える
+// Within the same session, the above insertion result is always visible
 orders.find({ userId: "001" });
 session.endSession();
 
-// 書き込み確認レベル
+// Write acknowledgment level
 db.orders.insertOne(
   { userId: "001", product: "Widget" },
   { writeConcern: { w: "majority", j: true, wtimeout: 5000 } }
 );
-// w: "majority" → 過半数のレプリカに書き込み完了を確認
-// j: true → ジャーナルへの書き込みを確認
-// wtimeout: 5000 → 5秒以内に完了しなければエラー
+// w: "majority" → confirm write completion on majority of replicas
+// j: true → confirm write to journal
+// wtimeout: 5000 → error if not completed within 5 seconds
 ```
 
 ```python
-# DynamoDB: 読み取り一貫性の設定
+# DynamoDB: configuring read consistency
 import boto3
 table = boto3.resource('dynamodb').Table('MyApp')
 
-# 強い整合性（RCU 2倍消費）
+# Strong consistency (consumes 2x RCU)
 response = table.get_item(
     Key={'PK': 'USER#001', 'SK': 'PROFILE'},
     ConsistentRead=True
 )
 
-# 結果整合性（デフォルト、RCU 半分）
+# Eventual consistency (default, half the RCU)
 response = table.get_item(
     Key={'PK': 'USER#001', 'SK': 'PROFILE'},
     ConsistentRead=False
 )
 
-# DynamoDB トランザクション（ACID保証）
+# DynamoDB transaction (ACID guaranteed)
 client = boto3.client('dynamodb')
 client.transact_write_items(
     TransactItems=[
@@ -483,7 +485,7 @@ client.transact_write_items(
 ```
 
 ```python
-# Cassandra: 一貫性レベルの設定
+# Cassandra: configuring consistency levels
 from cassandra.cluster import Cluster
 from cassandra import ConsistencyLevel
 from cassandra.query import SimpleStatement
@@ -491,20 +493,20 @@ from cassandra.query import SimpleStatement
 cluster = Cluster(['node1', 'node2', 'node3'])
 session = cluster.connect('mykeyspace')
 
-# 強い整合性（QUORUM: 過半数のノードから応答）
+# Strong consistency (QUORUM: response from majority of nodes)
 statement = SimpleStatement(
     "SELECT * FROM orders WHERE user_id = %s",
     consistency_level=ConsistencyLevel.QUORUM
 )
 rows = session.execute(statement, ['user001'])
 
-# 結果整合性（ONE: 1ノードから応答、最も高速）
+# Eventual consistency (ONE: response from 1 node, fastest)
 statement = SimpleStatement(
     "SELECT * FROM orders WHERE user_id = %s",
     consistency_level=ConsistencyLevel.ONE
 )
 
-# ALL: 全ノードから応答（最も遅いが最も一貫性が高い）
+# ALL: response from all nodes (slowest but most consistent)
 statement = SimpleStatement(
     "SELECT * FROM orders WHERE user_id = %s",
     consistency_level=ConsistencyLevel.ALL
@@ -513,12 +515,12 @@ statement = SimpleStatement(
 
 ---
 
-## 4. ポリグロット永続化
+## 4. Polyglot Persistence
 
-### コード例 3: ハイブリッドアーキテクチャ
+### Code Example 3: Hybrid Architecture
 
 ```
-ポリグロット永続化の設計例
+Polyglot Persistence Design Example
 ============================
 
                    +------------------+
@@ -537,29 +539,29 @@ statement = SimpleStatement(
 |Postgre| |Mongo | |Redis| |Elastic| |DynamoDB| |Neo4j|
 |SQL    | |DB    | |     | |Search | |       | |     |
 +------+ +------+ +-----+ +------+ +------+ +------+
- ユーザー  商品     キャッシュ 検索     IoT     推薦
- 注文     カタログ  セッション 全文検索  ログ    グラフ
- 決済     レビュー  ランキング ログ分析  メトリクス 関係性
- 在庫     CMS      Pub/Sub  ダッシュボード       SNS
+ Users   Products  Cache   Search   IoT     Recommendations
+ Orders  Catalog   Session Full-text Log     Graph
+ Payment Reviews   Ranking Log     Metrics  Relationships
+ Stock   CMS      Pub/Sub  analysis         SNS
 
-データフロー:
-  PostgreSQL ──(CDC)──> Elasticsearch (検索インデックス)
-  PostgreSQL ──(CDC)──> Redis (キャッシュウォーミング)
+Data flow:
+  PostgreSQL ──(CDC)──> Elasticsearch (search index)
+  PostgreSQL ──(CDC)──> Redis (cache warming)
   DynamoDB ──(Streams)──> Lambda ──> OpenSearch
-  MongoDB ──(Change Streams)──> Kafka ──> 各サービス
+  MongoDB ──(Change Streams)──> Kafka ──> Each service
 ```
 
 ```python
-# ポリグロット永続化のサービス例
+# Polyglot persistence service example
 class OrderService:
     def __init__(self):
-        self.pg = PostgresClient()       # トランザクション処理
-        self.redis = RedisClient()       # キャッシュ
-        self.mongo = MongoClient()       # 注文履歴（非正規化）
-        self.es = ElasticsearchClient()  # 検索
+        self.pg = PostgresClient()       # Transaction processing
+        self.redis = RedisClient()       # Cache
+        self.mongo = MongoClient()       # Order history (denormalized)
+        self.es = ElasticsearchClient()  # Search
 
     async def create_order(self, order_data):
-        # 1. PostgreSQL でトランザクション処理（Source of Truth）
+        # 1. Transaction processing in PostgreSQL (Source of Truth)
         async with self.pg.transaction() as tx:
             order = await tx.execute("""
                 INSERT INTO orders (user_id, total, status)
@@ -567,28 +569,28 @@ class OrderService:
                 RETURNING id, created_at
             """, order_data['user_id'], order_data['total'])
 
-            # 在庫の減算（同一トランザクション）
+            # Decrement stock (same transaction)
             for item in order_data['items']:
                 await tx.execute("""
                     UPDATE products SET stock = stock - $1
                     WHERE id = $2 AND stock >= $1
                 """, item['quantity'], item['product_id'])
 
-        # 2. MongoDB に非正規化データを保存（高速読み取り用）
+        # 2. Save denormalized data to MongoDB (for fast reads)
         await self.mongo.orders.insert_one({
             'order_id': order['id'],
-            'user': order_data['user'],  # ユーザー情報を埋め込み
-            'items': order_data['items'],  # 商品情報を埋め込み
+            'user': order_data['user'],  # Embed user info
+            'items': order_data['items'],  # Embed product info
             'total': order_data['total'],
             'status': 'pending',
             'created_at': order['created_at'],
         })
 
-        # 3. Redis キャッシュを無効化
+        # 3. Invalidate Redis cache
         await self.redis.delete(f"user:{order_data['user_id']}:orders")
         await self.redis.delete(f"user:{order_data['user_id']}:order_count")
 
-        # 4. Elasticsearch にインデックス（非同期でも可）
+        # 4. Index in Elasticsearch (can be async)
         await self.es.index('orders', {
             'order_id': order['id'],
             'user_name': order_data['user']['name'],
@@ -601,24 +603,24 @@ class OrderService:
         return order
 
     async def get_order_history(self, user_id, page=1, per_page=20):
-        # キャッシュチェック
+        # Check cache
         cache_key = f"user:{user_id}:orders:page:{page}"
         cached = await self.redis.get(cache_key)
         if cached:
             return json.loads(cached)
 
-        # MongoDB から読み取り（非正規化データ、JOIN不要で高速）
+        # Read from MongoDB (denormalized data, fast without JOIN)
         orders = await self.mongo.orders.find(
             {'user.id': user_id}
         ).sort('created_at', -1).skip((page - 1) * per_page).limit(per_page).to_list()
 
-        # キャッシュに保存（5分間有効）
+        # Store in cache (valid for 5 minutes)
         await self.redis.setex(cache_key, 300, json.dumps(orders))
 
         return orders
 
     async def search_orders(self, query, filters=None):
-        # Elasticsearch で全文検索
+        # Full-text search with Elasticsearch
         body = {
             'query': {
                 'bool': {
@@ -637,90 +639,90 @@ class OrderService:
         return await self.es.search(index='orders', body=body)
 ```
 
-### データ同期パターン
+### Data Synchronization Patterns
 
 ```
-データ同期のパターン比較
+Comparison of Data Synchronization Patterns
 ==========================
 
-1. Dual Write（二重書き込み）
-   アプリ → DB1 に書き込み
-        → DB2 に書き込み
-   [問題] DB2への書き込みが失敗すると不整合
-   [対策] 最終整合性を許容 + リトライ + 補正ジョブ
+1. Dual Write
+   App → Write to DB1
+        → Write to DB2
+   [Problem] Inconsistency if write to DB2 fails
+   [Mitigation] Accept eventual consistency + retry + reconciliation job
 
-2. CDC（Change Data Capture）
-   アプリ → DB1 に書き込み
-   DB1 → CDC → DB2 に同期
-   [利点] DB1が Source of Truth、DB2は派生
-   [実装] Debezium, DynamoDB Streams, MongoDB Change Streams
+2. CDC (Change Data Capture)
+   App → Write to DB1
+   DB1 → CDC → Sync to DB2
+   [Benefit] DB1 is Source of Truth, DB2 is derived
+   [Implementation] Debezium, DynamoDB Streams, MongoDB Change Streams
 
 3. Event Sourcing
-   アプリ → イベントストア → 各DBに反映
-   [利点] 完全な監査証跡、任意の時点に復元可能
-   [欠点] 実装が複雑、最終整合性
+   App → Event store → Propagate to each DB
+   [Benefit] Complete audit trail, restorable to any point in time
+   [Drawback] Complex implementation, eventual consistency
 
-4. CQRS（Command Query Responsibility Segregation）
-   Write → PostgreSQL（正規化）
-   Read  → MongoDB/Redis（非正規化、最適化済み）
-   [利点] 読み書きを独立にスケーリング
-   [欠点] 同期の遅延、複雑性
+4. CQRS (Command Query Responsibility Segregation)
+   Write → PostgreSQL (normalized)
+   Read  → MongoDB/Redis (denormalized, optimized)
+   [Benefit] Scale reads and writes independently
+   [Drawback] Sync lag, complexity
 
-推奨パターン:
-  小規模: Dual Write + 補正ジョブ
-  中規模: CDC（Debezium）
-  大規模: Event Sourcing + CQRS
+Recommended patterns:
+  Small scale: Dual Write + reconciliation job
+  Medium scale: CDC (Debezium)
+  Large scale: Event Sourcing + CQRS
 ```
 
 ---
 
-## 5. RDB から NoSQL への移行判断
+## 5. Migration Decision from RDB to NoSQL
 
-### 移行判断フレームワーク
+### Migration Decision Framework
 
 ```
-RDB → NoSQL の移行判断チェックリスト
+RDB → NoSQL Migration Decision Checklist
 ======================================
 
-NoSQL を検討すべきシグナル:
-  [?] JOIN が5テーブル以上で性能問題が発生
-  [?] テーブルごとにカラム数や構造が大きく異なる
-  [?] 書き込みスループットが垂直スケールの限界に到達
-  [?] 地理分散（マルチリージョン）が必要
-  [?] スキーマ変更が頻繁で運用負荷が高い
-  [?] 読み取りパターンが限定的（PKアクセスが主）
+Signals to consider NoSQL:
+  [?] JOIN across 5+ tables is causing performance issues
+  [?] Column count and structure vary significantly between tables
+  [?] Write throughput has reached the vertical scaling limit
+  [?] Geo-distribution (multi-region) is required
+  [?] Schema changes are frequent and operational overhead is high
+  [?] Read patterns are limited (mostly PK access)
 
-RDB を維持すべきシグナル:
-  [?] 複雑なアドホッククエリが必要（分析/BI）
-  [?] 強い一貫性が必須（金融、在庫管理）
-  [?] マルチテーブルACIDトランザクションが必須
-  [?] データの関係性が複雑（多対多が多数）
-  [?] スキーマによるデータ品質保証が重要
-  [?] 既存のSQL知識を活用したい
+Signals to stay with RDB:
+  [?] Complex ad-hoc queries are needed (analytics/BI)
+  [?] Strong consistency is mandatory (finance, inventory management)
+  [?] Multi-table ACID transactions are essential
+  [?] Complex data relationships (many many-to-many relations)
+  [?] Schema-enforced data quality assurance is important
+  [?] Want to leverage existing SQL knowledge
 
-判断フロー:
-  1. まず PostgreSQL で対応できないか検討
-  2. JSONB カラムで柔軟性を追加
-  3. 読み取り最適化が必要 → Redis キャッシュ追加
-  4. 特定ワークロードのみ NoSQL に切り出し
-  5. フルリプレースは最終手段
+Decision flow:
+  1. First consider whether PostgreSQL can handle it
+  2. Add JSONB columns for flexibility
+  3. If read optimization is needed → add Redis cache
+  4. Carve out only specific workloads to NoSQL
+  5. Full replacement is a last resort
 ```
 
-### コード例 4: MongoDB のアグリゲーション
+### Code Example 4: MongoDB Aggregation
 
 ```javascript
-// MongoDB のパイプライン集計（RDBのGROUP BY + JOIN相当）
+// MongoDB pipeline aggregation (equivalent to RDB GROUP BY + JOIN)
 db.orders.aggregate([
-  // Stage 1: フィルタ（WHERE相当）
+  // Stage 1: Filter (equivalent to WHERE)
   { $match: {
     status: "shipped",
     createdAt: { $gte: ISODate("2026-01-01") }
   }},
 
-  // Stage 2: 配列の展開（UNNEST相当）
+  // Stage 2: Unwind array (equivalent to UNNEST)
   { $unwind: "$items" },
 
-  // Stage 3: グループ集計（GROUP BY相当）
+  // Stage 3: Group aggregation (equivalent to GROUP BY)
   { $group: {
       _id: "$items.category",
       totalRevenue: { $sum: "$items.price" },
@@ -730,19 +732,19 @@ db.orders.aggregate([
       uniqueProducts: { $addToSet: "$items.productId" }
   }},
 
-  // Stage 4: 計算フィールドの追加
+  // Stage 4: Add computed fields
   { $addFields: {
     uniqueProductCount: { $size: "$uniqueProducts" },
     avgOrderValue: { $divide: ["$totalRevenue", "$orderCount"] }
   }},
 
-  // Stage 5: ソート（ORDER BY相当）
+  // Stage 5: Sort (equivalent to ORDER BY)
   { $sort: { totalRevenue: -1 } },
 
-  // Stage 6: リミット
+  // Stage 6: Limit
   { $limit: 10 },
 
-  // Stage 7: 結果の整形
+  // Stage 7: Shape the result
   { $project: {
     category: "$_id",
     totalRevenue: { $round: ["$totalRevenue", 2] },
@@ -753,7 +755,7 @@ db.orders.aggregate([
   }}
 ]);
 
-// $lookup: JOIN相当（ただしNoSQLでは非推奨パターン）
+// $lookup: equivalent to JOIN (but an anti-pattern in NoSQL)
 db.orders.aggregate([
   { $lookup: {
     from: "users",
@@ -769,15 +771,15 @@ db.orders.aggregate([
     status: 1
   }}
 ]);
-// ※ $lookupはシャーディング環境でパフォーマンスが劣化する
-// → 非正規化（embedding）で回避すべき
+// Note: $lookup degrades performance in sharded environments
+// → Should be avoided via denormalization (embedding)
 ```
 
-### コード例 5: RDB vs NoSQL のデータモデリング比較
+### Code Example 5: Data Modeling Comparison — RDB vs NoSQL
 
 ```sql
--- RDB: 正規化モデル（4テーブル + JOIN）
--- 第3正規形: データの重複なし、更新異常なし
+-- RDB: Normalized model (4 tables + JOIN)
+-- Third normal form: no data duplication, no update anomalies
 SELECT
     u.name,
     o.id AS order_id,
@@ -791,12 +793,12 @@ JOIN orders o ON u.id = o.user_id
 JOIN order_items oi ON o.id = oi.order_id
 JOIN products p ON oi.product_id = p.id
 WHERE u.id = 12345;
--- 4テーブル結合 → 複雑だが、データの整合性が保証される
+-- 4-table join → complex but data integrity is guaranteed
 ```
 
 ```javascript
-// MongoDB: 非正規化モデル（1ドキュメントで完結）
-// データの重複はあるが、読み取りが高速
+// MongoDB: Denormalized model (self-contained in one document)
+// Data duplication exists but reads are fast
 db.orders.findOne({
   userId: 12345
 }, {
@@ -808,17 +810,17 @@ db.orders.findOne({
   "orderDate": 1
 });
 
-// ドキュメント構造の例:
+// Example document structure:
 {
   _id: ObjectId("..."),
   userId: 12345,
-  user: {               // ユーザー情報を埋め込み
+  user: {               // Embed user info
     name: "田中太郎",
     email: "tanaka@example.com"
   },
   orderDate: ISODate("2026-02-01"),
   status: "shipped",
-  items: [              // 商品情報を埋め込み
+  items: [              // Embed product info
     {
       productId: 100,
       productName: "ノートPC",
@@ -840,59 +842,59 @@ db.orders.findOne({
     city: "東京都千代田区"
   }
 }
-// 1回のクエリで全データ取得（JOIN不要）
-// ただし、ユーザー名変更時に全注文ドキュメントを更新必要
+// All data retrieved in one query (no JOIN needed)
+// However, changing a user's name requires updating all order documents
 ```
 
-### データモデリングのトレードオフ
+### Data Modeling Tradeoffs
 
 ```
-RDB vs NoSQL のトレードオフ
+RDB vs NoSQL Tradeoffs
 ==============================
 
-RDB（正規化）:
-  [+] データ整合性が高い（単一の真実の源）
-  [+] 複雑なクエリ/集計が得意
-  [+] スキーマでデータ品質を保証
-  [+] ACIDトランザクション
-  [+] アドホックなクエリが容易
-  [-] JOIN が多いと性能劣化
-  [-] スケールアウトが困難
-  [-] スキーマ変更に手間がかかる
+RDB (normalized):
+  [+] High data integrity (single source of truth)
+  [+] Good at complex queries/aggregations
+  [+] Schema ensures data quality
+  [+] ACID transactions
+  [+] Easy ad-hoc queries
+  [-] Performance degrades with many JOINs
+  [-] Difficult to scale out
+  [-] Schema changes require effort
 
-NoSQL（非正規化）:
-  [+] 読み取りが高速（JOIN 不要）
-  [+] スケールアウトが容易
-  [+] スキーマの柔軟性
-  [+] 地理分散レプリケーション
-  [-] データ重複（更新が複雑）
-  [-] 複雑なクエリが苦手
-  [-] トランザクションに制約
-  [-] データ整合性の保証が弱い
+NoSQL (denormalized):
+  [+] Fast reads (no JOIN needed)
+  [+] Easy to scale out
+  [+] Schema flexibility
+  [+] Geo-distributed replication
+  [-] Data duplication (complex updates)
+  [-] Poor at complex queries
+  [-] Transaction limitations
+  [-] Weaker data integrity guarantees
 
-ハイブリッドアプローチ:
+Hybrid approach:
   PostgreSQL + JSONB:
-  [+] リレーショナル + ドキュメントの良いとこ取り
-  [+] 同一DBで両方のパターンを使い分け
-  [+] ACIDトランザクション内でJSONBを操作可能
-  [-] 大規模スケールアウトはNoSQLに劣る
+  [+] Best of both relational and document worlds
+  [+] Use both patterns in the same DB
+  [+] JSONB can be operated within ACID transactions
+  [-] Large-scale scale-out is inferior to NoSQL
 ```
 
-### コード例 6: PostgreSQL JSONB vs MongoDB
+### Code Example 6: PostgreSQL JSONB vs MongoDB
 
 ```sql
--- PostgreSQL JSONB: RDBの枠内でドキュメント的な柔軟性を実現
+-- PostgreSQL JSONB: achieve document-like flexibility within RDB
 
--- テーブル定義（固定カラム + JSONB）
+-- Table definition (fixed columns + JSONB)
 CREATE TABLE products (
     id       SERIAL PRIMARY KEY,
     name     VARCHAR(200) NOT NULL,
     category VARCHAR(50) NOT NULL,
     price    DECIMAL(10, 2) NOT NULL,
-    attrs    JSONB DEFAULT '{}'  -- 可変属性
+    attrs    JSONB DEFAULT '{}'  -- Variable attributes
 );
 
--- カテゴリごとに異なる属性を格納
+-- Store different attributes per category
 INSERT INTO products (name, category, price, attrs) VALUES
 ('ノートPC', '家電', 120000, '{
     "brand": "Dell",
@@ -908,24 +910,24 @@ INSERT INTO products (name, category, price, attrs) VALUES
     "material": "cotton"
 }');
 
--- JSONB のクエリ（GINインデックスで高速）
+-- JSONB queries (fast with GIN index)
 CREATE INDEX idx_products_attrs ON products USING GIN (attrs);
 
--- 特定の属性値で検索
+-- Search by specific attribute value
 SELECT name, price, attrs->>'brand' AS brand
 FROM products
 WHERE attrs->>'cpu' = 'Core i7';
 
--- ネストした属性の検索
+-- Search nested attributes
 SELECT name, attrs->'storage'->>'type' AS storage_type
 FROM products
 WHERE (attrs->'storage'->>'size_gb')::int >= 256;
 
--- 配列内の値を検索
+-- Search within array
 SELECT name FROM products
 WHERE attrs->'ports' ? 'USB-C';
 
--- JSONB の集約
+-- JSONB aggregation
 SELECT
     attrs->>'brand' AS brand,
     COUNT(*) AS product_count,
@@ -936,22 +938,22 @@ GROUP BY attrs->>'brand';
 
 ---
 
-## 6. DynamoDB シングルテーブルデザイン
+## 6. DynamoDB Single Table Design
 
-### コード例 7: DynamoDB のシングルテーブルデザイン
+### Code Example 7: DynamoDB Single Table Design
 
 ```
-DynamoDB シングルテーブルデザイン
+DynamoDB Single Table Design
 ==================================
 
-アクセスパターン:
-  1. ユーザー情報の取得
-  2. ユーザーの注文一覧
-  3. 注文の詳細
-  4. メールアドレスでユーザー検索
+Access patterns:
+  1. Retrieve user profile
+  2. List of user's orders
+  3. Order details
+  4. Search user by email
 
-テーブル設計:
-  PK             | SK                    | 属性
+Table design:
+  PK             | SK                    | Attributes
   ===============|=======================|============
   USER#001       | PROFILE               | name, email
   USER#001       | ORDER#2026-02-01#001  | total, status
@@ -960,12 +962,12 @@ DynamoDB シングルテーブルデザイン
   ORDER#001      | ITEM#002              | product, qty
   -----------------------------------------------
   GSI1PK         | GSI1SK                |
-  USER           | taro@example.com      | (ユーザー検索用)
-  ORDER          | 2026-02-01            | (日付順検索用)
+  USER           | taro@example.com      | (for user search)
+  ORDER          | 2026-02-01            | (for date-ordered search)
 ```
 
 ```python
-# DynamoDB シングルテーブルデザインの実装
+# DynamoDB single table design implementation
 import boto3
 from datetime import datetime
 from decimal import Decimal
@@ -975,7 +977,7 @@ table = dynamodb.Table('MyApp')
 
 class UserRepository:
     def create_user(self, user_id, name, email):
-        """ユーザー作成"""
+        """Create a user"""
         table.put_item(Item={
             'PK': f'USER#{user_id}',
             'SK': 'PROFILE',
@@ -983,18 +985,18 @@ class UserRepository:
             'email': email,
             'created_at': datetime.utcnow().isoformat(),
             'GSI1PK': 'USER',
-            'GSI1SK': email  # メールで検索可能
+            'GSI1SK': email  # Searchable by email
         })
 
     def get_user(self, user_id):
-        """ユーザー情報取得"""
+        """Retrieve user profile"""
         response = table.get_item(
             Key={'PK': f'USER#{user_id}', 'SK': 'PROFILE'}
         )
         return response.get('Item')
 
     def get_user_with_orders(self, user_id):
-        """ユーザー情報 + 注文一覧（1クエリ）"""
+        """User profile + order list (1 query)"""
         response = table.query(
             KeyConditionExpression='PK = :pk',
             ExpressionAttributeValues={':pk': f'USER#{user_id}'}
@@ -1005,7 +1007,7 @@ class UserRepository:
         return {'user': user, 'orders': orders}
 
     def find_by_email(self, email):
-        """メールアドレスでユーザー検索（GSI使用）"""
+        """Search user by email address (using GSI)"""
         response = table.query(
             IndexName='GSI1',
             KeyConditionExpression='GSI1PK = :pk AND GSI1SK = :email',
@@ -1018,10 +1020,10 @@ class UserRepository:
 
 class OrderRepository:
     def create_order(self, user_id, order_id, items, total):
-        """注文作成（トランザクション使用）"""
+        """Create an order (using transaction)"""
         client = boto3.client('dynamodb')
         transact_items = [
-            # 注文をユーザーのPKの下に作成
+            # Create the order under the user's PK
             {
                 'Put': {
                     'TableName': 'MyApp',
@@ -1037,7 +1039,7 @@ class OrderRepository:
                 }
             }
         ]
-        # 各商品アイテムも追加
+        # Add each product item
         for i, item in enumerate(items):
             transact_items.append({
                 'Put': {
@@ -1057,9 +1059,9 @@ class OrderRepository:
 
 ---
 
-## 7. Redis の高度なデータ構造
+## 7. Advanced Redis Data Structures
 
-### コード例 8: Redis のデータ構造活用パターン
+### Code Example 8: Redis Data Structure Usage Patterns
 
 ```python
 import redis
@@ -1068,10 +1070,10 @@ import time
 
 r = redis.Redis()
 
-# === セッション管理 ===
+# === Session Management ===
 class SessionStore:
     def create_session(self, session_id, user_data, ttl=3600):
-        """セッション作成（1時間有効）"""
+        """Create a session (valid for 1 hour)"""
         r.setex(
             f"session:{session_id}",
             ttl,
@@ -1079,22 +1081,22 @@ class SessionStore:
         )
 
     def get_session(self, session_id):
-        """セッション取得"""
+        """Retrieve a session"""
         data = r.get(f"session:{session_id}")
         if data:
-            r.expire(f"session:{session_id}", 3600)  # TTLリフレッシュ
+            r.expire(f"session:{session_id}", 3600)  # Refresh TTL
             return json.loads(data)
         return None
 
     def delete_session(self, session_id):
-        """セッション削除"""
+        """Delete a session"""
         r.delete(f"session:{session_id}")
 
 
-# === レート制限 ===
+# === Rate Limiting ===
 class RateLimiter:
     def is_allowed(self, user_id, max_requests=100, window_seconds=60):
-        """固定ウィンドウレート制限"""
+        """Fixed window rate limiting"""
         key = f"rate:{user_id}:{int(time.time()) // window_seconds}"
         current = r.incr(key)
         if current == 1:
@@ -1102,7 +1104,7 @@ class RateLimiter:
         return current <= max_requests
 
     def is_allowed_sliding(self, user_id, max_requests=100, window_seconds=60):
-        """スライディングウィンドウレート制限"""
+        """Sliding window rate limiting"""
         key = f"rate_sliding:{user_id}"
         now = time.time()
         pipe = r.pipeline()
@@ -1114,17 +1116,17 @@ class RateLimiter:
         return results[2] <= max_requests
 
 
-# === 分散ロック ===
+# === Distributed Lock ===
 class DistributedLock:
     def acquire(self, lock_name, ttl=10):
-        """ロック取得（Redlock簡易版）"""
+        """Acquire lock (simplified Redlock)"""
         lock_key = f"lock:{lock_name}"
         token = str(time.time())
         acquired = r.set(lock_key, token, nx=True, ex=ttl)
         return token if acquired else None
 
     def release(self, lock_name, token):
-        """ロック解放（Luaスクリプトでアトミックに）"""
+        """Release lock (atomically via Lua script)"""
         script = """
         if redis.call("get", KEYS[1]) == ARGV[1] then
             return redis.call("del", KEYS[1])
@@ -1135,26 +1137,26 @@ class DistributedLock:
         r.eval(script, 1, f"lock:{lock_name}", token)
 
 
-# === リアルタイムランキング ===
+# === Real-Time Ranking ===
 class Leaderboard:
     def update_score(self, board_name, user_id, score):
-        """スコア更新"""
+        """Update score"""
         r.zadd(f"leaderboard:{board_name}", {user_id: score})
 
     def get_rank(self, board_name, user_id):
-        """順位取得（0-indexed）"""
+        """Get rank (0-indexed)"""
         rank = r.zrevrank(f"leaderboard:{board_name}", user_id)
         return rank + 1 if rank is not None else None
 
     def get_top_n(self, board_name, n=10):
-        """上位N位を取得"""
+        """Get top N"""
         return r.zrevrange(
             f"leaderboard:{board_name}", 0, n - 1,
             withscores=True
         )
 
     def get_around_me(self, board_name, user_id, range_size=5):
-        """自分の前後N位を取得"""
+        """Get N ranks above and below current user"""
         rank = r.zrevrank(f"leaderboard:{board_name}", user_id)
         if rank is None:
             return []
@@ -1168,330 +1170,330 @@ class Leaderboard:
 
 ---
 
-## エッジケース
+## Edge Cases
 
-### エッジケース1: ホットパーティション問題
+### Edge Case 1: Hot Partition Problem
 
 ```
-DynamoDB ホットパーティション
+DynamoDB Hot Partition
 ==============================
 
-問題:
-  PK = "USER#popular_user" に大量のアクセスが集中
-  → 1パーティションのスループット上限（3000 RCU / 1000 WCU）に到達
-  → スロットリング発生
+Problem:
+  A large volume of requests concentrate on PK = "USER#popular_user"
+  → The throughput limit of 1 partition (3000 RCU / 1000 WCU) is reached
+  → Throttling occurs
 
-対策1: Write Sharding
+Mitigation 1: Write Sharding
   PK = "USER#popular_user#" + (hash % 10)
-  → 10パーティションに分散
-  → 読み取り時に10回クエリ + マージ
+  → Distribute across 10 partitions
+  → Query 10 times and merge on reads
 
-対策2: DAX（DynamoDB Accelerator）キャッシュ
-  → 読み取りをインメモリキャッシュに吸収
+Mitigation 2: DAX (DynamoDB Accelerator) cache
+  → Absorb reads into in-memory cache
 
-対策3: アクセスパターンの見直し
-  → カウンターは Redis に移行
-  → 高頻度更新データは別テーブルに分離
+Mitigation 3: Revisit access patterns
+  → Migrate counters to Redis
+  → Separate high-frequency update data into a different table
 ```
 
-### エッジケース2: MongoDB のドキュメントサイズ上限
+### Edge Case 2: MongoDB Document Size Limit
 
 ```javascript
-// MongoDB のドキュメントサイズ上限: 16MB
-// 配列の無制限な成長はアンチパターン
+// MongoDB document size limit: 16MB
+// Unbounded array growth is an anti-pattern
 
-// [NG] コメントを全て埋め込み → ドキュメント肥大化
+// [NG] Embed all comments → document bloat
 db.posts.updateOne(
   { _id: postId },
   { $push: { comments: newComment } }
 );
-// → 人気投稿は数万コメントでドキュメントサイズ上限に到達
+// → Popular posts reach the document size limit with tens of thousands of comments
 
-// [OK] バケットパターン（サブドキュメント分割）
+// [OK] Bucket pattern (split into sub-documents)
 db.post_comments.insertOne({
   postId: postId,
-  bucket: Math.floor(commentCount / 100),  // 100件ごとにバケット
+  bucket: Math.floor(commentCount / 100),  // Bucket per 100 entries
   comments: [newComment],
   count: 1
 });
 
-// [OK] 参照パターン（別コレクション）
+// [OK] Reference pattern (separate collection)
 db.comments.insertOne({
   postId: postId,
   userId: userId,
   text: "Great post!",
   createdAt: new Date()
 });
-// → 無制限に成長可能
+// → Can grow without limit
 ```
 
-### エッジケース3: Redis のメモリ枯渇
+### Edge Case 3: Redis Memory Exhaustion
 
 ```python
-# Redis メモリ管理のベストプラクティス
+# Redis memory management best practices
 
-# 1. TTL の設定（全キーに推奨）
-r.setex("cache:user:1", 300, user_json)  # 5分で期限切れ
+# 1. Set TTL (recommended for all keys)
+r.setex("cache:user:1", 300, user_json)  # Expires in 5 minutes
 
-# 2. メモリポリシーの設定
+# 2. Configure memory policy
 # redis.conf: maxmemory 4gb
 # redis.conf: maxmemory-policy allkeys-lru
 
-# 3. メモリ使用量の監視
+# 3. Monitor memory usage
 info = r.info('memory')
-print(f"使用メモリ: {info['used_memory_human']}")
-print(f"ピークメモリ: {info['used_memory_peak_human']}")
-print(f"フラグメンテーション比率: {info['mem_fragmentation_ratio']}")
+print(f"Used memory: {info['used_memory_human']}")
+print(f"Peak memory: {info['used_memory_peak_human']}")
+print(f"Fragmentation ratio: {info['mem_fragmentation_ratio']}")
 
-# 4. 大きなキーの検出
+# 4. Detect large keys
 # redis-cli --bigkeys
 # redis-cli MEMORY USAGE key_name
 ```
 
 ---
 
-## セキュリティに関する注意事項
+## Security Considerations
 
-### NoSQL インジェクション
+### NoSQL Injection
 
 ```javascript
-// MongoDB NoSQL インジェクション
-// [NG] ユーザー入力を直接クエリに使用
+// MongoDB NoSQL injection
+// [NG] Use user input directly in queries
 const user = await db.users.findOne({
   username: req.body.username,
-  password: req.body.password  // {"$gt": ""} が渡されると全ユーザーにマッチ
+  password: req.body.password  // Passing {"$gt": ""} matches all users
 });
 
-// [OK] 入力の型チェック + サニタイズ
+// [OK] Type checking + sanitization of input
 const username = String(req.body.username);
 const password = String(req.body.password);
 const user = await db.users.findOne({
   username: username,
-  password: password  // 文字列型が保証される
+  password: password  // String type is guaranteed
 });
 
-// [推奨] パスワードはハッシュ化
+// [Recommended] Hash passwords
 const user = await db.users.findOne({ username: username });
 if (user && await bcrypt.compare(password, user.passwordHash)) {
-  // 認証成功
+  // Authentication successful
 }
 ```
 
-### Redis セキュリティ
+### Redis Security
 
 ```
-Redis セキュリティチェックリスト
+Redis Security Checklist
 ==================================
 
-1. 認証の設定
+1. Configure authentication
    requirepass strong_password_here
-   # Redis 6.0+: ACL（アクセス制御リスト）
+   # Redis 6.0+: ACL (Access Control Lists)
    user app_user on >password ~cache:* +get +set +del
 
-2. ネットワーク制限
-   bind 127.0.0.1  # ローカルのみ
+2. Network restrictions
+   bind 127.0.0.1  # Local only
    protected-mode yes
 
-3. 危険なコマンドの無効化
+3. Disable dangerous commands
    rename-command FLUSHALL ""
    rename-command FLUSHDB ""
    rename-command CONFIG ""
    rename-command DEBUG ""
 
-4. TLS の有効化
+4. Enable TLS
    tls-port 6380
    tls-cert-file /path/to/cert.pem
    tls-key-file /path/to/key.pem
 
-5. インターネット直接公開の禁止
-   → VPC内またはプライベートネットワーク内に配置
+5. Never expose directly to the internet
+   → Place inside a VPC or private network
 ```
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### 1. NoSQL をリレーショナルに使う
+### 1. Using NoSQL Relationally
 
-**問題**: MongoDB で正規化設計を行い、複数コレクション間で `$lookup`（JOIN 相当）を多用する。NoSQL のメリットが活かせず、RDB より遅くなる。
+**Problem**: Designing a normalized schema in MongoDB and heavily using `$lookup` (JOIN equivalent) across multiple collections. This negates the benefits of NoSQL and results in slower performance than an RDB.
 
-**対策**: NoSQL ではアクセスパターンに最適化した非正規化モデルを設計する。1回のクエリで必要なデータがすべて取得できるようにドキュメントを構成する。
+**Mitigation**: In NoSQL, design a denormalized model optimized for access patterns. Structure documents so that all needed data can be retrieved in a single query.
 
-### 2. すべてを1つの DB で解決しようとする
+### 2. Trying to Solve Everything with One Database
 
-**問題**: PostgreSQL で全文検索、キャッシュ、リアルタイム処理をすべて担わせると、各機能が中途半端になり、運用複雑性が増す。
+**Problem**: Making PostgreSQL handle full-text search, caching, and real-time processing results in each function being half-baked and increases operational complexity.
 
-**対策**: 各ワークロードに最適な DB を選択するポリグロット永続化を検討する。ただし、DB の数が増えると運用コストも増えるため、マイクロサービス境界に合わせて適切に分割する。
+**Mitigation**: Consider polyglot persistence, selecting the optimal database for each workload. However, as the number of databases grows, so does operational cost, so partition them appropriately along microservice boundaries.
 
-### 3. NoSQL でトランザクションを無視する
+### 3. Ignoring Transactions in NoSQL
 
-**問題**: NoSQL にはトランザクションがないと思い込み、データ整合性を考慮しない設計を行う。結果として不整合データが蓄積する。
+**Problem**: Assuming NoSQL has no transactions and designing without considering data integrity. As a result, inconsistent data accumulates.
 
-**対策**: MongoDB 4.0+のマルチドキュメントトランザクション、DynamoDB のTransactWriteItemsなど、各NoSQLのトランザクション機能を理解して適切に使用する。トランザクションが不十分な場合は、冪等性 + リトライ + 補正ジョブで整合性を保つ。
+**Mitigation**: Understand and properly use transaction features available in each NoSQL database, such as MongoDB 4.0+ multi-document transactions and DynamoDB's TransactWriteItems. When transactions are insufficient, maintain consistency through idempotency + retry + reconciliation jobs.
 
-### 4. DynamoDB でスキャンを多用する
+### 4. Overusing Scan in DynamoDB
 
-**問題**: DynamoDBのScanは全データを読み取るため、テーブルが大きくなると性能とコストが劣化する。
+**Problem**: DynamoDB Scan reads all data, so as the table grows, performance and cost degrade.
 
-**対策**: アクセスパターンを事前に定義し、パーティションキー + ソートキー + GSI で全てのクエリを効率的なQueryで実行できるようにテーブルを設計する。
-
----
-
-## 演習問題
-
-### 演習1（基礎）: データベース選定
-
-以下の要件に対して、最適なデータベースとその理由を述べよ。
-
-1. ECサイトの商品カタログ（カテゴリごとに異なる属性、柔軟な検索）
-2. リアルタイムチャットアプリのメッセージ保存（高書き込み、時系列）
-3. ソーシャルメディアの友達推薦機能（6次の隔たり探索）
-
-<details>
-<summary>解答例</summary>
-
-1. **MongoDB** または **PostgreSQL + JSONB**: 商品カテゴリごとに異なる属性（ノートPCにはCPU/RAM、衣類にはサイズ/色）を柔軟に表現でき、リッチなクエリで検索可能。検索要件が高度なら Elasticsearch を追加。
-
-2. **DynamoDB** または **Cassandra**: パーティションキー=チャットルームID、ソートキー=タイムスタンプで効率的に時系列データを管理。高書き込みスループットとスケーラビリティが強み。直近メッセージの高速取得にはRedisキャッシュを併用。
-
-3. **Neo4j**: グラフDBはノード間の関係性探索に特化。「友達の友達の友達」のような多段階のパス探索が、RDBのJOIN連鎖より桁違いに高速。
-
-</details>
-
-### 演習2（応用）: ポリグロット永続化設計
-
-ニュースサイトのアーキテクチャを設計せよ。要件:
-- 記事の作成・編集（年間10万記事）
-- 全文検索（タイトル + 本文）
-- ユーザーの閲覧履歴（日次1億PV）
-- リアルタイム人気ランキング
-- コメント機能
-
-<details>
-<summary>解答例</summary>
-
-```
-データベース設計:
-  PostgreSQL: 記事、ユーザー、コメント（Source of Truth）
-  Elasticsearch: 全文検索インデックス（記事タイトル + 本文）
-  Redis: 人気ランキング（Sorted Set）、セッション、記事キャッシュ
-  DynamoDB: 閲覧履歴（高書き込みスループット）
-
-データフロー:
-  記事作成 → PostgreSQL → CDC → Elasticsearch（検索用）
-                              → Redis（キャッシュ）
-  閲覧 → DynamoDB（履歴記録）→ Redis ZINCRBY（ランキング更新）
-  検索 → Elasticsearch
-  ランキング → Redis ZREVRANGE
-  コメント → PostgreSQL（ACIDトランザクション）
-```
-
-</details>
-
-### 演習3（発展）: 移行計画
-
-PostgreSQL で運用中のECサイト（1000万ユーザー、1億注文）の商品カタログ部分をMongoDBに移行する計画を立案せよ。以下を含めること。
-- データ移行手順
-- 移行期間中のデータ同期方式
-- ロールバック計画
-- リスクと対策
-
-<details>
-<summary>解答例</summary>
-
-```
-移行計画:
-1. Phase 1（準備）: 2週間
-   - MongoDBクラスタ構築
-   - データモデル設計（非正規化）
-   - 移行スクリプト開発・テスト
-
-2. Phase 2（並行運用）: 4週間
-   - 初期データ移行（pg_dump → 変換 → mongoimport）
-   - Dual Write: アプリがPostgreSQL + MongoDBの両方に書き込み
-   - 読み取りはPostgreSQLのまま
-   - データ整合性チェックジョブ実行
-
-3. Phase 3（切替）: 1週間
-   - 読み取りをMongoDBに切替（フィーチャーフラグ）
-   - 段階的にトラフィック移行（10% → 50% → 100%）
-   - パフォーマンス監視
-
-4. Phase 4（完了）: 2週間
-   - PostgreSQLからの商品カタログテーブル削除
-   - Dual Write停止
-
-ロールバック計画:
-   - Phase 2-3: フィーチャーフラグでPostgreSQLに即座に切り戻し
-   - Phase 4後: MongoDBからPostgreSQLへの逆移行（最悪ケース）
-
-リスク:
-   - データ不整合: 定期的な整合性チェックで検出
-   - パフォーマンス劣化: カナリアデプロイで段階的に検証
-   - スキルギャップ: チームへのMongoDB研修
-```
-
-</details>
-
+**Mitigation**: Define access patterns upfront and design the table so that all queries can be executed efficiently using partition key + sort key + GSI Query operations.
 
 ---
 
-## 設計判断ガイド
+## Exercises
 
-### 選択基準マトリクス
+### Exercise 1 (Basic): Database Selection
 
-技術選択を行う際の判断基準を以下にまとめます。
+For each of the following requirements, state the optimal database and the reason.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+1. E-commerce product catalog (different attributes per category, flexible search)
+2. Message storage for a real-time chat app (high writes, time-series)
+3. Friend recommendation feature for social media (six degrees of separation traversal)
+
+<details>
+<summary>Sample Answer</summary>
+
+1. **MongoDB** or **PostgreSQL + JSONB**: Can flexibly represent different attributes per product category (CPU/RAM for laptops, size/color for clothing) and search with rich queries. Add Elasticsearch if advanced search requirements exist.
+
+2. **DynamoDB** or **Cassandra**: Efficiently manage time-series data with partition key = chat room ID and sort key = timestamp. High write throughput and scalability are strengths. Combine with a Redis cache for fast retrieval of recent messages.
+
+3. **Neo4j**: Graph DBs specialize in relationship traversal between nodes. Multi-hop path searches like "friend of friend of friend" are orders of magnitude faster than chaining RDB JOINs.
+
+</details>
+
+### Exercise 2 (Applied): Polyglot Persistence Design
+
+Design an architecture for a news site. Requirements:
+- Article creation and editing (100,000 articles per year)
+- Full-text search (title + body)
+- User browsing history (100 million PVs per day)
+- Real-time popularity ranking
+- Comment feature
+
+<details>
+<summary>Sample Answer</summary>
+
+```
+Database design:
+  PostgreSQL: Articles, users, comments (Source of Truth)
+  Elasticsearch: Full-text search index (article title + body)
+  Redis: Popularity ranking (Sorted Set), sessions, article cache
+  DynamoDB: Browsing history (high write throughput)
+
+Data flow:
+  Article creation → PostgreSQL → CDC → Elasticsearch (for search)
+                                      → Redis (cache)
+  Browsing → DynamoDB (history record) → Redis ZINCRBY (ranking update)
+  Search → Elasticsearch
+  Ranking → Redis ZREVRANGE
+  Comments → PostgreSQL (ACID transactions)
+```
+
+</details>
+
+### Exercise 3 (Advanced): Migration Plan
+
+Create a migration plan to move the product catalog portion of a PostgreSQL-powered e-commerce site (10 million users, 100 million orders) to MongoDB. Include the following:
+- Data migration procedure
+- Data synchronization method during migration period
+- Rollback plan
+- Risks and mitigation
+
+<details>
+<summary>Sample Answer</summary>
+
+```
+Migration plan:
+1. Phase 1 (Preparation): 2 weeks
+   - Build MongoDB cluster
+   - Design data model (denormalized)
+   - Develop and test migration scripts
+
+2. Phase 2 (Parallel operation): 4 weeks
+   - Initial data migration (pg_dump → transform → mongoimport)
+   - Dual Write: app writes to both PostgreSQL + MongoDB
+   - Reads remain from PostgreSQL
+   - Run data consistency check jobs
+
+3. Phase 3 (Cutover): 1 week
+   - Switch reads to MongoDB (feature flag)
+   - Gradually migrate traffic (10% → 50% → 100%)
+   - Monitor performance
+
+4. Phase 4 (Completion): 2 weeks
+   - Drop product catalog tables from PostgreSQL
+   - Stop Dual Write
+
+Rollback plan:
+   - Phase 2-3: Instantly revert to PostgreSQL via feature flag
+   - After Phase 4: Reverse migration from MongoDB to PostgreSQL (worst case)
+
+Risks:
+   - Data inconsistency: Detect with periodic consistency checks
+   - Performance degradation: Validate incrementally with canary deployment
+   - Skill gap: MongoDB training for the team
+```
+
+</details>
+
+
+---
+
+## Design Decision Guide
+
+### Selection Criteria Matrix
+
+The following summarizes the criteria for making technology selections.
+
+| Criterion | Prioritize when | Can be compromised when |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVPs, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│         Architecture Selection Flow             │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① What is the team size?                       │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to ②              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② How often do you deploy?                     │
+│    ├─ Once a week or less → Monolith + modules  │
+│    └─ Daily/multiple times → Go to ③            │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ How independent are teams?                   │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Tradeoff Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve tradeoffs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A fast short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction offers greater reusability but can make debugging difficult
+- Low abstraction is intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision documentation template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1501,17 +1503,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1519,7 +1521,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1527,15 +1529,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1544,58 +1546,58 @@ class ArchitectureDecisionRecord:
 
 ## FAQ
 
-### Q1: MongoDB と PostgreSQL の JSONB はどう使い分けますか？
+### Q1: How do I choose between MongoDB and PostgreSQL JSONB?
 
 **A**:
-- **PostgreSQL JSONB**: リレーショナルデータが主体で、一部の属性が柔軟。トランザクション・JOIN が必要。既に PostgreSQL を使用中。テーブルの80%以上がリレーショナルなデータの場合。
-- **MongoDB**: ドキュメントが主体。スキーマが頻繁に変更。水平スケーリングが必要。深い入れ子構造が多い。アクセスパターンがドキュメント単位に集中する場合。
+- **PostgreSQL JSONB**: Relational data is the primary concern, with some attributes being flexible. Transactions and JOINs are needed. Already using PostgreSQL. More than 80% of table data is relational.
+- **MongoDB**: Documents are the primary concern. Schema changes frequently. Horizontal scaling is required. Deep nesting is common. Access patterns are concentrated at the document level.
 
-### Q2: Redis を主データベースとして使えますか？
+### Q2: Can Redis be used as a primary database?
 
-**A**: 技術的には可能ですが推奨しません。Redis はインメモリ DB のため、データ量がメモリに制約され、コストが高くなります。AOF/RDB で永続化できますが、再起動時のデータ読み込みに時間がかかります。Redis 7.0+ の Redis Functions やRedis Stackで機能は充実していますが、キャッシュ・セッション・リアルタイム処理の補助として使い、主データは RDB や DynamoDB に保存する設計が一般的です。
+**A**: Technically possible, but not recommended. Since Redis is an in-memory database, data volume is constrained by memory and costs can be high. Persistence is possible with AOF/RDB, but loading data on restart takes time. While features have matured with Redis 7.0+ Redis Functions and Redis Stack, the common pattern is to use Redis as a supplement for caching, sessions, and real-time processing, while storing primary data in an RDB or DynamoDB.
 
-### Q3: DynamoDB で複雑な検索が必要になった場合どうしますか？
+### Q3: What do you do when complex search becomes necessary with DynamoDB?
 
-**A**: DynamoDB Streams で変更を Elasticsearch/OpenSearch に同期し、全文検索や複雑な集計はそちらで実行します。あるいは DynamoDB Export to S3 + Athena でアドホック分析を行います。DynamoDB 自体で複雑なクエリを実行しようとするのはアンチパターンです。
+**A**: Sync changes to Elasticsearch/OpenSearch via DynamoDB Streams, and run full-text search and complex aggregations there. Alternatively, use DynamoDB Export to S3 + Athena for ad-hoc analysis. Trying to execute complex queries directly in DynamoDB is an anti-pattern.
 
-### Q4: NoSQL を選んで後悔するケースは？
+### Q4: In what cases do people regret choosing NoSQL?
 
-**A**: 以下のケースで後悔が報告されています:
-- **要件が複雑になった**: 当初はシンプルなKVアクセスだったが、複雑な集計やJOINが必要になった → RDBに移行
-- **トランザクションが必要になった**: 決済や在庫管理でACIDが必要になった → RDBに部分移行
-- **運用コストの増大**: 複数DBの運用・監視・バックアップのコストが想定以上
+**A**: Regret has been reported in the following cases:
+- **Requirements became complex**: Initially simple KV access, but complex aggregations and JOINs became necessary → migrated to RDB
+- **Transactions became necessary**: ACID became necessary for payments and inventory management → partially migrated to RDB
+- **Increased operational costs**: The cost of operating, monitoring, and backing up multiple databases exceeded expectations
 
-### Q5: NoSQLのスキーマレスは本当にスキーマがないのか？
+### Q5: Does "schemaless" in NoSQL really mean there is no schema?
 
-**A**: 「スキーマレス」は正確ではなく、「スキーマオンリード（読み取り時スキーマ）」が正しい表現です。データベース側はスキーマを強制しませんが、アプリケーション側では暗黙のスキーマが存在します。MongoDBのSchema Validationなどでサーバー側でのスキーマ検証も可能です。スキーマの管理はアプリケーション側の責任となるため、十分な設計が必要です。
+**A**: "Schemaless" is not entirely accurate; "schema-on-read" is the more precise term. The database does not enforce a schema, but an implicit schema exists on the application side. Server-side schema validation is also possible with tools like MongoDB's Schema Validation. Since schema management becomes the application's responsibility, sufficient design is necessary.
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### 問題1: MongoDB のスロークエリ
+### Problem 1: MongoDB Slow Queries
 
 ```javascript
-// スロークエリの調査
-db.setProfilingLevel(1, { slowms: 100 });  // 100ms以上のクエリを記録
+// Investigating slow queries
+db.setProfilingLevel(1, { slowms: 100 });  // Log queries over 100ms
 db.system.profile.find().sort({ ts: -1 }).limit(5);
 
-// 実行計画の確認
+// Check execution plan
 db.orders.find({ userId: "001" }).explain("executionStats");
-// COLLSCAN → インデックスが使われていない
+// COLLSCAN → index is not being used
 
-// インデックスの作成
+// Create an index
 db.orders.createIndex({ userId: 1, createdAt: -1 });
 ```
 
-### 問題2: Redis の接続数枯渇
+### Problem 2: Redis Connection Exhaustion
 
 ```python
-# 接続プーリングの設定
+# Connection pooling configuration
 pool = redis.ConnectionPool(
     host='localhost',
     port=6379,
-    max_connections=50,  # 接続プールサイズ
+    max_connections=50,  # Connection pool size
     socket_timeout=5,
     socket_connect_timeout=5,
     retry_on_timeout=True
@@ -1603,10 +1605,10 @@ pool = redis.ConnectionPool(
 r = redis.Redis(connection_pool=pool)
 ```
 
-### 問題3: DynamoDB のスロットリング
+### Problem 3: DynamoDB Throttling
 
 ```python
-# 指数バックオフ付きリトライ
+# Retry with exponential backoff
 import time
 from botocore.exceptions import ClientError
 
@@ -1617,7 +1619,7 @@ def put_with_retry(item, max_retries=5):
             return
         except ClientError as e:
             if e.response['Error']['Code'] == 'ProvisionedThroughputExceededException':
-                wait_time = (2 ** attempt) * 0.1  # 0.1, 0.2, 0.4, 0.8, 1.6秒
+                wait_time = (2 ** attempt) * 0.1  # 0.1, 0.2, 0.4, 0.8, 1.6 seconds
                 time.sleep(wait_time)
             else:
                 raise
@@ -1626,31 +1628,31 @@ def put_with_retry(item, max_retries=5):
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Point |
 |---|---|
-| NoSQL の分類 | ドキュメント、KVS、ワイドカラム、グラフの4種類 + 時系列、検索 |
-| MongoDB | 柔軟なスキーマのドキュメント DB。リッチなクエリ対応 |
-| Redis | サブミリ秒 KVS。キャッシュ・セッション・リアルタイム処理 |
-| DynamoDB | フルマネージドのワイドカラム DB。サーバーレスと相性良好 |
-| CAP 定理 | 分断時の一貫性 vs 可用性のトレードオフ。PACELC定理も理解すべき |
-| ポリグロット | ワークロードに応じて最適な DB を組み合わせる |
-| 移行判断 | JOIN 不要 + スケール必要 + 柔軟スキーマ なら NoSQL を検討 |
-| PostgreSQL JSONB | RDB内でドキュメント的柔軟性を実現する中間解 |
-| セキュリティ | NoSQLインジェクション対策、認証・暗号化の設定 |
+| NoSQL Classification | 4 types: document, KVS, wide-column, graph + time series and search |
+| MongoDB | Flexible-schema document DB. Supports rich queries |
+| Redis | Sub-millisecond KVS. Caching, sessions, real-time processing |
+| DynamoDB | Fully managed wide-column DB. Works well with serverless |
+| CAP Theorem | Tradeoff between consistency and availability during partition. PACELC theorem should also be understood |
+| Polyglot | Combine the optimal DB for each workload |
+| Migration Decision | Consider NoSQL when no JOIN needed + scaling required + flexible schema |
+| PostgreSQL JSONB | An intermediate solution achieving document-like flexibility within RDB |
+| Security | NoSQL injection countermeasures, authentication and encryption configuration |
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [インデックス](../01-advanced/03-indexing.md) — RDB のインデックス最適化
-- [マイグレーション](../02-design/02-migration.md) — スキーマ変更の安全な手法
-- [スキーマ設計](../02-design/01-schema-design.md) — RDBスキーマ設計の基礎
+- [Indexing](../01-advanced/03-indexing.md) — RDB index optimization
+- [Migration](../02-design/02-migration.md) — Safe methods for schema changes
+- [Schema Design](../02-design/01-schema-design.md) — Fundamentals of RDB schema design
 
-## 参考文献
+## References
 
-1. **Martin Kleppmann**: [Designing Data-Intensive Applications](https://dataintensive.net/) — データシステム設計の名著
-2. **MongoDB 公式**: [MongoDB Manual](https://www.mongodb.com/docs/manual/) — MongoDB の包括的ドキュメント
-3. **AWS 公式**: [DynamoDB Best Practices](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/best-practices.html) — DynamoDB設計ガイド
-4. **Redis 公式**: [Redis Documentation](https://redis.io/docs/) — Redisデータ構造とコマンドリファレンス
-5. **Brewer, Eric**: "CAP Twelve Years Later" (2012) — CAP定理の正確な解釈
-6. **Rick Houlihan**: [DynamoDB Single Table Design](https://www.alexdebrie.com/posts/dynamodb-single-table/) — シングルテーブルデザインの解説
+1. **Martin Kleppmann**: [Designing Data-Intensive Applications](https://dataintensive.net/) — A classic on data systems design
+2. **MongoDB Official**: [MongoDB Manual](https://www.mongodb.com/docs/manual/) — Comprehensive MongoDB documentation
+3. **AWS Official**: [DynamoDB Best Practices](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/best-practices.html) — DynamoDB design guide
+4. **Redis Official**: [Redis Documentation](https://redis.io/docs/) — Redis data structures and command reference
+5. **Brewer, Eric**: "CAP Twelve Years Later" (2012) — Accurate interpretation of the CAP theorem
+6. **Rick Houlihan**: [DynamoDB Single Table Design](https://www.alexdebrie.com/posts/dynamodb-single-table/) — Explanation of single table design
