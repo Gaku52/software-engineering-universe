@@ -1,73 +1,74 @@
-# 依存関係セキュリティ
+# Dependency Security
 
-> SCA (Software Composition Analysis) による脆弱性検出、Dependabot による自動更新、SBOM による可視化まで、サードパーティ依存関係のリスクを管理するガイド。サプライチェーン攻撃の内部メカニズム、推移的依存関係の深層分析、規制対応まで網羅する。
+> A guide to managing third-party dependency risks, covering vulnerability detection with SCA (Software Composition Analysis), automated updates with Dependabot, and visibility through SBOM. Includes the internal mechanics of supply chain attacks, deep analysis of transitive dependencies, and regulatory compliance.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **サプライチェーン攻撃の脅威モデル** — タイポスクワッティング、依存関係混乱攻撃、アカウント乗っ取りの手法と防御策
-2. **SCA ツールの活用と CI/CD 統合** — Dependabot、Snyk、Trivy による脆弱性の自動検出・修正・ゲーティング
-3. **SBOM (Software Bill of Materials)** — ソフトウェア部品表の生成・管理・規制対応
-4. **依存関係のロック・固定・監査** — 再現可能なビルドとライセンスコンプライアンスの確保
+1. **Threat Model for Supply Chain Attacks** — Techniques and defenses against typosquatting, dependency confusion attacks, and account takeovers
+2. **SCA Tools and CI/CD Integration** — Automated vulnerability detection, remediation, and gating with Dependabot, Snyk, and Trivy
+3. **SBOM (Software Bill of Materials)** — Generating, managing, and complying with software bill of materials requirements
+4. **Dependency Locking, Pinning, and Auditing** — Ensuring reproducible builds and license compliance
 
-## 前提知識
+## Prerequisites
 
-| トピック | 参照先 |
+| Topic | Reference |
 |---------|--------|
-| セキュアコーディングの基礎 | [セキュアコーディング](./00-secure-coding.md) |
-| パッケージマネージャの基本 | npm, pip, Go modules の基礎知識 |
-| CI/CD パイプラインの概念 | [コンテナセキュリティ](./02-container-security.md) |
-| 暗号化とハッシュの基礎 | [暗号化基礎](../02-cryptography/) |
+| Secure coding fundamentals | [Secure Coding](./00-secure-coding.md) |
+| Package manager basics | npm, pip, Go modules fundamentals |
+| CI/CD pipeline concepts | [Container Security](./02-container-security.md) |
+| Cryptography and hashing basics | [Cryptography Fundamentals](../02-cryptography/) |
 
 ---
 
-## 1. 依存関係のリスク
+## 1. Dependency Risks
 
-### WHY: なぜ依存関係セキュリティが重要か
+### WHY: Why Dependency Security Matters
 
-現代のソフトウェアは平均して 80-90% がオープンソースの依存関係で構成されている。あなたが書いたコードが 10% でも、残り 90% のサードパーティコードに脆弱性があれば、アプリケーション全体が危険にさらされる。Log4Shell (CVE-2021-44228) は、ほぼ全ての Java アプリケーションに影響を与え、依存関係管理の不備がいかに壊滅的な結果をもたらすかを世界に示した。
+Modern software is composed of 80–90% open-source dependencies on average. Even if you wrote only 10% of the code, vulnerabilities in the remaining 90% of third-party code can put your entire application at risk. Log4Shell (CVE-2021-44228) affected virtually every Java application and demonstrated to the world how devastating poor dependency management can be.
 
-### サプライチェーン攻撃の手法と内部メカニズム
+### Supply Chain Attack Techniques and Internal Mechanisms
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│              サプライチェーン攻撃のベクター                       │
+│              Supply Chain Attack Vectors                       │
 │──────────────────────────────────────────────────────────────│
 │                                                              │
-│  [直接攻撃]                                                   │
-│  +-- 依存パッケージの乗っ取り (アカウント侵害)                   │
-│  │   → メンテナの npm/PyPI アカウントを侵害                     │
-│  │   → 正規パッケージに悪意あるコードを注入                      │
-│  │   → 例: ua-parser-js (2021) 週間DL 800万のパッケージ侵害     │
+│  [Direct Attacks]                                             │
+│  +-- Dependency package takeover (account compromise)         │
+│  │   → Compromise maintainer npm/PyPI accounts               │
+│  │   → Inject malicious code into legitimate packages         │
+│  │   → Example: ua-parser-js (2021) — 8M weekly downloads    │
 │  │                                                            │
-│  +-- タイポスクワッティング (lodash → lodahs, reqeusts)         │
-│  │   → 類似名パッケージを公開して誤インストールを誘導             │
-│  │   → PyPI では平均して月100件以上の悪意あるパッケージ発見       │
+│  +-- Typosquatting (lodash → lodahs, reqeusts)               │
+│  │   → Publish similarly named packages to lure misinstalls   │
+│  │   → PyPI discovers 100+ malicious packages per month avg  │
 │  │                                                            │
-│  +-- 依存関係の混乱攻撃 (Dependency Confusion)                 │
-│      → 内部パッケージ名と同名の公開パッケージを高バージョンで公開  │
-│      → パッケージマネージャが公開版を優先してインストール          │
-│      → 例: Alex Birsan が Apple/Microsoft/PayPal で実証 (2021) │
+│  +-- Dependency Confusion Attack                              │
+│      → Publish a public package with same name as internal    │
+│        package but at a higher version number                 │
+│      → Package manager installs the public version first      │
+│      → Example: Alex Birsan demonstrated on Apple/MS/PayPal  │
 │                                                              │
-│  [間接攻撃]                                                   │
-│  +-- 推移的依存関係の脆弱性 (A→B→C、Cに脆弱性)                 │
-│  +-- ビルドシステムの侵害 (CI/CD パイプライン)                   │
-│  +-- 悪意あるプレ/ポストインストールスクリプト                    │
-│  +-- ソーシャルエンジニアリングによるメンテナ権限取得              │
+│  [Indirect Attacks]                                           │
+│  +-- Transitive dependency vulnerabilities (A→B→C, vuln in C)│
+│  +-- Build system compromise (CI/CD pipeline)                 │
+│  +-- Malicious pre/post-install scripts                       │
+│  +-- Social engineering to gain maintainer access             │
 │                                                              │
-│  [既知の重大事例]                                               │
-│  +-- event-stream (2018): 暗号通貨窃取コード注入                │
-│  +-- ua-parser-js (2021): マイナー & パスワード窃取              │
-│  +-- Log4Shell (2021): Log4j のリモートコード実行               │
-│  +-- colors/faker (2022): メンテナによる意図的破壊               │
-│  +-- xz-utils (2024): 2年がかりのバックドア挿入                 │
+│  [Notable Incidents]                                          │
+│  +-- event-stream (2018): cryptocurrency theft code injected  │
+│  +-- ua-parser-js (2021): miner & password theft              │
+│  +-- Log4Shell (2021): Log4j remote code execution            │
+│  +-- colors/faker (2022): intentional sabotage by maintainer  │
+│  +-- xz-utils (2024): 2-year backdoor insertion               │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 依存関係の深さの問題
+### The Problem of Dependency Depth
 
 ```
-あなたのアプリケーション
-  ├── express (直接依存: 1個)
+Your Application
+  ├── express (direct dependency: 1)
   │   ├── body-parser
   │   │   ├── bytes
   │   │   ├── content-type
@@ -78,48 +79,48 @@
   │   ├── debug
   │   │   └── ms
   │   ├── ...
-  │   └── (推移的依存: 30+ パッケージ)
+  │   └── (transitive dependencies: 30+ packages)
   │
-  直接依存 1 個 → 推移的依存 30+ 個
-  典型的な Node.js アプリ: 直接依存 20個 → 推移的依存 1000+ 個
-  典型的な Java アプリ: 直接依存 50個 → 推移的依存 500+ 個
+  1 direct dependency → 30+ transitive dependencies
+  Typical Node.js app: 20 direct → 1000+ transitive
+  Typical Java app:    50 direct → 500+ transitive
 ```
 
-### 依存関係混乱攻撃の仕組み（詳細）
+### How Dependency Confusion Attacks Work (In Detail)
 
 ```python
 # ========================================
-# 依存関係混乱攻撃のシナリオ
+# Dependency Confusion Attack Scenario
 # ========================================
 
-# 1. 社内で "mycompany-utils" というパッケージを内部レジストリで使用
+# 1. Company uses "mycompany-utils" package from internal registry
 # requirements.txt:
 #   mycompany-utils==1.0.0
 
-# 2. 攻撃者が PyPI に "mycompany-utils" を version 99.0.0 で公開
-#    → setup.py に悪意あるインストールスクリプトを仕込む
+# 2. Attacker publishes "mycompany-utils" on PyPI at version 99.0.0
+#    → Embeds malicious install script in setup.py
 
-# 3. pip が公開 PyPI の高バージョン (99.0.0) を優先インストール
+# 3. pip installs higher public PyPI version (99.0.0) preferentially
 # pip install mycompany-utils
-# → PyPI の 99.0.0 がインストールされる（内部レジストリの 1.0.0 ではなく）
+# → Installs PyPI's 99.0.0 (not the internal registry's 1.0.0)
 
 # ========================================
-# 防御策
+# Defenses
 # ========================================
 
-# 方法1: pip.conf で内部レジストリのみを参照
+# Option 1: Reference only internal registry via pip.conf
 # [global]
 # index-url = https://internal.pypi.mycompany.com/simple/
-# extra-index-url = (設定しない → 公開 PyPI を参照しない)
+# extra-index-url = (not set → public PyPI not referenced)
 
-# 方法2: .npmrc でスコープごとにレジストリを指定 (npm)
+# Option 2: Specify registry per scope in .npmrc (npm)
 # @mycompany:registry=https://npm.mycompany.com/
 # registry=https://registry.npmjs.org/
 
-# 方法3: PyPI にプレースホルダパッケージを公開
-#   → 内部パッケージと同名の空パッケージを公開し、攻撃者の先手を打つ
+# Option 3: Publish a placeholder package to PyPI
+#   → Publish an empty package under the same name as the internal one
 
-# 方法4: ハッシュ検証で予期しないパッケージの変更を検出
+# Option 4: Hash verification to detect unexpected package changes
 # pip install --require-hashes -r requirements.txt
 # requirements.txt:
 #   mycompany-utils==1.0.0 \
@@ -130,26 +131,26 @@
 
 ## 2. SCA (Software Composition Analysis)
 
-### SCA ツールの比較
+### SCA Tool Comparison
 
-| ツール | 対応言語 | 無料枠 | 特徴 | 脆弱性DB | 修正PR自動生成 |
+| Tool | Languages | Free Tier | Features | Vulnerability DB | Auto Fix PR |
 |--------|---------|--------|------|---------|--------------|
-| Dependabot | 多言語 | GitHub 無料 | GitHub ネイティブ統合 | GitHub Advisory DB | あり |
-| Snyk | 多言語 | OSS 無料 | 優先順位付きの修正提案 | Snyk DB | あり |
-| Trivy | 多言語 + コンテナ | 完全無料 | コンテナイメージ対応 | NVD + 独自 | なし |
-| OWASP Dep-Check | Java, .NET 中心 | 完全無料 | NVD データベース連携 | NVD | なし |
-| npm audit | JavaScript | 無料 | npm 標準機能 | GitHub Advisory DB | `npm audit fix` |
-| pip-audit | Python | 無料 | OSV データベース連携 | OSV | なし |
-| Renovate | 多言語 | 完全無料 | 高度なカスタマイズ | 多数 | あり |
+| Dependabot | Multi-language | Free on GitHub | Native GitHub integration | GitHub Advisory DB | Yes |
+| Snyk | Multi-language | Free for OSS | Prioritized fix suggestions | Snyk DB | Yes |
+| Trivy | Multi-language + containers | Completely free | Container image support | NVD + proprietary | No |
+| OWASP Dep-Check | Mainly Java, .NET | Completely free | NVD database integration | NVD | No |
+| npm audit | JavaScript | Free | Built-in npm feature | GitHub Advisory DB | `npm audit fix` |
+| pip-audit | Python | Free | OSV database integration | OSV | No |
+| Renovate | Multi-language | Completely free | Highly customizable | Multiple | Yes |
 
-### Dependabot の設定（詳細版）
+### Dependabot Configuration (Detailed)
 
 ```yaml
 # .github/dependabot.yml
 version: 2
 updates:
   # ========================================
-  # npm 依存関係
+  # npm dependencies
   # ========================================
   - package-ecosystem: "npm"
     directory: "/"
@@ -164,7 +165,7 @@ updates:
     labels:
       - "dependencies"
       - "security"
-    # セキュリティアップデートは即座に、バージョンアップデートはグループ化
+    # Security updates immediately, version updates grouped
     groups:
       production-dependencies:
         dependency-type: "production"
@@ -174,14 +175,14 @@ updates:
       dev-dependencies:
         dependency-type: "development"
     ignore:
-      # メジャーバージョンアップは手動で対応
+      # Major version upgrades handled manually
       - dependency-name: "*"
         update-types: ["version-update:semver-major"]
-    # セキュリティアドバイザリ対応は例外（メジャーでも自動PR）
-    # → GitHub Security Advisories が自動的に処理
+    # Security advisory responses are exceptions (auto PR even for major)
+    # → Handled automatically by GitHub Security Advisories
 
   # ========================================
-  # Python 依存関係
+  # Python dependencies
   # ========================================
   - package-ecosystem: "pip"
     directory: "/"
@@ -193,26 +194,26 @@ updates:
         update-types: ["minor", "patch"]
 
   # ========================================
-  # Docker イメージ
+  # Docker images
   # ========================================
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
       interval: "weekly"
-    # ベースイメージの更新は必ず追従
+    # Always track base image updates
     ignore: []
 
   # ========================================
-  # GitHub Actions のバージョン管理
+  # GitHub Actions version management
   # ========================================
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
-    # Actions のバージョン固定は特に重要（サプライチェーン攻撃対策）
+    # Pinning Actions versions is especially important (supply chain attack defense)
 ```
 
-### GitHub Security Advisories の自動スキャンパイプライン
+### Automated Security Scan Pipeline with GitHub Security Advisories
 
 ```yaml
 # .github/workflows/security-scan.yml
@@ -222,7 +223,7 @@ on:
     branches: [main]
   pull_request:
   schedule:
-    - cron: '0 0 * * *'  # 毎日 0:00 UTC
+    - cron: '0 0 * * *'  # Daily at 0:00 UTC
 
 permissions:
   contents: read
@@ -262,7 +263,7 @@ jobs:
           scan-type: 'fs'
           scan-ref: '.'
           severity: 'HIGH,CRITICAL'
-          exit-code: '1'  # 脆弱性発見時にビルド失敗
+          exit-code: '1'  # Fail build on vulnerability found
           format: 'sarif'
           output: 'trivy-results.sarif'
 
@@ -292,30 +293,30 @@ jobs:
         run: pip-audit -r requirements.txt --desc --fix --dry-run
 ```
 
-### Trivy によるスキャン（詳細）
+### Trivy Scanning (In Detail)
 
 ```bash
 # ========================================
-# 基本的なスキャンコマンド
+# Basic scan commands
 # ========================================
 
-# ファイルシステムスキャン (プロジェクト全体)
+# Filesystem scan (entire project)
 trivy fs --severity HIGH,CRITICAL .
 
-# コンテナイメージスキャン
+# Container image scan
 trivy image --severity HIGH,CRITICAL myapp:latest
 
-# 特定の脆弱性を無視（正当な理由がある場合）
+# Ignore unfixed vulnerabilities (when justified)
 trivy fs --severity HIGH,CRITICAL --ignore-unfixed .
 
-# JSON 形式で出力（CI/CD パイプライン向け）
+# Output as JSON (for CI/CD pipelines)
 trivy fs --format json --output results.json .
 
-# SBOM 出力付きスキャン
+# Scan with SBOM output
 trivy fs --format cyclonedx --output sbom.json .
 
 # ========================================
-# 出力例
+# Example output
 # ========================================
 # myapp (npm)
 # ============
@@ -332,48 +333,48 @@ trivy fs --format cyclonedx --output sbom.json .
 # └──────────────┴───────────────────┴──────────┴────────────┴────────────┘
 
 # ========================================
-# .trivyignore — 正当な理由で無視する脆弱性
+# .trivyignore — vulnerabilities to ignore with justification
 # ========================================
-# CVE-2021-23337  # lodash: 本アプリでは該当コードパスを使用していない
-# CVE-2023-XXXXX  # テスト用依存関係のため本番影響なし
+# CVE-2021-23337  # lodash: this code path is not used in this application
+# CVE-2023-XXXXX  # test-only dependency with no production impact
 ```
 
-### Snyk による統合スキャン
+### Integrated Scanning with Snyk
 
 ```bash
-# Snyk CLIのインストールと使用
+# Install and use Snyk CLI
 npm install -g snyk
 
-# プロジェクトのスキャン
+# Scan a project
 snyk test
 
-# 監視モード（新規脆弱性の継続的検出）
+# Monitor mode (continuous detection of new vulnerabilities)
 snyk monitor
 
-# 修正可能な脆弱性の自動修正
+# Auto-fix fixable vulnerabilities
 snyk fix
 
-# コンテナイメージのスキャン
+# Scan a container image
 snyk container test myapp:latest
 
-# IaC のスキャン
+# Scan IaC
 snyk iac test terraform/
 ```
 
 ```python
-# Snyk API を使った自動脆弱性レポート生成
+# Auto-generate vulnerability reports using the Snyk API
 import requests
 import json
 from datetime import datetime
 
 def generate_vulnerability_report(org_id: str, api_token: str) -> dict:
-    """Snyk API から組織全体の脆弱性レポートを生成"""
+    """Generate an organization-wide vulnerability report from the Snyk API"""
     headers = {
         'Authorization': f'token {api_token}',
         'Content-Type': 'application/json',
     }
 
-    # 全プロジェクトの脆弱性を取得
+    # Fetch vulnerabilities across all projects
     response = requests.get(
         f'https://api.snyk.io/rest/orgs/{org_id}/issues',
         headers=headers,
@@ -382,7 +383,7 @@ def generate_vulnerability_report(org_id: str, api_token: str) -> dict:
     response.raise_for_status()
     issues = response.json()
 
-    # 重大度別に集計
+    # Aggregate by severity
     severity_counts = {'critical': 0, 'high': 0, 'medium': 0, 'low': 0}
     for issue in issues.get('data', []):
         severity = issue['attributes']['effective_severity_level']
@@ -400,97 +401,97 @@ def generate_vulnerability_report(org_id: str, api_token: str) -> dict:
 
 ## 3. SBOM (Software Bill of Materials)
 
-### SBOM の WHY: なぜ部品表が必要か
+### WHY: Why a Bill of Materials Is Necessary
 
-SBOM は「ソフトウェアの成分表示」である。食品に原材料表示が義務付けられているように、ソフトウェアにも「何で作られているか」の透明性が求められている。Log4Shell の際、多くの組織が「自社のどのシステムが Log4j を使っているか」を把握できず、対応に数週間を要した。SBOM があれば、脆弱性が公開された瞬間に影響範囲を即座に特定できる。
+An SBOM is the "ingredient list" for software. Just as food products are required to list ingredients, software is increasingly expected to provide transparency about what it is made of. During Log4Shell, many organizations could not identify which of their systems used Log4j, causing remediation to take weeks. With an SBOM, the blast radius can be identified instantly the moment a vulnerability is disclosed.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                      SBOM (部品表)                             │
+│                      SBOM (Bill of Materials)                  │
 │──────────────────────────────────────────────────────────────│
-│  アプリケーション: MyApp v2.1.0                                │
-│  ビルド日時: 2024-03-15T10:30:00Z                             │
-│  ビルド環境: Node.js 20.11.0 / npm 10.2.4                     │
+│  Application: MyApp v2.1.0                                    │
+│  Build date:  2024-03-15T10:30:00Z                            │
+│  Build env:   Node.js 20.11.0 / npm 10.2.4                    │
 │                                                              │
-│  コンポーネント一覧:                                           │
+│  Component list:                                              │
 │  ┌───────────────────────┬─────────┬──────┬────────────────┐ │
-│  │ パッケージ名           │ バージョン│ ライセンス│ 種別           │ │
+│  │ Package name          │ Version │License│ Type           │ │
 │  ├───────────────────────┼─────────┼──────┼────────────────┤ │
-│  │ express               │ 4.18.2  │ MIT  │ 直接依存       │ │
-│  │ lodash                │ 4.17.21 │ MIT  │ 直接依存       │ │
-│  │ body-parser           │ 1.20.2  │ MIT  │ 推移的依存     │ │
-│  │ debug                 │ 4.3.4   │ MIT  │ 推移的依存     │ │
+│  │ express               │ 4.18.2  │ MIT  │ Direct dep     │ │
+│  │ lodash                │ 4.17.21 │ MIT  │ Direct dep     │ │
+│  │ body-parser           │ 1.20.2  │ MIT  │ Transitive dep │ │
+│  │ debug                 │ 4.3.4   │ MIT  │ Transitive dep │ │
 │  │ ...                   │ ...     │ ...  │ ...            │ │
 │  └───────────────────────┴─────────┴──────┴────────────────┘ │
 │                                                              │
-│  各コンポーネントに含まれる情報:                                │
-│  - パッケージ名・バージョン                                    │
-│  - ライセンス (SPDX 識別子)                                   │
-│  - 供給元 (サプライヤー)                                      │
-│  - 既知の脆弱性 (CVE)                                        │
-│  - 暗号ハッシュ (改竄検知)                                    │
-│  - 依存関係の親子関係ツリー                                    │
+│  Information included per component:                          │
+│  - Package name and version                                   │
+│  - License (SPDX identifier)                                  │
+│  - Supplier                                                   │
+│  - Known vulnerabilities (CVE)                                │
+│  - Cryptographic hash (tamper detection)                      │
+│  - Parent-child dependency tree                               │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### SBOM フォーマットの比較
+### SBOM Format Comparison
 
-| 項目 | SPDX | CycloneDX |
+| Item | SPDX | CycloneDX |
 |------|------|-----------|
-| 策定 | Linux Foundation | OWASP |
-| ISO 標準 | ISO/IEC 5962:2021 | ECMA-424 |
-| フォーマット | JSON, RDF, Tag-Value, YAML | JSON, XML, Protobuf |
-| 重点 | ライセンスコンプライアンス | セキュリティ |
-| 脆弱性情報 | 外部参照 | VEX (Vulnerability Exploitability eXchange) 統合 |
-| サービス記述 | 限定的 | API/サービスも記述可能 |
-| 生成ツール | syft, trivy, spdx-tools | cdxgen, trivy, syft |
-| 推奨用途 | ライセンス監査、法務 | セキュリティ運用、脆弱性管理 |
+| Maintained by | Linux Foundation | OWASP |
+| ISO standard | ISO/IEC 5962:2021 | ECMA-424 |
+| Formats | JSON, RDF, Tag-Value, YAML | JSON, XML, Protobuf |
+| Focus | License compliance | Security |
+| Vulnerability info | External references | VEX (Vulnerability Exploitability eXchange) integrated |
+| Service description | Limited | Supports API/service descriptions |
+| Generation tools | syft, trivy, spdx-tools | cdxgen, trivy, syft |
+| Recommended use | License auditing, legal | Security operations, vulnerability management |
 
-### SBOM の生成と活用
+### Generating and Using SBOMs
 
 ```bash
 # ========================================
-# SBOM 生成ツール
+# SBOM generation tools
 # ========================================
 
-# syft で CycloneDX 形式の SBOM を生成
+# Generate CycloneDX SBOM with syft
 syft dir:. -o cyclonedx-json > sbom.cyclonedx.json
 
-# syft で SPDX 形式の SBOM を生成
+# Generate SPDX SBOM with syft
 syft dir:. -o spdx-json > sbom.spdx.json
 
-# Trivy で SBOM 生成
+# Generate SBOM with Trivy
 trivy fs --format cyclonedx --output sbom.json .
 
-# コンテナイメージから SBOM 生成
+# Generate SBOM from container image
 syft myapp:latest -o cyclonedx-json > image-sbom.json
 
-# npm で SBOM を生成 (npm 10+)
+# Generate SBOM with npm (npm 10+)
 npm sbom --sbom-format cyclonedx
 
-# cdxgen で SBOM 生成（複数言語対応）
+# Generate SBOM with cdxgen (multi-language support)
 npx @cyclonedx/cdxgen -o sbom.json
 
 # ========================================
-# SBOM からの脆弱性スキャン
+# Vulnerability scanning from SBOM
 # ========================================
 
-# grype で SBOM から脆弱性をスキャン
+# Scan SBOM for vulnerabilities with grype
 grype sbom:sbom.cyclonedx.json
 
-# Trivy で SBOM スキャン
+# Scan SBOM with Trivy
 trivy sbom sbom.cyclonedx.json
 
 # ========================================
-# SBOM の検証
+# SBOM validation
 # ========================================
 
-# CycloneDX の形式検証
+# Validate CycloneDX format
 cyclonedx validate --input-file sbom.json --input-format json
 ```
 
 ```python
-# SBOM を CI/CD で管理するスクリプト
+# Script for managing SBOM in CI/CD
 import json
 import subprocess
 from datetime import datetime
@@ -502,14 +503,14 @@ def generate_and_analyze_sbom(
     output_dir: str,
     severity_threshold: str = "HIGH",
 ) -> dict:
-    """SBOM を生成して脆弱性分析を実行"""
+    """Generate SBOM and run vulnerability analysis"""
 
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.utcnow().strftime('%Y%m%dT%H%M%S')
 
-    # Step 1: CycloneDX SBOM を生成
+    # Step 1: Generate CycloneDX SBOM
     sbom_file = output_path / f"sbom-{timestamp}.json"
     result = subprocess.run(
         ["syft", f"dir:{project_dir}", "-o", "cyclonedx-json"],
@@ -518,7 +519,7 @@ def generate_and_analyze_sbom(
     sbom = json.loads(result.stdout)
     sbom_file.write_text(json.dumps(sbom, indent=2))
 
-    # Step 2: 脆弱性スキャン
+    # Step 2: Vulnerability scan
     vuln_file = output_path / f"vulnerabilities-{timestamp}.json"
     vuln_result = subprocess.run(
         ["grype", f"sbom:{sbom_file}", "-o", "json"],
@@ -527,14 +528,14 @@ def generate_and_analyze_sbom(
     vulnerabilities = json.loads(vuln_result.stdout)
     vuln_file.write_text(json.dumps(vulnerabilities, indent=2))
 
-    # Step 3: 分析結果の集計
+    # Step 3: Aggregate analysis results
     matches = vulnerabilities.get("matches", [])
     severity_counts = {}
     for match in matches:
         sev = match.get("vulnerability", {}).get("severity", "unknown")
         severity_counts[sev] = severity_counts.get(sev, 0) + 1
 
-    # Step 4: ライセンス分析
+    # Step 4: License analysis
     components = sbom.get("components", [])
     license_counts = {}
     for comp in components:
@@ -566,7 +567,7 @@ def generate_and_analyze_sbom(
       "analysis": {
         "state": "not_affected",
         "justification": "code_not_reachable",
-        "detail": "lodash.template() は本アプリケーションで使用していないため影響なし。コードパス分析により確認済み。",
+        "detail": "lodash.template() is not used in this application and is therefore not affected. Confirmed via code path analysis.",
         "response": ["will_not_fix"]
       },
       "affects": [
@@ -581,70 +582,70 @@ def generate_and_analyze_sbom(
 
 ---
 
-## 4. 依存関係のロックと固定
+## 4. Dependency Locking and Pinning
 
-### ロックファイルの WHY
+### WHY: Why Lock Files Matter
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  ロックファイルなし:                                           │
+│  Without lock file:                                           │
 │  package.json: "lodash": "^4.17.0"                           │
-│  → 開発環境: 4.17.20 (ある時点のインストール)                  │
-│  → CI 環境:  4.17.21 (最新パッチ)                             │
-│  → 本番環境: 4.17.19 (キャッシュからインストール)              │
-│  → 環境によってバージョンが異なり再現性がない                   │
-│  → 本番でのみ発生する脆弱性を見逃す可能性                      │
+│  → Dev environment:  4.17.20 (installed at some point)        │
+│  → CI environment:   4.17.21 (latest patch)                  │
+│  → Production:       4.17.19 (installed from cache)          │
+│  → Different versions across environments, no reproducibility │
+│  → Risk of missing vulnerabilities that only appear in prod   │
 │                                                              │
-│  ロックファイルあり:                                           │
+│  With lock file:                                              │
 │  package-lock.json: "lodash": "4.17.21"                      │
-│  → 全環境で 4.17.21 を使用 (完全な再現性)                     │
-│  → 依存関係の推移的バージョンも固定                             │
-│  → ハッシュ値で改竄を検知                                      │
+│  → All environments use 4.17.21 (fully reproducible)         │
+│  → Transitive dependency versions are also pinned            │
+│  → Hash values detect tampering                               │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 言語別ロックファイルとベストプラクティス
+### Lock Files and Best Practices by Language
 
 ```bash
 # ========================================
 # JavaScript / Node.js
 # ========================================
-# CI では npm ci を使用 (lock ファイルに厳密に従う)
-npm ci  # npm install ではなく ci を使用
+# Use npm ci in CI (strict adherence to lock file)
+npm ci  # Use ci instead of install
 
-# lock ファイルは必ず Git 管理
+# Always commit lock file to Git
 git add package-lock.json
 git commit -m "Update lock file"
 
 # ========================================
 # Python
 # ========================================
-# pip-compile で requirements.txt をハッシュ付きで生成
+# Generate requirements.txt with hashes using pip-compile
 pip-compile --generate-hashes requirements.in > requirements.txt
 
-# ハッシュ検証付きインストール
+# Install with hash verification
 pip install --require-hashes -r requirements.txt
 
 # ========================================
 # Go
 # ========================================
-# go.sum が自動生成される (チェックサム検証)
+# go.sum is auto-generated (checksum verification)
 go mod verify
 
-# 依存関係の整理
+# Clean up dependencies
 go mod tidy
 
 # ========================================
 # Rust
 # ========================================
-# Cargo.lock は必ずコミット
-cargo build  # Cargo.lock 自動生成
+# Always commit Cargo.lock
+cargo build  # Cargo.lock auto-generated
 
-# 依存関係の監査
+# Audit dependencies
 cargo audit
 ```
 
-### 推移的依存関係の強制バージョン指定
+### Forcing Specific Versions on Transitive Dependencies
 
 ```json
 // package.json — npm overrides
@@ -677,26 +678,26 @@ certifi>=2023.7.22
 
 ---
 
-## 5. ライセンスコンプライアンス
+## 5. License Compliance
 
-### WHY: なぜライセンスチェックが必要か
+### WHY: Why License Checks Are Necessary
 
-オープンソースのライセンスには、商用利用制限やソースコード公開義務を課すものがある。GPL ライセンスのコードを商用製品に含めると、製品全体のソースコード公開が求められる可能性がある。知らずに含めた推移的依存関係が原因で法的問題になったケースもある。
+Open-source licenses vary widely — some restrict commercial use or require disclosure of source code. Including code under the GPL license in a commercial product may require publishing the entire product's source code. There have been legal issues caused by transitive dependencies included without awareness.
 
-### ライセンスリスク分類
+### License Risk Classification
 
-| リスクレベル | ライセンス | 条件 | 商用利用 |
+| Risk Level | License | Terms | Commercial Use |
 |-------------|----------|------|---------|
-| 低リスク | MIT, BSD-2, ISC | 著作権表示のみ | 自由 |
-| 低リスク | Apache-2.0 | 著作権+特許条項 | 自由 |
-| 中リスク | LGPL-2.1/3.0 | 動的リンクなら可 | 条件付き |
-| 高リスク | GPL-2.0/3.0 | 派生物も GPL | 制限あり |
-| 高リスク | AGPL-3.0 | ネットワーク経由でも公開義務 | 厳しい制限 |
-| 不明 | ライセンスなし | 著作権法により使用不可 | 使用禁止 |
+| Low risk | MIT, BSD-2, ISC | Copyright notice only | Unrestricted |
+| Low risk | Apache-2.0 | Copyright + patent clause | Unrestricted |
+| Medium risk | LGPL-2.1/3.0 | OK if dynamically linked | Conditional |
+| High risk | GPL-2.0/3.0 | Derivatives must also be GPL | Restricted |
+| High risk | AGPL-3.0 | Disclosure required even for network use | Strictly restricted |
+| Unknown | No license | Cannot use under copyright law | Prohibited |
 
 ```bash
 # ========================================
-# ライセンスチェックの自動化
+# Automating license checks
 # ========================================
 
 # JavaScript: license-checker
@@ -715,74 +716,74 @@ go install github.com/google/go-licenses@latest
 go-licenses check ./...
 go-licenses csv ./... > licenses.csv
 
-# マルチ言語: FOSSA
+# Multi-language: FOSSA
 # fossa analyze
-# fossa test  # ポリシー違反でビルド失敗
+# fossa test  # Fail build on policy violation
 ```
 
 ---
 
-## 6. アンチパターン集
+## 6. Anti-Patterns
 
-### アンチパターン 1: ロックファイルを Git 管理しない
+### Anti-Pattern 1: Not Committing Lock Files to Git
 
 ```bash
-# NG: .gitignore にロックファイルを追加
+# BAD: Adding lock file to .gitignore
 echo "package-lock.json" >> .gitignore
 echo "yarn.lock" >> .gitignore
 
-# OK: ロックファイルを必ずコミット
+# GOOD: Always commit lock files
 git add package-lock.json
 git commit -m "Update lock file"
 
-# CI では npm ci を使用 (lock ファイルに基づく厳密インストール)
-# npm install は lock ファイルを更新してしまうため CI では使用しない
+# Use npm ci in CI (strict install based on lock file)
+# npm install should not be used in CI as it can update the lock file
 ```
 
-**影響**: ビルドごとに異なるバージョンが使用され、既知の脆弱性が混入するリスクがある。また、ビルドの再現性が失われデバッグが困難になる。
+**Impact**: Different versions may be used across builds, introducing known vulnerabilities. Reproducibility is lost, making debugging difficult.
 
-### アンチパターン 2: 脆弱性アラートの放置
+### Anti-Pattern 2: Ignoring Vulnerability Alerts
 
 ```
-NG: Dependabot アラートを無視し続ける
-  → 93件の Critical/High 脆弱性が放置
-  → 攻撃者が既知の CVE を用いてエクスプロイトを実行
-  → CVE 公開から平均15日で攻撃が開始されるという研究結果
+BAD: Continuously ignoring Dependabot alerts
+  → 93 Critical/High vulnerabilities left unresolved
+  → Attacker exploits using known CVEs
+  → Research shows attacks begin an average of 15 days after CVE publication
 
-OK: SLA を設けて対応
-  Critical: 24時間以内に対応
-  High:     1週間以内に対応
-  Medium:   1ヶ月以内に対応
-  Low:      次のスプリントで対応
+GOOD: Establish SLAs for response
+  Critical: Resolve within 24 hours
+  High:     Resolve within 1 week
+  Medium:   Resolve within 1 month
+  Low:      Address in the next sprint
 
-  対応の優先順位付け:
-  1. 攻撃コードが公開されている (Exploit Available)
-  2. ネットワーク経由で攻撃可能 (Network Attack Vector)
-  3. 本番環境で使用されている依存関係
-  4. CVSS スコア
+  Prioritization order:
+  1. Exploit code is publicly available (Exploit Available)
+  2. Exploitable over the network (Network Attack Vector)
+  3. Dependency used in production
+  4. CVSS score
 ```
 
-### アンチパターン 3: `npm install --ignore-scripts` を恒常的に使用
+### Anti-Pattern 3: Habitually Using `npm install --ignore-scripts`
 
 ```bash
-# NG: postinstall スクリプトの問題を避けるために常時無視
+# BAD: Always skipping postinstall scripts to avoid issues
 npm install --ignore-scripts
 
-# → ネイティブモジュールのビルドが行われず本番で障害
-# → セキュリティ対策にもなっていない（インストール後に手動で実行する可能性）
+# → Native modules are not built, causing production failures
+# → Does not actually serve as a security measure (scripts may still be run manually)
 
-# OK: 信頼できるパッケージのみ使用 + npm audit で検証
+# GOOD: Use only trusted packages + verify with npm audit
 npm ci
 npm audit --audit-level=high
 ```
 
 ---
 
-## 7. 実践演習
+## 7. Exercises
 
-### 演習1: npm プロジェクトの脆弱性スキャンと修正（基礎）
+### Exercise 1: Scanning and Fixing Vulnerabilities in an npm Project (Beginner)
 
-**課題**: 以下の package.json を持つプロジェクトについて、脆弱性をスキャンし、修正計画を立てよ。
+**Task**: For a project with the following package.json, scan for vulnerabilities and create a remediation plan.
 ```json
 {
   "dependencies": {
@@ -794,57 +795,57 @@ npm audit --audit-level=high
 ```
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```bash
-# Step 1: 脆弱性スキャン
+# Step 1: Vulnerability scan
 npm audit
-# → express: 複数の DoS 脆弱性 (Medium-High)
-# → lodash: プロトタイプ汚染 (High)
-# → jsonwebtoken: アルゴリズム混同攻撃 (Critical)
+# → express: multiple DoS vulnerabilities (Medium-High)
+# → lodash: prototype pollution (High)
+# → jsonwebtoken: algorithm confusion attack (Critical)
 
-# Step 2: 修正可能な脆弱性を自動修正
+# Step 2: Auto-fix fixable vulnerabilities
 npm audit fix
 
-# Step 3: メジャーバージョンアップが必要な場合
-npm audit fix --force  # 注意: 破壊的変更の可能性あり
+# Step 3: If a major version upgrade is required
+npm audit fix --force  # Warning: may introduce breaking changes
 
-# Step 4: 手動で修正計画を作成
-# 1. lodash 4.17.19 → 4.17.21 (パッチ、互換性問題なし)
-# 2. express 4.17.1 → 4.19.2 (マイナー、テスト必要)
-# 3. jsonwebtoken 8.5.1 → 9.0.0 (メジャー、API変更あり)
-#    → API の変更点を確認: jose ライブラリへの移行も検討
+# Step 4: Create a manual remediation plan
+# 1. lodash 4.17.19 → 4.17.21 (patch, no compatibility issues)
+# 2. express 4.17.1 → 4.19.2 (minor, testing required)
+# 3. jsonwebtoken 8.5.1 → 9.0.0 (major, API changes present)
+#    → Review API changes: also consider migrating to the jose library
 
-# Step 5: 修正後の再スキャン
+# Step 5: Re-scan after remediation
 npm audit
 # → 0 vulnerabilities found
 
-# Step 6: lock ファイルのコミット
+# Step 6: Commit lock file
 git add package.json package-lock.json
 git commit -m "fix: update dependencies to address security vulnerabilities"
 ```
 
 </details>
 
-### 演習2: SBOM の生成と脆弱性分析（応用）
+### Exercise 2: Generating an SBOM and Performing Vulnerability Analysis (Intermediate)
 
-**課題**: 自身のプロジェクト（または適当なOSSプロジェクト）に対して、以下を実行せよ。
-1. CycloneDX 形式の SBOM を生成
-2. SBOM から脆弱性をスキャン
-3. 検出された脆弱性を重大度別に分類
-4. 修正計画を策定（修正版への更新 or VEX による影響なし宣言）
+**Task**: For your own project (or any suitable OSS project), perform the following:
+1. Generate a SBOM in CycloneDX format
+2. Scan the SBOM for vulnerabilities
+3. Classify detected vulnerabilities by severity
+4. Create a remediation plan (update to a fixed version or declare no impact via VEX)
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```bash
-# Step 1: SBOM 生成
+# Step 1: Generate SBOM
 syft dir:. -o cyclonedx-json > sbom.json
 
-# Step 2: 脆弱性スキャン
+# Step 2: Vulnerability scan
 grype sbom:sbom.json -o table
 
-# Step 3: 結果の分析
+# Step 3: Analyze results
 grype sbom:sbom.json -o json | python3 -c "
 import json, sys
 data = json.load(sys.stdin)
@@ -862,53 +863,53 @@ print()
 print('Summary:', severity_map)
 "
 
-# Step 4: 修正計画の策定
-# Critical: 即座にバージョン更新
-# High: 今週中に対応
-# Medium: バックログに追加
-# 影響なし: VEX ドキュメントを作成して理由を記録
+# Step 4: Create remediation plan
+# Critical: Update version immediately
+# High: Address within this week
+# Medium: Add to backlog
+# Not affected: Create VEX document recording justification
 ```
 
 </details>
 
-### 演習3: 依存関係混乱攻撃のシミュレーションと防御（発展）
+### Exercise 3: Simulating and Defending Against Dependency Confusion Attacks (Advanced)
 
-**課題**: 依存関係混乱攻撃のシナリオを理解し、防御策を .npmrc と pip.conf に実装せよ。
-- 社内パッケージ名: `@mycompany/auth-utils`（npm）, `mycompany-auth-utils`（pip）
-- 内部レジストリ: `https://npm.mycompany.com/`, `https://pypi.mycompany.com/simple/`
-- 攻撃者が公開レジストリに同名パッケージを公開するシナリオを想定
+**Task**: Understand the dependency confusion attack scenario and implement defenses in .npmrc and pip.conf.
+- Internal package names: `@mycompany/auth-utils` (npm), `mycompany-auth-utils` (pip)
+- Internal registry: `https://npm.mycompany.com/`, `https://pypi.mycompany.com/simple/`
+- Assume a scenario where an attacker publishes a package with the same name to a public registry
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```ini
-# .npmrc — npm の依存関係混乱攻撃防御
-# スコープ付きパッケージは内部レジストリを参照
+# .npmrc — npm defense against dependency confusion attacks
+# Scoped packages reference the internal registry
 @mycompany:registry=https://npm.mycompany.com/
 
-# 公開パッケージは npm 公式レジストリ
+# Public packages use the official npm registry
 registry=https://registry.npmjs.org/
 
-# パッケージのインテグリティ検証を有効化
+# Enable package integrity verification
 package-lock=true
 ```
 
 ```ini
-# pip.conf — Python の依存関係混乱攻撃防御
+# pip.conf — Python defense against dependency confusion attacks
 [global]
-# 内部パッケージのみを使用する場合:
+# If using only internal packages:
 index-url = https://pypi.mycompany.com/simple/
-# 外部パッケージも必要な場合:
+# If external packages are also needed:
 extra-index-url = https://pypi.org/simple/
-# ただし extra-index-url は混乱攻撃に脆弱
+# Note: extra-index-url is vulnerable to confusion attacks
 
-# より安全な方法: 社内 PyPI サーバで全パッケージをプロキシ
-# (DevPI や Artifactory を使用)
+# Safer approach: proxy all packages through an internal PyPI server
+# (using DevPI or Artifactory)
 # index-url = https://devpi.mycompany.com/root/pypi+simple/
 ```
 
 ```python
-# 追加防御: 公開レジストリにプレースホルダを登録するスクリプト
+# Additional defense: script to register placeholder package on public registry
 # setup.py for placeholder package
 from setuptools import setup
 
@@ -920,7 +921,7 @@ setup(
                 "See https://internal.mycompany.com/docs",
     author="MyCompany Security Team",
     url="https://mycompany.com",
-    python_requires=">=99",  # インストール不能にする
+    python_requires=">=99",  # Makes it uninstallable
     classifiers=[
         "Development Status :: 7 - Inactive",
     ],
@@ -928,7 +929,7 @@ setup(
 ```
 
 ```yaml
-# CI/CD で依存関係のソースを検証
+# Validate dependency sources in CI/CD
 # .github/workflows/dependency-check.yml
 name: Dependency Source Check
 on: [pull_request]
@@ -939,7 +940,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Verify no unexpected registries
         run: |
-          # package-lock.json に予期しないレジストリのURLがないか確認
+          # Check package-lock.json for unexpected registry URLs
           if grep -v "registry.npmjs.org\|npm.mycompany.com" package-lock.json | grep -q "resolved.*http"; then
             echo "ERROR: Unexpected registry found in package-lock.json"
             exit 1
@@ -951,33 +952,33 @@ jobs:
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured config file | Verify config file path and format |
+| Timeout | Network latency / resource shortage | Adjust timeout values, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Verify running user permissions, review settings |
+| Data inconsistency | Concurrent processing conflict | Introduce locking mechanism, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Read the error message**: Read the stack trace and identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Verify incrementally**: Use log output or a debugger to validate hypotheses
+5. **Fix and regression test**: After fixing, run tests on related areas as well
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger setup
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -985,102 +986,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator to log function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Calling: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check for I/O waits**: Examine disk and network I/O status
+4. **Check concurrent connection count**: Monitor connection pool state
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Solution |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| High CPU load | cProfile, py-spy | Algorithm improvements, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB slowness | EXPLAIN, slow query log | Indexing, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | When to prioritize | When acceptable to compromise |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin interfaces, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│              Architecture Selection Flow          │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                       │
+│    ├─ Small (1-5 people) → Monolith              │
+│    └─ Large (10+ people) → Go to 2              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. What is the deployment frequency?            │
+│    ├─ Weekly or less → Monolith + modularization │
+│    └─ Daily / multiple times → Go to 3          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How much team independence is needed?        │
+│    ├─ High → Microservices                       │
+│    └─ Moderate → Modular monolith                │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. long-term cost**
+- A faster short-term approach can become technical debt in the long run
+- Conversely, over-engineering incurs high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. flexibility**
+- A unified technology stack has a lower learning curve
+- Adopting diverse technologies allows fitting the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- Higher abstraction improves reusability but can make debugging harder
+- Lower abstraction is more intuitive but tends to result in code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1090,17 +1091,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision made"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1108,7 +1109,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1116,15 +1117,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1132,53 +1133,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum viable feature set
+- Automated tests only for critical paths
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't over-optimize (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Incrementally renewing a system that has been running for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Use the Strangler Fig pattern for incremental migration
+- Create Characterization Tests first when existing tests are absent
+- Use an API gateway to coexist old and new systems
+- Migrate data incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration start | Migrate peripheral features incrementally | 3-6 months | Medium |
+| 4. Core migration | Migrate core functionality | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers working on the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Use domain-driven design to clarify boundaries
+- Assign ownership per team
+- Manage shared libraries using Inner Source model
+- Design API-first to minimize cross-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# Defining API contracts between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1191,20 +1192,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Verify SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1213,7 +1214,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1234,104 +1235,105 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** Systems requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization Technique | Effect | Implementation Cost | Use Case |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy operations |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low-Medium | High | CPU-bound operations |
 
 ---
 
-## チーム開発での活用
+## Team Development Applications
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Key points to verify in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Naming conventions are consistent
+- [ ] Error handling is appropriate
+- [ ] Test coverage is sufficient
+- [ ] No performance impact
+- [ ] No security issues
+- [ ] Documentation is updated
 
-### ナレッジ共有のベストプラクティス
+### Knowledge Sharing Best Practices
 
-| 方法 | 頻度 | 対象 | 効果 |
+| Method | Frequency | Audience | Effect |
 |------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talk | Weekly | Entire team | Horizontal knowledge transfer |
+| ADR (design records) | As needed | Future members | Decision transparency |
+| Retrospective | Every 2 weeks | Entire team | Continuous improvement |
+| Mob programming | Monthly | Critical designs | Consensus building |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
+        High Impact
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │Plan │Act  │
+    │ned  │imme │
+    │resp │diat │
+    │onse │ely  │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │ Log │Next │
+    │only │Sprint│
+    │     │     │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Low Impact
+    Low Freq     High Freq
 ```
 
 ---
 
-## セキュリティの考慮事項
+## Security Considerations
 
-### 一般的な脆弱性と対策
+### Common Vulnerabilities and Mitigations
 
-| 脆弱性 | リスクレベル | 対策 | 検出方法 |
+| Vulnerability | Risk Level | Mitigation | Detection Method |
 |--------|------------|------|---------|
-| インジェクション攻撃 | 高 | 入力値のバリデーション・パラメータ化クエリ | SAST/DAST |
-| 認証の不備 | 高 | 多要素認証・セッション管理の強化 | ペネトレーションテスト |
-| 機密データの露出 | 高 | 暗号化・アクセス制御 | セキュリティ監査 |
-| 設定の不備 | 中 | セキュリティヘッダー・最小権限の原則 | 構成スキャン |
-| ログの不足 | 中 | 構造化ログ・監査証跡 | ログ分析 |
+| Injection attacks | High | Input validation, parameterized queries | SAST/DAST |
+| Authentication flaws | High | Multi-factor auth, session management | Penetration testing |
+| Sensitive data exposure | High | Encryption, access control | Security audit |
+| Security misconfiguration | Medium | Security headers, least privilege | Configuration scanning |
+| Insufficient logging | Medium | Structured logging, audit trail | Log analysis |
 
-### セキュアコーディングのベストプラクティス
+### Secure Coding Best Practices
 
 ```python
-# セキュアコーディング例
+# Secure coding example
 import hashlib
 import secrets
 import hmac
 from typing import Optional
 
 class SecurityUtils:
-    """セキュリティユーティリティ"""
+    """Security utilities"""
 
     @staticmethod
     def generate_token(length: int = 32) -> str:
-        """暗号学的に安全なトークン生成"""
+        """Generate a cryptographically secure token"""
         return secrets.token_urlsafe(length)
 
     @staticmethod
     def hash_password(password: str, salt: Optional[str] = None) -> tuple:
-        """パスワードのハッシュ化"""
+        """Hash a password"""
         if salt is None:
             salt = secrets.token_hex(16)
         hashed = hashlib.pbkdf2_hmac(
@@ -1344,50 +1346,50 @@ class SecurityUtils:
 
     @staticmethod
     def verify_password(password: str, hashed: str, salt: str) -> bool:
-        """パスワードの検証"""
+        """Verify a password"""
         new_hash, _ = SecurityUtils.hash_password(password, salt)
         return hmac.compare_digest(new_hash, hashed)
 
     @staticmethod
     def sanitize_input(value: str) -> str:
-        """入力値のサニタイズ"""
+        """Sanitize input values"""
         dangerous_chars = ['<', '>', '"', "'", '&', '\\']
         result = value
         for char in dangerous_chars:
             result = result.replace(char, '')
         return result.strip()
 
-# 使用例
+# Usage example
 token = SecurityUtils.generate_token()
 hashed, salt = SecurityUtils.hash_password("my_password")
 is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 ```
 
-### セキュリティチェックリスト
+### Security Checklist
 
-- [ ] 全ての入力値がバリデーションされている
-- [ ] 機密情報がログに出力されていない
-- [ ] HTTPS が強制されている
-- [ ] CORS ポリシーが適切に設定されている
-- [ ] 依存パッケージの脆弱性スキャンが実施されている
-- [ ] エラーメッセージに内部情報が含まれていない
+- [ ] All input values are validated
+- [ ] Sensitive information is not written to logs
+- [ ] HTTPS is enforced
+- [ ] CORS policy is configured appropriately
+- [ ] Vulnerability scanning of dependency packages is performed
+- [ ] Error messages do not expose internal information
 
 ---
 
-## マイグレーションガイド
+## Migration Guide
 
-### バージョンアップ時の注意点
+### Notes on Version Upgrades
 
-| バージョン | 主な変更点 | 移行作業 | 影響範囲 |
+| Version | Key Changes | Migration Work | Scope |
 |-----------|-----------|---------|---------|
-| v1.x → v2.x | API設計の刷新 | エンドポイント変更 | 全クライアント |
-| v2.x → v3.x | 認証方式の変更 | トークン形式更新 | 認証関連 |
-| v3.x → v4.x | データモデル変更 | マイグレーションスクリプト実行 | DB関連 |
+| v1.x → v2.x | API redesign | Endpoint changes | All clients |
+| v2.x → v3.x | Auth method change | Token format update | Auth-related |
+| v3.x → v4.x | Data model change | Run migration scripts | DB-related |
 
-### 段階的移行の手順
+### Incremental Migration Procedure
 
 ```python
-# マイグレーションスクリプトのテンプレート
+# Migration script template
 import json
 import logging
 from pathlib import Path
@@ -1397,7 +1399,7 @@ from typing import List, Dict, Callable
 logger = logging.getLogger(__name__)
 
 class MigrationRunner:
-    """段階的マイグレーション実行エンジン"""
+    """Incremental migration execution engine"""
 
     def __init__(self, migration_dir: str):
         self.migration_dir = Path(migration_dir)
@@ -1406,7 +1408,7 @@ class MigrationRunner:
 
     def register(self, version: str, description: str,
                  up: Callable, down: Callable):
-        """マイグレーションの登録"""
+        """Register a migration"""
         self.migrations.append({
             'version': version,
             'description': description,
@@ -1416,35 +1418,35 @@ class MigrationRunner:
         })
 
     def run_up(self, target_version: str = None):
-        """マイグレーションの実行（アップグレード）"""
+        """Execute migrations (upgrade)"""
         for migration in self.migrations:
             if migration['version'] in self.completed:
                 continue
-            logger.info(f"実行中: {migration['version']} - "
+            logger.info(f"Running: {migration['version']} - "
                        f"{migration['description']}")
             try:
                 migration['up']()
                 self.completed.append(migration['version'])
-                logger.info(f"完了: {migration['version']}")
+                logger.info(f"Completed: {migration['version']}")
             except Exception as e:
-                logger.error(f"失敗: {migration['version']}: {e}")
+                logger.error(f"Failed: {migration['version']}: {e}")
                 raise
             if target_version and migration['version'] == target_version:
                 break
 
     def run_down(self, target_version: str):
-        """マイグレーションのロールバック"""
+        """Rollback migrations"""
         for migration in reversed(self.migrations):
             if migration['version'] not in self.completed:
                 continue
             if migration['version'] == target_version:
                 break
-            logger.info(f"ロールバック: {migration['version']}")
+            logger.info(f"Rolling back: {migration['version']}")
             migration['down']()
             self.completed.remove(migration['version'])
 
     def status(self) -> Dict:
-        """マイグレーション状態の確認"""
+        """Check migration status"""
         return {
             'total': len(self.migrations),
             'completed': len(self.completed),
@@ -1457,85 +1459,85 @@ class MigrationRunner:
         }
 ```
 
-### ロールバック計画
+### Rollback Plan
 
-移行作業には必ずロールバック計画を準備してください:
+Always prepare a rollback plan for migration work:
 
-1. **データのバックアップ**: 移行前に完全バックアップを取得
-2. **テスト環境での検証**: 本番と同等の環境で事前検証
-3. **段階的なロールアウト**: カナリアリリースで段階的に展開
-4. **監視の強化**: 移行中はメトリクスの監視間隔を短縮
-5. **判断基準の明確化**: ロールバックを判断する基準を事前に定義
+1. **Back up data**: Take a full backup before migration
+2. **Validate in a test environment**: Test in an environment equivalent to production
+3. **Gradual rollout**: Deploy incrementally with a canary release
+4. **Increase monitoring**: Shorten metrics monitoring intervals during migration
+5. **Define rollback criteria**: Establish clear criteria for deciding to rollback in advance
 ---
 
 ## 8. FAQ
 
-### Q1. 推移的依存関係の脆弱性はどう対処するか?
+### Q1. How do you handle vulnerabilities in transitive dependencies?
 
-直接依存のバージョンを上げることで推移的依存も更新されるケースが多い。それが不可能な場合は npm の `overrides`、yarn の `resolutions`、pip の constraints で特定バージョンを強制できる。ただし互換性の問題が起きうるためテストを十分に行うこと。最終手段として、脆弱な依存関係を使用しているパッケージの代替を探すか、パッチを当てた fork を作成する。
+In many cases, upgrading the version of a direct dependency will also update the transitive dependency. If that is not possible, you can force a specific version using npm's `overrides`, yarn's `resolutions`, or pip's constraints. Be sure to test thoroughly, as compatibility issues may arise. As a last resort, look for an alternative to the package that relies on the vulnerable dependency, or create a patched fork.
 
-### Q2. SBOM の提供は義務か?
+### Q2. Is providing an SBOM mandatory?
 
-米国の大統領令 14028 (2021) により、連邦政府向けソフトウェアでは SBOM の提供が求められている。EU のサイバーレジリエンス法 (CRA) でも SBOM が要件化されている。日本では 2023 年に経済産業省が「SBOM 導入の手引き」を公開し、重要インフラ分野での導入を推進している。民間でも取引先からの要求が増加しており、早期の導入が推奨される。
+Under U.S. Executive Order 14028 (2021), SBOM provision is required for software sold to the federal government. The EU's Cyber Resilience Act (CRA) also mandates SBOMs. In Japan, the Ministry of Economy, Trade and Industry published an "SBOM Introduction Guide" in 2023, promoting adoption in critical infrastructure sectors. Demands from business partners in the private sector are also increasing, making early adoption advisable.
 
-### Q3. 内部パッケージのスコープ保護はどうすればよいか?
+### Q3. How do you protect internal package scopes?
 
-npm では `@myorg/` スコープを組織で予約登録する。依存関係混乱攻撃を防ぐため、内部パッケージ名と同名のパッケージを公開レジストリにプレースホルダとして登録する方法がある。.npmrc でレジストリのスコープ設定を正しく行い、CI/CD で package-lock.json の resolved URL を検証することで未知のレジストリからのインストールを検出できる。
+In npm, reserve the `@myorg/` scope by registering it with your organization. To prevent dependency confusion attacks, you can register placeholder packages on the public registry under the same name as internal packages. Properly configure registry scope settings in .npmrc, and validate the resolved URLs in package-lock.json in CI/CD to detect installs from unknown registries.
 
-### Q4. Dependabot と Renovate のどちらを使うべきか?
+### Q4. Should I use Dependabot or Renovate?
 
-Dependabot は GitHub ネイティブで設定が簡単、追加コスト不要で始められる。Renovate はより細かいカスタマイズが可能で、グループ化、自動マージ条件、複数パッケージマネージャの統合管理に優れている。大規模プロジェクトや複雑な依存関係管理には Renovate が適している。両者は併用も可能だが、PR の重複に注意が必要。
+Dependabot is natively integrated with GitHub, easy to configure, and requires no additional cost. Renovate offers finer customization and excels at grouping, auto-merge conditions, and unified management of multiple package managers. Renovate is better suited for large projects or complex dependency management. Both can be used together, but watch out for duplicate PRs.
 
-### Q5. ゼロデイ脆弱性が発見された場合の緊急対応手順は?
+### Q5. What is the emergency response procedure when a zero-day vulnerability is discovered?
 
-1. SBOM を用いて影響を受けるシステムを即座に特定する。2. WAF ルールや仮想パッチで暫定的に攻撃を遮断する。3. 修正バージョンがリリースされ次第、CI/CD で自動テスト→デプロイする。4. 修正バージョンが存在しない場合、該当コードパスの無効化や代替ライブラリへの切り替えを検討する。5. 事後にインシデントレビューを行い、検出→修正の所要時間を計測し改善する。
+1. Use the SBOM to immediately identify affected systems. 2. Temporarily block attacks with WAF rules or virtual patching. 3. Once a patched version is released, deploy via CI/CD with automated testing. 4. If no fix exists, consider disabling the affected code path or switching to an alternative library. 5. Conduct an incident review afterward and measure the time from detection to resolution in order to improve the process.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work — particularly during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 | 推奨ツール |
+| Item | Key Points | Recommended Tools |
 |------|------|-----------|
-| サプライチェーンリスク | 推移的依存・タイポスクワッティング・乗っ取りに注意 | - |
-| SCA ツール | 脆弱性を自動検出し CI/CD でゲーティング | Dependabot + Trivy |
-| SBOM | CycloneDX/SPDX で部品表を生成し脆弱性を追跡 | syft + grype |
-| ロックファイル | 必ず Git 管理し CI では厳密インストール | npm ci, pip --require-hashes |
-| 脆弱性対応 SLA | Critical 24h、High 1週間の対応基準を設定 | - |
-| ライセンス | GPL/AGPL 等の制約を自動チェック | license-checker, pip-licenses |
-| 依存関係混乱防御 | スコープ保護、レジストリ設定、プレースホルダ登録 | .npmrc, pip.conf |
-| VEX | 影響がない脆弱性を文書化して誤検知を管理 | CycloneDX VEX |
+| Supply chain risk | Watch out for transitive dependencies, typosquatting, and account takeovers | - |
+| SCA tools | Auto-detect vulnerabilities and gate them in CI/CD | Dependabot + Trivy |
+| SBOM | Generate bill of materials in CycloneDX/SPDX and track vulnerabilities | syft + grype |
+| Lock files | Always commit to Git and use strict installs in CI | npm ci, pip --require-hashes |
+| Vulnerability SLA | Set response criteria: Critical 24h, High 1 week | - |
+| Licenses | Automatically check for restrictions like GPL/AGPL | license-checker, pip-licenses |
+| Confusion attack defense | Scope protection, registry config, placeholder registration | .npmrc, pip.conf |
+| VEX | Document non-impacting vulnerabilities to manage false positives | CycloneDX VEX |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [コンテナセキュリティ](./02-container-security.md) — コンテナイメージの依存関係スキャンと最小化
-- [SAST/DAST](./03-sast-dast.md) — コード自体の脆弱性検査と SCA との組み合わせ
-- [セキュアコーディング](./00-secure-coding.md) — コードレベルの脆弱性防止
-- [IaCセキュリティ](../05-cloud-security/02-infrastructure-as-code-security.md) — インフラコードの依存関係管理
-- [暗号化基礎](../02-cryptography/) — 署名検証・ハッシュの理論
-- SQLとクエリの基礎 — ORM/SQL のセキュリティ
+- [Container Security](./02-container-security.md) — Scanning and minimizing container image dependencies
+- [SAST/DAST](./03-sast-dast.md) — Code-level vulnerability scanning and combining with SCA
+- [Secure Coding](./00-secure-coding.md) — Preventing vulnerabilities at the code level
+- [IaC Security](../05-cloud-security/02-infrastructure-as-code-security.md) — Dependency management in infrastructure code
+- [Cryptography Fundamentals](../02-cryptography/) — Theory of signature verification and hashing
+- SQL and Query Fundamentals — ORM/SQL security
 
 ---
 
-## 参考文献
+## References
 
 1. **OWASP Dependency-Check** — https://owasp.org/www-project-dependency-check/
 2. **NIST SP 800-218 — Secure Software Development Framework (SSDF)** — https://csrc.nist.gov/publications/detail/sp/800-218/final
