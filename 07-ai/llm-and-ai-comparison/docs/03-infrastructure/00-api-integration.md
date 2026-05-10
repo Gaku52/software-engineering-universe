@@ -1,41 +1,41 @@
-# API 統合 — SDK・ストリーミング・リトライ戦略
+# API Integration — SDKs, Streaming, and Retry Strategies
 
-> LLM API 統合はモデルの能力をアプリケーションに組み込むエンジニアリングであり、SDK 選定、ストリーミング実装、エラーハンドリング、レート制限対策、コスト管理を体系的に設計する必要がある。
+> LLM API integration is the engineering discipline of embedding model capabilities into applications, requiring systematic design of SDK selection, streaming implementation, error handling, rate limiting, and cost management.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **主要プロバイダの SDK と共通抽象レイヤー** — OpenAI、Anthropic、Google、LiteLLM による統一アクセス
-2. **ストリーミングの実装パターン** — SSE、WebSocket、バックプレッシャー制御
-3. **プロダクション品質のエラーハンドリング** — リトライ、フォールバック、サーキットブレーカー
-4. **レート制限とコスト管理** — トークンバケット、予算管理、使用量監視
-5. **プロンプトキャッシュとバッチ API** — コスト削減のための高度な API 活用
-6. **セキュリティとオブザーバビリティ** — API キー管理、ログ、メトリクス
+1. **Major Provider SDKs and Common Abstraction Layers** — Unified access via OpenAI, Anthropic, Google, and LiteLLM
+2. **Streaming Implementation Patterns** — SSE, WebSocket, and backpressure control
+3. **Production-Quality Error Handling** — Retries, fallbacks, and circuit breakers
+4. **Rate Limiting and Cost Management** — Token buckets, budget management, and usage monitoring
+5. **Prompt Caching and Batch APIs** — Advanced API usage for cost reduction
+6. **Security and Observability** — API key management, logging, and metrics
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. SDK 概要
+## 1. SDK Overview
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│            LLM API 統合のレイヤー構造                      │
+│            LLM API Integration Layer Structure            │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  アプリケーション                                         │
+│  Application                                             │
 │       │                                                  │
 │       ▼                                                  │
 │  ┌──────────────────────────────────────┐               │
-│  │  抽象レイヤー (LiteLLM / OpenRouter)  │  ← 推奨      │
-│  │  - マルチプロバイダ対応               │               │
-│  │  - 統一 API インターフェース           │               │
-│  │  - 自動フォールバック                 │               │
+│  │  Abstraction Layer (LiteLLM / OpenRouter)  │  ← Recommended      │
+│  │  - Multi-provider support             │               │
+│  │  - Unified API interface              │               │
+│  │  - Automatic fallback                 │               │
 │  └───────────┬──────────────────────────┘               │
 │              │                                           │
 │    ┌─────────┼────────────┬────────────┐                │
@@ -54,15 +54,15 @@
 ```python
 from openai import OpenAI, AsyncOpenAI
 
-# 同期クライアント
+# Synchronous client
 client = OpenAI(
-    api_key="sk-...",          # 省略時は OPENAI_API_KEY 環境変数を使用
-    timeout=30.0,              # タイムアウト
-    max_retries=3,             # 自動リトライ回数
-    base_url="https://api.openai.com/v1",  # カスタムエンドポイント対応
+    api_key="sk-...",          # Falls back to OPENAI_API_KEY environment variable if omitted
+    timeout=30.0,              # Timeout
+    max_retries=3,             # Automatic retry count
+    base_url="https://api.openai.com/v1",  # Supports custom endpoints
 )
 
-# 基本的なチャット補完
+# Basic chat completion
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[
@@ -79,14 +79,14 @@ print(response.choices[0].message.content)
 print(f"トークン使用量: {response.usage.total_tokens}")
 print(f"入力: {response.usage.prompt_tokens}, 出力: {response.usage.completion_tokens}")
 
-# 非同期クライアント
+# Asynchronous client
 async_client = AsyncOpenAI()
 response = await async_client.chat.completions.create(
     model="gpt-4o",
     messages=[{"role": "user", "content": "Hello"}],
 )
 
-# Structured Output (JSON モード)
+# Structured Output (JSON mode)
 from pydantic import BaseModel
 
 class ExtractedData(BaseModel):
@@ -105,7 +105,7 @@ response = client.beta.chat.completions.parse(
 data = response.choices[0].message.parsed
 print(f"名前: {data.name}, 年齢: {data.age}, 職業: {data.occupation}")
 
-# バッチ API
+# Batch API
 batch_input = client.files.create(
     file=open("batch_requests.jsonl", "rb"),
     purpose="batch",
@@ -125,7 +125,7 @@ from anthropic import Anthropic, AsyncAnthropic
 
 client = Anthropic()
 
-# 基本的なメッセージ作成
+# Basic message creation
 response = client.messages.create(
     model="claude-3-5-sonnet-20241022",
     max_tokens=1024,
@@ -136,7 +136,7 @@ print(response.content[0].text)
 print(f"入力: {response.usage.input_tokens}, 出力: {response.usage.output_tokens}")
 print(f"停止理由: {response.stop_reason}")
 
-# マルチモーダル入力（画像）
+# Multimodal input (image)
 import base64
 with open("image.png", "rb") as f:
     image_data = base64.standard_b64encode(f.read()).decode("utf-8")
@@ -163,7 +163,7 @@ response = client.messages.create(
     }],
 )
 
-# プロンプトキャッシュ
+# Prompt caching
 response = client.messages.create(
     model="claude-3-5-sonnet-20241022",
     max_tokens=1024,
@@ -171,13 +171,12 @@ response = client.messages.create(
         {
             "type": "text",
             "text": "あなたは法律の専門家です。以下の法律文書を参照して回答してください...(長い文書)",
-            "cache_control": {"type": "ephemeral"},  # キャッシュ有効化
+            "cache_control": {"type": "ephemeral"},  # Enable caching
         },
     ],
     messages=[{"role": "user", "content": "第3条について要約してください"}],
 )
-# cache_creation_input_tokens と cache_read_input_tokens で
-# キャッシュの利用状況を確認できる
+# You can check cache usage via cache_creation_input_tokens and cache_read_input_tokens
 print(f"キャッシュ作成: {response.usage.cache_creation_input_tokens}")
 print(f"キャッシュ読み: {response.usage.cache_read_input_tokens}")
 
@@ -187,18 +186,18 @@ response = client.messages.create(
     max_tokens=16384,
     thinking={
         "type": "enabled",
-        "budget_tokens": 10000,  # 推論に使えるトークン数の上限
+        "budget_tokens": 10000,  # Maximum tokens available for reasoning
     },
     messages=[{"role": "user", "content": "この数学問題を解いてください: ..."}],
 )
-# thinking ブロックと text ブロックが返される
+# Returns both a thinking block and a text block
 for block in response.content:
     if block.type == "thinking":
         print(f"[思考過程] {block.thinking[:200]}...")
     elif block.type == "text":
         print(f"[回答] {block.text}")
 
-# バッチ API
+# Batch API
 batch = client.messages.batches.create(
     requests=[
         {
@@ -222,25 +221,25 @@ import google.generativeai as genai
 
 genai.configure(api_key="AIza...")
 
-# Gemini モデルの利用
+# Using Gemini models
 model = genai.GenerativeModel("gemini-1.5-pro")
 
 response = model.generate_content("日本の歴史を要約してください")
 print(response.text)
 
-# マルチモーダル（画像入力）
+# Multimodal (image input)
 import PIL.Image
 img = PIL.Image.open("chart.png")
 response = model.generate_content(["このグラフを分析してください", img])
 
-# マルチモーダル（動画入力）※ Gemini 独自機能
+# Multimodal (video input) — Gemini-exclusive feature
 video_file = genai.upload_file("presentation.mp4")
 response = model.generate_content(
     ["この動画の要点をまとめてください", video_file],
     request_options={"timeout": 600},
 )
 
-# 長文コンテキスト（200万トークン対応）
+# Long-context support (up to 2 million tokens)
 long_document = open("large_document.txt").read()
 response = model.generate_content(
     f"以下の文書を分析して要点を抽出してください:\n\n{long_document}",
@@ -250,12 +249,12 @@ response = model.generate_content(
     ),
 )
 
-# ストリーミング
+# Streaming
 response = model.generate_content("詳しく説明してください", stream=True)
 for chunk in response:
     print(chunk.text, end="", flush=True)
 
-# Safety 設定
+# Safety settings
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
 response = model.generate_content(
@@ -267,13 +266,13 @@ response = model.generate_content(
 )
 ```
 
-### 1.4 LiteLLM (マルチプロバイダ統一)
+### 1.4 LiteLLM (Multi-Provider Unification)
 
 ```python
 from litellm import completion, acompletion
 import litellm
 
-# 同じインターフェースで異なるプロバイダを呼び出し
+# Call different providers using the same interface
 response = completion(
     model="gpt-4o",  # OpenAI
     messages=[{"role": "user", "content": "Hello"}],
@@ -290,12 +289,12 @@ response = completion(
 )
 
 response = completion(
-    model="ollama/llama3.1",  # ローカル Ollama
+    model="ollama/llama3.1",  # Local Ollama
     messages=[{"role": "user", "content": "Hello"}],
     api_base="http://localhost:11434",
 )
 
-# LiteLLM Router: 負荷分散 + フォールバック
+# LiteLLM Router: load balancing + fallback
 from litellm import Router
 
 router = Router(
@@ -308,17 +307,17 @@ router = Router(
             },
         },
         {
-            "model_name": "primary",  # 同じ名前で複数モデルを設定
+            "model_name": "primary",  # Multiple models under the same name
             "litellm_params": {
                 "model": "claude-3-5-sonnet-20241022",
                 "api_key": "sk-ant-...",
             },
         },
     ],
-    routing_strategy="least-busy",  # latency-based-routing, simple-shuffle 等
+    routing_strategy="least-busy",  # latency-based-routing, simple-shuffle, etc.
     num_retries=3,
     fallbacks=[
-        {"primary": ["gpt-4o-mini"]},  # primary が全て失敗したら mini にフォールバック
+        {"primary": ["gpt-4o-mini"]},  # Fall back to mini if all primary models fail
     ],
 )
 
@@ -327,11 +326,11 @@ response = await router.acompletion(
     messages=[{"role": "user", "content": "Hello"}],
 )
 
-# コスト追跡
-litellm.success_callback = ["langfuse"]  # Langfuse でコスト・品質を追跡
+# Cost tracking
+litellm.success_callback = ["langfuse"]  # Track cost and quality with Langfuse
 litellm.set_verbose = True
 
-# カスタムコールバック
+# Custom callback
 def log_callback(kwargs, completion_response, start_time, end_time):
     print(f"モデル: {kwargs['model']}")
     print(f"レイテンシ: {end_time - start_time}")
@@ -342,21 +341,21 @@ litellm.success_callback = [log_callback]
 
 ---
 
-## 2. ストリーミング実装
+## 2. Streaming Implementation
 
-### 2.1 基本ストリーミング
+### 2.1 Basic Streaming
 
 ```python
 from openai import OpenAI
 
 client = OpenAI()
 
-# ストリーミング (同期)
+# Streaming (synchronous)
 stream = client.chat.completions.create(
     model="gpt-4o",
     messages=[{"role": "user", "content": "日本の歴史を要約してください"}],
     stream=True,
-    stream_options={"include_usage": True},  # 使用量情報を含める
+    stream_options={"include_usage": True},  # Include usage information
 )
 
 full_response = ""
@@ -372,14 +371,14 @@ for chunk in stream:
 print(f"\n\n入力: {usage.prompt_tokens}, 出力: {usage.completion_tokens}")
 ```
 
-### 2.2 Anthropic ストリーミング
+### 2.2 Anthropic Streaming
 
 ```python
 from anthropic import Anthropic
 
 client = Anthropic()
 
-# ストリーミング（イベントベース）
+# Streaming (event-based)
 with client.messages.stream(
     model="claude-3-5-sonnet-20241022",
     max_tokens=1024,
@@ -388,7 +387,7 @@ with client.messages.stream(
     for text in stream.text_stream:
         print(text, end="", flush=True)
 
-# イベント詳細版
+# Detailed event version
 with client.messages.stream(
     model="claude-3-5-sonnet-20241022",
     max_tokens=1024,
@@ -396,14 +395,14 @@ with client.messages.stream(
 ) as stream:
     for event in stream:
         if event.type == "message_start":
-            print(f"[開始] モデル: {event.message.model}")
+            print(f"[Start] Model: {event.message.model}")
         elif event.type == "content_block_start":
-            print(f"[ブロック開始] タイプ: {event.content_block.type}")
+            print(f"[Block start] Type: {event.content_block.type}")
         elif event.type == "content_block_delta":
             if event.delta.type == "text_delta":
                 print(event.delta.text, end="", flush=True)
         elif event.type == "message_delta":
-            print(f"\n[完了] 停止理由: {event.delta.stop_reason}")
+            print(f"\n[Done] Stop reason: {event.delta.stop_reason}")
             print(f"出力トークン: {event.usage.output_tokens}")
 ```
 
@@ -438,7 +437,7 @@ class ChatRequest(BaseModel):
 
 @app.post("/chat/stream")
 async def chat_stream(request: ChatRequest):
-    """SSE でストリーミングレスポンスを返す"""
+    """Returns a streaming response via SSE"""
 
     async def generate():
         try:
@@ -498,10 +497,10 @@ async def chat_stream(request: ChatRequest):
     )
 
 
-# 非ストリーミング版（比較用）
+# Non-streaming version (for comparison)
 @app.post("/chat")
 async def chat(request: ChatRequest):
-    """通常のJSON レスポンスを返す"""
+    """Returns a standard JSON response"""
     response = await client.chat.completions.create(
         model=request.model,
         messages=[{"role": "user", "content": request.message}],
@@ -517,10 +516,10 @@ async def chat(request: ChatRequest):
     }
 ```
 
-### 2.4 フロントエンド SSE クライアント
+### 2.4 Frontend SSE Client
 
 ```typescript
-// TypeScript: SSE クライアント
+// TypeScript: SSE client
 class LLMStreamClient {
   private baseUrl: string;
 
@@ -560,9 +559,9 @@ class LLMStreamClient {
 
       buffer += decoder.decode(value, { stream: true });
 
-      // SSE イベントをパース
+      // Parse SSE events
       const lines = buffer.split('\n\n');
-      buffer = lines.pop() || ''; // 最後の不完全な部分を保持
+      buffer = lines.pop() || ''; // Retain the last incomplete segment
 
       for (const line of lines) {
         if (line.startsWith('data: ')) {
@@ -584,7 +583,7 @@ class LLMStreamClient {
   }
 }
 
-// React Hook での使用例
+// Example usage in a React Hook
 function useLLMStream() {
   const [response, setResponse] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -612,7 +611,7 @@ function useLLMStream() {
 }
 ```
 
-### 2.5 非同期ストリーミングとバックプレッシャー
+### 2.5 Async Streaming and Backpressure
 
 ```python
 import asyncio
@@ -620,7 +619,7 @@ from openai import AsyncOpenAI
 from collections import deque
 
 class StreamBuffer:
-    """バックプレッシャー対応ストリームバッファ"""
+    """Stream buffer with backpressure support"""
 
     def __init__(self, max_size: int = 100):
         self.buffer: deque = deque(maxlen=max_size)
@@ -628,15 +627,15 @@ class StreamBuffer:
         self.done = False
 
     async def put(self, item: str):
-        """バッファにアイテムを追加"""
+        """Add an item to the buffer"""
         while len(self.buffer) >= self.buffer.maxlen:
-            # バッファが満杯: 消費されるまで待機
+            # Buffer is full: wait until consumed
             await asyncio.sleep(0.01)
         self.buffer.append(item)
         self.event.set()
 
     async def get(self) -> str | None:
-        """バッファからアイテムを取得"""
+        """Retrieve an item from the buffer"""
         while not self.buffer and not self.done:
             self.event.clear()
             await self.event.wait()
@@ -650,7 +649,7 @@ class StreamBuffer:
 
 
 async def producer(buffer: StreamBuffer, prompt: str):
-    """LLM からのストリームをバッファに書き込む"""
+    """Write the LLM stream to the buffer"""
     client = AsyncOpenAI()
     stream = await client.chat.completions.create(
         model="gpt-4o",
@@ -664,14 +663,14 @@ async def producer(buffer: StreamBuffer, prompt: str):
 
 
 async def consumer(buffer: StreamBuffer):
-    """バッファからトークンを消費して表示"""
+    """Consume tokens from the buffer and display them"""
     while True:
         token = await buffer.get()
         if token is None:
             break
-        # ここで表示や加工処理を行う
+        # Display or process the token here
         print(token, end="", flush=True)
-        # 消費者が遅い場合のシミュレーション
+        # Simulate a slow consumer
         await asyncio.sleep(0.01)
 
 
@@ -685,32 +684,32 @@ async def main():
 
 ---
 
-## 3. エラーハンドリングとリトライ
+## 3. Error Handling and Retries
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│           エラーハンドリング戦略                            │
+│           Error Handling Strategies                       │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  HTTP Status    原因              対策                    │
+│  HTTP Status    Cause              Action                 │
 │  ──────────    ─────             ─────                   │
-│  400           不正リクエスト     入力検証・修正           │
-│  401           認証エラー        APIキー確認              │
-│  403           権限不足          プラン確認               │
-│  404           モデル不存在      モデル名確認             │
-│  413           入力が大きすぎる  トークン数削減            │
-│  429           レート制限        指数バックオフリトライ    │
-│  500           サーバーエラー    リトライ + フォールバック │
-│  503           過負荷           待機 + リトライ           │
-│  529           過負荷(Anthropic)  待機 + リトライ         │
-│  タイムアウト  応答遅延         タイムアウト延長/リトライ  │
+│  400           Bad request        Validate and fix input │
+│  401           Auth error         Check API key          │
+│  403           Insufficient perms Check plan             │
+│  404           Model not found    Check model name       │
+│  413           Input too large    Reduce token count     │
+│  429           Rate limit         Exponential backoff retry │
+│  500           Server error       Retry + fallback       │
+│  503           Overloaded         Wait + retry           │
+│  529           Overloaded (Anthropic)  Wait + retry      │
+│  Timeout       Slow response      Extend timeout / retry │
 │                                                          │
-│  リトライ対象: 429, 500, 503, 529, タイムアウト           │
-│  リトライ不可: 400, 401, 403, 404, 413                   │
+│  Retryable:     429, 500, 503, 529, Timeout              │
+│  Non-retryable: 400, 401, 403, 404, 413                  │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 3.1 指数バックオフリトライ（本格版）
+### 3.1 Exponential Backoff Retry (Production-Grade)
 
 ```python
 import time
@@ -724,7 +723,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class RetryConfig:
-    """リトライ設定"""
+    """Retry configuration"""
     max_retries: int = 5
     base_delay: float = 1.0
     max_delay: float = 60.0
@@ -732,7 +731,7 @@ class RetryConfig:
     retryable_status_codes: set = field(default_factory=lambda: {429, 500, 503, 529})
 
 class RetryableAPIClient:
-    """リトライ対応 API クライアント"""
+    """API client with retry support"""
 
     def __init__(
         self,
@@ -747,22 +746,22 @@ class RetryableAPIClient:
         self.total_wait_time = 0
 
     def call(self, **kwargs):
-        """指数バックオフ + ジッターによるリトライ"""
+        """Retry with exponential backoff + jitter"""
         retryable_errors = (RateLimitError, APIError, APITimeoutError, APIConnectionError)
 
         for attempt in range(self.config.max_retries + 1):
             try:
                 response = self.client.chat.completions.create(**kwargs)
                 if attempt > 0:
-                    logger.info(f"リトライ成功 (試行 {attempt + 1})")
+                    logger.info(f"Retry succeeded (attempt {attempt + 1})")
                 return response
 
             except retryable_errors as e:
                 if attempt == self.config.max_retries:
-                    logger.error(f"最大リトライ回数到達: {e}")
+                    logger.error(f"Max retries reached: {e}")
                     raise
 
-                # レート制限の場合、Retry-After ヘッダを尊重
+                # Respect the Retry-After header for rate limit errors
                 retry_after = None
                 if hasattr(e, 'response') and e.response:
                     retry_after = e.response.headers.get('retry-after')
@@ -770,7 +769,7 @@ class RetryableAPIClient:
                 if retry_after:
                     wait_time = float(retry_after)
                 else:
-                    # 指数バックオフ + ジッター
+                    # Exponential backoff + jitter
                     delay = min(
                         self.config.base_delay * (2 ** attempt),
                         self.config.max_delay,
@@ -782,8 +781,8 @@ class RetryableAPIClient:
                 self.total_wait_time += wait_time
 
                 logger.warning(
-                    f"リトライ {attempt + 1}/{self.config.max_retries}: "
-                    f"{type(e).__name__}, {wait_time:.1f}秒待機"
+                    f"Retry {attempt + 1}/{self.config.max_retries}: "
+                    f"{type(e).__name__}, waiting {wait_time:.1f}s"
                 )
 
                 if self.on_retry:
@@ -792,8 +791,8 @@ class RetryableAPIClient:
                 time.sleep(wait_time)
 
             except Exception as e:
-                # リトライ不可能なエラー（400, 401, 403等）
-                logger.error(f"リトライ不可能なエラー: {type(e).__name__}: {e}")
+                # Non-retryable errors (400, 401, 403, etc.)
+                logger.error(f"Non-retryable error: {type(e).__name__}: {e}")
                 raise
 
     def get_stats(self) -> dict:
@@ -803,12 +802,12 @@ class RetryableAPIClient:
         }
 
 
-# 使用例
-client = OpenAI(max_retries=0)  # SDK のリトライは無効化
+# Usage example
+client = OpenAI(max_retries=0)  # Disable SDK-level retries
 retryable = RetryableAPIClient(
     client,
     config=RetryConfig(max_retries=5, base_delay=1.0),
-    on_retry=lambda attempt, err, wait: print(f"  → 待機中... ({wait:.1f}s)"),
+    on_retry=lambda attempt, err, wait: print(f"  → Waiting... ({wait:.1f}s)"),
 )
 
 response = retryable.call(
@@ -818,7 +817,7 @@ response = retryable.call(
 print(f"リトライ統計: {retryable.get_stats()}")
 ```
 
-### 3.2 フォールバック戦略
+### 3.2 Fallback Strategy
 
 ```python
 import asyncio
@@ -836,19 +835,19 @@ logger = logging.getLogger(__name__)
 class FallbackConfig:
     model: str
     provider: str
-    priority: int = 0  # 低い値が高優先
+    priority: int = 0  # Lower value = higher priority
     max_retries: int = 2
     timeout: float = 30.0
 
 class FallbackChain:
-    """フォールバックチェーンで複数プロバイダに順に試行"""
+    """Try multiple providers in sequence via a fallback chain"""
 
     def __init__(self, configs: list[FallbackConfig]):
         self.configs = sorted(configs, key=lambda x: x.priority)
         self.call_history: list[dict] = []
 
     async def call(self, messages: list, **kwargs) -> dict:
-        """フォールバックチェーンで API を呼び出す"""
+        """Call the API using the fallback chain"""
         errors = []
 
         for config in self.configs:
@@ -878,8 +877,8 @@ class FallbackChain:
 
                 if errors:
                     logger.info(
-                        f"フォールバック成功: {config.provider} "
-                        f"(深度: {len(errors)})"
+                        f"Fallback succeeded: {config.provider} "
+                        f"(depth: {len(errors)})"
                     )
                 return result
 
@@ -891,16 +890,16 @@ class FallbackChain:
                     "error_type": type(e).__name__,
                 }
                 errors.append(error_info)
-                logger.warning(f"フォールバック: {config.provider} 失敗 - {e}")
+                logger.warning(f"Fallback: {config.provider} failed - {e}")
                 continue
 
         raise Exception(
-            f"全プロバイダが失敗:\n" +
+            f"All providers failed:\n" +
             "\n".join(f"  - {e['provider']}: {e['error']}" for e in errors)
         )
 
     def get_stats(self) -> dict:
-        """フォールバック統計"""
+        """Fallback statistics"""
         if not self.call_history:
             return {"total_calls": 0}
 
@@ -916,7 +915,7 @@ class FallbackChain:
         }
 
 
-# 使用例
+# Usage example
 chain = FallbackChain([
     FallbackConfig("gpt-4o", "openai", priority=0),
     FallbackConfig("claude-3-5-sonnet-20241022", "anthropic", priority=1),
@@ -928,7 +927,7 @@ print(f"回答: {result['content'][:100]}...")
 print(f"プロバイダ: {result['provider']}, レイテンシ: {result['latency']:.2f}s")
 ```
 
-### 3.3 サーキットブレーカー
+### 3.3 Circuit Breaker
 
 ```python
 import time
@@ -939,27 +938,27 @@ import logging
 logger = logging.getLogger(__name__)
 
 class CircuitState(Enum):
-    CLOSED = "CLOSED"      # 正常動作中
-    OPEN = "OPEN"          # 遮断中（全リクエスト拒否）
-    HALF_OPEN = "HALF_OPEN"  # 試行中（1リクエストのみ許可）
+    CLOSED = "CLOSED"      # Operating normally
+    OPEN = "OPEN"          # Tripped (all requests rejected)
+    HALF_OPEN = "HALF_OPEN"  # Probing (only one request allowed)
 
 @dataclass
 class CircuitBreaker:
-    """サーキットブレーカーパターン"""
+    """Circuit breaker pattern"""
     name: str
-    failure_threshold: int = 5       # 連続失敗閾値
-    recovery_timeout: float = 60.0   # 回復待機時間 (秒)
-    success_threshold: int = 3       # HALF_OPEN → CLOSED に必要な連続成功数
+    failure_threshold: int = 5       # Consecutive failure threshold
+    recovery_timeout: float = 60.0   # Recovery wait time (seconds)
+    success_threshold: int = 3       # Consecutive successes needed to go HALF_OPEN → CLOSED
 
     def __post_init__(self):
         self.failure_count: int = 0
         self.success_count: int = 0
         self.last_failure_time: float = 0
         self.state: CircuitState = CircuitState.CLOSED
-        self.total_trips: int = 0  # OPEN になった回数
+        self.total_trips: int = 0  # Number of times the circuit has opened
 
     def can_proceed(self) -> bool:
-        """リクエストを許可するかどうか"""
+        """Whether to allow the request"""
         if self.state == CircuitState.CLOSED:
             return True
 
@@ -968,26 +967,26 @@ class CircuitBreaker:
             if elapsed > self.recovery_timeout:
                 self.state = CircuitState.HALF_OPEN
                 self.success_count = 0
-                logger.info(f"[{self.name}] OPEN → HALF_OPEN (回復試行開始)")
+                logger.info(f"[{self.name}] OPEN → HALF_OPEN (starting recovery probe)")
                 return True
             return False
 
-        # HALF_OPEN: 1リクエストのみ許可
+        # HALF_OPEN: allow only one request
         return True
 
     def record_success(self):
-        """成功を記録"""
+        """Record a success"""
         if self.state == CircuitState.HALF_OPEN:
             self.success_count += 1
             if self.success_count >= self.success_threshold:
                 self.state = CircuitState.CLOSED
                 self.failure_count = 0
-                logger.info(f"[{self.name}] HALF_OPEN → CLOSED (回復完了)")
+                logger.info(f"[{self.name}] HALF_OPEN → CLOSED (recovery complete)")
         else:
             self.failure_count = 0
 
     def record_failure(self):
-        """失敗を記録"""
+        """Record a failure"""
         self.failure_count += 1
         self.last_failure_time = time.time()
         self.success_count = 0
@@ -995,13 +994,13 @@ class CircuitBreaker:
         if self.state == CircuitState.HALF_OPEN:
             self.state = CircuitState.OPEN
             self.total_trips += 1
-            logger.warning(f"[{self.name}] HALF_OPEN → OPEN (回復失敗)")
+            logger.warning(f"[{self.name}] HALF_OPEN → OPEN (recovery failed)")
         elif self.failure_count >= self.failure_threshold:
             self.state = CircuitState.OPEN
             self.total_trips += 1
             logger.warning(
                 f"[{self.name}] CLOSED → OPEN "
-                f"(連続失敗: {self.failure_count})"
+                f"(consecutive failures: {self.failure_count})"
             )
 
     def get_status(self) -> dict:
@@ -1017,9 +1016,9 @@ class CircuitBreaker:
         }
 
 
-# プロバイダごとにサーキットブレーカーを管理
+# Manage circuit breakers per provider
 class CircuitBreakerManager:
-    """複数のサーキットブレーカーを統合管理"""
+    """Centrally manage multiple circuit breakers"""
 
     def __init__(self):
         self.breakers: dict[str, CircuitBreaker] = {}
@@ -1030,7 +1029,7 @@ class CircuitBreakerManager:
         return self.breakers[name]
 
     def get_available_providers(self) -> list[str]:
-        """利用可能なプロバイダのリスト"""
+        """List of available providers"""
         return [
             name for name, breaker in self.breakers.items()
             if breaker.can_proceed()
@@ -1040,38 +1039,38 @@ class CircuitBreakerManager:
         return [b.get_status() for b in self.breakers.values()]
 
 
-# 使用例
+# Usage example
 manager = CircuitBreakerManager()
 for provider in ["openai", "anthropic", "google"]:
     manager.get_or_create(provider, failure_threshold=5, recovery_timeout=60)
 
-# 利用可能なプロバイダを確認
+# Check available providers
 available = manager.get_available_providers()
-print(f"利用可能: {available}")
+print(f"Available: {available}")
 ```
 
 ---
 
-## 4. レート制限管理
+## 4. Rate Limit Management
 
-### 4.1 トークンバケット
+### 4.1 Token Bucket
 
 ```python
 import asyncio
 import time
 
 class TokenBucket:
-    """トークンバケットによるレート制限"""
+    """Rate limiting using a token bucket"""
 
     def __init__(self, rate: float, capacity: int):
-        self.rate = rate          # 秒あたりのトークン補充速度
-        self.capacity = capacity  # バケット容量
+        self.rate = rate          # Token refill rate per second
+        self.capacity = capacity  # Bucket capacity
         self.tokens = capacity
         self.last_time = time.monotonic()
         self._lock = asyncio.Lock()
 
     async def acquire(self, tokens: int = 1) -> float:
-        """トークンを取得（必要に応じて待機）。待機時間を返す。"""
+        """Acquire tokens (waiting if necessary). Returns wait time."""
         async with self._lock:
             now = time.monotonic()
             elapsed = now - self.last_time
@@ -1082,21 +1081,21 @@ class TokenBucket:
                 self.tokens -= tokens
                 return 0.0
 
-            # トークン不足: 必要な待ち時間を計算
+            # Insufficient tokens: calculate required wait time
             wait = (tokens - self.tokens) / self.rate
             await asyncio.sleep(wait)
             self.tokens = 0
             return wait
 
     def available(self) -> float:
-        """現在利用可能なトークン数"""
+        """Currently available token count"""
         now = time.monotonic()
         elapsed = now - self.last_time
         return min(self.capacity, self.tokens + elapsed * self.rate)
 
 
 class RateLimitManager:
-    """RPM と TPM の両方を管理するレートリミッター"""
+    """Rate limiter managing both RPM and TPM"""
 
     def __init__(self, rpm: int, tpm: int):
         self.rpm_limiter = TokenBucket(rate=rpm / 60, capacity=rpm)
@@ -1105,7 +1104,7 @@ class RateLimitManager:
         self.total_requests = 0
 
     async def acquire(self, estimated_tokens: int = 500):
-        """リクエスト送信前にレート制限をチェック"""
+        """Check rate limits before sending a request"""
         rpm_wait = await self.rpm_limiter.acquire(1)
         tpm_wait = await self.tpm_limiter.acquire(estimated_tokens)
         total_wait = rpm_wait + tpm_wait
@@ -1114,7 +1113,7 @@ class RateLimitManager:
         self.total_requests += 1
 
         if total_wait > 0:
-            logging.debug(f"レート制限待機: {total_wait:.2f}s")
+            logging.debug(f"Rate limit wait: {total_wait:.2f}s")
 
     def get_stats(self) -> dict:
         return {
@@ -1127,7 +1126,7 @@ class RateLimitManager:
         }
 
 
-# OpenAI の Tier 別レート制限
+# OpenAI rate limits by tier
 OPENAI_RATE_LIMITS = {
     "tier1": {"rpm": 500, "tpm": 200_000},
     "tier2": {"rpm": 5_000, "tpm": 2_000_000},
@@ -1136,11 +1135,11 @@ OPENAI_RATE_LIMITS = {
     "tier5": {"rpm": 10_000, "tpm": 30_000_000},
 }
 
-# 使用例
+# Usage example
 limiter = RateLimitManager(rpm=500, tpm=200_000)  # Tier 1
 
 async def rate_limited_call(messages: list) -> str:
-    await limiter.acquire(estimated_tokens=700)  # 入力+出力の概算
+    await limiter.acquire(estimated_tokens=700)  # Estimated input + output
     response = await client.chat.completions.create(
         model="gpt-4o",
         messages=messages,
@@ -1148,14 +1147,14 @@ async def rate_limited_call(messages: list) -> str:
     return response.choices[0].message.content
 ```
 
-### 4.2 並行リクエスト制御
+### 4.2 Concurrency Control
 
 ```python
 import asyncio
 from openai import AsyncOpenAI
 
 class ConcurrencyController:
-    """並行リクエスト数を制御するセマフォベースのコントローラー"""
+    """Semaphore-based controller for limiting concurrent requests"""
 
     def __init__(
         self,
@@ -1169,7 +1168,7 @@ class ConcurrencyController:
         self.failed_requests = 0
 
     async def execute(self, coro):
-        """並行数制限付きで非同期タスクを実行"""
+        """Execute an async task with concurrency limits"""
         async with self.semaphore:
             self.active_requests += 1
             try:
@@ -1189,7 +1188,7 @@ class ConcurrencyController:
         tasks: list,
         on_progress: callable = None,
     ) -> list:
-        """バッチタスクを並行数制限付きで実行"""
+        """Execute a batch of tasks with concurrency limits"""
         results = []
 
         async def task_wrapper(i, task):
@@ -1205,7 +1204,7 @@ class ConcurrencyController:
         return results
 
 
-# 使用例: 100件のリクエストを並行10で処理
+# Usage example: process 100 requests with concurrency of 10
 client = AsyncOpenAI()
 controller = ConcurrencyController(
     max_concurrent=10,
@@ -1224,16 +1223,16 @@ tasks = [
 
 results = await controller.execute_batch(
     tasks,
-    on_progress=lambda i, total: print(f"\r進捗: {i+1}/{total}", end=""),
+    on_progress=lambda i, total: print(f"\rProgress: {i+1}/{total}", end=""),
 )
-print(f"\n完了: {controller.completed_requests}, 失敗: {controller.failed_requests}")
+print(f"\nCompleted: {controller.completed_requests}, Failed: {controller.failed_requests}")
 ```
 
 ---
 
-## 5. コスト管理
+## 5. Cost Management
 
-### 5.1 使用量トラッキング
+### 5.1 Usage Tracking
 
 ```python
 from dataclasses import dataclass, field
@@ -1258,7 +1257,7 @@ class BudgetExceededError(Exception):
     pass
 
 class UsageTracker:
-    """API使用量・コスト追跡"""
+    """API usage and cost tracking"""
 
     PRICING = {
         "gpt-4o":              {"input": 2.50, "output": 10.00},
@@ -1277,7 +1276,7 @@ class UsageTracker:
         self,
         daily_budget: float = 100.0,
         monthly_budget: float = 3000.0,
-        alert_threshold: float = 0.8,  # 予算の80%で警告
+        alert_threshold: float = 0.8,  # Alert at 80% of budget
     ):
         self.daily_budget = daily_budget
         self.monthly_budget = monthly_budget
@@ -1292,8 +1291,8 @@ class UsageTracker:
         request_id: str = "",
         metadata: dict = None,
     ) -> float:
-        """使用量を記録してコストを返す"""
-        # モデル名の正規化
+        """Record usage and return cost"""
+        # Normalize model name
         model_key = self._normalize_model_name(model)
         prices = self.PRICING.get(model_key, {"input": 0, "output": 0})
 
@@ -1313,13 +1312,13 @@ class UsageTracker:
         )
         self.records.append(record)
 
-        # 予算チェック
+        # Check budget
         self._check_budget()
 
         return cost
 
     def _normalize_model_name(self, model: str) -> str:
-        """モデル名を料金表のキーに正規化"""
+        """Normalize model name to pricing table key"""
         model = model.lower()
         for key in self.PRICING:
             if key in model.replace(".", "-"):
@@ -1327,26 +1326,26 @@ class UsageTracker:
         return model
 
     def _check_budget(self):
-        """予算超過チェック"""
+        """Check for budget overruns"""
         today_cost = self.get_today_cost()
         month_cost = self.get_month_cost()
 
-        # 日次予算チェック
+        # Daily budget check
         if today_cost > self.daily_budget:
             raise BudgetExceededError(
-                f"日次予算超過: ${today_cost:.2f} / ${self.daily_budget:.2f}"
+                f"Daily budget exceeded: ${today_cost:.2f} / ${self.daily_budget:.2f}"
             )
 
-        # 月次予算チェック
+        # Monthly budget check
         if month_cost > self.monthly_budget:
             raise BudgetExceededError(
-                f"月次予算超過: ${month_cost:.2f} / ${self.monthly_budget:.2f}"
+                f"Monthly budget exceeded: ${month_cost:.2f} / ${self.monthly_budget:.2f}"
             )
 
-        # 警告
+        # Warning
         if today_cost > self.daily_budget * self.alert_threshold:
             logger.warning(
-                f"日次予算警告: ${today_cost:.2f} / ${self.daily_budget:.2f} "
+                f"Daily budget warning: ${today_cost:.2f} / ${self.daily_budget:.2f} "
                 f"({today_cost/self.daily_budget:.0%})"
             )
 
@@ -1359,11 +1358,11 @@ class UsageTracker:
         return sum(r.cost for r in self.records if r.timestamp.startswith(month))
 
     def get_report(self) -> dict:
-        """使用量レポートを生成"""
+        """Generate a usage report"""
         today = date.today().isoformat()
         month = date.today().strftime("%Y-%m")
 
-        # モデル別集計
+        # Aggregate by model
         model_costs = defaultdict(float)
         model_tokens = defaultdict(lambda: {"input": 0, "output": 0})
         for r in self.records:
@@ -1397,22 +1396,22 @@ class UsageTracker:
         }
 
 
-# 使用例
+# Usage example
 tracker = UsageTracker(daily_budget=100.0, monthly_budget=3000.0)
 
-# API 呼び出し後にトラッキング
+# Track after each API call
 cost = tracker.record("gpt-4o", input_tokens=500, output_tokens=200)
-print(f"今回のコスト: ${cost:.6f}")
+print(f"This request cost: ${cost:.6f}")
 
 report = tracker.get_report()
 print(json.dumps(report, indent=2, ensure_ascii=False))
 ```
 
-### 5.2 プロンプトキャッシュ戦略
+### 5.2 Prompt Cache Strategy
 
 ```python
 class PromptCacheStrategy:
-    """プロンプトキャッシュ最適化戦略"""
+    """Prompt cache optimization strategy"""
 
     def __init__(self):
         self.cache_hits = 0
@@ -1424,16 +1423,16 @@ class PromptCacheStrategy:
         few_shot_examples: list[dict],
         user_query: str,
     ) -> list[dict]:
-        """キャッシュ効率の高いプロンプト構造を設計
+        """Design a prompt structure optimized for caching
 
-        キャッシュのポイント:
-        - system prompt と few-shot examples は先頭に配置（キャッシュ対象）
-        - ユーザークエリは末尾に配置（変動部分）
-        - Anthropic: cache_control で明示的にキャッシュ
-        - OpenAI: 自動キャッシュ（先頭1024トークン以上が同一なら適用）
+        Caching guidelines:
+        - Place system prompt and few-shot examples at the top (cache targets)
+        - Place user query at the end (variable part)
+        - Anthropic: explicitly enable caching with cache_control
+        - OpenAI: automatic caching (applied when the first 1024+ tokens are identical)
         """
 
-        # Anthropic 向け: 明示的キャッシュ制御
+        # For Anthropic: explicit cache control
         system_with_cache = [
             {
                 "type": "text",
@@ -1442,12 +1441,12 @@ class PromptCacheStrategy:
             },
         ]
 
-        # Few-shot examples もキャッシュ対象に
+        # Include few-shot examples in the cache target
         messages = []
         for i, example in enumerate(few_shot_examples):
             messages.append({"role": "user", "content": example["input"]})
             assistant_content = example["output"]
-            # 最後の few-shot にキャッシュポイントを設定
+            # Set a cache breakpoint at the last few-shot example
             if i == len(few_shot_examples) - 1:
                 messages.append({
                     "role": "assistant",
@@ -1462,7 +1461,7 @@ class PromptCacheStrategy:
             else:
                 messages.append({"role": "assistant", "content": assistant_content})
 
-        # ユーザークエリ（変動部分）
+        # User query (variable part)
         messages.append({"role": "user", "content": user_query})
 
         return system_with_cache, messages
@@ -1475,18 +1474,18 @@ class PromptCacheStrategy:
         cache_hit_rate: float = 0.8,
         model: str = "claude-3-5-sonnet",
     ) -> dict:
-        """キャッシュによるコスト削減を推定"""
+        """Estimate cost savings from caching"""
         pricing = {
             "claude-3-5-sonnet": {"normal": 3.00, "cached": 0.30, "write": 3.75},
             "gpt-4o": {"normal": 2.50, "cached": 1.25, "write": 2.50},
         }
         p = pricing.get(model, pricing["claude-3-5-sonnet"])
 
-        # キャッシュなしのコスト
+        # Cost without cache
         daily_tokens = total_input_tokens * requests_per_day
         cost_without_cache = (daily_tokens / 1_000_000) * p["normal"]
 
-        # キャッシュありのコスト
+        # Cost with cache
         cached_tokens = cacheable_tokens * requests_per_day * cache_hit_rate
         uncached_tokens = daily_tokens - cached_tokens
         cache_write_tokens = cacheable_tokens * requests_per_day * (1 - cache_hit_rate)
@@ -1508,7 +1507,7 @@ class PromptCacheStrategy:
             "savings_rate": f"{daily_savings/cost_without_cache:.0%}",
         }
 
-# 使用例
+# Usage example
 savings = PromptCacheStrategy.estimate_cache_savings(
     total_input_tokens=2000,
     cacheable_tokens=1500,     # system + few-shot
@@ -1516,15 +1515,15 @@ savings = PromptCacheStrategy.estimate_cache_savings(
     cache_hit_rate=0.85,
     model="claude-3-5-sonnet",
 )
-print(f"月間節約額: {savings['monthly_savings']}")
-print(f"削減率: {savings['savings_rate']}")
+print(f"Monthly savings: {savings['monthly_savings']}")
+print(f"Reduction rate: {savings['savings_rate']}")
 ```
 
 ---
 
-## 6. セキュリティとオブザーバビリティ
+## 6. Security and Observability
 
-### 6.1 API キー管理
+### 6.1 API Key Management
 
 ```python
 import os
@@ -1534,19 +1533,19 @@ import logging
 logger = logging.getLogger(__name__)
 
 class SecureAPIKeyManager:
-    """安全な API キー管理"""
+    """Secure API key management"""
 
     def __init__(self):
         self._keys: dict[str, str] = {}
 
     def get_key(self, provider: str) -> str:
-        """API キーを安全に取得"""
+        """Securely retrieve an API key"""
 
-        # 1. メモリキャッシュをチェック
+        # 1. Check in-memory cache
         if provider in self._keys:
             return self._keys[provider]
 
-        # 2. 環境変数から取得
+        # 2. Read from environment variable
         env_map = {
             "openai": "OPENAI_API_KEY",
             "anthropic": "ANTHROPIC_API_KEY",
@@ -1561,16 +1560,16 @@ class SecureAPIKeyManager:
                 self._keys[provider] = key
                 return key
 
-        # 3. AWS Secrets Manager から取得（本番環境向け）
+        # 3. Read from AWS Secrets Manager (for production environments)
         key = self._get_from_secrets_manager(provider)
         if key:
             self._keys[provider] = key
             return key
 
-        raise ValueError(f"APIキーが見つかりません: {provider}")
+        raise ValueError(f"API key not found: {provider}")
 
     def _get_from_secrets_manager(self, provider: str) -> Optional[str]:
-        """AWS Secrets Manager からキーを取得"""
+        """Retrieve a key from AWS Secrets Manager"""
         try:
             import boto3
             client = boto3.client("secretsmanager")
@@ -1583,7 +1582,7 @@ class SecureAPIKeyManager:
 
     @staticmethod
     def validate_key_format(provider: str, key: str) -> bool:
-        """API キーの形式を検証"""
+        """Validate API key format"""
         patterns = {
             "openai": lambda k: k.startswith("sk-") and len(k) > 20,
             "anthropic": lambda k: k.startswith("sk-ant-") and len(k) > 20,
@@ -1593,7 +1592,7 @@ class SecureAPIKeyManager:
         return validator(key)
 ```
 
-### 6.2 リクエスト/レスポンスのログ
+### 6.2 Request/Response Logging
 
 ```python
 import json
@@ -1604,7 +1603,7 @@ from datetime import datetime
 
 @dataclass
 class LLMRequestLog:
-    """LLM リクエスト/レスポンスのログ"""
+    """Log entry for LLM request/response"""
     request_id: str
     timestamp: str
     model: str
@@ -1616,17 +1615,17 @@ class LLMRequestLog:
     status: str = "success"
     error: str = ""
     cost: float = 0.0
-    prompt_hash: str = ""  # プロンプト内容のハッシュ（PII保護）
+    prompt_hash: str = ""  # Hash of prompt content (for PII protection)
     metadata: dict = field(default_factory=dict)
 
 class LLMLogger:
-    """LLM API 呼び出しのログ管理"""
+    """Log manager for LLM API calls"""
 
     def __init__(self, log_prompts: bool = False):
         """
         Args:
-            log_prompts: True の場合、プロンプト内容もログに記録
-                        （PII が含まれる場合は False 推奨）
+            log_prompts: If True, prompt content is also recorded in logs
+                        (recommended False if prompts contain PII)
         """
         self.log_prompts = log_prompts
         self.logs: list[LLMRequestLog] = []
@@ -1647,8 +1646,8 @@ class LLMLogger:
         prompt: str = "",
         metadata: dict = None,
     ):
-        """リクエストをログに記録"""
-        # プロンプトのハッシュ化（内容は保存しない）
+        """Record a request in the log"""
+        # Hash the prompt (do not store the actual content)
         prompt_hash = hashlib.sha256(prompt.encode()).hexdigest()[:16] if prompt else ""
 
         log = LLMRequestLog(
@@ -1671,7 +1670,7 @@ class LLMLogger:
         self.logger.info(json.dumps(asdict(log)))
 
     def get_metrics(self) -> dict:
-        """メトリクスサマリーを取得"""
+        """Retrieve a metrics summary"""
         if not self.logs:
             return {"total_requests": 0}
 
@@ -1705,82 +1704,82 @@ class LLMLogger:
 
 ---
 
-## 7. 比較表
+## 7. Comparison Tables
 
-### 7.1 SDK 機能比較
+### 7.1 SDK Feature Comparison
 
-| 機能 | OpenAI SDK | Anthropic SDK | Google SDK | LiteLLM |
-|------|-----------|--------------|-----------|---------|
-| 同期/非同期 | 両方 | 両方 | 同期中心 | 両方 |
-| ストリーミング | 対応 | 対応 | 対応 | 対応 |
-| 自動リトライ | 対応 (設定可) | 対応 | 限定的 | 対応 |
-| 型安全性 | Pydantic | Pydantic | protobuf | 基本型 |
-| マルチプロバイダ | N/A | N/A | N/A | 100+対応 |
-| コスト追跡 | usage対応 | usage対応 | 限定的 | 統合対応 |
-| Structured Output | 対応 | N/A | 対応 | プロバイダ依存 |
-| プロンプトキャッシュ | 自動 | 明示的 | N/A | プロバイダ依存 |
-| バッチAPI | 対応 | 対応 | N/A | プロバイダ依存 |
-| Extended Thinking | N/A | 対応 | N/A | 対応 |
+| Feature | OpenAI SDK | Anthropic SDK | Google SDK | LiteLLM |
+|---------|-----------|--------------|-----------|---------|
+| Sync/Async | Both | Both | Sync-focused | Both |
+| Streaming | Supported | Supported | Supported | Supported |
+| Auto Retry | Supported (configurable) | Supported | Limited | Supported |
+| Type Safety | Pydantic | Pydantic | protobuf | Basic types |
+| Multi-provider | N/A | N/A | N/A | 100+ supported |
+| Cost Tracking | usage supported | usage supported | Limited | Integrated |
+| Structured Output | Supported | N/A | Supported | Provider-dependent |
+| Prompt Caching | Automatic | Explicit | N/A | Provider-dependent |
+| Batch API | Supported | Supported | N/A | Provider-dependent |
+| Extended Thinking | N/A | Supported | N/A | Supported |
 
-### 7.2 ストリーミング方式比較
+### 7.2 Streaming Method Comparison
 
-| 方式 | レイテンシ | 実装複雑度 | ブラウザ対応 | 用途 |
-|------|----------|----------|------------|------|
-| SSE | 低 | 低 | ネイティブ | チャットUI |
-| WebSocket | 最低 | 高 | ネイティブ | リアルタイム双方向 |
-| Long Polling | 中 | 低 | ネイティブ | レガシー対応 |
-| gRPC Stream | 最低 | 高 | 間接的 | マイクロサービス |
+| Method | Latency | Implementation Complexity | Browser Support | Use Case |
+|--------|---------|--------------------------|-----------------|----------|
+| SSE | Low | Low | Native | Chat UI |
+| WebSocket | Lowest | High | Native | Real-time bidirectional |
+| Long Polling | Medium | Low | Native | Legacy support |
+| gRPC Stream | Lowest | High | Indirect | Microservices |
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-patterns
 
-### アンチパターン 1: リトライなしの本番コード
+### Anti-pattern 1: Production Code Without Retries
 
 ```python
-# NG: リトライなし — 一時的なエラーで即失敗
+# BAD: No retries — fails immediately on transient errors
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=messages,
 )
-# → 429 (レート制限) や 500 (サーバーエラー) で即クラッシュ
+# → Crashes immediately on 429 (rate limit) or 500 (server error)
 
-# OK: SDK 組み込みリトライ + カスタムリトライ + フォールバック
+# GOOD: SDK built-in retries + custom retry + fallback
 client = OpenAI(
-    max_retries=3,     # SDK レベルのリトライ
+    max_retries=3,     # SDK-level retries
     timeout=30.0,
 )
-# + アプリレベルのフォールバック
+# + Application-level fallback
 response = await chain.call(messages)
 ```
 
-### アンチパターン 2: API キーのハードコード
+### Anti-pattern 2: Hardcoded API Keys
 
 ```python
-# NG: ソースコードにキーを直書き
-client = OpenAI(api_key="sk-abc123...")  # セキュリティリスク大
+# BAD: Keys written directly in source code
+client = OpenAI(api_key="sk-abc123...")  # Major security risk
 
-# NG: .env ファイルを Git にコミット
-# .gitignore に .env を追加していない
+# BAD: Committing .env files to Git
+# .env not added to .gitignore
 
-# OK: 環境変数で管理
+# GOOD: Manage via environment variables
 import os
-client = OpenAI()  # 自動的に OPENAI_API_KEY 環境変数を使用
+client = OpenAI()  # Automatically uses OPENAI_API_KEY environment variable
 
-# OK: シークレットマネージャー (本番環境)
+# GOOD: Secret manager (for production)
 key_manager = SecureAPIKeyManager()
 client = OpenAI(api_key=key_manager.get_key("openai"))
 ```
 
-### アンチパターン 3: レート制限を無視した並行処理
+### Anti-pattern 3: Concurrent Requests Ignoring Rate Limits
 
 ```python
-# NG: 制限なしの並行リクエスト
-tasks = [call_api(prompt) for prompt in prompts]  # 1000件同時
+# BAD: Unlimited concurrent requests
+tasks = [call_api(prompt) for prompt in prompts]  # 1000 simultaneous
 results = await asyncio.gather(*tasks)
-# → 大量の 429 エラー → 全リクエスト失敗
+# → Massive 429 errors → all requests fail
 
-# OK: セマフォ + レート制限で制御
+# GOOD: Controlled with semaphore + rate limiter
 controller = ConcurrencyController(
     max_concurrent=10,
     rate_limiter=RateLimitManager(rpm=500, tpm=200_000),
@@ -1788,18 +1787,18 @@ controller = ConcurrencyController(
 results = await controller.execute_batch(tasks)
 ```
 
-### アンチパターン 4: ストリーミングなしの長時間応答
+### Anti-pattern 4: Long Responses Without Streaming
 
 ```python
-# NG: 長い応答を非ストリーミングで待つ
+# BAD: Waiting for a long response without streaming
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=messages,
     max_tokens=4096,
 )
-# → ユーザーは10-30秒間何も表示されず待つ → 離脱
+# → Users wait 10-30 seconds with nothing displayed → abandonment
 
-# OK: ストリーミングで即座にフィードバック
+# GOOD: Streaming for immediate feedback
 stream = client.chat.completions.create(
     model="gpt-4o",
     messages=messages,
@@ -1808,119 +1807,119 @@ stream = client.chat.completions.create(
 )
 for chunk in stream:
     if chunk.choices[0].delta.content:
-        yield chunk.choices[0].delta.content  # 即座に表示
+        yield chunk.choices[0].delta.content  # Display immediately
 ```
 
-### アンチパターン 5: コスト管理なしの本番運用
+### Anti-pattern 5: Production Operations Without Cost Management
 
 ```python
-# NG: 予算管理なし
-# → 異常なトラフィックや無限ループで数万ドルの請求
+# BAD: No budget management
+# → Abnormal traffic or infinite loops can result in tens of thousands of dollars in charges
 
-# OK: 多層防御のコスト管理
+# GOOD: Multi-layered cost management
 tracker = UsageTracker(
     daily_budget=100.0,
     monthly_budget=3000.0,
     alert_threshold=0.8,
 )
 
-# API 呼び出しごとに追跡
+# Track on every API call
 cost = tracker.record(model, input_tokens, output_tokens)
-# → 予算超過時は BudgetExceededError を送出
+# → Raises BudgetExceededError when budget is exceeded
 ```
 
 ---
 
 ## 9. FAQ
 
-### Q1: 同期と非同期のどちらを使うべき?
+### Q1: Should I use synchronous or asynchronous?
 
-Web アプリ (FastAPI等) では非同期が推奨。同時リクエスト処理が効率的になる。
-バッチ処理やスクリプトでは同期で十分。
-`asyncio.gather` で複数の LLM 呼び出しを並列化できるのが非同期の最大のメリット。
+Async is recommended for web applications (FastAPI, etc.) because it handles concurrent requests efficiently.
+Sync is sufficient for batch processing and scripts.
+The biggest advantage of async is the ability to parallelize multiple LLM calls with `asyncio.gather`.
 
-**判断基準:**
-- FastAPI/Starlette → 非同期必須
-- Django (ASGI) → 非同期推奨
-- Django (WSGI) → 同期
-- CLI ツール → 同期で十分
-- バッチ処理 (大量リクエスト) → 非同期 + セマフォ
+**Decision criteria:**
+- FastAPI/Starlette → Async required
+- Django (ASGI) → Async recommended
+- Django (WSGI) → Sync
+- CLI tools → Sync is sufficient
+- Batch processing (large number of requests) → Async + semaphore
 
-### Q2: ストリーミングの TTFT を改善するには?
+### Q2: How can I improve streaming TTFT?
 
-プロンプトを短くする (入力トークン数の削減)。
-Flash/mini 系の高速モデルを使用する。
-CDN 経由ではなく直接 API エンドポイントに接続する。
-System Prompt をキャッシュ可能にする (OpenAI, Anthropic の Prompt Caching)。
-リージョンを最寄りに設定する。
+Shorten the prompt (reduce input token count).
+Use fast Flash/mini-class models.
+Connect directly to the API endpoint rather than through a CDN.
+Make the system prompt cacheable (OpenAI and Anthropic Prompt Caching).
+Configure the nearest region.
 
-### Q3: 複数プロバイダを使い分けるベストプラクティスは?
+### Q3: What is the best practice for using multiple providers?
 
-LiteLLM や OpenRouter で抽象化し、環境変数でモデルを切り替え可能にする。
-プロバイダごとのサーキットブレーカーを設置し、障害時は自動フォールバック。
-コスト最適化のために、タスク難易度に応じてモデルをルーティングする。
+Abstract with LiteLLM or OpenRouter and make the model switchable via environment variables.
+Set up circuit breakers per provider with automatic fallback on failure.
+Route requests to models based on task difficulty for cost optimization.
 
-### Q4: プロンプトキャッシュはどの程度コスト削減に効果的?
+### Q4: How effective is prompt caching for cost reduction?
 
-Anthropic の場合、キャッシュヒット時の入力トークン価格は通常の 1/10 (Claude 3.5 Sonnet: $3.00 → $0.30)。
-システムプロンプトや Few-shot 例が固定の場合、入力コストの 50-80% を削減可能。
-OpenAI は 1024 トークン以上の共通プレフィックスで自動キャッシュ（価格 50% 割引）。
+For Anthropic, the input token price on a cache hit is 1/10 of normal (Claude 3.5 Sonnet: $3.00 → $0.30).
+When system prompts and few-shot examples are fixed, you can reduce input costs by 50-80%.
+OpenAI automatically caches common prefixes of 1024+ tokens (50% price discount).
 
-### Q5: バッチ API を使うべき場面は?
+### Q5: When should I use the Batch API?
 
-リアルタイム性が不要な大量処理に最適:
-- データの一括分類・タグ付け
-- 大量のメール/文書の要約
-- テスト・評価の実行
-- コンテンツ生成のバッチ処理
+Ideal for large-scale processing where real-time is not required:
+- Bulk classification and tagging of data
+- Summarizing large volumes of emails/documents
+- Running tests and evaluations
+- Batch content generation
 
-メリット: 50% のコスト削減、高いスループット
-デメリット: 結果取得まで最大24時間、リアルタイム処理には不向き
+Benefits: 50% cost reduction, high throughput
+Drawbacks: Up to 24 hours to retrieve results, not suitable for real-time processing
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important. Understanding deepens not just through theory but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend fully understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | 推奨 |
-|------|------|
-| SDK | LiteLLM (マルチプロバイダ) + 個別 SDK |
-| ストリーミング | SSE (Web) / WebSocket (リアルタイム) |
-| リトライ | 指数バックオフ + ジッター (最大5回) |
-| フォールバック | 3プロバイダチェーン |
-| レート制限 | トークンバケット + セマフォ |
-| コスト管理 | 日次/月次予算 + 使用量トラッキング |
-| API キー管理 | 環境変数 + シークレットマネージャー |
-| キャッシュ | プロンプトキャッシュ積極活用 |
-| 監視 | リクエストログ + メトリクス収集 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [01-vector-databases.md](./01-vector-databases.md) — ベクトル DB との統合
-- [02-local-llm.md](./02-local-llm.md) — ローカル LLM のデプロイ
-- [../02-applications/02-function-calling.md](../02-applications/02-function-calling.md) — Function Calling の統合
+| Item | Recommendation |
+|------|---------------|
+| SDK | LiteLLM (multi-provider) + individual SDKs |
+| Streaming | SSE (Web) / WebSocket (real-time) |
+| Retry | Exponential backoff + jitter (max 5 retries) |
+| Fallback | 3-provider chain |
+| Rate Limiting | Token bucket + semaphore |
+| Cost Management | Daily/monthly budgets + usage tracking |
+| API Key Management | Environment variables + secret manager |
+| Caching | Actively leverage prompt caching |
+| Monitoring | Request logging + metrics collection |
 
 ---
 
-## 参考文献
+## Further Reading
+
+- [01-vector-databases.md](./01-vector-databases.md) — Integration with vector databases
+- [02-local-llm.md](./02-local-llm.md) — Local LLM deployment
+- [../02-applications/02-function-calling.md](../02-applications/02-function-calling.md) — Function Calling integration
+
+---
+
+## References
 
 1. OpenAI, "API Reference," https://platform.openai.com/docs/api-reference
 2. Anthropic, "API Reference," https://docs.anthropic.com/claude/reference
