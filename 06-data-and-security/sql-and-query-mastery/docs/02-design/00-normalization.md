@@ -1,86 +1,87 @@
-# 正規化 — 1NF〜BCNF・非正規化
+# Normalization — 1NF through BCNF and Denormalization
 
-> 正規化はデータの冗長性を排除し更新異常を防ぐためのリレーショナルデータベース設計手法であり、非正規化はパフォーマンスとのトレードオフとして意図的に冗長性を導入する手法である。
+> Normalization is a relational database design technique that eliminates data redundancy and prevents update anomalies, while denormalization is a technique that intentionally introduces redundancy as a trade-off for performance.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. 第1正規形（1NF）から第3正規形（3NF）、BCNFまでの段階的な正規化プロセス
-2. 正規化によって解決される更新異常の種類と内部的メカニズム
-3. 第4正規形（4NF）、第5正規形（5NF）の理論的背景と実例
-4. 非正規化の判断基準と実践的なパターン
-5. RDBMS間の正規化関連機能の差異
+1. The step-by-step normalization process from First Normal Form (1NF) through Third Normal Form (3NF) and BCNF
+2. The types of update anomalies that normalization resolves and their underlying mechanisms
+3. The theoretical background and practical examples of Fourth Normal Form (4NF) and Fifth Normal Form (5NF)
+4. Criteria for deciding when to denormalize and practical patterns for doing so
+5. Differences in normalization-related features across RDBMS platforms
 
-## 前提知識
+## Prerequisites
 
-- SQLの基本構文（CREATE TABLE、INSERT、SELECT）
-- リレーショナルモデルの基礎概念（テーブル、行、列）
-- [01-schema-design.md](./01-schema-design.md) の概要理解があると望ましい
+- Basic SQL syntax (CREATE TABLE, INSERT, SELECT)
+- Foundational concepts of the relational model (tables, rows, columns)
+- A general understanding of [01-schema-design.md](./01-schema-design.md) is helpful
 
 ---
 
-## 1. 正規化の目的と理論的背景
+## 1. Purpose and Theoretical Background of Normalization
 
-### 1.1 関数従属性（Functional Dependency）
+### 1.1 Functional Dependency
 
-正規化理論の基盤は関数従属性にある。属性Xの値が決まると属性Yの値が一意に決まるとき、「YはXに関数従属する」と言い、`X → Y` と記述する。
-
-```
-┌──────────── 関数従属性の種類 ────────────────────┐
-│                                                    │
-│  完全関数従属（Full Functional Dependency）         │
-│  ────────────────────────────────────              │
-│  {A, B} → C であり、A → C でも B → C でもない     │
-│  例: {student_id, course_id} → grade               │
-│  （学生IDだけでも科目IDだけでも成績は決まらない）   │
-│                                                    │
-│  部分関数従属（Partial Functional Dependency）       │
-│  ────────────────────────────────────              │
-│  {A, B} → C であり、A → C または B → C が成立     │
-│  例: {order_id, product_id} → product_name          │
-│  （product_idだけでproduct_nameが決まる）           │
-│                                                    │
-│  推移的関数従属（Transitive Functional Dependency） │
-│  ────────────────────────────────────              │
-│  A → B かつ B → C なら A → C が成立               │
-│  例: emp_id → dept_id → dept_name                  │
-│  （社員IDで部署IDが決まり、部署IDで部署名が決まる） │
-│                                                    │
-│  多値従属（Multi-Valued Dependency）                │
-│  ────────────────────────────────────              │
-│  A →→ B: Aの値に対してBの値の集合が一意に決まる    │
-│  例: employee →→ skill, employee →→ language       │
-│  （スキルと言語は互いに独立だが社員に紐づく）       │
-└────────────────────────────────────────────────────┘
-```
-
-### 1.2 更新異常の詳細分析
+The foundation of normalization theory is functional dependency. When knowing the value of attribute X uniquely determines the value of attribute Y, we say "Y is functionally dependent on X," written as `X → Y`.
 
 ```
-┌─────────── 正規化で解決する3つの更新異常 ─────────┐
-│                                                     │
-│  挿入異常（Insertion Anomaly）                      │
-│  ─────────────────────────────                     │
-│  まだ社員がいない部署を登録できない                  │
-│  （社員テーブルに部署情報が含まれている場合）        │
-│                                                     │
-│  更新異常（Update Anomaly）                         │
-│  ─────────────────────────────                     │
-│  部署名を変更するとき、その部署の全社員の行を        │
-│  更新する必要がある（1行でも漏れると不整合）        │
-│                                                     │
-│  削除異常（Deletion Anomaly）                       │
-│  ─────────────────────────────                     │
-│  最後の社員を削除すると部署情報も失われる            │
-│                                                     │
-│  → 正規化によってテーブルを適切に分割すれば          │
-│    これらの異常を防止できる                          │
-└─────────────────────────────────────────────────────┘
+┌──────────── Types of Functional Dependency ────────────────────┐
+│                                                                  │
+│  Full Functional Dependency                                      │
+│  ────────────────────────────────────                           │
+│  {A, B} → C, and neither A → C nor B → C holds                 │
+│  Example: {student_id, course_id} → grade                       │
+│  (Neither student_id alone nor course_id alone determines grade) │
+│                                                                  │
+│  Partial Functional Dependency                                   │
+│  ────────────────────────────────────                           │
+│  {A, B} → C, and either A → C or B → C holds                   │
+│  Example: {order_id, product_id} → product_name                 │
+│  (product_id alone determines product_name)                      │
+│                                                                  │
+│  Transitive Functional Dependency                                │
+│  ────────────────────────────────────                           │
+│  If A → B and B → C, then A → C holds                          │
+│  Example: emp_id → dept_id → dept_name                          │
+│  (emp_id determines dept_id, and dept_id determines dept_name)  │
+│                                                                  │
+│  Multi-Valued Dependency                                         │
+│  ────────────────────────────────────                           │
+│  A →→ B: For each value of A, a unique set of B values exists   │
+│  Example: employee →→ skill, employee →→ language               │
+│  (Skills and languages are independent but both tied to employee)│
+└──────────────────────────────────────────────────────────────────┘
 ```
 
-#### 更新異常の具体例とコスト分析
+### 1.2 Detailed Analysis of Update Anomalies
+
+```
+┌─────────── Three Update Anomalies Resolved by Normalization ────┐
+│                                                                  │
+│  Insertion Anomaly                                               │
+│  ─────────────────────────────                                   │
+│  Cannot register a department that has no employees yet          │
+│  (when employee table contains department information)           │
+│                                                                  │
+│  Update Anomaly                                                  │
+│  ─────────────────────────────                                   │
+│  Changing a department name requires updating every row          │
+│  for every employee in that department (inconsistency if any     │
+│  row is missed)                                                  │
+│                                                                  │
+│  Deletion Anomaly                                                │
+│  ─────────────────────────────                                   │
+│  Deleting the last employee also destroys the department data    │
+│                                                                  │
+│  → By splitting tables appropriately through normalization,      │
+│    all of these anomalies can be prevented                       │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+#### Concrete Examples and Cost Analysis of Update Anomalies
 
 ```sql
--- 非正規化テーブル: 更新異常が発生する構造
+-- Denormalized table: structure that causes update anomalies
 CREATE TABLE emp_dept_denormalized (
     emp_id    INTEGER PRIMARY KEY,
     emp_name  VARCHAR(100),
@@ -90,170 +91,174 @@ CREATE TABLE emp_dept_denormalized (
 );
 
 INSERT INTO emp_dept_denormalized VALUES
-(1, '田中', 10, '開発部', '東京'),
-(2, '鈴木', 10, '開発部', '東京'),
-(3, '佐藤', 20, '営業部', '大阪'),
-(4, '高橋', 10, '開発部', '東京');
+(1, 'Tanaka',   10, 'Engineering', 'Tokyo'),
+(2, 'Suzuki',   10, 'Engineering', 'Tokyo'),
+(3, 'Sato',     20, 'Sales',       'Osaka'),
+(4, 'Takahashi',10, 'Engineering', 'Tokyo');
 
--- 挿入異常の実演: 社員なしで新部署を登録するには？
--- emp_idがPRIMARY KEYなのでNULLにできない → 登録不可能
--- INSERT INTO emp_dept_denormalized VALUES (NULL, NULL, 30, '経理部', '名古屋');
+-- Insertion anomaly demo: how to register a new department with no employees?
+-- emp_id is PRIMARY KEY so it cannot be NULL → impossible to insert
+-- INSERT INTO emp_dept_denormalized VALUES (NULL, NULL, 30, 'Accounting', 'Nagoya');
 -- → ERROR: null value in column "emp_id"
 
--- 更新異常の実演: 開発部を東京から横浜に移転
-UPDATE emp_dept_denormalized SET dept_loc = '横浜' WHERE dept_id = 10;
--- → 3行を更新する必要がある（漏れると不整合）
--- 10万人の部署なら10万行の更新が必要
+-- Update anomaly demo: relocating Engineering from Tokyo to Yokohama
+UPDATE emp_dept_denormalized SET dept_loc = 'Yokohama' WHERE dept_id = 10;
+-- → Must update 3 rows (inconsistency if any is missed)
+-- For a department of 100,000 employees, 100,000 rows must be updated
 
--- 削除異常の実演: 佐藤を削除すると営業部の情報も消失
+-- Deletion anomaly demo: deleting Sato also erases Sales department data
 DELETE FROM emp_dept_denormalized WHERE emp_id = 3;
--- → dept_id=20の情報が完全に失われる
+-- → All information about dept_id=20 is permanently lost
 ```
 
-### 1.3 候補キーとスーパーキー
+### 1.3 Candidate Keys and Superkeys
 
-正規化を正確に理解するにはキーの概念が不可欠である。
+A precise understanding of normalization requires a solid grasp of key concepts.
 
 ```
-┌──────────── キーの階層構造 ──────────────────────┐
-│                                                    │
-│  スーパーキー (Superkey)                           │
+┌──────────── Key Hierarchy ──────────────────────┐
+│                                                   │
+│  Superkey                                         │
 │  ┌──────────────────────────────────────────┐    │
-│  │ 行を一意に識別できる属性の集合            │    │
-│  │ 例: {emp_id}, {emp_id, name},             │    │
+│  │ A set of attributes that uniquely         │    │
+│  │ identifies each row                       │    │
+│  │ Example: {emp_id}, {emp_id, name},        │    │
 │  │     {emp_id, name, dept_id}, ...          │    │
 │  │                                            │    │
-│  │  候補キー (Candidate Key)                  │    │
+│  │  Candidate Key                             │    │
 │  │  ┌──────────────────────────────────┐    │    │
-│  │  │ 極小のスーパーキー（余分な属性なし）│    │    │
-│  │  │ 例: {emp_id}, {email}            │    │    │
+│  │  │ Minimal superkey (no extra        │    │    │
+│  │  │ attributes)                       │    │    │
+│  │  │ Example: {emp_id}, {email}        │    │    │
 │  │  │                                    │    │    │
-│  │  │  主キー (Primary Key)             │    │    │
+│  │  │  Primary Key                      │    │    │
 │  │  │  ┌──────────────────────────┐    │    │    │
-│  │  │  │ 候補キーから1つ選択       │    │    │    │
-│  │  │  │ 例: emp_id               │    │    │    │
+│  │  │  │ One candidate key chosen  │    │    │    │
+│  │  │  │ Example: emp_id           │    │    │    │
 │  │  │  └──────────────────────────┘    │    │    │
 │  │  └──────────────────────────────────┘    │    │
 │  └──────────────────────────────────────────┘    │
-│                                                    │
-│  代替キー (Alternate Key)                         │
-│  = 主キーに選ばれなかった候補キー                  │
-│  例: email (UNIQUEで制約)                         │
-└────────────────────────────────────────────────────┘
+│                                                   │
+│  Alternate Key                                    │
+│  = Candidate key not selected as primary key      │
+│  Example: email (enforced with UNIQUE constraint) │
+└───────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. 正規化の段階
+## 2. Stages of Normalization
 
-### コード例1: 非正規形から第1正規形（1NF）
+### Code Example 1: Unnormalized Form to First Normal Form (1NF)
 
 ```sql
--- 非正規形: 繰り返し項目がある
+-- Unnormalized form: contains repeating groups
 -- ┌────┬──────┬─────────────────────┐
 -- │ id │ name │ phones              │
 -- ├────┼──────┼─────────────────────┤
--- │ 1  │ 田中 │ 090-1111, 03-2222   │ ← 1セルに複数値
+-- │ 1  │ Tanaka│ 090-1111, 03-2222  │ ← multiple values in one cell
 -- └────┴──────┴─────────────────────┘
 
--- 第1正規形（1NF）: 各セルに原子値（Atomic Value）のみ
+-- First Normal Form (1NF): each cell contains only atomic values
 CREATE TABLE contacts (
     id    INTEGER,
     name  VARCHAR(100),
     phone VARCHAR(20),
-    PRIMARY KEY (id, phone)  -- 複合主キー
+    PRIMARY KEY (id, phone)  -- composite primary key
 );
 
-INSERT INTO contacts VALUES (1, '田中', '090-1111-2222');
-INSERT INTO contacts VALUES (1, '田中', '03-2222-3333');
+INSERT INTO contacts VALUES (1, 'Tanaka', '090-1111-2222');
+INSERT INTO contacts VALUES (1, 'Tanaka', '03-2222-3333');
 
--- 1NF の要件:
--- 1. 各列の値が原子的（分割不可能）
--- 2. 繰り返しグループがない
--- 3. 行の順序に意味がない
--- 4. 各行が一意に識別可能（主キーが存在）
+-- Requirements for 1NF:
+-- 1. Each column value is atomic (indivisible)
+-- 2. No repeating groups
+-- 3. Row order has no significance
+-- 4. Each row is uniquely identifiable (primary key exists)
 ```
 
-#### 1NFの内部実装への影響
+#### Impact of 1NF on Internal Implementation
 
 ```
-┌──────── 1NF違反がストレージに与える影響 ────────┐
-│                                                    │
-│  非正規形（カンマ区切り格納）:                     │
-│  ┌─────────────────────────────────┐              │
-│  │ Page内: "090-1111,03-2222" を   │              │
-│  │ 可変長TEXTとして1つのタプルに格納│              │
-│  │ → 検索時にパース処理が必要       │              │
-│  │ → インデックスが効かない         │              │
-│  │ → 個別の電話番号でのWHERE不可能  │              │
-│  └─────────────────────────────────┘              │
-│                                                    │
-│  1NF（各値が独立行）:                              │
-│  ┌─────────────────────────────────┐              │
-│  │ Page内: 各タプルが独立           │              │
-│  │ → B-Treeインデックスで高速検索   │              │
-│  │ → WHERE phone = '090-1111-2222'  │              │
-│  │   がインデックススキャンで実行可能│              │
-│  └─────────────────────────────────┘              │
-└────────────────────────────────────────────────────┘
+┌──────── Effect of 1NF Violations on Storage ────────┐
+│                                                        │
+│  Unnormalized form (comma-separated storage):          │
+│  ┌─────────────────────────────────┐                  │
+│  │ In Page: "090-1111,03-2222"     │                  │
+│  │ stored as variable-length TEXT  │                  │
+│  │ in a single tuple               │                  │
+│  │ → Parsing required at query time│                  │
+│  │ → Indexes cannot be used        │                  │
+│  │ → Cannot filter by individual   │                  │
+│  │   phone number in WHERE clause  │                  │
+│  └─────────────────────────────────┘                  │
+│                                                        │
+│  1NF (each value in its own row):                      │
+│  ┌─────────────────────────────────┐                  │
+│  │ In Page: each tuple is independent│                 │
+│  │ → Fast lookup via B-Tree index  │                  │
+│  │ → WHERE phone = '090-1111-2222' │                  │
+│  │   can be executed as index scan │                  │
+│  └─────────────────────────────────┘                  │
+└────────────────────────────────────────────────────────┘
 ```
 
-### コード例2: 第2正規形（2NF）— 部分関数従属の排除
+### Code Example 2: Second Normal Form (2NF) — Eliminating Partial Functional Dependencies
 
 ```sql
--- 1NFだが2NFでない例:
--- 注文明細テーブル
+-- Example in 1NF but not 2NF:
+-- Order line items table
 -- PK = (order_id, product_id)
 -- ┌──────────┬────────────┬──────────────┬──────────┬───────┐
 -- │ order_id │ product_id │ product_name │ quantity │ price │
 -- └──────────┴────────────┴──────────────┴──────────┴───────┘
---   product_name は product_id のみに従属（部分関数従属）
+--   product_name depends only on product_id (partial functional dependency)
 --
--- 関数従属の分析:
---   {order_id, product_id} → quantity（完全関数従属 ✓）
---   {order_id, product_id} → price（完全関数従属 ✓）
---   product_id → product_name（部分関数従属 ✗）
+-- Functional dependency analysis:
+--   {order_id, product_id} → quantity  (full functional dependency ✓)
+--   {order_id, product_id} → price     (full functional dependency ✓)
+--   product_id → product_name          (partial functional dependency ✗)
 
--- 第2正規形（2NF）: 部分関数従属を排除
+-- Second Normal Form (2NF): eliminate partial functional dependencies
 CREATE TABLE products (
     product_id   INTEGER PRIMARY KEY,
-    product_name VARCHAR(100)           -- product_id のみに従属
+    product_name VARCHAR(100)           -- depends only on product_id
 );
 
 CREATE TABLE order_items (
     order_id   INTEGER REFERENCES orders(id),
     product_id INTEGER REFERENCES products(product_id),
     quantity   INTEGER,
-    price      DECIMAL(10,2),          -- 注文時の価格（スナップショット）
-    PRIMARY KEY (order_id, product_id)  -- 全キーに従属
+    price      DECIMAL(10,2),          -- price at time of order (snapshot)
+    PRIMARY KEY (order_id, product_id)  -- depends on entire key
 );
 
--- 2NF の要件:
--- 1. 1NFを満たす
--- 2. 非キー属性が主キーの一部にのみ従属しない
---    （主キーが単一列なら自動的に2NF）
+-- Requirements for 2NF:
+-- 1. Satisfies 1NF
+-- 2. No non-key attribute depends on only part of the primary key
+--    (automatically satisfied if primary key is a single column)
 
--- 重要な注意: priceは注文時のスナップショットとして
--- order_itemsに残すのが正しい設計（商品の現在価格とは別）
+-- Important note: price is correctly kept in order_items as an
+-- order-time snapshot (distinct from the product's current price)
 ```
 
-### コード例3: 第3正規形（3NF）— 推移的関数従属の排除
+### Code Example 3: Third Normal Form (3NF) — Eliminating Transitive Functional Dependencies
 
 ```sql
--- 2NFだが3NFでない例:
+-- Example in 2NF but not 3NF:
 -- ┌────┬──────┬─────────────┬────────────────┐
 -- │ id │ name │ dept_id     │ dept_name      │
 -- └────┴──────┴─────────────┴────────────────┘
--- dept_name は dept_id に従属し、dept_id は id に従属
--- → dept_name は id に推移的に従属
+-- dept_name depends on dept_id, which depends on id
+-- → dept_name transitively depends on id
 --
--- 関数従属の分析:
---   id → name（直接従属 ✓）
---   id → dept_id（直接従属 ✓）
---   dept_id → dept_name（推移的従属 ✗）
+-- Functional dependency analysis:
+--   id → name     (direct dependency ✓)
+--   id → dept_id  (direct dependency ✓)
+--   dept_id → dept_name  (transitive dependency ✗)
 --   ∴ id → dept_id → dept_name
 
--- 第3正規形（3NF）: 推移的関数従属を排除
+-- Third Normal Form (3NF): eliminate transitive functional dependencies
 CREATE TABLE departments (
     dept_id   INTEGER PRIMARY KEY,
     dept_name VARCHAR(100)
@@ -265,64 +270,64 @@ CREATE TABLE employees (
     dept_id INTEGER REFERENCES departments(dept_id)
 );
 
--- 3NF の要件:
--- 1. 2NFを満たす
--- 2. 非キー属性が他の非キー属性に従属しない
---    （非キー→非キーの関数従属がない）
+-- Requirements for 3NF:
+-- 1. Satisfies 2NF
+-- 2. No non-key attribute depends on another non-key attribute
+--    (no non-key → non-key functional dependencies)
 
--- 3NFの形式的定義（Coddの定義）:
--- テーブルRが3NFであるとは、全ての非自明な関数従属 X → A について
--- 以下のいずれかが成り立つことである:
--- (a) Xがスーパーキーである
--- (b) Aがいずれかの候補キーの一部（素属性）である
+-- Formal definition of 3NF (Codd's definition):
+-- Table R is in 3NF if, for every non-trivial functional dependency X → A,
+-- at least one of the following holds:
+-- (a) X is a superkey
+-- (b) A is a prime attribute (part of some candidate key)
 ```
 
-### 正規化の段階図解
+### Diagram: Stages of Normalization
 
 ```
-┌─────────────── 正規化の段階 ───────────────────┐
-│                                                 │
-│  非正規形                                       │
-│    │  繰り返し項目の排除                        │
-│    ▼                                            │
-│  第1正規形 (1NF)                                │
-│    │  部分関数従属の排除                        │
-│    ▼                                            │
-│  第2正規形 (2NF)                                │
-│    │  推移的関数従属の排除                      │
-│    ▼                                            │
-│  第3正規形 (3NF) ← ここまでが一般的な目標      │
-│    │  非自明な関数従属の候補キー依存            │
-│    ▼                                            │
-│  ボイス・コッド正規形 (BCNF)                    │
-│    │  多値従属の排除                            │
-│    ▼                                            │
-│  第4正規形 (4NF)                                │
-│    │  結合従属の排除                            │
-│    ▼                                            │
-│  第5正規形 (5NF)                                │
-│    │  ドメインキー制約の排除                    │
-│    ▼                                            │
-│  第6正規形 (6NF) ← テンポラルデータ向け        │
-│                                                 │
-│  ※ 実務では3NFまたはBCNFが実用的な上限         │
-└─────────────────────────────────────────────────┘
+┌─────────────── Stages of Normalization ───────────────────┐
+│                                                             │
+│  Unnormalized Form                                          │
+│    │  Eliminate repeating groups                            │
+│    ▼                                                        │
+│  First Normal Form (1NF)                                    │
+│    │  Eliminate partial functional dependencies             │
+│    ▼                                                        │
+│  Second Normal Form (2NF)                                   │
+│    │  Eliminate transitive functional dependencies          │
+│    ▼                                                        │
+│  Third Normal Form (3NF)  ← Typical target in practice     │
+│    │  All non-trivial FDs depend on a candidate key         │
+│    ▼                                                        │
+│  Boyce-Codd Normal Form (BCNF)                              │
+│    │  Eliminate multi-valued dependencies                   │
+│    ▼                                                        │
+│  Fourth Normal Form (4NF)                                   │
+│    │  Eliminate join dependencies                           │
+│    ▼                                                        │
+│  Fifth Normal Form (5NF)                                    │
+│    │  Eliminate domain-key constraints                      │
+│    ▼                                                        │
+│  Sixth Normal Form (6NF)  ← For temporal data              │
+│                                                             │
+│  Note: 3NF or BCNF is the practical upper limit in real use│
+└─────────────────────────────────────────────────────────────┘
 ```
 
-### コード例4: BCNF（ボイス・コッド正規形）
+### Code Example 4: BCNF (Boyce-Codd Normal Form)
 
 ```sql
--- 3NFだがBCNFでない例:
--- 学生の講義登録（1講義に複数の教員が担当可能、
---                 各教員は1つの講義のみ担当）
+-- Example in 3NF but not BCNF:
+-- Student course enrollment (a course can have multiple teachers,
+--                            but each teacher teaches only one course)
 -- PK = (student_id, course_id)
--- 関数従属: teacher_id → course_id
---          （教員がどの講義を担当するかは一意に決まる）
+-- Functional dependency: teacher_id → course_id
+--          (which course a teacher handles is uniquely determined)
 
--- 3NFではteacher_idは非キーだがcourse_id（キーの一部）を決定
--- → BCNFに違反
+-- In 3NF, teacher_id is non-key but determines course_id (part of the key)
+-- → Violates BCNF
 
--- BCNF化:
+-- BCNF decomposition:
 CREATE TABLE teacher_courses (
     teacher_id INTEGER PRIMARY KEY,
     course_id  INTEGER REFERENCES courses(id)
@@ -334,46 +339,46 @@ CREATE TABLE enrollments (
     PRIMARY KEY (student_id, teacher_id)
 );
 
--- BCNF の定義:
--- 全ての非自明な関数従属 X → Y について、Xがスーパーキーである
+-- Definition of BCNF:
+-- For every non-trivial functional dependency X → Y, X must be a superkey.
 --
--- 3NFとBCNFの違い:
--- 3NFは「Yが素属性ならOK」という例外を許す
--- BCNFは例外なく「決定項はスーパーキー」を要求
+-- Difference between 3NF and BCNF:
+-- 3NF allows the exception "Y is a prime attribute"
+-- BCNF requires "the determinant is always a superkey" with no exceptions
 
--- BCNFの注意点:
--- BCNFに分解すると、元の関数従属が保存されない場合がある
--- （従属性保存分解ができないケースがある）
+-- Note on BCNF:
+-- Decomposing to BCNF may not preserve all original functional dependencies
+-- (there are cases where dependency-preserving decomposition is impossible)
 ```
 
-### コード例5: 3NFとBCNFの違いを示す実践例
+### Code Example 5: Practical Comparison of 3NF and BCNF
 
 ```sql
--- より具体的なBCNF違反の例: 配送スケジュール
+-- A more concrete example of BCNF violation: delivery scheduling
 --
--- 前提条件:
--- 1. 各配送地域には複数の配送業者が対応可能
--- 2. 各配送業者は1つの配送地域のみを担当
--- 3. 1つの注文に対して1つの配送業者が割り当てられる
+-- Assumptions:
+-- 1. Multiple carriers can service each delivery area
+-- 2. Each carrier services only one delivery area
+-- 3. One carrier is assigned per order
 --
--- テーブル: deliveries
+-- Table: deliveries
 -- PK = (order_id, area_id)
--- 関数従属:
---   {order_id, area_id} → carrier_id（完全関数従属）
---   carrier_id → area_id（業者が担当地域を決定）
+-- Functional dependencies:
+--   {order_id, area_id} → carrier_id  (full functional dependency)
+--   carrier_id → area_id              (carrier determines its area)
 --
--- carrier_idは非キーだがarea_id（キーの一部）を決定 → BCNF違反
+-- carrier_id is non-key but determines area_id (part of the key) → BCNF violation
 
--- 3NF（BCNF違反を含む）
+-- 3NF (containing a BCNF violation)
 CREATE TABLE deliveries_3nf (
     order_id   INTEGER,
     area_id    INTEGER,
     carrier_id INTEGER,
     PRIMARY KEY (order_id, area_id)
-    -- carrier_id → area_id の従属が問題
+    -- carrier_id → area_id dependency is problematic
 );
 
--- BCNF（分解後）
+-- BCNF (after decomposition)
 CREATE TABLE carrier_areas (
     carrier_id INTEGER PRIMARY KEY,
     area_id    INTEGER NOT NULL
@@ -385,23 +390,23 @@ CREATE TABLE order_carriers (
     PRIMARY KEY (order_id, carrier_id)
 );
 
--- 分解の結果:
--- carrier_areas: carrier_id → area_id（carrier_idがキー ✓ BCNF）
--- order_carriers: 候補キー = {order_id, carrier_id}（BCNF ✓）
+-- Result of decomposition:
+-- carrier_areas: carrier_id → area_id (carrier_id is the key ✓ BCNF)
+-- order_carriers: candidate key = {order_id, carrier_id} (BCNF ✓)
 ```
 
 ---
 
-## 3. 高次正規形
+## 3. Higher Normal Forms
 
-### 3.1 第4正規形（4NF）— 多値従属の排除
+### 3.1 Fourth Normal Form (4NF) — Eliminating Multi-Valued Dependencies
 
 ```sql
--- 4NF違反の例:
--- 社員が複数のスキルと複数の言語を持つ
--- スキルと言語は互いに独立
+-- Example of 4NF violation:
+-- An employee has multiple skills and multiple languages
+-- Skills and languages are independent of each other
 
--- 4NF違反テーブル
+-- Table violating 4NF
 CREATE TABLE emp_skills_languages_bad (
     emp_id   INTEGER,
     skill    VARCHAR(50),
@@ -409,19 +414,19 @@ CREATE TABLE emp_skills_languages_bad (
     PRIMARY KEY (emp_id, skill, language)
 );
 
--- データ例:
--- emp_id=1 が skill={Java, Python} と language={日本語, 英語} を持つ場合
+-- Example data:
+-- emp_id=1 has skills={Java, Python} and languages={Japanese, English}
 INSERT INTO emp_skills_languages_bad VALUES
-(1, 'Java',   '日本語'),
-(1, 'Java',   '英語'),
-(1, 'Python', '日本語'),
-(1, 'Python', '英語');
--- → 2 × 2 = 4行（直積）が必要 → 冗長
+(1, 'Java',   'Japanese'),
+(1, 'Java',   'English'),
+(1, 'Python', 'Japanese'),
+(1, 'Python', 'English');
+-- → 2 × 2 = 4 rows (Cartesian product) required → redundant
 
--- 多値従属: emp_id →→ skill, emp_id →→ language
--- skillとlanguageは互いに独立なのに、直積を保持する必要がある
+-- Multi-valued dependency: emp_id →→ skill, emp_id →→ language
+-- Even though skill and language are independent, a Cartesian product must be stored
 
--- 4NF（多値従属を排除）
+-- 4NF (multi-valued dependencies eliminated)
 CREATE TABLE emp_skills (
     emp_id INTEGER,
     skill  VARCHAR(50),
@@ -435,26 +440,27 @@ CREATE TABLE emp_languages (
 );
 
 INSERT INTO emp_skills VALUES (1, 'Java'), (1, 'Python');
-INSERT INTO emp_languages VALUES (1, '日本語'), (1, '英語');
--- → 2 + 2 = 4行で済む（直積なら4行必要だった）
+INSERT INTO emp_languages VALUES (1, 'Japanese'), (1, 'English');
+-- → Only 2 + 2 = 4 rows needed (vs. 4 rows for the Cartesian product in this case,
+--   but savings grow with more skills/languages)
 
--- 4NF の定義:
--- 全ての非自明な多値従属 X →→ Y について、Xがスーパーキーである
+-- Definition of 4NF:
+-- For every non-trivial multi-valued dependency X →→ Y, X must be a superkey.
 ```
 
-### 3.2 第5正規形（5NF）— 結合従属の排除
+### 3.2 Fifth Normal Form (5NF) — Eliminating Join Dependencies
 
 ```sql
--- 5NF違反の例:
--- 代理店が供給者から商品を仕入れる関係
--- ただし、3者間の関係が2者間の関係から復元できない場合
+-- Example of 5NF violation:
+-- An agent purchases products from a supplier
+-- But the three-way relationship cannot always be reconstructed from pairwise relationships
 
--- 以下の3つの2項関係が成り立つ:
--- 代理店Aは供給者Xから仕入れる
--- 供給者Xは商品Pを供給する
--- 代理店Aは商品Pを扱う
--- → これらが成り立っても、「代理店Aが供給者Xから商品Pを仕入れる」
---   とは限らない（結合従属）
+-- The following three pairwise relationships may hold:
+-- Agent A buys from Supplier X
+-- Supplier X provides Product P
+-- Agent A handles Product P
+-- → Even if all three hold, it does NOT necessarily follow that
+--   "Agent A buys Product P from Supplier X" (join dependency)
 
 CREATE TABLE supply_3way (
     agent_id    INTEGER,
@@ -463,80 +469,82 @@ CREATE TABLE supply_3way (
     PRIMARY KEY (agent_id, supplier_id, product_id)
 );
 
--- 5NFでは3者間関係は分解できない場合がある
--- ただし、ビジネスルールにより分解可能な場合もある:
--- 「代理店が供給者と取引し、その供給者が扱う商品を
---   代理店も扱っているなら、必ずその経路で仕入れる」
--- というルールがあれば、3つの2項テーブルに分解可能
+-- In 5NF, a three-way relationship may not be decomposable
+-- However, it can be decomposed if a business rule states:
+-- "If an agent deals with a supplier, and that supplier carries a product
+--   that the agent also handles, then the agent necessarily sources
+--   that product through that supplier"
+-- In that case, decomposition into three binary tables is possible
 
--- 5NF の定義:
--- 全ての非自明な結合従属が候補キーにより暗示される
+-- Definition of 5NF:
+-- Every non-trivial join dependency is implied by the candidate keys
 ```
 
 ```
-┌──────── 4NF/5NFの実務での判断フロー ──────────┐
-│                                                  │
-│  Q: テーブルに3つ以上の属性の組み合わせがある？   │
-│  │                                              │
-│  ├── No → 3NF/BCNFで十分                       │
-│  │                                              │
-│  └── Yes                                        │
-│      │                                          │
-│      Q: 属性間に独立した多値関係がある？          │
-│      │                                          │
-│      ├── Yes → 4NF違反 → テーブルを分割        │
-│      │                                          │
-│      └── No                                     │
-│          │                                      │
-│          Q: 3者以上の関係が2者関係から           │
-│             復元できる？                         │
-│          │                                      │
-│          ├── Yes → 5NF分解可能                 │
-│          │                                      │
-│          └── No → 3者間テーブルを維持           │
-└──────────────────────────────────────────────────┘
+┌──────── Decision Flow for 4NF/5NF in Practice ──────────┐
+│                                                            │
+│  Q: Does the table have combinations of 3+ attributes?     │
+│  │                                                        │
+│  ├── No → 3NF/BCNF is sufficient                         │
+│  │                                                        │
+│  └── Yes                                                  │
+│      │                                                    │
+│      Q: Are there independent multi-valued relationships   │
+│         between attributes?                               │
+│      │                                                    │
+│      ├── Yes → 4NF violation → split the table           │
+│      │                                                    │
+│      └── No                                               │
+│          │                                                │
+│          Q: Can the multi-way relationship be             │
+│             reconstructed from pairwise relationships?    │
+│          │                                                │
+│          ├── Yes → 5NF decomposition is possible         │
+│          │                                                │
+│          └── No → Keep the multi-way table               │
+└────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 4. 非正規化
+## 4. Denormalization
 
-### 4.1 非正規化の判断基準
+### 4.1 Criteria for Deciding to Denormalize
 
 ```
-┌────────── 非正規化を検討すべき条件 ──────────────┐
-│                                                    │
-│  1. 読み取り/書き込み比率                          │
-│     読み取り >>> 書き込み (100:1以上)               │
-│     → 非正規化の効果が大きい                       │
-│                                                    │
-│  2. クエリパターンが固定的                         │
-│     特定のJOINパターンが全体の80%以上               │
-│     → そのJOINを非正規化で排除                     │
-│                                                    │
-│  3. レイテンシ要件                                  │
-│     JOINによるレイテンシが許容できない              │
-│     → キャッシュ/MVで対応できないか先に検討        │
-│                                                    │
-│  4. データサイズ                                    │
-│     JOINするテーブルが数千万行以上                  │
-│     → パーティショニング検討が先                   │
-│                                                    │
-│  判断フロー:                                       │
-│  正規化 → インデックス追加 → MV/キャッシュ         │
-│  → パーティション → リードレプリカ                 │
-│  → 最後の手段として非正規化                        │
-└────────────────────────────────────────────────────┘
+┌────────── Conditions That Warrant Considering Denormalization ──┐
+│                                                                   │
+│  1. Read/write ratio                                              │
+│     Reads >>> Writes (100:1 or more)                             │
+│     → Denormalization has a large impact                         │
+│                                                                   │
+│  2. Fixed query patterns                                          │
+│     A specific JOIN pattern accounts for 80%+ of all queries     │
+│     → Eliminate that JOIN through denormalization                 │
+│                                                                   │
+│  3. Latency requirements                                          │
+│     JOIN-induced latency is unacceptable                         │
+│     → First consider whether caching or MVs can address this     │
+│                                                                   │
+│  4. Data size                                                     │
+│     Tables being JOINed have tens of millions of rows or more    │
+│     → Consider partitioning first                                 │
+│                                                                   │
+│  Decision flow:                                                   │
+│  Normalize → Add indexes → MV/Cache                              │
+│  → Partition → Read replica                                       │
+│  → Denormalize as a last resort                                   │
+└───────────────────────────────────────────────────────────────────┘
 ```
 
-### コード例6: 意図的な非正規化パターン
+### Code Example 6: Intentional Denormalization Patterns
 
 ```sql
--- パターン1: 計算済みカラム（集約結果のキャッシュ）
+-- Pattern 1: Computed columns (cached aggregate results)
 ALTER TABLE orders ADD COLUMN item_count INTEGER DEFAULT 0;
 ALTER TABLE orders ADD COLUMN total_amount DECIMAL(12,2) DEFAULT 0;
 
--- トリガーで自動更新
+-- Automatically updated via trigger
 CREATE OR REPLACE FUNCTION update_order_totals()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -553,7 +561,7 @@ CREATE TRIGGER trg_update_order_totals
     FOR EACH ROW
     EXECUTE FUNCTION update_order_totals();
 
--- パターン2: マテリアライズドビュー
+-- Pattern 2: Materialized view
 CREATE MATERIALIZED VIEW monthly_sales_summary AS
 SELECT
     DATE_TRUNC('month', order_date) AS month,
@@ -564,15 +572,15 @@ FROM orders o
     JOIN products p ON o.product_id = p.id
 GROUP BY 1, 2;
 
--- 定期的にリフレッシュ
+-- Refresh periodically
 REFRESH MATERIALIZED VIEW CONCURRENTLY monthly_sales_summary;
 
--- パターン3: 非正規化カラムの追加
--- 頻繁にJOINされるカラムを冗長に保持
+-- Pattern 3: Adding denormalized columns
+-- Redundantly store columns that are frequently JOINed
 ALTER TABLE orders ADD COLUMN customer_name VARCHAR(200);
 ALTER TABLE orders ADD COLUMN customer_email VARCHAR(255);
 
--- トリガーでcustomersテーブルとの同期を維持
+-- Maintain sync with customers table via trigger
 CREATE OR REPLACE FUNCTION sync_customer_denorm()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -589,11 +597,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- パターン4: JSONBによる半構造化データの格納
--- 頻繁にJOINされる関連データをJSONBとして埋め込む
+-- Pattern 4: Semi-structured data stored in JSONB
+-- Embed related data that is frequently JOINed as JSONB
 ALTER TABLE orders ADD COLUMN items_snapshot JSONB;
 
--- 注文確定時にスナップショットを作成
+-- Create a snapshot when an order is finalized
 UPDATE orders SET items_snapshot = (
     SELECT jsonb_agg(jsonb_build_object(
         'product_name', p.name,
@@ -607,11 +615,11 @@ UPDATE orders SET items_snapshot = (
 WHERE id = 42;
 ```
 
-### コード例7: 正規化 vs 非正規化の実例比較
+### Code Example 7: Practical Comparison of Normalized vs. Denormalized
 
 ```sql
--- 正規化されたスキーマ（3NF）
--- 6テーブルをJOINして注文詳細を取得
+-- Normalized schema (3NF)
+-- Retrieve order details by JOINing 6 tables
 EXPLAIN ANALYZE
 SELECT
     o.id, o.order_date,
@@ -627,10 +635,10 @@ FROM orders o
     JOIN categories cat ON p.category_id = cat.id
     JOIN addresses a ON o.shipping_address_id = a.id
 WHERE o.id = 42;
--- → 実行計画: 5つのNested Loop Join、推定50ms
+-- → Execution plan: 5 Nested Loop Joins, estimated 50ms
 
--- 非正規化されたスキーマ（読み取り最適化）
--- 1テーブルで完結
+-- Denormalized schema (read-optimized)
+-- Completed with a single table scan
 EXPLAIN ANALYZE
 SELECT
     order_id, order_date,
@@ -641,9 +649,9 @@ SELECT
     shipping_city, shipping_postal_code
 FROM order_details_denormalized
 WHERE order_id = 42;
--- → 実行計画: Index Scan のみ、推定2ms
+-- → Execution plan: Index Scan only, estimated 2ms
 
--- 中間的なアプローチ: マテリアライズドビュー
+-- Middle-ground approach: materialized view
 CREATE MATERIALIZED VIEW mv_order_details AS
 SELECT
     o.id AS order_id, o.order_date,
@@ -660,74 +668,75 @@ FROM orders o
     JOIN addresses a ON o.shipping_address_id = a.id;
 
 CREATE UNIQUE INDEX idx_mv_order_details_order_id ON mv_order_details(order_id);
--- → 読み取りは高速、データ更新はREFRESHで制御
+-- → Fast reads, data updates controlled via REFRESH
 ```
 
-### 4.2 RDBMS間の非正規化機能比較
+### 4.2 Denormalization Feature Comparison Across RDBMS
 
 ```
-┌──────── RDBMS間の非正規化サポート比較 ─────────┐
-│                                                   │
-│  機能                  │ PG │ MySQL │ Oracle │ SS│
-│  ─────────────────────┼────┼───────┼────────┼───│
-│  マテリアライズドビュー│ ✓  │ ✗*    │ ✓      │ ✓ │
-│  生成列(GENERATED)    │ ✓  │ ✓     │ ✓      │ ✓ │
-│  JSONB型             │ ✓  │ JSON  │ JSON   │ JSON│
-│  配列型              │ ✓  │ ✗     │ ✗      │ ✗ │
-│  トリガー            │ ✓  │ ✓     │ ✓      │ ✓ │
-│  計算列(STORED)      │ ✓  │ ✓     │ ✓      │ ✓ │
-│                                                   │
-│  PG = PostgreSQL, SS = SQL Server                 │
-│  * MySQLはMVの代わりにサマリーテーブル+イベントで対応│
-└───────────────────────────────────────────────────┘
+┌──────── Denormalization Support Comparison Across RDBMS ────────┐
+│                                                                    │
+│  Feature               │ PG │ MySQL │ Oracle │ SS                 │
+│  ──────────────────────┼────┼───────┼────────┼────                │
+│  Materialized Views    │ ✓  │ ✗*    │ ✓      │ ✓                  │
+│  GENERATED columns     │ ✓  │ ✓     │ ✓      │ ✓                  │
+│  JSONB type            │ ✓  │ JSON  │ JSON   │ JSON               │
+│  Array type            │ ✓  │ ✗     │ ✗      │ ✗                  │
+│  Triggers              │ ✓  │ ✓     │ ✓      │ ✓                  │
+│  Computed columns      │ ✓  │ ✓     │ ✓      │ ✓                  │
+│  (STORED)              │    │       │        │                    │
+│                                                                    │
+│  PG = PostgreSQL, SS = SQL Server                                  │
+│  * MySQL uses summary tables + events instead of MVs              │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. 正規化のオプティマイザへの影響
+## 5. Impact of Normalization on the Query Optimizer
 
-### 5.1 JOINの実行コストモデル
+### 5.1 JOIN Execution Cost Model
 
 ```
-┌──────── JOINアルゴリズムと正規化の関係 ────────┐
-│                                                   │
-│  正規化するとJOINが増える → 実行コストへの影響    │
-│                                                   │
-│  Nested Loop Join:                                │
-│  外側テーブルN行 × 内側テーブルの検索コスト        │
-│  → インデックスがあれば O(N * log M)              │
-│  → 小テーブル同士のJOINに最適                     │
-│                                                   │
-│  Hash Join:                                       │
-│  ビルドフェーズ: O(N)  プローブフェーズ: O(M)      │
-│  → 大テーブル同士のJOINに最適                     │
-│  → work_memが十分なら高速                         │
-│                                                   │
-│  Merge Join:                                      │
-│  ソート済みデータ同士: O(N + M)                    │
-│  → インデックスでソート済みならソート不要           │
-│                                                   │
-│  結論:                                            │
-│  適切なインデックスがあれば、3NF分解による          │
-│  JOIN増加のコストは多くの場合許容範囲内            │
-└───────────────────────────────────────────────────┘
+┌──────── JOIN Algorithms and Their Relationship to Normalization ──┐
+│                                                                     │
+│  More normalization means more JOINs → impact on execution cost    │
+│                                                                     │
+│  Nested Loop Join:                                                  │
+│  N rows in outer table × cost of lookup in inner table             │
+│  → With an index: O(N * log M)                                     │
+│  → Best for JOINs between small tables                             │
+│                                                                     │
+│  Hash Join:                                                         │
+│  Build phase: O(N)  Probe phase: O(M)                              │
+│  → Best for JOINs between large tables                             │
+│  → Fast if work_mem is sufficient                                  │
+│                                                                     │
+│  Merge Join:                                                        │
+│  Pre-sorted data: O(N + M)                                         │
+│  → No sort needed if data is already ordered via an index          │
+│                                                                     │
+│  Conclusion:                                                        │
+│  With appropriate indexes, the cost increase from additional JOINs  │
+│  due to 3NF decomposition is usually within acceptable bounds      │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### コード例8: 正規化テーブルのJOIN最適化
+### Code Example 8: Optimizing JOINs on Normalized Tables
 
 ```sql
--- 3NFテーブルでも適切なインデックスで高速化
+-- Even 3NF tables can be made fast with appropriate indexes
 CREATE INDEX idx_employees_dept ON employees(department_id);
 CREATE INDEX idx_departments_pk ON departments(dept_id);
 
--- オプティマイザはNested Loop + Index Scanを選択
+-- The optimizer chooses Nested Loop + Index Scan
 EXPLAIN ANALYZE
 SELECT e.name, d.dept_name
 FROM employees e
     JOIN departments d ON e.department_id = d.dept_id
 WHERE e.salary > 500000;
 
--- 結果例:
+-- Sample output:
 -- Nested Loop  (actual time=0.030..0.150 rows=100 loops=1)
 --   -> Index Scan using idx_emp_salary on employees e
 --      Filter: (salary > 500000)
@@ -735,60 +744,60 @@ WHERE e.salary > 500000;
 --   -> Index Scan using departments_pkey on departments d
 --      Index Cond: (dept_id = e.department_id)
 -- Execution Time: 0.200 ms
--- → 正規化テーブルでも十分高速（インデックスが適切なら）
+-- → Normalized tables can also be fast enough (with appropriate indexes)
 ```
 
 ---
 
-## 正規化レベル比較表
+## Normal Form Comparison Table
 
-| 正規形 | 排除する問題 | 適用条件 | 実用性 | 分解の可逆性 |
-|--------|------------|---------|--------|-------------|
-| 1NF | 繰り返し項目、非原子値 | 各セルが原子値 | 必須 | - |
-| 2NF | 部分関数従属 | 非キーがキー全体に従属 | 必須 | 可逆（無損失） |
-| 3NF | 推移的関数従属 | 非キー間の従属排除 | 推奨 | 可逆（従属性保存） |
-| BCNF | 全ての非自明な関数従属 | 決定項が候補キー | 推奨 | 可逆（従属性非保存の場合あり） |
-| 4NF | 多値従属 | 独立した多値関係の分離 | 稀 | 可逆（無損失） |
-| 5NF | 結合従属 | 無損失結合分解 | 極稀 | 可逆 |
-| 6NF | 非自明な結合従属が全くない | 完全な分解 | テンポラルDB | 可逆 |
+| Normal Form | Problem Eliminated | Condition | Practicality | Reversibility of Decomposition |
+|-------------|-------------------|-----------|--------------|-------------------------------|
+| 1NF | Repeating groups, non-atomic values | Each cell holds an atomic value | Required | — |
+| 2NF | Partial functional dependencies | Non-key attributes depend on the full key | Required | Reversible (lossless) |
+| 3NF | Transitive functional dependencies | No dependencies between non-key attributes | Recommended | Reversible (dependency-preserving) |
+| BCNF | All non-trivial functional dependencies | Every determinant is a candidate key | Recommended | Reversible (may not preserve dependencies) |
+| 4NF | Multi-valued dependencies | Separation of independent multi-valued relationships | Rare | Reversible (lossless) |
+| 5NF | Join dependencies | Lossless-join decomposition | Very rare | Reversible |
+| 6NF | No non-trivial join dependencies remain | Complete decomposition | Temporal DBs | Reversible |
 
-## 正規化 vs 非正規化 比較表
+## Normalization vs. Denormalization Comparison
 
-| 観点 | 正規化 | 非正規化 |
-|------|--------|---------|
-| データ冗長性 | なし | あり |
-| 更新異常 | なし | リスクあり |
-| 書き込み性能 | 高い | 低い（複数箇所更新） |
-| 読み取り性能 | JOIN必要（やや低い） | 高い（1テーブル） |
-| ストレージ | 効率的 | 冗長（大きい） |
-| スキーマ変更 | 容易 | 困難 |
-| データ整合性 | 高い | 自力で維持が必要 |
-| 適する用途 | OLTP | OLAP / レポーティング |
-| インデックス設計 | シンプル | 複合的 |
-| バックアップサイズ | 小さい | 大きい |
-| トランザクション | 単純 | 複雑（複数テーブル更新） |
+| Aspect | Normalized | Denormalized |
+|--------|------------|--------------|
+| Data redundancy | None | Present |
+| Update anomalies | None | Risk exists |
+| Write performance | High | Low (multiple locations to update) |
+| Read performance | Requires JOINs (somewhat lower) | High (single table) |
+| Storage | Efficient | Redundant (larger) |
+| Schema changes | Easy | Difficult |
+| Data integrity | High | Must be maintained manually |
+| Suitable workload | OLTP | OLAP / Reporting |
+| Index design | Simple | Complex |
+| Backup size | Small | Large |
+| Transactions | Simple | Complex (multi-table updates) |
 
-## RDBMS別の正規化関連機能比較表
+## RDBMS-Specific Normalization Feature Comparison
 
-| 機能 | PostgreSQL | MySQL (InnoDB) | Oracle | SQL Server |
-|------|-----------|----------------|--------|------------|
-| CHECK制約 | 完全サポート | 8.0.16+ | 完全サポート | 完全サポート |
-| 外部キー | 完全サポート | 完全サポート | 完全サポート | 完全サポート |
-| 排他制約 | ✓（EXCLUDE） | ✗ | ✗ | ✗ |
-| GENERATED列 | ✓（STORED） | ✓（STORED/VIRTUAL） | ✓（VIRTUAL） | ✓（PERSISTED） |
-| 配列型 | ✓ | ✗ | ✓（VARRAY） | ✗ |
-| JSON型 | JSONB（バイナリ） | JSON（テキスト） | JSON（21c+） | JSON（2016+） |
-| 部分インデックス | ✓ | ✗ | ✗（関数ベース） | ✓（フィルター付き） |
-| MV | ✓ | ✗ | ✓（自動リフレッシュ） | ✓（インデックス付きビュー） |
+| Feature | PostgreSQL | MySQL (InnoDB) | Oracle | SQL Server |
+|---------|-----------|----------------|--------|------------|
+| CHECK constraints | Full support | 8.0.16+ | Full support | Full support |
+| Foreign keys | Full support | Full support | Full support | Full support |
+| Exclusion constraints | ✓ (EXCLUDE) | ✗ | ✗ | ✗ |
+| GENERATED columns | ✓ (STORED) | ✓ (STORED/VIRTUAL) | ✓ (VIRTUAL) | ✓ (PERSISTED) |
+| Array type | ✓ | ✗ | ✓ (VARRAY) | ✗ |
+| JSON type | JSONB (binary) | JSON (text) | JSON (21c+) | JSON (2016+) |
+| Partial indexes | ✓ | ✗ | ✗ (function-based) | ✓ (filtered) |
+| Materialized views | ✓ | ✗ | ✓ (auto-refresh) | ✓ (indexed views) |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: EAV（Entity-Attribute-Value）パターン
+### Anti-Pattern 1: EAV (Entity-Attribute-Value) Pattern
 
 ```sql
--- NG: 汎用的だが正規化の恩恵を全く受けられない
+-- NG: Generic but provides none of the benefits of normalization
 CREATE TABLE entity_attributes (
     entity_id  INTEGER,
     attr_name  VARCHAR(100),
@@ -796,15 +805,15 @@ CREATE TABLE entity_attributes (
     PRIMARY KEY (entity_id, attr_name)
 );
 
--- 問題点:
--- 1. 型安全性がない（全てTEXT）
--- 2. 制約が使えない（NOT NULL、CHECK等）
--- 3. JOINが複雑化（属性ごとにSelf JOIN）
--- 4. クエリが非効率
--- 5. 外部キー制約が使えない
--- 6. 集約関数が使えない（文字列なのでSUM不可）
+-- Problems:
+-- 1. No type safety (everything is TEXT)
+-- 2. Cannot use constraints (NOT NULL, CHECK, etc.)
+-- 3. Complex JOINs (self-JOINs per attribute)
+-- 4. Inefficient queries
+-- 5. Cannot use foreign key constraints
+-- 6. Cannot use aggregate functions (SUM impossible on strings)
 
--- EAVでピボットクエリを書く場合の困難さ:
+-- Difficulty of writing pivot queries with EAV:
 SELECT
     e.entity_id,
     MAX(CASE WHEN ea.attr_name = 'name' THEN ea.attr_value END) AS name,
@@ -813,122 +822,122 @@ SELECT
 FROM entities e
     LEFT JOIN entity_attributes ea ON e.id = ea.entity_id
 GROUP BY e.entity_id;
--- → 属性が増えるたびにクエリの修正が必要
+-- → Query must be modified every time a new attribute is added
 
--- OK: JSONBでスキーマレスな部分を分離
+-- OK: Isolate schemaless portions using JSONB
 CREATE TABLE products (
     id    SERIAL PRIMARY KEY,
     name  VARCHAR(100) NOT NULL,
     price DECIMAL(10,2) NOT NULL,
-    attrs JSONB  -- 可変属性はJSONBに格納
+    attrs JSONB  -- variable attributes stored in JSONB
 );
 
--- JSONBならGINインデックスで効率的に検索可能
+-- JSONB allows efficient search via GIN index
 CREATE INDEX idx_products_attrs ON products USING GIN (attrs);
 
--- 特定属性で検索
+-- Search by specific attribute
 SELECT * FROM products WHERE attrs @> '{"color": "red"}';
 
--- 属性の存在確認
+-- Check for attribute existence
 SELECT * FROM products WHERE attrs ? 'weight';
 ```
 
-### アンチパターン2: 過度な正規化
+### Anti-Pattern 2: Over-Normalization
 
 ```sql
--- NG: 都道府県や性別まで別テーブルに分離
+-- NG: Splitting even prefectures and genders into separate tables
 CREATE TABLE genders (id INT PRIMARY KEY, name VARCHAR(10));
 CREATE TABLE prefectures (id INT PRIMARY KEY, name VARCHAR(10));
--- → JOINが増え、クエリが複雑化し、パフォーマンスが低下
--- → 47都道府県のマスタテーブルのためにJOINが1つ増える
+-- → More JOINs, more complex queries, degraded performance
+-- → An extra JOIN just for a 47-row master table
 
--- OK: 変更されない小さなマスタはENUMやCHECK制約で十分
+-- OK: Small, rarely-changing master data is fine with ENUM or CHECK constraints
 CREATE TABLE users (
     id       SERIAL PRIMARY KEY,
     gender   VARCHAR(10) CHECK (gender IN ('male', 'female', 'other')),
     prefecture VARCHAR(10) NOT NULL
 );
 
--- 判断基準:
--- マスタデータが以下の全てを満たすなら正規化不要:
--- ✓ 値の数が少ない（50以下）
--- ✓ 変更頻度が極めて低い
--- ✓ 追加の属性を持たない
--- ✓ 他のテーブルから参照されない
+-- Decision criteria:
+-- Normalization is unnecessary if master data satisfies ALL of the following:
+-- ✓ Small number of values (50 or fewer)
+-- ✓ Extremely low rate of change
+-- ✓ Has no additional attributes
+-- ✓ Not referenced from other tables
 ```
 
-### アンチパターン3: 正規化なしのログテーブル
+### Anti-Pattern 3: Log Tables Without Intentional Design
 
 ```sql
--- NG: ログテーブルに冗長データを無秩序に格納
+-- NG: Storing redundant data chaotically in a log table
 CREATE TABLE activity_logs (
     id         BIGSERIAL PRIMARY KEY,
     user_id    INTEGER,
-    user_name  VARCHAR(100),   -- usersテーブルと冗長
-    user_email VARCHAR(255),   -- usersテーブルと冗長
+    user_name  VARCHAR(100),   -- redundant with users table
+    user_email VARCHAR(255),   -- redundant with users table
     action     VARCHAR(50),
     target_id  INTEGER,
     target_type VARCHAR(50),
-    target_name VARCHAR(200),  -- 対象テーブルと冗長
+    target_name VARCHAR(200),  -- redundant with target table
     ip_address INET,
     created_at TIMESTAMPTZ
 );
--- → ユーザー名変更時に過去ログとの不整合が発生
--- → ストレージが急速に肥大化
+-- → Inconsistency between past logs and users table when a username changes
+-- → Storage grows rapidly
 
--- OK: ログテーブルはイベント時点のスナップショットとして設計
+-- OK: Design log tables as point-in-time event snapshots
 CREATE TABLE activity_logs (
     id         BIGSERIAL PRIMARY KEY,
     user_id    INTEGER NOT NULL,
     action     VARCHAR(50) NOT NULL,
     target_id  INTEGER,
     target_type VARCHAR(50),
-    -- スナップショット（意図的な非正規化）
+    -- Snapshot (intentional denormalization)
     snapshot   JSONB NOT NULL DEFAULT '{}',
     ip_address INET,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 ) PARTITION BY RANGE (created_at);
 
--- snapshotには「その時点の状態」を記録
--- → 正規化テーブルとは別の設計意図
--- → 監査・コンプライアンス要件を満たす
+-- snapshot records "the state at that point in time"
+-- → A different design intent from normalized tables
+-- → Satisfies audit and compliance requirements
 ```
 
 ---
 
-## エッジケース
+## Edge Cases
 
-### エッジケース1: 1NFとPostgreSQLの配列型
+### Edge Case 1: 1NF and PostgreSQL Array Types
 
 ```sql
--- PostgreSQLの配列型は厳密には1NF違反だが、実務では有用
+-- PostgreSQL array types are technically a 1NF violation, but useful in practice
 CREATE TABLE articles (
     id   SERIAL PRIMARY KEY,
     title VARCHAR(200),
     tags  TEXT[] NOT NULL DEFAULT '{}'
 );
 
--- GINインデックスで効率的に検索可能
+-- Efficient search via GIN index
 CREATE INDEX idx_articles_tags ON articles USING GIN (tags);
 
--- 配列内の値で検索
-SELECT * FROM articles WHERE tags @> ARRAY['SQL', 'データベース'];
+-- Search by value within the array
+SELECT * FROM articles WHERE tags @> ARRAY['SQL', 'Database'];
 
--- いつ配列型を使うべきか:
--- ✓ 値の集合を1つのエンティティに関連付ける場合
--- ✓ 値に追加属性がない場合（タグ名だけなど）
--- ✓ 値の個数が少ない場合（数十個以下）
--- ✗ 値に属性がある場合は正規化（中間テーブル）を使う
--- ✗ 値が他のエンティティへの参照の場合は正規化
+-- When to use array types:
+-- ✓ Associating a set of values with a single entity
+-- ✓ When values have no additional attributes (e.g., just tag names)
+-- ✓ When the number of values is small (a few dozen or fewer)
+-- ✗ Use normalization (join table) if values have their own attributes
+-- ✗ Use normalization if values are references to other entities
 ```
 
-### エッジケース2: 時系列データと正規化
+### Edge Case 2: Time-Series Data and Normalization
 
 ```sql
--- 時系列データは正規化の適用が難しい
--- センサーデータの例: 1秒に1行、100万行/日
+-- Time-series data is challenging to normalize
+-- Sensor data example: 1 row per second, 1 million rows/day
 
--- 純粋な正規化アプローチ
+-- Pure normalization approach
 CREATE TABLE sensors (
     sensor_id   SERIAL PRIMARY KEY,
     sensor_name VARCHAR(100),
@@ -942,20 +951,20 @@ CREATE TABLE sensor_readings (
     PRIMARY KEY (sensor_id, ts)
 );
 
--- 時系列DBアプローチ（TimescaleDB: PostgreSQL拡張）
--- ハイパーテーブルで自動パーティショニング
+-- Time-series DB approach (TimescaleDB: PostgreSQL extension)
+-- Automatic partitioning via hypertable
 -- SELECT create_hypertable('sensor_readings', 'ts');
 
--- 時系列データの正規化のポイント:
--- 1. メタデータ（センサー情報）は正規化
--- 2. 計測値は時系列最適化された構造で格納
--- 3. 集約結果は非正規化（CAGG: 連続集約）で保持
+-- Key points for normalizing time-series data:
+-- 1. Metadata (sensor information) should be normalized
+-- 2. Measurement values are stored in a time-series-optimized structure
+-- 3. Aggregated results are stored in denormalized form (CAGG: continuous aggregates)
 ```
 
-### エッジケース3: 多対多関係の属性付き中間テーブル
+### Edge Case 3: Junction Tables with Additional Attributes
 
 ```sql
--- 中間テーブルに追加属性がある場合の正規化
+-- Normalization when a junction table has extra attributes
 CREATE TABLE students (
     id   SERIAL PRIMARY KEY,
     name VARCHAR(100)
@@ -966,53 +975,53 @@ CREATE TABLE courses (
     name VARCHAR(100)
 );
 
--- 中間テーブルに属性がある
+-- Junction table with attributes
 CREATE TABLE enrollments (
     student_id INTEGER REFERENCES students(id),
     course_id  INTEGER REFERENCES courses(id),
-    grade      CHAR(2),         -- 成績
-    enrolled_at DATE,           -- 登録日
-    instructor VARCHAR(100),    -- 担当教員
+    grade      CHAR(2),         -- grade
+    enrolled_at DATE,           -- enrollment date
+    instructor VARCHAR(100),    -- assigned instructor
     PRIMARY KEY (student_id, course_id)
 );
 
--- 問題: instructorが courses に対して関数従属する場合
--- course_id → instructor なら3NF違反
--- → instructorをcoursesテーブルに移動すべき
+-- Problem: if instructor is functionally dependent on courses
+-- course_id → instructor violates 3NF
+-- → instructor should be moved to the courses table
 
--- ただし、同じ科目でも学期によって教員が変わる場合は
--- {student_id, course_id} → instructor は完全関数従属
--- → 3NFを満たす（中間テーブルに残して良い）
+-- However, if the same course has different instructors by semester,
+-- {student_id, course_id} → instructor is a full functional dependency
+-- → 3NF is satisfied (it is correct to keep instructor in the junction table)
 ```
 
 ---
 
-## 演習
+## Exercises
 
-### 演習1（基礎）: 1NF〜3NFの実践
+### Exercise 1 (Basic): Applying 1NF through 3NF
 
-以下の非正規形テーブルを3NFまで正規化せよ。
+Normalize the following unnormalized table up to 3NF.
 
 ```sql
--- 非正規形テーブル
+-- Unnormalized table
 CREATE TABLE orders_raw (
     order_id     INTEGER,
     order_date   DATE,
     customer_name VARCHAR(100),
     customer_email VARCHAR(255),
     customer_phone VARCHAR(20),
-    items        TEXT,  -- "商品A:3個:1000円, 商品B:1個:2000円"
+    items        TEXT,  -- "Product A:3 units:1000 yen, Product B:1 unit:2000 yen"
     total_amount DECIMAL(10,2)
 );
 ```
 
-**ヒント**: 関数従属を洗い出し、段階的に分解する。
+**Hint**: Identify all functional dependencies and decompose step by step.
 
 <details>
-<summary>解答例</summary>
+<summary>Sample Solution</summary>
 
 ```sql
--- 1NF: 繰り返し項目の排除
+-- 1NF: Eliminate repeating groups
 CREATE TABLE customers_1nf (
     customer_id   SERIAL PRIMARY KEY,
     customer_name VARCHAR(100) NOT NULL,
@@ -1035,8 +1044,8 @@ CREATE TABLE order_items_1nf (
     PRIMARY KEY (order_id, product_name)
 );
 
--- 2NF: order_items_1nfのproduct_nameを商品テーブルに分離
--- （product_nameがproduct_idのみに従属する場合）
+-- 2NF: Separate product_name from order_items_1nf into a products table
+-- (when product_name depends only on product_id)
 CREATE TABLE products_2nf (
     product_id   SERIAL PRIMARY KEY,
     product_name VARCHAR(200) NOT NULL
@@ -1050,28 +1059,28 @@ CREATE TABLE order_items_2nf (
     PRIMARY KEY (order_id, product_id)
 );
 
--- 3NF: customersのphone/emailは既にcustomer_idに直接従属
--- total_amountはorder_itemsから計算可能なので排除可能
--- （ただし、パフォーマンスのため残す場合は意図的な非正規化）
+-- 3NF: phone/email in customers already directly depend on customer_id
+-- total_amount can be computed from order_items, so it can be removed
+-- (however, keeping it as intentional denormalization for performance is valid)
 CREATE TABLE orders_3nf (
     order_id    SERIAL PRIMARY KEY,
     order_date  DATE NOT NULL,
     customer_id INTEGER NOT NULL REFERENCES customers_1nf(customer_id)
-    -- total_amountは計算で求めるか、非正規化として残す
+    -- total_amount either computed on the fly or kept as intentional denormalization
 );
 ```
 </details>
 
-### 演習2（応用）: BCNF分解
+### Exercise 2 (Intermediate): BCNF Decomposition
 
-以下のテーブルの関数従属を分析し、BCNF に分解せよ。
+Analyze the functional dependencies of the following table and decompose it into BCNF.
 
 ```sql
--- 教室予約テーブル
--- 前提:
--- 1. 各教員は1つの科目のみを教える
--- 2. 各科目は複数の教員が教えることができる
--- 3. 各教室は1時間枠につき1つの授業のみ
+-- Classroom booking table
+-- Assumptions:
+-- 1. Each teacher teaches only one subject
+-- 2. Each subject can be taught by multiple teachers
+-- 3. Each room has only one class per time slot
 CREATE TABLE classroom_bookings (
     room_id    INTEGER,
     time_slot  INTEGER,
@@ -1081,21 +1090,21 @@ CREATE TABLE classroom_bookings (
 );
 ```
 
-**ヒント**: `teacher_id → subject` の関数従属がBCNF違反を引き起こす。
+**Hint**: The functional dependency `teacher_id → subject` causes the BCNF violation.
 
 <details>
-<summary>解答例</summary>
+<summary>Sample Solution</summary>
 
 ```sql
--- 関数従属の分析:
--- {room_id, time_slot} → teacher_id（主キーから一意に決まる）
--- {room_id, time_slot} → subject（主キーから一意に決まる）
--- teacher_id → subject（教員は1科目のみ担当）
+-- Functional dependency analysis:
+-- {room_id, time_slot} → teacher_id  (uniquely determined by the primary key)
+-- {room_id, time_slot} → subject     (uniquely determined by the primary key)
+-- teacher_id → subject               (each teacher handles only one subject)
 --
--- teacher_id は主キーの部分集合ではないが、subjectを決定する
--- teacher_id はスーパーキーではない → BCNF違反
+-- teacher_id is not a subset of the primary key, but it determines subject
+-- teacher_id is not a superkey → BCNF violation
 
--- BCNF分解:
+-- BCNF decomposition:
 CREATE TABLE teacher_subjects (
     teacher_id INTEGER PRIMARY KEY,
     subject    VARCHAR(100) NOT NULL
@@ -1108,28 +1117,28 @@ CREATE TABLE room_bookings (
     PRIMARY KEY (room_id, time_slot)
 );
 
--- 検証: 全ての関数従属の決定項がスーパーキー
--- teacher_subjects: teacher_id → subject（teacher_idがPK = スーパーキー ✓）
--- room_bookings: {room_id, time_slot} → teacher_id（PKがスーパーキー ✓）
+-- Verification: every determinant of every functional dependency is a superkey
+-- teacher_subjects: teacher_id → subject (teacher_id is PK = superkey ✓)
+-- room_bookings: {room_id, time_slot} → teacher_id (PK is superkey ✓)
 ```
 </details>
 
-### 演習3（発展）: 非正規化の設計判断
+### Exercise 3 (Advanced): Design Decision for Denormalization
 
-以下の要件に基づき、正規化スキーマと非正規化スキーマの両方を設計し、トレードオフを分析せよ。
+Based on the following requirements, design both a normalized and a denormalized schema, then analyze the trade-offs.
 
-**要件**:
-- ECサイトの商品レビューシステム
-- 商品ページに表示する平均評価とレビュー数（1秒以内のレスポンス必須）
-- レビューの投稿/編集/削除は1日1万件程度
-- 商品ページの閲覧は1日100万PV
-- レビューには「役に立った」ボタン（投票数も表示）
+**Requirements**:
+- A product review system for an e-commerce site
+- Average rating and review count must be displayed on the product page (response within 1 second required)
+- Review submissions, edits, and deletions occur approximately 10,000 times per day
+- Product pages receive 1,000,000 page views per day
+- Reviews have a "helpful" button (vote count must also be displayed)
 
 <details>
-<summary>解答例</summary>
+<summary>Sample Solution</summary>
 
 ```sql
--- 正規化スキーマ（3NF）
+-- Normalized schema (3NF)
 CREATE TABLE products (
     id   SERIAL PRIMARY KEY,
     name VARCHAR(200) NOT NULL
@@ -1143,7 +1152,7 @@ CREATE TABLE reviews (
     title      VARCHAR(200),
     body       TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    UNIQUE (product_id, user_id)  -- 1ユーザー1レビュー
+    UNIQUE (product_id, user_id)  -- one review per user per product
 );
 
 CREATE TABLE review_votes (
@@ -1153,7 +1162,7 @@ CREATE TABLE review_votes (
     PRIMARY KEY (review_id, user_id)
 );
 
--- 商品ページ表示クエリ（正規化版: 重い）
+-- Product page query (normalized version: heavy)
 SELECT
     p.name,
     AVG(r.rating) AS avg_rating,
@@ -1164,14 +1173,14 @@ FROM products p
     LEFT JOIN reviews r ON r.product_id = p.id
 WHERE p.id = 42
 GROUP BY p.id, p.name;
--- → レビュー数が多いと集約が重い
+-- → Aggregation becomes expensive as review count grows
 
--- 非正規化スキーマ: 集約結果をキャッシュ
+-- Denormalized schema: cache aggregate results
 ALTER TABLE products ADD COLUMN avg_rating DECIMAL(3,2) DEFAULT 0;
 ALTER TABLE products ADD COLUMN review_count INTEGER DEFAULT 0;
 ALTER TABLE reviews ADD COLUMN helpful_count INTEGER DEFAULT 0;
 
--- トリガーで自動更新
+-- Auto-update via trigger
 CREATE OR REPLACE FUNCTION update_product_review_stats()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -1187,60 +1196,60 @@ CREATE TRIGGER trg_review_stats
     AFTER INSERT OR UPDATE OR DELETE ON reviews
     FOR EACH ROW EXECUTE FUNCTION update_product_review_stats();
 
--- 商品ページ表示クエリ（非正規化版: 高速）
+-- Product page query (denormalized version: fast)
 SELECT name, avg_rating, review_count
 FROM products WHERE id = 42;
--- → Index Scan のみ、1ms以下
+-- → Index Scan only, under 1ms
 
--- トレードオフ分析:
--- 読み取り: 100万PV/日 → 非正規化で大幅に高速化
--- 書き込み: 1万件/日 → トリガーのオーバーヘッドは許容範囲
--- 判定: 読み取り/書き込み比 = 100:1 → 非正規化が適切
+-- Trade-off analysis:
+-- Reads: 1,000,000 PV/day → denormalization provides major speedup
+-- Writes: 10,000/day → trigger overhead is acceptable
+-- Verdict: Read/write ratio = 100:1 → denormalization is appropriate
 ```
 </details>
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise on basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1249,26 +1258,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise on advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1276,7 +1285,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1287,14 +1296,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1302,7 +1311,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1310,44 +1319,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1356,7 +1365,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1371,76 +1380,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithmic complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to prioritize | When acceptable to compromise |
+|------------|-------------------|-------------------------------|
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVPs, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow             │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① What is the team size?                        │
+│    ├─ Small (1-5 people) → Monolith              │
+│    └─ Large (10+ people) → go to ②              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② What is the deployment frequency?             │
+│    ├─ Weekly or less → Monolith + modular split  │
+│    └─ Daily / multiple times a day → go to ③    │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ How independent are teams from each other?   │
+│    ├─ High → Microservices                       │
+│    └─ Moderate → Modular monolith                │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. long-term cost**
+- A fast short-term solution can become technical debt in the long run
+- Conversely, over-engineering increases short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. flexibility**
+- A unified tech stack has a lower learning curve
+- Adopting diverse technologies enables the right tool for each job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction improves reusability, but can make debugging harder
+- Low abstraction is intuitive, but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1450,17 +1459,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and the problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision made"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1468,7 +1477,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1476,15 +1485,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1493,55 +1502,55 @@ class ArchitectureDecisionRecord:
 
 ## FAQ
 
-### Q1: 3NFまで正規化すれば十分か？
+### Q1: Is normalizing up to 3NF sufficient?
 
-多くの実務アプリケーションでは3NFで十分。BCNFまで進める場合は、候補キーが複数存在し、非キー属性がキーの一部を決定するような特殊な状況に限られる。過度な正規化はJOINの増加とパフォーマンスの低下を招く。
+For most production applications, 3NF is sufficient. Advancing to BCNF is limited to special situations where multiple candidate keys exist and a non-key attribute determines part of a key. Excessive normalization leads to more JOINs and degraded performance.
 
-### Q2: いつ非正規化すべきか？
+### Q2: When should you denormalize?
 
-(1) 読み取り頻度が書き込み頻度を大幅に上回る場合、(2) JOINのコストが許容できないレベルの場合、(3) レポーティング/分析用途。ただし、マテリアライズドビューやキャッシュ層で対応できないか先に検討すべき。非正規化は最後の手段である。
+(1) When reads far outnumber writes, (2) when the cost of JOINs is unacceptably high, (3) for reporting/analytics use cases. However, always first consider whether a materialized view or a caching layer can address the issue. Denormalization is a last resort.
 
-### Q3: 配列型やJSONB型は1NF違反か？
+### Q3: Do array types or JSONB violate 1NF?
 
-厳密なリレーショナル理論では1NF違反だが、PostgreSQLの配列型やJSONB型はインデックス対応しており、実務では有用な場面が多い。タグやメタデータなど、個別のテーブルに分離するコストが高い場合に適切に使用する。
+Strictly speaking under relational theory, yes — but PostgreSQL's array and JSONB types support indexing and are often useful in practice. Use them appropriately when the cost of splitting into a separate table is high, such as for tags or metadata.
 
-### Q4: NoSQLでは正規化は不要か？
+### Q4: Is normalization unnecessary in NoSQL?
 
-NoSQL（MongoDB、DynamoDB等）では非正規化が基本的な設計方針となる。JOINがないため、読み取りパターンに合わせてデータを冗長に埋め込む。ただし、これは「正規化が不要」なのではなく「非正規化を前提とした設計」であり、更新整合性はアプリケーション層で担保する必要がある。
+In NoSQL databases (MongoDB, DynamoDB, etc.), denormalization is the default design philosophy. Since there are no JOINs, data is redundantly embedded to match read patterns. This is not "normalization is unnecessary" — it is "a design that assumes denormalization," meaning that update consistency must be maintained at the application layer.
 
-### Q5: 正規化の度合いはマイグレーションで変更できるか？
+### Q5: Can the degree of normalization be changed via migration?
 
-可能だが、データ移行が必要となる。正規化の強化（テーブル分割）は比較的安全だが、非正規化（テーブル統合）はデータの整合性確認が重要。大規模な正規化レベルの変更には [02-migration.md](./02-migration.md) のオンラインマイグレーション手法を参照。
+Yes, but a data migration is required. Increasing normalization (table splitting) is relatively safe, but denormalization (table merging) requires careful data integrity verification. For large-scale changes to normalization level, refer to the online migration techniques in [02-migration.md](./02-migration.md).
 
-### Q6: 正規化とパフォーマンスの関係をどう測定すべきか？
+### Q6: How should the relationship between normalization and performance be measured?
 
-`EXPLAIN ANALYZE` で実行計画を確認し、JOINの実行コスト（特にHash Join vs Nested Loop の選択）を分析する。実際の本番データ量で負荷テストを行い、正規化版と非正規化版のスループットとレイテンシを比較する。統計的に有意な差がない場合は正規化を維持すべき。
-
----
-
-## トラブルシューティング
-
-### 正規化に関する一般的な問題と対処法
-
-| 問題 | 原因 | 対処法 |
-|------|------|--------|
-| JOINが多すぎて遅い | 過度な正規化 or インデックス不足 | まずインデックスを追加、改善しなければMV検討 |
-| 更新が遅い | 非正規化によるトリガー連鎖 | トリガーの実行計画を確認、非同期更新を検討 |
-| ストレージ肥大化 | 非正規化によるデータ冗長 | パーティショニングで古いデータをアーカイブ |
-| データ不整合 | 非正規化テーブルの同期漏れ | トリガーの完全性を確認、制約を追加 |
-| 統計情報の不一致 | ANALYZE未実行 | `ANALYZE table_name` で統計更新 |
-| デッドロック | トリガーによる循環更新 | トリガーの更新順序を統一、ロック戦略の見直し |
+Use `EXPLAIN ANALYZE` to inspect the execution plan and analyze JOIN execution costs (especially the choice between Hash Join and Nested Loop). Run load tests with production-scale data volumes and compare throughput and latency between normalized and denormalized versions. If the difference is not statistically significant, maintain normalization.
 
 ---
 
-## セキュリティに関する考察
+## Troubleshooting
 
-### 正規化とデータアクセス制御
+### Common Normalization Problems and Solutions
+
+| Problem | Cause | Solution |
+|---------|-------|---------|
+| Too many JOINs causing slowness | Over-normalization or missing indexes | Add indexes first; if still slow, consider materialized views |
+| Slow writes | Trigger cascades from denormalization | Inspect trigger execution plans; consider async updates |
+| Storage bloat | Data redundancy from denormalization | Archive old data with partitioning |
+| Data inconsistency | Missed sync in denormalized tables | Verify trigger completeness; add constraints |
+| Statistics mismatch | ANALYZE not run | Update statistics with `ANALYZE table_name` |
+| Deadlocks | Circular updates from triggers | Unify trigger update order; review locking strategy |
+
+---
+
+## Security Considerations
+
+### Normalization and Data Access Control
 
 ```sql
--- 正規化されたスキーマではRow Level Security（RLS）が適用しやすい
--- 部署テーブルと社員テーブルが分離されていれば、
--- 部署ごとのアクセス制御が容易
+-- Row Level Security (RLS) is easier to apply with a normalized schema
+-- When department and employee tables are separate,
+-- access control per department becomes straightforward
 
 ALTER TABLE employees ENABLE ROW LEVEL SECURITY;
 
@@ -1551,38 +1560,38 @@ CREATE POLICY emp_dept_policy ON employees
         WHERE user_id = current_setting('app.current_user_id')::INTEGER
     ));
 
--- 非正規化テーブルではRLSの条件が複雑化する可能性がある
--- → セキュリティ要件も正規化レベルの判断材料とすべき
+-- With a denormalized table, RLS conditions can become more complex
+-- → Security requirements should also be factored into normalization decisions
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
-|------|------|
-| 正規化の目的 | データ冗長性の排除と更新異常の防止 |
-| 関数従属性 | 正規化理論の基盤。完全/部分/推移的従属を区別 |
-| 1NF | 各セルに原子値、繰り返し項目なし |
-| 2NF | 非キーがキー全体に従属（部分関数従属の排除） |
-| 3NF | 非キー間の従属がない。実務の目標 |
-| BCNF | 全ての決定項が候補キー。従属性保存が犠牲になる場合あり |
-| 4NF/5NF | 多値従属/結合従属の排除。実務では稀 |
-| 非正規化 | 読み取り性能のため意図的に冗長性導入。最後の手段 |
-| 判断基準 | OLTP → 正規化、OLAP → 非正規化を検討 |
-| 実装 | MV・トリガー・JSONB等で非正規化を制御 |
-
----
-
-## 次に読むべきガイド
-
-- [01-schema-design.md](./01-schema-design.md) — 制約とパーティションを含むスキーマ設計
-- [03-data-modeling.md](./03-data-modeling.md) — スター/スノーフレークスキーマ
-- [02-migration.md](./02-migration.md) — 正規化変更のマイグレーション
+| Item | Key Point |
+|------|-----------|
+| Purpose of normalization | Eliminate data redundancy and prevent update anomalies |
+| Functional dependency | Foundation of normalization theory; distinguish full / partial / transitive dependencies |
+| 1NF | Atomic values in each cell, no repeating groups |
+| 2NF | Non-key attributes depend on the full key (eliminate partial functional dependencies) |
+| 3NF | No dependencies between non-key attributes; the practical target |
+| BCNF | Every determinant is a candidate key; may sacrifice dependency preservation |
+| 4NF / 5NF | Eliminate multi-valued / join dependencies; rare in practice |
+| Denormalization | Intentionally introduce redundancy for read performance; last resort |
+| Decision criteria | OLTP → normalize; OLAP → consider denormalization |
+| Implementation | Control denormalization with MVs, triggers, JSONB, etc. |
 
 ---
 
-## 参考文献
+## Further Reading
+
+- [01-schema-design.md](./01-schema-design.md) — Schema design including constraints and partitioning
+- [03-data-modeling.md](./03-data-modeling.md) — Star and snowflake schemas
+- [02-migration.md](./02-migration.md) — Migrations for normalization changes
+
+---
+
+## References
 
 1. Codd, E.F. (1972). "Further Normalization of the Data Base Relational Model". *IBM Research Report*.
 2. Date, C.J. (2019). *Database Design and Relational Theory*. O'Reilly Media.
