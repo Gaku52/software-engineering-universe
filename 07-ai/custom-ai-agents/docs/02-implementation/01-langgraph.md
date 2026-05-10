@@ -1,73 +1,74 @@
 # LangGraph
 
-> 状態グラフ・サイクル・チェックポイント――LangGraphを使った状態管理付きエージェントワークフローの設計と実装。
+> State graphs, cycles, and checkpoints — designing and implementing stateful agent workflows with LangGraph.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. LangGraphの状態グラフモデルとLangChain AgentExecutorとの違い
-2. サイクル（ループ）を含むグラフの設計と条件分岐の実装
-3. チェックポイントによる永続化とヒューマン・イン・ザ・ループの組み込み
-4. サブグラフによるモジュラー設計と再利用パターン
-5. マルチエージェント協調グラフの構築手法
-6. ストリーミングとリアルタイムUI連携
-7. 本番デプロイメントとLangGraph Cloudの活用
+1. LangGraph's state graph model and how it differs from LangChain AgentExecutor
+2. Designing graphs with cycles (loops) and implementing conditional branching
+3. Persistence via checkpoints and integrating human-in-the-loop
+4. Modular design with subgraphs and reuse patterns
+5. Building multi-agent coordination graphs
+6. Streaming and real-time UI integration
+7. Production deployment and leveraging LangGraph Cloud
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [LangChainエージェント](./00-langchain-agent.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [LangChain Agents](./00-langchain-agent.md)
 
 ---
 
-## 1. LangGraphとは
+## 1. What Is LangGraph?
 
 ### 1.1 LangChain AgentExecutor vs LangGraph
 
 ```
-AgentExecutor: ブラックボックスなループ
+AgentExecutor: a black-box loop
 +-------------------------------------------+
-|  [LLM] → [ツール] → [LLM] → ... → [回答]  |
-|  内部のフローを制御できない                  |
+|  [LLM] → [Tool] → [LLM] → ... → [Answer] |
+|  No control over the internal flow         |
 +-------------------------------------------+
 
-LangGraph: 明示的な状態グラフ
+LangGraph: an explicit state graph
 +-------------------------------------------+
 |  [Node A] ──→ [Condition] ──→ [Node B]    |
 |       ^              |                     |
 |       |              v                     |
 |       +────── [Node C] ──→ [END]          |
-|  各ノード・エッジを個別に定義・制御          |
+|  Each node and edge is defined and         |
+|  controlled individually                   |
 +-------------------------------------------+
 ```
 
-### 1.2 コアコンセプト
+### 1.2 Core Concepts
 
 ```
-LangGraph の3つのコアコンセプト
+Three core concepts of LangGraph
 
-1. State (状態)
-   - グラフ全体で共有されるデータ
-   - TypedDictまたはPydanticで型定義
-   - 各ノードが読み書き
+1. State
+   - Data shared across the entire graph
+   - Type-defined with TypedDict or Pydantic
+   - Read and written by each node
 
-2. Nodes (ノード)
-   - 状態を受け取り、更新を返す関数
-   - LLM呼び出し、ツール実行、データ変換
+2. Nodes
+   - Functions that receive state and return updates
+   - LLM calls, tool execution, data transformation
 
-3. Edges (エッジ)
-   - ノード間の接続
-   - 通常エッジ: 無条件で次のノードへ
-   - 条件エッジ: 状態に基づいて分岐
+3. Edges
+   - Connections between nodes
+   - Normal edges: unconditionally move to the next node
+   - Conditional edges: branch based on state
 ```
 
-### 1.3 アーキテクチャ全体像
+### 1.3 Architecture Overview
 
 ```
-LangGraph アーキテクチャ
+LangGraph Architecture
 
 +--------------------------------------------------+
 |                  Application                       |
@@ -83,7 +84,8 @@ LangGraph アーキテクチャ
 |                    |                               |
 |  +----------------v---------+  +-----------+      |
 |  |      State Manager       |  |  Channels |      |
-|  |  (状態の読み書き制御)      |  | (通信)    |      |
+|  |  (controls state reads   |  | (comm.)   |      |
+|  |   and writes)            |  |           |      |
 |  +---------------------------+  +-----------+      |
 |                    |                               |
 |  +----------------v---------+                      |
@@ -95,9 +97,9 @@ LangGraph アーキテクチャ
 
 ---
 
-## 2. 基本的なグラフ構築
+## 2. Building a Basic Graph
 
-### 2.1 シンプルなチャットボット
+### 2.1 Simple Chatbot
 
 ```python
 # LangGraph の基本構造
@@ -139,7 +141,7 @@ result = app.invoke({
 })
 ```
 
-### 2.2 ツール使用付きエージェント
+### 2.2 Agent with Tool Use
 
 ```python
 # ツール使用付きの完全なエージェント
@@ -205,7 +207,7 @@ result = app.invoke({
 })
 ```
 
-### 2.3 状態の設計パターン
+### 2.3 State Design Patterns
 
 ```python
 from typing import TypedDict, Annotated, Optional
@@ -259,7 +261,7 @@ class PlannerState(TypedDict):
     final_output: str
 ```
 
-### 2.4 エッジの定義パターン
+### 2.4 Edge Definition Patterns
 
 ```python
 from langgraph.graph import StateGraph, END, START
@@ -316,17 +318,17 @@ graph.add_conditional_edges("dynamic", route_dynamic, {
 
 ---
 
-## 3. サイクル（ループ）の設計
+## 3. Designing Cycles (Loops)
 
-### 3.1 レビュー付きサイクル
+### 3.1 Review Cycle
 
 ```
-レビュー付きサイクルのグラフ
+Review cycle graph
 
-  START → [生成] → [レビュー] → (合格?) → YES → END
-                       ^            |
-                       |           NO
-                       +←──[修正]←──+
+  START → [Generate] → [Review] → (Approved?) → YES → END
+                           ^            |
+                           |           NO
+                           +←──[Revise]←──+
 ```
 
 ```python
@@ -386,7 +388,7 @@ graph.add_edge("revise", "review")  # サイクル
 app = graph.compile()
 ```
 
-### 3.2 自己修正コード生成サイクル
+### 3.2 Self-Correcting Code Generation Cycle
 
 ```python
 # コード生成→テスト→修正のサイクル
@@ -493,7 +495,7 @@ result = app.invoke({
 })
 ```
 
-### 3.3 リサーチエージェントサイクル
+### 3.3 Research Agent Cycle
 
 ```python
 # 検索→分析→追加検索のサイクル
@@ -566,9 +568,9 @@ app = graph.compile()
 
 ---
 
-## 4. チェックポイントと永続化
+## 4. Checkpoints and Persistence
 
-### 4.1 メモリベースのチェックポイント
+### 4.1 In-Memory Checkpoint
 
 ```python
 # チェックポイントによる状態の永続化
@@ -594,7 +596,7 @@ result2 = app.invoke(
 )
 ```
 
-### 4.2 SQLiteチェックポイント（永続化）
+### 4.2 SQLite Checkpoint (Persistent)
 
 ```python
 # SQLiteによる永続チェックポイント
@@ -606,7 +608,7 @@ app = workflow.compile(checkpointer=checkpointer)
 # サーバー再起動後も状態が復元される
 ```
 
-### 4.3 PostgreSQLチェックポイント（本番向け）
+### 4.3 PostgreSQL Checkpoint (Production)
 
 ```python
 # PostgreSQLによる本番向けチェックポイント
@@ -628,7 +630,7 @@ config_user_a = {"configurable": {"thread_id": "user-a-session-1"}}
 config_user_b = {"configurable": {"thread_id": "user-b-session-1"}}
 ```
 
-### 4.4 チェックポイントの状態操作
+### 4.4 Checkpoint State Operations
 
 ```python
 from langgraph.checkpoint.memory import MemorySaver
@@ -672,9 +674,9 @@ app.update_state(
 
 ---
 
-## 5. ヒューマン・イン・ザ・ループ
+## 5. Human-in-the-Loop
 
-### 5.1 基本的な承認フロー
+### 5.1 Basic Approval Flow
 
 ```python
 # 人間の承認を挟むパターン
@@ -727,7 +729,7 @@ app.update_state(config, {"approved": True})
 result = app.invoke(None, config=config)
 ```
 
-### 5.2 高度なHITLパターン
+### 5.2 Advanced HITL Patterns
 
 ```python
 # 複数の介入ポイントを持つワークフロー
@@ -826,9 +828,9 @@ result = app.invoke(None, config=config)
 
 ---
 
-## 6. サブグラフとモジュラー設計
+## 6. Subgraphs and Modular Design
 
-### 6.1 サブグラフの作成
+### 6.1 Creating Subgraphs
 
 ```python
 # 再利用可能なサブグラフ
@@ -898,7 +900,7 @@ main_graph.add_edge("answer", END)
 main_app = main_graph.compile()
 ```
 
-### 6.2 並列サブグラフ
+### 6.2 Parallel Subgraphs
 
 ```python
 # 並列実行可能なサブグラフパターン
@@ -950,9 +952,9 @@ app = graph.compile()
 
 ---
 
-## 7. マルチエージェントグラフ
+## 7. Multi-Agent Graphs
 
-### 7.1 基本的なマルチエージェント
+### 7.1 Basic Multi-Agent Setup
 
 ```python
 # LangGraph でのマルチエージェント
@@ -990,7 +992,7 @@ def route_to_agent(state: MultiAgentState) -> str:
 ```
 
 ```
-マルチエージェントグラフ
+Multi-agent graph
 
          +──────────→ [Researcher]──+
          |                          |
@@ -999,7 +1001,7 @@ START → [Router] ──→ [Coder] ──────+──→ [Aggregator] �
          +──────────→ [Reviewer]───+
 ```
 
-### 7.2 スーパーバイザーパターン
+### 7.2 Supervisor Pattern
 
 ```python
 # スーパーバイザーが各エージェントを指揮するパターン
@@ -1103,7 +1105,7 @@ graph.add_edge("tester", "supervisor")
 app = graph.compile()
 ```
 
-### 7.3 エージェントハンドオフパターン
+### 7.3 Agent Handoff Pattern
 
 ```python
 # エージェント間で直接制御を移譲するパターン
@@ -1189,9 +1191,9 @@ app = graph.compile(checkpointer=MemorySaver())
 
 ---
 
-## 8. ストリーミング
+## 8. Streaming
 
-### 8.1 ノード単位のストリーミング
+### 8.1 Node-Level Streaming
 
 ```python
 # ストリーミングでグラフの実行過程を追跡
@@ -1210,7 +1212,7 @@ for event in app.stream(
         print()
 ```
 
-### 8.2 トークン単位のストリーミング
+### 8.2 Token-Level Streaming
 
 ```python
 # LLMのトークンをリアルタイムでストリーミング
@@ -1277,9 +1279,9 @@ async def stream_agent(request: dict):
 
 ---
 
-## 9. テストとデバッグ
+## 9. Testing and Debugging
 
-### 9.1 ノード単位のテスト
+### 9.1 Node-Level Testing
 
 ```python
 import pytest
@@ -1287,10 +1289,10 @@ from unittest.mock import MagicMock, patch
 from langchain_core.messages import HumanMessage, AIMessage
 
 class TestReviewCycle:
-    """レビューサイクルのテスト"""
+    """Review cycle tests"""
 
     def test_generate_node(self):
-        """生成ノードがドラフトを返す"""
+        """Generate node returns a draft"""
         state = {"task": "テスト文書を作成", "draft": "", "review": "",
                  "revision_count": 0, "is_approved": False}
         result = generate(state)
@@ -1298,7 +1300,7 @@ class TestReviewCycle:
         assert len(result["draft"]) > 0
 
     def test_review_approved(self):
-        """レビューで承認される場合"""
+        """Review results in approval"""
         state = {"task": "テスト", "draft": "完璧な文書",
                  "review": "", "revision_count": 0, "is_approved": False}
 
@@ -1308,7 +1310,7 @@ class TestReviewCycle:
             assert result["is_approved"] is True
 
     def test_review_rejected(self):
-        """レビューで修正要求される場合"""
+        """Review results in revision request"""
         state = {"task": "テスト", "draft": "不十分な文書",
                  "review": "", "revision_count": 0, "is_approved": False}
 
@@ -1318,34 +1320,34 @@ class TestReviewCycle:
             assert result["is_approved"] is False
 
     def test_route_review_approved(self):
-        """承認時のルーティング"""
+        """Routing when approved"""
         state = {"is_approved": True, "revision_count": 1}
         assert route_review(state) == "end"
 
     def test_route_review_max_revisions(self):
-        """最大回数到達時のルーティング"""
+        """Routing when max revisions reached"""
         state = {"is_approved": False, "revision_count": 3}
         assert route_review(state) == "end"
 
     def test_route_review_needs_revision(self):
-        """修正が必要な場合のルーティング"""
+        """Routing when revision is needed"""
         state = {"is_approved": False, "revision_count": 1}
         assert route_review(state) == "revise"
 ```
 
-### 9.2 グラフ全体の統合テスト
+### 9.2 Full Graph Integration Tests
 
 ```python
 class TestFullGraph:
-    """グラフ全体の統合テスト"""
+    """Full graph integration tests"""
 
     @pytest.fixture
     def compiled_app(self):
-        """テスト用にコンパイルされたグラフ"""
+        """Compiled graph for testing"""
         return graph.compile()
 
     def test_full_execution(self, compiled_app):
-        """グラフ全体が正常に完了する"""
+        """Full graph completes successfully"""
         result = compiled_app.invoke({
             "task": "Pythonの基礎についての短い段落を書いてください",
             "draft": "",
@@ -1357,7 +1359,7 @@ class TestFullGraph:
         assert result["revision_count"] >= 0
 
     def test_stream_execution(self, compiled_app):
-        """ストリーミング実行で全ノードが実行される"""
+        """All nodes are executed during streaming"""
         visited_nodes = []
 
         for event in compiled_app.stream({
@@ -1374,7 +1376,7 @@ class TestFullGraph:
         assert "review" in visited_nodes
 
     def test_checkpointed_execution(self):
-        """チェックポイント付き実行"""
+        """Checkpointed execution"""
         checkpointer = MemorySaver()
         app = graph.compile(checkpointer=checkpointer)
         config = {"configurable": {"thread_id": "test-thread"}}
@@ -1387,12 +1389,12 @@ class TestFullGraph:
             "is_approved": False
         }, config=config)
 
-        # 状態が保存されていることを確認
+        # Verify that state has been saved
         state = app.get_state(config)
         assert state.values["draft"] != ""
 ```
 
-### 9.3 グラフの可視化とデバッグ
+### 9.3 Graph Visualization and Debugging
 
 ```python
 # グラフの構造を可視化
@@ -1433,9 +1435,9 @@ for step_output in app.stream(
 
 ---
 
-## 10. 本番運用パターン
+## 10. Production Operation Patterns
 
-### 10.1 LangGraph Cloud へのデプロイ
+### 10.1 Deploying to LangGraph Cloud
 
 ```python
 # langgraph.json の設定
@@ -1455,7 +1457,7 @@ for step_output in app.stream(
 # $ langgraph deploy --app agent
 ```
 
-### 10.2 エラーハンドリングとリカバリ
+### 10.2 Error Handling and Recovery
 
 ```python
 from langgraph.graph import StateGraph, END, START
@@ -1467,7 +1469,7 @@ class RobustState(TypedDict):
     max_retries: int
 
 def robust_node(state: RobustState) -> dict:
-    """エラーハンドリング付きノード"""
+    """Node with error handling"""
     try:
         response = llm.invoke(state["messages"])
         return {"messages": [response], "error": ""}
@@ -1478,7 +1480,7 @@ def robust_node(state: RobustState) -> dict:
         }
 
 def error_handler(state: RobustState) -> dict:
-    """エラー処理ノード"""
+    """Error handling node"""
     error_msg = f"エラーが発生しました（{state['retry_count']}回目）: {state['error']}"
     return {
         "messages": [AIMessage(content=error_msg)]
@@ -1506,7 +1508,7 @@ graph.add_edge("error_handler", END)
 app = graph.compile()
 ```
 
-### 10.3 レート制限とキュー管理
+### 10.3 Rate Limiting and Queue Management
 
 ```python
 import asyncio
@@ -1514,7 +1516,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 
 class RateLimitedGraphExecutor:
-    """レート制限付きグラフ実行器"""
+    """Graph executor with rate limiting"""
 
     def __init__(
         self,
@@ -1528,9 +1530,9 @@ class RateLimitedGraphExecutor:
         self.rpm_limit = requests_per_minute
 
     async def _wait_for_rate_limit(self):
-        """レート制限を確認して必要に応じて待機"""
+        """Check rate limit and wait if necessary"""
         now = datetime.now()
-        # 1分以上前のリクエストを除去
+        # Remove requests older than 1 minute
         self.request_times = [
             t for t in self.request_times
             if now - t < timedelta(minutes=1)
@@ -1545,7 +1547,7 @@ class RateLimitedGraphExecutor:
         self.request_times.append(datetime.now())
 
     async def invoke(self, input_data: dict, config: dict) -> dict:
-        """レート制限付きで実行"""
+        """Execute with rate limiting"""
         await self._wait_for_rate_limit()
         async with self.semaphore:
             return await self.app.ainvoke(input_data, config=config)
@@ -1565,52 +1567,52 @@ result = await executor.invoke(
 
 ---
 
-## 11. 比較表
+## 11. Comparison Tables
 
-### 11.1 LangGraph vs 他のワークフローツール
+### 11.1 LangGraph vs Other Workflow Tools
 
-| 機能 | LangGraph | Apache Airflow | Temporal | Prefect |
-|------|-----------|---------------|----------|---------|
-| 対象 | LLMエージェント | データパイプライン | マイクロサービス | データワークフロー |
-| サイクル | ネイティブ | 非対応 | 対応 | 非対応 |
-| LLM統合 | ネイティブ | プラグイン | 手動 | プラグイン |
-| チェックポイント | 組み込み | 組み込み | 組み込み | 組み込み |
-| HITL | 組み込み | 外部 | 外部 | 外部 |
-| 学習コスト | 中 | 高 | 高 | 中 |
+| Feature | LangGraph | Apache Airflow | Temporal | Prefect |
+|---------|-----------|---------------|----------|---------|
+| Target use case | LLM agents | Data pipelines | Microservices | Data workflows |
+| Cycles | Native | Not supported | Supported | Not supported |
+| LLM integration | Native | Plugin | Manual | Plugin |
+| Checkpoints | Built-in | Built-in | Built-in | Built-in |
+| HITL | Built-in | External | External | External |
+| Learning curve | Medium | High | High | Medium |
 
-### 11.2 グラフ構造パターン
+### 11.2 Graph Structure Patterns
 
-| パターン | 用途 | サイクル | 複雑度 |
-|----------|------|---------|--------|
-| 直列グラフ | パイプライン | なし | 低 |
-| 分岐グラフ | ルーティング | なし | 中 |
-| サイクルグラフ | 改善ループ | あり | 中 |
-| サブグラフ | 再利用部品 | あり/なし | 中-高 |
-| マルチエージェント | 協調 | あり | 高 |
+| Pattern | Use Case | Cycles | Complexity |
+|---------|----------|--------|------------|
+| Sequential graph | Pipeline | None | Low |
+| Branching graph | Routing | None | Medium |
+| Cyclic graph | Improvement loop | Yes | Medium |
+| Subgraph | Reusable component | Yes/No | Medium–High |
+| Multi-agent | Coordination | Yes | High |
 
-### 11.3 チェックポイント方式の比較
+### 11.3 Checkpoint Method Comparison
 
-| 方式 | 永続性 | 速度 | スケーラビリティ | 推奨環境 |
-|------|--------|------|----------------|---------|
-| MemorySaver | なし | 最速 | 単一プロセス | 開発・テスト |
-| SqliteSaver | あり | 速い | 単一マシン | 小規模本番 |
-| PostgresSaver | あり | 中 | 分散対応 | 本番 |
-| カスタム | 設定次第 | 設定次第 | 設定次第 | 特殊要件 |
+| Method | Persistence | Speed | Scalability | Recommended Environment |
+|--------|-------------|-------|-------------|------------------------|
+| MemorySaver | No | Fastest | Single process | Development/Testing |
+| SqliteSaver | Yes | Fast | Single machine | Small-scale production |
+| PostgresSaver | Yes | Medium | Distributed | Production |
+| Custom | Configurable | Configurable | Configurable | Special requirements |
 
-### 11.4 マルチエージェントパターンの比較
+### 11.4 Multi-Agent Pattern Comparison
 
-| パターン | 制御方式 | 柔軟性 | 複雑度 | 推奨ケース |
-|----------|---------|--------|--------|-----------|
-| スーパーバイザー | 中央集権 | 高 | 中 | 明確な役割分担 |
-| ハンドオフ | 分散 | 最高 | 高 | 動的なタスク割り当て |
-| パイプライン | 直列 | 低 | 低 | 固定ワークフロー |
-| 投票/合議 | 合議制 | 中 | 中 | 品質重視の判断 |
+| Pattern | Control Model | Flexibility | Complexity | Recommended Case |
+|---------|--------------|-------------|------------|-----------------|
+| Supervisor | Centralized | High | Medium | Clear role separation |
+| Handoff | Distributed | Highest | High | Dynamic task assignment |
+| Pipeline | Sequential | Low | Low | Fixed workflows |
+| Voting/Consensus | Consensus | Medium | Medium | Quality-focused decisions |
 
 ---
 
-## 12. アンチパターン
+## 12. Anti-Patterns
 
-### アンチパターン1: 状態の肥大化
+### Anti-Pattern 1: State Bloat
 
 ```python
 # NG: 全データを状態に保持
@@ -1626,7 +1628,7 @@ class GoodState(TypedDict):
     document_ids: list[str]  # IDのみ保持、内容は外部から取得
 ```
 
-### アンチパターン2: 深すぎるサイクル
+### Anti-Pattern 2: Excessively Deep Cycles
 
 ```python
 # NG: 無制限のサイクル
@@ -1641,7 +1643,7 @@ def route(state):
     return "end"  # 3回で打ち切り
 ```
 
-### アンチパターン3: グラフの過度な複雑化
+### Anti-Pattern 3: Overly Complex Graphs
 
 ```python
 # NG: 1つの巨大グラフに全てを詰め込む
@@ -1657,7 +1659,7 @@ def route(state):
 # 3. 異なる開発者が担当する領域
 ```
 
-### アンチパターン4: チェックポイントの過度な使用
+### Anti-Pattern 4: Overuse of Checkpoints
 
 ```python
 # NG: 全てのグラフにチェックポイントを設定
@@ -1673,7 +1675,7 @@ one_shot_app = simple_graph.compile(
 # - 会話の継続性が必要
 ```
 
-### アンチパターン5: ルーティング関数の副作用
+### Anti-Pattern 5: Side Effects in Routing Functions
 
 ```python
 # NG: ルーティング関数内で状態を変更
@@ -1698,17 +1700,17 @@ def process_node(state: dict) -> dict:
 
 ## 13. FAQ
 
-### Q1: LangGraphのデバッグ方法は？
+### Q1: How do I debug LangGraph?
 
-- **LangSmith** との統合で実行トレースを可視化
-- **verbose出力**: 各ノードの入出力をログ出力
-- **ステップ実行**: `app.stream()` で1ステップずつ確認
-- **状態スナップショット**: チェックポイントで任意の時点の状態を確認
-- **グラフ可視化**: `app.get_graph().draw_mermaid()` で構造を確認
+- **LangSmith** integration for visualizing execution traces
+- **Verbose output**: log the input/output of each node
+- **Step execution**: inspect one step at a time with `app.stream()`
+- **State snapshots**: use checkpoints to inspect state at any point in time
+- **Graph visualization**: verify structure with `app.get_graph().draw_mermaid()`
 
-### Q2: グラフのテスト方法は？
+### Q2: How do I test a graph?
 
-ノード単位でテスト → エッジ単位 → 全体テストの順で:
+Test in order: node-level → edge-level → full integration:
 ```python
 def test_review_node():
     state = {"draft": "テスト文書", "review": "", "is_approved": False}
@@ -1716,27 +1718,27 @@ def test_review_node():
     assert "review" in result
 ```
 
-### Q3: LangGraph Cloud とは？
+### Q3: What is LangGraph Cloud?
 
-LangGraphの本番デプロイメントサービス。グラフをAPIとして公開し、チェックポイント、スケーリング、モニタリングをマネージドで提供する。LangSmith と統合されている。
+A managed production deployment service for LangGraph. It exposes graphs as APIs and provides checkpointing, scaling, and monitoring as managed services. It integrates with LangSmith.
 
-### Q4: LangGraphとCrewAI/AutoGenの違いは？
+### Q4: How does LangGraph differ from CrewAI/AutoGen?
 
-- **LangGraph**: 低レベルのグラフプリミティブ。最大の柔軟性。自分でグラフを設計する
-- **CrewAI**: 高レベルのマルチエージェントフレームワーク。役割ベースの宣言的定義
-- **AutoGen**: Microsoft製。会話ベースのマルチエージェント。非同期メッセージパッシング
+- **LangGraph**: low-level graph primitives with maximum flexibility; you design the graph yourself
+- **CrewAI**: high-level multi-agent framework with role-based declarative definitions
+- **AutoGen**: from Microsoft; conversation-based multi-agent with asynchronous message passing
 
-**選択基準**: カスタマイズ性重視→LangGraph、素早くマルチエージェントを構築→CrewAI
+**How to choose**: if you need customizability, use LangGraph; if you want to build multi-agent systems quickly, use CrewAI.
 
-### Q5: 大規模なグラフのパフォーマンス最適化は？
+### Q5: How do I optimize performance for large graphs?
 
-- **並列ノード実行**: 独立したノードは並列に実行される
-- **状態の最小化**: 大きなデータは外部ストアに保存し、IDだけを状態に持つ
-- **サブグラフ分割**: 大きなグラフを小さなサブグラフに分割
-- **適切なチェックポイント**: MemorySaver（開発）→ PostgresSaver（本番）
-- **LLM呼び出しの最小化**: 不要なLLM呼び出しを避ける。ルーティングは可能な限り決定的に
+- **Parallel node execution**: independent nodes are executed in parallel
+- **Minimize state**: store large data in external stores and keep only IDs in state
+- **Subgraph decomposition**: split large graphs into smaller subgraphs
+- **Appropriate checkpoints**: MemorySaver (development) → PostgresSaver (production)
+- **Minimize LLM calls**: avoid unnecessary LLM calls; make routing as deterministic as possible
 
-### Q6: LangGraphで非同期処理はどう書く？
+### Q6: How do I write async code in LangGraph?
 
 ```python
 # 非同期ノード関数
@@ -1763,40 +1765,40 @@ async for event in app.astream_events(
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is the most important thing. Understanding deepens not just through theory but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping straight to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work, particularly during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
-|------|------|
-| 状態グラフ | ノード+エッジ+状態の明示的なグラフ |
-| サイクル | ループ（改善サイクル）をネイティブサポート |
-| チェックポイント | 状態の永続化と中断・再開 |
-| HITL | interrupt_before/after で人間介入 |
-| サブグラフ | モジュラー設計と再利用性の向上 |
-| マルチエージェント | スーパーバイザー/ハンドオフ/パイプライン |
-| ストリーミング | ノード単位・トークン単位の両方に対応 |
-| 原則 | 状態を最小限に、サイクルに上限を設定 |
+| Item | Details |
+|------|---------|
+| State graph | An explicit graph of nodes + edges + state |
+| Cycles | Native support for loops (improvement cycles) |
+| Checkpoints | State persistence with pause and resume |
+| HITL | Human intervention via interrupt_before/after |
+| Subgraphs | Modular design and improved reusability |
+| Multi-agent | Supervisor / handoff / pipeline patterns |
+| Streaming | Supports both node-level and token-level streaming |
+| Principles | Keep state minimal; set upper limits on cycles |
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [02-mcp-agents.md](./02-mcp-agents.md) -- MCPエージェントの実装
-- [03-claude-agent-sdk.md](./03-claude-agent-sdk.md) -- Claude Agent SDKの詳細
-- [../01-patterns/02-workflow-agents.md](../01-patterns/02-workflow-agents.md) -- ワークフロー設計パターン
+- [02-mcp-agents.md](./02-mcp-agents.md) -- Implementing MCP agents
+- [03-claude-agent-sdk.md](./03-claude-agent-sdk.md) -- Claude Agent SDK in depth
+- [../01-patterns/02-workflow-agents.md](../01-patterns/02-workflow-agents.md) -- Workflow design patterns
 
-## 参考文献
+## References
 
 1. LangGraph Documentation -- https://langchain-ai.github.io/langgraph/
 2. LangGraph GitHub -- https://github.com/langchain-ai/langgraph
