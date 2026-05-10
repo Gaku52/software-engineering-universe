@@ -1,33 +1,33 @@
-# LLM概要 — 大規模言語モデルの基礎
+# LLM Overview — Fundamentals of Large Language Models
 
-> Transformer アーキテクチャからスケーリング則、学習手法、推論最適化まで、LLM の全体像を体系的に理解する。
+> A systematic overview of LLMs covering Transformer architecture, scaling laws, training methods, and inference optimization.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **Transformer アーキテクチャ**の仕組みと Self-Attention の原理
-2. **スケーリング則**がモデル性能に与える影響とパラメータ数の意味
-3. **事前学習・事後学習**の各段階と代表的な学習手法
-4. **位置エンコーディング**の種類と長文脈対応の進化
-5. **Mixture of Experts (MoE)** アーキテクチャの仕組みと利点
-6. **推論最適化**の技術とデプロイ時の考慮事項
+1. How the **Transformer architecture** works and the principles of Self-Attention
+2. How **scaling laws** affect model performance and what parameter counts mean
+3. The stages of **pre-training and post-training** and representative training techniques
+4. Types of **positional encoding** and the evolution toward long-context support
+5. How the **Mixture of Experts (MoE)** architecture works and its advantages
+6. **Inference optimization** techniques and deployment considerations
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. Transformer アーキテクチャ
+## 1. Transformer Architecture
 
-### 1.1 Self-Attention の原理
+### 1.1 The Principles of Self-Attention
 
-Self-Attention は、入力シーケンス内の各トークンが他の全トークンとの関連度を計算し、文脈に応じた表現を生成するメカニズムです。従来の RNN/LSTM では系列を逐次処理する必要があったのに対し、Self-Attention は全トークン間の関係を一度に並列計算できるため、学習効率が飛躍的に向上しました。
+Self-Attention is a mechanism where each token in an input sequence computes its relevance to every other token and generates context-aware representations. While traditional RNN/LSTM models required sequential processing of sequences, Self-Attention can compute relationships among all tokens simultaneously in parallel, dramatically improving training efficiency.
 
-### コード例 1: Self-Attention の計算（NumPy）
+### Code Example 1: Self-Attention Computation (NumPy)
 
 ```python
 import numpy as np
@@ -82,7 +82,7 @@ print(f"\nアテンション重み（各行の合計=1）:")
 print(weights.round(3))
 ```
 
-### コード例 2: Multi-Head Attention の実装
+### Code Example 2: Multi-Head Attention Implementation
 
 ```python
 import numpy as np
@@ -150,7 +150,7 @@ print(f"出力形状: {output.shape}")   # (10, 64)
 print(f"重み形状: {weights.shape}")  # (8, 10, 10) - 8ヘッド
 ```
 
-### ASCII 図解 1: Transformer ブロック構造
+### ASCII Diagram 1: Transformer Block Structure
 
 ```
 ┌───────────────────────────────────┐
@@ -180,34 +180,34 @@ print(f"重み形状: {weights.shape}")  # (8, 10, 10) - 8ヘッド
 └───────────────────────────────────┘
 ```
 
-### 1.2 エンコーダ vs デコーダ
+### 1.2 Encoder vs Decoder
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                   Transformer アーキテクチャの分類                │
+│                   Transformer Architecture Types                 │
 ├─────────────┬──────────────────┬────────────────────────────────┤
-│ タイプ       │ 代表モデル        │ 特徴                          │
+│ Type         │ Representative   │ Characteristics               │
 ├─────────────┼──────────────────┼────────────────────────────────┤
-│ エンコーダ   │ BERT, RoBERTa   │ 双方向アテンション              │
-│ のみ        │ DeBERTa          │ 分類・NER・類似度計算に最適     │
-│             │                  │ 入力全体の文脈を同時に把握      │
+│ Encoder      │ BERT, RoBERTa   │ Bidirectional attention         │
+│ only         │ DeBERTa          │ Best for classification, NER,  │
+│              │                  │ similarity; sees full context  │
 ├─────────────┼──────────────────┼────────────────────────────────┤
-│ デコーダ     │ GPT, LLaMA      │ 因果的（左→右）アテンション     │
-│ のみ        │ Claude, Gemini   │ テキスト生成・対話に最適         │
-│             │                  │ 自己回帰的にトークンを生成      │
+│ Decoder      │ GPT, LLaMA      │ Causal (left→right) attention   │
+│ only         │ Claude, Gemini   │ Best for text generation/chat  │
+│              │                  │ Generates tokens autoregressively│
 ├─────────────┼──────────────────┼────────────────────────────────┤
-│ エンコーダ   │ T5, BART        │ 入力をエンコード→出力をデコード  │
-│ デコーダ     │ mBART            │ 翻訳・要約に最適               │
-│             │                  │ Cross-Attention で入力を参照   │
+│ Encoder-     │ T5, BART        │ Encodes input → decodes output  │
+│ Decoder      │ mBART            │ Best for translation, summarization│
+│              │                  │ Cross-Attention references input│
 └─────────────┴──────────────────┴────────────────────────────────┘
 
-現代の LLM の主流:
-  → デコーダのみ（Decoder-only）アーキテクチャ
-  → 統一的に多様なタスクを処理可能
-  → スケーリングの効率が最も良い
+Modern LLM mainstream:
+  → Decoder-only architecture
+  → Can uniformly handle diverse tasks
+  → Most efficient for scaling
 ```
 
-### コード例 3: PyTorch で Transformer レイヤー
+### Code Example 3: Transformer Layer in PyTorch
 
 ```python
 import torch
@@ -258,7 +258,7 @@ total_params = sum(p.numel() for p in block.parameters())
 print(f"パラメータ数: {total_params:,}")  # 約4.2M
 ```
 
-### コード例 4: 因果マスクの生成
+### Code Example 4: Generating Causal Masks
 
 ```python
 import torch
@@ -300,35 +300,37 @@ print(sw_mask)
 
 ---
 
-## 2. 位置エンコーディング
+## 2. Positional Encoding
 
-### 2.1 位置情報の必要性
+### 2.1 Why Positional Information Is Needed
 
-Self-Attention は並列計算可能だが、トークンの順序情報を持たないため、位置エンコーディングが不可欠です。
+Self-Attention enables parallel computation but carries no inherent information about token order, making positional encoding essential.
 
-### ASCII 図解 2: 位置エンコーディングの進化
+### ASCII Diagram 2: Evolution of Positional Encoding
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                位置エンコーディングの進化                          │
+│                  Evolution of Positional Encoding                 │
 ├────────────────┬─────────────────────────────────────────────────┤
-│ 絶対位置       │ Sinusoidal (元論文) → 学習可能な埋め込み (GPT)  │
+│ Absolute       │ Sinusoidal (original paper) → learnable         │
+│ position       │ embeddings (GPT)                                 │
 │                │ PE(pos, 2i) = sin(pos / 10000^(2i/d))          │
-│                │ 固定長の制約あり                                │
+│                │ Fixed-length constraint                          │
 ├────────────────┼─────────────────────────────────────────────────┤
-│ 相対位置       │ ALiBi (BLOOM) → 線形バイアスを直接加算           │
-│                │ 学習不要、任意の長さに外挿可能                    │
+│ Relative       │ ALiBi (BLOOM) → adds linear bias directly       │
+│ position       │ No training needed, can extrapolate to any length│
 ├────────────────┼─────────────────────────────────────────────────┤
-│ 回転位置符号化  │ RoPE (LLaMA, Qwen) → 回転行列で位置を符号化     │
-│                │ 相対位置の内積を保存                             │
-│                │ NTK-aware scaling で長文脈に対応                 │
+│ Rotary         │ RoPE (LLaMA, Qwen) → encodes position with      │
+│ position       │ rotation matrices; preserves relative-position   │
+│ encoding       │ dot products; NTK-aware scaling for long context │
 ├────────────────┼─────────────────────────────────────────────────┤
-│ 最新手法       │ YaRN → RoPE の改良版、より効率的な外挿           │
-│                │ LongRoPE → 数百万トークンまで対応                │
+│ Latest         │ YaRN → improved RoPE, more efficient            │
+│ methods        │ extrapolation                                    │
+│                │ LongRoPE → supports up to millions of tokens    │
 └────────────────┴─────────────────────────────────────────────────┘
 ```
 
-### コード例 5: RoPE（Rotary Position Embedding）の実装
+### Code Example 5: RoPE (Rotary Position Embedding) Implementation
 
 ```python
 import numpy as np
@@ -393,43 +395,43 @@ print(f"RoPE後の内積 (pos 3, 5): {dot_rotated:.4f}")
 
 ---
 
-## 3. スケーリング則
+## 3. Scaling Laws
 
-### ASCII 図解 3: スケーリング則の3要素
+### ASCII Diagram 3: The Three Elements of Scaling Laws
 
 ```
-パフォーマンス (Loss)
+Performance (Loss)
 │
 │  ╲
-│   ╲  ← パラメータ数 N を増加
+│   ╲  ← Increase number of parameters N
 │    ╲
 │     ╲───────────
 │
 │  ╲
-│   ╲  ← データ量 D を増加
+│   ╲  ← Increase data volume D
 │    ╲
 │     ╲───────────
 │
 │  ╲
-│   ╲  ← 計算量 C を増加
+│   ╲  ← Increase compute C
 │    ╲
 │     ╲───────────
-└──────────────────→ 規模（対数スケール）
+└──────────────────→ Scale (log scale)
 
 Chinchilla Scaling Law:
 L(N, D) ≈ E + A/N^α + B/D^β
-- N: パラメータ数
-- D: 学習トークン数
+- N: number of parameters
+- D: number of training tokens
 - α ≈ 0.34, β ≈ 0.28
-- E: 不可約損失（データのエントロピーに起因）
+- E: irreducible loss (due to entropy of data)
 
-最適な計算配分:
-  N_opt ∝ C^0.5   (パラメータ数は計算量の平方根に比例)
-  D_opt ∝ C^0.5   (データ量も計算量の平方根に比例)
-  → パラメータ数とデータ量を同じ比率で増やすのが最適
+Optimal compute allocation:
+  N_opt ∝ C^0.5   (parameters scale as square root of compute)
+  D_opt ∝ C^0.5   (data also scales as square root of compute)
+  → Optimal to increase parameters and data at the same ratio
 ```
 
-### コード例 6: スケーリング則の概算と可視化
+### Code Example 6: Scaling Law Estimation and Visualization
 
 ```python
 import numpy as np
@@ -489,70 +491,74 @@ for name, budget in budgets_names:
     print(f"  推定Loss: {estimate_loss(N_opt/1e9, D_opt/1e12):.3f}")
 ```
 
-### 3.1 スケーリング則の実践的含意
+### 3.1 Practical Implications of Scaling Laws
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│                 スケーリング則の実務的な意味                       │
+│              Practical Meaning of Scaling Laws                    │
 ├──────────────────────────────────────────────────────────────────┤
 │                                                                  │
-│ 1. 予測可能性                                                    │
-│    小規模実験 → 大規模モデルの性能を高精度に予測可能               │
-│    → 事前に計算予算の配分を最適化できる                            │
+│ 1. Predictability                                                │
+│    Small-scale experiments → can predict large model performance │
+│    with high accuracy                                            │
+│    → Allows optimizing compute budget allocation in advance      │
 │                                                                  │
-│ 2. 投資判断                                                     │
-│    10倍の計算量 → 約 X% の Loss 改善を定量的に見積もれる          │
-│    → ROI を事前に評価可能                                        │
+│ 2. Investment decisions                                          │
+│    10x compute → quantitatively estimate ~X% Loss improvement    │
+│    → ROI can be evaluated in advance                             │
 │                                                                  │
-│ 3. Chinchilla vs GPT-3 の教訓                                   │
+│ 3. Lessons from Chinchilla vs GPT-3                             │
 │    GPT-3: 175B params, 300B tokens (1.7:1)                      │
-│    Chinchilla 最適: 175B params → 3.5T tokens (20:1)            │
-│    → GPT-3 は「パラメータ過多・データ不足」だった                  │
+│    Chinchilla optimal: 175B params → 3.5T tokens (20:1)         │
+│    → GPT-3 was "over-parameterized and data-starved"             │
 │                                                                  │
-│ 4. 推論効率の考慮（Llama 3 の戦略）                              │
-│    Chinchilla 最適よりデータを多く使い、小さいモデルで高性能        │
-│    8B + 15T tokens → 推論コスト削減 + 性能維持                   │
-│    → 「推論時計算コスト」まで含めた全体最適化                      │
+│ 4. Inference efficiency considerations (Llama 3 strategy)       │
+│    Use more data than Chinchilla optimal, achieve high           │
+│    performance with smaller models                               │
+│    8B + 15T tokens → reduced inference cost + maintained perf.  │
+│    → Holistic optimization including "inference compute cost"    │
 │                                                                  │
-│ 5. Emergent Abilities（創発的能力）                              │
-│    特定のスケール閾値を超えると突然新しい能力が出現                 │
-│    → Chain-of-Thought 推論、コード生成、多言語能力など             │
-│    → スケーリング則では予測できない質的変化                        │
+│ 5. Emergent Abilities                                           │
+│    New capabilities suddenly appear beyond certain scale         │
+│    thresholds                                                    │
+│    → Chain-of-Thought reasoning, code generation, multilingual  │
+│      ability, etc.                                               │
+│    → Qualitative changes that scaling laws cannot predict        │
 │                                                                  │
 └──────────────────────────────────────────────────────────────────┘
 ```
 
-### 比較表 1: 代表モデルのパラメータ数とデータ量
+### Comparison Table 1: Parameters and Training Data for Representative Models
 
-| モデル | パラメータ数 | 学習トークン数 | コンテキスト長 | アーキテクチャ | 公開年 |
+| Model | Parameters | Training Tokens | Context Length | Architecture | Released |
 |--------|-------------|---------------|---------------|---------------|--------|
 | GPT-3 | 175B | 300B | 2,048 | Dense Decoder | 2020 |
 | Chinchilla | 70B | 1.4T | 2,048 | Dense Decoder | 2022 |
 | LLaMA 2 | 7-70B | 2T | 4,096 | Dense Decoder | 2023 |
-| GPT-4 | 非公開 (推定1.8T MoE) | 非公開 | 128K | MoE Decoder | 2023 |
-| Mixtral 8x7B | 46.7B (活性12.9B) | 非公開 | 32K | MoE Decoder | 2023 |
-| Claude 3.5 Sonnet | 非公開 | 非公開 | 200K | 非公開 | 2024 |
+| GPT-4 | Undisclosed (est. 1.8T MoE) | Undisclosed | 128K | MoE Decoder | 2023 |
+| Mixtral 8x7B | 46.7B (active 12.9B) | Undisclosed | 32K | MoE Decoder | 2023 |
+| Claude 3.5 Sonnet | Undisclosed | Undisclosed | 200K | Undisclosed | 2024 |
 | LLaMA 3.1 | 8-405B | 15T+ | 128K | Dense Decoder | 2024 |
-| Gemini 1.5 Pro | 非公開 | 非公開 | 1M+ | MoE Decoder | 2024 |
-| DeepSeek-V3 | 671B (活性37B) | 14.8T | 128K | MoE Decoder | 2024 |
+| Gemini 1.5 Pro | Undisclosed | Undisclosed | 1M+ | MoE Decoder | 2024 |
+| DeepSeek-V3 | 671B (active 37B) | 14.8T | 128K | MoE Decoder | 2024 |
 | Qwen 2.5 | 0.5-72B | 18T+ | 128K | Dense Decoder | 2024 |
 
 ---
 
-## 4. Mixture of Experts (MoE) アーキテクチャ
+## 4. Mixture of Experts (MoE) Architecture
 
-### ASCII 図解 4: MoE の構造
+### ASCII Diagram 4: MoE Structure
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                  Mixture of Experts (MoE)                   │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  入力トークン x                                              │
+│  Input token x                                              │
 │       │                                                     │
 │       ▼                                                     │
 │  ┌──────────┐                                              │
-│  │ ゲート    │ → softmax → Top-K 選択                       │
+│  │ Gate     │ → softmax → Top-K selection                  │
 │  │ Network  │                                              │
 │  └──────────┘                                              │
 │       │                                                     │
@@ -561,25 +567,25 @@ for name, budget in budgets_names:
 │  │ E_1 │ │ E_2 │ │ E_3 │ │ E_4 │     │ E_N │            │
 │  │ FFN │ │ FFN │ │ FFN │ │ FFN │     │ FFN │            │
 │  └─────┘ └─────┘ └─────┘ └─────┘     └─────┘            │
-│    ✓       ✓                              (不活性)         │
+│    ✓       ✓                              (inactive)       │
 │    │       │                                               │
 │    ▼       ▼                                               │
-│  加重合算: output = Σ g_i * Expert_i(x)                    │
+│  Weighted sum: output = Σ g_i * Expert_i(x)               │
 │                                                             │
-│  例: Mixtral 8x7B                                          │
-│    - 8つのエキスパート、各トークンで上位2つを選択              │
-│    - 総パラメータ: 46.7B、活性パラメータ: 12.9B              │
-│    - Dense 13B モデルと同等の推論コストで 70B 級の性能         │
+│  Example: Mixtral 8x7B                                     │
+│    - 8 experts, top 2 selected per token                   │
+│    - Total params: 46.7B, active params: 12.9B             │
+│    - 70B-class performance at Dense 13B inference cost     │
 │                                                             │
-│  例: DeepSeek-V3                                           │
-│    - 256 エキスパート + 1 共有エキスパート                    │
-│    - 各トークンで上位8つを選択                               │
-│    - 総パラメータ: 671B、活性パラメータ: 37B                  │
+│  Example: DeepSeek-V3                                      │
+│    - 256 experts + 1 shared expert                         │
+│    - Top 8 selected per token                              │
+│    - Total params: 671B, active params: 37B                │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### コード例 7: 簡易 MoE レイヤー
+### Code Example 7: Simple MoE Layer
 
 ```python
 import torch
@@ -657,67 +663,70 @@ print(f"総パラメータ数: {total_params:,}")
 # 8エキスパートの FFN + ゲート
 ```
 
-### 比較表 2: Dense vs MoE の比較
+### Comparison Table 2: Dense vs MoE
 
-| 項目 | Dense モデル | MoE モデル |
+| Item | Dense Model | MoE Model |
 |------|-------------|-----------|
-| パラメータ効率 | 全パラメータが常に活性 | 一部のみ活性（推論コスト削減） |
-| 学習効率 | 安定 | ロードバランスが課題 |
-| メモリ使用量 | パラメータ数に比例 | 全エキスパートをメモリに保持 |
-| 推論速度 | パラメータ数に比例 | 活性パラメータ数に比例 |
-| 性能/FLOP | 基準 | 同じFLOPでより高性能 |
-| デプロイ難度 | 低い | 高い（エキスパート分散が必要） |
-| 代表例 | LLaMA 3.1 405B | Mixtral 8x7B, DeepSeek-V3 |
+| Parameter efficiency | All parameters always active | Only a subset active (reduced inference cost) |
+| Training stability | Stable | Load balancing is a challenge |
+| Memory usage | Proportional to parameter count | Must hold all experts in memory |
+| Inference speed | Proportional to parameter count | Proportional to active parameter count |
+| Performance/FLOP | Baseline | Higher performance for same FLOPs |
+| Deployment complexity | Low | High (expert distribution required) |
+| Representative models | LLaMA 3.1 405B | Mixtral 8x7B, DeepSeek-V3 |
 
 ---
 
-## 5. 学習手法
+## 5. Training Methods
 
-### ASCII 図解 5: LLM の学習3段階
+### ASCII Diagram 5: The 3 Stages of LLM Training
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  Stage 1: 事前学習 (Pre-training)                               │
+│  Stage 1: Pre-training                                          │
 │  ┌─────────────────────────────────────────────────────────────┐│
-│  │ 目的: 言語の統計的パターンを学習                              ││
-│  │ データ: Web テキスト、書籍、コード（数兆トークン）              ││
-│  │ 手法: 次トークン予測（自己教師あり学習）                       ││
-│  │ 損失: L = -Σ log P(x_t | x_<t)                             ││
-│  │ コスト: 数千〜数万 GPU × 数ヶ月 = 数百万〜数千万ドル          ││
-│  │ 計算量: 6 * N * D FLOPs（N=パラメータ数、D=トークン数）       ││
+│  │ Objective: Learn statistical patterns of language           ││
+│  │ Data: Web text, books, code (trillions of tokens)           ││
+│  │ Method: Next-token prediction (self-supervised learning)    ││
+│  │ Loss: L = -Σ log P(x_t | x_<t)                             ││
+│  │ Cost: Thousands to tens of thousands of GPUs × months       ││
+│  │       = Millions to tens of millions of dollars             ││
+│  │ Compute: 6 * N * D FLOPs (N=params, D=tokens)              ││
 │  └─────────────────────────────────────────────────────────────┘│
 │                           ↓                                     │
-│  Stage 2: 教師あり微調整 (SFT: Supervised Fine-Tuning)          │
+│  Stage 2: Supervised Fine-Tuning (SFT)                         │
 │  ┌─────────────────────────────────────────────────────────────┐│
-│  │ 目的: 指示に従って応答する能力を獲得                          ││
-│  │ データ: 高品質な指示-応答ペア（数万〜数十万例）                ││
-│  │ 手法: 指示部分はマスク、応答部分のみ Loss 計算                 ││
-│  │ コスト: 数十 GPU × 数日 = 数千〜数万ドル                     ││
-│  │ 重要: データ品質が量より重要（LIMA の知見）                    ││
+│  │ Objective: Acquire ability to respond to instructions       ││
+│  │ Data: High-quality instruction-response pairs (tens of      ││
+│  │       thousands to hundreds of thousands of examples)       ││
+│  │ Method: Mask instruction part, compute Loss only on response ││
+│  │ Cost: Tens of GPUs × days = thousands to tens of thousands  ││
+│  │       of dollars                                            ││
+│  │ Important: Data quality matters more than quantity (LIMA)   ││
 │  └─────────────────────────────────────────────────────────────┘│
 │                           ↓                                     │
-│  Stage 3: アラインメント (RLHF / DPO / KTO)                    │
+│  Stage 3: Alignment (RLHF / DPO / KTO)                        │
 │  ┌─────────────────────────────────────────────────────────────┐│
-│  │ 目的: 人間の価値観・好みに合わせる                            ││
+│  │ Objective: Align with human values and preferences          ││
 │  │                                                             ││
 │  │ RLHF (Reinforcement Learning from Human Feedback):          ││
-│  │   1. 報酬モデルを学習（人間の比較判断から）                    ││
-│  │   2. PPO で方策を最適化（報酬最大化 + KL制約）                ││
-│  │   → 複雑だが高品質な結果                                     ││
+│  │   1. Train a reward model (from human comparison judgments) ││
+│  │   2. Optimize policy with PPO (reward max. + KL constraint) ││
+│  │   → Complex but high-quality results                        ││
 │  │                                                             ││
 │  │ DPO (Direct Preference Optimization):                       ││
-│  │   報酬モデル不要、直接比較データから学習                       ││
-│  │   → シンプルで実装が容易                                     ││
+│  │   No reward model needed; learn directly from comparison    ││
+│  │   data → Simple and easy to implement                       ││
 │  │                                                             ││
 │  │ KTO (Kahneman-Tversky Optimization):                       ││
-│  │   ペア比較不要、各応答の good/bad ラベルのみで学習             ││
-│  │   → データ収集コストが最も低い                                ││
+│  │   No pairwise comparisons needed; learn from good/bad       ││
+│  │   labels per response → Lowest data collection cost        ││
 │  │                                                             ││
 │  └─────────────────────────────────────────────────────────────┘│
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### コード例 8: Hugging Face で事前学習済みモデルのロードと推論
+### Code Example 8: Loading and Running Inference with a Pretrained Model via Hugging Face
 
 ```python
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -766,7 +775,7 @@ response = tokenizer.decode(
 print(response)
 ```
 
-### コード例 9: 4bit 量子化によるメモリ効率化
+### Code Example 9: Memory-Efficient 4-bit Quantization
 
 ```python
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
@@ -803,7 +812,7 @@ print(f"モデルメモリ使用量: {total_memory / 1e9:.2f} GB")
 # NF4 + Double Quant ≈ 17.5 GB
 ```
 
-### コード例 10: 学習コストの詳細な概算
+### Code Example 10: Detailed Training Cost Estimation
 
 ```python
 def estimate_training_cost(
@@ -867,58 +876,58 @@ estimate_training_cost(70, 15, "H100_SXM", mfu=0.35)   # LLaMA 3.1 70B
 estimate_training_cost(405, 15, "H100_SXM", mfu=0.3)   # LLaMA 3.1 405B
 ```
 
-### 比較表 3: 学習手法の詳細比較
+### Comparison Table 3: Detailed Comparison of Training Methods
 
-| 手法 | 目的 | データ | 計算コスト | 必要な専門知識 | 主なフレームワーク |
+| Method | Objective | Data | Compute Cost | Expertise Required | Major Frameworks |
 |------|------|--------|-----------|--------------|------------------|
-| 事前学習 (Pre-training) | 言語理解の獲得 | 数兆トークンのテキスト | 非常に高い (数百万ドル) | 非常に高い | Megatron-LM, DeepSpeed |
-| SFT (教師あり微調整) | 指示追従能力 | 数万〜数十万の指示-応答ペア | 中程度 | 高い | Hugging Face TRL |
-| RLHF | 人間の好みに合わせる | 比較ペア + 報酬モデル | 高い | 非常に高い | TRL + PPO |
-| DPO | RLHF の簡略化 | 比較ペアのみ | 中程度 | 中程度 | TRL + DPOTrainer |
-| KTO | ペア不要のアラインメント | 各応答のgood/badラベル | 中程度 | 中程度 | TRL |
-| LoRA | 効率的な微調整 | タスク固有データ | 低い | 中程度 | PEFT |
-| QLoRA | 量子化+LoRA | タスク固有データ | 非常に低い | 中程度 | PEFT + bitsandbytes |
+| Pre-training | Acquire language understanding | Trillions of tokens of text | Very high (millions of dollars) | Very high | Megatron-LM, DeepSpeed |
+| SFT (Supervised Fine-Tuning) | Instruction-following ability | Tens of thousands to hundreds of thousands of instruction-response pairs | Moderate | High | Hugging Face TRL |
+| RLHF | Align with human preferences | Comparison pairs + reward model | High | Very high | TRL + PPO |
+| DPO | Simplified RLHF | Comparison pairs only | Moderate | Moderate | TRL + DPOTrainer |
+| KTO | Alignment without pairs | good/bad label per response | Moderate | Moderate | TRL |
+| LoRA | Efficient fine-tuning | Task-specific data | Low | Moderate | PEFT |
+| QLoRA | Quantization + LoRA | Task-specific data | Very low | Moderate | PEFT + bitsandbytes |
 
 ---
 
-## 6. 推論の最適化技術
+## 6. Inference Optimization Techniques
 
-### ASCII 図解 6: 推論最適化技術の全体像
+### ASCII Diagram 6: Overview of Inference Optimization Techniques
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
-│                   推論最適化の階層                               │
+│                  Inference Optimization Hierarchy              │
 ├────────────────────────────────────────────────────────────────┤
 │                                                                │
-│  ハードウェアレベル                                              │
-│  ├── GPU/TPU/NPU の選択                                       │
-│  ├── テンソルコア活用（BF16/FP8 演算）                          │
-│  └── マルチGPU 推論（テンソル並列/パイプライン並列）              │
+│  Hardware level                                                │
+│  ├── Choice of GPU/TPU/NPU                                    │
+│  ├── Tensor core utilization (BF16/FP8 operations)            │
+│  └── Multi-GPU inference (tensor parallel / pipeline parallel) │
 │                                                                │
-│  モデルレベル                                                   │
-│  ├── 量子化（INT8, INT4, GPTQ, AWQ, GGUF）                   │
-│  ├── 蒸留（大モデル → 小モデルへの知識転移）                     │
-│  ├── プルーニング（不要なパラメータの除去）                       │
-│  └── アーキテクチャ改良（GQA, MQA, SWA）                       │
+│  Model level                                                   │
+│  ├── Quantization (INT8, INT4, GPTQ, AWQ, GGUF)              │
+│  ├── Distillation (knowledge transfer from large to small)    │
+│  ├── Pruning (removing unnecessary parameters)                │
+│  └── Architecture improvements (GQA, MQA, SWA)               │
 │                                                                │
-│  ランタイムレベル                                               │
-│  ├── KV Cache（再計算の回避）                                   │
-│  ├── Continuous Batching（動的バッチ処理）                      │
+│  Runtime level                                                 │
+│  ├── KV Cache (avoid recomputation)                           │
+│  ├── Continuous Batching (dynamic batching)                   │
 │  ├── PagedAttention (vLLM)                                    │
-│  ├── Flash Attention（メモリ効率的なアテンション）                │
-│  ├── Speculative Decoding（投機的デコーディング）                │
-│  └── Prefix Caching（共通プレフィックスの再利用）                │
+│  ├── Flash Attention (memory-efficient attention)             │
+│  ├── Speculative Decoding                                     │
+│  └── Prefix Caching (reuse common prefixes)                   │
 │                                                                │
-│  アプリケーションレベル                                          │
-│  ├── プロンプト最適化（トークン数削減）                           │
-│  ├── モデルルーティング（タスク難易度で振り分け）                  │
-│  ├── キャッシュ戦略（類似リクエストの結果再利用）                  │
-│  └── ストリーミング出力（体感レイテンシの改善）                   │
+│  Application level                                             │
+│  ├── Prompt optimization (reducing token count)               │
+│  ├── Model routing (routing by task difficulty)               │
+│  ├── Caching strategy (reuse results for similar requests)    │
+│  └── Streaming output (improving perceived latency)           │
 │                                                                │
 └────────────────────────────────────────────────────────────────┘
 ```
 
-### コード例 11: KV Cache の概念
+### Code Example 11: The Concept of KV Cache
 
 ```python
 import torch
@@ -998,7 +1007,7 @@ kv_cache_memory_estimate(80, 8192, 8192, batch_size=1)    # 70B モデル
 kv_cache_memory_estimate(126, 16384, 8192, batch_size=1)  # 405B モデル
 ```
 
-### コード例 12: vLLM を使った高速推論
+### Code Example 12: High-Speed Inference with vLLM
 
 ```python
 from vllm import LLM, SamplingParams
@@ -1039,22 +1048,22 @@ for output in outputs:
     print()
 ```
 
-### 比較表 4: 推論エンジンの比較
+### Comparison Table 4: Inference Engine Comparison
 
-| エンジン | 主な特徴 | 最適ユースケース | サポートモデル |
+| Engine | Key Features | Best Use Case | Supported Models |
 |----------|---------|----------------|---------------|
-| vLLM | PagedAttention, Continuous Batching | 高スループットサーバー | 幅広い |
-| TensorRT-LLM | NVIDIA最適化, FP8対応 | NVIDIA GPU最大活用 | 主要モデル |
-| llama.cpp | CPU/Metal 推論, GGUF量子化 | ローカル推論 | GGUF対応モデル |
-| Ollama | 簡単セットアップ, ローカル実行 | 開発・プロトタイプ | GGUF対応モデル |
-| SGLang | RadixAttention, 構造化生成 | 複雑なパイプライン | 主要モデル |
-| MLC-LLM | クロスプラットフォーム | モバイル/エッジ | 主要モデル |
+| vLLM | PagedAttention, Continuous Batching | High-throughput server | Wide range |
+| TensorRT-LLM | NVIDIA-optimized, FP8 support | Maximum NVIDIA GPU utilization | Major models |
+| llama.cpp | CPU/Metal inference, GGUF quantization | Local inference | GGUF-compatible |
+| Ollama | Easy setup, local execution | Development & prototyping | GGUF-compatible |
+| SGLang | RadixAttention, structured generation | Complex pipelines | Major models |
+| MLC-LLM | Cross-platform | Mobile/edge | Major models |
 
 ---
 
-## 7. GQA/MQA: アテンションの効率化
+## 7. GQA/MQA: Efficient Attention
 
-### ASCII 図解 7: MHA vs GQA vs MQA
+### ASCII Diagram 7: MHA vs GQA vs MQA
 
 ```
 Multi-Head Attention (MHA)        Grouped-Query Attention (GQA)
@@ -1066,8 +1075,8 @@ Multi-Head Attention (MHA)        Grouped-Query Attention (GQA)
 │K_1│ │K_2│ │K_3│ │K_4│         │K_1          │K_2
 │V_1│ │V_2│ │V_3│ │V_4│         │V_1          │V_2
 └───┘ └───┘ └───┘ └───┘         └─────┘       └─────┘
- KVヘッド数 = Qヘッド数            KVヘッド数 < Qヘッド数
- → KV Cache 最大                  → KV Cache 削減
+ # KV heads = # Q heads            # KV heads < # Q heads
+ → KV Cache maximum                → KV Cache reduced
 
 Multi-Query Attention (MQA)
 ┌───┐ ┌───┐ ┌───┐ ┌───┐
@@ -1080,10 +1089,10 @@ Multi-Query Attention (MQA)
      │K_1        │
      │V_1        │
      └───────────┘
- KVヘッド数 = 1
- → KV Cache 最小、品質低下リスク
+ # KV heads = 1
+ → KV Cache minimum, risk of quality degradation
 
-LLaMA 3.1 の採用:
+LLaMA 3.1 adoption:
   8B:  GQA (32 Q heads, 8 KV heads) → 4:1
   70B: GQA (64 Q heads, 8 KV heads) → 8:1
   405B: GQA (128 Q heads, 8 KV heads) → 16:1
@@ -1091,55 +1100,56 @@ LLaMA 3.1 の採用:
 
 ---
 
-## 8. 実務でのモデル選択フレームワーク
+## 8. Model Selection Framework for Production Use
 
-### ASCII 図解 8: モデル選択の判断フロー
+### ASCII Diagram 8: Model Selection Decision Flow
 
 ```
-タスク要件の分析
+Analyze task requirements
       │
       ▼
 ┌─────────────────┐
-│ タスクの複雑さは？ │
+│ Task complexity? │
 └────────┬────────┘
          │
     ┌────┴────┐
     ▼         ▼
-  単純        複雑
+ Simple      Complex
   │           │
   ▼           ▼
 ┌────────┐  ┌────────────┐
-│分類     │  │推論・分析    │
-│抽出     │  │コード生成   │
-│フォーマット│  │クリエイティブ│
-└────┬───┘  └─────┬──────┘
+│Classif.│  │Reasoning/  │
+│Extract.│  │Analysis    │
+│Format  │  │Code gen.   │
+└────┬───┘  │Creative    │
+     │      └─────┬──────┘
      │            │
      ▼            ▼
- 小型モデル      大型モデル
- (7-8B)         (70B+)
- or API Haiku   or API Opus
+ Small model   Large model
+ (7-8B)        (70B+)
+ or API Haiku  or API Opus
      │            │
      ▼            ▼
 ┌──────────────────────────────────┐
-│         非機能要件の確認           │
+│     Verify non-functional reqs.  │
 ├────────────┬─────────────────────┤
-│ レイテンシ  │ < 100ms → 小型     │
-│            │ < 1s → 中型        │
-│            │ 許容 → 大型        │
+│ Latency    │ < 100ms → small    │
+│            │ < 1s → medium      │
+│            │ Flexible → large   │
 ├────────────┼─────────────────────┤
-│ コスト     │ 低予算 → OSS + LoRA │
-│            │ 中予算 → API        │
-│            │ 高予算 → 専用デプロイ │
+│ Cost       │ Low budget → OSS + LoRA│
+│            │ Medium → API        │
+│            │ High → dedicated deploy│
 ├────────────┼─────────────────────┤
-│ プライバシー│ 厳格 → オンプレミス  │
-│            │ 普通 → API          │
+│ Privacy    │ Strict → on-premise │
+│            │ Normal → API        │
 ├────────────┼─────────────────────┤
-│ スループット│ 高 → vLLM + GPU複数 │
-│            │ 低 → Ollama で十分  │
+│ Throughput │ High → vLLM + multi-GPU│
+│            │ Low → Ollama suffices│
 └────────────┴─────────────────────┘
 ```
 
-### コード例 13: モデルルーティングの実装
+### Code Example 13: Model Routing Implementation
 
 ```python
 from dataclasses import dataclass
@@ -1236,155 +1246,155 @@ for task in tasks:
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン 1: 「大きいモデル = 常に良い」という誤解
-
-```
-誤: すべてのタスクに最大モデルを使う
-  → コスト爆発、レイテンシ増大、環境負荷
-
-正: タスクの複雑さに応じてモデルサイズを選択する
-  - 分類・抽出 → 小型モデル (7-8B) で十分
-  - 複雑な推論 → 大型モデル (70B+) が必要
-  - ルーティングで振り分ける設計が最適
-
-  実例:
-  - Eメール分類: Haiku (約$0.25/1M tokens) で 95% 精度
-  - 同じタスクに Opus ($15/1M tokens): 97% 精度
-  - 2%の精度向上に60倍のコスト → ROI が合わない
-```
-
-### アンチパターン 2: スケーリング則の過信
+### Anti-Pattern 1: The Misconception That "Bigger Model = Always Better"
 
 ```
-誤: パラメータを増やせば全てのタスクで性能向上する
-  → 特定タスクでは小型モデル+専門データが優秀
+Wrong: Use the largest model for every task
+  → Cost explosion, increased latency, environmental impact
 
-正: タスク固有の評価を必ず行う
-  - ベンチマークスコアと実タスク性能は乖離する
-  - ドメイン特化の微調整が汎用大型モデルに勝つことがある
-  - 8B + LoRA が 70B のゼロショットに勝つケースは多い
+Right: Choose model size based on task complexity
+  - Classification/extraction → small model (7-8B) is sufficient
+  - Complex reasoning → large model (70B+) is needed
+  - Design with routing to dispatch appropriately
+
+  Real example:
+  - Email classification: Haiku (~$0.25/1M tokens) achieves 95% accuracy
+  - Same task with Opus ($15/1M tokens): 97% accuracy
+  - 60x cost for 2% accuracy gain → ROI doesn't justify it
 ```
 
-### アンチパターン 3: 推論コストを無視した設計
+### Anti-Pattern 2: Over-Trusting Scaling Laws
 
 ```
-誤: 学習コストだけを考慮する
-  → 運用開始後、推論コストが学習コストを超える
+Wrong: Adding parameters will improve performance on all tasks
+  → On specific tasks, small model + specialized data can be superior
 
-正: TCO (Total Cost of Ownership) で評価
-  - 学習コスト: 一度だけ
-  - 推論コスト: 毎日・毎秒発生
-  - 1日100万リクエストなら、レイテンシ50ms短縮 = $XXX/月の節約
-  - 量子化やバッチ処理で推論コストを10分の1にできる可能性
+Right: Always evaluate on task-specific metrics
+  - Benchmark scores and real task performance can diverge
+  - Domain-specific fine-tuning can outperform large general models
+  - Cases where 8B + LoRA beats 70B zero-shot are common
 ```
 
-### アンチパターン 4: コンテキスト長の濫用
+### Anti-Pattern 3: Ignoring Inference Costs in Design
 
 ```
-誤: 128K トークンのコンテキストに大量のテキストを詰め込む
-  → "Lost in the Middle" 問題で中間部分の情報を見落とす
-  → コストが線形以上に増加
-  → レイテンシが大幅に悪化
+Wrong: Consider only training costs
+  → After deployment, inference costs exceed training costs
 
-正: 必要な情報だけをコンテキストに含める
-  - RAG で関連部分のみを取得
-  - 要約してからコンテキストに入れる
-  - チャンク分割して並列処理
-  - 重要な情報はプロンプトの最初と最後に配置
+Right: Evaluate using TCO (Total Cost of Ownership)
+  - Training cost: incurred once
+  - Inference cost: occurs every day, every second
+  - 1M requests/day: 50ms latency reduction = $XXX/month in savings
+  - Quantization and batching can reduce inference cost by up to 10x
+```
+
+### Anti-Pattern 4: Abusing Context Length
+
+```
+Wrong: Stuffing vast amounts of text into a 128K token context
+  → "Lost in the Middle" problem — information in the middle gets missed
+  → Cost increases superlinearly
+  → Latency degrades significantly
+
+Right: Include only necessary information in context
+  - Use RAG to retrieve only relevant portions
+  - Summarize before adding to context
+  - Split into chunks and process in parallel
+  - Place important information at the beginning and end of the prompt
 ```
 
 ---
 
 ## FAQ
 
-### Q1: Transformer 以前のモデル（RNN/LSTM）との最大の違いは？
+### Q1: What is the biggest difference from pre-Transformer models (RNN/LSTM)?
 
-**A:** 並列処理能力です。RNN/LSTM は系列を逐次処理するため学習が遅く、長い文脈を扱うのが困難でした。Transformer の Self-Attention は全トークン間の関係を同時に計算でき、GPU の並列性を最大限に活用できます。これがスケーリングを可能にした最大の要因です。
+**A:** Parallel processing capability. RNN/LSTM models process sequences sequentially, making training slow and handling long contexts difficult. Transformer's Self-Attention computes relationships among all tokens simultaneously, maximizing GPU parallelism. This is the primary factor that made scaling possible.
 
-具体的な比較:
-- **RNN**: O(n) の逐次ステップ、勾配消失問題、並列化不可
-- **LSTM**: 勾配消失を緩和、だが依然として逐次処理
-- **Transformer**: O(1) の深さ（アテンションで全位置を参照）、完全並列化可能、O(n^2) のメモリだが GPU に最適
+Specific comparison:
+- **RNN**: O(n) sequential steps, vanishing gradient problem, cannot be parallelized
+- **LSTM**: Mitigates vanishing gradients, but still sequential processing
+- **Transformer**: O(1) depth (attention references all positions), fully parallelizable, O(n^2) memory but optimal for GPUs
 
-### Q2: パラメータ数が大きいほど常に高性能ですか？
+### Q2: Does a higher parameter count always mean better performance?
 
-**A:** いいえ。Chinchilla の研究が示したように、パラメータ数とデータ量のバランスが重要です。例えば 70B パラメータのモデルでも、十分なデータで学習すれば 175B の GPT-3 を上回ります。また Mixture of Experts (MoE) により、全パラメータを常に使わない効率的な設計も主流になっています。
+**A:** No. As Chinchilla research showed, the balance between parameter count and data volume is crucial. For example, a 70B parameter model trained on sufficient data can outperform the 175B GPT-3. Additionally, Mixture of Experts (MoE) — which avoids using all parameters at once — has become mainstream for efficient design.
 
-さらに、推論時の効率も重要です:
-- LLaMA 3.1 8B (15T tokens) は、Chinchilla 最適の3倍のデータで学習
-- 推論コストは8B分だが、性能は「最適な13B」に匹敵
-- 「学習時に余分に投資して、推論時にコスト削減」という戦略
+Furthermore, inference-time efficiency is also important:
+- LLaMA 3.1 8B (15T tokens) was trained on 3x more data than Chinchilla optimal
+- Inference cost is that of an 8B model, but performance matches an "optimal 13B"
+- Strategy of "invest extra during training to reduce inference cost"
 
-### Q3: LLM の学習には何が最もコストがかかりますか？
+### Q3: What is the most costly part of LLM training?
 
-**A:** 事前学習のGPU計算コストが圧倒的です。GPT-4 クラスのモデルでは推定数千万〜1億ドルの計算コストがかかります。一方、SFT や RLHF は比較的安価（数千〜数万ドル）で実行可能です。このため、多くの組織は事前学習済みモデルの上に微調整を行う戦略を取ります。
+**A:** GPU compute cost for pre-training is overwhelmingly dominant. GPT-4-class models are estimated to cost tens of millions to $100 million in compute. In contrast, SFT and RLHF are relatively inexpensive (thousands to tens of thousands of dollars). This is why many organizations adopt a strategy of fine-tuning on top of pretrained models.
 
-コスト内訳の典型例（70B モデル）:
-1. **GPU計算**: 約80%（学習時間 × GPU台数 × 電力）
-2. **データ準備**: 約10%（収集、クリーニング、フィルタリング）
-3. **人件費**: 約5%（研究者、エンジニア）
-4. **インフラ**: 約5%（ストレージ、ネットワーク、冷却）
+Typical cost breakdown (70B model):
+1. **GPU compute**: ~80% (training time × number of GPUs × power)
+2. **Data preparation**: ~10% (collection, cleaning, filtering)
+3. **Personnel**: ~5% (researchers, engineers)
+4. **Infrastructure**: ~5% (storage, networking, cooling)
 
-### Q4: MoE と Dense モデル、どちらを選ぶべき？
+### Q4: Should I choose MoE or Dense?
 
-**A:** 用途によります。
-- **高スループットが必要** → MoE（同じ推論コストでより高性能）
-- **メモリ制約が厳しい** → Dense（MoE は全エキスパートをメモリに保持）
-- **安定した学習が必要** → Dense（MoE はロードバランスのチューニングが必要）
-- **デプロイが簡単** → Dense（MoE は分散推論の設定が複雑）
+**A:** It depends on the use case.
+- **High throughput needed** → MoE (higher performance for same inference cost)
+- **Strict memory constraints** → Dense (MoE requires holding all experts in memory)
+- **Stable training needed** → Dense (MoE requires load balancing tuning)
+- **Simple deployment** → Dense (MoE distributed inference setup is complex)
 
-### Q5: ローカルLLM と API、どちらを使うべき？
+### Q5: Should I use local LLM or API?
 
-**A:** 以下の判断基準で選択します:
+**A:** Choose based on the following criteria:
 
-| 基準 | ローカル推奨 | API 推奨 |
+| Criteria | Recommend Local | Recommend API |
 |------|-------------|---------|
-| データプライバシー | 機密データを扱う | 一般的なデータ |
-| 初期投資 | GPU資産がある | GPU投資を避けたい |
-| スケーラビリティ | 固定負荷 | 変動負荷 |
-| 最新モデル | 不要 | 常に最新が必要 |
-| カスタマイズ | 微調整が必要 | プロンプトで十分 |
-| 運用チーム | MLOps チームがある | 運用は最小限にしたい |
+| Data privacy | Handling sensitive data | General data |
+| Initial investment | Have GPU assets | Want to avoid GPU investment |
+| Scalability | Fixed load | Variable load |
+| Latest model | Not required | Always need latest |
+| Customization | Fine-tuning needed | Prompting is sufficient |
+| Operations team | Have MLOps team | Want minimal operations |
 
-### Q6: コンテキスト長はどこまで信頼できる？
+### Q6: How far can you trust context length?
 
-**A:** 公称コンテキスト長と実効性能は異なります。
+**A:** Advertised context length and effective performance differ.
 
-- **Needle in a Haystack テスト**: 多くのモデルは長いコンテキストの中間部分で情報を見落とす
-- **実効的な推奨**: コンテキストの最初と最後に重要な情報を配置
-- **RAG との組み合わせ**: 長いドキュメントは RAG で必要部分のみ取得する方が精度が高い
-- **コスト**: 入力トークン数に比例してコストが増加するため、無駄なコンテキストは避ける
+- **Needle in a Haystack test**: Many models miss information in the middle of long contexts
+- **Practical recommendation**: Place important information at the beginning and end of the context
+- **Combine with RAG**: Retrieving only needed parts from long documents with RAG yields higher accuracy
+- **Cost**: Avoid unnecessary context since cost increases proportionally with input tokens
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Point |
 |------|------|
-| Transformer | Self-Attention により並列処理と長文脈を実現 |
-| 位置エンコーディング | RoPE が現代の標準、長文脈対応も進化中 |
-| スケーリング則 | パラメータ・データ・計算の3要素でLoss が予測可能 |
-| MoE | 活性パラメータを制限し推論効率を大幅改善 |
-| 事前学習 | 兆トークン規模の次トークン予測で言語能力を獲得 |
-| SFT | 指示追従能力を付与する教師あり微調整 |
-| RLHF/DPO | 人間の好みに合わせるアラインメント手法 |
-| 推論最適化 | KV Cache、量子化、vLLM 等でコスト・速度を改善 |
-| GQA/MQA | KV Cache のメモリを削減しつつ品質を維持 |
-| モデル選択 | タスクの複雑さ・コスト・レイテンシで最適解が変わる |
+| Transformer | Self-Attention enables parallel processing and long contexts |
+| Positional encoding | RoPE is the modern standard; long-context support continues to evolve |
+| Scaling laws | Loss is predictable from the three elements: parameters, data, and compute |
+| MoE | Limits active parameters to dramatically improve inference efficiency |
+| Pre-training | Language ability acquired via next-token prediction at trillion-token scale |
+| SFT | Supervised fine-tuning that grants instruction-following capability |
+| RLHF/DPO | Alignment methods for aligning with human preferences |
+| Inference optimization | KV Cache, quantization, vLLM, etc. improve cost and speed |
+| GQA/MQA | Reduces KV Cache memory while maintaining quality |
+| Model selection | Optimal solution varies by task complexity, cost, and latency |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [01-tokenization.md](./01-tokenization.md) -- トークナイゼーションの仕組みと管理手法
-- [02-inference.md](./02-inference.md) -- 推論パラメータの最適化
-- [03-fine-tuning.md](./03-fine-tuning.md) -- LoRA/QLoRA によるファインチューニング
+- [01-tokenization.md](./01-tokenization.md) -- How tokenization works and management techniques
+- [02-inference.md](./02-inference.md) -- Optimizing inference parameters
+- [03-fine-tuning.md](./03-fine-tuning.md) -- Fine-tuning with LoRA/QLoRA
 
 ---
 
-## 参考文献
+## References
 
 1. Vaswani, A. et al. (2017). "Attention Is All You Need." *NeurIPS 2017*. https://arxiv.org/abs/1706.03762
 2. Hoffmann, J. et al. (2022). "Training Compute-Optimal Large Language Models (Chinchilla)." *arXiv:2203.15556*. https://arxiv.org/abs/2203.15556
