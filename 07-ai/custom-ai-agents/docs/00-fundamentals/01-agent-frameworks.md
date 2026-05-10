@@ -1,40 +1,40 @@
-# エージェントフレームワーク
+# Agent Frameworks
 
-> LangChain・CrewAI・AutoGen・LangGraph――主要AIエージェントフレームワークの設計思想・機能・トレードオフを比較し、プロジェクトに最適な選択を導く。
+> LangChain, CrewAI, AutoGen, LangGraph — compare the design philosophy, features, and tradeoffs of major AI agent frameworks to find the best fit for your project.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. 主要フレームワーク4種の設計思想と得意領域の違い
-2. 各フレームワークの実装パターンとコード例
-3. プロジェクト要件に基づくフレームワーク選定基準
-4. フレームワーク移行とベンダーロックイン回避の戦略
-5. 各フレームワークのパフォーマンス特性とスケーラビリティ
+1. The design philosophy and strengths of each of the four major frameworks
+2. Implementation patterns and code examples for each framework
+3. Framework selection criteria based on project requirements
+4. Strategies for framework migration and avoiding vendor lock-in
+5. Performance characteristics and scalability of each framework
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [AIエージェント概要](./00-agent-overview.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [AI Agent Overview](./00-agent-overview.md)
 
 ---
 
-## 1. フレームワーク全体像
+## 1. Framework Landscape
 
 ```
-AIエージェントフレームワーク 生態系 (2025)
+AI Agent Framework Ecosystem (2025)
 +---------------------------------------------------------------+
-|                        高レベル                                  |
+|                        High Level                              |
 |  +----------+  +----------+  +----------+  +-----------+       |
 |  | CrewAI   |  | AutoGen  |  | Claude   |  | OpenAI    |       |
-|  | (役割)   |  | (会話)   |  | Agent SDK|  | Assistants|       |
+|  | (Role)   |  | (Conv.)  |  | Agent SDK|  | Assistants|       |
 |  +----+-----+  +----+-----+  +----+-----+  +-----+-----+      |
 |       |              |             |              |              |
 |  +----v--------------v-------------v--------------v-----+       |
 |  |              LangChain / LangGraph                    |       |
-|  |              (基盤 + オーケストレーション)              |       |
+|  |              (Foundation + Orchestration)             |       |
 |  +----+----------------------------------------------+--+       |
 |       |                                              |           |
 |  +----v-----+  +----------+  +----------+  +--------v--+       |
@@ -42,47 +42,47 @@ AIエージェントフレームワーク 生態系 (2025)
 |  | (Claude, |  | Stores   |  | Servers  |  | Stores    |       |
 |  |  GPT)    |  | (Pinecone|  | (MCP)    |  | (Redis)   |       |
 |  +----------+  +----------+  +----------+  +-----------+       |
-|                        低レベル                                  |
+|                        Low Level                               |
 +---------------------------------------------------------------+
 ```
 
-### 1.1 フレームワークの進化の歴史
+### 1.1 History of Framework Evolution
 
-AIエージェントフレームワークは2023年以降急速に発展してきた。
+AI agent frameworks have evolved rapidly since 2023.
 
 ```
-フレームワーク進化タイムライン
-2022 Q4  ├── LangChain 初期リリース（チェーン中心）
-2023 Q1  ├── LangChain AgentExecutor 追加
-2023 Q2  ├── AutoGen (Microsoft) 公開
-2023 Q3  ├── CrewAI 初期リリース
-2023 Q4  ├── LangGraph 公開（グラフベースオーケストレーション）
+Framework Evolution Timeline
+2022 Q4  ├── LangChain initial release (chain-focused)
+2023 Q1  ├── LangChain AgentExecutor added
+2023 Q2  ├── AutoGen (Microsoft) released
+2023 Q3  ├── CrewAI initial release
+2023 Q4  ├── LangGraph released (graph-based orchestration)
 2024 Q1  ├── Claude Tool Use GA / OpenAI Assistants API v2
-2024 Q2  ├── MCP (Model Context Protocol) 発表
+2024 Q2  ├── MCP (Model Context Protocol) announced
 2024 Q3  ├── LangGraph Studio / CrewAI 2.0
-2024 Q4  ├── AutoGen 0.4 (大幅リアーキテクチャ)
+2024 Q4  ├── AutoGen 0.4 (major re-architecture)
 2025 Q1  ├── Claude Agent SDK / OpenAI Agents SDK
-2025 Q2  ├── 各フレームワーク成熟期
+2025 Q2  ├── Maturation of all major frameworks
 ```
 
-### 1.2 フレームワーク選択が重要な理由
+### 1.2 Why Framework Selection Matters
 
-フレームワーク選択は単なる技術決定ではなく、プロジェクトの成功に直結する戦略的判断である。
+Framework selection is not merely a technical decision — it is a strategic choice that directly affects project success.
 
 ```
-フレームワーク選択の影響範囲
+Scope of Framework Selection Impact
 
 +------------------+     +--------------------+     +------------------+
-| 開発速度          |     | 運用コスト          |     | チーム学習曲線    |
-| - プロトタイプ速度 |     | - LLM API費用      |     | - 習得時間        |
-| - 機能追加速度    |     | - インフラコスト    |     | - ドキュメント品質 |
-| - デバッグ効率    |     | - メンテナンス工数  |     | - コミュニティ規模 |
+| Development Speed|     | Operational Cost   |     | Team Learning    |
+| - Prototype speed|     | - LLM API costs    |     | - Time to learn  |
+| - Feature velocity     | - Infrastructure   |     | - Doc quality    |
+| - Debug efficiency     | - Maintenance work |     | - Community size |
 +--------+---------+     +--------+-----------+     +--------+---------+
          |                         |                          |
          +------------+------------+-----------+--------------+
                       |                        |
               +-------v--------+      +--------v-------+
-              | プロジェクト成功 |      | 技術的負債     |
+              | Project Success|      | Technical Debt |
               +----------------+      +----------------+
 ```
 
@@ -90,106 +90,106 @@ AIエージェントフレームワークは2023年以降急速に発展して�
 
 ## 2. LangChain
 
-### 2.1 設計思想
+### 2.1 Design Philosophy
 
-LangChainは **コンポーザブルなビルディングブロック** の思想で構築されている。LLM呼び出し、プロンプトテンプレート、ツール、メモリを個別のコンポーネントとして提供し、それらを自由に組み合わせる。
+LangChain is built around the concept of **composable building blocks**. It provides LLM calls, prompt templates, tools, and memory as individual components that can be freely combined.
 
-LangChainの核心的な設計原則:
-- **LCEL (LangChain Expression Language)**: パイプ演算子(`|`)によるチェーン構築
-- **Runnable Protocol**: すべてのコンポーネントが `invoke`, `stream`, `batch` を持つ
-- **コンポーネント分離**: LLM、プロンプト、ツール、メモリが独立
-- **プロバイダー非依存**: 同じコードで Claude、GPT、Gemini を切り替え可能
+Core design principles of LangChain:
+- **LCEL (LangChain Expression Language)**: Chain construction using the pipe operator (`|`)
+- **Runnable Protocol**: Every component has `invoke`, `stream`, and `batch` methods
+- **Component separation**: LLM, prompt, tools, and memory are independent
+- **Provider-agnostic**: Switch between Claude, GPT, and Gemini with the same code
 
-### 2.2 基本実装
+### 2.2 Basic Implementation
 
 ```python
-# LangChain でのエージェント構築
+# Building an agent with LangChain
 from langchain_anthropic import ChatAnthropic
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain.tools import tool
 from langchain_core.prompts import ChatPromptTemplate
 
-# 1. ツール定義
+# 1. Tool definitions
 @tool
 def calculate(expression: str) -> str:
-    """数式を計算して結果を返す。例: '2 + 3 * 4'"""
+    """Calculates a math expression and returns the result. Example: '2 + 3 * 4'"""
     try:
         return str(eval(expression))
     except Exception as e:
-        return f"計算エラー: {e}"
+        return f"Calculation error: {e}"
 
 @tool
 def search_web(query: str) -> str:
-    """Webを検索して結果を返す"""
-    # 実際にはSerpAPI等を使用
-    return f"'{query}' の検索結果: ..."
+    """Searches the web and returns results"""
+    # In practice, use SerpAPI or similar
+    return f"Search results for '{query}': ..."
 
-# 2. LLM設定
+# 2. LLM configuration
 llm = ChatAnthropic(model="claude-sonnet-4-20250514", temperature=0)
 
-# 3. プロンプト
+# 3. Prompt
 prompt = ChatPromptTemplate.from_messages([
-    ("system", "あなたは有能なアシスタントです。ツールを使って正確に回答してください。"),
+    ("system", "You are a capable assistant. Use tools to answer accurately."),
     ("human", "{input}"),
     ("placeholder", "{agent_scratchpad}")
 ])
 
-# 4. エージェント構築
+# 4. Build the agent
 tools = [calculate, search_web]
 agent = create_tool_calling_agent(llm, tools, prompt)
 executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-# 5. 実行
-result = executor.invoke({"input": "日本の人口は何人？ 世界人口の何%？"})
+# 5. Execute
+result = executor.invoke({"input": "What is the population of Japan? What percentage of the world population?"})
 print(result["output"])
 ```
 
-### 2.3 LangChainのアーキテクチャ
+### 2.3 LangChain Architecture
 
 ```
 LangChain Architecture
 +------------------------------------------+
 |            AgentExecutor                  |
 |  +--------------------------------------+|
-|  |  Agent (推論エンジン)                 ||
+|  |  Agent (Reasoning Engine)             ||
 |  |  +-----------+  +------------------+ ||
 |  |  | LLM       |  | Prompt Template  | ||
 |  |  +-----------+  +------------------+ ||
 |  +--------------------------------------+|
 |  +--------------------------------------+|
-|  |  Tools (ツール群)                     ||
+|  |  Tools                                ||
 |  |  [Search] [Calculate] [Code] [DB]    ||
 |  +--------------------------------------+|
 |  +--------------------------------------+|
-|  |  Memory (記憶)                        ||
+|  |  Memory                               ||
 |  |  [ConversationBuffer] [Summary]      ||
 |  +--------------------------------------+|
 +------------------------------------------+
 ```
 
-### 2.4 LCEL（LangChain Expression Language）の詳細
+### 2.4 LCEL (LangChain Expression Language) in Detail
 
-LCELはLangChain v0.2以降の推奨パターンであり、宣言的にチェーンを構築できる。
+LCEL is the recommended pattern since LangChain v0.2, enabling declarative chain construction.
 
 ```python
-# LCEL によるチェーン構築
+# Building chains with LCEL
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser, JsonOutputParser
 from langchain_anthropic import ChatAnthropic
 from langchain_core.runnables import RunnablePassthrough, RunnableLambda
 
-# 基本的なLCELチェーン
+# Basic LCEL chain
 prompt = ChatPromptTemplate.from_template(
-    "以下のトピックについて3行で説明してください: {topic}"
+    "Explain the following topic in 3 sentences: {topic}"
 )
 llm = ChatAnthropic(model="claude-sonnet-4-20250514")
 parser = StrOutputParser()
 
-# パイプ演算子でチェーン構築
+# Build chain with pipe operator
 chain = prompt | llm | parser
-result = chain.invoke({"topic": "機械学習"})
+result = chain.invoke({"topic": "machine learning"})
 
-# 複雑なチェーン: 並列実行 + 結合
+# Complex chain: parallel execution + merging
 from langchain_core.runnables import RunnableParallel
 
 analysis_chain = RunnableParallel(
@@ -198,30 +198,30 @@ analysis_chain = RunnableParallel(
     sentiment=prompt_sentiment | llm | parser
 )
 
-# 1回の呼び出しで3つの分析を並列実行
-result = analysis_chain.invoke({"text": "分析対象のテキスト..."})
+# Run 3 analyses in parallel with a single call
+result = analysis_chain.invoke({"text": "Text to analyze..."})
 # result = {"summary": "...", "keywords": [...], "sentiment": "positive"}
 ```
 
 ```python
-# LCEL でのカスタムロジック組み込み
+# Embedding custom logic in LCEL
 from langchain_core.runnables import RunnableLambda
 
 def preprocess(input_data: dict) -> dict:
-    """前処理: 入力テキストのクリーニング"""
+    """Pre-processing: clean input text"""
     text = input_data["text"]
     text = text.strip().lower()
     return {"cleaned_text": text, "original": input_data["text"]}
 
 def postprocess(output: str) -> dict:
-    """後処理: 出力のフォーマッティング"""
+    """Post-processing: format the output"""
     return {
         "result": output,
         "word_count": len(output.split()),
         "char_count": len(output)
     }
 
-# カスタム関数をチェーンに組み込み
+# Embed custom functions into the chain
 pipeline = (
     RunnableLambda(preprocess)
     | prompt
@@ -231,68 +231,68 @@ pipeline = (
 )
 ```
 
-### 2.5 LangChainのストリーミング対応
+### 2.5 LangChain Streaming Support
 
 ```python
-# ストリーミング対応のエージェント
+# Streaming-capable agent
 import asyncio
 from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import ChatPromptTemplate
 
 llm = ChatAnthropic(model="claude-sonnet-4-20250514", streaming=True)
 
-# 同期ストリーミング
-for chunk in chain.stream({"topic": "量子コンピュータ"}):
+# Synchronous streaming
+for chunk in chain.stream({"topic": "quantum computers"}):
     print(chunk, end="", flush=True)
 
-# 非同期ストリーミング
+# Asynchronous streaming
 async def stream_response():
-    async for chunk in chain.astream({"topic": "量子コンピュータ"}):
+    async for chunk in chain.astream({"topic": "quantum computers"}):
         print(chunk, end="", flush=True)
 
 asyncio.run(stream_response())
 
-# イベントストリーミング（ツール実行含む）
+# Event streaming (including tool execution)
 async def stream_agent_events():
     async for event in executor.astream_events(
-        {"input": "東京の天気を調べて"},
+        {"input": "Check the weather in Tokyo"},
         version="v2"
     ):
         kind = event["event"]
         if kind == "on_chat_model_stream":
-            # LLMからのトークン
+            # Token from LLM
             content = event["data"]["chunk"].content
             if content:
                 print(content, end="", flush=True)
         elif kind == "on_tool_start":
-            print(f"\n[ツール開始: {event['name']}]")
+            print(f"\n[Tool started: {event['name']}]")
         elif kind == "on_tool_end":
-            print(f"\n[ツール完了: {event['name']}]")
+            print(f"\n[Tool completed: {event['name']}]")
 ```
 
-### 2.6 LangChainのメモリ統合
+### 2.6 LangChain Memory Integration
 
 ```python
-# LangChain でのメモリ統合パターン
+# Memory integration pattern in LangChain
 from langchain.memory import ConversationBufferWindowMemory
 from langchain_core.prompts import MessagesPlaceholder
 
-# メモリ付きプロンプト
+# Prompt with memory
 prompt = ChatPromptTemplate.from_messages([
-    ("system", "あなたは有能なアシスタントです。"),
+    ("system", "You are a capable assistant."),
     MessagesPlaceholder(variable_name="chat_history"),
     ("human", "{input}"),
     ("placeholder", "{agent_scratchpad}")
 ])
 
-# ウィンドウメモリ（直近5往復を保持）
+# Window memory (retains last 5 exchanges)
 memory = ConversationBufferWindowMemory(
     k=5,
     memory_key="chat_history",
     return_messages=True
 )
 
-# メモリ付きエージェント
+# Agent with memory
 executor = AgentExecutor(
     agent=agent,
     tools=tools,
@@ -300,46 +300,46 @@ executor = AgentExecutor(
     verbose=True
 )
 
-# 連続会話
-executor.invoke({"input": "私の名前は田中です"})
-executor.invoke({"input": "私の名前を覚えていますか？"})
-# → "はい、田中さんですね"
+# Continuous conversation
+executor.invoke({"input": "My name is Tanaka"})
+executor.invoke({"input": "Do you remember my name?"})
+# → "Yes, your name is Tanaka"
 ```
 
-### 2.7 LangChainのデバッグとトレーシング
+### 2.7 LangChain Debugging and Tracing
 
 ```python
-# LangSmith によるトレーシング
+# Tracing with LangSmith
 import os
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_API_KEY"] = "ls_..."
 os.environ["LANGCHAIN_PROJECT"] = "my-agent-project"
 
-# これだけで全てのLLM呼び出し、ツール実行が自動追跡される
-result = executor.invoke({"input": "データ分析をして"})
+# All LLM calls and tool executions are automatically tracked
+result = executor.invoke({"input": "Perform data analysis"})
 
-# カスタムコールバックでのデバッグ
+# Debugging with custom callbacks
 from langchain_core.callbacks import BaseCallbackHandler
 
 class DebugCallback(BaseCallbackHandler):
     def on_llm_start(self, serialized, prompts, **kwargs):
-        print(f"[LLM開始] トークン数推定: {sum(len(p) // 4 for p in prompts)}")
+        print(f"[LLM start] Estimated tokens: {sum(len(p) // 4 for p in prompts)}")
 
     def on_tool_start(self, serialized, input_str, **kwargs):
-        print(f"[ツール開始] {serialized.get('name', 'unknown')}: {input_str[:100]}")
+        print(f"[Tool start] {serialized.get('name', 'unknown')}: {input_str[:100]}")
 
     def on_tool_end(self, output, **kwargs):
-        print(f"[ツール完了] 結果長: {len(str(output))} chars")
+        print(f"[Tool end] Result length: {len(str(output))} chars")
 
     def on_llm_error(self, error, **kwargs):
-        print(f"[LLMエラー] {type(error).__name__}: {error}")
+        print(f"[LLM error] {type(error).__name__}: {error}")
 
     def on_chain_end(self, outputs, **kwargs):
-        print(f"[チェーン完了] 出力キー: {list(outputs.keys())}")
+        print(f"[Chain end] Output keys: {list(outputs.keys())}")
 
-# コールバック付き実行
+# Execute with callback
 result = executor.invoke(
-    {"input": "分析して"},
+    {"input": "Analyze this"},
     config={"callbacks": [DebugCallback()]}
 )
 ```
@@ -348,102 +348,102 @@ result = executor.invoke(
 
 ## 3. CrewAI
 
-### 3.1 設計思想
+### 3.1 Design Philosophy
 
-CrewAIは **役割ベースのマルチエージェント** フレームワーク。現実世界のチーム構成をメタファーとして、各エージェントに「役割」「目標」「バックストーリー」を与え、タスクを協調的に遂行する。
+CrewAI is a **role-based multi-agent** framework. Using real-world team structures as a metaphor, each agent is given a "role," "goal," and "backstory" to collaboratively execute tasks.
 
-CrewAIの核心的な設計原則:
-- **Role-Playing**: エージェントに「ペルソナ」を与えることで出力品質を向上
-- **Task Delegation**: エージェント間のタスク委任を自然に記述
-- **Sequential/Hierarchical Process**: チーム構造に応じた実行フロー
-- **Memory Integration**: エージェント間の知識共有メカニズム
+Core design principles of CrewAI:
+- **Role-Playing**: Assigning "personas" to agents to improve output quality
+- **Task Delegation**: Naturally describing task handoffs between agents
+- **Sequential/Hierarchical Process**: Execution flow adapted to the team structure
+- **Memory Integration**: Knowledge sharing mechanism between agents
 
-### 3.2 基本実装
+### 3.2 Basic Implementation
 
 ```python
-# CrewAI でのマルチエージェント構築
+# Building a multi-agent system with CrewAI
 from crewai import Agent, Task, Crew, Process
 
-# 1. エージェント定義（役割ベース）
+# 1. Agent definitions (role-based)
 researcher = Agent(
-    role="シニアリサーチャー",
-    goal="AIエージェントの最新トレンドを調査する",
-    backstory="10年の研究経験を持つAI研究者。学術論文と産業応用の両方に精通している。",
+    role="Senior Researcher",
+    goal="Investigate the latest trends in AI agents",
+    backstory="An AI researcher with 10 years of experience, well-versed in both academic papers and industrial applications.",
     tools=[search_tool, scrape_tool],
     llm="claude-sonnet-4-20250514",
     verbose=True
 )
 
 writer = Agent(
-    role="テクニカルライター",
-    goal="調査結果を分かりやすい技術記事にまとめる",
-    backstory="技術ブログの編集者として5年の経験がある。複雑な概念を平易に説明する能力に長けている。",
+    role="Technical Writer",
+    goal="Compile research findings into clear technical articles",
+    backstory="A technical blog editor with 5 years of experience, skilled at explaining complex concepts in plain language.",
     llm="claude-sonnet-4-20250514",
     verbose=True
 )
 
-# 2. タスク定義
+# 2. Task definitions
 research_task = Task(
-    description="2025年のAIエージェントの主要トレンドを5つ特定し、それぞれの概要をまとめよ",
-    expected_output="トレンド5つのリスト（各200字程度の説明付き）",
+    description="Identify 5 key AI agent trends in 2025 and summarize each",
+    expected_output="A list of 5 trends (each with approximately 200 characters of explanation)",
     agent=researcher
 )
 
 writing_task = Task(
-    description="調査結果に基づいて、2000字程度の技術記事を執筆せよ",
-    expected_output="マークダウン形式の技術記事",
+    description="Write a technical article of approximately 2000 characters based on the research findings",
+    expected_output="A technical article in Markdown format",
     agent=writer,
-    context=[research_task]  # リサーチ結果を参照
+    context=[research_task]  # Reference research results
 )
 
-# 3. クルー構築・実行
+# 3. Build and run the crew
 crew = Crew(
     agents=[researcher, writer],
     tasks=[research_task, writing_task],
-    process=Process.sequential,  # 順次実行
+    process=Process.sequential,  # Sequential execution
     verbose=True
 )
 
 result = crew.kickoff()
 ```
 
-### 3.3 CrewAIの階層的プロセス
+### 3.3 CrewAI Hierarchical Process
 
 ```python
-# 階層的プロセス: マネージャーがタスクを委任
+# Hierarchical process: manager delegates tasks
 from crewai import Agent, Task, Crew, Process
 
-# マネージャー（自動で追加される）
+# Manager (added automatically)
 manager = Agent(
-    role="プロジェクトマネージャー",
-    goal="チームを効率的に管理し、高品質な成果物を生み出す",
-    backstory="10年のPM経験を持ち、AI開発チームのマネジメントに精通",
+    role="Project Manager",
+    goal="Manage the team efficiently and produce high-quality deliverables",
+    backstory="10 years of PM experience with deep expertise in AI development team management",
     llm="claude-sonnet-4-20250514",
-    allow_delegation=True  # 他のエージェントへの委任を許可
+    allow_delegation=True  # Allow delegation to other agents
 )
 
-# チームメンバー
+# Team members
 analyst = Agent(
-    role="データアナリスト",
-    goal="データを分析して洞察を導き出す",
-    backstory="統計学の修士号を持ち、PythonとSQLに精通",
+    role="Data Analyst",
+    goal="Analyze data and derive insights",
+    backstory="Holds a master's degree in statistics, proficient in Python and SQL",
     tools=[query_db, create_chart],
     llm="claude-sonnet-4-20250514"
 )
 
 developer = Agent(
-    role="バックエンド開発者",
-    goal="分析結果をAPIとして実装する",
-    backstory="FastAPIとPythonでの開発経験5年",
+    role="Backend Developer",
+    goal="Implement analysis results as an API",
+    backstory="5 years of development experience with FastAPI and Python",
     tools=[read_file, write_file, run_tests],
     llm="claude-sonnet-4-20250514"
 )
 
-# 階層的プロセスで実行
+# Run with hierarchical process
 crew = Crew(
     agents=[analyst, developer],
     tasks=[analysis_task, development_task, review_task],
-    process=Process.hierarchical,  # マネージャーが判断
+    process=Process.hierarchical,  # Manager makes decisions
     manager_agent=manager,
     verbose=True
 )
@@ -451,43 +451,43 @@ crew = Crew(
 result = crew.kickoff()
 ```
 
-### 3.4 CrewAIのカスタムツール定義
+### 3.4 CrewAI Custom Tool Definitions
 
 ```python
-# CrewAI用カスタムツール
+# Custom tools for CrewAI
 from crewai.tools import BaseTool
 from pydantic import BaseModel, Field
 from typing import Type
 
 class SearchInput(BaseModel):
-    query: str = Field(description="検索クエリ")
-    max_results: int = Field(default=5, description="最大結果数")
+    query: str = Field(description="Search query")
+    max_results: int = Field(default=5, description="Maximum number of results")
 
 class WebSearchTool(BaseTool):
     name: str = "web_search"
-    description: str = "Webを検索して最新情報を取得する"
+    description: str = "Search the web and retrieve the latest information"
     args_schema: Type[BaseModel] = SearchInput
 
     def _run(self, query: str, max_results: int = 5) -> str:
-        # 実際のWeb検索実装
+        # Actual web search implementation
         import requests
         results = []
-        # SerpAPI等を使用して検索
+        # Use SerpAPI or similar
         response = requests.get(
             "https://serpapi.com/search",
             params={"q": query, "num": max_results, "api_key": "..."}
         )
         for item in response.json().get("organic_results", [])[:max_results]:
             results.append(f"- {item['title']}: {item['snippet']}")
-        return "\n".join(results) if results else "結果が見つかりませんでした"
+        return "\n".join(results) if results else "No results found"
 
-# LangChain ツールとの互換性
+# Compatibility with LangChain tools
 from langchain.tools import tool as langchain_tool
 
 @langchain_tool
 def database_query(sql: str) -> str:
-    """SQLクエリを実行してデータベースから結果を取得する"""
-    # CrewAIはLangChainツールをそのまま使用可能
+    """Executes an SQL query and retrieves results from the database"""
+    # CrewAI can use LangChain tools directly
     import sqlite3
     conn = sqlite3.connect("data.db")
     result = conn.execute(sql).fetchall()
@@ -495,21 +495,21 @@ def database_query(sql: str) -> str:
     return str(result)
 ```
 
-### 3.5 CrewAI のメモリシステム
+### 3.5 CrewAI Memory System
 
 ```python
-# CrewAI のメモリ設定
+# CrewAI memory configuration
 from crewai import Crew
 
 crew = Crew(
     agents=[researcher, writer],
     tasks=[research_task, writing_task],
     process=Process.sequential,
-    memory=True,  # メモリを有効化
-    # メモリの種類:
-    # - Short-term: タスク実行中の会話記憶
-    # - Long-term: 過去のタスク結果の記憶
-    # - Entity: エンティティ（人名、組織名等）の記憶
+    memory=True,  # Enable memory
+    # Memory types:
+    # - Short-term: conversational memory during task execution
+    # - Long-term: memory of past task results
+    # - Entity: memory of entities (names, organizations, etc.)
     embedder={
         "provider": "openai",
         "config": {
@@ -519,97 +519,97 @@ crew = Crew(
     verbose=True
 )
 
-# 2回目以降の実行では過去の結果が記憶として活用される
-result1 = crew.kickoff(inputs={"topic": "AIエージェント"})
-result2 = crew.kickoff(inputs={"topic": "AIエージェントの応用"})
-# result2 では result1 の結果が長期記憶として参照される
+# From the second run onward, past results are used as long-term memory
+result1 = crew.kickoff(inputs={"topic": "AI agents"})
+result2 = crew.kickoff(inputs={"topic": "Applications of AI agents"})
+# In result2, the result of result1 is referenced as long-term memory
 ```
 
 ---
 
 ## 4. AutoGen
 
-### 4.1 設計思想
+### 4.1 Design Philosophy
 
-AutoGen（Microsoft）は **会話ベースのマルチエージェント** フレームワーク。エージェント同士がチャットメッセージを交換しながらタスクを遂行する。「会話可能エージェント（ConversableAgent）」が基本単位。
+AutoGen (Microsoft) is a **conversation-based multi-agent** framework. Agents exchange chat messages to accomplish tasks. The "ConversableAgent" is the fundamental unit.
 
-AutoGen v0.4 の核心的な設計変更:
-- **Actor Model**: エージェントをアクターとして非同期メッセージパッシング
-- **Runtime**: エージェントのライフサイクルを管理するランタイム
-- **Handoff**: エージェント間の制御移譲パターン
-- **Team**: エージェントをチームとして組織化
+Key design changes in AutoGen v0.4:
+- **Actor Model**: Agents as actors with asynchronous message passing
+- **Runtime**: A runtime that manages agent lifecycles
+- **Handoff**: Control transfer pattern between agents
+- **Team**: Organizing agents into teams
 
-### 4.2 基本実装
+### 4.2 Basic Implementation
 
 ```python
-# AutoGen でのマルチエージェント会話
+# Multi-agent conversation with AutoGen
 from autogen import ConversableAgent
 
-# 1. エージェント定義
+# 1. Agent definitions
 coder = ConversableAgent(
-    name="コーダー",
-    system_message="""あなたはPythonの専門家です。
-    要件に基づいてコードを書いてください。
-    コードはそのまま実行可能な形式で提供してください。""",
+    name="Coder",
+    system_message="""You are a Python expert.
+    Write code based on the given requirements.
+    Provide code in a directly executable format.""",
     llm_config={"model": "claude-sonnet-4-20250514"}
 )
 
 reviewer = ConversableAgent(
-    name="レビュアー",
-    system_message="""あなたはコードレビューの専門家です。
-    コードの品質、セキュリティ、パフォーマンスを評価してください。
-    問題があれば具体的な改善案を提示してください。""",
+    name="Reviewer",
+    system_message="""You are an expert code reviewer.
+    Evaluate the code for quality, security, and performance.
+    If there are issues, provide specific suggestions for improvement.""",
     llm_config={"model": "claude-sonnet-4-20250514"}
 )
 
-# 2. 会話（自動的にメッセージを交換）
+# 2. Conversation (automatically exchanges messages)
 result = coder.initiate_chat(
     reviewer,
-    message="ファイルを読み込んでCSVに変換するPythonスクリプトを書いてください",
-    max_turns=4  # 最大4往復
+    message="Write a Python script that reads a file and converts it to CSV",
+    max_turns=4  # Maximum 4 exchanges
 )
 ```
 
-### 4.3 AutoGen v0.4 のアーキテクチャ
+### 4.3 AutoGen v0.4 Architecture
 
 ```python
-# AutoGen v0.4 の新しいAPI（Actor Model ベース）
+# New API in AutoGen v0.4 (Actor Model based)
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.teams import RoundRobinGroupChat
 from autogen_agentchat.conditions import TextMentionTermination
 from autogen_ext.models.anthropic import AnthropicChatCompletionClient
 
-# モデルクライアントの設定
+# Model client configuration
 model_client = AnthropicChatCompletionClient(
     model="claude-sonnet-4-20250514"
 )
 
-# エージェント定義（v0.4スタイル）
+# Agent definitions (v0.4 style)
 planner = AssistantAgent(
     name="planner",
     model_client=model_client,
-    system_message="""あなたはプロジェクトプランナーです。
-    要件を分析し、実装計画を立ててください。
-    計画が完成したら 'HANDOFF_TO_CODER' と言ってください。"""
+    system_message="""You are a project planner.
+    Analyze requirements and formulate an implementation plan.
+    When the plan is complete, say 'HANDOFF_TO_CODER'."""
 )
 
 coder = AssistantAgent(
     name="coder",
     model_client=model_client,
-    system_message="""あなたはPython開発者です。
-    プランナーの計画に基づいてコードを実装してください。
-    実装が完了したら 'HANDOFF_TO_REVIEWER' と言ってください。"""
+    system_message="""You are a Python developer.
+    Implement the code based on the planner's plan.
+    When implementation is complete, say 'HANDOFF_TO_REVIEWER'."""
 )
 
 reviewer_agent = AssistantAgent(
     name="reviewer",
     model_client=model_client,
-    system_message="""あなたはコードレビュアーです。
-    コードの品質を評価してください。
-    問題がなければ 'APPROVE' と言ってください。"""
+    system_message="""You are a code reviewer.
+    Evaluate the code quality.
+    If there are no issues, say 'APPROVE'."""
 )
 
-# チーム構成
+# Team configuration
 termination = TextMentionTermination("APPROVE")
 
 team = RoundRobinGroupChat(
@@ -618,64 +618,64 @@ team = RoundRobinGroupChat(
     max_turns=10
 )
 
-# 実行
+# Execute
 import asyncio
 
 async def main():
     result = await team.run(
-        task="CSVファイルを読み込んでデータを分析するスクリプトを作成してください"
+        task="Create a script that reads a CSV file and analyzes the data"
     )
     print(result)
 
 asyncio.run(main())
 ```
 
-### 4.4 AutoGen のコード実行機能
+### 4.4 AutoGen Code Execution Feature
 
 ```python
-# AutoGen のサンドボックスコード実行
+# Sandboxed code execution in AutoGen
 from autogen_ext.code_executors.docker import DockerCommandLineCodeExecutor
 from autogen_agentchat.agents import CodeExecutorAgent
 
-# Docker ベースのコード実行環境
+# Docker-based code execution environment
 code_executor = DockerCommandLineCodeExecutor(
     image="python:3.11-slim",
     timeout=60,
     work_dir="/workspace"
 )
 
-# コード実行エージェント
+# Code executor agent
 executor_agent = CodeExecutorAgent(
     name="executor",
     code_executor=code_executor
 )
 
-# コーダーが書いたコードを自動実行
+# Automatically executes code written by the coder
 team = RoundRobinGroupChat(
     participants=[coder, executor_agent, reviewer_agent],
     max_turns=8
 )
 ```
 
-### 4.5 AutoGen の Human-in-the-Loop
+### 4.5 AutoGen Human-in-the-Loop
 
 ```python
-# AutoGen での人間介入パターン
+# Human intervention pattern in AutoGen
 from autogen_agentchat.agents import UserProxyAgent
 
-# 人間の代理エージェント
+# Human proxy agent
 human_proxy = UserProxyAgent(
     name="human",
-    # 自動で承認するかどうか
-    human_input_mode="ALWAYS",  # 常に人間の入力を要求
-    # "NEVER": 人間の入力なし
-    # "TERMINATE": 終了時のみ
+    # Whether to approve automatically
+    human_input_mode="ALWAYS",  # Always require human input
+    # "NEVER": no human input
+    # "TERMINATE": only at termination
 )
 
-# 人間が会話に参加
+# Human participates in the conversation
 result = coder.initiate_chat(
     human_proxy,
-    message="要件を教えてください",
+    message="Please tell me your requirements",
     max_turns=10
 )
 ```
@@ -684,38 +684,38 @@ result = coder.initiate_chat(
 
 ## 5. Claude Agent SDK
 
-### 5.1 設計思想
+### 5.1 Design Philosophy
 
-Anthropicの公式SDK。**シンプルなエージェントループ** を最小限のコードで構築でき、MCPツールとのネイティブ統合が特徴。
+The official SDK from Anthropic. It enables building a **simple agent loop** with minimal code, with native MCP tool integration as a key feature.
 
-Claude Agent SDKの核心的な設計原則:
-- **Minimal Abstraction**: フレームワークの抽象度を最低限に保つ
-- **Native Tool Use**: Claude APIのtool_useを直接活用
-- **MCP First**: MCPプロトコルとのネイティブ統合
-- **Full Control**: エージェントループの全ステップを開発者が制御可能
+Core design principles of the Claude Agent SDK:
+- **Minimal Abstraction**: Keep the level of framework abstraction to a minimum
+- **Native Tool Use**: Directly leverage Claude API's tool_use
+- **MCP First**: Native integration with the MCP protocol
+- **Full Control**: Every step of the agent loop is controllable by the developer
 
 ```python
-# Claude Agent SDK でのエージェント構築
+# Building an agent with the Claude Agent SDK
 import anthropic
 
 client = anthropic.Anthropic()
 
-# ツール定義
+# Tool definitions
 tools = [
     {
         "name": "read_file",
-        "description": "指定されたファイルの内容を読み取る",
+        "description": "Reads the contents of a specified file",
         "input_schema": {
             "type": "object",
             "properties": {
-                "path": {"type": "string", "description": "ファイルパス"}
+                "path": {"type": "string", "description": "File path"}
             },
             "required": ["path"]
         }
     },
     {
         "name": "write_file",
-        "description": "指定されたファイルに内容を書き込む",
+        "description": "Writes content to a specified file",
         "input_schema": {
             "type": "object",
             "properties": {
@@ -734,7 +734,7 @@ def run_agent(user_message: str):
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
-            system="あなたはファイル操作エージェントです。",
+            system="You are a file operations agent.",
             tools=tools,
             messages=messages
         )
@@ -742,7 +742,7 @@ def run_agent(user_message: str):
         if response.stop_reason == "end_turn":
             return extract_text(response)
 
-        # ツール呼び出しを処理
+        # Process tool calls
         tool_results = []
         for block in response.content:
             if block.type == "tool_use":
@@ -757,10 +757,10 @@ def run_agent(user_message: str):
         messages.append({"role": "user", "content": tool_results})
 ```
 
-### 5.2 Claude Agent SDK の高度な実装パターン
+### 5.2 Advanced Implementation Patterns for the Claude Agent SDK
 
 ```python
-# 高度なエージェントループ（エラーハンドリング、リトライ、コスト追跡付き）
+# Advanced agent loop (with error handling, retries, and cost tracking)
 import anthropic
 import time
 import json
@@ -769,7 +769,7 @@ from typing import Optional
 
 @dataclass
 class AgentMetrics:
-    """エージェント実行のメトリクス"""
+    """Metrics for agent execution"""
     total_input_tokens: int = 0
     total_output_tokens: int = 0
     tool_calls: int = 0
@@ -783,7 +783,7 @@ class AgentMetrics:
 
     @property
     def estimated_cost_usd(self) -> float:
-        # Claude Sonnet の概算料金
+        # Approximate pricing for Claude Sonnet
         input_cost = self.total_input_tokens * 3.0 / 1_000_000
         output_cost = self.total_output_tokens * 15.0 / 1_000_000
         return input_cost + output_cost
@@ -807,14 +807,14 @@ class ClaudeAgent:
         self.metrics = AgentMetrics()
 
     def register_tool(self, name: str, handler):
-        """ツールハンドラーを登録"""
+        """Register a tool handler"""
         self.tool_handlers[name] = handler
 
     def _execute_tool(self, name: str, input_data: dict) -> str:
-        """ツールを安全に実行"""
+        """Execute a tool safely"""
         handler = self.tool_handlers.get(name)
         if not handler:
-            return json.dumps({"error": f"ツール '{name}' は登録されていません"})
+            return json.dumps({"error": f"Tool '{name}' is not registered"})
         try:
             result = handler(**input_data)
             self.metrics.tool_calls += 1
@@ -828,21 +828,21 @@ class ClaudeAgent:
             })
 
     def run(self, user_message: str) -> dict:
-        """エージェントを実行"""
+        """Run the agent"""
         messages = [{"role": "user", "content": user_message}]
-        self.metrics = AgentMetrics()  # メトリクスリセット
+        self.metrics = AgentMetrics()  # Reset metrics
 
         for turn in range(self.max_turns):
-            # リトライ付きLLM呼び出し
+            # LLM call with retry
             response = self._call_llm_with_retry(messages)
             if response is None:
-                return {"error": "LLM呼び出しに失敗しました", "metrics": self.metrics}
+                return {"error": "LLM call failed", "metrics": self.metrics}
 
             self.metrics.llm_calls += 1
             self.metrics.total_input_tokens += response.usage.input_tokens
             self.metrics.total_output_tokens += response.usage.output_tokens
 
-            # 最終回答の場合
+            # Final answer
             if response.stop_reason == "end_turn":
                 text = ""
                 for block in response.content:
@@ -853,7 +853,7 @@ class ClaudeAgent:
                     "metrics": self.metrics
                 }
 
-            # ツール呼び出しの処理
+            # Process tool calls
             tool_results = []
             for block in response.content:
                 if block.type == "tool_use":
@@ -867,10 +867,10 @@ class ClaudeAgent:
             messages.append({"role": "assistant", "content": response.content})
             messages.append({"role": "user", "content": tool_results})
 
-        return {"error": "最大ターン数に達しました", "metrics": self.metrics}
+        return {"error": "Maximum number of turns reached", "metrics": self.metrics}
 
     def _call_llm_with_retry(self, messages: list) -> Optional[object]:
-        """リトライ付きLLM呼び出し"""
+        """LLM call with retry"""
         for attempt in range(self.max_retries):
             try:
                 return self.client.messages.create(
@@ -882,26 +882,26 @@ class ClaudeAgent:
                 )
             except anthropic.RateLimitError:
                 wait = 2 ** attempt * 10
-                print(f"レート制限。{wait}秒待機...")
+                print(f"Rate limited. Waiting {wait} seconds...")
                 time.sleep(wait)
             except anthropic.APIError as e:
-                print(f"APIエラー (試行 {attempt + 1}): {e}")
+                print(f"API error (attempt {attempt + 1}): {e}")
                 if attempt == self.max_retries - 1:
                     return None
                 time.sleep(2 ** attempt)
         return None
 
-# 使用例
+# Usage example
 agent = ClaudeAgent(
-    system_prompt="あなたはデータ分析エージェントです。",
+    system_prompt="You are a data analysis agent.",
     tools=[
         {
             "name": "query_database",
-            "description": "SQLクエリを実行してデータを取得する",
+            "description": "Executes an SQL query to retrieve data",
             "input_schema": {
                 "type": "object",
                 "properties": {
-                    "sql": {"type": "string", "description": "SQL SELECT文"}
+                    "sql": {"type": "string", "description": "SQL SELECT statement"}
                 },
                 "required": ["sql"]
             }
@@ -910,22 +910,22 @@ agent = ClaudeAgent(
 )
 
 agent.register_tool("query_database", lambda sql: execute_sql(sql))
-result = agent.run("売上データの月次推移を分析してください")
-print(f"結果: {result['output']}")
-print(f"コスト: ${result['metrics'].estimated_cost_usd:.4f}")
-print(f"ツール呼び出し: {result['metrics'].tool_calls}回")
+result = agent.run("Analyze the monthly trend of sales data")
+print(f"Result: {result['output']}")
+print(f"Cost: ${result['metrics'].estimated_cost_usd:.4f}")
+print(f"Tool calls: {result['metrics'].tool_calls}")
 ```
 
-### 5.3 Claude Agent SDK + MCP 統合
+### 5.3 Claude Agent SDK + MCP Integration
 
 ```python
-# Claude Agent SDK と MCP の統合
+# Integration of Claude Agent SDK with MCP
 import anthropic
 import subprocess
 import json
 
 class MCPClient:
-    """MCPサーバーとのstdio通信クライアント"""
+    """stdio communication client for MCP servers"""
 
     def __init__(self, command: list[str]):
         self.process = subprocess.Popen(
@@ -951,12 +951,12 @@ class MCPClient:
         return json.loads(response_line)
 
     def list_tools(self) -> list[dict]:
-        """MCPサーバーからツール一覧を取得"""
+        """Retrieve the list of tools from the MCP server"""
         response = self._send_request("tools/list")
         return response.get("result", {}).get("tools", [])
 
     def call_tool(self, name: str, arguments: dict) -> str:
-        """MCPサーバーのツールを実行"""
+        """Execute a tool on the MCP server"""
         response = self._send_request("tools/call", {
             "name": name,
             "arguments": arguments
@@ -968,12 +968,12 @@ class MCPClient:
     def close(self):
         self.process.terminate()
 
-# MCP統合エージェント
+# MCP-integrated agent
 def run_mcp_agent(user_message: str, mcp_servers: dict[str, list[str]]):
-    """MCPサーバー群を使うエージェント"""
+    """An agent that uses multiple MCP servers"""
     client = anthropic.Anthropic()
 
-    # MCPクライアントを起動
+    # Start MCP clients
     mcp_clients = {}
     all_tools = []
     tool_to_server = {}
@@ -982,7 +982,7 @@ def run_mcp_agent(user_message: str, mcp_servers: dict[str, list[str]]):
         mcp = MCPClient(command)
         mcp_clients[name] = mcp
 
-        # ツール一覧を取得してClaude用フォーマットに変換
+        # Retrieve tool list and convert to Claude format
         for tool in mcp.list_tools():
             claude_tool = {
                 "name": tool["name"],
@@ -999,7 +999,7 @@ def run_mcp_agent(user_message: str, mcp_servers: dict[str, list[str]]):
             response = client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=4096,
-                system="あなたはMCPツールを活用するエージェントです。",
+                system="You are an agent that leverages MCP tools.",
                 tools=all_tools,
                 messages=messages
             )
@@ -1026,9 +1026,9 @@ def run_mcp_agent(user_message: str, mcp_servers: dict[str, list[str]]):
         for mcp in mcp_clients.values():
             mcp.close()
 
-# 使用例
+# Usage example
 result = run_mcp_agent(
-    "プロジェクトのファイルを読み込んで分析して",
+    "Read and analyze the project files",
     mcp_servers={
         "filesystem": ["npx", "-y", "@anthropic/mcp-filesystem", "/project"],
         "database": ["python", "db_mcp_server.py"]
@@ -1038,138 +1038,139 @@ result = run_mcp_agent(
 
 ---
 
-## 6. フレームワーク比較
+## 6. Framework Comparison
 
-### 6.1 機能比較表
+### 6.1 Feature Comparison Table
 
-| 機能 | LangChain | CrewAI | AutoGen | Claude SDK |
-|------|-----------|--------|---------|------------|
-| マルチエージェント | LangGraph経由 | ネイティブ | ネイティブ | 手動実装 |
-| ツール統合 | 豊富 | LangChain互換 | 独自 | MCP/ネイティブ |
-| メモリ管理 | 多種対応 | 基本的 | 会話履歴 | 手動実装 |
-| 学習曲線 | 中 | 低 | 低-中 | 低 |
-| カスタマイズ性 | 高 | 中 | 中 | 最高 |
-| 本番運用実績 | 高 | 中 | 中 | 高 |
-| ドキュメント | 充実 | 良好 | 良好 | 充実 |
-| コミュニティ | 最大 | 成長中 | 成長中 | 成長中 |
+| Feature | LangChain | CrewAI | AutoGen | Claude SDK |
+|---------|-----------|--------|---------|------------|
+| Multi-agent | Via LangGraph | Native | Native | Manual implementation |
+| Tool integration | Rich | LangChain-compatible | Custom | MCP/Native |
+| Memory management | Multiple types | Basic | Conversation history | Manual implementation |
+| Learning curve | Medium | Low | Low-Medium | Low |
+| Customizability | High | Medium | Medium | Highest |
+| Production track record | High | Medium | Medium | High |
+| Documentation | Extensive | Good | Good | Extensive |
+| Community | Largest | Growing | Growing | Growing |
 
-### 6.2 パフォーマンス比較
+### 6.2 Performance Comparison
 
 ```
-各フレームワークのオーバーヘッド（概算）
+Overhead by Framework (approximate)
 
-タスク: 単一ツール実行
+Task: Single tool execution
 +-------------------+--------+----------+---------+
-| フレームワーク      | 追加   | メモリ    | 依存    |
-|                    | レイテンシ| 使用量   | パッケージ|
+| Framework         | Added  | Memory   | Dep.    |
+|                   | Latency| Usage    | Packages|
 +-------------------+--------+----------+---------+
-| Claude SDK (直接) | ~5ms   | ~20MB    | 1       |
+| Claude SDK (direct)| ~5ms  | ~20MB    | 1       |
 | LangChain         | ~50ms  | ~100MB   | 20+     |
 | CrewAI            | ~80ms  | ~150MB   | 30+     |
 | AutoGen           | ~60ms  | ~120MB   | 15+     |
 +-------------------+--------+----------+---------+
 
-タスク: 3エージェント協調（5ターン）
+Task: 3-agent collaboration (5 turns)
 +-------------------+--------+----------+---------+
-| フレームワーク      | 追加   | メモリ    | LLM    |
-|                    | レイテンシ| ピーク   | 呼出回数|
+| Framework         | Added  | Memory   | LLM     |
+|                   | Latency| Peak     | Calls   |
 +-------------------+--------+----------+---------+
-| Claude SDK (手動) | ~20ms  | ~50MB    | 最小限  |
-| LangGraph         | ~100ms | ~200MB   | 最適化可|
-| CrewAI            | ~200ms | ~300MB   | 固定    |
-| AutoGen           | ~150ms | ~250MB   | 固定    |
+| Claude SDK (manual)| ~20ms | ~50MB    | Minimal |
+| LangGraph         | ~100ms | ~200MB   | Optimizable|
+| CrewAI            | ~200ms | ~300MB   | Fixed   |
+| AutoGen           | ~150ms | ~250MB   | Fixed   |
 +-------------------+--------+----------+---------+
 ```
 
-### 6.3 選定フローチャート
+### 6.3 Selection Flowchart
 
 ```
-プロジェクトに最適なフレームワークは？
+Which framework is best for your project?
 
-Q1: 複数エージェントの協調が必要か？
-├── YES → Q2: 役割ベースかメッセージベースか？
-│   ├── 役割ベース → CrewAI
-│   └── メッセージベース → AutoGen
-└── NO → Q3: 高度なカスタマイズが必要か？
-    ├── YES → Q4: 既存ツールが豊富に必要か？
+Q1: Do you need coordination between multiple agents?
+├── YES → Q2: Role-based or message-based?
+│   ├── Role-based → CrewAI
+│   └── Message-based → AutoGen
+└── NO → Q3: Do you need advanced customization?
+    ├── YES → Q4: Do you need a rich set of existing tools?
     │   ├── YES → LangChain + LangGraph
     │   └── NO → Claude Agent SDK
-    └── NO → LangChain (基本Agent)
+    └── NO → LangChain (basic Agent)
 ```
 
-### 6.4 詳細選定マトリクス
+### 6.4 Detailed Selection Matrix
 
-| ユースケース | 推奨フレームワーク | 理由 |
-|-------------|-------------------|------|
-| プロトタイプ / PoC | Claude SDK | 最小コード、最速起動 |
-| RAG + チャットボット | LangChain | 豊富なRAGコンポーネント |
-| 複数専門家の協調 | CrewAI | 役割定義が直感的 |
-| コードレビュー自動化 | AutoGen | 対話的なレビューフロー |
-| 複雑なワークフロー | LangGraph | 状態管理+条件分岐 |
-| 高カスタマイズAPI | Claude SDK | 完全制御可能 |
-| 既存LangChainプロジェクト | LangGraph | シームレスな移行 |
-| Human-in-the-Loop | AutoGen / LangGraph | 承認フローの組み込み |
+| Use Case | Recommended Framework | Reason |
+|----------|-----------------------|--------|
+| Prototype / PoC | Claude SDK | Minimal code, fastest startup |
+| RAG + Chatbot | LangChain | Rich RAG components |
+| Multi-expert collaboration | CrewAI | Intuitive role definitions |
+| Code review automation | AutoGen | Interactive review flow |
+| Complex workflows | LangGraph | State management + conditional branching |
+| High-customization API | Claude SDK | Full control |
+| Existing LangChain project | LangGraph | Seamless migration |
+| Human-in-the-Loop | AutoGen / LangGraph | Built-in approval flows |
 
-### 6.5 コスト比較（月間推定）
+### 6.5 Cost Comparison (Monthly Estimate)
 
 ```
-月間10,000リクエスト処理時のコスト概算
+Estimated cost for processing 10,000 requests per month
 
                     Claude SDK   LangChain   CrewAI   AutoGen
                     ──────────   ─────────   ──────   ───────
-LLM API費用         $500        $500        $800     $700
-(基本は同じだが、フレームワークの   (内部プロンプト  (エージェント
- オーバーヘッドで追加トークン発生)   が追加)       間通信で追加)
+LLM API cost        $500        $500        $800     $700
+(Baseline is the same, but framework overhead adds extra tokens)
+                                (internal    (agent-to-agent
+                                 prompts)     communication)
 
-インフラ費用         $50         $100        $100     $100
-(依存パッケージ、メモリ使用量差)
+Infrastructure cost $50         $100        $100     $100
+(Differences in dependencies, memory usage)
 
-開発・保守工数       40h         30h         25h      30h
-(フレームワーク機能で省力化)
+Development/maintenance 40h     30h         25h      30h
+(Labor savings from framework features)
 
-初期構築工数         20h         10h         8h       12h
-(フレームワークの学習+構築)
+Initial setup effort 20h        10h         8h       12h
+(Framework learning + setup)
 ```
 
 ---
 
-## 7. フレームワーク間の移行戦略
+## 7. Migration Strategy Between Frameworks
 
-### 7.1 抽象層を設けたフレームワーク非依存設計
+### 7.1 Framework-Agnostic Design with an Abstraction Layer
 
 ```python
-# フレームワーク非依存のエージェントインターフェース
+# Framework-agnostic agent interface
 from abc import ABC, abstractmethod
 from typing import Any
 from dataclasses import dataclass
 
 @dataclass
 class AgentResult:
-    """フレームワーク非依存のエージェント結果"""
+    """Framework-agnostic agent result"""
     output: str
     tool_calls: list[dict]
     metadata: dict
 
 class AgentInterface(ABC):
-    """フレームワーク非依存のエージェントインターフェース"""
+    """Framework-agnostic agent interface"""
 
     @abstractmethod
     def run(self, goal: str, context: dict = None) -> AgentResult:
-        """タスクを実行して結果を返す"""
+        """Execute a task and return the result"""
         ...
 
     @abstractmethod
     def add_tool(self, name: str, description: str, handler: callable):
-        """ツールを追加する"""
+        """Add a tool"""
         ...
 
     @abstractmethod
     def set_memory(self, memory_store: Any):
-        """メモリストアを設定する"""
+        """Set a memory store"""
         ...
 
 class ToolDefinition:
-    """フレームワーク非依存のツール定義"""
+    """Framework-agnostic tool definition"""
     def __init__(self, name: str, description: str,
                  parameters: dict, handler: callable):
         self.name = name
@@ -1178,7 +1179,7 @@ class ToolDefinition:
         self.handler = handler
 
     def to_langchain(self):
-        """LangChain形式に変換"""
+        """Convert to LangChain format"""
         from langchain.tools import StructuredTool
         return StructuredTool.from_function(
             func=self.handler,
@@ -1187,7 +1188,7 @@ class ToolDefinition:
         )
 
     def to_anthropic(self) -> dict:
-        """Anthropic API形式に変換"""
+        """Convert to Anthropic API format"""
         return {
             "name": self.name,
             "description": self.description,
@@ -1195,7 +1196,7 @@ class ToolDefinition:
         }
 
     def to_openai(self) -> dict:
-        """OpenAI API形式に変換"""
+        """Convert to OpenAI API format"""
         return {
             "type": "function",
             "function": {
@@ -1206,10 +1207,10 @@ class ToolDefinition:
         }
 ```
 
-### 7.2 具体的な移行実装
+### 7.2 Concrete Migration Implementation
 
 ```python
-# LangChain実装
+# LangChain implementation
 class LangChainAgent(AgentInterface):
     def __init__(self, model_name: str = "claude-sonnet-4-20250514"):
         from langchain_anthropic import ChatAnthropic
@@ -1219,7 +1220,7 @@ class LangChainAgent(AgentInterface):
         self.llm = ChatAnthropic(model=model_name)
         self.tools = []
         self.prompt = ChatPromptTemplate.from_messages([
-            ("system", "あなたは有能なアシスタントです。"),
+            ("system", "You are a capable assistant."),
             ("human", "{input}"),
             ("placeholder", "{agent_scratchpad}")
         ])
@@ -1239,9 +1240,9 @@ class LangChainAgent(AgentInterface):
         return AgentResult(output=result["output"], tool_calls=[], metadata={})
 
     def set_memory(self, memory_store):
-        pass  # LangChain Memory を設定
+        pass  # Set LangChain Memory
 
-# Claude SDK実装
+# Claude SDK implementation
 class ClaudeSDKAgent(AgentInterface):
     def __init__(self, model_name: str = "claude-sonnet-4-20250514"):
         import anthropic
@@ -1251,7 +1252,7 @@ class ClaudeSDKAgent(AgentInterface):
         self.tool_handlers = {}
 
     def add_tool(self, name, description, handler):
-        # Anthropic API形式のツール定義を作成
+        # Create tool definition in Anthropic API format
         import inspect
         sig = inspect.signature(handler)
         properties = {}
@@ -1315,7 +1316,7 @@ class ClaudeSDKAgent(AgentInterface):
     def set_memory(self, memory_store):
         pass
 
-# ファクトリーパターンでフレームワークを切り替え
+# Factory pattern to switch frameworks
 class AgentFactory:
     @staticmethod
     def create(framework: str, **kwargs) -> AgentInterface:
@@ -1324,94 +1325,94 @@ class AgentFactory:
         elif framework == "claude_sdk":
             return ClaudeSDKAgent(**kwargs)
         else:
-            raise ValueError(f"未知のフレームワーク: {framework}")
+            raise ValueError(f"Unknown framework: {framework}")
 
-# 使用例: フレームワークを設定で切り替え
+# Usage: switch framework via configuration
 import os
 framework = os.environ.get("AGENT_FRAMEWORK", "claude_sdk")
 agent = AgentFactory.create(framework)
-agent.add_tool("search", "Webを検索する", lambda query: f"検索結果: {query}")
-result = agent.run("最新のAIニュースを教えて")
+agent.add_tool("search", "Search the web", lambda query: f"Search results: {query}")
+result = agent.run("Tell me the latest AI news")
 ```
 
 ---
 
-## 8. 各フレームワークの本番運用パターン
+## 8. Production Patterns for Each Framework
 
-### 8.1 LangChainの本番構成
+### 8.1 LangChain Production Configuration
 
 ```python
-# LangChain + LangSmith + LangServe の本番構成
+# Production configuration with LangChain + LangSmith + LangServe
 from langserve import add_routes
 from fastapi import FastAPI
 from langchain_anthropic import ChatAnthropic
 from langchain_core.runnables import RunnableWithFallbacks
 
-# フォールバック付きLLM
+# LLM with fallback
 primary_llm = ChatAnthropic(model="claude-sonnet-4-20250514")
 fallback_llm = ChatAnthropic(model="claude-haiku-4-20250514")
 
 llm_with_fallback = primary_llm.with_fallbacks([fallback_llm])
 
-# FastAPIでエージェントをデプロイ
+# Deploy agent with FastAPI
 app = FastAPI(title="Agent API")
 
 add_routes(
     app,
-    chain,  # LCELチェーンをそのままデプロイ
+    chain,  # Deploy LCEL chain directly
     path="/agent",
-    enable_feedback_endpoint=True,  # フィードバック収集
-    enable_public_trace_link_endpoint=True  # トレース共有
+    enable_feedback_endpoint=True,  # Collect feedback
+    enable_public_trace_link_endpoint=True  # Share traces
 )
 
-# ヘルスチェック
+# Health check
 @app.get("/health")
 async def health():
     return {"status": "healthy", "model": "claude-sonnet-4-20250514"}
 ```
 
-### 8.2 CrewAI の本番構成
+### 8.2 CrewAI Production Configuration
 
 ```python
-# CrewAI の本番構成
+# CrewAI production configuration
 from crewai import Crew
 import logging
 
-# ロギング設定
+# Logging configuration
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 )
 
-# コールバックによる監視
+# Monitoring with callbacks
 class ProductionCallbacks:
     @staticmethod
     def on_task_start(task):
-        logging.info(f"タスク開始: {task.description[:50]}...")
+        logging.info(f"Task started: {task.description[:50]}...")
 
     @staticmethod
     def on_task_end(task, output):
-        logging.info(f"タスク完了: {task.description[:50]}... 出力長: {len(str(output))}")
+        logging.info(f"Task completed: {task.description[:50]}... Output length: {len(str(output))}")
 
     @staticmethod
     def on_agent_action(agent, action):
-        logging.info(f"エージェント '{agent.role}' アクション: {action}")
+        logging.info(f"Agent '{agent.role}' action: {action}")
 
-# タスクの出力をファイルに保存
+# Save task output to file
 from crewai import Task
 
 report_task = Task(
-    description="分析レポートを作成してください",
-    expected_output="構造化されたレポート",
+    description="Create an analysis report",
+    expected_output="A structured report",
     agent=analyst,
-    output_file="output/report.md"  # 出力先ファイル
+    output_file="output/report.md"  # Output file
 )
 ```
 
-### 8.3 エラーハンドリングパターン比較
+### 8.3 Error Handling Pattern Comparison
 
 ```python
-# 各フレームワークでのエラーハンドリング
+# Error handling in each framework
 
 # --- LangChain ---
 from langchain.agents import AgentExecutor
@@ -1419,10 +1420,10 @@ from langchain.agents import AgentExecutor
 executor = AgentExecutor(
     agent=agent,
     tools=tools,
-    handle_parsing_errors=True,  # パースエラーを自動リカバリ
-    max_iterations=10,           # 最大イテレーション
-    early_stopping_method="generate",  # 上限到達時にLLMに要約させる
-    return_intermediate_steps=True     # 中間ステップを返す
+    handle_parsing_errors=True,  # Auto-recover from parse errors
+    max_iterations=10,           # Maximum iterations
+    early_stopping_method="generate",  # Ask LLM to summarize when limit is reached
+    return_intermediate_steps=True     # Return intermediate steps
 )
 
 # --- CrewAI ---
@@ -1431,22 +1432,22 @@ from crewai import Crew
 crew = Crew(
     agents=[researcher, writer],
     tasks=[research_task, writing_task],
-    max_rpm=10,  # 分あたりの最大リクエスト数（レート制限対策）
+    max_rpm=10,  # Maximum requests per minute (rate limit protection)
     share_crew=False,
-    step_callback=lambda step: print(f"ステップ: {step}"),
-    task_callback=lambda task: print(f"タスク完了: {task}")
+    step_callback=lambda step: print(f"Step: {step}"),
+    task_callback=lambda task: print(f"Task completed: {task}")
 )
 
 # --- AutoGen ---
-# v0.4 ではチームレベルでの制御
+# v0.4: control at the team level
 team = RoundRobinGroupChat(
     participants=[planner, coder, reviewer_agent],
     termination_condition=termination,
-    max_turns=10  # 無限ループ防止
+    max_turns=10  # Prevent infinite loops
 )
 
 # --- Claude SDK ---
-# 完全に手動制御
+# Fully manual control
 MAX_TURNS = 20
 MAX_TOOL_ERRORS = 3
 tool_error_count = 0
@@ -1455,7 +1456,7 @@ for turn in range(MAX_TURNS):
     response = client.messages.create(...)
     if response.stop_reason == "end_turn":
         break
-    # ツールエラーのカウントと制御
+    # Count and control tool errors
     for block in response.content:
         if block.type == "tool_use":
             try:
@@ -1463,88 +1464,88 @@ for turn in range(MAX_TURNS):
             except Exception:
                 tool_error_count += 1
                 if tool_error_count >= MAX_TOOL_ERRORS:
-                    # エラーが多すぎる場合は中断
+                    # Abort if too many errors
                     break
 ```
 
 ---
 
-## 9. 新興フレームワークの動向
+## 9. Emerging Framework Trends
 
-### 9.1 注目すべき新興フレームワーク
+### 9.1 Notable Emerging Frameworks
 
 ```
-2025年に注目すべきフレームワーク
+Frameworks to Watch in 2025
 
 +------------------+------------------+-----------------------+
-| フレームワーク     | 特徴              | 適用場面               |
+| Framework        | Features         | Use Cases             |
 +------------------+------------------+-----------------------+
-| DSPy             | プロンプト自動最適化 | RAG/パイプライン最適化  |
-| Semantic Kernel  | エンタープライズ向け | C#/.NET環境           |
-| Haystack         | ドキュメント処理特化 | 検索・RAGパイプライン   |
-| LlamaIndex       | データ接続特化      | 構造化/非構造化データ   |
-| Pydantic AI      | 型安全なエージェント | Python型システム活用   |
-| Mastra           | TypeScript特化    | Node.jsエコシステム    |
+| DSPy             | Auto prompt opt. | RAG/pipeline opt.     |
+| Semantic Kernel  | Enterprise-grade | C#/.NET environments  |
+| Haystack         | Document-focused | Search/RAG pipelines  |
+| LlamaIndex       | Data connection  | Structured/unstructured data|
+| Pydantic AI      | Type-safe agents | Python type system    |
+| Mastra           | TypeScript-first | Node.js ecosystem     |
 +------------------+------------------+-----------------------+
 ```
 
-### 9.2 Pydantic AI の例
+### 9.2 Pydantic AI Example
 
 ```python
-# Pydantic AI: 型安全なエージェント構築
+# Pydantic AI: type-safe agent construction
 from pydantic_ai import Agent
 from pydantic import BaseModel
 
 class WeatherResult(BaseModel):
-    """天気情報の型定義"""
+    """Type definition for weather information"""
     city: str
     temperature: float
     condition: str
     humidity: int
 
-# 型付きエージェント
+# Typed agent
 weather_agent = Agent(
     model="anthropic:claude-sonnet-4-20250514",
-    result_type=WeatherResult,  # 返り値の型を指定
-    system_prompt="あなたは天気情報を提供するエージェントです。"
+    result_type=WeatherResult,  # Specify return type
+    system_prompt="You are an agent that provides weather information."
 )
 
-# 実行結果は型安全
-result = weather_agent.run_sync("東京の天気を教えて")
-print(result.data.city)         # str型が保証
-print(result.data.temperature)  # float型が保証
+# Execution result is type-safe
+result = weather_agent.run_sync("Tell me the weather in Tokyo")
+print(result.data.city)         # Guaranteed to be str
+print(result.data.temperature)  # Guaranteed to be float
 ```
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン1: フレームワーク過剰
+### Anti-Pattern 1: Framework Overuse
 
 ```python
-# NG: 単純なタスクにフレームワークを導入
+# BAD: Introducing a framework for a simple task
 from crewai import Agent, Task, Crew
-# 1つのLLM呼び出しで済むタスクに5つのAgentを作成...
+# Creating 5 Agents for a task that a single LLM call would handle...
 
-# OK: タスクの複雑さに合わせた選択
-# 単純なQ&A → 直接LLM呼び出し
+# GOOD: Choose based on task complexity
+# Simple Q&A → Direct LLM call
 response = client.messages.create(
     model="claude-sonnet-4-20250514",
-    messages=[{"role": "user", "content": "Pythonのリスト内包表記とは？"}]
+    messages=[{"role": "user", "content": "What is a Python list comprehension?"}]
 )
 ```
 
-**なぜNGか**: フレームワークは抽象度を上げる代わりに、デバッグの複雑さ、依存パッケージの管理コスト、パフォーマンスオーバーヘッドを追加する。単純なタスクにはシンプルなAPI呼び出しで十分。
+**Why it's bad**: Frameworks add debugging complexity, dependency management overhead, and performance overhead in exchange for a higher level of abstraction. Simple tasks are sufficiently handled with a direct API call.
 
-### アンチパターン2: フレームワークロックイン
+### Anti-Pattern 2: Framework Lock-in
 
 ```python
-# NG: フレームワーク固有の機能に依存しすぎ
+# BAD: Over-relying on framework-specific features
 class MyAgent(LangChainSpecificBaseClass):
-    # LangChainの内部APIに深く依存
+    # Deeply coupled to LangChain's internal API
     pass
 
-# OK: 抽象層を設けて交換可能にする
+# GOOD: Add an abstraction layer to make it interchangeable
 class AgentInterface(ABC):
     @abstractmethod
     def run(self, goal: str) -> str: ...
@@ -1556,47 +1557,47 @@ class ClaudeSDKAgent(AgentInterface):
     def run(self, goal): ...
 ```
 
-**なぜNGか**: フレームワークは頻繁にAPIが変更される（LangChain v0.1→v0.2の破壊的変更が顕著な例）。抽象層を設けることで、フレームワーク変更時の影響を最小化できる。
+**Why it's bad**: Framework APIs change frequently (LangChain v0.1→v0.2 breaking changes are a prominent example). Adding an abstraction layer minimizes the impact when switching frameworks.
 
-### アンチパターン3: フレームワークの機能を再実装
+### Anti-Pattern 3: Re-implementing Framework Features
 
 ```python
-# NG: フレームワークが提供する機能を手動で再実装
+# BAD: Manually re-implementing features already provided by the framework
 class MyCustomMemory:
-    # LangChainが提供するメモリ機能と同等のものを自作
+    # Reinventing LangChain's memory functionality from scratch
     pass
 
 class MyCustomToolExecutor:
-    # フレームワークのツール実行機能と同等のものを自作
+    # Reinventing the framework's tool execution from scratch
     pass
 
-# OK: フレームワークの機能を活用し、カスタマイズが必要な部分だけ拡張
+# GOOD: Use framework features and only extend what needs customization
 from langchain.memory import ConversationBufferWindowMemory
 
 class EnhancedMemory(ConversationBufferWindowMemory):
-    """既存のメモリクラスを拡張"""
+    """Extend existing memory class"""
     def save_context(self, inputs, outputs):
         super().save_context(inputs, outputs)
-        # カスタムロジック: 重要な情報を長期記憶にも保存
+        # Custom logic: also save important information to long-term memory
         self._save_to_long_term(inputs, outputs)
 ```
 
-### アンチパターン4: 過度なマルチエージェント設計
+### Anti-Pattern 4: Excessive Multi-Agent Design
 
 ```python
-# NG: 全てをマルチエージェントで解決しようとする
-researcher = Agent(role="リサーチャー", ...)
-validator = Agent(role="バリデーター", ...)
-formatter = Agent(role="フォーマッター", ...)
-reviewer = Agent(role="レビュアー", ...)
-editor = Agent(role="エディター", ...)
-# 5エージェントで5回のLLM呼び出し → コスト5倍
+# BAD: Trying to solve everything with multi-agents
+researcher = Agent(role="Researcher", ...)
+validator = Agent(role="Validator", ...)
+formatter = Agent(role="Formatter", ...)
+reviewer = Agent(role="Reviewer", ...)
+editor = Agent(role="Editor", ...)
+# 5 agents = 5 LLM calls → 5x cost
 
-# OK: 必要最小限のエージェント数
-# 1つのエージェントが「調査→検証→整形」を一貫して行う方が効率的
+# GOOD: Use the minimum number of agents necessary
+# A single agent handling "research → validation → formatting" end-to-end is more efficient
 agent = Agent(
-    role="リサーチャー兼ライター",
-    goal="調査から記事作成まで一貫して行う",
+    role="Researcher and Writer",
+    goal="Handle everything from research to article creation",
     tools=[search_tool, format_tool],
     ...
 )
@@ -1604,152 +1605,152 @@ agent = Agent(
 
 ---
 
-## 11. トラブルシューティング
+## 11. Troubleshooting
 
-### 11.1 よくある問題と解決策
+### 11.1 Common Issues and Solutions
 
-| 問題 | 原因 | 解決策 |
-|------|------|--------|
-| LangChainのバージョン不一致 | langchain-core と langchain-community のバージョン差 | `pip install -U langchain langchain-core langchain-community` で統一 |
-| CrewAI のエージェントが無限ループ | タスク完了条件が不明確 | `max_iter` パラメータを設定、expected_outputを具体的に |
-| AutoGen のメッセージが長すぎる | 会話履歴が肥大化 | `max_turns` を制限、要約機能を有効化 |
-| Claude SDK のレート制限 | API呼び出し頻度超過 | 指数バックオフ + キューイングを実装 |
-| ツール呼び出しの精度低下 | ツール定義の説明が不十分 | 具体的な使用例、入出力例を説明に追加 |
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| LangChain version mismatch | Version gap between langchain-core and langchain-community | Unify with `pip install -U langchain langchain-core langchain-community` |
+| CrewAI agent infinite loop | Unclear task completion condition | Set `max_iter` parameter, make expected_output more specific |
+| AutoGen messages too long | Conversation history bloat | Limit `max_turns`, enable summarization |
+| Claude SDK rate limiting | API call frequency exceeded | Implement exponential backoff + queuing |
+| Low tool call accuracy | Insufficient tool description | Add specific usage examples, input/output examples to descriptions |
 
-### 11.2 デバッグチェックリスト
+### 11.2 Debug Checklist
 
 ```
-フレームワーク問題のデバッグ手順
+Debugging procedure for framework issues
 
-[ ] 1. バージョン確認
+[ ] 1. Check versions
     pip list | grep langchain  (or crewai, autogen)
 
-[ ] 2. 最小再現コードの作成
-    フレームワークを除外してAPI直接呼び出しで再現するか確認
+[ ] 2. Create a minimal reproduction case
+    Verify whether the issue reproduces with direct API calls (without the framework)
 
-[ ] 3. ログレベルの引き上げ
-    verbose=True、logging.DEBUG を設定
+[ ] 3. Raise log level
+    Set verbose=True, logging.DEBUG
 
-[ ] 4. トークン使用量の確認
-    入力トークンが想定以上に多い場合、
-    フレームワークの内部プロンプトが原因の可能性
+[ ] 4. Check token usage
+    If input tokens are higher than expected,
+    the framework's internal prompts may be the cause
 
-[ ] 5. ツール定義の検証
-    ツールの説明文が曖昧でないか確認
+[ ] 5. Validate tool definitions
+    Verify that tool descriptions are not ambiguous
 
-[ ] 6. メモリの状態確認
-    メモリが想定通りに更新されているか確認
+[ ] 6. Check memory state
+    Verify that memory is being updated as expected
 
-[ ] 7. ネットワーク/APIの確認
-    APIキーの有効性、レート制限の状態を確認
+[ ] 7. Check network/API
+    Verify API key validity and rate limit status
 ```
 
 ---
 
-## 12. 演習
+## 12. Exercises
 
-### 演習1（基礎）: フレームワーク評価
+### Exercise 1 (Basic): Framework Evaluation
 
-以下の要件に対して最適なフレームワークを選定し、理由を説明せよ:
+Select the best framework for each of the following requirements and explain your reasoning:
 
-1. 社内FAQ チャットボット（RAG + 単一エージェント）
-2. コードレビュー自動化（3人のレビュアーの視点）
-3. データパイプラインの監視・自動修復
-4. カスタマーサポートの自動エスカレーション
+1. In-house FAQ chatbot (RAG + single agent)
+2. Code review automation (from the perspective of 3 reviewers)
+3. Data pipeline monitoring and auto-repair
+4. Automated customer support escalation
 
-### 演習2（応用）: 抽象層の設計
+### Exercise 2 (Applied): Abstraction Layer Design
 
-`AgentInterface` を拡張し、以下の機能を追加するコードを書け:
-- ストリーミングサポート
-- メトリクス収集
-- ツールの動的追加・削除
+Extend `AgentInterface` and write code that adds the following features:
+- Streaming support
+- Metrics collection
+- Dynamic tool addition and removal
 
-### 演習3（発展）: フレームワーク移行
+### Exercise 3 (Advanced): Framework Migration
 
-LangChain AgentExecutor で実装されたエージェントを、Claude Agent SDK ベースに移行せよ。以下の要件を満たすこと:
-- 既存のツール定義を変換
-- メモリ機能の移植
-- テストの互換性維持
+Migrate an agent implemented with LangChain AgentExecutor to a Claude Agent SDK base. The following requirements must be met:
+- Convert existing tool definitions
+- Port memory functionality
+- Maintain test compatibility
 
 ---
 
 ## 13. FAQ
 
-### Q1: 初心者にはどのフレームワークがおすすめ？
+### Q1: Which framework is recommended for beginners?
 
-**Claude Agent SDK** または **CrewAI** がおすすめ。Claude Agent SDKは最小限のコードでエージェントが構築でき、APIの理解がそのまま活きる。CrewAIは直感的な「役割」「タスク」の概念で設計でき、学習曲線が緩やか。
+**Claude Agent SDK** or **CrewAI** is recommended. The Claude Agent SDK lets you build agents with minimal code, and your understanding of the API carries over directly. CrewAI has an intuitive "role" and "task" concept that makes design straightforward, with a gentle learning curve.
 
-### Q2: LangChainとLangGraphの違いは？
+### Q2: What is the difference between LangChain and LangGraph?
 
-LangChainは **線形的なチェーン** の構築に適し、LangGraphは **状態を持つグラフ（サイクルあり）** の構築に適す。エージェントのようなループ構造にはLangGraphが必要。LangChainのAgentExecutorは内部的にループを実装しているが、複雑なワークフローにはLangGraphを使うべき。
+LangChain is suited for building **linear chains**, while LangGraph is suited for building **stateful graphs (with cycles)**. LangGraph is needed for loop structures like agents. LangChain's AgentExecutor internally implements a loop, but LangGraph should be used for complex workflows.
 
-### Q3: 複数のフレームワークを組み合わせてよいか？
+### Q3: Is it okay to combine multiple frameworks?
 
-可能だが注意が必要。例えば CrewAI の各エージェントが LangChain のツールを使う構成は公式にサポートされている。ただし依存関係が増えるため、デバッグの複雑さとメンテナンスコストは上がる。明確な理由がない限り1つのフレームワークに統一することを推奨する。
+It is possible, but caution is needed. For example, a configuration where each CrewAI agent uses LangChain tools is officially supported. However, dependencies increase, so debugging complexity and maintenance costs go up. Unless there is a clear reason, it is recommended to stick with one framework.
 
-### Q4: フレームワークのバージョンアップにどう対応すべきか？
+### Q4: How should I handle framework version upgrades?
 
-- **依存バージョンの固定**: `requirements.txt` でバージョンを明示
-- **抽象層の活用**: フレームワーク固有APIへの直接依存を最小化
-- **テストの充実**: フレームワーク更新時にリグレッションを早期発見
-- **Changelog監視**: 破壊的変更を事前に把握
+- **Pin dependency versions**: Explicitly specify versions in `requirements.txt`
+- **Use abstraction layers**: Minimize direct dependencies on framework-specific APIs
+- **Thorough testing**: Detect regressions early when the framework is updated
+- **Monitor changelogs**: Be aware of breaking changes in advance
 
-### Q5: エンタープライズ環境ではどのフレームワークが適切か？
+### Q5: Which framework is appropriate for enterprise environments?
 
-LangChain（+ LangSmith）が最も成熟している。理由:
-- 監視・トレーシングツール（LangSmith）が充実
-- デプロイツール（LangServe）が利用可能
-- コミュニティとドキュメントが最大
-- エンタープライズサポートが利用可能
+LangChain (+ LangSmith) is the most mature. Reasons:
+- Monitoring and tracing tools (LangSmith) are well-developed
+- Deployment tools (LangServe) are available
+- Community and documentation are the largest
+- Enterprise support is available
 
-ただし、Anthropicの Claude を中心にする場合は Claude Agent SDK + MCP が最も効率的。
+However, if centering around Anthropic's Claude, Claude Agent SDK + MCP is the most efficient.
 
-### Q6: フレームワークなしで十分なケースは？
+### Q6: When is it sufficient to go without a framework?
 
-以下の条件を **すべて** 満たす場合、フレームワークは不要:
-- 単一エージェント（マルチエージェント不要）
-- ツール数が5個以下
-- メモリ要件が単純（会話履歴のみ）
-- チームにAPI直接利用の経験がある
-- 高度なカスタマイズが必要
+A framework is unnecessary when **all** of the following conditions are met:
+- Single agent (no multi-agent needed)
+- 5 or fewer tools
+- Simple memory requirements (conversation history only)
+- Team has experience with direct API usage
+- Advanced customization is needed
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Rather than just theory, actually writing code and verifying behavior deepens your understanding.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. It is recommended to thoroughly understand the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
-|------|------|
-| LangChain | コンポーザブルなビルディングブロック。エコシステム最大 |
-| CrewAI | 役割ベースのマルチエージェント。直感的な設計 |
-| AutoGen | 会話ベースのマルチエージェント。自然な対話フロー |
-| Claude SDK | 最小限のコードでエージェント構築。MCP統合 |
-| 選定基準 | タスク複雑度・マルチエージェント要否・カスタマイズ性 |
-| 原則 | タスクに合った最小限の抽象度を選ぶ |
+| Item | Description |
+|------|-------------|
+| LangChain | Composable building blocks. Largest ecosystem |
+| CrewAI | Role-based multi-agent. Intuitive design |
+| AutoGen | Conversation-based multi-agent. Natural dialogue flow |
+| Claude SDK | Build agents with minimal code. MCP integration |
+| Selection criteria | Task complexity, need for multi-agent, customizability |
+| Principle | Choose the minimum level of abstraction appropriate for the task |
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [02-tool-use.md](./02-tool-use.md) -- ツール使用とFunction Callingの詳細
-- [../01-patterns/00-single-agent.md](../01-patterns/00-single-agent.md) -- シングルエージェントパターン
-- [../02-implementation/00-langchain-agent.md](../02-implementation/00-langchain-agent.md) -- LangChain実装の詳細
+- [02-tool-use.md](./02-tool-use.md) -- Tool use and Function Calling in detail
+- [../01-patterns/00-single-agent.md](../01-patterns/00-single-agent.md) -- Single agent pattern
+- [../02-implementation/00-langchain-agent.md](../02-implementation/00-langchain-agent.md) -- LangChain implementation in detail
 
-## 参考文献
+## References
 
 1. LangChain Documentation -- https://python.langchain.com/docs/
 2. CrewAI Documentation -- https://docs.crewai.com/
