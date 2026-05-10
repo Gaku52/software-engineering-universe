@@ -1,94 +1,95 @@
-# インデックス — B-Tree・GiST・GIN・部分インデックス・カバリングインデックス
+# Indexes — B-Tree, GiST, GIN, Partial Indexes, and Covering Indexes
 
-> B-Tree、GiST、GIN、BRIN、部分インデックス、カバリングインデックスなど、データベースインデックスの内部構造と設計戦略を理解し、クエリ性能を最適化する。本章では、インデックスが「なぜ速いのか」を内部実装レベルで理解し、適切なインデックスを選択・設計するための判断基準を体系的に習得する。
-
----
-
-## この章で学ぶこと
-
-1. **インデックスの内部構造** — B-Treeの仕組み、ページ分割、検索アルゴリズム、計算量の理論的根拠
-2. **特殊インデックス** — GiST（空間検索）、GIN（全文検索・JSONB）、BRIN（大規模時系列データ）、Hash、SP-GiST
-3. **インデックス設計戦略** — 部分インデックス、カバリングインデックス、複合インデックスの列順序最適化
-4. **インデックスの保守と監視** — 膨張検出、REINDEX、未使用インデックスの特定と削除
+> Understand the internal structure and design strategies for database indexes — including B-Tree, GiST, GIN, BRIN, partial indexes, and covering indexes — to optimize query performance. This chapter builds a systematic understanding of why indexes are fast at the implementation level, and develops the judgment needed to select and design the right index for any situation.
 
 ---
 
-## 前提知識
+## What You Will Learn
 
-| トピック | 内容 | 参照先 |
+1. **Internal structure of indexes** — How B-Tree works, page splits, search algorithms, and the theoretical basis for computational complexity
+2. **Specialized indexes** — GiST (spatial search), GIN (full-text search, JSONB), BRIN (large-scale time-series data), Hash, and SP-GiST
+3. **Index design strategies** — Partial indexes, covering indexes, and column order optimization for composite indexes
+4. **Index maintenance and monitoring** — Detecting bloat, REINDEX, and identifying and removing unused indexes
+
+---
+
+## Prerequisites
+
+| Topic | Content | Reference |
 |---------|------|--------|
-| SQL基礎 | SELECT/WHERE/JOIN の基本構文 | [00-basics/](../00-basics/) |
-| EXPLAIN | 実行計画の基本的な読み方 | [04-query-optimization.md](./04-query-optimization.md) |
-| テーブル設計 | PRIMARY KEY、FOREIGN KEY、制約 | [01-schema-design.md](../02-design/01-schema-design.md) |
-| トランザクション | ロックの基本概念 | [02-transactions.md](./02-transactions.md) |
+| SQL basics | Basic syntax for SELECT/WHERE/JOIN | [00-basics/](../00-basics/) |
+| EXPLAIN | How to read a basic execution plan | [04-query-optimization.md](./04-query-optimization.md) |
+| Table design | PRIMARY KEY, FOREIGN KEY, constraints | [01-schema-design.md](../02-design/01-schema-design.md) |
+| Transactions | Basic concepts of locking | [02-transactions.md](./02-transactions.md) |
 
 ---
 
-## 1. B-Tree インデックスの内部構造
+## 1. Internal Structure of B-Tree Indexes
 
-### なぜインデックスが速いのか
+### Why Are Indexes Fast?
 
-テーブルの全行を順番に読む（Sequential Scan）場合、100万行のテーブルから1行を探すには平均50万行の読み取りが必要（O(N)）。B-Treeインデックスを使えば、わずか3-4回のページ読み取りで目的の行に到達できる（O(log N)）。
+When scanning all rows in a table sequentially (Sequential Scan), finding one row in a million-row table requires reading an average of 500,000 rows — O(N). With a B-Tree index, you can reach the target row with just 3–4 page reads — O(log N).
 
 ```
-B-Tree の構造 (次数=3 の例)
+B-Tree structure (example with degree=3)
 ==============================
 
-           [30 | 60]              <-- ルートノード (1ページ = 8KB)
+           [30 | 60]              <-- Root node (1 page = 8KB)
           /    |    \
-   [10|20]  [40|50]  [70|80]     <-- 内部ノード
+   [10|20]  [40|50]  [70|80]     <-- Internal nodes
    / | \    / | \    / | \
-  L  L  L  L  L  L  L  L  L     <-- リーフノード (実データへのポインタ)
+  L  L  L  L  L  L  L  L  L     <-- Leaf nodes (pointers to actual data)
 
-検索: WHERE id = 45
-  1. ルート: 30 < 45 < 60 --> 中央の子へ     (1回目のI/O)
-  2. 内部: 40 < 45 < 50  --> 中央の子へ       (2回目のI/O)
-  3. リーフ: id=45 のTID(ページ,オフセット)取得 (3回目のI/O)
-  4. テーブル: TIDでヒープタプルを直接取得      (4回目のI/O)
+Search: WHERE id = 45
+  1. Root: 30 < 45 < 60 --> go to middle child     (1st I/O)
+  2. Internal: 40 < 45 < 50  --> go to middle child (2nd I/O)
+  3. Leaf: get TID (page, offset) for id=45          (3rd I/O)
+  4. Table: fetch heap tuple directly via TID         (4th I/O)
 
-計算量: O(log N)
-  N = 1,000,000行 → log_500(1,000,000) ≈ 2.2 → 約3ページ読み取り
-  N = 100,000,000行 → log_500(100,000,000) ≈ 2.9 → 約3-4ページ読み取り
+Complexity: O(log N)
+  N = 1,000,000 rows → log_500(1,000,000) ≈ 2.2 → ~3 page reads
+  N = 100,000,000 rows → log_500(100,000,000) ≈ 2.9 → ~3-4 page reads
 
-  ※ 次数(1ページに入るキー数)が大きいほど木の高さが低くなる
-  ※ 8KBページにINTEGER(4bytes)なら約500キー格納可能
-  ※ ルートと上位内部ノードはバッファキャッシュに載るため実I/Oは少ない
+  ※ The higher the degree (keys per page), the shallower the tree
+  ※ An 8KB page can hold ~500 INTEGER (4 bytes) keys
+  ※ Root and upper internal nodes stay in buffer cache, so actual I/O is minimal
 ```
 
-### B-Treeの特性
+### B-Tree Properties
 
 ```
-┌─────────── B-Treeの重要な特性 ───────────────────┐
-│                                                    │
-│  1. バランス木                                     │
-│     全てのリーフノードが同じ深さにある              │
-│     → 最悪ケースでもO(log N)を保証                 │
-│                                                    │
-│  2. ソート済み                                     │
-│     リーフノードが双方向リンクリストで接続           │
-│     → 範囲検索（BETWEEN, <, >）が効率的            │
-│     → ORDER BYもインデックスで解決可能              │
-│                                                    │
-│  3. ページ分割                                     │
-│     ノードが満杯になるとページ分割が発生            │
-│     → INSERT時のオーバーヘッド                     │
-│     → 単調増加キー(SERIAL)では右端のみ分割          │
-│       → 分割コストが低い                           │
-│                                                    │
-│  4. 対応する演算子                                 │
-│     =, <, >, <=, >=, BETWEEN                       │
-│     IN (値リスト)                                   │
-│     LIKE 'abc%'（前方一致のみ）                    │
-│     IS NULL / IS NOT NULL                           │
-│     ORDER BY, GROUP BY                              │
-│     MIN(), MAX()（インデックスの端を直接読み取り）   │
-└────────────────────────────────────────────────────┘
+┌─────────── Key Properties of B-Tree ───────────────────┐
+│                                                          │
+│  1. Balanced tree                                        │
+│     All leaf nodes are at the same depth                 │
+│     → O(log N) is guaranteed even in the worst case      │
+│                                                          │
+│  2. Sorted                                               │
+│     Leaf nodes are connected in a doubly linked list     │
+│     → Range searches (BETWEEN, <, >) are efficient       │
+│     → ORDER BY can also be resolved via the index        │
+│                                                          │
+│  3. Page splits                                          │
+│     When a node is full, a page split occurs             │
+│     → Overhead on INSERT                                 │
+│     → Monotonically increasing keys (SERIAL) only        │
+│       split at the rightmost node                        │
+│       → Lower split cost                                 │
+│                                                          │
+│  4. Supported operators                                  │
+│     =, <, >, <=, >=, BETWEEN                             │
+│     IN (value list)                                      │
+│     LIKE 'abc%' (prefix match only)                      │
+│     IS NULL / IS NOT NULL                                │
+│     ORDER BY, GROUP BY                                   │
+│     MIN(), MAX() (read directly from the ends of index)  │
+└──────────────────────────────────────────────────────────┘
 ```
 
-### コード例1: 基本的なインデックス作成
+### Code Example 1: Creating Basic Indexes
 
 ```sql
--- テスト用テーブル
+-- Test tables
 CREATE TABLE users (
     id         SERIAL PRIMARY KEY,
     email      VARCHAR(255) NOT NULL,
@@ -105,23 +106,23 @@ CREATE TABLE orders (
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
--- B-Tree インデックス（デフォルト）
+-- B-Tree index (default)
 CREATE INDEX idx_users_email ON users (email);
 
--- ユニークインデックス（重複不可制約 + インデックスの2役）
+-- Unique index (serves as both uniqueness constraint and index)
 CREATE UNIQUE INDEX idx_users_email_unique ON users (email);
 
--- 複合インデックス（列の順序が重要 — 後述）
+-- Composite index (column order matters — discussed later)
 CREATE INDEX idx_orders_user_date ON orders (user_id, created_at DESC);
 
--- 降順インデックス
+-- Descending index
 CREATE INDEX idx_orders_recent ON orders (created_at DESC);
 
--- 式インデックス（関数の結果にインデックス）
+-- Expression index (index on the result of a function)
 CREATE INDEX idx_users_email_lower ON users (LOWER(email));
--- → WHERE LOWER(email) = 'test@example.com' で使用される
+-- → Used with: WHERE LOWER(email) = 'test@example.com'
 
--- インデックスの確認
+-- Inspect indexes
 SELECT
     indexname,
     indexdef,
@@ -130,10 +131,10 @@ FROM pg_indexes
 WHERE tablename = 'orders';
 ```
 
-### コード例2: EXPLAIN ANALYZEによる効果測定
+### Code Example 2: Measuring Impact with EXPLAIN ANALYZE
 
 ```sql
--- インデックスなし（Sequential Scan）
+-- Without index (Sequential Scan)
 EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
 SELECT * FROM orders WHERE user_id = 12345;
 -- Seq Scan on orders  (cost=0.00..25000.00 rows=50 width=120)
@@ -144,10 +145,10 @@ SELECT * FROM orders WHERE user_id = 12345;
 -- Planning Time: 0.1 ms
 -- Execution Time: 180.6 ms
 
--- インデックス作成
+-- Create index
 CREATE INDEX idx_orders_user_id ON orders (user_id);
 
--- インデックスあり（Index Scan）
+-- With index (Index Scan)
 EXPLAIN (ANALYZE, BUFFERS, FORMAT TEXT)
 SELECT * FROM orders WHERE user_id = 12345;
 -- Index Scan using idx_orders_user_id on orders
@@ -158,105 +159,105 @@ SELECT * FROM orders WHERE user_id = 12345;
 -- Planning Time: 0.2 ms
 -- Execution Time: 0.2 ms
 
--- 結果比較:
+-- Comparison:
 -- Sequential Scan: 180.6 ms, 25000 buffers
 -- Index Scan:      0.2 ms,   5 buffers
--- → 約900倍の高速化、I/Oが約5000分の1に削減
+-- → ~900x speedup, I/O reduced by ~5000x
 ```
 
 ---
 
-## 2. 複合インデックスの列順序
+## 2. Column Order in Composite Indexes
 
-### なぜ列順序が重要なのか
+### Why Does Column Order Matter?
 
-複合インデックスは電話帳のようなものである。電話帳が「姓→名」の順にソートされている場合、「田中」で始まる人は簡単に見つかるが、名前が「太郎」の人を姓に関係なく検索するには全ページを見る必要がある。
+A composite index is like a phone book. If a phone book is sorted by "last name → first name," you can easily find everyone named "Tanaka," but to find everyone with the first name "Taro" regardless of last name, you'd need to scan every page.
 
 ```
-複合インデックスの動作原理（左端プレフィックスルール）
+How composite indexes work (Leftmost Prefix Rule)
 ========================================================
 
 CREATE INDEX idx ON orders (user_id, status, created_at);
 
-インデックスの内部ソート順（辞書順）:
+Internal sort order of the index (lexicographic):
   user_id=1, status='active',   created_at='2024-01-01'
   user_id=1, status='active',   created_at='2024-01-15'
   user_id=1, status='shipped',  created_at='2024-01-10'
   user_id=2, status='active',   created_at='2024-01-05'
   user_id=2, status='pending',  created_at='2024-01-20'
 
-利用可能なクエリパターン:
-  [OK] WHERE user_id = 1                         (左端1列)
-  [OK] WHERE user_id = 1 AND status = 'active'   (左端2列)
+Usable query patterns:
+  [OK] WHERE user_id = 1                         (leftmost 1 column)
+  [OK] WHERE user_id = 1 AND status = 'active'   (leftmost 2 columns)
   [OK] WHERE user_id = 1 AND status = 'active'
-       AND created_at > '2024-01-01'              (全3列)
-  [OK] WHERE user_id = 1 ORDER BY status          (プレフィックス + ソート)
+       AND created_at > '2024-01-01'              (all 3 columns)
+  [OK] WHERE user_id = 1 ORDER BY status          (prefix + sort)
 
-  [NG] WHERE status = 'active'                    (左端スキップ)
-  [NG] WHERE created_at > '2024-01-01'            (左端スキップ)
-  [NG] WHERE user_id = 1 AND created_at > '...'   (status をスキップ)
-       → user_id=1 までは利用、created_atは Filter として適用
+  [NG] WHERE status = 'active'                    (skips leftmost)
+  [NG] WHERE created_at > '2024-01-01'            (skips leftmost)
+  [NG] WHERE user_id = 1 AND created_at > '...'   (skips status)
+       → index is used up to user_id=1, created_at is applied as a Filter
 
-列順序の設計原則:
-  1. 等値条件 (=) の列を先に
-  2. 範囲条件 (<, >, BETWEEN) の列を後に
-  3. 選択率が高い（値の種類が多い）列を先に
-  4. ORDER BY の列を最後に
+Column order design principles:
+  1. Equality conditions (=) first
+  2. Range conditions (<, >, BETWEEN) last
+  3. High-cardinality columns (many distinct values) first
+  4. ORDER BY columns at the end
 
-例: WHERE user_id = ? AND status = ? AND created_at > ?
-    → (user_id, status, created_at) が最適
+Example: WHERE user_id = ? AND status = ? AND created_at > ?
+    → (user_id, status, created_at) is optimal
 ```
 
-### コード例3: 複合インデックスの効果測定
+### Code Example 3: Measuring the Impact of Composite Index Column Order
 
 ```sql
--- 悪い列順序
+-- Bad column order
 CREATE INDEX idx_orders_bad ON orders (created_at, user_id, status);
 
--- 良い列順序（等値条件を先に、範囲条件を後に）
+-- Good column order (equality conditions first, range conditions last)
 CREATE INDEX idx_orders_good ON orders (user_id, status, created_at);
 
--- テストクエリ
+-- Test query
 EXPLAIN ANALYZE
 SELECT * FROM orders
 WHERE user_id = 42
   AND status = 'shipped'
   AND created_at > '2024-01-01';
 
--- idx_orders_bad の場合:
+-- With idx_orders_bad:
 -- Index Scan using idx_orders_bad on orders
 --   Index Cond: (created_at > '2024-01-01')
 --   Filter: (user_id = 42 AND status = 'shipped')
---   Rows Removed by Filter: 4500  ← 多くの行をフィルタで除外
---   → created_at でしか絞れない
+--   Rows Removed by Filter: 4500  ← many rows excluded by filter
+--   → only created_at is used for narrowing
 
--- idx_orders_good の場合:
+-- With idx_orders_good:
 -- Index Scan using idx_orders_good on orders
 --   Index Cond: (user_id = 42 AND status = 'shipped'
 --                AND created_at > '2024-01-01')
---   Rows Removed by Filter: 0     ← 全条件がインデックスで処理
---   → 3列全てが Index Cond として使用される
+--   Rows Removed by Filter: 0     ← all conditions handled by index
+--   → all 3 columns used as Index Cond
 ```
 
 ---
 
-## 3. 特殊インデックス
+## 3. Specialized Indexes
 
-### インデックス種類比較表
+### Index Type Comparison
 
-| インデックス型 | 対応演算子 | ユースケース | サイズ | 構築速度 |
+| Index Type | Supported Operators | Use Cases | Size | Build Speed |
 |---|---|---|---|---|
-| **B-Tree** | =, <, >, BETWEEN, LIKE 'abc%' | 汎用、範囲検索、ソート | 中 | 速い |
-| **Hash** | = のみ | 等値検索のみ（B-Treeで代替可能） | 小 | 速い |
-| **GiST** | 包含(&&)、重複、近傍(<->) | 地理空間、範囲型、排他制約 | 大 | 遅い |
-| **GIN** | 含む(@>)、配列要素、全文検索(@@) | 全文検索、JSONB、配列 | 大 | 遅い |
-| **BRIN** | =, <, >, BETWEEN | 時系列、物理ソート済み大テーブル | 極小 | 極速 |
-| **SP-GiST** | パーティション検索 | 電話番号、IPアドレス、四分木 | 中 | 中 |
+| **B-Tree** | =, <, >, BETWEEN, LIKE 'abc%' | General purpose, range search, sorting | Medium | Fast |
+| **Hash** | = only | Equality-only search (B-Tree is usually sufficient) | Small | Fast |
+| **GiST** | Contains (&&), overlap, nearest neighbor (<->) | Geospatial, range types, exclusion constraints | Large | Slow |
+| **GIN** | Contains (@>), array elements, full-text search (@@) | Full-text search, JSONB, arrays | Large | Slow |
+| **BRIN** | =, <, >, BETWEEN | Time-series, large tables with physical ordering | Very small | Very fast |
+| **SP-GiST** | Partitioned search | Phone numbers, IP addresses, quadtrees | Medium | Medium |
 
-### コード例4: GINインデックス（JSONB・全文検索・配列）
+### Code Example 4: GIN Index (JSONB, Full-Text Search, Arrays)
 
 ```sql
--- ===== JSONB検索用GINインデックス =====
+-- ===== GIN index for JSONB search =====
 CREATE TABLE products (
     id          SERIAL PRIMARY KEY,
     name        VARCHAR(200) NOT NULL,
@@ -264,36 +265,36 @@ CREATE TABLE products (
     attributes  JSONB DEFAULT '{}'
 );
 
--- GINインデックスの作成
--- jsonb_ops: @>, ?, ?&, ?| をサポート（デフォルト）
+-- Create GIN index
+-- jsonb_ops: supports @>, ?, ?&, ?| (default)
 CREATE INDEX idx_products_attrs ON products USING GIN (attributes);
 
--- jsonb_path_ops: @> のみだがサイズが小さく高速
+-- jsonb_path_ops: only @>, but smaller and faster
 CREATE INDEX idx_products_attrs_path ON products
     USING GIN (attributes jsonb_path_ops);
 
--- JSONB の検索（GINインデックスが使用される）
+-- JSONB search (uses GIN index)
 SELECT * FROM products
 WHERE attributes @> '{"color": "red", "size": "L"}';
 
--- キーの存在確認
+-- Check for key existence
 SELECT * FROM products
-WHERE attributes ? 'wireless';  -- 'wireless'キーが存在するか
+WHERE attributes ? 'wireless';  -- does 'wireless' key exist?
 
--- 複数キーの存在確認
+-- Check for multiple keys
 SELECT * FROM products
-WHERE attributes ?& ARRAY['color', 'size'];  -- 両方のキーが存在
+WHERE attributes ?& ARRAY['color', 'size'];  -- both keys must exist
 
 
--- ===== 全文検索用GINインデックス =====
+-- ===== GIN index for full-text search =====
 CREATE TABLE articles (
     id            SERIAL PRIMARY KEY,
     title         VARCHAR(500) NOT NULL,
     body          TEXT NOT NULL,
-    search_vector tsvector  -- 全文検索用の事前計算カラム
+    search_vector tsvector  -- pre-computed column for full-text search
 );
 
--- tsvectorカラムの更新トリガー
+-- Trigger to update search_vector
 CREATE OR REPLACE FUNCTION update_search_vector() RETURNS TRIGGER AS $$
 BEGIN
     NEW.search_vector :=
@@ -307,10 +308,10 @@ CREATE TRIGGER trg_articles_search
 BEFORE INSERT OR UPDATE ON articles
 FOR EACH ROW EXECUTE FUNCTION update_search_vector();
 
--- GINインデックスの作成
+-- Create GIN index
 CREATE INDEX idx_articles_search ON articles USING GIN (search_vector);
 
--- 全文検索クエリ
+-- Full-text search query
 SELECT title, ts_rank(search_vector, query) AS rank
 FROM articles, to_tsquery('english', 'PostgreSQL & index') AS query
 WHERE search_vector @@ query
@@ -318,7 +319,7 @@ ORDER BY rank DESC
 LIMIT 10;
 
 
--- ===== 配列検索用GINインデックス =====
+-- ===== GIN index for array search =====
 CREATE TABLE posts (
     id    SERIAL PRIMARY KEY,
     title VARCHAR(200) NOT NULL,
@@ -327,32 +328,32 @@ CREATE TABLE posts (
 
 CREATE INDEX idx_posts_tags ON posts USING GIN (tags);
 
--- 配列の包含検索
+-- Array containment search
 SELECT * FROM posts WHERE tags @> ARRAY['rust', 'wasm'];
--- → tagsに'rust'と'wasm'の両方を含む投稿
+-- → posts where tags contains both 'rust' and 'wasm'
 
--- 配列の重複検索
+-- Array overlap search
 SELECT * FROM posts WHERE tags && ARRAY['python', 'javascript'];
--- → tagsに'python'または'javascript'のいずれかを含む投稿
+-- → posts where tags contains either 'python' or 'javascript'
 ```
 
-### コード例5: GiSTインデックス（空間検索・範囲型）
+### Code Example 5: GiST Index (Spatial Search, Range Types)
 
 ```sql
--- ===== PostGIS: 空間インデックス =====
--- PostGIS拡張のインストール
+-- ===== PostGIS: spatial index =====
+-- Install PostGIS extension
 CREATE EXTENSION IF NOT EXISTS postgis;
 
 CREATE TABLE stores (
     id        SERIAL PRIMARY KEY,
     name      VARCHAR(200) NOT NULL,
-    location  GEOGRAPHY(POINT, 4326) NOT NULL  -- WGS84座標系
+    location  GEOGRAPHY(POINT, 4326) NOT NULL  -- WGS84 coordinate system
 );
 
--- GiSTインデックスの作成
+-- Create GiST index
 CREATE INDEX idx_stores_location ON stores USING GiST (location);
 
--- 半径5km以内の店舗検索
+-- Search for stores within 5km radius
 SELECT
     name,
     ST_Distance(
@@ -367,14 +368,14 @@ WHERE ST_DWithin(
 )
 ORDER BY distance_m;
 
--- k近傍検索（最も近い10店舗）
+-- k-nearest neighbor search (10 closest stores)
 SELECT name, location <-> ST_SetSRID(ST_MakePoint(139.7671, 35.6812), 4326)::geography AS dist
 FROM stores
 ORDER BY location <-> ST_SetSRID(ST_MakePoint(139.7671, 35.6812), 4326)::geography
 LIMIT 10;
 
 
--- ===== 範囲型の重複検索（予約管理） =====
+-- ===== Range type overlap search (reservation management) =====
 CREATE TABLE reservations (
     id        SERIAL PRIMARY KEY,
     room_id   INTEGER NOT NULL,
@@ -383,33 +384,33 @@ CREATE TABLE reservations (
     check_out DATE NOT NULL
 );
 
--- 範囲型のGiSTインデックス
+-- GiST index for range types
 CREATE INDEX idx_reservations_period ON reservations
     USING GiST (room_id, daterange(check_in, check_out));
 
--- 期間が重複する予約の検索
+-- Search for reservations that overlap with a given period
 SELECT * FROM reservations
 WHERE room_id = 101
   AND daterange(check_in, check_out) && daterange('2024-03-01', '2024-03-10');
--- → 3月1日〜10日と重複する予約をインデックスで効率的に検索
+-- → efficiently finds reservations overlapping March 1–10 using the index
 
 
--- ===== 排他制約（同じ部屋の予約重複を禁止） =====
-CREATE EXTENSION IF NOT EXISTS btree_gist;  -- 排他制約にB-Tree演算子を使うため必要
+-- ===== Exclusion constraint (prevent double-booking same room) =====
+CREATE EXTENSION IF NOT EXISTS btree_gist;  -- needed to use B-Tree operators in exclusion constraints
 
 ALTER TABLE reservations ADD CONSTRAINT excl_room_period
     EXCLUDE USING GiST (
         room_id WITH =,
         daterange(check_in, check_out) WITH &&
     );
--- → 同じroom_idで期間が重複するINSERT/UPDATEを自動的に拒否
+-- → automatically rejects INSERT/UPDATE with same room_id and overlapping period
 ```
 
-### コード例6: BRINインデックス（大規模時系列データ）
+### Code Example 6: BRIN Index (Large-Scale Time-Series Data)
 
 ```sql
--- BRINインデックスは物理的に順序付けされたデータに最適
--- 例: ログテーブル（created_atが挿入順に増加）
+-- BRIN indexes are optimal for data that is physically ordered
+-- Example: log table where created_at increases in insertion order
 CREATE TABLE access_logs (
     id         BIGSERIAL PRIMARY KEY,
     user_id    INTEGER,
@@ -418,182 +419,182 @@ CREATE TABLE access_logs (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- BRINインデックスの作成
--- pages_per_range: 何ページごとに要約情報を保持するか（デフォルト128）
+-- Create BRIN index
+-- pages_per_range: how many pages per summary entry (default 128)
 CREATE INDEX idx_logs_created_brin ON access_logs
     USING BRIN (created_at)
     WITH (pages_per_range = 32);
 
--- サイズ比較（1億行のテーブルの場合の目安）:
--- B-Tree: 約2GB
--- BRIN:   約200KB（B-Treeの約1/10000）
+-- Size comparison (rough estimate for a 100 million row table):
+-- B-Tree: ~2GB
+-- BRIN:   ~200KB (about 1/10000 of B-Tree)
 
--- BRINが効果的なクエリ
+-- Query where BRIN is effective
 SELECT COUNT(*) FROM access_logs
 WHERE created_at BETWEEN '2024-01-01' AND '2024-01-31';
--- → BRINが該当ページブロックだけをスキャン
+-- → BRIN scans only the relevant page blocks
 
--- BRINが効果的でないクエリ
+-- Query where BRIN is NOT effective
 SELECT * FROM access_logs WHERE user_id = 42;
--- → user_idは物理的な順序と相関がないため、BRINは効果なし
+-- → user_id has no correlation with physical order, so BRIN is useless here
 
--- BRINの内部動作
--- 128ページごとに min_val, max_val を保持
--- WHERE created_at > '2024-06-01' の場合:
---   Block 0-127:   min=2024-01, max=2024-02 → スキップ
---   Block 128-255: min=2024-03, max=2024-04 → スキップ
---   Block 256-383: min=2024-05, max=2024-06 → スキャン（該当の可能性あり）
---   Block 384-511: min=2024-07, max=2024-08 → スキャン
+-- How BRIN works internally
+-- Stores min_val, max_val for every 128 pages
+-- For WHERE created_at > '2024-06-01':
+--   Block 0-127:   min=2024-01, max=2024-02 → skip
+--   Block 128-255: min=2024-03, max=2024-04 → skip
+--   Block 256-383: min=2024-05, max=2024-06 → scan (may contain matches)
+--   Block 384-511: min=2024-07, max=2024-08 → scan
 ```
 
 ---
 
-## 4. 部分インデックスとカバリングインデックス
+## 4. Partial Indexes and Covering Indexes
 
-### コード例7: 部分インデックス（Partial Index）
+### Code Example 7: Partial Index
 
 ```sql
--- 部分インデックス: WHERE句付きのインデックス
--- テーブルの一部の行だけにインデックスを作成する
+-- Partial index: an index with a WHERE clause
+-- Creates an index only on a subset of rows in the table
 
--- アクティブユーザーのみインデックス（全体の10%）
+-- Index only active users (10% of the table)
 CREATE INDEX idx_users_active_email ON users (email)
 WHERE status = 'active';
--- → フルインデックスの約1/10のサイズ
--- → INSERT/UPDATE時のオーバーヘッドも約1/10
+-- → about 1/10 the size of a full index
+-- → about 1/10 the overhead on INSERT/UPDATE
 
--- 未処理注文のみ（全体の5%）
+-- Index only pending orders (5% of the table)
 CREATE INDEX idx_orders_pending ON orders (created_at)
 WHERE status = 'pending';
--- 使用されるクエリ:
+-- Used by this query:
 SELECT * FROM orders WHERE status = 'pending' ORDER BY created_at;
 
--- NULLでないカラムのみ（90%がNULLの場合）
+-- Index only non-NULL values (when 90% are NULL)
 CREATE INDEX idx_users_phone ON users (phone)
 WHERE phone IS NOT NULL;
 
--- 条件付き一意制約（部分ユニークインデックス）
--- アクティブなユーザーの中でのみメールアドレスの一意性を保証
+-- Conditional uniqueness constraint (partial unique index)
+-- Enforces email uniqueness only among active (non-deleted) users
 CREATE UNIQUE INDEX idx_users_active_email_unique ON users (email)
 WHERE deleted_at IS NULL;
--- → 論理削除されたユーザーは同じメールアドレスを持てる
+-- → soft-deleted users can share the same email address
 
--- 部分インデックスの効果を確認
+-- Verify the effect of partial indexing
 SELECT
     indexname,
     pg_size_pretty(pg_relation_size(indexname::regclass)) AS size
 FROM pg_indexes
 WHERE tablename = 'users';
--- idx_users_email:        120 MB  ← フルインデックス
--- idx_users_active_email:  12 MB  ← 部分インデックス（1/10）
+-- idx_users_email:        120 MB  ← full index
+-- idx_users_active_email:  12 MB  ← partial index (1/10)
 ```
 
-### コード例8: カバリングインデックス（INCLUDE）
+### Code Example 8: Covering Index (INCLUDE)
 
 ```sql
--- カバリングインデックス: テーブルアクセスを完全に回避
--- INCLUDE句でインデックスに追加カラムを格納（検索キーとしては使わない）
+-- Covering index: completely avoids table access
+-- INCLUDE clause stores additional columns in the index (not used as search keys)
 
 CREATE INDEX idx_orders_covering ON orders (user_id, status)
 INCLUDE (total, created_at);
 
--- このクエリは Index Only Scan で応答（テーブル読み取り不要）
+-- This query is answered by Index Only Scan (no table read required)
 EXPLAIN ANALYZE
 SELECT user_id, status, total, created_at
 FROM orders
 WHERE user_id = 12345 AND status = 'shipped';
 
--- 出力:
+-- Output:
 -- Index Only Scan using idx_orders_covering on orders
 --   (cost=0.43..5.50 rows=10 width=40)
 --   actual time=0.02..0.05 rows=10 loops=1
 --   Index Cond: (user_id = 12345 AND status = 'shipped')
---   Heap Fetches: 0  <-- テーブルアクセスなし！
+--   Heap Fetches: 0  <-- no table access!
 
--- INCLUDEとキー列の違い:
--- キー列: 検索条件として使用可能、ソートされる、B-Treeのノードに格納
--- INCLUDE列: 検索条件には使用不可、リーフノードにのみ格納
--- → INCLUDEの方がインデックスサイズが小さい（内部ノードに影響しない）
+-- Difference between INCLUDE and key columns:
+-- Key columns: usable in search conditions, sorted, stored in B-Tree nodes
+-- INCLUDE columns: not usable as search conditions, stored only in leaf nodes
+-- → INCLUDE results in a smaller index (no effect on internal nodes)
 
--- INCLUDEなしで同等の効果を得る方法（非推奨）
+-- Equivalent approach without INCLUDE (not recommended)
 CREATE INDEX idx_orders_covering_old ON orders (user_id, status, total, created_at);
--- → 全列がキーになるためインデックスが大きくなり、更新コストも増加
+-- → all columns are keys, making the index larger with higher update cost
 ```
 
-### コード例9: 式インデックス（Expression Index）
+### Code Example 9: Expression Index
 
 ```sql
--- 関数の結果にインデックスを作成
--- 大文字小文字を区別しないメール検索
+-- Create an index on the result of a function
+-- Case-insensitive email search
 CREATE INDEX idx_users_email_lower ON users (LOWER(email));
 
--- クエリでも同じ式を使う必要がある
+-- The query must use the same expression
 SELECT * FROM users WHERE LOWER(email) = 'test@example.com';
 -- → Index Scan using idx_users_email_lower
 
--- NG: 式が一致しないとインデックスが使われない
+-- NG: index is not used if the expression doesn't match
 SELECT * FROM users WHERE email = 'test@example.com';
--- → Seq Scan（LOWER()がないため）
+-- → Seq Scan (no LOWER())
 
--- JSONBの特定キーにインデックス
+-- Index on a specific JSONB key
 CREATE INDEX idx_products_color ON products ((attributes->>'color'));
 SELECT * FROM products WHERE attributes->>'color' = 'red';
 
--- 日付の年月部分にインデックス
+-- Index on year-month portion of a date
 CREATE INDEX idx_orders_yearmonth ON orders (DATE_TRUNC('month', created_at));
 SELECT * FROM orders WHERE DATE_TRUNC('month', created_at) = '2024-06-01';
 
--- テキストの先頭N文字にインデックス（前方一致検索の高速化）
+-- Index on first N characters of text (speeds up prefix searches)
 CREATE INDEX idx_users_name_prefix ON users (LEFT(username, 3));
 ```
 
 ---
 
-## 5. インデックスの保守と監視
+## 5. Index Maintenance and Monitoring
 
-### インデックス肥大化の仕組み
+### How Index Bloat Occurs
 
 ```
-インデックス肥大化の仕組み
+How index bloat occurs
 ============================
 
-DELETE/UPDATE が繰り返されると:
+After repeated DELETE/UPDATE:
 
-初期状態:  [1][2][3][4][5][6][7][8]  (ページ使用率 100%)
+Initial:   [1][2][3][4][5][6][7][8]  (page utilization 100%)
            ↓ DELETE 3,5,7
-中間状態:  [1][2][ ][4][ ][6][ ][8]  (ページ使用率 62.5%)
-           ↓ 新しいINSERTの値が空きに入らない場合
-肥大化:    多数の空きページが残存 --> インデックスサイズ増大
+Mid:       [1][2][ ][4][ ][6][ ][8]  (page utilization 62.5%)
+           ↓ new INSERTs don't fit in the gaps
+Bloat:     many empty pages remain --> index size grows
 
-            ページフィルファクター (fillfactor):
-            デフォルト90%。UPDATE頻度が高いテーブルでは
-            70-80%に下げると、HOT Update（同一ページ内更新）
-            の確率が上がり、インデックス更新を回避できる
+            Page fill factor (fillfactor):
+            Default is 90%. For tables with frequent UPDATEs,
+            lowering to 70-80% increases the chance of
+            HOT Updates (in-page updates), avoiding index updates.
 
-対策:
-  1. REINDEX: インデックスを最初から再構築
-  2. pg_repack: オンラインでテーブル/インデックスを再編成
-  3. fillfactorの調整: 更新頻度に応じて設定
+Remedies:
+  1. REINDEX: rebuild the index from scratch
+  2. pg_repack: reorganize table/index online
+  3. Adjust fillfactor: tune based on update frequency
 ```
 
-### コード例10: インデックスの監視と保守
+### Code Example 10: Monitoring and Maintaining Indexes
 
 ```sql
--- ===== インデックスサイズの確認 =====
+-- ===== Check index sizes =====
 SELECT
     schemaname || '.' || tablename AS table_name,
     indexname,
     pg_size_pretty(pg_relation_size(indexrelid)) AS index_size,
-    idx_scan AS total_scans,           -- このインデックスが使われた回数
-    idx_tup_read AS tuples_read,       -- インデックスから読まれたタプル数
-    idx_tup_fetch AS tuples_fetched    -- テーブルから取得されたタプル数
+    idx_scan AS total_scans,           -- how many times this index was used
+    idx_tup_read AS tuples_read,       -- tuples read from the index
+    idx_tup_fetch AS tuples_fetched    -- tuples fetched from the table
 FROM pg_stat_user_indexes
 JOIN pg_indexes USING (indexname)
 ORDER BY pg_relation_size(indexrelid) DESC
 LIMIT 20;
 
 
--- ===== 未使用インデックスの検出 =====
+-- ===== Detect unused indexes =====
 SELECT
     indexrelname AS index_name,
     relname AS table_name,
@@ -605,16 +606,16 @@ JOIN pg_statio_user_indexes USING (indexrelid)
 WHERE idx_scan = 0
   AND indexrelid NOT IN (
       SELECT indexrelid FROM pg_constraint
-      WHERE contype IN ('p', 'u')  -- PRIMARY KEY, UNIQUE制約は除外
+      WHERE contype IN ('p', 'u')  -- exclude PRIMARY KEY and UNIQUE constraints
   )
 ORDER BY pg_relation_size(indexrelid) DESC;
 
--- 注意: 統計情報はpg_stat_reset()で初期化される
--- レプリカではインデックスが使われないため、プライマリで確認すること
+-- Note: statistics are reset by pg_stat_reset()
+-- On replicas, indexes are not used — check on the primary
 
 
--- ===== 重複インデックスの検出 =====
--- 同じ列の組み合わせで作られたインデックスを特定
+-- ===== Detect duplicate indexes =====
+-- Identify indexes built on the same set of columns
 SELECT
     a.indexrelid::regclass AS index1,
     b.indexrelid::regclass AS index2,
@@ -625,19 +626,19 @@ JOIN pg_index b ON a.indrelid = b.indrelid
     AND a.indkey::text = b.indkey::text;
 
 
--- ===== REINDEX（オンライン再構築、PostgreSQL 12+）=====
--- 通常のREINDEX: テーブルへの書き込みをロック
+-- ===== REINDEX (online rebuild, PostgreSQL 12+) =====
+-- Standard REINDEX: locks table writes
 REINDEX INDEX idx_orders_user_date;
 
--- CONCURRENTLY: ロックなしで再構築（推奨）
+-- CONCURRENTLY: rebuild without locking (recommended)
 REINDEX INDEX CONCURRENTLY idx_orders_user_date;
 
--- テーブルの全インデックスを再構築
+-- Rebuild all indexes on a table
 REINDEX TABLE CONCURRENTLY orders;
 
 
--- ===== インデックス膨張率の推定 =====
--- pgstattupleエクステンションを使用
+-- ===== Estimate index bloat =====
+-- Uses the pgstattuple extension
 CREATE EXTENSION IF NOT EXISTS pgstattuple;
 
 SELECT
@@ -645,180 +646,180 @@ SELECT
     pg_size_pretty(pg_relation_size(indexrelid)) AS index_size,
     leaf_fragmentation
 FROM pgstatindex('idx_orders_user_date');
--- leaf_fragmentation > 30% なら REINDEX を検討
+-- Consider REINDEX if leaf_fragmentation > 30%
 ```
 
 ---
 
-## 6. インデックスの落とし穴
+## 6. Index Pitfalls
 
-### コード例11: インデックスが使われないケース
+### Code Example 11: Cases Where Indexes Are Not Used
 
 ```sql
--- ===== ケース1: 関数を適用している =====
--- NG: インデックスは email カラムに存在するが関数で包まれている
+-- ===== Case 1: applying a function to an indexed column =====
+-- NG: an index exists on email, but it's wrapped in a function
 SELECT * FROM users WHERE UPPER(email) = 'TEST@EXAMPLE.COM';
--- → Seq Scan（式インデックスが必要）
+-- → Seq Scan (requires an expression index)
 
--- OK: 式インデックスを作成するか、アプリ側で正規化
+-- OK: create an expression index, or normalize values in the application
 CREATE INDEX idx_users_email_upper ON users (UPPER(email));
 
 
--- ===== ケース2: 暗黙の型変換 =====
--- NG: user_idがINTEGERなのにTEXTで検索
+-- ===== Case 2: implicit type casting =====
+-- NG: user_id is INTEGER but searched with TEXT
 SELECT * FROM orders WHERE user_id = '12345';
--- PostgreSQLでは暗黙変換で動作するが、他のDBでは問題になることがある
+-- PostgreSQL handles implicit casting, but other DBs may not
 
--- NG: VARCHARカラムにINTEGERで検索
+-- NG: searching a VARCHAR column with an INTEGER
 SELECT * FROM products WHERE sku = 12345;
--- → 型が不一致でインデックスが使われない可能性
+-- → type mismatch may cause the index to be skipped
 
 
--- ===== ケース3: 選択率が低い（大部分の行が該当） =====
--- NG: status='active' が全体の90%を占める場合
+-- ===== Case 3: low selectivity (most rows match) =====
+-- NG: if status='active' represents 90% of rows
 SELECT * FROM users WHERE status = 'active';
--- → オプティマイザがSeq Scanを選択（インデックス経由より全走査が速い）
+-- → optimizer chooses Seq Scan (full scan is faster than going through the index)
 
--- OK: 部分インデックスにして、少数派の条件で使用
+-- OK: use a partial index targeting the minority case
 CREATE INDEX idx_users_inactive ON users (email) WHERE status = 'inactive';
 
 
--- ===== ケース4: LIKE '%中間%'（中間一致・後方一致） =====
--- NG: 前方以外のLIKEはB-Treeで使えない
-SELECT * FROM users WHERE username LIKE '%田中%';
+-- ===== Case 4: LIKE '%middle%' (infix or suffix match) =====
+-- NG: B-Tree cannot handle non-prefix LIKE patterns
+SELECT * FROM users WHERE username LIKE '%Tanaka%';
 -- → Seq Scan
 
--- OK: pg_trgm拡張でトライグラムインデックス
+-- OK: trigram index via pg_trgm extension
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE INDEX idx_users_name_trgm ON users USING GIN (username gin_trgm_ops);
-SELECT * FROM users WHERE username LIKE '%田中%';
--- → GIN Scanで高速検索
+SELECT * FROM users WHERE username LIKE '%Tanaka%';
+-- → fast GIN Scan
 
--- OK: 全文検索（tsvector + GIN）
--- → 前述のコード例4参照
+-- OK: full-text search (tsvector + GIN)
+-- → see Code Example 4 above
 
 
--- ===== ケース5: OR条件 =====
--- NG: ORでインデックスが効きにくい
+-- ===== Case 5: OR conditions =====
+-- NG: OR conditions are less index-friendly
 SELECT * FROM orders WHERE user_id = 42 OR status = 'pending';
--- → Bitmap OR（各インデックスのビットマップを論理和）
--- → またはSeq Scan
+-- → Bitmap OR (logical OR of bitmaps from each index)
+-- → or Seq Scan
 
--- OK: UNION ALLに書き換え
+-- OK: rewrite as UNION ALL
 SELECT * FROM orders WHERE user_id = 42
 UNION ALL
 SELECT * FROM orders WHERE status = 'pending' AND user_id != 42;
 
 
--- ===== ケース6: NULL の扱い =====
--- B-TreeインデックスはIS NULLとIS NOT NULLに対応
+-- ===== Case 6: handling NULLs =====
+-- B-Tree indexes support IS NULL and IS NOT NULL
 SELECT * FROM users WHERE deleted_at IS NULL;
--- → Index Scanが使用可能（PostgreSQL 8.3+）
+-- → Index Scan can be used (PostgreSQL 8.3+)
 
--- ただし、NULLが大多数の場合は部分インデックスが効果的
+-- However, if most values are NULL, a partial index is more efficient
 CREATE INDEX idx_users_deleted ON users (deleted_at)
 WHERE deleted_at IS NOT NULL;
 ```
 
 ---
 
-## インデックス選択フロー比較表
+## Index Selection Flow Comparison
 
-| 条件 | 推奨インデックス | 理由 |
+| Condition | Recommended Index | Reason |
 |---|---|---|
-| 等値/範囲検索（汎用） | B-Tree | 最も汎用的、デフォルト |
-| JSONBの検索 (@>) | GIN (jsonb_ops / jsonb_path_ops) | @>, ?, ?& 演算子に対応 |
-| 全文検索 (@@) | GIN (tsvector) | トークンの逆引きインデックス |
-| 地理空間検索 | GiST (PostGIS) | 空間的な包含・近傍クエリ |
-| 時系列データ（物理ソート済み） | BRIN | 極小サイズで効率的 |
-| 等値検索のみ（高頻度） | Hash | B-Treeより若干高速（差は小さい） |
-| 大テーブルの少数レコード検索 | 部分インデックス | サイズと保守コストを削減 |
-| テーブルアクセス不要の参照 | カバリングインデックス (INCLUDE) | Index Only Scan を実現 |
-| 中間一致 (LIKE '%xxx%') | GIN (pg_trgm) | トライグラムによる部分文字列検索 |
-| 期間の重複検出 | GiST (範囲型) | && 演算子に対応、排他制約も可能 |
+| Equality/range search (general) | B-Tree | Most versatile, the default |
+| JSONB search (@>) | GIN (jsonb_ops / jsonb_path_ops) | Supports @>, ?, ?& operators |
+| Full-text search (@@) | GIN (tsvector) | Inverted index for tokens |
+| Geospatial search | GiST (PostGIS) | Supports spatial containment and nearest-neighbor queries |
+| Time-series data (physically sorted) | BRIN | Tiny size, efficient for ordered data |
+| Equality-only, high frequency | Hash | Slightly faster than B-Tree (marginal difference) |
+| Searching a few records in a large table | Partial index | Reduces size and maintenance cost |
+| Read-only queries requiring no table access | Covering index (INCLUDE) | Enables Index Only Scan |
+| Infix match (LIKE '%xxx%') | GIN (pg_trgm) | Substring search via trigrams |
+| Detecting period overlaps | GiST (range type) | Supports && operator, also usable for exclusion constraints |
 
-## B-Tree vs 特殊インデックス 性能比較表
+## B-Tree vs. Specialized Indexes — Performance Comparison
 
-| 項目 | B-Tree | GIN | GiST | BRIN |
+| Item | B-Tree | GIN | GiST | BRIN |
 |------|--------|-----|------|------|
-| 構築速度 | 速い | 遅い (2-5x) | 遅い (2-3x) | 極速 |
-| 更新コスト | 中 | 高い (Pending List) | 中 | 極低 |
-| ディスクサイズ (1億行) | ~2GB | ~3-5GB | ~2-4GB | ~200KB |
-| 等値検索 | O(log N) | O(1)* | O(log N) | O(N/R)** |
-| 範囲検索 | O(log N + M) | 非対応 | O(log N + M) | O(N/R + M) |
-| VACUUM影響 | 中 | 大 | 中 | 小 |
+| Build speed | Fast | Slow (2–5x) | Slow (2–3x) | Very fast |
+| Update cost | Medium | High (Pending List) | Medium | Very low |
+| Disk size (100M rows) | ~2GB | ~3–5GB | ~2–4GB | ~200KB |
+| Equality search | O(log N) | O(1)* | O(log N) | O(N/R)** |
+| Range search | O(log N + M) | Not supported | O(log N + M) | O(N/R + M) |
+| VACUUM impact | Medium | Large | Medium | Small |
 
-*GINはハッシュ的な検索。**R=pages_per_range
+*GIN uses hash-like lookup. **R = pages_per_range
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: すべてのカラムにインデックスを作成
+### Anti-Pattern 1: Creating Indexes on Every Column
 
 ```sql
--- NG: 思考停止で全カラムにインデックス
-CREATE INDEX idx_users_id ON users (id);           -- PKで既にある
-CREATE INDEX idx_users_email ON users (email);      -- 必要
-CREATE INDEX idx_users_username ON users (username); -- 検索しない場合は不要
-CREATE INDEX idx_users_status ON users (status);     -- 値の種類が少ない
-CREATE INDEX idx_users_created ON users (created_at); -- 検索しない場合は不要
-CREATE INDEX idx_users_updated ON users (updated_at); -- 検索しない場合は不要
+-- NG: creating indexes on all columns without thinking
+CREATE INDEX idx_users_id ON users (id);           -- already exists as PK
+CREATE INDEX idx_users_email ON users (email);      -- necessary
+CREATE INDEX idx_users_username ON users (username); -- unnecessary if not searched
+CREATE INDEX idx_users_status ON users (status);     -- low cardinality
+CREATE INDEX idx_users_created ON users (created_at); -- unnecessary if not searched
+CREATE INDEX idx_users_updated ON users (updated_at); -- unnecessary if not searched
 
--- 問題点:
--- 1. 各INSERTで6個のインデックスを更新 → 書き込み性能30-50%低下
--- 2. ストレージ消費がテーブルの2-3倍に
--- 3. VACUUMの負荷増大
--- 4. 未使用インデックスが多くの場合50%以上
+-- Problems:
+-- 1. Each INSERT updates 6 indexes → 30–50% write performance degradation
+-- 2. Storage consumption grows to 2–3x the table size
+-- 3. Increased VACUUM load
+-- 4. In many cases, 50%+ of indexes are unused
 
--- OK: 実際のクエリパターンに基づいてインデックスを作成
--- pg_stat_statementsで頻出クエリを分析
+-- OK: create indexes based on actual query patterns
+-- Analyze frequently used queries via pg_stat_statements
 SELECT query, calls, mean_exec_time
 FROM pg_stat_statements
 ORDER BY total_exec_time DESC
 LIMIT 20;
--- → 上位クエリのWHERE句/JOIN条件に必要なインデックスだけを作成
+-- → create only the indexes needed for WHERE clauses and JOIN conditions in top queries
 ```
 
-### アンチパターン2: 複合インデックスの列順序ミス
+### Anti-Pattern 2: Wrong Column Order in Composite Indexes
 
 ```sql
--- NG: 範囲条件の列が先、等値条件の列が後
+-- NG: range condition column first, equality condition column last
 CREATE INDEX idx_orders_bad ON orders (created_at, user_id);
 
--- このクエリでは user_id の条件がインデックスで処理されない
+-- The user_id condition is not handled by the index for this query
 SELECT * FROM orders
 WHERE user_id = 42 AND created_at > '2024-01-01';
 -- → Index Cond: (created_at > '2024-01-01')
--- → Filter: (user_id = 42)  ← インデックス外のフィルタ
+-- → Filter: (user_id = 42)  ← applied outside the index
 
--- OK: 等値条件を先、範囲条件を後
+-- OK: equality condition first, range condition last
 CREATE INDEX idx_orders_good ON orders (user_id, created_at);
--- → Index Cond: (user_id = 42 AND created_at > '2024-01-01')  ← 全条件がインデックス内
+-- → Index Cond: (user_id = 42 AND created_at > '2024-01-01')  ← all conditions within index
 ```
 
-### アンチパターン3: CONCURRENTLYを使わないインデックス作成
+### Anti-Pattern 3: Creating Indexes Without CONCURRENTLY
 
 ```sql
--- NG: プロダクションで通常のCREATE INDEX
+-- NG: standard CREATE INDEX in production
 CREATE INDEX idx_orders_email ON orders (email);
--- → テーブルへの書き込みがロックされる（大テーブルでは数分〜数十分）
+-- → writes to the table are locked (may take minutes or hours on large tables)
 
--- OK: CONCURRENTLYを使用
+-- OK: use CONCURRENTLY
 CREATE INDEX CONCURRENTLY idx_orders_email ON orders (email);
--- → ロックなしで構築（約2倍の時間がかかるが書き込み可能）
--- 注意: トランザクション内では使用不可
--- 注意: 構築に失敗した場合、INVALID状態のインデックスが残る
---       → DROP INDEX CONCURRENTLY で削除
+-- → builds without locking (~2x longer, but writes remain possible)
+-- Note: cannot be used inside a transaction
+-- Note: if build fails, an INVALID index remains
+--       → remove with DROP INDEX CONCURRENTLY
 ```
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1（基礎）: 適切なインデックスの選択
+### Exercise 1 (Beginner): Choosing the Right Index
 
-以下のテーブルとクエリに対して、最適なインデックスを設計してください。
+Design the optimal indexes for the following table and queries.
 
 ```sql
 CREATE TABLE events (
@@ -829,18 +830,18 @@ CREATE TABLE events (
     created_at  TIMESTAMPTZ DEFAULT NOW()
 );
 
--- クエリ1: 特定ユーザーの最近のイベント
+-- Query 1: recent events for a specific user
 SELECT * FROM events
 WHERE user_id = 42
 ORDER BY created_at DESC
 LIMIT 20;
 
--- クエリ2: 特定タイプのイベントをJSONBフィルタ付きで検索
+-- Query 2: events of a specific type with a JSONB filter
 SELECT * FROM events
 WHERE event_type = 'purchase'
   AND payload @> '{"amount_gte": 10000}';
 
--- クエリ3: 日付範囲での集計
+-- Query 3: aggregation over a date range
 SELECT event_type, COUNT(*)
 FROM events
 WHERE created_at BETWEEN '2024-01-01' AND '2024-01-31'
@@ -848,44 +849,44 @@ GROUP BY event_type;
 ```
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```sql
--- クエリ1用: 複合インデックス（等値→ソート順）
+-- For Query 1: composite index (equality → sort order)
 CREATE INDEX idx_events_user_recent ON events (user_id, created_at DESC);
--- → Index Scan (Backward) で LIMIT 20 が効率的に処理される
--- → ORDER BY + LIMIT がインデックスで完結
+-- → Index Scan (Backward) efficiently handles LIMIT 20
+-- → ORDER BY + LIMIT resolved entirely within the index
 
--- クエリ2用: 複合B-Tree + GINインデックス
--- 方法A: event_type用B-Tree + payload用GIN（別々のインデックス）
+-- For Query 2: composite B-Tree + GIN index
+-- Option A: separate B-Tree for event_type + GIN for payload
 CREATE INDEX idx_events_type ON events (event_type);
 CREATE INDEX idx_events_payload ON events USING GIN (payload);
--- → Bitmap AND で両方のインデックスを組み合わせ
+-- → Bitmap AND combines both indexes
 
--- 方法B: 部分インデックス（event_typeの値が限定的な場合）
+-- Option B: partial index (best when event_type has limited values)
 CREATE INDEX idx_events_purchase_payload ON events USING GIN (payload)
 WHERE event_type = 'purchase';
--- → 'purchase'イベントのpayloadだけにGINインデックス（サイズ最小）
+-- → GIN index only on 'purchase' events (minimal size)
 
--- クエリ3用: BRINインデックス（時系列データに最適）
+-- For Query 3: BRIN index (optimal for time-series data)
 CREATE INDEX idx_events_created_brin ON events USING BRIN (created_at)
 WITH (pages_per_range = 32);
--- → 日付範囲の絞り込みに極小サイズで対応
--- → GROUP BY event_type は Seq Scan + Hash Aggregate で処理
--- 注意: 結果行数が多い場合はBRINの方がB-Treeより効率的
---       （ランダムI/Oを避けられるため）
+-- → handles date range filtering with a tiny index
+-- → GROUP BY event_type is handled by Seq Scan + Hash Aggregate
+-- Note: for large result sets, BRIN is often more efficient than B-Tree
+--       (avoids random I/O)
 ```
 
-**解説**: クエリパターンごとに最適なインデックス種類を選択することが重要。クエリ1は複合B-Tree、クエリ2はGIN（部分インデックスがベスト）、クエリ3はBRINが最適。全てのクエリに対して単一のインデックスで対応しようとすると、どのクエリにも中途半端な結果になる。
+**Explanation**: The key is choosing the right index type for each query pattern. Query 1 benefits from a composite B-Tree, Query 2 from a GIN (partial index is best), and Query 3 from a BRIN. Trying to serve all queries with a single index leads to mediocre results for each.
 
 </details>
 
-### 演習2（応用）: インデックスの効果測定と改善
+### Exercise 2 (Intermediate): Measuring and Improving Index Performance
 
-以下の遅いクエリを分析し、適切なインデックスを設計してEXPLAIN ANALYZEで効果を検証してください。
+Analyze the following slow query, design appropriate indexes, and verify the effect with EXPLAIN ANALYZE.
 
 ```sql
--- 遅いクエリ（100万行のテーブル）
+-- Slow query (table with 1 million rows)
 EXPLAIN ANALYZE
 SELECT o.id, o.total, u.email, u.username
 FROM orders o
@@ -896,7 +897,7 @@ WHERE o.status = 'shipped'
 ORDER BY o.created_at DESC
 LIMIT 50;
 
--- 現在の実行計画:
+-- Current execution plan:
 -- Limit  (cost=50000.00..50000.12 rows=50 width=100)
 --   ->  Sort  (cost=50000.00..50100.00 rows=10000 width=100)
 --         Sort Key: o.created_at DESC
@@ -907,27 +908,27 @@ LIMIT 50;
 ```
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```sql
--- Step 1: ordersテーブルの最適化
--- 部分インデックス + カバリング + ソート順
+-- Step 1: optimize the orders table
+-- Partial index + covering + sort order
 CREATE INDEX idx_orders_shipped_recent ON orders (created_at DESC)
 INCLUDE (user_id, total)
 WHERE status = 'shipped';
--- → status='shipped' の行のみインデックス化
--- → created_at DESC でソート済み → ORDER BY + LIMIT が高速
--- → INCLUDE (user_id, total) で必要なカラムをインデックス内に保持
+-- → only indexes rows where status='shipped'
+-- → pre-sorted by created_at DESC → ORDER BY + LIMIT is fast
+-- → INCLUDE (user_id, total) keeps needed columns in the index
 
--- Step 2: usersテーブルの最適化
--- アクティブユーザーの部分インデックス
+-- Step 2: optimize the users table
+-- Partial index for active users
 CREATE INDEX idx_users_active ON users (id)
 INCLUDE (email, username)
 WHERE status = 'active';
--- → JOIN条件(id)でIndex Only Scan
--- → email, username もインデックス内から取得
+-- → Index Only Scan on JOIN condition (id)
+-- → email, username also fetched from the index
 
--- 改善後の実行計画:
+-- Improved execution plan:
 -- Limit  (cost=0.86..100.00 rows=50 width=100)
 --   ->  Nested Loop  (cost=0.86..2000.00 rows=50 width=100)
 --         ->  Index Only Scan using idx_orders_shipped_recent on orders o
@@ -937,35 +938,35 @@ WHERE status = 'active';
 --               Index Cond: (id = o.user_id)
 --               Heap Fetches: 0
 
--- 結果: Seq Scan × 2 → Index Only Scan × 2
---       50000ms → 0.5ms（約100,000倍の高速化）
+-- Result: Seq Scan × 2 → Index Only Scan × 2
+--         50000ms → 0.5ms (~100,000x speedup)
 ```
 
-**解説**: 最も効果的な改善ポイントは以下の3つ:
-1. **部分インデックス**: shipped注文は全体の20%程度なので、インデックスサイズが1/5に
-2. **カバリングインデックス (INCLUDE)**: テーブルアクセスを完全回避（Heap Fetches: 0）
-3. **ソート順の一致**: created_at DESC でインデックスを作成することで、ORDER BY + LIMIT がインデックスのスキャン順で処理される
+**Explanation**: The three most impactful improvements are:
+1. **Partial index**: shipped orders are ~20% of the total, so the index is 1/5 the size
+2. **Covering index (INCLUDE)**: completely avoids table access (Heap Fetches: 0)
+3. **Matching sort order**: creating the index with created_at DESC means ORDER BY + LIMIT is processed in index scan order
 
 </details>
 
-### 演習3（発展）: インデックス保守の自動化
+### Exercise 3 (Advanced): Automating Index Maintenance
 
-以下の要件を満たす、インデックス保守の監視クエリセットを作成してください。
+Create a set of monitoring queries that satisfy the following requirements.
 
-**要件**:
-1. 未使用インデックスの一覧（PRIMARY KEY/UNIQUE除外）
-2. 重複インデックスの検出
-3. インデックス膨張率の推定
-4. テーブルサイズに対するインデックスサイズの比率
-5. 改善推奨のレポート出力
+**Requirements**:
+1. List unused indexes (excluding PRIMARY KEY/UNIQUE)
+2. Detect duplicate indexes
+3. Estimate index bloat ratio
+4. Ratio of index size to table size
+5. Output a report with improvement recommendations
 
 <details>
-<summary>模範解答</summary>
+<summary>Model Answer</summary>
 
 ```sql
--- ===== インデックス保守レポート =====
+-- ===== Index maintenance report =====
 
--- 1. 未使用インデックスの検出
+-- 1. Detect unused indexes
 WITH unused_indexes AS (
     SELECT
         s.indexrelname AS index_name,
@@ -980,12 +981,12 @@ WITH unused_indexes AS (
           WHERE contype IN ('p', 'u')
       )
 )
-SELECT '未使用インデックス' AS category, index_name, table_name,
+SELECT 'Unused index' AS category, index_name, table_name,
        index_size, scans
 FROM unused_indexes
 ORDER BY index_size_bytes DESC;
 
--- 2. 重複インデックスの検出
+-- 2. Detect duplicate indexes
 WITH index_cols AS (
     SELECT
         i.indexrelid,
@@ -999,7 +1000,7 @@ WITH index_cols AS (
     GROUP BY i.indexrelid, i.indrelid
 )
 SELECT
-    '重複インデックス' AS category,
+    'Duplicate index' AS category,
     a.index_name AS index1,
     b.index_name AS index2,
     a.table_name,
@@ -1009,9 +1010,9 @@ JOIN index_cols b ON a.indrelid = b.indrelid
     AND a.indexrelid < b.indexrelid
     AND a.columns = b.columns;
 
--- 3. テーブルサイズに対するインデックスサイズの比率
+-- 3. Index size ratio relative to table size
 SELECT
-    'サイズ比率' AS category,
+    'Size ratio' AS category,
     relname AS table_name,
     pg_size_pretty(pg_relation_size(relid)) AS table_size,
     pg_size_pretty(pg_indexes_size(relid)) AS total_index_size,
@@ -1022,18 +1023,18 @@ SELECT
     END AS index_ratio_pct,
     (SELECT COUNT(*) FROM pg_index WHERE indrelid = relid) AS num_indexes
 FROM pg_stat_user_tables
-WHERE pg_relation_size(relid) > 1024 * 1024  -- 1MB以上のテーブル
+WHERE pg_relation_size(relid) > 1024 * 1024  -- tables larger than 1MB
 ORDER BY pg_indexes_size(relid) DESC
 LIMIT 20;
 
--- 4. 改善推奨サマリー
+-- 4. Improvement recommendation summary
 SELECT
     CASE
         WHEN idx_scan = 0 AND indexrelid NOT IN
             (SELECT indexrelid FROM pg_constraint WHERE contype IN ('p','u'))
-        THEN 'DELETE INDEX（未使用）'
+        THEN 'DROP INDEX (unused)'
         WHEN pg_relation_size(indexrelid) > pg_relation_size(relid) * 0.5
-        THEN 'REINDEX（サイズ過大）'
+        THEN 'REINDEX (oversized)'
         ELSE 'OK'
     END AS recommendation,
     indexrelname AS index_name,
@@ -1047,44 +1048,44 @@ ORDER BY
     pg_relation_size(indexrelid) DESC;
 ```
 
-**解説**: インデックスの保守は定期的に実施する必要がある。特に重要なのは:
-1. **未使用インデックスの削除**: 書き込み性能の改善とストレージ節約
-2. **重複インデックスの統合**: (a, b) と (a, b, c) がある場合、前者は不要
-3. **膨張率の監視**: 30%以上なら REINDEX CONCURRENTLY を検討
-4. **インデックス/テーブル比率**: 200%を超えたらインデックス構成を見直す
+**Explanation**: Index maintenance should be performed regularly. The most important tasks are:
+1. **Removing unused indexes**: improves write performance and saves storage
+2. **Consolidating duplicate indexes**: if both (a, b) and (a, b, c) exist, the former is redundant
+3. **Monitoring bloat**: consider REINDEX CONCURRENTLY when bloat exceeds 30%
+4. **Index-to-table size ratio**: revisit index structure if it exceeds 200%
 
 </details>
 
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured settings file | Check the path and format of the settings file |
+| Timeout | Network latency / resource shortage | Adjust timeout values, add retry logic |
+| Out of memory | Increase in data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access privileges | Check execution user permissions and configuration |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Read the error message**: Read the stack trace and identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Verify step by step**: Use logging and debuggers to validate hypotheses
+5. **Fix and regression test**: After fixing, run tests for related areas as well
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Configure logger
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1092,7 +1093,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
         logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
@@ -1108,86 +1109,86 @@ def debug_decorator(func):
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
         raise ValueError("空のデータ")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Problems
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: measure with profiling tools
+2. **Check memory usage**: look for memory leaks
+3. **Check for I/O wait**: examine disk and network I/O status
+4. **Check concurrent connections**: review connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Remedy |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| High CPU | cProfile, py-spy | Algorithm improvements, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes judgment criteria for technology selection.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | Prioritize when | Can compromise when |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-critical, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① Team size?                                   │
+│    ├─ Small (1-5) → Monolith                    │
+│    └─ Large (10+) → go to ②                     │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② Deployment frequency?                        │
+│    ├─ Weekly or less → Monolith + modules        │
+│    └─ Daily / multiple times → go to ③          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ Team independence?                           │
+│    ├─ High → Microservices                       │
+│    └─ Medium → Modular monolith                  │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. long-term costs**
+- A fast short-term approach can become technical debt in the long run
+- Conversely, over-engineering raises short-term costs and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. flexibility**
+- A unified tech stack has lower learning costs
+- Using diverse technologies enables the right tool for each job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction improves reusability but can make debugging harder
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1197,17 +1198,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1215,7 +1216,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1223,7 +1224,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
         md += f"## 背景\n{self.context}\n\n"
         md += f"## 決定\n{self.decision}\n\n"
@@ -1239,53 +1240,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** You need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum viable feature set
+- Automated tests only for the critical path
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't over-engineer (YAGNI principle)
+- Gather user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Incrementally renewing a system that has been in operation for more than 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Use the Strangler Fig pattern for incremental migration
+- If existing tests are absent, write Characterization Tests first
+- Use an API gateway to run old and new systems in parallel
+- Migrate data incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Assessment | Current state analysis, dependency mapping | 2–4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4–6 weeks | Low |
+| 3. Start migration | Migrate peripheral features first | 3–6 months | Medium |
+| 4. Core migration | Migrate core functionality | 6–12 months | High |
+| 5. Completion | Decommission legacy system | 2–4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** More than 50 engineers working on the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Use Domain-Driven Design to clearly define boundaries
+- Assign ownership per team
+- Manage shared libraries via Inner Source
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1298,20 +1299,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1320,7 +1321,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1341,158 +1342,159 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging async processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization Technique | Effect | Implementation Cost | Applicable Situation |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy operations |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low–Medium | High | CPU-bound cases |
 
 ---
 
-## チーム開発での活用
+## Team Development
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Key points to check in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Are naming conventions consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Are there any performance impacts?
+- [ ] Are there any security concerns?
+- [ ] Has documentation been updated?
 
-### ナレッジ共有のベストプラクティス
+### Best Practices for Knowledge Sharing
 
-| 方法 | 頻度 | 対象 | 効果 |
+| Method | Frequency | Target | Effect |
 |------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talks | Weekly | Entire team | Horizontal knowledge transfer |
+| ADR (design records) | As needed | Future members | Transparency of decisions |
+| Retrospectives | Every 2 weeks | Entire team | Continuous improvement |
+| Mob programming | Monthly | Key design decisions | Building consensus |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
+        High impact
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │Plan │Act  │
+    │ed   │imme-│
+    │resp-│diat-│
+    │onse │ely  │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │Log  │Next │
+    │only │Spri-│
+    │     │nt   │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Low impact
+    Low frequency  High frequency
 ```
 ---
 
 ## FAQ
 
-### Q1: インデックスを追加すると書き込みはどれくらい遅くなりますか？
+### Q1: How much does adding an index slow down writes?
 
-B-Treeインデックス1つにつき、INSERTは約10-20%遅くなります。ただし影響はインデックスサイズとテーブルサイズに依存します。GINインデックスはPending Listを使って遅延更新するため、INSERTへの影響はB-Treeより小さいですが、定期的なクリーンアップ（`gin_pending_list_limit`）が必要です。読み取りの高速化が書き込みの劣化を上回るかどうかで判断してください。
+Each B-Tree index slows down INSERT by approximately 10–20%. However, the impact depends on the index and table size. GIN indexes use a Pending List for deferred updates, so the impact on INSERT is smaller than B-Tree — but regular cleanup (`gin_pending_list_limit`) is required. The decision should be based on whether the read speedup outweighs the write degradation.
 
-### Q2: BRINインデックスはいつ使うべきですか？
+### Q2: When should I use a BRIN index?
 
-テーブルの物理的な行の順序とインデックス対象カラムの値が相関している場合に最適です。典型例は時系列データで、`created_at` カラムの値が挿入順に増加する場合です。B-Treeの1/10000以下のサイズで同等の範囲検索性能を実現できます。ただし、等値検索（`WHERE id = 42`）には不向きです。`correlation`（相関係数）が0.9以上であればBRINが有効です。
+BRIN is optimal when there is a correlation between the physical row order of the table and the values of the indexed column. The classic example is time-series data where the `created_at` column increases in insertion order. You can achieve equivalent range search performance at less than 1/10000 the size of a B-Tree. However, it is not suitable for equality searches (`WHERE id = 42`). BRIN is effective when the `correlation` coefficient is 0.9 or higher.
 
 ```sql
--- 相関係数の確認
+-- Check the correlation coefficient
 SELECT attname, correlation
 FROM pg_stats
 WHERE tablename = 'access_logs' AND attname = 'created_at';
--- correlation > 0.9 なら BRIN が有効
+-- BRIN is effective if correlation > 0.9
 ```
 
-### Q3: CREATE INDEX CONCURRENTLYは常に使うべきですか？
+### Q3: Should I always use CREATE INDEX CONCURRENTLY?
 
-プロダクション環境では推奨します。通常の`CREATE INDEX`はテーブルへの書き込みをロックしますが、`CONCURRENTLY`はロックなしでインデックスを構築します。ただし以下の注意点があります:
-- 構築時間が約2倍になる
-- トランザクション内では使用できない
-- 構築が途中で失敗すると`INVALID`状態のインデックスが残る（手動削除が必要）
-- 2回のテーブルスキャンが必要なため、大量の同時書き込みがあると構築時間が長くなる
+It is recommended in production environments. Standard `CREATE INDEX` locks writes to the table, but `CONCURRENTLY` builds the index without locking. However, be aware of the following caveats:
+- Build time is approximately 2x longer
+- Cannot be used inside a transaction
+- If the build fails midway, an `INVALID` index remains (requires manual removal)
+- Requires two table scans, so build time can be long under heavy concurrent writes
 
-### Q4: HOT Update（Heap-Only Tuple Update）とは何ですか？
+### Q4: What is HOT Update (Heap-Only Tuple Update)?
 
-HOT Updateは、更新された行がインデックスに影響しない場合に、インデックスの更新を完全にスキップする最適化です。条件は:
-1. 更新されたカラムがどのインデックスにも含まれていない
-2. 新しいタプルが元のタプルと同じページに収まる
+HOT Update is an optimization that completely skips index updates when the updated row does not affect any index. The conditions are:
+1. The updated column is not included in any index
+2. The new tuple fits in the same page as the original tuple
 
-`fillfactor`を下げる（デフォルト100→70-80）と、ページに空きスペースができ、HOT Updateの確率が上がります。UPDATE頻度が高いテーブルでは効果的です。
+Lowering `fillfactor` (default 100 → 70–80) creates free space in pages, increasing the chance of HOT Updates. This is effective for tables with high UPDATE frequency.
 
 ```sql
--- HOT Update率の確認
+-- Check the HOT Update rate
 SELECT relname, n_tup_upd, n_tup_hot_upd,
        ROUND(100.0 * n_tup_hot_upd / NULLIF(n_tup_upd, 0), 1) AS hot_pct
 FROM pg_stat_user_tables
 WHERE n_tup_upd > 0
 ORDER BY n_tup_upd DESC;
--- hot_pct が低い場合、fillfactor の調整を検討
+-- If hot_pct is low, consider adjusting fillfactor
 ```
 
-### Q5: マルチカラムインデックスと複数の単一カラムインデックス、どちらが良いですか？
+### Q5: Which is better — a multi-column index or multiple single-column indexes?
 
-**マルチカラムインデックス**が有利な場合:
-- 常に同じカラムの組み合わせで検索する（`WHERE a = ? AND b = ?`）
-- ソート順と検索条件が一致する（`WHERE a = ? ORDER BY b`）
-- Index Only Scanを実現したい
+**Multi-column index** is advantageous when:
+- You always search on the same combination of columns (`WHERE a = ? AND b = ?`)
+- The sort order matches the search condition (`WHERE a = ? ORDER BY b`)
+- You want to achieve Index Only Scan
 
-**複数の単一カラムインデックス**が有利な場合:
-- カラムの組み合わせが不定（`WHERE a = ?` の時もあれば `WHERE b = ?` の時もある）
-- PostgreSQLのBitmap AND/ORで組み合わせ可能
+**Multiple single-column indexes** are advantageous when:
+- The combination of columns varies (`WHERE a = ?` sometimes, `WHERE b = ?` other times)
+- PostgreSQL can combine them via Bitmap AND/OR
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |---|---|
-| B-Tree | 汎用インデックス。等値・範囲検索・ソート。O(log N) |
-| GIN | 全文検索、JSONB、配列の検索。逆引きインデックス |
-| GiST | 空間検索、範囲型の重複検索、排他制約 |
-| BRIN | 物理ソート済みデータの範囲検索。極小サイズ(B-Treeの1/10000) |
-| 部分インデックス | WHERE句付き。テーブルの一部のみインデックス化してサイズ・保守コスト削減 |
-| カバリング | INCLUDE で Index Only Scan を実現。テーブルアクセス不要 |
-| 複合インデックス | 列順序が重要。等値条件を先、範囲条件を後、ソートキーを最後 |
-| 式インデックス | 関数の結果にインデックス。クエリでも同じ式を使うこと |
-| 保守 | 未使用インデックスの定期的な検出と削除。REINDEX CONCURRENTLY |
+| B-Tree | General-purpose index. Equality, range search, sorting. O(log N) |
+| GIN | Full-text search, JSONB, array search. Inverted index |
+| GiST | Spatial search, range type overlap detection, exclusion constraints |
+| BRIN | Range search on physically sorted data. Tiny size (1/10000 of B-Tree) |
+| Partial index | With WHERE clause. Indexes only part of the table — reduces size and maintenance cost |
+| Covering | INCLUDE enables Index Only Scan. No table access required |
+| Composite index | Column order matters. Equality conditions first, range conditions last, sort keys at the end |
+| Expression index | Index on function results. The same expression must be used in queries |
+| Maintenance | Regularly detect and remove unused indexes. REINDEX CONCURRENTLY |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reading
 
-- [04-query-optimization.md](./04-query-optimization.md) — EXPLAINの読み方とクエリリライト
-- [02-transactions.md](./02-transactions.md) — FOR UPDATEとインデックスロックの関係
-- [02-migration.md](../02-design/02-migration.md) — インデックス追加のゼロダウンタイム手法（CONCURRENTLY）
-- [02-performance-tuning.md](../03-practical/02-performance-tuning.md) — 総合的なパフォーマンスチューニング
-- [04-nosql-comparison.md](../03-practical/04-nosql-comparison.md) — インデックス不要なデータモデル
+- [04-query-optimization.md](./04-query-optimization.md) — Reading EXPLAIN output and rewriting queries
+- [02-transactions.md](./02-transactions.md) — Relationship between FOR UPDATE and index locks
+- [02-migration.md](../02-design/02-migration.md) — Zero-downtime index addition techniques (CONCURRENTLY)
+- [02-performance-tuning.md](../03-practical/02-performance-tuning.md) — Comprehensive performance tuning
+- [04-nosql-comparison.md](../03-practical/04-nosql-comparison.md) — Data models that don't require indexes
 
 ---
 
-## 参考文献
+## References
 
-1. **PostgreSQL公式ドキュメント**: [Indexes](https://www.postgresql.org/docs/current/indexes.html) — インデックス種類と詳細仕様
-2. **Markus Winand**: [Use The Index, Luke](https://use-the-index-luke.com/) — SQLインデックスの包括的ガイド（必読）
-3. **Cybertec**: [PostgreSQL Index Types](https://www.cybertec-postgresql.com/en/postgresql-indexes-overview/) — PostgreSQL固有のインデックス解説
-4. **PostgreSQL Wiki**: [Index Maintenance](https://wiki.postgresql.org/wiki/Index_Maintenance) — インデックス保守のベストプラクティス
-5. **Citus Data Blog**: [PostgreSQL Index Tips](https://www.citusdata.com/blog/) — 実践的なインデックス最適化事例
+1. **PostgreSQL Official Documentation**: [Indexes](https://www.postgresql.org/docs/current/indexes.html) — Index types and detailed specifications
+2. **Markus Winand**: [Use The Index, Luke](https://use-the-index-luke.com/) — Comprehensive guide to SQL indexes (highly recommended)
+3. **Cybertec**: [PostgreSQL Index Types](https://www.cybertec-postgresql.com/en/postgresql-indexes-overview/) — PostgreSQL-specific index explanations
+4. **PostgreSQL Wiki**: [Index Maintenance](https://wiki.postgresql.org/wiki/Index_Maintenance) — Best practices for index maintenance
+5. **Citus Data Blog**: [PostgreSQL Index Tips](https://www.citusdata.com/blog/) — Practical index optimization case studies
