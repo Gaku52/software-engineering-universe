@@ -1,83 +1,90 @@
-# マルチエージェント
+# Multi-Agent Systems
 
-> 協調・委任・議論――複数のAIエージェントがチームとして連携し、単体では解決困難な複雑タスクを遂行するマルチエージェントシステムの設計パターン。
+> Collaboration, delegation, debate — design patterns for multi-agent systems where multiple AI agents work as a team to accomplish complex tasks that are difficult to solve with a single agent.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. マルチエージェントの3大パターン（協調・委任・議論）の使い分け
-2. エージェント間通信とタスク分配の設計方法
-3. マルチエージェントシステムのデバッグと最適化手法
-4. 本番運用における障害耐性、コスト管理、スケーリング戦略
-5. 実務シナリオ別のマルチエージェント構成例
+1. When to use each of the three major multi-agent patterns (collaborative, delegation, debate)
+2. How to design inter-agent communication and task distribution
+3. Techniques for debugging and optimizing multi-agent systems
+4. Fault tolerance, cost management, and scaling strategies for production
+5. Multi-agent configuration examples for real-world scenarios
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will help you understand the material more deeply:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [シングルエージェント](./00-single-agent.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of relevant foundational concepts
+- Familiarity with [Single Agent](./00-single-agent.md) content
 
 ---
 
-## 1. なぜマルチエージェントが必要か
+## 1. Why Multi-Agent Systems Are Needed
 
 ```
-シングルエージェントの限界
+Limitations of Single Agents
 
-問題: "Webアプリを設計・実装・テスト・デプロイしてほしい"
+Problem: "Design, implement, test, and deploy a web application"
 
-シングルエージェント:
-  1つのLLMが全てを担当 → 専門性の不足、コンテキスト溢れ
+Single Agent:
+  One LLM handles everything → lack of specialization, context overflow
 
-マルチエージェント:
-  [アーキテクト] → 設計
-  [コーダー]     → 実装
-  [テスター]     → テスト
-  [DevOps]      → デプロイ
-  各エージェントが専門性を持ち、協調して完成させる
+Multi-Agent:
+  [Architect] → Design
+  [Coder]     → Implementation
+  [Tester]    → Testing
+  [DevOps]    → Deployment
+  Each agent has specialized expertise and collaborates to complete the task
 ```
 
-### 1.1 マルチエージェントの利点と課題
+### 1.1 Benefits and Challenges of Multi-Agent Systems
 
 ```
-利点                              課題
+Benefits                          Challenges
 ┌─────────────────────┐      ┌─────────────────────┐
-│ 専門性の分離         │      │ 通信オーバーヘッド   │
-│ → 各エージェントが   │      │ → エージェント間の   │
-│   得意分野に集中     │      │   メッセージ交換コスト│
+│ Separation of        │      │ Communication        │
+│ expertise            │      │ overhead             │
+│ → Each agent focuses │      │ → Cost of message    │
+│   on its specialty   │      │   exchange between   │
+│                      │      │   agents             │
 ├─────────────────────┤      ├─────────────────────┤
-│ コンテキスト管理     │      │ エラー伝播           │
-│ → 各エージェントが   │      │ → 1つの失敗が全体に  │
-│   独自のコンテキスト │      │   波及するリスク     │
+│ Context management   │      │ Error propagation    │
+│ → Each agent         │      │ → Risk that one      │
+│   maintains its own  │      │   failure cascades   │
+│   context            │      │   to the whole system│
 ├─────────────────────┤      ├─────────────────────┤
-│ 並行処理             │      │ デバッグの複雑さ     │
-│ → 独立タスクの同時   │      │ → 複数エージェントの │
-│   実行でスループット↑│      │   相互作用の追跡     │
+│ Parallel processing  │      │ Debugging complexity │
+│ → Simultaneous       │      │ → Tracking           │
+│   execution of       │      │   interactions among │
+│   independent tasks  │      │   multiple agents    │
+│   increases          │      │                      │
+│   throughput         │      │                      │
 ├─────────────────────┤      ├─────────────────────┤
-│ スケーラビリティ     │      │ コスト増大           │
-│ → エージェント追加で │      │ → API呼び出し回数が  │
-│   機能拡張が容易     │      │   エージェント数倍   │
+│ Scalability          │      │ Increased cost       │
+│ → Easy to extend     │      │ → Number of API      │
+│   functionality by   │      │   calls multiplies   │
+│   adding agents      │      │   with agent count   │
 └─────────────────────┘      └─────────────────────┘
 ```
 
-### 1.2 シングルからマルチへの移行判断
+### 1.2 Deciding When to Move from Single to Multi-Agent
 
 ```python
-# マルチエージェント導入の判断基準チェッカー
+# Checker for determining whether to adopt multi-agent
 from dataclasses import dataclass
 
 @dataclass
 class TaskComplexityAssessment:
-    """タスクの複雑度を評価してマルチエージェントの必要性を判断"""
+    """Evaluate task complexity to determine whether multi-agent is needed"""
     task_description: str
-    num_distinct_skills: int        # 必要なスキル領域数
-    num_steps: int                  # 推定ステップ数
-    requires_parallel: bool         # 並行処理が必要か
-    requires_debate: bool           # 多角的検討が必要か
-    context_window_risk: bool       # コンテキスト溢れのリスク
-    quality_critical: bool          # 品質が特に重要か
+    num_distinct_skills: int        # Number of distinct skill domains required
+    num_steps: int                  # Estimated number of steps
+    requires_parallel: bool         # Whether parallel processing is needed
+    requires_debate: bool           # Whether multi-perspective review is needed
+    context_window_risk: bool       # Risk of context overflow
+    quality_critical: bool          # Whether quality is especially important
 
     @property
     def recommendation(self) -> str:
@@ -102,16 +109,16 @@ class TaskComplexityAssessment:
             score += 1
 
         if score >= 5:
-            return "マルチエージェント推奨"
+            return "Multi-agent recommended"
         elif score >= 3:
-            return "マルチエージェント検討"
+            return "Consider multi-agent"
         else:
-            return "シングルエージェントで十分"
+            return "Single agent is sufficient"
 
-# 使用例
+# Usage example
 assessment = TaskComplexityAssessment(
-    task_description="Webアプリのフルスタック開発",
-    num_distinct_skills=4,     # 設計、フロント、バック、テスト
+    task_description="Full-stack web application development",
+    num_distinct_skills=4,     # Design, frontend, backend, testing
     num_steps=30,
     requires_parallel=True,
     requires_debate=False,
@@ -119,37 +126,37 @@ assessment = TaskComplexityAssessment(
     quality_critical=True
 )
 print(assessment.recommendation)
-# → "マルチエージェント推奨"
+# → "Multi-agent recommended"
 ```
 
 ---
 
-## 2. マルチエージェントの3大パターン
+## 2. The Three Major Multi-Agent Patterns
 
-### 2.1 パターン全体図
+### 2.1 Overview of All Patterns
 
 ```
-マルチエージェント パターン
+Multi-Agent Patterns
 
-1. 協調 (Collaborative)
-   [A] ←→ [B] ←→ [C]     対等な立場で協力
+1. Collaborative
+   [A] ←→ [B] ←→ [C]     Peers working together as equals
 
-2. 委任 (Delegation)
-   [Manager]                上位が下位にタスク振り分け
+2. Delegation
+   [Manager]                Superiors distribute tasks to subordinates
    ├── [Worker A]
    ├── [Worker B]
    └── [Worker C]
 
-3. 議論 (Debate)
-   [Proposer] → 提案
-   [Critic]   → 批判      異なる視点で品質向上
-   [Judge]    → 判定
+3. Debate
+   [Proposer] → Proposal
+   [Critic]   → Criticism   Different perspectives improve quality
+   [Judge]    → Verdict
 ```
 
-### 2.2 協調パターン
+### 2.2 Collaborative Pattern
 
 ```python
-# 協調パターン: エージェントが順にタスクを処理
+# Collaborative pattern: agents process tasks in sequence
 import anthropic
 import json
 import time
@@ -161,7 +168,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class AgentMessage:
-    """エージェント間メッセージ"""
+    """Message between agents"""
     sender: str
     receiver: str
     content: Any
@@ -171,7 +178,7 @@ class AgentMessage:
 
 
 class CollaborativeSystem:
-    """協調パターン: 対等なエージェントがパイプラインで連携"""
+    """Collaborative pattern: peer agents cooperate in a pipeline"""
 
     def __init__(self):
         self.client = anthropic.Anthropic()
@@ -184,23 +191,23 @@ class CollaborativeSystem:
                   system_prompt: str = "",
                   model: str = "claude-sonnet-4-20250514",
                   tools: list = None):
-        """エージェントを追加"""
+        """Add an agent"""
         self.agents[name] = {
             "role": role,
-            "system_prompt": system_prompt or f"あなたは{role}です。",
+            "system_prompt": system_prompt or f"You are a {role}.",
             "model": model,
             "tools": tools or []
         }
 
     def set_pipeline(self, pipeline: list[str]):
-        """処理パイプラインの順序を設定"""
+        """Set the processing pipeline order"""
         for name in pipeline:
             if name not in self.agents:
-                raise ValueError(f"エージェント '{name}' が登録されていません")
+                raise ValueError(f"Agent '{name}' is not registered")
         self.pipeline = pipeline
 
     def run(self, task: str) -> dict:
-        """パイプラインを実行"""
+        """Execute the pipeline"""
         result = task
         context = {
             "original_task": task,
@@ -210,21 +217,21 @@ class CollaborativeSystem:
 
         for i, agent_name in enumerate(self.pipeline):
             agent_info = self.agents[agent_name]
-            logger.info(f"[{i+1}/{len(self.pipeline)}] {agent_name} 処理中...")
+            logger.info(f"[{i+1}/{len(self.pipeline)}] Processing {agent_name}...")
 
             prompt = f"""
-あなたの役割: {agent_info['role']}
+Your role: {agent_info['role']}
 
-元のタスク: {context['original_task']}
+Original task: {context['original_task']}
 
-{'これまでの結果:' if context['intermediate_results'] else ''}
+{'Previous results:' if context['intermediate_results'] else ''}
 {self._format_previous_results(context['intermediate_results'])}
 
-前段階の出力:
+Output from previous step:
 {result}
 
-あなたの担当部分を実行してください。
-次のエージェントが理解できるように、結果を構造化して出力してください。
+Execute your assigned portion.
+Output the result in a structured format that the next agent can understand.
 """
             response = self.client.messages.create(
                 model=agent_info["model"],
@@ -236,7 +243,7 @@ class CollaborativeSystem:
             result = response.content[0].text
             self._total_tokens += response.usage.input_tokens + response.usage.output_tokens
 
-            # メッセージログに記録
+            # Record in message log
             msg = AgentMessage(
                 sender=agent_name,
                 receiver=self.pipeline[i + 1] if i + 1 < len(self.pipeline) else "output",
@@ -267,77 +274,77 @@ class CollaborativeSystem:
         if not results:
             return ""
         formatted = []
-        for r in results[-3:]:  # 直近3件のみ
+        for r in results[-3:]:  # Only the most recent 3
             formatted.append(f"[{r['agent']}({r['role']})]: {r['output'][:300]}")
         return "\n".join(formatted)
 
 
-# 使用例
+# Usage example
 system = CollaborativeSystem()
 system.add_agent(
     "researcher",
-    role="情報リサーチャー",
-    system_prompt="あなたは優秀なリサーチャーです。信頼できる情報源から事実を収集し、構造化して提示してください。"
+    role="Information Researcher",
+    system_prompt="You are a skilled researcher. Collect facts from reliable sources and present them in a structured format."
 )
 system.add_agent(
     "analyst",
-    role="データアナリスト",
-    system_prompt="あなたはデータアナリストです。収集されたデータからパターンやトレンドを発見し、数値に基づく洞察を導いてください。"
+    role="Data Analyst",
+    system_prompt="You are a data analyst. Discover patterns and trends from collected data and derive insights based on numbers."
 )
 system.add_agent(
     "writer",
-    role="レポートライター",
-    system_prompt="あなたはビジネスライターです。分析結果を読みやすいレポートにまとめてください。エグゼクティブサマリー付きで。"
+    role="Report Writer",
+    system_prompt="You are a business writer. Summarize analysis results into a readable report. Include an executive summary."
 )
 system.set_pipeline(["researcher", "analyst", "writer"])
-report = system.run("AI市場の2025年トレンドレポートを作成")
+report = system.run("Create a 2025 trend report for the AI market")
 ```
 
-### 2.3 委任パターン
+### 2.3 Delegation Pattern
 
 ```python
-# 委任パターン: マネージャーがワーカーにタスクを振り分け
+# Delegation pattern: manager distributes tasks to workers
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
 class DelegationSystem:
-    """委任パターン: マネージャーが計画し、ワーカーが実行"""
+    """Delegation pattern: manager plans, workers execute"""
 
     def __init__(self, model: str = "claude-sonnet-4-20250514"):
         self.client = anthropic.Anthropic()
         self.model = model
         self.workers: dict[str, dict] = {}
         self.manager_system_prompt = """
-あなたはプロジェクトマネージャーです。
-与えられた目標を達成するために：
-1. タスクを適切な粒度に分解する
-2. 各ワーカーの専門性を考慮してタスクを割り当てる
-3. 依存関係を特定し、実行順序を決定する
-4. ワーカーの結果を統合して最終成果物を作成する
+You are a project manager.
+To achieve the given goal:
+1. Break down tasks into appropriate granularity
+2. Assign tasks considering each worker's expertise
+3. Identify dependencies and determine execution order
+4. Integrate worker results to create the final deliverable
 """
 
     def add_worker(self, name: str, skills: list[str],
                    system_prompt: str = "",
                    model: str = "claude-sonnet-4-20250514"):
-        """ワーカーエージェントを追加"""
+        """Add a worker agent"""
         self.workers[name] = {
             "skills": skills,
-            "system_prompt": system_prompt or f"あなたは{', '.join(skills)}のスペシャリストです。",
+            "system_prompt": system_prompt or f"You are a specialist in {', '.join(skills)}.",
             "model": model
         }
 
     def run(self, goal: str) -> dict:
-        """マネージャーが計画し、ワーカーが実行"""
+        """Manager plans, workers execute"""
         start_time = time.time()
 
-        # Step 1: マネージャーがタスクを分解・割り当て
+        # Step 1: Manager breaks down and assigns tasks
         plan = self._create_plan(goal)
-        logger.info(f"計画: {len(plan.get('assignments', []))}タスク")
+        logger.info(f"Plan: {len(plan.get('assignments', []))} tasks")
 
-        # Step 2: 依存関係に基づいてタスクを実行
+        # Step 2: Execute tasks based on dependencies
         results = self._execute_plan(plan)
 
-        # Step 3: マネージャーが結果を統合
+        # Step 3: Manager integrates results
         final = self._integrate_results(goal, results)
 
         elapsed = time.time() - start_time
@@ -349,9 +356,9 @@ class DelegationSystem:
         }
 
     def _create_plan(self, goal: str) -> dict:
-        """マネージャーがタスクを分解して計画を作成"""
+        """Manager breaks down tasks and creates a plan"""
         worker_descriptions = "\n".join(
-            f"- {name}: スキル={w['skills']}"
+            f"- {name}: skills={w['skills']}"
             for name, w in self.workers.items()
         )
 
@@ -360,33 +367,33 @@ class DelegationSystem:
             max_tokens=2048,
             system=self.manager_system_prompt,
             messages=[{"role": "user", "content": f"""
-目標: {goal}
+Goal: {goal}
 
-利用可能なワーカー:
+Available workers:
 {worker_descriptions}
 
-この目標を達成するための計画をJSON形式で出力してください。
-フォーマット:
+Output a plan to achieve this goal in JSON format.
+Format:
 {{
   "assignments": [
     {{
-      "worker": "ワーカー名",
-      "task": "具体的なタスク内容",
+      "worker": "worker name",
+      "task": "specific task content",
       "priority": 1,
       "depends_on": []
     }}
   ]
 }}
 
-注意:
-- depends_onは依存するタスクのインデックス（0始まり）のリスト
-- priorityは1（高）から3（低）
-- 並行実行可能なタスクはdepends_onを空にする
+Notes:
+- depends_on is a list of indices (0-based) of tasks this depends on
+- priority is 1 (high) to 3 (low)
+- Tasks that can run in parallel should have an empty depends_on
 """}]
         )
 
         text = response.content[0].text
-        # JSONを抽出
+        # Extract JSON
         if "```json" in text:
             text = text.split("```json")[1].split("```")[0]
         elif "```" in text:
@@ -395,7 +402,7 @@ class DelegationSystem:
         try:
             return json.loads(text)
         except json.JSONDecodeError:
-            # フォールバック: 各ワーカーに均等に割り当て
+            # Fallback: assign evenly to each worker
             return {
                 "assignments": [
                     {"worker": name, "task": goal, "priority": 1, "depends_on": []}
@@ -404,55 +411,55 @@ class DelegationSystem:
             }
 
     def _execute_plan(self, plan: dict) -> dict:
-        """依存関係を考慮してタスクを実行"""
+        """Execute tasks respecting dependencies"""
         assignments = plan.get("assignments", [])
         results = {}
         completed = set()
 
-        # 依存関係順にソート
+        # Sort by dependency order
         remaining = list(range(len(assignments)))
 
         while remaining:
-            # 依存関係が解決されたタスクを実行
+            # Execute tasks whose dependencies are resolved
             executable = [
                 i for i in remaining
                 if all(d in completed for d in assignments[i].get("depends_on", []))
             ]
 
             if not executable:
-                logger.error("依存関係のデッドロックを検出")
+                logger.error("Dependency deadlock detected")
                 break
 
-            # 並行実行可能なタスクをまとめて実行
+            # Execute all parallelizable tasks together
             for i in executable:
                 assignment = assignments[i]
                 worker_name = assignment["worker"]
                 task = assignment["task"]
 
                 if worker_name not in self.workers:
-                    results[i] = {"error": f"ワーカー '{worker_name}' が見つかりません"}
+                    results[i] = {"error": f"Worker '{worker_name}' not found"}
                     completed.add(i)
                     remaining.remove(i)
                     continue
 
                 worker = self.workers[worker_name]
 
-                # 依存タスクの結果をコンテキストとして提供
+                # Provide dependent task results as context
                 dep_context = ""
                 for dep_idx in assignment.get("depends_on", []):
                     if dep_idx in results:
                         dep_result = results[dep_idx]
                         dep_task = assignments[dep_idx]["task"]
-                        dep_context += f"\n[前提タスク] {dep_task}\n結果: {str(dep_result)[:500]}\n"
+                        dep_context += f"\n[Prerequisite task] {dep_task}\nResult: {str(dep_result)[:500]}\n"
 
                 response = self.client.messages.create(
                     model=worker["model"],
                     max_tokens=4096,
                     system=worker["system_prompt"],
                     messages=[{"role": "user", "content": f"""
-タスク: {task}
+Task: {task}
 {dep_context}
-上記のタスクを実行し、結果を出力してください。
+Execute the above task and output the result.
 """}]
                 )
 
@@ -467,13 +474,13 @@ class DelegationSystem:
         return results
 
     def _integrate_results(self, goal: str, results: dict) -> str:
-        """マネージャーがワーカーの結果を統合"""
+        """Manager integrates worker results"""
         results_text = ""
         for i, result in sorted(results.items()):
             if isinstance(result, dict):
                 results_text += f"""
-[{result.get('worker', 'unknown')}] タスク: {result.get('task', 'N/A')}
-結果:
+[{result.get('worker', 'unknown')}] Task: {result.get('task', 'N/A')}
+Result:
 {str(result.get('result', 'N/A'))[:1000]}
 ---
 """
@@ -483,45 +490,45 @@ class DelegationSystem:
             max_tokens=4096,
             system=self.manager_system_prompt,
             messages=[{"role": "user", "content": f"""
-目標: {goal}
+Goal: {goal}
 
-各ワーカーの結果:
+Results from each worker:
 {results_text}
 
-上記の結果を統合して、目標に対する包括的な最終成果物を作成してください。
-矛盾がある場合は指摘し、最善の統合を行ってください。
+Integrate the above results to create a comprehensive final deliverable for the goal.
+If there are contradictions, point them out and perform the best integration.
 """}]
         )
         return response.content[0].text
 
 
-# 使用例
+# Usage example
 delegation = DelegationSystem()
 delegation.add_worker(
     "frontend_dev",
     skills=["React", "TypeScript", "CSS", "UI/UX"],
-    system_prompt="あなたはフロントエンドエンジニアです。React/TypeScriptでの実装を行います。"
+    system_prompt="You are a frontend engineer. You implement using React/TypeScript."
 )
 delegation.add_worker(
     "backend_dev",
     skills=["Python", "FastAPI", "PostgreSQL", "Redis"],
-    system_prompt="あなたはバックエンドエンジニアです。Python/FastAPIでの実装を行います。"
+    system_prompt="You are a backend engineer. You implement using Python/FastAPI."
 )
 delegation.add_worker(
     "qa_engineer",
-    skills=["テスト設計", "Pytest", "Playwright", "負荷テスト"],
-    system_prompt="あなたはQAエンジニアです。テスト設計と自動テストの実装を行います。"
+    skills=["Test design", "Pytest", "Playwright", "Load testing"],
+    system_prompt="You are a QA engineer. You design tests and implement automated tests."
 )
 
-result = delegation.run("ユーザー認証機能（登録・ログイン・パスワードリセット）を実装")
+result = delegation.run("Implement user authentication (registration, login, password reset)")
 ```
 
-### 2.4 議論パターン
+### 2.4 Debate Pattern
 
 ```python
-# 議論パターン: 複数視点で品質を向上
+# Debate pattern: improve quality through multiple perspectives
 class DebateSystem:
-    """弁証法的な議論で回答品質を向上"""
+    """Improve answer quality through dialectical debate"""
 
     def __init__(self, model: str = "claude-sonnet-4-20250514"):
         self.client = anthropic.Anthropic()
@@ -530,34 +537,34 @@ class DebateSystem:
         self.debate_log: list[dict] = []
 
     def run(self, question: str) -> dict:
-        """提案→批判→改善のサイクルで品質を向上"""
+        """Improve quality through propose → critique → improve cycles"""
         proposal = None
         criticism = None
 
         for round_num in range(self.max_rounds):
-            logger.info(f"議論ラウンド {round_num + 1}/{self.max_rounds}")
+            logger.info(f"Debate round {round_num + 1}/{self.max_rounds}")
 
-            # 提案者が回答/改善案を提示
+            # Proposer presents answer/improvement
             if proposal is None:
                 proposal = self._generate_proposal(question)
             else:
                 proposal = self._improve_proposal(question, proposal, criticism)
 
-            # 批判者が評価
+            # Critic evaluates
             criticism = self._generate_criticism(question, proposal)
 
-            # ログ記録
+            # Record log
             self.debate_log.append({
                 "round": round_num + 1,
                 "proposal": proposal[:500],
                 "criticism": criticism[:500]
             })
 
-            # 審判者が十分かを判定
+            # Judge determines if it is sufficient
             judgment = self._judge(question, proposal, criticism)
 
             if judgment["is_satisfactory"]:
-                logger.info(f"ラウンド {round_num + 1} で合意に達しました")
+                logger.info(f"Agreement reached in round {round_num + 1}")
                 return {
                     "result": proposal,
                     "rounds": round_num + 1,
@@ -568,84 +575,84 @@ class DebateSystem:
         return {
             "result": proposal,
             "rounds": self.max_rounds,
-            "confidence": "最大ラウンド到達",
+            "confidence": "Max rounds reached",
             "debate_log": self.debate_log
         }
 
     def _generate_proposal(self, question: str) -> str:
-        """初期提案を生成"""
+        """Generate initial proposal"""
         response = self.client.messages.create(
             model=self.model,
             max_tokens=4096,
-            system="あなたは問題解決の専門家です。論理的で包括的な回答を提示してください。根拠を明示し、具体例を含めてください。",
-            messages=[{"role": "user", "content": f"質問: {question}\n\n最善の回答を提示してください。"}]
+            system="You are an expert in problem solving. Present a logical and comprehensive answer. Clearly state your reasoning and include concrete examples.",
+            messages=[{"role": "user", "content": f"Question: {question}\n\nPresent your best answer."}]
         )
         return response.content[0].text
 
     def _improve_proposal(self, question: str, proposal: str, criticism: str) -> str:
-        """批判を踏まえて提案を改善"""
+        """Improve the proposal based on criticism"""
         response = self.client.messages.create(
             model=self.model,
             max_tokens=4096,
-            system="あなたは問題解決の専門家です。批判を真摯に受け止め、具体的な改善を行ってください。",
+            system="You are an expert in problem solving. Take criticism seriously and make concrete improvements.",
             messages=[{"role": "user", "content": f"""
-質問: {question}
+Question: {question}
 
-前回の提案:
+Previous proposal:
 {proposal}
 
-受けた批判:
+Criticism received:
 {criticism}
 
-批判を踏まえて提案を改善してください。
-改善点を明示し、批判への対応を具体的に示してください。
+Improve the proposal based on the criticism.
+Clearly indicate the improvements and specifically show how you addressed the criticism.
 """}]
         )
         return response.content[0].text
 
     def _generate_criticism(self, question: str, proposal: str) -> str:
-        """批判を生成"""
+        """Generate criticism"""
         response = self.client.messages.create(
             model=self.model,
             max_tokens=2048,
-            system="""あなたは批判的思考の専門家です。提案の弱点を建設的に指摘してください。
-以下の観点で評価してください:
-1. 論理的整合性
-2. 事実の正確性
-3. 見落としている観点
-4. 実現可能性
-5. リスクと副作用""",
+            system="""You are an expert in critical thinking. Point out weaknesses in the proposal constructively.
+Evaluate from the following perspectives:
+1. Logical consistency
+2. Factual accuracy
+3. Overlooked perspectives
+4. Feasibility
+5. Risks and side effects""",
             messages=[{"role": "user", "content": f"""
-質問: {question}
-提案: {proposal}
+Question: {question}
+Proposal: {proposal}
 
-この提案の問題点、論理的欠陥、改善点を指摘してください。
-建設的な批判を心がけてください。
+Point out problems, logical flaws, and areas for improvement in this proposal.
+Be constructive in your criticism.
 """}]
         )
         return response.content[0].text
 
     def _judge(self, question: str, proposal: str, criticism: str) -> dict:
-        """審判が品質を判定"""
+        """Judge evaluates the quality"""
         response = self.client.messages.create(
             model=self.model,
             max_tokens=256,
-            system="あなたは公平な審判です。提案と批判を客観的に評価してください。",
+            system="You are a fair judge. Evaluate the proposal and criticism objectively.",
             messages=[{"role": "user", "content": f"""
-質問: {question}
-提案: {proposal[:1000]}
-批判: {criticism[:1000]}
+Question: {question}
+Proposal: {proposal[:1000]}
+Criticism: {criticism[:1000]}
 
-以下の形式で評価してください:
-判定: [PASS/FAIL]
-信頼度: [高/中/低]
-理由: [1行で]
+Evaluate in the following format:
+Verdict: [PASS/FAIL]
+Confidence: [High/Medium/Low]
+Reason: [in one line]
 """}]
         )
 
         text = response.content[0].text
         is_pass = "PASS" in text.upper()
-        confidence = "高" if "高" in text else ("中" if "中" in text else "低")
+        confidence = "High" if "High" in text else ("Medium" if "Medium" in text else "Low")
 
         return {
             "is_satisfactory": is_pass,
@@ -654,12 +661,12 @@ class DebateSystem:
         }
 ```
 
-### 2.5 ハイブリッドパターン
+### 2.5 Hybrid Pattern
 
 ```python
-# 委任 + 議論のハイブリッド
+# Hybrid of delegation + debate
 class HybridSystem:
-    """委任パターンの各段階に議論パターンを組み込む"""
+    """Incorporates the debate pattern into each stage of the delegation pattern"""
 
     def __init__(self, model: str = "claude-sonnet-4-20250514"):
         self.delegation = DelegationSystem(model)
@@ -668,31 +675,31 @@ class HybridSystem:
         self.model = model
 
     def run(self, goal: str, critical_steps: list[int] = None) -> dict:
-        """委任で分担し、重要なステップでは議論で品質確保"""
-        # Step 1: 計画の策定（議論で計画を精査）
+        """Distribute with delegation, ensure quality on critical steps with debate"""
+        # Step 1: Plan formulation (scrutinize plan with debate)
         plan_proposal = self.delegation._create_plan(goal)
 
-        # 計画自体を議論で検証
-        plan_question = f"以下の計画は目標 '{goal}' を達成するのに適切ですか？\n計画: {json.dumps(plan_proposal, ensure_ascii=False)}"
+        # Validate the plan itself through debate
+        plan_question = f"Is the following plan appropriate for achieving the goal '{goal}'?\nPlan: {json.dumps(plan_proposal, ensure_ascii=False)}"
         plan_review = self.debate.run(plan_question)
 
-        # Step 2: 各タスクを実行
+        # Step 2: Execute each task
         results = self.delegation._execute_plan(plan_proposal)
 
-        # Step 3: 重要なステップの結果を議論で精査
+        # Step 3: Scrutinize results of critical steps with debate
         if critical_steps:
             for step_idx in critical_steps:
                 if step_idx in results:
                     step_result = results[step_idx]
                     review_question = (
-                        f"以下のタスク結果の品質は十分ですか？\n"
-                        f"タスク: {step_result.get('task', 'N/A')}\n"
-                        f"結果: {str(step_result.get('result', ''))[:2000]}"
+                        f"Is the quality of the following task result sufficient?\n"
+                        f"Task: {step_result.get('task', 'N/A')}\n"
+                        f"Result: {str(step_result.get('result', ''))[:2000]}"
                     )
                     review = self.debate.run(review_question)
                     results[step_idx]["quality_review"] = review
 
-        # Step 4: 結果統合
+        # Step 4: Integrate results
         final = self.delegation._integrate_results(goal, results)
 
         return {
@@ -705,43 +712,44 @@ class HybridSystem:
 
 ---
 
-## 3. エージェント間通信
+## 3. Inter-Agent Communication
 
-### 3.1 通信パターン
+### 3.1 Communication Patterns
 
 ```
-通信パターン
+Communication Patterns
 
-1. 直接通信 (Direct)
+1. Direct
    [A] ──message──> [B]
 
-2. ブロードキャスト (Broadcast)
+2. Broadcast
    [A] ──message──> [B]
        ──message──> [C]
        ──message──> [D]
 
-3. ブラックボード (Blackboard)
+3. Blackboard
    [A] ──write──> +----------+ <──read── [B]
-                  | 共有メモリ |
-   [C] ──write──> +----------+ <──read── [D]
+                  | Shared    |
+   [C] ──write──> | Memory   | <──read── [D]
+                  +----------+
 
-4. メッセージキュー (Queue)
+4. Message Queue
    [A] ──push──> [Queue] ──pop──> [B]
 
-5. パブリッシュ/サブスクライブ (Pub/Sub)
+5. Publish/Subscribe (Pub/Sub)
    [A] ──publish "topic.x"──> [Bus] ──> [B] (subscribed: topic.x)
                                     ──> [C] (subscribed: topic.*)
 ```
 
-### 3.2 共有メモリパターン
+### 3.2 Shared Memory Pattern
 
 ```python
-# ブラックボード（共有メモリ）パターン
+# Blackboard (shared memory) pattern
 from threading import Lock
 from typing import Any
 
 class Blackboard:
-    """エージェント間の共有メモリ"""
+    """Shared memory between agents"""
 
     def __init__(self):
         self._data: dict[str, Any] = {}
@@ -750,7 +758,7 @@ class Blackboard:
         self._subscribers: dict[str, list[callable]] = {}
 
     def write(self, agent_name: str, key: str, value: Any):
-        """データを書き込み、サブスクライバーに通知"""
+        """Write data and notify subscribers"""
         with self._lock:
             self._data[key] = value
             self._history.append({
@@ -760,7 +768,7 @@ class Blackboard:
                 "timestamp": time.time()
             })
 
-        # サブスクライバーに通知
+        # Notify subscribers
         for pattern, callbacks in self._subscribers.items():
             if self._match_pattern(pattern, key):
                 for callback in callbacks:
@@ -771,7 +779,7 @@ class Blackboard:
             return self._data.get(key)
 
     def read_many(self, keys: list[str]) -> dict:
-        """複数キーを一括読み取り"""
+        """Read multiple keys at once"""
         with self._lock:
             return {k: self._data.get(k) for k in keys}
 
@@ -780,21 +788,21 @@ class Blackboard:
             return self._data.copy()
 
     def subscribe(self, key_pattern: str, callback: callable):
-        """キーパターンに対するサブスクリプション"""
+        """Subscription for a key pattern"""
         if key_pattern not in self._subscribers:
             self._subscribers[key_pattern] = []
         self._subscribers[key_pattern].append(callback)
 
     def get_updates_since(self, timestamp: float) -> list:
-        """指定時刻以降の更新を取得"""
+        """Get updates since the specified time"""
         return [h for h in self._history if h["timestamp"] > timestamp]
 
     def get_agent_contributions(self, agent_name: str) -> list:
-        """特定エージェントの書き込み履歴"""
+        """Write history for a specific agent"""
         return [h for h in self._history if h["agent"] == agent_name]
 
     def _match_pattern(self, pattern: str, key: str) -> bool:
-        """簡易パターンマッチ（*はワイルドカード）"""
+        """Simple pattern matching (* is wildcard)"""
         if pattern == "*":
             return True
         if pattern.endswith("*"):
@@ -802,7 +810,7 @@ class Blackboard:
         return pattern == key
 
     def summary(self) -> dict:
-        """ブラックボードの状態サマリー"""
+        """Status summary of the blackboard"""
         return {
             "total_entries": len(self._data),
             "total_writes": len(self._history),
@@ -811,9 +819,9 @@ class Blackboard:
         }
 
 
-# ブラックボードを使ったマルチエージェントシステム
+# Multi-agent system using a blackboard
 class BlackboardMultiAgent:
-    """ブラックボードベースのマルチエージェントシステム"""
+    """Blackboard-based multi-agent system"""
 
     def __init__(self):
         self.client = anthropic.Anthropic()
@@ -823,7 +831,7 @@ class BlackboardMultiAgent:
     def add_agent(self, name: str, role: str,
                   watches: list[str] = None,
                   produces: list[str] = None):
-        """エージェントを追加"""
+        """Add an agent"""
         self.agents[name] = {
             "role": role,
             "watches": watches or [],
@@ -831,7 +839,7 @@ class BlackboardMultiAgent:
         }
 
     def run(self, goal: str, max_iterations: int = 10) -> dict:
-        """ブラックボードを介してエージェントが協調"""
+        """Agents collaborate through the blackboard"""
         self.board.write("system", "goal", goal)
         self.board.write("system", "status", "running")
 
@@ -839,18 +847,18 @@ class BlackboardMultiAgent:
             any_progress = False
 
             for name, agent_info in self.agents.items():
-                # エージェントが監視しているキーの値を取得
+                # Get the values of keys the agent is watching
                 watched_data = {}
                 for key in agent_info["watches"]:
                     value = self.board.read(key)
                     if value is not None:
                         watched_data[key] = value
 
-                # 必要なデータが揃っていない場合はスキップ
+                # Skip if required data is not available
                 if not watched_data:
                     continue
 
-                # エージェントが既に結果を生成済みかチェック
+                # Check if the agent has already produced its results
                 already_done = all(
                     self.board.read(k) is not None
                     for k in agent_info["produces"]
@@ -858,10 +866,10 @@ class BlackboardMultiAgent:
                 if already_done:
                     continue
 
-                # エージェントを実行
+                # Execute the agent
                 result = self._run_agent(name, agent_info, watched_data, goal)
 
-                # 結果をブラックボードに書き込み
+                # Write results to the blackboard
                 for key in agent_info["produces"]:
                     if key in result:
                         self.board.write(name, key, result[key])
@@ -879,23 +887,23 @@ class BlackboardMultiAgent:
 
     def _run_agent(self, name: str, agent_info: dict,
                    watched_data: dict, goal: str) -> dict:
-        """個別エージェントを実行"""
+        """Execute an individual agent"""
         context = json.dumps(watched_data, ensure_ascii=False, default=str)[:3000]
 
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=2048,
-            system=f"あなたは{agent_info['role']}です。",
+            system=f"You are a {agent_info['role']}.",
             messages=[{"role": "user", "content": f"""
-目標: {goal}
+Goal: {goal}
 
-利用可能なデータ:
+Available data:
 {context}
 
-あなたの成果物キー: {agent_info['produces']}
+Your output keys: {agent_info['produces']}
 
-成果物をJSON形式で出力してください。
-キーは上記の成果物キーを使用してください。
+Output your deliverables in JSON format.
+Use the output keys listed above.
 """}]
         )
 
@@ -908,7 +916,7 @@ class BlackboardMultiAgent:
             return {agent_info["produces"][0]: text if agent_info["produces"] else "result"}
 ```
 
-### 3.3 メッセージキューパターン
+### 3.3 Message Queue Pattern
 
 ```python
 from collections import deque
@@ -916,7 +924,7 @@ from threading import Lock, Event
 from typing import Optional
 
 class MessageQueue:
-    """優先度付きメッセージキュー"""
+    """Priority message queue"""
 
     def __init__(self, max_size: int = 1000):
         self._queue: deque[AgentMessage] = deque(maxlen=max_size)
@@ -925,20 +933,20 @@ class MessageQueue:
         self._processed: list[AgentMessage] = []
 
     def push(self, message: AgentMessage, priority: int = 0):
-        """メッセージを追加（priority: 0=通常、1=高、2=緊急）"""
+        """Add a message (priority: 0=normal, 1=high, 2=urgent)"""
         with self._lock:
             if priority >= 2:
-                self._queue.appendleft(message)  # 先頭に挿入
+                self._queue.appendleft(message)  # Insert at front
             else:
                 self._queue.append(message)
             self._not_empty.set()
 
     def pop(self, receiver: Optional[str] = None,
             timeout: float = None) -> Optional[AgentMessage]:
-        """メッセージを取得（receiverでフィルタ可能）"""
+        """Retrieve a message (can filter by receiver)"""
         with self._lock:
             if receiver:
-                # 特定受信者向けのメッセージを検索
+                # Search for messages for a specific receiver
                 for i, msg in enumerate(self._queue):
                     if msg.receiver == receiver:
                         del self._queue[i]
@@ -952,14 +960,14 @@ class MessageQueue:
             return None
 
     def pending_count(self, receiver: Optional[str] = None) -> int:
-        """未処理メッセージ数"""
+        """Number of unprocessed messages"""
         with self._lock:
             if receiver:
                 return sum(1 for m in self._queue if m.receiver == receiver)
             return len(self._queue)
 
     def stats(self) -> dict:
-        """キューの統計"""
+        """Queue statistics"""
         return {
             "pending": len(self._queue),
             "processed": len(self._processed),
@@ -969,7 +977,7 @@ class MessageQueue:
 
 
 class QueueBasedMultiAgent:
-    """メッセージキューベースのマルチエージェントシステム"""
+    """Message queue-based multi-agent system"""
 
     def __init__(self):
         self.client = anthropic.Anthropic()
@@ -978,8 +986,8 @@ class QueueBasedMultiAgent:
         self.results: dict[str, list] = {}
 
     def add_agent(self, name: str, role: str, handles: list[str]):
-        """エージェントを追加
-        handles: 処理するメッセージタイプのリスト
+        """Add an agent
+        handles: list of message types to process
         """
         self.agents[name] = {
             "role": role,
@@ -989,7 +997,7 @@ class QueueBasedMultiAgent:
 
     def send_message(self, sender: str, receiver: str,
                      content: Any, message_type: str = "task"):
-        """メッセージを送信"""
+        """Send a message"""
         msg = AgentMessage(
             sender=sender,
             receiver=receiver,
@@ -999,7 +1007,7 @@ class QueueBasedMultiAgent:
         self.queue.push(msg)
 
     def process_messages(self, max_cycles: int = 20) -> dict:
-        """全メッセージを処理"""
+        """Process all messages"""
         for cycle in range(max_cycles):
             if self.queue.pending_count() == 0:
                 break
@@ -1021,17 +1029,17 @@ class QueueBasedMultiAgent:
 
     def _process_message(self, agent_name: str, agent_info: dict,
                          message: AgentMessage) -> str:
-        """エージェントがメッセージを処理"""
+        """Agent processes a message"""
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=2048,
-            system=f"あなたは{agent_info['role']}です。",
+            system=f"You are a {agent_info['role']}.",
             messages=[{"role": "user", "content": f"""
-送信者: {message.sender}
-メッセージタイプ: {message.message_type}
-内容: {message.content}
+Sender: {message.sender}
+Message type: {message.message_type}
+Content: {message.content}
 
-このメッセージに対して、あなたの役割に基づいて適切に処理してください。
+Process this message appropriately based on your role.
 """}]
         )
         return response.content[0].text
@@ -1039,101 +1047,101 @@ class QueueBasedMultiAgent:
 
 ---
 
-## 4. パターン比較
+## 4. Pattern Comparison
 
-### 4.1 3大パターン比較
+### 4.1 Comparison of the Three Major Patterns
 
-| 観点 | 協調 | 委任 | 議論 |
-|------|------|------|------|
-| 構造 | フラット（対等） | 階層型（上下） | 対立型（弁証法） |
-| 通信 | パイプライン/共有 | 上→下→上 | 循環 |
-| 適用場面 | 工程が明確 | タスク分解可能 | 品質向上が重要 |
-| スケーラビリティ | 中 | 高 | 低 |
-| コスト | 中 | 中-高 | 高 |
-| デバッグ容易性 | 高 | 中 | 低 |
-| 障害耐性 | 低（直列） | 中（並列可） | 中 |
-| 品質保証 | 各段階で検証 | 統合時に検証 | 反復で向上 |
-| 代表フレームワーク | LangGraph | CrewAI | AutoGen |
+| Aspect | Collaborative | Delegation | Debate |
+|--------|--------------|------------|--------|
+| Structure | Flat (peer) | Hierarchical (top-down) | Adversarial (dialectical) |
+| Communication | Pipeline / shared | Top → bottom → top | Cyclic |
+| Use case | Clear process stages | Decomposable tasks | Quality improvement is important |
+| Scalability | Medium | High | Low |
+| Cost | Medium | Medium-High | High |
+| Debuggability | High | Medium | Low |
+| Fault tolerance | Low (serial) | Medium (parallelizable) | Medium |
+| Quality assurance | Verified at each stage | Verified at integration | Improved through iteration |
+| Representative framework | LangGraph | CrewAI | AutoGen |
 
-### 4.2 適用タスク別推奨パターン
+### 4.2 Recommended Patterns by Task Type
 
-| タスク | 推奨パターン | 理由 |
-|--------|-------------|------|
-| ソフトウェア開発 | 委任 | 設計→実装→テストの工程分担 |
-| 研究レポート | 協調 | 調査→分析→執筆のパイプライン |
-| コードレビュー | 議論 | 複数視点での品質チェック |
-| データ分析 | 委任 | 分析タスクの並列分配 |
-| 意思決定支援 | 議論 | 賛否両面の検討 |
-| カスタマーサポート | 委任 | ルーティング+専門対応 |
-| セキュリティ監査 | ハイブリッド | 委任で分担、議論で精査 |
-| コンテンツ制作 | 協調 | 企画→制作→校正の直列フロー |
-| 翻訳品質保証 | 議論 | 複数翻訳者の比較検討 |
+| Task | Recommended Pattern | Reason |
+|------|--------------------|----|
+| Software development | Delegation | Division of design → implementation → testing |
+| Research report | Collaborative | Pipeline of research → analysis → writing |
+| Code review | Debate | Quality check from multiple perspectives |
+| Data analysis | Delegation | Parallel distribution of analysis tasks |
+| Decision support | Debate | Consideration of both sides of arguments |
+| Customer support | Delegation | Routing + specialized handling |
+| Security audit | Hybrid | Delegation for distribution, debate for scrutiny |
+| Content creation | Collaborative | Serial flow of planning → production → proofreading |
+| Translation quality assurance | Debate | Comparative review by multiple translators |
 
-### 4.3 通信パターン比較
+### 4.3 Communication Pattern Comparison
 
-| 通信方式 | レイテンシ | スケーラビリティ | 実装複雑度 | 適用場面 |
-|---------|----------|----------------|-----------|---------|
-| 直接通信 | 最低 | 低 | 最低 | 2-3エージェント |
-| ブラックボード | 低 | 中 | 中 | 共有状態が必要 |
-| メッセージキュー | 中 | 高 | 中 | 非同期処理 |
-| Pub/Sub | 中 | 最高 | 高 | イベント駆動 |
-| ブロードキャスト | 高 | 低 | 低 | 全員への通知 |
+| Communication method | Latency | Scalability | Implementation complexity | Use case |
+|---------------------|---------|-------------|--------------------------|---------|
+| Direct | Lowest | Low | Lowest | 2–3 agents |
+| Blackboard | Low | Medium | Medium | Shared state required |
+| Message queue | Medium | High | Medium | Asynchronous processing |
+| Pub/Sub | Medium | Highest | High | Event-driven |
+| Broadcast | High | Low | Low | Notification to all |
 
 ---
 
-## 5. フレームワーク実装
+## 5. Framework Implementations
 
-### 5.1 CrewAIでのマルチエージェント
+### 5.1 Multi-Agent with CrewAI
 
 ```python
-# CrewAIを使った本格的なマルチエージェントシステム
+# Full-featured multi-agent system using CrewAI
 from crewai import Agent, Task, Crew, Process
 
-# エージェント定義
+# Agent definitions
 product_manager = Agent(
-    role="プロダクトマネージャー",
-    goal="ユーザーニーズに基づいた機能仕様を策定する",
-    backstory="SaaS企業で7年の経験を持つPM。ユーザーリサーチとデータ駆動の意思決定が得意。",
+    role="Product Manager",
+    goal="Define feature specifications based on user needs",
+    backstory="PM with 7 years of experience at SaaS companies. Expert in user research and data-driven decision making.",
     llm="claude-sonnet-4-20250514"
 )
 
 architect = Agent(
-    role="ソフトウェアアーキテクト",
-    goal="スケーラブルで保守性の高いシステム設計を行う",
-    backstory="大規模分散システムの設計に10年従事。マイクロサービスとクラウドネイティブの専門家。",
+    role="Software Architect",
+    goal="Design scalable and maintainable systems",
+    backstory="10 years designing large-scale distributed systems. Expert in microservices and cloud-native architectures.",
     llm="claude-sonnet-4-20250514"
 )
 
 developer = Agent(
-    role="シニアデベロッパー",
-    goal="設計に基づいて高品質なコードを実装する",
-    backstory="フルスタックエンジニア。Python/TypeScript/Goに精通。TDD実践者。",
+    role="Senior Developer",
+    goal="Implement high-quality code based on the design",
+    backstory="Full-stack engineer. Proficient in Python/TypeScript/Go. TDD practitioner.",
     llm="claude-sonnet-4-20250514",
     tools=[code_tool, test_tool]
 )
 
-# タスク定義
+# Task definitions
 spec_task = Task(
-    description="ユーザー認証機能の要件を定義する",
-    expected_output="機能仕様書（ユースケース、画面遷移、API仕様）",
+    description="Define requirements for the user authentication feature",
+    expected_output="Feature specification (use cases, screen transitions, API specs)",
     agent=product_manager
 )
 
 design_task = Task(
-    description="認証機能のシステム設計を行う",
-    expected_output="設計書（アーキテクチャ図、DB設計、API設計）",
+    description="Design the system for the authentication feature",
+    expected_output="Design document (architecture diagram, DB design, API design)",
     agent=architect,
     context=[spec_task]
 )
 
 impl_task = Task(
-    description="設計に基づいて認証APIを実装する",
-    expected_output="実装コード（テスト含む）",
+    description="Implement the authentication API based on the design",
+    expected_output="Implementation code (including tests)",
     agent=developer,
     context=[design_task]
 )
 
-# 実行
+# Execution
 crew = Crew(
     agents=[product_manager, architect, developer],
     tasks=[spec_task, design_task, impl_task],
@@ -1144,37 +1152,37 @@ crew = Crew(
 result = crew.kickoff()
 ```
 
-### 5.2 LangGraphでのマルチエージェント
+### 5.2 Multi-Agent with LangGraph
 
 ```python
-# LangGraphを使ったグラフベースのマルチエージェント
+# Graph-based multi-agent system using LangGraph
 from langgraph.graph import StateGraph, END
 from typing import TypedDict, Annotated
 import operator
 
 class TeamState(TypedDict):
-    """チーム全体の共有状態"""
+    """Shared state for the entire team"""
     task: str
     plan: list[str]
     research: str
     draft: str
     review: str
     final: str
-    messages: Annotated[list[str], operator.add]  # 累積
+    messages: Annotated[list[str], operator.add]  # Accumulating
     current_agent: str
     iteration: int
 
 def planner_node(state: TeamState) -> dict:
-    """プランナーノード: タスクを分解"""
+    """Planner node: decompose the task"""
     client = anthropic.Anthropic()
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=1024,
-        system="あなたはプロジェクトプランナーです。",
+        system="You are a project planner.",
         messages=[{"role": "user", "content": f"""
-タスク: {state['task']}
-このタスクを3-5ステップに分解してください。
-番号付きリストで出力:
+Task: {state['task']}
+Break this task down into 3–5 steps.
+Output as a numbered list:
 """}]
     )
     plan_text = response.content[0].text
@@ -1182,90 +1190,90 @@ def planner_node(state: TeamState) -> dict:
              if line.strip() and line.strip()[0].isdigit()]
     return {
         "plan": steps,
-        "messages": [f"[Planner] {len(steps)}ステップの計画を作成"],
+        "messages": [f"[Planner] Created a plan with {len(steps)} steps"],
         "current_agent": "researcher"
     }
 
 def researcher_node(state: TeamState) -> dict:
-    """リサーチャーノード: 情報収集"""
+    """Researcher node: gather information"""
     client = anthropic.Anthropic()
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=2048,
-        system="あなたはリサーチャーです。事実に基づいた情報を収集してください。",
+        system="You are a researcher. Collect fact-based information.",
         messages=[{"role": "user", "content": f"""
-タスク: {state['task']}
-計画: {state['plan']}
+Task: {state['task']}
+Plan: {state['plan']}
 
-上記の計画に基づいて、必要な情報をリサーチしてください。
+Research the necessary information based on the above plan.
 """}]
     )
     return {
         "research": response.content[0].text,
-        "messages": [f"[Researcher] リサーチ完了"],
+        "messages": [f"[Researcher] Research complete"],
         "current_agent": "writer"
     }
 
 def writer_node(state: TeamState) -> dict:
-    """ライターノード: ドラフト作成"""
+    """Writer node: create draft"""
     client = anthropic.Anthropic()
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=4096,
-        system="あなたはプロフェッショナルライターです。",
+        system="You are a professional writer.",
         messages=[{"role": "user", "content": f"""
-タスク: {state['task']}
-リサーチ結果: {state['research'][:2000]}
-{'レビューコメント: ' + state['review'] if state.get('review') else ''}
+Task: {state['task']}
+Research results: {state['research'][:2000]}
+{'Review comments: ' + state['review'] if state.get('review') else ''}
 
-上記に基づいてドラフトを作成してください。
+Create a draft based on the above.
 """}]
     )
     return {
         "draft": response.content[0].text,
-        "messages": [f"[Writer] ドラフト作成完了"],
+        "messages": [f"[Writer] Draft creation complete"],
         "current_agent": "reviewer"
     }
 
 def reviewer_node(state: TeamState) -> dict:
-    """レビュアーノード: 品質チェック"""
+    """Reviewer node: quality check"""
     client = anthropic.Anthropic()
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=1024,
-        system="あなたは品質レビュアーです。建設的なフィードバックを提供してください。",
+        system="You are a quality reviewer. Provide constructive feedback.",
         messages=[{"role": "user", "content": f"""
-タスク: {state['task']}
-ドラフト: {state['draft'][:2000]}
+Task: {state['task']}
+Draft: {state['draft'][:2000]}
 
-品質を評価し、以下の形式で回答:
-品質: [合格/要改善]
-フィードバック: [具体的な改善点]
+Evaluate the quality and respond in the following format:
+Quality: [Pass/Needs improvement]
+Feedback: [specific improvements]
 """}]
     )
     review = response.content[0].text
     return {
         "review": review,
-        "messages": [f"[Reviewer] レビュー完了"],
+        "messages": [f"[Reviewer] Review complete"],
         "iteration": state.get("iteration", 0) + 1
     }
 
 def should_continue(state: TeamState) -> str:
-    """レビュー結果に基づいてフローを決定"""
+    """Determine flow based on review result"""
     if state.get("iteration", 0) >= 3:
         return "finalize"
-    if state.get("review") and "合格" in state["review"]:
+    if state.get("review") and "Pass" in state["review"]:
         return "finalize"
     return "revise"
 
 def finalize_node(state: TeamState) -> dict:
-    """最終化ノード"""
+    """Finalization node"""
     return {
         "final": state.get("draft", ""),
-        "messages": [f"[System] 最終化完了（{state.get('iteration', 0)}回のイテレーション）"]
+        "messages": [f"[System] Finalization complete ({state.get('iteration', 0)} iterations)"]
     }
 
-# グラフの構築
+# Build graph
 workflow = StateGraph(TeamState)
 
 workflow.add_node("planner", planner_node)
@@ -1285,10 +1293,10 @@ workflow.add_conditional_edges(
 )
 workflow.add_edge("finalizer", END)
 
-# コンパイルと実行
+# Compile and run
 app = workflow.compile()
 result = app.invoke({
-    "task": "AIエージェントの未来に関するレポートを作成",
+    "task": "Create a report on the future of AI agents",
     "plan": [],
     "research": "",
     "draft": "",
@@ -1302,13 +1310,13 @@ result = app.invoke({
 
 ---
 
-## 6. 障害耐性設計
+## 6. Fault Tolerance Design
 
-### 6.1 エージェント障害への対応
+### 6.1 Handling Agent Failures
 
 ```python
 class ResilientMultiAgent:
-    """障害耐性のあるマルチエージェントシステム"""
+    """Multi-agent system with fault tolerance"""
 
     def __init__(self):
         self.client = anthropic.Anthropic()
@@ -1318,7 +1326,7 @@ class ResilientMultiAgent:
     def add_agent(self, name: str, role: str,
                   fallback: Optional[str] = None,
                   max_retries: int = 3):
-        """フォールバック付きでエージェントを追加"""
+        """Add an agent with a fallback"""
         self.agents[name] = {
             "role": role,
             "max_retries": max_retries
@@ -1328,12 +1336,12 @@ class ResilientMultiAgent:
 
     def execute_agent(self, name: str, task: str,
                       context: dict = None) -> dict:
-        """障害耐性付きでエージェントを実行"""
+        """Execute an agent with fault tolerance"""
         agent = self.agents.get(name)
         if not agent:
-            return {"error": f"エージェント '{name}' が見つかりません"}
+            return {"error": f"Agent '{name}' not found"}
 
-        # リトライロジック
+        # Retry logic
         for attempt in range(agent["max_retries"]):
             try:
                 result = self._call_agent(name, agent, task, context)
@@ -1341,36 +1349,36 @@ class ResilientMultiAgent:
                     return result
             except Exception as e:
                 logger.warning(
-                    f"{name} 失敗（{attempt + 1}/{agent['max_retries']}）: {e}"
+                    f"{name} failed ({attempt + 1}/{agent['max_retries']}): {e}"
                 )
                 if attempt < agent["max_retries"] - 1:
                     time.sleep(2 ** attempt)
 
-        # フォールバックエージェントを試行
+        # Try fallback agent
         fallback_name = self.fallback_agents.get(name)
         if fallback_name and fallback_name in self.agents:
-            logger.info(f"{name} → {fallback_name} にフォールバック")
+            logger.info(f"Falling back from {name} to {fallback_name}")
             return self.execute_agent(fallback_name, task, context)
 
         return {
-            "error": f"{name} が{agent['max_retries']}回試行後に失敗",
-            "partial_result": "フォールバックなし"
+            "error": f"{name} failed after {agent['max_retries']} attempts",
+            "partial_result": "No fallback available"
         }
 
     def _call_agent(self, name: str, agent: dict,
                     task: str, context: dict = None) -> dict:
-        """エージェントを呼び出す"""
+        """Call an agent"""
         context_text = json.dumps(context or {}, ensure_ascii=False, default=str)[:2000]
 
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=4096,
-            system=f"あなたは{agent['role']}です。",
+            system=f"You are a {agent['role']}.",
             messages=[{"role": "user", "content": f"""
-タスク: {task}
-コンテキスト: {context_text}
+Task: {task}
+Context: {context_text}
 
-タスクを実行し、結果を出力してください。
+Execute the task and output the result.
 """}]
         )
         return {
@@ -1379,19 +1387,19 @@ class ResilientMultiAgent:
         }
 ```
 
-### 6.2 タイムアウトとサーキットブレーカー
+### 6.2 Timeouts and Circuit Breakers
 
 ```python
 from enum import Enum
 from collections import deque
 
 class CircuitState(Enum):
-    CLOSED = "closed"       # 正常
-    OPEN = "open"           # 障害中（リクエスト遮断）
-    HALF_OPEN = "half_open" # 回復テスト中
+    CLOSED = "closed"       # Normal
+    OPEN = "open"           # Failing (requests blocked)
+    HALF_OPEN = "half_open" # Recovery testing
 
 class CircuitBreaker:
-    """サーキットブレーカー: 連続障害時にリクエストを遮断"""
+    """Circuit breaker: blocks requests when consecutive failures occur"""
 
     def __init__(self, failure_threshold: int = 5,
                  recovery_timeout: float = 60.0,
@@ -1413,7 +1421,7 @@ class CircuitBreaker:
         return self._state
 
     def allow_request(self) -> bool:
-        """リクエストを許可するか"""
+        """Whether to allow a request"""
         state = self.state
         if state == CircuitState.CLOSED:
             return True
@@ -1423,7 +1431,7 @@ class CircuitBreaker:
             return False
 
     def record_success(self):
-        """成功を記録"""
+        """Record a success"""
         if self._state == CircuitState.HALF_OPEN:
             self._half_open_successes += 1
             if self._half_open_successes >= self.half_open_max:
@@ -1433,16 +1441,16 @@ class CircuitBreaker:
             self._failure_count = 0
 
     def record_failure(self):
-        """失敗を記録"""
+        """Record a failure"""
         self._failure_count += 1
         self._last_failure_time = time.time()
         if self._failure_count >= self.failure_threshold:
             self._state = CircuitState.OPEN
-            logger.warning(f"サーキットブレーカーOPEN: {self._failure_count}回連続失敗")
+            logger.warning(f"Circuit breaker OPEN: {self._failure_count} consecutive failures")
 
 
 class ProtectedAgent:
-    """サーキットブレーカー付きエージェント"""
+    """Agent with circuit breaker"""
 
     def __init__(self, name: str, role: str):
         self.client = anthropic.Anthropic()
@@ -1451,10 +1459,10 @@ class ProtectedAgent:
         self.circuit = CircuitBreaker()
 
     def execute(self, task: str) -> dict:
-        """サーキットブレーカー付きで実行"""
+        """Execute with circuit breaker"""
         if not self.circuit.allow_request():
             return {
-                "error": f"{self.name} はサーキットブレーカーにより一時停止中",
+                "error": f"{self.name} is temporarily suspended by circuit breaker",
                 "circuit_state": self.circuit.state.value,
                 "retry_after": self.circuit.recovery_timeout
             }
@@ -1463,7 +1471,7 @@ class ProtectedAgent:
             response = self.client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=4096,
-                system=f"あなたは{self.role}です。",
+                system=f"You are a {self.role}.",
                 messages=[{"role": "user", "content": task}]
             )
             self.circuit.record_success()
@@ -1475,13 +1483,13 @@ class ProtectedAgent:
 
 ---
 
-## 7. コスト管理とモニタリング
+## 7. Cost Management and Monitoring
 
-### 7.1 マルチエージェントのコスト追跡
+### 7.1 Cost Tracking for Multi-Agent Systems
 
 ```python
 class MultiAgentCostTracker:
-    """マルチエージェントシステムのコスト追跡"""
+    """Cost tracking for multi-agent systems"""
 
     PRICING = {
         "claude-sonnet-4-20250514": {"input": 3.0, "output": 15.0},
@@ -1495,7 +1503,7 @@ class MultiAgentCostTracker:
 
     def record(self, agent_name: str, model: str,
                input_tokens: int, output_tokens: int):
-        """API呼び出しを記録"""
+        """Record an API call"""
         pricing = self.PRICING.get(model, {"input": 0, "output": 0})
         cost = (input_tokens * pricing["input"] +
                 output_tokens * pricing["output"]) / 1_000_000
@@ -1524,7 +1532,7 @@ class MultiAgentCostTracker:
         return self.total_cost < self.budget
 
     def cost_report(self) -> dict:
-        """コストレポート"""
+        """Cost report"""
         return {
             "total_cost_usd": round(self.total_cost, 4),
             "budget_usd": self.budget,
@@ -1545,42 +1553,42 @@ class MultiAgentCostTracker:
         }
 
     def cost_optimization_suggestions(self) -> list[str]:
-        """コスト最適化の提案"""
+        """Cost optimization suggestions"""
         suggestions = []
 
-        # 最もコストの高いエージェントを特定
+        # Identify the most costly agent
         if self.agent_costs:
             max_agent = max(self.agent_costs, key=self.agent_costs.get)
             max_cost = self.agent_costs[max_agent]
             if max_cost > self.total_cost * 0.5:
                 suggestions.append(
-                    f"{max_agent} が総コストの{max_cost/self.total_cost:.0%}を占めています。"
-                    f"Haikuモデルへの切り替えを検討してください。"
+                    f"{max_agent} accounts for {max_cost/self.total_cost:.0%} of total cost. "
+                    f"Consider switching to the Haiku model."
                 )
 
-        # Sonnetの使用率が高い場合
+        # High Sonnet usage rate
         sonnet_calls = sum(1 for r in self._records if "sonnet" in r["model"])
         if sonnet_calls > len(self._records) * 0.8:
             suggestions.append(
-                "API呼び出しの80%以上がSonnetです。"
-                "簡単なタスク（分類、要約）はHaikuに切り替えることで"
-                "コストを1/10以下に削減できます。"
+                "More than 80% of API calls use Sonnet. "
+                "Switching simple tasks (classification, summarization) to Haiku "
+                "can reduce costs by more than 10x."
             )
 
-        # キャッシュの活用
+        # Encourage caching
         suggestions.append(
-            "同じ入力パターンのAPI呼び出しにキャッシュを導入すると"
-            "重複コストを削減できます。"
+            "Introducing caching for API calls with the same input pattern "
+            "can reduce duplicate costs."
         )
 
         return suggestions
 ```
 
-### 7.2 実行モニタリング
+### 7.2 Execution Monitoring
 
 ```python
 class MultiAgentMonitor:
-    """マルチエージェントシステムのモニタリング"""
+    """Monitoring for multi-agent systems"""
 
     def __init__(self):
         self._events: list[dict] = []
@@ -1588,7 +1596,7 @@ class MultiAgentMonitor:
 
     def record_event(self, agent_name: str, event_type: str,
                      details: dict = None):
-        """イベントを記録"""
+        """Record an event"""
         event = {
             "agent": agent_name,
             "type": event_type,
@@ -1597,7 +1605,7 @@ class MultiAgentMonitor:
         }
         self._events.append(event)
 
-        # エージェントメトリクスを更新
+        # Update agent metrics
         if agent_name not in self._agent_metrics:
             self._agent_metrics[agent_name] = {
                 "total_calls": 0,
@@ -1615,7 +1623,7 @@ class MultiAgentMonitor:
             metrics["total_time_ms"] += details["elapsed_ms"]
 
     def dashboard(self) -> dict:
-        """ダッシュボードデータ"""
+        """Dashboard data"""
         return {
             "total_events": len(self._events),
             "agents": {
@@ -1633,17 +1641,17 @@ class MultiAgentMonitor:
         }
 
     def bottleneck_analysis(self) -> dict:
-        """ボトルネック分析"""
+        """Bottleneck analysis"""
         if not self._agent_metrics:
-            return {"message": "データなし"}
+            return {"message": "No data"}
 
-        # 最も遅いエージェント
+        # Slowest agent
         slowest = max(
             self._agent_metrics.items(),
             key=lambda x: x[1]["total_time_ms"] / max(x[1]["total_calls"], 1)
         )
 
-        # 最も失敗の多いエージェント
+        # Agent with the most failures
         most_failures = max(
             self._agent_metrics.items(),
             key=lambda x: x[1]["failures"]
@@ -1665,41 +1673,41 @@ class MultiAgentMonitor:
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン1: エージェント数の膨張
+### Anti-Pattern 1: Agent Count Explosion
 
 ```python
-# NG: 必要以上のエージェントを作成
+# Bad: Creating more agents than necessary
 crew = Crew(agents=[
-    Agent(role="リサーチャー", ...),
-    Agent(role="データ収集", ...),       # リサーチャーと重複
-    Agent(role="情報分析", ...),          # リサーチャーと重複
-    Agent(role="ライター", ...),
-    Agent(role="編集者", ...),            # ライターと重複
-    Agent(role="校正者", ...),            # 編集者と重複
-    Agent(role="デザイナー", ...),
-    Agent(role="レビュアー", ...),
-])  # 8エージェント = 高コスト + 調整コスト増大
+    Agent(role="Researcher", ...),
+    Agent(role="Data collector", ...),       # Overlaps with Researcher
+    Agent(role="Information analyst", ...),  # Overlaps with Researcher
+    Agent(role="Writer", ...),
+    Agent(role="Editor", ...),               # Overlaps with Writer
+    Agent(role="Proofreader", ...),          # Overlaps with Editor
+    Agent(role="Designer", ...),
+    Agent(role="Reviewer", ...),
+])  # 8 agents = high cost + increased coordination overhead
 
-# OK: 必要最小限のエージェント
+# Good: Minimum necessary agents
 crew = Crew(agents=[
-    Agent(role="リサーチャー", ...),       # 調査+データ収集
-    Agent(role="ライター/編集者", ...),    # 執筆+校正
-    Agent(role="レビュアー", ...),          # 品質チェック
-])  # 3エージェント = 適切な粒度
+    Agent(role="Researcher", ...),           # Research + data collection
+    Agent(role="Writer/Editor", ...),        # Writing + proofreading
+    Agent(role="Reviewer", ...),             # Quality check
+])  # 3 agents = appropriate granularity
 ```
 
-### アンチパターン2: 無限の議論ループ
+### Anti-Pattern 2: Infinite Debate Loops
 
 ```python
-# NG: 終了条件のない議論
+# Bad: Debate with no termination condition
 while True:
     proposal = proposer.generate(...)
     criticism = critic.generate(...)
-    # 永遠に続く可能性
+    # Could continue forever
 
-# OK: 最大ラウンド数 + 合意判定
+# Good: Maximum rounds + consensus judgment
 for round in range(max_rounds := 3):
     proposal = proposer.generate(...)
     criticism = critic.generate(...)
@@ -1707,19 +1715,19 @@ for round in range(max_rounds := 3):
         break
 ```
 
-### アンチパターン3: エージェント間の暗黙の依存
+### Anti-Pattern 3: Implicit Dependencies Between Agents
 
 ```python
-# NG: グローバル変数を介した暗黙の通信
+# Bad: Implicit communication via global variables
 global_state = {}
 
 def agent_a():
-    global_state["result_a"] = "..."  # どこから参照されるか不明
+    global_state["result_a"] = "..."  # Unclear where this is referenced
 
 def agent_b():
-    data = global_state["result_a"]  # agent_aが先に実行されている前提
+    data = global_state["result_a"]  # Assumes agent_a ran first
 
-# OK: 明示的な依存関係の定義
+# Good: Explicitly define dependencies
 class ExplicitDependency:
     def run(self):
         result_a = self.agent_a.execute(task)
@@ -1727,26 +1735,26 @@ class ExplicitDependency:
         return self.integrate(result_a, result_b)
 ```
 
-### アンチパターン4: エラー情報の伝播不足
+### Anti-Pattern 4: Insufficient Error Propagation
 
 ```python
-# NG: エラーを握りつぶして次のエージェントに渡す
+# Bad: Swallow errors and pass to the next agent
 def pipeline(task):
-    result_a = agent_a.run(task)  # エラーかもしれない
-    result_b = agent_b.run(result_a)  # 不正な入力で連鎖的に失敗
+    result_a = agent_a.run(task)  # Might be an error
+    result_b = agent_b.run(result_a)  # Cascading failure from invalid input
     return result_b
 
-# OK: エラーチェックとフォールバック
+# Good: Error checking and fallback
 def pipeline_safe(task):
     result_a = agent_a.run(task)
     if result_a.get("error"):
-        logger.error(f"Agent A 失敗: {result_a['error']}")
-        result_a = fallback_agent.run(task)  # フォールバック
+        logger.error(f"Agent A failed: {result_a['error']}")
+        result_a = fallback_agent.run(task)  # Fallback
 
     result_b = agent_b.run(result_a["result"])
     if result_b.get("error"):
         return {
-            "error": "パイプライン失敗",
+            "error": "Pipeline failed",
             "failed_at": "agent_b",
             "partial_result": result_a
         }
@@ -1755,20 +1763,20 @@ def pipeline_safe(task):
 
 ---
 
-## 9. テスト戦略
+## 9. Testing Strategy
 
-### 9.1 マルチエージェントのテストピラミッド
+### 9.1 Test Pyramid for Multi-Agent Systems
 
 ```
-テストピラミッド
+Test Pyramid
 
           /\
          /  \
-        / E2E \          全体パイプラインテスト（少数）
+        / E2E \          Full pipeline tests (few)
        /------\
-      / 結合    \        2-3エージェントの連携テスト（中数）
+      / Integration \    2–3 agent collaboration tests (moderate)
      /----------\
-    / 単体テスト  \      個別エージェントのテスト（多数）
+    / Unit tests  \      Individual agent tests (many)
    /--------------\
 ```
 
@@ -1777,14 +1785,14 @@ import pytest
 from unittest.mock import MagicMock, patch
 
 class TestCollaborativeSystem:
-    """協調パターンのテスト"""
+    """Tests for the collaborative pattern"""
 
     def test_pipeline_order(self):
-        """パイプラインが正しい順序で実行されるか"""
+        """Verify that the pipeline executes in the correct order"""
         system = CollaborativeSystem()
         execution_order = []
 
-        # モックエージェントを追加
+        # Add mock agents
         for name in ["a", "b", "c"]:
             system.add_agent(name, role=f"Agent {name}")
         system.set_pipeline(["a", "b", "c"])
@@ -1802,7 +1810,7 @@ class TestCollaborativeSystem:
         assert system.message_log[2].sender == "c"
 
     def test_context_propagation(self):
-        """コンテキストが正しく伝播されるか"""
+        """Verify that context is correctly propagated"""
         system = CollaborativeSystem()
         system.add_agent("first", role="First")
         system.add_agent("second", role="Second")
@@ -1820,29 +1828,29 @@ class TestCollaborativeSystem:
         with patch.object(system.client.messages, 'create', side_effect=capture_call):
             system.run("test task")
 
-        # 2番目のエージェントが1番目の結果を受け取っているか
+        # Check that the second agent received the first agent's result
         second_prompt = call_args[1]["messages"][0]["content"]
         assert "first_result" in second_prompt
 
 class TestDebateSystem:
-    """議論パターンのテスト"""
+    """Tests for the debate pattern"""
 
     def test_max_rounds(self):
-        """最大ラウンド数で停止するか"""
+        """Verify that it stops at the maximum number of rounds"""
         system = DebateSystem()
         system.max_rounds = 2
 
         with patch.object(system.client.messages, 'create') as mock:
-            # 常にFAIL判定を返す
+            # Always return a FAIL verdict
             mock.return_value = MagicMock(
-                content=[MagicMock(text="判定: FAIL\n信頼度: 低\n理由: 不十分")]
+                content=[MagicMock(text="Verdict: FAIL\nConfidence: Low\nReason: Insufficient")]
             )
             result = system.run("test question")
 
         assert result["rounds"] == 2
 
     def test_early_termination(self):
-        """合意に達したら早期終了するか"""
+        """Verify that it terminates early when consensus is reached"""
         system = DebateSystem()
         system.max_rounds = 5
 
@@ -1850,106 +1858,106 @@ class TestDebateSystem:
         def mock_response(*args, **kwargs):
             nonlocal call_count
             call_count += 1
-            if "公平な審判" in kwargs.get("system", ""):
+            if "fair judge" in kwargs.get("system", ""):
                 return MagicMock(
-                    content=[MagicMock(text="判定: PASS\n信頼度: 高\n理由: 十分")]
+                    content=[MagicMock(text="Verdict: PASS\nConfidence: High\nReason: Sufficient")]
                 )
             return MagicMock(
-                content=[MagicMock(text="テスト回答")]
+                content=[MagicMock(text="Test answer")]
             )
 
         with patch.object(system.client.messages, 'create', side_effect=mock_response):
             result = system.run("test question")
 
-        assert result["rounds"] == 1  # 1ラウンドで合意
+        assert result["rounds"] == 1  # Consensus in 1 round
 ```
 
 ---
 
 ## 10. FAQ
 
-### Q1: マルチエージェントのコストはどの程度か？
+### Q1: How much does a multi-agent system cost?
 
-エージェント数 x ステップ数 x 1回あたりのトークン数 でコストが増加する。例えば3エージェントが各5ステップ実行すると、シングルエージェントの5ステップに比べて **約3倍** のAPIコストがかかる。さらにエージェント間通信のオーバーヘッドも加わる。
+Cost increases as: number of agents x number of steps x tokens per call. For example, if 3 agents each execute 5 steps, it costs roughly **3x** more in API costs compared to a single agent running 5 steps. Inter-agent communication overhead is added on top.
 
-コスト削減のアプローチ:
-- 簡単なルーティングや分類はHaikuモデルを使用
-- 結果のキャッシュを活用
-- 不要なエージェント間通信を最小化
-- バッチ処理可能なタスクはまとめて実行
+Cost reduction approaches:
+- Use the Haiku model for simple routing and classification
+- Leverage result caching
+- Minimize unnecessary inter-agent communication
+- Batch tasks that can be processed together
 
-### Q2: エージェント間で矛盾が生じた場合の解決策は？
+### Q2: How do you resolve contradictions between agents?
 
-3つのアプローチがある:
-1. **多数決**: 複数エージェントの結果を投票で決定
-2. **審判エージェント**: 専用のジャッジがどちらが正しいか判断
-3. **人間の介入**: 重要な判断は人間に委ねる（Human-in-the-Loop）
+There are three approaches:
+1. **Majority vote**: Determine results by voting among multiple agents
+2. **Judge agent**: A dedicated judge decides which side is correct
+3. **Human intervention**: Delegate important decisions to humans (Human-in-the-Loop)
 
-### Q3: マルチエージェントのテスト方法は？
+### Q3: How do you test multi-agent systems?
 
-- **単体テスト**: 各エージェントを個別にテスト（特定入力→期待出力）
-- **結合テスト**: 2-3エージェントの連携をテスト
-- **E2Eテスト**: 全体パイプラインの実行（ゴールデンデータセットで）
-- **障害注入テスト**: 1つのエージェントが失敗した場合のフォールバック確認
+- **Unit tests**: Test each agent individually (specific input → expected output)
+- **Integration tests**: Test collaboration between 2–3 agents
+- **E2E tests**: Execute the full pipeline (using a golden dataset)
+- **Fault injection tests**: Verify fallback behavior when one agent fails
 
-### Q4: エージェント数の最適解は？
+### Q4: What is the optimal number of agents?
 
-経験則として:
-- **2-3エージェント**: ほとんどのタスクに適切
-- **4-5エージェント**: 大規模プロジェクト（ソフトウェア開発等）
-- **6+エージェント**: まれに必要（複雑なシミュレーション等）
+As a rule of thumb:
+- **2–3 agents**: Appropriate for most tasks
+- **4–5 agents**: Large-scale projects (software development, etc.)
+- **6+ agents**: Rarely needed (complex simulations, etc.)
 
-エージェント数を増やすよりも、各エージェントのツールセットを充実させる方が効果的な場合が多い。
+Enriching each agent's toolset is often more effective than increasing the number of agents.
 
-### Q5: 非同期実行と同期実行のどちらを選ぶべき？
+### Q5: Should I choose asynchronous or synchronous execution?
 
-| 条件 | 推奨 |
-|------|------|
-| タスク間に依存関係あり | 同期（順次実行） |
-| 独立したタスクが複数 | 非同期（並列実行） |
-| レイテンシ要件が厳しい | 非同期 |
-| デバッグが重要 | 同期 |
-| リソース制限あり | 同期 |
+| Condition | Recommendation |
+|-----------|---------------|
+| Tasks have dependencies | Synchronous (sequential execution) |
+| Multiple independent tasks | Asynchronous (parallel execution) |
+| Strict latency requirements | Asynchronous |
+| Debugging is important | Synchronous |
+| Resource constraints | Synchronous |
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just from theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architectural design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
-|------|------|
-| 協調パターン | 対等なエージェントがパイプラインで処理 |
-| 委任パターン | マネージャーがワーカーにタスクを分配 |
-| 議論パターン | 提案→批判→判定の弁証法的改善 |
-| ハイブリッド | 委任+議論の組み合わせで品質と効率を両立 |
-| 通信方式 | 直接 / ブラックボード / メッセージキュー / Pub/Sub |
-| 障害耐性 | リトライ / フォールバック / サーキットブレーカー |
-| コスト管理 | エージェント別コスト追跡 + モデル使い分け |
-| 設計原則 | 最小限のエージェント数で最大の効果を |
+| Item | Description |
+|------|-------------|
+| Collaborative pattern | Peer agents process in a pipeline |
+| Delegation pattern | Manager distributes tasks to workers |
+| Debate pattern | Dialectical improvement via proposal → criticism → verdict |
+| Hybrid | Combines delegation + debate for both quality and efficiency |
+| Communication methods | Direct / Blackboard / Message queue / Pub/Sub |
+| Fault tolerance | Retry / Fallback / Circuit breaker |
+| Cost management | Per-agent cost tracking + model selection |
+| Design principle | Maximum effect with the minimum number of agents |
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [02-workflow-agents.md](./02-workflow-agents.md) -- ワークフローエージェントの設計
-- [03-autonomous-agents.md](./03-autonomous-agents.md) -- 自律エージェントの計画と実行
-- [../02-implementation/01-langgraph.md](../02-implementation/01-langgraph.md) -- LangGraphでの実装
+- [02-workflow-agents.md](./02-workflow-agents.md) -- Designing workflow agents
+- [03-autonomous-agents.md](./03-autonomous-agents.md) -- Planning and execution for autonomous agents
+- [../02-implementation/01-langgraph.md](../02-implementation/01-langgraph.md) -- Implementation with LangGraph
 
-## 参考文献
+## References
 
 1. Wu, Q. et al., "AutoGen: Enabling Next-Gen LLM Applications via Multi-Agent Conversation" (2023) -- https://arxiv.org/abs/2308.08155
 2. CrewAI Documentation -- https://docs.crewai.com/
