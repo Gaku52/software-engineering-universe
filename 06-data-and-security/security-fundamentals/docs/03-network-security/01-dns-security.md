@@ -1,34 +1,34 @@
-# DNS セキュリティ
+# DNS Security
 
-> DNSSEC による応答の完全性保証、DNS over HTTPS によるプライバシー保護、ポイズニング対策まで、DNS に対する脅威と防御手法を体系的に学ぶ
+> A systematic study of threats against DNS and defense techniques, including integrity guarantees via DNSSEC, privacy protection through DNS over HTTPS, and poisoning countermeasures
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **DNS の脅威モデル** — キャッシュポイズニング、DNS スプーフィング、DNS トンネリングなど主要な攻撃手法
-2. **DNSSEC の仕組み** — 電子署名による DNS 応答の改竄検知メカニズム
-3. **暗号化 DNS** — DNS over HTTPS (DoH) / DNS over TLS (DoT) によるクエリの秘匿
+1. **DNS Threat Model** — Key attack methods including cache poisoning, DNS spoofing, and DNS tunneling
+2. **How DNSSEC Works** — A mechanism for detecting DNS response tampering through digital signatures
+3. **Encrypted DNS** — Concealing queries via DNS over HTTPS (DoH) / DNS over TLS (DoT)
 
-### 前提知識
+### Prerequisites
 
-- TCP/IP ネットワーキングの基本（IP アドレス、ポート、UDP/TCP の違い）
-- DNS の基本動作（再帰クエリ、権威サーバ、キャッシュリゾルバ）
-- 公開鍵暗号の概念（電子署名、ハッシュ関数）
+- Basics of TCP/IP networking (IP addresses, ports, differences between UDP and TCP)
+- Basic DNS operation (recursive queries, authoritative servers, caching resolvers)
+- Concepts of public-key cryptography (digital signatures, hash functions)
 
-### 関連ガイド
+### Related Guides
 
-- [ネットワークセキュリティ基礎](./00-network-security-basics.md) — ファイアウォール・IDS/IPS の基本
-- [TLS/証明書](../02-cryptography/01-tls-certificates.md) — DoH/DoT の基盤となる TLS の詳細
-- [API セキュリティ](./02-api-security.md) — アプリケーション層での通信保護
-- [監視/ログ](../06-operations/01-monitoring-logging.md) — DNS ログを含む統合的な監視
+- [Network Security Basics](./00-network-security-basics.md) — Fundamentals of firewalls and IDS/IPS
+- [TLS/Certificates](../02-cryptography/01-tls-certificates.md) — Details of TLS, the foundation of DoH/DoT
+- [API Security](./02-api-security.md) — Protecting communications at the application layer
+- [Monitoring/Logging](../06-operations/01-monitoring-logging.md) — Integrated monitoring including DNS logs
 
 ---
 
-## 1. DNS の基礎と内部動作
+## 1. DNS Fundamentals and Internal Operation
 
-### DNS 名前解決の完全なフロー
+### Complete Flow of DNS Name Resolution
 
 ```
-ユーザが www.example.com にアクセスする場合:
+When a user accesses www.example.com:
 
 Browser                    Stub Resolver            Recursive Resolver
   |                            |                         |
@@ -36,125 +36,128 @@ Browser                    Stub Resolver            Recursive Resolver
   |                            |-- www.example.com? ---> |
   |                            |                         |
   |                            |                    Root NS (.):
-  |                            |                    「.com は ns1.com に聞け」
+  |                            |                    "Ask ns1.com for .com"
   |                            |                         |
   |                            |                    .com NS:
-  |                            |                    「example.com は
-  |                            |                     ns1.example.com に聞け」
+  |                            |                    "Ask ns1.example.com
+  |                            |                     for example.com"
   |                            |                         |
   |                            |                    example.com NS:
-  |                            |                    「www.example.com = 93.184.216.34」
+  |                            |                    "www.example.com = 93.184.216.34"
   |                            |                         |
   |                            | <-- 93.184.216.34 ----- |
-  |                            |     (キャッシュに保存     |
-  |                            |      TTL=3600秒)        |
+  |                            |     (Stored in cache     |
+  |                            |      TTL=3600s)          |
   | <-- 93.184.216.34 ---------|                         |
 ```
 
-### DNS レコードタイプとセキュリティ上の意味
+### DNS Record Types and Their Security Implications
 
-| レコード | 目的 | セキュリティ上の意味 |
-|---------|------|-------------------|
-| A / AAAA | ドメイン→IP 解決 | ポイズニングの直接的な標的 |
-| NS | 権威サーバの委任 | NS 乗っ取りでゾーン全体を制御 |
-| MX | メール配送先 | フィッシングメールの配信先偽装 |
-| TXT | 任意テキスト | SPF/DKIM/DMARC、DNS トンネリングの悪用 |
-| CNAME | エイリアス | ダングリングCNAME（サブドメインテイクオーバー） |
-| SRV | サービス発見 | 内部サービスの列挙に悪用可能 |
-| CAA | 証明書発行制御 | 不正な CA による証明書発行を防止 |
-| DNSKEY | DNSSEC 公開鍵 | 鍵の漏洩で DNSSEC をバイパス |
-| DS | 委任署名者 | 信頼チェーンの接続点 |
-| RRSIG | レコード署名 | DNSSEC の完全性保証 |
-| NSEC/NSEC3 | 不在証明 | ゾーンウォーキング防止 (NSEC3) |
-| TLSA | DANE (TLS 認証) | 証明書ピンニングの DNS 版 |
+| Record | Purpose | Security Implication |
+|--------|---------|----------------------|
+| A / AAAA | Domain → IP resolution | Direct target of poisoning |
+| NS | Delegation to authoritative server | NS hijacking allows control of entire zone |
+| MX | Mail delivery destination | Spoofing delivery destination for phishing emails |
+| TXT | Arbitrary text | SPF/DKIM/DMARC; abused for DNS tunneling |
+| CNAME | Alias | Dangling CNAME (subdomain takeover) |
+| SRV | Service discovery | Can be abused to enumerate internal services |
+| CAA | Certificate issuance control | Prevents unauthorized CAs from issuing certificates |
+| DNSKEY | DNSSEC public key | Key compromise allows bypassing DNSSEC |
+| DS | Delegation signer | Connection point of the chain of trust |
+| RRSIG | Record signature | DNSSEC integrity guarantee |
+| NSEC/NSEC3 | Proof of non-existence | Zone walking prevention (NSEC3) |
+| TLSA | DANE (TLS authentication) | DNS-based certificate pinning |
 
 ---
 
-## 2. DNS の脅威
+## 2. DNS Threats
 
-### DNS を狙う攻撃の分類
+### Classification of Attacks Targeting DNS
 
 ```
 +-----------------------------------------------------------+
-|                    DNS への脅威                              |
+|                    Threats Against DNS                      |
 |-----------------------------------------------------------|
 |                                                           |
-|  [改竄系]                                                  |
-|  +-- キャッシュポイズニング: 偽の応答をキャッシュに注入       |
-|  +-- DNS スプーフィング: 偽の DNS サーバに誘導               |
-|  +-- BGP ハイジャック経由: 経路を乗っ取り DNS を偽装         |
-|  +-- DNS リバインディング: TTL 操作で内部ネットワークにアクセス|
+|  [Tampering]                                               |
+|  +-- Cache Poisoning: Inject forged responses into cache   |
+|  +-- DNS Spoofing: Redirect to a fake DNS server           |
+|  +-- Via BGP Hijacking: Hijack routing to spoof DNS        |
+|  +-- DNS Rebinding: Manipulate TTL to access internal nets |
 |                                                           |
-|  [盗聴系]                                                  |
-|  +-- DNS クエリの傍受: 平文クエリからアクセス先を把握        |
-|  +-- パッシブ DNS 収集: 組織の通信パターンを分析             |
-|  +-- Wi-Fi ハニーポット: 偽APでDNSクエリを収集              |
+|  [Eavesdropping]                                           |
+|  +-- DNS Query Interception: Learn destinations from       |
+|  |   plaintext queries                                     |
+|  +-- Passive DNS Collection: Analyze org communication     |
+|  |   patterns                                              |
+|  +-- Wi-Fi Honeypot: Collect DNS queries via rogue AP      |
 |                                                           |
-|  [悪用系]                                                  |
-|  +-- DNS トンネリング: DNS クエリにデータを埋め込んで外部送信 |
-|  +-- DDoS (DNS アンプ): 増幅攻撃の踏み台                   |
-|  +-- ドメインハイジャック: レジストラアカウントを乗っ取り      |
-|  +-- サブドメインテイクオーバー: 未使用CNAMEの悪用           |
-|  +-- ファストフラックス: ボットネットのC2をDNSで隠蔽         |
+|  [Abuse]                                                   |
+|  +-- DNS Tunneling: Embed data in DNS queries to exfiltrate|
+|  +-- DDoS (DNS Amplification): Use as relay for amplified  |
+|  |   attacks                                               |
+|  +-- Domain Hijacking: Take over registrar accounts        |
+|  +-- Subdomain Takeover: Abuse unused CNAMEs               |
+|  +-- Fast Flux: Hide C2 of botnets using DNS               |
 +-----------------------------------------------------------+
 ```
 
-### キャッシュポイズニングの仕組み（Kaminsky 攻撃）
+### How Cache Poisoning Works (Kaminsky Attack)
 
 ```
-正常な DNS 解決:
+Normal DNS resolution:
   Client --> Resolver --> Authoritative NS
-  Client <-- Resolver <-- 正しい応答 (1.2.3.4)
+  Client <-- Resolver <-- Legitimate response (1.2.3.4)
 
-キャッシュポイズニング:
+Cache poisoning:
   Client --> Resolver --> Authoritative NS
                  ^
-                 |  攻撃者が正規応答より先に偽応答を送信
+                 |  Attacker sends a forged response before the legitimate one
                  +-- Attacker: "example.com = 6.6.6.6"
 
-  Client <-- Resolver <-- 偽応答 (6.6.6.6) がキャッシュされる
-  (以後、TTL期間中は全クライアントが偽IPに誘導される)
+  Client <-- Resolver <-- Forged response (6.6.6.6) is cached
+  (All clients are directed to the fake IP for the TTL duration)
 
-Kaminsky 攻撃 (2008) の詳細:
-  1. 攻撃者は rand12345.example.com などランダムなサブドメインを問い合わせ
-  2. リゾルバは example.com の権威サーバに問い合わせる
-  3. 攻撃者は大量の偽応答を送信（Transaction ID のブルートフォース）
-     偽応答の Additional Section に以下を含める:
-     "example.com の NS は attacker-ns.evil.com である"
-  4. Transaction ID が一致すれば、権威サーバごと乗っ取れる
+Kaminsky Attack (2008) details:
+  1. Attacker queries a random subdomain like rand12345.example.com
+  2. Resolver queries the authoritative server for example.com
+  3. Attacker sends a large number of forged responses (brute-force of Transaction ID)
+     The forged response's Additional Section contains:
+     "The NS for example.com is attacker-ns.evil.com"
+  4. If the Transaction ID matches, the attacker hijacks the entire authoritative server
 
-  対策:
-  +-- ソースポートのランダム化 (2^16 の追加エントロピー)
-  +-- 0x20 エンコーディング (大文字小文字のランダム化)
-  +-- DNSSEC (暗号学的な応答の検証)
+  Countermeasures:
+  +-- Source port randomization (additional entropy of 2^16)
+  +-- 0x20 encoding (randomizing upper/lower case)
+  +-- DNSSEC (cryptographic verification of responses)
 ```
 
-### DNS リバインディング攻撃
+### DNS Rebinding Attack
 
 ```
-DNS リバインディングの仕組み:
+How DNS Rebinding works:
 
-1. 攻撃者が evil.com を所有し、攻撃者のDNSサーバを設定
-2. 被害者が evil.com にアクセス
-3. 攻撃者のDNSサーバは最初に正規のIPを返す (TTL=0)
-   evil.com → 1.2.3.4 (攻撃者のサーバ)
-4. ブラウザが JavaScript をダウンロードして実行
-5. JavaScript が evil.com に再度リクエスト
-6. 今度は攻撃者のDNSサーバが内部IPを返す
-   evil.com → 192.168.1.1 (被害者のルーター)
-7. ブラウザの Same-Origin Policy は evil.com として通過
-8. JavaScript が内部ネットワークのリソースにアクセス
+1. Attacker owns evil.com and configures their own DNS server
+2. Victim accesses evil.com
+3. Attacker's DNS server initially returns a legitimate IP (TTL=0)
+   evil.com → 1.2.3.4 (attacker's server)
+4. Browser downloads and executes JavaScript
+5. JavaScript makes another request to evil.com
+6. This time, attacker's DNS server returns an internal IP
+   evil.com → 192.168.1.1 (victim's router)
+7. Browser's Same-Origin Policy is satisfied since origin is evil.com
+8. JavaScript accesses resources on the internal network
 
-対策:
-+-- DNS リゾルバで RFC1918 アドレスの応答をフィルタ
-+-- ブラウザの DNS ピンニング
-+-- 内部サービスの Host ヘッダ検証
+Countermeasures:
++-- Filter RFC1918 address responses at the DNS resolver
++-- Browser DNS pinning
++-- Host header validation on internal services
 ```
 
-### サブドメインテイクオーバー
+### Subdomain Takeover
 
 ```python
-# コード例1: サブドメインテイクオーバーの検出スクリプト
+# Code example 1: Subdomain takeover detection script
 import dns.resolver
 import requests
 
@@ -168,17 +171,17 @@ KNOWN_FINGERPRINTS = {
 }
 
 def check_subdomain_takeover(domain: str) -> dict:
-    """サブドメインテイクオーバーの脆弱性をチェック"""
+    """Check for subdomain takeover vulnerabilities"""
     result = {"domain": domain, "vulnerable": False, "details": ""}
 
     try:
-        # CNAME レコードを取得
+        # Retrieve CNAME record
         answers = dns.resolver.resolve(domain, "CNAME")
         for rdata in answers:
             cname_target = str(rdata.target).rstrip(".")
             result["cname"] = cname_target
 
-            # 既知のサービスのフィンガープリントをチェック
+            # Check known service fingerprints
             for service, fingerprint in KNOWN_FINGERPRINTS.items():
                 if service in cname_target:
                     try:
@@ -205,7 +208,7 @@ def check_subdomain_takeover(domain: str) -> dict:
 
     return result
 
-# 使用例
+# Usage example
 subdomains = ["blog.example.com", "staging.example.com", "old.example.com"]
 for sub in subdomains:
     result = check_subdomain_takeover(sub)
@@ -213,276 +216,277 @@ for sub in subdomains:
         print(f"[VULNERABLE] {result['domain']}: {result['details']}")
 ```
 
-### DNS アンプ攻撃の仕組みと緩和
+### DNS Amplification Attack Mechanism and Mitigation
 
 ```
-DNS アンプ/リフレクション攻撃:
+DNS Amplification/Reflection Attack:
 
   Attacker                    Open Resolver               Victim
      |                            |                         |
-     |-- 偽装パケット ---------->  |                         |
+     |-- Spoofed packet ------->  |                         |
      |   Src IP: Victim IP        |                         |
      |   Query: ANY example.com   |                         |
      |   (60 bytes)               |                         |
      |                            |                         |
-     |                            |-- 応答 (大量データ) ---> |
-     |                            |   ANY レコード全て       |
+     |                            |-- Response (large) ---> |
+     |                            |   All ANY records        |
      |                            |   (~3000 bytes)          |
-     |                            |   増幅率: ~50倍         |
+     |                            |   Amplification: ~50x    |
 
-  攻撃の特徴:
-  - ソースIPの偽装 (BCP38/BCP84 未実装のネットワークから)
-  - ANY クエリで最大の応答を引き出す
-  - 数千のオープンリゾルバを利用して大規模DDoSを実現
+  Attack characteristics:
+  - Source IP spoofing (from networks without BCP38/BCP84)
+  - ANY queries extract the largest responses
+  - Thousands of open resolvers used to achieve large-scale DDoS
 
-  緩和策:
-  +-- リゾルバのアクセス制限 (allow-recursion)
-  +-- レスポンスレートリミット (RRL)
-  +-- BCP38 (ソースアドレス検証)
-  +-- ANY クエリの応答制限 (RFC 8482)
+  Mitigations:
+  +-- Restrict resolver access (allow-recursion)
+  +-- Response Rate Limiting (RRL)
+  +-- BCP38 (source address validation)
+  +-- Limit ANY query responses (RFC 8482)
 ```
 
 ---
 
 ## 3. DNSSEC
 
-### DNSSEC の概要
+### Overview of DNSSEC
 
-DNSSEC (Domain Name System Security Extensions) は DNS 応答の真正性と完全性を暗号学的に保証する拡張仕様である。RFC 4033-4035 で定義され、既存の DNS プロトコルに電子署名を追加する形で動作する。
+DNSSEC (Domain Name System Security Extensions) is an extension specification that cryptographically guarantees the authenticity and integrity of DNS responses. Defined in RFC 4033-4035, it operates by adding digital signatures to the existing DNS protocol.
 
-**重要**: DNSSEC は応答の改竄を検知する仕組みであり、暗号化（秘匿性）は提供しない。DNS クエリの内容は依然として平文である。暗号化には DoH/DoT が必要。
+**Important**: DNSSEC is a mechanism for detecting response tampering — it does not provide encryption (confidentiality). DNS query contents remain in plaintext. DoH/DoT is required for encryption.
 
-### DNSSEC の信頼チェーン
+### DNSSEC Chain of Trust
 
 ```
 Root Zone (.)
-  +-- KSK (Key Signing Key): ZSK に署名
-  +-- ZSK (Zone Signing Key): レコードに署名
-  +-- DS レコード: 子ゾーンの KSK ハッシュ
+  +-- KSK (Key Signing Key): Signs the ZSK
+  +-- ZSK (Zone Signing Key): Signs records
+  +-- DS record: Hash of the child zone's KSK
        |
        v
 TLD (.com)
   +-- KSK / ZSK
-  +-- DS レコード (example.com の KSK ハッシュ)
+  +-- DS record (hash of example.com's KSK)
        |
        v
 Zone (example.com)
   +-- KSK / ZSK
-  +-- RRSIG: 各レコードの電子署名
-  +-- NSEC/NSEC3: 不在証明
+  +-- RRSIG: Digital signature for each record
+  +-- NSEC/NSEC3: Proof of non-existence
 ```
 
-### DNSSEC のレコードタイプ詳解
+### Detailed Explanation of DNSSEC Record Types
 
 ```
 +------------------------------------------------------------------+
-|  DNSSEC 関連レコード                                                |
+|  DNSSEC-Related Records                                            |
 |------------------------------------------------------------------|
 |                                                                    |
 |  DNSKEY (DNS Public Key)                                           |
-|    KSK (flags=257): 鍵署名鍵。DS レコードのハッシュ対象            |
-|    ZSK (flags=256): ゾーン署名鍵。実際のレコードに署名             |
-|    アルゴリズム: ECDSAP256SHA256 (推奨), RSA/SHA-256               |
+|    KSK (flags=257): Key-signing key. Target of the DS record hash |
+|    ZSK (flags=256): Zone-signing key. Actually signs records      |
+|    Algorithm: ECDSAP256SHA256 (recommended), RSA/SHA-256          |
 |                                                                    |
 |  RRSIG (Resource Record Signature)                                 |
-|    各 RRset に対する電子署名                                        |
-|    含む情報: アルゴリズム、署名有効期間、署名者名、署名値            |
+|    Digital signature for each RRset                               |
+|    Includes: algorithm, signature validity period, signer name,   |
+|    signature value                                                 |
 |                                                                    |
 |  DS (Delegation Signer)                                            |
-|    子ゾーンの KSK のハッシュ値                                      |
-|    親ゾーンに配置し、信頼チェーンを構成                              |
-|    ハッシュアルゴリズム: SHA-256 (推奨)                              |
+|    Hash value of the child zone's KSK                             |
+|    Placed in the parent zone to form the chain of trust           |
+|    Hash algorithm: SHA-256 (recommended)                          |
 |                                                                    |
 |  NSEC / NSEC3 (Next Secure)                                        |
-|    NSEC: 次のドメイン名を示す → ゾーンウォーキングが可能             |
-|    NSEC3: ハッシュ化されたドメイン名 → ゾーンウォーキングを困難化    |
-|    NSEC3PARAM: NSEC3 のパラメータ (ハッシュ回数、ソルト)            |
+|    NSEC: Points to the next domain name → enables zone walking    |
+|    NSEC3: Hashed domain names → makes zone walking harder         |
+|    NSEC3PARAM: NSEC3 parameters (hash iterations, salt)           |
 +------------------------------------------------------------------+
 ```
 
-### DNSSEC の検証プロセス
+### DNSSEC Validation Process
 
 ```
-Resolver が example.com の A レコードを検証:
+Resolver validates the A record for example.com:
 
-1. example.com の A レコード + RRSIG を取得
-2. example.com の DNSKEY (ZSK) で RRSIG を検証
-3. example.com の DNSKEY (KSK) で ZSK の RRSIG を検証
-4. .com の DS レコードで example.com の KSK を検証
-5. .com の DNSKEY で DS の RRSIG を検証
-6. Root の DS で .com の KSK を検証
-7. Root の KSK はトラストアンカーとして事前に保持
+1. Retrieve example.com's A record + RRSIG
+2. Verify RRSIG using example.com's DNSKEY (ZSK)
+3. Verify ZSK's RRSIG using example.com's DNSKEY (KSK)
+4. Verify example.com's KSK using .com's DS record
+5. Verify DS RRSIG using .com's DNSKEY
+6. Verify .com's KSK using Root's DS record
+7. Root's KSK is held in advance as a trust anchor
 
-→ チェーン全体が検証できれば「Authenticated Data (AD)」
+→ If the entire chain is verified: "Authenticated Data (AD)"
 
-検証失敗の場合:
-  SERVFAIL を返す (検証付きリゾルバの場合)
-  → 偽装された応答はクライアントに到達しない
+On validation failure:
+  Returns SERVFAIL (for validating resolvers)
+  → Spoofed responses never reach the client
 ```
 
-### DNSSEC の設定 (BIND)
+### DNSSEC Configuration (BIND)
 
 ```bash
-# コード例2: BIND での DNSSEC 設定
+# Code example 2: DNSSEC configuration in BIND
 
-# ===== 鍵の生成 =====
+# ===== Key Generation =====
 
-# ゾーン署名鍵 (ZSK) の生成
-# ECDSAP256SHA256 を推奨（RSA より鍵サイズが小さく高速）
+# Generate Zone Signing Key (ZSK)
+# ECDSAP256SHA256 is recommended (smaller key size and faster than RSA)
 dnssec-keygen -a ECDSAP256SHA256 -n ZONE example.com
-# 出力: Kexample.com.+013+12345 (.key と .private)
+# Output: Kexample.com.+013+12345 (.key and .private)
 
-# 鍵署名鍵 (KSK) の生成
+# Generate Key Signing Key (KSK)
 dnssec-keygen -a ECDSAP256SHA256 -n ZONE -f KSK example.com
-# 出力: Kexample.com.+013+67890 (.key と .private)
+# Output: Kexample.com.+013+67890 (.key and .private)
 
-# ===== ゾーンファイルの署名 =====
+# ===== Zone File Signing =====
 
-# NSEC3 を使用したゾーン署名
+# Sign zone using NSEC3
 dnssec-signzone -A -3 $(head -c 1000 /dev/urandom | sha1sum | cut -b 1-16) \
   -N INCREMENT -o example.com -t db.example.com
 
-# 出力: db.example.com.signed
+# Output: db.example.com.signed
 
-# ===== BIND 設定 (named.conf) =====
-# DNSSEC 検証を有効化（リゾルバ側）
+# ===== BIND configuration (named.conf) =====
+# Enable DNSSEC validation (resolver side)
 options {
-    dnssec-validation auto;  # トラストアンカーの自動更新 (RFC 5011)
-    # dnssec-validation yes; # 手動でトラストアンカーを管理する場合
+    dnssec-validation auto;  # Automatic trust anchor update (RFC 5011)
+    # dnssec-validation yes; # If managing trust anchors manually
 };
 
-# 権威サーバでの DNSSEC 設定
+# DNSSEC configuration for authoritative server
 zone "example.com" {
     type primary;
     file "/etc/bind/zones/db.example.com.signed";
     key-directory "/etc/bind/keys";
 
-    # 自動署名 (inline-signing)
+    # Automatic signing (inline-signing)
     inline-signing yes;
     auto-dnssec maintain;
 
-    # NSEC3 パラメータの設定
+    # NSEC3 parameter configuration
     # rndc signing -nsec3param 1 0 10 auto example.com
 };
 
-# ===== 鍵のロールオーバー =====
-# ZSK のロールオーバー（推奨: 90日ごと）
-# 1. 新しい ZSK を事前公開 (pre-publish)
-# 2. TTL 経過後に新 ZSK で署名
-# 3. 旧 ZSK を削除
+# ===== Key Rollover =====
+# ZSK rollover (recommended: every 90 days)
+# 1. Pre-publish the new ZSK
+# 2. After TTL expires, sign with the new ZSK
+# 3. Remove the old ZSK
 
-# KSK のロールオーバー（推奨: 1-2年ごと）
-# 1. 新 KSK を生成・公開
-# 2. 親ゾーンに新 DS レコードを登録
-# 3. 旧 KSK で新 KSK を署名
-# 4. 旧 DS レコードを削除
-# 5. 旧 KSK を削除
+# KSK rollover (recommended: every 1-2 years)
+# 1. Generate and publish new KSK
+# 2. Register new DS record with parent zone
+# 3. Sign new KSK with old KSK
+# 4. Remove old DS record
+# 5. Remove old KSK
 ```
 
-### dig による DNSSEC 検証
+### DNSSEC Validation with dig
 
 ```bash
-# コード例3: DNSSEC の検証コマンド集
+# Code example 3: DNSSEC validation command collection
 
-# DNSSEC 情報付きで問い合わせ
+# Query with DNSSEC information
 dig +dnssec example.com A
 
-# 検証結果の確認 (flags に ad が含まれれば検証成功)
+# Check validation result (if 'ad' appears in flags, validation succeeded)
 # ;; flags: qr rd ra ad; QUERY: 1, ANSWER: 2
-# ad = Authenticated Data (DNSSEC検証成功)
+# ad = Authenticated Data (DNSSEC validation succeeded)
 
-# DNSKEY レコードの確認
+# Check DNSKEY records
 dig example.com DNSKEY +short
 # 257 3 13 oJMRESz5E4gYzS/... (KSK, flags=257)
 # 256 3 13 2Nwz6FfpJlWey/... (ZSK, flags=256)
 
-# DS レコードの確認
+# Check DS records
 dig example.com DS +short
 # 67890 13 2 ABC123DEF456...
 
-# RRSIG の確認（署名の有効期間を含む）
+# Check RRSIG (including signature validity period)
 dig example.com A +dnssec +multi
 # example.com. 3600 IN RRSIG A 13 2 3600 (
 #     20260301000000 20260201000000 12345 example.com.
 #     base64signature... )
 
-# NSEC3 による不在証明の確認
+# Check NSEC3 proof of non-existence
 dig nonexistent.example.com A +dnssec
-# NSEC3 レコードが返り、ドメインが存在しないことを証明
+# NSEC3 record is returned, proving the domain does not exist
 
-# 信頼チェーンの完全な検証
+# Full chain of trust validation
 dig +sigchase +trusted-key=./root.keys example.com A
 
-# delv コマンドによる検証（BIND 9.10+）
+# Validation with the delv command (BIND 9.10+)
 delv @8.8.8.8 example.com A +rtrace
 # ;; validating example.com/A: verify rdataset (keyid: 12345)
 # ;; fully validated
 
-# DNSSEC が有効なドメインの例
+# Examples of DNSSEC-enabled domains
 dig +dnssec cloudflare.com A   # Cloudflare
 dig +dnssec nic.cz A           # CZ NIC
-dig +dnssec isc.org A          # ISC (BIND開発元)
+dig +dnssec isc.org A          # ISC (BIND developers)
 ```
 
-### DNSSEC のアルゴリズムと鍵長の比較
+### Comparison of DNSSEC Algorithms and Key Lengths
 
-| アルゴリズム | ID | 鍵長 | 署名長 | 推奨度 | 備考 |
-|------------|-----|------|--------|--------|------|
-| RSA/SHA-256 | 8 | 2048bit | 256byte | 使用可 | 応答サイズが大きい |
-| RSA/SHA-512 | 10 | 2048bit | 256byte | 使用可 | SHA-512の利点は限定的 |
-| ECDSAP256SHA256 | 13 | 256bit | 64byte | 推奨 | 鍵・署名が小さく高速 |
-| ECDSAP384SHA384 | 14 | 384bit | 96byte | 使用可 | 高セキュリティ用途 |
-| Ed25519 | 15 | 256bit | 64byte | 推奨 | 最も高速、段階的導入中 |
-| Ed448 | 16 | 456bit | 114byte | 使用可 | 最高セキュリティ |
+| Algorithm | ID | Key Length | Signature Length | Recommendation | Notes |
+|-----------|-----|-----------|-----------------|----------------|-------|
+| RSA/SHA-256 | 8 | 2048bit | 256byte | Acceptable | Large response size |
+| RSA/SHA-512 | 10 | 2048bit | 256byte | Acceptable | Limited benefit of SHA-512 |
+| ECDSAP256SHA256 | 13 | 256bit | 64byte | Recommended | Small key/signature, fast |
+| ECDSAP384SHA384 | 14 | 384bit | 96byte | Acceptable | For high-security use |
+| Ed25519 | 15 | 256bit | 64byte | Recommended | Fastest, gradually being adopted |
+| Ed448 | 16 | 456bit | 114byte | Acceptable | Highest security |
 
 ---
 
-## 4. 暗号化 DNS
+## 4. Encrypted DNS
 
-### DoH / DoT / DoQ の比較
+### Comparison of DoH / DoT / DoQ
 
-| 項目 | 平文 DNS | DoT | DoH | DoQ |
-|------|---------|-----|-----|-----|
-| プロトコル | UDP/53 | TLS/853 | HTTPS/443 | QUIC/853 |
-| 暗号化 | なし | TLS | TLS | QUIC |
-| 認証 | なし | サーバ証明書 | サーバ証明書 | サーバ証明書 |
-| ブロック検知 | 容易 | ポート 853 で判別可 | 通常 HTTPS と区別困難 | ポート 853 で判別可 |
-| レイテンシ | 低い | TLS ハンドシェイク分 | HTTP/2 接続分 | 0-RTT 可能 |
-| 標準化 | RFC 1035 | RFC 7858 | RFC 8484 | RFC 9250 |
-| パディング | なし | RFC 7830 | HTTP/2 フレーム | QUIC フレーム |
-| 多重化 | なし | なし | HTTP/2 ストリーム | QUIC ストリーム |
-| Head-of-line blocking | N/A | あり | あり | なし |
+| Item | Plaintext DNS | DoT | DoH | DoQ |
+|------|--------------|-----|-----|-----|
+| Protocol | UDP/53 | TLS/853 | HTTPS/443 | QUIC/853 |
+| Encryption | None | TLS | TLS | QUIC |
+| Authentication | None | Server certificate | Server certificate | Server certificate |
+| Block detection | Easy | Identifiable by port 853 | Hard to distinguish from regular HTTPS | Identifiable by port 853 |
+| Latency | Low | TLS handshake overhead | HTTP/2 connection overhead | 0-RTT possible |
+| Standardization | RFC 1035 | RFC 7858 | RFC 8484 | RFC 9250 |
+| Padding | None | RFC 7830 | HTTP/2 frames | QUIC frames |
+| Multiplexing | None | None | HTTP/2 streams | QUIC streams |
+| Head-of-line blocking | N/A | Yes | Yes | No |
 
-### DoH の内部プロトコル
+### DoH Internal Protocol
 
 ```
-DoH のリクエスト形式 (RFC 8484):
+DoH request format (RFC 8484):
 
-GET 方式:
+GET method:
   GET /dns-query?dns=AAABAAABAAAAAAAAA3d3dwdleGFtcGxlA2NvbQAAAQAB
   Accept: application/dns-message
 
-  dns パラメータ: DNS ワイヤフォーマットの Base64url エンコード
+  dns parameter: Base64url encoding of DNS wire format
 
-POST 方式:
+POST method:
   POST /dns-query
   Content-Type: application/dns-message
-  Body: [DNS ワイヤフォーマットのバイナリ]
+  Body: [DNS wire format binary]
 
-レスポンス:
+Response:
   HTTP/2 200 OK
   Content-Type: application/dns-message
-  Body: [DNS 応答のバイナリ]
+  Body: [DNS response binary]
 
-JSON API 方式 (Google/Cloudflare 独自拡張):
+JSON API method (Google/Cloudflare proprietary extension):
   GET https://dns.google/resolve?name=example.com&type=A
-  レスポンス:
+  Response:
   {
     "Status": 0,
     "TC": false,
     "RD": true,
     "RA": true,
-    "AD": true,    // DNSSEC 検証成功
+    "AD": true,    // DNSSEC validation succeeded
     "CD": false,
     "Question": [{"name": "example.com", "type": 1}],
     "Answer": [
@@ -492,21 +496,21 @@ JSON API 方式 (Google/Cloudflare 独自拡張):
   }
 ```
 
-### DNS over HTTPS の設定
+### Configuring DNS over HTTPS
 
 ```bash
-# コード例4: 各種 DoH/DoT の設定
+# Code example 4: Various DoH/DoT configurations
 
-# ===== dnscrypt-proxy で DoH を利用 =====
+# ===== Using DoH via dnscrypt-proxy =====
 # /etc/dnscrypt-proxy/dnscrypt-proxy.toml
 listen_addresses = ['127.0.0.1:53']
 server_names = ['cloudflare', 'google']
 ipv6_servers = false
 
-# セキュリティ設定
-require_dnssec = true          # DNSSEC 検証必須
-require_nofilter = true        # フィルタリングなし
-require_nolog = true           # ログなしサーバのみ
+# Security settings
+require_dnssec = true          # Require DNSSEC validation
+require_nofilter = true        # No filtering
+require_nolog = true           # Only servers with no-logging policy
 
 [sources]
   [sources.public-resolvers]
@@ -514,7 +518,7 @@ require_nolog = true           # ログなしサーバのみ
   cache_file = 'public-resolvers.md'
   minisign_key = 'RWQf6LRCGA9i53mlYecO4IzT51TGPpvWucNSCh1CBM0QTaLn73Y7GFO3'
 
-# ===== systemd-resolved で DoT を有効化 =====
+# ===== Enable DoT with systemd-resolved =====
 # /etc/systemd/resolved.conf
 [Resolve]
 DNS=1.1.1.1#cloudflare-dns.com 1.0.0.1#cloudflare-dns.com
@@ -522,18 +526,18 @@ FallbackDNS=8.8.8.8#dns.google 8.8.4.4#dns.google
 DNSOverTLS=yes
 DNSSEC=yes
 
-# 設定反映
+# Apply settings
 # sudo systemctl restart systemd-resolved
-# resolvectl status で確認
+# Check with: resolvectl status
 
-# ===== Unbound で DoT を設定 =====
+# ===== Configure DoT with Unbound =====
 # /etc/unbound/unbound.conf
 server:
     interface: 127.0.0.1
     interface: ::1
     tls-cert-bundle: /etc/ssl/certs/ca-certificates.crt
 
-    # DNSSEC 検証
+    # DNSSEC validation
     auto-trust-anchor-file: "/var/lib/unbound/root.key"
     val-clean-additional: yes
 
@@ -548,10 +552,10 @@ forward-zone:
     forward-addr: 8.8.4.4@853#dns.google
 ```
 
-### Go で DoH クライアント
+### DoH Client in Go
 
 ```go
-// コード例5: 完全な DoH クライアント実装 (Go)
+// Code example 5: Complete DoH client implementation (Go)
 package main
 
 import (
@@ -567,13 +571,13 @@ import (
 	"github.com/miekg/dns"
 )
 
-// DoHClient は DNS over HTTPS クライアント
+// DoHClient is a DNS over HTTPS client
 type DoHClient struct {
 	httpClient *http.Client
 	serverURL  string
 }
 
-// NewDoHClient は新しい DoH クライアントを生成する
+// NewDoHClient creates a new DoH client
 func NewDoHClient(serverURL string) *DoHClient {
 	return &DoHClient{
 		httpClient: &http.Client{
@@ -591,14 +595,14 @@ func NewDoHClient(serverURL string) *DoHClient {
 	}
 }
 
-// Query は DoH で DNS クエリを実行する
+// Query executes a DNS query via DoH
 func (c *DoHClient) Query(domain string, qtype uint16) (*dns.Msg, error) {
-	// DNS メッセージを構築
+	// Build DNS message
 	msg := new(dns.Msg)
 	msg.SetQuestion(dns.Fqdn(domain), qtype)
 	msg.RecursionDesired = true
 
-	// EDNS0 パディング (RFC 7830)
+	// EDNS0 padding (RFC 7830)
 	opt := &dns.OPT{
 		Hdr: dns.RR_Header{Name: ".", Rrtype: dns.TypeOPT},
 		Option: []dns.EDNS0{
@@ -606,16 +610,16 @@ func (c *DoHClient) Query(domain string, qtype uint16) (*dns.Msg, error) {
 		},
 	}
 	opt.SetUDPSize(4096)
-	opt.SetDo(true) // DNSSEC OK フラグ
+	opt.SetDo(true) // DNSSEC OK flag
 	msg.Extra = append(msg.Extra, opt)
 
-	// Wire format にエンコード
+	// Encode to wire format
 	packed, err := msg.Pack()
 	if err != nil {
 		return nil, fmt.Errorf("failed to pack DNS message: %w", err)
 	}
 
-	// DoH POST リクエスト
+	// DoH POST request
 	req, err := http.NewRequest(
 		"POST",
 		c.serverURL,
@@ -650,7 +654,7 @@ func (c *DoHClient) Query(domain string, qtype uint16) (*dns.Msg, error) {
 	return response, nil
 }
 
-// QueryWithDNSSECValidation は DNSSEC 検証付きクエリ
+// QueryWithDNSSECValidation performs a query with DNSSEC validation
 func (c *DoHClient) QueryWithDNSSECValidation(domain string) ([]net.IP, bool, error) {
 	resp, err := c.Query(domain, dns.TypeA)
 	if err != nil {
@@ -658,7 +662,7 @@ func (c *DoHClient) QueryWithDNSSECValidation(domain string) ([]net.IP, bool, er
 	}
 
 	var ips []net.IP
-	authenticated := resp.AuthenticatedData // AD フラグ
+	authenticated := resp.AuthenticatedData // AD flag
 
 	for _, answer := range resp.Answer {
 		if a, ok := answer.(*dns.A); ok {
@@ -683,10 +687,10 @@ func main() {
 }
 ```
 
-### Python で DoH クライアント
+### DoH Client in Python
 
 ```python
-# コード例6: Python DoH クライアント
+# Code example 6: Python DoH client
 import dns.message
 import dns.query
 import dns.rdatatype
@@ -694,7 +698,7 @@ import httpx
 import base64
 
 class DoHResolver:
-    """DNS over HTTPS リゾルバ"""
+    """DNS over HTTPS Resolver"""
 
     def __init__(self, server_url: str = "https://cloudflare-dns.com/dns-query"):
         self.server_url = server_url
@@ -705,12 +709,12 @@ class DoHResolver:
         )
 
     def resolve(self, domain: str, rdtype: str = "A") -> list:
-        """DoH でドメインを解決"""
-        # DNS クエリメッセージの構築
+        """Resolve a domain via DoH"""
+        # Build DNS query message
         query = dns.message.make_query(domain, rdtype, want_dnssec=True)
         wire = query.to_wire()
 
-        # POST リクエスト
+        # POST request
         response = self.client.post(
             self.server_url,
             content=wire,
@@ -718,7 +722,7 @@ class DoHResolver:
         )
         response.raise_for_status()
 
-        # レスポンスの解析
+        # Parse response
         dns_response = dns.message.from_wire(response.content)
 
         results = []
@@ -741,7 +745,7 @@ class DoHResolver:
         self.client.close()
 
 
-# 使用例
+# Usage example
 resolver = DoHResolver()
 result = resolver.resolve("example.com", "A")
 print(f"Answers: {result['answers']}")
@@ -751,68 +755,68 @@ resolver.close()
 
 ---
 
-## 5. DNS ポイズニング対策
+## 5. DNS Poisoning Countermeasures
 
-### 多層的な防御策
+### Multi-Layered Defense
 
 ```
 +----------------------------------------------+
-|            DNS ポイズニング対策                  |
+|        DNS Poisoning Countermeasures           |
 |----------------------------------------------|
 |                                              |
-|  [プロトコル層]                                |
-|  +-- DNSSEC: 応答の改竄を検知                  |
-|  +-- DoH/DoT: クエリの盗聴・改竄を防止         |
-|  +-- DANE/TLSA: DNS で TLS 証明書を検証       |
+|  [Protocol Layer]                             |
+|  +-- DNSSEC: Detect tampering of responses   |
+|  +-- DoH/DoT: Prevent eavesdropping/tampering|
+|  +-- DANE/TLSA: Validate TLS certs via DNS   |
 |                                              |
-|  [リゾルバ層]                                  |
-|  +-- ソースポートランダム化                     |
-|  +-- Query ID ランダム化 (16bit)              |
-|  +-- 0x20 エンコーディング (大文字小文字ミックス) |
-|  +-- TCP へのフォールバック                    |
-|  +-- キャッシュの最小TTL設定                   |
+|  [Resolver Layer]                             |
+|  +-- Source port randomization               |
+|  +-- Query ID randomization (16-bit)         |
+|  +-- 0x20 encoding (mixed case)              |
+|  +-- Fallback to TCP                         |
+|  +-- Minimum TTL setting for cache           |
 |                                              |
-|  [ネットワーク層]                               |
-|  +-- BCP38 (ソースアドレス検証)                |
-|  +-- ACL でリゾルバへのアクセス制限             |
-|  +-- 異常なDNSトラフィックの検知               |
+|  [Network Layer]                              |
+|  +-- BCP38 (source address validation)       |
+|  +-- ACL to restrict resolver access         |
+|  +-- Detect anomalous DNS traffic            |
 |                                              |
-|  [運用層]                                     |
-|  +-- TTL の適切な設定                          |
-|  +-- DNS ログの監視                           |
-|  +-- RPZ (Response Policy Zone) でブロック     |
-|  +-- CAA レコードの設定                        |
+|  [Operations Layer]                           |
+|  +-- Set appropriate TTL values              |
+|  +-- Monitor DNS logs                        |
+|  +-- Block via RPZ (Response Policy Zone)    |
+|  +-- Configure CAA records                   |
 +----------------------------------------------+
 ```
 
-### 0x20 エンコーディング
+### 0x20 Encoding
 
 ```
-0x20 エンコーディング (DNS 0x20 bit encoding):
+0x20 Encoding (DNS 0x20 bit encoding):
 
-通常のクエリ:
+Normal query:
   Query: www.example.com
 
-0x20 エンコーディング適用:
-  Query: wWw.ExAmPlE.cOm  (ランダムに大文字小文字を混ぜる)
+With 0x20 encoding applied:
+  Query: wWw.ExAmPlE.cOm  (randomly mix upper and lower case)
 
-DNS は大文字小文字を区別しないため、正規のサーバは
-リクエストと同じ大文字小文字パターンで応答する。
+Since DNS is case-insensitive, a legitimate server responds
+with the same upper/lower case pattern as the request.
 
-攻撃者は正しい大文字小文字パターンを推測する必要があるため、
-ブルートフォースの難易度が大幅に上がる。
+An attacker must correctly guess the case pattern,
+dramatically increasing the difficulty of brute-forcing.
 
-追加エントロピー: ドメイン名の長さ × 1 bit
-例: www.example.com (15文字) → 2^15 = 32,768 通り
+Additional entropy: domain name length × 1 bit
+Example: www.example.com (15 characters) → 2^15 = 32,768 possibilities
 
-Transaction ID (16bit) + ソースポート (16bit) + 0x20 (15bit)
-= 2^47 ≈ 140 兆通り → ブルートフォースは実質不可能
+Transaction ID (16-bit) + Source Port (16-bit) + 0x20 (15-bit)
+= 2^47 ≈ 140 trillion possibilities → brute-force is practically impossible
 ```
 
-### RPZ (Response Policy Zone) の設定
+### Configuring RPZ (Response Policy Zone)
 
 ```bash
-# コード例7: BIND での RPZ 設定
+# Code example 7: RPZ configuration in BIND
 
 # /etc/bind/named.conf
 options {
@@ -828,51 +832,51 @@ zone "rpz.local" {
     allow-query { none; };
 };
 
-# RPZ ゾーンファイル (/etc/bind/db.rpz.local)
+# RPZ zone file (/etc/bind/db.rpz.local)
 $TTL 300
 @ IN SOA localhost. admin.localhost. ( 1 3600 900 604800 300 )
 @ IN NS localhost.
 
-; ===== マルウェアドメインのブロック =====
-; NXDOMAIN を返す（最も安全）
+; ===== Block malware domains =====
+; Return NXDOMAIN (most secure)
 malware.example.com   CNAME .
 *.malware.example.com CNAME .
 
-; ===== フィッシングサイトをブロックページにリダイレクト =====
+; ===== Redirect phishing sites to block page =====
 phishing.example.com  A     10.0.0.100
 *.phishing.example.com A    10.0.0.100
 
-; ===== 特定のIPアドレスへのアクセスをブロック =====
-; C2サーバのIPをブロック
+; ===== Block access to specific IP addresses =====
+; Block C2 server IPs
 32.1.168.192.rpz-ip     CNAME .
 
-; ===== ワイルドカードによる大量ブロック =====
-; DGA (Domain Generation Algorithm) 対策
+; ===== Bulk blocking with wildcards =====
+; Countermeasure against DGA (Domain Generation Algorithm)
 *.dga-pattern.com  CNAME .
 
-; ===== パススルー (ブロック除外) =====
-; RPZ ルールの例外
+; ===== Passthrough (block exceptions) =====
+; Exceptions to RPZ rules
 safe.malware.example.com CNAME rpz-passthru.
 ```
 
-### CAA レコードによる証明書発行制御
+### Controlling Certificate Issuance with CAA Records
 
 ```bash
-# コード例8: CAA レコードの設定
+# Code example 8: Configuring CAA records
 
-# CAA (Certificate Authority Authorization) レコード
-# 指定した CA のみがドメインの証明書を発行できる
+# CAA (Certificate Authority Authorization) record
+# Only the specified CA can issue certificates for the domain
 
-# Let's Encrypt のみ許可
+# Allow only Let's Encrypt
 example.com.  CAA 0 issue "letsencrypt.org"
 
-# ワイルドカード証明書は DigiCert のみ
+# Only DigiCert for wildcard certificates
 example.com.  CAA 0 issuewild "digicert.com"
 
-# 証明書発行に関する問題を報告するメールアドレス
+# Email address to report certificate issuance issues
 example.com.  CAA 0 iodef "mailto:security@example.com"
 
-# 設定確認
+# Verify configuration
 dig example.com CAA +short
 # 0 issue "letsencrypt.org"
 # 0 issuewild "digicert.com"
@@ -881,38 +885,38 @@ dig example.com CAA +short
 
 ---
 
-## 6. DNS トンネリングの検知
+## 6. Detecting DNS Tunneling
 
-### DNS トンネリングの仕組み
+### How DNS Tunneling Works
 
 ```
-DNS トンネリングの原理:
+Principles of DNS Tunneling:
 
-  内部ネットワーク (ファイアウォール内)        攻撃者の DNS サーバ
-       Client (マルウェア)                    ns1.evil.com
+  Internal Network (behind firewall)       Attacker's DNS Server
+       Client (malware)                    ns1.evil.com
          |                                       |
-         |  Base32/Hex エンコードしたデータを      |
-         |  サブドメインに埋め込んで送信            |
+         |  Encodes data in Base32/Hex           |
+         |  and embeds it in subdomains          |
          |                                       |
-  TXT クエリ: dGhpcyBpcyBzZWNyZXQ.evil.com       |
-         |  → "this is secret" の Base64          |
+  TXT query: dGhpcyBpcyBzZWNyZXQ.evil.com       |
+         |  → Base64 of "this is secret"         |
          |                                       |
-         |  ファイアウォールは DNS (port 53) を     |
-         |  通常許可しているため通過する            |
+         |  Firewall normally allows DNS (port 53)|
+         |  so the traffic passes through        |
          |                                       |
-         |  <--- TXT レスポンスでコマンドを受信     |
+         |  <--- Receive commands via TXT response|
          |  "exec: whoami"                        |
 
-  特徴:
-  - 帯域幅: ~500kbps (TXT レコード使用時)
-  - レイテンシ: 高い（DNS TTL に依存）
-  - ツール: iodine, dnscat2, dns2tcp
+  Characteristics:
+  - Bandwidth: ~500kbps (when using TXT records)
+  - Latency: High (depends on DNS TTL)
+  - Tools: iodine, dnscat2, dns2tcp
 ```
 
-### 検知手法と実装
+### Detection Methods and Implementation
 
 ```python
-# コード例9: DNS トンネリング検知スクリプト (拡張版)
+# Code example 9: DNS tunneling detection script (extended version)
 import collections
 import math
 import re
@@ -927,7 +931,7 @@ class DNSQuery:
     qtype: str
 
 def shannon_entropy(s: str) -> float:
-    """文字列のシャノンエントロピーを計算"""
+    """Calculate Shannon entropy of a string"""
     if not s:
         return 0.0
     probabilities = [
@@ -937,42 +941,42 @@ def shannon_entropy(s: str) -> float:
     return -sum(p * math.log2(p) for p in probabilities)
 
 def extract_base_domain(qname: str) -> str:
-    """サブドメインを除去してベースドメインを抽出"""
+    """Extract base domain by removing subdomains"""
     parts = qname.rstrip(".").split(".")
     if len(parts) >= 2:
         return ".".join(parts[-2:])
     return qname
 
 def get_subdomain_labels(qname: str) -> str:
-    """ベースドメインを除いたサブドメイン部分を取得"""
+    """Get the subdomain portion excluding the base domain"""
     parts = qname.rstrip(".").split(".")
     if len(parts) > 2:
         return ".".join(parts[:-2])
     return ""
 
 class DNSTunnelDetector:
-    """DNS トンネリングの検知エンジン"""
+    """DNS tunneling detection engine"""
 
-    # しきい値（チューニング可能）
-    ENTROPY_THRESHOLD = 3.5      # ランダム文字列のエントロピー
-    LABEL_LENGTH_THRESHOLD = 50  # サブドメインラベルの長さ
-    QUERY_RATE_THRESHOLD = 100   # 1分間のクエリ数
-    TXT_RATIO_THRESHOLD = 0.3    # TXTクエリの割合
-    UNIQUE_SUBDOMAIN_THRESHOLD = 50  # ユニークなサブドメイン数/分
+    # Thresholds (tunable)
+    ENTROPY_THRESHOLD = 3.5      # Entropy of random strings
+    LABEL_LENGTH_THRESHOLD = 50  # Length of subdomain labels
+    QUERY_RATE_THRESHOLD = 100   # Number of queries per minute
+    TXT_RATIO_THRESHOLD = 0.3    # Ratio of TXT queries
+    UNIQUE_SUBDOMAIN_THRESHOLD = 50  # Unique subdomains per minute
 
     def __init__(self):
         self.alerts = []
 
     def analyze(self, queries: list[DNSQuery], window_minutes: int = 5) -> list:
-        """クエリログを分析してトンネリングの兆候を検知"""
-        # ソースIPごとにグループ化
+        """Analyze query logs to detect signs of tunneling"""
+        # Group by source IP
         by_source = collections.defaultdict(list)
         for q in queries:
             by_source[q.src_ip].append(q)
 
         for src_ip, src_queries in by_source.items():
             indicators = self._check_indicators(src_queries, window_minutes)
-            if indicators["score"] >= 3:  # 3つ以上の指標でアラート
+            if indicators["score"] >= 3:  # Alert on 3 or more indicators
                 self.alerts.append({
                     "source_ip": src_ip,
                     "severity": "HIGH" if indicators["score"] >= 4 else "MEDIUM",
@@ -986,7 +990,7 @@ class DNSTunnelDetector:
         score = 0
         indicators = {}
 
-        # 指標 1: 異常に長いサブドメインラベル
+        # Indicator 1: Abnormally long subdomain labels
         long_labels = [
             q for q in queries
             if len(get_subdomain_labels(q.qname)) > self.LABEL_LENGTH_THRESHOLD
@@ -995,7 +999,7 @@ class DNSTunnelDetector:
             score += 1
             indicators["long_labels"] = len(long_labels)
 
-        # 指標 2: 高エントロピーのサブドメイン
+        # Indicator 2: High-entropy subdomains
         high_entropy = []
         for q in queries:
             subdomain = get_subdomain_labels(q.qname)
@@ -1005,14 +1009,14 @@ class DNSTunnelDetector:
             score += 1
             indicators["high_entropy"] = len(high_entropy)
 
-        # 指標 3: TXT レコードの異常な割合
+        # Indicator 3: Abnormal ratio of TXT records
         txt_queries = [q for q in queries if q.qtype == "TXT"]
         txt_ratio = len(txt_queries) / max(len(queries), 1)
         if txt_ratio > self.TXT_RATIO_THRESHOLD:
             score += 1
             indicators["txt_ratio"] = round(txt_ratio, 3)
 
-        # 指標 4: 同一ベースドメインへの高頻度クエリ
+        # Indicator 4: High-frequency queries to the same base domain
         domain_counts = collections.Counter(
             extract_base_domain(q.qname) for q in queries
         )
@@ -1022,7 +1026,7 @@ class DNSTunnelDetector:
             score += 1
             indicators["high_freq_domains"] = high_freq
 
-        # 指標 5: ユニークなサブドメインの数が異常に多い
+        # Indicator 5: Abnormally high number of unique subdomains
         unique_subdomains = collections.defaultdict(set)
         for q in queries:
             base = extract_base_domain(q.qname)
@@ -1036,7 +1040,7 @@ class DNSTunnelDetector:
                 indicators["unique_subdomains"] = {base: len(subs)}
                 break
 
-        # 指標 6: Base32/Base64 パターンの検出
+        # Indicator 6: Detection of Base32/Base64 patterns
         b64_pattern = re.compile(r'^[A-Za-z0-9+/=]{20,}$')
         b32_pattern = re.compile(r'^[A-Z2-7=]{20,}$')
         encoded_count = sum(
@@ -1052,28 +1056,28 @@ class DNSTunnelDetector:
         return indicators
 ```
 
-### ネットワーク機器での DNS モニタリング
+### DNS Monitoring on Network Devices
 
 ```bash
-# コード例10: DNS モニタリングの設定
+# Code example 10: DNS monitoring configuration
 
-# ===== Suricata での DNS 異常検知ルール =====
+# ===== DNS anomaly detection rules for Suricata =====
 # /etc/suricata/rules/dns-tunnel.rules
 
-# 異常に長い DNS クエリの検出
+# Detect abnormally long DNS query names
 alert dns any any -> any any (msg:"DNS Tunnel - Long query name";
   dns.query; content:"|00|"; offset:50;
   threshold: type threshold, track by_src, count 10, seconds 60;
   classtype:bad-unknown; sid:1000001; rev:1;)
 
-# TXT レコードの大量クエリ
+# Excessive TXT record queries
 alert dns any any -> any any (msg:"DNS Tunnel - Excessive TXT queries";
   dns.query; content:"|00 10|";  # TXT record type
   threshold: type threshold, track by_src, count 50, seconds 60;
   classtype:bad-unknown; sid:1000002; rev:1;)
 
-# ===== Zeek (Bro) での DNS ログ分析 =====
-# dns.zeek スクリプト
+# ===== DNS log analysis with Zeek (Bro) =====
+# dns.zeek script
 @load base/protocols/dns
 
 event dns_request(c: connection, msg: dns_msg, query: string, qtype: count)
@@ -1086,11 +1090,11 @@ event dns_request(c: connection, msg: dns_msg, query: string, qtype: count)
     }
 }
 
-# ===== tcpdump での DNS トラフィック監視 =====
-# DNS クエリをリアルタイム監視
+# ===== DNS traffic monitoring with tcpdump =====
+# Real-time monitoring of DNS queries
 tcpdump -i eth0 -n port 53 -l | awk '/A\?/ {print $NF}'
 
-# 長いクエリ名のみ表示
+# Display only long query names
 tcpdump -i eth0 -n port 53 -l | awk 'length($NF) > 60 {print}'
 ```
 
@@ -1098,240 +1102,240 @@ tcpdump -i eth0 -n port 53 -l | awk 'length($NF) > 60 {print}'
 
 ## 7. DANE (DNS-Based Authentication of Named Entities)
 
-### DANE / TLSA レコード
+### DANE / TLSA Records
 
 ```
-DANE は DNS を使って TLS 証明書を認証する仕組み (RFC 6698)。
-DNSSEC が必須の前提条件。
+DANE is a mechanism for authenticating TLS certificates using DNS (RFC 6698).
+DNSSEC is a mandatory prerequisite.
 
-TLSA レコードの構造:
+Structure of a TLSA record:
   _port._protocol.domain TLSA usage selector matching data
 
-  Usage (利用法):
-    0 = PKIX-TA: CA 証明書を指定
-    1 = PKIX-EE: サーバ証明書を指定 (CA信頼ストアも検証)
-    2 = DANE-TA: 独自 CA を指定 (CA信頼ストア不要)
-    3 = DANE-EE: サーバ証明書を指定 (CA信頼ストア不要)
+  Usage:
+    0 = PKIX-TA: Specify a CA certificate
+    1 = PKIX-EE: Specify a server certificate (also validates CA trust store)
+    2 = DANE-TA: Specify a custom CA (no CA trust store required)
+    3 = DANE-EE: Specify a server certificate (no CA trust store required)
 
   Selector:
-    0 = 証明書全体
-    1 = 公開鍵のみ (SubjectPublicKeyInfo)
+    0 = Entire certificate
+    1 = Public key only (SubjectPublicKeyInfo)
 
   Matching:
-    0 = 完全一致
-    1 = SHA-256 ハッシュ
-    2 = SHA-512 ハッシュ
+    0 = Exact match
+    1 = SHA-256 hash
+    2 = SHA-512 hash
 
-例:
+Example:
   _443._tcp.example.com. IN TLSA 3 1 1 \
-    2bb183af2b5a15f1168960b45a258a4e180f5... (公開鍵の SHA-256)
+    2bb183af2b5a15f1168960b45a258a4e180f5... (SHA-256 of public key)
 ```
 
 ```bash
-# TLSA レコードの生成
+# Generate a TLSA record
 openssl x509 -in server.crt -pubkey -noout | \
   openssl pkey -pubin -outform DER | \
   openssl dgst -sha256 -binary | \
   xxd -p -c 256
 
-# TLSA レコードの検証
+# Verify TLSA record
 dig _443._tcp.example.com TLSA +short
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン 1: DNSSEC 未導入のまま放置
-
-```
-NG: DNSSEC を設定せず平文 DNS のまま運用
-  → キャッシュポイズニングで利用者をフィッシングサイトに誘導される
-
-OK: DNSSEC を有効化し DS レコードをレジストラに登録
-  → 改竄された応答は検証失敗で破棄される
-```
-
-**影響**: 中間者が DNS 応答を改竄できるため、正規ドメインで偽サイトに誘導可能。2024年の Savannah 攻撃ではDNSSEC未導入の金融機関が標的となった。
-
-### アンチパターン 2: 社内 DNS リゾルバの外部公開
+### Anti-Pattern 1: Leaving DNSSEC Undeployed
 
 ```
-NG: 社内リゾルバが 0.0.0.0:53 でリッスン
-  → DNS アンプ攻撃の踏み台になる
-  → 内部ドメイン情報が漏洩する
+BAD: Operating with plaintext DNS without configuring DNSSEC
+  → Cache poisoning can redirect users to phishing sites
 
-OK: リゾルバは社内ネットワークのみにバインド
+GOOD: Enable DNSSEC and register the DS record with the registrar
+  → Tampered responses fail validation and are discarded
+```
+
+**Impact**: A man-in-the-middle can tamper with DNS responses, enabling redirection to fake sites under a legitimate domain. In the 2024 Savannah attack, financial institutions without DNSSEC were targeted.
+
+### Anti-Pattern 2: Exposing Internal DNS Resolvers to the Internet
+
+```
+BAD: Internal resolver listening on 0.0.0.0:53
+  → Becomes a relay for DNS amplification attacks
+  → Internal domain information is leaked
+
+GOOD: Bind resolver to internal network only
   listen-on { 10.0.0.0/8; 127.0.0.1; };
   allow-recursion { 10.0.0.0/8; };
   allow-transfer { none; };
 ```
 
-### アンチパターン 3: ワイルドカード DNS レコードの不用意な設定
+### Anti-Pattern 3: Carelessly Configuring Wildcard DNS Records
 
 ```
-NG: *.example.com → 1.2.3.4
-  → 任意のサブドメインでフィッシングサイトを構築可能
-  → SSL 証明書の発行が容易になる
-  → サブドメインテイクオーバーの検出が困難
+BAD: *.example.com → 1.2.3.4
+  → Allows building phishing sites on any subdomain
+  → Makes SSL certificate issuance easier
+  → Makes subdomain takeover harder to detect
 
-OK: 必要なサブドメインのみ個別にレコードを作成
+GOOD: Create individual records only for required subdomains
   www.example.com → 1.2.3.4
   api.example.com → 1.2.3.5
-  不要なサブドメインは NXDOMAIN を返す
+  Unused subdomains return NXDOMAIN
 ```
 
-### アンチパターン 4: DNS ログの未収集
+### Anti-Pattern 4: Not Collecting DNS Logs
 
 ```
-NG: DNS クエリログを保存していない
-  → インシデント発生時に C2 通信の痕跡を追跡できない
-  → DNS トンネリングを検知できない
+BAD: DNS query logs are not saved
+  → Cannot trace C2 communication traces during incident response
+  → Cannot detect DNS tunneling
 
-OK: DNS クエリログを SIEM に転送し、異常検知ルールを設定
-  - 高エントロピーのクエリ名
-  - 異常な TXT レコード比率
-  - 未知ドメインへの大量クエリ
-  - 通常時間帯外の DNS トラフィック
+GOOD: Forward DNS query logs to SIEM and configure anomaly detection rules
+  - Query names with high entropy
+  - Abnormal ratio of TXT record queries
+  - High volume of queries to unknown domains
+  - DNS traffic outside normal hours
 ```
 
 ---
 
-## 9. エッジケース
+## 9. Edge Cases
 
-### エッジケース 1: DNS rebinding によるファイアウォールバイパス
+### Edge Case 1: Firewall Bypass via DNS Rebinding
 
-DNS の TTL を 0 に設定し、最初のクエリでは正規の IP を、再クエリでは内部 IP (192.168.x.x) を返すことで、ブラウザの Same-Origin Policy を維持しながら内部ネットワークにアクセスする。対策には DNS ピンニングと内部サービスの Host ヘッダ検証が必要。
+By setting the DNS TTL to 0, returning a legitimate IP on the first query and an internal IP (192.168.x.x) on re-query, an attacker can access the internal network while maintaining the browser's Same-Origin Policy. Countermeasures include DNS pinning and Host header validation on internal services.
 
-### エッジケース 2: NSEC ゾーンウォーキング
+### Edge Case 2: NSEC Zone Walking
 
-DNSSEC の NSEC レコードは「次のドメイン名」を示すため、NSEC レコードを順に辿ることでゾーン内の全ドメインを列挙できる。NSEC3 はドメイン名をハッシュ化することでこれを困難にするが、完全には防げない（オフラインでのハッシュクラック）。NSEC5 (実験的) はさらなる改善を目指している。
+Because DNSSEC's NSEC records point to the "next domain name," an attacker can enumerate all domains in a zone by traversing NSEC records in sequence. NSEC3 hashes domain names to make this harder, but it cannot fully prevent it (offline hash cracking is possible). NSEC5 (experimental) aims for further improvements.
 
-### エッジケース 3: DNS の UDP フラグメンテーション
+### Edge Case 3: DNS UDP Fragmentation
 
-DNSSEC 応答は通常の DNS 応答より大きく（署名データを含む）、UDP の最大サイズ (512 バイト) を超えることがある。EDNS0 で UDP ペイロードサイズを拡張するが、中間ネットワーク機器がフラグメンテーションされたパケットを破棄する場合がある。DNS Flag Day 2020 以降、応答サイズは 1232 バイト以下が推奨される。
+DNSSEC responses are larger than standard DNS responses (due to signature data) and may exceed the maximum UDP size (512 bytes). While EDNS0 extends the UDP payload size, intermediate network devices may drop fragmented packets. Since DNS Flag Day 2020, response sizes of 1232 bytes or less are recommended.
 
-### エッジケース 4: Happy Eyeballs と DNS
+### Edge Case 4: Happy Eyeballs and DNS
 
-デュアルスタック環境での A/AAAA レコードの同時解決と接続レースにおいて、DNS 応答の到着順序によって IPv4/IPv6 の選択が変わる。攻撃者が一方のレコードのみをポイズニングした場合、接続先が不定になるリスクがある。
+In dual-stack environments, during simultaneous A/AAAA record resolution and connection races, the order of DNS response arrival determines whether IPv4 or IPv6 is selected. If an attacker poisons only one type of record, the connection destination becomes unpredictable.
 
 ---
 
-## 10. 演習
+## 10. Exercises
 
-### 演習 1（基礎）: DNSSEC の検証
+### Exercise 1 (Basic): DNSSEC Validation
 
-以下のコマンドを実行し、DNSSEC の検証状態を確認せよ。
+Run the following commands and verify the DNSSEC validation state.
 
 ```bash
-# 1. DNSSEC 対応ドメインの確認
+# 1. Check a DNSSEC-enabled domain
 dig +dnssec cloudflare.com A
 
-# 2. DNSSEC 非対応ドメインとの違いを確認
-# (AD フラグの有無に注目)
+# 2. Compare with a non-DNSSEC domain
+# (Focus on the presence or absence of the AD flag)
 
-# 3. DNSKEY と DS レコードの確認
+# 3. Check DNSKEY and DS records
 dig cloudflare.com DNSKEY +short
 dig cloudflare.com DS +short
 
-# 質問:
-# - AD フラグは何を意味するか?
-# - KSK と ZSK のフラグ値の違いは?
-# - DS レコードはどのゾーンに配置されるか?
+# Questions:
+# - What does the AD flag mean?
+# - What is the difference between the flag values of KSK and ZSK?
+# - In which zone is the DS record placed?
 ```
 
-### 演習 2（中級）: DoH クライアントの実装
+### Exercise 2 (Intermediate): Implementing a DoH Client
 
-Python の `httpx` ライブラリを使用して、以下の機能を持つ DoH クライアントを実装せよ:
+Using Python's `httpx` library, implement a DoH client with the following capabilities:
 
-1. RFC 8484 準拠の POST リクエスト
-2. DNSSEC 検証結果 (AD フラグ) の表示
-3. 複数の DoH サーバへのフェイルオーバー
+1. POST requests compliant with RFC 8484
+2. Display DNSSEC validation result (AD flag)
+3. Failover to multiple DoH servers
 
-### 演習 3（上級）: DNS トンネリング検知システム
+### Exercise 3 (Advanced): DNS Tunneling Detection System
 
-DNS クエリログ（BIND query log 形式）を入力として、以下の指標でDNSトンネリングを検知するシステムを構築せよ:
+Build a system that takes DNS query logs (BIND query log format) as input and detects DNS tunneling using the following indicators:
 
-1. サブドメインのシャノンエントロピー
-2. クエリ名の長さ分布の統計的異常
-3. TXT レコードクエリの割合
-4. 同一ベースドメインへのユニークサブドメイン数
-5. Base32/Base64 エンコードパターンの検出
+1. Shannon entropy of subdomains
+2. Statistical anomalies in query name length distribution
+3. Ratio of TXT record queries
+4. Number of unique subdomains to the same base domain
+5. Detection of Base32/Base64 encoding patterns
 
-しきい値は設定可能とし、アラートをJSON形式で出力すること。
+Thresholds should be configurable, and alerts should be output in JSON format.
 
 ---
 
-## 11. パフォーマンスに関する考察
+## 11. Performance Considerations
 
-### DNSSEC のパフォーマンス影響
+### Performance Impact of DNSSEC
 
-| 項目 | 影響 | 緩和策 |
-|------|------|--------|
-| 応答サイズの増大 | RRSIG で 200-500 バイト増 | ECDSA (小さい署名) |
-| 検証の CPU 負荷 | RSA 検証: ~1ms, ECDSA: ~0.3ms | Ed25519 でさらに高速化 |
-| UDP フラグメンテーション | 中間機器で破棄される可能性 | EDNS0 バッファサイズ 1232 |
-| 鍵ロールオーバー | 一時的にキャッシュミス増加 | 事前公開期間を十分に |
-| 不在証明 (NSEC3) | ハッシュ計算のオーバーヘッド | NSEC3 iterations を 0 に (RFC 9276) |
+| Item | Impact | Mitigation |
+|------|--------|------------|
+| Increased response size | 200-500 bytes added by RRSIG | ECDSA (small signatures) |
+| CPU overhead of validation | RSA validation: ~1ms, ECDSA: ~0.3ms | Further speedup with Ed25519 |
+| UDP fragmentation | May be dropped by intermediate devices | EDNS0 buffer size 1232 |
+| Key rollover | Temporary increase in cache misses | Allow sufficient pre-publication period |
+| Proof of non-existence (NSEC3) | Hash computation overhead | Set NSEC3 iterations to 0 (RFC 9276) |
 
-### DoH/DoT のレイテンシ比較
+### Latency Comparison of DoH/DoT
 
 ```
-レイテンシ比較 (平均値、同一サーバ):
+Latency comparison (averages, same server):
 
-  平文 DNS (UDP):     ~5ms   (キャッシュヒット: <1ms)
-  DoT (初回接続):     ~50ms  (TLS ハンドシェイク含む)
-  DoT (再利用):       ~10ms  (TLS セッション再利用)
-  DoH (初回接続):     ~80ms  (HTTP/2 + TLS)
-  DoH (再利用):       ~15ms  (HTTP/2 多重化)
-  DoQ (初回接続):     ~30ms  (QUIC 0-RTT)
-  DoQ (再利用):       ~5ms   (0-RTT 再接続)
+  Plaintext DNS (UDP):    ~5ms   (cache hit: <1ms)
+  DoT (initial):          ~50ms  (includes TLS handshake)
+  DoT (reuse):            ~10ms  (TLS session reuse)
+  DoH (initial):          ~80ms  (HTTP/2 + TLS)
+  DoH (reuse):            ~15ms  (HTTP/2 multiplexing)
+  DoQ (initial):          ~30ms  (QUIC 0-RTT)
+  DoQ (reuse):            ~5ms   (0-RTT reconnect)
 
-  → DoQ が次世代の暗号化 DNS として最もバランスが良い
+  → DoQ offers the best balance as next-generation encrypted DNS
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement appropriate error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise on basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1340,26 +1344,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise on applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1367,7 +1371,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1378,14 +1382,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1393,7 +1397,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1401,44 +1405,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1447,7 +1451,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1462,86 +1466,86 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 ---
 
 ## 12. FAQ
 
-### Q1. DNSSEC はなぜ普及が遅いのか?
+### Q1. Why is DNSSEC adoption so slow?
 
-DNSSEC は鍵管理の複雑さ、ゾーン署名の運用負荷、NSEC によるゾーンウォーキング（列挙攻撃）の懸念がある。また、応答サイズが大きくなり UDP フラグメンテーション問題が発生しうる。NSEC3 や自動署名 (BIND の inline-signing) の導入で改善されつつあるが、依然として導入障壁は高い。2025年時点での DNSSEC 署名率は .com で約5%、.nl (オランダ) で約60% と地域差が大きい。
+DNSSEC faces complexity in key management, operational burden of zone signing, and concerns about zone walking (enumeration attacks) via NSEC. Response sizes also grow larger, which can cause UDP fragmentation issues. Improvements are being made with NSEC3 and auto-signing (BIND's inline-signing), but the adoption barrier remains high. As of 2025, DNSSEC signing rates vary widely by region: approximately 5% for .com and approximately 60% for .nl (Netherlands).
 
-### Q2. DoH を企業ネットワークで使うべきか?
+### Q2. Should DoH be used in corporate networks?
 
-DoH はプライバシーを向上させるが、企業のセキュリティ監視を迂回するリスクがある。企業ネットワークでは内部 DoH リゾルバを運用し、外部 DoH/DoT への通信をブロックするのが一般的である。これによりプライバシーと可視性を両立できる。具体的には、ポート 853 (DoT) のブロック、既知の DoH エンドポイント (cloudflare-dns.com 等) のブロック、内部 CA を使った HTTPS インスペクションの検討が必要。
+DoH improves privacy but risks bypassing corporate security monitoring. In corporate networks, it is common to operate an internal DoH resolver and block traffic to external DoH/DoT. This allows both privacy and visibility to be maintained. Specifically, this requires blocking port 853 (DoT), blocking known DoH endpoints (such as cloudflare-dns.com), and considering HTTPS inspection using an internal CA.
 
-### Q3. DNS フィルタリングはセキュリティ対策として有効か?
+### Q3. Is DNS filtering effective as a security measure?
 
-RPZ や Pi-hole などによる DNS フィルタリングは、マルウェアの C2 通信やフィッシングサイトへのアクセスを低コストで防止できる有効な対策である。ただし、IP 直接アクセスや DoH バイパスに対しては無力であり、多層防御の一層として位置付けるべきである。
+DNS filtering via RPZ or Pi-hole is an effective low-cost measure for preventing malware C2 communication and access to phishing sites. However, it is powerless against direct IP access and DoH bypasses, so it should be considered one layer in a defense-in-depth strategy.
 
-### Q4. DNSログの保持期間はどのくらいが適切か?
+### Q4. How long should DNS logs be retained?
 
-NIST SP 800-92 では最低90日のログ保持を推奨。GDPR環境下では個人データとしてのDNSクエリの取り扱いに注意が必要。インシデントレスポンスの観点からは6ヶ月〜1年が理想的だが、ストレージコストとのバランスを考慮する。圧縮やサマリログの活用で保持期間を延長できる。
+NIST SP 800-92 recommends a minimum log retention period of 90 days. In GDPR environments, care must be taken in handling DNS queries as personal data. From an incident response perspective, 6 months to 1 year is ideal, though storage costs must be considered. Retention periods can be extended by using compression and summary logs.
 
-### Q5. DNS over QUIC (DoQ) はいつ普及するか?
+### Q5. When will DNS over QUIC (DoQ) become mainstream?
 
-RFC 9250 で標準化済み。AdGuard DNS など一部のサービスが対応を開始しているが、クライアント側のサポートが限定的。QUIC の 0-RTT により DoH/DoT よりも低レイテンシを実現でき、Head-of-line blocking も解消されるため、将来的には DoH を置き換える可能性がある。
+Already standardized in RFC 9250. Some services like AdGuard DNS have begun support, but client-side support remains limited. Since QUIC's 0-RTT achieves lower latency than DoH/DoT and also eliminates head-of-line blocking, it has the potential to replace DoH in the future.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| DNS の脅威 | ポイズニング・スプーフィング・トンネリング・リバインディングが主要リスク |
-| DNSSEC | 電子署名で応答の完全性を検証、信頼チェーンで root まで辿る |
-| DoH/DoT/DoQ | DNS クエリを暗号化しプライバシーと改竄防止を実現 |
-| ポイズニング対策 | DNSSEC + ポートランダム化 + 0x20 エンコーディング |
-| DNS トンネリング | クエリ長・エントロピー・頻度で異常を検知 |
-| RPZ | ポリシーベースで悪意あるドメインをブロック |
-| DANE/TLSA | DNS で TLS 証明書を検証 (DNSSEC 必須) |
-| CAA | 証明書発行を許可する CA を DNS で制限 |
-| サブドメインテイクオーバー | ダングリング CNAME の定期的な監査 |
+Knowledge of this topic is frequently used in day-to-day development work, especially during code reviews and architectural design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [ネットワークセキュリティ基礎](./00-network-security-basics.md) — ファイアウォール・IDS/IPS による網羅的な防御
-- [APIセキュリティ](./02-api-security.md) — アプリケーション層での通信保護
-- [TLS/証明書](../02-cryptography/01-tls-certificates.md) — DoH/DoT の基盤となる TLS の詳細
-- [監視/ログ](../06-operations/01-monitoring-logging.md) — DNS ログを含む統合的な監視体制
+| Item | Key Points |
+|------|-----------|
+| DNS Threats | Poisoning, spoofing, tunneling, and rebinding are the main risks |
+| DNSSEC | Verifies response integrity with digital signatures, tracing the chain of trust up to the root |
+| DoH/DoT/DoQ | Encrypts DNS queries for privacy and tamper prevention |
+| Poisoning Countermeasures | DNSSEC + port randomization + 0x20 encoding |
+| DNS Tunneling | Detect anomalies via query length, entropy, and frequency |
+| RPZ | Block malicious domains based on policy |
+| DANE/TLSA | Validate TLS certificates via DNS (DNSSEC required) |
+| CAA | Restrict certificate-issuing CAs via DNS |
+| Subdomain Takeover | Regularly audit dangling CNAMEs |
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+- [Network Security Basics](./00-network-security-basics.md) — Comprehensive defense with firewalls and IDS/IPS
+- [API Security](./02-api-security.md) — Protecting communications at the application layer
+- [TLS/Certificates](../02-cryptography/01-tls-certificates.md) — Details of TLS, the foundation of DoH/DoT
+- [Monitoring/Logging](../06-operations/01-monitoring-logging.md) — Integrated monitoring including DNS logs
+
+---
+
+## References
 
 1. **RFC 4033-4035 — DNS Security Introduction and Requirements (DNSSEC)** — https://datatracker.ietf.org/doc/html/rfc4033
 2. **RFC 8484 — DNS Queries over HTTPS (DoH)** — https://datatracker.ietf.org/doc/html/rfc8484
@@ -1550,5 +1554,5 @@ RFC 9250 で標準化済み。AdGuard DNS など一部のサービスが対応�
 5. **RFC 6698 — DNS-Based Authentication of Named Entities (DANE)** — https://datatracker.ietf.org/doc/html/rfc6698
 6. **RFC 9276 — Guidance for NSEC3 Parameter Settings** — https://datatracker.ietf.org/doc/html/rfc9276
 7. **NIST SP 800-81-2 — Secure Domain Name System (DNS) Deployment Guide** — https://csrc.nist.gov/publications/detail/sp/800-81/2/final
-8. **DNS Flag Day** — https://dnsflagday.net/ — DNS の最新標準準拠に関する業界イニシアチブ
+8. **DNS Flag Day** — https://dnsflagday.net/ — An industry initiative on DNS compliance with the latest standards
 9. **Kaminsky DNS Vulnerability (2008)** — https://www.kb.cert.org/vuls/id/800113
