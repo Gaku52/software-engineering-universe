@@ -1,87 +1,87 @@
 # JOIN — INNER / LEFT / RIGHT / FULL / CROSS
 
-> JOINはリレーショナルデータベースの核心機能であり、複数テーブルに分散したデータを結合条件に基づいて一つの結果セットにまとめる操作である。E.F. Coddが1970年に提唱した関係代数において、JOINは「直積（Cartesian Product）」と「選択（Selection）」の合成操作として定義されている。
+> JOIN is a core feature of relational databases that combines data scattered across multiple tables into a single result set based on join conditions. In the relational algebra proposed by E.F. Codd in 1970, JOIN is defined as a composite operation of "Cartesian Product" and "Selection."
 
-## 前提知識
+## Prerequisites
 
-- 01-select.md — SELECT文の基本構文
-- [00-sql-overview.md](./00-sql-overview.md) — SQL全体像の理解
-- テーブル設計の基礎（PRIMARY KEY, FOREIGN KEY）
+- 01-select.md — Basic SELECT statement syntax
+- [00-sql-overview.md](./00-sql-overview.md) — Understanding the SQL big picture
+- Basics of table design (PRIMARY KEY, FOREIGN KEY)
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. 全JOIN種別（INNER, LEFT, RIGHT, FULL, CROSS）の動作原理と使い分け
-2. 結合条件の設計とパフォーマンスへの影響
-3. 自己結合、複数テーブル結合など実践的なJOINパターン
-4. JOIN処理の内部実装（Nested Loop, Hash Join, Merge Join）
-5. RDBMS間のJOIN構文・動作の違い
-6. LATERAL JOIN, SEMI JOIN, ANTI JOINなどの高度なJOINパターン
+1. How each JOIN type works (INNER, LEFT, RIGHT, FULL, CROSS) and when to use each
+2. Designing join conditions and their impact on performance
+3. Practical JOIN patterns such as self-joins and multi-table joins
+4. Internal JOIN algorithms (Nested Loop, Hash Join, Merge Join)
+5. Differences in JOIN syntax and behavior across RDBMS platforms
+6. Advanced JOIN patterns such as LATERAL JOIN, SEMI JOIN, and ANTI JOIN
 
 ---
 
-## 1. JOINの全体像
+## 1. Overview of JOINs
 
 ```
-┌──────────────────── JOIN種別の分類 ─────────────────────┐
-│                                                         │
-│  ┌─────────────────────────────────────────────────┐   │
-│  │              結合（JOIN）                         │   │
-│  ├──────────────┬──────────────────────────────────┤   │
-│  │  内部結合     │  外部結合                         │   │
-│  │  INNER JOIN  │  LEFT / RIGHT / FULL OUTER JOIN  │   │
-│  ├──────────────┼──────────────────────────────────┤   │
-│  │  交差結合     │  その他                           │   │
-│  │  CROSS JOIN  │  NATURAL JOIN / LATERAL JOIN     │   │
-│  └──────────────┴──────────────────────────────────┘   │
-│                                                         │
-│  INNER JOIN  : 両方に存在する行のみ                      │
-│  LEFT JOIN   : 左テーブルの全行 + 右の一致行             │
-│  RIGHT JOIN  : 右テーブルの全行 + 左の一致行             │
-│  FULL JOIN   : 両テーブルの全行                          │
-│  CROSS JOIN  : 全組み合わせ（直積）                      │
-│  LATERAL JOIN: 左テーブルの各行を参照するサブクエリ結合   │
-│  SEMI JOIN   : 存在判定のみ（EXISTS相当）               │
-│  ANTI JOIN   : 非存在判定（NOT EXISTS相当）             │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────── JOIN Type Classification ─────────────────────┐
+│                                                                     │
+│  ┌─────────────────────────────────────────────────────────────┐   │
+│  │                         JOIN                                │   │
+│  ├──────────────────┬──────────────────────────────────────────┤   │
+│  │  Inner Join      │  Outer Join                              │   │
+│  │  INNER JOIN      │  LEFT / RIGHT / FULL OUTER JOIN          │   │
+│  ├──────────────────┼──────────────────────────────────────────┤   │
+│  │  Cross Join      │  Others                                  │   │
+│  │  CROSS JOIN      │  NATURAL JOIN / LATERAL JOIN             │   │
+│  └──────────────────┴──────────────────────────────────────────┘   │
+│                                                                     │
+│  INNER JOIN  : Only rows that exist in both tables                  │
+│  LEFT JOIN   : All rows from the left table + matching right rows   │
+│  RIGHT JOIN  : Matching left rows + all rows from the right table   │
+│  FULL JOIN   : All rows from both tables                            │
+│  CROSS JOIN  : All combinations (Cartesian product)                 │
+│  LATERAL JOIN: Subquery join that references each row of left table │
+│  SEMI JOIN   : Existence check only (equivalent to EXISTS)          │
+│  ANTI JOIN   : Non-existence check (equivalent to NOT EXISTS)       │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### 関係代数とJOINの数学的基礎
+### Mathematical Foundations of Relational Algebra and JOIN
 
-JOINの操作は関係代数（Relational Algebra）で厳密に定義されている。
+JOIN operations are formally defined in Relational Algebra.
 
 ```
-関係代数におけるJOIN演算
+JOIN Operations in Relational Algebra
 ==========================
 
-1. 直積（Cartesian Product）: R × S
-   結果 = |R| × |S| 行
-   → CROSS JOINに対応
+1. Cartesian Product: R × S
+   Result = |R| × |S| rows
+   → Corresponds to CROSS JOIN
 
-2. シータ結合（Theta Join）: R ⋈θ S
-   R × S のうち、条件θを満たす行のみ
-   → ON句付きJOINに対応
+2. Theta Join: R ⋈θ S
+   Only rows from R × S that satisfy condition θ
+   → Corresponds to JOIN with an ON clause
 
-3. 等値結合（Equi Join）: R ⋈(R.a = S.b) S
-   シータ結合の特殊ケース（等号条件のみ）
-   → 最も一般的なJOIN
+3. Equi Join: R ⋈(R.a = S.b) S
+   Special case of Theta Join (equality condition only)
+   → Most common type of JOIN
 
-4. 自然結合（Natural Join）: R ⋈ S
-   同名列で自動等値結合 + 重複列の除去
-   → NATURAL JOINに対応（非推奨）
+4. Natural Join: R ⋈ S
+   Automatic equi-join on same-named columns + removal of duplicate columns
+   → Corresponds to NATURAL JOIN (not recommended)
 
-5. 半結合（Semi Join）: R ⋉ S
-   Sに一致するRの行のみ（Sの列は返さない）
-   → EXISTS/INサブクエリに対応
+5. Semi Join: R ⋉ S
+   Only rows in R that match S (columns from S are not returned)
+   → Corresponds to EXISTS/IN subqueries
 
-6. 反結合（Anti Join）: R ▷ S
-   Sに一致しないRの行のみ
-   → NOT EXISTS/NOT INサブクエリに対応
+6. Anti Join: R ▷ S
+   Only rows in R that do not match S
+   → Corresponds to NOT EXISTS/NOT IN subqueries
 ```
 
-### サンプルデータ
+### Sample Data
 
 ```sql
--- 以降の例で使用するテーブル
+-- Tables used in subsequent examples
 CREATE TABLE departments (
     id   INTEGER PRIMARY KEY,
     name VARCHAR(50)
@@ -95,68 +95,68 @@ CREATE TABLE employees (
     hire_date     DATE
 );
 
-INSERT INTO departments VALUES (1, '営業'), (2, '開発'), (3, '人事');
+INSERT INTO departments VALUES (1, 'Sales'), (2, 'Engineering'), (3, 'HR');
 INSERT INTO employees VALUES
-    (101, '田中', 1, 450000, '2020-04-01'),
-    (102, '鈴木', 2, 520000, '2019-07-15'),
-    (103, '佐藤', 1, 380000, '2021-01-10'),
-    (104, '高橋', NULL, 400000, '2022-03-01');  -- 部署未所属
+    (101, 'Tanaka', 1, 450000, '2020-04-01'),
+    (102, 'Suzuki', 2, 520000, '2019-07-15'),
+    (103, 'Sato',   1, 380000, '2021-01-10'),
+    (104, 'Takahashi', NULL, 400000, '2022-03-01');  -- No department assigned
 ```
 
 ---
 
 ## 2. INNER JOIN
 
-INNER JOINは最も基本的な結合操作であり、両テーブルの結合条件に一致する行のみを返す。結合キーにNULLを持つ行は常に除外される（NULLは何とも等しくならないため）。
+INNER JOIN is the most fundamental join operation and returns only the rows that match the join condition in both tables. Rows with NULL in the join key are always excluded (because NULL is not equal to anything).
 
-### コード例1: INNER JOIN
+### Code Example 1: INNER JOIN
 
 ```sql
--- 両方のテーブルに一致する行のみ返す
+-- Returns only rows that match in both tables
 SELECT e.name AS employee, d.name AS department
 FROM employees e
     INNER JOIN departments d ON e.department_id = d.id;
 
--- 結果:
--- employee | department
--- ---------+-----------
--- 田中     | 営業
--- 鈴木     | 開発
--- 佐藤     | 営業
+-- Result:
+-- employee  | department
+-- ----------+-----------
+-- Tanaka    | Sales
+-- Suzuki    | Engineering
+-- Sato      | Sales
 --
--- ※ 高橋（department_id=NULL）は除外
--- ※ 人事（社員なし）も除外
+-- Note: Takahashi (department_id=NULL) is excluded
+-- Note: HR (no employees) is also excluded
 ```
 
-### INNER JOINの内部動作
+### How INNER JOIN Works Internally
 
 ```
-INNER JOIN の処理フロー
+INNER JOIN Processing Flow
 ========================
 
-employees テーブル          departments テーブル
-+-----+------+--------+    +----+------+
-| id  | name | dep_id |    | id | name |
-+-----+------+--------+    +----+------+
-| 101 | 田中 |   1    |    |  1 | 営業 |
-| 102 | 鈴木 |   2    |    |  2 | 開発 |
-| 103 | 佐藤 |   1    |    |  3 | 人事 |
-| 104 | 高橋 |  NULL  |    +----+------+
-+-----+------+--------+
+employees table              departments table
++-----+----------+--------+    +----+-------------+
+| id  | name     | dep_id |    | id | name        |
++-----+----------+--------+    +----+-------------+
+| 101 | Tanaka   |   1    |    |  1 | Sales       |
+| 102 | Suzuki   |   2    |    |  2 | Engineering |
+| 103 | Sato     |   1    |    |  3 | HR          |
+| 104 | Takahashi|  NULL  |    +----+-------------+
++-----+----------+--------+
 
-結合処理:
-  101: dep_id=1 → departments(1)=営業  ✓ 一致
-  102: dep_id=2 → departments(2)=開発  ✓ 一致
-  103: dep_id=1 → departments(1)=営業  ✓ 一致
-  104: dep_id=NULL → NULL≠1, NULL≠2, NULL≠3  ✗ 全て不一致
+Join processing:
+  101: dep_id=1 → departments(1)=Sales        ✓ match
+  102: dep_id=2 → departments(2)=Engineering  ✓ match
+  103: dep_id=1 → departments(1)=Sales        ✓ match
+  104: dep_id=NULL → NULL≠1, NULL≠2, NULL≠3  ✗ no match
 
-結果: 3行（一致した組み合わせのみ）
+Result: 3 rows (only matched combinations)
 ```
 
-### コード例2: 複合条件のINNER JOIN
+### Code Example 2: INNER JOIN with Compound Conditions
 
 ```sql
--- 複数の結合条件を使用
+-- Using multiple join conditions
 CREATE TABLE project_assignments (
     employee_id   INTEGER,
     department_id INTEGER,
@@ -166,7 +166,7 @@ CREATE TABLE project_assignments (
     PRIMARY KEY (employee_id, project_id)
 );
 
--- 同じ部署に所属し、かつプロジェクトに配属された社員
+-- Employees who belong to the same department and are assigned to a project
 SELECT
     e.name AS employee,
     d.name AS department,
@@ -176,11 +176,11 @@ FROM employees e
         ON e.department_id = d.id
     INNER JOIN project_assignments pa
         ON e.id = pa.employee_id
-        AND e.department_id = pa.department_id  -- 複合結合条件
+        AND e.department_id = pa.department_id  -- compound join condition
 ORDER BY d.name, e.name;
 
--- 非等値結合（Non-Equi Join）の例
--- 給与が同じ部署の平均以上の社員を取得
+-- Non-Equi Join example
+-- Get employees whose salary is above their department average
 SELECT e.name, e.salary, dept_avg.avg_salary
 FROM employees e
     INNER JOIN (
@@ -196,66 +196,66 @@ FROM employees e
 
 ## 3. LEFT JOIN
 
-LEFT JOIN（LEFT OUTER JOIN）は左テーブルの全行を保持し、右テーブルに一致する行がない場合はNULLで埋める。「オプショナルな関連」を表現する際に最も頻繁に使われるJOIN種別である。
+LEFT JOIN (LEFT OUTER JOIN) retains all rows from the left table and fills with NULL when there is no matching row in the right table. It is the most frequently used JOIN type for expressing "optional relationships."
 
-### コード例3: LEFT JOIN (LEFT OUTER JOIN)
+### Code Example 3: LEFT JOIN (LEFT OUTER JOIN)
 
 ```sql
--- 左テーブル（employees）の全行を保持
+-- Retains all rows from the left table (employees)
 SELECT e.name AS employee, d.name AS department
 FROM employees e
     LEFT JOIN departments d ON e.department_id = d.id;
 
--- 結果:
--- employee | department
--- ---------+-----------
--- 田中     | 営業
--- 鈴木     | 開発
--- 佐藤     | 営業
--- 高橋     | NULL        ← 一致なしでもNULLで表示
+-- Result:
+-- employee   | department
+-- -----------+-----------
+-- Tanaka     | Sales
+-- Suzuki     | Engineering
+-- Sato       | Sales
+-- Takahashi  | NULL        ← Displayed as NULL even with no match
 
--- LEFT JOINで「一致しない行」だけ取得（ANTI JOINパターン）
+-- Using LEFT JOIN to get only "unmatched rows" (ANTI JOIN pattern)
 SELECT e.name
 FROM employees e
     LEFT JOIN departments d ON e.department_id = d.id
 WHERE d.id IS NULL;
--- → 高橋（部署未所属の社員）
+-- → Takahashi (employee with no department)
 ```
 
-### LEFT JOINの動作原理
+### How LEFT JOIN Works
 
 ```
-LEFT JOIN の処理フロー
+LEFT JOIN Processing Flow
 ========================
 
-LEFT テーブル (employees)    RIGHT テーブル (departments)
-+------+--------+            +----+------+
-| name | dep_id |            | id | name |
-+------+--------+            +----+------+
-| 田中 |   1    | ──────┐    |  1 | 営業 | ← 一致
-| 鈴木 |   2    | ──────┤    |  2 | 開発 | ← 一致
-| 佐藤 |   1    | ──────┤    |  3 | 人事 | ← 一致なし（結果に出ない）
-| 高橋 |  NULL  | ─── ✗     +----+------+
-+------+--------+
+LEFT table (employees)       RIGHT table (departments)
++----------+--------+            +----+-------------+
+| name     | dep_id |            | id | name        |
++----------+--------+            +----+-------------+
+| Tanaka   |   1    | ──────┐    |  1 | Sales       | ← match
+| Suzuki   |   2    | ──────┤    |  2 | Engineering | ← match
+| Sato     |   1    | ──────┤    |  3 | HR          | ← no match (not in result)
+| Takahashi|  NULL  | ─── ✗     +----+-------------+
++----------+--------+
 
-結果:
-+------+------+--------+
-| 田中 | 営業 |  一致  |
-| 鈴木 | 開発 |  一致  |
-| 佐藤 | 営業 |  一致  |
-| 高橋 | NULL | 不一致 | ← 左テーブルの行は必ず保持
-+------+------+--------+
+Result:
++-----------+-------------+----------+
+| Tanaka    | Sales       |  match   |
+| Suzuki    | Engineering |  match   |
+| Sato      | Sales       |  match   |
+| Takahashi | NULL        | no match | ← Left table row is always preserved
++-----------+-------------+----------+
 
-ポイント:
-  - 左テーブルの全行が結果に含まれることが保証される
-  - 右テーブルに一致がない場合、右側の列はすべてNULLになる
-  - WHERE d.id IS NULL で「一致しない行」だけを抽出できる
+Key points:
+  - All rows from the left table are guaranteed to be included in the result
+  - If there is no match in the right table, all columns on the right side become NULL
+  - Using WHERE d.id IS NULL, you can extract only the "unmatched rows"
 ```
 
-### コード例4: LEFT JOINの実践パターン
+### Code Example 4: Practical LEFT JOIN Patterns
 
 ```sql
--- 実践パターン1: オプショナルなプロフィール情報の取得
+-- Practical pattern 1: Fetching optional profile information
 SELECT
     u.id,
     u.name,
@@ -266,7 +266,7 @@ SELECT
 FROM users u
     LEFT JOIN user_profiles p ON u.id = p.user_id;
 
--- 実践パターン2: 集約と組み合わせた部署別社員数
+-- Practical pattern 2: Employee count per department combined with aggregation
 SELECT
     d.name AS department,
     COUNT(e.id) AS employee_count,
@@ -275,9 +275,9 @@ FROM departments d
     LEFT JOIN employees e ON d.id = e.department_id
 GROUP BY d.id, d.name
 ORDER BY employee_count DESC;
--- 結果: 人事部も0人として表示される
+-- Result: HR department is also shown with 0 employees
 
--- 実践パターン3: 直近の注文情報の結合
+-- Practical pattern 3: Joining the most recent order information
 SELECT
     c.name AS customer,
     c.email,
@@ -299,52 +299,52 @@ FROM customers c
 
 ## 4. RIGHT JOIN / FULL JOIN
 
-### コード例5: RIGHT JOINとFULL JOIN
+### Code Example 5: RIGHT JOIN and FULL JOIN
 
 ```sql
--- RIGHT JOIN: 右テーブル（departments）の全行を保持
+-- RIGHT JOIN: Retains all rows from the right table (departments)
 SELECT e.name AS employee, d.name AS department
 FROM employees e
     RIGHT JOIN departments d ON e.department_id = d.id;
 
--- 結果:
--- employee | department
--- ---------+-----------
--- 田中     | 営業
--- 佐藤     | 営業
--- 鈴木     | 開発
--- NULL     | 人事        ← 社員がいない部署もNULLで表示
+-- Result:
+-- employee   | department
+-- -----------+-----------
+-- Tanaka     | Sales
+-- Sato       | Sales
+-- Suzuki     | Engineering
+-- NULL       | HR          ← Departments with no employees shown as NULL
 
--- FULL OUTER JOIN: 両方の全行を保持
+-- FULL OUTER JOIN: Retains all rows from both tables
 SELECT e.name AS employee, d.name AS department
 FROM employees e
     FULL OUTER JOIN departments d ON e.department_id = d.id;
 
--- 結果:
--- employee | department
--- ---------+-----------
--- 田中     | 営業
--- 佐藤     | 営業
--- 鈴木     | 開発
--- 高橋     | NULL        ← 左のみ
--- NULL     | 人事        ← 右のみ
+-- Result:
+-- employee   | department
+-- -----------+-----------
+-- Tanaka     | Sales
+-- Sato       | Sales
+-- Suzuki     | Engineering
+-- Takahashi  | NULL        ← Left only
+-- NULL       | HR          ← Right only
 ```
 
-### FULL OUTER JOINの実践的な使い方
+### Practical Use of FULL OUTER JOIN
 
 ```sql
--- 差分検出: 2つのデータソースの比較
--- テーブルAにあってBにない、Bにあって Aにない行を検出
+-- Diff detection: Comparing two data sources
+-- Detect rows that exist in A but not B, and rows in B but not A
 
 SELECT
     COALESCE(a.product_id, b.product_id) AS product_id,
     a.stock AS warehouse_a_stock,
     b.stock AS warehouse_b_stock,
     CASE
-        WHEN a.product_id IS NULL THEN 'Bにのみ存在'
-        WHEN b.product_id IS NULL THEN 'Aにのみ存在'
-        WHEN a.stock <> b.stock  THEN '数量不一致'
-        ELSE '一致'
+        WHEN a.product_id IS NULL THEN 'Only in B'
+        WHEN b.product_id IS NULL THEN 'Only in A'
+        WHEN a.stock <> b.stock  THEN 'Quantity mismatch'
+        ELSE 'Match'
     END AS status
 FROM warehouse_a a
     FULL OUTER JOIN warehouse_b b ON a.product_id = b.product_id
@@ -352,7 +352,7 @@ WHERE a.product_id IS NULL
    OR b.product_id IS NULL
    OR a.stock <> b.stock;
 
--- データ同期の差分チェック
+-- Diff check for data synchronization
 SELECT
     COALESCE(src.id, dst.id) AS id,
     src.updated_at AS source_updated,
@@ -370,12 +370,12 @@ WHERE dst.id IS NULL
    OR src.updated_at > dst.updated_at;
 ```
 
-### MySQLでFULL OUTER JOINをエミュレート
+### Emulating FULL OUTER JOIN in MySQL
 
-MySQLはFULL OUTER JOINを直接サポートしていない。LEFT JOINとRIGHT JOINのUNIONで代替する。
+MySQL does not natively support FULL OUTER JOIN. Use a UNION of LEFT JOIN and RIGHT JOIN as a substitute.
 
 ```sql
--- MySQL: FULL OUTER JOINのエミュレーション
+-- MySQL: Emulating FULL OUTER JOIN
 SELECT e.name AS employee, d.name AS department
 FROM employees e
     LEFT JOIN departments d ON e.department_id = d.id
@@ -386,7 +386,7 @@ SELECT e.name AS employee, d.name AS department
 FROM employees e
     RIGHT JOIN departments d ON e.department_id = d.id;
 
--- UNION ALL + 重複排除の最適化版
+-- Optimized version using UNION ALL + deduplication
 SELECT e.name AS employee, d.name AS department
 FROM employees e
     LEFT JOIN departments d ON e.department_id = d.id
@@ -396,25 +396,25 @@ UNION ALL
 SELECT e.name AS employee, d.name AS department
 FROM employees e
     RIGHT JOIN departments d ON e.department_id = d.id
-WHERE e.id IS NULL;  -- LEFT JOINと重複しない行のみ
+WHERE e.id IS NULL;  -- Only rows not already covered by LEFT JOIN
 ```
 
 ---
 
 ## 5. CROSS JOIN
 
-CROSS JOIN（交差結合）は2つのテーブルの全組み合わせ（直積）を生成する。結合条件を指定しないため、左テーブルがM行、右テーブルがN行の場合、結果はM×N行になる。
+CROSS JOIN (cross join) generates all combinations (Cartesian product) of two tables. Since no join condition is specified, if the left table has M rows and the right table has N rows, the result has M×N rows.
 
-### コード例6: CROSS JOINと実用例
+### Code Example 6: CROSS JOIN and Practical Examples
 
 ```sql
--- CROSS JOIN: 全組み合わせ（直積）
--- 4社員 × 3部署 = 12行
+-- CROSS JOIN: All combinations (Cartesian product)
+-- 4 employees × 3 departments = 12 rows
 SELECT e.name, d.name
 FROM employees e
     CROSS JOIN departments d;
 
--- 実用例1: カレンダーテーブルの生成
+-- Practical example 1: Generating a calendar table
 SELECT
     y.year,
     m.month
@@ -422,7 +422,7 @@ FROM generate_series(2020, 2025) AS y(year)
     CROSS JOIN generate_series(1, 12) AS m(month)
 ORDER BY y.year, m.month;
 
--- 実用例2: 全商品×全店舗の在庫マトリクス
+-- Practical example 2: Inventory matrix for all products × all stores
 SELECT
     p.name AS product,
     s.name AS store,
@@ -431,17 +431,17 @@ FROM products p
     CROSS JOIN stores s
     LEFT JOIN inventory i ON i.product_id = p.id AND i.store_id = s.id;
 
--- 実用例3: 時間帯ごとの売上マトリクス
+-- Practical example 3: Sales matrix by time slot
 WITH hours AS (
     SELECT generate_series(0, 23) AS hour
 ),
 days AS (
     SELECT generate_series(0, 6) AS dow,
            CASE generate_series(0, 6)
-               WHEN 0 THEN '日' WHEN 1 THEN '月'
-               WHEN 2 THEN '火' WHEN 3 THEN '水'
-               WHEN 4 THEN '木' WHEN 5 THEN '金'
-               WHEN 6 THEN '土'
+               WHEN 0 THEN 'Sun' WHEN 1 THEN 'Mon'
+               WHEN 2 THEN 'Tue' WHEN 3 THEN 'Wed'
+               WHEN 4 THEN 'Thu' WHEN 5 THEN 'Fri'
+               WHEN 6 THEN 'Sat'
            END AS day_name
 )
 SELECT
@@ -461,27 +461,27 @@ FROM days d
 ORDER BY d.dow, h.hour;
 ```
 
-### JOIN種別のベン図
+### Venn Diagram of JOIN Types
 
 ```
   INNER JOIN          LEFT JOIN           RIGHT JOIN          FULL JOIN
-  (共通部分)           (左全体+共通)       (共通+右全体)        (全体)
+  (intersection)      (left + intersection) (intersection + right) (all)
 
   ┌───┐ ┌───┐       ┌───┐ ┌───┐       ┌───┐ ┌───┐       ┌───┐ ┌───┐
   │   │█│   │       │███│█│   │       │   │█│███│       │███│█│███│
   │ A │█│ B │       │█A█│█│ B │       │ A │█│█B█│       │█A█│█│█B█│
   │   │█│   │       │███│█│   │       │   │█│███│       │███│█│███│
   └───┘ └───┘       └───┘ └───┘       └───┘ └───┘       └───┘ └───┘
-  █ = 結果に含む    █ = 結果に含む    █ = 結果に含む    █ = 結果に含む
+  █ = included       █ = included       █ = included       █ = included
 
 
   LEFT ANTI JOIN      RIGHT ANTI JOIN     CROSS JOIN
-  (左のみ)            (右のみ)            (直積)
+  (left only)         (right only)        (Cartesian product)
 
   ┌───┐ ┌───┐       ┌───┐ ┌───┐       ┌───────────────┐
   │███│ │   │       │   │ │███│       │ A × B         │
-  │█A█│ │ B │       │ A │ │█B█│       │ 全組み合わせ   │
-  │███│ │   │       │   │ │███│       │ M行 × N行     │
+  │█A█│ │ B │       │ A │ │█B█│       │ All combos    │
+  │███│ │   │       │   │ │███│       │ M rows × N rows│
   └───┘ └───┘       └───┘ └───┘       └───────────────┘
   WHERE b.id        WHERE a.id
   IS NULL           IS NULL
@@ -491,12 +491,12 @@ ORDER BY d.dow, h.hour;
 
 ## 6. LATERAL JOIN
 
-LATERAL JOINは左テーブルの各行を参照しながらサブクエリを実行する高度なJOINパターンである。PostgreSQL 9.3+、MySQL 8.0.14+で使用可能。
+LATERAL JOIN is an advanced JOIN pattern that executes a subquery while referencing each row of the left table. Available in PostgreSQL 9.3+ and MySQL 8.0.14+.
 
-### コード例7: LATERAL JOIN
+### Code Example 7: LATERAL JOIN
 
 ```sql
--- 各部署の給与上位3名を取得
+-- Get the top 3 earners per department
 SELECT
     d.name AS department,
     top3.name AS employee,
@@ -505,13 +505,13 @@ FROM departments d
     CROSS JOIN LATERAL (
         SELECT name, salary
         FROM employees
-        WHERE department_id = d.id  -- 外側テーブルの列を参照
+        WHERE department_id = d.id  -- References column from the outer table
         ORDER BY salary DESC
         LIMIT 3
     ) top3;
 
--- LATERAL vs 相関サブクエリ: LATERAL の方がSELECT句で複数列を返せる
--- 相関サブクエリはSELECT句で1値のみ
+-- LATERAL vs correlated subquery: LATERAL can return multiple columns in SELECT
+-- A correlated subquery can only return 1 value in the SELECT clause
 SELECT
     d.name AS department,
     latest.order_date,
@@ -530,7 +530,7 @@ FROM departments d
         LIMIT 1
     ) latest ON TRUE;
 
--- 時系列データの直近N件取得
+-- Fetching the most recent N readings from time-series data
 SELECT
     s.sensor_id,
     s.location,
@@ -551,103 +551,103 @@ ORDER BY s.sensor_id, readings.reading_time DESC;
 
 ## 7. SEMI JOIN / ANTI JOIN
 
-SEMI JOINとANTI JOINはSQL構文上は独立したJOIN種別として記述しないが、EXISTS/NOT EXISTSやIN/NOT INとして記述され、オプティマイザ内部でSEMI JOIN/ANTI JOINとして最適化される。
+SEMI JOIN and ANTI JOIN are not written as distinct JOIN types in SQL syntax, but are expressed using EXISTS/NOT EXISTS or IN/NOT IN, and are optimized internally by the query optimizer as SEMI JOIN/ANTI JOIN.
 
-### コード例8: SEMI JOINとANTI JOIN
+### Code Example 8: SEMI JOIN and ANTI JOIN
 
 ```sql
--- SEMI JOIN: 注文がある顧客のみ取得（EXISTS使用）
+-- SEMI JOIN: Get only customers with orders (using EXISTS)
 SELECT c.id, c.name
 FROM customers c
 WHERE EXISTS (
     SELECT 1 FROM orders o WHERE o.customer_id = c.id
 );
 
--- 同等のSEMI JOIN（IN使用）
+-- Equivalent SEMI JOIN (using IN)
 SELECT c.id, c.name
 FROM customers c
 WHERE c.id IN (SELECT customer_id FROM orders);
 
--- ANTI JOIN: 注文がない顧客のみ取得（NOT EXISTS使用）
+-- ANTI JOIN: Get only customers without orders (using NOT EXISTS)
 SELECT c.id, c.name
 FROM customers c
 WHERE NOT EXISTS (
     SELECT 1 FROM orders o WHERE o.customer_id = c.id
 );
 
--- ANTI JOIN: LEFT JOIN + IS NULL パターン
+-- ANTI JOIN: LEFT JOIN + IS NULL pattern
 SELECT c.id, c.name
 FROM customers c
     LEFT JOIN orders o ON c.id = o.customer_id
 WHERE o.id IS NULL;
 
--- ※ パフォーマンス比較:
+-- Note: Performance comparison:
 -- NOT EXISTS vs LEFT JOIN + IS NULL vs NOT IN
--- 一般的に NOT EXISTS が最も安定した性能
--- NOT IN は NULLがあると意図しない結果になる危険がある
+-- In general, NOT EXISTS delivers the most stable performance
+-- NOT IN can produce unexpected results when NULLs are present
 ```
 
-### SEMI JOIN vs ANTI JOIN vs通常JOIN の違い
+### Differences Between SEMI JOIN, ANTI JOIN, and Regular JOIN
 
 ```
-SEMI JOIN / ANTI JOIN の動作
+SEMI JOIN / ANTI JOIN Behavior
 ==============================
 
-テーブル: customers        テーブル: orders
-+----+------+              +----+--------+
-| id | name |              | id | cust_id|
-+----+------+              +----+--------+
-|  1 | 田中 |              | 10 |   1    |
-|  2 | 鈴木 |              | 11 |   1    |
-|  3 | 佐藤 |              | 12 |   3    |
-+----+------+              +----+--------+
+Table: customers        Table: orders
++----+--------+              +----+----------+
+| id | name   |              | id | cust_id  |
++----+--------+              +----+----------+
+|  1 | Tanaka |              | 10 |    1     |
+|  2 | Suzuki |              | 11 |    1     |
+|  3 | Sato   |              | 12 |    3     |
++----+--------+              +----+----------+
 
 INNER JOIN (customers JOIN orders ON id = cust_id):
-→ 田中(10), 田中(11), 佐藤(12) = 3行（田中が2行！）
+→ Tanaka(10), Tanaka(11), Sato(12) = 3 rows (Tanaka appears twice!)
 
 SEMI JOIN (EXISTS):
-→ 田中, 佐藤 = 2行（注文が1件でもあれば1行）
+→ Tanaka, Sato = 2 rows (1 row per customer who has at least 1 order)
 
 ANTI JOIN (NOT EXISTS):
-→ 鈴木 = 1行（注文がない顧客のみ）
+→ Suzuki = 1 row (only customers with no orders)
 
-ポイント:
-  SEMI JOIN = 「少なくとも1件一致する行」
-  ANTI JOIN = 「1件も一致しない行」
-  → INNER JOINと異なり重複が発生しない
+Key points:
+  SEMI JOIN = "Rows with at least one match"
+  ANTI JOIN = "Rows with no match at all"
+  → Unlike INNER JOIN, no duplicates are produced
 ```
 
 ---
 
-## 8. 実践的なJOINパターン
+## 8. Practical JOIN Patterns
 
-### コード例9: 自己結合（Self Join）
+### Code Example 9: Self Join
 
 ```sql
--- 社員テーブルで上司と部下の関係を表現
+-- Representing manager-subordinate relationships in the employee table
 CREATE TABLE staff (
     id         INTEGER PRIMARY KEY,
     name       VARCHAR(100),
     manager_id INTEGER REFERENCES staff(id)
 );
 
--- 自己結合で上司名を取得
+-- Self-join to get manager names
 SELECT
     s.name AS employee,
     m.name AS manager
 FROM staff s
     LEFT JOIN staff m ON s.manager_id = m.id;
 
--- 同じ部署の社員ペアを列挙（自己結合）
+-- List all employee pairs in the same department (self-join)
 SELECT
     e1.name AS employee_1,
     e2.name AS employee_2
 FROM employees e1
     INNER JOIN employees e2
         ON e1.department_id = e2.department_id
-        AND e1.id < e2.id;  -- 重複ペア防止
+        AND e1.id < e2.id;  -- Prevent duplicate pairs
 
--- 同期入社（同じ年に入社）の社員ペア
+-- Employee pairs who joined in the same year
 SELECT
     e1.name AS emp1,
     e2.name AS emp2,
@@ -659,10 +659,10 @@ FROM employees e1
 ORDER BY hire_year;
 ```
 
-### コード例10: 複数テーブルの結合
+### Code Example 10: Joining Multiple Tables
 
 ```sql
--- 3テーブル結合: 注文 → 注文明細 → 商品
+-- 3-table join: orders → order_items → products
 SELECT
     o.id AS order_id,
     o.order_date,
@@ -678,7 +678,7 @@ FROM orders o
 WHERE o.customer_id = 42
 ORDER BY o.order_date DESC, p.name;
 
--- 5テーブル結合: 完全な注文情報の取得
+-- 5-table join: Fetching complete order information
 SELECT
     o.id AS order_id,
     c.name AS customer,
@@ -701,139 +701,143 @@ WHERE o.order_date >= CURRENT_DATE - INTERVAL '30 days'
 ORDER BY o.order_date DESC;
 ```
 
-### コード例11: 条件付きJOIN
+### Code Example 11: Conditional JOIN
 
 ```sql
--- JOINのON句にフィルタ条件を含める vs WHERE句
--- 挙動の違いに注意
+-- Placing a filter condition in the ON clause vs the WHERE clause
+-- Be aware of the behavioral difference
 
--- パターン1: ON句にフィルタ → LEFT JOINで全部署が表示される
+-- Pattern 1: Filter in the ON clause → All departments appear with LEFT JOIN
 SELECT d.name, e.name, e.salary
 FROM departments d
     LEFT JOIN employees e
         ON d.id = e.department_id
-        AND e.salary > 400000;  -- JOINの条件として
--- → 人事部もNULLで表示、営業部の佐藤（380000）はNULLで表示
+        AND e.salary > 400000;  -- As a JOIN condition
+-- → HR appears as NULL, and Sato (380000) in Sales also appears as NULL
 
--- パターン2: WHERE句にフィルタ → 該当部署のみ
+-- Pattern 2: Filter in the WHERE clause → Only matching departments
 SELECT d.name, e.name, e.salary
 FROM departments d
     LEFT JOIN employees e ON d.id = e.department_id
-WHERE e.salary > 400000;  -- 結合後のフィルタ
--- → 人事部は表示されない（WHERE句でNULL > 400000がFALSE）
+WHERE e.salary > 400000;  -- Filter applied after the join
+-- → HR does not appear (NULL > 400000 is FALSE in the WHERE clause)
 
--- この違いはOUTER JOINで特に重要
--- INNER JOINでは結果は同じになる
+-- This difference is especially important with OUTER JOINs
+-- With INNER JOIN, the result is the same either way
 ```
 
 ```
-ON句 vs WHERE句 でのフィルタ条件（LEFT JOIN）
+Filter condition in ON clause vs WHERE clause (LEFT JOIN)
 ================================================
 
-ON句の場合:
+With ON clause:
   departments     LEFT JOIN employees
-  +------+        ON dep_id = d.id AND salary > 400000
-  | 営業 | ←───── 田中(450000) ✓一致
-  | 開発 | ←───── 鈴木(520000) ✓一致
-  | 人事 | ←───── (一致なし → NULL)  ← 表示される
-  +------+
+  +-------------+        ON dep_id = d.id AND salary > 400000
+  | Sales       | ←───── Tanaka(450000) ✓ match
+  | Engineering | ←───── Suzuki(520000) ✓ match
+  | HR          | ←───── (no match → NULL)  ← still displayed
+  +-------------+
 
-  佐藤(380000): ON条件の salary > 400000 を満たさない
-                → 結合されないが、営業部自体はNULLで表示
+  Sato(380000): Does not satisfy ON condition salary > 400000
+                → Not joined, but Sales itself is displayed as NULL
 
-WHERE句の場合:
+With WHERE clause:
   departments     LEFT JOIN employees
-  +------+        ON dep_id = d.id
-  | 営業 | ←───── 田中(450000), 佐藤(380000)
-  | 開発 | ←───── 鈴木(520000)
-  | 人事 | ←───── (NULL)
-  +------+
+  +-------------+        ON dep_id = d.id
+  | Sales       | ←───── Tanaka(450000), Sato(380000)
+  | Engineering | ←───── Suzuki(520000)
+  | HR          | ←───── (NULL)
+  +-------------+
 
-  WHERE salary > 400000 で全結果をフィルタ:
-    田中(450000) ✓  → 表示
-    佐藤(380000) ✗  → 非表示
-    鈴木(520000) ✓  → 表示
-    人事(NULL)   ✗  → 非表示（NULL > 400000 = UNKNOWN）
+  WHERE salary > 400000 filters all results:
+    Tanaka(450000) ✓  → shown
+    Sato(380000)   ✗  → hidden
+    Suzuki(520000) ✓  → shown
+    HR(NULL)       ✗  → hidden (NULL > 400000 = UNKNOWN)
 ```
 
 ---
 
-## 9. JOINの内部実装アルゴリズム
+## 9. Internal JOIN Algorithms
 
-クエリオプティマイザは結合の実行時に以下の3つのアルゴリズムから最適なものを選択する。
+The query optimizer selects the most appropriate algorithm from the following three when executing a join.
 
-### 結合アルゴリズムの比較
+### Comparison of Join Algorithms
 
 ```
-┌────────────── JOIN アルゴリズム ──────────────┐
-│                                                │
-│  1. Nested Loop Join (ネステッドループ)         │
-│     外側テーブルの各行に対して内側テーブルを走査 │
-│                                                │
-│     for each row r in outer_table:             │
-│         for each row s in inner_table:         │
-│             if r.key == s.key:                 │
-│                 emit(r, s)                     │
-│                                                │
-│     計算量: O(M × N)                           │
-│     ※ 内側にインデックスがあれば O(M × log N)  │
-│     最適: 小テーブル × 大テーブル（索引あり）   │
-│                                                │
-│  2. Hash Join (ハッシュ結合)                    │
-│     小テーブルでハッシュ表を構築し、大テーブルを │
-│     走査して一致を検索                          │
-│                                                │
-│     build hash_table from smaller_table        │
-│     for each row r in larger_table:            │
-│         probe hash_table with r.key            │
-│         if found: emit(r, match)               │
-│                                                │
-│     計算量: O(M + N)                            │
-│     メモリ: O(min(M, N))                        │
-│     最適: 大テーブル同士、等値結合              │
-│                                                │
-│  3. Merge Join (マージ結合/ソートマージ)         │
-│     両テーブルを結合キーでソートし、              │
-│     マージしながら一致を検出                    │
-│                                                │
-│     sort outer_table by key                    │
-│     sort inner_table by key                    │
-│     merge both sorted streams                  │
-│                                                │
-│     計算量: O(M log M + N log N + M + N)        │
-│     ※ 既にソート済みなら O(M + N)              │
-│     最適: 大テーブル同士、ソート済み、範囲結合  │
-└────────────────────────────────────────────────┘
+┌────────────── JOIN Algorithms ──────────────┐
+│                                              │
+│  1. Nested Loop Join                         │
+│     Scans the inner table for each row       │
+│     in the outer table                       │
+│                                              │
+│     for each row r in outer_table:           │
+│         for each row s in inner_table:       │
+│             if r.key == s.key:               │
+│                 emit(r, s)                   │
+│                                              │
+│     Complexity: O(M × N)                     │
+│     ※ O(M × log N) if inner has an index    │
+│     Best for: small table × large table      │
+│              (with index)                    │
+│                                              │
+│  2. Hash Join                                │
+│     Builds a hash table from the smaller     │
+│     table, then probes it while scanning     │
+│     the larger table                         │
+│                                              │
+│     build hash_table from smaller_table      │
+│     for each row r in larger_table:          │
+│         probe hash_table with r.key          │
+│         if found: emit(r, match)             │
+│                                              │
+│     Complexity: O(M + N)                     │
+│     Memory: O(min(M, N))                     │
+│     Best for: large tables, equi-joins       │
+│                                              │
+│  3. Merge Join (Sort Merge)                  │
+│     Sorts both tables by the join key and    │
+│     detects matches while merging            │
+│                                              │
+│     sort outer_table by key                  │
+│     sort inner_table by key                  │
+│     merge both sorted streams                │
+│                                              │
+│     Complexity: O(M log M + N log N + M + N) │
+│     ※ O(M + N) if already sorted            │
+│     Best for: large tables, pre-sorted data, │
+│              range joins                     │
+└──────────────────────────────────────────────┘
 ```
 
-### JOINアルゴリズムの選択基準
+### Selection Criteria for JOIN Algorithms
 
-| 条件 | 選択されるアルゴリズム | 理由 |
-|------|----------------------|------|
-| 小テーブル × 大テーブル（インデックスあり） | Nested Loop + Index Scan | インデックスで高速ルックアップ |
-| 大テーブル × 大テーブル（等値結合） | Hash Join | ハッシュ構築+プローブが効率的 |
-| 両テーブルがソート済み | Merge Join | ソート不要でマージのみ |
-| メモリが少ない + 大テーブル | Merge Join | ディスク上でソート可能 |
-| 非等値結合（<, >, BETWEEN） | Nested Loop or Merge Join | Hash Joinは等値のみ |
-| CROSS JOIN | Nested Loop | 全組み合わせなので他の選択肢なし |
+| Condition | Algorithm Selected | Reason |
+|-----------|-------------------|--------|
+| Small table × large table (with index) | Nested Loop + Index Scan | Fast lookup via index |
+| Large table × large table (equi-join) | Hash Join | Building hash + probing is efficient |
+| Both tables pre-sorted | Merge Join | No sorting needed, merge only |
+| Low memory + large tables | Merge Join | Can sort on disk |
+| Non-equi join (<, >, BETWEEN) | Nested Loop or Merge Join | Hash Join only works for equi-joins |
+| CROSS JOIN | Nested Loop | No other option for all combinations |
 
-### コード例12: 実行計画でJOINアルゴリズムを確認
+### Code Example 12: Inspecting the JOIN Algorithm via Execution Plan
 
 ```sql
--- PostgreSQL: EXPLAIN ANALYZEで実行計画を確認
+-- PostgreSQL: Check the execution plan with EXPLAIN ANALYZE
 EXPLAIN ANALYZE
 SELECT e.name, d.name
 FROM employees e
     INNER JOIN departments d ON e.department_id = d.id;
 
--- 出力例（Nested Loop の場合）:
+-- Sample output (Nested Loop):
 -- Nested Loop  (cost=0.28..16.34 rows=3 width=64)
 --   -> Seq Scan on employees e  (cost=0.00..1.04 rows=4 width=36)
 --   -> Index Scan using departments_pkey on departments d
 --        (cost=0.14..0.16 rows=1 width=36)
 --        Index Cond: (id = e.department_id)
 
--- Hash Join を強制（テスト用、本番では非推奨）
+-- Forcing Hash Join (for testing only; not recommended in production)
 SET enable_nestloop = off;
 SET enable_mergejoin = off;
 
@@ -842,47 +846,47 @@ SELECT e.name, d.name
 FROM employees e
     INNER JOIN departments d ON e.department_id = d.id;
 
--- 出力例（Hash Join の場合）:
+-- Sample output (Hash Join):
 -- Hash Join  (cost=1.07..2.15 rows=3 width=64)
 --   Hash Cond: (e.department_id = d.id)
 --   -> Seq Scan on employees e  (cost=0.00..1.04 rows=4 width=36)
 --   -> Hash  (cost=1.03..1.03 rows=3 width=36)
 --         -> Seq Scan on departments d  (cost=0.00..1.03 rows=3 width=36)
 
--- 設定を元に戻す
+-- Restore settings
 RESET enable_nestloop;
 RESET enable_mergejoin;
 ```
 
 ---
 
-## 10. RDBMS間のJOIN構文の違い
+## 10. JOIN Syntax Differences Across RDBMS
 
-### RDBMS別JOIN対応表
+### JOIN Support Matrix by RDBMS
 
-| 機能 | PostgreSQL | MySQL | SQL Server | Oracle | SQLite |
-|------|-----------|-------|------------|--------|--------|
-| INNER JOIN | ○ | ○ | ○ | ○ | ○ |
-| LEFT JOIN | ○ | ○ | ○ | ○ | ○ |
-| RIGHT JOIN | ○ | ○ | ○ | ○ | ○ |
-| FULL OUTER JOIN | ○ | ×（エミュ要） | ○ | ○ | ×（エミュ要） |
-| CROSS JOIN | ○ | ○ | ○ | ○ | ○ |
-| LATERAL JOIN | ○(9.3+) | ○(8.0.14+) | CROSS/OUTER APPLY | ○(12c+) | × |
-| NATURAL JOIN | ○ | ○ | × | ○ | ○ |
-| USING句 | ○ | ○ | × | ○ | ○ |
+| Feature | PostgreSQL | MySQL | SQL Server | Oracle | SQLite |
+|---------|-----------|-------|------------|--------|--------|
+| INNER JOIN | Yes | Yes | Yes | Yes | Yes |
+| LEFT JOIN | Yes | Yes | Yes | Yes | Yes |
+| RIGHT JOIN | Yes | Yes | Yes | Yes | Yes |
+| FULL OUTER JOIN | Yes | No (emulation required) | Yes | Yes | No (emulation required) |
+| CROSS JOIN | Yes | Yes | Yes | Yes | Yes |
+| LATERAL JOIN | Yes (9.3+) | Yes (8.0.14+) | CROSS/OUTER APPLY | Yes (12c+) | No |
+| NATURAL JOIN | Yes | Yes | No | Yes | Yes |
+| USING clause | Yes | Yes | No | Yes | Yes |
 
-### 各RDBMS固有の構文
+### RDBMS-Specific Syntax
 
 ```sql
--- Oracle: 旧式のOUTER JOIN構文（(+)記法）
--- 非推奨だがレガシーコードで頻出
+-- Oracle: Legacy OUTER JOIN syntax ((+) notation)
+-- Deprecated but common in legacy code
 SELECT e.name, d.name
 FROM employees e, departments d
-WHERE e.department_id = d.id(+);  -- LEFT JOIN相当
--- → 標準のLEFT JOIN構文を使うべき
+WHERE e.department_id = d.id(+);  -- Equivalent to LEFT JOIN
+-- → Use the standard LEFT JOIN syntax instead
 
 -- SQL Server: CROSS APPLY / OUTER APPLY
--- LATERALに相当
+-- Equivalent to LATERAL
 SELECT d.name, top3.name, top3.salary
 FROM departments d
 CROSS APPLY (
@@ -892,80 +896,80 @@ CROSS APPLY (
     ORDER BY salary DESC
 ) top3;
 
--- MySQL: STRAIGHT_JOIN（結合順序の強制）
+-- MySQL: STRAIGHT_JOIN (forcing join order)
 SELECT STRAIGHT_JOIN e.name, d.name
 FROM employees e
     INNER JOIN departments d ON e.department_id = d.id;
--- → オプティマイザの結合順序選択を無効化
+-- → Disables the optimizer's join order selection
 ```
 
 ---
 
-## JOIN種別比較表
+## JOIN Type Comparison Table
 
-| JOIN種別 | 結果行数 | NULL行 | 主な用途 | 計算コスト |
-|---------|---------|--------|---------|-----------|
-| INNER JOIN | 両方に一致する行のみ | なし | 関連データの結合 | 低〜中 |
-| LEFT JOIN | 左テーブル全行 | 右側にNULL | オプショナルな関連 | 中 |
-| RIGHT JOIN | 右テーブル全行 | 左側にNULL | LEFT JOINの逆（稀） | 中 |
-| FULL OUTER JOIN | 両テーブル全行 | 両側にNULL | 差分検出 | 高 |
-| CROSS JOIN | 左×右の全組み合わせ | なし | マトリクス生成 | 非常に高 |
-| LATERAL JOIN | 左テーブル全行 × サブクエリ | 設定による | Top-N per group | 中〜高 |
-| NATURAL JOIN | 同名列で自動結合 | なし | 非推奨（暗黙結合） | INNER JOINと同等 |
+| JOIN Type | Result Rows | NULL Rows | Primary Use Case | Computational Cost |
+|-----------|------------|-----------|-----------------|-------------------|
+| INNER JOIN | Only rows matching in both | None | Joining related data | Low–Medium |
+| LEFT JOIN | All rows from left table | NULL on right side | Optional relationships | Medium |
+| RIGHT JOIN | All rows from right table | NULL on left side | Reverse of LEFT JOIN (rare) | Medium |
+| FULL OUTER JOIN | All rows from both tables | NULL on both sides | Diff detection | High |
+| CROSS JOIN | All combinations of left × right | None | Matrix generation | Very High |
+| LATERAL JOIN | All left rows × subquery | Depends on config | Top-N per group | Medium–High |
+| NATURAL JOIN | Auto-join on same-named columns | None | Not recommended (implicit join) | Same as INNER JOIN |
 
-## ON句 vs USING句 vs WHERE句 比較表
+## ON Clause vs USING Clause vs WHERE Clause Comparison
 
-| 方式 | 構文例 | 柔軟性 | 可読性 | 注意点 |
-|------|--------|--------|--------|--------|
-| ON句 | `ON a.id = b.a_id` | 高い（複合条件可） | 明示的 | 最も推奨 |
-| USING句 | `USING (id)` | 低い（同名列のみ） | 簡潔 | SQL Serverは非対応 |
-| WHERE句 | `WHERE a.id = b.a_id` | 高い | 結合条件と混在 | OUTER JOINで不可 |
-| NATURAL | 暗黙 | 最低（制御不能） | 危険 | 列追加で動作変化 |
+| Method | Syntax Example | Flexibility | Readability | Notes |
+|--------|---------------|-------------|-------------|-------|
+| ON clause | `ON a.id = b.a_id` | High (compound conditions possible) | Explicit | Most recommended |
+| USING clause | `USING (id)` | Low (same-named columns only) | Concise | Not supported in SQL Server |
+| WHERE clause | `WHERE a.id = b.a_id` | High | Join and filter conditions mixed | Cannot be used with OUTER JOIN |
+| NATURAL | Implicit | Lowest (no control) | Dangerous | Behavior changes when columns are added |
 
 ---
 
-## パフォーマンス最適化
+## Performance Optimization
 
-### JOINのパフォーマンスに影響する要因
+### Factors That Affect JOIN Performance
 
 ```
-JOIN パフォーマンス最適化チェックリスト
+JOIN Performance Optimization Checklist
 ========================================
 
-1. インデックス
-   [✓] 結合キー列にインデックスがあるか？
-   [✓] 外部キー制約にインデックスが自動作成されているか？
-       （PostgreSQLでは自動作成されない！明示的に作成が必要）
-   [✓] 複合インデックスの列順序は適切か？
+1. Indexes
+   [✓] Is there an index on the join key column?
+   [✓] Are indexes automatically created for foreign key constraints?
+       (PostgreSQL does NOT create them automatically — create explicitly!)
+   [✓] Is the column order of composite indexes appropriate?
 
-2. 結合順序
-   [✓] 小テーブルから大テーブルへの結合になっているか？
-   [✓] オプティマイザの統計情報は最新か？（ANALYZE実行）
-   [✓] 必要に応じてヒント句で結合順序を制御
+2. Join Order
+   [✓] Is the join going from smaller table to larger table?
+   [✓] Are optimizer statistics up to date? (Run ANALYZE)
+   [✓] Control join order with hint clauses if necessary
 
-3. データ量の削減
-   [✓] JOINの前にWHEREで行数を減らせないか？
-   [✓] 不要な列をSELECTしていないか？
-   [✓] サブクエリで事前に集約できないか？
+3. Reducing Data Volume
+   [✓] Can the row count be reduced with WHERE before the JOIN?
+   [✓] Are unnecessary columns being SELECTed?
+   [✓] Can the data be pre-aggregated in a subquery?
 
-4. JOIN種別の選択
-   [✓] 不要なOUTER JOINを使っていないか？
-   [✓] EXISTS/INで代替できるJOINはないか？（SEMI JOIN最適化）
-   [✓] CROSS JOINの結果が爆発的に大きくないか？
+4. JOIN Type Selection
+   [✓] Are unnecessary OUTER JOINs being used?
+   [✓] Can any JOINs be replaced with EXISTS/IN? (SEMI JOIN optimization)
+   [✓] Is the CROSS JOIN result set explosively large?
 ```
 
-### コード例13: JOINパフォーマンスの改善
+### Code Example 13: Improving JOIN Performance
 
 ```sql
--- [NG] 全データをJOINしてからフィルタ
+-- [NG] Join all data first, then filter
 SELECT e.name, d.name, o.total
 FROM employees e
     INNER JOIN departments d ON e.department_id = d.id
     INNER JOIN orders o ON e.id = o.employee_id
 WHERE o.order_date >= '2024-01-01'
-  AND d.name = '営業';
+  AND d.name = 'Sales';
 
--- [OK] サブクエリで先に絞り込み
+-- [OK] Filter in subqueries first
 SELECT e.name, d.name, o.total
 FROM (
     SELECT * FROM employees WHERE department_id = 1
@@ -974,15 +978,15 @@ FROM (
     INNER JOIN (
         SELECT * FROM orders WHERE order_date >= '2024-01-01'
     ) o ON e.id = o.employee_id;
--- ※ 実際にはオプティマイザが同等の最適化を行う場合が多い
--- ※ EXPLAIN ANALYZEで確認して判断すること
+-- Note: In practice, the optimizer often performs equivalent optimizations automatically
+-- Note: Always verify with EXPLAIN ANALYZE before deciding
 
--- インデックスの作成
+-- Creating indexes
 CREATE INDEX idx_employees_department_id ON employees(department_id);
 CREATE INDEX idx_orders_employee_id ON orders(employee_id);
 CREATE INDEX idx_orders_date ON orders(order_date);
 
--- 統計情報の更新
+-- Updating statistics
 ANALYZE employees;
 ANALYZE orders;
 ANALYZE departments;
@@ -990,46 +994,46 @@ ANALYZE departments;
 
 ---
 
-## エッジケース
+## Edge Cases
 
-### エッジケース1: NULLとJOIN
+### Edge Case 1: NULL and JOIN
 
 ```sql
--- NULL同士は等しくならない（NULL = NULL → UNKNOWN → FALSE扱い）
+-- NULL is not equal to NULL (NULL = NULL → UNKNOWN → treated as FALSE)
 SELECT * FROM table_a a
     INNER JOIN table_b b ON a.nullable_col = b.nullable_col;
--- → 両方がNULLの行は結合されない
+-- → Rows where both are NULL will not be joined
 
--- NULLも含めて結合したい場合
+-- To include NULL-to-NULL matches in the join
 SELECT * FROM table_a a
     INNER JOIN table_b b
         ON a.nullable_col = b.nullable_col
         OR (a.nullable_col IS NULL AND b.nullable_col IS NULL);
 
--- もしくは COALESCE を使用
+-- Or use COALESCE
 SELECT * FROM table_a a
     INNER JOIN table_b b
         ON COALESCE(a.nullable_col, -1) = COALESCE(b.nullable_col, -1);
--- ※ センチネル値（-1）が実データに存在しないことを確認
+-- Note: Verify that the sentinel value (-1) does not exist in actual data
 ```
 
-### エッジケース2: JOINによる行の増幅
+### Edge Case 2: Row Multiplication Caused by JOIN
 
 ```sql
--- 1:Nの関係でJOINすると行が増幅する
--- orders(1) : order_items(N) で注文テーブルの行が増える
+-- A 1:N relationship causes row multiplication
+-- Joining orders(1) : order_items(N) increases rows in the orders table
 
--- [NG] 集約とJOINの組み合わせで二重カウント
+-- [NG] Double-counting due to the combination of aggregation and JOIN
 SELECT
     d.name,
-    SUM(o.total) AS dept_total  -- 重複して加算される！
+    SUM(o.total) AS dept_total  -- Added multiple times due to duplicates!
 FROM departments d
     INNER JOIN employees e ON d.id = e.department_id
     INNER JOIN orders o ON e.id = o.employee_id
     INNER JOIN order_items oi ON o.id = oi.order_id
 GROUP BY d.name;
 
--- [OK] サブクエリで先に集約してからJOIN
+-- [OK] Aggregate in a subquery first, then JOIN
 SELECT
     d.name,
     order_totals.dept_total
@@ -1042,10 +1046,10 @@ FROM departments d
     ) order_totals ON d.id = order_totals.department_id;
 ```
 
-### エッジケース3: 多対多関係のJOIN
+### Edge Case 3: JOIN with Many-to-Many Relationships
 
 ```sql
--- 多対多関係: 学生 ←→ 中間テーブル ←→ コース
+-- Many-to-many relationship: students ←→ junction table ←→ courses
 CREATE TABLE students (id INTEGER PRIMARY KEY, name VARCHAR(100));
 CREATE TABLE courses (id INTEGER PRIMARY KEY, title VARCHAR(100));
 CREATE TABLE enrollments (
@@ -1055,7 +1059,7 @@ CREATE TABLE enrollments (
     PRIMARY KEY (student_id, course_id)
 );
 
--- 全学生の履修コース一覧
+-- List of courses taken by each student
 SELECT
     s.name AS student,
     STRING_AGG(c.title, ', ' ORDER BY c.title) AS courses,
@@ -1066,7 +1070,7 @@ FROM students s
 GROUP BY s.id, s.name
 ORDER BY s.name;
 
--- 同じコースを履修している学生ペア
+-- Student pairs taking the same course
 SELECT DISTINCT
     s1.name AS student1,
     s2.name AS student2,
@@ -1080,18 +1084,18 @@ FROM enrollments e1
     INNER JOIN courses c ON e1.course_id = c.id;
 ```
 
-### エッジケース4: 日付範囲による結合
+### Edge Case 4: Join by Date Range
 
 ```sql
--- 非等値結合: 日付範囲で結合する
--- 為替レートテーブル（日次レートが不定期に更新される）
+-- Non-equi join: joining by a date range
+-- Exchange rate table (daily rates updated irregularly)
 CREATE TABLE exchange_rates (
     currency VARCHAR(3),
     rate DECIMAL(10, 4),
     effective_date DATE
 );
 
--- 各注文に対して、注文日時点の為替レートを適用
+-- Apply the exchange rate at the time of each order
 SELECT
     o.id AS order_id,
     o.order_date,
@@ -1111,41 +1115,41 @@ FROM orders o
 
 ---
 
-## セキュリティに関する注意事項
+## Security Considerations
 
-### 1. JOINによる権限の越境
+### 1. Cross-Boundary Data Exposure via JOIN
 
 ```sql
--- リスク: JOINで本来見えないデータが見えてしまう
--- ユーザーAは自分の注文のみ閲覧可能だが、
--- JOINで他のユーザーの情報が漏洩する可能性
+-- Risk: Data that should not be visible becomes visible through JOIN
+-- User A can only view their own orders, but
+-- information about other users may be leaked via JOIN
 
--- [NG] テナント分離が不十分
+-- [NG] Insufficient tenant isolation
 SELECT o.*, c.name, c.email
 FROM orders o
     INNER JOIN customers c ON o.customer_id = c.id;
--- → 他テナントの顧客情報も取得可能
+-- → Customer information from other tenants can also be retrieved
 
--- [OK] 行レベルセキュリティ（RLS）またはWHERE句で制限
+-- [OK] Restrict with Row-Level Security (RLS) or WHERE clause
 SELECT o.*, c.name, c.email
 FROM orders o
     INNER JOIN customers c ON o.customer_id = c.id
 WHERE o.tenant_id = current_setting('app.current_tenant')::INTEGER;
 
--- PostgreSQL: 行レベルセキュリティ
+-- PostgreSQL: Row-Level Security
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON orders
     USING (tenant_id = current_setting('app.current_tenant')::INTEGER);
 ```
 
-### 2. SQLインジェクションとJOIN
+### 2. SQL Injection and JOIN
 
 ```sql
--- [NG] 動的JOINのテーブル名を文字列連結で構築
--- ユーザー入力: "employees; DROP TABLE users; --"
+-- [NG] Building table names for dynamic JOINs via string concatenation
+-- User input: "employees; DROP TABLE users; --"
 
--- [OK] ホワイトリストでテーブル名を検証
--- アプリケーション側:
+-- [OK] Validate table names with a whitelist
+-- Application side:
 -- allowed_tables = {'employees', 'departments', 'projects'}
 -- if table_name not in allowed_tables:
 --     raise ValueError("Invalid table name")
@@ -1153,79 +1157,79 @@ CREATE POLICY tenant_isolation ON orders
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: 暗黙的結合（カンマ結合）
+### Anti-Pattern 1: Implicit Join (Comma join)
 
 ```sql
--- NG: 旧式のカンマ結合（暗黙的CROSS JOIN + WHERE）
+-- NG: Old-style comma join (implicit CROSS JOIN + WHERE)
 SELECT e.name, d.name
 FROM employees e, departments d
 WHERE e.department_id = d.id;
 
--- 問題点:
--- 1. WHERE句を忘れるとCROSS JOINになる
--- 2. 結合条件とフィルタ条件が混在して読みにくい
--- 3. OUTER JOINが表現できない
--- 4. テーブルが増えると結合条件の漏れが検出困難
+-- Problems:
+-- 1. Forgetting the WHERE clause results in a CROSS JOIN
+-- 2. Hard to read because join conditions and filter conditions are mixed
+-- 3. OUTER JOIN cannot be expressed
+-- 4. As more tables are added, missing join conditions are hard to detect
 
--- OK: 明示的なJOIN構文
+-- OK: Explicit JOIN syntax
 SELECT e.name, d.name
 FROM employees e
     INNER JOIN departments d ON e.department_id = d.id;
 ```
 
-### アンチパターン2: N+1クエリ問題
+### Anti-Pattern 2: N+1 Query Problem
 
 ```sql
--- NG: ループ内でJOINすべきクエリを個別実行
--- アプリケーション側の疑似コード:
+-- NG: Running queries individually in a loop when JOIN should be used
+-- Pseudo-code on the application side:
 -- for dept in get_all_departments():
 --     employees = query("SELECT * FROM employees WHERE dept_id = ?", dept.id)
---     # 部署数 N に対して N+1 回のクエリ
+--     # N+1 queries for N departments
 
--- OK: JOINで1回のクエリに
+-- OK: One query using JOIN
 SELECT d.name AS department, e.name AS employee
 FROM departments d
     LEFT JOIN employees e ON d.id = e.department_id
 ORDER BY d.name, e.name;
 ```
 
-### アンチパターン3: 不要なJOINによるパフォーマンス劣化
+### Anti-Pattern 3: Performance Degradation from Unnecessary JOINs
 
 ```sql
--- NG: 使わないテーブルもJOINしている
+-- NG: Joining tables that are not used
 SELECT e.name, e.salary
 FROM employees e
     INNER JOIN departments d ON e.department_id = d.id
-    INNER JOIN locations l ON d.location_id = l.id  -- 使ってない！
-WHERE d.name = '営業';
+    INNER JOIN locations l ON d.location_id = l.id  -- Not used!
+WHERE d.name = 'Sales';
 
--- OK: 必要なテーブルのみJOIN
+-- OK: Join only the necessary tables
 SELECT e.name, e.salary
 FROM employees e
     INNER JOIN departments d ON e.department_id = d.id
-WHERE d.name = '営業';
+WHERE d.name = 'Sales';
 
--- もしくはEXISTSで軽量化
+-- Or use EXISTS for a lighter query
 SELECT e.name, e.salary
 FROM employees e
 WHERE EXISTS (
     SELECT 1 FROM departments d
-    WHERE d.id = e.department_id AND d.name = '営業'
+    WHERE d.id = e.department_id AND d.name = 'Sales'
 );
 ```
 
-### アンチパターン4: DISTINCT でJOINの重複を隠蔽
+### Anti-Pattern 4: Hiding JOIN Duplicates with DISTINCT
 
 ```sql
--- NG: JOINで行が増えたのをDISTINCTで無理やり解消
+-- NG: Using DISTINCT to forcibly resolve duplicates caused by JOIN
 SELECT DISTINCT e.name, e.department_id
 FROM employees e
     INNER JOIN orders o ON e.id = o.employee_id;
--- → JOINの設計が間違っている可能性が高い
+-- → The JOIN design is likely incorrect
 
--- OK: EXISTSを使用してSEMI JOINに
+-- OK: Use EXISTS for a SEMI JOIN instead
 SELECT e.name, e.department_id
 FROM employees e
 WHERE EXISTS (
@@ -1235,40 +1239,40 @@ WHERE EXISTS (
 
 ---
 
-## 演習問題
+## Practice Problems
 
-### 演習1（基礎）: 基本的なJOIN
+### Exercise 1 (Basic): Fundamental JOINs
 
-以下のテーブル構造で、各問いに答えるSQLを書きなさい。
+Write SQL queries to answer each question using the following table structure.
 
 ```sql
--- テーブル定義
+-- Table definitions
 CREATE TABLE authors (id INT PRIMARY KEY, name VARCHAR(100), country VARCHAR(50));
 CREATE TABLE books (id INT PRIMARY KEY, title VARCHAR(200), author_id INT, published_year INT);
 CREATE TABLE reviews (id INT PRIMARY KEY, book_id INT, rating INT, reviewer_name VARCHAR(100));
 ```
 
-1. 全ての著者とその著書を表示せよ（著書がない著者も含む）
-2. レビューが1件もない書籍を列挙せよ
-3. 日本の著者が書いた書籍のレビュー平均点を著者別に表示せよ
+1. Display all authors and their books (including authors with no books)
+2. List all books with no reviews
+3. Display the average review score per author for books written by Japanese authors
 
 <details>
-<summary>解答例</summary>
+<summary>Sample Answers</summary>
 
 ```sql
--- 1. 全ての著者とその著書（LEFT JOIN）
+-- 1. All authors and their books (LEFT JOIN)
 SELECT a.name AS author, b.title AS book
 FROM authors a
     LEFT JOIN books b ON a.id = b.author_id
 ORDER BY a.name, b.title;
 
--- 2. レビューがない書籍（ANTI JOIN）
+-- 2. Books with no reviews (ANTI JOIN)
 SELECT b.title
 FROM books b
     LEFT JOIN reviews r ON b.id = r.book_id
 WHERE r.id IS NULL;
 
--- 3. 日本の著者の書籍レビュー平均点
+-- 3. Average review score for books by Japanese authors
 SELECT
     a.name AS author,
     ROUND(AVG(r.rating), 1) AS avg_rating,
@@ -1276,16 +1280,16 @@ SELECT
 FROM authors a
     INNER JOIN books b ON a.id = b.author_id
     INNER JOIN reviews r ON b.id = r.book_id
-WHERE a.country = '日本'
+WHERE a.country = 'Japan'
 GROUP BY a.id, a.name
 ORDER BY avg_rating DESC;
 ```
 
 </details>
 
-### 演習2（応用）: 複数テーブルJOINと集約
+### Exercise 2 (Applied): Multi-Table JOINs and Aggregation
 
-以下のECサイトのテーブルで、各問いに答えるSQLを書きなさい。
+Write SQL queries to answer each question using the following e-commerce tables.
 
 ```sql
 CREATE TABLE customers (id INT PRIMARY KEY, name VARCHAR(100), registered_at DATE);
@@ -1294,15 +1298,15 @@ CREATE TABLE order_items (id INT PRIMARY KEY, order_id INT, product_id INT, quan
 CREATE TABLE products (id INT PRIMARY KEY, name VARCHAR(100), category VARCHAR(50));
 ```
 
-1. 月別のカテゴリ別売上合計を算出せよ（売上がない月×カテゴリもゼロで表示）
-2. 過去90日間に注文がない顧客のリストを取得せよ
-3. 各顧客の「最も購入金額が大きい商品カテゴリ」を表示せよ
+1. Calculate the monthly sales total by category (show zero for month × category combinations with no sales)
+2. Retrieve the list of customers who have not placed an order in the past 90 days
+3. Display the "product category with the highest total purchase amount" for each customer
 
 <details>
-<summary>解答例</summary>
+<summary>Sample Answers</summary>
 
 ```sql
--- 1. 月別カテゴリ別売上（CROSS JOIN + LEFT JOIN）
+-- 1. Monthly sales by category (CROSS JOIN + LEFT JOIN)
 WITH months AS (
     SELECT generate_series(
         DATE_TRUNC('month', MIN(order_date)),
@@ -1327,7 +1331,7 @@ FROM months m
 GROUP BY m.month, c.category
 ORDER BY m.month, c.category;
 
--- 2. 過去90日間に注文がない顧客（ANTI JOIN）
+-- 2. Customers with no orders in the past 90 days (ANTI JOIN)
 SELECT c.id, c.name, c.registered_at
 FROM customers c
     LEFT JOIN orders o
@@ -1336,7 +1340,7 @@ FROM customers c
 WHERE o.id IS NULL
 ORDER BY c.name;
 
--- 3. 各顧客の最大購入カテゴリ（LATERAL JOIN）
+-- 3. Top purchase category per customer (LATERAL JOIN)
 SELECT
     c.name AS customer,
     top_cat.category,
@@ -1357,7 +1361,7 @@ ORDER BY c.name;
 
 </details>
 
-### 演習3（発展）: 自己結合とグラフ探索
+### Exercise 3 (Advanced): Self-Join and Graph Traversal
 
 ```sql
 CREATE TABLE employees_v2 (
@@ -1369,15 +1373,15 @@ CREATE TABLE employees_v2 (
 );
 ```
 
-1. 各社員について「直属の上司の給与との差額」を計算せよ
-2. 全ての上司-部下ペアのうち、部下の方が給与が高いケースを列挙せよ
-3. 3階層以上の管理チェーン（社員→上司→上司の上司）を再帰なしで取得せよ
+1. For each employee, calculate the "salary difference from their direct manager"
+2. Among all manager-subordinate pairs, list cases where the subordinate earns more
+3. Retrieve management chains of 3 or more levels (employee → manager → manager's manager) without using recursion
 
 <details>
-<summary>解答例</summary>
+<summary>Sample Answers</summary>
 
 ```sql
--- 1. 上司との給与差額（自己結合）
+-- 1. Salary difference from manager (self-join)
 SELECT
     e.name AS employee,
     e.salary AS emp_salary,
@@ -1388,7 +1392,7 @@ FROM employees_v2 e
     LEFT JOIN employees_v2 m ON e.manager_id = m.id
 ORDER BY salary_diff DESC NULLS LAST;
 
--- 2. 部下の方が給与が高いケース
+-- 2. Cases where subordinate earns more than manager
 SELECT
     m.name AS manager,
     m.salary AS mgr_salary,
@@ -1400,7 +1404,7 @@ FROM employees_v2 e
 WHERE e.salary > m.salary
 ORDER BY overpay DESC;
 
--- 3. 3階層の管理チェーン（自己結合3回）
+-- 3. 3-level management chain (3 self-joins)
 SELECT
     e.name AS employee,
     m1.name AS direct_manager,
@@ -1416,62 +1420,62 @@ ORDER BY m2.name, m1.name, e.name;
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | Prioritize when | Can compromise when |
+|-----------|----------------|---------------------|
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Selecting an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│         Architecture Selection Flow              │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① What is the team size?                        │
+│    ├─ Small (1-5 people) → Monolith              │
+│    └─ Large (10+ people) → Go to ②               │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② How often do you deploy?                      │
+│    ├─ Weekly or less → Monolith + modular split  │
+│    └─ Daily / multiple times → Go to ③           │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ How independent are teams?                    │
+│    ├─ High → Microservices                       │
+│    └─ Moderate → Modular Monolith                │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze them from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A faster approach in the short term can become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies enables the right tool for the right job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction improves reusability but can make debugging more difficult
+- Low abstraction is intuitive but tends to cause code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1481,17 +1485,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and the problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision made"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1499,7 +1503,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1507,15 +1511,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1524,30 +1528,30 @@ class ArchitectureDecisionRecord:
 
 ## FAQ
 
-### Q1: LEFT JOINとINNER JOINのどちらを使うべきか？
+### Q1: When should I use LEFT JOIN vs INNER JOIN?
 
-「結合先にデータが存在しない場合も結果に含めたいか？」が判断基準。例えば「部署未所属の社員も表示したい」ならLEFT JOIN、「部署に所属する社員だけ表示したい」ならINNER JOINを使う。迷ったらLEFT JOINを使い、不要なNULL行がないか確認するのも一つの方法。
+The key question is: "Do I want rows to appear in the result even if there is no matching data in the joined table?" For example, use LEFT JOIN if you want to show employees without a department, and INNER JOIN if you only want employees who belong to a department. When in doubt, using LEFT JOIN and then checking whether there are any unnecessary NULL rows is a valid approach.
 
-### Q2: JOINの順序はパフォーマンスに影響するか？
+### Q2: Does the order of JOINs affect performance?
 
-理論的にはクエリオプティマイザが最適な結合順序を選択するため、書く順序は影響しない。ただし、複雑なクエリやオプティマイザの限界がある場合、ヒント句（`/*+ LEADING(...) */`等）で制御することがある。PostgreSQLの`join_collapse_limit`（デフォルト8）を超えるテーブル数の場合、書いた順序で結合されるため注意が必要。
+In theory, the query optimizer selects the optimal join order, so the written order should not matter. However, for complex queries or when the optimizer reaches its limits, hint clauses (such as `/*+ LEADING(...) */`) may be used to control the order. When the number of tables exceeds PostgreSQL's `join_collapse_limit` (default 8), the tables are joined in the written order, so caution is needed.
 
-### Q3: NATURAL JOINはなぜ非推奨か？
+### Q3: Why is NATURAL JOIN not recommended?
 
-NATURAL JOINは同名の全列で自動結合するため、テーブルに列を追加しただけで結合条件が変わり、予期しない結果を返す危険がある。例えば、両テーブルに`created_at`列が追加されると、意図しない結合条件に含まれてしまう。常にON句で明示的に結合条件を指定すべき。
+NATURAL JOIN automatically joins on all columns with the same name, so simply adding a column to a table changes the join condition and can produce unexpected results. For example, if a `created_at` column is added to both tables, it gets unintentionally included in the join condition. Always specify join conditions explicitly using the ON clause.
 
-### Q4: EXISTSとINとJOINはどう使い分けるか？
+### Q4: How do I choose between EXISTS, IN, and JOIN?
 
-- **INNER JOIN**: 結合先の列も結果に必要な場合
-- **EXISTS**: 存在確認のみで結合先の列が不要な場合（SEMI JOIN）
-- **IN**: サブクエリの結果が小さく、NULLが含まれない場合
+- **INNER JOIN**: Use when columns from the joined table are needed in the result
+- **EXISTS**: Use when only existence checking is needed and columns from the joined table are not required (SEMI JOIN)
+- **IN**: Use when the subquery result is small and contains no NULLs
 
-パフォーマンスは多くのRDBMSで同等だが、NOT INはNULLの問題があるためNOT EXISTSを推奨する。
+Performance is equivalent in most RDBMS, but NOT IN has issues with NULLs, so NOT EXISTS is recommended.
 
-### Q5: JOINで「最新の1件」を取得するベストプラクティスは？
+### Q5: What is the best practice for getting "the most recent 1 record" with a JOIN?
 
 ```sql
--- 方法1: LATERAL JOIN（PostgreSQL 9.3+, MySQL 8.0.14+）
+-- Method 1: LATERAL JOIN (PostgreSQL 9.3+, MySQL 8.0.14+)
 SELECT c.*, latest_order.*
 FROM customers c
     LEFT JOIN LATERAL (
@@ -1556,7 +1560,7 @@ FROM customers c
         ORDER BY order_date DESC LIMIT 1
     ) latest_order ON TRUE;
 
--- 方法2: ROW_NUMBER() + CTE
+-- Method 2: ROW_NUMBER() + CTE
 WITH ranked AS (
     SELECT o.*, ROW_NUMBER() OVER (
         PARTITION BY customer_id ORDER BY order_date DESC
@@ -1567,77 +1571,77 @@ SELECT c.*, r.order_date, r.total
 FROM customers c
     LEFT JOIN ranked r ON c.id = r.customer_id AND r.rn = 1;
 
--- 方法3: 相関サブクエリ（非推奨、大量データで遅い）
+-- Method 3: Correlated subquery (not recommended; slow for large datasets)
 SELECT c.*,
     (SELECT MAX(order_date) FROM orders WHERE customer_id = c.id)
 FROM customers c;
 ```
 
-### Q6: 多数のテーブルをJOINするときの注意点は？
+### Q6: What should I be careful about when joining many tables?
 
-- PostgreSQLの`join_collapse_limit`（デフォルト8）を超えると結合順序の最適化が制限される
-- 必要なJOINのみ記述し、不要なJOINは削除する
-- 中間結果をCTEやサブクエリで事前に集約することで結合対象を小さくする
-- EXPLAIN ANALYZEで実行計画を確認し、ボトルネックを特定する
-
----
-
-## トラブルシューティング
-
-### 問題1: JOINが予想より多くの行を返す
-
-**原因**: 1:N関係で行が増幅されている。結合キーにユニーク制約がない。
-
-**対処**:
-1. `SELECT COUNT(*) FROM result` で行数を確認
-2. 結合キーのカーディナリティを確認: `SELECT column, COUNT(*) FROM table GROUP BY column HAVING COUNT(*) > 1`
-3. DISTINCTやGROUP BYで重複を排除、またはEXISTS（SEMI JOIN）に書き換え
-
-### 問題2: JOINが遅い
-
-**原因**: インデックスがない、統計情報が古い、結合順序が最適でない。
-
-**対処**:
-1. `EXPLAIN ANALYZE`で実行計画を確認
-2. 結合キー列にインデックスを作成
-3. `ANALYZE`で統計情報を更新
-4. work_memを増やしてHash Joinのスピルを防ぐ
-
-### 問題3: FULL OUTER JOINがMySQLで使えない
-
-**対処**: LEFT JOIN UNION ALL RIGHT JOIN（WHERE左.id IS NULL）で代替する。上記のコード例を参照。
+- PostgreSQL's `join_collapse_limit` (default 8) restricts join order optimization when exceeded
+- Write only the necessary JOINs and remove any that are not needed
+- Pre-aggregate intermediate results using CTEs or subqueries to reduce the size of join targets
+- Use EXPLAIN ANALYZE to inspect the execution plan and identify bottlenecks
 
 ---
 
-## まとめ
+## Troubleshooting
 
-| 項目 | 要点 |
-|------|------|
-| INNER JOIN | 両テーブルの一致行のみ。最も基本的 |
-| LEFT JOIN | 左テーブル全行保持。実務で最頻出 |
-| RIGHT JOIN | LEFT JOINの逆。可読性のためLEFTに書き換え推奨 |
-| FULL OUTER JOIN | 両テーブル全行保持。差分検出に有用 |
-| CROSS JOIN | 直積。マトリクス生成用。結果行数に注意 |
-| LATERAL JOIN | 外側テーブルの各行を参照するサブクエリ結合 |
-| SEMI/ANTI JOIN | EXISTS/NOT EXISTSで記述。重複が発生しない |
-| 結合条件 | ON句で明示指定。NATURAL JOINは避ける |
-| ON vs WHERE | OUTER JOINでは結果が異なる。用途を理解して使い分け |
-| パフォーマンス | 結合列にインデックスを設定。EXPLAIN ANALYZEで検証 |
-| 内部アルゴリズム | Nested Loop, Hash Join, Merge Joinの3種類 |
+### Problem 1: JOIN Returns More Rows Than Expected
+
+**Cause**: Row multiplication in a 1:N relationship. The join key has no unique constraint.
+
+**Resolution**:
+1. Check the row count with `SELECT COUNT(*) FROM result`
+2. Check cardinality of the join key: `SELECT column, COUNT(*) FROM table GROUP BY column HAVING COUNT(*) > 1`
+3. Eliminate duplicates with DISTINCT or GROUP BY, or rewrite as EXISTS (SEMI JOIN)
+
+### Problem 2: JOIN Is Slow
+
+**Cause**: Missing indexes, stale statistics, suboptimal join order.
+
+**Resolution**:
+1. Check the execution plan with `EXPLAIN ANALYZE`
+2. Create an index on the join key column
+3. Update statistics with `ANALYZE`
+4. Increase `work_mem` to prevent Hash Join spilling to disk
+
+### Problem 3: FULL OUTER JOIN Is Not Available in MySQL
+
+**Resolution**: Use LEFT JOIN UNION ALL RIGHT JOIN (WHERE left.id IS NULL) as a substitute. See the code example above for reference.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [03-aggregation.md](./03-aggregation.md) — GROUP BYと集約関数
-- [04-subqueries.md](./04-subqueries.md) — サブクエリの活用
-- [03-indexing.md](../01-advanced/03-indexing.md) — JOIN性能を左右するインデックス
-- [00-window-functions.md](../01-advanced/00-window-functions.md) — ウィンドウ関数との組み合わせ
-- [04-query-optimization.md](../01-advanced/04-query-optimization.md) — クエリ最適化の全体像
+| Item | Key Point |
+|------|-----------|
+| INNER JOIN | Only matching rows from both tables. The most fundamental. |
+| LEFT JOIN | Retains all rows from the left table. Most commonly used in practice. |
+| RIGHT JOIN | Reverse of LEFT JOIN. Recommended to rewrite as LEFT JOIN for readability. |
+| FULL OUTER JOIN | Retains all rows from both tables. Useful for diff detection. |
+| CROSS JOIN | Cartesian product. For matrix generation. Watch out for the result row count. |
+| LATERAL JOIN | Subquery join that references each row of the outer table. |
+| SEMI/ANTI JOIN | Written with EXISTS/NOT EXISTS. No duplicates produced. |
+| Join Condition | Specify explicitly with ON clause. Avoid NATURAL JOIN. |
+| ON vs WHERE | Results differ with OUTER JOIN. Understand the purpose and use accordingly. |
+| Performance | Set indexes on join columns. Verify with EXPLAIN ANALYZE. |
+| Internal Algorithms | Three types: Nested Loop, Hash Join, Merge Join. |
 
 ---
 
-## 参考文献
+## What to Read Next
+
+- [03-aggregation.md](./03-aggregation.md) — GROUP BY and aggregate functions
+- [04-subqueries.md](./04-subqueries.md) — Using subqueries
+- [03-indexing.md](../01-advanced/03-indexing.md) — Indexes that affect JOIN performance
+- [00-window-functions.md](../01-advanced/00-window-functions.md) — Combining with window functions
+- [04-query-optimization.md](../01-advanced/04-query-optimization.md) — Full picture of query optimization
+
+---
+
+## References
 
 1. PostgreSQL Documentation — "Joins Between Tables" https://www.postgresql.org/docs/current/tutorial-join.html
 2. PostgreSQL Documentation — "EXPLAIN" https://www.postgresql.org/docs/current/sql-explain.html
@@ -1645,4 +1649,4 @@ FROM customers c;
 4. Molinaro, A. (2005). *SQL Cookbook*. O'Reilly Media.
 5. Winand, M. — "SQL Performance Explained" https://sql-performance-explained.com/
 6. Karwin, B. (2010). *SQL Antipatterns*. Pragmatic Bookshelf.
-7. Date, C.J. (2003). *An Introduction to Database Systems*. Addison Wesley. — 関係代数の理論的基礎
+7. Date, C.J. (2003). *An Introduction to Database Systems*. Addison Wesley. — Theoretical foundations of relational algebra
