@@ -1,111 +1,111 @@
-# MCPエージェント
+# MCP Agents
 
-> Model Context Protocol――AIアプリケーションとツール間の標準プロトコルを使ったエージェント構築。サーバー/クライアント実装、ツール定義、リソース管理を解説する。
+> Building agents using Model Context Protocol — the open standard for connecting AI applications to tools and data sources. Covers server/client implementation, tool definitions, and resource management.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. MCPの設計思想とアーキテクチャ（クライアント/サーバーモデル）
-2. MCPサーバーの実装（ツール・リソース・プロンプトの提供）
-3. MCPクライアントの構築とエージェントへの統合パターン
-4. 高度なMCPサーバー設計（認証、ロギング、ミドルウェア）
-5. 複数MCPサーバーの統合と動的ツール管理
-6. SSEトランスポートによるリモートMCPサーバーの構築
-7. 本番運用に向けたセキュリティ・テスト・デプロイ戦略
+1. MCP design philosophy and architecture (client/server model)
+2. Implementing MCP servers (providing tools, resources, and prompts)
+3. Building MCP clients and integration patterns for agents
+4. Advanced MCP server design (authentication, logging, middleware)
+5. Integrating multiple MCP servers and dynamic tool management
+6. Building remote MCP servers with SSE transport
+7. Security, testing, and deployment strategies for production use
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [LangGraph](./01-langgraph.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [LangGraph](./01-langgraph.md)
 
 ---
 
-## 1. MCPの全体像
+## 1. Overview of MCP
 
-### 1.1 MCPとは
+### 1.1 What is MCP?
 
-MCP（Model Context Protocol）はAnthropicが提唱した **AIアプリケーションとツール/データソースを接続するためのオープン標準プロトコル** 。USBのように「一度実装すればどのAIアプリからも使える」標準化を目指す。
+MCP (Model Context Protocol) is an **open standard protocol proposed by Anthropic for connecting AI applications to tools and data sources**. Like USB, it aims to standardize integrations so that "once implemented, any AI application can use it."
 
 ```
-MCPなし (N x M 問題):
-  App1 ──カスタム統合──→ Tool1
-  App1 ──カスタム統合──→ Tool2
-  App2 ──カスタム統合──→ Tool1  ← 全組み合わせを個別実装
-  App2 ──カスタム統合──→ Tool2
+Without MCP (N x M problem):
+  App1 ──custom integration──→ Tool1
+  App1 ──custom integration──→ Tool2
+  App2 ──custom integration──→ Tool1  ← every combination implemented separately
+  App2 ──custom integration──→ Tool2
 
-MCPあり (N + M):
+With MCP (N + M):
   App1 ──MCP──→ +---------+ ──MCP──→ Tool1
   App2 ──MCP──→ | MCP     | ──MCP──→ Tool2
                 | Protocol|
                 +---------+
-  標準プロトコルで統一 → 実装コスト激減
+  Unified via standard protocol → dramatically reduced implementation cost
 ```
 
-### 1.2 アーキテクチャ
+### 1.2 Architecture
 
 ```
-MCP アーキテクチャ
+MCP Architecture
 
 +------------------+                   +------------------+
 |   MCP Host       |                   |   MCP Server     |
-|  (AIアプリ)      |                   |  (ツールプロバイダ)|
+|  (AI App)        |                   |  (Tool Provider) |
 |                  |     JSON-RPC      |                  |
 |  +-----------+   |   over stdio/SSE  |  +-----------+   |
 |  | MCP       |<========================>| MCP       |   |
 |  | Client    |   |                   |  | Server    |   |
 |  +-----------+   |                   |  +-----------+   |
 |                  |                   |                  |
-|  +-----------+   |   機能:           |  +-----------+   |
-|  | LLM       |   |   - Tools        |  | ツール    |   |
-|  +-----------+   |   - Resources     |  | 実装     |   |
+|  +-----------+   |   Features:       |  +-----------+   |
+|  | LLM       |   |   - Tools        |  | Tool      |   |
+|  +-----------+   |   - Resources     |  | Impl.     |   |
 |                  |   - Prompts       |  +-----------+   |
 |  +-----------+   |   - Sampling      |  +-----------+   |
-|  | Agent     |   |                   |  | データ    |   |
-|  | Logic     |   |                   |  | ソース   |   |
+|  | Agent     |   |                   |  | Data      |   |
+|  | Logic     |   |                   |  | Source    |   |
 |  +-----------+   |                   |  +-----------+   |
 +------------------+                   +------------------+
 
- ホスト: Claude Desktop, Claude Code, Cursor, Cline...
- サーバー: DB接続, API連携, ファイル操作, Git操作...
+ Hosts: Claude Desktop, Claude Code, Cursor, Cline...
+ Servers: DB connections, API integrations, file operations, Git operations...
 ```
 
-### 1.3 MCPの4つの機能カテゴリ
+### 1.3 The Four MCP Feature Categories
 
 ```
-MCP が提供する4つの機能
+Four features provided by MCP
 
-1. Tools（ツール）
-   - LLMが呼び出せるアクション
-   - 例: DB検索、API呼び出し、ファイル操作
-   - LLMが「いつ使うか」を判断
+1. Tools
+   - Actions the LLM can invoke
+   - Examples: DB search, API calls, file operations
+   - The LLM decides when to use them
 
-2. Resources（リソース）
-   - 文脈として提供するデータ
-   - 例: ドキュメント、設定ファイル、データベーススキーマ
-   - ユーザーまたはアプリが選択
+2. Resources
+   - Data provided as context
+   - Examples: documents, configuration files, database schemas
+   - Selected by the user or application
 
-3. Prompts（プロンプト）
-   - 再利用可能なプロンプトテンプレート
-   - 例: コードレビュー、要約、翻訳テンプレート
-   - ユーザーが選択して使用
+3. Prompts
+   - Reusable prompt templates
+   - Examples: code review, summarization, translation templates
+   - Selected and used by the user
 
-4. Sampling（サンプリング）
-   - サーバーからLLMへの呼び出し要求
-   - 例: サーバー側での再帰的処理
-   - サーバーがクライアントのLLMを利用
+4. Sampling
+   - LLM invocation requests from the server
+   - Examples: recursive processing on the server side
+   - The server uses the client's LLM
 ```
 
 ---
 
-## 2. MCPサーバーの実装
+## 2. Implementing an MCP Server
 
-### 2.1 基本的なMCPサーバー
+### 2.1 Basic MCP Server
 
 ```python
-# MCPサーバーの基本実装（Python SDK）
+# Basic MCP server implementation (Python SDK)
 from mcp.server import Server
 from mcp.types import Tool, TextContent, Resource
 from mcp.server.stdio import stdio_server
@@ -113,31 +113,31 @@ import json
 import sqlite3
 import asyncio
 
-# サーバーインスタンス
+# Server instance
 app = Server("company-tools")
 
-# === ツール定義 ===
+# === Tool definitions ===
 @app.list_tools()
 async def list_tools() -> list[Tool]:
     return [
         Tool(
             name="query_employees",
-            description="社員データベースを検索する。名前、部署、役職で検索可能。",
+            description="Search the employee database. Supports searching by name, department, and role.",
             inputSchema={
                 "type": "object",
                 "properties": {
                     "name": {
                         "type": "string",
-                        "description": "社員名（部分一致）"
+                        "description": "Employee name (partial match)"
                     },
                     "department": {
                         "type": "string",
                         "enum": ["engineering", "sales", "hr", "marketing"],
-                        "description": "部署"
+                        "description": "Department"
                     },
                     "limit": {
                         "type": "integer",
-                        "description": "最大件数（デフォルト: 10）",
+                        "description": "Maximum number of results (default: 10)",
                         "default": 10
                     }
                 }
@@ -145,12 +145,12 @@ async def list_tools() -> list[Tool]:
         ),
         Tool(
             name="create_ticket",
-            description="JIRAチケットを作成する。作成後のチケットIDを返す。",
+            description="Create a JIRA ticket. Returns the created ticket ID.",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "title": {"type": "string", "description": "チケットタイトル"},
-                    "description": {"type": "string", "description": "詳細説明"},
+                    "title": {"type": "string", "description": "Ticket title"},
+                    "description": {"type": "string", "description": "Detailed description"},
                     "priority": {
                         "type": "string",
                         "enum": ["high", "medium", "low"]
@@ -161,7 +161,7 @@ async def list_tools() -> list[Tool]:
         )
     ]
 
-# === ツール実行 ===
+# === Tool execution ===
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     if name == "query_employees":
@@ -195,12 +195,12 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         )
         return [TextContent(
             type="text",
-            text=f"チケット作成完了: {ticket_id}"
+            text=f"Ticket created: {ticket_id}"
         )]
 
-    return [TextContent(type="text", text=f"不明なツール: {name}")]
+    return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
-# サーバー起動
+# Start server
 async def main():
     async with stdio_server() as (read, write):
         await app.run(read, write)
@@ -209,23 +209,23 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-### 2.2 リソースの提供
+### 2.2 Providing Resources
 
 ```python
-# MCPリソース: AIに文脈として提供するデータ
+# MCP resources: data provided as context to the AI
 @app.list_resources()
 async def list_resources() -> list[Resource]:
     return [
         Resource(
             uri="company://docs/api-guide",
-            name="API仕様書",
-            description="社内APIの仕様書（OpenAPI形式）",
+            name="API Specification",
+            description="Internal API specification (OpenAPI format)",
             mimeType="application/json"
         ),
         Resource(
             uri="company://docs/coding-standards",
-            name="コーディング規約",
-            description="社内Pythonコーディング規約",
+            name="Coding Standards",
+            description="Internal Python coding standards",
             mimeType="text/markdown"
         )
     ]
@@ -238,32 +238,32 @@ async def read_resource(uri: str) -> str:
     elif uri == "company://docs/coding-standards":
         with open("/docs/coding-standards.md") as f:
             return f.read()
-    raise ValueError(f"不明なリソース: {uri}")
+    raise ValueError(f"Unknown resource: {uri}")
 ```
 
-### 2.3 動的リソースとリソーステンプレート
+### 2.3 Dynamic Resources and Resource Templates
 
 ```python
 from mcp.types import Resource, ResourceTemplate
 
-# 動的リソース: URLパターンに基づいてリソースを生成
+# Dynamic resources: generate resources based on URL patterns
 @app.list_resource_templates()
 async def list_resource_templates() -> list[ResourceTemplate]:
     return [
         ResourceTemplate(
             uriTemplate="company://employees/{employee_id}/profile",
-            name="社員プロフィール",
-            description="指定された社員IDのプロフィール情報"
+            name="Employee Profile",
+            description="Profile information for the specified employee ID"
         ),
         ResourceTemplate(
             uriTemplate="company://projects/{project_id}/summary",
-            name="プロジェクト概要",
-            description="指定されたプロジェクトの概要情報"
+            name="Project Summary",
+            description="Summary information for the specified project"
         ),
         ResourceTemplate(
             uriTemplate="company://metrics/{date}/dashboard",
-            name="日次メトリクス",
-            description="指定日のダッシュボードデータ"
+            name="Daily Metrics",
+            description="Dashboard data for the specified date"
         )
     ]
 
@@ -271,7 +271,7 @@ async def list_resource_templates() -> list[ResourceTemplate]:
 async def read_resource(uri: str) -> str:
     import re
 
-    # 社員プロフィール
+    # Employee profile
     match = re.match(r"company://employees/(\w+)/profile", uri)
     if match:
         employee_id = match.group(1)
@@ -286,13 +286,13 @@ async def read_resource(uri: str) -> str:
                 "id": row[0], "name": row[1],
                 "department": row[2], "role": row[3]
             }, ensure_ascii=False)
-        raise ValueError(f"社員ID {employee_id} が見つかりません")
+        raise ValueError(f"Employee ID {employee_id} not found")
 
-    # プロジェクト概要
+    # Project summary
     match = re.match(r"company://projects/(\w+)/summary", uri)
     if match:
         project_id = match.group(1)
-        # プロジェクト情報を取得
+        # Fetch project information
         return json.dumps({
             "project_id": project_id,
             "status": "active",
@@ -300,13 +300,13 @@ async def read_resource(uri: str) -> str:
             "progress": "65%"
         }, ensure_ascii=False)
 
-    raise ValueError(f"不明なリソースURI: {uri}")
+    raise ValueError(f"Unknown resource URI: {uri}")
 ```
 
-### 2.4 プロンプトテンプレート
+### 2.4 Prompt Templates
 
 ```python
-# MCPプロンプト: 再利用可能なプロンプトテンプレート
+# MCP prompts: reusable prompt templates
 from mcp.types import Prompt, PromptArgument, PromptMessage
 
 @app.list_prompts()
@@ -314,53 +314,53 @@ async def list_prompts() -> list[Prompt]:
     return [
         Prompt(
             name="code_review",
-            description="コードレビューを実行する",
+            description="Perform a code review",
             arguments=[
                 PromptArgument(
                     name="code",
-                    description="レビュー対象のコード",
+                    description="Code to review",
                     required=True
                 ),
                 PromptArgument(
                     name="language",
-                    description="プログラミング言語",
+                    description="Programming language",
                     required=False
                 )
             ]
         ),
         Prompt(
             name="bug_report",
-            description="バグレポートのテンプレートを生成する",
+            description="Generate a bug report template",
             arguments=[
                 PromptArgument(
                     name="title",
-                    description="バグの概要",
+                    description="Bug summary",
                     required=True
                 ),
                 PromptArgument(
                     name="steps",
-                    description="再現手順",
+                    description="Steps to reproduce",
                     required=True
                 ),
                 PromptArgument(
                     name="severity",
-                    description="重要度（critical/high/medium/low）",
+                    description="Severity (critical/high/medium/low)",
                     required=False
                 )
             ]
         ),
         Prompt(
             name="sql_query_helper",
-            description="自然言語からSQLクエリを生成する",
+            description="Generate SQL queries from natural language",
             arguments=[
                 PromptArgument(
                     name="description",
-                    description="取得したいデータの説明",
+                    description="Description of the data to retrieve",
                     required=True
                 ),
                 PromptArgument(
                     name="tables",
-                    description="利用可能なテーブル名（カンマ区切り）",
+                    description="Available table names (comma-separated)",
                     required=False
                 )
             ]
@@ -373,10 +373,10 @@ async def get_prompt(name: str, arguments: dict) -> list[PromptMessage]:
         return [
             PromptMessage(
                 role="user",
-                content=f"""以下の{arguments.get('language', '')}コードをレビューしてください。
+                content=f"""Please review the following {arguments.get('language', '')} code.
 
-セキュリティ、パフォーマンス、可読性の観点で評価し、
-改善点があれば具体的なコード例を提示してください。
+Evaluate it from the perspectives of security, performance, and readability,
+and provide specific code examples for any improvements.
 
 ```
 {arguments['code']}
@@ -389,46 +389,46 @@ async def get_prompt(name: str, arguments: dict) -> list[PromptMessage]:
         return [
             PromptMessage(
                 role="user",
-                content=f"""以下の情報からバグレポートを作成してください。
+                content=f"""Please create a bug report from the following information.
 
-## バグ概要
+## Bug Summary
 {arguments['title']}
 
-## 重要度
+## Severity
 {severity}
 
-## 再現手順
+## Steps to Reproduce
 {arguments['steps']}
 
-以下のフォーマットで出力してください:
-1. タイトル
-2. 環境情報
-3. 再現手順（番号付き）
-4. 期待される動作
-5. 実際の動作
-6. 影響範囲
-7. 推奨される対応"""
+Please output in the following format:
+1. Title
+2. Environment information
+3. Steps to reproduce (numbered)
+4. Expected behavior
+5. Actual behavior
+6. Impact scope
+7. Recommended action"""
             )
         ]
 
     elif name == "sql_query_helper":
-        tables_info = arguments.get("tables", "不明")
+        tables_info = arguments.get("tables", "unknown")
         return [
             PromptMessage(
                 role="user",
-                content=f"""以下の要件に合うSQLクエリを生成してください。
+                content=f"""Please generate a SQL query that meets the following requirements.
 
-要件: {arguments['description']}
-利用可能なテーブル: {tables_info}
+Requirements: {arguments['description']}
+Available tables: {tables_info}
 
-クエリの説明、パフォーマンスに関する注意点も添えてください。"""
+Please also include an explanation of the query and any performance considerations."""
             )
         ]
 
-    raise ValueError(f"不明なプロンプト: {name}")
+    raise ValueError(f"Unknown prompt: {name}")
 ```
 
-### 2.5 サーバーのライフサイクル管理
+### 2.5 Server Lifecycle Management
 
 ```python
 from mcp.server import Server
@@ -438,9 +438,9 @@ import logging
 
 logger = logging.getLogger("mcp-server")
 
-# リソース管理付きサーバー
+# Server with resource management
 class DatabaseMCPServer:
-    """データベース接続を管理するMCPサーバー"""
+    """MCP server that manages database connections"""
 
     def __init__(self, db_path: str):
         self.db_path = db_path
@@ -449,20 +449,20 @@ class DatabaseMCPServer:
         self._setup_handlers()
 
     def _setup_handlers(self):
-        """ハンドラの登録"""
+        """Register handlers"""
 
         @self.server.list_tools()
         async def list_tools() -> list[Tool]:
             return [
                 Tool(
                     name="execute_query",
-                    description="読み取り専用SQLクエリを実行する（SELECT文のみ）",
+                    description="Execute a read-only SQL query (SELECT statements only)",
                     inputSchema={
                         "type": "object",
                         "properties": {
                             "query": {
                                 "type": "string",
-                                "description": "実行するSQLクエリ（SELECT文のみ）"
+                                "description": "SQL query to execute (SELECT statements only)"
                             }
                         },
                         "required": ["query"]
@@ -470,7 +470,7 @@ class DatabaseMCPServer:
                 ),
                 Tool(
                     name="list_tables",
-                    description="データベース内のテーブル一覧を取得する",
+                    description="Get the list of tables in the database",
                     inputSchema={
                         "type": "object",
                         "properties": {}
@@ -478,13 +478,13 @@ class DatabaseMCPServer:
                 ),
                 Tool(
                     name="describe_table",
-                    description="テーブルのスキーマ情報を取得する",
+                    description="Get schema information for a table",
                     inputSchema={
                         "type": "object",
                         "properties": {
                             "table_name": {
                                 "type": "string",
-                                "description": "テーブル名"
+                                "description": "Table name"
                             }
                         },
                         "required": ["table_name"]
@@ -500,24 +500,24 @@ class DatabaseMCPServer:
                 return await self._list_tables()
             elif name == "describe_table":
                 return await self._describe_table(arguments["table_name"])
-            return [TextContent(type="text", text=f"不明なツール: {name}")]
+            return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
     async def _execute_query(self, query: str) -> list[TextContent]:
-        """SQLクエリの実行（SELECT文のみ）"""
+        """Execute a SQL query (SELECT statements only)"""
         query_upper = query.strip().upper()
         if not query_upper.startswith("SELECT"):
             return [TextContent(
                 type="text",
-                text="エラー: SELECT文のみ実行可能です。"
+                text="Error: Only SELECT statements can be executed."
             )]
 
-        # 危険なキーワードのチェック
+        # Check for dangerous keywords
         dangerous = ["DROP", "DELETE", "INSERT", "UPDATE", "ALTER", "CREATE"]
         for keyword in dangerous:
             if keyword in query_upper:
                 return [TextContent(
                     type="text",
-                    text=f"エラー: '{keyword}' を含むクエリは実行できません。"
+                    text=f"Error: Queries containing '{keyword}' cannot be executed."
                 )]
 
         try:
@@ -526,7 +526,7 @@ class DatabaseMCPServer:
             rows = cursor.fetchall()
             result = {
                 "columns": columns,
-                "rows": [list(row) for row in rows[:100]],  # 最大100行
+                "rows": [list(row) for row in rows[:100]],  # max 100 rows
                 "total_rows": len(rows)
             }
             return [TextContent(
@@ -536,11 +536,11 @@ class DatabaseMCPServer:
         except Exception as e:
             return [TextContent(
                 type="text",
-                text=f"クエリ実行エラー: {str(e)}"
+                text=f"Query execution error: {str(e)}"
             )]
 
     async def _list_tables(self) -> list[TextContent]:
-        """テーブル一覧の取得"""
+        """Get the list of tables"""
         cursor = self.conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table'"
         )
@@ -551,7 +551,7 @@ class DatabaseMCPServer:
         )]
 
     async def _describe_table(self, table_name: str) -> list[TextContent]:
-        """テーブルスキーマの取得"""
+        """Get table schema"""
         cursor = self.conn.execute(f"PRAGMA table_info({table_name})")
         columns = []
         for row in cursor.fetchall():
@@ -567,10 +567,10 @@ class DatabaseMCPServer:
         )]
 
     async def run(self):
-        """サーバーの起動"""
+        """Start the server"""
         import sqlite3
         self.conn = sqlite3.connect(self.db_path)
-        logger.info(f"データベース接続: {self.db_path}")
+        logger.info(f"Database connected: {self.db_path}")
 
         try:
             async with stdio_server() as (read, write):
@@ -578,9 +578,9 @@ class DatabaseMCPServer:
         finally:
             if self.conn:
                 self.conn.close()
-                logger.info("データベース切断")
+                logger.info("Database disconnected")
 
-# 起動
+# Start
 if __name__ == "__main__":
     import sys
     db_path = sys.argv[1] if len(sys.argv) > 1 else "data.db"
@@ -590,18 +590,18 @@ if __name__ == "__main__":
 
 ---
 
-## 3. MCPクライアントの実装
+## 3. Implementing an MCP Client
 
-### 3.1 基本クライアント
+### 3.1 Basic Client
 
 ```python
-# MCPクライアントの実装（エージェント側）
+# MCP client implementation (agent side)
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 import anthropic
 
 async def run_mcp_agent():
-    # MCPサーバーに接続
+    # Connect to the MCP server
     server_params = StdioServerParameters(
         command="python",
         args=["company_tools_server.py"],
@@ -612,11 +612,11 @@ async def run_mcp_agent():
         async with ClientSession(read, write) as session:
             await session.initialize()
 
-            # 利用可能なツールを取得
+            # Get available tools
             tools_response = await session.list_tools()
-            print(f"利用可能ツール: {[t.name for t in tools_response.tools]}")
+            print(f"Available tools: {[t.name for t in tools_response.tools]}")
 
-            # Anthropic APIのツール形式に変換
+            # Convert to Anthropic API tool format
             anthropic_tools = [
                 {
                     "name": t.name,
@@ -626,9 +626,9 @@ async def run_mcp_agent():
                 for t in tools_response.tools
             ]
 
-            # エージェントループ
+            # Agent loop
             client = anthropic.Anthropic()
-            messages = [{"role": "user", "content": "エンジニアリング部門の社員を検索して"}]
+            messages = [{"role": "user", "content": "Search for employees in the engineering department"}]
 
             while True:
                 response = client.messages.create(
@@ -642,13 +642,13 @@ async def run_mcp_agent():
                     print(response.content[0].text)
                     break
 
-                # MCPサーバー経由でツール実行
+                # Execute tools via MCP server
                 for block in response.content:
                     if block.type == "tool_use":
                         result = await session.call_tool(
                             block.name, block.input
                         )
-                        # 結果をメッセージに追加
+                        # Add result to messages
                         messages.append({
                             "role": "assistant",
                             "content": response.content
@@ -663,7 +663,7 @@ async def run_mcp_agent():
                         })
 ```
 
-### 3.2 複数MCPサーバーの統合クライアント
+### 3.2 Integrated Client for Multiple MCP Servers
 
 ```python
 from mcp import ClientSession, StdioServerParameters
@@ -680,7 +680,7 @@ class MCPServerConfig:
     env: dict[str, str] = None
 
 class MultiServerMCPAgent:
-    """複数のMCPサーバーを統合するエージェント"""
+    """Agent that integrates multiple MCP servers"""
 
     def __init__(self, server_configs: list[MCPServerConfig]):
         self.server_configs = server_configs
@@ -689,7 +689,7 @@ class MultiServerMCPAgent:
         self.all_tools: list[dict] = []
 
     async def connect_all(self):
-        """全MCPサーバーに接続"""
+        """Connect to all MCP servers"""
         for config in self.server_configs:
             params = StdioServerParameters(
                 command=config.command,
@@ -703,7 +703,7 @@ class MultiServerMCPAgent:
 
             self.sessions[config.name] = session
 
-            # ツール一覧を取得
+            # Get tool list
             tools_response = await session.list_tools()
             for tool in tools_response.tools:
                 self.tool_to_server[tool.name] = config.name
@@ -713,20 +713,20 @@ class MultiServerMCPAgent:
                     "input_schema": tool.inputSchema
                 })
 
-        print(f"接続完了: {len(self.sessions)} サーバー, {len(self.all_tools)} ツール")
+        print(f"Connected: {len(self.sessions)} servers, {len(self.all_tools)} tools")
 
     async def call_tool(self, tool_name: str, arguments: dict) -> str:
-        """適切なMCPサーバーでツールを実行"""
+        """Execute a tool on the appropriate MCP server"""
         server_name = self.tool_to_server.get(tool_name)
         if not server_name:
-            return f"エラー: ツール '{tool_name}' が見つかりません"
+            return f"Error: tool '{tool_name}' not found"
 
         session = self.sessions[server_name]
         result = await session.call_tool(tool_name, arguments)
         return result.content[0].text
 
     async def run_agent_loop(self, user_message: str) -> str:
-        """エージェントループの実行"""
+        """Run the agent loop"""
         client = anthropic.Anthropic()
         messages = [{"role": "user", "content": user_message}]
 
@@ -745,7 +745,7 @@ class MultiServerMCPAgent:
                         return block.text
                 return ""
 
-            # ツール実行
+            # Execute tools
             messages.append({
                 "role": "assistant",
                 "content": response.content
@@ -767,14 +767,14 @@ class MultiServerMCPAgent:
                     "content": tool_results
                 })
 
-        return "最大イテレーション数に達しました"
+        return "Maximum number of iterations reached"
 
     async def _create_connection(self, params):
-        """サーバー接続を作成（簡略化）"""
-        # 実際の実装ではstdio_clientのコンテキストマネージャーを使用
+        """Create a server connection (simplified)"""
+        # In a real implementation, use the stdio_client context manager
         pass
 
-# 使用例
+# Usage example
 async def main():
     configs = [
         MCPServerConfig(
@@ -800,32 +800,32 @@ async def main():
     agent = MultiServerMCPAgent(configs)
     await agent.connect_all()
     result = await agent.run_agent_loop(
-        "GitHubの最新PRとSlackの未読メッセージをまとめて"
+        "Summarize the latest GitHub PRs and unread Slack messages"
     )
     print(result)
 ```
 
-### 3.3 リソースとプロンプトの活用
+### 3.3 Using Resources and Prompts
 
 ```python
 async def use_resources_and_prompts(session: ClientSession):
-    """リソースとプロンプトの活用例"""
+    """Examples of using resources and prompts"""
 
-    # リソース一覧の取得
+    # Get resource list
     resources = await session.list_resources()
     for resource in resources.resources:
-        print(f"リソース: {resource.name} ({resource.uri})")
+        print(f"Resource: {resource.name} ({resource.uri})")
 
-    # リソースの読み取り
+    # Read a resource
     api_docs = await session.read_resource("company://docs/api-guide")
-    print(f"API仕様書: {api_docs.contents[0].text[:200]}...")
+    print(f"API specification: {api_docs.contents[0].text[:200]}...")
 
-    # プロンプト一覧の取得
+    # Get prompt list
     prompts = await session.list_prompts()
     for prompt in prompts.prompts:
-        print(f"プロンプト: {prompt.name} - {prompt.description}")
+        print(f"Prompt: {prompt.name} - {prompt.description}")
 
-    # プロンプトの使用
+    # Use a prompt
     review_prompt = await session.get_prompt(
         "code_review",
         arguments={
@@ -833,16 +833,16 @@ async def use_resources_and_prompts(session: ClientSession):
             "language": "Python"
         }
     )
-    print(f"生成されたプロンプト: {review_prompt.messages[0].content}")
+    print(f"Generated prompt: {review_prompt.messages[0].content}")
 
-    # リソースをLLMコンテキストに含める
+    # Include a resource in the LLM context
     client = anthropic.Anthropic()
     coding_standards = await session.read_resource("company://docs/coding-standards")
 
     response = client.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=4096,
-        system=f"""以下のコーディング規約に従ってレビューしてください:
+        system=f"""Please review according to the following coding standards:
 
 {coding_standards.contents[0].text}""",
         messages=[{
@@ -854,9 +854,9 @@ async def use_resources_and_prompts(session: ClientSession):
 
 ---
 
-## 4. MCP設定ファイル
+## 4. MCP Configuration Files
 
-### 4.1 Claude Desktopの設定
+### 4.1 Claude Desktop Configuration
 
 ```json
 {
@@ -884,7 +884,7 @@ async def use_resources_and_prompts(session: ClientSession):
 }
 ```
 
-### 4.2 Claude Code の設定
+### 4.2 Claude Code Configuration
 
 ```json
 {
@@ -911,25 +911,25 @@ async def use_resources_and_prompts(session: ClientSession):
 }
 ```
 
-### 4.3 通信プロトコル
+### 4.3 Communication Protocol
 
 ```
-MCP 通信フロー (JSON-RPC 2.0)
+MCP Communication Flow (JSON-RPC 2.0)
 
 Client → Server: initialize
-Server → Client: capabilities (対応機能一覧)
+Server → Client: capabilities (list of supported features)
 
 Client → Server: tools/list
 Server → Client: [Tool1, Tool2, ...]
 
 Client → Server: tools/call {name: "query", arguments: {...}}
-Server → Client: {content: [{type: "text", text: "結果"}]}
+Server → Client: {content: [{type: "text", text: "result"}]}
 
 Client → Server: resources/list
 Server → Client: [Resource1, Resource2, ...]
 
 Client → Server: resources/read {uri: "company://docs/api"}
-Server → Client: {content: "APIドキュメント内容..."}
+Server → Client: {content: "API document content..."}
 
 Client → Server: prompts/list
 Server → Client: [Prompt1, Prompt2, ...]
@@ -938,17 +938,17 @@ Client → Server: prompts/get {name: "code_review", arguments: {...}}
 Server → Client: {messages: [{role: "user", content: "..."}]}
 ```
 
-### 4.4 JSON-RPCメッセージ例
+### 4.4 JSON-RPC Message Examples
 
 ```json
-// ツール一覧リクエスト
+// Tool list request
 {
   "jsonrpc": "2.0",
   "id": 1,
   "method": "tools/list"
 }
 
-// ツール一覧レスポンス
+// Tool list response
 {
   "jsonrpc": "2.0",
   "id": 1,
@@ -956,11 +956,11 @@ Server → Client: {messages: [{role: "user", content: "..."}]}
     "tools": [
       {
         "name": "query_employees",
-        "description": "社員データベースを検索する",
+        "description": "Search the employee database",
         "inputSchema": {
           "type": "object",
           "properties": {
-            "name": {"type": "string", "description": "社員名"}
+            "name": {"type": "string", "description": "Employee name"}
           }
         }
       }
@@ -968,18 +968,18 @@ Server → Client: {messages: [{role: "user", content: "..."}]}
   }
 }
 
-// ツール実行リクエスト
+// Tool execution request
 {
   "jsonrpc": "2.0",
   "id": 2,
   "method": "tools/call",
   "params": {
     "name": "query_employees",
-    "arguments": {"name": "田中", "department": "engineering"}
+    "arguments": {"name": "Tanaka", "department": "engineering"}
   }
 }
 
-// ツール実行レスポンス
+// Tool execution response
 {
   "jsonrpc": "2.0",
   "id": 2,
@@ -996,12 +996,12 @@ Server → Client: {messages: [{role: "user", content: "..."}]}
 
 ---
 
-## 5. SSEトランスポート（リモートMCPサーバー）
+## 5. SSE Transport (Remote MCP Servers)
 
-### 5.1 SSEサーバーの実装
+### 5.1 Implementing an SSE Server
 
 ```python
-# SSE（Server-Sent Events）トランスポートによるリモートMCPサーバー
+# Remote MCP server using SSE (Server-Sent Events) transport
 from mcp.server import Server
 from mcp.server.sse import SseServerTransport
 from starlette.applications import Starlette
@@ -1011,17 +1011,17 @@ import uvicorn
 
 app = Server("remote-tools")
 
-# ツール定義（同じインターフェース）
+# Tool definitions (same interface)
 @app.list_tools()
 async def list_tools() -> list[Tool]:
     return [
         Tool(
             name="web_search",
-            description="Web検索を実行する",
+            description="Perform a web search",
             inputSchema={
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "検索クエリ"},
+                    "query": {"type": "string", "description": "Search query"},
                     "max_results": {"type": "integer", "default": 5}
                 },
                 "required": ["query"]
@@ -1032,19 +1032,19 @@ async def list_tools() -> list[Tool]:
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     if name == "web_search":
-        # Web検索の実行
+        # Execute web search
         results = await perform_web_search(
             arguments["query"],
             arguments.get("max_results", 5)
         )
         return [TextContent(type="text", text=json.dumps(results, ensure_ascii=False))]
-    return [TextContent(type="text", text=f"不明なツール: {name}")]
+    return [TextContent(type="text", text=f"Unknown tool: {name}")]
 
-# SSEトランスポートの設定
+# SSE transport configuration
 sse = SseServerTransport("/messages")
 
 async def handle_sse(request):
-    """SSE接続のハンドリング"""
+    """Handle SSE connections"""
     async with sse.connect_sse(
         request.scope, request.receive, request._send
     ) as streams:
@@ -1054,10 +1054,10 @@ async def handle_sse(request):
         )
 
 async def handle_messages(request):
-    """メッセージの受信"""
+    """Receive messages"""
     await sse.handle_post_message(request.scope, request.receive, request._send)
 
-# Starletteアプリ
+# Starlette application
 starlette_app = Starlette(
     routes=[
         Route("/sse", handle_sse),
@@ -1069,20 +1069,20 @@ if __name__ == "__main__":
     uvicorn.run(starlette_app, host="0.0.0.0", port=8080)
 ```
 
-### 5.2 SSEクライアントの接続
+### 5.2 Connecting an SSE Client
 
 ```python
 from mcp.client.sse import sse_client
 
 async def connect_remote_server():
-    """リモートMCPサーバーへの接続"""
+    """Connect to a remote MCP server"""
     async with sse_client("http://remote-server:8080/sse") as (read, write):
         async with ClientSession(read, write) as session:
             await session.initialize()
 
-            # 通常のMCPクライアントと同じインターフェース
+            # Same interface as a local MCP client
             tools = await session.list_tools()
-            print(f"リモートツール: {[t.name for t in tools.tools]}")
+            print(f"Remote tools: {[t.name for t in tools.tools]}")
 
             result = await session.call_tool(
                 "web_search",
@@ -1093,12 +1093,12 @@ async def connect_remote_server():
 
 ---
 
-## 6. TypeScript MCPサーバー
+## 6. TypeScript MCP Server
 
-### 6.1 TypeScript実装
+### 6.1 TypeScript Implementation
 
 ```typescript
-// TypeScriptでのMCPサーバー実装
+// MCP server implementation in TypeScript
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import {
@@ -1113,23 +1113,23 @@ const server = new Server(
   { capabilities: { tools: {}, resources: {} } }
 );
 
-// ツール定義
+// Tool definitions
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
       name: "analyze_data",
-      description: "データセットの統計分析を実行する",
+      description: "Perform statistical analysis on a dataset",
       inputSchema: {
         type: "object" as const,
         properties: {
           dataset: {
             type: "string",
-            description: "データセット名",
+            description: "Dataset name",
           },
           metrics: {
             type: "array",
             items: { type: "string" },
-            description: "計算するメトリクス（mean, median, std, etc.）",
+            description: "Metrics to calculate (mean, median, std, etc.)",
           },
         },
         required: ["dataset"],
@@ -1137,7 +1137,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: "generate_chart",
-      description: "データからグラフを生成する",
+      description: "Generate a chart from data",
       inputSchema: {
         type: "object" as const,
         properties: {
@@ -1147,7 +1147,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
           },
           data: {
             type: "object",
-            description: "グラフデータ（x軸、y軸の配列）",
+            description: "Chart data (arrays for x-axis and y-axis)",
           },
           title: { type: "string" },
         },
@@ -1157,12 +1157,12 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
   ],
 }));
 
-// ツール実行
+// Tool execution
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
   if (name === "analyze_data") {
-    // 統計分析の実行
+    // Perform statistical analysis
     const results = await performAnalysis(
       args.dataset as string,
       (args.metrics as string[]) || ["mean", "median", "std"]
@@ -1180,40 +1180,40 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     );
     return {
       content: [
-        { type: "text", text: `グラフを生成しました: ${chartUrl}` },
+        { type: "text", text: `Chart generated: ${chartUrl}` },
       ],
     };
   }
 
   return {
-    content: [{ type: "text", text: `不明なツール: ${name}` }],
+    content: [{ type: "text", text: `Unknown tool: ${name}` }],
     isError: true,
   };
 });
 
-// サーバー起動
+// Start server
 const transport = new StdioServerTransport();
 await server.connect(transport);
 ```
 
 ---
 
-## 7. テスト
+## 7. Testing
 
-### 7.1 MCPサーバーのユニットテスト
+### 7.1 Unit Tests for MCP Servers
 
 ```python
 import pytest
 import json
 from unittest.mock import patch, MagicMock
 
-# ツールハンドラの直接テスト
+# Direct testing of tool handlers
 class TestQueryEmployeesTool:
-    """query_employees ツールのテスト"""
+    """Tests for the query_employees tool"""
 
     @pytest.fixture
     def mock_db(self, tmp_path):
-        """テスト用データベース"""
+        """Test database"""
         import sqlite3
         db_path = tmp_path / "test.db"
         conn = sqlite3.connect(str(db_path))
@@ -1240,7 +1240,7 @@ class TestQueryEmployeesTool:
 
     @pytest.mark.asyncio
     async def test_search_by_name(self, mock_db):
-        """名前で検索できる"""
+        """Can search by name"""
         with patch("__main__.sqlite3.connect") as mock_connect:
             mock_connect.return_value = sqlite3.connect(mock_db)
             result = await call_tool("query_employees", {"name": "田中"})
@@ -1250,7 +1250,7 @@ class TestQueryEmployeesTool:
 
     @pytest.mark.asyncio
     async def test_search_by_department(self, mock_db):
-        """部署で検索できる"""
+        """Can search by department"""
         with patch("__main__.sqlite3.connect") as mock_connect:
             mock_connect.return_value = sqlite3.connect(mock_db)
             result = await call_tool("query_employees", {"department": "engineering"})
@@ -1259,7 +1259,7 @@ class TestQueryEmployeesTool:
 
     @pytest.mark.asyncio
     async def test_limit(self, mock_db):
-        """件数制限が機能する"""
+        """Result limit works"""
         with patch("__main__.sqlite3.connect") as mock_connect:
             mock_connect.return_value = sqlite3.connect(mock_db)
             result = await call_tool("query_employees", {"limit": 1})
@@ -1268,45 +1268,45 @@ class TestQueryEmployeesTool:
 
     @pytest.mark.asyncio
     async def test_unknown_tool(self):
-        """不明なツールの場合"""
+        """Unknown tool case"""
         result = await call_tool("nonexistent_tool", {})
-        assert "不明なツール" in result[0].text
+        assert "Unknown tool" in result[0].text
 
 class TestCreateTicketTool:
-    """create_ticket ツールのテスト"""
+    """Tests for the create_ticket tool"""
 
     @pytest.mark.asyncio
     async def test_create_ticket(self):
-        """チケットが作成される"""
+        """Ticket is created"""
         with patch("__main__.create_jira_ticket") as mock_jira:
             mock_jira.return_value = "PROJ-123"
             result = await call_tool("create_ticket", {
-                "title": "テストチケット",
+                "title": "Test ticket",
                 "priority": "high",
-                "description": "テスト用"
+                "description": "For testing"
             })
             assert "PROJ-123" in result[0].text
             mock_jira.assert_called_once()
 ```
 
-### 7.2 MCP Inspectorによるインタラクティブテスト
+### 7.2 Interactive Testing with MCP Inspector
 
 ```bash
-# MCP Inspector のインストールと使用
+# Install and use MCP Inspector
 npx @modelcontextprotocol/inspector
 
-# 特定のサーバーに接続してテスト
+# Connect to a specific server for testing
 npx @modelcontextprotocol/inspector python company_tools_server.py
 
-# Inspector の機能:
-# - ツール一覧の確認
-# - ツールの対話的実行
-# - リソースの読み取り
-# - プロンプトの取得
-# - サーバーのログ確認
+# Inspector features:
+# - View tool list
+# - Interactively execute tools
+# - Read resources
+# - Retrieve prompts
+# - View server logs
 ```
 
-### 7.3 統合テスト
+### 7.3 Integration Tests
 
 ```python
 import pytest
@@ -1314,11 +1314,11 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 class TestMCPServerIntegration:
-    """MCPサーバーの統合テスト"""
+    """Integration tests for the MCP server"""
 
     @pytest.fixture
     async def session(self):
-        """テスト用MCPセッション"""
+        """MCP session for testing"""
         params = StdioServerParameters(
             command="python",
             args=["company_tools_server.py"],
@@ -1331,7 +1331,7 @@ class TestMCPServerIntegration:
 
     @pytest.mark.asyncio
     async def test_list_tools(self, session):
-        """ツール一覧が取得できる"""
+        """Can retrieve the tool list"""
         result = await session.list_tools()
         tool_names = [t.name for t in result.tools]
         assert "query_employees" in tool_names
@@ -1339,7 +1339,7 @@ class TestMCPServerIntegration:
 
     @pytest.mark.asyncio
     async def test_tool_schema_valid(self, session):
-        """ツールスキーマが有効"""
+        """Tool schema is valid"""
         result = await session.list_tools()
         for tool in result.tools:
             assert tool.inputSchema is not None
@@ -1348,22 +1348,22 @@ class TestMCPServerIntegration:
 
     @pytest.mark.asyncio
     async def test_list_resources(self, session):
-        """リソース一覧が取得できる"""
+        """Can retrieve the resource list"""
         result = await session.list_resources()
         assert len(result.resources) > 0
 
     @pytest.mark.asyncio
     async def test_list_prompts(self, session):
-        """プロンプト一覧が取得できる"""
+        """Can retrieve the prompt list"""
         result = await session.list_prompts()
         assert len(result.prompts) > 0
 ```
 
 ---
 
-## 8. セキュリティ
+## 8. Security
 
-### 8.1 入力バリデーション
+### 8.1 Input Validation
 
 ```python
 from pydantic import BaseModel, Field, validator
@@ -1371,7 +1371,7 @@ from typing import Optional
 import re
 
 class EmployeeQueryInput(BaseModel):
-    """社員検索の入力バリデーション"""
+    """Input validation for employee search"""
     name: Optional[str] = Field(None, max_length=100)
     department: Optional[str] = Field(None)
     limit: int = Field(default=10, ge=1, le=100)
@@ -1379,17 +1379,17 @@ class EmployeeQueryInput(BaseModel):
     @validator("name")
     def validate_name(cls, v):
         if v and not re.match(r"^[\w\s\-]+$", v):
-            raise ValueError("不正な文字が含まれています")
+            raise ValueError("Input contains invalid characters")
         return v
 
     @validator("department")
     def validate_department(cls, v):
         valid_depts = {"engineering", "sales", "hr", "marketing"}
         if v and v not in valid_depts:
-            raise ValueError(f"不正な部署: {v}")
+            raise ValueError(f"Invalid department: {v}")
         return v
 
-# バリデーション付きツール実行
+# Tool execution with validation
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     if name == "query_employees":
@@ -1398,14 +1398,14 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
         except ValueError as e:
             return [TextContent(
                 type="text",
-                text=f"入力エラー: {str(e)}"
+                text=f"Input error: {str(e)}"
             )]
 
-        # バリデーション済みの値でクエリ実行
+        # Execute query with validated values
         return await execute_employee_query(validated)
 ```
 
-### 8.2 認証とアクセス制御
+### 8.2 Authentication and Access Control
 
 ```python
 import os
@@ -1414,7 +1414,7 @@ import hmac
 from datetime import datetime
 
 class AuthenticatedMCPServer:
-    """認証付きMCPサーバー"""
+    """MCP server with authentication"""
 
     def __init__(self):
         self.api_key = os.environ.get("MCP_API_KEY")
@@ -1425,21 +1425,21 @@ class AuthenticatedMCPServer:
         }
 
     def verify_request(self, request_meta: dict) -> str:
-        """リクエストの認証とロール判定"""
+        """Authenticate the request and determine the role"""
         token = request_meta.get("auth_token")
         if not token:
-            raise PermissionError("認証トークンがありません")
+            raise PermissionError("Authentication token is missing")
 
-        # トークンからロールを判定（実際にはJWTなどを使用）
+        # Determine the role from the token (use JWT in practice)
         role = self._decode_token(token)
         return role
 
     def check_permission(self, role: str, tool_name: str) -> bool:
-        """ツールへのアクセス権限を確認"""
+        """Check access permission for a tool"""
         for permission_level, tools in self.allowed_tools.items():
             if tool_name in tools:
                 if permission_level == "read":
-                    return True  # 全ロールが読み取り可能
+                    return True  # All roles can read
                 elif permission_level == "write":
                     return role in ["write", "admin"]
                 elif permission_level == "admin":
@@ -1447,8 +1447,8 @@ class AuthenticatedMCPServer:
         return False
 
     def _decode_token(self, token: str) -> str:
-        """トークンのデコード（簡略化）"""
-        # 実際にはJWTデコードなどを実装
+        """Decode the token (simplified)"""
+        # In practice, implement JWT decoding
         if token.startswith("admin_"):
             return "admin"
         elif token.startswith("write_"):
@@ -1456,7 +1456,7 @@ class AuthenticatedMCPServer:
         return "read"
 ```
 
-### 8.3 レート制限
+### 8.3 Rate Limiting
 
 ```python
 from collections import defaultdict
@@ -1464,7 +1464,7 @@ from datetime import datetime, timedelta
 import asyncio
 
 class RateLimiter:
-    """ツール呼び出しのレート制限"""
+    """Rate limiting for tool calls"""
 
     def __init__(self, max_calls_per_minute: int = 60):
         self.max_calls = max_calls_per_minute
@@ -1472,12 +1472,12 @@ class RateLimiter:
         self._lock = asyncio.Lock()
 
     async def check_rate_limit(self, tool_name: str) -> bool:
-        """レート制限チェック"""
+        """Check rate limit"""
         async with self._lock:
             now = datetime.now()
             cutoff = now - timedelta(minutes=1)
 
-            # 古い履歴を削除
+            # Remove old history
             self.call_history[tool_name] = [
                 t for t in self.call_history[tool_name] if t > cutoff
             ]
@@ -1490,64 +1490,64 @@ class RateLimiter:
 
 rate_limiter = RateLimiter(max_calls_per_minute=30)
 
-# レート制限付きツール実行
+# Tool execution with rate limiting
 @app.call_tool()
 async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     if not await rate_limiter.check_rate_limit(name):
         return [TextContent(
             type="text",
-            text=f"レート制限超過: ツール '{name}' は1分間に{rate_limiter.max_calls}回まで"
+            text=f"Rate limit exceeded: tool '{name}' is limited to {rate_limiter.max_calls} calls per minute"
         )]
 
-    # 通常のツール実行
+    # Normal tool execution
     return await execute_tool(name, arguments)
 ```
 
 ---
 
-## 9. 既存MCPサーバーの活用
+## 9. Using Existing MCP Servers
 
 ```
-公式・コミュニティ MCPサーバー一覧
+Official and Community MCP Server List
 
-ファイルシステム:
+Filesystem:
   @modelcontextprotocol/server-filesystem
-  ファイルの読み書き、ディレクトリ操作
+  File read/write, directory operations
 
 GitHub:
   @modelcontextprotocol/server-github
-  リポジトリ、Issue、PR操作
+  Repository, issue, and PR operations
 
 PostgreSQL:
   @modelcontextprotocol/server-postgres
-  データベースクエリ
+  Database queries
 
 Slack:
   @modelcontextprotocol/server-slack
-  メッセージ送受信、チャンネル操作
+  Send/receive messages, channel operations
 
 Google Drive:
   @modelcontextprotocol/server-gdrive
-  ドキュメントの読み取り
+  Document reading
 
 Puppeteer:
   @modelcontextprotocol/server-puppeteer
-  Webブラウジング、スクリーンショット
+  Web browsing, screenshots
 
 Brave Search:
   @modelcontextprotocol/server-brave-search
-  Web検索
+  Web search
 
 Memory:
   @modelcontextprotocol/server-memory
-  永続的なキーバリューストア
+  Persistent key-value store
 
 Fetch:
   @modelcontextprotocol/server-fetch
-  HTTPリクエストの実行
+  Execute HTTP requests
 ```
 
-### 9.1 公式サーバーの設定例
+### 9.1 Official Server Configuration Examples
 
 ```json
 {
@@ -1582,80 +1582,80 @@ Fetch:
 
 ---
 
-## 10. 比較表
+## 10. Comparison Tables
 
 ### 10.1 MCP vs REST API vs GraphQL
 
-| 観点 | MCP | REST API | GraphQL |
-|------|-----|----------|---------|
-| 目的 | AI-ツール接続 | 一般的なWeb API | 柔軟なデータ取得 |
-| プロトコル | JSON-RPC 2.0 | HTTP | HTTP |
-| 通信方式 | stdio / SSE | HTTP | HTTP |
-| スキーマ | JSON Schema | OpenAPI | GraphQL SDL |
-| AI最適化 | ネイティブ | 別途ラッパー必要 | 別途ラッパー必要 |
-| ツール発見 | list_tools | 手動 | Introspection |
-| 状態管理 | セッション | ステートレス | ステートレス |
+| Aspect | MCP | REST API | GraphQL |
+|--------|-----|----------|---------|
+| Purpose | AI-to-tool connection | General web API | Flexible data retrieval |
+| Protocol | JSON-RPC 2.0 | HTTP | HTTP |
+| Transport | stdio / SSE | HTTP | HTTP |
+| Schema | JSON Schema | OpenAPI | GraphQL SDL |
+| AI optimization | Native | Requires wrapper | Requires wrapper |
+| Tool discovery | list_tools | Manual | Introspection |
+| State management | Session-based | Stateless | Stateless |
 
-### 10.2 MCPサーバー実装言語比較
+### 10.2 MCP Server Implementation Language Comparison
 
-| 言語 | SDK | 成熟度 | エコシステム | おすすめ場面 |
-|------|-----|--------|------------|------------|
-| Python | mcp (公式) | 高 | 最大 | データ処理、ML |
-| TypeScript | @modelcontextprotocol/sdk | 高 | 大 | Web統合 |
-| Rust | mcp-rust | 中 | 中 | 高性能要件 |
-| Go | mcp-go | 中 | 中 | インフラツール |
+| Language | SDK | Maturity | Ecosystem | Recommended use case |
+|----------|-----|----------|-----------|----------------------|
+| Python | mcp (official) | High | Largest | Data processing, ML |
+| TypeScript | @modelcontextprotocol/sdk | High | Large | Web integrations |
+| Rust | mcp-rust | Medium | Medium | High-performance requirements |
+| Go | mcp-go | Medium | Medium | Infrastructure tools |
 
-### 10.3 トランスポート方式の比較
+### 10.3 Transport Method Comparison
 
-| 方式 | 通信形態 | レイテンシ | セキュリティ | 推奨用途 |
-|------|---------|----------|------------|---------|
-| stdio | ローカルプロセス | 最低 | プロセス分離 | ローカルツール |
-| SSE | HTTP/リモート | 中 | HTTPS対応 | リモートサーバー |
-| WebSocket | 双方向リアルタイム | 低 | WSS対応 | リアルタイム要件 |
+| Method | Communication | Latency | Security | Recommended use |
+|--------|--------------|---------|----------|----------------|
+| stdio | Local process | Lowest | Process isolation | Local tools |
+| SSE | HTTP/Remote | Medium | HTTPS support | Remote servers |
+| WebSocket | Bidirectional real-time | Low | WSS support | Real-time requirements |
 
-### 10.4 MCPホスト対応状況
+### 10.4 MCP Host Support Status
 
-| ホスト | MCP対応 | stdio | SSE | 備考 |
-|--------|---------|-------|-----|------|
-| Claude Desktop | 公式 | 対応 | 対応 | 最も完全な対応 |
-| Claude Code | 公式 | 対応 | 対応 | CLI環境 |
-| Cursor | 対応 | 対応 | 一部 | IDE統合 |
-| Cline | 対応 | 対応 | 一部 | VS Code拡張 |
-| Continue | 対応 | 対応 | 計画中 | オープンソースIDE |
+| Host | MCP support | stdio | SSE | Notes |
+|------|-------------|-------|-----|-------|
+| Claude Desktop | Official | Supported | Supported | Most complete support |
+| Claude Code | Official | Supported | Supported | CLI environment |
+| Cursor | Supported | Supported | Partial | IDE integration |
+| Cline | Supported | Supported | Partial | VS Code extension |
+| Continue | Supported | Supported | Planned | Open-source IDE |
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
-### アンチパターン1: セキュリティの軽視
+### Anti-Pattern 1: Ignoring Security
 
 ```python
-# NG: ユーザー入力をそのままSQLに埋め込み
+# BAD: Embedding user input directly into SQL
 @app.call_tool()
 async def call_tool(name, arguments):
     query = f"SELECT * FROM users WHERE name = '{arguments['name']}'"
-    # SQLインジェクション脆弱性!
+    # SQL injection vulnerability!
 
-# OK: パラメータ化クエリを使用
+# GOOD: Use parameterized queries
 @app.call_tool()
 async def call_tool(name, arguments):
     query = "SELECT * FROM users WHERE name = ?"
     cursor.execute(query, (arguments["name"],))
 ```
 
-### アンチパターン2: エラーを握りつぶす
+### Anti-Pattern 2: Swallowing Errors
 
 ```python
-# NG: エラーを無視して空結果を返す
+# BAD: Silently ignore errors and return an empty result
 @app.call_tool()
 async def call_tool(name, arguments):
     try:
         result = do_something(arguments)
         return [TextContent(type="text", text=result)]
     except Exception:
-        return [TextContent(type="text", text="")]  # LLMに何が起きたか伝わらない
+        return [TextContent(type="text", text="")]  # The LLM has no idea what happened
 
-# OK: エラー情報を明示的に返す
+# GOOD: Explicitly return error information
 @app.call_tool()
 async def call_tool(name, arguments):
     try:
@@ -1663,41 +1663,41 @@ async def call_tool(name, arguments):
         return [TextContent(type="text", text=result)]
     except ValueError as e:
         return [TextContent(type="text",
-                text=f"入力エラー: {e}。パラメータを確認してください。")]
+                text=f"Input error: {e}. Please check the parameters.")]
     except ConnectionError:
         return [TextContent(type="text",
-                text="データベース接続エラー。しばらく後に再試行してください。")]
+                text="Database connection error. Please try again later.")]
 ```
 
-### アンチパターン3: ツール説明の不足
+### Anti-Pattern 3: Insufficient Tool Descriptions
 
 ```python
-# NG: LLMが適切に使えない曖昧な説明
+# BAD: Vague description that the LLM cannot use properly
 Tool(
     name="search",
-    description="検索する",  # 何を？どうやって？
+    description="Search",  # Search what? How?
     inputSchema={"type": "object", "properties": {"q": {"type": "string"}}}
 )
 
-# OK: 具体的で明確な説明
+# GOOD: Specific and clear description
 Tool(
     name="search_employees",
-    description="社員データベースを名前・部署・役職で検索する。部分一致検索に対応。結果は最大件数まで返される。",
+    description="Search the employee database by name, department, or role. Supports partial matching. Returns results up to the maximum count.",
     inputSchema={
         "type": "object",
         "properties": {
             "name": {
                 "type": "string",
-                "description": "社員名で検索（部分一致）。例: '田中'"
+                "description": "Search by employee name (partial match). Example: 'Tanaka'"
             },
             "department": {
                 "type": "string",
                 "enum": ["engineering", "sales", "hr"],
-                "description": "部署で絞り込み"
+                "description": "Filter by department"
             },
             "limit": {
                 "type": "integer",
-                "description": "最大結果数（1-100、デフォルト10）",
+                "description": "Maximum number of results (1-100, default 10)",
                 "default": 10,
                 "minimum": 1,
                 "maximum": 100
@@ -1707,25 +1707,25 @@ Tool(
 )
 ```
 
-### アンチパターン4: 巨大なレスポンス
+### Anti-Pattern 4: Huge Responses
 
 ```python
-# NG: 全データをそのまま返す
+# BAD: Return all data as-is
 @app.call_tool()
 async def call_tool(name, arguments):
     cursor.execute("SELECT * FROM huge_table")
-    results = cursor.fetchall()  # 100万行
+    results = cursor.fetchall()  # 1 million rows
     return [TextContent(type="text", text=json.dumps(results))]
-    # トークン数が膨大になりLLMのコンテキストを溢れさせる
+    # Enormous token count overflows the LLM's context
 
-# OK: 結果を制限して要約付きで返す
+# GOOD: Limit results and return with a summary
 @app.call_tool()
 async def call_tool(name, arguments):
     limit = min(arguments.get("limit", 50), 100)
     cursor.execute(f"SELECT * FROM huge_table LIMIT {limit}")
     results = cursor.fetchall()
 
-    # 全体の件数も返す
+    # Also return total count
     cursor.execute("SELECT COUNT(*) FROM huge_table")
     total_count = cursor.fetchone()[0]
 
@@ -1733,21 +1733,21 @@ async def call_tool(name, arguments):
         "results": results,
         "returned": len(results),
         "total": total_count,
-        "note": f"全{total_count}件中、上位{len(results)}件を表示"
+        "note": f"Showing top {len(results)} of {total_count} total records"
     }, ensure_ascii=False))]
 ```
 
-### アンチパターン5: stdoutへのログ出力
+### Anti-Pattern 5: Logging to stdout
 
 ```python
-# NG: stdoutにログを出力（MCPの通信を妨害）
-print("Debug: processing request...")  # stdio通信を壊す
+# BAD: Logging to stdout (disrupts MCP communication)
+print("Debug: processing request...")  # Breaks stdio communication
 
-# OK: stderrにログを出力
+# GOOD: Log to stderr
 import sys
 print("Debug: processing request...", file=sys.stderr)
 
-# OK: loggingモジュールを使用（stderrにリダイレクト）
+# GOOD: Use the logging module (redirects to stderr)
 import logging
 logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
 logger = logging.getLogger("mcp-server")
@@ -1758,32 +1758,32 @@ logger.info("Processing request...")
 
 ## 12. FAQ
 
-### Q1: MCPサーバーのデバッグ方法は？
+### Q1: How do I debug an MCP server?
 
-- **MCP Inspector**: `npx @modelcontextprotocol/inspector` で対話的にテスト
-- **ログ出力**: `stderr` にログを出力（stdioは通信に使われるため）
-- **単体テスト**: サーバーのハンドラ関数を直接テスト
+- **MCP Inspector**: Test interactively with `npx @modelcontextprotocol/inspector`
+- **Logging**: Output logs to `stderr` (stdio is used for communication)
+- **Unit tests**: Test server handler functions directly
 
-### Q2: 1つのMCPサーバーに何ツールまで載せてよいか？
+### Q2: How many tools should a single MCP server have?
 
-推奨は **10-20ツール** まで。それ以上は複数サーバーに分割する。カテゴリ別（DB操作サーバー、メール操作サーバー等）に分けると管理しやすい。
+The recommendation is up to **10-20 tools**. Beyond that, split into multiple servers. Organizing by category (e.g., DB operations server, email operations server) makes them easier to manage.
 
-### Q3: MCPとFunction Callingの使い分けは？
+### Q3: When should I use MCP vs Function Calling?
 
-- **MCP**: 複数のAIアプリケーションでツールを共有したい場合、ツールをプロセス分離したい場合
-- **Function Calling**: 単一アプリケーション内で完結する場合、最もシンプルに実装したい場合
+- **MCP**: When you want to share tools across multiple AI applications, or when you want process isolation for tools
+- **Function Calling**: When everything is contained within a single application, or when you want the simplest implementation
 
-両者は排他的ではなく、MCPサーバーのツールをFunction Callingの形式に変換して使うことが一般的。
+The two are not mutually exclusive — it is common to convert MCP server tools into Function Calling format for use.
 
-### Q4: MCPサーバーのパフォーマンス最適化は？
+### Q4: How do I optimize MCP server performance?
 
-- **接続プーリング**: データベース接続を再利用する
-- **キャッシュ**: 頻繁にアクセスするデータをメモリキャッシュ
-- **非同期I/O**: asyncioを活用してI/O待ちを最小化
-- **レスポンスサイズ制限**: 返却データの上限を設定
-- **バッチ処理**: 複数リクエストをまとめて処理
+- **Connection pooling**: Reuse database connections
+- **Caching**: Cache frequently accessed data in memory
+- **Async I/O**: Use asyncio to minimize I/O wait time
+- **Response size limits**: Set an upper bound on returned data
+- **Batch processing**: Handle multiple requests together
 
-### Q5: MCPサーバーをDockerで運用するには？
+### Q5: How do I run an MCP server in Docker?
 
 ```dockerfile
 FROM python:3.12-slim
@@ -1809,10 +1809,10 @@ services:
       - API_KEY=${API_KEY}
 ```
 
-### Q6: MCPサーバーの監視方法は？
+### Q6: How do I monitor an MCP server?
 
 ```python
-# Prometheus メトリクス付きMCPサーバー
+# MCP server with Prometheus metrics
 from prometheus_client import Counter, Histogram, start_http_server
 import time
 
@@ -1841,7 +1841,7 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     finally:
         tool_latency.labels(tool_name=name).observe(time.time() - start)
 
-# メトリクスエンドポイントを起動（別ポート）
+# Start metrics endpoint (separate port)
 start_http_server(9090)
 ```
 
@@ -1850,40 +1850,40 @@ start_http_server(9090)
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping straight to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional settings?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It is especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
-|------|------|
-| MCP | AIとツール間の標準プロトコル |
-| 4つの機能 | Tools, Resources, Prompts, Sampling |
-| 通信方式 | stdio（ローカル）/ SSE（リモート） |
-| サーバー実装 | Python/TypeScript SDK で構築 |
-| クライアント | Claude Desktop, Code, Cursor等で利用 |
-| セキュリティ | 入力バリデーション、認証、レート制限 |
-| テスト | ユニットテスト + MCP Inspector + 統合テスト |
-| 原則 | セキュリティ重視、エラー情報を正確に伝達 |
+| Item | Description |
+|------|-------------|
+| MCP | Standard protocol between AI and tools |
+| 4 features | Tools, Resources, Prompts, Sampling |
+| Transport | stdio (local) / SSE (remote) |
+| Server implementation | Built with Python/TypeScript SDK |
+| Clients | Used by Claude Desktop, Code, Cursor, etc. |
+| Security | Input validation, authentication, rate limiting |
+| Testing | Unit tests + MCP Inspector + integration tests |
+| Principles | Security-first, accurately convey error information |
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [03-claude-agent-sdk.md](./03-claude-agent-sdk.md) -- Claude Agent SDKでのMCP統合
-- [../00-fundamentals/02-tool-use.md](../00-fundamentals/02-tool-use.md) -- ツール使用の基礎
-- [../04-production/00-deployment.md](../04-production/00-deployment.md) -- MCPサーバーのデプロイ
+- [03-claude-agent-sdk.md](./03-claude-agent-sdk.md) -- MCP integration with the Claude Agent SDK
+- [../00-fundamentals/02-tool-use.md](../00-fundamentals/02-tool-use.md) -- Fundamentals of tool use
+- [../04-production/00-deployment.md](../04-production/00-deployment.md) -- Deploying MCP servers
 
-## 参考文献
+## References
 
 1. Model Context Protocol Specification -- https://modelcontextprotocol.io/
 2. MCP GitHub Organization -- https://github.com/modelcontextprotocol
