@@ -1,31 +1,31 @@
-# LangChainエージェント
+# LangChain Agent
 
-> チェーン・プロンプトテンプレート・ツール統合――LangChainを使ったエージェント構築の実践的な実装パターンとベストプラクティス。
+> Chains, prompt templates, and tool integration — practical implementation patterns and best practices for building agents with LangChain.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. LangChainのコアコンセプト（チェーン、プロンプト、ツール）の理解
-2. Tool Calling Agent の構築と AgentExecutor の活用法
-3. カスタムツールと高度なプロンプト設計の実装パターン
-4. LCEL（LangChain Expression Language）による柔軟なパイプライン構築
-5. メモリ管理とコンテキスト制御の戦略
-6. 本番運用に向けたエラーハンドリングとオブザーバビリティ
-7. コスト最適化とパフォーマンスチューニングの実践手法
+1. Understanding LangChain's core concepts (chains, prompts, tools)
+2. Building a Tool Calling Agent and leveraging AgentExecutor
+3. Implementation patterns for custom tools and advanced prompt design
+4. Building flexible pipelines with LCEL (LangChain Expression Language)
+5. Strategies for memory management and context control
+6. Error handling and observability for production use
+7. Practical techniques for cost optimization and performance tuning
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, familiarity with the following will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. LangChainのコアコンポーネント
+## 1. LangChain Core Components
 
 ```
-LangChain コンポーネント構成
+LangChain Component Architecture
 
 +---------------------------------------------------+
 |                  Application Layer                  |
@@ -47,23 +47,23 @@ LangChain コンポーネント構成
 +-----------------------------------------------------+
 ```
 
-### 1.1 コンポーネント間の関係
+### 1.1 Relationships Between Components
 
-LangChainの設計思想は「コンポーザビリティ」にある。各コンポーネントは独立して機能しつつ、統一されたインターフェースで組み合わせることができる。
+LangChain's design philosophy is "composability." Each component functions independently while being combinable through a unified interface.
 
 ```python
-# コンポーネント階層の理解
+# Understanding component hierarchy
 from langchain_core.language_models import BaseChatModel
 from langchain_core.prompts import BasePromptTemplate
 from langchain_core.output_parsers import BaseOutputParser
 from langchain_core.tools import BaseTool
 from langchain_core.runnables import Runnable
 
-# すべてのコンポーネントは Runnable プロトコルを実装
+# All components implement the Runnable protocol
 # invoke(), ainvoke(), stream(), astream(), batch(), abatch()
-# この統一インターフェースにより、任意の組み合わせが可能
+# This unified interface allows arbitrary combinations
 
-# 例: 各コンポーネントの Runnable としての使い方
+# Example: Using each component as a Runnable
 from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
@@ -72,31 +72,31 @@ llm: Runnable = ChatAnthropic(model="claude-sonnet-4-20250514")
 prompt: Runnable = ChatPromptTemplate.from_template("質問: {question}")
 parser: Runnable = StrOutputParser()
 
-# Runnable 同士はパイプ演算子で接続
+# Runnables are connected with the pipe operator
 chain: Runnable = prompt | llm | parser
 
-# すべての Runnable メソッドが使える
+# All Runnable methods are available
 result = chain.invoke({"question": "LangChainとは？"})
 results = chain.batch([{"question": "Q1"}, {"question": "Q2"}])
 ```
 
-### 1.2 パッケージ構成の理解
+### 1.2 Understanding the Package Structure
 
 ```
-langchain パッケージエコシステム
+langchain package ecosystem
 
-langchain-core       ... コアインターフェース・抽象クラス（最も安定）
-langchain            ... チェーン・エージェントの実装
-langchain-community  ... サードパーティ統合（非公式）
-langchain-anthropic  ... Anthropic公式統合
-langchain-openai     ... OpenAI公式統合
-langchain-chroma     ... Chroma公式統合
-langgraph            ... ステートフルなグラフベースワークフロー
-langsmith            ... テスト・デバッグ・モニタリング
+langchain-core       ... Core interfaces and abstract classes (most stable)
+langchain            ... Chain and agent implementations
+langchain-community  ... Third-party integrations (unofficial)
+langchain-anthropic  ... Official Anthropic integration
+langchain-openai     ... Official OpenAI integration
+langchain-chroma     ... Official Chroma integration
+langgraph            ... Stateful graph-based workflows
+langsmith            ... Testing, debugging, and monitoring
 ```
 
 ```python
-# 推奨パッケージ構成（pyproject.toml）
+# Recommended package configuration (pyproject.toml)
 # [project]
 # dependencies = [
 #     "langchain-core>=0.3.0,<0.4",
@@ -105,7 +105,7 @@ langsmith            ... テスト・デバッグ・モニタリング
 #     "langgraph>=0.2.0,<0.3",
 # ]
 
-# バージョン確認
+# Check versions
 import langchain_core
 import langchain
 import langchain_anthropic
@@ -116,17 +116,17 @@ print(f"langchain-anthropic: {langchain_anthropic.__version__}")
 
 ---
 
-## 2. LCEL（LangChain Expression Language）
+## 2. LCEL (LangChain Expression Language)
 
-### 2.1 基本チェーン
+### 2.1 Basic Chain
 
 ```python
-# LCEL によるチェーン構築
+# Building a chain with LCEL
 from langchain_anthropic import ChatAnthropic
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-# コンポーネント定義
+# Define components
 llm = ChatAnthropic(model="claude-sonnet-4-20250514", temperature=0)
 
 prompt = ChatPromptTemplate.from_messages([
@@ -136,10 +136,10 @@ prompt = ChatPromptTemplate.from_messages([
 
 output_parser = StrOutputParser()
 
-# パイプラインで接続
+# Connect with pipeline
 chain = prompt | llm | output_parser
 
-# 実行
+# Execute
 result = chain.invoke({
     "role": "Python専門家",
     "style": "簡潔",
@@ -148,13 +148,13 @@ result = chain.invoke({
 print(result)
 ```
 
-### 2.2 分岐チェーン
+### 2.2 Branching Chain
 
 ```python
-# 条件分岐を含むチェーン
+# Chain with conditional branching
 from langchain_core.runnables import RunnableBranch, RunnablePassthrough
 
-# 分類器
+# Classifier
 classifier = (
     ChatPromptTemplate.from_template(
         "以下の質問を 'technical' / 'general' に分類: {input}"
@@ -163,7 +163,7 @@ classifier = (
     | StrOutputParser()
 )
 
-# 分岐
+# Branch
 branch = RunnableBranch(
     (
         lambda x: "technical" in x["classification"],
@@ -171,13 +171,13 @@ branch = RunnableBranch(
             "技術専門家として回答: {input}"
         ) | llm | StrOutputParser()
     ),
-    # デフォルト（一般回答）
+    # Default (general answer)
     ChatPromptTemplate.from_template(
         "一般的な知識で回答: {input}"
     ) | llm | StrOutputParser()
 )
 
-# 全体チェーン
+# Full chain
 full_chain = (
     RunnablePassthrough.assign(
         classification=lambda x: classifier.invoke(x)
@@ -186,12 +186,12 @@ full_chain = (
 )
 ```
 
-### 2.3 並列チェーン（RunnableParallel）
+### 2.3 Parallel Chain (RunnableParallel)
 
 ```python
 from langchain_core.runnables import RunnableParallel
 
-# 複数の処理を並列実行
+# Execute multiple processes in parallel
 parallel_chain = RunnableParallel(
     summary=ChatPromptTemplate.from_template(
         "以下のテキストを3行で要約: {text}"
@@ -206,7 +206,7 @@ parallel_chain = RunnableParallel(
     ) | llm | StrOutputParser(),
 )
 
-# 1回の呼び出しで3つの結果を取得
+# Get 3 results with a single call
 result = parallel_chain.invoke({
     "text": "LangChainは素晴らしいフレームワークです。"
 })
@@ -215,14 +215,14 @@ print(result["keywords"])
 print(result["sentiment"])
 ```
 
-### 2.4 RunnableLambda と変換処理
+### 2.4 RunnableLambda and Transformation
 
 ```python
 from langchain_core.runnables import RunnableLambda
 
-# カスタム変換ステップ
+# Custom transformation step
 def format_results(data: dict) -> str:
-    """並列実行の結果をフォーマット"""
+    """Format results from parallel execution"""
     return f"""
 ## 分析結果
 **要約**: {data['summary']}
@@ -230,15 +230,15 @@ def format_results(data: dict) -> str:
 **感情**: {data['sentiment']}
     """.strip()
 
-# チェーンに組み込み
+# Integrate into chain
 analysis_pipeline = (
     parallel_chain
     | RunnableLambda(format_results)
 )
 
-# RunnableLambda のエラーハンドリング
+# Error handling with RunnableLambda
 def safe_parse(text: str) -> dict:
-    """パース失敗時にデフォルト値を返す"""
+    """Return default value on parse failure"""
     import json
     try:
         return json.loads(text)
@@ -248,32 +248,32 @@ def safe_parse(text: str) -> dict:
 safe_parser = RunnableLambda(safe_parse)
 ```
 
-### 2.5 フォールバックチェーン
+### 2.5 Fallback Chain
 
 ```python
 from langchain_anthropic import ChatAnthropic
 from langchain_openai import ChatOpenAI
 
-# プライマリモデル
+# Primary model
 primary_llm = ChatAnthropic(
     model="claude-sonnet-4-20250514",
     temperature=0,
     max_retries=2
 )
 
-# フォールバックモデル
+# Fallback model
 fallback_llm = ChatOpenAI(
     model="gpt-4o",
     temperature=0
 )
 
-# フォールバック付きLLM
+# LLM with fallback
 resilient_llm = primary_llm.with_fallbacks([fallback_llm])
 
-# チェーンに組み込み
+# Integrate into chain
 resilient_chain = prompt | resilient_llm | output_parser
 
-# 特定の例外のみフォールバック
+# Fallback only for specific exceptions
 from anthropic import RateLimitError
 resilient_llm_selective = primary_llm.with_fallbacks(
     [fallback_llm],
@@ -281,18 +281,18 @@ resilient_llm_selective = primary_llm.with_fallbacks(
 )
 ```
 
-### 2.6 リトライとレート制限
+### 2.6 Retry and Rate Limiting
 
 ```python
 from langchain_core.runnables import RunnableConfig
 
-# リトライ設定付きチェーン
+# Chain with retry configuration
 chain_with_retry = chain.with_retry(
     stop_after_attempt=3,
     wait_exponential_jitter=True
 )
 
-# レート制限付き実行
+# Execution with rate limiting
 from langchain_core.rate_limiters import InMemoryRateLimiter
 
 rate_limiter = InMemoryRateLimiter(
@@ -309,12 +309,12 @@ llm_with_rate_limit = ChatAnthropic(
 
 ---
 
-## 3. ツール定義と統合
+## 3. Tool Definition and Integration
 
-### 3.1 カスタムツールの作成
+### 3.1 Creating Custom Tools
 
 ```python
-# 方法1: @tool デコレータ
+# Method 1: @tool decorator
 from langchain.tools import tool
 from typing import Optional
 
@@ -331,7 +331,7 @@ def search_database(
         table: 検索対象テーブル（products, users, orders）
         limit: 最大結果数
     """
-    # 実際のDB検索処理
+    # Actual DB search process
     import sqlite3
     conn = sqlite3.connect("app.db")
     cursor = conn.execute(
@@ -342,7 +342,7 @@ def search_database(
     conn.close()
     return str(results)
 
-# 方法2: StructuredTool（より詳細な制御）
+# Method 2: StructuredTool (more detailed control)
 from langchain.tools import StructuredTool
 from pydantic import BaseModel, Field
 
@@ -352,7 +352,7 @@ class EmailInput(BaseModel):
     body: str = Field(description="本文")
 
 def send_email(to: str, subject: str, body: str) -> str:
-    # メール送信処理
+    # Email sending process
     return f"メール送信完了: {to}"
 
 email_tool = StructuredTool.from_function(
@@ -363,7 +363,7 @@ email_tool = StructuredTool.from_function(
     return_direct=False
 )
 
-# 方法3: BaseTool 継承（最も柔軟）
+# Method 3: Inheriting BaseTool (most flexible)
 from langchain.tools import BaseTool
 
 class WebScraperTool(BaseTool):
@@ -378,7 +378,7 @@ class WebScraperTool(BaseTool):
         return soup.get_text()[:2000]
 
     async def _arun(self, url: str) -> str:
-        # 非同期版
+        # Async version
         import aiohttp
         async with aiohttp.ClientSession() as session:
             async with session.get(url) as response:
@@ -386,10 +386,10 @@ class WebScraperTool(BaseTool):
                 return text[:2000]
 ```
 
-### 3.2 高度なツール定義パターン
+### 3.2 Advanced Tool Definition Patterns
 
 ```python
-# エラーハンドリング付きツール
+# Tool with error handling
 @tool(handle_tool_error=True)
 def risky_operation(query: str) -> str:
     """外部APIに問い合わせる（エラー時は自動リカバリ）。
@@ -408,7 +408,7 @@ def risky_operation(query: str) -> str:
     except requests.RequestException as e:
         raise ToolException(f"API呼び出し失敗: {e}")
 
-# カスタムエラーハンドラ
+# Custom error handler
 from langchain_core.tools import ToolException
 
 def handle_error(error: ToolException) -> str:
@@ -423,7 +423,7 @@ def external_api_call(endpoint: str) -> str:
     """
     pass
 
-# 非同期専用ツール
+# Async-only tool
 from langchain_core.tools import StructuredTool
 import asyncio
 
@@ -444,9 +444,9 @@ async_search_tool = StructuredTool.from_function(
     description="非同期でWeb検索を実行する"
 )
 
-# ツールの動的生成
+# Dynamic tool generation
 def create_database_tool(db_path: str, table_name: str) -> BaseTool:
-    """データベーステーブルごとにツールを動的に生成"""
+    """Dynamically generate a tool for each database table"""
     @tool(name=f"query_{table_name}")
     def query_table(condition: str) -> str:
         f"""{table_name}テーブルを検索する。
@@ -464,36 +464,36 @@ def create_database_tool(db_path: str, table_name: str) -> BaseTool:
         return str(results)
     return query_table
 
-# テーブルごとのツールを自動生成
+# Auto-generate tools for each table
 tables = ["users", "products", "orders", "reviews"]
 db_tools = [create_database_tool("app.db", t) for t in tables]
 ```
 
-### 3.3 ツールの構成パターン
+### 3.3 Tool Composition Patterns
 
 ```
-ツール構成パターン
+Tool Composition Patterns
 
-1. フラット構成（全ツールを直接提供）
+1. Flat composition (all tools provided directly)
    Agent ── [Tool A, Tool B, Tool C, Tool D]
 
-2. ツールキット構成（カテゴリ別にグループ化）
-   Agent ── [DBツールキット] ── [query, insert, update]
-        ── [Webツールキット] ── [search, scrape, download]
+2. Toolkit composition (grouped by category)
+   Agent ── [DB Toolkit]  ── [query, insert, update]
+        ── [Web Toolkit] ── [search, scrape, download]
 
-3. 動的構成（タスクに応じて選択）
+3. Dynamic composition (selected based on task)
    Agent ── TaskClassifier ── coding: [read, write, run]
                            ── research: [search, scrape, summarize]
 ```
 
-### 3.4 ツールキットの実装
+### 3.4 Implementing Toolkits
 
 ```python
-# カスタムツールキットの作成
+# Creating a custom toolkit
 from langchain_core.tools import BaseToolkit
 
 class DataAnalysisToolkit(BaseToolkit):
-    """データ分析用ツールキット"""
+    """Data analysis toolkit"""
     db_path: str
 
     def get_tools(self) -> list[BaseTool]:
@@ -584,7 +584,7 @@ class DataAnalysisToolkit(BaseToolkit):
             return f"グラフを保存: {filepath}"
         return create_chart
 
-# ツールキットの使用
+# Using the toolkit
 toolkit = DataAnalysisToolkit(db_path="analytics.db")
 tools = toolkit.get_tools()
 ```
@@ -593,10 +593,10 @@ tools = toolkit.get_tools()
 
 ## 4. AgentExecutor
 
-### 4.1 標準的なエージェント構築
+### 4.1 Standard Agent Construction
 
 ```python
-# Tool Calling Agent の構築
+# Building a Tool Calling Agent
 from langchain_anthropic import ChatAnthropic
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
@@ -608,7 +608,7 @@ llm = ChatAnthropic(
     max_tokens=4096
 )
 
-# プロンプト
+# Prompt
 prompt = ChatPromptTemplate.from_messages([
     ("system", """あなたは有能なリサーチアシスタントです。
 ユーザーの質問に対して、必要に応じてツールを使い、正確な情報を提供してください。
@@ -618,24 +618,24 @@ prompt = ChatPromptTemplate.from_messages([
     MessagesPlaceholder(variable_name="agent_scratchpad")
 ])
 
-# ツール
+# Tools
 tools = [search_database, email_tool, WebScraperTool()]
 
-# エージェント作成
+# Create agent
 agent = create_tool_calling_agent(llm, tools, prompt)
 
-# AgentExecutor（実行エンジン）
+# AgentExecutor (execution engine)
 executor = AgentExecutor(
     agent=agent,
     tools=tools,
-    verbose=True,          # 実行過程を表示
-    max_iterations=15,     # 最大イテレーション
-    max_execution_time=120, # タイムアウト（秒）
-    handle_parsing_errors=True,  # パースエラーの自動処理
-    return_intermediate_steps=True  # 中間ステップも返す
+    verbose=True,          # Display execution process
+    max_iterations=15,     # Maximum iterations
+    max_execution_time=120, # Timeout (seconds)
+    handle_parsing_errors=True,  # Auto-handle parse errors
+    return_intermediate_steps=True  # Also return intermediate steps
 )
 
-# 実行
+# Execute
 result = executor.invoke({
     "input": "最新のAIエージェントフレームワークを調べて比較表を作って",
     "chat_history": []
@@ -646,10 +646,10 @@ for step in result["intermediate_steps"]:
     print(f"  Tool: {step[0].tool}, Result: {step[1][:100]}...")
 ```
 
-### 4.2 ストリーミング実行
+### 4.2 Streaming Execution
 
 ```python
-# ストリーミングでエージェントの思考過程をリアルタイム表示
+# Display the agent's thinking process in real time via streaming
 async def stream_agent():
     async for event in executor.astream_events(
         {"input": "Pythonの非同期処理について解説して"},
@@ -657,26 +657,26 @@ async def stream_agent():
     ):
         kind = event["event"]
         if kind == "on_chat_model_stream":
-            # LLMのトークン出力
+            # LLM token output
             print(event["data"]["chunk"].content, end="", flush=True)
         elif kind == "on_tool_start":
-            # ツール実行開始
+            # Tool execution started
             print(f"\n[ツール開始: {event['name']}]")
         elif kind == "on_tool_end":
-            # ツール実行完了
+            # Tool execution completed
             print(f"[ツール完了: {event['name']}]")
 ```
 
-### 4.3 カスタムAgentの実装
+### 4.3 Implementing a Custom Agent
 
 ```python
-# 完全カスタムAgentの実装
+# Implementing a fully custom Agent
 from langchain_core.agents import AgentAction, AgentFinish
 from langchain_core.runnables import RunnableSerializable
 from typing import Union
 
 class CustomReasoningAgent(RunnableSerializable):
-    """カスタム推論ロジックを持つAgent"""
+    """Agent with custom reasoning logic"""
     llm: ChatAnthropic
     tools: list[BaseTool]
     system_prompt: str
@@ -696,13 +696,13 @@ class CustomReasoningAgent(RunnableSerializable):
 
         messages = [SystemMessage(content=self.system_prompt)]
 
-        # 会話履歴
+        # Conversation history
         if "chat_history" in input:
             messages.extend(input["chat_history"])
 
         messages.append(HumanMessage(content=input["input"]))
 
-        # 中間ステップ
+        # Intermediate steps
         if "intermediate_steps" in input:
             for action, result in input["intermediate_steps"]:
                 messages.append(HumanMessage(
@@ -714,7 +714,7 @@ class CustomReasoningAgent(RunnableSerializable):
     def _parse_response(self, response, input: dict) -> Union[AgentAction, AgentFinish]:
         content = response.content
 
-        # ツール呼び出しの検出
+        # Detect tool calls
         if response.tool_calls:
             tool_call = response.tool_calls[0]
             return AgentAction(
@@ -723,17 +723,17 @@ class CustomReasoningAgent(RunnableSerializable):
                 log=f"ツール呼び出し: {tool_call['name']}"
             )
 
-        # 最終回答
+        # Final answer
         return AgentFinish(
             return_values={"output": content},
             log="最終回答を生成"
         )
 ```
 
-### 4.4 マルチツール実行パターン
+### 4.4 Multi-Tool Execution Pattern
 
 ```python
-# 複数ツールを1ステップで呼び出す（Parallel Tool Calling）
+# Call multiple tools in a single step (Parallel Tool Calling)
 from langchain_anthropic import ChatAnthropic
 
 llm = ChatAnthropic(
@@ -741,8 +741,8 @@ llm = ChatAnthropic(
     temperature=0
 )
 
-# Claude は1回のレスポンスで複数のtool_callsを返せる
-# AgentExecutor はこれらを並列に実行する
+# Claude can return multiple tool_calls in a single response
+# AgentExecutor executes these in parallel
 
 @tool
 def get_weather(city: str) -> str:
@@ -751,7 +751,7 @@ def get_weather(city: str) -> str:
     Args:
         city: 都市名
     """
-    # 天気API呼び出し
+    # Weather API call
     return f"{city}: 晴れ 25°C"
 
 @tool
@@ -775,24 +775,24 @@ def get_stock_price(symbol: str) -> str:
 
 tools = [get_weather, get_exchange_rate, get_stock_price]
 
-# この入力に対して、Claudeは3つのツールを同時に呼び出す
+# For this input, Claude will call all 3 tools simultaneously
 # "東京の天気、USD/JPYの為替、7203の株価を教えて"
 ```
 
 ---
 
-## 5. メモリの統合
+## 5. Memory Integration
 
-### 5.1 基本的なメモリ設定
+### 5.1 Basic Memory Configuration
 
 ```python
-# 会話メモリ付きエージェント
+# Agent with conversation memory
 from langchain.memory import ConversationBufferWindowMemory
 
 memory = ConversationBufferWindowMemory(
     memory_key="chat_history",
     return_messages=True,
-    k=10  # 直近10件の会話を保持
+    k=10  # Keep the last 10 conversations
 )
 
 executor_with_memory = AgentExecutor(
@@ -802,30 +802,30 @@ executor_with_memory = AgentExecutor(
     verbose=True
 )
 
-# 連続的な対話
+# Continuous conversation
 executor_with_memory.invoke({"input": "PythonのFastAPIについて教えて"})
-executor_with_memory.invoke({"input": "それとFlaskの違いは？"})  # 文脈を保持
+executor_with_memory.invoke({"input": "それとFlaskの違いは？"})  # Maintains context
 ```
 
-### 5.2 メモリ戦略の比較と実装
+### 5.2 Memory Strategy Comparison and Implementation
 
 ```python
-# 1. ConversationBufferMemory: 全会話を保持（メモリ使用量に注意）
+# 1. ConversationBufferMemory: Retains all conversations (watch memory usage)
 from langchain.memory import ConversationBufferMemory
 buffer_memory = ConversationBufferMemory(
     memory_key="chat_history",
     return_messages=True
 )
 
-# 2. ConversationBufferWindowMemory: 直近N件のみ保持
+# 2. ConversationBufferWindowMemory: Retains only the last N conversations
 from langchain.memory import ConversationBufferWindowMemory
 window_memory = ConversationBufferWindowMemory(
     memory_key="chat_history",
     return_messages=True,
-    k=20  # 直近20ターン
+    k=20  # Last 20 turns
 )
 
-# 3. ConversationSummaryMemory: 要約して保持（長期会話向け）
+# 3. ConversationSummaryMemory: Retains via summarization (for long conversations)
 from langchain.memory import ConversationSummaryMemory
 summary_memory = ConversationSummaryMemory(
     llm=ChatAnthropic(model="claude-haiku-4-20250514"),
@@ -833,23 +833,23 @@ summary_memory = ConversationSummaryMemory(
     return_messages=True
 )
 
-# 4. ConversationSummaryBufferMemory: 要約+直近のバッファ
+# 4. ConversationSummaryBufferMemory: Summary + recent buffer
 from langchain.memory import ConversationSummaryBufferMemory
 summary_buffer_memory = ConversationSummaryBufferMemory(
     llm=ChatAnthropic(model="claude-haiku-4-20250514"),
     memory_key="chat_history",
     return_messages=True,
-    max_token_limit=2000  # このトークン数を超えると要約
+    max_token_limit=2000  # Summarizes when this token count is exceeded
 )
 
-# 5. 永続化メモリ（Redis使用）
+# 5. Persistent memory (using Redis)
 from langchain.memory import ConversationBufferMemory
 from langchain_community.chat_message_histories import RedisChatMessageHistory
 
 redis_history = RedisChatMessageHistory(
     session_id="user-123-session-456",
     url="redis://localhost:6379",
-    ttl=3600  # 1時間で期限切れ
+    ttl=3600  # Expires after 1 hour
 )
 
 persistent_memory = ConversationBufferWindowMemory(
@@ -860,15 +860,15 @@ persistent_memory = ConversationBufferWindowMemory(
 )
 ```
 
-### 5.3 セマンティックメモリ
+### 5.3 Semantic Memory
 
 ```python
-# ベクトルDBを使ったセマンティック検索メモリ
+# Semantic search memory using a vector DB
 from langchain.memory import VectorStoreRetrieverMemory
 from langchain_community.vectorstores import Chroma
 from langchain_anthropic import ChatAnthropic
 
-# ベクトルストアの設定
+# Vector store configuration
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
 embeddings = HuggingFaceEmbeddings(
@@ -882,7 +882,7 @@ vectorstore = Chroma(
 )
 
 retriever = vectorstore.as_retriever(
-    search_kwargs={"k": 5}  # 関連度上位5件を取得
+    search_kwargs={"k": 5}  # Retrieve top 5 by relevance
 )
 
 semantic_memory = VectorStoreRetrieverMemory(
@@ -890,21 +890,21 @@ semantic_memory = VectorStoreRetrieverMemory(
     memory_key="relevant_history"
 )
 
-# 過去の会話から関連する内容を自動的に検索して提供
+# Automatically searches and provides relevant content from past conversations
 ```
 
 ---
 
-## 6. 出力パーサー
+## 6. Output Parsers
 
-### 6.1 構造化出力
+### 6.1 Structured Output
 
 ```python
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.pydantic_v1 import BaseModel, Field
 from typing import Optional
 
-# 出力スキーマの定義
+# Define output schema
 class TaskAnalysis(BaseModel):
     task_name: str = Field(description="タスクの名前")
     priority: str = Field(description="優先度（high/medium/low）")
@@ -912,7 +912,7 @@ class TaskAnalysis(BaseModel):
     dependencies: list[str] = Field(description="依存タスクのリスト")
     risks: Optional[list[str]] = Field(description="リスク要因", default=None)
 
-# JSON出力パーサー
+# JSON output parser
 parser = JsonOutputParser(pydantic_object=TaskAnalysis)
 
 prompt = ChatPromptTemplate.from_messages([
@@ -932,12 +932,12 @@ print(f"優先度: {result['priority']}")
 print(f"推定時間: {result['estimated_hours']}時間")
 ```
 
-### 6.2 ストリーミング対応パーサー
+### 6.2 Streaming-Compatible Parser
 
 ```python
 from langchain_core.output_parsers import JsonOutputParser
 
-# ストリーミング中の部分的なJSONをパース
+# Parse partial JSON during streaming
 async def stream_structured_output():
     parser = JsonOutputParser()
 
@@ -946,30 +946,30 @@ async def stream_structured_output():
     async for partial_result in chain.astream({
         "task_description": "API設計のレビュー"
     }):
-        # 部分的な結果が徐々に構築される
+        # Partial results are built up incrementally
         print(f"Current state: {partial_result}")
 ```
 
-### 6.3 カスタム出力パーサー
+### 6.3 Custom Output Parser
 
 ```python
 from langchain_core.output_parsers import BaseOutputParser
 import re
 
 class MarkdownTableParser(BaseOutputParser[list[dict]]):
-    """Markdownテーブルをパースするカスタムパーサー"""
+    """Custom parser for Markdown tables"""
 
     def parse(self, text: str) -> list[dict]:
         lines = text.strip().split("\n")
 
-        # ヘッダー行を探す
+        # Find header row
         header_line = None
         data_start = 0
         for i, line in enumerate(lines):
             if "|" in line and "---" not in line:
                 if header_line is None:
                     header_line = line
-                    data_start = i + 2  # セパレータ行をスキップ
+                    data_start = i + 2  # Skip separator row
                     break
 
         if header_line is None:
@@ -991,7 +991,7 @@ class MarkdownTableParser(BaseOutputParser[list[dict]]):
     def _type(self) -> str:
         return "markdown_table"
 
-# 使用例
+# Usage example
 table_parser = MarkdownTableParser()
 comparison_chain = (
     ChatPromptTemplate.from_template(
@@ -1008,9 +1008,9 @@ for row in result:
 
 ---
 
-## 7. コールバックとオブザーバビリティ
+## 7. Callbacks and Observability
 
-### 7.1 カスタムコールバック
+### 7.1 Custom Callbacks
 
 ```python
 from langchain_core.callbacks import BaseCallbackHandler
@@ -1022,7 +1022,7 @@ import logging
 logger = logging.getLogger("langchain_agent")
 
 class ProductionCallbackHandler(BaseCallbackHandler):
-    """本番環境用のコールバックハンドラ"""
+    """Callback handler for production environments"""
 
     def __init__(self, session_id: str):
         self.session_id = session_id
@@ -1069,7 +1069,7 @@ class ProductionCallbackHandler(BaseCallbackHandler):
             self.token_usage["output"] += usage.get("output_tokens", 0)
 
     def get_metrics(self) -> dict:
-        """メトリクスを取得"""
+        """Get metrics"""
         return {
             "session_id": self.session_id,
             "duration": (datetime.now() - self.start_time).total_seconds() if self.start_time else 0,
@@ -1079,7 +1079,7 @@ class ProductionCallbackHandler(BaseCallbackHandler):
             "tool_details": self.tool_calls
         }
 
-# 使用
+# Usage
 callback = ProductionCallbackHandler(session_id="sess-abc123")
 result = executor.invoke(
     {"input": "売上データを分析して"},
@@ -1089,23 +1089,23 @@ metrics = callback.get_metrics()
 print(json.dumps(metrics, indent=2, ensure_ascii=False))
 ```
 
-### 7.2 LangSmith統合
+### 7.2 LangSmith Integration
 
 ```python
-# LangSmithによるトレーシング
+# Tracing with LangSmith
 import os
 
-# 環境変数で設定
+# Configure via environment variables
 os.environ["LANGCHAIN_TRACING_V2"] = "true"
 os.environ["LANGCHAIN_API_KEY"] = "ls__..."
 os.environ["LANGCHAIN_PROJECT"] = "my-agent-project"
 
-# プログラマティックに設定
+# Configure programmatically
 from langsmith import Client
 
 client = Client()
 
-# トレースのアノテーション
+# Trace annotation
 from langchain_core.tracers import LangChainTracer
 
 tracer = LangChainTracer(
@@ -1113,13 +1113,13 @@ tracer = LangChainTracer(
     client=client
 )
 
-# 実行時にトレーサーを渡す
+# Pass the tracer at execution time
 result = executor.invoke(
     {"input": "月次レポートを作成して"},
     config={"callbacks": [tracer]}
 )
 
-# カスタムメタデータの追加
+# Adding custom metadata
 from langchain_core.runnables import RunnableConfig
 
 config = RunnableConfig(
@@ -1137,13 +1137,13 @@ result = executor.invoke(
 )
 ```
 
-### 7.3 構造化ログの実装
+### 7.3 Implementing Structured Logging
 
 ```python
 import structlog
 from langchain_core.callbacks import BaseCallbackHandler
 
-# structlog の設定
+# Configure structlog
 structlog.configure(
     processors=[
         structlog.stdlib.filter_by_level,
@@ -1159,7 +1159,7 @@ structlog.configure(
 log = structlog.get_logger()
 
 class StructuredLoggingCallback(BaseCallbackHandler):
-    """構造化ログを出力するコールバック"""
+    """Callback that outputs structured logs"""
 
     def __init__(self, request_id: str):
         self.request_id = request_id
@@ -1194,9 +1194,9 @@ class StructuredLoggingCallback(BaseCallbackHandler):
 
 ---
 
-## 8. 本番運用パターン
+## 8. Production Patterns
 
-### 8.1 FastAPI統合
+### 8.1 FastAPI Integration
 
 ```python
 from fastapi import FastAPI, HTTPException, BackgroundTasks
@@ -1219,7 +1219,7 @@ class ChatResponse(BaseModel):
     tool_calls: list[dict]
     token_usage: dict
 
-# セッション管理
+# Session management
 sessions: dict[str, ConversationBufferWindowMemory] = {}
 
 def get_or_create_session(session_id: str | None) -> tuple[str, ConversationBufferWindowMemory]:
@@ -1269,7 +1269,7 @@ async def chat(request: ChatRequest):
 
 @app.post("/chat/stream")
 async def chat_stream(request: ChatRequest):
-    """SSE（Server-Sent Events）でストリーミング応答"""
+    """Streaming response via SSE (Server-Sent Events)"""
     session_id, memory = get_or_create_session(request.session_id)
 
     executor = AgentExecutor(
@@ -1308,7 +1308,7 @@ async def delete_session(session_id: str):
     return {"status": "deleted"}
 ```
 
-### 8.2 エラーハンドリング戦略
+### 8.2 Error Handling Strategy
 
 ```python
 from langchain_core.runnables import RunnableConfig
@@ -1316,7 +1316,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 import traceback
 
 class RobustAgentExecutor:
-    """堅牢なエージェント実行クラス"""
+    """Robust agent execution class"""
 
     def __init__(
         self,
@@ -1382,10 +1382,10 @@ class RobustAgentExecutor:
             }
 ```
 
-### 8.3 セキュリティ対策
+### 8.3 Security Measures
 
 ```python
-# ツール実行のサンドボックス化
+# Sandboxing tool execution
 import subprocess
 import tempfile
 import os
@@ -1398,7 +1398,7 @@ def safe_code_execution(code: str, language: str = "python") -> str:
         code: 実行するコード
         language: プログラミング言語（python, javascript）
     """
-    # 危険なパターンのチェック
+    # Check for dangerous patterns
     dangerous_patterns = [
         "import os", "import subprocess", "import shutil",
         "__import__", "eval(", "exec(", "open(",
@@ -1409,7 +1409,7 @@ def safe_code_execution(code: str, language: str = "python") -> str:
         if pattern in code:
             return f"セキュリティエラー: '{pattern}' は許可されていません"
 
-    # 一時ファイルに書き出して実行
+    # Write to a temp file and execute
     with tempfile.NamedTemporaryFile(
         mode="w", suffix=f".{language[:2]}", delete=False
     ) as f:
@@ -1421,12 +1421,12 @@ def safe_code_execution(code: str, language: str = "python") -> str:
                 ["python", f.name] if language == "python" else ["node", f.name],
                 capture_output=True,
                 text=True,
-                timeout=10,  # 10秒タイムアウト
+                timeout=10,  # 10-second timeout
                 cwd="/tmp",
                 env={
                     "PATH": "/usr/bin:/usr/local/bin",
                     "HOME": "/tmp"
-                }  # 最小限の環境変数
+                }  # Minimal environment variables
             )
 
             if result.returncode != 0:
@@ -1437,7 +1437,7 @@ def safe_code_execution(code: str, language: str = "python") -> str:
         finally:
             os.unlink(f.name)
 
-# 入力バリデーション
+# Input validation
 from pydantic import BaseModel, Field, validator
 
 class SafeQueryInput(BaseModel):
@@ -1445,7 +1445,7 @@ class SafeQueryInput(BaseModel):
 
     @validator("query")
     def validate_query(cls, v):
-        # SQLインジェクション対策
+        # SQL injection countermeasures
         injection_patterns = [
             "DROP", "DELETE", "INSERT", "UPDATE",
             "--", ";", "UNION", "OR 1=1"
@@ -1459,23 +1459,23 @@ class SafeQueryInput(BaseModel):
 
 ---
 
-## 9. キャッシュとパフォーマンス最適化
+## 9. Caching and Performance Optimization
 
-### 9.1 LLMキャッシュ
+### 9.1 LLM Cache
 
 ```python
 from langchain_core.globals import set_llm_cache
 from langchain_community.cache import SQLiteCache, RedisCache
 
-# SQLiteキャッシュ（開発環境向け）
+# SQLite cache (for development environments)
 set_llm_cache(SQLiteCache(database_path=".langchain_cache.db"))
 
-# Redisキャッシュ（本番環境向け）
+# Redis cache (for production environments)
 import redis
 redis_client = redis.Redis(host="localhost", port=6379)
 set_llm_cache(RedisCache(redis_=redis_client, ttl=3600))
 
-# セマンティックキャッシュ（類似クエリのキャッシュ）
+# Semantic cache (cache for similar queries)
 from langchain_community.cache import RedisSemanticCache
 from langchain_community.embeddings import HuggingFaceEmbeddings
 
@@ -1484,27 +1484,27 @@ set_llm_cache(RedisSemanticCache(
     embedding=HuggingFaceEmbeddings(
         model_name="intfloat/multilingual-e5-base"
     ),
-    score_threshold=0.95  # 類似度95%以上でキャッシュヒット
+    score_threshold=0.95  # Cache hit at 95%+ similarity
 ))
 
-# 特定のチェーンでキャッシュを無効化
+# Disable cache for specific chains
 from langchain_core.runnables import RunnableConfig
 
 result = chain.invoke(
     {"input": "最新ニュースを教えて"},
     config=RunnableConfig(
-        metadata={"cache": False}  # キャッシュを使わない
+        metadata={"cache": False}  # Do not use cache
     )
 )
 ```
 
-### 9.2 バッチ処理と並列実行
+### 9.2 Batch Processing and Parallel Execution
 
 ```python
 import asyncio
 from langchain_core.runnables import RunnableConfig
 
-# バッチ処理
+# Batch processing
 inputs = [
     {"input": f"質問{i}: {q}"}
     for i, q in enumerate([
@@ -1515,13 +1515,13 @@ inputs = [
     ])
 ]
 
-# 同期バッチ（内部で並列実行）
+# Synchronous batch (executed in parallel internally)
 results = chain.batch(
     inputs,
-    config=RunnableConfig(max_concurrency=3)  # 同時実行数を制限
+    config=RunnableConfig(max_concurrency=3)  # Limit concurrent executions
 )
 
-# 非同期バッチ
+# Async batch
 async def process_batch():
     results = await chain.abatch(
         inputs,
@@ -1529,9 +1529,9 @@ async def process_batch():
     )
     return results
 
-# ストリーミングバッチ
+# Streaming batch
 async def stream_batch():
-    """各入力の結果をストリーミングで取得"""
+    """Get results for each input via streaming"""
     tasks = [
         chain.astream(input_data)
         for input_data in inputs
@@ -1542,21 +1542,21 @@ async def stream_batch():
         print(f"Input {i} completed")
 ```
 
-### 9.3 モデルルーティング
+### 9.3 Model Routing
 
 ```python
 from langchain_core.runnables import RunnableLambda, RunnableBranch
 
-# タスクの複雑さに応じてモデルを切り替え
+# Switch models based on task complexity
 cheap_llm = ChatAnthropic(model="claude-haiku-4-20250514", temperature=0)
 expensive_llm = ChatAnthropic(model="claude-sonnet-4-20250514", temperature=0)
 
 def estimate_complexity(input_data: dict) -> dict:
-    """タスクの複雑さを推定"""
+    """Estimate task complexity"""
     text = input_data.get("input", "")
     word_count = len(text.split())
 
-    # 単純なヒューリスティクス
+    # Simple heuristics
     complex_keywords = ["分析", "比較", "設計", "アーキテクチャ", "最適化"]
     has_complex_keyword = any(kw in text for kw in complex_keywords)
 
@@ -1565,7 +1565,7 @@ def estimate_complexity(input_data: dict) -> dict:
     ) else "low"
     return input_data
 
-# モデルルーティングチェーン
+# Model routing chain
 routed_chain = (
     RunnableLambda(estimate_complexity)
     | RunnableBranch(
@@ -1577,24 +1577,24 @@ routed_chain = (
     )
 )
 
-# コスト削減: 単純な質問はHaiku、複雑な質問はSonnet
+# Cost reduction: Haiku for simple queries, Sonnet for complex ones
 ```
 
 ---
 
-## 10. テストとデバッグ
+## 10. Testing and Debugging
 
-### 10.1 ユニットテスト
+### 10.1 Unit Testing
 
 ```python
 import pytest
 from unittest.mock import AsyncMock, patch, MagicMock
 from langchain_core.messages import AIMessage
 
-# ツールのテスト
+# Tool tests
 class TestSearchDatabaseTool:
     def test_basic_search(self, tmp_path):
-        """基本的な検索が動作する"""
+        """Basic search works correctly"""
         import sqlite3
         db_path = tmp_path / "test.db"
         conn = sqlite3.connect(str(db_path))
@@ -1611,7 +1611,7 @@ class TestSearchDatabaseTool:
         assert "Widget" in result
 
     def test_empty_results(self, tmp_path):
-        """結果が空の場合"""
+        """When results are empty"""
         import sqlite3
         db_path = tmp_path / "test.db"
         conn = sqlite3.connect(str(db_path))
@@ -1625,7 +1625,7 @@ class TestSearchDatabaseTool:
         })
         assert result == "[]"
 
-# エージェントのテスト（LLMをモック）
+# Agent tests (mock LLM)
 class TestAgent:
     @pytest.fixture
     def mock_llm(self):
@@ -1634,7 +1634,7 @@ class TestAgent:
         return mock
 
     def test_agent_responds(self, mock_llm):
-        """エージェントが応答を返す"""
+        """Agent returns a response"""
         chain = (
             ChatPromptTemplate.from_template("{input}")
             | mock_llm
@@ -1643,11 +1643,11 @@ class TestAgent:
         result = chain.invoke({"input": "テスト質問"})
         assert result is not None
 
-# チェーンの統合テスト
+# Integration tests for chains
 class TestChain:
     @pytest.mark.integration
     def test_full_chain_execution(self):
-        """チェーン全体が正しく動作する"""
+        """Full chain operates correctly"""
         llm = ChatAnthropic(
             model="claude-haiku-4-20250514",
             temperature=0
@@ -1665,7 +1665,7 @@ class TestChain:
         assert "テスト" in result
 ```
 
-### 10.2 LangSmithによるテスト自動化
+### 10.2 Test Automation with LangSmith
 
 ```python
 from langsmith import Client
@@ -1673,13 +1673,13 @@ from langsmith.evaluation import evaluate
 
 client = Client()
 
-# テストデータセットの作成
+# Create test dataset
 dataset = client.create_dataset(
     "agent-evaluation",
     description="エージェントの品質評価用データセット"
 )
 
-# テストケースの追加
+# Add test cases
 examples = [
     {
         "input": "東京の天気は？",
@@ -1689,7 +1689,7 @@ examples = [
     {
         "input": "1+1は？",
         "expected_output": "2",
-        "expected_tools": []  # ツール不要
+        "expected_tools": []  # No tools needed
     },
 ]
 
@@ -1703,12 +1703,12 @@ for example in examples:
         dataset_id=dataset.id
     )
 
-# 評価関数
+# Evaluation function
 def correct_tool_usage(run, example) -> dict:
-    """正しいツールが使われたかを評価"""
+    """Evaluate whether the correct tools were used"""
     expected_tools = example.outputs.get("tools", [])
 
-    # 中間ステップからツール呼び出しを抽出
+    # Extract tool calls from intermediate steps
     actual_tools = []
     if run.outputs and "intermediate_steps" in run.outputs:
         actual_tools = [
@@ -1721,7 +1721,7 @@ def correct_tool_usage(run, example) -> dict:
         "score": 1.0 if set(expected_tools) == set(actual_tools) else 0.0
     }
 
-# 評価の実行
+# Run evaluation
 results = evaluate(
     lambda input: executor.invoke(input),
     data=dataset.name,
@@ -1730,25 +1730,25 @@ results = evaluate(
 )
 ```
 
-### 10.3 デバッグテクニック
+### 10.3 Debugging Techniques
 
 ```python
-# 1. 詳細ログの有効化
+# 1. Enable detailed logging
 import langchain
-langchain.debug = True  # 全ステップの詳細ログ
+langchain.debug = True  # Detailed logs for all steps
 
-# 2. 特定ステップのデバッグ
+# 2. Debug specific steps
 from langchain_core.tracers import ConsoleCallbackHandler
 
-# コンソールに全ステップを出力
+# Output all steps to console
 result = chain.invoke(
     {"input": "テスト"},
     config={"callbacks": [ConsoleCallbackHandler()]}
 )
 
-# 3. チェーンの可視化
+# 3. Chain visualization
 chain.get_graph().print_ascii()
-# 出力例:
+# Example output:
 #     +--------+
 #     | Prompt |
 #     +---+----+
@@ -1761,11 +1761,11 @@ chain.get_graph().print_ascii()
 #     | Parser |
 #     +--------+
 
-# 4. 中間結果のインスペクション
+# 4. Inspecting intermediate results
 from langchain_core.runnables import RunnableLambda
 
 def inspect(state):
-    """中間状態をログに出力"""
+    """Log intermediate state"""
     print(f"=== Inspect ===")
     print(f"Type: {type(state)}")
     if isinstance(state, dict):
@@ -1778,65 +1778,65 @@ def inspect(state):
 
 debug_chain = (
     prompt
-    | RunnableLambda(inspect)  # プロンプト後
+    | RunnableLambda(inspect)  # After prompt
     | llm
-    | RunnableLambda(inspect)  # LLM出力後
+    | RunnableLambda(inspect)  # After LLM output
     | output_parser
 )
 ```
 
 ---
 
-## 11. 比較表
+## 11. Comparison Tables
 
-### 11.1 エージェント作成方法の比較
+### 11.1 Comparison of Agent Creation Methods
 
-| 方法 | コード量 | 柔軟性 | ツール方式 | 推奨場面 |
-|------|---------|--------|-----------|---------|
-| create_tool_calling_agent | 少 | 中 | Function Calling | 一般的 |
-| create_react_agent | 少 | 中 | テキストベース | レガシーモデル |
-| カスタムAgent | 多 | 高 | 任意 | 特殊要件 |
-| LangGraph | 中 | 最高 | 任意 | 複雑なフロー |
+| Method | Code Volume | Flexibility | Tool Approach | Recommended For |
+|--------|-------------|-------------|---------------|-----------------|
+| create_tool_calling_agent | Small | Medium | Function Calling | General use |
+| create_react_agent | Small | Medium | Text-based | Legacy models |
+| Custom Agent | Large | High | Any | Special requirements |
+| LangGraph | Medium | Highest | Any | Complex flows |
 
-### 11.2 ツール定義方法の比較
+### 11.2 Comparison of Tool Definition Methods
 
-| 方法 | 手軽さ | 型安全性 | 非同期 | バリデーション |
-|------|--------|---------|--------|--------------|
-| @tool デコレータ | 最高 | 中 | 可 | 基本 |
-| StructuredTool | 中 | 高 | 可 | Pydantic |
-| BaseTool 継承 | 低 | 高 | 可 | 完全制御 |
-| Tool.from_function | 高 | 低 | 不可 | なし |
+| Method | Ease of Use | Type Safety | Async | Validation |
+|--------|-------------|-------------|-------|------------|
+| @tool decorator | Highest | Medium | Yes | Basic |
+| StructuredTool | Medium | High | Yes | Pydantic |
+| BaseTool inheritance | Low | High | Yes | Full control |
+| Tool.from_function | High | Low | No | None |
 
-### 11.3 メモリ方式の比較
+### 11.3 Comparison of Memory Strategies
 
-| 方式 | メモリ使用量 | 長期対話 | 精度 | コスト | 推奨用途 |
-|------|------------|---------|------|--------|---------|
-| ConversationBufferMemory | 高 | 不向き | 最高 | 高 | 短い会話 |
-| ConversationBufferWindowMemory | 中 | 可 | 高 | 中 | 一般的な対話 |
-| ConversationSummaryMemory | 低 | 最適 | 中 | LLM呼び出しあり | 長時間セッション |
-| ConversationSummaryBufferMemory | 中 | 最適 | 高 | LLM呼び出しあり | バランス重視 |
-| VectorStoreRetrieverMemory | 低 | 最適 | 検索依存 | 埋め込み計算 | ナレッジベース |
+| Strategy | Memory Usage | Long-Term Dialog | Accuracy | Cost | Recommended For |
+|----------|--------------|------------------|----------|------|-----------------|
+| ConversationBufferMemory | High | Not suitable | Highest | High | Short conversations |
+| ConversationBufferWindowMemory | Medium | Possible | High | Medium | General dialog |
+| ConversationSummaryMemory | Low | Optimal | Medium | LLM call needed | Long sessions |
+| ConversationSummaryBufferMemory | Medium | Optimal | High | LLM call needed | Balanced use |
+| VectorStoreRetrieverMemory | Low | Optimal | Search-dependent | Embedding cost | Knowledge base |
 
-### 11.4 キャッシュ方式の比較
+### 11.4 Comparison of Cache Strategies
 
-| 方式 | 速度 | 永続性 | スケーラビリティ | セマンティック | 推奨環境 |
-|------|------|--------|----------------|--------------|---------|
-| InMemoryCache | 最速 | なし | 単一プロセス | 不可 | 開発 |
-| SQLiteCache | 速い | あり | 単一マシン | 不可 | 小規模本番 |
-| RedisCache | 速い | あり | 分散 | 不可 | 本番 |
-| RedisSemanticCache | 中 | あり | 分散 | 可能 | 高トラフィック |
+| Strategy | Speed | Persistence | Scalability | Semantic | Recommended For |
+|----------|-------|-------------|-------------|----------|-----------------|
+| InMemoryCache | Fastest | None | Single process | No | Development |
+| SQLiteCache | Fast | Yes | Single machine | No | Small-scale production |
+| RedisCache | Fast | Yes | Distributed | No | Production |
+| RedisSemanticCache | Medium | Yes | Distributed | Yes | High traffic |
 
 ---
 
-## 12. 実践プロジェクト: カスタマーサポートエージェント
+## 12. Practical Project: Customer Support Agent
 
 ```python
 """
-カスタマーサポートエージェントの完全実装例
-- FAQデータベース検索
-- 注文ステータス確認
-- エスカレーション機能
-- 対話ログの記録
+Complete implementation example of a customer support agent
+- FAQ database search
+- Order status check
+- Escalation feature
+- Conversation log recording
 """
 from langchain_anthropic import ChatAnthropic
 from langchain.agents import AgentExecutor, create_tool_calling_agent
@@ -1847,7 +1847,7 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 import json
 
-# --- ツール定義 ---
+# --- Tool definitions ---
 
 @tool
 def search_faq(query: str, category: str = "all") -> str:
@@ -1857,7 +1857,7 @@ def search_faq(query: str, category: str = "all") -> str:
         query: 検索キーワード
         category: カテゴリ（shipping, payment, returns, account, all）
     """
-    # 簡易FAQデータベース（実際はベクトルDBを使用）
+    # Simple FAQ database (use a vector DB in practice)
     faqs = {
         "shipping": [
             {"q": "配送日数は？", "a": "通常2-3営業日です。離島は5-7営業日。"},
@@ -1892,7 +1892,7 @@ def check_order_status(order_id: str) -> str:
     Args:
         order_id: 注文番号（例: ORD-2024-001）
     """
-    # モックデータ
+    # Mock data
     orders = {
         "ORD-2024-001": {
             "status": "配送中",
@@ -1934,7 +1934,7 @@ def escalate_to_human(
         f"オペレーターに引き継ぎます。しばらくお待ちください。"
     )
 
-# --- エージェント構築 ---
+# --- Agent construction ---
 
 llm = ChatAnthropic(
     model="claude-sonnet-4-20250514",
@@ -1991,41 +1991,41 @@ support_agent = AgentExecutor(
     handle_parsing_errors=True
 )
 
-# 使用例
+# Usage example
 # result = support_agent.invoke({"input": "注文ORD-2024-001の配送状況を教えてください"})
 ```
 
 ---
 
-## 13. アンチパターン
+## 13. Anti-Patterns
 
-### アンチパターン1: 過度なチェーン連結
+### Anti-Pattern 1: Excessive Chain Chaining
 
 ```python
-# NG: 読みにくい長大なチェーン
+# BAD: An overly long chain that is hard to read
 chain = (
     prompt1 | llm | parser1 | transform1 |
     prompt2 | llm | parser2 | transform2 |
     prompt3 | llm | parser3 | transform3 |
     prompt4 | llm | parser4
-)  # デバッグ困難
+)  # Difficult to debug
 
-# OK: 意味のある単位で分割
+# GOOD: Split into meaningful units
 research_chain = prompt1 | llm | parser1
 analysis_chain = prompt2 | llm | parser2
 report_chain = prompt3 | llm | parser3
 
-# 組み合わせ
+# Combine
 full_chain = research_chain | analysis_chain | report_chain
 ```
 
-### アンチパターン2: verbose=True を本番環境で使う
+### Anti-Pattern 2: Using verbose=True in Production
 
 ```python
-# NG: 本番でverbose出力（セキュリティリスク+パフォーマンス低下）
+# BAD: verbose output in production (security risk + performance degradation)
 executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
 
-# OK: 環境に応じた設定
+# GOOD: Environment-specific configuration
 import os
 executor = AgentExecutor(
     agent=agent,
@@ -2035,16 +2035,16 @@ executor = AgentExecutor(
 )
 ```
 
-### アンチパターン3: ツール説明の不備
+### Anti-Pattern 3: Insufficient Tool Descriptions
 
 ```python
-# NG: 説明が不十分でLLMが適切にツールを選択できない
+# BAD: Insufficient description prevents LLM from selecting tools correctly
 @tool
 def search(q: str) -> str:
-    """検索する"""  # 何を検索？どんな入力が期待される？
+    """Search"""  # What is searched? What input is expected?
     pass
 
-# OK: 具体的で明確な説明
+# GOOD: Specific and clear description
 @tool
 def search_product_catalog(
     query: str,
@@ -2064,15 +2064,15 @@ def search_product_catalog(
     pass
 ```
 
-### アンチパターン4: メモリリークの放置
+### Anti-Pattern 4: Ignoring Memory Leaks
 
 ```python
-# NG: メモリ管理なしの長時間セッション
-memory = ConversationBufferMemory()  # 会話が増え続ける
+# BAD: Long-running session without memory management
+memory = ConversationBufferMemory()  # Conversation keeps growing
 executor = AgentExecutor(agent=agent, tools=tools, memory=memory)
-# 何百ターンも続くと OOM の危険
+# Risk of OOM after hundreds of turns
 
-# OK: ウィンドウ or サマリーメモリ + クリーンアップ
+# GOOD: Window or summary memory + cleanup
 memory = ConversationSummaryBufferMemory(
     llm=ChatAnthropic(model="claude-haiku-4-20250514"),
     max_token_limit=2000,
@@ -2080,23 +2080,23 @@ memory = ConversationSummaryBufferMemory(
     memory_key="chat_history"
 )
 
-# 定期的なクリーンアップ
+# Periodic cleanup
 def cleanup_session(session_id: str):
     if session_id in sessions:
         del sessions[session_id]
-    # Redis の場合は TTL で自動期限切れ
+    # For Redis, automatic expiry via TTL
 ```
 
-### アンチパターン5: 同期処理でのブロッキング
+### Anti-Pattern 5: Blocking Synchronous Processing
 
 ```python
-# NG: FastAPIで同期エージェントを実行（リクエストをブロック）
+# BAD: Running a synchronous agent in FastAPI (blocks requests)
 @app.post("/chat")
 def chat_sync(request: ChatRequest):
     result = executor.invoke({"input": request.message})
     return result
 
-# OK: 非同期で実行
+# GOOD: Execute asynchronously
 @app.post("/chat")
 async def chat_async(request: ChatRequest):
     result = await executor.ainvoke({"input": request.message})
@@ -2107,50 +2107,50 @@ async def chat_async(request: ChatRequest):
 
 ## 14. FAQ
 
-### Q1: LangChainのバージョン管理が難しいのですが？
+### Q1: Managing LangChain versions is difficult — what should I do?
 
-LangChainはAPIの変更が頻繁。対策:
-- **langchain-core** を固定（最も安定）
-- **requirements.txt** でバージョンを明示的に固定
-- **LangSmith** でテストの自動化
-- 破壊的変更がある場合は `langchain` の CHANGELOG を確認
-- langchain-core と langchain のメジャーバージョンを揃える（0.3.x 系統）
+LangChain's API changes frequently. Countermeasures:
+- **Pin langchain-core** (most stable)
+- **Explicitly pin versions** in requirements.txt
+- **Automate tests** with LangSmith
+- Check the `langchain` CHANGELOG for breaking changes
+- Align the major versions of langchain-core and langchain (e.g., the 0.3.x series)
 
-### Q2: AgentExecutor と LangGraph のどちらを使うべき？
+### Q2: Should I use AgentExecutor or LangGraph?
 
-- **AgentExecutor**: 単純なツール使用エージェント（5ツール以下、直線的な処理）
-- **LangGraph**: 条件分岐、ループ、状態管理、マルチエージェントが必要な場合
+- **AgentExecutor**: Simple tool-using agents (5 or fewer tools, linear processing)
+- **LangGraph**: When conditional branching, loops, state management, or multi-agent setups are needed
 
-LangChain公式も複雑なケースでは LangGraph を推奨している。
+The LangChain team officially recommends LangGraph for complex cases.
 
-### Q3: LangChainのコスト最適化方法は？
+### Q3: How can I optimize LangChain costs?
 
-- **キャッシュ**: `langchain.cache` でLLM応答をキャッシュ
-- **モデル切り替え**: 分類はHaiku、生成はSonnetなどノードごとに最適化
-- **早期終了**: `max_iterations` を適切に設定
-- **バッチ処理**: `chain.batch([input1, input2, ...])` で並列実行
+- **Caching**: Cache LLM responses with `langchain.cache`
+- **Model switching**: Optimize per node, e.g., Haiku for classification, Sonnet for generation
+- **Early termination**: Set `max_iterations` appropriately
+- **Batch processing**: Run in parallel with `chain.batch([input1, input2, ...])`
 
-### Q4: ツールが多すぎるとエージェントの精度が下がる？
+### Q4: Does accuracy drop when there are too many tools?
 
-ツールが増えるとLLMのツール選択精度が低下する。対策:
-- **ツール数は10個以下** を目安にする
-- ツールの説明を明確かつ差別化する
-- 関連ツールをツールキットにグループ化する
-- 動的ツール選択（タスクに応じてツールセットを切り替え）を実装する
-- LangGraphに移行して、ノードごとに異なるツールセットを提供する
+LLM tool selection accuracy degrades as tool count grows. Countermeasures:
+- Aim for **10 tools or fewer** as a guideline
+- Write clear, differentiated tool descriptions
+- Group related tools into toolkits
+- Implement dynamic tool selection (switch toolsets based on task)
+- Migrate to LangGraph and provide different toolsets per node
 
-### Q5: LangChainとLlamaIndexの使い分けは？
+### Q5: When should I use LangChain vs. LlamaIndex?
 
-- **LangChain**: 汎用エージェント、ツール統合、ワークフロー構築
-- **LlamaIndex**: RAG（検索拡張生成）に特化、ドキュメントインデックス
-- **併用**: LlamaIndexのRetrieverをLangChainのツールとして統合するのが一般的
+- **LangChain**: General-purpose agents, tool integration, workflow construction
+- **LlamaIndex**: Specialized for RAG (Retrieval-Augmented Generation), document indexing
+- **Combined use**: It is common to integrate LlamaIndex Retrievers as LangChain tools
 
 ```python
-# LlamaIndex + LangChain の統合例
+# LlamaIndex + LangChain integration example
 from llama_index.core import VectorStoreIndex
 from langchain.tools import Tool
 
-# LlamaIndex のインデックスを LangChain ツールに変換
+# Convert a LlamaIndex index into a LangChain tool
 index = VectorStoreIndex.from_documents(documents)
 query_engine = index.as_query_engine()
 
@@ -2160,28 +2160,28 @@ llama_tool = Tool(
     description="社内ドキュメントを検索する"
 )
 
-# LangChain エージェントのツールリストに追加
+# Add to LangChain agent's tool list
 tools = [llama_tool, search_database, email_tool]
 ```
 
-### Q6: 非同期処理でデッドロックが発生する場合の対処法は？
+### Q6: How do I handle deadlocks in async processing?
 
 ```python
-# 問題: 同期コード内でasync関数を呼ぼうとしてデッドロック
-# NG:
+# Problem: Attempting to call an async function inside synchronous code causes a deadlock
+# BAD:
 import asyncio
-result = asyncio.run(executor.ainvoke({"input": "test"}))  # デッドロックの可能性
+result = asyncio.run(executor.ainvoke({"input": "test"}))  # Risk of deadlock
 
-# OK: nest_asyncio を使用（Jupyter環境など）
+# GOOD: Use nest_asyncio (e.g., in Jupyter environments)
 import nest_asyncio
 nest_asyncio.apply()
 
-# OK: 専用のイベントループで実行
+# GOOD: Run in a dedicated event loop
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
 def run_async_in_thread(coro):
-    """別スレッドで非同期関数を実行"""
+    """Run an async function in a separate thread"""
     loop = asyncio.new_event_loop()
     try:
         return loop.run_until_complete(coro)
@@ -2201,41 +2201,41 @@ with ThreadPoolExecutor() as pool:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping fundamentals and jumping straight to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 内容 |
-|------|------|
-| LCEL | パイプラインでコンポーネントを接続 |
-| ツール | @tool / StructuredTool / BaseTool の3方式 |
-| AgentExecutor | エージェントの実行エンジン |
-| メモリ | ConversationBuffer系で会話を保持 |
-| ストリーミング | astream_events でリアルタイム出力 |
-| キャッシュ | SQLite / Redis / セマンティックの3方式 |
-| テスト | ユニットテスト + LangSmith評価 |
-| 本番運用 | FastAPI統合、エラーハンドリング、セキュリティ |
-| 原則 | シンプルに始め、必要に応じてLangGraphに移行 |
+| Item | Content |
+|------|---------|
+| LCEL | Connect components with a pipeline |
+| Tools | Three methods: @tool / StructuredTool / BaseTool |
+| AgentExecutor | Execution engine for agents |
+| Memory | Maintain conversation with ConversationBuffer variants |
+| Streaming | Real-time output via astream_events |
+| Cache | Three strategies: SQLite / Redis / Semantic |
+| Testing | Unit tests + LangSmith evaluation |
+| Production | FastAPI integration, error handling, security |
+| Principle | Start simple, migrate to LangGraph as needed |
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [01-langgraph.md](./01-langgraph.md) -- LangGraphによる高度なワークフロー
-- [02-mcp-agents.md](./02-mcp-agents.md) -- MCPエージェントの実装
-- [04-evaluation.md](./04-evaluation.md) -- エージェントの評価手法
+- [01-langgraph.md](./01-langgraph.md) -- Advanced workflows with LangGraph
+- [02-mcp-agents.md](./02-mcp-agents.md) -- Implementing MCP agents
+- [04-evaluation.md](./04-evaluation.md) -- Agent evaluation methods
 
-## 参考文献
+## References
 
 1. LangChain Documentation -- https://python.langchain.com/docs/
 2. LangChain GitHub -- https://github.com/langchain-ai/langchain
