@@ -1,26 +1,26 @@
-# スキーマ設計 — ER図・制約・パーティション
+# Schema Design — ER Diagrams, Constraints, and Partitioning
 
-> スキーマ設計はデータベースの骨格を決定する作業であり、テーブル構造、制約、リレーションシップの設計品質がアプリケーション全体の信頼性とパフォーマンスを左右する。
+> Schema design determines the backbone of a database. The quality of table structures, constraints, and relationship designs directly affects the reliability and performance of the entire application.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. ER図の読み書きとリレーションシップの種類（1:1, 1:N, M:N）
-2. 制約（PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK, NOT NULL）の適切な使い方
-3. パーティショニングによる大規模テーブルの管理戦略
-4. 主キー戦略（SERIAL, UUID, ULID）の比較と選定基準
-5. テーブル設計のベストプラクティスと共通パターン
+1. Reading and writing ER diagrams and relationship types (1:1, 1:N, M:N)
+2. Proper use of constraints (PRIMARY KEY, FOREIGN KEY, UNIQUE, CHECK, NOT NULL)
+3. Partitioning strategies for managing large-scale tables
+4. Comparison and selection criteria for primary key strategies (SERIAL, UUID, ULID)
+5. Best practices and common patterns for table design
 
-## 前提知識
+## Prerequisites
 
-- SQLの基本構文（CREATE TABLE、ALTER TABLE）
-- [00-normalization.md](./00-normalization.md) の正規化理論
-- リレーショナルモデルの基礎概念
+- Basic SQL syntax (CREATE TABLE, ALTER TABLE)
+- Normalization theory from [00-normalization.md](./00-normalization.md)
+- Foundational concepts of the relational model
 
 ---
 
-## 1. ER図とリレーションシップ
+## 1. ER Diagrams and Relationships
 
-### 1.1 ER図の基本記法
+### 1.1 Basic ER Diagram Notation
 
 ```
 ┌─────────────── ER図 (Entity-Relationship Diagram) ───────────────┐
@@ -50,42 +50,42 @@
 │  │    name       │             │ PK proj_id   │                 │
 │  │    deadline   │             │    role      │                 │
 │  └───────────────┘             └──────────────┘                 │
-│                                 中間テーブル                      │
+│                                 Junction Table                    │
 └───────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 ER図の主要な記法比較
+### 1.2 Comparison of Major ER Diagram Notations
 
 ```
-┌──────── ER図の記法スタイル ──────────────────┐
-│                                                │
-│  Chen記法（学術的）:                           │
-│  ┌──────┐    ◇     ┌──────┐                  │
-│  │ 社員 │───<所属>───│ 部署 │                  │
-│  └──────┘    ◇     └──────┘                  │
-│  エンティティ=□ 関連=◇ 属性=○                │
-│                                                │
-│  IE記法（Information Engineering）:            │
-│  ┌──────┐ ──||──< ┌──────┐                   │
-│  │ 部署 │          │ 社員 │                   │
-│  └──────┘          └──────┘                   │
-│  ||=1 <=多 O=0(オプション)                    │
-│                                                │
-│  UML記法:                                      │
-│  ┌──────┐  1..1     0..* ┌──────┐            │
-│  │ 部署 │────────────────│ 社員 │            │
-│  └──────┘                └──────┘            │
-│  多重度を数値で表現                            │
-│                                                │
-│  実務では IE記法（カラスの足）が最も一般的     │
-└────────────────────────────────────────────────┘
+┌──────── ER Diagram Notation Styles ──────────────────┐
+│                                                        │
+│  Chen Notation (Academic):                             │
+│  ┌──────┐    ◇     ┌──────┐                          │
+│  │Employee│──<Belongs>──│Dept  │                      │
+│  └──────┘    ◇     └──────┘                          │
+│  Entity=□  Relationship=◇  Attribute=○               │
+│                                                        │
+│  IE Notation (Information Engineering):                │
+│  ┌──────┐ ──||──< ┌──────┐                           │
+│  │ Dept │          │Employee│                         │
+│  └──────┘          └──────┘                           │
+│  ||=1  <=Many  O=0(Optional)                          │
+│                                                        │
+│  UML Notation:                                         │
+│  ┌──────┐  1..1     0..* ┌──────┐                    │
+│  │ Dept │────────────────│Employee│                   │
+│  └──────┘                └──────┘                    │
+│  Multiplicity expressed as numbers                    │
+│                                                        │
+│  In practice, IE notation (crow's foot) is most common│
+└────────────────────────────────────────────────────────┘
 ```
 
-### コード例1: リレーションシップの実装
+### Code Example 1: Implementing Relationships
 
 ```sql
--- 1:1 リレーション
--- 実装パターン: 共有主キー（FK = PK）
+-- 1:1 Relation
+-- Implementation pattern: shared primary key (FK = PK)
 CREATE TABLE users (
     id       SERIAL PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
@@ -97,27 +97,27 @@ CREATE TABLE user_profiles (
     bio        TEXT,
     avatar_url VARCHAR(500),
     birthdate  DATE,
-    -- user_id が PK かつ FK → 1:1 を強制
-    -- ON DELETE CASCADE → ユーザー削除時にプロフィールも削除
+    -- user_id is both PK and FK → enforces 1:1
+    -- ON DELETE CASCADE → deletes profile when user is deleted
     CONSTRAINT chk_birthdate CHECK (birthdate <= CURRENT_DATE)
 );
 
--- 1:1 リレーション: 代替パターン（UNIQUE FK）
+-- 1:1 Relation: alternative pattern (UNIQUE FK)
 CREATE TABLE user_settings (
     id       SERIAL PRIMARY KEY,
     user_id  INTEGER UNIQUE NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    -- UNIQUE制約でuser_idの重複を防止 → 1:1を実現
+    -- UNIQUE constraint prevents duplicate user_id → achieves 1:1
     theme    VARCHAR(20) DEFAULT 'light',
     language VARCHAR(10) DEFAULT 'ja',
     notifications_enabled BOOLEAN DEFAULT TRUE
 );
 
--- 1:N リレーション
+-- 1:N Relation
 CREATE TABLE departments (
     id       SERIAL PRIMARY KEY,
     name     VARCHAR(100) NOT NULL,
     location VARCHAR(100),
-    -- 部署コードのユニーク制約
+    -- Unique constraint on department code
     code     VARCHAR(10) UNIQUE NOT NULL
 );
 
@@ -128,15 +128,15 @@ CREATE TABLE employees (
     salary        DECIMAL(10, 2) CHECK (salary >= 0),
     hired_date    DATE NOT NULL DEFAULT CURRENT_DATE,
     email         VARCHAR(255) UNIQUE NOT NULL,
-    -- 部分インデックス: アクティブな社員のメール一意性
+    -- Partial index: email uniqueness for active employees
     is_active     BOOLEAN NOT NULL DEFAULT TRUE
 );
 
--- 部分ユニークインデックス（PostgreSQL）
+-- Partial unique index (PostgreSQL)
 CREATE UNIQUE INDEX idx_active_employees_email
     ON employees (email) WHERE is_active = TRUE;
 
--- M:N リレーション（中間テーブル）
+-- M:N Relation (junction table)
 CREATE TABLE projects (
     id       SERIAL PRIMARY KEY,
     name     VARCHAR(200) NOT NULL,
@@ -152,11 +152,11 @@ CREATE TABLE employee_projects (
     joined_at   DATE NOT NULL DEFAULT CURRENT_DATE,
     left_at     DATE,
     PRIMARY KEY (employee_id, project_id),
-    -- 期間制約: 退出日は参加日以降
+    -- Period constraint: departure date must be on or after join date
     CONSTRAINT chk_dates CHECK (left_at IS NULL OR left_at >= joined_at)
 );
 
--- 自己参照リレーション（上司-部下）
+-- Self-referencing relation (manager-subordinate)
 CREATE TABLE employees_hierarchy (
     id         SERIAL PRIMARY KEY,
     name       VARCHAR(100) NOT NULL,
@@ -164,7 +164,7 @@ CREATE TABLE employees_hierarchy (
     level      INTEGER NOT NULL DEFAULT 0
 );
 
--- 自己参照のツリー構造を確認するクエリ
+-- Query to view self-referencing tree structure
 WITH RECURSIVE hierarchy AS (
     SELECT id, name, manager_id, 0 AS depth
     FROM employees_hierarchy WHERE manager_id IS NULL
@@ -176,75 +176,75 @@ WITH RECURSIVE hierarchy AS (
 SELECT REPEAT('  ', depth) || name AS org_chart FROM hierarchy ORDER BY depth;
 ```
 
-### 1.3 リレーションシップのカーディナリティ設計
+### 1.3 Designing Relationship Cardinality
 
 ```
-┌──── カーディナリティの設計判断フロー ──────────┐
-│                                                  │
-│  Q: エンティティAとBの関係は？                   │
-│  │                                              │
-│  ├── Aの1レコードに対してBは何レコード？         │
-│  │   ├── 常に1つ → 1:1（統合も検討）            │
-│  │   ├── 0または1つ → 1:0..1（別テーブルに分離）│
-│  │   └── 複数可能 → 1:N or M:N                 │
-│  │                                              │
-│  ├── BからAへの逆方向は？                       │
-│  │   ├── Bの1レコードはAの1レコードのみ → 1:N   │
-│  │   └── Bの1レコードは複数のAに関連 → M:N      │
-│  │                                              │
-│  └── M:Nの場合、中間テーブルに属性はある？      │
-│      ├── ある → 属性付き中間テーブル             │
-│      └── ない → 純粋な結合テーブル              │
-│                                                  │
-│  1:1 の場合の追加判断:                           │
-│  ├── 両方とも必須 → 統合を検討                  │
-│  ├── 片方がオプション → 別テーブルに分離        │
-│  └── アクセスパターンが異なる → 別テーブルに分離│
-└──────────────────────────────────────────────────┘
+┌──── Cardinality Design Decision Flow ──────────────┐
+│                                                      │
+│  Q: What is the relationship between Entity A and B? │
+│  │                                                  │
+│  ├── How many B records per A record?               │
+│  │   ├── Always one → 1:1 (consider merging)       │
+│  │   ├── Zero or one → 1:0..1 (separate table)     │
+│  │   └── Multiple possible → 1:N or M:N            │
+│  │                                                  │
+│  ├── What about the reverse direction from B to A?  │
+│  │   ├── One B record relates to one A → 1:N       │
+│  │   └── One B record relates to multiple A → M:N  │
+│  │                                                  │
+│  └── For M:N: does the junction table have attrs?   │
+│      ├── Yes → junction table with attributes       │
+│      └── No  → pure join table                      │
+│                                                      │
+│  Additional decisions for 1:1:                       │
+│  ├── Both required → consider merging               │
+│  ├── One is optional → separate into another table  │
+│  └── Different access patterns → separate table     │
+└──────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. 制約
+## 2. Constraints
 
-### 2.1 制約の内部動作
+### 2.1 Internal Behavior of Constraints
 
 ```
-┌──────── 制約とインデックスの関係 ──────────────┐
-│                                                  │
-│  PRIMARY KEY:                                    │
-│  → 自動的にUNIQUEインデックスが作成される        │
-│  → NOT NULL が暗黙的に適用される                │
-│  → PostgreSQL: B-Treeインデックス               │
-│  → InnoDB: クラスタードインデックス              │
-│                                                  │
-│  UNIQUE:                                         │
-│  → 自動的にUNIQUEインデックスが作成される        │
-│  → NULLは許容（複数のNULLが可能）              │
-│  → PostgreSQL: NULLsは一意性チェック対象外      │
-│  → SQL Server: NULL は1つだけ許容（デフォルト） │
-│                                                  │
-│  FOREIGN KEY:                                    │
-│  → 自動的にはインデックスが作成されない          │
-│  → 手動でのインデックス作成を強く推奨           │
-│  → INSERT/UPDATE時に参照先の存在を確認          │
-│  → DELETE時に参照元の存在を確認                 │
-│                                                  │
-│  CHECK:                                          │
-│  → インデックスは作成されない                    │
-│  → INSERT/UPDATE時に条件を評価                  │
-│  → PostgreSQLでは関数呼び出しも可能             │
-└──────────────────────────────────────────────────┘
+┌──────── Relationship Between Constraints and Indexes ──────────────┐
+│                                                                      │
+│  PRIMARY KEY:                                                        │
+│  → Automatically creates a UNIQUE index                             │
+│  → NOT NULL is implicitly applied                                   │
+│  → PostgreSQL: B-Tree index                                         │
+│  → InnoDB: clustered index                                          │
+│                                                                      │
+│  UNIQUE:                                                             │
+│  → Automatically creates a UNIQUE index                             │
+│  → NULLs are allowed (multiple NULLs possible)                     │
+│  → PostgreSQL: NULLs are excluded from uniqueness checks            │
+│  → SQL Server: only one NULL allowed (default)                      │
+│                                                                      │
+│  FOREIGN KEY:                                                        │
+│  → Index is NOT created automatically                               │
+│  → Strongly recommended to create indexes manually                  │
+│  → Checks for referenced record existence on INSERT/UPDATE          │
+│  → Checks for referencing records on DELETE                         │
+│                                                                      │
+│  CHECK:                                                              │
+│  → No index is created                                              │
+│  → Condition is evaluated on INSERT/UPDATE                          │
+│  → PostgreSQL allows function calls in conditions                   │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-### コード例2: 各種制約の活用
+### Code Example 2: Using Various Constraints
 
 ```sql
--- NOT NULL: NULL禁止
--- UNIQUE: 重複禁止
--- CHECK: 値の範囲制約
--- DEFAULT: デフォルト値
--- REFERENCES: 外部キー制約
+-- NOT NULL: prohibit NULLs
+-- UNIQUE: prohibit duplicates
+-- CHECK: value range constraints
+-- DEFAULT: default values
+-- REFERENCES: foreign key constraint
 
 CREATE TABLE orders (
     id              SERIAL PRIMARY KEY,
@@ -260,22 +260,22 @@ CREATE TABLE orders (
     shipped_date    DATE,
     delivered_date  DATE,
 
-    -- テーブルレベルの制約（複数カラムにまたがる制約）
+    -- Table-level constraints (spanning multiple columns)
     CONSTRAINT chk_dates CHECK (
         shipped_date IS NULL OR shipped_date >= order_date
     ),
     CONSTRAINT chk_delivery CHECK (
         delivered_date IS NULL OR delivered_date >= shipped_date
     ),
-    -- 状態遷移の制約（簡易版）
+    -- Status transition constraint (simplified)
     CONSTRAINT chk_status_dates CHECK (
         (status = 'shipped' AND shipped_date IS NOT NULL)
         OR (status != 'shipped')
     )
 );
 
--- 排他制約（PostgreSQL: 期間の重複防止）
-CREATE EXTENSION IF NOT EXISTS btree_gist;  -- 排他制約に必要
+-- Exclusion constraint (PostgreSQL: prevent overlapping periods)
+CREATE EXTENSION IF NOT EXISTS btree_gist;  -- required for exclusion constraints
 
 CREATE TABLE reservations (
     id        SERIAL PRIMARY KEY,
@@ -284,25 +284,25 @@ CREATE TABLE reservations (
     period    DATERANGE NOT NULL,
     EXCLUDE USING GIST (
         room_id WITH =,
-        period WITH &&  -- 同じ部屋の期間重複を禁止
+        period WITH &&  -- prevent overlapping periods for the same room
     )
 );
 
--- 排他制約の動作確認
+-- Verify exclusion constraint behavior
 INSERT INTO reservations (room_id, guest, period)
-VALUES (101, '田中', '[2024-03-01, 2024-03-05)');
+VALUES (101, 'Tanaka', '[2024-03-01, 2024-03-05)');
 
--- 重複する予約は拒否される
+-- Overlapping reservation is rejected
 INSERT INTO reservations (room_id, guest, period)
-VALUES (101, '鈴木', '[2024-03-03, 2024-03-07)');
+VALUES (101, 'Suzuki', '[2024-03-03, 2024-03-07)');
 -- → ERROR: conflicting key value violates exclusion constraint
 
--- 異なる部屋なら予約可能
+-- Different room can be reserved
 INSERT INTO reservations (room_id, guest, period)
-VALUES (102, '鈴木', '[2024-03-03, 2024-03-07)');
--- → 成功
+VALUES (102, 'Suzuki', '[2024-03-03, 2024-03-07)');
+-- → succeeds
 
--- 複合ユニーク制約の活用
+-- Using composite unique constraints
 CREATE TABLE subscriptions (
     id          SERIAL PRIMARY KEY,
     user_id     INTEGER NOT NULL REFERENCES users(id),
@@ -310,74 +310,75 @@ CREATE TABLE subscriptions (
     started_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     ended_at    TIMESTAMPTZ,
     is_active   BOOLEAN NOT NULL DEFAULT TRUE,
-    -- 同一ユーザーは同一プランのアクティブサブスクリプションを1つだけ
+    -- Same user can have only one active subscription per plan
     CONSTRAINT uq_active_subscription UNIQUE (user_id, plan_id, is_active)
-    -- 注意: is_active=FALSE の重複は許容される
+    -- Note: duplicates with is_active=FALSE are allowed
 );
 
--- 条件付きユニーク（PostgreSQL: 部分ユニークインデックス）
+-- Conditional unique (PostgreSQL: partial unique index)
 CREATE UNIQUE INDEX idx_active_subscription
     ON subscriptions (user_id, plan_id)
     WHERE is_active = TRUE;
--- → アクティブなサブスクリプションのみユニーク制約
+-- → unique constraint applies only to active subscriptions
 ```
 
-### コード例3: 外部キーの参照アクション
+### Code Example 3: Foreign Key Reference Actions
 
 ```sql
--- ON DELETE / ON UPDATE のオプション
+-- ON DELETE / ON UPDATE options
 CREATE TABLE order_items (
     id         SERIAL PRIMARY KEY,
     order_id   INTEGER NOT NULL
                REFERENCES orders(id)
-               ON DELETE CASCADE      -- 親削除時: 子も削除
-               ON UPDATE CASCADE,     -- 親更新時: 子も更新
+               ON DELETE CASCADE      -- on parent delete: delete children too
+               ON UPDATE CASCADE,     -- on parent update: update children too
     product_id INTEGER NOT NULL
                REFERENCES products(id)
-               ON DELETE RESTRICT,    -- 親削除時: エラー（子あれば削除拒否）
+               ON DELETE RESTRICT,    -- on parent delete: error if children exist
     quantity   INTEGER NOT NULL CHECK (quantity > 0),
     unit_price DECIMAL(10, 2) NOT NULL
 );
 
--- 参照アクション一覧:
--- CASCADE    : 親に追従（削除/更新）
--- RESTRICT   : 子がある場合は親の操作を拒否（即時チェック）
--- NO ACTION  : 子がある場合は親の操作を拒否（遅延チェック可）※デフォルト
--- SET NULL   : 子のFK列をNULLに設定
--- SET DEFAULT: 子のFK列をDEFAULT値に設定
+-- Reference action summary:
+-- CASCADE    : follow the parent (delete/update)
+-- RESTRICT   : reject parent operation if children exist (immediate check)
+-- NO ACTION  : reject parent operation if children exist (deferred check possible) ※default
+-- SET NULL   : set child FK column to NULL
+-- SET DEFAULT: set child FK column to its DEFAULT value
 ```
 
-### 2.2 参照アクションの使い分け
+### 2.2 Choosing the Right Reference Action
 
 ```
-┌──── 参照アクションの選定ガイド ──────────────┐
-│                                                │
-│  CASCADE:                                      │
-│  ├── 使う: 親子が一体的（注文-注文明細）      │
-│  ├── 使う: 所有関係（ユーザー-プロフィール）  │
-│  └── 注意: 大量削除時のパフォーマンス影響     │
-│                                                │
-│  RESTRICT / NO ACTION:                         │
-│  ├── 使う: 参照整合性を厳格に維持したい場合   │
-│  ├── 使う: 誤って親を削除することを防止       │
-│  └── 違い: RESTRICTは即時、NO ACTIONは遅延可 │
-│                                                │
-│  SET NULL:                                     │
-│  ├── 使う: 親がなくなっても子は存在可能       │
-│  ├── 例: 社員-部署（部署消滅でも社員は残る）  │
-│  └── 前提: FK列がNULLable                     │
-│                                                │
-│  SET DEFAULT:                                  │
-│  ├── 使う: デフォルト値に戻したい場合         │
-│  ├── 例: カテゴリ削除時に「未分類」に設定     │
-│  └── 前提: DEFAULT値が有効な参照先            │
-└────────────────────────────────────────────────┘
+┌──── Reference Action Selection Guide ──────────────┐
+│                                                      │
+│  CASCADE:                                            │
+│  ├── Use: parent and child are tightly coupled       │
+│  │        (e.g., order - order items)               │
+│  ├── Use: ownership relationship (user - profile)   │
+│  └── Caution: performance impact on bulk deletes    │
+│                                                      │
+│  RESTRICT / NO ACTION:                               │
+│  ├── Use: when strict referential integrity needed   │
+│  ├── Use: to prevent accidental parent deletion     │
+│  └── Diff: RESTRICT is immediate, NO ACTION deferred│
+│                                                      │
+│  SET NULL:                                           │
+│  ├── Use: children can exist without a parent       │
+│  ├── Example: employee-dept (dept gone, emp stays)  │
+│  └── Requires: FK column must be NULLable           │
+│                                                      │
+│  SET DEFAULT:                                        │
+│  ├── Use: when reverting to a default value         │
+│  ├── Example: set to "uncategorized" on cat. delete │
+│  └── Requires: DEFAULT value must be a valid ref    │
+└──────────────────────────────────────────────────────┘
 ```
 
-### コード例4: 制約の遅延チェック（Deferred Constraints）
+### Code Example 4: Deferred Constraints
 
 ```sql
--- 制約の遅延チェック: トランザクション終了時に評価
+-- Deferred constraint check: evaluated at transaction end
 CREATE TABLE categories (
     id        SERIAL PRIMARY KEY,
     name      VARCHAR(100) NOT NULL,
@@ -385,64 +386,63 @@ CREATE TABLE categories (
               DEFERRABLE INITIALLY DEFERRED
 );
 
--- 循環参照を避けつつ、相互参照を可能にする
+-- Allows mutual references while avoiding circular reference errors
 BEGIN;
 INSERT INTO categories (id, name, parent_id) VALUES (1, 'Root', NULL);
 INSERT INTO categories (id, name, parent_id) VALUES (2, 'Child', 1);
--- parent_id=1は既に存在するので問題ない
+-- parent_id=1 already exists, so no issue
 
--- 遅延制約なら、以下も可能:
--- INSERT INTO categories VALUES (10, 'A', 20);  -- 20はまだない
--- INSERT INTO categories VALUES (20, 'B', 10);  -- 10は上で挿入済み
--- COMMIT; -- ここで初めてFK制約がチェックされる
+-- With deferred constraints, the following is also possible:
+-- INSERT INTO categories VALUES (10, 'A', 20);  -- 20 doesn't exist yet
+-- INSERT INTO categories VALUES (20, 'B', 10);  -- 10 was inserted above
+-- COMMIT; -- FK constraint is checked here for the first time
 COMMIT;
 ```
 
 ---
 
-## 3. パーティショニング
+## 3. Partitioning
 
-### 3.1 パーティショニングの判断基準
+### 3.1 Criteria for Introducing Partitioning
 
 ```
-┌──── パーティショニングの導入判断 ──────────────┐
-│                                                  │
-│  導入すべき条件:                                 │
-│  ├── テーブルサイズが数百GB以上                  │
-│  ├── 数億行を超えるテーブル                      │
-│  ├── 時系列データで古いデータの削除/アーカイブ   │
-│  │   が頻繁に発生する                           │
-│  ├── クエリが特定の範囲にほぼ限定される          │
-│  └── VACUUMやANALYZEに時間がかかりすぎる        │
-│                                                  │
-│  導入すべきでない条件:                           │
-│  ├── テーブルサイズが数GB以下                    │
-│  ├── クエリが全パーティションにまたがる          │
-│  ├── パーティションキーの選定が困難              │
-│  └── 運用コスト（パーティション管理）が見合わない│
-│                                                  │
-│  パーティション数の目安:                         │
-│  ├── 10-100 パーティション: 最適                │
-│  ├── 100-1000: 注意が必要（計画時間増大）       │
-│  └── 1000+: 非推奨（パフォーマンス低下）        │
-└──────────────────────────────────────────────────┘
+┌──── Decision Criteria for Introducing Partitioning ──────────────┐
+│                                                                    │
+│  Conditions to introduce:                                          │
+│  ├── Table size is hundreds of GB or more                         │
+│  ├── Tables exceeding hundreds of millions of rows                │
+│  ├── Time-series data with frequent deletion/archiving of old data│
+│  ├── Queries are mostly limited to specific ranges                │
+│  └── VACUUM or ANALYZE takes too long                             │
+│                                                                    │
+│  Conditions NOT to introduce:                                      │
+│  ├── Table size is a few GB or less                               │
+│  ├── Queries span all partitions                                   │
+│  ├── Difficult to select a partition key                          │
+│  └── Operational costs (partition management) not worth it        │
+│                                                                    │
+│  Recommended number of partitions:                                 │
+│  ├── 10-100 partitions: optimal                                   │
+│  ├── 100-1000: caution required (increased planning time)         │
+│  └── 1000+: not recommended (performance degradation)             │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-### コード例5: テーブルパーティショニング
+### Code Example 5: Table Partitioning
 
 ```sql
--- レンジパーティション（日付ベース）
+-- Range partitioning (date-based)
 CREATE TABLE access_logs (
     id         BIGSERIAL,
     user_id    INTEGER,
     action     VARCHAR(50),
     ip_address INET,
     created_at TIMESTAMP NOT NULL,
-    -- パーティションテーブルの場合、PKにパーティションキーを含める必要がある
+    -- For partitioned tables, the PK must include the partition key
     PRIMARY KEY (id, created_at)
 ) PARTITION BY RANGE (created_at);
 
--- 月別パーティション作成
+-- Create monthly partitions
 CREATE TABLE access_logs_2024_01
     PARTITION OF access_logs
     FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
@@ -451,11 +451,11 @@ CREATE TABLE access_logs_2024_02
     PARTITION OF access_logs
     FOR VALUES FROM ('2024-02-01') TO ('2024-03-01');
 
--- デフォルトパーティション（範囲外のデータを受け入れ）
+-- Default partition (accepts out-of-range data)
 CREATE TABLE access_logs_default
     PARTITION OF access_logs DEFAULT;
 
--- パーティションの自動作成スクリプト（PostgreSQL: 関数で自動化）
+-- Automated partition creation script (PostgreSQL: using a function)
 CREATE OR REPLACE FUNCTION create_monthly_partition(
     table_name TEXT,
     year INTEGER,
@@ -479,11 +479,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 使用例: 2024年の12ヶ月分を一括作成
+-- Example: create all 12 months of 2024 at once
 SELECT create_monthly_partition('access_logs', 2024, m)
 FROM generate_series(1, 12) AS m;
 
--- リストパーティション（地域ベース）
+-- List partitioning (region-based)
 CREATE TABLE sales (
     id     SERIAL,
     region VARCHAR(20) NOT NULL,
@@ -498,7 +498,7 @@ CREATE TABLE sales_asia PARTITION OF sales
     FOR VALUES IN ('seoul', 'taipei', 'singapore');
 CREATE TABLE sales_default PARTITION OF sales DEFAULT;
 
--- ハッシュパーティション（均等分散）
+-- Hash partitioning (uniform distribution)
 CREATE TABLE events (
     id      BIGSERIAL,
     user_id INTEGER NOT NULL,
@@ -511,57 +511,60 @@ CREATE TABLE events_1 PARTITION OF events FOR VALUES WITH (MODULUS 4, REMAINDER 
 CREATE TABLE events_2 PARTITION OF events FOR VALUES WITH (MODULUS 4, REMAINDER 2);
 CREATE TABLE events_3 PARTITION OF events FOR VALUES WITH (MODULUS 4, REMAINDER 3);
 
--- パーティションプルーニングの確認
+-- Verify partition pruning
 EXPLAIN ANALYZE
 SELECT * FROM access_logs WHERE created_at >= '2024-03-01' AND created_at < '2024-04-01';
--- → access_logs_2024_03 のみがスキャンされる
+-- → only access_logs_2024_03 is scanned
 ```
 
-### パーティショニングの構造
+### Partitioning Structure
 
 ```
-┌──────── パーティショニングの種類 ────────────┐
-│                                               │
-│  レンジ (RANGE)                               │
-│  ┌──────┬──────┬──────┬──────┐               │
-│  │ 1月  │ 2月  │ 3月  │ ...  │               │
-│  └──────┴──────┴──────┴──────┘               │
-│  日付・数値の範囲で分割                       │
-│  用途: 時系列データ、ログ、取引履歴           │
-│                                               │
-│  リスト (LIST)                                │
-│  ┌──────┬──────┬──────┐                      │
-│  │ 日本 │ 韓国 │ 台湾 │                      │
-│  └──────┴──────┴──────┘                      │
-│  離散的な値で分割                             │
-│  用途: 地域別、カテゴリ別、ステータス別       │
-│                                               │
-│  ハッシュ (HASH)                              │
-│  ┌──────┬──────┬──────┬──────┐               │
-│  │ mod0 │ mod1 │ mod2 │ mod3 │               │
-│  └──────┴──────┴──────┴──────┘               │
-│  ハッシュ値で均等分散                         │
-│  用途: 均等分散が必要な場合、特定の条件なし   │
-│                                               │
-│  ※ パーティションプルーニング:                 │
-│    クエリ条件に該当しないパーティションを       │
-│    自動的にスキップ → 大幅な性能向上           │
-└───────────────────────────────────────────────┘
+┌──────── Types of Partitioning ────────────┐
+│                                            │
+│  RANGE                                     │
+│  ┌──────┬──────┬──────┬──────┐            │
+│  │ Jan  │ Feb  │ Mar  │ ...  │            │
+│  └──────┴──────┴──────┴──────┘            │
+│  Split by date or numeric range            │
+│  Use case: time-series data, logs,         │
+│            transaction history             │
+│                                            │
+│  LIST                                      │
+│  ┌──────┬──────┬──────┐                   │
+│  │Japan │Korea │Taiwan│                   │
+│  └──────┴──────┴──────┘                   │
+│  Split by discrete values                  │
+│  Use case: by region, category, status     │
+│                                            │
+│  HASH                                      │
+│  ┌──────┬──────┬──────┬──────┐            │
+│  │ mod0 │ mod1 │ mod2 │ mod3 │            │
+│  └──────┴──────┴──────┴──────┘            │
+│  Even distribution by hash value           │
+│  Use case: even distribution required,     │
+│            no specific range condition     │
+│                                            │
+│  * Partition Pruning:                      │
+│    Partitions not matching query conditions│
+│    are automatically skipped → significant │
+│    performance improvement                 │
+└────────────────────────────────────────────┘
 ```
 
-### 3.2 パーティションの運用管理
+### 3.2 Operational Management of Partitions
 
 ```sql
--- 古いパーティションの削除（DROP: 瞬時に実行）
+-- Delete old partition (DROP: executes instantly)
 DROP TABLE access_logs_2023_01;
 
--- パーティションのデタッチ（テーブルは残す）
+-- Detach a partition (keeps the table)
 ALTER TABLE access_logs DETACH PARTITION access_logs_2023_01;
 
--- デタッチしたテーブルをアーカイブテーブルに名前変更
+-- Rename the detached table to an archive table
 ALTER TABLE access_logs_2023_01 RENAME TO access_logs_archive_2023_01;
 
--- パーティションの統計情報確認
+-- Check partition statistics
 SELECT
     schemaname,
     tablename,
@@ -574,34 +577,34 @@ ORDER BY tablename;
 
 ---
 
-## 4. 主キー戦略
+## 4. Primary Key Strategies
 
-### コード例6: 主キーの設計パターン
+### Code Example 6: Primary Key Design Patterns
 
 ```sql
--- 1. 自然キー: ビジネス上の意味を持つキー
+-- 1. Natural key: a key with business meaning
 CREATE TABLE countries (
     code CHAR(2) PRIMARY KEY,   -- ISO 3166-1 alpha-2
     name VARCHAR(100) NOT NULL
 );
 
--- 2. サロゲートキー: 人工的な連番ID
+-- 2. Surrogate key: an artificially generated sequential ID
 CREATE TABLE products (
-    id   SERIAL PRIMARY KEY,    -- サロゲートキー
-    sku  VARCHAR(20) UNIQUE NOT NULL,  -- 自然キー（ビジネス識別子）
+    id   SERIAL PRIMARY KEY,    -- surrogate key
+    sku  VARCHAR(20) UNIQUE NOT NULL,  -- natural key (business identifier)
     name VARCHAR(200) NOT NULL
 );
 
--- SERIAL vs IDENTITY の違い（PostgreSQL 10+）
+-- Difference between SERIAL and IDENTITY (PostgreSQL 10+)
 CREATE TABLE products_v2 (
-    -- IDENTITY列（SQL標準、推奨）
+    -- IDENTITY column (SQL standard, recommended)
     id   INTEGER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name VARCHAR(200) NOT NULL
 );
--- GENERATED ALWAYS: 手動でのID指定を拒否（安全）
--- GENERATED BY DEFAULT: 手動指定も許可
+-- GENERATED ALWAYS: rejects manual ID specification (safer)
+-- GENERATED BY DEFAULT: also allows manual specification
 
--- 3. UUID: 分散システム向け
+-- 3. UUID: for distributed systems
 CREATE TABLE events (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     event_type VARCHAR(50) NOT NULL,
@@ -609,23 +612,23 @@ CREATE TABLE events (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- UUID v7: 時系列ソート可能（PostgreSQL 17+またはアプリ生成）
--- UUIDv7のフォーマット:
+-- UUID v7: time-sortable (PostgreSQL 17+ or app-generated)
+-- UUID v7 format:
 -- ┌─────────────────────┬──────┬───────────────────┐
 -- │  48bit timestamp    │ ver  │  74bit random      │
 -- └─────────────────────┴──────┴───────────────────┘
--- → タイムスタンプベースでソート可能、B-Treeに有利
+-- → sortable by timestamp, favorable for B-Tree
 
--- 4. ULID: 時系列ソート可能なUUID代替
--- アプリケーション側で生成するのが一般的
--- PostgreSQLでは拡張を使用するか、テキストで格納
+-- 4. ULID: time-sortable UUID alternative
+-- Typically generated on the application side
+-- In PostgreSQL, use an extension or store as text
 CREATE TABLE activities (
-    id         CHAR(26) PRIMARY KEY,  -- ULID（Base32エンコード、26文字）
+    id         CHAR(26) PRIMARY KEY,  -- ULID (Base32 encoded, 26 chars)
     action     VARCHAR(50) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 5. 複合キー: 中間テーブルで使用
+-- 5. Composite key: used in junction tables
 CREATE TABLE user_roles (
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
     role_id INTEGER REFERENCES roles(id) ON DELETE CASCADE,
@@ -634,46 +637,46 @@ CREATE TABLE user_roles (
 );
 ```
 
-### 主キー戦略の選定フロー
+### Primary Key Strategy Selection Flow
 
 ```
-┌──── 主キー戦略の選定 ──────────────────────────┐
-│                                                  │
-│  Q: 分散システム or マイクロサービス？            │
-│  │                                              │
-│  ├── Yes                                        │
-│  │   Q: 時系列ソートが必要？                    │
-│  │   ├── Yes → UUID v7 or ULID                 │
-│  │   └── No  → UUID v4                         │
-│  │                                              │
-│  └── No (単一DB)                                │
-│      Q: 外部に公開するID？                      │
-│      ├── Yes → UUID（推測困難）                 │
-│      └── No                                     │
-│          Q: パフォーマンス最優先？               │
-│          ├── Yes → SERIAL/IDENTITY（最も高速）  │
-│          └── No  → SERIAL/IDENTITY              │
-│                                                  │
-│  例外:                                           │
-│  ├── ISO規格コード → 自然キー（国コード等）     │
-│  ├── 中間テーブル → 複合キー                    │
-│  └── イベントソーシング → UUID v7 / ULID         │
-└──────────────────────────────────────────────────┘
+┌──── Primary Key Strategy Selection ──────────────────────────┐
+│                                                               │
+│  Q: Distributed system or microservices?                      │
+│  │                                                           │
+│  ├── Yes                                                      │
+│  │   Q: Is time-sortability required?                        │
+│  │   ├── Yes → UUID v7 or ULID                              │
+│  │   └── No  → UUID v4                                      │
+│  │                                                           │
+│  └── No (single DB)                                          │
+│      Q: Is the ID exposed externally?                        │
+│      ├── Yes → UUID (hard to guess)                          │
+│      └── No                                                   │
+│          Q: Is performance the top priority?                  │
+│          ├── Yes → SERIAL/IDENTITY (fastest)                 │
+│          └── No  → SERIAL/IDENTITY                           │
+│                                                               │
+│  Exceptions:                                                  │
+│  ├── ISO standard codes → natural key (country codes, etc.)  │
+│  ├── Junction tables → composite key                         │
+│  └── Event sourcing → UUID v7 / ULID                         │
+└───────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. テーブル設計のベストプラクティス
+## 5. Table Design Best Practices
 
-### コード例7: 推奨されるテーブル構造
+### Code Example 7: Recommended Table Structure
 
 ```sql
--- 推奨されるテーブル構造
+-- Recommended table structure
 CREATE TABLE articles (
-    -- 主キー
+    -- Primary key
     id          BIGSERIAL PRIMARY KEY,
 
-    -- ビジネスデータ
+    -- Business data
     title       VARCHAR(500) NOT NULL,
     slug        VARCHAR(500) UNIQUE NOT NULL,
     body        TEXT NOT NULL,
@@ -681,24 +684,24 @@ CREATE TABLE articles (
     status      VARCHAR(20) NOT NULL DEFAULT 'draft'
                 CHECK (status IN ('draft', 'published', 'archived')),
 
-    -- リレーション
+    -- Relations
     author_id   INTEGER NOT NULL REFERENCES users(id),
     category_id INTEGER REFERENCES categories(id) ON DELETE SET NULL,
 
-    -- メタデータ
+    -- Metadata
     tags        TEXT[] DEFAULT '{}',
     metadata    JSONB DEFAULT '{}',
 
-    -- 監査列（全テーブル共通）
+    -- Audit columns (common to all tables)
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    deleted_at  TIMESTAMPTZ,  -- 論理削除用
+    deleted_at  TIMESTAMPTZ,  -- for soft deletes
 
-    -- インデックス
+    -- Index
     CONSTRAINT articles_slug_format CHECK (slug ~ '^[a-z0-9-]+$')
 );
 
--- 更新日時の自動更新トリガー
+-- Trigger to auto-update the updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -712,12 +715,12 @@ CREATE TRIGGER trg_articles_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at();
 
--- 論理削除のソフトデリートパターン
--- 削除済みレコードを除外するビュー
+-- Soft delete pattern with logical deletion
+-- View that excludes deleted records
 CREATE VIEW active_articles AS
 SELECT * FROM articles WHERE deleted_at IS NULL;
 
--- 論理削除関数
+-- Soft delete function
 CREATE OR REPLACE FUNCTION soft_delete_article(article_id BIGINT)
 RETURNS VOID AS $$
 BEGIN
@@ -725,7 +728,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- インデックス設計
+-- Index design
 CREATE INDEX idx_articles_author ON articles (author_id);
 CREATE INDEX idx_articles_category ON articles (category_id);
 CREATE INDEX idx_articles_status ON articles (status) WHERE deleted_at IS NULL;
@@ -734,10 +737,10 @@ CREATE INDEX idx_articles_tags ON articles USING GIN (tags);
 CREATE INDEX idx_articles_metadata ON articles USING GIN (metadata);
 ```
 
-### コード例8: 共通パターン — 監査テーブル
+### Code Example 8: Common Pattern — Audit Table
 
 ```sql
--- 監査テーブル（変更履歴の記録）
+-- Audit table (recording change history)
 CREATE TABLE audit_log (
     id          BIGSERIAL PRIMARY KEY,
     table_name  VARCHAR(100) NOT NULL,
@@ -750,7 +753,7 @@ CREATE TABLE audit_log (
     ip_address  INET
 ) PARTITION BY RANGE (changed_at);
 
--- 汎用監査トリガー
+-- Generic audit trigger
 CREATE OR REPLACE FUNCTION audit_trigger_func()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -774,7 +777,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- articlesテーブルに監査を適用
+-- Apply auditing to the articles table
 CREATE TRIGGER trg_articles_audit
     AFTER INSERT OR UPDATE OR DELETE ON articles
     FOR EACH ROW EXECUTE FUNCTION audit_trigger_func();
@@ -782,59 +785,59 @@ CREATE TRIGGER trg_articles_audit
 
 ---
 
-## リレーションシップ種別比較表
+## Relationship Type Comparison Table
 
-| 種別 | 実装方法 | 例 | FK配置 | インデックス |
-|------|---------|-----|--------|------------|
-| 1:1 | 共有主キー or UNIQUE FK | ユーザー - プロフィール | 子テーブル | PK（自動） |
-| 1:N | 子テーブルにFK | 部署 - 社員 | 子テーブル（N側） | FK列に手動作成 |
-| M:N | 中間テーブル | 社員 - プロジェクト | 中間テーブル | 複合PK + 個別FK |
-| 自己参照 | 同テーブルにFK | 社員 - 上司 | 同テーブル | FK列に手動作成 |
-| ポリモーフィック | 型識別カラム + FK | コメント - 各種エンティティ | 注意が必要 | 型+IDの複合 |
+| Type | Implementation | Example | FK Placement | Index |
+|------|---------------|---------|--------------|-------|
+| 1:1 | Shared primary key or UNIQUE FK | User - Profile | Child table | PK (automatic) |
+| 1:N | FK in child table | Department - Employee | Child table (N side) | Create manually on FK column |
+| M:N | Junction table | Employee - Project | Junction table | Composite PK + individual FKs |
+| Self-referencing | FK in same table | Employee - Manager | Same table | Create manually on FK column |
+| Polymorphic | Type discriminator column + FK | Comment - Various entities | Use with care | Composite of type + ID |
 
-## 主キー戦略比較表
+## Primary Key Strategy Comparison Table
 
-| 方式 | サイズ | 長所 | 短所 | 適する場面 | B-Tree効率 |
-|------|--------|------|------|-----------|-----------|
-| SERIAL/IDENTITY | 4/8 byte | シンプル、高速、省メモリ | 分散非対応、推測可能 | 単一DB | 最高 |
-| UUID v4 | 16 byte | 分散生成可能、推測困難 | ソート不可、インデックス断片化 | 分散システム | 低 |
-| UUID v7 | 16 byte | 時系列ソート、分散対応 | PostgreSQL 17+必要 | イベント系 | 高 |
-| ULID | 16 byte | 時系列ソート、分散対応 | DB非標準 | イベントソーシング | 高 |
-| 自然キー | 可変 | ビジネス意味あり | 変更リスク、長い | ISO規格コード | 中 |
-| 複合キー | 可変 | 正規化に忠実 | JOINが複雑 | 中間テーブル | 中 |
+| Method | Size | Advantages | Disadvantages | Best For | B-Tree Efficiency |
+|--------|------|-----------|---------------|----------|-------------------|
+| SERIAL/IDENTITY | 4/8 byte | Simple, fast, memory-efficient | Not distributed, guessable | Single DB | Highest |
+| UUID v4 | 16 byte | Distributed generation, hard to guess | Not sortable, index fragmentation | Distributed systems | Low |
+| UUID v7 | 16 byte | Time-sortable, distributed | Requires PostgreSQL 17+ | Event-driven | High |
+| ULID | 16 byte | Time-sortable, distributed | Non-standard in DB | Event sourcing | High |
+| Natural key | Variable | Has business meaning | Risk of change, long | ISO standard codes | Medium |
+| Composite key | Variable | Faithful to normalization | Complex JOINs | Junction tables | Medium |
 
-## RDBMS間のパーティション機能比較表
+## Partition Feature Comparison Table Across RDBMSs
 
-| 機能 | PostgreSQL | MySQL (InnoDB) | Oracle | SQL Server |
-|------|-----------|----------------|--------|------------|
+| Feature | PostgreSQL | MySQL (InnoDB) | Oracle | SQL Server |
+|---------|-----------|----------------|--------|------------|
 | RANGE | ✓ (10+) | ✓ | ✓ | ✓ |
-| LIST | ✓ (10+) | ✓ | ✓ | ✗（CHECK制約で代替） |
+| LIST | ✓ (10+) | ✓ | ✓ | ✗ (use CHECK constraint) |
 | HASH | ✓ (11+) | ✓ | ✓ | ✗ |
-| サブパーティション | ✓ (手動) | ✓ | ✓ | ✗ |
-| DEFAULT パーティション | ✓ (11+) | ✗ | ✗ | ✗ |
-| 自動パーティション | ✗（pg_partman） | ✗ | ✓ (Interval) | ✓ (Sliding Window) |
-| パーティションプルーニング | ✓ | ✓ | ✓ | ✓ |
+| Sub-partitioning | ✓ (manual) | ✓ | ✓ | ✗ |
+| DEFAULT partition | ✓ (11+) | ✗ | ✗ | ✗ |
+| Auto partitioning | ✗ (pg_partman) | ✗ | ✓ (Interval) | ✓ (Sliding Window) |
+| Partition pruning | ✓ | ✓ | ✓ | ✓ |
 | DETACH CONCURRENTLY | ✓ (14+) | ✗ | ✗ | ✗ |
-| グローバルインデックス | ✗ | ✗ | ✓ | ✓ |
+| Global index | ✗ | ✗ | ✓ | ✓ |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: ポリモーフィック関連の不適切な実装
+### Anti-Pattern 1: Improper Implementation of Polymorphic Associations
 
 ```sql
--- NG: 型に応じてFK先が変わる（外部キー制約が使えない）
+-- NG: FK target varies by type (cannot use foreign key constraints)
 CREATE TABLE comments (
     id              SERIAL PRIMARY KEY,
     commentable_type VARCHAR(50),   -- 'article' or 'product' or 'video'
-    commentable_id   INTEGER,       -- FK先が不明
+    commentable_id   INTEGER,       -- FK target is unknown
     body            TEXT
 );
--- → commentable_id に REFERENCES を付けられない
--- → 参照整合性がアプリケーション層に依存
+-- → cannot add REFERENCES to commentable_id
+-- → referential integrity depends on the application layer
 
--- OK: 専用の中間テーブルを使う
+-- OK: use dedicated junction tables
 CREATE TABLE comments (
     id   SERIAL PRIMARY KEY,
     body TEXT NOT NULL,
@@ -850,14 +853,14 @@ CREATE TABLE product_comments (
     product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE
 );
 
--- OK: 排他的リレーション（PostgreSQL CHECK制約）
+-- OK: exclusive relation (PostgreSQL CHECK constraint)
 CREATE TABLE comments_v2 (
     id          SERIAL PRIMARY KEY,
     body        TEXT NOT NULL,
     article_id  INTEGER REFERENCES articles(id) ON DELETE CASCADE,
     product_id  INTEGER REFERENCES products(id) ON DELETE CASCADE,
     video_id    INTEGER REFERENCES videos(id) ON DELETE CASCADE,
-    -- 正確に1つだけがNOT NULL
+    -- exactly one must be NOT NULL
     CONSTRAINT chk_exclusive CHECK (
         (article_id IS NOT NULL)::INTEGER +
         (product_id IS NOT NULL)::INTEGER +
@@ -866,18 +869,18 @@ CREATE TABLE comments_v2 (
 );
 ```
 
-### アンチパターン2: 制約の不足
+### Anti-Pattern 2: Insufficient Constraints
 
 ```sql
--- NG: 制約なしのテーブル
+-- NG: table without constraints
 CREATE TABLE users (
     id    SERIAL,
     email TEXT,
     age   INTEGER
 );
--- → 重複メール、NULL、負の年齢、不正な形式が全て許容される
+-- → duplicate emails, NULLs, negative ages, and invalid formats are all allowed
 
--- OK: 適切な制約を設定
+-- OK: set appropriate constraints
 CREATE TABLE users (
     id    SERIAL PRIMARY KEY,
     email VARCHAR(255) NOT NULL UNIQUE
@@ -886,40 +889,40 @@ CREATE TABLE users (
 );
 ```
 
-### アンチパターン3: インデックスなしのFK
+### Anti-Pattern 3: FK Without an Index
 
 ```sql
--- NG: FK列にインデックスがない
+-- NG: no index on FK column
 CREATE TABLE orders (
     id          SERIAL PRIMARY KEY,
     customer_id INTEGER NOT NULL REFERENCES customers(id)
-    -- customer_id にインデックスがない
-    -- → JOINやDELETEが遅い
+    -- no index on customer_id
+    -- → slow JOINs and DELETEs
 );
 
--- OK: FK列にインデックスを作成
+-- OK: create an index on the FK column
 CREATE TABLE orders (
     id          SERIAL PRIMARY KEY,
     customer_id INTEGER NOT NULL REFERENCES customers(id)
 );
 CREATE INDEX idx_orders_customer ON orders (customer_id);
--- → customers.idのDELETE時にorders側のインデックスで高速確認
--- → JOINもインデックス使用で高速化
+-- → fast lookup on orders side when deleting customers.id
+-- → JOIN also benefits from index usage
 ```
 
 ---
 
-## エッジケース
+## Edge Cases
 
-### エッジケース1: 循環参照
+### Edge Case 1: Circular References
 
 ```sql
--- 循環参照の例: 部署に「現在のリーダー」を設定したい
--- employees → departments (所属) と departments → employees (リーダー)
+-- Example of circular reference: setting a "current leader" for a department
+-- employees → departments (belongs to) and departments → employees (leader)
 CREATE TABLE departments (
     id        SERIAL PRIMARY KEY,
     name      VARCHAR(100) NOT NULL,
-    leader_id INTEGER  -- 後でFKを追加
+    leader_id INTEGER  -- FK to be added later
 );
 
 CREATE TABLE employees (
@@ -928,128 +931,128 @@ CREATE TABLE employees (
     dept_id INTEGER REFERENCES departments(id)
 );
 
--- 循環FK
+-- Circular FK
 ALTER TABLE departments ADD CONSTRAINT fk_leader
     FOREIGN KEY (leader_id) REFERENCES employees(id)
     DEFERRABLE INITIALLY DEFERRED;
 
--- 挿入時は遅延制約で対応
+-- Use deferred constraints for insertion
 BEGIN;
-INSERT INTO departments (id, name) VALUES (1, '開発部');
-INSERT INTO employees (id, name, dept_id) VALUES (1, '田中', 1);
+INSERT INTO departments (id, name) VALUES (1, 'Engineering');
+INSERT INTO employees (id, name, dept_id) VALUES (1, 'Tanaka', 1);
 UPDATE departments SET leader_id = 1 WHERE id = 1;
 COMMIT;
 ```
 
-### エッジケース2: 大量バルクロード時の制約一時無効化
+### Edge Case 2: Temporarily Disabling Constraints During Bulk Loads
 
 ```sql
--- 大量データロード時のFK制約を一時的に無効化
+-- Temporarily disable FK constraints during large data loads
 -- PostgreSQL:
 ALTER TABLE order_items DISABLE TRIGGER ALL;
 
--- データロード
+-- Load data
 COPY order_items FROM '/data/order_items.csv' CSV HEADER;
 
--- 制約を再有効化
+-- Re-enable constraints
 ALTER TABLE order_items ENABLE TRIGGER ALL;
 
--- データ整合性の手動検証
+-- Manually verify data integrity
 SELECT oi.id FROM order_items oi
 LEFT JOIN orders o ON oi.order_id = o.id
 WHERE o.id IS NULL;
--- → 0行であることを確認
+-- → confirm 0 rows returned
 ```
 
-### エッジケース3: マルチテナントのスキーマ設計
+### Edge Case 3: Multi-Tenant Schema Design
 
 ```sql
--- 方式1: 行レベル分離（1テーブルに全テナント）
+-- Method 1: row-level isolation (all tenants in one table)
 CREATE TABLE tenant_users (
     id        SERIAL PRIMARY KEY,
     tenant_id INTEGER NOT NULL REFERENCES tenants(id),
     name      VARCHAR(100) NOT NULL,
     email     VARCHAR(255) NOT NULL,
-    UNIQUE (tenant_id, email)  -- テナント内でのメール一意性
+    UNIQUE (tenant_id, email)  -- email uniqueness within each tenant
 );
 
--- RLSで自動フィルタリング
+-- Automatic filtering with RLS
 ALTER TABLE tenant_users ENABLE ROW LEVEL SECURITY;
 CREATE POLICY tenant_isolation ON tenant_users
     USING (tenant_id = current_setting('app.tenant_id')::INTEGER);
 
--- 方式2: スキーマ分離（テナントごとにスキーマ）
+-- Method 2: schema isolation (one schema per tenant)
 CREATE SCHEMA tenant_001;
 CREATE TABLE tenant_001.users (...);
--- メリット: 完全な分離、テナント削除が容易
--- デメリット: テナント数が多いとスキーマ管理が困難
+-- Advantages: complete isolation, easy tenant deletion
+-- Disadvantages: schema management becomes difficult with many tenants
 ```
 
 ---
 
-## 演習
+## Exercises
 
-### 演習1（基礎）: ECサイトのスキーマ設計
+### Exercise 1 (Basic): E-commerce Schema Design
 
-以下の要件を満たすERDとCREATE TABLE文を作成せよ。
+Create an ERD and CREATE TABLE statements that satisfy the following requirements.
 
-**要件**:
-- 顧客、商品、注文、注文明細
-- 顧客は複数の配送先住所を持てる
-- 商品はカテゴリに属する（カテゴリは階層構造）
-- 注文ステータスの遷移管理
-- 全テーブルに監査列
+**Requirements**:
+- Customers, products, orders, and order items
+- Customers can have multiple shipping addresses
+- Products belong to categories (categories have a hierarchical structure)
+- Manage order status transitions
+- Audit columns on all tables
 
-### 演習2（応用）: パーティションの設計
+### Exercise 2 (Applied): Partition Design
 
-1億行のアクセスログテーブルに対して、月次パーティションを設計せよ。古いデータ（1年以上）のアーカイブ戦略も含めること。
+Design monthly partitioning for an access log table with 100 million rows. Include an archiving strategy for data older than one year.
 
-### 演習3（発展）: マルチテナントスキーマ
+### Exercise 3 (Advanced): Multi-Tenant Schema
 
-SaaS アプリケーションのマルチテナントスキーマを3つの方式（行レベル、スキーマレベル、DB レベル）で設計し、トレードオフを分析せよ。
+Design a multi-tenant schema for a SaaS application using three approaches (row-level, schema-level, DB-level) and analyze the trade-offs.
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1058,26 +1061,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should be raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1085,7 +1088,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1096,14 +1099,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1111,7 +1114,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1119,44 +1122,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1165,7 +1168,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1180,76 +1183,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version:  {slow_time:.4f}s")
+    print(f"Fast version:  {fast_time:.6f}s")
+    print(f"Speedup ratio: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be aware of algorithmic complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to prioritize | When to compromise |
+|-----------|-------------------|-------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow             │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① What is the team size?                        │
+│    ├─ Small (1-5 people) → Monolith              │
+│    └─ Large (10+ people) → Go to ②              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② How often do you deploy?                      │
+│    ├─ Weekly or less → Monolith + module split   │
+│    └─ Daily/multiple times → Go to ③            │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ How independent are the teams?               │
+│    ├─ High → Microservices                       │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze them from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. long-term costs**
+- A fast short-term approach can become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. flexibility**
+- A unified tech stack has lower learning costs
+- Adopting diverse technologies enables the right tool for each job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- Higher abstraction increases reusability but can make debugging more difficult
+- Lower abstraction is intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1259,17 +1262,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and issues"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1277,7 +1280,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1285,15 +1288,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1302,89 +1305,89 @@ class ArchitectureDecisionRecord:
 
 ## FAQ
 
-### Q1: サロゲートキーと自然キーどちらを主キーにすべきか？
+### Q1: Should I use a surrogate key or a natural key as the primary key?
 
-多くの場合サロゲートキー（SERIAL/UUID）が推奨される。自然キーは変更リスクがあり、複合キーはJOINを複雑化する。ただし、ISO国コード（JP, US）のような安定した自然キーは直接使用しても問題ない。
+In most cases, surrogate keys (SERIAL/UUID) are recommended. Natural keys carry a risk of change, and composite keys complicate JOINs. However, stable natural keys such as ISO country codes (JP, US) can be used directly without issue.
 
-### Q2: パーティショニングはいつ導入すべきか？
+### Q2: When should I introduce partitioning?
 
-テーブルサイズが数百GB以上、または数億行を超える場合に検討する。パーティショニングによりパーティションプルーニング（不要なパーティションのスキップ）が効き、古いデータのアーカイブ/削除もパーティション単位で高速に行える。
+Consider it when the table size exceeds hundreds of GB or the row count surpasses hundreds of millions. Partitioning enables partition pruning (skipping irrelevant partitions) and allows fast archiving/deletion of old data at the partition level.
 
-### Q3: 外部キー制約はパフォーマンスに影響するか？
+### Q3: Do foreign key constraints affect performance?
 
-INSERT/UPDATE/DELETE時にFK先の存在確認が発生するため若干のオーバーヘッドがある。ただし、データ整合性の保証というメリットが圧倒的に大きい。大量バルクロード時のみ一時的に無効化する手法がある。FK列へのインデックスも忘れずに作成すること。
+There is a slight overhead because the existence of the referenced record is verified on INSERT/UPDATE/DELETE. However, the benefit of guaranteed data integrity far outweighs the cost. Temporarily disabling constraints during large bulk loads is an option. Always remember to create indexes on FK columns.
 
-### Q4: 論理削除と物理削除のどちらを使うべきか？
+### Q4: Should I use logical deletion or physical deletion?
 
-監査要件やデータ復元の必要性がある場合は論理削除（`deleted_at`カラム）を使用する。ただし、全クエリに `WHERE deleted_at IS NULL` を付ける必要があり、インデックス設計にも影響する。要件がなければ物理削除がシンプル。
+Use logical deletion (a `deleted_at` column) when audit requirements or data recovery needs exist. However, all queries must include `WHERE deleted_at IS NULL`, which also affects index design. If there is no such requirement, physical deletion is simpler.
 
-### Q5: JSONB列はいつ使うべきか？
+### Q5: When should I use a JSONB column?
 
-スキーマが頻繁に変わる属性（商品の可変仕様、ユーザー設定等）に適している。ただし、リレーションの代替として使うべきではない。GINインデックスで効率的に検索可能だが、JOIN対象のデータはリレーショナルに設計すべき。
-
----
-
-## トラブルシューティング
-
-| 問題 | 原因 | 対処法 |
-|------|------|--------|
-| FK制約違反でINSERT失敗 | 参照先が存在しない | INSERT順序の確認、遅延制約の検討 |
-| パーティションに入らない | 範囲外のデータ | DEFAULTパーティションの追加 |
-| UUIDのINSERTが遅い | インデックス断片化 | UUID v7/ULIDへの移行検討 |
-| UNIQUE制約違反 | 重複データ | ON CONFLICT (UPSERT) の使用 |
-| CHECK制約が複雑すぎる | 条件の過剰設定 | アプリケーション層でのバリデーション併用 |
-| 外部キーのDELETEが遅い | FK列のインデックス不足 | FK列にインデックス作成 |
+It is suitable for attributes with frequently changing schemas (variable product specifications, user settings, etc.). However, it should not be used as a substitute for relations. Efficient search is possible with GIN indexes, but data that is the target of JOINs should be designed relationally.
 
 ---
 
-## セキュリティに関する考察
+## Troubleshooting
+
+| Problem | Cause | Solution |
+|---------|-------|---------|
+| INSERT fails with FK constraint violation | Referenced record does not exist | Check INSERT order, consider deferred constraints |
+| Data does not enter a partition | Out-of-range data | Add a DEFAULT partition |
+| UUID INSERTs are slow | Index fragmentation | Consider migrating to UUID v7/ULID |
+| UNIQUE constraint violation | Duplicate data | Use ON CONFLICT (UPSERT) |
+| CHECK constraint is too complex | Over-specified conditions | Combine with application-layer validation |
+| FK DELETE is slow | Missing index on FK column | Create index on FK column |
+
+---
+
+## Security Considerations
 
 ```sql
--- Row Level Security（RLS）の活用
+-- Leveraging Row Level Security (RLS)
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 
--- 一般ユーザー: 自分の注文のみ閲覧可能
+-- General user: can only view their own orders
 CREATE POLICY orders_user_policy ON orders
     FOR SELECT
     USING (customer_id = current_setting('app.current_user_id')::INTEGER);
 
--- 管理者: 全注文閲覧可能
+-- Admin: can view all orders
 CREATE POLICY orders_admin_policy ON orders
     FOR ALL
     USING (current_setting('app.current_role') = 'admin');
 
--- テーブル権限の最小化
+-- Minimize table permissions
 GRANT SELECT, INSERT, UPDATE ON orders TO app_user;
--- DELETE権限は付与しない → 論理削除のみ
+-- Do not grant DELETE permission → logical deletion only
 REVOKE DELETE ON orders FROM app_user;
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
-|------|------|
-| ER図 | テーブル間の関係を視覚化。設計の出発点。IE記法が標準的 |
-| リレーション | 1:1, 1:N, M:N を正しく実装。自己参照やポリモーフィックも |
-| 制約 | NOT NULL, UNIQUE, CHECK, FK で整合性保証。排他制約も活用 |
-| 参照アクション | CASCADE, RESTRICT, SET NULL を適切に選択 |
-| 主キー | SERIAL（単一DB）/ UUID v7（分散）が推奨 |
-| パーティション | 大規模テーブルをRANGE/LIST/HASHで分割。運用管理も重要 |
-| 監査列 | created_at, updated_at は全テーブルに。監査トリガーで変更履歴 |
-| 論理削除 | deleted_at カラム + ビュー/RLS で管理 |
-
----
-
-## 次に読むべきガイド
-
-- [02-migration.md](./02-migration.md) — スキーマ変更のマイグレーション
-- [03-data-modeling.md](./03-data-modeling.md) — 分析向けデータモデリング
-- [00-normalization.md](./00-normalization.md) — 正規化の理論
+| Item | Key Points |
+|------|-----------|
+| ER Diagram | Visualize relationships between tables. The starting point of design. IE notation is standard. |
+| Relations | Implement 1:1, 1:N, M:N correctly. Also handle self-referencing and polymorphic. |
+| Constraints | Ensure integrity with NOT NULL, UNIQUE, CHECK, FK. Also leverage exclusion constraints. |
+| Reference Actions | Choose CASCADE, RESTRICT, SET NULL appropriately. |
+| Primary Key | SERIAL (single DB) / UUID v7 (distributed) recommended. |
+| Partitioning | Split large tables with RANGE/LIST/HASH. Operational management is also important. |
+| Audit Columns | created_at, updated_at on all tables. Audit triggers for change history. |
+| Soft Delete | Managed with deleted_at column + view/RLS. |
 
 ---
 
-## 参考文献
+## Next Guides to Read
+
+- [02-migration.md](./02-migration.md) — Schema change migrations
+- [03-data-modeling.md](./03-data-modeling.md) — Data modeling for analytics
+- [00-normalization.md](./00-normalization.md) — Normalization theory
+
+---
+
+## References
 
 1. PostgreSQL Documentation — "Table Partitioning" https://www.postgresql.org/docs/current/ddl-partitioning.html
 2. Fowler, M. (2002). *Patterns of Enterprise Application Architecture*. Addison-Wesley.
