@@ -1,100 +1,100 @@
-# トランザクション — ACID・分離レベル・デッドロック・MVCC
+# Transactions — ACID, Isolation Levels, Deadlocks, and MVCC
 
-> トランザクションはデータベース操作の論理的な作業単位であり、ACID特性によってデータの一貫性と信頼性を保証する、データベースシステムの根幹を成す仕組みである。本章では、ACID特性の各要素を内部実装レベルで理解し、分離レベルの選択基準、デッドロックの回避・検出戦略、そしてMVCC（多版型同時実行制御）の仕組みまでを体系的に習得する。
-
----
-
-## この章で学ぶこと
-
-1. **ACID特性の各要素を内部実装レベルで理解する** — WAL（Write-Ahead Logging）による耐久性保証、チェックポイントの仕組み
-2. **4つの分離レベルと各レベルで発生するアノマリーを実例で把握する** — ダーティリード、ノンリピータブルリード、ファントムリード、シリアライゼーション異常
-3. **デッドロックの原因と回避・検出戦略を実装できる** — ロック順序の統一、タイムアウト設定、楽観的ロックと悲観的ロックの使い分け
-4. **MVCCの内部構造を理解し、VACUUM戦略を適切に設計できる** — xmin/xmax、スナップショット、可視性マップ
+> A transaction is a logical unit of database operations, and through the ACID properties it guarantees data consistency and reliability — the cornerstone of database systems. This chapter systematically covers each element of ACID at the internal implementation level, criteria for choosing isolation levels, strategies for deadlock avoidance and detection, and the mechanism of MVCC (Multi-Version Concurrency Control).
 
 ---
 
-## 前提知識
+## What You Will Learn
 
-| トピック | 内容 | 参照先 |
+1. **Understand each ACID property at the internal implementation level** — Durability guarantees via WAL (Write-Ahead Logging), how checkpoints work
+2. **Grasp the four isolation levels and the anomalies that occur at each level with concrete examples** — dirty reads, non-repeatable reads, phantom reads, serialization anomalies
+3. **Implement strategies to cause, avoid, and detect deadlocks** — consistent lock ordering, timeout configuration, choosing between optimistic and pessimistic locking
+4. **Understand MVCC internals and design an appropriate VACUUM strategy** — xmin/xmax, snapshots, visibility maps
+
+---
+
+## Prerequisites
+
+| Topic | Content | Reference |
 |---------|------|--------|
-| SQL基礎 | SELECT/INSERT/UPDATE/DELETE の基本構文 | [00-basics/](../00-basics/) |
-| テーブル設計 | PRIMARY KEY、FOREIGN KEY、制約 | [01-schema-design.md](../02-design/01-schema-design.md) |
-| データベース接続 | psqlまたはGUIツールでの接続方法 | [00-basics/](../00-basics/) |
+| SQL Basics | Fundamental syntax for SELECT/INSERT/UPDATE/DELETE | [00-basics/](../00-basics/) |
+| Table Design | PRIMARY KEY, FOREIGN KEY, constraints | [01-schema-design.md](../02-design/01-schema-design.md) |
+| Database Connection | How to connect using psql or a GUI tool | [00-basics/](../00-basics/) |
 
 ---
 
-## 1. ACID特性
+## 1. ACID Properties
 
-### なぜACIDが必要か
+### Why ACID Is Necessary
 
-データベースがACID特性を持たない場合、以下のような深刻な問題が発生する。
+Without ACID properties, databases would suffer the following serious problems.
 
-- **銀行送金**: Aさんの口座から10万円を引き出した後、Bさんの口座への入金が失敗した場合、10万円が消失する（原子性の欠如）
-- **在庫管理**: 2つの注文が同時に最後の1個を購入し、在庫が-1になる（分離性の欠如）
-- **会計処理**: 借方と貸方の合計が一致しない仕訳が作成される（一貫性の欠如）
-- **障害復旧**: コミット直後にサーバがクラッシュし、データが消える（耐久性の欠如）
-
-```
-┌────────────────── ACID特性 ──────────────────┐
-│                                               │
-│  A - Atomicity（原子性）                      │
-│    「全部成功」か「全部失敗」のいずれか         │
-│    途中で失敗したら全ての変更を巻き戻す        │
-│    実装: UNDO ログ / WAL のロールバック機能    │
-│                                               │
-│  C - Consistency（一貫性）                    │
-│    トランザクション前後でデータの制約が        │
-│    常に満たされる                              │
-│    実装: CHECK制約、FK制約、トリガー           │
-│                                               │
-│  I - Isolation（分離性）                      │
-│    並行するトランザクションは互いに            │
-│    干渉しない（かのように見える）              │
-│    実装: MVCC / ロックプロトコル               │
-│                                               │
-│  D - Durability（耐久性）                     │
-│    COMMITされたデータは障害が発生しても        │
-│    失われない                                  │
-│    実装: WAL（Write-Ahead Logging）           │
-│         + fsync / チェックポイント             │
-└───────────────────────────────────────────────┘
-```
-
-### ACID特性の内部実装
+- **Bank transfer**: If a withdrawal of 100,000 yen from account A succeeds but the deposit to account B fails, the 100,000 yen disappears (lack of atomicity)
+- **Inventory management**: Two orders simultaneously purchase the last item, driving inventory to -1 (lack of isolation)
+- **Accounting**: A journal entry is created where debits and credits do not balance (lack of consistency)
+- **Crash recovery**: The server crashes immediately after a commit and the data is lost (lack of durability)
 
 ```
-┌─────────────── WAL（Write-Ahead Logging）の仕組み ──────────────┐
-│                                                                  │
-│  ① クライアント: BEGIN; UPDATE ...; COMMIT;                     │
-│                                                                  │
-│  ② WALバッファ: 変更内容をまずWALログに書き込む                 │
-│     ┌─────────────────────────────────────────────┐             │
-│     │ LSN=100: UPDATE accounts SET balance=900    │             │
-│     │ LSN=101: UPDATE accounts SET balance=1100   │             │
-│     │ LSN=102: COMMIT                              │             │
-│     └─────────────────────────────────────────────┘             │
-│                                                                  │
-│  ③ WALディスク書き込み: COMMIT時にfsyncで永続化                 │
-│     → この時点で耐久性（Durability）が保証される                │
-│                                                                  │
-│  ④ 共有バッファ: テーブルデータは遅延書き込み（dirty page）     │
-│                                                                  │
-│  ⑤ チェックポイント: 定期的にdirty pageをディスクに書き出す     │
-│     → チェックポイント以前のWALは不要になる                      │
-│                                                                  │
-│  ⑥ クラッシュリカバリ: 最後のチェックポイントから                │
-│     WALを再生（リプレイ）して一貫状態に復元                      │
-│                                                                  │
-│  [Client] → [WAL Buffer] → [WAL Disk] ← 耐久性保証点           │
-│                ↓                                                 │
-│          [Shared Buffer] → [Data Disk] ← チェックポイントで書出  │
-└──────────────────────────────────────────────────────────────────┘
+┌────────────────── ACID Properties ──────────────────┐
+│                                                      │
+│  A - Atomicity                                       │
+│    Either "all succeed" or "all fail"                │
+│    If something fails midway, roll back all changes  │
+│    Implementation: UNDO log / WAL rollback           │
+│                                                      │
+│  C - Consistency                                     │
+│    Data constraints are always satisfied             │
+│    before and after a transaction                    │
+│    Implementation: CHECK constraints, FK, triggers   │
+│                                                      │
+│  I - Isolation                                       │
+│    Concurrent transactions do not interfere          │
+│    with each other (or appear not to)                │
+│    Implementation: MVCC / lock protocols             │
+│                                                      │
+│  D - Durability                                      │
+│    COMMITted data is never lost                      │
+│    even when a failure occurs                        │
+│    Implementation: WAL (Write-Ahead Logging)         │
+│                 + fsync / checkpoints                │
+└──────────────────────────────────────────────────────┘
 ```
 
-### コード例1: トランザクションの基本
+### Internal Implementation of ACID Properties
+
+```
+┌─────────────── How WAL (Write-Ahead Logging) Works ──────────────┐
+│                                                                   │
+│  ① Client: BEGIN; UPDATE ...; COMMIT;                            │
+│                                                                   │
+│  ② WAL buffer: write the changes to the WAL log first            │
+│     ┌─────────────────────────────────────────────┐              │
+│     │ LSN=100: UPDATE accounts SET balance=900    │              │
+│     │ LSN=101: UPDATE accounts SET balance=1100   │              │
+│     │ LSN=102: COMMIT                              │              │
+│     └─────────────────────────────────────────────┘              │
+│                                                                   │
+│  ③ WAL disk write: persisted via fsync at COMMIT time            │
+│     → Durability is guaranteed at this point                      │
+│                                                                   │
+│  ④ Shared buffer: table data is written lazily (dirty pages)     │
+│                                                                   │
+│  ⑤ Checkpoint: periodically flushes dirty pages to disk          │
+│     → WAL records before the checkpoint become unnecessary        │
+│                                                                   │
+│  ⑥ Crash recovery: replay WAL from the last checkpoint           │
+│     to restore a consistent state                                 │
+│                                                                   │
+│  [Client] → [WAL Buffer] → [WAL Disk] ← Durability guarantee     │
+│                ↓                                                  │
+│          [Shared Buffer] → [Data Disk] ← Written at checkpoint    │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+### Code Example 1: Transaction Basics
 
 ```sql
--- テスト用テーブルの準備
+-- Prepare test tables
 CREATE TABLE accounts (
     account_id VARCHAR(10) PRIMARY KEY,
     owner_name VARCHAR(100) NOT NULL,
@@ -105,18 +105,18 @@ CREATE TABLE accounts (
 INSERT INTO accounts VALUES ('A001', '田中太郎', 100000);
 INSERT INTO accounts VALUES ('B002', '鈴木花子', 50000);
 
--- 銀行送金: Atomicityの典型例
+-- Bank transfer: a typical example of Atomicity
 BEGIN;
 
--- 送金元の残高を減らす
+-- Decrease the sender's balance
 UPDATE accounts SET balance = balance - 10000
 WHERE account_id = 'A001';
 
--- 送金先の残高を増やす
+-- Increase the recipient's balance
 UPDATE accounts SET balance = balance + 10000
 WHERE account_id = 'B002';
 
--- 送金元の残高が0未満でないか確認
+-- Check that the sender's balance has not gone below 0
 DO $$
 BEGIN
     IF (SELECT balance FROM accounts WHERE account_id = 'A001') < 0 THEN
@@ -124,183 +124,183 @@ BEGIN
     END IF;
 END $$;
 
--- 全て成功したらコミット
+-- Commit if everything succeeded
 COMMIT;
 
--- 確認: 合計残高は変わらない（一貫性）
+-- Verification: total balance is unchanged (Consistency)
 SELECT SUM(balance) FROM accounts;
--- 結果: 150000（送金前と同じ）
+-- Result: 150000 (same as before the transfer)
 ```
 
-**なぜBEGIN/COMMITで囲むのか**: BEGIN/COMMITで囲まない場合、各UPDATE文が独立したトランザクションとして実行される。1つ目のUPDATEが成功した後、2つ目が失敗すると、10,000円が消失する。
+**Why wrap with BEGIN/COMMIT**: Without BEGIN/COMMIT, each UPDATE runs as an independent transaction. If the first UPDATE succeeds but the second fails, 10,000 yen disappears.
 
-### コード例2: SAVEPOINTによる部分ロールバック
+### Code Example 2: Partial Rollback with SAVEPOINT
 
 ```sql
--- SAVEPOINTを使った段階的なトランザクション制御
+-- Stepped transaction control using SAVEPOINT
 BEGIN;
 
--- 注文の作成（必須処理）
+-- Create the order (required)
 INSERT INTO orders (id, customer_id, total)
 VALUES (100, 1, 5000);
 SAVEPOINT order_created;
 
--- 注文明細の追加（必須処理）
+-- Add order items (required)
 INSERT INTO order_items (order_id, product_id, quantity, unit_price)
 VALUES (100, 1, 2, 2500);
 SAVEPOINT items_added;
 
--- ポイント付与（オプション処理 — 失敗しても注文は成立させたい）
+-- Award points (optional — order should still go through even if this fails)
 DO $$
 BEGIN
     INSERT INTO points (customer_id, amount, reason)
     VALUES (1, 50, '注文ポイント');
 EXCEPTION WHEN OTHERS THEN
-    -- ポイントテーブルが存在しない等のエラーをキャッチ
+    -- Catch errors such as the points table not existing
     RAISE NOTICE 'ポイント付与失敗: %', SQLERRM;
     ROLLBACK TO SAVEPOINT items_added;
-    -- ポイント付与のみ取り消し、注文は維持
+    -- Only the points award is undone; the order is preserved
 END $$;
 
--- 在庫の減算（必須処理）
+-- Deduct inventory (required)
 UPDATE products SET stock = stock - 2 WHERE id = 1;
 
 COMMIT;
 
--- SAVEPOINTの階層構造:
+-- SAVEPOINT hierarchy:
 -- BEGIN
 --   └── SAVEPOINT order_created
 --         └── SAVEPOINT items_added
---               └── ポイント付与（失敗時はここまでロールバック）
---         └── 在庫減算
+--               └── Points award (roll back to here on failure)
+--         └── Inventory deduction
 -- COMMIT
 ```
 
-**SAVEPOINTの使いどころ**: 一部の処理が失敗しても全体をロールバックしたくない場合に使用する。PostgreSQLではトランザクション内でエラーが発生すると、以降のSQL文は全て拒否されるため、SAVEPOINTを使わないとCOMMITもできなくなる。
+**When to use SAVEPOINTs**: Use them when you do not want a failure in part of the work to roll back the entire transaction. In PostgreSQL, an error inside a transaction causes all subsequent SQL statements to be rejected, so without a SAVEPOINT you cannot even issue COMMIT.
 
 ---
 
-## 2. 分離レベル
+## 2. Isolation Levels
 
-### なぜ分離レベルが必要か
+### Why Isolation Levels Are Necessary
 
-完全な分離性（SERIALIZABLE）を常に保証すると、並行性能が大幅に低下する。現実のアプリケーションでは、用途に応じて分離性の程度を選択するトレードオフが必要になる。
+Guaranteeing complete isolation (SERIALIZABLE) at all times degrades concurrent performance significantly. Real-world applications require a trade-off where the degree of isolation is chosen based on the use case.
 
-### コード例3: 分離レベルの設定
+### Code Example 3: Setting the Isolation Level
 
 ```sql
--- トランザクション単位で設定
+-- Set per transaction
 BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;
--- ... 操作 ...
+-- ... operations ...
 COMMIT;
 
--- セッション単位で設定
+-- Set per session
 SET SESSION CHARACTERISTICS AS TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 
--- 現在の分離レベルを確認（PostgreSQL）
+-- Check the current isolation level (PostgreSQL)
 SHOW transaction_isolation;
--- 結果: "read committed"（デフォルト）
+-- Result: "read committed" (default)
 
--- MySQL でのデフォルト分離レベル確認
+-- Check the default isolation level in MySQL
 -- SELECT @@transaction_isolation;
--- 結果: "REPEATABLE-READ"（MySQLのデフォルト）
+-- Result: "REPEATABLE-READ" (MySQL default)
 
--- サーバ全体のデフォルトを変更（postgresql.conf）
+-- Change the server-wide default (postgresql.conf)
 -- default_transaction_isolation = 'read committed'
 ```
 
-### 分離レベルとアノマリーの関係
+### Relationship Between Isolation Levels and Anomalies
 
 ```
-┌─────── 分離レベルとアノマリーの関係 ──────────────┐
-│                                                    │
-│  アノマリー（異常現象）:                            │
-│                                                    │
-│  1. ダーティリード: 未COMMITのデータが見える        │
-│  ┌─────┐                ┌─────┐                   │
-│  │ Tx1 │ UPDATE balance │ Tx2 │ SELECT balance    │
-│  │     │ = 500          │     │ → 500 (未COMMIT!) │
-│  │     │ ROLLBACK       │     │ ← 不正な値を使用  │
-│  └─────┘                └─────┘                   │
-│                                                    │
-│  2. ノンリピータブルリード: 同じSELECTが異なる結果  │
-│  ┌─────┐                ┌─────┐                   │
-│  │ Tx1 │ SELECT → 1000  │ Tx2 │                   │
-│  │     │                │     │ UPDATE → 500      │
-│  │     │                │     │ COMMIT             │
-│  │     │ SELECT → 500   │     │ ← 値が変わった!   │
-│  └─────┘                └─────┘                   │
-│                                                    │
-│  3. ファントムリード: 行数が変わる                  │
-│  ┌─────┐                ┌─────┐                   │
-│  │ Tx1 │ COUNT → 10行   │ Tx2 │                   │
-│  │     │                │     │ INSERT (1行追加)   │
-│  │     │                │     │ COMMIT             │
-│  │     │ COUNT → 11行   │     │ ← 行数が変わった! │
-│  └─────┘                └─────┘                   │
-│                                                    │
-│  4. シリアライゼーション異常: 直列実行では          │
-│     起こりえない結果が並行実行で発生                │
-│  ┌─────┐                ┌─────┐                   │
-│  │ Tx1 │ x=1読取→y=1書込│ Tx2 │ y=1読取→x=1書込  │
-│  │     │ 結果: x=0,y=1  │     │ 結果: x=1,y=0    │
-│  │     │ 直列なら x=1,y=1 または x=0,y=0 のはず    │
-│  └─────┘                └─────┘                   │
-└────────────────────────────────────────────────────┘
+┌─────── Isolation Levels and Anomalies ──────────────┐
+│                                                      │
+│  Anomalies (abnormal phenomena):                     │
+│                                                      │
+│  1. Dirty Read: uncommitted data is visible          │
+│  ┌─────┐                ┌─────┐                      │
+│  │ Tx1 │ UPDATE balance │ Tx2 │ SELECT balance       │
+│  │     │ = 500          │     │ → 500 (not COMMIT!)  │
+│  │     │ ROLLBACK       │     │ ← uses invalid value │
+│  └─────┘                └─────┘                      │
+│                                                      │
+│  2. Non-Repeatable Read: same SELECT returns diff.   │
+│  ┌─────┐                ┌─────┐                      │
+│  │ Tx1 │ SELECT → 1000  │ Tx2 │                      │
+│  │     │                │     │ UPDATE → 500         │
+│  │     │                │     │ COMMIT               │
+│  │     │ SELECT → 500   │     │ ← value changed!     │
+│  └─────┘                └─────┘                      │
+│                                                      │
+│  3. Phantom Read: row count changes                  │
+│  ┌─────┐                ┌─────┐                      │
+│  │ Tx1 │ COUNT → 10     │ Tx2 │                      │
+│  │     │                │     │ INSERT (add 1 row)   │
+│  │     │                │     │ COMMIT               │
+│  │     │ COUNT → 11     │     │ ← row count changed! │
+│  └─────┘                └─────┘                      │
+│                                                      │
+│  4. Serialization Anomaly: a result that could not   │
+│     occur in serial execution occurs concurrently    │
+│  ┌─────┐                ┌─────┐                      │
+│  │ Tx1 │ read x=1→write y=1│ Tx2│ read y=1→write x=1│
+│  │     │ result: x=0,y=1│     │ result: x=1,y=0     │
+│  │     │ serial would give x=1,y=1 or x=0,y=0       │
+│  └─────┘                └─────┘                      │
+└──────────────────────────────────────────────────────┘
 ```
 
-### コード例4: 各分離レベルの動作例
+### Code Example 4: Behavior at Each Isolation Level
 
 ```sql
 -- ===== READ UNCOMMITTED =====
--- PostgreSQLでは実質READ COMMITTEDとして動作する
--- MySQL InnoDB では実際にダーティリードが発生する
+-- In PostgreSQL this effectively behaves as READ COMMITTED
+-- In MySQL InnoDB dirty reads actually occur
 SET TRANSACTION ISOLATION LEVEL READ UNCOMMITTED;
 
--- ===== READ COMMITTED（PostgreSQLのデフォルト）=====
--- 各SQL文の開始時にスナップショットを取得
+-- ===== READ COMMITTED (PostgreSQL default) =====
+-- A snapshot is taken at the start of each SQL statement
 SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
 BEGIN;
 SELECT balance FROM accounts WHERE id = 1;  -- 1000
 
--- 他のトランザクションがここでUPDATE→COMMITした場合
-SELECT balance FROM accounts WHERE id = 1;  -- 1200（変わる）
--- → 同じトランザクション内でも、最新のCOMMIT済みデータが見える
+-- If another transaction UPDATEs and COMMITs here
+SELECT balance FROM accounts WHERE id = 1;  -- 1200 (changed)
+-- → Even within the same transaction, the latest COMMITted data is visible
 COMMIT;
 
 -- ===== REPEATABLE READ =====
--- トランザクション開始時（最初のクエリ実行時）にスナップショットを取得
+-- A snapshot is taken at the start of the transaction (first query execution)
 SET TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 BEGIN;
 SELECT balance FROM accounts WHERE id = 1;  -- 1000
 
--- 他のトランザクションがここでUPDATE→COMMITしても
-SELECT balance FROM accounts WHERE id = 1;  -- 1000（変わらない）
--- → トランザクション開始時のスナップショットを一貫して見続ける
+-- Even if another transaction UPDATEs and COMMITs here
+SELECT balance FROM accounts WHERE id = 1;  -- 1000 (unchanged)
+-- → The snapshot from the start of the transaction is consistently visible
 
--- ただし、自身のUPDATEが他のTxと競合するとエラー
+-- However, if your own UPDATE conflicts with another Tx, an error occurs
 UPDATE accounts SET balance = balance + 100 WHERE id = 1;
 -- ERROR: could not serialize access due to concurrent update
 COMMIT;
 
--- ===== SERIALIZABLE（最も厳格）=====
--- 直列実行と同等の結果を保証
--- SSI (Serializable Snapshot Isolation) で実装
+-- ===== SERIALIZABLE (strictest) =====
+-- Guarantees a result equivalent to serial execution
+-- Implemented with SSI (Serializable Snapshot Isolation)
 SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 BEGIN;
--- 同じデータに対して読み書きが競合するトランザクションがある場合、
--- どちらかがシリアライゼーション失敗エラーで中断される
+-- If there are transactions that conflict in read/write on the same data,
+-- one of them is aborted with a serialization failure error
 SELECT SUM(balance) FROM accounts;
 UPDATE accounts SET balance = balance - 100 WHERE id = 1;
 COMMIT;
 -- ERROR: could not serialize access due to read/write dependencies
--- → リトライが必要
+-- → Retry is required
 ```
 
-### コード例5: SERIALIZABLE分離レベルでのリトライ実装
+### Code Example 5: Retry Logic for SERIALIZABLE Isolation Level
 
 ```sql
--- アプリケーション側でのリトライロジック（疑似コード → PL/pgSQL実装）
+-- Retry logic on the application side (pseudocode → PL/pgSQL implementation)
 CREATE OR REPLACE FUNCTION transfer_with_retry(
     p_from_account VARCHAR,
     p_to_account   VARCHAR,
@@ -313,21 +313,21 @@ DECLARE
 BEGIN
     WHILE NOT v_success AND v_retries < p_max_retries LOOP
         BEGIN
-            -- SERIALIZABLE分離レベルで実行
+            -- Execute at SERIALIZABLE isolation level
             SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 
-            -- 残高確認
+            -- Check balance
             IF (SELECT balance FROM accounts WHERE account_id = p_from_account) < p_amount THEN
                 RAISE EXCEPTION '残高不足';
             END IF;
 
-            -- 送金実行
+            -- Execute transfer
             UPDATE accounts SET balance = balance - p_amount
             WHERE account_id = p_from_account;
             UPDATE accounts SET balance = balance + p_amount
             WHERE account_id = p_to_account;
 
-            -- 送金履歴記録
+            -- Record transfer history
             INSERT INTO transfer_log (from_account, to_account, amount, transferred_at)
             VALUES (p_from_account, p_to_account, p_amount, NOW());
 
@@ -337,7 +337,7 @@ BEGIN
             WHEN serialization_failure OR deadlock_detected THEN
                 v_retries := v_retries + 1;
                 RAISE NOTICE 'リトライ %/% (理由: %)', v_retries, p_max_retries, SQLERRM;
-                -- 指数バックオフ的な待機
+                -- Exponential backoff wait
                 PERFORM pg_sleep(0.1 * power(2, v_retries - 1));
         END;
     END LOOP;
@@ -348,185 +348,185 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 使用例
+-- Usage example
 SELECT transfer_with_retry('A001', 'B002', 10000);
 ```
 
 ---
 
-## 3. デッドロック
+## 3. Deadlocks
 
-### デッドロックの仕組み
+### How Deadlocks Work
 
 ```
-┌────────────── デッドロックの構造 ──────────────────┐
+┌────────────── Deadlock Structure ──────────────────┐
 │                                                     │
-│  リソース依存グラフ（Wait-for Graph）:              │
+│  Resource dependency graph (Wait-for Graph):        │
 │                                                     │
-│  Tx1 ──(Bを待つ)──→ Tx2                            │
-│   ↑                   │                            │
-│   └──(Aを待つ)────────┘                            │
+│  Tx1 ──(waiting for B)──→ Tx2                       │
+│   ↑                         │                       │
+│   └──(waiting for A)────────┘                       │
 │                                                     │
-│  循環的な待ち関係 = デッドロック                     │
+│  Circular wait = deadlock                           │
 │                                                     │
-│  タイムライン:                                      │
-│  t1: Tx1 → LOCK(A) ✓                              │
-│  t2: Tx2 → LOCK(B) ✓                              │
-│  t3: Tx1 → LOCK(B) → 待機（Tx2がBを保持中）       │
-│  t4: Tx2 → LOCK(A) → 待機（Tx1がAを保持中）       │
-│  → 相互に待ち合い → 永遠に解決しない！             │
+│  Timeline:                                          │
+│  t1: Tx1 → LOCK(A) ✓                               │
+│  t2: Tx2 → LOCK(B) ✓                               │
+│  t3: Tx1 → LOCK(B) → waiting (Tx2 holds B)         │
+│  t4: Tx2 → LOCK(A) → waiting (Tx1 holds A)         │
+│  → Mutually waiting → never resolves!               │
 │                                                     │
-│  PostgreSQLの対策:                                  │
-│  - deadlock_timeout（デフォルト1秒）経過後に        │
-│    Wait-for Graphを検査                             │
-│  - 循環を検出したら1つのTxを強制ROLLBACK           │
-│  - ログに "Process X waits for ... blocked by       │
-│    process Y" と出力                                │
+│  PostgreSQL countermeasure:                         │
+│  - After deadlock_timeout (default 1s) elapses,     │
+│    inspect the Wait-for Graph                       │
+│  - If a cycle is detected, force ROLLBACK one Tx    │
+│  - Outputs "Process X waits for ... blocked by      │
+│    process Y" to the log                            │
 └─────────────────────────────────────────────────────┘
 ```
 
-### コード例6: デッドロックの発生と対策
+### Code Example 6: Deadlock Occurrence and Countermeasures
 
 ```sql
--- ===== デッドロックの典型的なシナリオ =====
--- ターミナル1 (Tx1):
+-- ===== Typical deadlock scenario =====
+-- Terminal 1 (Tx1):
 BEGIN;
-UPDATE accounts SET balance = balance - 100 WHERE account_id = 'A001';  -- A001をロック
--- ここでTx2がB002をロック
-UPDATE accounts SET balance = balance + 100 WHERE account_id = 'B002';  -- B002を待機...
+UPDATE accounts SET balance = balance - 100 WHERE account_id = 'A001';  -- locks A001
+-- Tx2 locks B002 here
+UPDATE accounts SET balance = balance + 100 WHERE account_id = 'B002';  -- waiting for B002...
 
--- ターミナル2 (Tx2):
+-- Terminal 2 (Tx2):
 BEGIN;
-UPDATE accounts SET balance = balance - 200 WHERE account_id = 'B002';  -- B002をロック
--- Tx1がA001をロック済み
-UPDATE accounts SET balance = balance + 200 WHERE account_id = 'A001';  -- A001を待機...
--- → デッドロック発生！
+UPDATE accounts SET balance = balance - 200 WHERE account_id = 'B002';  -- locks B002
+-- Tx1 has already locked A001
+UPDATE accounts SET balance = balance + 200 WHERE account_id = 'A001';  -- waiting for A001...
+-- → Deadlock!
 
--- ===== 対策1: 常に同じ順序でロックする =====
--- すべてのトランザクションがID順にロックを取得すれば循環しない
+-- ===== Countermeasure 1: always acquire locks in the same order =====
+-- If all transactions acquire locks in ascending ID order, cycles cannot form
 BEGIN;
--- account_idの昇順でロック取得
-UPDATE accounts SET balance = balance - 100 WHERE account_id = 'A001';  -- A→Bの順
+-- Acquire locks in ascending account_id order
+UPDATE accounts SET balance = balance - 100 WHERE account_id = 'A001';  -- A → B order
 UPDATE accounts SET balance = balance + 100 WHERE account_id = 'B002';
 COMMIT;
 
--- ===== 対策2: SELECT FOR UPDATEで事前にロック取得 =====
+-- ===== Countermeasure 2: acquire locks upfront with SELECT FOR UPDATE =====
 BEGIN;
--- ORDER BYでソートしてからロック取得
+-- Acquire locks after sorting with ORDER BY
 SELECT * FROM accounts
 WHERE account_id IN ('A001', 'B002')
 ORDER BY account_id
 FOR UPDATE;
--- ↑ この時点でA001, B002の両方をロック済み
--- 他のTxは待機するが、デッドロックにはならない
+-- ↑ Both A001 and B002 are locked at this point
+-- Other Txs wait, but deadlock does not occur
 
 UPDATE accounts SET balance = balance - 100 WHERE account_id = 'A001';
 UPDATE accounts SET balance = balance + 100 WHERE account_id = 'B002';
 COMMIT;
 
--- ===== 対策3: ロックタイムアウトの設定 =====
-SET lock_timeout = '5s';  -- 5秒でロック待ちを諦める
+-- ===== Countermeasure 3: set a lock timeout =====
+SET lock_timeout = '5s';  -- give up waiting for a lock after 5 seconds
 -- ERROR: canceling statement due to lock timeout
 
--- ===== 対策4: デッドロック検出設定の確認 =====
+-- ===== Countermeasure 4: verify the deadlock detection setting =====
 SHOW deadlock_timeout;
--- デフォルト: 1s（この時間待ってからデッドロック検出を実行）
+-- Default: 1s (deadlock detection runs after waiting this long)
 ```
 
-### コード例7: 楽観的ロック vs 悲観的ロック
+### Code Example 7: Optimistic Locking vs. Pessimistic Locking
 
 ```sql
--- ===== 悲観的ロック（Pessimistic Locking）=====
--- 先にロックを取得してからデータを操作する
--- 適する場面: 競合が頻繁に発生する場合
+-- ===== Pessimistic Locking =====
+-- Acquire a lock before operating on data
+-- Suitable when: conflicts occur frequently
 
--- 基本形: FOR UPDATE
+-- Basic form: FOR UPDATE
 BEGIN;
 SELECT * FROM products WHERE id = 42 FOR UPDATE;
--- → 他のTxのFOR UPDATEは待機
+-- → Other Txs with FOR UPDATE must wait
 UPDATE products SET stock = stock - 1 WHERE id = 42;
 COMMIT;
 
--- NOWAIT: ロック取得不可なら即エラー
+-- NOWAIT: return an error immediately if the lock cannot be acquired
 SELECT * FROM products WHERE id = 42 FOR UPDATE NOWAIT;
 -- ERROR: could not obtain lock on row in relation "products"
--- → アプリ側で即座にエラーハンドリング可能
+-- → The application can handle the error immediately
 
--- SKIP LOCKED: ロック中の行をスキップ（キュー処理向け）
+-- SKIP LOCKED: skip locked rows (suited for queue processing)
 SELECT id, task_data FROM tasks
 WHERE status = 'pending'
 ORDER BY created_at
 LIMIT 1
 FOR UPDATE SKIP LOCKED;
--- → ワーカーが並行して未処理タスクを取得
--- → 同じタスクを複数ワーカーが取得することがない
+-- → Workers acquire unprocessed tasks concurrently
+-- → The same task will not be picked up by multiple workers
 
--- FOR SHARE: 読み取りロック（他TxのUPDATEは待機、SELECTは許可）
+-- FOR SHARE: read lock (other Txs' UPDATEs wait, SELECTs are allowed)
 SELECT * FROM products WHERE id = 42 FOR SHARE;
 
 
--- ===== 楽観的ロック（Optimistic Locking）=====
--- ロックを取得せず、更新時に競合を検出する
--- 適する場面: 競合が稀な場合、Web APIなどのステートレス環境
+-- ===== Optimistic Locking =====
+-- No lock is acquired; conflicts are detected at update time
+-- Suitable when: conflicts are rare, stateless environments such as Web APIs
 
--- Step 1: データ読み取り時にバージョンを記録
+-- Step 1: record the version when reading data
 SELECT id, name, stock, version FROM products WHERE id = 42;
 -- → stock=10, version=5
 
--- Step 2: 更新時にバージョンの一致を確認
+-- Step 2: verify the version matches when updating
 UPDATE products
 SET stock = stock - 1,
     version = version + 1
 WHERE id = 42
-  AND version = 5;  -- 読み取り時のバージョンと一致するか確認
--- → 影響行数が0なら競合発生 → アプリ側でリトライ
+  AND version = 5;  -- verify it matches the version read earlier
+-- → if rows affected = 0, a conflict occurred → retry in the application
 
--- バージョンカラムの代わりにupdated_atを使う方式
+-- Using updated_at instead of a version column
 UPDATE products
 SET stock = stock - 1,
     updated_at = NOW()
 WHERE id = 42
   AND updated_at = '2024-01-15 10:30:00';
--- → タイムスタンプの精度に注意（マイクロ秒まで比較）
+-- → Be careful about timestamp precision (compare up to microseconds)
 ```
 
-### コード例8: アドバイザリロック
+### Code Example 8: Advisory Locks
 
 ```sql
--- ===== アドバイザリロック（Advisory Lock）=====
--- テーブルや行ではなく、任意のアプリケーションレベルのロック
--- テーブルへのロック影響がないため、柔軟な排他制御が可能
+-- ===== Advisory Locks =====
+-- Application-level locks on arbitrary keys, not on tables or rows
+-- Enables flexible mutual exclusion without affecting table-level locks
 
--- セッションレベルのアドバイザリロック
--- 同じキーで取得を試みる他のセッションはブロックされる
-SELECT pg_advisory_lock(12345);  -- ロック取得（ブロッキング）
--- ... 排他的な処理 ...
-SELECT pg_advisory_unlock(12345);  -- ロック解放
+-- Session-level advisory lock
+-- Other sessions that try to acquire the same key are blocked
+SELECT pg_advisory_lock(12345);  -- acquire lock (blocking)
+-- ... exclusive processing ...
+SELECT pg_advisory_unlock(12345);  -- release lock
 
--- 非ブロッキング版: ロック取得を試み、取れなければFALSEを返す
+-- Non-blocking version: try to acquire; returns FALSE if unavailable
 SELECT pg_try_advisory_lock(12345);  -- TRUE / FALSE
 
--- トランザクションレベル: COMMIT/ROLLBACK時に自動解放
+-- Transaction-level: automatically released on COMMIT/ROLLBACK
 BEGIN;
 SELECT pg_advisory_xact_lock(12345);
--- ... 処理 ...
-COMMIT;  -- 自動的にロック解放
+-- ... processing ...
+COMMIT;  -- lock released automatically
 
--- 2つのキーを使う場合（テーブルID + 行ID の組み合わせなど）
+-- Using two keys (e.g., combination of table ID + row ID)
 SELECT pg_advisory_lock(hashtext('orders'), 42);
 
--- 実用例: 外部APIの重複呼び出し防止
+-- Practical example: preventing duplicate external API calls
 CREATE OR REPLACE FUNCTION process_payment(p_order_id INTEGER)
 RETURNS VOID AS $$
 BEGIN
-    -- 注文IDでアドバイザリロックを取得
+    -- Acquire an advisory lock using the order ID
     IF NOT pg_try_advisory_xact_lock(hashtext('payment'), p_order_id) THEN
         RAISE EXCEPTION '同じ注文の決済が処理中です';
     END IF;
 
-    -- 決済処理（外部API呼び出しを含む）
+    -- Payment processing (including external API calls)
     UPDATE orders SET status = 'processing' WHERE id = p_order_id;
-    -- ... 外部API呼び出し ...
+    -- ... external API call ...
     UPDATE orders SET status = 'paid' WHERE id = p_order_id;
 END;
 $$ LANGUAGE plpgsql;
@@ -534,108 +534,109 @@ $$ LANGUAGE plpgsql;
 
 ---
 
-## 4. MVCC（Multi-Version Concurrency Control）
+## 4. MVCC (Multi-Version Concurrency Control)
 
-### MVCCの内部構造
+### Internal Structure of MVCC
 
-PostgreSQLのMVCCは、各行に不可視なシステムカラム（`xmin`, `xmax`）を持たせることで実現される。
+PostgreSQL implements MVCC by attaching invisible system columns (`xmin`, `xmax`) to each row.
 
 ```
-┌──────────── MVCCの内部構造（PostgreSQL）─────────────┐
-│                                                       │
-│  各タプル（行）のヘッダ:                               │
-│  ┌────────────────────────────────────────────────┐  │
-│  │ xmin  = 100  （この行を挿入したTxのID）         │  │
-│  │ xmax  = 0    （この行を削除/更新したTxのID）     │  │
-│  │ ctid  = (0,1)（物理的な位置: ページ0, タプル1） │  │
-│  │ infomask = ...（コミット/中断フラグ等）         │  │
-│  │ [データ本体]                                    │  │
-│  └────────────────────────────────────────────────┘  │
-│                                                       │
-│  UPDATEの内部動作:                                    │
-│  ① 旧タプルのxmaxを現在のTxIDに設定                  │
-│  ② 新タプルを別の場所にINSERT（xmin=現在のTxID）     │
-│  ③ 旧タプルのctidを新タプルの位置に更新              │
-│                                                       │
-│  例: Tx200がUPDATE accounts SET balance=900           │
-│                                                       │
-│  旧タプル:                                            │
-│  xmin=100, xmax=200, ctid=(0,5) → 新タプルへ         │
-│  balance=1000                                         │
-│                                                       │
-│  新タプル:                                            │
-│  xmin=200, xmax=0, ctid=(0,5)                        │
-│  balance=900                                          │
-│                                                       │
-│  → 旧タプルは即削除されない（他のTxが参照中かも）    │
-│  → VACUUMが不要になった旧タプルを回収               │
-└───────────────────────────────────────────────────────┘
+┌──────────── MVCC Internal Structure (PostgreSQL) ─────────────┐
+│                                                                │
+│  Each tuple (row) header:                                      │
+│  ┌────────────────────────────────────────────────┐           │
+│  │ xmin  = 100  (ID of the Tx that inserted this row)        │  │
+│  │ xmax  = 0    (ID of the Tx that deleted/updated this row) │  │
+│  │ ctid  = (0,1)(physical location: page 0, tuple 1)        │  │
+│  │ infomask = ...(commit/abort flags, etc.)                  │  │
+│  │ [row data]                                                │  │
+│  └────────────────────────────────────────────────┘           │
+│                                                                │
+│  How UPDATE works internally:                                  │
+│  ① Set xmax of the old tuple to the current TxID             │
+│  ② INSERT the new tuple elsewhere (xmin = current TxID)      │
+│  ③ Update ctid of the old tuple to the new tuple's location  │
+│                                                                │
+│  Example: Tx200 executes UPDATE accounts SET balance=900       │
+│                                                                │
+│  Old tuple:                                                    │
+│  xmin=100, xmax=200, ctid=(0,5) → points to new tuple         │
+│  balance=1000                                                  │
+│                                                                │
+│  New tuple:                                                    │
+│  xmin=200, xmax=0, ctid=(0,5)                                 │
+│  balance=900                                                   │
+│                                                                │
+│  → The old tuple is not deleted immediately (other Txs may    │
+│    still reference it)                                         │
+│  → VACUUM reclaims old tuples that are no longer needed       │
+└────────────────────────────────────────────────────────────────┘
 ```
 
-### コード例9: MVCCの動作確認
+### Code Example 9: Verifying MVCC Behavior
 
 ```sql
--- xmin, xmax の確認
--- PostgreSQLでは隠しカラムとして参照可能
+-- Check xmin, xmax
+-- In PostgreSQL they are accessible as hidden columns
 SELECT xmin, xmax, ctid, * FROM accounts WHERE account_id = 'A001';
 -- xmin=100, xmax=0, ctid=(0,1), account_id='A001', balance=100000
 
--- 現在のトランザクションIDの確認
+-- Check the current transaction ID
 SELECT txid_current();
--- 結果: 200
+-- Result: 200
 
--- トランザクション内でUPDATE
+-- UPDATE inside a transaction
 BEGIN;
 UPDATE accounts SET balance = 90000 WHERE account_id = 'A001';
 
--- 別セッションから確認（READ COMMITTED）
--- → 旧タプル（balance=100000）が見える（Tx200は未コミット）
+-- Check from another session (READ COMMITTED)
+-- → The old tuple (balance=100000) is visible (Tx200 not yet committed)
 
 COMMIT;
 
--- 別セッションから再確認
--- → 新タプル（balance=90000）が見える
+-- Check from another session again
+-- → The new tuple (balance=90000) is visible
 
--- スナップショットの確認
+-- Check the snapshot
 SELECT txid_current_snapshot();
--- 結果: '200:205:200,202'
--- 意味: xmin=200, xmax=205, 実行中のTxID=[200, 202]
--- → TxID 200未満はコミット済み、200と202は実行中、
---   201, 203, 204はコミット済み、205以降は未開始
+-- Result: '200:205:200,202'
+-- Meaning: xmin=200, xmax=205, running TxIDs=[200, 202]
+-- → TxIDs below 200 are committed, 200 and 202 are running,
+--   201, 203, 204 are committed, 205 and above have not started
 ```
 
-### コード例10: VACUUM — MVCCのゴミ回収
+### Code Example 10: VACUUM — Garbage Collection for MVCC
 
 ```sql
--- 不要なタプル（dead tuple）の確認
+-- Check for unnecessary tuples (dead tuples)
 SELECT
     schemaname,
     relname AS table_name,
-    n_live_tup,          -- 有効なタプル数
-    n_dead_tup,          -- 不要なタプル数
-    n_mod_since_analyze, -- 最後のANALYZE以降の変更数
-    last_vacuum,         -- 最後のVACUUM実行日時
-    last_autovacuum,     -- 最後のauto VACUUM実行日時
-    last_analyze         -- 最後のANALYZE実行日時
+    n_live_tup,          -- number of live tuples
+    n_dead_tup,          -- number of dead tuples
+    n_mod_since_analyze, -- changes since last ANALYZE
+    last_vacuum,         -- timestamp of last VACUUM
+    last_autovacuum,     -- timestamp of last autovacuum
+    last_analyze         -- timestamp of last ANALYZE
 FROM pg_stat_user_tables
 WHERE n_dead_tup > 0
 ORDER BY n_dead_tup DESC;
 
--- 手動VACUUM（通常はautovacuumに任せる）
+-- Manual VACUUM (normally leave this to autovacuum)
 VACUUM (VERBOSE) accounts;
 -- INFO: "accounts": found 150 removable, 1000 nonremovable row versions
 -- INFO: "accounts": removed 150 row versions
 
--- VACUUM FULL: テーブルを完全に書き直す（排他ロック）
--- → 通常はpg_repackを使用する（オンラインで実行可能）
+-- VACUUM FULL: completely rewrites the table (exclusive lock)
+-- → Normally use pg_repack instead (can run online)
 VACUUM FULL accounts;
 
--- autovacuumのパラメータ確認
-SHOW autovacuum_vacuum_threshold;       -- 50（デフォルト）
-SHOW autovacuum_vacuum_scale_factor;    -- 0.2（デフォルト）
--- → dead tuples > 50 + 0.2 * n_live_tup で自動実行
+-- Check autovacuum parameters
+SHOW autovacuum_vacuum_threshold;       -- 50 (default)
+SHOW autovacuum_vacuum_scale_factor;    -- 0.2 (default)
+-- → triggers automatically when dead tuples > 50 + 0.2 * n_live_tup
 
--- テーブル単位でautovacuumの設定を変更
+-- Change autovacuum settings per table
 ALTER TABLE accounts SET (
     autovacuum_vacuum_threshold = 100,
     autovacuum_vacuum_scale_factor = 0.05,
@@ -643,7 +644,7 @@ ALTER TABLE accounts SET (
     autovacuum_analyze_scale_factor = 0.02
 );
 
--- テーブル膨張率の確認
+-- Check table bloat ratio
 SELECT
     relname,
     pg_size_pretty(pg_total_relation_size(relid)) AS total_size,
@@ -656,48 +657,48 @@ LIMIT 10;
 
 ---
 
-## 5. トランザクション設計パターン
+## 5. Transaction Design Patterns
 
-### コード例11: べき等なトランザクション設計
+### Code Example 11: Idempotent Transaction Design
 
 ```sql
--- ===== べき等（Idempotent）設計 =====
--- 同じ操作を複数回実行しても結果が変わらない設計
--- ネットワーク障害でリトライが発生する環境では必須
+-- ===== Idempotent Design =====
+-- A design where running the same operation multiple times produces the same result
+-- Essential in environments where retries occur due to network failures
 
--- NG: べき等でない（重複実行で金額が倍になる）
+-- Bad: not idempotent (amount doubles on duplicate execution)
 INSERT INTO payments (order_id, amount) VALUES (42, 10000);
 
--- OK: べき等（重複実行しても1回分のみ）
+-- Good: idempotent (only one record regardless of how many times it runs)
 INSERT INTO payments (order_id, amount)
 VALUES (42, 10000)
 ON CONFLICT (order_id) DO NOTHING;
 
--- OK: 冪等キーを使ったべき等設計
+-- Good: idempotent design using an idempotency key
 CREATE TABLE payments (
     id              SERIAL PRIMARY KEY,
-    idempotency_key UUID UNIQUE NOT NULL,  -- クライアントが生成する一意キー
+    idempotency_key UUID UNIQUE NOT NULL,  -- unique key generated by the client
     order_id        INTEGER NOT NULL,
     amount          DECIMAL(10, 2) NOT NULL,
     status          VARCHAR(20) DEFAULT 'pending',
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 冪等キーで重複を防止
+-- Prevent duplicates with the idempotency key
 INSERT INTO payments (idempotency_key, order_id, amount)
 VALUES ('a1b2c3d4-e5f6-7890-abcd-ef1234567890', 42, 10000)
 ON CONFLICT (idempotency_key) DO NOTHING
 RETURNING *;
--- → 2回目の実行では挿入されず、RETURNINGも空
+-- → On the second execution nothing is inserted and RETURNING is empty
 ```
 
-### コード例12: 分散トランザクション — Sagaパターン
+### Code Example 12: Distributed Transactions — Saga Pattern
 
 ```sql
--- ===== Sagaパターン（マイクロサービス間のトランザクション）=====
--- 各サービスのローカルトランザクション + 補償トランザクションで一貫性を維持
+-- ===== Saga Pattern (transactions across microservices) =====
+-- Maintains consistency via local transactions per service + compensating transactions
 
--- サガの状態管理テーブル
+-- Saga state management table
 CREATE TABLE saga_instances (
     saga_id       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     saga_type     VARCHAR(50) NOT NULL,
@@ -720,153 +721,153 @@ CREATE TABLE saga_steps (
     PRIMARY KEY (saga_id, step_number)
 );
 
--- 注文サガの例:
--- Step 1: 在庫予約      → 補償: 在庫予約取消
--- Step 2: 決済実行      → 補償: 返金処理
--- Step 3: 配送手配      → 補償: 配送キャンセル
--- Step 4: 注文確定
+-- Order saga example:
+-- Step 1: Reserve inventory   → Compensation: cancel inventory reservation
+-- Step 2: Execute payment     → Compensation: process refund
+-- Step 3: Arrange shipping    → Compensation: cancel shipment
+-- Step 4: Confirm order
 
--- 各ステップはローカルトランザクションで実行
--- 途中で失敗した場合、完了済みステップの補償トランザクションを逆順に実行
+-- Each step runs in a local transaction
+-- If a step fails, compensating transactions for completed steps run in reverse order
 ```
 
 ---
 
-## 分離レベル比較表
+## Isolation Level Comparison Table
 
-| 分離レベル | ダーティリード | ノンリピータブルリード | ファントムリード | シリアライゼーション異常 | パフォーマンス |
+| Isolation Level | Dirty Read | Non-Repeatable Read | Phantom Read | Serialization Anomaly | Performance |
 |-----------|:---:|:---:|:---:|:---:|:---:|
-| READ UNCOMMITTED | 発生 | 発生 | 発生 | 発生 | 最速 |
-| READ COMMITTED | **防止** | 発生 | 発生 | 発生 | 速い |
-| REPEATABLE READ | **防止** | **防止** | 発生* | 発生 | 普通 |
-| SERIALIZABLE | **防止** | **防止** | **防止** | **防止** | 最遅 |
+| READ UNCOMMITTED | Occurs | Occurs | Occurs | Occurs | Fastest |
+| READ COMMITTED | **Prevented** | Occurs | Occurs | Occurs | Fast |
+| REPEATABLE READ | **Prevented** | **Prevented** | Occurs* | Occurs | Moderate |
+| SERIALIZABLE | **Prevented** | **Prevented** | **Prevented** | **Prevented** | Slowest |
 
-*PostgreSQLのREPEATABLE READはSSI（Serializable Snapshot Isolation）の前段階であるSI（Snapshot Isolation）を使用し、ファントムリードも防止する。ただしwrite skew（書き込みスキュー）は防止できない。
+*PostgreSQL's REPEATABLE READ uses SI (Snapshot Isolation), a precursor to SSI (Serializable Snapshot Isolation), which also prevents phantom reads. However, write skew is not prevented.
 
-## ロック方式比較表
+## Lock Method Comparison Table
 
-| 方式 | ロックタイミング | 競合検出 | スループット | 適する場面 | リトライ要否 |
+| Method | Lock Timing | Conflict Detection | Throughput | Suitable For | Retry Required |
 |------|:---:|:---:|:---:|-----------|:---:|
-| 悲観的ロック (FOR UPDATE) | データ読取時 | 事前防止 | 低い | 競合が頻繁な場合 | 不要 |
-| 楽観的ロック (version) | 更新時 | 事後検出 | 高い | 競合が稀な場合 | 必要 |
-| SKIP LOCKED | 読取時 | スキップ | 高い | キュー/ジョブ処理 | 不要 |
-| FOR UPDATE NOWAIT | 読取時 | 即時エラー | 高い | 短時間処理 | 必要 |
-| アドバイザリロック | 任意 | アプリ制御 | 柔軟 | 外部API排他制御 | 必要 |
+| Pessimistic locking (FOR UPDATE) | At read | Prevented upfront | Low | When conflicts are frequent | No |
+| Optimistic locking (version) | At update | Detected after the fact | High | When conflicts are rare | Yes |
+| SKIP LOCKED | At read | Skipped | High | Queue / job processing | No |
+| FOR UPDATE NOWAIT | At read | Immediate error | High | Short-lived processing | Yes |
+| Advisory lock | Arbitrary | App-controlled | Flexible | External API mutual exclusion | Yes |
 
-## RDBMS別デフォルト比較表
+## RDBMS Default Comparison Table
 
-| RDBMS | デフォルト分離レベル | MVCC | デッドロック検出 |
+| RDBMS | Default Isolation Level | MVCC | Deadlock Detection |
 |-------|:---:|:---:|:---:|
-| PostgreSQL | READ COMMITTED | スナップショット分離 | Wait-for Graph (1秒後) |
-| MySQL InnoDB | REPEATABLE READ | Undo Log ベース | Wait-for Graph (即時) |
-| Oracle | READ COMMITTED | Undo Tablespace ベース | 即時検出 |
-| SQL Server | READ COMMITTED | ロック方式 (RCSI有効時はMVCC) | Wait-for Graph (5秒) |
-| SQLite | SERIALIZABLE | WAL モード時はMVCC | タイムアウト (5秒) |
+| PostgreSQL | READ COMMITTED | Snapshot Isolation | Wait-for Graph (after 1 s) |
+| MySQL InnoDB | REPEATABLE READ | Undo Log-based | Wait-for Graph (immediate) |
+| Oracle | READ COMMITTED | Undo Tablespace-based | Immediate detection |
+| SQL Server | READ COMMITTED | Lock-based (MVCC when RCSI enabled) | Wait-for Graph (5 s) |
+| SQLite | SERIALIZABLE | MVCC in WAL mode | Timeout (5 s) |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: 長時間トランザクション
+### Anti-Pattern 1: Long-Running Transactions
 
 ```sql
--- NG: トランザクション中にユーザー入力を待つ
+-- Bad: waiting for user input inside a transaction
 BEGIN;
 SELECT * FROM products WHERE id = 42 FOR UPDATE;
--- ... ユーザーが画面で考え中（数分間ロック保持）...
+-- ... user is thinking on the screen (lock held for several minutes) ...
 UPDATE products SET price = 1000 WHERE id = 42;
 COMMIT;
 
--- 問題点:
--- 1. 長時間ロックで他のトランザクションがブロック
--- 2. デッドロックのリスク増大
--- 3. MVCC環境でVACUUMが遅延（長命Txがスナップショットを保持）
--- 4. コネクションプールの枯渇
--- 5. レプリケーション遅延の原因
+-- Problems:
+-- 1. Long-held lock blocks other transactions
+-- 2. Increased risk of deadlocks
+-- 3. In MVCC environments, VACUUM is delayed (long-lived Tx holds a snapshot)
+-- 4. Connection pool exhaustion
+-- 5. Cause of replication lag
 
--- OK: トランザクションを短く保つ（楽観的ロック）
--- 読取は通常のSELECT、更新時のみ短いトランザクション
+-- Good: keep transactions short (optimistic locking)
+-- Read with a normal SELECT; only the update uses a short transaction
 SELECT id, price, version FROM products WHERE id = 42;
 -- → price=800, version=5
--- ユーザー操作完了後に短いトランザクションで更新
+-- After the user action is complete, update in a short transaction
 BEGIN;
 UPDATE products SET price = 1000, version = version + 1
-WHERE id = 42 AND version = 5;  -- 楽観的ロック
--- 影響行数=0ならリトライ
+WHERE id = 42 AND version = 5;  -- optimistic lock
+-- If rows affected = 0, retry
 COMMIT;
 ```
 
-### アンチパターン2: 不必要に高い分離レベル
+### Anti-Pattern 2: Unnecessarily High Isolation Level
 
 ```sql
--- NG: 全てSERIALIZABLEにする
+-- Bad: setting everything to SERIALIZABLE
 SET default_transaction_isolation = 'serializable';
 
--- 問題点:
--- 1. シリアライゼーション失敗でリトライが頻発（並行性低下）
--- 2. パフォーマンスが20-50%低下する場合がある
--- 3. 多くの場合READ COMMITTEDで十分
--- 4. リトライロジックを全てのトランザクションに実装する必要がある
+-- Problems:
+-- 1. Serialization failures cause frequent retries (reduced concurrency)
+-- 2. Performance may drop by 20–50%
+-- 3. READ COMMITTED is sufficient in most cases
+-- 4. Retry logic must be implemented for every transaction
 
--- OK: 用途に応じて分離レベルを選択
--- 一般的なCRUD操作: READ COMMITTED（デフォルト）
+-- Good: choose the isolation level based on the use case
+-- General CRUD operations: READ COMMITTED (default)
 BEGIN;
 UPDATE products SET stock = stock - 1 WHERE id = 42;
 COMMIT;
 
--- 残高計算や整合性チェック: REPEATABLE READ
+-- Balance calculations and consistency checks: REPEATABLE READ
 BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 SELECT SUM(balance) FROM accounts;
--- 途中で他のTxが残高を変更してもスナップショットが一貫
+-- Even if another Tx changes a balance midway, the snapshot remains consistent
 COMMIT;
 
--- 厳密な一貫性が必要な金融処理: SERIALIZABLE
+-- Financial processing requiring strict consistency: SERIALIZABLE
 BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
--- ダブルスペンディング防止など
+-- Prevent double-spending, etc.
 COMMIT;
 ```
 
-### アンチパターン3: コミットされないトランザクション
+### Anti-Pattern 3: Uncommitted Transactions Left Open
 
 ```sql
--- NG: BEGINしたまま放置
+-- Bad: leaving a BEGIN open without committing
 BEGIN;
 SELECT * FROM large_table;
--- ... 接続を保持したまま放置 ...
--- → VACUUMが不要タプルを回収できない
--- → テーブル膨張が進行する
+-- ... connection left open without doing anything ...
+-- → VACUUM cannot reclaim dead tuples
+-- → Table bloat progresses
 
--- 問題の検出
+-- Detect the problem
 SELECT pid, state, query, xact_start,
        NOW() - xact_start AS duration
 FROM pg_stat_activity
 WHERE state = 'idle in transaction'
   AND xact_start < NOW() - INTERVAL '5 minutes';
 
--- 対策: idle_in_transaction_session_timeout の設定
+-- Countermeasure: set idle_in_transaction_session_timeout
 SET idle_in_transaction_session_timeout = '10min';
--- → 10分間アイドルなトランザクションを自動的に切断
+-- → Automatically disconnect transactions that are idle for 10 minutes
 
--- postgresql.conf に設定推奨
+-- Recommended setting in postgresql.conf
 -- idle_in_transaction_session_timeout = '10min'
 ```
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1（基礎）: トランザクションとSAVEPOINTの基本操作
+### Exercise 1 (Basic): Basic Operations with Transactions and SAVEPOINTs
 
-以下のシナリオをSQLで実装してください。
+Implement the following scenario in SQL.
 
-**要件**:
-1. `warehouse_items` テーブルから商品A(id=1)の在庫を3個減らす
-2. `shipments` テーブルに出荷レコードを挿入する
-3. `notifications` テーブルに通知を挿入するが、失敗しても出荷は成立させる
-4. 在庫が0未満になる場合は全体をロールバックする
+**Requirements**:
+1. Decrease the inventory of product A (id=1) by 3 in the `warehouse_items` table
+2. Insert a shipment record into the `shipments` table
+3. Insert a notification into the `notifications` table, but allow the shipment to succeed even if this fails
+4. Roll back the entire transaction if the inventory would drop below 0
 
 ```sql
--- テスト用テーブル
+-- Test tables
 CREATE TABLE warehouse_items (
     id    INTEGER PRIMARY KEY,
     name  VARCHAR(100) NOT NULL,
@@ -890,15 +891,15 @@ INSERT INTO warehouse_items VALUES (1, '商品A', 10);
 ```
 
 <details>
-<summary>模範解答</summary>
+<summary>Sample Answer</summary>
 
 ```sql
 BEGIN;
 
--- Step 1: 在庫の減算
+-- Step 1: deduct inventory
 UPDATE warehouse_items SET stock = stock - 3 WHERE id = 1;
 
--- Step 2: 在庫チェック
+-- Step 2: inventory check
 DO $$
 BEGIN
     IF (SELECT stock FROM warehouse_items WHERE id = 1) < 0 THEN
@@ -906,12 +907,12 @@ BEGIN
     END IF;
 END $$;
 
--- Step 3: 出荷レコードの挿入
+-- Step 3: insert shipment record
 INSERT INTO shipments (item_id, quantity)
 VALUES (1, 3);
 SAVEPOINT after_shipment;
 
--- Step 4: 通知の挿入（失敗しても出荷は成立）
+-- Step 4: insert notification (shipment succeeds even if this fails)
 DO $$
 BEGIN
     INSERT INTO notifications (message)
@@ -923,26 +924,26 @@ END $$;
 
 COMMIT;
 
--- 確認
+-- Verification
 SELECT * FROM warehouse_items WHERE id = 1;
 -- stock = 7
 SELECT * FROM shipments WHERE item_id = 1;
 -- quantity = 3
 ```
 
-**解説**: SAVEPOINTを `after_shipment` の位置に設置することで、通知挿入が失敗しても出荷レコードまでの処理は維持される。PostgreSQLではトランザクション内のエラーが全てのSQL文を無効化するため、EXCEPTION ブロックでキャッチしてSAVEPOINTまでロールバックする必要がある。
+**Explanation**: By placing a SAVEPOINT at `after_shipment`, all processing up to and including the shipment record is preserved even if the notification insert fails. Because an error inside a PostgreSQL transaction invalidates all subsequent SQL statements, you must catch the error in an EXCEPTION block and roll back to the SAVEPOINT.
 
 </details>
 
-### 演習2（応用）: 楽観的ロックの完全な実装
+### Exercise 2 (Intermediate): Full Implementation of Optimistic Locking
 
-ECサイトの在庫管理で、楽観的ロックを使った購入処理を実装してください。
+Implement a purchase flow for an e-commerce site's inventory management using optimistic locking.
 
-**要件**:
-1. `products` テーブルに `version` カラムを使った楽観的ロック
-2. 在庫不足時は適切なエラーメッセージ
-3. バージョン競合時は最大3回リトライ
-4. リトライ間には指数バックオフを入れる
+**Requirements**:
+1. Use a `version` column in the `products` table for optimistic locking
+2. Return an appropriate error message when stock is insufficient
+3. Retry up to 3 times on a version conflict
+4. Apply exponential backoff between retries
 
 ```sql
 CREATE TABLE products (
@@ -958,7 +959,7 @@ INSERT INTO products VALUES (1, 'ノートPC', 5, 98000, 1, NOW());
 ```
 
 <details>
-<summary>模範解答</summary>
+<summary>Sample Answer</summary>
 
 ```sql
 CREATE OR REPLACE FUNCTION purchase_product(
@@ -978,19 +979,19 @@ DECLARE
     v_retries         INTEGER := 0;
 BEGIN
     LOOP
-        -- Step 1: 現在のデータを読み取り（ロックなし）
+        -- Step 1: read current data (no lock)
         SELECT stock, version
         INTO v_current_stock, v_current_version
         FROM products
         WHERE id = p_product_id;
 
-        -- 商品が存在しない場合
+        -- Product not found
         IF NOT FOUND THEN
             RETURN QUERY SELECT FALSE, '商品が見つかりません'::TEXT, 0, 0;
             RETURN;
         END IF;
 
-        -- 在庫不足チェック
+        -- Insufficient stock check
         IF v_current_stock < p_quantity THEN
             RETURN QUERY SELECT FALSE,
                 format('在庫不足: 要求=%s, 在庫=%s', p_quantity, v_current_stock)::TEXT,
@@ -998,7 +999,7 @@ BEGIN
             RETURN;
         END IF;
 
-        -- Step 2: 楽観的ロックでUPDATE
+        -- Step 2: UPDATE with optimistic lock
         UPDATE products
         SET stock = stock - p_quantity,
             version = version + 1,
@@ -1008,7 +1009,7 @@ BEGIN
 
         GET DIAGNOSTICS v_rows_affected = ROW_COUNT;
 
-        -- 更新成功
+        -- Update succeeded
         IF v_rows_affected = 1 THEN
             RETURN QUERY SELECT TRUE,
                 '購入成功'::TEXT,
@@ -1017,7 +1018,7 @@ BEGIN
             RETURN;
         END IF;
 
-        -- バージョン競合 → リトライ
+        -- Version conflict → retry
         v_retries := v_retries + 1;
         IF v_retries >= p_max_retries THEN
             RETURN QUERY SELECT FALSE,
@@ -1026,38 +1027,38 @@ BEGIN
             RETURN;
         END IF;
 
-        -- 指数バックオフ（0.1秒, 0.2秒, 0.4秒...）
+        -- Exponential backoff (0.1 s, 0.2 s, 0.4 s, ...)
         PERFORM pg_sleep(0.1 * power(2, v_retries - 1));
         RAISE NOTICE 'バージョン競合 → リトライ %/%', v_retries, p_max_retries;
     END LOOP;
 END;
 $$ LANGUAGE plpgsql;
 
--- 使用例
+-- Usage example
 SELECT * FROM purchase_product(1, 2);
 -- success=true, message='購入成功', new_stock=3, new_version=2
 
--- 在庫不足テスト
+-- Insufficient stock test
 SELECT * FROM purchase_product(1, 100);
 -- success=false, message='在庫不足: 要求=100, 在庫=3'
 ```
 
-**解説**: 楽観的ロックでは、SELECTとUPDATEの間に他のトランザクションがデータを変更した場合、`WHERE version = v_current_version` の条件に一致せず `ROW_COUNT = 0` になる。この場合にリトライを行う。指数バックオフにより、高負荷時の過剰なリトライを防ぐ。
+**Explanation**: With optimistic locking, if another transaction modifies the data between the SELECT and the UPDATE, the condition `WHERE version = v_current_version` does not match and `ROW_COUNT = 0`. In that case a retry is performed. Exponential backoff prevents excessive retries under high load.
 
 </details>
 
-### 演習3（発展）: 分離レベルの動作検証
+### Exercise 3 (Advanced): Verifying Isolation Level Behavior
 
-2つのターミナル（セッション）を使い、以下の分離レベルの違いを実際に検証してください。
+Use two terminals (sessions) to actually verify the differences between isolation levels.
 
-**課題**:
-1. READ COMMITTED で「ノンリピータブルリード」が発生することを確認
-2. REPEATABLE READ で「ノンリピータブルリード」が防止されることを確認
-3. REPEATABLE READ で更新競合エラーが発生することを確認
-4. SERIALIZABLEで「write skew」が検出されることを確認
+**Tasks**:
+1. Confirm that a "non-repeatable read" occurs under READ COMMITTED
+2. Confirm that a "non-repeatable read" is prevented under REPEATABLE READ
+3. Confirm that an update conflict error occurs under REPEATABLE READ
+4. Confirm that a "write skew" is detected under SERIALIZABLE
 
 ```sql
--- 準備
+-- Setup
 CREATE TABLE test_accounts (
     id      INTEGER PRIMARY KEY,
     balance INTEGER NOT NULL,
@@ -1068,135 +1069,135 @@ INSERT INTO test_accounts VALUES (2, 2000, 'savings');
 ```
 
 <details>
-<summary>模範解答</summary>
+<summary>Sample Answer</summary>
 
 ```sql
--- ===== 検証1: READ COMMITTED でのノンリピータブルリード =====
+-- ===== Verification 1: Non-Repeatable Read under READ COMMITTED =====
 
--- ターミナル1:
+-- Terminal 1:
 BEGIN TRANSACTION ISOLATION LEVEL READ COMMITTED;
 SELECT balance FROM test_accounts WHERE id = 1;
--- 結果: 1000
+-- Result: 1000
 
--- ターミナル2:
+-- Terminal 2:
 BEGIN;
 UPDATE test_accounts SET balance = 1500 WHERE id = 1;
 COMMIT;
 
--- ターミナル1（続き）:
+-- Terminal 1 (continued):
 SELECT balance FROM test_accounts WHERE id = 1;
--- 結果: 1500 ← 値が変わった！（ノンリピータブルリード）
+-- Result: 1500 ← value changed! (non-repeatable read)
 COMMIT;
 
 
--- ===== 検証2: REPEATABLE READ での防止 =====
+-- ===== Verification 2: Prevention under REPEATABLE READ =====
 
--- ターミナル1:
+-- Terminal 1:
 BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 SELECT balance FROM test_accounts WHERE id = 1;
--- 結果: 1500
+-- Result: 1500
 
--- ターミナル2:
+-- Terminal 2:
 BEGIN;
 UPDATE test_accounts SET balance = 2000 WHERE id = 1;
 COMMIT;
 
--- ターミナル1（続き）:
+-- Terminal 1 (continued):
 SELECT balance FROM test_accounts WHERE id = 1;
--- 結果: 1500 ← 値が変わらない！（ノンリピータブルリード防止）
+-- Result: 1500 ← value unchanged! (non-repeatable read prevented)
 COMMIT;
 
--- ターミナル1で再度確認:
+-- Check again from Terminal 1 after commit:
 SELECT balance FROM test_accounts WHERE id = 1;
--- 結果: 2000 ← COMMIT後は最新値が見える
+-- Result: 2000 ← latest value visible after COMMIT
 
 
--- ===== 検証3: REPEATABLE READ での更新競合 =====
+-- ===== Verification 3: Update conflict under REPEATABLE READ =====
 
--- 準備
+-- Setup
 UPDATE test_accounts SET balance = 1000 WHERE id = 1;
 
--- ターミナル1:
+-- Terminal 1:
 BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ;
 SELECT balance FROM test_accounts WHERE id = 1;  -- 1000
 
--- ターミナル2:
+-- Terminal 2:
 BEGIN;
 UPDATE test_accounts SET balance = 1500 WHERE id = 1;
 COMMIT;
 
--- ターミナル1（続き）:
+-- Terminal 1 (continued):
 UPDATE test_accounts SET balance = balance + 100 WHERE id = 1;
 -- ERROR: could not serialize access due to concurrent update
 ROLLBACK;
 
 
--- ===== 検証4: SERIALIZABLE でのwrite skew検出 =====
+-- ===== Verification 4: Write skew detection under SERIALIZABLE =====
 
--- 準備: 医師のオンコール当番（最低1人は勤務必須）
+-- Setup: on-call doctors (at least one must always be on duty)
 UPDATE test_accounts SET balance = 1000 WHERE id = 1;
 UPDATE test_accounts SET balance = 2000 WHERE id = 2;
 
--- ルール: id=1とid=2の合計が0より大きくなければならない
+-- Rule: the sum of id=1 and id=2 must be greater than 0
 
--- ターミナル1:
+-- Terminal 1:
 BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
--- 合計を確認: 3000 > 0、OK
+-- Check total: 3000 > 0, OK
 SELECT SUM(balance) FROM test_accounts;
--- id=1の残高を0にする
+-- Set id=1 balance to 0
 UPDATE test_accounts SET balance = 0 WHERE id = 1;
 
--- ターミナル2（Tx1がCOMMIT前に実行）:
+-- Terminal 2 (runs before Tx1 COMMITs):
 BEGIN TRANSACTION ISOLATION LEVEL SERIALIZABLE;
--- 合計を確認: 3000 > 0、OK（Tx1の変更は見えない）
+-- Check total: 3000 > 0, OK (Tx1's change is not visible)
 SELECT SUM(balance) FROM test_accounts;
--- id=2の残高を0にする
+-- Set id=2 balance to 0
 UPDATE test_accounts SET balance = 0 WHERE id = 2;
 
--- ターミナル1:
-COMMIT;  -- 成功
+-- Terminal 1:
+COMMIT;  -- succeeds
 
--- ターミナル2:
+-- Terminal 2:
 COMMIT;
 -- ERROR: could not serialize access due to read/write dependencies
--- → write skewが検出され、Tx2がロールバックされる
--- → 合計が0になることを防止！
+-- → Write skew is detected and Tx2 is rolled back
+-- → Total dropping to 0 is prevented!
 ```
 
-**解説**: Write skewは、2つのトランザクションが互いに異なる行を読み取り、条件を満たすことを確認してから異なる行を更新する場合に発生する。READ COMMITTEDやREPEATABLE READでは検出できず、SERIALIZABLEでのみ防止できる。これがSERIALIZABLEが必要になる代表的なケースである。
+**Explanation**: Write skew occurs when two transactions each read a different row, verify that a condition is satisfied, and then update different rows. READ COMMITTED and REPEATABLE READ cannot detect it; only SERIALIZABLE can prevent it. This is the representative case where SERIALIZABLE is needed.
 
 </details>
 
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured configuration file | Verify the configuration file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Growing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Verify the executing user's privileges, review settings |
+| Data inconsistency | Concurrent processing conflict | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace and identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with the minimal amount of code
+3. **Form hypotheses**: List the possible causes
+4. **Validate incrementally**: Use log output or a debugger to verify each hypothesis
+5. **Fix and run regression tests**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1204,7 +1205,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input and output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
         logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
@@ -1220,86 +1221,86 @@ def debug_decorator(func):
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
         raise ValueError("空のデータ")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Problems
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance problems:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: measure with a profiling tool
+2. **Check memory usage**: look for memory leaks
+3. **Check I/O wait**: examine disk and network I/O conditions
+4. **Check concurrent connections**: review the state of the connection pool
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Countermeasure |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Asynchronous I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | When to Prioritize | When to Compromise |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① What is the team size?                       │
+│    ├─ Small (1–5 people) → Monolith             │
+│    └─ Large (10+ people) → go to ②             │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② How frequent are deployments?                │
+│    ├─ Weekly or less → Monolith + modular split  │
+│    └─ Daily / multiple times → go to ③         │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ How independent are the teams?               │
+│    ├─ High → Microservices                       │
+│    └─ Moderate → Modular monolith                │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. long-term cost**
+- A fast short-term approach can become technical debt in the long run
+- Conversely, over-engineering incurs high short-term costs and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. flexibility**
+- A unified technology stack has a low learning curve
+- Adopting diverse technologies allows the right tool for the job but increases operational cost
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction increases reusability but can make debugging harder
+- Low abstraction is intuitive but tends to produce duplicate code
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1309,17 +1310,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and the problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision made"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1327,7 +1328,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1335,15 +1336,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1352,98 +1353,98 @@ class ArchitectureDecisionRecord:
 
 ## FAQ
 
-### Q1: AUTO COMMITとは何か？
+### Q1: What is AUTO COMMIT?
 
-AUTO COMMITが有効（PostgreSQLのデフォルト）の場合、各SQL文が自動的に独立したトランザクションとして実行される。明示的な`BEGIN`/`COMMIT`を使わない限り、各文の完了時に自動的にCOMMITされる。
+When AUTO COMMIT is enabled (the PostgreSQL default), each SQL statement is automatically executed as an independent transaction. Without an explicit `BEGIN`/`COMMIT`, each statement is automatically committed upon completion.
 
-**注意点**:
-- `psql`ではデフォルトでAUTO COMMITが有効（`\set AUTOCOMMIT on`）
-- `\set AUTOCOMMIT off` にすると全てのSQLがトランザクション内で実行される
-- バッチ処理では明示的にBEGINで囲むことで、中間状態のCOMMITを防ぐ
-- アプリケーションフレームワーク（Django、Rails等）は通常リクエスト単位でトランザクションを管理する
+**Notes**:
+- In `psql`, AUTO COMMIT is enabled by default (`\set AUTOCOMMIT on`)
+- With `\set AUTOCOMMIT off`, all SQL runs inside a transaction
+- In batch processing, wrapping statements explicitly in BEGIN prevents intermediate commits
+- Application frameworks (Django, Rails, etc.) typically manage transactions per request
 
-### Q2: PostgreSQLのMVCCとロックベースの違いは何か？
+### Q2: What is the difference between PostgreSQL's MVCC and lock-based approaches?
 
-**MVCC（Multi-Version Concurrency Control）**:
-- 各行の複数バージョンを保持し、読み取りと書き込みが互いにブロックしない
-- SELECTはロックを取得せず、トランザクション開始時点のスナップショットを読む
-- **利点**: READERとWRITERが共存。読み取りが遅延しない
-- **欠点**: 不要バージョンの蓄積（VACUUMが必要）、テーブル膨張
+**MVCC (Multi-Version Concurrency Control)**:
+- Maintains multiple versions of each row so reads and writes do not block each other
+- SELECT acquires no lock and reads a snapshot taken at the start of the transaction
+- **Advantage**: READERs and WRITERs coexist; reads are not delayed
+- **Disadvantage**: accumulation of obsolete versions (VACUUM is required), table bloat
 
-**ロックベース（SQL Serverのデフォルト等）**:
-- 共有ロック（読み取り）と排他ロック（書き込み）で制御
-- WRITERがいるとREADERも待機する
-- **利点**: 実装がシンプル、VACUUMが不要
-- **欠点**: 読み取りと書き込みが競合、デッドロックが多い
+**Lock-based (SQL Server default, etc.)**:
+- Controlled with shared locks (reads) and exclusive locks (writes)
+- READERs wait if a WRITER is present
+- **Advantage**: simpler implementation, no VACUUM needed
+- **Disadvantage**: reads and writes conflict, more deadlocks
 
-### Q3: トランザクションがROLLBACKされるのはどんな場合か？
+### Q3: Under what circumstances is a transaction rolled back?
 
-(1) 明示的な`ROLLBACK`文の実行
-(2) 制約違反（CHECK, FK, UNIQUE等）やデッドロックなどのエラー発生
-(3) クライアント接続の切断
-(4) `statement_timeout`や`idle_in_transaction_session_timeout`の超過
-(5) `serialization_failure`（SERIALIZABLEまたはREPEATABLE READでの競合）
-(6) `lock_timeout`の超過
-(7) ディスク容量不足やOOM（Out of Memory）
+(1) An explicit `ROLLBACK` statement is executed
+(2) An error occurs, such as a constraint violation (CHECK, FK, UNIQUE, etc.) or a deadlock
+(3) The client connection is dropped
+(4) `statement_timeout` or `idle_in_transaction_session_timeout` is exceeded
+(5) `serialization_failure` (conflict under SERIALIZABLE or REPEATABLE READ)
+(6) `lock_timeout` is exceeded
+(7) Disk space exhaustion or OOM (Out of Memory)
 
-PostgreSQLではエラー発生後、トランザクション内の以降の文は全て拒否される（`ERROR: current transaction is aborted, commands ignored until end of transaction block`）。SAVEPOINTを使用している場合のみ、部分的な復旧が可能。
+In PostgreSQL, after an error occurs all subsequent statements in the transaction are rejected (`ERROR: current transaction is aborted, commands ignored until end of transaction block`). Partial recovery is only possible when SAVEPOINTs are in use.
 
-### Q4: 2フェーズコミット（2PC）とは何か？
+### Q4: What is Two-Phase Commit (2PC)?
 
-2PC（Two-Phase Commit）は、複数のデータベースやリソースマネージャにまたがるトランザクションの原子性を保証するプロトコル。
+2PC (Two-Phase Commit) is a protocol that guarantees atomicity for transactions spanning multiple databases or resource managers.
 
-**Phase 1（Prepare）**: コーディネータが各参加者に「準備完了か？」と確認。各参加者はデータを永続化し「YES」または「NO」を応答。
-**Phase 2（Commit/Abort）**: 全参加者がYESなら「COMMIT」、1つでもNOなら「ABORT」を送信。
+**Phase 1 (Prepare)**: The coordinator asks each participant "are you ready?". Each participant persists its data and replies "YES" or "NO".
+**Phase 2 (Commit/Abort)**: If all participants say YES, "COMMIT" is sent; if even one says NO, "ABORT" is sent.
 
-PostgreSQLでは`PREPARE TRANSACTION`で実装できるが、分散トランザクションのオーバーヘッドは大きい。現代のマイクロサービスアーキテクチャではSagaパターンを推奨する。
+PostgreSQL supports this via `PREPARE TRANSACTION`, but the overhead of distributed transactions is significant. In modern microservice architectures the Saga pattern is recommended instead.
 
-### Q5: トランザクションログ（WAL）の設定はどうすべきか？
+### Q5: How should the transaction log (WAL) be configured?
 
 ```sql
--- WAL関連の主要設定
-SHOW wal_level;                 -- replica（デフォルト）
-SHOW max_wal_size;              -- 1GB（デフォルト）
-SHOW min_wal_size;              -- 80MB（デフォルト）
-SHOW checkpoint_timeout;        -- 5min（デフォルト）
-SHOW synchronous_commit;        -- on（デフォルト）
+-- Key WAL-related settings
+SHOW wal_level;                 -- replica (default)
+SHOW max_wal_size;              -- 1GB (default)
+SHOW min_wal_size;              -- 80MB (default)
+SHOW checkpoint_timeout;        -- 5min (default)
+SHOW synchronous_commit;        -- on (default)
 
--- パフォーマンス重視の場合（データ損失リスクあり）
+-- Performance-focused configuration (risk of data loss)
 -- synchronous_commit = off
--- → COMMITがWAL書き込みを待たない（最大wal_writer_delay分のデータ損失リスク）
--- → 大量のINSERTバッチ処理で有効
+-- → COMMIT does not wait for WAL to be written (risk of losing up to wal_writer_delay of data)
+-- → Effective for bulk INSERT batch processing
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |------|------|
-| ACID | 原子性・一貫性・分離性・耐久性の4特性。WALが基盤 |
-| デフォルト分離レベル | PostgreSQL/Oracle: READ COMMITTED、MySQL: REPEATABLE READ |
-| MVCC | 読み書きの非ブロック化。各行にxmin/xmaxを持たせて実現 |
-| VACUUM | MVCCの不要バージョンを回収。autovacuumの設定が重要 |
-| デッドロック対策 | ロック順序の統一、タイムアウト設定、NOWAIT/SKIP LOCKED |
-| 悲観的ロック | FOR UPDATE。競合が多い場面で有効。ブロッキング |
-| 楽観的ロック | versionカラム。競合が少ない場面で有効。リトライ必要 |
-| アドバイザリロック | テーブル/行に影響しないアプリケーションレベルのロック |
-| べき等設計 | 重複実行しても結果が変わらない設計。リトライ環境で必須 |
-| Sagaパターン | マイクロサービス間のトランザクション。補償トランザクションで一貫性維持 |
-| ベストプラクティス | トランザクションを短く、分離レベルは最小限、リトライロジック必須 |
+| ACID | Four properties: Atomicity, Consistency, Isolation, Durability. WAL is the foundation |
+| Default isolation level | PostgreSQL/Oracle: READ COMMITTED; MySQL: REPEATABLE READ |
+| MVCC | Non-blocking reads and writes. Implemented by storing xmin/xmax on each row |
+| VACUUM | Reclaims obsolete MVCC versions. Autovacuum configuration is important |
+| Deadlock countermeasures | Consistent lock ordering, timeout settings, NOWAIT/SKIP LOCKED |
+| Pessimistic locking | FOR UPDATE. Effective when conflicts are frequent. Blocking |
+| Optimistic locking | version column. Effective when conflicts are rare. Retry required |
+| Advisory lock | Application-level lock with no impact on tables or rows |
+| Idempotent design | Design where repeated execution does not change the result. Essential in retry environments |
+| Saga pattern | Transactions across microservices. Consistency maintained via compensating transactions |
+| Best practices | Keep transactions short, use the minimum isolation level, always implement retry logic |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [03-indexing.md](./03-indexing.md) — ロックとインデックスの関係、FOR UPDATEとインデックスの相互作用
-- [04-query-optimization.md](./04-query-optimization.md) — トランザクションと実行計画、ロックの影響
-- [02-performance-tuning.md](../03-practical/02-performance-tuning.md) — 接続プールとトランザクション管理、VACUUM戦略
-- [00-normalization.md](../02-design/00-normalization.md) — 正規化とトランザクション設計の関係
-- security-fundamentals/ — SQLインジェクション対策とトランザクションセキュリティ
+- [03-indexing.md](./03-indexing.md) — Relationship between locks and indexes, interaction of FOR UPDATE with indexes
+- [04-query-optimization.md](./04-query-optimization.md) — Transactions and execution plans, the effect of locks
+- [02-performance-tuning.md](../03-practical/02-performance-tuning.md) — Connection pools and transaction management, VACUUM strategy
+- [00-normalization.md](../02-design/00-normalization.md) — Relationship between normalization and transaction design
+- security-fundamentals/ — SQL injection countermeasures and transaction security
 
 ---
 
-## 参考文献
+## References
 
 1. PostgreSQL Documentation — "Transaction Isolation" https://www.postgresql.org/docs/current/transaction-iso.html
 2. PostgreSQL Documentation — "Concurrency Control" https://www.postgresql.org/docs/current/mvcc.html
