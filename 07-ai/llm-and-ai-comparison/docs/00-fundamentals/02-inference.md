@@ -1,57 +1,57 @@
-# 推論 — LLM の出力を制御するパラメータと技法
+# Inference — Parameters and Techniques for Controlling LLM Output
 
-> 温度、Top-p、ストリーミング、バッチ処理など、推論時のパラメータ調整と最適化手法を実践的に学ぶ。
+> A practical guide to inference-time parameter tuning and optimization techniques including temperature, Top-p, streaming, and batch processing.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **温度と Top-p/Top-k** による出力の多様性制御
-2. **ストリーミング**の実装とユーザー体験の最適化
-3. **バッチ処理と推論最適化**によるコスト・レイテンシの改善
+1. Controlling output diversity with **temperature and Top-p/Top-k**
+2. Implementing **streaming** and optimizing user experience
+3. Reducing cost and latency through **batch processing and inference optimization**
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+The following knowledge will help you get more out of this guide:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [トークナイゼーション — テキストをモデルが理解する単位に変換する](./01-tokenization.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Tokenization — Converting Text into Units the Model Understands](./01-tokenization.md)
 
 ---
 
-## 1. 推論パラメータ
+## 1. Inference Parameters
 
-### ASCII 図解 1: 温度による確率分布の変化
+### ASCII Diagram 1: How Temperature Changes the Probability Distribution
 
 ```
-確率
+Probability
 │
 │  ██                          temperature = 0.0
-│  ██                          (決定的: 最高確率のトークンのみ)
+│  ██                          (Deterministic: only the highest-probability token)
 │  ██
 │  ██ ░░
 │  ██ ░░ ░░
 │  ██ ░░ ░░ ░░
-├──┬──┬──┬──┬──→ トークン
+├──┬──┬──┬──┬──→ Token
 │  A  B  C  D
 
 │  ██
 │  ██ ██                       temperature = 0.7
-│  ██ ██ ██                    (バランス: 多様性あり)
+│  ██ ██ ██                    (Balanced: some diversity)
 │  ██ ██ ██ ░░
 │  ██ ██ ██ ░░
-├──┬──┬──┬──┬──→ トークン
+├──┬──┬──┬──┬──→ Token
 │  A  B  C  D
 
 │  ██ ██ ██ ██                 temperature = 1.5
-│  ██ ██ ██ ██                 (高多様性: ランダムに近い)
+│  ██ ██ ██ ██                 (High diversity: close to random)
 │  ██ ██ ██ ██
 │  ██ ██ ██ ██
-├──┬──┬──┬──┬──→ トークン
+├──┬──┬──┬──┬──→ Token
 │  A  B  C  D
 ```
 
-### コード例 1: 温度の効果を確認
+### Code Example 1: Observing the Effect of Temperature
 
 ```python
 import anthropic
@@ -76,7 +76,7 @@ for temp in [0.0, 0.5, 1.0]:
         print(f"  {i}. {r}")
 ```
 
-### コード例 2: Top-p (Nucleus Sampling) の制御
+### Code Example 2: Controlling Top-p (Nucleus Sampling)
 
 ```python
 from openai import OpenAI
@@ -85,7 +85,7 @@ client = OpenAI()
 
 prompt = "プログラミング言語のトップ3を挙げてください。"
 
-# Top-p: 累積確率が p 以下のトークンのみ選択
+# Top-p: only tokens whose cumulative probability is <= p are selected
 for top_p in [0.1, 0.5, 0.9]:
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -96,32 +96,32 @@ for top_p in [0.1, 0.5, 0.9]:
     )
     print(f"top_p={top_p}: {response.choices[0].message.content[:80]}")
 
-# 注意: temperature と top_p は同時に変更しないのがベストプラクティス
-# 片方を固定し、もう片方だけ調整する
+# Note: best practice is not to change both temperature and top_p at the same time.
+# Fix one and adjust only the other.
 ```
 
-### ASCII 図解 2: Top-p のフィルタリング
+### ASCII Diagram 2: How Top-p Filtering Works
 
 ```
-確率 (ソート済み)
+Probability (sorted)
 │
 │ 0.40  ██ ─┐
-│ 0.25  ██  │ 累積 0.65
-│ 0.15  ██  │ 累積 0.80 ← top_p=0.8 ならここまで選択
-│ 0.10  ░░ ─┘ 累積 0.90
-│ 0.05  ░░   (除外)
-│ 0.03  ░░   (除外)
-│ 0.02  ░░   (除外)
-├──┬──┬──┬──┬──┬──┬──→ トークン候補
+│ 0.25  ██  │ cumulative 0.65
+│ 0.15  ██  │ cumulative 0.80 ← selected up to here if top_p=0.8
+│ 0.10  ░░ ─┘ cumulative 0.90
+│ 0.05  ░░   (excluded)
+│ 0.03  ░░   (excluded)
+│ 0.02  ░░   (excluded)
+├──┬──┬──┬──┬──┬──┬──→ Token candidates
 │  A  B  C  D  E  F  G
 
-██ = 選択対象   ░░ = 除外
-top_p = 0.8 → A, B, C から確率的に選択
+██ = candidate   ░░ = excluded
+top_p = 0.8 → probabilistic selection from A, B, C
 ```
 
-### 1.1 Top-k サンプリングの詳細
+### 1.1 Top-k Sampling in Detail
 
-Top-k は確率上位 k 個のトークンのみを候補として残すフィルタリング手法である。Top-p が「確率の累積値」で切るのに対し、Top-k は「候補数」で切る。
+Top-k is a filtering technique that retains only the top-k tokens by probability as candidates. While Top-p cuts by cumulative probability, Top-k cuts by the number of candidates.
 
 ```python
 import numpy as np
@@ -221,57 +221,58 @@ for method, samples in results.items():
     print(f"{method:10s}: ユニークトークン数={unique:3d}, Top3占有率={top3_ratio:.2%}")
 ```
 
-### ASCII 図解: サンプリング方式の比較
+### ASCII Diagram: Sampling Method Selection Flowchart
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│         サンプリング方式の選択フローチャート                 │
+│         Sampling Method Selection Flowchart              │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  用途を判定                                               │
+│  Determine use case                                      │
 │    │                                                     │
-│    ├─ 正確性重視 (コード生成、データ抽出)                    │
+│    ├─ Accuracy-focused (code generation, data extraction)│
 │    │   → temperature = 0.0 (Greedy Decoding)             │
 │    │   → top_p = 1.0, top_k = 1                         │
 │    │                                                     │
-│    ├─ バランス型 (一般的なアシスタント)                      │
-│    │   → temperature = 0.7                                │
-│    │   → top_p = 0.9 (片方だけ調整)                       │
+│    ├─ Balanced (general-purpose assistant)               │
+│    │   → temperature = 0.7                               │
+│    │   → top_p = 0.9 (adjust only one)                  │
 │    │                                                     │
-│    ├─ 創造性重視 (ブレスト、物語生成)                       │
-│    │   → temperature = 1.0 - 1.2                          │
-│    │   → top_p = 0.95, top_k = 100                       │
+│    ├─ Creativity-focused (brainstorming, story writing)  │
+│    │   → temperature = 1.0 - 1.2                        │
+│    │   → top_p = 0.95, top_k = 100                      │
 │    │                                                     │
-│    └─ 多様性探索 (複数候補生成)                             │
-│        → temperature = 1.0                                │
-│        → top_k = 50, n = 5 (5候補生成)                    │
+│    └─ Diversity exploration (generating multiple options) │
+│        → temperature = 1.0                               │
+│        → top_k = 50, n = 5 (generate 5 candidates)      │
 │                                                          │
-│  重要: temperature と top_p を同時に極端に設定しない        │
-│  → 予測不能な挙動の原因となる                              │
+│  Important: avoid setting both temperature and top_p     │
+│  to extreme values simultaneously                        │
+│  → can cause unpredictable behavior                      │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 Repetition Penalty と Frequency Penalty
+### 1.2 Repetition Penalty and Frequency Penalty
 
-繰り返し抑制パラメータは、生成テキストの冗長性を制御する。
+Repetition suppression parameters control the redundancy of generated text.
 
 ```python
 from openai import OpenAI
 
 client = OpenAI()
 
-# Frequency Penalty: 既出トークンの確率を線形に低下
-# Presence Penalty: 既出トークンの有無で一定量低下
+# Frequency Penalty: linearly reduces the probability of tokens that have already appeared
+# Presence Penalty: reduces the probability by a fixed amount if the token has appeared at all
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[{"role": "user", "content": "AIの応用分野を列挙してください"}],
     temperature=0.7,
-    frequency_penalty=0.5,   # 0.0 ~ 2.0: 同一トークンの繰り返しを抑制
-    presence_penalty=0.3,    # 0.0 ~ 2.0: 新しいトピックへの誘導
+    frequency_penalty=0.5,   # 0.0 ~ 2.0: suppresses repetition of the same token
+    presence_penalty=0.3,    # 0.0 ~ 2.0: steers toward new topics
     max_tokens=500,
 )
 
-# 比較実験: ペナルティなし vs あり
+# Comparison experiment: without penalty vs. with penalty
 for fp, pp in [(0.0, 0.0), (0.5, 0.3), (1.5, 1.0)]:
     resp = client.chat.completions.create(
         model="gpt-4o",
@@ -286,62 +287,66 @@ for fp, pp in [(0.0, 0.0), (0.5, 0.3), (1.5, 1.0)]:
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│       Penalty パラメータの効果                              │
+│       Effect of Penalty Parameters                       │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  Frequency Penalty (頻度ペナルティ):                      │
+│  Frequency Penalty:                                      │
 │  ─────────────────────────────────                       │
-│  トークン出現回数 × penalty 値 を logit から減算           │
+│  Subtracts (token occurrence count × penalty value)      │
+│  from the logit                                          │
 │                                                          │
-│  例: "猫" が3回出現、penalty=0.5                          │
-│  → "猫" の logit から 3 × 0.5 = 1.5 を減算              │
-│  → 出現回数が増えるほど確率が下がる                       │
+│  Example: "cat" appears 3 times, penalty=0.5             │
+│  → subtract 3 × 0.5 = 1.5 from "cat"'s logit           │
+│  → probability decreases as occurrence count increases   │
 │                                                          │
-│  Presence Penalty (存在ペナルティ):                       │
+│  Presence Penalty:                                       │
 │  ─────────────────────────────────                       │
-│  トークンが1回でも出現していれば penalty 値を減算          │
+│  Subtracts the penalty value if a token has appeared     │
+│  at least once                                           │
 │                                                          │
-│  例: "猫" が出現済み、penalty=0.5                         │
-│  → "猫" の logit から 0.5 を減算 (回数に関係なく一定)    │
-│  → 新しい単語・トピックへの誘導に効果的                   │
+│  Example: "cat" has already appeared, penalty=0.5        │
+│  → subtract 0.5 from "cat"'s logit (constant, count-    │
+│    independent)                                          │
+│  → effective for steering toward new words/topics        │
 │                                                          │
-│  推奨設定:                                                │
-│  ├── リスト生成 → freq=0.5, pres=0.3                     │
-│  ├── 文章作成   → freq=0.3, pres=0.2                     │
-│  ├── 対話     → freq=0.1, pres=0.1                       │
-│  └── コード生成 → freq=0.0, pres=0.0 (変数名の繰り返しは正常)│
+│  Recommended settings:                                   │
+│  ├── List generation → freq=0.5, pres=0.3               │
+│  ├── Writing         → freq=0.3, pres=0.2               │
+│  ├── Dialogue        → freq=0.1, pres=0.1               │
+│  └── Code generation → freq=0.0, pres=0.0               │
+│        (repeating variable names is normal)              │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.3 Stop Sequences (停止シーケンス)
+### 1.3 Stop Sequences
 
 ```python
 from openai import OpenAI
 
 client = OpenAI()
 
-# Stop Sequences: 特定文字列が生成されたら停止
+# Stop Sequences: stop generation when a specific string is produced
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[{"role": "user", "content": "1から10まで数えて"}],
-    stop=["5"],     # "5" が生成された時点で停止
+    stop=["5"],     # stop when "5" is generated
     max_tokens=100,
 )
 print(response.choices[0].message.content)
 # → "1, 2, 3, 4, "
 
-# 実用例: JSON 抽出時に余分な出力を防ぐ
+# Practical use: prevent extra output when extracting JSON
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[{
         "role": "user",
         "content": "以下のテキストからキーワードをJSON配列で抽出: 'Python機械学習入門'"
     }],
-    stop=["```", "\n\n"],  # コードブロック終了や二重改行で停止
+    stop=["```", "\n\n"],  # stop at code block end or double newline
     max_tokens=200,
 )
 
-# Claude API での Stop Sequences
+# Stop Sequences with Claude API
 import anthropic
 
 client_claude = anthropic.Anthropic()
@@ -355,14 +360,14 @@ print(f"停止理由: {response.stop_reason}")
 # "stop_sequence" or "end_turn" or "max_tokens"
 ```
 
-### 1.4 Seed パラメータによる再現性
+### 1.4 Reproducibility with the Seed Parameter
 
 ```python
 from openai import OpenAI
 
 client = OpenAI()
 
-# seed を指定して再現性を高める
+# Specify a seed to improve reproducibility
 responses = []
 for _ in range(3):
     response = client.chat.completions.create(
@@ -372,21 +377,21 @@ for _ in range(3):
         temperature=0.0,
     )
     responses.append(response.choices[0].message.content)
-    # system_fingerprint で同一バックエンドの確認
+    # Verify the same backend via system_fingerprint
     print(f"fingerprint: {response.system_fingerprint}")
 
-# 同じ seed + temperature=0 でも 100% 再現は保証されない
-# (GPU の非決定性、モデル更新による変化)
+# Even with the same seed + temperature=0, 100% reproducibility is not guaranteed
+# (GPU non-determinism, changes from model updates)
 print(f"再現率: {len(set(responses))}/{len(responses)} ユニーク")
 
-# ベストプラクティス: 再現性が重要な場合
-# 1. seed を固定
-# 2. temperature = 0
-# 3. system_fingerprint をログに記録
-# 4. モデルバージョンを固定 (例: gpt-4o-2024-08-06)
+# Best practice when reproducibility matters:
+# 1. Fix the seed
+# 2. Set temperature = 0
+# 3. Log the system_fingerprint
+# 4. Pin the model version (e.g., gpt-4o-2024-08-06)
 ```
 
-### 1.5 Logprobs (対数確率) の活用
+### 1.5 Using Logprobs (Log Probabilities)
 
 ```python
 from openai import OpenAI
@@ -394,28 +399,28 @@ import math
 
 client = OpenAI()
 
-# logprobs を有効にして確率情報を取得
+# Enable logprobs to retrieve probability information
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[{"role": "user", "content": "日本の首都は"}],
     max_tokens=10,
     logprobs=True,
-    top_logprobs=5,  # 上位5トークンの確率を取得
+    top_logprobs=5,  # retrieve probabilities for the top 5 tokens
 )
 
-# 各トークンの確率を表示
+# Display the probability of each token
 for token_info in response.choices[0].logprobs.content:
     prob = math.exp(token_info.logprob)
-    print(f"\n選択: '{token_info.token}' (確率: {prob:.2%})")
+    print(f"\nSelected: '{token_info.token}' (probability: {prob:.2%})")
 
-    # 代替候補
+    # Alternative candidates
     if token_info.top_logprobs:
         for alt in token_info.top_logprobs:
             alt_prob = math.exp(alt.logprob)
-            print(f"  候補: '{alt.token}' (確率: {alt_prob:.2%})")
+            print(f"  Candidate: '{alt.token}' (probability: {alt_prob:.2%})")
 
 
-# 実用例: 信頼度スコアの計算
+# Practical use: computing a confidence score
 def get_confidence_score(response) -> float:
     """生成テキストの信頼度を logprobs から算出"""
     if not response.choices[0].logprobs:
@@ -435,7 +440,7 @@ def get_confidence_score(response) -> float:
     return math.exp(avg_logprob)
 
 
-# 信頼度による分岐処理
+# Branching logic based on confidence
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[{"role": "user", "content": "この文を分類: '猫がかわいい'"}],
@@ -445,18 +450,18 @@ response = client.chat.completions.create(
 
 confidence = get_confidence_score(response)
 if confidence > 0.8:
-    print("高信頼度: 自動処理可能")
+    print("High confidence: can be processed automatically")
 elif confidence > 0.5:
-    print("中信頼度: 追加確認推奨")
+    print("Medium confidence: additional review recommended")
 else:
-    print("低信頼度: 人間レビュー必須")
+    print("Low confidence: human review required")
 ```
 
 ---
 
-## 2. ストリーミング
+## 2. Streaming
 
-### コード例 3: Claude API でストリーミング
+### Code Example 3: Streaming with the Claude API
 
 ```python
 import anthropic
@@ -476,7 +481,7 @@ with client.messages.stream(
         print(text, end="", flush=True)
 print()  # 改行
 
-# イベントベースの処理
+# Event-based processing
 with client.messages.stream(
     model="claude-sonnet-4-20250514",
     max_tokens=500,
@@ -486,10 +491,10 @@ with client.messages.stream(
         if event.type == "content_block_delta":
             print(f"[delta] {event.delta.text}", end="")
         elif event.type == "message_stop":
-            print("\n[完了]")
+            print("\n[Done]")
 ```
 
-### コード例 4: OpenAI API でストリーミング
+### Code Example 4: Streaming with the OpenAI API
 
 ```python
 from openai import OpenAI
@@ -503,7 +508,7 @@ stream = client.chat.completions.create(
         "content": "機械学習の基本ステップを説明してください。"
     }],
     stream=True,
-    stream_options={"include_usage": True},  # 使用量も取得
+    stream_options={"include_usage": True},  # also retrieve usage data
 )
 
 full_response = ""
@@ -512,43 +517,43 @@ for chunk in stream:
         content = chunk.choices[0].delta.content
         full_response += content
         print(content, end="", flush=True)
-    # ストリーム終了時にトークン使用量を取得
+    # Retrieve token usage when the stream ends
     if chunk.usage:
         print(f"\n\n使用トークン: {chunk.usage.total_tokens}")
 ```
 
-### ASCII 図解 3: ストリーミング vs 非ストリーミング
+### ASCII Diagram 3: Streaming vs. Non-Streaming
 
 ```
-非ストリーミング:
-User ──リクエスト──→ API ──────────────────→ 全文応答
-                     │   (生成中...待機)    │
-                     │   TTFB: 3-10秒       │
-                     └──────────────────────┘
-                     ←──── 体感遅延 大 ────→
+Non-streaming:
+User ──request──→ API ──────────────────→ full response
+                   │   (generating...wait)│
+                   │   TTFB: 3-10s        │
+                   └──────────────────────┘
+                   ←──── perceived latency: high ────→
 
-ストリーミング:
-User ──リクエスト──→ API ─→ チャンク1
-                          ─→ チャンク2
-                          ─→ チャンク3
-                          ─→ ...
-                          ─→ [DONE]
-                     ←──→
-                     TTFB: 0.3-1秒
-                     ←──── 体感遅延 小 ────→
+Streaming:
+User ──request──→ API ─→ chunk 1
+                        ─→ chunk 2
+                        ─→ chunk 3
+                        ─→ ...
+                        ─→ [DONE]
+                   ←──→
+                   TTFB: 0.3-1s
+                   ←──── perceived latency: low ────→
 
-TTFB = Time To First Byte（最初の応答までの時間）
+TTFB = Time To First Byte
 ```
 
-### 2.1 Server-Sent Events (SSE) の詳細
+### 2.1 Server-Sent Events (SSE) in Detail
 
-ストリーミングは HTTP の Server-Sent Events (SSE) プロトコルを使用する。
+Streaming uses the HTTP Server-Sent Events (SSE) protocol.
 
 ```python
 import httpx
 import json
 
-# SSE を直接パースする低レベル実装
+# Low-level implementation parsing SSE directly
 async def stream_with_sse(prompt: str):
     """SSE プロトコルで直接ストリーミング"""
     async with httpx.AsyncClient() as client:
@@ -578,7 +583,7 @@ async def stream_with_sse(prompt: str):
                         buffer += token
                         yield token
 
-# FastAPI でのストリーミングプロキシ実装
+# Streaming proxy implementation with FastAPI
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 
@@ -597,15 +602,15 @@ async def chat_stream(request: dict):
         headers={
             "Cache-Control": "no-cache",
             "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",  # Nginx バッファリング無効化
+            "X-Accel-Buffering": "no",  # Disable Nginx buffering
         },
     )
 ```
 
-### 2.2 フロントエンドでのストリーミング表示
+### 2.2 Displaying Streaming Output on the Frontend
 
 ```typescript
-// TypeScript: フロントエンドでの SSE 受信
+// TypeScript: receiving SSE on the frontend
 async function streamChat(message: string): Promise<void> {
   const response = await fetch("/api/chat/stream", {
     method: "POST",
@@ -625,7 +630,7 @@ async function streamChat(message: string): Promise<void> {
 
     buffer += decoder.decode(value, { stream: true });
 
-    // SSE パーシング
+    // SSE parsing
     const lines = buffer.split("\n\n");
     buffer = lines.pop() || "";
 
@@ -635,13 +640,13 @@ async function streamChat(message: string): Promise<void> {
         if (data === "[DONE]") return;
 
         const parsed = JSON.parse(data);
-        appendToUI(parsed.token);  // UI にトークンを追加
+        appendToUI(parsed.token);  // append token to UI
       }
     }
   }
 }
 
-// React コンポーネント例
+// React component example
 function ChatMessage({ streamUrl }: { streamUrl: string }) {
   const [text, setText] = useState("");
   const [isStreaming, setIsStreaming] = useState(true);
@@ -677,14 +682,14 @@ function ChatMessage({ streamUrl }: { streamUrl: string }) {
 }
 ```
 
-### 2.3 ストリーミング中断とタイムアウト処理
+### 2.3 Handling Streaming Cancellation and Timeouts
 
 ```python
 import asyncio
 from openai import AsyncOpenAI
 
 async def stream_with_timeout(prompt: str, timeout_seconds: float = 30.0):
-    """タイムアウト付きストリーミング"""
+    """Streaming with timeout"""
     client = AsyncOpenAI()
     full_text = ""
 
@@ -704,17 +709,17 @@ async def stream_with_timeout(prompt: str, timeout_seconds: float = 30.0):
                     print(token, end="", flush=True)
 
     except asyncio.TimeoutError:
-        print(f"\n[タイムアウト] {timeout_seconds}秒経過")
-        # 部分的な応答を返す
+        print(f"\n[Timeout] {timeout_seconds}s elapsed")
+        # return partial response
     except Exception as e:
-        print(f"\n[エラー] {e}")
+        print(f"\n[Error] {e}")
 
     return full_text
 
 
-# ユーザーキャンセル対応
+# Supporting user cancellation
 async def stream_with_cancel(prompt: str, cancel_event: asyncio.Event):
-    """キャンセル可能なストリーミング"""
+    """Cancellable streaming"""
     client = AsyncOpenAI()
     full_text = ""
 
@@ -726,7 +731,7 @@ async def stream_with_cancel(prompt: str, cancel_event: asyncio.Event):
 
     async for chunk in stream:
         if cancel_event.is_set():
-            print("\n[キャンセル]")
+            print("\n[Cancelled]")
             break
 
         if chunk.choices and chunk.choices[0].delta.content:
@@ -739,9 +744,9 @@ async def stream_with_cancel(prompt: str, cancel_event: asyncio.Event):
 
 ---
 
-## 3. バッチ処理と最適化
+## 3. Batch Processing and Optimization
 
-### コード例 5: バッチ API の活用
+### Code Example 5: Using Batch APIs
 
 ```python
 import anthropic
@@ -750,7 +755,7 @@ import asyncio
 client = anthropic.AsyncAnthropic()
 
 async def process_batch(prompts: list[str]) -> list[str]:
-    """複数プロンプトを並列処理"""
+    """Process multiple prompts in parallel"""
     async def single_request(prompt: str) -> str:
         response = await client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -763,7 +768,7 @@ async def process_batch(prompts: list[str]) -> list[str]:
     results = await asyncio.gather(*tasks)
     return results
 
-# 使用例
+# Usage example
 prompts = [
     "Pythonの利点を3つ",
     "Rustの利点を3つ",
@@ -777,7 +782,7 @@ for prompt, result in zip(prompts, results):
     print(f"A: {result[:100]}...")
     print()
 
-# OpenAI Batch API（非同期バッチ、50%割引）
+# OpenAI Batch API (async batch, 50% discount)
 from openai import OpenAI
 client_oai = OpenAI()
 
@@ -794,10 +799,10 @@ batch_input = [
     }
     for i, p in enumerate(prompts)
 ]
-# JSONL ファイルに書き出してバッチ送信
+# Write to JSONL file and submit as a batch
 ```
 
-### 3.1 OpenAI Batch API の完全ワークフロー
+### 3.1 Complete Workflow for the OpenAI Batch API
 
 ```python
 import json
@@ -807,9 +812,9 @@ from openai import OpenAI
 client = OpenAI()
 
 def run_batch_job(prompts: list[str], model: str = "gpt-4o-mini") -> list[dict]:
-    """OpenAI Batch API の完全な利用フロー"""
+    """Complete usage flow for the OpenAI Batch API"""
 
-    # 1. JSONL ファイルを作成
+    # 1. Create JSONL file
     batch_requests = []
     for i, prompt in enumerate(prompts):
         batch_requests.append({
@@ -832,37 +837,37 @@ def run_batch_job(prompts: list[str], model: str = "gpt-4o-mini") -> list[dict]:
         for req in batch_requests:
             f.write(json.dumps(req, ensure_ascii=False) + "\n")
 
-    # 2. ファイルをアップロード
+    # 2. Upload the file
     uploaded = client.files.create(
         file=open(input_file, "rb"),
         purpose="batch",
     )
-    print(f"アップロード完了: {uploaded.id}")
+    print(f"Upload complete: {uploaded.id}")
 
-    # 3. バッチジョブを作成
+    # 3. Create the batch job
     batch = client.batches.create(
         input_file_id=uploaded.id,
         endpoint="/v1/chat/completions",
         completion_window="24h",
         metadata={"description": "batch processing experiment"},
     )
-    print(f"バッチジョブ開始: {batch.id}")
+    print(f"Batch job started: {batch.id}")
 
-    # 4. 完了を待機 (ポーリング)
+    # 4. Wait for completion (polling)
     while True:
         status = client.batches.retrieve(batch.id)
-        print(f"ステータス: {status.status} "
-              f"(完了: {status.request_counts.completed}/"
+        print(f"Status: {status.status} "
+              f"(completed: {status.request_counts.completed}/"
               f"{status.request_counts.total})")
 
         if status.status == "completed":
             break
         elif status.status in ["failed", "cancelled", "expired"]:
-            raise RuntimeError(f"バッチ失敗: {status.status}")
+            raise RuntimeError(f"Batch failed: {status.status}")
 
-        time.sleep(30)  # 30秒ごとにチェック
+        time.sleep(30)  # check every 30 seconds
 
-    # 5. 結果をダウンロード
+    # 5. Download results
     output_file = client.files.content(status.output_file_id)
     results = []
     for line in output_file.text.strip().split("\n"):
@@ -873,25 +878,25 @@ def run_batch_job(prompts: list[str], model: str = "gpt-4o-mini") -> list[dict]:
             "content": result["response"]["body"]["choices"][0]["message"]["content"],
         })
 
-    # 6. エラー結果の処理
+    # 6. Handle error results
     if status.error_file_id:
         error_file = client.files.content(status.error_file_id)
         for line in error_file.text.strip().split("\n"):
             error = json.loads(line)
-            print(f"エラー: {error['custom_id']}: {error['response']['body']}")
+            print(f"Error: {error['custom_id']}: {error['response']['body']}")
 
     return results
 
 
-# 使用例: 1000件のドキュメント分類
+# Usage example: classify 1000 documents
 documents = [f"文書{i}の内容..." for i in range(1000)]
 prompts = [f"以下の文書を「技術」「ビジネス」「その他」に分類: {doc}" for doc in documents]
 results = run_batch_job(prompts)
 
-# コスト比較: Batch API は通常 API の 50% OFF
-# 1000件 × 500入力tok × 100出力tok = 50万入力 + 10万出力
-# 通常: $0.075 + $0.060 = $0.135
-# Batch: $0.0375 + $0.030 = $0.0675 (50% OFF)
+# Cost comparison: Batch API is 50% cheaper than the regular API
+# 1000 requests × 500 input tok × 100 output tok = 500k input + 100k output
+# Regular: $0.075 + $0.060 = $0.135
+# Batch:   $0.0375 + $0.030 = $0.0675 (50% OFF)
 ```
 
 ### 3.2 Anthropic Message Batches API
@@ -903,9 +908,9 @@ import time
 client = anthropic.Anthropic()
 
 def run_anthropic_batch(prompts: list[str]) -> list[dict]:
-    """Anthropic Message Batches API の利用フロー"""
+    """Usage flow for the Anthropic Message Batches API"""
 
-    # 1. バッチリクエストを作成
+    # 1. Create batch requests
     requests = [
         {
             "custom_id": f"req-{i:06d}",
@@ -918,23 +923,23 @@ def run_anthropic_batch(prompts: list[str]) -> list[dict]:
         for i, prompt in enumerate(prompts)
     ]
 
-    # 2. バッチ送信
+    # 2. Submit the batch
     batch = client.messages.batches.create(requests=requests)
-    print(f"バッチ ID: {batch.id}")
+    print(f"Batch ID: {batch.id}")
 
-    # 3. 完了待機
+    # 3. Wait for completion
     while True:
         status = client.messages.batches.retrieve(batch.id)
         counts = status.request_counts
-        print(f"処理中: {counts.processing}, 完了: {counts.succeeded}, "
-              f"エラー: {counts.errored}")
+        print(f"Processing: {counts.processing}, Succeeded: {counts.succeeded}, "
+              f"Errored: {counts.errored}")
 
         if status.processing_status == "ended":
             break
 
         time.sleep(30)
 
-    # 4. 結果取得
+    # 4. Retrieve results
     results = []
     for result in client.messages.batches.results(batch.id):
         if result.result.type == "succeeded":
@@ -943,12 +948,12 @@ def run_anthropic_batch(prompts: list[str]) -> list[dict]:
                 "content": result.result.message.content[0].text,
             })
         else:
-            print(f"エラー: {result.custom_id}: {result.result}")
+            print(f"Error: {result.custom_id}: {result.result}")
 
     return results
 ```
 
-### 3.3 レート制限の管理
+### 3.3 Managing Rate Limits
 
 ```python
 import asyncio
@@ -958,7 +963,7 @@ from collections import deque
 
 @dataclass
 class RateLimiter:
-    """トークンバケットベースのレート制限"""
+    """Token-bucket-based rate limiter"""
     requests_per_minute: int
     tokens_per_minute: int
     _request_times: deque = None
@@ -969,18 +974,18 @@ class RateLimiter:
         self._token_counts = deque()
 
     async def acquire(self, estimated_tokens: int = 1000):
-        """レート制限内でリクエスト可能になるまで待機"""
+        """Wait until a request can be made within the rate limit"""
         while True:
             now = time.time()
-            window = now - 60  # 1分間のウィンドウ
+            window = now - 60  # 1-minute window
 
-            # 古いエントリを削除
+            # Remove stale entries
             while self._request_times and self._request_times[0] < window:
                 self._request_times.popleft()
             while self._token_counts and self._token_counts[0][0] < window:
                 self._token_counts.popleft()
 
-            # 現在のレートを確認
+            # Check current rate
             current_requests = len(self._request_times)
             current_tokens = sum(tc[1] for tc in self._token_counts)
 
@@ -990,7 +995,7 @@ class RateLimiter:
                 self._token_counts.append((now, estimated_tokens))
                 return
 
-            # 最も古いエントリが期限切れになるまで待機
+            # Wait until the oldest entry expires
             if self._request_times:
                 wait_time = self._request_times[0] - window + 0.1
                 await asyncio.sleep(max(wait_time, 0.1))
@@ -998,20 +1003,20 @@ class RateLimiter:
                 await asyncio.sleep(0.1)
 
 
-# 使用例: レート制限付き並列処理
+# Usage example: parallel processing with rate limiting
 async def process_with_rate_limit(
     prompts: list[str],
     rpm: int = 60,
     tpm: int = 100_000,
 ):
-    """レート制限を遵守しながら並列処理"""
+    """Parallel processing while respecting rate limits"""
     from openai import AsyncOpenAI
 
     client = AsyncOpenAI()
     limiter = RateLimiter(requests_per_minute=rpm, tokens_per_minute=tpm)
 
     async def process_one(prompt: str, idx: int) -> dict:
-        estimated_tokens = len(prompt.split()) * 2 + 200  # 概算
+        estimated_tokens = len(prompt.split()) * 2 + 200  # rough estimate
         await limiter.acquire(estimated_tokens)
 
         response = await client.chat.completions.create(
@@ -1032,11 +1037,11 @@ async def process_with_rate_limit(
     successes = [r for r in results if isinstance(r, dict)]
     errors = [r for r in results if isinstance(r, Exception)]
 
-    print(f"成功: {len(successes)}, エラー: {len(errors)}")
+    print(f"Succeeded: {len(successes)}, Errors: {len(errors)}")
     return successes
 ```
 
-### 3.4 リトライとエラーハンドリング
+### 3.4 Retry Logic and Error Handling
 
 ```python
 import asyncio
@@ -1049,7 +1054,7 @@ async def resilient_request(
     max_retries: int = 5,
     base_delay: float = 1.0,
 ) -> str:
-    """指数バックオフ付きリトライ"""
+    """Retry with exponential backoff"""
 
     for attempt in range(max_retries):
         try:
@@ -1062,34 +1067,34 @@ async def resilient_request(
             return response.choices[0].message.content
 
         except RateLimitError as e:
-            # レート制限: より長く待つ
+            # Rate limit: wait longer
             delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
-            # Retry-After ヘッダがあればそれを使用
+            # Use Retry-After header if available
             retry_after = getattr(e, "retry_after", None)
             if retry_after:
                 delay = max(delay, float(retry_after))
-            print(f"レート制限 (attempt {attempt+1}): {delay:.1f}秒待機")
+            print(f"Rate limited (attempt {attempt+1}): waiting {delay:.1f}s")
             await asyncio.sleep(delay)
 
         except APITimeoutError:
             delay = base_delay * (2 ** attempt)
-            print(f"タイムアウト (attempt {attempt+1}): {delay:.1f}秒後にリトライ")
+            print(f"Timeout (attempt {attempt+1}): retrying in {delay:.1f}s")
             await asyncio.sleep(delay)
 
         except APIError as e:
             if e.status_code and e.status_code >= 500:
-                # サーバーエラー: リトライ
+                # Server error: retry
                 delay = base_delay * (2 ** attempt)
-                print(f"サーバーエラー {e.status_code} (attempt {attempt+1})")
+                print(f"Server error {e.status_code} (attempt {attempt+1})")
                 await asyncio.sleep(delay)
             else:
-                # クライアントエラー: リトライしない
+                # Client error: do not retry
                 raise
 
-    raise RuntimeError(f"最大リトライ回数 ({max_retries}) に到達")
+    raise RuntimeError(f"Reached maximum retry count ({max_retries})")
 
 
-# Tenacity ライブラリを使った簡潔なリトライ
+# Concise retry using the Tenacity library
 from tenacity import (
     retry, stop_after_attempt, wait_exponential,
     retry_if_exception_type,
@@ -1109,31 +1114,31 @@ async def reliable_request(client: AsyncOpenAI, prompt: str) -> str:
     return response.choices[0].message.content
 ```
 
-### 比較表 1: 推論パラメータの用途別推奨設定
+### Comparison Table 1: Recommended Parameter Settings by Use Case
 
-| 用途 | temperature | top_p | max_tokens | 備考 |
-|------|-----------|-------|-----------|------|
-| コード生成 | 0.0-0.2 | 1.0 | 十分大きく | 決定的な出力が望ましい |
-| 文章作成 | 0.7-0.9 | 0.95 | 用途に応じて | 多様性と品質のバランス |
-| データ抽出 | 0.0 | 1.0 | 必要最小限 | 正確性重視 |
-| ブレインストーミング | 1.0-1.2 | 0.95 | 大きめ | 創造性重視 |
-| 翻訳 | 0.0-0.3 | 1.0 | 原文の1.5倍程度 | 正確性重視 |
-| 要約 | 0.0-0.3 | 1.0 | 原文の1/3程度 | 正確性重視 |
+| Use Case | temperature | top_p | max_tokens | Notes |
+|----------|-------------|-------|------------|-------|
+| Code generation | 0.0–0.2 | 1.0 | Sufficiently large | Deterministic output preferred |
+| Writing | 0.7–0.9 | 0.95 | As needed | Balance diversity and quality |
+| Data extraction | 0.0 | 1.0 | Minimum necessary | Accuracy-focused |
+| Brainstorming | 1.0–1.2 | 0.95 | Large | Creativity-focused |
+| Translation | 0.0–0.3 | 1.0 | ~1.5x source length | Accuracy-focused |
+| Summarization | 0.0–0.3 | 1.0 | ~1/3 of source length | Accuracy-focused |
 
-### 比較表 2: 推論最適化手法の比較
+### Comparison Table 2: Inference Optimization Techniques
 
-| 手法 | レイテンシ改善 | スループット改善 | コスト削減 | 実装難易度 |
-|------|-------------|----------------|-----------|-----------|
-| ストリーミング | TTFB 大幅改善 | 変わらず | 変わらず | 低 |
-| バッチ処理 | 変わらず | 大幅改善 | 50%削減 (OpenAI) | 中 |
-| プロンプトキャッシュ | 改善 | 改善 | 最大90%削減 | 低 |
-| KV キャッシュ | 改善 | 改善 | 間接的に削減 | 高（ローカルのみ） |
-| 量子化 (ローカル) | 大幅改善 | 改善 | GPU削減 | 中〜高 |
-| Speculative Decoding | 改善 | 改善 | 間接的に削減 | 高 |
+| Technique | Latency Improvement | Throughput Improvement | Cost Reduction | Implementation Complexity |
+|-----------|--------------------|-----------------------|----------------|--------------------------|
+| Streaming | TTFB greatly improved | No change | No change | Low |
+| Batch processing | No change | Greatly improved | 50% (OpenAI) | Medium |
+| Prompt caching | Improved | Improved | Up to 90% | Low |
+| KV cache | Improved | Improved | Indirect | High (local only) |
+| Quantization (local) | Greatly improved | Improved | Reduces GPU cost | Medium–High |
+| Speculative Decoding | Improved | Improved | Indirect | High |
 
 ---
 
-## 4. プロンプトキャッシュ
+## 4. Prompt Caching
 
 ### 4.1 Anthropic Prompt Caching
 
@@ -1142,7 +1147,7 @@ import anthropic
 
 client = anthropic.Anthropic()
 
-# 長いシステムプロンプトをキャッシュ
+# Cache a long system prompt
 long_system = """
 あなたは金融分析の専門家です。以下のルールに従ってください:
 1. 数値は必ず出典を明記する
@@ -1151,7 +1156,7 @@ long_system = """
 ... (数千トークンの詳細ルール)
 """
 
-# cache_control で明示的にキャッシュ指定
+# Explicitly enable caching via cache_control
 response = client.messages.create(
     model="claude-sonnet-4-20250514",
     max_tokens=1000,
@@ -1159,7 +1164,7 @@ response = client.messages.create(
         {
             "type": "text",
             "text": long_system,
-            "cache_control": {"type": "ephemeral"},  # キャッシュ有効化
+            "cache_control": {"type": "ephemeral"},  # enable caching
         }
     ],
     messages=[
@@ -1167,13 +1172,13 @@ response = client.messages.create(
     ],
 )
 
-# キャッシュ利用状況を確認
-print(f"入力トークン: {response.usage.input_tokens}")
-print(f"キャッシュ作成: {response.usage.cache_creation_input_tokens}")
-print(f"キャッシュ利用: {response.usage.cache_read_input_tokens}")
+# Check cache usage
+print(f"Input tokens: {response.usage.input_tokens}")
+print(f"Cache creation: {response.usage.cache_creation_input_tokens}")
+print(f"Cache read: {response.usage.cache_read_input_tokens}")
 
-# 2回目以降のリクエストでは cache_read_input_tokens が増加
-# キャッシュヒット時は入力トークン料金が 90% OFF
+# From the second request onward, cache_read_input_tokens increases
+# Input token cost is 90% cheaper on a cache hit
 ```
 
 ### 4.2 OpenAI Automatic Caching
@@ -1183,10 +1188,10 @@ from openai import OpenAI
 
 client = OpenAI()
 
-# OpenAI は共通プレフィックスを自動キャッシュ (1024トークン以上)
-long_context = "..." * 2000  # 長いコンテキスト
+# OpenAI automatically caches common prefixes (1024+ tokens)
+long_context = "..." * 2000  # long context
 
-# 1回目: キャッシュ作成
+# First request: create cache
 response1 = client.chat.completions.create(
     model="gpt-4o",
     messages=[
@@ -1194,81 +1199,83 @@ response1 = client.chat.completions.create(
         {"role": "user", "content": "質問1"},
     ],
 )
-print(f"キャッシュトークン: {response1.usage.prompt_tokens_details.cached_tokens}")
+print(f"Cached tokens: {response1.usage.prompt_tokens_details.cached_tokens}")
 
-# 2回目: 同じプレフィックスならキャッシュヒット (50% OFF)
+# Second request: cache hit if the same prefix is used (50% OFF)
 response2 = client.chat.completions.create(
     model="gpt-4o",
     messages=[
-        {"role": "system", "content": long_context},  # 同じ
-        {"role": "user", "content": "質問2"},           # 異なる
+        {"role": "system", "content": long_context},  # same
+        {"role": "user", "content": "質問2"},           # different
     ],
 )
-print(f"キャッシュトークン: {response2.usage.prompt_tokens_details.cached_tokens}")
+print(f"Cached tokens: {response2.usage.prompt_tokens_details.cached_tokens}")
 ```
 
 ---
 
-## 5. 高度な推論最適化
+## 5. Advanced Inference Optimization
 
 ### 5.1 Speculative Decoding
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│         Speculative Decoding の仕組み                      │
+│         How Speculative Decoding Works                   │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  通常のデコーディング (Auto-Regressive):                  │
-│  大モデル: [t1] → [t2] → [t3] → [t4] → [t5]           │
-│  各ステップで大モデルの全計算が必要                        │
-│  レイテンシ: 5 × T_large                                 │
+│  Standard decoding (Auto-Regressive):                    │
+│  Large model: [t1] → [t2] → [t3] → [t4] → [t5]        │
+│  Each step requires full computation by the large model  │
+│  Latency: 5 × T_large                                   │
 │                                                          │
 │  Speculative Decoding:                                   │
-│  小モデル: [t1, t2, t3, t4, t5] ← 高速に推測生成        │
-│  大モデル: [t1, t2, t3, ?, ?]   ← 一括検証              │
-│            t1 ✓  t2 ✓  t3 ✓  t4 ✗ (却下)              │
-│  大モデル: [t4'] → [t5']        ← 却下箇所から再生成    │
+│  Small model: [t1, t2, t3, t4, t5] ← fast draft        │
+│  Large model: [t1, t2, t3, ?, ?]   ← batch verify      │
+│               t1 ✓  t2 ✓  t3 ✓  t4 ✗ (rejected)       │
+│  Large model: [t4'] → [t5']        ← regenerate         │
+│                                    from rejection point  │
 │                                                          │
-│  メリット:                                                │
-│  - 出力品質は大モデルと完全に同一 (保証あり)             │
-│  - 小モデルの推測が当たれば 2-3 倍高速化                 │
-│  - GPU メモリの追加消費は小モデル分のみ                  │
+│  Benefits:                                               │
+│  - Output quality is identical to the large model        │
+│    (guaranteed)                                          │
+│  - 2–3x speedup when draft tokens are accepted           │
+│  - Additional GPU memory is only for the small model     │
 │                                                          │
-│  デメリット:                                              │
-│  - 小モデルの推測精度が低いと効果が薄い                  │
-│  - 実装の複雑さ                                          │
-│  - バッチ推論では効果が限定的                             │
+│  Drawbacks:                                              │
+│  - Low draft accuracy reduces the benefit                │
+│  - Implementation complexity                             │
+│  - Limited benefit in batch inference                    │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 KV キャッシュの最適化
+### 5.2 KV Cache Optimization
 
 ```python
-# vLLM での KV キャッシュ設定
+# KV cache configuration with vLLM
 """
 vllm serve meta-llama/Llama-3.1-8B-Instruct \
     --dtype bfloat16 \
     --gpu-memory-utilization 0.9 \
     --max-model-len 8192 \
-    --enable-prefix-caching \        # プレフィックスキャッシュ有効化
-    --max-num-batched-tokens 32768   # バッチトークン数上限
+    --enable-prefix-caching \        # enable prefix caching
+    --max-num-batched-tokens 32768   # maximum batched tokens
 """
 
-# プレフィックスキャッシュの効果:
-# 同じシステムプロンプトを持つリクエストが連続する場合、
-# KV キャッシュを再利用して TTFT を大幅短縮
+# Effect of prefix caching:
+# When consecutive requests share the same system prompt,
+# reusing the KV cache greatly reduces TTFT.
 
-# llama.cpp での KV キャッシュ設定
+# KV cache configuration with llama.cpp
 """
 ./llama-server \
     -m model.gguf \
-    -c 8192 \          # コンテキスト長
-    --cache-type-k q8_0 \  # K キャッシュを 8bit 量子化
-    --cache-type-v q8_0 \  # V キャッシュを 8bit 量子化
-    -ngl 99                 # 全レイヤー GPU
+    -c 8192 \          # context length
+    --cache-type-k q8_0 \  # quantize K cache to 8-bit
+    --cache-type-v q8_0 \  # quantize V cache to 8-bit
+    -ngl 99                 # all layers on GPU
 """
 
-# KV キャッシュのメモリ計算
+# KV cache memory calculation
 def estimate_kv_cache_memory(
     num_layers: int = 32,
     num_heads: int = 32,
@@ -1277,8 +1284,8 @@ def estimate_kv_cache_memory(
     batch_size: int = 1,
     dtype_bytes: int = 2,  # FP16 = 2 bytes
 ) -> float:
-    """KV キャッシュのメモリ使用量を推定 (GB)"""
-    # K と V の両方
+    """Estimate KV cache memory usage (GB)"""
+    # Both K and V
     kv_cache_bytes = (
         2 *  # K + V
         num_layers *
@@ -1290,15 +1297,15 @@ def estimate_kv_cache_memory(
     )
     return kv_cache_bytes / (1024 ** 3)
 
-# Llama 3.1 8B の場合
+# For Llama 3.1 8B
 memory_gb = estimate_kv_cache_memory(
     num_layers=32, num_heads=32, head_dim=128,
     seq_len=8192, batch_size=1, dtype_bytes=2,
 )
-print(f"KV キャッシュ: {memory_gb:.2f} GB")  # ~2GB
+print(f"KV cache: {memory_gb:.2f} GB")  # ~2GB
 ```
 
-### 5.3 Structured Output (構造化出力)
+### 5.3 Structured Output
 
 ```python
 from openai import OpenAI
@@ -1307,7 +1314,7 @@ from typing import Optional
 
 client = OpenAI()
 
-# Pydantic モデルで出力スキーマを定義
+# Define the output schema with a Pydantic model
 class MovieReview(BaseModel):
     title: str
     rating: float
@@ -1315,7 +1322,7 @@ class MovieReview(BaseModel):
     key_points: list[str]
     recommendation: bool
 
-# Structured Outputs API (100% スキーマ準拠を保証)
+# Structured Outputs API (guarantees 100% schema compliance)
 response = client.beta.chat.completions.parse(
     model="gpt-4o",
     messages=[
@@ -1326,13 +1333,13 @@ response = client.beta.chat.completions.parse(
 )
 
 review = response.choices[0].message.parsed
-print(f"タイトル: {review.title}")
-print(f"評価: {review.rating}")
-print(f"感情: {review.sentiment}")
-print(f"推奨: {review.recommendation}")
+print(f"Title: {review.title}")
+print(f"Rating: {review.rating}")
+print(f"Sentiment: {review.sentiment}")
+print(f"Recommendation: {review.recommendation}")
 
 
-# Claude での JSON 出力
+# JSON output with Claude
 import anthropic
 import json
 
@@ -1352,11 +1359,11 @@ response = client_claude.messages.create(
     }],
 )
 
-# Claude は JSON Mode がないため、パース時にエラーハンドリング必要
+# Claude has no JSON Mode, so handle parse errors explicitly
 try:
     data = json.loads(response.content[0].text)
 except json.JSONDecodeError:
-    # テキスト中から JSON 部分を抽出
+    # Extract the JSON portion from the text
     import re
     json_match = re.search(r'\{.*\}', response.content[0].text, re.DOTALL)
     if json_match:
@@ -1365,9 +1372,9 @@ except json.JSONDecodeError:
 
 ---
 
-## 6. パフォーマンス計測とモニタリング
+## 6. Performance Measurement and Monitoring
 
-### 6.1 推論メトリクスの計測
+### 6.1 Measuring Inference Metrics
 
 ```python
 import time
@@ -1376,13 +1383,13 @@ from typing import Optional
 
 @dataclass
 class InferenceMetrics:
-    """推論パフォーマンスメトリクス"""
-    ttfb: float = 0.0          # Time To First Byte (秒)
-    total_time: float = 0.0     # 総応答時間 (秒)
-    input_tokens: int = 0       # 入力トークン数
-    output_tokens: int = 0      # 出力トークン数
-    tokens_per_second: float = 0.0  # 出力速度 (tok/s)
-    cost: float = 0.0           # コスト ($)
+    """Inference performance metrics"""
+    ttfb: float = 0.0          # Time To First Byte (seconds)
+    total_time: float = 0.0     # Total response time (seconds)
+    input_tokens: int = 0       # Number of input tokens
+    output_tokens: int = 0      # Number of output tokens
+    tokens_per_second: float = 0.0  # Output speed (tok/s)
+    cost: float = 0.0           # Cost ($)
     model: str = ""
     cached_tokens: int = 0
 
@@ -1403,9 +1410,9 @@ async def measure_inference(
     client,
     model: str,
     prompt: str,
-    pricing: tuple = (0.15, 0.60),  # (入力$/1M, 出力$/1M)
+    pricing: tuple = (0.15, 0.60),  # (input $/1M, output $/1M)
 ) -> tuple[str, InferenceMetrics]:
-    """推論のパフォーマンスを計測"""
+    """Measure inference performance"""
     metrics = InferenceMetrics(model=model)
     start = time.time()
     first_token_time = None
@@ -1437,7 +1444,7 @@ async def measure_inference(
     if metrics.output_tokens > 0 and metrics.total_time > 0:
         metrics.tokens_per_second = metrics.output_tokens / metrics.total_time
 
-    # コスト計算
+    # Cost calculation
     in_price, out_price = pricing
     metrics.cost = (
         (metrics.input_tokens / 1_000_000) * in_price +
@@ -1447,14 +1454,14 @@ async def measure_inference(
     return full_text, metrics
 ```
 
-### 6.2 ダッシュボード用集計
+### 6.2 Aggregation for Dashboards
 
 ```python
 from collections import defaultdict
 import statistics
 
 class InferenceMonitor:
-    """推論パフォーマンスの継続モニタリング"""
+    """Continuous inference performance monitoring"""
 
     def __init__(self):
         self.metrics_history: list[InferenceMetrics] = []
@@ -1463,7 +1470,7 @@ class InferenceMonitor:
         self.metrics_history.append(metrics)
 
     def summary(self, last_n: int = 100) -> dict:
-        """直近 N 件の集計サマリー"""
+        """Aggregated summary for the most recent N requests"""
         recent = self.metrics_history[-last_n:]
 
         if not recent:
@@ -1487,78 +1494,80 @@ class InferenceMonitor:
         }
 
     def print_report(self):
-        """レポート出力"""
+        """Print report"""
         s = self.summary()
         if not s:
-            print("データなし")
+            print("No data")
             return
 
-        print("=== 推論パフォーマンスレポート ===")
-        print(f"リクエスト数: {s['total_requests']}")
+        print("=== Inference Performance Report ===")
+        print(f"Requests: {s['total_requests']}")
         print(f"TTFB (avg/p50/p95): {s['avg_ttfb']:.3f}s / "
               f"{s['p50_ttfb']:.3f}s / {s['p95_ttfb']:.3f}s")
-        print(f"総応答時間 (avg): {s['avg_total_time']:.3f}s")
-        print(f"出力速度 (avg): {s['avg_tokens_per_second']:.1f} tok/s")
-        print(f"トークン合計: IN={s['total_input_tokens']:,} / OUT={s['total_output_tokens']:,}")
-        print(f"総コスト: ${s['total_cost']:.4f}")
-        print(f"リクエスト単価: ${s['avg_cost_per_request']:.6f}")
-        print(f"キャッシュヒット率: {s['cache_hit_rate']:.1%}")
+        print(f"Total time (avg): {s['avg_total_time']:.3f}s")
+        print(f"Output speed (avg): {s['avg_tokens_per_second']:.1f} tok/s")
+        print(f"Total tokens: IN={s['total_input_tokens']:,} / OUT={s['total_output_tokens']:,}")
+        print(f"Total cost: ${s['total_cost']:.4f}")
+        print(f"Cost per request: ${s['avg_cost_per_request']:.6f}")
+        print(f"Cache hit rate: {s['cache_hit_rate']:.1%}")
 ```
 
 ---
 
-## 7. トラブルシューティング
+## 7. Troubleshooting
 
-### 7.1 よくある問題と対処法
+### 7.1 Common Issues and Solutions
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│         推論トラブルシューティングガイド                     │
+│         Inference Troubleshooting Guide                  │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  問題 1: 出力が途中で切れる                                │
-│  原因: max_tokens が不足                                  │
-│  対処:                                                    │
-│  - finish_reason を確認 ("length" なら切れている)         │
-│  - max_tokens を増やす                                   │
-│  - 出力が長い場合は分割リクエストを検討                    │
+│  Issue 1: Output is cut off mid-way                      │
+│  Cause: max_tokens is too small                          │
+│  Solution:                                               │
+│  - Check finish_reason ("length" means it was cut off)   │
+│  - Increase max_tokens                                   │
+│  - Consider splitting into multiple requests for long    │
+│    outputs                                               │
 │                                                          │
-│  問題 2: レスポンスが遅い                                  │
-│  原因: モデルサイズ、入力長、サーバー負荷                  │
-│  対処:                                                    │
-│  - Flash/mini 系モデルに切り替え                          │
-│  - 入力プロンプトを短縮                                   │
-│  - ストリーミングで TTFB を改善                           │
-│  - プロンプトキャッシュを有効化                            │
+│  Issue 2: Slow response                                  │
+│  Cause: model size, input length, server load            │
+│  Solution:                                               │
+│  - Switch to a Flash/mini model                          │
+│  - Shorten the input prompt                              │
+│  - Use streaming to improve TTFB                         │
+│  - Enable prompt caching                                 │
 │                                                          │
-│  問題 3: 429 Too Many Requests                           │
-│  原因: レート制限に到達                                    │
-│  対処:                                                    │
-│  - 指数バックオフ付きリトライ                              │
-│  - Retry-After ヘッダに従う                               │
-│  - 並列数を減らす                                        │
-│  - バッチ API に切り替え                                  │
-│  - 利用枠の増加を申請                                     │
+│  Issue 3: 429 Too Many Requests                          │
+│  Cause: rate limit reached                               │
+│  Solution:                                               │
+│  - Retry with exponential backoff                        │
+│  - Respect the Retry-After header                        │
+│  - Reduce parallelism                                    │
+│  - Switch to Batch API                                   │
+│  - Request a quota increase                              │
 │                                                          │
-│  問題 4: 出力が毎回異なる (再現性の欠如)                   │
-│  原因: サンプリングのランダム性                             │
-│  対処:                                                    │
-│  - temperature=0 に設定                                   │
-│  - seed パラメータを指定                                  │
-│  - system_fingerprint をログに記録                        │
-│  - モデルバージョンを固定                                 │
+│  Issue 4: Output varies each time (lack of              │
+│  reproducibility)                                        │
+│  Cause: randomness of sampling                           │
+│  Solution:                                               │
+│  - Set temperature=0                                     │
+│  - Specify the seed parameter                            │
+│  - Log the system_fingerprint                            │
+│  - Pin the model version                                 │
 │                                                          │
-│  問題 5: JSON 出力が壊れる                                │
-│  原因: 非構造化出力の不安定性                              │
-│  対処:                                                    │
-│  - response_format: json_object を指定 (OpenAI)          │
-│  - Structured Outputs API を使用                         │
-│  - 出力パース時にエラーハンドリング                        │
-│  - リトライ + バリデーション                               │
+│  Issue 5: JSON output is malformed                       │
+│  Cause: instability of unstructured output               │
+│  Solution:                                               │
+│  - Specify response_format: json_object (OpenAI)         │
+│  - Use the Structured Outputs API                        │
+│  - Add error handling when parsing output                │
+│  - Retry + validate                                      │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 7.2 デバッグ用コード
+### 7.2 Debugging Code
 
 ```python
 import json
@@ -1568,11 +1577,11 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("inference")
 
 def debug_response(response, model: str = "unknown"):
-    """レスポンスの詳細デバッグ情報を出力"""
+    """Output detailed debug information for a response"""
 
     choice = response.choices[0]
 
-    logger.info(f"=== {model} レスポンスデバッグ ===")
+    logger.info(f"=== {model} Response Debug ===")
     logger.info(f"finish_reason: {choice.finish_reason}")
     logger.info(f"input_tokens: {response.usage.prompt_tokens}")
     logger.info(f"output_tokens: {response.usage.completion_tokens}")
@@ -1585,18 +1594,18 @@ def debug_response(response, model: str = "unknown"):
     if hasattr(response, "system_fingerprint"):
         logger.info(f"system_fingerprint: {response.system_fingerprint}")
 
-    # 出力の最初と最後を表示
+    # Show the beginning and end of the output
     content = choice.message.content
     if content:
         logger.info(f"output_length: {len(content)} chars")
         logger.info(f"first_100: {content[:100]}")
         logger.info(f"last_100: {content[-100:]}")
 
-    # finish_reason の診断
+    # Diagnose finish_reason
     if choice.finish_reason == "length":
-        logger.warning("出力が max_tokens で切れています。値を増やしてください。")
+        logger.warning("Output was cut off by max_tokens. Increase the value.")
     elif choice.finish_reason == "content_filter":
-        logger.warning("コンテンツフィルタにより出力がブロックされました。")
+        logger.warning("Output was blocked by the content filter.")
 
     return {
         "finish_reason": choice.finish_reason,
@@ -1607,44 +1616,44 @@ def debug_response(response, model: str = "unknown"):
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン 1: temperature と top_p の同時変更
+### Anti-Pattern 1: Changing Both temperature and top_p Simultaneously
 
 ```
-誤: 両方を極端に設定
+Wrong: setting both to extreme values
   temperature=0.2, top_p=0.3
-  → 予測困難な挙動、過度に制約された出力
+  → unpredictable behavior, overly constrained output
 
-正: 片方を固定し、もう片方だけ調整
-  temperature=0.7, top_p=1.0  # temperature のみ調整
-  temperature=1.0, top_p=0.8  # top_p のみ調整
+Correct: fix one and adjust only the other
+  temperature=0.7, top_p=1.0  # adjust temperature only
+  temperature=1.0, top_p=0.8  # adjust top_p only
 ```
 
-### アンチパターン 2: max_tokens を常に最大値に設定
+### Anti-Pattern 2: Always Setting max_tokens to the Maximum Value
 
 ```
-誤: max_tokens=4096 を全リクエストに設定
-  → 不要な長文生成、コスト増大、レイテンシ増加
+Wrong: setting max_tokens=4096 for every request
+  → unnecessary long-form generation, higher costs, increased latency
 
-正: タスクに応じた適切な上限設定
-  - 分類: max_tokens=10
-  - 要約: max_tokens=500
-  - コード生成: max_tokens=2000
-  - 長文作成: max_tokens=4000
+Correct: set appropriate limits based on the task
+  - Classification:   max_tokens=10
+  - Summarization:    max_tokens=500
+  - Code generation:  max_tokens=2000
+  - Long-form writing: max_tokens=4000
 ```
 
-### アンチパターン 3: エラーハンドリングなしの API 呼び出し
+### Anti-Pattern 3: API Calls Without Error Handling
 
 ```python
-# NG: エラーハンドリングなし
+# Bad: no error handling
 response = client.chat.completions.create(
     model="gpt-4o",
     messages=[{"role": "user", "content": prompt}],
 )
 result = response.choices[0].message.content
 
-# OK: 包括的なエラーハンドリング
+# Good: comprehensive error handling
 try:
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -1653,26 +1662,26 @@ try:
     )
 
     if response.choices[0].finish_reason == "length":
-        logger.warning("出力が切れています")
+        logger.warning("Output was cut off")
     elif response.choices[0].finish_reason == "content_filter":
-        logger.warning("コンテンツフィルタ発動")
+        logger.warning("Content filter triggered")
 
     result = response.choices[0].message.content
 
 except RateLimitError:
-    # リトライロジック
+    # retry logic
     pass
 except APITimeoutError:
-    # タイムアウト処理
+    # timeout handling
     pass
 except APIError as e:
-    logger.error(f"API エラー: {e.status_code} - {e.message}")
+    logger.error(f"API error: {e.status_code} - {e.message}")
 ```
 
-### アンチパターン 4: ストリーミング応答の未処理中断
+### Anti-Pattern 4: Not Handling Streaming Interruptions Properly
 
 ```python
-# NG: ストリーミング中のリソースリーク
+# Bad: potential resource leak during streaming
 stream = client.chat.completions.create(
     model="gpt-4o",
     messages=[{"role": "user", "content": prompt}],
@@ -1680,9 +1689,9 @@ stream = client.chat.completions.create(
 )
 for chunk in stream:
     if some_condition:
-        break  # ストリームが適切にクローズされない可能性
+        break  # stream may not be properly closed
 
-# OK: コンテキストマネージャーで確実にクリーンアップ
+# Good: guaranteed cleanup with a context manager
 with client.chat.completions.create(
     model="gpt-4o",
     messages=[{"role": "user", "content": prompt}],
@@ -1690,65 +1699,65 @@ with client.chat.completions.create(
 ) as stream:
     for chunk in stream:
         if some_condition:
-            break  # __exit__ で確実にクリーンアップ
+            break  # __exit__ ensures cleanup
 ```
 
 ---
 
 ## FAQ
 
-### Q1: temperature=0 でも同じプロンプトで異なる結果が出ることがありますか？
+### Q1: Can the same prompt produce different results even with temperature=0?
 
-**A:** はい、あります。GPU の浮動小数点演算の非決定性や、バッチ処理の影響で、temperature=0 でも完全に同一の結果は保証されません。OpenAI では `seed` パラメータで再現性を高めることができますが、100%の保証はありません。
+**A:** Yes, it can. Due to non-determinism in GPU floating-point arithmetic and the effects of batching, identical results are not guaranteed even with temperature=0. OpenAI's `seed` parameter can improve reproducibility, but does not provide a 100% guarantee.
 
-### Q2: ストリーミングを使うとコストは変わりますか？
+### Q2: Does using streaming change the cost?
 
-**A:** いいえ、トークン消費量（コスト）は同じです。ストリーミングは応答の配信方法が異なるだけで、生成されるトークン数は変わりません。ただし、ストリーミングでは接続が長時間維持されるため、サーバーリソースの消費パターンが異なります。
+**A:** No, the token consumption (and therefore cost) is the same. Streaming only changes how the response is delivered; the number of tokens generated does not change. However, because streaming keeps the connection open longer, the server resource consumption pattern differs.
 
-### Q3: バッチ処理はいつ使うべきですか？
+### Q3: When should I use batch processing?
 
-**A:** リアルタイム応答が不要な大量処理（数百〜数万リクエスト）に最適です。例えば、大量のドキュメント分類、データセットのラベリング、コンテンツ生成などです。OpenAI の Batch API は 50% 割引、Anthropic のバッチ API も同様の割引があり、24時間以内に結果が返されます。
+**A:** It is ideal for high-volume workloads (hundreds to tens of thousands of requests) where real-time responses are not required — for example, bulk document classification, dataset labeling, or content generation. The OpenAI Batch API offers a 50% discount, and Anthropic's Batch API offers a similar discount, with results returned within 24 hours.
 
-### Q4: プロンプトキャッシュの効果はどのくらいですか？
+### Q4: How effective is prompt caching?
 
-**A:** Anthropic のプロンプトキャッシュでは、キャッシュヒット時に入力トークンの料金が 90% 削減されます。OpenAI では 50% 削減です。長いシステムプロンプトや RAG コンテキストを繰り返し使用する場合に特に効果的で、月間コストを 40-70% 削減できるケースがあります。キャッシュの有効期限は Anthropic が 5 分、OpenAI が自動管理です。
+**A:** With Anthropic's prompt caching, input token costs are reduced by 90% on a cache hit. OpenAI offers a 50% reduction. The benefit is especially significant when repeatedly using long system prompts or RAG contexts, and can reduce monthly costs by 40–70% in some cases. Cache expiry is 5 minutes for Anthropic; OpenAI manages it automatically.
 
-### Q5: Logprobs は何に使えますか？
+### Q5: What can Logprobs be used for?
 
-**A:** 主に以下の用途があります。(1) 信頼度スコアの計算 -- 各トークンの確率から生成全体の信頼度を推定、(2) 自動フォールバック -- 低信頼度の場合に別モデルに切り替え、(3) 分類タスクの確率推定 -- Yes/No の確率を直接取得、(4) ハルシネーション検出 -- 低確率トークンが多い箇所を特定。ただし、Claude API では logprobs は提供されていません。
+**A:** The main use cases are: (1) computing confidence scores — estimating overall generation confidence from per-token probabilities; (2) automatic fallback — switching to a different model when confidence is low; (3) estimating probabilities for classification tasks — retrieving Yes/No probabilities directly; and (4) hallucination detection — identifying regions with many low-probability tokens. Note that the Claude API does not provide logprobs.
 
-### Q6: Structured Outputs と JSON Mode の違いは？
+### Q6: What is the difference between Structured Outputs and JSON Mode?
 
-**A:** JSON Mode (response_format: json_object) は「JSON 形式であること」のみを保証しますが、スキーマの準拠は保証しません。Structured Outputs は Pydantic モデル等で定義したスキーマに 100% 準拠した出力を保証します。重要なデータ抽出には Structured Outputs を使い、柔軟な JSON 出力には JSON Mode を使うのが推奨です。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| temperature | 0.0（決定的）〜 1.5（高多様性）で出力のランダム性を制御 |
-| top_p | 累積確率で候補トークンをフィルタリング |
-| ストリーミング | TTFB を大幅短縮、UX 向上に必須 |
-| バッチ処理 | 大量リクエストの並列・非同期処理でコスト削減 |
-| max_tokens | タスクに応じた適切な設定でコスト最適化 |
-| プロンプトキャッシュ | 繰り返しプレフィックスで最大 90% コスト削減 |
-| Logprobs | 信頼度推定、フォールバック判断に活用 |
-| Structured Outputs | スキーマ準拠の構造化出力を保証 |
-| 推論最適化 | キャッシュ・量子化・バッチの組み合わせが効果的 |
-| エラーハンドリング | 指数バックオフ、タイムアウト、リトライが必須 |
+**A:** JSON Mode (`response_format: json_object`) only guarantees that the output is valid JSON; it does not guarantee schema compliance. Structured Outputs guarantees 100% compliance with a schema defined using Pydantic models or similar tools. The recommended approach is to use Structured Outputs for critical data extraction and JSON Mode for flexible JSON output.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [03-fine-tuning.md](./03-fine-tuning.md) — ファインチューニングによるモデルのカスタマイズ
-- [../02-applications/00-prompt-engineering.md](../02-applications/00-prompt-engineering.md) — プロンプト設計の技法
-- [../03-infrastructure/00-api-integration.md](../03-infrastructure/00-api-integration.md) — API 統合の実践
+| Topic | Key Point |
+|-------|-----------|
+| temperature | Controls output randomness from 0.0 (deterministic) to 1.5 (high diversity) |
+| top_p | Filters candidate tokens by cumulative probability |
+| Streaming | Greatly reduces TTFB; essential for UX improvement |
+| Batch processing | Reduces cost via parallel/async processing of large request volumes |
+| max_tokens | Optimize cost by setting appropriate limits per task |
+| Prompt caching | Up to 90% cost reduction by reusing repeated prefixes |
+| Logprobs | Useful for confidence estimation and fallback decisions |
+| Structured Outputs | Guarantees schema-compliant structured output |
+| Inference optimization | Combining caching, quantization, and batching is most effective |
+| Error handling | Exponential backoff, timeouts, and retries are essential |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
+
+- [03-fine-tuning.md](./03-fine-tuning.md) — Customizing models through fine-tuning
+- [../02-applications/00-prompt-engineering.md](../02-applications/00-prompt-engineering.md) — Prompt design techniques
+- [../03-infrastructure/00-api-integration.md](../03-infrastructure/00-api-integration.md) — Practical API integration
+
+---
+
+## References
 
 1. Holtzman, A. et al. (2020). "The Curious Case of Neural Text Degeneration." *ICLR 2020*. https://arxiv.org/abs/1904.09751
 2. Anthropic. "Messages API Reference." https://docs.anthropic.com/en/api/messages
