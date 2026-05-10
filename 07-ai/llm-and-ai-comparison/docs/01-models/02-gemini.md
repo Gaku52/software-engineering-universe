@@ -1,100 +1,98 @@
-# Gemini — Google DeepMind の統合マルチモーダル LLM
+# Gemini — Google DeepMind's Unified Multimodal LLM
 
-> Gemini は Google DeepMind が開発したマルチモーダルネイティブ LLM であり、テキスト・画像・音声・動画・コードを単一モデルで処理する次世代アーキテクチャを採用している。
+> Gemini is a multimodal-native LLM developed by Google DeepMind, using a next-generation architecture that processes text, images, audio, video, and code within a single model.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **Gemini のアーキテクチャと特徴** — Mixture of Experts、マルチモーダルネイティブ設計、長大コンテキストウィンドウの仕組み
-2. **モデルラインナップと使い分け** — Ultra / Pro / Flash / Nano の性能差・コスト・適用領域
-3. **Gemini API の実践的利用** — Google AI Studio・Vertex AI 経由での統合方法とベストプラクティス
+1. **Gemini's Architecture and Features** — Mixture of Experts, multimodal-native design, and how the massive context window works
+2. **Model Lineup and Selection** — Performance differences, costs, and use cases for Ultra / Pro / Flash / Nano
+3. **Practical Use of the Gemini API** — Integration via Google AI Studio and Vertex AI, with best practices
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [GPT — OpenAI の大規模言語モデル](./01-gpt.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of relevant foundational concepts
+- Familiarity with [GPT — OpenAI's Large Language Model](./01-gpt.md)
 
 ---
 
-## 1. Gemini のアーキテクチャ
+## 1. Gemini's Architecture
 
-### 1.1 マルチモーダルネイティブ設計
+### 1.1 Multimodal-Native Design
 
-Gemini は従来の「テキストモデル + 視覚エンコーダの後付け」とは異なり、
-訓練段階から複数モダリティを統合して学習するネイティブマルチモーダルアーキテクチャを採用している。
+Unlike the traditional approach of "text model + bolted-on visual encoder," Gemini uses a natively multimodal architecture that learns from multiple modalities integrated together from the training stage.
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              Gemini アーキテクチャ概要             │
+│              Gemini Architecture Overview        │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  入力モダリティ        統合エンコーダ              │
+│  Input Modalities      Unified Encoder          │
 │  ┌──────────┐                                   │
-│  │ テキスト  │──┐                                │
+│  │  Text    │──┐                                │
 │  └──────────┘  │    ┌──────────────────┐        │
-│  ┌──────────┐  ├──▶│  Unified Decoder  │──▶出力 │
-│  │  画像    │──┤    │  (Transformer)    │        │
+│  ┌──────────┐  ├──▶│  Unified Decoder  │──▶Output│
+│  │  Image   │──┤    │  (Transformer)    │        │
 │  └──────────┘  │    └──────────────────┘        │
 │  ┌──────────┐  │                                │
-│  │  音声    │──┤    特徴:                        │
-│  └──────────┘  │    - 各モダリティを同一          │
-│  ┌──────────┐  │      潜在空間にマッピング        │
-│  │  動画    │──┤    - クロスモーダル注意機構       │
-│  └──────────┘  │    - 統一トークン化              │
+│  │  Audio   │──┤    Features:                   │
+│  └──────────┘  │    - Each modality mapped to   │
+│  ┌──────────┐  │      the same latent space     │
+│  │  Video   │──┤    - Cross-modal attention      │
+│  └──────────┘  │    - Unified tokenization       │
 │  ┌──────────┐  │                                │
-│  │  コード  │──┘                                │
+│  │  Code    │──┘                                │
 │  └──────────┘                                   │
 └─────────────────────────────────────────────────┘
 ```
 
-#### マルチモーダルネイティブと後付けアプローチの違い
+#### Difference Between Multimodal-Native and Bolted-On Approaches
 
 ```
 ┌────────────────────────────────────────────────────────────┐
-│      後付けアプローチ (GPT-4V 初期) vs ネイティブ (Gemini)   │
+│   Bolted-On Approach (early GPT-4V) vs Native (Gemini)     │
 ├────────────────────────────────────────────────────────────┤
 │                                                            │
-│  後付けアプローチ:                                          │
+│  Bolted-On Approach:                                       │
 │  ┌────────┐   ┌─────────┐   ┌──────────┐                 │
-│  │ 画像   │→  │ 視覚     │→  │テキスト  │→ LLM → 出力    │
-│  │        │   │ エンコーダ│   │ 変換    │                  │
+│  │ Image  │→  │ Visual  │→  │  Text   │→ LLM → Output   │
+│  │        │   │ Encoder │   │ Convert │                  │
 │  └────────┘   └─────────┘   └──────────┘                 │
-│  - 視覚情報がテキスト空間に「翻訳」される                     │
-│  - モダリティ間の微妙な関係性が失われやすい                   │
-│  - 音声・動画への拡張が困難                                  │
+│  - Visual information is "translated" into the text space  │
+│  - Subtle cross-modal relationships are easily lost        │
+│  - Difficult to extend to audio and video                  │
 │                                                            │
-│  ネイティブアプローチ (Gemini):                              │
+│  Native Approach (Gemini):                                 │
 │  ┌────────┐                                                │
-│  │ 画像   │──┐                                             │
+│  │ Image  │──┐                                             │
 │  ├────────┤  │  ┌──────────────────┐                      │
-│  │ テキスト│──┼─▶│ 統合 Transformer │→ 出力               │
-│  ├────────┤  │  │ (共有パラメータ)  │                      │
-│  │ 音声   │──┘  └──────────────────┘                      │
+│  │  Text  │──┼─▶│ Unified Transformer│→ Output            │
+│  ├────────┤  │  │ (Shared Parameters)│                    │
+│  │ Audio  │──┘  └──────────────────┘                      │
 │  └────────┘                                                │
-│  - 全モダリティが同一の潜在空間で学習                        │
-│  - クロスモーダルな推論が自然に行える                        │
-│  - 新しいモダリティの追加が比較的容易                        │
+│  - All modalities trained in the same latent space         │
+│  - Cross-modal reasoning occurs naturally                  │
+│  - Adding new modalities is relatively easy                │
 └────────────────────────────────────────────────────────────┘
 ```
 
 ### 1.2 Mixture of Experts (MoE)
 
-Gemini 1.5 以降は MoE アーキテクチャを採用し、推論時に一部の Expert のみを活性化することで、
-パラメータ総数に対して計算コストを大幅に削減している。
+From Gemini 1.5 onward, the MoE architecture is used, where only a subset of Experts is activated during inference, dramatically reducing computation costs relative to total parameter count.
 
 ```
 ┌───────────────────────────────────────────────┐
 │           Mixture of Experts (MoE)            │
 ├───────────────────────────────────────────────┤
 │                                               │
-│  入力トークン                                  │
+│  Input Token                                  │
 │      │                                        │
 │      ▼                                        │
 │  ┌────────┐                                   │
-│  │ Router │  ← トークンごとに Expert を選択     │
+│  │ Router │  ← Selects Expert per token       │
 │  └────────┘                                   │
 │    │    │    │                                 │
 │    ▼    ▼    ▼                                 │
@@ -102,17 +100,17 @@ Gemini 1.5 以降は MoE アーキテクチャを採用し、推論時に一部�
 │  │E1│ │E2│ │E3│ │E4│ │E5│ │E6│ │E7│ │E8│   │
 │  └──┘ └──┘ └──┘ └──┘ └──┘ └──┘ └──┘ └──┘   │
 │   ★         ★                   ★            │
-│   活性化     活性化              活性化         │
+│  Active    Active              Active         │
 │                                               │
-│  ★ = 選択された Expert のみ計算               │
-│  総パラメータ数 >> 活性パラメータ数             │
-│  → 大容量の知識 + 低い推論コスト               │
+│  ★ = Only selected Experts are computed      │
+│  Total params >> Active params               │
+│  → Large knowledge base + Low inference cost │
 └───────────────────────────────────────────────┘
 ```
 
-#### MoE の技術的詳細
+#### Technical Details of MoE
 
-MoE アーキテクチャでは、各 Transformer ブロックの FFN (Feed-Forward Network) 層を複数の Expert に置き換え、Router ネットワークがトークンごとに最適な Expert を選択する。
+In the MoE architecture, the FFN (Feed-Forward Network) layer of each Transformer block is replaced by multiple Experts, and a Router network selects the optimal Expert for each token.
 
 ```python
 # MoE の概念的な実装
@@ -174,29 +172,29 @@ class MoELayer(nn.Module):
 # → GPT-4o 級の性能を 1/8 の計算コストで実現
 ```
 
-#### Router の負荷分散メカニズム
+#### Router Load Balancing Mechanism
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│         Router の負荷分散問題と解決策                       │
+│         Router Load Balancing Problem and Solution        │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  問題: Expert Collapse (一部の Expert に偏る)              │
+│  Problem: Expert Collapse (bias toward certain Experts)  │
 │                                                          │
-│  負荷分散なし:                                            │
-│  E1 ████████████████  ← 全トークンがここに集中            │
+│  Without load balancing:                                 │
+│  E1 ████████████████  ← All tokens concentrated here    │
 │  E2 ██                                                   │
 │  E3 █                                                    │
 │  E4 █                                                    │
-│  E5 ░ (未使用)                                           │
-│  E6 ░ (未使用)                                           │
-│  E7 ░ (未使用)                                           │
-│  E8 ░ (未使用)                                           │
+│  E5 ░ (unused)                                           │
+│  E6 ░ (unused)                                           │
+│  E7 ░ (unused)                                           │
+│  E8 ░ (unused)                                           │
 │                                                          │
-│  解決策: Auxiliary Loss (補助損失)                         │
+│  Solution: Auxiliary Loss                                │
 │  L_total = L_task + α × L_balance                        │
 │                                                          │
-│  負荷分散あり:                                            │
+│  With load balancing:                                    │
 │  E1 ████                                                 │
 │  E2 ████                                                 │
 │  E3 ███                                                  │
@@ -205,13 +203,13 @@ class MoELayer(nn.Module):
 │  E6 ████                                                 │
 │  E7 ███                                                  │
 │  E8 ████                                                 │
-│  → 全 Expert が均等に活用される                            │
+│  → All Experts are utilized evenly                       │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.3 長大コンテキストウィンドウ
+### 1.3 Massive Context Window
 
-Gemini 1.5 Pro は最大 200 万トークンのコンテキストウィンドウを提供する。
+Gemini 1.5 Pro provides a context window of up to 2 million tokens.
 
 ```python
 # コンテキスト長の比較
@@ -227,11 +225,11 @@ for model, tokens in context_windows.items():
     print(f"{model}: {tokens:>10,} tokens ≈ {pages:>5,} pages")
 ```
 
-#### 長コンテキストを支える技術
+#### Technologies Behind Long Context
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│        長コンテキスト実現のための技術スタック                 │
+│        Technology Stack for Long Context Support          │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
 │  1. Ring Attention                                       │
@@ -239,27 +237,28 @@ for model, tokens in context_windows.items():
 │     │GPU│→│GPU│→│GPU│→│GPU│→ ...                       │
 │     │ 1 │ │ 2 │ │ 3 │ │ 4 │                            │
 │     └─↑─┘ └───┘ └───┘ └─│─┘                            │
-│       └──────────────────┘ (リング構造)                   │
-│     → 各 GPU がコンテキストの一部を担当                    │
-│     → Attention を GPU 間でリレー                         │
+│       └──────────────────┘ (ring structure)              │
+│     → Each GPU handles a portion of the context          │
+│     → Attention is relayed between GPUs                  │
 │                                                          │
 │  2. Grouped-Query Attention (GQA)                        │
-│     - Key/Value ヘッドを共有して KV キャッシュ削減          │
-│     - 標準 MHA の 1/8 のメモリで同等性能                   │
+│     - Shares Key/Value heads to reduce KV cache          │
+│     - Achieves equivalent performance at 1/8 memory      │
 │                                                          │
-│  3. RoPE 位置エンコーディングの拡張                        │
+│  3. Extended RoPE Positional Encoding                    │
 │     - NTK-aware interpolation                            │
 │     - YaRN (Yet another RoPE extensioN)                  │
-│     → 短い学習コンテキストから長い推論コンテキストへ外挿    │
+│     → Extrapolates from short training context to longer  │
+│       inference context                                  │
 │                                                          │
-│  4. KV Cache の効率化                                     │
+│  4. KV Cache Efficiency                                  │
 │     - Sliding Window Attention                           │
-│     - KV Cache の圧縮・量子化                             │
-│     → 2M トークンでも実用的なメモリ消費                   │
+│     - KV Cache compression and quantization              │
+│     → Practical memory usage even with 2M tokens        │
 └──────────────────────────────────────────────────────────┘
 ```
 
-#### "Lost in the Middle" 問題と対策
+#### "Lost in the Middle" Problem and Solutions
 
 ```python
 # 長コンテキストでの精度劣化パターンと対策
@@ -267,13 +266,13 @@ for model, tokens in context_windows.items():
 # 問題: 200万トークンのうち中間部分の情報検索精度が低下する
 # (先頭と末尾の情報は記憶しやすいが、中間は記憶しにくい)
 
-# 対策 1: 重要な情報を先頭・末尾に配置
+# Solution 1: Place important information at the beginning and end
 def arrange_context_optimally(documents: list[str], query: str) -> str:
-    """重要度順にソートし、先頭と末尾に重要な文書を配置"""
-    # 関連度スコアで文書をランク付け
+    """Sort by importance, placing key documents at the start and end"""
+    # Rank documents by relevance score
     ranked = rank_by_relevance(documents, query)
 
-    # 交互配置: 1位→先頭, 2位→末尾, 3位→先頭寄り, ...
+    # Alternating placement: 1st→start, 2nd→end, 3rd→near start, ...
     arranged = []
     for i, doc in enumerate(ranked):
         if i % 2 == 0:
@@ -284,14 +283,14 @@ def arrange_context_optimally(documents: list[str], query: str) -> str:
     return "\n\n".join(arranged)
 
 
-# 対策 2: 階層的な要約 (Map-Reduce パターン)
+# Solution 2: Hierarchical summarization (Map-Reduce pattern)
 def hierarchical_analysis(documents: list[str], query: str) -> str:
-    """大量文書を階層的に処理"""
+    """Process large collections of documents hierarchically"""
     import google.generativeai as genai
 
     model = genai.GenerativeModel("gemini-1.5-flash")
 
-    # Step 1: 各文書を個別に要約 (Map)
+    # Step 1: Summarize each document individually (Map)
     summaries = []
     for doc in documents:
         summary = model.generate_content(
@@ -299,7 +298,7 @@ def hierarchical_analysis(documents: list[str], query: str) -> str:
         )
         summaries.append(summary.text)
 
-    # Step 2: 要約を統合 (Reduce)
+    # Step 2: Integrate summaries (Reduce)
     pro_model = genai.GenerativeModel("gemini-1.5-pro")
     final = pro_model.generate_content(
         f"以下の要約群を統合し、{query}に対する包括的な回答を作成してください:\n\n"
@@ -308,17 +307,17 @@ def hierarchical_analysis(documents: list[str], query: str) -> str:
     return final.text
 
 
-# 対策 3: チャンク分割 + 選択的投入
+# Solution 3: Chunking + selective insertion
 def selective_context(
     all_docs: list[str],
     query: str,
     max_tokens: int = 500_000,
 ) -> list[str]:
-    """関連文書のみ選択してコンテキストに投入"""
-    # Embedding ベースで関連文書をフィルタリング
+    """Select only relevant documents and insert them into context"""
+    # Filter relevant documents using embedding-based retrieval
     relevant = retrieve_relevant(query, all_docs, top_k=50)
 
-    # トークン数を推定してカット
+    # Estimate token count and cut off
     selected = []
     total_tokens = 0
     for doc in relevant:
@@ -331,98 +330,98 @@ def selective_context(
     return selected
 ```
 
-#### コンテキスト長別のユースケース
+#### Use Cases by Context Length
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│        コンテキスト長別の実用的なユースケース                 │
+│        Practical Use Cases by Context Length              │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  ~32K tokens (通常のモデル)                                │
-│  ├── チャットボット対話                                    │
-│  ├── 短い文書の要約                                       │
-│  └── コード生成 (単一ファイル)                              │
+│  ~32K tokens (standard models)                           │
+│  ├── Chatbot conversations                               │
+│  ├── Short document summarization                        │
+│  └── Code generation (single file)                       │
 │                                                          │
-│  ~128K tokens (GPT-4o, Llama 3.1)                         │
-│  ├── 論文 1-3 本の分析                                    │
-│  ├── 中規模コードベースのレビュー                          │
-│  └── 長い会議議事録の処理                                  │
+│  ~128K tokens (GPT-4o, Llama 3.1)                        │
+│  ├── Analysis of 1-3 research papers                     │
+│  ├── Medium-scale codebase review                        │
+│  └── Processing long meeting minutes                     │
 │                                                          │
-│  ~200K tokens (Claude 3.5)                                │
-│  ├── 書籍 1 冊の要約・分析                                │
-│  ├── 大規模コードベースの理解                              │
-│  └── 法律文書の包括的レビュー                              │
+│  ~200K tokens (Claude 3.5)                               │
+│  ├── Summarization and analysis of a single book         │
+│  ├── Understanding large codebases                       │
+│  └── Comprehensive legal document review                 │
 │                                                          │
-│  ~1M tokens (Gemini 1.5 Flash)                            │
-│  ├── 複数書籍の横断分析                                    │
-│  ├── 動画 30 分の全文字起こし分析                          │
-│  └── 大規模データセットの直接入力                           │
+│  ~1M tokens (Gemini 1.5 Flash)                           │
+│  ├── Cross-analysis of multiple books                    │
+│  ├── Full transcript analysis of 30-minute videos        │
+│  └── Direct input of large datasets                      │
 │                                                          │
-│  ~2M tokens (Gemini 1.5 Pro)                              │
-│  ├── 書籍 3-5 冊の一括処理                                │
-│  ├── 1 時間の動画分析                                     │
-│  ├── 大規模ソフトウェアリポジトリの全体理解                 │
-│  └── 年次報告書 10 年分の時系列分析                        │
+│  ~2M tokens (Gemini 1.5 Pro)                             │
+│  ├── Batch processing of 3-5 books at once               │
+│  ├── Analysis of 1-hour videos                           │
+│  ├── Full understanding of large software repositories   │
+│  └── Time-series analysis of 10 years of annual reports  │
 └──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. モデルラインナップ
+## 2. Model Lineup
 
-### 2.1 モデル比較表
+### 2.1 Model Comparison Table
 
-| モデル | パラメータ規模 | コンテキスト | 主な用途 | 料金目安 (入力/1M tokens) |
-|--------|-------------|------------|---------|------------------------|
-| Gemini Ultra | 最大級 | 128K | 最高精度タスク | 高価格帯 |
-| Gemini 1.5 Pro | 大規模 MoE | 2M | 汎用・長文書解析 | $1.25 - $5.00 |
-| Gemini 1.5 Flash | 中規模 MoE | 1M | 高速・低コスト | $0.075 - $0.30 |
-| Gemini 2.0 Flash | 次世代 MoE | 1M | 最新・高速 | $0.10 - $0.40 |
-| Gemini Nano | 小規模 | 32K | オンデバイス | 無料 (端末内) |
+| Model | Parameter Scale | Context | Primary Use | Pricing (input/1M tokens) |
+|-------|----------------|---------|-------------|--------------------------|
+| Gemini Ultra | Largest | 128K | Highest-accuracy tasks | High price range |
+| Gemini 1.5 Pro | Large MoE | 2M | General-purpose, long document analysis | $1.25 - $5.00 |
+| Gemini 1.5 Flash | Medium MoE | 1M | Fast, low-cost | $0.075 - $0.30 |
+| Gemini 2.0 Flash | Next-gen MoE | 1M | Latest, high-speed | $0.10 - $0.40 |
+| Gemini Nano | Small | 32K | On-device | Free (on-device) |
 
-### 2.2 ユースケース別選定ガイド
+### 2.2 Use Case Selection Guide
 
-| ユースケース | 推奨モデル | 理由 |
-|-------------|-----------|------|
-| 大規模コードベース解析 | 1.5 Pro (2M) | 長大コンテキストが必須 |
-| チャットボット | 2.0 Flash | 低レイテンシ・低コスト |
-| 画像+テキスト理解 | 1.5 Pro / 2.0 Flash | マルチモーダル精度 |
-| 端末内 AI アシスタント | Nano | オフライン動作 |
-| 研究・最高精度 | Ultra | ベンチマークトップ |
-| リアルタイム翻訳 | Flash | 速度重視 |
+| Use Case | Recommended Model | Reason |
+|----------|------------------|--------|
+| Large codebase analysis | 1.5 Pro (2M) | Massive context required |
+| Chatbot | 2.0 Flash | Low latency, low cost |
+| Image + text understanding | 1.5 Pro / 2.0 Flash | Multimodal accuracy |
+| On-device AI assistant | Nano | Offline operation |
+| Research / highest accuracy | Ultra | Top benchmark scores |
+| Real-time translation | Flash | Speed-focused |
 
-### 2.3 モデル選定の詳細フレームワーク
+### 2.3 Detailed Model Selection Framework
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│         Gemini モデル選定フローチャート                      │
+│         Gemini Model Selection Flowchart                  │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
 │  START                                                   │
 │    │                                                     │
-│    ├─ オフライン動作が必要？                                │
-│    │   YES → Gemini Nano                                  │
+│    ├─ Offline operation required?                        │
+│    │   YES → Gemini Nano                                 │
 │    │                                                     │
 │    NO ↓                                                  │
-│    ├─ 128K 以上のコンテキストが必要？                       │
-│    │   YES ─┬─ 2M 必要？ → 1.5 Pro                       │
-│    │        └─ 1M で十分 → 1.5 Flash (コスト重視)         │
-│    │                    → 1.5 Pro (精度重視)              │
+│    ├─ Context larger than 128K required?                 │
+│    │   YES ─┬─ 2M needed? → 1.5 Pro                     │
+│    │        └─ 1M sufficient → 1.5 Flash (cost focus)   │
+│    │                        → 1.5 Pro (accuracy focus)  │
 │    │                                                     │
 │    NO ↓                                                  │
-│    ├─ 最低レイテンシが必要？                                │
-│    │   YES → 2.0 Flash                                    │
+│    ├─ Minimum latency required?                          │
+│    │   YES → 2.0 Flash                                   │
 │    │                                                     │
 │    NO ↓                                                  │
-│    ├─ コスト最小化が最優先？                                │
-│    │   YES → 1.5 Flash ($0.075/1M)                        │
+│    ├─ Cost minimization is top priority?                 │
+│    │   YES → 1.5 Flash ($0.075/1M)                       │
 │    │                                                     │
 │    NO ↓                                                  │
-│    └─ 最高品質が必要 → 1.5 Pro / Ultra                    │
+│    └─ Highest quality needed → 1.5 Pro / Ultra          │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 2.4 料金の詳細と最適化
+### 2.4 Pricing Details and Optimization
 
 ```python
 # Gemini の料金体系の詳細
@@ -458,7 +457,7 @@ def calculate_gemini_cost(
     cached_tokens: int = 0,
     cache_duration_hours: float = 1.0,
 ) -> dict:
-    """Gemini のコストを詳細に計算"""
+    """Calculate Gemini costs in detail"""
     pricing = gemini_pricing[model]
 
     if model == "gemini-2.0-flash":
@@ -470,7 +469,7 @@ def calculate_gemini_cost(
             "total": input_cost + output_cost,
         }
 
-    # 128K 境界での料金切り替え
+    # Rate switch at the 128K boundary
     threshold = 128_000
     if input_tokens <= threshold:
         input_rate = pricing["input_128k_below"]
@@ -481,7 +480,7 @@ def calculate_gemini_cost(
         else pricing["output_128k_above"]
 
     if use_caching and cached_tokens > 0:
-        # キャッシュ利用時の割引料金
+        # Discounted rate when using cache
         cache_input_cost = (cached_tokens / 1_000_000) * pricing["context_caching_input"]
         regular_input_cost = ((input_tokens - cached_tokens) / 1_000_000) * input_rate
         cache_storage_cost = (cached_tokens / 1_000_000) * pricing["context_caching_storage"] * cache_duration_hours
@@ -498,7 +497,7 @@ def calculate_gemini_cost(
     }
 
 
-# 使用例: 1M トークンのドキュメント処理
+# Usage example: Processing 1M token document
 result = calculate_gemini_cost(
     model="gemini-1.5-pro",
     input_tokens=1_000_000,
@@ -506,7 +505,7 @@ result = calculate_gemini_cost(
 )
 print(f"1M tokens処理コスト: ${result['total']:.2f}")
 
-# キャッシュ利用時 (同じドキュメントに複数クエリ)
+# With caching (multiple queries against the same document)
 result_cached = calculate_gemini_cost(
     model="gemini-1.5-pro",
     input_tokens=1_000_000,
@@ -520,7 +519,7 @@ print(f"キャッシュ利用時コスト: ${result_cached['total']:.2f}")
 
 ---
 
-## 3. Gemini API の実践
+## 3. Gemini API in Practice
 
 ### 3.1 Google AI Studio (Python SDK)
 
@@ -538,7 +537,7 @@ response = model.generate_content("量子コンピュータを小学生に説明
 print(response.text)
 ```
 
-### 3.2 マルチモーダル入力 (画像 + テキスト)
+### 3.2 Multimodal Input (Image + Text)
 
 ```python
 import google.generativeai as genai
@@ -558,7 +557,7 @@ response = model.generate_content([
 print(response.text)
 ```
 
-### 3.3 ストリーミング応答
+### 3.3 Streaming Responses
 
 ```python
 import google.generativeai as genai
@@ -576,7 +575,7 @@ for chunk in response:
     print(chunk.text, end="", flush=True)
 ```
 
-### 3.4 Vertex AI 経由 (エンタープライズ)
+### 3.4 Via Vertex AI (Enterprise)
 
 ```python
 import vertexai
@@ -599,7 +598,7 @@ response = model.generate_content(
 print(response.text)
 ```
 
-### 3.5 システム指示と安全性設定
+### 3.5 System Instructions and Safety Settings
 
 ```python
 import google.generativeai as genai
@@ -627,7 +626,7 @@ for message in chat.history:
     print(f"{message.role}: {message.parts[0].text[:50]}...")
 ```
 
-### 3.6 Function Calling (ツール使用)
+### 3.6 Function Calling (Tool Use)
 
 ```python
 import google.generativeai as genai
@@ -691,7 +690,7 @@ for part in response.parts:
         print(response.text)
 ```
 
-### 3.7 Context Caching (コンテキストキャッシュ)
+### 3.7 Context Caching
 
 ```python
 import google.generativeai as genai
@@ -719,7 +718,7 @@ print(f"Token Count: {cache.usage_metadata.total_token_count}")
 # キャッシュを使ったモデル生成 (75% 割引の入力トークン料金)
 model = genai.GenerativeModel.from_cached_content(cache)
 
-# 同じドキュメントに対して複数の質問をコスト効率良く実行
+# Run multiple queries against the same document cost-efficiently
 questions = [
     "この文書の主要な論点を3つ挙げてください",
     "著者の結論は何ですか？",
@@ -736,7 +735,7 @@ for q in questions:
 cache.delete()
 ```
 
-### 3.8 Grounding (検索連携)
+### 3.8 Grounding (Search Integration)
 
 ```python
 import vertexai
@@ -747,7 +746,7 @@ vertexai.init(project="my-project", location="us-central1")
 
 model = GenerativeModel("gemini-1.5-pro")
 
-# Google Search Grounding を使った回答
+# Answering with Google Search Grounding
 tool = Tool.from_google_search_retrieval(
     grounding.GoogleSearchRetrieval()
 )
@@ -760,17 +759,17 @@ response = model.generate_content(
 
 print(response.text)
 
-# Grounding のメタデータ (ソース情報)
+# Grounding metadata (source information)
 if hasattr(response, 'candidates'):
     for candidate in response.candidates:
         if hasattr(candidate, 'grounding_metadata'):
             metadata = candidate.grounding_metadata
-            print("\n検索ソース:")
+            print("\nSearch Sources:")
             for chunk in metadata.grounding_chunks:
                 print(f"  - {chunk.web.title}: {chunk.web.uri}")
 ```
 
-### 3.9 動画分析の実践
+### 3.9 Video Analysis in Practice
 
 ```python
 import google.generativeai as genai
@@ -778,23 +777,23 @@ import time
 
 genai.configure(api_key="YOUR_API_KEY")
 
-# 動画のアップロード
+# Upload video
 video_file = genai.upload_file("meeting_recording.mp4")
 
-# 処理完了待ち
+# Wait for processing to complete
 while video_file.state.name == "PROCESSING":
-    print("動画を処理中...")
+    print("Processing video...")
     time.sleep(10)
     video_file = genai.get_file(video_file.name)
 
 if video_file.state.name == "FAILED":
-    raise ValueError("動画のアップロードに失敗しました")
+    raise ValueError("Video upload failed")
 
-print(f"動画準備完了: {video_file.uri}")
+print(f"Video ready: {video_file.uri}")
 
 model = genai.GenerativeModel("gemini-1.5-pro")
 
-# タイムスタンプ付きの要約
+# Summary with timestamps
 response = model.generate_content([
     video_file,
     """この会議動画を分析してください:
@@ -806,7 +805,7 @@ response = model.generate_content([
 ])
 print(response.text)
 
-# 特定の時間帯に関する質問
+# Questions about a specific time range
 response = model.generate_content([
     video_file,
     "動画の5:00-10:00の区間で議論された技術的な課題を詳しく説明してください。"
@@ -814,7 +813,7 @@ response = model.generate_content([
 print(response.text)
 ```
 
-### 3.10 バッチ処理と並列実行
+### 3.10 Batch Processing and Parallel Execution
 
 ```python
 import google.generativeai as genai
@@ -830,7 +829,7 @@ async def batch_generate(
     max_concurrent: int = 5,
     temperature: float = 0.7,
 ) -> list[dict]:
-    """Gemini API でバッチ処理を実行"""
+    """Run batch processing with the Gemini API"""
     model = genai.GenerativeModel(model_name)
     semaphore = asyncio.Semaphore(max_concurrent)
     results = []
@@ -861,7 +860,7 @@ async def batch_generate(
     return sorted(results, key=lambda x: x["index"])
 
 
-# 使用例
+# Usage example
 prompts = [
     f"質問{i}: AIの応用分野{i}について100字で説明してください"
     for i in range(20)
@@ -877,38 +876,40 @@ for r in results:
 
 ---
 
-## 4. Gemini の技術的差別化要因
+## 4. Gemini's Technical Differentiators
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│           Gemini の技術的差別化ポイント                 │
+│           Gemini's Key Technical Differentiators      │
 ├──────────────────────────────────────────────────────┤
 │                                                      │
-│  1. 超長コンテキスト                                   │
-│     └─ 200万トークン → 書籍1冊丸ごと処理可能           │
+│  1. Ultra-Long Context                               │
+│     └─ 2 million tokens → Can process an entire book │
 │                                                      │
-│  2. ネイティブマルチモーダル                            │
-│     └─ テキスト/画像/音声/動画を統一的に理解            │
+│  2. Native Multimodal                                │
+│     └─ Unified understanding of text/image/audio/video│
 │                                                      │
-│  3. Google エコシステム統合                             │
-│     └─ Search Grounding: Google 検索結果で回答補強     │
-│     └─ Workspace 統合: Gmail, Docs, Sheets 連携       │
+│  3. Google Ecosystem Integration                     │
+│     └─ Search Grounding: Augments answers with       │
+│          Google Search results                       │
+│     └─ Workspace integration: Gmail, Docs, Sheets    │
 │                                                      │
-│  4. Nano モデル (オンデバイス)                          │
-│     └─ Pixel / Android 端末で直接実行                  │
-│     └─ プライバシー保護 + オフライン動作                │
+│  4. Nano Model (On-Device)                           │
+│     └─ Runs directly on Pixel / Android devices     │
+│     └─ Privacy protection + offline operation       │
 │                                                      │
-│  5. コード生成特化                                     │
-│     └─ AlphaCode 2 の知見を統合                        │
-│     └─ 競技プログラミングレベルの推論能力               │
+│  5. Code Generation Specialization                   │
+│     └─ Integrates insights from AlphaCode 2         │
+│     └─ Reasoning ability at competitive programming  │
+│          level                                       │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 4.1 Google エコシステム統合の詳細
+### 4.1 Google Ecosystem Integration Details
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│         Google エコシステムとの統合ポイント                  │
+│         Integration Points with the Google Ecosystem      │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
 │  ┌──────────────┐     ┌──────────────┐                  │
@@ -918,7 +919,7 @@ for r in results:
 │         │                     │                          │
 │         ▼                     ▼                          │
 │  ┌────────────────────────────────────┐                  │
-│  │           Gemini モデル             │                  │
+│  │           Gemini Model             │                  │
 │  └────────────────────────────────────┘                  │
 │         ▲                     ▲                          │
 │         │                     │                          │
@@ -928,16 +929,16 @@ for r in results:
 │  │   /Gmail)     │     │   /Auth)     │                  │
 │  └──────────────┘     └──────────────┘                  │
 │                                                          │
-│  活用例:                                                  │
-│  1. Gmail で受信メールの自動要約・返信案の作成             │
-│  2. Google Docs で文書の自動校正・翻訳                    │
-│  3. Google Sheets でデータ分析・グラフ生成                │
-│  4. Google Search で最新情報に基づく回答                   │
-│  5. Google Maps で位置情報連携サービス                     │
+│  Use Cases:                                              │
+│  1. Automatic summarization and draft replies in Gmail   │
+│  2. Auto proofreading and translation in Google Docs     │
+│  3. Data analysis and chart generation in Google Sheets  │
+│  4. Answers grounded in Google Search for latest info    │
+│  5. Location-aware services via Google Maps              │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 Gemini Nano: オンデバイス AI
+### 4.2 Gemini Nano: On-Device AI
 
 ```python
 # Gemini Nano は Android の AICore API 経由で利用
@@ -990,46 +991,46 @@ for await (const chunk of stream) {
 
 ---
 
-## 5. Gemini 2.0 の新機能
+## 5. New Features in Gemini 2.0
 
-### 5.1 Gemini 2.0 Flash の進化点
+### 5.1 Improvements in Gemini 2.0 Flash
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│        Gemini 2.0 Flash の新機能一覧                       │
+│        New Features in Gemini 2.0 Flash                   │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  1. ネイティブ画像生成                                     │
-│     └─ テキスト→画像生成がモデル内で完結                   │
-│     └─ 画像+テキストの混合出力が可能                      │
+│  1. Native Image Generation                              │
+│     └─ Text-to-image generation completed within model  │
+│     └─ Mixed output of images and text is possible      │
 │                                                          │
-│  2. ネイティブ音声生成 (TTS)                               │
-│     └─ テキスト→音声の直接生成                            │
-│     └─ 多言語・多スタイル対応                              │
+│  2. Native Audio Generation (TTS)                        │
+│     └─ Direct text-to-speech generation                 │
+│     └─ Multilingual and multi-style support             │
 │                                                          │
-│  3. ツール使用の強化                                       │
-│     └─ Google Search Grounding                           │
-│     └─ コード実行 (サーバーサイド)                         │
-│     └─ Function Calling の精度向上                        │
+│  3. Enhanced Tool Use                                    │
+│     └─ Google Search Grounding                          │
+│     └─ Code execution (server-side)                     │
+│     └─ Improved Function Calling accuracy               │
 │                                                          │
-│  4. Thinking Mode (思考モード)                             │
-│     └─ 段階的推論 (Chain-of-Thought)                     │
-│     └─ 数学・コーディングタスクの精度大幅向上              │
+│  4. Thinking Mode                                        │
+│     └─ Step-by-step reasoning (Chain-of-Thought)        │
+│     └─ Greatly improved accuracy for math and coding    │
 │                                                          │
-│  5. パフォーマンス改善                                     │
-│     └─ 1.5 Flash 比で精度向上 + レイテンシ改善            │
-│     └─ コスト効率のさらなる改善                            │
+│  5. Performance Improvements                             │
+│     └─ Better accuracy + lower latency vs 1.5 Flash     │
+│     └─ Further improvements in cost efficiency          │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 Thinking Mode の実装
+### 5.2 Implementing Thinking Mode
 
 ```python
 import google.generativeai as genai
 
 genai.configure(api_key="YOUR_API_KEY")
 
-# Thinking Mode を使った高精度推論
+# High-accuracy reasoning with Thinking Mode
 model = genai.GenerativeModel("gemini-2.0-flash-thinking-exp")
 
 response = model.generate_content(
@@ -1046,16 +1047,16 @@ response = model.generate_content(
     """
 )
 
-# Thinking Mode では思考過程と最終回答が分かれる
+# In Thinking Mode, the reasoning process and final answer are separated
 for part in response.parts:
     print(part.text)
 ```
 
 ---
 
-## 6. トラブルシューティング
+## 6. Troubleshooting
 
-### 6.1 よくあるエラーと解決策
+### 6.1 Common Errors and Solutions
 
 ```python
 import google.generativeai as genai
@@ -1065,9 +1066,9 @@ genai.configure(api_key="YOUR_API_KEY")
 model = genai.GenerativeModel("gemini-1.5-pro")
 
 
-# エラー 1: レート制限
+# Error 1: Rate limiting
 def handle_rate_limit(prompt: str, max_retries: int = 5):
-    """指数バックオフでレート制限に対応"""
+    """Handle rate limiting with exponential backoff"""
     import time
     import random
 
@@ -1084,23 +1085,23 @@ def handle_rate_limit(prompt: str, max_retries: int = 5):
                 raise
 
 
-# エラー 2: Safety フィルタによるブロック
+# Error 2: Safety filter block
 def handle_safety_block(prompt: str):
-    """Safety フィルタの診断と対応"""
+    """Diagnose and handle safety filter blocks"""
     try:
         response = model.generate_content(prompt)
 
-        # Safety ratings の確認
+        # Check safety ratings
         if response.prompt_feedback.block_reason:
-            print(f"ブロック理由: {response.prompt_feedback.block_reason}")
+            print(f"Block reason: {response.prompt_feedback.block_reason}")
             for rating in response.prompt_feedback.safety_ratings:
                 print(f"  {rating.category}: {rating.probability}")
             return None
 
-        # 候補の Safety チェック
+        # Check candidate safety
         for candidate in response.candidates:
             if candidate.finish_reason.name == "SAFETY":
-                print("回答が Safety フィルタによりブロックされました")
+                print("Response was blocked by safety filter")
                 for rating in candidate.safety_ratings:
                     print(f"  {rating.category}: {rating.probability}")
                 return None
@@ -1108,17 +1109,17 @@ def handle_safety_block(prompt: str):
         return response.text
 
     except exceptions.InvalidArgument as e:
-        print(f"不正なリクエスト: {e}")
+        print(f"Invalid request: {e}")
         return None
 
 
-# エラー 3: トークン数超過
+# Error 3: Token count exceeded
 def check_token_count(content: str, model_name: str = "gemini-1.5-pro"):
-    """事前にトークン数をチェック"""
+    """Check token count in advance"""
     model = genai.GenerativeModel(model_name)
 
     token_count = model.count_tokens(content)
-    print(f"トークン数: {token_count.total_tokens}")
+    print(f"Token count: {token_count.total_tokens}")
 
     limits = {
         "gemini-1.5-pro": 2_000_000,
@@ -1128,48 +1129,48 @@ def check_token_count(content: str, model_name: str = "gemini-1.5-pro"):
 
     limit = limits.get(model_name, 128_000)
     if token_count.total_tokens > limit:
-        print(f"警告: トークン数が上限 ({limit:,}) を超えています")
+        print(f"Warning: Token count exceeds limit ({limit:,})")
         return False
     else:
         remaining = limit - token_count.total_tokens
-        print(f"残りトークン: {remaining:,}")
+        print(f"Remaining tokens: {remaining:,}")
         return True
 
 
-# エラー 4: ファイルアップロードの失敗
+# Error 4: File upload failure
 def safe_upload_file(file_path: str, max_retries: int = 3):
-    """ファイルアップロードの堅牢な実装"""
+    """Robust file upload implementation"""
     import os
     import time
 
-    # ファイルサイズチェック (最大 2GB)
+    # File size check (max 2GB)
     file_size = os.path.getsize(file_path)
     if file_size > 2 * 1024 * 1024 * 1024:
-        raise ValueError(f"ファイルサイズが上限を超えています: {file_size / (1024**3):.1f}GB")
+        raise ValueError(f"File size exceeds limit: {file_size / (1024**3):.1f}GB")
 
     for attempt in range(max_retries):
         try:
             uploaded = genai.upload_file(file_path)
 
-            # 動画の場合は処理完了を待機
+            # For video, wait for processing to complete
             while uploaded.state.name == "PROCESSING":
-                print(f"処理中... ({attempt+1}回目)")
+                print(f"Processing... (attempt {attempt+1})")
                 time.sleep(10)
                 uploaded = genai.get_file(uploaded.name)
 
             if uploaded.state.name == "ACTIVE":
                 return uploaded
             else:
-                print(f"アップロード失敗: state={uploaded.state.name}")
+                print(f"Upload failed: state={uploaded.state.name}")
 
         except Exception as e:
-            print(f"アップロードエラー (試行 {attempt+1}): {e}")
+            print(f"Upload error (attempt {attempt+1}): {e}")
             time.sleep(5)
 
-    raise RuntimeError(f"ファイルアップロードが{max_retries}回失敗しました")
+    raise RuntimeError(f"File upload failed after {max_retries} attempts")
 ```
 
-### 6.2 デバッグとモニタリング
+### 6.2 Debugging and Monitoring
 
 ```python
 import google.generativeai as genai
@@ -1181,7 +1182,7 @@ genai.configure(api_key="YOUR_API_KEY")
 
 
 class GeminiMonitor:
-    """Gemini API の利用状況モニタリング"""
+    """Gemini API usage monitoring"""
 
     def __init__(self, model_name: str = "gemini-1.5-pro"):
         self.model = genai.GenerativeModel(model_name)
@@ -1189,18 +1190,18 @@ class GeminiMonitor:
         self.call_log = []
 
     def generate(self, prompt: str, **kwargs) -> str:
-        """モニタリング付きの生成"""
+        """Generation with monitoring"""
         start_time = time.time()
 
         try:
-            # トークン数の事前チェック
+            # Pre-check token count
             token_count = self.model.count_tokens(prompt)
             input_tokens = token_count.total_tokens
 
             response = self.model.generate_content(prompt, **kwargs)
             latency = time.time() - start_time
 
-            # 出力トークン数の取得
+            # Get output token count
             output_tokens = self.model.count_tokens(response.text).total_tokens
 
             log_entry = {
@@ -1229,7 +1230,7 @@ class GeminiMonitor:
             raise
 
     def get_statistics(self) -> dict:
-        """利用統計を取得"""
+        """Get usage statistics"""
         if not self.call_log:
             return {"message": "No calls recorded"}
 
@@ -1251,7 +1252,7 @@ class GeminiMonitor:
         }
 
 
-# 使用例
+# Usage example
 monitor = GeminiMonitor("gemini-1.5-flash")
 
 prompts = [
@@ -1265,15 +1266,15 @@ for p in prompts:
     print(f"Response: {result[:80]}...\n")
 
 stats = monitor.get_statistics()
-print(f"\n=== 統計 ===")
+print(f"\n=== Statistics ===")
 print(json.dumps(stats, indent=2, ensure_ascii=False))
 ```
 
 ---
 
-## 7. パフォーマンス最適化
+## 7. Performance Optimization
 
-### 7.1 レイテンシ最適化
+### 7.1 Latency Optimization
 
 ```python
 import google.generativeai as genai
@@ -1282,9 +1283,9 @@ import time
 genai.configure(api_key="YOUR_API_KEY")
 
 
-# 最適化 1: ストリーミングで TTFB を最小化
+# Optimization 1: Minimize TTFB with streaming
 def optimized_streaming(prompt: str):
-    """ストリーミングによるレイテンシ最適化"""
+    """Latency optimization through streaming"""
     model = genai.GenerativeModel("gemini-1.5-flash")
 
     start = time.time()
@@ -1299,39 +1300,39 @@ def optimized_streaming(prompt: str):
         print(chunk.text, end="", flush=True)
 
     total_time = time.time() - start
-    print(f"\n総時間: {total_time:.3f}s")
+    print(f"\nTotal time: {total_time:.3f}s")
 
 
-# 最適化 2: 適切なモデル選択
-# Flash は Pro の 3-5 倍高速
+# Optimization 2: Select the right model
+# Flash is 3-5x faster than Pro
 performance_comparison = {
     "gemini-1.5-pro": {
         "avg_ttfb": "1.5-3.0s",
         "tokens_per_second": "30-50",
-        "best_for": "高精度タスク",
+        "best_for": "High-accuracy tasks",
     },
     "gemini-1.5-flash": {
         "avg_ttfb": "0.3-0.8s",
         "tokens_per_second": "80-150",
-        "best_for": "リアルタイム応答",
+        "best_for": "Real-time responses",
     },
     "gemini-2.0-flash": {
         "avg_ttfb": "0.2-0.6s",
         "tokens_per_second": "100-200",
-        "best_for": "最新・最速",
+        "best_for": "Latest, fastest",
     },
 }
 
 
-# 最適化 3: プロンプト最適化
+# Optimization 3: Prompt optimization
 def optimize_prompt(prompt: str) -> str:
-    """トークン数を削減してコスト・速度を改善"""
-    # 不要な空白の除去
+    """Reduce token count to improve cost and speed"""
+    # Remove unnecessary whitespace
     import re
     prompt = re.sub(r'\n{3,}', '\n\n', prompt)
     prompt = re.sub(r' {2,}', ' ', prompt)
 
-    # 冗長な表現の除去
+    # Remove redundant expressions
     replacements = {
         "できるだけ詳しく説明してください": "詳しく説明してください",
         "以下の内容について": "",
@@ -1343,283 +1344,278 @@ def optimize_prompt(prompt: str) -> str:
     return prompt.strip()
 
 
-# 最適化 4: Context Caching で繰り返しコストを削減
-# (前述の 3.7 セクション参照)
+# Optimization 4: Reduce repeated costs with Context Caching
+# (See Section 3.7 above)
 ```
 
-### 7.2 コスト最適化戦略
+### 7.2 Cost Optimization Strategies
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│         Gemini コスト最適化の 5 つの戦略                     │
+│         5 Strategies for Gemini Cost Optimization         │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  1. モデルの使い分け (Routing)                              │
-│     簡単なタスク → Flash ($0.075/1M)                       │
-│     複雑なタスク → Pro ($1.25/1M)                          │
-│     → 平均コスト 60-80% 削減                               │
+│  1. Model Routing                                        │
+│     Simple tasks → Flash ($0.075/1M)                     │
+│     Complex tasks → Pro ($1.25/1M)                       │
+│     → Reduces average cost by 60-80%                    │
 │                                                          │
-│  2. Context Caching                                       │
-│     同じドキュメントに複数クエリ → 75% 割引                 │
-│     条件: 32K tokens 以上のキャッシュ対象                   │
+│  2. Context Caching                                      │
+│     Multiple queries against the same doc → 75% discount │
+│     Condition: Cache target must be 32K+ tokens          │
 │                                                          │
-│  3. 出力トークンの制限                                     │
-│     max_output_tokens を適切に設定                         │
-│     出力は入力の 4 倍高い → 出力削減が最も効果的            │
+│  3. Limit Output Tokens                                  │
+│     Set max_output_tokens appropriately                  │
+│     Output is 4x the cost of input → reducing output    │
+│     is most effective                                    │
 │                                                          │
-│  4. バッチ処理                                             │
-│     リアルタイム不要 → バッチ API で最大 50% 割引           │
+│  4. Batch Processing                                     │
+│     No real-time requirement → Up to 50% off with        │
+│     batch API                                            │
 │                                                          │
-│  5. プロンプト最適化                                       │
-│     冗長なプロンプトを簡潔に                               │
-│     Few-shot 例を必要最小限に                              │
-│     システム指示を Context Caching に格納                   │
+│  5. Prompt Optimization                                  │
+│     Keep prompts concise, not verbose                    │
+│     Minimize few-shot examples                           │
+│     Store system instructions in Context Cache           │
 └──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン 1: コンテキストウィンドウの浪費
+### Anti-Pattern 1: Wasting Context Window
 
 ```python
-# NG: 200万トークンあるからと全文書を無制限に投入
+# NG: Feeding all documents without limit just because you have 2M tokens
 all_docs = load_all_company_documents()  # 300万トークン分
 response = model.generate_content(all_docs + [query])
-# → コンテキスト超過エラー or 精度低下 (中間部分の "Lost in the Middle" 問題)
+# → Context overflow error or accuracy degradation ("Lost in the Middle" problem)
 
-# OK: 関連文書のみ抽出してから投入
+# OK: Extract only relevant documents first
 relevant_docs = retrieve_relevant(query, all_docs, top_k=20)
 response = model.generate_content(relevant_docs + [query])
-# → 必要な情報に絞ることで精度向上 + コスト削減
+# → Improved accuracy by focusing on necessary info + cost savings
 ```
 
-### アンチパターン 2: モデル選定ミスによるコスト爆発
+### Anti-Pattern 2: Cost Explosion from Wrong Model Selection
 
 ```python
-# NG: 簡単な分類タスクに最高性能モデルを使用
+# NG: Using the highest-performance model for a simple classification task
 model = genai.GenerativeModel("gemini-ultra")
-for item in million_items:  # 100万件処理
+for item in million_items:  # Processing 1 million items
     result = model.generate_content(f"カテゴリ分類: {item}")
-# → 膨大なコスト発生
+# → Enormous cost incurred
 
-# OK: タスク難易度に応じたモデル選択
-model = genai.GenerativeModel("gemini-1.5-flash")  # 分類タスクには Flash で十分
-# さらに: バッチ API を使ってコスト削減
+# OK: Model selection based on task difficulty
+model = genai.GenerativeModel("gemini-1.5-flash")  # Flash is sufficient for classification
+# Furthermore: Use batch API to cut costs
 ```
 
-### アンチパターン 3: Safety フィルタの過剰緩和
+### Anti-Pattern 3: Excessive Relaxation of Safety Filters
 
 ```python
-# NG: 安全性設定を全て無効化
+# NG: Disabling all safety settings
 safety = {cat: "BLOCK_NONE" for cat in all_categories}
-# → 有害コンテンツ生成リスク、利用規約違反の可能性
+# → Risk of harmful content generation, potential terms of service violation
 
-# OK: ユースケースに応じた適切な設定
+# OK: Appropriate settings for the use case
 safety = {
     "HARM_CATEGORY_HARASSMENT": "BLOCK_MEDIUM_AND_ABOVE",
-    "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_ONLY_HIGH",  # 医療用途など必要に応じて緩和
+    "HARM_CATEGORY_DANGEROUS_CONTENT": "BLOCK_ONLY_HIGH",  # Relax as needed for medical use, etc.
 }
 ```
 
-### アンチパターン 4: エラーハンドリングの欠如
+### Anti-Pattern 4: Lack of Error Handling
 
 ```python
-# NG: エラーハンドリングなしで本番運用
+# NG: Running in production without error handling
 response = model.generate_content(prompt)
-result = response.text  # Noneの場合にクラッシュ
+result = response.text  # Crashes if None
 
-# OK: 堅牢なエラーハンドリング
+# OK: Robust error handling
 try:
     response = model.generate_content(prompt)
 
-    # Safety ブロックの確認
+    # Check for safety block
     if not response.candidates:
-        print("回答が生成されませんでした (Safety フィルタ)")
+        print("No response generated (Safety filter)")
         result = fallback_response()
     elif response.candidates[0].finish_reason.name != "STOP":
-        print(f"異常終了: {response.candidates[0].finish_reason.name}")
+        print(f"Abnormal termination: {response.candidates[0].finish_reason.name}")
         result = fallback_response()
     else:
         result = response.text
 
 except exceptions.ResourceExhausted:
-    # レート制限 → リトライ
+    # Rate limit → Retry
     result = retry_with_backoff(prompt)
 except exceptions.InvalidArgument as e:
-    # 不正なリクエスト → ログ記録
+    # Invalid request → Log
     log_error(e, prompt)
     result = fallback_response()
 except Exception as e:
-    # その他のエラー
+    # Other errors
     log_error(e, prompt)
     result = fallback_response()
 ```
 
-### アンチパターン 5: Context Caching の誤用
+### Anti-Pattern 5: Misuse of Context Caching
 
 ```python
-# NG: 小さなコンテンツをキャッシュ (最低 32K tokens 必要)
+# NG: Caching small content (minimum 32K tokens required)
 cache = caching.CachedContent.create(
     model="models/gemini-1.5-pro-002",
-    contents=["短いテキスト"],  # 100 tokens しかない
+    contents=["短いテキスト"],  # Only 100 tokens
     ttl=datetime.timedelta(hours=24),
 )
-# → エラー: トークン数不足
+# → Error: Insufficient token count
 
-# NG: TTL を長すぎに設定 (ストレージコストが発生)
+# NG: Setting TTL too long (storage costs accrue)
 cache = caching.CachedContent.create(
     model="models/gemini-1.5-pro-002",
     contents=[huge_document],
-    ttl=datetime.timedelta(days=30),  # 30日 → 膨大なストレージ費用
+    ttl=datetime.timedelta(days=30),  # 30 days → Enormous storage costs
 )
 
-# OK: 適切なサイズとTTLの設定
+# OK: Appropriate size and TTL settings
 cache = caching.CachedContent.create(
     model="models/gemini-1.5-pro-002",
     contents=[document_over_32k_tokens],
-    ttl=datetime.timedelta(hours=2),  # 必要な時間だけ
+    ttl=datetime.timedelta(hours=2),  # Only as long as needed
 )
-# クエリ完了後に明示的に削除
+# Explicitly delete after queries are complete
 cache.delete()
 ```
 
 ---
 
-## 9. 他モデルとの比較と使い分け
+## 9. Comparison with Other Models
 
-### 9.1 Gemini vs GPT-4o vs Claude 3.5 比較
+### 9.1 Gemini vs GPT-4o vs Claude 3.5 Comparison
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│         三大モデルの得意分野マッピング                       │
+│         Strength Mapping of the Three Major Models        │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
 │              GPT-4o                                       │
 │           ┌──────────┐                                   │
-│           │ マルチ   │                                   │
-│           │ モーダル │                                   │
-│           │ (画像生成)│                                   │
+│           │ Multi-   │                                   │
+│           │ modal    │                                   │
+│           │ (image   │                                   │
+│           │ generation)│                                 │
 │     ┌─────┤         ├──────┐                             │
 │     │     │ Function│      │                             │
 │     │     │ Calling │      │                             │
 │     │     └────┬────┘      │                             │
 │  Gemini       │        Claude 3.5                        │
 │  ┌──────────┐ │ ┌──────────┐                             │
-│  │ 長コンテ │ │ │ コード   │                             │
-│  │ キスト   │ │ │ 品質     │                             │
+│  │ Long     │ │ │ Code     │                             │
+│  │ Context  │ │ │ Quality  │                             │
 │  │ (2M)     │ │ │ (SWE-   │                             │
-│  │ 動画入力 │ │ │ bench)   │                             │
-│  │ Search   │ │ │ 安全性   │                             │
-│  │ Grounding│ │ │ 200K ctx │                             │
-│  │ 低コスト │ │ │ 指示追従 │                             │
+│  │ Video    │ │ │ bench)   │                             │
+│  │ Input    │ │ │ Safety   │                             │
+│  │ Search   │ │ │ 200K ctx │                             │
+│  │ Grounding│ │ │ Instruction│                           │
+│  │ Low Cost │ │ │ Following │                            │
 │  └──────────┘ │ └──────────┘                             │
 │               │                                          │
-│          共通の強み:                                      │
-│          テキスト生成、推論、JSON出力                      │
+│          Shared Strengths:                               │
+│          Text generation, reasoning, JSON output         │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 9.2 ユースケース別の具体的な推奨
+### 9.2 Specific Recommendations by Use Case
 
-| ユースケース | 推奨 | 理由 |
-|-------------|------|------|
-| 100ページ超の法律文書分析 | Gemini 1.5 Pro | 2M コンテキスト |
-| 動画の要約・分析 | Gemini 1.5 Pro | 唯一のネイティブ動画対応 |
-| コードレビュー・生成 | Claude 3.5 Sonnet | SWE-bench 最高スコア |
-| 大量メール自動分類 | Gemini 1.5 Flash | 最低コスト + 十分な品質 |
-| 画像付きレポート生成 | GPT-4o | 画像生成 + テキスト統合 |
-| 社内データ処理 | Gemini (Vertex AI) | Google Cloud 統合 |
-| リアルタイムチャット | Gemini 2.0 Flash | 最低レイテンシ |
-| 数学的推論 | DeepSeek-R1 / o1 | 推論特化 |
+| Use Case | Recommended | Reason |
+|----------|-------------|--------|
+| Legal document analysis over 100 pages | Gemini 1.5 Pro | 2M context |
+| Video summarization and analysis | Gemini 1.5 Pro | Only native video support |
+| Code review and generation | Claude 3.5 Sonnet | Top SWE-bench score |
+| Large-scale email auto-classification | Gemini 1.5 Flash | Lowest cost + sufficient quality |
+| Report generation with images | GPT-4o | Image generation + text integration |
+| Internal data processing | Gemini (Vertex AI) | Google Cloud integration |
+| Real-time chat | Gemini 2.0 Flash | Lowest latency |
+| Mathematical reasoning | DeepSeek-R1 / o1 | Reasoning-specialized |
 
 ---
 
 ## 10. FAQ
 
-### Q1: Gemini と GPT-4o はどう使い分けるべきか?
+### Q1: How should I choose between Gemini and GPT-4o?
 
-長大な文書処理 (論文集、コードベース全体など) は Gemini の 200 万トークンコンテキストが圧倒的に有利。
-一方、既存ツールチェーンとの統合性や Function Calling のエコシステム成熟度では GPT-4o に分がある。
-マルチモーダルタスクでは両者とも高性能だが、動画入力は Gemini が先行している。
+For processing large documents (collections of papers, entire codebases, etc.), Gemini's 2 million token context is overwhelmingly advantageous. On the other hand, GPT-4o has an edge in integration maturity with existing toolchains and the Function Calling ecosystem. Both perform well on multimodal tasks, but Gemini leads in video input.
 
-### Q2: Gemini Nano はどのデバイスで使えるか?
+### Q2: Which devices support Gemini Nano?
 
-Google Pixel 8 以降、Samsung Galaxy S24 以降など、対応 Android 端末で利用可能。
-AICore API を通じて呼び出す。オフラインで動作し、データが端末外に送信されない利点がある。
-iOS では直接利用できないが、Chrome ブラウザ内蔵の Gemini Nano (on-device AI) が一部対応。
+It is available on compatible Android devices such as Google Pixel 8 and later, and Samsung Galaxy S24 and later. It is accessed through the AICore API. It operates offline, and data never leaves the device. It cannot be used directly on iOS, but Chrome browser's built-in Gemini Nano (on-device AI) has partial support.
 
-### Q3: Gemini API の料金体系はどうなっているか?
+### Q3: How does the Gemini API pricing work?
 
-Google AI Studio の無料枠では 1 分あたり 15 リクエスト (1.5 Flash) / 2 リクエスト (1.5 Pro) が利用可能。
-有料プランでは入力トークンと出力トークンに対してモデル別の従量課金。
-128K 以下と以上でトークン単価が変わる二段階料金制を採用している点に注意。
+Google AI Studio's free tier allows 15 requests per minute (1.5 Flash) / 2 requests per minute (1.5 Pro). Paid plans use per-token pricing for input and output tokens, varying by model. Note the two-tier pricing where the per-token rate changes above and below 128K tokens.
 
-### Q4: Search Grounding とは何か?
+### Q4: What is Search Grounding?
 
-Gemini が Google 検索の結果をリアルタイムで参照し、回答の根拠とする機能。
-ハルシネーション低減に効果的で、最新情報を含む質問に特に有効。Vertex AI で利用可能。
+It is a feature where Gemini references Google Search results in real time and uses them as the basis for its answers. It is effective at reducing hallucinations and particularly useful for questions involving the latest information. Available in Vertex AI.
 
-### Q5: Context Caching はどのような場合に使うべきか?
+### Q5: When should Context Caching be used?
 
-同一の大きなドキュメント (32K トークン以上) に対して複数回のクエリを送る場合に効果的。例えば、1つの技術文書に対して「要約」「FAQ 生成」「重要ポイント抽出」など複数の指示を出す場合、キャッシュを使うことで入力コストを 75% 削減できる。TTL は必要最小限に設定し、ストレージコストに注意する。
+It is effective when sending multiple queries against the same large document (32K+ tokens). For example, when issuing multiple instructions like "summarize," "generate FAQ," and "extract key points" for a single technical document, using caching can reduce input costs by 75%. Set the TTL to the minimum necessary and be mindful of storage costs.
 
-### Q6: Vertex AI と Google AI Studio はどう使い分けるべきか?
+### Q6: How should I choose between Vertex AI and Google AI Studio?
 
-個人開発・プロトタイピングには Google AI Studio (API キーのみで簡単に利用可能)。
-エンタープライズ利用 (SLA、データ処理契約、IAM 統合、VPC サービスコントロール) には Vertex AI。
-Vertex AI は Google Cloud のセキュリティ・ガバナンス機能が利用でき、HIPAA/SOC2 準拠が必要な場合は必須。
+For personal development and prototyping, use Google AI Studio (easy to use with just an API key). For enterprise use (SLA, data processing agreements, IAM integration, VPC Service Controls), use Vertex AI. Vertex AI provides Google Cloud's security and governance features and is required for HIPAA/SOC2 compliance.
 
-### Q7: Gemini 2.0 と 1.5 はどちらを使うべきか?
+### Q7: Which should I use, Gemini 2.0 or 1.5?
 
-2.0 Flash は速度・コスト・品質のバランスが最も良く、新規プロジェクトでは推奨。ただし、2M コンテキストが必要な場合は 1.5 Pro が現状唯一の選択肢。2.0 はネイティブ画像生成やツール使用の精度向上など、1.5 にない機能がある。安定性を重視する本番環境では GA (一般提供) 版を確認すること。
+2.0 Flash has the best balance of speed, cost, and quality and is recommended for new projects. However, if 2M context is needed, 1.5 Pro is currently the only option. Version 2.0 has features not found in 1.5, such as native image generation and improved tool use accuracy. For production environments where stability is critical, verify that a GA (generally available) version is being used.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Rather than theory alone, understanding deepens by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | 内容 |
-|------|------|
-| 開発元 | Google DeepMind |
-| アーキテクチャ | Transformer (MoE) + マルチモーダルネイティブ |
-| 最大コンテキスト | 200 万トークン (1.5 Pro) |
-| モダリティ | テキスト、画像、音声、動画、コード |
-| モデルライン | Ultra / Pro / Flash / Nano |
-| API アクセス | Google AI Studio (無料枠あり)、Vertex AI |
-| 差別化要因 | 超長コンテキスト、Google 統合、オンデバイス |
-| 主要競合 | GPT-4o (OpenAI)、Claude (Anthropic) |
-| コスト最適化 | Context Caching、Flash モデル、プロンプト最適化 |
-| トラブル対策 | レート制限リトライ、Safety 診断、トークンチェック |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [03-open-source.md](./03-open-source.md) — オープンソース LLM との比較
-- [04-model-comparison.md](./04-model-comparison.md) — 全モデル横断比較
-- [../02-applications/04-multimodal.md](../02-applications/04-multimodal.md) — マルチモーダル活用の実践
+| Item | Details |
+|------|---------|
+| Developer | Google DeepMind |
+| Architecture | Transformer (MoE) + multimodal-native |
+| Maximum Context | 2 million tokens (1.5 Pro) |
+| Modalities | Text, image, audio, video, code |
+| Model Line | Ultra / Pro / Flash / Nano |
+| API Access | Google AI Studio (free tier available), Vertex AI |
+| Differentiators | Ultra-long context, Google integration, on-device |
+| Main Competitors | GPT-4o (OpenAI), Claude (Anthropic) |
+| Cost Optimization | Context Caching, Flash models, prompt optimization |
+| Troubleshooting | Rate limit retry, safety diagnosis, token check |
 
 ---
 
-## 参考文献
+## What to Read Next
+
+- [03-open-source.md](./03-open-source.md) — Comparison with open-source LLMs
+- [04-model-comparison.md](./04-model-comparison.md) — Cross-model comparison
+- [../02-applications/04-multimodal.md](../02-applications/04-multimodal.md) — Practical multimodal usage
+
+---
+
+## References
 
 1. Google DeepMind, "Gemini: A Family of Highly Capable Multimodal Models," arXiv:2312.11805, 2023
 2. Google, "Gemini API Documentation," https://ai.google.dev/docs
