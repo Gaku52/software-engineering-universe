@@ -1,61 +1,61 @@
-# ファインチューニング — モデルをタスクに特化させる技法
+# Fine-Tuning — Techniques for Specializing Models to Specific Tasks
 
-> LoRA、QLoRA、RLHF、DPO など、LLM を自分のデータ・タスクに最適化するための主要手法を実践的に解説する。
+> A practical guide to the key methods for optimizing LLMs with your own data and tasks, including LoRA, QLoRA, RLHF, and DPO.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **LoRA / QLoRA** による効率的なパラメータ調整の仕組みと実装
-2. **RLHF と DPO** によるアラインメント手法の原理と選択基準
-3. **実践的なファインチューニング**のワークフローと評価方法
+1. How **LoRA / QLoRA** efficiently adjusts parameters and how to implement it
+2. The principles and selection criteria for **RLHF and DPO** alignment methods
+3. Practical fine-tuning **workflows and evaluation approaches**
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [推論 — LLM の出力を制御するパラメータと技法](./02-inference.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Inference — Parameters and Techniques for Controlling LLM Output](./02-inference.md)
 
 ---
 
 ## 1. LoRA (Low-Rank Adaptation)
 
-### ASCII 図解 1: LoRA の仕組み
+### ASCII Diagram 1: How LoRA Works
 
 ```
-通常のファインチューニング:
+Standard Fine-Tuning:
 ┌─────────────┐
-│ 全パラメータ W │  ← 全て更新 (数十億パラメータ)
-│  (d × d)     │     GPU メモリ大量消費
+│ All params W  │  ← All updated (billions of parameters)
+│  (d × d)     │     Massive GPU memory consumption
 └─────────────┘
 
 LoRA:
 ┌─────────────┐
-│ 元の重み W    │  ← 凍結 (更新しない)
+│ Original W   │  ← Frozen (not updated)
 │  (d × d)     │
 └──────┬──────┘
        │
-       + (加算)
+       + (addition)
        │
 ┌──────┴──────┐
-│  ΔW = B × A  │  ← 低ランク行列のみ更新
+│  ΔW = B × A  │  ← Only low-rank matrices updated
 │              │
-│ B: (d × r)   │  r << d (例: r=8, d=4096)
+│ B: (d × r)   │  r << d (e.g., r=8, d=4096)
 │ A: (r × d)   │
-│              │  パラメータ数: 2 × d × r
-│ 例: 2×4096×8 │  = 65,536 (元の0.01%以下)
+│              │  Parameter count: 2 × d × r
+│ e.g.: 2×4096×8│  = 65,536 (less than 0.01% of original)
 └─────────────┘
 ```
 
-### コード例 1: LoRA でのファインチューニング (PEFT)
+### Code Example 1: Fine-Tuning with LoRA (PEFT)
 
 ```python
 from peft import LoraConfig, get_peft_model, TaskType
 from transformers import AutoModelForCausalLM, AutoTokenizer, TrainingArguments
 from trl import SFTTrainer
 
-# ベースモデルのロード
+# Load base model
 model_name = "meta-llama/Llama-3.1-8B-Instruct"
 model = AutoModelForCausalLM.from_pretrained(
     model_name,
@@ -64,116 +64,116 @@ model = AutoModelForCausalLM.from_pretrained(
 )
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-# LoRA 設定
+# LoRA configuration
 lora_config = LoraConfig(
     task_type=TaskType.CAUSAL_LM,
-    r=16,                          # ランク (8-64 が一般的)
-    lora_alpha=32,                 # スケーリング係数
-    lora_dropout=0.05,             # ドロップアウト率
-    target_modules=[               # 適用する層
+    r=16,                          # Rank (8-64 is typical)
+    lora_alpha=32,                 # Scaling factor
+    lora_dropout=0.05,             # Dropout rate
+    target_modules=[               # Layers to apply LoRA to
         "q_proj", "k_proj", "v_proj", "o_proj",
         "gate_proj", "up_proj", "down_proj",
     ],
 )
 
-# LoRA を適用
+# Apply LoRA
 model = get_peft_model(model, lora_config)
 model.print_trainable_parameters()
 # trainable params: 41,943,040 || all params: 8,072,204,288 || trainable%: 0.52%
 ```
 
-### コード例 2: QLoRA (4bit量子化 + LoRA)
+### Code Example 2: QLoRA (4-bit Quantization + LoRA)
 
 ```python
 from transformers import BitsAndBytesConfig
 import torch
 
-# 4bit 量子化設定
+# 4-bit quantization configuration
 bnb_config = BitsAndBytesConfig(
     load_in_4bit=True,
     bnb_4bit_quant_type="nf4",        # NormalFloat4
     bnb_4bit_compute_dtype=torch.bfloat16,
-    bnb_4bit_use_double_quant=True,    # 二重量子化
+    bnb_4bit_use_double_quant=True,    # Double quantization
 )
 
-# QLoRA: 4bit量子化モデル + LoRA
+# QLoRA: 4-bit quantized model + LoRA
 model = AutoModelForCausalLM.from_pretrained(
     "meta-llama/Llama-3.1-8B-Instruct",
     quantization_config=bnb_config,
     device_map="auto",
 )
 
-# LoRA を適用（上記と同じ設定）
+# Apply LoRA (same configuration as above)
 model = get_peft_model(model, lora_config)
-# VRAM: 70B → ~40GB (QLoRA) vs ~140GB (フル精度)
+# VRAM: 70B → ~40GB (QLoRA) vs ~140GB (full precision)
 ```
 
-### ASCII 図解 2: ファインチューニング手法の GPU メモリ比較
+### ASCII Diagram 2: GPU Memory Comparison by Fine-Tuning Method
 
 ```
-GPU VRAM 使用量 (Llama 3.1 8B の場合)
+GPU VRAM Usage (for Llama 3.1 8B)
 
-フル FT:     ████████████████████████████████████  ~60GB
-             全パラメータ更新 + 勾配 + オプティマイザ
+Full FT:     ████████████████████████████████████  ~60GB
+             All params updated + gradients + optimizer
 
 LoRA (fp16): ████████████████████░░░░░░░░░░░░░░░  ~20GB
-             モデル(fp16) + LoRA勾配のみ
+             Model (fp16) + LoRA gradients only
 
 QLoRA (4bit):████████████░░░░░░░░░░░░░░░░░░░░░░░  ~8GB
-             モデル(4bit) + LoRA勾配(bf16)
+             Model (4bit) + LoRA gradients (bf16)
 
-推論のみ:    ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░  ~5GB
-             モデル(4bit)のみ
+Inference:   ████████░░░░░░░░░░░░░░░░░░░░░░░░░░░  ~5GB
+             Model (4bit) only
 
              0    10   20   30   40   50   60 GB
 ```
 
 ---
 
-## 2. LoRA の詳細設計と最適化
+## 2. Advanced LoRA Design and Optimization
 
-### 2.1 LoRA ハイパーパラメータの影響
+### 2.1 Effect of LoRA Hyperparameters
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│         LoRA ハイパーパラメータの設計空間                    │
+│         LoRA Hyperparameter Design Space                  │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  r (ランク):                                              │
+│  r (rank):                                               │
 │  ─────────                                               │
-│  小さい (4-8)     → パラメータ少、軽量、過学習しにくい     │
-│  中程度 (16-32)   → 一般的な推奨値、バランス良好           │
-│  大きい (64-128)  → 表現力高、過学習リスク、メモリ増加     │
+│  Small (4-8)      → Fewer params, lightweight, less overfitting  │
+│  Medium (16-32)   → General recommendation, good balance │
+│  Large (64-128)   → High expressiveness, overfitting risk, more memory │
 │                                                          │
-│  lora_alpha (スケーリング):                               │
+│  lora_alpha (scaling):                                   │
 │  ─────────────────────                                   │
-│  ΔW の寄与 = (lora_alpha / r) × B × A                   │
-│  → alpha/r 比が実効的な学習率スケールを決定               │
-│  → 一般的に alpha = 2 × r (例: r=16, alpha=32)          │
-│  → alpha が大きすぎると学習不安定                         │
+│  ΔW contribution = (lora_alpha / r) × B × A             │
+│  → alpha/r ratio determines effective learning rate scale│
+│  → Typically alpha = 2 × r (e.g., r=16, alpha=32)       │
+│  → Too large alpha causes unstable training              │
 │                                                          │
 │  target_modules:                                          │
 │  ──────────────                                          │
-│  q_proj, v_proj のみ    → 最小構成、軽量                  │
-│  + k_proj, o_proj       → 標準構成                       │
-│  + gate/up/down_proj    → 全アテンション+FFN (推奨)       │
-│  + embed/lm_head        → 最大構成 (稀にしか使わない)     │
+│  q_proj, v_proj only    → Minimal config, lightweight    │
+│  + k_proj, o_proj       → Standard config                │
+│  + gate/up/down_proj    → Full attention+FFN (recommended)│
+│  + embed/lm_head        → Maximum config (rarely used)   │
 │                                                          │
 │  lora_dropout:                                            │
 │  ────────────                                            │
-│  0.0    → ドロップアウトなし (データ量多い場合)            │
-│  0.05   → 軽微な正則化 (推奨デフォルト)                   │
-│  0.1+   → 強い正則化 (小規模データセット向け)             │
+│  0.0    → No dropout (when data volume is large)         │
+│  0.05   → Light regularization (recommended default)     │
+│  0.1+   → Strong regularization (for small datasets)     │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 target_modules の選定実験
+### 2.2 Experiments on Selecting target_modules
 
 ```python
 from peft import LoraConfig, get_peft_model, TaskType
 from transformers import AutoModelForCausalLM
 
-# 異なる target_modules 設定の比較
+# Comparison of different target_modules configurations
 configs = {
     "minimal": {
         "target_modules": ["q_proj", "v_proj"],
@@ -213,20 +213,20 @@ for name, config_params in configs.items():
     total = sum(p.numel() for p in model.parameters())
     print(f"{name:10s}: trainable={trainable:>12,} ({trainable/total:.2%})")
 
-# 出力例:
+# Example output:
 # minimal   : trainable=  13,107,200 (0.16%)
 # standard  : trainable=  26,214,400 (0.32%)
 # full      : trainable=  41,943,040 (0.52%)
 ```
 
-### 2.3 LoRA の数学的背景
+### 2.3 Mathematical Background of LoRA
 
 ```python
 import torch
 import torch.nn as nn
 
 class LoRALayer(nn.Module):
-    """LoRA レイヤーの教育的実装"""
+    """Educational implementation of a LoRA layer"""
 
     def __init__(
         self,
@@ -241,41 +241,41 @@ class LoRALayer(nn.Module):
         self.alpha = alpha
         self.scaling = alpha / r
 
-        # 元の重みを凍結
+        # Freeze original weights
         for param in self.original.parameters():
             param.requires_grad = False
 
         in_dim = original_layer.in_features
         out_dim = original_layer.out_features
 
-        # 低ランク行列 A と B
+        # Low-rank matrices A and B
         self.lora_A = nn.Linear(in_dim, r, bias=False)
         self.lora_B = nn.Linear(r, out_dim, bias=False)
         self.dropout = nn.Dropout(dropout)
 
-        # A はランダム初期化、B はゼロ初期化
-        # → 学習開始時は ΔW = 0 (元のモデルと同一)
+        # A is randomly initialized, B is zero-initialized
+        # → At training start, ΔW = 0 (identical to original model)
         nn.init.kaiming_uniform_(self.lora_A.weight)
         nn.init.zeros_(self.lora_B.weight)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        # 元の出力 + LoRA の低ランク近似
+        # Original output + LoRA low-rank approximation
         original_output = self.original(x)
         lora_output = self.lora_B(self.lora_A(self.dropout(x)))
         return original_output + self.scaling * lora_output
 
     def merge_weights(self):
-        """推論時に LoRA 重みを元の重みにマージ (推論高速化)"""
+        """Merge LoRA weights into original weights at inference time (speeds up inference)"""
         delta_w = self.scaling * (self.lora_B.weight @ self.lora_A.weight)
         self.original.weight.data += delta_w
         return self.original
 
 
-# 使用例
+# Usage example
 linear = nn.Linear(4096, 4096)
 lora_linear = LoRALayer(linear, r=16, alpha=32)
 
-# 訓練可能パラメータ数
+# Number of trainable parameters
 trainable = sum(p.numel() for p in lora_linear.parameters() if p.requires_grad)
 total = sum(p.numel() for p in lora_linear.parameters())
 print(f"Trainable: {trainable:,} / {total:,} ({trainable/total:.4%})")
@@ -284,9 +284,9 @@ print(f"Trainable: {trainable:,} / {total:,} ({trainable/total:.4%})")
 
 ---
 
-## 3. SFT (Supervised Fine-Tuning) の完全ワークフロー
+## 3. Complete SFT (Supervised Fine-Tuning) Workflow
 
-### 3.1 データセット準備
+### 3.1 Dataset Preparation
 
 ```python
 from datasets import Dataset, load_dataset
@@ -294,30 +294,30 @@ from transformers import AutoTokenizer
 
 tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-3.1-8B-Instruct")
 
-# 方法1: ローカルデータから作成
+# Method 1: Create from local data
 raw_data = [
     {
-        "instruction": "以下のPythonコードのバグを修正してください。",
+        "instruction": "Please fix the bug in the following Python code.",
         "input": "def add(a, b):\n    return a - b",
-        "output": "def add(a, b):\n    return a + b\n\n# 修正: 減算(-) を加算(+) に変更しました。"
+        "output": "def add(a, b):\n    return a + b\n\n# Fix: changed subtraction(-) to addition(+)."
     },
     {
-        "instruction": "SQLクエリを最適化してください。",
-        "input": "SELECT * FROM users WHERE name LIKE '%田中%'",
+        "instruction": "Please optimize this SQL query.",
+        "input": "SELECT * FROM users WHERE name LIKE '%Tanaka%'",
         "output": (
-            "SELECT id, name, email FROM users WHERE name LIKE '%田中%'\n\n"
-            "-- 改善点:\n"
-            "-- 1. SELECT * を必要なカラムに限定\n"
-            "-- 2. LIKE前方一致の場合はインデックスが効くが、中間一致は全件走査"
+            "SELECT id, name, email FROM users WHERE name LIKE '%Tanaka%'\n\n"
+            "-- Improvements:\n"
+            "-- 1. Replaced SELECT * with specific columns\n"
+            "-- 2. LIKE with prefix wildcard allows index use, but middle wildcard causes full scan"
         )
     },
-    # ... 数百〜数千件
+    # ... hundreds to thousands of examples
 ]
 
-# チャットテンプレートに変換
+# Convert to chat template format
 def format_chat(example):
     messages = [
-        {"role": "system", "content": "あなたは優秀なプログラミングアシスタントです。"},
+        {"role": "system", "content": "You are an excellent programming assistant."},
         {"role": "user", "content": f"{example['instruction']}\n\n{example['input']}"},
         {"role": "assistant", "content": example["output"]},
     ]
@@ -325,11 +325,11 @@ def format_chat(example):
 
 dataset = Dataset.from_list(raw_data).map(format_chat)
 
-# 方法2: Hugging Face Hub からロード
+# Method 2: Load from Hugging Face Hub
 dataset_hf = load_dataset("kunishou/databricks-dolly-15k-ja")
 
 
-# 方法3: JSONL ファイルから
+# Method 3: From a JSONL file
 import json
 
 def load_jsonl(filepath: str) -> Dataset:
@@ -340,7 +340,7 @@ def load_jsonl(filepath: str) -> Dataset:
     return Dataset.from_list(data)
 ```
 
-### 3.2 SFTTrainer による学習
+### 3.2 Training with SFTTrainer
 
 ```python
 from peft import LoraConfig, TaskType
@@ -351,12 +351,12 @@ from transformers import (
 from trl import SFTTrainer, SFTConfig
 import torch
 
-# モデルとトークナイザ
+# Model and tokenizer
 model_name = "meta-llama/Llama-3.1-8B-Instruct"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 tokenizer.pad_token = tokenizer.eos_token
 
-# QLoRA 用量子化設定
+# Quantization config for QLoRA
 bnb_config = BitsAndBytesConfig(
     load_in_4bit=True,
     bnb_4bit_quant_type="nf4",
@@ -371,7 +371,7 @@ model = AutoModelForCausalLM.from_pretrained(
     attn_implementation="flash_attention_2",  # Flash Attention 2
 )
 
-# LoRA 設定
+# LoRA configuration
 lora_config = LoraConfig(
     task_type=TaskType.CAUSAL_LM,
     r=16,
@@ -383,13 +383,13 @@ lora_config = LoraConfig(
     ],
 )
 
-# 学習設定
+# Training configuration
 training_args = SFTConfig(
     output_dir="./output",
     num_train_epochs=3,
     per_device_train_batch_size=4,
     per_device_eval_batch_size=4,
-    gradient_accumulation_steps=4,     # 実効バッチサイズ = 4 × 4 = 16
+    gradient_accumulation_steps=4,     # Effective batch size = 4 × 4 = 16
     learning_rate=2e-4,
     lr_scheduler_type="cosine",
     warmup_ratio=0.1,
@@ -403,13 +403,13 @@ training_args = SFTConfig(
     load_best_model_at_end=True,
     max_seq_length=2048,
     dataset_text_field="text",
-    gradient_checkpointing=True,       # メモリ節約
+    gradient_checkpointing=True,       # Save memory
     gradient_checkpointing_kwargs={"use_reentrant": False},
-    optim="paged_adamw_8bit",          # メモリ効率的なオプティマイザ
-    report_to="wandb",                 # Weights & Biases でモニタリング
+    optim="paged_adamw_8bit",          # Memory-efficient optimizer
+    report_to="wandb",                 # Monitor with Weights & Biases
 )
 
-# トレーナー
+# Trainer
 trainer = SFTTrainer(
     model=model,
     args=training_args,
@@ -419,22 +419,22 @@ trainer = SFTTrainer(
     peft_config=lora_config,
 )
 
-# 学習実行
+# Run training
 trainer.train()
 
-# モデル保存
+# Save model
 trainer.save_model("./output/final")
 tokenizer.save_pretrained("./output/final")
 ```
 
-### 3.3 学習曲線の監視と早期停止
+### 3.3 Monitoring Training Curves and Early Stopping
 
 ```python
 from transformers import TrainerCallback
 import matplotlib.pyplot as plt
 
 class LossMonitorCallback(TrainerCallback):
-    """学習曲線をリアルタイムで監視"""
+    """Monitor training curves in real time"""
 
     def __init__(self):
         self.train_losses = []
@@ -451,11 +451,11 @@ class LossMonitorCallback(TrainerCallback):
             self.eval_losses.append(logs["eval_loss"])
             self.eval_steps.append(state.global_step)
 
-            # 過学習検出: eval_loss が連続3回上昇
+            # Overfitting detection: eval_loss rising 3 times in a row
             if len(self.eval_losses) >= 3:
                 if (self.eval_losses[-1] > self.eval_losses[-2] >
                     self.eval_losses[-3]):
-                    print("WARNING: 過学習の兆候を検出。学習停止を検討してください。")
+                    print("WARNING: Signs of overfitting detected. Consider stopping training.")
 
     def plot(self, save_path: str = "loss_curve.png"):
         plt.figure(figsize=(10, 6))
@@ -469,10 +469,10 @@ class LossMonitorCallback(TrainerCallback):
         plt.legend()
         plt.grid(True, alpha=0.3)
         plt.savefig(save_path, dpi=150, bbox_inches="tight")
-        print(f"学習曲線を {save_path} に保存しました")
+        print(f"Training curve saved to {save_path}")
 
 
-# 使用例
+# Usage example
 loss_monitor = LossMonitorCallback()
 
 trainer = SFTTrainer(
@@ -491,64 +491,67 @@ loss_monitor.plot()
 
 ---
 
-## 4. RLHF と DPO
+## 4. RLHF and DPO
 
-### ASCII 図解 3: RLHF vs DPO のワークフロー
+### ASCII Diagram 3: RLHF vs DPO Workflow
 
 ```
 RLHF (Reinforcement Learning from Human Feedback):
 ┌─────────┐    ┌──────────┐    ┌──────────┐
-│ SFT モデル│ →  │ 応答生成  │ →  │ 人間評価  │
-└─────────┘    └──────────┘    └────┬─────┘
-                                     │
-                                     ▼
-┌─────────┐    ┌──────────┐    ┌──────────┐
-│ 最終モデル│ ←  │ PPO 学習  │ ←  │報酬モデル │
-└─────────┘    └──────────┘    └──────────┘
-                 (不安定)        (別途学習が必要)
-
-DPO (Direct Preference Optimization):
-┌─────────┐    ┌──────────┐    ┌──────────┐
-│ SFT モデル│ →  │ 応答ペア  │ →  │ 人間評価  │
-└─────────┘    │ 生成      │    │ (好み順) │
+│SFT Model│ →  │ Generate │ →  │  Human   │
+└─────────┘    │Responses │    │Evaluation│
                └──────────┘    └────┬─────┘
                                      │
                                      ▼
+┌─────────┐    ┌──────────┐    ┌──────────┐
+│  Final  │ ←  │PPO Train │ ←  │  Reward  │
+│  Model  │    │(unstable)│    │  Model   │
+└─────────┘    └──────────┘    └──────────┘
+                                (requires separate training)
+
+DPO (Direct Preference Optimization):
+┌─────────┐    ┌──────────┐    ┌──────────┐
+│SFT Model│ →  │ Generate │ →  │  Human   │
+└─────────┘    │  Pairs   │    │Evaluation│
+               └──────────┘    │(ranking) │
+                               └────┬─────┘
+                                     │
+                                     ▼
 ┌─────────┐                   ┌──────────┐
-│ 最終モデル│ ←─────────────── │ DPO 損失  │
-└─────────┘   (直接最適化)     │ で学習    │
-               (安定)          └──────────┘
-               報酬モデル不要
+│  Final  │ ←─────────────── │ Train w/ │
+│  Model  │  (direct optim.) │ DPO Loss │
+└─────────┘   (stable)        └──────────┘
+               No reward model needed
 ```
 
-### コード例 3: DPO でのアラインメント学習
+### Code Example 3: Alignment Training with DPO
 
 ```python
 from trl import DPOTrainer, DPOConfig
 from datasets import load_dataset
 
-# 好みデータセットの形式
-# {"prompt": "...", "chosen": "良い応答", "rejected": "悪い応答"}
+# Preference dataset format
+# {"prompt": "...", "chosen": "good response", "rejected": "bad response"}
 dataset = load_dataset("your-org/preference-dataset")
 
-# DPO 設定
+# DPO configuration
 training_args = DPOConfig(
     output_dir="./dpo-output",
     num_train_epochs=3,
     per_device_train_batch_size=4,
     gradient_accumulation_steps=4,
     learning_rate=5e-7,
-    beta=0.1,              # KLペナルティの強さ
+    beta=0.1,              # Strength of KL penalty
     loss_type="sigmoid",   # "sigmoid", "hinge", "ipo"
     logging_steps=10,
     save_steps=100,
     bf16=True,
 )
 
-# DPO トレーナー
+# DPO trainer
 trainer = DPOTrainer(
     model=model,
-    ref_model=None,  # PEFT使用時は自動でリファレンスモデル生成
+    ref_model=None,  # Reference model auto-generated when using PEFT
     args=training_args,
     train_dataset=dataset["train"],
     tokenizer=tokenizer,
@@ -559,37 +562,37 @@ trainer.train()
 trainer.save_model("./dpo-final")
 ```
 
-### 4.1 DPO の数学的背景
+### 4.1 Mathematical Background of DPO
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│         DPO 損失関数の直感的理解                           │
+│         Intuitive Understanding of the DPO Loss Function  │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
 │  DPO Loss = -log σ(β × (log π(y_w|x)/π_ref(y_w|x)     │
 │                      - log π(y_l|x)/π_ref(y_l|x)))      │
 │                                                          │
-│  ここで:                                                  │
-│  π     = 学習中のポリシー (モデル)                        │
-│  π_ref = リファレンスポリシー (SFTモデル)                 │
-│  y_w   = 人間が好んだ応答 (winner/chosen)                │
-│  y_l   = 人間が好まなかった応答 (loser/rejected)         │
-│  β     = KL ペナルティの強さ                              │
-│  σ     = シグモイド関数                                   │
+│  Where:                                                  │
+│  π     = policy being trained (the model)                │
+│  π_ref = reference policy (SFT model)                    │
+│  y_w   = response preferred by humans (winner/chosen)    │
+│  y_l   = response not preferred by humans (loser/rejected)│
+│  β     = strength of KL penalty                          │
+│  σ     = sigmoid function                                │
 │                                                          │
-│  直感:                                                    │
-│  → chosen の確率を上げ、rejected の確率を下げる           │
-│  → β が大きいと SFT モデルからの逸脱を制限               │
-│  → β が小さいと自由に最適化 (過学習リスク)               │
+│  Intuition:                                              │
+│  → Increase probability of chosen, decrease rejected     │
+│  → Large β restricts deviation from SFT model            │
+│  → Small β allows free optimization (overfitting risk)   │
 │                                                          │
-│  β の推奨値:                                              │
-│  ├── 0.1  → 標準 (多くの場合に有効)                      │
-│  ├── 0.05 → 積極的最適化 (データ品質が高い場合)          │
-│  └── 0.5  → 保守的 (SFTモデルの品質維持重視)             │
+│  Recommended β values:                                   │
+│  ├── 0.1  → Standard (effective in most cases)           │
+│  ├── 0.05 → Aggressive optimization (when data quality is high) │
+│  └── 0.5  → Conservative (prioritize preserving SFT model quality) │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 好みデータセットの作成方法
+### 4.2 How to Create Preference Datasets
 
 ```python
 from datasets import Dataset
@@ -602,11 +605,11 @@ def create_preference_dataset(
     n_responses: int = 4,
     temperature: float = 0.8,
 ) -> Dataset:
-    """SFT モデルから好みデータセットを自動生成"""
+    """Auto-generate preference dataset from SFT model"""
     preference_data = []
 
     for prompt in prompts:
-        # 複数の応答を生成
+        # Generate multiple responses
         responses = []
         for _ in range(n_responses):
             inputs = tokenizer(prompt, return_tensors="pt").to(sft_model.device)
@@ -619,20 +622,20 @@ def create_preference_dataset(
             response = tokenizer.decode(outputs[0], skip_special_tokens=True)
             responses.append(response)
 
-        # LLM-as-a-Judge で評価 (GPT-4o を使用)
+        # Evaluate with LLM-as-a-Judge (using GPT-4o)
         from openai import OpenAI
         client = OpenAI()
 
         judge_prompt = f"""
-以下の質問に対する{n_responses}つの回答を評価し、
-最も良い回答と最も悪い回答を選んでください。
+Evaluate the following {n_responses} responses to the question below,
+and select the best and worst response.
 
-質問: {prompt}
+Question: {prompt}
 
-回答:
+Responses:
 {chr(10).join(f'{i+1}. {r}' for i, r in enumerate(responses))}
 
-JSON形式で出力: {{"best": <番号>, "worst": <番号>, "reason": "<理由>"}}
+Output in JSON format: {{"best": <number>, "worst": <number>, "reason": "<reason>"}}
 """
 
         judge_response = client.chat.completions.create(
@@ -653,25 +656,25 @@ JSON形式で出力: {{"best": <番号>, "worst": <番号>, "reason": "<理由>"
     return Dataset.from_list(preference_data)
 
 
-# 手動でのデータ作成テンプレート
+# Template for manual data creation
 manual_preference = [
     {
-        "prompt": "Pythonでリストの重複を除去する方法は？",
+        "prompt": "How do I remove duplicates from a list in Python?",
         "chosen": (
-            "リストの重複除去にはいくつかの方法があります:\n\n"
-            "1. `set()` を使う方法（最もシンプル）:\n"
+            "There are several ways to remove duplicates from a list:\n\n"
+            "1. Using `set()` (simplest approach):\n"
             "```python\n"
             "unique = list(set(original_list))\n"
             "```\n"
-            "注意: 順序が保持されません。\n\n"
-            "2. `dict.fromkeys()` で順序を保持:\n"
+            "Note: Order is not preserved.\n\n"
+            "2. Using `dict.fromkeys()` to preserve order:\n"
             "```python\n"
             "unique = list(dict.fromkeys(original_list))\n"
             "```\n"
         ),
-        "rejected": "set使えばいいです。",
+        "rejected": "Just use set().",
     },
-    # ... 数百件
+    # ... hundreds of examples
 ]
 ```
 
@@ -680,15 +683,15 @@ manual_preference = [
 ```python
 from trl import ORPOTrainer, ORPOConfig
 
-# ORPO: SFT と DPO を同時に行う手法
-# → SFT ステップが不要、より効率的
+# ORPO: A method that performs SFT and DPO simultaneously
+# → No SFT step needed, more efficient
 orpo_config = ORPOConfig(
     output_dir="./orpo-output",
     num_train_epochs=3,
     per_device_train_batch_size=4,
     gradient_accumulation_steps=4,
     learning_rate=8e-6,
-    beta=0.1,              # ORPO のオッズ比パラメータ
+    beta=0.1,              # ORPO odds ratio parameter
     logging_steps=10,
     bf16=True,
     optim="paged_adamw_8bit",
@@ -708,9 +711,9 @@ trainer.train()
 
 ---
 
-## 5. OpenAI / API 経由のファインチューニング
+## 5. Fine-Tuning via OpenAI / API
 
-### コード例 5: OpenAI でのファインチューニング（API経由）
+### Code Example 5: Fine-Tuning with OpenAI (via API)
 
 ```python
 from openai import OpenAI
@@ -718,29 +721,29 @@ import json
 
 client = OpenAI()
 
-# 1. 学習データの準備 (JSONL 形式)
+# 1. Prepare training data (JSONL format)
 training_data = [
     {
         "messages": [
-            {"role": "system", "content": "技術文書を日本語で要約するアシスタント"},
-            {"role": "user", "content": "以下の文書を要約してください: ..."},
-            {"role": "assistant", "content": "要約: ..."}
+            {"role": "system", "content": "An assistant that summarizes technical documents in Japanese"},
+            {"role": "user", "content": "Please summarize the following document: ..."},
+            {"role": "assistant", "content": "Summary: ..."}
         ]
     },
-    # ... 数十〜数百例
+    # ... tens to hundreds of examples
 ]
 
 with open("training_data.jsonl", "w") as f:
     for item in training_data:
         f.write(json.dumps(item, ensure_ascii=False) + "\n")
 
-# 2. ファイルアップロード
+# 2. Upload file
 file = client.files.create(
     file=open("training_data.jsonl", "rb"),
     purpose="fine-tune"
 )
 
-# 3. ファインチューニングジョブ作成
+# 3. Create fine-tuning job
 job = client.fine_tuning.jobs.create(
     training_file=file.id,
     model="gpt-4o-mini-2024-07-18",
@@ -751,20 +754,20 @@ job = client.fine_tuning.jobs.create(
     }
 )
 
-# 4. ステータス確認
+# 4. Check status
 status = client.fine_tuning.jobs.retrieve(job.id)
 print(f"Status: {status.status}")
-# ファインチューニング済みモデル: ft:gpt-4o-mini:org-name::job-id
+# Fine-tuned model: ft:gpt-4o-mini:org-name::job-id
 ```
 
-### 5.1 OpenAI ファインチューニングのベストプラクティス
+### 5.1 Best Practices for OpenAI Fine-Tuning
 
 ```python
 import json
 from pathlib import Path
 
 class OpenAIFTDataValidator:
-    """OpenAI ファインチューニングデータの検証ツール"""
+    """Validation tool for OpenAI fine-tuning data"""
 
     def __init__(self, filepath: str):
         self.filepath = filepath
@@ -774,7 +777,7 @@ class OpenAIFTDataValidator:
                 self.data.append(json.loads(line))
 
     def validate(self) -> dict:
-        """データの品質チェック"""
+        """Data quality check"""
         issues = []
         stats = {
             "total_examples": len(self.data),
@@ -788,24 +791,24 @@ class OpenAIFTDataValidator:
         for i, example in enumerate(self.data):
             messages = example.get("messages", [])
 
-            # 必須フィールドチェック
+            # Required field check
             if not messages:
-                issues.append(f"行 {i}: messages が空")
+                issues.append(f"Row {i}: messages is empty")
                 continue
 
             roles = [m["role"] for m in messages]
 
-            # システムプロンプトの一貫性
+            # System prompt consistency
             if roles[0] == "system":
                 system_content = messages[0]["content"]
             else:
-                issues.append(f"行 {i}: system メッセージなし")
+                issues.append(f"Row {i}: no system message")
 
-            # assistant 応答の存在確認
+            # Check for assistant response
             if "assistant" not in roles:
-                issues.append(f"行 {i}: assistant 応答なし")
+                issues.append(f"Row {i}: no assistant response")
 
-            # トークン数の概算 (1トークン ≈ 4文字)
+            # Rough token count estimate (1 token ≈ 4 characters)
             total_chars = sum(len(m["content"]) for m in messages)
             est_tokens = total_chars // 4
             token_counts.append(est_tokens)
@@ -816,13 +819,13 @@ class OpenAIFTDataValidator:
             stats["max_tokens"] = max(token_counts)
             stats["min_tokens"] = min(token_counts)
 
-        # 推奨チェック
+        # Recommendation checks
         if len(self.data) < 10:
-            issues.append("WARNING: 例が10件未満。最低50件を推奨")
+            issues.append("WARNING: Fewer than 10 examples. Minimum 50 recommended")
         elif len(self.data) < 50:
-            issues.append("NOTE: 例が50件未満。100件以上を推奨")
+            issues.append("NOTE: Fewer than 50 examples. 100+ recommended")
 
-        # コスト概算 (gpt-4o-mini の FT 料金: $3.00/1M training tokens)
+        # Cost estimate (gpt-4o-mini FT pricing: $3.00/1M training tokens)
         cost_per_epoch = (stats["total_tokens"] / 1_000_000) * 3.00
         stats["estimated_cost_per_epoch"] = f"${cost_per_epoch:.2f}"
         stats["estimated_cost_3_epochs"] = f"${cost_per_epoch * 3:.2f}"
@@ -830,19 +833,19 @@ class OpenAIFTDataValidator:
         return {"stats": stats, "issues": issues}
 
 
-# 使用例
+# Usage example
 validator = OpenAIFTDataValidator("training_data.jsonl")
 report = validator.validate()
-print("=== データ検証レポート ===")
+print("=== Data Validation Report ===")
 for key, value in report["stats"].items():
     print(f"  {key}: {value}")
 if report["issues"]:
-    print("\n問題点:")
+    print("\nIssues:")
     for issue in report["issues"]:
         print(f"  - {issue}")
 ```
 
-### 5.2 ファインチューニング済みモデルの評価
+### 5.2 Evaluating Fine-Tuned Models
 
 ```python
 from openai import OpenAI
@@ -854,11 +857,11 @@ def compare_base_vs_ft(
     ft_model: str,
     test_prompts: list[dict],
 ) -> list[dict]:
-    """ベースモデルとFTモデルの比較評価"""
+    """Comparative evaluation of base model vs fine-tuned model"""
     results = []
 
     for test in test_prompts:
-        # ベースモデルの回答
+        # Base model response
         base_resp = client.chat.completions.create(
             model=base_model,
             messages=test["messages"],
@@ -866,7 +869,7 @@ def compare_base_vs_ft(
             temperature=0,
         )
 
-        # FTモデルの回答
+        # FT model response
         ft_resp = client.chat.completions.create(
             model=ft_model,
             messages=test["messages"],
@@ -874,20 +877,20 @@ def compare_base_vs_ft(
             temperature=0,
         )
 
-        # LLM-as-a-Judge で比較
+        # Compare with LLM-as-a-Judge
         judge_resp = client.chat.completions.create(
             model="gpt-4o",
             messages=[{
                 "role": "user",
-                "content": f"""以下の2つの回答を比較評価してください。
+                "content": f"""Please comparatively evaluate the following two responses.
 
-質問: {test['messages'][-1]['content']}
+Question: {test['messages'][-1]['content']}
 
-回答A (ベース): {base_resp.choices[0].message.content}
+Response A (Base): {base_resp.choices[0].message.content}
 
-回答B (FT): {ft_resp.choices[0].message.content}
+Response B (FT): {ft_resp.choices[0].message.content}
 
-JSON: {{"winner": "A" | "B" | "tie", "reason": "<理由>", "score_a": 1-5, "score_b": 1-5}}"""
+JSON: {{"winner": "A" | "B" | "tie", "reason": "<reason>", "score_a": 1-5, "score_b": 1-5}}"""
             }],
             response_format={"type": "json_object"},
             temperature=0,
@@ -898,62 +901,62 @@ JSON: {{"winner": "A" | "B" | "tie", "reason": "<理由>", "score_a": 1-5, "scor
         result["prompt"] = test["messages"][-1]["content"][:100]
         results.append(result)
 
-    # 集計
+    # Aggregate
     wins = {"A": 0, "B": 0, "tie": 0}
     for r in results:
         wins[r["winner"]] += 1
 
-    print(f"ベース勝利: {wins['A']}, FT勝利: {wins['B']}, 引き分け: {wins['tie']}")
+    print(f"Base wins: {wins['A']}, FT wins: {wins['B']}, Ties: {wins['tie']}")
     return results
 ```
 
 ---
 
-## 6. モデルのマージとエクスポート
+## 6. Model Merging and Export
 
-### 6.1 LoRA アダプタのマージ
+### 6.1 Merging LoRA Adapters
 
 ```python
 from peft import AutoPeftModelForCausalLM
 from transformers import AutoTokenizer
 
-# LoRA アダプタをベースモデルにマージ
+# Merge LoRA adapter into base model
 model = AutoPeftModelForCausalLM.from_pretrained(
-    "./output/final",             # LoRA アダプタのパス
+    "./output/final",             # Path to LoRA adapter
     torch_dtype="auto",
     device_map="auto",
 )
 
 merged_model = model.merge_and_unload()
 
-# マージ後のモデルを保存
+# Save merged model
 merged_model.save_pretrained("./merged_model")
 tokenizer = AutoTokenizer.from_pretrained("./output/final")
 tokenizer.save_pretrained("./merged_model")
 
-print("マージ完了。LoRA なしで推論可能になりました。")
+print("Merge complete. Inference is now possible without LoRA.")
 ```
 
-### 6.2 GGUF 形式への変換 (ローカル推論用)
+### 6.2 Converting to GGUF Format (for Local Inference)
 
 ```bash
-# llama.cpp の convert スクリプトで GGUF に変換
+# Convert to GGUF using llama.cpp convert script
 python llama.cpp/convert_hf_to_gguf.py \
     ./merged_model \
     --outtype bf16 \
     --outfile ./merged_model.gguf
 
-# 量子化 (4bit)
+# Quantize (4-bit)
 ./llama.cpp/build/bin/llama-quantize \
     ./merged_model.gguf \
     ./merged_model-q4_k_m.gguf \
     Q4_K_M
 
-# Ollama で利用
+# Use with Ollama
 cat > Modelfile << 'EOF'
 FROM ./merged_model-q4_k_m.gguf
 
-SYSTEM """あなたは専門的なアシスタントです。"""
+SYSTEM """You are a specialized assistant."""
 
 PARAMETER temperature 0.3
 PARAMETER num_ctx 4096
@@ -963,24 +966,24 @@ ollama create my-finetuned -f Modelfile
 ollama run my-finetuned
 ```
 
-### 6.3 Hugging Face Hub へのアップロード
+### 6.3 Uploading to Hugging Face Hub
 
 ```python
 from huggingface_hub import HfApi
 
 api = HfApi()
 
-# リポジトリ作成
+# Create repository
 api.create_repo("your-org/my-finetuned-model", private=True)
 
-# アップロード
+# Upload
 api.upload_folder(
     folder_path="./merged_model",
     repo_id="your-org/my-finetuned-model",
     commit_message="Upload fine-tuned Llama 3.1 8B",
 )
 
-# または LoRA アダプタのみアップロード (軽量)
+# Or upload only the LoRA adapter (lightweight)
 api.upload_folder(
     folder_path="./output/final",
     repo_id="your-org/my-lora-adapter",
@@ -990,250 +993,250 @@ api.upload_folder(
 
 ---
 
-## 7. トラブルシューティング
+## 7. Troubleshooting
 
-### 7.1 よくある問題と対処法
+### 7.1 Common Issues and Solutions
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│       ファインチューニング トラブルシューティング             │
+│       Fine-Tuning Troubleshooting                         │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  問題 1: Loss が下がらない                                │
-│  原因:                                                    │
-│  - 学習率が低すぎる/高すぎる                              │
-│  - データ形式がモデルのチャットテンプレートと不一致         │
-│  - データ品質が低い                                       │
-│  対処:                                                    │
-│  - 学習率を 1e-5 ~ 5e-4 の範囲で調整                    │
-│  - tokenizer.apply_chat_template() を使用               │
-│  - データを10件サンプリングして目視確認                    │
+│  Issue 1: Loss not decreasing                            │
+│  Causes:                                                 │
+│  - Learning rate too low or too high                     │
+│  - Data format does not match model chat template        │
+│  - Low data quality                                      │
+│  Solutions:                                              │
+│  - Adjust learning rate in the range 1e-5 ~ 5e-4        │
+│  - Use tokenizer.apply_chat_template()                   │
+│  - Sample 10 examples and inspect them manually          │
 │                                                          │
-│  問題 2: 過学習 (eval_loss 上昇)                          │
-│  原因:                                                    │
-│  - データ量に対してエポック数が多すぎる                    │
-│  - LoRA ランクが大きすぎる                                │
-│  対処:                                                    │
-│  - エポック数を減らす (1-3 が一般的)                      │
-│  - LoRA r を小さくする (8-16)                             │
-│  - dropout を増やす (0.1-0.2)                             │
-│  - データ量を増やす                                       │
+│  Issue 2: Overfitting (eval_loss increasing)             │
+│  Causes:                                                 │
+│  - Too many epochs relative to data size                 │
+│  - LoRA rank too large                                   │
+│  Solutions:                                              │
+│  - Reduce number of epochs (1-3 is typical)              │
+│  - Lower LoRA r (8-16)                                   │
+│  - Increase dropout (0.1-0.2)                            │
+│  - Increase data volume                                  │
 │                                                          │
-│  問題 3: CUDA Out of Memory                               │
-│  原因: GPU メモリ不足                                      │
-│  対処:                                                    │
-│  - batch_size を半分にする                                 │
-│  - gradient_accumulation_steps を倍にする                  │
-│  - gradient_checkpointing=True にする                     │
-│  - QLoRA (4bit) に切り替える                              │
-│  - max_seq_length を短くする                              │
+│  Issue 3: CUDA Out of Memory                             │
+│  Cause: Insufficient GPU memory                          │
+│  Solutions:                                              │
+│  - Halve the batch_size                                  │
+│  - Double gradient_accumulation_steps                    │
+│  - Set gradient_checkpointing=True                       │
+│  - Switch to QLoRA (4-bit)                               │
+│  - Shorten max_seq_length                                │
 │                                                          │
-│  問題 4: 生成品質が低下                                    │
-│  原因:                                                    │
-│  - カタストロフィック・フォゲッティング                    │
-│  - 学習データのバイアス                                    │
-│  対処:                                                    │
-│  - 学習率を下げる                                         │
-│  - LoRA r を小さくする                                    │
-│  - 汎用データも混ぜる (10-20%)                            │
-│  - DPO の β を大きくする (0.3-0.5)                       │
+│  Issue 4: Degraded generation quality                    │
+│  Causes:                                                 │
+│  - Catastrophic forgetting                               │
+│  - Bias in training data                                 │
+│  Solutions:                                              │
+│  - Lower learning rate                                   │
+│  - Lower LoRA r                                          │
+│  - Mix in general-purpose data (10-20%)                  │
+│  - Increase DPO β (0.3-0.5)                              │
 │                                                          │
-│  問題 5: チャットテンプレート不一致                         │
-│  原因: 学習時と推論時でテンプレートが異なる                │
-│  対処:                                                    │
-│  - tokenizer.apply_chat_template() を常に使用            │
-│  - 特殊トークン (BOS, EOS) の処理を統一                  │
-│  - Ollama 等で Modelfile のテンプレートを正確に設定       │
+│  Issue 5: Chat template mismatch                         │
+│  Cause: Template differs between training and inference  │
+│  Solutions:                                              │
+│  - Always use tokenizer.apply_chat_template()            │
+│  - Unify handling of special tokens (BOS, EOS)           │
+│  - Set Modelfile template precisely in Ollama etc.       │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 7.2 デバッグ用コード
+### 7.2 Debugging Code
 
 ```python
 def debug_training_data(dataset, tokenizer, n_samples: int = 5):
-    """学習データのデバッグ"""
-    print("=== 学習データ確認 ===")
+    """Debug training data"""
+    print("=== Training Data Check ===")
     for i, example in enumerate(dataset.select(range(n_samples))):
         text = example.get("text", "")
         tokens = tokenizer.encode(text)
 
         print(f"\n--- Example {i+1} ---")
-        print(f"文字数: {len(text)}")
-        print(f"トークン数: {len(tokens)}")
-        print(f"最初の200文字: {text[:200]}")
-        print(f"最後の200文字: {text[-200:]}")
+        print(f"Character count: {len(text)}")
+        print(f"Token count: {len(tokens)}")
+        print(f"First 200 chars: {text[:200]}")
+        print(f"Last 200 chars: {text[-200:]}")
 
-        # 特殊トークンの確認
+        # Check for special tokens
         special_tokens = [
             t for t in tokens
             if t in tokenizer.all_special_ids
         ]
-        print(f"特殊トークン数: {len(special_tokens)}")
+        print(f"Special token count: {len(special_tokens)}")
 
-    # 統計情報
+    # Statistics
     all_lengths = [len(tokenizer.encode(e["text"])) for e in dataset]
-    print(f"\n=== 統計 ===")
-    print(f"データ件数: {len(all_lengths)}")
-    print(f"平均トークン数: {sum(all_lengths) / len(all_lengths):.0f}")
-    print(f"最大トークン数: {max(all_lengths)}")
-    print(f"最小トークン数: {min(all_lengths)}")
+    print(f"\n=== Statistics ===")
+    print(f"Number of examples: {len(all_lengths)}")
+    print(f"Average token count: {sum(all_lengths) / len(all_lengths):.0f}")
+    print(f"Max token count: {max(all_lengths)}")
+    print(f"Min token count: {min(all_lengths)}")
 ```
 
 ---
 
-### 比較表 1: ファインチューニング手法の比較
+### Comparison Table 1: Comparison of Fine-Tuning Methods
 
-| 手法 | GPU メモリ | 学習速度 | 品質 | 実装難易度 | コスト |
-|------|-----------|---------|------|-----------|--------|
-| フル FT | 非常に高い | 遅い | 最高 | 高い | 非常に高い |
-| LoRA | 中程度 | 速い | 高い | 中程度 | 中程度 |
-| QLoRA | 低い | 速い | 高い | 中程度 | 低い |
-| API FT (OpenAI) | 不要 | 中程度 | 中〜高 | 低い | 従量制 |
-| プロンプトチューニング | 非常に低い | 非常に速い | 中程度 | 低い | 低い |
+| Method | GPU Memory | Training Speed | Quality | Implementation Difficulty | Cost |
+|--------|-----------|----------------|---------|--------------------------|------|
+| Full FT | Very high | Slow | Best | High | Very high |
+| LoRA | Moderate | Fast | High | Moderate | Moderate |
+| QLoRA | Low | Fast | High | Moderate | Low |
+| API FT (OpenAI) | Not required | Moderate | Medium~High | Low | Pay-per-use |
+| Prompt Tuning | Very low | Very fast | Moderate | Low | Low |
 
-### 比較表 2: RLHF vs DPO の詳細比較
+### Comparison Table 2: Detailed Comparison of RLHF vs DPO
 
-| 項目 | RLHF | DPO | ORPO |
+| Item | RLHF | DPO | ORPO |
 |------|------|-----|------|
-| 報酬モデル | 必要（別途学習） | 不要 | 不要 |
-| SFT ステップ | 必要 | 必要 | 不要 (統合) |
-| 学習安定性 | 不安定（PPOの調整困難） | 安定 | 安定 |
-| 計算コスト | 高い（3モデル並行） | 中程度（2モデル） | 低い（1モデル） |
-| データ要件 | 比較ペア + 報酬ラベル | 比較ペアのみ | 比較ペアのみ |
-| 性能 | 高い（調整成功時） | RLHF に匹敵 | DPO に匹敵 |
-| 実装難易度 | 非常に高い | 中程度 | 低い |
-| 採用例 | GPT-4, Claude | Llama 3, Zephyr | Mistral v0.3 |
+| Reward model | Required (trained separately) | Not required | Not required |
+| SFT step | Required | Required | Not required (integrated) |
+| Training stability | Unstable (PPO tuning is hard) | Stable | Stable |
+| Compute cost | High (3 models in parallel) | Moderate (2 models) | Low (1 model) |
+| Data requirements | Comparison pairs + reward labels | Comparison pairs only | Comparison pairs only |
+| Performance | High (when tuned successfully) | Comparable to RLHF | Comparable to DPO |
+| Implementation difficulty | Very high | Moderate | Low |
+| Adoption examples | GPT-4, Claude | Llama 3, Zephyr | Mistral v0.3 |
 
-### 比較表 3: 学習データ規模と品質の目安
+### Comparison Table 3: Guidelines for Training Data Scale and Quality
 
-| タスク種別 | 最小データ量 | 推奨データ量 | データ品質基準 |
-|-----------|------------|------------|-------------|
-| テキスト分類 | 100件 | 500-2,000件 | ラベル一貫性 >95% |
-| スタイル調整 | 200件 | 1,000-3,000件 | 人手検証済み |
-| 知識注入 | 500件 | 2,000-10,000件 | 事実確認済み |
-| コード生成 | 300件 | 1,000-5,000件 | テスト通過確認済み |
-| 複雑な推論 | 1,000件 | 5,000-50,000件 | 専門家レビュー済み |
-| 対話最適化 | 500件 | 2,000-10,000件 | A/B テスト検証済み |
+| Task Type | Minimum Data | Recommended Data | Data Quality Criteria |
+|-----------|-------------|-----------------|----------------------|
+| Text classification | 100 examples | 500-2,000 examples | Label consistency >95% |
+| Style adjustment | 200 examples | 1,000-3,000 examples | Human-verified |
+| Knowledge injection | 500 examples | 2,000-10,000 examples | Fact-checked |
+| Code generation | 300 examples | 1,000-5,000 examples | Test-passing verified |
+| Complex reasoning | 1,000 examples | 5,000-50,000 examples | Expert-reviewed |
+| Dialogue optimization | 500 examples | 2,000-10,000 examples | A/B test validated |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン 1: データ品質を無視した大量データ投入
-
-```
-誤: 低品質データ10万件でファインチューニング
-  → ノイズを学習、ハルシネーション増加、品質低下
-
-正: 高品質データを厳選
-  - 1000件の高品質データ > 10万件の低品質データ
-  - 必ず人手でデータ品質を検証
-  - 多様なパターンをカバーする代表的な例を選ぶ
-```
-
-### アンチパターン 2: ファインチューニングの過信
+### Anti-Pattern 1: Feeding Large Amounts of Low-Quality Data
 
 ```
-誤: まずファインチューニングから始める
-  → 時間とコストの浪費
+Wrong: Fine-tuning with 100,000 low-quality examples
+  → Learns noise, increased hallucination, quality degradation
 
-正: 段階的にアプローチ
-  1. まずプロンプトエンジニアリングで解決を試みる
-  2. Few-shot 例で改善を試みる
-  3. RAG でコンテキスト提供を試みる
-  4. それでも不十分な場合にファインチューニング
-  → "FT は最後の手段" が基本原則
+Right: Carefully curate high-quality data
+  - 1,000 high-quality examples > 100,000 low-quality examples
+  - Always verify data quality manually
+  - Choose representative examples that cover diverse patterns
 ```
 
-### アンチパターン 3: 学習率の固定
+### Anti-Pattern 2: Over-Reliance on Fine-Tuning
+
+```
+Wrong: Start with fine-tuning right away
+  → Waste of time and cost
+
+Right: Approach incrementally
+  1. First try to solve with prompt engineering
+  2. Try improving with few-shot examples
+  3. Try providing context with RAG
+  4. Only fine-tune when still insufficient
+  → "FT is a last resort" is the guiding principle
+```
+
+### Anti-Pattern 3: Fixed Learning Rate
 
 ```python
-# NG: 全タスクで同じ学習率を使用
-learning_rate = 2e-4  # 常にこの値
+# Bad: Using the same learning rate for all tasks
+learning_rate = 2e-4  # Always this value
 
-# OK: タスクとモデルサイズに応じて調整
+# Good: Adjust based on task and model size
 learning_rates = {
-    "sft_7b_lora":   2e-4,   # 小〜中モデルの LoRA SFT
-    "sft_70b_lora":  5e-5,   # 大モデルの LoRA SFT
-    "dpo_7b":        5e-7,   # DPO は低学習率
-    "dpo_70b":       1e-7,   # 大モデルの DPO はさらに低く
-    "openai_ft":     1.8,    # OpenAI API の multiplier
+    "sft_7b_lora":   2e-4,   # LoRA SFT for small~medium models
+    "sft_70b_lora":  5e-5,   # LoRA SFT for large models
+    "dpo_7b":        5e-7,   # DPO uses low learning rate
+    "dpo_70b":       1e-7,   # Even lower for large model DPO
+    "openai_ft":     1.8,    # OpenAI API multiplier
 }
 
-# ベストプラクティス: 学習率スケジュール
-# 1. warmup (5-10% のステップ) で線形に上昇
-# 2. cosine decay で徐々に低下
-# 3. 最終学習率は初期の 10% 程度
+# Best practice: Learning rate schedule
+# 1. warmup (5-10% of steps): linear increase
+# 2. cosine decay: gradually decrease
+# 3. Final learning rate: ~10% of initial
 ```
 
-### アンチパターン 4: 評価なしのデプロイ
+### Anti-Pattern 4: Deploying Without Evaluation
 
 ```python
-# NG: 学習完了 → 即デプロイ
+# Bad: Training complete → immediate deploy
 trainer.train()
-deploy(model)  # 品質未確認
+deploy(model)  # Quality not verified
 
-# OK: 段階的な評価プロセス
+# Good: Staged evaluation process
 trainer.train()
 
-# 1. 定量評価 (自動)
+# 1. Quantitative evaluation (automated)
 eval_results = evaluate_on_test_set(model, test_dataset)
 if eval_results["score"] < baseline_score:
-    raise ValueError("品質がベースラインを下回っています")
+    raise ValueError("Quality is below baseline")
 
-# 2. 定性評価 (人手サンプル)
+# 2. Qualitative evaluation (manual sampling)
 samples = generate_samples(model, sample_prompts, n=20)
-# 人手で確認
+# Review manually
 
-# 3. A/B テスト
-# 既存モデルとの比較を実施
+# 3. A/B testing
+# Conduct comparison against existing model
 
-# 4. 段階的ロールアウト
-# 10% のトラフィックで開始 → 問題なければ拡大
+# 4. Staged rollout
+# Start with 10% of traffic → expand if no issues
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement appropriate error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise on basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1242,26 +1245,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise on advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1269,7 +1272,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1280,14 +1283,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1295,7 +1298,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1303,44 +1306,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1349,7 +1352,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1364,76 +1367,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criteria | When to prioritize | When to compromise |
+|---------|-------------------|-------------------|
+| Performance | Real-time processing, large-scale data | Admin dashboards, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│          Architecture Selection Flow             │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① What is the team size?                       │
+│    ├─ Small (1-5 people) → Monolith              │
+│    └─ Large (10+ people) → Go to ②              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② How often do you deploy?                     │
+│    ├─ Weekly or less → Monolith + module split   │
+│    └─ Daily/multiple times → Go to ③            │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ How independent are the teams?               │
+│    ├─ High → Microservices                       │
+│    └─ Moderate → Modular monolith                │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A faster short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction enables reusability but can make debugging harder
+- Low abstraction is intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Create an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1443,17 +1446,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1461,7 +1464,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1469,15 +1472,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1486,57 +1489,57 @@ class ArchitectureDecisionRecord:
 
 ## FAQ
 
-### Q1: LoRA のランク r はいくつに設定すべきですか？
+### Q1: What value should I set for LoRA rank r?
 
-**A:** 一般的には r=8〜32 が良い出発点です。タスクが複雑なほど大きなランクが必要ですが、r=64 以上は過学習リスクが高まります。実験的に r=8, 16, 32 で比較し、検証セットの性能で決定するのがベストです。`lora_alpha` は通常 `r` の2倍に設定します。
+**A:** Generally, r=8~32 is a good starting point. More complex tasks require higher ranks, but r=64 and above increases overfitting risk. The best approach is to experimentally compare r=8, 16, and 32 and decide based on validation set performance. `lora_alpha` is typically set to 2× the value of `r`.
 
-### Q2: ファインチューニングにはどのくらいのデータが必要ですか？
+### Q2: How much data is needed for fine-tuning?
 
-**A:** タスクによりますが、一般的な目安は以下の通りです。分類タスク: 100〜500例、スタイル調整: 500〜2000例、専門知識の注入: 1000〜5000例、複雑な推論: 5000〜50000例。ただし、データの品質と多様性がデータ量より重要です。
+**A:** It depends on the task, but general guidelines are as follows: classification tasks: 100-500 examples, style adjustment: 500-2,000 examples, knowledge injection: 1,000-5,000 examples, complex reasoning: 5,000-50,000 examples. However, data quality and diversity are more important than data volume.
 
-### Q3: ファインチューニングとRAGはどちらを選ぶべきですか？
+### Q3: Should I choose fine-tuning or RAG?
 
-**A:** 目的に応じて選択します。「動作・スタイルの変更」にはファインチューニング、「知識の追加」にはRAGが適しています。ファインチューニングは一度学習すれば推論時のコストが変わらず、RAG は最新情報を動的に提供できます。多くの場合、両方を組み合わせるのが最適です。
+**A:** Choose based on your objective. Fine-tuning is suitable for "changing behavior or style," while RAG is better for "adding knowledge." Fine-tuning has no change in inference cost once trained, while RAG can dynamically provide up-to-date information. In many cases, combining both is optimal.
 
-### Q4: LoRA と全パラメータ FT の品質差はどの程度ですか？
+### Q4: How much quality difference is there between LoRA and full-parameter FT?
 
-**A:** 多くのタスクで LoRA (r=16-32) は全パラメータ FT の 95-99% の性能を達成します。特にタスク固有のファインチューニング (分類、要約、コード生成など) では差がほとんど見られません。ただし、モデルの知識を大幅に書き換えるような学習 (新しい言語の習得、全く新しいドメインへの適応) では全パラメータ FT が優位なことがあります。
+**A:** For many tasks, LoRA (r=16-32) achieves 95-99% of the performance of full-parameter FT. The difference is minimal for task-specific fine-tuning (classification, summarization, code generation, etc.). However, for training that significantly rewrites the model's knowledge (acquiring a new language, adapting to an entirely new domain), full-parameter FT may have an advantage.
 
-### Q5: QLoRA で 70B モデルを学習するにはどんなハードウェアが必要ですか？
+### Q5: What hardware is needed to train a 70B model with QLoRA?
 
-**A:** QLoRA (4bit) + LoRA (r=16) で 70B モデルを学習するには、約 40-48GB の VRAM が必要です。A100 80GB 1台、またはA100 40GB 2台 (DeepSpeed ZeRO Stage 3) で実行可能です。バッチサイズは 1-2、gradient_accumulation で実効バッチサイズを確保します。RTX 4090 (24GB) では gradient_checkpointing + batch_size=1 で辛うじて実行できる場合がありますが、安定性の面で推奨しません。
+**A:** Training a 70B model with QLoRA (4-bit) + LoRA (r=16) requires approximately 40-48GB of VRAM. It can be run on one A100 80GB, or two A100 40GB cards (DeepSpeed ZeRO Stage 3). Batch size is 1-2, with gradient_accumulation to secure effective batch size. On an RTX 4090 (24GB), it may barely run with gradient_checkpointing + batch_size=1, but it is not recommended due to stability concerns.
 
-### Q6: ファインチューニング後にモデルが「壊れた」場合の対処法は？
+### Q6: What to do when a model is "broken" after fine-tuning?
 
-**A:** カタストロフィック・フォゲッティングの可能性があります。対処法: (1) 学習率を下げる (1/10 程度)、(2) エポック数を減らす (1 エポックでも効果がある場合が多い)、(3) LoRA の r を小さくする、(4) 汎用データを 10-20% 混ぜる、(5) DPO の場合は beta を大きくして SFT モデルからの逸脱を制限する。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| LoRA | 低ランク行列で効率的にモデルを適応、VRAM を大幅削減 |
-| QLoRA | 4bit 量子化 + LoRA で 8B モデルを 1 GPU で学習可能 |
-| RLHF | 報酬モデルと PPO で人間の好みに合わせる（高性能だが不安定） |
-| DPO | 報酬モデル不要で直接最適化（安定・簡単） |
-| ORPO | SFT + DPO を統合した効率的手法 |
-| データ品質 | 量より質が重要、1000件の良質データが10万件に勝つ |
-| 段階的アプローチ | プロンプト → Few-shot → RAG → FT の順で検討 |
-| 評価 | FT 前後の比較評価を必ず実施、ベースラインを記録 |
-| エクスポート | LoRA マージ → GGUF 変換 → Ollama 実行のパイプライン |
+**A:** Catastrophic forgetting is likely the cause. Solutions: (1) Lower the learning rate (by ~1/10), (2) Reduce the number of epochs (even 1 epoch can be effective), (3) Lower LoRA r, (4) Mix in 10-20% general-purpose data, (5) For DPO, increase beta to restrict deviation from the SFT model.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [../01-models/04-model-comparison.md](../01-models/04-model-comparison.md) — モデル比較とベンチマーク
-- [../02-applications/01-rag.md](../02-applications/01-rag.md) — RAG の実装
-- [../03-infrastructure/02-local-llm.md](../03-infrastructure/02-local-llm.md) — ローカルLLMと量子化
+| Item | Key Point |
+|------|-----------|
+| LoRA | Efficiently adapts models with low-rank matrices, drastically reduces VRAM |
+| QLoRA | 4-bit quantization + LoRA enables training an 8B model on a single GPU |
+| RLHF | Aligns to human preferences with a reward model and PPO (high performance but unstable) |
+| DPO | Direct optimization without a reward model (stable and simple) |
+| ORPO | Efficient method that integrates SFT + DPO |
+| Data quality | Quality matters more than quantity; 1,000 good examples beat 100,000 poor ones |
+| Staged approach | Consider in order: prompt → few-shot → RAG → FT |
+| Evaluation | Always conduct comparative evaluation before and after FT; record baselines |
+| Export | LoRA merge → GGUF conversion → Ollama execution pipeline |
 
 ---
 
-## 参考文献
+## Further Reading
+
+- [../01-models/04-model-comparison.md](../01-models/04-model-comparison.md) — Model comparison and benchmarks
+- [../02-applications/01-rag.md](../02-applications/01-rag.md) — RAG implementation
+- [../03-infrastructure/02-local-llm.md](../03-infrastructure/02-local-llm.md) — Local LLMs and quantization
+
+---
+
+## References
 
 1. Hu, E. et al. (2021). "LoRA: Low-Rank Adaptation of Large Language Models." *ICLR 2022*. https://arxiv.org/abs/2106.09685
 2. Dettmers, T. et al. (2023). "QLoRA: Efficient Finetuning of Quantized Language Models." *NeurIPS 2023*. https://arxiv.org/abs/2305.14314
