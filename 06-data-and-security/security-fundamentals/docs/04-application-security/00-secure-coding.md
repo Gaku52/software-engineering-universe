@@ -1,140 +1,140 @@
-# セキュアコーディング
+# Secure Coding
 
-> 入力検証、出力エンコード、安全なエラーハンドリングを中心に、アプリケーションコードレベルでの脆弱性を防止するための実践的ガイド。OWASP Top 10 に対応したセキュアコーディングの原則、具体的な攻撃手法と防御策、言語別ベストプラクティスを網羅する。
+> A practical guide to preventing vulnerabilities at the application code level, focusing on input validation, output encoding, and safe error handling. Covers secure coding principles aligned with the OWASP Top 10, specific attack techniques and defenses, and language-specific best practices.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **入力検証の原則と実装** — ホワイトリスト方式による安全な入力処理、型安全な検証、インジェクション防止の多層防御
-2. **出力エンコードとXSS防御** — コンテキスト別のエスケープ手法、CSP による多層防御、DOMベース XSS の防止
-3. **安全なエラーハンドリング** — 情報漏洩を防ぎつつデバッグを支援するエラー処理設計、構造化ログとの統合
-4. **セキュアなセッション・認証管理** — CSRF 防止、パスワード処理、セッション固定攻撃対策
+1. **Input Validation Principles and Implementation** — Safe input processing using a whitelist approach, type-safe validation, and multi-layered defense against injection attacks
+2. **Output Encoding and XSS Defense** — Context-aware escaping techniques, multi-layered defense with CSP, and prevention of DOM-based XSS
+3. **Safe Error Handling** — Error handling design that prevents information leakage while supporting debugging, integrated with structured logging
+4. **Secure Session and Authentication Management** — CSRF prevention, password handling, and session fixation attack countermeasures
 
-## 前提知識
+## Prerequisites
 
-| トピック | 参照先 |
+| Topic | Reference |
 |---------|--------|
-| Web セキュリティの基本概念 | [Webセキュリティ基礎](../01-web-security/) |
-| 暗号化の基礎 | [暗号化基礎](../02-cryptography/) |
-| HTTP プロトコルの理解 | [ネットワークセキュリティ](../03-network-security/) |
-| 認証・認可の基本 | 認証と認可 |
+| Basic Web Security Concepts | [Web Security Fundamentals](../01-web-security/) |
+| Cryptography Fundamentals | [Cryptography Basics](../02-cryptography/) |
+| Understanding the HTTP Protocol | [Network Security](../03-network-security/) |
+| Authentication and Authorization Basics | Authentication and Authorization |
 
 ---
 
-## 1. セキュアコーディングの原則
+## 1. Secure Coding Principles
 
-### WHY: なぜセキュアコーディングが必要か
+### WHY: Why Secure Coding Is Necessary
 
-セキュリティ脆弱性の修正コストは、開発フェーズが進むほど指数関数的に増大する。設計段階での修正コストを1とすると、テスト段階では15倍、本番稼働後では100倍以上になるという研究がある（NIST/IBM Systems Sciences Institute）。セキュアコーディングは「後付けのセキュリティ」ではなく、開発プロセスの最初からセキュリティを組み込む「シフトレフト」の中核をなす。
+The cost of fixing security vulnerabilities grows exponentially as development progresses. Research shows that if the cost to fix during design is 1, it becomes 15x at the testing stage and over 100x after production deployment (NIST/IBM Systems Sciences Institute). Secure coding is not "security bolted on later" — it is the core of "shift-left," where security is built into the development process from the very beginning.
 
-### 基本原則
+### Core Principles
 
 ```
 +-------------------------------------------------------------------+
-|                セキュアコーディング 7 原則                             |
+|                7 Principles of Secure Coding                      |
 |-------------------------------------------------------------------|
-|  1. 入力を信用しない (Validate All Input)                            |
-|     → 全ての外部入力はホワイトリスト方式で検証                         |
+|  1. Validate All Input                                            |
+|     → Validate all external input using a whitelist approach      |
 |                                                                   |
-|  2. 最小権限の原則 (Principle of Least Privilege)                    |
-|     → 処理に必要な最小限のアクセス権のみ付与                           |
+|  2. Principle of Least Privilege                                  |
+|     → Grant only the minimum access rights needed for processing  |
 |                                                                   |
-|  3. 多層防御 (Defense in Depth)                                     |
-|     → 単一の防御策に依存せず複数の防御層を構築                         |
+|  3. Defense in Depth                                              |
+|     → Build multiple layers of defense rather than relying on one |
 |                                                                   |
-|  4. 安全なデフォルト (Secure Defaults)                               |
-|     → デフォルト設定が最も安全な状態にする                             |
+|  4. Secure Defaults                                               |
+|     → Default settings should be the most secure state           |
 |                                                                   |
-|  5. フェイルセキュア (Fail Securely)                                 |
-|     → エラー発生時は安全側に倒して処理を中止                           |
+|  5. Fail Securely                                                 |
+|     → On error, fail to a safe state and stop processing          |
 |                                                                   |
-|  6. 攻撃面の最小化 (Minimize Attack Surface)                         |
-|     → 不要な機能・API・ポートを無効化                                 |
+|  6. Minimize Attack Surface                                       |
+|     → Disable unnecessary features, APIs, and ports              |
 |                                                                   |
-|  7. セキュリティを自作しない (Don't Roll Your Own Crypto)             |
-|     → 暗号化・認証は実績あるライブラリを使用                           |
+|  7. Don't Roll Your Own Crypto                                    |
+|     → Use proven libraries for encryption and authentication      |
 +-------------------------------------------------------------------+
 ```
 
-### 原則の適用マトリクス
+### Principle Application Matrix
 
-| 原則 | 入力処理 | 出力処理 | エラー処理 | 認証処理 | データ保存 |
+| Principle | Input Processing | Output Processing | Error Handling | Authentication | Data Storage |
 |------|---------|---------|-----------|---------|-----------|
-| 入力検証 | ホワイトリスト | - | エラー入力の検証 | 資格情報の形式検証 | データ形式の検証 |
-| 最小権限 | 必要なフィールドのみ受理 | 必要な情報のみ出力 | 最小限のエラー情報 | 必要な権限のみ付与 | 必要なカラムのみアクセス |
-| 多層防御 | フロント+バック検証 | エスケープ+CSP | ログ+監視+アラート | MFA+レート制限 | 暗号化+アクセス制御 |
-| フェイルセキュア | 不正入力は拒否 | エスケープ失敗は非表示 | 500で詳細非公開 | 認証失敗はロック | 復号失敗はアクセス拒否 |
+| Input Validation | Whitelist | - | Validate error input | Validate credential format | Validate data format |
+| Least Privilege | Accept only required fields | Output only required information | Minimal error info | Grant only required permissions | Access only required columns |
+| Defense in Depth | Frontend + backend validation | Escaping + CSP | Log + monitoring + alerts | MFA + rate limiting | Encryption + access control |
+| Fail Securely | Reject invalid input | Hide on escaping failure | Return 500 without details | Lock on auth failure | Deny access on decryption failure |
 
 ---
 
-## 2. 入力検証
+## 2. Input Validation
 
-### 入力検証の戦略
+### Input Validation Strategy
 
 ```
-外部入力 (信頼できないデータ)
+External Input (Untrusted Data)
     │
     ▼
 ┌──────────────────────┐
-│ 1. 型チェック         │  文字列? 数値? 配列? null?
-│    (Type Validation) │  → 型が異なれば即リジェクト
+│ 1. Type Check         │  String? Number? Array? null?
+│    (Type Validation) │  → Reject immediately if type differs
 └──────────┬───────────┘
            │
            ▼
 ┌──────────────────────┐
-│ 2. 長さ制限           │  最大長・最小長
-│    (Length Check)     │  → バッファオーバーフロー防止
+│ 2. Length Limit       │  Maximum and minimum length
+│    (Length Check)     │  → Prevents buffer overflow
 └──────────┬───────────┘
            │
            ▼
 ┌──────────────────────┐
-│ 3. 範囲チェック       │  最小値・最大値
-│    (Range Check)     │  → 整数オーバーフロー防止
+│ 3. Range Check        │  Minimum and maximum value
+│    (Range Check)     │  → Prevents integer overflow
 └──────────┬───────────┘
            │
            ▼
 ┌──────────────────────┐
-│ 4. パターン検証       │  ホワイトリスト正規表現
-│    (Pattern Match)   │  → ブラックリストより安全
+│ 4. Pattern Validation │  Whitelist regular expressions
+│    (Pattern Match)   │  → Safer than blacklisting
 └──────────┬───────────┘
            │
            ▼
 ┌──────────────────────┐
-│ 5. ビジネスロジック   │  整合性・妥当性
-│    (Business Rules)  │  → ドメイン固有の制約
+│ 5. Business Logic     │  Consistency and validity
+│    (Business Rules)  │  → Domain-specific constraints
 └──────────┬───────────┘
            │
            ▼
-安全な内部データ (Trusted Data)
+Safe Internal Data (Trusted Data)
 ```
 
-### 入力検証の WHY: ホワイトリスト vs ブラックリスト
+### WHY for Input Validation: Whitelist vs Blacklist
 
-ブラックリスト方式（「危険な文字列を除外する」）は回避手法が無数に存在するため、必ずホワイトリスト方式（「許可する文字・パターンのみ受理する」）を採用する。
+The blacklist approach ("exclude dangerous strings") has countless bypass techniques, so always use the whitelist approach ("accept only permitted characters and patterns").
 
 ```python
 import re
 
-# NG: ブラックリスト方式 — 回避が容易
+# NG: Blacklist approach — easy to bypass
 def validate_input_blacklist(user_input: str) -> str:
-    """危険な文字を除去する方式は常に不完全"""
+    """Removing dangerous characters is always incomplete"""
     dangerous = ["<script>", "DROP TABLE", "OR 1=1"]
     for d in dangerous:
         user_input = user_input.replace(d, "")
     return user_input
-    # 攻撃者は "<scr<script>ipt>" のような入れ子で回避可能
-    # エンコーディング変換(%3Cscript%3E)でも回避可能
+    # Attackers can bypass with nested input like "<scr<script>ipt>"
+    # Also bypassable with encoding conversion (%3Cscript%3E)
 
-# OK: ホワイトリスト方式 — 許可パターンのみ受理
+# OK: Whitelist approach — accept only permitted patterns
 def validate_username(username: str) -> str:
-    """ユーザ名は英数字とアンダースコアのみ許可"""
+    """Allow only alphanumeric characters and underscores for usernames"""
     if not re.match(r'^[a-zA-Z0-9_]{3,20}$', username):
         raise ValueError(
-            "ユーザ名は3-20文字の英数字とアンダースコアのみ使用可能です"
+            "Username must be 3-20 characters using only alphanumeric characters and underscores"
         )
     return username
 ```
 
-### 型安全な入力検証 (Python / Pydantic)
+### Type-Safe Input Validation (Python / Pydantic)
 
 ```python
 from pydantic import BaseModel, Field, field_validator, EmailStr
@@ -143,12 +143,12 @@ from typing import Optional
 import re
 
 class UserRegistration(BaseModel):
-    """型安全な入力バリデーション（Pydantic v2）"""
+    """Type-safe input validation (Pydantic v2)"""
     username: str = Field(
         min_length=3,
         max_length=20,
         pattern=r'^[a-zA-Z0-9_]+$',
-        description="英数字とアンダースコアのみ",
+        description="Alphanumeric characters and underscores only",
     )
     email: EmailStr
     password: str = Field(min_length=12, max_length=128)
@@ -159,28 +159,28 @@ class UserRegistration(BaseModel):
     @field_validator('password')
     @classmethod
     def validate_password_strength(cls, v: str) -> str:
-        """パスワード強度の検証"""
+        """Validate password strength"""
         if not re.search(r'[A-Z]', v):
-            raise ValueError('大文字を1文字以上含む必要があります')
+            raise ValueError('Must contain at least one uppercase letter')
         if not re.search(r'[a-z]', v):
-            raise ValueError('小文字を1文字以上含む必要があります')
+            raise ValueError('Must contain at least one lowercase letter')
         if not re.search(r'\d', v):
-            raise ValueError('数字を1文字以上含む必要があります')
+            raise ValueError('Must contain at least one digit')
         if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
-            raise ValueError('特殊文字を1文字以上含む必要があります')
+            raise ValueError('Must contain at least one special character')
         return v
 
     @field_validator('birth_date')
     @classmethod
     def validate_birth_date(cls, v: date) -> date:
-        """未来の日付や非現実的な日付を拒否"""
+        """Reject future dates or unrealistic dates"""
         if v > date.today():
-            raise ValueError('生年月日は未来の日付にできません')
+            raise ValueError('Date of birth cannot be in the future')
         if v.year < 1900:
-            raise ValueError('無効な生年月日です')
+            raise ValueError('Invalid date of birth')
         return v
 
-# 使用例
+# Usage example
 try:
     user = UserRegistration(
         username="john_doe",
@@ -189,35 +189,35 @@ try:
         birth_date="1990-01-15",
         age=34,
     )
-    print(f"検証成功: {user.username}")
+    print(f"Validation successful: {user.username}")
 except Exception as e:
-    print(f"検証エラー: {e}")
+    print(f"Validation error: {e}")
 ```
 
-### SQL インジェクション防止
+### SQL Injection Prevention
 
 ```python
 import sqlite3
 from typing import Optional
 
-# NG: 文字列結合による SQL 構築
+# NG: Building SQL by string concatenation
 def get_user_bad(username: str) -> Optional[dict]:
-    """脆弱なコード — SQL インジェクションが可能"""
+    """Vulnerable code — SQL injection is possible"""
     conn = sqlite3.connect('app.db')
     cursor = conn.cursor()
     query = f"SELECT * FROM users WHERE name = '{username}'"
-    # 入力: ' OR '1'='1' --
-    # 生成SQL: SELECT * FROM users WHERE name = '' OR '1'='1' --'
-    # → 全ユーザの情報が取得される
+    # Input: ' OR '1'='1' --
+    # Generated SQL: SELECT * FROM users WHERE name = '' OR '1'='1' --'
+    # → All user information is retrieved
     cursor.execute(query)
     return cursor.fetchone()
 
-# OK: パラメータ化クエリ (プリペアドステートメント)
+# OK: Parameterized queries (prepared statements)
 def get_user_good(username: str) -> Optional[dict]:
-    """安全なコード — パラメータがクエリ構造と分離"""
+    """Safe code — parameters are separated from query structure"""
     conn = sqlite3.connect('app.db')
     cursor = conn.cursor()
-    # プレースホルダを使用 (DBドライバが安全にエスケープ)
+    # Use placeholders (DB driver safely escapes)
     query = "SELECT * FROM users WHERE name = ?"
     cursor.execute(query, (username,))
     row = cursor.fetchone()
@@ -226,28 +226,28 @@ def get_user_good(username: str) -> Optional[dict]:
         return dict(zip(columns, row))
     return None
 
-# OK: ORM を使用 (SQLAlchemy)
+# OK: Use ORM (SQLAlchemy)
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 def get_user_orm(session: Session, username: str) -> Optional["User"]:
-    """ORM は内部でパラメータ化クエリを生成"""
+    """ORM internally generates parameterized queries"""
     stmt = select(User).where(User.name == username)
     return session.execute(stmt).scalar_one_or_none()
 
-# 注意: ORM でも生SQLを使う場合は注意が必要
+# Note: Care is needed when using raw SQL even with ORM
 from sqlalchemy import text
 
 def search_users_safe(session: Session, search_term: str) -> list:
-    """ORM の text() でもバインドパラメータを使用する"""
+    """Use bind parameters even with ORM's text()"""
     # NG: f"SELECT * FROM users WHERE name LIKE '%{search_term}%'"
-    # OK: バインドパラメータ使用
+    # OK: Use bind parameters
     stmt = text("SELECT * FROM users WHERE name LIKE :term")
     result = session.execute(stmt, {"term": f"%{search_term}%"})
     return result.fetchall()
 ```
 
-### コマンドインジェクション防止
+### Command Injection Prevention
 
 ```python
 import subprocess
@@ -255,42 +255,42 @@ import re
 import shlex
 from pathlib import Path
 
-# NG: シェルコマンドの文字列結合
+# NG: String concatenation for shell commands
 def ping_bad(host: str) -> str:
-    """脆弱なコード — 任意コマンド実行が可能"""
+    """Vulnerable code — arbitrary command execution is possible"""
     import os
     os.system(f"ping -c 1 {host}")
-    # 入力: "8.8.8.8; rm -rf /" → ping 実行後に全ファイル削除
-    # 入力: "8.8.8.8 && cat /etc/passwd" → パスワードファイル読み取り
+    # Input: "8.8.8.8; rm -rf /" → runs ping then deletes all files
+    # Input: "8.8.8.8 && cat /etc/passwd" → reads the password file
     return "done"
 
-# OK: subprocess + リスト引数 (shell=False) + ホワイトリスト
+# OK: subprocess + list arguments (shell=False) + whitelist
 def ping_good(host: str) -> str:
-    """安全なコード — 引数が分離されシェル解釈されない"""
-    # Step 1: ホワイトリストで入力を検証
+    """Safe code — arguments are separated and not interpreted by the shell"""
+    # Step 1: Validate input with whitelist
     if not re.match(r'^(\d{1,3}\.){3}\d{1,3}$', host):
-        raise ValueError(f"無効なIPアドレス形式: {host}")
+        raise ValueError(f"Invalid IP address format: {host}")
 
-    # Step 2: 各オクテットの範囲チェック
+    # Step 2: Range check each octet
     octets = host.split('.')
     for octet in octets:
         if not 0 <= int(octet) <= 255:
-            raise ValueError(f"無効なIPアドレス: {host}")
+            raise ValueError(f"Invalid IP address: {host}")
 
-    # Step 3: shell=False でリスト引数として実行
+    # Step 3: Execute as list argument with shell=False
     result = subprocess.run(
-        ["ping", "-c", "1", "-W", "3", host],  # リスト形式
+        ["ping", "-c", "1", "-W", "3", host],  # List format
         capture_output=True,
         text=True,
         timeout=10,
     )
     return result.stdout
 
-# OK: 外部コマンドの代わりに Python ライブラリを使用（最も推奨）
+# OK: Use Python libraries instead of external commands (most recommended)
 import socket
 
 def check_host_reachable(host: str, port: int = 80, timeout: float = 3.0) -> bool:
-    """外部コマンドを使わず Python で直接ネットワーク確認"""
+    """Check network connectivity directly with Python without external commands"""
     try:
         socket.create_connection((host, port), timeout=timeout)
         return True
@@ -298,43 +298,43 @@ def check_host_reachable(host: str, port: int = 80, timeout: float = 3.0) -> boo
         return False
 ```
 
-### パストラバーサル防止
+### Path Traversal Prevention
 
 ```python
 import os
 from pathlib import Path
 
-# NG: ユーザ入力をパスに直接使用
+# NG: Using user input directly in path
 def read_file_bad(filename: str) -> str:
-    """脆弱なコード — 任意のファイルが読める"""
+    """Vulnerable code — any file can be read"""
     path = f"/app/uploads/{filename}"
-    # 入力: "../../etc/passwd" → /etc/passwd を読み取れる
-    # 入力: "....//....//etc/passwd" → 正規化前に結合される
+    # Input: "../../etc/passwd" → can read /etc/passwd
+    # Input: "....//....//etc/passwd" → joined before normalization
     return open(path).read()
 
-# OK: パスの正規化と検証
+# OK: Normalize and validate path
 def read_file_good(filename: str) -> str:
-    """安全なコード — ベースディレクトリ外へのアクセスを防止"""
-    base_dir = Path("/app/uploads").resolve()  # 絶対パスに正規化
-    # ファイル名からディレクトリトラバーサル文字を除去
-    safe_filename = Path(filename).name  # ディレクトリ部分を除去
+    """Safe code — prevents access outside the base directory"""
+    base_dir = Path("/app/uploads").resolve()  # Normalize to absolute path
+    # Remove directory traversal characters from filename
+    safe_filename = Path(filename).name  # Remove directory component
     full_path = (base_dir / safe_filename).resolve()
 
-    # ベースディレクトリ外へのアクセスを拒否
+    # Deny access outside base directory
     if not str(full_path).startswith(str(base_dir)):
-        raise PermissionError("アクセス拒否: パストラバーサルが検出されました")
+        raise PermissionError("Access denied: path traversal detected")
 
     if not full_path.is_file():
-        raise FileNotFoundError(f"ファイルが見つかりません: {safe_filename}")
+        raise FileNotFoundError(f"File not found: {safe_filename}")
 
-    # ファイルサイズの制限チェック
+    # Check file size limit
     if full_path.stat().st_size > 10 * 1024 * 1024:  # 10MB
-        raise ValueError("ファイルサイズが制限を超えています")
+        raise ValueError("File size exceeds the limit")
 
     return full_path.read_text(encoding='utf-8')
 ```
 
-### SSRF (Server-Side Request Forgery) 防止
+### SSRF (Server-Side Request Forgery) Prevention
 
 ```python
 import ipaddress
@@ -342,43 +342,43 @@ import urllib.parse
 from typing import Optional
 
 def validate_url_for_ssrf(url: str) -> str:
-    """SSRF を防止するURL検証"""
+    """URL validation to prevent SSRF"""
     parsed = urllib.parse.urlparse(url)
 
-    # スキーマの制限
+    # Restrict schemes
     if parsed.scheme not in ('http', 'https'):
-        raise ValueError(f"許可されないスキーマ: {parsed.scheme}")
+        raise ValueError(f"Disallowed scheme: {parsed.scheme}")
 
-    # ホスト名の解決
+    # Resolve hostname
     import socket
     try:
         resolved_ip = socket.gethostbyname(parsed.hostname)
     except socket.gaierror:
-        raise ValueError(f"ホスト名を解決できません: {parsed.hostname}")
+        raise ValueError(f"Cannot resolve hostname: {parsed.hostname}")
 
-    # プライベートIPアドレスの拒否
+    # Reject private IP addresses
     ip = ipaddress.ip_address(resolved_ip)
     if ip.is_private or ip.is_loopback or ip.is_link_local:
         raise ValueError(
-            f"内部ネットワークへのアクセスは禁止されています: {resolved_ip}"
+            f"Access to internal network is forbidden: {resolved_ip}"
         )
 
-    # AWS メタデータエンドポイントの拒否
+    # Reject AWS metadata endpoint
     if resolved_ip == "169.254.169.254":
-        raise ValueError("メタデータサービスへのアクセスは禁止されています")
+        raise ValueError("Access to metadata service is forbidden")
 
     return url
 
-# 使用例
+# Usage example
 import requests
 
 def fetch_external_resource(url: str) -> Optional[str]:
-    """安全な外部リソース取得"""
+    """Safe external resource retrieval"""
     validated_url = validate_url_for_ssrf(url)
     response = requests.get(
         validated_url,
         timeout=10,
-        allow_redirects=False,  # リダイレクトでSSRFを回避されるのを防止
+        allow_redirects=False,  # Prevent SSRF bypass via redirect
     )
     response.raise_for_status()
     return response.text
@@ -386,53 +386,53 @@ def fetch_external_resource(url: str) -> Optional[str]:
 
 ---
 
-## 3. 出力エンコード
+## 3. Output Encoding
 
-### コンテキスト別エスケープの WHY
+### WHY for Context-Aware Escaping
 
-XSS 攻撃は、ユーザ入力がそのまま HTML に埋め込まれることで発生する。防御の基本は「出力時に適切なエスケープを行うこと」である。ただし、エスケープ方法はHTMLの「どの位置」に出力するかによって異なる。
+XSS attacks occur when user input is embedded directly into HTML. The foundation of defense is "escape appropriately at output time." However, the escaping method differs depending on where in the HTML the output appears.
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│  コンテキスト        │  エスケープ方法          │  理由         │
+│  Context             │  Escaping Method         │  Reason      │
 │─────────────────────┼────────────────────────┼──────────────│
-│  HTML 本文           │  & → &amp;             │  タグ生成防止  │
-│  <p>{{ここ}}</p>    │  < → &lt; > → &gt;     │              │
+│  HTML body           │  & → &amp;             │  Prevent tag generation  │
+│  <p>{{here}}</p>    │  < → &lt; > → &gt;     │              │
 │─────────────────────┼────────────────────────┼──────────────│
-│  HTML 属性           │  " → &quot;            │  属性脱出防止  │
-│  <div id="{{ここ}}"> │  ' → &#x27;           │              │
+│  HTML attribute      │  " → &quot;            │  Prevent attribute escape  │
+│  <div id="{{here}}"> │  ' → &#x27;           │              │
 │─────────────────────┼────────────────────────┼──────────────│
-│  JavaScript          │  Unicode エスケープ      │  コード注入防止│
-│  var x = '{{ここ}}'; │  \uXXXX 形式           │              │
+│  JavaScript          │  Unicode escaping       │  Prevent code injection│
+│  var x = '{{here}}'; │  \uXXXX format        │              │
 │─────────────────────┼────────────────────────┼──────────────│
-│  URL パラメータ       │  パーセントエンコーディング│  URL構造破壊防止│
-│  href="?q={{ここ}}"  │  encodeURIComponent    │              │
+│  URL parameter       │  Percent encoding      │  Prevent URL structure breakage│
+│  href="?q={{here}}"  │  encodeURIComponent    │              │
 │─────────────────────┼────────────────────────┼──────────────│
-│  CSS                 │  CSS エスケープ          │  スタイル注入防止│
-│  style="color:{{}}"; │  \HH 形式              │              │
+│  CSS                 │  CSS escaping          │  Prevent style injection│
+│  style="color:{{}}"; │  \HH format            │              │
 │─────────────────────┼────────────────────────┼──────────────│
-│  SQL                 │  パラメータ化クエリ       │  SQL注入防止   │
-│  WHERE x = {{ここ}}  │  (エスケープ不要)        │              │
+│  SQL                 │  Parameterized queries  │  Prevent SQL injection   │
+│  WHERE x = {{here}}  │  (no escaping needed)  │              │
 └───────────────────────────────────────────────────────────────┘
 ```
 
-### XSS 防止の実装パターン
+### XSS Prevention Implementation Patterns
 
 ```javascript
 // ========================================
-// パターン1: React (JSX の自動エスケープ)
+// Pattern 1: React (automatic escaping in JSX)
 // ========================================
 function UserProfile({ user }) {
   return (
     <div>
-      {/* OK: JSX は自動的に HTML エスケープする */}
+      {/* OK: JSX automatically HTML-escapes */}
       <h1>{user.name}</h1>
       <p>{user.bio}</p>
 
-      {/* NG: dangerouslySetInnerHTML は XSS リスク */}
+      {/* NG: dangerouslySetInnerHTML is an XSS risk */}
       <div dangerouslySetInnerHTML={{ __html: user.bio }} />
 
-      {/* OK: サニタイズライブラリ (DOMPurify) を通す */}
+      {/* OK: Pass through a sanitization library (DOMPurify) */}
       <div dangerouslySetInnerHTML={{
         __html: DOMPurify.sanitize(user.bio, {
           ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br'],
@@ -441,17 +441,17 @@ function UserProfile({ user }) {
         })
       }} />
 
-      {/* NG: href に javascript: プロトコルが入る可能性 */}
+      {/* NG: href may contain javascript: protocol */}
       <a href={user.website}>Website</a>
 
-      {/* OK: URL スキーマを検証 */}
+      {/* OK: Validate URL scheme */}
       <a href={sanitizeUrl(user.website)}>Website</a>
     </div>
   );
 }
 
 /**
- * URL のスキーマを検証して javascript: プロトコル等を排除
+ * Validate URL scheme to eliminate javascript: protocol etc.
  */
 function sanitizeUrl(url) {
   if (!url) return '#';
@@ -469,7 +469,7 @@ function sanitizeUrl(url) {
 
 ```python
 # ========================================
-# パターン2: サーバサイド (Python/Flask)
+# Pattern 2: Server-side (Python/Flask)
 # ========================================
 from markupsafe import escape, Markup
 from flask import Flask, render_template_string
@@ -478,56 +478,56 @@ app = Flask(__name__)
 
 @app.route('/profile/<username>')
 def profile(username: str):
-    # Jinja2 テンプレートは {{ }} 内を自動エスケープ
+    # Jinja2 templates automatically escape content inside {{ }}
     template = """
     <h1>{{ username }}</h1>
     <p>{{ bio }}</p>
     """
-    # username に <script>alert(1)</script> が入っても安全
+    # Safe even if username contains <script>alert(1)</script>
     return render_template_string(template, username=username, bio="Hello")
 
-# 手動エスケープが必要な場合
+# When manual escaping is needed
 def escape_for_html(text: str) -> str:
-    """手動 HTML エスケープ"""
+    """Manual HTML escaping"""
     return str(escape(text))
 
-# NG: |safe フィルターの誤用
-# {{ user_input | safe }}  → エスケープされない！
-# OK: サニタイズ済みデータにのみ |safe を使用
+# NG: Misuse of the |safe filter
+# {{ user_input | safe }}  → Not escaped!
+# OK: Use |safe only on already-sanitized data
 # {{ sanitized_html | safe }}
 ```
 
 ```javascript
 // ========================================
-// パターン3: DOM ベース XSS の防止
+// Pattern 3: Preventing DOM-based XSS
 // ========================================
 
-// NG: DOM に直接 innerHTML を代入
+// NG: Assigning innerHTML directly to DOM
 function displaySearchResults_bad(query) {
   // URL: ?q=<img src=x onerror=alert(1)>
   document.getElementById('results').innerHTML =
-    `検索結果: ${query}`;  // XSS!
+    `Search results: ${query}`;  // XSS!
 }
 
-// OK: textContent を使用（HTMLとして解釈されない）
+// OK: Use textContent (not interpreted as HTML)
 function displaySearchResults_good(query) {
   const resultsEl = document.getElementById('results');
-  resultsEl.textContent = `検索結果: ${query}`;
+  resultsEl.textContent = `Search results: ${query}`;
 }
 
-// OK: DOM API で安全に要素を構築
+// OK: Safely build elements using DOM API
 function displaySearchResults_best(query) {
   const resultsEl = document.getElementById('results');
-  const textNode = document.createTextNode(`検索結果: ${query}`);
+  const textNode = document.createTextNode(`Search results: ${query}`);
   resultsEl.replaceChildren(textNode);
 }
 ```
 
-### Content Security Policy (CSP) の詳細設計
+### Content Security Policy (CSP) Detailed Design
 
 ```
 # ========================================
-# レベル1: 基本的な CSP (開始点)
+# Level 1: Basic CSP (starting point)
 # ========================================
 Content-Security-Policy:
   default-src 'self';
@@ -536,7 +536,7 @@ Content-Security-Policy:
   img-src 'self' data: https:;
 
 # ========================================
-# レベル2: 厳格な CSP (推奨)
+# Level 2: Strict CSP (recommended)
 # ========================================
 Content-Security-Policy:
   default-src 'none';
@@ -551,7 +551,7 @@ Content-Security-Policy:
   upgrade-insecure-requests;
 
 # ========================================
-# レベル3: Strict CSP (最も安全)
+# Level 3: Strict CSP (most secure)
 # ========================================
 Content-Security-Policy:
   script-src 'nonce-{RANDOM}' 'strict-dynamic';
@@ -561,12 +561,12 @@ Content-Security-Policy:
 ```
 
 ```python
-# CSP ヘッダーの実装 (Flask)
+# CSP header implementation (Flask)
 import secrets
 
 @app.after_request
 def add_security_headers(response):
-    """セキュリティヘッダーを全レスポンスに付与"""
+    """Attach security headers to all responses"""
     nonce = secrets.token_urlsafe(32)
 
     csp_directives = [
@@ -583,27 +583,27 @@ def add_security_headers(response):
     ]
     response.headers['Content-Security-Policy'] = '; '.join(csp_directives)
 
-    # その他のセキュリティヘッダー
+    # Other security headers
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'DENY'
-    response.headers['X-XSS-Protection'] = '0'  # 古いブラウザ対策は無効化
+    response.headers['X-XSS-Protection'] = '0'  # Disable legacy browser workaround
     response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
     response.headers['Permissions-Policy'] = (
         'camera=(), microphone=(), geolocation=()'
     )
 
-    # nonce をテンプレートに渡す
+    # Pass nonce to template
     response.headers['X-Nonce'] = nonce
     return response
 ```
 
-### CSP 違反レポートの収集
+### Collecting CSP Violation Reports
 
 ```python
-# CSP Report-Only モードで段階的導入
+# Gradual adoption using CSP Report-Only mode
 @app.after_request
 def add_csp_report_only(response):
-    """CSP を Report-Only モードで試験運用"""
+    """Trial-run CSP in Report-Only mode"""
     response.headers['Content-Security-Policy-Report-Only'] = (
         "default-src 'self'; "
         "report-uri /api/csp-report; "
@@ -613,7 +613,7 @@ def add_csp_report_only(response):
 
 @app.route('/api/csp-report', methods=['POST'])
 def csp_report():
-    """CSP 違反レポートを収集"""
+    """Collect CSP violation reports"""
     import json
     import logging
     logger = logging.getLogger('csp')
@@ -630,18 +630,18 @@ def csp_report():
 
 ---
 
-## 4. エラーハンドリング
+## 4. Error Handling
 
-### 安全なエラーレスポンス設計の WHY
+### WHY for Safe Error Response Design
 
-エラーメッセージには2つの相反する要求がある。開発者にはデバッグのために詳細な情報が必要だが、攻撃者にはその情報が攻撃の手がかりになる。この両立を「環境別エラーレスポンス」と「相関ID」で実現する。
+Error messages have two conflicting requirements. Developers need detailed information for debugging, but that same information gives attackers a foothold for attacks. This balance is achieved through "environment-specific error responses" and "correlation IDs."
 
 ```
 ┌───────────────────────────────────────────────────────────────┐
-│                  エラーレスポンスの設計                          │
+│                  Error Response Design                         │
 │───────────────────────────────────────────────────────────────│
 │                                                               │
-│  開発環境 (debug=True):                                       │
+│  Development environment (debug=True):                        │
 │  {                                                            │
 │    "error": "DatabaseError",                                  │
 │    "message": "relation \"users\" does not exist",            │
@@ -649,25 +649,25 @@ def csp_report():
 │    "query": "SELECT * FROM users WHERE...",                   │
 │    "request": { "method": "POST", "path": "/api/users" }     │
 │  }                                                            │
-│  → 開発者がすぐに原因を特定できる                                │
+│  → Developers can immediately identify the cause              │
 │                                                               │
-│  本番環境 (debug=False):                                      │
+│  Production environment (debug=False):                        │
 │  {                                                            │
 │    "error": "Internal Server Error",                          │
 │    "requestId": "req-a1b2c3d4"                                │
 │  }                                                            │
-│  → 攻撃者に内部情報を漏洩しない                                 │
-│  → requestId でサーバログと紐付けてデバッグ                      │
+│  → Does not leak internal information to attackers            │
+│  → Debug by correlating requestId with server logs            │
 │                                                               │
-│  サーバログ (内部):                                            │
+│  Server logs (internal):                                      │
 │  [ERROR] request_id=req-a1b2c3d4 user_id=123                  │
 │          error=DatabaseError message="relation does not exist" │
 │          stack_trace="..." query="SELECT * FROM..."            │
-│  → 全詳細情報がログに記録される                                  │
+│  → All detailed information is recorded in logs               │
 └───────────────────────────────────────────────────────────────┘
 ```
 
-### 階層化されたエラーハンドリング実装
+### Layered Error Handling Implementation
 
 ```python
 import logging
@@ -681,10 +681,10 @@ app = Flask(__name__)
 logger = logging.getLogger(__name__)
 
 # ========================================
-# エラークラスの階層設計
+# Error class hierarchy design
 # ========================================
 class AppError(Exception):
-    """アプリケーションエラー基底クラス"""
+    """Application error base class"""
     def __init__(
         self,
         message: str,
@@ -692,10 +692,10 @@ class AppError(Exception):
         error_code: str = "INTERNAL_ERROR",
         internal_message: str = None,
     ):
-        self.message = message              # ユーザに返すメッセージ
+        self.message = message              # Message returned to user
         self.status_code = status_code
-        self.error_code = error_code        # 機械判読可能なエラーコード
-        self.internal_message = internal_message  # ログ用の詳細
+        self.error_code = error_code        # Machine-readable error code
+        self.internal_message = internal_message  # Details for logging
 
 class NotFoundError(AppError):
     def __init__(self, resource: str = "Resource", resource_id: str = None):
@@ -734,11 +734,11 @@ class RateLimitError(AppError):
         self.retry_after = retry_after
 
 # ========================================
-# リクエスト追跡ミドルウェア
+# Request tracking middleware
 # ========================================
 @app.before_request
 def assign_request_id():
-    """各リクエストに一意の追跡IDを割り当て"""
+    """Assign a unique tracking ID to each request"""
     g.request_id = request.headers.get(
         'X-Request-ID',
         str(uuid.uuid4())[:8]
@@ -746,14 +746,14 @@ def assign_request_id():
     g.request_start = datetime.utcnow()
 
 # ========================================
-# エラーハンドラ
+# Error handlers
 # ========================================
 @app.errorhandler(AppError)
 def handle_app_error(error):
-    """アプリケーションエラーのハンドリング"""
+    """Handle application errors"""
     request_id = getattr(g, 'request_id', 'unknown')
 
-    # 内部ログには詳細を記録
+    # Log full details internally
     logger.error(
         "AppError: error_code=%s message=%s request_id=%s path=%s "
         "method=%s internal=%s",
@@ -762,7 +762,7 @@ def handle_app_error(error):
         error.internal_message or "N/A",
     )
 
-    # ユーザには最小限の情報のみ返す
+    # Return only minimal information to the user
     response = {
         "error": error.message,
         "errorCode": error.error_code,
@@ -781,16 +781,16 @@ def handle_app_error(error):
 
 @app.errorhandler(Exception)
 def handle_unexpected_error(error):
-    """予期しないエラーのハンドリング"""
+    """Handle unexpected errors"""
     request_id = getattr(g, 'request_id', 'unknown')
 
-    # 予期しないエラーはスタックトレース付きでログ
+    # Log unexpected errors with stack trace
     logger.exception(
         "Unexpected error: request_id=%s path=%s method=%s",
         request_id, request.path, request.method,
     )
 
-    # ユーザには一般的なメッセージのみ
+    # Return only a generic message to the user
     return jsonify({
         "error": "Internal Server Error",
         "errorCode": "INTERNAL_ERROR",
@@ -798,7 +798,7 @@ def handle_unexpected_error(error):
     }), 500
 ```
 
-### 構造化ログとの統合
+### Integration with Structured Logging
 
 ```python
 import json
@@ -806,7 +806,7 @@ import logging
 from datetime import datetime
 
 class StructuredFormatter(logging.Formatter):
-    """JSON構造化ログフォーマッタ"""
+    """JSON structured log formatter"""
 
     def format(self, record):
         log_entry = {
@@ -819,11 +819,11 @@ class StructuredFormatter(logging.Formatter):
             "line": record.lineno,
         }
 
-        # request_id がある場合は追加
+        # Add request_id if present
         if hasattr(record, 'request_id'):
             log_entry["request_id"] = record.request_id
 
-        # 例外情報がある場合
+        # Add exception info if present
         if record.exc_info:
             log_entry["exception"] = {
                 "type": record.exc_info[0].__name__,
@@ -831,11 +831,11 @@ class StructuredFormatter(logging.Formatter):
                 "traceback": self.formatException(record.exc_info),
             }
 
-        # セキュリティ上の注意:
-        # パスワード、トークン、個人情報をログに含めない
+        # Security note:
+        # Do not include passwords, tokens, or personal information in logs
         return json.dumps(log_entry, ensure_ascii=False)
 
-# 使用例
+# Usage example
 handler = logging.StreamHandler()
 handler.setFormatter(StructuredFormatter())
 logger = logging.getLogger('app')
@@ -845,31 +845,31 @@ logger.setLevel(logging.INFO)
 
 ---
 
-## 5. CSRF 防止
+## 5. CSRF Prevention
 
-### CSRF (Cross-Site Request Forgery) の仕組み
+### How CSRF (Cross-Site Request Forgery) Works
 
 ```
-攻撃の流れ:
+Attack flow:
 
-1. ユーザが bank.example.com にログイン済み（Cookieがブラウザに保存）
-2. ユーザが evil.example.com にアクセス
-3. evil.example.com に以下のHTMLが仕込まれている:
+1. User is logged in to bank.example.com (Cookie saved in browser)
+2. User visits evil.example.com
+3. evil.example.com contains the following HTML:
    <form action="https://bank.example.com/transfer" method="POST">
      <input type="hidden" name="to" value="attacker">
      <input type="hidden" name="amount" value="1000000">
    </form>
    <script>document.forms[0].submit();</script>
-4. ブラウザは bank.example.com の Cookie を自動送信
-5. bank.example.com はログイン済みユーザからの正規リクエストと判断
-6. → 攻撃者への送金が実行される！
+4. Browser automatically sends the bank.example.com Cookie
+5. bank.example.com treats it as a legitimate request from a logged-in user
+6. → Transfer to the attacker is executed!
 ```
 
-### CSRF 防止の実装
+### CSRF Prevention Implementation
 
 ```python
 # ========================================
-# 方法1: CSRF トークン (Flask-WTF)
+# Method 1: CSRF token (Flask-WTF)
 # ========================================
 from flask_wtf.csrf import CSRFProtect
 
@@ -877,13 +877,13 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.environ['SECRET_KEY']
 csrf = CSRFProtect(app)
 
-# HTMLフォーム内にトークンを埋め込む
+# Embed token in HTML form
 # <form method="POST">
 #   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-#   <button type="submit">送信</button>
+#   <button type="submit">Submit</button>
 # </form>
 
-# AJAX リクエストの場合
+# For AJAX requests
 # <meta name="csrf-token" content="{{ csrf_token() }}">
 # <script>
 # fetch('/api/data', {
@@ -897,22 +897,22 @@ csrf = CSRFProtect(app)
 # </script>
 
 # ========================================
-# 方法2: SameSite Cookie (最も簡単)
+# Method 2: SameSite Cookie (simplest)
 # ========================================
 app.config.update(
-    SESSION_COOKIE_SAMESITE='Lax',   # クロスサイトからの POST で Cookie を送信しない
-    SESSION_COOKIE_SECURE=True,       # HTTPS のみ
-    SESSION_COOKIE_HTTPONLY=True,      # JavaScript からアクセス不可
+    SESSION_COOKIE_SAMESITE='Lax',   # Do not send Cookie on cross-site POST
+    SESSION_COOKIE_SECURE=True,       # HTTPS only
+    SESSION_COOKIE_HTTPONLY=True,      # Not accessible from JavaScript
 )
 
 # ========================================
-# 方法3: Double Submit Cookie パターン
+# Method 3: Double Submit Cookie pattern
 # ========================================
 import secrets
 
 @app.before_request
 def set_csrf_cookie():
-    """CSRF トークンを Cookie とレスポンスの両方に設定"""
+    """Set CSRF token in both Cookie and response"""
     if 'csrf_token' not in request.cookies:
         g.csrf_token = secrets.token_urlsafe(32)
     else:
@@ -920,11 +920,11 @@ def set_csrf_cookie():
 
 @app.after_request
 def add_csrf_cookie(response):
-    """CSRF Cookie を設定"""
+    """Set CSRF Cookie"""
     response.set_cookie(
         'csrf_token',
         g.csrf_token,
-        httponly=False,  # JS から読み取り可能にする
+        httponly=False,  # Make readable from JS
         secure=True,
         samesite='Lax',
     )
@@ -933,78 +933,78 @@ def add_csrf_cookie(response):
 
 ---
 
-## 6. 安全なパスワード処理
+## 6. Safe Password Handling
 
-### パスワードハッシュ化の WHY
+### WHY for Password Hashing
 
-パスワードは平文やMD5/SHA256で保存してはならない。なぜなら:
-- 平文: データベース侵害で全パスワードが即座に漏洩
-- MD5/SHA256: レインボーテーブル攻撃で短時間で逆算可能（GPU1台で1秒間に数十億回のハッシュ計算）
-- ソルトなし: 同一パスワードが同一ハッシュになり一括解読が可能
+Passwords must not be stored in plaintext or with MD5/SHA256. Because:
+- Plaintext: All passwords are immediately exposed in a database breach
+- MD5/SHA256: Can be reversed in a short time with rainbow table attacks (a single GPU can compute billions of hashes per second)
+- Without salt: Identical passwords produce identical hashes, enabling bulk decryption
 
-bcrypt/argon2 は「意図的に遅い」ハッシュ関数で、ブルートフォース攻撃のコストを飛躍的に高める。
+bcrypt/argon2 are "intentionally slow" hash functions that dramatically increase the cost of brute-force attacks.
 
 ```python
 # ========================================
-# 推奨: bcrypt によるパスワードハッシュ化
+# Recommended: Password hashing with bcrypt
 # ========================================
 import bcrypt
 
 def hash_password(password: str) -> bytes:
-    """パスワードを安全にハッシュ化"""
-    # bcrypt は自動的にソルト(16バイト)を生成
-    # rounds=12: 約0.3秒/ハッシュ (ブルートフォース対策)
+    """Securely hash a password"""
+    # bcrypt automatically generates a salt (16 bytes)
+    # rounds=12: ~0.3 seconds/hash (brute-force protection)
     return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt(rounds=12))
 
 def verify_password(password: str, hashed: bytes) -> bool:
-    """パスワードの検証（タイミング攻撃耐性あり）"""
+    """Verify a password (timing attack resistant)"""
     return bcrypt.checkpw(password.encode('utf-8'), hashed)
 
 # ========================================
-# より推奨: argon2 (Password Hashing Competition 優勝)
+# More recommended: argon2 (Password Hashing Competition winner)
 # ========================================
 from argon2 import PasswordHasher
 
 ph = PasswordHasher(
-    time_cost=3,       # 反復回数
-    memory_cost=65536,  # メモリ使用量(KB) = 64MB
-    parallelism=4,      # 並列度
+    time_cost=3,       # Number of iterations
+    memory_cost=65536,  # Memory usage (KB) = 64MB
+    parallelism=4,      # Degree of parallelism
 )
 
 def hash_password_argon2(password: str) -> str:
-    """Argon2id でパスワードをハッシュ化"""
+    """Hash a password with Argon2id"""
     return ph.hash(password)
 
 def verify_password_argon2(password: str, hashed: str) -> bool:
-    """Argon2id でパスワードを検証"""
+    """Verify a password with Argon2id"""
     try:
         return ph.verify(hashed, password)
     except Exception:
         return False
 
 # ========================================
-# NG: 以下は絶対に使用しない
+# NG: Never use the following
 # ========================================
 # import hashlib
-# hashlib.md5(password.encode()).hexdigest()      # NG: 高速すぎる + ソルトなし
-# hashlib.sha256(password.encode()).hexdigest()    # NG: 高速すぎる + ソルトなし
-# hashlib.sha256((salt + password).encode()).hexdigest()  # NG: 高速すぎる
+# hashlib.md5(password.encode()).hexdigest()      # NG: Too fast + no salt
+# hashlib.sha256(password.encode()).hexdigest()    # NG: Too fast + no salt
+# hashlib.sha256((salt + password).encode()).hexdigest()  # NG: Too fast
 ```
 
-### パスワードハッシュアルゴリズムの比較
+### Password Hashing Algorithm Comparison
 
-| アルゴリズム | 速度 | メモリ | ソルト | 推奨度 | 備考 |
+| Algorithm | Speed | Memory | Salt | Recommendation | Notes |
 |-------------|------|--------|-------|--------|------|
-| MD5 | 超高速 | 少量 | なし | 使用禁止 | レインボーテーブルで即座に逆算 |
-| SHA-256 | 高速 | 少量 | なし | 使用禁止 | GPU で秒間数十億回計算可能 |
-| PBKDF2 | 調整可 | 少量 | あり | 許容 | NIST推奨だがGPU耐性が低い |
-| bcrypt | 調整可 | 4KB | あり | 推奨 | 実績豊富、最大72バイト制限 |
-| scrypt | 調整可 | 調整可 | あり | 推奨 | メモリハードだが設定が複雑 |
-| Argon2id | 調整可 | 調整可 | あり | 最推奨 | PHC優勝、GPU/ASIC耐性最高 |
+| MD5 | Extremely fast | Small | None | Prohibited | Immediately reversible with rainbow tables |
+| SHA-256 | Fast | Small | None | Prohibited | GPU can compute billions per second |
+| PBKDF2 | Tunable | Small | Yes | Acceptable | NIST-recommended but low GPU resistance |
+| bcrypt | Tunable | 4KB | Yes | Recommended | Proven track record, 72-byte max limit |
+| scrypt | Tunable | Tunable | Yes | Recommended | Memory-hard but complex to configure |
+| Argon2id | Tunable | Tunable | Yes | Most recommended | PHC winner, highest GPU/ASIC resistance |
 
 ---
 
-## 7. セキュアなセッション管理
+## 7. Secure Session Management
 
 ```python
 from flask import Flask, session
@@ -1013,42 +1013,42 @@ import os
 app = Flask(__name__)
 
 # ========================================
-# セッション設定のベストプラクティス
+# Session configuration best practices
 # ========================================
 app.config.update(
-    SECRET_KEY=os.environ['SESSION_SECRET'],   # 十分な長さのランダム値(32バイト以上)
-    SESSION_COOKIE_SECURE=True,                # HTTPS でのみ送信
-    SESSION_COOKIE_HTTPONLY=True,               # JavaScript からアクセス不可
-    SESSION_COOKIE_SAMESITE='Lax',             # CSRF 防止
-    PERMANENT_SESSION_LIFETIME=1800,           # 30分で期限切れ
-    SESSION_COOKIE_NAME='__Host-session',      # __Host- プレフィックスで保護強化
+    SECRET_KEY=os.environ['SESSION_SECRET'],   # Sufficient length random value (32 bytes or more)
+    SESSION_COOKIE_SECURE=True,                # Send only over HTTPS
+    SESSION_COOKIE_HTTPONLY=True,               # Not accessible from JavaScript
+    SESSION_COOKIE_SAMESITE='Lax',             # CSRF prevention
+    PERMANENT_SESSION_LIFETIME=1800,           # Expire after 30 minutes
+    SESSION_COOKIE_NAME='__Host-session',      # Enhanced protection with __Host- prefix
 )
 
 # ========================================
-# セッション固定攻撃の防止
+# Preventing session fixation attacks
 # ========================================
 @app.route('/login', methods=['POST'])
 def login():
-    """ログイン成功時にセッションIDを再生成"""
-    # 認証処理...
+    """Regenerate session ID on successful login"""
+    # Authentication processing...
     if authenticate(request.form['email'], request.form['password']):
-        # 重要: ログイン成功後にセッションを再生成
-        session.clear()  # 古いセッションデータを破棄
-        session.regenerate()  # 新しいセッションIDを生成
+        # Important: Regenerate session after successful login
+        session.clear()  # Discard old session data
+        session.regenerate()  # Generate new session ID
         session['user_id'] = user.id
         session['login_time'] = datetime.utcnow().isoformat()
         return redirect('/dashboard')
     return render_template('login.html', error="Invalid credentials")
 
 # ========================================
-# セッションの妥当性検証
+# Session validity verification
 # ========================================
 @app.before_request
 def validate_session():
-    """各リクエストでセッションの妥当性を確認"""
+    """Verify session validity on each request"""
     if 'user_id' in session:
         login_time = datetime.fromisoformat(session.get('login_time', ''))
-        # 長時間アイドルの場合はセッションを無効化
+        # Invalidate session if idle for too long
         if (datetime.utcnow() - login_time).total_seconds() > 3600:
             session.clear()
             return redirect('/login?reason=timeout')
@@ -1056,100 +1056,100 @@ def validate_session():
 
 ---
 
-## 8. デシリアライゼーション攻撃の防止
+## 8. Preventing Deserialization Attacks
 
 ```python
 # ========================================
-# NG: pickle による安全でないデシリアライゼーション
+# NG: Unsafe deserialization with pickle
 # ========================================
 import pickle
 
-# 絶対にやってはいけない: 信頼できないデータを pickle.loads
+# Never do this: pickle.loads on untrusted data
 def load_user_data_bad(serialized_data: bytes):
-    """脆弱: pickle は任意のPythonオブジェクトを復元する"""
+    """Vulnerable: pickle restores arbitrary Python objects"""
     return pickle.loads(serialized_data)
-    # 攻撃者は __reduce__ メソッドを持つオブジェクトを送信し
-    # os.system('rm -rf /') などの任意コマンドを実行できる
+    # An attacker can send an object with a __reduce__ method
+    # and execute arbitrary commands like os.system('rm -rf /')
 
 # ========================================
-# OK: JSON を使用する（安全なシリアライゼーション）
+# OK: Use JSON (safe serialization)
 # ========================================
 import json
 from typing import Any
 
 def load_user_data_good(serialized_data: str) -> dict:
-    """安全: JSON はデータのみを復元する（コード実行不可）"""
+    """Safe: JSON only restores data (cannot execute code)"""
     data = json.loads(serialized_data)
-    # さらに型を検証
+    # Also validate the type
     if not isinstance(data, dict):
         raise ValueError("Expected a JSON object")
     return data
 
 # ========================================
-# OK: YAML の安全な読み込み
+# OK: Safe YAML loading
 # ========================================
 import yaml
 
 def load_config_safe(yaml_content: str) -> dict:
-    """安全: safe_load は基本型のみ許可"""
-    # NG: yaml.load(yaml_content, Loader=yaml.FullLoader)  # コード実行リスク
-    # OK: yaml.safe_load は str, int, list, dict のみ
+    """Safe: safe_load allows only basic types"""
+    # NG: yaml.load(yaml_content, Loader=yaml.FullLoader)  # Risk of code execution
+    # OK: yaml.safe_load only allows str, int, list, dict
     return yaml.safe_load(yaml_content)
 ```
 
 ---
 
-## 9. アンチパターン集
+## 9. Anti-Patterns
 
-### アンチパターン 1: クライアント側のみの検証
+### Anti-Pattern 1: Client-Side Validation Only
 
 ```javascript
-// NG: フロントエンドのみでバリデーション
+// NG: Validation only on the frontend
 async function submitForm() {
   const age = document.getElementById('age').value;
   if (age < 0 || age > 150) {
-    alert('無効な年齢です');
+    alert('Invalid age');
     return;
   }
-  // 攻撃者は DevTools, curl, Burp Suite で直接 API を叩ける
+  // Attackers can hit the API directly with DevTools, curl, or Burp Suite
   await fetch('/api/users', {
     method: 'POST',
-    body: JSON.stringify({ age: -999 }),  // バリデーションを完全にバイパス
+    body: JSON.stringify({ age: -999 }),  // Completely bypasses validation
   });
 }
 ```
 
 ```python
-# OK: サーバ側でも必ず検証
+# OK: Always validate on the server side too
 from pydantic import BaseModel, Field
 
 class UserUpdate(BaseModel):
-    age: int = Field(ge=0, le=150)  # サーバ側で型+範囲を強制
+    age: int = Field(ge=0, le=150)  # Enforce type + range on server side
 
 @app.route('/api/users', methods=['POST'])
 def create_user():
     try:
-        data = UserUpdate(**request.json)  # 検証失敗は自動で422
+        data = UserUpdate(**request.json)  # Validation failure automatically returns 422
     except ValueError as e:
         return jsonify({"error": "Validation failed", "details": str(e)}), 400
-    # フロントエンド検証はUXのため、セキュリティはサーバ側の責任
+    # Frontend validation is for UX; security is the server's responsibility
 ```
 
-### アンチパターン 2: エラーメッセージでの情報漏洩
+### Anti-Pattern 2: Information Leakage in Error Messages
 
 ```python
-# NG: ユーザ列挙攻撃を可能にするエラーメッセージ
+# NG: Error messages that enable user enumeration attacks
 @app.route('/login', methods=['POST'])
 def login_bad():
     user = User.query.filter_by(email=request.form['email']).first()
     if not user:
-        return {"error": "このメールアドレスは登録されていません"}, 401
+        return {"error": "This email address is not registered"}, 401
     if not verify_password(request.form['password'], user.password_hash):
-        return {"error": "パスワードが間違っています"}, 401
-    # → 攻撃者はエラーメッセージからユーザの存在を確認できる
-    # → メールアドレスのリストを作成し、パスワードスプレー攻撃に利用
+        return {"error": "Incorrect password"}, 401
+    # → Attackers can confirm user existence from error messages
+    # → Build a list of email addresses for password spray attacks
 
-# OK: 同一メッセージを返す + タイミング攻撃も防止
+# OK: Return same message + prevent timing attacks
 import time
 import secrets
 
@@ -1157,92 +1157,92 @@ import secrets
 def login_good():
     user = User.query.filter_by(email=request.form['email']).first()
     if not user:
-        # ユーザが存在しなくてもパスワード検証と同等の時間をかける
+        # Take equivalent time to password verification even when user doesn't exist
         bcrypt.hashpw(b"dummy", bcrypt.gensalt(rounds=12))
-        return {"error": "メールアドレスまたはパスワードが無効です"}, 401
+        return {"error": "Invalid email address or password"}, 401
 
     if not verify_password(request.form['password'], user.password_hash):
-        return {"error": "メールアドレスまたはパスワードが無効です"}, 401
+        return {"error": "Invalid email address or password"}, 401
 
-    # 成功
+    # Success
     return {"token": generate_jwt(user)}
 ```
 
-### アンチパターン 3: ハードコードされた秘密情報
+### Anti-Pattern 3: Hardcoded Secrets
 
 ```python
-# NG: ソースコードに秘密情報を直接記述
+# NG: Write secrets directly in source code
 SECRET_KEY = "my-super-secret-key-12345"
 DATABASE_URL = "postgresql://admin:password123@db.example.com/prod"
 API_KEY = "sk-live-abcdef1234567890"
 
-# OK: 環境変数やシークレットマネージャから取得
+# OK: Retrieve from environment variables or a secrets manager
 import os
 
 SECRET_KEY = os.environ['SECRET_KEY']
 DATABASE_URL = os.environ['DATABASE_URL']
 
-# さらに安全: AWS Secrets Manager から取得
+# Even safer: Retrieve from AWS Secrets Manager
 import boto3
 import json
 
 def get_secret(secret_name: str) -> dict:
-    """AWS Secrets Manager からシークレットを取得"""
+    """Retrieve a secret from AWS Secrets Manager"""
     client = boto3.client('secretsmanager')
     response = client.get_secret_value(SecretId=secret_name)
     return json.loads(response['SecretString'])
 ```
 
-### アンチパターン 4: 不適切な正規表現による ReDoS
+### Anti-Pattern 4: ReDoS from Improper Regular Expressions
 
 ```python
 import re
 
-# NG: 壊滅的バックトラッキングを引き起こす正規表現
-# "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!" のような入力で指数時間かかる
+# NG: Regular expression that causes catastrophic backtracking
+# Input like "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!" takes exponential time
 bad_pattern = re.compile(r'^(a+)+$')
 
-# OK: 非バックトラッキングな正規表現、または入力長を制限
+# OK: Non-backtracking regular expression, or limit input length
 def validate_safe(text: str) -> bool:
-    if len(text) > 100:  # 入力長を制限
+    if len(text) > 100:  # Limit input length
         return False
-    # 原子的グループやポゼッシブ量指定子を使えない場合は
-    # パターンを単純化する
+    # When atomic groups or possessive quantifiers are unavailable,
+    # simplify the pattern
     return bool(re.match(r'^a+$', text))
 ```
 
 ---
 
-## 10. セキュリティチェックリスト
+## 10. Security Checklist
 
-### 開発時のセキュリティチェックリスト
+### Development Security Checklist
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│  カテゴリ       │  チェック項目                        │
+│  Category        │  Checklist Item                    │
 │─────────────────┼───────────────────────────────────│
-│  入力検証        │  □ 全入力にサーバ側バリデーション     │
-│                 │  □ ホワイトリスト方式を使用           │
-│                 │  □ 入力長の上限を設定                │
-│                 │  □ ファイルアップロードの型・サイズ制限│
+│  Input Validation │  □ Server-side validation on all input     │
+│                 │  □ Use whitelist approach           │
+│                 │  □ Set maximum input length         │
+│                 │  □ Type and size limits for file uploads│
 │─────────────────┼───────────────────────────────────│
-│  出力エンコード   │  □ コンテキスト別のエスケープ         │
-│                 │  □ CSP ヘッダーの設定                │
-│                 │  □ dangerouslySetInnerHTML 不使用    │
+│  Output Encoding  │  □ Context-aware escaping          │
+│                 │  □ Set CSP headers                  │
+│                 │  □ Do not use dangerouslySetInnerHTML│
 │─────────────────┼───────────────────────────────────│
-│  認証            │  □ bcrypt/argon2 でパスワード保存    │
-│                 │  □ セッション固定攻撃対策            │
-│                 │  □ レート制限の実装                   │
+│  Authentication  │  □ Store passwords with bcrypt/argon2    │
+│                 │  □ Protect against session fixation attacks│
+│                 │  □ Implement rate limiting          │
 │─────────────────┼───────────────────────────────────│
-│  エラー処理      │  □ 本番でスタックトレース非公開       │
-│                 │  □ 統一エラーメッセージ(列挙攻撃防止)│
-│                 │  □ requestId による追跡             │
+│  Error Handling  │  □ Hide stack traces in production  │
+│                 │  □ Uniform error messages (prevent enumeration)│
+│                 │  □ Tracking via requestId           │
 │─────────────────┼───────────────────────────────────│
-│  データ保護      │  □ シークレットは環境変数/KMS        │
-│                 │  □ 通信は全て TLS                   │
-│                 │  □ 安全なデシリアライゼーション        │
+│  Data Protection │  □ Secrets in environment variables/KMS│
+│                 │  □ All communication over TLS       │
+│                 │  □ Safe deserialization             │
 │─────────────────┼───────────────────────────────────│
-│  ヘッダー        │  □ X-Content-Type-Options: nosniff │
+│  Headers         │  □ X-Content-Type-Options: nosniff │
 │                 │  □ X-Frame-Options: DENY            │
 │                 │  □ Strict-Transport-Security        │
 │                 │  □ Referrer-Policy                  │
@@ -1251,19 +1251,19 @@ def validate_safe(text: str) -> bool:
 
 ---
 
-## 11. 実践演習
+## 11. Practice Exercises
 
-### 演習1: 入力バリデーション関数の実装（基礎）
+### Exercise 1: Implement an Input Validation Function (Beginner)
 
-**課題**: 以下の要件を満たすユーザ登録バリデーション関数を Python で実装せよ。
-- ユーザ名: 3-20文字、英数字とアンダースコアのみ
-- メールアドレス: 標準的なメール形式
-- パスワード: 12文字以上、大文字・小文字・数字・記号をそれぞれ1つ以上含む
-- 年齢: 13-150の整数
-- 全て検証に失敗した場合はどのフィールドが無効かを返す
+**Task**: Implement a user registration validation function in Python that meets the following requirements.
+- Username: 3-20 characters, alphanumeric and underscores only
+- Email address: Standard email format
+- Password: At least 12 characters, containing at least one uppercase letter, lowercase letter, digit, and symbol each
+- Age: Integer from 13 to 150
+- If any validation fails, return which fields are invalid
 
 <details>
-<summary>模範解答</summary>
+<summary>Sample Answer</summary>
 
 ```python
 import re
@@ -1281,56 +1281,56 @@ def validate_user_registration(
     password: str,
     age: int,
 ) -> ValidationResult:
-    """ユーザ登録データのバリデーション"""
+    """Validate user registration data"""
     errors = {}
 
-    # ユーザ名の検証
+    # Validate username
     if not isinstance(username, str):
-        errors['username'] = '文字列である必要があります'
+        errors['username'] = 'Must be a string'
     elif not re.match(r'^[a-zA-Z0-9_]{3,20}$', username):
-        errors['username'] = '3-20文字の英数字とアンダースコアのみ使用可能です'
+        errors['username'] = 'Must be 3-20 characters using only alphanumeric characters and underscores'
 
-    # メールアドレスの検証
+    # Validate email address
     if not isinstance(email, str):
-        errors['email'] = '文字列である必要があります'
+        errors['email'] = 'Must be a string'
     elif not re.match(
         r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$', email
     ):
-        errors['email'] = '有効なメールアドレス形式ではありません'
+        errors['email'] = 'Not a valid email address format'
     elif len(email) > 254:
-        errors['email'] = 'メールアドレスが長すぎます'
+        errors['email'] = 'Email address is too long'
 
-    # パスワードの検証
+    # Validate password
     if not isinstance(password, str):
-        errors['password'] = '文字列である必要があります'
+        errors['password'] = 'Must be a string'
     elif len(password) < 12:
-        errors['password'] = '12文字以上必要です'
+        errors['password'] = 'Must be at least 12 characters'
     elif len(password) > 128:
-        errors['password'] = '128文字以下にしてください'
+        errors['password'] = 'Must be 128 characters or fewer'
     else:
         pw_errors = []
         if not re.search(r'[A-Z]', password):
-            pw_errors.append('大文字')
+            pw_errors.append('uppercase letter')
         if not re.search(r'[a-z]', password):
-            pw_errors.append('小文字')
+            pw_errors.append('lowercase letter')
         if not re.search(r'\d', password):
-            pw_errors.append('数字')
+            pw_errors.append('digit')
         if not re.search(r'[!@#$%^&*(),.?":{}|<>]', password):
-            pw_errors.append('記号')
+            pw_errors.append('symbol')
         if pw_errors:
-            errors['password'] = f'以下を含む必要があります: {", ".join(pw_errors)}'
+            errors['password'] = f'Must contain: {", ".join(pw_errors)}'
 
-    # 年齢の検証
+    # Validate age
     if not isinstance(age, int):
-        errors['age'] = '整数である必要があります'
+        errors['age'] = 'Must be an integer'
     elif age < 13:
-        errors['age'] = '13歳以上である必要があります'
+        errors['age'] = 'Must be 13 or older'
     elif age > 150:
-        errors['age'] = '無効な年齢です'
+        errors['age'] = 'Invalid age'
 
     return ValidationResult(is_valid=len(errors) == 0, errors=errors)
 
-# テスト
+# Tests
 result = validate_user_registration(
     username="john_doe",
     email="john@example.com",
@@ -1351,23 +1351,23 @@ assert 'username' in result2.errors
 assert 'email' in result2.errors
 assert 'password' in result2.errors
 assert 'age' in result2.errors
-print("全テストパス")
+print("All tests passed")
 ```
 
 </details>
 
-### 演習2: セキュアなファイルアップロード API（応用）
+### Exercise 2: Secure File Upload API (Intermediate)
 
-**課題**: 以下の要件を満たす安全なファイルアップロード API を Flask で実装せよ。
-- 許可する拡張子: .jpg, .png, .gif のみ
-- ファイルサイズ上限: 5MB
-- ファイル名はランダムUUIDに置換（元のファイル名を使用しない）
-- MIMEタイプのマジックバイト検証
-- パストラバーサル防止
-- アップロード先ディレクトリの存在確認
+**Task**: Implement a safe file upload API in Flask that meets the following requirements.
+- Allowed extensions: .jpg, .png, .gif only
+- Maximum file size: 5MB
+- Replace filename with a random UUID (do not use the original filename)
+- Magic byte verification of MIME type
+- Path traversal prevention
+- Confirm existence of upload destination directory
 
 <details>
-<summary>模範解答</summary>
+<summary>Sample Answer</summary>
 
 ```python
 import os
@@ -1386,7 +1386,7 @@ ALLOWED_MIME_TYPES = {
 }
 
 def validate_file_magic_bytes(file_data: bytes, extension: str) -> bool:
-    """ファイルのマジックバイトを検証"""
+    """Validate magic bytes of the file"""
     mime_map = {
         '.jpg': 'image/jpeg',
         '.jpeg': 'image/jpeg',
@@ -1403,54 +1403,54 @@ def validate_file_magic_bytes(file_data: bytes, extension: str) -> bool:
 
 @app.route('/api/upload', methods=['POST'])
 def upload_file():
-    """安全なファイルアップロード"""
-    # ファイルの存在確認
+    """Safe file upload"""
+    # Check for file presence
     if 'file' not in request.files:
-        return jsonify({"error": "ファイルが指定されていません"}), 400
+        return jsonify({"error": "No file specified"}), 400
 
     file = request.files['file']
     if file.filename == '':
-        return jsonify({"error": "ファイル名が空です"}), 400
+        return jsonify({"error": "Filename is empty"}), 400
 
-    # 拡張子の検証
+    # Validate extension
     original_ext = Path(file.filename).suffix.lower()
     if original_ext not in ALLOWED_EXTENSIONS:
         return jsonify({
-            "error": f"許可されていない拡張子です。許可: {ALLOWED_EXTENSIONS}"
+            "error": f"Extension not allowed. Allowed: {ALLOWED_EXTENSIONS}"
         }), 400
 
-    # ファイルサイズの検証
+    # Validate file size
     file_data = file.read()
     if len(file_data) > MAX_FILE_SIZE:
         return jsonify({
-            "error": f"ファイルサイズが制限({MAX_FILE_SIZE // 1024 // 1024}MB)を超えています"
+            "error": f"File size exceeds the limit ({MAX_FILE_SIZE // 1024 // 1024}MB)"
         }), 400
 
     if len(file_data) == 0:
-        return jsonify({"error": "ファイルが空です"}), 400
+        return jsonify({"error": "File is empty"}), 400
 
-    # マジックバイトの検証
+    # Validate magic bytes
     if not validate_file_magic_bytes(file_data, original_ext):
         return jsonify({
-            "error": "ファイルの内容が拡張子と一致しません"
+            "error": "File content does not match extension"
         }), 400
 
-    # 安全なファイル名を生成（UUID + 元の拡張子）
+    # Generate safe filename (UUID + original extension)
     safe_filename = f"{uuid.uuid4()}{original_ext}"
     upload_path = (UPLOAD_DIR / safe_filename).resolve()
 
-    # パストラバーサル防止
+    # Prevent path traversal
     if not str(upload_path).startswith(str(UPLOAD_DIR.resolve())):
-        return jsonify({"error": "不正なパスです"}), 400
+        return jsonify({"error": "Invalid path"}), 400
 
-    # アップロードディレクトリの確認
+    # Confirm upload directory
     UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-    # ファイル保存
+    # Save file
     upload_path.write_bytes(file_data)
 
     return jsonify({
-        "message": "アップロード成功",
+        "message": "Upload successful",
         "filename": safe_filename,
         "size": len(file_data),
     }), 201
@@ -1458,18 +1458,18 @@ def upload_file():
 
 </details>
 
-### 演習3: レート制限付きログインAPI の実装（発展）
+### Exercise 3: Rate-Limited Login API Implementation (Advanced)
 
-**課題**: 以下のセキュリティ要件を全て満たすログインAPIを実装せよ。
-- パスワードは argon2id でハッシュ化して保存
-- ログイン試行は IP アドレスあたり 5回/15分に制限
-- ユーザ列挙攻撃を防止する統一エラーメッセージ
-- タイミング攻撃を防止する一定時間レスポンス
-- ログイン成功時にセッションIDを再生成
-- 全試行をログに記録（ただしパスワードはログに含めない）
+**Task**: Implement a login API that fully satisfies the following security requirements.
+- Passwords stored hashed with argon2id
+- Login attempts limited to 5 per 15 minutes per IP address
+- Uniform error messages to prevent user enumeration attacks
+- Constant-time responses to prevent timing attacks
+- Regenerate session ID on successful login
+- Log all attempts (but do not include passwords in logs)
 
 <details>
-<summary>模範解答</summary>
+<summary>Sample Answer</summary>
 
 ```python
 import time
@@ -1487,13 +1487,13 @@ logger = logging.getLogger('auth')
 
 ph = PasswordHasher(time_cost=3, memory_cost=65536, parallelism=4)
 
-# レート制限のための簡易ストレージ（本番では Redis を使用）
+# Simple storage for rate limiting (use Redis in production)
 login_attempts = defaultdict(list)
 
-RATE_LIMIT_WINDOW = 15 * 60  # 15分
-RATE_LIMIT_MAX = 5            # 最大5回
+RATE_LIMIT_WINDOW = 15 * 60  # 15 minutes
+RATE_LIMIT_MAX = 5            # Maximum 5 attempts
 
-# ダミーのユーザDB（実際はデータベースを使用）
+# Dummy user DB (use a real database in production)
 USERS_DB = {
     "user@example.com": {
         "id": 1,
@@ -1503,9 +1503,9 @@ USERS_DB = {
 }
 
 def check_rate_limit(ip_address: str) -> bool:
-    """IPアドレスベースのレート制限チェック"""
+    """Rate limit check based on IP address"""
     now = time.time()
-    # 古い記録を削除
+    # Remove old records
     login_attempts[ip_address] = [
         t for t in login_attempts[ip_address]
         if now - t < RATE_LIMIT_WINDOW
@@ -1513,23 +1513,23 @@ def check_rate_limit(ip_address: str) -> bool:
     return len(login_attempts[ip_address]) < RATE_LIMIT_MAX
 
 def record_attempt(ip_address: str):
-    """ログイン試行を記録"""
+    """Record a login attempt"""
     login_attempts[ip_address].append(time.time())
 
 def constant_time_response(start_time: float, min_duration: float = 0.3):
-    """タイミング攻撃を防止するため一定時間待機"""
+    """Wait a fixed time to prevent timing attacks"""
     elapsed = time.time() - start_time
     if elapsed < min_duration:
         time.sleep(min_duration - elapsed)
 
 @app.route('/api/login', methods=['POST'])
 def login():
-    """セキュアなログインAPI"""
+    """Secure login API"""
     start_time = time.time()
     client_ip = request.remote_addr
     request_id = str(uuid.uuid4())[:8]
 
-    # レート制限チェック
+    # Rate limit check
     if not check_rate_limit(client_ip):
         logger.warning(
             "Rate limit exceeded: ip=%s request_id=%s",
@@ -1540,33 +1540,33 @@ def login():
         ))
         constant_time_response(start_time)
         return jsonify({
-            "error": "試行回数の上限に達しました。しばらく待ってから再試行してください。",
+            "error": "Maximum attempts reached. Please wait before trying again.",
             "requestId": request_id,
         }), 429, {'Retry-After': str(remaining_time)}
 
-    # 入力の取得と検証
+    # Retrieve and validate input
     data = request.get_json(silent=True)
     if not data or 'email' not in data or 'password' not in data:
         constant_time_response(start_time)
         return jsonify({
-            "error": "メールアドレスとパスワードを入力してください。",
+            "error": "Please enter email address and password.",
             "requestId": request_id,
         }), 400
 
     email = data['email']
     password = data['password']
 
-    # ログ記録（パスワードは含めない）
+    # Log attempt (do not include password)
     logger.info(
         "Login attempt: email=%s ip=%s request_id=%s",
         email, client_ip, request_id,
     )
 
-    # ユーザ検索
+    # Look up user
     user = USERS_DB.get(email)
 
     if not user:
-        # ユーザが存在しなくてもパスワード検証と同等の時間をかける
+        # Take equivalent time to password verification even when user doesn't exist
         try:
             ph.verify(ph.hash("dummy"), "dummy")
         except VerifyMismatchError:
@@ -1577,13 +1577,13 @@ def login():
             email, client_ip, request_id,
         )
         constant_time_response(start_time)
-        # 統一エラーメッセージ
+        # Uniform error message
         return jsonify({
-            "error": "メールアドレスまたはパスワードが無効です。",
+            "error": "Invalid email address or password.",
             "requestId": request_id,
         }), 401
 
-    # パスワード検証
+    # Verify password
     try:
         ph.verify(user['password_hash'], password)
     except VerifyMismatchError:
@@ -1594,30 +1594,30 @@ def login():
         )
         constant_time_response(start_time)
         return jsonify({
-            "error": "メールアドレスまたはパスワードが無効です。",
+            "error": "Invalid email address or password.",
             "requestId": request_id,
         }), 401
 
-    # ログイン成功
-    session.clear()  # セッション固定攻撃防止
+    # Login successful
+    session.clear()  # Prevent session fixation attacks
     session['user_id'] = user['id']
     session['login_time'] = datetime.utcnow().isoformat()
     session['ip'] = client_ip
 
-    # 成功ログ
+    # Success log
     logger.info(
         "Login success: user_id=%s email=%s ip=%s request_id=%s",
         user['id'], email, client_ip, request_id,
     )
 
-    # パスワードハッシュのリハッシュ（パラメータ更新時）
+    # Rehash password if parameters have been updated
     if ph.check_needs_rehash(user['password_hash']):
         user['password_hash'] = ph.hash(password)
         logger.info("Password rehashed: user_id=%s", user['id'])
 
     constant_time_response(start_time)
     return jsonify({
-        "message": "ログイン成功",
+        "message": "Login successful",
         "requestId": request_id,
     }), 200
 ```
@@ -1628,74 +1628,74 @@ def login():
 
 ## 12. FAQ
 
-### Q1. 入力検証はフロントエンドとバックエンドの両方に必要か?
+### Q1. Is input validation required on both frontend and backend?
 
-はい、両方に必要である。ただし目的が異なる。フロントエンドの検証は**UX改善**のためであり、ユーザにリアルタイムでフィードバックを返す。バックエンドの検証は**セキュリティ**のためであり、攻撃者は curl や Burp Suite で直接バックエンドに任意のリクエストを送信できるため、フロントエンド検証は完全にバイパスされる。したがってバックエンドでの検証が唯一の信頼できる防御線である。
+Yes, both are required. However, the purposes differ. Frontend validation is for **UX improvement**, providing real-time feedback to the user. Backend validation is for **security** — attackers can send arbitrary requests directly to the backend using curl or Burp Suite, completely bypassing frontend validation. Therefore, backend validation is the only reliable line of defense.
 
-### Q2. ORM を使えば SQL インジェクションは完全に防げるか?
+### Q2. Does using an ORM completely prevent SQL injection?
 
-ORM の標準的な API（`filter_by()`, `where()` 等）を使う限りはほぼ安全である。しかし、ORM にも生 SQL を組み立てる機能がある（SQLAlchemy の `text()`, Django の `raw()`, `extra()`）。これらを使用する場合はパラメータ化クエリと同じ注意が必要である。また、LIKE 句のワイルドカード (`%`, `_`) が特殊文字として機能する点も注意が必要で、ユーザ入力をそのまま LIKE パターンに使用するとデータ漏洩のリスクがある。
+Using the ORM's standard API (`filter_by()`, `where()`, etc.) is mostly safe. However, ORMs also have features for constructing raw SQL (SQLAlchemy's `text()`, Django's `raw()`, `extra()`). When using these, the same care as with parameterized queries is required. Also note that LIKE clause wildcards (`%`, `_`) function as special characters — using user input directly in a LIKE pattern risks data leakage.
 
-### Q3. Content Security Policy (CSP) はどこまで厳格にすべきか?
+### Q3. How strict should Content Security Policy (CSP) be?
 
-`default-src 'none'` から始めて、必要なリソースのみを明示的に許可するのが理想的である。段階的に導入するには、まず `Content-Security-Policy-Report-Only` ヘッダーで「レポート専用モード」で運用し、違反レポートを収集しながら正しいポリシーを策定する。nonce ベースの `script-src` を採用し、`unsafe-inline` や `unsafe-eval` は避ける。CDN からのスクリプト読み込みが必要な場合は SRI (Subresource Integrity) ハッシュと併用する。
+Ideally, start with `default-src 'none'` and explicitly allow only required resources. For gradual adoption, first operate in "report-only mode" using the `Content-Security-Policy-Report-Only` header, collect violation reports, and formulate the correct policy. Adopt nonce-based `script-src` and avoid `unsafe-inline` and `unsafe-eval`. When loading scripts from a CDN, combine with SRI (Subresource Integrity) hashes.
 
-### Q4. タイミング攻撃とは何か? なぜパスワード比較で問題になるか?
+### Q4. What is a timing attack? Why is it a problem for password comparison?
 
-タイミング攻撃とは、処理にかかる時間の差から秘密情報を推測する攻撃である。例えば、文字列比較が最初に異なる文字を見つけた時点で `False` を返す実装（短絡評価）の場合、攻撃者は比較に要する時間からパスワードの一致文字数を推測できる。`bcrypt.checkpw()` や `hmac.compare_digest()` は内部で定数時間比較を行うためこの攻撃に耐性がある。自前で文字列比較を行う場合は必ず定数時間比較を使用すること。
+A timing attack is an attack that infers secret information from differences in processing time. For example, if a string comparison implementation returns `False` the moment it finds the first differing character (short-circuit evaluation), an attacker can infer the number of matching password characters from the time required. `bcrypt.checkpw()` and `hmac.compare_digest()` perform constant-time comparison internally and are thus resistant to this attack. Always use constant-time comparison when performing string comparisons yourself.
 
-### Q5. 安全でないデシリアライゼーションを検出するにはどうすればよいか?
+### Q5. How can unsafe deserialization be detected?
 
-SAST ツール（Semgrep, Bandit）で `pickle.loads()`, `yaml.load()`, `eval()`, `exec()` の使用箇所を自動検出する。コードレビューでは「信頼できないデータソースから復元されるオブジェクト」を重点的に確認する。代替として JSON や Protocol Buffers のような安全なシリアライゼーション形式を使用する。詳細は [SAST/DAST](./03-sast-dast.md) を参照。
+Use SAST tools (Semgrep, Bandit) to automatically detect usage of `pickle.loads()`, `yaml.load()`, `eval()`, and `exec()`. In code reviews, focus on "objects restored from untrusted data sources." Use safe serialization formats like JSON or Protocol Buffers as alternatives. See [SAST/DAST](./03-sast-dast.md) for details.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Jumping to advanced topics without mastering the fundamentals. It is recommended to thoroughly understand the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 | 対策手法 |
+| Item | Key Point | Countermeasure |
 |------|------|---------|
-| 入力検証 | ホワイトリスト方式、サーバ側で必ず実施 | Pydantic, Joi, Bean Validation |
-| SQL インジェクション | パラメータ化クエリまたは ORM を使用 | PreparedStatement, ORM |
-| XSS 防止 | コンテキスト別エスケープ + CSP | DOMPurify, テンプレートエンジン |
-| CSRF 防止 | トークンベース + SameSite Cookie | Flask-WTF, csurf |
-| エラーハンドリング | 本番では詳細を隠し requestId で追跡 | 構造化ログ + 相関ID |
-| パスワード | bcrypt/argon2 でハッシュ化 | argon2id 推奨 |
-| セッション | Secure + HttpOnly + SameSite 属性必須 | セッション固定攻撃防止 |
-| SSRF 防止 | プライベートIP・メタデータAPIへのアクセス拒否 | URL検証 + allowlist |
-| デシリアライゼーション | pickle/eval を信頼できないデータに使わない | JSON/Protobuf を使用 |
-| ReDoS | 正規表現の複雑さ制限 + 入力長制限 | re2ライブラリの使用 |
+| Input Validation | Whitelist approach, always perform on server side | Pydantic, Joi, Bean Validation |
+| SQL Injection | Use parameterized queries or ORM | PreparedStatement, ORM |
+| XSS Prevention | Context-aware escaping + CSP | DOMPurify, template engines |
+| CSRF Prevention | Token-based + SameSite Cookie | Flask-WTF, csurf |
+| Error Handling | Hide details in production, track with requestId | Structured logging + correlation ID |
+| Passwords | Hash with bcrypt/argon2 | argon2id recommended |
+| Sessions | Secure + HttpOnly + SameSite attributes required | Session fixation attack prevention |
+| SSRF Prevention | Deny access to private IPs and metadata APIs | URL validation + allowlist |
+| Deserialization | Do not use pickle/eval on untrusted data | Use JSON/Protobuf |
+| ReDoS | Limit regex complexity + limit input length | Use re2 library |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [依存関係セキュリティ](./01-dependency-security.md) — サードパーティライブラリの脆弱性管理と SCA
-- [SAST/DAST](./03-sast-dast.md) — Semgrep/SonarQube による自動化されたコードセキュリティ検査
-- [コンテナセキュリティ](./02-container-security.md) — コンテナ化されたアプリケーションのセキュリティ
-- [APIセキュリティ](../03-network-security/02-api-security.md) — API レベルの認証・認可・レート制限
-- 認証の基礎 — 認証・認可の体系的理解
-- [暗号化基礎](../02-cryptography/) — ハッシュ関数・暗号化の理論的背景
+- [Dependency Security](./01-dependency-security.md) — Vulnerability management and SCA for third-party libraries
+- [SAST/DAST](./03-sast-dast.md) — Automated code security inspection with Semgrep/SonarQube
+- [Container Security](./02-container-security.md) — Security for containerized applications
+- [API Security](../03-network-security/02-api-security.md) — Authentication, authorization, and rate limiting at the API level
+- Authentication Fundamentals — Systematic understanding of authentication and authorization
+- [Cryptography Basics](../02-cryptography/) — Theoretical background of hash functions and encryption
 
 ---
 
-## 参考文献
+## References
 
 1. **OWASP Secure Coding Practices Quick Reference Guide** — https://owasp.org/www-project-secure-coding-practices-quick-reference-guide/
 2. **OWASP Cheat Sheet Series** — https://cheatsheetseries.owasp.org/
