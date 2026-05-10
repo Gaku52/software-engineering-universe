@@ -1,138 +1,133 @@
-# AI解析概要 — データサイエンスとMLの全体像
+# AI Analysis Overview — A Bird's-Eye View of Data Science and ML
 
-> データサイエンスと機械学習の全体像を俯瞰し、AI解析プロジェクトの進め方を体系的に理解する
+> Survey the full landscape of data science and machine learning, and systematically understand how to approach AI analysis projects
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **データサイエンスのライフサイクル** — ビジネス課題定義からモデルデプロイまでの全工程
-2. **機械学習の分類体系** — 教師あり・教師なし・強化学習の位置づけと使い分け
-3. **AI解析プロジェクトの設計原則** — 再現性・スケーラビリティ・倫理を考慮した設計
-4. **EDA（探索的データ分析）** — データの理解を深める系統的なアプローチ
-5. **実験管理とバージョニング** — MLflowやDVCを使った実験の追跡と再現
-6. **プロジェクト推進のベストプラクティス** — チーム運営、ステークホルダー管理、リスク対策
+1. **Data Science Lifecycle** — The complete process from business problem definition to model deployment
+2. **Machine Learning Taxonomy** — The positioning and selection of supervised, unsupervised, and reinforcement learning
+3. **AI Analysis Project Design Principles** — Design that accounts for reproducibility, scalability, and ethics
+4. **EDA (Exploratory Data Analysis)** — A systematic approach to deepening your understanding of data
+5. **Experiment Management and Versioning** — Tracking and reproducing experiments with MLflow and DVC
+6. **Best Practices for Project Execution** — Team management, stakeholder management, and risk mitigation
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. データサイエンスのライフサイクル
+## 1. Data Science Lifecycle
 
-AI解析プロジェクトは、直線的ではなく反復的なプロセスで進行する。CRISP-DM（Cross-Industry Standard Process for Data Mining）が最も広く採用されているフレームワークである。
+AI analysis projects proceed through an iterative, rather than linear, process. CRISP-DM (Cross-Industry Standard Process for Data Mining) is the most widely adopted framework.
 
-### ライフサイクル全体像
+### Lifecycle Overview
 
 ```
 +-------------------+
-|  ビジネス理解     |
-|  (Business        |
-|   Understanding)  |
+|  Business         |
+|  Understanding    |
 +--------+----------+
          |
          v
 +--------+----------+     +-------------------+
-|  データ理解       |<--->|  データ準備       |
-|  (Data            |     |  (Data            |
-|   Understanding)  |     |   Preparation)    |
+|  Data             |<--->|  Data             |
+|  Understanding    |     |  Preparation      |
 +--------+----------+     +--------+----------+
          |                         |
          +----------+--------------+
                     |
                     v
          +----------+----------+
-         |  モデリング         |
-         |  (Modeling)         |
+         |  Modeling           |
          +----------+----------+
                     |
                     v
          +----------+----------+
-         |  評価               |
-         |  (Evaluation)       |
+         |  Evaluation         |
          +----------+----------+
                     |
                     v
          +----------+----------+
-         |  デプロイ           |
-         |  (Deployment)       |
+         |  Deployment         |
          +---------------------+
 ```
 
-### 各フェーズの詳細と成果物
+### Details and Deliverables for Each Phase
 
 ```
-CRISP-DM 各フェーズの詳細:
+CRISP-DM Phase Details:
 
-Phase 1: ビジネス理解
-  ├── 入力: ビジネス課題、ステークホルダーの要件
-  ├── 活動:
-  │   ├── KPIの定義（売上向上5%、解約率10%削減等）
-  │   ├── 成功基準の明確化（精度閾値、レイテンシ要件）
-  │   ├── データ利用可能性の調査
-  │   └── ROIの概算
-  └── 成果物: プロジェクト計画書、成功基準文書
+Phase 1: Business Understanding
+  ├── Input: Business problem, stakeholder requirements
+  ├── Activities:
+  │   ├── Define KPIs (increase sales by 5%, reduce churn by 10%, etc.)
+  │   ├── Clarify success criteria (accuracy thresholds, latency requirements)
+  │   ├── Investigate data availability
+  │   └── Estimate ROI
+  └── Deliverables: Project plan, success criteria document
 
-Phase 2: データ理解
-  ├── 入力: 利用可能なデータソース
-  ├── 活動:
-  │   ├── データ収集とアクセス確保
-  │   ├── EDA（探索的データ分析）
-  │   ├── データ品質評価
-  │   └── 初期仮説の構築
-  └── 成果物: EDAレポート、データ辞書、品質レポート
+Phase 2: Data Understanding
+  ├── Input: Available data sources
+  ├── Activities:
+  │   ├── Data collection and access setup
+  │   ├── EDA (Exploratory Data Analysis)
+  │   ├── Data quality assessment
+  │   └── Initial hypothesis building
+  └── Deliverables: EDA report, data dictionary, quality report
 
-Phase 3: データ準備
-  ├── 入力: 生データ、EDA結果
-  ├── 活動:
-  │   ├── データクリーニング（欠損値、外れ値、重複）
-  │   ├── 特徴量エンジニアリング
-  │   ├── データ統合（複数ソースの結合）
-  │   └── 訓練/検証/テスト分割
-  └── 成果物: 前処理済みデータセット、前処理パイプライン
+Phase 3: Data Preparation
+  ├── Input: Raw data, EDA results
+  ├── Activities:
+  │   ├── Data cleaning (missing values, outliers, duplicates)
+  │   ├── Feature engineering
+  │   ├── Data integration (merging multiple sources)
+  │   └── Train/validation/test split
+  └── Deliverables: Preprocessed dataset, preprocessing pipeline
 
-Phase 4: モデリング
-  ├── 入力: 前処理済みデータ
-  ├── 活動:
-  │   ├── ベースラインモデルの構築
-  │   ├── 複数アルゴリズムの比較
-  │   ├── ハイパーパラメータ最適化
-  │   └── アンサンブル手法の検討
-  └── 成果物: 学習済みモデル、実験ログ
+Phase 4: Modeling
+  ├── Input: Preprocessed data
+  ├── Activities:
+  │   ├── Build baseline model
+  │   ├── Compare multiple algorithms
+  │   ├── Hyperparameter optimization
+  │   └── Explore ensemble methods
+  └── Deliverables: Trained model, experiment logs
 
-Phase 5: 評価
-  ├── 入力: 学習済みモデル、テストデータ
-  ├── 活動:
-  │   ├── テストデータでの性能評価
-  │   ├── ビジネスKPIとの照合
-  │   ├── 公平性・バイアスのチェック
-  │   └── A/Bテスト計画の策定
-  └── 成果物: 評価レポート、デプロイ判定
+Phase 5: Evaluation
+  ├── Input: Trained model, test data
+  ├── Activities:
+  │   ├── Performance evaluation on test data
+  │   ├── Cross-reference with business KPIs
+  │   ├── Fairness and bias checks
+  │   └── Plan A/B testing
+  └── Deliverables: Evaluation report, deployment decision
 
-Phase 6: デプロイ
-  ├── 入力: 承認済みモデル
-  ├── 活動:
-  │   ├── モデルのパッケージング
-  │   ├── API/バッチ推論の構築
-  │   ├── モニタリングの設定
-  │   └── 再学習パイプラインの構築
-  └── 成果物: 本番サービス、モニタリングダッシュボード
+Phase 6: Deployment
+  ├── Input: Approved model
+  ├── Activities:
+  │   ├── Model packaging
+  │   ├── Build API/batch inference
+  │   ├── Configure monitoring
+  │   └── Build retraining pipeline
+  └── Deliverables: Production service, monitoring dashboard
 ```
 
-### コード例1: プロジェクト構成テンプレート
+### Code Example 1: Project Structure Template
 
 ```python
-# AI解析プロジェクトの標準ディレクトリ構成
+# Standard directory structure for an AI analysis project
 """
 my-ml-project/
 ├── data/
-│   ├── raw/              # 生データ（変更不可）
-│   ├── processed/        # 前処理済みデータ
-│   ├── interim/          # 中間データ
-│   └── external/         # 外部データソース
+│   ├── raw/              # Raw data (do not modify)
+│   ├── processed/        # Preprocessed data
+│   ├── interim/          # Intermediate data
+│   └── external/         # External data sources
 ├── notebooks/
 │   ├── 01_exploration.ipynb
 │   ├── 02_preprocessing.ipynb
@@ -140,39 +135,39 @@ my-ml-project/
 │   └── 04_evaluation.ipynb
 ├── src/
 │   ├── __init__.py
-│   ├── data/             # データ処理モジュール
+│   ├── data/             # Data processing modules
 │   │   ├── __init__.py
-│   │   ├── loader.py     # データ読込
-│   │   └── validation.py # データ検証
-│   ├── features/         # 特徴量エンジニアリング
+│   │   ├── loader.py     # Data loading
+│   │   └── validation.py # Data validation
+│   ├── features/         # Feature engineering
 │   │   ├── __init__.py
-│   │   ├── builder.py    # 特徴量生成
-│   │   └── selector.py   # 特徴量選択
-│   ├── models/           # モデル定義・学習
+│   │   ├── builder.py    # Feature generation
+│   │   └── selector.py   # Feature selection
+│   ├── models/           # Model definition and training
 │   │   ├── __init__.py
-│   │   ├── train.py      # 学習スクリプト
-│   │   ├── predict.py    # 推論スクリプト
-│   │   └── evaluate.py   # 評価スクリプト
-│   └── visualization/    # 可視化ユーティリティ
+│   │   ├── train.py      # Training script
+│   │   ├── predict.py    # Inference script
+│   │   └── evaluate.py   # Evaluation script
+│   └── visualization/    # Visualization utilities
 │       ├── __init__.py
 │       └── plots.py
-├── models/               # 学習済みモデル保存
-├── reports/              # 分析レポート・図表
+├── models/               # Saved trained models
+├── reports/              # Analysis reports and figures
 │   └── figures/
-├── tests/                # テストコード
+├── tests/                # Test code
 │   ├── test_data.py
 │   ├── test_features.py
 │   └── test_models.py
-├── configs/              # 設定ファイル
+├── configs/              # Configuration files
 │   ├── config.yaml
 │   └── hyperparams.yaml
-├── scripts/              # ユーティリティスクリプト
+├── scripts/              # Utility scripts
 │   ├── train.sh
 │   └── deploy.sh
-├── Makefile              # タスクランナー
-├── pyproject.toml        # プロジェクト設定
-├── requirements.txt      # 依存パッケージ
-├── .env.example          # 環境変数テンプレート
+├── Makefile              # Task runner
+├── pyproject.toml        # Project configuration
+├── requirements.txt      # Dependency packages
+├── .env.example          # Environment variable template
 ├── .gitignore
 └── README.md
 """
@@ -184,16 +179,16 @@ from datetime import datetime
 def create_project_structure(project_name: str,
                               include_dvc: bool = False,
                               include_docker: bool = False) -> None:
-    """AI解析プロジェクトの標準構造を作成
+    """Create the standard structure for an AI analysis project
 
     Parameters
     ----------
     project_name : str
-        プロジェクト名
+        Project name
     include_dvc : bool
-        DVCファイルを含めるか
+        Whether to include DVC files
     include_docker : bool
-        Dockerfileを含めるか
+        Whether to include a Dockerfile
     """
     dirs = [
         "data/raw", "data/processed", "data/interim", "data/external",
@@ -205,17 +200,17 @@ def create_project_structure(project_name: str,
     for d in dirs:
         os.makedirs(os.path.join(project_name, d), exist_ok=True)
 
-    # .gitkeep を配置して空ディレクトリをGit管理
+    # Place .gitkeep to track empty directories in Git
     for d in dirs:
         gitkeep = os.path.join(project_name, d, ".gitkeep")
         open(gitkeep, "w").close()
 
-    # __init__.py の作成
+    # Create __init__.py files
     for d in ["src", "src/data", "src/features", "src/models", "src/visualization"]:
         init_file = os.path.join(project_name, d, "__init__.py")
         open(init_file, "w").close()
 
-    # .gitignore の作成
+    # Create .gitignore
     gitignore_content = """# Python
 __pycache__/
 *.py[cod]
@@ -251,7 +246,7 @@ mlruns/
     with open(os.path.join(project_name, ".gitignore"), "w") as f:
         f.write(gitignore_content)
 
-    # Makefile の作成
+    # Create Makefile
     makefile_content = """.PHONY: install train test lint clean
 
 install:
@@ -273,7 +268,7 @@ clean:
     with open(os.path.join(project_name, "Makefile"), "w") as f:
         f.write(makefile_content)
 
-    # プロジェクトメタデータ
+    # Project metadata
     metadata = {
         "name": project_name,
         "created_at": datetime.now().isoformat(),
@@ -295,84 +290,92 @@ CMD ["python", "-m", "src.models.predict"]
         with open(os.path.join(project_name, "Dockerfile"), "w") as f:
             f.write(dockerfile)
 
-    print(f"プロジェクト '{project_name}' を作成しました")
-    print(f"  ディレクトリ数: {len(dirs)}")
+    print(f"Project '{project_name}' created")
+    print(f"  Number of directories: {len(dirs)}")
 
 create_project_structure("fraud-detection", include_docker=True)
 ```
 
 ---
 
-## 2. 機械学習の分類体系
+## 2. Machine Learning Taxonomy
 
-### 学習パラダイムの全体図
+### Overview of Learning Paradigms
 
 ```
-              機械学習 (Machine Learning)
+              Machine Learning
               ┌──────────┼──────────┐
               │          │          │
-         教師あり学習  教師なし学習  強化学習
-         (Supervised)  (Unsupervised) (Reinforcement)
+         Supervised  Unsupervised  Reinforcement
+         Learning    Learning      Learning
               │          │          │
          ┌────┴────┐  ┌──┴──┐    ┌──┴──┐
          │         │  │     │    │     │
-        回帰    分類  クラスタ 次元  方策   価値
-       (Regr) (Cls) リング  削減  勾配   関数
+      Regression Class- Clust- Dim  Policy  Value
+                  ifica- ering  Red- Grad-  Func-
+                  tion        uction ient  tion
                      (Clust) (DR) (PG)  (VF)
               │          │          │
          ┌────┴────┐  ┌──┴──┐    ┌──┴──┐
-        線形  決定木  K-means PCA  Q学習  SARSA
-        SVM   RF     DBSCAN tSNE PPO    A3C
-        NN    GBM    GMM    UMAP DQN    SAC
+        Linear  DTree K-means PCA  Q-Learn SARSA
+        SVM     RF    DBSCAN tSNE  PPO    A3C
+        NN      GBM   GMM    UMAP  DQN    SAC
 
-追加パラダイム:
+Additional Paradigms:
   ┌──────────────────────────────────────────┐
-  │ 半教師あり学習 (Semi-Supervised)          │
-  │   少量のラベル付きデータ + 大量のラベルなし│
-  │   例: Self-Training, Label Propagation    │
+  │ Semi-Supervised Learning                  │
+  │   Small amount of labeled data + large    │
+  │   amount of unlabeled data                │
+  │   e.g.: Self-Training, Label Propagation  │
   ├──────────────────────────────────────────┤
-  │ 自己教師あり学習 (Self-Supervised)        │
-  │   データ自体から学習信号を生成            │
-  │   例: BERT (MLM), GPT (NTP), SimCLR     │
+  │ Self-Supervised Learning                  │
+  │   Generates learning signal from the data │
+  │   itself                                  │
+  │   e.g.: BERT (MLM), GPT (NTP), SimCLR    │
   ├──────────────────────────────────────────┤
-  │ 転移学習 (Transfer Learning)             │
-  │   事前学習済みモデルを別タスクに適用      │
-  │   例: Fine-tuning, Feature Extraction    │
+  │ Transfer Learning                         │
+  │   Apply a pre-trained model to a          │
+  │   different task                          │
+  │   e.g.: Fine-tuning, Feature Extraction   │
   ├──────────────────────────────────────────┤
-  │ メタ学習 (Meta-Learning)                 │
-  │   「学ぶ方法を学ぶ」                     │
-  │   例: MAML, Prototypical Networks        │
+  │ Meta-Learning                             │
+  │   "Learning to learn"                     │
+  │   e.g.: MAML, Prototypical Networks       │
   └──────────────────────────────────────────┘
 ```
 
-### 各パラダイムの適用場面
+### When to Apply Each Paradigm
 
 ```
-タスクとデータに応じたパラダイム選択:
+Paradigm selection based on task and data:
 
   ┌─────────────────────────┐
-  │ ラベル付きデータがある？ │
+  │ Is labeled data available? │
   └────────┬────────────────┘
        Yes │          No
            │            │
   ┌────────┴──────┐  ┌──┴──────────────────┐
-  │ 十分な量ある？│  │ 構造を発見したい？  │
+  │ Is there      │  │ Want to discover    │
+  │ enough of it? │  │ structure?          │
   └────┬──────────┘  └──┬───────────────────┘
    Yes │   No          Yes │        No
        │     │             │          │
-  教師あり  半教師あり  教師なし   自己教師あり
-  学習     学習       学習      学習
+  Supervised Semi-       Unsup-    Self-
+  Learning   Supervised  ervised   Supervised
+  Learning   Learning    Learning  Learning
        │                            │
   ┌────┴────┐                  ┌────┴────┐
-  │目的変数 │                  │事前学習 │
-  │の型は？ │                  │→Fine-tune│
-  └────┬────┘                  └─────────┘
-  連続│   離散│
+  │ What is │                  │Pre-train│
+  │ the     │                  │→Fine-tune│
+  │ target  │                  └─────────┘
+  │ type?   │
+  └────┬────┘
+  Cont │   Discrete │
       │       │
-   回帰    分類
+   Regress  Classify
 ```
 
-### コード例2: 問題タイプ自動判定
+### Code Example 2: Automatic Problem Type Detection
 
 ```python
 import pandas as pd
@@ -382,16 +385,16 @@ from typing import Dict, Any, Optional
 def identify_problem_type(target: pd.Series,
                            threshold_unique_ratio: float = 0.05,
                            threshold_unique_count: int = 20) -> Dict[str, Any]:
-    """ターゲット変数から問題タイプを自動判定する
+    """Automatically identify the problem type from the target variable
 
     Parameters
     ----------
     target : pd.Series
-        ターゲット変数
+        Target variable
     threshold_unique_ratio : float
-        ユニーク値比率の閾値（これ以上なら回帰）
+        Threshold for the unique value ratio (above this → regression)
     threshold_unique_count : int
-        ユニーク値数の閾値（これ以上なら回帰候補）
+        Threshold for unique value count (above this → regression candidate)
     """
     result = {
         "dtype": str(target.dtype),
@@ -401,46 +404,46 @@ def identify_problem_type(target: pd.Series,
         "unique_ratio": target.nunique() / len(target),
     }
 
-    # 数値型で多くのユニーク値 → 回帰
+    # Numeric type with many unique values → regression
     if pd.api.types.is_numeric_dtype(target):
         ratio = target.nunique() / len(target)
         if ratio > threshold_unique_ratio and target.nunique() > threshold_unique_count:
-            result["problem_type"] = "回帰 (Regression)"
+            result["problem_type"] = "Regression"
             result["suggested_metrics"] = ["RMSE", "MAE", "R²", "MAPE"]
             result["suggested_models"] = [
                 "LinearRegression", "Ridge", "Lasso",
                 "RandomForestRegressor", "XGBRegressor", "LGBMRegressor"
             ]
-            result["baseline_model"] = "平均値予測 (DummyRegressor)"
+            result["baseline_model"] = "Mean prediction (DummyRegressor)"
         else:
-            result["problem_type"] = "分類 (Classification)"
+            result["problem_type"] = "Classification"
             if target.nunique() == 2:
-                result["sub_type"] = "二値分類 (Binary)"
+                result["sub_type"] = "Binary Classification"
                 result["suggested_metrics"] = ["F1", "AUC-ROC", "Precision", "Recall"]
             else:
-                result["sub_type"] = f"多クラス分類 ({target.nunique()}クラス)"
+                result["sub_type"] = f"Multi-class Classification ({target.nunique()} classes)"
                 result["suggested_metrics"] = ["F1-macro", "AUC-ROC (OVR)", "Accuracy"]
             result["suggested_models"] = [
                 "LogisticRegression", "RandomForestClassifier",
                 "XGBClassifier", "LGBMClassifier"
             ]
-            result["baseline_model"] = "最頻値予測 (DummyClassifier)"
+            result["baseline_model"] = "Most-frequent prediction (DummyClassifier)"
 
-            # クラス不均衡の検出
+            # Detect class imbalance
             value_counts = target.value_counts(normalize=True)
             imbalance_ratio = value_counts.max() / value_counts.min()
             if imbalance_ratio > 5:
                 result["warning"] = (
-                    f"クラス不均衡検出 (比率={imbalance_ratio:.1f}x). "
-                    f"SMOTE/class_weight の使用を推奨"
+                    f"Class imbalance detected (ratio={imbalance_ratio:.1f}x). "
+                    f"Recommend using SMOTE/class_weight"
                 )
                 result["suggested_metrics"].extend(["PR-AUC", "MCC"])
     else:
-        result["problem_type"] = "分類 (Classification)"
+        result["problem_type"] = "Classification"
         if target.nunique() == 2:
-            result["sub_type"] = "二値分類"
+            result["sub_type"] = "Binary Classification"
         else:
-            result["sub_type"] = f"多クラス分類 ({target.nunique()}クラス)"
+            result["sub_type"] = f"Multi-class Classification ({target.nunique()} classes)"
         result["suggested_metrics"] = ["F1-macro", "AUC-ROC", "Accuracy"]
         result["suggested_models"] = [
             "LogisticRegression", "RandomForestClassifier",
@@ -450,7 +453,7 @@ def identify_problem_type(target: pd.Series,
     return result
 
 def suggest_approach(df: pd.DataFrame, target_col: str) -> Dict[str, Any]:
-    """データフレームからAI解析アプローチを提案"""
+    """Suggest an AI analysis approach from a dataframe"""
     n_samples, n_features = df.shape
     target = df[target_col]
     problem_info = identify_problem_type(target)
@@ -458,69 +461,69 @@ def suggest_approach(df: pd.DataFrame, target_col: str) -> Dict[str, Any]:
     suggestion = {
         **problem_info,
         "n_samples": n_samples,
-        "n_features": n_features - 1,  # ターゲット列を除く
+        "n_features": n_features - 1,  # Exclude the target column
         "data_size_category": (
-            "小規模" if n_samples < 10000
-            else "中規模" if n_samples < 1000000
-            else "大規模"
+            "Small" if n_samples < 10000
+            else "Medium" if n_samples < 1000000
+            else "Large"
         ),
     }
 
-    # データ量に応じたツール推奨
+    # Tool recommendations based on data size
     if n_samples < 10000:
         suggestion["recommended_framework"] = "scikit-learn"
-        suggestion["compute"] = "CPU (ローカル)"
+        suggestion["compute"] = "CPU (local)"
     elif n_samples < 1000000:
         suggestion["recommended_framework"] = "XGBoost / LightGBM"
-        suggestion["compute"] = "CPU or GPU (クラウド推奨)"
+        suggestion["compute"] = "CPU or GPU (cloud recommended)"
     else:
         suggestion["recommended_framework"] = "Spark / Dask + LightGBM"
-        suggestion["compute"] = "分散処理クラスタ"
+        suggestion["compute"] = "Distributed processing cluster"
 
     return suggestion
 
-# 使用例
+# Usage example
 df = pd.DataFrame({
     "price": [100.5, 200.3, 150.0, 300.7, 250.1],
     "category": ["A", "B", "A", "C", "B"],
     "is_fraud": [0, 1, 0, 0, 1]
 })
 
-print("=== 回帰タスク ===")
+print("=== Regression Task ===")
 print(identify_problem_type(df["price"]))
-print("\n=== 分類タスク ===")
+print("\n=== Classification Task ===")
 print(identify_problem_type(df["is_fraud"]))
 ```
 
 ---
 
-## 3. データの種類と前処理の考え方
+## 3. Data Types and Preprocessing Concepts
 
-### データの種類と特性
+### Data Types and Their Characteristics
 
 ```
-データ種別と前処理の対応:
+Data types and corresponding preprocessing:
 
-  構造化データ（表形式）:
-    ├── 数値データ: 連続値（身長、価格）、離散値（年齢、回数）
-    │   └── 前処理: スケーリング、欠損値補完、外れ値処理
-    ├── カテゴリデータ: 名義（色、地域）、順序（学歴、満足度）
-    │   └── 前処理: エンコーディング（OneHot, Target, Ordinal）
-    └── 時系列データ: タイムスタンプ付き連続観測
-        └── 前処理: ラグ特徴量、移動平均、差分、周期特徴量
+  Structured Data (tabular):
+    ├── Numeric data: continuous (height, price), discrete (age, count)
+    │   └── Preprocessing: scaling, missing value imputation, outlier handling
+    ├── Categorical data: nominal (color, region), ordinal (education, satisfaction)
+    │   └── Preprocessing: encoding (OneHot, Target, Ordinal)
+    └── Time series data: continuous observations with timestamps
+        └── Preprocessing: lag features, moving averages, differencing, periodic features
 
-  非構造化データ:
-    ├── テキスト: 自然言語文書
-    │   └── 前処理: トークン化、TF-IDF、Word2Vec、BERT埋め込み
-    ├── 画像: ピクセルデータ
-    │   └── 前処理: リサイズ、正規化、データ拡張（回転、反転）
-    ├── 音声: 波形データ
-    │   └── 前処理: MFCC、スペクトログラム変換
-    └── 動画: フレーム列
-        └── 前処理: キーフレーム抽出、オプティカルフロー
+  Unstructured Data:
+    ├── Text: natural language documents
+    │   └── Preprocessing: tokenization, TF-IDF, Word2Vec, BERT embeddings
+    ├── Images: pixel data
+    │   └── Preprocessing: resize, normalization, data augmentation (rotation, flipping)
+    ├── Audio: waveform data
+    │   └── Preprocessing: MFCC, spectrogram transformation
+    └── Video: frame sequences
+        └── Preprocessing: keyframe extraction, optical flow
 ```
 
-### コード例3: データ品質チェック
+### Code Example 3: Data Quality Check
 
 ```python
 import pandas as pd
@@ -528,78 +531,78 @@ import numpy as np
 from typing import Dict, List, Tuple
 
 def data_quality_report(df: pd.DataFrame) -> pd.DataFrame:
-    """データフレームの品質レポートを生成"""
+    """Generate a quality report for a dataframe"""
     report = pd.DataFrame({
-        "型": df.dtypes,
-        "非null数": df.count(),
-        "null数": df.isnull().sum(),
-        "null率(%)": (df.isnull().sum() / len(df) * 100).round(2),
-        "ユニーク数": df.nunique(),
-        "ユニーク率(%)": (df.nunique() / len(df) * 100).round(2),
+        "type": df.dtypes,
+        "non_null_count": df.count(),
+        "null_count": df.isnull().sum(),
+        "null_rate(%)": (df.isnull().sum() / len(df) * 100).round(2),
+        "unique_count": df.nunique(),
+        "unique_rate(%)": (df.nunique() / len(df) * 100).round(2),
     })
 
-    # 数値列の統計
+    # Statistics for numeric columns
     for col in df.select_dtypes(include=[np.number]).columns:
-        report.loc[col, "平均"] = df[col].mean()
-        report.loc[col, "標準偏差"] = df[col].std()
-        report.loc[col, "最小"] = df[col].min()
-        report.loc[col, "最大"] = df[col].max()
-        report.loc[col, "歪度"] = df[col].skew()
-        report.loc[col, "尖度"] = df[col].kurtosis()
+        report.loc[col, "mean"] = df[col].mean()
+        report.loc[col, "std_dev"] = df[col].std()
+        report.loc[col, "min"] = df[col].min()
+        report.loc[col, "max"] = df[col].max()
+        report.loc[col, "skewness"] = df[col].skew()
+        report.loc[col, "kurtosis"] = df[col].kurtosis()
 
-    # カテゴリ列のトップ値
+    # Top values for categorical columns
     for col in df.select_dtypes(include=["object", "category"]).columns:
         top_val = df[col].mode()
         if len(top_val) > 0:
-            report.loc[col, "最頻値"] = top_val.iloc[0]
-            report.loc[col, "最頻値の割合(%)"] = (
+            report.loc[col, "mode"] = top_val.iloc[0]
+            report.loc[col, "mode_rate(%)"] = (
                 df[col].value_counts(normalize=True).iloc[0] * 100
             )
 
     return report
 
 def detect_data_issues(df: pd.DataFrame) -> List[Dict[str, str]]:
-    """データの潜在的な問題を検出"""
+    """Detect potential issues in data"""
     issues = []
 
-    # 1. 高い欠損率
+    # 1. High missing rate
     for col in df.columns:
         missing_rate = df[col].isnull().mean()
         if missing_rate > 0.5:
             issues.append({
-                "列": col, "問題": "高い欠損率",
-                "詳細": f"欠損率={missing_rate:.1%}",
-                "推奨": "列削除またはモデルベース補完"
+                "column": col, "issue": "High missing rate",
+                "detail": f"missing_rate={missing_rate:.1%}",
+                "recommendation": "Drop column or use model-based imputation"
             })
 
-    # 2. 定数列
+    # 2. Constant column
     for col in df.columns:
         if df[col].nunique() <= 1:
             issues.append({
-                "列": col, "問題": "定数列",
-                "詳細": f"ユニーク値={df[col].nunique()}",
-                "推奨": "列を除去"
+                "column": col, "issue": "Constant column",
+                "detail": f"unique_values={df[col].nunique()}",
+                "recommendation": "Remove column"
             })
 
-    # 3. 高カーディナリティのカテゴリ列
+    # 3. High cardinality categorical column
     for col in df.select_dtypes(include=["object"]).columns:
         if df[col].nunique() > 100:
             issues.append({
-                "列": col, "問題": "高カーディナリティ",
-                "詳細": f"ユニーク値={df[col].nunique()}",
-                "推奨": "TargetEncoding or Hash"
+                "column": col, "issue": "High cardinality",
+                "detail": f"unique_values={df[col].nunique()}",
+                "recommendation": "TargetEncoding or Hash"
             })
 
-    # 4. 重複行
+    # 4. Duplicate rows
     n_dup = df.duplicated().sum()
     if n_dup > 0:
         issues.append({
-            "列": "全体", "問題": "重複行",
-            "詳細": f"{n_dup}行 ({n_dup/len(df)*100:.1f}%)",
-            "推奨": "重複を確認し、必要に応じて除去"
+            "column": "all", "issue": "Duplicate rows",
+            "detail": f"{n_dup} rows ({n_dup/len(df)*100:.1f}%)",
+            "recommendation": "Review duplicates and remove as needed"
         })
 
-    # 5. 疑わしい外れ値（数値列）
+    # 5. Suspicious outliers (numeric columns)
     for col in df.select_dtypes(include=[np.number]).columns:
         q1 = df[col].quantile(0.25)
         q3 = df[col].quantile(0.75)
@@ -607,28 +610,28 @@ def detect_data_issues(df: pd.DataFrame) -> List[Dict[str, str]]:
         outlier_count = ((df[col] < q1 - 3 * iqr) | (df[col] > q3 + 3 * iqr)).sum()
         if outlier_count > 0:
             issues.append({
-                "列": col, "問題": "外れ値",
-                "詳細": f"{outlier_count}個 (3×IQR基準)",
-                "推奨": "クリッピングまたは変換を検討"
+                "column": col, "issue": "Outliers",
+                "detail": f"{outlier_count} values (3×IQR criterion)",
+                "recommendation": "Consider clipping or transformation"
             })
 
     if not issues:
-        print("潜在的な問題は検出されませんでした。")
+        print("No potential issues detected.")
     else:
-        print(f"検出された問題: {len(issues)}件")
+        print(f"Issues detected: {len(issues)}")
         for issue in issues:
-            print(f"  [{issue['列']}] {issue['問題']}: {issue['詳細']} → {issue['推奨']}")
+            print(f"  [{issue['column']}] {issue['issue']}: {issue['detail']} → {issue['recommendation']}")
 
     return issues
 
-# 使用例
+# Usage example
 # df = pd.read_csv("data/raw/sample.csv")
 # report = data_quality_report(df)
 # print(report.to_string())
 # issues = detect_data_issues(df)
 ```
 
-### コード例4: 探索的データ分析（EDA）パイプライン
+### Code Example 4: Exploratory Data Analysis (EDA) Pipeline
 
 ```python
 import pandas as pd
@@ -638,7 +641,7 @@ import seaborn as sns
 from typing import List, Optional
 
 class EDARunner:
-    """探索的データ分析の自動化ランナー"""
+    """Automated runner for exploratory data analysis"""
 
     def __init__(self, df: pd.DataFrame, target_col: str = None):
         self.df = df
@@ -647,33 +650,33 @@ class EDARunner:
         self.categorical_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
 
     def summary(self) -> None:
-        """基本統計量の表示"""
+        """Display basic statistics"""
         print("=" * 60)
-        print(f"データ形状: {self.df.shape}")
-        print(f"数値列: {len(self.numeric_cols)}")
-        print(f"カテゴリ列: {len(self.categorical_cols)}")
-        print(f"欠損値あり列: {self.df.isnull().any().sum()}")
-        print(f"重複行: {self.df.duplicated().sum()}")
-        print(f"メモリ使用量: {self.df.memory_usage(deep=True).sum() / 1024**2:.1f} MB")
+        print(f"Data shape: {self.df.shape}")
+        print(f"Numeric columns: {len(self.numeric_cols)}")
+        print(f"Categorical columns: {len(self.categorical_cols)}")
+        print(f"Columns with missing values: {self.df.isnull().any().sum()}")
+        print(f"Duplicate rows: {self.df.duplicated().sum()}")
+        print(f"Memory usage: {self.df.memory_usage(deep=True).sum() / 1024**2:.1f} MB")
         print("=" * 60)
 
         if self.target:
-            print(f"\nターゲット変数: {self.target}")
+            print(f"\nTarget variable: {self.target}")
             if self.target in self.numeric_cols:
-                print(f"  平均: {self.df[self.target].mean():.4f}")
-                print(f"  標準偏差: {self.df[self.target].std():.4f}")
-                print(f"  中央値: {self.df[self.target].median():.4f}")
+                print(f"  Mean: {self.df[self.target].mean():.4f}")
+                print(f"  Std dev: {self.df[self.target].std():.4f}")
+                print(f"  Median: {self.df[self.target].median():.4f}")
             else:
-                print(f"  クラス分布:")
+                print(f"  Class distribution:")
                 for cls, count in self.df[self.target].value_counts().items():
                     pct = count / len(self.df) * 100
                     print(f"    {cls}: {count} ({pct:.1f}%)")
 
     def correlation_matrix(self, method: str = "pearson",
                            threshold: float = 0.7) -> None:
-        """相関行列のヒートマップ"""
+        """Heatmap of the correlation matrix"""
         if len(self.numeric_cols) < 2:
-            print("数値列が2列未満のため相関行列を生成できません")
+            print("Cannot generate correlation matrix: fewer than 2 numeric columns")
             return
 
         corr = self.df[self.numeric_cols].corr(method=method)
@@ -683,12 +686,12 @@ class EDARunner:
         mask = np.triu(np.ones_like(corr, dtype=bool))
         sns.heatmap(corr, annot=True, fmt=".2f", cmap="coolwarm",
                     mask=mask, ax=ax, vmin=-1, vmax=1, center=0)
-        plt.title(f"相関行列 ({method})")
+        plt.title(f"Correlation Matrix ({method})")
         plt.tight_layout()
         plt.savefig("reports/correlation_matrix.png", dpi=150)
         plt.close()
 
-        # 高相関ペアの報告
+        # Report highly correlated pairs
         high_corr_pairs = []
         for i in range(len(corr.columns)):
             for j in range(i + 1, len(corr.columns)):
@@ -698,12 +701,12 @@ class EDARunner:
                     )
 
         if high_corr_pairs:
-            print(f"\n高相関ペア (|r| > {threshold}):")
+            print(f"\nHighly correlated pairs (|r| > {threshold}):")
             for col1, col2, r in sorted(high_corr_pairs, key=lambda x: abs(x[2]), reverse=True):
                 print(f"  {col1} <-> {col2}: r = {r:.3f}")
 
     def distribution_plots(self) -> None:
-        """数値列の分布プロット"""
+        """Distribution plots for numeric columns"""
         n_cols = min(len(self.numeric_cols), 16)
         if n_cols == 0:
             return
@@ -728,18 +731,18 @@ class EDARunner:
         for i in range(n_cols, len(axes)):
             axes[i].set_visible(False)
 
-        plt.suptitle("数値特徴量の分布", fontsize=14, y=1.02)
+        plt.suptitle("Distribution of Numeric Features", fontsize=14, y=1.02)
         plt.tight_layout()
         plt.savefig("reports/distributions.png", dpi=150, bbox_inches="tight")
         plt.close()
 
     def target_analysis(self) -> None:
-        """ターゲット変数と各特徴量の関係を可視化"""
+        """Visualize the relationship between the target variable and each feature"""
         if self.target is None:
-            print("ターゲット列が指定されていません")
+            print("No target column specified")
             return
 
-        # 数値特徴量 vs ターゲット
+        # Numeric features vs. target
         n_cols = min(len(self.numeric_cols), 12)
         if n_cols > 0 and self.target in self.numeric_cols:
             feature_cols = [c for c in self.numeric_cols if c != self.target][:n_cols]
@@ -762,13 +765,13 @@ class EDARunner:
             for i in range(len(feature_cols), len(axes)):
                 axes[i].set_visible(False)
 
-            plt.suptitle(f"特徴量 vs {self.target}", fontsize=14, y=1.02)
+            plt.suptitle(f"Features vs {self.target}", fontsize=14, y=1.02)
             plt.tight_layout()
             plt.savefig("reports/target_analysis.png", dpi=150, bbox_inches="tight")
             plt.close()
 
     def categorical_analysis(self) -> None:
-        """カテゴリ変数の分布を可視化"""
+        """Visualize the distribution of categorical variables"""
         n_cats = min(len(self.categorical_cols), 8)
         if n_cats == 0:
             return
@@ -790,40 +793,40 @@ class EDARunner:
         plt.close()
 
     def full_report(self) -> None:
-        """全てのEDA分析を実行"""
-        print("EDA レポート生成中...")
+        """Run all EDA analyses"""
+        print("Generating EDA report...")
         self.summary()
         self.correlation_matrix()
         self.distribution_plots()
         self.target_analysis()
         self.categorical_analysis()
-        print("レポート生成完了。reports/ ディレクトリを確認してください。")
+        print("Report generation complete. Check the reports/ directory.")
 
-# 使用例
+# Usage example
 # eda = EDARunner(df, target_col="price")
 # eda.full_report()
 ```
 
 ---
 
-## 4. AI解析プロジェクトのワークフロー
+## 4. AI Analysis Project Workflow
 
-### ワークフロー詳細図
+### Detailed Workflow Diagram
 
 ```
-データ取得          前処理             特徴量             モデリング          評価
-┌─────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
-│ DB接続   │    │ 欠損値   │    │ エンコード│    │ 学習     │    │ 交差検証 │
-│ API取得  │───>│ 外れ値   │───>│ スケーリング│──>│ ハイパー │───>│ 指標計算 │
-│ CSV読込  │    │ 重複除去 │    │ 選択     │    │ パラメータ│    │ 可視化   │
-│ Web取得  │    │ 型変換   │    │ 生成     │    │ 調整     │    │ 解釈     │
-└─────────┘    └──────────┘    └──────────┘    └──────────┘    └──────────┘
+Data Acquisition   Preprocessing     Features        Modeling         Evaluation
+┌─────────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
+│ DB connect  │    │ Missing  │    │ Encoding │    │ Training │    │ Cross    │
+│ API fetch   │───>│ Outliers │───>│ Scaling  │───>│ Hyper-   │───>│ Validat. │
+│ CSV load    │    │ Dedup    │    │ Selection│    │ parameter│    │ Metrics  │
+│ Web scrape  │    │ Type cast│    │ Creation │    │ Tuning   │    │ Visualiz.│
+└─────────────┘    └──────────┘    └──────────┘    └──────────┘    └──────────┘
       │              │              │              │              │
       v              v              v              v              v
   data/raw/     data/processed/ src/features/  models/       reports/
 ```
 
-### コード例5: 設定駆動型パイプライン
+### Code Example 5: Configuration-Driven Pipeline
 
 ```python
 import yaml
@@ -832,7 +835,7 @@ from typing import List, Optional, Dict, Any
 
 @dataclass
 class ExperimentConfig:
-    """実験設定をYAMLから読み込む"""
+    """Load experiment configuration from YAML"""
     name: str
     data_path: str
     target_column: str
@@ -861,21 +864,21 @@ class ExperimentConfig:
             yaml.dump(dataclasses.asdict(self), f, default_flow_style=False)
 
     def validate(self) -> List[str]:
-        """設定の妥当性を検証"""
+        """Validate configuration"""
         errors = []
         if not self.name:
-            errors.append("name は必須です")
+            errors.append("name is required")
         if self.test_size <= 0 or self.test_size >= 1:
-            errors.append("test_size は 0〜1 の間で指定してください")
+            errors.append("test_size must be between 0 and 1")
         if self.cv_folds < 2:
-            errors.append("cv_folds は 2 以上を指定してください")
+            errors.append("cv_folds must be 2 or greater")
         valid_models = ["random_forest", "gradient_boosting", "logistic_regression",
                         "xgboost", "lightgbm", "svm", "neural_network"]
         if self.model_type not in valid_models:
-            errors.append(f"model_type は {valid_models} のいずれかを指定してください")
+            errors.append(f"model_type must be one of {valid_models}")
         return errors
 
-# config.yaml の例:
+# config.yaml example:
 """
 name: "house_price_prediction"
 data_path: "data/processed/house_prices.csv"
@@ -899,22 +902,22 @@ preprocessing:
 
 ---
 
-## 5. 実験管理
+## 5. Experiment Management
 
-### 実験管理の重要性
+### The Importance of Experiment Management
 
 ```
-実験管理なしの場合の問題:
+Problems without experiment management:
 
-  "先週のモデル精度 92% だったけど、
-   どのパラメータだったか覚えていない..."
+  "The model accuracy was 92% last week,
+   but I can't remember what the parameters were..."
 
-  ├── パラメータの記録漏れ
-  ├── データバージョンの不一致
-  ├── コード変更の追跡不能
-  └── 結果の再現不能
+  ├── Missing parameter records
+  ├── Data version mismatches
+  ├── Unable to track code changes
+  └── Unable to reproduce results
 
-実験管理ありの場合:
+With experiment management:
 
   Experiment: fraud_detection_v3
   ├── Run ID: abc123
@@ -926,7 +929,7 @@ preprocessing:
   └── Tags: ["production_candidate", "v3"]
 ```
 
-### コード例6: MLflowによる実験管理
+### Code Example 6: Experiment Management with MLflow
 
 ```python
 import mlflow
@@ -943,7 +946,7 @@ import platform
 from datetime import datetime
 
 class ExperimentTracker:
-    """MLflowベースの実験管理クラス"""
+    """MLflow-based experiment management class"""
 
     def __init__(self, experiment_name: str,
                  tracking_uri: str = "mlruns"):
@@ -952,7 +955,7 @@ class ExperimentTracker:
         mlflow.set_experiment(experiment_name)
 
     def log_environment(self):
-        """実行環境情報をログ"""
+        """Log runtime environment information"""
         import sklearn
         mlflow.log_param("python_version", platform.python_version())
         mlflow.log_param("sklearn_version", sklearn.__version__)
@@ -961,12 +964,12 @@ class ExperimentTracker:
 
     def run_experiment(self, model, model_name, X_train, X_test,
                        y_train, y_test, params=None):
-        """実験を実行してMLflowにログ"""
+        """Run an experiment and log to MLflow"""
         with mlflow.start_run(run_name=model_name):
-            # 環境情報
+            # Environment info
             self.log_environment()
 
-            # パラメータのログ
+            # Log parameters
             mlflow.log_param("model_type", model_name)
             mlflow.log_param("n_train_samples", len(X_train))
             mlflow.log_param("n_test_samples", len(X_test))
@@ -974,19 +977,19 @@ class ExperimentTracker:
             if params:
                 mlflow.log_params(params)
 
-            # 交差検証
+            # Cross-validation
             cv_scores = cross_val_score(model, X_train, y_train,
                                         cv=5, scoring="f1")
             mlflow.log_metric("cv_f1_mean", cv_scores.mean())
             mlflow.log_metric("cv_f1_std", cv_scores.std())
 
-            # モデル学習
+            # Train model
             model.fit(X_train, y_train)
             y_pred = model.predict(X_test)
             y_prob = model.predict_proba(X_test)[:, 1] \
                      if hasattr(model, "predict_proba") else None
 
-            # メトリクスのログ
+            # Log metrics
             metrics = {
                 "test_accuracy": accuracy_score(y_test, y_pred),
                 "test_f1": f1_score(y_test, y_pred),
@@ -996,10 +999,10 @@ class ExperimentTracker:
 
             mlflow.log_metrics(metrics)
 
-            # モデルの保存
+            # Save model
             mlflow.sklearn.log_model(model, "model")
 
-            # 分類レポートのアーティファクト
+            # Classification report artifact
             report = classification_report(y_test, y_pred, output_dict=True)
             with open("classification_report.json", "w") as f:
                 json.dump(report, f, indent=2)
@@ -1013,7 +1016,7 @@ class ExperimentTracker:
             return metrics
 
     def compare_models(self, models_dict, X_train, X_test, y_train, y_test):
-        """複数モデルを比較実行"""
+        """Run and compare multiple models"""
         results = {}
         for name, (model, params) in models_dict.items():
             metrics = self.run_experiment(
@@ -1021,9 +1024,9 @@ class ExperimentTracker:
             )
             results[name] = metrics
 
-        # 結果の比較表
+        # Model comparison table
         print("\n" + "=" * 60)
-        print("モデル比較")
+        print("Model Comparison")
         print("=" * 60)
         for name, metrics in results.items():
             print(f"  {name:30s}: F1={metrics['test_f1']:.4f}, "
@@ -1031,7 +1034,7 @@ class ExperimentTracker:
 
         return results
 
-# 使用例
+# Usage example
 # tracker = ExperimentTracker("fraud_detection")
 # models = {
 #     "RandomForest": (
@@ -1046,7 +1049,7 @@ class ExperimentTracker:
 # results = tracker.compare_models(models, X_train, X_test, y_train, y_test)
 ```
 
-### コード例7: 再現性を確保するシード管理
+### Code Example 7: Seed Management for Reproducibility
 
 ```python
 import random
@@ -1054,12 +1057,12 @@ import numpy as np
 import os
 
 def set_global_seed(seed: int = 42) -> None:
-    """全てのランダムシードを一括設定"""
+    """Set all random seeds at once"""
     random.seed(seed)
     np.random.seed(seed)
     os.environ["PYTHONHASHSEED"] = str(seed)
 
-    # PyTorch（インストール済みの場合）
+    # PyTorch (if installed)
     try:
         import torch
         torch.manual_seed(seed)
@@ -1069,7 +1072,7 @@ def set_global_seed(seed: int = 42) -> None:
     except ImportError:
         pass
 
-    # TensorFlow（インストール済みの場合）
+    # TensorFlow (if installed)
     try:
         import tensorflow as tf
         tf.random.set_seed(seed)
@@ -1079,7 +1082,7 @@ def set_global_seed(seed: int = 42) -> None:
     print(f"Global seed set to {seed}")
 
 def log_environment_info() -> dict:
-    """実行環境の情報を収集"""
+    """Collect runtime environment information"""
     import platform
     import sys
 
@@ -1089,7 +1092,7 @@ def log_environment_info() -> dict:
         "processor": platform.processor(),
     }
 
-    # 主要ライブラリのバージョン
+    # Versions of major libraries
     for lib in ["numpy", "pandas", "sklearn", "xgboost", "lightgbm",
                 "torch", "tensorflow"]:
         try:
@@ -1100,51 +1103,51 @@ def log_environment_info() -> dict:
 
     return info
 
-# プロジェクトの冒頭で呼び出す
+# Call at the beginning of the project
 set_global_seed(42)
 env_info = log_environment_info()
-print("環境情報:")
+print("Environment info:")
 for key, value in env_info.items():
     print(f"  {key}: {value}")
 ```
 
 ---
 
-## 6. モデルデプロイメント
+## 6. Model Deployment
 
-### デプロイメントパターン
+### Deployment Patterns
 
 ```
-モデルデプロイメントの選択肢:
+Model deployment options:
 
-  1. バッチ推論
-     ├── 定期的にまとめて推論（日次/時間次）
-     ├── 適用場面: レコメンド、レポート生成
-     └── ツール: Airflow, Cloud Functions, cron
+  1. Batch Inference
+     ├── Run inference in bulk at regular intervals (daily/hourly)
+     ├── Use cases: recommendations, report generation
+     └── Tools: Airflow, Cloud Functions, cron
 
-  2. リアルタイム推論 (REST API)
-     ├── HTTPリクエストに対してリアルタイムで応答
-     ├── 適用場面: 不正検知、チャットボット
-     └── ツール: FastAPI, Flask, Seldon
+  2. Real-time Inference (REST API)
+     ├── Respond to HTTP requests in real time
+     ├── Use cases: fraud detection, chatbots
+     └── Tools: FastAPI, Flask, Seldon
 
-  3. エッジ推論
-     ├── デバイス上で推論（モバイル、IoT）
-     ├── 適用場面: 自動運転、スマートフォンアプリ
-     └── ツール: TensorFlow Lite, ONNX Runtime
+  3. Edge Inference
+     ├── Run inference on-device (mobile, IoT)
+     ├── Use cases: autonomous driving, smartphone apps
+     └── Tools: TensorFlow Lite, ONNX Runtime
 
-  4. ストリーミング推論
-     ├── データストリームに対して連続的に推論
-     ├── 適用場面: ログ解析、センサーデータ
-     └── ツール: Kafka + ML, Flink, Spark Streaming
+  4. Streaming Inference
+     ├── Continuously infer on data streams
+     ├── Use cases: log analysis, sensor data
+     └── Tools: Kafka + ML, Flink, Spark Streaming
 ```
 
-### コード例8: FastAPIによるモデルサービング
+### Code Example 8: Model Serving with FastAPI
 
 ```python
 """
-モデルサービングの基本実装
+Basic model serving implementation
 
-実行方法:
+How to run:
   uvicorn app:app --host 0.0.0.0 --port 8000 --reload
 """
 from fastapi import FastAPI, HTTPException
@@ -1156,28 +1159,28 @@ import pandas as pd
 import logging
 from datetime import datetime
 
-# ロギング設定
+# Logging configuration
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="ML Model Serving API",
-    description="機械学習モデルの推論API",
+    description="Inference API for machine learning models",
     version="1.0.0"
 )
 
-# モデルの読込
+# Load model
 try:
     model = joblib.load("models/production_model.joblib")
-    logger.info("モデルを読み込みました")
+    logger.info("Model loaded successfully")
 except FileNotFoundError:
-    logger.warning("モデルファイルが見つかりません。ダミーモデルを使用します。")
+    logger.warning("Model file not found. Using dummy model.")
     model = None
 
 class PredictionRequest(BaseModel):
-    """推論リクエストのスキーマ"""
-    features: List[float] = Field(..., description="特徴量のリスト")
-    request_id: Optional[str] = Field(None, description="リクエストID（追跡用）")
+    """Schema for inference request"""
+    features: List[float] = Field(..., description="List of feature values")
+    request_id: Optional[str] = Field(None, description="Request ID (for tracking)")
 
     class Config:
         json_schema_extra = {
@@ -1188,7 +1191,7 @@ class PredictionRequest(BaseModel):
         }
 
 class PredictionResponse(BaseModel):
-    """推論レスポンスのスキーマ"""
+    """Schema for inference response"""
     prediction: int
     probability: float
     request_id: Optional[str]
@@ -1197,7 +1200,7 @@ class PredictionResponse(BaseModel):
 
 @app.get("/health")
 def health_check():
-    """ヘルスチェックエンドポイント"""
+    """Health check endpoint"""
     return {
         "status": "healthy",
         "model_loaded": model is not None,
@@ -1206,9 +1209,9 @@ def health_check():
 
 @app.post("/predict", response_model=PredictionResponse)
 def predict(request: PredictionRequest):
-    """推論エンドポイント"""
+    """Inference endpoint"""
     if model is None:
-        raise HTTPException(status_code=503, detail="モデルが読み込まれていません")
+        raise HTTPException(status_code=503, detail="Model is not loaded")
 
     try:
         features = np.array(request.features).reshape(1, -1)
@@ -1228,14 +1231,14 @@ def predict(request: PredictionRequest):
         return response
 
     except Exception as e:
-        logger.error(f"推論エラー: {e}")
+        logger.error(f"Inference error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/predict/batch")
 def predict_batch(requests: List[PredictionRequest]):
-    """バッチ推論エンドポイント"""
+    """Batch inference endpoint"""
     if model is None:
-        raise HTTPException(status_code=503, detail="モデルが読み込まれていません")
+        raise HTTPException(status_code=503, detail="Model is not loaded")
 
     features_batch = np.array([req.features for req in requests])
     predictions = model.predict(features_batch)
@@ -1255,102 +1258,103 @@ def predict_batch(requests: List[PredictionRequest]):
 
 ---
 
-## 比較表
+## Comparison Tables
 
-### AI解析手法の選択ガイド
+### AI Analysis Method Selection Guide
 
-| データの性質 | 推奨手法 | 代表的アルゴリズム | 出力 | 典型的なユースケース |
+| Data Characteristics | Recommended Approach | Representative Algorithms | Output | Typical Use Cases |
 |---|---|---|---|---|
-| ラベル付き・連続値 | 教師あり回帰 | 線形回帰, XGBoost | 数値 | 価格予測, 需要予測 |
-| ラベル付き・離散値 | 教師あり分類 | ロジスティック回帰, RF | カテゴリ | 不正検知, 診断 |
-| ラベルなし・構造発見 | 教師なしクラスタリング | K-means, DBSCAN | クラスタID | 顧客セグメント |
-| ラベルなし・次元圧縮 | 教師なし次元削減 | PCA, t-SNE, UMAP | 低次元表現 | 可視化, ノイズ除去 |
-| 逐次的意思決定 | 強化学習 | Q学習, PPO | 行動方策 | ゲームAI, ロボット制御 |
-| 大量テキスト | NLP | BERT, GPT | テキスト | 翻訳, 要約, 分類 |
-| 画像・動画 | コンピュータビジョン | CNN, ViT | 検出/分類 | 自動運転, 医療画像 |
-| 時系列 | 時系列予測 | ARIMA, LSTM, Prophet | 将来値 | 需要予測, 株価予測 |
-| 少量ラベル | 半教師あり/転移学習 | Self-Training, Fine-tune | 分類/回帰 | ラベルコスト高の場面 |
+| Labeled, continuous values | Supervised regression | Linear regression, XGBoost | Numeric | Price prediction, demand forecasting |
+| Labeled, discrete values | Supervised classification | Logistic regression, RF | Category | Fraud detection, diagnosis |
+| Unlabeled, structure discovery | Unsupervised clustering | K-means, DBSCAN | Cluster ID | Customer segmentation |
+| Unlabeled, dimensionality reduction | Unsupervised dim. reduction | PCA, t-SNE, UMAP | Low-dim representation | Visualization, noise removal |
+| Sequential decision-making | Reinforcement learning | Q-learning, PPO | Action policy | Game AI, robot control |
+| Large text corpus | NLP | BERT, GPT | Text | Translation, summarization, classification |
+| Images/video | Computer vision | CNN, ViT | Detection/classification | Autonomous driving, medical imaging |
+| Time series | Time series forecasting | ARIMA, LSTM, Prophet | Future values | Demand forecasting, stock prediction |
+| Small labeled dataset | Semi-supervised/transfer learning | Self-Training, Fine-tune | Classification/regression | High labeling cost scenarios |
 
-### プロジェクト規模別ツール選択
+### Tool Selection by Project Scale
 
-| 項目 | 小規模 (〜1万行) | 中規模 (〜100万行) | 大規模 (1億行〜) |
+| Item | Small scale (~10K rows) | Medium scale (~1M rows) | Large scale (100M+ rows) |
 |---|---|---|---|
-| データ処理 | pandas | pandas + Dask / Polars | Spark / Polars |
-| モデル学習 | scikit-learn | XGBoost / LightGBM | 分散学習 (Horovod) |
-| 実験管理 | ノートブック | MLflow | Kubeflow / Vertex AI |
-| デプロイ | Flask / FastAPI | Docker + Cloud Run | Kubernetes + Seldon |
-| 計算環境 | ローカル | GPU (Colab / SageMaker) | マルチGPUクラスタ |
-| データバージョン管理 | Git | DVC | Delta Lake / Iceberg |
-| 特徴量ストア | なし | Feast (ローカル) | Feast / Tecton |
-| モニタリング | 手動 | Prometheus + Grafana | Evidently + 専用ツール |
-| コスト目安 | 無料〜数千円/月 | 数千〜数万円/月 | 数十万円/月〜 |
+| Data processing | pandas | pandas + Dask / Polars | Spark / Polars |
+| Model training | scikit-learn | XGBoost / LightGBM | Distributed training (Horovod) |
+| Experiment management | Notebooks | MLflow | Kubeflow / Vertex AI |
+| Deployment | Flask / FastAPI | Docker + Cloud Run | Kubernetes + Seldon |
+| Compute environment | Local | GPU (Colab / SageMaker) | Multi-GPU cluster |
+| Data version control | Git | DVC | Delta Lake / Iceberg |
+| Feature store | None | Feast (local) | Feast / Tecton |
+| Monitoring | Manual | Prometheus + Grafana | Evidently + dedicated tools |
+| Cost estimate | Free to a few $/month | Tens to hundreds $/month | Thousands+ $/month |
 
-### MLフレームワークの比較
+### ML Framework Comparison
 
-| フレームワーク | 得意分野 | 学習曲線 | スケーラビリティ | コミュニティ |
+| Framework | Strengths | Learning Curve | Scalability | Community |
 |---|---|---|---|---|
-| scikit-learn | 古典的ML全般 | 低い | 中程度 | 非常に大きい |
-| XGBoost | 勾配ブースティング | 低い | 高い | 大きい |
-| LightGBM | 高速勾配ブースティング | 低い | 非常に高い | 大きい |
-| CatBoost | カテゴリ特徴量 | 低い | 高い | 中程度 |
-| PyTorch | 深層学習 | 中程度 | 非常に高い | 非常に大きい |
-| TensorFlow | 深層学習・本番運用 | 高い | 非常に高い | 非常に大きい |
-| JAX | 高性能数値計算 | 高い | 非常に高い | 成長中 |
-| statsmodels | 統計モデル | 中程度 | 低い | 中程度 |
+| scikit-learn | Classical ML in general | Low | Moderate | Very large |
+| XGBoost | Gradient boosting | Low | High | Large |
+| LightGBM | Fast gradient boosting | Low | Very high | Large |
+| CatBoost | Categorical features | Low | High | Moderate |
+| PyTorch | Deep learning | Moderate | Very high | Very large |
+| TensorFlow | Deep learning, production | High | Very high | Very large |
+| JAX | High-performance numerical computing | High | Very high | Growing |
+| statsmodels | Statistical models | Moderate | Low | Moderate |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: リーク（Data Leakage）
+### Anti-Pattern 1: Data Leakage
 
 ```python
-# BAD: テストデータを含めてスケーリングしている
+# BAD: Scaling includes test data
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 
 scaler = StandardScaler()
-X_scaled = scaler.fit_transform(X)          # 全データで fit → リーク!
+X_scaled = scaler.fit_transform(X)          # fit on all data → leakage!
 X_train, X_test = train_test_split(X_scaled)
 
-# GOOD: 訓練データのみで fit し、テストデータには transform のみ
+# GOOD: fit only on training data, then transform test data
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
 scaler = StandardScaler()
-X_train_scaled = scaler.fit_transform(X_train)  # 訓練のみで fit
-X_test_scaled = scaler.transform(X_test)         # transform のみ
+X_train_scaled = scaler.fit_transform(X_train)  # fit only on training data
+X_test_scaled = scaler.transform(X_test)         # transform only
 ```
 
-**なぜ危険か**: テストデータの統計量が訓練に混入し、モデルの汎化性能を過大評価する。本番環境で期待通りの性能が出ない原因の大半がリークである。
+**Why it is dangerous**: Test data statistics leak into training, causing the model's generalization performance to be overestimated. Leakage is the cause of most cases where a model fails to perform as expected in production.
 
-### アンチパターン2: 「まずディープラーニング」症候群
+### Anti-Pattern 2: "Deep Learning First" Syndrome
 
 ```
-問題: 1000件の表形式データで売上を予測したい
+Problem: Predicting sales with 1,000 rows of tabular data
 
-BAD な思考:
-  "最新のTransformerモデルを使おう" → 過学習 → 性能劣化
+BAD approach:
+  "Let's use the latest Transformer model" → overfitting → degraded performance
 
-GOOD な思考:
-  "まず線形回帰 + 特徴量エンジニアリング" → ベースライン確立
-  → 改善が必要ならXGBoost → それでも不足ならNN検討
+GOOD approach:
+  "Start with linear regression + feature engineering" → establish baseline
+  → If improvement is needed, try XGBoost → only then consider NN
 
-判断基準:
+Decision criteria:
   ┌─────────────────────────────────────────────────────┐
-  │ データ量 < 10,000   → 古典ML（勾配ブースティング）  │
-  │ データ量 10K〜100K  → 古典ML or 浅いNN              │
-  │ データ量 > 100K     → DLも選択肢に入る              │
-  │ 画像/音声/テキスト  → DL推奨（データ量に依らず）     │
+  │ Data < 10,000     → Classical ML (gradient boosting)│
+  │ Data 10K–100K     → Classical ML or shallow NN      │
+  │ Data > 100K       → DL becomes an option            │
+  │ Images/audio/text → DL recommended (regardless of   │
+  │                     data size)                      │
   └─────────────────────────────────────────────────────┘
 ```
 
-### アンチパターン3: 再現性の欠如
+### Anti-Pattern 3: Lack of Reproducibility
 
 ```python
-# BAD: ランダムシードを固定していない
+# BAD: Random seed not fixed
 from sklearn.model_selection import train_test_split
-X_train, X_test = train_test_split(X, y)  # 実行ごとに結果が異なる
+X_train, X_test = train_test_split(X, y)  # Results differ each run
 
-# GOOD: ランダムシードを固定し、環境情報も記録
+# GOOD: Fix random seed and also record environment info
 import random, numpy as np, platform
 
 SEED = 42
@@ -1361,130 +1365,130 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=SEED
 )
 
-# 実行環境を記録
+# Record runtime environment
 print(f"Python: {platform.python_version()}")
 print(f"NumPy: {np.__version__}")
 print(f"OS: {platform.system()} {platform.release()}")
 ```
 
-### アンチパターン4: ベースラインなしの開発
+### Anti-Pattern 4: Development Without a Baseline
 
 ```python
-# BAD: いきなり複雑なモデルから始める
+# BAD: Starting with a complex model right away
 from sklearn.neural_network import MLPClassifier
 model = MLPClassifier(hidden_layer_sizes=(256, 128, 64))
 model.fit(X_train, y_train)
 
-# GOOD: まずベースラインを確立してから改善
+# GOOD: Establish a baseline first, then improve
 from sklearn.dummy import DummyClassifier
 from sklearn.linear_model import LogisticRegression
 
-# Step 1: 最も単純なベースライン
+# Step 1: Simplest possible baseline
 baseline = DummyClassifier(strategy="most_frequent")
 baseline.fit(X_train, y_train)
 baseline_score = baseline.score(X_test, y_test)
-print(f"ベースライン (最頻値予測): {baseline_score:.4f}")
+print(f"Baseline (most frequent prediction): {baseline_score:.4f}")
 
-# Step 2: シンプルな線形モデル
+# Step 2: Simple linear model
 lr = LogisticRegression(max_iter=1000)
 lr.fit(X_train, y_train)
 lr_score = lr.score(X_test, y_test)
-print(f"ロジスティック回帰: {lr_score:.4f}")
+print(f"Logistic Regression: {lr_score:.4f}")
 
-# Step 3: 必要に応じて複雑なモデルへ
-# （ベースラインを上回ることを確認しながら進める）
+# Step 3: Move to more complex models as needed
+# (Proceed while confirming improvement over the baseline)
 ```
 
-### アンチパターン5: 本番環境の考慮不足
+### Anti-Pattern 5: Insufficient Consideration of Production Environment
 
 ```
-PoC環境と本番環境のギャップ:
+Gap between PoC and production environments:
 
-  PoC                          本番
-  ├── バッチ処理               ├── リアルタイム処理
-  ├── 静的データ               ├── ストリーミングデータ
-  ├── ノートブック             ├── API/マイクロサービス
-  ├── ローカルファイル         ├── データベース/クラウド
-  ├── 手動実行                 ├── 自動パイプライン
-  └── 精度のみ評価             └── レイテンシ/スループットも
+  PoC                          Production
+  ├── Batch processing         ├── Real-time processing
+  ├── Static data              ├── Streaming data
+  ├── Notebooks                ├── API / microservices
+  ├── Local files              ├── Database / cloud
+  ├── Manual execution         ├── Automated pipelines
+  └── Accuracy only            └── Latency/throughput also
 
-対策:
-  - PoCの段階からパイプラインを意識したコード設計
-  - モデルの推論速度のベンチマーク
-  - データドリフトの検出計画
-  - ロールバック手順の準備
+Countermeasures:
+  - Design pipeline-aware code from the PoC stage
+  - Benchmark model inference speed
+  - Plan for data drift detection
+  - Prepare rollback procedures
 ```
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくある問題と対処法
+### Common Issues and Solutions
 
-| 問題 | 症状 | 原因 | 対処法 |
+| Problem | Symptom | Cause | Solution |
 |---|---|---|---|
-| モデルが学習しない | 精度がベースラインと同じ | 特徴量に情報がない | EDAで特徴量の有用性を確認 |
-| 過学習 | Train高/Test低 | モデルが複雑すぎる | 正則化、データ増加、特徴量削減 |
-| スコアが不安定 | CVのFold間でばらつき大 | データ量不足 or 分布偏り | データ増加、Stratified CV |
-| メモリ不足 | MemoryError | データが大きすぎる | Dask使用、分割処理、dtype最適化 |
-| 再現性がない | 毎回結果が異なる | シード未固定 | set_global_seed()を使用 |
-| デプロイ後に精度低下 | 本番で性能劣化 | データドリフト | モニタリング、再学習パイプライン |
-| 訓練が遅い | 数時間かかる | ハイパーパラメータ過多 | Optuna + Pruning、LightGBM |
+| Model does not learn | Accuracy same as baseline | No information in features | Check feature usefulness with EDA |
+| Overfitting | High train / low test | Model too complex | Regularization, more data, feature reduction |
+| Unstable scores | High variance across CV folds | Insufficient data or distribution skew | More data, stratified CV |
+| Out of memory | MemoryError | Data too large | Use Dask, split processing, optimize dtypes |
+| No reproducibility | Results differ each run | Seed not fixed | Use set_global_seed() |
+| Accuracy drops after deployment | Performance degrades in production | Data drift | Monitoring, retraining pipeline |
+| Slow training | Takes hours | Too many hyperparameters | Optuna + Pruning, LightGBM |
 
 ---
 
 ## FAQ
 
-### Q1: データサイエンティストとMLエンジニアの違いは？
+### Q1: What is the difference between a Data Scientist and an ML Engineer?
 
-**A:** データサイエンティストは「分析・仮説検証・洞察の発見」に重点を置き、MLエンジニアは「モデルの本番運用・スケーラビリティ・信頼性」に重点を置く。小規模チームでは兼務することが多いが、大規模組織では分業する。どちらも統計学、プログラミング、ドメイン知識が必要である。
+**A:** A data scientist focuses on "analysis, hypothesis testing, and discovering insights," while an ML engineer focuses on "production operation of models, scalability, and reliability." In small teams these roles are often combined, but in large organizations they are separated. Both require statistics, programming, and domain knowledge.
 
-### Q2: AI解析プロジェクトの成功率はどれくらい？
+### Q2: What is the success rate of AI analysis projects?
 
-**A:** Gartnerの調査（2023年）では、AI/MLプロジェクトの約85%が本番環境に到達しないと報告されている。主な失敗要因は、(1) 問題定義が不明確、(2) データ品質が低い、(3) ビジネスKPIとの紐づけ不足。技術的失敗よりも組織的・プロセス的失敗が多い。
+**A:** A Gartner survey (2023) reported that approximately 85% of AI/ML projects never reach production. The main failure factors are: (1) unclear problem definition, (2) poor data quality, (3) insufficient alignment with business KPIs. Organizational and process failures are more common than technical ones.
 
-### Q3: PoCからプロダクション化へ移行するコツは？
+### Q3: What are the tips for transitioning from PoC to production?
 
-**A:** (1) PoCの段階から本番を意識したコード品質を保つ、(2) データパイプラインの自動化を早期に構築する、(3) モニタリング指標を最初から定義する、(4) ステークホルダーと定期的にレビューを行い期待値を管理する。特に「Notebookをそのまま本番に持ち込まない」ことが重要である。
+**A:** (1) Maintain production-quality code from the PoC stage, (2) build data pipeline automation early, (3) define monitoring metrics from the start, (4) conduct regular reviews with stakeholders to manage expectations. In particular, "do not bring notebooks directly into production" is critical.
 
-### Q4: GPUは必要か？
+### Q4: Is a GPU necessary?
 
-**A:** 表形式データの古典的ML（XGBoost等）ではCPUで十分。ディープラーニング（画像、テキスト、音声）ではGPUが事実上必須。Google ColabやAWS SageMakerなどのクラウドGPUを活用すれば初期投資を抑えられる。
+**A:** A CPU is sufficient for classical ML on tabular data (e.g., XGBoost). GPUs are effectively essential for deep learning (images, text, audio). Using cloud GPUs such as Google Colab or AWS SageMaker can keep initial investment low.
 
-### Q5: どのプログラミング言語を使うべきか？
+### Q5: Which programming language should be used?
 
-**A:** Pythonが事実上の標準。エコシステム（scikit-learn, PyTorch, TensorFlow, pandas等）が圧倒的に充実している。R は統計分析に強みがあるが、MLエンジニアリングではPythonが優位。本番システムのパフォーマンスが重要な場合はRustやGoでの推論部分の実装も選択肢。
+**A:** Python is the de facto standard. Its ecosystem (scikit-learn, PyTorch, TensorFlow, pandas, etc.) is overwhelmingly rich. R has strengths in statistical analysis, but Python dominates in ML engineering. For production systems where performance is critical, implementing inference in Rust or Go is also an option.
 
-### Q6: クラウドとオンプレミスの選択基準は？
+### Q6: What are the criteria for choosing between cloud and on-premises?
 
-**A:** クラウド推奨のケース: (1) スケーラビリティが必要、(2) GPU利用が一時的、(3) チームが分散。オンプレミス推奨のケース: (1) データのセキュリティ要件が厳しい、(2) 常時GPUが必要、(3) ランニングコストが重要。ハイブリッドアプローチ（開発はクラウド、本番はオンプレ）も一般的。
+**A:** Recommend cloud when: (1) scalability is required, (2) GPU use is occasional, (3) team is distributed. Recommend on-premises when: (1) strict data security requirements, (2) GPUs are needed continuously, (3) running costs are important. A hybrid approach (develop on cloud, run production on-prem) is also common.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Point |
 |---|---|
-| ライフサイクル | CRISP-DM: ビジネス理解→データ理解→準備→モデリング→評価→デプロイの反復 |
-| 学習パラダイム | 教師あり（回帰・分類）、教師なし（クラスタ・次元削減）、強化学習 |
-| プロジェクト設計 | 再現性（シード固定）、モジュール性（設定駆動）、品質（データ検証） |
-| EDA | 基本統計、相関分析、分布確認、ターゲットとの関係性を系統的に調査 |
-| 実験管理 | MLflowで実験を追跡。パラメータ、メトリクス、アーティファクトを記録 |
-| ツール選択 | 規模に応じて段階的にスケールアップ。最小限のツールから始める |
-| デプロイ | バッチ/リアルタイム/エッジの選択。FastAPIが入門に最適 |
-| 成功の鍵 | 技術より問題定義とデータ品質。ベースラインから始めて段階的に改善 |
+| Lifecycle | CRISP-DM: iterative cycle of Business Understanding → Data Understanding → Preparation → Modeling → Evaluation → Deployment |
+| Learning paradigms | Supervised (regression/classification), Unsupervised (clustering/dim. reduction), Reinforcement learning |
+| Project design | Reproducibility (fixed seed), modularity (config-driven), quality (data validation) |
+| EDA | Systematically investigate basic statistics, correlation analysis, distribution checks, and relationship to target |
+| Experiment management | Track experiments with MLflow. Record parameters, metrics, and artifacts |
+| Tool selection | Scale up incrementally according to project size. Start with minimal tooling |
+| Deployment | Choose batch/real-time/edge. FastAPI is ideal for getting started |
+| Key to success | Problem definition and data quality matter more than technology. Start from a baseline and improve incrementally |
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [01-data-preprocessing.md](./01-data-preprocessing.md) — データ前処理の具体的手法
-- [02-ml-basics.md](./02-ml-basics.md) — 機械学習の基礎理論と評価指標
-- [03-python-ml-stack.md](./03-python-ml-stack.md) — Python ML開発環境の構築
+- [01-data-preprocessing.md](./01-data-preprocessing.md) — Concrete methods for data preprocessing
+- [02-ml-basics.md](./02-ml-basics.md) — Foundational ML theory and evaluation metrics
+- [03-python-ml-stack.md](./03-python-ml-stack.md) — Setting up a Python ML development environment
 
 ---
 
-## 参考文献
+## References
 
 1. **Aurelien Geron** "Hands-On Machine Learning with Scikit-Learn, Keras, and TensorFlow" 3rd Edition, O'Reilly Media, 2022
 2. **Pete Chapman et al.** "CRISP-DM 1.0: Step-by-step data mining guide" SPSS Inc., 2000 — https://www.datascience-pm.com/crisp-dm-2/
