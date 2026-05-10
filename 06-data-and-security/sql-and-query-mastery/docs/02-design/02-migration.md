@@ -1,113 +1,112 @@
-# マイグレーション
+# Migration
 
-> データベーススキーマの変更をバージョン管理し、ゼロダウンタイムで安全にデプロイする手法を実践的に習得する。本章では、マイグレーションの理論的基盤から、大規模プロダクション環境で求められるゼロダウンタイム手法、ロック回避戦略、ロールバック設計までを網羅的に解説する。
+> A practical guide to version-controlling database schema changes and deploying them safely with zero downtime. This chapter covers everything from the theoretical foundations of migrations to zero-downtime techniques, lock-avoidance strategies, and rollback design required in large-scale production environments.
 
-## 前提知識
+## Prerequisites
 
-- [01-schema-design.md](./01-schema-design.md) — スキーマ設計の基礎
-- [03-indexing.md](../01-advanced/03-indexing.md) — インデックスの理解
-- [02-transactions.md](../01-advanced/02-transactions.md) — トランザクションとロックの基礎
-- DDL（Data Definition Language）の基本構文
+- [01-schema-design.md](./01-schema-design.md) — Fundamentals of schema design
+- [03-indexing.md](../01-advanced/03-indexing.md) — Understanding indexes
+- [02-transactions.md](../01-advanced/02-transactions.md) — Fundamentals of transactions and locks
+- Basic DDL (Data Definition Language) syntax
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **マイグレーションの基本** — バージョン管理、ロールバック戦略、ツール選定
-2. **ゼロダウンタイム手法** — Expand-Contract パターン、オンライン DDL、段階的移行
-3. **危険な操作の回避** — ロック問題、大規模データ移行、後方互換性の確保
-4. **CI/CD統合** — マイグレーションの自動化、lint、テスト戦略
-5. **複数環境の管理** — 開発/ステージング/本番の整合性
-6. **RDBMS別の注意点** — PostgreSQL, MySQL, SQL Server それぞれの特性
+1. **Migration Basics** — Version control, rollback strategies, tool selection
+2. **Zero-Downtime Techniques** — Expand-Contract pattern, online DDL, phased migration
+3. **Avoiding Dangerous Operations** — Lock issues, large-scale data migration, ensuring backward compatibility
+4. **CI/CD Integration** — Automating migrations, linting, testing strategies
+5. **Multi-Environment Management** — Consistency across development/staging/production
+6. **RDBMS-Specific Considerations** — Characteristics of PostgreSQL, MySQL, and SQL Server
 
 ---
 
-## 1. マイグレーションの基本概念
+## 1. Core Concepts of Migrations
 
-### なぜマイグレーションが必要か
+### Why Migrations Are Necessary
 
-データベーススキーマはアプリケーションの進化とともに変更される。マイグレーションシステムなしでは以下の問題が発生する。
+Database schemas change as applications evolve. Without a migration system, the following problems arise.
 
 ```
-マイグレーションなしの世界（アンチパターン）
+World Without Migrations (Anti-Pattern)
 =============================================
 
-問題1: 環境間の不整合
-  開発者A: ALTER TABLE users ADD COLUMN phone VARCHAR(20);
-  開発者B: ALTER TABLE users ADD COLUMN phone VARCHAR(15);  -- 型が違う！
-  本番:    phone列が存在しない  -- 適用漏れ
+Problem 1: Inconsistency Across Environments
+  Developer A: ALTER TABLE users ADD COLUMN phone VARCHAR(20);
+  Developer B: ALTER TABLE users ADD COLUMN phone VARCHAR(15);  -- Different type!
+  Production:  phone column does not exist  -- Migration was never applied
 
-問題2: ロールバック不能
+Problem 2: Inability to Roll Back
   DBA: ALTER TABLE orders DROP COLUMN old_status;
-  → 「やっぱり戻して」→ データ消失、復旧不能
+  → "Actually, revert that" → Data lost, recovery impossible
 
-問題3: 適用順序の管理不能
+Problem 3: Unmanageable Execution Order
   migration_1: ADD COLUMN status
   migration_2: CREATE INDEX ON status
-  → migration_2が先に実行されると失敗
+  → If migration_2 runs first, it fails
 
-マイグレーションシステムによる解決:
-  ✓ バージョン番号で適用順序を保証
-  ✓ UP/DOWNスクリプトでロールバック可能
-  ✓ schema_migrationsテーブルで適用状態を管理
-  ✓ 全環境で同じスクリプトを使用
+How a Migration System Solves This:
+  ✓ Version numbers guarantee execution order
+  ✓ UP/DOWN scripts enable rollback
+  ✓ schema_migrations table tracks applied state
+  ✓ Same scripts are used across all environments
 ```
 
-### マイグレーションのライフサイクル
+### Migration Lifecycle
 
 ```
-マイグレーションのライフサイクル
+Migration Lifecycle
 =================================
 
-v1 (現在)          v2 (目標)
+v1 (current)       v2 (target)
 +-----------+      +-----------+
 | users     |      | users     |
 |  id       |  --> |  id       |
 |  name     |      |  name     |
 |  email    |      |  email    |
-+-----------+      |  phone    |  <-- 追加
-                   |  status   |  <-- 追加
++-----------+      |  phone    |  <-- added
+                   |  status   |  <-- added
                    +-----------+
 
-マイグレーションファイル:
+Migration files:
   20260211_001_add_phone_to_users.sql
   20260211_002_add_status_to_users.sql
 
-各ファイルに UP (適用) と DOWN (ロールバック) を記述
+Each file contains UP (apply) and DOWN (rollback) statements
 
-適用フロー:
+Application flow:
   ┌──────────┐
-  │ 未適用   │ → migrate up → │ 適用済み │
-  │ pending  │                 │ applied  │
-  └──────────┘                 └──────────┘
-                                    │
-                               migrate down
-                                    │
-                                    ▼
-                               ┌──────────┐
-                               │ ロール   │
-                               │ バック済 │
-                               └──────────┘
+  │ pending  │ → migrate up → │ applied  │
+  └──────────┘                └──────────┘
+                                   │
+                              migrate down
+                                   │
+                                   ▼
+                              ┌──────────┐
+                              │ rolled   │
+                              │ back     │
+                              └──────────┘
 ```
 
-### コード例 1: マイグレーションツールの比較と使用
+### Code Example 1: Comparing and Using Migration Tools
 
 ```sql
--- === Flyway 形式 ===
--- ファイル命名: V{version}__{description}.sql
+-- === Flyway Format ===
+-- File naming: V{version}__{description}.sql
 -- V2__add_phone_to_users.sql
 ALTER TABLE users ADD COLUMN phone VARCHAR(20);
 
--- ロールバック用（Flyway Pro/Enterprise のみ）
+-- For rollback (Flyway Pro/Enterprise only)
 -- U2__add_phone_to_users.sql
 ALTER TABLE users DROP COLUMN phone;
 
--- === golang-migrate 形式 ===
+-- === golang-migrate Format ===
 -- 000002_add_phone.up.sql
 ALTER TABLE users ADD COLUMN phone VARCHAR(20);
 
 -- 000002_add_phone.down.sql
 ALTER TABLE users DROP COLUMN phone;
 
--- === Liquibase 形式 (XML) ===
+-- === Liquibase Format (XML) ===
 -- changelog-2.0.xml
 -- <changeSet id="2" author="developer">
 --   <addColumn tableName="users">
@@ -120,30 +119,30 @@ ALTER TABLE users DROP COLUMN phone;
 ```
 
 ```bash
-# golang-migrate の使用
-# マイグレーション作成
+# Using golang-migrate
+# Create a migration
 migrate create -ext sql -dir ./migrations -seq add_phone_to_users
 
-# 全マイグレーション適用
+# Apply all migrations
 migrate -path ./migrations -database "postgres://user:pass@localhost/mydb" up
 
-# 1つロールバック
+# Roll back one migration
 migrate -path ./migrations -database "postgres://user:pass@localhost/mydb" down 1
 
-# 特定バージョンまで適用
+# Apply up to a specific version
 migrate -path ./migrations -database "postgres://user:pass@localhost/mydb" goto 5
 
-# 現在のバージョン確認
+# Check current version
 migrate -path ./migrations -database "postgres://user:pass@localhost/mydb" version
 
 # Flyway
 flyway -url=jdbc:postgresql://localhost/mydb migrate
 flyway -url=jdbc:postgresql://localhost/mydb info
 flyway -url=jdbc:postgresql://localhost/mydb validate
-flyway -url=jdbc:postgresql://localhost/mydb repair  # メタデータの修復
+flyway -url=jdbc:postgresql://localhost/mydb repair  # Repair metadata
 ```
 
-### コード例 2: Prisma によるマイグレーション
+### Code Example 2: Migrations with Prisma
 
 ```prisma
 // schema.prisma
@@ -151,8 +150,8 @@ model User {
   id        Int      @id @default(autoincrement())
   email     String   @unique
   name      String
-  phone     String?  // 新規追加
-  status    String   @default("active")  // 新規追加
+  phone     String?  // newly added
+  status    String   @default("active")  // newly added
   createdAt DateTime @default(now())
   orders    Order[]
 }
@@ -168,56 +167,56 @@ model Order {
 ```
 
 ```bash
-# マイグレーション生成（開発環境）
+# Generate migration (development environment)
 npx prisma migrate dev --name add_phone_and_status
-# → prisma/migrations/20260211_add_phone_and_status/migration.sql が生成される
+# → prisma/migrations/20260211_add_phone_and_status/migration.sql is generated
 
-# 本番適用（CI/CD パイプライン内）
+# Apply to production (inside CI/CD pipeline)
 npx prisma migrate deploy
 
-# ステータス確認
+# Check status
 npx prisma migrate status
 
-# マイグレーションのリセット（開発環境のみ）
+# Reset migrations (development environment only)
 npx prisma migrate reset
 
-# スキーマの差分確認
+# Check schema diff
 npx prisma migrate diff \
   --from-schema-datamodel prisma/schema.prisma \
   --to-schema-datasource prisma/schema.prisma
 ```
 
-### マイグレーションツール比較表
+### Migration Tool Comparison
 
-| ツール | 言語/エコシステム | 方式 | ロールバック | 宣言的 | 特徴 |
+| Tool | Language/Ecosystem | Approach | Rollback | Declarative | Notes |
 |--------|------------------|------|------------|--------|------|
-| Flyway | Java/JVM | SQL/Java | Pro版のみ | × | エンタープライズ実績豊富 |
-| Liquibase | Java/JVM | XML/YAML/SQL | ○ | ○ | 多形式対応、差分検出 |
-| golang-migrate | Go | SQL | ○ | × | シンプル、軽量 |
-| Prisma Migrate | TypeScript | 自動生成SQL | × | ○ | ORM統合、型安全 |
-| Alembic | Python | Python/SQL | ○ | × | SQLAlchemy統合 |
-| Atlas | Go | HCL/SQL | ○ | ○ | 宣言的+命令的両対応 |
-| Sqitch | Perl | SQL | ○ | × | 依存関係ベース |
-| Knex.js | JavaScript | JavaScript | ○ | × | Node.js統合 |
+| Flyway | Java/JVM | SQL/Java | Pro only | No | Proven enterprise track record |
+| Liquibase | Java/JVM | XML/YAML/SQL | Yes | Yes | Multi-format, diff detection |
+| golang-migrate | Go | SQL | Yes | No | Simple, lightweight |
+| Prisma Migrate | TypeScript | Auto-generated SQL | No | Yes | ORM integration, type-safe |
+| Alembic | Python | Python/SQL | Yes | No | SQLAlchemy integration |
+| Atlas | Go | HCL/SQL | Yes | Yes | Both declarative and imperative |
+| Sqitch | Perl | SQL | Yes | No | Dependency-based |
+| Knex.js | JavaScript | JavaScript | Yes | No | Node.js integration |
 
-### 命令的 vs 宣言的マイグレーション
+### Imperative vs. Declarative Migrations
 
 ```
-命令的マイグレーション（従来型）
+Imperative Migrations (Traditional)
 ================================
-開発者が「どう変更するか」を記述
+Developers describe "how" to change
 
   V1: CREATE TABLE users (id INT, name VARCHAR(100));
   V2: ALTER TABLE users ADD COLUMN email VARCHAR(255);
   V3: CREATE INDEX idx_users_email ON users(email);
 
-  利点: 変更の順序と内容を完全に制御
-  欠点: 人手で書くためエラーリスク
+  Advantage: Full control over the order and content of changes
+  Disadvantage: Written by hand, higher risk of errors
 
-宣言的マイグレーション（最新型）
+Declarative Migrations (Modern)
 ================================
-開発者が「最終的にどうなるべきか」を記述
-ツールが差分を自動計算
+Developers describe "what the final state should be"
+The tool automatically calculates the diff
 
   schema.hcl:
     table "users" {
@@ -227,35 +226,35 @@ npx prisma migrate diff \
       index "idx_users_email" { columns = [column.email] }
     }
 
-  ツール: diff → ALTER TABLE ADD COLUMN email ...
+  Tool: diff → ALTER TABLE ADD COLUMN email ...
                 → CREATE INDEX idx_users_email ...
 
-  利点: 宣言的で読みやすい、差分の自動計算
-  欠点: 複雑な移行（データ変換等）は表現困難
+  Advantage: Declarative and readable, automatic diff calculation
+  Disadvantage: Complex migrations (data transformations, etc.) are hard to express
 ```
 
 ---
 
-## 2. ゼロダウンタイムマイグレーション
+## 2. Zero-Downtime Migrations
 
-### Expand-Contract パターン
+### Expand-Contract Pattern
 
 ```
-Expand-Contract パターン
+Expand-Contract Pattern
 ==========================
 
-Phase 1: Expand（拡張）
-  - 新カラム/テーブルを追加
-  - 古い形式と新しい形式の両方をサポート
-  - アプリは新旧両方に書き込み
+Phase 1: Expand
+  - Add new columns/tables
+  - Support both old and new formats
+  - App writes to both old and new
 
-Phase 2: Migrate（移行）
-  - バックグラウンドで既存データを変換
-  - 新しい形式へのアクセスに段階的に切替
+Phase 2: Migrate
+  - Convert existing data in the background
+  - Gradually switch access to the new format
 
-Phase 3: Contract（縮退）
-  - 古いカラム/テーブルを削除
-  - 新しい形式のみをサポート
+Phase 3: Contract
+  - Remove old columns/tables
+  - Support only the new format
 
 Timeline:
   Expand       Migrate      Contract
@@ -263,33 +262,33 @@ Timeline:
   |------------|------------|----------|
   v1 + v2      v2           v2 only
 
-  ← アプリv1互換 →← アプリv2のみ →
+  ← App v1 compatible →← App v2 only →
 
-各フェーズの安全な移行:
-  Phase 1: マイグレーション実行 → アプリv2デプロイ
-  Phase 2: バックフィルジョブ実行（非同期）
-  Phase 3: 旧カラム削除マイグレーション
-  ※ 各フェーズ間に十分な監視期間を設ける
+Safe migration per phase:
+  Phase 1: Run migration → Deploy app v2
+  Phase 2: Run backfill job (async)
+  Phase 3: Migration to drop old column
+  * Allow sufficient monitoring time between each phase
 ```
 
-### コード例 3: カラムリネームのゼロダウンタイム手法
+### Code Example 3: Zero-Downtime Column Rename
 
 ```sql
--- [NG] 直接リネーム --> ダウンタイム発生
+-- [BAD] Direct rename --> causes downtime
 ALTER TABLE users RENAME COLUMN name TO full_name;
--- --> 既存アプリが "name" を参照してエラー
+-- --> Existing app referencing "name" will error
 
--- [OK] Expand-Contract パターン（3フェーズ）
+-- [GOOD] Expand-Contract pattern (3 phases)
 
--- ===== Phase 1: Expand（新カラム追加 + トリガー） =====
--- マイグレーション: 20260211_001_expand_user_name.sql
+-- ===== Phase 1: Expand (add new column + trigger) =====
+-- Migration: 20260211_001_expand_user_name.sql
 
 ALTER TABLE users ADD COLUMN full_name VARCHAR(255);
 
--- 既存データをコピー
+-- Copy existing data
 UPDATE users SET full_name = name WHERE full_name IS NULL;
 
--- 双方向同期トリガー
+-- Bidirectional sync trigger
 CREATE OR REPLACE FUNCTION sync_user_name() RETURNS TRIGGER AS $$
 BEGIN
   IF TG_OP = 'INSERT' THEN
@@ -313,25 +312,25 @@ CREATE TRIGGER trg_sync_user_name
 BEFORE INSERT OR UPDATE ON users
 FOR EACH ROW EXECUTE FUNCTION sync_user_name();
 
--- ===== Phase 2: アプリデプロイ =====
--- アプリを full_name を使うように変更してデプロイ
--- name と full_name の両方を読み書きする互換コードをデプロイ
+-- ===== Phase 2: Deploy App =====
+-- Update the app to use full_name and deploy
+-- Deploy compatibility code that reads/writes both name and full_name
 
--- ===== Phase 3: Contract（旧カラム・トリガー削除） =====
--- マイグレーション: 20260218_001_contract_user_name.sql
--- （1週間以上の監視期間を経てから実行）
+-- ===== Phase 3: Contract (drop old column and trigger) =====
+-- Migration: 20260218_001_contract_user_name.sql
+-- (Run after a sufficient monitoring period of at least 1 week)
 
 DROP TRIGGER trg_sync_user_name ON users;
 DROP FUNCTION sync_user_name();
 ALTER TABLE users DROP COLUMN name;
 ```
 
-### コード例 4: テーブル分割のゼロダウンタイム手法
+### Code Example 4: Zero-Downtime Table Split
 
 ```sql
--- ユーザーテーブルからプロフィール情報を分離する例
+-- Example of separating profile information from the users table
 
--- Phase 1: 新テーブル作成 + トリガーで同期
+-- Phase 1: Create new table + sync with trigger
 CREATE TABLE user_profiles (
     user_id     INTEGER PRIMARY KEY REFERENCES users(id),
     bio         TEXT,
@@ -341,13 +340,13 @@ CREATE TABLE user_profiles (
     updated_at  TIMESTAMP DEFAULT NOW()
 );
 
--- 既存データの移行
+-- Migrate existing data
 INSERT INTO user_profiles (user_id, bio, avatar_url, website)
 SELECT id, bio, avatar_url, website
 FROM users
 WHERE bio IS NOT NULL OR avatar_url IS NOT NULL;
 
--- 書き込みの同期トリガー
+-- Write sync trigger
 CREATE OR REPLACE FUNCTION sync_user_profile() RETURNS TRIGGER AS $$
 BEGIN
   IF TG_OP = 'INSERT' OR TG_OP = 'UPDATE' THEN
@@ -367,8 +366,8 @@ CREATE TRIGGER trg_sync_profile
 AFTER INSERT OR UPDATE ON users
 FOR EACH ROW EXECUTE FUNCTION sync_user_profile();
 
--- Phase 2: アプリを新テーブルに切替
--- Phase 3: 旧カラムとトリガーを削除
+-- Phase 2: Switch app to the new table
+-- Phase 3: Drop old columns and trigger
 DROP TRIGGER trg_sync_profile ON users;
 DROP FUNCTION sync_user_profile();
 ALTER TABLE users DROP COLUMN bio;
@@ -378,125 +377,125 @@ ALTER TABLE users DROP COLUMN website;
 
 ---
 
-## 3. 危険な操作と安全な代替
+## 3. Dangerous Operations and Safe Alternatives
 
-### 危険な DDL 操作比較表
+### Dangerous DDL Operations Comparison
 
-| 操作 | 危険度 | ロック種別 | ロック時間 | 安全な代替 |
+| Operation | Risk | Lock Type | Lock Duration | Safe Alternative |
 |---|---|---|---|---|
-| `ADD COLUMN` (デフォルトなし) | 低 | AccessExclusiveLock | 瞬時 | そのまま使用可 |
-| `ADD COLUMN DEFAULT x` (PG11+) | 低 | AccessExclusiveLock | 瞬時 | そのまま使用可 |
-| `ADD COLUMN DEFAULT x` (PG10以前) | 高 | AccessExclusiveLock | 全行書換 | 追加後に UPDATE |
-| `DROP COLUMN` | 中 | AccessExclusiveLock | 瞬時（論理削除） | Contract フェーズで実施 |
-| `ALTER TYPE` (型変更) | 高 | AccessExclusiveLock | 全行書換 | 新カラム + バックフィル |
-| `SET NOT NULL` | 高 | AccessExclusiveLock | 全行スキャン | CHECK制約→VALIDATE→NOT NULL |
-| `CREATE INDEX` | 高 | ShareLock | テーブルサイズ依存 | `CONCURRENTLY` |
-| `ADD CONSTRAINT` (FK) | 高 | ShareRowExclusiveLock | 全行検証 | `NOT VALID` + `VALIDATE` |
-| `RENAME COLUMN` | 高 | AccessExclusiveLock | 瞬時だがアプリ互換性破壊 | Expand-Contract |
-| `RENAME TABLE` | 高 | AccessExclusiveLock | 瞬時だがアプリ互換性破壊 | ビュー経由の移行 |
-| `DROP TABLE` | 致命的 | AccessExclusiveLock | 瞬時 | RENAME → 監視 → DROP |
+| `ADD COLUMN` (no default) | Low | AccessExclusiveLock | Instant | Use as-is |
+| `ADD COLUMN DEFAULT x` (PG11+) | Low | AccessExclusiveLock | Instant | Use as-is |
+| `ADD COLUMN DEFAULT x` (PG10 and earlier) | High | AccessExclusiveLock | Rewrites all rows | Add column, then UPDATE |
+| `DROP COLUMN` | Medium | AccessExclusiveLock | Instant (logical delete) | Perform in Contract phase |
+| `ALTER TYPE` (type change) | High | AccessExclusiveLock | Rewrites all rows | New column + backfill |
+| `SET NOT NULL` | High | AccessExclusiveLock | Full table scan | CHECK constraint → VALIDATE → NOT NULL |
+| `CREATE INDEX` | High | ShareLock | Depends on table size | Use `CONCURRENTLY` |
+| `ADD CONSTRAINT` (FK) | High | ShareRowExclusiveLock | Validates all rows | `NOT VALID` + `VALIDATE` |
+| `RENAME COLUMN` | High | AccessExclusiveLock | Instant but breaks app compatibility | Expand-Contract |
+| `RENAME TABLE` | High | AccessExclusiveLock | Instant but breaks app compatibility | Migrate via view |
+| `DROP TABLE` | Critical | AccessExclusiveLock | Instant | RENAME → monitor → DROP |
 
-### PostgreSQLのロック種別
+### PostgreSQL Lock Types
 
 ```
-PostgreSQL ロック種別と競合マトリクス
+PostgreSQL Lock Types and Conflict Matrix
 ======================================
 
-ロック種別（軽い順）:
+Lock types (lightest to heaviest):
   1. AccessShareLock        ← SELECT
   2. RowShareLock           ← SELECT FOR UPDATE
   3. RowExclusiveLock       ← INSERT/UPDATE/DELETE
   4. ShareUpdateExclusiveLock ← VACUUM, VALIDATE CONSTRAINT
   5. ShareLock              ← CREATE INDEX
-  6. ShareRowExclusiveLock  ← CREATE TRIGGER, FK追加
+  6. ShareRowExclusiveLock  ← CREATE TRIGGER, add FK
   7. ExclusiveLock          ← REFRESH MATERIALIZED VIEW CONCURRENTLY
   8. AccessExclusiveLock    ← ALTER TABLE, DROP TABLE
 
-競合の例:
-  AccessExclusiveLock は全操作をブロック
-  → ALTER TABLE 実行中は SELECT すら待たされる
-  → つまり「瞬時」でも、ロック取得待ちで長時間ブロックする可能性
+Example of conflict:
+  AccessExclusiveLock blocks all operations
+  → Even SELECT is queued while ALTER TABLE is running
+  → In other words, even "instant" operations can block for a long time waiting to acquire the lock
 
-対策:
-  SET lock_timeout = '5s';  -- ロック取得を5秒で諦める
+Countermeasure:
+  SET lock_timeout = '5s';  -- Give up trying to acquire lock after 5 seconds
   ALTER TABLE users ADD COLUMN phone VARCHAR(20);
   RESET lock_timeout;
 ```
 
-### コード例 5: 安全なインデックス追加
+### Code Example 5: Safe Index Addition
 
 ```sql
--- [NG] テーブルロックでダウンタイム
+-- [BAD] Table lock causes downtime
 CREATE INDEX idx_orders_email ON orders (email);
--- ShareLock: INSERT/UPDATE/DELETEがブロックされる
+-- ShareLock: INSERT/UPDATE/DELETE are blocked
 
--- [OK] ロックなし（CONCURRENTLY）
+-- [GOOD] No lock (CONCURRENTLY)
 CREATE INDEX CONCURRENTLY idx_orders_email ON orders (email);
--- 注意事項:
--- 1. トランザクション内では使用不可
--- 2. 構築時間は約2-3倍
--- 3. 失敗するとINVALIDインデックスが残る
--- 4. テーブルが2回スキャンされる
+-- Important notes:
+-- 1. Cannot be used inside a transaction
+-- 2. Build time is approximately 2-3x longer
+-- 3. If it fails, an INVALID index is left behind
+-- 4. The table is scanned twice
 
--- INVALID インデックスの確認と対処
+-- Check for and handle INVALID indexes
 SELECT indexrelid::regclass, indisvalid
 FROM pg_index
 WHERE NOT indisvalid;
 
--- INVALIDインデックスの再構築
+-- Rebuild an INVALID index
 REINDEX INDEX CONCURRENTLY idx_orders_email;
--- または削除して再作成
+-- Or drop and recreate
 DROP INDEX CONCURRENTLY idx_orders_email;
 CREATE INDEX CONCURRENTLY idx_orders_email ON orders (email);
 ```
 
-### コード例 6: 安全な NOT NULL 制約の追加
+### Code Example 6: Safely Adding a NOT NULL Constraint
 
 ```sql
--- [NG] 直接NOT NULLを設定 → 全行スキャン + AccessExclusiveLock
+-- [BAD] Setting NOT NULL directly → full table scan + AccessExclusiveLock
 ALTER TABLE users ALTER COLUMN email SET NOT NULL;
--- 1000万行: 数秒〜数十秒のロック
+-- 10 million rows: lock lasts several seconds to tens of seconds
 
--- [OK] 3段階で安全に追加
--- Step 1: CHECK 制約を NOT VALID で追加（瞬時、ロック最小）
+-- [GOOD] Add safely in 3 steps
+-- Step 1: Add CHECK constraint with NOT VALID (instant, minimal lock)
 SET lock_timeout = '5s';
 ALTER TABLE users
 ADD CONSTRAINT chk_users_email_not_null
 CHECK (email IS NOT NULL) NOT VALID;
--- → 新しい行のみチェック、既存行は未検証
+-- → Only checks new rows; existing rows are not validated
 
--- Step 2: 既存データの検証（ShareUpdateExclusiveLock のみ）
--- SELECT/INSERT/UPDATE/DELETEは並行実行可能
+-- Step 2: Validate existing data (ShareUpdateExclusiveLock only)
+-- SELECT/INSERT/UPDATE/DELETE can run concurrently
 ALTER TABLE users VALIDATE CONSTRAINT chk_users_email_not_null;
--- → 全行を検証するが、弱いロックのみ
+-- → Validates all rows but only takes a weak lock
 
--- Step 3: NOT NULL に昇格（PostgreSQL 12+は自動認識）
--- PostgreSQL 12+: CHECK制約が存在すれば瞬時に設定可能
+-- Step 3: Promote to NOT NULL (PostgreSQL 12+ recognizes automatically)
+-- PostgreSQL 12+: If CHECK constraint exists, this completes instantly
 ALTER TABLE users ALTER COLUMN email SET NOT NULL;
 ALTER TABLE users DROP CONSTRAINT chk_users_email_not_null;
 
--- 安全な外部キー制約の追加
--- Step 1: NOT VALID で追加
+-- Safely adding a foreign key constraint
+-- Step 1: Add with NOT VALID
 ALTER TABLE orders
 ADD CONSTRAINT fk_orders_user_id
 FOREIGN KEY (user_id) REFERENCES users(id) NOT VALID;
 
--- Step 2: 既存データの検証
+-- Step 2: Validate existing data
 ALTER TABLE orders VALIDATE CONSTRAINT fk_orders_user_id;
 ```
 
-### コード例 7: 大規模データのバックフィル
+### Code Example 7: Backfilling Large Datasets
 
 ```sql
--- [NG] 一括 UPDATE --> 長時間ロック + WAL 肥大化 + VACUUM負荷
+-- [BAD] Bulk UPDATE --> long lock + WAL bloat + VACUUM overhead
 UPDATE orders SET status = 'active' WHERE status IS NULL;
--- 1000万行の場合:
--- - 数分~数十分のロック
--- - WALが数GB生成される
--- - VACUUM が必要になる
--- - レプリカの遅延が発生する
+-- For 10 million rows:
+-- - Lock lasts minutes to tens of minutes
+-- - Several GB of WAL is generated
+-- - VACUUM becomes necessary
+-- - Replica lag occurs
 
--- [OK] バッチ処理で段階的に更新
+-- [GOOD] Gradual update with batch processing
 DO $$
 DECLARE
   batch_size INT := 10000;
@@ -510,7 +509,7 @@ BEGIN
       SELECT id FROM orders
       WHERE status IS NULL
       LIMIT batch_size
-      FOR UPDATE SKIP LOCKED  -- 他トランザクションと競合回避
+      FOR UPDATE SKIP LOCKED  -- Avoid conflicts with other transactions
     );
 
     GET DIAGNOSTICS rows_affected = ROW_COUNT;
@@ -520,12 +519,12 @@ BEGIN
 
     EXIT WHEN rows_affected = 0;
 
-    PERFORM pg_sleep(0.1);  -- 負荷調整（レプリカ遅延を防ぐ）
+    PERFORM pg_sleep(0.1);  -- Throttle load (prevents replica lag)
     COMMIT;
   END LOOP;
 END $$;
 
--- [推奨] 主キー範囲ベースのバッチ処理（より予測可能）
+-- [RECOMMENDED] Primary key range-based batch processing (more predictable)
 DO $$
 DECLARE
   batch_size INT := 10000;
@@ -552,10 +551,10 @@ BEGIN
 END $$;
 ```
 
-### バックフィルの進行状況モニタリング
+### Monitoring Backfill Progress
 
 ```sql
--- 進捗確認クエリ（別セッションから実行）
+-- Progress check query (run from a separate session)
 SELECT
     COUNT(*) FILTER (WHERE status IS NOT NULL) AS completed,
     COUNT(*) FILTER (WHERE status IS NULL) AS remaining,
@@ -565,10 +564,10 @@ SELECT
     ) AS progress_pct
 FROM orders;
 
--- WAL生成量の確認
+-- Check WAL generation volume
 SELECT pg_wal_lsn_diff(pg_current_wal_lsn(), '0/0') AS wal_bytes;
 
--- レプリカ遅延の確認
+-- Check replica lag
 SELECT
     client_addr,
     state,
@@ -579,48 +578,48 @@ FROM pg_stat_replication;
 
 ---
 
-## 4. MySQL 固有の注意点
+## 4. MySQL-Specific Considerations
 
-### MySQL のオンラインDDL
+### MySQL Online DDL Behavior
 
 ```
-MySQL オンライン DDL の挙動
+MySQL Online DDL Behavior
 =============================
 
-MySQL 8.0 のALGORITHM:
-  INSTANT   : メタデータ変更のみ（瞬時）
-  INPLACE   : テーブルコピーなし（並行DML可能）
-  COPY      : テーブル全体をコピー（DMLブロック）
+ALGORITHM options in MySQL 8.0:
+  INSTANT   : Metadata-only change (instant)
+  INPLACE   : No table copy (concurrent DML allowed)
+  COPY      : Copies entire table (DML blocked)
 
-操作別の対応:
-  ADD COLUMN (末尾)     → INSTANT (MySQL 8.0.12+)
-  ADD COLUMN (途中)     → INPLACE or COPY
-  DROP COLUMN           → INPLACE (再構築あり)
-  MODIFY COLUMN (型変更) → COPY（テーブルロック）
-  ADD INDEX             → INPLACE（並行DML可能）
-  DROP INDEX            → INPLACE
-  RENAME COLUMN         → INSTANT (MySQL 8.0.28+)
+Per-operation support:
+  ADD COLUMN (at end)       → INSTANT (MySQL 8.0.12+)
+  ADD COLUMN (in middle)    → INPLACE or COPY
+  DROP COLUMN               → INPLACE (with rebuild)
+  MODIFY COLUMN (type change) → COPY (table lock)
+  ADD INDEX                 → INPLACE (concurrent DML allowed)
+  DROP INDEX                → INPLACE
+  RENAME COLUMN             → INSTANT (MySQL 8.0.28+)
 
-注意:
-  INPLACEでもメタデータロック取得時に一瞬ブロックする
-  長時間トランザクションがあるとメタデータロック待ちになる
+Note:
+  Even INPLACE briefly blocks when acquiring a metadata lock
+  Long-running transactions cause metadata lock waits
 ```
 
-### コード例 8: MySQL でのマイグレーション
+### Code Example 8: Migrations in MySQL
 
 ```sql
--- MySQL: ALGORITHM指定
+-- MySQL: Specifying ALGORITHM
 ALTER TABLE users
 ADD COLUMN phone VARCHAR(20),
-ALGORITHM=INSTANT;  -- 瞬時（MySQL 8.0.12+）
+ALGORITHM=INSTANT;  -- Instant (MySQL 8.0.12+)
 
--- MySQL: pt-online-schema-change（Percona Tool）
--- 大規模テーブルのスキーマ変更に推奨
--- 内部的に:
--- 1. 新しいテーブルを作成
--- 2. トリガーで書き込みを同期
--- 3. データをバッチコピー
--- 4. テーブルを切り替え（RENAME）
+-- MySQL: pt-online-schema-change (Percona Tool)
+-- Recommended for schema changes on large tables
+-- Internally:
+-- 1. Creates a new table
+-- 2. Syncs writes via trigger
+-- 3. Copies data in batches
+-- 4. Switches tables (RENAME)
 
 -- bash:
 -- pt-online-schema-change \
@@ -628,8 +627,8 @@ ALGORITHM=INSTANT;  -- 瞬時（MySQL 8.0.12+）
 --   --execute \
 --   D=mydb,t=users
 
--- gh-ost（GitHubのツール）
--- トリガーなしでオンラインスキーマ変更
+-- gh-ost (GitHub's tool)
+-- Online schema change without triggers
 -- bash:
 -- gh-ost \
 --   --alter="ADD COLUMN phone VARCHAR(20)" \
@@ -640,60 +639,60 @@ ALGORITHM=INSTANT;  -- 瞬時（MySQL 8.0.12+）
 
 ---
 
-## 5. マイグレーション CI/CD
+## 5. Migration CI/CD
 
 ```
-CI/CD パイプラインでのマイグレーション
+Migrations in a CI/CD Pipeline
 ========================================
 
-1. PR 作成
+1. Create PR
    │
    ▼
-2. マイグレーション lint
-   - SQL 構文チェック
-   - 危険な操作の検出
-   - ロールバック可能性の確認
-   - スキーマの整合性チェック
+2. Migration lint
+   - SQL syntax check
+   - Detection of dangerous operations
+   - Rollback feasibility check
+   - Schema consistency check
    │
    ▼
-3. テスト環境での適用テスト
-   - 空DBに全マイグレーション適用
-   - 本番のスキーマダンプとの差分確認
+3. Apply test in test environment
+   - Apply all migrations to an empty DB
+   - Compare diff with production schema dump
    │
    ▼
-4. ステージング適用
-   - 本番同等のデータ量でテスト
-   - 適用時間の計測
-   - ロールバックのテスト
+4. Apply to staging
+   - Test with production-equivalent data volume
+   - Measure application time
+   - Test rollback
    │
    ▼
-5. レビュー承認
-   - DBA/チームリードの承認
-   - 適用計画の確認
+5. Review approval
+   - DBA/team lead approval
+   - Confirm application plan
    │
    ▼
-6. 本番適用
-   - Blue/Green または Rolling
-   - 監視ダッシュボード確認
-   - ロールバック手順の準備
+6. Apply to production
+   - Blue/Green or Rolling
+   - Check monitoring dashboard
+   - Prepare rollback procedure
    │
    ▼
-7. 事後監視
-   - エラーレート確認
-   - クエリパフォーマンス確認
-   - レプリカ遅延確認
+7. Post-deployment monitoring
+   - Check error rates
+   - Check query performance
+   - Check replica lag
 ```
 
-### コード例 9: マイグレーション lint ツール
+### Code Example 9: Migration Lint Tools
 
 ```bash
-# squawk: PostgreSQL マイグレーション lint
+# squawk: PostgreSQL migration linter
 npm install -g squawk-cli
 
-# 危険な操作を検出
+# Detect dangerous operations
 squawk migrations/V3__add_index.sql
 
-# 出力例:
+# Example output:
 # migrations/V3__add_index.sql:1:1
 #   warning: prefer-create-index-concurrently
 #   CREATE INDEX on a large table without CONCURRENTLY
@@ -702,16 +701,16 @@ squawk migrations/V3__add_index.sql
 #   Instead:
 #   CREATE INDEX CONCURRENTLY idx_orders_email ON orders (email);
 
-# squawk の設定ファイル (.squawk.toml)
+# squawk config file (.squawk.toml)
 # [general]
 # excluded_rules = []
 #
 # [custom_rules]
-# ban_drop_column = true  # DROP COLUMNを禁止
+# ban_drop_column = true  # Prohibit DROP COLUMN
 ```
 
 ```yaml
-# GitHub Actions での自動 lint
+# Automated lint with GitHub Actions
 # .github/workflows/migration-check.yml
 name: Migration Check
 on:
@@ -761,11 +760,11 @@ jobs:
           diff expected_schema.sql /tmp/schema.sql
 ```
 
-### コード例 10: マイグレーション適用スクリプト
+### Code Example 10: Migration Deployment Script
 
 ```bash
 #!/bin/bash
-# deploy_migration.sh - 安全なマイグレーション適用スクリプト
+# deploy_migration.sh - Safe migration deployment script
 
 set -euo pipefail
 
@@ -774,114 +773,114 @@ MIGRATIONS_PATH="${MIGRATIONS_PATH:-./migrations}"
 LOCK_TIMEOUT="${LOCK_TIMEOUT:-5s}"
 STATEMENT_TIMEOUT="${STATEMENT_TIMEOUT:-30s}"
 
-echo "=== マイグレーション開始 ==="
+echo "=== Starting migration ==="
 echo "Database: ${DATABASE_URL%%@*}@..."
 echo "Path: ${MIGRATIONS_PATH}"
 
-# 1. 現在のバージョンを確認
+# 1. Check current version
 CURRENT_VERSION=$(migrate -path "${MIGRATIONS_PATH}" -database "${DATABASE_URL}" version 2>&1 || true)
-echo "現在のバージョン: ${CURRENT_VERSION}"
+echo "Current version: ${CURRENT_VERSION}"
 
-# 2. ドライラン（適用するマイグレーション一覧）
+# 2. Dry run (list of migrations to apply)
 echo ""
-echo "=== 適用予定のマイグレーション ==="
+echo "=== Migrations to be applied ==="
 migrate -path "${MIGRATIONS_PATH}" -database "${DATABASE_URL}" up -dry-run 2>&1 || true
 
-# 3. 確認
-read -p "続行しますか？ (y/N): " confirm
+# 3. Confirm
+read -p "Continue? (y/N): " confirm
 if [[ "${confirm}" != "y" ]]; then
-    echo "中止しました"
+    echo "Aborted"
     exit 0
 fi
 
-# 4. タイムアウト設定を適用
+# 4. Apply timeout settings
 psql "${DATABASE_URL}" -c "ALTER DATABASE $(psql "${DATABASE_URL}" -t -c 'SELECT current_database()') SET lock_timeout = '${LOCK_TIMEOUT}';"
 psql "${DATABASE_URL}" -c "ALTER DATABASE $(psql "${DATABASE_URL}" -t -c 'SELECT current_database()') SET statement_timeout = '${STATEMENT_TIMEOUT}';"
 
-# 5. マイグレーション適用
+# 5. Apply migrations
 echo ""
-echo "=== マイグレーション適用中 ==="
+echo "=== Applying migrations ==="
 if migrate -path "${MIGRATIONS_PATH}" -database "${DATABASE_URL}" up; then
-    echo "✓ マイグレーション成功"
+    echo "Migration succeeded"
 else
-    echo "✗ マイグレーション失敗"
-    echo "ロールバックを検討してください:"
+    echo "Migration failed"
+    echo "Consider rolling back:"
     echo "  migrate -path ${MIGRATIONS_PATH} -database \"\${DATABASE_URL}\" down 1"
     exit 1
 fi
 
-# 6. タイムアウト設定をリセット
+# 6. Reset timeout settings
 psql "${DATABASE_URL}" -c "ALTER DATABASE $(psql "${DATABASE_URL}" -t -c 'SELECT current_database()') RESET lock_timeout;"
 psql "${DATABASE_URL}" -c "ALTER DATABASE $(psql "${DATABASE_URL}" -t -c 'SELECT current_database()') RESET statement_timeout;"
 
-# 7. 新バージョンの確認
+# 7. Confirm new version
 NEW_VERSION=$(migrate -path "${MIGRATIONS_PATH}" -database "${DATABASE_URL}" version 2>&1 || true)
 echo ""
-echo "=== マイグレーション完了 ==="
-echo "バージョン: ${CURRENT_VERSION} → ${NEW_VERSION}"
+echo "=== Migration complete ==="
+echo "Version: ${CURRENT_VERSION} → ${NEW_VERSION}"
 ```
 
 ---
 
-## 6. ロールバック戦略
+## 6. Rollback Strategies
 
-### ロールバックの種類
+### Types of Rollbacks
 
 ```
-ロールバック戦略の比較
+Rollback Strategy Comparison
 ========================
 
-1. DOWN マイグレーション（逆実行）
-   [適用]  ALTER TABLE users ADD COLUMN phone VARCHAR(20);
-   [戻し]  ALTER TABLE users DROP COLUMN phone;
-   ○ 最もシンプル
-   ✗ データ損失あり（カラム削除でデータ消える）
+1. DOWN Migration (reverse execution)
+   [Apply]   ALTER TABLE users ADD COLUMN phone VARCHAR(20);
+   [Revert]  ALTER TABLE users DROP COLUMN phone;
+   + Simplest approach
+   - Data loss (data is gone when column is dropped)
 
-2. 前方修正（Forward Fix）
-   → ロールバックせず、修正マイグレーションを追加
+2. Forward Fix
+   → Instead of rolling back, add a corrective migration
    [V3] ALTER TABLE users ADD COLUMN phone VARCHAR(20);
    [V4] ALTER TABLE users ALTER COLUMN phone TYPE VARCHAR(30);
-   ○ データ損失なし
-   ○ 本番で最も推奨
-   ✗ 緊急時に時間がかかる
+   + No data loss
+   + Most recommended for production
+   - Takes time in an emergency
 
-3. バックアップ復元
-   → DBバックアップから復元
-   ○ 確実に戻る
-   ✗ ダウンタイムが長い
-   ✗ マイグレーション以降のデータが失われる
+3. Backup Restore
+   → Restore from a DB backup
+   + Guaranteed to revert correctly
+   - Long downtime
+   - Data after the migration is lost
 
-4. ポイントインタイムリカバリ（PITR）
-   → WALを使って特定時点に復元
-   ○ 任意の時点に復元可能
-   ✗ 設定が複雑
-   ✗ 復元に時間がかかる
+4. Point-in-Time Recovery (PITR)
+   → Restore to a specific point using WAL
+   + Can restore to any point in time
+   - Complex setup
+   - Recovery takes time
 
-推奨: 通常は前方修正、致命的な場合のみDOWNマイグレーション
+Recommendation: Use forward fix normally; use DOWN migration only for critical failures
 ```
 
-### コード例 11: 安全なロールバック設計
+### Code Example 11: Safe Rollback Design
 
 ```sql
--- UP マイグレーション
+-- UP migration
 -- 20260211_003_add_orders_status.up.sql
 BEGIN;
 
--- ロック待ちのタイムアウト設定
+-- Set lock wait timeout
 SET lock_timeout = '5s';
 
 ALTER TABLE orders ADD COLUMN status_new VARCHAR(20);
 
--- デフォルト値の設定（新しい行のみ）
+-- Set default value (for new rows only)
 ALTER TABLE orders ALTER COLUMN status_new SET DEFAULT 'pending';
 
--- マイグレーションバージョンの記録
+-- Record migration version
 INSERT INTO schema_migrations (version, description, applied_at)
 VALUES ('20260211_003', 'add_orders_status', NOW());
 
 COMMIT;
 
--- DOWN マイグレーション
+-- DOWN migration
 -- 20260211_003_add_orders_status.down.sql
 BEGIN;
 
@@ -894,68 +893,68 @@ DELETE FROM schema_migrations WHERE version = '20260211_003';
 COMMIT;
 ```
 
-### コード例 12: 不可逆マイグレーションの安全策
+### Code Example 12: Safety Measures for Irreversible Migrations
 
 ```sql
--- テーブル削除は直接行わず、リネームで段階的に実施
--- Phase 1: リネーム（即座にロールバック可能）
+-- Instead of dropping a table directly, rename it in stages for a gradual approach
+-- Phase 1: Rename (can be rolled back immediately)
 ALTER TABLE legacy_data RENAME TO _deprecated_legacy_data_20260211;
 
--- Phase 2: 1-2週間の監視期間
--- アプリケーションエラーがないことを確認
+-- Phase 2: Monitoring period of 1-2 weeks
+-- Confirm there are no application errors
 
--- Phase 3: バックアップ後に削除
+-- Phase 3: Back up, then drop
 -- pg_dump -t _deprecated_legacy_data_20260211 > backup.sql
 DROP TABLE IF EXISTS _deprecated_legacy_data_20260211;
 
--- カラム削除も同様に段階的に
--- Phase 1: カラムを使用していないことを確認
+-- Same phased approach for column deletion
+-- Phase 1: Confirm the column is not being used
 SELECT count(*) FROM pg_stat_user_tables
 WHERE relname = 'users';
 
--- Phase 2: アプリケーションログで確認（1週間）
--- Phase 3: 削除
+-- Phase 2: Confirm via application logs (1 week)
+-- Phase 3: Drop
 ALTER TABLE users DROP COLUMN IF EXISTS old_column;
 ```
 
 ---
 
-## 7. 複数環境の管理
+## 7. Managing Multiple Environments
 
-### 環境別マイグレーション戦略
+### Environment-Specific Migration Strategies
 
 ```
-環境別のマイグレーション戦略
+Migration Strategies Per Environment
 ==============================
 
-開発環境:
-  - migrate reset が可能
-  - シードデータ投入
-  - スキーマ変更のテスト
-  └── migrate up → テスト → migrate down → 修正 → migrate up
+Development:
+  - migrate reset is allowed
+  - Seed data can be loaded
+  - Test schema changes
+  └── migrate up → test → migrate down → fix → migrate up
 
-ステージング環境:
-  - 本番と同等のデータ量（匿名化済み）
-  - マイグレーション時間の計測
-  - ロールバックのテスト
-  └── バックアップ → migrate up → テスト → (問題あれば) 復元
+Staging:
+  - Production-equivalent data volume (anonymized)
+  - Measure migration execution time
+  - Test rollbacks
+  └── backup → migrate up → test → (if problems) restore
 
-本番環境:
-  - 段階的適用（カナリアデプロイ）
-  - ロック時間の最小化
-  - 監視付きで実行
-  └── スナップショット → lock_timeout設定 → migrate up → 監視
+Production:
+  - Phased rollout (canary deploy)
+  - Minimize lock time
+  - Execute with monitoring
+  └── snapshot → set lock_timeout → migrate up → monitor
 
-環境間の整合性チェック:
+Consistency check across environments:
   pg_dump -s production > prod_schema.sql
   pg_dump -s staging > staging_schema.sql
-  diff prod_schema.sql staging_schema.sql  -- 差分がないことを確認
+  diff prod_schema.sql staging_schema.sql  -- Confirm no diff
 ```
 
-### コード例 13: 環境別マイグレーション設定
+### Code Example 13: Environment-Specific Migration Configuration
 
 ```yaml
-# database.yml (Rails風の設定例)
+# database.yml (Rails-style config example)
 development:
   adapter: postgresql
   database: myapp_dev
@@ -988,44 +987,44 @@ production:
 
 ---
 
-## 8. 高度なマイグレーションパターン
+## 8. Advanced Migration Patterns
 
-### コード例 14: enum型の安全な変更
+### Code Example 14: Safely Changing an ENUM Type
 
 ```sql
--- PostgreSQL の ENUM 型にはALTER TYPEの制約がある
+-- PostgreSQL ENUM types have restrictions with ALTER TYPE
 
--- [OK] 値の追加（安全）
+-- [OK] Adding a value (safe)
 ALTER TYPE order_status ADD VALUE 'cancelled';
 ALTER TYPE order_status ADD VALUE 'refunded' AFTER 'shipped';
 
--- [NG] 値の削除/リネーム → 直接は不可能
--- 安全な代替手順:
+-- [BAD] Deleting/renaming a value → not directly possible
+-- Safe alternative procedure:
 
--- 1. 新しいENUM型を作成
+-- 1. Create a new ENUM type
 CREATE TYPE order_status_v2 AS ENUM (
     'pending', 'confirmed', 'shipped', 'delivered', 'cancelled', 'refunded'
 );
 
--- 2. カラムの型を変更
+-- 2. Change the column type
 ALTER TABLE orders
     ALTER COLUMN status TYPE order_status_v2
     USING status::text::order_status_v2;
 
--- 3. 旧ENUM型を削除
+-- 3. Drop the old ENUM type
 DROP TYPE order_status;
 
--- 4. 新ENUM型をリネーム
+-- 4. Rename the new ENUM type
 ALTER TYPE order_status_v2 RENAME TO order_status;
 ```
 
-### コード例 15: パーティションテーブルへの移行
+### Code Example 15: Migrating to a Partitioned Table
 
 ```sql
--- 既存の大規模テーブルをパーティション化する
--- 注意: PostgreSQLでは既存テーブルを直接パーティション化できない
+-- Partitioning an existing large table
+-- Note: PostgreSQL cannot directly partition an existing table
 
--- Phase 1: パーティションテーブルを作成
+-- Phase 1: Create the partitioned table
 CREATE TABLE orders_partitioned (
     id          SERIAL,
     customer_id INTEGER NOT NULL,
@@ -1035,138 +1034,138 @@ CREATE TABLE orders_partitioned (
     created_at  TIMESTAMP DEFAULT NOW()
 ) PARTITION BY RANGE (order_date);
 
--- 月次パーティションを作成
+-- Create monthly partitions
 CREATE TABLE orders_y2024m01 PARTITION OF orders_partitioned
     FOR VALUES FROM ('2024-01-01') TO ('2024-02-01');
 CREATE TABLE orders_y2024m02 PARTITION OF orders_partitioned
     FOR VALUES FROM ('2024-02-01') TO ('2024-03-01');
--- ... 他の月も同様
+-- ... same for other months
 
--- デフォルトパーティション（範囲外データの受け皿）
+-- Default partition (catch-all for out-of-range data)
 CREATE TABLE orders_default PARTITION OF orders_partitioned DEFAULT;
 
--- Phase 2: データ移行（バッチで）
+-- Phase 2: Migrate data (in batches)
 INSERT INTO orders_partitioned
 SELECT * FROM orders
 WHERE order_date >= '2024-01-01' AND order_date < '2024-02-01';
--- バッチごとにCOMMIT
+-- COMMIT per batch
 
--- Phase 3: ビューで透過的にアクセス
+-- Phase 3: Transparent access via view
 CREATE VIEW orders_v AS
 SELECT * FROM orders_partitioned
 UNION ALL
 SELECT * FROM orders WHERE order_date < '2024-01-01';
 
--- Phase 4: アプリを新テーブルに切替
--- Phase 5: 旧テーブルをアーカイブ/削除
+-- Phase 4: Switch app to the new table
+-- Phase 5: Archive/drop the old table
 ```
 
 ---
 
-## エッジケース
+## Edge Cases
 
-### エッジケース1: 長時間トランザクションとのデッドロック
+### Edge Case 1: Deadlock with Long-Running Transactions
 
 ```sql
--- 問題: 長時間トランザクションがある状態でALTER TABLEを実行すると
--- ロック待ちのカスケードが発生する
+-- Problem: Running ALTER TABLE while a long-running transaction exists
+-- causes a cascade of lock waits
 
--- セッション1（アプリ）: 長時間トランザクション
+-- Session 1 (app): Long-running transaction
 BEGIN;
-SELECT * FROM users WHERE id = 1;  -- AccessShareLock取得
--- ... 10分間放置 ...
+SELECT * FROM users WHERE id = 1;  -- Acquires AccessShareLock
+-- ... idle for 10 minutes ...
 
--- セッション2（マイグレーション）: ALTER TABLE
+-- Session 2 (migration): ALTER TABLE
 ALTER TABLE users ADD COLUMN phone VARCHAR(20);
--- → AccessExclusiveLock を要求
--- → セッション1のAccessShareLockを待つ
+-- → Requests AccessExclusiveLock
+-- → Waits for Session 1's AccessShareLock
 
--- セッション3-N（アプリ）: 新しいSELECT
+-- Sessions 3-N (app): New SELECTs
 SELECT * FROM users WHERE id = 2;
--- → AccessShareLock を要求
--- → セッション2のAccessExclusiveLockを待つ
--- → 全アプリがブロックされる！
+-- → Requests AccessShareLock
+-- → Waits for Session 2's AccessExclusiveLock
+-- → All app requests are blocked!
 
--- 対策: lock_timeout を設定
+-- Countermeasure: Set lock_timeout
 SET lock_timeout = '5s';
 ALTER TABLE users ADD COLUMN phone VARCHAR(20);
--- 5秒以内にロック取得できなければエラー → リトライ
+-- If lock cannot be acquired within 5 seconds, error → retry
 RESET lock_timeout;
 ```
 
-### エッジケース2: マイグレーションの途中失敗
+### Edge Case 2: Failure Mid-Migration
 
 ```sql
--- トランザクション内で複数操作を実行する場合
--- 途中で失敗すると全体がロールバックされる
+-- When multiple operations run inside a transaction,
+-- a failure mid-way rolls back the entire transaction
 
 BEGIN;
 ALTER TABLE users ADD COLUMN phone VARCHAR(20);
 ALTER TABLE users ADD COLUMN fax VARCHAR(20);
 CREATE INDEX CONCURRENTLY idx_users_phone ON users(phone);
--- → エラー: CREATE INDEX CONCURRENTLYはトランザクション内で使用不可
+-- → Error: CREATE INDEX CONCURRENTLY cannot be used inside a transaction
 ROLLBACK;
 
--- 対策: CONCURRENTLYはトランザクション外で実行
--- migration_part1.sql (トランザクション内)
+-- Countermeasure: Run CONCURRENTLY outside a transaction
+-- migration_part1.sql (inside transaction)
 BEGIN;
 ALTER TABLE users ADD COLUMN phone VARCHAR(20);
 ALTER TABLE users ADD COLUMN fax VARCHAR(20);
 COMMIT;
 
--- migration_part2.sql (トランザクション外)
+-- migration_part2.sql (outside transaction)
 CREATE INDEX CONCURRENTLY idx_users_phone ON users(phone);
 ```
 
-### エッジケース3: レプリケーション遅延
+### Edge Case 3: Replication Lag
 
 ```sql
--- 問題: DDL実行後、レプリカに反映されるまでの遅延
--- レプリカを読み取りに使用している場合、スキーマ不整合が発生
+-- Problem: Delay before DDL changes are reflected on replicas
+-- If replicas are used for reads, schema inconsistency can occur
 
--- 対策1: レプリカ遅延の確認
+-- Countermeasure 1: Check replica lag
 SELECT
     client_addr,
     pg_wal_lsn_diff(sent_lsn, replay_lsn) AS lag_bytes,
     replay_lag
 FROM pg_stat_replication;
 
--- 対策2: マイグレーション後にレプリカの同期を待つ
--- アプリケーション側:
--- 1. マイグレーション実行
--- 2. レプリカ遅延が0になるまで待機
--- 3. アプリデプロイ
+-- Countermeasure 2: Wait for replica sync after migration
+-- On the application side:
+-- 1. Execute migration
+-- 2. Wait until replica lag reaches 0
+-- 3. Deploy app
 ```
 
 ---
 
-## セキュリティに関する注意事項
+## Security Considerations
 
-### 1. マイグレーション実行権限の管理
+### 1. Managing Migration Execution Permissions
 
 ```sql
--- 専用のマイグレーションユーザーを作成
+-- Create a dedicated migration user
 CREATE ROLE migration_user WITH LOGIN PASSWORD 'secure_password';
 
--- 必要最小限の権限を付与
+-- Grant minimum required permissions
 GRANT CONNECT ON DATABASE mydb TO migration_user;
 GRANT CREATE ON SCHEMA public TO migration_user;
 GRANT ALL ON ALL TABLES IN SCHEMA public TO migration_user;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO migration_user;
 
--- DDL権限（PostgreSQL）
-ALTER ROLE migration_user CREATEDB;  -- 必要な場合のみ
+-- DDL permissions (PostgreSQL)
+ALTER ROLE migration_user CREATEDB;  -- Only if necessary
 
--- アプリケーションユーザーとは分離
--- アプリユーザーにはDDL権限を付与しない
+-- Separate from application user
+-- Do not grant DDL permissions to the app user
 CREATE ROLE app_user WITH LOGIN PASSWORD 'app_password';
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO app_user;
 ```
 
-### 2. マイグレーションファイルの監査
+### 2. Migration File Auditing
 
 ```sql
--- マイグレーション履歴テーブルの設計
+-- Migration audit table design
 CREATE TABLE migration_audit (
     id           SERIAL PRIMARY KEY,
     version      VARCHAR(50) NOT NULL,
@@ -1174,68 +1173,68 @@ CREATE TABLE migration_audit (
     applied_by   VARCHAR(100) DEFAULT current_user,
     applied_at   TIMESTAMP DEFAULT NOW(),
     execution_ms INTEGER,
-    checksum     VARCHAR(64),  -- ファイルのSHA-256
-    rollback_sql TEXT          -- ロールバック用SQLを保存
+    checksum     VARCHAR(64),  -- SHA-256 of the file
+    rollback_sql TEXT          -- Store rollback SQL
 );
 ```
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### 1. マイグレーションとアプリデプロイの同時実行
+### 1. Running Migrations and App Deployments Simultaneously
 
-**問題**: 新しいカラムを参照するアプリをデプロイすると同時にマイグレーションを実行すると、マイグレーション完了前のリクエストがエラーになる。
+**Problem**: Deploying an app that references a new column at the same time as running the migration means requests arriving before the migration completes will error.
 
-**対策**: マイグレーションは常にアプリデプロイの前に実行する。Expand-Contract パターンで後方互換性を維持し、「マイグレーション → デプロイ → クリーンアップ」の3段階で進める。
+**Solution**: Always run migrations before deploying the app. Maintain backward compatibility using the Expand-Contract pattern and proceed in three stages: "migration → deploy → cleanup."
 
-### 2. 手動でのスキーマ変更
+### 2. Manual Schema Changes
 
-**問題**: DBA が直接 ALTER TABLE を実行すると、マイグレーション履歴との不整合が発生し、以降の自動マイグレーションが失敗する。
+**Problem**: When a DBA runs ALTER TABLE directly, it creates inconsistencies with the migration history, causing subsequent automated migrations to fail.
 
-**対策**: すべてのスキーマ変更はマイグレーションファイルを通じて行う。緊急時の手動変更もマイグレーションファイルとして記録し、履歴を正す。
+**Solution**: All schema changes must go through migration files. Even emergency manual changes should be recorded as migration files to keep history accurate.
 
-### 3. ロールバックスクリプトなしのマイグレーション
+### 3. Migrations Without Rollback Scripts
 
-**問題**: DOWNマイグレーションがないと、問題発生時にロールバックできない。バックアップ復元が唯一の手段になる。
+**Problem**: Without DOWN migrations, rolling back when a problem occurs is impossible. Restoring from a backup becomes the only option.
 
-**対策**: すべてのマイグレーションにDOWNスクリプトを用意する。不可逆な変更（DROP TABLE等）の場合は、DOWNスクリプトにRECREATEを記述するか、明示的に「不可逆」とコメントする。
+**Solution**: Prepare DOWN scripts for all migrations. For irreversible changes (DROP TABLE, etc.), either write a RECREATE in the DOWN script or explicitly comment that it is "irreversible."
 
-### 4. 大量のマイグレーションを一度に適用
+### 4. Applying Many Migrations at Once
 
-**問題**: 50個のマイグレーションを一度に本番に適用すると、途中で失敗した場合の切り分けが困難。
+**Problem**: Applying 50 migrations to production at once makes it difficult to isolate the cause if something fails midway.
 
-**対策**: 大規模変更は複数のリリースに分割し、各リリースで少数のマイグレーションを適用する。依存関係のあるマイグレーションはグループ化して管理する。
+**Solution**: Split large changes across multiple releases, applying a small number of migrations per release. Group migrations with dependencies together for management.
 
 ---
 
-## 演習問題
+## Practice Problems
 
-### 演習1（基礎）: マイグレーションファイルの作成
+### Exercise 1 (Basic): Creating Migration Files
 
-以下のスキーマ変更に対する UP/DOWN マイグレーションを作成せよ。
+Create UP/DOWN migrations for the following schema changes.
 
-1. `products` テーブルに `description TEXT` カラムを追加
-2. `orders` テーブルに `shipped_at TIMESTAMP` カラムを追加し、デフォルト値を NULL とする
-3. `users` テーブルの `email` カラムにユニーク制約を追加
+1. Add a `description TEXT` column to the `products` table
+2. Add a `shipped_at TIMESTAMP` column to the `orders` table with a default value of NULL
+3. Add a unique constraint to the `email` column of the `users` table
 
 <details>
-<summary>解答例</summary>
+<summary>Example Solution</summary>
 
 ```sql
--- 1. products に description を追加
+-- 1. Add description to products
 -- UP:
 ALTER TABLE products ADD COLUMN description TEXT;
 -- DOWN:
 ALTER TABLE products DROP COLUMN description;
 
--- 2. orders に shipped_at を追加
+-- 2. Add shipped_at to orders
 -- UP:
 ALTER TABLE orders ADD COLUMN shipped_at TIMESTAMP;
 -- DOWN:
 ALTER TABLE orders DROP COLUMN shipped_at;
 
--- 3. users.email にユニーク制約（安全版）
+-- 3. Unique constraint on users.email (safe version)
 -- UP:
 CREATE UNIQUE INDEX CONCURRENTLY idx_users_email_unique ON users(email);
 ALTER TABLE users ADD CONSTRAINT uq_users_email UNIQUE USING INDEX idx_users_email_unique;
@@ -1245,24 +1244,24 @@ ALTER TABLE users DROP CONSTRAINT uq_users_email;
 
 </details>
 
-### 演習2（応用）: ゼロダウンタイムマイグレーション設計
+### Exercise 2 (Applied): Designing a Zero-Downtime Migration
 
-以下のシナリオに対するゼロダウンタイムマイグレーション計画を設計せよ。
+Design a zero-downtime migration plan for the following scenario.
 
-- `orders` テーブルの `status` カラムを VARCHAR(20) から ENUM 型に変更する
-- 現在のstatus値: 'pending', 'paid', 'shipped', 'delivered'
-- 1000万件のレコードが存在する
-- ダウンタイムは許容しない
+- Change the `status` column of the `orders` table from VARCHAR(20) to an ENUM type
+- Current status values: 'pending', 'paid', 'shipped', 'delivered'
+- 10 million records exist
+- Zero downtime is required
 
 <details>
-<summary>解答例</summary>
+<summary>Example Solution</summary>
 
 ```sql
--- Phase 1: Expand（新カラム追加）
+-- Phase 1: Expand (add new column)
 CREATE TYPE order_status AS ENUM ('pending', 'paid', 'shipped', 'delivered');
 ALTER TABLE orders ADD COLUMN status_v2 order_status;
 
--- トリガーで同期
+-- Sync with trigger
 CREATE OR REPLACE FUNCTION sync_order_status() RETURNS TRIGGER AS $$
 BEGIN
   IF NEW.status_v2 IS NULL AND NEW.status IS NOT NULL THEN
@@ -1276,11 +1275,11 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER trg_sync_status BEFORE INSERT OR UPDATE ON orders
 FOR EACH ROW EXECUTE FUNCTION sync_order_status();
 
--- Phase 2: バックフィル（バッチ更新）
--- バッチで既存データを移行（上記バッチ処理パターン参照）
+-- Phase 2: Backfill (batch update)
+-- Migrate existing data in batches (see batch processing pattern above)
 
--- Phase 3: アプリを status_v2 に切替
--- Phase 4: Contract（旧カラム削除）
+-- Phase 3: Switch app to status_v2
+-- Phase 4: Contract (drop old column)
 DROP TRIGGER trg_sync_status ON orders;
 DROP FUNCTION sync_order_status();
 ALTER TABLE orders DROP COLUMN status;
@@ -1289,33 +1288,33 @@ ALTER TABLE orders RENAME COLUMN status_v2 TO status;
 
 </details>
 
-### 演習3（発展）: マイグレーション障害対応
+### Exercise 3 (Advanced): Responding to Migration Failures
 
-以下の障害シナリオに対する対応手順を記述せよ。
+Describe the response procedure for the following failure scenario.
 
-- 本番環境で `CREATE INDEX CONCURRENTLY` が途中で失敗し、INVALID インデックスが残った
-- 同時に、バックフィルジョブが実行中で50%完了の状態
-- アプリケーションは正常に動作中
+- `CREATE INDEX CONCURRENTLY` failed midway in production, leaving an INVALID index
+- At the same time, a backfill job is running and is 50% complete
+- The application is operating normally
 
 <details>
-<summary>解答例</summary>
+<summary>Example Solution</summary>
 
 ```sql
--- 1. INVALIDインデックスの確認
+-- 1. Check for INVALID indexes
 SELECT indexrelid::regclass, indisvalid
 FROM pg_index WHERE NOT indisvalid;
 
--- 2. INVALIDインデックスの削除（CONCURRENTLYで安全に）
+-- 2. Drop the INVALID index safely (with CONCURRENTLY)
 DROP INDEX CONCURRENTLY idx_failing_index;
 
--- 3. バックフィルジョブの状態確認
--- 進捗を確認（上記モニタリングクエリ使用）
--- ジョブが正常に実行中ならそのまま続行
+-- 3. Check the state of the backfill job
+-- Check progress (use monitoring query above)
+-- If the job is running normally, let it continue
 
--- 4. インデックスの再作成（バックフィル完了後）
+-- 4. Recreate the index (after backfill completes)
 CREATE INDEX CONCURRENTLY idx_new_index ON table(column);
 
--- 5. 結果の検証
+-- 5. Verify the result
 SELECT indexrelid::regclass, indisvalid
 FROM pg_index WHERE indexrelid = 'idx_new_index'::regclass;
 ```
@@ -1325,62 +1324,62 @@ FROM pg_index WHERE indexrelid = 'idx_new_index'::regclass;
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology decisions.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | Prioritize when | Can compromise when |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. What is the team size?                      │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to 2              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. What is the deployment frequency?           │
+│    ├─ Weekly or less → Monolith + modules       │
+│    └─ Daily/multiple times → Go to 3            │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. How independent are teams?                  │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A fast short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified tech stack has lower learning costs
+- Adopting diverse technologies enables best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction offers better reusability but can make debugging harder
+- Low abstraction is intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision recording template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1390,17 +1389,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1408,7 +1407,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1416,15 +1415,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1432,53 +1431,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum required features
+- Automated tests only for the critical path
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't strive for perfection (YAGNI principle)
+- Obtain user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually overhauling a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- If no existing tests, write Characterization Tests first
+- Coexist old and new systems via an API gateway
+- Execute data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Analyze current state, map dependencies | 2-4 weeks | Low |
+| 2. Foundation | Set up CI/CD, test environment | 4-6 weeks | Low |
+| 3. Begin migration | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers working on the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with Domain-Driven Design
+- Assign ownership per team
+- Manage shared libraries via Inner Source
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1491,20 +1490,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1513,7 +1512,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1534,102 +1533,102 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** Systems where millisecond-level response times are required
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging async processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization Method | Impact | Implementation Cost | When to Apply |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-bound processing |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | CPU-bound processing |
 ---
 
 ## FAQ
 
-### Q1: マイグレーションツールはどれを選ぶべきですか？
+### Q1: Which migration tool should I choose?
 
-**A**: プロジェクトの技術スタックに合わせて選択します:
-- **Flyway/Liquibase**: Java エコシステム。エンタープライズ向け
-- **golang-migrate**: Go プロジェクト。シンプルで汎用
-- **Prisma Migrate**: TypeScript/Node.js。ORM 統合
-- **Alembic**: Python (SQLAlchemy)。柔軟なスクリプト対応
-- **Atlas**: 宣言的スキーマ管理。最新のアプローチ
-- **Knex.js**: JavaScript。Express/Fastify プロジェクトに
+**A**: Choose based on your project's tech stack:
+- **Flyway/Liquibase**: Java ecosystem. Enterprise-grade
+- **golang-migrate**: Go projects. Simple and general-purpose
+- **Prisma Migrate**: TypeScript/Node.js. ORM integration
+- **Alembic**: Python (SQLAlchemy). Flexible scripting support
+- **Atlas**: Declarative schema management. Modern approach
+- **Knex.js**: JavaScript. For Express/Fastify projects
 
-### Q2: テーブルの型変更（VARCHAR -> TEXT等）を安全に行うには？
+### Q2: How do I safely change a column type (e.g., VARCHAR to TEXT)?
 
-**A**: 直接の `ALTER TYPE` はテーブルロックが発生します。安全な手順:
-1. 新しい型のカラムを追加
-2. トリガーで双方向同期
-3. バックフィルで既存データをコピー
-4. アプリを新カラムに切替
-5. 旧カラムを削除
+**A**: A direct `ALTER TYPE` causes a table lock. Safe procedure:
+1. Add a new column with the new type
+2. Bidirectional sync with a trigger
+3. Copy existing data via backfill
+4. Switch the app to the new column
+5. Drop the old column
 
-ただし、PostgreSQLでは VARCHAR(N) → VARCHAR(M) (M > N) の拡大はメタデータ変更のみで瞬時に完了します。TEXT への変更も同様です。
+Note: In PostgreSQL, expanding VARCHAR(N) to VARCHAR(M) (where M > N) is only a metadata change and completes instantly. The same applies to changing to TEXT.
 
-### Q3: マイグレーションの適用時間をどう見積もりますか？
+### Q3: How do I estimate migration execution time?
 
-**A**: ステージング環境で本番同等のデータ量を使って計測します。目安として:
-- `ADD COLUMN` (デフォルトなし): ミリ秒
-- `ADD COLUMN DEFAULT` (PG11+): ミリ秒
-- `CREATE INDEX CONCURRENTLY`: テーブルサイズの約2-3倍の時間（1億行で数分〜十数分）
-- バックフィル UPDATE: 行数 / バッチサイズ * (実行時間 + スリープ)
-- `ALTER TABLE ALTER TYPE`: テーブルの全行を書き換えるため、テーブルサイズに比例
+**A**: Measure in a staging environment using production-equivalent data volume. Rough guidelines:
+- `ADD COLUMN` (no default): Milliseconds
+- `ADD COLUMN DEFAULT` (PG11+): Milliseconds
+- `CREATE INDEX CONCURRENTLY`: Approximately 2-3x the time proportional to table size (100M rows: several minutes to tens of minutes)
+- Backfill UPDATE: (number of rows / batch size) * (execution time + sleep)
+- `ALTER TABLE ALTER TYPE`: Proportional to table size since all rows are rewritten
 
-### Q4: マイグレーションの命名規則は？
+### Q4: What are the naming conventions for migrations?
 
-**A**: 以下の形式が一般的です:
-- **タイムスタンプベース**: `20260211143025_add_phone_to_users.sql`（推奨、競合しにくい）
-- **連番ベース**: `000042_add_phone_to_users.sql`（シンプルだがブランチ間で競合する）
-- **セマンティック**: `V2.1.0__add_phone_to_users.sql`（Flyway形式）
+**A**: The following formats are common:
+- **Timestamp-based**: `20260211143025_add_phone_to_users.sql` (recommended, unlikely to conflict)
+- **Sequential number-based**: `000042_add_phone_to_users.sql` (simple but can conflict across branches)
+- **Semantic**: `V2.1.0__add_phone_to_users.sql` (Flyway format)
 
-命名のベストプラクティス:
-- 動詞で始める: `add_`, `create_`, `remove_`, `rename_`, `modify_`
-- テーブル名を含める
-- 目的が分かる名前にする
+Naming best practices:
+- Start with a verb: `add_`, `create_`, `remove_`, `rename_`, `modify_`
+- Include the table name
+- Use a name that conveys the purpose
 
-### Q5: データベースの中身を変更するマイグレーション（DML）は含めるべきか？
+### Q5: Should migrations include data-modifying statements (DML)?
 
-**A**: 2つの考え方があります:
+**A**: There are two schools of thought:
 
-1. **DMLを含める**: マスターデータの投入やデータ変換など、スキーマ変更と密接に関連するDMLはマイグレーションに含める
-2. **DMLは別管理**: シードデータは別スクリプトで管理し、マイグレーションはDDLのみにする
+1. **Include DML**: DML closely tied to schema changes, such as master data loading or data transformations, should be included in migrations
+2. **Manage DML separately**: Seed data is managed in separate scripts; migrations contain only DDL
 
-推奨: スキーマ変更に伴うデータ変換はマイグレーションに含め、初期データ投入はシードスクリプトとして分離する。
+Recommendation: Include data transformations that accompany schema changes in migrations; separate initial data loading as seed scripts.
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### 問題1: マイグレーションが「dirty」状態になった
+### Issue 1: Migration is in a "dirty" state
 
 ```bash
-# golang-migrate: dirty状態の解消
-# 1. 現在の状態を確認
+# golang-migrate: Clearing dirty state
+# 1. Check current state
 migrate -path ./migrations -database "$DB_URL" version
-# → 出力: 5 (dirty)
+# → Output: 5 (dirty)
 
-# 2. dirty フラグをクリア（手動で修正済みの場合）
+# 2. Clear dirty flag (after manual fix)
 migrate -path ./migrations -database "$DB_URL" force 5
 
-# 3. 修正後に再適用
+# 3. Re-apply after fix
 migrate -path ./migrations -database "$DB_URL" up
 ```
 
-### 問題2: lock_timeoutで失敗する
+### Issue 2: Failing due to lock_timeout
 
 ```sql
--- 原因: 長時間トランザクションがロックを保持
--- 1. ロック保持しているクエリを確認
+-- Cause: A long-running transaction is holding the lock
+-- 1. Check queries holding locks
 SELECT
     pid,
     usename,
@@ -1642,53 +1641,53 @@ WHERE state != 'idle'
   AND query_start < NOW() - INTERVAL '1 minute'
 ORDER BY duration DESC;
 
--- 2. 長時間トランザクションが完了するのを待つか、キャンセル
-SELECT pg_cancel_backend(pid);  -- クエリのキャンセル
--- SELECT pg_terminate_backend(pid);  -- セッションの強制終了（最終手段）
+-- 2. Wait for the long-running transaction to finish, or cancel it
+SELECT pg_cancel_backend(pid);  -- Cancel the query
+-- SELECT pg_terminate_backend(pid);  -- Force terminate the session (last resort)
 ```
 
-### 問題3: ステージングと本番のスキーマが一致しない
+### Issue 3: Staging and production schemas do not match
 
 ```bash
-# スキーマの差分を確認
+# Check schema diff
 pg_dump -s $STAGING_URL > staging_schema.sql
 pg_dump -s $PRODUCTION_URL > production_schema.sql
 diff staging_schema.sql production_schema.sql
 
-# もしくは migra を使用（差分SQLの自動生成）
+# Or use migra (auto-generate diff SQL)
 pip install migra
 migra $STAGING_URL $PRODUCTION_URL
-# → ALTER TABLE ... が出力される
+# → Outputs ALTER TABLE ...
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Point |
 |---|---|
-| バージョン管理 | すべてのスキーマ変更をマイグレーションファイルで管理 |
-| Expand-Contract | 追加 → 移行 → 削除の3段階で後方互換性を維持 |
-| CONCURRENTLY | インデックス作成はロックなしの CONCURRENTLY を使用 |
-| NOT VALID | 制約追加は NOT VALID + VALIDATE の2段階で |
-| lock_timeout | DDL実行前にロック取得のタイムアウトを設定 |
-| バッチ更新 | 大規模データ更新はバッチ処理で負荷分散 |
-| ロールバック | すべてのマイグレーションに DOWN スクリプトを用意 |
-| CI/CD | lint ツールで危険な操作を自動検出 |
-| 環境分離 | 開発/ステージング/本番で同じスクリプトを使用 |
-| 監査 | マイグレーション実行の記録と権限管理 |
+| Version control | Manage all schema changes through migration files |
+| Expand-Contract | Maintain backward compatibility with 3 phases: add → migrate → remove |
+| CONCURRENTLY | Use lock-free CONCURRENTLY for index creation |
+| NOT VALID | Add constraints in 2 steps: NOT VALID + VALIDATE |
+| lock_timeout | Set a lock acquisition timeout before running DDL |
+| Batch updates | Distribute load with batch processing for large-scale data updates |
+| Rollback | Prepare DOWN scripts for all migrations |
+| CI/CD | Automatically detect dangerous operations with lint tools |
+| Environment separation | Use the same scripts across development/staging/production |
+| Auditing | Record migration execution and manage permissions |
 
-## 次に読むべきガイド
+## Further Reading
 
-- [インデックス](../01-advanced/03-indexing.md) — CONCURRENTLY の詳細と最適化
-- [NoSQL 比較](../03-practical/04-nosql-comparison.md) — スキーマレス DB のマイグレーション
-- [トランザクション](../01-advanced/02-transactions.md) — ロックとトランザクション管理
+- [Indexing](../01-advanced/03-indexing.md) — CONCURRENTLY details and optimization
+- [NoSQL Comparison](../03-practical/04-nosql-comparison.md) — Migrations for schema-less databases
+- [Transactions](../01-advanced/02-transactions.md) — Lock and transaction management
 
-## 参考文献
+## References
 
-1. **PostgreSQL 公式**: [ALTER TABLE](https://www.postgresql.org/docs/current/sql-altertable.html) — DDL 操作のロック動作の詳細
-2. **PostgreSQL 公式**: [Lock Monitoring](https://wiki.postgresql.org/wiki/Lock_Monitoring) — ロック監視の手法
-3. **Braintree Blog**: [Safe Operations for High Volume PostgreSQL](https://medium.com/braintree-product-technology) — ゼロダウンタイム手法
-4. **squawk**: [PostgreSQL Migration Linter](https://squawkhq.com/) — マイグレーション安全性チェックツール
-5. **Martin Kleppmann**: *Designing Data-Intensive Applications* — データシステム設計の包括的な解説
-6. **GitHub Engineering**: [gh-ost: Online Schema Migration](https://github.com/github/gh-ost) — トリガーなしのオンラインDDL
+1. **PostgreSQL Official**: [ALTER TABLE](https://www.postgresql.org/docs/current/sql-altertable.html) — Details on lock behavior for DDL operations
+2. **PostgreSQL Official**: [Lock Monitoring](https://wiki.postgresql.org/wiki/Lock_Monitoring) — Techniques for monitoring locks
+3. **Braintree Blog**: [Safe Operations for High Volume PostgreSQL](https://medium.com/braintree-product-technology) — Zero-downtime techniques
+4. **squawk**: [PostgreSQL Migration Linter](https://squawkhq.com/) — Migration safety checking tool
+5. **Martin Kleppmann**: *Designing Data-Intensive Applications* — Comprehensive guide to data system design
+6. **GitHub Engineering**: [gh-ost: Online Schema Migration](https://github.com/github/gh-ost) — Trigger-free online DDL
