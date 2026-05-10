@@ -1,48 +1,48 @@
-# 分類 — ロジスティック回帰、SVM、ランダムフォレスト
+# Classification — Logistic Regression, SVM, Random Forest
 
-> 離散値（クラスラベル）を予測する分類手法の理論・実装・選択基準を網羅的に理解する
+> A comprehensive guide to the theory, implementation, and selection criteria for classification methods that predict discrete values (class labels)
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **ロジスティック回帰** — シグモイド関数、最尤推定、確率的分類の原理
-2. **サポートベクターマシン（SVM）** — マージン最大化、カーネルトリック、ソフトマージン
-3. **決定木** — 情報利得、ジニ不純度、剪定
-4. **アンサンブル学習** — ランダムフォレスト、勾配ブースティングの仕組みと使い分け
-5. **評価指標と閾値最適化** — 混同行列、ROC/PR曲線、クラス不均衡対策
+1. **Logistic Regression** — Sigmoid function, maximum likelihood estimation, and the principles of probabilistic classification
+2. **Support Vector Machines (SVM)** — Margin maximization, the kernel trick, and soft margins
+3. **Decision Trees** — Information gain, Gini impurity, and pruning
+4. **Ensemble Learning** — How Random Forest and Gradient Boosting work, and when to use each
+5. **Evaluation Metrics and Threshold Optimization** — Confusion matrix, ROC/PR curves, and handling class imbalance
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [回帰 — 線形/多項式/Ridge/Lasso](./00-regression.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Regression — Linear/Polynomial/Ridge/Lasso](./00-regression.md)
 
 ---
 
-## 1. ロジスティック回帰
+## 1. Logistic Regression
 
-### 1.1 決定境界の仕組み
+### 1.1 How the Decision Boundary Works
 
 ```
-ロジスティック回帰の構造:
+Structure of Logistic Regression:
 
-  入力 x₁, x₂, ..., xₘ
+  Input x₁, x₂, ..., xₘ
        │
        v
-  線形結合: z = w₁x₁ + w₂x₂ + ... + wₘxₘ + b
+  Linear combination: z = w₁x₁ + w₂x₂ + ... + wₘxₘ + b
        │
        v
-  シグモイド: σ(z) = 1 / (1 + e^(-z))
+  Sigmoid: σ(z) = 1 / (1 + e^(-z))
        │
        v
-  確率出力: P(y=1|x) = σ(z) ∈ [0, 1]
+  Probability output: P(y=1|x) = σ(z) ∈ [0, 1]
        │
        v
-  閾値判定: ŷ = 1 if σ(z) ≥ 0.5 else 0
+  Threshold decision: ŷ = 1 if σ(z) ≥ 0.5 else 0
 
-  σ(z) のグラフ:
+  Graph of σ(z):
   P(y=1)
   1.0 │              ___________
       │            /
@@ -53,35 +53,35 @@
          -4  -2   0   2   4
 ```
 
-### 1.2 最尤推定の数理
+### 1.2 Mathematics of Maximum Likelihood Estimation
 
 ```
-■ 尤度関数
+■ Likelihood function
   L(w) = Π P(yᵢ|xᵢ; w)
        = Π σ(wᵀxᵢ)^yᵢ × (1 - σ(wᵀxᵢ))^(1-yᵢ)
 
-■ 対数尤度（最大化対象）
+■ Log-likelihood (to be maximized)
   ℓ(w) = Σ [yᵢ log σ(wᵀxᵢ) + (1-yᵢ) log(1 - σ(wᵀxᵢ))]
 
-■ 交差エントロピー損失（最小化対象） = -ℓ(w)/n
+■ Cross-entropy loss (to be minimized) = -ℓ(w)/n
 
-■ 勾配
+■ Gradient
   ∂ℓ/∂w = Σ (yᵢ - σ(wᵀxᵢ)) xᵢ
 
-■ 正則化付きの場合
-  L1正則化: ℓ(w) - λΣ|wⱼ|  → スパースな解
-  L2正則化: ℓ(w) - λΣwⱼ²   → 滑らかな解
+■ With regularization
+  L1 regularization: ℓ(w) - λΣ|wⱼ|  → sparse solution
+  L2 regularization: ℓ(w) - λΣwⱼ²   → smooth solution
 
-  scikit-learnでは C = 1/λ （Cが大きい = 正則化が弱い）
+  In scikit-learn: C = 1/λ (larger C = weaker regularization)
 ```
 
-### コード例1: ロジスティック回帰のスクラッチ実装
+### Code Example 1: Logistic Regression from Scratch
 
 ```python
 import numpy as np
 
 class LogisticRegressionScratch:
-    """ロジスティック回帰のフルスクラッチ実装"""
+    """Full scratch implementation of logistic regression"""
 
     def __init__(self, learning_rate=0.01, n_iter=1000, l2_lambda=0.0):
         self.lr = learning_rate
@@ -103,7 +103,7 @@ class LogisticRegressionScratch:
             z = X @ self.weights + self.bias
             y_pred = self._sigmoid(z)
 
-            # 交差エントロピー損失
+            # Cross-entropy loss
             loss = -np.mean(
                 y * np.log(y_pred + 1e-8) +
                 (1 - y) * np.log(1 - y_pred + 1e-8)
@@ -111,12 +111,12 @@ class LogisticRegressionScratch:
             if self.l2_lambda > 0:
                 loss += self.l2_lambda / (2 * n) * np.sum(self.weights ** 2)
 
-            # 勾配計算
+            # Gradient computation
             error = y_pred - y
             dw = (1 / n) * (X.T @ error) + (self.l2_lambda / n) * self.weights
             db = (1 / n) * np.sum(error)
 
-            # パラメータ更新
+            # Parameter update
             self.weights -= self.lr * dw
             self.bias -= self.lr * db
 
@@ -135,7 +135,7 @@ class LogisticRegressionScratch:
         return np.mean(self.predict(X) == y)
 
 
-# 使用例
+# Usage example
 from sklearn.datasets import load_breast_cancer
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -150,11 +150,11 @@ X_train, X_test, y_train, y_test = train_test_split(
 model = LogisticRegressionScratch(learning_rate=0.1, n_iter=500, l2_lambda=0.01)
 model.fit(X_train, y_train)
 
-print(f"訓練精度: {model.accuracy(X_train, y_train):.4f}")
-print(f"テスト精度: {model.accuracy(X_test, y_test):.4f}")
+print(f"Training accuracy: {model.accuracy(X_train, y_train):.4f}")
+print(f"Test accuracy: {model.accuracy(X_test, y_test):.4f}")
 ```
 
-### コード例1b: ロジスティック回帰の詳細分析（scikit-learn）
+### Code Example 1b: Detailed Logistic Regression Analysis (scikit-learn)
 
 ```python
 import numpy as np
@@ -165,7 +165,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import classification_report, roc_auc_score
 from sklearn.datasets import load_breast_cancer
 
-# データ準備
+# Data preparation
 data = load_breast_cancer()
 X, y = data.data, data.target
 feature_names = data.feature_names
@@ -178,8 +178,8 @@ scaler = StandardScaler()
 X_train_s = scaler.fit_transform(X_train)
 X_test_s = scaler.transform(X_test)
 
-# 正則化強度の比較
-print(f"{'C':>8s} {'Penalty':>8s} {'AUC':>10s} {'非ゼロ':>6s}")
+# Comparison of regularization strengths
+print(f"{'C':>8s} {'Penalty':>8s} {'AUC':>10s} {'Non-zero':>8s}")
 print("-" * 40)
 for C in [0.001, 0.01, 0.1, 1.0, 10.0, 100.0]:
     for penalty in ['l1', 'l2']:
@@ -191,9 +191,9 @@ for C in [0.001, 0.01, 0.1, 1.0, 10.0, 100.0]:
         scores = cross_val_score(lr, X_train_s, y_train, cv=5, scoring="roc_auc")
         lr.fit(X_train_s, y_train)
         n_nonzero = np.sum(np.abs(lr.coef_[0]) > 1e-4)
-        print(f"{C:8.3f} {penalty:>8s} {scores.mean():10.4f} {n_nonzero:6d}")
+        print(f"{C:8.3f} {penalty:>8s} {scores.mean():10.4f} {n_nonzero:8d}")
 
-# 最良モデルの特徴量重要度
+# Feature importance of the best model
 best_lr = LogisticRegression(C=1.0, max_iter=1000, random_state=42)
 best_lr.fit(X_train_s, y_train)
 
@@ -204,103 +204,103 @@ importance = pd.DataFrame({
     "odds_ratio": np.exp(best_lr.coef_[0])
 }).sort_values("abs_coef", ascending=False).head(10)
 
-print("\n--- 重要特徴量 Top 10 ---")
+print("\n--- Top 10 Important Features ---")
 print(importance.to_string(index=False))
 
-# テスト評価
+# Test evaluation
 y_pred = best_lr.predict(X_test_s)
 y_prob = best_lr.predict_proba(X_test_s)[:, 1]
 print(f"\nAUC-ROC: {roc_auc_score(y_test, y_prob):.4f}")
 print(classification_report(y_test, y_pred, target_names=data.target_names))
 ```
 
-### 1.3 多クラス分類への拡張
+### 1.3 Extension to Multi-class Classification
 
 ```
 ■ One-vs-Rest (OvR)
-  K個のクラスがある場合、K個の二値分類器を学習
-  クラスk: 「クラスkか否か」の二値分類
-  予測: P(y=k|x) が最大のクラスを選択
+  With K classes, train K binary classifiers
+  Class k: binary classification of "class k or not"
+  Prediction: select the class with the highest P(y=k|x)
 
 ■ One-vs-One (OvO)
-  K(K-1)/2 個の二値分類器を学習
-  各ペア (i, j) について分類器を構築
-  予測: 多数決で決定
+  Train K(K-1)/2 binary classifiers
+  Build a classifier for each pair (i, j)
+  Prediction: decided by majority vote
 
-■ Softmax回帰（多クラスロジスティック回帰）
+■ Softmax Regression (Multi-class Logistic Regression)
   P(y=k|x) = exp(wₖᵀx) / Σⱼ exp(wⱼᵀx)
-  全クラスを同時に学習
+  Learn all classes simultaneously
   scikit-learn: multi_class="multinomial"
 
-実務上の選択:
-  ・ クラス数 ≤ 10: Softmax（推奨）
-  ・ クラス数が多い場合: OvR（計算効率）
-  ・ SVMの場合: OvO（scikit-learnのデフォルト）
+Practical selection:
+  · Number of classes ≤ 10: Softmax (recommended)
+  · Many classes: OvR (computational efficiency)
+  · For SVM: OvO (scikit-learn default)
 ```
 
 ---
 
-## 2. サポートベクターマシン (SVM)
+## 2. Support Vector Machines (SVM)
 
-### 2.1 マージン最大化とカーネルトリック
+### 2.1 Margin Maximization and the Kernel Trick
 
 ```
-線形SVM（ハードマージン）:
+Linear SVM (hard margin):
 
-     クラス +1: ●        決定境界: w·x + b = 0
-     クラス -1: ○
-                         マージン
+     Class +1: ●        Decision boundary: w·x + b = 0
+     Class -1: ○
+                         Margin
   x₂ │                 ←────→
      │  ●  ●         /  ____  \
      │    ●  ●      / /    \ \
-     │      ●      / /      \ \  ← サポートベクター
-     │            / /        \ \    (境界に最も近い点)
+     │      ●      / /      \ \  ← Support vectors
+     │            / /        \ \    (points closest to the boundary)
      │    ───────/ /──────────\ \────
      │          / /            \ \
      │   ○  ○ / /    ○         \ \
      │  ○   ○                   ○
      └─────────────────────────────── x₁
 
-カーネルトリック（非線形分類）:
+Kernel trick (non-linear classification):
 
-  入力空間（線形分離不可）      特徴空間（線形分離可能）
-  ┌──────────────┐           ┌──────────────┐
-  │  ○ ● ○       │           │         ●    │
-  │ ● ● ● ○      │  φ(x)    │   ●   ● ●   │
-  │ ○ ● ● ○      │ ──────>  │  ────────── │
-  │  ○ ○ ○       │           │ ○   ○   ○   │
-  │              │           │○     ○      │
-  └──────────────┘           └──────────────┘
-  カーネル K(xᵢ, xⱼ) = φ(xᵢ)·φ(xⱼ)
+  Input space (not linearly separable)   Feature space (linearly separable)
+  ┌──────────────┐                       ┌──────────────┐
+  │  ○ ● ○       │                       │         ●    │
+  │ ● ● ● ○      │  φ(x)                │   ●   ● ●   │
+  │ ○ ● ● ○      │ ──────>              │  ────────── │
+  │  ○ ○ ○       │                       │ ○   ○   ○   │
+  │              │                       │○     ○      │
+  └──────────────┘                       └──────────────┘
+  Kernel K(xᵢ, xⱼ) = φ(xᵢ)·φ(xⱼ)
 ```
 
-### 2.2 SVMの数学的定式化
+### 2.2 Mathematical Formulation of SVM
 
 ```
-■ ハードマージンSVM（線形分離可能な場合）
-  最小化: (1/2)||w||²
-  制約:  yᵢ(wᵀxᵢ + b) ≥ 1,  ∀i
+■ Hard-margin SVM (linearly separable case)
+  Minimize: (1/2)||w||²
+  Subject to: yᵢ(wᵀxᵢ + b) ≥ 1,  ∀i
 
-■ ソフトマージンSVM（線形分離不可能な場合）
-  最小化: (1/2)||w||² + C·Σξᵢ
-  制約:  yᵢ(wᵀxᵢ + b) ≥ 1 - ξᵢ,  ξᵢ ≥ 0
+■ Soft-margin SVM (non-linearly separable case)
+  Minimize: (1/2)||w||² + C·Σξᵢ
+  Subject to: yᵢ(wᵀxᵢ + b) ≥ 1 - ξᵢ,  ξᵢ ≥ 0
 
-  C: 誤分類のペナルティ
-    C大 → マージン小、誤分類少ない（過学習リスク）
-    C小 → マージン大、誤分類許容（汎化性能重視）
+  C: penalty for misclassification
+    Large C → smaller margin, fewer misclassifications (risk of overfitting)
+    Small C → larger margin, tolerates misclassifications (focuses on generalization)
 
-■ 主要カーネル
-  線形:     K(x, z) = xᵀz
-  多項式:   K(x, z) = (γxᵀz + r)^d
-  RBF:      K(x, z) = exp(-γ||x - z||²)
-  シグモイド: K(x, z) = tanh(γxᵀz + r)
+■ Major kernels
+  Linear:    K(x, z) = xᵀz
+  Polynomial: K(x, z) = (γxᵀz + r)^d
+  RBF:       K(x, z) = exp(-γ||x - z||²)
+  Sigmoid:   K(x, z) = tanh(γxᵀz + r)
 
-■ RBFカーネルの γ パラメータ
-  γ大 → 各サンプルの影響範囲が狭い → 複雑な境界（過学習リスク）
-  γ小 → 各サンプルの影響範囲が広い → 滑らかな境界（過少適合リスク）
+■ γ parameter of the RBF kernel
+  Large γ → narrow influence range per sample → complex boundary (risk of overfitting)
+  Small γ → wide influence range per sample → smooth boundary (risk of underfitting)
 ```
 
-### コード例2: SVM カーネルの比較
+### Code Example 2: Comparison of SVM Kernels
 
 ```python
 import numpy as np
@@ -311,7 +311,7 @@ from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 
-# 非線形データの生成
+# Generate non-linear data
 X_moon, y_moon = make_moons(n_samples=300, noise=0.2, random_state=42)
 X_circ, y_circ = make_circles(n_samples=300, noise=0.1, factor=0.5, random_state=42)
 
@@ -327,7 +327,7 @@ for row, (name, X, y) in enumerate(datasets):
         scores = cross_val_score(pipe, X, y, cv=5)
         pipe.fit(X, y)
 
-        # 決定境界の描画
+        # Draw decision boundary
         xx, yy = np.meshgrid(
             np.linspace(X[:, 0].min()-1, X[:, 0].max()+1, 200),
             np.linspace(X[:, 1].min()-1, X[:, 1].max()+1, 200)
@@ -342,7 +342,7 @@ plt.savefig("reports/svm_kernels.png", dpi=150)
 plt.close()
 ```
 
-### コード例2b: SVMのハイパーパラメータチューニング
+### Code Example 2b: SVM Hyperparameter Tuning
 
 ```python
 import numpy as np
@@ -356,7 +356,7 @@ from sklearn.datasets import load_breast_cancer
 data = load_breast_cancer()
 X, y = data.data, data.target
 
-# C と gamma の同時最適化（RBFカーネル）
+# Joint optimization of C and gamma (RBF kernel)
 param_grid = {
     'svc__C': [0.01, 0.1, 1.0, 10.0, 100.0],
     'svc__gamma': ['scale', 'auto', 0.001, 0.01, 0.1, 1.0],
@@ -370,13 +370,13 @@ grid = GridSearchCV(
 )
 grid.fit(X, y)
 
-print(f"最良パラメータ: {grid.best_params_}")
-print(f"最良AUC: {grid.best_score_:.4f}")
+print(f"Best parameters: {grid.best_params_}")
+print(f"Best AUC: {grid.best_score_:.4f}")
 
-# C-gamma のヒートマップ
+# Heatmap of C vs gamma
 import pandas as pd
 results = pd.DataFrame(grid.cv_results_)
-# C と gamma が数値の場合のみヒートマップ化
+# Heatmap only for numeric gamma values
 numeric_results = results[results['param_svc__gamma'].apply(lambda x: isinstance(x, float))]
 if len(numeric_results) > 0:
     pivot = numeric_results.pivot_table(
@@ -389,7 +389,7 @@ if len(numeric_results) > 0:
     sns.heatmap(pivot, annot=True, fmt='.4f', cmap='viridis', ax=ax)
     ax.set_xlabel('gamma')
     ax.set_ylabel('C')
-    ax.set_title('SVM RBFカーネル: C x gamma のAUCスコア')
+    ax.set_title('SVM RBF Kernel: AUC Score for C x gamma')
     plt.tight_layout()
     plt.savefig("reports/svm_heatmap.png", dpi=150)
     plt.close()
@@ -397,41 +397,41 @@ if len(numeric_results) > 0:
 
 ---
 
-## 3. 決定木
+## 3. Decision Trees
 
-### 3.1 決定木のアルゴリズム
+### 3.1 Decision Tree Algorithm
 
 ```
-■ 分割基準
+■ Split criteria
 
-  ジニ不純度 (Gini Impurity):
+  Gini Impurity:
     G(t) = 1 - Σₖ pₖ²
-    0 = 完全にピュア、0.5 = 最大不純度（2クラスの場合）
+    0 = completely pure, 0.5 = maximum impurity (for 2 classes)
 
-  エントロピー (Information Gain):
+  Entropy (Information Gain):
     H(t) = -Σₖ pₖ log₂(pₖ)
-    0 = 完全にピュア、1 = 最大不純度（2クラスの場合）
+    0 = completely pure, 1 = maximum impurity (for 2 classes)
 
-  情報利得:
-    IG = H(親) - Σ (|子ノードi| / |親|) × H(子ノードi)
+  Information Gain:
+    IG = H(parent) - Σ (|child node i| / |parent|) × H(child node i)
 
-■ 決定木の可視化例
-                      [全データ: 100件]
+■ Example visualization of a decision tree
+                      [All data: 100 samples]
                      feature_A ≤ 5.0 ?
                     /              \
-           [左: 60件]          [右: 40件]
+           [Left: 60]          [Right: 40]
          feature_B ≤ 3.2 ?    feature_C ≤ 7.0 ?
           /        \            /        \
-    [30件]      [30件]     [25件]     [15件]
+    [30]        [30]       [25]       [15]
    Class=0    Class=1    Class=1    Class=0
 
-■ 剪定（Pruning）
-  ・ 事前剪定: max_depth, min_samples_split, min_samples_leaf
-  ・ 事後剪定: ccp_alpha（Cost-Complexity Pruning）
-  ・ 事前剪定の方が計算コストが低く、一般的
+■ Pruning
+  · Pre-pruning: max_depth, min_samples_split, min_samples_leaf
+  · Post-pruning: ccp_alpha (Cost-Complexity Pruning)
+  · Pre-pruning has lower computational cost and is more common
 ```
 
-### コード例2c: 決定木の可視化と剪定
+### Code Example 2c: Decision Tree Visualization and Pruning
 
 ```python
 import numpy as np
@@ -443,13 +443,13 @@ from sklearn.datasets import load_iris
 data = load_iris()
 X, y = data.data, data.target
 
-# 剪定パラメータの影響
+# Effect of pruning parameters
 fig, axes = plt.subplots(2, 3, figsize=(24, 14))
 
 configs = [
     ("max_depth=2", {"max_depth": 2}),
     ("max_depth=5", {"max_depth": 5}),
-    ("max_depth=None（制限なし）", {}),
+    ("max_depth=None (no limit)", {}),
     ("min_samples_leaf=10", {"min_samples_leaf": 10}),
     ("min_samples_split=20", {"min_samples_split": 20}),
     ("ccp_alpha=0.02", {"ccp_alpha": 0.02}),
@@ -475,7 +475,7 @@ tree_full = DecisionTreeClassifier(random_state=42)
 tree_full.fit(X, y)
 
 path = tree_full.cost_complexity_pruning_path(X, y)
-ccp_alphas = path.ccp_alphas[:-1]  # 最後は単一ノードなので除外
+ccp_alphas = path.ccp_alphas[:-1]  # Exclude last entry (single node)
 
 train_scores = []
 test_scores = []
@@ -501,16 +501,16 @@ plt.close()
 
 ---
 
-## 4. アンサンブル学習
+## 4. Ensemble Learning
 
-### 4.1 バギング vs ブースティング
+### 4.1 Bagging vs Boosting
 
 ```
-バギング (Bagging) — Random Forest:
+Bagging — Random Forest:
 
-  元データ D
+  Original data D
   ┌──────────┐
-  │ ブートストラップサンプリング
+  │ Bootstrap sampling
   ├──────────┼──────────┼──────────┐
   │  D₁      │  D₂      │  D₃      │  ... Dₙ
   │  ↓       │  ↓       │  ↓       │
@@ -518,38 +518,38 @@ plt.close()
   │  ↓       │  ↓       │  ↓       │
   │ pred₁    │ pred₂    │ pred₃    │  ... predₙ
   └──────────┴──────────┴──────────┘
-              │ 多数決 (分類) / 平均 (回帰)
+              │ Majority vote (classification) / Average (regression)
               v
-          最終予測
+          Final prediction
 
-ブースティング (Boosting) — GBM / XGBoost:
+Boosting — GBM / XGBoost:
 
-  弱学習器を逐次的に追加:
+  Sequentially add weak learners:
   ┌────────┐   ┌────────┐   ┌────────┐
-  │ Tree₁  │──>│ Tree₂  │──>│ Tree₃  │──> ... → 最終予測
-  │        │   │ 残差1を │   │ 残差2を │
-  │ 全体を │   │ 学習    │   │ 学習    │
-  │ 学習   │   │        │   │        │
+  │ Tree₁  │──>│ Tree₂  │──>│ Tree₃  │──> ... → Final prediction
+  │        │   │ Learns  │   │ Learns  │
+  │ Learns │   │ residual│   │ residual│
+  │ overall│   │ 1       │   │ 2       │
   └────────┘   └────────┘   └────────┘
      ↓             ↓             ↓
-  残差₁ =      残差₂ =      残差₃ = ...
-  y - ŷ₁      残差₁ - ŷ₂   残差₂ - ŷ₃
+  Residual₁ =  Residual₂ =  Residual₃ = ...
+  y - ŷ₁      residual₁ - ŷ₂   residual₂ - ŷ₃
 
-スタッキング (Stacking):
+Stacking:
   ┌──────────────────────────────────┐
-  │ レベル0: 複数のベースモデル      │
+  │ Level 0: Multiple base models    │
   │  LR   RF   XGB   SVM   KNN     │
   │  ↓    ↓    ↓     ↓     ↓       │
   │ p₁   p₂   p₃    p₄    p₅      │
   │  └────┴────┴─────┴─────┘       │
   │           ↓                      │
-  │ レベル1: メタモデル（LR等）      │
+  │ Level 1: Meta-model (LR, etc.)   │
   │           ↓                      │
-  │       最終予測                   │
+  │       Final prediction           │
   └──────────────────────────────────┘
 ```
 
-### コード例3: ランダムフォレストの実装と分析
+### Code Example 3: Random Forest Implementation and Analysis
 
 ```python
 import numpy as np
@@ -559,7 +559,7 @@ from sklearn.model_selection import cross_val_score, train_test_split
 from sklearn.metrics import classification_report
 import matplotlib.pyplot as plt
 
-# データ準備
+# Data preparation
 from sklearn.datasets import load_breast_cancer
 data = load_breast_cancer()
 X, y = data.data, data.target
@@ -567,7 +567,7 @@ X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=0.2, random_state=42, stratify=y
 )
 
-# ハイパーパラメータの影響分析
+# Analysis of hyperparameter effects
 results = []
 for n_est in [10, 50, 100, 200, 500]:
     for max_depth in [3, 5, 10, None]:
@@ -586,7 +586,7 @@ for n_est in [10, 50, 100, 200, 500]:
 results_df = pd.DataFrame(results).sort_values("f1_mean", ascending=False)
 print(results_df.head(10).to_string(index=False))
 
-# 最良モデルの特徴量重要度
+# Feature importance of the best model
 best_rf = RandomForestClassifier(n_estimators=200, max_depth=10, random_state=42)
 best_rf.fit(X_train, y_train)
 
@@ -597,15 +597,15 @@ importance = pd.DataFrame({
 
 fig, ax = plt.subplots(figsize=(10, 6))
 ax.barh(importance["feature"], importance["importance"])
-ax.set_xlabel("重要度 (Gini Importance)")
-ax.set_title("ランダムフォレスト 特徴量重要度 Top 15")
+ax.set_xlabel("Importance (Gini Importance)")
+ax.set_title("Random Forest Feature Importance Top 15")
 ax.invert_yaxis()
 plt.tight_layout()
 plt.savefig("reports/rf_feature_importance.png", dpi=150)
 plt.close()
 ```
 
-### コード例3b: Permutation ImportanceとSHAP値
+### Code Example 3b: Permutation Importance and SHAP Values
 
 ```python
 import numpy as np
@@ -624,20 +624,20 @@ X_train, X_test, y_train, y_test = train_test_split(
 rf = RandomForestClassifier(n_estimators=200, random_state=42)
 rf.fit(X_train, y_train)
 
-# Permutation Importance（テストデータで計算 → より信頼性が高い）
+# Permutation Importance (computed on test data → more reliable)
 perm_imp = permutation_importance(
     rf, X_test, y_test,
     n_repeats=30, random_state=42, n_jobs=-1
 )
 
-# Gini Importance vs Permutation Importance の比較
+# Comparison: Gini Importance vs Permutation Importance
 fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 8))
 
 # Gini Importance
 sorted_idx = rf.feature_importances_.argsort()[-15:]
 ax1.barh(data.feature_names[sorted_idx], rf.feature_importances_[sorted_idx])
 ax1.set_title("Gini Importance (MDI)")
-ax1.set_xlabel("重要度")
+ax1.set_xlabel("Importance")
 
 # Permutation Importance
 sorted_idx_perm = perm_imp.importances_mean.argsort()[-15:]
@@ -651,14 +651,14 @@ ax2.errorbar(
     xerr=perm_imp.importances_std[sorted_idx_perm],
     fmt='none', color='black', capsize=3
 )
-ax2.set_title("Permutation Importance (テストデータ)")
-ax2.set_xlabel("精度低下量")
+ax2.set_title("Permutation Importance (test data)")
+ax2.set_xlabel("Accuracy decrease")
 
 plt.tight_layout()
 plt.savefig("reports/importance_comparison.png", dpi=150)
 plt.close()
 
-# SHAP値（shap パッケージが必要）
+# SHAP values (requires shap package)
 try:
     import shap
 
@@ -673,12 +673,12 @@ try:
     plt.savefig("reports/shap_summary.png", dpi=150)
     plt.close()
 
-    print("SHAP値の計算完了")
+    print("SHAP value computation complete")
 except ImportError:
-    print("shapパッケージがインストールされていません: pip install shap")
+    print("shap package not installed: pip install shap")
 ```
 
-### コード例4: 勾配ブースティングの実装
+### Code Example 4: Gradient Boosting Implementation
 
 ```python
 from sklearn.ensemble import GradientBoostingClassifier
@@ -719,10 +719,10 @@ for name, model in models.items():
     scores = cross_val_score(model, X_train, y_train, cv=5, scoring="f1")
     elapsed = time.time() - start
     print(f"{name:15s}  F1={scores.mean():.4f}+/-{scores.std():.4f}  "
-          f"時間={elapsed:.2f}秒")
+          f"Time={elapsed:.2f}s")
 ```
 
-### コード例4b: LightGBMの詳細チューニング
+### Code Example 4b: Detailed LightGBM Tuning
 
 ```python
 import lightgbm as lgb
@@ -731,7 +731,7 @@ from sklearn.model_selection import StratifiedKFold
 import optuna
 
 def objective(trial):
-    """OptunaによるLightGBMのハイパーパラメータ最適化"""
+    """Hyperparameter optimization for LightGBM using Optuna"""
 
     params = {
         'n_estimators': trial.suggest_int('n_estimators', 50, 1000),
@@ -767,17 +767,17 @@ def objective(trial):
     return np.mean(scores)
 
 
-# 最適化の実行
+# Run optimization
 study = optuna.create_study(direction='maximize')
 study.optimize(objective, n_trials=50, timeout=300)
 
-print(f"\n最良AUC: {study.best_value:.4f}")
-print(f"最良パラメータ:")
+print(f"\nBest AUC: {study.best_value:.4f}")
+print(f"Best parameters:")
 for key, value in study.best_params.items():
     print(f"  {key}: {value}")
 ```
 
-### コード例4c: スタッキングアンサンブル
+### Code Example 4c: Stacking Ensemble
 
 ```python
 from sklearn.ensemble import StackingClassifier, RandomForestClassifier
@@ -789,7 +789,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 import xgboost as xgb
 
-# ベースモデル
+# Base models
 estimators = [
     ('lr', make_pipeline(StandardScaler(), LogisticRegression(max_iter=1000))),
     ('rf', RandomForestClassifier(n_estimators=100, random_state=42)),
@@ -799,7 +799,7 @@ estimators = [
     ('knn', make_pipeline(StandardScaler(), KNeighborsClassifier(n_neighbors=5))),
 ]
 
-# スタッキング
+# Stacking
 stacking = StackingClassifier(
     estimators=estimators,
     final_estimator=LogisticRegression(max_iter=1000),
@@ -808,8 +808,8 @@ stacking = StackingClassifier(
     n_jobs=-1
 )
 
-# 各モデルとスタッキングの比較
-print(f"{'モデル':20s} {'CV AUC':>10s}")
+# Comparison of each model and stacking
+print(f"{'Model':20s} {'CV AUC':>10s}")
 print("-" * 35)
 
 for name, model in estimators:
@@ -822,29 +822,29 @@ print(f"{'Stacking':20s} {scores.mean():10.4f}")
 
 ---
 
-## 5. 評価指標と閾値最適化
+## 5. Evaluation Metrics and Threshold Optimization
 
-### 5.1 混同行列と主要指標
+### 5.1 Confusion Matrix and Key Metrics
 
 ```
-                予測: Positive    予測: Negative
-実際: Positive    TP (True Pos)    FN (False Neg)
-実際: Negative    FP (False Pos)   TN (True Neg)
+                Predicted: Positive    Predicted: Negative
+Actual: Positive    TP (True Pos)       FN (False Neg)
+Actual: Negative    FP (False Pos)      TN (True Neg)
 
-精度 (Accuracy)    = (TP + TN) / (TP + TN + FP + FN)
-適合率 (Precision) = TP / (TP + FP)  → 「陽性と予測した中で本当に陽性の割合」
-再現率 (Recall)    = TP / (TP + FN)  → 「実際の陽性の中で正しく検出した割合」
-F1スコア          = 2 × P × R / (P + R)  → PrecisionとRecallの調和平均
-特異度 (Specificity) = TN / (TN + FP)  → 「実際の陰性の中で正しく除外した割合」
+Accuracy    = (TP + TN) / (TP + TN + FP + FN)
+Precision   = TP / (TP + FP)  → "Of those predicted positive, the proportion truly positive"
+Recall      = TP / (TP + FN)  → "Of all actual positives, the proportion correctly detected"
+F1 Score    = 2 × P × R / (P + R)  → Harmonic mean of Precision and Recall
+Specificity = TN / (TN + FP)  → "Of all actual negatives, the proportion correctly excluded"
 
-■ タスクに応じた重要指標
-  ・ スパム検出: Precision重視（正常メールを誤ってスパム判定したくない）
-  ・ 癌検診: Recall重視（癌患者を見逃したくない）
-  ・ 不正検知: Recall重視 + 高Precision → F1スコア
-  ・ 一般的な分類: F1スコア or AUC-ROC
+■ Key metrics by task
+  · Spam detection: prioritize Precision (avoid mislabeling legitimate email as spam)
+  · Cancer screening: prioritize Recall (avoid missing cancer patients)
+  · Fraud detection: prioritize Recall + high Precision → F1 Score
+  · General classification: F1 Score or AUC-ROC
 ```
 
-### 5.2 ROC曲線とPR曲線
+### 5.2 ROC Curve and PR Curve
 
 ```python
 import numpy as np
@@ -856,7 +856,7 @@ from sklearn.metrics import (
 )
 
 def plot_roc_and_pr_curves(models_dict, X_test, y_test):
-    """複数モデルのROC曲線とPR曲線を比較描画"""
+    """Plot and compare ROC and PR curves for multiple models"""
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
 
@@ -866,31 +866,31 @@ def plot_roc_and_pr_curves(models_dict, X_test, y_test):
         else:
             y_prob = model.decision_function(X_test)
 
-        # ROC曲線
+        # ROC curve
         fpr, tpr, _ = roc_curve(y_test, y_prob)
         roc_auc = auc(fpr, tpr)
         ax1.plot(fpr, tpr, linewidth=2, label=f'{name} (AUC={roc_auc:.3f})')
 
-        # PR曲線
+        # PR curve
         precision, recall, _ = precision_recall_curve(y_test, y_prob)
         ap = average_precision_score(y_test, y_prob)
         ax2.plot(recall, precision, linewidth=2, label=f'{name} (AP={ap:.3f})')
 
-    # ROC曲線の仕上げ
+    # Finalize ROC curve
     ax1.plot([0, 1], [0, 1], 'k--', linewidth=1)
     ax1.set_xlabel('False Positive Rate')
     ax1.set_ylabel('True Positive Rate')
-    ax1.set_title('ROC曲線')
+    ax1.set_title('ROC Curve')
     ax1.legend(loc='lower right')
     ax1.grid(True, alpha=0.3)
 
-    # PR曲線の仕上げ
+    # Finalize PR curve
     baseline = y_test.sum() / len(y_test)
     ax2.axhline(y=baseline, color='k', linestyle='--', linewidth=1,
-                label=f'ランダム (AP={baseline:.3f})')
+                label=f'Random (AP={baseline:.3f})')
     ax2.set_xlabel('Recall')
     ax2.set_ylabel('Precision')
-    ax2.set_title('Precision-Recall曲線')
+    ax2.set_title('Precision-Recall Curve')
     ax2.legend(loc='lower left')
     ax2.grid(True, alpha=0.3)
 
@@ -899,7 +899,7 @@ def plot_roc_and_pr_curves(models_dict, X_test, y_test):
     plt.close()
 ```
 
-### コード例5: 閾値最適化
+### Code Example 5: Threshold Optimization
 
 ```python
 import numpy as np
@@ -907,62 +907,62 @@ from sklearn.metrics import precision_recall_curve, f1_score
 import matplotlib.pyplot as plt
 
 def optimize_threshold(y_true, y_prob, metric="f1"):
-    """最適な分類閾値を探索"""
+    """Search for the optimal classification threshold"""
     precisions, recalls, thresholds = precision_recall_curve(y_true, y_prob)
 
-    # 各閾値でのF1スコアを計算
+    # Compute F1 score at each threshold
     f1_scores = 2 * (precisions * recalls) / (precisions + recalls + 1e-8)
 
-    # 最適閾値
+    # Optimal threshold
     best_idx = np.argmax(f1_scores)
     best_threshold = thresholds[best_idx] if best_idx < len(thresholds) else 0.5
     best_f1 = f1_scores[best_idx]
 
-    # 可視化
+    # Visualization
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
 
     ax1.plot(thresholds, precisions[:-1], label="Precision")
     ax1.plot(thresholds, recalls[:-1], label="Recall")
     ax1.plot(thresholds, f1_scores[:-1], label="F1", linewidth=2)
     ax1.axvline(best_threshold, color="r", linestyle="--",
-                label=f"最適閾値={best_threshold:.3f}")
-    ax1.set_xlabel("閾値")
-    ax1.set_ylabel("スコア")
-    ax1.set_title("閾値 vs 指標")
+                label=f"Optimal threshold={best_threshold:.3f}")
+    ax1.set_xlabel("Threshold")
+    ax1.set_ylabel("Score")
+    ax1.set_title("Threshold vs Metrics")
     ax1.legend()
     ax1.grid(True, alpha=0.3)
 
     ax2.plot(recalls, precisions)
     ax2.set_xlabel("Recall")
     ax2.set_ylabel("Precision")
-    ax2.set_title("Precision-Recall曲線")
+    ax2.set_title("Precision-Recall Curve")
     ax2.grid(True, alpha=0.3)
 
     plt.tight_layout()
     plt.savefig("reports/threshold_optimization.png", dpi=150)
     plt.close()
 
-    print(f"最適閾値: {best_threshold:.4f}")
-    print(f"最適F1: {best_f1:.4f}")
+    print(f"Optimal threshold: {best_threshold:.4f}")
+    print(f"Optimal F1: {best_f1:.4f}")
     return best_threshold
 
-# 使用例
+# Usage example
 from sklearn.linear_model import LogisticRegression
 model = LogisticRegression(max_iter=1000).fit(X_train_s, y_train)
 y_prob = model.predict_proba(X_test_s)[:, 1]
 best_th = optimize_threshold(y_test, y_prob)
 
-# 最適閾値で予測
+# Predict with optimal threshold
 y_pred_opt = (y_prob >= best_th).astype(int)
-print(f"\nデフォルト閾値(0.5) F1: {f1_score(y_test, model.predict(X_test_s)):.4f}")
-print(f"最適閾値({best_th:.3f}) F1: {f1_score(y_test, y_pred_opt):.4f}")
+print(f"\nDefault threshold (0.5) F1: {f1_score(y_test, model.predict(X_test_s)):.4f}")
+print(f"Optimal threshold ({best_th:.3f}) F1: {f1_score(y_test, y_pred_opt):.4f}")
 ```
 
 ---
 
-## 6. クラス不均衡への対策
+## 6. Handling Class Imbalance
 
-### 6.1 サンプリング手法
+### 6.1 Sampling Methods
 
 ```python
 import numpy as np
@@ -972,7 +972,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import f1_score, classification_report
 
-# 不均衡データの生成（1:10の比率）
+# Generate imbalanced data (1:10 ratio)
 X_imb, y_imb = make_classification(
     n_samples=10000, n_features=20,
     n_informative=10, n_redundant=5,
@@ -980,24 +980,24 @@ X_imb, y_imb = make_classification(
     random_state=42
 )
 
-print(f"クラス比率: {np.bincount(y_imb)}")
+print(f"Class distribution: {np.bincount(y_imb)}")
 
-# 各対策の比較
+# Comparison of countermeasures
 from sklearn.utils.class_weight import compute_class_weight
 
 results = {}
 
-# 1. 何もしない
+# 1. No treatment
 lr_base = LogisticRegression(max_iter=1000)
 scores = cross_val_score(lr_base, X_imb, y_imb, cv=5, scoring='f1')
-results["何もしない"] = scores.mean()
+results["No treatment"] = scores.mean()
 
 # 2. class_weight='balanced'
 lr_balanced = LogisticRegression(max_iter=1000, class_weight='balanced')
 scores = cross_val_score(lr_balanced, X_imb, y_imb, cv=5, scoring='f1')
 results["class_weight=balanced"] = scores.mean()
 
-# 3. SMOTE（imblearn が必要）
+# 3. SMOTE (requires imblearn)
 try:
     from imblearn.over_sampling import SMOTE
     from imblearn.pipeline import Pipeline as ImbPipeline
@@ -1009,16 +1009,16 @@ try:
     scores = cross_val_score(smote_pipe, X_imb, y_imb, cv=5, scoring='f1')
     results["SMOTE"] = scores.mean()
 except ImportError:
-    print("imbalanced-learn未インストール: pip install imbalanced-learn")
+    print("imbalanced-learn not installed: pip install imbalanced-learn")
 
-# 4. ランダムフォレスト + class_weight
+# 4. Random Forest + class_weight
 rf_balanced = RandomForestClassifier(
     n_estimators=200, class_weight='balanced_subsample', random_state=42
 )
 scores = cross_val_score(rf_balanced, X_imb, y_imb, cv=5, scoring='f1')
 results["RF+balanced_subsample"] = scores.mean()
 
-print(f"\n{'対策':30s} {'F1':>8s}")
+print(f"\n{'Method':30s} {'F1':>8s}")
 print("-" * 42)
 for name, score in sorted(results.items(), key=lambda x: x[1], reverse=True):
     print(f"{name:30s} {score:8.4f}")
@@ -1026,9 +1026,9 @@ for name, score in sorted(results.items(), key=lambda x: x[1], reverse=True):
 
 ---
 
-## 7. k近傍法（k-NN）とナイーブベイズ
+## 7. k-Nearest Neighbors (k-NN) and Naive Bayes
 
-### 7.1 k近傍法
+### 7.1 k-Nearest Neighbors
 
 ```python
 import numpy as np
@@ -1038,7 +1038,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 import matplotlib.pyplot as plt
 
-# kの最適化
+# Optimize k
 k_range = range(1, 31)
 scores = []
 
@@ -1053,10 +1053,10 @@ for k in k_range:
 fig, ax = plt.subplots(figsize=(10, 6))
 ax.plot(k_range, scores, 'b-o', markersize=5)
 best_k = k_range[np.argmax(scores)]
-ax.axvline(best_k, color='r', linestyle='--', label=f'最適 k={best_k}')
-ax.set_xlabel('k (近傍数)')
+ax.axvline(best_k, color='r', linestyle='--', label=f'Optimal k={best_k}')
+ax.set_xlabel('k (number of neighbors)')
 ax.set_ylabel('CV Accuracy')
-ax.set_title('k-NN: kの最適化')
+ax.set_title('k-NN: Optimizing k')
 ax.legend()
 ax.grid(True, alpha=0.3)
 plt.tight_layout()
@@ -1064,7 +1064,7 @@ plt.savefig("reports/knn_optimization.png", dpi=150)
 plt.close()
 ```
 
-### 7.2 ナイーブベイズ
+### 7.2 Naive Bayes
 
 ```python
 from sklearn.naive_bayes import GaussianNB, MultinomialNB, BernoulliNB
@@ -1072,16 +1072,16 @@ from sklearn.model_selection import cross_val_score
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.pipeline import make_pipeline
 
-# ナイーブベイズの種類と適用場面
+# Types of Naive Bayes and their use cases
 nb_models = {
-    "GaussianNB": GaussianNB(),  # 連続値特徴量
+    "GaussianNB": GaussianNB(),  # Continuous features
     "MultinomialNB": make_pipeline(
-        MinMaxScaler(), MultinomialNB()  # カウントデータ（テキスト分類）
+        MinMaxScaler(), MultinomialNB()  # Count data (text classification)
     ),
-    "BernoulliNB": BernoulliNB(),  # 二値特徴量
+    "BernoulliNB": BernoulliNB(),  # Binary features
 }
 
-print(f"{'モデル':20s} {'CV Accuracy':>12s}")
+print(f"{'Model':20s} {'CV Accuracy':>12s}")
 print("-" * 35)
 for name, model in nb_models.items():
     scores = cross_val_score(model, X_train, y_train, cv=5, scoring='accuracy')
@@ -1090,115 +1090,115 @@ for name, model in nb_models.items():
 
 ---
 
-## 比較表
+## Comparison Tables
 
-### 分類アルゴリズムの特性比較
+### Characteristics of Classification Algorithms
 
-| アルゴリズム | 学習速度 | 予測速度 | 解釈性 | 非線形対応 | スケーリング要否 | 欠損値対応 |
+| Algorithm | Training Speed | Prediction Speed | Interpretability | Non-linear | Scaling Required | Missing Values |
 |---|---|---|---|---|---|---|
-| ロジスティック回帰 | 速い | 極速 | 高い | 不可 (特徴量変換で可) | 要 | 不可 |
-| SVM (線形) | 速い | 極速 | 中程度 | 不可 | 要 | 不可 |
-| SVM (RBF) | 遅い | 遅い | 低い | 可能 | 要 | 不可 |
-| 決定木 | 速い | 極速 | 高い | 可能 | 不要 | 一部可 |
-| ランダムフォレスト | 中程度 | 中程度 | 中程度 | 可能 | 不要 | 一部可 |
-| XGBoost / LightGBM | 中程度 | 速い | 低い | 可能 | 不要 | 可能 |
-| k-NN | 不要 | 遅い | 中程度 | 可能 | 要 | 不可 |
-| ナイーブベイズ | 極速 | 極速 | 高い | 不可 | 場合による | 不可 |
+| Logistic Regression | Fast | Very fast | High | No (possible with feature engineering) | Yes | No |
+| SVM (linear) | Fast | Very fast | Medium | No | Yes | No |
+| SVM (RBF) | Slow | Slow | Low | Yes | Yes | No |
+| Decision Tree | Fast | Very fast | High | Yes | No | Partial |
+| Random Forest | Medium | Medium | Medium | Yes | No | Partial |
+| XGBoost / LightGBM | Medium | Fast | Low | Yes | No | Yes |
+| k-NN | Not needed | Slow | Medium | Yes | Yes | No |
+| Naive Bayes | Very fast | Very fast | High | No | Case-dependent | No |
 
-### クラス不均衡への対処法
+### Methods for Handling Class Imbalance
 
-| 手法 | カテゴリ | 説明 | メリット | デメリット |
+| Method | Category | Description | Advantages | Disadvantages |
 |---|---|---|---|---|
-| class_weight="balanced" | アルゴリズム側 | 少数クラスの重みを増加 | 簡単 | 過学習リスク |
-| SMOTE | オーバーサンプリング | 少数クラスの合成サンプル生成 | データ量増加 | ノイズ増加の可能性 |
-| ADASYN | オーバーサンプリング | 困難なサンプル付近で多く生成 | 適応的 | 計算コスト |
-| RandomUnderSampler | アンダーサンプリング | 多数クラスをランダム削減 | 高速化 | 情報喪失 |
-| TomekLinks | アンダーサンプリング | 境界付近のノイズを除去 | ノイズ除去 | 効果が限定的 |
-| 閾値調整 | 後処理 | 分類閾値を最適化 | モデル変更不要 | 検証データが必要 |
-| Focal Loss | 損失関数 | 簡単な例の重みを下げる | 効果的 | カスタム実装が必要 |
-| コスト敏感学習 | 損失関数 | 誤分類コストを非対称に設定 | 柔軟 | コスト設定が難しい |
+| class_weight="balanced" | Algorithm-side | Increase weight of minority class | Simple | Risk of overfitting |
+| SMOTE | Oversampling | Generate synthetic samples for minority class | Increases data volume | Possible noise increase |
+| ADASYN | Oversampling | Generate more samples near difficult ones | Adaptive | Computational cost |
+| RandomUnderSampler | Undersampling | Randomly reduce majority class | Speeds up training | Information loss |
+| TomekLinks | Undersampling | Remove noise near boundaries | Noise removal | Limited effect |
+| Threshold adjustment | Post-processing | Optimize classification threshold | No model change needed | Requires validation data |
+| Focal Loss | Loss function | Downweight easy examples | Effective | Requires custom implementation |
+| Cost-sensitive learning | Loss function | Set asymmetric misclassification costs | Flexible | Difficult to set costs |
 
-### 評価指標の選択ガイド
+### Evaluation Metric Selection Guide
 
-| 場面 | 推奨指標 | 理由 |
+| Scenario | Recommended Metric | Reason |
 |---|---|---|
-| 均衡データの一般分類 | Accuracy, F1 | 標準的 |
-| 不均衡データ | F1, AUC-PR | Accuracyは多数クラス偏重 |
-| 医療診断（見逃し防止） | Recall, Sensitivity | FNの最小化が最重要 |
-| スパム検出 | Precision | FPの最小化が重要 |
-| ランキング・情報検索 | AUC-ROC, MAP | 順序の正しさが重要 |
-| 多クラス分類 | Macro F1, Weighted F1 | クラス別の性能バランス |
-| 確率出力の校正 | Brier Score, Log Loss | 確率の正確さ |
-| モデル比較 | AUC-ROC | 閾値非依存 |
+| General classification with balanced data | Accuracy, F1 | Standard |
+| Imbalanced data | F1, AUC-PR | Accuracy is biased toward majority class |
+| Medical diagnosis (avoiding missed cases) | Recall, Sensitivity | Minimizing FN is most important |
+| Spam detection | Precision | Minimizing FP is important |
+| Ranking / information retrieval | AUC-ROC, MAP | Correctness of order matters |
+| Multi-class classification | Macro F1, Weighted F1 | Balance of per-class performance |
+| Probability output calibration | Brier Score, Log Loss | Accuracy of probabilities |
+| Model comparison | AUC-ROC | Threshold-independent |
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### アンチパターン1: 多クラス分類でのAccuracy偏重
+### Anti-pattern 1: Over-relying on Accuracy in Multi-class Classification
 
 ```python
-# BAD: マクロ平均を見ない
+# BAD: Not looking at macro average
 from sklearn.metrics import accuracy_score
 print(f"Accuracy: {accuracy_score(y_test, y_pred)}")
-# → 多数クラスを当てるだけで高スコアになりうる
+# → A high score can be achieved just by predicting the majority class
 
-# GOOD: クラスごとの性能を確認
+# GOOD: Check per-class performance
 from sklearn.metrics import classification_report
 print(classification_report(y_test, y_pred))
-# → precision, recall, f1をクラスごとに確認
-# → macro avg と weighted avg の差が大きい場合は不均衡の影響あり
+# → Check precision, recall, f1 per class
+# → A large gap between macro avg and weighted avg indicates imbalance effects
 ```
 
-### アンチパターン2: SVMに大規模データを適用
+### Anti-pattern 2: Applying SVM to Large-Scale Data
 
 ```python
-# BAD: 100万件のデータにRBF SVMを適用（O(n²)〜O(n³)で非現実的）
+# BAD: Applying RBF SVM to 1 million records (O(n²)～O(n³), impractical)
 from sklearn.svm import SVC
 svc = SVC(kernel="rbf")
-svc.fit(X_large, y_large)  # メモリ不足 or 数時間かかる
+svc.fit(X_large, y_large)  # Out of memory or takes hours
 
-# GOOD: 大規模データには線形SVMかGBMを使用
+# GOOD: Use linear SVM or GBM for large-scale data
 from sklearn.svm import LinearSVC
-# または
+# or
 from sklearn.linear_model import SGDClassifier
-sgd = SGDClassifier(loss="hinge", random_state=42)  # 線形SVMと等価
-sgd.fit(X_large, y_large)  # O(n) で高速
+sgd = SGDClassifier(loss="hinge", random_state=42)  # Equivalent to linear SVM
+sgd.fit(X_large, y_large)  # O(n), fast
 
-# RBF的な非線形が必要なら
+# If non-linear like RBF is needed
 from sklearn.kernel_approximation import RBFSampler
 rbf_feature = RBFSampler(gamma=1.0, n_components=100, random_state=42)
 X_rbf = rbf_feature.fit_transform(X_large)
-sgd.fit(X_rbf, y_large)  # 近似カーネルで高速化
+sgd.fit(X_rbf, y_large)  # Speed up with approximate kernel
 ```
 
-### アンチパターン3: 特徴量重要度の誤った解釈
+### Anti-pattern 3: Misinterpreting Feature Importance
 
 ```python
-# BAD: Gini Importanceだけで特徴量の重要性を判断
+# BAD: Judging feature importance based solely on Gini Importance
 rf = RandomForestClassifier()
 rf.fit(X_train, y_train)
-print("重要度:", rf.feature_importances_)
-# → カーディナリティの高い特徴量（カテゴリ数が多い）が過大評価される
-# → 相関のある特徴量間で重要度が分散する
+print("Importance:", rf.feature_importances_)
+# → High-cardinality features (many categories) are overestimated
+# → Importance is split among correlated features
 
-# GOOD: Permutation Importanceを併用
+# GOOD: Also use Permutation Importance
 from sklearn.inspection import permutation_importance
 perm_imp = permutation_importance(rf, X_test, y_test, n_repeats=30)
-# → テストデータで計算するため、過学習の影響を受けにくい
-# → SHAP値も併用するとより信頼性が高い
+# → Computed on test data, less affected by overfitting
+# → More reliable when combined with SHAP values
 ```
 
-### アンチパターン4: 交差検証の中でデータリーク
+### Anti-pattern 4: Data Leakage Inside Cross-validation
 
 ```python
-# BAD: 交差検証の外でSMOTEを適用
+# BAD: Apply SMOTE outside cross-validation
 from imblearn.over_sampling import SMOTE
 X_resampled, y_resampled = SMOTE().fit_resample(X, y)
 scores = cross_val_score(model, X_resampled, y_resampled, cv=5)
-# → 検証フォールドに合成サンプルの情報がリーク
+# → Information from synthetic samples leaks into the validation fold
 
-# GOOD: imblearnのPipelineで交差検証の中でSMOTEを適用
+# GOOD: Apply SMOTE inside cross-validation using imblearn Pipeline
 from imblearn.pipeline import Pipeline as ImbPipeline
 pipe = ImbPipeline([
     ('smote', SMOTE(random_state=42)),
@@ -1210,45 +1210,45 @@ scores = cross_val_score(pipe, X, y, cv=5, scoring='f1')
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1257,26 +1257,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1284,7 +1284,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1295,14 +1295,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1310,7 +1310,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1318,44 +1318,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1364,7 +1364,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1379,71 +1379,71 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 ---
 
 ## FAQ
 
-### Q1: ロジスティック回帰の C パラメータとは？
+### Q1: What is the C parameter in Logistic Regression?
 
-**A:** CはLassoの alpha の逆数（C = 1/alpha）。C が大きいほど正則化が弱く、モデルが複雑になる。C が小さいほど正則化が強く、単純なモデルになる。CVで最適値を探索するのが標準。scikit-learnのデフォルトは C=1.0。L1ペナルティ（solver='saga'）を使えばスパースな解が得られ、特徴量選択の効果もある。
+**A:** C is the inverse of Lasso's alpha (C = 1/alpha). A larger C means weaker regularization and a more complex model. A smaller C means stronger regularization and a simpler model. The standard approach is to search for the optimal value via CV. The default in scikit-learn is C=1.0. Using L1 penalty (solver='saga') yields a sparse solution, which also has a feature selection effect.
 
-### Q2: ランダムフォレストの木の数（n_estimators）はいくつが良い？
+### Q2: How many trees (n_estimators) should Random Forest have?
 
-**A:** 一般にn_estimatorsを増やすと性能は単調に改善し、ある地点で飽和する（過学習しにくい）。100〜500が一般的。計算時間とのトレードオフで決定する。OOB（Out-of-Bag）スコアの推移を監視して飽和点を見極める方法もある。max_features（各分割で考慮する特徴量数）の方が性能への影響が大きいことが多い。
+**A:** In general, increasing n_estimators monotonically improves performance until it saturates at some point (it is not prone to overfitting). Values of 100–500 are common. The decision is a trade-off with computation time. Another approach is to monitor the OOB (Out-of-Bag) score transition to find the saturation point. max_features (the number of features considered at each split) often has a larger impact on performance.
 
-### Q3: XGBoostとLightGBMの違いは？
+### Q3: What is the difference between XGBoost and LightGBM?
 
-**A:** XGBoostはレベルワイズ（層ごと）の木成長、LightGBMはリーフワイズ（葉ごと）の木成長。LightGBMの方が一般に高速で、大規模データに適する。精度は同等かLightGBMがやや優位な場合が多い。カテゴリ変数の直接サポートはLightGBMが優れている。CatBoostはカテゴリ変数の扱いに特化しており、前処理なしで使える。
+**A:** XGBoost uses level-wise tree growth (layer by layer), while LightGBM uses leaf-wise tree growth (leaf by leaf). LightGBM is generally faster and better suited for large-scale data. Accuracy is comparable or slightly better for LightGBM in many cases. LightGBM has better direct support for categorical variables. CatBoost is specialized for handling categorical variables and can be used without preprocessing.
 
-### Q4: 分類モデルの選び方のフローチャートは？
+### Q4: What is the flowchart for choosing a classification model?
 
-**A:** (1) まずロジスティック回帰でベースラインを確立、(2) 特徴量間に非線形関係がありそうならランダムフォレスト、(3) 精度を追求するならLightGBM/XGBoost、(4) 解釈性が必要なら決定木 or ロジスティック回帰 + SHAP、(5) 小規模データ（<1000件）ならSVM(RBF)も検討、(6) テキスト分類ならナイーブベイズがベースライン。最終的には複数モデルを比較し、ドメイン知識と合わせて判断する。
+**A:** (1) First establish a baseline with Logistic Regression, (2) use Random Forest if there appear to be non-linear relationships between features, (3) use LightGBM/XGBoost if pushing for accuracy, (4) use Decision Tree or Logistic Regression + SHAP if interpretability is needed, (5) also consider SVM (RBF) for small datasets (<1000 samples), (6) use Naive Bayes as a baseline for text classification. Ultimately, compare multiple models and make decisions in combination with domain knowledge.
 
-### Q5: ROC-AUCとPR-AUCのどちらを使うべき？
+### Q5: Should I use ROC-AUC or PR-AUC?
 
-**A:** クラスが均衡している場合はROC-AUC、不均衡な場合はPR-AUC（Average Precision）が推奨。ROC-AUCは不均衡データで過度に楽観的なスコアを示す傾向がある。例えば99:1の不均衡で全て多数クラスと予測してもROC-AUCは0.5だが、PR-AUCは0.01程度になる（不均衡を反映）。
+**A:** ROC-AUC is recommended when classes are balanced; PR-AUC (Average Precision) is recommended when they are imbalanced. ROC-AUC tends to show overly optimistic scores on imbalanced data. For example, with 99:1 imbalance, predicting everything as the majority class still yields an ROC-AUC of 0.5, but PR-AUC would be around 0.01 (reflecting the imbalance).
 
-### Q6: 確率出力が信頼できるモデルはどれ？
+### Q6: Which models have reliable probability outputs?
 
-**A:** ロジスティック回帰の確率出力は最も校正されている（calibrated）。ランダムフォレストは過度に0/1に寄る傾向、SVMのdecision_functionは確率ではない。GBMの確率出力はある程度校正されているが完璧ではない。確率の校正が重要な場合は `CalibratedClassifierCV` を使うか、Plattスケーリング/Isotonic回帰で事後的に校正する。
+**A:** Logistic Regression probability outputs are the most calibrated. Random Forest tends to skew too close to 0/1, and SVM's decision_function is not a probability. GBM probability outputs are somewhat calibrated but not perfect. When probability calibration is important, use `CalibratedClassifierCV` or apply Platt scaling/Isotonic regression as post-processing.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |---|---|
-| ロジスティック回帰 | 確率を出力。解釈性が高い。ベースラインに最適 |
-| SVM | マージン最大化。カーネルで非線形対応。中規模データ向け |
-| 決定木 | 解釈性が最も高い。アンサンブルのベースに |
-| ランダムフォレスト | バギング+ランダム特徴量選択。過学習しにくい。並列化可能 |
-| 勾配ブースティング | 逐次的に残差を学習。精度が最も高いことが多い |
-| k-NN | シンプルで直感的。スケーリング必須。次元の呪いに注意 |
-| ナイーブベイズ | 極めて高速。テキスト分類のベースライン |
-| 閾値調整 | デフォルト0.5が最適とは限らない。PR曲線で最適化 |
-| クラス不均衡 | class_weight、SMOTE、Focal Loss等で対処 |
+| Logistic Regression | Outputs probabilities. Highly interpretable. Ideal for baseline |
+| SVM | Maximizes margin. Handles non-linearity via kernels. Suited for medium-scale data |
+| Decision Tree | Most interpretable. Serves as the base for ensembles |
+| Random Forest | Bagging + random feature selection. Resistant to overfitting. Parallelizable |
+| Gradient Boosting | Sequentially learns residuals. Often achieves highest accuracy |
+| k-NN | Simple and intuitive. Scaling required. Beware of the curse of dimensionality |
+| Naive Bayes | Extremely fast. Baseline for text classification |
+| Threshold adjustment | Default 0.5 is not always optimal. Optimize using PR curve |
+| Class imbalance | Handle with class_weight, SMOTE, Focal Loss, etc. |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [02-clustering.md](./02-clustering.md) — 教師なし学習のクラスタリング手法
-- [03-dimensionality-reduction.md](./03-dimensionality-reduction.md) — 次元削減
+- [02-clustering.md](./02-clustering.md) — Unsupervised learning clustering methods
+- [03-dimensionality-reduction.md](./03-dimensionality-reduction.md) — Dimensionality reduction
 
 ---
 
-## 参考文献
+## References
 
 1. **Christopher M. Bishop** "Pattern Recognition and Machine Learning" Springer, 2006
 2. **Tianqi Chen, Carlos Guestrin** "XGBoost: A Scalable Tree Boosting System" KDD 2016
