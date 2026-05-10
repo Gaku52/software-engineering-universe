@@ -1,113 +1,113 @@
-# RAG — 検索拡張生成・チャンク分割・リランキング
+# RAG — Retrieval-Augmented Generation, Chunking, and Reranking
 
-> RAG (Retrieval-Augmented Generation) は LLM の生成時に外部知識ベースから関連情報を検索・注入する手法であり、ハルシネーション低減と最新情報への対応を同時に実現する、LLM プロダクション運用の中核パターンである。
+> RAG (Retrieval-Augmented Generation) is a technique that retrieves and injects relevant information from an external knowledge base at generation time, simultaneously reducing hallucinations and enabling access to up-to-date information. It is a core pattern for operating LLMs in production.
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **RAG の基本アーキテクチャ** — Indexing、Retrieval、Generation の3フェーズ設計
-2. **チャンク分割とベクトル化の最適化** — 分割戦略、Embedding モデル選定、メタデータ活用
-3. **高度な検索・リランキング手法** — ハイブリッド検索、リランカー、クエリ変換
-4. **Agentic RAG とマルチステップ推論** — ツール統合、自律的検索、ルーティング
-5. **本番環境での運用と評価** — モニタリング、キャッシュ、継続的改善パイプライン
+1. **Basic RAG Architecture** — Three-phase design: Indexing, Retrieval, and Generation
+2. **Chunking and Embedding Optimization** — Splitting strategies, Embedding model selection, metadata utilization
+3. **Advanced Retrieval and Reranking** — Hybrid search, rerankers, query transformation
+4. **Agentic RAG and Multi-Step Reasoning** — Tool integration, autonomous retrieval, routing
+5. **Production Operations and Evaluation** — Monitoring, caching, and continuous improvement pipelines
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [プロンプトエンジニアリング — Chain-of-Thought・Few-shot・テンプレート設計](./00-prompt-engineering.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Prompt Engineering — Chain-of-Thought, Few-shot, and Template Design](./00-prompt-engineering.md)
 
 ---
 
-## 1. RAG の基本アーキテクチャ
+## 1. Basic RAG Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│              RAG パイプライン全体像                         │
+│              RAG Pipeline Overview                        │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  【インデックス構築 (オフライン)】                          │
+│  [Index Construction (Offline)]                          │
 │                                                          │
-│  文書群 → チャンク分割 → Embedding → ベクトルDB格納       │
+│  Documents → Chunking → Embedding → Vector DB Storage    │
 │  ┌────┐   ┌──────┐    ┌────────┐   ┌──────────┐        │
 │  │ PDF│   │chunk1│    │[0.1,..]│   │Pinecone  │        │
 │  │ Web│──▶│chunk2│──▶│[0.3,..]│──▶│Weaviate  │        │
 │  │ DB │   │chunk3│    │[0.7,..]│   │pgvector  │        │
 │  └────┘   └──────┘    └────────┘   └──────────┘        │
 │                                                          │
-│  【検索・生成 (オンライン)】                               │
+│  [Retrieval & Generation (Online)]                       │
 │                                                          │
-│  ユーザー                                                 │
-│  クエリ ──▶ Embedding ──▶ ベクトル検索                    │
+│  User                                                    │
+│  Query ──▶ Embedding ──▶ Vector Search                   │
 │    │                          │                          │
-│    │                   関連チャンク (top-k)               │
+│    │                   Relevant Chunks (top-k)           │
 │    │                          │                          │
 │    └────────┐                 │                          │
 │             ▼                 ▼                          │
 │         ┌──────────────────────────┐                    │
-│         │   プロンプト構築           │                    │
-│         │   [システム指示]           │                    │
-│         │   [検索結果コンテキスト]    │                    │
-│         │   [ユーザー質問]           │                    │
+│         │   Prompt Construction    │                    │
+│         │   [System Instructions]  │                    │
+│         │   [Retrieval Context]    │                    │
+│         │   [User Question]        │                    │
 │         └──────────┬───────────────┘                    │
 │                    ▼                                     │
-│              LLM で回答生成                               │
-│              (引用元付き)                                  │
+│              Generate Answer with LLM                    │
+│              (with citations)                            │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.1 RAG と他の知識注入手法の比較
+### 1.1 Comparing RAG with Other Knowledge Injection Methods
 
-| 手法 | 知識更新コスト | 精度 | レイテンシ | 適用シーン |
-|------|-------------|------|----------|----------|
-| RAG | 低 (DB更新のみ) | 高 | 中〜高 | 頻繁に更新される知識、社内文書 |
-| ファインチューニング | 高 (再学習必要) | 高 | 低 | 安定した専門知識、文体・形式の変更 |
-| プロンプトエンジニアリング | 最低 | 中 | 低 | 少量の固定知識、フォーマット指定 |
-| Long Context | 低 | 中〜高 | 高 | 少数の長文書、セッション内の参照 |
-| Knowledge Graph + RAG | 中 | 最高 | 高 | 構造化された関係性が重要な場合 |
+| Method | Knowledge Update Cost | Accuracy | Latency | Use Case |
+|--------|----------------------|----------|---------|----------|
+| RAG | Low (DB update only) | High | Medium–High | Frequently updated knowledge, internal documents |
+| Fine-tuning | High (retraining required) | High | Low | Stable specialized knowledge, style/format changes |
+| Prompt Engineering | Lowest | Medium | Low | Small amounts of fixed knowledge, format specification |
+| Long Context | Low | Medium–High | High | Few long documents, in-session references |
+| Knowledge Graph + RAG | Medium | Highest | High | When structured relationships are important |
 
-### 1.2 RAG の成熟度モデル
+### 1.2 RAG Maturity Model
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                RAG 成熟度モデル (5 段階)                          │
+│                RAG Maturity Model (5 Levels)                    │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │  Level 1: Naive RAG                                            │
-│  ├── 単純なベクトル検索 + LLM 生成                               │
-│  ├── 固定チャンクサイズ、単一 Embedding モデル                     │
-│  └── 評価なし、フィードバックループなし                            │
+│  ├── Simple vector search + LLM generation                     │
+│  ├── Fixed chunk size, single Embedding model                  │
+│  └── No evaluation, no feedback loop                           │
 │                                                                 │
 │  Level 2: Advanced RAG                                         │
-│  ├── ハイブリッド検索、リランキング                               │
-│  ├── セマンティックチャンキング、メタデータフィルタリング             │
-│  └── 基本的な評価指標 (Recall@k, MRR)                           │
+│  ├── Hybrid search, reranking                                  │
+│  ├── Semantic chunking, metadata filtering                     │
+│  └── Basic evaluation metrics (Recall@k, MRR)                 │
 │                                                                 │
 │  Level 3: Modular RAG                                          │
-│  ├── パイプラインの各コンポーネントが交換可能                      │
-│  ├── クエリ変換、Multi-Query、HyDE                              │
-│  └── 自動評価 (RAGAS) + A/B テスト                              │
+│  ├── Each pipeline component is interchangeable                │
+│  ├── Query transformation, Multi-Query, HyDE                   │
+│  └── Automated evaluation (RAGAS) + A/B testing               │
 │                                                                 │
 │  Level 4: Agentic RAG                                          │
-│  ├── LLM がツールとして検索を自律的に実行                        │
-│  ├── マルチステップ推論、反復検索                                │
-│  └── 自己修正、検索結果の信頼度判定                              │
+│  ├── LLM autonomously executes retrieval as a tool             │
+│  ├── Multi-step reasoning, iterative retrieval                 │
+│  └── Self-correction, retrieval confidence scoring             │
 │                                                                 │
 │  Level 5: Adaptive RAG                                         │
-│  ├── クエリの複雑さに応じて戦略を動的に選択                      │
-│  ├── 継続的学習によるパイプライン最適化                          │
-│  └── ユーザーフィードバック駆動の自動改善                        │
+│  ├── Dynamically selects strategy based on query complexity    │
+│  ├── Pipeline optimization via continuous learning             │
+│  └── Automatic improvement driven by user feedback             │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. チャンク分割戦略
+## 2. Chunking Strategies
 
-### 2.1 分割手法の比較
+### 2.1 Comparison of Splitting Methods
 
 ```python
 from langchain.text_splitter import (
@@ -116,39 +116,39 @@ from langchain.text_splitter import (
     TokenTextSplitter,
 )
 
-document = "... 長い文書テキスト ..."
+document = "... long document text ..."
 
-# 方法1: 固定長分割 (最もシンプル)
+# Method 1: Fixed-length splitting (simplest)
 fixed_splitter = CharacterTextSplitter(
     chunk_size=500,
     chunk_overlap=50,
     separator="\n"
 )
 
-# 方法2: 再帰的分割 (推奨)
+# Method 2: Recursive splitting (recommended)
 recursive_splitter = RecursiveCharacterTextSplitter(
     chunk_size=500,
     chunk_overlap=50,
     separators=["\n\n", "\n", "。", "、", " ", ""]
-    # → 段落 > 行 > 文 > 句 > 単語 の順で分割を試みる
+    # → Tries splitting in order: paragraph > line > sentence > phrase > word
 )
 
-# 方法3: トークンベース分割
+# Method 3: Token-based splitting
 token_splitter = TokenTextSplitter(
-    chunk_size=256,     # トークン数で指定
+    chunk_size=256,     # Specified in token count
     chunk_overlap=32,
 )
 
 chunks = recursive_splitter.split_text(document)
 ```
 
-### 2.2 セマンティックチャンキング
+### 2.2 Semantic Chunking
 
 ```python
 from langchain_experimental.text_splitter import SemanticChunker
 from langchain_openai import OpenAIEmbeddings
 
-# 意味的な区切りで分割 (Embedding の類似度変化点で分割)
+# Split at semantic boundaries (split at points where Embedding similarity changes)
 semantic_splitter = SemanticChunker(
     OpenAIEmbeddings(),
     breakpoint_threshold_type="percentile",
@@ -156,10 +156,10 @@ semantic_splitter = SemanticChunker(
 )
 
 chunks = semantic_splitter.split_text(document)
-# → 意味的に一貫したチャンクが得られる
+# → Yields semantically coherent chunks
 ```
 
-### 2.3 ドキュメントタイプ別チャンク戦略
+### 2.3 Chunk Strategy by Document Type
 
 ```python
 from langchain.text_splitter import (
@@ -168,19 +168,19 @@ from langchain.text_splitter import (
     HTMLHeaderTextSplitter,
 )
 
-# Markdown 文書 — ヘッダー階層を尊重した分割
+# Markdown documents — split while respecting header hierarchy
 markdown_splitter = MarkdownTextSplitter(
     chunk_size=500,
     chunk_overlap=50,
 )
 
-# Python コード — 関数・クラス単位で分割
+# Python code — split at function/class boundaries
 code_splitter = PythonCodeTextSplitter(
     chunk_size=1000,
     chunk_overlap=100,
 )
 
-# HTML — ヘッダータグ (h1, h2, h3) で階層的に分割
+# HTML — hierarchically split by header tags (h1, h2, h3)
 html_splitter = HTMLHeaderTextSplitter(
     headers_to_split_on=[
         ("h1", "Header 1"),
@@ -189,9 +189,9 @@ html_splitter = HTMLHeaderTextSplitter(
     ]
 )
 
-# テーブルデータ — 行単位で分割し、ヘッダーを各チャンクに付加
+# Table data — split by row, attaching header to each chunk
 def split_table_document(text: str, max_rows_per_chunk: int = 20) -> list[str]:
-    """テーブルを含む文書を行単位で分割"""
+    """Split a document containing tables by row"""
     lines = text.strip().split("\n")
     header = lines[0] if lines else ""
     separator = lines[1] if len(lines) > 1 and set(lines[1].strip()) <= {"-", "|", " "} else None
@@ -211,7 +211,7 @@ def split_table_document(text: str, max_rows_per_chunk: int = 20) -> list[str]:
     return chunks
 ```
 
-### 2.4 Parent-Child チャンキング
+### 2.4 Parent-Child Chunking
 
 ```python
 from langchain.retrievers import ParentDocumentRetriever
@@ -219,8 +219,8 @@ from langchain.storage import InMemoryStore
 from langchain_community.vectorstores import Chroma
 from langchain_openai import OpenAIEmbeddings
 
-# Parent: 大きなチャンク (文脈保持用)
-# Child: 小さなチャンク (検索精度向上用)
+# Parent: large chunks (for context retention)
+# Child: small chunks (for improved retrieval accuracy)
 parent_splitter = RecursiveCharacterTextSplitter(chunk_size=2000, chunk_overlap=200)
 child_splitter = RecursiveCharacterTextSplitter(chunk_size=400, chunk_overlap=50)
 
@@ -237,23 +237,23 @@ retriever = ParentDocumentRetriever(
     parent_splitter=parent_splitter,
 )
 
-# ドキュメントの追加
+# Add documents
 retriever.add_documents(documents)
 
-# 検索: Child で精密検索 → Parent チャンクを返却
-# → 検索精度と文脈の両立
-results = retriever.get_relevant_documents("RAGの利点は？")
+# Search: precise search with Child → returns Parent chunk
+# → Balances retrieval accuracy with context
+results = retriever.get_relevant_documents("What are the benefits of RAG?")
 ```
 
-### 2.5 チャンク分割パラメータの最適化
+### 2.5 Optimizing Chunk Splitting Parameters
 
-| パラメータ | 推奨範囲 | 小さい場合 | 大きい場合 |
-|-----------|---------|-----------|-----------|
-| chunk_size | 256-1024 tokens | 精密な検索、文脈不足 | 文脈豊富、ノイズ混入 |
-| chunk_overlap | 10-20% of size | 情報欠落リスク | 重複・コスト増 |
-| top_k | 3-10 | 情報不足 | コンテキスト長消費 |
+| Parameter | Recommended Range | When Small | When Large |
+|-----------|------------------|------------|------------|
+| chunk_size | 256–1024 tokens | Precise retrieval, insufficient context | Rich context, noise introduced |
+| chunk_overlap | 10–20% of size | Risk of information loss | Duplication, increased cost |
+| top_k | 3–10 | Insufficient information | Consumes context window |
 
-### 2.6 メタデータ戦略
+### 2.6 Metadata Strategy
 
 ```python
 from datetime import datetime
@@ -268,56 +268,56 @@ def create_chunk_with_metadata(
     created_at: datetime | None = None,
     tags: list[str] | None = None,
 ) -> dict[str, Any]:
-    """チャンクにリッチなメタデータを付与"""
+    """Attach rich metadata to a chunk"""
     return {
         "text": text,
         "metadata": {
-            # 基本情報
-            "source": source,                          # ファイルパス / URL
-            "document_title": document_title,          # 文書タイトル
-            "section_hierarchy": section_hierarchy,     # ["第1章", "1.2節", "概要"]
+            # Basic information
+            "source": source,                          # File path / URL
+            "document_title": document_title,          # Document title
+            "section_hierarchy": section_hierarchy,     # ["Chapter 1", "Section 1.2", "Overview"]
 
-            # 位置情報
+            # Location information
             "page_number": page_number,
-            "chunk_index": None,  # 後で設定
+            "chunk_index": None,  # Set later
 
-            # 時間情報
+            # Temporal information
             "created_at": (created_at or datetime.now()).isoformat(),
             "indexed_at": datetime.now().isoformat(),
 
-            # 分類情報
+            # Classification information
             "tags": tags or [],
             "document_type": _detect_doc_type(source),  # pdf, html, md, etc.
-            "language": "ja",
+            "language": "en",
 
-            # 検索最適化
-            "summary": None,        # LLM で事前生成
-            "questions": None,      # チャンクに対する想定質問 (後述)
+            # Search optimization
+            "summary": None,        # Pre-generated by LLM
+            "questions": None,      # Hypothetical questions for the chunk (see below)
         }
     }
 
 
 def enrich_chunk_with_llm(chunk: dict, llm_client) -> dict:
-    """LLM でチャンクのメタデータを強化"""
+    """Enrich chunk metadata with LLM"""
 
     text = chunk["text"]
 
-    # 1. 要約を生成
+    # 1. Generate a summary
     summary_response = llm_client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{
             "role": "user",
-            "content": f"以下のテキストを1文で要約してください:\n\n{text}"
+            "content": f"Summarize the following text in one sentence:\n\n{text}"
         }],
     )
     chunk["metadata"]["summary"] = summary_response.choices[0].message.content
 
-    # 2. 想定質問を生成 (Hypothetical Questions)
+    # 2. Generate hypothetical questions
     questions_response = llm_client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{
             "role": "user",
-            "content": f"以下のテキストに対して、ユーザーが尋ねそうな質問を3つ生成してください。1行に1つずつ出力:\n\n{text}"
+            "content": f"Generate 3 questions a user might ask about the following text. Output one per line:\n\n{text}"
         }],
     )
     chunk["metadata"]["questions"] = questions_response.choices[0].message.content.strip().split("\n")
@@ -327,9 +327,9 @@ def enrich_chunk_with_llm(chunk: dict, llm_client) -> dict:
 
 ---
 
-## 3. Embedding とベクトル検索
+## 3. Embeddings and Vector Search
 
-### 3.1 Embedding モデルの選択
+### 3.1 Choosing an Embedding Model
 
 ```python
 # OpenAI Embedding
@@ -337,49 +337,49 @@ from openai import OpenAI
 client = OpenAI()
 
 response = client.embeddings.create(
-    model="text-embedding-3-large",  # 3072次元
-    input="RAGとは何ですか？",
-    dimensions=1024,  # 次元削減オプション (コスト削減)
+    model="text-embedding-3-large",  # 3072 dimensions
+    input="What is RAG?",
+    dimensions=1024,  # Dimensionality reduction option (reduces cost)
 )
 vector = response.data[0].embedding
 
-# Cohere Embed v3 (多言語に強い)
+# Cohere Embed v3 (strong multilingual support)
 import cohere
 co = cohere.Client("YOUR_API_KEY")
 
 response = co.embed(
-    texts=["RAGとは何ですか？"],
+    texts=["What is RAG?"],
     model="embed-multilingual-v3.0",
-    input_type="search_query",  # クエリ用とドキュメント用で使い分け
+    input_type="search_query",  # Use different types for queries vs. documents
 )
 vector = response.embeddings[0]
 
-# BGE-M3 (OSS, ローカル実行可能)
+# BGE-M3 (OSS, runs locally)
 from FlagEmbedding import BGEM3FlagModel
 
 model = BGEM3FlagModel("BAAI/bge-m3", use_fp16=True)
 embeddings = model.encode(
-    ["RAGとは何ですか？"],
+    ["What is RAG?"],
     return_dense=True,
-    return_sparse=True,     # スパースベクトルも同時生成
-    return_colbert_vecs=True,  # ColBERT ベクトルも生成
+    return_sparse=True,     # Also generates sparse vectors
+    return_colbert_vecs=True,  # Also generates ColBERT vectors
 )
 dense_vector = embeddings["dense_vecs"][0]
 sparse_vector = embeddings["lexical_weights"][0]
 ```
 
-### 3.2 Embedding モデル比較
+### 3.2 Embedding Model Comparison
 
-| モデル | 次元数 | 日本語 | 料金 ($/1M tokens) | MTEB スコア |
-|--------|-------|--------|-------------------|------------|
-| text-embedding-3-large | 3072 | 良 | $0.13 | 64.6 |
-| text-embedding-3-small | 1536 | 中 | $0.02 | 62.3 |
-| Cohere embed-v3 | 1024 | 優 | $0.10 | 64.5 |
-| Voyage-3 | 1024 | 良 | $0.06 | 67.1 |
-| BGE-M3 (OSS) | 1024 | 優 | 無料 | 65.0 |
-| multilingual-e5-large (OSS) | 1024 | 優 | 無料 | 61.5 |
+| Model | Dimensions | Multilingual | Price ($/1M tokens) | MTEB Score |
+|-------|-----------|--------------|---------------------|------------|
+| text-embedding-3-large | 3072 | Good | $0.13 | 64.6 |
+| text-embedding-3-small | 1536 | Fair | $0.02 | 62.3 |
+| Cohere embed-v3 | 1024 | Excellent | $0.10 | 64.5 |
+| Voyage-3 | 1024 | Good | $0.06 | 67.1 |
+| BGE-M3 (OSS) | 1024 | Excellent | Free | 65.0 |
+| multilingual-e5-large (OSS) | 1024 | Excellent | Free | 61.5 |
 
-### 3.3 Embedding のバッチ処理と最適化
+### 3.3 Batch Processing and Optimization for Embeddings
 
 ```python
 import asyncio
@@ -392,7 +392,7 @@ async def batch_embed(
     batch_size: int = 100,
     max_concurrent: int = 5,
 ) -> list[list[float]]:
-    """大量テキストを効率的にバッチ Embedding"""
+    """Efficiently batch-embed a large number of texts"""
 
     semaphore = asyncio.Semaphore(max_concurrent)
     all_embeddings = [None] * len(texts)
@@ -421,11 +421,11 @@ def deduplicate_by_embedding(
     embeddings: list[list[float]],
     similarity_threshold: float = 0.95,
 ) -> list[dict]:
-    """Embedding の類似度で重複チャンクを除去"""
+    """Remove duplicate chunks by Embedding similarity"""
     import numpy as np
 
     vectors = np.array(embeddings)
-    # コサイン類似度行列の計算
+    # Compute cosine similarity matrix
     norms = np.linalg.norm(vectors, axis=1, keepdims=True)
     normalized = vectors / norms
     similarity_matrix = normalized @ normalized.T
@@ -446,9 +446,9 @@ def deduplicate_by_embedding(
 
 ---
 
-## 4. RAG パイプラインの実装
+## 4. Implementing a RAG Pipeline
 
-### 4.1 基本的な RAG 実装
+### 4.1 Basic RAG Implementation
 
 ```python
 from openai import OpenAI
@@ -456,15 +456,15 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import PointStruct, VectorParams, Distance
 
 client = OpenAI()
-qdrant = QdrantClient(":memory:")  # ローカル in-memory
+qdrant = QdrantClient(":memory:")  # Local in-memory
 
-# 1. コレクション作成
+# 1. Create collection
 qdrant.create_collection(
     collection_name="docs",
     vectors_config=VectorParams(size=1536, distance=Distance.COSINE),
 )
 
-# 2. ドキュメントのインデックス
+# 2. Index documents
 def index_documents(documents: list[dict]):
     points = []
     for i, doc in enumerate(documents):
@@ -481,42 +481,42 @@ def index_documents(documents: list[dict]):
 
     qdrant.upsert(collection_name="docs", points=points)
 
-# 3. 検索 + 生成
+# 3. Retrieve + Generate
 def rag_query(query: str, top_k: int = 5) -> str:
-    # クエリをベクトル化
+    # Embed the query
     query_vector = client.embeddings.create(
         model="text-embedding-3-small",
         input=query,
     ).data[0].embedding
 
-    # ベクトル検索
+    # Vector search
     results = qdrant.search(
         collection_name="docs",
         query_vector=query_vector,
         limit=top_k,
     )
 
-    # コンテキスト構築
+    # Build context
     context = "\n\n".join([
-        f"[出典: {r.payload['source']}]\n{r.payload['text']}"
+        f"[Source: {r.payload['source']}]\n{r.payload['text']}"
         for r in results
     ])
 
-    # LLM で回答生成
+    # Generate answer with LLM
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
             {"role": "system", "content": """
-あなたは質問応答アシスタントです。
-提供されたコンテキストのみに基づいて回答してください。
-情報が不足する場合は「提供された情報では回答できません」と述べてください。
-回答には必ず出典を引用してください。
+You are a question-answering assistant.
+Answer only based on the provided context.
+If information is insufficient, state "I cannot answer based on the provided information."
+Always cite your sources in the answer.
 """},
             {"role": "user", "content": f"""
-コンテキスト:
+Context:
 {context}
 
-質問: {query}
+Question: {query}
 """},
         ],
     )
@@ -524,16 +524,16 @@ def rag_query(query: str, top_k: int = 5) -> str:
     return response.choices[0].message.content
 ```
 
-### 4.2 ハイブリッド検索
+### 4.2 Hybrid Search
 
 ```python
-# ベクトル検索 + キーワード検索の組み合わせ
+# Combination of vector search + keyword search
 from qdrant_client.models import Filter, FieldCondition, MatchValue
 
 def hybrid_search(query: str, top_k: int = 10) -> list:
-    """ベクトル検索 + BM25 のハイブリッド"""
+    """Hybrid of vector search + BM25"""
 
-    # 1. ベクトル検索 (意味的類似度)
+    # 1. Vector search (semantic similarity)
     query_vector = embed(query)
     vector_results = qdrant.search(
         collection_name="docs",
@@ -541,12 +541,12 @@ def hybrid_search(query: str, top_k: int = 10) -> list:
         limit=top_k,
     )
 
-    # 2. キーワード検索 (BM25 / 全文検索)
+    # 2. Keyword search (BM25 / full-text search)
     keyword_results = keyword_search(query, top_k=top_k)
 
-    # 3. Reciprocal Rank Fusion (RRF) でスコア統合
+    # 3. Merge scores with Reciprocal Rank Fusion (RRF)
     rrf_scores = {}
-    k = 60  # RRF 定数
+    k = 60  # RRF constant
 
     for rank, result in enumerate(vector_results):
         doc_id = result.id
@@ -556,12 +556,12 @@ def hybrid_search(query: str, top_k: int = 10) -> list:
         doc_id = result["id"]
         rrf_scores[doc_id] = rrf_scores.get(doc_id, 0) + 1 / (k + rank + 1)
 
-    # スコア順にソート
+    # Sort by score
     sorted_ids = sorted(rrf_scores, key=rrf_scores.get, reverse=True)
     return sorted_ids[:top_k]
 ```
 
-### 4.3 メタデータフィルタリング付き検索
+### 4.3 Search with Metadata Filtering
 
 ```python
 from qdrant_client.models import (
@@ -581,7 +581,7 @@ def filtered_search(
     tags: list[str] | None = None,
     top_k: int = 10,
 ) -> list:
-    """メタデータフィルタ付きベクトル検索"""
+    """Vector search with metadata filters"""
 
     conditions = []
 
@@ -625,9 +625,9 @@ def filtered_search(
     return results
 
 
-# 使用例: 人事部の PDF ドキュメントのみから検索
+# Example: Search only HR department PDF documents
 results = filtered_search(
-    query="有給休暇の申請方法を教えてください",
+    query="How do I apply for paid leave?",
     department="HR",
     doc_type="pdf",
     date_from="2025-01-01",
@@ -635,17 +635,17 @@ results = filtered_search(
 )
 ```
 
-### 4.4 ストリーミング RAG
+### 4.4 Streaming RAG
 
 ```python
 from openai import OpenAI
 
 def rag_query_streaming(query: str, top_k: int = 5):
-    """ストリーミング対応の RAG クエリ"""
+    """Streaming-capable RAG query"""
 
     client = OpenAI()
 
-    # 1. 検索
+    # 1. Retrieve
     query_vector = client.embeddings.create(
         model="text-embedding-3-small",
         input=query,
@@ -658,21 +658,21 @@ def rag_query_streaming(query: str, top_k: int = 5):
     )
 
     context = "\n\n".join([
-        f"[出典: {r.payload['source']}]\n{r.payload['text']}"
+        f"[Source: {r.payload['source']}]\n{r.payload['text']}"
         for r in results
     ])
 
-    # 2. ストリーミング生成
+    # 2. Streaming generation
     stream = client.chat.completions.create(
         model="gpt-4o",
         messages=[
-            {"role": "system", "content": "提供されたコンテキストに基づいて回答してください。"},
-            {"role": "user", "content": f"コンテキスト:\n{context}\n\n質問: {query}"},
+            {"role": "system", "content": "Answer based on the provided context."},
+            {"role": "user", "content": f"Context:\n{context}\n\nQuestion: {query}"},
         ],
         stream=True,
     )
 
-    # 3. チャンクごとに yield
+    # 3. Yield per chunk
     full_response = ""
     for chunk in stream:
         if chunk.choices[0].delta.content:
@@ -683,7 +683,7 @@ def rag_query_streaming(query: str, top_k: int = 5):
                 "content": token,
             }
 
-    # 4. 最後に出典情報を付加
+    # 4. Append source information at the end
     yield {
         "type": "sources",
         "content": [
@@ -695,31 +695,31 @@ def rag_query_streaming(query: str, top_k: int = 5):
 
 ---
 
-## 5. リランキング
+## 5. Reranking
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│              リランキングパイプライン                       │
+│              Reranking Pipeline                           │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  クエリ                                                   │
+│  Query                                                   │
 │    │                                                     │
 │    ▼                                                     │
-│  初期検索 (top-50)  ← 高速だが精度は中程度                │
-│  (ベクトル検索 / BM25)                                    │
+│  Initial Retrieval (top-50)  ← Fast but moderate accuracy│
+│  (Vector Search / BM25)                                  │
 │    │                                                     │
 │    ▼                                                     │
-│  リランカー (top-50 → top-5)  ← 低速だが高精度            │
+│  Reranker (top-50 → top-5)  ← Slow but high accuracy    │
 │  (Cross-Encoder / Cohere Rerank / LLM)                   │
 │    │                                                     │
 │    ▼                                                     │
-│  上位5件をコンテキストとして LLM に渡す                    │
+│  Pass top 5 to LLM as context                            │
 │                                                          │
-│  効果: 検索精度 +10-25% 向上                              │
+│  Effect: +10–25% improvement in retrieval accuracy       │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 5.1 リランカーの実装
+### 5.1 Implementing a Reranker
 
 ```python
 # Cohere Rerank
@@ -752,7 +752,7 @@ def cross_encoder_rerank(query: str, documents: list[str], top_n: int = 5):
     return [{"score": s, "text": d} for s, d in ranked[:top_n]]
 ```
 
-### 5.2 LLM ベースリランキング
+### 5.2 LLM-Based Reranking
 
 ```python
 import json
@@ -763,7 +763,7 @@ def llm_rerank(
     client: OpenAI,
     top_n: int = 5,
 ) -> list[dict]:
-    """LLM を使った高精度リランキング"""
+    """High-accuracy reranking using LLM"""
 
     doc_list = "\n".join([
         f"[{i}] {doc['text'][:300]}"
@@ -774,12 +774,12 @@ def llm_rerank(
         model="gpt-4o-mini",
         messages=[{
             "role": "user",
-            "content": f"""以下のクエリに対して、各ドキュメントの関連性を0-10で評価してください。
-JSON配列で返してください: [{{"index": 0, "score": 8, "reason": "理由"}}]
+            "content": f"""Rate the relevance of each document to the query on a scale of 0-10.
+Return a JSON array: [{{"index": 0, "score": 8, "reason": "reason"}}]
 
-クエリ: {query}
+Query: {query}
 
-ドキュメント:
+Documents:
 {doc_list}
 """,
         }],
@@ -795,46 +795,46 @@ JSON配列で返してください: [{{"index": 0, "score": 8, "reason": "理由
     ]
 ```
 
-### 5.3 リランカー比較
+### 5.3 Reranker Comparison
 
-| リランカー | 精度 | 速度 | コスト | 日本語対応 | 導入容易性 |
-|-----------|------|------|--------|----------|----------|
-| Cohere Rerank v3 | 高 | 高速 | 有料 ($1/1K queries) | 優秀 | 容易 |
-| Cross-Encoder (ms-marco) | 中〜高 | 中 | 無料 | 限定的 | 中 |
-| BGE-Reranker-v2 | 高 | 中 | 無料 | 良好 | 中 |
-| LLM Rerank (GPT-4o-mini) | 最高 | 低速 | 中 | 優秀 | 容易 |
-| FlashRank (軽量) | 中 | 最速 | 無料 | 限定的 | 容易 |
+| Reranker | Accuracy | Speed | Cost | Multilingual | Ease of Setup |
+|----------|----------|-------|------|--------------|---------------|
+| Cohere Rerank v3 | High | Fast | Paid ($1/1K queries) | Excellent | Easy |
+| Cross-Encoder (ms-marco) | Medium–High | Medium | Free | Limited | Medium |
+| BGE-Reranker-v2 | High | Medium | Free | Good | Medium |
+| LLM Rerank (GPT-4o-mini) | Highest | Slow | Medium | Excellent | Easy |
+| FlashRank (lightweight) | Medium | Fastest | Free | Limited | Easy |
 
 ---
 
-## 6. 高度な RAG テクニック
+## 6. Advanced RAG Techniques
 
-### 6.1 クエリ変換
+### 6.1 Query Transformation
 
 ```python
 async def multi_query_rag(original_query: str) -> str:
-    """クエリを複数の観点に分解して検索精度を向上"""
+    """Improve retrieval accuracy by decomposing the query into multiple perspectives"""
 
-    # Step 1: クエリを複数バリエーションに変換
+    # Step 1: Transform query into multiple variations
     expansion_prompt = f"""
-以下の質問を、異なる観点から3つの検索クエリに言い換えてください。
-各クエリは1行ずつ出力してください。
+Rephrase the following question into 3 different search queries from different angles.
+Output each query on a separate line.
 
-質問: {original_query}
+Question: {original_query}
 """
     response = await call_llm(expansion_prompt)
     queries = [original_query] + response.strip().split("\n")
 
-    # Step 2: 各クエリで検索
+    # Step 2: Search with each query
     all_results = set()
     for query in queries:
         results = vector_search(query, top_k=5)
         all_results.update(results)
 
-    # Step 3: リランクして上位を取得
+    # Step 3: Rerank and get top results
     reranked = rerank(original_query, list(all_results), top_n=5)
 
-    # Step 4: LLM で回答生成
+    # Step 4: Generate answer with LLM
     return await generate_answer(original_query, reranked)
 ```
 
@@ -842,23 +842,23 @@ async def multi_query_rag(original_query: str) -> str:
 
 ```python
 async def hyde_search(query: str, top_k: int = 5) -> list:
-    """仮想ドキュメントを生成してから検索"""
+    """Search after generating a hypothetical document"""
 
-    # Step 1: クエリに対する仮想的な回答を LLM で生成
+    # Step 1: Use LLM to generate a hypothetical answer to the query
     hyde_prompt = f"""
-以下の質問に対する詳細な回答を生成してください。
-実際の知識に基づかなくても構いません。
-もっともらしい回答を作成してください。
+Generate a detailed answer to the following question.
+It does not need to be based on actual knowledge.
+Create a plausible answer.
 
-質問: {query}
+Question: {query}
 """
     hypothetical_doc = await call_llm(hyde_prompt)
 
-    # Step 2: 仮想ドキュメントを Embedding
-    # → 実際の正解ドキュメントに近いベクトルが得られる
+    # Step 2: Embed the hypothetical document
+    # → Yields a vector close to the actual answer document
     hyde_vector = embed(hypothetical_doc)
 
-    # Step 3: 仮想ドキュメントのベクトルで検索
+    # Step 3: Search using the hypothetical document vector
     results = qdrant.search(
         collection_name="docs",
         query_vector=hyde_vector,
@@ -867,114 +867,114 @@ async def hyde_search(query: str, top_k: int = 5) -> list:
 
     return results
 
-# HyDE が有効なケース:
-# - 専門用語が多いドメイン (クエリとドキュメントの語彙ギャップが大きい)
-# - 短いクエリ (情報量が少ない)
-# - 質問形式と文書形式のギャップが大きい場合
+# Cases where HyDE is effective:
+# - Domains with many technical terms (large vocabulary gap between query and documents)
+# - Short queries (low information density)
+# - Large gap between question format and document format
 ```
 
 ### 6.3 Step-Back Prompting + RAG
 
 ```python
 async def step_back_rag(query: str) -> str:
-    """抽象的な質問に変換してから検索 (Step-Back Prompting)"""
+    """Search after transforming to an abstract question (Step-Back Prompting)"""
 
-    # Step 1: 具体的な質問を抽象化
+    # Step 1: Abstract the specific question
     step_back_prompt = f"""
-以下の具体的な質問を、より一般的・抽象的な質問に変換してください。
-元の質問に答えるために必要な背景知識を得るための質問にしてください。
+Transform the following specific question into a more general, abstract question.
+Make it a question that obtains the background knowledge needed to answer the original question.
 
-具体的な質問: {query}
-抽象的な質問:
+Specific question: {query}
+Abstract question:
 """
     abstract_query = await call_llm(step_back_prompt)
 
-    # Step 2: 元のクエリと抽象クエリの両方で検索
+    # Step 2: Search with both the original query and the abstract query
     original_results = vector_search(query, top_k=3)
     abstract_results = vector_search(abstract_query, top_k=3)
 
-    # Step 3: 両方の結果を統合してコンテキスト構築
+    # Step 3: Merge both results to build context
     all_context = merge_and_deduplicate(original_results + abstract_results)
 
-    # Step 4: 回答生成
+    # Step 4: Generate answer
     return await generate_answer(query, all_context)
 
-# 例:
-# 元の質問: "GPT-4 の context window は何トークンですか？"
-# 抽象化: "大規模言語モデルの context window とは何か、各モデルの比較"
-# → より包括的な情報を検索できる
+# Example:
+# Original question: "What is the context window size of GPT-4 in tokens?"
+# Abstracted: "What is a context window in large language models, comparison across models"
+# → Can retrieve more comprehensive information
 ```
 
 ### 6.4 CRAG (Corrective RAG)
 
 ```python
 async def corrective_rag(query: str) -> str:
-    """検索結果の品質を自己評価し、必要に応じて修正"""
+    """Self-evaluate retrieval quality and correct as needed"""
 
-    # Step 1: 初期検索
+    # Step 1: Initial retrieval
     results = vector_search(query, top_k=5)
 
-    # Step 2: 各結果の関連性を LLM で評価
+    # Step 2: Evaluate relevance of each result with LLM
     evaluation_prompt = f"""
-以下の検索結果がクエリに対して十分に関連しているか評価してください。
-各結果について "relevant", "ambiguous", "irrelevant" のいずれかを返してください。
+Evaluate whether the following search results are sufficiently relevant to the query.
+For each result, return one of: "relevant", "ambiguous", or "irrelevant".
 
-クエリ: {query}
+Query: {query}
 
-検索結果:
+Search results:
 {format_results(results)}
 
-JSON形式で返してください: [{{"index": 0, "judgment": "relevant"}}]
+Return in JSON format: [{{"index": 0, "judgment": "relevant"}}]
 """
     evaluations = await call_llm_json(evaluation_prompt)
 
-    # Step 3: 評価結果に基づいてアクション分岐
+    # Step 3: Branch actions based on evaluation results
     relevant_count = sum(1 for e in evaluations if e["judgment"] == "relevant")
 
     if relevant_count >= 3:
-        # 十分な関連結果がある → そのまま回答生成
+        # Sufficient relevant results → generate answer directly
         context = [results[e["index"]] for e in evaluations if e["judgment"] == "relevant"]
         return await generate_answer(query, context)
 
     elif relevant_count >= 1:
-        # 部分的に関連 → 追加検索で補完
-        additional = await web_search(query, top_k=3)  # Web 検索で補完
+        # Partially relevant → supplement with additional search
+        additional = await web_search(query, top_k=3)  # Supplement with web search
         combined = [results[e["index"]] for e in evaluations if e["judgment"] != "irrelevant"]
         combined.extend(additional)
         return await generate_answer(query, combined)
 
     else:
-        # 関連結果なし → Web 検索にフォールバック
+        # No relevant results → fall back to web search
         web_results = await web_search(query, top_k=5)
         return await generate_answer(query, web_results)
 ```
 
-### 6.5 Self-RAG (自己反省型RAG)
+### 6.5 Self-RAG (Self-Reflective RAG)
 
 ```python
 async def self_rag(query: str) -> str:
-    """自己反省トークンで生成品質を制御"""
+    """Control generation quality with self-reflection tokens"""
 
-    # Step 1: 検索が必要か判定
+    # Step 1: Determine if retrieval is needed
     need_retrieval = await judge_retrieval_need(query)
 
     if not need_retrieval:
-        # 検索不要 → 直接回答
+        # No retrieval needed → answer directly
         return await direct_answer(query)
 
-    # Step 2: 検索実行
+    # Step 2: Execute retrieval
     results = vector_search(query, top_k=5)
 
-    # Step 3: 各チャンクについて個別に回答候補を生成
+    # Step 3: Generate answer candidates individually for each chunk
     candidates = []
     for result in results:
-        # 回答を生成
+        # Generate answer
         answer = await generate_with_single_context(query, result)
 
-        # 忠実度チェック: 回答がコンテキストに忠実か？
+        # Faithfulness check: Is the answer faithful to the context?
         is_faithful = await check_faithfulness(answer, result)
 
-        # 有用性チェック: 回答がクエリに対して有用か？
+        # Usefulness check: Is the answer useful for the query?
         is_useful = await check_usefulness(answer, query)
 
         candidates.append({
@@ -985,77 +985,77 @@ async def self_rag(query: str) -> str:
             "score": (2 if is_faithful else 0) + (1 if is_useful else 0),
         })
 
-    # Step 4: 最もスコアの高い回答を選択
+    # Step 4: Select the highest-scoring answer
     best = max(candidates, key=lambda c: c["score"])
 
     if best["score"] == 0:
-        return "申し訳ございませんが、信頼性の高い回答を生成できませんでした。"
+        return "We apologize, but we were unable to generate a reliable answer."
 
     return best["answer"]
 ```
 
-### 6.6 技法比較表
+### 6.6 Technique Comparison Table
 
-| 技法 | 精度向上 | 複雑度 | レイテンシ | 用途 |
-|------|---------|--------|----------|------|
-| Naive RAG | 基準 | 低 | 低 | MVP/プロトタイプ |
-| ハイブリッド検索 | +10-15% | 中 | 中 | 汎用 |
-| リランキング | +10-25% | 中 | 高 | 精度重視 |
-| Multi-Query | +5-15% | 中 | 高 | 曖昧なクエリ |
-| Parent-Child Chunk | +5-10% | 高 | 中 | 長文書 |
-| HyDE | +5-15% | 中 | 高 | 専門ドメイン |
-| Step-Back | +5-10% | 中 | 高 | 抽象的な質問 |
-| CRAG | +10-20% | 高 | 高 | 信頼性重視 |
-| Self-RAG | +15-25% | 最高 | 最高 | 高精度要求 |
-| Agentic RAG | +20-30% | 高 | 最高 | 複雑な質問 |
+| Technique | Accuracy Gain | Complexity | Latency | Use Case |
+|-----------|--------------|------------|---------|----------|
+| Naive RAG | Baseline | Low | Low | MVP / Prototype |
+| Hybrid Search | +10–15% | Medium | Medium | General purpose |
+| Reranking | +10–25% | Medium | High | Accuracy-focused |
+| Multi-Query | +5–15% | Medium | High | Ambiguous queries |
+| Parent-Child Chunk | +5–10% | High | Medium | Long documents |
+| HyDE | +5–15% | Medium | High | Specialized domains |
+| Step-Back | +5–10% | Medium | High | Abstract questions |
+| CRAG | +10–20% | High | High | Reliability-focused |
+| Self-RAG | +15–25% | Highest | Highest | High-accuracy requirements |
+| Agentic RAG | +20–30% | High | Highest | Complex questions |
 
 ---
 
 ## 7. Agentic RAG
 
-### 7.1 アーキテクチャ
+### 7.1 Architecture
 
 ```
 ┌────────────────────────────────────────────────────────────────┐
 │                     Agentic RAG                                │
 ├────────────────────────────────────────────────────────────────┤
 │                                                                │
-│  ユーザークエリ                                                │
+│  User Query                                                    │
 │       │                                                       │
 │       ▼                                                       │
 │  ┌──────────────────┐                                         │
-│  │  Router Agent     │ ← クエリの種類を判定                    │
-│  │  (クエリ分析)     │                                         │
+│  │  Router Agent     │ ← Determines query type                │
+│  │  (Query Analysis) │                                         │
 │  └──────┬───────────┘                                         │
 │         │                                                     │
 │    ┌────┼────────────────┐                                    │
 │    ▼    ▼                ▼                                    │
-│  [検索]  [計算]     [Web検索]                                  │
-│  ベクトルDB  コード実行   外部API                               │
+│  [Search] [Compute]  [Web Search]                              │
+│  Vector DB  Code Exec  External API                            │
 │    │    │                │                                    │
 │    └────┼────────────────┘                                    │
 │         ▼                                                     │
 │  ┌──────────────────┐                                         │
-│  │  Synthesizer      │ ← 結果を統合・回答生成                 │
-│  │  (回答生成)       │                                         │
+│  │  Synthesizer      │ ← Integrates results and generates answer│
+│  │  (Answer Gen)     │                                         │
 │  └──────┬───────────┘                                         │
 │         │                                                     │
 │         ▼                                                     │
 │  ┌──────────────────┐                                         │
-│  │  Self-Check       │ ← 回答の品質を自己評価                 │
-│  │  (品質チェック)    │                                        │
+│  │  Self-Check       │ ← Self-evaluates answer quality        │
+│  │  (Quality Check)  │                                        │
 │  └──────┬───────────┘                                         │
 │         │                                                     │
-│    十分か？── No ──▶ 追加検索・修正 (ループ)                   │
+│    Sufficient? ── No ──▶ Additional retrieval/correction (loop)│
 │         │                                                     │
 │        Yes                                                    │
 │         ▼                                                     │
-│     最終回答                                                  │
+│     Final Answer                                              │
 │                                                                │
 └────────────────────────────────────────────────────────────────┘
 ```
 
-### 7.2 LangGraph による実装
+### 7.2 Implementation with LangGraph
 
 ```python
 from langgraph.graph import StateGraph, END
@@ -1073,60 +1073,60 @@ class AgentState(TypedDict):
 
 
 def route_query(state: AgentState) -> str:
-    """クエリの種類に応じてルーティング"""
+    """Route based on query type"""
     query = state["query"]
 
-    # LLM でルーティング判定
+    # Routing decision with LLM
     response = llm.invoke(f"""
-以下のクエリを分類してください:
-- "vector_search": 社内文書の検索が必要
-- "web_search": 最新のWeb情報が必要
-- "direct": 検索不要で直接回答可能
-- "multi_step": 複数の検索ステップが必要
+Classify the following query:
+- "vector_search": requires searching internal documents
+- "web_search": requires latest web information
+- "direct": can answer directly without search
+- "multi_step": requires multiple search steps
 
-クエリ: {query}
-分類:
+Query: {query}
+Classification:
 """)
 
     return response.strip()
 
 
 def vector_search_node(state: AgentState) -> AgentState:
-    """ベクトル検索ノード"""
+    """Vector search node"""
     results = vector_search(state["query"], top_k=10)
     reranked = rerank(state["query"], results, top_n=5)
     return {"search_results": reranked}
 
 
 def web_search_node(state: AgentState) -> AgentState:
-    """Web 検索ノード"""
+    """Web search node"""
     results = web_search(state["query"], top_k=5)
     return {"web_results": results}
 
 
 def generate_answer_node(state: AgentState) -> AgentState:
-    """回答生成ノード"""
+    """Answer generation node"""
     context = state.get("search_results", []) + state.get("web_results", [])
     answer = generate_answer(state["query"], context)
     return {"answer": answer, "iteration": state.get("iteration", 0) + 1}
 
 
 def quality_check_node(state: AgentState) -> AgentState:
-    """品質チェックノード"""
+    """Quality check node"""
     score = evaluate_answer_quality(state["query"], state["answer"])
     return {"quality_score": score}
 
 
 def should_retry(state: AgentState) -> str:
-    """リトライ判定"""
+    """Retry decision"""
     if state["quality_score"] >= 0.8:
         return "end"
     if state["iteration"] >= 3:
-        return "end"  # 最大3回でリトライ停止
+        return "end"  # Stop retrying after 3 attempts
     return "retry"
 
 
-# グラフ構築
+# Build graph
 graph = StateGraph(AgentState)
 
 graph.add_node("route", route_query)
@@ -1155,11 +1155,11 @@ graph.add_conditional_edges("quality_check", should_retry, {
 
 app = graph.compile()
 
-# 実行
-result = app.invoke({"query": "当社の2024年度の売上推移と業界動向を比較してください"})
+# Execute
+result = app.invoke({"query": "Compare our company's 2024 sales trends with industry trends"})
 ```
 
-### 7.3 マルチドキュメント RAG
+### 7.3 Multi-Document RAG
 
 ```python
 from dataclasses import dataclass
@@ -1172,13 +1172,13 @@ class DocumentSource:
     filters: dict | None = None
 
 class MultiSourceRAG:
-    """複数のドキュメントソースを横断して検索"""
+    """Search across multiple document sources"""
 
     def __init__(self, sources: list[DocumentSource]):
         self.sources = sorted(sources, key=lambda s: s.priority)
 
     async def search(self, query: str, top_k: int = 10) -> list:
-        """全ソースから並列検索"""
+        """Parallel search across all sources"""
         import asyncio
 
         tasks = [
@@ -1187,14 +1187,14 @@ class MultiSourceRAG:
         ]
         all_results = await asyncio.gather(*tasks)
 
-        # 全結果をフラット化してリランク
+        # Flatten all results and rerank
         flat_results = [r for results in all_results for r in results]
         reranked = rerank(query, flat_results, top_n=top_k)
 
         return reranked
 
     async def _search_source(self, query: str, source: DocumentSource, top_k: int):
-        """個別ソースの検索"""
+        """Search individual source"""
         query_vector = embed(query)
         results = qdrant.search(
             collection_name=source.collection,
@@ -1202,29 +1202,29 @@ class MultiSourceRAG:
             query_filter=build_filter(source.filters) if source.filters else None,
             limit=top_k,
         )
-        # ソース情報を付加
+        # Attach source information
         for r in results:
             r.payload["source_name"] = source.name
             r.payload["source_priority"] = source.priority
         return results
 
 
-# 使用例
+# Usage example
 rag = MultiSourceRAG([
-    DocumentSource("社内Wiki", "wiki_docs", priority=1),
-    DocumentSource("技術ブログ", "blog_posts", priority=2),
-    DocumentSource("製品マニュアル", "manuals", priority=1, filters={"status": "active"}),
+    DocumentSource("Internal Wiki", "wiki_docs", priority=1),
+    DocumentSource("Tech Blog", "blog_posts", priority=2),
+    DocumentSource("Product Manuals", "manuals", priority=1, filters={"status": "active"}),
     DocumentSource("FAQ", "faq_docs", priority=3),
 ])
 
-results = await rag.search("デプロイ手順を教えてください")
+results = await rag.search("How do I deploy the application?")
 ```
 
 ---
 
-## 8. 本番運用の設計パターン
+## 8. Production Design Patterns
 
-### 8.1 キャッシュ戦略
+### 8.1 Caching Strategy
 
 ```python
 import hashlib
@@ -1233,19 +1233,19 @@ from datetime import datetime, timedelta
 from redis import Redis
 
 class RAGCache:
-    """RAG クエリのセマンティックキャッシュ"""
+    """Semantic cache for RAG queries"""
 
     def __init__(self, redis_client: Redis, ttl_hours: int = 24):
         self.redis = redis_client
         self.ttl = timedelta(hours=ttl_hours)
 
     def _query_hash(self, query: str) -> str:
-        """クエリの正規化ハッシュ"""
+        """Normalized hash of the query"""
         normalized = query.strip().lower()
         return hashlib.sha256(normalized.encode()).hexdigest()
 
     def get(self, query: str) -> dict | None:
-        """完全一致キャッシュ"""
+        """Exact match cache"""
         key = f"rag:exact:{self._query_hash(query)}"
         cached = self.redis.get(key)
         if cached:
@@ -1253,20 +1253,20 @@ class RAGCache:
         return None
 
     def set(self, query: str, result: dict):
-        """結果をキャッシュ"""
+        """Cache the result"""
         key = f"rag:exact:{self._query_hash(query)}"
         self.redis.setex(key, self.ttl, json.dumps(result, ensure_ascii=False))
 
     async def get_semantic(self, query: str, threshold: float = 0.95) -> dict | None:
-        """セマンティックキャッシュ (類似クエリのヒット)"""
+        """Semantic cache (hits on similar queries)"""
         query_vector = embed(query)
 
-        # キャッシュ用ベクトルDBから類似クエリを検索
+        # Search cache vector DB for similar queries
         results = qdrant.search(
             collection_name="query_cache",
             query_vector=query_vector,
             limit=1,
-            score_threshold=threshold,  # 95%以上の類似度
+            score_threshold=threshold,  # 95%+ similarity
         )
 
         if results:
@@ -1278,7 +1278,7 @@ class RAGCache:
         return None
 
     async def set_semantic(self, query: str, result: dict):
-        """セマンティックキャッシュにも保存"""
+        """Also save to semantic cache"""
         query_vector = embed(query)
         point_id = self._query_hash(query)
 
@@ -1295,7 +1295,7 @@ class RAGCache:
         self.redis.setex(key, self.ttl, json.dumps(result, ensure_ascii=False))
 ```
 
-### 8.2 インデックス更新パイプライン
+### 8.2 Index Update Pipeline
 
 ```python
 from datetime import datetime
@@ -1307,7 +1307,7 @@ class UpdateStrategy(Enum):
     UPSERT = "upsert"
 
 class IndexManager:
-    """RAG インデックスのライフサイクル管理"""
+    """Lifecycle management for RAG indexes"""
 
     def __init__(self, qdrant_client, embedding_client):
         self.qdrant = qdrant_client
@@ -1320,28 +1320,28 @@ class IndexManager:
         updated_documents: list[dict],
         deleted_ids: list[str],
     ):
-        """差分更新 (最も効率的)"""
+        """Incremental update (most efficient)"""
 
-        # 1. 削除
+        # 1. Delete
         if deleted_ids:
             self.qdrant.delete(
                 collection_name=self.collection,
                 points_selector=deleted_ids,
             )
 
-        # 2. 更新 (既存ポイントを上書き)
+        # 2. Update (overwrite existing points)
         if updated_documents:
             await self._upsert_documents(updated_documents)
 
-        # 3. 新規追加
+        # 3. Add new documents
         if new_documents:
             await self._upsert_documents(new_documents)
 
-        # 4. キャッシュ無効化
+        # 4. Invalidate cache
         await self._invalidate_cache()
 
     async def _upsert_documents(self, documents: list[dict]):
-        """ドキュメントをチャンク化して upsert"""
+        """Chunk documents and upsert"""
         for doc in documents:
             chunks = chunk_document(doc)
             embeddings = await batch_embed([c["text"] for c in chunks])
@@ -1364,8 +1364,8 @@ class IndexManager:
             self.qdrant.upsert(collection_name=self.collection, points=points)
 
     async def full_rebuild(self, documents: list[dict]):
-        """フルリビルド (非推奨だが確実)"""
-        # 新しいコレクションを作成
+        """Full rebuild (not recommended but reliable)"""
+        # Create a new collection
         temp_collection = f"{self.collection}_temp_{int(datetime.now().timestamp())}"
 
         self.qdrant.create_collection(
@@ -1373,13 +1373,13 @@ class IndexManager:
             vectors_config=VectorParams(size=1536, distance=Distance.COSINE),
         )
 
-        # 全ドキュメントをインデックス
+        # Index all documents
         for doc in documents:
             chunks = chunk_document(doc)
             embeddings = await batch_embed([c["text"] for c in chunks])
             # ... upsert ...
 
-        # アトミックに切り替え (ダウンタイムなし)
+        # Atomically switch (zero downtime)
         self.qdrant.update_collection_aliases(
             change_aliases_operations=[
                 {"create_alias": {"collection_name": temp_collection, "alias_name": self.collection}},
@@ -1387,7 +1387,7 @@ class IndexManager:
         )
 ```
 
-### 8.3 モニタリングとオブザーバビリティ
+### 8.3 Monitoring and Observability
 
 ```python
 import time
@@ -1396,7 +1396,7 @@ from typing import Any
 
 @dataclass
 class RAGMetrics:
-    """RAG パイプラインのメトリクス"""
+    """Metrics for the RAG pipeline"""
     query: str
     total_latency_ms: float = 0
     embedding_latency_ms: float = 0
@@ -1413,13 +1413,13 @@ class RAGMetrics:
     metadata: dict = field(default_factory=dict)
 
 class RAGMonitor:
-    """RAG パイプラインのモニタリング"""
+    """Monitoring for the RAG pipeline"""
 
     def __init__(self, metrics_backend):
         self.backend = metrics_backend
 
     def track_query(self, metrics: RAGMetrics):
-        """メトリクスを記録"""
+        """Record metrics"""
         self.backend.histogram("rag.latency.total", metrics.total_latency_ms)
         self.backend.histogram("rag.latency.embedding", metrics.embedding_latency_ms)
         self.backend.histogram("rag.latency.search", metrics.search_latency_ms)
@@ -1436,7 +1436,7 @@ class RAGMonitor:
             self.backend.counter("rag.errors.total", 1, tags={"error": metrics.error})
 
     def alert_low_relevance(self, metrics: RAGMetrics, threshold: float = 0.5):
-        """低関連性スコアのアラート"""
+        """Alert on low relevance scores"""
         if metrics.top_score < threshold:
             self.backend.alert(
                 "rag.low_relevance",
@@ -1445,7 +1445,7 @@ class RAGMonitor:
 
 
 class InstrumentedRAG:
-    """計測機能付き RAG パイプライン"""
+    """RAG pipeline with instrumentation"""
 
     def __init__(self, rag_pipeline, monitor: RAGMonitor):
         self.rag = rag_pipeline
@@ -1497,9 +1497,9 @@ class InstrumentedRAG:
 
 ---
 
-## 9. RAG の評価
+## 9. RAG Evaluation
 
-### 9.1 RAGAS フレームワーク
+### 9.1 RAGAS Framework
 
 ```python
 from ragas import evaluate
@@ -1512,37 +1512,37 @@ from ragas.metrics import (
 )
 from datasets import Dataset
 
-# 評価データセットの準備
+# Prepare evaluation dataset
 eval_data = {
     "question": [
-        "有給休暇の申請方法は？",
-        "リモートワークの規定は？",
+        "How do I apply for paid leave?",
+        "What are the remote work policies?",
     ],
     "answer": [
-        "有給休暇はHRシステムから申請できます。上司の承認が必要です。",
-        "週3日までリモートワークが可能です。事前申請が必要です。",
+        "Paid leave can be applied for through the HR system. Manager approval is required.",
+        "Remote work is allowed up to 3 days per week. Prior application is required.",
     ],
     "contexts": [
-        ["有給休暇の申請はHRシステムの「休暇申請」メニューから行います。申請後、直属の上司の承認が必要です。"],
-        ["リモートワーク規定: 週3日まで在宅勤務が可能。前日までにシステムで申請。"],
+        ["Paid leave applications are submitted via the 'Leave Request' menu in the HR system. After applying, approval from your direct manager is required."],
+        ["Remote work policy: Up to 3 days of remote work per week. Submit a request in the system by the previous day."],
     ],
     "ground_truth": [
-        "有給休暇はHRシステムの「休暇申請」メニューから申請し、直属の上司の承認を得る必要がある。",
-        "リモートワークは週3日まで可能で、前日までにシステムで事前申請が必要。",
+        "Paid leave is applied for through the 'Leave Request' menu in the HR system and requires approval from your direct manager.",
+        "Remote work is allowed up to 3 days per week and requires a prior system application by the previous day.",
     ],
 }
 
 dataset = Dataset.from_dict(eval_data)
 
-# 評価実行
+# Run evaluation
 results = evaluate(
     dataset=dataset,
     metrics=[
-        faithfulness,         # 回答がコンテキストに忠実か (0-1)
-        answer_relevancy,     # 回答がクエリに関連しているか (0-1)
-        context_precision,    # 検索結果の精度 (0-1)
-        context_recall,       # 検索結果の網羅性 (0-1)
-        answer_correctness,   # 回答の正確性 (0-1)
+        faithfulness,         # Is the answer faithful to the context? (0-1)
+        answer_relevancy,     # Is the answer relevant to the query? (0-1)
+        context_precision,    # Precision of retrieved results (0-1)
+        context_recall,       # Coverage of retrieved results (0-1)
+        answer_correctness,   # Correctness of the answer (0-1)
     ],
 )
 
@@ -1552,18 +1552,18 @@ print(results)
 #  'answer_correctness': 0.87}
 ```
 
-### 9.2 検索精度の評価
+### 9.2 Evaluating Retrieval Accuracy
 
 ```python
 from typing import Any
 
 def evaluate_retrieval(
     queries: list[str],
-    ground_truth_docs: list[list[str]],  # 各クエリの正解ドキュメントID
+    ground_truth_docs: list[list[str]],  # Correct document IDs for each query
     retrieval_fn,
     k_values: list[int] = [1, 3, 5, 10],
 ) -> dict[str, float]:
-    """検索精度の評価"""
+    """Evaluate retrieval accuracy"""
 
     metrics = {f"recall@{k}": 0.0 for k in k_values}
     metrics.update({f"precision@{k}": 0.0 for k in k_values})
@@ -1594,9 +1594,9 @@ def evaluate_retrieval(
     return metrics
 
 
-# 使用例
+# Usage example
 results = evaluate_retrieval(
-    queries=["有給休暇の申請方法", "リモートワーク規定"],
+    queries=["How to apply for paid leave", "Remote work policy"],
     ground_truth_docs=[["doc_001", "doc_002"], ["doc_015"]],
     retrieval_fn=lambda q, top_k: vector_search(q, top_k=top_k),
 )
@@ -1604,7 +1604,7 @@ print(results)
 # {'recall@1': 0.75, 'recall@5': 0.95, 'precision@5': 0.40, 'mrr': 0.83, ...}
 ```
 
-### 9.3 E2E 回答品質の自動評価
+### 9.3 Automated E2E Answer Quality Evaluation
 
 ```python
 async def auto_evaluate_answer(
@@ -1614,28 +1614,28 @@ async def auto_evaluate_answer(
     ground_truth: str | None = None,
     evaluator_llm: str = "gpt-4o",
 ) -> dict[str, Any]:
-    """LLM-as-Judge による回答品質の自動評価"""
+    """Automated answer quality evaluation using LLM-as-Judge"""
 
-    evaluation_prompt = f"""以下の質問に対する回答を評価してください。
+    evaluation_prompt = f"""Evaluate the following answer to the question.
 
-質問: {query}
+Question: {query}
 
-回答: {answer}
+Answer: {answer}
 
-提供されたコンテキスト:
+Provided context:
 {chr(10).join(context)}
 
-{"正解: " + ground_truth if ground_truth else ""}
+{"Ground truth: " + ground_truth if ground_truth else ""}
 
-以下の観点で1-5のスコアをつけてください:
-1. faithfulness (忠実度): 回答がコンテキストに忠実か？幻覚はないか？
-2. relevance (関連性): 回答が質問に適切に答えているか？
-3. completeness (完全性): 必要な情報を網羅しているか？
-4. conciseness (簡潔性): 冗長でなく、要点を押さえているか？
-5. citation_quality (引用品質): 出典が適切に示されているか？
+Rate each of the following dimensions on a scale of 1-5:
+1. faithfulness: Is the answer faithful to the context? Are there any hallucinations?
+2. relevance: Does the answer appropriately address the question?
+3. completeness: Does it cover all necessary information?
+4. conciseness: Is it concise and to the point without being verbose?
+5. citation_quality: Are sources properly cited?
 
-JSON形式で返してください:
-{{"faithfulness": 4, "relevance": 5, "completeness": 3, "conciseness": 4, "citation_quality": 3, "overall": 3.8, "feedback": "改善点..."}}
+Return in JSON format:
+{{"faithfulness": 4, "relevance": 5, "completeness": 3, "conciseness": 4, "citation_quality": 3, "overall": 3.8, "feedback": "areas for improvement..."}}
 """
 
     response = await call_llm(evaluation_prompt, model=evaluator_llm)
@@ -1644,9 +1644,9 @@ JSON形式で返してください:
 
 ---
 
-## 10. ドキュメント前処理パイプライン
+## 10. Document Preprocessing Pipeline
 
-### 10.1 マルチフォーマット対応
+### 10.1 Multi-Format Support
 
 ```python
 from pathlib import Path
@@ -1665,7 +1665,7 @@ class PDFParser(DocumentParser):
         pages = []
         for page_num, page in enumerate(doc):
             text = page.get_text()
-            # テーブルの抽出
+            # Extract tables
             tables = page.find_tables()
             table_texts = [t.to_pandas().to_markdown() for t in tables]
 
@@ -1684,7 +1684,7 @@ class HTMLParser(DocumentParser):
         with open(file_path, "r", encoding="utf-8") as f:
             soup = BeautifulSoup(f.read(), "html.parser")
 
-        # 不要な要素を除去
+        # Remove unnecessary elements
         for tag in soup.find_all(["script", "style", "nav", "footer"]):
             tag.decompose()
 
@@ -1710,7 +1710,7 @@ class DocxParser(DocumentParser):
         doc = Document(file_path)
         paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
 
-        # テーブルも抽出
+        # Also extract tables
         tables = []
         for table in doc.tables:
             rows = []
@@ -1727,7 +1727,7 @@ class DocxParser(DocumentParser):
 
 
 class UniversalDocumentPipeline:
-    """あらゆる形式のドキュメントを処理するパイプライン"""
+    """Pipeline for processing documents of any format"""
 
     PARSERS: dict[str, type[DocumentParser]] = {
         ".pdf": PDFParser,
@@ -1749,10 +1749,10 @@ class UniversalDocumentPipeline:
         if not parser_cls:
             raise ValueError(f"Unsupported format: {ext}")
 
-        # 1. パース
+        # 1. Parse
         documents = parser_cls().parse(file_path)
 
-        # 2. チャンク分割
+        # 2. Chunk
         all_chunks = []
         for doc in documents:
             chunks = self.splitter.split_text(doc["text"])
@@ -1771,149 +1771,149 @@ class UniversalDocumentPipeline:
 
 ---
 
-## 11. アンチパターンとベストプラクティス
+## 11. Anti-Patterns and Best Practices
 
-### アンチパターン 1: チャンクサイズの不適切な設定
+### Anti-Pattern 1: Inappropriate Chunk Size Settings
 
 ```python
-# NG: チャンクが大きすぎる
+# BAD: Chunks are too large
 splitter = RecursiveCharacterTextSplitter(chunk_size=4000, chunk_overlap=0)
-# → 検索精度が低下 (無関係な情報が大量に混入)
-# → コンテキストウィンドウを浪費
+# → Reduced retrieval accuracy (large amounts of irrelevant information mixed in)
+# → Wastes context window
 
-# NG: チャンクが小さすぎる
+# BAD: Chunks are too small
 splitter = RecursiveCharacterTextSplitter(chunk_size=50, chunk_overlap=0)
-# → 文脈が失われる
-# → 断片的すぎて LLM が理解できない
+# → Context is lost
+# → Too fragmented for LLM to understand
 
-# OK: 適切なサイズ + オーバーラップ
+# GOOD: Appropriate size + overlap
 splitter = RecursiveCharacterTextSplitter(
     chunk_size=512,
-    chunk_overlap=64,  # 約12%のオーバーラップ
+    chunk_overlap=64,  # About 12% overlap
 )
 ```
 
-### アンチパターン 2: 検索結果の無検証利用
+### Anti-Pattern 2: Using Retrieval Results Without Validation
 
 ```python
-# NG: 検索結果をそのまま全部投入
+# BAD: Feed all retrieval results directly
 results = vector_search(query, top_k=20)
 context = "\n".join([r.text for r in results])
-# → 無関係な結果がノイズとなり回答品質低下
+# → Irrelevant results become noise, degrading answer quality
 
-# OK: 関連性スコアの閾値チェック + リランク
+# GOOD: Relevance score threshold check + rerank
 results = vector_search(query, top_k=20)
-relevant = [r for r in results if r.score > 0.7]  # 閾値フィルタ
-reranked = rerank(query, relevant, top_n=5)  # リランク
+relevant = [r for r in results if r.score > 0.7]  # Threshold filter
+reranked = rerank(query, relevant, top_n=5)  # Rerank
 
 if not reranked:
-    return "関連する情報が見つかりませんでした。"
+    return "No relevant information was found."
 ```
 
-### アンチパターン 3: Embedding モデルの不一致
+### Anti-Pattern 3: Mismatched Embedding Models
 
 ```python
-# NG: インデックス時と検索時で異なる Embedding モデルを使用
-# インデックス時
-doc_embedding = embed_with_model_a(document)  # モデル A
-# 検索時
-query_embedding = embed_with_model_b(query)    # モデル B (不一致!)
-# → ベクトル空間が異なるため、まともな検索結果が得られない
+# BAD: Using different Embedding models at index time and query time
+# At index time
+doc_embedding = embed_with_model_a(document)  # Model A
+# At query time
+query_embedding = embed_with_model_b(query)    # Model B (mismatch!)
+# → Different vector spaces yield no meaningful search results
 
-# OK: 同一モデルを必ず使用、バージョンも固定
+# GOOD: Always use the same model with a fixed version
 EMBEDDING_MODEL = "text-embedding-3-small"
 EMBEDDING_VERSION = "2024-01-01"
 
-# 設定で一元管理
+# Centrally managed in config
 config = {
     "embedding_model": EMBEDDING_MODEL,
     "embedding_dimensions": 1536,
 }
 ```
 
-### アンチパターン 4: プロンプトの不備
+### Anti-Pattern 4: Inadequate Prompts
 
 ```python
-# NG: コンテキストの利用指示が不明確
-prompt = f"質問: {query}\n参考: {context}\n回答:"
-# → LLM が自身の知識で回答し、ハルシネーション発生
+# BAD: Unclear instructions for using context
+prompt = f"Question: {query}\nReference: {context}\nAnswer:"
+# → LLM answers from its own knowledge, causing hallucinations
 
-# OK: 明確な指示とガードレール
-prompt = f"""あなたは社内文書に基づいて回答するアシスタントです。
+# GOOD: Clear instructions and guardrails
+prompt = f"""You are an assistant that answers based on internal documents.
 
-重要なルール:
-1. 「提供されたコンテキスト」のみに基づいて回答してください
-2. コンテキストに含まれない情報で推測しないでください
-3. 情報が不十分な場合は「この情報はコンテキストに含まれていません」と明示してください
-4. 回答には必ず出典 [出典: ファイル名] を含めてください
-5. 矛盾する情報がある場合は、両方の情報を提示してください
+Important rules:
+1. Answer only based on the "provided context"
+2. Do not speculate on information not contained in the context
+3. If information is insufficient, explicitly state "This information is not contained in the context"
+4. Always include citations [Source: filename] in your answer
+5. If there is conflicting information, present both pieces of information
 
-コンテキスト:
+Context:
 {context}
 
-質問: {query}
+Question: {query}
 
-回答:"""
+Answer:"""
 ```
 
-### アンチパターン 5: スケーラビリティ無視
+### Anti-Pattern 5: Ignoring Scalability
 
 ```python
-# NG: 全ドキュメントをメモリにロード
-all_docs = load_all_documents()  # 数GB のドキュメント
-embeddings = embed_all(all_docs)  # OOM リスク
+# BAD: Load all documents into memory
+all_docs = load_all_documents()  # Documents of several GB
+embeddings = embed_all(all_docs)  # Risk of OOM
 
-# OK: バッチ処理 + ストリーミング
+# GOOD: Batch processing + streaming
 async def index_documents_streaming(doc_paths: list[str], batch_size: int = 50):
-    """メモリ効率の良いバッチインデックス"""
+    """Memory-efficient batch indexing"""
     for i in range(0, len(doc_paths), batch_size):
         batch_paths = doc_paths[i:i + batch_size]
 
-        # バッチ単位で処理
+        # Process per batch
         chunks = []
         for path in batch_paths:
             doc_chunks = parse_and_chunk(path)
             chunks.extend(doc_chunks)
 
-        # バッチ Embedding
+        # Batch Embedding
         embeddings = await batch_embed([c["text"] for c in chunks])
 
-        # バッチ upsert
+        # Batch upsert
         points = [
             PointStruct(id=f"doc_{i}_{j}", vector=emb, payload=chunk)
             for j, (chunk, emb) in enumerate(zip(chunks, embeddings))
         ]
         qdrant.upsert(collection_name="docs", points=points)
 
-        # メモリ解放
+        # Free memory
         del chunks, embeddings, points
 ```
 
 ---
 
-## 12. 実務ユースケース
+## 12. Practical Use Cases
 
-### 12.1 社内ヘルプデスク RAG
+### 12.1 Internal Help Desk RAG
 
 ```python
 class HelpDeskRAG:
-    """社内ヘルプデスク向け RAG システム"""
+    """RAG system for internal help desk"""
 
     def __init__(self):
         self.collections = {
-            "hr": "人事関連文書",
-            "it": "IT サポート文書",
-            "legal": "法務・コンプライアンス文書",
-            "general": "一般業務文書",
+            "hr": "HR-related documents",
+            "it": "IT support documents",
+            "legal": "Legal and compliance documents",
+            "general": "General business documents",
         }
 
     async def answer(self, query: str, user_department: str) -> dict:
-        """部署コンテキストを考慮した回答"""
+        """Answer with department context taken into account"""
 
-        # 1. クエリのカテゴリを自動分類
+        # 1. Automatically classify the query
         category = await self._classify_query(query)
 
-        # 2. 該当コレクションから検索 (部署フィルタ付き)
+        # 2. Search from the relevant collection (with department filter)
         results = await filtered_search(
             query=query,
             collection=category,
@@ -1921,15 +1921,15 @@ class HelpDeskRAG:
             top_k=5,
         )
 
-        # 3. エスカレーション判定
+        # 3. Escalation decision
         if not results or all(r.score < 0.5 for r in results):
             return {
-                "answer": "この質問については担当部署にお問い合わせください。",
+                "answer": "Please contact the responsible department regarding this question.",
                 "escalation": True,
                 "suggested_department": category,
             }
 
-        # 4. 回答生成
+        # 4. Generate answer
         answer = await self._generate_answer(query, results)
 
         return {
@@ -1940,25 +1940,25 @@ class HelpDeskRAG:
         }
 ```
 
-### 12.2 コードベース RAG
+### 12.2 Codebase RAG
 
 ```python
 class CodebaseRAG:
-    """コードベースに対する質問応答"""
+    """Question answering for codebases"""
 
     def __init__(self, repo_path: str):
         self.repo_path = repo_path
 
     def index_codebase(self):
-        """コードベースをインデックス"""
+        """Index the codebase"""
         from tree_sitter_languages import get_parser
 
-        # ファイルごとに処理
+        # Process per file
         for file_path in glob.glob(f"{self.repo_path}/**/*.py", recursive=True):
             with open(file_path) as f:
                 code = f.read()
 
-            # AST ベースの分割 (関数・クラス単位)
+            # AST-based splitting (at function/class boundaries)
             parser = get_parser("python")
             tree = parser.parse(code.encode())
 
@@ -1966,10 +1966,10 @@ class CodebaseRAG:
             classes = self._extract_classes(tree, code)
 
             for item in functions + classes:
-                # コードの要約を LLM で生成
+                # Generate code summary with LLM
                 summary = self._summarize_code(item["code"])
 
-                # Embedding はコード + 要約のハイブリッド
+                # Embedding is a hybrid of code + summary
                 chunk = {
                     "text": f"{summary}\n\n```python\n{item['code']}\n```",
                     "metadata": {
@@ -1983,54 +1983,54 @@ class CodebaseRAG:
                 self._index_chunk(chunk)
 
     async def query(self, question: str) -> dict:
-        """コードベースに関する質問に回答"""
+        """Answer questions about the codebase"""
         results = vector_search(question, top_k=5)
 
         answer = await generate_answer(
             question,
             results,
-            system_prompt="""あなたはコードベースに精通したシニアエンジニアです。
-提供されたコードスニペットに基づいて質問に回答してください。
-回答にはファイルパスと行番号を含めてください。""",
+            system_prompt="""You are a senior engineer well-versed in the codebase.
+Answer questions based on the provided code snippets.
+Include file paths and line numbers in your answer.""",
         )
 
         return answer
 ```
 
-### 12.3 法務・コンプライアンス RAG
+### 12.3 Legal and Compliance RAG
 
 ```python
 class LegalRAG:
-    """法務文書向け RAG (正確性が最重要)"""
+    """RAG for legal documents (accuracy is paramount)"""
 
     async def answer(self, query: str) -> dict:
-        """法務クエリへの回答 (多重検証付き)"""
+        """Answer legal queries (with multiple validation steps)"""
 
-        # 1. 複数の検索戦略で候補を収集
+        # 1. Collect candidates with multiple search strategies
         vector_results = await vector_search(query, top_k=10)
         keyword_results = await keyword_search(query, top_k=10)
         hybrid_results = rrf_merge(vector_results, keyword_results)
 
-        # 2. 法務特化リランキング
+        # 2. Legal-specific reranking
         reranked = await self._legal_rerank(query, hybrid_results)
 
-        # 3. 回答生成 (保守的なプロンプト)
+        # 3. Generate answer (with conservative prompt)
         answer = await generate_answer(
             query, reranked,
-            system_prompt="""あなたは法務アドバイザーです。
+            system_prompt="""You are a legal advisor.
 
-重要なルール:
-1. 提供された文書のみに基づいて回答してください
-2. 法的判断を含む場合は必ず免責事項を付けてください
-3. 曖昧な場合は「法務部門への確認をお勧めします」と付記してください
-4. 条文番号・規定名を正確に引用してください
-5. 複数の解釈が可能な場合はすべての解釈を提示してください""",
+Important rules:
+1. Answer only based on the provided documents
+2. Always add a disclaimer when the answer involves legal judgment
+3. If ambiguous, add "We recommend consulting the legal department"
+4. Accurately cite article numbers and regulation names
+5. If multiple interpretations are possible, present all interpretations""",
         )
 
-        # 4. ファクトチェック (回答とコンテキストの整合性検証)
+        # 4. Fact check (verify consistency between answer and context)
         fact_check = await self._verify_facts(answer, reranked)
 
-        # 5. 信頼度スコア
+        # 5. Confidence score
         confidence = self._calculate_confidence(reranked, fact_check)
 
         return {
@@ -2038,7 +2038,7 @@ class LegalRAG:
             "confidence": confidence,
             "sources": [r.payload for r in reranked],
             "fact_check": fact_check,
-            "disclaimer": "本回答は参考情報であり、法的助言ではありません。正式な判断には法務部門にご相談ください。",
+            "disclaimer": "This answer is for reference only and does not constitute legal advice. For official decisions, please consult the legal department.",
         }
 ```
 
@@ -2046,88 +2046,88 @@ class LegalRAG:
 
 ## 13. FAQ
 
-### Q1: RAG とファインチューニングはどう使い分ける?
+### Q1: How do I choose between RAG and fine-tuning?
 
-RAG は外部知識の注入に適し、ファインチューニングはモデルの行動パターン (文体、フォーマット、判断基準) の変更に適する。
-頻繁に更新される情報 → RAG、安定した専門知識 → ファインチューニング。
-実務では RAG + ファインチューニングの併用が最も効果的。
+RAG is suited for injecting external knowledge; fine-tuning is suited for changing model behavior patterns (writing style, format, decision criteria).
+Frequently updated information → RAG; stable specialized knowledge → fine-tuning.
+In practice, combining RAG + fine-tuning is most effective.
 
-### Q2: ベクトル DB のインデックス更新頻度はどうすべき?
+### Q2: How often should vector DB indexes be updated?
 
-ドキュメントの更新頻度に依存する。リアルタイム性が必要なら差分インデックス更新を実装する。
-バッチ更新の場合は日次〜週次が一般的。
-古い情報と新しい情報が混在する場合は、メタデータにタイムスタンプを付与して検索時に重み付けする。
+It depends on how often documents are updated. If real-time accuracy is needed, implement incremental index updates.
+For batch updates, daily to weekly is typical.
+If old and new information coexist, attach timestamps as metadata and weight results during search.
 
-### Q3: RAG の評価指標は何を使うべき?
+### Q3: What evaluation metrics should I use for RAG?
 
-主要指標: (1) Faithfulness — 回答がコンテキストに忠実か、(2) Relevancy — 検索結果が質問に関連しているか、(3) Answer Correctness — 最終回答の正確性。
-RAGAS フレームワークや DeepEval で自動評価可能。
-Chunk 精度の評価も重要で、正解チャンクが top-k に含まれているかを測定する。
+Key metrics: (1) Faithfulness — is the answer faithful to the context, (2) Relevancy — are the retrieved results relevant to the question, (3) Answer Correctness — accuracy of the final answer.
+Automated evaluation is possible with the RAGAS framework or DeepEval.
+Evaluating chunk precision is also important: measure whether the correct chunk is included in top-k.
 
-### Q4: 日本語 RAG で特に注意すべき点は?
+### Q4: What should I pay special attention to for multilingual RAG?
 
-日本語はトークン効率が英語の 2-3 倍悪い (同じ文章で多くのトークンを消費)。
-チャンクサイズは文字数ではなくトークン数で管理すべき。
-Embedding モデルは多言語対応 (Cohere, BGE-M3) を選択する。
-形態素解析ベースのキーワード検索との併用 (ハイブリッド) が効果的。
+Tokens are 2-3x less efficient for non-Latin scripts compared to English (same text consumes more tokens).
+Chunk size should be managed by token count, not character count.
+Choose Embedding models with strong multilingual support (Cohere, BGE-M3).
+Combining with morpheme-analysis-based keyword search (hybrid) is effective.
 
-### Q5: RAG のレイテンシを改善するには?
+### Q5: How can I improve RAG latency?
 
-主要な改善ポイント: (1) セマンティックキャッシュの導入 (類似クエリの再利用)、(2) Embedding の非同期バッチ処理、(3) ストリーミング生成 (体感レイテンシの改善)、(4) ベクトル DB のインデックス最適化 (HNSW パラメータ調整)、(5) リランカーの選択 (軽量モデルでの妥協点)。典型的な目標: E2E で 2 秒以内。
+Key improvement points: (1) Introduce semantic caching (reuse results for similar queries), (2) Async batch processing for Embeddings, (3) Streaming generation (improves perceived latency), (4) Vector DB index optimization (tune HNSW parameters), (5) Reranker selection (trade-off with lightweight models). Typical target: under 2 seconds E2E.
 
-### Q6: チャンク間の文脈喪失にどう対処する?
+### Q6: How do I handle context loss between chunks?
 
-(1) Parent-Child チャンキングで検索は小チャンク、LLM への入力は大チャンクを使用。(2) チャンクにセクション階層情報をメタデータとして付与。(3) チャンク先頭に「この文書は○○について述べています」というコンテキストプレフィックスを自動付加。(4) Sliding Window で適度なオーバーラップを確保。
+(1) Use Parent-Child chunking: search with small chunks, pass large chunks to the LLM. (2) Attach section hierarchy information to chunks as metadata. (3) Automatically prepend a context prefix to each chunk: "This document discusses X." (4) Use a Sliding Window to ensure appropriate overlap.
 
-### Q7: マルチモーダル RAG (画像・図表を含む) はどう実装する?
+### Q7: How do I implement multimodal RAG (including images and diagrams)?
 
-(1) 画像は VLM (GPT-4o, Claude) でテキスト記述に変換してからインデックス。(2) 図表は OCR + テーブル抽出で構造化テキストに変換。(3) CLIP などのマルチモーダル Embedding を使えば画像を直接ベクトル化可能。(4) PDF 内の図はページ画像として切り出し、VLM で説明文を生成してチャンクに含める。
+(1) Convert images to text descriptions using VLMs (GPT-4o, Claude) before indexing. (2) Convert diagrams to structured text using OCR + table extraction. (3) Using multimodal Embeddings like CLIP allows direct vectorization of images. (4) For figures in PDFs, crop them as page images, generate descriptions with a VLM, and include them in chunks.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping fundamentals and jumping to advanced topics. We recommend firmly understanding the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development tasks. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 推奨 |
-|------|------|
-| チャンク分割 | RecursiveCharacterTextSplitter (512 tokens, 12% overlap) |
+| Item | Recommendation |
+|------|---------------|
+| Chunking | RecursiveCharacterTextSplitter (512 tokens, 12% overlap) |
 | Embedding | text-embedding-3-large / Cohere v3 / BGE-M3 |
-| ベクトル DB | Qdrant / pgvector (自前) / Pinecone (マネージド) |
-| 検索方式 | ハイブリッド検索 (ベクトル + BM25) |
-| リランキング | Cohere Rerank v3 / Cross-Encoder |
-| クエリ変換 | Multi-Query / HyDE / Step-Back |
-| 評価 | RAGAS フレームワーク / LLM-as-Judge |
-| キャッシュ | セマンティックキャッシュ (Redis + ベクトル DB) |
-| モニタリング | レイテンシ、関連性スコア、キャッシュヒット率 |
-| 高度手法 | Agentic RAG (LangGraph) / Self-RAG / CRAG |
+| Vector DB | Qdrant / pgvector (self-hosted) / Pinecone (managed) |
+| Search Method | Hybrid search (vector + BM25) |
+| Reranking | Cohere Rerank v3 / Cross-Encoder |
+| Query Transformation | Multi-Query / HyDE / Step-Back |
+| Evaluation | RAGAS framework / LLM-as-Judge |
+| Caching | Semantic cache (Redis + vector DB) |
+| Monitoring | Latency, relevance score, cache hit rate |
+| Advanced Techniques | Agentic RAG (LangGraph) / Self-RAG / CRAG |
 
 ---
 
-## 次に読むべきガイド
+## Further Reading
 
-- [02-function-calling.md](./02-function-calling.md) — RAG と Function Calling の連携
-- [03-embeddings.md](./03-embeddings.md) — Embedding の詳細技術
-- [../03-infrastructure/01-vector-databases.md](../03-infrastructure/01-vector-databases.md) — ベクトル DB の選定と運用
+- [02-function-calling.md](./02-function-calling.md) — Combining RAG with Function Calling
+- [03-embeddings.md](./03-embeddings.md) — Deep dive into Embedding techniques
+- [../03-infrastructure/01-vector-databases.md](../03-infrastructure/01-vector-databases.md) — Selecting and operating vector DBs
 
 ---
 
-## 参考文献
+## References
 
 1. Lewis et al., "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks," NeurIPS 2020
 2. Gao et al., "Retrieval-Augmented Generation for Large Language Models: A Survey," arXiv:2312.10997, 2023
