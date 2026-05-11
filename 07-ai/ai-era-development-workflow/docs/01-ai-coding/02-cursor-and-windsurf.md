@@ -1,296 +1,303 @@
-# Cursor / Windsurf ── AI IDE、コンテキスト管理
+# Cursor / Windsurf ── AI IDEs, Context Management
 
-> AIをエディタの中核に据えた次世代IDE「Cursor」と「Windsurf」の特徴・機能・活用法を比較し、プロジェクトに最適なAI IDEを選定する判断基準を身につける。
-
----
-
-## この章で学ぶこと
-
-1. **AI IDEの設計思想** ── 従来のIDEとAI IDEの根本的な違いを理解する
-2. **CursorとWindsurfの機能詳細** ── 各ツールの操作方法、コンテキスト管理、差別化ポイントを把握する
-3. **最適なAI IDE選定** ── プロジェクト特性やチーム規模に応じた選定基準を学ぶ
-4. **実践的な活用パターン** ── 日常開発からチーム運用まで、AI IDEの効果を最大化するテクニックを習得する
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Claude Code ── CLI、エージェント、MCP](./01-claude-code.md) の内容を理解していること
+> Compare the features, capabilities, and usage of next-generation AI IDEs "Cursor" and "Windsurf" that place AI at the core of the editor, and develop the criteria for selecting the optimal AI IDE for your project.
 
 ---
 
-## 1. AI IDEの設計思想
+## What You Will Learn in This Chapter
 
-### 1.1 従来のIDEとAI IDEの違い
+1. **Design Philosophy of AI IDEs** ── Understand the fundamental differences between traditional IDEs and AI IDEs
+2. **Detailed Features of Cursor and Windsurf** ── Grasp the operation methods, context management, and differentiating points of each tool
+3. **Optimal AI IDE Selection** ── Learn the selection criteria based on project characteristics and team size
+4. **Practical Usage Patterns** ── Master techniques to maximize the effectiveness of AI IDEs, from daily development to team operations
+
+
+## Prerequisites
+
+Before reading this guide, having the following knowledge will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [Claude Code ── CLI, Agents, MCP](./01-claude-code.md)
+
+---
+
+## 1. Design Philosophy of AI IDEs
+
+### 1.1 Differences Between Traditional IDEs and AI IDEs
 
 ```
-従来のIDE (VSCode等)                  AI IDE (Cursor/Windsurf)
+Traditional IDE (VSCode, etc.)          AI IDE (Cursor/Windsurf)
 ┌─────────────────────┐              ┌─────────────────────┐
-│  エディタ           │              │  エディタ           │
+│  Editor             │              │  Editor             │
 │  ┌───────────────┐  │              │  ┌───────────────┐  │
-│  │ シンタックス   │  │              │  │ AI補完エンジン │  │
-│  │ ハイライト     │  │              │  │ (ネイティブ)   │  │
+│  │ Syntax        │  │              │  │ AI Completion  │  │
+│  │ Highlighting  │  │              │  │ Engine         │  │
+│  ├───────────────┤  │              │  │ (Native)       │  │
+│  │ LSP          │  │              │  ├───────────────┤  │
+│  │ (Language     │  │              │  │ Context       │  │
+│  │  Server)      │  │              │  │ Indexer       │  │
 │  ├───────────────┤  │              │  ├───────────────┤  │
-│  │ LSP          │  │              │  │ コンテキスト   │  │
-│  │ (言語サーバー) │  │              │  │ インデクサー   │  │
-│  ├───────────────┤  │              │  ├───────────────┤  │
-│  │ 拡張機能      │  │              │  │ AIチャット     │  │
-│  │ (プラグイン)  │  │  AI は       │  │ (組み込み)     │  │
-│  │  ┌─────────┐ │  │  後付け      │  ├───────────────┤  │
+│  │ Extensions   │  │              │  │ AI Chat       │  │
+│  │ (Plugins)    │  │  AI is       │  │ (Built-in)    │  │
+│  │  ┌─────────┐ │  │  an add-on   │  ├───────────────┤  │
 │  │  │Copilot  │ │  │  ─────►     │  │ Agent Mode    │  │
-│  │  │(後付け)  │ │  │              │  │ (自律実行)     │  │
-│  │  └─────────┘ │  │              │  ├───────────────┤  │
-│  └───────────────┘  │              │  │ マルチファイル │  │
-│                     │              │  │ 同時編集       │  │
+│  │  │(add-on) │ │  │              │  │ (Autonomous   │  │
+│  │  └─────────┘ │  │              │  │  Execution)   │  │
+│  └───────────────┘  │              │  ├───────────────┤  │
+│                     │              │  │ Multi-file    │  │
+│                     │              │  │ Simultaneous  │  │
+│                     │              │  │ Editing       │  │
 │                     │              │  └───────────────┘  │
 └─────────────────────┘              └─────────────────────┘
 ```
 
-### 1.2 AI IDEのコンテキスト管理
+### 1.2 Context Management in AI IDEs
 
 ```
 ┌──────────────────────────────────────────────────┐
-│          AI IDEのコンテキスト階層                   │
+│          AI IDE Context Hierarchy                 │
 │                                                  │
-│  レベル1: カーソル位置                             │
+│  Level 1: Cursor Position                        │
 │  ┌──────────────────────────────────┐            │
-│  │ 現在の行の前後数十行              │            │
-│  │ → インライン補完に使用            │            │
+│  │ Dozens of lines before/after     │            │
+│  │ the current line                 │            │
+│  │ → Used for inline completion     │            │
 │  └──────────────────────────────────┘            │
 │                                                  │
-│  レベル2: ファイル                                │
+│  Level 2: File                                   │
 │  ┌──────────────────────────────────┐            │
-│  │ 開いているファイル全体            │            │
-│  │ → 関数補完、リファクタリング      │            │
+│  │ Entire open file                 │            │
+│  │ → Function completion,           │            │
+│  │   refactoring                    │            │
 │  └──────────────────────────────────┘            │
 │                                                  │
-│  レベル3: プロジェクト                             │
+│  Level 3: Project                                │
 │  ┌──────────────────────────────────┐            │
-│  │ コードベース全体のインデックス     │            │
-│  │ → Codebase検索、@記法で参照       │            │
+│  │ Index of entire codebase         │            │
+│  │ → Codebase search,              │            │
+│  │   reference via @ notation       │            │
 │  └──────────────────────────────────┘            │
 │                                                  │
-│  レベル4: 外部知識                                │
+│  Level 4: External Knowledge                     │
 │  ┌──────────────────────────────────┐            │
-│  │ Docs、Web検索、MCP接続            │            │
-│  │ → 最新APIドキュメント等           │            │
+│  │ Docs, Web search, MCP connection │            │
+│  │ → Latest API documentation, etc. │            │
 │  └──────────────────────────────────┘            │
 └──────────────────────────────────────────────────┘
 ```
 
-### 1.3 AI IDEのアーキテクチャ比較
+### 1.3 Architecture Comparison of AI IDEs
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│                 AI IDEのアーキテクチャ                  │
+│                 AI IDE Architecture                    │
 │                                                      │
 │  Cursor                          Windsurf             │
 │  ┌────────────────────┐         ┌─────────────────┐  │
 │  │ VSCode Fork        │         │ VSCode Fork     │  │
 │  │ ┌────────────────┐ │         │ ┌─────────────┐ │  │
 │  │ │ Copilot++      │ │         │ │Supercomplete│ │  │
-│  │ │ (Tab補完)      │ │         │ │(ブロック補完)│ │  │
+│  │ │ (Tab            │ │         │ │(Block       │ │  │
+│  │ │  Completion)    │ │         │ │ Completion) │ │  │
 │  │ ├────────────────┤ │         │ ├─────────────┤ │  │
 │  │ │ Chat (Cmd+L)   │ │         │ │ Cascade     │ │  │
-│  │ │ 対話型チャット  │ │         │ │ (AIアシスタ │ │  │
-│  │ ├────────────────┤ │         │ │  ント)      │ │  │
-│  │ │ Composer       │ │         │ ├─────────────┤ │  │
-│  │ │ (Cmd+I)        │ │         │ │ Flows       │ │  │
-│  │ │ マルチファイル  │ │         │ │ (再利用可能 │ │  │
-│  │ ├────────────────┤ │         │ │  ワークフロ │ │  │
-│  │ │ @記法         │ │         │ │  ー)        │ │  │
-│  │ │ コンテキスト   │ │         │ ├─────────────┤ │  │
-│  │ │ 指定          │ │         │ │ 自動インデ  │ │  │
-│  │ ├────────────────┤ │         │ │ ックス      │ │  │
-│  │ │ Agent Mode     │ │         │ ├─────────────┤ │  │
-│  │ │ 自律タスク実行 │ │         │ │ Agent Mode  │ │  │
-│  │ └────────────────┘ │         │ │ 自律タスク  │ │  │
-│  └────────────────────┘         │ └─────────────┘ │  │
-│                                 └─────────────────┘  │
+│  │ │ Interactive     │ │         │ │ (AI         │ │  │
+│  │ │ Chat           │ │         │ │  Assistant) │ │  │
+│  │ ├────────────────┤ │         │ ├─────────────┤ │  │
+│  │ │ Composer       │ │         │ │ Flows       │ │  │
+│  │ │ (Cmd+I)        │ │         │ │ (Reusable   │ │  │
+│  │ │ Multi-file     │ │         │ │  Workflows) │ │  │
+│  │ ├────────────────┤ │         │ ├─────────────┤ │  │
+│  │ │ @ Notation    │ │         │ │ Automatic   │ │  │
+│  │ │ Context       │ │         │ │ Indexing    │ │  │
+│  │ │ Specification │ │         │ ├─────────────┤ │  │
+│  │ ├────────────────┤ │         │ │ Agent Mode  │ │  │
+│  │ │ Agent Mode     │ │         │ │ Autonomous  │ │  │
+│  │ │ Autonomous     │ │         │ │ Task        │ │  │
+│  │ │ Task Execution │ │         │ │ Execution   │ │  │
+│  │ └────────────────┘ │         │ └─────────────┘ │  │
+│  └────────────────────┘         └─────────────────┘  │
 └──────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. Cursor詳細
+## 2. Cursor Details
 
-### コード例1: Cursorの基本操作
+### Code Example 1: Basic Cursor Operations
 
 ```
-# Cursor キーボードショートカット
+# Cursor Keyboard Shortcuts
 
-## コード生成
-Cmd+K          : インラインコード生成（選択範囲を変換）
-Cmd+L          : チャットパネルを開く
-Cmd+Shift+L    : チャットに選択コードを追加
-Cmd+I          : Composer（マルチファイル編集）
+## Code Generation
+Cmd+K          : Inline code generation (transform selected range)
+Cmd+L          : Open chat panel
+Cmd+Shift+L    : Add selected code to chat
+Cmd+I          : Composer (multi-file editing)
 
-## コンテキスト追加（@記法）
-@file          : 特定ファイルをコンテキストに追加
-@folder        : フォルダ内全ファイルを追加
-@code          : コードベース検索結果を追加
-@web           : Web検索結果を追加
-@docs          : ドキュメント検索結果を追加
-@git           : Gitの差分・履歴を追加
+## Adding Context (@ Notation)
+@file          : Add a specific file to context
+@folder        : Add all files in a folder
+@code          : Add codebase search results
+@web           : Add web search results
+@docs          : Add documentation search results
+@git           : Add Git diffs/history
 
 ## Agent Mode
-Cmd+.          : Agent Modeの切り替え
-                 → ファイル作成、コマンド実行、テストまで自律実行
+Cmd+.          : Toggle Agent Mode
+                 → Autonomously executes file creation, commands, and tests
 ```
 
-### コード例2: .cursorrules でプロジェクト規約を設定
+### Code Example 2: Setting Project Conventions with .cursorrules
 
 ```markdown
 # .cursorrules
 
-## 技術スタック
+## Tech Stack
 - Next.js 14 (App Router)
 - TypeScript 5.4 (strict mode)
 - Tailwind CSS 3.4
 - Prisma (ORM)
 - tRPC (API)
 
-## コーディング規約
-- コンポーネントは function 宣言で書く（アロー関数禁止）
-- CSS はTailwind のみ使用（CSS Modules禁止）
-- 状態管理は Zustand を使用
-- フォームは React Hook Form + Zod
-- データフェッチは TanStack Query
+## Coding Conventions
+- Write components with function declarations (no arrow functions)
+- Use only Tailwind for CSS (no CSS Modules)
+- Use Zustand for state management
+- Use React Hook Form + Zod for forms
+- Use TanStack Query for data fetching
 
-## ファイル命名
-- コンポーネント: PascalCase (UserProfile.tsx)
-- ユーティリティ: camelCase (formatDate.ts)
-- 定数: SCREAMING_SNAKE_CASE
-- テスト: *.test.ts / *.test.tsx
+## File Naming
+- Components: PascalCase (UserProfile.tsx)
+- Utilities: camelCase (formatDate.ts)
+- Constants: SCREAMING_SNAKE_CASE
+- Tests: *.test.ts / *.test.tsx
 
-## 禁止事項
-- any型の使用
-- console.logの本番コードへの残存
-- useEffect内でのデータフェッチ
-- 200行を超えるコンポーネント
+## Prohibited
+- Usage of the any type
+- Leaving console.log in production code
+- Data fetching inside useEffect
+- Components exceeding 200 lines
 ```
 
-### コード例3: Cursor Composerの活用
+### Code Example 3: Using Cursor Composer
 
 ```typescript
-// Cmd+I でComposerを開き、マルチファイル編集を指示
+// Open Composer with Cmd+I and instruct multi-file editing
 
-// プロンプト例:
-// "ユーザープロファイルページを作成して。
-//  以下のファイルを生成:
-//  1. app/profile/page.tsx - プロファイル表示ページ
-//  2. components/ProfileCard.tsx - プロファイルカード
-//  3. hooks/useProfile.ts - プロファイル取得フック
-//  4. lib/api/profile.ts - API呼び出し
-//  5. __tests__/ProfileCard.test.tsx - テスト"
+// Prompt example:
+// "Create a user profile page.
+//  Generate the following files:
+//  1. app/profile/page.tsx - Profile display page
+//  2. components/ProfileCard.tsx - Profile card
+//  3. hooks/useProfile.ts - Profile fetching hook
+//  4. lib/api/profile.ts - API calls
+//  5. __tests__/ProfileCard.test.tsx - Tests"
 
-// → Composerが5ファイルを同時に生成・編集
-// → 各ファイルの差分をプレビューで確認可能
-// → Accept / Reject を選択
+// → Composer generates/edits 5 files simultaneously
+// → Preview diffs for each file
+// → Choose Accept / Reject
 ```
 
-### コード例4: Cursor @記法の高度な活用
+### Code Example 4: Advanced Usage of Cursor @ Notation
 
 ```
-# @記法のパワーユーザー活用例
+# Power User Examples of @ Notation
 
-## コードベース検索で関連コードを発見
-@codebase "認証に関する関数を全て検索して、
-          セッション管理の脆弱性がないか確認して"
+## Discover Related Code via Codebase Search
+@codebase "Search for all authentication-related functions
+          and check for session management vulnerabilities"
 
-## 特定ファイルをピンポイントで参照
+## Reference Specific Files Precisely
 @file src/types/user.ts
 @file src/schemas/user.schema.ts
-"UserTypeとUserSchemaの整合性を確認して。
- 不整合があれば修正して"
+"Check the consistency between UserType and UserSchema.
+ Fix any inconsistencies"
 
-## Gitの差分をコンテキストに含める
+## Include Git Diffs in Context
 @git diff main
-"mainブランチからの変更をレビューして。
- パフォーマンスへの影響がある変更を指摘して"
+"Review changes from the main branch.
+ Point out any changes that impact performance"
 
-## 公式ドキュメントを参照して実装
+## Implement Using Official Documentation
 @docs Next.js App Router
-"Server Actionsを使ったフォーム送信を実装して。
- 最新のNext.js App Routerの仕様に準拠して"
+"Implement form submission using Server Actions.
+ Comply with the latest Next.js App Router specifications"
 
-## Web検索で最新情報を取得
+## Get Latest Information via Web Search
 @web "React 19 use hook"
-"React 19のuseフックを使ったデータフェッチに
- リファクタリングして"
+"Refactor to use React 19's use hook
+ for data fetching"
 
-## フォルダ全体を参照
+## Reference an Entire Folder
 @folder src/components/ui/
-"このUIコンポーネントライブラリに
- Tooltipコンポーネントを追加して。
- 既存コンポーネントのスタイルに合わせて"
+"Add a Tooltip component to this UI component library.
+ Match the style of existing components"
 ```
 
-### コード例5: Cursor Agent Modeの実践
+### Code Example 5: Cursor Agent Mode in Practice
 
 ```typescript
-// Agent Modeでの開発フロー
-// Cmd+. で Agent Mode を有効化
+// Development Flow with Agent Mode
+// Enable Agent Mode with Cmd+.
 
-// === プロンプト例 1: 機能実装 ===
-// "通知システムを実装して:
-//  1. NotificationServiceクラスを作成
-//  2. WebSocket接続でリアルタイム通知
-//  3. 通知の永続化（DBに保存）
-//  4. 未読カウントのAPI
-//  5. テストを含める
-//  6. テストを実行して全て通ることを確認"
+// === Prompt Example 1: Feature Implementation ===
+// "Implement a notification system:
+//  1. Create a NotificationService class
+//  2. Real-time notifications via WebSocket connection
+//  3. Notification persistence (save to DB)
+//  4. Unread count API
+//  5. Include tests
+//  6. Run tests and confirm they all pass"
 
-// Agent Modeが実行する内容:
-// Step 1: 関連ファイルの調査
-//   → プロジェクト構造の把握
-//   → 既存のサービスパターンの確認
+// What Agent Mode executes:
+// Step 1: Investigate related files
+//   → Understand project structure
+//   → Check existing service patterns
 //
-// Step 2: ファイル生成・編集
+// Step 2: Generate/edit files
 //   → src/services/notification.ts
 //   → src/api/notifications/route.ts
 //   → src/hooks/useNotifications.ts
-//   → prisma/schema.prisma (スキーマ追加)
+//   → prisma/schema.prisma (add schema)
 //
-// Step 3: テスト実行
+// Step 3: Run tests
 //   → npm test -- --watch=false
-//   → 失敗したテストの自動修正
+//   → Auto-fix failing tests
 //
-// Step 4: 結果レポート
-//   → 変更したファイルの一覧
-//   → テスト結果のサマリー
+// Step 4: Results report
+//   → List of changed files
+//   → Test results summary
 
-// === プロンプト例 2: バグ修正 ===
-// "ユーザーがプロフィール画像をアップロードすると
-//  500エラーが発生する。原因を調査して修正して。
-//  1. エラーログを確認
-//  2. 関連コードを調査
-//  3. 原因を特定
-//  4. 修正を実装
-//  5. テストを追加して確認"
+// === Prompt Example 2: Bug Fix ===
+// "A 500 error occurs when users upload a profile image.
+//  Investigate the cause and fix it.
+//  1. Check error logs
+//  2. Investigate related code
+//  3. Identify the cause
+//  4. Implement the fix
+//  5. Add tests and confirm"
 ```
 
-### コード例6: Cursor設定の最適化
+### Code Example 6: Optimizing Cursor Settings
 
 ```jsonc
-// .vscode/settings.json（Cursorでも有効）
+// .vscode/settings.json (also works in Cursor)
 {
-  // AI補完の設定
-  "cursor.cpp.enablePartialAccepts": true,  // 部分的な補完の受け入れ
+  // AI completion settings
+  "cursor.cpp.enablePartialAccepts": true,  // Accept partial completions
   "cursor.chat.defaultModel": "claude-sonnet-4-20250514",
 
-  // コンテキスト設定
-  "cursor.chat.alwaysSearchWeb": false,      // 必要時のみWeb検索
-  "cursor.general.enableShadowWorkspace": true, // バックグラウンドインデックス
+  // Context settings
+  "cursor.chat.alwaysSearchWeb": false,      // Search web only when needed
+  "cursor.general.enableShadowWorkspace": true, // Background indexing
 
-  // 補完の挙動
+  // Completion behavior
   "editor.inlineSuggest.enabled": true,
   "editor.suggest.preview": true,
 
-  // AI関連のファイル除外（パフォーマンス最適化）
+  // Exclude AI-related files (performance optimization)
   "cursor.general.ignoredPaths": [
     "node_modules",
     ".next",
@@ -304,45 +311,45 @@ Cmd+.          : Agent Modeの切り替え
 
 ---
 
-## 3. Windsurf詳細
+## 3. Windsurf Details
 
-### コード例7: Windsurf（Cascade）の特徴
+### Code Example 7: Windsurf (Cascade) Features
 
 ```
-# Windsurf の特徴的機能
+# Windsurf's Distinctive Features
 
-## Cascade（AIアシスタント）
-- コードベース全体を自動でインデックス
-- 自然言語でファイル操作・コード生成
-- マルチステップの変更を自動実行
-- 変更のプレビューと承認フロー
+## Cascade (AI Assistant)
+- Automatically indexes the entire codebase
+- File operations and code generation via natural language
+- Automatically executes multi-step changes
+- Change preview and approval workflow
 
 ## Flows
-- AIとのやり取りを「Flow」として保存
-- 過去のFlowを再実行可能
-- チームでFlowを共有
+- Save AI interactions as "Flows"
+- Re-run past Flows
+- Share Flows across the team
 
 ## Supercomplete
-- Copilotより高度な補完
-- 行単位ではなくブロック単位の補完
-- 直前の編集パターンを学習して適応
+- More advanced completion than Copilot
+- Block-level completion instead of line-level
+- Learns and adapts from recent edit patterns
 ```
 
-### コード例8: Windsurf Cascade の実践例
+### Code Example 8: Windsurf Cascade in Practice
 
 ```typescript
-// Windsurf Cascade でのリファクタリング例
+// Refactoring Example with Windsurf Cascade
 
-// プロンプト: "このファイルをClean Architectureに分割して"
+// Prompt: "Split this file into Clean Architecture"
 
-// Before: 単一ファイルに全てが混在
-// src/features/todo.ts (200行)
+// Before: Everything mixed in a single file
+// src/features/todo.ts (200 lines)
 
-// After: Cascadeが自動分割
+// After: Cascade automatically splits
 // src/features/todo/
 // ├── domain/
-// │   ├── Todo.ts          (エンティティ)
-// │   └── TodoRepository.ts (リポジトリインターフェース)
+// │   ├── Todo.ts          (Entity)
+// │   └── TodoRepository.ts (Repository Interface)
 // ├── application/
 // │   ├── CreateTodoUseCase.ts
 // │   ├── CompleteTodoUseCase.ts
@@ -353,65 +360,65 @@ Cmd+.          : Agent Modeの切り替え
 //     ├── TodoController.ts
 //     └── todoRouter.ts
 
-// Cascadeは既存のimportパスも全て自動更新する
+// Cascade also automatically updates all existing import paths
 ```
 
-### コード例9: Windsurf Flowsの活用
+### Code Example 9: Using Windsurf Flows
 
 ```
-# Windsurf Flows の実践活用
+# Practical Usage of Windsurf Flows
 
-## Flow 1: コンポーネント生成テンプレート
-保存名: "React Component Generator"
-再利用可能なFlowとして保存:
+## Flow 1: Component Generation Template
+Save Name: "React Component Generator"
+Save as a reusable Flow:
 
-プロンプト:
-"以下のパターンでReactコンポーネントを生成して:
-1. コンポーネント本体（function宣言）
-2. Props型定義
-3. Storybookファイル
-4. テストファイル
-5. CSSモジュール
+Prompt:
+"Generate a React component with the following pattern:
+1. Component body (function declaration)
+2. Props type definition
+3. Storybook file
+4. Test file
+5. CSS module
 
-コンポーネント名: {name}
+Component name: {name}
 Props: {props}
-ディレクトリ: src/components/{name}/"
+Directory: src/components/{name}/"
 
-## Flow 2: API エンドポイント追加
-保存名: "API Endpoint Scaffold"
-プロンプト:
-"新しいAPIエンドポイントを追加して:
-1. ルートハンドラ (app/api/{resource}/route.ts)
-2. バリデーションスキーマ (schemas/{resource}.ts)
-3. サービスクラス (services/{resource}Service.ts)
-4. Prismaモデル追加 (prisma/schema.prisma)
-5. APIテスト (__tests__/api/{resource}.test.ts)
+## Flow 2: API Endpoint Addition
+Save Name: "API Endpoint Scaffold"
+Prompt:
+"Add a new API endpoint:
+1. Route handler (app/api/{resource}/route.ts)
+2. Validation schema (schemas/{resource}.ts)
+3. Service class (services/{resource}Service.ts)
+4. Prisma model addition (prisma/schema.prisma)
+5. API test (__tests__/api/{resource}.test.ts)
 
-リソース名: {resource}
+Resource name: {resource}
 CRUD: {operations}"
 
-## Flow 3: バグ修正ワークフロー
-保存名: "Bug Investigation"
-プロンプト:
-"以下の手順でバグを調査して修正して:
-1. エラーメッセージから関連コードを特定
-2. 原因を分析
-3. 修正を実装
-4. 回帰テストを追加
-5. 変更のサマリーを出力
+## Flow 3: Bug Fix Workflow
+Save Name: "Bug Investigation"
+Prompt:
+"Investigate and fix the bug following these steps:
+1. Identify related code from the error message
+2. Analyze the cause
+3. Implement the fix
+4. Add regression tests
+5. Output a summary of changes
 
-エラー: {error_description}"
+Error: {error_description}"
 ```
 
-### コード例10: Windsurf Supercomplete の効果
+### Code Example 10: Windsurf Supercomplete in Action
 
 ```typescript
-// Supercompleteの動作例
+// Supercomplete Behavior Example
 
-// ユーザーが入力し始めると、Supercompleteがブロック単位で補完を提案
+// When the user starts typing, Supercomplete suggests block-level completions
 
-// 入力: "async function fetchUser"
-// Supercomplete提案（ブロック単位）:
+// Input: "async function fetchUser"
+// Supercomplete suggestion (block-level):
 async function fetchUserById(userId: string): Promise<User | null> {
   try {
     const response = await prisma.user.findUnique({
@@ -433,143 +440,146 @@ async function fetchUserById(userId: string): Promise<User | null> {
   }
 }
 
-// 特徴:
-// - 行単位ではなく関数全体を提案
-// - プロジェクトの既存パターン（prisma, logger, エラー型）を学習
-// - try-catchパターンやエラーハンドリングも含む
-// - 直前の編集内容（例: 別のfetch関数）のパターンを踏襲
+// Features:
+// - Suggests entire functions, not just individual lines
+// - Learns from existing project patterns (prisma, logger, error types)
+// - Includes try-catch patterns and error handling
+// - Follows patterns from recent edits (e.g., another fetch function)
 ```
 
 ---
 
-## 4. 機能比較
+## 4. Feature Comparison
 
-### 4.1 Cursor vs Windsurf vs 従来IDE+Copilot
+### 4.1 Cursor vs Windsurf vs Traditional IDE+Copilot
 
-| 機能 | Cursor | Windsurf | VSCode+Copilot |
-|------|--------|----------|----------------|
-| インライン補完 | Tab (高品質) | Supercomplete | Copilot |
-| チャット | Cmd+L | Cascade | Copilot Chat |
-| マルチファイル編集 | Composer | Cascade | 非対応 |
-| Agent Mode | あり | あり | 限定的 |
-| @記法コンテキスト | 豊富 | 基本的 | 限定的 |
-| Codebase検索 | @codebase | 自動 | 非対応 |
-| モデル選択 | Claude/GPT/等 | Claude/GPT | GPT系のみ |
-| 料金 | $20/月 (Pro) | $15/月 (Pro) | $10/月 |
-| ベースエディタ | VSCode fork | VSCode fork | VSCode本体 |
-| 拡張機能互換 | ほぼ完全 | ほぼ完全 | 完全 |
-| オフライン | 不可 | 不可 | Copilot不可 |
-| ワークフロー保存 | 不可 | Flows | 不可 |
-| カスタムDocs | @docs | 限定的 | 不可 |
-| プロジェクト規約 | .cursorrules | Cascade設定 | 拡張機能依存 |
+| Feature | Cursor | Windsurf | VSCode+Copilot |
+|---------|--------|----------|----------------|
+| Inline completion | Tab (high quality) | Supercomplete | Copilot |
+| Chat | Cmd+L | Cascade | Copilot Chat |
+| Multi-file editing | Composer | Cascade | Not supported |
+| Agent Mode | Yes | Yes | Limited |
+| @ notation context | Rich | Basic | Limited |
+| Codebase search | @codebase | Automatic | Not supported |
+| Model selection | Claude/GPT/etc. | Claude/GPT | GPT only |
+| Pricing | $20/month (Pro) | $15/month (Pro) | $10/month |
+| Base editor | VSCode fork | VSCode fork | VSCode itself |
+| Extension compatibility | Nearly full | Nearly full | Full |
+| Offline | No | No | Copilot unavailable |
+| Workflow saving | No | Flows | No |
+| Custom Docs | @docs | Limited | No |
+| Project conventions | .cursorrules | Cascade settings | Extension-dependent |
 
-### 4.2 ユースケース別推奨
+### 4.2 Recommendations by Use Case
 
-| ユースケース | 推奨ツール | 理由 |
-|-------------|-----------|------|
-| フロントエンド開発 | Cursor | Composerでのマルチファイル生成が強力 |
-| バックエンドAPI | Claude Code | CLIでテスト実行→修正ループが効率的 |
-| スタートアップ | Windsurf | 低コストで高機能 |
-| エンタープライズ | VSCode+Copilot | セキュリティ・コンプライアンス対応 |
-| データサイエンス | Cursor | Notebook対応 + @docs でライブラリ参照 |
-| インフラ/DevOps | Claude Code | Bash実行 + 設定ファイル操作が得意 |
-| モバイル開発 | Cursor | React Native/Flutter対応が良好 |
-| OSS開発 | Windsurf | Flowsでコントリビューションガイドを共有 |
+| Use Case | Recommended Tool | Reason |
+|----------|-----------------|--------|
+| Frontend development | Cursor | Powerful multi-file generation with Composer |
+| Backend API | Claude Code | Efficient test-run-fix loop via CLI |
+| Startup | Windsurf | High functionality at low cost |
+| Enterprise | VSCode+Copilot | Security and compliance support |
+| Data science | Cursor | Notebook support + library reference via @docs |
+| Infrastructure/DevOps | Claude Code | Excels at Bash execution + config file operations |
+| Mobile development | Cursor | Good React Native/Flutter support |
+| OSS development | Windsurf | Share contribution guides via Flows |
 
-### 4.3 詳細機能比較マトリクス
+### 4.3 Detailed Feature Comparison Matrix
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│            詳細機能比較マトリクス                       │
+│            Detailed Feature Comparison Matrix          │
 │                                                      │
-│  ★★★ = 優秀  ★★☆ = 良好  ★☆☆ = 基本的               │
+│  ★★★ = Excellent  ★★☆ = Good  ★☆☆ = Basic           │
 │                                                      │
-│  機能               Cursor    Windsurf    VSCode     │
-│  ─────────────────  ────────  ──────────  ────────   │
-│  インライン補完      ★★★      ★★★        ★★☆        │
-│  チャット精度        ★★★      ★★☆        ★★☆        │
-│  マルチファイル      ★★★      ★★★        ★☆☆        │
-│  コードベース理解    ★★★      ★★★        ★☆☆        │
-│  @記法の柔軟性      ★★★      ★★☆        ★☆☆        │
-│  Agent Mode         ★★★      ★★★        ★★☆        │
-│  起動速度           ★★☆      ★★★        ★★★        │
-│  メモリ使用量       ★★☆      ★★★        ★★★        │
-│  拡張機能互換性     ★★★      ★★☆        ★★★        │
-│  ドキュメント充実度 ★★★      ★★☆        ★★★        │
-│  コスパ             ★★☆      ★★★        ★★★        │
-│  学習コスト         ★★☆      ★★★        ★★★        │
-│  エンタープライズ   ★★☆      ★☆☆        ★★★        │
-│  コミュニティ       ★★★      ★★☆        ★★★        │
+│  Feature             Cursor    Windsurf    VSCode    │
+│  ──────────────────  ────────  ──────────  ──────── │
+│  Inline completion    ★★★      ★★★        ★★☆       │
+│  Chat accuracy        ★★★      ★★☆        ★★☆       │
+│  Multi-file           ★★★      ★★★        ★☆☆       │
+│  Codebase awareness   ★★★      ★★★        ★☆☆       │
+│  @ notation flex.     ★★★      ★★☆        ★☆☆       │
+│  Agent Mode           ★★★      ★★★        ★★☆       │
+│  Startup speed        ★★☆      ★★★        ★★★       │
+│  Memory usage         ★★☆      ★★★        ★★★       │
+│  Extension compat.    ★★★      ★★☆        ★★★       │
+│  Documentation        ★★★      ★★☆        ★★★       │
+│  Cost performance     ★★☆      ★★★        ★★★       │
+│  Learning curve       ★★☆      ★★★        ★★★       │
+│  Enterprise           ★★☆      ★☆☆        ★★★       │
+│  Community            ★★★      ★★☆        ★★★       │
 └──────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. コンテキスト管理のベストプラクティス
+## 5. Best Practices for Context Management
 
 ```
 ┌────────────────────────────────────────────────────┐
-│        コンテキスト管理のベストプラクティス           │
+│        Best Practices for Context Management       │
 │                                                    │
-│  1. 必要なファイルだけをコンテキストに含める          │
+│  1. Include only necessary files in context         │
 │     ┌───────────────────────┐                     │
-│     │ @file schema.prisma  │ ← DBスキーマ         │
-│     │ @file types.ts       │ ← 型定義            │
-│     │ @folder api/         │ ← 関連API           │
+│     │ @file schema.prisma  │ ← DB schema          │
+│     │ @file types.ts       │ ← Type definitions   │
+│     │ @folder api/         │ ← Related APIs       │
 │     └───────────────────────┘                     │
-│     ❌ @codebase (全体は重すぎる)                   │
+│     ❌ @codebase (entire codebase is too heavy)    │
 │                                                    │
-│  2. ルールファイルで暗黙知を明示化                   │
-│     .cursorrules / CLAUDE.md で規約を定義           │
+│  2. Make implicit knowledge explicit via rule files │
+│     Define conventions in .cursorrules / CLAUDE.md  │
 │                                                    │
-│  3. 段階的にコンテキストを追加                      │
-│     最初は最小限 → 不足なら追加                     │
-│     → AIの応答速度と精度のバランスを保つ             │
+│  3. Add context incrementally                      │
+│     Start with the minimum → add as needed         │
+│     → Balance AI response speed and accuracy       │
 │                                                    │
-│  4. Docsインデックスを活用                          │
-│     @docs Next.js → 公式ドキュメントを参照          │
-│     → 最新APIの正確な使い方を生成                   │
+│  4. Leverage Docs indexing                         │
+│     @docs Next.js → Reference official docs        │
+│     → Generate accurate usage of latest APIs       │
 └────────────────────────────────────────────────────┘
 ```
 
-### 5.1 コンテキスト管理の詳細戦略
+### 5.1 Detailed Context Management Strategies
 
 ```
 ┌────────────────────────────────────────────────────┐
-│        コンテキスト管理 ── 実践的な戦略              │
+│        Context Management ── Practical Strategies   │
 │                                                    │
-│  戦略1: 段階的コンテキスト拡大                      │
+│  Strategy 1: Incremental Context Expansion          │
 │  ┌──────────────────────────────────────┐         │
-│  │ Level 1: 現在のファイルのみ（自動）   │         │
-│  │    ↓ AIの回答が不十分                 │         │
-│  │ Level 2: @file で関連ファイルを追加   │         │
-│  │    ↓ まだ不十分                       │         │
-│  │ Level 3: @folder で関連モジュール追加 │         │
-│  │    ↓ 依然として不十分                 │         │
-│  │ Level 4: @codebase で全体検索         │         │
+│  │ Level 1: Current file only (auto)    │         │
+│  │    ↓ AI response is insufficient     │         │
+│  │ Level 2: Add related files via @file │         │
+│  │    ↓ Still insufficient              │         │
+│  │ Level 3: Add related modules         │         │
+│  │           via @folder                │         │
+│  │    ↓ Still insufficient              │         │
+│  │ Level 4: Search entire codebase      │         │
+│  │           via @codebase              │         │
 │  └──────────────────────────────────────┘         │
 │                                                    │
-│  戦略2: タスク別コンテキスト設計                    │
+│  Strategy 2: Task-Specific Context Design           │
 │  ┌──────────────────────────────────────┐         │
-│  │ バグ修正:                             │         │
-│  │   @file エラーが出るファイル           │         │
-│  │   @file テストファイル                │         │
-│  │   @git log (最近の変更)               │         │
+│  │ Bug fix:                             │         │
+│  │   @file file with the error          │         │
+│  │   @file test file                    │         │
+│  │   @git log (recent changes)          │         │
 │  │                                      │         │
-│  │ 新機能:                               │         │
-│  │   @file 型定義ファイル                │         │
-│  │   @folder 類似機能のディレクトリ       │         │
-│  │   @docs フレームワーク公式            │         │
+│  │ New feature:                         │         │
+│  │   @file type definition files        │         │
+│  │   @folder directory of similar       │         │
+│  │          features                    │         │
+│  │   @docs framework official docs      │         │
 │  │                                      │         │
-│  │ リファクタリング:                      │         │
-│  │   @file 対象ファイル                  │         │
-│  │   @codebase 依存しているコード        │         │
-│  │   @file テスト全般                    │         │
+│  │ Refactoring:                         │         │
+│  │   @file target file                  │         │
+│  │   @codebase dependent code           │         │
+│  │   @file tests in general             │         │
 │  └──────────────────────────────────────┘         │
 │                                                    │
-│  戦略3: インデックス最適化                          │
+│  Strategy 3: Index Optimization                     │
 │  ┌──────────────────────────────────────┐         │
-│  │ .cursorignore でインデックス除外:     │         │
+│  │ Exclude from index via .cursorignore:│         │
 │  │   node_modules/                      │         │
 │  │   dist/                              │         │
 │  │   .next/                             │         │
@@ -582,385 +592,404 @@ async function fetchUserById(userId: string): Promise<User | null> {
 
 ---
 
-## 6. AI IDE導入のチーム運用
+## 6. Team Operations for AI IDE Adoption
 
-### 6.1 チーム導入のロードマップ
+### 6.1 Team Adoption Roadmap
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│          AI IDE チーム導入ロードマップ                  │
+│          AI IDE Team Adoption Roadmap                  │
 │                                                      │
-│  Phase 1: パイロット（1-2週間）                       │
+│  Phase 1: Pilot (1-2 weeks)                          │
 │  ┌──────────────────────────────────────┐            │
-│  │ - 2-3名の技術リードで試験導入        │            │
-│  │ - .cursorrules の初版を作成          │            │
-│  │ - 効果測定の基準を定義              │            │
-│  │ - セキュリティ設定の確立            │            │
+│  │ - Trial adoption by 2-3 tech leads   │            │
+│  │ - Create the first version of        │            │
+│  │   .cursorrules                       │            │
+│  │ - Define criteria for measuring      │            │
+│  │   effectiveness                      │            │
+│  │ - Establish security settings        │            │
 │  └──────────────────────────────────────┘            │
 │                                                      │
-│  Phase 2: チーム展開（2-4週間）                       │
+│  Phase 2: Team Rollout (2-4 weeks)                   │
 │  ┌──────────────────────────────────────┐            │
-│  │ - チーム全員にライセンス配布         │            │
-│  │ - 操作研修（2時間のワークショップ）   │            │
-│  │ - ペアプロでの実践（先輩＋新人）      │            │
-│  │ - .cursorrules のチームレビュー      │            │
+│  │ - Distribute licenses to all team    │            │
+│  │   members                            │            │
+│  │ - Operations training (2-hour        │            │
+│  │   workshop)                          │            │
+│  │ - Hands-on pair programming          │            │
+│  │   (senior + junior)                  │            │
+│  │ - Team review of .cursorrules        │            │
 │  └──────────────────────────────────────┘            │
 │                                                      │
-│  Phase 3: 最適化（継続的）                            │
+│  Phase 3: Optimization (Ongoing)                     │
 │  ┌──────────────────────────────────────┐            │
-│  │ - 効果的なプロンプトの共有Wiki        │            │
-│  │ - 月次振り返り（活用度・コスト分析）  │            │
-│  │ - .cursorrules の継続的改善          │            │
-│  │ - 新機能のキャッチアップ             │            │
+│  │ - Wiki for sharing effective prompts │            │
+│  │ - Monthly retrospective (adoption    │            │
+│  │   rate / cost analysis)              │            │
+│  │ - Continuous improvement of          │            │
+│  │   .cursorrules                       │            │
+│  │ - Catch up on new features           │            │
 │  └──────────────────────────────────────┘            │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 6.2 チーム共通の .cursorrules テンプレート
+### 6.2 Shared Team .cursorrules Template
 
 ```markdown
-# .cursorrules - チーム共通テンプレート
+# .cursorrules - Shared Team Template
 
-## プロジェクト情報
-- プロジェクト名: {project_name}
-- リポジトリ: {repo_url}
-- 主要な技術スタック: {tech_stack}
+## Project Information
+- Project name: {project_name}
+- Repository: {repo_url}
+- Primary tech stack: {tech_stack}
 
-## アーキテクチャ
-- パターン: {architecture_pattern}
-- ディレクトリ構成の説明:
-  - src/domain/  : ビジネスロジック（外部依存なし）
-  - src/app/     : アプリケーション層
-  - src/infra/   : インフラストラクチャ（DB、外部API）
-  - src/ui/      : プレゼンテーション層
+## Architecture
+- Pattern: {architecture_pattern}
+- Directory structure description:
+  - src/domain/  : Business logic (no external dependencies)
+  - src/app/     : Application layer
+  - src/infra/   : Infrastructure (DB, external APIs)
+  - src/ui/      : Presentation layer
 
-## コーディング規約
-- 言語バージョン: {language_version}
-- リンター: {linter_config}
-- フォーマッター: {formatter_config}
-- テストフレームワーク: {test_framework}
-- カバレッジ目標: {coverage_target}
+## Coding Conventions
+- Language version: {language_version}
+- Linter: {linter_config}
+- Formatter: {formatter_config}
+- Test framework: {test_framework}
+- Coverage target: {coverage_target}
 
-## AI生成コードの品質基準
-- 型安全性: strict mode必須、any禁止
-- エラーハンドリング: Result型 or 明示的な例外
-- テスト: 生成コードには必ずテストを含める
-- ドキュメント: public関数にはJSDoc/docstring必須
-- 命名: ドメイン用語集（glossary.md）に従う
+## Quality Standards for AI-Generated Code
+- Type safety: strict mode required, no any
+- Error handling: Result type or explicit exceptions
+- Tests: Always include tests for generated code
+- Documentation: JSDoc/docstring required for public functions
+- Naming: Follow the domain glossary (glossary.md)
 
-## 禁止事項
-- 機密情報のハードコード
-- console.log/printの本番コードへの残存
-- テストなしのビジネスロジック
-- 200行を超えるファイル
-- 循環依存の導入
+## Prohibited
+- Hard-coding sensitive information
+- Leaving console.log/print in production code
+- Business logic without tests
+- Files exceeding 200 lines
+- Introducing circular dependencies
 
-## レビュー注意事項
-- AI生成コードは必ず人間がレビューする
-- セキュリティ関連は2名以上でレビュー
-- パフォーマンス影響がある変更はベンチマーク必須
+## Review Notes
+- AI-generated code must always be reviewed by a human
+- Security-related code requires review by 2+ people
+- Changes with performance impact require benchmarks
 ```
 
-### 6.3 効果測定の指標
+### 6.3 Effectiveness Measurement Metrics
 
 ```
 ┌────────────────────────────────────────────────────┐
-│          AI IDE 効果測定指標                         │
+│          AI IDE Effectiveness Metrics                │
 │                                                    │
-│  定量指標:                                          │
+│  Quantitative Metrics:                              │
 │  ┌──────────────────────────────────────┐          │
-│  │ 指標                 目標値          │          │
-│  │ ──────────────────── ──────────────  │          │
-│  │ PRリードタイム       30%削減         │          │
-│  │ コードレビュー時間    20%削減         │          │
-│  │ バグ修正時間          40%削減         │          │
-│  │ テストカバレッジ      10%向上         │          │
-│  │ 新機能実装時間        25%削減         │          │
-│  │ ドキュメント更新頻度  50%向上         │          │
+│  │ Metric                  Target       │          │
+│  │ ─────────────────────── ──────────── │          │
+│  │ PR Lead Time            30% reduction│          │
+│  │ Code Review Time        20% reduction│          │
+│  │ Bug Fix Time            40% reduction│          │
+│  │ Test Coverage           10% increase │          │
+│  │ New Feature Dev Time    25% reduction│          │
+│  │ Documentation Updates   50% increase │          │
 │  └──────────────────────────────────────┘          │
 │                                                    │
-│  定性指標:                                          │
+│  Qualitative Metrics:                               │
 │  ┌──────────────────────────────────────┐          │
-│  │ - 開発者満足度（月次アンケート）      │          │
-│  │ - コードの可読性・保守性評価          │          │
-│  │ - 学習曲線の傾き（新メンバー）       │          │
-│  │ - AI活用の習熟度（5段階評価）        │          │
+│  │ - Developer satisfaction (monthly    │          │
+│  │   survey)                            │          │
+│  │ - Code readability/maintainability   │          │
+│  │   assessment                         │          │
+│  │ - Learning curve slope (new members) │          │
+│  │ - AI proficiency level (5-point      │          │
+│  │   scale)                             │          │
 │  └──────────────────────────────────────┘          │
 │                                                    │
-│  コスト指標:                                        │
+│  Cost Metrics:                                      │
 │  ┌──────────────────────────────────────┐          │
-│  │ - ライセンス費用 / 開発者あたり      │          │
-│  │ - 生産性向上による人件費削減額       │          │
-│  │ - ROI（投資対効果）                 │          │
-│  │ - API使用量（Claude Code併用時）    │          │
+│  │ - License cost per developer         │          │
+│  │ - Personnel cost savings from        │          │
+│  │   productivity gains                 │          │
+│  │ - ROI (Return on Investment)         │          │
+│  │ - API usage (when combined with      │          │
+│  │   Claude Code)                       │          │
 │  └──────────────────────────────────────┘          │
 └────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 7. トラブルシューティング
+## 7. Troubleshooting
 
-### 7.1 よくある問題と解決策
+### 7.1 Common Issues and Solutions
 
 ```
 ┌───────────────────────────────────────────────────────┐
-│          AI IDE トラブルシューティング                   │
+│          AI IDE Troubleshooting                        │
 │                                                       │
-│  問題1: 補完の質が低い                                 │
+│  Issue 1: Low-quality completions                     │
 │  ┌─────────────────────────────────────────────┐      │
-│  │ 原因:                                        │      │
-│  │   - .cursorrules が設定されていない           │      │
-│  │   - インデックスが古い                        │      │
-│  │   - コンテキストが不足している                │      │
-│  │ 対処:                                        │      │
-│  │   - .cursorrules にプロジェクト規約を追加     │      │
-│  │   - Cmd+Shift+P → "Reindex" を実行          │      │
-│  │   - @file で関連ファイルを明示的に追加        │      │
+│  │ Cause:                                       │      │
+│  │   - .cursorrules not configured              │      │
+│  │   - Index is outdated                        │      │
+│  │   - Insufficient context                     │      │
+│  │ Solution:                                    │      │
+│  │   - Add project conventions to .cursorrules  │      │
+│  │   - Run Cmd+Shift+P → "Reindex"             │      │
+│  │   - Explicitly add related files via @file   │      │
 │  └─────────────────────────────────────────────┘      │
 │                                                       │
-│  問題2: AIが古い情報を使う                             │
+│  Issue 2: AI uses outdated information                │
 │  ┌─────────────────────────────────────────────┐      │
-│  │ 原因:                                        │      │
-│  │   - AIの学習データが古い                      │      │
-│  │   - @docs のインデックスが更新されていない    │      │
-│  │ 対処:                                        │      │
-│  │   - @web で最新情報を検索して提供             │      │
-│  │   - @docs のURLを最新版に更新                 │      │
-│  │   - プロンプトに"2025年最新の仕様で"と明記    │      │
+│  │ Cause:                                       │      │
+│  │   - AI training data is outdated             │      │
+│  │   - @docs index has not been updated         │      │
+│  │ Solution:                                    │      │
+│  │   - Search for latest information via @web   │      │
+│  │   - Update @docs URL to latest version       │      │
+│  │   - Specify "use the latest 2025 specs"      │      │
+│  │     in the prompt                            │      │
 │  └─────────────────────────────────────────────┘      │
 │                                                       │
-│  問題3: エディタが重い                                 │
+│  Issue 3: Editor is slow                              │
 │  ┌─────────────────────────────────────────────┐      │
-│  │ 原因:                                        │      │
-│  │   - プロジェクトが大きすぎる                  │      │
-│  │   - インデックス対象が多すぎる                │      │
-│  │   - 拡張機能の競合                            │      │
-│  │ 対処:                                        │      │
-│  │   - .cursorignore で不要ファイルを除外        │      │
-│  │   - 大規模プロジェクトはCLI（Claude Code）を  │      │
-│  │     検討                                     │      │
-│  │   - AI系拡張機能の重複を解消                  │      │
+│  │ Cause:                                       │      │
+│  │   - Project is too large                     │      │
+│  │   - Too many files in the index              │      │
+│  │   - Extension conflicts                      │      │
+│  │ Solution:                                    │      │
+│  │   - Exclude unnecessary files via            │      │
+│  │     .cursorignore                            │      │
+│  │   - Consider CLI (Claude Code) for large     │      │
+│  │     projects                                 │      │
+│  │   - Resolve duplicate AI extensions          │      │
 │  └─────────────────────────────────────────────┘      │
 │                                                       │
-│  問題4: Composerの変更が意図と異なる                   │
+│  Issue 4: Composer changes differ from intent         │
 │  ┌─────────────────────────────────────────────┐      │
-│  │ 原因:                                        │      │
-│  │   - プロンプトが曖昧                          │      │
-│  │   - 既存コードのパターンと乖離                │      │
-│  │ 対処:                                        │      │
-│  │   - プロンプトに既存コードの例を含める        │      │
-│  │   - @file で参考にすべきファイルを指定         │      │
-│  │   - 段階的に変更（一度に多くを変更しない）    │      │
-│  │   - Reject して具体的なフィードバックを追加    │      │
+│  │ Cause:                                       │      │
+│  │   - Prompt is ambiguous                      │      │
+│  │   - Diverges from existing code patterns     │      │
+│  │ Solution:                                    │      │
+│  │   - Include examples of existing code in     │      │
+│  │     the prompt                               │      │
+│  │   - Specify reference files via @file        │      │
+│  │   - Make changes incrementally (don't change │      │
+│  │     too much at once)                        │      │
+│  │   - Reject and add specific feedback         │      │
 │  └─────────────────────────────────────────────┘      │
 │                                                       │
-│  問題5: チーム間でAIの応答品質にバラつき               │
+│  Issue 5: AI response quality varies across team      │
 │  ┌─────────────────────────────────────────────┐      │
-│  │ 原因:                                        │      │
-│  │   - .cursorrules の品質が不十分               │      │
-│  │   - メンバーのプロンプト力に差がある          │      │
-│  │ 対処:                                        │      │
-│  │   - .cursorrules をチームで精緻化             │      │
-│  │   - プロンプトテンプレートを共有              │      │
-│  │   - ペアプロでの知識共有を実施                │      │
+│  │ Cause:                                       │      │
+│  │   - .cursorrules quality is insufficient     │      │
+│  │   - Prompt skill levels vary among members   │      │
+│  │ Solution:                                    │      │
+│  │   - Refine .cursorrules as a team            │      │
+│  │   - Share prompt templates                   │      │
+│  │   - Conduct pair programming for knowledge   │      │
+│  │     sharing                                  │      │
 │  └─────────────────────────────────────────────┘      │
 └───────────────────────────────────────────────────────┘
 ```
 
-### 7.2 AI IDEのセキュリティ設定チェックリスト
+### 7.2 AI IDE Security Settings Checklist
 
 ```markdown
-# AI IDE セキュリティチェックリスト
+# AI IDE Security Checklist
 
-## 1. ファイル除外設定
-- [ ] .cursorignore に機密ファイルを追加
+## 1. File Exclusion Settings
+- [ ] Add sensitive files to .cursorignore
   - .env, .env.*, .env.local
   - *.pem, *.key, *.cert
   - credentials.json, secrets.yaml
   - .aws/, .ssh/
 
-## 2. プライバシー設定
-- [ ] Privacy Mode を有効化（学習データ非利用）
-- [ ] テレメトリ設定を確認
-- [ ] チームのセキュリティポリシーに準拠
+## 2. Privacy Settings
+- [ ] Enable Privacy Mode (opt out of training data usage)
+- [ ] Verify telemetry settings
+- [ ] Comply with team security policies
 
-## 3. コードの送信範囲
-- [ ] どのファイルがAIに送信されるか把握
-- [ ] 機密コード（認証、暗号化）の扱いを定義
-- [ ] 顧客データを含むファイルの取り扱い
+## 3. Code Transmission Scope
+- [ ] Understand which files are sent to the AI
+- [ ] Define handling of sensitive code (auth, encryption)
+- [ ] Handle files containing customer data appropriately
 
-## 4. 拡張機能の管理
-- [ ] 信頼できるソースの拡張機能のみ使用
-- [ ] AI系拡張機能の重複がないか確認
-- [ ] 不要な拡張機能を無効化
+## 4. Extension Management
+- [ ] Use only extensions from trusted sources
+- [ ] Verify no duplicate AI extensions
+- [ ] Disable unnecessary extensions
 
-## 5. ネットワーク
-- [ ] VPN経由での利用を確認
-- [ ] プロキシ設定が適切か確認
-- [ ] ファイアウォールルールの確認
+## 5. Network
+- [ ] Confirm usage via VPN
+- [ ] Verify proxy settings are correct
+- [ ] Verify firewall rules
 ```
 
 ---
 
-## 8. AI IDE × 他ツールの連携パターン
+## 8. AI IDE Integration Patterns with Other Tools
 
-### 8.1 Cursor + Claude Code の最強連携
+### 8.1 Cursor + Claude Code: The Ultimate Combination
 
 ```
 ┌────────────────────────────────────────────────────┐
-│        Cursor + Claude Code 連携ワークフロー        │
+│        Cursor + Claude Code Combined Workflow       │
 │                                                    │
-│  日常的なコーディング（Cursor）                      │
+│  Day-to-Day Coding (Cursor)                        │
 │  ┌──────────────────────────────────────┐          │
-│  │ - インライン補完でコードを高速記述    │          │
-│  │ - Cmd+K で局所的なコード変換          │          │
-│  │ - Cmd+L で疑問点を対話的に解決        │          │
+│  │ - Write code rapidly with inline     │          │
+│  │   completion                         │          │
+│  │ - Local code transformation via Cmd+K│          │
+│  │ - Resolve questions interactively    │          │
+│  │   via Cmd+L                          │          │
 │  └────────────────┬─────────────────────┘          │
 │                   │                                │
-│                   │ 複雑なタスクが発生               │
+│                   │ A complex task arises           │
 │                   ▼                                │
-│  エージェントタスク（Claude Code）                   │
+│  Agent Tasks (Claude Code)                         │
 │  ┌──────────────────────────────────────┐          │
-│  │ - マルチファイルのリファクタリング     │          │
-│  │ - テスト生成→実行→修正ループ         │          │
-│  │ - GitHub PR作成・レビュー             │          │
-│  │ - CI/CDパイプラインとの連携           │          │
+│  │ - Multi-file refactoring             │          │
+│  │ - Test generation → run → fix loop   │          │
+│  │ - GitHub PR creation and review      │          │
+│  │ - CI/CD pipeline integration         │          │
 │  └────────────────┬─────────────────────┘          │
 │                   │                                │
-│                   │ 結果をCursorで確認               │
+│                   │ Review results in Cursor        │
 │                   ▼                                │
-│  レビューと仕上げ（Cursor）                         │
+│  Review and Polish (Cursor)                        │
 │  ┌──────────────────────────────────────┐          │
-│  │ - Gitの差分を視覚的に確認             │          │
-│  │ - 細かい調整をインラインで実施         │          │
-│  │ - テストの追加確認                    │          │
+│  │ - Visually review Git diffs          │          │
+│  │ - Make fine adjustments inline       │          │
+│  │ - Additional test verification       │          │
 │  └──────────────────────────────────────┘          │
 └────────────────────────────────────────────────────┘
 ```
 
-### 8.2 AI IDE + 従来ツールの併用マトリクス
+### 8.2 AI IDE + Traditional Tools Usage Matrix
 
-| 作業 | AI IDE (Cursor/Windsurf) | Claude Code (CLI) | 従来ツール |
-|------|--------------------------|-------------------|-----------|
-| コード記述 | メイン | - | サブ |
-| デバッグ（IDE内） | メイン | - | ブレークポイント |
-| デバッグ（ログ分析） | サブ | メイン | grep/awk |
-| テスト作成 | メイン | サブ | 手動 |
-| テスト実行 | IDE上 | CLI上 | CI/CD |
-| リファクタリング | 小規模 | 大規模 | - |
-| PR作成 | - | メイン | GitHub UI |
-| コードレビュー | 差分表示 | 自動レビュー | GitHub UI |
-| ドキュメント | 初稿生成 | 自動メンテ | 手動編集 |
-| DB操作 | - | MCP経由 | クライアント |
-| デプロイ | - | CI統合 | CI/CD |
+| Task | AI IDE (Cursor/Windsurf) | Claude Code (CLI) | Traditional Tools |
+|------|--------------------------|-------------------|-------------------|
+| Writing code | Primary | - | Secondary |
+| Debugging (in IDE) | Primary | - | Breakpoints |
+| Debugging (log analysis) | Secondary | Primary | grep/awk |
+| Writing tests | Primary | Secondary | Manual |
+| Running tests | In IDE | In CLI | CI/CD |
+| Refactoring | Small-scale | Large-scale | - |
+| Creating PRs | - | Primary | GitHub UI |
+| Code review | Diff view | Auto review | GitHub UI |
+| Documentation | Draft generation | Auto maintenance | Manual editing |
+| DB operations | - | Via MCP | DB client |
+| Deployment | - | CI integration | CI/CD |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン 1: コンテキスト過剰投入
+### Anti-Pattern 1: Context Overloading
 
 ```
-❌ BAD: 全てのファイルをコンテキストに含める
-   @codebase "全ファイルを読んでからリファクタリングして"
-   → トークン制限超過、応答遅延、品質低下
+❌ BAD: Include all files in context
+   @codebase "Read all files then refactor"
+   → Token limit exceeded, response delay, quality degradation
 
-✅ GOOD: 関連ファイルだけを選択
+✅ GOOD: Select only related files
    @file src/services/auth.ts
    @file src/types/user.ts
-   "この認証サービスにOAuth対応を追加して"
-   → 高速で高品質な応答
+   "Add OAuth support to this authentication service"
+   → Fast and high-quality response
 ```
 
-### アンチパターン 2: AI IDEのロックイン
+### Anti-Pattern 2: AI IDE Lock-in
 
 ```
-❌ BAD: 特定AI IDEの固有機能に依存しすぎる
-   - .cursorrules にビジネスロジックを埋め込む
-   - Cursor固有のAPIに依存した開発フロー
-   → ツール変更時に大きなコストが発生
+❌ BAD: Over-relying on features specific to a particular AI IDE
+   - Embedding business logic in .cursorrules
+   - Development workflow dependent on Cursor-specific APIs
+   → Significant cost when switching tools
 
-✅ GOOD: 標準的な構成を維持しつつAI IDEを活用
-   - 設定は .editorconfig / ESLint / Prettier で管理
-   - AI固有設定は薄いレイヤーで分離
-   - どのエディタでも開発できる状態を維持
+✅ GOOD: Maintain standard configuration while leveraging AI IDEs
+   - Manage settings via .editorconfig / ESLint / Prettier
+   - Isolate AI-specific settings in a thin layer
+   - Maintain the ability to develop in any editor
 ```
 
-### アンチパターン 3: AI IDEの盲信
+### Anti-Pattern 3: Blind Trust in AI IDEs
 
 ```
-❌ BAD: AIの補完を無条件に受け入れる
-   - Tabキーを連打して全ての提案を受け入れる
-   - Composerの出力をレビューせずにAccept
-   → バグの混入、セキュリティ脆弱性、技術的負債の蓄積
+❌ BAD: Unconditionally accepting AI completions
+   - Mashing the Tab key to accept all suggestions
+   - Accepting Composer output without review
+   → Bug introduction, security vulnerabilities, technical debt accumulation
 
-✅ GOOD: 批判的にレビューしながら活用
-   - 補完内容を読んでから受け入れる
-   - Composerの変更は差分を確認してからAccept
-   - セキュリティ・パフォーマンスに影響する変更は特に注意
-   - テストを実行して動作確認してからコミット
+✅ GOOD: Use critically while reviewing
+   - Read completion content before accepting
+   - Review diffs before accepting Composer changes
+   - Pay special attention to changes affecting security/performance
+   - Run tests and verify behavior before committing
 ```
 
-### アンチパターン 4: AI IDE導入のトップダウン強制
+### Anti-Pattern 4: Top-Down Forced AI IDE Adoption
 
 ```
-❌ BAD: 管理層がAI IDEの使用を一方的に強制
-   - "全員Cursorを使え"と指示を出すだけ
-   - 研修なし、サポートなし
-   - 効果測定なし
-   → 反発、非効率な使い方、形骸化
+❌ BAD: Management unilaterally mandating AI IDE usage
+   - Simply issuing an order: "Everyone must use Cursor"
+   - No training, no support
+   - No effectiveness measurement
+   → Resistance, inefficient usage, becoming a formality
 
-✅ GOOD: 段階的な導入とサポート
-   - パイロットチームでの検証から始める
-   - ハンズオン研修とペアプロの実施
-   - 定期的なフィードバック収集
-   - 効果測定と改善サイクル
-   - 強制ではなく推奨（個人の裁量を尊重）
+✅ GOOD: Gradual adoption with support
+   - Start with validation by a pilot team
+   - Provide hands-on training and pair programming
+   - Collect regular feedback
+   - Effectiveness measurement and improvement cycle
+   - Recommend rather than mandate (respect individual discretion)
 ```
 
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic Implementation Template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -969,26 +998,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced Patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -996,7 +1025,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1007,14 +1036,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1022,7 +1051,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1030,44 +1059,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance Optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1076,7 +1105,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1091,67 +1120,67 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum viable feature set
+- Automated tests only for the critical path
+- Introduce monitoring early on
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't strive for perfection (YAGNI principle)
+- Obtain user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually renovate a system that has been in production for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- Create Characterization Tests first if existing tests are absent
+- Use an API gateway to coexist old and new systems
+- Perform data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Tasks | Estimated Duration | Risk |
+|-------|-------|--------------------|------|
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | Build CI/CD, test environment | 4-6 weeks | Low |
+| 3. Migration Start | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core Migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Decommission legacy system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with Large Teams
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with Domain-Driven Design
+- Assign ownership per team
+- Manage shared libraries via Inner Source
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API Contract Definition Between Teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1164,20 +1193,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Verify SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Export in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1186,7 +1215,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1207,104 +1236,106 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system that requires millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: In-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Method | Impact | Implementation Cost | When to Apply |
+|--------------------|--------|---------------------|---------------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Med | High | When CPU-bound |
 
 ---
 
-## チーム開発での活用
+## Team Development Practices
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to verify in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Naming conventions are consistent
+- [ ] Error handling is appropriate
+- [ ] Test coverage is sufficient
+- [ ] No performance impact
+- [ ] No security issues
+- [ ] Documentation is updated
 
-### ナレッジ共有のベストプラクティス
+### Best Practices for Knowledge Sharing
 
-| 方法 | 頻度 | 対象 | 効果 |
-|------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Method | Frequency | Target | Effect |
+|--------|-----------|--------|--------|
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talks | Weekly | Entire team | Horizontal knowledge spread |
+| ADR (Architecture Decision Records) | As needed | Future members | Decision transparency |
+| Retrospectives | Biweekly | Entire team | Continuous improvement |
+| Mob programming | Monthly | Important designs | Consensus building |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
+        Impact High
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │ Plan│ Fix │
+    │ and │ Im- │
+    │ Sche│ me- │
+    │ dule│ dia- │
+    │     │ tely │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │ Log │ Next │
+    │ Only│Sprint│
+    │     │      │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Impact Low
+    Frequency Low  Frequency High
 ```
 
 ---
 
-## セキュリティの考慮事項
+## Security Considerations
 
-### 一般的な脆弱性と対策
+### Common Vulnerabilities and Countermeasures
 
-| 脆弱性 | リスクレベル | 対策 | 検出方法 |
-|--------|------------|------|---------|
-| インジェクション攻撃 | 高 | 入力値のバリデーション・パラメータ化クエリ | SAST/DAST |
-| 認証の不備 | 高 | 多要素認証・セッション管理の強化 | ペネトレーションテスト |
-| 機密データの露出 | 高 | 暗号化・アクセス制御 | セキュリティ監査 |
-| 設定の不備 | 中 | セキュリティヘッダー・最小権限の原則 | 構成スキャン |
-| ログの不足 | 中 | 構造化ログ・監査証跡 | ログ分析 |
+| Vulnerability | Risk Level | Countermeasure | Detection Method |
+|--------------|------------|----------------|------------------|
+| Injection attacks | High | Input validation, parameterized queries | SAST/DAST |
+| Authentication flaws | High | Multi-factor auth, session management hardening | Penetration testing |
+| Sensitive data exposure | High | Encryption, access control | Security audit |
+| Misconfiguration | Medium | Security headers, principle of least privilege | Configuration scan |
+| Insufficient logging | Medium | Structured logging, audit trails | Log analysis |
 
-### セキュアコーディングのベストプラクティス
+### Secure Coding Best Practices
 
 ```python
-# セキュアコーディング例
+# Secure Coding Example
 import hashlib
 import secrets
 import hmac
 from typing import Optional
 
 class SecurityUtils:
-    """セキュリティユーティリティ"""
+    """Security utilities"""
 
     @staticmethod
     def generate_token(length: int = 32) -> str:
-        """暗号学的に安全なトークン生成"""
+        """Generate a cryptographically secure token"""
         return secrets.token_urlsafe(length)
 
     @staticmethod
     def hash_password(password: str, salt: Optional[str] = None) -> tuple:
-        """パスワードのハッシュ化"""
+        """Hash a password"""
         if salt is None:
             salt = secrets.token_hex(16)
         hashed = hashlib.pbkdf2_hmac(
@@ -1317,50 +1348,50 @@ class SecurityUtils:
 
     @staticmethod
     def verify_password(password: str, hashed: str, salt: str) -> bool:
-        """パスワードの検証"""
+        """Verify a password"""
         new_hash, _ = SecurityUtils.hash_password(password, salt)
         return hmac.compare_digest(new_hash, hashed)
 
     @staticmethod
     def sanitize_input(value: str) -> str:
-        """入力値のサニタイズ"""
+        """Sanitize input value"""
         dangerous_chars = ['<', '>', '"', "'", '&', '\\']
         result = value
         for char in dangerous_chars:
             result = result.replace(char, '')
         return result.strip()
 
-# 使用例
+# Usage example
 token = SecurityUtils.generate_token()
 hashed, salt = SecurityUtils.hash_password("my_password")
 is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 ```
 
-### セキュリティチェックリスト
+### Security Checklist
 
-- [ ] 全ての入力値がバリデーションされている
-- [ ] 機密情報がログに出力されていない
-- [ ] HTTPS が強制されている
-- [ ] CORS ポリシーが適切に設定されている
-- [ ] 依存パッケージの脆弱性スキャンが実施されている
-- [ ] エラーメッセージに内部情報が含まれていない
+- [ ] All input values are validated
+- [ ] Sensitive information is not output in logs
+- [ ] HTTPS is enforced
+- [ ] CORS policy is properly configured
+- [ ] Dependency vulnerability scanning is performed
+- [ ] Error messages do not contain internal information
 
 ---
 
-## マイグレーションガイド
+## Migration Guide
 
-### バージョンアップ時の注意点
+### Notes for Version Upgrades
 
-| バージョン | 主な変更点 | 移行作業 | 影響範囲 |
-|-----------|-----------|---------|---------|
-| v1.x → v2.x | API設計の刷新 | エンドポイント変更 | 全クライアント |
-| v2.x → v3.x | 認証方式の変更 | トークン形式更新 | 認証関連 |
-| v3.x → v4.x | データモデル変更 | マイグレーションスクリプト実行 | DB関連 |
+| Version | Major Changes | Migration Tasks | Impact Scope |
+|---------|--------------|-----------------|--------------|
+| v1.x → v2.x | API design overhaul | Endpoint changes | All clients |
+| v2.x → v3.x | Authentication method change | Token format update | Auth-related |
+| v3.x → v4.x | Data model change | Run migration scripts | DB-related |
 
-### 段階的移行の手順
+### Step-by-Step Migration Procedure
 
 ```python
-# マイグレーションスクリプトのテンプレート
+# Migration Script Template
 import json
 import logging
 from pathlib import Path
@@ -1370,7 +1401,7 @@ from typing import List, Dict, Callable
 logger = logging.getLogger(__name__)
 
 class MigrationRunner:
-    """段階的マイグレーション実行エンジン"""
+    """Step-by-step migration execution engine"""
 
     def __init__(self, migration_dir: str):
         self.migration_dir = Path(migration_dir)
@@ -1379,7 +1410,7 @@ class MigrationRunner:
 
     def register(self, version: str, description: str,
                  up: Callable, down: Callable):
-        """マイグレーションの登録"""
+        """Register a migration"""
         self.migrations.append({
             'version': version,
             'description': description,
@@ -1389,35 +1420,35 @@ class MigrationRunner:
         })
 
     def run_up(self, target_version: str = None):
-        """マイグレーションの実行（アップグレード）"""
+        """Execute migrations (upgrade)"""
         for migration in self.migrations:
             if migration['version'] in self.completed:
                 continue
-            logger.info(f"実行中: {migration['version']} - "
+            logger.info(f"Running: {migration['version']} - "
                        f"{migration['description']}")
             try:
                 migration['up']()
                 self.completed.append(migration['version'])
-                logger.info(f"完了: {migration['version']}")
+                logger.info(f"Completed: {migration['version']}")
             except Exception as e:
-                logger.error(f"失敗: {migration['version']}: {e}")
+                logger.error(f"Failed: {migration['version']}: {e}")
                 raise
             if target_version and migration['version'] == target_version:
                 break
 
     def run_down(self, target_version: str):
-        """マイグレーションのロールバック"""
+        """Rollback migrations"""
         for migration in reversed(self.migrations):
             if migration['version'] not in self.completed:
                 continue
             if migration['version'] == target_version:
                 break
-            logger.info(f"ロールバック: {migration['version']}")
+            logger.info(f"Rolling back: {migration['version']}")
             migration['down']()
             self.completed.remove(migration['version'])
 
     def status(self) -> Dict:
-        """マイグレーション状態の確認"""
+        """Check migration status"""
         return {
             'total': len(self.migrations),
             'completed': len(self.completed),
@@ -1430,73 +1461,73 @@ class MigrationRunner:
         }
 ```
 
-### ロールバック計画
+### Rollback Plan
 
-移行作業には必ずロールバック計画を準備してください:
+Always prepare a rollback plan for migration tasks:
 
-1. **データのバックアップ**: 移行前に完全バックアップを取得
-2. **テスト環境での検証**: 本番と同等の環境で事前検証
-3. **段階的なロールアウト**: カナリアリリースで段階的に展開
-4. **監視の強化**: 移行中はメトリクスの監視間隔を短縮
-5. **判断基準の明確化**: ロールバックを判断する基準を事前に定義
+1. **Data Backup**: Take a full backup before migration
+2. **Testing Environment Verification**: Validate in an environment equivalent to production
+3. **Gradual Rollout**: Deploy incrementally via canary releases
+4. **Enhanced Monitoring**: Shorten metric monitoring intervals during migration
+5. **Clear Decision Criteria**: Pre-define criteria for deciding when to roll back
 ---
 
 ## FAQ
 
-### Q1: CursorはVSCodeの拡張機能と互換性があるか？
+### Q1: Is Cursor compatible with VSCode extensions?
 
-CursorはVSCodeのフォークであるため、ほぼ全ての拡張機能がそのまま動作する。ただし、一部のAI系拡張機能（Copilot等）はCursorのネイティブ機能と競合する場合がある。ESLint、Prettier、GitLens等の開発ツール系拡張は問題なく利用可能。
+Since Cursor is a fork of VSCode, nearly all extensions work as-is. However, some AI extensions (such as Copilot) may conflict with Cursor's native features. Development tool extensions like ESLint, Prettier, and GitLens work without issues.
 
-### Q2: WindsurfとCursorのどちらが初心者に向いているか？
+### Q2: Which is better for beginners, Windsurf or Cursor?
 
-WindsurfのCascade機能は操作が直感的で、AIとの対話が自然なため初心者に向いている。CursorはComposerや@記法など機能が豊富だが、使いこなすには学習コストがかかる。料金もWindsurfの方が安い。まずWindsurfで慣れてから、より高度な機能が必要になったらCursorに移行するパスが合理的。
+Windsurf's Cascade feature is intuitive to operate and provides natural AI interaction, making it suitable for beginners. Cursor is feature-rich with Composer and @ notation, but has a higher learning curve. Windsurf is also less expensive. A practical path is to start with Windsurf and migrate to Cursor when more advanced features are needed.
 
-### Q3: AI IDEのセキュリティリスクはどう管理すべきか？
+### Q3: How should AI IDE security risks be managed?
 
-主なリスクは「コードが外部サーバーに送信される」こと。対策として(1) .cursorignoreや設定で機密ファイルを除外、(2) プライベートモードを有効化（学習データとして使用されない設定）、(3) SOC2認証を取得しているツールを選択、(4) 企業のセキュリティチームと連携してポリシーを策定する。
+The main risk is that "code is sent to external servers." Countermeasures include: (1) exclude sensitive files via .cursorignore and settings, (2) enable Private Mode (opt out of training data usage), (3) choose tools with SOC2 certification, and (4) collaborate with the enterprise security team to establish policies.
 
-### Q4: .cursorrules と CLAUDE.md の使い分けは？
+### Q4: How should .cursorrules and CLAUDE.md be used differently?
 
-.cursorrules はCursorでの対話時に自動的に適用されるプロジェクト規約ファイル。CLAUDE.md はClaude Code（CLI）で参照される設定ファイル。両方を維持するのがベスト。共通する内容（コーディング規約、アーキテクチャ等）は一方をSource of Truthとし、他方から参照する。
+.cursorrules is a project convention file that is automatically applied during Cursor interactions. CLAUDE.md is a configuration file referenced by Claude Code (CLI). Maintaining both is best. For shared content (coding conventions, architecture, etc.), designate one as the Source of Truth and reference it from the other.
 
-### Q5: CursorのProプランは個人開発者にとってコスパが良いか？
+### Q5: Is the Cursor Pro plan cost-effective for individual developers?
 
-個人開発者がプロフェッショナルレベルで開発する場合、Cursor Pro（$20/月）は十分にコスパが良い。特にComposerによるマルチファイル生成と@docs による公式ドキュメント参照は、1日の生産性向上が1-2時間に相当する。月額$20は時給換算で30分以下の節約で元が取れる計算になる。
+For individual developers working at a professional level, Cursor Pro ($20/month) is sufficiently cost-effective. In particular, multi-file generation via Composer and official documentation reference via @docs equate to a 1-2 hour daily productivity boost. At $20/month, you break even with less than 30 minutes of time savings at hourly rates.
 
-### Q6: AI IDEでの開発はペアプログラミングと併用できるか？
+### Q6: Can AI IDE development be combined with pair programming?
 
-むしろ相性が良い。ペアプログラミングで「ナビゲーター」がAI IDEを活用してコード提案やドキュメント検索を行い、「ドライバー」が実装に集中するパターンが効果的。AIを「第三のペア」として扱う「トリオプログラミング」という概念も広がりつつある。
+They are actually quite compatible. A pattern where the "navigator" uses the AI IDE to provide code suggestions and search documentation while the "driver" focuses on implementation is effective. The concept of "trio programming," treating AI as a "third pair," is also gaining traction.
 
-### Q7: Cursor/Windsurf の学習リソースとしておすすめは？
+### Q7: What are recommended learning resources for Cursor/Windsurf?
 
-各ツールの公式ドキュメントが最も信頼性が高い。Cursorは公式YouTube チャンネルのチュートリアルが充実している。Windsurfは公式ブログとChangelog が有用。いずれもDiscord コミュニティでの質疑応答が活発。実践的な学習には、小規模なサイドプロジェクトでAgent Modeを積極的に使うのが効果的である。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| AI IDEの本質 | AIを後付けではなく中核に据えた開発環境 |
-| Cursorの強み | Composer、@記法、モデル選択の柔軟性 |
-| Windsurfの強み | Cascade、Flows、低コスト、直感的操作 |
-| コンテキスト管理 | 必要最小限のファイルを選択的に提供 |
-| 選定基準 | チーム規模、予算、開発領域で判断 |
-| チーム導入 | パイロット→展開→最適化の3フェーズ |
-| 併用戦略 | Cursor（日常コーディング）+ Claude Code（複雑タスク） |
-| 注意点 | ロックイン回避、セキュリティ設定、盲信禁止 |
+Official documentation for each tool is the most reliable. Cursor has comprehensive tutorials on its official YouTube channel. Windsurf's official blog and Changelog are useful. Both have active Q&A in their Discord communities. For practical learning, actively using Agent Mode on small side projects is effective.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [03-ai-coding-best-practices.md](./03-ai-coding-best-practices.md) ── AIコーディングのベストプラクティス
-- [../02-workflow/00-ai-testing.md](../02-workflow/00-ai-testing.md) ── AI IDEでのテスト自動化
-- [../03-team/00-ai-team-practices.md](../03-team/00-ai-team-practices.md) ── チームでのAI IDE導入
+| Item | Key Points |
+|------|------------|
+| Essence of AI IDEs | Development environments with AI at the core, not as an add-on |
+| Cursor's strengths | Composer, @ notation, flexible model selection |
+| Windsurf's strengths | Cascade, Flows, low cost, intuitive operation |
+| Context management | Selectively provide only the minimum necessary files |
+| Selection criteria | Decide based on team size, budget, and development domain |
+| Team adoption | Three phases: Pilot → Rollout → Optimization |
+| Combined strategy | Cursor (daily coding) + Claude Code (complex tasks) |
+| Cautions | Avoid lock-in, configure security, don't blindly trust AI |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
+
+- [03-ai-coding-best-practices.md](./03-ai-coding-best-practices.md) ── Best Practices for AI Coding
+- [../02-workflow/00-ai-testing.md](../02-workflow/00-ai-testing.md) ── Test Automation with AI IDEs
+- [../03-team/00-ai-team-practices.md](../03-team/00-ai-team-practices.md) ── AI IDE Adoption for Teams
+
+---
+
+## References
 
 1. Cursor, "Cursor Documentation," 2025. https://docs.cursor.com/
 2. Codeium, "Windsurf Documentation," 2025. https://docs.codeium.com/windsurf
