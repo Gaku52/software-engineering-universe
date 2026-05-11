@@ -1,31 +1,30 @@
-# 画像生成 — Stable Diffusion、DALL-E、Midjourney
+# Image Generation — Stable Diffusion, DALL-E, Midjourney
 
-> 3大画像生成プラットフォームの特徴と使い方を、実践的なコード例とワークフロー比較で完全ガイドする。
-
----
-
-## この章で学ぶこと
-
-1. **Stable Diffusion のローカル実行とカスタマイズ** — diffusers、ComfyUI、LoRA の活用
-2. **DALL-E 3 API の活用** — API設計、品質制御、ChatGPT連携
-3. **Midjourney の効果的な使い方** — パラメータ制御、スタイル一貫性、ワークフロー統合
-4. **Flux の導入と実践** — Rectified Flow Transformer による次世代画像生成
-5. **バッチ生成と自動化パイプライン** — 大量画像の効率的な生成ワークフロー
-6. **品質最適化テクニック** — スケジューラ選択、CFG制御、後処理の実践
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> A complete guide to the features and usage of the three major image generation platforms, with practical code examples and workflow comparisons.
 
 ---
 
-## 1. Stable Diffusion エコシステム
+## What You Will Learn in This Chapter
 
-### コード例1: diffusers による基本的な画像生成
+1. **Running and Customizing Stable Diffusion Locally** — Using diffusers, ComfyUI, and LoRA
+2. **Leveraging the DALL-E 3 API** — API design, quality control, and ChatGPT integration
+3. **Using Midjourney Effectively** — Parameter control, style consistency, and workflow integration
+4. **Getting Started with Flux** — Next-generation image generation with Rectified Flow Transformers
+5. **Batch Generation and Automation Pipelines** — Efficient workflows for mass image generation
+6. **Quality Optimization Techniques** — Scheduler selection, CFG control, and post-processing in practice
+
+## Prerequisites
+
+Before reading this guide, having the following knowledge will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+
+---
+
+## 1. Stable Diffusion Ecosystem
+
+### Code Example 1: Basic Image Generation with diffusers
 
 ```python
 from diffusers import (
@@ -35,13 +34,13 @@ from diffusers import (
 )
 import torch
 
-# VAE をロード (品質向上のため専用VAEを使用)
+# Load VAE (using a dedicated VAE for quality improvement)
 vae = AutoencoderKL.from_pretrained(
     "madebyollin/sdxl-vae-fp16-fix",
     torch_dtype=torch.float16,
 )
 
-# SDXL パイプラインをロード
+# Load SDXL pipeline
 pipe = StableDiffusionXLPipeline.from_pretrained(
     "stabilityai/stable-diffusion-xl-base-1.0",
     vae=vae,
@@ -51,12 +50,12 @@ pipe = StableDiffusionXLPipeline.from_pretrained(
 )
 pipe.to("cuda")
 
-# サンプラーを高速版に変更
+# Switch sampler to a faster version
 pipe.scheduler = DPMSolverMultistepScheduler.from_config(
     pipe.scheduler.config
 )
 
-# 画像生成
+# Generate image
 image = pipe(
     prompt="A majestic Japanese castle surrounded by cherry blossoms, "
            "golden hour lighting, photorealistic, 8K",
@@ -71,7 +70,7 @@ image = pipe(
 image.save("castle.png")
 ```
 
-### コード例1b: メモリ最適化付きの高度な生成
+### Code Example 1b: Advanced Generation with Memory Optimization
 
 ```python
 from diffusers import (
@@ -82,7 +81,7 @@ from diffusers import (
 import torch
 from compel import Compel, ReturnedEmbeddingsType
 
-# VAE ロード
+# Load VAE
 vae = AutoencoderKL.from_pretrained(
     "madebyollin/sdxl-vae-fp16-fix",
     torch_dtype=torch.float16,
@@ -97,14 +96,14 @@ pipe = StableDiffusionXLPipeline.from_pretrained(
 )
 pipe.to("cuda")
 
-# メモリ最適化の各種オプション
-pipe.enable_attention_slicing()     # Attention メモリ削減
-pipe.enable_vae_slicing()           # VAE メモリ削減
-pipe.enable_vae_tiling()            # 大解像度時のVAE処理
-# pipe.enable_model_cpu_offload()   # VRAM不足時にCPUオフロード
-# pipe.enable_sequential_cpu_offload()  # 極端にVRAM不足の場合
+# Various memory optimization options
+pipe.enable_attention_slicing()     # Reduce attention memory usage
+pipe.enable_vae_slicing()           # Reduce VAE memory usage
+pipe.enable_vae_tiling()            # VAE processing for high resolutions
+# pipe.enable_model_cpu_offload()   # CPU offload when VRAM is insufficient
+# pipe.enable_sequential_cpu_offload()  # For extremely low VRAM situations
 
-# Compel によるプロンプトの重み付け制御
+# Prompt weight control with Compel
 compel = Compel(
     tokenizer=[pipe.tokenizer, pipe.tokenizer_2],
     text_encoder=[pipe.text_encoder, pipe.text_encoder_2],
@@ -112,7 +111,7 @@ compel = Compel(
     requires_pooled=[False, True],
 )
 
-# プロンプト重み付け: (word)++ で強調、(word)-- で抑制
+# Prompt weighting: (word)++ to emphasize, (word)-- to suppress
 prompt = "A (majestic)++ Japanese castle, (cherry blossoms)++, golden hour"
 negative = "(low quality)--, (blurry)--, distorted, watermark"
 
@@ -133,7 +132,7 @@ image = pipe(
 image.save("castle_weighted.png")
 ```
 
-### コード例2: LoRA の適用
+### Code Example 2: Applying LoRA
 
 ```python
 from diffusers import StableDiffusionXLPipeline
@@ -144,14 +143,14 @@ pipe = StableDiffusionXLPipeline.from_pretrained(
     torch_dtype=torch.float16,
 ).to("cuda")
 
-# LoRA をロードして適用
+# Load and apply LoRA
 pipe.load_lora_weights(
     "path/to/lora",
     weight_name="anime_style_v2.safetensors",
     adapter_name="anime_style",
 )
 
-# LoRA の影響度を調整 (0.0~1.0)
+# Adjust LoRA influence (0.0-1.0)
 pipe.set_adapters(["anime_style"], adapter_weights=[0.8])
 
 image = pipe(
@@ -159,7 +158,7 @@ image = pipe(
     num_inference_steps=25,
 ).images[0]
 
-# 複数 LoRA の同時適用
+# Applying multiple LoRAs simultaneously
 pipe.load_lora_weights(
     "path/to/lora2",
     weight_name="lighting_enhance.safetensors",
@@ -167,24 +166,24 @@ pipe.load_lora_weights(
 )
 pipe.set_adapters(
     ["anime_style", "lighting"],
-    adapter_weights=[0.7, 0.5],  # 個別に重み調整
+    adapter_weights=[0.7, 0.5],  # Adjust weights individually
 )
 ```
 
-### コード例2b: LoRA の訓練 (DreamBooth LoRA)
+### Code Example 2b: LoRA Training (DreamBooth LoRA)
 
 ```python
 """
-LoRA ファインチューニングの実行例
-diffusers の train_dreambooth_lora_sdxl.py スクリプトを使用
+LoRA fine-tuning execution example
+Uses the train_dreambooth_lora_sdxl.py script from diffusers
 """
 
-# コマンドライン実行の設定
+# Command-line execution configuration
 train_config = {
     "pretrained_model_name_or_path": "stabilityai/stable-diffusion-xl-base-1.0",
-    "instance_data_dir": "./training_images",     # 学習画像フォルダ (10-30枚推奨)
+    "instance_data_dir": "./training_images",     # Training image folder (10-30 images recommended)
     "output_dir": "./my_lora_model",
-    "instance_prompt": "a photo of sks dog",      # sks はトリガーワード
+    "instance_prompt": "a photo of sks dog",      # sks is the trigger word
     "resolution": 1024,
     "train_batch_size": 1,
     "gradient_accumulation_steps": 4,
@@ -192,17 +191,17 @@ train_config = {
     "lr_scheduler": "cosine",
     "lr_warmup_steps": 100,
     "max_train_steps": 1000,
-    "rank": 32,                                    # LoRA のランク (4-128)
+    "rank": 32,                                    # LoRA rank (4-128)
     "seed": 42,
     "mixed_precision": "fp16",
-    "use_8bit_adam": True,                         # メモリ節約
-    "gradient_checkpointing": True,                # メモリ節約
-    "prior_preservation": True,                    # 過学習防止
+    "use_8bit_adam": True,                         # Memory saving
+    "gradient_checkpointing": True,                # Memory saving
+    "prior_preservation": True,                    # Prevent overfitting
     "prior_preservation_class_prompt": "a photo of a dog",
     "num_class_images": 100,
 }
 
-# accelerate を使った訓練コマンド生成
+# Generate training command using accelerate
 def generate_train_command(config):
     cmd = "accelerate launch train_dreambooth_lora_sdxl.py"
     for key, value in config.items():
@@ -215,12 +214,12 @@ def generate_train_command(config):
 
 print(generate_train_command(train_config))
 
-# 訓練後の LoRA 使用
+# Using the LoRA after training
 # pipe.load_lora_weights("./my_lora_model", weight_name="pytorch_lora_weights.safetensors")
 # image = pipe("a photo of sks dog in a garden", num_inference_steps=25).images[0]
 ```
 
-### コード例2c: ControlNet による構造制御
+### Code Example 2c: Structural Control with ControlNet
 
 ```python
 from diffusers import (
@@ -255,18 +254,18 @@ pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
 pipe.to("cuda")
 pipe.enable_model_cpu_offload()
 
-# エッジ検出
+# Edge detection
 canny = CannyDetector()
 source_image = load_image("reference_building.png")
 canny_image = canny(source_image, low_threshold=100, high_threshold=200)
 
-# エッジに基づいた画像生成
+# Generate image based on edges
 image = pipe(
     prompt="A futuristic glass skyscraper, same structure as reference, "
            "cyberpunk city, neon lights, night scene, photorealistic",
     negative_prompt="low quality, blurry",
     image=canny_image,
-    controlnet_conditioning_scale=0.7,  # ControlNet の影響度
+    controlnet_conditioning_scale=0.7,  # ControlNet influence strength
     num_inference_steps=30,
     guidance_scale=7.5,
 ).images[0]
@@ -287,11 +286,11 @@ pipe_pose = StableDiffusionXLControlNetPipeline.from_pretrained(
 )
 pipe_pose.to("cuda")
 
-# ポーズ検出
+# Pose detection
 openpose = OpenposeDetector.from_pretrained("lllyasviel/Annotators")
 pose_image = openpose(load_image("person_reference.png"))
 
-# ポーズに基づいた画像生成
+# Generate image based on pose
 image_pose = pipe_pose(
     prompt="A samurai warrior in traditional armor, dynamic pose, "
            "detailed, concept art, dramatic lighting",
@@ -316,11 +315,11 @@ pipe_depth = StableDiffusionXLControlNetPipeline.from_pretrained(
 )
 pipe_depth.to("cuda")
 
-# 深度マップ推定
+# Depth map estimation
 midas = MidasDetector.from_pretrained("lllyasviel/Annotators")
 depth_image = midas(load_image("room_photo.png"))
 
-# 深度に基づいたインテリアデザイン変換
+# Interior design conversion based on depth
 image_depth = pipe_depth(
     prompt="Modern Japanese interior, tatami room, shoji screens, "
            "natural light, same spatial layout, interior design magazine",
@@ -332,42 +331,42 @@ image_depth = pipe_depth(
 image_depth.save("controlnet_interior.png")
 ```
 
-### ASCII図解1: Stable Diffusion パイプラインの全体構成
+### ASCII Diagram 1: Overall Stable Diffusion Pipeline Architecture
 
 ```
-┌─────────────── Stable Diffusion パイプライン ──────────────┐
+┌─────────────── Stable Diffusion Pipeline ────────────────┐
 │                                                           │
-│  テキスト入力                                              │
+│  Text Input                                               │
 │      │                                                    │
 │      v                                                    │
 │  ┌──────────────┐                                         │
 │  │ Text Encoder │  CLIP (SD1.5) / CLIP+OpenCLIP (SDXL)   │
-│  │ (トークン化) │  / T5+CLIP (SD3/Flux)                   │
+│  │ (Tokenize)   │  / T5+CLIP (SD3/Flux)                   │
 │  └──────┬───────┘                                         │
-│         │ テキスト埋め込み                                 │
+│         │ Text Embeddings                                 │
 │         v                                                 │
 │  ┌──────────────────────────────────────┐                  │
 │  │         UNet / DiT                   │                  │
-│  │  ┌─────────┐  ┌─────────────────┐   │  ← ノイズ       │
-│  │  │ Self-   │  │ Cross-Attention │   │    (潜在空間)    │
-│  │  │Attention│  │ (テキスト条件)  │   │                  │
+│  │  ┌─────────┐  ┌─────────────────┐   │  ← Noise        │
+│  │  │ Self-   │  │ Cross-Attention │   │    (Latent       │
+│  │  │Attention│  │ (Text Condition)│   │     Space)       │
 │  │  └─────────┘  └─────────────────┘   │                  │
-│  │  × N ステップ (逆拡散)              │                  │
+│  │  × N Steps (Reverse Diffusion)      │                  │
 │  └──────────────┬───────────────────────┘                  │
-│                 │ ノイズ除去された潜在表現                  │
+│                 │ Denoised Latent Representation           │
 │                 v                                          │
 │  ┌──────────────┐                                         │
-│  │ VAE Decoder  │  潜在空間 → ピクセル空間                 │
+│  │ VAE Decoder  │  Latent Space → Pixel Space             │
 │  │ (4x64x64 →  │                                         │
 │  │  3x512x512)  │                                         │
 │  └──────┬───────┘                                         │
 │         │                                                 │
 │         v                                                 │
-│     生成画像                                               │
+│     Generated Image                                       │
 └───────────────────────────────────────────────────────────┘
 ```
 
-### コード例2d: スケジューラ(サンプラー)の比較と選択
+### Code Example 2d: Scheduler (Sampler) Comparison and Selection
 
 ```python
 from diffusers import (
@@ -388,47 +387,47 @@ pipe = StableDiffusionXLPipeline.from_pretrained(
     torch_dtype=torch.float16,
 ).to("cuda")
 
-# スケジューラの一覧と特徴
+# Scheduler list and characteristics
 schedulers = {
     "DPM++ 2M Karras": {
         "class": DPMSolverMultistepScheduler,
         "config": {"use_karras_sigmas": True, "algorithm_type": "dpmsolver++"},
-        "推奨ステップ": 25,
-        "特徴": "高速・高品質のバランスが最良。最も汎用的",
+        "recommended_steps": 25,
+        "characteristics": "Best balance of speed and quality. Most versatile",
     },
     "Euler": {
         "class": EulerDiscreteScheduler,
         "config": {},
-        "推奨ステップ": 30,
-        "特徴": "シンプルで安定。Midjourney のデフォルトに近い",
+        "recommended_steps": 30,
+        "characteristics": "Simple and stable. Close to Midjourney's default",
     },
     "Euler Ancestral": {
         "class": EulerAncestralDiscreteScheduler,
         "config": {},
-        "推奨ステップ": 30,
-        "特徴": "ランダム性あり。同一シードでもやや異なる結果",
+        "recommended_steps": 30,
+        "characteristics": "Has randomness. Slightly different results even with the same seed",
     },
     "UniPC": {
         "class": UniPCMultistepScheduler,
         "config": {},
-        "推奨ステップ": 20,
-        "特徴": "最小ステップ数で高品質。高速生成に最適",
+        "recommended_steps": 20,
+        "characteristics": "High quality with minimal steps. Best for fast generation",
     },
     "Heun": {
         "class": HeunDiscreteScheduler,
         "config": {},
-        "推奨ステップ": 25,
-        "特徴": "高品質だが低速 (各ステップで2回評価)。精密な生成向き",
+        "recommended_steps": 25,
+        "characteristics": "High quality but slow (evaluates twice per step). For precise generation",
     },
     "DDIM": {
         "class": DDIMScheduler,
         "config": {},
-        "推奨ステップ": 50,
-        "特徴": "決定論的。画像間の補間に使用可能",
+        "recommended_steps": 50,
+        "characteristics": "Deterministic. Can be used for image interpolation",
     },
 }
 
-# ベンチマーク実行
+# Run benchmark
 prompt = "A beautiful landscape, mountains, lake, sunset, photorealistic"
 results = {}
 
@@ -437,7 +436,7 @@ for name, sched_info in schedulers.items():
         pipe.scheduler.config, **sched_info["config"]
     )
     pipe.scheduler = scheduler
-    steps = sched_info["推奨ステップ"]
+    steps = sched_info["recommended_steps"]
 
     start = time.time()
     image = pipe(
@@ -451,21 +450,21 @@ for name, sched_info in schedulers.items():
     results[name] = {
         "time": round(elapsed, 2),
         "steps": steps,
-        "特徴": sched_info["特徴"],
+        "characteristics": sched_info["characteristics"],
     }
     image.save(f"scheduler_{name.replace(' ', '_').lower()}.png")
 
-# 結果出力
+# Output results
 for name, info in results.items():
-    print(f"{name}: {info['time']}秒 ({info['steps']}ステップ)")
-    print(f"  特徴: {info['特徴']}")
+    print(f"{name}: {info['time']}s ({info['steps']} steps)")
+    print(f"  Characteristics: {info['characteristics']}")
 ```
 
 ---
 
 ## 2. DALL-E 3 API
 
-### コード例3: DALL-E 3 による画像生成
+### Code Example 3: Image Generation with DALL-E 3
 
 ```python
 from openai import OpenAI
@@ -475,31 +474,31 @@ from pathlib import Path
 
 client = OpenAI()
 
-# 基本的な画像生成
+# Basic image generation
 response = client.images.generate(
     model="dall-e-3",
-    prompt="日本の伝統的な温泉旅館の露天風呂。紅葉に囲まれ、"
-           "湯気が朝霧のように立ち上る。写真のようにリアル。",
-    size="1792x1024",       # 横長
-    quality="hd",           # 高品質モード
+    prompt="A traditional Japanese onsen ryokan open-air bath. Surrounded by "
+           "autumn foliage, steam rising like morning mist. Photorealistic.",
+    size="1792x1024",       # Landscape
+    quality="hd",           # High quality mode
     style="natural",        # "natural" or "vivid"
     n=1,
 )
 
-# 生成された画像の情報
+# Generated image information
 image_url = response.data[0].url
-revised_prompt = response.data[0].revised_prompt  # GPT-4が書き換えたプロンプト
-print(f"修正プロンプト: {revised_prompt}")
+revised_prompt = response.data[0].revised_prompt  # Prompt rewritten by GPT-4
+print(f"Revised prompt: {revised_prompt}")
 
-# 画像をダウンロード
+# Download the image
 image_data = httpx.get(image_url).content
 Path("onsen.png").write_bytes(image_data)
 
-# バリエーション生成のパターン
+# Variation generation patterns
 prompts_batch = [
-    "同じ温泉旅館を春の桜の季節で",
-    "同じ温泉旅館を冬の雪景色で",
-    "同じ温泉旅館を夏の緑深い季節で",
+    "The same onsen ryokan in spring with cherry blossoms",
+    "The same onsen ryokan in winter with snow scenery",
+    "The same onsen ryokan in summer with lush greenery",
 ]
 
 for i, prompt in enumerate(prompts_batch):
@@ -512,7 +511,7 @@ for i, prompt in enumerate(prompts_batch):
     print(f"Season {i}: {resp.data[0].url}")
 ```
 
-### コード例3b: DALL-E 3 の高度な活用パターン
+### Code Example 3b: Advanced DALL-E 3 Usage Patterns
 
 ```python
 from openai import OpenAI
@@ -524,7 +523,7 @@ from concurrent.futures import ThreadPoolExecutor
 client = OpenAI()
 
 class DALLEWorkflow:
-    """DALL-E 3 の実務的な活用パターン集"""
+    """Collection of practical DALL-E 3 usage patterns"""
 
     def __init__(self, output_dir="./generated"):
         self.client = OpenAI()
@@ -533,7 +532,7 @@ class DALLEWorkflow:
 
     def generate_with_metadata(self, prompt, size="1024x1024",
                                 quality="hd", style="natural"):
-        """メタデータ付き画像生成"""
+        """Image generation with metadata"""
         response = self.client.images.generate(
             model="dall-e-3",
             prompt=prompt,
@@ -546,10 +545,10 @@ class DALLEWorkflow:
         image_url = response.data[0].url
         revised_prompt = response.data[0].revised_prompt
 
-        # 画像ダウンロード
+        # Download image
         image_data = httpx.get(image_url).content
 
-        # ファイル名生成
+        # Generate filename
         import hashlib
         name_hash = hashlib.md5(prompt.encode()).hexdigest()[:8]
         filename = f"dalle3_{name_hash}.png"
@@ -557,7 +556,7 @@ class DALLEWorkflow:
 
         filepath.write_bytes(image_data)
 
-        # メタデータ保存
+        # Save metadata
         metadata = {
             "original_prompt": prompt,
             "revised_prompt": revised_prompt,
@@ -572,7 +571,7 @@ class DALLEWorkflow:
         return filepath, metadata
 
     def generate_product_shots(self, product_name, angles=None, styles=None):
-        """商品画像の複数アングル生成"""
+        """Generate product images from multiple angles"""
         if angles is None:
             angles = [
                 "front view, centered",
@@ -599,8 +598,8 @@ class DALLEWorkflow:
         return results
 
     def generate_with_chatgpt_enhancement(self, rough_description):
-        """ChatGPT でプロンプトを拡張してから生成"""
-        # GPT-4 でプロンプトを改善
+        """Enhance prompt with ChatGPT before generation"""
+        # Improve prompt with GPT-4
         enhancement = self.client.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -615,7 +614,7 @@ class DALLEWorkflow:
         )
         enhanced_prompt = enhancement.choices[0].message.content
 
-        # 強化されたプロンプトで生成
+        # Generate with the enhanced prompt
         filepath, meta = self.generate_with_metadata(enhanced_prompt)
         meta["rough_description"] = rough_description
         meta["enhanced_prompt"] = enhanced_prompt
@@ -623,46 +622,46 @@ class DALLEWorkflow:
         return filepath, meta
 
 
-# 使用例
+# Usage example
 workflow = DALLEWorkflow(output_dir="./product_shots")
 
-# 商品画像生成
+# Product image generation
 results = workflow.generate_product_shots("minimalist leather wallet")
 for r in results:
     print(f"[{r['angle']}] {r['file']}")
 
-# ChatGPT 強化生成
+# ChatGPT-enhanced generation
 filepath, meta = workflow.generate_with_chatgpt_enhancement(
-    "日本の古い温泉街の夜景"
+    "Night view of an old Japanese hot spring town"
 )
-print(f"生成: {filepath}")
-print(f"強化プロンプト: {meta['enhanced_prompt'][:100]}...")
+print(f"Generated: {filepath}")
+print(f"Enhanced prompt: {meta['enhanced_prompt'][:100]}...")
 ```
 
-### コード例3c: DALL-E 3 サイズ・スタイル・品質の組み合わせ効果
+### Code Example 3c: DALL-E 3 Size, Style, and Quality Combination Effects
 
 ```python
 """
-DALL-E 3 パラメータの効果比較
+DALL-E 3 Parameter Effect Comparison
 
-サイズ:
-  1024x1024  — 正方形 (デフォルト、SNS投稿向き)
-  1024x1792  — 縦長 (ポスター、スマホ壁紙)
-  1792x1024  — 横長 (バナー、プレゼン背景)
+Sizes:
+  1024x1024  — Square (default, suitable for social media posts)
+  1024x1792  — Portrait (posters, phone wallpapers)
+  1792x1024  — Landscape (banners, presentation backgrounds)
 
-品質:
-  standard   — 標準品質、高速、$0.040/枚
-  hd         — 高品質、精密なディテール、$0.080/枚
+Quality:
+  standard   — Standard quality, fast, $0.040/image
+  hd         — High quality, fine details, $0.080/image
 
-スタイル:
-  natural    — 写実的、自然な印象
-  vivid      — 鮮やか、コントラスト強め、映画的
+Style:
+  natural    — Photorealistic, natural impression
+  vivid      — Vivid, high contrast, cinematic
 """
 
 from openai import OpenAI
 client = OpenAI()
 
-# パラメータの全組み合わせで生成比較
+# Generate comparisons with all parameter combinations
 def compare_dalle3_params(base_prompt):
     sizes = ["1024x1024", "1024x1792", "1792x1024"]
     qualities = ["standard", "hd"]
@@ -695,7 +694,7 @@ def compare_dalle3_params(base_prompt):
 
     return results
 
-# 使用例
+# Usage example
 # results = compare_dalle3_params("A serene Japanese garden in autumn")
 ```
 
@@ -703,82 +702,82 @@ def compare_dalle3_params(base_prompt):
 
 ## 3. Midjourney
 
-### コード例4: Midjourney スタイルのパラメータガイド
+### Code Example 4: Midjourney Style Parameter Guide
 
 ```python
 """
-Midjourney パラメータリファレンス (v6.1)
+Midjourney Parameter Reference (v6.1)
 
-構文: /imagine prompt: [テキスト] --[パラメータ]
+Syntax: /imagine prompt: [text] --[parameter]
 """
 
 MIDJOURNEY_PARAMS = {
-    # アスペクト比
+    # Aspect ratio
     "--ar": {
-        "説明": "画像のアスペクト比",
-        "例": "--ar 16:9, --ar 3:2, --ar 1:1",
-        "デフォルト": "1:1",
+        "description": "Image aspect ratio",
+        "example": "--ar 16:9, --ar 3:2, --ar 1:1",
+        "default": "1:1",
     },
-    # スタイライズ
+    # Stylize
     "--s": {
-        "説明": "Midjourneyのスタイル適用度 (0-1000)",
-        "例": "--s 50 (控えめ), --s 750 (強い)",
-        "デフォルト": "100",
+        "description": "Midjourney style intensity (0-1000)",
+        "example": "--s 50 (subtle), --s 750 (strong)",
+        "default": "100",
     },
-    # カオス
+    # Chaos
     "--c": {
-        "説明": "バリエーションの多様性 (0-100)",
-        "例": "--c 0 (安定), --c 50 (多様)",
-        "デフォルト": "0",
+        "description": "Variation diversity (0-100)",
+        "example": "--c 0 (stable), --c 50 (diverse)",
+        "default": "0",
     },
-    # 品質
+    # Quality
     "--q": {
-        "説明": "生成品質/計算量 (.25, .5, 1)",
-        "例": "--q 1 (最高), --q .5 (高速)",
-        "デフォルト": "1",
+        "description": "Generation quality/computation (.25, .5, 1)",
+        "example": "--q 1 (highest), --q .5 (fast)",
+        "default": "1",
     },
-    # ネガティブ
+    # Negative
     "--no": {
-        "説明": "除外したい要素",
-        "例": "--no text, watermark, people",
+        "description": "Elements to exclude",
+        "example": "--no text, watermark, people",
     },
-    # シード
+    # Seed
     "--seed": {
-        "説明": "再現性のためのシード値",
-        "例": "--seed 12345",
+        "description": "Seed value for reproducibility",
+        "example": "--seed 12345",
     },
-    # スタイルロー
+    # Style reference
     "--sref": {
-        "説明": "スタイル参照画像URL",
-        "例": "--sref https://example.com/style.png",
+        "description": "Style reference image URL",
+        "example": "--sref https://example.com/style.png",
     },
-    # キャラクターリファレンス (v6+)
+    # Character reference (v6+)
     "--cref": {
-        "説明": "キャラクター参照画像URL",
-        "例": "--cref https://example.com/character.png",
-        "注意": "同一キャラクターの別ポーズ生成に使用",
+        "description": "Character reference image URL",
+        "example": "--cref https://example.com/character.png",
+        "note": "Used for generating the same character in different poses",
     },
-    # タイル
+    # Tile
     "--tile": {
-        "説明": "タイリング可能なパターンを生成",
-        "例": "--tile",
-        "用途": "テクスチャ、壁紙、テキスタイル",
+        "description": "Generate a tileable pattern",
+        "example": "--tile",
+        "use_case": "Textures, wallpapers, textiles",
     },
-    # ストップ
+    # Stop
     "--stop": {
-        "説明": "生成を途中で停止 (10-100)",
-        "例": "--stop 80",
-        "用途": "抽象的、未完成感のある画像",
+        "description": "Stop generation partway (10-100)",
+        "example": "--stop 80",
+        "use_case": "Abstract, unfinished-looking images",
     },
-    # ウィアード
+    # Weird
     "--weird": {
-        "説明": "実験的・奇抜な生成 (0-3000)",
-        "例": "--weird 500",
+        "description": "Experimental/quirky generation (0-3000)",
+        "example": "--weird 500",
     },
 }
 
 def build_mj_prompt(text: str, **params) -> str:
-    """Midjourney用プロンプトを構築"""
+    """Build a Midjourney prompt"""
     parts = [f"/imagine prompt: {text}"]
     for param, value in params.items():
         if not param.startswith("--"):
@@ -786,7 +785,7 @@ def build_mj_prompt(text: str, **params) -> str:
         parts.append(f"{param} {value}")
     return " ".join(parts)
 
-# 使用例
+# Usage example
 prompt = build_mj_prompt(
     "Ancient Japanese temple, moss-covered, misty morning",
     ar="16:9", s="250", c="20", q="1", no="people, text"
@@ -794,17 +793,17 @@ prompt = build_mj_prompt(
 print(prompt)
 ```
 
-### コード例4b: Midjourney プロンプトテンプレート集
+### Code Example 4b: Midjourney Prompt Template Collection
 
 ```python
 """
-Midjourney 実践的プロンプトテンプレート
+Midjourney Practical Prompt Templates
 """
 
 class MidjourneyPromptBuilder:
-    """Midjourney 向けプロンプトの体系的な構築"""
+    """Systematic prompt construction for Midjourney"""
 
-    # スタイルプリセット
+    # Style presets
     STYLE_PRESETS = {
         "photorealistic": "photorealistic, DSLR, 85mm lens, f/1.8, "
                          "natural lighting, 8K resolution",
@@ -824,7 +823,7 @@ class MidjourneyPromptBuilder:
                       "minimal, modern graphic design",
     }
 
-    # ライティングプリセット
+    # Lighting presets
     LIGHTING_PRESETS = {
         "golden_hour": "golden hour, warm light, long shadows",
         "blue_hour": "blue hour, twilight, cool tones",
@@ -835,7 +834,7 @@ class MidjourneyPromptBuilder:
         "moonlight": "moonlit, silvery light, ethereal atmosphere",
     }
 
-    # 構図プリセット
+    # Composition presets
     COMPOSITION_PRESETS = {
         "rule_of_thirds": "rule of thirds composition",
         "centered": "centered symmetrical composition",
@@ -847,7 +846,7 @@ class MidjourneyPromptBuilder:
 
     def build(self, subject, style=None, lighting=None,
               composition=None, additional="", **mj_params):
-        """構造化されたプロンプトを構築"""
+        """Build a structured prompt"""
         parts = [subject]
 
         if style and style in self.STYLE_PRESETS:
@@ -866,7 +865,7 @@ class MidjourneyPromptBuilder:
 
         prompt_text = ", ".join(parts)
 
-        # Midjourney パラメータを追加
+        # Add Midjourney parameters
         param_parts = []
         for param, value in mj_params.items():
             if not param.startswith("--"):
@@ -882,10 +881,10 @@ class MidjourneyPromptBuilder:
         return f"/imagine prompt: {prompt_text}"
 
 
-# 使用例
+# Usage examples
 builder = MidjourneyPromptBuilder()
 
-# フォトリアルな風景
+# Photorealistic landscape
 prompt1 = builder.build(
     subject="Ancient Japanese shrine in a bamboo forest",
     style="photorealistic",
@@ -893,9 +892,9 @@ prompt1 = builder.build(
     composition="rule_of_thirds",
     ar="16:9", s="200", q="1"
 )
-print(f"風景: {prompt1}")
+print(f"Landscape: {prompt1}")
 
-# コンセプトアート
+# Concept art
 prompt2 = builder.build(
     subject="A cyberpunk samurai standing on a neon-lit rooftop",
     style="concept_art",
@@ -904,51 +903,52 @@ prompt2 = builder.build(
     additional="rain, reflections, detailed armor",
     ar="2:3", s="500"
 )
-print(f"コンセプトアート: {prompt2}")
+print(f"Concept art: {prompt2}")
 
-# テキスタイルパターン
+# Textile pattern
 prompt3 = builder.build(
     subject="Japanese wave pattern with koi fish",
     style="flat_design",
     additional="seamless pattern, navy blue and gold",
     tile=True, ar="1:1", s="100"
 )
-print(f"パターン: {prompt3}")
+print(f"Pattern: {prompt3}")
 ```
 
-### ASCII図解2: 3大プラットフォームのワークフロー比較
+### ASCII Diagram 2: Workflow Comparison of the Three Major Platforms
 
 ```
-Stable Diffusion (ローカル):
-┌──────┐   ┌─────────┐   ┌──────┐   ┌──────┐
-│モデル │→  │ComfyUI/ │→  │生成   │→  │後処理 │
-│選択   │   │A1111    │   │(LoRA) │   │(拡大) │
-└──────┘   └─────────┘   └──────┘   └──────┘
-  自由度: ★★★★★  コスト: GPU電気代のみ
+Stable Diffusion (Local):
+┌──────┐   ┌─────────┐   ┌──────┐   ┌───────────┐
+│Model │→  │ComfyUI/ │→  │Generate│→ │Post-      │
+│Select│   │A1111    │   │(LoRA) │   │Processing │
+└──────┘   └─────────┘   └──────┘   │(Upscale)  │
+                                     └───────────┘
+  Flexibility: ★★★★★  Cost: GPU electricity only
 
 DALL-E 3 (API):
-┌──────┐   ┌─────────┐   ┌──────┐   ┌──────┐
-│プロン │→  │GPT-4    │→  │生成   │→  │URL   │
-│プト   │   │書き換え │   │(クラウド)│  │取得  │
-└──────┘   └─────────┘   └──────┘   └──────┘
-  自由度: ★★★☆☆  コスト: $0.04-0.12/枚
+┌──────┐   ┌─────────┐   ┌──────────┐   ┌──────┐
+│Prompt│→  │GPT-4    │→  │Generate  │→  │Get   │
+│      │   │Rewrite  │   │(Cloud)   │   │URL   │
+└──────┘   └─────────┘   └──────────┘   └──────┘
+  Flexibility: ★★★☆☆  Cost: $0.04-0.12/image
 
 Midjourney (Discord/Web):
-┌──────┐   ┌─────────┐   ┌──────┐   ┌──────┐
-│/imagine│→ │4枚グリッド│→│選択   │→  │Upscale│
-│コマンド│  │生成     │   │(U/V) │   │/Vary │
-└──────┘   └─────────┘   └──────┘   └──────┘
-  自由度: ★★☆☆☆  コスト: $10-120/月
+┌────────┐   ┌──────────┐   ┌──────┐   ┌───────┐
+│/imagine│→  │4-Image   │→  │Select│→  │Upscale│
+│Command │   │Grid      │   │(U/V) │   │/Vary  │
+└────────┘   └──────────┘   └──────┘   └───────┘
+  Flexibility: ★★☆☆☆  Cost: $10-120/month
 
-Flux (ローカル/API):
-┌──────┐   ┌─────────┐   ┌──────┐   ┌──────┐
-│プロン │→  │Rectified│→  │生成   │→  │保存   │
-│プト   │   │Flow DiT │   │(28step)│  │      │
-└──────┘   └─────────┘   └──────┘   └──────┘
-  自由度: ★★★★☆  コスト: GPU/API依存
+Flux (Local/API):
+┌──────┐   ┌─────────┐   ┌──────────┐   ┌──────┐
+│Prompt│→  │Rectified│→  │Generate  │→  │Save  │
+│      │   │Flow DiT │   │(28 steps)│   │      │
+└──────┘   └─────────┘   └──────────┘   └──────┘
+  Flexibility: ★★★★☆  Cost: GPU/API dependent
 ```
 
-### ASCII図解3: ComfyUI ノードベースワークフロー
+### ASCII Diagram 3: ComfyUI Node-Based Workflow
 
 ```
 ┌─────────────┐
@@ -960,7 +960,7 @@ Flux (ローカル/API):
 ┌─────────────┐    ┌─────────────────┐    ┌──────────┐
 │ CLIP Text   │───>│  KSampler       │───>│ VAE      │
 │ Encode      │    │  Steps: 25      │    │ Decode   │
-│ (Positive)  │    │  CFG: 7.0       │    │          │──> 画像
+│ (Positive)  │    │  CFG: 7.0       │    │          │──> Image
 └─────────────┘    │  Sampler: dpmpp │    └──────────┘
                    │  Scheduler: karras│
 ┌─────────────┐    │                 │
@@ -975,7 +975,7 @@ Flux (ローカル/API):
                   └────────────────┘
 ```
 
-### ASCII図解3b: ComfyUI ControlNet + LoRA ワークフロー
+### ASCII Diagram 3b: ComfyUI ControlNet + LoRA Workflow
 
 ```
 ┌──────────────┐
@@ -992,7 +992,7 @@ Flux (ローカル/API):
                          v
 ┌──────────────┐  ┌──────────────┐  ┌─────────────┐
 │ Load Image   │  │ Apply        │  │ KSampler    │
-│ (reference)  │─>│ ControlNet   │─>│ Advanced    │──> VAE Decode ──> 画像
+│ (reference)  │─>│ ControlNet   │─>│ Advanced    │──> VAE Decode ──> Image
 └──────────────┘  │ (Canny)      │  │ Steps: 30   │
         │         │ strength:0.7 │  │ CFG: 7.0    │
         v         └──────────────┘  │ denoise:1.0 │
@@ -1007,28 +1007,28 @@ Flux (ローカル/API):
 
 ---
 
-## 4. Flux による次世代画像生成
+## 4. Next-Generation Image Generation with Flux
 
-### コード例5: Flux パイプラインの基本
+### Code Example 5: Flux Pipeline Basics
 
 ```python
 from diffusers import FluxPipeline
 import torch
 
-# Flux.1-dev モデルのロード
+# Load the Flux.1-dev model
 pipe = FluxPipeline.from_pretrained(
     "black-forest-labs/FLUX.1-dev",
     torch_dtype=torch.bfloat16,
 )
-pipe.enable_model_cpu_offload()  # VRAM 節約
+pipe.enable_model_cpu_offload()  # Save VRAM
 
-# 基本生成 — Flux はテキスト描画が非常に得意
+# Basic generation — Flux excels at text rendering
 image = pipe(
     prompt='A wooden sign in a forest that reads "Welcome to the '
            'Enchanted Forest" in elegant calligraphy, '
            'moss-covered, sunlight filtering through leaves',
     num_inference_steps=28,
-    guidance_scale=3.5,      # Flux は低 CFG が推奨 (2.0-5.0)
+    guidance_scale=3.5,      # Low CFG recommended for Flux (2.0-5.0)
     width=1024,
     height=768,
     generator=torch.Generator("cpu").manual_seed(42),
@@ -1037,21 +1037,21 @@ image = pipe(
 image.save("flux_basic.png")
 ```
 
-### コード例5b: Flux の高度な活用
+### Code Example 5b: Advanced Flux Usage
 
 ```python
 from diffusers import FluxPipeline, FluxImg2ImgPipeline
 import torch
 from PIL import Image
 
-# --- Flux テキスト描画の実践例 ---
+# --- Flux Text Rendering Practical Examples ---
 pipe = FluxPipeline.from_pretrained(
     "black-forest-labs/FLUX.1-dev",
     torch_dtype=torch.bfloat16,
 )
 pipe.enable_model_cpu_offload()
 
-# テキスト描画 (Flux の最大の強み)
+# Text rendering (Flux's greatest strength)
 text_prompts = [
     'A coffee shop menu board that reads:\n'
     '"Today\'s Special\nMatcha Latte - $5\nEspresso - $4"\n'
@@ -1084,40 +1084,40 @@ pipe_i2i = FluxImg2ImgPipeline.from_pretrained(
 )
 pipe_i2i.enable_model_cpu_offload()
 
-# 既存画像のスタイル変換
+# Style transfer of an existing image
 init_image = Image.open("photo.png").resize((1024, 1024))
 image = pipe_i2i(
     prompt="Same scene but in Studio Ghibli anime style, "
            "vibrant colors, detailed background",
     image=init_image,
-    strength=0.6,           # 元画像の維持度 (0.0=変更なし, 1.0=完全生成)
+    strength=0.6,           # Original image retention (0.0=no change, 1.0=full generation)
     num_inference_steps=28,
     guidance_scale=3.5,
 ).images[0]
 image.save("flux_style_transfer.png")
 ```
 
-### 比較表: SD系モデルの世代間比較
+### Comparison Table: SD Model Generational Comparison
 
-| 特徴 | SD 1.5 | SDXL | SD3 | Flux.1 |
-|------|--------|------|-----|--------|
-| **アーキテクチャ** | U-Net | U-Net (大型) | MMDiT | DiT (Rectified Flow) |
-| **テキストエンコーダ** | CLIP | CLIP + OpenCLIP | CLIP + T5 | CLIP + T5 |
-| **ネイティブ解像度** | 512x512 | 1024x1024 | 1024x1024 | 1024x1024 |
-| **テキスト描画** | 不可 | 苦手 | 良好 | 非常に得意 |
-| **VRAM要件** | 4GB+ | 8GB+ | 12GB+ | 16GB+ |
-| **推奨ステップ数** | 20-50 | 25-40 | 28 | 28 |
-| **推奨CFG** | 7-12 | 5-8 | 4-7 | 2-5 |
-| **LoRA対応** | 豊富 | 豊富 | 少ない | 増加中 |
-| **ControlNet** | 豊富 | 豊富 | 限定的 | 限定的 |
-| **コミュニティ** | 最大 | 大 | 小 | 増加中 |
-| **商用ライセンス** | モデル依存 | モデル依存 | 要確認 | dev:研究, pro:商用 |
+| Feature | SD 1.5 | SDXL | SD3 | Flux.1 |
+|---------|--------|------|-----|--------|
+| **Architecture** | U-Net | U-Net (Large) | MMDiT | DiT (Rectified Flow) |
+| **Text Encoder** | CLIP | CLIP + OpenCLIP | CLIP + T5 | CLIP + T5 |
+| **Native Resolution** | 512x512 | 1024x1024 | 1024x1024 | 1024x1024 |
+| **Text Rendering** | Not possible | Poor | Good | Excellent |
+| **VRAM Requirements** | 4GB+ | 8GB+ | 12GB+ | 16GB+ |
+| **Recommended Steps** | 20-50 | 25-40 | 28 | 28 |
+| **Recommended CFG** | 7-12 | 5-8 | 4-7 | 2-5 |
+| **LoRA Support** | Abundant | Abundant | Limited | Growing |
+| **ControlNet** | Abundant | Abundant | Limited | Limited |
+| **Community** | Largest | Large | Small | Growing |
+| **Commercial License** | Model-dependent | Model-dependent | Check terms | dev: Research, pro: Commercial |
 
 ---
 
-## 5. バッチ生成と自動化パイプライン
+## 5. Batch Generation and Automation Pipelines
 
-### コード例6: 大量画像の効率的な生成
+### Code Example 6: Efficient Mass Image Generation
 
 ```python
 import torch
@@ -1130,7 +1130,7 @@ from typing import Optional
 
 @dataclass
 class GenerationJob:
-    """画像生成ジョブの定義"""
+    """Image generation job definition"""
     prompt: str
     negative_prompt: str = "low quality, blurry, distorted, watermark"
     width: int = 1024
@@ -1143,7 +1143,7 @@ class GenerationJob:
     output_name: Optional[str] = None
 
 class BatchGenerator:
-    """バッチ画像生成パイプライン"""
+    """Batch image generation pipeline"""
 
     def __init__(self, model_id="stabilityai/stable-diffusion-xl-base-1.0",
                  output_dir="./batch_output", device="cuda"):
@@ -1164,15 +1164,15 @@ class BatchGenerator:
         self.pipe.enable_attention_slicing()
 
     def generate_single(self, job: GenerationJob, index: int = 0):
-        """単一ジョブの実行"""
-        # LoRA 適用
+        """Execute a single job"""
+        # Apply LoRA
         if job.lora_path:
             self.pipe.load_lora_weights(job.lora_path)
             self.pipe.set_adapters(
                 ["default"], adapter_weights=[job.lora_weight]
             )
 
-        # シード設定
+        # Set seed
         generator = None
         if job.seed is not None:
             generator = torch.Generator(self.device).manual_seed(job.seed)
@@ -1191,7 +1191,7 @@ class BatchGenerator:
 
         elapsed = time.time() - start_time
 
-        # ファイル保存
+        # Save file
         if job.output_name:
             filename = f"{job.output_name}.png"
         else:
@@ -1200,7 +1200,7 @@ class BatchGenerator:
         filepath = self.output_dir / filename
         image.save(filepath)
 
-        # メタデータ保存
+        # Save metadata
         metadata = {
             **asdict(job),
             "filename": filename,
@@ -1209,14 +1209,14 @@ class BatchGenerator:
         meta_path = self.output_dir / f"{filename.replace('.png', '_meta.json')}"
         meta_path.write_text(json.dumps(metadata, ensure_ascii=False, indent=2))
 
-        # LoRA をアンロード
+        # Unload LoRA
         if job.lora_path:
             self.pipe.unload_lora_weights()
 
         return filepath, metadata
 
     def run_batch(self, jobs: list[GenerationJob]):
-        """バッチ実行"""
+        """Execute batch"""
         results = []
         total = len(jobs)
 
@@ -1224,17 +1224,17 @@ class BatchGenerator:
             print(f"[{i+1}/{total}] {job.prompt[:60]}...")
             filepath, meta = self.generate_single(job, i)
             results.append(meta)
-            print(f"  -> {filepath} ({meta['generation_time_sec']}秒)")
+            print(f"  -> {filepath} ({meta['generation_time_sec']}s)")
 
-        # バッチサマリー保存
+        # Save batch summary
         summary_path = self.output_dir / "batch_summary.json"
         summary_path.write_text(json.dumps(results, ensure_ascii=False, indent=2))
-        print(f"\nバッチ完了: {total}枚生成")
+        print(f"\nBatch complete: {total} images generated")
 
         return results
 
 
-# 使用例
+# Usage example
 generator = BatchGenerator(output_dir="./product_images")
 
 jobs = [
@@ -1263,7 +1263,7 @@ jobs = [
 results = generator.run_batch(jobs)
 ```
 
-### コード例7: ComfyUI API によるバッチ生成
+### Code Example 7: Batch Generation via ComfyUI API
 
 ```python
 import requests
@@ -1273,9 +1273,9 @@ from pathlib import Path
 import websocket
 
 class ComfyUIClient:
-    """ComfyUI の API クライアント
+    """ComfyUI API Client
 
-    ComfyUI をサーバーモードで起動: python main.py --listen
+    Start ComfyUI in server mode: python main.py --listen
     """
 
     def __init__(self, host="127.0.0.1", port=8188):
@@ -1283,7 +1283,7 @@ class ComfyUIClient:
         self.ws_url = f"ws://{host}:{port}/ws"
 
     def queue_prompt(self, workflow: dict) -> str:
-        """ワークフローをキューに追加"""
+        """Add a workflow to the queue"""
         response = requests.post(
             f"{self.base_url}/prompt",
             json={"prompt": workflow},
@@ -1291,13 +1291,13 @@ class ComfyUIClient:
         return response.json()["prompt_id"]
 
     def get_history(self, prompt_id: str) -> dict:
-        """生成履歴を取得"""
+        """Get generation history"""
         response = requests.get(f"{self.base_url}/history/{prompt_id}")
         return response.json()
 
     def get_image(self, filename: str, subfolder: str = "",
                   folder_type: str = "output") -> bytes:
-        """生成画像をダウンロード"""
+        """Download generated image"""
         params = {
             "filename": filename,
             "subfolder": subfolder,
@@ -1309,7 +1309,7 @@ class ComfyUIClient:
         return response.content
 
     def wait_for_completion(self, prompt_id: str, timeout: int = 120):
-        """生成完了を待機"""
+        """Wait for generation to complete"""
         start = time.time()
         while time.time() - start < timeout:
             history = self.get_history(prompt_id)
@@ -1320,11 +1320,11 @@ class ComfyUIClient:
 
     def generate_from_workflow(self, workflow_path: str,
                                 prompt_text: str, seed: int = -1):
-        """ワークフローJSON からバッチ生成"""
+        """Batch generate from a workflow JSON"""
         with open(workflow_path) as f:
             workflow = json.load(f)
 
-        # プロンプトノードを更新
+        # Update prompt node
         for node_id, node in workflow.items():
             if node.get("class_type") == "CLIPTextEncode":
                 if "positive" in node.get("_meta", {}).get("title", "").lower():
@@ -1338,7 +1338,7 @@ class ComfyUIClient:
         return result
 
 
-# 使用例
+# Usage example
 # client = ComfyUIClient()
 # result = client.generate_from_workflow(
 #     "workflow_sdxl.json",
@@ -1349,9 +1349,9 @@ class ComfyUIClient:
 
 ---
 
-## 6. 品質最適化テクニック
+## 6. Quality Optimization Techniques
 
-### コード例8: Img2Img による品質改善
+### Code Example 8: Quality Improvement via Img2Img
 
 ```python
 from diffusers import (
@@ -1361,7 +1361,7 @@ from diffusers import (
 import torch
 from PIL import Image
 
-# 二段階生成: txt2img → img2img で品質向上
+# Two-stage generation: txt2img → img2img for quality improvement
 base_pipe = StableDiffusionXLPipeline.from_pretrained(
     "stabilityai/stable-diffusion-xl-base-1.0",
     torch_dtype=torch.float16,
@@ -1376,7 +1376,7 @@ prompt = "A detailed fantasy map of a fictional island, "
 prompt += "hand-drawn style, parchment texture, labeled locations"
 negative = "low quality, blurry, modern"
 
-# Step 1: 基本画像生成
+# Step 1: Base image generation
 base_image = base_pipe(
     prompt=prompt,
     negative_prompt=negative,
@@ -1388,38 +1388,38 @@ base_image = base_pipe(
 ).images[0]
 base_image.save("map_base.png")
 
-# Step 2: img2img でディテール追加
+# Step 2: Add detail with img2img
 refined_image = refine_pipe(
     prompt=prompt + ", intricate details, fine lines",
     negative_prompt=negative,
     image=base_image,
-    strength=0.35,          # 低い strength でディテールのみ追加
+    strength=0.35,          # Low strength to add only details
     num_inference_steps=25,
     guidance_scale=7.0,
 ).images[0]
 refined_image.save("map_refined.png")
 
-# Step 3: 部分的な Hires Fix (高解像度化)
-# 画像を2倍に拡大してから img2img
+# Step 3: Partial Hires Fix (upscaling)
+# Upscale the image 2x then apply img2img
 upscaled = base_image.resize((2048, 2048), Image.LANCZOS)
 hires_image = refine_pipe(
     prompt=prompt + ", ultra detailed, sharp lines",
     negative_prompt=negative,
     image=upscaled,
-    strength=0.25,          # 構造を維持しつつ高解像度ディテール追加
+    strength=0.25,          # Add high-res detail while maintaining structure
     num_inference_steps=30,
     guidance_scale=7.0,
 ).images[0]
 hires_image.save("map_hires.png")
 ```
 
-### コード例9: プロンプトテンプレートと品質タグ管理
+### Code Example 9: Prompt Templates and Quality Tag Management
 
 ```python
 class PromptQualityManager:
-    """画像生成プロンプトの品質管理システム"""
+    """Quality management system for image generation prompts"""
 
-    # 品質向上タグ (モデル共通)
+    # Quality enhancement tags (common across models)
     QUALITY_TAGS = {
         "high": [
             "masterpiece", "best quality", "highly detailed",
@@ -1435,7 +1435,7 @@ class PromptQualityManager:
         ],
     }
 
-    # ネガティブプロンプト (モデル共通)
+    # Negative prompt presets (common across models)
     NEGATIVE_PRESETS = {
         "standard": (
             "low quality, worst quality, blurry, distorted, "
@@ -1460,7 +1460,7 @@ class PromptQualityManager:
 
     def build_prompt(self, subject, quality_preset="high",
                      additional_tags=None, style_tags=None):
-        """構造化されたプロンプト生成"""
+        """Generate a structured prompt"""
         parts = [subject]
 
         if quality_preset in self.QUALITY_TAGS:
@@ -1475,17 +1475,17 @@ class PromptQualityManager:
         return ", ".join(parts)
 
     def get_negative(self, preset="standard", additional=None):
-        """ネガティブプロンプト取得"""
+        """Get negative prompt"""
         neg = self.NEGATIVE_PRESETS.get(preset, self.NEGATIVE_PRESETS["standard"])
         if additional:
             neg += ", " + ", ".join(additional)
         return neg
 
 
-# 使用例
+# Usage example
 pm = PromptQualityManager()
 
-# フォトリアルな商品画像
+# Photorealistic product image
 prompt = pm.build_prompt(
     subject="Wireless bluetooth earbuds on marble surface",
     quality_preset="photo",
@@ -1496,7 +1496,7 @@ negative = pm.get_negative("product")
 print(f"Prompt: {prompt}")
 print(f"Negative: {negative}")
 
-# アート作品
+# Artwork
 prompt_art = pm.build_prompt(
     subject="A dragon flying over a medieval castle",
     quality_preset="art",
@@ -1509,228 +1509,228 @@ print(f"Art Negative: {negative_art}")
 
 ---
 
-## 7. 比較表
+## 7. Comparison Tables
 
-### 比較表1: 3大プラットフォーム詳細比較
+### Comparison Table 1: Detailed Comparison of the Three Major Platforms
 
-| 項目 | Stable Diffusion | DALL-E 3 | Midjourney | Flux |
+| Item | Stable Diffusion | DALL-E 3 | Midjourney | Flux |
 |------|-----------------|----------|-----------|------|
-| **実行環境** | ローカル/クラウド | クラウドAPI | Discord/Web | ローカル/API |
-| **カスタマイズ** | 極めて高い | 低い | 低い | 高い |
-| **LoRA対応** | あり | なし | なし | あり |
-| **ControlNet** | あり | なし | なし | 限定的 |
-| **日本語入力** | モデル依存 | 対応 | 限定的 | T5で対応 |
-| **商用利用** | モデル依存 | 可 (有料) | 可 (有料) | dev:研究のみ |
-| **テキスト描画** | 苦手 | 得意 | やや苦手 | 非常に得意 |
-| **一貫性** | シード固定可 | 低い | スタイルリファレンス | シード固定可 |
-| **バッチ生成** | 容易 | API可能 | 手動 | 容易 |
-| **学習曲線** | 急 | 緩やか | 中程度 | 中程度 |
-| **推奨CFG** | 5-8 | N/A | N/A | 2-5 |
+| **Execution Environment** | Local/Cloud | Cloud API | Discord/Web | Local/API |
+| **Customization** | Extremely high | Low | Low | High |
+| **LoRA Support** | Yes | No | No | Yes |
+| **ControlNet** | Yes | No | No | Limited |
+| **Japanese Input** | Model-dependent | Supported | Limited | Supported via T5 |
+| **Commercial Use** | Model-dependent | Yes (paid) | Yes (paid) | dev: Research only |
+| **Text Rendering** | Poor | Good | Somewhat poor | Excellent |
+| **Consistency** | Seed-fixable | Low | Style reference | Seed-fixable |
+| **Batch Generation** | Easy | Possible via API | Manual | Easy |
+| **Learning Curve** | Steep | Gentle | Moderate | Moderate |
+| **Recommended CFG** | 5-8 | N/A | N/A | 2-5 |
 
-### 比較表2: ユースケース別推奨プラットフォーム
+### Comparison Table 2: Recommended Platforms by Use Case
 
-| ユースケース | 推奨 | 理由 |
-|-------------|------|------|
-| **大量のバリエーション生成** | Stable Diffusion | コスト効率、バッチ処理 |
-| **ビジネス資料の挿絵** | DALL-E 3 | 簡単、高品質、日本語対応 |
-| **アート作品の制作** | Midjourney | 芸術的品質、独自のスタイル |
-| **ゲームアセット** | Stable Diffusion | ControlNet、一貫性制御 |
-| **プロトタイプUI** | DALL-E 3 | 自然言語で詳細指定可能 |
-| **建築パース** | Stable Diffusion | ControlNet (深度/線画) |
-| **SNS投稿素材** | Midjourney / DALL-E 3 | 手軽さと品質のバランス |
-| **テキスト入り画像** | Flux / DALL-E 3 | テキスト描画能力 |
-| **ファインチューニング** | Stable Diffusion | LoRA/DreamBooth対応 |
-| **ブランド一貫性** | Stable Diffusion + LoRA | 独自スタイルの学習 |
+| Use Case | Recommended | Reason |
+|----------|-------------|--------|
+| **Mass variation generation** | Stable Diffusion | Cost efficiency, batch processing |
+| **Business document illustrations** | DALL-E 3 | Easy, high quality, Japanese support |
+| **Art creation** | Midjourney | Artistic quality, unique style |
+| **Game assets** | Stable Diffusion | ControlNet, consistency control |
+| **Prototype UI** | DALL-E 3 | Detailed specification via natural language |
+| **Architectural renders** | Stable Diffusion | ControlNet (depth/line drawing) |
+| **Social media content** | Midjourney / DALL-E 3 | Balance of ease and quality |
+| **Images with text** | Flux / DALL-E 3 | Text rendering capability |
+| **Fine-tuning** | Stable Diffusion | LoRA/DreamBooth support |
+| **Brand consistency** | Stable Diffusion + LoRA | Custom style learning |
 
-### 比較表3: スケジューラ(サンプラー)選択ガイド
+### Comparison Table 3: Scheduler (Sampler) Selection Guide
 
-| スケジューラ | 推奨ステップ | 速度 | 品質 | 用途 |
-|------------|-----------|------|------|------|
-| DPM++ 2M Karras | 25 | 速い | 高い | 汎用・最推奨 |
-| Euler | 30 | 速い | 高い | 安定志向 |
-| Euler Ancestral | 30 | 速い | 高い | バリエーション重視 |
-| UniPC | 20 | 最速 | 良い | 高速生成 |
-| Heun | 25 | 遅い | 最高 | 精密生成 |
-| DDIM | 50 | 遅い | 良い | 補間・逆変換 |
-| LCM | 4-8 | 超高速 | 中程度 | リアルタイム用途 |
+| Scheduler | Recommended Steps | Speed | Quality | Use Case |
+|-----------|-------------------|-------|---------|----------|
+| DPM++ 2M Karras | 25 | Fast | High | General purpose, most recommended |
+| Euler | 30 | Fast | High | Stability-focused |
+| Euler Ancestral | 30 | Fast | High | Variation-focused |
+| UniPC | 20 | Fastest | Good | Fast generation |
+| Heun | 25 | Slow | Highest | Precise generation |
+| DDIM | 50 | Slow | Good | Interpolation, inversion |
+| LCM | 4-8 | Ultra-fast | Moderate | Real-time applications |
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン1: モデルバージョンを固定しない
-
-```
-[問題]
-「Stable Diffusion」とだけ指定し、具体的なモデルを
-決めずにプロジェクトを開始する。
-
-[なぜ問題か]
-- SD 1.5, SDXL, SD3, Flux でプロンプト互換性が異なる
-- LoRA はモデルバージョンに依存
-- プロジェクト途中のモデル変更はスタイルの一貫性を破壊
-
-[正しいアプローチ]
-- プロジェクト開始時にベースモデルとバージョンを決定
-- テスト生成で品質を確認してから本番投入
-- モデルカード(ライセンス)を確認して商用利用可否を確認
-```
-
-### アンチパターン2: guidance_scale を極端に設定
+### Anti-Pattern 1: Not Pinning the Model Version
 
 ```
-[問題]
-「プロンプトに忠実にしたい」と guidance_scale を
-20や30に設定する。
+[Problem]
+Starting a project specifying only "Stable Diffusion"
+without deciding on a specific model.
 
-[なぜ問題か]
-- 過剰なCFGは画像の彩度過多、コントラスト異常を引き起こす
-- 画像が「焼けた」ような不自然な色味になる
-- 詳細が潰れてアーティファクトが発生
+[Why It's a Problem]
+- Prompt compatibility differs between SD 1.5, SDXL, SD3, and Flux
+- LoRAs are model-version dependent
+- Changing models mid-project destroys style consistency
 
-[正しいアプローチ]
-- SDXL: 5.0-8.0 が推奨範囲
-- SD3/Flux: 3.0-5.0 が推奨範囲
-- DALL-E 3: ユーザー側で調整不可 (最適化済み)
-- 高い忠実度が欲しい場合はプロンプト自体を改善する
+[Correct Approach]
+- Decide on the base model and version at project start
+- Confirm quality with test generations before production use
+- Check the model card (license) to verify commercial use eligibility
 ```
 
-### アンチパターン3: ControlNet の conditioning_scale 過大
+### Anti-Pattern 2: Setting guidance_scale to Extreme Values
 
 ```
-[問題]
-ControlNet の conditioning_scale を 1.0 のままで
-全ての生成を行う。
+[Problem]
+Setting guidance_scale to 20 or 30 because you want
+"more faithful to the prompt."
 
-[なぜ問題か]
-- 制御条件(エッジ、ポーズ等)に過度に拘束される
-- 自然な表現やディテールが失われる
-- 入力画像のノイズやアーティファクトまで忠実に再現してしまう
+[Why It's a Problem]
+- Excessive CFG causes oversaturation and abnormal contrast
+- Images get an unnatural "burned" color appearance
+- Details are crushed and artifacts appear
 
-[正しいアプローチ]
-- Canny Edge: 0.5-0.8 の範囲で調整
-- OpenPose: 0.6-0.9 の範囲で調整
-- Depth: 0.4-0.7 の範囲で調整
-- 用途に応じて実験し、最適値を見つける
-- Multi-ControlNet の場合、合計が 1.0-1.5 程度に抑える
+[Correct Approach]
+- SDXL: 5.0-8.0 is the recommended range
+- SD3/Flux: 3.0-5.0 is the recommended range
+- DALL-E 3: Not user-adjustable (already optimized)
+- For higher fidelity, improve the prompt itself instead
 ```
 
-### アンチパターン4: バッチ生成でエラーハンドリングなし
+### Anti-Pattern 3: Excessive ControlNet conditioning_scale
 
 ```
-[問題]
-100枚のバッチ生成を開始し、途中でエラーが発生すると
-全体が停止して最初からやり直しになる。
+[Problem]
+Using ControlNet with conditioning_scale left at 1.0
+for all generations.
 
-[なぜ問題か]
-- VRAM不足で途中クラッシュ
-- API レート制限でタイムアウト
-- ネットワーク障害でダウンロード失敗
-- 数時間の作業が無駄になる
+[Why It's a Problem]
+- Overly constrained by control conditions (edges, poses, etc.)
+- Natural expression and detail are lost
+- Noise and artifacts in the input image are faithfully reproduced
 
-[正しいアプローチ]
-1. try-except で個別ジョブのエラーをキャッチ
-2. 進捗をファイルに記録し、途中再開可能にする
-3. 生成済みファイルはスキップするロジックを実装
-4. VRAM管理: torch.cuda.empty_cache() を定期実行
-5. API利用時はレートリミットを考慮した待機を実装
+[Correct Approach]
+- Canny Edge: Adjust in the 0.5-0.8 range
+- OpenPose: Adjust in the 0.6-0.9 range
+- Depth: Adjust in the 0.4-0.7 range
+- Experiment to find the optimal value for your use case
+- For Multi-ControlNet, keep the total around 1.0-1.5
+```
+
+### Anti-Pattern 4: No Error Handling in Batch Generation
+
+```
+[Problem]
+Starting a batch of 100 images, and when an error occurs
+midway, the entire process stops and must restart from scratch.
+
+[Why It's a Problem]
+- Mid-process crash due to VRAM shortage
+- Timeout from API rate limiting
+- Download failure due to network issues
+- Hours of work wasted
+
+[Correct Approach]
+1. Catch individual job errors with try-except
+2. Record progress to file for resumable execution
+3. Implement logic to skip already-generated files
+4. VRAM management: Run torch.cuda.empty_cache() periodically
+5. Implement rate-limit-aware delays when using APIs
 ```
 
 ---
 
 ## 9. FAQ
 
-### Q1: Stable Diffusion をローカルで動かす最低スペックは?
+### Q1: What are the minimum specs to run Stable Diffusion locally?
 
 **A:**
 
-- **SD 1.5:** VRAM 4GB (最低) / 8GB (推奨)
-- **SDXL:** VRAM 8GB (最低) / 12GB (推奨)
-- **SD3/Flux:** VRAM 12GB (最低) / 16GB+ (推奨)
-- **Apple Silicon:** M1 8GB で SD1.5 動作可、SDXL は M2 Pro 16GB~
-- **量子化版:** GGUF/NF4形式で必要VRAMを半減可能
+- **SD 1.5:** VRAM 4GB (minimum) / 8GB (recommended)
+- **SDXL:** VRAM 8GB (minimum) / 12GB (recommended)
+- **SD3/Flux:** VRAM 12GB (minimum) / 16GB+ (recommended)
+- **Apple Silicon:** SD1.5 runs on M1 8GB, SDXL requires M2 Pro 16GB or higher
+- **Quantized versions:** GGUF/NF4 formats can halve VRAM requirements
 
-### Q2: 生成した画像の品質が低い場合の対処法は?
+### Q2: What should I do when generated image quality is low?
 
-**A:** 以下の順序でチェックします:
+**A:** Check the following in order:
 
-1. **プロンプトの見直し:** 品質タグ追加、ネガティブプロンプト設定
-2. **サンプラーの変更:** DPM++ 2M Karras が安定
-3. **ステップ数の調整:** 20-30ステップを推奨
-4. **CFGの調整:** 5-8の範囲で試行
-5. **モデルの変更:** タスクに合ったファインチューンモデルを使用
-6. **後処理:** アップスケーリング、img2img による仕上げ
+1. **Review the prompt:** Add quality tags, set negative prompts
+2. **Change the sampler:** DPM++ 2M Karras is stable
+3. **Adjust step count:** 20-30 steps recommended
+4. **Adjust CFG:** Try values in the 5-8 range
+5. **Change the model:** Use a fine-tuned model suited to your task
+6. **Post-processing:** Upscaling, img2img refinement
 
-### Q3: 商用利用する際に注意すべきことは?
+### Q3: What should I be aware of for commercial use?
 
 **A:**
 
-- **Stable Diffusion:** モデルのライセンスを確認 (CreativeML Open RAIL-M 等)
-- **DALL-E 3:** 利用規約に基づき商用利用可。ただしコンテンツポリシー遵守
-- **Midjourney:** 有料プランで商用利用可。年収$1M超は Pro プラン必須
-- **Flux:** dev版は研究用途のみ、pro版は商用利用可
-- **共通:** 他者の著作物に酷似した画像の商用利用は法的リスク
-- **推奨:** 生成画像を素材として使い、最終成果物に人間の創作を加える
+- **Stable Diffusion:** Check the model's license (CreativeML Open RAIL-M, etc.)
+- **DALL-E 3:** Commercial use permitted under the terms of service. Must comply with content policy
+- **Midjourney:** Commercial use permitted on paid plans. Pro plan required if annual revenue exceeds $1M
+- **Flux:** dev version is for research only, pro version allows commercial use
+- **Common:** Using commercially images that closely resemble others' copyrighted works carries legal risk
+- **Recommended:** Use generated images as materials and add human creativity to the final product
 
-### Q4: LoRA の学習に必要な画像枚数は?
+### Q4: How many images are needed for LoRA training?
 
-**A:** 用途によって異なります:
+**A:** This varies by purpose:
 
-| 目的 | 推奨枚数 | ステップ数 | 備考 |
-|------|---------|----------|------|
-| 顔の学習 | 10-20枚 | 500-1000 | 様々な角度・表情を含める |
-| スタイル学習 | 20-50枚 | 1000-2000 | 一貫したスタイルの画像 |
-| コンセプト学習 | 5-15枚 | 500-1500 | 対象物体のバリエーション |
-| テクスチャ | 10-30枚 | 800-1500 | 様々な条件の撮影 |
+| Purpose | Recommended Count | Steps | Notes |
+|---------|-------------------|-------|-------|
+| Face learning | 10-20 images | 500-1000 | Include various angles and expressions |
+| Style learning | 20-50 images | 1000-2000 | Images with consistent style |
+| Concept learning | 5-15 images | 500-1500 | Variations of the target object |
+| Texture | 10-30 images | 800-1500 | Shot under various conditions |
 
-### Q5: ComfyUI でカスタムノードを追加するには?
+### Q5: How do I add custom nodes to ComfyUI?
 
 **A:**
 
 ```bash
-# ComfyUI Manager の導入 (推奨)
+# Install ComfyUI Manager (recommended)
 cd ComfyUI/custom_nodes
 git clone https://github.com/ltdrdata/ComfyUI-Manager.git
 
-# 手動でカスタムノードを追加
+# Manually add a custom node
 git clone https://github.com/author/custom-node-repo.git
 
-# 依存パッケージのインストール
+# Install dependencies
 pip install -r custom-node-repo/requirements.txt
 
-# ComfyUI を再起動
+# Restart ComfyUI
 ```
 
-代表的なカスタムノード:
-- **ComfyUI-Manager:** ノード管理UI
-- **ComfyUI-Impact-Pack:** 顔検出・修復
-- **ComfyUI-AnimateDiff:** アニメーション生成
-- **ComfyUI-Advanced-ControlNet:** ControlNet拡張
-- **ComfyUI-IPAdapter:** 画像プロンプト
+Popular custom nodes:
+- **ComfyUI-Manager:** Node management UI
+- **ComfyUI-Impact-Pack:** Face detection and restoration
+- **ComfyUI-AnimateDiff:** Animation generation
+- **ComfyUI-Advanced-ControlNet:** ControlNet extensions
+- **ComfyUI-IPAdapter:** Image prompting
 
-### Q6: DALL-E 3 の revised_prompt を制御する方法は?
+### Q6: How can I control DALL-E 3's revised_prompt?
 
-**A:** DALL-E 3 は内部でプロンプトを書き換えますが、以下の方法で制御できます:
+**A:** DALL-E 3 internally rewrites prompts, but you can control this with the following methods:
 
-1. **I NEED to test how the tool works with prompts.** を冒頭に追加すると書き換えが最小限になる
-2. プロンプトを可能な限り詳細に記述する (書き換えの余地を減らす)
-3. 重要な要素を明示的に指定する (色、構図、スタイル)
-4. ChatGPT 経由で使う場合、「プロンプトを変更せずに送って」と指示
+1. Add **I NEED to test how the tool works with prompts.** at the beginning to minimize rewriting
+2. Write prompts as detailed as possible (reduce room for rewriting)
+3. Explicitly specify important elements (color, composition, style)
+4. When using via ChatGPT, instruct it to "send the prompt without modification"
 
 ---
 
-## まとめ表
+## Summary Table
 
-| 項目 | 要点 |
-|------|------|
-| **SD系** | カスタマイズ性最高。LoRA、ControlNet で精密制御。学習コスト高 |
-| **DALL-E 3** | 最も手軽。自然言語プロンプト。API統合が容易 |
-| **Midjourney** | アート品質最高。Discord/Webで手軽。カスタマイズ性は低い |
-| **Flux** | テキスト描画に優れる。Rectified Flow で効率的。急速にエコシステム拡大 |
-| **モデル選択** | プロジェクト初期に確定。途中変更はスタイル崩壊リスク |
-| **ワークフロー** | ComfyUI (ノード) / Automatic1111 (WebUI) / API統合 |
-| **コスト** | ローカル=GPU投資、クラウド=従量/サブスク |
-| **品質最適化** | スケジューラ選択 + CFG調整 + img2img仕上げ + アップスケーリング |
+| Item | Key Points |
+|------|------------|
+| **SD Series** | Highest customization. Precise control with LoRA and ControlNet. Steep learning curve |
+| **DALL-E 3** | Most accessible. Natural language prompts. Easy API integration |
+| **Midjourney** | Highest art quality. Easy via Discord/Web. Low customization |
+| **Flux** | Excellent text rendering. Efficient with Rectified Flow. Rapidly expanding ecosystem |
+| **Model Selection** | Finalize early in the project. Mid-project changes risk style collapse |
+| **Workflow** | ComfyUI (nodes) / Automatic1111 (WebUI) / API integration |
+| **Cost** | Local = GPU investment, Cloud = pay-per-use/subscription |
+| **Quality Optimization** | Scheduler selection + CFG tuning + img2img finishing + upscaling |
 
 ---
 
@@ -1738,40 +1738,40 @@ pip install -r custom-node-repo/requirements.txt
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What common mistakes do beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend firmly understanding the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-このガイドでは以下の重要なポイントを学びました:
-
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
+Knowledge of this topic is frequently used in everyday development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [01-image-editing.md](./01-image-editing.md) — インペインティング、アウトペインティング
-- [02-upscaling.md](./02-upscaling.md) — 超解像でさらなる高品質化
-- [03-design-tools.md](./03-design-tools.md) — Canva AI、Adobe Firefly 等との統合
+In this guide, we learned the following key points:
+
+- Understanding of basic concepts and principles
+- Practical implementation patterns
+- Best practices and important considerations
+- Practical applications in real-world work
 
 ---
 
-## 参考文献
+## Recommended Next Reads
+
+- [01-image-editing.md](./01-image-editing.md) — Inpainting, outpainting
+- [02-upscaling.md](./02-upscaling.md) — Further quality improvement with super-resolution
+- [03-design-tools.md](./03-design-tools.md) — Integration with Canva AI, Adobe Firefly, etc.
+
+---
+
+## References
 
 1. Rombach, R. et al. (2022). "High-Resolution Image Synthesis with Latent Diffusion Models." *CVPR 2022*. https://arxiv.org/abs/2112.10752
 2. Podell, D. et al. (2023). "SDXL: Improving Latent Diffusion Models for High-Resolution Image Synthesis." *arXiv*. https://arxiv.org/abs/2307.01952
