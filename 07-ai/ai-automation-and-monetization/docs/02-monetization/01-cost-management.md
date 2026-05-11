@@ -1,38 +1,38 @@
-# コスト管理 — API費用最適化、キャッシュ戦略
+# Cost Management — API Cost Optimization and Caching Strategies
 
-> AI APIの費用を最適化し、キャッシュ戦略、モデル選択、バッチ処理、プロンプト最適化を通じてコストを50-80%削減する実践的な手法を体系的に解説する。
-
----
-
-## この章で学ぶこと
-
-1. **AI APIコストの構造と可視化** — トークン課金の仕組み、コスト配分の分析、予算管理ダッシュボード
-2. **キャッシュ戦略の設計と実装** — セマンティックキャッシュ、階層キャッシュ、TTL最適化
-3. **プロンプト/モデル最適化** — トークン削減、モデル使い分け、バッチ処理による費用削減
-4. **予算管理と監視** — リアルタイム監視、アラート設計、異常検知
-5. **セルフホスト戦略** — オンプレミスLLM運用のコスト分析と実装
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [価格モデル — 従量制、サブスク、フリーミアム](./00-pricing-models.md) の内容を理解していること
+> A systematic guide to optimizing AI API costs through caching strategies, model selection, batch processing, and prompt optimization, achieving 50–80% cost reductions.
 
 ---
 
-## 1. AI APIコスト構造
+## What You Will Learn
 
-### 1.1 主要AI APIの料金比較
+1. **AI API Cost Structure and Visualization** — How token billing works, cost distribution analysis, budget management dashboards
+2. **Cache Strategy Design and Implementation** — Semantic caching, layered caching, TTL optimization
+3. **Prompt/Model Optimization** — Token reduction, model selection by task, cost savings through batch processing
+4. **Budget Management and Monitoring** — Real-time monitoring, alert design, anomaly detection
+5. **Self-Hosting Strategy** — Cost analysis and implementation for on-premises LLM operation
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Pricing Models — Pay-as-you-go, Subscriptions, Freemium](./00-pricing-models.md)
+
+---
+
+## 1. AI API Cost Structure
+
+### 1.1 Major AI API Pricing Comparison
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│           主要AI API 料金比較 (2025年時点)                  │
+│         Major AI API Pricing Comparison (as of 2025)      │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  モデル            入力 (/1M tokens)  出力 (/1M tokens)   │
+│  Model             Input (/1M tokens)  Output (/1M tokens)│
 │  ─────────────────────────────────────────────────       │
 │  GPT-4o            $2.50              $10.00              │
 │  GPT-4o-mini       $0.15              $0.60               │
@@ -42,13 +42,13 @@
 │  Claude Opus       $15.00             $75.00              │
 │  Gemini 1.5 Pro    $1.25              $5.00               │
 │  Gemini 1.5 Flash  $0.075             $0.30               │
-│  Llama 3 70B*      $0.00              $0.00 (セルフホスト) │
+│  Llama 3 70B*      $0.00              $0.00 (self-hosted) │
 │                                                          │
-│  * セルフホスト: GPU費用 $1-3/時間が別途必要               │
+│  * Self-hosted: GPU costs of $1–3/hour apply separately  │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 コスト分析ダッシュボード
+### 1.2 Cost Analysis Dashboard
 
 ```python
 from dataclasses import dataclass, field
@@ -66,7 +66,7 @@ class APIUsageRecord:
     user_id: str
 
 class CostAnalyzer:
-    """APIコスト分析エンジン"""
+    """API cost analysis engine"""
 
     PRICING = {
         "gpt-4o": {"input": 2.50, "output": 10.00},
@@ -81,7 +81,7 @@ class CostAnalyzer:
     def record(self, model: str, input_tokens: int,
                output_tokens: int, endpoint: str,
                user_id: str):
-        """使用量記録"""
+        """Record usage"""
         pricing = self.PRICING.get(model, {"input": 0, "output": 0})
         cost = (
             input_tokens / 1_000_000 * pricing["input"] +
@@ -98,7 +98,7 @@ class CostAnalyzer:
         ))
 
     def get_daily_report(self, date=None) -> dict:
-        """日次コストレポート"""
+        """Daily cost report"""
         date = date or datetime.now().date()
         day_records = [
             r for r in self.records
@@ -129,7 +129,7 @@ class CostAnalyzer:
 
     def get_user_cost_report(self, user_id: str,
                               days: int = 30) -> dict:
-        """ユーザー別コストレポート"""
+        """Per-user cost report"""
         cutoff = datetime.now() - timedelta(days=days)
         user_records = [
             r for r in self.records
@@ -142,12 +142,12 @@ class CostAnalyzer:
         )
         total_requests = len(user_records)
 
-        # 日別集計
+        # Daily aggregation
         daily_costs = defaultdict(float)
         for r in user_records:
             daily_costs[str(r.timestamp.date())] += r.cost
 
-        # モデル別集計
+        # Per-model aggregation
         model_usage = defaultdict(lambda: {"count": 0, "cost": 0, "tokens": 0})
         for r in user_records:
             model_usage[r.model]["count"] += 1
@@ -169,8 +169,8 @@ class CostAnalyzer:
         }
 
     def detect_anomalies(self, threshold_multiplier: float = 3.0) -> list[dict]:
-        """コスト異常検知"""
-        # 過去7日間の平均日次コストを計算
+        """Cost anomaly detection"""
+        # Calculate average daily cost over the past 7 days
         today = datetime.now().date()
         daily_totals = defaultdict(float)
         for r in self.records:
@@ -180,7 +180,7 @@ class CostAnalyzer:
         if len(costs) < 3:
             return []
 
-        avg_cost = sum(costs[:-1]) / len(costs[:-1])  # 直近を除く
+        avg_cost = sum(costs[:-1]) / len(costs[:-1])  # Exclude the most recent
         std_cost = (
             sum((c - avg_cost) ** 2 for c in costs[:-1])
             / len(costs[:-1])
@@ -198,48 +198,48 @@ class CostAnalyzer:
                 "expected_cost": round(avg_cost, 4),
                 "threshold": round(threshold, 4),
                 "severity": "critical" if today_cost > threshold * 2 else "warning",
-                "message": f"本日のコスト${today_cost:.2f}が閾値${threshold:.2f}を超過"
+                "message": f"Today's cost ${today_cost:.2f} exceeded threshold ${threshold:.2f}"
             })
 
         return anomalies
 ```
 
-### 1.3 コスト構成の可視化
+### 1.3 Cost Breakdown Visualization
 
-| 最適化項目 | 削減可能率 | 難易度 | 優先度 |
+| Optimization Item | Reduction Potential | Difficulty | Priority |
 |-----------|----------|--------|--------|
-| キャッシュ導入 | 30-50% | 中 | 最高 |
-| モデル使い分け | 40-70% | 低 | 最高 |
-| プロンプト最適化 | 20-40% | 低 | 高 |
-| バッチ処理 | 10-30% | 中 | 高 |
-| レスポンス制限 | 10-20% | 低 | 中 |
-| セルフホスト移行 | 50-90% | 高 | 条件付き |
+| Introduce caching | 30–50% | Medium | Highest |
+| Model differentiation | 40–70% | Low | Highest |
+| Prompt optimization | 20–40% | Low | High |
+| Batch processing | 10–30% | Medium | High |
+| Response limits | 10–20% | Low | Medium |
+| Migrate to self-hosting | 50–90% | High | Conditional |
 
-### 1.4 コスト配分の分析フレームワーク
+### 1.4 Cost Allocation Analysis Framework
 
 ```python
 class CostAllocationFramework:
-    """コスト配分分析フレームワーク"""
+    """Cost allocation analysis framework"""
 
     def analyze_cost_drivers(self, records: list[APIUsageRecord]) -> dict:
-        """コストドライバー分析"""
+        """Cost driver analysis"""
         total_cost = sum(r.cost for r in records)
         if total_cost == 0:
-            return {"error": "コストデータなし"}
+            return {"error": "No cost data available"}
 
-        # エンドポイント別コスト比率
+        # Cost ratio by endpoint
         endpoint_costs = defaultdict(float)
         for r in records:
             endpoint_costs[r.endpoint] += r.cost
 
-        # トップ5コストドライバー
+        # Top 5 cost drivers
         sorted_endpoints = sorted(
             endpoint_costs.items(),
             key=lambda x: x[1],
             reverse=True
         )[:5]
 
-        # ユーザー別コスト（パレート分析）
+        # Cost by user (Pareto analysis)
         user_costs = defaultdict(float)
         for r in records:
             user_costs[r.user_id] += r.cost
@@ -250,12 +250,12 @@ class CostAllocationFramework:
             reverse=True
         )
 
-        # 上位20%のユーザーが何%のコストを占めるか
+        # What percentage of cost do the top 20% of users account for?
         top_20_pct = int(len(sorted_users) * 0.2) or 1
         top_20_cost = sum(c for _, c in sorted_users[:top_20_pct])
         pareto_ratio = top_20_cost / total_cost * 100
 
-        # 時間帯別コスト
+        # Cost by hour of day
         hourly_costs = defaultdict(float)
         for r in records:
             hourly_costs[r.timestamp.hour] += r.cost
@@ -275,19 +275,19 @@ class CostAllocationFramework:
             "pareto_analysis": {
                 "top_20_pct_users": top_20_pct,
                 "cost_share": f"{pareto_ratio:.1f}%",
-                "insight": f"上位{top_20_pct}ユーザーがコストの"
-                          f"{pareto_ratio:.0f}%を消費"
+                "insight": f"Top {top_20_pct} users consume "
+                          f"{pareto_ratio:.0f}% of costs"
             },
             "peak_hour": {
                 "hour": peak_hour,
                 "cost": f"${hourly_costs[peak_hour]:.2f}",
-                "suggestion": "ピーク時間帯のリクエストをバッチ化検討"
+                "suggestion": "Consider batching requests during peak hours"
             }
         }
 
     def calculate_unit_cost(self, records: list[APIUsageRecord],
                             revenue: float) -> dict:
-        """ユニットコスト計算"""
+        """Unit cost calculation"""
         total_cost = sum(r.cost for r in records)
         total_requests = len(records)
 
@@ -306,45 +306,45 @@ class CostAllocationFramework:
                 "acceptable" if gross_margin >= 50 else "unhealthy"
             ),
             "targets": {
-                "cost_revenue_ratio": "20-30%が理想",
-                "gross_margin": "70%以上が目標",
-                "cost_per_request": f"${cost_per_request * 0.5:.4f}以下を目指す"
+                "cost_revenue_ratio": "20–30% is ideal",
+                "gross_margin": "Target 70% or above",
+                "cost_per_request": f"Aim for ${cost_per_request * 0.5:.4f} or below"
             }
         }
 ```
 
 ---
 
-## 2. キャッシュ戦略
+## 2. Caching Strategies
 
-### 2.1 キャッシュアーキテクチャ
+### 2.1 Cache Architecture
 
 ```
-3層キャッシュアーキテクチャ:
+3-Tier Cache Architecture:
 
-  リクエスト
+  Request
       │
       ▼
-  ┌──────────┐  ヒット → 即応答（0ms, $0）
-  │ L1: 完全  │
-  │ 一致キャッシュ│  Redis / インメモリ
+  ┌──────────┐  Hit → Immediate response (0ms, $0)
+  │ L1: Exact│
+  │  Match   │  Redis / In-memory
   └────┬─────┘
-       │ ミス
+       │ Miss
        ▼
-  ┌──────────┐  ヒット → 類似結果返却（10ms, $0）
-  │ L2: セマン │
-  │ ティック   │  ベクトルDB (Pinecone/pgvector)
-  │ キャッシュ │  類似度 > 0.95 でヒット
+  ┌──────────┐  Hit → Return similar result (10ms, $0)
+  │ L2: Seman│
+  │  -tic    │  Vector DB (Pinecone/pgvector)
+  │  Cache   │  Hit when similarity > 0.95
   └────┬─────┘
-       │ ミス
+       │ Miss
        ▼
-  ┌──────────┐  API呼び出し（500ms, $0.01-$0.10）
-  │ L3: AI API│
-  │ 呼び出し  │  結果をL1/L2に保存
+  ┌──────────┐  API call (500ms, $0.01–$0.10)
+  │ L3: AI   │
+  │  API Call│  Save result to L1/L2
   └──────────┘
 ```
 
-### 2.2 完全一致キャッシュ
+### 2.2 Exact Match Cache
 
 ```python
 import hashlib
@@ -353,7 +353,7 @@ import redis
 from typing import Optional
 
 class ExactMatchCache:
-    """完全一致キャッシュ（Redis）"""
+    """Exact match cache (Redis)"""
 
     def __init__(self, redis_url: str = "redis://localhost:6379",
                  default_ttl: int = 3600):
@@ -363,7 +363,7 @@ class ExactMatchCache:
 
     def _make_key(self, model: str, messages: list,
                   params: dict) -> str:
-        """キャッシュキー生成"""
+        """Generate cache key"""
         content = json.dumps({
             "model": model,
             "messages": messages,
@@ -374,7 +374,7 @@ class ExactMatchCache:
 
     def get(self, model: str, messages: list,
             params: dict) -> Optional[str]:
-        """キャッシュ取得"""
+        """Retrieve from cache"""
         key = self._make_key(model, messages, params)
         result = self.redis.get(key)
         if result:
@@ -386,7 +386,7 @@ class ExactMatchCache:
     def set(self, model: str, messages: list,
             params: dict, response: str,
             ttl: int = None):
-        """キャッシュ保存"""
+        """Save to cache"""
         key = self._make_key(model, messages, params)
         self.redis.setex(
             key,
@@ -400,7 +400,7 @@ class ExactMatchCache:
         return self.stats["hits"] / total if total > 0 else 0
 
     def get_stats(self) -> dict:
-        """キャッシュ統計"""
+        """Cache statistics"""
         total = self.stats["hits"] + self.stats["misses"]
         return {
             "total_requests": total,
@@ -411,14 +411,14 @@ class ExactMatchCache:
         }
 ```
 
-### 2.3 セマンティックキャッシュ
+### 2.3 Semantic Cache
 
 ```python
 import numpy as np
 from openai import OpenAI
 
 class SemanticCache:
-    """セマンティックキャッシュ（類似クエリで再利用）"""
+    """Semantic cache (reuse results for similar queries)"""
 
     def __init__(self, similarity_threshold: float = 0.95):
         self.client = OpenAI()
@@ -426,7 +426,7 @@ class SemanticCache:
         self.cache: list[dict] = []
 
     def _get_embedding(self, text: str) -> list[float]:
-        """テキストの埋め込みベクトル取得"""
+        """Get embedding vector for text"""
         response = self.client.embeddings.create(
             model="text-embedding-3-small",
             input=text
@@ -435,12 +435,12 @@ class SemanticCache:
 
     def _cosine_similarity(self, a: list[float],
                            b: list[float]) -> float:
-        """コサイン類似度"""
+        """Cosine similarity"""
         a, b = np.array(a), np.array(b)
         return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b)))
 
     def get(self, query: str) -> Optional[str]:
-        """類似クエリのキャッシュを検索"""
+        """Search cache for similar queries"""
         query_embedding = self._get_embedding(query)
 
         best_match = None
@@ -459,7 +459,7 @@ class SemanticCache:
         return None
 
     def set(self, query: str, response: str):
-        """キャッシュに追加"""
+        """Add to cache"""
         embedding = self._get_embedding(query)
         self.cache.append({
             "query": query,
@@ -470,7 +470,7 @@ class SemanticCache:
 
 
 class ProductionSemanticCache:
-    """本番環境向けセマンティックキャッシュ（pgvector使用）"""
+    """Production-grade semantic cache (using pgvector)"""
 
     def __init__(self, db_url: str,
                  similarity_threshold: float = 0.95):
@@ -479,7 +479,7 @@ class ProductionSemanticCache:
         self.client = OpenAI()
 
     def setup_table(self):
-        """テーブル作成（初回のみ）"""
+        """Create table (first time only)"""
         # PostgreSQL + pgvector
         sql = """
         CREATE EXTENSION IF NOT EXISTS vector;
@@ -509,7 +509,7 @@ class ProductionSemanticCache:
 
     def search_similar(self, query: str,
                        model: str) -> Optional[dict]:
-        """類似クエリ検索"""
+        """Search for similar queries"""
         embedding = self._get_embedding(query)
         embedding_str = str(embedding)
 
@@ -523,17 +523,17 @@ class ProductionSemanticCache:
         LIMIT 1
         """
 
-        # 結果が閾値以上なら返却
+        # Return if result meets threshold
         # result = db.execute(sql, (embedding_str, model, embedding_str))
         # if result and result.similarity >= self.threshold:
-        #     更新: hit_count += 1, last_accessed = NOW()
+        #     Update: hit_count += 1, last_accessed = NOW()
         #     return result.response
 
         return None
 
     def store(self, query: str, model: str,
               response: dict, ttl: int = 86400):
-        """キャッシュ保存"""
+        """Save to cache"""
         embedding = self._get_embedding(query)
         query_hash = hashlib.sha256(query.encode()).hexdigest()
 
@@ -557,7 +557,7 @@ class ProductionSemanticCache:
         return response.data[0].embedding
 
     def cleanup_expired(self):
-        """期限切れキャッシュの削除"""
+        """Delete expired cache entries"""
         sql = """
         DELETE FROM semantic_cache
         WHERE created_at + (ttl_seconds * interval '1 second') < NOW()
@@ -565,7 +565,7 @@ class ProductionSemanticCache:
         # db.execute(sql)
 
     def get_cache_analytics(self) -> dict:
-        """キャッシュ分析"""
+        """Cache analytics"""
         sql = """
         SELECT
             model,
@@ -583,102 +583,102 @@ class ProductionSemanticCache:
         return {}
 ```
 
-### 2.4 TTL最適化戦略
+### 2.4 TTL Optimization Strategy
 
 ```python
 class TTLOptimizer:
-    """TTL（Time-to-Live）最適化"""
+    """TTL (Time-to-Live) optimization"""
 
-    # タスク種類別のTTL設定
+    # TTL settings by task type
     TTL_CONFIGS = {
         "static_knowledge": {
-            "ttl_seconds": 86400 * 30,  # 30日
-            "description": "変化しない知識（歴史、科学等）",
-            "examples": ["Pythonの基本構文は？", "東京の人口は？"]
+            "ttl_seconds": 86400 * 30,  # 30 days
+            "description": "Knowledge that does not change (history, science, etc.)",
+            "examples": ["What is Python's basic syntax?", "What is Tokyo's population?"]
         },
         "semi_static": {
-            "ttl_seconds": 86400 * 7,  # 7日
-            "description": "頻繁には変化しない情報",
-            "examples": ["AIモデルの比較", "プログラミングのベストプラクティス"]
+            "ttl_seconds": 86400 * 7,  # 7 days
+            "description": "Information that does not change frequently",
+            "examples": ["AI model comparison", "Programming best practices"]
         },
         "daily_update": {
-            "ttl_seconds": 86400,  # 1日
-            "description": "日次で更新される情報",
-            "examples": ["天気予報の要約", "株価分析"]
+            "ttl_seconds": 86400,  # 1 day
+            "description": "Information updated daily",
+            "examples": ["Weather forecast summary", "Stock price analysis"]
         },
         "real_time": {
-            "ttl_seconds": 300,  # 5分
-            "description": "リアルタイム性が必要",
-            "examples": ["ニュース要約", "リアルタイムチャット"]
+            "ttl_seconds": 300,  # 5 minutes
+            "description": "Requires real-time data",
+            "examples": ["News summaries", "Real-time chat"]
         },
         "no_cache": {
             "ttl_seconds": 0,
-            "description": "キャッシュ不可",
-            "examples": ["個人データ分析", "セキュリティ関連"]
+            "description": "Cannot be cached",
+            "examples": ["Personal data analysis", "Security-related tasks"]
         }
     }
 
     def determine_ttl(self, task_type: str,
                       query: str) -> int:
-        """クエリに適したTTLを決定"""
-        # タスクタイプベース
+        """Determine appropriate TTL for a query"""
+        # Task type based
         config = self.TTL_CONFIGS.get(task_type)
         if config:
             return config["ttl_seconds"]
 
-        # キーワードベースのヒューリスティック
-        real_time_keywords = ["今日", "現在", "最新", "リアルタイム"]
+        # Keyword-based heuristic
+        real_time_keywords = ["today", "current", "latest", "real-time"]
         if any(kw in query for kw in real_time_keywords):
-            return 300  # 5分
+            return 300  # 5 minutes
 
-        static_keywords = ["定義", "とは", "基本", "概要", "歴史"]
+        static_keywords = ["definition", "what is", "basics", "overview", "history"]
         if any(kw in query for kw in static_keywords):
-            return 86400 * 30  # 30日
+            return 86400 * 30  # 30 days
 
-        return 86400  # デフォルト: 1日
+        return 86400  # Default: 1 day
 
     def adaptive_ttl(self, cache_key: str,
                       hit_frequency: float) -> int:
-        """アクセス頻度に応じたTTL調整"""
-        # 頻繁にヒットするキーは長めのTTL
-        if hit_frequency >= 10:  # 1時間に10回以上
-            return 86400 * 7  # 7日
+        """Adjust TTL based on access frequency"""
+        # Keys hit frequently get longer TTL
+        if hit_frequency >= 10:  # 10+ times per hour
+            return 86400 * 7  # 7 days
         elif hit_frequency >= 1:
-            return 86400  # 1日
+            return 86400  # 1 day
         elif hit_frequency >= 0.1:
-            return 3600  # 1時間
+            return 3600  # 1 hour
         else:
-            return 300  # 5分
+            return 300  # 5 minutes
 ```
 
 ---
 
-## 3. モデル使い分け戦略
+## 3. Model Selection Strategy
 
-### 3.1 タスク別最適モデル選択
+### 3.1 Optimal Model Selection by Task
 
 ```
-タスク別モデル選択マトリクス:
+Model Selection Matrix by Task:
 
-  品質要求
-  高 ┤ ● 契約書分析     ● コード生成
-     │   → GPT-4/Opus     → GPT-4/Sonnet
-     │
-  中 ┤ ● 記事要約       ● 翻訳
-     │   → Sonnet/Haiku    → Sonnet
-     │
-  低 ┤ ● メール分類     ● テキスト整形
-     │   → Haiku/Mini      → Mini/Flash
-     └──┬────────────┬────────────┬──
-       低速OK       中速         高速必須
-                 速度要求
+  Quality
+  High ┤ ● Contract analysis  ● Code generation
+       │   → GPT-4/Opus          → GPT-4/Sonnet
+       │
+  Med  ┤ ● Article summary    ● Translation
+       │   → Sonnet/Haiku         → Sonnet
+       │
+  Low  ┤ ● Email classification ● Text formatting
+       │   → Haiku/Mini            → Mini/Flash
+       └──┬────────────┬────────────┬──
+         Slow OK     Medium       Fast required
+                  Speed requirement
 ```
 
-### 3.2 インテリジェントルーティング
+### 3.2 Intelligent Routing
 
 ```python
 class ModelRouter:
-    """コスト最適化モデルルーティング"""
+    """Cost-optimized model routing"""
 
     MODELS = {
         "fast_cheap": {
@@ -710,7 +710,7 @@ class ModelRouter:
     def select_model(self, task_type: str,
                      quality_required: float = 0.8,
                      budget_sensitive: bool = False) -> str:
-        """タスクに最適なモデルを選択"""
+        """Select the optimal model for a task"""
         task_mapping = {
             "classification": "fast_cheap",
             "summarization": "balanced",
@@ -721,15 +721,15 @@ class ModelRouter:
             "creative_writing": "best"
         }
 
-        # タスク種別でデフォルト選択
+        # Default selection by task type
         default = task_mapping.get(task_type, "balanced")
         model = self.MODELS[default]
 
-        # 品質要求で調整
+        # Adjust for quality requirements
         if quality_required > 0.95 and model["quality"] < 0.95:
             model = self.MODELS["best"]
         elif budget_sensitive and model["quality"] > quality_required:
-            # 品質を満たす最安モデルを選択
+            # Select the cheapest model that meets quality requirements
             cheapest = min(
                 (m for m in self.MODELS.values()
                  if m["quality"] >= quality_required),
@@ -739,19 +739,19 @@ class ModelRouter:
 
         return model["name"]
 
-# 使用例
+# Usage example
 router = ModelRouter()
 model = router.select_model("classification", budget_sensitive=True)
-# → "gpt-4o-mini"（分類は軽量モデルで十分）
+# → "gpt-4o-mini" (lightweight model is sufficient for classification)
 ```
 
-### 3.3 カスケードパターン
+### 3.3 Cascade Pattern
 
 ```python
 class CascadeModelRouter:
-    """カスケード型モデルルーティング
+    """Cascade model routing
 
-    軽量モデルで初回処理 → 品質不足なら上位モデルにエスカレーション
+    First process with lightweight model → escalate to higher model if quality is insufficient
     """
 
     def __init__(self):
@@ -764,11 +764,11 @@ class CascadeModelRouter:
 
     def process(self, prompt: str, required_quality: float = 0.8,
                 quality_evaluator=None) -> dict:
-        """カスケード処理"""
+        """Cascade processing"""
         for level, config in enumerate(self.cascade_order):
             response = call_ai(prompt, model=config["model"])
 
-            # 品質評価
+            # Quality evaluation
             if quality_evaluator:
                 quality_score = quality_evaluator(response)
             else:
@@ -781,23 +781,23 @@ class CascadeModelRouter:
                     "cascade_level": level,
                     "quality_score": quality_score,
                     "cost": config["cost"],
-                    "message": f"レベル{level}で品質要件を達成"
+                    "message": f"Quality requirement met at level {level}"
                 }
 
-        # 最高品質モデルまで到達
+        # Reached highest-quality model
         return {
             "response": response,
             "model_used": self.cascade_order[-1]["model"],
             "cascade_level": len(self.cascade_order) - 1,
             "quality_score": quality_score,
             "cost": self.cascade_order[-1]["cost"],
-            "message": "最高品質モデルを使用"
+            "message": "Used highest-quality model"
         }
 
     def estimate_savings(self, task_distribution: dict) -> dict:
-        """カスケードパターンによる節約額推定"""
+        """Estimate savings from cascade pattern"""
         # task_distribution: {"simple": 0.6, "medium": 0.25, "complex": 0.15}
-        baseline_cost = 0.003  # 全部sonnet使用
+        baseline_cost = 0.003  # All requests use Sonnet
         cascade_cost = (
             task_distribution.get("simple", 0) * 0.00015 +
             task_distribution.get("medium", 0) * 0.00025 +
@@ -814,7 +814,7 @@ class CascadeModelRouter:
         }
 ```
 
-### 3.4 フォールバック戦略
+### 3.4 Fallback Strategy
 
 ```python
 import time
@@ -822,7 +822,7 @@ from typing import Callable
 
 
 class ModelFallback:
-    """モデルフォールバック（障害時の自動切り替え）"""
+    """Model fallback (automatic switching on failure)"""
 
     def __init__(self):
         self.fallback_chains = {
@@ -846,14 +846,14 @@ class ModelFallback:
     def call_with_fallback(self, prompt: str,
                            chain: str = "primary",
                            max_retries: int = 2) -> dict:
-        """フォールバック付きAPI呼び出し"""
+        """API call with fallback"""
         models = self.fallback_chains[chain]
 
         for attempt, config in enumerate(models):
             provider = config["provider"]
             model = config["model"]
 
-            # 不健全なプロバイダーはスキップ
+            # Skip unhealthy providers
             if not self.provider_health[provider]["healthy"]:
                 continue
 
@@ -871,21 +871,21 @@ class ModelFallback:
                         "fallback_used": attempt > 0
                     }
                 except RateLimitError:
-                    time.sleep(2 ** retry)  # エクスポネンシャルバックオフ
+                    time.sleep(2 ** retry)  # Exponential backoff
                 except APIError as e:
                     self._mark_unhealthy(provider, str(e))
-                    break  # 次のプロバイダーへ
+                    break  # Move to next provider
 
-        return {"error": "全プロバイダーで失敗"}
+        return {"error": "All providers failed"}
 
     def _call_api(self, prompt: str, model: str,
                   provider: str) -> str:
-        """API呼び出し（プロバイダー別）"""
-        # 実装はプロバイダーに依存
+        """API call (provider-dependent)"""
+        # Implementation depends on the provider
         pass
 
     def _mark_unhealthy(self, provider: str, error: str):
-        """プロバイダーを不健全としてマーク"""
+        """Mark a provider as unhealthy"""
         self.provider_health[provider] = {
             "healthy": False,
             "last_error": error,
@@ -893,10 +893,10 @@ class ModelFallback:
         }
 
     def health_check(self):
-        """定期的なヘルスチェック"""
+        """Periodic health check"""
         for provider, status in self.provider_health.items():
             if not status["healthy"]:
-                # 5分経過したら再試行
+                # Retry after 5 minutes
                 if status.get("marked_at"):
                     elapsed = (datetime.now() - status["marked_at"]).seconds
                     if elapsed > 300:
@@ -905,93 +905,93 @@ class ModelFallback:
 
 ---
 
-## 4. プロンプト最適化
+## 4. Prompt Optimization
 
-### 4.1 トークン削減テクニック
+### 4.1 Token Reduction Techniques
 
 ```python
-# トークン削減の実例
+# Token reduction examples
 
-# BAD: 冗長なプロンプト（約200トークン）
+# BAD: Verbose prompt (approx. 200 tokens)
 prompt_verbose = """
-あなたは非常に優秀なAIアシスタントです。
-あなたの仕事は、与えられたテキストを読んで、
-そのテキストの内容を短く要約することです。
-要約は3行以内にしてください。
-できるだけ重要な情報を含めてください。
-以下のテキストを要約してください:
+You are a highly capable AI assistant.
+Your job is to read the given text and
+summarize its content concisely.
+The summary should be within 3 lines.
+Please include the most important information.
+Please summarize the following text:
 
 {text}
 
-上記のテキストの要約を3行以内で書いてください。
+Write a summary of the above text in 3 lines or fewer.
 """
 
-# GOOD: 簡潔なプロンプト（約50トークン、75%削減）
+# GOOD: Concise prompt (approx. 50 tokens, 75% reduction)
 prompt_concise = """
-3行で要約:
+Summarize in 3 lines:
 {text}
 """
 
-# トークン数の差:
-# verbose: ~200 tokens × 10,000回/月 = 2M tokens → $5.00
-# concise: ~50 tokens × 10,000回/月 = 500K tokens → $1.25
-# 月間節約: $3.75 (75%削減)
+# Token difference:
+# verbose: ~200 tokens × 10,000 times/month = 2M tokens → $5.00
+# concise: ~50 tokens × 10,000 times/month = 500K tokens → $1.25
+# Monthly savings: $3.75 (75% reduction)
 ```
 
-### 4.2 プロンプト圧縮ツール
+### 4.2 Prompt Compression Tool
 
 ```python
 class PromptCompressor:
-    """プロンプト圧縮ツール"""
+    """Prompt compression tool"""
 
     COMPRESSION_RULES = {
         "remove_filler": {
-            "description": "フィラーワードの除去",
-            "before": "あなたは非常に優秀なAIアシスタントです。",
+            "description": "Remove filler words",
+            "before": "You are a highly capable AI assistant.",
             "after": "",
-            "saving": "~15トークン"
+            "saving": "~15 tokens"
         },
         "simplify_instruction": {
-            "description": "指示の簡潔化",
-            "before": "以下のテキストを読んで、その内容を短く要約してください。",
-            "after": "要約:",
-            "saving": "~20トークン"
+            "description": "Simplify instructions",
+            "before": "Please read the following text and summarize its content concisely.",
+            "after": "Summary:",
+            "saving": "~20 tokens"
         },
         "use_structured_format": {
-            "description": "構造化フォーマット使用",
-            "before": "名前は{name}で、年齢は{age}歳で、職業は{job}です。",
+            "description": "Use structured format",
+            "before": "The name is {name}, age is {age}, occupation is {job}.",
             "after": "name:{name}|age:{age}|job:{job}",
-            "saving": "~10トークン"
+            "saving": "~10 tokens"
         },
         "abbreviate_system_prompt": {
-            "description": "システムプロンプトの短縮",
+            "description": "Shorten system prompt",
             "before": "You are a helpful assistant that specializes in...",
             "after": "Role: {role}. Task: {task}. Format: {format}.",
-            "saving": "~30トークン"
+            "saving": "~30 tokens"
         }
     }
 
     def compress(self, prompt: str) -> dict:
-        """プロンプトを圧縮"""
+        """Compress a prompt"""
         original_length = len(prompt.split())
         compressed = prompt
 
-        # フィラーワード除去
+        # Remove filler words
         fillers = [
-            "非常に優秀な", "とても素晴らしい",
-            "できる限り", "可能な限り",
-            "以下の", "上記の",
-            "お願いします", "してください"
+            "highly capable", "very helpful",
+            "as much as possible", "wherever possible",
+            "the following", "the above",
+            "please", "kindly"
         ]
         for filler in fillers:
             compressed = compressed.replace(filler, "")
 
-        # 冗長な表現の置換
+        # Replace verbose expressions
         replacements = {
-            "以下のテキストを要約してください": "要約:",
-            "日本語で回答してください": "日本語で:",
-            "箇条書きでリストアップしてください": "箇条書き:",
-            "できるだけ詳しく説明してください": "詳細:",
+            "Please summarize the following text": "Summary:",
+            "Please answer in English": "In English:",
+            "Please list in bullet points": "Bullet points:",
+            "Please explain in as much detail as possible": "Details:",
         }
         for old, new in replacements.items():
             compressed = compressed.replace(old, new)
@@ -1009,20 +1009,20 @@ class PromptCompressor:
             "reduction": f"{reduction:.1f}%",
             "estimated_token_savings": int(
                 (original_length - compressed_length) * 1.3
-            )  # 日本語は1文字≒1.3トークン
+            )  # Japanese: ~1.3 tokens per character
         }
 
     def optimize_system_prompt(self, system_prompt: str) -> dict:
-        """システムプロンプトの最適化"""
-        # システムプロンプトは毎リクエストで送信されるため
-        # 最適化効果が累積する
+        """Optimize system prompt"""
+        # System prompts are sent with every request,
+        # so optimization has a compounding effect
         compressed = self.compress(system_prompt)
-        monthly_requests = 10000  # 仮定
+        monthly_requests = 10000  # Assumed
 
         token_savings_per_request = compressed["estimated_token_savings"]
         monthly_token_savings = token_savings_per_request * monthly_requests
 
-        # GPT-4oの入力コスト: $2.50/1M tokens
+        # GPT-4o input cost: $2.50/1M tokens
         monthly_cost_savings = monthly_token_savings / 1_000_000 * 2.50
 
         return {
@@ -1034,33 +1034,33 @@ class PromptCompressor:
         }
 ```
 
-### 4.3 バッチ処理
+### 4.3 Batch Processing
 
 ```python
 class BatchProcessor:
-    """バッチ処理でAPI呼び出しを最適化"""
+    """Optimize API calls through batch processing"""
 
     def __init__(self, batch_size: int = 10):
         self.batch_size = batch_size
         self.queue: list[dict] = []
 
     def add_task(self, task: dict):
-        """タスクをキューに追加"""
+        """Add a task to the queue"""
         self.queue.append(task)
         if len(self.queue) >= self.batch_size:
             return self.process_batch()
         return None
 
     def process_batch(self) -> list[dict]:
-        """バッチ処理実行"""
+        """Execute batch processing"""
         if not self.queue:
             return []
 
-        # 複数タスクを1回のAPI呼び出しにまとめる
-        combined_prompt = "以下の各項目を処理:\n\n"
+        # Combine multiple tasks into a single API call
+        combined_prompt = "Process each of the following items:\n\n"
         for i, task in enumerate(self.queue):
             combined_prompt += f"[{i+1}] {task['prompt']}\n"
-        combined_prompt += "\nJSON配列で各項目の結果を返す。"
+        combined_prompt += "\nReturn results for each item as a JSON array."
 
         response = call_ai(combined_prompt)
         results = parse_json_array(response)
@@ -1068,34 +1068,34 @@ class BatchProcessor:
         self.queue.clear()
         return results
 
-# 効果:
-# 個別処理: 10回 × (システムプロンプト100tokens + 入力) = 1000 tokens overhead
-# バッチ処理: 1回 × (システムプロンプト100tokens + 全入力) = 100 tokens overhead
-# → オーバーヘッド90%削減
+# Effect:
+# Individual processing: 10 calls × (system prompt 100 tokens + input) = 1000 tokens overhead
+# Batch processing: 1 call × (system prompt 100 tokens + all input) = 100 tokens overhead
+# → 90% reduction in overhead
 ```
 
-### 4.4 レスポンス長の最適化
+### 4.4 Response Length Optimization
 
 ```python
 class ResponseOptimizer:
-    """レスポンス長の最適化"""
+    """Response length optimization"""
 
-    # タスク別の推奨max_tokens設定
+    # Recommended max_tokens settings by task
     RECOMMENDED_MAX_TOKENS = {
         "classification": 10,       # "positive" or "negative"
-        "sentiment": 5,            # 1-5のスコア
+        "sentiment": 5,            # Score of 1–5
         "yes_no": 3,               # "yes" or "no"
-        "short_answer": 50,        # 1-2文
-        "summary": 200,            # 短い要約
-        "long_summary": 500,       # 詳細な要約
-        "article": 1000,           # 記事生成
-        "code_snippet": 300,       # コードスニペット
-        "full_code": 2000,         # 完全なコード
-        "analysis": 800            # 分析レポート
+        "short_answer": 50,        # 1–2 sentences
+        "summary": 200,            # Short summary
+        "long_summary": 500,       # Detailed summary
+        "article": 1000,           # Article generation
+        "code_snippet": 300,       # Code snippet
+        "full_code": 2000,         # Complete code
+        "analysis": 800            # Analysis report
     }
 
     def get_optimal_max_tokens(self, task_type: str) -> int:
-        """タスクに応じた最適なmax_tokensを返す"""
+        """Return optimal max_tokens for a given task"""
         return self.RECOMMENDED_MAX_TOKENS.get(task_type, 500)
 
     def calculate_output_cost_savings(
@@ -1105,7 +1105,7 @@ class ResponseOptimizer:
         monthly_requests: int,
         model: str = "gpt-4o"
     ) -> dict:
-        """出力トークン最適化による節約額"""
+        """Savings from output token optimization"""
         output_price = {"gpt-4o": 10.0, "claude-sonnet": 15.0,
                        "gpt-4o-mini": 0.6, "claude-haiku": 1.25}
         price = output_price.get(model, 10.0)
@@ -1131,13 +1131,13 @@ class ResponseOptimizer:
 
 ---
 
-## 5. 予算管理と監視
+## 5. Budget Management and Monitoring
 
-### 5.1 予算アラートシステム
+### 5.1 Budget Alert System
 
 ```python
 class BudgetManager:
-    """AI API予算管理"""
+    """AI API budget management"""
 
     def __init__(self, monthly_budget: float):
         self.monthly_budget = monthly_budget
@@ -1145,8 +1145,8 @@ class BudgetManager:
 
     def check_budget(self, current_spend: float,
                       day_of_month: int) -> dict:
-        """予算チェック"""
-        # 線形消費ペースの計算
+        """Budget check"""
+        # Calculate linear consumption pace
         expected_spend = self.monthly_budget * (day_of_month / 30)
         pace = current_spend / expected_spend if expected_spend > 0 else 0
         projected_monthly = current_spend * (30 / day_of_month)
@@ -1177,30 +1177,30 @@ class BudgetManager:
 
     def _recommend_actions(self, status: str,
                             pace: float) -> list[str]:
-        """推奨アクション"""
+        """Recommended actions"""
         if status == "critical":
             return [
-                "即座にモデルを低コストモデルに切り替え",
-                "キャッシュの閾値を緩和（類似度0.90に）",
-                "非必須機能のAPI呼び出しを一時停止",
-                "ユーザー当たりの日次制限を50%に削減"
+                "Immediately switch to a lower-cost model",
+                "Relax cache threshold (to similarity 0.90)",
+                "Temporarily suspend API calls for non-essential features",
+                "Reduce daily per-user limit by 50%"
             ]
         elif status == "warning":
             return [
-                "コスト上位エンドポイントのモデル見直し",
-                "バッチ処理の積極活用",
-                "不要なリトライの削減"
+                "Review models used by the highest-cost endpoints",
+                "Make more active use of batch processing",
+                "Reduce unnecessary retries"
             ]
         elif status == "under_utilized":
             return [
-                "予算の再配分を検討",
-                "キャッシュの有効期限を短縮して鮮度向上",
-                "品質向上のために上位モデルの活用を検討"
+                "Consider reallocating budget",
+                "Shorten cache expiration to improve freshness",
+                "Consider using higher-tier models for quality improvement"
             ]
-        return ["現在のペースを維持"]
+        return ["Maintain current pace"]
 
     def set_user_limits(self, plan: str) -> dict:
-        """プラン別のユーザー制限"""
+        """Per-plan user limits"""
         limits = {
             "free": {
                 "daily_requests": 10,
@@ -1208,7 +1208,7 @@ class BudgetManager:
                 "max_input_tokens": 2000,
                 "max_output_tokens": 500,
                 "models_allowed": ["gpt-4o-mini"],
-                "rate_limit_rpm": 5  # リクエスト/分
+                "rate_limit_rpm": 5  # Requests per minute
             },
             "starter": {
                 "daily_requests": 100,
@@ -1228,7 +1228,7 @@ class BudgetManager:
                 "rate_limit_rpm": 60
             },
             "enterprise": {
-                "daily_requests": -1,  # 無制限
+                "daily_requests": -1,  # Unlimited
                 "daily_tokens": -1,
                 "max_input_tokens": 128000,
                 "max_output_tokens": 8000,
@@ -1240,7 +1240,7 @@ class BudgetManager:
 
 
 class CostCircuitBreaker:
-    """コスト回路遮断器"""
+    """Cost circuit breaker"""
 
     def __init__(self, daily_limit: float,
                  hourly_limit: float):
@@ -1251,12 +1251,12 @@ class CostCircuitBreaker:
         self.is_open = False
 
     def check_and_record(self, cost: float) -> dict:
-        """コストチェックと記録"""
+        """Check and record cost"""
         if self.is_open:
             return {
                 "allowed": False,
-                "reason": "回路遮断器がオープン",
-                "message": "コスト上限に達したためリクエストを拒否"
+                "reason": "Circuit breaker is open",
+                "message": "Request rejected because cost limit has been reached"
             }
 
         self.daily_spend += cost
@@ -1266,7 +1266,7 @@ class CostCircuitBreaker:
             self.is_open = True
             return {
                 "allowed": False,
-                "reason": "時間当たりの上限超過",
+                "reason": "Hourly limit exceeded",
                 "hourly_spend": f"${self.hourly_spend:.2f}",
                 "hourly_limit": f"${self.hourly_limit:.2f}"
             }
@@ -1275,7 +1275,7 @@ class CostCircuitBreaker:
             self.is_open = True
             return {
                 "allowed": False,
-                "reason": "日次上限超過",
+                "reason": "Daily limit exceeded",
                 "daily_spend": f"${self.daily_spend:.2f}",
                 "daily_limit": f"${self.daily_limit:.2f}"
             }
@@ -1285,19 +1285,19 @@ class CostCircuitBreaker:
 
 ---
 
-## 6. セルフホスト戦略
+## 6. Self-Hosting Strategy
 
-### 6.1 セルフホスト vs API のコスト比較
+### 6.1 Self-Hosting vs. API Cost Comparison
 
 ```python
 class SelfHostAnalyzer:
-    """セルフホスト vs API のコスト分析"""
+    """Self-hosting vs. API cost analysis"""
 
     GPU_COSTS = {
         "a100_80gb": {
-            "cloud_hourly": 3.00,  # AWS/GCP 1時間あたり
-            "on_premise": 15000,   # 購入費用
-            "power_monthly": 200,  # 電気代/月
+            "cloud_hourly": 3.00,  # AWS/GCP per hour
+            "on_premise": 15000,   # Purchase cost
+            "power_monthly": 200,  # Electricity per month
             "throughput_tokens_per_second": 50000,
             "models_supported": ["llama-3-70b", "mixtral-8x7b"]
         },
@@ -1324,8 +1324,8 @@ class SelfHostAnalyzer:
         self_host_gpu: str = "a100_80gb",
         utilization: float = 0.70
     ) -> dict:
-        """APIとセルフホストのコスト比較"""
-        # API コスト
+        """Compare costs between API and self-hosting"""
+        # API cost
         api_pricing = {
             "gpt-4o": {"input": 2.50, "output": 10.00, "avg": 6.25},
             "claude-sonnet": {"input": 3.00, "output": 15.00, "avg": 9.00},
@@ -1334,7 +1334,7 @@ class SelfHostAnalyzer:
         api_cost_per_1m = api_pricing.get(api_model, {}).get("avg", 5.0)
         monthly_api_cost = monthly_tokens / 1_000_000 * api_cost_per_1m
 
-        # セルフホストコスト
+        # Self-hosting cost
         gpu = self.GPU_COSTS[self_host_gpu]
         tokens_per_month = gpu["throughput_tokens_per_second"] * 3600 * 24 * 30
         gpus_needed = max(1, int(
@@ -1342,7 +1342,7 @@ class SelfHostAnalyzer:
         ))
 
         monthly_gpu_cost = gpu["cloud_hourly"] * 24 * 30 * gpus_needed
-        monthly_infra_cost = 500  # 管理ツール、監視等
+        monthly_infra_cost = 500  # Management tools, monitoring, etc.
         monthly_self_host_cost = monthly_gpu_cost + monthly_infra_cost
 
         breakeven_tokens = monthly_self_host_cost / api_cost_per_1m * 1_000_000
@@ -1363,111 +1363,111 @@ class SelfHostAnalyzer:
             },
             "comparison": {
                 "cheaper_option": "self_host" if monthly_self_host_cost < monthly_api_cost else "api",
-                "savings": f"${abs(monthly_api_cost - monthly_self_host_cost):,.2f}/月",
+                "savings": f"${abs(monthly_api_cost - monthly_self_host_cost):,.2f}/month",
                 "savings_pct": f"{abs(1 - monthly_self_host_cost/monthly_api_cost)*100:.0f}%"
                               if monthly_api_cost > 0 else "N/A",
-                "breakeven_tokens": f"{breakeven_tokens:,.0f}トークン/月"
+                "breakeven_tokens": f"{breakeven_tokens:,.0f} tokens/month"
             },
             "recommendation": (
-                f"月{breakeven_tokens/1_000_000:.0f}Mトークン以上なら"
-                f"セルフホストが有利"
+                f"Self-hosting is more cost-effective above "
+                f"{breakeven_tokens/1_000_000:.0f}M tokens/month"
             )
         }
 ```
 
 ---
 
-## 7. 総合コスト最適化戦略
+## 7. Comprehensive Cost Optimization Strategy
 
-### 7.1 最適化ロードマップ
+### 7.1 Optimization Roadmap
 
 ```python
 class CostOptimizationRoadmap:
-    """コスト最適化ロードマップ"""
+    """Cost optimization roadmap"""
 
     PHASES = {
         "phase_1_quick_wins": {
-            "timeline": "1-2週間",
-            "expected_savings": "20-30%",
+            "timeline": "1–2 weeks",
+            "expected_savings": "20–30%",
             "actions": [
                 {
-                    "action": "max_tokensの適切な設定",
-                    "effort": "低",
-                    "impact": "10-15%削減",
-                    "detail": "タスク別にmax_tokensを制限"
+                    "action": "Set appropriate max_tokens values",
+                    "effort": "Low",
+                    "impact": "10–15% reduction",
+                    "detail": "Limit max_tokens by task type"
                 },
                 {
-                    "action": "プロンプトの簡潔化",
-                    "effort": "低",
-                    "impact": "10-20%削減",
-                    "detail": "冗長な指示の除去"
+                    "action": "Simplify prompts",
+                    "effort": "Low",
+                    "impact": "10–20% reduction",
+                    "detail": "Remove redundant instructions"
                 },
                 {
-                    "action": "基本的なモデル使い分け",
-                    "effort": "低",
-                    "impact": "20-40%削減",
-                    "detail": "簡易タスクをmini/haikuに切り替え"
+                    "action": "Basic model differentiation",
+                    "effort": "Low",
+                    "impact": "20–40% reduction",
+                    "detail": "Switch simple tasks to mini/haiku"
                 }
             ]
         },
         "phase_2_caching": {
-            "timeline": "2-4週間",
-            "expected_savings": "30-50%（累積）",
+            "timeline": "2–4 weeks",
+            "expected_savings": "30–50% (cumulative)",
             "actions": [
                 {
-                    "action": "完全一致キャッシュ（Redis）",
-                    "effort": "中",
-                    "impact": "15-25%削減",
-                    "detail": "同一リクエストのキャッシュ"
+                    "action": "Exact match cache (Redis)",
+                    "effort": "Medium",
+                    "impact": "15–25% reduction",
+                    "detail": "Cache identical requests"
                 },
                 {
-                    "action": "セマンティックキャッシュ",
-                    "effort": "中-高",
-                    "impact": "10-20%追加削減",
-                    "detail": "類似リクエストのキャッシュ"
+                    "action": "Semantic cache",
+                    "effort": "Medium–High",
+                    "impact": "10–20% additional reduction",
+                    "detail": "Cache similar requests"
                 }
             ]
         },
         "phase_3_advanced": {
-            "timeline": "1-3ヶ月",
-            "expected_savings": "50-70%（累積）",
+            "timeline": "1–3 months",
+            "expected_savings": "50–70% (cumulative)",
             "actions": [
                 {
-                    "action": "カスケードモデルルーティング",
-                    "effort": "高",
-                    "impact": "15-25%追加削減",
-                    "detail": "品質評価 + 段階的モデル選択"
+                    "action": "Cascade model routing",
+                    "effort": "High",
+                    "impact": "15–25% additional reduction",
+                    "detail": "Quality evaluation + staged model selection"
                 },
                 {
-                    "action": "バッチ処理の全面導入",
-                    "effort": "中",
-                    "impact": "10-15%追加削減",
-                    "detail": "非同期バッチ処理パイプライン"
+                    "action": "Full adoption of batch processing",
+                    "effort": "Medium",
+                    "impact": "10–15% additional reduction",
+                    "detail": "Asynchronous batch processing pipeline"
                 },
                 {
-                    "action": "予算管理自動化",
-                    "effort": "中",
-                    "impact": "予算超過防止",
-                    "detail": "アラート + 回路遮断器"
+                    "action": "Budget management automation",
+                    "effort": "Medium",
+                    "impact": "Prevent budget overruns",
+                    "detail": "Alerts + circuit breaker"
                 }
             ]
         },
         "phase_4_self_host": {
-            "timeline": "3-6ヶ月",
-            "expected_savings": "70-90%（累積）",
-            "prerequisite": "月間API費用$5,000以上",
+            "timeline": "3–6 months",
+            "expected_savings": "70–90% (cumulative)",
+            "prerequisite": "Monthly API cost of $5,000 or more",
             "actions": [
                 {
-                    "action": "セルフホストLLMの導入",
-                    "effort": "高",
-                    "impact": "50-80%削減",
-                    "detail": "Llama 3 / Mistralの運用"
+                    "action": "Deploy self-hosted LLM",
+                    "effort": "High",
+                    "impact": "50–80% reduction",
+                    "detail": "Operate Llama 3 / Mistral"
                 },
                 {
-                    "action": "ファインチューニング",
-                    "effort": "高",
-                    "impact": "品質維持+コスト削減",
-                    "detail": "ドメイン特化モデルの構築"
+                    "action": "Fine-tuning",
+                    "effort": "High",
+                    "impact": "Maintain quality + reduce cost",
+                    "detail": "Build domain-specific models"
                 }
             ]
         }
@@ -1475,7 +1475,7 @@ class CostOptimizationRoadmap:
 
     def create_plan(self, current_monthly_cost: float,
                     target_reduction: float = 0.50) -> dict:
-        """最適化計画を作成"""
+        """Create an optimization plan"""
         plan = []
         cumulative_savings = 0
 
@@ -1483,7 +1483,7 @@ class CostOptimizationRoadmap:
             if cumulative_savings >= target_reduction:
                 break
 
-            # 位相の中の具体的節約見積もり
+            # Estimate savings for this phase
             phase_savings = float(
                 phase["expected_savings"].split("-")[0].rstrip("%")
             ) / 100
@@ -1495,108 +1495,108 @@ class CostOptimizationRoadmap:
                 "phase": phase_name,
                 "timeline": phase["timeline"],
                 "actions": [a["action"] for a in phase["actions"]],
-                "estimated_savings": f"${phase_dollar_savings:,.0f}/月",
+                "estimated_savings": f"${phase_dollar_savings:,.0f}/month",
                 "cumulative_savings": f"{(cumulative_savings + phase_savings)*100:.0f}%"
             })
 
             cumulative_savings += phase_savings
 
         return {
-            "current_cost": f"${current_monthly_cost:,.0f}/月",
+            "current_cost": f"${current_monthly_cost:,.0f}/month",
             "target_reduction": f"{target_reduction*100:.0f}%",
-            "target_cost": f"${current_monthly_cost * (1-target_reduction):,.0f}/月",
+            "target_cost": f"${current_monthly_cost * (1-target_reduction):,.0f}/month",
             "plan": plan
         }
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン1: キャッシュなしの全リクエストAPI呼び出し
+### Anti-Pattern 1: Sending All Requests to the API Without Caching
 
 ```python
-# BAD: 全リクエストを毎回APIに送信
+# BAD: Send every request to the API each time
 def summarize(text):
-    return call_api(text)  # 同じ入力でも毎回課金
+    return call_api(text)  # Billed even for identical input
 
-# GOOD: 3層キャッシュで大幅削減
+# GOOD: Drastically reduce cost with 3-tier cache
 def summarize(text):
-    # L1: 完全一致
+    # L1: Exact match
     cached = exact_cache.get(text)
     if cached:
         return cached  # $0
 
-    # L2: セマンティック
+    # L2: Semantic
     similar = semantic_cache.get(text)
     if similar:
-        return similar  # $0.0001 (embedding費用のみ)
+        return similar  # $0.0001 (embedding cost only)
 
-    # L3: API呼び出し
-    result = call_api(text)  # $0.01-$0.10
+    # L3: API call
+    result = call_api(text)  # $0.01–$0.10
     exact_cache.set(text, result)
     semantic_cache.set(text, result)
     return result
 ```
 
-### アンチパターン2: 最高性能モデルの一律使用
+### Anti-Pattern 2: Using the Highest-Performance Model for Everything
 
 ```python
-# BAD: 全タスクにGPT-4を使用
+# BAD: Use GPT-4 for all tasks
 def process_all(tasks):
     for task in tasks:
-        result = call_ai(task, model="gpt-4")  # 全部GPT-4
+        result = call_ai(task, model="gpt-4")  # GPT-4 for everything
 
-# GOOD: タスク複雑度に応じたモデル選択
+# GOOD: Select model based on task complexity
 def process_all(tasks):
     for task in tasks:
         complexity = estimate_complexity(task)
         if complexity == "simple":
-            result = call_ai(task, model="gpt-4o-mini")  # 1/17のコスト
+            result = call_ai(task, model="gpt-4o-mini")  # 1/17 the cost
         elif complexity == "medium":
-            result = call_ai(task, model="claude-haiku")  # 1/12のコスト
+            result = call_ai(task, model="claude-haiku")  # 1/12 the cost
         else:
-            result = call_ai(task, model="gpt-4o")  # 高品質が必要な場合のみ
+            result = call_ai(task, model="gpt-4o")  # Only when high quality is needed
 ```
 
-### アンチパターン3: 入力テキストの無制限送信
+### Anti-Pattern 3: Sending Unbounded Input Text
 
 ```python
-# BAD: ドキュメント全体を送信
+# BAD: Send the entire document
 def analyze_document(document):
-    # 100ページのドキュメント全体を送信 → 100K tokens
-    return call_ai(f"分析してください: {document}")
+    # Send the entire 100-page document → 100K tokens
+    return call_ai(f"Please analyze: {document}")
 
-# GOOD: 前処理で必要部分のみ抽出
+# GOOD: Extract only the necessary parts through preprocessing
 def analyze_document(document):
-    # 1. チャンク分割
+    # 1. Split into chunks
     chunks = split_into_chunks(document, max_tokens=2000)
-    # 2. 関連チャンクのみ抽出
+    # 2. Extract only relevant chunks
     relevant = find_relevant_chunks(chunks, query, top_k=3)
-    # 3. 必要部分のみ送信 → 6K tokens（94%削減）
-    return call_ai(f"分析: {' '.join(relevant)}")
+    # 3. Send only necessary parts → 6K tokens (94% reduction)
+    return call_ai(f"Analysis: {' '.join(relevant)}")
 ```
 
-### アンチパターン4: 予算監視なしの運用
+### Anti-Pattern 4: Operating Without Budget Monitoring
 
 ```python
-# BAD: 予算管理なし
+# BAD: No budget management
 def run_ai_service():
     while True:
-        process_request()  # 上限なし、月末に請求書で驚く
+        process_request()  # No limit; surprised by bill at end of month
 
-# GOOD: 多層防御の予算管理
+# GOOD: Multi-layer budget management
 def run_ai_service():
     budget = BudgetManager(monthly_budget=5000)
     breaker = CostCircuitBreaker(daily_limit=200, hourly_limit=30)
 
     while True:
-        # 回路遮断器チェック
+        # Circuit breaker check
         check = breaker.check_and_record(estimated_cost)
         if not check["allowed"]:
             return {"error": check["reason"]}
 
-        # 予算チェック
+        # Budget check
         status = budget.check_budget(current_spend, day_of_month)
         if status["status"] == "critical":
             switch_to_cheap_model()
@@ -1608,75 +1608,75 @@ def run_ai_service():
 
 ## 9. FAQ
 
-### Q1: キャッシュのヒット率はどのくらいが目安？
+### Q1: What is a good cache hit rate to aim for?
 
-**A:** 用途で大きく異なる。(1) カスタマーサポート（FAQ系）: 40-60%（同じ質問が繰り返される）、(2) コンテンツ生成: 10-20%（毎回異なる入力）、(3) 分類タスク: 30-50%。セマンティックキャッシュを導入すると完全一致の2-3倍のヒット率になる。目安として全体で30%以上を目指す。
+**A:** It varies significantly by use case. (1) Customer support (FAQ-based): 40–60% (the same questions repeat); (2) Content generation: 10–20% (input differs each time); (3) Classification tasks: 30–50%. Introducing semantic caching achieves 2–3× the hit rate of exact-match caching. A reasonable overall target is 30% or above.
 
-### Q2: セルフホストLLMへの移行はいつすべき？
+### Q2: When should you migrate to a self-hosted LLM?
 
-**A:** 3条件が揃ったとき。(1) 月間API費用が$5,000以上、(2) レイテンシ要件が厳しい（<100ms）、(3) データ主権の要件がある。GPU費用（A100: $2-3/時間）を考慮すると、月$3,000以下ならAPI利用の方が安い。Llama 3やMistralのファインチューニング版を使えば、GPT-4の80-90%の品質を1/10のコストで実現可能。
+**A:** When three conditions are met: (1) monthly API costs exceed $5,000; (2) strict latency requirements (<100ms); (3) data sovereignty requirements. Given GPU costs (A100: $2–3/hour), using the API is cheaper if you spend under $3,000/month. Using a fine-tuned version of Llama 3 or Mistral can achieve 80–90% of GPT-4 quality at 1/10 the cost.
 
-### Q3: 予算超過を防ぐ方法は？
+### Q3: How do you prevent budget overruns?
 
-**A:** 4層の防御を推奨。(1) ハード制限 — API使用量の上限をOpenAI/Anthropicの管理画面で設定、(2) アラート — 予算の50%/80%/100%でSlack通知、(3) ソフト制限 — ユーザー単位の日次/月次上限、(4) 回路遮断 — 異常な増加を検知したら自動停止。特にユーザー入力の長さ制限（max_tokens設定）が重要。
+**A:** A 4-layer defense is recommended. (1) Hard limit — set API usage caps in the OpenAI/Anthropic dashboard; (2) Alerts — Slack notifications at 50%/80%/100% of budget; (3) Soft limits — per-user daily/monthly caps; (4) Circuit breaker — automatically stop when abnormal increases are detected. Limiting user input length (max_tokens setting) is especially important.
 
-### Q4: プロンプト最適化だけでどのくらい節約できる？
+### Q4: How much can you save with prompt optimization alone?
 
-**A:** 典型的には20-40%削減可能。(1) システムプロンプトの簡潔化: 15-25%（毎リクエストに影響）、(2) max_tokensの適切な設定: 10-15%（不要な出力を抑制）、(3) 出力フォーマットの指定: 5-10%（JSONなど構造化出力）。特にシステムプロンプトは全リクエストに含まれるため、最初に最適化すべき。
+**A:** Typically 20–40% reduction is achievable. (1) Simplifying system prompts: 15–25% (affects every request); (2) Setting appropriate max_tokens: 10–15% (suppresses unnecessary output); (3) Specifying output format: 5–10% (structured output like JSON). System prompts in particular are included in every request, so they should be optimized first.
 
-### Q5: 複数プロバイダー間の最適化はどう行う？
+### Q5: How do you optimize across multiple providers?
 
-**A:** 3つのアプローチ。(1) コスト別ルーティング — タスク種別ごとに最安プロバイダーを選択、(2) フォールバック — 障害時に自動切り替え（レイテンシ低下を防止）、(3) A/Bテスト — 品質とコストのバランスを継続的に検証。LiteLLMのようなマルチプロバイダーライブラリを使うと実装が容易。
+**A:** Three approaches. (1) Cost-based routing — select the cheapest provider for each task type; (2) Fallback — automatic switching on failure (prevents latency degradation); (3) A/B testing — continuously validate the balance between quality and cost. Using a multi-provider library like LiteLLM makes implementation easier.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in day-to-day development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| コスト構造 | APIコストが全体の20-40%、入力/出力トークンで課金 |
-| キャッシュ | 3層（完全一致→セマンティック→API）で30-50%削減 |
-| モデル選択 | タスク複雑度でルーティング、40-70%削減可能 |
-| カスケード | 軽量→高品質の段階的処理で追加15-25%削減 |
-| プロンプト | 簡潔化で20-40%削減、バッチ処理で更に削減 |
-| 予算管理 | アラート + 回路遮断器 + ユーザー制限の多層防御 |
-| セルフホスト | 月$5,000以上なら検討、50-80%削減可能 |
-| 監視 | 日次レポート + 異常検知 + 自動停止 |
-| 目標 | 粗利70%以上を維持、改善は継続的に |
+| Cost structure | API costs account for 20–40% of total; billed per input/output token |
+| Caching | 3-tier (exact match → semantic → API) achieves 30–50% reduction |
+| Model selection | Route by task complexity; 40–70% reduction possible |
+| Cascade | Staged processing (lightweight → high-quality) reduces costs by an additional 15–25% |
+| Prompts | Conciseness reduces costs 20–40%; further savings with batch processing |
+| Budget management | Multi-layer defense: alerts + circuit breaker + user limits |
+| Self-hosting | Consider when API costs exceed $5,000/month; 50–80% reduction possible |
+| Monitoring | Daily reports + anomaly detection + automatic shutdown |
+| Target | Maintain gross margin of 70% or above; continuous improvement |
 
 ---
 
-## 次に読むべきガイド
+## Guides to Read Next
 
-- [02-scaling-strategy.md](./02-scaling-strategy.md) — スケーリング戦略
-- [00-pricing-models.md](./00-pricing-models.md) — 価格モデル設計
-- [../00-automation/00-automation-overview.md](../00-automation/00-automation-overview.md) — AI自動化概要
+- [02-scaling-strategy.md](./02-scaling-strategy.md) — Scaling strategy
+- [00-pricing-models.md](./00-pricing-models.md) — Pricing model design
+- [../00-automation/00-automation-overview.md](../00-automation/00-automation-overview.md) — AI automation overview
 
 ---
 
-## 参考文献
+## References
 
-1. **OpenAI API Pricing** — https://openai.com/pricing — 最新のトークン料金表
-2. **Anthropic API Pricing** — https://docs.anthropic.com — Claude APIの料金とベストプラクティス
-3. **"Reducing LLM Costs" — Martian (2024)** — LLMコスト最適化の包括的ガイド
-4. **Redis Documentation** — https://redis.io/docs — キャッシュ実装のベストプラクティス
-5. **pgvector Documentation** — https://github.com/pgvector/pgvector — PostgreSQLベクトル検索
-6. **LiteLLM** — https://github.com/BerriAI/litellm — マルチプロバイダーLLMライブラリ
-7. **vLLM** — https://github.com/vllm-project/vllm — 高効率LLM推論エンジン
+1. **OpenAI API Pricing** — https://openai.com/pricing — Latest token pricing table
+2. **Anthropic API Pricing** — https://docs.anthropic.com — Claude API pricing and best practices
+3. **"Reducing LLM Costs" — Martian (2024)** — Comprehensive guide to LLM cost optimization
+4. **Redis Documentation** — https://redis.io/docs — Best practices for cache implementation
+5. **pgvector Documentation** — https://github.com/pgvector/pgvector — PostgreSQL vector search
+6. **LiteLLM** — https://github.com/BerriAI/litellm — Multi-provider LLM library
+7. **vLLM** — https://github.com/vllm-project/vllm — High-efficiency LLM inference engine
