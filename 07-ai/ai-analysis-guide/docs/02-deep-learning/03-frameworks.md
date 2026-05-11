@@ -1,128 +1,131 @@
-# フレームワーク — PyTorch、TensorFlow、JAX
+# Frameworks — PyTorch, TensorFlow, JAX
 
-> 3大深層学習フレームワークの設計思想・コード比較・選択基準を実践的に解説する
+> A practical guide to the design philosophies, code comparisons, and selection criteria of the three major deep learning frameworks
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **PyTorch** — Define-by-Run、研究での標準、エコシステム
-2. **TensorFlow/Keras** — プロダクション志向、TF Serving、TFLite
-3. **JAX** — 関数型パラダイム、XLA、科学計算向け高速実行
-4. **ONNX** — フレームワーク間の相互運用と統一的デプロイ
-5. **実務的なフレームワーク選択** — プロジェクト要件に基づく判断基準
-6. **高度なトピック** — 分散学習、混合精度、プロファイリング、カスタムオペレータ
+1. **PyTorch** — Define-by-Run, the research standard, ecosystem
+2. **TensorFlow/Keras** — Production-oriented, TF Serving, TFLite
+3. **JAX** — Functional paradigm, XLA, high-speed execution for scientific computing
+4. **ONNX** — Interoperability between frameworks and unified deployment
+5. **Practical Framework Selection** — Decision criteria based on project requirements
+6. **Advanced Topics** — Distributed training, mixed precision, profiling, custom operators
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [RNN/Transformer](./02-rnn-transformer.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Understanding of the content in [RNN/Transformer](./02-rnn-transformer.md)
 
 ---
 
-## 1. フレームワークの歴史と設計思想
+## 1. History and Design Philosophies of Frameworks
 
-### 深層学習フレームワークの進化
+### Evolution of Deep Learning Frameworks
 
 ```
-年表:
-2002  Torch (Lua) — NYU Yann LeCun研究室
-2007  Theano — モントリオール大学、シンボリック微分の先駆者
-2015  TensorFlow 1.0 — Google Brain、Define-and-Run
-      Keras — François Chollet、高レベルAPI
-      Caffe — Berkeley、画像認識特化
+Timeline:
+2002  Torch (Lua) — NYU Yann LeCun's lab
+2007  Theano — University of Montreal, pioneer of symbolic differentiation
+2015  TensorFlow 1.0 — Google Brain, Define-and-Run
+      Keras — François Chollet, high-level API
+      Caffe — Berkeley, specialized for image recognition
 2016  PyTorch 0.1 — Facebook AI Research (FAIR)
-      Define-by-Run (Chainer由来)
-2017  JAX初期開発 — Google Research
-      MXNet — Apache、AWS推奨
-2018  PyTorch 1.0 — TorchScript導入
-      ONNX 1.0 — フレームワーク間相互運用
-2019  TensorFlow 2.0 — Eager Execution デフォルト化
-      Keras統合
-2020  PyTorch Lightning 1.0 — 構造化フレームワーク
-      Hugging Face Transformers急成長
-2021  JAX正式リリース — Flax/Haiku安定化
-      PyTorch市場シェア50%超え
+      Define-by-Run (derived from Chainer)
+2017  JAX early development — Google Research
+      MXNet — Apache, recommended by AWS
+2018  PyTorch 1.0 — TorchScript introduced
+      ONNX 1.0 — Cross-framework interoperability
+2019  TensorFlow 2.0 — Eager Execution enabled by default
+      Keras integration
+2020  PyTorch Lightning 1.0 — Structured framework
+      Hugging Face Transformers rapid growth
+2021  JAX official release — Flax/Haiku stabilized
+      PyTorch market share exceeds 50%
 2022  PyTorch 2.0 — torch.compile (TorchDynamo)
-2023  研究論文の90%以上がPyTorch
-      JAXでGemini開発
-2024  PyTorch 2.x — コンパイラ最適化成熟
-      TensorFlow → Keras 3.0（マルチバックエンド）
+2023  Over 90% of research papers use PyTorch
+      Gemini developed with JAX
+2024  PyTorch 2.x — Compiler optimizations mature
+      TensorFlow → Keras 3.0 (multi-backend)
 ```
 
-### パラダイムの比較
+### Paradigm Comparison
 
 ```
 PyTorch (Define-by-Run / Eager):
   ┌────────────────────────────────────────────┐
-  │  Pythonコード = 計算グラフ                  │
-  │  1行ずつ即座に実行                         │
-  │  デバッグが容易（pdb使用可）               │
-  │  動的な制御フロー（if/for）                │
-  │  torch.compile で後からJIT最適化           │
-  │  autograd による自動微分                    │
+  │  Python code = computation graph            │
+  │  Executed line by line immediately          │
+  │  Easy to debug (pdb usable)                │
+  │  Dynamic control flow (if/for)             │
+  │  JIT optimization later with torch.compile │
+  │  Automatic differentiation via autograd    │
   └────────────────────────────────────────────┘
 
 TensorFlow 2.x (Eager + @tf.function):
   ┌────────────────────────────────────────────┐
-  │  デフォルトはEager Execution                │
-  │  @tf.function で静的グラフ化               │
-  │  AutoGraph: Python制御フローをグラフに変換  │
-  │  SavedModelで本番デプロイ                  │
-  │  TFLite, TF.js でマルチ環境               │
-  │  tf.data による高性能データパイプライン     │
+  │  Default is Eager Execution                 │
+  │  Static graph via @tf.function             │
+  │  AutoGraph: converts Python control flow   │
+  │    to graph                                │
+  │  Production deploy with SavedModel         │
+  │  Multi-environment with TFLite, TF.js      │
+  │  High-performance data pipeline via tf.data│
   └────────────────────────────────────────────┘
 
-JAX (関数変換):
+JAX (Function Transformations):
   ┌────────────────────────────────────────────┐
-  │  NumPy互換API + 関数変換                    │
-  │  jit: XLAコンパイルで高速化                │
-  │  grad: 自動微分（任意次数）                │
-  │  vmap: ベクトル化（自動バッチ化）          │
-  │  pmap: マルチデバイス並列                  │
-  │  関数型プログラミング（副作用なし）         │
-  │  Pytreeで任意のデータ構造を微分可能に       │
+  │  NumPy-compatible API + function transforms │
+  │  jit: acceleration via XLA compilation     │
+  │  grad: automatic differentiation           │
+  │    (arbitrary order)                       │
+  │  vmap: vectorization (automatic batching)  │
+  │  pmap: multi-device parallelism            │
+  │  Functional programming (no side effects)  │
+  │  Pytree: makes arbitrary data structures   │
+  │    differentiable                          │
   └────────────────────────────────────────────┘
 ```
 
-### 設計哲学の根本的違い
+### Fundamental Differences in Design Philosophy
 
 ```python
-# === PyTorch: オブジェクト指向 + 命令型 ===
-# 状態をオブジェクトに保持する
+# === PyTorch: Object-oriented + imperative ===
+# State is held in objects
 class Model(nn.Module):
     def __init__(self):
         super().__init__()
-        self.layer = nn.Linear(10, 5)  # 状態（重み）をオブジェクトに保持
+        self.layer = nn.Linear(10, 5)  # State (weights) held in object
 
     def forward(self, x):
-        return self.layer(x)  # selfを通じて状態にアクセス
+        return self.layer(x)  # Access state through self
 
 model = Model()
-# model.parameters() で全パラメータにアクセス可能
-# model.state_dict() でシリアライズ
+# model.parameters() to access all parameters
+# model.state_dict() for serialization
 
-# === TensorFlow/Keras: 宣言型 + オブジェクト指向 ===
-# レイヤーの宣言的な組み立て
+# === TensorFlow/Keras: Declarative + object-oriented ===
+# Declarative assembly of layers
 model = tf.keras.Sequential([
     tf.keras.layers.Dense(5, input_shape=(10,))
 ])
-# model.compile() で学習設定を宣言
-# model.fit() で学習を一括実行
+# model.compile() to declare training configuration
+# model.fit() to run training all at once
 
-# === JAX: 関数型 ===
-# 状態（パラメータ）と関数を分離
+# === JAX: Functional ===
+# Separate state (parameters) from functions
 def model_fn(params, x):
     return jnp.dot(x, params['w']) + params['b']
 
-# パラメータは外部で管理、関数は純粋（副作用なし）
+# Parameters managed externally, functions are pure (no side effects)
 params = {'w': jnp.ones((10, 5)), 'b': jnp.zeros(5)}
-output = model_fn(params, x)  # 同じ入力 → 常に同じ出力
+output = model_fn(params, x)  # Same input → always same output
 ```
 
-### コード例1: 同じモデルを3フレームワークで実装
+### Code Example 1: Implementing the Same Model in 3 Frameworks
 
 ```python
 # ===== PyTorch =====
@@ -145,7 +148,7 @@ class PyTorchMLP(nn.Module):
     def forward(self, x):
         return self.net(x)
 
-# 学習
+# Training
 model = PyTorchMLP(784, 256, 10)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 criterion = nn.CrossEntropyLoss()
@@ -230,54 +233,54 @@ def train_step(state, batch):
 
 ---
 
-## 2. PyTorch エコシステム詳解
+## 2. PyTorch Ecosystem In-Depth
 
-### PyTorch コアコンセプト
+### PyTorch Core Concepts
 
 ```python
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-# === テンソル操作の基本 ===
+# === Tensor Operation Basics ===
 
-# テンソルの作成と演算
-x = torch.randn(3, 4, requires_grad=True)  # 勾配計算を有効化
+# Tensor creation and operations
+x = torch.randn(3, 4, requires_grad=True)  # Enable gradient computation
 y = torch.randn(4, 5)
-z = torch.matmul(x, y)  # 行列積
+z = torch.matmul(x, y)  # Matrix multiplication
 
-# GPU転送
+# GPU transfer
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 x_gpu = x.to(device)
 
-# テンソルのメモリレイアウト
-print(f"ストライド: {x.stride()}")      # (4, 1) — 行優先
-print(f"連続性: {x.is_contiguous()}")   # True
-print(f"データ型: {x.dtype}")            # torch.float32
-print(f"デバイス: {x.device}")           # cpu or cuda:0
+# Tensor memory layout
+print(f"Stride: {x.stride()}")          # (4, 1) — row-major
+print(f"Contiguous: {x.is_contiguous()}")  # True
+print(f"Dtype: {x.dtype}")              # torch.float32
+print(f"Device: {x.device}")            # cpu or cuda:0
 
-# === autograd の仕組み ===
+# === How autograd Works ===
 
-# 計算グラフの構築と逆伝播
+# Building computation graph and backpropagation
 a = torch.tensor([2.0, 3.0], requires_grad=True)
 b = torch.tensor([4.0, 5.0], requires_grad=True)
-c = a * b          # 要素積
-d = c.sum()         # スカラーに集約
-d.backward()        # 逆伝播
+c = a * b          # Element-wise product
+d = c.sum()         # Reduce to scalar
+d.backward()        # Backpropagation
 
 print(f"a.grad = {a.grad}")  # tensor([4., 5.]) = b
 print(f"b.grad = {b.grad}")  # tensor([2., 3.]) = a
 
-# 勾配計算の制御
+# Controlling gradient computation
 with torch.no_grad():
-    # この中では計算グラフを作成しない（推論時・パラメータ更新時）
+    # No computation graph created inside this block (for inference/parameter updates)
     result = a * 2
 
-# 勾配の累積とリセット
-a.grad.zero_()  # 勾配をゼロに戻す（重要！）
+# Gradient accumulation and reset
+a.grad.zero_()  # Reset gradients to zero (important!)
 ```
 
-### カスタム Dataset と DataLoader
+### Custom Dataset and DataLoader
 
 ```python
 import torch
@@ -287,7 +290,7 @@ from PIL import Image
 import os
 
 class CustomImageDataset(Dataset):
-    """実務的なカスタムデータセット"""
+    """Practical custom dataset"""
 
     def __init__(self, root_dir, split="train", transform=None):
         self.root_dir = root_dir
@@ -295,7 +298,7 @@ class CustomImageDataset(Dataset):
         self.samples = []
         self.class_to_idx = {}
 
-        # ディレクトリ構造からラベルを構築
+        # Build labels from directory structure
         for idx, class_name in enumerate(sorted(os.listdir(root_dir))):
             class_dir = os.path.join(root_dir, class_name)
             if not os.path.isdir(class_dir):
@@ -321,7 +324,7 @@ class CustomImageDataset(Dataset):
         return image, label
 
     def get_class_weights(self):
-        """クラス不均衡対策用の重み計算"""
+        """Weight calculation for class imbalance handling"""
         from collections import Counter
         label_counts = Counter(label for _, label in self.samples)
         total = len(self.samples)
@@ -330,7 +333,7 @@ class CustomImageDataset(Dataset):
         return sample_weights
 
 
-# データ拡張パイプライン
+# Data augmentation pipeline
 train_transform = transforms.Compose([
     transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
     transforms.RandomHorizontalFlip(),
@@ -351,7 +354,7 @@ val_transform = transforms.Compose([
                          std=[0.229, 0.224, 0.225]),
 ])
 
-# DataLoader with WeightedRandomSampler（クラス不均衡対策）
+# DataLoader with WeightedRandomSampler (class imbalance handling)
 dataset = CustomImageDataset("./data/train", split="train",
                              transform=train_transform)
 sample_weights = dataset.get_class_weights()
@@ -360,16 +363,16 @@ sampler = WeightedRandomSampler(sample_weights, len(sample_weights))
 train_loader = DataLoader(
     dataset,
     batch_size=32,
-    sampler=sampler,         # shuffleの代わりにsampler
-    num_workers=4,           # 並列データ読み込み
-    pin_memory=True,         # GPU転送の高速化
-    prefetch_factor=2,       # 先読みバッチ数
-    persistent_workers=True, # ワーカープロセスを再利用
-    drop_last=True,          # 最後の不完全バッチを除外
+    sampler=sampler,         # Use sampler instead of shuffle
+    num_workers=4,           # Parallel data loading
+    pin_memory=True,         # Faster GPU transfer
+    prefetch_factor=2,       # Number of batches to prefetch
+    persistent_workers=True, # Reuse worker processes
+    drop_last=True,          # Exclude the last incomplete batch
 )
 ```
 
-### コード例2: PyTorch Lightning による構造化
+### Code Example 2: Structuring with PyTorch Lightning
 
 ```python
 import pytorch_lightning as pl
@@ -381,7 +384,7 @@ from torchvision import datasets, transforms
 from torchmetrics import Accuracy, F1Score, AUROC
 
 class LitClassifier(pl.LightningModule):
-    """PyTorch Lightningで構造化されたモデル"""
+    """Model structured with PyTorch Lightning"""
 
     def __init__(self, input_dim=784, hidden_dim=256,
                  num_classes=10, lr=0.001, weight_decay=1e-4):
@@ -400,7 +403,7 @@ class LitClassifier(pl.LightningModule):
             nn.Linear(hidden_dim // 2, num_classes),
         )
 
-        # メトリクス
+        # Metrics
         self.train_acc = Accuracy(task="multiclass", num_classes=num_classes)
         self.val_acc = Accuracy(task="multiclass", num_classes=num_classes)
         self.val_f1 = F1Score(task="multiclass", num_classes=num_classes,
@@ -447,14 +450,14 @@ class LitClassifier(pl.LightningModule):
             },
         }
 
-# 使用例
+# Usage
 model = LitClassifier()
 trainer = pl.Trainer(
     max_epochs=10,
     accelerator="auto",
-    precision="16-mixed",    # 混合精度学習
-    gradient_clip_val=1.0,   # 勾配クリッピング
-    accumulate_grad_batches=4,  # 勾配累積（実効バッチサイズ4倍）
+    precision="16-mixed",    # Mixed precision training
+    gradient_clip_val=1.0,   # Gradient clipping
+    accumulate_grad_batches=4,  # Gradient accumulation (effective batch size 4x)
     callbacks=[
         pl.callbacks.EarlyStopping(monitor="val_loss", patience=3),
         pl.callbacks.ModelCheckpoint(
@@ -508,19 +511,19 @@ class TransformerBlock(nn.Module):
 
 model = TransformerBlock().cuda()
 
-# === torch.compile による最適化 ===
-# PyTorch 2.0+ の新機能: TorchDynamo + TorchInductor
+# === Optimization with torch.compile ===
+# New feature in PyTorch 2.0+: TorchDynamo + TorchInductor
 compiled_model = torch.compile(
     model,
     mode="reduce-overhead",  # "default", "reduce-overhead", "max-autotune"
-    # fullgraph=True,        # グラフ全体をコンパイル（graph breakなし）
+    # fullgraph=True,        # Compile the entire graph (no graph breaks)
 )
 
 x = torch.randn(32, 128, 512).cuda()
 
-# ベンチマーク
+# Benchmark
 def benchmark(model, x, name, n_iter=100):
-    # ウォームアップ
+    # Warmup
     for _ in range(10):
         _ = model(x)
     torch.cuda.synchronize()
@@ -530,14 +533,14 @@ def benchmark(model, x, name, n_iter=100):
         _ = model(x)
     torch.cuda.synchronize()
     elapsed = time.time() - start
-    print(f"{name}: {elapsed:.3f}秒 ({elapsed/n_iter*1000:.1f}ms/iter)")
+    print(f"{name}: {elapsed:.3f}s ({elapsed/n_iter*1000:.1f}ms/iter)")
 
 benchmark(model, x, "Eager")
 benchmark(compiled_model, x, "Compiled")
-# 典型的な結果: Compiled は Eager の 1.5-2x 高速
+# Typical result: Compiled is 1.5-2x faster than Eager
 ```
 
-### PyTorch カスタムオペレータ（C++ Extension）
+### PyTorch Custom Operators (C++ Extension)
 
 ```python
 # === custom_op.cpp ===
@@ -545,7 +548,7 @@ benchmark(compiled_model, x, "Compiled")
 #include <torch/extension.h>
 
 torch::Tensor fused_gelu(torch::Tensor input) {
-    // GELUの近似実装（tanh近似）
+    // Approximate GELU implementation (tanh approximation)
     auto x = input;
     auto cdf = 0.5 * (1.0 + torch::tanh(
         std::sqrt(2.0 / M_PI) * (x + 0.044715 * torch::pow(x, 3))
@@ -558,12 +561,12 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
 }
 """
 
-# === Python側での使用 ===
+# === Usage from Python ===
 # from torch.utils.cpp_extension import load
 # custom_ops = load(name="custom_ops", sources=["custom_op.cpp"])
 # output = custom_ops.fused_gelu(input_tensor)
 
-# CUDA Extension の場合
+# For CUDA Extension
 """
 // custom_op_cuda.cu
 __global__ void fused_gelu_kernel(
@@ -583,15 +586,15 @@ __global__ void fused_gelu_kernel(
 
 ---
 
-## 3. TensorFlow / Keras エコシステム詳解
+## 3. TensorFlow / Keras Ecosystem In-Depth
 
-### コード例3: TensorFlow SavedModel と本番デプロイ
+### Code Example 3: TensorFlow SavedModel and Production Deployment
 
 ```python
 import tensorflow as tf
 import numpy as np
 
-# モデル保存（TF SavedModel形式）
+# Model saving (TF SavedModel format)
 model = tf.keras.Sequential([
     tf.keras.layers.Dense(256, activation="relu"),
     tf.keras.layers.Dense(10),
@@ -600,38 +603,38 @@ model.build(input_shape=(None, 784))
 model.compile(optimizer="adam",
               loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True))
 
-# SavedModel形式で保存（TF Servingに直接デプロイ可能）
+# Save in SavedModel format (directly deployable to TF Serving)
 tf.saved_model.save(model, "saved_model/my_model/1")
 
-# TFLite変換（モバイル/エッジ向け）
+# TFLite conversion (for mobile/edge)
 converter = tf.lite.TFLiteConverter.from_saved_model("saved_model/my_model/1")
-converter.optimizations = [tf.lite.Optimize.DEFAULT]  # 量子化
+converter.optimizations = [tf.lite.Optimize.DEFAULT]  # Quantization
 tflite_model = converter.convert()
 
 with open("model.tflite", "wb") as f:
     f.write(tflite_model)
 
-print(f"TFLiteモデルサイズ: {len(tflite_model) / 1024:.1f} KB")
+print(f"TFLite model size: {len(tflite_model) / 1024:.1f} KB")
 
-# TFLiteで推論
+# Inference with TFLite
 interpreter = tf.lite.Interpreter(model_content=tflite_model)
 interpreter.allocate_tensors()
 
 input_details = interpreter.get_input_details()
 output_details = interpreter.get_output_details()
 
-# テスト推論
+# Test inference
 test_input = np.random.randn(1, 784).astype(np.float32)
 interpreter.set_tensor(input_details[0]["index"], test_input)
 interpreter.invoke()
 output = interpreter.get_tensor(output_details[0]["index"])
-print(f"TFLite推論結果形状: {output.shape}")
+print(f"TFLite inference result shape: {output.shape}")
 ```
 
-### Keras 3.0 マルチバックエンド
+### Keras 3.0 Multi-Backend
 
 ```python
-# Keras 3.0 では PyTorch, JAX, TensorFlow をバックエンドとして切り替え可能
+# Keras 3.0 allows switching between PyTorch, JAX, and TensorFlow as backends
 import os
 os.environ["KERAS_BACKEND"] = "jax"  # "tensorflow", "torch", "jax"
 
@@ -639,7 +642,7 @@ import keras
 from keras import layers, ops
 
 class MultiBackendModel(keras.Model):
-    """Keras 3.0 マルチバックエンド対応モデル"""
+    """Keras 3.0 multi-backend compatible model"""
 
     def __init__(self, num_classes=10):
         super().__init__()
@@ -667,18 +670,18 @@ model.compile(
     loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
     metrics=["accuracy"],
 )
-# 同じコードが TF / PyTorch / JAX のどのバックエンドでも動作
+# The same code runs on any backend: TF / PyTorch / JAX
 ```
 
-### tf.data による高性能データパイプライン
+### High-Performance Data Pipeline with tf.data
 
 ```python
 import tensorflow as tf
 
 def build_dataset(file_pattern, batch_size=32, is_training=True):
-    """高性能なtf.dataパイプライン"""
+    """High-performance tf.data pipeline"""
 
-    # TFRecordの読み込み
+    # Reading TFRecords
     feature_description = {
         "image": tf.io.FixedLenFeature([], tf.string),
         "label": tf.io.FixedLenFeature([], tf.int64),
@@ -698,13 +701,13 @@ def build_dataset(file_pattern, batch_size=32, is_training=True):
         image = tf.image.random_saturation(image, lower=0.8, upper=1.2)
         return image, label
 
-    # パイプライン構築
+    # Pipeline construction
     files = tf.data.Dataset.list_files(file_pattern, shuffle=is_training)
 
     dataset = files.interleave(
         tf.data.TFRecordDataset,
-        num_parallel_calls=tf.data.AUTOTUNE,  # 並列読み込み
-        cycle_length=8,                        # 同時に読むファイル数
+        num_parallel_calls=tf.data.AUTOTUNE,  # Parallel reading
+        cycle_length=8,                        # Number of files to read simultaneously
         deterministic=not is_training,
     )
 
@@ -720,23 +723,23 @@ def build_dataset(file_pattern, batch_size=32, is_training=True):
     dataset = (
         dataset
         .batch(batch_size, drop_remainder=is_training)
-        .prefetch(tf.data.AUTOTUNE)  # GPU計算と並行してデータ準備
+        .prefetch(tf.data.AUTOTUNE)  # Prepare data in parallel with GPU computation
     )
 
     return dataset
 
-# 使用例
+# Usage
 train_ds = build_dataset("data/train-*.tfrecord", batch_size=64)
 val_ds = build_dataset("data/val-*.tfrecord", batch_size=64, is_training=False)
 ```
 
-### TensorFlow カスタム学習ループ
+### TensorFlow Custom Training Loop
 
 ```python
 import tensorflow as tf
 
 class CustomTrainer:
-    """tf.GradientTape を使ったカスタム学習ループ"""
+    """Custom training loop using tf.GradientTape"""
 
     def __init__(self, model, optimizer, loss_fn):
         self.model = model
@@ -749,16 +752,16 @@ class CustomTrainer:
         self.val_acc = tf.keras.metrics.SparseCategoricalAccuracy(
             name="val_accuracy")
 
-    @tf.function  # グラフモードで高速化
+    @tf.function  # Accelerate with graph mode
     def train_step(self, x, y):
         with tf.GradientTape() as tape:
             logits = self.model(x, training=True)
             loss = self.loss_fn(y, logits)
 
-        # 勾配計算と適用
+        # Compute and apply gradients
         gradients = tape.gradient(loss, self.model.trainable_variables)
 
-        # 勾配クリッピング
+        # Gradient clipping
         gradients, global_norm = tf.clip_by_global_norm(gradients, 1.0)
 
         self.optimizer.apply_gradients(
@@ -777,13 +780,13 @@ class CustomTrainer:
 
     def fit(self, train_ds, val_ds, epochs):
         for epoch in range(epochs):
-            # 学習
+            # Training
             self.train_loss.reset_state()
             self.train_acc.reset_state()
             for x_batch, y_batch in train_ds:
                 self.train_step(x_batch, y_batch)
 
-            # 検証
+            # Validation
             self.val_loss.reset_state()
             self.val_acc.reset_state()
             for x_batch, y_batch in val_ds:
@@ -798,10 +801,10 @@ class CustomTrainer:
             )
 ```
 
-### TF Serving によるモデルサービング
+### Model Serving with TF Serving
 
 ```python
-# === モデルのバージョニングと署名 ===
+# === Model Versioning and Signatures ===
 import tensorflow as tf
 
 class ServableModel(tf.keras.Model):
@@ -814,7 +817,7 @@ class ServableModel(tf.keras.Model):
         tf.TensorSpec(shape=[None, 784], dtype=tf.float32, name="input")
     ])
     def serve(self, x):
-        """サービング用のエンドポイント"""
+        """Endpoint for serving"""
         logits = self.dense2(self.dense1(x))
         probs = tf.nn.softmax(logits, axis=-1)
         return {
@@ -824,16 +827,16 @@ class ServableModel(tf.keras.Model):
         }
 
 model = ServableModel()
-model(tf.random.normal([1, 784]))  # ビルド
+model(tf.random.normal([1, 784]))  # Build
 
-# 署名付きでSavedModel保存
+# Save as SavedModel with signatures
 tf.saved_model.save(
     model,
     "saved_model/classifier/1",
     signatures={"serving_default": model.serve},
 )
 
-# === Docker で TF Serving 起動 ===
+# === Launch TF Serving with Docker ===
 """
 # docker-compose.yml
 version: '3'
@@ -850,13 +853,13 @@ services:
     command: --enable_batching=true --batching_parameters_file=/models/batching.config
 """
 
-# === Python クライアント ===
+# === Python Client ===
 import requests
 import numpy as np
 import json
 
 def predict_rest(input_data):
-    """REST APIでの推論リクエスト"""
+    """Inference request via REST API"""
     url = "http://localhost:8501/v1/models/classifier:predict"
     payload = {
         "instances": input_data.tolist()
@@ -865,7 +868,7 @@ def predict_rest(input_data):
     result = response.json()
     return result["predictions"]
 
-# gRPCクライアント（高速）
+# gRPC client (faster)
 """
 import grpc
 from tensorflow_serving.apis import predict_pb2, prediction_service_pb2_grpc
@@ -884,9 +887,9 @@ response = stub.Predict(request)
 
 ---
 
-## 4. JAX エコシステム詳解
+## 4. JAX Ecosystem In-Depth
 
-### コード例4: JAXによる高速科学計算
+### Code Example 4: High-Speed Scientific Computing with JAX
 
 ```python
 import jax
@@ -894,9 +897,9 @@ import jax.numpy as jnp
 from functools import partial
 import time
 
-# JAXの関数変換デモ
+# JAX function transformation demo
 
-# 1. jit: XLAコンパイルによる高速化
+# 1. jit: Acceleration via XLA compilation
 @jax.jit
 def matmul_jit(A, B):
     return jnp.dot(A, B)
@@ -904,20 +907,20 @@ def matmul_jit(A, B):
 A = jax.random.normal(jax.random.PRNGKey(0), (1000, 1000))
 B = jax.random.normal(jax.random.PRNGKey(1), (1000, 1000))
 
-# ウォームアップ（初回コンパイル）
+# Warmup (initial compilation)
 _ = matmul_jit(A, B).block_until_ready()
 
 start = time.time()
 for _ in range(100):
     _ = matmul_jit(A, B).block_until_ready()
-print(f"JIT行列積 (100回): {time.time()-start:.3f}秒")
+print(f"JIT matrix multiplication (100 iterations): {time.time()-start:.3f}s")
 
-# 2. grad: 自動微分
+# 2. grad: Automatic differentiation
 def loss_fn(params, x, y):
     pred = jnp.dot(x, params["w"]) + params["b"]
     return jnp.mean((pred - y) ** 2)
 
-# 勾配関数を自動生成
+# Automatically generate gradient function
 grad_fn = jax.grad(loss_fn)
 
 params = {"w": jnp.ones(10), "b": 0.0}
@@ -925,68 +928,68 @@ x = jax.random.normal(jax.random.PRNGKey(2), (100, 10))
 y = jax.random.normal(jax.random.PRNGKey(3), (100,))
 
 grads = grad_fn(params, x, y)
-print(f"w勾配形状: {grads['w'].shape}, b勾配: {grads['b']:.4f}")
+print(f"w gradient shape: {grads['w'].shape}, b gradient: {grads['b']:.4f}")
 
-# 3. vmap: バッチ化の自動ベクトル化
+# 3. vmap: Automatic vectorization for batching
 def single_sample_loss(param, x, y):
     pred = jnp.dot(x, param)
     return (pred - y) ** 2
 
-# 単一サンプルの関数をバッチに自動拡張
+# Automatically extend single-sample function to batch
 batched_loss = jax.vmap(single_sample_loss, in_axes=(None, 0, 0))
 losses = batched_loss(jnp.ones(10), x, y)
-print(f"バッチ損失形状: {losses.shape}")  # (100,)
+print(f"Batch loss shape: {losses.shape}")  # (100,)
 
-# 4. 高次微分（ヘシアン行列）
+# 4. Higher-order differentiation (Hessian matrix)
 def scalar_loss(params):
     return jnp.sum(params ** 2 + jnp.sin(params))
 
-# 1階微分
+# First-order derivative
 first_grad = jax.grad(scalar_loss)
-# 2階微分（ヘシアン）
+# Second-order derivative (Hessian)
 hessian = jax.hessian(scalar_loss)
 
 params = jnp.array([1.0, 2.0, 3.0])
-print(f"勾配: {first_grad(params)}")
-print(f"ヘシアン:\n{hessian(params)}")
+print(f"Gradient: {first_grad(params)}")
+print(f"Hessian:\n{hessian(params)}")
 ```
 
-### JAX 乱数管理（PRNG）
+### JAX Random Number Management (PRNG)
 
 ```python
 import jax
 import jax.numpy as jnp
 
-# === JAXの乱数は「明示的」で「分割可能」===
-# PyTorch/NumPyのグローバル状態とは根本的に異なる
+# === JAX random numbers are "explicit" and "splittable" ===
+# Fundamentally different from PyTorch/NumPy's global state
 
 key = jax.random.PRNGKey(42)
 
-# BAD: 同じキーを使い回すと同じ値になる
+# BAD: Reusing the same key produces the same values
 x1 = jax.random.normal(key, (3,))
 x2 = jax.random.normal(key, (3,))
-print(f"同じキー: {jnp.allclose(x1, x2)}")  # True（同じ！）
+print(f"Same key: {jnp.allclose(x1, x2)}")  # True (identical!)
 
-# GOOD: キーを分割して使う
+# GOOD: Split the key before use
 key, subkey1, subkey2 = jax.random.split(key, 3)
 x1 = jax.random.normal(subkey1, (3,))
 x2 = jax.random.normal(subkey2, (3,))
-print(f"異なるキー: {jnp.allclose(x1, x2)}")  # False（異なる）
+print(f"Different keys: {jnp.allclose(x1, x2)}")  # False (different)
 
-# 実用的パターン: ループ内でのキー分割
+# Practical pattern: Key splitting inside a loop
 def training_loop(key, num_steps):
     params = jnp.zeros(10)
     for step in range(num_steps):
         key, step_key = jax.random.split(key)
         noise = jax.random.normal(step_key, params.shape)
-        params = params + 0.01 * noise  # 例: ランダム探索
+        params = params + 0.01 * noise  # Example: random search
     return params
 
-# 関数型スタイルではキーを引数として渡す
+# In functional style, pass the key as an argument
 result = training_loop(jax.random.PRNGKey(0), 100)
 ```
 
-### Flax による本格的なモデル実装
+### Full-Scale Model Implementation with Flax
 
 ```python
 import jax
@@ -997,7 +1000,7 @@ import optax
 from typing import Sequence
 
 class ResidualBlock(nn.Module):
-    """Flaxによる残差ブロック"""
+    """Residual block in Flax"""
     features: int
     training: bool = True
 
@@ -1010,7 +1013,7 @@ class ResidualBlock(nn.Module):
         x = nn.Dense(self.features)(x)
         x = nn.BatchNorm(use_running_average=not self.training)(x)
 
-        # 残差接続（次元が異なる場合は射影）
+        # Residual connection (project if dimensions differ)
         if residual.shape[-1] != self.features:
             residual = nn.Dense(self.features)(residual)
 
@@ -1018,7 +1021,7 @@ class ResidualBlock(nn.Module):
 
 
 class FlaxResNet(nn.Module):
-    """Flaxによるカスタム ResNet風モデル"""
+    """Custom ResNet-style model in Flax"""
     num_classes: int
     hidden_dims: Sequence[int] = (128, 256, 512)
 
@@ -1034,12 +1037,12 @@ class FlaxResNet(nn.Module):
 
 
 def create_train_state(rng, model, learning_rate, weight_decay):
-    """TrainState の初期化"""
+    """Initialize TrainState"""
     variables = model.init(rng, jnp.ones((1, 784)), training=False)
     params = variables['params']
     batch_stats = variables.get('batch_stats', {})
 
-    # Optax: 学習率スケジューラ + AdamW
+    # Optax: Learning rate scheduler + AdamW
     schedule = optax.warmup_cosine_decay_schedule(
         init_value=0.0,
         peak_value=learning_rate,
@@ -1048,7 +1051,7 @@ def create_train_state(rng, model, learning_rate, weight_decay):
         end_value=learning_rate * 0.01,
     )
     tx = optax.chain(
-        optax.clip_by_global_norm(1.0),  # 勾配クリッピング
+        optax.clip_by_global_norm(1.0),  # Gradient clipping
         optax.adamw(schedule, weight_decay=weight_decay),
     )
 
@@ -1061,7 +1064,7 @@ def create_train_state(rng, model, learning_rate, weight_decay):
 
 @jax.jit
 def train_step(state, batch_stats, batch, rng):
-    """JITコンパイルされた学習ステップ"""
+    """JIT-compiled training step"""
     def loss_fn(params):
         variables = {'params': params, 'batch_stats': batch_stats}
         logits, new_model_state = state.apply_fn(
@@ -1086,7 +1089,7 @@ def train_step(state, batch_stats, batch, rng):
     return state, new_batch_stats, {'loss': loss, 'accuracy': accuracy}
 
 
-# チェックポイントの保存・復元
+# Save and restore checkpoints
 def save_checkpoint(state, batch_stats, step, ckpt_dir="checkpoints"):
     checkpoints.save_checkpoint(
         ckpt_dir,
@@ -1103,17 +1106,17 @@ def load_checkpoint(state, batch_stats, ckpt_dir="checkpoints"):
     return restored['state'], restored['batch_stats']
 ```
 
-### JAX pmap: マルチデバイス並列
+### JAX pmap: Multi-Device Parallelism
 
 ```python
 import jax
 import jax.numpy as jnp
 
-# マルチGPU/TPUでのデータ並列学習
+# Data-parallel training across multiple GPUs/TPUs
 
 @jax.pmap
 def parallel_train_step(state, batch):
-    """複数デバイスで並列実行される学習ステップ"""
+    """Training step executed in parallel across multiple devices"""
     def loss_fn(params):
         logits = state.apply_fn({'params': params}, batch['image'])
         return optax.softmax_cross_entropy_with_integer_labels(
@@ -1122,20 +1125,20 @@ def parallel_train_step(state, batch):
 
     grads = jax.grad(loss_fn)(state.params)
 
-    # デバイス間で勾配を平均（All-Reduce）
+    # Average gradients across devices (All-Reduce)
     grads = jax.lax.pmean(grads, axis_name='batch')
 
     state = state.apply_gradients(grads=grads)
     return state
 
-# 使用例
+# Usage
 n_devices = jax.local_device_count()
-print(f"利用可能デバイス数: {n_devices}")
+print(f"Number of available devices: {n_devices}")
 
-# 状態をデバイス数分レプリケート
+# Replicate state across devices
 replicated_state = jax.device_put_replicated(state, jax.local_devices())
 
-# バッチをデバイス数で分割
+# Split batch across devices
 # [global_batch, ...] → [n_devices, per_device_batch, ...]
 def shard_batch(batch, n_devices):
     return jax.tree.map(
@@ -1149,9 +1152,9 @@ def shard_batch(batch, n_devices):
 
 ---
 
-## 5. ONNX による相互運用
+## 5. Interoperability with ONNX
 
-### コード例5: ONNX エクスポートと最適化
+### Code Example 5: ONNX Export and Optimization
 
 ```python
 import torch
@@ -1170,7 +1173,7 @@ class SimpleModel(nn.Module):
 model = SimpleModel()
 model.eval()
 
-# ONNX形式でエクスポート
+# Export in ONNX format
 dummy_input = torch.randn(1, 784)
 torch.onnx.export(
     model, dummy_input, "model.onnx",
@@ -1182,9 +1185,9 @@ torch.onnx.export(
     },
     opset_version=17,
 )
-print("ONNXモデルを保存しました")
+print("ONNX model saved")
 
-# ONNX Runtimeで推論（フレームワーク非依存）
+# Inference with ONNX Runtime (framework-independent)
 import onnxruntime as ort
 import numpy as np
 
@@ -1193,10 +1196,10 @@ input_name = session.get_inputs()[0].name
 
 test_input = np.random.randn(5, 784).astype(np.float32)
 result = session.run(None, {input_name: test_input})
-print(f"ONNX Runtime推論結果: {result[0].shape}")  # (5, 10)
+print(f"ONNX Runtime inference result: {result[0].shape}")  # (5, 10)
 ```
 
-### ONNX モデルの最適化と量子化
+### ONNX Model Optimization and Quantization
 
 ```python
 import onnx
@@ -1207,24 +1210,24 @@ from onnxruntime.quantization import (
 import onnxruntime as ort
 import numpy as np
 
-# === モデルの最適化 ===
+# === Model Optimization ===
 from onnxruntime.transformers import optimizer
 optimized_model = optimizer.optimize_model(
     "model.onnx",
-    model_type="bert",  # "bert", "gpt2", "vit" など
+    model_type="bert",  # "bert", "gpt2", "vit", etc.
     num_heads=12,
     hidden_size=768,
 )
 optimized_model.save_model_to_file("model_optimized.onnx")
 
-# === 動的量子化（学習データ不要、簡単） ===
+# === Dynamic Quantization (no training data needed, simple) ===
 quantize_dynamic(
     model_input="model.onnx",
     model_output="model_dynamic_quant.onnx",
     weight_type=QuantType.QInt8,
 )
 
-# === 静的量子化（キャリブレーションデータ必要、高精度） ===
+# === Static Quantization (requires calibration data, higher accuracy) ===
 class CalibDataReader(CalibrationDataReader):
     def __init__(self, calibration_data):
         self.data = iter(calibration_data)
@@ -1236,7 +1239,7 @@ class CalibDataReader(CalibrationDataReader):
         except StopIteration:
             return None
 
-# キャリブレーションデータの準備
+# Prepare calibration data
 calib_data = [np.random.randn(1, 784) for _ in range(100)]
 reader = CalibDataReader(calib_data)
 
@@ -1247,17 +1250,17 @@ quantize_static(
     quant_format=ort.quantization.QuantFormat.QDQ,
 )
 
-# === パフォーマンス比較 ===
+# === Performance Comparison ===
 import time
 
 def benchmark_onnx(model_path, input_data, n_iter=1000):
-    """ONNXモデルのベンチマーク"""
-    # 実行プロバイダの選択
+    """Benchmark an ONNX model"""
+    # Select execution providers
     providers = ['CUDAExecutionProvider', 'CPUExecutionProvider']
     session = ort.InferenceSession(model_path, providers=providers)
     input_name = session.get_inputs()[0].name
 
-    # ウォームアップ
+    # Warmup
     for _ in range(10):
         session.run(None, {input_name: input_data})
 
@@ -1266,26 +1269,26 @@ def benchmark_onnx(model_path, input_data, n_iter=1000):
         session.run(None, {input_name: input_data})
     elapsed = time.time() - start
 
-    # モデルサイズ
+    # Model size
     import os
     size_mb = os.path.getsize(model_path) / (1024 * 1024)
 
-    print(f"{model_path}: {elapsed/n_iter*1000:.2f}ms/推論, "
-          f"サイズ: {size_mb:.2f}MB")
+    print(f"{model_path}: {elapsed/n_iter*1000:.2f}ms/inference, "
+          f"size: {size_mb:.2f}MB")
 
 input_data = np.random.randn(1, 784).astype(np.float32)
 benchmark_onnx("model.onnx", input_data)
 benchmark_onnx("model_dynamic_quant.onnx", input_data)
-# 典型的な結果: 量子化で 2-4x 高速化、サイズ 2-4x 削減
+# Typical result: Quantization yields 2-4x speedup, 2-4x size reduction
 ```
 
-### TensorFlow → ONNX 変換
+### TensorFlow to ONNX Conversion
 
 ```python
-# tf2onnx を使った TensorFlow → ONNX 変換
+# TensorFlow to ONNX conversion using tf2onnx
 import subprocess
 
-# コマンドラインから変換
+# Convert from command line
 """
 python -m tf2onnx.convert \
     --saved-model saved_model/my_model/1 \
@@ -1293,7 +1296,7 @@ python -m tf2onnx.convert \
     --opset 17
 """
 
-# Python APIから変換
+# Convert using Python API
 import tf2onnx
 import tensorflow as tf
 
@@ -1303,7 +1306,7 @@ model = tf.keras.Sequential([
 ])
 model.build()
 
-# Keras → ONNX
+# Keras to ONNX
 spec = (tf.TensorSpec((None, 784), tf.float32, name="input"),)
 model_proto, _ = tf2onnx.convert.from_keras(
     model,
@@ -1311,14 +1314,14 @@ model_proto, _ = tf2onnx.convert.from_keras(
     opset=17,
     output_path="model_from_keras.onnx",
 )
-print(f"変換完了: {len(model_proto.SerializeToString())} bytes")
+print(f"Conversion complete: {len(model_proto.SerializeToString())} bytes")
 ```
 
 ---
 
-## 6. 分散学習
+## 6. Distributed Training
 
-### PyTorch DDP（DistributedDataParallel）
+### PyTorch DDP (DistributedDataParallel)
 
 ```python
 import torch
@@ -1329,11 +1332,11 @@ from torch.utils.data import DataLoader, DistributedSampler
 import os
 
 def setup_distributed(rank, world_size):
-    """分散学習の初期化"""
+    """Initialize distributed training"""
     os.environ["MASTER_ADDR"] = "localhost"
     os.environ["MASTER_PORT"] = "12355"
     dist.init_process_group(
-        backend="nccl",  # GPU間通信に最適
+        backend="nccl",  # Optimal for GPU-to-GPU communication
         rank=rank,
         world_size=world_size,
     )
@@ -1343,10 +1346,10 @@ def cleanup():
     dist.destroy_process_group()
 
 def train_distributed(rank, world_size, epochs=10):
-    """分散学習のメイン関数"""
+    """Main function for distributed training"""
     setup_distributed(rank, world_size)
 
-    # モデルをDDPでラップ
+    # Wrap model with DDP
     model = nn.Sequential(
         nn.Linear(784, 256),
         nn.ReLU(),
@@ -1354,7 +1357,7 @@ def train_distributed(rank, world_size, epochs=10):
     ).to(rank)
     ddp_model = DDP(model, device_ids=[rank])
 
-    # DistributedSamplerでデータを分割
+    # Split data with DistributedSampler
     dataset = torch.utils.data.TensorDataset(
         torch.randn(10000, 784),
         torch.randint(0, 10, (10000,)),
@@ -1369,7 +1372,7 @@ def train_distributed(rank, world_size, epochs=10):
     criterion = nn.CrossEntropyLoss()
 
     for epoch in range(epochs):
-        sampler.set_epoch(epoch)  # エポックごとにシャッフル順を変更
+        sampler.set_epoch(epoch)  # Change shuffle order per epoch
         ddp_model.train()
 
         for batch_idx, (data, target) in enumerate(loader):
@@ -1377,7 +1380,7 @@ def train_distributed(rank, world_size, epochs=10):
             optimizer.zero_grad()
             output = ddp_model(data)
             loss = criterion(output, target)
-            loss.backward()  # 自動的にAll-Reduce
+            loss.backward()  # All-Reduce happens automatically
             optimizer.step()
 
         if rank == 0:
@@ -1385,13 +1388,13 @@ def train_distributed(rank, world_size, epochs=10):
 
     cleanup()
 
-# 起動
+# Launch
 # torchrun --nproc_per_node=4 train.py
-# または
+# or
 # mp.spawn(train_distributed, args=(world_size,), nprocs=world_size)
 ```
 
-### PyTorch FSDP（Fully Sharded Data Parallel）
+### PyTorch FSDP (Fully Sharded Data Parallel)
 
 ```python
 import torch
@@ -1405,23 +1408,23 @@ from torch.distributed.fsdp.wrap import (
     size_based_auto_wrap_policy,
 )
 
-# FSDP: モデルパラメータをデバイス間でシャーディング
-# DDP: 各デバイスがモデル全体のコピーを保持
-# FSDP: 各デバイスがモデルの一部のみ保持 → メモリ効率が良い
+# FSDP: Shards model parameters across devices
+# DDP: Each device holds a full copy of the model
+# FSDP: Each device holds only part of the model → more memory efficient
 
 def setup_fsdp(model, rank):
-    """FSDPによる大規模モデル分散学習"""
+    """Large-scale model distributed training with FSDP"""
 
-    # 混合精度設定
+    # Mixed precision settings
     mixed_precision = MixedPrecision(
         param_dtype=torch.float16,
         reduce_dtype=torch.float16,
         buffer_dtype=torch.float32,
     )
 
-    # 自動ラッピングポリシー
+    # Auto-wrapping policy
     auto_wrap_policy = size_based_auto_wrap_policy(
-        min_num_params=1_000_000,  # 100万パラメータ以上のモジュールを分割
+        min_num_params=1_000_000,  # Split modules with 1M+ parameters
     )
 
     fsdp_model = FSDP(
@@ -1430,33 +1433,33 @@ def setup_fsdp(model, rank):
         mixed_precision=mixed_precision,
         auto_wrap_policy=auto_wrap_policy,
         device_id=rank,
-        use_orig_params=True,  # torch.compile互換
+        use_orig_params=True,  # torch.compile compatible
     )
 
     return fsdp_model
 
-# DDPとFSDPの使い分け
+# When to use DDP vs FSDP
 """
-DDP を使うべきケース:
-- モデルが1GPU のメモリに収まる
-- 通信オーバーヘッドを最小化したい
-- シンプルな実装を優先
+Use DDP when:
+- The model fits in a single GPU's memory
+- You want to minimize communication overhead
+- You prefer a simpler implementation
 
-FSDP を使うべきケース:
-- モデルが1GPUのメモリに収まらない（数十億パラメータ）
-- GPU数を増やしてもバッチサイズを変えたくない
-- メモリ効率を最大化したい
+Use FSDP when:
+- The model doesn't fit in a single GPU's memory (billions of parameters)
+- You want to scale GPU count without changing batch size
+- You want to maximize memory efficiency
 """
 ```
 
-### TensorFlow 分散戦略
+### TensorFlow Distribution Strategies
 
 ```python
 import tensorflow as tf
 
-# === MirroredStrategy: シングルノード・マルチGPU ===
+# === MirroredStrategy: Single-node, multi-GPU ===
 strategy = tf.distribute.MirroredStrategy()
-print(f"デバイス数: {strategy.num_replicas_in_sync}")
+print(f"Number of devices: {strategy.num_replicas_in_sync}")
 
 with strategy.scope():
     model = tf.keras.Sequential([
@@ -1469,11 +1472,11 @@ with strategy.scope():
         metrics=["accuracy"],
     )
 
-# model.fit() は自動的にデータ並列で実行される
+# model.fit() automatically runs with data parallelism
 
-# === MultiWorkerMirroredStrategy: マルチノード ===
+# === MultiWorkerMirroredStrategy: Multi-node ===
 """
-# TF_CONFIG 環境変数で設定
+# Configure via TF_CONFIG environment variable
 import json
 os.environ["TF_CONFIG"] = json.dumps({
     "cluster": {
@@ -1496,101 +1499,103 @@ strategy = tf.distribute.TPUStrategy(resolver)
 
 ---
 
-## 7. 混合精度学習（Mixed Precision Training）
+## 7. Mixed Precision Training
 
-### 混合精度の仕組み
+### How Mixed Precision Works
 
 ```
-混合精度学習の概念:
+Mixed Precision Training Concept:
 
 ┌──────────────────────────────────────────────┐
 │         Forward Pass (FP16)                   │
-│  入力 ──→ [Layer1] ──→ [Layer2] ──→ 出力     │
-│   FP16     FP16重み     FP16重み     FP16     │
+│  Input ──→ [Layer1] ──→ [Layer2] ──→ Output  │
+│   FP16     FP16 weights  FP16 weights  FP16  │
 └──────────────────────────────────────────────┘
                     │
                     ▼
 ┌──────────────────────────────────────────────┐
 │         Loss Computation (FP32)               │
-│  FP16出力 → FP32変換 → Loss計算 → Loss Scaling │
+│  FP16 output → FP32 cast → Loss calc →       │
+│    Loss Scaling                               │
 └──────────────────────────────────────────────┘
                     │
                     ▼
 ┌──────────────────────────────────────────────┐
 │         Backward Pass (FP16)                  │
-│  Scaled Loss → FP16勾配 → Unscale → FP32更新 │
+│  Scaled Loss → FP16 grads → Unscale →        │
+│    FP32 update                                │
 └──────────────────────────────────────────────┘
 
-メリット:
-- メモリ使用量: 約50%削減（FP32→FP16）
-- 計算速度: 2-3x高速化（Tensor Core活用）
-- 学習精度: FP32とほぼ同等
+Benefits:
+- Memory usage: ~50% reduction (FP32 → FP16)
+- Computation speed: 2-3x speedup (leveraging Tensor Cores)
+- Training accuracy: Nearly equivalent to FP32
 
-データ型の範囲:
-  FP32: ±3.4×10^38, 精度 ~7桁
-  FP16: ±65,504,    精度 ~3桁
-  BF16: ±3.4×10^38, 精度 ~3桁（指数部はFP32と同じ）
+Data type ranges:
+  FP32: ±3.4×10^38, precision ~7 digits
+  FP16: ±65,504,    precision ~3 digits
+  BF16: ±3.4×10^38, precision ~3 digits (exponent same as FP32)
 ```
 
-### PyTorch 混合精度
+### PyTorch Mixed Precision
 
 ```python
 import torch
 from torch.cuda.amp import autocast, GradScaler
 
-# === 手動での混合精度 ===
+# === Manual mixed precision ===
 model = model.cuda()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-scaler = GradScaler()  # Loss Scaling（勾配のアンダーフロー防止）
+scaler = GradScaler()  # Loss Scaling (prevents gradient underflow)
 
 for epoch in range(10):
     for data, target in train_loader:
         data, target = data.cuda(), target.cuda()
         optimizer.zero_grad()
 
-        # autocast: 自動的にFP16/FP32を選択
+        # autocast: Automatically selects FP16/FP32
         with autocast(dtype=torch.float16):
             output = model(data)
             loss = criterion(output, target)
 
-        # GradScaler: FP16勾配をスケーリング
+        # GradScaler: Scales FP16 gradients
         scaler.scale(loss).backward()
-        scaler.unscale_(optimizer)  # 勾配クリッピング前にunscale
+        scaler.unscale_(optimizer)  # Unscale before gradient clipping
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         scaler.step(optimizer)
         scaler.update()
 
-# === BFloat16（推奨、Ampere GPU以降）===
+# === BFloat16 (recommended for Ampere GPUs and later) ===
 with autocast(dtype=torch.bfloat16):
-    # BF16は指数部がFP32と同じ → Loss Scaling不要
+    # BF16 has the same exponent as FP32 → Loss Scaling not needed
     output = model(data)
     loss = criterion(output, target)
 loss.backward()
 optimizer.step()
 
-# === PyTorch Lightning の場合 ===
+# === With PyTorch Lightning ===
 # trainer = pl.Trainer(precision="16-mixed")     # FP16
 # trainer = pl.Trainer(precision="bf16-mixed")   # BF16
 ```
 
-### TensorFlow 混合精度
+### TensorFlow Mixed Precision
 
 ```python
 import tensorflow as tf
 
-# グローバルポリシーで設定
+# Set via global policy
 tf.keras.mixed_precision.set_global_policy("mixed_float16")
 
-# モデル定義（最終層はFP32を明示）
+# Model definition (explicitly set output layer to FP32)
 model = tf.keras.Sequential([
     tf.keras.layers.Dense(256, activation="relu"),
     tf.keras.layers.Dense(256, activation="relu"),
-    tf.keras.layers.Dense(10, dtype="float32"),  # 出力層はFP32
+    tf.keras.layers.Dense(10, dtype="float32"),  # Output layer in FP32
 ])
 
-# Loss Scalingは自動的に適用される
+# Loss Scaling is applied automatically
 optimizer = tf.keras.optimizers.Adam(0.001)
-# TF2.x ではLossScaleOptimizerが自動的にラップされる
+# In TF2.x, LossScaleOptimizer is automatically wrapped
 
 model.compile(optimizer=optimizer,
               loss=tf.keras.losses.SparseCategoricalCrossentropy(
@@ -1599,7 +1604,7 @@ model.compile(optimizer=optimizer,
 
 ---
 
-## 8. プロファイリングとデバッグ
+## 8. Profiling and Debugging
 
 ### PyTorch Profiler
 
@@ -1610,7 +1615,7 @@ from torch.profiler import profile, record_function, ProfilerActivity
 model = model.cuda()
 input_data = torch.randn(64, 784).cuda()
 
-# === 基本的なプロファイリング ===
+# === Basic profiling ===
 with profile(
     activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
     record_shapes=True,
@@ -1620,25 +1625,25 @@ with profile(
     with record_function("model_inference"):
         output = model(input_data)
 
-# テーブル表示
+# Table display
 print(prof.key_averages().table(
     sort_by="cuda_time_total", row_limit=20
 ))
 
-# Chrome Trace形式で出力（chrome://tracing で可視化）
+# Export in Chrome Trace format (visualize at chrome://tracing)
 prof.export_chrome_trace("trace.json")
 
-# TensorBoard形式で出力
+# Export in TensorBoard format
 prof.export_stacks("profiler_stacks.txt", "self_cuda_time_total")
 
-# === スケジューリングされたプロファイリング ===
+# === Scheduled profiling ===
 with profile(
     activities=[ProfilerActivity.CPU, ProfilerActivity.CUDA],
     schedule=torch.profiler.schedule(
-        wait=1,       # 最初の1ステップは記録しない
-        warmup=1,     # 次の1ステップはウォームアップ
-        active=3,     # 3ステップ分を記録
-        repeat=2,     # 上記を2回繰り返す
+        wait=1,       # Don't record the first step
+        warmup=1,     # Next step is warmup
+        active=3,     # Record 3 steps
+        repeat=2,     # Repeat the above twice
     ),
     on_trace_ready=torch.profiler.tensorboard_trace_handler("./log/profiler"),
     record_shapes=True,
@@ -1653,43 +1658,43 @@ with profile(
         loss.backward()
         optimizer.step()
         optimizer.zero_grad()
-        prof.step()  # プロファイラに現在のステップを通知
+        prof.step()  # Notify profiler of the current step
 ```
 
-### メモリプロファイリング
+### Memory Profiling
 
 ```python
 import torch
 
-# === GPU メモリの詳細な追跡 ===
+# === Detailed GPU memory tracking ===
 torch.cuda.reset_peak_memory_stats()
 torch.cuda.empty_cache()
 
-print(f"初期割り当て: {torch.cuda.memory_allocated() / 1e6:.1f} MB")
+print(f"Initial allocation: {torch.cuda.memory_allocated() / 1e6:.1f} MB")
 
 model = model.cuda()
-print(f"モデル後: {torch.cuda.memory_allocated() / 1e6:.1f} MB")
+print(f"After model: {torch.cuda.memory_allocated() / 1e6:.1f} MB")
 
 x = torch.randn(256, 784).cuda()
 output = model(x)
-print(f"Forward後: {torch.cuda.memory_allocated() / 1e6:.1f} MB")
+print(f"After forward: {torch.cuda.memory_allocated() / 1e6:.1f} MB")
 
 loss = output.sum()
 loss.backward()
-print(f"Backward後: {torch.cuda.memory_allocated() / 1e6:.1f} MB")
+print(f"After backward: {torch.cuda.memory_allocated() / 1e6:.1f} MB")
 
-print(f"ピークメモリ: {torch.cuda.max_memory_allocated() / 1e6:.1f} MB")
+print(f"Peak memory: {torch.cuda.max_memory_allocated() / 1e6:.1f} MB")
 
-# === メモリスナップショット（PyTorch 2.1+） ===
+# === Memory snapshot (PyTorch 2.1+) ===
 torch.cuda.memory._record_memory_history()
-# ... 学習コード ...
+# ... training code ...
 torch.cuda.memory._dump_snapshot("memory_snapshot.pickle")
 torch.cuda.memory._record_memory_history(enabled=None)
 
-# memory_viz.py で可視化
+# Visualize with memory_viz.py
 # python torch/cuda/_memory_viz.py trace_plot memory_snapshot.pickle -o mem.html
 
-# === 勾配チェックポイント（メモリ削減テクニック）===
+# === Gradient checkpointing (memory reduction technique) ===
 from torch.utils.checkpoint import checkpoint
 
 class MemoryEfficientModel(nn.Module):
@@ -1703,13 +1708,13 @@ class MemoryEfficientModel(nn.Module):
 
     def forward(self, x):
         for layer in self.layers:
-            # 勾配チェックポイント: Forward時の中間結果を保持しない
-            # Backward時に再計算する → メモリ削減、計算コスト増
+            # Gradient checkpointing: don't keep intermediate results during forward
+            # Recompute during backward → reduces memory, increases computation cost
             x = checkpoint(layer, x, use_reentrant=False)
         return self.head(x)
 ```
 
-### TensorBoard による可視化
+### Visualization with TensorBoard
 
 ```python
 from torch.utils.tensorboard import SummaryWriter
@@ -1718,7 +1723,7 @@ import numpy as np
 
 writer = SummaryWriter("runs/experiment_001")
 
-# === スカラー値のログ ===
+# === Logging scalar values ===
 for epoch in range(100):
     train_loss = np.random.exponential(1.0 / (epoch + 1))
     val_loss = train_loss * 1.1
@@ -1726,163 +1731,163 @@ for epoch in range(100):
     writer.add_scalar("Loss/val", val_loss, epoch)
     writer.add_scalar("Accuracy/train", 1 - train_loss/10, epoch)
 
-# === ヒストグラム（重みの分布） ===
+# === Histograms (weight distributions) ===
 for name, param in model.named_parameters():
     writer.add_histogram(f"params/{name}", param, epoch)
     if param.grad is not None:
         writer.add_histogram(f"grads/{name}", param.grad, epoch)
 
-# === 画像のログ ===
+# === Logging images ===
 from torchvision.utils import make_grid
-images = torch.randn(16, 3, 32, 32)  # ダミー画像
+images = torch.randn(16, 3, 32, 32)  # Dummy images
 grid = make_grid(images, nrow=4, normalize=True)
 writer.add_image("samples", grid, epoch)
 
-# === モデルグラフ ===
+# === Model graph ===
 dummy_input = torch.randn(1, 784)
 writer.add_graph(model.cpu(), dummy_input)
 
-# === ハイパーパラメータ比較 ===
+# === Hyperparameter comparison ===
 writer.add_hparams(
     {"lr": 0.001, "batch_size": 32, "hidden_dim": 256},
     {"hparam/accuracy": 0.95, "hparam/loss": 0.15},
 )
 
-# === Embedding可視化（t-SNE/PCA） ===
-features = torch.randn(1000, 128)  # 特徴ベクトル
+# === Embedding visualization (t-SNE/PCA) ===
+features = torch.randn(1000, 128)  # Feature vectors
 labels = torch.randint(0, 10, (1000,))
 writer.add_embedding(features, metadata=labels.tolist(), tag="embeddings")
 
 writer.close()
-# tensorboard --logdir=runs で起動
+# Launch with: tensorboard --logdir=runs
 ```
 
 ---
 
-## 比較表
+## Comparison Tables
 
-### フレームワーク総合比較
+### Comprehensive Framework Comparison
 
-| 項目 | PyTorch | TensorFlow 2.x | JAX |
+| Item | PyTorch | TensorFlow 2.x | JAX |
 |---|---|---|---|
-| 設計思想 | Pythonic, 研究寄り | プロダクション寄り | 関数型, 科学計算 |
-| 実行モード | Eager (デフォルト) | Eager + @tf.function | jit変換 |
-| 自動微分 | autograd | GradientTape | jax.grad |
-| 高レベルAPI | Lightning, HuggingFace | Keras | Flax, Haiku |
-| デプロイ | TorchScript, ONNX | SavedModel, TFLite, TF.js | 要変換 |
-| モバイル | PyTorch Mobile | TFLite (成熟) | 非対応 |
-| TPUサポート | XLA経由 | ネイティブ | ネイティブ (最適) |
-| コミュニティ | 研究者中心 | 企業+研究 | Google Research |
-| 学習コスト | 低い | 中程度 | 高い |
-| 2024年シェア | 約70% (研究) | 約25% | 約5% (急成長) |
+| Design Philosophy | Pythonic, research-oriented | Production-oriented | Functional, scientific computing |
+| Execution Mode | Eager (default) | Eager + @tf.function | jit transformation |
+| Automatic Differentiation | autograd | GradientTape | jax.grad |
+| High-Level API | Lightning, HuggingFace | Keras | Flax, Haiku |
+| Deployment | TorchScript, ONNX | SavedModel, TFLite, TF.js | Requires conversion |
+| Mobile | PyTorch Mobile | TFLite (mature) | Not supported |
+| TPU Support | Via XLA | Native | Native (optimal) |
+| Community | Researcher-centric | Enterprise + research | Google Research |
+| Learning Curve | Low | Moderate | High |
+| 2024 Market Share | ~70% (research) | ~25% | ~5% (rapidly growing) |
 
-### 用途別推奨フレームワーク
+### Recommended Frameworks by Use Case
 
-| ユースケース | 第一候補 | 理由 |
+| Use Case | First Choice | Reason |
 |---|---|---|
-| 研究・論文実装 | PyTorch | 論文コードの大半がPyTorch |
-| プロトタイピング | PyTorch | デバッグが容易 |
-| 本番Webサービス | TensorFlow or PyTorch | TF Serving / TorchServe |
-| モバイルデプロイ | TensorFlow (TFLite) | 最も成熟したモバイル推論 |
-| ブラウザ実行 | TensorFlow (TF.js) | JavaScript対応 |
-| 科学計算・HPC | JAX | vmap, pmap, XLA |
-| 大規模言語モデル | PyTorch + HuggingFace | エコシステムの充実 |
-| Kaggleコンペ | PyTorch | 柔軟なカスタマイズ |
-| 教育目的 | PyTorch or Keras | 直感的なAPI |
+| Research / Paper Implementation | PyTorch | Vast majority of paper code is in PyTorch |
+| Prototyping | PyTorch | Easy to debug |
+| Production Web Services | TensorFlow or PyTorch | TF Serving / TorchServe |
+| Mobile Deployment | TensorFlow (TFLite) | Most mature mobile inference |
+| Browser Execution | TensorFlow (TF.js) | JavaScript support |
+| Scientific Computing / HPC | JAX | vmap, pmap, XLA |
+| Large Language Models | PyTorch + HuggingFace | Rich ecosystem |
+| Kaggle Competitions | PyTorch | Flexible customization |
+| Educational Purposes | PyTorch or Keras | Intuitive API |
 
-### 高レベルライブラリ比較
+### High-Level Library Comparison
 
-| ライブラリ | 対応FW | 主な用途 | 特徴 |
+| Library | Supported FW | Primary Use | Features |
 |---|---|---|---|
-| PyTorch Lightning | PyTorch | 学習構造化 | ボイラープレート削減、分散学習自動化 |
-| Hugging Face Transformers | PyTorch, TF, JAX | NLP/Vision | 事前学習モデルのHub、統一API |
-| Keras 3.0 | TF, PyTorch, JAX | 汎用 | マルチバックエンド、宣言的API |
-| Optax | JAX | 最適化 | 関数型オプティマイザ合成 |
-| Flax | JAX | モデル定義 | 関数型NN、Google公式 |
-| timm | PyTorch | 画像モデル | 700+の事前学習済みモデル |
-| TorchMetrics | PyTorch | 評価指標 | 分散学習対応メトリクス |
-| Weights & Biases | 全FW | 実験管理 | ログ、可視化、ハイパラ最適化 |
+| PyTorch Lightning | PyTorch | Training structuring | Boilerplate reduction, automated distributed training |
+| Hugging Face Transformers | PyTorch, TF, JAX | NLP/Vision | Pretrained model Hub, unified API |
+| Keras 3.0 | TF, PyTorch, JAX | General-purpose | Multi-backend, declarative API |
+| Optax | JAX | Optimization | Functional optimizer composition |
+| Flax | JAX | Model definition | Functional NN, Google official |
+| timm | PyTorch | Image models | 700+ pretrained models |
+| TorchMetrics | PyTorch | Evaluation metrics | Distributed training-compatible metrics |
+| Weights & Biases | All FW | Experiment management | Logging, visualization, hyperparameter optimization |
 
-### デプロイ手段比較
+### Deployment Methods Comparison
 
-| 手段 | 対応FW | 対象環境 | レイテンシ | セットアップ難度 |
+| Method | Supported FW | Target Environment | Latency | Setup Difficulty |
 |---|---|---|---|---|
-| TorchServe | PyTorch | サーバー | 低 | 中 |
-| TF Serving | TF | サーバー | 低 | 低 |
-| ONNX Runtime | 全FW | サーバー/エッジ | 最低 | 低 |
-| TFLite | TF | モバイル/エッジ | 低 | 中 |
-| PyTorch Mobile | PyTorch | モバイル | 中 | 中 |
-| TF.js | TF | ブラウザ | 中 | 低 |
-| TensorRT | PyTorch/TF | NVIDIA GPU | 最低 | 高 |
-| Core ML | 全FW(変換) | iOS/macOS | 低 | 中 |
-| Triton Server | 全FW | サーバー | 低 | 高 |
+| TorchServe | PyTorch | Server | Low | Medium |
+| TF Serving | TF | Server | Low | Low |
+| ONNX Runtime | All FW | Server/Edge | Lowest | Low |
+| TFLite | TF | Mobile/Edge | Low | Medium |
+| PyTorch Mobile | PyTorch | Mobile | Medium | Medium |
+| TF.js | TF | Browser | Medium | Low |
+| TensorRT | PyTorch/TF | NVIDIA GPU | Lowest | High |
+| Core ML | All FW (conversion) | iOS/macOS | Low | Medium |
+| Triton Server | All FW | Server | Low | High |
 
-### スケーリング比較
+### Scaling Comparison
 
-| 項目 | PyTorch DDP | PyTorch FSDP | TF MirroredStrategy | JAX pmap |
+| Item | PyTorch DDP | PyTorch FSDP | TF MirroredStrategy | JAX pmap |
 |---|---|---|---|---|
-| タイプ | データ並列 | シャーデッド並列 | データ並列 | データ並列 |
-| メモリ効率 | 低（全パラメータ複製） | 高（パラメータ分散） | 低 | 中 |
-| 通信量 | 勾配All-Reduce | パラメータ収集 | 勾配All-Reduce | 勾配All-Reduce |
-| 最大モデルサイズ | 1GPUメモリ制限 | GPU数×メモリ | 1GPUメモリ制限 | 1GPUメモリ制限 |
-| 設定の容易さ | 中 | やや難 | 簡単 | 簡単 |
-| マルチノード | 対応 | 対応 | 対応 | 対応 |
+| Type | Data parallel | Sharded parallel | Data parallel | Data parallel |
+| Memory Efficiency | Low (full parameter replication) | High (parameters distributed) | Low | Medium |
+| Communication Volume | Gradient All-Reduce | Parameter gathering | Gradient All-Reduce | Gradient All-Reduce |
+| Max Model Size | Limited by single GPU memory | GPU count x memory | Limited by single GPU memory | Limited by single GPU memory |
+| Ease of Setup | Medium | Somewhat difficult | Easy | Easy |
+| Multi-Node | Supported | Supported | Supported | Supported |
 
 ---
 
-## 9. 実務的なフレームワーク選択フロー
+## 9. Practical Framework Selection Flow
 
 ```
-プロジェクト要件に基づく選択フローチャート:
+Selection flowchart based on project requirements:
 
-[開始] → 研究/論文実装?
+[Start] → Research/paper implementation?
   │
-  ├─ Yes → PyTorch（研究標準）
+  ├─ Yes → PyTorch (research standard)
   │
-  └─ No → モバイル/エッジデプロイ?
+  └─ No → Mobile/edge deployment?
        │
        ├─ Yes → iOS? ──→ Core ML + coremltools
        │         │
-       │         └─ Android/組み込み? ──→ TFLite（最成熟）
+       │         └─ Android/embedded? ──→ TFLite (most mature)
        │
-       └─ No → ブラウザ実行?
+       └─ No → Browser execution?
             │
             ├─ Yes → TensorFlow.js
             │
-            └─ No → 大規模並列計算（TPU/マルチGPU）?
+            └─ No → Large-scale parallel computing (TPU/multi-GPU)?
                  │
-                 ├─ Yes → モデル > 1GPU?
+                 ├─ Yes → Model > 1 GPU?
                  │         │
                  │         ├─ Yes → PyTorch FSDP or DeepSpeed
                  │         │
-                 │         └─ No → JAX pmap（TPU最適）
+                 │         └─ No → JAX pmap (optimal for TPU)
                  │                 or PyTorch DDP
                  │
-                 └─ No → サーバーサイドAPI?
+                 └─ No → Server-side API?
                       │
-                      ├─ Yes → ONNX Runtime（最高速）
+                      ├─ Yes → ONNX Runtime (fastest)
                       │        or TorchServe / TF Serving
                       │
-                      └─ No → PyTorch（汎用性最高）
+                      └─ No → PyTorch (most versatile)
 ```
 
-### チーム・組織での選択基準
+### Selection Criteria for Teams and Organizations
 
 ```python
-# フレームワーク選択スコアリング関数
+# Framework selection scoring function
 def score_framework(requirements):
-    """プロジェクト要件からフレームワークスコアを計算"""
+    """Calculate framework scores from project requirements"""
 
     weights = {
-        "研究再現性": {"pytorch": 10, "tensorflow": 5, "jax": 7},
-        "プロダクション": {"pytorch": 7, "tensorflow": 9, "jax": 4},
-        "モバイル対応": {"pytorch": 5, "tensorflow": 10, "jax": 1},
-        "学習コスト":   {"pytorch": 9, "tensorflow": 7, "jax": 3},
-        "計算効率":     {"pytorch": 7, "tensorflow": 7, "jax": 10},
-        "エコシステム": {"pytorch": 10, "tensorflow": 8, "jax": 5},
-        "大規模学習":   {"pytorch": 8, "tensorflow": 7, "jax": 9},
-        "デバッグ容易性": {"pytorch": 10, "tensorflow": 6, "jax": 4},
-        "チーム既存知見": {"pytorch": 0, "tensorflow": 0, "jax": 0},
+        "research_reproducibility": {"pytorch": 10, "tensorflow": 5, "jax": 7},
+        "production":               {"pytorch": 7, "tensorflow": 9, "jax": 4},
+        "mobile_support":           {"pytorch": 5, "tensorflow": 10, "jax": 1},
+        "learning_cost":            {"pytorch": 9, "tensorflow": 7, "jax": 3},
+        "computational_efficiency": {"pytorch": 7, "tensorflow": 7, "jax": 10},
+        "ecosystem":                {"pytorch": 10, "tensorflow": 8, "jax": 5},
+        "large_scale_training":     {"pytorch": 8, "tensorflow": 7, "jax": 9},
+        "debugging_ease":           {"pytorch": 10, "tensorflow": 6, "jax": 4},
+        "team_existing_expertise":  {"pytorch": 0, "tensorflow": 0, "jax": 0},
     }
 
     scores = {"pytorch": 0, "tensorflow": 0, "jax": 0}
@@ -1892,16 +1897,16 @@ def score_framework(requirements):
 
     return scores
 
-# 使用例
+# Usage
 requirements = {
-    "研究再現性": 3,    # 重要度 1-5
-    "プロダクション": 5,
-    "モバイル対応": 2,
-    "学習コスト": 4,
-    "計算効率": 3,
-    "エコシステム": 4,
-    "大規模学習": 2,
-    "デバッグ容易性": 4,
+    "research_reproducibility": 3,    # Importance 1-5
+    "production": 5,
+    "mobile_support": 2,
+    "learning_cost": 4,
+    "computational_efficiency": 3,
+    "ecosystem": 4,
+    "large_scale_training": 2,
+    "debugging_ease": 4,
 }
 scores = score_framework(requirements)
 for fw, score in sorted(scores.items(), key=lambda x: -x[1]):
@@ -1910,133 +1915,133 @@ for fw, score in sorted(scores.items(), key=lambda x: -x[1]):
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: model.eval() を忘れる
+### Anti-Pattern 1: Forgetting model.eval()
 
 ```python
-# BAD: 推論時に model.eval() を呼ばない
-# → Dropout が有効のまま、BatchNorm がバッチ統計を使用
-model.train()  # 学習モード
-# ... 学習 ...
-output = model(test_input)  # Dropout/BNが学習モードのまま!
+# BAD: Not calling model.eval() during inference
+# → Dropout remains active, BatchNorm uses batch statistics
+model.train()  # Training mode
+# ... training ...
+output = model(test_input)  # Dropout/BN still in training mode!
 
-# GOOD: 推論時は必ず eval() + no_grad()
+# GOOD: Always use eval() + no_grad() during inference
 model.eval()
 with torch.no_grad():
-    output = model(test_input)  # Dropout無効、BNは移動平均使用
+    output = model(test_input)  # Dropout disabled, BN uses running average
 ```
 
-### アンチパターン2: GPU/CPUデバイスの不一致
+### Anti-Pattern 2: GPU/CPU Device Mismatch
 
 ```python
-# BAD: テンソルが異なるデバイスにある
+# BAD: Tensors on different devices
 model = model.cuda()
-input_cpu = torch.randn(1, 784)  # CPU上
+input_cpu = torch.randn(1, 784)  # On CPU
 output = model(input_cpu)  # RuntimeError: expected CUDA tensor
 
-# GOOD: デバイスを統一する
+# GOOD: Unify devices
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = model.to(device)
 input_tensor = torch.randn(1, 784).to(device)
-output = model(input_tensor)  # 同じデバイスで実行
+output = model(input_tensor)  # Run on the same device
 ```
 
-### アンチパターン3: 不適切なデータ型変換
+### Anti-Pattern 3: Improper Data Type Conversion
 
 ```python
-# BAD: FP64テンソルをFP32モデルに渡す
-x = torch.from_numpy(np.array([1.0, 2.0]))  # FP64 (NumPyデフォルト)
+# BAD: Passing FP64 tensor to FP32 model
+x = torch.from_numpy(np.array([1.0, 2.0]))  # FP64 (NumPy default)
 model = nn.Linear(2, 1)  # FP32
 output = model(x)  # RuntimeError: expected Float but got Double
 
-# GOOD: 明示的にデータ型を合わせる
-x = torch.from_numpy(np.array([1.0, 2.0])).float()  # FP32に変換
+# GOOD: Explicitly match data types
+x = torch.from_numpy(np.array([1.0, 2.0])).float()  # Convert to FP32
 output = model(x)
 
-# さらに良い: テンソル作成時に型を指定
+# Even better: Specify type at tensor creation
 x = torch.tensor([1.0, 2.0], dtype=torch.float32)
 ```
 
-### アンチパターン4: JAXの可変状態の誤用
+### Anti-Pattern 4: Misuse of Mutable State in JAX
 
 ```python
 import jax.numpy as jnp
 
-# BAD: JAXは副作用を許さない（NumPyスタイルの代入は不可）
+# BAD: JAX does not allow side effects (NumPy-style assignment is not possible)
 x = jnp.array([1, 2, 3])
 # x[0] = 10  # TypeError: JAX arrays are immutable
 
-# GOOD: at[].set() を使う（新しい配列を返す）
-x_new = x.at[0].set(10)  # x は変更されない、x_new が新しい配列
-print(f"元: {x}, 新: {x_new}")  # 元: [1 2 3], 新: [10 2 3]
+# GOOD: Use at[].set() (returns a new array)
+x_new = x.at[0].set(10)  # x is unchanged, x_new is a new array
+print(f"Original: {x}, New: {x_new}")  # Original: [1 2 3], New: [10 2 3]
 
-# BAD: グローバル変数やリストへの副作用をjit内で使う
+# BAD: Using side effects on global variables or lists inside jit
 results = []
 @jax.jit
 def bad_fn(x):
-    results.append(x)  # 副作用! JIT内では予期しない動作
+    results.append(x)  # Side effect! Unexpected behavior inside JIT
     return x * 2
 
-# GOOD: 純粋関数として実装し、状態は外部で管理
+# GOOD: Implement as a pure function, manage state externally
 @jax.jit
 def good_fn(x, carry):
     new_carry = carry + x
     return x * 2, new_carry
 ```
 
-### アンチパターン5: DataLoaderのnum_workersミスチューニング
+### Anti-Pattern 5: Mistuning DataLoader num_workers
 
 ```python
-# BAD: num_workers が多すぎる → メモリ不足、プロセス生成オーバーヘッド
+# BAD: Too many num_workers → out of memory, process spawning overhead
 loader = DataLoader(dataset, batch_size=32, num_workers=64)
 
-# BAD: num_workers=0 → データ読み込みがボトルネック
+# BAD: num_workers=0 → data loading becomes a bottleneck
 loader = DataLoader(dataset, batch_size=32, num_workers=0)
 
-# GOOD: CPU数とGPU数に基づいて設定
+# GOOD: Set based on CPU and GPU counts
 import os
 import torch
 
 num_gpus = torch.cuda.device_count()
 num_cpus = os.cpu_count()
-# 目安: CPUコア数 / GPU数、最大でも8-16程度
+# Guideline: CPU cores / GPU count, max around 8-16
 optimal_workers = min(num_cpus // max(num_gpus, 1), 8)
 
 loader = DataLoader(
     dataset,
     batch_size=32,
     num_workers=optimal_workers,
-    pin_memory=True,        # GPU転送高速化
-    persistent_workers=True, # ワーカー再利用
-    prefetch_factor=2,       # 先読みバッチ数
+    pin_memory=True,        # Faster GPU transfer
+    persistent_workers=True, # Reuse workers
+    prefetch_factor=2,       # Number of batches to prefetch
 )
 print(f"num_workers: {optimal_workers}")
 ```
 
-### アンチパターン6: チェックポイント保存の不備
+### Anti-Pattern 6: Inadequate Checkpoint Saving
 
 ```python
-# BAD: モデルの重みだけ保存 → 学習再開時にオプティマイザ状態が失われる
+# BAD: Saving only model weights → optimizer state lost when resuming training
 torch.save(model.state_dict(), "model.pth")
 
-# GOOD: 学習再開に必要な全情報を保存
+# GOOD: Save all information needed to resume training
 checkpoint = {
     "epoch": epoch,
     "model_state_dict": model.state_dict(),
     "optimizer_state_dict": optimizer.state_dict(),
     "scheduler_state_dict": scheduler.state_dict(),
-    "scaler_state_dict": scaler.state_dict(),  # 混合精度
+    "scaler_state_dict": scaler.state_dict(),  # Mixed precision
     "best_val_loss": best_val_loss,
     "train_loss_history": train_losses,
     "val_loss_history": val_losses,
-    "config": config,  # ハイパーパラメータ
+    "config": config,  # Hyperparameters
     "rng_state": torch.random.get_rng_state(),
     "cuda_rng_state": torch.cuda.get_rng_state_all(),
 }
 torch.save(checkpoint, f"checkpoint_epoch{epoch}.pth")
 
-# 復元
+# Restore
 checkpoint = torch.load("checkpoint_epoch5.pth", weights_only=False)
 model.load_state_dict(checkpoint["model_state_dict"])
 optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
@@ -2048,65 +2053,65 @@ start_epoch = checkpoint["epoch"] + 1
 
 ## FAQ
 
-### Q1: PyTorchとTensorFlowのどちらを学ぶべき？
+### Q1: Should I learn PyTorch or TensorFlow?
 
-**A:** 2024年時点では PyTorch を先に学ぶことを推奨。学術論文の90%以上がPyTorchで実装され、HuggingFace等の主要ライブラリもPyTorch中心。ただしプロダクションデプロイ（特にモバイル）ではTensorFlowが成熟している。両方の基本を知っておくのが理想。Keras 3.0の登場により、Kerasで書いてバックエンドを切り替えるアプローチも現実的になった。
+**A:** As of 2024, we recommend learning PyTorch first. Over 90% of academic papers are implemented in PyTorch, and major libraries like HuggingFace are PyTorch-centric. However, TensorFlow remains mature for production deployment (especially mobile). Ideally, know the basics of both. With the advent of Keras 3.0, the approach of writing in Keras and switching backends has also become practical.
 
-### Q2: JAXはいつ使うべき？
+### Q2: When should I use JAX?
 
-**A:** (1) 大規模並列計算（TPU/マルチGPU）が必要な場合、(2) カスタムの微分可能アルゴリズムを実装する場合、(3) ベクトル化（vmap）が有用な科学計算。Google DeepMindの最新研究はJAXで行われることが多い。ただし学習コストは最も高い。関数型プログラミングに馴染みがない場合は、先にPyTorchを習得してからJAXに移行するのが効率的。
+**A:** (1) When large-scale parallel computing (TPU/multi-GPU) is needed, (2) when implementing custom differentiable algorithms, (3) for scientific computing where vectorization (vmap) is useful. Google DeepMind's latest research is often done in JAX. However, the learning curve is the steepest. If you're unfamiliar with functional programming, it's more efficient to master PyTorch first and then transition to JAX.
 
-### Q3: モデルの本番デプロイにはどれが適している？
+### Q3: Which framework is best suited for production model deployment?
 
-**A:** デプロイ先による。(1) Webサーバー → TorchServe or TF Serving、(2) モバイル → TFLite（最成熟）or PyTorch Mobile、(3) ブラウザ → TF.js、(4) フレームワーク非依存 → ONNX Runtime（推論専用、高速）。最近はONNXに変換して統一的にデプロイするパターンが増えている。レイテンシが最重要ならTensorRTやONNX Runtimeの最適化が効果的。
+**A:** It depends on the deployment target. (1) Web server → TorchServe or TF Serving, (2) Mobile → TFLite (most mature) or PyTorch Mobile, (3) Browser → TF.js, (4) Framework-independent → ONNX Runtime (inference-only, fast). Recently, the pattern of converting to ONNX for unified deployment is growing. If latency is the top priority, TensorRT or ONNX Runtime optimization is effective.
 
-### Q4: torch.compile はいつ使うべき？
+### Q4: When should I use torch.compile?
 
-**A:** PyTorch 2.0以降で利用可能。(1) 学習・推論の速度を改善したい場合、(2) 既存のEagerコードを変更せずに高速化したい場合。`torch.compile(model)` を1行追加するだけで、典型的に1.5-2倍の速度向上が期待できる。ただし、動的な制御フロー（入力依存のif/for）が多いモデルではgraph breakが発生し、効果が限定的。`fullgraph=True` を試してエラーが出る箇所を確認するとよい。
+**A:** Available since PyTorch 2.0. (1) When you want to improve training/inference speed, (2) when you want to speed up existing Eager code without modification. Simply adding `torch.compile(model)` in one line typically yields 1.5-2x speedup. However, models with heavy dynamic control flow (input-dependent if/for) will experience graph breaks, limiting effectiveness. Try `fullgraph=True` to identify where errors occur.
 
-### Q5: 混合精度学習は常に使うべき？
+### Q5: Should I always use mixed precision training?
 
-**A:** GPU（Volta世代以降、Tensor Core搭載）で学習する場合はほぼ常に使うべき。メモリ50%削減、速度2-3倍向上がほぼノーリスクで得られる。BFloat16が使えるGPU（Ampere以降）ではBF16が推奨（Loss Scaling不要で安定）。CPU学習や非常に精度が重要な科学計算（例: PDE求解）ではFP32を維持する価値がある。
+**A:** When training on GPUs (Volta generation or later, with Tensor Cores), you should almost always use it. 50% memory reduction and 2-3x speedup can be achieved with virtually no risk. BFloat16 is recommended for GPUs that support it (Ampere and later), as Loss Scaling is unnecessary and it's more stable. For CPU training or scientific computing where very high precision is critical (e.g., PDE solving), it may be worth maintaining FP32.
 
-### Q6: 分散学習のDDPとFSDPはどう使い分ける？
+### Q6: How do I choose between DDP and FSDP for distributed training?
 
-**A:** モデルが1GPUのメモリに収まる場合はDDPが簡単かつ高速。モデルが1GPUに収まらない（数十億パラメータ）場合、FSDPでパラメータをシャーディングすることでメモリ制約を回避できる。さらに大規模（数百億パラメータ以上）の場合はDeepSpeedやMegatron-LMのようなフレームワークを検討すべき。テンソル並列（モデル並列）とパイプライン並列の組み合わせが必要になることもある。
+**A:** If the model fits in a single GPU's memory, DDP is simpler and faster. If the model doesn't fit in a single GPU (billions of parameters), FSDP can shard parameters to overcome memory constraints. For even larger scales (tens of billions of parameters or more), consider frameworks like DeepSpeed or Megatron-LM. Combining tensor parallelism (model parallelism) and pipeline parallelism may also be necessary.
 
-### Q7: ONNX変換で失敗するのはなぜ？
+### Q7: Why does ONNX conversion fail?
 
-**A:** 主な原因: (1) 未サポートのオペレータ（カスタムオペレータ、特殊な関数）、(2) 動的な制御フロー（入力依存のif/for）、(3) opsetバージョンの不一致。対処法として、(a) opsetバージョンを上げる（17推奨）、(b) 問題のある演算を標準的な演算に置き換える、(c) `torch.onnx.export` の `verbose=True` でデバッグ情報を確認する。TensorFlowからの変換には `tf2onnx` を使い、`--fold_const` オプションで定数畳み込みを行うと成功率が上がる。
+**A:** Main causes: (1) Unsupported operators (custom operators, special functions), (2) Dynamic control flow (input-dependent if/for), (3) Opset version mismatch. Solutions: (a) Use a higher opset version (17 recommended), (b) Replace problematic operations with standard ones, (c) Check debug information with `torch.onnx.export`'s `verbose=True`. For TensorFlow conversion, use `tf2onnx` with the `--fold_const` option for constant folding to improve success rates.
 
-### Q8: 実験管理ツールは何を使うべき？
+### Q8: Which experiment management tool should I use?
 
-**A:** (1) **Weights & Biases (wandb)**: 最も人気、UIが優秀、チーム向け、有料プランあり。(2) **MLflow**: OSS、モデルレジストリ機能が充実、企業向け。(3) **TensorBoard**: Google製、無料、PyTorch/TF両対応、基本的な可視化。(4) **Neptune.ai**: チーム協業に強い。小規模プロジェクトならTensorBoard、チーム開発ならwandbまたはMLflowが推奨。PyTorch LightningやHugging Face Trainerは主要なロガーに標準対応している。
+**A:** (1) **Weights & Biases (wandb)**: Most popular, excellent UI, team-oriented, paid plans available. (2) **MLflow**: Open source, rich model registry features, enterprise-oriented. (3) **TensorBoard**: Made by Google, free, supports both PyTorch/TF, basic visualization. (4) **Neptune.ai**: Strong for team collaboration. For small projects, TensorBoard; for team development, wandb or MLflow is recommended. PyTorch Lightning and Hugging Face Trainer natively support major loggers.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |---|---|
-| PyTorch | Pythonic、研究標準、デバッグ容易、HuggingFaceエコシステム |
-| TensorFlow | Keras高レベルAPI、本番デプロイ充実、モバイル/Web対応 |
-| JAX | 関数変換（jit/grad/vmap/pmap）、科学計算、TPU最適化 |
-| torch.compile | PyTorch 2.0+、1行でEagerコードを1.5-2x高速化 |
-| Keras 3.0 | マルチバックエンド（TF/PyTorch/JAX）で同一コードが動作 |
-| 選択基準 | 研究→PyTorch、モバイル→TF、HPC→JAX |
-| 相互運用 | ONNX形式でフレームワーク間の移行が可能 |
-| 分散学習 | DDP（データ並列）→ FSDP（シャーデッド並列）→ DeepSpeed |
-| 混合精度 | BF16推奨（Ampere以降）、メモリ50%削減・速度2-3x向上 |
-| 実験管理 | wandb/MLflow/TensorBoardで再現性とチーム協業を確保 |
+| PyTorch | Pythonic, research standard, easy debugging, HuggingFace ecosystem |
+| TensorFlow | Keras high-level API, rich production deployment, mobile/web support |
+| JAX | Function transformations (jit/grad/vmap/pmap), scientific computing, TPU optimization |
+| torch.compile | PyTorch 2.0+, 1.5-2x speedup of Eager code with one line |
+| Keras 3.0 | Multi-backend (TF/PyTorch/JAX), same code runs across backends |
+| Selection Criteria | Research → PyTorch, Mobile → TF, HPC → JAX |
+| Interoperability | Cross-framework migration possible via ONNX format |
+| Distributed Training | DDP (data parallel) → FSDP (sharded parallel) → DeepSpeed |
+| Mixed Precision | BF16 recommended (Ampere and later), 50% memory reduction, 2-3x speedup |
+| Experiment Management | Ensure reproducibility and team collaboration with wandb/MLflow/TensorBoard |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [../03-applied/00-nlp.md](../03-applied/00-nlp.md) — NLPの応用（Transformers活用）
-- [../03-applied/02-mlops.md](../03-applied/02-mlops.md) — モデルのデプロイと運用
+- [../03-applied/00-nlp.md](../03-applied/00-nlp.md) — NLP Applications (Leveraging Transformers)
+- [../03-applied/02-mlops.md](../03-applied/02-mlops.md) — Model Deployment and Operations
 
 ---
 
-## 参考文献
+## References
 
 1. **PyTorch Team** "PyTorch Documentation" — https://pytorch.org/docs/stable/
 2. **TensorFlow Team** "TensorFlow Guide" — https://www.tensorflow.org/guide
@@ -2117,4 +2122,3 @@ start_epoch = checkpoint["epoch"] + 1
 7. **Keras 3.0** "Keras Documentation" — https://keras.io/
 8. **Weights & Biases** "Documentation" — https://docs.wandb.ai/
 9. **Micikevicius et al.** "Mixed Precision Training" (2018) — https://arxiv.org/abs/1710.03740
-10. **Zhao et al.** "PyTorch FSDP: Experiences on Scaling Fully Sharded Data Parallel" (2023) — https://arxiv.org/abs/2304.11277

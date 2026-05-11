@@ -1,33 +1,33 @@
-# CNN — 畳み込み、プーリング、画像認識
+# CNN — Convolution, Pooling, and Image Recognition
 
-> 畳み込みニューラルネットワークの構造と原理を理解し、画像認識タスクに適用する
+> Understand the structure and principles of convolutional neural networks and apply them to image recognition tasks
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **畳み込み演算** — カーネルによる局所的特徴抽出の仕組みとパラメータ共有
-2. **プーリングとストライド** — 空間サイズの削減と平行移動不変性の獲得
-3. **代表的アーキテクチャ** — LeNet、VGG、ResNet、EfficientNetの設計思想
-4. **実践的テクニック** — 転移学習、データ拡張、混合精度学習、モデル最適化
-5. **物体検出・セグメンテーション** — CNNを応用した高度な視覚タスク
-6. **モデルの可視化と解釈** — 特徴マップ、Grad-CAM、フィルタ可視化
+1. **Convolution Operation** — How local feature extraction with kernels works and parameter sharing
+2. **Pooling and Stride** — Reducing spatial dimensions and achieving translation invariance
+3. **Representative Architectures** — Design philosophies of LeNet, VGG, ResNet, and EfficientNet
+4. **Practical Techniques** — Transfer learning, data augmentation, mixed precision training, and model optimization
+5. **Object Detection and Segmentation** — Advanced visual tasks built on CNNs
+6. **Model Visualization and Interpretation** — Feature maps, Grad-CAM, and filter visualization
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [ニューラルネットワーク — パーセプトロン、活性化関数、誤差逆伝播](./00-neural-networks.md) の内容を理解していること
+- Basic programming skills
+- Understanding of related fundamental concepts
+- Familiarity with the content of [Neural Networks — Perceptrons, Activation Functions, and Backpropagation](./00-neural-networks.md)
 
 ---
 
-## 1. 畳み込み演算の仕組み
+## 1. How Convolution Operations Work
 
-### 2D畳み込みの動作
+### 2D Convolution in Action
 
 ```
-入力画像 (5x5)               カーネル (3x3)         出力 (3x3)
+Input Image (5x5)              Kernel (3x3)           Output (3x3)
 
 ┌───┬───┬───┬───┬───┐       ┌───┬───┬───┐
 │ 1 │ 0 │ 1 │ 0 │ 1 │       │ 1 │ 0 │ 1 │       ┌───┬───┬───┐
@@ -41,44 +41,45 @@
 │ 1 │ 0 │ 1 │ 0 │ 1 │
 └───┴───┴───┴───┴───┘
 
-出力サイズ = (入力サイズ - カーネルサイズ + 2×パディング) / ストライド + 1
-           = (5 - 3 + 0) / 1 + 1 = 3
+Output Size = (Input Size - Kernel Size + 2 × Padding) / Stride + 1
+            = (5 - 3 + 0) / 1 + 1 = 3
 
-パディング (Padding):
-  "valid" (パディングなし): 出力が縮小
-  "same"  (ゼロパディング): 出力サイズ = 入力サイズ
+Padding:
+  "valid" (no padding): output shrinks
+  "same"  (zero padding): output size = input size
 ```
 
-### CNNの全体構造
+### Overall CNN Architecture
 
 ```
-入力画像          畳み込み層         プーリング層       全結合層        出力
-(H×W×C)          (特徴抽出)         (ダウンサンプル)   (分類/回帰)
+Input Image       Convolution Layer   Pooling Layer      Fully Connected   Output
+(H×W×C)           (Feature Extraction)(Downsampling)     (Classification/
+                                                          Regression)
 
 ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────┐    ┌──────┐
 │ 224x224  │    │ Conv 3x3 │    │ MaxPool  │    │      │    │      │
 │ x3 (RGB) │───>│ + ReLU   │───>│ 2x2      │───>│ FC   │───>│ 1000 │
-│          │    │ 64フィルタ│    │          │    │ 層   │    │クラス│
+│          │    │ 64 filters│    │          │    │layers│    │classes│
 │          │    │          │    │          │    │      │    │      │
 └──────────┘    └──────────┘    └──────────┘    └──────┘    └──────┘
                      │               │
                      v               v
-              特徴マップ         サイズ半減
+              Feature Maps      Size Halved
               224x224x64        112x112x64
 
-  → 畳み込み+プーリングを繰り返して特徴を階層的に抽出
-  → 低レベル特徴（エッジ）→ 中レベル（テクスチャ）→ 高レベル（物体部品）
+  → Repeat convolution + pooling to extract features hierarchically
+  → Low-level features (edges) → Mid-level (textures) → High-level (object parts)
 ```
 
-### 畳み込み演算の数学的定義
+### Mathematical Definition of the Convolution Operation
 
 ```python
 import numpy as np
 
 def conv2d_manual(input_img: np.ndarray, kernel: np.ndarray,
                   stride: int = 1, padding: int = 0) -> np.ndarray:
-    """畳み込み演算を手動で実装（理解のため）"""
-    # パディング適用
+    """Manual implementation of convolution (for understanding purposes)"""
+    # Apply padding
     if padding > 0:
         input_img = np.pad(input_img,
                            ((padding, padding), (padding, padding)),
@@ -87,12 +88,12 @@ def conv2d_manual(input_img: np.ndarray, kernel: np.ndarray,
     h_in, w_in = input_img.shape
     k_h, k_w = kernel.shape
 
-    # 出力サイズ計算
+    # Calculate output size
     h_out = (h_in - k_h) // stride + 1
     w_out = (w_in - k_w) // stride + 1
     output = np.zeros((h_out, w_out))
 
-    # 畳み込み演算（相関演算）
+    # Convolution operation (cross-correlation)
     for i in range(h_out):
         for j in range(w_out):
             region = input_img[i*stride:i*stride+k_h,
@@ -101,7 +102,7 @@ def conv2d_manual(input_img: np.ndarray, kernel: np.ndarray,
 
     return output
 
-# エッジ検出カーネルの例
+# Example of edge detection kernels
 sobel_x = np.array([[-1, 0, 1],
                      [-2, 0, 2],
                      [-1, 0, 1]], dtype=np.float32)
@@ -110,37 +111,37 @@ sobel_y = np.array([[-1, -2, -1],
                      [ 0,  0,  0],
                      [ 1,  2,  1]], dtype=np.float32)
 
-# ガウシアンぼかし
+# Gaussian blur
 gaussian_3x3 = np.array([[1, 2, 1],
                           [2, 4, 2],
                           [1, 2, 1]], dtype=np.float32) / 16.0
 
-# シャープネスフィルタ
+# Sharpening filter
 sharpen = np.array([[ 0, -1,  0],
                      [-1,  5, -1],
                      [ 0, -1,  0]], dtype=np.float32)
 
-# テスト
+# Test
 test_img = np.random.rand(8, 8)
 result = conv2d_manual(test_img, sobel_x, stride=1, padding=1)
-print(f"入力: {test_img.shape} → 出力: {result.shape}")
+print(f"Input: {test_img.shape} → Output: {result.shape}")
 ```
 
-### 受容野（Receptive Field）の計算
+### Receptive Field Calculation
 
 ```python
 def calculate_receptive_field(layers: list[dict]) -> dict:
-    """各層の受容野を計算する
+    """Calculate the receptive field for each layer
 
     Args:
         layers: [{"kernel": k, "stride": s, "padding": p}, ...]
 
     Returns:
-        各層の受容野サイズとジャンプ
+        Receptive field size and jump for each layer
     """
-    rf = 1      # 受容野サイズ
-    jump = 1    # ジャンプ（ストライドの累積）
-    start = 0.5 # 受容野の中心位置
+    rf = 1      # Receptive field size
+    jump = 1    # Jump (cumulative stride)
+    start = 0.5 # Center position of the receptive field
 
     results = []
     for i, layer in enumerate(layers):
@@ -162,7 +163,7 @@ def calculate_receptive_field(layers: list[dict]) -> dict:
 
     return results
 
-# VGG-16の受容野計算例
+# Receptive field calculation example for VGG-16
 vgg_layers = [
     {"kernel": 3, "stride": 1, "padding": 1},  # conv1_1
     {"kernel": 3, "stride": 1, "padding": 1},  # conv1_2
@@ -176,12 +177,12 @@ vgg_layers = [
     {"kernel": 2, "stride": 2, "padding": 0},  # pool3
 ]
 
-print("=== VGG-16 受容野 ===")
+print("=== VGG-16 Receptive Field ===")
 results = calculate_receptive_field(vgg_layers)
-# 最終層のRFが大きいほど、広い範囲のコンテキストを見ている
+# The larger the RF of the final layer, the wider the context it sees
 ```
 
-### コード例1: PyTorchでのCNN基本実装
+### Code Example 1: Basic CNN Implementation in PyTorch
 
 ```python
 import torch
@@ -189,29 +190,29 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class SimpleCNN(nn.Module):
-    """基本的なCNNアーキテクチャ"""
+    """Basic CNN architecture"""
 
     def __init__(self, num_classes: int = 10):
         super().__init__()
 
-        # 畳み込みブロック1
+        # Convolution block 1
         self.conv1 = nn.Conv2d(in_channels=1, out_channels=32,
                                 kernel_size=3, padding=1)
         self.bn1 = nn.BatchNorm2d(32)
 
-        # 畳み込みブロック2
+        # Convolution block 2
         self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
         self.bn2 = nn.BatchNorm2d(64)
 
-        # 畳み込みブロック3
+        # Convolution block 3
         self.conv3 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
         self.bn3 = nn.BatchNorm2d(128)
 
-        # プーリング
+        # Pooling
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
         self.adaptive_pool = nn.AdaptiveAvgPool2d((1, 1))
 
-        # 全結合層
+        # Fully connected layers
         self.fc1 = nn.Linear(128, 256)
         self.dropout = nn.Dropout(0.5)
         self.fc2 = nn.Linear(256, num_classes)
@@ -231,17 +232,17 @@ class SimpleCNN(nn.Module):
         x = self.fc2(x)
         return x
 
-# モデル概要
+# Model summary
 model = SimpleCNN(num_classes=10)
-print(f"パラメータ数: {sum(p.numel() for p in model.parameters()):,}")
+print(f"Number of parameters: {sum(p.numel() for p in model.parameters()):,}")
 
-# ダミー入力で形状確認
+# Verify shapes with dummy input
 dummy = torch.randn(1, 1, 28, 28)
 output = model(dummy)
-print(f"出力形状: {output.shape}")  # (1, 10)
+print(f"Output shape: {output.shape}")  # (1, 10)
 ```
 
-### コード例2: 完全な学習ループ
+### Code Example 2: Complete Training Loop
 
 ```python
 import torch
@@ -252,11 +253,11 @@ from torchvision import datasets, transforms
 import time
 
 def train_cnn():
-    """MNIST分類の完全な学習パイプライン"""
+    """Complete training pipeline for MNIST classification"""
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"デバイス: {device}")
+    print(f"Device: {device}")
 
-    # データ前処理
+    # Data preprocessing
     transform = transforms.Compose([
         transforms.ToTensor(),
         transforms.Normalize((0.1307,), (0.3081,))
@@ -275,7 +276,7 @@ def train_cnn():
     scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=10)
     criterion = nn.CrossEntropyLoss()
 
-    # 学習ループ
+    # Training loop
     for epoch in range(10):
         model.train()
         total_loss = 0
@@ -300,7 +301,7 @@ def train_cnn():
         scheduler.step()
         train_acc = correct / total
 
-        # テスト評価
+        # Test evaluation
         model.eval()
         test_correct = 0
         test_total = 0
@@ -325,7 +326,7 @@ def train_cnn():
 # model = train_cnn()
 ```
 
-### コード例: 混合精度学習とGradient Accumulation
+### Code Example: Mixed Precision Training and Gradient Accumulation
 
 ```python
 import torch
@@ -334,7 +335,7 @@ import torch.optim as optim
 from torch.cuda.amp import autocast, GradScaler
 
 class TrainerWithAMP:
-    """混合精度学習と勾配蓄積を組み合わせたトレーナー"""
+    """Trainer combining mixed precision training and gradient accumulation"""
 
     def __init__(self, model: nn.Module, optimizer: optim.Optimizer,
                  criterion: nn.Module, device: torch.device,
@@ -347,7 +348,7 @@ class TrainerWithAMP:
         self.scaler = GradScaler()
 
     def train_epoch(self, train_loader, epoch: int):
-        """1エポックの学習（AMP + Gradient Accumulation）"""
+        """One epoch of training (AMP + Gradient Accumulation)"""
         self.model.train()
         total_loss = 0.0
         correct = 0
@@ -358,19 +359,19 @@ class TrainerWithAMP:
             images = images.to(self.device, non_blocking=True)
             labels = labels.to(self.device, non_blocking=True)
 
-            # 混合精度で前方計算
+            # Forward pass with mixed precision
             with autocast():
                 outputs = self.model(images)
                 loss = self.criterion(outputs, labels)
-                # 勾配蓄積のためにロスをスケーリング
+                # Scale loss for gradient accumulation
                 loss = loss / self.accumulation_steps
 
-            # スケーラーを使って後方計算
+            # Backward pass using scaler
             self.scaler.scale(loss).backward()
 
-            # N回分のミニバッチ勾配を蓄積してからパラメータ更新
+            # Accumulate gradients from N mini-batches then update parameters
             if (batch_idx + 1) % self.accumulation_steps == 0:
-                # 勾配クリッピング（AMP使用時に重要）
+                # Gradient clipping (important when using AMP)
                 self.scaler.unscale_(self.optimizer)
                 torch.nn.utils.clip_grad_norm_(
                     self.model.parameters(), max_norm=1.0
@@ -391,7 +392,7 @@ class TrainerWithAMP:
 
     @torch.no_grad()
     def evaluate(self, test_loader):
-        """評価（AMP対応）"""
+        """Evaluation (AMP-compatible)"""
         self.model.eval()
         correct = 0
         total = 0
@@ -411,7 +412,7 @@ class TrainerWithAMP:
         print(f"Test Accuracy: {acc:.4f}")
         return acc
 
-# 使用例
+# Usage example
 # model = SimpleCNN(num_classes=10)
 # optimizer = optim.AdamW(model.parameters(), lr=1e-3, weight_decay=0.01)
 # criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
@@ -419,22 +420,22 @@ class TrainerWithAMP:
 #
 # trainer = TrainerWithAMP(model, optimizer, criterion, device,
 #                          accumulation_steps=4)
-# # 実効バッチサイズ = バッチサイズ × accumulation_steps
-# # 例: batch_size=32 × 4 = 128
+# # Effective batch size = batch_size × accumulation_steps
+# # Example: batch_size=32 × 4 = 128
 ```
 
 ---
 
-## 2. 代表的アーキテクチャ
+## 2. Representative Architectures
 
-### コード例3: ResNet残差ブロックの実装
+### Code Example 3: ResNet Residual Block Implementation
 
 ```python
 import torch
 import torch.nn as nn
 
 class ResidualBlock(nn.Module):
-    """ResNetの残差ブロック"""
+    """ResNet residual block"""
 
     def __init__(self, in_channels, out_channels, stride=1):
         super().__init__()
@@ -445,7 +446,7 @@ class ResidualBlock(nn.Module):
                                 stride=1, padding=1, bias=False)
         self.bn2 = nn.BatchNorm2d(out_channels)
 
-        # ショートカット接続（次元が異なる場合）
+        # Shortcut connection (when dimensions differ)
         self.shortcut = nn.Sequential()
         if stride != 1 or in_channels != out_channels:
             self.shortcut = nn.Sequential(
@@ -459,12 +460,12 @@ class ResidualBlock(nn.Module):
 
         out = torch.relu(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
-        out += identity     # 残差接続: F(x) + x
+        out += identity     # Residual connection: F(x) + x
         out = torch.relu(out)
         return out
 
 class ResNet(nn.Module):
-    """簡易版ResNet"""
+    """Simplified ResNet"""
 
     def __init__(self, num_classes=10):
         super().__init__()
@@ -496,15 +497,15 @@ class ResNet(nn.Module):
         return x
 ```
 
-### Bottleneckブロック（ResNet-50以降）
+### Bottleneck Block (ResNet-50 and beyond)
 
 ```python
 class BottleneckBlock(nn.Module):
-    """ResNet-50/101/152で使用されるBottleneckブロック
+    """Bottleneck block used in ResNet-50/101/152
 
-    1x1 → 3x3 → 1x1 の3層構造で、
-    チャネル数を圧縮してから畳み込みを行うことで計算量を削減する。
-    expansion = 4 により出力チャネル数は入力の4倍になる。
+    A 3-layer structure of 1x1 → 3x3 → 1x1 that reduces
+    computation by compressing channels before convolution.
+    With expansion = 4, the output channels are 4x the input.
     """
     expansion = 4
 
@@ -512,26 +513,26 @@ class BottleneckBlock(nn.Module):
                  stride: int = 1, groups: int = 1, width_per_group: int = 64):
         super().__init__()
 
-        # ResNeXtのグループ畳み込み対応
+        # Group convolution support for ResNeXt
         width = int(mid_channels * (width_per_group / 64.0)) * groups
 
-        # 1x1: チャネル圧縮
+        # 1x1: Channel compression
         self.conv1 = nn.Conv2d(in_channels, width, 1, bias=False)
         self.bn1 = nn.BatchNorm2d(width)
 
-        # 3x3: 空間方向の特徴抽出（グループ畳み込み対応）
+        # 3x3: Spatial feature extraction (with group convolution support)
         self.conv2 = nn.Conv2d(width, width, 3, stride=stride,
                                 padding=1, groups=groups, bias=False)
         self.bn2 = nn.BatchNorm2d(width)
 
-        # 1x1: チャネル拡張
+        # 1x1: Channel expansion
         out_channels = mid_channels * self.expansion
         self.conv3 = nn.Conv2d(width, out_channels, 1, bias=False)
         self.bn3 = nn.BatchNorm2d(out_channels)
 
         self.relu = nn.ReLU(inplace=True)
 
-        # ショートカット
+        # Shortcut
         self.shortcut = nn.Sequential()
         if stride != 1 or in_channels != out_channels:
             self.shortcut = nn.Sequential(
@@ -551,17 +552,17 @@ class BottleneckBlock(nn.Module):
 
         return out
 
-# パラメータ比較
+# Parameter comparison
 basic = ResidualBlock(256, 256)
 bottleneck = BottleneckBlock(256, 64)
-print(f"BasicBlock パラメータ: "
+print(f"BasicBlock parameters: "
       f"{sum(p.numel() for p in basic.parameters()):,}")
-print(f"Bottleneck パラメータ: "
+print(f"Bottleneck parameters: "
       f"{sum(p.numel() for p in bottleneck.parameters()):,}")
-# Bottleneckの方がパラメータ効率が良い
+# Bottleneck is more parameter-efficient
 ```
 
-### EfficientNet: 複合スケーリング
+### EfficientNet: Compound Scaling
 
 ```python
 import torch
@@ -571,8 +572,8 @@ import math
 class MBConvBlock(nn.Module):
     """Mobile Inverted Bottleneck Convolution (MBConv)
 
-    EfficientNetの基本ブロック。
-    1x1拡張 → Depthwise 3x3/5x5 → SE → 1x1圧縮 + Skip
+    The fundamental block of EfficientNet.
+    1x1 expansion → Depthwise 3x3/5x5 → SE → 1x1 compression + Skip
     """
 
     def __init__(self, in_ch: int, out_ch: int, kernel_size: int = 3,
@@ -584,12 +585,12 @@ class MBConvBlock(nn.Module):
 
         layers = []
 
-        # 1x1 拡張（expand_ratio > 1 の場合のみ）
+        # 1x1 expansion (only when expand_ratio > 1)
         if expand_ratio != 1:
             layers.extend([
                 nn.Conv2d(in_ch, mid_ch, 1, bias=False),
                 nn.BatchNorm2d(mid_ch),
-                nn.SiLU(inplace=True),  # Swish活性化
+                nn.SiLU(inplace=True),  # Swish activation
             ])
 
         # Depthwise Convolution
@@ -602,7 +603,7 @@ class MBConvBlock(nn.Module):
 
         self.conv = nn.Sequential(*layers)
 
-        # Squeeze-and-Excitation（チャネル注意機構）
+        # Squeeze-and-Excitation (channel attention mechanism)
         se_ch = max(1, int(in_ch * se_ratio))
         self.se = nn.Sequential(
             nn.AdaptiveAvgPool2d(1),
@@ -612,20 +613,20 @@ class MBConvBlock(nn.Module):
             nn.Sigmoid(),
         )
 
-        # 1x1 圧縮
+        # 1x1 compression
         self.project = nn.Sequential(
             nn.Conv2d(mid_ch, out_ch, 1, bias=False),
             nn.BatchNorm2d(out_ch),
         )
 
-        # Stochastic Depth (学習時のみ)
+        # Stochastic Depth (training only)
         self.drop_rate = drop_rate
 
     def forward(self, x):
         identity = x
 
         out = self.conv(x)
-        out = out * self.se(out)   # SE: チャネル重み付け
+        out = out * self.se(out)   # SE: channel weighting
         out = self.project(out)
 
         # Stochastic Depth
@@ -639,10 +640,10 @@ class MBConvBlock(nn.Module):
 
         return out
 
-# EfficientNetの複合スケーリング
+# EfficientNet compound scaling
 def efficientnet_scaling(base_width: float, base_depth: float,
                          base_resolution: int, phi: float):
-    """EfficientNetの複合スケーリング係数を計算
+    """Calculate EfficientNet compound scaling coefficients
 
     alpha^phi * beta^phi * gamma^phi ≈ 2
     (alpha=1.2, beta=1.1, gamma=1.15)
@@ -657,49 +658,49 @@ def efficientnet_scaling(base_width: float, base_depth: float,
           f"depth={depth_mult:.2f}x, resolution={resolution}")
     return width_mult, depth_mult, resolution
 
-# B0〜B7のスケーリング
-print("=== EfficientNet スケーリング ===")
+# Scaling from B0 to B7
+print("=== EfficientNet Scaling ===")
 for i in range(8):
     efficientnet_scaling(1.0, 1.0, 224, phi=i)
 ```
 
-### ConvNeXt: モダンCNNの設計
+### ConvNeXt: Modern CNN Design
 
 ```python
 import torch
 import torch.nn as nn
 
 class ConvNeXtBlock(nn.Module):
-    """ConvNeXtブロック — ViTの設計原則をCNNに適用
+    """ConvNeXt Block — Applying ViT design principles to CNNs
 
-    設計原則:
-    1. Depthwise Conv (7x7) — 大きなカーネルでグローバルな受容野
-    2. Layer Normalization — BNの代わり
-    3. 逆ボトルネック — 拡張比4（MLP的構造）
-    4. GELU活性化 — ReLUの代わり
-    5. 少数の活性化/正規化 — 1ブロック1回
+    Design principles:
+    1. Depthwise Conv (7x7) — Large kernel for global receptive field
+    2. Layer Normalization — Instead of BN
+    3. Inverted bottleneck — Expansion ratio 4 (MLP-like structure)
+    4. GELU activation — Instead of ReLU
+    5. Fewer activations/normalizations — One per block
     """
 
     def __init__(self, dim: int, drop_path: float = 0.0,
                  layer_scale_init: float = 1e-6):
         super().__init__()
 
-        # Depthwise Conv (7x7, 大きなカーネル)
+        # Depthwise Conv (7x7, large kernel)
         self.dwconv = nn.Conv2d(dim, dim, kernel_size=7,
                                  padding=3, groups=dim)
         self.norm = nn.LayerNorm(dim, eps=1e-6)
 
-        # 逆ボトルネック MLP (拡張比4x)
+        # Inverted bottleneck MLP (expansion ratio 4x)
         self.pwconv1 = nn.Linear(dim, 4 * dim)
         self.act = nn.GELU()
         self.pwconv2 = nn.Linear(4 * dim, dim)
 
-        # Layer Scale（学習可能なスケーリング係数）
+        # Layer Scale (learnable scaling coefficient)
         self.gamma = nn.Parameter(
             layer_scale_init * torch.ones(dim)
         ) if layer_scale_init > 0 else None
 
-        # DropPath（Stochastic Depth）
+        # DropPath (Stochastic Depth)
         self.drop_path = DropPath(drop_path) if drop_path > 0. else nn.Identity()
 
     def forward(self, x):
@@ -721,7 +722,7 @@ class ConvNeXtBlock(nn.Module):
 
 
 class DropPath(nn.Module):
-    """Stochastic Depth の実装"""
+    """Stochastic Depth implementation"""
 
     def __init__(self, drop_prob: float = 0.0):
         super().__init__()
@@ -736,7 +737,7 @@ class DropPath(nn.Module):
         return x * mask / keep_prob
 ```
 
-### コード例4: 転移学習の実装
+### Code Example 4: Transfer Learning Implementation
 
 ```python
 import torch
@@ -744,17 +745,17 @@ import torch.nn as nn
 import torchvision.models as models
 
 def create_transfer_model(num_classes: int, freeze_backbone: bool = True):
-    """事前学習済みResNet50を使った転移学習モデル"""
+    """Transfer learning model using pretrained ResNet50"""
 
-    # ImageNetで事前学習済みのResNet50をロード
+    # Load ResNet50 pretrained on ImageNet
     model = models.resnet50(weights=models.ResNet50_Weights.IMAGENET1K_V2)
 
-    # バックボーンの重みを凍結
+    # Freeze backbone weights
     if freeze_backbone:
         for param in model.parameters():
             param.requires_grad = False
 
-    # 最終全結合層を置き換え
+    # Replace the final fully connected layer
     in_features = model.fc.in_features
     model.fc = nn.Sequential(
         nn.Dropout(0.5),
@@ -764,19 +765,19 @@ def create_transfer_model(num_classes: int, freeze_backbone: bool = True):
         nn.Linear(512, num_classes),
     )
 
-    # 新しい層のパラメータは学習可能
+    # Parameters of the new layers are trainable
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     total = sum(p.numel() for p in model.parameters())
-    print(f"全パラメータ: {total:,}")
-    print(f"学習可能: {trainable:,} ({trainable/total:.1%})")
+    print(f"Total parameters: {total:,}")
+    print(f"Trainable: {trainable:,} ({trainable/total:.1%})")
 
     return model
 
-# 使用例
+# Usage example
 model = create_transfer_model(num_classes=5, freeze_backbone=True)
 ```
 
-### 段階的ファインチューニング（Progressive Unfreezing）
+### Progressive Fine-Tuning (Progressive Unfreezing)
 
 ```python
 import torch
@@ -785,11 +786,11 @@ import torch.optim as optim
 import torchvision.models as models
 
 class ProgressiveFineTuner:
-    """段階的にバックボーンを解凍しながらファインチューニング
+    """Progressively unfreeze the backbone for fine-tuning
 
-    Phase 1: 分類器のみ学習（高い学習率）
-    Phase 2: 後半の層を解凍（中程度の学習率）
-    Phase 3: 全体を解凍（低い学習率）
+    Phase 1: Train classifier only (high learning rate)
+    Phase 2: Unfreeze later layers (moderate learning rate)
+    Phase 3: Unfreeze all layers (low learning rate)
     """
 
     def __init__(self, num_classes: int, device: torch.device):
@@ -798,11 +799,11 @@ class ProgressiveFineTuner:
             weights=models.ResNet50_Weights.IMAGENET1K_V2
         ).to(device)
 
-        # 全層凍結
+        # Freeze all layers
         for param in self.model.parameters():
             param.requires_grad = False
 
-        # 分類器を交換
+        # Replace classifier
         in_features = self.model.fc.in_features
         self.model.fc = nn.Sequential(
             nn.Linear(in_features, 512),
@@ -812,7 +813,7 @@ class ProgressiveFineTuner:
         ).to(device)
 
     def get_layer_groups(self):
-        """パラメータをグループに分割"""
+        """Split parameters into groups"""
         return {
             "early": list(self.model.conv1.parameters()) +
                      list(self.model.bn1.parameters()) +
@@ -824,14 +825,14 @@ class ProgressiveFineTuner:
         }
 
     def phase1_head_only(self, lr: float = 1e-3):
-        """Phase 1: 分類器のみ学習"""
+        """Phase 1: Train classifier only"""
         print("=== Phase 1: Head Only ===")
         optimizer = optim.Adam(self.model.fc.parameters(), lr=lr)
         return optimizer
 
     def phase2_unfreeze_late(self, lr_head: float = 1e-3,
                               lr_late: float = 1e-4):
-        """Phase 2: 後半の層を解凍"""
+        """Phase 2: Unfreeze later layers"""
         print("=== Phase 2: Unfreeze Late Layers ===")
         groups = self.get_layer_groups()
 
@@ -847,7 +848,7 @@ class ProgressiveFineTuner:
     def phase3_unfreeze_all(self, lr_early: float = 1e-5,
                              lr_late: float = 1e-4,
                              lr_head: float = 5e-4):
-        """Phase 3: 全層解凍（discriminative learning rates）"""
+        """Phase 3: Unfreeze all layers (discriminative learning rates)"""
         print("=== Phase 3: Unfreeze All ===")
         groups = self.get_layer_groups()
 
@@ -862,40 +863,40 @@ class ProgressiveFineTuner:
         return optimizer
 
     def count_trainable(self):
-        """学習可能パラメータの確認"""
+        """Check trainable parameters"""
         trainable = sum(p.numel() for p in self.model.parameters()
                        if p.requires_grad)
         total = sum(p.numel() for p in self.model.parameters())
-        print(f"学習可能: {trainable:,} / {total:,} "
+        print(f"Trainable: {trainable:,} / {total:,} "
               f"({trainable/total:.1%})")
 
-# 使用例
+# Usage example
 # device = torch.device("cuda")
 # finetuner = ProgressiveFineTuner(num_classes=5, device=device)
 #
-# # Phase 1: 5エポック
+# # Phase 1: 5 epochs
 # opt = finetuner.phase1_head_only(lr=1e-3)
 # finetuner.count_trainable()
-# # → 学習可能: 1,050,117 / 24,607,813 (4.3%)
+# # → Trainable: 1,050,117 / 24,607,813 (4.3%)
 #
-# # Phase 2: 5エポック
+# # Phase 2: 5 epochs
 # opt = finetuner.phase2_unfreeze_late(lr_head=5e-4, lr_late=1e-4)
 # finetuner.count_trainable()
-# # → 学習可能: 15,545,861 / 24,607,813 (63.2%)
+# # → Trainable: 15,545,861 / 24,607,813 (63.2%)
 #
-# # Phase 3: 10エポック
+# # Phase 3: 10 epochs
 # opt = finetuner.phase3_unfreeze_all()
 # finetuner.count_trainable()
-# # → 学習可能: 24,607,813 / 24,607,813 (100.0%)
+# # → Trainable: 24,607,813 / 24,607,813 (100.0%)
 ```
 
-### コード例5: データ拡張パイプライン
+### Code Example 5: Data Augmentation Pipeline
 
 ```python
 import torchvision.transforms as T
 
 def get_transforms(image_size: int = 224, is_train: bool = True):
-    """訓練/テスト用のデータ拡張を構築"""
+    """Build data augmentation for training/testing"""
 
     if is_train:
         return T.Compose([
@@ -919,12 +920,12 @@ def get_transforms(image_size: int = 224, is_train: bool = True):
                         std=[0.229, 0.224, 0.225]),
         ])
 
-# 使用例
+# Usage example
 train_transform = get_transforms(224, is_train=True)
 test_transform = get_transforms(224, is_train=False)
 ```
 
-### 高度なデータ拡張: Albumentations
+### Advanced Data Augmentation: Albumentations
 
 ```python
 import albumentations as A
@@ -934,12 +935,12 @@ import numpy as np
 
 def get_albumentations_transform(image_size: int = 224,
                                   is_train: bool = True):
-    """Albumentationsによる高度なデータ拡張パイプライン
+    """Advanced data augmentation pipeline using Albumentations
 
-    torchvision.transformsとの違い:
-    - より多くの拡張手法（Cutout, GridDistortion等）
-    - 高速（OpenCV/NumPyベース）
-    - バウンディングボックス・セグメンテーションマスクとの連動
+    Differences from torchvision.transforms:
+    - More augmentation methods (Cutout, GridDistortion, etc.)
+    - Faster (OpenCV/NumPy-based)
+    - Integration with bounding boxes and segmentation masks
     """
     if is_train:
         return A.Compose([
@@ -947,7 +948,7 @@ def get_albumentations_transform(image_size: int = 224,
                                 scale=(0.7, 1.0)),
             A.HorizontalFlip(p=0.5),
 
-            # 色変換
+            # Color transforms
             A.OneOf([
                 A.ColorJitter(brightness=0.2, contrast=0.2,
                               saturation=0.2, hue=0.1),
@@ -958,7 +959,7 @@ def get_albumentations_transform(image_size: int = 224,
                                             contrast_limit=0.2),
             ], p=0.8),
 
-            # 幾何変換
+            # Geometric transforms
             A.OneOf([
                 A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.15,
                                     rotate_limit=15),
@@ -966,14 +967,14 @@ def get_albumentations_transform(image_size: int = 224,
                 A.Perspective(scale=(0.05, 0.1)),
             ], p=0.5),
 
-            # ノイズ・ブラー
+            # Noise and blur
             A.OneOf([
                 A.GaussNoise(var_limit=(10, 50)),
                 A.GaussianBlur(blur_limit=(3, 5)),
                 A.MotionBlur(blur_limit=5),
             ], p=0.3),
 
-            # カットアウト系
+            # Cutout variants
             A.OneOf([
                 A.CoarseDropout(max_holes=8, max_height=image_size // 8,
                                 max_width=image_size // 8,
@@ -981,7 +982,7 @@ def get_albumentations_transform(image_size: int = 224,
                 A.GridDropout(ratio=0.3, random_offset=True),
             ], p=0.3),
 
-            # 正規化
+            # Normalization
             A.Normalize(mean=[0.485, 0.456, 0.406],
                         std=[0.229, 0.224, 0.225]),
             ToTensorV2(),
@@ -995,9 +996,9 @@ def get_albumentations_transform(image_size: int = 224,
             ToTensorV2(),
         ])
 
-# Mixup / CutMix の実装
+# Mixup / CutMix implementation
 class MixupCutmix:
-    """Mixup と CutMix を動的に切り替えるデータ拡張"""
+    """Data augmentation that dynamically switches between Mixup and CutMix"""
 
     def __init__(self, mixup_alpha: float = 0.2,
                  cutmix_alpha: float = 1.0,
@@ -1008,23 +1009,23 @@ class MixupCutmix:
 
     def __call__(self, images: 'torch.Tensor',
                  labels: 'torch.Tensor') -> tuple:
-        """バッチに対してMixup/CutMixを適用"""
+        """Apply Mixup/CutMix to a batch"""
         import torch
 
         batch_size = images.size(0)
         indices = torch.randperm(batch_size, device=images.device)
 
         if np.random.rand() < self.mixup_prob:
-            # Mixup: 画像とラベルを線形補間
+            # Mixup: Linear interpolation of images and labels
             lam = np.random.beta(self.mixup_alpha, self.mixup_alpha)
             mixed_images = lam * images + (1 - lam) * images[indices]
             return mixed_images, labels, labels[indices], lam
         else:
-            # CutMix: 画像の一部を別の画像で置き換え
+            # CutMix: Replace part of the image with another image
             lam = np.random.beta(self.cutmix_alpha, self.cutmix_alpha)
             _, _, H, W = images.shape
 
-            # カット領域の座標を計算
+            # Calculate cut region coordinates
             cut_ratio = np.sqrt(1.0 - lam)
             cut_h = int(H * cut_ratio)
             cut_w = int(W * cut_ratio)
@@ -1039,11 +1040,11 @@ class MixupCutmix:
             mixed_images = images.clone()
             mixed_images[:, :, y1:y2, x1:x2] = images[indices, :, y1:y2, x1:x2]
 
-            # ラベルの比率を面積比で調整
+            # Adjust label ratio by area ratio
             lam = 1 - (y2 - y1) * (x2 - x1) / (H * W)
             return mixed_images, labels, labels[indices], lam
 
-# 使用例
+# Usage example
 # mixup_cutmix = MixupCutmix()
 # mixed_images, labels_a, labels_b, lam = mixup_cutmix(images, labels)
 # loss = lam * criterion(outputs, labels_a) + (1-lam) * criterion(outputs, labels_b)
@@ -1051,9 +1052,9 @@ class MixupCutmix:
 
 ---
 
-## 3. モデルの可視化と解釈
+## 3. Model Visualization and Interpretation
 
-### Grad-CAMの実装
+### Grad-CAM Implementation
 
 ```python
 import torch
@@ -1062,11 +1063,11 @@ import torch.nn.functional as F
 import numpy as np
 
 class GradCAM:
-    """Grad-CAM: 勾配重み付きクラス活性化マッピング
+    """Grad-CAM: Gradient-weighted Class Activation Mapping
 
-    CNNがどの領域に注目して判断を下したかを可視化する。
-    最後の畳み込み層の特徴マップに、各チャネルの勾配の
-    平均値で重み付けして合算する。
+    Visualizes which regions the CNN focuses on when making decisions.
+    Weights the feature maps of the last convolutional layer by the
+    average gradient of each channel and sums them.
     """
 
     def __init__(self, model: nn.Module, target_layer: nn.Module):
@@ -1075,7 +1076,7 @@ class GradCAM:
         self.gradients = None
         self.activations = None
 
-        # フックを登録
+        # Register hooks
         target_layer.register_forward_hook(self._save_activation)
         target_layer.register_full_backward_hook(self._save_gradient)
 
@@ -1087,41 +1088,41 @@ class GradCAM:
 
     def generate(self, input_tensor: torch.Tensor,
                  target_class: int = None) -> np.ndarray:
-        """Grad-CAMヒートマップを生成"""
+        """Generate a Grad-CAM heatmap"""
         self.model.eval()
 
-        # 前方計算
+        # Forward pass
         output = self.model(input_tensor)
 
         if target_class is None:
             target_class = output.argmax(dim=1).item()
 
-        # 対象クラスの勾配を計算
+        # Compute gradients for the target class
         self.model.zero_grad()
         one_hot = torch.zeros_like(output)
         one_hot[0, target_class] = 1
         output.backward(gradient=one_hot, retain_graph=True)
 
-        # チャネルごとの勾配の平均（重み）
+        # Average gradient per channel (weights)
         weights = self.gradients.mean(dim=(2, 3), keepdim=True)
 
-        # 重み付き和 + ReLU
+        # Weighted sum + ReLU
         cam = (weights * self.activations).sum(dim=1, keepdim=True)
         cam = F.relu(cam)
 
-        # 入力サイズにリサイズして正規化
+        # Resize to input dimensions and normalize
         cam = F.interpolate(cam, size=input_tensor.shape[2:],
                             mode='bilinear', align_corners=False)
         cam = cam.squeeze().cpu().numpy()
 
-        # 0-1に正規化
+        # Normalize to 0-1
         cam = (cam - cam.min()) / (cam.max() - cam.min() + 1e-8)
 
         return cam
 
     def generate_batch(self, input_batch: torch.Tensor,
                        target_classes: list = None) -> list:
-        """バッチ全体のGrad-CAMを生成"""
+        """Generate Grad-CAM for the entire batch"""
         results = []
         for i in range(input_batch.size(0)):
             target = target_classes[i] if target_classes else None
@@ -1132,19 +1133,19 @@ class GradCAM:
 
 def visualize_gradcam(image: np.ndarray, cam: np.ndarray,
                        alpha: float = 0.5):
-    """Grad-CAMヒートマップを画像に重ね合わせる"""
+    """Overlay a Grad-CAM heatmap on an image"""
     import matplotlib.pyplot as plt
     import matplotlib.cm as cm
 
-    # ヒートマップ生成
-    heatmap = cm.jet(cam)[:, :, :3]  # RGB部分のみ
+    # Generate heatmap
+    heatmap = cm.jet(cam)[:, :, :3]  # RGB only
     heatmap = (heatmap * 255).astype(np.uint8)
 
-    # 元画像の非正規化（ImageNet）
+    # Denormalize original image (ImageNet)
     if image.max() <= 1.0:
         image = (image * 255).astype(np.uint8)
 
-    # オーバーレイ
+    # Overlay
     overlay = (alpha * heatmap + (1 - alpha) * image).astype(np.uint8)
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
@@ -1164,7 +1165,7 @@ def visualize_gradcam(image: np.ndarray, cam: np.ndarray,
     plt.savefig("gradcam_result.png", dpi=150, bbox_inches="tight")
     plt.show()
 
-# 使用例
+# Usage example
 # model = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
 # gradcam = GradCAM(model, model.layer4[-1])
 #
@@ -1173,7 +1174,7 @@ def visualize_gradcam(image: np.ndarray, cam: np.ndarray,
 # visualize_gradcam(original_image, cam)
 ```
 
-### フィルタ（カーネル）の可視化
+### Filter (Kernel) Visualization
 
 ```python
 import torch
@@ -1182,8 +1183,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 def visualize_filters(model: torch.nn.Module, layer_name: str = "conv1"):
-    """畳み込み層のフィルタを可視化"""
-    # 最初の畳み込み層のフィルタを取得
+    """Visualize filters of a convolution layer"""
+    # Get filters from the first convolution layer
     layer = dict(model.named_modules())[layer_name]
     filters = layer.weight.data.cpu().numpy()
 
@@ -1196,10 +1197,10 @@ def visualize_filters(model: torch.nn.Module, layer_name: str = "conv1"):
     for i in range(n_rows * n_cols):
         ax = axes[i // n_cols, i % n_cols]
         if i < n_filters:
-            # 3チャネル（RGB）フィルタの場合
+            # For 3-channel (RGB) filters
             f = filters[i]
             if f.shape[0] == 3:
-                # 0-1に正規化して表示
+                # Normalize to 0-1 for display
                 f = (f - f.min()) / (f.max() - f.min() + 1e-8)
                 ax.imshow(f.transpose(1, 2, 0))
             else:
@@ -1215,7 +1216,7 @@ def visualize_filters(model: torch.nn.Module, layer_name: str = "conv1"):
 def visualize_feature_maps(model: torch.nn.Module,
                             input_tensor: torch.Tensor,
                             layer_names: list[str]):
-    """中間層の特徴マップを可視化"""
+    """Visualize feature maps of intermediate layers"""
     activations = {}
 
     def hook_fn(name):
@@ -1223,25 +1224,25 @@ def visualize_feature_maps(model: torch.nn.Module,
             activations[name] = output.detach().cpu()
         return hook
 
-    # フックを登録
+    # Register hooks
     handles = []
     for name, module in model.named_modules():
         if name in layer_names:
             h = module.register_forward_hook(hook_fn(name))
             handles.append(h)
 
-    # 前方計算
+    # Forward pass
     model.eval()
     with torch.no_grad():
         model(input_tensor)
 
-    # フック解除
+    # Remove hooks
     for h in handles:
         h.remove()
 
-    # 可視化
+    # Visualization
     for name, feat in activations.items():
-        feat = feat[0]  # バッチの最初の要素
+        feat = feat[0]  # First element of the batch
         n_channels = min(feat.shape[0], 16)
 
         fig, axes = plt.subplots(2, 8, figsize=(16, 4))
@@ -1258,7 +1259,7 @@ def visualize_feature_maps(model: torch.nn.Module,
         plt.savefig(f"feature_map_{name.replace('.', '_')}.png", dpi=150)
         plt.show()
 
-# 使用例
+# Usage example
 # model = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
 # visualize_filters(model, "conv1")
 # visualize_feature_maps(model, input_tensor,
@@ -1266,7 +1267,7 @@ def visualize_feature_maps(model: torch.nn.Module,
 #                         "layer3.0.conv1", "layer4.0.conv1"])
 ```
 
-### t-SNEによる特徴空間の可視化
+### t-SNE Feature Space Visualization
 
 ```python
 import torch
@@ -1277,17 +1278,17 @@ import matplotlib.pyplot as plt
 def extract_features(model: torch.nn.Module, dataloader,
                       device: torch.device,
                       max_samples: int = 2000) -> tuple:
-    """CNNの中間特徴量を抽出（最終全結合層の直前）"""
+    """Extract intermediate features from a CNN (just before the final FC layer)"""
     model.eval()
     features_list = []
     labels_list = []
 
-    # 特徴抽出用のフック
+    # Hook for feature extraction
     features_out = []
     def hook_fn(module, input, output):
         features_out.append(input[0].detach().cpu())
 
-    # 最終FC層にフックを登録
+    # Register hook on the final FC layer
     if hasattr(model, 'fc'):
         handle = model.fc.register_forward_hook(hook_fn)
     elif hasattr(model, 'classifier'):
@@ -1313,8 +1314,8 @@ def extract_features(model: torch.nn.Module, dataloader,
 
 def plot_tsne(features: np.ndarray, labels: np.ndarray,
                class_names: list = None, perplexity: int = 30):
-    """t-SNEで特徴空間を2Dに圧縮して可視化"""
-    print(f"t-SNE実行中... (samples={features.shape[0]}, "
+    """Compress feature space to 2D with t-SNE and visualize"""
+    print(f"Running t-SNE... (samples={features.shape[0]}, "
           f"dims={features.shape[1]})")
 
     tsne = TSNE(n_components=2, perplexity=perplexity,
@@ -1338,42 +1339,42 @@ def plot_tsne(features: np.ndarray, labels: np.ndarray,
     plt.savefig("tsne_features.png", dpi=150, bbox_inches="tight")
     plt.show()
 
-# 使用例
+# Usage example
 # features, labels = extract_features(model, test_loader, device)
 # plot_tsne(features, labels, class_names=["cat", "dog", "bird", ...])
 ```
 
 ---
 
-## 4. 物体検出とセグメンテーション
+## 4. Object Detection and Segmentation
 
-### 物体検出の基本: アンカーベース vs アンカーフリー
+### Object Detection Basics: Anchor-Based vs Anchor-Free
 
 ```
-物体検出のアプローチ:
+Object Detection Approaches:
 
-1. Two-Stage Detector (R-CNN系)
-   入力 → Backbone → RPN (候補領域提案) → ROI Pooling → 分類+回帰
-   精度が高いが遅い (Faster R-CNN, Mask R-CNN)
+1. Two-Stage Detector (R-CNN family)
+   Input → Backbone → RPN (Region Proposal) → ROI Pooling → Classification + Regression
+   High accuracy but slow (Faster R-CNN, Mask R-CNN)
 
 2. One-Stage Detector
-   入力 → Backbone → 直接分類+回帰
-   高速だが精度がやや劣る (YOLO, SSD, RetinaNet)
+   Input → Backbone → Direct Classification + Regression
+   Fast but slightly less accurate (YOLO, SSD, RetinaNet)
 
 3. Anchor-Free
-   入力 → Backbone → 中心点+サイズ予測
-   シンプルで高速 (CenterNet, FCOS)
+   Input → Backbone → Center Point + Size Prediction
+   Simple and fast (CenterNet, FCOS)
 
-     ┌──────────┐    ┌──────────┐    ┌────────────────┐
-     │          │    │ Feature  │    │ Detection Head │
-     │  Input   │───>│ Pyramid  │───>│ (分類 + 回帰)  │
-     │  Image   │    │ Network  │    │                │
-     │          │    │ (FPN)    │    │ cls: [B,A,C]   │
-     └──────────┘    └──────────┘    │ box: [B,A,4]   │
-                                      └────────────────┘
+     ┌──────────┐    ┌──────────┐    ┌────────────────────┐
+     │          │    │ Feature  │    │  Detection Head    │
+     │  Input   │───>│ Pyramid  │───>│ (Classification +  │
+     │  Image   │    │ Network  │    │  Regression)       │
+     │          │    │ (FPN)    │    │ cls: [B,A,C]       │
+     └──────────┘    └──────────┘    │ box: [B,A,4]       │
+                                      └────────────────────┘
 ```
 
-### YOLOv8を使った物体検出
+### Object Detection with YOLOv8
 
 ```python
 from ultralytics import YOLO
@@ -1382,21 +1383,21 @@ import numpy as np
 from pathlib import Path
 
 class ObjectDetector:
-    """YOLOv8ベースの物体検出器"""
+    """YOLOv8-based object detector"""
 
     def __init__(self, model_name: str = "yolov8n.pt"):
         """
-        モデルサイズの選択:
-        - yolov8n: Nano (3.2M params) - 最速、エッジ向け
-        - yolov8s: Small (11.2M) - バランス型
-        - yolov8m: Medium (25.9M) - 精度重視
-        - yolov8l: Large (43.7M) - 高精度
-        - yolov8x: XLarge (68.2M) - 最高精度
+        Model size options:
+        - yolov8n: Nano (3.2M params) - Fastest, for edge devices
+        - yolov8s: Small (11.2M) - Balanced
+        - yolov8m: Medium (25.9M) - Accuracy-focused
+        - yolov8l: Large (43.7M) - High accuracy
+        - yolov8x: XLarge (68.2M) - Highest accuracy
         """
         self.model = YOLO(model_name)
 
     def detect(self, image_path: str, conf_threshold: float = 0.5):
-        """画像からの物体検出"""
+        """Detect objects in an image"""
         results = self.model(image_path, conf=conf_threshold)
 
         detections = []
@@ -1413,7 +1414,7 @@ class ObjectDetector:
 
     def train_custom(self, data_yaml: str, epochs: int = 100,
                       imgsz: int = 640, batch: int = 16):
-        """カスタムデータセットでの学習"""
+        """Train on a custom dataset"""
         results = self.model.train(
             data=data_yaml,
             epochs=epochs,
@@ -1421,30 +1422,30 @@ class ObjectDetector:
             batch=batch,
             optimizer="AdamW",
             lr0=0.001,
-            lrf=0.01,  # 最終学習率 = lr0 * lrf
+            lrf=0.01,  # Final learning rate = lr0 * lrf
             warmup_epochs=3,
             augment=True,
-            mosaic=1.0,        # Mosaic拡張
-            mixup=0.1,         # Mixup拡張
-            copy_paste=0.1,    # Copy-Paste拡張
+            mosaic=1.0,        # Mosaic augmentation
+            mixup=0.1,         # Mixup augmentation
+            copy_paste=0.1,    # Copy-Paste augmentation
             patience=20,       # Early stopping
-            save_period=10,    # チェックポイント保存間隔
+            save_period=10,    # Checkpoint save interval
         )
         return results
 
     def export_onnx(self, output_path: str = "model.onnx",
                      imgsz: int = 640):
-        """ONNXフォーマットでエクスポート（推論最適化）"""
+        """Export to ONNX format (inference optimization)"""
         self.model.export(
             format="onnx",
             imgsz=imgsz,
-            dynamic=True,     # 動的バッチサイズ
-            simplify=True,    # グラフ最適化
+            dynamic=True,     # Dynamic batch size
+            simplify=True,    # Graph optimization
             opset=17,
         )
         print(f"Exported to {output_path}")
 
-# データセット設定ファイル例 (data.yaml)
+# Dataset configuration file example (data.yaml)
 DATA_YAML_TEMPLATE = """
 path: /path/to/dataset
 train: images/train
@@ -1458,18 +1459,18 @@ names:
   3: dog
   4: cat
 
-# アノテーション形式: YOLO (クラス x_center y_center width height)
-# 全て0-1に正規化された相対座標
+# Annotation format: YOLO (class x_center y_center width height)
+# All values are normalized relative coordinates in 0-1 range
 """
 
-# 使用例
+# Usage example
 # detector = ObjectDetector("yolov8m.pt")
 # detections = detector.detect("photo.jpg", conf_threshold=0.5)
 # for d in detections:
 #     print(f"{d['class']}: {d['confidence']:.2f} at {d['bbox']}")
 ```
 
-### セマンティックセグメンテーション
+### Semantic Segmentation
 
 ```python
 import torch
@@ -1477,27 +1478,27 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class UNet(nn.Module):
-    """U-Net: セマンティックセグメンテーションの定番アーキテクチャ
+    """U-Net: A classic architecture for semantic segmentation
 
-    エンコーダ-デコーダ構造 + スキップ接続
-    医療画像やリモートセンシングで広く使用される
+    Encoder-decoder structure + skip connections
+    Widely used in medical imaging and remote sensing
     """
 
     def __init__(self, in_channels: int = 3, num_classes: int = 21,
                  base_filters: int = 64):
         super().__init__()
 
-        # エンコーダ（ダウンサンプリングパス）
+        # Encoder (downsampling path)
         self.enc1 = self._double_conv(in_channels, base_filters)
         self.enc2 = self._double_conv(base_filters, base_filters * 2)
         self.enc3 = self._double_conv(base_filters * 2, base_filters * 4)
         self.enc4 = self._double_conv(base_filters * 4, base_filters * 8)
 
-        # ボトルネック
+        # Bottleneck
         self.bottleneck = self._double_conv(base_filters * 8,
                                              base_filters * 16)
 
-        # デコーダ（アップサンプリングパス）
+        # Decoder (upsampling path)
         self.up4 = nn.ConvTranspose2d(base_filters * 16,
                                        base_filters * 8, 2, stride=2)
         self.dec4 = self._double_conv(base_filters * 16, base_filters * 8)
@@ -1514,7 +1515,7 @@ class UNet(nn.Module):
                                        base_filters, 2, stride=2)
         self.dec1 = self._double_conv(base_filters * 2, base_filters)
 
-        # 出力層
+        # Output layer
         self.out_conv = nn.Conv2d(base_filters, num_classes, 1)
 
         self.pool = nn.MaxPool2d(2, 2)
@@ -1531,16 +1532,16 @@ class UNet(nn.Module):
         )
 
     def forward(self, x):
-        # エンコーダ
+        # Encoder
         e1 = self.enc1(x)          # (B, 64, H, W)
         e2 = self.enc2(self.pool(e1))  # (B, 128, H/2, W/2)
         e3 = self.enc3(self.pool(e2))  # (B, 256, H/4, W/4)
         e4 = self.enc4(self.pool(e3))  # (B, 512, H/8, W/8)
 
-        # ボトルネック
+        # Bottleneck
         b = self.bottleneck(self.pool(e4))  # (B, 1024, H/16, W/16)
 
-        # デコーダ + スキップ接続
+        # Decoder + skip connections
         d4 = self.dec4(torch.cat([self.up4(b), e4], dim=1))
         d3 = self.dec3(torch.cat([self.up3(d4), e3], dim=1))
         d2 = self.dec2(torch.cat([self.up2(d3), e2], dim=1))
@@ -1550,10 +1551,10 @@ class UNet(nn.Module):
 
 
 class DiceLoss(nn.Module):
-    """Dice Loss: セグメンテーション用損失関数
+    """Dice Loss: Loss function for segmentation
 
-    IoU (Intersection over Union) に基づく損失。
-    クラス不均衡に強い。
+    A loss based on IoU (Intersection over Union).
+    Robust to class imbalance.
     """
 
     def __init__(self, smooth: float = 1.0):
@@ -1567,14 +1568,14 @@ class DiceLoss(nn.Module):
         """
         num_classes = pred.shape[1]
 
-        # ソフトマックスで確率に変換
+        # Convert to probabilities with softmax
         pred_soft = F.softmax(pred, dim=1)
 
-        # ターゲットをone-hot化
+        # One-hot encode target
         target_onehot = F.one_hot(target.long(),
                                    num_classes).permute(0, 3, 1, 2).float()
 
-        # クラスごとのDice係数
+        # Dice coefficient per class
         intersection = (pred_soft * target_onehot).sum(dim=(2, 3))
         union = pred_soft.sum(dim=(2, 3)) + target_onehot.sum(dim=(2, 3))
 
@@ -1584,7 +1585,7 @@ class DiceLoss(nn.Module):
 
 
 class CombinedSegLoss(nn.Module):
-    """CrossEntropy + Dice の組み合わせ損失"""
+    """Combined CrossEntropy + Dice loss"""
 
     def __init__(self, ce_weight: float = 0.5, dice_weight: float = 0.5):
         super().__init__()
@@ -1597,19 +1598,19 @@ class CombinedSegLoss(nn.Module):
         return (self.ce_weight * self.ce(pred, target) +
                 self.dice_weight * self.dice(pred, target))
 
-# モデルの確認
+# Model verification
 # unet = UNet(in_channels=3, num_classes=21)
 # dummy = torch.randn(2, 3, 256, 256)
 # output = unet(dummy)
-# print(f"出力形状: {output.shape}")  # (2, 21, 256, 256)
-# print(f"パラメータ数: {sum(p.numel() for p in unet.parameters()):,}")
+# print(f"Output shape: {output.shape}")  # (2, 21, 256, 256)
+# print(f"Number of parameters: {sum(p.numel() for p in unet.parameters()):,}")
 ```
 
 ---
 
-## 5. モデル軽量化と推論最適化
+## 5. Model Compression and Inference Optimization
 
-### Knowledge Distillation（知識蒸留）
+### Knowledge Distillation
 
 ```python
 import torch
@@ -1617,10 +1618,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class DistillationTrainer:
-    """知識蒸留: 大きなモデル（Teacher）の知識を
-    小さなモデル（Student）に転移する
+    """Knowledge Distillation: Transfer knowledge from a large model (Teacher)
+    to a small model (Student)
 
-    損失 = alpha * KL(soft_student, soft_teacher) +
+    Loss = alpha * KL(soft_student, soft_teacher) +
            (1 - alpha) * CE(student, hard_labels)
     """
 
@@ -1633,33 +1634,33 @@ class DistillationTrainer:
         self.alpha = alpha
         self.device = device or torch.device("cpu")
 
-        # Teacherの重みを凍結
+        # Freeze Teacher weights
         for param in self.teacher.parameters():
             param.requires_grad = False
 
     def distillation_loss(self, student_logits: torch.Tensor,
                            teacher_logits: torch.Tensor,
                            labels: torch.Tensor) -> torch.Tensor:
-        """蒸留損失の計算"""
+        """Calculate distillation loss"""
         T = self.temperature
 
-        # ソフトターゲット: Temperature付きソフトマックス
+        # Soft targets: Softmax with temperature
         soft_student = F.log_softmax(student_logits / T, dim=1)
         soft_teacher = F.softmax(teacher_logits / T, dim=1)
 
-        # KL Divergence (T^2でスケーリング)
+        # KL Divergence (scaled by T^2)
         kl_loss = F.kl_div(soft_student, soft_teacher,
                             reduction="batchmean") * (T * T)
 
-        # ハードラベル損失
+        # Hard label loss
         hard_loss = F.cross_entropy(student_logits, labels)
 
-        # 混合損失
+        # Combined loss
         loss = self.alpha * kl_loss + (1 - self.alpha) * hard_loss
         return loss
 
     def train_epoch(self, train_loader, optimizer):
-        """1エポックの蒸留学習"""
+        """One epoch of distillation training"""
         self.student.train()
         total_loss = 0
 
@@ -1667,14 +1668,14 @@ class DistillationTrainer:
             images = images.to(self.device)
             labels = labels.to(self.device)
 
-            # Teacher推論（勾配不要）
+            # Teacher inference (no gradients needed)
             with torch.no_grad():
                 teacher_logits = self.teacher(images)
 
-            # Student推論
+            # Student inference
             student_logits = self.student(images)
 
-            # 蒸留損失
+            # Distillation loss
             loss = self.distillation_loss(
                 student_logits, teacher_logits, labels
             )
@@ -1687,9 +1688,9 @@ class DistillationTrainer:
 
         return total_loss / len(train_loader)
 
-# 使用例
+# Usage example
 # teacher = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
-# student = SimpleCNN(num_classes=1000)  # 軽量モデル
+# student = SimpleCNN(num_classes=1000)  # Lightweight model
 #
 # distiller = DistillationTrainer(
 #     teacher=teacher, student=student,
@@ -1701,17 +1702,17 @@ class DistillationTrainer:
 #     print(f"Epoch {epoch+1}: Loss={loss:.4f}")
 ```
 
-### モデルの量子化
+### Model Quantization
 
 ```python
 import torch
 import torch.quantization as quant
 
 def quantize_model_dynamic(model: torch.nn.Module):
-    """動的量子化（推論時に重みをINT8に変換）
+    """Dynamic quantization (converts weights to INT8 at inference time)
 
-    特徴: 精度低下が少ない、設定が簡単
-    対象: Linear, LSTM層
+    Features: Minimal accuracy loss, easy to set up
+    Targets: Linear, LSTM layers
     """
     quantized = torch.quantization.quantize_dynamic(
         model,
@@ -1719,7 +1720,7 @@ def quantize_model_dynamic(model: torch.nn.Module):
         dtype=torch.qint8,
     )
 
-    # サイズ比較
+    # Size comparison
     original_size = sum(
         p.nelement() * p.element_size()
         for p in model.parameters()
@@ -1730,9 +1731,9 @@ def quantize_model_dynamic(model: torch.nn.Module):
         for p in quantized.parameters()
     ) / 1024 / 1024
 
-    print(f"元モデル: {original_size:.1f} MB")
-    print(f"量子化後: {quantized_size:.1f} MB")
-    print(f"圧縮率: {original_size / quantized_size:.1f}x")
+    print(f"Original model: {original_size:.1f} MB")
+    print(f"After quantization: {quantized_size:.1f} MB")
+    print(f"Compression ratio: {original_size / quantized_size:.1f}x")
 
     return quantized
 
@@ -1740,55 +1741,55 @@ def quantize_model_dynamic(model: torch.nn.Module):
 def quantize_model_static(model: torch.nn.Module,
                            calibration_loader,
                            device: torch.device):
-    """静的量子化（キャリブレーションデータで最適な量子化パラメータを決定）
+    """Static quantization (determines optimal quantization parameters using calibration data)
 
-    特徴: 動的量子化より高速、CNN向き
-    手順: 準備 → キャリブレーション → 変換
+    Features: Faster than dynamic quantization, suitable for CNNs
+    Steps: Prepare → Calibration → Conversion
     """
     model.eval()
     model.cpu()
 
-    # 量子化設定
+    # Quantization configuration
     model.qconfig = quant.get_default_qconfig("x86")  # or "qnnpack" for ARM
 
-    # 準備（オブザーバーを挿入）
+    # Preparation (insert observers)
     quant.prepare(model, inplace=True)
 
-    # キャリブレーション（代表的なデータで推論して統計を収集）
-    print("キャリブレーション中...")
+    # Calibration (run inference on representative data to collect statistics)
+    print("Calibrating...")
     with torch.no_grad():
         for i, (images, _) in enumerate(calibration_loader):
-            if i >= 100:  # 100バッチで十分
+            if i >= 100:  # 100 batches is sufficient
                 break
             model(images)
 
-    # 量子化変換
+    # Quantization conversion
     quantized = quant.convert(model, inplace=False)
 
     return quantized
 
 
 class ModelBenchmark:
-    """モデルの推論速度をベンチマーク"""
+    """Benchmark model inference speed"""
 
     @staticmethod
     def benchmark_latency(model: torch.nn.Module,
                            input_shape: tuple = (1, 3, 224, 224),
                            num_runs: int = 100,
                            device: str = "cpu"):
-        """推論レイテンシーを計測"""
+        """Measure inference latency"""
         import time
 
         model.eval()
         model = model.to(device)
         dummy = torch.randn(*input_shape).to(device)
 
-        # ウォームアップ
+        # Warm-up
         for _ in range(10):
             with torch.no_grad():
                 model(dummy)
 
-        # 計測
+        # Measurement
         if device == "cuda":
             torch.cuda.synchronize()
 
@@ -1806,13 +1807,13 @@ class ModelBenchmark:
         print(f"Throughput: {1000 / times.mean():.1f} FPS")
         return times.mean()
 
-# 使用例
+# Usage example
 # quantized = quantize_model_dynamic(model)
 # ModelBenchmark.benchmark_latency(model)
 # ModelBenchmark.benchmark_latency(quantized)
 ```
 
-### ONNXエクスポートとTensorRTによる最適化
+### ONNX Export and TensorRT Optimization
 
 ```python
 import torch
@@ -1821,7 +1822,7 @@ import torch.onnx
 def export_to_onnx(model: torch.nn.Module, output_path: str,
                     input_shape: tuple = (1, 3, 224, 224),
                     dynamic_axes: dict = None):
-    """PyTorchモデルをONNX形式でエクスポート"""
+    """Export a PyTorch model to ONNX format"""
     model.eval()
     dummy_input = torch.randn(*input_shape)
 
@@ -1839,33 +1840,33 @@ def export_to_onnx(model: torch.nn.Module, output_path: str,
         input_names=["input"],
         output_names=["output"],
         dynamic_axes=dynamic_axes,
-        do_constant_folding=True,  # 定数畳み込み最適化
+        do_constant_folding=True,  # Constant folding optimization
     )
 
-    # ONNXモデルの検証
+    # Validate ONNX model
     import onnx
     onnx_model = onnx.load(output_path)
     onnx.checker.check_model(onnx_model)
     print(f"ONNX model exported to {output_path}")
 
-    # ファイルサイズ
+    # File size
     import os
     size_mb = os.path.getsize(output_path) / 1024 / 1024
     print(f"Model size: {size_mb:.1f} MB")
 
 
 def run_onnx_inference(onnx_path: str, input_array):
-    """ONNX Runtimeで推論"""
+    """Run inference with ONNX Runtime"""
     import onnxruntime as ort
     import numpy as np
 
-    # セッション作成（利用可能なプロバイダを自動選択）
+    # Create session (auto-select available providers)
     providers = ort.get_available_providers()
-    print(f"利用可能なプロバイダ: {providers}")
+    print(f"Available providers: {providers}")
 
     session = ort.InferenceSession(onnx_path, providers=providers)
 
-    # 推論
+    # Inference
     input_name = session.get_inputs()[0].name
     output_name = session.get_outputs()[0].name
 
@@ -1874,138 +1875,138 @@ def run_onnx_inference(onnx_path: str, input_array):
 
     return result[0]
 
-# 使用例
+# Usage example
 # export_to_onnx(model, "resnet50.onnx")
 # result = run_onnx_inference("resnet50.onnx", dummy_input.numpy())
 ```
 
 ---
 
-## 比較表
+## Comparison Tables
 
-### CNNアーキテクチャの進化
+### Evolution of CNN Architectures
 
-| モデル | 年 | 層数 | パラメータ | Top-1精度(ImageNet) | 主な革新 |
+| Model | Year | Layers | Parameters | Top-1 Accuracy (ImageNet) | Key Innovation |
 |---|---|---|---|---|---|
-| LeNet-5 | 1998 | 5 | 60K | - | 最初のCNN |
-| AlexNet | 2012 | 8 | 61M | 63.3% | ReLU, Dropout, GPU学習 |
-| VGG-16 | 2014 | 16 | 138M | 71.5% | 3x3カーネルの深い積み重ね |
-| GoogLeNet | 2014 | 22 | 6.8M | 74.8% | Inceptionモジュール |
-| ResNet-50 | 2015 | 50 | 25M | 76.1% | 残差接続 (Skip Connection) |
-| ResNeXt-50 | 2017 | 50 | 25M | 77.8% | グループ畳み込み |
-| SENet-154 | 2017 | 154 | 115M | 81.3% | チャネル注意機構 (SE) |
-| EfficientNet-B0 | 2019 | - | 5.3M | 77.1% | 複合スケーリング |
-| EfficientNet-B7 | 2019 | - | 66M | 84.3% | 複合スケーリング（最大） |
-| ViT-B/16 | 2020 | 12 | 86M | 77.9% | 純粋Transformer |
-| ConvNeXt-T | 2022 | - | 28M | 82.1% | モダンCNN設計 |
-| ConvNeXt-L | 2022 | - | 198M | 84.3% | モダンCNN設計（大） |
+| LeNet-5 | 1998 | 5 | 60K | - | First CNN |
+| AlexNet | 2012 | 8 | 61M | 63.3% | ReLU, Dropout, GPU training |
+| VGG-16 | 2014 | 16 | 138M | 71.5% | Deep stacking of 3x3 kernels |
+| GoogLeNet | 2014 | 22 | 6.8M | 74.8% | Inception module |
+| ResNet-50 | 2015 | 50 | 25M | 76.1% | Residual connections (Skip Connection) |
+| ResNeXt-50 | 2017 | 50 | 25M | 77.8% | Group convolution |
+| SENet-154 | 2017 | 154 | 115M | 81.3% | Channel attention mechanism (SE) |
+| EfficientNet-B0 | 2019 | - | 5.3M | 77.1% | Compound scaling |
+| EfficientNet-B7 | 2019 | - | 66M | 84.3% | Compound scaling (max) |
+| ViT-B/16 | 2020 | 12 | 86M | 77.9% | Pure Transformer |
+| ConvNeXt-T | 2022 | - | 28M | 82.1% | Modern CNN design |
+| ConvNeXt-L | 2022 | - | 198M | 84.3% | Modern CNN design (large) |
 
-### 畳み込みの種類
+### Types of Convolution
 
-| 畳み込み | パラメータ数 | 計算量 | 用途 | 特徴 |
+| Convolution | Parameters | Computation | Use Case | Feature |
 |---|---|---|---|---|
-| 標準 (3x3) | C_in × C_out × 9 | O(H×W×C_in×C_out×9) | 汎用 | 全チャネル間の結合 |
-| 1x1 | C_in × C_out | O(H×W×C_in×C_out) | チャネル混合 | 次元調整 |
-| Depthwise | C × 9 | O(H×W×C×9) | 軽量化 | チャネルごとに独立 |
-| Separable | C×9 + C×C_out | 大幅削減 | モバイル | Depth+Pointwise |
-| Dilated | C_in × C_out × 9 | 同等 | セグメンテーション | 受容野の拡大 |
-| Transposed | C_in × C_out × 9 | 同等 | アップサンプリング | デコーダ |
-| Deformable | C_in × C_out × 9 + オフセット | やや増加 | 物体検出 | 適応的受容野 |
-| Group Conv | C_in × C_out × 9 / G | 削減 | 効率化 | チャネルグループ化 |
+| Standard (3x3) | C_in × C_out × 9 | O(H×W×C_in×C_out×9) | General purpose | Full cross-channel connections |
+| 1x1 | C_in × C_out | O(H×W×C_in×C_out) | Channel mixing | Dimension adjustment |
+| Depthwise | C × 9 | O(H×W×C×9) | Lightweight | Independent per channel |
+| Separable | C×9 + C×C_out | Significantly reduced | Mobile | Depth+Pointwise |
+| Dilated | C_in × C_out × 9 | Equivalent | Segmentation | Expanding receptive field |
+| Transposed | C_in × C_out × 9 | Equivalent | Upsampling | Decoder |
+| Deformable | C_in × C_out × 9 + offsets | Slightly increased | Object detection | Adaptive receptive field |
+| Group Conv | C_in × C_out × 9 / G | Reduced | Efficiency | Channel grouping |
 
-### 用途別モデル推奨ガイド
+### Model Recommendation Guide by Use Case
 
-| ユースケース | 推奨モデル | 理由 |
+| Use Case | Recommended Model | Reason |
 |---|---|---|
-| エッジ/モバイル | MobileNetV3, EfficientNet-B0 | 低計算量、小メモリ |
-| 一般画像分類 | ResNet-50 + 転移学習 | 安定性と汎用性のバランス |
-| 高精度画像分類 | EfficientNet-B4〜B7, ConvNeXt | スケーリングされた精度 |
-| 物体検出 | YOLOv8, Faster R-CNN | リアルタイム / 高精度 |
-| セマンティックセグメンテーション | U-Net, DeepLabV3+ | ピクセル単位の分類 |
-| インスタンスセグメンテーション | Mask R-CNN, YOLACT | 個々のオブジェクト分離 |
-| 医療画像 | U-Net + Attention | 少量データ対応 |
-| 画像生成 | GAN, Diffusion Model | 高品質画像合成 |
-| 超解像 | ESRGAN, SwinIR | 解像度向上 |
+| Edge/Mobile | MobileNetV3, EfficientNet-B0 | Low computation, small memory |
+| General image classification | ResNet-50 + transfer learning | Balance of stability and versatility |
+| High-accuracy image classification | EfficientNet-B4 to B7, ConvNeXt | Scaled accuracy |
+| Object detection | YOLOv8, Faster R-CNN | Real-time / high accuracy |
+| Semantic segmentation | U-Net, DeepLabV3+ | Pixel-level classification |
+| Instance segmentation | Mask R-CNN, YOLACT | Individual object separation |
+| Medical imaging | U-Net + Attention | Small dataset support |
+| Image generation | GAN, Diffusion Model | High-quality image synthesis |
+| Super-resolution | ESRGAN, SwinIR | Resolution enhancement |
 
-### 正規化手法の比較
+### Comparison of Normalization Methods
 
-| 手法 | 正規化次元 | バッチ依存 | 主な用途 | 備考 |
+| Method | Normalization Dims | Batch-Dependent | Main Use | Notes |
 |---|---|---|---|---|
-| Batch Norm | (N, H, W) | あり | CNN全般 | バッチサイズが大きい場合に有効 |
-| Layer Norm | (C, H, W) | なし | Transformer, NLP | バッチサイズに非依存 |
-| Instance Norm | (H, W) | なし | スタイル変換 | 各サンプル・チャネル独立 |
-| Group Norm | (C/G, H, W) | なし | 小バッチCNN | BNの代替、バッチサイズ非依存 |
+| Batch Norm | (N, H, W) | Yes | CNNs in general | Effective with large batch sizes |
+| Layer Norm | (C, H, W) | No | Transformer, NLP | Independent of batch size |
+| Instance Norm | (H, W) | No | Style transfer | Independent per sample and channel |
+| Group Norm | (C/G, H, W) | No | Small-batch CNNs | Alternative to BN, batch-size independent |
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン1: 転移学習で全層を最初からファインチューン
+### Anti-Pattern 1: Fine-tuning all layers from the start in transfer learning
 
 ```python
-# BAD: 少量データで全パラメータを学習 → 事前学習の知識が壊れる
+# BAD: Training all parameters with limited data → destroys pretrained knowledge
 model = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
 model.fc = nn.Linear(2048, 5)
-optimizer = optim.Adam(model.parameters(), lr=0.001)  # 全パラメータに同じlr
+optimizer = optim.Adam(model.parameters(), lr=0.001)  # Same lr for all parameters
 
-# GOOD: 段階的ファインチューニング
-# Phase 1: バックボーン凍結、分類器のみ学習
+# GOOD: Progressive fine-tuning
+# Phase 1: Freeze backbone, train classifier only
 for param in model.parameters():
     param.requires_grad = False
 model.fc = nn.Linear(2048, 5)
 optimizer = optim.Adam(model.fc.parameters(), lr=0.001)
-# ... Phase 1 学習 ...
+# ... Phase 1 training ...
 
-# Phase 2: バックボーンを解凍、低い学習率で全体を微調整
+# Phase 2: Unfreeze backbone, fine-tune the whole model with low learning rate
 for param in model.parameters():
     param.requires_grad = True
 optimizer = optim.Adam([
     {"params": model.layer4.parameters(), "lr": 1e-4},
     {"params": model.fc.parameters(), "lr": 1e-3},
-], lr=1e-5)  # 浅い層はさらに低い学習率
+], lr=1e-5)  # Even lower learning rate for shallow layers
 ```
 
-### アンチパターン2: データ拡張なしの画像分類
+### Anti-Pattern 2: Image classification without data augmentation
 
 ```python
-# BAD: 拡張なし → 少量データで過学習
+# BAD: No augmentation → overfitting with limited data
 transform = T.Compose([T.Resize(224), T.ToTensor()])
 
-# GOOD: タスクに適した拡張を適用
-# ただし不適切な拡張も害になる:
-# - 数字認識で回転180度 → 6と9が区別できなくなる
-# - 医療画像で過度な色変換 → 診断情報が失われる
+# GOOD: Apply augmentation appropriate for the task
+# However, inappropriate augmentation can also be harmful:
+# - 180-degree rotation for digit recognition → can't distinguish 6 and 9
+# - Excessive color transforms for medical images → diagnostic information is lost
 ```
 
-### アンチパターン3: 推論時にmodel.eval()を呼ばない
+### Anti-Pattern 3: Not calling model.eval() during inference
 
 ```python
-# BAD: 推論時にtrainモードのまま
-# → BatchNormがミニバッチ統計を使い、結果が不安定になる
-# → Dropoutが有効のまま、出力がランダムに変動
+# BAD: Inference while still in train mode
+# → BatchNorm uses mini-batch statistics, results become unstable
+# → Dropout remains active, outputs vary randomly
 predictions = model(test_images)
 
-# GOOD: 推論時は必ずevalモードに切り替え
+# GOOD: Always switch to eval mode for inference
 model.eval()
-with torch.no_grad():  # 勾配計算も不要
+with torch.no_grad():  # Gradient computation is also unnecessary
     predictions = model(test_images)
 
-# 学習に戻る時はtrainモードに
+# Switch back to train mode when resuming training
 model.train()
 ```
 
-### アンチパターン4: 入力画像の正規化ミスマッチ
+### Anti-Pattern 4: Input image normalization mismatch
 
 ```python
-# BAD: 事前学習済みモデルに正規化なしの入力を渡す
-# ImageNet事前学習モデルは mean=[0.485, 0.456, 0.406],
-# std=[0.229, 0.224, 0.225] で正規化された入力を期待する
+# BAD: Passing unnormalized input to a pretrained model
+# ImageNet pretrained models expect input normalized with
+# mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]
 transform = T.Compose([
     T.Resize(224),
-    T.ToTensor(),  # 0-1に変換するが、正規化していない!
+    T.ToTensor(),  # Converts to 0-1 but doesn't normalize!
 ])
 
-# GOOD: 事前学習時と同じ正規化を適用
+# GOOD: Apply the same normalization as during pretraining
 transform = T.Compose([
     T.Resize(256),
     T.CenterCrop(224),
@@ -2015,27 +2016,27 @@ transform = T.Compose([
 ])
 ```
 
-### アンチパターン5: GPUメモリリーク
+### Anti-Pattern 5: GPU memory leak
 
 ```python
-# BAD: テンソルがGPUメモリに蓄積される
+# BAD: Tensors accumulate in GPU memory
 all_predictions = []
 for images, labels in test_loader:
     images = images.to(device)
     outputs = model(images)
-    all_predictions.append(outputs)  # GPUテンソルが蓄積!
+    all_predictions.append(outputs)  # GPU tensors accumulate!
 
-# GOOD: CPU/numpyに変換してからリストに追加
+# GOOD: Convert to CPU/numpy before appending to list
 all_predictions = []
 model.eval()
 with torch.no_grad():
     for images, labels in test_loader:
         images = images.to(device)
         outputs = model(images)
-        # CPUに移動してnumpyに変換
+        # Move to CPU and convert to numpy
         all_predictions.append(outputs.cpu().numpy())
 
-# さらに良い: torch.catで結合
+# Even better: Concatenate with torch.cat
 all_outputs = []
 with torch.no_grad():
     for images, _ in test_loader:
@@ -2048,47 +2049,47 @@ all_outputs = torch.cat(all_outputs, dim=0)
 
 ## FAQ
 
-### Q1: CNNとViT（Vision Transformer）のどちらを使うべき？
+### Q1: Should I use CNN or ViT (Vision Transformer)?
 
-**A:** データが少ない場合（数千〜数万枚）はCNN（特にResNet + 転移学習）が安定。大規模データ（数百万枚以上）ではViTが優位。2022年以降のConvNeXtはCNNの設計をモダンにし、ViTと同等以上の性能を達成している。実務ではResNet/EfficientNet + 転移学習が最も汎用的。
+**A:** With limited data (thousands to tens of thousands of images), CNN (especially ResNet + transfer learning) is more stable. With large-scale data (millions of images or more), ViT has an advantage. ConvNeXt, introduced in 2022, modernized CNN design to achieve performance equal to or better than ViT. In practice, ResNet/EfficientNet + transfer learning is the most versatile choice.
 
-判断基準のまとめ:
+Decision criteria summary:
 
-| 条件 | 推奨 | 理由 |
+| Condition | Recommendation | Reason |
 |---|---|---|
-| データ < 1万枚 | ResNet + 転移学習 | CNNの帰納的バイアスが有利 |
-| データ 1万〜100万枚 | EfficientNet or ConvNeXt | 効率的なスケーリング |
-| データ > 100万枚 | ViT or DeiT | 大規模データでの性能 |
-| リアルタイム推論 | MobileNetV3 or YOLOv8 | レイテンシー最適化 |
-| 最高精度が必要 | ConvNeXt-L or ViT-L | 最新の大規模モデル |
+| Data < 10K images | ResNet + transfer learning | CNN's inductive bias is advantageous |
+| Data 10K to 1M images | EfficientNet or ConvNeXt | Efficient scaling |
+| Data > 1M images | ViT or DeiT | Performance with large-scale data |
+| Real-time inference | MobileNetV3 or YOLOv8 | Latency optimization |
+| Maximum accuracy needed | ConvNeXt-L or ViT-L | Latest large-scale models |
 
-### Q2: バッチ正規化はなぜ効くのか？
+### Q2: Why does Batch Normalization work?
 
-**A:** (1) 内部共変量シフトの緩和（各層の入力分布を安定化）、(2) 正則化効果（ミニバッチの統計量によるノイズ）、(3) 学習率を大きくできる（勾配の大きさが安定）。推論時はバッチ統計量ではなく学習時の移動平均を使うため、`model.eval()` の呼び出しが必須。
+**A:** (1) Mitigates internal covariate shift (stabilizes the input distribution at each layer), (2) Regularization effect (noise from mini-batch statistics), (3) Allows larger learning rates (gradient magnitudes are stabilized). During inference, the running average from training is used instead of batch statistics, so calling `model.eval()` is essential.
 
-注意点:
-- バッチサイズが小さい（< 16）場合はGroup NormやLayer Normの方が安定
-- 推論時のバッチサイズが1の場合、BNのrunning_meanとrunning_varが使われる
-- 分散学習ではSyncBatchNormを使って全GPUの統計量を同期する必要がある
+Notes:
+- When batch size is small (< 16), Group Norm or Layer Norm tends to be more stable
+- When inference batch size is 1, BN's running_mean and running_var are used
+- In distributed training, SyncBatchNorm is needed to synchronize statistics across all GPUs
 
-### Q3: GPUメモリが足りない場合の対処法は？
+### Q3: What should I do when GPU memory is insufficient?
 
-**A:** 以下を優先度順に試す:
+**A:** Try the following in order of priority:
 
-1. **バッチサイズを減らす** — 最も簡単。ただし小さすぎると学習が不安定に
-2. **混合精度学習（AMP）** — `torch.cuda.amp` でFP16を使用。メモリ約40%削減
-3. **勾配蓄積** — 小バッチで複数回前方計算し、勾配を蓄積してから更新
-4. **画像サイズ縮小** — 224→160など。精度と要相談
-5. **モデル軽量化** — EfficientNet-B0やMobileNetV3に変更
-6. **Gradient Checkpointing** — メモリ削減（計算時間は増加）
+1. **Reduce batch size** — The simplest approach. However, too small can make training unstable
+2. **Mixed precision training (AMP)** — Use FP16 with `torch.cuda.amp`. Reduces memory by ~40%
+3. **Gradient accumulation** — Run forward pass with small batches multiple times, accumulate gradients, then update
+4. **Reduce image size** — e.g., 224 to 160. Consult accuracy trade-offs
+5. **Use a lighter model** — Switch to EfficientNet-B0 or MobileNetV3
+6. **Gradient Checkpointing** — Reduces memory (increases computation time)
 
 ```python
-# Gradient Checkpointing の例
+# Gradient Checkpointing example
 from torch.utils.checkpoint import checkpoint
 
 class MemEfficientResNet(nn.Module):
     def forward(self, x):
-        # layer3, layer4だけチェックポイントする
+        # Only checkpoint layer3 and layer4
         x = self.layer1(x)
         x = self.layer2(x)
         x = checkpoint(self.layer3, x, use_reentrant=False)
@@ -2096,20 +2097,20 @@ class MemEfficientResNet(nn.Module):
         return self.fc(self.avgpool(x).flatten(1))
 ```
 
-### Q4: 学習が収束しない場合のデバッグ方法は？
+### Q4: How to debug when training doesn't converge?
 
-**A:** 以下のチェックリストを順に確認する:
+**A:** Check the following items in order:
 
-1. **データの確認**: 入力画像とラベルが正しく対応しているか可視化
-2. **正規化の確認**: 入力の平均/標準偏差が適切か（0付近か）
-3. **学習率**: 大きすぎるとlossが振動、小さすぎると収束が遅い。lr=1e-3から開始
-4. **Loss関数**: 分類ならCrossEntropy、回帰ならMSE/MAEが適切か
-5. **オーバーフィッティング確認**: 小さなサブセット（1バッチ）で完全にフィットするか
-6. **勾配の確認**: gradient normが0やNaNになっていないか
-7. **重みの初期化**: Kaiming初期化が使われているか
+1. **Verify data**: Visualize that input images and labels are correctly paired
+2. **Verify normalization**: Check that the input mean/standard deviation is appropriate (near 0)
+3. **Learning rate**: Too large causes loss oscillation; too small causes slow convergence. Start with lr=1e-3
+4. **Loss function**: Verify CrossEntropy for classification, MSE/MAE for regression
+5. **Overfitting check**: Can the model fully fit a small subset (1 batch)?
+6. **Gradient check**: Is gradient norm becoming 0 or NaN?
+7. **Weight initialization**: Is Kaiming initialization being used?
 
 ```python
-# デバッグ用: 勾配と重みの統計をモニタリング
+# Debug utility: Monitor gradient and weight statistics
 def check_gradients(model):
     for name, param in model.named_parameters():
         if param.grad is not None:
@@ -2122,67 +2123,67 @@ def check_gradients(model):
                 print(f"[WARNING] {name}: gradient/weight ratio = {ratio:.1f}")
 ```
 
-### Q5: CNNの推論速度を最適化するには？
+### Q5: How to optimize CNN inference speed?
 
-**A:** 段階的に最適化を適用する:
+**A:** Apply optimizations progressively:
 
-| 手法 | 速度向上 | 精度低下 | 実装難易度 |
+| Method | Speed Improvement | Accuracy Loss | Implementation Difficulty |
 |---|---|---|---|
-| torch.no_grad() | 1.2-1.5x | なし | 簡単 |
-| model.eval() | 1.1x | なし | 簡単 |
-| TorchScript (JIT) | 1.2-1.5x | なし | 中 |
-| ONNX Runtime | 1.5-2x | なし | 中 |
-| TensorRT (FP16) | 2-4x | 微小 | 難 |
-| INT8量子化 | 2-4x | 小〜中 | 中 |
-| Knowledge Distillation | モデル依存 | 小 | 中 |
-| Pruning (枝刈り) | 1.5-3x | 小〜中 | 難 |
+| torch.no_grad() | 1.2-1.5x | None | Easy |
+| model.eval() | 1.1x | None | Easy |
+| TorchScript (JIT) | 1.2-1.5x | None | Medium |
+| ONNX Runtime | 1.5-2x | None | Medium |
+| TensorRT (FP16) | 2-4x | Minimal | Hard |
+| INT8 Quantization | 2-4x | Small to medium | Medium |
+| Knowledge Distillation | Model-dependent | Small | Medium |
+| Pruning | 1.5-3x | Small to medium | Hard |
 
-### Q6: 自分のデータセットが小さい（数百枚）場合の対策は？
+### Q6: What to do when my dataset is small (a few hundred images)?
 
-**A:** 以下の方法を組み合わせる:
+**A:** Combine the following methods:
 
-1. **転移学習**: ImageNet事前学習済みモデルを使い、最終層のみ学習
-2. **強力なデータ拡張**: Albumentationsで多様な変換を適用
-3. **Few-shot Learning**: Siamese Network やPrototypical Networkの活用
-4. **合成データ生成**: 画像生成モデル（Stable Diffusion等）でデータを増やす
-5. **Self-supervised Pre-training**: MAE, SimCLR等で事前学習してからファインチューン
-6. **Cross-validation**: K-fold CVで全データを有効活用
-7. **Label Smoothing**: 正則化効果で過学習を抑制
+1. **Transfer learning**: Use an ImageNet pretrained model and train only the final layers
+2. **Strong data augmentation**: Apply diverse transforms with Albumentations
+3. **Few-shot Learning**: Use Siamese Networks or Prototypical Networks
+4. **Synthetic data generation**: Augment data with image generation models (Stable Diffusion, etc.)
+5. **Self-supervised Pre-training**: Pre-train with MAE, SimCLR, etc. then fine-tune
+6. **Cross-validation**: Use K-fold CV to make the most of all data
+7. **Label Smoothing**: Regularization effect to suppress overfitting
 
 ```python
-# Label Smoothing の例
+# Label Smoothing example
 criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 # target [0, 0, 1, 0, 0] → [0.02, 0.02, 0.92, 0.02, 0.02]
-# 過度な自信（確信度100%）を抑制し、汎化性能を向上
+# Suppresses overconfidence (100% certainty) and improves generalization
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Topic | Key Points |
 |---|---|
-| 畳み込み | 局所的な特徴をカーネルで抽出。パラメータ共有で効率的 |
-| プーリング | 空間解像度を削減し計算量と過学習を抑制 |
-| 残差接続 | 深いネットワークの勾配消失を解決（ResNet） |
-| 転移学習 | 事前学習済みモデルをファインチューン。少量データに有効 |
-| データ拡張 | 訓練時の多様性を増やし汎化性能を向上 |
-| 複合スケーリング | 幅・深さ・解像度を同時にスケーリング（EfficientNet） |
-| 可視化 | Grad-CAM、フィルタ可視化でモデルの判断根拠を理解 |
-| 軽量化 | 量子化、蒸留、枝刈りで推論を高速化 |
-| 物体検出 | YOLO等のOne-stage、Faster R-CNN等のTwo-stageがある |
-| セグメンテーション | U-Netのエンコーダ-デコーダ構造が基本 |
+| Convolution | Extracts local features with kernels. Efficient through parameter sharing |
+| Pooling | Reduces spatial resolution to lower computation and mitigate overfitting |
+| Residual connections | Solves vanishing gradients in deep networks (ResNet) |
+| Transfer learning | Fine-tune pretrained models. Effective with limited data |
+| Data augmentation | Increases training diversity to improve generalization |
+| Compound scaling | Simultaneously scale width, depth, and resolution (EfficientNet) |
+| Visualization | Understand model decisions via Grad-CAM and filter visualization |
+| Compression | Speed up inference with quantization, distillation, and pruning |
+| Object detection | One-stage (YOLO) and two-stage (Faster R-CNN) approaches |
+| Segmentation | U-Net's encoder-decoder structure is the standard |
 
 ---
 
-## 次に読むべきガイド
+## Next Guides to Read
 
-- [02-rnn-transformer.md](./02-rnn-transformer.md) — 系列データ処理のRNN/Transformer
-- [../03-applied/01-computer-vision.md](../03-applied/01-computer-vision.md) — 物体検出、セグメンテーション
+- [02-rnn-transformer.md](./02-rnn-transformer.md) — RNN/Transformer for sequential data processing
+- [../03-applied/01-computer-vision.md](../03-applied/01-computer-vision.md) — Object detection, segmentation
 
 ---
 
-## 参考文献
+## References
 
 1. **Kaiming He et al.** "Deep Residual Learning for Image Recognition" CVPR 2016
 2. **Alexey Dosovitskiy et al.** "An Image is Worth 16x16 Words: Transformers for Image Recognition at Scale" ICLR 2021
