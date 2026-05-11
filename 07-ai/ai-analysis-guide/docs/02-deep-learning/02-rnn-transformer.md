@@ -1,30 +1,30 @@
 # RNN/Transformer
 
-> 系列データ処理の進化を RNN から Transformer まで辿り、LSTM、Attention、BERT の仕組みと応用を実践的に理解する
+> Trace the evolution of sequence data processing from RNN to Transformer, and practically understand the mechanisms and applications of LSTM, Attention, and BERT
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **RNN の基礎と限界** — 時系列処理、勾配消失問題、LSTM/GRU による解決
-2. **Attention メカニズム** — Self-Attention、Multi-Head Attention の計算原理
-3. **Transformer アーキテクチャ** — Encoder-Decoder 構造、BERT、GPT の設計思想
-4. **実践的な学習・推論テクニック** — ファインチューニング、量子化、効率的推論
-5. **最新動向** — State Space Models、Mixture of Experts、長文脈対応
+1. **RNN Fundamentals and Limitations** — Time series processing, vanishing gradient problem, solutions with LSTM/GRU
+2. **Attention Mechanism** — Computational principles of Self-Attention and Multi-Head Attention
+3. **Transformer Architecture** — Encoder-Decoder structure, design philosophy of BERT and GPT
+4. **Practical Training and Inference Techniques** — Fine-tuning, quantization, efficient inference
+5. **Latest Trends** — State Space Models, Mixture of Experts, long context handling
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, the following knowledge will help deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [CNN — 畳み込み、プーリング、画像認識](./01-cnn.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Understanding of [CNN — Convolution, Pooling, Image Recognition](./01-cnn.md)
 
 ---
 
-## 1. RNN の基礎
+## 1. RNN Fundamentals
 
 ```
-RNN の展開図
+Unrolled RNN Diagram
 =============
 
        h0    h1    h2    h3
@@ -33,54 +33,54 @@ RNN の展開図
         |     |     |     |
        "I"  "love" "deep" "learning"
 
-各ステップ:
+Each step:
   h_t = tanh(W_hh * h_{t-1} + W_xh * x_t + b)
   y_t = W_hy * h_t
 
-問題: 長い系列で勾配消失/勾配爆発
-  h100 への勾配 = d(loss)/d(h0) --> W_hh を100回掛ける
-  |W| < 1: 勾配消失 (情報が消える)
-  |W| > 1: 勾配爆発 (値が発散)
+Problem: Vanishing/exploding gradients with long sequences
+  Gradient to h100 = d(loss)/d(h0) --> multiply W_hh 100 times
+  |W| < 1: Vanishing gradient (information disappears)
+  |W| > 1: Exploding gradient (values diverge)
 ```
 
-### 1.1 RNN の数学的基礎
+### 1.1 Mathematical Foundations of RNN
 
-RNN は再帰的な構造を持つニューラルネットワークで、系列データの各ステップで隠れ状態を更新する。基本的な計算は以下の通り:
+An RNN is a neural network with a recurrent structure that updates its hidden state at each step of a sequence. The basic computation is as follows:
 
 ```
-Vanilla RNN の順伝播:
+Vanilla RNN Forward Pass:
 =====================
 
-入力: x = (x_1, x_2, ..., x_T)  系列長 T
+Input: x = (x_1, x_2, ..., x_T)  sequence length T
 
-各タイムステップ t:
-  a_t = W_hh * h_{t-1} + W_xh * x_t + b_h    (活性化前の値)
-  h_t = tanh(a_t)                               (隠れ状態)
-  o_t = W_hy * h_t + b_y                       (出力)
-  y_t = softmax(o_t)                            (予測)
+At each time step t:
+  a_t = W_hh * h_{t-1} + W_xh * x_t + b_h    (pre-activation value)
+  h_t = tanh(a_t)                               (hidden state)
+  o_t = W_hy * h_t + b_y                       (output)
+  y_t = softmax(o_t)                            (prediction)
 
-パラメータ:
-  W_xh ∈ R^{H×D}  (入力→隠れ)
-  W_hh ∈ R^{H×H}  (隠れ→隠れ)
-  W_hy ∈ R^{V×H}  (隠れ→出力)
+Parameters:
+  W_xh ∈ R^{H×D}  (input → hidden)
+  W_hh ∈ R^{H×H}  (hidden → hidden)
+  W_hy ∈ R^{V×H}  (hidden → output)
   b_h ∈ R^H, b_y ∈ R^V
 
-逆伝播 (BPTT: Backpropagation Through Time):
+Backpropagation (BPTT: Backpropagation Through Time):
   ∂L/∂W_hh = Σ_t ∂L_t/∂W_hh
 
   ∂L_t/∂h_k = (∏_{i=k+1}^{t} diag(1-h_i²) * W_hh) * ∂L_t/∂h_t
 
-  → T-k 回の行列積で勾配が指数的に変化
+  → T-k matrix multiplications cause exponential gradient changes
 ```
 
-### コード例 1: LSTM の構造
+### Code Example 1: LSTM Structure
 
 ```python
 import torch
 import torch.nn as nn
 
 class LSTMModel(nn.Module):
-    """LSTM による系列分類"""
+    """Sequence classification with LSTM"""
 
     def __init__(self, vocab_size, embed_dim, hidden_dim, num_classes):
         super().__init__()
@@ -90,7 +90,7 @@ class LSTMModel(nn.Module):
             num_layers=2,
             batch_first=True,
             dropout=0.3,
-            bidirectional=True,  # 双方向 LSTM
+            bidirectional=True,  # Bidirectional LSTM
         )
         self.classifier = nn.Linear(hidden_dim * 2, num_classes)  # *2 for bidirectional
         self.dropout = nn.Dropout(0.3)
@@ -99,17 +99,17 @@ class LSTMModel(nn.Module):
         embedded = self.dropout(self.embedding(x))  # [batch, seq_len, embed_dim]
         output, (hidden, cell) = self.lstm(embedded)
         # hidden: [num_layers*2, batch, hidden_dim]
-        # 最後の層の forward と backward を結合
+        # Concatenate forward and backward of the last layer
         hidden_cat = torch.cat((hidden[-2], hidden[-1]), dim=1)
         logits = self.classifier(self.dropout(hidden_cat))
         return logits
 
-# 使用例
+# Usage example
 model = LSTMModel(vocab_size=30000, embed_dim=256, hidden_dim=512, num_classes=5)
 ```
 
 ```
-LSTM セルの内部構造
+LSTM Cell Internal Structure
 =====================
 
          c_{t-1} ----[x]--------[+]----> c_t
@@ -124,14 +124,14 @@ LSTM セルの内部構造
                    | W_f |   | W_i | | W_c |
                    +-----+   +-----+ +-----+
                       ^          ^        ^
-                   [h_{t-1}, x_t] を入力
+                   [h_{t-1}, x_t] as input
 
-  f_t: 忘却ゲート (何を忘れるか)
-  i_t: 入力ゲート (何を記憶するか)
-  o_t: 出力ゲート (何を出力するか)
+  f_t: Forget gate (what to forget)
+  i_t: Input gate (what to memorize)
+  o_t: Output gate (what to output)
 ```
 
-### コード例 1.5: GRU の実装と LSTM との比較
+### Code Example 1.5: GRU Implementation and Comparison with LSTM
 
 ```python
 import torch
@@ -139,7 +139,7 @@ import torch.nn as nn
 import time
 
 class GRUModel(nn.Module):
-    """GRU による系列分類（LSTM より軽量）"""
+    """Sequence classification with GRU (lighter than LSTM)"""
 
     def __init__(self, vocab_size, embed_dim, hidden_dim, num_classes):
         super().__init__()
@@ -156,14 +156,14 @@ class GRUModel(nn.Module):
 
     def forward(self, x):
         embedded = self.dropout(self.embedding(x))
-        output, hidden = self.gru(embedded)  # GRU: cell state なし
+        output, hidden = self.gru(embedded)  # GRU: no cell state
         hidden_cat = torch.cat((hidden[-2], hidden[-1]), dim=1)
         logits = self.classifier(self.dropout(hidden_cat))
         return logits
 
 
 def compare_rnn_variants():
-    """LSTM と GRU のパラメータ数・速度を比較"""
+    """Compare parameter counts and speed between LSTM and GRU"""
     vocab_size = 30000
     embed_dim = 256
     hidden_dim = 512
@@ -179,11 +179,11 @@ def compare_rnn_variants():
     dummy_input = torch.randint(0, vocab_size, (batch_size, seq_len))
 
     for name, model in models.items():
-        # パラメータ数
+        # Parameter count
         total_params = sum(p.numel() for p in model.parameters())
         trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
 
-        # 推論速度
+        # Inference speed
         model.eval()
         with torch.no_grad():
             start = time.time()
@@ -192,40 +192,40 @@ def compare_rnn_variants():
             elapsed = time.time() - start
 
         print(f"{name}:")
-        print(f"  パラメータ数: {total_params:,}")
-        print(f"  学習可能: {trainable_params:,}")
-        print(f"  推論時間 (100回): {elapsed:.3f}秒")
+        print(f"  Parameters: {total_params:,}")
+        print(f"  Trainable: {trainable_params:,}")
+        print(f"  Inference time (100 runs): {elapsed:.3f}s")
         print()
 
 compare_rnn_variants()
 ```
 
 ```
-GRU セルの内部構造
+GRU Cell Internal Structure
 ===================
 
-  GRU は LSTM の簡略版（2ゲート）:
+  GRU is a simplified version of LSTM (2 gates):
 
-  z_t = σ(W_z * [h_{t-1}, x_t])       更新ゲート
-  r_t = σ(W_r * [h_{t-1}, x_t])       リセットゲート
-  ~h_t = tanh(W * [r_t ⊙ h_{t-1}, x_t])  候補状態
+  z_t = σ(W_z * [h_{t-1}, x_t])       Update gate
+  r_t = σ(W_r * [h_{t-1}, x_t])       Reset gate
+  ~h_t = tanh(W * [r_t ⊙ h_{t-1}, x_t])  Candidate state
   h_t = (1 - z_t) ⊙ h_{t-1} + z_t ⊙ ~h_t
 
   LSTM vs GRU:
-  ┌─────────────┬──────────────┬──────────────┐
-  │             │ LSTM         │ GRU          │
-  ├─────────────┼──────────────┼──────────────┤
-  │ ゲート数    │ 3 (f, i, o) │ 2 (z, r)     │
-  │ 状態数      │ 2 (h, c)    │ 1 (h)        │
-  │ パラメータ  │ 4 × 行列    │ 3 × 行列     │
-  │ メモリ      │ 多い        │ 少ない       │
-  │ 長距離依存  │ やや良い    │ 同等〜やや劣 │
-  │ 学習速度    │ 遅い        │ 速い         │
-  │ 一般的用途  │ 長い系列    │ 短〜中の系列 │
-  └─────────────┴──────────────┴──────────────┘
+  ┌─────────────────┬──────────────┬──────────────┐
+  │                 │ LSTM         │ GRU          │
+  ├─────────────────┼──────────────┼──────────────┤
+  │ Number of gates │ 3 (f, i, o) │ 2 (z, r)     │
+  │ Number of states│ 2 (h, c)    │ 1 (h)        │
+  │ Parameters      │ 4 × matrices│ 3 × matrices │
+  │ Memory          │ Higher       │ Lower        │
+  │ Long-range dep. │ Slightly better│ Comparable to slightly worse │
+  │ Training speed  │ Slower       │ Faster       │
+  │ Common use      │ Long sequences│ Short to mid sequences │
+  └─────────────────┴──────────────┴──────────────┘
 ```
 
-### コード例 1.7: 時系列予測 (LSTM)
+### Code Example 1.7: Time Series Prediction (LSTM)
 
 ```python
 import torch
@@ -234,7 +234,7 @@ import numpy as np
 from torch.utils.data import Dataset, DataLoader
 
 class TimeSeriesDataset(Dataset):
-    """スライディングウィンドウで時系列データセットを作成"""
+    """Create a time series dataset using a sliding window"""
 
     def __init__(self, data, window_size, forecast_horizon=1):
         self.data = torch.FloatTensor(data)
@@ -251,7 +251,7 @@ class TimeSeriesDataset(Dataset):
 
 
 class LSTMForecaster(nn.Module):
-    """LSTM による時系列予測モデル"""
+    """Time series forecasting model with LSTM"""
 
     def __init__(self, input_dim=1, hidden_dim=64, num_layers=2,
                  forecast_horizon=1, dropout=0.2):
@@ -270,7 +270,7 @@ class LSTMForecaster(nn.Module):
     def forward(self, x):
         # x: [batch, window_size, input_dim]
         lstm_out, (h_n, c_n) = self.lstm(x)
-        # 最後のタイムステップの隠れ状態を使用
+        # Use the hidden state of the last time step
         last_hidden = lstm_out[:, -1, :]  # [batch, hidden_dim]
         prediction = self.fc(last_hidden)  # [batch, forecast_horizon]
         return prediction
@@ -278,24 +278,24 @@ class LSTMForecaster(nn.Module):
 
 def train_forecaster(data, window_size=30, forecast_horizon=7,
                      epochs=50, lr=0.001, batch_size=32):
-    """時系列予測モデルの学習"""
-    # データ分割
+    """Train a time series forecasting model"""
+    # Data split
     train_size = int(len(data) * 0.8)
     train_data = data[:train_size]
     val_data = data[train_size:]
 
-    # 正規化
+    # Normalization
     mean, std = train_data.mean(), train_data.std()
     train_normalized = (train_data - mean) / std
     val_normalized = (val_data - mean) / std
 
-    # データセット
+    # Dataset
     train_ds = TimeSeriesDataset(train_normalized, window_size, forecast_horizon)
     val_ds = TimeSeriesDataset(val_normalized, window_size, forecast_horizon)
     train_loader = DataLoader(train_ds, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_ds, batch_size=batch_size)
 
-    # モデル
+    # Model
     model = LSTMForecaster(
         input_dim=1, hidden_dim=64, num_layers=2,
         forecast_horizon=forecast_horizon
@@ -310,7 +310,7 @@ def train_forecaster(data, window_size=30, forecast_horizon=7,
     patience_counter = 0
 
     for epoch in range(epochs):
-        # 学習
+        # Training
         model.train()
         train_loss = 0
         for x_batch, y_batch in train_loader:
@@ -322,7 +322,7 @@ def train_forecaster(data, window_size=30, forecast_horizon=7,
             optimizer.step()
             train_loss += loss.item()
 
-        # 検証
+        # Validation
         model.eval()
         val_loss = 0
         with torch.no_grad():
@@ -350,12 +350,12 @@ def train_forecaster(data, window_size=30, forecast_horizon=7,
 
     return model, mean, std
 
-# 使用例
+# Usage example
 # data = np.sin(np.linspace(0, 100, 1000)) + np.random.randn(1000) * 0.1
 # model, mean, std = train_forecaster(data)
 ```
 
-### コード例 1.8: Seq2Seq モデル（Encoder-Decoder RNN）
+### Code Example 1.8: Seq2Seq Model (Encoder-Decoder RNN)
 
 ```python
 import torch
@@ -363,7 +363,7 @@ import torch.nn as nn
 import random
 
 class Encoder(nn.Module):
-    """Seq2Seq エンコーダ"""
+    """Seq2Seq Encoder"""
 
     def __init__(self, input_dim, embed_dim, hidden_dim, num_layers, dropout):
         super().__init__()
@@ -379,7 +379,7 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    """Seq2Seq デコーダ"""
+    """Seq2Seq Decoder"""
 
     def __init__(self, output_dim, embed_dim, hidden_dim, num_layers, dropout):
         super().__init__()
@@ -398,7 +398,7 @@ class Decoder(nn.Module):
 
 
 class Seq2Seq(nn.Module):
-    """Encoder-Decoder Seq2Seq モデル"""
+    """Encoder-Decoder Seq2Seq Model"""
 
     def __init__(self, encoder, decoder, device):
         super().__init__()
@@ -414,23 +414,23 @@ class Seq2Seq(nn.Module):
         outputs = torch.zeros(batch_size, trg_len, trg_vocab_size).to(self.device)
         hidden, cell = self.encoder(src)
 
-        # 最初の入力は <SOS> トークン
+        # First input is the <SOS> token
         input_token = trg[:, 0:1]  # [batch, 1]
 
         for t in range(1, trg_len):
             prediction, hidden, cell = self.decoder(input_token, hidden, cell)
             outputs[:, t] = prediction
 
-            # Teacher Forcing: 一定確率で正解を次の入力にする
+            # Teacher Forcing: use ground truth as next input with a certain probability
             teacher_force = random.random() < teacher_forcing_ratio
             top1 = prediction.argmax(dim=1, keepdim=True)
             input_token = trg[:, t:t+1] if teacher_force else top1
 
         return outputs
 
-# 使用例
-INPUT_DIM = 10000   # ソース語彙サイズ
-OUTPUT_DIM = 8000   # ターゲット語彙サイズ
+# Usage example
+INPUT_DIM = 10000   # Source vocabulary size
+OUTPUT_DIM = 8000   # Target vocabulary size
 EMBED_DIM = 256
 HIDDEN_DIM = 512
 NUM_LAYERS = 2
@@ -441,76 +441,76 @@ encoder = Encoder(INPUT_DIM, EMBED_DIM, HIDDEN_DIM, NUM_LAYERS, DROPOUT)
 decoder = Decoder(OUTPUT_DIM, EMBED_DIM, HIDDEN_DIM, NUM_LAYERS, DROPOUT)
 model = Seq2Seq(encoder, decoder, device).to(device)
 
-print(f"Seq2Seq パラメータ数: {sum(p.numel() for p in model.parameters()):,}")
+print(f"Seq2Seq parameters: {sum(p.numel() for p in model.parameters()):,}")
 ```
 
 ---
 
-## 2. Attention メカニズム
+## 2. Attention Mechanism
 
 ```
-Self-Attention の計算
+Self-Attention Computation
 ======================
 
-入力: "The cat sat"
+Input: "The cat sat"
 
-1. Q, K, V を計算
-   Q = X * W_Q    (Query: 「何を探すか」)
-   K = X * W_K    (Key: 「何を持っているか」)
-   V = X * W_V    (Value: 「実際の値」)
+1. Compute Q, K, V
+   Q = X * W_Q    (Query: "what to look for")
+   K = X * W_K    (Key: "what it contains")
+   V = X * W_V    (Value: "actual value")
 
-2. Attention スコア
+2. Attention scores
    Score = Q * K^T / sqrt(d_k)
 
-3. Softmax で正規化
+3. Normalize with Softmax
    Attention = softmax(Score)
 
-4. 重み付き和
+4. Weighted sum
    Output = Attention * V
 
        The   cat   sat
-  The [ 0.7  0.2  0.1 ]    <-- "The" は自身に最も注目
-  cat [ 0.1  0.6  0.3 ]    <-- "cat" は自身と "sat" に注目
-  sat [ 0.2  0.5  0.3 ]    <-- "sat" は "cat" に最も注目
+  The [ 0.7  0.2  0.1 ]    <-- "The" attends most to itself
+  cat [ 0.1  0.6  0.3 ]    <-- "cat" attends to itself and "sat"
+  sat [ 0.2  0.5  0.3 ]    <-- "sat" attends most to "cat"
 ```
 
-### 2.1 Attention の種類
+### 2.1 Types of Attention
 
 ```
-Attention メカニズムの分類
+Classification of Attention Mechanisms
 ============================
 
 1. Additive Attention (Bahdanau, 2014)
    score(s_i, h_j) = v^T * tanh(W_1 * s_i + W_2 * h_j)
-   → Encoder-Decoder 間で使用
-   → 計算量: O(d)
+   → Used between Encoder-Decoder
+   → Complexity: O(d)
 
 2. Dot-Product Attention (Luong, 2015)
    score(s_i, h_j) = s_i^T * h_j
-   → 高速だがスケーリング問題
-   → 計算量: O(1)
+   → Fast but has scaling issues
+   → Complexity: O(1)
 
 3. Scaled Dot-Product Attention (Vaswani, 2017)
    score(Q, K) = Q * K^T / sqrt(d_k)
-   → Transformer で使用
-   → sqrt(d_k) で勾配の安定化
+   → Used in Transformer
+   → sqrt(d_k) stabilizes gradients
 
 4. Multi-Head Attention
    head_i = Attention(Q*W_Q_i, K*W_K_i, V*W_V_i)
    MultiHead = Concat(head_1, ..., head_h) * W_O
-   → 異なる部分空間で異なるパターンを学習
+   → Learns different patterns in different subspaces
 
 5. Cross-Attention
-   Q: Decoder の状態
-   K, V: Encoder の出力
-   → Encoder-Decoder 間の情報伝達
+   Q: Decoder states
+   K, V: Encoder outputs
+   → Information transfer between Encoder and Decoder
 
 6. Causal (Masked) Attention
-   未来のトークンへの Attention をマスク
-   → GPT などの自己回帰モデルで使用
+   Masks attention to future tokens
+   → Used in autoregressive models like GPT
 ```
 
-### コード例 2: Self-Attention の実装
+### Code Example 2: Self-Attention Implementation
 
 ```python
 import torch
@@ -548,21 +548,21 @@ class MultiHeadAttention(nn.Module):
     def forward(self, query, key, value, mask=None):
         batch_size = query.size(0)
 
-        # 線形変換 + マルチヘッド分割
+        # Linear transformation + multi-head split
         Q = self.W_q(query).view(batch_size, -1, self.num_heads, self.d_k).transpose(1, 2)
         K = self.W_k(key).view(batch_size, -1, self.num_heads, self.d_k).transpose(1, 2)
         V = self.W_v(value).view(batch_size, -1, self.num_heads, self.d_k).transpose(1, 2)
 
-        # Attention 計算
+        # Attention computation
         attn_output, attn_weights = scaled_dot_product_attention(Q, K, V, mask)
 
-        # ヘッド結合 + 出力変換
+        # Head concatenation + output transformation
         attn_output = attn_output.transpose(1, 2).contiguous().view(batch_size, -1, self.num_heads * self.d_k)
         output = self.W_o(attn_output)
         return output
 ```
 
-### コード例 2.5: Attention の可視化
+### Code Example 2.5: Attention Visualization
 
 ```python
 import torch
@@ -572,13 +572,13 @@ import numpy as np
 
 def visualize_attention(tokens, attention_weights, layer=0, head=0, save_path=None):
     """
-    Attention の重みをヒートマップで可視化
+    Visualize attention weights as a heatmap
 
     Args:
-        tokens: トークンのリスト
-        attention_weights: [layers, heads, seq_len, seq_len] のテンソル
-        layer: 可視化する層
-        head: 可視化するヘッド
+        tokens: List of tokens
+        attention_weights: Tensor of shape [layers, heads, seq_len, seq_len]
+        layer: Layer to visualize
+        head: Head to visualize
     """
     attn = attention_weights[layer][head].detach().cpu().numpy()
 
@@ -590,7 +590,7 @@ def visualize_attention(tokens, attention_weights, layer=0, head=0, save_path=No
     ax.set_xticklabels(tokens, rotation=45, ha="right", fontsize=10)
     ax.set_yticklabels(tokens, fontsize=10)
 
-    # 各セルに値を表示
+    # Display values in each cell
     for i in range(len(tokens)):
         for j in range(len(tokens)):
             ax.text(j, i, f"{attn[i, j]:.2f}",
@@ -609,7 +609,7 @@ def visualize_attention(tokens, attention_weights, layer=0, head=0, save_path=No
 
 
 def extract_bert_attention(model, tokenizer, text):
-    """BERT から Attention weights を抽出"""
+    """Extract attention weights from BERT"""
     inputs = tokenizer(text, return_tensors="pt")
     with torch.no_grad():
         outputs = model(**inputs, output_attentions=True)
@@ -618,24 +618,24 @@ def extract_bert_attention(model, tokenizer, text):
     attentions = outputs.attentions
     tokens = tokenizer.convert_ids_to_tokens(inputs["input_ids"][0])
 
-    # 各層のAttentionを可視化
+    # Visualize attention for each layer
     all_attentions = torch.stack([a.squeeze(0) for a in attentions])
     return tokens, all_attentions
 
 
 def attention_rollout(attentions, head_fusion="mean"):
     """
-    Attention Rollout: 複数層のAttentionを統合して
-    入力トークンへの最終的な寄与度を計算
+    Attention Rollout: Aggregate attention across multiple layers
+    to compute the final contribution of each input token
 
     Args:
         attentions: [num_layers, num_heads, seq_len, seq_len]
-        head_fusion: ヘッドの統合方法 ("mean", "max", "min")
+        head_fusion: Method for aggregating heads ("mean", "max", "min")
     """
     num_layers = attentions.shape[0]
     seq_len = attentions.shape[-1]
 
-    # 残差接続を考慮してAttentionに単位行列を加算
+    # Add identity matrix to attention to account for residual connections
     result = torch.eye(seq_len)
 
     for layer in range(num_layers):
@@ -646,16 +646,16 @@ def attention_rollout(attentions, head_fusion="mean"):
         elif head_fusion == "min":
             attn = attentions[layer].min(dim=0).values
 
-        # 残差接続の影響
+        # Effect of residual connections
         attn = 0.5 * attn + 0.5 * torch.eye(seq_len)
-        # 行方向に正規化
+        # Row-wise normalization
         attn = attn / attn.sum(dim=-1, keepdim=True)
         result = torch.matmul(attn, result)
 
     return result
 ```
 
-### コード例 2.7: Bahdanau Attention (Additive Attention)
+### Code Example 2.7: Bahdanau Attention (Additive Attention)
 
 ```python
 import torch
@@ -675,10 +675,10 @@ class BahdanauAttention(nn.Module):
         encoder_outputs: [batch, src_len, encoder_dim]
         decoder_hidden: [batch, decoder_dim]
         """
-        # decoder_hidden を src_len 分繰り返す
+        # Repeat decoder_hidden for src_len
         decoder_hidden = decoder_hidden.unsqueeze(1)  # [batch, 1, decoder_dim]
 
-        # スコア計算
+        # Score computation
         energy = torch.tanh(
             self.W_encoder(encoder_outputs) + self.W_decoder(decoder_hidden)
         )  # [batch, src_len, attention_dim]
@@ -686,7 +686,7 @@ class BahdanauAttention(nn.Module):
         scores = self.v(energy).squeeze(-1)  # [batch, src_len]
         attention_weights = torch.softmax(scores, dim=-1)  # [batch, src_len]
 
-        # コンテキストベクトル
+        # Context vector
         context = torch.bmm(
             attention_weights.unsqueeze(1), encoder_outputs
         ).squeeze(1)  # [batch, encoder_dim]
@@ -695,7 +695,7 @@ class BahdanauAttention(nn.Module):
 
 
 class AttentionDecoder(nn.Module):
-    """Attention 付き Decoder"""
+    """Decoder with Attention"""
 
     def __init__(self, output_dim, embed_dim, encoder_dim,
                  decoder_dim, attention_dim, dropout=0.3):
@@ -731,13 +731,13 @@ class AttentionDecoder(nn.Module):
 
 ---
 
-## 3. Transformer アーキテクチャ
+## 3. Transformer Architecture
 
 ```
-Transformer の全体構造
+Overall Transformer Structure
 ========================
 
-       入力テキスト                    出力テキスト
+       Input Text                      Output Text
            |                              |
     [Input Embedding]              [Output Embedding]
     [+ Positional Enc]             [+ Positional Enc]
@@ -765,10 +765,10 @@ Transformer の全体構造
                                           |
                                    [Linear + Softmax]
                                           |
-                                      確率分布
+                                   Probability Distribution
 ```
 
-### コード例 3: Transformer Encoder
+### Code Example 3: Transformer Encoder
 
 ```python
 class TransformerEncoderLayer(nn.Module):
@@ -796,7 +796,7 @@ class TransformerEncoderLayer(nn.Module):
         return x
 
 class TextClassifier(nn.Module):
-    """Transformer ベースのテキスト分類器"""
+    """Transformer-based text classifier"""
 
     def __init__(self, vocab_size, d_model=512, num_heads=8,
                  num_layers=6, d_ff=2048, num_classes=5, max_len=512):
@@ -818,19 +818,19 @@ class TextClassifier(nn.Module):
         for layer in self.layers:
             x = layer(x)
 
-        # [CLS] トークンの表現を分類に使用
+        # Use the [CLS] token representation for classification
         cls_output = x[:, 0]
         return self.classifier(cls_output)
 ```
 
-### コード例 3.5: Transformer Decoder
+### Code Example 3.5: Transformer Decoder
 
 ```python
 import torch
 import torch.nn as nn
 
 class TransformerDecoderLayer(nn.Module):
-    """Transformer Decoder Layer（Causal Attention + Cross-Attention）"""
+    """Transformer Decoder Layer (Causal Attention + Cross-Attention)"""
 
     def __init__(self, d_model, num_heads, d_ff, dropout=0.1):
         super().__init__()
@@ -866,7 +866,7 @@ class TransformerDecoderLayer(nn.Module):
 
 
 class TransformerModel(nn.Module):
-    """完全な Transformer (Encoder + Decoder)"""
+    """Complete Transformer (Encoder + Decoder)"""
 
     def __init__(self, src_vocab, tgt_vocab, d_model=512, num_heads=8,
                  num_encoder_layers=6, num_decoder_layers=6,
@@ -895,7 +895,7 @@ class TransformerModel(nn.Module):
         self.dropout = nn.Dropout(dropout)
 
     def generate_causal_mask(self, seq_len, device):
-        """未来のトークンをマスクする Causal Mask を生成"""
+        """Generate a causal mask to prevent attending to future tokens"""
         mask = torch.triu(torch.ones(seq_len, seq_len, device=device), diagonal=1)
         mask = mask.bool()
         return ~mask  # True = attend, False = mask
@@ -923,28 +923,28 @@ class TransformerModel(nn.Module):
         return output
 ```
 
-### コード例 4: Hugging Face による BERT 活用
+### Code Example 4: Using BERT with Hugging Face
 
 ```python
 from transformers import BertTokenizer, BertForSequenceClassification
 from transformers import Trainer, TrainingArguments
 
-# 事前学習済みモデルのロード
+# Load pre-trained model
 tokenizer = BertTokenizer.from_pretrained('bert-base-multilingual-cased')
 model = BertForSequenceClassification.from_pretrained(
     'bert-base-multilingual-cased',
     num_labels=3,
 )
 
-# テキストのトークナイズ
-texts = ["この映画は素晴らしい", "つまらない作品だった"]
+# Tokenize text
+texts = ["This movie is wonderful", "It was a boring work"]
 inputs = tokenizer(texts, padding=True, truncation=True, return_tensors="pt")
 
-# 推論
+# Inference
 outputs = model(**inputs)
 predictions = outputs.logits.argmax(dim=-1)
 
-# ファインチューニング
+# Fine-tuning
 training_args = TrainingArguments(
     output_dir='./results',
     num_train_epochs=3,
@@ -963,7 +963,7 @@ trainer = Trainer(
 trainer.train()
 ```
 
-### コード例 4.5: BERT ファインチューニングの完全パイプライン
+### Code Example 4.5: Complete BERT Fine-tuning Pipeline
 
 ```python
 import torch
@@ -977,7 +977,7 @@ from sklearn.metrics import classification_report
 import numpy as np
 
 class TextDataset(Dataset):
-    """テキスト分類用データセット"""
+    """Dataset for text classification"""
 
     def __init__(self, texts, labels, tokenizer, max_length=256):
         self.encodings = tokenizer(
@@ -996,7 +996,7 @@ class TextDataset(Dataset):
 
 
 class BERTFineTuner:
-    """BERT ファインチューニングの完全パイプライン"""
+    """Complete pipeline for BERT fine-tuning"""
 
     def __init__(self, model_name="bert-base-multilingual-cased",
                  num_labels=3, max_length=256, device=None):
@@ -1008,7 +1008,7 @@ class BERTFineTuner:
         self.max_length = max_length
 
     def prepare_data(self, texts, labels, test_size=0.2, batch_size=16):
-        """データの分割とDataLoader作成"""
+        """Split data and create DataLoaders"""
         train_texts, val_texts, train_labels, val_labels = train_test_split(
             texts, labels, test_size=test_size, stratify=labels, random_state=42
         )
@@ -1029,8 +1029,8 @@ class BERTFineTuner:
 
     def train(self, epochs=3, lr=2e-5, warmup_ratio=0.1,
               weight_decay=0.01, max_grad_norm=1.0):
-        """学習ループ"""
-        # オプティマイザ（bias と LayerNorm に weight_decay を適用しない）
+        """Training loop"""
+        # Optimizer (do not apply weight_decay to bias and LayerNorm)
         no_decay = ["bias", "LayerNorm.weight"]
         optimizer_grouped_parameters = [
             {
@@ -1046,7 +1046,7 @@ class BERTFineTuner:
         ]
         optimizer = torch.optim.AdamW(optimizer_grouped_parameters, lr=lr)
 
-        # スケジューラ
+        # Scheduler
         total_steps = len(self.train_loader) * epochs
         warmup_steps = int(total_steps * warmup_ratio)
         scheduler = get_linear_schedule_with_warmup(
@@ -1056,7 +1056,7 @@ class BERTFineTuner:
         best_val_acc = 0.0
 
         for epoch in range(epochs):
-            # 学習フェーズ
+            # Training phase
             self.model.train()
             total_loss = 0
             correct = 0
@@ -1083,7 +1083,7 @@ class BERTFineTuner:
             train_acc = correct / total
             avg_loss = total_loss / len(self.train_loader)
 
-            # 検証フェーズ
+            # Validation phase
             val_acc, val_report = self.evaluate()
 
             print(f"Epoch {epoch+1}/{epochs}")
@@ -1098,7 +1098,7 @@ class BERTFineTuner:
         return best_val_acc
 
     def evaluate(self):
-        """検証データで評価"""
+        """Evaluate on validation data"""
         self.model.eval()
         all_preds = []
         all_labels = []
@@ -1116,7 +1116,7 @@ class BERTFineTuner:
         return acc, report
 
     def predict(self, texts):
-        """新しいテキストの推論"""
+        """Inference on new texts"""
         self.model.eval()
         inputs = self.tokenizer(
             texts, truncation=True, padding=True,
@@ -1131,70 +1131,70 @@ class BERTFineTuner:
         return preds.cpu().numpy(), probs.cpu().numpy()
 
 
-# 使用例
+# Usage example
 # fine_tuner = BERTFineTuner(num_labels=3)
 # fine_tuner.prepare_data(texts, labels, batch_size=16)
 # best_acc = fine_tuner.train(epochs=3, lr=2e-5)
-# preds, probs = fine_tuner.predict(["この映画は最高だった"])
+# preds, probs = fine_tuner.predict(["This movie was amazing"])
 ```
 
 ---
 
-## 4. モデル比較
+## 4. Model Comparison
 
-### RNN vs Transformer 比較表
+### RNN vs Transformer Comparison Table
 
-| 特性 | RNN (LSTM/GRU) | Transformer |
+| Property | RNN (LSTM/GRU) | Transformer |
 |---|---|---|
-| **並列計算** | 不可（逐次処理） | 可能（全位置を同時処理） |
-| **長距離依存** | 苦手（勾配消失） | 得意（直接参照） |
-| **計算量** | O(n * d^2) | O(n^2 * d) |
-| **メモリ** | O(d) | O(n^2) |
-| **学習速度** | 遅い | 速い（GPU 並列化） |
-| **短い系列** | 効率的 | オーバーヘッドあり |
-| **長い系列** | 性能劣化 | 優秀（ただしメモリ制約） |
+| **Parallel computation** | Not possible (sequential processing) | Possible (all positions processed simultaneously) |
+| **Long-range dependencies** | Weak (vanishing gradient) | Strong (direct reference) |
+| **Computation** | O(n * d^2) | O(n^2 * d) |
+| **Memory** | O(d) | O(n^2) |
+| **Training speed** | Slow | Fast (GPU parallelization) |
+| **Short sequences** | Efficient | Has overhead |
+| **Long sequences** | Performance degrades | Excellent (but memory constrained) |
 
-### 主要 Transformer モデル比較表
+### Major Transformer Model Comparison Table
 
-| モデル | 構造 | パラメータ | 学習方法 | 主な用途 |
+| Model | Structure | Parameters | Training Method | Primary Use |
 |---|---|---|---|---|
-| **BERT** | Encoder のみ | 110M/340M | マスク言語モデル | 分類、QA、NER |
-| **GPT-4** | Decoder のみ | 非公開 | 次トークン予測 | テキスト生成 |
-| **T5** | Encoder-Decoder | 220M-11B | Text-to-Text | 翻訳、要約、QA |
-| **ViT** | Encoder のみ | 86M-632M | 画像パッチ | 画像分類 |
-| **Whisper** | Encoder-Decoder | 39M-1.5B | 音声-テキスト | 音声認識 |
+| **BERT** | Encoder only | 110M/340M | Masked language model | Classification, QA, NER |
+| **GPT-4** | Decoder only | Undisclosed | Next token prediction | Text generation |
+| **T5** | Encoder-Decoder | 220M-11B | Text-to-Text | Translation, summarization, QA |
+| **ViT** | Encoder only | 86M-632M | Image patches | Image classification |
+| **Whisper** | Encoder-Decoder | 39M-1.5B | Speech-to-text | Speech recognition |
 
-### 詳細 Transformer バリアント比較表
+### Detailed Transformer Variant Comparison Table
 
-| モデル | 年 | Attention 改良 | コンテキスト長 | 特徴 |
+| Model | Year | Attention Improvement | Context Length | Features |
 |---|---|---|---|---|
-| **Transformer** | 2017 | Full Attention | 512 | 原論文 |
-| **Transformer-XL** | 2019 | Segment Recurrence | 3,800 | メモリ機構で長文対応 |
+| **Transformer** | 2017 | Full Attention | 512 | Original paper |
+| **Transformer-XL** | 2019 | Segment Recurrence | 3,800 | Long context via memory mechanism |
 | **Longformer** | 2020 | Local + Global | 4,096-16K | Sparse Attention |
-| **BigBird** | 2020 | Random + Local + Global | 4,096 | 理論的保証付き |
-| **Flash Attention** | 2022 | IO-Aware | 任意 | メモリ効率的な実装 |
-| **Mamba** | 2023 | SSM (非Attention) | 非常に長い | 線形計算量 |
-| **Ring Attention** | 2024 | Distributed | 数百万 | 分散環境対応 |
+| **BigBird** | 2020 | Random + Local + Global | 4,096 | With theoretical guarantees |
+| **Flash Attention** | 2022 | IO-Aware | Arbitrary | Memory-efficient implementation |
+| **Mamba** | 2023 | SSM (non-Attention) | Very long | Linear complexity |
+| **Ring Attention** | 2024 | Distributed | Millions | For distributed environments |
 
-### 事前学習タスクの比較
+### Pre-training Task Comparison
 
-| モデル | 事前学習タスク | マスキング戦略 | 方向性 |
+| Model | Pre-training Task | Masking Strategy | Directionality |
 |---|---|---|---|
-| **BERT** | MLM + NSP | ランダム15%マスク | 双方向 |
-| **RoBERTa** | MLM のみ | 動的マスキング | 双方向 |
-| **ALBERT** | MLM + SOP | ランダム15%マスク | 双方向 |
-| **ELECTRA** | RTD (置換検出) | Generator で置換 | 双方向 |
-| **GPT** | CLM (次トークン予測) | Causal Mask | 左→右 |
-| **T5** | Span Corruption | 連続トークンマスク | Encoder-Decoder |
-| **XLNet** | PLM (順列言語モデル) | 順列組合せ | 双方向(順列) |
+| **BERT** | MLM + NSP | Random 15% masking | Bidirectional |
+| **RoBERTa** | MLM only | Dynamic masking | Bidirectional |
+| **ALBERT** | MLM + SOP | Random 15% masking | Bidirectional |
+| **ELECTRA** | RTD (Replaced Token Detection) | Replace with Generator | Bidirectional |
+| **GPT** | CLM (Next token prediction) | Causal Mask | Left-to-right |
+| **T5** | Span Corruption | Contiguous token masking | Encoder-Decoder |
+| **XLNet** | PLM (Permutation language model) | Permutation combinations | Bidirectional (permutation) |
 
 ---
 
-## コード例 5: 位置エンコーディング
+## Code Example 5: Positional Encoding
 
 ```python
 class SinusoidalPositionalEncoding(nn.Module):
-    """Transformer 原論文の正弦波位置エンコーディング"""
+    """Sinusoidal positional encoding from the original Transformer paper"""
 
     def __init__(self, d_model, max_len=5000):
         super().__init__()
@@ -1211,7 +1211,7 @@ class SinusoidalPositionalEncoding(nn.Module):
         return x + self.pe[:, :x.size(1)]
 ```
 
-### コード例 5.5: Rotary Positional Embedding (RoPE)
+### Code Example 5.5: Rotary Positional Embedding (RoPE)
 
 ```python
 import torch
@@ -1220,9 +1220,9 @@ import torch.nn as nn
 class RotaryPositionalEmbedding(nn.Module):
     """
     Rotary Positional Embedding (RoPE)
-    - LLaMA、GPT-NeoX 等で採用
-    - 相対位置情報を回転行列で埋め込む
-    - 長さの外挿（extrapolation）に強い
+    - Used in LLaMA, GPT-NeoX, etc.
+    - Embeds relative positional information via rotation matrices
+    - Strong at length extrapolation
     """
 
     def __init__(self, dim, max_seq_len=4096, base=10000):
@@ -1231,7 +1231,7 @@ class RotaryPositionalEmbedding(nn.Module):
         inv_freq = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))
         self.register_buffer("inv_freq", inv_freq)
 
-        # 事前計算
+        # Pre-computation
         t = torch.arange(max_seq_len).float()
         freqs = torch.outer(t, inv_freq)  # [max_seq_len, dim/2]
         emb = torch.cat([freqs, freqs], dim=-1)  # [max_seq_len, dim]
@@ -1249,20 +1249,20 @@ class RotaryPositionalEmbedding(nn.Module):
 
 
 def rotate_half(x):
-    """次元の前半と後半を入れ替えて符号反転"""
+    """Swap the first and second halves of dimensions with sign inversion"""
     x1, x2 = x.chunk(2, dim=-1)
     return torch.cat([-x2, x1], dim=-1)
 
 
 def apply_rotary_pos_emb(q, k, cos, sin):
-    """Q, K に RoPE を適用"""
+    """Apply RoPE to Q, K"""
     q_embed = (q * cos) + (rotate_half(q) * sin)
     k_embed = (k * cos) + (rotate_half(k) * sin)
     return q_embed, k_embed
 
 
 class RoPEMultiHeadAttention(nn.Module):
-    """RoPE を使用した Multi-Head Attention"""
+    """Multi-Head Attention with RoPE"""
 
     def __init__(self, d_model, num_heads, max_seq_len=4096):
         super().__init__()
@@ -1281,7 +1281,7 @@ class RoPEMultiHeadAttention(nn.Module):
         K = self.W_k(x).view(batch_size, seq_len, self.num_heads, self.d_k).transpose(1, 2)
         V = self.W_v(x).view(batch_size, seq_len, self.num_heads, self.d_k).transpose(1, 2)
 
-        # RoPE 適用
+        # Apply RoPE
         cos, sin = self.rope(Q, seq_len)
         Q, K = apply_rotary_pos_emb(Q, K, cos, sin)
 
@@ -1298,20 +1298,20 @@ class RoPEMultiHeadAttention(nn.Module):
 
 ---
 
-## 5. 効率的な推論と量子化
+## 5. Efficient Inference and Quantization
 
-### コード例 6: モデルの量子化
+### Code Example 6: Model Quantization
 
 ```python
 import torch
 from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
 class ModelOptimizer:
-    """Transformer モデルの最適化ツール"""
+    """Optimization tools for Transformer models"""
 
     @staticmethod
     def quantize_dynamic(model):
-        """動的量子化（CPU 推論向け）"""
+        """Dynamic quantization (for CPU inference)"""
         quantized = torch.quantization.quantize_dynamic(
             model, {torch.nn.Linear}, dtype=torch.qint8
         )
@@ -1319,7 +1319,7 @@ class ModelOptimizer:
 
     @staticmethod
     def compare_model_sizes(original, quantized):
-        """モデルサイズの比較"""
+        """Compare model sizes"""
         import tempfile
         import os
 
@@ -1331,39 +1331,39 @@ class ModelOptimizer:
             torch.save(quantized.state_dict(), f.name)
             quantized_size = os.path.getsize(f.name)
 
-        print(f"元のモデル: {original_size / 1e6:.1f} MB")
-        print(f"量子化後: {quantized_size / 1e6:.1f} MB")
-        print(f"圧縮率: {quantized_size / original_size:.1%}")
+        print(f"Original model: {original_size / 1e6:.1f} MB")
+        print(f"After quantization: {quantized_size / 1e6:.1f} MB")
+        print(f"Compression ratio: {quantized_size / original_size:.1%}")
 
     @staticmethod
     def benchmark_inference(model, tokenizer, texts, num_runs=100):
-        """推論速度のベンチマーク"""
+        """Benchmark inference speed"""
         import time
 
         model.eval()
         inputs = tokenizer(texts, padding=True, truncation=True, return_tensors="pt")
 
-        # ウォームアップ
+        # Warmup
         with torch.no_grad():
             for _ in range(10):
                 _ = model(**inputs)
 
-        # 計測
+        # Measurement
         start = time.time()
         with torch.no_grad():
             for _ in range(num_runs):
                 _ = model(**inputs)
         elapsed = time.time() - start
 
-        print(f"平均推論時間: {elapsed / num_runs * 1000:.2f} ms")
-        print(f"スループット: {num_runs / elapsed:.1f} 推論/秒")
+        print(f"Average inference time: {elapsed / num_runs * 1000:.2f} ms")
+        print(f"Throughput: {num_runs / elapsed:.1f} inferences/sec")
 
     @staticmethod
     def export_onnx(model, tokenizer, output_path="model.onnx", max_length=128):
-        """ONNX 形式でエクスポート"""
+        """Export in ONNX format"""
         model.eval()
         dummy_input = tokenizer(
-            "サンプルテキスト", return_tensors="pt",
+            "Sample text", return_tensors="pt",
             padding="max_length", max_length=max_length, truncation=True
         )
 
@@ -1380,15 +1380,15 @@ class ModelOptimizer:
             },
             opset_version=14,
         )
-        print(f"ONNX モデル出力: {output_path}")
+        print(f"ONNX model output: {output_path}")
 
 
-# KV Cache の実装
+# KV Cache implementation
 class KVCache:
     """
-    Key-Value Cache: 自己回帰生成の高速化
-    - 既に計算した K, V を再利用
-    - 生成ステップごとの計算量を O(n) に削減
+    Key-Value Cache: Speed up autoregressive generation
+    - Reuse previously computed K, V
+    - Reduce computation per generation step to O(n)
     """
 
     def __init__(self, max_batch_size=1, max_seq_len=2048,
@@ -1403,31 +1403,31 @@ class KVCache:
         self.current_len = 0
 
     def update(self, layer, key, value):
-        """新しい K, V をキャッシュに追加"""
+        """Add new K, V to cache"""
         new_len = key.shape[2]
         self.cache[layer]["key"][:, :, self.current_len:self.current_len + new_len] = key
         self.cache[layer]["value"][:, :, self.current_len:self.current_len + new_len] = value
 
     def get(self, layer):
-        """キャッシュから K, V を取得"""
+        """Retrieve K, V from cache"""
         return (
             self.cache[layer]["key"][:, :, :self.current_len + 1],
             self.cache[layer]["value"][:, :, :self.current_len + 1],
         )
 
     def advance(self):
-        """位置を1つ進める"""
+        """Advance position by one"""
         self.current_len += 1
 
     def reset(self):
-        """キャッシュをリセット"""
+        """Reset cache"""
         self.current_len = 0
         for layer in self.cache:
             self.cache[layer]["key"].zero_()
             self.cache[layer]["value"].zero_()
 ```
 
-### コード例 6.5: LoRA (Low-Rank Adaptation) によるパラメータ効率的ファインチューニング
+### Code Example 6.5: Parameter-Efficient Fine-tuning with LoRA (Low-Rank Adaptation)
 
 ```python
 import torch
@@ -1437,9 +1437,9 @@ import math
 class LoRALayer(nn.Module):
     """
     LoRA: Low-Rank Adaptation
-    - 元の重み行列 W に低ランク行列 A*B を加算
+    - Add low-rank matrices A*B to the original weight matrix W
     - W' = W + alpha/r * A * B
-    - 学習パラメータ数を大幅に削減
+    - Drastically reduces the number of trainable parameters
     """
 
     def __init__(self, original_layer, rank=8, alpha=16):
@@ -1452,15 +1452,15 @@ class LoRALayer(nn.Module):
         in_features = original_layer.in_features
         out_features = original_layer.out_features
 
-        # 低ランク行列
+        # Low-rank matrices
         self.lora_A = nn.Parameter(torch.zeros(in_features, rank))
         self.lora_B = nn.Parameter(torch.zeros(rank, out_features))
 
-        # 初期化
+        # Initialization
         nn.init.kaiming_uniform_(self.lora_A, a=math.sqrt(5))
         nn.init.zeros_(self.lora_B)
 
-        # 元の重みをフリーズ
+        # Freeze original weights
         for param in self.original_layer.parameters():
             param.requires_grad = False
 
@@ -1472,13 +1472,13 @@ class LoRALayer(nn.Module):
 
 def apply_lora_to_model(model, rank=8, alpha=16, target_modules=None):
     """
-    モデルの特定の Linear 層に LoRA を適用
+    Apply LoRA to specific Linear layers of a model
 
     Args:
-        model: 対象モデル
-        rank: LoRA のランク
-        alpha: スケーリングファクター
-        target_modules: LoRA を適用するモジュール名のリスト
+        model: Target model
+        rank: LoRA rank
+        alpha: Scaling factor
+        target_modules: List of module names to apply LoRA to
     """
     if target_modules is None:
         target_modules = ["query", "key", "value", "dense"]
@@ -1491,7 +1491,7 @@ def apply_lora_to_model(model, rank=8, alpha=16, target_modules=None):
             total_params += module.weight.numel()
 
             if any(target in name for target in target_modules):
-                # LoRA レイヤーで置換
+                # Replace with LoRA layer
                 parent_name = ".".join(name.split(".")[:-1])
                 child_name = name.split(".")[-1]
 
@@ -1507,14 +1507,14 @@ def apply_lora_to_model(model, rank=8, alpha=16, target_modules=None):
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     frozen = sum(p.numel() for p in model.parameters() if not p.requires_grad)
 
-    print(f"元のパラメータ数: {total_params:,}")
-    print(f"LoRA パラメータ数: {lora_params:,}")
-    print(f"学習可能パラメータ数: {trainable:,} ({trainable/(trainable+frozen):.2%})")
-    print(f"フリーズパラメータ数: {frozen:,}")
+    print(f"Original parameters: {total_params:,}")
+    print(f"LoRA parameters: {lora_params:,}")
+    print(f"Trainable parameters: {trainable:,} ({trainable/(trainable+frozen):.2%})")
+    print(f"Frozen parameters: {frozen:,}")
 
     return model
 
-# 使用例
+# Usage example
 # from transformers import AutoModelForSequenceClassification
 # model = AutoModelForSequenceClassification.from_pretrained("bert-base-uncased", num_labels=2)
 # model = apply_lora_to_model(model, rank=8, alpha=16)
@@ -1522,9 +1522,9 @@ def apply_lora_to_model(model, rank=8, alpha=16, target_modules=None):
 
 ---
 
-## 6. 最新の系列モデル
+## 6. Latest Sequence Models
 
-### コード例 7: State Space Model (Mamba 風の実装)
+### Code Example 7: State Space Model (Mamba-style Implementation)
 
 ```python
 import torch
@@ -1532,10 +1532,10 @@ import torch.nn as nn
 
 class SelectiveSSM(nn.Module):
     """
-    Selective State Space Model (Mamba の簡略実装)
-    - 入力依存のゲーティングで選択的に情報を保持
-    - RNN のような逐次処理が可能（推論時は高速）
-    - Transformer のような並列学習も可能
+    Selective State Space Model (simplified Mamba implementation)
+    - Selectively retains information via input-dependent gating
+    - Can perform sequential processing like RNN (fast at inference)
+    - Can also train in parallel like Transformer
     """
 
     def __init__(self, d_model, d_state=16, d_conv=4, expand=2):
@@ -1544,21 +1544,21 @@ class SelectiveSSM(nn.Module):
         self.d_state = d_state
         self.d_inner = int(expand * d_model)
 
-        # 入力射影
+        # Input projection
         self.in_proj = nn.Linear(d_model, self.d_inner * 2, bias=False)
 
-        # 1D 畳み込み（局所依存性）
+        # 1D convolution (local dependencies)
         self.conv1d = nn.Conv1d(
             self.d_inner, self.d_inner,
             kernel_size=d_conv, padding=d_conv - 1,
             groups=self.d_inner
         )
 
-        # SSM パラメータ
+        # SSM parameters
         self.x_proj = nn.Linear(self.d_inner, d_state * 2 + 1, bias=False)
         self.dt_proj = nn.Linear(1, self.d_inner, bias=True)
 
-        # A パラメータ（対角行列として初期化）
+        # A parameter (initialized as diagonal matrix)
         A = torch.arange(1, d_state + 1, dtype=torch.float32)
         self.A_log = nn.Parameter(torch.log(A).unsqueeze(0).expand(self.d_inner, -1))
 
@@ -1571,32 +1571,32 @@ class SelectiveSSM(nn.Module):
         """
         batch, seq_len, _ = x.shape
 
-        # 入力射影 → x, z
+        # Input projection → x, z
         xz = self.in_proj(x)  # [batch, seq_len, d_inner * 2]
         x_branch, z = xz.chunk(2, dim=-1)
 
-        # 1D 畳み込み
+        # 1D convolution
         x_conv = self.conv1d(x_branch.transpose(1, 2))[:, :, :seq_len].transpose(1, 2)
         x_conv = torch.silu(x_conv)
 
-        # SSM パラメータの計算（入力依存）
+        # SSM parameter computation (input-dependent)
         x_ssm = self.x_proj(x_conv)  # [batch, seq_len, d_state*2 + 1]
         B = x_ssm[:, :, :self.d_state]
         C = x_ssm[:, :, self.d_state:self.d_state*2]
         dt = torch.softplus(self.dt_proj(x_ssm[:, :, -1:]))
 
-        # A の離散化
+        # Discretization of A
         A = -torch.exp(self.A_log)  # [d_inner, d_state]
 
-        # SSM の逐次計算（簡略版）
+        # Sequential SSM computation (simplified version)
         y = self._ssm_scan(x_conv, A, B, C, dt)
 
-        # ゲーティング
+        # Gating
         y = y * torch.silu(z)
         return self.out_proj(y)
 
     def _ssm_scan(self, x, A, B, C, dt):
-        """SSM の逐次スキャン"""
+        """Sequential SSM scan"""
         batch, seq_len, d_inner = x.shape
         d_state = A.shape[1]
 
@@ -1604,14 +1604,14 @@ class SelectiveSSM(nn.Module):
         outputs = []
 
         for t in range(seq_len):
-            # 状態更新: h = A_bar * h + B_bar * x
+            # State update: h = A_bar * h + B_bar * x
             dt_t = dt[:, t].unsqueeze(-1)  # [batch, d_inner, 1]
             A_bar = torch.exp(A.unsqueeze(0) * dt_t)  # [batch, d_inner, d_state]
             B_bar = dt_t * B[:, t].unsqueeze(1)  # [batch, d_inner, d_state]
 
             h = A_bar * h + B_bar * x[:, t].unsqueeze(-1)
 
-            # 出力: y = C * h
+            # Output: y = C * h
             y_t = (h * C[:, t].unsqueeze(1)).sum(dim=-1)  # [batch, d_inner]
             outputs.append(y_t)
 
@@ -1630,7 +1630,7 @@ class MambaBlock(nn.Module):
         return x + self.ssm(self.norm(x))
 ```
 
-### コード例 7.5: Flash Attention の概念実装
+### Code Example 7.5: Flash Attention Conceptual Implementation
 
 ```python
 import torch
@@ -1639,18 +1639,18 @@ import math
 
 def flash_attention_reference(Q, K, V, block_size=256):
     """
-    Flash Attention の概念実装（参考用）
-    - 実際の Flash Attention は CUDA カーネルで実装
-    - ここではアルゴリズムの理解のための参考実装
+    Flash Attention conceptual implementation (for reference)
+    - Actual Flash Attention is implemented as a CUDA kernel
+    - This is a reference implementation for understanding the algorithm
 
     Key Idea:
-    - Attention を小ブロックに分割して計算
-    - SRAM（高速メモリ）に収まるサイズで処理
-    - Softmax をオンラインで計算（log-sum-exp トリック）
+    - Divide Attention computation into small blocks
+    - Process in sizes that fit in SRAM (fast memory)
+    - Compute Softmax online (log-sum-exp trick)
     """
     batch, heads, seq_len, d_k = Q.shape
 
-    # 出力とログサムエクスプの初期化
+    # Initialize output and log-sum-exp
     O = torch.zeros_like(V)
     L = torch.zeros(batch, heads, seq_len, 1, device=Q.device)  # log-sum-exp
     M = torch.full((batch, heads, seq_len, 1), float('-inf'), device=Q.device)  # max
@@ -1658,32 +1658,32 @@ def flash_attention_reference(Q, K, V, block_size=256):
     num_blocks = math.ceil(seq_len / block_size)
 
     for j in range(num_blocks):
-        # K, V のブロック
+        # K, V block
         j_start = j * block_size
         j_end = min((j + 1) * block_size, seq_len)
         K_block = K[:, :, j_start:j_end]
         V_block = V[:, :, j_start:j_end]
 
         for i in range(num_blocks):
-            # Q のブロック
+            # Q block
             i_start = i * block_size
             i_end = min((i + 1) * block_size, seq_len)
             Q_block = Q[:, :, i_start:i_end]
 
-            # ブロック間の Attention スコア
+            # Attention scores between blocks
             S_block = torch.matmul(Q_block, K_block.transpose(-2, -1)) / math.sqrt(d_k)
 
-            # オンライン Softmax
+            # Online Softmax
             M_block = S_block.max(dim=-1, keepdim=True).values
             M_new = torch.max(M[:, :, i_start:i_end], M_block)
 
-            # 指数関数の安定計算
+            # Stable exponential computation
             exp_old = torch.exp(M[:, :, i_start:i_end] - M_new)
             exp_new = torch.exp(S_block - M_new)
 
             L_new = exp_old * L[:, :, i_start:i_end] + exp_new.sum(dim=-1, keepdim=True)
 
-            # 出力の更新
+            # Update output
             O[:, :, i_start:i_end] = (
                 exp_old * O[:, :, i_start:i_end] +
                 torch.matmul(exp_new, V_block)
@@ -1692,46 +1692,46 @@ def flash_attention_reference(Q, K, V, block_size=256):
             M[:, :, i_start:i_end] = M_new
             L[:, :, i_start:i_end] = L_new
 
-    # 正規化
+    # Normalization
     O = O / L
     return O
 
 
-# PyTorch 2.0+ では torch.nn.functional.scaled_dot_product_attention を使用
+# In PyTorch 2.0+, use torch.nn.functional.scaled_dot_product_attention
 def efficient_attention_pytorch2(Q, K, V, is_causal=False):
-    """PyTorch 2.0 の Flash Attention API"""
-    # 自動的に Flash Attention または Memory-Efficient Attention を選択
+    """Flash Attention API in PyTorch 2.0"""
+    # Automatically selects Flash Attention or Memory-Efficient Attention
     return F.scaled_dot_product_attention(
         Q, K, V,
         is_causal=is_causal,
-        # dropout_p=0.0,  # 推論時は0
+        # dropout_p=0.0,  # 0 during inference
     )
 ```
 
 ---
 
-## 7. 実践的なトラブルシューティング
+## 7. Practical Troubleshooting
 
-### トラブルシューティングガイド
+### Troubleshooting Guide
 
-| 症状 | 原因 | 解決策 |
+| Symptom | Cause | Solution |
 |---|---|---|
-| Loss が NaN になる | 学習率が高すぎる / 勾配爆発 | 学習率を1/10に下げる、Gradient Clipping を追加 |
-| Loss が減少しない | 学習率が低すぎる / データの問題 | 学習率を上げる、データを確認、ラベルの正しさを検証 |
-| 過学習（train↓ val↑） | モデルが大きすぎる / データ不足 | Dropout増加、Weight Decay追加、データ拡張 |
-| GPU メモリ不足 | バッチサイズ/系列長が大きい | バッチサイズ縮小、Gradient Accumulation、Mixed Precision |
-| 学習が遅い | データローダのボトルネック | num_workers増加、pin_memory=True、前処理キャッシュ |
-| Tokenizer エラー | 特殊文字/長すぎるテキスト | truncation=True、特殊文字の前処理 |
-| ファインチューニングの不安定性 | 学習率が高い / Warmup 不足 | 2e-5以下の学習率、10%のWarmup Steps |
+| Loss becomes NaN | Learning rate too high / gradient explosion | Reduce learning rate by 1/10, add Gradient Clipping |
+| Loss does not decrease | Learning rate too low / data issue | Increase learning rate, check data, verify label correctness |
+| Overfitting (train↓ val↑) | Model too large / insufficient data | Increase Dropout, add Weight Decay, data augmentation |
+| GPU out of memory | Batch size / sequence length too large | Reduce batch size, Gradient Accumulation, Mixed Precision |
+| Training is slow | DataLoader bottleneck | Increase num_workers, pin_memory=True, cache preprocessing |
+| Tokenizer error | Special characters / text too long | truncation=True, preprocess special characters |
+| Fine-tuning instability | Learning rate too high / insufficient Warmup | Learning rate below 2e-5, 10% Warmup Steps |
 
-### コード例 8: Mixed Precision Training
+### Code Example 8: Mixed Precision Training
 
 ```python
 import torch
 from torch.cuda.amp import autocast, GradScaler
 
 class MixedPrecisionTrainer:
-    """Mixed Precision Training でメモリ使用量を削減し高速化"""
+    """Reduce memory usage and speed up with Mixed Precision Training"""
 
     def __init__(self, model, optimizer, criterion):
         self.model = model
@@ -1762,7 +1762,7 @@ class MixedPrecisionTrainer:
         return loss.item()
 
     def train_epoch(self, dataloader, accumulation_steps=4):
-        """Gradient Accumulation 付きの学習エポック"""
+        """Training epoch with Gradient Accumulation"""
         self.model.train()
         total_loss = 0
 
@@ -1787,14 +1787,14 @@ class MixedPrecisionTrainer:
         return total_loss / len(dataloader)
 ```
 
-### コード例 8.5: Gradient Checkpointing でメモリ節約
+### Code Example 8.5: Memory Saving with Gradient Checkpointing
 
 ```python
 import torch
 from torch.utils.checkpoint import checkpoint
 
 class MemoryEfficientTransformer(nn.Module):
-    """Gradient Checkpointing で VRAM を節約"""
+    """Save VRAM with Gradient Checkpointing"""
 
     def __init__(self, d_model, num_heads, num_layers, d_ff,
                  vocab_size, max_len=512, use_checkpointing=True):
@@ -1813,8 +1813,8 @@ class MemoryEfficientTransformer(nn.Module):
 
         for layer in self.layers:
             if self.use_checkpointing and self.training:
-                # Gradient Checkpointing: 中間活性値を保存せず、
-                # 逆伝播時に再計算（メモリ削減、計算時間増加）
+                # Gradient Checkpointing: do not save intermediate activations,
+                # recompute during backward pass (reduces memory, increases computation time)
                 x = checkpoint(layer, x, use_reentrant=False)
             else:
                 x = layer(x)
@@ -1823,85 +1823,85 @@ class MemoryEfficientTransformer(nn.Module):
 
 
 def estimate_memory_savings(model, input_shape, dtype=torch.float32):
-    """Gradient Checkpointing のメモリ削減効果を推定"""
+    """Estimate memory savings from Gradient Checkpointing"""
     batch_size, seq_len = input_shape
     d_model = model.embedding.embedding_dim
     num_layers = len(model.layers)
 
-    # 中間活性値のメモリ（概算）
+    # Intermediate activation memory (approximate)
     activation_per_layer = batch_size * seq_len * d_model * 4  # bytes (float32)
     total_activation = activation_per_layer * num_layers
 
-    # Checkpointing 使用時: sqrt(num_layers) 分のメモリ
+    # With checkpointing: sqrt(num_layers) worth of memory
     import math
     checkpointed_activation = activation_per_layer * math.sqrt(num_layers)
 
-    print(f"通常の中間活性値: {total_activation / 1e9:.2f} GB")
-    print(f"Checkpointing 後: {checkpointed_activation / 1e9:.2f} GB")
-    print(f"削減率: {1 - checkpointed_activation / total_activation:.1%}")
+    print(f"Normal intermediate activations: {total_activation / 1e9:.2f} GB")
+    print(f"After checkpointing: {checkpointed_activation / 1e9:.2f} GB")
+    print(f"Reduction rate: {1 - checkpointed_activation / total_activation:.1%}")
 ```
 
 ---
 
-## 8. パフォーマンス最適化チェックリスト
+## 8. Performance Optimization Checklist
 
-### 学習の最適化
+### Training Optimization
 
-| カテゴリ | チェック項目 | 推奨設定 |
+| Category | Check Item | Recommended Setting |
 |---|---|---|
-| **学習率** | Warmup + Linear Decay を使用 | BERT: 2e-5〜5e-5 |
-| **バッチサイズ** | Gradient Accumulation で実効バッチを増加 | 実効32〜64 |
-| **精度** | Mixed Precision (FP16/BF16) を使用 | AMP 有効化 |
-| **メモリ** | Gradient Checkpointing を有効化 | 大規模モデルで必須 |
-| **正則化** | Weight Decay（bias/LN除外） | 0.01〜0.1 |
-| **Gradient Clipping** | max_norm を設定 | 1.0 |
-| **Early Stopping** | Validation Loss で監視 | patience=3〜5 |
-| **データ前処理** | Dynamic Padding / Bucketing | 系列長でグループ化 |
+| **Learning rate** | Use Warmup + Linear Decay | BERT: 2e-5 to 5e-5 |
+| **Batch size** | Increase effective batch with Gradient Accumulation | Effective 32-64 |
+| **Precision** | Use Mixed Precision (FP16/BF16) | Enable AMP |
+| **Memory** | Enable Gradient Checkpointing | Essential for large models |
+| **Regularization** | Weight Decay (exclude bias/LN) | 0.01-0.1 |
+| **Gradient Clipping** | Set max_norm | 1.0 |
+| **Early Stopping** | Monitor Validation Loss | patience=3-5 |
+| **Data preprocessing** | Dynamic Padding / Bucketing | Group by sequence length |
 
-### 推論の最適化
+### Inference Optimization
 
-| 手法 | メモリ削減 | 速度向上 | 精度影響 | 難易度 |
+| Method | Memory Reduction | Speed Up | Accuracy Impact | Difficulty |
 |---|---|---|---|---|
-| **Dynamic Quantization (INT8)** | 2-4x | 1.5-3x | 微小 | 低 |
-| **Static Quantization** | 2-4x | 2-4x | 小 | 中 |
-| **KV Cache** | - | 2-10x | なし | 低 |
-| **Flash Attention** | 2-4x | 2-4x | なし | 低 |
-| **ONNX Runtime** | - | 1.5-3x | なし | 低 |
-| **TensorRT** | - | 2-5x | 微小 | 中 |
-| **LoRA / QLoRA** | 10-100x | - | 小〜中 | 中 |
-| **Knowledge Distillation** | 3-10x | 3-10x | 中 | 高 |
-| **Speculative Decoding** | - | 2-3x | なし | 高 |
+| **Dynamic Quantization (INT8)** | 2-4x | 1.5-3x | Minimal | Low |
+| **Static Quantization** | 2-4x | 2-4x | Small | Medium |
+| **KV Cache** | - | 2-10x | None | Low |
+| **Flash Attention** | 2-4x | 2-4x | None | Low |
+| **ONNX Runtime** | - | 1.5-3x | None | Low |
+| **TensorRT** | - | 2-5x | Minimal | Medium |
+| **LoRA / QLoRA** | 10-100x | - | Small to Medium | Medium |
+| **Knowledge Distillation** | 3-10x | 3-10x | Medium | High |
+| **Speculative Decoding** | - | 2-3x | None | High |
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### 1. 小規模データで大規模 Transformer を学習
+### 1. Training a Large Transformer on Small Data
 
-**問題**: BERT-large を100件のデータでファインチューニングすると過学習する。パラメータ数がデータ数を大幅に上回る場合、汎化性能が極端に低下する。
+**Problem**: Fine-tuning BERT-large on 100 samples leads to overfitting. When the number of parameters greatly exceeds the number of data points, generalization performance drops dramatically.
 
-**対策**: 小規模データには軽量モデル（DistilBERT）か、Few-shot learning（プロンプト設計）を使用する。データ拡張も検討する。
+**Solution**: For small datasets, use lightweight models (DistilBERT) or few-shot learning (prompt engineering). Also consider data augmentation.
 
-### 2. Attention の計算量を無視した設計
+### 2. Ignoring Attention Computational Cost in Design
 
-**問題**: Self-Attention は系列長の2乗のメモリを消費する。長文（10,000トークン以上）を処理しようとすると GPU メモリが不足する。
+**Problem**: Self-Attention consumes memory quadratic to sequence length. Processing long texts (10,000+ tokens) exhausts GPU memory.
 
-**対策**: Longformer（局所 + グローバル Attention）、Flash Attention（メモリ効率化）、または入力のチャンク分割を検討する。
+**Solution**: Consider Longformer (local + global Attention), Flash Attention (memory efficiency), or chunking the input.
 
-### 3. Tokenizer の不適切な使用
+### 3. Improper Use of Tokenizers
 
-**問題**: モデルに合わない Tokenizer を使用する、または前処理で特殊トークン（[CLS], [SEP]）を考慮しない。
+**Problem**: Using a Tokenizer that doesn't match the model, or failing to account for special tokens ([CLS], [SEP]) in preprocessing.
 
 ```python
-# BAD: padding/truncation なしでバッチ処理
-inputs = tokenizer(texts)  # 長さが揃わない → エラー
+# BAD: Batch processing without padding/truncation
+inputs = tokenizer(texts)  # Unequal lengths → error
 
-# BAD: 異なるモデルの Tokenizer を使用
+# BAD: Using a Tokenizer from a different model
 tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
 model = AutoModelForSequenceClassification.from_pretrained("roberta-base")
-# → Token ID の対応がずれて無意味な結果に
+# → Token ID mappings are misaligned, producing meaningless results
 
-# GOOD: モデルと一致する Tokenizer を使用し、適切に前処理
+# GOOD: Use a Tokenizer matching the model with proper preprocessing
 model_name = "bert-base-multilingual-cased"
 tokenizer = AutoTokenizer.from_pretrained(model_name)
 model = AutoModelForSequenceClassification.from_pretrained(model_name)
@@ -1909,12 +1909,12 @@ inputs = tokenizer(texts, padding=True, truncation=True,
                    max_length=512, return_tensors="pt")
 ```
 
-### 4. 学習率スケジュールを使わない
+### 4. Not Using a Learning Rate Schedule
 
-**問題**: Transformer のファインチューニングで固定学習率を使用すると、学習が不安定になりやすい。
+**Problem**: Using a fixed learning rate for Transformer fine-tuning tends to make training unstable.
 
 ```python
-# BAD: 固定学習率
+# BAD: Fixed learning rate
 optimizer = torch.optim.Adam(model.parameters(), lr=3e-5)
 
 # GOOD: Warmup + Linear Decay
@@ -1927,16 +1927,16 @@ scheduler = get_linear_schedule_with_warmup(
 )
 ```
 
-### 5. Teacher Forcing を常に使用する
+### 5. Always Using Teacher Forcing
 
-**問題**: Seq2Seq で学習時に常に正解を入力すると、推論時に誤りが蓄積する（exposure bias）。
+**Problem**: Always feeding ground truth during Seq2Seq training causes errors to accumulate during inference (exposure bias).
 
 ```python
-# BAD: 常に Teacher Forcing
-teacher_forcing_ratio = 1.0  # 推論時とのギャップ大
+# BAD: Always Teacher Forcing
+teacher_forcing_ratio = 1.0  # Large gap with inference
 
 # GOOD: Scheduled Sampling
-# 学習の進行とともに Teacher Forcing 率を下げる
+# Gradually reduce Teacher Forcing ratio as training progresses
 teacher_forcing_ratio = max(0.5, 1.0 - epoch * 0.1)
 ```
 
@@ -1944,66 +1944,66 @@ teacher_forcing_ratio = max(0.5, 1.0 - epoch * 0.1)
 
 ## FAQ
 
-### Q1: RNN はもう使わないのですか？
+### Q1: Are RNNs no longer used?
 
-**A**: Transformer が主流ですが、RNN にも適用場面があります。リアルタイムのストリーミング処理、メモリ制約のあるエッジデバイス、短い固定長系列の処理では LSTM/GRU が効率的です。Mamba 等の State Space Model も RNN 的な逐次処理の利点を活かしつつ Transformer に匹敵する性能を達成しています。
+**A**: While Transformer is mainstream, RNNs still have their use cases. LSTM/GRU are efficient for real-time streaming processing, edge devices with memory constraints, and short fixed-length sequence processing. State Space Models like Mamba also achieve Transformer-level performance while leveraging the advantages of RNN-like sequential processing.
 
-### Q2: BERT と GPT の使い分けは？
+### Q2: How should I choose between BERT and GPT?
 
-**A**: BERT は双方向の文脈理解に優れ、分類・情報抽出・質問応答に最適です。GPT は自己回帰（左から右）で、テキスト生成・要約・翻訳に最適です。理解系タスクなら BERT 系、生成系タスクなら GPT 系を選択してください。
+**A**: BERT excels at bidirectional context understanding and is ideal for classification, information extraction, and question answering. GPT is autoregressive (left-to-right) and ideal for text generation, summarization, and translation. Choose BERT-family for understanding tasks and GPT-family for generation tasks.
 
-### Q3: Transformer の学習にはどれくらいの GPU が必要ですか？
+### Q3: How many GPUs are needed to train a Transformer?
 
-**A**: ファインチューニングなら BERT-base で 1 GPU（16GB VRAM）、BERT-large で 1-2 GPU が目安です。事前学習は大規模計算資源が必要で、BERT-base でも数十 GPU-day かかります。
+**A**: For fine-tuning, BERT-base requires 1 GPU (16GB VRAM), and BERT-large requires 1-2 GPUs as a rough guide. Pre-training requires large-scale compute resources, with even BERT-base taking tens of GPU-days.
 
-### Q4: LoRA と Full Fine-tuning の使い分けは？
+### Q4: When should I use LoRA vs Full Fine-tuning?
 
-**A**: データ量とリソースで判断します。大量データ（10万件以上）+ 十分な GPU があれば Full Fine-tuning が精度最良です。少〜中量データ（数百〜数万件）では LoRA が効率的で、GPU メモリも大幅に節約できます。QLoRA（4bit 量子化 + LoRA）を使えば、7B パラメータのモデルも 1 GPU（16GB VRAM）でファインチューニング可能です。
+**A**: Decide based on data volume and resources. Full Fine-tuning achieves the best accuracy with large datasets (100,000+ samples) and sufficient GPUs. LoRA is efficient for small to medium datasets (hundreds to tens of thousands) and significantly saves GPU memory. With QLoRA (4-bit quantization + LoRA), you can fine-tune a 7B parameter model on a single GPU (16GB VRAM).
 
-### Q5: Flash Attention はいつ使うべきですか？
+### Q5: When should I use Flash Attention?
 
-**A**: 系列長が 512 以上のタスクで、PyTorch 2.0 以上を使用している場合は常に有効化すべきです。`torch.nn.functional.scaled_dot_product_attention` で自動的に最適な実装が選択されます。特に長い系列（2048+ トークン）では、メモリ使用量が 2-4 倍削減され、速度も 2-4 倍向上します。
+**A**: You should always enable it for tasks with sequence lengths of 512 or more when using PyTorch 2.0+. `torch.nn.functional.scaled_dot_product_attention` automatically selects the optimal implementation. Especially for long sequences (2048+ tokens), memory usage is reduced by 2-4x and speed improves by 2-4x.
 
-### Q6: Transformer の位置エンコーディングはどれを選ぶべきですか？
+### Q6: Which positional encoding should I choose for Transformer?
 
-**A**: タスクと要件により異なります:
-- **正弦波**: 固定長、シンプル、汎用性高い（原論文）
-- **学習可能**: 特定タスクに最適化可能（BERT）
-- **RoPE**: 長さの外挿に強い、相対位置に対応（LLaMA、GPT-NeoX）
-- **ALiBi**: 位置バイアスを Attention に直接加算、外挿に強い（BLOOM）
-最新の LLM では RoPE が主流です。
+**A**: It depends on the task and requirements:
+- **Sinusoidal**: Fixed-length, simple, highly versatile (original paper)
+- **Learnable**: Can be optimized for specific tasks (BERT)
+- **RoPE**: Strong at length extrapolation, supports relative positions (LLaMA, GPT-NeoX)
+- **ALiBi**: Adds positional bias directly to Attention, strong at extrapolation (BLOOM)
+RoPE is mainstream in the latest LLMs.
 
-### Q7: Attention の重みを可視化する意味は？
+### Q7: What is the significance of visualizing Attention weights?
 
-**A**: モデルの解釈可能性の向上に役立ちます。具体的には: (1) モデルが入力のどの部分に注目しているかを確認、(2) デバッグ（期待通りのパターンを学習しているか）、(3) ドメイン専門家へのモデル説明。ただし、Attention の重みは必ずしもモデルの「理由」を反映しているわけではない（Jain & Wallace, 2019）点に注意が必要です。
+**A**: It helps improve model interpretability. Specifically: (1) Verify which parts of the input the model focuses on, (2) Debugging (whether the model learns expected patterns), (3) Explaining the model to domain experts. However, note that Attention weights do not necessarily reflect the model's "reasoning" (Jain & Wallace, 2019).
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |---|---|
-| RNN | 時系列の逐次処理。勾配消失で長距離依存が苦手 |
-| LSTM/GRU | ゲート機構で勾配消失を緩和。中程度の系列に有効 |
-| Self-Attention | 全位置間の関係を直接計算。長距離依存に強い |
-| Multi-Head | 複数の観点から Attention を計算。表現力向上 |
-| Transformer | Attention ベースの並列処理可能なアーキテクチャ |
-| BERT | 双方向 Encoder。分類・理解タスクの標準 |
-| GPT | 自己回帰 Decoder。テキスト生成の標準 |
-| LoRA | パラメータ効率的ファインチューニング。少ないリソースで大規模モデルを適応 |
-| Flash Attention | メモリ効率的な Attention 実装。長系列の処理に必須 |
-| SSM (Mamba) | 線形計算量の系列モデル。RNN と Transformer の長所を統合 |
+| RNN | Sequential processing of time series. Weak at long-range dependencies due to vanishing gradients |
+| LSTM/GRU | Gate mechanisms mitigate vanishing gradients. Effective for medium-length sequences |
+| Self-Attention | Directly computes relationships between all positions. Strong at long-range dependencies |
+| Multi-Head | Computes Attention from multiple perspectives. Improves expressiveness |
+| Transformer | Attention-based architecture enabling parallel processing |
+| BERT | Bidirectional Encoder. Standard for classification and understanding tasks |
+| GPT | Autoregressive Decoder. Standard for text generation |
+| LoRA | Parameter-efficient fine-tuning. Adapts large models with fewer resources |
+| Flash Attention | Memory-efficient Attention implementation. Essential for long sequence processing |
+| SSM (Mamba) | Linear-complexity sequence model. Combines strengths of RNN and Transformer |
 
-## 次に読むべきガイド
+## Recommended Next Guides
 
-- [コンピュータビジョン](../03-applied/01-computer-vision.md) — Vision Transformer の応用
-- [MLOps](../03-applied/02-mlops.md) — Transformer モデルのデプロイと運用
+- [Computer Vision](../03-applied/01-computer-vision.md) — Applications of Vision Transformer
+- [MLOps](../03-applied/02-mlops.md) — Deployment and operation of Transformer models
 
-## 参考文献
+## References
 
-1. **Vaswani et al.**: [Attention Is All You Need (2017)](https://arxiv.org/abs/1706.03762) — Transformer の原論文
-2. **Devlin et al.**: [BERT: Pre-training of Deep Bidirectional Transformers (2018)](https://arxiv.org/abs/1810.04805) — BERT の原論文
-3. **Jay Alammar**: [The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/) — Transformer の視覚的解説
-4. **Hu et al.**: [LoRA: Low-Rank Adaptation of Large Language Models (2021)](https://arxiv.org/abs/2106.09685) — LoRA の原論文
-5. **Dao et al.**: [FlashAttention: Fast and Memory-Efficient Exact Attention (2022)](https://arxiv.org/abs/2205.14135) — Flash Attention の原論文
-6. **Gu & Dao**: [Mamba: Linear-Time Sequence Modeling with Selective State Spaces (2023)](https://arxiv.org/abs/2312.00752) — Mamba の原論文
+1. **Vaswani et al.**: [Attention Is All You Need (2017)](https://arxiv.org/abs/1706.03762) — Original Transformer paper
+2. **Devlin et al.**: [BERT: Pre-training of Deep Bidirectional Transformers (2018)](https://arxiv.org/abs/1810.04805) — Original BERT paper
+3. **Jay Alammar**: [The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/) — Visual explanation of Transformer
+4. **Hu et al.**: [LoRA: Low-Rank Adaptation of Large Language Models (2021)](https://arxiv.org/abs/2106.09685) — Original LoRA paper
+5. **Dao et al.**: [FlashAttention: Fast and Memory-Efficient Exact Attention (2022)](https://arxiv.org/abs/2205.14135) — Original Flash Attention paper
+6. **Gu & Dao**: [Mamba: Linear-Time Sequence Modeling with Selective State Spaces (2023)](https://arxiv.org/abs/2312.00752) — Original Mamba paper
