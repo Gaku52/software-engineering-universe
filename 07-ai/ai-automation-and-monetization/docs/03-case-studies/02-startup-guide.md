@@ -1,371 +1,374 @@
-# スタートアップガイド — 資金調達、チーム構築
+# Startup Guide — Fundraising and Team Building
 
-> AIスタートアップの創業から資金調達、チーム構築、組織スケーリングまでを体系的に解説し、実践的なフレームワークとチェックリストを提供する。
-
----
-
-## この章で学ぶこと
-
-1. **AIスタートアップの立ち上げ** — 法人設立、共同創業者選び、初期の意思決定フレームワーク
-2. **資金調達の実践** — Pre-Seed/Seed/Series Aの各ステージでの調達戦略、ピッチデック作成、投資家との交渉
-3. **チーム構築とスケーリング** — AI人材の採用、組織設計、文化構築の実践手法
-4. **組織のスケーリング** — 10人→30人→100人の各フェーズでの組織課題と対策
-5. **法務・ガバナンス** — 株主間契約、ストックオプション、コンプライアンスの実務
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [個人開発者 — 1人AI SaaS、月収100万円](./01-solo-developer.md) の内容を理解していること
+> A systematic guide covering everything from founding an AI startup to fundraising, team building, and organizational scaling, providing practical frameworks and checklists.
 
 ---
 
-## 1. AIスタートアップの立ち上げ
+## What You Will Learn in This Chapter
 
-### 1.1 創業チェックリスト
+1. **Launching an AI Startup** — Incorporating a company, choosing co-founders, and early decision-making frameworks
+2. **Fundraising in Practice** — Fundraising strategies for Pre-Seed/Seed/Series A stages, pitch deck creation, and investor negotiation
+3. **Team Building and Scaling** — Practical methods for hiring AI talent, organizational design, and culture building
+4. **Organizational Scaling** — Organizational challenges and countermeasures at each phase: 10 → 30 → 100 people
+5. **Legal and Governance** — Shareholder agreements, stock options, and compliance in practice
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Solo Developer — 1-Person AI SaaS, ¥1M/Month](./01-solo-developer.md)
+
+---
+
+## 1. Launching an AI Startup
+
+### 1.1 Founding Checklist
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│           AIスタートアップ 創業チェックリスト                │
+│           AI Startup Founding Checklist                  │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  ■ Phase 0: 準備（1-2ヶ月）                               │
-│  □ 課題の明確化と市場規模の推定                            │
-│  □ 共同創業者の選定（or ソロ創業の決断）                   │
-│  □ 初期プロトタイプの構築                                 │
-│  □ 潜在顧客10人以上へのインタビュー                       │
+│  ■ Phase 0: Preparation (1-2 months)                     │
+│  □ Clarify the problem and estimate market size          │
+│  □ Select co-founder(s) (or decide to go solo)           │
+│  □ Build an initial prototype                            │
+│  □ Interview 10+ potential customers                     │
 │                                                          │
-│  ■ Phase 1: 法的基盤（2-4週間）                           │
-│  □ 法人設立（株式会社 or 合同会社）                       │
-│  □ 株主間契約（共同創業者がいる場合）                     │
-│  □ 知的財産の帰属確認                                     │
-│  □ 銀行口座開設                                           │
+│  ■ Phase 1: Legal Foundation (2-4 weeks)                 │
+│  □ Incorporate (joint-stock company or LLC)              │
+│  □ Shareholder agreement (if there are co-founders)      │
+│  □ Confirm intellectual property ownership               │
+│  □ Open a bank account                                   │
 │                                                          │
-│  ■ Phase 2: MVP（1-2ヶ月）                                │
-│  □ MVP開発・ローンチ                                      │
-│  □ 初期ユーザー獲得（100人目標）                          │
-│  □ フィードバックサイクル確立                              │
-│  □ ユニットエコノミクスの検証                              │
+│  ■ Phase 2: MVP (1-2 months)                             │
+│  □ Develop and launch MVP                                │
+│  □ Acquire initial users (target: 100)                   │
+│  □ Establish a feedback cycle                            │
+│  □ Validate unit economics                               │
 │                                                          │
-│  ■ Phase 3: 資金調達準備（1ヶ月）                         │
-│  □ ピッチデック作成                                       │
-│  □ 財務モデル構築                                         │
-│  □ 投資家リストアップ                                     │
-│  □ デューデリジェンス資料準備                              │
+│  ■ Phase 3: Fundraising Preparation (1 month)            │
+│  □ Create pitch deck                                     │
+│  □ Build financial model                                 │
+│  □ List up investors                                     │
+│  □ Prepare due diligence materials                       │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 共同創業者の選び方
+### 1.2 How to Choose a Co-Founder
 
 ```
-理想的な共同創業者の組み合わせ:
+Ideal co-founder combinations:
 
-  AIスタートアップ = ビジネス × プロダクト × AI技術
+  AI Startup = Business × Product × AI Technology
 
-  パターン1: 2人チーム（最も一般的）
+  Pattern 1: 2-person team (most common)
   ┌─────────────┐    ┌─────────────┐
-  │ CEO/ビジネス │    │ CTO/技術     │
-  │ 営業、資金調達│   │ AI/ML、開発  │
-  │ マーケ、戦略  │   │ インフラ     │
+  │ CEO/Business│    │ CTO/Tech    │
+  │ Sales, Fund │    │ AI/ML, Dev  │
+  │ Mktg, Strat │    │ Infra       │
   └─────────────┘    └─────────────┘
 
-  パターン2: 3人チーム
+  Pattern 2: 3-person team
   ┌────────┐  ┌────────┐  ┌────────┐
   │CEO     │  │CTO     │  │CPO     │
-  │ビジネス │  │AI技術  │  │プロダクト│
+  │Business│  │AI Tech │  │Product │
   └────────┘  └────────┘  └────────┘
 
-  パターン3: ソロ創業者
+  Pattern 3: Solo founder
   ┌──────────────────────────────────┐
-  │ 全スキル1人 + 外注/AI活用で補完  │
-  │ メリット: 意思決定速い、株式希薄化なし │
-  │ デメリット: リソース制約、孤独     │
+  │ All skills in 1 person +         │
+  │ outsourcing/AI to fill gaps      │
+  │ Pros: fast decisions, no dilution│
+  │ Cons: resource constraints,      │
+  │       isolation                  │
   └──────────────────────────────────┘
 ```
 
-### 1.3 共同創業者の評価フレームワーク
+### 1.3 Co-Founder Evaluation Framework
 
 ```python
-# 共同創業者候補の評価マトリクス
+# Co-founder candidate evaluation matrix
 cofounder_evaluation = {
-    "必須条件": {
-        "スキル補完性": {
-            "description": "自分にないスキルを持っているか",
+    "required": {
+        "skill_complementarity": {
+            "description": "Do they have skills you lack?",
             "weight": 5,
-            "red_flag": "スキルセットが完全に重複"
+            "red_flag": "Completely overlapping skill sets"
         },
-        "コミットメント": {
-            "description": "フルタイムで参画可能か",
+        "commitment": {
+            "description": "Can they join full-time?",
             "weight": 5,
-            "red_flag": "副業レベルの参画意志"
+            "red_flag": "Side-project level commitment"
         },
-        "価値観の一致": {
-            "description": "会社の方向性・働き方に対する考え方が合うか",
+        "value_alignment": {
+            "description": "Do they share views on company direction and working style?",
             "weight": 5,
-            "red_flag": "リスク許容度が大きく異なる"
+            "red_flag": "Significantly different risk tolerance"
         },
-        "信頼性": {
-            "description": "過去の実績、約束を守る人か",
+        "reliability": {
+            "description": "Track record; do they keep their word?",
             "weight": 5,
-            "red_flag": "過去に共同作業の経験がない"
+            "red_flag": "No prior experience working together"
         },
     },
-    "推奨条件": {
-        "ドメイン知識": {
-            "description": "ターゲット市場の深い理解があるか",
+    "recommended": {
+        "domain_knowledge": {
+            "description": "Deep understanding of the target market?",
             "weight": 3,
         },
-        "ネットワーク": {
-            "description": "投資家・顧客・採用候補へのアクセスがあるか",
+        "network": {
+            "description": "Access to investors, customers, and hiring candidates?",
             "weight": 3,
         },
-        "ストレス耐性": {
-            "description": "困難な状況でも冷静に対処できるか",
+        "stress_tolerance": {
+            "description": "Can they stay calm in difficult situations?",
             "weight": 4,
         },
-        "コミュニケーション": {
-            "description": "意見の相違を建設的に解決できるか",
+        "communication": {
+            "description": "Can they resolve disagreements constructively?",
             "weight": 4,
         },
     },
-    "事前確認事項": [
-        "1. 最低2-3ヶ月の共同作業期間を設ける（いきなり創業しない）",
-        "2. 以下を文書化して合意する:",
-        "   - 各自の役割と責任範囲",
-        "   - 株式配分とベスティングスケジュール",
-        "   - 退任時の株式買取条件",
-        "   - 意見が割れた時の意思決定ルール",
-        "   - フルタイムコミットの開始時期",
-        "3. 困難なシナリオについて話し合う:",
-        "   - 資金が尽きそうになったらどうするか",
-        "   - ピボットが必要になったらどう判断するか",
-        "   - 一方が離脱したい場合の取り決め",
+    "pre_checks": [
+        "1. Allow at least 2-3 months of working together before founding (don't rush into it)",
+        "2. Document and agree on the following:",
+        "   - Each person's role and responsibilities",
+        "   - Equity split and vesting schedule",
+        "   - Share buyback terms upon departure",
+        "   - Decision-making rules when opinions diverge",
+        "   - When full-time commitment begins",
+        "3. Discuss difficult scenarios:",
+        "   - What to do if funding runs out",
+        "   - How to decide when a pivot is needed",
+        "   - Arrangements if one party wants to exit",
     ]
 }
 ```
 
-### 1.4 法人設立の実務
+### 1.4 Incorporation in Practice
 
 ```python
-# 日本でのAIスタートアップ法人設立
+# Incorporating an AI startup in Japan
 incorporation_guide = {
-    "株式会社設立の手順": {
+    "steps_for_joint_stock_company": {
         "step_1": {
-            "name": "定款作成",
+            "name": "Draft Articles of Incorporation",
             "details": [
-                "商号（会社名）の決定",
-                "事業目的の記載（AIソフトウェア開発、SaaS提供等）",
-                "本店所在地の決定",
-                "発行可能株式総数の設定（将来の増資を見据えて多めに）",
-                "設立時発行株式数の決定",
+                "Decide on the company name",
+                "State the business purpose (AI software development, SaaS provision, etc.)",
+                "Decide on the registered address",
+                "Set authorized shares (set high to allow future capital increases)",
+                "Decide shares issued at incorporation",
             ],
-            "tips": "事業目的は広めに設定。「人工知能に関するソフトウェアの開発・販売」等",
-            "cost": "定款認証手数料: 約32,000円〜52,000円"
+            "tips": "Set the business purpose broadly, e.g., 'Development and sale of software related to artificial intelligence'",
+            "cost": "Notary certification fee: approx. ¥32,000–¥52,000"
         },
         "step_2": {
-            "name": "定款認証",
+            "name": "Notarize Articles of Incorporation",
             "details": [
-                "公証役場で定款を認証",
-                "電子定款なら印紙税4万円が不要",
+                "Have articles certified at a notary office",
+                "Electronic articles of incorporation waive ¥40,000 stamp duty",
             ],
-            "cost": "電子定款の場合: 約32,000円"
+            "cost": "Electronic articles: approx. ¥32,000"
         },
         "step_3": {
-            "name": "資本金の払い込み",
+            "name": "Pay in Capital",
             "details": [
-                "発起人の個人口座に資本金を振り込み",
-                "払い込み証明書の作成",
+                "Transfer capital into the founder's personal account",
+                "Prepare a payment certificate",
             ],
-            "tips": "資本金は100万〜300万円が一般的。少なすぎると信用面で不利"
+            "tips": "¥1M–¥3M is typical; too little can hurt credibility"
         },
         "step_4": {
-            "name": "登記申請",
+            "name": "File for Registration",
             "details": [
-                "法務局に設立登記申請",
-                "登録免許税: 15万円（資本金の0.7%、最低15万円）",
+                "File incorporation registration at the Legal Affairs Bureau",
+                "Registration tax: ¥150,000 (0.7% of capital, minimum ¥150,000)",
             ],
-            "cost": "登録免許税: 150,000円"
+            "cost": "Registration tax: ¥150,000"
         },
         "step_5": {
-            "name": "設立後の届出",
+            "name": "Post-Incorporation Filings",
             "details": [
-                "税務署: 法人設立届出書、青色申告承認申請書",
-                "都道府県税事務所: 法人設立届出書",
-                "年金事務所: 健康保険・厚生年金保険の届出",
-                "銀行: 法人口座開設",
+                "Tax office: Corporate establishment notification, blue-return application",
+                "Prefectural tax office: Corporate establishment notification",
+                "Pension office: Health insurance and employees' pension enrollment",
+                "Bank: Open a corporate account",
             ]
         }
     },
-    "合計費用": "約24-25万円（電子定款の場合）",
-    "期間": "準備開始から登記完了まで2-4週間",
-    "推奨サービス": [
-        "freee会社設立（無料で定款作成支援）",
-        "マネーフォワード会社設立",
-        "弁護士ドットコム（法的相談）",
+    "total_cost": "Approx. ¥240,000–¥250,000 (with electronic articles of incorporation)",
+    "timeline": "2–4 weeks from preparation to registration completion",
+    "recommended_services": [
+        "freee Company Incorporation (free articles of incorporation support)",
+        "Money Forward Company Incorporation",
+        "Bengo4.com (legal consultation)",
     ]
 }
 ```
 
 ---
 
-## 2. 資金調達
+## 2. Fundraising
 
-### 2.1 調達ステージ概要
+### 2.1 Funding Stage Overview
 
-| ステージ | 調達額 | 評価額 | 主要投資家 | 必要条件 |
-|---------|--------|--------|-----------|---------|
-| Pre-Seed | 500万-3000万円 | ~1億円 | エンジェル、アクセラ | アイデア + チーム |
-| Seed | 3000万-2億円 | 3-10億円 | VC (Seed特化) | MVP + 初期トラクション |
-| Series A | 2-10億円 | 20-50億円 | VC (リード投資家) | PMF + 成長メトリクス |
-| Series B | 10-50億円 | 100-300億円 | グロースVC | スケーリング実績 |
+| Stage | Amount | Valuation | Key Investors | Requirements |
+|-------|--------|-----------|---------------|--------------|
+| Pre-Seed | ¥5M–¥30M | ~¥100M | Angels, Accelerators | Idea + Team |
+| Seed | ¥30M–¥200M | ¥300M–¥1B | Seed-focused VCs | MVP + Initial Traction |
+| Series A | ¥200M–¥1B | ¥2B–¥5B | VC (Lead investor) | PMF + Growth Metrics |
+| Series B | ¥1B–¥5B | ¥10B–¥30B | Growth VCs | Scaling Track Record |
 
-### 2.2 ピッチデックの構成
+### 2.2 Pitch Deck Structure
 
 ```
-AIスタートアップ ピッチデック（12枚構成）:
+AI Startup Pitch Deck (12-slide structure):
 
-  Slide 1: タイトル
+  Slide 1: Title
   ┌──────────────────────────────────────┐
-  │ [会社名] — [1行のミッション]          │
-  │ 「AI で○○を10倍効率化」              │
+  │ [Company Name] — [1-line mission]    │
+  │ "Make XX 10x more efficient with AI" │
   └──────────────────────────────────────┘
 
-  Slide 2: 課題 (Problem)
+  Slide 2: Problem
   ┌──────────────────────────────────────┐
-  │ 具体的な数字で痛みを表現              │
-  │ 「企業は年間○○万円を○○に浪費」      │
+  │ Express pain with concrete numbers   │
+  │ "Companies waste ¥XXM/year on XX"    │
   └──────────────────────────────────────┘
 
-  Slide 3: 解決策 (Solution)
+  Slide 3: Solution
   ┌──────────────────────────────────────┐
-  │ デモ画面 or 動画                      │
-  │ 「Before/After」で効果を可視化        │
+  │ Demo screen or video                 │
+  │ Visualize impact with Before/After   │
   └──────────────────────────────────────┘
 
-  Slide 4: なぜ今 (Why Now)
+  Slide 4: Why Now
   ┌──────────────────────────────────────┐
-  │ GPT-4/Claudeの登場、コスト低下       │
-  │ 規制変更、市場の成熟                  │
+  │ Arrival of GPT-4/Claude, cost drops  │
+  │ Regulatory changes, market maturity  │
   └──────────────────────────────────────┘
 
-  Slide 5: 市場規模 (Market)
+  Slide 5: Market
   ┌──────────────────────────────────────┐
-  │ TAM → SAM → SOM のファネル            │
-  │ ボトムアップ算出が信頼される          │
+  │ TAM → SAM → SOM funnel               │
+  │ Bottom-up calculation is trusted     │
   └──────────────────────────────────────┘
 
-  Slide 6: プロダクト (Product)
+  Slide 6: Product
   ┌──────────────────────────────────────┐
-  │ 機能概要、技術的優位性               │
-  │ AI活用の具体的な仕組み               │
+  │ Feature overview, technical moat     │
+  │ Concrete AI utilization mechanism    │
   └──────────────────────────────────────┘
 
-  Slide 7: トラクション (Traction)
+  Slide 7: Traction
   ┌──────────────────────────────────────┐
-  │ MRR推移、ユーザー数、成長率          │
-  │ 顧客の声（具体的な数字付き）          │
+  │ MRR growth, user count, growth rate  │
+  │ Customer testimonials (with numbers) │
   └──────────────────────────────────────┘
 
-  Slide 8: ビジネスモデル (Business Model)
+  Slide 8: Business Model
   ┌──────────────────────────────────────┐
-  │ 価格体系、ユニットエコノミクス        │
-  │ LTV/CAC、粗利率                      │
+  │ Pricing structure, unit economics    │
+  │ LTV/CAC, gross margin                │
   └──────────────────────────────────────┘
 
-  Slide 9: 競合 (Competition)
+  Slide 9: Competition
   ┌──────────────────────────────────────┐
-  │ ポジショニングマップ                  │
-  │ 2軸で自社の独自ポジションを可視化     │
+  │ Positioning map                      │
+  │ Visualize your unique position on    │
+  │ 2 axes                               │
   └──────────────────────────────────────┘
 
-  Slide 10: チーム (Team)
+  Slide 10: Team
   ┌──────────────────────────────────────┐
-  │ 創業者の経歴、なぜこのチームか       │
-  │ AI/ML の専門性を強調                  │
+  │ Founder backgrounds, why this team   │
+  │ Highlight AI/ML expertise            │
   └──────────────────────────────────────┘
 
-  Slide 11: 財務計画 (Financials)
+  Slide 11: Financials
   ┌──────────────────────────────────────┐
-  │ 3年間のP&L予測                       │
-  │ 主要KPIの推移予測                     │
+  │ 3-year P&L forecast                  │
+  │ Key KPI trajectory forecast          │
   └──────────────────────────────────────┘
 
   Slide 12: Ask
   ┌──────────────────────────────────────┐
-  │ 調達額、使途、次のマイルストーン       │
-  │ 「○億円調達 → ○○を達成 → Series A」  │
+  │ Amount, use of funds, next milestone │
+  │ "Raise ¥XB → achieve XX → Series A" │
   └──────────────────────────────────────┘
 ```
 
-### 2.3 ピッチデック作成の具体的ノウハウ
+### 2.3 Pitch Deck Creation Know-How
 
 ```python
-# ピッチデックの品質チェックリスト
+# Pitch deck quality checklist
 pitch_deck_quality_check = {
-    "全体": {
-        "total_slides": "10-15枚（12枚が理想）",
-        "presentation_time": "10分以内で説明可能",
-        "design": "シンプル、1スライド1メッセージ、文字は少なく",
-        "font_size": "最小24pt（スライド投影時に読める）",
+    "overall": {
+        "total_slides": "10-15 slides (12 is ideal)",
+        "presentation_time": "Explainable in under 10 minutes",
+        "design": "Simple, one message per slide, minimal text",
+        "font_size": "Minimum 24pt (readable when projected)",
     },
     "slide_by_slide_tips": {
         "problem": [
-            "自分が体験した実際のエピソードを入れる",
-            "数字で課題の大きさを示す（年間XX億円の損失等）",
-            "「XX%の企業がこの問題を抱えている」等の統計",
+            "Include a real personal anecdote",
+            "Show the scale of the problem with numbers (¥XXB in annual losses, etc.)",
+            "Use statistics like 'XX% of companies face this problem'",
         ],
         "solution": [
-            "プロダクトのデモ画面を入れる（最も重要）",
-            "Before/Afterの対比を見せる",
-            "技術的な仕組みは別スライドで深掘り",
+            "Include product demo screens (most important)",
+            "Show Before/After contrast",
+            "Deep-dive on technical mechanisms in a separate slide",
         ],
         "market": [
-            "ボトムアップ計算を必ず含める",
-            "TAM: 全世界の潜在市場（参考値）",
-            "SAM: 実際にリーチ可能な市場",
-            "SOM: 3年以内に獲得を目指す市場",
-            "ボトムアップ例: 日本の中小企業400万社 × 対象率10% × ARPU ¥5,000 × 12ヶ月 = SAM 240億円",
+            "Always include bottom-up calculations",
+            "TAM: Total global potential market (reference figure)",
+            "SAM: Market actually reachable",
+            "SOM: Market you aim to capture within 3 years",
+            "Bottom-up example: 4M Japanese SMBs × 10% addressable rate × ARPU ¥5,000 × 12 months = SAM ¥24B",
         ],
         "traction": [
-            "右肩上がりのグラフが最も説得力がある",
-            "MRR、ユーザー数、NRR等のSaaSメトリクス",
-            "顧客の生の声（具体的な効果の数字付き）",
-            "ロゴウォール（有名企業の導入実績）",
+            "An upward-trending graph is most persuasive",
+            "SaaS metrics: MRR, user count, NRR, etc.",
+            "Direct customer quotes (with specific effect numbers)",
+            "Logo wall (notable customer deployments)",
         ],
         "team": [
-            "「なぜこのチームが勝てるのか」を明確に",
-            "AI/MLの専門性（論文、特許、前職の実績）",
-            "起業経験、業界経験",
-            "アドバイザーの名前（著名な人がいれば）",
+            "Clearly articulate 'why this team can win'",
+            "AI/ML expertise (papers, patents, prior work achievements)",
+            "Entrepreneurship experience, industry experience",
+            "Advisor names (if well-known)",
         ],
         "ask": [
-            "調達額は具体的に",
-            "使途の内訳（人件費60%、マーケ20%、インフラ10%、予備10%等）",
-            "調達後のマイルストーン（XX人採用、MRR XX達成等）",
-            "次ラウンドまでの計画",
+            "State the raise amount specifically",
+            "Breakdown of use of funds (e.g., 60% personnel, 20% marketing, 10% infra, 10% reserve)",
+            "Post-raise milestones (hire XX people, reach MRR XX, etc.)",
+            "Plan through to next round",
         ]
     },
     "common_mistakes": [
-        "文字が多すぎる（1スライドに文章が3行以上）",
-        "競合スライドで「競合なし」と書く → 市場がないと判断される",
-        "TAMだけ示してSOM を示さない → 現実感がない",
-        "財務予測がホッケースティック型すぎる → 根拠を求められる",
-        "デモ画面がない → プロダクトの実在性に疑問",
+        "Too much text (more than 3 lines per slide)",
+        "Writing 'no competitors' on the competition slide → interpreted as no market",
+        "Showing only TAM without SOM → lacks realism",
+        "Financial projections are too hockey-stick shaped → asked for justification",
+        "No demo screens → raises doubts about product existence",
     ]
 }
 ```
 
-### 2.4 財務モデル
+### 2.4 Financial Model
 
 ```python
 class StartupFinancialModel:
-    """AIスタートアップ財務モデル"""
+    """AI Startup Financial Model"""
 
     def project_3_years(self, params: dict) -> list[dict]:
-        """3年間の財務予測"""
+        """3-year financial forecast"""
         results = []
         mrr = params["initial_mrr"]
         users = params["initial_users"]
@@ -374,32 +377,32 @@ class StartupFinancialModel:
         for month in range(1, 37):
             year = (month - 1) // 12 + 1
 
-            # 成長率（年次で逓減）
+            # Growth rate (declining year-over-year)
             growth_rates = {1: 0.20, 2: 0.12, 3: 0.08}
             monthly_growth = growth_rates[year]
 
-            # チャーン率（改善傾向）
+            # Churn rate (improving trend)
             churn_rates = {1: 0.06, 2: 0.04, 3: 0.03}
             churn_rate = churn_rates[year]
 
-            # ユーザー数計算
+            # User count calculation
             new_users = int(users * monthly_growth)
             churned = int(users * churn_rate)
             users = users + new_users - churned
 
-            # MRR計算
-            arpu = params["arpu"] * (1 + 0.02 * (month - 1))  # ARPU漸増
+            # MRR calculation
+            arpu = params["arpu"] * (1 + 0.02 * (month - 1))  # Gradual ARPU increase
             mrr = users * arpu
 
-            # コスト計算
-            # チーム拡大（四半期ごとに1-2名）
+            # Cost calculation
+            # Team expansion (1-2 people per quarter)
             if month % 3 == 0 and month > 6:
                 team_size += params.get("quarterly_hires", 1)
 
             personnel_cost = team_size * params["avg_salary"]
-            api_cost = mrr * 0.25  # 売上の25%
-            infra_cost = 50000 + users * 200  # 固定+変動
-            other_cost = 200000  # オフィス、ツール等
+            api_cost = mrr * 0.25  # 25% of revenue
+            infra_cost = 50000 + users * 200  # fixed + variable
+            other_cost = 200000  # office, tools, etc.
 
             total_cost = personnel_cost + api_cost + infra_cost + other_cost
 
@@ -417,7 +420,7 @@ class StartupFinancialModel:
 
         return results
 
-# 使用例
+# Usage example
 model = StartupFinancialModel()
 projection = model.project_3_years({
     "initial_mrr": 500000,
@@ -427,21 +430,21 @@ projection = model.project_3_years({
     "avg_salary": 600000,
     "quarterly_hires": 2
 })
-# Year 3: ARR ~3億円、チーム20名、黒字化
+# Year 3: ARR ~¥300M, team of 20, profitable
 ```
 
-### 2.5 ユニットエコノミクスの計算
+### 2.5 Unit Economics Calculation
 
 ```python
 class UnitEconomics:
-    """SaaSのユニットエコノミクス計算"""
+    """SaaS Unit Economics Calculator"""
 
     def __init__(
         self,
-        arpu: float,          # 月額平均単価
-        monthly_churn: float,  # 月次解約率
-        cac: float,           # 顧客獲得コスト
-        gross_margin: float,   # 粗利率
+        arpu: float,          # Average monthly revenue per user
+        monthly_churn: float,  # Monthly churn rate
+        cac: float,           # Customer acquisition cost
+        gross_margin: float,   # Gross margin
     ):
         self.arpu = arpu
         self.monthly_churn = monthly_churn
@@ -450,21 +453,21 @@ class UnitEconomics:
 
     @property
     def ltv(self) -> float:
-        """顧客生涯価値"""
+        """Customer lifetime value"""
         if self.monthly_churn == 0:
             return float('inf')
         return (self.arpu * self.gross_margin) / self.monthly_churn
 
     @property
     def ltv_cac_ratio(self) -> float:
-        """LTV/CAC比率（3以上が健全）"""
+        """LTV/CAC ratio (healthy at 3 or above)"""
         if self.cac == 0:
             return float('inf')
         return self.ltv / self.cac
 
     @property
     def payback_months(self) -> float:
-        """CAC回収期間（月数）"""
+        """CAC payback period (months)"""
         monthly_contribution = self.arpu * self.gross_margin
         if monthly_contribution == 0:
             return float('inf')
@@ -472,37 +475,37 @@ class UnitEconomics:
 
     @property
     def average_lifetime_months(self) -> float:
-        """平均顧客寿命（月数）"""
+        """Average customer lifetime (months)"""
         if self.monthly_churn == 0:
             return float('inf')
         return 1 / self.monthly_churn
 
     def health_check(self) -> dict:
-        """ユニットエコノミクスの健全性チェック"""
+        """Unit economics health check"""
         checks = {
-            "LTV/CAC比率": {
+            "LTV/CAC Ratio": {
                 "value": round(self.ltv_cac_ratio, 1),
                 "threshold": 3.0,
                 "status": "healthy" if self.ltv_cac_ratio >= 3.0 else "warning",
-                "note": "3以上で健全、5以上で優秀"
+                "note": "Healthy at 3+, excellent at 5+"
             },
-            "CAC回収期間": {
+            "CAC Payback Period": {
                 "value": round(self.payback_months, 1),
                 "threshold": 12,
                 "status": "healthy" if self.payback_months <= 12 else "warning",
-                "note": "12ヶ月以内が理想"
+                "note": "Ideal within 12 months"
             },
-            "粗利率": {
+            "Gross Margin": {
                 "value": round(self.gross_margin * 100, 1),
                 "threshold": 70,
                 "status": "healthy" if self.gross_margin >= 0.70 else "warning",
-                "note": "SaaSは70%以上が目安、AI SaaSはAPI費用で60-80%"
+                "note": "70%+ for SaaS; 60-80% for AI SaaS due to API costs"
             },
-            "月次チャーン率": {
+            "Monthly Churn Rate": {
                 "value": round(self.monthly_churn * 100, 2),
                 "threshold": 5,
                 "status": "healthy" if self.monthly_churn <= 0.05 else "warning",
-                "note": "SMB向け5%以下、エンタープライズ向け2%以下"
+                "note": "Below 5% for SMB, below 2% for enterprise"
             }
         }
         return checks
@@ -510,113 +513,113 @@ class UnitEconomics:
     def __repr__(self) -> str:
         return (
             f"UnitEconomics(\n"
-            f"  ARPU=¥{self.arpu:,.0f}/月,\n"
+            f"  ARPU=¥{self.arpu:,.0f}/month,\n"
             f"  LTV=¥{self.ltv:,.0f},\n"
             f"  CAC=¥{self.cac:,.0f},\n"
             f"  LTV/CAC={self.ltv_cac_ratio:.1f}x,\n"
-            f"  回収期間={self.payback_months:.1f}ヶ月,\n"
-            f"  平均寿命={self.average_lifetime_months:.0f}ヶ月\n"
+            f"  Payback={self.payback_months:.1f} months,\n"
+            f"  Avg Lifetime={self.average_lifetime_months:.0f} months\n"
             f")"
         )
 
 
-# AI SaaS の典型的なユニットエコノミクス
+# Typical unit economics for an AI SaaS
 saas_economics = UnitEconomics(
-    arpu=8000,           # 月額¥8,000
-    monthly_churn=0.04,  # 月次チャーン4%
-    cac=30000,           # 顧客獲得コスト¥30,000
-    gross_margin=0.75,   # 粗利率75%
+    arpu=8000,           # Monthly ¥8,000
+    monthly_churn=0.04,  # Monthly churn 4%
+    cac=30000,           # Customer acquisition cost ¥30,000
+    gross_margin=0.75,   # Gross margin 75%
 )
 
 print(saas_economics)
-# ARPU=¥8,000/月, LTV=¥150,000, CAC=¥30,000, LTV/CAC=5.0x
+# ARPU=¥8,000/month, LTV=¥150,000, CAC=¥30,000, LTV/CAC=5.0x
 
 health = saas_economics.health_check()
 for metric, data in health.items():
     print(f"{metric}: {data['value']} ({'OK' if data['status'] == 'healthy' else 'WARN'})")
 ```
 
-### 2.6 投資家へのアプローチ方法
+### 2.6 How to Approach Investors
 
 ```python
-# 投資家アプローチの実践ガイド
+# Practical guide to approaching investors
 investor_approach = {
-    "準備": {
+    "preparation": {
         "target_list": {
-            "description": "投資家リストの作成（50社以上）",
+            "description": "Build an investor list (50+ firms)",
             "sources": [
-                "INITIAL（日本のスタートアップDB）で過去の投資実績を調査",
-                "Crunchbase で AI/SaaS 投資実績を持つVCを検索",
-                "LinkedIn で投資家の個人プロフィールを確認",
-                "他の起業家からの紹介（最も効果的）",
+                "Research past investment history on INITIAL (Japan startup DB)",
+                "Search Crunchbase for VCs with AI/SaaS investment track records",
+                "Check individual investor profiles on LinkedIn",
+                "Introductions from other founders (most effective)",
             ],
             "prioritization": [
-                "Tier 1: AI/SaaS特化VC + 暖かい紹介がある",
-                "Tier 2: ジェネラリストVC + 暖かい紹介がある",
-                "Tier 3: AI/SaaS特化VC + コールドアプローチ",
-                "Tier 4: その他",
+                "Tier 1: AI/SaaS-focused VC + warm introduction",
+                "Tier 2: Generalist VC + warm introduction",
+                "Tier 3: AI/SaaS-focused VC + cold approach",
+                "Tier 4: Other",
             ]
         },
         "warm_intro": {
-            "description": "暖かい紹介の獲得方法",
+            "description": "How to get warm introductions",
             "tactics": [
-                "既存の起業家ネットワークから紹介を依頼",
-                "投資先企業の創業者経由で紹介してもらう",
-                "アクセラレーター（Y Combinator, Plug and Play等）経由",
-                "イベント・カンファレンスで直接関係構築",
-                "LinkedInで共通の知人を見つけて紹介依頼",
+                "Ask existing founder networks for referrals",
+                "Get introduced via founders of portfolio companies",
+                "Through accelerators (Y Combinator, Plug and Play, etc.)",
+                "Build relationships directly at events and conferences",
+                "Find mutual connections on LinkedIn and request introductions",
             ]
         }
     },
-    "ミーティング": {
+    "meetings": {
         "first_meeting": {
-            "duration": "30-45分",
+            "duration": "30-45 minutes",
             "structure": [
-                "自己紹介（2分）",
-                "ピッチ（10-15分）",
-                "Q&A（15-20分）",
-                "次のステップ確認（5分）",
+                "Introductions (2 min)",
+                "Pitch (10-15 min)",
+                "Q&A (15-20 min)",
+                "Confirm next steps (5 min)",
             ],
             "tips": [
-                "最初の5分で投資家の興味を引く",
-                "数字で語る（MRR、成長率、NPS等）",
-                "「分からない」と正直に言う（嘘はバレる）",
-                "質問には簡潔に答える（長々と話さない）",
+                "Hook the investor in the first 5 minutes",
+                "Speak in numbers (MRR, growth rate, NPS, etc.)",
+                "Say 'I don't know' honestly (lies get caught)",
+                "Answer questions concisely (don't ramble)",
             ]
         },
         "common_questions": [
-            "なぜ今この事業を始めたのか？（動機）",
-            "最大のリスクは何か？（自己認識）",
-            "AIモデルへの依存度は？独自の優位性は？",
-            "既存顧客の解約理由は？",
-            "競合との差別化ポイントは？",
-            "3年後のExitシナリオは？",
-            "チームの技術力をどう証明するか？",
-            "このラウンドの資金で何を達成するか？",
+            "Why did you start this business now? (motivation)",
+            "What is the biggest risk? (self-awareness)",
+            "How dependent are you on AI models? What is your unique advantage?",
+            "Why do existing customers churn?",
+            "How are you differentiated from competitors?",
+            "What is your exit scenario in 3 years?",
+            "How do you prove the team's technical ability?",
+            "What will you achieve with this round's capital?",
         ]
     },
     "timeline": {
-        "description": "資金調達プロセスの典型的なタイムライン",
+        "description": "Typical fundraising process timeline",
         "phases": {
-            "準備": "2-4週間（ピッチデック、財務モデル、DD資料）",
-            "アプローチ": "2-4週間（50社以上にコンタクト）",
-            "ミーティング": "4-8週間（初回→2回目→パートナー会議）",
-            "DD・交渉": "2-4週間（デューデリジェンス、タームシート交渉）",
-            "クロージング": "2-4週間（契約書作成、着金）",
+            "Preparation": "2-4 weeks (pitch deck, financial model, DD materials)",
+            "Outreach": "2-4 weeks (contact 50+ firms)",
+            "Meetings": "4-8 weeks (1st meeting → 2nd meeting → partner meeting)",
+            "DD & Negotiation": "2-4 weeks (due diligence, term sheet negotiation)",
+            "Closing": "2-4 weeks (contracts, funds received)",
         },
-        "total": "3-5ヶ月（Seed）、4-6ヶ月（Series A）"
+        "total": "3-5 months (Seed), 4-6 months (Series A)"
     }
 }
 ```
 
 ---
 
-## 3. チーム構築
+## 3. Team Building
 
-### 3.1 AIスタートアップの組織構造
+### 3.1 AI Startup Organizational Structure
 
 ```
-AIスタートアップ 組織構造（30人規模）:
+AI Startup Organization (30-person scale):
 
   ┌──────────────┐
   │    CEO       │
@@ -628,7 +631,7 @@ AIスタートアップ 組織構造（30人規模）:
   └─┬──┘ └──┬───┘       └─┬──┘
     │       │              │
   AI/ML   Engineering    Business
-  (5人)   (10人)         (10人)
+  (5)     (10)           (10)
   ┌────┐  ┌──────┐      ┌──────┐
   │ML  │  │Frontend│    │Sales │
   │Eng │  │(3)    │    │(3)   │
@@ -644,556 +647,559 @@ AIスタートアップ 組織構造（30人規模）:
           └──────┘    └──────┘
 ```
 
-### 3.2 採用優先順位
+### 3.2 Hiring Priority
 
-| 順番 | ポジション | 理由 | 採用時期 |
-|------|-----------|------|---------|
-| 1 | フルスタックエンジニア | MVPの高速開発 | 創業直後 |
-| 2 | AI/MLエンジニア | AI機能の品質向上 | PMF前後 |
-| 3 | デザイナー (UI/UX) | UX改善→転換率向上 | PMF後 |
-| 4 | マーケター | 成長加速 | PMF後 |
-| 5 | カスタマーサクセス | 解約率改善 | 50顧客超 |
-| 6 | セールス | エンプラ展開 | Series A前後 |
-| 7 | データエンジニア | データ基盤構築 | 成長期 |
-| 8 | HR | 採用・組織管理 | 15人超 |
+| Order | Position | Reason | When to Hire |
+|-------|----------|---------|--------------|
+| 1 | Full-stack Engineer | Rapid MVP development | Immediately after founding |
+| 2 | AI/ML Engineer | Improve AI feature quality | Around PMF |
+| 3 | Designer (UI/UX) | UX improvement → conversion uplift | After PMF |
+| 4 | Marketer | Accelerate growth | After PMF |
+| 5 | Customer Success | Reduce churn | After 50 customers |
+| 6 | Sales | Enterprise expansion | Around Series A |
+| 7 | Data Engineer | Build data infrastructure | Growth phase |
+| 8 | HR | Recruiting and org management | After 15 people |
 
-### 3.3 採用戦略
+### 3.3 Hiring Strategy
 
 ```python
 class AITalentStrategy:
-    """AI人材採用戦略"""
+    """AI Talent Hiring Strategy"""
 
     def create_hiring_plan(self, stage: str) -> dict:
-        """ステージ別採用計画"""
+        """Stage-based hiring plan"""
         plans = {
             "pre_seed": {
-                "team_size": "2-3人（創業チーム）",
+                "team_size": "2-3 people (founding team)",
                 "hiring_channels": [
-                    "共同創業者のネットワーク",
-                    "前職の元同僚",
-                    "ハッカソンでの出会い"
+                    "Co-founder networks",
+                    "Former colleagues from previous jobs",
+                    "Connections from hackathons"
                 ],
                 "compensation": {
-                    "cash": "市場の60-70%",
-                    "equity": "5-15%（共同創業者）、1-3%（初期社員）",
-                    "note": "エクイティで補填"
+                    "cash": "60-70% of market rate",
+                    "equity": "5-15% (co-founders), 1-3% (early employees)",
+                    "note": "Supplement with equity"
                 }
             },
             "seed": {
-                "team_size": "5-10人",
+                "team_size": "5-10 people",
                 "hiring_channels": [
                     "AngelList / LAPRAS / Findy",
-                    "技術カンファレンス",
-                    "OSS コントリビューター",
-                    "リファラル（最も効果的）"
+                    "Tech conferences",
+                    "OSS contributors",
+                    "Referrals (most effective)"
                 ],
                 "compensation": {
-                    "cash": "市場の80-90%",
+                    "cash": "80-90% of market rate",
                     "equity": "0.5-2%",
-                    "note": "ミッション共感で採用"
+                    "note": "Hire through mission alignment"
                 }
             },
             "series_a": {
-                "team_size": "15-30人",
+                "team_size": "15-30 people",
                 "hiring_channels": [
-                    "採用エージェント",
-                    "LinkedIn直接アプローチ",
-                    "テックブログ/登壇",
-                    "リファラルボーナス制度"
+                    "Recruiting agencies",
+                    "Direct LinkedIn outreach",
+                    "Tech blog / conference talks",
+                    "Referral bonus program"
                 ],
                 "compensation": {
-                    "cash": "市場の90-110%",
+                    "cash": "90-110% of market rate",
                     "equity": "0.1-0.5%",
-                    "note": "競争力のある報酬"
+                    "note": "Competitive compensation"
                 }
             }
         }
         return plans.get(stage, plans["seed"])
 
     def interview_process(self) -> dict:
-        """AI人材の面接プロセス"""
+        """Interview process for AI talent"""
         return {
             "stage_1_screening": {
-                "duration": "30分",
-                "interviewer": "HR or 採用担当エンジニア",
+                "duration": "30 minutes",
+                "interviewer": "HR or hiring engineer",
                 "focus": [
-                    "経験・スキルの概要確認",
-                    "志望動機・カルチャーフィット",
-                    "希望年収・入社時期",
+                    "Overview of experience and skills",
+                    "Motivation and culture fit",
+                    "Expected salary and start date",
                 ],
                 "pass_rate": "40-50%"
             },
             "stage_2_technical": {
-                "duration": "60-90分",
-                "interviewer": "CTO or シニアエンジニア",
+                "duration": "60-90 minutes",
+                "interviewer": "CTO or senior engineer",
                 "focus": [
-                    "技術的な深掘り質問",
-                    "過去のプロジェクトの詳細",
-                    "ライブコーディング or テイクホーム課題",
+                    "In-depth technical questions",
+                    "Details of past projects",
+                    "Live coding or take-home assignment",
                 ],
                 "ai_specific_questions": [
-                    "RAGシステムの設計経験",
-                    "プロンプトエンジニアリングの手法",
-                    "LLMの評価・改善方法",
-                    "AI APIのコスト最適化経験",
+                    "Experience designing RAG systems",
+                    "Prompt engineering methods",
+                    "LLM evaluation and improvement approaches",
+                    "Experience optimizing AI API costs",
                 ],
                 "pass_rate": "30-40%"
             },
             "stage_3_culture": {
-                "duration": "45分",
-                "interviewer": "CEO or チームメンバー",
+                "duration": "45 minutes",
+                "interviewer": "CEO or team member",
                 "focus": [
-                    "価値観の一致",
-                    "チームとの相性",
-                    "成長意欲・学習姿勢",
+                    "Value alignment",
+                    "Team chemistry",
+                    "Growth mindset and learning attitude",
                 ],
                 "pass_rate": "60-70%"
             },
             "stage_4_offer": {
-                "timeline": "最終面接から3営業日以内にオファー",
+                "timeline": "Send offer within 3 business days of final interview",
                 "contents": [
-                    "年収（固定給 + 賞与）",
-                    "ストックオプション数量と行使価格",
-                    "ベスティングスケジュール",
-                    "入社日",
-                    "その他の福利厚生",
+                    "Annual salary (base + bonus)",
+                    "Stock option grant size and exercise price",
+                    "Vesting schedule",
+                    "Start date",
+                    "Other benefits",
                 ],
             }
         }
 ```
 
-### 3.4 ストックオプション設計
+### 3.4 Stock Option Design
 
 ```python
-# ストックオプション（SO）の設計ガイド
+# Stock option (SO) design guide
 stock_option_guide = {
-    "プール設計": {
-        "total_pool": "発行済株式の10-15%をSO用に確保",
+    "pool_design": {
+        "total_pool": "Reserve 10-15% of issued shares for SOs",
         "allocation_guideline": {
-            "CxO（創業後参画）": "1-3%",
+            "CxO (post-founding joiner)": "1-3%",
             "VP/Director": "0.5-1%",
-            "シニアエンジニア": "0.3-0.5%",
-            "ミドル": "0.1-0.3%",
-            "ジュニア": "0.05-0.1%",
+            "Senior Engineer": "0.3-0.5%",
+            "Mid-level": "0.1-0.3%",
+            "Junior": "0.05-0.1%",
         },
-        "note": "初期メンバーほど多く、後から入る人ほど少ない"
+        "note": "More for early members, less for later joiners"
     },
-    "ベスティング": {
-        "standard": "4年間ベスティング、1年クリフ",
+    "vesting": {
+        "standard": "4-year vesting, 1-year cliff",
         "example": {
             "total_shares": 10000,
-            "vesting_period": "48ヶ月",
-            "cliff": "12ヶ月（1年後に25%が一括行使可能に）",
-            "monthly_vesting": "クリフ後、毎月2.08%ずつ行使可能に",
-            "acceleration": "M&A時のシングル/ダブルトリガー条項を検討",
+            "vesting_period": "48 months",
+            "cliff": "12 months (25% becomes exercisable at 1 year)",
+            "monthly_vesting": "After cliff, 2.08% becomes exercisable each month",
+            "acceleration": "Consider single/double trigger clauses upon M&A",
         }
     },
-    "税制": {
-        "適格SO": {
-            "条件": [
-                "権利行使価額 ≥ 付与時の時価",
-                "付与決議日から2年以上10年以内に行使",
-                "年間行使上限1,200万円",
-                "特定の発行手続きを遵守",
+    "taxation": {
+        "qualified_SO": {
+            "conditions": [
+                "Exercise price ≥ fair market value at time of grant",
+                "Exercised between 2 and 10 years from grant resolution date",
+                "Annual exercise limit ¥12M",
+                "Specific issuance procedures followed",
             ],
-            "税率": "株式売却時に約20%（譲渡所得）",
+            "tax_rate": "Approx. 20% upon share sale (capital gains)",
         },
-        "非適格SO": {
-            "条件": "適格SO の要件を満たさない場合",
-            "税率": "行使時に最大55%（給与所得として課税）",
+        "non_qualified_SO": {
+            "conditions": "Does not meet qualified SO requirements",
+            "tax_rate": "Up to 55% upon exercise (taxed as employment income)",
         },
-        "tip": "必ず税理士・弁護士に相談して適格SO を設計する"
+        "tip": "Always consult a tax accountant and attorney to design qualified SOs"
     }
 }
 ```
 
 ---
 
-## 4. 投資家との交渉
+## 4. Negotiating with Investors
 
-### 4.1 評価額の決め方
+### 4.1 How Valuations Are Determined
 
 ```
-評価額算定方法:
+Valuation methods:
 
-  方法1: 類似企業比較法（最も一般的）
+  Method 1: Comparable company analysis (most common)
   ┌──────────────────────────────────────┐
-  │ 評価額 = ARR × マルチプル            │
+  │ Valuation = ARR × Multiple           │
   │                                      │
-  │ AI SaaS Seed: ARR × 30-50倍         │
-  │ AI SaaS Series A: ARR × 20-40倍     │
+  │ AI SaaS Seed: ARR × 30-50x           │
+  │ AI SaaS Series A: ARR × 20-40x       │
   │                                      │
-  │ 例: ARR ¥5,000万 × 30 = 評価額15億円 │
+  │ Example: ARR ¥50M × 30 = Valuation ¥1.5B │
   └──────────────────────────────────────┘
 
-  方法2: 次ラウンド逆算法
+  Method 2: Back-calculation from next round
   ┌──────────────────────────────────────┐
-  │ Series Aで評価額30億円を目標         │
-  │ → Seedで評価額5-10億円が適正         │
-  │ → 調達額1-2億円（希薄化15-20%）      │
+  │ Target Series A valuation: ¥3B       │
+  │ → Appropriate Seed valuation: ¥500M–¥1B │
+  │ → Raise ¥100M–¥200M (15-20% dilution)│
   └──────────────────────────────────────┘
 
-  方法3: VC期待リターン法
+  Method 3: VC expected return method
   ┌──────────────────────────────────────┐
-  │ VCは10倍リターンを期待              │
-  │ → Exit時100億円が見込める事業       │
-  │ → Seed評価額 = 100億 / 10 = 10億円  │
+  │ VCs expect 10x returns               │
+  │ → Business with ¥10B exit potential  │
+  │ → Seed valuation = ¥10B / 10 = ¥1B  │
   └──────────────────────────────────────┘
 ```
 
-### 4.2 タームシートの重要条項
+### 4.2 Key Term Sheet Provisions
 
 ```python
-# タームシート（投資条件書）の主要条項
+# Key provisions in a term sheet (investment conditions document)
 term_sheet_key_terms = {
-    "評価額関連": {
+    "valuation_related": {
         "pre_money_valuation": {
-            "description": "投資前の会社評価額",
-            "negotiation_tip": "Pre-money は高く交渉。希薄化率を常に計算する"
+            "description": "Company valuation before investment",
+            "negotiation_tip": "Negotiate pre-money higher. Always calculate dilution percentage"
         },
         "investment_amount": {
-            "description": "投資金額",
-            "negotiation_tip": "18ヶ月のランウェイを確保できる額を目標"
+            "description": "Investment amount",
+            "negotiation_tip": "Target an amount that secures 18 months of runway"
         },
     },
-    "投資家の権利": {
+    "investor_rights": {
         "liquidation_preference": {
-            "description": "清算優先権（Exit時の配分ルール）",
+            "description": "Liquidation preference (distribution rules upon exit)",
             "types": {
-                "non_participating_1x": "投資額 or 持分比例配分のうち大きい方（標準）",
-                "participating_1x": "投資額を先に回収 + 残りを持分比例配分（投資家有利）",
-                "participating_2x": "投資額の2倍を先に回収 + 残り（非常に投資家有利）",
+                "non_participating_1x": "Greater of investment amount or pro-rata share (standard)",
+                "participating_1x": "Recover investment first + remaining pro-rata (investor-favorable)",
+                "participating_2x": "Recover 2x investment first + remaining (very investor-favorable)",
             },
-            "negotiation_tip": "Non-participating 1xが創業者にとって最もフェア"
+            "negotiation_tip": "Non-participating 1x is most fair to founders"
         },
         "anti_dilution": {
-            "description": "希薄化防止条項（ダウンラウンド時の保護）",
+            "description": "Anti-dilution provision (protection in down rounds)",
             "types": {
-                "weighted_average": "加重平均方式（標準）",
-                "full_ratchet": "フルラチェット（投資家に非常に有利、避ける）",
+                "weighted_average": "Weighted average method (standard)",
+                "full_ratchet": "Full ratchet (very investor-favorable, avoid)",
             }
         },
         "board_seats": {
-            "description": "取締役会の議席",
-            "typical": "Seed: 投資家1席、創業者2席（3人構成）",
-            "negotiation_tip": "創業者が過半数を維持することが重要"
+            "description": "Board of directors seats",
+            "typical": "Seed: 1 investor seat, 2 founder seats (3-person board)",
+            "negotiation_tip": "Important for founders to maintain majority"
         },
     },
-    "創業者の保護": {
+    "founder_protections": {
         "founder_vesting": {
-            "description": "創業者の株式ベスティング",
-            "typical": "4年ベスティング、1年クリフ、既存期間のクレジット",
-            "negotiation_tip": "創業からの期間をクレジットしてもらう交渉"
+            "description": "Founder share vesting",
+            "typical": "4-year vesting, 1-year cliff, credit for time already elapsed",
+            "negotiation_tip": "Negotiate to receive credit for time since founding"
         },
         "drag_along": {
-            "description": "ドラッグアロング権（強制売却権）",
-            "negotiation_tip": "発動条件（評価額の下限等）を設定する"
+            "description": "Drag-along right (forced sale right)",
+            "negotiation_tip": "Set triggering conditions (e.g., minimum valuation threshold)"
         },
         "protective_provisions": {
-            "description": "投資家の拒否権（重要事項への同意権）",
+            "description": "Investor veto rights (consent rights on major matters)",
             "typical_items": [
-                "新株発行",
-                "定款変更",
-                "M&A・清算",
-                "役員報酬の大幅変更",
-                "一定額以上の借入",
+                "New share issuance",
+                "Articles of incorporation amendments",
+                "M&A and liquidation",
+                "Major changes to officer compensation",
+                "Borrowings above a certain amount",
             ]
         }
     }
 }
 ```
 
-### 4.3 デューデリジェンス対応
+### 4.3 Responding to Due Diligence
 
 ```python
-# デューデリジェンス（DD）に必要な資料
+# Documents required for due diligence (DD)
 dd_documents = {
-    "法務": [
-        "定款（最新版）",
-        "登記簿謄本",
-        "株主名簿",
-        "株主間契約書",
-        "ストックオプション発行決議・割当表",
-        "重要な契約書（顧客、パートナー、従業員）",
-        "知的財産権の一覧（特許、商標等）",
-        "訴訟・紛争の有無",
+    "legal": [
+        "Articles of incorporation (latest version)",
+        "Corporate registration certificate",
+        "Shareholder register",
+        "Shareholder agreement",
+        "Stock option grant resolutions and allocation table",
+        "Key contracts (customers, partners, employees)",
+        "List of intellectual property (patents, trademarks, etc.)",
+        "Status of any litigation or disputes",
     ],
-    "財務": [
-        "過去の決算書（BS, PL, CF）",
-        "月次試算表（直近12ヶ月）",
-        "銀行口座残高証明",
-        "借入金一覧",
-        "3年間の財務予測モデル",
-        "主要KPIの推移データ",
+    "financial": [
+        "Past financial statements (BS, PL, CF)",
+        "Monthly trial balance (last 12 months)",
+        "Bank balance certificates",
+        "List of outstanding loans",
+        "3-year financial forecast model",
+        "Key KPI trend data",
     ],
-    "事業": [
-        "事業計画書",
-        "顧客リスト（社名・契約内容）",
-        "MRR/ARR の推移データ",
-        "チャーン率の推移",
-        "顧客獲得コスト（CAC）のデータ",
-        "競合分析資料",
+    "business": [
+        "Business plan",
+        "Customer list (company names and contract details)",
+        "MRR/ARR trend data",
+        "Churn rate trends",
+        "Customer acquisition cost (CAC) data",
+        "Competitive analysis materials",
     ],
-    "技術": [
-        "技術アーキテクチャ概要図",
-        "AI/MLモデルの概要と精度メトリクス",
-        "データ収集・管理ポリシー",
-        "セキュリティ対策の概要",
-        "外部API依存度の説明",
-        "技術ロードマップ",
+    "technical": [
+        "Technical architecture overview diagram",
+        "AI/ML model overview and accuracy metrics",
+        "Data collection and management policy",
+        "Security measures overview",
+        "Explanation of external API dependencies",
+        "Technology roadmap",
     ],
-    "人事": [
-        "組織図",
-        "従業員リスト（氏名、役職、入社日、報酬）",
-        "採用計画",
-        "就業規則",
-        "労務トラブルの有無",
+    "hr": [
+        "Organizational chart",
+        "Employee list (name, title, start date, compensation)",
+        "Hiring plan",
+        "Work rules",
+        "Status of any labor disputes",
     ],
     "preparation_tips": [
-        "DD資料は事前にデータルーム（Google Drive等）に整理しておく",
-        "機密情報にはNDA（秘密保持契約）の締結後にアクセス許可",
-        "質問への回答は48時間以内を目標",
-        "不明点は「確認します」と正直に伝える",
-        "弁護士・税理士のサポートを事前に確保",
+        "Organize DD materials in a data room (Google Drive, etc.) in advance",
+        "Allow access to confidential information only after NDA execution",
+        "Target responding to questions within 48 hours",
+        "Say 'I'll confirm' honestly when unsure",
+        "Secure support from attorneys and tax accountants in advance",
     ]
 }
 ```
 
 ---
 
-## 5. 組織のスケーリング
+## 5. Organizational Scaling
 
-### 5.1 フェーズ別の組織課題
+### 5.1 Organizational Challenges by Phase
 
 ```
-組織スケーリングの典型的課題:
+Typical organizational scaling challenges:
 
-  ■ 5→15人: 「何でも屋」から「専門チーム」へ
+  ■ 5→15 people: From "generalists" to "specialized teams"
   ┌──────────────────────────────────────┐
-  │ 課題:                                │
-  │ ● 役割分担の明確化                   │
-  │ ● コミュニケーションコストの増大      │
-  │ ● 初期メンバーの役割変化             │
+  │ Challenges:                          │
+  │ ● Clarifying role boundaries         │
+  │ ● Rising communication costs         │
+  │ ● Changing roles of founding members │
   │                                      │
-  │ 対策:                                │
-  │ ● 明確なチーム構造の導入             │
-  │ ● 週次の全体ミーティング             │
-  │ ● 1on1 の定期実施                    │
-  │ ● ドキュメンテーション文化の確立     │
+  │ Solutions:                           │
+  │ ● Introduce clear team structure     │
+  │ ● Weekly all-hands meetings          │
+  │ ● Regular 1-on-1s                    │
+  │ ● Establish documentation culture    │
   └──────────────────────────────────────┘
 
-  ■ 15→30人: 「阿吽の呼吸」から「プロセス」へ
+  ■ 15→30 people: From "unspoken understanding" to "process"
   ┌──────────────────────────────────────┐
-  │ 課題:                                │
-  │ ● 暗黙知の共有が困難に               │
-  │ ● 採用・オンボーディングの負荷       │
-  │ ● マネジメント層の不足               │
+  │ Challenges:                          │
+  │ ● Sharing tacit knowledge becomes    │
+  │   difficult                          │
+  │ ● Hiring and onboarding burden       │
+  │ ● Shortage of management layer       │
   │                                      │
-  │ 対策:                                │
-  │ ● ミドルマネジメントの採用/育成      │
-  │ ● オンボーディングプログラムの構築   │
-  │ ● OKR等の目標管理フレームワーク導入  │
-  │ ● 社内Wikiの充実                     │
+  │ Solutions:                           │
+  │ ● Hire/develop middle management     │
+  │ ● Build onboarding program           │
+  │ ● Introduce OKRs or similar goal     │
+  │   management framework               │
+  │ ● Enrich internal wiki               │
   └──────────────────────────────────────┘
 
-  ■ 30→100人: 「スタートアップ」から「組織」へ
+  ■ 30→100 people: From "startup" to "organization"
   ┌──────────────────────────────────────┐
-  │ 課題:                                │
-  │ ● 部門間のサイロ化                   │
-  │ ● カルチャーの希薄化                 │
-  │ ● 意思決定の遅延                     │
+  │ Challenges:                          │
+  │ ● Siloing between departments        │
+  │ ● Culture dilution                   │
+  │ ● Decision-making delays             │
   │                                      │
-  │ 対策:                                │
-  │ ● VP/Director レイヤーの充実         │
-  │ ● バリューの明文化と浸透             │
-  │ ● クロスファンクショナルチームの推奨  │
-  │ ● 権限委譲と説明責任の明確化         │
+  │ Solutions:                           │
+  │ ● Build out VP/Director layer        │
+  │ ● Articulate and embed values        │
+  │ ● Encourage cross-functional teams   │
+  │ ● Clarify delegation and             │
+  │   accountability                     │
   └──────────────────────────────────────┘
 ```
 
-### 5.2 エンジニアリング組織の設計
+### 5.2 Engineering Organization Design
 
 ```python
-# エンジニアリング組織の設計パターン
+# Engineering organization design patterns
 engineering_org = {
-    "10人以下": {
-        "structure": "フラット（全員が同列）",
-        "communication": "全員が全てを把握",
-        "sprint": "1チーム、1-2週間スプリント",
-        "code_review": "全員がお互いをレビュー",
+    "under_10": {
+        "structure": "Flat (everyone at the same level)",
+        "communication": "Everyone knows everything",
+        "sprint": "One team, 1-2 week sprints",
+        "code_review": "Everyone reviews everyone else",
     },
-    "10-25人": {
-        "structure": "機能チーム（Frontend, Backend, AI/ML）",
-        "communication": "チーム間の定例ミーティング",
-        "sprint": "チーム別スプリント、共通のリリースサイクル",
-        "code_review": "チーム内レビュー + クロスチームレビュー",
-        "key_hires": ["テックリード × 2-3人", "EM（エンジニアリングマネージャー）× 1人"],
+    "10-25": {
+        "structure": "Functional teams (Frontend, Backend, AI/ML)",
+        "communication": "Regular cross-team meetings",
+        "sprint": "Team-level sprints, shared release cycle",
+        "code_review": "In-team review + cross-team review",
+        "key_hires": ["Tech lead × 2-3", "Engineering Manager (EM) × 1"],
     },
-    "25-50人": {
-        "structure": "スクワッド型（機能横断チーム）",
+    "25-50": {
+        "structure": "Squad model (cross-functional teams)",
         "model": [
-            "スクワッド: プロダクト機能ごと（5-7人）",
-            "チャプター: 技術領域ごと（Frontend, Backend, AI）",
-            "トライブ: 関連スクワッドのグループ",
+            "Squad: per product feature (5-7 people)",
+            "Chapter: per technical domain (Frontend, Backend, AI)",
+            "Tribe: group of related squads",
         ],
-        "communication": "スクワッド自律 + トライブ間の週次同期",
-        "key_hires": ["VP of Engineering", "EM × 3-5人", "Staff Engineer"],
+        "communication": "Autonomous squads + weekly cross-tribe sync",
+        "key_hires": ["VP of Engineering", "EM × 3-5", "Staff Engineer"],
     }
 }
 ```
 
-### 5.3 カルチャーとバリューの構築
+### 5.3 Building Culture and Values
 
 ```python
-# AIスタートアップのバリュー設計例
+# Sample values design for an AI startup
 company_values = {
     "values": [
         {
             "name": "Ship Fast, Learn Fast",
-            "description": "完璧を目指すより、速く出荷して学ぶ",
+            "description": "Ship quickly and learn, rather than chasing perfection",
             "behaviors": [
-                "80%の完成度でリリースする",
-                "失敗を批判せず、学びとして共有する",
-                "小さな実験を繰り返す",
+                "Release at 80% completion",
+                "Share failures as learnings, not criticisms",
+                "Run many small experiments",
             ]
         },
         {
             "name": "User Obsession",
-            "description": "全ての意思決定はユーザー視点で行う",
+            "description": "Make every decision from the user's perspective",
             "behaviors": [
-                "定期的にユーザーインタビューを実施する",
-                "サポートチケットを全員が読む",
-                "機能開発はユーザーの課題から始める",
+                "Conduct regular user interviews",
+                "Have everyone read support tickets",
+                "Start feature development from user problems",
             ]
         },
         {
             "name": "Radical Transparency",
-            "description": "情報はデフォルトでオープンにする",
+            "description": "Default to sharing information openly",
             "behaviors": [
-                "MRR、チャーン率等の数字を全社員に共有",
-                "意思決定の理由を文書化して共有",
-                "フィードバックは直接・率直に伝える",
+                "Share MRR, churn rate, and other numbers with all employees",
+                "Document and share the reasons behind decisions",
+                "Give feedback directly and candidly",
             ]
         },
         {
             "name": "AI-First Thinking",
-            "description": "「AIで自動化できないか？」を常に問う",
+            "description": "Always ask: 'Can AI automate this?'",
             "behaviors": [
-                "繰り返し作業は積極的にAIで自動化する",
-                "新機能はまずAI活用の可能性を検討する",
-                "最新のAI技術動向をキャッチアップする",
+                "Actively automate repetitive tasks with AI",
+                "Consider AI utilization first when planning new features",
+                "Keep up with the latest AI technology trends",
             ]
         },
     ],
     "implementation": [
-        "採用面接で価値観の一致を確認する",
-        "人事評価にバリューの体現度を含める",
-        "全社ミーティングでバリューを体現した事例を共有",
-        "バリューカードを全社員に配布",
+        "Confirm value alignment during hiring interviews",
+        "Include value embodiment in performance reviews",
+        "Share examples of values in action at all-hands meetings",
+        "Distribute value cards to all employees",
     ]
 }
 ```
 
 ---
 
-## 6. アンチパターン
+## 6. Anti-Patterns
 
-### アンチパターン1: 資金調達が目的化
+### Anti-Pattern 1: Fundraising Becomes the Goal
 
 ```python
-# BAD: 調達額が大きいほど成功と思い込む
+# BAD: Believing bigger raises mean more success
 bad_fundraising = {
-    "goal": "できるだけ多く調達する",
-    "raised": "10億円（評価額50億円）",
-    "problem": "PMF前に巨額を調達→期待値が高すぎて身動き取れず",
-    "burn_rate": "月5000万円 → 20ヶ月でランウェイ枯渇",
-    "result": "PMF未達のままダウンラウンドか廃業"
+    "goal": "Raise as much as possible",
+    "raised": "¥1B (valuation ¥5B)",
+    "problem": "Raised a massive amount before PMF → expectations too high to pivot",
+    "burn_rate": "¥50M/month → runway exhausted in 20 months",
+    "result": "Down round or shutdown without achieving PMF"
 }
 
-# GOOD: 必要最小限を適切なタイミングで調達
+# GOOD: Raise only what's needed at the right time
 good_fundraising = {
-    "goal": "次のマイルストーンに必要な分だけ調達",
-    "raised": "5000万円（評価額3億円）",
-    "milestone": "PMF達成 + MRR 500万円",
-    "burn_rate": "月300万円 → 16ヶ月のランウェイ",
-    "result": "PMF達成 → Series Aを有利な条件で調達"
+    "goal": "Raise only what the next milestone requires",
+    "raised": "¥50M (valuation ¥300M)",
+    "milestone": "Achieve PMF + MRR ¥5M",
+    "burn_rate": "¥3M/month → 16 months of runway",
+    "result": "Achieve PMF → raise Series A on favorable terms"
 }
 ```
 
-### アンチパターン2: 技術人材偏重
+### Anti-Pattern 2: Over-Weighting Technical Talent
 
 ```python
-# BAD: エンジニアだけ採用
+# BAD: Hiring only engineers
 bad_team = {
-    "composition": "CEO(技術) + エンジニア8人",
-    "problem": "プロダクトは素晴らしいが誰も知らない",
-    "result": "ユーザーゼロ、資金枯渇"
+    "composition": "CEO (technical) + 8 engineers",
+    "problem": "Great product but nobody knows about it",
+    "result": "Zero users, out of money"
 }
 
-# GOOD: バランスの取れたチーム
+# GOOD: Balanced team
 good_team = {
-    "composition": "CEO + CTO + エンジニア3人 + マーケ1人 + CS 1人",
-    "balance": "開発5: ビジネス2の比率",
-    "result": "プロダクトも成長も両立"
+    "composition": "CEO + CTO + 3 engineers + 1 marketer + 1 CS",
+    "balance": "5 dev : 2 business ratio",
+    "result": "Both product and growth achieved"
 }
 ```
 
-### アンチパターン3: 組織の急拡大
+### Anti-Pattern 3: Rapid Organizational Expansion
 
 ```python
-# BAD: PMF前に大量採用
+# BAD: Hiring aggressively before PMF
 bad_scaling = {
-    "trigger": "Series A調達完了",
-    "action": "3ヶ月で5人→30人に拡大",
+    "trigger": "Series A close",
+    "action": "Expand from 5 to 30 people in 3 months",
     "problems": [
-        "PMF未達のまま人件費が急増",
-        "新メンバーのオンボーディングが追いつかない",
-        "創業メンバーが管理業務に忙殺される",
-        "カルチャーが薄まり、一体感が失われる",
+        "Personnel costs spike without PMF",
+        "Onboarding of new members can't keep up",
+        "Founding members overwhelmed with management tasks",
+        "Culture dilutes and team cohesion is lost",
     ],
-    "result": "バーンレート急上昇、組織混乱、リストラの可能性"
+    "result": "Burn rate spikes, organizational chaos, risk of layoffs"
 }
 
-# GOOD: PMFに応じた段階的拡大
+# GOOD: Gradual expansion tied to PMF
 good_scaling = {
-    "trigger": "PMF達成 + 成長率の安定確認",
-    "action": "四半期ごとに3-5人を計画的に採用",
+    "trigger": "PMF achieved + stable growth rate confirmed",
+    "action": "Planned hiring of 3-5 people per quarter",
     "practices": [
-        "採用プロセスの標準化（面接官トレーニング含む）",
-        "オンボーディングプログラムの整備",
-        "30-60-90日の目標設定",
-        "メンター制度の導入",
+        "Standardize hiring process (including interviewer training)",
+        "Develop onboarding program",
+        "Set 30-60-90 day goals",
+        "Introduce mentorship program",
     ],
-    "result": "組織が安定的に成長、カルチャーを維持"
+    "result": "Organization grows stably with culture maintained"
 }
 ```
 
-### アンチパターン4: AIモデルへの過度な依存
+### Anti-Pattern 4: Excessive Dependency on AI Models
 
 ```python
-# BAD: 特定のAIモデルに完全依存
+# BAD: Complete dependence on a single AI model
 bad_ai_dependency = {
-    "architecture": "全機能がGPT-4 APIに直接依存",
+    "architecture": "All features directly depend on GPT-4 API",
     "risks": [
-        "API料金の大幅値上げ → 粗利が一夜で消滅",
-        "API障害 → サービス全停止",
-        "モデル更新 → プロンプトの再設計が必要",
-        "利用規約変更 → ビジネスモデルが成立しなくなる",
+        "Large API price increase → gross margin disappears overnight",
+        "API outage → entire service goes down",
+        "Model update → prompts need complete redesign",
+        "Terms of service changes → business model no longer viable",
     ]
 }
 
-# GOOD: AIプロバイダー非依存のアーキテクチャ
+# GOOD: AI provider-agnostic architecture
 good_ai_architecture = {
     "design_principles": [
-        "AI呼び出しを抽象化レイヤーで包む",
-        "複数プロバイダーのフォールバック構成",
-        "プロンプトの外部管理（ハードコードしない）",
-        "出力の品質評価・監視パイプライン",
+        "Wrap AI calls in an abstraction layer",
+        "Multi-provider fallback configuration",
+        "Externalize prompt management (do not hardcode)",
+        "Output quality evaluation and monitoring pipeline",
     ],
     "implementation": {
         "abstraction_layer": "AIServiceInterface → Claude / GPT-4 / Gemini",
         "fallback": "Primary → Secondary → Cached Response",
-        "cost_control": "モデルルーティング（簡単な処理はHaiku、複雑な処理はSonnet）",
+        "cost_control": "Model routing (Haiku for simple tasks, Sonnet for complex tasks)",
     }
 }
 ```
@@ -1201,45 +1207,45 @@ good_ai_architecture = {
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement appropriate error handling
+- Write test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise on basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1248,26 +1254,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise on advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1275,7 +1281,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1286,14 +1292,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1301,7 +1307,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1309,44 +1315,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1355,7 +1361,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1370,47 +1376,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithmic complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Missing or invalid config file | Verify config file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout value, add retry logic |
+| Out of memory | Increased data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check execution user permissions, review settings |
+| Data inconsistency | Race condition in concurrent processing | Introduce locking mechanism, manage transactions |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Review error messages**: Read the stack trace to identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Incremental verification**: Use log output and debuggers to verify hypotheses
+5. **Fix and regression test**: After fixing, run tests for related areas as well
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger setup
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1418,118 +1424,118 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function inputs and outputs"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Calling: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps to diagnose performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Look for memory leaks
+3. **Check I/O waits**: Examine disk and network I/O conditions
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem Type | Diagnostic Tool | Solution |
+|--------------|----------------|----------|
+| High CPU | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 ---
 
 ## 7. FAQ
 
-### Q1: AIスタートアップに最適な法人形態は？
+### Q1: What is the optimal legal entity type for an AI startup?
 
-**A:** 資金調達を予定するなら株式会社一択。(1) 合同会社はVCからの出資を受けにくい（株式発行ができない）、(2) 日本の場合、株式会社の設立費用は約25万円（合同会社は約10万円）、(3) 初期はfreee会社設立等のサービスで手続きを簡略化可能。米国法人（Delaware C-Corp）を設立するケースもあるが、グローバル展開を初期から計画する場合のみ推奨。
+**A:** If you plan to raise outside funding, a joint-stock company (Kabushiki Kaisha) is the clear choice. (1) LLCs (Godo Kaisha) have difficulty accepting VC investment (cannot issue shares); (2) In Japan, the cost to incorporate a joint-stock company is about ¥250,000 (vs. about ¥100,000 for an LLC); (3) For early stages, services like freee Company Incorporation can simplify the process. Some founders incorporate a US entity (Delaware C-Corp), but this is only recommended if you are planning global expansion from the outset.
 
-### Q2: 共同創業者との株式配分は？
+### Q2: How should equity be split with co-founders?
 
-**A:** 一般的な配分例。(1) 2人チーム: 55:45 または 60:40（リーダーが多め）、(2) 3人チーム: 40:30:30 または 35:35:30。ベスティング（4年間、1年クリフ）は必須。均等配分（50:50）はデッドロック（意思決定の行き詰まり）リスクがあるため避ける。Y Combinator も均等に近い配分を推奨しつつ、最終的な意思決定者は1人と助言している。
+**A:** Common split examples: (1) 2-person team: 55:45 or 60:40 (more to the lead); (2) 3-person team: 40:30:30 or 35:35:30. Vesting (4 years, 1-year cliff) is mandatory. Avoid equal splits (50:50) due to the risk of deadlock in decision-making. Y Combinator recommends near-equal splits while advising that there should be a single final decision-maker.
 
-### Q3: 日本でAI特化のVCは？
+### Q3: Which VCs in Japan focus on AI?
 
-**A:** 主要な投資家。(1) VC: Coral Capital、DCM Ventures、Globis Capital、DNX Ventures、JAFCO（AI特化ファンドあり）、(2) CVC: NVIDIA Inception、Google for Startups、Microsoft for Startups、(3) アクセラレーター: Y Combinator（日本からも応募可）、Plug and Play Japan。シード段階ではエンジェル投資家も重要。
+**A:** Key investors: (1) VCs: Coral Capital, DCM Ventures, Globis Capital, DNX Ventures, JAFCO (has AI-focused funds); (2) CVCs: NVIDIA Inception, Google for Startups, Microsoft for Startups; (3) Accelerators: Y Combinator (open to Japanese applicants), Plug and Play Japan. Angel investors are also important at the seed stage.
 
-### Q4: 資金調達中に事業運営が疎かにならないか？
+### Q4: How do I keep the business running while fundraising?
 
-**A:** 資金調達は創業者の時間の50%以上を消費する。対策: (1) CTOまたはVP of Engineeringにプロダクト開発の権限を委任する、(2) 資金調達の期間を最初から区切る（3ヶ月以内にクローズ目標）、(3) 投資家ミーティングを週2-3日に集約し、残りを事業に使う、(4) ピッチデックの更新はテンプレ化して効率化する。
+**A:** Fundraising consumes more than 50% of a founder's time. Solutions: (1) Delegate product development authority to the CTO or VP of Engineering; (2) Set a hard deadline for the fundraising process (target closing within 3 months); (3) Batch investor meetings to 2-3 days per week, reserving the rest for business; (4) Templatize pitch deck updates for efficiency.
 
-### Q5: エンジェル投資家を見つけるには？
+### Q5: How do I find angel investors?
 
-**A:** 効果的なアプローチ方法。(1) 起業家イベント（IVS、B Dash Camp等）に参加、(2) AngelList Japan、ANGEL PORT等のプラットフォーム活用、(3) 既存の起業家からの紹介（最も成功率が高い）、(4) LinkedIn/Twitter/Xで直接メッセージ、(5) アクセラレータープログラムへの参加。エンジェル投資家はVCよりも意思決定が速く、500万〜3000万円の出資が一般的。事業のドメインに知見がある投資家を選ぶと、資金以外のメンター的サポートも得られる。
+**A:** Effective approaches: (1) Attend founder events (IVS, B Dash Camp, etc.); (2) Use platforms like AngelList Japan and ANGEL PORT; (3) Introductions from existing founders (highest success rate); (4) Direct messages via LinkedIn/Twitter/X; (5) Participate in accelerator programs. Angel investors make decisions faster than VCs and typically invest ¥5M–¥30M. Choosing investors with domain expertise in your space gives you mentoring support beyond just capital.
 
-### Q6: 海外VCからの調達は可能か？
+### Q6: Is it possible to raise from overseas VCs?
 
-**A:** 可能だが追加の準備が必要。(1) 英語のピッチデックと財務モデル、(2) グローバル展開のストーリー（日本市場→アジア→グローバル）、(3) Delaware C-Corpの設立を求められることが多い（Stripe Atlasで可能）、(4) Y Combinator等の米国アクセラレーターへの応募も有効。海外VCは日本市場特有のリスクを理解していないことがあるため、市場の成長性とチームの実行力を特に強くアピールする必要がある。
+**A:** Yes, but additional preparation is required: (1) English pitch deck and financial model; (2) A global expansion story (Japan market → Asia → global); (3) You will often be asked to incorporate as a Delaware C-Corp (possible via Stripe Atlas); (4) Applying to US accelerators like Y Combinator is also effective. Overseas VCs may not understand Japan-specific market risks, so you need to make an especially strong case for market growth potential and your team's execution ability.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Rather than theory alone, your understanding deepens by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping fundamentals and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| 創業準備 | 共同創業者選定 + 法人設立 + MVP開発 |
-| 資金調達 | 必要最小限を適切なタイミングで |
-| ピッチデック | 12枚構成、トラクションとチームが最重要 |
-| チーム構築 | 開発5:ビジネス2のバランス、リファラル最優先 |
-| 採用順序 | フルスタック→AI/ML→デザイナー→マーケター |
-| 評価額 | AI SaaS Seed: ARR × 30-50倍が目安 |
-| 組織スケーリング | PMFに応じた段階的拡大、カルチャー維持が鍵 |
-| 法務 | 株主間契約、SO設計、タームシート交渉は弁護士と |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [03-future-opportunities.md](./03-future-opportunities.md) — 未来の機会
-- [01-solo-developer.md](./01-solo-developer.md) — 個人開発からの出発
-- [../02-monetization/02-scaling-strategy.md](../02-monetization/02-scaling-strategy.md) — スケーリング戦略
+| Item | Key Point |
+|------|-----------|
+| Founding preparation | Co-founder selection + incorporation + MVP development |
+| Fundraising | Raise only the minimum needed at the right time |
+| Pitch deck | 12-slide structure; traction and team are most critical |
+| Team building | 5 dev : 2 business balance; referrals are top priority |
+| Hiring order | Full-stack → AI/ML → Designer → Marketer |
+| Valuation | AI SaaS Seed: ARR × 30-50x as a benchmark |
+| Org scaling | Gradual expansion tied to PMF; maintaining culture is key |
+| Legal | Shareholder agreements, SO design, term sheet negotiation — always with an attorney |
 
 ---
 
-## 参考文献
+## Guides to Read Next
 
-1. **"The Hard Thing About Hard Things" — Ben Horowitz** — スタートアップ経営の困難と対処法
-2. **"Venture Deals" — Brad Feld** — VC調達の構造と交渉術の定番書
-3. **Y Combinator Startup School** — https://www.startupschool.org — 無料のスタートアップ講座
-4. **INITIAL (旧entrepedia)** — https://initial.inc — 日本のスタートアップ資金調達データベース
-5. **"High Growth Handbook" — Elad Gil** — スケーリング期の組織経営ガイド
-6. **"An Elegant Puzzle" — Will Larson** — エンジニアリング組織のマネジメント
+- [03-future-opportunities.md](./03-future-opportunities.md) — Future opportunities
+- [01-solo-developer.md](./01-solo-developer.md) — Starting from solo development
+- [../02-monetization/02-scaling-strategy.md](../02-monetization/02-scaling-strategy.md) — Scaling strategy
+
+---
+
+## References
+
+1. **"The Hard Thing About Hard Things" — Ben Horowitz** — The challenges of running a startup and how to handle them
+2. **"Venture Deals" — Brad Feld** — The definitive book on VC fundraising structure and negotiation
+3. **Y Combinator Startup School** — https://www.startupschool.org — Free startup course
+4. **INITIAL (formerly entrepedia)** — https://initial.inc — Japan startup fundraising database
+5. **"High Growth Handbook" — Elad Gil** — Organizational management guide for the scaling phase
+6. **"An Elegant Puzzle" — Will Larson** — Engineering organization management
