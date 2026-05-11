@@ -1,60 +1,60 @@
-# スマートホームガイド
+# Smart Home Guide
 
-> Matter、AI家電、音声アシスタントを活用した次世代スマートホームの構築と技術を解説する
+> A guide to building next-generation smart homes leveraging Matter, AI appliances, and voice assistants
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **スマートホームプロトコル** — Matter、Thread、Zigbee、Wi-Fi の違いと選び方
-2. **AI家電の進化** — 音声アシスタント、AIカメラ、予測制御の技術基盤
-3. **実践的構築** — Home Assistant を中心としたスマートホームシステムの設計と自動化
+1. **Smart Home Protocols** — Differences and selection criteria for Matter, Thread, Zigbee, and Wi-Fi
+2. **Evolution of AI Appliances** — Technical foundations of voice assistants, AI cameras, and predictive control
+3. **Practical Implementation** — Designing and automating a smart home system centered on Home Assistant
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge will help deepen your understanding before reading this guide:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [ロボティクスガイド](./01-robotics.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of the [Robotics Guide](./01-robotics.md)
 
 ---
 
-## 1. スマートホームの全体像
+## 1. Smart Home Overview
 
-### スマートホームのレイヤー構造
+### Smart Home Layer Structure
 
 ```
 +-----------------------------------------------------------+
-|                  スマートホーム アーキテクチャ               |
+|                  Smart Home Architecture                    |
 +-----------------------------------------------------------+
 |                                                           |
 |  +----------------------------------------------------+  |
-|  | アプリケーション層                                    |  |
+|  | Application Layer                                   |  |
 |  | Apple Home / Google Home / Alexa / Home Assistant   |  |
-|  | 自動化ルール、シーン、音声制御                        |  |
+|  | Automation rules, scenes, voice control             |  |
 |  +----------------------------------------------------+  |
 |                          |                                |
 |  +----------------------------------------------------+  |
-|  | プロトコル層                                          |  |
+|  | Protocol Layer                                      |  |
 |  | Matter / HomeKit / Google Home API / Alexa Skills   |  |
 |  +----------------------------------------------------+  |
 |                          |                                |
 |  +----------------------------------------------------+  |
-|  | 通信層                                                |  |
+|  | Communication Layer                                 |  |
 |  | Thread / Wi-Fi / Zigbee / Z-Wave / Bluetooth LE    |  |
 |  +----------------------------------------------------+  |
 |                          |                                |
 |  +----------------------------------------------------+  |
-|  | デバイス層                                            |  |
-|  | 照明 / サーモスタット / カメラ / ドアロック / センサー  |  |
+|  | Device Layer                                        |  |
+|  | Lighting / Thermostat / Camera / Door Lock / Sensor |  |
 |  +----------------------------------------------------+  |
 +-----------------------------------------------------------+
 ```
 
-### Matter の登場による統一
+### Unification Through Matter
 
 ```
-【Matter 以前】                    【Matter 以後】
+[Before Matter]                    [After Matter]
 
 +--------+  +--------+  +------+  +----------------------------+
 | HomeKit|  | Google |  | Alexa|  |         Matter             |
@@ -62,64 +62,64 @@
 +--------+  +--------+  +------+  |   + Samsung + ...)         |
     |           |           |     +----------------------------+
     v           v           v              |
- 一部の      一部の      一部の     ほぼ全ての対応デバイスが
- デバイス    デバイス    デバイス    全プラットフォームで動作
+ Limited     Limited     Limited    Nearly all compatible devices
+ devices     devices     devices    work across all platforms
 ```
 
-### スマートホームの市場動向と進化
+### Smart Home Market Trends and Evolution
 
-スマートホーム市場は2025年時点で約1,500億ドル規模に達し、年間成長率20%以上で拡大を続けている。この成長を牽引するのは3つの要因である。
+The smart home market has reached approximately $150 billion as of 2025, continuing to grow at an annual rate of over 20%. Three factors are driving this growth.
 
-1. **Matter規格の普及**: 2022年に最初のバージョンがリリースされて以来、対応デバイスが急速に増加。2025年末時点で1,000以上の認定デバイスが市場に出ている。
-2. **エッジAIの進化**: NPU搭載デバイスの低価格化により、クラウドに依存しないローカルAI処理が可能になった。
-3. **エネルギー価格の上昇**: 電力コスト削減のため、AIによるエネルギー最適化への需要が増加。
+1. **Adoption of the Matter Standard**: Since the first version was released in 2022, the number of compatible devices has rapidly increased. As of late 2025, over 1,000 certified devices are available on the market.
+2. **Advancement of Edge AI**: The decreasing cost of NPU-equipped devices has enabled local AI processing without cloud dependency.
+3. **Rising Energy Prices**: Demand for AI-driven energy optimization has increased to reduce electricity costs.
 
 ```
-【スマートホーム進化の4段階】
+[Four Stages of Smart Home Evolution]
 
-Stage 1: リモコン代替期（2014-2018）
-├── スマホから家電を操作するだけ
-├── Wi-Fi接続の単体デバイス（Philips Hue、TP-Link）
-└── 音声アシスタント初期（Echo第1世代: 2014年）
+Stage 1: Remote Control Replacement Era (2014-2018)
+├── Simply controlling appliances from a smartphone
+├── Standalone Wi-Fi-connected devices (Philips Hue, TP-Link)
+└── Early voice assistants (Echo 1st Gen: 2014)
 
-Stage 2: 自動化期（2018-2022）
-├── IF-THEN ルールによる自動化（IFTTT、Alexa Routines）
-├── シーン管理（「おやすみ」で全照明OFF + ドアロック）
-└── 各エコシステムの囲い込み競争
+Stage 2: Automation Era (2018-2022)
+├── IF-THEN rule-based automation (IFTTT, Alexa Routines)
+├── Scene management ("Good Night" turns off all lights + locks doors)
+└── Ecosystem lock-in competition
 
-Stage 3: AI統合期（2022-2025）
-├── Matter による相互運用性の実現
-├── LLM ベースの自然言語制御
-├── 行動予測による先回り自動化
-└── ローカルAI処理（NPU、Coral）
+Stage 3: AI Integration Era (2022-2025)
+├── Interoperability through Matter
+├── LLM-based natural language control
+├── Proactive automation through behavior prediction
+└── Local AI processing (NPU, Coral)
 
-Stage 4: アンビエントAI期（2025-）
-├── 環境が自動的に居住者に適応
-├── マルチモーダルセンシング（映像+音声+環境）
-├── デジタルツインによるシミュレーション最適化
-└── ヘルスケア統合（睡眠、ストレス、活動量）
+Stage 4: Ambient AI Era (2025-)
+├── Environment automatically adapts to occupants
+├── Multimodal sensing (video + audio + environmental)
+├── Simulation optimization through digital twins
+└── Healthcare integration (sleep, stress, activity levels)
 ```
 
 ---
 
-## 2. 通信プロトコル比較
+## 2. Communication Protocol Comparison
 
-### プロトコル比較表
+### Protocol Comparison Table
 
-| プロトコル | 周波数帯 | 通信距離 | 消費電力 | 速度 | メッシュ | 主な用途 |
+| Protocol | Frequency Band | Range | Power Consumption | Speed | Mesh | Primary Use |
 |-----------|---------|---------|---------|------|---------|---------|
-| Wi-Fi | 2.4/5/6 GHz | 30-50m | 高 | 高速 | 非対応 | カメラ、ディスプレイ |
-| Thread | 2.4 GHz | 10-30m | 非常に低 | 中速 | 対応 | センサー、照明 |
-| Zigbee | 2.4 GHz | 10-20m | 非常に低 | 低速 | 対応 | センサー、スイッチ |
-| Z-Wave | 900 MHz | 30-100m | 低 | 低速 | 対応 | ドアロック、センサー |
-| Bluetooth LE | 2.4 GHz | 10-30m | 非常に低 | 低速 | 対応(Mesh) | 近距離小型デバイス |
-| Matter | 上記の上位層 | プロトコル依存 | プロトコル依存 | - | Thread経由 | 統一規格 |
+| Wi-Fi | 2.4/5/6 GHz | 30-50m | High | Fast | Not supported | Cameras, displays |
+| Thread | 2.4 GHz | 10-30m | Very low | Medium | Supported | Sensors, lighting |
+| Zigbee | 2.4 GHz | 10-20m | Very low | Slow | Supported | Sensors, switches |
+| Z-Wave | 900 MHz | 30-100m | Low | Slow | Supported | Door locks, sensors |
+| Bluetooth LE | 2.4 GHz | 10-30m | Very low | Slow | Supported (Mesh) | Short-range small devices |
+| Matter | Upper layer of above | Protocol-dependent | Protocol-dependent | - | Via Thread | Unified standard |
 
-### Thread ネットワーク構造
+### Thread Network Structure
 
 ```
 +-----------------------------------------------------------+
-|  Thread メッシュネットワーク                                 |
+|  Thread Mesh Network                                       |
 +-----------------------------------------------------------+
 |                                                           |
 |  +------+            +------+            +------+         |
@@ -131,59 +131,59 @@ Stage 4: アンビエントAI期（2025-）
 |   mesh                mesh                mesh            |
 |     |                   |                   |             |
 |  +--+---+  +------+  +--+---+  +------+  +--+---+        |
-|  | 照明  |--| 温度 |--| 照明  |--|ドアロック|--| 温度 |       |
-|  |      |  |センサー|  |      |  |       |  |センサー|       |
+|  | Light |--| Temp |--| Light |--| Door  |--| Temp |      |
+|  |       |  |Sensor|  |       |  | Lock  |  |Sensor|      |
 |  +------+  +------+  +------+  +------+  +------+        |
 |                                                           |
-|  Border Router: Thread ←→ Wi-Fi/Ethernet のブリッジ       |
-|  (Apple TV, Google Nest Hub, HomePod mini が対応)         |
+|  Border Router: Bridge between Thread <-> Wi-Fi/Ethernet  |
+|  (Apple TV, Google Nest Hub, HomePod mini are compatible) |
 +-----------------------------------------------------------+
 ```
 
-### Thread プロトコルの詳細技術
+### Thread Protocol Technical Details
 
-Thread は IEEE 802.15.4 上に構築された IPv6 ベースのメッシュネットワーキングプロトコルである。従来の Zigbee と同じ物理層を使用するが、ネットワーク層以上が大きく異なる。
+Thread is an IPv6-based mesh networking protocol built on IEEE 802.15.4. It uses the same physical layer as traditional Zigbee, but differs significantly from the network layer and above.
 
 ```
-【Thread プロトコルスタック】
+[Thread Protocol Stack]
 
 +-------------------------------------------+
 | Application Layer (Matter / CoAP)         |
 +-------------------------------------------+
 | UDP / TCP                                 |
 +-------------------------------------------+
-| IPv6 (6LoWPAN 圧縮)                       |
+| IPv6 (6LoWPAN compression)                |
 +-------------------------------------------+
 | Mesh Link Establishment (MLE)             |
-| ルーティング: RLOC16 ベース               |
+| Routing: RLOC16-based                     |
 +-------------------------------------------+
 | IEEE 802.15.4 MAC                          |
-| AES-CCM-128 暗号化                         |
+| AES-CCM-128 encryption                    |
 +-------------------------------------------+
 | IEEE 802.15.4 PHY                          |
 | 2.4 GHz, 250 kbps                         |
 +-------------------------------------------+
 ```
 
-Thread ネットワークのノードには以下の役割がある。
+Thread network nodes have the following roles.
 
-| ノードタイプ | 役割 | 常時稼働 | 中継能力 |
+| Node Type | Role | Always On | Relay Capability |
 |-------------|------|---------|---------|
-| Leader | ネットワーク管理、パーティション統合 | はい | はい |
-| Router | パケット中継、子ノード管理 | はい | はい |
-| REED (Router-Eligible End Device) | 必要時にRouterに昇格 | はい | 昇格後 |
-| End Device (SED/MED) | 末端デバイス、中継なし | MED:はい / SED:間欠 | なし |
-| Border Router | Thread ←→ Wi-Fi/Ethernet ブリッジ | はい | はい |
+| Leader | Network management, partition merging | Yes | Yes |
+| Router | Packet relay, child node management | Yes | Yes |
+| REED (Router-Eligible End Device) | Promotes to Router when needed | Yes | After promotion |
+| End Device (SED/MED) | End device, no relay | MED: Yes / SED: Intermittent | None |
+| Border Router | Thread <-> Wi-Fi/Ethernet bridge | Yes | Yes |
 
 ```python
-# OpenThread を使った Thread ネットワーク情報取得例
+# Example of retrieving Thread network information using OpenThread
 import openthread
 
 def analyze_thread_network(interface="wpan0"):
-    """Thread ネットワークの状態を分析"""
+    """Analyze the state of a Thread network"""
     ot = openthread.OpenThread(interface)
 
-    # ネットワーク情報
+    # Network information
     network_info = {
         "network_name": ot.get_network_name(),
         "channel": ot.get_channel(),
@@ -192,7 +192,7 @@ def analyze_thread_network(interface="wpan0"):
         "mesh_local_prefix": str(ot.get_mesh_local_prefix()),
     }
 
-    # ノード情報
+    # Node information
     node_info = {
         "role": ot.get_role(),  # leader, router, child, detached
         "rloc16": hex(ot.get_rloc16()),
@@ -200,7 +200,7 @@ def analyze_thread_network(interface="wpan0"):
         "partition_id": ot.get_partition_id(),
     }
 
-    # 隣接ノード一覧
+    # Neighbor node list
     neighbors = ot.get_neighbor_table()
     for neighbor in neighbors:
         print(f"  Neighbor RLOC16: {hex(neighbor.rloc16)}")
@@ -209,7 +209,7 @@ def analyze_thread_network(interface="wpan0"):
         print(f"    Age: {neighbor.age}s")
         print(f"    RSSI: {neighbor.average_rssi} dBm")
 
-    # ルーティングテーブル
+    # Routing table
     router_table = ot.get_router_table()
     print(f"\nRouter Table ({len(router_table)} entries):")
     for router in router_table:
@@ -221,50 +221,51 @@ def analyze_thread_network(interface="wpan0"):
     return network_info, node_info
 ```
 
-### Zigbee と Thread の移行戦略
+### Zigbee to Thread Migration Strategy
 
-既存の Zigbee デバイスを所有するユーザーにとって、Thread への移行は重要な検討事項である。
+For users who own existing Zigbee devices, migrating to Thread is an important consideration.
 
 ```
-【Zigbee → Thread 移行パス】
+[Zigbee -> Thread Migration Paths]
 
-パターン A: Bridge 経由（推奨）
+Pattern A: Via Bridge (Recommended)
 +-------------------+     +------------------+     +--------+
-| Zigbee デバイス群   | --> | Zigbee-Matter    | --> | Matter |
-| (Hue, IKEA等)     |     | Bridge           |     | 統合   |
-+-------------------+     | (Hue Bridge v2)  |     +--------+
-                          +------------------+
-
-パターン B: 段階的置換
-Phase 1: 新規購入は Thread/Matter 対応のみ
-Phase 2: 故障・寿命時に Thread デバイスへ交換
-Phase 3: 3-5年で完全移行
-
-パターン C: 併用（コスト重視）
+| Zigbee device     | --> | Zigbee-Matter    | --> | Matter |
+| group             |     | Bridge           |     | unified|
+| (Hue, IKEA, etc.) |     | (Hue Bridge v2)  |     +--------+
 +-------------------+     +------------------+
-| Zigbee デバイス     | --> | Zigbee2MQTT      | --> Home Assistant
-+-------------------+     +------------------+         ↑
+
+Pattern B: Gradual Replacement
+Phase 1: New purchases are Thread/Matter compatible only
+Phase 2: Replace with Thread devices when broken or end-of-life
+Phase 3: Complete migration in 3-5 years
+
+Pattern C: Coexistence (Cost-focused)
++-------------------+     +------------------+
+| Zigbee devices    | --> | Zigbee2MQTT      | --> Home Assistant
++-------------------+     +------------------+         ^
 +-------------------+     +------------------+         |
-| Thread デバイス     | --> | Thread Border    | -------+
+| Thread devices    | --> | Thread Border    | --------+
 +-------------------+     | Router           |
                           +------------------+
 ```
 
 ---
 
-## 3. Matter プロトコル
+## 3. Matter Protocol
 
-### Matterの技術構造
+### Matter Technical Structure
 
 ```
 +-----------------------------------------------------------+
-|                    Matter プロトコル                        |
+|                    Matter Protocol                          |
 +-----------------------------------------------------------+
 |                                                           |
 |  +----------------------------------------------------+  |
 |  | Application Layer                                   |  |
-|  | デバイスタイプ定義（照明、サーモスタット、ドアロック）  |  |
-|  | クラスタ（On/Off, Level Control, Color Control）     |  |
+|  | Device type definitions (lighting, thermostat,      |  |
+|  | door lock)                                          |  |
+|  | Clusters (On/Off, Level Control, Color Control)     |  |
 |  +----------------------------------------------------+  |
 |                                                           |
 |  +----------------------------------------------------+  |
@@ -285,11 +286,11 @@ Phase 3: 3-5年で完全移行
 +-----------------------------------------------------------+
 ```
 
-### Matter のデバイスタイプとクラスタ
+### Matter Device Types and Clusters
 
-Matter はデバイスの機能を「クラスタ」という単位で標準化している。各デバイスタイプは必須クラスタとオプショナルクラスタの組み合わせで定義される。
+Matter standardizes device capabilities in units called "clusters." Each device type is defined by a combination of required clusters and optional clusters.
 
-| デバイスタイプ | Device Type ID | 必須クラスタ | オプショナルクラスタ |
+| Device Type | Device Type ID | Required Clusters | Optional Clusters |
 |--------------|---------------|-------------|-------------------|
 | On/Off Light | 0x0100 | On/Off, Level Control | Color Control, Scenes |
 | Dimmable Light | 0x0101 | On/Off, Level Control | Color Control |
@@ -302,94 +303,94 @@ Matter はデバイスの機能を「クラスタ」という単位で標準化�
 | Humidity Sensor | 0x0307 | Relative Humidity | - |
 | Contact Sensor | 0x0015 | Boolean State | - |
 
-### Matter のコミッショニング（ペアリング）プロセス
+### Matter Commissioning (Pairing) Process
 
 ```
-【Matter デバイスのコミッショニングフロー】
+[Matter Device Commissioning Flow]
 
-1. QRコードスキャン / NFC タッチ
-   ┌─────────────┐     ┌──────────────┐
-   │ スマートフォン │ --> │ デバイスQRコード │
-   │ (Commissioner)│     │ (Commissionee) │
-   └─────────────┘     └──────────────┘
+1. QR Code Scan / NFC Touch
+   +---------------+     +----------------+
+   | Smartphone    | --> | Device QR Code |
+   | (Commissioner)|     | (Commissionee) |
+   +---------------+     +----------------+
 
-2. PASE（パスコード認証セッション確立）
-   Commissioner ←──── SPAKE2+ ────→ Commissionee
-   ※ QRコードからセットアップペイロードを抽出
-   ※ Discriminator + Passcode で認証
+2. PASE (Passcode Authenticated Session Establishment)
+   Commissioner <---- SPAKE2+ ----> Commissionee
+   * Extract setup payload from QR code
+   * Authenticate with Discriminator + Passcode
 
-3. 証明書チェーン検証
-   Commissionee → DAC (Device Attestation Certificate)
-                → PAI (Product Attestation Intermediate)
-                → PAA (Product Attestation Authority)
-   ※ DCL (Distributed Compliance Ledger) で検証
+3. Certificate Chain Verification
+   Commissionee -> DAC (Device Attestation Certificate)
+                -> PAI (Product Attestation Intermediate)
+                -> PAA (Product Attestation Authority)
+   * Verify via DCL (Distributed Compliance Ledger)
 
-4. NOC（Network Operating Certificate）発行
-   Commissioner → Root CA → NOC → Commissionee
-   ※ Fabric ID + Node ID を付与
+4. NOC (Network Operating Certificate) Issuance
+   Commissioner -> Root CA -> NOC -> Commissionee
+   * Assign Fabric ID + Node ID
 
-5. ACL（Access Control List）設定
-   Adminが他のコントローラにもアクセス権を付与可能
-   ※ Multi-Admin: 最大5つのFabricに同時参加可能
+5. ACL (Access Control List) Configuration
+   Admin can grant access rights to other controllers
+   * Multi-Admin: Can join up to 5 Fabrics simultaneously
 
-6. CASE セッション確立（運用時）
-   Controller ←── Sigma1/Sigma2/Sigma3 ──→ Device
-   ※ NOC ベースの相互認証
-   ※ AES-CCM-128 暗号化通信
+6. CASE Session Establishment (Operational)
+   Controller <-- Sigma1/Sigma2/Sigma3 --> Device
+   * Mutual authentication based on NOC
+   * AES-CCM-128 encrypted communication
 ```
 
-### コード例1: Matter デバイスの制御（概念コード）
+### Code Example 1: Controlling Matter Devices (Conceptual Code)
 
 ```python
-# Matter デバイスの制御例（Python chip-tool ライクなAPI）
+# Matter device control example (Python chip-tool-like API)
 from matter_sdk import MatterController, clusters
 
 async def control_smart_home():
     controller = MatterController()
 
-    # デバイスの検出とペアリング
+    # Device discovery and pairing
     devices = await controller.discover()
-    print(f"検出されたデバイス: {len(devices)}台")
+    print(f"Discovered devices: {len(devices)}")
 
     for device in devices:
         print(f"  - {device.name} (Type: {device.device_type})")
 
-    # 照明の制御
+    # Lighting control
     light = controller.get_device("living_room_light")
 
-    # On/Off クラスタ
+    # On/Off cluster
     await light.clusters.on_off.on()
 
-    # Level Control クラスタ（明るさ）
+    # Level Control cluster (brightness)
     await light.clusters.level_control.move_to_level(
         level=128,           # 0-254 (50%)
-        transition_time=10,  # 1秒 (10 = 1s)
+        transition_time=10,  # 1 second (10 = 1s)
     )
 
-    # Color Control クラスタ（色温度）
+    # Color Control cluster (color temperature)
     await light.clusters.color_control.move_to_color_temperature(
-        color_temperature_mireds=370,  # 2700K (暖白色)
+        color_temperature_mireds=370,  # 2700K (warm white)
         transition_time=20,
     )
 
-    # サーモスタットの制御
+    # Thermostat control
     thermostat = controller.get_device("thermostat")
     await thermostat.clusters.thermostat.set_setpoint(
         mode="heating",
-        temperature=22.0,  # 摂氏
+        temperature=22.0,  # Celsius
     )
 
-    # ドアロックの制御
+    # Door lock control
     lock = controller.get_device("front_door")
     await lock.clusters.door_lock.lock()
     status = await lock.clusters.door_lock.get_lock_state()
-    print(f"ドアの状態: {status}")  # "locked"
+    print(f"Door status: {status}")  # "locked"
 ```
 
-### コード例: Matter デバイス開発（ESP32 + ESP-Matter）
+### Code Example: Matter Device Development (ESP32 + ESP-Matter)
 
 ```cpp
-// ESP32 で Matter 対応照明デバイスを開発する例
+// Example of developing a Matter-compatible lighting device with ESP32
 // ESP-IDF + ESP-Matter SDK
 
 #include <esp_matter.h>
@@ -400,10 +401,10 @@ async def control_smart_home():
 using namespace esp_matter;
 using namespace chip::app::Clusters;
 
-// GPIO 設定
+// GPIO configuration
 #define LED_GPIO GPIO_NUM_2
 
-// Attribute コールバック
+// Attribute callback
 static esp_err_t app_attribute_update_cb(
     attribute::callback_type_t type,
     uint16_t endpoint_id,
@@ -413,18 +414,18 @@ static esp_err_t app_attribute_update_cb(
     void *priv_data)
 {
     if (type == attribute::PRE_UPDATE) {
-        // On/Off クラスタの処理
+        // On/Off cluster handling
         if (cluster_id == OnOff::Id) {
             if (attribute_id == OnOff::Attributes::OnOff::Id) {
                 gpio_set_level(LED_GPIO, val->val.b ? 1 : 0);
                 ESP_LOGI("APP", "LED %s", val->val.b ? "ON" : "OFF");
             }
         }
-        // Level Control クラスタの処理
+        // Level Control cluster handling
         if (cluster_id == LevelControl::Id) {
             if (attribute_id == LevelControl::Attributes::CurrentLevel::Id) {
                 uint8_t level = val->val.u8;
-                // PWM で明るさ制御（0-254 → 0-255 duty）
+                // Brightness control via PWM (0-254 -> 0-255 duty)
                 ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, level);
                 ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
                 ESP_LOGI("APP", "Brightness: %d/254", level);
@@ -436,18 +437,18 @@ static esp_err_t app_attribute_update_cb(
 
 extern "C" void app_main()
 {
-    // GPIO 初期化
+    // GPIO initialization
     gpio_config_t io_conf = {
         .pin_bit_mask = (1ULL << LED_GPIO),
         .mode = GPIO_MODE_OUTPUT,
     };
     gpio_config(&io_conf);
 
-    // Matter ノード作成
+    // Create Matter node
     node::config_t node_config;
     node_t *node = node::create(&node_config, app_attribute_update_cb, NULL);
 
-    // Dimmable Light エンドポイント追加
+    // Add Dimmable Light endpoint
     endpoint::dimmable_light::config_t light_config;
     light_config.on_off.on_off = false;
     light_config.level_control.current_level = 128;
@@ -455,7 +456,7 @@ extern "C" void app_main()
         node, &light_config, ENDPOINT_FLAG_NONE, NULL
     );
 
-    // Matter スタート
+    // Start Matter
     esp_matter::start(NULL);
 
     ESP_LOGI("APP", "Matter Dimmable Light Started");
@@ -463,22 +464,22 @@ extern "C" void app_main()
 }
 ```
 
-### コード例2: Home Assistant の自動化設定
+### Code Example 2: Home Assistant Automation Configuration
 
 ```yaml
-# Home Assistant の automation.yaml
-# AI的な条件判断を含む自動化ルール
+# Home Assistant automation.yaml
+# Automation rules with AI-like conditional logic
 
-# 自動化1: 日没時に照明を自動点灯
-- alias: "日没時の照明自動化"
+# Automation 1: Auto-turn on lights at sunset
+- alias: "Sunset lighting automation"
   trigger:
     - platform: sun
       event: sunset
-      offset: "-00:30:00"  # 日没30分前
+      offset: "-00:30:00"  # 30 minutes before sunset
   condition:
     - condition: state
       entity_id: binary_sensor.occupancy_living_room
-      state: "on"  # 在宅時のみ
+      state: "on"  # Only when someone is home
   action:
     - service: light.turn_on
       target:
@@ -486,21 +487,21 @@ extern "C" void app_main()
       data:
         brightness_pct: 70
         color_temp_kelvin: 3000
-        transition: 30  # 30秒かけてフェードイン
+        transition: 30  # Fade in over 30 seconds
 
-# 自動化2: 外出検知で省エネモード
-- alias: "全員外出で省エネモード"
+# Automation 2: Energy-saving mode on departure detection
+- alias: "Energy-saving mode when everyone is away"
   trigger:
     - platform: state
       entity_id: group.family
       to: "not_home"
-      for: "00:10:00"  # 10分間不在
+      for: "00:10:00"  # Absent for 10 minutes
   action:
     - service: climate.set_temperature
       target:
         entity_id: climate.main_thermostat
       data:
-        temperature: 18  # 暖房を下げる
+        temperature: 18  # Lower heating
     - service: light.turn_off
       target:
         entity_id: all
@@ -508,8 +509,8 @@ extern "C" void app_main()
       target:
         entity_id: switch.entertainment_system
 
-# 自動化3: AIカメラ連携（人物検出）
-- alias: "不審者検知アラート"
+# Automation 3: AI camera integration (person detection)
+- alias: "Suspicious person detection alert"
   trigger:
     - platform: state
       entity_id: image_processing.front_camera_person_detection
@@ -521,8 +522,8 @@ extern "C" void app_main()
   action:
     - service: notify.mobile_app
       data:
-        title: "セキュリティ警告"
-        message: "玄関カメラで人物を検出しました"
+        title: "Security Alert"
+        message: "Person detected on the front door camera"
         data:
           image: "/api/camera_proxy/camera.front_door"
     - service: light.turn_on
@@ -532,10 +533,10 @@ extern "C" void app_main()
         brightness_pct: 100
 ```
 
-### コード例: Home Assistant カスタムコンポーネント開発
+### Code Example: Home Assistant Custom Component Development
 
 ```python
-"""Home Assistant カスタムインテグレーション: スマート環境センサー"""
+"""Home Assistant custom integration: Smart environment sensor"""
 # custom_components/smart_environment/sensor.py
 
 import logging
@@ -555,7 +556,7 @@ _LOGGER = logging.getLogger(__name__)
 SCAN_INTERVAL = timedelta(seconds=30)
 
 class SmartEnvironmentCoordinator(DataUpdateCoordinator):
-    """環境データを統合管理するコーディネーター"""
+    """Coordinator for unified management of environmental data"""
 
     def __init__(self, hass, sensors_config):
         super().__init__(
@@ -568,43 +569,43 @@ class SmartEnvironmentCoordinator(DataUpdateCoordinator):
         self._history = []
 
     async def _async_update_data(self):
-        """センサーデータを収集・分析"""
+        """Collect and analyze sensor data"""
         data = {}
 
-        # 各センサーからデータ収集
+        # Collect data from each sensor
         for sensor_id in self._sensors:
             state = self.hass.states.get(sensor_id)
             if state and state.state not in ("unknown", "unavailable"):
                 data[sensor_id] = float(state.state)
 
-        # 快適度スコアを計算
+        # Calculate comfort score
         if "sensor.temperature" in data and "sensor.humidity" in data:
             temp = data["sensor.temperature"]
             humidity = data["sensor.humidity"]
             data["comfort_score"] = self._calculate_comfort(temp, humidity)
 
-        # 換気推奨判定
+        # Ventilation recommendation
         if "sensor.co2" in data:
             co2 = data["sensor.co2"]
             data["ventilation_needed"] = co2 > 1000
 
-        # 履歴保存（トレンド分析用）
+        # Save history (for trend analysis)
         self._history.append(data)
-        if len(self._history) > 120:  # 1時間分
+        if len(self._history) > 120:  # 1 hour worth
             self._history.pop(0)
 
-        # トレンド分析
+        # Trend analysis
         data["temperature_trend"] = self._analyze_trend("sensor.temperature")
 
         return data
 
     def _calculate_comfort(self, temp, humidity):
-        """PMV簡易モデルによる快適度計算（0-100）"""
-        # 不快指数ベースの簡易計算
+        """Comfort calculation using simplified PMV model (0-100)"""
+        # Simplified calculation based on discomfort index
         discomfort = 0.81 * temp + 0.01 * humidity * (
             0.99 * temp - 14.3
         ) + 46.3
-        # 70-75が快適ゾーン
+        # 70-75 is the comfort zone
         if 70 <= discomfort <= 75:
             return 100
         elif discomfort < 70:
@@ -613,7 +614,7 @@ class SmartEnvironmentCoordinator(DataUpdateCoordinator):
             return max(0, 100 - (discomfort - 75) * 10)
 
     def _analyze_trend(self, sensor_id):
-        """直近30分のトレンドを分析"""
+        """Analyze trends over the last 30 minutes"""
         values = [
             h.get(sensor_id) for h in self._history[-60:]
             if h.get(sensor_id) is not None
@@ -629,9 +630,9 @@ class SmartEnvironmentCoordinator(DataUpdateCoordinator):
 
 
 class ComfortScoreSensor(CoordinatorEntity, SensorEntity):
-    """快適度スコアセンサー"""
+    """Comfort score sensor"""
 
-    _attr_name = "快適度スコア"
+    _attr_name = "Comfort Score"
     _attr_native_unit_of_measurement = PERCENTAGE
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_icon = "mdi:emoticon-happy-outline"
@@ -648,7 +649,7 @@ class ComfortScoreSensor(CoordinatorEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self):
-        """追加属性"""
+        """Additional attributes"""
         data = self.coordinator.data or {}
         return {
             "temperature_trend": data.get("temperature_trend", "unknown"),
@@ -656,38 +657,38 @@ class ComfortScoreSensor(CoordinatorEntity, SensorEntity):
         }
 ```
 
-### Home Assistant ダッシュボード（Lovelace UI）設計
+### Home Assistant Dashboard (Lovelace UI) Design
 
 ```yaml
-# Home Assistant Lovelace Dashboard 設計例
+# Home Assistant Lovelace Dashboard design example
 # ui-lovelace.yaml
 
-title: スマートホーム
+title: Smart Home
 views:
-  - title: ホーム
+  - title: Home
     path: home
     icon: mdi:home
     cards:
-      # 在宅状態カード
+      # Occupancy status card
       - type: entities
-        title: 家族の在宅状況
+        title: Family Occupancy Status
         entities:
           - entity: person.taro
             secondary_info: last-changed
           - entity: person.hanako
             secondary_info: last-changed
           - entity: binary_sensor.anyone_home
-            name: 在宅者あり
+            name: Someone Home
 
-      # 環境モニター
+      # Environment monitor
       - type: custom:mini-graph-card
-        title: 室内環境
+        title: Indoor Environment
         entities:
           - entity: sensor.living_room_temperature
-            name: 温度
+            name: Temperature
             color: "#e74c3c"
           - entity: sensor.living_room_humidity
-            name: 湿度
+            name: Humidity
             color: "#3498db"
             y_axis: secondary
         hours_to_show: 24
@@ -697,7 +698,7 @@ views:
           average: true
           extrema: true
 
-      # 照明コントロール
+      # Lighting control
       - type: custom:light-entity-card
         entity: light.living_room
         shorten_cards: true
@@ -706,29 +707,29 @@ views:
         hide_header: false
         effects_list: true
 
-      # エネルギー使用量
+      # Energy consumption
       - type: energy-distribution
-        title: エネルギー分配
+        title: Energy Distribution
         link_dashboard: true
 
-      # カメラフィード
+      # Camera feed
       - type: picture-glance
-        title: 玄関カメラ
+        title: Front Door Camera
         camera_image: camera.front_door
         entities:
           - binary_sensor.front_door_motion
           - binary_sensor.front_door_person
         camera_view: live
 
-  - title: 自動化
+  - title: Automations
     path: automations
     icon: mdi:robot
     cards:
-      # 自動化の一覧と状態
+      # Automation list and status
       - type: custom:auto-entities
         card:
           type: entities
-          title: アクティブな自動化
+          title: Active Automations
         filter:
           include:
             - domain: automation
@@ -739,9 +740,9 @@ views:
           method: last_triggered
           reverse: true
 
-      # 自動化のトリガー履歴
+      # Automation trigger history
       - type: logbook
-        title: 直近の自動化実行
+        title: Recent Automation Executions
         hours_to_show: 24
         entities:
           - automation.sunset_lights
@@ -751,114 +752,120 @@ views:
 
 ---
 
-## 4. 音声アシスタントとAI
+## 4. Voice Assistants and AI
 
-### 音声アシスタント比較表
+### Voice Assistant Comparison Table
 
-| 項目 | Amazon Alexa | Google Assistant | Apple Siri | Home Assistant Voice |
+| Item | Amazon Alexa | Google Assistant | Apple Siri | Home Assistant Voice |
 |------|-------------|-----------------|------------|---------------------|
-| デバイス | Echo シリーズ | Nest シリーズ | HomePod, iPhone | 自作/ESP32 |
-| スマートホーム統合 | 非常に広い | 広い | HomeKit中心 | 最も広い(DIY) |
-| AI能力 | Alexa LLM | Gemini統合 | Apple Intelligence | ローカルLLM対応 |
-| プライバシー | クラウド処理 | クラウド処理 | オンデバイス重視 | 完全ローカル可 |
-| Skills/Actions | 10万+ | 数万 | Siri Shortcuts | Home Assistantの全機能 |
-| 日本語対応 | 対応 | 対応 | 対応 | コミュニティ対応 |
-| 価格帯 | 3,000-30,000円 | 5,000-30,000円 | 15,000-50,000円 | 自作コスト |
+| Devices | Echo series | Nest series | HomePod, iPhone | DIY/ESP32 |
+| Smart home integration | Very broad | Broad | HomeKit-centric | Broadest (DIY) |
+| AI capability | Alexa LLM | Gemini integration | Apple Intelligence | Local LLM support |
+| Privacy | Cloud processing | Cloud processing | On-device focus | Fully local possible |
+| Skills/Actions | 100,000+ | Tens of thousands | Siri Shortcuts | All Home Assistant features |
+| Japanese support | Supported | Supported | Supported | Community support |
+| Price range | $20-200 | $30-200 | $100-350 | DIY cost |
 
-### 音声認識パイプライン
+### Voice Recognition Pipeline
 
 ```
 +-----------------------------------------------------------+
-|  音声アシスタント処理フロー                                  |
+|  Voice Assistant Processing Flow                           |
 +-----------------------------------------------------------+
 |                                                           |
-|  「アレクサ、リビングの照明を暖色に」                       |
+|  "Alexa, set the living room lights to warm"              |
 |      |                                                    |
 |      v                                                    |
 |  +--------------------+                                   |
-|  | ウェイクワード検出   |  ← デバイス上で常時動作（NPU）   |
-|  | "アレクサ" を検知   |                                   |
-|  +--------------------+                                   |
-|      |                                                    |
-|      v                                                    |
-|  +--------------------+                                   |
-|  | 音声認識 (ASR)     |  ← クラウド or オンデバイス        |
-|  | 音声 → テキスト     |    Whisper, Google ASR           |
+|  | Wake Word Detection |  <- Runs constantly on device    |
+|  | Detects "Alexa"     |     (NPU)                       |
 |  +--------------------+                                   |
 |      |                                                    |
 |      v                                                    |
 |  +--------------------+                                   |
-|  | 自然言語理解 (NLU) |  ← LLM ベースが主流に             |
-|  | Intent: 照明制御    |    意図と実体の抽出               |
-|  | Entity: リビング    |                                   |
-|  | Entity: 暖色        |                                   |
+|  | Speech Recognition  |  <- Cloud or on-device           |
+|  | (ASR)               |     Whisper, Google ASR          |
+|  | Speech -> Text      |                                  |
 |  +--------------------+                                   |
 |      |                                                    |
 |      v                                                    |
 |  +--------------------+                                   |
-|  | スキル/アクション   |  ← デバイスAPI呼び出し            |
+|  | Natural Language    |  <- LLM-based is now mainstream  |
+|  | Understanding (NLU) |     Intent and entity extraction |
+|  | Intent: Light ctrl  |                                  |
+|  | Entity: Living room |                                  |
+|  | Entity: Warm        |                                  |
+|  +--------------------+                                   |
+|      |                                                    |
+|      v                                                    |
+|  +--------------------+                                   |
+|  | Skill/Action        |  <- Device API call              |
 |  | light.set_color()  |                                   |
 |  +--------------------+                                   |
 |      |                                                    |
 |      v                                                    |
 |  +--------------------+                                   |
-|  | 音声合成 (TTS)     |  ← 確認応答を生成                 |
-|  | 「リビングの照明を   |                                   |
-|  |  暖色にしました」   |                                   |
+|  | Text-to-Speech      |  <- Generate confirmation        |
+|  | (TTS)               |     response                     |
+|  | "The living room    |                                  |
+|  |  lights have been   |                                  |
+|  |  set to warm"       |                                  |
 |  +--------------------+                                   |
 +-----------------------------------------------------------+
 ```
 
-### ローカル音声アシスタント構築（Wyoming Protocol）
+### Building a Local Voice Assistant (Wyoming Protocol)
 
-Home Assistant のローカル音声処理は Wyoming プロトコルを使用して、各音声処理コンポーネントをマイクロサービスとして接続する。
+Home Assistant's local voice processing uses the Wyoming protocol to connect each voice processing component as a microservice.
 
 ```
-【ローカル音声アシスタント アーキテクチャ】
+[Local Voice Assistant Architecture]
 
 +-------------------+
-| マイク入力         |  ESP32-S3-BOX / USB マイク
+| Microphone Input  |  ESP32-S3-BOX / USB Microphone
 +--------+----------+
          |
          v
 +--------+----------+
-| ウェイクワード検出   |  openWakeWord / Porcupine
-| "OK ナブ"          |  ← ESP32上で動作（低遅延）
+| Wake Word Detection|  openWakeWord / Porcupine
+| "OK Nabu"          |  <- Runs on ESP32 (low latency)
 +--------+----------+
          |
          v (Wyoming Protocol)
 +--------+----------+
-| 音声認識 (STT)     |  faster-whisper / Whisper.cpp
-| 音声 → テキスト     |  ← ローカルGPU or CPU
-| モデル: large-v3   |  ← 日本語対応
+| Speech-to-Text     |  faster-whisper / Whisper.cpp
+| (STT)              |  <- Local GPU or CPU
+| Speech -> Text     |
+| Model: large-v3    |  <- Japanese supported
 +--------+----------+
          |
          v
 +--------+----------+
-| インテント処理      |  Home Assistant Conversation Agent
-| LLM or ルールベース |  ← Ollama (llama3) / ルールベース
+| Intent Processing  |  Home Assistant Conversation Agent
+| LLM or rule-based  |  <- Ollama (llama3) / Rule-based
 +--------+----------+
          |
          v
 +--------+----------+
-| 音声合成 (TTS)     |  Piper TTS
-| テキスト → 音声     |  ← ローカル、低遅延
-| 声質: ja_JP-takumi |  ← 日本語音声モデル
+| Text-to-Speech     |  Piper TTS
+| (TTS)              |  <- Local, low latency
+| Text -> Speech     |
+| Voice: ja_JP-takumi|  <- Japanese voice model
 +--------+----------+
          |
          v
 +--------+----------+
-| スピーカー出力      |  ESP32-S3-BOX / 外部スピーカー
+| Speaker Output     |  ESP32-S3-BOX / External Speaker
 +-------------------+
 ```
 
 ```yaml
-# Home Assistant の Wyoming 音声パイプライン設定
+# Home Assistant Wyoming voice pipeline configuration
 # docker-compose.yml
 
 version: '3.8'
 services:
-  # Whisper STT サーバー
+  # Whisper STT server
   whisper:
     image: rhasspy/wyoming-whisper:latest
     ports:
@@ -868,7 +875,7 @@ services:
     command: >
       --model large-v3
       --language ja
-      --device cuda  # GPU使用（CPU: --device cpu）
+      --device cuda  # Use GPU (CPU: --device cpu)
       --beam-size 5
       --compute-type float16
     deploy:
@@ -879,7 +886,7 @@ services:
               count: 1
               capabilities: [gpu]
 
-  # Piper TTS サーバー
+  # Piper TTS server
   piper:
     image: rhasspy/wyoming-piper:latest
     ports:
@@ -893,7 +900,7 @@ services:
       --noise-scale 0.667
       --noise-w 0.8
 
-  # openWakeWord サーバー
+  # openWakeWord server
   openwakeword:
     image: rhasspy/wyoming-openwakeword:latest
     ports:
@@ -908,27 +915,27 @@ volumes:
   piper-data:
 ```
 
-### ESP32-S3 ベースの音声サテライト構築
+### Building an ESP32-S3-Based Voice Satellite
 
 ```yaml
-# ESPHome 設定: ESP32-S3-BOX を音声サテライト化
+# ESPHome configuration: Convert ESP32-S3-BOX into a voice satellite
 # esphome/voice-satellite.yaml
 
 esphome:
   name: voice-satellite-living
-  friendly_name: "リビング音声アシスタント"
+  friendly_name: "Living Room Voice Assistant"
 
 esp32:
   board: esp32-s3-box
   framework:
     type: esp-idf
 
-# Wi-Fi設定
+# Wi-Fi configuration
 wifi:
   ssid: !secret wifi_ssid
   password: !secret wifi_password
 
-# マイクロフォン（I2S入力）
+# Microphone (I2S input)
 i2s_audio:
   - id: i2s_input
     i2s_lrclk_pin: GPIO41
@@ -948,7 +955,7 @@ microphone:
     bits_per_sample: 32bit
     sample_rate: 16000
 
-# スピーカー（I2S出力）
+# Speaker (I2S output)
 speaker:
   - platform: i2s_audio
     id: spk
@@ -957,7 +964,7 @@ speaker:
     i2s_dout_pin: GPIO15
     mode: stereo
 
-# 音声アシスタント
+# Voice assistant
 voice_assistant:
   id: va
   microphone: mic
@@ -987,7 +994,7 @@ voice_assistant:
     - delay: 500ms
     - voice_assistant.start_continuous:
 
-# LED リング（状態表示）
+# LED ring (status indicator)
 light:
   - platform: esp32_rmt_led_strip
     id: led_ring
@@ -1007,13 +1014,13 @@ light:
           name: "speaking"
           move_interval: 50ms
 
-# 物理ボタン（ミュート）
+# Physical button (mute)
 binary_sensor:
   - platform: gpio
     pin:
       number: GPIO0
       inverted: true
-    name: "ミュートボタン"
+    name: "Mute Button"
     on_press:
       - voice_assistant.stop:
       - light.turn_on:
@@ -1025,9 +1032,9 @@ binary_sensor:
 
 ---
 
-## 5. AI 家電の技術
+## 5. AI Appliance Technology
 
-### コード例3: エネルギー最適化AI
+### Code Example 3: Energy Optimization AI
 
 ```python
 import numpy as np
@@ -1035,18 +1042,20 @@ from sklearn.ensemble import GradientBoostingRegressor
 
 class SmartThermostatAI:
     """
-    AIによるサーモスタットの予測制御
-    ユーザーの行動パターンと外気温から最適な温度を予測
+    AI-driven predictive control for thermostats.
+    Predicts optimal temperature based on user behavior patterns
+    and outdoor temperature.
     """
     def __init__(self):
         self.comfort_model = GradientBoostingRegressor()
         self.occupancy_model = GradientBoostingRegressor()
 
     def train(self, history_data):
-        """過去の行動データから学習"""
+        """Train from historical behavior data"""
         features = self._extract_features(history_data)
-        # 特徴量: 時刻, 曜日, 外気温, 湿度, 過去の設定温度
-        # ターゲット: ユーザーが設定した温度
+        # Features: time, day of week, outdoor temp, humidity,
+        #           previous temperature settings
+        # Target: temperature set by user
 
         self.comfort_model.fit(
             features, history_data['target_temperature']
@@ -1056,7 +1065,7 @@ class SmartThermostatAI:
         )
 
     def predict_schedule(self, forecast_weather, day_of_week):
-        """24時間の温度スケジュールを予測"""
+        """Predict 24-hour temperature schedule"""
         schedule = []
         for hour in range(24):
             features = np.array([[
@@ -1069,9 +1078,9 @@ class SmartThermostatAI:
             predicted_temp = self.comfort_model.predict(features)[0]
             occupancy_prob = self.occupancy_model.predict(features)[0]
 
-            # 不在予測時は省エネ温度に
+            # Switch to energy-saving temperature when absence is predicted
             if occupancy_prob < 0.3:
-                target_temp = predicted_temp - 3  # 3度下げる
+                target_temp = predicted_temp - 3  # Lower by 3 degrees
             else:
                 target_temp = predicted_temp
 
@@ -1084,19 +1093,19 @@ class SmartThermostatAI:
         return schedule
 
     def estimate_energy_savings(self, schedule, baseline=22.0):
-        """省エネ効果を推定"""
-        # 温度1度下げると約7%の省エネ
+        """Estimate energy savings"""
+        # Approximately 7% savings per degree lowered
         savings = sum(
             max(0, baseline - s['target']) * 0.07
             for s in schedule
         ) / 24
-        return f"推定省エネ率: {savings*100:.1f}%"
+        return f"Estimated energy savings: {savings*100:.1f}%"
 ```
 
-### コード例: 高度なエネルギー管理システム（HEMS）
+### Code Example: Advanced Home Energy Management System (HEMS)
 
 ```python
-"""家庭用エネルギー管理システム (HEMS) の実装"""
+"""Home Energy Management System (HEMS) implementation"""
 import asyncio
 from datetime import datetime, timedelta
 from dataclasses import dataclass
@@ -1104,21 +1113,21 @@ from typing import Optional
 
 @dataclass
 class EnergyDevice:
-    """エネルギーデバイスの抽象化"""
+    """Energy device abstraction"""
     name: str
     entity_id: str
     power_watts: float
-    priority: int  # 1=最高, 5=最低
-    shiftable: bool  # 稼働時間をずらせるか
+    priority: int  # 1=highest, 5=lowest
+    shiftable: bool  # Whether operating time can be shifted
     min_runtime_minutes: int = 0
     max_power_watts: Optional[float] = None
 
 class HEMSController:
     """
-    HEMS（Home Energy Management System）コントローラー
+    HEMS (Home Energy Management System) Controller
 
-    太陽光発電、蓄電池、電力料金を考慮して
-    家電の稼働スケジュールを最適化する
+    Optimizes appliance operating schedules considering
+    solar power generation, battery storage, and electricity rates.
     """
 
     def __init__(self, hass, config):
@@ -1130,7 +1139,7 @@ class HEMSController:
         self.battery_soc = 0.0  # State of Charge (%)
 
     async def update_solar_forecast(self):
-        """太陽光発電予測を更新（Solcast API）"""
+        """Update solar power generation forecast (Solcast API)"""
         import aiohttp
         async with aiohttp.ClientSession() as session:
             url = "https://api.solcast.com.au/rooftop_sites"
@@ -1148,22 +1157,22 @@ class HEMSController:
             {
                 "time": entry["period_end"],
                 "power_kw": entry["pv_estimate"],
-                "power_kw_10": entry["pv_estimate10"],  # 10%ile
-                "power_kw_90": entry["pv_estimate90"],  # 90%ile
+                "power_kw_10": entry["pv_estimate10"],  # 10th percentile
+                "power_kw_90": entry["pv_estimate90"],  # 90th percentile
             }
-            for entry in data["forecasts"][:48]  # 24時間分
+            for entry in data["forecasts"][:48]  # 24 hours worth
         ]
 
     def get_electricity_price(self, hour: int) -> float:
-        """時間帯別電力料金を取得（円/kWh）"""
-        # オクトパスエナジー等の動的料金プラン想定
+        """Get time-of-use electricity rate (JPY/kWh)"""
+        # Assuming dynamic pricing plan like Octopus Energy
         price_table = {
-            range(0, 6): 18.0,    # 深夜料金
-            range(6, 8): 28.0,    # 朝方
-            range(8, 10): 32.0,   # 午前
-            range(10, 17): 35.0,  # 日中ピーク
-            range(17, 21): 38.0,  # 夕方ピーク
-            range(21, 24): 25.0,  # 夜間
+            range(0, 6): 18.0,    # Late-night rate
+            range(6, 8): 28.0,    # Early morning
+            range(8, 10): 32.0,   # Morning
+            range(10, 17): 35.0,  # Daytime peak
+            range(17, 21): 38.0,  # Evening peak
+            range(21, 24): 25.0,  # Nighttime
         }
         for time_range, price in price_table.items():
             if hour in time_range:
@@ -1171,17 +1180,17 @@ class HEMSController:
         return 30.0
 
     async def optimize_schedule(self):
-        """デバイス稼働スケジュールを最適化"""
+        """Optimize device operating schedule"""
         schedule = {}
         current_hour = datetime.now().hour
 
         for device in sorted(self.devices, key=lambda d: d.priority):
             if not device.shiftable:
-                # シフト不可デバイスはそのまま
+                # Non-shiftable devices remain as-is
                 schedule[device.entity_id] = "always_on"
                 continue
 
-            # 最安時間帯を探索
+            # Search for the cheapest time slot
             best_hour = current_hour
             best_cost = float('inf')
             runtime_hours = max(1, device.min_runtime_minutes // 60)
@@ -1192,7 +1201,7 @@ class HEMSController:
                     hour = (start_hour + h) % 24
                     price = self.get_electricity_price(hour)
 
-                    # 太陽光発電がある時間帯はコストを下げる
+                    # Reduce cost during solar generation hours
                     solar_offset = self._get_solar_power(hour)
                     net_price = price * max(
                         0, 1 - solar_offset / device.power_watts
@@ -1212,7 +1221,7 @@ class HEMSController:
         return schedule
 
     def _get_solar_power(self, hour: int) -> float:
-        """指定時刻の太陽光発電量（W）を取得"""
+        """Get solar power generation (W) for specified hour"""
         for forecast in self.solar_forecast:
             forecast_hour = datetime.fromisoformat(
                 forecast["time"]
@@ -1222,40 +1231,40 @@ class HEMSController:
         return 0
 
     async def battery_strategy(self):
-        """蓄電池の充放電戦略を決定"""
+        """Determine battery charge/discharge strategy"""
         strategies = []
         for hour in range(24):
             price = self.get_electricity_price(hour)
             solar = self._get_solar_power(hour)
 
             if solar > 2000 and self.battery_soc < 80:
-                # 太陽光余剰で充電
+                # Charge from surplus solar
                 strategies.append({
                     "hour": hour, "action": "charge",
-                    "reason": "太陽光余剰", "power_w": min(solar - 1500, 3000)
+                    "reason": "Solar surplus", "power_w": min(solar - 1500, 3000)
                 })
             elif price >= 35 and self.battery_soc > 30:
-                # 高料金時に放電
+                # Discharge during high-rate periods
                 strategies.append({
                     "hour": hour, "action": "discharge",
-                    "reason": "ピーク料金回避", "power_w": 2000
+                    "reason": "Peak rate avoidance", "power_w": 2000
                 })
             elif price <= 20 and self.battery_soc < 50:
-                # 深夜料金で充電
+                # Charge during late-night rates
                 strategies.append({
                     "hour": hour, "action": "charge",
-                    "reason": "深夜料金充電", "power_w": 3000
+                    "reason": "Late-night rate charging", "power_w": 3000
                 })
             else:
                 strategies.append({
                     "hour": hour, "action": "standby",
-                    "reason": "待機", "power_w": 0
+                    "reason": "Standby", "power_w": 0
                 })
 
         return strategies
 
     def daily_report(self, schedule, battery_plan):
-        """日次エネルギーレポート生成"""
+        """Generate daily energy report"""
         total_cost = sum(
             s.get("estimated_cost_yen", 0)
             for s in schedule.values()
@@ -1283,13 +1292,13 @@ class HEMSController:
         }
 ```
 
-### コード例4: AIカメラの人物検出
+### Code Example 4: AI Camera Person Detection
 
 ```python
-# ローカルAIカメラ（Frigate NVR + Home Assistant連携）
-# frigate.yml 設定例
+# Local AI camera (Frigate NVR + Home Assistant integration)
+# frigate.yml configuration example
 
-# Frigate NVR の設定
+# Frigate NVR configuration
 mqtt:
   host: 192.168.1.100
 
@@ -1329,20 +1338,20 @@ cameras:
         days: 7
       events:
         retain:
-          default: 30  # イベント映像は30日保持
+          default: 30  # Retain event footage for 30 days
     snapshots:
       enabled: true
       retain:
         default: 30
 ```
 
-### Frigate NVR の高度な設定と最適化
+### Advanced Frigate NVR Configuration and Optimization
 
 ```yaml
-# frigate.yml - 高度な設定
-# 複数カメラ + カスタムモデル + 通知設定
+# frigate.yml - Advanced configuration
+# Multiple cameras + custom models + notification settings
 
-# グローバル設定
+# Global settings
 mqtt:
   host: 192.168.1.100
   port: 1883
@@ -1353,17 +1362,17 @@ mqtt:
 database:
   path: /media/frigate/frigate.db
 
-# 検出器設定（複数対応）
+# Detector configuration (multiple supported)
 detectors:
   coral_usb:
     type: edgetpu
     device: usb:0
-  # 2つ目のCoral（高負荷環境）
+  # Second Coral (for high-load environments)
   coral_pcie:
     type: edgetpu
     device: pci:0
 
-# モデル設定
+# Model configuration
 model:
   path: /config/model_cache/yolov8n_320.tflite
   input_tensor: nhwc
@@ -1372,7 +1381,7 @@ model:
   height: 320
   labelmap_path: /config/labelmap.txt
 
-# 録画設定
+# Recording settings
 record:
   enabled: true
   retain:
@@ -1382,10 +1391,10 @@ record:
     retain:
       default: 30
       mode: active_objects
-    pre_capture: 5   # イベント前5秒
-    post_capture: 10  # イベント後10秒
+    pre_capture: 5   # 5 seconds before event
+    post_capture: 10  # 10 seconds after event
 
-# スナップショット設定
+# Snapshot settings
 snapshots:
   enabled: true
   timestamp: true
@@ -1395,9 +1404,9 @@ snapshots:
   retain:
     default: 30
 
-# 複数カメラ設定
+# Multiple camera configuration
 cameras:
-  # 玄関カメラ
+  # Front door camera
   front_door:
     ffmpeg:
       inputs:
@@ -1445,7 +1454,7 @@ cameras:
       detections:
         labels: [car, dog, cat]
 
-  # 裏庭カメラ
+  # Backyard camera
   backyard:
     ffmpeg:
       inputs:
@@ -1463,10 +1472,10 @@ cameras:
           threshold: 0.7
     motion:
       mask:
-        # 木の揺れを除外
+        # Exclude tree sway
         - 0,0,200,0,200,300,0,300
 
-  # 室内カメラ（ペットモニター）
+  # Indoor camera (pet monitor)
   living_room:
     ffmpeg:
       inputs:
@@ -1475,77 +1484,77 @@ cameras:
     detect:
       width: 640
       height: 480
-      fps: 3  # 室内は低FPSで十分
+      fps: 3  # Low FPS is sufficient for indoors
     objects:
       track: [dog, cat]
       filters:
         dog:
           min_area: 2000
     record:
-      enabled: false  # プライバシー考慮で録画なし
+      enabled: false  # No recording for privacy reasons
     snapshots:
       enabled: true
 
-# 通知設定（Home Assistant連携）
-# automation.yaml 側で設定
+# Notification settings (Home Assistant integration)
+# Configure on the automation.yaml side
 ```
 
-### コード例5: Home Assistant でのローカルLLM統合
+### Code Example 5: Local LLM Integration with Home Assistant
 
 ```yaml
-# Home Assistant の configuration.yaml
-# ローカル LLM (Ollama) との統合
+# Home Assistant configuration.yaml
+# Integration with local LLM (Ollama)
 
-# Ollama 音声アシスタント統合
+# Ollama voice assistant integration
 conversation:
   intents:
-    # カスタムインテント定義
+    # Custom intent definitions
 
-# Extended OpenAI Conversation (カスタムコンポーネント)
-# ローカルの Ollama にリクエスト
+# Extended OpenAI Conversation (custom component)
+# Sends requests to local Ollama
 openai_conversation:
   api_key: "sk-not-needed"
   base_url: "http://192.168.1.100:11434/v1"
   model: "llama3.1"
   prompt: |
-    あなたはスマートホームアシスタントです。
-    以下のデバイスを制御できます:
-    - light.living_room: リビング照明
-    - light.bedroom: 寝室照明
-    - climate.thermostat: エアコン
-    - lock.front_door: 玄関ドアロック
-    - cover.curtain_living: リビングカーテン
+    You are a smart home assistant.
+    You can control the following devices:
+    - light.living_room: Living room light
+    - light.bedroom: Bedroom light
+    - climate.thermostat: Air conditioner
+    - lock.front_door: Front door lock
+    - cover.curtain_living: Living room curtain
 
-    ユーザーの要望に対して、適切なサービスコールを生成してください。
-    応答は日本語で行ってください。
+    Generate appropriate service calls based on the user's requests.
+    Respond in the user's language.
 ```
 
-### LLM ベースのスマートホーム制御（Function Calling）
+### LLM-Based Smart Home Control (Function Calling)
 
 ```python
-"""LLM Function Calling によるスマートホーム制御"""
+"""Smart home control via LLM Function Calling"""
 import json
 from openai import OpenAI
 
-# ローカル Ollama に接続
+# Connect to local Ollama
 client = OpenAI(
     base_url="http://192.168.1.100:11434/v1",
     api_key="not-needed",
 )
 
-# Home Assistant のサービスを関数として定義
+# Define Home Assistant services as functions
 tools = [
     {
         "type": "function",
         "function": {
             "name": "control_light",
-            "description": "照明を制御する（点灯/消灯/明るさ/色温度の変更）",
+            "description": "Control lighting (turn on/off, adjust brightness/color temperature)",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "entity_id": {
                         "type": "string",
-                        "description": "照明のエンティティID",
+                        "description": "Entity ID of the light",
                         "enum": [
                             "light.living_room",
                             "light.bedroom",
@@ -1559,13 +1568,13 @@ tools = [
                     },
                     "brightness_pct": {
                         "type": "integer",
-                        "description": "明るさ（0-100%）",
+                        "description": "Brightness (0-100%)",
                         "minimum": 0,
                         "maximum": 100,
                     },
                     "color_temp_kelvin": {
                         "type": "integer",
-                        "description": "色温度（2000-6500K）",
+                        "description": "Color temperature (2000-6500K)",
                         "minimum": 2000,
                         "maximum": 6500,
                     },
@@ -1578,7 +1587,7 @@ tools = [
         "type": "function",
         "function": {
             "name": "control_climate",
-            "description": "エアコン/暖房を制御する",
+            "description": "Control air conditioner/heater",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1592,7 +1601,7 @@ tools = [
                     },
                     "temperature": {
                         "type": "number",
-                        "description": "目標温度（摂氏）",
+                        "description": "Target temperature (Celsius)",
                     },
                     "hvac_mode": {
                         "type": "string",
@@ -1607,13 +1616,13 @@ tools = [
         "type": "function",
         "function": {
             "name": "get_sensor_value",
-            "description": "センサーの値を取得する",
+            "description": "Get sensor values",
             "parameters": {
                 "type": "object",
                 "properties": {
                     "entity_id": {
                         "type": "string",
-                        "description": "センサーのエンティティID",
+                        "description": "Entity ID of the sensor",
                         "enum": [
                             "sensor.temperature_living_room",
                             "sensor.humidity_living_room",
@@ -1630,7 +1639,7 @@ tools = [
         "type": "function",
         "function": {
             "name": "activate_scene",
-            "description": "シーン（プリセット）を実行する",
+            "description": "Activate a scene (preset)",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -1652,14 +1661,14 @@ tools = [
 ]
 
 def process_user_command(user_input: str):
-    """ユーザーの自然言語コマンドを処理"""
+    """Process natural language commands from the user"""
     messages = [
         {
             "role": "system",
             "content": (
-                "あなたはスマートホームアシスタントです。"
-                "ユーザーの要望を理解し、適切な関数を呼び出してください。"
-                "曖昧な要望は確認してください。"
+                "You are a smart home assistant. "
+                "Understand the user's request and call the appropriate function. "
+                "Ask for confirmation if the request is ambiguous."
             ),
         },
         {"role": "user", "content": user_input},
@@ -1680,7 +1689,7 @@ def process_user_command(user_input: str):
             func_name = tool_call.function.name
             func_args = json.loads(tool_call.function.arguments)
 
-            # Home Assistant API を呼び出し
+            # Call Home Assistant API
             result = execute_ha_service(func_name, func_args)
             results.append({
                 "function": func_name,
@@ -1694,7 +1703,7 @@ def process_user_command(user_input: str):
 
 
 def execute_ha_service(func_name: str, args: dict) -> str:
-    """Home Assistant のサービスを実行"""
+    """Execute a Home Assistant service"""
     import requests
 
     ha_url = "http://192.168.1.100:8123"
@@ -1752,114 +1761,114 @@ def execute_ha_service(func_name: str, args: dict) -> str:
     return f"OK (status: {resp.status_code})"
 
 
-# 使用例
+# Usage examples
 if __name__ == "__main__":
     commands = [
-        "リビングの照明を暖かい色で50%にして",
-        "今の室温を教えて",
-        "映画モードにして",
-        "寝室のエアコンを25度に設定して",
-        "外出モードをオンにして",
+        "Set the living room lights to warm color at 50%",
+        "What's the current room temperature?",
+        "Switch to movie mode",
+        "Set the bedroom AC to 25 degrees",
+        "Turn on away mode",
     ]
     for cmd in commands:
-        print(f"\nユーザー: {cmd}")
+        print(f"\nUser: {cmd}")
         result = process_user_command(cmd)
-        print(f"結果: {json.dumps(result, ensure_ascii=False, indent=2)}")
+        print(f"Result: {json.dumps(result, ensure_ascii=False, indent=2)}")
 ```
 
 ---
 
-## 6. セキュリティとプライバシー
+## 6. Security and Privacy
 
-### スマートホームセキュリティの層
+### Smart Home Security Layers
 
 ```
 +-----------------------------------------------------------+
-|  スマートホーム セキュリティ層                               |
+|  Smart Home Security Layers                                |
 +-----------------------------------------------------------+
 |                                                           |
-|  Layer 4: アプリケーションセキュリティ                     |
-|  +-- 二要素認証 (2FA)                                     |
-|  +-- アクセスログの監視                                    |
-|  +-- ゲストアクセスの期限管理                              |
+|  Layer 4: Application Security                            |
+|  +-- Two-factor authentication (2FA)                      |
+|  +-- Access log monitoring                                |
+|  +-- Guest access expiration management                   |
 |                                                           |
-|  Layer 3: プロトコルセキュリティ                            |
-|  +-- Matter: CASE (証明書認証)                             |
-|  +-- HomeKit: Ed25519 暗号化                               |
-|  +-- TLS 1.3 通信暗号化                                    |
+|  Layer 3: Protocol Security                               |
+|  +-- Matter: CASE (Certificate Authentication)            |
+|  +-- HomeKit: Ed25519 encryption                          |
+|  +-- TLS 1.3 communication encryption                     |
 |                                                           |
-|  Layer 2: ネットワークセキュリティ                          |
-|  +-- IoT専用VLAN分離                                       |
-|  +-- ファイアウォールルール                                 |
+|  Layer 2: Network Security                                |
+|  +-- Dedicated IoT VLAN isolation                         |
+|  +-- Firewall rules                                       |
 |  +-- DNS over HTTPS (DoH)                                 |
 |                                                           |
-|  Layer 1: デバイスセキュリティ                              |
-|  +-- ファームウェア自動更新                                 |
-|  +-- セキュアブート                                        |
-|  +-- デフォルトパスワードの変更                             |
+|  Layer 1: Device Security                                 |
+|  +-- Automatic firmware updates                           |
+|  +-- Secure boot                                          |
+|  +-- Changing default passwords                           |
 +-----------------------------------------------------------+
 ```
 
-### IoT VLAN 分離の具体的設定
+### Specific IoT VLAN Isolation Configuration
 
 ```
-# UniFi / pfSense でのIoT VLAN設定例
+# IoT VLAN configuration example for UniFi / pfSense
 
-【ネットワーク設計】
-┌─────────────────────────────────────────────────────┐
-│ VLAN 1 (Default): 管理用ネットワーク                   │
-│   192.168.1.0/24                                     │
-│   デバイス: PC, スマホ, NAS                           │
-│   → フルアクセス                                      │
-├─────────────────────────────────────────────────────┤
-│ VLAN 10: IoTデバイス                                   │
-│   192.168.10.0/24                                    │
-│   デバイス: 照明, センサー, スマートプラグ              │
-│   → インターネット制限、VLAN1へアクセス不可            │
-├─────────────────────────────────────────────────────┤
-│ VLAN 20: カメラ専用                                    │
-│   192.168.20.0/24                                    │
-│   デバイス: IPカメラ, NVR                              │
-│   → インターネットアクセス完全禁止                     │
-│   → NVR (192.168.1.x) のみアクセス可                  │
-├─────────────────────────────────────────────────────┤
-│ VLAN 30: ゲスト用                                      │
-│   192.168.30.0/24                                    │
-│   デバイス: ゲストのスマホ                              │
-│   → インターネットのみ、LAN内アクセス不可              │
-└─────────────────────────────────────────────────────┘
+[Network Design]
++-----------------------------------------------------+
+| VLAN 1 (Default): Management network                 |
+|   192.168.1.0/24                                     |
+|   Devices: PC, smartphone, NAS                       |
+|   -> Full access                                     |
++-----------------------------------------------------+
+| VLAN 10: IoT devices                                 |
+|   192.168.10.0/24                                    |
+|   Devices: Lights, sensors, smart plugs              |
+|   -> Internet restricted, no access to VLAN 1        |
++-----------------------------------------------------+
+| VLAN 20: Camera dedicated                            |
+|   192.168.20.0/24                                    |
+|   Devices: IP cameras, NVR                           |
+|   -> Internet access completely blocked              |
+|   -> Only NVR (192.168.1.x) access allowed           |
++-----------------------------------------------------+
+| VLAN 30: Guest                                       |
+|   192.168.30.0/24                                    |
+|   Devices: Guest smartphones                         |
+|   -> Internet only, no LAN access                    |
++-----------------------------------------------------+
 ```
 
 ```bash
-# pfSense ファイアウォールルール（概念）
+# pfSense firewall rules (conceptual)
 # /etc/pf.conf
 
-# IoT VLAN → メインLAN: ブロック
+# IoT VLAN -> Main LAN: Block
 block in on $iot_vlan from 192.168.10.0/24 to 192.168.1.0/24
 
-# IoT VLAN → Home Assistant のみ許可
+# IoT VLAN -> Allow only Home Assistant
 pass in on $iot_vlan from 192.168.10.0/24 to 192.168.1.100 port 8123
 
-# IoT VLAN → MQTT Broker のみ許可
+# IoT VLAN -> Allow only MQTT Broker
 pass in on $iot_vlan from 192.168.10.0/24 to 192.168.1.100 port 1883
 
-# IoT VLAN → DNS のみ許可（Pi-hole/AdGuard）
+# IoT VLAN -> Allow only DNS (Pi-hole/AdGuard)
 pass in on $iot_vlan from 192.168.10.0/24 to 192.168.1.53 port 53
 
-# カメラ VLAN → 完全隔離
+# Camera VLAN -> Complete isolation
 block in on $camera_vlan from 192.168.20.0/24 to any
-pass in on $camera_vlan from 192.168.20.0/24 to 192.168.1.100  # NVRのみ
+pass in on $camera_vlan from 192.168.20.0/24 to 192.168.1.100  # NVR only
 
-# ゲスト VLAN → インターネットのみ
+# Guest VLAN -> Internet only
 block in on $guest_vlan from 192.168.30.0/24 to 192.168.0.0/16
 pass in on $guest_vlan from 192.168.30.0/24 to any
 ```
 
-### DNS フィルタリングによるIoTセキュリティ
+### DNS Filtering for IoT Security
 
 ```yaml
-# AdGuard Home 設定 - IoTデバイス用フィルタリング
-# /opt/adguardhome/conf/AdGuardHome.yaml (抜粋)
+# AdGuard Home configuration - Filtering for IoT devices
+# /opt/adguardhome/conf/AdGuardHome.yaml (excerpt)
 
 dns:
   bind_hosts:
@@ -1870,24 +1879,24 @@ dns:
     - https://dns.google/dns-query
 
 filtering:
-  # IoTデバイスのテレメトリをブロック
+  # Block IoT device telemetry
   rewrites:
-    # 中華IoTデバイスの電話帰り通信をブロック
+    # Block phone-home communications from Chinese IoT devices
     - domain: "*.tuya.com"
       answer: "0.0.0.0"
     - domain: "*.tuyaus.com"
       answer: "0.0.0.0"
-    # カメラのクラウドアップロードをブロック
+    # Block camera cloud uploads
     - domain: "*.xiongmaitech.com"
       answer: "0.0.0.0"
-    # スマートTVの追跡をブロック
+    # Block smart TV tracking
     - domain: "*.samsungacr.com"
       answer: "0.0.0.0"
     - domain: "*.lgtvsdp.com"
       answer: "0.0.0.0"
 
 clients:
-  # IoTデバイスグループ
+  # IoT device group
   runtime_sources:
     - name: "IoT Devices"
       ids:
@@ -1905,91 +1914,91 @@ clients:
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン1: 全デバイスをWi-Fiに接続
-
-```
-NG: 照明、センサー、カメラ全てをWi-Fiで接続
-    → Wi-Fiルーターの接続上限超過（通常30-50台）
-    → 遅延増大、ネットワーク不安定化
-
-OK: プロトコルを適材適所で使い分け
-    Wi-Fi: カメラ（高帯域が必要）、スマートディスプレイ
-    Thread: 照明、温度センサー、ドアセンサー（低消費電力メッシュ）
-    Zigbee: 既存のIKEAやPhilips Hueデバイス
-    Bluetooth: ビーコン、近距離一時接続
-```
-
-### アンチパターン2: クラウド依存の過信
+### Anti-Pattern 1: Connecting All Devices via Wi-Fi
 
 ```
-NG: 全ての自動化をクラウドサービスに依存
-    → インターネット切断時に全てが停止
-    → サービス終了で全デバイスがブリック化
+BAD: Connecting all lights, sensors, and cameras via Wi-Fi
+    -> Exceeds Wi-Fi router connection limit (typically 30-50 devices)
+    -> Increased latency, network instability
 
-OK: ローカルファースト設計
-    1. Home Assistant などローカルハブを中核に
-    2. 照明・ドアロックなど基本制御はローカルで完結
-    3. クラウドは付加価値（リモートアクセス、AI機能）のみ
-    4. Matter/Thread 対応デバイスを優先（ローカル通信可）
+GOOD: Use the right protocol for each use case
+    Wi-Fi: Cameras (requires high bandwidth), smart displays
+    Thread: Lights, temperature sensors, door sensors (low power mesh)
+    Zigbee: Existing IKEA and Philips Hue devices
+    Bluetooth: Beacons, short-range temporary connections
 ```
 
-### アンチパターン3: セキュリティ無視のデバイス導入
+### Anti-Pattern 2: Over-Reliance on Cloud Services
 
 ```
-NG: 安価な中華IoTデバイスを無対策で導入
-    → デフォルトパスワード（admin/admin）のまま運用
-    → クラウドサーバーへの常時通信（データ漏洩リスク）
-    → ファームウェア更新なし（既知の脆弱性放置）
-    → フラットなネットワーク上に全デバイスが同居
+BAD: Depending entirely on cloud services for all automation
+    -> Everything stops when internet is disconnected
+    -> All devices become bricked when service is discontinued
 
-OK: 段階的なセキュリティ対策
-    1. VLAN分離: IoTデバイスを専用ネットワークに隔離
-    2. DNSフィルタリング: 不要な外部通信をブロック
-    3. ファームウェア: 自動更新が可能なデバイスを選択
-    4. 認証: 全デバイスのパスワードを変更、可能なら2FA
-    5. 監査: ネットワーク監視で異常な通信を検出
+GOOD: Local-first design
+    1. Use a local hub like Home Assistant as the core
+    2. Basic controls for lights and door locks work locally
+    3. Cloud is only for added value (remote access, AI features)
+    4. Prioritize Matter/Thread-compatible devices (local communication capable)
 ```
 
-### アンチパターン4: 過度な自動化による混乱
+### Anti-Pattern 3: Deploying Devices Without Security Measures
 
 ```
-NG: 条件が複雑すぎる自動化ルールを大量に作成
-    → ルール同士が競合（照明をONにする自動化とOFFにする自動化が同時発火）
-    → デバッグ困難（なぜ照明が点いたのかわからない）
-    → 家族が手動で操作できなくなる
+BAD: Deploying cheap IoT devices without any precautions
+    -> Running with default passwords (admin/admin)
+    -> Constant communication to cloud servers (data leak risk)
+    -> No firmware updates (known vulnerabilities left unpatched)
+    -> All devices on a flat network
 
-OK: 自動化の設計原則
-    1. シンプルに: 1つの自動化に条件は3つ以下
-    2. 優先度管理: 手動操作 > 自動化（手動操作後は一定時間自動化を抑制）
-    3. フィードバック: 自動化実行時に通知（LED、音、アプリ通知）
-    4. キルスイッチ: 全自動化を一括停止できるスイッチを用意
-    5. 段階的導入: 1つずつ追加して動作確認
-    6. ドキュメント: 自動化の意図と条件をコメントに記述
+GOOD: Staged security measures
+    1. VLAN isolation: Isolate IoT devices on a dedicated network
+    2. DNS filtering: Block unnecessary external communications
+    3. Firmware: Choose devices that support automatic updates
+    4. Authentication: Change all device passwords, enable 2FA where possible
+    5. Auditing: Monitor network for anomalous communications
 ```
 
-### アンチパターン5: バックアップ戦略の欠如
+### Anti-Pattern 4: Confusion from Excessive Automation
 
 ```
-NG: Home Assistant の設定をバックアップしていない
-    → SDカード故障で全設定が消失
-    → 数十時間かけた自動化ルールが一瞬でゼロに
-    → デバイスの再ペアリングが必要
+BAD: Creating massive numbers of automation rules with overly complex conditions
+    -> Rules conflict (an automation to turn lights ON and one to turn lights OFF fire simultaneously)
+    -> Difficult to debug (cannot determine why a light turned on)
+    -> Family members can no longer operate things manually
 
-OK: 多層バックアップ戦略
-    1. 自動スナップショット: 毎日深夜にHA自動バックアップ
-    2. 外部保存: Google Drive / NAS にバックアップを同期
-    3. Git管理: YAML設定ファイルをGitリポジトリで管理
-    4. SSD化: Raspberry PiのSDカードをSSD/NVMeに換装
-    5. HA OS: 専用OS使用でスナップショット復元が容易
+GOOD: Automation design principles
+    1. Keep it simple: No more than 3 conditions per automation
+    2. Priority management: Manual override > Automation (suppress automation for a set period after manual operation)
+    3. Feedback: Notify on automation execution (LED, sound, app notification)
+    4. Kill switch: Have a switch to disable all automations at once
+    5. Gradual rollout: Add one at a time and verify behavior
+    6. Documentation: Describe the intent and conditions in comments
+```
 
-設定例（Home Assistant バックアップ自動化）:
+### Anti-Pattern 5: Lack of Backup Strategy
+
+```
+BAD: Not backing up Home Assistant configuration
+    -> All settings lost when SD card fails
+    -> Dozens of hours of automation rules gone in an instant
+    -> Device re-pairing required
+
+GOOD: Multi-layered backup strategy
+    1. Automatic snapshots: Daily automatic HA backup at midnight
+    2. External storage: Sync backups to Google Drive / NAS
+    3. Git management: Manage YAML config files in a Git repository
+    4. SSD upgrade: Replace Raspberry Pi SD card with SSD/NVMe
+    5. HA OS: Use the dedicated OS for easy snapshot restoration
+
+Configuration example (Home Assistant backup automation):
 ```
 
 ```yaml
-# Home Assistant バックアップ自動化
-- alias: "毎日自動バックアップ"
+# Home Assistant backup automation
+- alias: "Daily automatic backup"
   trigger:
     - platform: time
       at: "03:00:00"
@@ -1997,7 +2006,7 @@ OK: 多層バックアップ戦略
     - service: backup.create
       data:
         name: "auto_backup_{{ now().strftime('%Y%m%d') }}"
-    # Google Drive にアップロード（Google Drive Backup アドオン）
+    # Upload to Google Drive (Google Drive Backup add-on)
     - delay: "00:05:00"
     - service: hassio.addon_stdin
       data:
@@ -2008,133 +2017,133 @@ OK: 多層バックアップ戦略
 
 ---
 
-## 8. スマートホーム構築実践ガイド
+## 8. Smart Home Practical Implementation Guide
 
-### 予算別構成例
-
-```
-【ミニマル構成】予算: 2-3万円
-├── Raspberry Pi 5 (4GB): 12,000円
-├── Zigbee USBドングル (SONOFF ZBDongle-E): 2,500円
-├── スマート照明 x3 (IKEA TRADFRI): 6,000円
-├── 温度・湿度センサー x2 (Aqara): 4,000円
-└── スマートプラグ x2 (TP-Link): 3,000円
-
-【スタンダード構成】予算: 5-8万円
-├── Home Assistant Green: 15,000円
-├── Thread Border Router (Apple TV 4K): 22,000円
-├── Matter対応照明 x5 (Nanoleaf/Eve): 15,000円
-├── スマートロック (SwitchBot Lock Pro): 12,000円
-├── 温度・湿度・CO2センサー (Aqara): 8,000円
-├── スマートカーテン (SwitchBot): 8,000円
-└── スマートプラグ x3: 5,000円
-
-【フル構成】予算: 15-25万円
-├── Home Assistant Yellow (PoE): 25,000円
-├── UniFi Dream Machine SE: 50,000円
-├── Thread/Matter照明システム: 30,000円
-├── Frigate NVR + Coral USB: 15,000円
-├── IPカメラ x3 (Reolink PoE): 30,000円
-├── ESP32-S3-BOX x2 (音声サテライト): 8,000円
-├── スマートロック + キーパッド: 20,000円
-├── 各種センサー群: 15,000円
-├── スマートカーテン x3: 24,000円
-└── UPS (停電対策): 15,000円
-```
-
-### 段階的導入ロードマップ
+### Configuration Examples by Budget
 
 ```
-【Phase 1: 基盤構築（1-2週間）】
-Day 1-2: ハードウェア設置
-  └── Home Assistant インストール、ネットワーク設定
+[Minimal Configuration] Budget: $150-200
+├── Raspberry Pi 5 (4GB): $80
+├── Zigbee USB dongle (SONOFF ZBDongle-E): $17
+├── Smart lights x3 (IKEA TRADFRI): $40
+├── Temperature/humidity sensors x2 (Aqara): $27
+└── Smart plugs x2 (TP-Link): $20
 
-Day 3-5: 基本デバイス接続
-  └── 照明、プラグ、センサーのペアリング
+[Standard Configuration] Budget: $350-550
+├── Home Assistant Green: $100
+├── Thread Border Router (Apple TV 4K): $150
+├── Matter-compatible lights x5 (Nanoleaf/Eve): $100
+├── Smart lock (SwitchBot Lock Pro): $80
+├── Temperature/humidity/CO2 sensor (Aqara): $55
+├── Smart curtain (SwitchBot): $55
+└── Smart plugs x3: $35
 
-Day 6-7: 基本自動化
-  └── 日没照明、外出モード、温度アラート
+[Full Configuration] Budget: $1,000-1,700
+├── Home Assistant Yellow (PoE): $170
+├── UniFi Dream Machine SE: $340
+├── Thread/Matter lighting system: $200
+├── Frigate NVR + Coral USB: $100
+├── IP cameras x3 (Reolink PoE): $200
+├── ESP32-S3-BOX x2 (voice satellites): $55
+├── Smart lock + keypad: $135
+├── Various sensor array: $100
+├── Smart curtains x3: $165
+└── UPS (power outage protection): $100
+```
 
-Day 8-14: 安定性確認
-  └── 1週間運用して問題を洗い出し
+### Phased Rollout Roadmap
 
-【Phase 2: 拡張（3-4週目）】
-Week 3: セキュリティ強化
-  └── VLAN分離、DNSフィルタリング、バックアップ設定
+```
+[Phase 1: Foundation Building (1-2 weeks)]
+Day 1-2: Hardware setup
+  └── Install Home Assistant, configure network
 
-Week 4: AI機能追加
-  └── Frigate NVR、音声アシスタント（Wyoming）
+Day 3-5: Basic device connections
+  └── Pair lights, plugs, and sensors
 
-【Phase 3: 最適化（2ヶ月目以降）】
-Month 2: 高度な自動化
-  └── 行動パターン学習、エネルギー最適化
+Day 6-7: Basic automation
+  └── Sunset lighting, away mode, temperature alerts
 
-Month 3+: 継続改善
-  └── 新デバイス追加、自動化の調整
+Day 8-14: Stability verification
+  └── Run for one week to identify issues
+
+[Phase 2: Expansion (Weeks 3-4)]
+Week 3: Security hardening
+  └── VLAN isolation, DNS filtering, backup configuration
+
+Week 4: AI feature additions
+  └── Frigate NVR, voice assistant (Wyoming)
+
+[Phase 3: Optimization (Month 2 onwards)]
+Month 2: Advanced automation
+  └── Behavior pattern learning, energy optimization
+
+Month 3+: Continuous improvement
+  └── Add new devices, tune automations
 ```
 
 ---
 
 ## FAQ
 
-### Q1. Matter 対応デバイスと非対応デバイス、どちらを買うべき？
+### Q1. Should I buy Matter-compatible or non-compatible devices?
 
-今後の購入は原則 Matter 対応を推奨。Matter 対応デバイスはApple Home、Google Home、Amazon Alexa全てで動作し、ベンダーロックインを避けられる。ただし Zigbee の既存エコシステム（IKEA TRADFRI、Philips Hue）は Bridge経由で Matter に対応するため、既存デバイスの買い替えは不要。
+For future purchases, Matter-compatible devices are generally recommended. Matter-compatible devices work with Apple Home, Google Home, and Amazon Alexa, avoiding vendor lock-in. However, the existing Zigbee ecosystem (IKEA TRADFRI, Philips Hue) supports Matter via bridges, so there is no need to replace existing devices.
 
-### Q2. Home Assistant の導入コストと難易度は？
+### Q2. What is the cost and difficulty of deploying Home Assistant?
 
-Raspberry Pi 4/5（1-2万円）にインストールすれば最低限で始められる。専用ハードウェアの Home Assistant Green（約15,000円）やHome Assistant Yellow もある。初期設定はGUIで行え、基本的な自動化はYAML不要。高度なカスタマイズにはYAMLとPythonの知識が必要。
+You can get started with a minimum investment by installing it on a Raspberry Pi 4/5 ($60-130). Dedicated hardware options include Home Assistant Green (approximately $100) and Home Assistant Yellow. Initial setup is done through a GUI, and basic automation does not require YAML. Advanced customization requires YAML and Python knowledge.
 
-### Q3. 音声アシスタントのプライバシーは大丈夫か？
+### Q3. Are voice assistant privacy concerns warranted?
 
-Amazon Alexa と Google Assistant はデフォルトで音声をクラウドに送信する。プライバシーが重要なら、1) 録音データの自動削除を設定、2) Apple Siri（オンデバイス処理重視）を使う、3) Home Assistant のローカル音声処理（Wyoming protocol + Whisper + Piper）でクラウドを完全排除する。
+Amazon Alexa and Google Assistant send voice data to the cloud by default. If privacy is important: 1) Configure automatic deletion of voice recordings, 2) Use Apple Siri (focuses on on-device processing), 3) Completely eliminate cloud dependency with Home Assistant's local voice processing (Wyoming protocol + Whisper + Piper).
 
-### Q4. Thread と Zigbee はどちらを選ぶべきか？
+### Q4. Should I choose Thread or Zigbee?
 
-新規購入なら Thread を推奨する。Thread は IPv6 ネイティブであり、Matter の推奨トランスポート層として位置づけられている。ただし現時点では Zigbee のデバイス種類が圧倒的に多い。既存の Zigbee デバイスがあるなら Zigbee2MQTT で Home Assistant に統合しつつ、新規購入は Thread/Matter 対応を選ぶ「併用戦略」が現実的。Thread Border Router は Apple TV 4K、HomePod mini、Google Nest Hub (2nd gen) が対応しており、いずれかを所有していれば追加コストなしで Thread ネットワークを構築できる。
+For new purchases, Thread is recommended. Thread is IPv6-native and positioned as Matter's recommended transport layer. However, the variety of Zigbee devices currently available is overwhelmingly larger. If you have existing Zigbee devices, a practical "coexistence strategy" is to integrate them with Home Assistant via Zigbee2MQTT while choosing Thread/Matter-compatible devices for new purchases. Thread Border Routers are supported by Apple TV 4K, HomePod mini, and Google Nest Hub (2nd gen), so if you own any of these, you can build a Thread network at no additional cost.
 
-### Q5. スマートホームのデバイスが100台を超えるとどうなる？
+### Q5. What happens when smart home devices exceed 100?
 
-デバイス数が増えると以下の問題が発生しやすい。(1) Wi-Fi のみの構成では帯域不足でレスポンスが悪化する。Thread/Zigbee メッシュで負荷を分散すること。(2) Home Assistant の自動化が複雑化し、起動時間が長くなる。YAML を分割し、パッケージ構成（packages ディレクトリ）で管理する。(3) ダッシュボードが煩雑になる。部屋別・機能別のビューを作成し、custom:auto-entities カードで動的にフィルタリングする。(4) mDNS/DNS-SD のブロードキャストが増えるため、ネットワーク機器の処理能力に注意する。エンタープライズグレードのルーター（UniFi Dream Machine 等）を推奨する。
+As device count increases, the following issues tend to arise. (1) Wi-Fi-only configurations suffer from bandwidth shortages and degraded responsiveness. Distribute the load with Thread/Zigbee mesh. (2) Home Assistant automations become complex and boot time increases. Split YAML files and manage them with a package structure (packages directory). (3) Dashboards become cluttered. Create room-based and function-based views, and use custom:auto-entities cards for dynamic filtering. (4) mDNS/DNS-SD broadcasts increase, so pay attention to network equipment processing capability. Enterprise-grade routers (such as UniFi Dream Machine) are recommended.
 
-### Q6. 停電時にスマートホームはどうなる？
+### Q6. What happens to a smart home during a power outage?
 
-UPS（無停電電源装置）を Home Assistant サーバーとネットワーク機器に接続することで、停電後も数十分から数時間の稼働が可能。スマートロックは電池駆動のため停電の影響を受けない。照明やエアコンは物理的に停止するが、復電後に自動的に前の状態に復帰するよう自動化を設定できる。蓄電池（テスラ Powerwall 等）があれば、太陽光発電と組み合わせて完全な停電対策が可能。Home Assistant の NUT（Network UPS Tools）統合で UPS の状態を監視し、バッテリー残量が低下したら安全にシャットダウンする自動化も推奨する。
+Connecting a UPS (Uninterruptible Power Supply) to the Home Assistant server and network equipment enables operation for tens of minutes to several hours after an outage. Smart locks are battery-powered and unaffected by power outages. Lights and air conditioners physically stop, but automation can be set up to automatically restore the previous state when power returns. With battery storage (Tesla Powerwall, etc.) combined with solar generation, complete power outage protection is possible. Using Home Assistant's NUT (Network UPS Tools) integration to monitor UPS status and automating a safe shutdown when battery levels drop low is also recommended.
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | 要点 |
+| Concept | Key Points |
 |------|------|
-| Matter | Apple/Google/Amazon統一のスマートホーム規格 |
-| Thread | 低消費電力メッシュネットワーク（Matter推奨通信層） |
-| Home Assistant | オープンソースのローカルスマートホームハブ |
-| 音声アシスタント | Alexa/Google/Siri + ローカルLLMの選択肢 |
-| Frigate NVR | ローカルAIカメラ（Coral対応） |
-| ローカルファースト | インターネット不要で基本機能が動作する設計 |
-| VLAN分離 | IoTデバイスをメインネットワークから隔離 |
-| エネルギー最適化AI | 行動予測による自動温度制御 |
-| HEMS | 太陽光+蓄電池+動的料金の統合エネルギー管理 |
-| Wyoming Protocol | ローカル音声処理のためのマイクロサービス接続規格 |
+| Matter | Unified smart home standard from Apple/Google/Amazon |
+| Thread | Low-power mesh network (Matter's recommended communication layer) |
+| Home Assistant | Open-source local smart home hub |
+| Voice Assistants | Alexa/Google/Siri + local LLM options |
+| Frigate NVR | Local AI camera (Coral-compatible) |
+| Local-First | Design where basic functions work without internet |
+| VLAN Isolation | Isolating IoT devices from the main network |
+| Energy Optimization AI | Automatic temperature control through behavior prediction |
+| HEMS | Integrated energy management with solar + battery + dynamic pricing |
+| Wyoming Protocol | Microservice connection standard for local voice processing |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Guides
 
-- **02-emerging/03-future-hardware.md** — 未来のハードウェア：量子コンピュータ、ニューロモルフィック
-- **02-emerging/01-robotics.md** — ロボティクス：Boston Dynamics、Figure
-- **01-computing/02-edge-ai.md** — エッジAI：NPU、Coral、Jetson
+- **02-emerging/03-future-hardware.md** — Future Hardware: Quantum Computers, Neuromorphic
+- **02-emerging/01-robotics.md** — Robotics: Boston Dynamics, Figure
+- **01-computing/02-edge-ai.md** — Edge AI: NPU, Coral, Jetson
 
 ---
 
-## 参考文献
+## References
 
-1. **CSA — Matter 仕様** https://csa-iot.org/all-solutions/matter/
-2. **Home Assistant 公式ドキュメント** https://www.home-assistant.io/docs/
-3. **Thread Group 公式** https://www.threadgroup.org/
+1. **CSA — Matter Specification** https://csa-iot.org/all-solutions/matter/
+2. **Home Assistant Official Documentation** https://www.home-assistant.io/docs/
+3. **Thread Group Official** https://www.threadgroup.org/
 4. **Frigate NVR** https://docs.frigate.video/
-5. **ESPHome 音声アシスタント** https://esphome.io/components/voice_assistant.html
+5. **ESPHome Voice Assistant** https://esphome.io/components/voice_assistant.html
 6. **Wyoming Protocol** https://github.com/rhasspy/wyoming
 7. **Matter SDK (connectedhomeip)** https://github.com/project-chip/connectedhomeip
 8. **OpenThread** https://openthread.io/
