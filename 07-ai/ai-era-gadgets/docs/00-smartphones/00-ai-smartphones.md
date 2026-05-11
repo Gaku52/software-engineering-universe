@@ -1,51 +1,51 @@
-# AIスマートフォン — NPU搭載チップとオンデバイスAI
+# AI Smartphones — NPU-Equipped Chips and On-Device AI
 
-> スマートフォンに搭載されるNPU（Neural Processing Unit）の仕組み、Google PixelやiPhoneのAI機能、そしてオンデバイスAIがもたらす新たなユーザー体験を体系的に解説する。
-
----
-
-## この章で学ぶこと
-
-1. **NPU（Neural Processing Unit）の仕組み** — CPU/GPU/NPUの役割分担とAI処理の高速化原理
-2. **主要プラットフォームのAI機能** — Google Pixel（Tensor）とiPhone（A/Mシリーズ）の具体的なAI活用事例
-3. **オンデバイスAIの設計思想** — クラウド依存を減らしプライバシーと低レイテンシを両立する技術
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> A systematic guide to NPU (Neural Processing Unit) mechanisms in smartphones, AI features on Google Pixel and iPhone, and the new user experiences enabled by on-device AI.
 
 ---
 
-## 1. NPUアーキテクチャの基礎
+## What You Will Learn in This Chapter
 
-### 1.1 SoC内でのNPUの位置づけ
+1. **How NPUs (Neural Processing Units) Work** — The roles of CPU/GPU/NPU and the principles behind accelerated AI processing
+2. **AI Features on Major Platforms** — Specific AI use cases on Google Pixel (Tensor) and iPhone (A/M series)
+3. **On-Device AI Design Philosophy** — Technology that reduces cloud dependency while achieving both privacy and low latency
+
+
+## Prerequisites
+
+Before reading this guide, familiarity with the following will help deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+
+---
+
+## 1. NPU Architecture Fundamentals
+
+### 1.1 NPU Placement within an SoC
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              スマートフォン SoC                    │
+│              Smartphone SoC                       │
 │                                                   │
 │  ┌─────────┐  ┌─────────┐  ┌─────────────────┐  │
 │  │  CPU     │  │  GPU     │  │  NPU / Neural   │  │
-│  │ (汎用)  │  │ (並列)  │  │  Engine (AI特化) │  │
-│  │ 4+4core │  │ Adreno/ │  │  INT8/FP16最適化 │  │
+│  │(General) │  │(Parallel)│  │  Engine(AI-opt.) │  │
+│  │ 4+4core │  │ Adreno/ │  │  INT8/FP16 opt.  │  │
 │  │         │  │ Mali    │  │  ~45 TOPS        │  │
 │  └─────────┘  └─────────┘  └─────────────────┘  │
 │                                                   │
 │  ┌─────────┐  ┌─────────┐  ┌─────────────────┐  │
 │  │  ISP    │  │  DSP    │  │  Memory (LPDDR5) │  │
-│  │ (カメラ)│  │ (信号) │  │  8〜16 GB        │  │
+│  │(Camera) │  │(Signal) │  │  8-16 GB         │  │
 │  └─────────┘  └─────────┘  └─────────────────┘  │
 └─────────────────────────────────────────────────┘
 ```
 
-### 1.2 NPUの処理性能比較
+### 1.2 NPU Performance Comparison
 
 ```
-処理性能（TOPS: Trillion Operations Per Second）
+Processing Performance (TOPS: Trillion Operations Per Second)
 
 Apple A18 Pro (Neural Engine)    ████████████████████████████████████ 35 TOPS
 Snapdragon 8 Gen 3 (Hexagon)    █████████████████████████████████████████████ 45 TOPS
@@ -54,31 +54,31 @@ MediaTek Dimensity 9300          ███████████████�
 Samsung Exynos 2400              ██████████████████████████████████████████ 40 TOPS
 ```
 
-### 1.3 NPU内部のデータフロー
+### 1.3 Internal Data Flow of an NPU
 
-NPUの内部処理は従来のCPU/GPUとは大きく異なる。専用のMAC（Multiply-Accumulate）アレイと最適化されたメモリ階層が特徴である。
+The internal processing of an NPU differs significantly from traditional CPU/GPU. It is characterized by dedicated MAC (Multiply-Accumulate) arrays and an optimized memory hierarchy.
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│                  NPU データフロー詳細                    │
+│                  NPU Data Flow Details                  │
 │                                                        │
-│  入力テンソル (INT8/FP16)                               │
+│  Input Tensor (INT8/FP16)                              │
 │      │                                                 │
 │      ▼                                                 │
 │  ┌──────────────────────┐                             │
-│  │ Weight Buffer (SRAM)  │  量子化済み重みをキャッシュ    │
-│  │ 数MB〜数十MB          │                             │
+│  │ Weight Buffer (SRAM)  │  Caches quantized weights   │
+│  │ A few MB to tens of MB│                             │
 │  └──────────┬───────────┘                             │
 │             │                                          │
 │      ┌──────▼──────┐                                  │
-│      │ MAC Array    │  行列積（畳み込み/全結合層）       │
-│      │ 256×256      │  INT8×INT8 → INT32 累積          │
-│      │ systolic     │  1クロックで65,536 MAC演算        │
+│      │ MAC Array    │  Matrix mult. (conv/FC layers)   │
+│      │ 256×256      │  INT8×INT8 → INT32 accumulate   │
+│      │ systolic     │  65,536 MAC ops per clock cycle  │
 │      └──────┬──────┘                                  │
 │             │                                          │
 │      ┌──────▼──────┐                                  │
 │      │ Activation   │  ReLU / GELU / SiLU             │
-│      │ Unit         │  ハードウェア実装で高速           │
+│      │ Unit         │  Fast hardware implementation    │
 │      └──────┬──────┘                                  │
 │             │                                          │
 │      ┌──────▼──────┐                                  │
@@ -87,38 +87,38 @@ NPUの内部処理は従来のCPU/GPUとは大きく異なる。専用のMAC（M
 │      └──────┬──────┘                                  │
 │             │                                          │
 │             ▼                                          │
-│     出力テンソル → 次の層へ or 最終結果                   │
+│     Output Tensor → Next layer or final result         │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 1.4 NPUの省電力設計
+### 1.4 Power-Efficient Design of NPUs
 
-NPUがスマートフォンにおいて特に重要な理由は、省電力性にある。
+The reason NPUs are particularly important in smartphones is their power efficiency.
 
 ```
-消費電力比較（同一タスク実行時）
+Power Consumption Comparison (same task execution)
 
-CPU (8コア全力):    ████████████████████████████████████████ 8W
-GPU (フル稼働):     ██████████████████████████████████ 6W
-NPU (AI推論専用):   ████████ 1.5W
-DSP (信号処理):     ██████ 1W
+CPU (8 cores full load):  ████████████████████████████████████████ 8W
+GPU (full utilization):   ██████████████████████████████████ 6W
+NPU (AI inference only):  ████████ 1.5W
+DSP (signal processing):  ██████ 1W
 
-→ NPUはCPU比で5倍以上の電力効率（TOPS/W）を実現
-→ バッテリー駆動のスマートフォンにとって決定的な差
+→ NPU achieves 5x+ power efficiency (TOPS/W) compared to CPU
+→ A decisive difference for battery-powered smartphones
 ```
 
-| 処理ユニット | 得意な処理 | TOPS/W | バッテリーへの影響 |
-|-------------|-----------|--------|-----------------|
-| CPU | 汎用演算、分岐処理 | 0.5-2 | 大きい |
-| GPU | 並列浮動小数点演算 | 2-5 | 中程度 |
-| NPU | INT8/FP16行列積 | 10-30 | 小さい |
-| DSP | 信号処理、フィルタ | 5-15 | 小さい |
+| Processing Unit | Strength | TOPS/W | Battery Impact |
+|----------------|----------|--------|----------------|
+| CPU | General-purpose computation, branching | 0.5-2 | High |
+| GPU | Parallel floating-point operations | 2-5 | Moderate |
+| NPU | INT8/FP16 matrix multiplication | 10-30 | Low |
+| DSP | Signal processing, filters | 5-15 | Low |
 
 ---
 
-## 2. コード例
+## 2. Code Examples
 
-### コード例 1: Android — ML Kit でオンデバイス画像ラベリング
+### Code Example 1: Android — On-Device Image Labeling with ML Kit
 
 ```kotlin
 // build.gradle
@@ -131,7 +131,7 @@ import com.google.mlkit.vision.label.defaults.ImageLabelerOptions
 fun labelImage(bitmap: Bitmap) {
     val image = InputImage.fromBitmap(bitmap, 0)
     val options = ImageLabelerOptions.Builder()
-        .setConfidenceThreshold(0.7f) // 70%以上の信頼度のみ
+        .setConfidenceThreshold(0.7f) // Only labels with 70%+ confidence
         .build()
     val labeler = ImageLabeling.getClient(options)
 
@@ -139,23 +139,23 @@ fun labelImage(bitmap: Bitmap) {
         .addOnSuccessListener { labels ->
             for (label in labels) {
                 println("${label.text}: ${label.confidence}")
-                // 例: "Cat: 0.95", "Animal: 0.92"
+                // e.g.: "Cat: 0.95", "Animal: 0.92"
             }
         }
         .addOnFailureListener { e ->
-            println("エラー: ${e.message}")
+            println("Error: ${e.message}")
         }
 }
 ```
 
-### コード例 2: iOS — Core ML でオンデバイス推論
+### Code Example 2: iOS — On-Device Inference with Core ML
 
 ```swift
 import CoreML
 import Vision
 
 func classifyImage(_ image: CGImage) {
-    // MobileNetV3 モデルをロード
+    // Load MobileNetV3 model
     guard let model = try? VNCoreMLModel(
         for: MobileNetV3(configuration: .init()).model
     ) else { return }
@@ -163,7 +163,7 @@ func classifyImage(_ image: CGImage) {
     let request = VNCoreMLRequest(model: model) { request, error in
         guard let results = request.results as? [VNClassificationObservation] else { return }
 
-        // 上位3件を表示
+        // Display top 3 results
         for result in results.prefix(3) {
             print("\(result.identifier): \(result.confidence * 100)%")
         }
@@ -174,17 +174,17 @@ func classifyImage(_ image: CGImage) {
 }
 ```
 
-### コード例 3: TensorFlow Lite — NPU デリゲート活用
+### Code Example 3: TensorFlow Lite — Leveraging NPU Delegates
 
 ```python
 import tensorflow as tf
 
-# モデルの量子化（FP32 → INT8）でNPU最適化
+# Model quantization (FP32 → INT8) for NPU optimization
 converter = tf.lite.TFLiteConverter.from_saved_model("model_dir")
 converter.optimizations = [tf.lite.Optimize.DEFAULT]
-converter.target_spec.supported_types = [tf.int8]  # NPU向け量子化
+converter.target_spec.supported_types = [tf.int8]  # Quantization for NPU
 
-# 代表的なデータセットで量子化キャリブレーション
+# Quantization calibration with representative dataset
 def representative_dataset():
     for data in calibration_data:
         yield [data.astype("float32")]
@@ -192,14 +192,14 @@ def representative_dataset():
 converter.representative_dataset = representative_dataset
 tflite_model = converter.convert()
 
-# 保存
+# Save
 with open("model_quantized.tflite", "wb") as f:
     f.write(tflite_model)
 
-print(f"モデルサイズ: {len(tflite_model) / 1024 / 1024:.1f} MB")
+print(f"Model size: {len(tflite_model) / 1024 / 1024:.1f} MB")
 ```
 
-### コード例 4: NNAPI（Android Neural Networks API）ベンチマーク
+### Code Example 4: NNAPI (Android Neural Networks API) Benchmark
 
 ```kotlin
 import org.tensorflow.lite.Interpreter
@@ -207,11 +207,11 @@ import org.tensorflow.lite.gpu.CompatibilityList
 import org.tensorflow.lite.nnapi.NnApiDelegate
 
 fun benchmarkNPU(modelPath: String) {
-    // NNAPI デリゲート（NPU優先）
+    // NNAPI delegate (NPU preferred)
     val nnApiDelegate = NnApiDelegate(
         NnApiDelegate.Options().apply {
-            setAllowFp16(true)             // FP16演算を許可
-            setExecutionPreference(         // NPU優先実行
+            setAllowFp16(true)             // Allow FP16 operations
+            setExecutionPreference(         // Prefer NPU execution
                 NnApiDelegate.Options.EXECUTION_PREFERENCE_SUSTAINED_SPEED
             )
         }
@@ -224,24 +224,24 @@ fun benchmarkNPU(modelPath: String) {
 
     val interpreter = Interpreter(loadModelFile(modelPath), options)
 
-    // ウォームアップ + 計測
+    // Warm-up + measurement
     val input = FloatArray(224 * 224 * 3)
     val output = Array(1) { FloatArray(1000) }
 
-    repeat(10) { interpreter.run(input, output) } // ウォームアップ
+    repeat(10) { interpreter.run(input, output) } // Warm-up
 
     val start = System.nanoTime()
     repeat(100) { interpreter.run(input, output) }
     val elapsed = (System.nanoTime() - start) / 1_000_000.0 / 100
 
-    println("平均推論時間: ${elapsed}ms")  // NPU: ~3ms, CPU: ~25ms
+    println("Average inference time: ${elapsed}ms")  // NPU: ~3ms, CPU: ~25ms
 }
 ```
 
-### コード例 5: Pixel の Gemini Nano — オンデバイス要約
+### Code Example 5: Pixel's Gemini Nano — On-Device Summarization
 
 ```kotlin
-// Android AICore API（Pixel 8 Pro 以降）
+// Android AICore API (Pixel 8 Pro and later)
 import com.google.android.gms.aicore.GenerativeModel
 import com.google.android.gms.aicore.GenerateContentRequest
 
@@ -249,62 +249,62 @@ suspend fun summarizeOnDevice(text: String): String {
     val model = GenerativeModel("gemini-nano")
 
     val request = GenerateContentRequest.newBuilder()
-        .addText("以下のテキストを3行で要約してください:\n$text")
+        .addText("Summarize the following text in 3 lines:\n$text")
         .build()
 
     val response = model.generateContent(request)
-    return response.text ?: "要約を生成できませんでした"
+    return response.text ?: "Failed to generate summary"
 }
 
-// 使用例
-val article = "長い記事のテキスト..."
+// Usage example
+val article = "Long article text..."
 val summary = summarizeOnDevice(article)
 println(summary)
-// → "1. AIスマートフォンはNPUを搭載..."
-// → "2. オンデバイス処理でプライバシーを保護..."
-// → "3. クラウド不要で低遅延応答を実現..."
+// → "1. AI smartphones are equipped with NPUs..."
+// → "2. On-device processing protects privacy..."
+// → "3. Low-latency responses without the cloud..."
 ```
 
-### コード例 6: オンデバイス音声認識 — Whisper on Mobile
+### Code Example 6: On-Device Speech Recognition — Whisper on Mobile
 
 ```python
-# モバイル向けWhisperモデルの最適化パイプライン
+# Optimization pipeline for mobile Whisper model
 import torch
 import whisper
 import coremltools as ct
 
 def convert_whisper_for_mobile():
-    """Whisper tiny/base をモバイル向けに変換"""
-    # Whisper tiny モデル（39M パラメータ、~150MB）
+    """Convert Whisper tiny/base for mobile deployment"""
+    # Whisper tiny model (39M parameters, ~150MB)
     model = whisper.load_model("tiny")
     model.eval()
 
-    # エンコーダ部分をCore ML用にエクスポート
-    # 入力: メルスペクトログラム (1, 80, 3000)
+    # Export encoder for Core ML
+    # Input: Mel spectrogram (1, 80, 3000)
     dummy_input = torch.randn(1, 80, 3000)
 
-    # TorchScript に変換
+    # Convert to TorchScript
     traced_encoder = torch.jit.trace(model.encoder, dummy_input)
 
-    # Core ML に変換（Neural Engine で高速実行）
+    # Convert to Core ML (fast execution on Neural Engine)
     mlmodel = ct.convert(
         traced_encoder,
         inputs=[ct.TensorType(shape=(1, 80, 3000), name="mel_input")],
-        compute_precision=ct.precision.FLOAT16,  # FP16で高速化
+        compute_precision=ct.precision.FLOAT16,  # FP16 for speed
         compute_units=ct.ComputeUnit.ALL,  # CPU + GPU + Neural Engine
     )
     mlmodel.save("WhisperEncoder.mlpackage")
-    print("Core ML モデル保存完了")
+    print("Core ML model saved successfully")
 
-    # モデルサイズ比較
-    # FP32 (元): ~150MB
-    # FP16 (Neural Engine最適化): ~75MB
-    # INT8 (最大圧縮): ~40MB
+    # Model size comparison
+    # FP32 (original): ~150MB
+    # FP16 (Neural Engine optimized): ~75MB
+    # INT8 (maximum compression): ~40MB
 
 convert_whisper_for_mobile()
 ```
 
-### コード例 7: Android — カスタムTFLiteモデルのNPUデプロイ
+### Code Example 7: Android — Custom TFLite Model NPU Deployment
 
 ```kotlin
 import org.tensorflow.lite.Interpreter
@@ -319,53 +319,53 @@ class AIModelManager(private val context: Context) {
     private var currentDelegate: String = "cpu"
 
     /**
-     * 利用可能なアクセラレータを検出して最適なデリゲートを選択
+     * Detect available accelerators and select the optimal delegate
      */
     fun loadModel(modelPath: String): Boolean {
         val modelBuffer = loadModelFile(modelPath)
         val options = Interpreter.Options()
 
-        // NPU (NNAPI) を最優先で試行
+        // Try NPU (NNAPI) first as highest priority
         try {
             val nnApiOptions = NnApiDelegate.Options().apply {
                 setAllowFp16(true)
                 setExecutionPreference(
                     NnApiDelegate.Options.EXECUTION_PREFERENCE_SUSTAINED_SPEED
                 )
-                setUseNnapiCpu(false) // CPU フォールバックを無効化
+                setUseNnapiCpu(false) // Disable CPU fallback
             }
             val nnApiDelegate = NnApiDelegate(nnApiOptions)
             options.addDelegate(nnApiDelegate)
             interpreter = Interpreter(modelBuffer, options)
             currentDelegate = "npu"
-            println("NPU (NNAPI) デリゲートで実行")
+            println("Running with NPU (NNAPI) delegate")
             return true
         } catch (e: Exception) {
-            println("NPU利用不可: ${e.message}")
+            println("NPU unavailable: ${e.message}")
         }
 
-        // GPU を次に試行
+        // Try GPU next
         try {
             val gpuDelegate = GpuDelegate()
             options.addDelegate(gpuDelegate)
             interpreter = Interpreter(modelBuffer, options)
             currentDelegate = "gpu"
-            println("GPU デリゲートで実行")
+            println("Running with GPU delegate")
             return true
         } catch (e: Exception) {
-            println("GPU利用不可: ${e.message}")
+            println("GPU unavailable: ${e.message}")
         }
 
-        // CPU フォールバック
+        // CPU fallback
         options.setNumThreads(4)
         interpreter = Interpreter(modelBuffer, options)
         currentDelegate = "cpu"
-        println("CPU フォールバックで実行")
+        println("Running with CPU fallback")
         return true
     }
 
     /**
-     * 推論実行と性能計測
+     * Run inference and measure performance
      */
     fun runInference(input: FloatArray): Pair<FloatArray, Long> {
         val output = Array(1) { FloatArray(1000) }
@@ -373,7 +373,7 @@ class AIModelManager(private val context: Context) {
         interpreter?.run(arrayOf(input), output)
         val elapsed = (System.nanoTime() - startTime) / 1_000_000
 
-        println("推論完了: ${elapsed}ms (デリゲート: $currentDelegate)")
+        println("Inference complete: ${elapsed}ms (delegate: $currentDelegate)")
         return Pair(output[0], elapsed)
     }
 
@@ -390,36 +390,36 @@ class AIModelManager(private val context: Context) {
 }
 ```
 
-### コード例 8: iOS — オンデバイスLLM推論（MLX Swift）
+### Code Example 8: iOS — On-Device LLM Inference (MLX Swift)
 
 ```swift
 import MLX
 import MLXLLM
 import Foundation
 
-/// Apple Silicon (Neural Engine + GPU) でローカルLLM推論
+/// Local LLM inference on Apple Silicon (Neural Engine + GPU)
 class OnDeviceLLMEngine {
     private var model: LLMModel?
     private var tokenizer: Tokenizer?
 
     func loadModel() async throws {
-        // Phi-3 Mini (3.8B, 4bit量子化 ≈ 2.3GB)
+        // Phi-3 Mini (3.8B, 4-bit quantized ≈ 2.3GB)
         let configuration = ModelConfiguration(
             id: "mlx-community/Phi-3-mini-4k-instruct-4bit"
         )
 
-        // モデルをダウンロード & ロード
+        // Download & load model
         let (model, tokenizer) = try await LLM.load(configuration: configuration)
         self.model = model
         self.tokenizer = tokenizer
 
-        print("モデルロード完了: Phi-3 Mini 4bit")
-        print("メモリ使用量: \(MLX.GPU.activeMemory / 1_000_000)MB")
+        print("Model loaded: Phi-3 Mini 4bit")
+        print("Memory usage: \(MLX.GPU.activeMemory / 1_000_000)MB")
     }
 
     func generate(prompt: String, maxTokens: Int = 256) async -> String {
         guard let model = model, let tokenizer = tokenizer else {
-            return "モデル未ロード"
+            return "Model not loaded"
         }
 
         let input = tokenizer.encode(prompt)
@@ -428,7 +428,7 @@ class OnDeviceLLMEngine {
 
         let startTime = CFAbsoluteTimeGetCurrent()
 
-        // トークン単位で逐次生成
+        // Generate tokens incrementally
         for token in try! model.generate(input: MLXArray(input), parameters: .init(
             temperature: 0.7,
             topP: 0.9,
@@ -442,18 +442,18 @@ class OnDeviceLLMEngine {
         let tokensPerSecond = Double(output.count) / generationTime
 
         let result = tokenizer.decode(output)
-        print("生成速度: \(String(format: "%.1f", tokensPerSecond)) tokens/sec")
-        print("生成トークン数: \(output.count)")
+        print("Generation speed: \(String(format: "%.1f", tokensPerSecond)) tokens/sec")
+        print("Generated tokens: \(output.count)")
 
         return result
     }
 }
 
-// 使用例
+// Usage example
 let engine = OnDeviceLLMEngine()
 try await engine.loadModel()
 let response = await engine.generate(
-    prompt: "AIスマートフォンのNPUについて簡潔に説明してください。"
+    prompt: "Briefly explain what an NPU in an AI smartphone is."
 )
 print(response)
 // iPhone 15 Pro: ~15 tokens/sec (Neural Engine + GPU)
@@ -461,100 +461,101 @@ print(response)
 
 ---
 
-## 3. オンデバイスAI vs クラウドAI
+## 3. On-Device AI vs Cloud AI
 
-### 比較表 1: 処理方式の違い
+### Comparison Table 1: Differences in Processing Approaches
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│             AI処理のデータフロー比較                    │
+│         AI Processing Data Flow Comparison             │
 │                                                       │
-│  【クラウドAI】                                       │
-│  端末 ──→ ネットワーク ──→ クラウド ──→ ネットワーク ──→ 端末│
-│       (100〜500ms)   (推論)    (100〜500ms)           │
+│  [Cloud AI]                                           │
+│  Device ──→ Network ──→ Cloud ──→ Network ──→ Device  │
+│         (100-500ms)  (Inference) (100-500ms)          │
 │                                                       │
-│  【オンデバイスAI】                                    │
-│  端末 ──→ NPU ──→ 結果                                │
-│       (3〜20ms)                                       │
+│  [On-Device AI]                                       │
+│  Device ──→ NPU ──→ Result                            │
+│         (3-20ms)                                      │
 │                                                       │
-│  【ハイブリッドAI】                                    │
-│  端末 ──→ NPU(前処理/軽量推論)                         │
-│       └──→ クラウド(高度な推論) ──→ 端末               │
+│  [Hybrid AI]                                          │
+│  Device ──→ NPU (preprocessing/lightweight inference) │
+│         └──→ Cloud (advanced inference) ──→ Device    │
 └─────────────────────────────────────────────────────┘
 ```
 
-| 項目 | オンデバイスAI | クラウドAI |
-|------|--------------|-----------|
-| レイテンシ | 3〜20ms | 100ms〜数秒 |
-| プライバシー | データが端末内に留まる | サーバーに送信される |
-| オフライン動作 | 可能 | 不可 |
-| モデルサイズ | 数MB〜数GB（量子化必須） | 制限なし（数百GB可） |
-| 精度 | やや低い（量子化損失） | 高い（FP32/BF16） |
-| コスト | 端末負荷（バッテリー消費） | サーバー運用コスト |
-| 更新 | OS/アプリ更新が必要 | サーバー側で即時更新 |
+| Criterion | On-Device AI | Cloud AI |
+|-----------|-------------|----------|
+| Latency | 3-20ms | 100ms to several seconds |
+| Privacy | Data stays on the device | Sent to servers |
+| Offline Operation | Possible | Not possible |
+| Model Size | A few MB to a few GB (quantization required) | Unlimited (hundreds of GB possible) |
+| Accuracy | Slightly lower (quantization loss) | High (FP32/BF16) |
+| Cost | Device load (battery consumption) | Server operation costs |
+| Updates | Requires OS/app updates | Instant server-side updates |
 
-### 比較表 2: 主要チップセットのAI性能
+### Comparison Table 2: AI Performance of Major Chipsets
 
-| チップセット | メーカー | NPU性能 (TOPS) | 対応モデル | オンデバイスLLM |
-|-------------|---------|---------------|-----------|---------------|
+| Chipset | Manufacturer | NPU Performance (TOPS) | Supported Models | On-Device LLM |
+|---------|-------------|----------------------|-----------------|----------------|
 | A18 Pro | Apple | 35 | iPhone 16 Pro | Apple Intelligence |
-| Snapdragon 8 Gen 3 | Qualcomm | 45 | Galaxy S24等 | Llama 2 7B対応 |
+| Snapdragon 8 Gen 3 | Qualcomm | 45 | Galaxy S24 etc. | Llama 2 7B supported |
 | Tensor G4 | Google | 32 | Pixel 9 | Gemini Nano |
-| Dimensity 9300 | MediaTek | 38 | 各社ハイエンド | Llama 2対応 |
-| Exynos 2400 | Samsung | 40 | Galaxy S24(一部) | Galaxy AI |
+| Dimensity 9300 | MediaTek | 38 | Various flagships | Llama 2 supported |
+| Exynos 2400 | Samsung | 40 | Galaxy S24 (some) | Galaxy AI |
 
-### 比較表 3: 量子化方式と精度・サイズのトレードオフ
+### Comparison Table 3: Quantization Methods — Accuracy vs Size Trade-offs
 
-| 量子化方式 | ビット幅 | モデルサイズ（7B基準） | 精度損失 | NPU対応 | 推奨用途 |
-|-----------|---------|---------------------|---------|---------|---------|
-| FP32 (非量子化) | 32bit | ~28GB | 基準 | 非対応 | 学習・研究 |
-| FP16 | 16bit | ~14GB | ほぼなし | 一部対応 | GPU推論 |
-| INT8 (PTQ) | 8bit | ~7GB | 1-3% | 完全対応 | NPU推論（推奨） |
-| INT8 (QAT) | 8bit | ~7GB | 0.5-1% | 完全対応 | 高精度NPU推論 |
-| INT4 (GPTQ) | 4bit | ~3.5GB | 3-5% | 限定対応 | メモリ制約大の場合 |
-| INT4 (AWQ) | 4bit | ~3.5GB | 2-4% | 限定対応 | LLMオンデバイス |
-| 混合量子化 | 4-8bit | ~4-5GB | 1-3% | 一部対応 | バランス重視 |
+| Quantization Method | Bit Width | Model Size (7B baseline) | Accuracy Loss | NPU Support | Recommended Use |
+|--------------------|-----------|------------------------|--------------|-------------|-----------------|
+| FP32 (unquantized) | 32bit | ~28GB | Baseline | Not supported | Training/research |
+| FP16 | 16bit | ~14GB | Negligible | Partial | GPU inference |
+| INT8 (PTQ) | 8bit | ~7GB | 1-3% | Full | NPU inference (recommended) |
+| INT8 (QAT) | 8bit | ~7GB | 0.5-1% | Full | High-accuracy NPU inference |
+| INT4 (GPTQ) | 4bit | ~3.5GB | 3-5% | Limited | Tight memory constraints |
+| INT4 (AWQ) | 4bit | ~3.5GB | 2-4% | Limited | On-device LLM |
+| Mixed quantization | 4-8bit | ~4-5GB | 1-3% | Partial | Balanced approach |
 
 ---
 
-## 4. 実践的なユースケースと応用例
+## 4. Practical Use Cases and Applications
 
-### ユースケース 1: リアルタイム翻訳
+### Use Case 1: Real-Time Translation
 
 ```
 ┌─────────────────────────────────────────────┐
-│         オンデバイスリアルタイム翻訳           │
+│       On-Device Real-Time Translation        │
 │                                               │
-│  カメラ入力 → OCR（テキスト認識）             │
+│  Camera Input → OCR (Text Recognition)       │
 │      │                                        │
 │      ▼                                        │
-│  言語検出 → 翻訳モデル（NMT）                │
+│  Language Detection → Translation Model (NMT) │
 │      │                                        │
 │      ▼                                        │
-│  AR表示（元テキストに重畳）                   │
+│  AR Display (overlaid on original text)       │
 │                                               │
-│  処理時間: ~50ms（端末内完結）               │
-│  対応: Google翻訳、Apple翻訳                 │
-│  NPU活用: OCR + NMTモデルの推論              │
+│  Processing time: ~50ms (fully on-device)    │
+│  Supported: Google Translate, Apple Translate │
+│  NPU usage: OCR + NMT model inference        │
 └─────────────────────────────────────────────┘
 ```
 
-### ユースケース 2: パーソナルAIアシスタントの進化
+### Use Case 2: Evolution of Personal AI Assistants
 
 ```
 ┌─────────────────────────────────────────────────┐
-│     2024-2025 オンデバイスAIアシスタント構成       │
+│   2024-2025 On-Device AI Assistant Architecture   │
 │                                                   │
 │  ┌──────────┐ ┌──────────┐ ┌──────────────────┐ │
-│  │ 音声認識  │ │ テキスト │ │ マルチモーダル    │ │
-│  │ Whisper   │ │ 入力    │ │ カメラ入力       │ │
-│  │ (NPU実行) │ │         │ │ (ViT/CLIP)      │ │
+│  │ Speech    │ │ Text     │ │ Multimodal       │ │
+│  │ Recog.    │ │ Input    │ │ Camera Input     │ │
+│  │ Whisper   │ │         │ │ (ViT/CLIP)      │ │
+│  │ (NPU run) │ │         │ │                  │ │
 │  └────┬─────┘ └────┬────┘ └───────┬──────────┘ │
 │       │            │              │              │
 │       └────────────┼──────────────┘              │
 │                    │                             │
 │            ┌───────▼──────┐                      │
-│            │ オンデバイスLLM │                     │
+│            │ On-Device LLM │                     │
 │            │ Gemini Nano   │                     │
 │            │ / Phi Silica  │                     │
 │            └───────┬──────┘                      │
@@ -562,87 +563,87 @@ print(response)
 │       ┌────────────┼────────────┐                │
 │       │            │            │                │
 │  ┌────▼────┐ ┌─────▼────┐ ┌────▼──────┐        │
-│  │ アプリ  │ │ システム │ │ クラウド   │        │
-│  │ 操作    │ │ 設定変更 │ │ オフロード │        │
-│  │ (Intent)│ │          │ │ (大規模LLM)│        │
+│  │ App     │ │ System   │ │ Cloud     │        │
+│  │ Actions │ │ Settings │ │ Offload   │        │
+│  │ (Intent)│ │ Changes  │ │ (Large LLM)│       │
 │  └─────────┘ └──────────┘ └───────────┘        │
 └─────────────────────────────────────────────────┘
 ```
 
-### ユースケース 3: 健康モニタリングAI
+### Use Case 3: Health Monitoring AI
 
-| 機能 | 使用センサー | AIモデル | NPU活用 | 精度 |
-|------|-----------|---------|---------|------|
-| 心拍検出 | カメラ (rPPG) | CNN | NPU推論 | ±3 BPM |
-| 睡眠分析 | 加速度計 + マイク | LSTM | バックグラウンドNPU | 70-80% |
-| 転倒検出 | 加速度計 + ジャイロ | MLP | 常時NPU | 95%+ |
-| 呼吸数計測 | カメラ / ToF | CNN | NPU推論 | ±2回/分 |
-| ストレス推定 | HRV + 加速度 | XGBoost | CPU + NPU | 中程度 |
+| Feature | Sensors Used | AI Model | NPU Usage | Accuracy |
+|---------|-------------|----------|-----------|----------|
+| Heart Rate Detection | Camera (rPPG) | CNN | NPU inference | ±3 BPM |
+| Sleep Analysis | Accelerometer + Mic | LSTM | Background NPU | 70-80% |
+| Fall Detection | Accelerometer + Gyro | MLP | Always-on NPU | 95%+ |
+| Respiratory Rate | Camera / ToF | CNN | NPU inference | ±2 breaths/min |
+| Stress Estimation | HRV + Accelerometer | XGBoost | CPU + NPU | Moderate |
 
 ---
 
-## 5. パフォーマンス最適化Tips
+## 5. Performance Optimization Tips
 
-### Tip 1: モデル選択の指針
+### Tip 1: Model Selection Guidelines
 
 ```
 ┌─────────────────────────────────────────────────┐
-│        モバイルAIモデル選択フローチャート          │
+│      Mobile AI Model Selection Flowchart          │
 │                                                   │
-│  タスクの種類は？                                  │
+│  What type of task?                               │
 │      │                                            │
-│      ├── 画像分類 → MobileNetV3 / EfficientNet-Lite│
+│      ├── Image Classification → MobileNetV3 / EfficientNet-Lite
 │      │              (2-5MB, ~3ms on NPU)          │
 │      │                                            │
-│      ├── 物体検出 → SSD-MobileNet / YOLOv8-nano   │
+│      ├── Object Detection → SSD-MobileNet / YOLOv8-nano
 │      │              (5-10MB, ~10ms on NPU)        │
 │      │                                            │
-│      ├── テキスト分類 → DistilBERT / MobileBERT   │
+│      ├── Text Classification → DistilBERT / MobileBERT
 │      │                  (60-100MB, ~15ms on NPU)  │
 │      │                                            │
-│      ├── 音声認識 → Whisper tiny/base              │
+│      ├── Speech Recognition → Whisper tiny/base   │
 │      │              (40-140MB, ~500ms on NPU)     │
 │      │                                            │
-│      └── テキスト生成 → Gemini Nano / Phi-3 Mini  │
+│      └── Text Generation → Gemini Nano / Phi-3 Mini
 │                         (1-4GB, ~30-60ms/token)   │
 └─────────────────────────────────────────────────┘
 ```
 
-### Tip 2: バッテリー消費の最適化
+### Tip 2: Battery Consumption Optimization
 
 ```python
-# Android: AI処理のバッテリー最適化パターン
+# Android: Battery optimization patterns for AI processing
 
 class BatteryAwareAIManager:
     """
-    バッテリー残量に応じてAI処理レベルを調整
+    Adjusts AI processing level based on battery remaining
     """
     def __init__(self):
         self.ai_level = "full"  # full / balanced / minimal
 
     def adjust_ai_level(self, battery_percentage: int, is_charging: bool):
-        """バッテリー残量に基づくAI処理レベルの動的調整"""
+        """Dynamically adjust AI processing level based on battery remaining"""
         if is_charging:
             self.ai_level = "full"
         elif battery_percentage > 50:
             self.ai_level = "full"
-            # 全AIモデルをNPUで実行
-            # リアルタイムカメラAI有効
+            # Run all AI models on NPU
+            # Real-time camera AI enabled
         elif battery_percentage > 20:
             self.ai_level = "balanced"
-            # バックグラウンドAIの頻度を1/2に
-            # カメラAIはユーザー操作時のみ
-            # 推論バッチサイズを削減
+            # Halve background AI frequency
+            # Camera AI only on user interaction
+            # Reduce inference batch size
         else:
             self.ai_level = "minimal"
-            # バックグラウンドAIを停止
-            # 必須AI（転倒検出等）のみ維持
-            # モデルをより軽量なものに切り替え
+            # Stop background AI
+            # Keep only essential AI (fall detection, etc.)
+            # Switch to lighter models
 
         return self.ai_level
 
     def get_model_config(self, task: str) -> dict:
-        """現在のAIレベルに応じたモデル設定を返す"""
+        """Return model configuration based on current AI level"""
         configs = {
             "image_classification": {
                 "full":     {"model": "efficientnet_b4", "resolution": 380},
@@ -652,352 +653,353 @@ class BatteryAwareAIManager:
             "text_generation": {
                 "full":     {"model": "gemini-nano-3.25b", "max_tokens": 512},
                 "balanced": {"model": "gemini-nano-1.8b", "max_tokens": 256},
-                "minimal":  {"model": "none", "max_tokens": 0},  # クラウドフォールバック
+                "minimal":  {"model": "none", "max_tokens": 0},  # Cloud fallback
             }
         }
         return configs.get(task, {}).get(self.ai_level, {})
 ```
 
-### Tip 3: メモリ管理のベストプラクティス
+### Tip 3: Memory Management Best Practices
 
-| 戦略 | 説明 | メモリ削減効果 | 推論速度への影響 |
-|------|------|-------------|---------------|
-| Weight Sharing | 複数タスクで共通のバックボーンを共有 | 30-50% | なし |
-| Lazy Loading | 必要時のみモデルをメモリにロード | 40-70% | 初回のみ遅延 |
-| Memory Mapping | mmap でモデルファイルを直接マッピング | ページ単位 | わずかに遅延 |
-| Model Pruning | 不要な重みを削除 | 50-90% | 1-3%精度低下 |
-| Dynamic Quantization | 推論時に動的にINT8化 | 75% | 10-20%遅延 |
-| Activation Checkpointing | 中間結果を再計算で代替 | 60-80% | 20-30%遅延 |
+| Strategy | Description | Memory Reduction | Impact on Inference Speed |
+|----------|------------|-----------------|--------------------------|
+| Weight Sharing | Share a common backbone across multiple tasks | 30-50% | None |
+| Lazy Loading | Load models into memory only when needed | 40-70% | Initial delay only |
+| Memory Mapping | Directly map model files via mmap | Page-level | Slight delay |
+| Model Pruning | Remove unnecessary weights | 50-90% | 1-3% accuracy loss |
+| Dynamic Quantization | Dynamically convert to INT8 at inference | 75% | 10-20% delay |
+| Activation Checkpointing | Recompute intermediate results instead of storing | 60-80% | 20-30% delay |
 
 ---
 
-## 6. トラブルシューティングガイド
+## 6. Troubleshooting Guide
 
-### 問題 1: NPUにフォールバックせずCPUで実行される
+### Problem 1: Falls Back to CPU Instead of Running on NPU
 
 ```
-症状: 推論速度が予想より10倍遅い
+Symptom: Inference speed is 10x slower than expected
 
-原因チェックリスト:
-□ モデルがINT8量子化されているか？
-  → FP32モデルはほとんどのNPUで非対応
-□ NNAPI / Core ML デリゲートが正しく設定されているか？
-  → デリゲート未設定だとCPUフォールバック
-□ モデルに未対応の演算（オペレーション）が含まれていないか？
-  → 1つでも未対応オペがあるとモデル全体がCPUに戻る
-□ デバイスのNPUドライバが最新か？
-  → 古いドライバではNNAPI v1.2以下しかサポートしない場合あり
+Checklist:
+□ Is the model INT8 quantized?
+  → FP32 models are unsupported on most NPUs
+□ Is the NNAPI / Core ML delegate configured correctly?
+  → Without delegate configuration, it falls back to CPU
+□ Does the model contain unsupported operations?
+  → Even one unsupported op causes the entire model to fall back to CPU
+□ Is the device's NPU driver up to date?
+  → Old drivers may only support NNAPI v1.2 or below
 
-確認コマンド（Android）:
+Verification command (Android):
   adb shell dumpsys neuralnetworks
-  → 利用可能なアクセラレータと対応オペレーションを表示
+  → Displays available accelerators and supported operations
 ```
 
-### 問題 2: モデルのメモリ不足
+### Problem 2: Model Out of Memory
 
 ```
-症状: "Out of memory" エラーでクラッシュ
+Symptom: Crashes with "Out of memory" error
 
-解決手順:
-1. モデルサイズの確認
-   → RAM 6GBの端末: モデル+アプリで最大4GB程度が限界
-   → RAM 8GB: ~5GB、RAM 12GB: ~7GB
+Resolution steps:
+1. Check model size
+   → 6GB RAM device: ~4GB max for model + app
+   → 8GB RAM: ~5GB, 12GB RAM: ~7GB
 
-2. 量子化レベルの引き上げ
-   → FP32 → FP16: サイズ半減
-   → FP16 → INT8: さらに半減
-   → INT8 → INT4: さらに半減（精度低下に注意）
+2. Increase quantization level
+   → FP32 → FP16: Halves size
+   → FP16 → INT8: Halves again
+   → INT8 → INT4: Halves again (watch for accuracy loss)
 
-3. モデルの分割実行
-   → 大きなモデルをチャンク分割してシーケンシャルに実行
-   → メモリピークを抑制
+3. Split model execution
+   → Divide large models into chunks and run sequentially
+   → Reduces peak memory usage
 
-4. メモリマッピングの活用
-   → Android: MappedByteBuffer でファイルを直接マッピング
-   → iOS: MLModel のメモリマッピング自動最適化
+4. Use memory mapping
+   → Android: Map files directly with MappedByteBuffer
+   → iOS: MLModel automatic memory mapping optimization
 ```
 
-### 問題 3: NPU推論の精度が低い
+### Problem 3: Low NPU Inference Accuracy
 
 ```
-症状: INT8量子化後に分類精度が大幅に低下（5%以上）
+Symptom: Classification accuracy drops significantly (5%+) after INT8 quantization
 
-対処法:
-1. キャリブレーションデータの品質を確認
-   → 代表的なデータセットを最低100サンプル用意
-   → 偏ったデータだと量子化範囲が不適切になる
+Solutions:
+1. Verify calibration data quality
+   → Prepare at least 100 samples from a representative dataset
+   → Biased data leads to improper quantization ranges
 
-2. QAT（Quantization-Aware Training）に切り替え
-   → PTQで精度低下が大きい場合に有効
-   → 学習中に量子化誤差をシミュレーション
+2. Switch to QAT (Quantization-Aware Training)
+   → Effective when PTQ causes significant accuracy loss
+   → Simulates quantization errors during training
 
-3. 混合精度量子化を検討
-   → 感度の高い層はFP16、他はINT8
+3. Consider mixed-precision quantization
+   → FP16 for sensitive layers, INT8 for others
    → PyTorch: torch.ao.quantization.quantize_dynamic()
 
-4. モデルアーキテクチャの見直し
-   → DepthwiseSeparable Convolution は量子化耐性が高い
-   → BatchNorm は量子化と相性が良い（Fold可能）
+4. Reconsider model architecture
+   → DepthwiseSeparable Convolution has high quantization tolerance
+   → BatchNorm pairs well with quantization (can be folded)
 ```
 
-### 問題 4: バッテリー消費が異常に多い
+### Problem 4: Abnormally High Battery Consumption
 
 ```
-症状: AI機能を有効にするとバッテリーが急速に減少
+Symptom: Battery drains rapidly when AI features are enabled
 
-チェックポイント:
-□ AI処理がバックグラウンドで常時実行されていないか？
-  → 必要な時だけNPUを起動する設計にする
-□ CPU/GPUフォールバックが発生していないか？
-  → NPUで実行できていれば消費電力は大幅に低い
-□ センサーデータの取得頻度が高すぎないか？
-  → カメラ常時ONは大量消費。イベントトリガーに変更
-□ モデルの推論頻度は適切か？
-  → 毎フレーム（30fps）推論は高負荷。5-10fpsで十分な場合が多い
-  → 動き検出でトリガーし、静止中は推論をスキップ
+Checkpoints:
+□ Is AI processing running continuously in the background?
+  → Design to activate NPU only when needed
+□ Is CPU/GPU fallback occurring?
+  → Power consumption is significantly lower when running on NPU
+□ Is the sensor data acquisition frequency too high?
+  → Always-on camera drains heavily. Switch to event-triggered
+□ Is the model inference frequency appropriate?
+  → Every-frame inference (30fps) is high load. 5-10fps is often sufficient
+  → Trigger on motion detection, skip inference when stationary
 ```
 
 ---
 
-## 7. ベストプラクティスと設計パターン
+## 7. Best Practices and Design Patterns
 
-### パターン 1: ハイブリッドAI設計
+### Pattern 1: Hybrid AI Design
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│            ハイブリッドAI設計パターン                   │
+│             Hybrid AI Design Pattern                   │
 │                                                       │
-│  入力（テキスト/画像/音声）                            │
+│  Input (text/image/audio)                             │
 │      │                                                │
 │      ▼                                                │
 │  ┌──────────────┐                                    │
-│  │ タスク分類器   │  軽量モデル（~1MB）でタスク判定     │
-│  │ (オンデバイス) │                                    │
+│  │ Task Classifier│  Lightweight model (~1MB)         │
+│  │ (on-device)   │  determines task type              │
 │  └──────┬───────┘                                    │
 │         │                                             │
 │    ┌────┼────┐                                        │
 │    │    │    │                                        │
 │    ▼    ▼    ▼                                        │
-│  簡単   中程度  複雑                                   │
+│  Simple  Med.  Complex                                │
 │    │    │    │                                        │
 │    ▼    ▼    ▼                                        │
-│  NPU  NPU+  クラウド                                  │
-│  即座  GPU    API                                     │
-│  応答  応答   応答                                     │
+│  NPU  NPU+  Cloud                                    │
+│  Inst. GPU    API                                     │
+│  resp. resp.  resp.                                   │
 │  3ms  20ms  500ms                                     │
 │                                                       │
-│  例:                                                  │
-│  「タイマー3分」→ NPU（ルールベース）                  │
-│  「この写真の花は？」→ NPU（画像分類）                 │
-│  「この論文を要約して」→ クラウドLLM                    │
+│  Examples:                                            │
+│  "Set a 3-minute timer" → NPU (rule-based)           │
+│  "What flower is in this photo?" → NPU (image classif.)│
+│  "Summarize this paper" → Cloud LLM                   │
 └─────────────────────────────────────────────────────┘
 ```
 
-### パターン 2: Progressive Model Loading
+### Pattern 2: Progressive Model Loading
 
 ```python
 class ProgressiveModelLoader:
     """
-    段階的モデルロードパターン
-    ユーザー体験を損なわずに高品質AIを提供
+    Progressive model loading pattern
+    Delivers high-quality AI without degrading user experience
     """
 
     def __init__(self):
         self.models = {}
         self.loading_priority = [
-            ("tiny_classifier", "model_tiny.tflite", 0),      # 即座にロード
-            ("standard_classifier", "model_std.tflite", 3),    # 3秒後にロード
-            ("high_quality_model", "model_hq.tflite", 10),     # 10秒後にロード
+            ("tiny_classifier", "model_tiny.tflite", 0),      # Load immediately
+            ("standard_classifier", "model_std.tflite", 3),    # Load after 3 seconds
+            ("high_quality_model", "model_hq.tflite", 10),     # Load after 10 seconds
         ]
 
     async def progressive_load(self):
-        """アプリ起動後、段階的にモデルをロード"""
+        """Progressively load models after app launch"""
         for name, path, delay in self.loading_priority:
             await asyncio.sleep(delay)
             self.models[name] = load_tflite_model(path)
-            print(f"ロード完了: {name}")
+            print(f"Loaded: {name}")
 
     def get_best_available_model(self, task: str):
-        """現在ロード済みの最高品質モデルを返す"""
+        """Return the highest quality model currently loaded"""
         for name in reversed(self.loading_priority):
             if name[0] in self.models:
                 return self.models[name[0]]
-        return None  # まだ何もロードされていない
+        return None  # Nothing loaded yet
 ```
 
-### パターン 3: Federated Learning（連合学習）
+### Pattern 3: Federated Learning
 
 ```
 ┌──────────────────────────────────────────────┐
-│         連合学習によるモデル改善               │
+│      Model Improvement via Federated Learning │
 │                                                │
-│  端末A ──→ ローカル学習 ──→ 勾配のみ送信 ──┐  │
-│  端末B ──→ ローカル学習 ──→ 勾配のみ送信 ──┤  │
-│  端末C ──→ ローカル学習 ──→ 勾配のみ送信 ──┤  │
-│  端末D ──→ ローカル学習 ──→ 勾配のみ送信 ──┤  │
-│                                              │  │
-│                     ┌────────────────────────┘  │
-│                     │                           │
-│                     ▼                           │
-│              ┌──────────────┐                   │
-│              │ サーバー側    │                   │
-│              │ 勾配を集約    │                   │
-│              │ (FedAvg)     │                   │
-│              └──────┬───────┘                   │
-│                     │                           │
-│                     ▼                           │
-│              更新されたモデルを全端末に配信       │
+│  Device A ──→ Local training ──→ Send gradients only ──┐
+│  Device B ──→ Local training ──→ Send gradients only ──┤
+│  Device C ──→ Local training ──→ Send gradients only ──┤
+│  Device D ──→ Local training ──→ Send gradients only ──┤
+│                                                        │
+│                     ┌──────────────────────────────────┘
+│                     │
+│                     ▼
+│              ┌──────────────┐
+│              │ Server-side   │
+│              │ Aggregate     │
+│              │ gradients     │
+│              │ (FedAvg)     │
+│              └──────┬───────┘
+│                     │
+│                     ▼
+│              Distribute updated model to all devices
 │                                                │
-│  ポイント:                                      │
-│  - 生データはサーバーに送信されない              │
-│  - 差分プライバシーで個人情報を保護              │
-│  - Apple/Google が実際に採用している手法         │
+│  Key points:                                    │
+│  - Raw data is never sent to the server         │
+│  - Differential privacy protects personal data  │
+│  - Approach actually adopted by Apple/Google    │
 └──────────────────────────────────────────────┘
 ```
 
 ---
 
-## 8. 開発者向けチェックリスト
+## 8. Developer Checklist
 
-### モバイルAIアプリ開発チェックリスト
+### Mobile AI App Development Checklist
 
 ```
-□ モデル選定
-  □ タスクに適したアーキテクチャを選択したか？
-  □ ターゲット端末のRAMに収まるモデルサイズか？
-  □ NPU対応のオペレーション構成になっているか？
+□ Model Selection
+  □ Selected an architecture suitable for the task?
+  □ Model size fits within target device RAM?
+  □ Model uses NPU-compatible operations?
 
-□ 量子化
-  □ INT8量子化を適用したか？
-  □ キャリブレーションデータは十分か（100+ サンプル）？
-  □ 量子化後の精度を検証したか？
-  □ QATが必要なケースを検討したか？
+□ Quantization
+  □ Applied INT8 quantization?
+  □ Sufficient calibration data (100+ samples)?
+  □ Verified accuracy after quantization?
+  □ Considered whether QAT is needed?
 
-□ デリゲート設定
-  □ NPU → GPU → CPU のフォールバック順を設定したか？
-  □ デリゲートの対応オペレーションを確認したか？
-  □ 実機で推論速度をベンチマークしたか？
+□ Delegate Configuration
+  □ Set up NPU → GPU → CPU fallback order?
+  □ Verified supported operations for the delegate?
+  □ Benchmarked inference speed on actual device?
 
-□ バッテリー最適化
-  □ AI処理の頻度は適切か？
-  □ バックグラウンド処理を最小限にしたか？
-  □ バッテリー残量に応じた動的調整を実装したか？
+□ Battery Optimization
+  □ AI processing frequency is appropriate?
+  □ Minimized background processing?
+  □ Implemented dynamic adjustment based on battery level?
 
-□ メモリ管理
-  □ モデルのロード/アンロードを適切に管理しているか？
-  □ メモリマッピングを活用しているか？
-  □ メモリリークのテストを行ったか？
+□ Memory Management
+  □ Properly managing model load/unload?
+  □ Using memory mapping?
+  □ Tested for memory leaks?
 
-□ ユーザー体験
-  □ AI処理中のフィードバック（ローディング表示）があるか？
-  □ オフライン時のフォールバックを実装したか？
-  □ AIの推論結果に信頼度を表示しているか？
+□ User Experience
+  □ Feedback during AI processing (loading indicator)?
+  □ Implemented offline fallback?
+  □ Displaying confidence scores for AI inference results?
 ```
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### アンチパターン 1: すべてのAI処理をオンデバイスに押し込む
-
-```
-❌ 悪い例:
-7Bパラメータの大規模LLMをスマートフォンで直接動かそうとする
-→ メモリ不足、バッテリー急消耗、応答が数十秒かかる
-
-✅ 正しいアプローチ:
-- 軽量タスク（画像分類、音声認識）→ オンデバイス
-- 重いタスク（長文生成、複雑な推論）→ クラウド
-- 前処理はオンデバイス、最終推論はクラウド → ハイブリッド
-```
-
-### アンチパターン 2: NPU非対応モデルをそのまま配備する
+### Anti-Pattern 1: Forcing All AI Processing On-Device
 
 ```
-❌ 悪い例:
-FP32モデル（500MB）をそのままTFLiteに変換してデプロイ
-→ NPUでなくCPUフォールバックが発生、10倍遅くなる
+Bad example:
+Trying to run a 7B-parameter large LLM directly on a smartphone
+→ Out of memory, rapid battery drain, responses take tens of seconds
 
-✅ 正しいアプローチ:
-1. INT8量子化でモデルサイズを1/4に圧縮
-2. NNAPI/Core ML デリゲートを明示的に指定
-3. ベンチマークでNPU実行を確認（CPU比で5〜10倍高速なら成功）
+Correct approach:
+- Lightweight tasks (image classification, speech recognition) → On-device
+- Heavy tasks (long text generation, complex reasoning) → Cloud
+- Preprocessing on-device, final inference in cloud → Hybrid
 ```
 
-### アンチパターン 3: ユーザーの同意なくAIデータを収集
+### Anti-Pattern 2: Deploying NPU-Incompatible Models As-Is
 
 ```
-❌ 悪い例:
-- カメラ映像をバックグラウンドでクラウドに送信
-- 音声データを無断でAI学習に使用
-- ユーザーの行動パターンを通知なく分析
+Bad example:
+Converting an FP32 model (500MB) directly to TFLite and deploying
+→ Falls back to CPU instead of NPU, 10x slower
 
-✅ 正しいアプローチ:
-- GDPR/CCPA準拠のプライバシーポリシーを明示
-- オンデバイス処理を優先し、データ送信を最小化
-- 連合学習（Federated Learning）で生データを送信しない
-- ユーザーにAI機能のON/OFF選択権を与える
-- Apple App Tracking Transparency (ATT) に対応
+Correct approach:
+1. Compress model size to 1/4 with INT8 quantization
+2. Explicitly specify NNAPI/Core ML delegates
+3. Confirm NPU execution via benchmarks (5-10x faster than CPU = success)
 ```
 
-### アンチパターン 4: 単一デバイスだけでテストする
+### Anti-Pattern 3: Collecting AI Data Without User Consent
 
 ```
-❌ 悪い例:
-最新フラグシップ（Pixel 9 Pro / iPhone 16 Pro）だけでテスト
-→ ミッドレンジ端末でNPU非対応、メモリ不足で動作しない
+Bad example:
+- Sending camera footage to the cloud in the background
+- Using voice data for AI training without consent
+- Analyzing user behavior patterns without notification
 
-✅ 正しいアプローチ:
-- 最低3段階のデバイスでテスト:
-  ハイエンド（NPU対応、RAM 12GB+）
-  ミッドレンジ（NPU限定対応、RAM 6-8GB）
-  エントリー（NPU非対応、RAM 4GB）
-- Firebase Test Lab / AWS Device Farm で自動テスト
-- デバイスプロファイルに応じたモデル自動選択を実装
+Correct approach:
+- Provide clear privacy policy compliant with GDPR/CCPA
+- Prioritize on-device processing and minimize data transmission
+- Use Federated Learning to avoid sending raw data
+- Give users the option to toggle AI features ON/OFF
+- Comply with Apple App Tracking Transparency (ATT)
+```
+
+### Anti-Pattern 4: Testing on Only a Single Device
+
+```
+Bad example:
+Testing only on the latest flagship (Pixel 9 Pro / iPhone 16 Pro)
+→ NPU unsupported on mid-range devices, out of memory failures
+
+Correct approach:
+- Test on at least 3 tiers of devices:
+  High-end (NPU supported, RAM 12GB+)
+  Mid-range (limited NPU support, RAM 6-8GB)
+  Entry-level (no NPU, RAM 4GB)
+- Automated testing with Firebase Test Lab / AWS Device Farm
+- Implement automatic model selection based on device profile
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1006,26 +1008,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Should have raised an exception"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1033,7 +1035,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1044,14 +1046,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1059,7 +1061,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1067,44 +1069,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1113,7 +1115,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1128,76 +1130,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to prioritize | When to compromise |
+|-----------|-------------------|-------------------|
+| Performance | Real-time processing, large-scale data | Admin dashboards, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development Speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow             │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  (1) Team size?                                  │
+│    ├─ Small (1-5 people) → Monolith              │
+│    └─ Large (10+ people) → Go to (2)             │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  (2) Deployment frequency?                       │
+│    ├─ Once a week or less → Monolith + modular   │
+│    └─ Daily/multiple times → Go to (3)           │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  (3) Team independence?                          │
+│    ├─ High → Microservices                       │
+│    └─ Moderate → Modular monolith                │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze them from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A method that is faster in the short term may become technical debt in the long run
+- Conversely, over-engineering incurs high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified tech stack has lower learning costs
+- Diverse technologies enable the right tool for each job, but increase operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction is more reusable but can make debugging harder
+- Low abstraction is more intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision recording template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1207,17 +1209,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1225,7 +1227,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1233,15 +1235,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1249,53 +1251,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum viable set of features
+- Automated tests only for critical paths
+- Introduce monitoring early on
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't aim for perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Incrementally revamp a system that has been in operation for 10+ years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- If existing tests are absent, create Characterization Tests first
+- Use an API gateway to coexist old and new systems
+- Perform data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work | Estimated Duration | Risk |
+|-------|------|--------------------|------|
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration Start | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core Migration | Migrate core functionality | 6-12 months | High |
+| 5. Completion | Decommission legacy system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Define clear boundaries with Domain-Driven Design
+- Assign ownership per team
+- Manage shared libraries via Inner Source
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1308,20 +1310,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1330,7 +1332,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1351,114 +1353,114 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leverage asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Method | Effect | Implementation Cost | When to Apply |
+|--------------------|--------|-------------------|---------------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low-Med | High | CPU-bound workloads |
 ---
 
 ## 10. FAQ
 
-### Q1: NPUとGPUの違いは何ですか？
+### Q1: What is the difference between an NPU and a GPU?
 
-**A:** GPUは汎用的な並列計算（ゲーム描画、科学計算など）に最適化されていますが、NPUはニューラルネットワークの推論（行列積、畳み込み）に特化した回路です。NPUはINT8/FP16の低精度演算を効率よく行うことで、消費電力あたりの性能（TOPS/W）がGPUの数倍に達します。
+**A:** GPUs are optimized for general-purpose parallel computation (game rendering, scientific computing, etc.), while NPUs are circuits specialized for neural network inference (matrix multiplication, convolution). By efficiently performing low-precision operations in INT8/FP16, NPUs achieve several times the performance per watt (TOPS/W) compared to GPUs.
 
-### Q2: オンデバイスAIでどの程度のモデルが動きますか？
+### Q2: How large a model can run with on-device AI?
 
-**A:** 2024〜2025年時点で、スマートフォンでは以下が現実的です:
-- **画像分類/物体検出**: MobileNetV3、EfficientNet-Lite（数MB）
-- **音声認識**: Whisper tiny/base（40〜140MB）
-- **LLM**: Gemini Nano（1.8B/3.25Bパラメータ）、Phi-3 Mini（3.8B、量子化後2GB程度）
-- 7Bパラメータ以上のLLMは12GB以上のRAMが必要で、フラグシップ機に限定されます。
+**A:** As of 2024-2025, the following are realistic on smartphones:
+- **Image classification/object detection**: MobileNetV3, EfficientNet-Lite (a few MB)
+- **Speech recognition**: Whisper tiny/base (40-140MB)
+- **LLM**: Gemini Nano (1.8B/3.25B parameters), Phi-3 Mini (3.8B, ~2GB after quantization)
+- LLMs with 7B+ parameters require 12GB+ RAM and are limited to flagship devices.
 
-### Q3: Apple IntelligenceとGoogle AIの違いは何ですか？
+### Q3: What is the difference between Apple Intelligence and Google AI?
 
-**A:** 主な違いは以下の通りです:
-- **Apple Intelligence**: プライバシー最優先。Private Cloud Compute でクラウド処理時もデータを暗号化。Siri + ChatGPT連携。
-- **Google AI（Pixel）**: Gemini Nano をオンデバイスで実行。Google検索/アプリとの深い統合。Cloud AI との連携が得意。
-- 両者ともオンデバイス処理を基本としつつ、高度なタスクはクラウドにオフロードするハイブリッド方式です。
+**A:** The main differences are:
+- **Apple Intelligence**: Privacy-first. Private Cloud Compute encrypts data even during cloud processing. Siri + ChatGPT integration.
+- **Google AI (Pixel)**: Runs Gemini Nano on-device. Deep integration with Google Search/apps. Excels at Cloud AI coordination.
+- Both take a hybrid approach: on-device processing by default, offloading advanced tasks to the cloud.
 
-### Q4: NPUの性能指標「TOPS」は本当に信頼できますか？
+### Q4: Is the NPU performance metric "TOPS" truly reliable?
 
-**A:** TOPSはあくまで理論上のピーク性能であり、実際のモデル推論速度を直接反映するものではありません。以下の理由で注意が必要です:
-- TOPS はINT8の場合とFP16の場合で異なる（INT8の方が高いTOPS値になる）
-- メモリ帯域がボトルネックになり、実効性能はTOPSの50%程度の場合もある
-- 対応するモデルアーキテクチャや演算子によって活用率が変わる
-- 最も信頼できるのは、ターゲットモデルを実機でベンチマークした推論速度（ms/inference）です。
+**A:** TOPS represents theoretical peak performance and does not directly reflect actual model inference speed. Caution is needed for the following reasons:
+- TOPS differs between INT8 and FP16 (INT8 yields higher TOPS values)
+- Memory bandwidth can become a bottleneck, with effective performance sometimes around 50% of TOPS
+- Utilization varies depending on model architecture and supported operators
+- The most reliable metric is inference speed (ms/inference) benchmarked on the target model with actual hardware.
 
-### Q5: オンデバイスAIのセキュリティリスクはありますか？
+### Q5: Are there security risks with on-device AI?
 
-**A:** 主なリスクと対策:
-- **モデル盗用**: アプリ内のTFLite/CoreMLモデルはリバースエンジニアリング可能。対策: モデル暗号化、難読化。
-- **敵対的攻撃**: 微小なノイズを入力に加えることでAIを欺く。対策: Adversarial Training、入力検証。
-- **プライバシーリーク**: モデルの勾配から学習データを推定する攻撃。対策: 差分プライバシー、連合学習。
-- **モデルポイズニング**: 悪意あるアップデートでモデルを汚染。対策: モデル署名検証、整合性チェック。
+**A:** Key risks and countermeasures:
+- **Model theft**: TFLite/CoreML models within apps can be reverse-engineered. Countermeasure: model encryption, obfuscation.
+- **Adversarial attacks**: Fooling AI by adding subtle noise to inputs. Countermeasure: Adversarial Training, input validation.
+- **Privacy leaks**: Attacks that infer training data from model gradients. Countermeasure: differential privacy, federated learning.
+- **Model poisoning**: Contaminating models through malicious updates. Countermeasure: model signature verification, integrity checks.
 
-### Q6: 今後のAIスマートフォンの展望はどうなりますか？
+### Q6: What is the outlook for AI smartphones going forward?
 
-**A:** 2025-2027年にかけて以下の進化が予想されます:
-- **NPU性能**: 100+ TOPSに到達し、7Bモデルのリアルタイム推論が標準に
-- **マルチモーダルAI**: テキスト+画像+音声+動画を統合したオンデバイスモデル
-- **パーソナライゼーション**: ユーザーの行動パターンを学習し、個人最適化されたAI体験
-- **AIエージェント**: アプリ横断的な自律タスク実行（予約、買い物、スケジュール管理）
-- **常時稼働AI**: 超低消費電力NPUで24時間AIモニタリング（健康、安全、環境認識）
+**A:** The following advancements are expected through 2025-2027:
+- **NPU performance**: Reaching 100+ TOPS, making real-time inference of 7B models standard
+- **Multimodal AI**: On-device models integrating text + image + audio + video
+- **Personalization**: AI experiences optimized for individuals by learning user behavior patterns
+- **AI agents**: Autonomous cross-app task execution (reservations, shopping, schedule management)
+- **Always-on AI**: 24/7 AI monitoring with ultra-low-power NPUs (health, safety, environmental awareness)
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before proceeding to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| NPU の役割 | AI推論に特化したプロセッサ。INT8/FP16で省電力・高速処理 |
-| 主要チップ | Apple Neural Engine, Qualcomm Hexagon, Google Tensor TPU |
-| オンデバイスAI | プライバシー保護・低遅延・オフライン動作が利点 |
-| 量子化 | FP32→INT8で4倍圧縮、NPU活用の必須技術 |
-| ハイブリッド構成 | 軽量タスクはオンデバイス、重いタスクはクラウドが最適解 |
-| バッテリー最適化 | コンテキスト適応型の動的モデル選択が重要 |
-| セキュリティ | モデル暗号化、差分プライバシー、連合学習で保護 |
-| 今後の展望 | 端末LLMの高度化、マルチモーダルAIの標準化 |
+Knowledge of this topic is frequently used in daily development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [AIカメラ — 計算フォトグラフィとAI編集](./01-ai-cameras.md)
-- [AIアシスタント — Siri/Google Assistant/Alexa](./02-ai-assistants.md)
-- [AI PC — NPU搭載PCとローカルLLM](../01-computing/00-ai-pcs.md)
+| Item | Key Points |
+|------|------------|
+| Role of NPU | A processor specialized for AI inference. Power-efficient, high-speed processing with INT8/FP16 |
+| Major Chips | Apple Neural Engine, Qualcomm Hexagon, Google Tensor TPU |
+| On-Device AI | Benefits: privacy protection, low latency, offline operation |
+| Quantization | 4x compression from FP32 to INT8; essential technology for NPU utilization |
+| Hybrid Architecture | Lightweight tasks on-device, heavy tasks in the cloud is the optimal approach |
+| Battery Optimization | Context-adaptive dynamic model selection is key |
+| Security | Protection via model encryption, differential privacy, federated learning |
+| Future Outlook | Advancement of on-device LLMs, standardization of multimodal AI |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
+
+- [AI Cameras — Computational Photography and AI Editing](./01-ai-cameras.md)
+- [AI Assistants — Siri/Google Assistant/Alexa](./02-ai-assistants.md)
+- [AI PCs — NPU-Equipped PCs and Local LLMs](../01-computing/00-ai-pcs.md)
+
+---
+
+## References
 
 1. **Qualcomm** — "Snapdragon 8 Gen 3 Mobile Platform," qualcomm.com, 2024
 2. **Apple** — "Apple Intelligence Technical Overview," developer.apple.com, 2024
