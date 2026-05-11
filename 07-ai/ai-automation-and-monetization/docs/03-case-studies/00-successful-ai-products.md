@@ -1,117 +1,117 @@
-# 成功事例 — Jasper、Copy.ai、Notion AI
+# Case Studies — Jasper, Copy.ai, and Notion AI
 
-> AI SaaSの代表的成功事例を深掘り分析し、各社の戦略、成長パターン、差別化要因、学べる教訓を体系的に解説する。
-
----
-
-## この章で学ぶこと
-
-1. **成功AI SaaSの成長パターン** — Jasper、Copy.ai、Notion AIの時系列での戦略変遷
-2. **差別化戦略の分析** — 各社がどのようにコモディティ化を避け、競争優位を構築したか
-3. **実践的な教訓の抽出** — 自身のAIプロダクトに応用できる具体的な戦略と戦術
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> An in-depth analysis of representative AI SaaS success stories, systematically covering each company's strategy, growth patterns, differentiating factors, and key lessons.
 
 ---
 
-## 1. 成功事例マップ
+## What You Will Learn in This Chapter
 
-### 1.1 主要AI SaaS プロダクト俯瞰
+1. **Growth patterns of successful AI SaaS** — How Jasper, Copy.ai, and Notion AI evolved their strategies over time
+2. **Differentiation strategy analysis** — How each company avoided commoditization and built a competitive advantage
+3. **Extracting practical lessons** — Concrete strategies and tactics you can apply to your own AI product
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+
+---
+
+## 1. Success Story Map
+
+### 1.1 Overview of Major AI SaaS Products
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│           AI SaaS 成功プロダクトマップ                      │
+│           AI SaaS Success Product Map                    │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  ■ コンテンツ生成                                         │
-│    Jasper ($1.5B評価) ── マーケティングコピー特化          │
-│    Copy.ai ($250M評価) ── セールスワークフロー特化         │
-│    Writer ($500M評価) ── エンタープライズブランド管理       │
+│  ■ Content Generation                                    │
+│    Jasper ($1.5B valuation) ── Marketing copy specialist │
+│    Copy.ai ($250M valuation) ── Sales workflow specialist│
+│    Writer ($500M valuation) ── Enterprise brand mgmt     │
 │                                                          │
-│  ■ 生産性向上                                             │
-│    Notion AI ── 既存プロダクト + AI拡張                    │
-│    Grammarly ── 文章校正 + AI生成                         │
-│    Otter.ai ── 会議録AI文字起こし                         │
+│  ■ Productivity                                          │
+│    Notion AI ── Existing product + AI extension          │
+│    Grammarly ── Writing correction + AI generation       │
+│    Otter.ai ── Meeting transcript AI                     │
 │                                                          │
-│  ■ デザイン/クリエイティブ                                │
-│    Canva AI ── デザイン + AI生成                          │
-│    Midjourney ($10B推定) ── 画像生成特化                  │
-│    Runway ($1.5B評価) ── 動画AI編集                       │
+│  ■ Design / Creative                                     │
+│    Canva AI ── Design + AI generation                    │
+│    Midjourney ($10B est.) ── Image generation specialist │
+│    Runway ($1.5B valuation) ── Video AI editing          │
 │                                                          │
-│  ■ 開発者向け                                             │
-│    GitHub Copilot ── コード生成                           │
-│    Cursor ── AI統合IDE                                    │
-│    Vercel v0 ── UI生成                                    │
+│  ■ Developer Tools                                       │
+│    GitHub Copilot ── Code generation                     │
+│    Cursor ── AI-integrated IDE                           │
+│    Vercel v0 ── UI generation                            │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 規模比較
+### 1.2 Scale Comparison
 
-| プロダクト | ARR推定 | 評価額 | 創業年 | PMF到達 | 従業員数 |
-|-----------|--------|--------|--------|---------|---------|
-| Jasper | $150M | $1.5B | 2021 | 6ヶ月 | 450 |
-| Copy.ai | $30M | $250M | 2020 | 4ヶ月 | 200 |
-| Notion AI | — (機能) | $10B (全体) | 2023 (AI) | 即座 | 600+ |
-| Midjourney | $200M+ | $10B推定 | 2022 | 3ヶ月 | 40 |
-| Cursor | $100M+ | $2.5B | 2022 | 8ヶ月 | 50 |
-| GitHub Copilot | $100M+ | — (MS) | 2021 | 6ヶ月 | — |
+| Product | Estimated ARR | Valuation | Founded | PMF Reached | Employees |
+|---------|--------------|-----------|---------|-------------|-----------|
+| Jasper | $150M | $1.5B | 2021 | 6 months | 450 |
+| Copy.ai | $30M | $250M | 2020 | 4 months | 200 |
+| Notion AI | — (feature) | $10B (overall) | 2023 (AI) | Immediate | 600+ |
+| Midjourney | $200M+ | $10B est. | 2022 | 3 months | 40 |
+| Cursor | $100M+ | $2.5B | 2022 | 8 months | 50 |
+| GitHub Copilot | $100M+ | — (MS) | 2021 | 6 months | — |
 
-### 1.3 成功プロダクトの共通DNA分析
+### 1.3 Common DNA Analysis of Successful Products
 
 ```python
-# 成功AI SaaSの共通パターンを定量分析
+# Quantitative analysis of common patterns in successful AI SaaS
 class SuccessPatternAnalyzer:
-    """成功AI SaaSの共通DNA分析"""
+    """Common DNA analysis of successful AI SaaS"""
 
     def analyze_common_patterns(self) -> dict:
-        """共通成功パターンの抽出"""
+        """Extracting common success patterns"""
         return {
             "timing": {
-                "pattern": "新技術リリース後6ヶ月以内にMVP",
+                "pattern": "MVP within 6 months of a new technology release",
                 "examples": {
-                    "jasper": "GPT-3リリース(2020.06)→創業(2021.01)",
-                    "midjourney": "Diffusion Models論文→創業(2022.02)",
-                    "cursor": "Codex/Copilot→Fork IDE(2022.09)"
+                    "jasper": "GPT-3 release (2020.06) → Founded (2021.01)",
+                    "midjourney": "Diffusion Models paper → Founded (2022.02)",
+                    "cursor": "Codex/Copilot → Fork IDE (2022.09)"
                 },
-                "insight": "技術の窓が開いてから半年が最適参入時期"
+                "insight": "The six months after a technology window opens is the optimal entry time"
             },
             "focus": {
-                "pattern": "1つのユースケースに極度に集中",
+                "pattern": "Extreme focus on a single use case",
                 "examples": {
-                    "jasper": "マーケティングコピー（最初はFacebook広告のみ）",
-                    "otter": "会議録文字起こし（他は一切やらない）",
-                    "midjourney": "画像生成（テキストは対象外）"
+                    "jasper": "Marketing copy (initially Facebook ads only)",
+                    "otter": "Meeting transcription (nothing else)",
+                    "midjourney": "Image generation (text is out of scope)"
                 },
-                "insight": "「この1つのことだけは世界一」を作る"
+                "insight": "Create 'the world's best at this one thing'"
             },
             "distribution": {
-                "pattern": "既存のコミュニティ/プラットフォームを活用",
+                "pattern": "Leverage existing communities / platforms",
                 "examples": {
-                    "midjourney": "Discord（コミュニティが製品体験の場）",
-                    "copilot": "GitHub/VSCode（既存開発者ベース）",
-                    "notion_ai": "Notionユーザー3000万人"
+                    "midjourney": "Discord (community is the product experience)",
+                    "copilot": "GitHub/VSCode (existing developer base)",
+                    "notion_ai": "30 million Notion users"
                 },
-                "insight": "ゼロからユーザーを集めるより既存の集団にリーチ"
+                "insight": "Reach an existing group rather than acquiring users from scratch"
             },
             "monetization": {
-                "pattern": "価値に明確に紐づく価格設定",
+                "pattern": "Pricing clearly tied to value",
                 "examples": {
-                    "jasper": "コピーライター月額$5000→Jasper月額$49",
-                    "copilot": "開発者の生産性55%向上→月額$19",
-                    "cursor": "IDE + AI = 開発速度2倍→月額$20"
+                    "jasper": "Copywriter $5,000/month → Jasper $49/month",
+                    "copilot": "55% developer productivity gain → $19/month",
+                    "cursor": "IDE + AI = 2x development speed → $20/month"
                 },
-                "insight": "「代替手段の1/10以下」が初期の最適価格"
+                "insight": "'1/10 or less of the alternative' is the optimal initial price"
             }
         }
 
     def calculate_success_score(self, product: dict) -> float:
-        """プロダクトの成功スコアを算出（100点満点）"""
+        """Calculate success score for a product (out of 100)"""
         scores = {
             "timing_score": self._score_timing(product),
             "focus_score": self._score_focus(product),
@@ -170,79 +170,79 @@ class SuccessPatternAnalyzer:
 
 ---
 
-## 2. Jasper — マーケティングAI特化の王道
+## 2. Jasper — The Textbook Playbook for Marketing AI Specialization
 
-### 2.1 成長の時系列
+### 2.1 Growth Timeline
 
 ```
-Jasper 成長タイムライン:
+Jasper Growth Timeline:
 
-  2021.01 ─── Jarvis として創業
-              │ GPT-3 APIのシンプルなラッパー
-              │ マーケティングコピー生成に特化
+  2021.01 ─── Founded as Jarvis
+              │ Simple wrapper around GPT-3 API
+              │ Focused on marketing copy generation
               ▼
-  2021.06 ─── 月商$1M突破（PMF 6ヶ月）
-              │ Facebook広告コピー、ブログ記事が主力
-              │ テンプレート機能で差別化開始
+  2021.06 ─── Monthly revenue surpasses $1M (PMF in 6 months)
+              │ Facebook ad copy and blog posts are the main products
+              │ Begin differentiating with template features
               ▼
   2021.12 ─── ARR $45M
-              │ Jasperにリブランド（商標問題）
-              │ Boss ModeでLong-form content
+              │ Rebranded to Jasper (trademark issue)
+              │ Boss Mode for long-form content
               ▼
-  2022.10 ─── $125M 調達、評価額 $1.5B
-              │ ブランドボイス機能
-              │ エンタープライズ展開開始
+  2022.10 ─── $125M raised, valuation $1.5B
+              │ Brand voice feature
+              │ Enterprise expansion begins
               ▼
-  2023.06 ─── ChatGPT衝撃後の対応
-              │ ワークフロー統合強化
-              │ チーム機能、ブランド管理
+  2023.06 ─── Response to the ChatGPT shock
+              │ Strengthened workflow integration
+              │ Team features, brand management
               ▼
-  2024-25 ─── AIマーケティングプラットフォームへ進化
-              │ キャンペーン管理統合
-              │ Analytics + AI最適化
+  2024-25 ─── Evolves into AI marketing platform
+              │ Campaign management integration
+              │ Analytics + AI optimization
 ```
 
-### 2.2 Jasperの戦略分析
+### 2.2 Jasper Strategy Analysis
 
 ```python
 jasper_strategy = {
     "initial_moat": {
-        "description": "GPT-3の早期採用 + マーケティング特化",
-        "strength": "高（先行者利益）",
-        "durability": "低（API依存、模倣容易）"
+        "description": "Early GPT-3 adoption + marketing specialization",
+        "strength": "High (first-mover advantage)",
+        "durability": "Low (API-dependent, easy to copy)"
     },
     "evolved_moat": {
-        "brand_voice": "企業ごとのトーン学習 → 一貫性担保",
-        "templates": "50+ マーケティングテンプレート",
-        "workflows": "企画→生成→編集→公開の一気通貫",
-        "team_features": "承認フロー、ブランドガイドライン統合",
-        "strength": "中〜高",
-        "durability": "中（切り替えコストが上昇）"
+        "brand_voice": "Learns each company's tone → ensures consistency",
+        "templates": "50+ marketing templates",
+        "workflows": "End-to-end from planning → generation → editing → publishing",
+        "team_features": "Approval flows, brand guideline integration",
+        "strength": "Medium to High",
+        "durability": "Medium (switching costs increase)"
     },
-    "key_lesson": "APIラッパーから始めても、ワークフロー統合で"
-                  "差別化を積み上げることでモートを構築できる"
+    "key_lesson": "Even starting as an API wrapper, you can build a moat "
+                  "by accumulating workflow integration for differentiation"
 }
 ```
 
-### 2.3 Jasperのグロースハック詳細分析
+### 2.3 Detailed Analysis of Jasper's Growth Hacks
 
 ```python
 jasper_growth_hacks = {
     "affiliate_program": {
-        "description": "アフィリエイト報酬30%の永続コミッション",
-        "impact": "初期ユーザーの40%がアフィリエイト経由",
-        "cost": "売上の12%程度（CACとして非常に安い）",
+        "description": "Perpetual 30% affiliate commission",
+        "impact": "40% of initial users came via affiliates",
+        "cost": "~12% of revenue (very low as CAC)",
         "implementation": """
-            # アフィリエイト追跡の概念的実装
+            # Conceptual implementation of affiliate tracking
             class AffiliateTracker:
                 def track_referral(self, referrer_id, new_user_id):
-                    # Cookieベースの30日間追跡
+                    # 30-day cookie-based tracking
                     attribution = {
                         "referrer": referrer_id,
                         "new_user": new_user_id,
                         "commission_rate": 0.30,
-                        "type": "recurring",  # 永続コミッション
-                        "cookie_window": 30    # 日
+                        "type": "recurring",  # perpetual commission
+                        "cookie_window": 30    # days
                     }
                     self.save_attribution(attribution)
 
@@ -254,172 +254,172 @@ jasper_growth_hacks = {
                     )
                     return total
         """,
-        "lesson": "アフィリエイターが「稼げる」仕組みを作ると自走する"
+        "lesson": "Build a system where affiliates can 'earn money' and it runs itself"
     },
     "template_marketplace": {
-        "description": "ユーザーが作ったテンプレートを共有",
-        "impact": "テンプレート数が10倍に増加、コミュニティ形成",
-        "moat": "ユーザー生成コンテンツ = 移行困難",
-        "lesson": "ユーザーに価値を作らせる仕組みが最強のモート"
+        "description": "Share templates created by users",
+        "impact": "Template count grew 10x, community formed",
+        "moat": "User-generated content = hard to migrate away",
+        "lesson": "A system where users create value is the strongest moat"
     },
     "community_strategy": {
-        "description": "Facebookグループ10万人のコミュニティ構築",
+        "description": "Built a Facebook group community of 100,000 members",
         "activities": [
-            "週次のライブセッション（使い方指導）",
-            "ユーザー同士のティップス共有",
-            "新機能のベータテスト先行公開",
-            "成功事例の表彰（月間ベストユーザー）"
+            "Weekly live sessions (how-to guidance)",
+            "Tips sharing between users",
+            "Beta access to new features",
+            "Success story recognition (monthly best user)"
         ],
-        "impact": "解約率の大幅改善（コミュニティ参加者は50%低い解約率）",
-        "lesson": "プロダクトの周りにコミュニティを作ると解約率が劇的に下がる"
+        "impact": "Significant churn improvement (community members have 50% lower churn)",
+        "lesson": "Building a community around your product dramatically reduces churn"
     },
     "content_marketing": {
-        "description": "SEOとYouTubeで教育コンテンツを大量生産",
+        "description": "Mass production of educational content via SEO and YouTube",
         "channels": {
-            "blog": "月20記事（AIコピーライティング関連）",
-            "youtube": "週2本（チュートリアル、比較動画）",
-            "webinar": "月2回（成功事例、使い方講座）"
+            "blog": "20 articles/month (AI copywriting topics)",
+            "youtube": "2 videos/week (tutorials, comparison videos)",
+            "webinar": "2x/month (success stories, how-to sessions)"
         },
-        "impact": "オーガニックトラフィック月間50万PV",
-        "lesson": "教育コンテンツがCAC最小の獲得チャネル"
+        "impact": "Organic traffic 500,000 PV/month",
+        "lesson": "Educational content is the acquisition channel with the lowest CAC"
     }
 }
 ```
 
-### 2.4 Jasperの危機と対応
+### 2.4 Jasper's Crisis and Response
 
 ```python
 jasper_crisis_response = {
     "chatgpt_impact": {
-        "timing": "2022年11月 — ChatGPTリリース",
-        "immediate_effect": "新規登録のペース鈍化、「Jasper不要論」がSNSで拡散",
-        "stock_price_equivalent": "評価額の実質的な下落（次ラウンドが困難に）",
+        "timing": "November 2022 — ChatGPT release",
+        "immediate_effect": "New sign-up pace slowed, 'Jasper is unnecessary' spread on social media",
+        "stock_price_equivalent": "Effective decline in valuation (next round became difficult)",
         "user_reaction": {
-            "churned_users": "無料でChatGPTが使えるなら不要と考えた層",
-            "retained_users": "チーム機能、ブランドボイス、ワークフローが必要な層"
+            "churned_users": "Those who felt free ChatGPT was sufficient",
+            "retained_users": "Those who needed team features, brand voice, and workflows"
         }
     },
     "strategic_response": {
         "step_1": {
-            "action": "ポジショニングの変更",
-            "before": "AIコピーライティングツール",
-            "after": "AIマーケティングプラットフォーム",
-            "reason": "ChatGPTとの直接比較を避ける"
+            "action": "Repositioning",
+            "before": "AI copywriting tool",
+            "after": "AI marketing platform",
+            "reason": "Avoid direct comparison with ChatGPT"
         },
         "step_2": {
-            "action": "エンタープライズ機能の強化",
+            "action": "Strengthen enterprise features",
             "features": [
-                "ブランドボイスの全社統一管理",
-                "承認ワークフロー（マネージャー承認機能）",
-                "コンプライアンスチェック自動化",
-                "SSO/SAML認証",
-                "監査ログ"
+                "Company-wide brand voice management",
+                "Approval workflows (manager approval feature)",
+                "Automated compliance checks",
+                "SSO/SAML authentication",
+                "Audit logs"
             ],
-            "reason": "個人ユーザーはChatGPTに流れるが、企業は「管理」が必要"
+            "reason": "Individual users may migrate to ChatGPT, but enterprises need 'management'"
         },
         "step_3": {
-            "action": "独自AI研究への投資",
+            "action": "Invest in proprietary AI research",
             "initiatives": [
-                "マーケティング特化のファインチューニングモデル",
-                "ブランドボイス学習の独自アルゴリズム",
-                "SEO最適化スコアリングエンジン"
+                "Fine-tuned model specialized for marketing",
+                "Proprietary algorithm for brand voice learning",
+                "SEO optimization scoring engine"
             ],
-            "reason": "GPT-4だけに依存しないAI能力の構築"
+            "reason": "Build AI capabilities that don't depend solely on GPT-4"
         }
     },
     "outcome": {
-        "retained_revenue": "エンタープライズ契約の増加で売上を維持",
-        "lesson": "ChatGPT衝撃に耐えたのは「ワークフロー統合」があったから。"
-                  "単なるAI生成ツールだったら消滅していた。"
+        "retained_revenue": "Revenue maintained through increased enterprise contracts",
+        "lesson": "What helped Jasper survive the ChatGPT shock was 'workflow integration'. "
+                  "If it had been just an AI generation tool, it would have disappeared."
     }
 }
 ```
 
 ---
 
-## 3. Copy.ai — セールス特化へのピボット
+## 3. Copy.ai — Pivoting to Sales Specialization
 
-### 3.1 ピボット戦略
+### 3.1 Pivot Strategy
 
 ```
-Copy.ai の戦略的ピボット:
+Copy.ai Strategic Pivot:
 
-  Phase 1: コピー生成ツール (2020-2022)
+  Phase 1: Copy generation tool (2020-2022)
   ┌──────────────────────────────────────┐
-  │ ● マーケティングコピー生成            │
-  │ ● Jasperとの差別化に苦戦             │
-  │ ● ChatGPTの登場で更に厳しく          │
+  │ ● Marketing copy generation          │
+  │ ● Struggled to differentiate from Jasper│
+  │ ● Made even harder by ChatGPT launch │
   └──────────────────┬───────────────────┘
-                     │ ピボット
+                     │ Pivot
                      ▼
-  Phase 2: セールスワークフロー (2023-現在)
+  Phase 2: Sales workflow (2023-present)
   ┌──────────────────────────────────────┐
-  │ ● Go-to-Market AI プラットフォーム    │
-  │ ● リード調査 → メール作成 → フォロー  │
-  │ ● CRM統合（Salesforce, HubSpot）     │
-  │ ● 月$4M → 急成長                     │
+  │ ● Go-to-Market AI platform           │
+  │ ● Lead research → email → follow-up  │
+  │ ● CRM integration (Salesforce, HubSpot)│
+  │ ● $4M/month → rapid growth           │
   └──────────────────────────────────────┘
 ```
 
-### 3.2 Copy.aiの教訓
+### 3.2 Copy.ai Lessons
 
 ```python
 copyai_lessons = {
     "pivot_timing": {
-        "trigger": "ChatGPTの登場でコモディティ化",
-        "decision": "汎用→特化（セールスワークフロー）",
-        "result": "差別化回復、成長再加速"
+        "trigger": "Commoditization from ChatGPT launch",
+        "decision": "Generic → specialized (sales workflow)",
+        "result": "Differentiation restored, growth re-accelerated"
     },
     "differentiation": {
-        "before": "テキスト生成（誰でもできる）",
-        "after": "セールスワークフロー統合（CRM連携が参入障壁）",
-        "moat": "データ統合 + ワークフロー + 業界知識"
+        "before": "Text generation (anyone can do this)",
+        "after": "Sales workflow integration (CRM linkage as barrier to entry)",
+        "moat": "Data integration + workflow + industry knowledge"
     },
     "key_metrics": {
-        "before_pivot": {"growth": "停滞", "churn": "高"},
-        "after_pivot": {"growth": "月20%+", "churn": "大幅改善"}
+        "before_pivot": {"growth": "Stagnant", "churn": "High"},
+        "after_pivot": {"growth": "20%+/month", "churn": "Significantly improved"}
     }
 }
 ```
 
-### 3.3 ピボット実行のフレームワーク
+### 3.3 Pivot Execution Framework
 
 ```python
 class PivotFramework:
-    """AI SaaSのピボット判断と実行フレームワーク"""
+    """Framework for pivot decision-making and execution in AI SaaS"""
 
     def assess_pivot_signals(self, metrics: dict) -> dict:
-        """ピボットすべきシグナルの検出"""
+        """Detect signals that indicate a pivot is needed"""
         signals = {
             "churn_increasing": {
-                "threshold": "月次チャーン率が3ヶ月連続で悪化",
+                "threshold": "Monthly churn rate worsening for 3 consecutive months",
                 "current": metrics.get("churn_trend", []),
-                "severity": "高",
-                "explanation": "プロダクトの根本的な価値提供に問題"
+                "severity": "High",
+                "explanation": "Fundamental problem with the product's value delivery"
             },
             "commoditization": {
-                "threshold": "競合が5社以上、価格競争が激化",
+                "threshold": "5 or more competitors, intense price competition",
                 "current": metrics.get("competitor_count", 0),
-                "severity": "高",
-                "explanation": "差別化が失われている"
+                "severity": "High",
+                "explanation": "Differentiation has been lost"
             },
             "cac_increasing": {
-                "threshold": "CACが3ヶ月連続で上昇",
+                "threshold": "CAC rising for 3 consecutive months",
                 "current": metrics.get("cac_trend", []),
-                "severity": "中",
-                "explanation": "獲得効率の悪化は市場の飽和を示す"
+                "severity": "Medium",
+                "explanation": "Declining acquisition efficiency signals market saturation"
             },
             "nps_declining": {
-                "threshold": "NPSが20以下に低下",
+                "threshold": "NPS drops below 20",
                 "current": metrics.get("nps", 0),
-                "severity": "中",
-                "explanation": "ユーザー満足度の根本的な問題"
+                "severity": "Medium",
+                "explanation": "Fundamental issue with user satisfaction"
             },
             "market_disruption": {
-                "threshold": "ChatGPTのような破壊的プロダクトの登場",
+                "threshold": "Appearance of a disruptive product like ChatGPT",
                 "current": metrics.get("disruptor_appeared", False),
-                "severity": "最高",
-                "explanation": "市場の前提条件が変わった"
+                "severity": "Critical",
+                "explanation": "The fundamental assumptions of the market have changed"
             }
         }
 
@@ -434,68 +434,68 @@ class PivotFramework:
         }
 
     def design_pivot(self, current: dict, target: dict) -> dict:
-        """ピボット計画の設計"""
+        """Design a pivot plan"""
         return {
             "phase_1_validate": {
-                "duration": "2-4週間",
+                "duration": "2-4 weeks",
                 "actions": [
-                    "新しいターゲット市場の10人にインタビュー",
-                    "MVPのプロトタイプ（UI/UXモック）を作成",
-                    "価格感度の確認（払う意思があるか）",
-                    "既存アセットの活用可能性を評価"
+                    "Interview 10 people in the new target market",
+                    "Create MVP prototype (UI/UX mockup)",
+                    "Confirm price sensitivity (are they willing to pay?)",
+                    "Assess reusability of existing assets"
                 ],
-                "go_criteria": "10人中7人以上が「使いたい」と回答"
+                "go_criteria": "7 or more out of 10 respond 'I want to use it'"
             },
             "phase_2_build": {
-                "duration": "4-6週間",
+                "duration": "4-6 weeks",
                 "actions": [
-                    "既存コードベースから再利用できる部分を特定",
-                    "新しいコアフロー（ワークフロー）の実装",
-                    "CRM連携等の統合機能を最低1つ実装",
-                    "価格設定の確定"
+                    "Identify reusable parts from the existing codebase",
+                    "Implement new core flow (workflow)",
+                    "Implement at least one integration feature such as CRM linkage",
+                    "Finalize pricing"
                 ],
-                "go_criteria": "10社がベータ利用に合意"
+                "go_criteria": "10 companies agree to beta use"
             },
             "phase_3_transition": {
-                "duration": "2-3ヶ月",
+                "duration": "2-3 months",
                 "actions": [
-                    "既存ユーザーへの丁寧な移行案内",
-                    "新プロダクトのPMF検証",
-                    "旧プロダクトの段階的縮小",
-                    "マーケティングメッセージの完全切り替え"
+                    "Carefully guide existing users through the transition",
+                    "Validate PMF for the new product",
+                    "Gradually wind down the old product",
+                    "Completely switch marketing messaging"
                 ],
-                "go_criteria": "新プロダクトのNRRが100%以上"
+                "go_criteria": "NRR of new product is 100% or above"
             }
         }
 
     def _is_triggered(self, signal: dict, metrics: dict) -> bool:
-        """シグナルが発動しているかチェック"""
-        # 実装は簡略化
+        """Check whether a signal has been triggered"""
+        # Implementation simplified
         return False
 ```
 
-### 3.4 Copy.aiのセールスワークフロー詳細
+### 3.4 Copy.ai Sales Workflow Details
 
 ```python
 copyai_sales_workflow = {
     "lead_research": {
-        "description": "ターゲット企業のリサーチを自動化",
-        "inputs": ["企業名", "担当者名", "LinkedIn URL"],
+        "description": "Automate research on target companies",
+        "inputs": ["Company name", "Contact name", "LinkedIn URL"],
         "ai_process": [
-            "企業の最新ニュース、プレスリリースを収集",
-            "担当者のSNS投稿、登壇情報を分析",
-            "企業の課題と購買シグナルを特定",
-            "アプローチ角度の提案"
+            "Collect latest news and press releases for the company",
+            "Analyze contact's social media posts and speaking engagements",
+            "Identify company pain points and buying signals",
+            "Suggest approach angles"
         ],
-        "output": "構造化されたリサーチレポート",
-        "time_saved": "1リード30分→3分（90%削減）"
+        "output": "Structured research report",
+        "time_saved": "30 min per lead → 3 min (90% reduction)"
     },
     "email_generation": {
-        "description": "パーソナライズされたセールスメールの自動生成",
+        "description": "Automatically generate personalized sales emails",
         "personalization_levels": {
-            "level_1": "企業名・名前の差し込み（従来型）",
-            "level_2": "業界特化の課題言及（AI分析）",
-            "level_3": "個人の投稿・発言を引用（ディープパーソナライズ）"
+            "level_1": "Company name and contact name insertion (traditional)",
+            "level_2": "Industry-specific pain point mention (AI analysis)",
+            "level_3": "Quoting personal posts and statements (deep personalization)"
         },
         "metrics": {
             "open_rate": "Level 1: 25% → Level 3: 55%",
@@ -504,138 +504,138 @@ copyai_sales_workflow = {
         }
     },
     "follow_up_sequence": {
-        "description": "フォローアップの自動スケジュールと実行",
+        "description": "Automatically schedule and execute follow-ups",
         "sequence": [
-            {"day": 0, "action": "初回メール送信"},
-            {"day": 3, "action": "LinkedIn接続リクエスト"},
-            {"day": 5, "action": "フォローアップメール（新しい角度）"},
-            {"day": 10, "action": "価値提供メール（事例/ホワイトペーパー）"},
-            {"day": 15, "action": "最終フォロー（直接的なCTA）"}
+            {"day": 0, "action": "Send initial email"},
+            {"day": 3, "action": "LinkedIn connection request"},
+            {"day": 5, "action": "Follow-up email (new angle)"},
+            {"day": 10, "action": "Value-add email (case study / white paper)"},
+            {"day": 15, "action": "Final follow-up (direct CTA)"}
         ],
-        "ai_adaptation": "各ステップで反応を分析し、次のアクションを最適化"
+        "ai_adaptation": "Analyze responses at each step and optimize the next action"
     },
     "crm_integration": {
-        "description": "Salesforce/HubSpotとのネイティブ連携",
+        "description": "Native integration with Salesforce/HubSpot",
         "sync_data": [
-            "リサーチ結果→CRMのメモ欄",
-            "メール履歴→活動ログ",
-            "エンゲージメントスコア→リードスコアリング",
-            "商談フェーズの自動更新"
+            "Research results → CRM notes",
+            "Email history → activity log",
+            "Engagement score → lead scoring",
+            "Automatic deal stage updates"
         ],
-        "moat_effect": "CRM連携は一度設定すると移行が困難 → 強力なスイッチングコスト"
+        "moat_effect": "CRM integration is hard to migrate away from once set up → strong switching cost"
     }
 }
 ```
 
 ---
 
-## 4. Notion AI — 既存プロダクトへのAI統合
+## 4. Notion AI — Integrating AI Into an Existing Product
 
-### 4.1 統合戦略
+### 4.1 Integration Strategy
 
 ```
-Notion AI の統合アプローチ:
+Notion AI Integration Approach:
 
-  既存の巨大ユーザーベース（3000万+）
+  Existing massive user base (30M+)
        │
        ▼
-  AI機能をネイティブ統合
+  Native AI feature integration
   ┌──────────────────────────────────────┐
-  │ ● 文章生成/編集: ページ内で即座に利用  │
-  │ ● Q&A: ワークスペース全体を検索・回答   │
-  │ ● 要約: 長いドキュメントの自動要約      │
-  │ ● 翻訳: 14言語に即翻訳                │
+  │ ● Text generation/editing: use in-page instantly│
+  │ ● Q&A: search and answer across entire workspace│
+  │ ● Summarization: auto-summarize long documents  │
+  │ ● Translation: instant translation into 14 languages│
   └──────────────────────────────────────┘
        │
        ▼
-  追加課金モデル ($10/メンバー/月)
+  Add-on billing model ($10/member/month)
        │
        ▼
-  既存ユーザーの20%以上が有料AI採用（推定）
+  20%+ of existing users adopted paid AI (estimated)
 ```
 
-### 4.2 Notion AI と スタンドアロンAI SaaS の比較
+### 4.2 Notion AI vs. Standalone AI SaaS Comparison
 
-| 比較項目 | Notion AI (統合型) | Jasper (スタンドアロン) |
-|---------|-------------------|----------------------|
-| ユーザー獲得 | 既存ユーザーベース活用 | ゼロから獲得 |
-| CAC | ほぼ$0 | $50-$200 |
-| 価値提案 | ワークフロー統合 | 専門的AI品質 |
-| スイッチングコスト | 非常に高 | 低〜中 |
-| AI品質の重要度 | 中（十分であればよい） | 最高（差別化の核） |
-| 収益モデル | アドオン課金 | 単独サブスク |
+| Comparison Item | Notion AI (Integrated) | Jasper (Standalone) |
+|----------------|----------------------|---------------------|
+| User Acquisition | Leverages existing user base | Acquire from zero |
+| CAC | Near $0 | $50–$200 |
+| Value Proposition | Workflow integration | Specialist AI quality |
+| Switching Cost | Very high | Low to medium |
+| Importance of AI Quality | Medium (good enough is fine) | Highest (core differentiator) |
+| Revenue Model | Add-on billing | Standalone subscription |
 
-### 4.3 AI統合型プロダクトの設計パターン
+### 4.3 Design Patterns for AI-Integrated Products
 
 ```python
 class AIIntegrationPatterns:
-    """既存プロダクトへのAI統合パターン集"""
+    """Collection of AI integration patterns for existing products"""
 
     def get_patterns(self) -> dict:
         return {
             "inline_assistance": {
-                "description": "ユーザーの作業中にAIが補完・提案",
+                "description": "AI completes and suggests while the user is working",
                 "examples": [
-                    "Notion AI: テキスト選択→AI編集メニュー",
-                    "GitHub Copilot: コード入力中にリアルタイム補完",
-                    "Grammarly: 文章入力中に自動校正・提案"
+                    "Notion AI: Select text → AI editing menu",
+                    "GitHub Copilot: Real-time completion while typing code",
+                    "Grammarly: Auto-correction and suggestions while writing"
                 ],
-                "ux_principle": "ユーザーのフローを中断しない",
-                "implementation_tip": "ショートカットキーで即起動、"
-                                      "ESCで即非表示にする"
+                "ux_principle": "Do not interrupt the user's flow",
+                "implementation_tip": "Launch instantly with a keyboard shortcut, "
+                                      "hide instantly with ESC"
             },
             "workspace_qa": {
-                "description": "蓄積されたデータに対するAI質問応答",
+                "description": "AI question-answering over accumulated data",
                 "examples": [
-                    "Notion AI Q&A: ワークスペース全体を検索・回答",
-                    "Slack AI: チャンネル横断の質問応答",
-                    "Confluence AI: ナレッジベース検索"
+                    "Notion AI Q&A: Search and answer across entire workspace",
+                    "Slack AI: Cross-channel question answering",
+                    "Confluence AI: Knowledge base search"
                 ],
-                "ux_principle": "「情報を探す」から「質問する」への転換",
-                "implementation_tip": "RAG（検索拡張生成）で"
-                                      "最新情報を反映させる"
+                "ux_principle": "Shift from 'searching for information' to 'asking questions'",
+                "implementation_tip": "Use RAG (retrieval-augmented generation) "
+                                      "to reflect the latest information"
             },
             "automated_workflows": {
-                "description": "定型作業をAIが自動実行",
+                "description": "AI automatically executes routine tasks",
                 "examples": [
-                    "Notion AI: ミーティングノート→アクションアイテム自動抽出",
-                    "HubSpot AI: リード情報→パーソナライズメール自動生成",
-                    "Zapier AI: ワークフロー提案・自動構築"
+                    "Notion AI: Meeting notes → automatically extract action items",
+                    "HubSpot AI: Lead info → automatically generate personalized emails",
+                    "Zapier AI: Workflow suggestions and auto-building"
                 ],
-                "ux_principle": "ユーザーが気づく前に終わっている",
-                "implementation_tip": "最初はドラフト生成→確認→実行の"
-                                      "3ステップで信頼を構築"
+                "ux_principle": "It's done before the user even notices",
+                "implementation_tip": "Start with draft generation → confirm → execute "
+                                      "(3 steps) to build trust"
             },
             "intelligent_insights": {
-                "description": "データを分析しインサイトを能動的に提示",
+                "description": "Analyze data and proactively surface insights",
                 "examples": [
-                    "Amplitude AI: ユーザー行動の異常検知と要因分析",
-                    "Datadog AI: インシデントの根本原因の自動推定",
-                    "Tableau AI: ダッシュボードからの自動インサイト"
+                    "Amplitude AI: Anomaly detection and root cause analysis of user behavior",
+                    "Datadog AI: Automatic root cause estimation for incidents",
+                    "Tableau AI: Automatic insights from dashboards"
                 ],
-                "ux_principle": "データを見に行くのではなく、"
-                                "インサイトが来る",
-                "implementation_tip": "最初は精度重視、偽陽性が多いと"
-                                      "信頼を失い無視されるようになる"
+                "ux_principle": "Insights come to you, "
+                                "rather than you going to look at the data",
+                "implementation_tip": "Prioritize accuracy at first; too many false positives "
+                                      "will cause users to lose trust and ignore alerts"
             }
         }
 
     def calculate_integration_roi(self, existing_product: dict) -> dict:
-        """AI統合のROI試算"""
+        """Estimate ROI of AI integration"""
         users = existing_product["active_users"]
         arpu = existing_product["arpu"]
         ai_addon_price = existing_product.get("ai_addon_price", 1000)
         ai_adoption_rate = existing_product.get("ai_adoption_rate", 0.15)
 
-        # 新規収益
+        # New revenue
         ai_revenue = users * ai_adoption_rate * ai_addon_price
-        # チャーン改善効果
-        churn_reduction = 0.02  # 2%ポイント改善想定
+        # Churn improvement effect
+        churn_reduction = 0.02  # Assume 2 percentage point improvement
         retention_revenue = users * arpu * churn_reduction * 12
 
-        # コスト
-        development_cost = 5_000_000  # 開発費（初期）
-        api_cost_monthly = users * ai_adoption_rate * 500  # 1ユーザー500円/月
+        # Costs
+        development_cost = 5_000_000  # Initial development cost
+        api_cost_monthly = users * ai_adoption_rate * 500  # 500 yen per user per month
 
         return {
             "monthly_ai_revenue": int(ai_revenue),
@@ -656,392 +656,392 @@ class AIIntegrationPatterns:
 
 ---
 
-## 5. 成功パターンの抽出
+## 5. Extracting Success Patterns
 
-### 5.1 共通成功要因
+### 5.1 Common Success Factors
 
 ```
-AI SaaS 成功の3層モデル:
+AI SaaS 3-Layer Success Model:
 
-  Layer 3: エコシステム    ← 長期的な競争優位
+  Layer 3: Ecosystem    ← Long-term competitive advantage
   ┌──────────────────────────────────────┐
-  │ API/統合 | コミュニティ | パートナー   │
+  │ API/Integrations | Community | Partners│
   └──────────────────────────────────────┘
 
-  Layer 2: ワークフロー    ← 中期的な差別化
+  Layer 2: Workflow    ← Medium-term differentiation
   ┌──────────────────────────────────────┐
-  │ 業界特化 | チーム機能 | 自動化パイプライン│
+  │ Industry-specific | Team features | Automation pipeline│
   └──────────────────────────────────────┘
 
-  Layer 1: AI機能          ← 最低限の参入条件
+  Layer 1: AI Features          ← Minimum entry requirement
   ┌──────────────────────────────────────┐
-  │ テキスト生成 | 分析 | 分類 | 要約     │
+  │ Text generation | Analysis | Classification | Summarization│
   └──────────────────────────────────────┘
 
-  ★ Layer 1だけでは差別化できない
-  ★ Layer 2-3の構築が成否を分ける
+  ★ Layer 1 alone is not enough to differentiate
+  ★ Building Layers 2–3 determines success or failure
 ```
 
-### 5.2 失敗パターン
+### 5.2 Failure Patterns
 
 ```python
 failure_patterns = {
     "thin_wrapper": {
-        "description": "APIの薄いラッパー",
-        "examples": "多数の無名GPTラッパーサービス",
-        "failure_rate": "90%以上",
-        "reason": "ChatGPT/Claude直接利用で代替可能"
+        "description": "Thin API wrapper",
+        "examples": "Many obscure GPT wrapper services",
+        "failure_rate": "90%+",
+        "reason": "Replaceable by using ChatGPT/Claude directly"
     },
     "no_focus": {
-        "description": "あれもこれもAI機能を追加",
-        "examples": "汎用AIアシスタント系",
-        "failure_rate": "80%以上",
-        "reason": "特定課題の深い解決に至らない"
+        "description": "Adding AI features for everything",
+        "examples": "General-purpose AI assistant category",
+        "failure_rate": "80%+",
+        "reason": "Fails to deeply solve a specific problem"
     },
     "tech_first": {
-        "description": "技術は凄いがユースケースが不明確",
-        "examples": "先進的MLモデルのデモサイト",
-        "failure_rate": "70%以上",
-        "reason": "ユーザーの課題に紐づいていない"
+        "description": "Impressive technology but unclear use cases",
+        "examples": "Demo sites for cutting-edge ML models",
+        "failure_rate": "70%+",
+        "reason": "Not tied to users' actual problems"
     }
 }
 ```
 
-### 5.3 成功事例から抽出した差別化チェックリスト
+### 5.3 Differentiation Checklist Extracted from Success Cases
 
 ```python
 differentiation_checklist = {
     "must_have": {
         "workflow_integration": {
-            "question": "ユーザーの既存ワークフローに組み込まれているか？",
-            "good_example": "JasperのWordPress/Google Docs統合",
-            "bad_example": "独立したWebアプリでコピペが必要",
+            "question": "Is it embedded in the user's existing workflow?",
+            "good_example": "Jasper's WordPress/Google Docs integration",
+            "bad_example": "Standalone web app requiring copy-paste",
             "weight": 5
         },
         "switching_cost": {
-            "question": "ユーザーが蓄積したデータ/設定が移行障壁になっているか？",
-            "good_example": "Notionのワークスペース全体がAIのコンテキスト",
-            "bad_example": "履歴が保存されず毎回ゼロから",
+            "question": "Does accumulated data/settings become a migration barrier?",
+            "good_example": "The entire Notion workspace is the AI's context",
+            "bad_example": "No history saved; starts from zero every time",
             "weight": 5
         },
         "team_features": {
-            "question": "チーム利用を前提とした機能があるか？",
-            "good_example": "Jasperの承認フロー、ブランドボイス統一",
-            "bad_example": "個人用途のみ",
+            "question": "Are there features designed for team use?",
+            "good_example": "Jasper's approval flows and unified brand voice",
+            "bad_example": "For individual use only",
             "weight": 4
         }
     },
     "should_have": {
         "data_moat": {
-            "question": "使うほどAIの精度が上がる仕組みがあるか？",
-            "good_example": "CursorはユーザーのコードベースでAIを改善",
-            "bad_example": "全ユーザーに同じAI品質",
+            "question": "Is there a mechanism where AI quality improves with more usage?",
+            "good_example": "Cursor improves AI using the user's codebase",
+            "bad_example": "Same AI quality for all users",
             "weight": 4
         },
         "community": {
-            "question": "ユーザーコミュニティが形成されているか？",
-            "good_example": "Midjourneyの1600万人Discordコミュニティ",
-            "bad_example": "ユーザー同士の接点がない",
+            "question": "Has a user community formed?",
+            "good_example": "Midjourney's 16 million member Discord community",
+            "bad_example": "No connection point between users",
             "weight": 3
         },
         "unique_data": {
-            "question": "独自のデータセットやナレッジベースを持っているか？",
-            "good_example": "Writerの企業ブランドガイドライン学習",
-            "bad_example": "GPT-4のプロンプトを変えただけ",
+            "question": "Does it have a proprietary dataset or knowledge base?",
+            "good_example": "Writer learns corporate brand guidelines",
+            "bad_example": "Just changing the GPT-4 prompt",
             "weight": 4
         }
     },
     "nice_to_have": {
         "api_platform": {
-            "question": "他の開発者が上にサービスを構築できるか？",
-            "good_example": "OpenAIのAPI → 数千のアプリが構築",
-            "bad_example": "APIが公開されていない",
+            "question": "Can other developers build services on top of it?",
+            "good_example": "OpenAI's API → thousands of apps built on it",
+            "bad_example": "No public API",
             "weight": 2
         },
         "marketplace": {
-            "question": "ユーザー生成コンテンツのマーケットプレイスがあるか？",
-            "good_example": "Jasperのテンプレートマーケットプレイス",
-            "bad_example": "公式テンプレートのみ",
+            "question": "Is there a marketplace for user-generated content?",
+            "good_example": "Jasper's template marketplace",
+            "bad_example": "Official templates only",
             "weight": 2
         }
     }
 }
 ```
 
-### 5.4 追加成功事例: Cursor
+### 5.4 Additional Case Study: Cursor
 
 ```python
 cursor_case_study = {
     "overview": {
         "name": "Cursor",
-        "category": "AI統合IDE",
-        "founding": "2022年",
-        "arr": "$100M+（2025年推定）",
+        "category": "AI-integrated IDE",
+        "founding": "2022",
+        "arr": "$100M+ (estimated 2025)",
         "evaluation": "$2.5B",
-        "team_size": "~50人",
+        "team_size": "~50 people",
         "funding": "$400M+"
     },
     "strategy": {
-        "initial_approach": "VSCode Fork + AI統合",
-        "key_innovation": "エディタ全体がAIと統合（単なる拡張機能ではない）",
-        "target_user": "プロフェッショナル開発者",
-        "pricing": "$20/月（Pro）"
+        "initial_approach": "VSCode Fork + AI integration",
+        "key_innovation": "The entire editor is integrated with AI (not just an extension)",
+        "target_user": "Professional developers",
+        "pricing": "$20/month (Pro)"
     },
     "growth_drivers": {
         "word_of_mouth": {
-            "mechanism": "開発者がTwitterで生産性向上を投稿 → バイラル",
-            "impact": "ユーザーの70%以上がオーガニック獲得"
+            "mechanism": "Developers post productivity gains on Twitter → goes viral",
+            "impact": "70%+ of users acquired organically"
         },
         "vscode_familiarity": {
-            "mechanism": "VSCodeフォークのため学習コストゼロ",
-            "impact": "既存の設定、拡張機能がそのまま使える"
+            "mechanism": "Zero learning cost as a VSCode fork",
+            "impact": "Existing settings and extensions work as-is"
         },
         "codebase_context": {
-            "mechanism": "プロジェクト全体をAIのコンテキストに",
-            "impact": "ChatGPTにコードをコピペする手間を解消"
+            "mechanism": "Uses the entire project as AI context",
+            "impact": "Eliminates the hassle of copy-pasting code into ChatGPT"
         }
     },
     "differentiation_vs_copilot": {
-        "copilot": "行単位の補完、GitHub統合",
-        "cursor": "プロジェクト全体理解、マルチファイル編集、チャット統合",
-        "key_difference": "CopilotはAI機能の追加、CursorはAIファーストのIDE体験",
-        "lesson": "同じ技術（GPT-4）でもUXの設計で全く異なる価値を生める"
+        "copilot": "Line-by-line completion, GitHub integration",
+        "cursor": "Whole-project understanding, multi-file editing, chat integration",
+        "key_difference": "Copilot adds AI features; Cursor is an AI-first IDE experience",
+        "lesson": "Even using the same technology (GPT-4), UX design can create entirely different value"
     },
     "moat_building": {
-        "layer_1": "AI品質（Composer、Tab補完の精度）",
-        "layer_2": "開発者ワークフローへの深い統合",
-        "layer_3": "カスタムモデル（Cursor独自のモデル開発開始）",
-        "assessment": "VSCodeがAI機能を強化しても、Cursorの「AIファースト」設計は模倣困難"
+        "layer_1": "AI quality (Composer, Tab completion accuracy)",
+        "layer_2": "Deep integration into the developer workflow",
+        "layer_3": "Custom models (Cursor has started developing its own models)",
+        "assessment": "Even if VSCode strengthens AI features, Cursor's 'AI-first' design is hard to replicate"
     }
 }
 ```
 
-### 5.5 追加成功事例: Midjourney
+### 5.5 Additional Case Study: Midjourney
 
 ```python
 midjourney_case_study = {
     "overview": {
         "name": "Midjourney",
-        "category": "画像生成AI",
-        "founding": "2022年2月",
-        "arr": "$200M+（2024年推定）",
-        "evaluation": "$10B（推定）",
-        "team_size": "~40人",
-        "funding": "$0（外部資金調達なし）"
+        "category": "Image generation AI",
+        "founding": "February 2022",
+        "arr": "$200M+ (estimated 2024)",
+        "evaluation": "$10B (estimated)",
+        "team_size": "~40 people",
+        "funding": "$0 (no external funding raised)"
     },
     "unique_strategy": {
         "no_website": {
-            "description": "2023年末まで公式Webサイトすら持たなかった",
-            "reason": "Discord内で完結する体験に全リソースを集中",
-            "lesson": "全てを捨てて1つのチャネルに集中する勇気"
+            "description": "Did not even have an official website until late 2023",
+            "reason": "Concentrated all resources on the experience within Discord",
+            "lesson": "The courage to drop everything and focus on a single channel"
         },
         "discord_first": {
-            "description": "DiscordサーバーがプロダクトのUI",
+            "description": "The Discord server is the product's UI",
             "advantages": [
-                "開発コストゼロ（UIを作らなくてよい）",
-                "ソーシャル体験（他人の生成物が見える）",
-                "コミュニティ形成が自然に起きる",
-                "バイラル：「この画像、Midjourneyで作った」"
+                "Zero development cost (no UI to build)",
+                "Social experience (see others' generated images)",
+                "Community forms naturally",
+                "Viral: 'I made this image with Midjourney'"
             ],
             "disadvantages": [
-                "Discordに依存（プラットフォームリスク）",
-                "UXの制約（コマンドラインベース）",
-                "エンタープライズ向けには不向き"
+                "Dependent on Discord (platform risk)",
+                "UX constraints (command-line based)",
+                "Not suited for enterprise"
             ]
         },
         "aesthetic_focus": {
-            "description": "技術的な正確性より美的な品質を優先",
-            "vs_dalle": "DALL-E: プロンプトの忠実再現",
-            "vs_sd": "Stable Diffusion: カスタマイズ性",
-            "midjourney": "Midjourney: 「美しい」画像の生成",
-            "lesson": "技術仕様ではなくユーザーの感情（美しい！）で差別化"
+            "description": "Prioritizes aesthetic quality over technical accuracy",
+            "vs_dalle": "DALL-E: Faithful reproduction of prompt",
+            "vs_sd": "Stable Diffusion: Customizability",
+            "midjourney": "Midjourney: Generating 'beautiful' images",
+            "lesson": "Differentiate on users' emotions (beautiful!) rather than technical specs"
         }
     },
     "economics": {
-        "revenue_per_employee": "$5M+/人/年",
+        "revenue_per_employee": "$5M+/person/year",
         "comparison": {
-            "google": "~$1.5M/人/年",
-            "meta": "~$1.6M/人/年",
-            "midjourney": "~$5M+/人/年"
+            "google": "~$1.5M/person/year",
+            "meta": "~$1.6M/person/year",
+            "midjourney": "~$5M+/person/year"
         },
-        "reason": "40人のチームでインフラと研究に集中。"
-                  "マーケ、営業、サポートをほぼゼロに"
+        "reason": "A team of 40 focused on infrastructure and research. "
+                  "Marketing, sales, and support are nearly zero."
     },
-    "key_lesson": "「最小のチーム、最大のフォーカス」で"
-                  "10億ドル企業を作れることの証明"
+    "key_lesson": "Proof that a billion-dollar company can be built with "
+                  "'the smallest team, maximum focus'"
 }
 ```
 
 ---
 
-## 6. アンチパターン
+## 6. Anti-Patterns
 
-### アンチパターン1: 成功事例の表面的模倣
+### Anti-Pattern 1: Superficial Imitation of Success Cases
 
 ```python
-# BAD: Jasperの機能リストをコピー
+# BAD: Copy Jasper's feature list
 copycat = {
-    "strategy": "Jasperと同じ機能を作る",
-    "features": ["ブログ生成", "コピー生成", "テンプレート"],
-    "result": "後発で差別化なし → ユーザー獲得困難"
+    "strategy": "Build the same features as Jasper",
+    "features": ["Blog generation", "Copy generation", "Templates"],
+    "result": "Late entrant with no differentiation → hard to acquire users"
 }
 
-# GOOD: 成功要因を抽象化して別市場に適用
+# GOOD: Abstract the success factors and apply them to a different market
 inspired = {
-    "strategy": "Jasperの戦略パターンを法務市場に適用",
-    "insight": "特定業務 × ワークフロー統合 × テンプレート",
-    "application": "法務契約書レビューAI",
-    "differentiation": "法務特化データ + リスク検出 + 承認フロー"
+    "strategy": "Apply Jasper's strategic pattern to the legal market",
+    "insight": "Specific task × workflow integration × templates",
+    "application": "AI for legal contract review",
+    "differentiation": "Legal-specific data + risk detection + approval flow"
 }
 ```
 
-### アンチパターン2: 大企業参入で諦める
+### Anti-Pattern 2: Giving Up When a Large Company Enters
 
 ```python
-# BAD: 「Googleが参入したから勝ち目がない」
+# BAD: "Google has entered, so there's no chance of winning"
 give_up = {
-    "trigger": "Google/Microsoft/OpenAI が類似機能リリース",
-    "reaction": "プロジェクト中止",
-    "reality": "大企業は汎用的、ニッチの深い課題は解けない"
+    "trigger": "Google/Microsoft/OpenAI releases a similar feature",
+    "reaction": "Cancel project",
+    "reality": "Large companies are generic; they can't solve deep niche problems"
 }
 
-# GOOD: 大企業が取れないポジションを取る
+# GOOD: Occupy positions that large companies can't take
 differentiate = {
-    "trigger": "Google/Microsoft/OpenAI が類似機能リリース",
-    "reaction": "更にニッチ化 + ワークフロー深化",
+    "trigger": "Google/Microsoft/OpenAI releases a similar feature",
+    "reaction": "Niche down further + deepen the workflow",
     "examples": [
-        "Cursor → VSCodeにCopilotがあっても成長",
-        "Jasper → ChatGPTがあってもB2Bマーケで差別化",
-        "Otter.ai → Google/MSの文字起こしに勝てている"
+        "Cursor → Grew despite VSCode having Copilot",
+        "Jasper → Differentiated in B2B marketing despite ChatGPT",
+        "Otter.ai → Winning against Google/MS transcription"
     ],
-    "principle": "大企業は80%のユースケースに対応。残り20%の深い課題こそチャンス"
+    "principle": "Large companies address 80% of use cases. The remaining 20% of deep problems are the opportunity"
 }
 ```
 
-### アンチパターン3: 成長指標の誤読
+### Anti-Pattern 3: Misreading Growth Metrics
 
 ```python
-# BAD: バニティメトリクスに騙される
+# BAD: Fooled by vanity metrics
 vanity_metrics_trap = {
     "trap_1": {
-        "metric": "登録ユーザー数100万人！",
-        "reality": "アクティブユーザーは1%（1万人）",
-        "real_metric": "WAU（週次アクティブユーザー）"
+        "metric": "1 million registered users!",
+        "reality": "Active users are 1% (10,000 people)",
+        "real_metric": "WAU (weekly active users)"
     },
     "trap_2": {
-        "metric": "MRR月次成長率30%！",
-        "reality": "新規は多いがチャーンも15%/月",
-        "real_metric": "NRR（純収益維持率）"
+        "metric": "MRR monthly growth rate of 30%!",
+        "reality": "Many new users but churn is also 15%/month",
+        "real_metric": "NRR (net revenue retention)"
     },
     "trap_3": {
-        "metric": "プロダクトハント1位！",
-        "reality": "ローンチ日だけ急増、翌週ゼロ",
-        "real_metric": "7日後リテンション率"
+        "metric": "Product Hunt #1!",
+        "reality": "Spike on launch day only, zero the next week",
+        "real_metric": "Day-7 retention rate"
     }
 }
 
-# GOOD: 健全な指標の追跡
+# GOOD: Tracking healthy metrics
 healthy_metrics = {
-    "north_star": "週次アクティブ有料ユーザー数",
-    "retention": "Day 1/7/30 リテンション率",
-    "revenue_quality": "NRR（目標: 110%以上）",
-    "unit_economics": "LTV/CAC（目標: 3以上）",
-    "engagement": "DAU/MAU（目標: 40%以上）"
+    "north_star": "Weekly active paid users",
+    "retention": "Day 1/7/30 retention rate",
+    "revenue_quality": "NRR (target: 110%+)",
+    "unit_economics": "LTV/CAC (target: 3+)",
+    "engagement": "DAU/MAU (target: 40%+)"
 }
 ```
 
 ---
 
-## 7. 実践的フレームワーク
+## 7. Practical Frameworks
 
-### 7.1 AI SaaS事業アイデア評価マトリクス
+### 7.1 AI SaaS Business Idea Evaluation Matrix
 
 ```python
 class AIBusinessIdeaEvaluator:
-    """成功事例から学んだAI SaaS事業アイデア評価"""
+    """AI SaaS business idea evaluation based on lessons from success cases"""
 
     CRITERIA = {
         "problem_severity": {
             "weight": 5,
-            "description": "課題の深刻度",
+            "description": "Severity of the problem",
             "scoring": {
-                5: "年間$10K+の損失 or 週10時間+の浪費",
-                4: "年間$5K or 週5時間",
-                3: "年間$1K or 週2時間",
-                2: "あると便利程度",
-                1: "問題が曖昧"
+                5: "$10K+/year loss or 10+ hours/week wasted",
+                4: "$5K/year or 5 hours/week",
+                3: "$1K/year or 2 hours/week",
+                2: "Nice to have",
+                1: "Problem is vague"
             }
         },
         "ai_advantage": {
             "weight": 5,
-            "description": "AIによる改善度",
+            "description": "Degree of improvement from AI",
             "scoring": {
-                5: "AIなしでは不可能な体験（例: Midjourney）",
-                4: "10倍以上の改善（例: Copilot）",
-                3: "3-5倍の改善",
-                2: "既存ツールでも80%は実現可能",
-                1: "AIの意味が薄い"
+                5: "Experience impossible without AI (e.g., Midjourney)",
+                4: "10x+ improvement (e.g., Copilot)",
+                3: "3–5x improvement",
+                2: "80% achievable with existing tools",
+                1: "Minimal benefit from AI"
             }
         },
         "market_size": {
             "weight": 3,
-            "description": "ターゲット市場の規模",
+            "description": "Target market size",
             "scoring": {
                 5: "SAM $1B+",
-                4: "SAM $100M-$1B",
-                3: "SAM $10M-$100M",
-                2: "SAM $1M-$10M",
+                4: "SAM $100M–$1B",
+                3: "SAM $10M–$100M",
+                2: "SAM $1M–$10M",
                 1: "SAM < $1M"
             }
         },
         "competition": {
             "weight": 4,
-            "description": "競争環境",
+            "description": "Competitive landscape",
             "scoring": {
-                5: "競合ゼロ（新カテゴリ創造）",
-                4: "競合1-2社、明確な差別化可能",
-                3: "競合あるが、特定セグメントで勝てる",
-                2: "レッドオーシャンだが参入余地あり",
-                1: "GAFAM+が参入済み、差別化困難"
+                5: "Zero competitors (creating a new category)",
+                4: "1–2 competitors, clear differentiation possible",
+                3: "Competition exists but can win in a specific segment",
+                2: "Red ocean but room to enter",
+                1: "GAFAM+ already in, hard to differentiate"
             }
         },
         "execution_feasibility": {
             "weight": 4,
-            "description": "実行可能性",
+            "description": "Execution feasibility",
             "scoring": {
-                5: "4週間以内にMVP可能、APIで実現",
-                4: "2ヶ月以内、技術的に明確",
-                3: "3-6ヶ月、一部技術的挑戦あり",
-                2: "6ヶ月以上、高度な技術力必要",
-                1: "技術的に未解決の課題あり"
+                5: "MVP possible within 4 weeks, achievable via API",
+                4: "Within 2 months, technically clear",
+                3: "3–6 months, some technical challenges",
+                2: "6+ months, advanced technical skills required",
+                1: "Technically unsolved challenges exist"
             }
         },
         "monetization_clarity": {
             "weight": 4,
-            "description": "収益化の明確さ",
+            "description": "Clarity of monetization",
             "scoring": {
-                5: "既にお金を払っている代替手段が存在",
-                4: "顧客が「払う」と明言",
-                3: "類似サービスの価格相場が存在",
-                2: "フリーミアムから転換できるか不明",
-                1: "マネタイズ方法が不明確"
+                5: "Alternative that people are already paying for exists",
+                4: "Customers explicitly say they will pay",
+                3: "Pricing benchmarks for similar services exist",
+                2: "Unclear whether freemium can convert",
+                1: "Monetization method is unclear"
             }
         },
         "moat_potential": {
             "weight": 5,
-            "description": "モート構築可能性",
+            "description": "Moat-building potential",
             "scoring": {
-                5: "データ×ワークフロー×コミュニティの3層",
-                4: "2層のモートが構築可能",
-                3: "1層のモートが構築可能",
-                2: "モートが弱い（APIラッパー寄り）",
-                1: "差別化不可能"
+                5: "3-layer moat: data × workflow × community",
+                4: "2-layer moat buildable",
+                3: "1-layer moat buildable",
+                2: "Weak moat (closer to an API wrapper)",
+                1: "Impossible to differentiate"
             }
         }
     }
 
     def evaluate(self, scores: dict) -> dict:
-        """アイデアを評価"""
+        """Evaluate an idea"""
         total = 0
         max_total = 0
         details = {}
@@ -1076,148 +1076,148 @@ class AIBusinessIdeaEvaluator:
         }
 ```
 
-### 7.2 成功事例のパターンマッチング
+### 7.2 Pattern Matching with Success Cases
 
 ```
-自分のアイデアを成功事例にマッチングする:
+Match your idea to success case patterns:
 
   ┌─────────────────────────────────────────────────────┐
-  │  あなたのAI SaaSは、どのパターンに最も近い？           │
+  │  Which pattern is your AI SaaS closest to?          │
   ├─────────────────────────────────────────────────────┤
   │                                                     │
-  │  パターンA: Jasper型（AIネイティブ特化）               │
+  │  Pattern A: Jasper-type (AI-native, specialized)    │
   │  ┌───────────────────────────────────────┐          │
-  │  │ ✓ AIが中核価値                        │          │
-  │  │ ✓ 特定業務に特化                      │          │
-  │  │ ✓ テンプレート/ワークフローで差別化    │          │
-  │  │ 戦略: 1業務に集中 → ワークフロー拡張   │          │
-  │  │ 適合: マーケ、営業、カスタマーサポート  │          │
+  │  │ ✓ AI is the core value               │          │
+  │  │ ✓ Focused on a specific task         │          │
+  │  │ ✓ Differentiated via templates/workflow│         │
+  │  │ Strategy: Focus on 1 task → expand workflow│     │
+  │  │ Fit: Marketing, sales, customer support│         │
   │  └───────────────────────────────────────┘          │
   │                                                     │
-  │  パターンB: Notion AI型（既存プロダクトAI拡張）        │
+  │  Pattern B: Notion AI-type (AI extension for existing product)│
   │  ┌───────────────────────────────────────┐          │
-  │  │ ✓ 既存ユーザーベースにAIを追加         │          │
-  │  │ ✓ AIは補助的機能                       │          │
-  │  │ ✓ アドオン課金                         │          │
-  │  │ 戦略: 既存体験をAIで10%改善             │          │
-  │  │ 適合: 既存SaaSを持つ企業               │          │
+  │  │ ✓ Add AI to existing user base       │          │
+  │  │ ✓ AI is a supplementary feature      │          │
+  │  │ ✓ Add-on billing                     │          │
+  │  │ Strategy: Improve existing experience 10% with AI││
+  │  │ Fit: Companies with existing SaaS    │          │
   │  └───────────────────────────────────────┘          │
   │                                                     │
-  │  パターンC: Midjourney型（コミュニティ主導）          │
+  │  Pattern C: Midjourney-type (community-driven)      │
   │  ┌───────────────────────────────────────┐          │
-  │  │ ✓ コミュニティ上で製品体験            │          │
-  │  │ ✓ 生成物がバイラルする               │          │
-  │  │ ✓ 極小チーム                          │          │
-  │  │ 戦略: コミュニティ=製品=マーケティング  │          │
-  │  │ 適合: クリエイティブ、ビジュアル系      │          │
+  │  │ ✓ Product experience on the community│          │
+  │  │ ✓ Generated content goes viral       │          │
+  │  │ ✓ Extremely small team               │          │
+  │  │ Strategy: Community = product = marketing│       │
+  │  │ Fit: Creative, visual domains        │          │
   │  └───────────────────────────────────────┘          │
   │                                                     │
-  │  パターンD: Cursor型（既存ツールのAIファースト再構築） │
+  │  Pattern D: Cursor-type (AI-first rebuild of existing tools)│
   │  ┌───────────────────────────────────────┐          │
-  │  │ ✓ 既存カテゴリをAIで再定義            │          │
-  │  │ ✓ フォーク/再構築                     │          │
-  │  │ ✓ AIが使い方の全てに浸透              │          │
-  │  │ 戦略: 既存ツールのAIファーストバージョン │          │
-  │  │ 適合: IDE、デザインツール、分析ツール   │          │
+  │  │ ✓ Redefine existing category with AI │          │
+  │  │ ✓ Fork / rebuild                     │          │
+  │  │ ✓ AI permeates every part of usage   │          │
+  │  │ Strategy: AI-first version of existing tools│    │
+  │  │ Fit: IDE, design tools, analytics tools│         │
   │  └───────────────────────────────────────┘          │
   └─────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 8. トラブルシューティングガイド
+## 8. Troubleshooting Guide
 
-### 8.1 成長停滞時の診断チェックリスト
+### 8.1 Diagnostic Checklist for Growth Stagnation
 
 ```python
 growth_stagnation_diagnosis = {
     "symptom_1": {
-        "symptom": "新規登録は多いが有料転換しない",
+        "symptom": "Many new sign-ups but no paid conversion",
         "possible_causes": [
-            "無料プランが十分すぎる",
-            "有料プランの価値が不明確",
-            "オンボーディングが不十分",
-            "価格が高すぎる（または安すぎて価値を疑われる）"
+            "Free plan is too sufficient",
+            "Value of the paid plan is unclear",
+            "Insufficient onboarding",
+            "Price is too high (or so low it seems suspicious)"
         ],
         "diagnosis_steps": [
-            "無料→有料の遷移ポイントでの離脱率を分析",
-            "「なぜ有料にしなかった？」の出口アンケート実施",
-            "競合の無料/有料の境界を調査",
-            "価格A/Bテストの実施"
+            "Analyze drop-off rate at the free-to-paid transition point",
+            "Run an exit survey: 'Why didn't you upgrade?'",
+            "Research competitors' free/paid boundaries",
+            "Run a price A/B test"
         ],
-        "reference_case": "Jasper: 無料5,000ワード→有料 のゲート設計が転換率最適化の鍵"
+        "reference_case": "Jasper: The free 5,000-word → paid gate design was key to conversion rate optimization"
     },
     "symptom_2": {
-        "symptom": "チャーン率が改善しない",
+        "symptom": "Churn rate doesn't improve",
         "possible_causes": [
-            "AI品質がユーザーの期待に達していない",
-            "競合に乗り換えている",
-            "一時的な需要（月1回しか使わない）",
-            "ワークフローに組み込まれていない"
+            "AI quality doesn't meet user expectations",
+            "Users are switching to competitors",
+            "Temporary demand (used only once a month)",
+            "Not embedded in the workflow"
         ],
         "diagnosis_steps": [
-            "解約理由の分析（過去3ヶ月のアンケート）",
-            "アクティブユーザーの使用頻度分布を確認",
-            "コホート別リテンションカーブを描く",
-            "パワーユーザーとチャーンユーザーの行動差異を分析"
+            "Analyze cancellation reasons (survey from the past 3 months)",
+            "Check usage frequency distribution of active users",
+            "Plot retention curves by cohort",
+            "Analyze behavioral differences between power users and churned users"
         ],
-        "reference_case": "Copy.ai: チャーン率が高かったのは市場のミスマッチ→ピボットで解決"
+        "reference_case": "Copy.ai: High churn was due to market mismatch → solved by pivoting"
     },
     "symptom_3": {
-        "symptom": "CACが上昇し続ける",
+        "symptom": "CAC keeps rising",
         "possible_causes": [
-            "ターゲット市場の飽和",
-            "広告の疲弊（同じクリエイティブの反復）",
-            "競合の広告費増加",
-            "プロダクト・マーケット・フィットの劣化"
+            "Target market saturation",
+            "Ad fatigue (repeating the same creative)",
+            "Increase in competitor ad spend",
+            "Deteriorating product-market fit"
         ],
         "diagnosis_steps": [
-            "チャネル別CACの推移を確認",
-            "オーガニック vs 有料の比率を確認",
-            "競合の広告出稿状況を調査",
-            "既存ユーザーのリファラル率を確認"
+            "Check CAC trend by channel",
+            "Check ratio of organic vs. paid",
+            "Research competitor ad activity",
+            "Check referral rate of existing users"
         ],
-        "reference_case": "Midjourney: 広告費ゼロでCACほぼゼロ→コミュニティの力"
+        "reference_case": "Midjourney: Zero ad spend, near-zero CAC → the power of community"
     }
 }
 ```
 
-### 8.2 競合出現時の対応マニュアル
+### 8.2 Competitor Response Manual
 
 ```python
 competitor_response_manual = {
     "scenario_1": {
-        "situation": "ChatGPTのような無料の汎用AIが登場",
+        "situation": "A free general-purpose AI like ChatGPT appears",
         "response_playbook": [
-            "パニックにならない（最初の反応が過剰になりがち）",
-            "既存の有料ユーザーに連絡し状況を確認",
-            "汎用AIでは解決できない具体的な課題を明確化",
-            "ワークフロー統合、業界特化、チーム機能を強化",
-            "「ChatGPTとの違い」を明確にしたポジショニング"
+            "Don't panic (initial reactions tend to be overblown)",
+            "Contact existing paid users to gauge the situation",
+            "Clarify specific problems that generic AI cannot solve",
+            "Strengthen workflow integration, industry specialization, and team features",
+            "Clearly position 'the difference from ChatGPT'"
         ],
-        "case_reference": "Jasperの対ChatGPT戦略（セクション2.4参照）"
+        "case_reference": "Jasper's anti-ChatGPT strategy (see Section 2.4)"
     },
     "scenario_2": {
-        "situation": "直接競合のスタートアップが出現",
+        "situation": "A direct competitor startup appears",
         "response_playbook": [
-            "競合の弱みではなく自社の強みにフォーカス",
-            "既存ユーザーのリテンションを最優先",
-            "競合がいない「ニッチのニッチ」を見つける",
-            "顧客の声（testimonials）を増やしソーシャルプルーフ強化",
-            "価格競争には絶対に参加しない"
+            "Focus on your own strengths, not the competitor's weaknesses",
+            "Retention of existing users is the top priority",
+            "Find the 'niche within the niche' where there are no competitors",
+            "Increase customer testimonials to strengthen social proof",
+            "Never engage in price competition"
         ],
-        "case_reference": "Copy.aiがJasperとの差別化に苦戦→ピボットで解決"
+        "case_reference": "Copy.ai struggled to differentiate from Jasper → solved by pivoting"
     },
     "scenario_3": {
-        "situation": "大企業（Google、Microsoft等）が参入",
+        "situation": "A large company (Google, Microsoft, etc.) enters",
         "response_playbook": [
-            "大企業の弱み（遅い、汎用的、顧客対応が弱い）を特定",
-            "更にニッチを深堀りする",
-            "カスタマーサクセスで圧倒的な差をつける",
-            "オープンソースやAPIでエコシステムを構築",
-            "場合によっては大企業との連携/統合を模索"
+            "Identify large company weaknesses (slow, generic, poor customer service)",
+            "Niche down further",
+            "Create an overwhelming advantage through customer success",
+            "Build an ecosystem with open source or an API",
+            "Explore collaboration / integration with the large company if appropriate"
         ],
-        "case_reference": "CursorのVSCode Copilotへの対応（AIファーストの体験で差別化）"
+        "case_reference": "Cursor's response to VSCode Copilot (differentiated with AI-first experience)"
     }
 }
 ```
@@ -1225,45 +1225,45 @@ competitor_response_manual = {
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1272,26 +1272,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following functionality.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1299,7 +1299,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1310,14 +1310,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1325,7 +1325,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1333,44 +1333,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1379,7 +1379,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1394,87 +1394,87 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithmic complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 ---
 
 ## 9. FAQ
 
-### Q1: 今からAI SaaSを始めても遅くない？
+### Q1: Is it too late to start an AI SaaS now?
 
-**A:** まったく遅くない。むしろ2025年は最良のタイミング。理由: (1) API性能が向上しコストが下がり、少人数でも高品質なプロダクトが作れる、(2) 業界特化のAIニーズが爆発的に増加中（法務、医療、教育、不動産等）、(3) 先行AI SaaSの多くがコモディティ化し、次世代のポジションが空いている。Jasperが2021年に「遅い」と言われながら$1.5B企業になったように、市場は常に新しい勝者を生む。
+**A:** Not late at all. In fact, 2025 is an ideal time. Reasons: (1) API performance has improved and costs have fallen, allowing even small teams to build high-quality products; (2) Demand for industry-specific AI is exploding (legal, medical, education, real estate, etc.); (3) Many early AI SaaS have commoditized, leaving room for the next generation of positions. Just as Jasper was told it was "too late" in 2021 and still became a $1.5B company, the market always produces new winners.
 
-### Q2: Midjourney が40人で$200M ARR を達成できた理由は？
+### Q2: How did Midjourney achieve $200M ARR with just 40 people?
 
-**A:** 3つの要因。(1) Discordファースト — コミュニティプラットフォーム上で立ち上げ、マーケティングコストほぼゼロ、(2) 品質の差別化 — 美的感性にフォーカスし、DALLEやStable Diffusionと明確に差別化、(3) バイラル設計 — 生成画像が自然にSNSで拡散。少人数の秘訣は「ウェブサイトもアプリも作らない」という極限の集中。
+**A:** Three factors. (1) Discord-first — launched on a community platform with nearly zero marketing cost. (2) Quality differentiation — focused on aesthetic sensibility, clearly differentiating from DALL-E and Stable Diffusion. (3) Viral design — generated images naturally spread on social media. The secret of a small team is the extreme focus of "not building a website or app."
 
-### Q3: 成功事例から学ぶべき最重要ポイントは？
+### Q3: What is the single most important lesson from success cases?
 
-**A:** 「AIの品質ではなく、ワークフローの統合度で勝負が決まる」こと。GPT-4もClaude Opusも全社同じAPIを使える。差が出るのは (1) 特定業務への深い理解、(2) 既存ツールとの統合（CRM、メール、Slack等）、(3) チーム利用を前提とした設計。技術力ではなく、「顧客の仕事を本当に楽にしているか」が唯一の成功基準。
+**A:** "The battle is decided by the degree of workflow integration, not AI quality." GPT-4 and Claude Opus are available to everyone via the same APIs. The difference comes from (1) deep understanding of a specific task, (2) integration with existing tools (CRM, email, Slack, etc.), and (3) design built for team use. The only measure of success is not technical skill but "are you genuinely making the customer's job easier?"
 
-### Q4: 成功したAI SaaSの「死の谷」はいつ訪れるか？
+### Q4: When does the "valley of death" for a successful AI SaaS arrive?
 
-**A:** 典型的な3つの危険期がある。(1) MVP→PMF（最初の3-6ヶ月）— 初期の興味本位ユーザーが離脱し、真のニーズが見える時期。この段階での対策は顧客10人と毎週会話すること。(2) ChatGPT衝撃（予測不能）— 汎用AIの進化で差別化が崩れる瞬間。対策はLayer 2-3（ワークフロー、エコシステム）の構築。(3) 成長率の鈍化（ARR $1-5M付近）— 初期チャネルの天井に達する時期。対策は新チャネルの開拓と既存顧客のExpansion Revenue強化。
+**A:** There are three typical danger periods. (1) MVP → PMF (first 3–6 months) — when the initial curious users drop off and true needs become visible. The countermeasure at this stage is to talk with 10 customers every week. (2) ChatGPT shock (unpredictable) — the moment generalist AI evolution breaks your differentiation. The countermeasure is to build Layers 2–3 (workflow, ecosystem). (3) Growth rate slowdown (around $1–5M ARR) — when initial channels hit their ceiling. The countermeasure is to open new channels and strengthen Expansion Revenue from existing customers.
 
-### Q5: 個人開発者が成功事例から真似すべき最初の一手は？
+### Q5: What is the first move a solo developer should copy from success cases?
 
-**A:** 3ステップを順に実行する。(1) ニッチの選定 — 「自分が詳しい業界 × AIで10倍改善できる業務」を見つける。Cursorの創業者は開発者であり、Jasperの創業者はマーケターだった。自分の経験が最大の武器。(2) MVP 4週間 — Next.js + Supabase + Claude API で1機能だけ作る。Jasperも最初はFacebook広告コピーだけだった。(3) Build in Public — 開発過程をTwitterで公開し、10人の初期ユーザーを見つける。Midjourneyもコミュニティから始まった。
+**A:** Execute 3 steps in order. (1) Niche selection — find the intersection of "an industry you know well × a task that can be improved 10x with AI." Cursor's founders were developers; Jasper's founders were marketers. Your own experience is your greatest weapon. (2) MVP in 4 weeks — build just one feature with Next.js + Supabase + Claude API. Jasper started with only Facebook ad copy. (3) Build in public — share your development process on Twitter and find 10 initial users. Midjourney also started from a community.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning about this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend solidly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| Jasper | 先行者利益 → ワークフロー統合で防御 |
-| Copy.ai | ピボットの勇気 → セールス特化で再成長 |
-| Notion AI | 既存ユーザーベース活用 → CAC $0の威力 |
-| Midjourney | コミュニティ主導 → 40人で$200M ARR |
-| Cursor | AIファースト再構築 → 50人で$100M+ ARR |
-| 共通成功要因 | 業界特化 × ワークフロー統合 × コミュニティ |
-| 最重要教訓 | AI品質でなくワークフロー統合度で勝負が決まる |
+Knowledge of this topic is frequently used in day-to-day development work, particularly during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [01-solo-developer.md](./01-solo-developer.md) — 個人開発者の成功事例
-- [02-startup-guide.md](./02-startup-guide.md) — スタートアップガイド
-- [../01-business/00-ai-saas.md](../01-business/00-ai-saas.md) — AI SaaSプロダクト設計
+| Item | Key Point |
+|------|-----------|
+| Jasper | First-mover advantage → defended via workflow integration |
+| Copy.ai | Courage to pivot → regrowth through sales specialization |
+| Notion AI | Leverage existing user base → power of $0 CAC |
+| Midjourney | Community-driven → $200M ARR with 40 people |
+| Cursor | AI-first rebuild → $100M+ ARR with 50 people |
+| Common Success Factors | Industry specialization × workflow integration × community |
+| Most Important Lesson | The battle is decided by workflow integration, not AI quality |
 
 ---
 
-## 参考文献
+## Recommended Next Guides
 
-1. **"Jasper's Journey from Wrapper to Platform" — Contrary Research (2024)** — Jasperの戦略変遷の詳細分析
-2. **"The AI SaaS Landscape" — a16z (2024)** — AI SaaS市場の包括的マッピング
-3. **"Building Notion AI" — Notion Engineering Blog** — Notion AIの技術的実装と設計判断
-4. **Y Combinator "AI Company Playbook" (2024)** — AI企業構築の実践ガイドブック
-5. **"How Cursor Won" — The Pragmatic Engineer (2025)** — CursorがGitHub Copilotに対抗して成長した戦略分析
-6. **"Midjourney: The Anti-Startup" — Stratechery (2024)** — Midjourneyの異例のビジネスモデル分析
+- [01-solo-developer.md](./01-solo-developer.md) — Solo developer success cases
+- [02-startup-guide.md](./02-startup-guide.md) — Startup guide
+- [../01-business/00-ai-saas.md](../01-business/00-ai-saas.md) — AI SaaS product design
+
+---
+
+## References
+
+1. **"Jasper's Journey from Wrapper to Platform" — Contrary Research (2024)** — Detailed analysis of Jasper's strategic evolution
+2. **"The AI SaaS Landscape" — a16z (2024)** — Comprehensive mapping of the AI SaaS market
+3. **"Building Notion AI" — Notion Engineering Blog** — Technical implementation and design decisions for Notion AI
+4. **Y Combinator "AI Company Playbook" (2024)** — Practical guidebook for building AI companies
+5. **"How Cursor Won" — The Pragmatic Engineer (2025)** — Analysis of how Cursor grew against GitHub Copilot
+6. **"Midjourney: The Anti-Startup" — Stratechery (2024)** — Analysis of Midjourney's unconventional business model
