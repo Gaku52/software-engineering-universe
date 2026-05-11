@@ -1,109 +1,110 @@
-# リアルタイム音声 — WebRTC・ストリーミング STT/TTS
+# Real-Time Audio — WebRTC and Streaming STT/TTS
 
-> 低遅延の音声通信とリアルタイム音声認識・合成を組み合わせ、対話的音声アプリケーションを構築する技術を体系的に学ぶ。
-
----
-
-## この章で学ぶこと
-
-1. **WebRTC 基盤** — ブラウザ間・サーバー間のリアルタイム音声通信の仕組みとシグナリング設計
-2. **ストリーミング STT** — 音声をリアルタイムでテキスト変換するアーキテクチャと実装
-3. **ストリーミング TTS** — テキストをリアルタイムで音声合成し低遅延で配信する手法
-4. **メディアサーバー設計** — SFU/MCU パターン、スケーラビリティ、GPU リソース管理
-5. **障害対応と品質監視** — 接続断復旧、品質メトリクス、本番運用のノウハウ
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [音声処理パイプライン実装ガイド](./01-audio-processing.md) の内容を理解していること
+> Systematically learn the techniques for building interactive voice applications by combining low-latency audio communication with real-time speech recognition and synthesis.
 
 ---
 
-## 1. リアルタイム音声アーキテクチャ
+## What You Will Learn in This Chapter
 
-### 1.1 全体構成
+1. **WebRTC Fundamentals** — How real-time audio communication works between browsers and servers, and signaling design
+2. **Streaming STT** — Architecture and implementation for converting speech to text in real time
+3. **Streaming TTS** — Techniques for synthesizing text to speech in real time with low-latency delivery
+4. **Media Server Design** — SFU/MCU patterns, scalability, and GPU resource management
+5. **Failure Handling and Quality Monitoring** — Connection recovery, quality metrics, and production operation best practices
+
+
+## Prerequisites
+
+Before reading this guide, having the following knowledge will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in the [Audio Processing Pipeline Implementation Guide](./01-audio-processing.md)
+
+---
+
+## 1. Real-Time Audio Architecture
+
+### 1.1 Overall Structure
 
 ```
 +-------------------+                    +-------------------+
-|  クライアント A    |                    |  クライアント B    |
+|  Client A         |                    |  Client B         |
 |  +------+         |    WebRTC          |         +------+  |
-|  | マイク | -------+----- P2P ---------+-------- | スピーカ| |
+|  |  Mic | --------+----- P2P ---------+-------- | Speaker| |
 |  +------+         |                    |         +------+  |
-|  | スピーカ| <------+----- P2P ---------+-------- | マイク | |
+|  | Speaker| <-----+----- P2P ---------+-------- |  Mic  | |
 |  +------+         |                    |         +------+  |
 +-------------------+                    +-------------------+
          |                                        |
-         |  音声ストリーム                         |
+         |  Audio Stream                          |
          v                                        v
 +-----------------------------------------------------------+
-|                    メディアサーバー                          |
+|                    Media Server                             |
 |  +------------+  +------------+  +------------+            |
-|  | STT Engine |  | AI 処理    |  | TTS Engine |            |
-|  | (リアルタイム)|  | (翻訳/要約)|  | (リアルタイム)|          |
-|  +------------+  +------------+  +------------+            |
+|  | STT Engine |  | AI Process |  | TTS Engine |            |
+|  | (Real-time)|  |(Translate/ |  | (Real-time)|            |
+|  +------------+  | Summarize) |  +------------+            |
+|                  +------------+                            |
 +-----------------------------------------------------------+
 ```
 
-### 1.2 レイテンシ要件
+### 1.2 Latency Requirements
 
 ```
 +-------------------------------------------------------+
-| リアルタイム音声の遅延バジェット                         |
+| Real-Time Audio Latency Budget                         |
 +-------------------------------------------------------+
-| 全体目標: < 300ms (会話として自然)                      |
+| Overall Target: < 300ms (natural for conversation)     |
 |                                                         |
-| 内訳:                                                   |
-|  音声キャプチャ   : 10-20ms  [===]                      |
-|  エンコード       : 5-10ms   [==]                       |
-|  ネットワーク転送 : 20-100ms [========]                  |
-|  デコード         : 5-10ms   [==]                       |
-|  STT 処理        : 50-200ms [==============]            |
-|  AI 処理         : 50-500ms [====================]      |
-|  TTS 処理        : 50-200ms [==============]            |
-|  再生バッファ     : 10-20ms  [===]                      |
+| Breakdown:                                              |
+|  Audio Capture    : 10-20ms  [===]                      |
+|  Encoding         : 5-10ms   [==]                       |
+|  Network Transfer : 20-100ms [========]                  |
+|  Decoding         : 5-10ms   [==]                       |
+|  STT Processing   : 50-200ms [==============]            |
+|  AI Processing    : 50-500ms [====================]      |
+|  TTS Processing   : 50-200ms [==============]            |
+|  Playback Buffer  : 10-20ms  [===]                      |
 |                                                         |
-|  合計: 200-1060ms (AI処理込みだと厳しい)                |
-|  → ストリーミングで並列化が必須                          |
+|  Total: 200-1060ms (challenging with AI processing)     |
+|  -> Parallelization via streaming is essential           |
 +-------------------------------------------------------+
 ```
 
-### 1.3 遅延最適化戦略
+### 1.3 Latency Optimization Strategy
 
 ```
-パイプライン並列化によるレイテンシ削減:
+Latency Reduction Through Pipeline Parallelization:
 ==================================================
 
-[従来型 — 直列処理]
-  音声入力 → STT完了待ち → AI処理完了待ち → TTS完了待ち → 再生
-  総遅延: 2000-3000ms
+[Traditional — Sequential Processing]
+  Audio Input -> Wait for STT -> Wait for AI -> Wait for TTS -> Playback
+  Total Latency: 2000-3000ms
 
-[最適化型 — パイプライン並列化]
-  音声入力 ──> STT(chunk1) → AI(chunk1) → TTS(chunk1) → 再生
-               STT(chunk2) → AI(chunk2) → TTS(chunk2) → 再生
-               STT(chunk3) → ...
+[Optimized — Pipeline Parallelization]
+  Audio Input --> STT(chunk1) -> AI(chunk1) -> TTS(chunk1) -> Playback
+                  STT(chunk2) -> AI(chunk2) -> TTS(chunk2) -> Playback
+                  STT(chunk3) -> ...
 
-  各段階がストリーミングで次段階に即座にデータを渡す
-  初回応答遅延: 300-500ms
-  体感遅延: 文単位で応答が聞こえるため自然
+  Each stage streams data to the next stage immediately
+  Initial Response Latency: 300-500ms
+  Perceived Latency: Natural because responses are heard sentence by sentence
 
-[さらなる最適化 — 投機的処理]
-  STT中間結果で AI 推論を先行開始
-  → 確定結果で差分のみ再計算
-  → 初回応答をさらに 100-200ms 短縮可能
+[Further Optimization — Speculative Processing]
+  Start AI inference ahead of time with STT intermediate results
+  -> Recompute only the diff with the final result
+  -> Can further reduce initial response by 100-200ms
 ==================================================
 ```
 
 ```python
-# コード例: パイプライン並列化の実装
+# Code Example: Implementing Pipeline Parallelization
 import asyncio
 from typing import AsyncIterator
 
 class StreamingPipeline:
-    """STT → AI → TTS のストリーミングパイプライン"""
+    """Streaming pipeline for STT -> AI -> TTS"""
 
     def __init__(self, stt_engine, ai_engine, tts_engine):
         self.stt = stt_engine
@@ -114,7 +115,7 @@ class StreamingPipeline:
         self.response_queue = asyncio.Queue()
 
     async def run(self):
-        """3つのパイプラインステージを並列実行"""
+        """Run three pipeline stages in parallel"""
         await asyncio.gather(
             self._stt_stage(),
             self._ai_stage(),
@@ -122,7 +123,7 @@ class StreamingPipeline:
         )
 
     async def _stt_stage(self):
-        """音声チャンクを受け取り、テキストに変換"""
+        """Receive audio chunks and convert to text"""
         while True:
             audio_chunk = await self.audio_queue.get()
             if audio_chunk is None:
@@ -134,18 +135,18 @@ class StreamingPipeline:
                 await self.text_queue.put(result["text"])
 
     async def _ai_stage(self):
-        """テキストを受け取り、AI応答を生成"""
+        """Receive text and generate AI response"""
         while True:
             text = await self.text_queue.get()
             if text is None:
                 await self.response_queue.put(None)
                 break
 
-            # ストリーミングで応答生成
+            # Generate response via streaming
             buffer = ""
             async for token in self.ai.generate_stream(text):
                 buffer += token
-                # 句読点で区切ってTTSに送信
+                # Split at punctuation and send to TTS
                 if any(d in buffer for d in "。！？.!?\n"):
                     await self.response_queue.put(buffer)
                     buffer = ""
@@ -153,7 +154,7 @@ class StreamingPipeline:
                 await self.response_queue.put(buffer)
 
     async def _tts_stage(self):
-        """テキストを受け取り、音声に変換"""
+        """Receive text and convert to audio"""
         while True:
             text = await self.response_queue.get()
             if text is None:
@@ -163,50 +164,50 @@ class StreamingPipeline:
                 yield audio_chunk
 ```
 
-### 1.4 アーキテクチャパターン比較
+### 1.4 Architecture Pattern Comparison
 
 ```
 +------------------------------------------------------------+
-| リアルタイム音声アプリのアーキテクチャパターン               |
+| Architecture Patterns for Real-Time Audio Applications      |
 +------------------------------------------------------------+
 |                                                              |
-| 1. P2P 直接通信                                              |
+| 1. P2P Direct Communication                                 |
 |    Client A <--WebRTC--> Client B                            |
-|    利点: 最低遅延、サーバー不要                               |
-|    欠点: STT/TTS 処理不可、NAT越え問題                       |
-|    適用: 1対1通話、スケール不要                               |
+|    Pros: Lowest latency, no server required                  |
+|    Cons: No STT/TTS processing, NAT traversal issues         |
+|    Use Case: 1-on-1 calls, no scaling needed                 |
 |                                                              |
 | 2. SFU (Selective Forwarding Unit)                           |
 |    Client A --> SFU --> Client B                             |
 |                   +--> Client C                              |
-|                   +--> STT/TTS処理                           |
-|    利点: スケーラブル、サーバー処理可能                       |
-|    欠点: サーバーコスト、やや遅延増加                         |
-|    適用: グループ通話、AI音声アシスタント                     |
+|                   +--> STT/TTS Processing                    |
+|    Pros: Scalable, server-side processing possible           |
+|    Cons: Server cost, slightly increased latency             |
+|    Use Case: Group calls, AI voice assistants                |
 |                                                              |
 | 3. MCU (Multipoint Control Unit)                             |
-|    Client A --> MCU(ミキシング) --> Client B                  |
-|    Client C -->                  --> Client D                 |
-|    利点: クライアント負荷最小、一律配信                       |
-|    欠点: サーバー負荷大、遅延大                               |
-|    適用: 大規模会議、録画配信                                 |
+|    Client A --> MCU (Mixing) --> Client B                    |
+|    Client C -->               --> Client D                   |
+|    Pros: Minimal client load, uniform delivery               |
+|    Cons: High server load, high latency                      |
+|    Use Case: Large-scale meetings, recording/streaming       |
 |                                                              |
-| 4. ハイブリッド (SFU + AI Processing)                        |
+| 4. Hybrid (SFU + AI Processing)                              |
 |    Client --> SFU --> AI Worker Pool --> SFU --> Client       |
-|    利点: AI処理とリアルタイム性の両立                         |
-|    欠点: 設計複雑                                             |
-|    適用: リアルタイム翻訳、AI音声対話                         |
+|    Pros: Balances AI processing and real-time capability     |
+|    Cons: Complex design                                      |
+|    Use Case: Real-time translation, AI voice dialogue        |
 +------------------------------------------------------------+
 ```
 
 ---
 
-## 2. WebRTC 基盤
+## 2. WebRTC Fundamentals
 
-### 2.1 シグナリングとピア接続
+### 2.1 Signaling and Peer Connection
 
 ```python
-# コード例 1: Python (aiortc) による WebRTC サーバー
+# Code Example 1: WebRTC Server Using Python (aiortc)
 import asyncio
 import json
 from aiohttp import web
@@ -217,7 +218,7 @@ relay = MediaRelay()
 pcs = set()
 
 async def offer(request):
-    """WebRTC Offer を受け取り Answer を返す"""
+    """Receive a WebRTC Offer and return an Answer"""
     params = await request.json()
     offer = RTCSessionDescription(
         sdp=params["sdp"],
@@ -231,7 +232,7 @@ async def offer(request):
     def on_track(track):
         print(f"Track received: {track.kind}")
         if track.kind == "audio":
-            # 受信した音声をSTT処理パイプラインに送る
+            # Send received audio to the STT processing pipeline
             processor = AudioProcessor(track)
             pc.addTrack(processor.output_track)
 
@@ -255,10 +256,10 @@ app.router.add_post("/offer", offer)
 web.run_app(app, port=8080)
 ```
 
-### 2.2 クライアント側の実装
+### 2.2 Client-Side Implementation
 
 ```javascript
-// コード例 2: ブラウザ側 WebRTC + リアルタイム文字起こし表示
+// Code Example 2: Browser-Side WebRTC + Real-Time Transcription Display
 class RealtimeAudioClient {
   constructor(serverUrl) {
     this.serverUrl = serverUrl;
@@ -267,7 +268,7 @@ class RealtimeAudioClient {
   }
 
   async start() {
-    // マイク入力を取得
+    // Get microphone input
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
@@ -278,24 +279,24 @@ class RealtimeAudioClient {
       video: false,
     });
 
-    // PeerConnection を作成
+    // Create PeerConnection
     this.pc = new RTCPeerConnection({
       iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
     });
 
-    // 音声トラックを追加
+    // Add audio tracks
     stream.getAudioTracks().forEach((track) => {
       this.pc.addTrack(track, stream);
     });
 
-    // サーバーからの音声トラックを受信
+    // Receive audio tracks from the server
     this.pc.ontrack = (event) => {
       const audio = new Audio();
       audio.srcObject = event.streams[0];
       audio.play();
     };
 
-    // DataChannel でリアルタイム文字起こしを受信
+    // Receive real-time transcription via DataChannel
     this.dc = this.pc.createDataChannel("transcription");
     this.dc.onmessage = (event) => {
       const data = JSON.parse(event.data);
@@ -304,7 +305,7 @@ class RealtimeAudioClient {
       }
     };
 
-    // Offer/Answer 交換
+    // Offer/Answer exchange
     const offer = await this.pc.createOffer();
     await this.pc.setLocalDescription(offer);
 
@@ -332,7 +333,7 @@ class RealtimeAudioClient {
   }
 }
 
-// 使用例
+// Usage example
 const client = new RealtimeAudioClient("https://api.example.com");
 client.onTranscript((data) => {
   document.getElementById("transcript").textContent += data.text;
@@ -340,20 +341,20 @@ client.onTranscript((data) => {
 await client.start();
 ```
 
-### 2.3 TURN/STUN サーバー設計
+### 2.3 TURN/STUN Server Design
 
 ```python
-# コード例: TURN/STUN 設定とフォールバック戦略
+# Code Example: TURN/STUN Configuration and Fallback Strategy
 class ICEConfig:
-    """ICE (Interactive Connectivity Establishment) 設定管理"""
+    """ICE (Interactive Connectivity Establishment) configuration manager"""
 
     def __init__(self):
         self.ice_servers = [
-            # STUN サーバー（NAT 越え、無料）
+            # STUN servers (NAT traversal, free)
             {"urls": "stun:stun.l.google.com:19302"},
             {"urls": "stun:stun1.l.google.com:19302"},
 
-            # TURN サーバー（リレー、有料だが確実）
+            # TURN servers (relay, paid but reliable)
             {
                 "urls": [
                     "turn:turn.example.com:3478?transport=udp",
@@ -366,7 +367,7 @@ class ICEConfig:
         ]
 
     def get_config(self, force_relay=False):
-        """RTCConfiguration を返す"""
+        """Return RTCConfiguration"""
         config = {
             "iceServers": self.ice_servers,
             "iceTransportPolicy": "relay" if force_relay else "all",
@@ -377,7 +378,7 @@ class ICEConfig:
 
     @staticmethod
     async def test_connectivity(pc):
-        """接続性テスト — STUN/TURN の到達性を確認"""
+        """Connectivity test — verify STUN/TURN reachability"""
         stats = await pc.getStats()
         candidate_pairs = []
 
@@ -394,13 +395,13 @@ class ICEConfig:
 ```
 
 ```javascript
-// コード例: ブラウザ側 ICE 接続状態の監視
+// Code Example: Browser-Side ICE Connection State Monitoring
 class ICEMonitor {
   constructor(pc) {
     this.pc = pc;
     this.connectionLog = [];
 
-    // ICE 接続状態の変化を監視
+    // Monitor ICE connection state changes
     pc.oniceconnectionstatechange = () => {
       const state = pc.iceConnectionState;
       console.log(`ICE state: ${state}`);
@@ -411,24 +412,24 @@ class ICEMonitor {
 
       switch (state) {
         case "checking":
-          this._showStatus("接続中...");
+          this._showStatus("Connecting...");
           break;
         case "connected":
-          this._showStatus("接続完了");
+          this._showStatus("Connected");
           this._logConnectionType();
           break;
         case "disconnected":
-          this._showStatus("切断 — 再接続中...");
+          this._showStatus("Disconnected — Reconnecting...");
           this._attemptReconnect();
           break;
         case "failed":
-          this._showStatus("接続失敗");
+          this._showStatus("Connection failed");
           this._fallbackToTURN();
           break;
       }
     };
 
-    // ICE 候補の収集を監視
+    // Monitor ICE candidate gathering
     pc.onicecandidate = (event) => {
       if (event.candidate) {
         console.log(`ICE candidate: ${event.candidate.type} ${event.candidate.protocol}`);
@@ -440,23 +441,23 @@ class ICEMonitor {
     const stats = await this.pc.getStats();
     stats.forEach((report) => {
       if (report.type === "candidate-pair" && report.nominated) {
-        console.log(`接続種別: ${report.localCandidateType} -> ${report.remoteCandidateType}`);
-        console.log(`プロトコル: ${report.protocol}`);
+        console.log(`Connection type: ${report.localCandidateType} -> ${report.remoteCandidateType}`);
+        console.log(`Protocol: ${report.protocol}`);
         console.log(`RTT: ${report.currentRoundTripTime}ms`);
       }
     });
   }
 
   async _attemptReconnect() {
-    // ICE restart を試行
+    // Attempt ICE restart
     const offer = await this.pc.createOffer({ iceRestart: true });
     await this.pc.setLocalDescription(offer);
-    // シグナリングサーバー経由で再ネゴシエーション
+    // Renegotiate via signaling server
   }
 
   _fallbackToTURN() {
-    // P2P 失敗時に TURN リレーにフォールバック
-    console.log("TURN リレーへフォールバック");
+    // Fall back to TURN relay when P2P fails
+    console.log("Falling back to TURN relay");
   }
 
   _showStatus(message) {
@@ -465,10 +466,10 @@ class ICEMonitor {
 }
 ```
 
-### 2.4 AudioWorklet による低遅延音声処理
+### 2.4 Low-Latency Audio Processing with AudioWorklet
 
 ```javascript
-// コード例: AudioWorklet でブラウザ内リアルタイム音声処理
+// Code Example: Real-Time Audio Processing in Browser with AudioWorklet
 // audio-processor.js (AudioWorklet Processor)
 class RealtimeAudioProcessor extends AudioWorkletProcessor {
   constructor() {
@@ -490,17 +491,17 @@ class RealtimeAudioProcessor extends AudioWorkletProcessor {
     const input = inputs[0];
     if (input.length === 0) return true;
 
-    const channelData = input[0]; // モノラル
+    const channelData = input[0]; // Mono
 
-    // バッファに追加
+    // Append to buffer
     const newBuffer = new Float32Array(this.buffer.length + channelData.length);
     newBuffer.set(this.buffer);
     newBuffer.set(channelData, this.buffer.length);
     this.buffer = newBuffer;
 
-    // バッファが十分溜まったら送信
+    // Send when buffer is sufficiently filled
     if (this.buffer.length >= this.bufferSize) {
-      // Float32 → Int16 変換
+      // Float32 -> Int16 conversion
       const int16Data = new Int16Array(this.buffer.length);
       for (let i = 0; i < this.buffer.length; i++) {
         const s = Math.max(-1, Math.min(1, this.buffer[i]));
@@ -522,7 +523,7 @@ registerProcessor("realtime-audio-processor", RealtimeAudioProcessor);
 ```
 
 ```javascript
-// コード例: AudioWorklet を使ったクライアント統合
+// Code Example: Client Integration Using AudioWorklet
 class AudioWorkletClient {
   constructor() {
     this.audioContext = null;
@@ -531,13 +532,13 @@ class AudioWorkletClient {
   }
 
   async start(wsUrl) {
-    // AudioContext 初期化
+    // Initialize AudioContext
     this.audioContext = new AudioContext({ sampleRate: 16000 });
 
-    // AudioWorklet モジュールをロード
+    // Load AudioWorklet module
     await this.audioContext.audioWorklet.addModule("audio-processor.js");
 
-    // マイク入力を取得
+    // Get microphone input
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         sampleRate: 16000,
@@ -547,14 +548,14 @@ class AudioWorkletClient {
       },
     });
 
-    // AudioWorkletNode を作成
+    // Create AudioWorkletNode
     const source = this.audioContext.createMediaStreamSource(stream);
     this.workletNode = new AudioWorkletNode(
       this.audioContext,
       "realtime-audio-processor"
     );
 
-    // WebSocket で音声データをサーバーに送信
+    // Send audio data to server via WebSocket
     this.websocket = new WebSocket(wsUrl);
     this.websocket.binaryType = "arraybuffer";
 
@@ -567,18 +568,18 @@ class AudioWorkletClient {
       }
     };
 
-    // サーバーからの応答（文字起こし結果）を受信
+    // Receive responses from server (transcription results)
     this.websocket.onmessage = (event) => {
       if (typeof event.data === "string") {
         const result = JSON.parse(event.data);
         this.onTranscript(result);
       } else {
-        // バイナリデータ = TTS 音声
+        // Binary data = TTS audio
         this.playAudio(event.data);
       }
     };
 
-    // 接続
+    // Connect
     source.connect(this.workletNode);
     this.workletNode.connect(this.audioContext.destination);
   }
@@ -605,35 +606,36 @@ class AudioWorkletClient {
 
 ---
 
-## 3. ストリーミング STT
+## 3. Streaming STT
 
-### 3.1 ストリーミング音声認識のアーキテクチャ
+### 3.1 Streaming Speech Recognition Architecture
 
 ```
-音声入力 (連続)
+Audio Input (continuous)
   |
   v
 +--------+    +--------+    +--------+    +--------+
-| 音声   | -> | VAD    | -> | チャンク | -> | STT   |
-| バッファ|    | 判定   |    | 分割    |    | エンジン|
+| Audio  | -> | VAD    | -> | Chunk  | -> | STT    |
+| Buffer |    | Check  |    | Split  |    | Engine |
 +--------+    +--------+    +--------+    +--------+
                                                |
                                     +----------+----------+
                                     |                     |
                               +---------+           +---------+
-                              | 中間結果 |           | 確定結果 |
-                              | (partial)|           | (final) |
+                              | Interim |           |  Final  |
+                              | Result  |           | Result  |
+                              |(partial)|           | (final) |
                               +---------+           +---------+
                                     |                     |
                                     v                     v
-                              リアルタイム表示        後続処理
-                              (タイピング風)         (翻訳/要約)
+                              Real-Time Display     Downstream Processing
+                              (Typing Effect)       (Translation/Summary)
 ```
 
-### 3.2 Google Cloud Speech-to-Text ストリーミング
+### 3.2 Google Cloud Speech-to-Text Streaming
 
 ```python
-# コード例 3: Google Cloud STT ストリーミング認識
+# Code Example 3: Google Cloud STT Streaming Recognition
 from google.cloud import speech
 import pyaudio
 import queue
@@ -647,17 +649,17 @@ class StreamingSTT:
             sample_rate_hertz=sample_rate,
             language_code=language,
             enable_automatic_punctuation=True,
-            model="latest_long",  # 長時間向けモデル
+            model="latest_long",  # Model for long-duration audio
         )
         self.streaming_config = speech.StreamingRecognitionConfig(
             config=self.config,
-            interim_results=True,  # 中間結果を有効化
+            interim_results=True,  # Enable interim results
         )
         self.audio_queue = queue.Queue()
         self.sample_rate = sample_rate
 
     def audio_generator(self):
-        """マイクからの音声を yield する"""
+        """Yield audio from the microphone"""
         while True:
             chunk = self.audio_queue.get()
             if chunk is None:
@@ -665,14 +667,14 @@ class StreamingSTT:
             yield speech.StreamingRecognizeRequest(audio_content=chunk)
 
     def start_microphone(self):
-        """マイク入力を開始する"""
+        """Start microphone input"""
         p = pyaudio.PyAudio()
         stream = p.open(
             format=pyaudio.paInt16,
             channels=1,
             rate=self.sample_rate,
             input=True,
-            frames_per_buffer=1600,  # 100ms チャンク
+            frames_per_buffer=1600,  # 100ms chunks
             stream_callback=self._audio_callback,
         )
         return stream
@@ -682,7 +684,7 @@ class StreamingSTT:
         return None, pyaudio.paContinue
 
     def recognize_stream(self, on_result):
-        """ストリーミング認識を実行する"""
+        """Execute streaming recognition"""
         requests = self.audio_generator()
         responses = self.client.streaming_recognize(
             self.streaming_config, requests
@@ -705,21 +707,21 @@ class StreamingSTT:
                         "text": transcript,
                     })
 
-# 使用例
+# Usage example
 stt = StreamingSTT(language="ja-JP")
 mic_stream = stt.start_microphone()
 
 def handle_result(result):
-    prefix = "[確定]" if result["type"] == "final" else "[中間]"
+    prefix = "[Final]" if result["type"] == "final" else "[Interim]"
     print(f'{prefix} {result["text"]}')
 
 stt.recognize_stream(handle_result)
 ```
 
-### 3.3 Whisper ストリーミング認識
+### 3.3 Whisper Streaming Recognition
 
 ```python
-# コード例: faster-whisper によるリアルタイムストリーミング STT
+# Code Example: Real-Time Streaming STT with faster-whisper
 import numpy as np
 import asyncio
 from faster_whisper import WhisperModel
@@ -727,9 +729,9 @@ from collections import deque
 
 class WhisperStreamingSTT:
     """
-    Whisper をストリーミング風に使用するラッパー。
-    Whisper 自体はバッチ処理モデルだが、
-    スライディングウィンドウで擬似ストリーミングを実現する。
+    Wrapper for using Whisper in a streaming fashion.
+    Whisper itself is a batch processing model,
+    but pseudo-streaming is achieved via a sliding window approach.
     """
 
     def __init__(
@@ -738,8 +740,8 @@ class WhisperStreamingSTT:
         device: str = "cuda",
         compute_type: str = "float16",
         language: str = "ja",
-        chunk_duration: float = 2.0,       # 処理チャンク長（秒）
-        overlap_duration: float = 0.5,      # オーバーラップ長（秒）
+        chunk_duration: float = 2.0,       # Processing chunk length (seconds)
+        overlap_duration: float = 0.5,      # Overlap length (seconds)
         vad_threshold: float = 0.5,
     ):
         self.model = WhisperModel(
@@ -751,31 +753,31 @@ class WhisperStreamingSTT:
         self.overlap_samples = int(overlap_duration * self.sample_rate)
         self.vad_threshold = vad_threshold
 
-        # 音声バッファ
+        # Audio buffer
         self.audio_buffer = np.array([], dtype=np.float32)
         self.previous_text = ""
         self.confirmed_text = ""
 
     async def process_chunk(self, audio_chunk: np.ndarray) -> dict | None:
         """
-        音声チャンクを受け取り、認識結果を返す。
+        Receive an audio chunk and return the recognition result.
 
         Returns:
             dict with "type" ("partial" or "final") and "text"
         """
-        # バッファに追加
+        # Append to buffer
         self.audio_buffer = np.concatenate([self.audio_buffer, audio_chunk])
 
-        # チャンクサイズに満たない場合は待機
+        # Wait if buffer is smaller than chunk size
         if len(self.audio_buffer) < self.chunk_samples:
             return None
 
-        # VAD チェック
+        # VAD check
         energy = np.sqrt(np.mean(self.audio_buffer[-self.chunk_samples:] ** 2))
-        if energy < 0.01:  # 無音判定
+        if energy < 0.01:  # Silence detection
             return None
 
-        # Whisper で認識
+        # Recognize with Whisper
         segments, info = self.model.transcribe(
             self.audio_buffer[-self.chunk_samples:],
             language=self.language,
@@ -792,9 +794,9 @@ class WhisperStreamingSTT:
         if not current_text:
             return None
 
-        # 前回との差分で中間/確定を判定
+        # Determine interim/final based on diff from previous result
         if current_text == self.previous_text:
-            # テキストが変化しない = 発話終了の可能性
+            # Text unchanged = likely end of utterance
             self.confirmed_text += current_text
             self.audio_buffer = self.audio_buffer[-self.overlap_samples:]
             self.previous_text = ""
@@ -804,22 +806,22 @@ class WhisperStreamingSTT:
             return {"type": "partial", "text": current_text}
 
     def reset(self):
-        """バッファをリセット"""
+        """Reset buffers"""
         self.audio_buffer = np.array([], dtype=np.float32)
         self.previous_text = ""
         self.confirmed_text = ""
 ```
 
-### 3.4 Azure Speech ストリーミング
+### 3.4 Azure Speech Streaming
 
 ```python
-# コード例: Azure Speech SDK によるストリーミング STT（詳細版）
+# Code Example: Streaming STT with Azure Speech SDK (Detailed Version)
 import azure.cognitiveservices.speech as speechsdk
 import json
 import time
 
 class AzureStreamingSTT:
-    """Azure Speech SDK を使ったストリーミング音声認識"""
+    """Streaming speech recognition using Azure Speech SDK"""
 
     def __init__(
         self,
@@ -833,26 +835,26 @@ class AzureStreamingSTT:
         )
         self.speech_config.speech_recognition_language = language
 
-        # 詳細な認識設定
+        # Detailed recognition settings
         self.speech_config.set_property(
             speechsdk.PropertyId.SpeechServiceConnection_InitialSilenceTimeoutMs,
-            "5000"  # 初期無音タイムアウト: 5秒
+            "5000"  # Initial silence timeout: 5 seconds
         )
         self.speech_config.set_property(
             speechsdk.PropertyId.SpeechServiceConnection_EndSilenceTimeoutMs,
-            "1000"  # 発話終了判定: 1秒
+            "1000"  # End-of-speech detection: 1 second
         )
-        self.speech_config.enable_dictation()  # ディクテーションモード
+        self.speech_config.enable_dictation()  # Dictation mode
 
-        # フレーズリスト（認識精度向上用）
+        # Phrase list (for improving recognition accuracy)
         self.phrase_list = None
 
-        # コールバック
+        # Callbacks
         self.on_partial = None
         self.on_final = None
         self.on_error = None
 
-        # 統計
+        # Statistics
         self.stats = {
             "total_recognized": 0,
             "total_duration_ms": 0,
@@ -860,11 +862,11 @@ class AzureStreamingSTT:
         }
 
     def add_phrases(self, phrases: list[str]):
-        """認識精度を向上させるフレーズを追加"""
+        """Add phrases to improve recognition accuracy"""
         self.phrase_list = phrases
 
     def start_continuous(self):
-        """マイクからの連続音声認識を開始"""
+        """Start continuous speech recognition from microphone"""
         audio_config = speechsdk.audio.AudioConfig(
             use_default_microphone=True
         )
@@ -873,7 +875,7 @@ class AzureStreamingSTT:
             audio_config=audio_config,
         )
 
-        # フレーズリストを設定
+        # Set phrase list
         if self.phrase_list:
             phrase_list_grammar = speechsdk.PhraseListGrammar.from_recognizer(
                 recognizer
@@ -881,7 +883,7 @@ class AzureStreamingSTT:
             for phrase in self.phrase_list:
                 phrase_list_grammar.addPhrase(phrase)
 
-        # イベントハンドラ登録
+        # Register event handlers
         recognizer.recognizing.connect(self._on_recognizing)
         recognizer.recognized.connect(self._on_recognized)
         recognizer.canceled.connect(self._on_canceled)
@@ -892,12 +894,12 @@ class AzureStreamingSTT:
             lambda evt: print(f"Session stopped: {evt.session_id}")
         )
 
-        # 連続認識開始
+        # Start continuous recognition
         recognizer.start_continuous_recognition()
         return recognizer
 
     def start_from_stream(self, format_info=None):
-        """プッシュストリームからの音声認識"""
+        """Speech recognition from push stream"""
         if format_info is None:
             format_info = speechsdk.audio.AudioStreamFormat(
                 samples_per_second=16000,
@@ -913,7 +915,7 @@ class AzureStreamingSTT:
             audio_config=audio_config,
         )
 
-        # イベントハンドラ登録（同上）
+        # Register event handlers (same as above)
         recognizer.recognizing.connect(self._on_recognizing)
         recognizer.recognized.connect(self._on_recognized)
         recognizer.canceled.connect(self._on_canceled)
@@ -922,7 +924,7 @@ class AzureStreamingSTT:
         return recognizer, push_stream
 
     def _on_recognizing(self, evt):
-        """中間結果のコールバック"""
+        """Callback for interim results"""
         if self.on_partial:
             self.on_partial({
                 "type": "partial",
@@ -932,13 +934,13 @@ class AzureStreamingSTT:
             })
 
     def _on_recognized(self, evt):
-        """確定結果のコールバック"""
+        """Callback for final results"""
         if evt.result.reason == speechsdk.ResultReason.RecognizedSpeech:
             self.stats["total_recognized"] += 1
             self.stats["total_duration_ms"] += evt.result.duration / 10000
 
             if self.on_final:
-                # 詳細な認識結果を JSON で取得
+                # Get detailed recognition result as JSON
                 detail_json = evt.result.properties.get(
                     speechsdk.PropertyId.SpeechServiceResponse_JsonResult, ""
                 )
@@ -958,7 +960,7 @@ class AzureStreamingSTT:
                 })
 
     def _on_canceled(self, evt):
-        """キャンセル/エラーのコールバック"""
+        """Callback for cancellation/errors"""
         self.stats["errors"] += 1
         if self.on_error:
             self.on_error({
@@ -967,16 +969,16 @@ class AzureStreamingSTT:
             })
 ```
 
-### 3.5 gRPC ストリーミング STT サーバー
+### 3.5 gRPC Streaming STT Server
 
 ```python
-# コード例: gRPC ベースのストリーミング STT サーバー
+# Code Example: gRPC-Based Streaming STT Server
 import grpc
 from concurrent import futures
 import numpy as np
 from faster_whisper import WhisperModel
 
-# Proto定義（概念）:
+# Proto definition (conceptual):
 # service StreamingSTT {
 #   rpc StreamRecognize(stream AudioChunk) returns (stream RecognitionResult);
 # }
@@ -984,25 +986,25 @@ from faster_whisper import WhisperModel
 # message RecognitionResult { string text = 1; bool is_final = 2; float confidence = 3; }
 
 class StreamingSTTServicer:
-    """gRPC ストリーミング STT サービス"""
+    """gRPC Streaming STT Service"""
 
     def __init__(self):
         self.model = WhisperModel("large-v3", device="cuda", compute_type="float16")
         self.active_sessions = {}
 
     async def StreamRecognize(self, request_iterator, context):
-        """双方向ストリーミング RPC"""
+        """Bidirectional streaming RPC"""
         session_id = context.peer()
         audio_buffer = np.array([], dtype=np.float32)
-        chunk_size = 16000 * 2  # 2秒分
+        chunk_size = 16000 * 2  # 2 seconds worth
 
         async for request in request_iterator:
-            # bytes → numpy 変換
+            # bytes -> numpy conversion
             audio_chunk = np.frombuffer(request.audio_data, dtype=np.int16)
             audio_float = audio_chunk.astype(np.float32) / 32768.0
             audio_buffer = np.concatenate([audio_buffer, audio_float])
 
-            # チャンクサイズに達したら認識実行
+            # Run recognition when chunk size is reached
             if len(audio_buffer) >= chunk_size:
                 segments, info = self.model.transcribe(
                     audio_buffer,
@@ -1013,18 +1015,18 @@ class StreamingSTTServicer:
 
                 text = "".join(seg.text for seg in segments)
                 if text:
-                    # 中間結果を返す
+                    # Return interim result
                     yield RecognitionResult(
                         text=text,
                         is_final=False,
                         confidence=0.0,
                     )
 
-                # オーバーラップを残してバッファクリア
-                overlap = 16000  # 1秒
+                # Clear buffer keeping overlap
+                overlap = 16000  # 1 second
                 audio_buffer = audio_buffer[-overlap:]
 
-        # 最終結果
+        # Final result
         if len(audio_buffer) > 0:
             segments, info = self.model.transcribe(audio_buffer, language="ja")
             text = "".join(seg.text for seg in segments)
@@ -1038,19 +1040,19 @@ class StreamingSTTServicer:
 
 ---
 
-## 4. ストリーミング TTS
+## 4. Streaming TTS
 
-### 4.1 低遅延 TTS パイプライン
+### 4.1 Low-Latency TTS Pipeline
 
 ```python
-# コード例 4: チャンク単位のストリーミング TTS
+# Code Example 4: Chunk-Based Streaming TTS
 import asyncio
 import edge_tts
 
 async def streaming_tts(text: str, voice: str = "ja-JP-NanamiNeural"):
     """
-    テキストを受け取り、音声チャンクをストリーミングで返す。
-    最初のチャンクまでの遅延 (TTFB) を最小化する。
+    Receive text and return audio chunks via streaming.
+    Minimize the time to first byte (TTFB).
     """
     communicate = edge_tts.Communicate(text, voice)
     audio_chunks = []
@@ -1059,13 +1061,13 @@ async def streaming_tts(text: str, voice: str = "ja-JP-NanamiNeural"):
         if chunk["type"] == "audio":
             yield chunk["data"]
         elif chunk["type"] == "WordBoundary":
-            # 単語の境界情報（リップシンク等に使用可能）
+            # Word boundary information (can be used for lip sync, etc.)
             print(f"  Word: {chunk['text']} at {chunk['offset']}ms")
 
 async def realtime_conversation_tts(text_stream):
     """
-    LLM からのテキストストリームをリアルタイムで音声に変換する。
-    文単位でバッファリングし、句読点で区切って TTS に送る。
+    Convert text stream from an LLM to audio in real time.
+    Buffer by sentence, splitting at punctuation marks to send to TTS.
     """
     buffer = ""
     sentence_delimiters = {"。", "！", "？", ".", "!", "?", "\n"}
@@ -1073,30 +1075,30 @@ async def realtime_conversation_tts(text_stream):
     async for text_chunk in text_stream:
         buffer += text_chunk
 
-        # 文の区切りを検出
+        # Detect sentence boundaries
         for delimiter in sentence_delimiters:
             if delimiter in buffer:
                 sentences = buffer.split(delimiter)
                 for sentence in sentences[:-1]:
                     sentence = sentence.strip()
                     if sentence:
-                        # 文単位で TTS に送信（並列で次の文も処理開始）
+                        # Send to TTS per sentence (start processing next sentence in parallel)
                         async for audio_chunk in streaming_tts(
                             sentence + delimiter
                         ):
                             yield audio_chunk
                 buffer = sentences[-1]
 
-    # 残りのバッファを処理
+    # Process remaining buffer
     if buffer.strip():
         async for audio_chunk in streaming_tts(buffer):
             yield audio_chunk
 ```
 
-### 4.2 WebSocket による双方向ストリーミング
+### 4.2 Bidirectional Streaming via WebSocket
 
 ```python
-# コード例 5: FastAPI WebSocket でリアルタイム STT + TTS
+# Code Example 5: Real-Time STT + TTS with FastAPI WebSocket
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 import asyncio
 import numpy as np
@@ -1111,23 +1113,23 @@ async def audio_websocket(websocket: WebSocket):
     tts_engine = StreamingTTSEngine()
 
     async def process_audio():
-        """クライアントからの音声を STT 処理する"""
+        """Process audio from the client with STT"""
         try:
             while True:
                 audio_bytes = await websocket.receive_bytes()
                 audio_array = np.frombuffer(audio_bytes, dtype=np.int16)
 
-                # STT でテキストに変換
+                # Convert to text with STT
                 result = await stt_engine.process_chunk(audio_array)
 
                 if result and result["type"] == "final":
-                    # 確定テキストを送信
+                    # Send finalized text
                     await websocket.send_json({
                         "type": "transcript",
                         "text": result["text"],
                     })
 
-                    # AI 応答を生成 + TTS
+                    # Generate AI response + TTS
                     ai_response = await generate_ai_response(result["text"])
                     async for audio_chunk in tts_engine.synthesize_stream(
                         ai_response
@@ -1146,16 +1148,16 @@ async def audio_websocket(websocket: WebSocket):
     await process_audio()
 ```
 
-### 4.3 ElevenLabs ストリーミング TTS
+### 4.3 ElevenLabs Streaming TTS
 
 ```python
-# コード例: ElevenLabs WebSocket ストリーミング TTS
+# Code Example: ElevenLabs WebSocket Streaming TTS
 import websockets
 import json
 import asyncio
 
 class ElevenLabsStreamingTTS:
-    """ElevenLabs の WebSocket API を使ったストリーミング TTS"""
+    """Streaming TTS using ElevenLabs WebSocket API"""
 
     def __init__(self, api_key: str, voice_id: str = "21m00Tcm4TlvDq8ikWAM"):
         self.api_key = api_key
@@ -1172,13 +1174,13 @@ class ElevenLabsStreamingTTS:
         output_format: str = "pcm_16000",
     ):
         """
-        テキストイテレータから音声チャンクをストリーミング生成。
-        LLM のストリーミング出力をそのまま渡せる。
+        Generate audio chunks via streaming from a text iterator.
+        Can directly receive LLM streaming output.
         """
         async with websockets.connect(self.ws_url) as ws:
-            # 初期設定メッセージ
+            # Initial configuration message
             await ws.send(json.dumps({
-                "text": " ",  # 初期バッファ
+                "text": " ",  # Initial buffer
                 "voice_settings": {
                     "stability": 0.5,
                     "similarity_boost": 0.75,
@@ -1190,7 +1192,7 @@ class ElevenLabsStreamingTTS:
                 "flush": False,
             }))
 
-            # テキストを送信するタスク
+            # Task to send text
             async def send_text():
                 async for text_chunk in text_iterator:
                     await ws.send(json.dumps({
@@ -1198,13 +1200,13 @@ class ElevenLabsStreamingTTS:
                         "flush": False,
                     }))
 
-                # 終了シグナル
+                # End signal
                 await ws.send(json.dumps({
                     "text": "",
                     "flush": True,
                 }))
 
-            # 音声を受信するタスク
+            # Task to receive audio
             async def receive_audio():
                 while True:
                     try:
@@ -1222,7 +1224,7 @@ class ElevenLabsStreamingTTS:
                     except websockets.exceptions.ConnectionClosed:
                         break
 
-            # 送信と受信を並列実行
+            # Run send and receive in parallel
             send_task = asyncio.create_task(send_text())
             async for audio_chunk in receive_audio():
                 yield audio_chunk
@@ -1230,51 +1232,51 @@ class ElevenLabsStreamingTTS:
             await send_task
 
 
-# 使用例: LLM + ElevenLabs ストリーミング
+# Usage example: LLM + ElevenLabs Streaming
 async def llm_to_speech():
-    """LLM の出力をリアルタイムで音声に変換"""
+    """Convert LLM output to speech in real time"""
     import openai
 
     client = openai.AsyncOpenAI()
     tts = ElevenLabsStreamingTTS(api_key="your-api-key")
 
-    # LLM ストリーミング
+    # LLM streaming
     async def llm_stream():
         response = await client.chat.completions.create(
             model="gpt-4",
-            messages=[{"role": "user", "content": "日本の四季について教えて"}],
+            messages=[{"role": "user", "content": "Tell me about the four seasons in Japan"}],
             stream=True,
         )
         async for chunk in response:
             if chunk.choices[0].delta.content:
                 yield chunk.choices[0].delta.content
 
-    # LLM → TTS ストリーミングパイプライン
+    # LLM -> TTS streaming pipeline
     async for audio_chunk in tts.stream_text_to_speech(llm_stream()):
-        # 音声チャンクを再生またはクライアントに送信
+        # Play audio chunk or send to client
         await play_audio(audio_chunk)
 ```
 
-### 4.4 TTS プリフェッチとバッファリング
+### 4.4 TTS Prefetch and Buffering
 
 ```python
-# コード例: TTS 音声のプリフェッチ・バッファリング戦略
+# Code Example: TTS Audio Prefetch and Buffering Strategy
 import asyncio
 from collections import deque
 import time
 
 class TTSAudioBuffer:
     """
-    TTS 音声チャンクのバッファリングと再生制御。
-    途切れのないスムーズな再生を実現する。
+    Buffering and playback control for TTS audio chunks.
+    Achieves smooth uninterrupted playback.
     """
 
     def __init__(
         self,
-        min_buffer_ms: int = 200,      # 最小バッファ（再生開始閾値）
-        max_buffer_ms: int = 2000,     # 最大バッファ
+        min_buffer_ms: int = 200,      # Minimum buffer (playback start threshold)
+        max_buffer_ms: int = 2000,     # Maximum buffer
         sample_rate: int = 16000,
-        bytes_per_sample: int = 2,     # 16bit PCM
+        bytes_per_sample: int = 2,     # 16-bit PCM
     ):
         self.min_buffer_ms = min_buffer_ms
         self.max_buffer_ms = max_buffer_ms
@@ -1287,16 +1289,16 @@ class TTSAudioBuffer:
         self.is_playing = False
         self.playback_started = False
 
-        # メトリクス
+        # Metrics
         self.metrics = {
-            "underruns": 0,          # バッファ枯渇回数
-            "ttfb_ms": 0,            # 最初の音声チャンクまでの遅延
+            "underruns": 0,          # Number of buffer underruns
+            "ttfb_ms": 0,            # Latency to first audio chunk
             "total_chunks": 0,
             "start_time": None,
         }
 
     async def add_chunk(self, audio_bytes: bytes):
-        """音声チャンクをバッファに追加"""
+        """Add an audio chunk to the buffer"""
         if self.metrics["start_time"] is None:
             self.metrics["start_time"] = time.monotonic()
 
@@ -1304,19 +1306,19 @@ class TTSAudioBuffer:
         self.total_buffered_bytes += len(audio_bytes)
         self.metrics["total_chunks"] += 1
 
-        # TTFB 記録
+        # Record TTFB
         if not self.playback_started and self.metrics["ttfb_ms"] == 0:
             self.metrics["ttfb_ms"] = (
                 time.monotonic() - self.metrics["start_time"]
             ) * 1000
 
-        # 最小バッファに達したら再生開始
+        # Start playback when minimum buffer is reached
         buffered_ms = self.total_buffered_bytes / self.bytes_per_ms
         if not self.playback_started and buffered_ms >= self.min_buffer_ms:
             self.playback_started = True
 
     async def get_chunk(self) -> bytes | None:
-        """再生用の音声チャンクを取得"""
+        """Get an audio chunk for playback"""
         if not self.playback_started:
             return None
 
@@ -1330,11 +1332,11 @@ class TTSAudioBuffer:
 
     @property
     def buffered_ms(self) -> float:
-        """現在のバッファ量（ミリ秒）"""
+        """Current buffer amount (milliseconds)"""
         return self.total_buffered_bytes / self.bytes_per_ms
 
     def get_metrics(self) -> dict:
-        """バッファメトリクスを返す"""
+        """Return buffer metrics"""
         return {
             **self.metrics,
             "buffered_ms": self.buffered_ms,
@@ -1344,56 +1346,56 @@ class TTSAudioBuffer:
 
 ---
 
-## 5. プロトコル・コーデック比較
+## 5. Protocol and Codec Comparison
 
-### 5.1 音声コーデック比較
+### 5.1 Audio Codec Comparison
 
-| コーデック | ビットレート | 遅延 | 品質 | WebRTC対応 | 用途 |
-|-----------|-------------|------|------|-----------|------|
-| Opus | 6-510 kbps | 5ms | 優 | ○ | 音声通話 (推奨) |
-| G.711 | 64 kbps | 0.125ms | 可 | ○ | 電話 (レガシー) |
-| AAC | 8-320 kbps | 20ms | 優 | △ | 配信 |
-| Lyra | 3-9 kbps | 10ms | 良 | x | 低帯域環境 |
-| Codec2 | 0.7-3.2 kbps | 40ms | 可 | x | IoT/組込み |
+| Codec | Bitrate | Latency | Quality | WebRTC Support | Use Case |
+|-------|---------|---------|---------|----------------|----------|
+| Opus | 6-510 kbps | 5ms | Excellent | Yes | Voice calls (recommended) |
+| G.711 | 64 kbps | 0.125ms | Fair | Yes | Telephony (legacy) |
+| AAC | 8-320 kbps | 20ms | Excellent | Partial | Streaming |
+| Lyra | 3-9 kbps | 10ms | Good | No | Low-bandwidth environments |
+| Codec2 | 0.7-3.2 kbps | 40ms | Fair | No | IoT/Embedded |
 
-### 5.2 通信プロトコル比較
+### 5.2 Communication Protocol Comparison
 
-| プロトコル | 遅延 | 信頼性 | 双方向 | 用途 |
-|-----------|------|--------|--------|------|
-| WebRTC | 極低 | UDP (ベストエフォート) | ○ | P2P音声通話 |
-| WebSocket | 低 | TCP (保証) | ○ | テキスト/制御チャネル |
-| gRPC Streaming | 低 | HTTP/2 | ○ | STT/TTS API |
-| HTTP SSE | 中 | HTTP/1.1 | 片方向 | TTS 出力配信 |
+| Protocol | Latency | Reliability | Bidirectional | Use Case |
+|----------|---------|-------------|---------------|----------|
+| WebRTC | Very Low | UDP (best effort) | Yes | P2P voice calls |
+| WebSocket | Low | TCP (guaranteed) | Yes | Text/control channel |
+| gRPC Streaming | Low | HTTP/2 | Yes | STT/TTS API |
+| HTTP SSE | Medium | HTTP/1.1 | Unidirectional | TTS output delivery |
 
-### 5.3 Opus コーデック詳細設定
+### 5.3 Opus Codec Detailed Configuration
 
 ```python
-# コード例: Opus コーデック設定の最適化
+# Code Example: Opus Codec Configuration Optimization
 import opuslib
 
 class OpusConfig:
-    """Opus コーデックの用途別最適設定"""
+    """Optimal Opus codec settings for different use cases"""
 
     PRESETS = {
         "voip": {
             "application": opuslib.APPLICATION_VOIP,
             "bitrate": 24000,         # 24 kbps
-            "frame_size_ms": 20,      # 20ms フレーム
+            "frame_size_ms": 20,      # 20ms frame
             "bandwidth": "narrowband", # 8kHz
-            "fec": True,              # 前方誤り訂正
-            "dtx": True,              # 無音時送信停止
-            "packet_loss": 10,        # 10% パケットロス想定
-            "description": "音声通話向け。低ビットレートで高品質",
+            "fec": True,              # Forward error correction
+            "dtx": True,              # Discontinuous transmission (stop during silence)
+            "packet_loss": 10,        # Assume 10% packet loss
+            "description": "For voice calls. High quality at low bitrate",
         },
         "realtime_stt": {
             "application": opuslib.APPLICATION_VOIP,
             "bitrate": 32000,         # 32 kbps
             "frame_size_ms": 20,
-            "bandwidth": "wideband",   # 16kHz（STT推奨）
+            "bandwidth": "wideband",   # 16kHz (recommended for STT)
             "fec": False,
-            "dtx": False,             # STT用途では無音も重要
+            "dtx": False,             # Silence is also important for STT
             "packet_loss": 0,
-            "description": "リアルタイムSTT向け。音声品質優先",
+            "description": "For real-time STT. Audio quality priority",
         },
         "music_streaming": {
             "application": opuslib.APPLICATION_AUDIO,
@@ -1403,13 +1405,13 @@ class OpusConfig:
             "fec": True,
             "dtx": False,
             "packet_loss": 5,
-            "description": "音楽配信向け。フルバンド高品質",
+            "description": "For music streaming. Full-band high quality",
         },
     }
 
     @classmethod
     def create_encoder(cls, preset: str = "voip", sample_rate: int = 16000):
-        """プリセットからエンコーダを作成"""
+        """Create an encoder from a preset"""
         config = cls.PRESETS[preset]
         channels = 1
 
@@ -1431,38 +1433,38 @@ class OpusConfig:
 
     @classmethod
     def create_decoder(cls, sample_rate: int = 16000):
-        """デコーダを作成"""
+        """Create a decoder"""
         return opuslib.Decoder(sample_rate, 1)
 ```
 
 ---
 
-## 6. VAD (Voice Activity Detection) 統合
+## 6. VAD (Voice Activity Detection) Integration
 
-### 6.1 Silero VAD のリアルタイム統合
+### 6.1 Silero VAD Real-Time Integration
 
 ```python
-# コード例: Silero VAD をリアルタイムパイプラインに統合
+# Code Example: Integrating Silero VAD into a Real-Time Pipeline
 import torch
 import numpy as np
 from collections import deque
 
 class RealtimeVAD:
     """
-    リアルタイム VAD (Voice Activity Detection)。
-    無音区間の検出、発話開始/終了イベントの生成を行う。
+    Real-time VAD (Voice Activity Detection).
+    Detects silence intervals and generates speech start/end events.
     """
 
     def __init__(
         self,
         threshold: float = 0.5,
-        min_speech_ms: int = 250,       # 最小発話長
-        min_silence_ms: int = 500,      # 発話終了判定の無音長
-        speech_pad_ms: int = 100,       # 発話前後のパディング
+        min_speech_ms: int = 250,       # Minimum speech duration
+        min_silence_ms: int = 500,      # Silence duration for end-of-speech detection
+        speech_pad_ms: int = 100,       # Padding before and after speech
         sample_rate: int = 16000,
-        window_size_ms: int = 32,       # VAD ウィンドウサイズ
+        window_size_ms: int = 32,       # VAD window size
     ):
-        # Silero VAD モデルをロード
+        # Load Silero VAD model
         self.model, utils = torch.hub.load(
             repo_or_dir="snakers4/silero-vad",
             model="silero_vad",
@@ -1477,7 +1479,7 @@ class RealtimeVAD:
         self.min_silence_samples = int(min_silence_ms * sample_rate / 1000)
         self.speech_pad_samples = int(speech_pad_ms * sample_rate / 1000)
 
-        # 状態管理
+        # State management
         self.is_speaking = False
         self.speech_start = 0
         self.speech_end = 0
@@ -1485,14 +1487,14 @@ class RealtimeVAD:
         self.speech_count = 0
         self.current_sample = 0
 
-        # 音声バッファ（発話前パディング用）
+        # Audio buffer (for pre-speech padding)
         self.pre_buffer = deque(
             maxlen=self.speech_pad_samples // self.window_size + 1
         )
 
     def process(self, audio_chunk: np.ndarray) -> list[dict]:
         """
-        音声チャンクを処理し、VAD イベントを返す。
+        Process an audio chunk and return VAD events.
 
         Returns:
             list of events: [{"type": "speech_start"/"speech_end", "sample": int}]
@@ -1500,16 +1502,16 @@ class RealtimeVAD:
         events = []
         audio_tensor = torch.from_numpy(audio_chunk).float()
 
-        # ウィンドウ単位で処理
+        # Process in window units
         for i in range(0, len(audio_tensor), self.window_size):
             window = audio_tensor[i:i + self.window_size]
             if len(window) < self.window_size:
-                # パディング
+                # Padding
                 window = torch.nn.functional.pad(
                     window, (0, self.window_size - len(window))
                 )
 
-            # VAD 推論
+            # VAD inference
             speech_prob = self.model(window, self.sample_rate).item()
 
             if speech_prob >= self.threshold:
@@ -1549,13 +1551,13 @@ class RealtimeVAD:
 
             self.current_sample += self.window_size
 
-            # プリバッファに保存
+            # Save to pre-buffer
             self.pre_buffer.append(window.numpy())
 
         return events
 
     def reset(self):
-        """状態をリセット"""
+        """Reset state"""
         self.model.reset_states()
         self.is_speaking = False
         self.speech_count = 0
@@ -1564,15 +1566,15 @@ class RealtimeVAD:
         self.pre_buffer.clear()
 ```
 
-### 6.2 VAD 統合型ストリーミングパイプライン
+### 6.2 VAD-Integrated Streaming Pipeline
 
 ```python
-# コード例: VAD + STT + TTS 統合パイプライン
+# Code Example: Integrated VAD + STT + TTS Pipeline
 import asyncio
 import numpy as np
 
 class VADIntegratedPipeline:
-    """VAD を使ったインテリジェントなストリーミングパイプライン"""
+    """Intelligent streaming pipeline using VAD"""
 
     def __init__(self, vad, stt_engine, tts_engine, ai_engine):
         self.vad = vad
@@ -1580,17 +1582,17 @@ class VADIntegratedPipeline:
         self.tts = tts_engine
         self.ai = ai_engine
 
-        # 発話セグメントバッファ
+        # Speech segment buffer
         self.speech_buffer = np.array([], dtype=np.float32)
         self.is_collecting = False
 
     async def process_audio_stream(self, audio_stream):
         """
-        音声ストリームを処理し、AI応答を音声で返す。
-        VAD により無音区間をスキップし、効率的に処理する。
+        Process an audio stream and return AI responses as audio.
+        Use VAD to skip silence intervals for efficient processing.
         """
         async for audio_chunk in audio_stream:
-            # VAD で音声区間を検出
+            # Detect speech segments with VAD
             events = self.vad.process(audio_chunk)
 
             for event in events:
@@ -1602,14 +1604,14 @@ class VADIntegratedPipeline:
                     self.is_collecting = False
 
                     if len(self.speech_buffer) > 0:
-                        # 発話セグメントを STT で認識
+                        # Recognize speech segment with STT
                         result = await self.stt.transcribe(self.speech_buffer)
 
                         if result and result["text"]:
-                            # AI 応答生成
+                            # Generate AI response
                             response_text = await self.ai.generate(result["text"])
 
-                            # TTS でストリーミング音声合成
+                            # Streaming speech synthesis with TTS
                             async for tts_chunk in self.tts.synthesize_stream(
                                 response_text
                             ):
@@ -1618,7 +1620,7 @@ class VADIntegratedPipeline:
                                     "data": tts_chunk,
                                 }
 
-                            # メタデータも送信
+                            # Also send metadata
                             yield {
                                 "type": "metadata",
                                 "user_text": result["text"],
@@ -1626,7 +1628,7 @@ class VADIntegratedPipeline:
                                 "speech_duration_ms": event["duration_ms"],
                             }
 
-            # 発話中はバッファに蓄積
+            # Accumulate in buffer during speech
             if self.is_collecting:
                 audio_float = audio_chunk.astype(np.float32) / 32768.0
                 self.speech_buffer = np.concatenate(
@@ -1636,12 +1638,12 @@ class VADIntegratedPipeline:
 
 ---
 
-## 7. メディアサーバー設計
+## 7. Media Server Design
 
-### 7.1 mediasoup ベースの SFU サーバー
+### 7.1 mediasoup-Based SFU Server
 
 ```javascript
-// コード例: mediasoup (Node.js) による SFU サーバー
+// Code Example: SFU Server Using mediasoup (Node.js)
 const mediasoup = require("mediasoup");
 
 class SFUServer {
@@ -1654,7 +1656,7 @@ class SFUServer {
   }
 
   async init(numWorkers = 4) {
-    // Worker プロセスを起動
+    // Start worker processes
     for (let i = 0; i < numWorkers; i++) {
       const worker = await mediasoup.createWorker({
         logLevel: "warn",
@@ -1673,7 +1675,7 @@ class SFUServer {
   }
 
   async createRoom(roomId) {
-    // ラウンドロビンで Worker を選択
+    // Select worker via round-robin
     const worker = this.workers[this.routers.size % this.workers.length];
 
     const router = await worker.createRouter({
@@ -1730,7 +1732,7 @@ class SFUServer {
 
     this.producers.set(peerId, producer);
 
-    // 他の参加者に通知
+    // Notify other participants
     producer.on("transportclose", () => {
       producer.close();
       this.producers.delete(peerId);
@@ -1764,10 +1766,10 @@ class SFUServer {
 }
 ```
 
-### 7.2 Kubernetes でのスケーリング設計
+### 7.2 Scaling Design with Kubernetes
 
 ```yaml
-# コード例: Kubernetes マニフェスト — STT/TTS ワーカーのオートスケーリング
+# Code Example: Kubernetes Manifests — Autoscaling STT/TTS Workers
 
 # STT Worker Deployment
 apiVersion: apps/v1
@@ -1794,7 +1796,7 @@ spec:
             requests:
               cpu: "2"
               memory: "4Gi"
-              nvidia.com/gpu: "1"    # GPU 必須
+              nvidia.com/gpu: "1"    # GPU required
             limits:
               cpu: "4"
               memory: "8Gi"
@@ -1844,7 +1846,7 @@ spec:
           name: active_streams
         target:
           type: AverageValue
-          averageValue: "6"    # 1Pod あたり 6 ストリーム目標
+          averageValue: "6"    # Target 6 streams per pod
 
 ---
 # TTS Worker Deployment
@@ -1878,40 +1880,40 @@ spec:
 
 ---
 
-## 8. 品質監視とデバッグ
+## 8. Quality Monitoring and Debugging
 
-### 8.1 音声品質メトリクス
+### 8.1 Audio Quality Metrics
 
 ```python
-# コード例: リアルタイム音声品質モニタリング
+# Code Example: Real-Time Audio Quality Monitoring
 import time
 import numpy as np
 from dataclasses import dataclass, field
 
 @dataclass
 class AudioQualityMetrics:
-    """リアルタイム音声品質メトリクス"""
+    """Real-time audio quality metrics"""
 
-    # 遅延関連
+    # Latency-related
     e2e_latency_ms: list = field(default_factory=list)
     stt_latency_ms: list = field(default_factory=list)
     tts_ttfb_ms: list = field(default_factory=list)
 
-    # 音声品質
+    # Audio quality
     snr_db: list = field(default_factory=list)
     packet_loss_rate: list = field(default_factory=list)
     jitter_ms: list = field(default_factory=list)
 
-    # STT 品質
+    # STT quality
     stt_confidence: list = field(default_factory=list)
     partial_to_final_changes: int = 0
 
-    # バッファ状態
+    # Buffer state
     buffer_underruns: int = 0
     buffer_overruns: int = 0
 
 class QualityMonitor:
-    """リアルタイム品質監視"""
+    """Real-time quality monitor"""
 
     def __init__(self, report_interval_sec: int = 10):
         self.metrics = AudioQualityMetrics()
@@ -1920,7 +1922,7 @@ class QualityMonitor:
         self.alerts = []
 
     def record_latency(self, stage: str, latency_ms: float):
-        """遅延を記録"""
+        """Record latency"""
         if stage == "e2e":
             self.metrics.e2e_latency_ms.append(latency_ms)
         elif stage == "stt":
@@ -1928,7 +1930,7 @@ class QualityMonitor:
         elif stage == "tts_ttfb":
             self.metrics.tts_ttfb_ms.append(latency_ms)
 
-        # アラート判定
+        # Alert check
         if stage == "e2e" and latency_ms > 1000:
             self.alerts.append({
                 "level": "warning",
@@ -1937,15 +1939,15 @@ class QualityMonitor:
             })
 
     def record_audio_quality(self, audio_chunk: np.ndarray, noise_estimate: float = 0):
-        """音声品質を記録"""
-        # SNR 計算
+        """Record audio quality"""
+        # SNR calculation
         signal_power = np.mean(audio_chunk ** 2)
         if noise_estimate > 0:
             snr = 10 * np.log10(signal_power / noise_estimate)
             self.metrics.snr_db.append(snr)
 
     def record_packet_loss(self, expected: int, received: int):
-        """パケットロス率を記録"""
+        """Record packet loss rate"""
         loss_rate = 1 - (received / expected) if expected > 0 else 0
         self.metrics.packet_loss_rate.append(loss_rate)
 
@@ -1957,7 +1959,7 @@ class QualityMonitor:
             })
 
     def get_report(self) -> dict:
-        """品質レポートを生成"""
+        """Generate quality report"""
         def safe_stats(data):
             if not data:
                 return {"avg": 0, "p50": 0, "p95": 0, "p99": 0, "max": 0}
@@ -1984,14 +1986,14 @@ class QualityMonitor:
                 "underruns": self.metrics.buffer_underruns,
                 "overruns": self.metrics.buffer_overruns,
             },
-            "alerts": self.alerts[-10:],  # 最新10件
+            "alerts": self.alerts[-10:],  # Latest 10
         }
 ```
 
-### 8.2 WebRTC 統計情報の収集
+### 8.2 WebRTC Statistics Collection
 
 ```javascript
-// コード例: WebRTC getStats() による詳細統計収集
+// Code Example: Detailed Statistics Collection via WebRTC getStats()
 class WebRTCStatsCollector {
   constructor(pc, intervalMs = 5000) {
     this.pc = pc;
@@ -2019,23 +2021,23 @@ class WebRTCStatsCollector {
     };
 
     stats.forEach((stat) => {
-      // 受信音声トラック
+      // Inbound audio track
       if (stat.type === "inbound-rtp" && stat.kind === "audio") {
         report.inbound = {
           packetsReceived: stat.packetsReceived,
           packetsLost: stat.packetsLost,
           jitter: stat.jitter,
           bytesReceived: stat.bytesReceived,
-          // 前回との差分でビットレート計算
+          // Calculate bitrate from diff with previous
           bitrate: this._calcBitrate(stat, "inbound"),
-          // パケットロス率
+          // Packet loss rate
           lossRate:
             stat.packetsLost /
             (stat.packetsReceived + stat.packetsLost || 1),
         };
       }
 
-      // 送信音声トラック
+      // Outbound audio track
       if (stat.type === "outbound-rtp" && stat.kind === "audio") {
         report.outbound = {
           packetsSent: stat.packetsSent,
@@ -2045,7 +2047,7 @@ class WebRTCStatsCollector {
         };
       }
 
-      // 接続情報
+      // Connection info
       if (stat.type === "candidate-pair" && stat.nominated) {
         report.connection = {
           rtt: stat.currentRoundTripTime * 1000, // ms
@@ -2059,7 +2061,7 @@ class WebRTCStatsCollector {
 
     this.history.push(report);
 
-    // アラート判定
+    // Alert check
     if (report.inbound.lossRate > 0.05) {
       console.warn(
         `High packet loss: ${(report.inbound.lossRate * 100).toFixed(1)}%`
@@ -2111,12 +2113,12 @@ class WebRTCStatsCollector {
 
 ---
 
-## 9. 接続復旧とフォールバック
+## 9. Connection Recovery and Fallback
 
-### 9.1 自動再接続ロジック
+### 9.1 Automatic Reconnection Logic
 
 ```python
-# コード例: 指数バックオフ付き自動再接続
+# Code Example: Automatic Reconnection with Exponential Backoff
 import asyncio
 import random
 import logging
@@ -2124,7 +2126,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class ReconnectManager:
-    """WebSocket / WebRTC の自動再接続管理"""
+    """Automatic reconnection manager for WebSocket / WebRTC"""
 
     def __init__(
         self,
@@ -2142,11 +2144,11 @@ class ReconnectManager:
 
     async def connect_with_retry(self, connect_fn, on_connected=None):
         """
-        指数バックオフ + ジッタで再接続を試行。
+        Attempt reconnection with exponential backoff + jitter.
 
         Args:
-            connect_fn: 接続関数（async callable）
-            on_connected: 接続成功時のコールバック
+            connect_fn: Connection function (async callable)
+            on_connected: Callback on successful connection
         """
         while self.retry_count < self.max_retries:
             try:
@@ -2177,47 +2179,47 @@ class ReconnectManager:
                 await asyncio.sleep(delay)
 
     def _calc_delay(self) -> float:
-        """指数バックオフ + ジッタ"""
+        """Exponential backoff + jitter"""
         delay = min(
             self.base_delay * (2 ** (self.retry_count - 1)),
             self.max_delay
         )
-        # ジッタを追加（±jitter の範囲）
+        # Add jitter (within +/- jitter range)
         jitter_range = delay * self.jitter
         delay += random.uniform(-jitter_range, jitter_range)
         return max(0.1, delay)
 
     def reset(self):
-        """リトライカウンタをリセット"""
+        """Reset retry counter"""
         self.retry_count = 0
         self.is_connected = False
 ```
 
-### 9.2 プロトコルフォールバック
+### 9.2 Protocol Fallback
 
 ```python
-# コード例: WebRTC → WebSocket → HTTP ポーリングのフォールバック
+# Code Example: Fallback from WebRTC -> WebSocket -> HTTP Polling
 class ProtocolFallback:
     """
-    通信プロトコルのフォールバック戦略。
-    WebRTC (最低遅延) → WebSocket (低遅延) → HTTP SSE (中遅延)
+    Communication protocol fallback strategy.
+    WebRTC (lowest latency) -> WebSocket (low latency) -> HTTP SSE (medium latency)
     """
 
     PROTOCOLS = [
         {
             "name": "webrtc",
             "latency": "lowest",
-            "description": "P2P/SFU 経由のリアルタイム音声",
+            "description": "Real-time audio via P2P/SFU",
         },
         {
             "name": "websocket",
             "latency": "low",
-            "description": "WebSocket バイナリフレームで音声送受信",
+            "description": "Audio send/receive via WebSocket binary frames",
         },
         {
             "name": "http_sse",
             "latency": "medium",
-            "description": "HTTP POST で音声送信、SSE で結果受信",
+            "description": "Send audio via HTTP POST, receive results via SSE",
         },
     ]
 
@@ -2227,7 +2229,7 @@ class ProtocolFallback:
         self.fallback_history = []
 
     async def connect(self, server_url: str):
-        """最適なプロトコルで接続を試行"""
+        """Attempt connection with the optimal protocol"""
         for protocol in self.available_protocols:
             try:
                 connection = await self._try_connect(
@@ -2246,7 +2248,7 @@ class ProtocolFallback:
         raise ConnectionError("All protocols failed")
 
     async def _try_connect(self, protocol: str, url: str):
-        """プロトコル別の接続処理"""
+        """Protocol-specific connection handling"""
         if protocol == "webrtc":
             return await self._connect_webrtc(url)
         elif protocol == "websocket":
@@ -2255,7 +2257,7 @@ class ProtocolFallback:
             return await self._connect_http_sse(url)
 
     async def _connect_webrtc(self, url):
-        """WebRTC 接続"""
+        """WebRTC connection"""
         from aiortc import RTCPeerConnection, RTCSessionDescription
         import aiohttp
 
@@ -2277,7 +2279,7 @@ class ProtocolFallback:
         return pc
 
     async def _connect_websocket(self, url):
-        """WebSocket 接続"""
+        """WebSocket connection"""
         import websockets
         ws_url = url.replace("http", "ws") + "/ws/audio"
         ws = await websockets.connect(
@@ -2289,10 +2291,10 @@ class ProtocolFallback:
         return ws
 
     async def _connect_http_sse(self, url):
-        """HTTP SSE 接続"""
+        """HTTP SSE connection"""
         import aiohttp
         session = aiohttp.ClientSession()
-        # SSE エンドポイントに接続
+        # Connect to SSE endpoint
         sse_response = await session.get(
             f"{url}/sse/audio",
             timeout=aiohttp.ClientTimeout(total=None),
@@ -2302,79 +2304,79 @@ class ProtocolFallback:
 
 ---
 
-## 10. アンチパターン
+## 10. Anti-Patterns
 
-### アンチパターン 1: 「全文を待ってから TTS」
-
-```
-[誤り] LLM の出力が全て完了してから TTS を開始する
-
-  LLM生成 (3秒) ────────────> TTS処理 (2秒) ────> 再生
-  ユーザー待ち時間: 5秒
-
-[正解] 文単位でストリーミング TTS を開始する
-
-  LLM "こんにちは。" -> TTS -> 再生開始 (0.3秒)
-  LLM "今日は天気が..." -> TTS -> 再生 (並列)
-  ユーザー体感遅延: 0.3秒
-
-  ポイント:
-  - 句読点で文を区切ってTTSに送る
-  - 前の文の再生中に次の文のTTSを並列処理
-  - オーディオバッファで途切れを防止
-```
-
-### アンチパターン 2: 「VAD なしで常時ストリーミング」
+### Anti-Pattern 1: "Wait for Full Text Before TTS"
 
 ```
-[誤り] 無音を含む全ての音声を常時 STT エンジンに送信する
+[Wrong] Start TTS only after the LLM output is fully complete
 
-問題点:
-- 無駄な API コスト（無音区間も課金対象）
-- STT エンジンが無音からノイズを誤認識
-- ネットワーク帯域の無駄遣い
+  LLM Generation (3s) ---------> TTS Processing (2s) ----> Playback
+  User wait time: 5 seconds
 
-[正解] VAD (Voice Activity Detection) で音声区間のみ処理する
-  1. クライアント側で VAD を実行（WebRTC の内蔵 VAD or Silero VAD）
-  2. 音声が検出された区間のみサーバーに送信
-  3. 無音が一定時間続いたら「発話終了」として確定
+[Correct] Start streaming TTS on a sentence-by-sentence basis
+
+  LLM "Hello." -> TTS -> Playback starts (0.3s)
+  LLM "The weather today..." -> TTS -> Playback (in parallel)
+  Perceived user delay: 0.3 seconds
+
+  Key points:
+  - Split text at punctuation marks and send to TTS
+  - Process TTS for the next sentence while the previous one is playing
+  - Prevent interruptions with audio buffering
 ```
 
-### アンチパターン 3: 「再接続ロジックの欠如」
+### Anti-Pattern 2: "Always Streaming Without VAD"
 
 ```
-[誤り] WebSocket/WebRTC の切断を想定しない実装
+[Wrong] Constantly sending all audio including silence to the STT engine
+
+Problems:
+- Wasted API costs (silence intervals are also billed)
+- STT engine misrecognizes noise from silence
+- Wasted network bandwidth
+
+[Correct] Process only speech segments using VAD (Voice Activity Detection)
+  1. Run VAD on the client side (WebRTC built-in VAD or Silero VAD)
+  2. Send only detected speech segments to the server
+  3. Mark as "end of utterance" when silence persists for a certain duration
+```
+
+### Anti-Pattern 3: "No Reconnection Logic"
+
+```
+[Wrong] Implementation that does not account for WebSocket/WebRTC disconnections
 
   ws = new WebSocket(url);
-  ws.onopen = () => { /* 接続完了 */ };
-  // onclose/onerror で何もしない → 一度切れたら永久に切断
+  ws.onopen = () => { /* connected */ };
+  // No handling in onclose/onerror -> permanently disconnected once dropped
 
-問題点:
-- モバイル回線では頻繁に切断が発生する
-- ネットワーク切替（WiFi→4G）で確実に切断される
-- ユーザーが手動リロードする必要がある
+Problems:
+- Disconnections occur frequently on mobile networks
+- Disconnection is guaranteed during network switching (WiFi -> 4G)
+- User must manually reload
 
-[正解] 指数バックオフ付きの自動再接続を実装する
-  1. onclose/onerror でリトライスケジューラを起動
-  2. 指数バックオフ（1s, 2s, 4s, 8s...）で再接続
-  3. ジッタを追加してサーバー負荷を分散
-  4. 最大リトライ回数の設定
-  5. 再接続後のセッション復旧（STT コンテキスト等）
+[Correct] Implement automatic reconnection with exponential backoff
+  1. Start retry scheduler on onclose/onerror
+  2. Reconnect with exponential backoff (1s, 2s, 4s, 8s...)
+  3. Add jitter to distribute server load
+  4. Set maximum retry count
+  5. Restore session after reconnection (STT context, etc.)
 ```
 
-### アンチパターン 4: 「AudioContext の不適切な管理」
+### Anti-Pattern 4: "Improper AudioContext Management"
 
 ```javascript
-// BAD: ユーザー操作なしで AudioContext を作成
-const ctx = new AudioContext(); // autoplay policy で suspend される
+// BAD: Creating AudioContext without user interaction
+const ctx = new AudioContext(); // Gets suspended due to autoplay policy
 
-// BAD: 毎回新しい AudioContext を作成
+// BAD: Creating a new AudioContext every time
 function playAudio(data) {
-  const ctx = new AudioContext(); // リソースリーク
+  const ctx = new AudioContext(); // Resource leak
   // ...
 }
 
-// GOOD: ユーザー操作で resume し、シングルトンで管理
+// GOOD: Resume on user interaction, manage as singleton
 class AudioManager {
   constructor() {
     this.ctx = null;
@@ -2383,7 +2385,7 @@ class AudioManager {
   async init() {
     this.ctx = new AudioContext({ sampleRate: 16000 });
     if (this.ctx.state === "suspended") {
-      // ユーザー操作（ボタンクリック等）で resume
+      // Resume on user interaction (button click, etc.)
       await this.ctx.resume();
     }
   }
@@ -2398,104 +2400,104 @@ class AudioManager {
 
 ## 11. FAQ
 
-### Q1: WebRTC と WebSocket のどちらを使うべきですか？
+### Q1: Should I use WebRTC or WebSocket?
 
-**A:** 用途によって使い分けます。
+**A:** Choose based on your use case.
 
-- **WebRTC**: 低遅延が最優先の音声通話。P2P で 100ms 以下の遅延を実現可能。ただし、サーバー側での音声処理（STT 等）には SFU/MCU パターンが必要
-- **WebSocket**: テキストデータの送受信、制御チャネルとして使用。音声バイナリも送れるが、UDP ではないため遅延は WebRTC より大きい
-- **ハイブリッド**: 音声データは WebRTC、文字起こし結果やメタデータは WebSocket で送る構成が実用的
+- **WebRTC**: When low latency is the top priority for voice calls. Can achieve sub-100ms latency with P2P. However, server-side audio processing (STT, etc.) requires SFU/MCU patterns
+- **WebSocket**: For sending and receiving text data, and as a control channel. Can also transmit audio binary, but latency is higher than WebRTC since it uses TCP rather than UDP
+- **Hybrid**: A practical architecture that sends audio data via WebRTC and transcription results/metadata via WebSocket
 
-### Q2: リアルタイム STT の精度を上げるには？
+### Q2: How can I improve real-time STT accuracy?
 
-**A:** 以下のアプローチが有効です。
+**A:** The following approaches are effective.
 
-1. **ドメイン特化語彙**: 専門用語のブースト（Google Cloud STT の `speech_contexts` 等）
-2. **ノイズ除去前処理**: RNNoise や WebRTC 内蔵のエコーキャンセラー・ノイズ抑制を活用
-3. **チャンクサイズの最適化**: 短すぎると文脈不足、長すぎると遅延増大。100-300ms が一般的
-4. **エンドポイント検出**: 発話終了の判定閾値を調整（早すぎる確定を防ぐ）
+1. **Domain-specific vocabulary**: Boost specialized terms (e.g., Google Cloud STT's `speech_contexts`)
+2. **Noise removal preprocessing**: Use RNNoise or WebRTC's built-in echo canceller and noise suppression
+3. **Chunk size optimization**: Too short leads to insufficient context, too long increases latency. 100-300ms is typical
+4. **Endpoint detection**: Adjust end-of-speech detection threshold (prevent premature finalization)
 
-### Q3: 同時接続数が増えた場合のスケーリング戦略は？
+### Q3: What is the scaling strategy when concurrent connections increase?
 
-**A:** 以下の戦略を段階的に適用します。
+**A:** Apply the following strategies progressively.
 
-1. **SFU (Selective Forwarding Unit)**: メディアサーバーがストリームを中継。Janus, mediasoup が代表的
-2. **STT/TTS の水平スケーリング**: Kubernetes 上で STT/TTS ワーカーをオートスケール
-3. **リージョン分散**: ユーザーに近いリージョンにメディアサーバーを配置
-4. **GPU リソース管理**: TTS/STT の GPU ワーカーを共有プール化し効率化
+1. **SFU (Selective Forwarding Unit)**: Media server relays streams. Janus and mediasoup are representative implementations
+2. **Horizontal scaling of STT/TTS**: Autoscale STT/TTS workers on Kubernetes
+3. **Regional distribution**: Deploy media servers in regions close to users
+4. **GPU resource management**: Pool and share GPU workers for TTS/STT for efficiency
 
-### Q4: Whisper をリアルタイムで使えますか？
+### Q4: Can Whisper be used in real time?
 
-**A:** Whisper はバッチ処理モデルのため、そのままではリアルタイムには不向きですが、以下の工夫で擬似リアルタイム化が可能です。
+**A:** Whisper is a batch processing model, so it is not suited for real-time use as-is. However, pseudo-real-time operation is possible with the following techniques.
 
-1. **スライディングウィンドウ方式**: 2-3秒のチャンクをオーバーラップ付きで連続処理。faster-whisper を使えば GPU 上で 0.5 秒以下で処理可能
-2. **VAD 前処理**: 無音区間をスキップし、発話区間のみ Whisper に送信することで処理量を削減
-3. **投機的中間結果**: バッファが溜まるたびに認識を実行し、前回結果との差分で中間/確定を判定
-4. **whisper-streaming**: OSS ライブラリ `whisper_streaming` が上記戦略を実装済み
+1. **Sliding window approach**: Continuously process 2-3 second chunks with overlap. With faster-whisper, GPU processing is possible in under 0.5 seconds
+2. **VAD preprocessing**: Skip silence intervals and send only speech segments to Whisper to reduce processing volume
+3. **Speculative interim results**: Run recognition each time the buffer fills, and determine interim/final based on diff from the previous result
+4. **whisper-streaming**: The OSS library `whisper_streaming` implements the above strategies
 
-### Q5: モバイルアプリでリアルタイム音声を実装するコツは？
+### Q5: What are the tips for implementing real-time audio in mobile apps?
 
-**A:** モバイル特有の課題と対策を整理します。
+**A:** Here is a summary of mobile-specific challenges and solutions.
 
-1. **バッテリー消費**: VAD で無音時の処理を最小化。バックグラウンド時は WebSocket を維持しつつ音声処理は停止
-2. **ネットワーク不安定**: 指数バックオフ再接続、Opus FEC（前方誤り訂正）の有効化、バッファリング戦略の調整
-3. **音声入出力**: iOS では AVAudioSession の適切なカテゴリ設定（`.playAndRecord`）が必須。Android では AudioRecord + AudioTrack を使用
-4. **エコーキャンセレーション**: スピーカーとマイクが近いため、AEC（Acoustic Echo Cancellation）が重要。WebRTC のエコーキャンセラーを活用
-5. **省電力モード**: バックグラウンド遷移時の処理、画面ロック時の音声継続について OS の制約を理解する
+1. **Battery consumption**: Minimize processing during silence with VAD. When backgrounded, maintain WebSocket connection but stop audio processing
+2. **Network instability**: Exponential backoff reconnection, enable Opus FEC (Forward Error Correction), adjust buffering strategy
+3. **Audio I/O**: On iOS, proper AVAudioSession category settings (`.playAndRecord`) are required. On Android, use AudioRecord + AudioTrack
+4. **Echo cancellation**: Since the speaker and microphone are close together, AEC (Acoustic Echo Cancellation) is critical. Leverage WebRTC's echo canceller
+5. **Power-saving mode**: Understand OS constraints regarding processing during background transitions and audio continuation when the screen is locked
 
-### Q6: 音声チャットボットの応答遅延を 1 秒以内にするには？
+### Q6: How can I achieve a voice chatbot response latency under 1 second?
 
-**A:** エンドツーエンド遅延 1 秒以内を達成するための具体的な構成です。
+**A:** Here is a specific configuration to achieve end-to-end latency under 1 second.
 
-1. **STT**: faster-whisper (GPU) で 200ms 以内。VAD で発話終了を素早く検出
-2. **LLM**: GPT-4o-mini や Claude 3.5 Haiku などの高速モデルをストリーミングで使用。最初のトークン到着まで 100-200ms
-3. **TTS**: Edge TTS や ElevenLabs Turbo v2 で TTFB 100-200ms。最初の文の音声を即座に再生開始
-4. **パイプライン**: 各段階をストリーミングで連結。STT 確定 → LLM 開始 → 最初の句読点で TTS 開始 → 即再生
-5. **プリウォーム**: モデルのロード、WebSocket 接続、TTS エンジンの初期化を事前に完了させておく
+1. **STT**: Under 200ms with faster-whisper (GPU). Quick end-of-speech detection with VAD
+2. **LLM**: Use fast models like GPT-4o-mini or Claude 3.5 Haiku with streaming. Time to first token: 100-200ms
+3. **TTS**: Edge TTS or ElevenLabs Turbo v2 with TTFB of 100-200ms. Start playing the audio for the first sentence immediately
+4. **Pipeline**: Connect each stage via streaming. STT finalized -> Start LLM -> Start TTS at first punctuation -> Play immediately
+5. **Pre-warming**: Complete model loading, WebSocket connection, and TTS engine initialization in advance
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping straight to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 12. まとめ
-
-| コンポーネント | 技術 | 推奨ツール | 遅延目標 |
-|--------------|------|-----------|---------|
-| 音声通信 | WebRTC | aiortc, mediasoup | < 100ms |
-| シグナリング | WebSocket | FastAPI, Socket.IO | < 50ms |
-| ストリーミング STT | gRPC Streaming | Google STT, Whisper Streaming | < 200ms |
-| ストリーミング TTS | チャンク合成 | Edge TTS, ElevenLabs | < 300ms |
-| VAD | RNN/ルールベース | Silero VAD, WebRTC VAD | < 10ms |
-| コーデック | Opus | WebRTC 内蔵 | 5ms |
-| メディアサーバー | SFU | mediasoup, Janus | < 50ms |
-| 品質監視 | getStats / カスタム | Prometheus + Grafana | リアルタイム |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## 12. Summary
 
-- [ポッドキャストツール](../02-voice/02-podcast-tools.md) — 録音済み音声の文字起こし・要約・編集
-- 音声合成の基礎 — TTS エンジンの選択と活用
-- WebRTC の基礎 — WebRTC プロトコルの詳細
+| Component | Technology | Recommended Tools | Latency Target |
+|-----------|-----------|-------------------|----------------|
+| Audio Communication | WebRTC | aiortc, mediasoup | < 100ms |
+| Signaling | WebSocket | FastAPI, Socket.IO | < 50ms |
+| Streaming STT | gRPC Streaming | Google STT, Whisper Streaming | < 200ms |
+| Streaming TTS | Chunk Synthesis | Edge TTS, ElevenLabs | < 300ms |
+| VAD | RNN/Rule-based | Silero VAD, WebRTC VAD | < 10ms |
+| Codec | Opus | WebRTC built-in | 5ms |
+| Media Server | SFU | mediasoup, Janus | < 50ms |
+| Quality Monitoring | getStats / Custom | Prometheus + Grafana | Real-time |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
+
+- [Podcast Tools](../02-voice/02-podcast-tools.md) — Transcription, summarization, and editing of recorded audio
+- Fundamentals of Speech Synthesis — Choosing and using TTS engines
+- WebRTC Fundamentals — Details of the WebRTC protocol
+
+---
+
+## References
 
 1. Loreto, S. & Romano, S.P. (2014). "Real-Time Communication with WebRTC." *O'Reilly Media*. https://www.oreilly.com/library/view/real-time-communication-with/9781449371location/
 2. Google Cloud. (2024). "Streaming Speech-to-Text." *Google Cloud Documentation*. https://cloud.google.com/speech-to-text/docs/streaming-recognize
