@@ -1,209 +1,212 @@
-# AIカメラ — 計算フォトグラフィ、ナイトモード、AI編集
+# AI Cameras — Computational Photography, Night Mode, AI Editing
 
-> スマートフォンカメラにおけるAI技術の全体像を解説する。計算フォトグラフィの原理、ナイトモード・HDR・ポートレートモードの仕組み、そしてAIを活用した写真編集機能まで包括的にカバーする。
-
----
-
-## この章で学ぶこと
-
-1. **計算フォトグラフィの原理** — 複数フレーム合成、HDR、セマンティック理解による画質向上
-2. **ナイトモード / ポートレートの仕組み** — 長時間露光シミュレーション、深度推定、ボケ生成
-3. **AI写真編集の実装** — Magic Eraser、背景生成、スタイル変換などの技術
-4. **実践的な画像処理パイプライン** — ISP、NPU連携、リアルタイム処理の最適化手法
-5. **カメラAI開発の実践** — Core ML / TFLite / MediaPipe を使ったカスタムカメラAI構築
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [AIスマートフォン — NPU搭載チップとオンデバイスAI](./00-ai-smartphones.md) の内容を理解していること
+> A comprehensive guide to AI technology in smartphone cameras. Covers the principles of computational photography, how Night Mode, HDR, and Portrait Mode work, and AI-powered photo editing features.
 
 ---
 
-## 1. 計算フォトグラフィのパイプライン
+## What You Will Learn in This Chapter
+
+1. **Principles of Computational Photography** — Image quality improvement through multi-frame fusion, HDR, and semantic understanding
+2. **How Night Mode / Portrait Mode Works** — Long-exposure simulation, depth estimation, and bokeh generation
+3. **AI Photo Editing Implementation** — Technologies such as Magic Eraser, background generation, and style transfer
+4. **Practical Image Processing Pipelines** — ISP, NPU integration, and real-time processing optimization techniques
+5. **Camera AI Development in Practice** — Building custom camera AI with Core ML / TFLite / MediaPipe
+
+
+## Prerequisites
+
+Before reading this guide, having the following knowledge will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [AI Smartphones — NPU-Equipped Chips and On-Device AI](./00-ai-smartphones.md)
+
+---
+
+## 1. Computational Photography Pipeline
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              計算フォトグラフィ パイプライン                      │
+│              Computational Photography Pipeline              │
 │                                                               │
-│  シャッター押下                                                │
+│  Shutter Press                                                │
 │      │                                                        │
 │      ▼                                                        │
 │  ┌─────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   │
-│  │ RAW取得  │──▶│ フレーム  │──▶│ セマンティ│──▶│ ISP +    │   │
-│  │ (複数枚) │   │ アライン  │   │ ック分析  │   │ NPU処理  │   │
-│  │ 9〜15枚 │   │ メント   │   │ (顔/空等)│   │          │   │
+│  │ RAW      │──▶│ Frame    │──▶│ Semantic │──▶│ ISP +    │   │
+│  │ Capture  │   │ Align-   │   │ Analysis │   │ NPU      │   │
+│  │ (9-15    │   │ ment     │   │(Face/Sky)│   │Processing│   │
+│  │ frames)  │   │          │   │          │   │          │   │
 │  └─────────┘   └──────────┘   └──────────┘   └──────────┘   │
 │                                                    │          │
 │                                                    ▼          │
 │                                  ┌──────────┐  ┌──────────┐  │
-│                                  │ トーン    │◀─│ ノイズ   │  │
-│                                  │ マッピング │  │ 除去(AI) │  │
+│                                  │ Tone     │◀─│ Noise    │  │
+│                                  │ Mapping  │  │Reduction │  │
+│                                  │          │  │   (AI)   │  │
 │                                  └──────────┘  └──────────┘  │
 │                                       │                       │
 │                                       ▼                       │
-│                                  最終JPEG/HEIF                │
+│                                  Final JPEG/HEIF              │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 1.1 マルチフレーム合成の仕組み
+### 1.1 How Multi-Frame Fusion Works
 
 ```
 ┌─────────────────────────────────────────────┐
-│           HDR+ マルチフレーム合成              │
+│           HDR+ Multi-Frame Fusion             │
 │                                               │
-│  Frame 1 (暗)  ░░░░░░░░░░                    │
-│  Frame 2       ░░░░████░░                    │
-│  Frame 3       ░░████████                    │
-│  Frame 4 (明)  ████████████                  │
+│  Frame 1 (Dark) ░░░░░░░░░░                   │
+│  Frame 2        ░░░░████░░                   │
+│  Frame 3        ░░████████                   │
+│  Frame 4 (Bright) ████████████               │
 │  ...                                          │
-│  Frame 9       ░░░░████░░                    │
+│  Frame 9        ░░░░████░░                   │
 │                                               │
-│         ↓ アライメント + マージ ↓              │
+│         ↓ Alignment + Merge ↓                 │
 │                                               │
-│  合成結果      ░░████████████ (ダイナミック   │
-│                              レンジ拡大)      │
+│  Merged Result  ░░████████████ (Expanded     │
+│                              Dynamic Range)   │
 │                                               │
-│  ✓ ノイズ低減（√N倍の改善）                   │
-│  ✓ ダイナミックレンジ拡大                     │
-│  ✓ 手ブレ補正（ロバスト推定）                 │
+│  ✓ Noise reduction (√N improvement)           │
+│  ✓ Expanded dynamic range                     │
+│  ✓ Image stabilization (robust estimation)    │
 └─────────────────────────────────────────────┘
 ```
 
-### 1.2 ISP (Image Signal Processor) とAIの協調
+### 1.2 Coordination Between ISP (Image Signal Processor) and AI
 
-従来のISPはハードウェアパイプラインで固定的な画像処理を行っていましたが、現在はNPU/GPU と連携してAIベースの処理を組み合わせるハイブリッド構成が主流です。
+Traditional ISPs performed fixed image processing through hardware pipelines, but today the mainstream approach is a hybrid configuration that combines AI-based processing in coordination with NPU/GPU.
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│           ISP + NPU ハイブリッドパイプライン           │
+│           ISP + NPU Hybrid Pipeline                   │
 │                                                       │
-│  RAW Bayer データ                                     │
+│  RAW Bayer Data                                       │
 │      │                                                │
 │      ▼                                                │
 │  ┌──────────────────────────────────────────┐         │
-│  │ ハードウェア ISP（固定パイプライン）        │         │
-│  │  - デモザイキング（Bayer → RGB）           │         │
-│  │  - ブラックレベル補正                      │         │
-│  │  - レンズシェーディング補正                 │         │
-│  │  - ホワイトバランス                        │         │
-│  │  - ノイズ除去（基本フィルタ）               │         │
+│  │ Hardware ISP (Fixed Pipeline)              │         │
+│  │  - Demosaicing (Bayer → RGB)               │         │
+│  │  - Black level correction                  │         │
+│  │  - Lens shading correction                 │         │
+│  │  - White balance                           │         │
+│  │  - Noise reduction (basic filters)         │         │
 │  └──────────────┬───────────────────────────┘         │
 │                  │                                     │
 │      ┌───────────┼───────────┐                         │
 │      ▼           ▼           ▼                         │
 │  ┌────────┐ ┌────────┐ ┌────────┐                     │
 │  │ NPU    │ │ GPU    │ │ CPU    │                     │
-│  │ セマン │ │ トーン │ │ メタ   │                     │
-│  │ ティック│ │ マッピ │ │ データ │                     │
-│  │ 分析   │ │ ング   │ │ 処理   │                     │
+│  │Semantic│ │ Tone   │ │ Meta-  │                     │
+│  │Analysis│ │Mapping │ │ data   │                     │
+│  │        │ │        │ │Process-│                     │
+│  │        │ │        │ │ ing    │                     │
 │  └────────┘ └────────┘ └────────┘                     │
 │      │           │           │                         │
 │      └───────────┼───────────┘                         │
 │                  ▼                                     │
-│           最終出力画像                                  │
+│           Final Output Image                           │
 └─────────────────────────────────────────────────────┘
 
-処理時間の内訳（iPhone 16 Pro の場合）:
-  ISP ハードウェア処理:   ~15ms
-  NPU セマンティック分析:  ~8ms
-  GPU トーンマッピング:    ~5ms
-  合計:                   ~28ms（リアルタイムプレビュー可能）
+Processing time breakdown (iPhone 16 Pro):
+  ISP hardware processing:      ~15ms
+  NPU semantic analysis:        ~8ms
+  GPU tone mapping:             ~5ms
+  Total:                        ~28ms (real-time preview capable)
 ```
 
-### 1.3 セマンティックセグメンテーションの役割
+### 1.3 The Role of Semantic Segmentation
 
-現代のスマートフォンカメラは、撮影時にシーン全体をセマンティックに理解してから画像処理を行います。
+Modern smartphone cameras semantically understand the entire scene before performing image processing at capture time.
 
 ```
-入力画像のセマンティック分解:
+Semantic decomposition of the input image:
 
 ┌──────────────────────────────────┐
 │ ┌──────────────────────────────┐ │
-│ │ 空 (SKY)                     │ │  → 青を強調、ハイライト回復
-│ │  ☁️ 雲 (CLOUDS)              │ │  → テクスチャ保持、白飛び防止
+│ │ Sky (SKY)                    │ │  → Enhance blue, recover highlights
+│ │  ☁️ Clouds (CLOUDS)          │ │  → Preserve texture, prevent clipping
 │ ├──────────────────────────────┤ │
-│ │ 建物 (BUILDING)              │ │  → エッジ強調、歪み補正
+│ │ Building (BUILDING)          │ │  → Edge enhancement, distortion correction
 │ ├─────────────┬────────────────┤ │
-│ │ 人物 (PERSON) │ 背景 (BG)    │ │  → 人物: 肌色最適化、ボケ: 背景ぼかし
-│ │  👤 顔 (FACE) │ 🌳 植物    │ │  → 顔: 露出優先、植物: 彩度強調
+│ │ Person (PERSON) │ Background │ │  → Person: skin tone optimization, Bokeh: background blur
+│ │  👤 Face (FACE) │ 🌳 Plants │ │  → Face: exposure priority, Plants: saturation boost
 │ └─────────────┴────────────────┘ │
-│ 地面 (GROUND)                    │  → ノイズ除去、ディテール保持
+│ Ground (GROUND)                  │  → Noise reduction, detail preservation
 └──────────────────────────────────┘
 
-各領域に対して異なるトーンカーブ・ノイズ除去・シャープネスを適用
-= 「セマンティックHDR」（Apple Deep Fusion, Google HDR+ の本質）
+Different tone curves, noise reduction, and sharpness are applied to each region
+= "Semantic HDR" (the essence of Apple Deep Fusion and Google HDR+)
 ```
 
 ---
 
-## 2. コード例
+## 2. Code Examples
 
-### コード例 1: OpenCV によるHDR合成
+### Code Example 1: HDR Compositing with OpenCV
 
 ```python
 import cv2
 import numpy as np
 
-# 異なる露出の画像を読み込み
+# Load images with different exposures
 images = [cv2.imread(f"exposure_{i}.jpg") for i in range(4)]
 exposure_times = np.array([1/30, 1/15, 1/8, 1/4], dtype=np.float32)
 
-# カメラレスポンス関数の推定
+# Estimate camera response function
 calibrate = cv2.createCalibrateDebevec()
 response = calibrate.process(images, exposure_times)
 
-# HDR画像の合成
+# Merge into HDR image
 merge = cv2.createMergeDebevec()
 hdr_image = merge.process(images, exposure_times, response)
 
-# トーンマッピング（HDR → 表示可能な画像へ）
+# Tone mapping (HDR → displayable image)
 tonemap = cv2.createTonemap(gamma=2.2)
 ldr_image = tonemap.process(hdr_image)
 ldr_image = np.clip(ldr_image * 255, 0, 255).astype(np.uint8)
 
 cv2.imwrite("hdr_result.jpg", ldr_image)
-print("HDR合成完了: ダイナミックレンジを拡大しました")
+print("HDR compositing complete: dynamic range expanded")
 ```
 
-### コード例 2: AI深度推定によるポートレートモード
+### Code Example 2: Portrait Mode with AI Depth Estimation
 
 ```python
 import torch
 import cv2
 import numpy as np
 
-# MiDaS 深度推定モデル
+# MiDaS depth estimation model
 model = torch.hub.load("intel-isl/MiDaS", "MiDaS_small")
 model.eval()
 
 transform = torch.hub.load("intel-isl/MiDaS", "transforms").small_transform
 
 def portrait_mode(image_path, blur_strength=25):
-    """AI深度推定でポートレートモード（背景ぼかし）を実現"""
+    """Achieve portrait mode (background blur) using AI depth estimation"""
     img = cv2.imread(image_path)
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
-    # 深度推定
+    # Depth estimation
     input_tensor = transform(img_rgb)
     with torch.no_grad():
         depth = model(input_tensor).squeeze().numpy()
 
-    # 深度マップを正規化（0〜1）
+    # Normalize depth map (0 to 1)
     depth = (depth - depth.min()) / (depth.max() - depth.min())
     depth = cv2.resize(depth, (img.shape[1], img.shape[0]))
 
-    # 前景マスク（深度が近いほど1に近い）
+    # Foreground mask (closer depth → closer to 1)
     foreground_mask = (depth > 0.5).astype(np.float32)
     foreground_mask = cv2.GaussianBlur(foreground_mask, (21, 21), 0)
 
-    # 背景をぼかす
+    # Blur the background
     blurred = cv2.GaussianBlur(img, (blur_strength, blur_strength), 0)
 
-    # 合成: 前景は鮮明、背景はぼかし
+    # Composite: foreground sharp, background blurred
     mask_3ch = np.stack([foreground_mask] * 3, axis=-1)
     result = (img * mask_3ch + blurred * (1 - mask_3ch)).astype(np.uint8)
 
@@ -213,7 +216,7 @@ result = portrait_mode("photo.jpg")
 cv2.imwrite("portrait_result.jpg", result)
 ```
 
-### コード例 3: ナイトモード シミュレーション
+### Code Example 3: Night Mode Simulation
 
 ```python
 import cv2
@@ -221,15 +224,15 @@ import numpy as np
 
 def night_mode_simulation(frames, alignment_method="ecc"):
     """
-    複数の暗い画像を合成してナイトモードを再現
-    原理: N枚平均でノイズが1/√N に減少
+    Simulate night mode by compositing multiple dark images.
+    Principle: averaging N frames reduces noise by 1/√N
     """
-    # フレームのアライメント（手ブレ補正）
+    # Frame alignment (image stabilization)
     reference = frames[0]
     aligned_frames = [reference.astype(np.float64)]
 
     for frame in frames[1:]:
-        # ECC（Enhanced Correlation Coefficient）で位置合わせ
+        # Alignment using ECC (Enhanced Correlation Coefficient)
         gray_ref = cv2.cvtColor(reference, cv2.COLOR_BGR2GRAY)
         gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
@@ -249,22 +252,22 @@ def night_mode_simulation(frames, alignment_method="ecc"):
         )
         aligned_frames.append(aligned.astype(np.float64))
 
-    # 平均合成（ノイズ低減）
+    # Average compositing (noise reduction)
     merged = np.mean(aligned_frames, axis=0)
 
-    # ガンマ補正で明るさ調整
+    # Gamma correction for brightness adjustment
     gamma = 2.0
     merged = np.power(merged / 255.0, 1.0 / gamma) * 255.0
 
     return merged.astype(np.uint8)
 
-# 使用例: 15フレームを合成
+# Usage: composite 15 frames
 frames = [cv2.imread(f"dark_frame_{i:02d}.jpg") for i in range(15)]
 result = night_mode_simulation(frames)
 cv2.imwrite("night_mode_result.jpg", result)
 ```
 
-### コード例 4: ML Kit による顔検出と美顔処理
+### Code Example 4: Face Detection and Beauty Enhancement with ML Kit
 
 ```kotlin
 import com.google.mlkit.vision.face.FaceDetection
@@ -287,20 +290,20 @@ fun detectAndEnhanceFaces(bitmap: Bitmap) {
                 val smile = face.smilingProbability ?: 0f
                 val leftEyeOpen = face.leftEyeOpenProbability ?: 0f
 
-                println("顔検出: ${bounds}")
-                println("笑顔度: ${(smile * 100).toInt()}%")
-                println("左目開き: ${(leftEyeOpen * 100).toInt()}%")
+                println("Face detected: ${bounds}")
+                println("Smile probability: ${(smile * 100).toInt()}%")
+                println("Left eye open: ${(leftEyeOpen * 100).toInt()}%")
 
-                // ベストショット選択: 笑顔 + 目が開いている
+                // Best shot selection: smiling + eyes open
                 if (smile > 0.8f && leftEyeOpen > 0.5f) {
-                    println("→ ベストショット候補!")
+                    println("→ Best shot candidate!")
                 }
             }
         }
 }
 ```
 
-### コード例 5: AI消しゴム（Magic Eraser）簡易実装
+### Code Example 5: AI Eraser (Magic Eraser) Simple Implementation
 
 ```python
 import cv2
@@ -310,20 +313,20 @@ import torch
 
 def magic_eraser(image_path, mask_path, prompt="clean background"):
     """
-    AI消しゴム: マスク領域を自然に補完する
-    Stable Diffusion Inpainting を使用
+    AI Eraser: naturally fills in the masked region.
+    Uses Stable Diffusion Inpainting.
     """
-    # 画像とマスクの読み込み
+    # Load image and mask
     image = cv2.imread(image_path)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
 
-    # PIL形式に変換
+    # Convert to PIL format
     from PIL import Image
     image_pil = Image.fromarray(image).resize((512, 512))
     mask_pil = Image.fromarray(mask).resize((512, 512))
 
-    # Inpainting パイプライン
+    # Inpainting pipeline
     pipe = StableDiffusionInpaintPipeline.from_pretrained(
         "runwayml/stable-diffusion-inpainting",
         torch_dtype=torch.float16
@@ -338,13 +341,13 @@ def magic_eraser(image_path, mask_path, prompt="clean background"):
     ).images[0]
 
     result.save("erased_result.png")
-    print("AI消しゴム完了: 不要物を除去しました")
+    print("AI eraser complete: unwanted objects removed")
 
-# 使用例
+# Usage
 magic_eraser("photo.jpg", "mask.png", "seamless grass background")
 ```
 
-### コード例 6: Core ML を使ったカスタム画像フィルタ（iOS）
+### Code Example 6: Custom Image Filter with Core ML (iOS)
 
 ```swift
 import CoreML
@@ -353,13 +356,13 @@ import CoreImage
 import UIKit
 
 class AIImageFilter {
-    /// Core ML モデルを使ったリアルタイム画像フィルタ
+    /// Real-time image filter using a Core ML model
 
     let model: VNCoreMLModel
     let context = CIContext()
 
     init() throws {
-        // 事前に変換したセグメンテーションモデルをロード
+        // Load a pre-converted segmentation model
         let config = MLModelConfiguration()
         config.computeUnits = .all  // CPU + GPU + Neural Engine
         let segModel = try DeepLabV3(configuration: config)
@@ -373,14 +376,14 @@ class AIImageFilter {
             guard let results = request.results as? [VNPixelBufferObservation],
                   let segMask = results.first?.pixelBuffer else { return }
 
-            // セグメンテーションマスクを CIImage に変換
+            // Convert segmentation mask to CIImage
             let maskImage = CIImage(cvPixelBuffer: segMask)
             let originalImage = CIImage(cgImage: cgImage)
 
-            // 背景にガウスぼかしを適用
+            // Apply Gaussian blur to the background
             let blurred = originalImage.applyingGaussianBlur(sigma: 15)
 
-            // マスクで合成（前景: 鮮明、背景: ぼかし）
+            // Composite with mask (foreground: sharp, background: blurred)
             let composite = originalImage
                 .applyingFilter("CIBlendWithMask", parameters: [
                     "inputBackgroundImage": blurred,
@@ -391,19 +394,19 @@ class AIImageFilter {
         let handler = VNImageRequestHandler(cgImage: cgImage)
         try? handler.perform([request])
 
-        return nil // 実際にはコールバックで結果を返す
+        return nil // In practice, the result is returned via callback
     }
 
-    /// カメラプレビューでのリアルタイムフィルタ適用
+    /// Apply real-time filter on camera preview
     func processLiveFrame(_ sampleBuffer: CMSampleBuffer) {
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
 
         let request = VNCoreMLRequest(model: model) { request, _ in
-            // Neural Engine で ~8ms で推論完了
-            // フレームレート 30fps を維持可能
+            // Inference completes in ~8ms on Neural Engine
+            // Can maintain 30fps frame rate
         }
 
-        // パフォーマンス最適化: 入力を縮小して推論
+        // Performance optimization: downscale input for inference
         request.imageCropAndScaleOption = .scaleFill
 
         let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer)
@@ -412,7 +415,7 @@ class AIImageFilter {
 }
 ```
 
-### コード例 7: MediaPipe を使った顔メッシュ検出と美顔フィルタ
+### Code Example 7: Face Mesh Detection and Beauty Filter with MediaPipe
 
 ```python
 import mediapipe as mp
@@ -421,21 +424,21 @@ import numpy as np
 
 class AIBeautyFilter:
     """
-    MediaPipe Face Mesh による468ポイント顔メッシュ検出と
-    リアルタイム美顔フィルタの実装
+    Real-time beauty filter implementation using
+    MediaPipe Face Mesh 468-point face mesh detection.
     """
     def __init__(self):
         self.mp_face_mesh = mp.solutions.face_mesh
         self.face_mesh = self.mp_face_mesh.FaceMesh(
             max_num_faces=5,
-            refine_landmarks=True,   # 虹彩検出も有効化
+            refine_landmarks=True,   # Enable iris detection
             min_detection_confidence=0.5,
             min_tracking_confidence=0.5
         )
 
     def process_frame(self, frame, smooth_skin=True,
                       brighten_eyes=True, slim_face=False):
-        """リアルタイム美顔処理パイプライン"""
+        """Real-time beauty processing pipeline"""
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = self.face_mesh.process(rgb)
 
@@ -462,10 +465,10 @@ class AIBeautyFilter:
 
     def _smooth_skin(self, frame, landmarks):
         """
-        肌のスムージング処理
-        ビラテラルフィルタで肌の質感を保ちつつノイズ除去
+        Skin smoothing process.
+        Uses bilateral filter to remove noise while preserving skin texture.
         """
-        # 顔領域のマスクを生成（顔の輪郭ランドマーク使用）
+        # Generate mask of face region (using face contour landmarks)
         face_outline = [10, 338, 297, 332, 284, 251, 389, 356,
                        454, 323, 361, 288, 397, 365, 379, 378,
                        400, 377, 152, 148, 176, 149, 150, 136,
@@ -475,7 +478,7 @@ class AIBeautyFilter:
         mask = np.zeros(frame.shape[:2], dtype=np.uint8)
         cv2.fillConvexPoly(mask, points, 255)
 
-        # 目・口の領域を除外（ぼかしたくない部分）
+        # Exclude eye and mouth regions (areas we don't want to blur)
         left_eye = [33, 133, 160, 159, 158, 157, 173, 144, 145, 153]
         right_eye = [362, 263, 387, 386, 385, 384, 398, 373, 374, 380]
         mouth = [61, 146, 91, 181, 84, 17, 314, 405, 321, 375, 291]
@@ -484,20 +487,20 @@ class AIBeautyFilter:
             pts = np.array([landmarks[i] for i in region])
             cv2.fillConvexPoly(mask, pts, 0)
 
-        # ビラテラルフィルタ（エッジ保持スムージング）
+        # Bilateral filter (edge-preserving smoothing)
         smoothed = cv2.bilateralFilter(frame, 9, 75, 75)
 
-        # マスクで合成
+        # Composite with mask
         mask_3ch = cv2.merge([mask, mask, mask]) / 255.0
         result = (smoothed * mask_3ch + frame * (1 - mask_3ch)).astype(np.uint8)
 
         return result
 
     def _brighten_eyes(self, frame, landmarks):
-        """目元を明るくする処理"""
+        """Brighten the eye area"""
         eye_indices = [
-            [33, 133, 160, 159, 158, 157, 173, 144, 145, 153],  # 左目
-            [362, 263, 387, 386, 385, 384, 398, 373, 374, 380],  # 右目
+            [33, 133, 160, 159, 158, 157, 173, 144, 145, 153],  # Left eye
+            [362, 263, 387, 386, 385, 384, 398, 373, 374, 380],  # Right eye
         ]
 
         for indices in eye_indices:
@@ -505,7 +508,7 @@ class AIBeautyFilter:
             mask = np.zeros(frame.shape[:2], dtype=np.uint8)
             cv2.fillConvexPoly(mask, pts, 255)
 
-            # ガンマ補正で明るく
+            # Brighten with gamma correction
             eye_region = frame.copy()
             gamma = 1.3
             lut = np.array([((i / 255.0) ** (1.0 / gamma)) * 255
@@ -518,34 +521,34 @@ class AIBeautyFilter:
         return frame
 
     def _slim_face(self, frame, landmarks):
-        """顔のスリム効果（ワープ処理）"""
-        # 頬のランドマークを内側に移動
-        # 液化（Liquify）変換で実装
+        """Face slimming effect (warp processing)"""
+        # Move cheek landmarks inward
+        # Implemented using liquify transform
         h, w = frame.shape[:2]
 
-        # 左右の頬の基準点
+        # Reference points for left and right cheeks
         left_cheek = landmarks[234]
         right_cheek = landmarks[454]
         chin = landmarks[152]
 
-        # 基準点に向かってワープ（簡易版）
-        # 実際の実装ではThin Plate Spline等を使用
+        # Warp toward reference points (simplified version)
+        # In practice, Thin Plate Spline etc. would be used
         map_x = np.float32([[i for i in range(w)] for _ in range(h)])
         map_y = np.float32([[j for _ in range(w)] for j in range(h)])
 
-        # 頬を中心に向かって2%収縮
+        # Shrink cheeks toward center by 2%
         center_x = w // 2
         strength = 0.02
         for y in range(h):
             for x in range(w):
                 dx = x - center_x
-                if abs(dx) > w * 0.1:  # 頬の領域のみ
+                if abs(dx) > w * 0.1:  # Cheek region only
                     map_x[y][x] -= dx * strength
 
         result = cv2.remap(frame, map_x, map_y, cv2.INTER_LINEAR)
         return result
 
-# 使用例: Webカメラでリアルタイム美顔
+# Usage: real-time beauty via webcam
 filter_engine = AIBeautyFilter()
 cap = cv2.VideoCapture(0)
 while cap.isOpened():
@@ -558,7 +561,7 @@ while cap.isOpened():
         break
 ```
 
-### コード例 8: AIアップスケーリング（超解像）
+### Code Example 8: AI Upscaling (Super-Resolution)
 
 ```python
 import torch
@@ -568,13 +571,13 @@ import numpy as np
 
 class ESPCN(nn.Module):
     """
-    Efficient Sub-Pixel CNN (ESPCN) による超解像
-    モバイルデバイスでも動作する軽量モデル
+    Super-resolution using Efficient Sub-Pixel CNN (ESPCN).
+    A lightweight model that runs on mobile devices.
 
-    なぜESPCNか:
-    - PixelShuffle で効率的なアップサンプリング
-    - 低解像度空間で特徴抽出 → 計算量削減
-    - リアルタイム処理が可能（~5ms on GPU）
+    Why ESPCN:
+    - Efficient upsampling via PixelShuffle
+    - Feature extraction in low-resolution space → reduced computation
+    - Capable of real-time processing (~5ms on GPU)
     """
     def __init__(self, upscale_factor=2, num_channels=1):
         super().__init__()
@@ -591,16 +594,16 @@ class ESPCN(nn.Module):
         return x
 
 def super_resolve(image_path, scale=2):
-    """画像を AI で高解像度化"""
+    """Upscale an image to higher resolution using AI"""
     model = ESPCN(upscale_factor=scale)
     model.load_state_dict(torch.load("espcn_x2.pth", map_location="cpu"))
     model.eval()
 
-    # 画像読み込みと前処理
+    # Load and preprocess image
     img = cv2.imread(image_path, cv2.IMREAD_COLOR)
     img_ycrcb = cv2.cvtColor(img, cv2.COLOR_BGR2YCrCb)
 
-    # Y チャンネル（輝度）のみ超解像
+    # Super-resolve only the Y channel (luminance)
     y_channel = img_ycrcb[:, :, 0].astype(np.float32) / 255.0
     y_tensor = torch.from_numpy(y_channel).unsqueeze(0).unsqueeze(0)
 
@@ -609,7 +612,7 @@ def super_resolve(image_path, scale=2):
 
     y_sr = np.clip(y_sr * 255, 0, 255).astype(np.uint8)
 
-    # CrCb チャンネルを双三次補間でアップスケール
+    # Upscale CrCb channels with bicubic interpolation
     cr = cv2.resize(img_ycrcb[:, :, 1],
                     (y_sr.shape[1], y_sr.shape[0]),
                     interpolation=cv2.INTER_CUBIC)
@@ -617,72 +620,72 @@ def super_resolve(image_path, scale=2):
                     (y_sr.shape[1], y_sr.shape[0]),
                     interpolation=cv2.INTER_CUBIC)
 
-    # 合成して出力
+    # Merge and output
     result_ycrcb = cv2.merge([y_sr, cr, cb])
     result = cv2.cvtColor(result_ycrcb, cv2.COLOR_YCrCb2BGR)
 
     cv2.imwrite(f"sr_x{scale}_{image_path}", result)
-    print(f"超解像完了: {img.shape[:2]} → {result.shape[:2]}")
+    print(f"Super-resolution complete: {img.shape[:2]} → {result.shape[:2]}")
     return result
 
-# 使用例
+# Usage
 super_resolve("low_res_photo.jpg", scale=2)
 ```
 
 ---
 
-## 3. 比較表
+## 3. Comparison Tables
 
-### 比較表 1: 主要スマートフォンのカメラAI機能
+### Comparison Table 1: Camera AI Features of Major Smartphones
 
-| 機能 | iPhone 16 Pro | Pixel 9 Pro | Galaxy S24 Ultra |
+| Feature | iPhone 16 Pro | Pixel 9 Pro | Galaxy S24 Ultra |
 |------|-------------|------------|-----------------|
-| HDR方式 | Smart HDR 5 | HDR+ with Bracketing | Adaptive HDR |
-| ナイトモード | Deep Fusion | Night Sight | Nightography |
-| ポートレート | LiDAR + Neural Engine | 機械学習深度推定 | ToF + NPU |
-| AI消しゴム | Clean Up | Magic Eraser | Object Eraser |
-| 動画HDR | Dolby Vision HDR | HDR+ Video | Super HDR |
-| Raw処理 | ProRAW (48MP) | Pro-level RAW | Expert RAW |
-| ズーム強化 | 5x光学 + AI超解像 | 30x Super Res Zoom | 100x Space Zoom |
+| HDR Method | Smart HDR 5 | HDR+ with Bracketing | Adaptive HDR |
+| Night Mode | Deep Fusion | Night Sight | Nightography |
+| Portrait | LiDAR + Neural Engine | ML Depth Estimation | ToF + NPU |
+| AI Eraser | Clean Up | Magic Eraser | Object Eraser |
+| Video HDR | Dolby Vision HDR | HDR+ Video | Super HDR |
+| RAW Processing | ProRAW (48MP) | Pro-level RAW | Expert RAW |
+| Zoom Enhancement | 5x Optical + AI Super-Resolution | 30x Super Res Zoom | 100x Space Zoom |
 
-### 比較表 2: 計算フォトグラフィ技術の比較
+### Comparison Table 2: Computational Photography Techniques
 
-| 技術 | 原理 | 改善点 | 処理時間 | 必要フレーム数 |
+| Technique | Principle | Improvement | Processing Time | Frames Required |
 |------|------|--------|---------|-------------|
-| HDR+ | マルチフレーム合成 | ダイナミックレンジ | ~200ms | 9〜15枚 |
-| ナイトモード | 長時間合成 + AI | 暗所ノイズ低減 | 1〜5秒 | 15〜30枚 |
-| Deep Fusion | ピクセル単位最適化 | テクスチャ・ディテール | ~1秒 | 9枚 |
-| Super Res Zoom | AIアップスケーリング | デジタルズーム画質 | ~300ms | 複数枚 |
-| ポートレート | 深度推定 + ボケ合成 | 背景ぼかし | ~500ms | 1〜2枚 |
-| セマンティックHDR | シーン認識 + 領域別処理 | 顔/空の個別最適化 | ~300ms | 9〜15枚 |
+| HDR+ | Multi-frame fusion | Dynamic range | ~200ms | 9-15 frames |
+| Night Mode | Long-exposure fusion + AI | Low-light noise reduction | 1-5 sec | 15-30 frames |
+| Deep Fusion | Pixel-level optimization | Texture and detail | ~1 sec | 9 frames |
+| Super Res Zoom | AI upscaling | Digital zoom quality | ~300ms | Multiple frames |
+| Portrait | Depth estimation + bokeh synthesis | Background blur | ~500ms | 1-2 frames |
+| Semantic HDR | Scene recognition + region-specific processing | Per-region optimization for face/sky | ~300ms | 9-15 frames |
 
-### 比較表 3: 深度推定方式の比較
+### Comparison Table 3: Depth Estimation Methods
 
-| 方式 | 精度 | コスト | 消費電力 | 屋外/屋内 | 対応デバイス |
+| Method | Accuracy | Cost | Power Consumption | Outdoor/Indoor | Supported Devices |
 |------|------|--------|---------|----------|------------|
-| LiDAR | 非常に高い | 高 | 中 | 両方（屋外はやや弱い） | iPhone Pro, iPad Pro |
-| ToF (Time of Flight) | 高い | 中 | 中 | 屋内に強い | Galaxy S24 Ultra |
-| ステレオカメラ | 中〜高 | 中 | 低 | 両方 | 一部Android |
-| AI単眼深度推定 | 中 | 低（ソフトウェア） | 低 | 両方 | 全スマートフォン |
-| 構造化光 | 高い | 中 | 中 | 屋内のみ | Face ID用 |
+| LiDAR | Very high | High | Medium | Both (slightly weaker outdoors) | iPhone Pro, iPad Pro |
+| ToF (Time of Flight) | High | Medium | Medium | Strong indoors | Galaxy S24 Ultra |
+| Stereo Camera | Medium-High | Medium | Low | Both | Some Android devices |
+| AI Monocular Depth Estimation | Medium | Low (software) | Low | Both | All smartphones |
+| Structured Light | High | Medium | Medium | Indoor only | For Face ID |
 
-### 比較表 4: AI写真編集機能の詳細比較
+### Comparison Table 4: Detailed Comparison of AI Photo Editing Features
 
-| 機能 | Google Magic Editor | Apple Clean Up | Samsung Photo Assist |
+| Feature | Google Magic Editor | Apple Clean Up | Samsung Photo Assist |
 |------|-------------------|---------------|---------------------|
-| オブジェクト消去 | Magic Eraser | Clean Up | Object Eraser |
-| 背景変更 | Reimagine（生成AI） | 非対応 | 限定的 |
-| 被写体移動 | Magic Editor | 非対応 | 非対応 |
-| 空の置換 | 自動提案 | 非対応 | Sky Guide |
-| リサイズ/拡張 | Best Take | 非対応 | 非対応 |
-| AI処理場所 | クラウド（Tensor Cloud） | オンデバイス | ハイブリッド |
-| プライバシー | Google Photos必須 | 端末内完結 | Samsung Cloud可 |
+| Object Removal | Magic Eraser | Clean Up | Object Eraser |
+| Background Change | Reimagine (Generative AI) | Not supported | Limited |
+| Subject Relocation | Magic Editor | Not supported | Not supported |
+| Sky Replacement | Auto-suggested | Not supported | Sky Guide |
+| Resize/Expand | Best Take | Not supported | Not supported |
+| AI Processing Location | Cloud (Tensor Cloud) | On-device | Hybrid |
+| Privacy | Google Photos required | Completed on device | Samsung Cloud available |
 
 ---
 
-## 4. 実践的ユースケース
+## 4. Practical Use Cases
 
-### ユースケース 1: リアルタイムドキュメントスキャン
+### Use Case 1: Real-Time Document Scanning
 
 ```python
 import cv2
@@ -690,22 +693,22 @@ import numpy as np
 
 class AIDocumentScanner:
     """
-    AIを活用したドキュメントスキャナー
-    - 自動エッジ検出で書類の四隅を特定
-    - 透視変換で正面からの画像に補正
-    - 二値化とノイズ除去で読みやすく変換
+    AI-powered document scanner.
+    - Automatically identifies document corners using edge detection
+    - Corrects to front-facing image via perspective transform
+    - Converts to readable format with binarization and noise removal
     """
     def __init__(self):
-        self.edge_model = None  # 本番ではMLモデルを使用
+        self.edge_model = None  # In production, an ML model would be used
 
     def detect_document(self, frame):
-        """書類のエッジを検出"""
-        # 前処理
+        """Detect document edges"""
+        # Preprocessing
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
         edges = cv2.Canny(blurred, 50, 150)
 
-        # 輪郭検出
+        # Contour detection
         contours, _ = cv2.findContours(edges, cv2.RETR_LIST,
                                         cv2.CHAIN_APPROX_SIMPLE)
         contours = sorted(contours, key=cv2.contourArea, reverse=True)
@@ -714,18 +717,18 @@ class AIDocumentScanner:
             peri = cv2.arcLength(contour, True)
             approx = cv2.approxPolyDP(contour, 0.02 * peri, True)
 
-            if len(approx) == 4:  # 四角形を検出
+            if len(approx) == 4:  # Detected a quadrilateral
                 return approx.reshape(4, 2)
 
         return None
 
     def perspective_transform(self, frame, corners):
-        """透視変換で正面画像に補正"""
-        # 四隅を並べ替え（左上、右上、右下、左下）
+        """Correct to front-facing image via perspective transform"""
+        # Sort corners (top-left, top-right, bottom-right, bottom-left)
         rect = self._order_points(corners)
         (tl, tr, br, bl) = rect
 
-        # 出力サイズの計算
+        # Calculate output dimensions
         width = max(
             np.linalg.norm(br - bl),
             np.linalg.norm(tr - tl)
@@ -746,15 +749,15 @@ class AIDocumentScanner:
         return warped
 
     def enhance_document(self, image):
-        """AIベースの文書画像強調"""
-        # 適応的二値化
+        """AI-based document image enhancement"""
+        # Adaptive binarization
         gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-        # CLAHE（コントラスト制限付き適応的ヒストグラム均等化）
+        # CLAHE (Contrast Limited Adaptive Histogram Equalization)
         clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8, 8))
         enhanced = clahe.apply(gray)
 
-        # 適応的閾値処理
+        # Adaptive thresholding
         binary = cv2.adaptiveThreshold(
             enhanced, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
             cv2.THRESH_BINARY, 11, 2
@@ -763,17 +766,17 @@ class AIDocumentScanner:
         return binary
 
     def _order_points(self, pts):
-        """四隅を左上→右上→右下→左下の順に並べ替え"""
+        """Sort corners in order: top-left → top-right → bottom-right → bottom-left"""
         rect = np.zeros((4, 2), dtype=np.float32)
         s = pts.sum(axis=1)
-        rect[0] = pts[np.argmin(s)]   # 左上
-        rect[2] = pts[np.argmax(s)]   # 右下
+        rect[0] = pts[np.argmin(s)]   # Top-left
+        rect[2] = pts[np.argmax(s)]   # Bottom-right
         diff = np.diff(pts, axis=1)
-        rect[1] = pts[np.argmin(diff)] # 右上
-        rect[3] = pts[np.argmax(diff)] # 左下
+        rect[1] = pts[np.argmin(diff)] # Top-right
+        rect[3] = pts[np.argmax(diff)] # Bottom-left
         return rect
 
-# 使用例
+# Usage
 scanner = AIDocumentScanner()
 frame = cv2.imread("document_photo.jpg")
 corners = scanner.detect_document(frame)
@@ -783,7 +786,7 @@ if corners is not None:
     cv2.imwrite("scanned_document.jpg", result)
 ```
 
-### ユースケース 2: AI食事認識と栄養分析
+### Use Case 2: AI Food Recognition and Nutrition Analysis
 
 ```python
 import torch
@@ -793,17 +796,17 @@ import json
 
 class FoodAIAnalyzer:
     """
-    AI食事認識: 写真から食材を識別し栄養情報を推定
-    スマートフォンの NPU で動作可能な軽量モデルを使用
+    AI food recognition: identifies ingredients from photos and estimates nutritional information.
+    Uses a lightweight model that can run on a smartphone's NPU.
     """
     def __init__(self):
-        # 食品分類モデル（MobileNetV3をFine-tuning済み）
+        # Food classification model (fine-tuned MobileNetV3)
         self.model = models.mobilenet_v3_small(pretrained=False)
-        self.model.classifier[-1] = torch.nn.Linear(1024, 256)  # 256種の食品
+        self.model.classifier[-1] = torch.nn.Linear(1024, 256)  # 256 food types
         self.model.load_state_dict(torch.load("food_classifier.pth"))
         self.model.eval()
 
-        # 栄養データベース（100gあたり）
+        # Nutrition database (per 100g)
         self.nutrition_db = {
             "white_rice": {"calories": 168, "protein": 2.5, "carbs": 37, "fat": 0.3},
             "grilled_salmon": {"calories": 208, "protein": 20, "carbs": 0, "fat": 13},
@@ -820,7 +823,7 @@ class FoodAIAnalyzer:
         ])
 
     def analyze_meal(self, image_path):
-        """食事画像を分析"""
+        """Analyze a meal image"""
         image = Image.open(image_path).convert("RGB")
         input_tensor = self.transform(image).unsqueeze(0)
 
@@ -828,7 +831,7 @@ class FoodAIAnalyzer:
             output = self.model(input_tensor)
             probabilities = torch.softmax(output, dim=1)
 
-            # 上位5件の予測
+            # Top 5 predictions
             top5_prob, top5_idx = torch.topk(probabilities, 5)
 
         results = []
@@ -846,168 +849,174 @@ class FoodAIAnalyzer:
 
 ---
 
-## 5. トラブルシューティング
+## 5. Troubleshooting
 
-### 問題 1: ナイトモードで手ブレが発生する
-
-```
-症状: ナイトモードの撮影結果がブレている
-
-原因と対処法:
-1. 長い露光時間（3-5秒）で手持ち撮影
-   → 三脚またはスマートフォンスタンドを使用
-   → 壁や机に端末を固定して撮影
-
-2. 合成フレーム数が不足
-   → ナイトモードの秒数を長く設定（可能な場合）
-   → iPhone: シャッターボタン長押しで時間を延長
-
-3. OIS（光学手ブレ補正）の限界
-   → 歩きながらの撮影は避ける
-   → シャッター後に端末を動かさない
-
-4. 被写体ブレ（動く被写体）
-   → ナイトモードでは動く被写体はゴーストが出る
-   → 動く被写体にはフラッシュまたは通常モードを使用
-```
-
-### 問題 2: ポートレートモードのボケが不自然
+### Problem 1: Camera Shake in Night Mode
 
 ```
-症状: 髪の毛の境界がぼかしに巻き込まれる、メガネに偽ボケがかかる
+Symptom: Night mode photos are blurry
 
-原因と対処法:
-1. 深度推定の精度不足（AI単眼推定の場合）
-   → LiDAR対応デバイスを使用（iPhone Pro以上）
-   → 被写体と背景の距離を1.5m以上確保
-   → 単色背景を避ける（テクスチャが多い背景で精度向上）
+Causes and solutions:
+1. Handheld shooting with long exposure time (3-5 seconds)
+   → Use a tripod or smartphone stand
+   → Stabilize the device against a wall or table
 
-2. 透明/反射物体の問題
-   → ガラスコップ、メガネは深度推定が困難
-   → 手動でフォーカスポイントを調整
+2. Insufficient composite frame count
+   → Set longer night mode duration (if available)
+   → iPhone: press and hold the shutter button to extend time
 
-3. エッジのハロー効果
-   → 撮影後にポートレート編集でボケ量を下げる
-   → Apple: 撮影後に f値を変更可能
-   → Google: ボケの強度スライダーで調整
+3. OIS (Optical Image Stabilization) limitations
+   → Avoid shooting while walking
+   → Don't move the device after pressing the shutter
 
-4. 複数人物の深度が正しくない
-   → 全員が同じ深度平面にいるようにする
-   → 横一列ではなく前後に並ぶと改善
+4. Subject motion blur (moving subjects)
+   → Moving subjects will produce ghosting in night mode
+   → Use flash or standard mode for moving subjects
 ```
 
-### 問題 3: AI消しゴムで不自然な結果になる
+### Problem 2: Unnatural Bokeh in Portrait Mode
 
 ```
-症状: 消去部分にアーティファクトが残る、テクスチャが不自然
+Symptom: Hair edges get caught in the blur, glasses have false bokeh applied
 
-原因と対処法:
-1. 消去対象が大きすぎる
-   → 小さな領域ずつ段階的に消去
-   → Google Magic Eraser: 複数回に分けてなぞる
+Causes and solutions:
+1. Insufficient depth estimation accuracy (AI monocular estimation)
+   → Use a LiDAR-capable device (iPhone Pro or higher)
+   → Maintain at least 1.5m distance between subject and background
+   → Avoid solid-color backgrounds (textured backgrounds improve accuracy)
 
-2. 背景が複雑（パターン、テクスチャ）
-   → 消去が困難な場合は別の角度から再撮影
-   → 生成AIベースの編集（Google Reimagine）を試す
+2. Transparent/reflective object issues
+   → Glass cups, eyeglasses are difficult for depth estimation
+   → Manually adjust the focus point
 
-3. エッジが残る
-   → 消去範囲を少し広めに指定
-   → 消去後に追加で細部を修正
+3. Edge halo effect
+   → Reduce bokeh amount in portrait editing after capture
+   → Apple: f-stop can be changed after shooting
+   → Google: adjust with the bokeh intensity slider
 
-4. 反復適用によるアーティファクト蓄積
-   → 1回の高品質な処理 > 複数回の繰り返し
-   → 元画像を保持し、やり直しが可能なワークフローで
+4. Incorrect depth for multiple people
+   → Position everyone on the same depth plane
+   → Arranging front-to-back rather than side-by-side improves results
 ```
 
-### 問題 4: HDR撮影でハロー（にじみ）が出る
+### Problem 3: Unnatural Results from AI Eraser
 
 ```
-症状: 明暗の境界にハロー（白いにじみ）が発生
+Symptom: Artifacts remain in erased areas, textures look unnatural
 
-原因:
-- トーンマッピングが過度（ローカルトーンマッピングの副作用）
-- HDR合成時のゴーストアーティファクト
+Causes and solutions:
+1. Erased area is too large
+   → Erase in small sections progressively
+   → Google Magic Eraser: trace over the area multiple times
 
-対処法:
-1. HDR強度を下げる（設定可能な場合）
-   → Samsung: HDR自動ではなくマニュアルHDRに切り替え
+2. Complex background (patterns, textures)
+   → If erasure is difficult, retake the photo from a different angle
+   → Try generative AI-based editing (Google Reimagine)
 
-2. RAWで撮影し、後からHDR処理
-   → Adobe Lightroom で適切なトーンカーブを適用
-   → ProRAW / Expert RAW を活用
+3. Residual edges remain
+   → Specify the erasure area slightly larger than needed
+   → Refine details after the initial erasure
 
-3. ファームウェアアップデートを確認
-   → HDRアルゴリズムはソフトウェア更新で改善される
+4. Artifact accumulation from repeated application
+   → One high-quality pass > multiple repeated passes
+   → Keep the original image and use a non-destructive editing workflow
+```
 
-4. コントラストが極端なシーンを避ける
-   → 直射日光下の逆光は最も困難なケース
-   → 反射板（レフ板）で影を軽減
+### Problem 4: Halo (Fringing) in HDR Photos
+
+```
+Symptom: Halo (white fringing) appears at boundaries between bright and dark areas
+
+Causes:
+- Excessive tone mapping (side effect of local tone mapping)
+- Ghost artifacts during HDR compositing
+
+Solutions:
+1. Reduce HDR intensity (if configurable)
+   → Samsung: switch from auto HDR to manual HDR
+
+2. Shoot in RAW and apply HDR processing afterward
+   → Apply appropriate tone curves in Adobe Lightroom
+   → Use ProRAW / Expert RAW
+
+3. Check for firmware updates
+   → HDR algorithms are improved through software updates
+
+4. Avoid scenes with extreme contrast
+   → Backlit scenes in direct sunlight are the most challenging
+   → Use a reflector to reduce shadows
 ```
 
 ---
 
-## 6. パフォーマンス最適化Tips
+## 6. Performance Optimization Tips
 
-### Tip 1: カメラAIモデルの最適化チェックリスト
+### Tip 1: Camera AI Model Optimization Checklist
 
 ```
-カメラAI パフォーマンス最適化チェックリスト:
+Camera AI Performance Optimization Checklist:
 
-□ モデルサイズ
-  ├── MobileNetV3 / EfficientNet-Lite を使用（~5MB以下）
-  ├── 不要なレイヤーをプルーニング
-  └── INT8量子化を適用（精度影響を検証済み）
+□ Model Size
+  ├── Use MobileNetV3 / EfficientNet-Lite (~5MB or less)
+  ├── Prune unnecessary layers
+  └── Apply INT8 quantization (verify accuracy impact)
 
-□ 入力解像度
-  ├── 推論用の入力は最小限に（224x224 or 320x320）
-  ├── カメラプレビュー用とキャプチャ用で異なる解像度を使用
-  └── ROI（関心領域）のみをクロップして推論
+□ Input Resolution
+  ├── Minimize input for inference (224x224 or 320x320)
+  ├── Use different resolutions for camera preview vs. capture
+  └── Crop and infer only the ROI (Region of Interest)
 
-□ 推論エンジン
-  ├── iOS: Core ML（Neural Engine自動活用）
-  ├── Android: TFLite + NNAPI（NPU活用）
-  ├── 汎用: ONNX Runtime（最適なEPを自動選択）
-  └── NVIDIA: TensorRT（Jetson等のエッジデバイス）
+□ Inference Engine
+  ├── iOS: Core ML (automatic Neural Engine utilization)
+  ├── Android: TFLite + NNAPI (NPU utilization)
+  ├── Cross-platform: ONNX Runtime (auto-selects optimal EP)
+  └── NVIDIA: TensorRT (edge devices like Jetson)
 
-□ フレーム処理
-  ├── 全フレームではなく間引いて推論（30fps → 10fps推論）
-  ├── 推論と描画を別スレッドで並列実行
-  ├── 前フレームの結果をキャッシュして補間
-  └── バッチ推論が可能なら複数フレームをまとめる
+□ Frame Processing
+  ├── Run inference on subsampled frames (30fps → 10fps inference)
+  ├── Run inference and rendering on separate threads in parallel
+  ├── Cache previous frame results and interpolate
+  └── Batch multiple frames together if batch inference is possible
 
-□ メモリ管理
-  ├── モデルは1回だけロード、使い回す
-  ├── 入出力バッファは事前確保（毎フレーム確保しない）
+□ Memory Management
+  ├── Load model only once and reuse
+  ├── Pre-allocate input/output buffers (don't allocate per frame)
   ├── Core ML: MLModelConfiguration.computeUnits = .all
-  └── TFLite: Interpreter.Options で GPU Delegate 有効化
+  └── TFLite: enable GPU Delegate in Interpreter.Options
 ```
 
-### Tip 2: バッテリー効率の最適化
+### Tip 2: Battery Efficiency Optimization
 
 ```
 ┌──────────────────────────────────────────────┐
-│     カメラAI バッテリー効率の最適化            │
+│     Camera AI Battery Efficiency Optimization │
 ├──────────────────────────────────────────────┤
 │                                                │
-│  消費電力が高い処理:                           │
-│  ├── リアルタイムセグメンテーション: ~2W       │
-│  ├── 常時顔検出: ~1.5W                        │
-│  ├── 動画HDR: ~3W                              │
-│  └── AIフィルタプレビュー: ~2.5W              │
+│  High power consumption processes:             │
+│  ├── Real-time segmentation: ~2W              │
+│  ├── Continuous face detection: ~1.5W         │
+│  ├── Video HDR: ~3W                           │
+│  └── AI filter preview: ~2.5W                 │
 │                                                │
-│  最適化戦略:                                   │
-│  ├── 静止画撮影時のみAI処理を実行             │
-│  │   → プレビュー時はダウンスケールした軽量推論│
-│  ├── NPUに適した処理はNPUに委譲               │
-│  │   → GPU より NPU の方が 5-10倍 省電力      │
-│  ├── 顔検出の頻度を状況に応じて変更           │
-│  │   → 顔が検出されたら高頻度、未検出なら低頻度│
-│  └── サーマルスロットリングを検出して品質を下げる│
-│      → API でチップ温度を監視                  │
+│  Optimization strategies:                      │
+│  ├── Execute AI processing only during still  │
+│  │   capture                                   │
+│  │   → Use downscaled lightweight inference   │
+│  │     during preview                          │
+│  ├── Delegate NPU-suitable tasks to NPU       │
+│  │   → NPU is 5-10x more power-efficient     │
+│  │     than GPU                                │
+│  ├── Adjust face detection frequency based    │
+│  │   on context                                │
+│  │   → High frequency when face detected,     │
+│  │     low frequency otherwise                 │
+│  └── Detect thermal throttling and reduce     │
+│      quality                                   │
+│      → Monitor chip temperature via API        │
 └──────────────────────────────────────────────┘
 ```
 
-### Tip 3: 画質評価指標の自動化
+### Tip 3: Automated Image Quality Evaluation
 
 ```python
 import cv2
@@ -1017,35 +1026,35 @@ from skimage.metrics import peak_signal_noise_ratio as psnr
 
 def evaluate_image_quality(original, processed):
     """
-    画像処理AIの品質評価メトリクス
-    モデル選定やハイパーパラメータ調整に使用
+    Quality evaluation metrics for image processing AI.
+    Used for model selection and hyperparameter tuning.
     """
-    # PSNR（ピーク信号対雑音比）: 高いほど良い
+    # PSNR (Peak Signal-to-Noise Ratio): higher is better
     psnr_value = psnr(original, processed)
 
-    # SSIM（構造的類似度）: 1に近いほど良い
+    # SSIM (Structural Similarity Index): closer to 1 is better
     ssim_value = ssim(original, processed, channel_axis=2)
 
-    # BRISQUE（無参照画質評価）: 低いほど良い
-    # ブラインド/リファレンスレス画質評価
-    # OpenCV の quality モジュールを使用
+    # BRISQUE (No-Reference Image Quality Assessment): lower is better
+    # Blind/referenceless image quality evaluation
+    # Uses OpenCV's quality module
 
-    # 色相の一貫性チェック
+    # Hue consistency check
     hsv_orig = cv2.cvtColor(original, cv2.COLOR_BGR2HSV)
     hsv_proc = cv2.cvtColor(processed, cv2.COLOR_BGR2HSV)
     hue_diff = np.mean(np.abs(hsv_orig[:,:,0].astype(float) -
                                hsv_proc[:,:,0].astype(float)))
 
     results = {
-        "PSNR (dB)": f"{psnr_value:.2f}",      # 目安: 30dB以上
-        "SSIM": f"{ssim_value:.4f}",             # 目安: 0.90以上
-        "色相差 (平均)": f"{hue_diff:.2f}",      # 目安: 5以下
-        "判定": "PASS" if psnr_value > 30 and ssim_value > 0.90 else "FAIL"
+        "PSNR (dB)": f"{psnr_value:.2f}",      # Target: 30dB or higher
+        "SSIM": f"{ssim_value:.4f}",             # Target: 0.90 or higher
+        "Hue Difference (avg)": f"{hue_diff:.2f}",  # Target: 5 or lower
+        "Verdict": "PASS" if psnr_value > 30 and ssim_value > 0.90 else "FAIL"
     }
 
     return results
 
-# 使用例: AI処理前後の品質を評価
+# Usage: evaluate quality before and after AI processing
 original = cv2.imread("original.jpg")
 processed = cv2.imread("ai_enhanced.jpg")
 quality = evaluate_image_quality(original, processed)
@@ -1055,62 +1064,62 @@ for k, v in quality.items():
 
 ---
 
-## 7. 設計パターン
+## 7. Design Patterns
 
-### パターン 1: プログレッシブ画像処理パイプライン
+### Pattern 1: Progressive Image Processing Pipeline
 
 ```
-リアルタイムプレビューと最終出力で異なる品質レベルを使用:
+Use different quality levels for real-time preview and final output:
 
 ┌───────────────────────────────────────────────┐
-│  プレビュー時（低品質・高速）                   │
-│  ├── 入力: 640x480 ダウンスケール              │
-│  ├── 深度推定: MiDaS small (~5ms)             │
-│  ├── ぼかし: Gaussian (kernel=15)             │
+│  During Preview (Low Quality / High Speed)     │
+│  ├── Input: 640x480 downscaled                │
+│  ├── Depth estimation: MiDaS small (~5ms)     │
+│  ├── Blur: Gaussian (kernel=15)               │
 │  └── FPS: 30                                  │
 ├───────────────────────────────────────────────┤
-│  シャッター時（高品質・低速）                   │
-│  ├── 入力: フル解像度（4032x3024）             │
-│  ├── 深度推定: MiDaS large (~200ms)           │
-│  ├── ぼかし: Lens blur simulation (~100ms)    │
-│  ├── HDR合成: 9フレーム合成 (~500ms)          │
-│  └── 合計: ~800ms                             │
+│  At Shutter Press (High Quality / Low Speed)   │
+│  ├── Input: Full resolution (4032x3024)       │
+│  ├── Depth estimation: MiDaS large (~200ms)   │
+│  ├── Blur: Lens blur simulation (~100ms)      │
+│  ├── HDR compositing: 9-frame fusion (~500ms) │
+│  └── Total: ~800ms                            │
 └───────────────────────────────────────────────┘
 
-なぜこのパターンか:
-- プレビュー時にフル推論を行うとバッテリーが急速に消耗
-- ユーザーはプレビューでの品質差をほとんど認識しない
-- シャッター後に高品質処理を行えば十分
+Why this pattern:
+- Running full inference during preview drains the battery rapidly
+- Users barely notice quality differences in the preview
+- Running high-quality processing after shutter press is sufficient
 ```
 
-### パターン 2: フォールバック付きAI処理
+### Pattern 2: AI Processing with Fallback
 
 ```python
 class ResilientCameraAI:
     """
-    AI処理が失敗した場合のフォールバック付きパイプライン
+    Pipeline with fallback for when AI processing fails.
 
-    なぜ必要か:
-    - MLモデルの推論は入力によっては予期しない結果を返す
-    - メモリ不足で推論が中断される場合がある
-    - NPUが他のアプリに占有されている場合がある
+    Why this is needed:
+    - ML model inference can return unexpected results depending on input
+    - Inference may be interrupted due to insufficient memory
+    - The NPU may be occupied by other apps
     """
     def __init__(self):
         self.ai_depth_estimator = load_model("midas_small")
-        self.fallback_depth = None  # 直前の成功結果をキャッシュ
+        self.fallback_depth = None  # Cache of last successful result
 
     def estimate_depth(self, frame):
         try:
-            # 優先: AI深度推定（NPU）
+            # Priority: AI depth estimation (NPU)
             depth = self.ai_depth_estimator.predict(frame)
-            self.fallback_depth = depth  # キャッシュ
+            self.fallback_depth = depth  # Cache
             return depth, "ai"
         except (RuntimeError, MemoryError):
-            # フォールバック1: 直前の推定結果を再利用
+            # Fallback 1: reuse previous estimation result
             if self.fallback_depth is not None:
                 return self.fallback_depth, "cache"
 
-            # フォールバック2: 古典的手法（コントラストベース）
+            # Fallback 2: classical method (contrast-based)
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             laplacian = cv2.Laplacian(gray, cv2.CV_64F)
             depth_approx = np.abs(laplacian)
@@ -1119,52 +1128,52 @@ class ResilientCameraAI:
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン 1: RAW撮影で計算フォトグラフィを無効にする
-
-```
-❌ 誤解:
-「RAWで撮ればすべてのAI処理より高画質になる」
-→ RAWは計算フォトグラフィ（マルチフレーム合成）が適用されない
-→ 特に暗所でノイズが多く、HDR+より劣る場合がある
-
-✅ 正しい理解:
-- RAW = 柔軟な後処理が必要な場合（プロフォトグラファー向け）
-- JPEG/HEIF = AI最適化済みで多くの場合最良の結果
-- ProRAW/Expert RAW = AI処理済み + RAWの柔軟性（推奨）
-```
-
-### アンチパターン 2: AI編集の過度な適用
+### Anti-Pattern 1: Disabling Computational Photography by Shooting in RAW
 
 ```
-❌ 悪い例:
-美顔フィルタを最大強度で適用 → 不自然な「蝋人形」効果
-AIアップスケーリングを繰り返し適用 → アーティファクト蓄積
+❌ Misconception:
+"Shooting in RAW always produces higher quality than any AI processing"
+→ RAW does not apply computational photography (multi-frame fusion)
+→ Especially in low light, RAW is noisier and can be inferior to HDR+
 
-✅ 正しいアプローチ:
-- AI編集は「補助」として使用し、強度を控えめに設定
-- 1回の高品質なAI処理 > 複数回の繰り返し処理
-- 元画像を必ず保持し、非破壊編集を心がける
+✅ Correct understanding:
+- RAW = for cases requiring flexible post-processing (professional photographers)
+- JPEG/HEIF = AI-optimized, often the best result for most cases
+- ProRAW/Expert RAW = AI-processed + RAW flexibility (recommended)
 ```
 
-### アンチパターン 3: カメラアプリでのメモリリーク
+### Anti-Pattern 2: Excessive Application of AI Editing
 
 ```
-❌ 悪い例:
-フレームごとに MLモデルを再ロード、バッファを毎回確保
-→ メモリが膨張し、アプリがクラッシュ
+❌ Bad example:
+Applying beauty filter at maximum intensity → unnatural "wax figure" effect
+Repeatedly applying AI upscaling → artifact accumulation
 
-✅ 正しいアプローチ:
-- モデルは init() で1回だけロード
-- 入出力バッファは事前確保して再利用
-- AutoreleasepoolまたはGC.collect()で不要なバッファを解放
-- カメラセッション終了時にモデルを明示的に解放
+✅ Correct approach:
+- Use AI editing as an "assist" and keep intensity conservative
+- One high-quality AI pass > multiple repeated passes
+- Always keep the original image and practice non-destructive editing
+```
 
-// iOS の正しい実装パターン
+### Anti-Pattern 3: Memory Leaks in Camera Apps
+
+```
+❌ Bad example:
+Reloading the ML model and allocating buffers for every frame
+→ Memory bloats and the app crashes
+
+✅ Correct approach:
+- Load the model only once in init()
+- Pre-allocate input/output buffers and reuse them
+- Release unnecessary buffers with Autoreleasepool or GC.collect()
+- Explicitly release the model when the camera session ends
+
+// Correct implementation pattern for iOS
 class CameraProcessor {
     private lazy var model: VNCoreMLModel = {
-        // lazy var で初回アクセス時のみロード
+        // Load only on first access via lazy var
         let config = MLModelConfiguration()
         config.computeUnits = .all
         let model = try! DeepLabV3(configuration: config)
@@ -1172,160 +1181,166 @@ class CameraProcessor {
     }()
 
     deinit {
-        // 明示的なクリーンアップ
-        // Core ML モデルは deinit で自動解放
+        // Explicit cleanup
+        // Core ML models are automatically released on deinit
     }
 }
 ```
 
-### アンチパターン 4: 全フレームにフル推論を適用する
+### Anti-Pattern 4: Running Full Inference on Every Frame
 
 ```
-❌ 悪い例:
-30fps の全フレームに対して重い深度推定 + セグメンテーションを実行
-→ 処理が追いつかず、フレームドロップが発生
-→ バッテリーが急速に消耗
+❌ Bad example:
+Running heavy depth estimation + segmentation on all 30fps frames
+→ Processing can't keep up, causing frame drops
+→ Battery drains rapidly
 
-✅ 正しいアプローチ:
-- 推論は間引いて実行（30fps → 10fps推論）
-- 中間フレームは前の推論結果を補間（optical flow活用）
-- シーンが大きく変わったら即座に再推論
-- フレームキューの深さを制限（古い結果は破棄）
+✅ Correct approach:
+- Run inference on subsampled frames (30fps → 10fps inference)
+- Interpolate intermediate frames using previous inference results (using optical flow)
+- Re-run inference immediately when the scene changes significantly
+- Limit the frame queue depth (discard stale results)
 ```
 
 ---
 
-## 9. エッジケース分析
+## 9. Edge Case Analysis
 
-### エッジケース 1: 逆光シーンでの顔検出失敗
+### Edge Case 1: Face Detection Failure in Backlit Scenes
 
-逆光（バックライト）シーンでは、顔が暗く潰れてAI顔検出が失敗する。この場合、ハードウェアISPの露出制御とAI顔検出の優先度が競合する。
+In backlit (backlight) scenes, the face becomes dark and crushed, causing AI face detection to fail. In this case, the hardware ISP's exposure control and AI face detection priorities conflict.
 
 ```
-解決策:
-1. 露出のプリスキャン: シャッター前の数フレームで顔の有無を高速検出
-   → 顔が検出された場合、顔領域の露出に最適化
-   → Smart HDR が顔用と背景用で異なる露出フレームを撮影
+Solutions:
+1. Exposure pre-scan: detect face presence at high speed in frames before shutter press
+   → If a face is detected, optimize exposure for the face region
+   → Smart HDR captures different exposure frames for face and background
 
-2. フェイスメータリング:
-   → 測光ポイントを顔に自動設定
-   → AE (Auto Exposure) が顔基準で露出を決定
+2. Face metering:
+   → Automatically set the metering point to the face
+   → AE (Auto Exposure) determines exposure based on the face
 
-3. フィルバック:
-   → 顔検出に失敗した場合、中央重点測光にフォールバック
-   → ユーザーにタップフォーカスを促すUIを表示
+3. Fallback:
+   → If face detection fails, fall back to center-weighted metering
+   → Display UI prompting the user to tap-to-focus
 ```
 
-### エッジケース 2: 動画撮影中のAI処理と熱管理
+### Edge Case 2: AI Processing and Thermal Management During Video Recording
 
-長時間の4K動画撮影では、ISP + NPU + GPUの同時使用によりチップ温度が上昇し、サーマルスロットリングが発生する。
+During extended 4K video recording, simultaneous use of ISP + NPU + GPU causes chip temperature to rise, triggering thermal throttling.
 
 ```
 ┌──────────────────────────────────────────┐
-│     サーマルスロットリング対策             │
+│     Thermal Throttling Countermeasures    │
 ├──────────────────────────────────────────┤
 │                                            │
-│  チップ温度     AI処理レベル               │
+│  Chip Temp      AI Processing Level        │
 │  ─────────     ──────────                  │
-│  < 40℃        フル処理（HDR + スタビライザ │
-│                + 顔検出 + ボケ）            │
-│  40-50℃       AI処理を間引き              │
-│                （顔検出を5fpsに低下）       │
-│  50-60℃       スタビライザのみ             │
-│                （AI処理を一時停止）         │
-│  > 60℃        録画品質を1080pに低下       │
-│                （最小限のISP処理のみ）      │
+│  < 40°C        Full processing (HDR +      │
+│                stabilizer + face detection  │
+│                + bokeh)                     │
+│  40-50°C       Subsample AI processing     │
+│                (reduce face detection to    │
+│                5fps)                        │
+│  50-60°C       Stabilizer only             │
+│                (pause AI processing)        │
+│  > 60°C        Reduce recording quality    │
+│                to 1080p                     │
+│                (minimal ISP processing      │
+│                only)                        │
 │                                            │
-│  ベストプラクティス:                       │
-│  - サーマルモニタリングAPIで温度を常時監視  │
-│  - 段階的にAI処理の品質を落とす            │
-│  - ユーザーに温度警告を表示                │
-│  - ケースを外すよう促す（放熱改善）        │
+│  Best practices:                           │
+│  - Continuously monitor temperature via    │
+│    thermal monitoring API                  │
+│  - Gradually reduce AI processing quality  │
+│  - Display temperature warning to user     │
+│  - Prompt user to remove case (improves    │
+│    heat dissipation)                       │
 └──────────────────────────────────────────┘
 ```
 
 ---
 
-## 10. 開発者チェックリスト
+## 10. Developer Checklist
 
 ```
-カメラAIアプリ開発チェックリスト:
+Camera AI App Development Checklist:
 
-□ プラットフォーム選択
+□ Platform Selection
   □ iOS: AVFoundation + Core ML + Vision
   □ Android: CameraX + TFLite + ML Kit
-  □ クロスプラットフォーム: MediaPipe + OpenCV
+  □ Cross-platform: MediaPipe + OpenCV
 
-□ モデル選定
-  □ タスクに適した軽量モデルを選択（MobileNet, EfficientNet-Lite）
-  □ INT8量子化を適用済み
-  □ ターゲットデバイスの NPU/GPU 互換性を確認
+□ Model Selection
+  □ Choose a lightweight model suited to the task (MobileNet, EfficientNet-Lite)
+  □ INT8 quantization applied
+  □ Verified NPU/GPU compatibility on target device
 
-□ パフォーマンス
-  □ プレビュー時は低解像度推論
-  □ キャプチャ時にフル品質推論
-  □ 推論スレッドとUIスレッドを分離
-  □ FPS ≥ 25（プレビュー表示）
+□ Performance
+  □ Low-resolution inference during preview
+  □ Full-quality inference at capture
+  □ Inference thread separated from UI thread
+  □ FPS ≥ 25 (preview display)
 
-□ メモリ管理
-  □ モデルのシングルトンロード
-  □ バッファの事前確保と再利用
-  □ カメラ停止時のリソース解放
+□ Memory Management
+  □ Singleton model loading
+  □ Pre-allocated and reused buffers
+  □ Resource release when camera stops
 
-□ バッテリー
-  □ NPU を優先的に使用
-  □ バックグラウンドでのカメラ使用を制限
-  □ サーマルスロットリング対策
+□ Battery
+  □ Prioritize NPU usage
+  □ Limit camera usage in the background
+  □ Thermal throttling countermeasures
 
-□ テスト
-  □ 低照度環境でのテスト
-  □ 逆光シーンでのテスト
-  □ 動く被写体でのテスト
-  □ 異なるデバイスでのパフォーマンステスト
+□ Testing
+  □ Test in low-light environments
+  □ Test in backlit scenes
+  □ Test with moving subjects
+  □ Performance testing on different devices
 ```
 
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate the input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1334,26 +1349,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1361,7 +1376,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1372,14 +1387,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1387,7 +1402,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1395,44 +1410,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1441,7 +1456,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1456,67 +1471,67 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f} sec")
+    print(f"Efficient version:   {fast_time:.6f} sec")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 ---
 
 ## FAQ
 
-### Q1: なぜスマートフォンカメラが一眼レフに近づけるのですか？
+### Q1: Why can smartphone cameras approach DSLR quality?
 
-**A:** 計算フォトグラフィが物理的な制約を補うからです。小さなセンサーでも、9〜30枚のフレームを合成することで、ノイズ低減とダイナミックレンジ拡大を実現します。加えてAIによるシーン認識が、空・肌・テクスチャを個別に最適化します。ただし、大型センサーの物理的な光学ボケや浅い被写界深度は、AIシミュレーションでは完全には再現できません。
+**A:** Because computational photography compensates for physical limitations. Even with a small sensor, fusing 9-30 frames achieves noise reduction and expanded dynamic range. Additionally, AI scene recognition individually optimizes sky, skin, and textures. However, the physical optical bokeh and shallow depth of field of large sensors cannot be perfectly replicated by AI simulation.
 
-### Q2: ナイトモードの「3秒」「5秒」は何をしていますか？
+### Q2: What happens during the "3 seconds" or "5 seconds" of Night Mode?
 
-**A:** シャッターを長く開けているのではなく、短い露出（数十ms）のフレームを多数撮影し、アライメント（位置合わせ）してから合成しています。3秒なら約15枚、5秒なら約30枚を使い、√N倍のノイズ改善を得ます。同時にAIがゴーストの除去や色補正も行います。
+**A:** Rather than holding the shutter open for a long time, it captures many short-exposure frames (tens of milliseconds each), aligns them, and then composites them. 3 seconds uses approximately 15 frames, and 5 seconds uses approximately 30 frames, achieving a noise improvement of a factor of the square root of N. Simultaneously, AI performs ghost removal and color correction.
 
-### Q3: AI消しゴム機能はどの程度信頼できますか？
+### Q3: How reliable is the AI eraser feature?
 
-**A:** 背景が単純（芝生、空、壁など）な場合は非常に自然に消去できます。一方、複雑なテクスチャ（群衆の中の一人、建物の一部など）では不自然なアーティファクトが生じることがあります。Google の Magic Eraser は複数回の適用とプロンプト入力で改善可能です。
+**A:** When the background is simple (grass, sky, walls, etc.), erasure is very natural. On the other hand, complex textures (one person in a crowd, part of a building, etc.) can produce unnatural artifacts. Google's Magic Eraser can be improved with multiple applications and prompt input.
 
-### Q4: カメラAI開発の入門に最適なフレームワークは？
+### Q4: What is the best framework for getting started with camera AI development?
 
-**A:** まず MediaPipe から始めることを推奨します。顔検出、ポーズ推定、セグメンテーションなどの事前学習済みモデルがすぐに使え、Python / iOS / Android すべてに対応しています。その後、カスタムモデルが必要になったら Core ML (iOS) または TFLite (Android) で独自モデルをデプロイする流れが効率的です。
+**A:** We recommend starting with MediaPipe. It provides ready-to-use pre-trained models for face detection, pose estimation, segmentation, and more, and supports Python / iOS / Android. Then, when you need custom models, deploying your own models via Core ML (iOS) or TFLite (Android) is the most efficient workflow.
 
-### Q5: ProRAW と通常のRAWの違いは何ですか？
+### Q5: What is the difference between ProRAW and regular RAW?
 
-**A:** 通常のRAW（DNG）はセンサーの生データをそのまま保存するため、AI処理（マルチフレーム合成、Deep Fusion、ノイズ除去）が適用されません。一方、Apple ProRAW はAI処理済みのデータをRAW形式で保存するため、計算フォトグラフィの恩恵を受けながらも後処理の自由度を確保できます。ファイルサイズは通常のJPEGの10〜20倍（25-75MB程度）になります。
+**A:** Regular RAW (DNG) saves the sensor's raw data as-is, so AI processing (multi-frame fusion, Deep Fusion, noise reduction) is not applied. On the other hand, Apple ProRAW saves AI-processed data in RAW format, allowing you to benefit from computational photography while retaining post-processing flexibility. File size is 10-20x larger than a regular JPEG (approximately 25-75MB).
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| 計算フォトグラフィ | マルチフレーム合成でセンサー限界を超える画質を実現 |
-| HDR+ | 9〜15枚の合成でダイナミックレンジを拡大 |
-| ナイトモード | √N倍のノイズ改善 + AI補正で暗所撮影を革新 |
-| ポートレート | 深度推定AIで一眼レフ風ボケを再現 |
-| AI編集 | 消しゴム、アップスケーリング、スタイル変換が端末上で可能 |
-| セマンティック処理 | シーン/被写体認識で領域別に最適化処理 |
-| ISP + NPU連携 | ハードウェアISPとAIの協調処理がリアルタイム性能の鍵 |
-| パフォーマンス最適化 | プレビュー/キャプチャの品質分離、NPU優先活用 |
+| Computational Photography | Achieves image quality beyond sensor limits through multi-frame fusion |
+| HDR+ | Expands dynamic range by compositing 9-15 frames |
+| Night Mode | Revolutionizes low-light shooting with noise improvement by a factor of the square root of N + AI correction |
+| Portrait | Reproduces DSLR-like bokeh with depth estimation AI |
+| AI Editing | Eraser, upscaling, and style transfer are possible on-device |
+| Semantic Processing | Optimizes processing per region through scene/subject recognition |
+| ISP + NPU Coordination | Coordinated processing between hardware ISP and AI is key to real-time performance |
+| Performance Optimization | Separate quality levels for preview/capture, prioritize NPU usage |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [AIアシスタント — Siri/Google Assistant/Alexa](./02-ai-assistants.md)
-- [ウェアラブル — Apple Watch/Galaxy Watch](./03-wearables.md)
-- コンピュータビジョン — 物体検出、セグメンテーション
+- [AI Assistants — Siri/Google Assistant/Alexa](./02-ai-assistants.md)
+- [Wearables — Apple Watch/Galaxy Watch](./03-wearables.md)
+- Computer Vision — Object Detection, Segmentation
 
 ---
 
-## 参考文献
+## References
 
 1. **Google Research** — "HDR+ with Bracketing on Pixel Phones," Google AI Blog, 2023
 2. **Apple** — "Deep Fusion and Photonic Engine," developer.apple.com, 2024
