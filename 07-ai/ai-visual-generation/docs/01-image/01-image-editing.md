@@ -1,73 +1,73 @@
-# 画像編集 — インペインティング、アウトペインティング
+# Image Editing — Inpainting, Outpainting
 
-> AI による画像の部分修正・拡張技術を、マスク生成からシームレスな合成まで実践的に解説する。
-
----
-
-## この章で学ぶこと
-
-1. **インペインティングの原理と実装** — マスク領域の自然な補完、プロンプトによる部分書き換え
-2. **アウトペインティングの技法** — 画像の境界を超えた拡張、パノラマ生成
-3. **Img2Img と ControlNet による高度な編集** — 構図維持、スタイル変換、ポーズ制御
-4. **自動マスク生成パイプライン** — SAM、Grounding DINO、テキスト指定による領域選択
-5. **Instruct-Pix2Pix と自然言語編集** — テキスト指示による直感的な画像編集
-6. **商用ワークフロー** — バッチ処理、品質管理、本番環境向けパイプライン
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [画像生成 — Stable Diffusion、DALL-E、Midjourney](./00-image-generation.md) の内容を理解していること
+> A practical guide to AI-powered partial image modification and extension techniques, from mask generation to seamless compositing.
 
 ---
 
-## 1. インペインティング
+## What You Will Learn in This Chapter
 
-### 1.1 インペインティングの理論的背景
+1. **Principles and Implementation of Inpainting** — Natural completion of masked regions, partial rewriting with prompts
+2. **Outpainting Techniques** — Extending beyond image boundaries, panorama generation
+3. **Advanced Editing with Img2Img and ControlNet** — Composition preservation, style transfer, pose control
+4. **Automatic Mask Generation Pipelines** — SAM, Grounding DINO, text-based region selection
+5. **Instruct-Pix2Pix and Natural Language Editing** — Intuitive image editing through text instructions
+6. **Commercial Workflows** — Batch processing, quality management, production-ready pipelines
 
-インペインティングは拡散モデルの逆拡散プロセスを応用し、マスク領域のみにノイズを付加して段階的にデノイズする。元画像の非マスク領域は各ステップで強制的に元のピクセル値に戻す（Repaint方式）か、専用モデルが元画像とマスクをコンディションとして受け取る。
+
+## Prerequisites
+
+Before reading this guide, having the following knowledge will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [Image Generation — Stable Diffusion, DALL-E, Midjourney](./00-image-generation.md)
+
+---
+
+## 1. Inpainting
+
+### 1.1 Theoretical Background of Inpainting
+
+Inpainting leverages the reverse diffusion process of diffusion models, adding noise only to the masked region and gradually denoising it. The unmasked regions of the original image are either forcibly reset to original pixel values at each step (Repaint method), or a dedicated model receives the original image and mask as conditioning.
 
 ```
-数学的定式化:
+Mathematical Formulation:
 
-逆拡散ステップ t:
-  x_{t-1}^{masked} = denoise(x_t, t, prompt)   # マスク領域
-  x_{t-1}^{unmasked} = original_image           # 非マスク領域
+Reverse diffusion step t:
+  x_{t-1}^{masked} = denoise(x_t, t, prompt)   # Masked region
+  x_{t-1}^{unmasked} = original_image           # Unmasked region
   x_{t-1} = mask * x_{t-1}^{masked} + (1 - mask) * x_{t-1}^{unmasked}
 
-Repaint 方式の改善:
-  - 各ステップで n 回のリサンプリング (jump_length)
-  - 前方拡散で再ノイズ付加 → 逆拡散でデノイズ
-  - 境界の一貫性が大幅に向上
-  - n=10 が典型的な設定
+Repaint Method Improvement:
+  - n resamplings per step (jump_length)
+  - Forward diffusion to re-add noise → reverse diffusion to denoise
+  - Significantly improved boundary consistency
+  - n=10 is a typical setting
 ```
 
-### コード例1: diffusers によるインペインティング
+### Code Example 1: Inpainting with diffusers
 
 ```python
 from diffusers import StableDiffusionXLInpaintPipeline
 from PIL import Image
 import torch
 
-# インペインティングパイプラインをロード
+# Load the inpainting pipeline
 pipe = StableDiffusionXLInpaintPipeline.from_pretrained(
     "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",
     torch_dtype=torch.float16,
     variant="fp16",
 ).to("cuda")
 
-# メモリ最適化
+# Memory optimization
 pipe.enable_model_cpu_offload()
 pipe.enable_vae_tiling()
 
-# 元画像とマスクを読み込み
+# Load the original image and mask
 image = Image.open("room.png").resize((1024, 1024))
-mask = Image.open("mask.png").resize((1024, 1024))  # 白=編集領域
+mask = Image.open("mask.png").resize((1024, 1024))  # White = edit region
 
-# インペインティング実行
+# Execute inpainting
 result = pipe(
     prompt="a modern leather sofa, interior design, photorealistic",
     negative_prompt="low quality, blurry, distorted",
@@ -75,13 +75,13 @@ result = pipe(
     mask_image=mask,
     num_inference_steps=30,
     guidance_scale=7.5,
-    strength=0.85,    # 元画像からの逸脱度 (0=変更なし, 1=完全再生成)
+    strength=0.85,    # Deviation from original (0=no change, 1=full regeneration)
 ).images[0]
 
 result.save("room_edited.png")
 ```
 
-### コード例2: プログラマティックなマスク生成（拡張版）
+### Code Example 2: Programmatic Mask Generation (Extended)
 
 ```python
 from PIL import Image, ImageDraw, ImageFilter
@@ -91,12 +91,12 @@ from typing import Optional, Tuple, List
 
 class MaskGenerator:
     """
-    多様なマスク生成手法を提供する統合クラス
+    Unified class providing various mask generation methods
 
-    マスクの規約:
-    - 白 (255) = 編集領域
-    - 黒 (0) = 保護領域
-    - グレー = ブレンド強度（フェザリング）
+    Mask conventions:
+    - White (255) = Edit region
+    - Black (0) = Protected region
+    - Gray = Blend intensity (feathering)
     """
 
     def __init__(self, width: int, height: int):
@@ -105,7 +105,7 @@ class MaskGenerator:
 
     def rectangular(self, bbox: Tuple[int, int, int, int],
                      feather: int = 0) -> Image.Image:
-        """矩形マスクを生成"""
+        """Generate a rectangular mask"""
         mask = Image.new("L", (self.width, self.height), 0)
         draw = ImageDraw.Draw(mask)
         draw.rectangle(bbox, fill=255)
@@ -115,7 +115,7 @@ class MaskGenerator:
 
     def circular(self, center: Tuple[int, int],
                   radius: int, feather: int = 0) -> Image.Image:
-        """円形マスクを生成"""
+        """Generate a circular mask"""
         mask = Image.new("L", (self.width, self.height), 0)
         draw = ImageDraw.Draw(mask)
         x, y = center
@@ -129,7 +129,7 @@ class MaskGenerator:
 
     def polygon(self, points: List[Tuple[int, int]],
                  feather: int = 0) -> Image.Image:
-        """多角形マスクを生成"""
+        """Generate a polygon mask"""
         mask = Image.new("L", (self.width, self.height), 0)
         draw = ImageDraw.Draw(mask)
         draw.polygon(points, fill=255)
@@ -140,7 +140,7 @@ class MaskGenerator:
     def freeform(self, points: List[Tuple[int, int]],
                   width: int = 30,
                   feather: int = 10) -> Image.Image:
-        """フリーハンドのブラシストロークマスクを生成"""
+        """Generate a freehand brush stroke mask"""
         mask = Image.new("L", (self.width, self.height), 0)
         draw = ImageDraw.Draw(mask)
         for i in range(len(points) - 1):
@@ -149,7 +149,7 @@ class MaskGenerator:
                 fill=255,
                 width=width,
             )
-            # 丸い結合点
+            # Round join points
             x, y = points[i]
             r = width // 2
             draw.ellipse(
@@ -163,7 +163,7 @@ class MaskGenerator:
     def gradient(self, direction: str = "left_to_right",
                   start: float = 0.0,
                   end: float = 1.0) -> Image.Image:
-        """グラデーションマスクを生成"""
+        """Generate a gradient mask"""
         arr = np.zeros((self.height, self.width), dtype=np.float32)
 
         if direction == "left_to_right":
@@ -187,16 +187,16 @@ class MaskGenerator:
                           target_color: Tuple[int, int, int],
                           tolerance: int = 30,
                           feather: int = 5) -> Image.Image:
-        """色範囲によるマスク生成"""
+        """Generate a mask based on color range"""
         img_array = np.array(image)
         target = np.array(target_color)
 
-        # 色差を計算
+        # Calculate color difference
         diff = np.sqrt(
             np.sum((img_array.astype(float) - target) ** 2, axis=2)
         )
 
-        # 閾値でマスク化
+        # Convert to mask using threshold
         mask_array = (diff < tolerance).astype(np.uint8) * 255
         mask = Image.fromarray(mask_array)
 
@@ -206,7 +206,7 @@ class MaskGenerator:
 
     def combine(self, masks: List[Image.Image],
                  mode: str = "union") -> Image.Image:
-        """複数マスクを合成"""
+        """Combine multiple masks"""
         arrays = [np.array(m, dtype=float) for m in masks]
 
         if mode == "union":
@@ -224,12 +224,12 @@ class MaskGenerator:
         return Image.fromarray(result.astype(np.uint8))
 
     def invert(self, mask: Image.Image) -> Image.Image:
-        """マスクを反転"""
+        """Invert a mask"""
         return Image.fromarray(255 - np.array(mask))
 
     def dilate(self, mask: Image.Image,
                 pixels: int = 10) -> Image.Image:
-        """マスクを拡張（膨張）"""
+        """Expand (dilate) a mask"""
         arr = np.array(mask)
         from scipy.ndimage import binary_dilation
         struct = np.ones((pixels * 2 + 1, pixels * 2 + 1))
@@ -238,7 +238,7 @@ class MaskGenerator:
 
     def erode(self, mask: Image.Image,
                pixels: int = 10) -> Image.Image:
-        """マスクを縮小（浸食）"""
+        """Shrink (erode) a mask"""
         arr = np.array(mask)
         from scipy.ndimage import binary_erosion
         struct = np.ones((pixels * 2 + 1, pixels * 2 + 1))
@@ -246,23 +246,23 @@ class MaskGenerator:
         return Image.fromarray((eroded * 255).astype(np.uint8))
 
 
-# 使用例
+# Usage example
 gen = MaskGenerator(1024, 1024)
 
-# 矩形マスク（フェザリング付き）
+# Rectangular mask (with feathering)
 rect_mask = gen.rectangular((200, 300, 800, 700), feather=20)
 
-# 円形マスク
+# Circular mask
 circle_mask = gen.circular((512, 512), 200, feather=15)
 
-# 複数マスクを合成
+# Combine multiple masks
 combined = gen.combine([rect_mask, circle_mask], mode="union")
 
-# マスクを拡張
+# Expand the mask
 expanded = gen.dilate(combined, pixels=15)
 ```
 
-### コード例3: SAM (Segment Anything) による自動マスク生成
+### Code Example 3: Automatic Mask Generation with SAM (Segment Anything)
 
 ```python
 from segment_anything import SamPredictor, sam_model_registry
@@ -273,10 +273,11 @@ import torch
 
 class SAMAutoMasker:
     """
-    Segment Anything Model による高精度自動マスク生成
+    High-precision automatic mask generation using
+    Segment Anything Model
 
-    SAMは任意の物体を検出しセグメンテーションする
-    汎用的なビジョンモデル。
+    SAM is a general-purpose vision model that detects
+    and segments arbitrary objects.
     """
 
     def __init__(self, model_type: str = "vit_h",
@@ -289,12 +290,12 @@ class SAMAutoMasker:
                          point: tuple[int, int],
                          label: int = 1) -> Image.Image:
         """
-        ポイント指定でマスクを生成
+        Generate a mask from a point selection
 
         Args:
-            image: 入力画像
-            point: (x, y) 座標
-            label: 1=前景, 0=背景
+            image: Input image
+            point: (x, y) coordinates
+            label: 1=foreground, 0=background
         """
         img_array = np.array(image)
         self.predictor.set_image(img_array)
@@ -308,7 +309,7 @@ class SAMAutoMasker:
             multimask_output=True,
         )
 
-        # 最高スコアのマスクを選択
+        # Select the highest scoring mask
         best_idx = np.argmax(scores)
         best_mask = masks[best_idx]
 
@@ -319,10 +320,10 @@ class SAMAutoMasker:
     def mask_from_box(self, image: Image.Image,
                        box: tuple[int, int, int, int]) -> Image.Image:
         """
-        バウンディングボックス指定でマスクを生成
+        Generate a mask from a bounding box
 
         Args:
-            image: 入力画像
+            image: Input image
             box: (x1, y1, x2, y2)
         """
         img_array = np.array(image)
@@ -347,7 +348,7 @@ class SAMAutoMasker:
         boxes: list[tuple[int, int, int, int]] = None,
     ) -> Image.Image:
         """
-        複数のポイントとボックスを組み合わせてマスクを生成
+        Generate a mask by combining multiple points and boxes
         """
         img_array = np.array(image)
         self.predictor.set_image(img_array)
@@ -370,23 +371,23 @@ class SAMAutoMasker:
         )
 
 
-# 使用例
+# Usage example
 masker = SAMAutoMasker()
 image = Image.open("photo.jpg")
 
-# ソファの中心をクリック → ソファのマスクを自動生成
+# Click the center of the sofa -> auto-generate sofa mask
 sofa_mask = masker.mask_from_point(image, (400, 500))
 
-# バウンディングボックスで指定
+# Specify with bounding box
 person_mask = masker.mask_from_box(image, (100, 50, 300, 600))
 ```
 
-### コード例4: Grounding DINO + SAM によるテキスト指定マスク
+### Code Example 4: Text-Guided Mask with Grounding DINO + SAM
 
 ```python
 """
-テキストで「何をマスクするか」を指定する方法。
-Grounding DINOで物体検出 → SAMでセグメンテーション。
+Method to specify "what to mask" with text.
+Object detection with Grounding DINO -> Segmentation with SAM.
 """
 
 from groundingdino.util.inference import (
@@ -400,12 +401,12 @@ import torch
 
 class TextGuidedMasker:
     """
-    テキスト指示で対象物のマスクを自動生成
+    Automatically generates masks for target objects from text instructions
 
-    処理フロー:
-    1. Grounding DINO で対象物を検出（バウンディングボックス）
-    2. SAM でバウンディングボックス内を精密セグメンテーション
-    3. 結果マスクを返す
+    Processing flow:
+    1. Detect target objects with Grounding DINO (bounding boxes)
+    2. Precise segmentation within bounding boxes using SAM
+    3. Return the resulting mask
     """
 
     def __init__(self):
@@ -425,19 +426,19 @@ class TextGuidedMasker:
                      text_threshold: float = 0.25,
                      feather: int = 5) -> dict:
         """
-        テキスト指示でマスクを生成
+        Generate a mask from text instructions
 
         Args:
-            image_path: 画像パス
-            text_prompt: 対象物の説明（例: "sofa", "person"）
-            box_threshold: 検出の信頼度閾値
-            text_threshold: テキスト一致の閾値
-            feather: マスク境界のぼかし
+            image_path: Path to the image
+            text_prompt: Description of the target object (e.g., "sofa", "person")
+            box_threshold: Detection confidence threshold
+            text_threshold: Text matching threshold
+            feather: Mask boundary blur
 
         Returns:
-            dict: マスク画像、検出情報
+            dict: Mask image and detection information
         """
-        # Grounding DINO で検出
+        # Detect with Grounding DINO
         image_source, image = load_image(image_path)
         boxes, logits, phrases = predict(
             model=self.dino_model,
@@ -448,18 +449,18 @@ class TextGuidedMasker:
         )
 
         if len(boxes) == 0:
-            return {"mask": None, "error": "対象物が検出されませんでした"}
+            return {"mask": None, "error": "No target objects detected"}
 
-        # SAM で精密セグメンテーション
+        # Precise segmentation with SAM
         pil_image = Image.open(image_path).convert("RGB")
         self.sam_predictor.set_image(np.array(pil_image))
 
-        # 全検出をマスク合成
+        # Combine all detections into a mask
         h, w = pil_image.size[1], pil_image.size[0]
         combined_mask = np.zeros((h, w), dtype=np.uint8)
 
         for box in boxes:
-            # 正規化座標をピクセル座標に変換
+            # Convert normalized coordinates to pixel coordinates
             x1, y1, x2, y2 = box.numpy()
             pixel_box = np.array([
                 x1 * w, y1 * h, x2 * w, y2 * h
@@ -476,7 +477,7 @@ class TextGuidedMasker:
 
         mask_image = Image.fromarray(combined_mask)
 
-        # フェザリング
+        # Feathering
         if feather > 0:
             from PIL import ImageFilter
             mask_image = mask_image.filter(
@@ -491,10 +492,10 @@ class TextGuidedMasker:
         }
 
 
-# 使用例
+# Usage example
 masker = TextGuidedMasker()
 
-# テキストで対象を指定
+# Specify the target with text
 result = masker.create_mask(
     "living_room.jpg",
     text_prompt="old sofa",
@@ -502,77 +503,81 @@ result = masker.create_mask(
 )
 
 if result["mask"]:
-    print(f"検出数: {result['detections']}")
-    print(f"検出物: {result['phrases']}")
+    print(f"Detections: {result['detections']}")
+    print(f"Detected objects: {result['phrases']}")
     result["mask"].save("sofa_mask.png")
 ```
 
-### ASCII図解1: インペインティングの処理フロー
+### ASCII Diagram 1: Inpainting Processing Flow
 
 ```
-入力:
-┌─────────────┐    ┌─────────────┐    ┌─────────────┐
-│ 元画像       │    │ マスク       │    │ プロンプト   │
-│ ┌───┐       │    │ ┌───┐       │    │ "革のソファ" │
-│ │古い│       │    │ │███│       │    │             │
-│ │椅子│       │    │ │███│ ←白   │    │             │
-│ └───┘       │    │ └───┘       │    │             │
-│    (保持)    │    │  (編集)     │    │             │
-└─────────────┘    └─────────────┘    └─────────────┘
-      │                  │                  │
+Input:
++---------------+    +---------------+    +------------------+
+| Original      |    | Mask          |    | Prompt           |
+| Image         |    |               |    |                  |
+| +-----+       |    | +-----+       |    | "leather sofa"   |
+| | old |       |    | |/////| <-white|    |                  |
+| |chair|       |    | |/////|       |    |                  |
+| +-----+       |    | +-----+       |    |                  |
+|   (preserve)  |    |  (edit)       |    |                  |
++---------------+    +---------------+    +------------------+
+      |                  |                  |
       v                  v                  v
-┌────────────────────────────────────────────────┐
-│            インペインティングモデル              │
-│                                                │
-│  1. マスク領域をノイズで置換                    │
-│  2. 周囲のコンテキストを参照                    │
-│  3. プロンプトに基づきノイズ除去                │
-│  4. 境界をシームレスにブレンド                  │
-└────────────────────┬───────────────────────────┘
-                     │
-                     v
-┌─────────────┐
-│ 結果画像     │
-│ ┌───┐       │
-│ │新しい│     │
-│ │ソファ│     │
-│ └───┘       │
-│  (自然に合成)│
-└─────────────┘
++------------------------------------------------+
+|            Inpainting Model                    |
+|                                                |
+|  1. Replace masked region with noise           |
+|  2. Reference surrounding context              |
+|  3. Denoise based on the prompt                |
+|  4. Seamlessly blend boundaries                |
++------------------------+-----------------------+
+                         |
+                         v
++---------------+
+| Result Image  |
+| +-----+       |
+| | new |       |
+| |sofa |       |
+| +-----+       |
+| (naturally    |
+|  composited)  |
++---------------+
 
-マスク処理の詳細:
-┌─────────────────────────────────────────────┐
-│ Step 1: マスク前処理                         │
-│  元マスク    → 膨張(dilate)  → フェザリング  │
-│  ┌──┐         ┌────┐          ┌────┐         │
-│  │██│         │████│          │░▓█▓░│        │
-│  │██│    →    │████│    →     │░▓█▓░│        │
-│  └──┘         │████│          │░▓█▓░│        │
-│               └────┘          └────┘         │
-│  鮮明な境界   少し拡張        滑らかな境界    │
-│                                              │
-│ Step 2: ノイズスケジューリング                │
-│  t=T:  全面ノイズ (マスク内のみ)             │
-│  t=T/2: 構造が見え始める                     │
-│  t=0:   最終結果                             │
-│                                              │
-│ Step 3: 境界ブレンド                         │
-│  マスクのグレー値に応じて                     │
-│  元画像と生成結果を線形補間                   │
-│  result = mask * generated + (1-mask) * orig │
-└─────────────────────────────────────────────┘
+Mask Processing Details:
++----------------------------------------------+
+| Step 1: Mask Preprocessing                   |
+|  Original   -> Dilate       -> Feathering    |
+|  +--+          +----+          +----+        |
+|  |//|          |////|          |.#/#.|       |
+|  |//|    ->    |////|    ->    |.#/#.|       |
+|  +--+          |////|          |.#/#.|       |
+|                +----+          +----+        |
+|  Sharp border  Slightly       Smooth border  |
+|                expanded                      |
+|                                              |
+| Step 2: Noise Scheduling                     |
+|  t=T:   Full noise (masked area only)        |
+|  t=T/2: Structure begins to emerge           |
+|  t=0:   Final result                         |
+|                                              |
+| Step 3: Boundary Blending                    |
+|  Linear interpolation between original       |
+|  and generated result based on mask          |
+|  gray values                                 |
+|  result = mask * generated + (1-mask) * orig |
++----------------------------------------------+
 ```
 
-### 1.2 高度なインペインティングテクニック
+### 1.2 Advanced Inpainting Techniques
 
 ```python
 class AdvancedInpainter:
     """
-    高度なインペインティング機能
+    Advanced inpainting features
 
-    - 複数領域の同時編集
-    - コンテキスト認識の強化
-    - 反復的な品質改善
+    - Simultaneous editing of multiple regions
+    - Enhanced context awareness
+    - Iterative quality improvement
     """
 
     def __init__(self, model_id: str = None):
@@ -597,16 +602,16 @@ class AdvancedInpainter:
         cfg_scale: float = 7.5,
     ) -> Image.Image:
         """
-        コンテキスト認識を強化したインペインティング
+        Inpainting with enhanced context awareness
 
         Args:
-            image: 元画像
-            mask: マスク画像
-            prompt: 生成プロンプト
-            context_prompt: 元画像のコンテキスト説明
-            strength: 編集強度
+            image: Original image
+            mask: Mask image
+            prompt: Generation prompt
+            context_prompt: Context description of the original image
+            strength: Edit strength
         """
-        # コンテキストをプロンプトに統合
+        # Integrate context into the prompt
         if context_prompt:
             full_prompt = (
                 f"{prompt}, "
@@ -641,11 +646,11 @@ class AdvancedInpainter:
         strength_schedule: list[float] = None,
     ) -> list[Image.Image]:
         """
-        反復的にインペインティング品質を改善
+        Iteratively improve inpainting quality
 
-        1回目: 大まかな構造を生成 (high strength)
-        2回目: ディテールを改善 (medium strength)
-        3回目: 境界を滑らかに (low strength)
+        Pass 1: Generate rough structure (high strength)
+        Pass 2: Improve details (medium strength)
+        Pass 3: Smooth boundaries (low strength)
         """
         if strength_schedule is None:
             strength_schedule = [0.9, 0.6, 0.35]
@@ -663,7 +668,7 @@ class AdvancedInpainter:
                 image=current,
                 mask_image=mask,
                 num_inference_steps=30,
-                guidance_scale=7.5 - i * 0.5,  # 段階的に下げる
+                guidance_scale=7.5 - i * 0.5,  # Gradually decrease
                 strength=strength,
             ).images[0]
 
@@ -678,7 +683,7 @@ class AdvancedInpainter:
         edits: list[dict],
     ) -> Image.Image:
         """
-        複数領域を順番に編集
+        Edit multiple regions sequentially
 
         Args:
             edits: [
@@ -707,13 +712,13 @@ class AdvancedInpainter:
         return current
 
 
-# 使用例: 複数領域編集
+# Usage example: Multi-region editing
 inpainter = AdvancedInpainter()
 image = Image.open("room.jpg").resize((1024, 1024))
 
 gen = MaskGenerator(1024, 1024)
 
-# ソファを交換 + 壁の色を変更
+# Replace sofa + change wall color
 result = inpainter.multi_region_edit(
     image,
     edits=[
@@ -738,9 +743,9 @@ result.save("room_multi_edit.png")
 
 ---
 
-## 2. アウトペインティング
+## 2. Outpainting
 
-### コード例5: アウトペインティング（拡張版）
+### Code Example 5: Outpainting (Extended)
 
 ```python
 from diffusers import StableDiffusionXLInpaintPipeline
@@ -752,13 +757,13 @@ from typing import Literal
 
 class OutpaintingEngine:
     """
-    画像の境界を超えた拡張を行うエンジン
+    Engine for extending beyond image boundaries
 
-    特徴:
-    - 4方向の拡張
-    - 段階的な拡張で高品質を維持
-    - 重複帯の自動処理
-    - パノラマ生成
+    Features:
+    - Extension in all 4 directions
+    - Progressive extension for high quality
+    - Automatic overlap zone processing
+    - Panorama generation
     """
 
     def __init__(self, model_id: str = None):
@@ -781,18 +786,18 @@ class OutpaintingEngine:
         strength: float = 0.85,
     ) -> Image.Image:
         """
-        画像を指定方向に拡張する
+        Extend the image in the specified direction
 
         Args:
-            image: 元画像
-            direction: 拡張方向
-            extend_pixels: 拡張するピクセル数
-            overlap: 重複帯のピクセル数（境界のシームレス化）
-            prompt: 生成プロンプト
+            image: Original image
+            direction: Extension direction
+            extend_pixels: Number of pixels to extend
+            overlap: Overlap zone pixels (for seamless boundaries)
+            prompt: Generation prompt
         """
         w, h = image.size
 
-        # 方向別の設定
+        # Direction-specific configuration
         configs = {
             "right": {
                 "canvas_size": (w + extend_pixels, h),
@@ -820,22 +825,22 @@ class OutpaintingEngine:
 
         cfg = configs[direction]
 
-        # キャンバス作成
+        # Create canvas
         canvas = Image.new("RGB", cfg["canvas_size"], (128, 128, 128))
         canvas.paste(image, cfg["paste_pos"])
 
-        # マスク作成（グラデーション付き）
+        # Create mask (with gradient)
         mask = self._create_gradient_mask(
             cfg["canvas_size"], cfg["mask_box"],
             direction, overlap
         )
 
-        # 生成サイズに調整（SDXL最適サイズ）
+        # Resize to generation size (SDXL optimal size)
         target_size = (1024, 1024)
         canvas_resized = canvas.resize(target_size)
         mask_resized = mask.resize(target_size)
 
-        # インペインティングで拡張
+        # Extend via inpainting
         result = self.pipe(
             prompt=prompt,
             negative_prompt=negative_prompt,
@@ -846,7 +851,7 @@ class OutpaintingEngine:
             strength=strength,
         ).images[0]
 
-        # 元のサイズに戻す
+        # Restore to original size
         return result.resize(cfg["canvas_size"])
 
     def _create_gradient_mask(
@@ -856,13 +861,13 @@ class OutpaintingEngine:
         direction: str,
         overlap: int,
     ) -> Image.Image:
-        """重複帯にグラデーションを付けたマスクを生成"""
+        """Generate a mask with gradient in the overlap zone"""
         w, h = size
         mask = Image.new("L", (w, h), 0)
         draw = ImageDraw.Draw(mask)
         draw.rectangle(mask_box, fill=255)
 
-        # 重複帯にグラデーションを適用
+        # Apply gradient to the overlap zone
         mask_arr = np.array(mask, dtype=float)
 
         if direction == "right":
@@ -893,18 +898,18 @@ class OutpaintingEngine:
         overlap: int = 96,
     ) -> Image.Image:
         """
-        パノラマ画像を生成（左右に段階的に拡張）
+        Generate a panorama image (progressively extend left and right)
 
         Args:
-            image: 中央の基準画像
-            prompt: シーンの説明
-            extensions: 片方向の拡張回数
-            extend_pixels: 各拡張のピクセル数
-            overlap: 重複帯
+            image: Center reference image
+            prompt: Scene description
+            extensions: Number of extensions per direction
+            extend_pixels: Pixels per extension
+            overlap: Overlap zone
         """
         current = image
 
-        # 右に拡張
+        # Extend right
         for i in range(extensions):
             print(f"Extending right {i+1}/{extensions}...")
             current = self.extend(
@@ -914,7 +919,7 @@ class OutpaintingEngine:
                 prompt=f"{prompt}, seamless continuation",
             )
 
-        # 左に拡張
+        # Extend left
         for i in range(extensions):
             print(f"Extending left {i+1}/{extensions}...")
             current = self.extend(
@@ -927,11 +932,11 @@ class OutpaintingEngine:
         return current
 
 
-# 使用例
+# Usage example
 engine = OutpaintingEngine()
 image = Image.open("landscape.jpg").resize((1024, 1024))
 
-# 右に拡張
+# Extend right
 extended = engine.extend(
     image, "right",
     extend_pixels=512,
@@ -939,7 +944,7 @@ extended = engine.extend(
            "same lighting and style, autumn foliage",
 )
 
-# パノラマ生成
+# Panorama generation
 panorama = engine.create_panorama(
     image,
     prompt="vast mountain landscape with autumn trees "
@@ -950,57 +955,58 @@ panorama = engine.create_panorama(
 panorama.save("panorama.png")
 ```
 
-### ASCII図解2: アウトペインティングの方向と重複領域
+### ASCII Diagram 2: Outpainting Directions and Overlap Zones
 
 ```
-元画像からの拡張方向:
+Extension directions from original image:
 
-         ↑ (up)
-    ┌──────────┐
-    │ 新規生成  │
-    │          │
-    ├══════════┤ ← 重複帯 (ブレンド)
-    │          │
-    │ 元画像   │ → (right)  ┌──────┐
-    │          │  ┌─┤ 新規  │
- ← │          │  │重│ 生成  │
-    │          │  │複│       │
-    └──────────┘  └─┴──────┘
-         ↓ (down)
+         ^ (up)
+    +----------+
+    | Newly    |
+    | generated|
+    +----------+ <- Overlap zone (blend)
+    |          |
+    | Original | -> (right)  +------+
+    | Image    |  +-| Newly  |
+ <- |          |  |O| gener- |
+    |          |  |L| ated   |
+    +----------+  +-+--------+
+         v (down)
 
-重複帯のグラデーション処理:
-┌────────┬──────────────────┬──────────┐
-│ 元画像  │   ブレンド帯     │ 新規生成  │
-│ (保持)  │   (グラデーション)│ (AI生成)  │
-│ 100%   │   100%  →  0%    │ 0% → 100%│
-│ 元の    │   元画像の比率    │ 生成     │
-│ ピクセル│   段階的に低下    │ ピクセル  │
-└────────┴──────────────────┴──────────┘
+Gradient processing in overlap zone:
++--------+--------------------+----------+
+| Orig.  |   Blend zone       | Newly    |
+| Image  |   (gradient)       | generated|
+| (kept) |                    | (AI gen) |
+| 100%   |   100%  ->  0%     | 0% ->100%|
+| orig.  |   Original ratio   | gen.     |
+| pixels |   gradually drops  | pixels   |
++--------+--------------------+----------+
 
-グラデーションマスクの断面:
-元画像側                    新規生成側
-255 ████████▓▓▓▓▒▒▒▒░░░░          0
-     保護    ←─グラデーション─→  編集
+Gradient mask cross-section:
+Original side                 Newly generated side
+255 ########@@@@####....          0
+     Protected <-gradient-> Edit
 
-パノラマ生成 (連続アウトペインティング):
-┌────┬────┬────┬────┬────┐
-│ ←  │ ←  │元画│ →  │ →  │
-│拡張3│拡張2│ 像 │拡張1│拡張2│
-└────┴────┴────┴────┴────┘
-= 元の5倍幅のパノラマ画像
+Panorama generation (sequential outpainting):
++----+----+----+----+----+
+| <- | <- |Orig| -> | -> |
+|ext3|ext2|img |ext1|ext2|
++----+----+----+----+----+
+= Panorama image 5x the original width
 
-各拡張ステップ:
-  Step 1: [元画像][→拡張1]
-  Step 2: [元画像][拡張1][→拡張2]
-  Step 3: [←拡張1][元画像][拡張1][拡張2]
-  Step 4: [←拡張2][拡張1][元画像][拡張1][拡張2]
+Each extension step:
+  Step 1: [Original][->ext1]
+  Step 2: [Original][ext1][->ext2]
+  Step 3: [<-ext1][Original][ext1][ext2]
+  Step 4: [<-ext2][ext1][Original][ext1][ext2]
 ```
 
 ---
 
-## 3. Img2Img と ControlNet
+## 3. Img2Img and ControlNet
 
-### コード例6: Img2Img によるスタイル変換（拡張版）
+### Code Example 6: Style Transfer with Img2Img (Extended)
 
 ```python
 from diffusers import StableDiffusionXLImg2ImgPipeline
@@ -1011,7 +1017,7 @@ from dataclasses import dataclass
 
 @dataclass
 class StylePreset:
-    """スタイル変換のプリセット"""
+    """Style transfer preset"""
     name: str
     prompt_template: str
     negative_prompt: str
@@ -1020,8 +1026,8 @@ class StylePreset:
 
 
 STYLE_PRESETS = {
-    "油絵_印象派": StylePreset(
-        name="印象派油絵",
+    "oil_impressionist": StylePreset(
+        name="Impressionist Oil Painting",
         prompt_template="{subject}, oil painting style, impressionist, "
                         "Claude Monet, visible brushstrokes, "
                         "vibrant colors, natural lighting",
@@ -1030,8 +1036,8 @@ STYLE_PRESETS = {
         strength=0.65,
         guidance_scale=7.5,
     ),
-    "水彩画": StylePreset(
-        name="水彩画",
+    "watercolor": StylePreset(
+        name="Watercolor",
         prompt_template="{subject}, watercolor painting, soft edges, "
                         "color bleeding, delicate, paper texture, "
                         "transparent washes",
@@ -1040,8 +1046,8 @@ STYLE_PRESETS = {
         strength=0.60,
         guidance_scale=7.0,
     ),
-    "アニメ": StylePreset(
-        name="アニメ化",
+    "anime": StylePreset(
+        name="Anime",
         prompt_template="{subject}, anime style, cel shading, "
                         "vibrant colors, detailed, "
                         "Studio Ghibli quality",
@@ -1050,8 +1056,8 @@ STYLE_PRESETS = {
         strength=0.70,
         guidance_scale=8.0,
     ),
-    "サイバーパンク": StylePreset(
-        name="サイバーパンク",
+    "cyberpunk": StylePreset(
+        name="Cyberpunk",
         prompt_template="{subject}, cyberpunk style, neon lights, "
                         "futuristic, dark atmosphere, "
                         "rain-soaked streets, holographic elements",
@@ -1060,8 +1066,8 @@ STYLE_PRESETS = {
         strength=0.75,
         guidance_scale=8.0,
     ),
-    "ピクセルアート": StylePreset(
-        name="ピクセルアート",
+    "pixel_art": StylePreset(
+        name="Pixel Art",
         prompt_template="{subject}, pixel art, 16-bit style, "
                         "retro game graphics, limited palette, "
                         "crisp pixels",
@@ -1070,8 +1076,8 @@ STYLE_PRESETS = {
         strength=0.80,
         guidance_scale=9.0,
     ),
-    "鉛筆スケッチ": StylePreset(
-        name="鉛筆スケッチ",
+    "pencil_sketch": StylePreset(
+        name="Pencil Sketch",
         prompt_template="{subject}, pencil sketch, graphite drawing, "
                         "detailed hatching, paper texture, "
                         "monochrome, artistic",
@@ -1084,7 +1090,7 @@ STYLE_PRESETS = {
 
 
 class StyleTransformer:
-    """スタイル変換エンジン"""
+    """Style transfer engine"""
 
     def __init__(self):
         self.pipe = StableDiffusionXLImg2ImgPipeline.from_pretrained(
@@ -1102,14 +1108,14 @@ class StyleTransformer:
         seed: int = None,
     ) -> Image.Image:
         """
-        プリセットスタイルで画像を変換
+        Transform the image with a preset style
 
         Args:
-            image: 入力画像
-            style: プリセット名
-            subject_description: 画像の内容説明
-            custom_strength: カスタム強度（省略時はプリセット値）
-            seed: 乱数シード
+            image: Input image
+            style: Preset name
+            subject_description: Description of the image content
+            custom_strength: Custom strength (uses preset value if omitted)
+            seed: Random seed
         """
         preset = STYLE_PRESETS.get(style)
         if not preset:
@@ -1145,7 +1151,7 @@ class StyleTransformer:
         subject_description: str = "the scene",
         seed: int = 42,
     ) -> dict[str, Image.Image]:
-        """複数スタイルを同一シードで比較"""
+        """Compare multiple styles with the same seed"""
         results = {}
         for style in styles:
             results[style] = self.transform(
@@ -1161,10 +1167,10 @@ class StyleTransformer:
         strengths: list[float] = None,
     ) -> list[Image.Image]:
         """
-        異なるstrengthで段階的に変換し、最適値を探す
+        Progressively transform at different strengths to find the optimal value
 
         Returns:
-            strength値ごとの変換結果リスト
+            List of transformation results for each strength value
         """
         if strengths is None:
             strengths = [0.3, 0.4, 0.5, 0.6, 0.7, 0.8]
@@ -1180,28 +1186,28 @@ class StyleTransformer:
         return results
 
 
-# 使用例
+# Usage example
 transformer = StyleTransformer()
 photo = Image.open("photo.jpg")
 
-# 印象派スタイルに変換
+# Transform to impressionist style
 monet = transformer.transform(
-    photo, "油絵_印象派",
+    photo, "oil_impressionist",
     subject_description="a garden with flowers and a pond",
 )
 monet.save("monet_style.png")
 
-# 複数スタイルを比較
+# Compare multiple styles
 comparisons = transformer.compare_styles(
     photo,
-    styles=["油絵_印象派", "水彩画", "アニメ", "鉛筆スケッチ"],
+    styles=["oil_impressionist", "watercolor", "anime", "pencil_sketch"],
     subject_description="a garden with flowers",
 )
 for style_name, result in comparisons.items():
     result.save(f"comparison_{style_name}.png")
 ```
 
-### コード例7: ControlNet による精密制御（拡張版）
+### Code Example 7: Precise Control with ControlNet (Extended)
 
 ```python
 from diffusers import (
@@ -1224,14 +1230,14 @@ import numpy as np
 
 class ControlNetEditor:
     """
-    ControlNet を使った精密な画像編集
+    Precise image editing with ControlNet
 
-    対応する制御タイプ:
-    - Canny Edge: 輪郭線による構図制御
-    - OpenPose: 人体ポーズ制御
-    - Depth: 奥行き情報による空間制御
-    - Scribble/HED: ラフスケッチからの生成
-    - Lineart: 線画からの着色
+    Supported control types:
+    - Canny Edge: Composition control via edge detection
+    - OpenPose: Human pose control
+    - Depth: Spatial control via depth information
+    - Scribble/HED: Generation from rough sketches
+    - Lineart: Colorization from line drawings
     """
 
     CONTROLNET_MODELS = {
@@ -1243,26 +1249,26 @@ class ControlNetEditor:
     def __init__(self, control_type: str = "canny"):
         self.control_type = control_type
 
-        # ControlNet モデルをロード
+        # Load ControlNet model
         controlnet = ControlNetModel.from_pretrained(
             self.CONTROLNET_MODELS[control_type],
             torch_dtype=torch.float16,
         )
 
-        # パイプラインを構築
+        # Build pipeline
         self.pipe = StableDiffusionXLControlNetPipeline.from_pretrained(
             "stabilityai/stable-diffusion-xl-base-1.0",
             controlnet=controlnet,
             torch_dtype=torch.float16,
         ).to("cuda")
 
-        # スケジューラを高速なものに変更
+        # Switch to a faster scheduler
         self.pipe.scheduler = UniPCMultistepScheduler.from_config(
             self.pipe.scheduler.config
         )
         self.pipe.enable_model_cpu_offload()
 
-        # プリプロセッサの初期化
+        # Initialize preprocessors
         self.preprocessors = {
             "canny": CannyDetector(),
             "depth": MidasDetector.from_pretrained(
@@ -1275,7 +1281,7 @@ class ControlNetEditor:
 
     def preprocess(self, image: Image.Image,
                     **kwargs) -> Image.Image:
-        """制御画像を前処理"""
+        """Preprocess the control image"""
         preprocessor = self.preprocessors.get(self.control_type)
         if preprocessor is None:
             raise ValueError(
@@ -1306,17 +1312,17 @@ class ControlNetEditor:
         seed: int = None,
     ) -> Image.Image:
         """
-        制御画像に基づいて画像を生成
+        Generate an image based on a control image
 
         Args:
-            control_image: 前処理済みの制御画像
-            prompt: 生成プロンプト
-            conditioning_scale: 制御の強さ (0.0-2.0)
-                0.0: 制御なし（通常のtxt2img相当）
-                0.5: 緩い制御
-                0.8: 標準的な制御（推奨）
-                1.0: 厳密な制御
-                1.5+: 過剰制御（アーティファクト注意）
+            control_image: Preprocessed control image
+            prompt: Generation prompt
+            conditioning_scale: Control strength (0.0-2.0)
+                0.0: No control (equivalent to txt2img)
+                0.5: Loose control
+                0.8: Standard control (recommended)
+                1.0: Strict control
+                1.5+: Excessive control (watch for artifacts)
         """
         generator = None
         if seed is not None:
@@ -1342,18 +1348,18 @@ class ControlNetEditor:
         **kwargs,
     ) -> dict:
         """
-        元画像から制御画像を抽出して新しい画像を生成
+        Extract a control image from the original and generate a new image
 
         Returns:
             dict: {
-                "control": 制御画像,
-                "result": 生成結果,
+                "control": Control image,
+                "result": Generated result,
             }
         """
-        # 前処理で制御画像を抽出
+        # Extract control image via preprocessing
         control = self.preprocess(original_image, **kwargs)
 
-        # 制御画像から新しい画像を生成
+        # Generate a new image from the control image
         result = self.generate(
             control, prompt,
             conditioning_scale=conditioning_scale,
@@ -1365,11 +1371,11 @@ class ControlNetEditor:
         }
 
 
-# 使用例: 建物のスタイル変更
+# Usage example: Restyle a building
 editor = ControlNetEditor(control_type="canny")
 building = Image.open("building.jpg")
 
-# エッジ抽出 → 新しいスタイルで生成
+# Extract edges -> generate in a new style
 output = editor.edit_with_original(
     building,
     prompt="futuristic glass and steel building, "
@@ -1382,7 +1388,7 @@ output = editor.edit_with_original(
 output["control"].save("building_edges.png")
 output["result"].save("building_futuristic.png")
 
-# ポーズ制御
+# Pose control
 pose_editor = ControlNetEditor(control_type="openpose")
 reference = Image.open("pose_reference.jpg")
 
@@ -1396,56 +1402,56 @@ output = pose_editor.edit_with_original(
 output["result"].save("ballet_dancer.png")
 ```
 
-### ASCII図解3: ControlNet の制御タイプ一覧
+### ASCII Diagram 3: ControlNet Control Types Overview
 
 ```
-┌─────── ControlNet 制御タイプ ───────────────────────┐
-│                                                     │
-│  ┌── エッジ系 ──┐  ┌── 深度系 ──┐  ┌── ポーズ ─┐  │
-│  │ Canny Edge   │  │ Depth Map  │  │ OpenPose  │  │
-│  │ ┌──┐         │  │ ┌──┐       │  │  O        │  │
-│  │ │/\│         │  │ │濃│       │  │ /|\       │  │
-│  │ │\/│ 輪郭線  │  │ │淡│ 遠近  │  │ / \  骨格 │  │
-│  │ └──┘         │  │ └──┘       │  │           │  │
-│  │ scale: 0.8   │  │ scale: 0.7 │  │ scale: 0.9│  │
-│  └──────────────┘  └────────────┘  └───────────┘  │
-│                                                     │
-│  ┌── セグメント ─┐  ┌── 線画 ───┐  ┌── 法線 ──┐  │
-│  │ Segmentation │  │ Scribble  │  │ Normal   │  │
-│  │ ┌──┐         │  │  /~~\     │  │  →→→     │  │
-│  │ │色│ 領域    │  │ |    | 手 │  │  →→→ 表面│  │
-│  │ │分│ 分離    │  │  \__/ 描き│  │  →→→ 向き│  │
-│  │ └──┘         │  │           │  │          │  │
-│  │ scale: 0.7   │  │ scale: 0.6│  │ scale: 0.5│  │
-│  └──────────────┘  └───────────┘  └──────────┘  │
-│                                                     │
-│  ┌── タイル ───┐   ┌── IP-Adapter ──┐             │
-│  │ Tile        │   │ 画像ベース      │             │
-│  │ ┌┬┬┐       │   │ 参照画像の      │             │
-│  │ ├┼┼┤ 高解像│   │ スタイル/構図   │             │
-│  │ ├┼┼┤ 度制御│   │ を転写          │             │
-│  │ └┴┴┘       │   │                │             │
-│  │ scale: 0.5  │   │ scale: 0.6-1.0 │             │
-│  └─────────────┘   └────────────────┘             │
-└─────────────────────────────────────────────────────┘
++------- ControlNet Control Types ----------------------+
+|                                                       |
+|  +-- Edge --------+  +-- Depth -----+  +-- Pose --+  |
+|  | Canny Edge     |  | Depth Map    |  | OpenPose |  |
+|  | +--+           |  | +--+         |  |  O       |  |
+|  | |/\|           |  | |Dk|         |  | /|\      |  |
+|  | |\/| Contours  |  | |Lt| Persp.  |  | / \ Skel|  |
+|  | +--+           |  | +--+         |  |          |  |
+|  | scale: 0.8     |  | scale: 0.7   |  | scale:0.9|  |
+|  +----------------+  +--------------+  +----------+  |
+|                                                       |
+|  +-- Segment -----+  +-- Line Art --+  +-- Normal-+  |
+|  | Segmentation   |  | Scribble    |  | Normal   |  |
+|  | +--+           |  |  /~~\       |  |  >>>     |  |
+|  | |Co| Region    |  | |    | Hand |  |  >>> Surf|  |
+|  | |lr| Separ.    |  |  \__/ drawn |  |  >>> Dir |  |
+|  | +--+           |  |             |  |          |  |
+|  | scale: 0.7     |  | scale: 0.6  |  | scale:0.5|  |
+|  +----------------+  +-------------+  +----------+  |
+|                                                       |
+|  +-- Tile -------+   +-- IP-Adapter ------+          |
+|  | Tile          |   | Image-based         |          |
+|  | +--+          |   | Transfers style/    |          |
+|  | |##| High-res |   | composition from    |          |
+|  | |##| control  |   | a reference image   |          |
+|  | +--+          |   |                     |          |
+|  | scale: 0.5    |   | scale: 0.6-1.0      |          |
+|  +---------------+   +---------------------+          |
++-------------------------------------------------------+
 
-conditioning_scale の影響:
-┌──────────────────────────────────────────────────┐
-│ Scale:  0.0   0.3   0.5   0.8   1.0   1.5   2.0│
-│ 影響:  なし   弱い  中程度  標準  厳密  過剰  破綻│
-│ 自由度: 高い ←──────────────────────→ 低い        │
-│ 忠実度: 低い ←──────────────────────→ 高い        │
-│                                                  │
-│ 推奨範囲: |........[===推奨===].........|         │
-│                   0.5  0.7  0.9                  │
-└──────────────────────────────────────────────────┘
+Effect of conditioning_scale:
++--------------------------------------------------+
+| Scale:  0.0   0.3   0.5   0.8   1.0   1.5   2.0 |
+| Effect: None  Weak  Mod.  Std.  Strict Excess Brk|
+| Freedom: High <-----------------------------> Low|
+| Fidelity: Low <-----------------------------> Hi |
+|                                                   |
+| Recommended:  |........[===recommended===]......| |
+|                       0.5  0.7  0.9               |
++--------------------------------------------------+
 ```
 
 ---
 
-## 4. Instruct-Pix2Pix: 自然言語による画像編集
+## 4. Instruct-Pix2Pix: Image Editing with Natural Language
 
-### コード例8: InstructPix2Pix
+### Code Example 8: InstructPix2Pix
 
 ```python
 from diffusers import StableDiffusionInstructPix2PixPipeline
@@ -1455,12 +1461,12 @@ import torch
 
 class TextInstructEditor:
     """
-    テキスト指示で画像を編集する InstructPix2Pix ラッパー
+    InstructPix2Pix wrapper for editing images with text instructions
 
-    特徴:
-    - マスク不要（テキスト指示だけで編集可能）
-    - 直感的な自然言語による指示
-    - image_guidance_scale で元画像の維持度を制御
+    Features:
+    - No mask required (editing possible with text instructions alone)
+    - Intuitive natural language instructions
+    - Control original image retention via image_guidance_scale
     """
 
     def __init__(self):
@@ -1480,20 +1486,20 @@ class TextInstructEditor:
         seed: int = None,
     ) -> Image.Image:
         """
-        テキスト指示で画像を編集
+        Edit an image with text instructions
 
         Args:
-            image: 入力画像
-            instruction: 編集指示
-                例: "Make it winter"
-                    "Turn the car red"
-                    "Add sunglasses"
-                    "Make it look like a painting"
-            image_guidance_scale: 元画像の維持度
-                1.0: 元画像を弱く参照
-                1.5: 標準（推奨）
-                2.0: 元画像を強く維持
-            guidance_scale: テキスト指示の従い度
+            image: Input image
+            instruction: Edit instruction
+                e.g.: "Make it winter"
+                      "Turn the car red"
+                      "Add sunglasses"
+                      "Make it look like a painting"
+            image_guidance_scale: Original image retention
+                1.0: Weak reference to original
+                1.5: Standard (recommended)
+                2.0: Strong retention of original
+            guidance_scale: Text instruction adherence
         """
         generator = None
         if seed is not None:
@@ -1516,7 +1522,7 @@ class TextInstructEditor:
         instructions: list[str],
         seed: int = 42,
     ) -> list[Image.Image]:
-        """複数の指示を同一画像に適用して比較"""
+        """Apply multiple instructions to the same image for comparison"""
         return [
             self.edit(image, inst, seed=seed)
             for inst in instructions
@@ -1528,10 +1534,10 @@ class TextInstructEditor:
         instructions: list[str],
     ) -> list[Image.Image]:
         """
-        複数の指示を順番に適用（チェーン編集）
+        Apply multiple instructions sequentially (chain editing)
 
-        例: ["Make it sunset", "Add rain", "Make it oil painting"]
-        → 夕焼け化 → 雨追加 → 油絵化 を順番に適用
+        e.g.: ["Make it sunset", "Add rain", "Make it oil painting"]
+        -> Apply sunset -> add rain -> oil painting in sequence
         """
         results = []
         current = image
@@ -1543,15 +1549,15 @@ class TextInstructEditor:
         return results
 
 
-# 使用例
+# Usage example
 editor = TextInstructEditor()
 image = Image.open("photo.jpg")
 
-# 簡単な編集指示
+# Simple edit instruction
 winter = editor.edit(image, "Make it a snowy winter scene")
 winter.save("winter_version.png")
 
-# 段階的な変換
+# Progressive transformation
 stages = editor.chain_edits(
     image,
     [
@@ -1564,38 +1570,38 @@ for i, stage in enumerate(stages):
     stage.save(f"stage_{i+1}.png")
 ```
 
-### ASCII図解4: InstructPix2Pix のパラメータバランス
+### ASCII Diagram 4: InstructPix2Pix Parameter Balance
 
 ```
-image_guidance_scale vs guidance_scale のバランス:
+image_guidance_scale vs guidance_scale balance:
 
-                  guidance_scale (テキスト従い度)
-                  低い(3)    中(7.5)     高い(15)
-              ┌──────────┬──────────┬──────────┐
-  image_      │ 変化なし  │ 部分変化  │ 大きく   │
-  guidance    │ (両方弱い)│          │ 変化     │
-  低い(1.0)   │          │          │          │
-              ├──────────┼──────────┼──────────┤
-  scale       │ 微細な   │ ★最適★  │ 過度な   │
-  (元画像     │ 変化     │ バランス  │ 変化     │
-  維持度)     │          │          │          │
-  中(1.5)     ├──────────┼──────────┼──────────┤
-              │ ほぼ     │ 控えめな │ 矛盾した │
-  高い(2.0)   │ 変化なし │ 変化     │ 結果     │
-              └──────────┴──────────┴──────────┘
+                  guidance_scale (text adherence)
+                  Low(3)     Mid(7.5)    High(15)
+              +----------+----------+----------+
+  image_      | No change | Partial  | Major    |
+  guidance    | (both     | change   | change   |
+  Low(1.0)    |  weak)    |          |          |
+              +----------+----------+----------+
+  scale       | Subtle   | *Optimal*| Excessive|
+  (original   | change   | Balance  | change   |
+  retention)  |          |          |          |
+  Mid(1.5)    +----------+----------+----------+
+              | Almost   | Moderate | Conflict-|
+  High(2.0)   | no change| change   | ing result|
+              +----------+----------+----------+
 
-推奨設定:
-  通常の編集:      image_guidance=1.5, guidance=7.5
-  微細な調整:      image_guidance=2.0, guidance=5.0
-  大胆な変換:      image_guidance=1.0, guidance=10.0
-  スタイル変換:    image_guidance=1.2, guidance=8.0
+Recommended settings:
+  Normal editing:       image_guidance=1.5, guidance=7.5
+  Fine adjustment:      image_guidance=2.0, guidance=5.0
+  Bold transformation:  image_guidance=1.0, guidance=10.0
+  Style transfer:       image_guidance=1.2, guidance=8.0
 ```
 
 ---
 
-## 5. バッチ処理と本番ワークフロー
+## 5. Batch Processing and Production Workflows
 
-### コード例9: 商用バッチ編集パイプライン
+### Code Example 9: Commercial Batch Editing Pipeline
 
 ```python
 import json
@@ -1609,7 +1615,7 @@ import torch
 
 @dataclass
 class EditJob:
-    """編集ジョブの定義"""
+    """Edit job definition"""
     job_id: str
     input_path: str
     output_path: str
@@ -1626,13 +1632,13 @@ class EditJob:
 
 class BatchEditPipeline:
     """
-    本番環境向けバッチ画像編集パイプライン
+    Production-ready batch image editing pipeline
 
-    機能:
-    - ジョブキュー管理
-    - エラーハンドリングとリトライ
-    - 進捗レポート
-    - 結果の品質チェック
+    Features:
+    - Job queue management
+    - Error handling and retries
+    - Progress reporting
+    - Result quality checks
     """
 
     def __init__(self, output_dir: str = "./batch_output"):
@@ -1643,7 +1649,7 @@ class BatchEditPipeline:
         self.failed: list[EditJob] = []
 
     def add_job(self, **kwargs) -> EditJob:
-        """ジョブを追加"""
+        """Add a job"""
         job = EditJob(**kwargs)
         self.jobs.append(job)
         return job
@@ -1654,7 +1660,7 @@ class BatchEditPipeline:
         style: str,
         prompt_template: str,
     ):
-        """ディレクトリ内の全画像にスタイル変換を適用"""
+        """Apply style transfer to all images in a directory"""
         input_path = Path(input_dir)
         for i, img_path in enumerate(
             sorted(input_path.glob("*.{jpg,png,jpeg}"))
@@ -1675,7 +1681,7 @@ class BatchEditPipeline:
         max_retries: int = 2,
         on_progress: callable = None,
     ) -> dict:
-        """全ジョブを処理"""
+        """Process all jobs"""
         total = len(self.jobs)
         start_time = time.time()
 
@@ -1714,7 +1720,7 @@ class BatchEditPipeline:
             ],
         }
 
-        # レポートを保存
+        # Save report
         report_path = self.output_dir / "batch_report.json"
         with open(report_path, "w", encoding="utf-8") as f:
             json.dump(report, f, ensure_ascii=False, indent=2)
@@ -1722,7 +1728,7 @@ class BatchEditPipeline:
         return report
 
     def _process_single(self, job: EditJob):
-        """単一ジョブを処理"""
+        """Process a single job"""
         start = time.time()
         image = Image.open(job.input_path).convert("RGB")
 
@@ -1740,7 +1746,7 @@ class BatchEditPipeline:
         job.processing_time = time.time() - start
 
     def _inpaint(self, image, mask, job):
-        """インペインティング処理"""
+        """Inpainting process"""
         from diffusers import StableDiffusionXLInpaintPipeline
         pipe = StableDiffusionXLInpaintPipeline.from_pretrained(
             "diffusers/stable-diffusion-xl-1.0-inpainting-0.1",
@@ -1756,7 +1762,7 @@ class BatchEditPipeline:
         ).images[0]
 
     def _style_transfer(self, image, job):
-        """スタイル変換処理"""
+        """Style transfer process"""
         from diffusers import StableDiffusionXLImg2ImgPipeline
         pipe = StableDiffusionXLImg2ImgPipeline.from_pretrained(
             "stabilityai/stable-diffusion-xl-base-1.0",
@@ -1771,7 +1777,7 @@ class BatchEditPipeline:
         ).images[0]
 
     def _instruct_edit(self, image, job):
-        """テキスト指示編集処理"""
+        """Text instruction edit process"""
         from diffusers import StableDiffusionInstructPix2PixPipeline
         pipe = StableDiffusionInstructPix2PixPipeline.from_pretrained(
             "timbrooks/instruct-pix2pix",
@@ -1784,10 +1790,10 @@ class BatchEditPipeline:
         ).images[0]
 
 
-# 使用例
+# Usage example
 pipeline = BatchEditPipeline("./output/batch_results")
 
-# 複数の編集ジョブを登録
+# Register multiple edit jobs
 pipeline.add_job(
     job_id="room_sofa",
     input_path="room.jpg",
@@ -1808,287 +1814,289 @@ pipeline.add_job(
     strength=0.6,
 )
 
-# 全ジョブを実行
+# Execute all jobs
 report = pipeline.process_all(
     on_progress=lambda cur, total, jid:
         print(f"[{cur}/{total}] Processing {jid}...")
 )
-print(f"完了: {report['completed']}, 失敗: {report['failed']}")
+print(f"Completed: {report['completed']}, Failed: {report['failed']}")
 ```
 
 ---
 
-## 6. 比較表
+## 6. Comparison Tables
 
-### 比較表1: 画像編集手法の比較
+### Comparison Table 1: Image Editing Methods
 
-| 手法 | 入力 | 制御精度 | 用途 | 計算コスト | マスク要否 |
-|------|------|---------|------|-----------|----------|
-| **インペインティング** | 画像 + マスク + プロンプト | 高 | 部分置換・修正 | 中 | 必要 |
-| **アウトペインティング** | 画像 + 方向指定 | 中 | 画像拡張 | 中 | 自動生成 |
-| **Img2Img** | 画像 + プロンプト + strength | 中 | スタイル変換 | 中 | 不要 |
-| **ControlNet** | 制御画像 + プロンプト | 非常に高 | 構図制御生成 | 高 | 不要 |
-| **IP-Adapter** | 参照画像 + プロンプト | 中 | スタイル転写 | 中 | 不要 |
-| **Instruct-Pix2Pix** | 画像 + 編集指示 | 中 | 自然言語編集 | 中 | 不要 |
-| **Grounding DINO + SAM** | 画像 + テキスト | 高 | 自動マスク生成 | 中 | - |
+| Method | Input | Control Precision | Use Case | Computational Cost | Mask Required |
+|--------|-------|-------------------|----------|-------------------|---------------|
+| **Inpainting** | Image + Mask + Prompt | High | Partial replacement/correction | Medium | Yes |
+| **Outpainting** | Image + Direction | Medium | Image extension | Medium | Auto-generated |
+| **Img2Img** | Image + Prompt + strength | Medium | Style transfer | Medium | No |
+| **ControlNet** | Control image + Prompt | Very high | Composition-controlled generation | High | No |
+| **IP-Adapter** | Reference image + Prompt | Medium | Style transfer | Medium | No |
+| **Instruct-Pix2Pix** | Image + Edit instruction | Medium | Natural language editing | Medium | No |
+| **Grounding DINO + SAM** | Image + Text | High | Automatic mask generation | Medium | - |
 
-### 比較表2: マスク生成手法の比較
+### Comparison Table 2: Mask Generation Methods
 
-| 手法 | 精度 | 自動化 | ツール | 適用シーン |
-|------|------|--------|--------|-----------|
-| **手動描画** | 最高 | 手動 | Photoshop, GIMP, WebUI | 複雑な形状 |
-| **矩形/楕円** | 低 | 自動 | PIL/Pillow | 簡単な領域 |
-| **SAM (セグメンテーション)** | 高 | 半自動 | segment-anything | 物体単位の選択 |
-| **色範囲選択** | 中 | 自動 | OpenCV | 単色背景 |
-| **テキスト指定** | 中~高 | 自動 | Grounding DINO + SAM | 意味的な選択 |
-| **深度ベース** | 中 | 自動 | MiDaS + 閾値処理 | 前景/背景の分離 |
-| **グラデーション** | - | 自動 | NumPy/PIL | アウトペインティング |
+| Method | Precision | Automation | Tools | Application Scenario |
+|--------|-----------|------------|-------|---------------------|
+| **Manual Drawing** | Highest | Manual | Photoshop, GIMP, WebUI | Complex shapes |
+| **Rectangle/Ellipse** | Low | Automatic | PIL/Pillow | Simple regions |
+| **SAM (Segmentation)** | High | Semi-auto | segment-anything | Object-level selection |
+| **Color Range Selection** | Medium | Automatic | OpenCV | Solid-color backgrounds |
+| **Text-based Selection** | Medium-High | Automatic | Grounding DINO + SAM | Semantic selection |
+| **Depth-based** | Medium | Automatic | MiDaS + thresholding | Foreground/background separation |
+| **Gradient** | - | Automatic | NumPy/PIL | Outpainting |
 
-### 比較表3: strength パラメータの影響
+### Comparison Table 3: Effect of the strength Parameter
 
-| strength 範囲 | 変化の程度 | 用途 | 元画像の維持 |
-|--------------|-----------|------|------------|
-| 0.1 - 0.2 | 微細 | 色調補正、ノイズ除去 | 95%+ |
-| 0.2 - 0.3 | 軽微 | 微細なスタイル調整 | 85-95% |
-| 0.3 - 0.5 | 中程度 | スタイル変換（構図維持） | 60-85% |
-| 0.5 - 0.7 | 大きい | スタイル変換（大幅変化） | 30-60% |
-| 0.7 - 0.85 | 非常に大きい | ほぼ新規生成 | 10-30% |
-| 0.85 - 1.0 | 完全再生成 | 構図参考のみ | 0-10% |
+| strength Range | Degree of Change | Use Case | Original Image Retention |
+|----------------|-----------------|----------|--------------------------|
+| 0.1 - 0.2 | Minimal | Color correction, noise removal | 95%+ |
+| 0.2 - 0.3 | Slight | Fine style adjustments | 85-95% |
+| 0.3 - 0.5 | Moderate | Style transfer (preserving composition) | 60-85% |
+| 0.5 - 0.7 | Significant | Style transfer (major changes) | 30-60% |
+| 0.7 - 0.85 | Very significant | Near-complete regeneration | 10-30% |
+| 0.85 - 1.0 | Full regeneration | Composition reference only | 0-10% |
 
-### 比較表4: ControlNet タイプ別の適用シーン
+### Comparison Table 4: ControlNet Type Application Scenarios
 
-| ControlNet タイプ | 最適なシーン | conditioning_scale 推奨 | 前処理の計算量 |
-|------------------|------------|----------------------|--------------|
-| Canny Edge | 建築、プロダクト、構造物 | 0.7 - 0.9 | 低 |
-| Depth | 風景、室内、空間構成 | 0.6 - 0.8 | 中 |
-| OpenPose | 人物ポーズ、ダンス、スポーツ | 0.8 - 1.0 | 中 |
-| Scribble | ラフスケッチからの生成 | 0.5 - 0.7 | 低 |
-| Lineart | 線画の着色、漫画 | 0.6 - 0.8 | 中 |
-| Tile | 高解像度化、ディテール追加 | 0.4 - 0.6 | 低 |
-| Segmentation | 領域ごとのスタイル制御 | 0.6 - 0.8 | 高 |
-| Normal Map | 3D的な表面制御 | 0.4 - 0.6 | 中 |
+| ControlNet Type | Optimal Scenario | Recommended conditioning_scale | Preprocessing Cost |
+|-----------------|-----------------|-------------------------------|-------------------|
+| Canny Edge | Architecture, products, structures | 0.7 - 0.9 | Low |
+| Depth | Landscapes, interiors, spatial composition | 0.6 - 0.8 | Medium |
+| OpenPose | Human poses, dance, sports | 0.8 - 1.0 | Medium |
+| Scribble | Generation from rough sketches | 0.5 - 0.7 | Low |
+| Lineart | Line art colorization, manga | 0.6 - 0.8 | Medium |
+| Tile | Super-resolution, detail enhancement | 0.4 - 0.6 | Low |
+| Segmentation | Per-region style control | 0.6 - 0.8 | High |
+| Normal Map | 3D surface control | 0.4 - 0.6 | Medium |
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン1: マスクの境界が鮮明すぎる
-
-```
-[問題]
-マスクの境界をピクセル単位でくっきり作成し、
-インペインティング結果に「貼り付けた」ような不自然さが出る。
-
-[なぜ問題か]
-- 鮮明な境界では元画像と生成部分の色調・テクスチャが不連続
-- 光の当たり方や影が境界で急に変わる
-- 人間の目は不連続性に非常に敏感
-
-[正しいアプローチ]
-- マスクにガウスぼかし (10-30px) を適用してフェザリング
-- 編集領域を実際の対象より少し大きめに設定（10-20px膨張）
-- strength パラメータで境界のブレンドを調整
-- 後処理でさらに境界をブレンド
-- MaskGenerator の feather パラメータを活用
-```
-
-### アンチパターン2: Img2Img の strength を理解せずに使う
+### Anti-Pattern 1: Mask Boundaries Are Too Sharp
 
 ```
-[問題]
-Img2Img で strength=1.0 を設定し「元画像が全く反映されない」
-と困惑する。逆に strength=0.1 で「何も変わらない」と不満。
+[Problem]
+Creating masks with pixel-perfect sharp boundaries,
+resulting in an unnatural "pasted-on" look in inpainting results.
 
-[なぜ問題か]
-- strength はノイズ付加のレベルを制御するパラメータ
-- 1.0 = 完全にランダムノイズから開始 (≒txt2img)
-- 0.0 = ノイズなし = 元画像そのまま
-- 用途に合った range を理解する必要がある
+[Why It's a Problem]
+- Sharp boundaries cause discontinuity in color tone and texture
+  between original and generated areas
+- Lighting and shadows change abruptly at the boundary
+- The human eye is extremely sensitive to discontinuities
 
-[正しいアプローチ]
-- 微調整 (色補正等): 0.2-0.3
-- スタイル変換: 0.4-0.6
-- 大きな変更: 0.7-0.8
-- 元画像は参考程度: 0.85-0.95
-- progressive_transform() で最適値を探す
+[Correct Approach]
+- Apply Gaussian blur (10-30px) to the mask for feathering
+- Set the edit region slightly larger than the actual target (dilate by 10-20px)
+- Adjust boundary blending with the strength parameter
+- Further blend boundaries in post-processing
+- Utilize MaskGenerator's feather parameter
 ```
 
-### アンチパターン3: ControlNet の conditioning_scale が不適切
+### Anti-Pattern 2: Using Img2Img strength Without Understanding It
 
 ```
-[問題]
-conditioning_scale を 1.5 や 2.0 に設定して
-アーティファクトだらけの結果になる。
+[Problem]
+Setting strength=1.0 in Img2Img and wondering why "the original
+image isn't reflected at all." Conversely, setting strength=0.1
+and complaining "nothing changed."
 
-[なぜ問題か]
-- 高すぎる scale は制御信号を過剰に増幅
-- モデルが制御画像に過適合し、不自然なパターンが出現
-- 特にエッジ検出ベースでは線が二重になったりする
+[Why It's a Problem]
+- strength controls the level of noise addition
+- 1.0 = Start from completely random noise (equivalent to txt2img)
+- 0.0 = No noise = original image unchanged
+- You need to understand the appropriate range for your use case
 
-[正しいアプローチ]
-- 0.5-0.9 の範囲で調整（0.8 が標準的）
-- 制御タイプごとに最適値が異なる
-- 低めから始めて段階的に上げる
-- 制御の「緩さ」が自然な結果につながる場合が多い
+[Correct Approach]
+- Fine-tuning (color correction, etc.): 0.2-0.3
+- Style transfer: 0.4-0.6
+- Major changes: 0.7-0.8
+- Original image as rough reference: 0.85-0.95
+- Use progressive_transform() to find the optimal value
 ```
 
-### アンチパターン4: アウトペインティングの一度に大きな拡張
+### Anti-Pattern 3: Inappropriate ControlNet conditioning_scale
 
 ```
-[問題]
-512x512 の画像を一度に 2048x512 に拡張しようとして
-品質が著しく低下する。
+[Problem]
+Setting conditioning_scale to 1.5 or 2.0 and getting
+results full of artifacts.
 
-[なぜ問題か]
-- 大きな生成領域ではコンテキストが希薄になる
-- モデルの学習解像度を大きく超える
-- 境界の一貫性が保てない
+[Why It's a Problem]
+- Too high a scale over-amplifies the control signal
+- The model overfits to the control image, producing unnatural patterns
+- With edge-based control in particular, lines may double up
 
-[正しいアプローチ]
-- 256-512px ずつ段階的に拡張
-- 十分な重複帯 (64-96px) を確保
-- 各拡張後に全体を Img2Img で軽く統一
-- OutpaintingEngine.create_panorama() を使用
+[Correct Approach]
+- Adjust within the 0.5-0.9 range (0.8 is standard)
+- Optimal values differ by control type
+- Start low and gradually increase
+- "Looser" control often leads to more natural results
 ```
 
-### アンチパターン5: InstructPix2Pix の曖昧な指示
+### Anti-Pattern 4: Extending Too Much at Once in Outpainting
 
 ```
-[問題]
-「もっと良くして」「きれいにして」のような
-曖昧な編集指示を与える。
+[Problem]
+Trying to extend a 512x512 image to 2048x512 in a single
+step, resulting in severely degraded quality.
 
-[なぜ問題か]
-- モデルは具体的な変更を期待している
-- 「良い」「きれい」は主観的で解釈が不定
-- 結果が不安定になり、意図しない変更が入る
+[Why It's a Problem]
+- Large generation areas dilute the context
+- Far exceeds the model's training resolution
+- Boundary consistency cannot be maintained
 
-[正しいアプローチ]
-- 具体的な変更を指示: "Make the sky more orange"
-- 動詞 + 対象 + 変更内容: "Turn the car from blue to red"
-- 1つの指示に1つの変更に絞る
-- chain_edits() で段階的に適用
+[Correct Approach]
+- Extend progressively in 256-512px increments
+- Ensure sufficient overlap zone (64-96px)
+- Lightly unify the whole with Img2Img after each extension
+- Use OutpaintingEngine.create_panorama()
+```
+
+### Anti-Pattern 5: Vague Instructions for InstructPix2Pix
+
+```
+[Problem]
+Giving vague edit instructions like "make it better"
+or "make it prettier."
+
+[Why It's a Problem]
+- The model expects specific changes
+- "Better" and "prettier" are subjective and ambiguous
+- Results become unstable with unintended changes
+
+[Correct Approach]
+- Give specific change instructions: "Make the sky more orange"
+- Use verb + target + change: "Turn the car from blue to red"
+- Limit each instruction to a single change
+- Use chain_edits() for progressive application
 ```
 
 ---
 
 ## 8. FAQ
 
-### Q1: インペインティングで周囲と色味が合わない場合は?
+### Q1: What if the inpainted area doesn't match the surrounding colors?
 
-**A:** 以下の順序で対処します:
+**A:** Address this in the following order:
 
-1. **マスクを拡大する:** 境界を 20-50px 広げて周囲のコンテキストを含める
-2. **フェザリング:** マスクに 15-25px のガウスぼかしを適用
-3. **strength を下げる:** 0.7-0.8 程度にして元画像の色調を保持
-4. **プロンプトに色調を明記:** "matching ambient lighting, same color temperature, consistent shadows"
-5. **二段階処理:** 粗い生成 (strength=0.9) → 微調整 (strength=0.4)
-6. **コンテキストプロンプト:** AdvancedInpainter の context_prompt を活用
+1. **Expand the mask:** Widen the boundary by 20-50px to include surrounding context
+2. **Feathering:** Apply 15-25px Gaussian blur to the mask
+3. **Lower the strength:** Set to around 0.7-0.8 to preserve the original color tone
+4. **Specify color tone in the prompt:** "matching ambient lighting, same color temperature, consistent shadows"
+5. **Two-stage processing:** Rough generation (strength=0.9) -> fine-tuning (strength=0.4)
+6. **Context prompt:** Utilize AdvancedInpainter's context_prompt
 
-### Q2: アウトペインティングで一貫性を保つコツは?
+### Q2: Tips for maintaining consistency in outpainting?
 
 **A:**
 
-- **重複領域を十分に取る:** 最低 64px、推奨 96px 以上
-- **グラデーションマスクを使用:** OutpaintingEngine の gradient mask
-- **同じプロンプトを使用:** 元画像の説明 + "seamless continuation"
-- **一度に大きく拡張しない:** 256-512px ずつ段階的に拡張
-- **シード固定:** 同じランダムシードで一貫性を保つ
-- **後処理:** 拡張結果全体に Img2Img を軽く (strength=0.2) 適用して統一
+- **Use sufficient overlap:** At least 64px, 96px+ recommended
+- **Use gradient masks:** OutpaintingEngine's gradient mask
+- **Use the same prompt:** Original image description + "seamless continuation"
+- **Don't extend too much at once:** Extend progressively in 256-512px increments
+- **Fix the seed:** Use the same random seed for consistency
+- **Post-processing:** Lightly apply Img2Img (strength=0.2) to the entire extended result for uniformity
 
-### Q3: ControlNet はどのタイプを選ぶべき?
+### Q3: Which ControlNet type should I choose?
 
-**A:** タスクに応じて選択します:
+**A:** Choose based on your task:
 
-- **建築・インテリア:** Canny Edge (輪郭維持) + Depth (奥行き)
-- **人物ポーズ指定:** OpenPose (骨格制御)
-- **既存画像の高品質化:** Tile (ディテール維持)
-- **手描きスケッチから:** Scribble (ラフな線画)
-- **線画の着色:** Lineart (輪郭線のみ抽出)
-- **スタイル転写:** IP-Adapter (参照画像ベース)
-- **複数制御:** Multi-ControlNet で複数タイプを同時使用可能
+- **Architecture/Interior:** Canny Edge (contour preservation) + Depth (depth perception)
+- **Human pose specification:** OpenPose (skeletal control)
+- **Upscaling existing images:** Tile (detail preservation)
+- **From hand-drawn sketches:** Scribble (rough line art)
+- **Colorizing line art:** Lineart (contour line extraction only)
+- **Style transfer:** IP-Adapter (reference image-based)
+- **Multiple controls:** Multi-ControlNet allows simultaneous use of multiple types
 
-### Q4: InstructPix2Pix と Img2Img + プロンプトの違いは?
+### Q4: What's the difference between InstructPix2Pix and Img2Img + prompt?
 
-**A:** 用途が異なります:
+**A:** They serve different purposes:
 
-- **InstructPix2Pix:** 「変更の指示」を理解する。"Make it rainy" のように差分を記述。マスク不要で手軽。元画像の構造を保ちやすい。
-- **Img2Img:** 「最終状態」を記述する。"A rainy landscape" のように結果を記述。strength で変化量を制御。より大きな変化に向いている。
-- **使い分けの基準:** 部分的・微細な変更には InstructPix2Pix、スタイル全体の変換には Img2Img が適している。
+- **InstructPix2Pix:** Understands "change instructions." Describe the delta like "Make it rainy." No mask required, easy to use. Better at preserving original structure.
+- **Img2Img:** Describes the "final state." Describe the result like "A rainy landscape." Controls amount of change via strength. Better suited for larger transformations.
+- **Selection criteria:** Use InstructPix2Pix for partial/fine changes, Img2Img for overall style transformation.
 
-### Q5: 商用利用での品質管理はどうすべき?
+### Q5: How should quality management work for commercial use?
 
-**A:** 以下のワークフローを推奨:
+**A:** The following workflow is recommended:
 
-1. **テスト生成:** 複数シード(5+)で生成し、品質の安定性を確認
-2. **人間レビュー:** 自動生成後に必ず人間がチェック
-3. **品質指標:** CLIP Score や SSIM で定量的に評価
-4. **バッチ処理:** BatchEditPipeline でジョブ管理し、エラーハンドリング
-5. **バージョン管理:** 入力画像、マスク、プロンプト、シード、結果を全て記録
-6. **A/Bテスト:** パラメータの異なる結果を比較して最適設定を見つける
+1. **Test generation:** Generate with multiple seeds (5+) to verify quality stability
+2. **Human review:** Always have a human check after auto-generation
+3. **Quality metrics:** Quantitatively evaluate with CLIP Score and SSIM
+4. **Batch processing:** Manage jobs with BatchEditPipeline, including error handling
+5. **Version control:** Record all inputs, masks, prompts, seeds, and results
+6. **A/B testing:** Compare results with different parameters to find optimal settings
 
-### Q6: GPU メモリが足りない場合の対処法は?
+### Q6: What to do when GPU memory is insufficient?
 
-**A:** 段階的に最適化します:
+**A:** Optimize progressively:
 
-1. **enable_model_cpu_offload():** 使用中でないモデルをCPUに退避
-2. **enable_vae_tiling():** VAEのタイリング処理
-3. **torch.float16 (FP16):** 半精度浮動小数点の使用
-4. **画像サイズの削減:** 1024x1024 → 768x768 → 512x512
-5. **バッチサイズ=1:** 一度に1枚ずつ処理
-6. **xformers:** メモリ効率の良い attention 実装
-7. **torch.compile():** PyTorch 2.0+ のコンパイル最適化
+1. **enable_model_cpu_offload():** Offload unused models to CPU
+2. **enable_vae_tiling():** VAE tiling processing
+3. **torch.float16 (FP16):** Use half-precision floating point
+4. **Reduce image size:** 1024x1024 -> 768x768 -> 512x512
+5. **Batch size=1:** Process one image at a time
+6. **xformers:** Memory-efficient attention implementation
+7. **torch.compile():** PyTorch 2.0+ compilation optimization
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory alone, but by actually writing code and verifying the behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 9. まとめ表
-
-| 項目 | 要点 |
-|------|------|
-| **インペインティング** | マスク+プロンプトで部分書き換え。フェザリング必須 |
-| **マスク膨張** | 対象より10-20px大きくマスクを作る |
-| **反復改善** | strength高→中→低 の3段階で品質向上 |
-| **複数領域** | multi_region_edit で順番に編集 |
-| **アウトペインティング** | 画像境界を拡張。グラデーションマスクで自然な接続 |
-| **パノラマ** | 256-512pxずつ段階的に拡張 |
-| **Img2Img** | strength で元画像の維持度を制御 (0.0-1.0) |
-| **スタイルプリセット** | 用途別に最適なstrengthとcfgを事前定義 |
-| **ControlNet** | エッジ/深度/ポーズ等で精密に構図を制御 |
-| **conditioning_scale** | 0.5-0.9が推奨。高すぎるとアーティファクト |
-| **SAMマスク** | ポイントクリックやバウンディングボックスで自動生成 |
-| **テキスト指定マスク** | Grounding DINO + SAM でテキストから自動生成 |
-| **InstructPix2Pix** | テキスト指示のみで画像編集（マスク不要） |
-| **バッチ処理** | BatchEditPipeline でジョブ管理、エラー処理、レポート |
-| **メモリ最適化** | cpu_offload、vae_tiling、fp16の活用 |
+Knowledge of this topic is frequently used in everyday development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## 9. Summary Table
 
-- [02-upscaling.md](./02-upscaling.md) — 編集後のアップスケーリング
-- [03-design-tools.md](./03-design-tools.md) — Canva AI、Adobe Firefly の編集機能
-- [../02-video/01-video-editing.md](../02-video/01-video-editing.md) — 動画に対する同様の編集技術
+| Item | Key Point |
+|------|-----------|
+| **Inpainting** | Partial rewriting with mask + prompt. Feathering is essential |
+| **Mask Dilation** | Make the mask 10-20px larger than the target |
+| **Iterative Refinement** | Improve quality in 3 stages: high -> medium -> low strength |
+| **Multiple Regions** | Edit sequentially with multi_region_edit |
+| **Outpainting** | Extend image boundaries. Use gradient masks for natural blending |
+| **Panorama** | Extend progressively in 256-512px increments |
+| **Img2Img** | Control original image retention via strength (0.0-1.0) |
+| **Style Presets** | Pre-define optimal strength and cfg per use case |
+| **ControlNet** | Precisely control composition via edges/depth/pose, etc. |
+| **conditioning_scale** | 0.5-0.9 recommended. Too high causes artifacts |
+| **SAM Masks** | Auto-generate with point clicks or bounding boxes |
+| **Text-based Masks** | Auto-generate from text with Grounding DINO + SAM |
+| **InstructPix2Pix** | Edit images with text instructions only (no mask needed) |
+| **Batch Processing** | Job management, error handling, and reporting with BatchEditPipeline |
+| **Memory Optimization** | Use cpu_offload, vae_tiling, and fp16 |
 
 ---
 
-## 参考文献
+## Recommended Next Reading
+
+- [02-upscaling.md](./02-upscaling.md) — Upscaling after editing
+- [03-design-tools.md](./03-design-tools.md) — Editing features of Canva AI, Adobe Firefly
+- [../02-video/01-video-editing.md](../02-video/01-video-editing.md) — Similar editing techniques for video
+
+---
+
+## References
 
 1. Lugmayr, A. et al. (2022). "RePaint: Inpainting using Denoising Diffusion Probabilistic Models." *CVPR 2022*. https://arxiv.org/abs/2201.09865
 2. Zhang, L. et al. (2023). "Adding Conditional Control to Text-to-Image Diffusion Models (ControlNet)." *ICCV 2023*. https://arxiv.org/abs/2302.05543
