@@ -1,74 +1,74 @@
-# 音声処理パイプライン実装ガイド
+# Audio Processing Pipeline Implementation Guide
 
-> 前処理、特徴抽出、ノイズ除去、フォーマット変換、リサンプリングなど、音声AIシステムの入出力を支える音声処理パイプラインの設計と実装を体系的に解説する。
-
----
-
-## この章で学ぶこと
-
-1. **音声信号の基礎**（サンプリングレート、ビット深度、チャンネル）を理解し、適切な前処理を設計できる
-2. **特徴抽出**（MFCC、メルスペクトログラム、F0等）の原理と実装を習得し、AI入力を最適化できる
-3. **ノイズ除去・正規化・フォーマット変換**の実装パターンを学び、本番品質のパイプラインを構築できる
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [音声AI API 比較・統合・活用ガイド](./00-audio-apis.md) の内容を理解していること
+> A systematic guide to designing and implementing audio processing pipelines that support the input and output of audio AI systems, including preprocessing, feature extraction, noise reduction, format conversion, and resampling.
 
 ---
 
-## 1. 音声信号の基礎
+## What You Will Learn in This Chapter
 
-### 1.1 デジタル音声の構造
+1. Understand **audio signal fundamentals** (sample rate, bit depth, channels) and design appropriate preprocessing
+2. Master the principles and implementation of **feature extraction** (MFCC, mel spectrogram, F0, etc.) and optimize AI inputs
+3. Learn implementation patterns for **noise reduction, normalization, and format conversion** and build production-quality pipelines
+
+
+## Prerequisites
+
+Before reading this guide, having the following knowledge will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Familiarity with the content of [Audio AI API Comparison, Integration & Utilization Guide](./00-audio-apis.md)
+
+---
+
+## 1. Audio Signal Fundamentals
+
+### 1.1 Structure of Digital Audio
 
 ```
-アナログ音声波形 → サンプリング → 量子化 → デジタル音声
+Analog audio waveform → Sampling → Quantization → Digital audio
 
-時間軸 ──────────────────────────────────────>
+Time axis ──────────────────────────────────────>
           ┌─┐
       ┌─┐ │ │ ┌─┐
   ┌─┐ │ │ │ │ │ │ ┌─┐
-──┤ ├─┤ ├─┤ ├─┤ ├─┤ ├──  ← サンプル値（振幅）
+──┤ ├─┤ ├─┤ ├─┤ ├─┤ ├──  ← Sample values (amplitude)
   └─┘ └─┘ └─┘ └─┘ └─┘
-  t0  t1  t2  t3  t4       ← サンプリング間隔
+  t0  t1  t2  t3  t4       ← Sampling interval
 
-サンプリングレート: 1秒あたりのサンプル数 (Hz)
-  - 8,000 Hz  : 電話音声品質
-  - 16,000 Hz : 音声認識標準
-  - 22,050 Hz : AM放送品質
-  - 44,100 Hz : CD品質
-  - 48,000 Hz : プロフェッショナル/動画標準
-  - 96,000 Hz : ハイレゾオーディオ
+Sample rate: Number of samples per second (Hz)
+  - 8,000 Hz  : Telephone voice quality
+  - 16,000 Hz : Speech recognition standard
+  - 22,050 Hz : AM broadcast quality
+  - 44,100 Hz : CD quality
+  - 48,000 Hz : Professional/video standard
+  - 96,000 Hz : Hi-res audio
 
-ビット深度: 各サンプルの量子化ビット数
-  - 8 bit  : 256段階（低品質）
-  - 16 bit : 65,536段階（CD品質）
-  - 24 bit : 16,777,216段階（プロ品質）
-  - 32 bit float : 機械学習標準
+Bit depth: Number of quantization bits per sample
+  - 8 bit  : 256 levels (low quality)
+  - 16 bit : 65,536 levels (CD quality)
+  - 24 bit : 16,777,216 levels (professional quality)
+  - 32 bit float : Machine learning standard
 
-ナイキスト周波数 = サンプリングレート / 2
-  - 16kHz → 最大 8kHz の音声周波数を再現可能
-  - 44.1kHz → 最大 22.05kHz（人間の可聴域をカバー）
+Nyquist frequency = Sample rate / 2
+  - 16kHz → Can reproduce audio frequencies up to 8kHz
+  - 44.1kHz → Up to 22.05kHz (covers the human audible range)
 ```
 
-### 1.2 音声フォーマット比較表
+### 1.2 Audio Format Comparison Table
 
-| フォーマット | 拡張子 | 圧縮 | 用途 | ビットレート例 |
-|------------|--------|------|------|--------------|
-| WAV | .wav | 非圧縮 | 編集・処理用 | 1,411 kbps (16bit/44.1kHz) |
-| FLAC | .flac | 可逆圧縮 | アーカイブ | ~900 kbps |
-| MP3 | .mp3 | 非可逆 | 配信・再生 | 128-320 kbps |
-| AAC | .m4a | 非可逆 | 配信・モバイル | 96-256 kbps |
-| OGG/Opus | .ogg | 非可逆 | WebRTC・低遅延 | 32-128 kbps |
-| PCM | .raw | 非圧縮 | API入力 | 256 kbps (16bit/16kHz) |
-| AIFF | .aiff | 非圧縮 | macOS/Logic Pro | 1,411 kbps (16bit/44.1kHz) |
-| WebM | .webm | 非可逆 | Web配信 | 64-256 kbps |
+| Format | Extension | Compression | Use Case | Example Bitrate |
+|--------|-----------|-------------|----------|-----------------|
+| WAV | .wav | Uncompressed | Editing/processing | 1,411 kbps (16bit/44.1kHz) |
+| FLAC | .flac | Lossless | Archiving | ~900 kbps |
+| MP3 | .mp3 | Lossy | Distribution/playback | 128-320 kbps |
+| AAC | .m4a | Lossy | Distribution/mobile | 96-256 kbps |
+| OGG/Opus | .ogg | Lossy | WebRTC/low latency | 32-128 kbps |
+| PCM | .raw | Uncompressed | API input | 256 kbps (16bit/16kHz) |
+| AIFF | .aiff | Uncompressed | macOS/Logic Pro | 1,411 kbps (16bit/44.1kHz) |
+| WebM | .webm | Lossy | Web distribution | 64-256 kbps |
 
-### 1.3 音声ファイルのメタデータ取得
+### 1.3 Retrieving Audio File Metadata
 
 ```python
 import soundfile as sf
@@ -76,13 +76,13 @@ import librosa
 from pathlib import Path
 
 def get_audio_info(file_path: str) -> dict:
-    """音声ファイルの詳細情報を取得"""
+    """Retrieve detailed information about an audio file"""
     path = Path(file_path)
 
-    # soundfileで基本情報を取得
+    # Get basic info with soundfile
     info = sf.info(file_path)
 
-    # librosaで追加分析
+    # Additional analysis with librosa
     y, sr = librosa.load(file_path, sr=None, mono=False)
 
     result = {
@@ -95,7 +95,7 @@ def get_audio_info(file_path: str) -> dict:
         "frames": info.frames,
         "duration_sec": info.duration,
         "bit_depth": info.subtype,
-        # 信号分析
+        # Signal analysis
         "peak_amplitude": float(abs(y).max()),
         "rms_level_db": float(20 * __import__("numpy").log10(
             __import__("numpy").sqrt(__import__("numpy").mean(y ** 2)) + 1e-10
@@ -108,7 +108,7 @@ def get_audio_info(file_path: str) -> dict:
 
 
 def batch_audio_info(directory: str) -> list[dict]:
-    """ディレクトリ内の全音声ファイルの情報を一括取得"""
+    """Retrieve information for all audio files in a directory at once"""
     audio_extensions = {".wav", ".mp3", ".flac", ".ogg", ".m4a", ".aiff"}
     results = []
 
@@ -125,36 +125,37 @@ def batch_audio_info(directory: str) -> list[dict]:
 
 ---
 
-## 2. 音声処理パイプラインの全体設計
+## 2. Overall Audio Processing Pipeline Design
 
-### 2.1 パイプラインアーキテクチャ
+### 2.1 Pipeline Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                   音声処理パイプライン                      │
+│                  Audio Processing Pipeline                │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  入力音声 ──> [フォーマット変換] ──> [リサンプリング]       │
-│                                         │                │
-│                                         v                │
-│               [チャンネル変換] <── [正規化]               │
-│                    │                                     │
-│                    v                                     │
-│  [VAD (音声区間検出)] ──> [ノイズ除去] ──> [トリミング]    │
+│  Input audio ──> [Format conversion] ──> [Resampling]    │
 │                                              │           │
 │                                              v           │
-│              [特徴抽出] ──> [MFCC/メルスペクトログラム]    │
-│                                   │                      │
-│                                   v                      │
-│                            [AI モデル入力]                │
+│               [Channel conversion] <── [Normalization]   │
+│                       │                                  │
+│                       v                                  │
+│  [VAD (Voice Activity Detection)] ──> [Noise reduction]  │
+│                                    ──> [Trimming]        │
+│                                              │           │
+│                                              v           │
+│              [Feature extraction] ──> [MFCC/Mel spectro] │
+│                                          │               │
+│                                          v               │
+│                                   [AI model input]       │
 │                                                          │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 2.2 パイプラインの基本実装
+### 2.2 Basic Pipeline Implementation
 
 ```python
-# 音声処理パイプライン基盤
+# Audio processing pipeline foundation
 import numpy as np
 import librosa
 import soundfile as sf
@@ -164,30 +165,30 @@ from pathlib import Path
 
 @dataclass
 class AudioData:
-    """音声データの統一表現"""
-    samples: np.ndarray          # 波形データ (float32, -1.0 ~ 1.0)
-    sample_rate: int             # サンプリングレート
-    channels: int = 1            # チャンネル数
+    """Unified representation of audio data"""
+    samples: np.ndarray          # Waveform data (float32, -1.0 ~ 1.0)
+    sample_rate: int             # Sample rate
+    channels: int = 1            # Number of channels
     metadata: dict = field(default_factory=dict)
 
     @property
     def duration(self) -> float:
-        """秒単位の長さ"""
+        """Duration in seconds"""
         return len(self.samples) / self.sample_rate
 
     @property
     def rms(self) -> float:
-        """RMS（平均二乗平方根）レベル"""
+        """RMS (Root Mean Square) level"""
         return float(np.sqrt(np.mean(self.samples ** 2)))
 
     @property
     def peak(self) -> float:
-        """ピーク振幅"""
+        """Peak amplitude"""
         return float(np.max(np.abs(self.samples)))
 
     @property
     def rms_db(self) -> float:
-        """RMSレベル（dB）"""
+        """RMS level (dB)"""
         rms = self.rms
         if rms == 0:
             return -float('inf')
@@ -195,14 +196,14 @@ class AudioData:
 
     @property
     def crest_factor(self) -> float:
-        """クレストファクター（ピーク/RMS比）"""
+        """Crest factor (peak/RMS ratio)"""
         rms = self.rms
         if rms == 0:
             return float('inf')
         return self.peak / rms
 
     def get_channel(self, channel: int) -> 'AudioData':
-        """特定チャンネルのデータを取得"""
+        """Retrieve data for a specific channel"""
         if self.channels == 1:
             return self
         return AudioData(
@@ -213,24 +214,24 @@ class AudioData:
         )
 
 class AudioPipeline:
-    """拡張可能な音声処理パイプライン"""
+    """Extensible audio processing pipeline"""
 
     def __init__(self):
         self.steps: list[tuple[str, Callable]] = []
         self._logs: list[dict] = []
 
     def add_step(self, name: str, func: Callable[[AudioData], AudioData]):
-        """処理ステップを追加"""
+        """Add a processing step"""
         self.steps.append((name, func))
-        return self  # メソッドチェーン対応
+        return self  # Support method chaining
 
     def remove_step(self, name: str):
-        """処理ステップを削除"""
+        """Remove a processing step"""
         self.steps = [(n, f) for n, f in self.steps if n != name]
         return self
 
     def process(self, audio: AudioData, verbose: bool = True) -> AudioData:
-        """全ステップを順次実行"""
+        """Execute all steps sequentially"""
         self._logs = []
 
         for name, func in self.steps:
@@ -262,18 +263,18 @@ class AudioPipeline:
         return audio
 
     def get_logs(self) -> list[dict]:
-        """処理ログを取得"""
+        """Retrieve processing logs"""
         return self._logs
 
     @staticmethod
     def load(path: str, target_sr: Optional[int] = None) -> AudioData:
-        """音声ファイルを読み込み"""
+        """Load an audio file"""
         samples, sr = librosa.load(path, sr=target_sr, mono=False)
         if samples.ndim == 1:
             channels = 1
         else:
             channels = samples.shape[0]
-            samples = samples.mean(axis=0)  # モノラル化
+            samples = samples.mean(axis=0)  # Convert to mono
         return AudioData(
             samples=samples.astype(np.float32),
             sample_rate=sr,
@@ -283,12 +284,12 @@ class AudioPipeline:
 
     @staticmethod
     def save(audio: AudioData, path: str, format: str = "wav"):
-        """音声データを保存"""
+        """Save audio data"""
         sf.write(path, audio.samples, audio.sample_rate, format=format)
 
     @staticmethod
     def load_raw(path: str, sample_rate: int, dtype: str = "int16") -> AudioData:
-        """RAW PCMファイルを読み込み"""
+        """Load a RAW PCM file"""
         dtype_map = {"int16": np.int16, "float32": np.float32}
         np_dtype = dtype_map.get(dtype, np.int16)
 
@@ -307,7 +308,7 @@ class AudioPipeline:
         )
 ```
 
-### 2.3 ストリーミング対応パイプライン
+### 2.3 Streaming-Compatible Pipeline
 
 ```python
 import numpy as np
@@ -315,7 +316,7 @@ from collections import deque
 from typing import Iterator
 
 class StreamingAudioPipeline:
-    """ストリーミング対応の音声処理パイプライン"""
+    """Streaming-compatible audio processing pipeline"""
 
     def __init__(
         self,
@@ -335,8 +336,8 @@ class StreamingAudioPipeline:
         return self
 
     def process_chunk(self, chunk: np.ndarray) -> np.ndarray:
-        """1チャンクを処理"""
-        # オーバーラップ処理
+        """Process a single chunk"""
+        # Overlap handling
         if len(self._overlap_buffer) > 0:
             chunk = np.concatenate([self._overlap_buffer, chunk])
 
@@ -358,13 +359,13 @@ class StreamingAudioPipeline:
     def process_stream(
         self, audio_stream: Iterator[np.ndarray]
     ) -> Iterator[np.ndarray]:
-        """音声ストリームを処理"""
+        """Process an audio stream"""
         for chunk in audio_stream:
             processed = self.process_chunk(chunk)
             yield processed
 
     def reset(self):
-        """内部状態をリセット"""
+        """Reset internal state"""
         self._buffer = np.array([], dtype=np.float32)
         self._overlap_buffer = np.array([], dtype=np.float32)
 
@@ -373,7 +374,7 @@ def create_microphone_stream(
     sample_rate: int = 16000,
     chunk_size: int = 1600,  # 100ms
 ) -> Iterator[np.ndarray]:
-    """マイク入力からのストリーム生成"""
+    """Generate a stream from microphone input"""
     import pyaudio
 
     p = pyaudio.PyAudio()
@@ -397,17 +398,17 @@ def create_microphone_stream(
 
 ---
 
-## 3. 前処理モジュール
+## 3. Preprocessing Modules
 
-### 3.1 リサンプリング
+### 3.1 Resampling
 
 ```python
-# リサンプリング: サンプリングレート変換
+# Resampling: Sample rate conversion
 import librosa
 import numpy as np
 
 def resample(audio: AudioData, target_sr: int = 16000) -> AudioData:
-    """サンプリングレートを変換する"""
+    """Convert the sample rate"""
     if audio.sample_rate == target_sr:
         return audio
 
@@ -415,14 +416,14 @@ def resample(audio: AudioData, target_sr: int = 16000) -> AudioData:
         audio.samples,
         orig_sr=audio.sample_rate,
         target_sr=target_sr,
-        res_type="kaiser_best",  # 高品質リサンプリング
-        # 他の選択肢:
-        #   "kaiser_fast"  - 高速だが品質やや低下
+        res_type="kaiser_best",  # High-quality resampling
+        # Other options:
+        #   "kaiser_fast"  - Faster but slightly lower quality
         #   "scipy"        - scipy.signal.resample
-        #   "polyphase"    - ポリフェーズフィルタ
-        #   "fft"          - FFTベース（周期信号向け）
-        #   "soxr_hq"      - SoXリサンプラー高品質
-        #   "soxr_vhq"     - SoXリサンプラー最高品質
+        #   "polyphase"    - Polyphase filter
+        #   "fft"          - FFT-based (for periodic signals)
+        #   "soxr_hq"      - SoX resampler high quality
+        #   "soxr_vhq"     - SoX resampler very high quality
     )
 
     return AudioData(
@@ -438,7 +439,7 @@ def resample_batch(
     target_sr: int = 16000,
     output_dir: str = "./resampled",
 ) -> list[str]:
-    """複数ファイルの一括リサンプリング"""
+    """Batch resample multiple files"""
     from pathlib import Path
 
     output_path = Path(output_dir)
@@ -456,14 +457,14 @@ def resample_batch(
     return results
 ```
 
-### 3.2 正規化
+### 3.2 Normalization
 
 ```python
-# 音声正規化: ピーク正規化とラウドネス正規化
+# Audio normalization: Peak normalization and loudness normalization
 import numpy as np
 
 def peak_normalize(audio: AudioData, target_peak: float = 0.95) -> AudioData:
-    """ピーク正規化: 最大振幅を指定値に合わせる"""
+    """Peak normalization: Adjust maximum amplitude to a specified value"""
     current_peak = np.max(np.abs(audio.samples))
     if current_peak == 0:
         return audio
@@ -481,7 +482,7 @@ def peak_normalize(audio: AudioData, target_peak: float = 0.95) -> AudioData:
 def rms_normalize(
     audio: AudioData, target_db: float = -20.0
 ) -> AudioData:
-    """RMS正規化: 平均音量を指定dBに合わせる"""
+    """RMS normalization: Adjust average volume to a specified dB level"""
     current_rms = np.sqrt(np.mean(audio.samples ** 2))
     if current_rms == 0:
         return audio
@@ -490,7 +491,7 @@ def rms_normalize(
     gain = target_rms / current_rms
 
     normalized = audio.samples * gain
-    # クリッピング防止
+    # Prevent clipping
     normalized = np.clip(normalized, -1.0, 1.0)
 
     return AudioData(
@@ -504,27 +505,27 @@ def lufs_normalize(
     audio: AudioData, target_lufs: float = -14.0
 ) -> AudioData:
     """
-    LUFS正規化: ITU-R BS.1770準拠のラウドネス正規化
-    ストリーミング配信（Spotify: -14LUFS、YouTube: -14LUFS）向け
+    LUFS normalization: Loudness normalization compliant with ITU-R BS.1770
+    For streaming distribution (Spotify: -14 LUFS, YouTube: -14 LUFS)
     """
     import pyloudnorm as pyln
 
     meter = pyln.Meter(audio.sample_rate)
 
-    # 現在のラウドネスを計測
+    # Measure current loudness
     current_lufs = meter.integrated_loudness(audio.samples)
 
     if current_lufs == -float('inf'):
         return audio
 
-    # ゲイン計算
+    # Calculate gain
     gain_db = target_lufs - current_lufs
     gain_linear = 10 ** (gain_db / 20)
 
     normalized = audio.samples * gain_linear
-    # ピーク制限（True Peakが-1dBTPを超えないように）
+    # Peak limiting (ensure True Peak does not exceed -1 dBTP)
     peak = np.max(np.abs(normalized))
-    if peak > 0.891:  # -1dBTP ≈ 0.891
+    if peak > 0.891:  # -1 dBTP ≈ 0.891
         normalized = normalized * (0.891 / peak)
 
     return AudioData(
@@ -540,13 +541,13 @@ def lufs_normalize(
     )
 ```
 
-### 3.3 チャンネル変換
+### 3.3 Channel Conversion
 
 ```python
 import numpy as np
 
 def to_mono(audio: AudioData, method: str = "mean") -> AudioData:
-    """ステレオをモノラルに変換"""
+    """Convert stereo to mono"""
     if audio.channels == 1:
         return audio
 
@@ -554,20 +555,20 @@ def to_mono(audio: AudioData, method: str = "mean") -> AudioData:
         return audio
 
     if method == "mean":
-        # 平均値（標準的な方法）
+        # Average (standard method)
         mono = np.mean(audio.samples, axis=0)
     elif method == "left":
         mono = audio.samples[0]
     elif method == "right":
         mono = audio.samples[1]
     elif method == "side":
-        # サイド信号（L-R）: 残響成分の抽出に有用
+        # Side signal (L-R): Useful for extracting reverb components
         mono = audio.samples[0] - audio.samples[1]
     elif method == "mid":
-        # ミッド信号（L+R）: ボーカル抽出に有用
+        # Mid signal (L+R): Useful for vocal extraction
         mono = audio.samples[0] + audio.samples[1]
     else:
-        raise ValueError(f"未対応の変換方法: {method}")
+        raise ValueError(f"Unsupported conversion method: {method}")
 
     return AudioData(
         samples=mono.astype(np.float32),
@@ -577,7 +578,7 @@ def to_mono(audio: AudioData, method: str = "mean") -> AudioData:
     )
 
 def to_stereo(audio: AudioData) -> AudioData:
-    """モノラルをステレオに変換"""
+    """Convert mono to stereo"""
     if audio.channels == 2:
         return audio
 
@@ -591,7 +592,7 @@ def to_stereo(audio: AudioData) -> AudioData:
     )
 ```
 
-### 3.4 トリミングとパディング
+### 3.4 Trimming and Padding
 
 ```python
 import numpy as np
@@ -603,7 +604,7 @@ def trim_silence(
     frame_length: int = 2048,
     hop_length: int = 512,
 ) -> AudioData:
-    """無音区間をトリミング"""
+    """Trim silent sections"""
     trimmed, index = librosa.effects.trim(
         audio.samples,
         top_db=top_db,
@@ -632,12 +633,12 @@ def pad_to_duration(
     target_duration: float,
     pad_mode: str = "constant",
 ) -> AudioData:
-    """指定した長さにパディング"""
+    """Pad to a specified duration"""
     target_samples = int(target_duration * audio.sample_rate)
     current_samples = len(audio.samples)
 
     if current_samples >= target_samples:
-        # 長い場合は切り詰め
+        # Truncate if longer
         return AudioData(
             samples=audio.samples[:target_samples],
             sample_rate=audio.sample_rate,
@@ -650,10 +651,10 @@ def pad_to_duration(
     if pad_mode == "constant":
         padded = np.pad(audio.samples, (0, pad_length), mode="constant")
     elif pad_mode == "wrap":
-        # ループ（繰り返し）パディング
+        # Loop (repeat) padding
         padded = np.pad(audio.samples, (0, pad_length), mode="wrap")
     elif pad_mode == "reflect":
-        # 反転パディング（自然なフェードアウト風）
+        # Reflect padding (natural fade-out effect)
         padded = np.pad(audio.samples, (0, pad_length), mode="reflect")
     else:
         padded = np.pad(audio.samples, (0, pad_length), mode="constant")
@@ -675,7 +676,7 @@ def split_audio(
     chunk_duration: float = 30.0,
     overlap: float = 0.0,
 ) -> list[AudioData]:
-    """音声を指定秒数のチャンクに分割"""
+    """Split audio into chunks of a specified duration"""
     chunk_samples = int(chunk_duration * audio.sample_rate)
     overlap_samples = int(overlap * audio.sample_rate)
     step = chunk_samples - overlap_samples
@@ -687,7 +688,7 @@ def split_audio(
         end = min(start + chunk_samples, len(audio.samples))
         chunk = audio.samples[start:end]
 
-        # 最後のチャンクが短すぎる場合はパディング
+        # Pad if the last chunk is too short
         if len(chunk) < chunk_samples:
             chunk = np.pad(chunk, (0, chunk_samples - len(chunk)), mode="constant")
 
@@ -710,45 +711,49 @@ def split_audio(
 
 ---
 
-## 4. ノイズ除去
+## 4. Noise Reduction
 
-### 4.1 ノイズ除去手法の比較
+### 4.1 Comparison of Noise Reduction Methods
 
 ```
 ┌──────────────────────────────────────────────────┐
-│              ノイズ除去手法の分類                    │
+│         Classification of Noise Reduction        │
+│                    Methods                        │
 ├──────────────────────────────────────────────────┤
 │                                                  │
 │  ┌────────────────┐    ┌────────────────────┐   │
-│  │  統計的手法     │    │  スペクトル手法      │   │
+│  │  Statistical    │    │  Spectral          │   │
+│  │  Methods        │    │  Methods           │   │
 │  ├────────────────┤    ├────────────────────┤   │
-│  │ ウィーナーフィルタ│    │ スペクトラルゲート   │   │
-│  │ カルマンフィルタ │    │ スペクトル減算       │   │
+│  │ Wiener filter   │    │ Spectral gating    │   │
+│  │ Kalman filter   │    │ Spectral           │   │
+│  │                 │    │   subtraction      │   │
 │  └────────────────┘    └────────────────────┘   │
 │                                                  │
 │  ┌────────────────┐    ┌────────────────────┐   │
-│  │  深層学習手法    │    │  適応フィルタ       │   │
+│  │  Deep Learning  │    │  Adaptive          │   │
+│  │  Methods        │    │  Filters           │   │
 │  ├────────────────┤    ├────────────────────┤   │
-│  │ RNNoise        │    │  LMS適応フィルタ    │   │
-│  │ DTLN           │    │  NLMS適応フィルタ   │   │
-│  │ DeepFilterNet  │    │  RLS適応フィルタ    │   │
+│  │ RNNoise        │    │  LMS adaptive      │   │
+│  │ DTLN           │    │  NLMS adaptive     │   │
+│  │ DeepFilterNet  │    │  RLS adaptive      │   │
 │  └────────────────┘    └────────────────────┘   │
 └──────────────────────────────────────────────────┘
 ```
 
-| 手法 | 計算コスト | 品質 | リアルタイム | 適用場面 |
-|------|-----------|------|------------|---------|
-| スペクトラルゲート | 低 | 中 | 可能 | 定常ノイズ |
-| スペクトル減算 | 低 | 中 | 可能 | 背景ノイズ |
-| ウィーナーフィルタ | 中 | 中~高 | 可能 | 汎用 |
-| RNNoise | 中 | 高 | 可能 | 汎用 |
-| DTLN | 中 | 高 | 可能 | リアルタイム |
-| DeepFilterNet | 高 | 非常に高 | 可能(GPU) | 高品質要求 |
+| Method | Computational Cost | Quality | Real-time | Use Case |
+|--------|-------------------|---------|-----------|----------|
+| Spectral gating | Low | Medium | Possible | Stationary noise |
+| Spectral subtraction | Low | Medium | Possible | Background noise |
+| Wiener filter | Medium | Medium-High | Possible | General purpose |
+| RNNoise | Medium | High | Possible | General purpose |
+| DTLN | Medium | High | Possible | Real-time |
+| DeepFilterNet | High | Very high | Possible (GPU) | High quality requirements |
 
-### 4.2 スペクトラルゲートによるノイズ除去
+### 4.2 Noise Reduction Using Spectral Gating
 
 ```python
-# スペクトラルゲートによるノイズ除去
+# Noise reduction using spectral gating
 import numpy as np
 import librosa
 
@@ -760,32 +765,33 @@ def spectral_gate_denoise(
     hop_length: int = 512,
 ) -> AudioData:
     """
-    スペクトラルゲーティングによるノイズ除去
-    冒頭のノイズサンプルからノイズプロファイルを推定し、閾値以下を抑制
+    Noise reduction via spectral gating.
+    Estimates the noise profile from an initial noise sample and suppresses
+    content below the threshold.
     """
     samples = audio.samples
     sr = audio.sample_rate
 
-    # STFT(短時間フーリエ変換)
+    # STFT (Short-Time Fourier Transform)
     stft = librosa.stft(samples, n_fft=n_fft, hop_length=hop_length)
     magnitude = np.abs(stft)
     phase = np.angle(stft)
 
-    # ノイズプロファイル推定（冒頭の無音区間から）
+    # Noise profile estimation (from silent section at the beginning)
     noise_frames = int(noise_sample_duration * sr / hop_length)
     noise_profile = np.mean(magnitude[:, :noise_frames], axis=1, keepdims=True)
 
-    # スペクトラルゲート適用
+    # Apply spectral gate
     threshold = noise_profile * threshold_factor
     mask = magnitude > threshold
-    # ソフトマスク（滑らかな遷移）
+    # Soft mask (smooth transition)
     soft_mask = np.clip(
         (magnitude - threshold) / (threshold + 1e-10), 0.0, 1.0
     )
 
     cleaned_magnitude = magnitude * soft_mask
 
-    # 逆STFT
+    # Inverse STFT
     cleaned_stft = cleaned_magnitude * np.exp(1j * phase)
     cleaned_samples = librosa.istft(
         cleaned_stft, hop_length=hop_length, length=len(samples)
@@ -799,7 +805,7 @@ def spectral_gate_denoise(
     )
 ```
 
-### 4.3 noisereduceライブラリによるノイズ除去
+### 4.3 Noise Reduction Using the noisereduce Library
 
 ```python
 import noisereduce as nr
@@ -813,12 +819,12 @@ def noisereduce_denoise(
     noise_clip: Optional[np.ndarray] = None,
 ) -> AudioData:
     """
-    noisereduceライブラリによるノイズ除去
+    Noise reduction using the noisereduce library
 
     Parameters:
-        stationary: True=定常ノイズ仮定, False=非定常ノイズ対応
-        prop_decrease: ノイズ削減率（0.0-1.0）
-        noise_clip: ノイズサンプル（Noneの場合は自動推定）
+        stationary: True=assumes stationary noise, False=handles non-stationary noise
+        prop_decrease: Noise reduction ratio (0.0-1.0)
+        noise_clip: Noise sample (auto-estimated if None)
     """
     reduced = nr.reduce_noise(
         y=audio.samples,
@@ -844,26 +850,26 @@ def noisereduce_denoise(
     )
 ```
 
-### 4.4 DeepFilterNetによる高品質ノイズ除去
+### 4.4 High-Quality Noise Reduction with DeepFilterNet
 
 ```python
 def deepfilternet_denoise(audio: AudioData) -> AudioData:
     """
-    DeepFilterNetによる高品質ノイズ除去（GPU推奨）
-    - DNNベースで非定常ノイズにも対応
-    - 音声品質の劣化が最小
+    High-quality noise reduction with DeepFilterNet (GPU recommended)
+    - DNN-based, handles non-stationary noise
+    - Minimal degradation of speech quality
     """
     from df.enhance import enhance, init_df, load_audio, save_audio
     import torch
 
     model, df_state, _ = init_df()
 
-    # 音声をモデル入力形式に変換
+    # Convert audio to model input format
     audio_tensor = torch.tensor(
         audio.samples, dtype=torch.float32
     ).unsqueeze(0)
 
-    # ノイズ除去実行
+    # Execute noise reduction
     enhanced = enhance(model, df_state, audio_tensor)
 
     return AudioData(
@@ -874,7 +880,7 @@ def deepfilternet_denoise(audio: AudioData) -> AudioData:
     )
 ```
 
-### 4.5 エコーキャンセレーション
+### 4.5 Echo Cancellation
 
 ```python
 import numpy as np
@@ -887,34 +893,34 @@ def echo_cancellation(
     step_size: float = 0.01,
 ) -> AudioData:
     """
-    NLMSアルゴリズムによるエコーキャンセレーション
+    Echo cancellation using the NLMS algorithm
 
     Parameters:
-        audio: エコーが含まれるマイク入力
-        reference: スピーカー出力（参照信号）
-        filter_length: 適応フィルタの長さ
-        step_size: 適応ステップサイズ（μ）
+        audio: Microphone input containing echo
+        reference: Speaker output (reference signal)
+        filter_length: Length of the adaptive filter
+        step_size: Adaptive step size (mu)
     """
-    x = reference.samples  # 参照信号
-    d = audio.samples      # エコー混入信号
+    x = reference.samples  # Reference signal
+    d = audio.samples      # Echo-contaminated signal
     n = len(d)
 
-    # フィルタ係数の初期化
+    # Initialize filter coefficients
     w = np.zeros(filter_length)
-    y = np.zeros(n)  # エコー推定
-    e = np.zeros(n)  # エラー（エコー除去後）
+    y = np.zeros(n)  # Echo estimate
+    e = np.zeros(n)  # Error (after echo removal)
 
     for i in range(filter_length, n):
-        # 参照信号のウィンドウ
+        # Reference signal window
         x_window = x[i - filter_length:i][::-1]
 
-        # エコー推定
+        # Echo estimate
         y[i] = np.dot(w, x_window)
 
-        # エラー計算
+        # Error calculation
         e[i] = d[i] - y[i]
 
-        # NLMS更新
+        # NLMS update
         norm = np.dot(x_window, x_window) + 1e-10
         w += step_size * e[i] * x_window / norm
 
@@ -928,12 +934,12 @@ def echo_cancellation(
 
 ---
 
-## 5. 特徴抽出
+## 5. Feature Extraction
 
-### 5.1 MFCC（メル周波数ケプストラム係数）
+### 5.1 MFCC (Mel-Frequency Cepstral Coefficients)
 
 ```python
-# MFCC特徴抽出
+# MFCC feature extraction
 import librosa
 import numpy as np
 
@@ -945,14 +951,14 @@ def extract_mfcc(
     include_delta: bool = True,
 ) -> np.ndarray:
     """
-    MFCC特徴量を抽出する
+    Extract MFCC features
 
     Parameters:
-        n_mfcc: MFCC係数の数（通常13 or 40）
-        include_delta: デルタ/デルタデルタを含めるか
+        n_mfcc: Number of MFCC coefficients (typically 13 or 40)
+        include_delta: Whether to include delta/delta-delta
 
     Returns:
-        shape: (n_features, n_frames) のnumpy配列
+        numpy array with shape: (n_features, n_frames)
         - include_delta=False: n_features = n_mfcc
         - include_delta=True:  n_features = n_mfcc * 3
     """
@@ -967,17 +973,17 @@ def extract_mfcc(
     if not include_delta:
         return mfcc
 
-    # デルタ（1次微分）: 時間変化を捉える
+    # Delta (1st derivative): Captures temporal changes
     delta = librosa.feature.delta(mfcc, order=1)
-    # デルタデルタ（2次微分）: 加速度を捉える
+    # Delta-delta (2nd derivative): Captures acceleration
     delta2 = librosa.feature.delta(mfcc, order=2)
 
-    # 結合: (n_mfcc*3, n_frames)
+    # Concatenate: (n_mfcc*3, n_frames)
     features = np.concatenate([mfcc, delta, delta2], axis=0)
     return features
 ```
 
-### 5.2 メルスペクトログラム
+### 5.2 Mel Spectrogram
 
 ```python
 def extract_mel_spectrogram(
@@ -988,8 +994,8 @@ def extract_mel_spectrogram(
     to_db: bool = True,
 ) -> np.ndarray:
     """
-    メルスペクトログラムを抽出する
-    Whisper等のモデルはメルスペクトログラムを直接入力として使用
+    Extract a mel spectrogram.
+    Models like Whisper use mel spectrograms directly as input.
     """
     mel = librosa.feature.melspectrogram(
         y=audio.samples,
@@ -1005,7 +1011,7 @@ def extract_mel_spectrogram(
     return mel
 ```
 
-### 5.3 ピッチ（F0）抽出
+### 5.3 Pitch (F0) Extraction
 
 ```python
 import librosa
@@ -1018,11 +1024,11 @@ def extract_pitch(
     method: str = "pyin",
 ) -> dict:
     """
-    ピッチ（基本周波数 F0）を抽出する
+    Extract pitch (fundamental frequency F0)
 
     Parameters:
-        fmin: 最小周波数（男性声: 50Hz, 女性声: 100Hz）
-        fmax: 最大周波数（男性声: 300Hz, 女性声: 500Hz）
+        fmin: Minimum frequency (male voice: 50Hz, female voice: 100Hz)
+        fmax: Maximum frequency (male voice: 300Hz, female voice: 500Hz)
         method: "pyin" or "crepe"
     """
     if method == "pyin":
@@ -1042,12 +1048,12 @@ def extract_pitch(
         voiced_flag = f0 > 0
         voiced_probs = None
     else:
-        raise ValueError(f"未対応のメソッド: {method}")
+        raise ValueError(f"Unsupported method: {method}")
 
-    # NaNを0で埋める
+    # Replace NaN with 0
     f0_clean = np.nan_to_num(f0, nan=0.0)
 
-    # 統計量
+    # Statistics
     voiced_f0 = f0_clean[f0_clean > 0]
 
     return {
@@ -1064,7 +1070,7 @@ def extract_pitch(
     }
 ```
 
-### 5.4 スペクトル特徴量
+### 5.4 Spectral Features
 
 ```python
 import librosa
@@ -1076,38 +1082,38 @@ def extract_spectral_features(
     hop_length: int = 512,
 ) -> dict:
     """
-    スペクトル特徴量を一括抽出する
-    音声分類・感情分析等に有用
+    Extract spectral features in batch.
+    Useful for audio classification, emotion analysis, etc.
     """
     y = audio.samples
     sr = audio.sample_rate
 
-    # スペクトル重心（音の「明るさ」）
+    # Spectral centroid (perceived "brightness" of sound)
     spectral_centroid = librosa.feature.spectral_centroid(
         y=y, sr=sr, n_fft=n_fft, hop_length=hop_length
     )[0]
 
-    # スペクトル帯域幅（音の「広がり」）
+    # Spectral bandwidth (perceived "spread" of sound)
     spectral_bandwidth = librosa.feature.spectral_bandwidth(
         y=y, sr=sr, n_fft=n_fft, hop_length=hop_length
     )[0]
 
-    # スペクトルロールオフ（エネルギーの85%がある周波数）
+    # Spectral rolloff (frequency below which 85% of energy resides)
     spectral_rolloff = librosa.feature.spectral_rolloff(
         y=y, sr=sr, n_fft=n_fft, hop_length=hop_length
     )[0]
 
-    # スペクトルフラットネス（トーナル vs ノイズ）
+    # Spectral flatness (tonal vs. noise)
     spectral_flatness = librosa.feature.spectral_flatness(
         y=y, n_fft=n_fft, hop_length=hop_length
     )[0]
 
-    # ゼロクロッシングレート
+    # Zero-crossing rate
     zcr = librosa.feature.zero_crossing_rate(
         y, frame_length=n_fft, hop_length=hop_length
     )[0]
 
-    # クロマグラム（調性情報）
+    # Chromagram (tonal information)
     chroma = librosa.feature.chroma_stft(
         y=y, sr=sr, n_fft=n_fft, hop_length=hop_length
     )
@@ -1129,7 +1135,7 @@ def extract_spectral_features(
     }
 ```
 
-### 5.5 音声区間検出（VAD）
+### 5.5 Voice Activity Detection (VAD)
 
 ```python
 # Voice Activity Detection (VAD)
@@ -1144,25 +1150,25 @@ def energy_based_vad(
     min_silence_duration: float = 0.2,
 ) -> list[tuple[float, float]]:
     """
-    エネルギーベースのVAD（音声区間検出）
+    Energy-based VAD (Voice Activity Detection)
 
     Returns:
-        [(start_sec, end_sec), ...] 音声区間のリスト
+        [(start_sec, end_sec), ...] List of speech segments
     """
     samples = audio.samples
     sr = audio.sample_rate
 
-    # フレームごとのエネルギー計算
+    # Calculate energy per frame
     frames = librosa.util.frame(
         samples, frame_length=frame_length, hop_length=hop_length
     )
     energy = np.sum(frames ** 2, axis=0)
     energy_db = 10 * np.log10(energy + 1e-10)
 
-    # 閾値判定
+    # Threshold decision
     is_speech = energy_db > energy_threshold_db
 
-    # 最小持続時間フィルタリング
+    # Minimum duration filtering
     min_speech_frames = int(min_speech_duration * sr / hop_length)
     min_silence_frames = int(min_silence_duration * sr / hop_length)
 
@@ -1182,7 +1188,7 @@ def energy_based_vad(
                 segments.append((start_sec, end_sec))
             in_speech = False
 
-    # 末尾処理
+    # Handle trailing segment
     if in_speech:
         duration_frames = len(is_speech) - start_frame
         if duration_frames >= min_speech_frames:
@@ -1190,7 +1196,7 @@ def energy_based_vad(
             end_sec = len(samples) / sr
             segments.append((start_sec, end_sec))
 
-    # 近接セグメント統合
+    # Merge adjacent segments
     merged = _merge_close_segments(segments, min_silence_duration)
     return merged
 
@@ -1198,7 +1204,7 @@ def _merge_close_segments(
     segments: list[tuple[float, float]],
     min_gap: float,
 ) -> list[tuple[float, float]]:
-    """近接するセグメントを統合"""
+    """Merge closely spaced segments"""
     if not segments:
         return []
 
@@ -1218,7 +1224,7 @@ def silero_vad(
     min_speech_duration_ms: int = 250,
     min_silence_duration_ms: int = 100,
 ) -> list[tuple[float, float]]:
-    """Silero VAD（高精度なニューラルネットワークベースのVAD）"""
+    """Silero VAD (high-accuracy neural network-based VAD)"""
     import torch
 
     model, utils = torch.hub.load(
@@ -1249,20 +1255,20 @@ def silero_vad(
 
 ---
 
-## 6. フォーマット変換
+## 6. Format Conversion
 
-### 6.1 ffmpegを使った堅牢な変換
+### 6.1 Robust Conversion Using ffmpeg
 
 ```python
-# ffmpegベースの堅牢なフォーマット変換
+# Robust format conversion based on ffmpeg
 import subprocess
 import tempfile
 from pathlib import Path
 
 class AudioConverter:
-    """ffmpegを使った音声フォーマット変換"""
+    """Audio format conversion using ffmpeg"""
 
-    # AI API向け推奨設定
+    # Recommended settings for AI APIs
     API_PRESETS = {
         "whisper": {"format": "wav", "sr": 16000, "channels": 1, "bit_depth": 16},
         "google_stt": {"format": "flac", "sr": 16000, "channels": 1, "bit_depth": 16},
@@ -1281,7 +1287,7 @@ class AudioConverter:
         bit_depth: int = 16,
         output_format: str = "wav",
     ) -> str:
-        """汎用フォーマット変換"""
+        """General-purpose format conversion"""
         codec_map = {
             "wav": "pcm_s16le" if bit_depth == 16 else "pcm_s24le",
             "flac": "flac",
@@ -1303,7 +1309,7 @@ class AudioConverter:
             cmd, capture_output=True, text=True, timeout=300
         )
         if result.returncode != 0:
-            raise RuntimeError(f"ffmpeg変換失敗: {result.stderr}")
+            raise RuntimeError(f"ffmpeg conversion failed: {result.stderr}")
 
         return output_path
 
@@ -1311,10 +1317,10 @@ class AudioConverter:
     def convert_for_api(
         cls, input_path: str, api: str, output_dir: str = "/tmp"
     ) -> str:
-        """API向けプリセットで変換"""
+        """Convert using an API preset"""
         preset = cls.API_PRESETS.get(api)
         if not preset:
-            raise ValueError(f"未知のAPIプリセット: {api}")
+            raise ValueError(f"Unknown API preset: {api}")
 
         stem = Path(input_path).stem
         ext = preset["format"]
@@ -1331,7 +1337,7 @@ class AudioConverter:
 
     @staticmethod
     def get_audio_info_ffprobe(file_path: str) -> dict:
-        """ffprobeで音声ファイル情報を取得"""
+        """Retrieve audio file information using ffprobe"""
         cmd = [
             "ffprobe", "-v", "quiet",
             "-print_format", "json",
@@ -1342,7 +1348,7 @@ class AudioConverter:
 
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
-            raise RuntimeError(f"ffprobe失敗: {result.stderr}")
+            raise RuntimeError(f"ffprobe failed: {result.stderr}")
 
         import json
         return json.loads(result.stdout)
@@ -1354,7 +1360,7 @@ class AudioConverter:
         start_sec: float,
         end_sec: float,
     ) -> str:
-        """音声ファイルから指定区間を抽出"""
+        """Extract a specified segment from an audio file"""
         duration = end_sec - start_sec
         cmd = [
             "ffmpeg", "-y",
@@ -1367,23 +1373,23 @@ class AudioConverter:
 
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
         if result.returncode != 0:
-            raise RuntimeError(f"ffmpeg区間抽出失敗: {result.stderr}")
+            raise RuntimeError(f"ffmpeg segment extraction failed: {result.stderr}")
 
         return output_path
 ```
 
 ---
 
-## 7. データ拡張（Data Augmentation）
+## 7. Data Augmentation
 
-### 7.1 音声データ拡張テクニック
+### 7.1 Audio Data Augmentation Techniques
 
 ```python
 import numpy as np
 import librosa
 
 class AudioAugmentor:
-    """音声データ拡張ツール（学習データ増強用）"""
+    """Audio data augmentation tools (for training data enhancement)"""
 
     @staticmethod
     def add_noise(
@@ -1391,17 +1397,17 @@ class AudioAugmentor:
         noise_level: float = 0.005,
         noise_type: str = "gaussian",
     ) -> AudioData:
-        """ノイズを付加"""
+        """Add noise"""
         if noise_type == "gaussian":
             noise = np.random.normal(0, noise_level, len(audio.samples))
         elif noise_type == "uniform":
             noise = np.random.uniform(-noise_level, noise_level, len(audio.samples))
         elif noise_type == "pink":
-            # ピンクノイズ（1/fノイズ）
+            # Pink noise (1/f noise)
             white = np.random.randn(len(audio.samples))
             fft = np.fft.rfft(white)
             freqs = np.fft.rfftfreq(len(white))
-            freqs[0] = 1  # DC成分の0除算回避
+            freqs[0] = 1  # Avoid division by zero for DC component
             fft = fft / np.sqrt(freqs)
             noise = np.fft.irfft(fft, n=len(white)) * noise_level
         else:
@@ -1422,7 +1428,7 @@ class AudioAugmentor:
         audio: AudioData,
         rate: float = 1.0,
     ) -> AudioData:
-        """タイムストレッチ（速度変更、ピッチ維持）"""
+        """Time stretch (change speed while preserving pitch)"""
         stretched = librosa.effects.time_stretch(audio.samples, rate=rate)
 
         return AudioData(
@@ -1437,7 +1443,7 @@ class AudioAugmentor:
         audio: AudioData,
         n_steps: float = 0.0,
     ) -> AudioData:
-        """ピッチシフト（音の高さ変更）"""
+        """Pitch shift (change pitch)"""
         shifted = librosa.effects.pitch_shift(
             audio.samples,
             sr=audio.sample_rate,
@@ -1457,7 +1463,7 @@ class AudioAugmentor:
         decay: float = 0.3,
         delay_ms: float = 50.0,
     ) -> AudioData:
-        """簡易リバーブの付加"""
+        """Add simple reverb"""
         delay_samples = int(delay_ms * audio.sample_rate / 1000)
         impulse = np.zeros(delay_samples + 1)
         impulse[0] = 1.0
@@ -1477,7 +1483,7 @@ class AudioAugmentor:
         audio: AudioData,
         crop_duration: float = 5.0,
     ) -> AudioData:
-        """ランダムクロップ"""
+        """Random crop"""
         crop_samples = int(crop_duration * audio.sample_rate)
         if len(audio.samples) <= crop_samples:
             return audio
@@ -1505,19 +1511,19 @@ class AudioAugmentor:
         num_time_masks: int = 2,
     ) -> np.ndarray:
         """
-        SpecAugment: スペクトログラムへのマスキング拡張
-        音声認識モデルの学習で精度を大幅に改善する手法
+        SpecAugment: Masking augmentation applied to spectrograms.
+        A technique that significantly improves accuracy in speech recognition model training.
         """
         augmented = spectrogram.copy()
         n_freq, n_time = augmented.shape
 
-        # 周波数マスク
+        # Frequency masks
         for _ in range(num_freq_masks):
             f = np.random.randint(0, freq_mask_param)
             f0 = np.random.randint(0, n_freq - f)
             augmented[f0:f0 + f, :] = 0
 
-        # 時間マスク
+        # Time masks
         for _ in range(num_time_masks):
             t = np.random.randint(0, time_mask_param)
             t0 = np.random.randint(0, n_time - t)
@@ -1528,14 +1534,14 @@ class AudioAugmentor:
 
 ---
 
-## 8. パイプライン統合例
+## 8. Pipeline Integration Examples
 
-### 8.1 STT用パイプライン
+### 8.1 STT Pipeline
 
 ```python
-# 完全なパイプライン構成例
+# Complete pipeline configuration example
 def build_stt_pipeline(target_sr: int = 16000) -> AudioPipeline:
-    """音声認識用の標準パイプラインを構築"""
+    """Build a standard pipeline for speech recognition"""
     pipeline = AudioPipeline()
     pipeline.add_step("resample", lambda a: resample(a, target_sr))
     pipeline.add_step("normalize", lambda a: rms_normalize(a, target_db=-20))
@@ -1543,24 +1549,24 @@ def build_stt_pipeline(target_sr: int = 16000) -> AudioPipeline:
     pipeline.add_step("peak_norm", lambda a: peak_normalize(a, target_peak=0.95))
     return pipeline
 
-# 使用例
+# Usage example
 audio = AudioPipeline.load("input.wav")
 pipeline = build_stt_pipeline()
 processed = pipeline.process(audio)
 AudioPipeline.save(processed, "output_processed.wav")
 
 features = extract_mfcc(processed, n_mfcc=40, include_delta=True)
-print(f"特徴量形状: {features.shape}")
+print(f"Feature shape: {features.shape}")
 ```
 
-### 8.2 TTS後処理パイプライン
+### 8.2 TTS Post-Processing Pipeline
 
 ```python
 def build_tts_postprocess_pipeline(
     target_sr: int = 22050,
     target_lufs: float = -14.0,
 ) -> AudioPipeline:
-    """TTS出力の後処理パイプラインを構築"""
+    """Build a post-processing pipeline for TTS output"""
     pipeline = AudioPipeline()
     pipeline.add_step("resample", lambda a: resample(a, target_sr))
     pipeline.add_step("denoise", lambda a: noisereduce_denoise(a, prop_decrease=0.5))
@@ -1569,7 +1575,7 @@ def build_tts_postprocess_pipeline(
     return pipeline
 ```
 
-### 8.3 バッチ処理パイプライン
+### 8.3 Batch Processing Pipeline
 
 ```python
 import concurrent.futures
@@ -1582,7 +1588,7 @@ def batch_process_audio(
     max_workers: int = 4,
     extensions: set = {".wav", ".mp3", ".flac"},
 ) -> dict:
-    """ディレクトリ内の音声ファイルを一括処理"""
+    """Batch process all audio files in a directory"""
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
 
@@ -1618,145 +1624,145 @@ def batch_process_audio(
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### 9.1 アンチパターン：リサンプリングなしでAPIに送信
+### 9.1 Anti-Pattern: Sending Audio to an API Without Resampling
 
 ```python
-# NG: 44.1kHzの音声をそのままAPIに送信
+# BAD: Sending 44.1kHz audio directly to the API
 audio_44k = load_audio("music_quality.wav")  # 44,100Hz
-result = stt_api.transcribe(audio_44k)  # APIは16kHz想定
+result = stt_api.transcribe(audio_44k)  # API expects 16kHz
 
-# OK: API仕様に合わせてリサンプリング
+# GOOD: Resample to match API specification
 audio_44k = load_audio("music_quality.wav")
 audio_16k = resample(audio_44k, target_sr=16000)
 result = stt_api.transcribe(audio_16k)
 ```
 
-**問題点**: APIが想定するサンプリングレートと異なる音声を送ると、認識精度が大幅に低下する。APIのドキュメントを確認し、必ず適切なレートに変換する。
+**Problem**: Sending audio at a sample rate different from what the API expects significantly degrades recognition accuracy. Always check the API documentation and convert to the appropriate rate.
 
-### 9.2 アンチパターン：ノイズ除去の過剰適用
+### 9.2 Anti-Pattern: Excessive Noise Reduction
 
 ```python
-# NG: 閾値を極端に高く設定してノイズ除去
+# BAD: Setting an extremely high threshold for noise reduction
 cleaned = spectral_gate_denoise(
-    audio, threshold_factor=5.0  # 高すぎる閾値
+    audio, threshold_factor=5.0  # Threshold too high
 )
-# → 音声成分まで除去され「ロボット声」になる
+# → Speech components are also removed, resulting in "robotic voice"
 
-# OK: 適度な閾値でノイズ除去
+# GOOD: Applying noise reduction with a moderate threshold
 cleaned = spectral_gate_denoise(
-    audio, threshold_factor=1.5  # 適度な閾値
+    audio, threshold_factor=1.5  # Moderate threshold
 )
-# 必ず聴取して品質を確認する
+# Always listen and verify quality
 ```
 
-**問題点**: ノイズ除去を強くかけすぎると音声の自然さが失われる（アーティファクト発生）。閾値は控えめに設定し、必ず人間の耳で品質を確認する。
+**Problem**: Applying noise reduction too aggressively causes loss of naturalness in the audio (artifact generation). Set thresholds conservatively and always verify quality with human ears.
 
-### 9.3 アンチパターン：メモリ管理の欠如
+### 9.3 Anti-Pattern: Lack of Memory Management
 
 ```python
-# NG: 大量の音声ファイルを全てメモリに保持
-all_audios = [load_audio(f) for f in glob("*.wav")]  # メモリ爆発
+# BAD: Holding all audio files in memory at once
+all_audios = [load_audio(f) for f in glob("*.wav")]  # Memory explosion
 
-# OK: ジェネレータでストリーミング処理
+# GOOD: Stream processing with a generator
 def process_files(file_list):
     for f in file_list:
         audio = load_audio(f)
         result = pipeline.process(audio)
         yield result
-        del audio, result  # 明示的な解放
+        del audio, result  # Explicit release
 ```
 
-### 9.4 アンチパターン：正規化の順序間違い
+### 9.4 Anti-Pattern: Incorrect Normalization Order
 
 ```python
-# NG: ノイズ除去前に正規化（ノイズも増幅される）
+# BAD: Normalizing before noise reduction (noise gets amplified)
 pipeline = AudioPipeline()
-pipeline.add_step("normalize", peak_normalize)  # ノイズごと増幅
-pipeline.add_step("denoise", spectral_gate_denoise)  # 増幅されたノイズは除去が困難
+pipeline.add_step("normalize", peak_normalize)  # Amplifies noise along with signal
+pipeline.add_step("denoise", spectral_gate_denoise)  # Amplified noise is harder to remove
 
-# OK: ノイズ除去後に正規化
+# GOOD: Normalize after noise reduction
 pipeline = AudioPipeline()
-pipeline.add_step("denoise", spectral_gate_denoise)  # まずノイズ除去
-pipeline.add_step("normalize", peak_normalize)  # クリーンな信号を正規化
+pipeline.add_step("denoise", spectral_gate_denoise)  # Remove noise first
+pipeline.add_step("normalize", peak_normalize)  # Normalize the clean signal
 ```
 
-**問題点**: 正規化とノイズ除去の順序を間違えると、ノイズが増幅されて除去が困難になる。前処理の順序は「リサンプリング→ノイズ除去→正規化」が基本。
+**Problem**: If the order of normalization and noise reduction is wrong, noise gets amplified and becomes difficult to remove. The standard preprocessing order is "resampling -> noise reduction -> normalization."
 
 ---
 
 ## 10. FAQ
 
-### Q1: librosaとsoundfileの使い分けは？
+### Q1: When should I use librosa vs. soundfile?
 
-**A**: `librosa` は分析・特徴抽出が得意で、読み込み時に自動リサンプリングやモノラル変換が可能。`soundfile` は高速なI/Oに特化し、大容量ファイルの読み書きに向く。前処理・分析には `librosa`、最終出力の保存には `soundfile` という使い分けが一般的。
+**A**: `librosa` excels at analysis and feature extraction, with automatic resampling and mono conversion during loading. `soundfile` specializes in high-speed I/O and is suited for reading and writing large files. A common approach is to use `librosa` for preprocessing and analysis, and `soundfile` for saving final output.
 
-### Q2: リアルタイム処理でのバッファサイズはどう決めるか？
+### Q2: How should I determine buffer size for real-time processing?
 
-**A**: バッファサイズはレイテンシとスループットのトレードオフ。音声認識の場合、`chunk_size = sample_rate * 0.1`（100ms）が一般的。WebRTCでは20msが標準。バッファが小さすぎると処理オーバーヘッドが増加し、大きすぎると応答遅延が増える。
+**A**: Buffer size is a trade-off between latency and throughput. For speech recognition, `chunk_size = sample_rate * 0.1` (100ms) is common. WebRTC uses 20ms as the standard. If the buffer is too small, processing overhead increases; if too large, response latency grows.
 
-### Q3: GPU vs CPU、音声処理ではどちらを使うべきか？
+### Q3: GPU vs. CPU -- which should I use for audio processing?
 
-**A**: 前処理（リサンプリング、FFT、ノイズ除去）はCPUで十分高速。GPUが有利なのはディープラーニングベースのノイズ除去（RNNoise、DeepFilterNet）や、大規模バッチの特徴抽出。リアルタイム処理ではCPU処理の方がレイテンシが安定する場合が多い。
+**A**: Preprocessing (resampling, FFT, noise reduction) is sufficiently fast on CPU. GPUs are advantageous for deep learning-based noise reduction (RNNoise, DeepFilterNet) and large-scale batch feature extraction. For real-time processing, CPU processing often provides more stable latency.
 
-### Q4: 音声データ拡張はどの程度効果があるか？
+### Q4: How effective is audio data augmentation?
 
-**A**: SpecAugmentは音声認識のWERを相対10-20%改善することが報告されている。ノイズ付加は実環境のロバスト性を大幅に向上させる。ただし、過剰な拡張は学習を不安定にするため、元データの2-5倍程度に留めるのが一般的。時間伸縮（0.8-1.2倍）とピッチシフト（-2~+2半音）の組み合わせが効果的。
+**A**: SpecAugment has been reported to improve speech recognition WER by a relative 10-20%. Adding noise significantly improves robustness in real-world environments. However, excessive augmentation can destabilize training, so it is common to limit augmentation to 2-5x the original data. A combination of time stretching (0.8-1.2x) and pitch shifting (-2 to +2 semitones) is effective.
 
-### Q5: ラウドネス正規化のターゲット値はどう決めるか？
+### Q5: How should I determine the loudness normalization target value?
 
-**A**: 配信プラットフォームごとに推奨値が異なる。Spotify/YouTube: -14 LUFS、Apple Music: -16 LUFS、TV/ラジオ: -24 LUFS（EBU R128）。ポッドキャスト: -16 to -14 LUFS。ターゲットに合わせて `lufs_normalize` を使用し、True Peakが-1dBTPを超えないよう制限する。
+**A**: Recommended values vary by distribution platform. Spotify/YouTube: -14 LUFS, Apple Music: -16 LUFS, TV/Radio: -24 LUFS (EBU R128). Podcasts: -16 to -14 LUFS. Use `lufs_normalize` to match the target and limit True Peak to not exceed -1 dBTP.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory but by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping straight to applications. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 11. まとめ
-
-| カテゴリ | ポイント |
-|---------|---------|
-| 基本設定 | 音声認識用は16kHz/16bit/モノラルが標準 |
-| 前処理 | リサンプリング→ノイズ除去→正規化の順序を守る |
-| 特徴抽出 | MFCC(13-40次元)+デルタが汎用的、Whisper系はメルスペクトログラム |
-| ノイズ除去 | スペクトラルゲートが基本、高品質要求にはDNN系 |
-| VAD | エネルギーベースが高速、Silero VADが高精度 |
-| フォーマット | ffmpegで堅牢に変換、APIプリセットで統一 |
-| データ拡張 | SpecAugment + ノイズ付加 + 時間伸縮が効果的 |
-| ストリーミング | オーバーラップ付きチャンク処理でリアルタイム対応 |
-| パイプライン | ステップを分離・合成可能に設計し、テスタビリティを確保 |
+Knowledge of this topic is frequently utilized in everyday development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## 11. Summary
 
-- [00-audio-apis.md](./00-audio-apis.md) — 音声AI APIの比較・統合
-- [02-real-time-audio.md](./02-real-time-audio.md) — リアルタイム音声処理
-- [../00-fundamentals/03-stt-technologies.md](../00-fundamentals/03-stt-technologies.md) — STT技術の詳細
+| Category | Key Points |
+|----------|-----------|
+| Basic Settings | 16kHz/16bit/mono is standard for speech recognition |
+| Preprocessing | Follow the order: resampling -> noise reduction -> normalization |
+| Feature Extraction | MFCC (13-40 dimensions) + delta is versatile; Whisper-based models use mel spectrograms |
+| Noise Reduction | Spectral gating is the baseline; DNN-based methods for high-quality requirements |
+| VAD | Energy-based is fast; Silero VAD is highly accurate |
+| Format | Convert robustly with ffmpeg; unify with API presets |
+| Data Augmentation | SpecAugment + noise addition + time stretching is effective |
+| Streaming | Real-time support via overlapping chunk processing |
+| Pipeline | Design steps to be separable and composable, ensuring testability |
 
 ---
 
-## 参考文献
+## Recommended Next Guides
 
-1. librosa 公式ドキュメント — https://librosa.org/doc/
-2. Jurafsky & Martin, "Speech and Language Processing" — https://web.stanford.edu/~jurafsky/slp3/
-3. soundfile ドキュメント — https://python-soundfile.readthedocs.io/
-4. ffmpeg 公式ドキュメント — https://ffmpeg.org/documentation.html
-5. RNNoise: Learning Noise Suppression — https://jmvalin.ca/demo/rnnoise/
-6. Park, D.S., et al. (2019). "SpecAugment: A Simple Data Augmentation Method for ASR" — Google Brainによるデータ拡張手法
-7. Schroeter, H., et al. (2022). "DeepFilterNet: A Low Complexity Speech Enhancement Framework" — 高品質DNN系ノイズ除去
+- [00-audio-apis.md](./00-audio-apis.md) -- Audio AI API Comparison & Integration
+- [02-real-time-audio.md](./02-real-time-audio.md) -- Real-Time Audio Processing
+- [../00-fundamentals/03-stt-technologies.md](../00-fundamentals/03-stt-technologies.md) -- STT Technology Details
+
+---
+
+## References
+
+1. librosa Official Documentation -- https://librosa.org/doc/
+2. Jurafsky & Martin, "Speech and Language Processing" -- https://web.stanford.edu/~jurafsky/slp3/
+3. soundfile Documentation -- https://python-soundfile.readthedocs.io/
+4. ffmpeg Official Documentation -- https://ffmpeg.org/documentation.html
+5. RNNoise: Learning Noise Suppression -- https://jmvalin.ca/demo/rnnoise/
+6. Park, D.S., et al. (2019). "SpecAugment: A Simple Data Augmentation Method for ASR" -- Data augmentation method by Google Brain
+7. Schroeter, H., et al. (2022). "DeepFilterNet: A Low Complexity Speech Enhancement Framework" -- High-quality DNN-based noise reduction
