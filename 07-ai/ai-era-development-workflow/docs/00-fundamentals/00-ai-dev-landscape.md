@@ -1,233 +1,237 @@
-# AI開発の現状 ── ツール全体像と生産性への影響
+# The Current State of AI Development -- Tool Landscape and Impact on Productivity
 
-> 2024-2026年にかけて爆発的に進化したAI開発ツール群の全体像を俯瞰し、ソフトウェア開発の生産性にどのような変革をもたらしているかを体系的に理解する。
-
----
-
-## この章で学ぶこと
-
-1. **AI開発ツールのカテゴリと代表的プロダクト** ── コード補完、エージェント型、IDE統合型の3分類を理解する
-2. **生産性への定量的影響** ── 各種調査データに基づくAIツール導入の効果を把握する
-3. **AI開発エコシステムの構造** ── LLM基盤からアプリケーション層までの技術スタックを整理する
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> A systematic overview of the AI development tools that have evolved explosively from 2024 to 2026, and how they are transforming software development productivity.
 
 ---
 
-## 1. AI開発ツールの全体像
+## What You Will Learn in This Chapter
 
-### 1.1 カテゴリ分類
+1. **Categories and Representative Products of AI Development Tools** -- Understand the three categories: code completion, agent-based, and IDE-integrated
+2. **Quantitative Impact on Productivity** -- Grasp the effects of AI tool adoption based on various research data
+3. **Structure of the AI Development Ecosystem** -- Organize the technology stack from the LLM foundation to the application layer
+
+
+## Prerequisites
+
+Before reading this guide, having the following knowledge will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+
+---
+
+## 1. Overview of AI Development Tools
+
+### 1.1 Category Classification
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                  AI開発ツール全体像                       │
+│              AI Development Tool Landscape               │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
 │  ┌───────────────┐  ┌──────────────┐  ┌──────────────┐ │
-│  │ コード補完型   │  │ エージェント型│  │ IDE統合型    │ │
+│  │ Code          │  │ Agent-Based  │  │ IDE-         │ │
+│  │ Completion    │  │              │  │ Integrated   │ │
 │  │               │  │              │  │              │ │
-│  │ ・Copilot     │  │ ・Claude Code│  │ ・Cursor     │ │
-│  │ ・Codeium     │  │ ・Devin      │  │ ・Windsurf   │ │
-│  │ ・TabNine     │  │ ・SWE-agent  │  │ ・Zed AI     │ │
-│  │ ・Amazon Q    │  │ ・Aider      │  │ ・Void       │ │
+│  │ - Copilot     │  │ - Claude Code│  │ - Cursor     │ │
+│  │ - Codeium     │  │ - Devin      │  │ - Windsurf   │ │
+│  │ - TabNine     │  │ - SWE-agent  │  │ - Zed AI     │ │
+│  │ - Amazon Q    │  │ - Aider      │  │ - Void       │ │
 │  └───────────────┘  └──────────────┘  └──────────────┘ │
 │                                                         │
 │  ┌───────────────┐  ┌──────────────┐  ┌──────────────┐ │
-│  │ テスト支援    │  │ レビュー支援  │  │ ドキュメント │ │
-│  │               │  │              │  │              │ │
-│  │ ・Codium AI   │  │ ・CodeRabbit │  │ ・Mintlify   │ │
-│  │ ・Diffblue    │  │ ・Graphite   │  │ ・Swimm      │ │
-│  │ ・Qodo        │  │ ・Bito       │  │ ・Notion AI  │ │
+│  │ Test Support  │  │ Review       │  │ Documentation│ │
+│  │               │  │ Support      │  │              │ │
+│  │ - Codium AI   │  │ - CodeRabbit │  │ - Mintlify   │ │
+│  │ - Diffblue    │  │ - Graphite   │  │ - Swimm      │ │
+│  │ - Qodo        │  │ - Bito       │  │ - Notion AI  │ │
 │  └───────────────┘  └──────────────┘  └──────────────┘ │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 ツールの進化タイムライン
+### 1.2 Tool Evolution Timeline
 
 ```
 2021        2022         2023          2024          2025         2026
   │           │            │             │             │            │
   ▼           ▼            ▼             ▼             ▼            ▼
 Copilot    ChatGPT      GPT-4         Claude 3     Claude 4     Opus 4
-Preview    登場         Code          Opus         Sonnet       エージェント
-  │           │        Interpreter      │             │          本格化
+Preview    Launch       Code          Opus         Sonnet       Agents
+  │           │        Interpreter      │             │          Go Live
   │           │            │             │             │            │
   └───────────┴────────────┴─────────────┴─────────────┴────────────┘
-  コード補完        対話型           マルチモーダル       自律型
-  の時代          プログラミング     コーディング       エージェント
+  Code             Conversational     Multimodal        Autonomous
+  Completion       Programming        Coding            Agents
+  Era
 ```
 
-### 1.3 各カテゴリの詳細比較
+### 1.3 Detailed Comparison by Category
 
-#### コード補完型ツール
+#### Code Completion Tools
 
-コード補完型ツールはエディタ拡張機能として動作し、カーソル位置のコンテキストから次のコードを予測・提案する。最も普及が進んでおり、開発者の日常的なコーディング体験を直接的に向上させる。
+Code completion tools operate as editor extensions, predicting and suggesting the next code based on the context at the cursor position. They are the most widely adopted and directly improve developers' everyday coding experience.
 
 ```
-コード補完型ツール詳細比較
+Code Completion Tool Detailed Comparison
 ┌─────────────┬──────────────┬──────────────┬──────────────┐
-│ ツール名     │ 補完精度      │ 対応エディタ  │ 料金体系     │
+│ Tool Name   │ Accuracy     │ Supported    │ Pricing      │
+│             │              │ Editors      │              │
 ├─────────────┼──────────────┼──────────────┼──────────────┤
-│ Copilot     │ ★★★★☆      │ VSCode,      │ $10-39/月    │
+│ Copilot     │ ★★★★☆      │ VSCode,      │ $10-39/mo    │
 │             │              │ JetBrains,   │              │
 │             │              │ Neovim       │              │
 ├─────────────┼──────────────┼──────────────┼──────────────┤
-│ Codeium     │ ★★★☆☆      │ VSCode,      │ 無料〜       │
-│             │              │ JetBrains,   │ $12/月       │
+│ Codeium     │ ★★★☆☆      │ VSCode,      │ Free -       │
+│             │              │ JetBrains,   │ $12/mo       │
 │             │              │ Vim, Emacs   │              │
 ├─────────────┼──────────────┼──────────────┼──────────────┤
-│ TabNine     │ ★★★☆☆      │ VSCode,      │ 無料〜       │
-│             │              │ JetBrains    │ $12/月       │
+│ TabNine     │ ★★★☆☆      │ VSCode,      │ Free -       │
+│             │              │ JetBrains    │ $12/mo       │
 ├─────────────┼──────────────┼──────────────┼──────────────┤
-│ Amazon Q    │ ★★★★☆      │ VSCode,      │ 無料〜       │
-│ Developer   │              │ JetBrains    │ $19/月       │
+│ Amazon Q    │ ★★★★☆      │ VSCode,      │ Free -       │
+│ Developer   │              │ JetBrains    │ $19/mo       │
 └─────────────┴──────────────┴──────────────┴──────────────┘
 ```
 
-#### エージェント型ツール
+#### Agent-Based Tools
 
-エージェント型ツールは、単なるコード補完にとどまらず、ファイルシステムの操作、テスト実行、Git操作などを自律的に行うことができる。タスク全体を委任できる点が最大の差別化要因である。
+Agent-based tools go beyond simple code completion and can autonomously perform file system operations, test execution, Git operations, and more. The ability to delegate entire tasks is their greatest differentiator.
 
 ```python
-# エージェント型ツールの動作イメージ
-# Claude Code を例にした自律タスク実行フロー
+# How agent-based tools work
+# Autonomous task execution flow using Claude Code as an example
 
-# ステップ1: ユーザーが高レベルの指示を与える
-# claude "Issue #42のバグを修正してPRを作成して"
+# Step 1: User provides a high-level instruction
+# claude "Fix the bug in Issue #42 and create a PR"
 
-# ステップ2: エージェントが自律的に以下を実行
-#   1. GitHub Issue #42の内容を読み取り
-#   2. 関連するソースコードを特定（Grep/Glob）
-#   3. バグの原因を分析
-#   4. 修正コードを生成・適用
-#   5. テストを実行して確認
-#   6. 失敗した場合は自動で修正を繰り返す
-#   7. 全テスト通過後、ブランチを作成
-#   8. コミットしてPRを作成
+# Step 2: The agent autonomously executes the following
+#   1. Reads the contents of GitHub Issue #42
+#   2. Identifies relevant source code (Grep/Glob)
+#   3. Analyzes the cause of the bug
+#   4. Generates and applies the fix
+#   5. Runs tests to verify
+#   6. Automatically retries fixes if tests fail
+#   7. Creates a branch after all tests pass
+#   8. Commits and creates a PR
 
-# ステップ3: 人間がPRをレビュー・承認
+# Step 3: Human reviews and approves the PR
 ```
 
 ```
-エージェント型ツール詳細比較
+Agent-Based Tool Detailed Comparison
 ┌─────────────┬────────────────┬──────────────┬──────────────┐
-│ ツール名     │ 自律度          │ ツール連携    │ 対象タスク   │
+│ Tool Name   │ Autonomy       │ Integrations │ Target Tasks │
 ├─────────────┼────────────────┼──────────────┼──────────────┤
-│ Claude Code │ 高（MCP連携）   │ ファイル操作, │ 汎用         │
-│             │                │ Bash, GitHub │              │
+│ Claude Code │ High           │ File ops,    │ General      │
+│             │ (MCP-linked)   │ Bash, GitHub │ purpose      │
 ├─────────────┼────────────────┼──────────────┼──────────────┤
-│ Devin       │ 非常に高       │ ブラウザ,     │ 汎用         │
-│             │ （仮想環境）    │ シェル, IDE  │              │
+│ Devin       │ Very High      │ Browser,     │ General      │
+│             │ (Virtual env)  │ Shell, IDE   │ purpose      │
 ├─────────────┼────────────────┼──────────────┼──────────────┤
-│ SWE-agent   │ 中（OSS）      │ シェル,       │ Issue修正    │
-│             │                │ ファイル操作  │ 特化         │
+│ SWE-agent   │ Medium (OSS)   │ Shell,       │ Issue fix    │
+│             │                │ File ops     │ specialized  │
 ├─────────────┼────────────────┼──────────────┼──────────────┤
-│ Aider       │ 中             │ Git,          │ コード編集   │
-│             │                │ ファイル操作  │ 特化         │
+│ Aider       │ Medium         │ Git,         │ Code editing │
+│             │                │ File ops     │ specialized  │
 └─────────────┴────────────────┴──────────────┴──────────────┘
 ```
 
-#### IDE統合型ツール
+#### IDE-Integrated Tools
 
-IDE統合型ツールは、AIをエディタの中核に組み込んだ次世代開発環境である。コード補完だけでなく、マルチファイル編集、コードベース全体の理解、Agent Modeなどの高度な機能を提供する。
+IDE-integrated tools are next-generation development environments with AI built into the core of the editor. They provide advanced features beyond code completion, including multi-file editing, whole codebase understanding, and Agent Mode.
 
 ```
-IDE統合型ツール詳細比較
+IDE-Integrated Tool Detailed Comparison
 ┌─────────────┬──────────────┬──────────────┬──────────────┐
-│ ツール名     │ AI統合度      │ ベースエディタ │ 特徴的機能   │
+│ Tool Name   │ AI Integration│ Base Editor  │ Key Features │
 ├─────────────┼──────────────┼──────────────┼──────────────┤
 │ Cursor      │ ★★★★★      │ VSCode fork  │ Composer,    │
-│             │              │              │ @記法        │
+│             │              │              │ @ syntax     │
 ├─────────────┼──────────────┼──────────────┼──────────────┤
 │ Windsurf    │ ★★★★☆      │ VSCode fork  │ Cascade,     │
 │             │              │              │ Supercomplete│
 ├─────────────┼──────────────┼──────────────┼──────────────┤
-│ Zed AI      │ ★★★☆☆      │ 独自エンジン  │ 高速動作,    │
-│             │              │ (Rust製)     │ 協働編集     │
+│ Zed AI      │ ★★★☆☆      │ Custom engine│ Fast,        │
+│             │              │ (built in    │ collaborative│
+│             │              │  Rust)       │ editing      │
 ├─────────────┼──────────────┼──────────────┼──────────────┤
 │ Void        │ ★★★☆☆      │ VSCode fork  │ OSS,         │
-│             │              │              │ ローカルLLM  │
+│             │              │              │ local LLM    │
 └─────────────┴──────────────┴──────────────┴──────────────┘
 ```
 
 ---
 
-## 2. AI開発ツールの技術スタック
+## 2. Technology Stack of AI Development Tools
 
-### 2.1 レイヤー構造
+### 2.1 Layer Structure
 
 ```
 ┌─────────────────────────────────────────────────┐
-│          アプリケーション層                       │
+│            Application Layer                     │
 │   Cursor / Windsurf / Claude Code / Copilot     │
 ├─────────────────────────────────────────────────┤
-│          オーケストレーション層                    │
+│            Orchestration Layer                    │
 │   MCP / Tool Use / RAG / Agent Framework        │
 ├─────────────────────────────────────────────────┤
-│          モデル層                                 │
+│            Model Layer                            │
 │   Claude / GPT / Gemini / Llama / Codestral     │
 ├─────────────────────────────────────────────────┤
-│          インフラ層                               │
+│            Infrastructure Layer                   │
 │   GPU Cluster / API Gateway / CDN               │
 └─────────────────────────────────────────────────┘
 ```
 
-### 2.2 各レイヤーの詳細解説
+### 2.2 Detailed Explanation of Each Layer
 
-#### インフラ層
+#### Infrastructure Layer
 
-AI開発ツールの基盤となるインフラストラクチャ。LLMの推論にはGPUクラスターが必要であり、APIゲートウェイを通じてリクエストを処理する。
+The foundational infrastructure for AI development tools. GPU clusters are required for LLM inference, and requests are processed through API gateways.
 
 ```python
-# インフラ層の構成要素と選択肢
+# Infrastructure layer components and options
 
 INFRASTRUCTURE_OPTIONS = {
     "GPU_PROVIDERS": {
         "AWS": {
             "service": "Amazon Bedrock / SageMaker",
             "gpu_types": ["A100", "H100", "Trainium"],
-            "advantages": "既存AWS環境との統合が容易",
-            "pricing": "オンデマンド/リザーブドインスタンス",
+            "advantages": "Easy integration with existing AWS environments",
+            "pricing": "On-demand / Reserved instances",
         },
         "Azure": {
             "service": "Azure OpenAI Service",
             "gpu_types": ["A100", "H100"],
-            "advantages": "GPT系モデルの最適化",
-            "pricing": "トークン課金",
+            "advantages": "Optimized for GPT-series models",
+            "pricing": "Token-based billing",
         },
         "Google Cloud": {
             "service": "Vertex AI",
             "gpu_types": ["TPU v5", "A100", "H100"],
-            "advantages": "Geminiモデルとの統合",
-            "pricing": "従量課金",
+            "advantages": "Integration with Gemini models",
+            "pricing": "Pay-as-you-go",
         },
     },
     "API_GATEWAYS": [
-        "Anthropic API (直接)",
-        "OpenAI API (直接)",
+        "Anthropic API (direct)",
+        "OpenAI API (direct)",
         "AWS API Gateway + Bedrock",
-        "LiteLLM (統合プロキシ)",
+        "LiteLLM (unified proxy)",
     ],
     "SELF_HOSTING": {
-        "Ollama": "ローカルLLM実行環境（個人開発向け）",
-        "vLLM": "高スループットのLLM推論サーバー",
-        "TGI": "Hugging Face推論サーバー",
+        "Ollama": "Local LLM execution environment (for individual development)",
+        "vLLM": "High-throughput LLM inference server",
+        "TGI": "Hugging Face inference server",
     },
 }
 ```
 
-#### モデル層
+#### Model Layer
 
-コード生成・理解の核となるLLMモデル群。プロプライエタリモデルとオープンソースモデルが競争と共存を続けている。
+The LLM models at the core of code generation and understanding. Proprietary models and open-source models continue to compete and coexist.
 
 ```python
-# 主要LLMモデルのコード能力比較（2026年時点）
+# Major LLM model code capability comparison (as of 2026)
 
 MODEL_COMPARISON = {
     "Claude Opus 4": {
@@ -236,7 +240,7 @@ MODEL_COMPARISON = {
         "code_quality": "★★★★★",
         "reasoning": "★★★★★",
         "speed": "★★★☆☆",
-        "best_for": "複雑な設計判断、マルチファイル理解",
+        "best_for": "Complex design decisions, multi-file understanding",
     },
     "Claude Sonnet 4": {
         "provider": "Anthropic",
@@ -244,7 +248,7 @@ MODEL_COMPARISON = {
         "code_quality": "★★★★☆",
         "reasoning": "★★★★☆",
         "speed": "★★★★★",
-        "best_for": "日常的なコーディング、バランス型",
+        "best_for": "Everyday coding, balanced performance",
     },
     "GPT-4o": {
         "provider": "OpenAI",
@@ -252,7 +256,7 @@ MODEL_COMPARISON = {
         "code_quality": "★★★★☆",
         "reasoning": "★★★★☆",
         "speed": "★★★★☆",
-        "best_for": "マルチモーダル入力、汎用タスク",
+        "best_for": "Multimodal input, general-purpose tasks",
     },
     "Gemini 2.0": {
         "provider": "Google",
@@ -260,15 +264,15 @@ MODEL_COMPARISON = {
         "code_quality": "★★★★☆",
         "reasoning": "★★★★☆",
         "speed": "★★★★☆",
-        "best_for": "超長コンテキスト、大規模コードベース",
+        "best_for": "Ultra-long context, large codebases",
     },
     "Llama 3.1 405B": {
         "provider": "Meta (OSS)",
         "context_window": "128K tokens",
         "code_quality": "★★★☆☆",
         "reasoning": "★★★☆☆",
-        "speed": "★★★★☆ (自ホスト依存)",
-        "best_for": "セキュリティ要件の厳しい環境",
+        "speed": "★★★★☆ (depends on self-hosting)",
+        "best_for": "Environments with strict security requirements",
     },
     "Codestral": {
         "provider": "Mistral (OSS)",
@@ -276,28 +280,28 @@ MODEL_COMPARISON = {
         "code_quality": "★★★★☆",
         "reasoning": "★★★☆☆",
         "speed": "★★★★★",
-        "best_for": "コード補完特化、ローカル実行",
+        "best_for": "Code completion specialized, local execution",
     },
 }
 ```
 
-#### オーケストレーション層
+#### Orchestration Layer
 
-LLMとツール群を連携させるミドルウェア層。MCP（Model Context Protocol）やRAG（Retrieval-Augmented Generation）がこの層の主要技術である。
+The middleware layer that connects LLMs with tool ecosystems. MCP (Model Context Protocol) and RAG (Retrieval-Augmented Generation) are the key technologies in this layer.
 
 ```python
-# MCPの概念と動作原理
+# Concept and operating principles of MCP
 
-# MCP (Model Context Protocol) はAnthropicが策定したオープンプロトコル
-# LLMアプリケーションと外部ツール・データソースを標準化された方法で接続する
+# MCP (Model Context Protocol) is an open protocol established by Anthropic
+# It connects LLM applications with external tools and data sources in a standardized way
 
-# 従来のツール連携:
-#   各ツールごとにカスタムAPIクライアントを実装
-#   → 統合コストが高い、互換性がない
+# Traditional tool integration:
+#   Custom API clients implemented for each tool
+#   -> High integration cost, no interoperability
 
-# MCPによるツール連携:
-#   標準プロトコルに準拠したサーバーを接続するだけ
-#   → プラグアンドプレイ、互換性が保証される
+# Tool integration with MCP:
+#   Simply connect servers that comply with the standard protocol
+#   -> Plug and play, interoperability guaranteed
 
 MCP_ARCHITECTURE = """
 ┌─────────────────────────────────────────────────────┐
@@ -311,31 +315,31 @@ MCP_ARCHITECTURE = """
 │  └─────┼─────────┼──────────┼─────────┼───────────┘ │
 │        │         │          │         │             │
 │  ┌─────▼───┐ ┌───▼────┐ ┌──▼───┐ ┌───▼────┐       │
-│  │GitHub   │ │ DB     │ │Slack │ │社内    │       │
-│  │API      │ │        │ │API   │ │システム│       │
+│  │GitHub   │ │ DB     │ │Slack │ │Internal│       │
+│  │API      │ │        │ │API   │ │Systems │       │
 │  └─────────┘ └────────┘ └──────┘ └────────┘       │
 └─────────────────────────────────────────────────────┘
 """
 ```
 
-### コード例: 各ツールの基本的な使い方
+### Code Examples: Basic Usage of Each Tool
 
 ```bash
-# GitHub Copilot: エディタ内で自動補完
-# (VSCodeでTabキーで候補を受け入れ)
+# GitHub Copilot: Auto-completion within the editor
+# (Accept suggestions with Tab key in VSCode)
 
-# Claude Code: CLIからプロジェクト全体を操作
-claude "このプロジェクトのテストカバレッジを80%に上げて"
+# Claude Code: Operate the entire project from the CLI
+claude "Increase the test coverage of this project to 80%"
 
-# Cursor: AIチャットでコード生成
-# Cmd+K でインラインコード生成
-# Cmd+L でチャットパネル
+# Cursor: Generate code with AI chat
+# Cmd+K for inline code generation
+# Cmd+L for chat panel
 ```
 
 ```python
-# AI補完の効果を示す例: 従来の手動コーディング
+# Example demonstrating the effect of AI completion: Traditional manual coding
 def calculate_tax(income: float, deductions: list[float]) -> float:
-    """所得税を計算する"""
+    """Calculate income tax"""
     taxable_income = income - sum(deductions)
     if taxable_income <= 1_950_000:
         return taxable_income * 0.05
@@ -352,12 +356,12 @@ def calculate_tax(income: float, deductions: list[float]) -> float:
     else:
         return taxable_income * 0.45 - 4_796_000
 
-# AIなら「日本の所得税計算関数を作って」だけで上記が生成される
+# With AI, just "Create a Japanese income tax calculation function" generates the above
 ```
 
 ```javascript
-// AI支援によるAPI実装の例
-// プロンプト: "Express.jsでCRUD APIを作成。バリデーション付き"
+// Example of AI-assisted API implementation
+// Prompt: "Create a CRUD API with Express.js with validation"
 
 import express from 'express';
 import { z } from 'zod';
@@ -371,128 +375,128 @@ const UserSchema = z.object({
 const app = express();
 app.use(express.json());
 
-// AIが生成した完全なCRUDエンドポイント
+// Complete CRUD endpoint generated by AI
 app.post('/users', async (req, res) => {
   const result = UserSchema.safeParse(req.body);
   if (!result.success) {
     return res.status(400).json({ errors: result.error.issues });
   }
-  // ... DB操作
+  // ... DB operations
 });
 ```
 
 ```python
-# AIツール連携の例: MCPプロトコル
-# Claude CodeがGitHubのIssueを読み、PRを作成する流れ
+# Example of AI tool integration: MCP protocol
+# Flow where Claude Code reads a GitHub Issue and creates a PR
 
-# 1. Issueの内容を取得 (MCP: GitHub Tool)
-# 2. コードベースを分析 (MCP: File System Tool)
-# 3. 修正コードを生成 (LLM推論)
-# 4. テストを実行 (MCP: Bash Tool)
-# 5. PRを作成 (MCP: GitHub Tool)
+# 1. Retrieve Issue content (MCP: GitHub Tool)
+# 2. Analyze the codebase (MCP: File System Tool)
+# 3. Generate fix code (LLM inference)
+# 4. Run tests (MCP: Bash Tool)
+# 5. Create a PR (MCP: GitHub Tool)
 
-# これが1つのプロンプトで実行される:
-# claude "Issue #42を修正してPRを作成して"
+# All of this is executed with a single prompt:
+# claude "Fix Issue #42 and create a PR"
 ```
 
 ```yaml
-# AI開発ツールの設定例: .cursorrules
-# プロジェクト固有のAI指示を定義
+# AI development tool configuration example: .cursorrules
+# Define project-specific AI instructions
 rules:
-  - "TypeScriptを使用し、strict modeを有効にする"
-  - "テストはVitestで書く"
-  - "コンポーネントはfunction宣言で書く"
-  - "エラーハンドリングにはResult型を使う"
-  - "コメントは日本語で書く"
+  - "Use TypeScript with strict mode enabled"
+  - "Write tests with Vitest"
+  - "Write components with function declarations"
+  - "Use Result types for error handling"
+  - "Write comments in Japanese"
 ```
 
 ---
 
-## 3. 生産性への定量的影響
+## 3. Quantitative Impact on Productivity
 
-### 3.1 主要調査データ
+### 3.1 Key Research Data
 
-| 調査元 | 対象 | 主な結果 |
-|--------|------|----------|
-| GitHub (2022) | Copilot利用者 | タスク完了速度 55% 向上 |
-| McKinsey (2023) | 企業開発チーム | コーディング速度 35-45% 向上 |
-| Google (2024) | 社内開発者 | コードレビュー時間 30% 削減 |
-| Stack Overflow (2024) | 開発者調査 | 76%がAIツールを使用中 |
-| Anthropic (2025) | Claude Code利用者 | 複雑タスクで 3-5倍 の効率化 |
+| Source | Target | Key Results |
+|--------|--------|-------------|
+| GitHub (2022) | Copilot users | 55% faster task completion |
+| McKinsey (2023) | Enterprise dev teams | 35-45% faster coding speed |
+| Google (2024) | Internal developers | 30% reduction in code review time |
+| Stack Overflow (2024) | Developer survey | 76% using AI tools |
+| Anthropic (2025) | Claude Code users | 3-5x efficiency on complex tasks |
 
-### 3.2 生産性向上の領域別比較
+### 3.2 Productivity Improvement by Development Phase
 
-| 開発フェーズ | AI導入前の工数 | AI導入後の工数 | 削減率 |
-|-------------|---------------|---------------|--------|
-| ボイラープレート記述 | 2時間 | 10分 | 92% |
-| ユニットテスト作成 | 3時間 | 30分 | 83% |
-| バグ調査・修正 | 4時間 | 1時間 | 75% |
-| ドキュメント生成 | 2時間 | 20分 | 83% |
-| コードレビュー | 1時間 | 30分 | 50% |
-| 設計・アーキテクチャ | 8時間 | 6時間 | 25% |
-| 要件定義 | 4時間 | 3時間 | 25% |
+| Development Phase | Effort Before AI | Effort After AI | Reduction |
+|-------------------|-----------------|-----------------|-----------|
+| Boilerplate code | 2 hours | 10 min | 92% |
+| Unit test creation | 3 hours | 30 min | 83% |
+| Bug investigation & fix | 4 hours | 1 hour | 75% |
+| Documentation generation | 2 hours | 20 min | 83% |
+| Code review | 1 hour | 30 min | 50% |
+| Design & architecture | 8 hours | 6 hours | 25% |
+| Requirements definition | 4 hours | 3 hours | 25% |
 
-### 3.3 生産性向上のメカニズム
+### 3.3 Mechanisms of Productivity Improvement
 
-AI開発ツールが生産性を向上させるメカニズムは以下の4つに分類できる。
+The mechanisms by which AI development tools improve productivity can be classified into the following four categories.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│              AI開発ツールの生産性向上メカニズム                  │
+│       Productivity Improvement Mechanisms of AI Dev Tools     │
 ├──────────────────────────────────────────────────────────────┤
 │                                                              │
-│  1. コンテキストスイッチの削減                                  │
+│  1. Reduction of Context Switching                           │
 │  ┌────────────────────────────────────────────────────────┐ │
-│  │ 従来: コード → ドキュメント検索 → Stack Overflow →     │ │
-│  │       コードに戻る（1回あたり15-20分のロス）            │ │
-│  │ AI: エディタ内でAIに質問 → 即回答 → コーディング続行   │ │
-│  │     （ロスが数秒に短縮）                                 │ │
+│  │ Before: Code -> Search docs -> Stack Overflow ->       │ │
+│  │         Return to code (15-20 min loss per switch)     │ │
+│  │ With AI: Ask AI in editor -> Instant answer ->         │ │
+│  │          Continue coding (loss reduced to seconds)     │ │
 │  └────────────────────────────────────────────────────────┘ │
 │                                                              │
-│  2. 定型作業の自動化                                          │
+│  2. Automation of Routine Work                               │
 │  ┌────────────────────────────────────────────────────────┐ │
-│  │ ボイラープレート、CRUD実装、テスト骨格などの               │ │
-│  │ パターン化された作業をAIが瞬時に生成                      │ │
-│  │ → 開発者はビジネスロジックに集中                         │ │
+│  │ AI instantly generates patterned work such as           │ │
+│  │ boilerplate, CRUD implementations, and test skeletons  │ │
+│  │ -> Developers can focus on business logic              │ │
 │  └────────────────────────────────────────────────────────┘ │
 │                                                              │
-│  3. 学習曲線の短縮                                            │
+│  3. Shortened Learning Curve                                 │
 │  ┌────────────────────────────────────────────────────────┐ │
-│  │ 新しいフレームワーク・ライブラリの学習にかかる時間が      │ │
-│  │ AIの支援により大幅に短縮される                           │ │
-│  │ → 技術スタックの幅を広げやすくなる                       │ │
+│  │ The time to learn new frameworks and libraries is       │ │
+│  │ significantly reduced with AI assistance               │ │
+│  │ -> Easier to broaden your technology stack             │ │
 │  └────────────────────────────────────────────────────────┘ │
 │                                                              │
-│  4. 品質の底上げ                                              │
+│  4. Raising the Quality Floor                                │
 │  ┌────────────────────────────────────────────────────────┐ │
-│  │ AIがベストプラクティスに基づいたコードを提案              │ │
-│  │ → 経験の浅い開発者のコード品質が向上                     │ │
-│  │ → コードレビューの指摘事項が減少                         │ │
+│  │ AI suggests code based on best practices               │ │
+│  │ -> Code quality of less experienced developers improves│ │
+│  │ -> Fewer issues raised in code reviews                 │ │
 │  └────────────────────────────────────────────────────────┘ │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 3.4 ROI（投資対効果）の計算例
+### 3.4 ROI (Return on Investment) Calculation Example
 
 ```python
-# AI開発ツール導入のROI計算シミュレーション
+# ROI calculation simulation for AI development tool adoption
 
 class AIToolROICalculator:
-    """AI開発ツールの投資対効果を計算する"""
+    """Calculate the return on investment of AI development tools"""
 
     def calculate_roi(
         self,
         team_size: int,
-        avg_salary_monthly: int,  # 1人あたり月額給与（円）
-        tool_cost_per_person: int,  # ツール月額コスト/人（円）
-        productivity_gain_percent: float,  # 生産性向上率（0.0-1.0）
+        avg_salary_monthly: int,  # Monthly salary per person (JPY)
+        tool_cost_per_person: int,  # Monthly tool cost per person (JPY)
+        productivity_gain_percent: float,  # Productivity gain rate (0.0-1.0)
     ) -> dict:
-        """ROIを計算する"""
+        """Calculate ROI"""
 
-        # 月間コスト
+        # Monthly cost
         total_tool_cost = team_size * tool_cost_per_person
 
-        # 月間効果（生産性向上分を人件費換算）
+        # Monthly benefit (productivity gain converted to labor cost)
         total_salary = team_size * avg_salary_monthly
         productivity_value = total_salary * productivity_gain_percent
 
@@ -509,42 +513,42 @@ class AIToolROICalculator:
         }
 
 
-# 計算例
+# Calculation example
 calc = AIToolROICalculator()
 result = calc.calculate_roi(
     team_size=10,
-    avg_salary_monthly=800_000,      # 月額80万円
-    tool_cost_per_person=5_000,       # Copilot $39 ≈ 5,000円/月
-    productivity_gain_percent=0.30,   # 30%の生産性向上
+    avg_salary_monthly=800_000,      # 800,000 JPY/month
+    tool_cost_per_person=5_000,       # Copilot $39 ≈ 5,000 JPY/month
+    productivity_gain_percent=0.30,   # 30% productivity gain
 )
 
-# 結果:
-# - ツールコスト: 50,000円/月
-# - 生産性向上分: 2,400,000円/月
-# - 純利益: 2,350,000円/月
+# Results:
+# - Tool cost: 50,000 JPY/month
+# - Productivity gain: 2,400,000 JPY/month
+# - Net benefit: 2,350,000 JPY/month
 # - ROI: 4,700%
-# → 圧倒的にプラスのROI
+# -> Overwhelmingly positive ROI
 ```
 
 ---
 
-## 4. AI開発の光と影
+## 4. Pros and Cons of AI Development
 
-### アンチパターン 1: AIへの過度な依存（コピペプログラマー症候群）
+### Anti-pattern 1: Over-reliance on AI (Copy-Paste Programmer Syndrome)
 
 ```python
-# BAD: AIの出力をそのまま使用
-# プロンプト: "ユーザー認証を実装して"
+# BAD: Using AI output as-is
+# Prompt: "Implement user authentication"
 def authenticate(username, password):
-    # AIが生成したが、セキュリティ的に危険なコード
+    # AI-generated but security-dangerous code
     query = f"SELECT * FROM users WHERE name='{username}' AND pass='{password}'"
-    # ↑ SQLインジェクション脆弱性！
+    # ↑ SQL injection vulnerability!
     result = db.execute(query)
     return result is not None
 
-# GOOD: AIの出力を理解・検証してから使用
+# GOOD: Understand and verify AI output before using it
 def authenticate(username: str, password: str) -> bool:
-    """パラメータ化クエリとハッシュ比較で安全に認証"""
+    """Authenticate securely with parameterized queries and hash comparison"""
     query = "SELECT password_hash FROM users WHERE username = ?"
     result = db.execute(query, (username,))
     if result is None:
@@ -552,34 +556,34 @@ def authenticate(username: str, password: str) -> bool:
     return bcrypt.checkpw(password.encode(), result['password_hash'])
 ```
 
-### アンチパターン 2: ツール導入だけで満足する（形だけのAI導入）
+### Anti-pattern 2: Satisfied with Just Adopting the Tool (AI Adoption in Name Only)
 
 ```
-❌ よくある失敗パターン:
-   1. 全員にCopilotライセンスを配布
-   2. 使い方の教育をしない
-   3. 効果測定をしない
-   4. 「効果がない」と判断して解約
+❌ Common failure pattern:
+   1. Distribute Copilot licenses to everyone
+   2. Provide no training on how to use it
+   3. Don't measure the results
+   4. Conclude "it's not effective" and cancel
 
-✅ 正しい導入パターン:
-   1. パイロットチームで2週間試行
-   2. 効果的なプロンプトパターンを文書化
-   3. チーム全体に展開 + トレーニング実施
-   4. 月次で生産性メトリクスを計測
-   5. ベストプラクティスを継続的に更新
+✅ Correct adoption pattern:
+   1. Pilot with a small team for 2 weeks
+   2. Document effective prompt patterns
+   3. Roll out to the entire team + conduct training
+   4. Measure productivity metrics monthly
+   5. Continuously update best practices
 ```
 
-### アンチパターン 3: セキュリティを考慮しないAIツール利用
+### Anti-pattern 3: Using AI Tools Without Considering Security
 
 ```python
-# BAD: 機密情報をAIツールに送信してしまう
+# BAD: Sending sensitive information to AI tools
 
-# プロジェクト内の .env ファイルの内容をAIに貼り付け
-# → API キー、データベースパスワードが外部サーバーに送信される
+# Pasting contents of .env file in the project to AI
+# -> API keys and database passwords are sent to external servers
 
-# GOOD: 機密情報の取り扱いを明確にルール化
+# GOOD: Establish clear rules for handling sensitive information
 
-# .copilotignore / .cursorignore で除外
+# Exclude with .copilotignore / .cursorignore
 SENSITIVE_FILES = [
     ".env",
     ".env.local",
@@ -591,249 +595,253 @@ SENSITIVE_FILES = [
     "config/production.yaml",
 ]
 
-# AIツール利用ポリシーの例
+# Example AI tool usage policy
 AI_USAGE_POLICY = {
     "allowed": [
-        "パブリックAPIの使い方の質問",
-        "アルゴリズムの実装相談",
-        "テストコードの生成依頼",
-        "ドキュメントの下書き",
+        "Questions about public API usage",
+        "Algorithm implementation consultation",
+        "Test code generation requests",
+        "Documentation drafts",
     ],
     "requires_review": [
-        "認証・認可ロジックの生成",
-        "データベーススキーマの設計",
-        "セキュリティ関連のコード",
+        "Authentication/authorization logic generation",
+        "Database schema design",
+        "Security-related code",
     ],
     "prohibited": [
-        "機密設定ファイルの送信",
-        "顧客データを含むログの貼り付け",
-        "社内専用APIのエンドポイント情報",
-        "暗号鍵・秘密鍵の送信",
+        "Sending sensitive configuration files",
+        "Pasting logs containing customer data",
+        "Internal-only API endpoint information",
+        "Sending encryption keys / private keys",
     ],
 }
 ```
 
-### アンチパターン 4: AIツール間の重複投資
+### Anti-pattern 4: Redundant Investment in AI Tools
 
 ```
-❌ BAD: 全ツールを同時に導入
+❌ BAD: Adopting all tools simultaneously
    Copilot + Cursor + Claude Code + Codeium + Windsurf
-   → ライセンスコストが膨大
-   → ツール間の競合（補完が二重に出る）
-   → 学習コストが高すぎてチームが混乱
+   -> License costs are enormous
+   -> Tool conflicts (double completions)
+   -> Learning cost too high, team becomes confused
 
-✅ GOOD: 用途に応じた最小セット
-   推奨組み合わせ例:
+✅ GOOD: Minimum set based on use case
+   Recommended combination examples:
 
-   パターンA（コスト重視）:
-   - Copilot Individual ($10/月) + Claude Code (API従量課金)
-   - 合計: 月額 $15-30/人
+   Pattern A (Cost-focused):
+   - Copilot Individual ($10/mo) + Claude Code (API pay-as-you-go)
+   - Total: $15-30/person/mo
 
-   パターンB（機能重視）:
-   - Cursor Pro ($20/月) + Claude Code (API従量課金)
-   - 合計: 月額 $30-50/人
+   Pattern B (Feature-focused):
+   - Cursor Pro ($20/mo) + Claude Code (API pay-as-you-go)
+   - Total: $30-50/person/mo
 
-   パターンC（エンタープライズ）:
-   - Copilot Enterprise ($39/月) + Claude Max ($100/月)
-   - 合計: 月額 $139/人
+   Pattern C (Enterprise):
+   - Copilot Enterprise ($39/mo) + Claude Max ($100/mo)
+   - Total: $139/person/mo
 ```
 
 ---
 
-## 5. AI開発ツールの選定フレームワーク
+## 5. AI Development Tool Selection Framework
 
 ```
-チーム規模は？
+What is the team size?
     │
-    ├── 個人/小規模 (1-5人)
+    ├── Individual / Small (1-5 people)
     │       │
-    │       ├── 予算少 → Codeium (無料) + Claude Code
-    │       └── 予算あり → Cursor Pro + Claude Code
+    │       ├── Low budget -> Codeium (free) + Claude Code
+    │       └── Budget available -> Cursor Pro + Claude Code
     │
-    ├── 中規模 (5-50人)
+    ├── Medium (5-50 people)
     │       │
-    │       ├── GitHub中心 → Copilot Business + CodeRabbit
-    │       └── 柔軟に → Cursor Business + Claude Code
+    │       ├── GitHub-centric -> Copilot Business + CodeRabbit
+    │       └── Flexible -> Cursor Business + Claude Code
     │
-    └── 大規模 (50人以上)
+    └── Large (50+ people)
             │
-            ├── セキュリティ重視 → Amazon Q + 社内LLM
-            └── 生産性重視 → Copilot Enterprise + Claude
+            ├── Security-focused -> Amazon Q + Internal LLM
+            └── Productivity-focused -> Copilot Enterprise + Claude
 ```
 
-### 5.1 選定時の評価チェックリスト
+### 5.1 Evaluation Checklist for Selection
 
 ```markdown
-## AI開発ツール選定チェックリスト
+## AI Development Tool Selection Checklist
 
-### セキュリティ（必須）
-- [ ] コードの送信先とデータ保持ポリシーを確認
-- [ ] SOC 2 / ISO 27001等の認証状況を確認
-- [ ] VPC内での利用可否を確認（エンタープライズ向け）
-- [ ] .copilotignore等のファイル除外機能の有無
-- [ ] IP補償（知的財産保護）の有無
+### Security (Required)
+- [ ] Verify code destination and data retention policy
+- [ ] Verify SOC 2 / ISO 27001 certification status
+- [ ] Verify VPC availability (for enterprise)
+- [ ] Check for file exclusion features like .copilotignore
+- [ ] Check for IP indemnification (intellectual property protection)
 
-### 機能要件
-- [ ] チームで使用している言語・フレームワークへの対応
-- [ ] エディタ・IDE との統合性
-- [ ] コンテキスト理解の範囲（ファイル/プロジェクト全体）
-- [ ] Agent Mode の有無と品質
-- [ ] マルチファイル編集の対応
+### Functional Requirements
+- [ ] Support for languages and frameworks used by the team
+- [ ] Integration with editors / IDEs
+- [ ] Scope of context understanding (file / entire project)
+- [ ] Availability and quality of Agent Mode
+- [ ] Multi-file editing support
 
-### 運用要件
-- [ ] チーム管理機能（管理者向けダッシュボード）
-- [ ] 利用量の監視・制限機能
-- [ ] SSO / SAML 認証への対応
-- [ ] API キーの管理方法
-- [ ] SLA（サービスレベル保証）
+### Operational Requirements
+- [ ] Team management features (admin dashboard)
+- [ ] Usage monitoring and rate limiting features
+- [ ] SSO / SAML authentication support
+- [ ] API key management method
+- [ ] SLA (Service Level Agreement)
 
-### コスト
-- [ ] 人数 × 単価の月額コスト
-- [ ] API従量課金の見積もり
-- [ ] トライアル期間の有無
-- [ ] 年間契約での割引
+### Cost
+- [ ] Monthly cost of headcount x unit price
+- [ ] API pay-as-you-go cost estimate
+- [ ] Availability of trial period
+- [ ] Annual contract discount
 ```
 
-### 5.2 段階的導入ロードマップ
+### 5.2 Phased Rollout Roadmap
 
 ```
-Month 1: パイロット
+Month 1: Pilot
 ┌──────────────────────────────────────────┐
-│ ・3-5人のパイロットチームを選定           │
-│ ・2つのツールを並行評価（2週間ずつ）      │
-│ ・生産性指標のベースラインを計測           │
-│ ・セキュリティレビューの実施               │
+│ - Select a pilot team of 3-5 people      │
+│ - Evaluate 2 tools in parallel (2 weeks  │
+│   each)                                  │
+│ - Measure baseline productivity metrics  │
+│ - Conduct security review               │
 └──────────────────────────────────────────┘
          │
          ▼
-Month 2: 評価と選定
+Month 2: Evaluation and Selection
 ┌──────────────────────────────────────────┐
-│ ・パイロット結果のレポート作成             │
-│ ・ツールの最終選定                        │
-│ ・利用ガイドライン・ポリシーの策定         │
-│ ・研修カリキュラムの設計                   │
+│ - Create pilot results report            │
+│ - Final tool selection                   │
+│ - Develop usage guidelines and policies  │
+│ - Design training curriculum             │
 └──────────────────────────────────────────┘
          │
          ▼
-Month 3-4: 段階展開
+Month 3-4: Phased Rollout
 ┌──────────────────────────────────────────┐
-│ ・チーム単位で順次展開（週1チームずつ）    │
-│ ・各チームに1名のAIチャンピオンを配置     │
-│ ・研修の実施（座学1日 + OJT 1週間）      │
-│ ・FAQ・トラブルシューティング集の整備      │
+│ - Roll out team by team (1 team/week)    │
+│ - Assign 1 AI champion per team          │
+│ - Conduct training (1 day classroom +    │
+│   1 week OJT)                            │
+│ - Prepare FAQ and troubleshooting guide  │
 └──────────────────────────────────────────┘
          │
          ▼
-Month 5+: 定着と最適化
+Month 5+: Adoption and Optimization
 ┌──────────────────────────────────────────┐
-│ ・月次で効果測定（DORA指標 + AI固有指標） │
-│ ・ベストプラクティスの継続的更新           │
-│ ・新ツール・新機能の定期評価               │
-│ ・プロンプトライブラリの拡充               │
+│ - Monthly effectiveness measurement      │
+│   (DORA metrics + AI-specific metrics)   │
+│ - Continuous best practices updates      │
+│ - Regular evaluation of new tools and    │
+│   features                               │
+│ - Expand prompt library                  │
 └──────────────────────────────────────────┘
 ```
 
 ---
 
-## 6. AI開発エコシステムの今後
+## 6. The Future of the AI Development Ecosystem
 
-### 6.1 2026年の主要トレンド
+### 6.1 Key Trends for 2026
 
 ```python
-# 2026年のAI開発エコシステムのキートレンド
+# Key trends in the AI development ecosystem for 2026
 
 TRENDS_2026 = {
-    "エージェント型開発の本格化": {
-        "概要": "単なるコード補完から、タスク全体を自律的に遂行するエージェントへ",
-        "具体例": [
-            "Issue→修正→テスト→PR作成が1コマンドで完了",
-            "CI/CDパイプラインの自動修復",
-            "マルチファイルのリファクタリング自動実行",
+    "Full-Scale Agent-Based Development": {
+        "overview": "From simple code completion to agents that autonomously execute entire tasks",
+        "examples": [
+            "Issue -> Fix -> Test -> PR creation completed with one command",
+            "Automatic repair of CI/CD pipelines",
+            "Automatic execution of multi-file refactoring",
         ],
-        "影響": "開発者の役割がコーダーからオーケストレーターへシフト",
+        "impact": "Developer role shifts from coder to orchestrator",
     },
-    "MCPエコシステムの拡大": {
-        "概要": "MCPサーバーが標準化され、ツール連携が容易に",
-        "具体例": [
-            "公式MCPサーバーの増加（GitHub, Slack, Jira, 各種DB等）",
-            "カスタムMCPサーバーの社内構築",
-            "MCPマーケットプレイスの登場",
+    "Expansion of the MCP Ecosystem": {
+        "overview": "MCP servers become standardized, making tool integration easier",
+        "examples": [
+            "Increase in official MCP servers (GitHub, Slack, Jira, various DBs, etc.)",
+            "Building custom MCP servers internally",
+            "Emergence of MCP marketplaces",
         ],
-        "影響": "AIツールが社内システムと深く統合される",
+        "impact": "AI tools become deeply integrated with internal systems",
     },
-    "マルチモーダル開発": {
-        "概要": "テキスト以外の入力（図、スクリーンショット、音声）から直接コード生成",
-        "具体例": [
-            "UIモックアップ画像からReactコンポーネントを生成",
-            "ホワイトボードの設計図からアーキテクチャコードを生成",
-            "音声指示による対話的プログラミング",
+    "Multimodal Development": {
+        "overview": "Direct code generation from non-text inputs (diagrams, screenshots, voice)",
+        "examples": [
+            "Generate React components from UI mockup images",
+            "Generate architecture code from whiteboard design diagrams",
+            "Interactive programming via voice instructions",
         ],
-        "影響": "デザイナーとエンジニアの境界が曖昧になる",
+        "impact": "The boundary between designers and engineers becomes blurred",
     },
-    "ローカルLLMの品質向上": {
-        "概要": "オープンソースモデルの性能が商用レベルに近づく",
-        "具体例": [
-            "Llama系モデルのコード補完性能向上",
-            "Codestralの32Bモデルが商用品質に",
-            "Apple Silicon/NPU最適化されたローカルモデル",
+    "Improved Quality of Local LLMs": {
+        "overview": "Open-source model performance approaches commercial levels",
+        "examples": [
+            "Improved code completion performance of Llama-series models",
+            "Codestral 32B model reaches commercial quality",
+            "Local models optimized for Apple Silicon / NPU",
         ],
-        "影響": "セキュリティ要件の厳しい環境でもAI開発が可能に",
+        "impact": "AI development becomes possible even in environments with strict security requirements",
     },
 }
 ```
 
-### 6.2 技術的な課題と解決の方向性
+### 6.2 Technical Challenges and Directions for Resolution
 
-| 課題 | 現状 | 解決の方向性 |
-|------|------|-------------|
-| ハルシネーション | AIが存在しないAPIを提案 | RAGによる公式ドキュメント参照、検証ゲートの強化 |
-| コンテキスト制限 | 大規模プロジェクトの全体把握が困難 | コンテキスト窓の拡大（1M+ tokens）、インデックス技術 |
-| セキュリティ | コードの外部送信リスク | ローカルLLM、VPC内API、ゼロデータ保持ポリシー |
-| 著作権・ライセンス | AI生成コードの権利関係が不明確 | IP補償、公開コードフィルター、法整備の進展 |
-| 品質の不均一性 | AIの出力品質が不安定 | 品質ゲートの自動化、人間レビューの維持 |
+| Challenge | Current State | Direction for Resolution |
+|-----------|--------------|------------------------|
+| Hallucination | AI suggests non-existent APIs | RAG with official documentation, strengthened verification gates |
+| Context Limitation | Difficult to understand large projects entirely | Expanding context windows (1M+ tokens), indexing technology |
+| Security | Risk of sending code to external services | Local LLMs, VPC-internal APIs, zero data retention policies |
+| Copyright & Licensing | Unclear rights of AI-generated code | IP indemnification, public code filters, advancing legislation |
+| Inconsistent Quality | AI output quality is unstable | Automated quality gates, maintaining human review |
 
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -842,26 +850,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should be raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -869,7 +877,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -880,14 +888,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Remove by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -895,7 +903,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -903,44 +911,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -949,7 +957,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -964,76 +972,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm computational complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to Prioritize | When to Compromise |
+|-----------|-------------------|-------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development Speed | MVP, time to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│         Architecture Selection Flow              │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  (1) What is the team size?                     │
+│    ├─ Small (1-5 people) -> Monolith            │
+│    └─ Large (10+ people) -> Go to (2)           │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  (2) How often do you deploy?                   │
+│    ├─ Weekly or less -> Monolith + module split  │
+│    └─ Daily / multiple times -> Go to (3)       │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  (3) How independent are the teams?             │
+│    ├─ High -> Microservices                     │
+│    └─ Medium -> Modular monolith                │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A method that is fast in the short term may become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies enables the right tool for the job but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction offers greater reusability but can make debugging more difficult
+- Low abstraction is intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Create an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1043,17 +1051,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1061,7 +1069,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1069,15 +1077,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1085,53 +1093,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum set of features
+- Automated tests only for the critical path
+- Introduce monitoring from an early stage
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't aim for perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Legacy System Modernization
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually revamp a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate gradually using the Strangler Fig pattern
+- If existing tests are absent, create Characterization Tests first
+- Use an API gateway to have old and new systems coexist
+- Perform data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work Content | Estimated Duration | Risk |
+|-------|-------------|-------------------|------|
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration Start | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core Migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Decommission legacy system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with Domain-Driven Design
+- Set ownership per team
+- Manage shared libraries with Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1144,20 +1152,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Verify SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1166,7 +1174,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1187,86 +1195,87 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: In-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Method | Effect | Implementation Cost | When to Apply |
+|--------------------|--------|-------------------|---------------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | When CPU-bound |
 
 ---
 
-## チーム開発での活用
+## Leveraging in Team Development
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to check during code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Are naming conventions consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Is there any impact on performance?
+- [ ] Are there any security issues?
+- [ ] Has the documentation been updated?
 
-### ナレッジ共有のベストプラクティス
+### Best Practices for Knowledge Sharing
 
-| 方法 | 頻度 | 対象 | 効果 |
-|------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Method | Frequency | Target | Effect |
+|--------|-----------|--------|--------|
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talks | Weekly | Entire team | Horizontal knowledge spread |
+| ADR (Decision Records) | As needed | Future members | Decision transparency |
+| Retrospectives | Bi-weekly | Entire team | Continuous improvement |
+| Mob programming | Monthly | Important designs | Consensus building |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
+        High Impact
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │ Plan│ Fix  │
+    │ and │ Imme-│
+    │ addr│ dia- │
+    │ ess │ tely │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │ Doc │ Next │
+    │ only│Sprint│
+    │     │      │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Low Impact
+    Low Frequency  High Frequency
 ```
 
 ---
 
-## マイグレーションガイド
+## Migration Guide
 
-### バージョンアップ時の注意点
+### Notes on Version Upgrades
 
-| バージョン | 主な変更点 | 移行作業 | 影響範囲 |
-|-----------|-----------|---------|---------|
-| v1.x → v2.x | API設計の刷新 | エンドポイント変更 | 全クライアント |
-| v2.x → v3.x | 認証方式の変更 | トークン形式更新 | 認証関連 |
-| v3.x → v4.x | データモデル変更 | マイグレーションスクリプト実行 | DB関連 |
+| Version | Major Changes | Migration Work | Scope of Impact |
+|---------|--------------|---------------|----------------|
+| v1.x -> v2.x | API design overhaul | Endpoint changes | All clients |
+| v2.x -> v3.x | Authentication method change | Token format update | Auth-related |
+| v3.x -> v4.x | Data model change | Run migration scripts | DB-related |
 
-### 段階的移行の手順
+### Steps for Phased Migration
 
 ```python
-# マイグレーションスクリプトのテンプレート
+# Migration script template
 import json
 import logging
 from pathlib import Path
@@ -1276,7 +1285,7 @@ from typing import List, Dict, Callable
 logger = logging.getLogger(__name__)
 
 class MigrationRunner:
-    """段階的マイグレーション実行エンジン"""
+    """Phased migration execution engine"""
 
     def __init__(self, migration_dir: str):
         self.migration_dir = Path(migration_dir)
@@ -1285,7 +1294,7 @@ class MigrationRunner:
 
     def register(self, version: str, description: str,
                  up: Callable, down: Callable):
-        """マイグレーションの登録"""
+        """Register a migration"""
         self.migrations.append({
             'version': version,
             'description': description,
@@ -1295,35 +1304,35 @@ class MigrationRunner:
         })
 
     def run_up(self, target_version: str = None):
-        """マイグレーションの実行（アップグレード）"""
+        """Execute migrations (upgrade)"""
         for migration in self.migrations:
             if migration['version'] in self.completed:
                 continue
-            logger.info(f"実行中: {migration['version']} - "
+            logger.info(f"Running: {migration['version']} - "
                        f"{migration['description']}")
             try:
                 migration['up']()
                 self.completed.append(migration['version'])
-                logger.info(f"完了: {migration['version']}")
+                logger.info(f"Completed: {migration['version']}")
             except Exception as e:
-                logger.error(f"失敗: {migration['version']}: {e}")
+                logger.error(f"Failed: {migration['version']}: {e}")
                 raise
             if target_version and migration['version'] == target_version:
                 break
 
     def run_down(self, target_version: str):
-        """マイグレーションのロールバック"""
+        """Rollback migrations"""
         for migration in reversed(self.migrations):
             if migration['version'] not in self.completed:
                 continue
             if migration['version'] == target_version:
                 break
-            logger.info(f"ロールバック: {migration['version']}")
+            logger.info(f"Rolling back: {migration['version']}")
             migration['down']()
             self.completed.remove(migration['version'])
 
     def status(self) -> Dict:
-        """マイグレーション状態の確認"""
+        """Check migration status"""
         return {
             'total': len(self.migrations),
             'completed': len(self.completed),
@@ -1336,60 +1345,60 @@ class MigrationRunner:
         }
 ```
 
-### ロールバック計画
+### Rollback Plan
 
-移行作業には必ずロールバック計画を準備してください:
+Always prepare a rollback plan for migration work:
 
-1. **データのバックアップ**: 移行前に完全バックアップを取得
-2. **テスト環境での検証**: 本番と同等の環境で事前検証
-3. **段階的なロールアウト**: カナリアリリースで段階的に展開
-4. **監視の強化**: 移行中はメトリクスの監視間隔を短縮
-5. **判断基準の明確化**: ロールバックを判断する基準を事前に定義
-
----
-
-## 用語集
-
-| 用語 | 英語表記 | 説明 |
-|------|---------|------|
-| 抽象化 | Abstraction | 複雑な実装の詳細を隠し、本質的なインターフェースのみを公開すること |
-| カプセル化 | Encapsulation | データと操作を一つの単位にまとめ、外部からのアクセスを制御すること |
-| 凝集度 | Cohesion | モジュール内の要素がどの程度関連しているかの指標 |
-| 結合度 | Coupling | モジュール間の依存関係の度合い |
-| リファクタリング | Refactoring | 外部の振る舞いを変えずにコードの内部構造を改善すること |
-| テスト駆動開発 | TDD (Test-Driven Development) | テストを先に書いてから実装するアプローチ |
-| 継続的インテグレーション | CI (Continuous Integration) | コードの変更を頻繁に統合し、自動テストで検証するプラクティス |
-| 継続的デリバリー | CD (Continuous Delivery) | いつでもリリース可能な状態を維持するプラクティス |
-| 技術的負債 | Technical Debt | 短期的な解決策を選んだことで将来的に発生する追加作業 |
-| ドメイン駆動設計 | DDD (Domain-Driven Design) | ビジネスドメインの知識に基づいてソフトウェアを設計するアプローチ |
-| マイクロサービス | Microservices | アプリケーションを小さな独立したサービスの集合として構築するアーキテクチャ |
-| サーキットブレーカー | Circuit Breaker | 障害の連鎖を防ぐための設計パターン |
-| イベント駆動 | Event-Driven | イベントの発生と処理に基づくアーキテクチャパターン |
-| 冪等性 | Idempotency | 同じ操作を複数回実行しても結果が変わらない性質 |
-| オブザーバビリティ | Observability | システムの内部状態を外部から観測可能にする能力 |
+1. **Data Backup**: Take a full backup before migration
+2. **Verification in Test Environment**: Pre-verify in an environment equivalent to production
+3. **Phased Rollout**: Deploy gradually with canary releases
+4. **Enhanced Monitoring**: Shorten the monitoring interval during migration
+5. **Clear Decision Criteria**: Define criteria for deciding to rollback in advance
 
 ---
 
-## よくある誤解と注意点
+## Glossary
 
-### 誤解1: 「完璧な設計を最初から作るべき」
+| Term | English | Description |
+|------|---------|-------------|
+| Abstraction | Abstraction | Hiding complex implementation details and exposing only the essential interface |
+| Encapsulation | Encapsulation | Grouping data and operations into a single unit and controlling external access |
+| Cohesion | Cohesion | A measure of how closely related the elements within a module are |
+| Coupling | Coupling | The degree of interdependency between modules |
+| Refactoring | Refactoring | Improving the internal structure of code without changing its external behavior |
+| Test-Driven Development | TDD (Test-Driven Development) | An approach where tests are written before the implementation |
+| Continuous Integration | CI (Continuous Integration) | A practice of frequently integrating code changes and verifying with automated tests |
+| Continuous Delivery | CD (Continuous Delivery) | A practice of maintaining a state where releases can be made at any time |
+| Technical Debt | Technical Debt | Additional work that arises in the future due to choosing short-term solutions |
+| Domain-Driven Design | DDD (Domain-Driven Design) | An approach to designing software based on business domain knowledge |
+| Microservices | Microservices | An architecture that builds applications as a collection of small, independent services |
+| Circuit Breaker | Circuit Breaker | A design pattern to prevent cascading failures |
+| Event-Driven | Event-Driven | An architecture pattern based on event occurrence and processing |
+| Idempotency | Idempotency | The property that the result does not change even if the same operation is executed multiple times |
+| Observability | Observability | The ability to observe the internal state of a system from the outside |
 
-**現実:** 完璧な設計は存在しません。要件の変化に応じて設計も進化させるべきです。最初から完璧を目指すと、過度に複雑な設計になりがちです。
+---
 
-> "Make it work, make it right, make it fast" — Kent Beck
+## Common Misconceptions and Caveats
 
-### 誤解2: 「最新の技術を使えば自動的に良くなる」
+### Misconception 1: "You should create a perfect design from the start"
 
-**現実:** 技術選択はプロジェクトの要件に基づいて行うべきです。最新の技術が必ずしもプロジェクトに最適とは限りません。チームの習熟度、エコシステムの成熟度、サポートの持続性も考慮しましょう。
+**Reality:** There is no perfect design. The design should evolve in response to changing requirements. Aiming for perfection from the start tends to result in an overly complex design.
 
-### 誤解3: 「テストは開発速度を落とす」
+> "Make it work, make it right, make it fast" -- Kent Beck
 
-**現実:** 短期的にはテストの作成に時間がかかりますが、中長期的にはバグの早期発見、リファクタリングの安全性確保、ドキュメントとしての役割により、開発速度の向上に貢献します。
+### Misconception 2: "Using the latest technology automatically makes things better"
+
+**Reality:** Technology choices should be based on project requirements. The latest technology is not necessarily the best fit for your project. Also consider team familiarity, ecosystem maturity, and sustainability of support.
+
+### Misconception 3: "Testing slows down development"
+
+**Reality:** Writing tests takes time in the short term, but in the medium to long term, it contributes to faster development through early bug detection, safe refactoring, and serving as documentation.
 
 ```python
-# テストの ROI（投資対効果）を示す例
+# Example demonstrating the ROI of testing
 class TestROICalculator:
-    """テスト投資対効果の計算"""
+    """Calculate test return on investment"""
 
     def __init__(self):
         self.test_writing_hours = 0
@@ -1397,16 +1406,16 @@ class TestROICalculator:
         self.debug_hours_saved = 0
 
     def add_test_investment(self, hours: float):
-        """テスト作成にかかった時間"""
+        """Time spent writing tests"""
         self.test_writing_hours += hours
 
     def add_bug_prevention(self, count: int, avg_debug_hours: float = 2.0):
-        """テストにより防いだバグ"""
+        """Bugs prevented by tests"""
         self.bugs_prevented += count
         self.debug_hours_saved += count * avg_debug_hours
 
     def calculate_roi(self) -> dict:
-        """ROIの計算"""
+        """Calculate ROI"""
         net_benefit = self.debug_hours_saved - self.test_writing_hours
         roi_percent = (net_benefit / self.test_writing_hours * 100
                       if self.test_writing_hours > 0 else 0)
@@ -1419,112 +1428,112 @@ class TestROICalculator:
         }
 ```
 
-### 誤解4: 「ドキュメントは後から書けばいい」
+### Misconception 4: "Documentation can be written later"
 
-**現実:** コードの意図や設計判断は、書いた直後が最も正確に記録できます。後回しにするほど、正確な情報を失います。
+**Reality:** The intent and design decisions behind code are most accurately recorded right after writing. The longer you postpone it, the more accurate information you lose.
 
-### 誤解5: 「パフォーマンスは常に最優先」
+### Misconception 5: "Performance should always be the top priority"
 
-**現実:** 可読性と保守性を犠牲にした最適化は、長期的にはコストが高くつきます。「推測するな、計測せよ」の原則に従い、ボトルネックを特定してから最適化しましょう。
+**Reality:** Optimization at the expense of readability and maintainability is costly in the long run. Follow the principle of "Don't guess, measure" -- identify bottlenecks before optimizing.
 ---
 
 ## FAQ
 
-### Q1: AIコーディングツールを使うとプログラマーの仕事はなくなるのか？
+### Q1: Will AI coding tools make programmers obsolete?
 
-AIは「コードを書く作業」を効率化するが、「何を作るか決める」「なぜそう設計するか判断する」といった上流工程の重要性はむしろ増している。プログラマーの役割は「コードを書く人」から「AIを使ってソフトウェアを設計・検証する人」へシフトしている。Junior開発者の定型タスクは減るが、Senior開発者の設計・判断力の需要は高まっている。
+AI makes "the act of writing code" more efficient, but the importance of upstream processes such as "deciding what to build" and "judging why to design it that way" is actually increasing. The role of programmers is shifting from "people who write code" to "people who design and verify software using AI." While routine tasks for junior developers are decreasing, the demand for senior developers' design and judgment skills is growing.
 
-### Q2: 社内のセキュリティポリシー上、外部AIサービスにコードを送信できない場合はどうすればよいか？
+### Q2: What should we do if our internal security policy prohibits sending code to external AI services?
 
-選択肢は3つある。(1) オンプレミスLLM（Llama、CodeLlama等）をセルフホスト、(2) VPC内でのAPI利用（AWS Bedrock、Azure OpenAI）、(3) エアギャップ環境向けのローカルモデル（Ollama + Continue.dev）。いずれもクラウド版より性能は落ちるが、セキュリティ要件を満たせる。
+There are three options: (1) Self-host on-premise LLMs (Llama, CodeLlama, etc.), (2) Use APIs within a VPC (AWS Bedrock, Azure OpenAI), (3) Local models for air-gapped environments (Ollama + Continue.dev). All have lower performance than cloud versions but can satisfy security requirements.
 
-### Q3: AIツールの導入効果をどう測定すればよいか？
+### Q3: How should we measure the effectiveness of AI tool adoption?
 
-DORA指標（デプロイ頻度、リードタイム、変更失敗率、復旧時間）をベースラインとして計測し、AI導入前後で比較する。加えて、開発者体験（DX）アンケート、PR作成〜マージまでの時間、テストカバレッジ推移なども有効な指標となる。
+Measure DORA metrics (deployment frequency, lead time, change failure rate, recovery time) as a baseline and compare before and after AI adoption. Additionally, developer experience (DX) surveys, time from PR creation to merge, and test coverage trends are also effective indicators.
 
-### Q4: 複数のAIツールを併用する場合の注意点は？
+### Q4: What should we watch out for when using multiple AI tools together?
 
-主な注意点は3つある。(1) ツール間の補完機能が競合しないよう、一方を無効化する設定が必要（例: Cursor使用時はCopilot拡張を無効化）。(2) コンテキストの送信先が増えるため、セキュリティポリシーの見直しが必要。(3) チーム内でツールの使い分け基準を明確にし、属人化を防ぐ。
+There are three main concerns: (1) Completion features between tools may conflict, requiring one to be disabled (e.g., disable the Copilot extension when using Cursor). (2) Since code is sent to more destinations, security policy review is needed. (3) Establish clear criteria for tool usage within the team to prevent over-reliance on individual preferences.
 
-### Q5: オープンソースのAI開発ツールだけで十分な品質が得られるか？
+### Q5: Can open-source AI development tools alone provide sufficient quality?
 
-2026年時点では、ローカルで動作するOSSモデル（Llama 3.1、Codestral等）は補完精度においてプロプライエタリモデルに劣る場面がある。しかし、Continue.dev（OSS IDE拡張）+ Ollama（ローカル実行環境）+ CodeLlama（コード特化モデル）の組み合わせで、基本的なコード補完・テスト生成には十分な品質が得られる。高度なエージェント機能やマルチファイル理解が必要な場合は、商用ツールが優位である。
+As of 2026, locally running OSS models (Llama 3.1, Codestral, etc.) fall short of proprietary models in completion accuracy in some scenarios. However, the combination of Continue.dev (OSS IDE extension) + Ollama (local execution environment) + CodeLlama (code-specialized model) provides sufficient quality for basic code completion and test generation. For advanced agent features and multi-file understanding, commercial tools have the edge.
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくある問題と解決策
+### Common Issues and Solutions
 
 ```
-問題1: Copilotの補完が表示されない
-─────────────────────────────────
-原因候補:
-  ・ネットワーク接続の問題
-  ・ファイルタイプが除外されている
-  ・認証が切れている
-  ・.copilotignoreで除外されている
+Issue 1: Copilot completions not appearing
+─────────────────────────────────────────
+Possible causes:
+  - Network connection issues
+  - File type is excluded
+  - Authentication has expired
+  - Excluded by .copilotignore
 
-解決手順:
-  1. VSCodeのステータスバーでCopilotアイコンを確認
-  2. "GitHub Copilot: Toggle" コマンドでON/OFF
-  3. 設定 → github.copilot.enable で言語別設定を確認
-  4. ネットワーク接続を確認（VPN設定含む）
-  5. "GitHub Copilot: Sign Out" → 再認証
+Resolution steps:
+  1. Check the Copilot icon in the VSCode status bar
+  2. Toggle with "GitHub Copilot: Toggle" command
+  3. Check Settings -> github.copilot.enable for per-language settings
+  4. Verify network connection (including VPN settings)
+  5. "GitHub Copilot: Sign Out" -> Re-authenticate
 
-問題2: Claude Codeのレスポンスが遅い
-───────────────────────────────────
-原因候補:
-  ・コンテキストが大きすぎる
-  ・APIレート制限に達している
-  ・ネットワーク帯域の問題
+Issue 2: Claude Code responses are slow
+────────────────────────────────────────
+Possible causes:
+  - Context is too large
+  - API rate limit has been reached
+  - Network bandwidth issues
 
-解決手順:
-  1. 不要なファイルをコンテキストから除外
-  2. CLAUDE.mdのサイズを最適化
-  3. claude --model sonnet で軽量モデルに切り替え
-  4. /compact でコンテキストを圧縮
+Resolution steps:
+  1. Exclude unnecessary files from context
+  2. Optimize the size of CLAUDE.md
+  3. Switch to a lighter model with claude --model sonnet
+  4. Compress context with /compact
 
-問題3: Cursorの@codebase検索が不正確
-─────────────────────────────────────
-原因候補:
-  ・インデックスが古い
-  ・大きすぎるファイルが含まれている
-  ・node_modules等が除外されていない
+Issue 3: Cursor @codebase search is inaccurate
+───────────────────────────────────────────────
+Possible causes:
+  - Index is outdated
+  - Overly large files are included
+  - node_modules etc. are not excluded
 
-解決手順:
-  1. Cmd+Shift+P → "Cursor: Reindex Codebase"
-  2. .cursorignoreでnode_modules等を除外
-  3. @fileで特定ファイルを明示的に指定
-  4. プロジェクトサイズが大きい場合はサブディレクトリに分割
+Resolution steps:
+  1. Cmd+Shift+P -> "Cursor: Reindex Codebase"
+  2. Exclude node_modules etc. with .cursorignore
+  3. Explicitly specify files with @file
+  4. Split into subdirectories if the project is too large
 ```
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
-|------|------|
-| ツール分類 | コード補完型、エージェント型、IDE統合型の3カテゴリ |
-| 生産性影響 | 定型作業で80-90%削減、設計系は20-30%削減 |
-| 技術スタック | インフラ→モデル→オーケストレーション→アプリの4層 |
-| 導入のコツ | パイロット→教育→展開→計測のサイクルが重要 |
-| 注意点 | AI出力の検証、セキュリティ、過度な依存の回避 |
-| 今後の方向 | エージェント型の進化により自律的な開発が加速 |
-| ROI | 適切に導入すれば数千%のROIが期待できる |
-| 選定基準 | セキュリティ→機能→運用→コストの順で評価 |
-
----
-
-## 次に読むべきガイド
-
-- [01-ai-dev-mindset.md](./01-ai-dev-mindset.md) ── AI時代の開発者マインドセット
-- [02-prompt-driven-development.md](./02-prompt-driven-development.md) ── プロンプト駆動開発の実践
-- [../01-ai-coding/00-github-copilot.md](../01-ai-coding/00-github-copilot.md) ── GitHub Copilotの効果的な使い方
+| Item | Key Points |
+|------|------------|
+| Tool Classification | Three categories: code completion, agent-based, IDE-integrated |
+| Productivity Impact | 80-90% reduction for routine work, 20-30% for design tasks |
+| Technology Stack | Four layers: Infrastructure -> Model -> Orchestration -> Application |
+| Adoption Tips | Pilot -> Training -> Rollout -> Measurement cycle is essential |
+| Caveats | Verify AI output, security, avoid over-reliance |
+| Future Direction | Evolution of agent-based tools accelerates autonomous development |
+| ROI | Properly adopted, ROI of several thousand percent is achievable |
+| Selection Criteria | Evaluate in order: Security -> Features -> Operations -> Cost |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
+
+- [01-ai-dev-mindset.md](./01-ai-dev-mindset.md) -- Developer Mindset in the AI Era
+- [02-prompt-driven-development.md](./02-prompt-driven-development.md) -- Practicing Prompt-Driven Development
+- [../01-ai-coding/00-github-copilot.md](../01-ai-coding/00-github-copilot.md) -- Effective Use of GitHub Copilot
+
+---
+
+## References
 
 1. GitHub, "Research: Quantifying GitHub Copilot's impact on developer productivity and happiness," 2022. https://github.blog/news-insights/research/research-quantifying-github-copilots-impact-on-developer-productivity-and-happiness/
 2. McKinsey & Company, "The economic potential of generative AI: The next productivity frontier," 2023. https://www.mckinsey.com/capabilities/mckinsey-digital/our-insights/the-economic-potential-of-generative-ai-the-next-productivity-frontier
