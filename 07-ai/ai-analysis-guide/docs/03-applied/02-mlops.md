@@ -1,83 +1,84 @@
-# MLOps — 機械学習の本番運用基盤
+# MLOps — Production Infrastructure for Machine Learning
 
-> 実験管理からモデルデプロイ、本番監視まで、ML モデルを継続的に価値へ変換するためのエンジニアリングプラクティスを体系的に学ぶ。
-
----
-
-## この章で学ぶこと
-
-1. **実験管理** — パラメータ・メトリクス・アーティファクトを再現可能な形で記録し、チームで共有する手法
-2. **モデルデプロイ** — コンテナ化、サービングパターン、CI/CD パイプラインによる安全なリリース戦略
-3. **本番監視** — データドリフト・モデル劣化を検知し、再学習トリガーを自動化するフィードバックループ
-4. **フィーチャーストア** — 特徴量の一元管理と再利用性の確保
-5. **インフラストラクチャ** — Kubernetes、クラウドマネージドサービスの活用パターン
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [コンピュータビジョン](./01-computer-vision.md) の内容を理解していること
+> Systematically learn the engineering practices for continuously converting ML models into value, from experiment management to model deployment and production monitoring.
 
 ---
 
-## 1. MLOps の全体像
+## What You Will Learn in This Chapter
 
-### 1.1 MLOps 成熟度モデル
+1. **Experiment Management** — Techniques for recording parameters, metrics, and artifacts in a reproducible manner and sharing them across teams
+2. **Model Deployment** — Containerization, serving patterns, and safe release strategies using CI/CD pipelines
+3. **Production Monitoring** — Feedback loops that detect data drift and model degradation, and automate retraining triggers
+4. **Feature Store** — Centralized management and reusability of features
+5. **Infrastructure** — Usage patterns for Kubernetes and cloud managed services
+
+
+## Prerequisites
+
+Before reading this guide, having the following knowledge will help deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Computer Vision](./01-computer-vision.md)
+
+---
+
+## 1. Overview of MLOps
+
+### 1.1 MLOps Maturity Model
 
 ```
 +-------------------------------------------------------------------+
-|  Level 0: 手動            全工程を手作業で実行                      |
-|  Level 1: パイプライン化   学習・評価を自動パイプラインで実行        |
-|  Level 2: CI/CD           モデルの継続的学習・デプロイを自動化       |
-|  Level 3: フルループ       監視→再学習→デプロイの完全自動化          |
+|  Level 0: Manual          All processes executed manually          |
+|  Level 1: Pipeline        Training/evaluation via automated pipes  |
+|  Level 2: CI/CD           Automated continuous training & deploy   |
+|  Level 3: Full Loop       Fully automated monitor→retrain→deploy  |
 +-------------------------------------------------------------------+
 ```
 
-各レベルの詳細と到達に必要な要素を以下に示す。
+The details of each level and the elements required to reach them are shown below.
 
-| レベル | 特徴 | 必要なツール/プラクティス | チーム規模 |
-|--------|------|--------------------------|-----------|
-| Level 0 | Jupyter Notebookで手動実験、手動デプロイ | Git、手動テスト | 1-2人 |
-| Level 1 | 学習パイプラインの自動化、実験トラッキング | MLflow、DVC、Airflow | 3-5人 |
-| Level 2 | CI/CDでモデルを自動テスト・デプロイ | GitHub Actions、Docker、K8s | 5-10人 |
-| Level 3 | ドリフト検知→自動再学習→自動デプロイの完全ループ | Evidently、Kubeflow、Feature Store | 10人以上 |
+| Level | Characteristics | Required Tools/Practices | Team Size |
+|-------|----------------|--------------------------|-----------|
+| Level 0 | Manual experimentation in Jupyter Notebook, manual deployment | Git, manual testing | 1-2 people |
+| Level 1 | Automation of training pipelines, experiment tracking | MLflow, DVC, Airflow | 3-5 people |
+| Level 2 | Automated model testing and deployment via CI/CD | GitHub Actions, Docker, K8s | 5-10 people |
+| Level 3 | Full loop of drift detection → auto-retraining → auto-deployment | Evidently, Kubeflow, Feature Store | 10+ people |
 
-### 1.2 MLOps ライフサイクル全体図
+### 1.2 MLOps Lifecycle Overview
 
 ```
 +----------+     +----------+     +----------+     +----------+
-|  データ   | --> |  実験     | --> |  デプロイ  | --> |  監視    |
-|  収集/    |     |  管理/    |     |  サービング |     |  ドリフト |
-|  前処理   |     |  学習     |     |  CI/CD    |     |  検知    |
+|  Data    | --> | Experiment| --> |  Deploy  | --> | Monitor  |
+|  Collect/|     |  Manage/  |     |  Serving |     |  Drift   |
+|  Preproc.|     |  Train    |     |  CI/CD   |     |  Detect  |
 +----------+     +----------+     +----------+     +----------+
      ^                                                    |
-     |              フィードバックループ                     |
+     |              Feedback Loop                         |
      +----------------------------------------------------+
 ```
 
-### 1.3 DevOps と MLOps の比較
+### 1.3 Comparison of DevOps and MLOps
 
-| 観点 | DevOps | MLOps |
-|------|--------|-------|
-| バージョン管理対象 | コード | コード + データ + モデル |
-| テスト | ユニット/統合テスト | + データ検証 + モデル品質テスト |
-| デプロイ対象 | アプリケーション | モデル + サービングインフラ |
-| 監視対象 | レイテンシ、エラー率 | + データドリフト、モデル劣化 |
-| 再デプロイトリガー | コード変更 | コード変更 + データ変化 + 精度低下 |
-| パイプライン複雑度 | 比較的単純（ビルド→テスト→デプロイ） | 複雑（データ取得→前処理→学習→評価→デプロイ→監視） |
-| 成果物の特性 | 決定論的（同じコード=同じ結果） | 確率的（同じコードでもデータで結果が変わる） |
-| ロールバック | コードを戻す | モデル+データ+設定の整合性を維持して戻す |
+| Aspect | DevOps | MLOps |
+|--------|--------|-------|
+| Version Control Target | Code | Code + Data + Model |
+| Testing | Unit/Integration Tests | + Data Validation + Model Quality Tests |
+| Deployment Target | Application | Model + Serving Infrastructure |
+| Monitoring Target | Latency, Error Rate | + Data Drift, Model Degradation |
+| Redeployment Trigger | Code Change | Code Change + Data Change + Accuracy Drop |
+| Pipeline Complexity | Relatively Simple (Build → Test → Deploy) | Complex (Data Ingestion → Preprocessing → Training → Evaluation → Deployment → Monitoring) |
+| Artifact Characteristics | Deterministic (Same Code = Same Result) | Probabilistic (Same Code but Results Vary by Data) |
+| Rollback | Revert Code | Revert While Maintaining Consistency of Model + Data + Config |
 
-### 1.4 MLOps の技術スタック全体像
+### 1.4 MLOps Technology Stack Overview
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                     MLOps プラットフォーム                     │
+│                     MLOps Platform                          │
 ├─────────────┬─────────────┬─────────────┬───────────────────┤
-│ データ管理   │ 実験管理     │ モデル管理   │ 本番運用          │
+│ Data Mgmt   │ Experiment  │ Model Mgmt  │ Production Ops    │
+│             │ Management  │             │                   │
 ├─────────────┼─────────────┼─────────────┼───────────────────┤
 │ DVC         │ MLflow      │ Model       │ Monitoring        │
 │ LakeFS      │ W&B         │ Registry    │ (Evidently,       │
@@ -85,7 +86,7 @@
 │ Great       │ CometML     │  Vertex AI) │  Prometheus)      │
 │ Expectations│             │             │                   │
 ├─────────────┼─────────────┼─────────────┼───────────────────┤
-│ Feature     │ パイプライン  │ サービング   │ フィードバック     │
+│ Feature     │ Pipelines   │ Serving     │ Feedback          │
 │ Store       │             │             │                   │
 ├─────────────┼─────────────┼─────────────┼───────────────────┤
 │ Feast       │ Kubeflow    │ TF Serving  │ Auto Retrain      │
@@ -97,22 +98,22 @@
 
 ---
 
-## 2. 実験管理
+## 2. Experiment Management
 
-### 2.1 MLflow による実験トラッキング
+### 2.1 Experiment Tracking with MLflow
 
 ```python
-# コード例 1: MLflow で実験を記録する
+# Code Example 1: Record experiments with MLflow
 import mlflow
 import mlflow.sklearn
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score, f1_score
 
-# 実験を開始
+# Start an experiment
 mlflow.set_experiment("churn-prediction-v2")
 
 with mlflow.start_run(run_name="rf-baseline"):
-    # ハイパーパラメータを記録
+    # Log hyperparameters
     params = {
         "n_estimators": 100,
         "max_depth": 10,
@@ -121,19 +122,19 @@ with mlflow.start_run(run_name="rf-baseline"):
     }
     mlflow.log_params(params)
 
-    # モデル学習
+    # Train the model
     model = RandomForestClassifier(**params)
     model.fit(X_train, y_train)
 
-    # メトリクスを記録
+    # Log metrics
     y_pred = model.predict(X_test)
     mlflow.log_metric("accuracy", accuracy_score(y_test, y_pred))
     mlflow.log_metric("f1_score", f1_score(y_test, y_pred))
 
-    # モデルをアーティファクトとして保存
+    # Save the model as an artifact
     mlflow.sklearn.log_model(model, "model")
 
-    # 特徴量重要度のプロットを保存
+    # Save feature importance plot
     import matplotlib.pyplot as plt
     fig, ax = plt.subplots()
     ax.barh(feature_names, model.feature_importances_)
@@ -141,23 +142,23 @@ with mlflow.start_run(run_name="rf-baseline"):
     mlflow.log_artifact("feature_importance.png")
 ```
 
-### 2.2 MLflow モデルレジストリの活用
+### 2.2 Using the MLflow Model Registry
 
 ```python
-# コード例 2: MLflow Model Registry でモデルのライフサイクルを管理する
+# Code Example 2: Manage model lifecycle with MLflow Model Registry
 import mlflow
 from mlflow.tracking import MlflowClient
 
 client = MlflowClient()
 
-# モデルを登録
+# Register the model
 model_name = "churn-prediction"
 result = mlflow.register_model(
     model_uri=f"runs:/{run_id}/model",
     name=model_name
 )
 
-# モデルのステージを遷移
+# Transition model stage
 # None → Staging → Production → Archived
 client.transition_model_version_stage(
     name=model_name,
@@ -166,28 +167,28 @@ client.transition_model_version_stage(
     archive_existing_versions=False
 )
 
-# Staging 環境でテストを実施
+# Run tests in the Staging environment
 staging_model = mlflow.pyfunc.load_model(
     model_uri=f"models:/{model_name}/Staging"
 )
 staging_predictions = staging_model.predict(X_staging_test)
 staging_accuracy = accuracy_score(y_staging_test, staging_predictions)
 
-print(f"Staging モデルの精度: {staging_accuracy:.4f}")
+print(f"Staging model accuracy: {staging_accuracy:.4f}")
 
-# 精度が閾値を超えたら Production に昇格
+# Promote to Production if accuracy exceeds threshold
 if staging_accuracy >= 0.85:
     client.transition_model_version_stage(
         name=model_name,
         version=result.version,
         stage="Production",
-        archive_existing_versions=True  # 旧バージョンをアーカイブ
+        archive_existing_versions=True  # Archive old versions
     )
-    print(f"モデル v{result.version} を Production に昇格")
+    print(f"Model v{result.version} promoted to Production")
 else:
-    print(f"精度不足: {staging_accuracy:.4f} < 0.85")
+    print(f"Insufficient accuracy: {staging_accuracy:.4f} < 0.85")
 
-# モデルのメタデータを追加
+# Add model metadata
 client.update_model_version(
     name=model_name,
     version=result.version,
@@ -195,23 +196,23 @@ client.update_model_version(
                 "Trained on 2024-01 data. F1=0.87"
 )
 
-# 全バージョンの一覧を取得
+# List all versions
 for mv in client.search_model_versions(f"name='{model_name}'"):
     print(f"  v{mv.version}: stage={mv.current_stage}, "
           f"created={mv.creation_timestamp}")
 ```
 
-### 2.3 Weights & Biases (W&B) による高度な実験管理
+### 2.3 Advanced Experiment Management with Weights & Biases (W&B)
 
 ```python
-# コード例 3: W&B でハイパーパラメータスイープを実行する
+# Code Example 3: Run a hyperparameter sweep with W&B
 import wandb
 from sklearn.ensemble import GradientBoostingClassifier
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score
 
-# スイープの設定
+# Sweep configuration
 sweep_config = {
-    "method": "bayes",  # ベイズ最適化
+    "method": "bayes",  # Bayesian optimization
     "metric": {
         "name": "val_f1",
         "goal": "maximize"
@@ -227,7 +228,7 @@ sweep_config = {
 }
 
 def train_sweep():
-    """W&B スイープのトレーニング関数"""
+    """Training function for W&B sweep"""
     with wandb.init() as run:
         config = wandb.config
 
@@ -241,7 +242,7 @@ def train_sweep():
         )
         model.fit(X_train, y_train)
 
-        # 検証メトリクス
+        # Validation metrics
         y_pred = model.predict(X_val)
         y_prob = model.predict_proba(X_val)[:, 1]
 
@@ -251,7 +252,7 @@ def train_sweep():
             "val_auc": roc_auc_score(y_val, y_prob),
         })
 
-        # 特徴量重要度テーブル
+        # Feature importance table
         importance_table = wandb.Table(
             columns=["feature", "importance"],
             data=[[name, imp] for name, imp in
@@ -259,30 +260,30 @@ def train_sweep():
         )
         wandb.log({"feature_importance": importance_table})
 
-# スイープを実行
+# Run the sweep
 sweep_id = wandb.sweep(sweep_config, project="churn-prediction")
-wandb.agent(sweep_id, function=train_sweep, count=50)  # 50回試行
+wandb.agent(sweep_id, function=train_sweep, count=50)  # 50 trials
 ```
 
-### 2.4 DVC によるデータバージョン管理
+### 2.4 Data Version Control with DVC
 
 ```bash
-# コード例 4: DVC でデータとモデルをバージョン管理する
+# Code Example 4: Version control data and models with DVC
 
-# 初期化
+# Initialization
 dvc init
 git add .dvc .dvcignore
 git commit -m "Initialize DVC"
 
-# リモートストレージの設定
+# Configure remote storage
 dvc remote add -d myremote s3://my-bucket/dvc-store
 
-# データファイルをDVC管理下に追加
+# Add data files under DVC management
 dvc add data/train.csv
 git add data/train.csv.dvc data/.gitignore
 git commit -m "Add training data v1"
 
-# パイプラインを定義 (dvc.yaml)
+# Define pipeline (dvc.yaml)
 # stages:
 #   preprocess:
 #     cmd: python src/preprocess.py
@@ -294,17 +295,17 @@ git commit -m "Add training data v1"
 #     outs: [models/model.pkl]
 #     metrics: [metrics.json]
 
-# パイプライン実行
+# Run the pipeline
 dvc repro
 
-# 実験の比較
+# Compare experiments
 dvc metrics diff
 ```
 
-### 2.5 DVC パイプライン定義の詳細
+### 2.5 Detailed DVC Pipeline Definition
 
 ```yaml
-# コード例 5: dvc.yaml の完全なパイプライン定義
+# Code Example 5: Complete pipeline definition in dvc.yaml
 stages:
   data_validation:
     cmd: python src/validate_data.py
@@ -383,76 +384,77 @@ stages:
           y: tpr
 ```
 
-### 2.6 実験管理ツール比較
+### 2.6 Experiment Management Tool Comparison
 
-| 機能 | MLflow | Weights & Biases | DVC | Neptune | CometML |
-|------|--------|-------------------|-----|---------|---------|
-| 実験トラッキング | ○ | ○ | ○ | ○ | ○ |
-| モデルレジストリ | ○ | ○ | △ | ○ | ○ |
-| データバージョン管理 | △ | △ | ○ | △ | △ |
-| 可視化ダッシュボード | ○ | ○ (高機能) | △ | ○ | ○ |
-| チームコラボ | ○ | ○ | ○ (Git連携) | ○ | ○ |
-| セルフホスト | ○ | △ (有料) | ○ | △ | △ |
-| ハイパーパラメータ探索 | △ | ○ (Sweep) | △ | ○ | ○ |
-| コスト | 無料 (OSS) | フリーミアム | 無料 (OSS) | フリーミアム | フリーミアム |
+| Feature | MLflow | Weights & Biases | DVC | Neptune | CometML |
+|---------|--------|-------------------|-----|---------|---------|
+| Experiment Tracking | Yes | Yes | Yes | Yes | Yes |
+| Model Registry | Yes | Yes | Partial | Yes | Yes |
+| Data Version Control | Partial | Partial | Yes | Partial | Partial |
+| Visualization Dashboard | Yes | Yes (Advanced) | Partial | Yes | Yes |
+| Team Collaboration | Yes | Yes | Yes (Git Integration) | Yes | Yes |
+| Self-Hosted | Yes | Partial (Paid) | Yes | Partial | Partial |
+| Hyperparameter Search | Partial | Yes (Sweep) | Partial | Yes | Yes |
+| Cost | Free (OSS) | Freemium | Free (OSS) | Freemium | Freemium |
 
 ---
 
-## 3. フィーチャーストア
+## 3. Feature Store
 
-### 3.1 フィーチャーストアの概念
+### 3.1 Feature Store Concept
 
 ```
-フィーチャーストアの役割:
+Role of a Feature Store:
 
-  データソース        フィーチャーストア            利用者
+  Data Sources          Feature Store                Consumers
   +----------+      +------------------+       +-----------+
-  | DB       | ---> |                  | ----> | 学習      |
-  | ログ     |      | 特徴量定義       |       | パイプライン|
-  | API      | ---> | (Feature View)   | ----> +-----------+
-  | ストリーム|      |                  |       | 推論      |
-  +----------+      | オフラインストア  |       | サーバー   |
-                    | (バッチ)         | ----> +-----------+
+  | DB       | ---> |                  | ----> | Training  |
+  | Logs     |      | Feature          |       | Pipeline  |
+  | API      | ---> | Definitions      | ----> +-----------+
+  | Streams  |      | (Feature View)   |       | Inference |
+  +----------+      |                  |       | Server    |
+                    | Offline Store    |       +-----------+
+                    | (Batch)          | ---->
                     |                  |
-                    | オンラインストア  |  ← 低レイテンシ
-                    | (リアルタイム)   |       アクセス
+                    | Online Store     |  ← Low-Latency
+                    | (Real-time)      |       Access
                     +------------------+
 
-  主要メリット:
-  1. 学習と推論で同じ特徴量定義を共有（Training-Serving Skew の防止）
-  2. 特徴量の再利用（チーム間でのシェア）
-  3. ポイントインタイム結合（データリーク防止）
-  4. オンライン/オフラインの自動同期
+  Key Benefits:
+  1. Shared feature definitions between training and serving (prevents Training-Serving Skew)
+  2. Feature reuse (sharing across teams)
+  3. Point-in-time joins (prevents data leakage)
+  4. Automatic online/offline synchronization
 ```
 
-### 3.2 Feast によるフィーチャーストア構築
+### 3.2 Building a Feature Store with Feast
 
 ```python
-# コード例 6: Feast でフィーチャーストアを構築する
+# Code Example 6: Build a feature store with Feast
 from feast import FeatureStore, Entity, Feature, FeatureView
 from feast import FileSource, ValueType
 from feast.types import Float32, Int64, String
 from datetime import timedelta
 
-# データソースの定義
+# Define data source
 customer_source = FileSource(
     path="data/customer_features.parquet",
     timestamp_field="event_timestamp",
     created_timestamp_column="created_timestamp",
 )
 
-# エンティティの定義
+# Define entity
 customer = Entity(
     name="customer_id",
     value_type=ValueType.INT64,
-    description="顧客を一意に識別するID",
+    description="Unique identifier for a customer",
 )
 
-# フィーチャービューの定義
+# Define feature view
 customer_features = FeatureView(
     name="customer_features",
     entities=[customer],
-    ttl=timedelta(days=90),  # 特徴量の有効期限
+    ttl=timedelta(days=90),  # Feature expiration period
     schema=[
         Feature(name="total_purchases", dtype=Int64),
         Feature(name="avg_order_value", dtype=Float32),
@@ -466,10 +468,10 @@ customer_features = FeatureView(
     tags={"team": "data-science", "version": "v2"},
 )
 
-# フィーチャーストアの初期化
+# Initialize feature store
 store = FeatureStore(repo_path="feature_repo/")
 
-# オフラインでの学習用データ取得（ポイントインタイム結合）
+# Retrieve training data offline (point-in-time join)
 import pandas as pd
 
 entity_df = pd.DataFrame({
@@ -490,10 +492,10 @@ training_data = store.get_historical_features(
     ],
 ).to_df()
 
-print(f"学習データ形状: {training_data.shape}")
+print(f"Training data shape: {training_data.shape}")
 print(training_data.head())
 
-# オンラインでのリアルタイム推論用データ取得
+# Retrieve real-time features for online inference
 online_features = store.get_online_features(
     features=[
         "customer_features:total_purchases",
@@ -503,55 +505,56 @@ online_features = store.get_online_features(
     entity_rows=[{"customer_id": 1001}],
 ).to_dict()
 
-print(f"リアルタイム特徴量: {online_features}")
+print(f"Real-time features: {online_features}")
 ```
 
 ---
 
-## 4. モデルデプロイ
+## 4. Model Deployment
 
-### 4.1 サービングパターン
+### 4.1 Serving Patterns
 
 ```
-パターン A: バッチ推論
+Pattern A: Batch Inference
 +--------+     +----------+     +---------+     +--------+
-| データ  | --> | バッチ    | --> | 結果    | --> | DB /   |
-| ストア  |     | ジョブ    |     | テーブル |     | キャッシュ|
+| Data   | --> | Batch    | --> | Result  | --> | DB /   |
+| Store  |     | Job      |     | Table   |     | Cache  |
 +--------+     +----------+     +---------+     +--------+
-                  (定期実行)
+                  (Scheduled)
 
-パターン B: リアルタイム推論
+Pattern B: Real-time Inference
 +--------+     +-----------+     +--------+
-| クライ  | --> | 推論API   | --> | レスポ  |
-| アント  |     | (REST/gRPC)|    | ンス    |
-+--------+     +-----------+     +--------+
+| Client | --> | Inference | --> | Resp-  |
+|        |     | API       |     | onse   |
++--------+     | (REST/gRPC)|    +--------+
+               +-----------+
                   |
               +--------+
-              | モデル  |
-              | サーバ  |
+              | Model  |
+              | Server |
               +--------+
 
-パターン C: ストリーミング推論
+Pattern C: Streaming Inference
 +--------+     +--------+     +-----------+     +--------+
-| イベント | --> | Kafka  | --> | 推論      | --> | 出力   |
-| ソース  |     | 等     |     | ワーカー   |     | トピック |
+| Event  | --> | Kafka  | --> | Inference | --> | Output |
+| Source |     | etc.   |     | Worker    |     | Topic  |
 +--------+     +--------+     +-----------+     +--------+
 
-パターン D: エッジ推論
+Pattern D: Edge Inference
 +--------+     +-----------+     +--------+
-| センサー | --> | エッジ    | --> | ローカル |
-| カメラ  |     | デバイス   |     | アクション|
+| Sensor | --> | Edge      | --> | Local  |
+| Camera |     | Device    |     | Action |
 +--------+     | (TFLite/  |     +--------+
                | ONNX)     |         |
                +-----------+         v
-                                  クラウドに
-                                  結果送信
+                                  Send Results
+                                  to Cloud
 ```
 
-### 4.2 コンテナ化とサービング
+### 4.2 Containerization and Serving
 
 ```python
-# コード例 7: FastAPI + Docker でモデルをサービングする
+# Code Example 7: Serve a model with FastAPI + Docker
 
 # app/main.py
 from fastapi import FastAPI, HTTPException
@@ -566,7 +569,7 @@ from starlette.responses import Response
 
 logger = logging.getLogger(__name__)
 
-# メトリクス定義
+# Metrics definitions
 REQUEST_COUNT = Counter(
     "prediction_requests_total",
     "Total prediction requests",
@@ -578,15 +581,15 @@ REQUEST_LATENCY = Histogram(
     buckets=[0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0]
 )
 
-# モデルのライフサイクル管理
+# Model lifecycle management
 model = None
 model_metadata = {}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """アプリケーションの起動/終了処理"""
+    """Application startup/shutdown handler"""
     global model, model_metadata
-    logger.info("モデルをロード中...")
+    logger.info("Loading model...")
     model = joblib.load("/app/models/model.pkl")
     model_metadata = {
         "model_name": "churn-prediction",
@@ -594,9 +597,9 @@ async def lifespan(app: FastAPI):
         "trained_at": "2024-01-15T10:30:00Z",
         "features": ["feature_0", "feature_1", "feature_2"]
     }
-    logger.info(f"モデルをロード完了: {model_metadata['version']}")
+    logger.info(f"Model loaded: {model_metadata['version']}")
     yield
-    logger.info("アプリケーションを終了")
+    logger.info("Application shutting down")
 
 app = FastAPI(
     title="Churn Prediction API",
@@ -607,11 +610,11 @@ app = FastAPI(
 class PredictionRequest(BaseModel):
     features: list[float] = Field(
         ..., min_length=1,
-        description="入力特徴量のリスト"
+        description="List of input features"
     )
     request_id: str = Field(
         default=None,
-        description="リクエストの追跡用ID"
+        description="Request tracking ID"
     )
 
 class PredictionResponse(BaseModel):
@@ -646,12 +649,12 @@ async def predict(request: PredictionRequest):
         )
     except Exception as e:
         REQUEST_COUNT.labels(status="error").inc()
-        logger.error(f"推論エラー: {str(e)}")
+        logger.error(f"Inference error: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/predict/batch")
 async def predict_batch(requests: list[PredictionRequest]):
-    """バッチ推論エンドポイント"""
+    """Batch inference endpoint"""
     if model is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
 
@@ -684,7 +687,7 @@ async def health():
 
 @app.get("/metrics")
 async def metrics():
-    """Prometheus メトリクスエンドポイント"""
+    """Prometheus metrics endpoint"""
     return Response(
         content=generate_latest(),
         media_type=CONTENT_TYPE_LATEST
@@ -692,23 +695,23 @@ async def metrics():
 
 @app.get("/model/info")
 async def model_info():
-    """モデルのメタデータを返す"""
+    """Return model metadata"""
     return model_metadata
 ```
 
 ```dockerfile
-# コード例 8: マルチステージ Dockerfile
-# ---- ビルドステージ ----
+# Code Example 8: Multi-stage Dockerfile
+# ---- Build Stage ----
 FROM python:3.11-slim AS builder
 
 WORKDIR /build
 COPY requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-# ---- 実行ステージ ----
+# ---- Runtime Stage ----
 FROM python:3.11-slim
 
-# セキュリティ: 非rootユーザーで実行
+# Security: Run as non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser
 
 WORKDIR /app
@@ -716,7 +719,7 @@ COPY --from=builder /install /usr/local
 COPY app/ ./app/
 COPY models/ ./models/
 
-# ヘルスチェック
+# Health check
 HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
@@ -727,10 +730,10 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", \
      "--workers", "4", "--log-level", "info"]
 ```
 
-### 4.3 Kubernetes デプロイメント
+### 4.3 Kubernetes Deployment
 
 ```yaml
-# コード例 9: Kubernetes マニフェスト
+# Code Example 9: Kubernetes manifests
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -820,13 +823,13 @@ spec:
           name: prediction_request_latency_seconds
         target:
           type: AverageValue
-          averageValue: "200m"  # 200msを超えたらスケールアウト
+          averageValue: "200m"  # Scale out when exceeding 200ms
 ```
 
-### 4.4 CI/CD パイプライン (GitHub Actions)
+### 4.4 CI/CD Pipeline (GitHub Actions)
 
 ```yaml
-# コード例 10: .github/workflows/mlops-pipeline.yml
+# Code Example 10: .github/workflows/mlops-pipeline.yml
 name: MLOps Pipeline
 
 on:
@@ -885,7 +888,7 @@ jobs:
       - name: Evaluate model
         run: |
           python src/evaluate.py --threshold 0.85
-          # 精度が閾値を下回ったら失敗
+          # Fail if accuracy is below threshold
 
       - name: Register model
         if: success()
@@ -914,14 +917,14 @@ jobs:
 
       - name: Deploy to Kubernetes (Canary)
         run: |
-          # カナリアデプロイ: 10%のトラフィックを新バージョンに
+          # Canary deploy: Route 10% of traffic to the new version
           kubectl set image deployment/churn-api-canary \
             churn-api=myregistry/churn-api:${{ github.sha }}
 
-          # 5分間の監視
+          # Monitor for 5 minutes
           sleep 300
 
-          # メトリクスを確認してフル展開を決定
+          # Check metrics and decide on full rollout
           python src/check_canary_metrics.py
 
       - name: Full rollout
@@ -931,15 +934,15 @@ jobs:
             churn-api=myregistry/churn-api:${{ github.sha }}
 ```
 
-### 4.5 BentoML によるモデルパッケージング
+### 4.5 Model Packaging with BentoML
 
 ```python
-# コード例 11: BentoML でモデルをパッケージ化する
+# Code Example 11: Package a model with BentoML
 import bentoml
 from bentoml.io import JSON, NumpyNdarray
 import numpy as np
 
-# モデルを BentoML に保存
+# Save model to BentoML
 saved_model = bentoml.sklearn.save_model(
     "churn_classifier",
     model,
@@ -956,9 +959,9 @@ saved_model = bentoml.sklearn.save_model(
         "preprocessor": preprocessor,
     }
 )
-print(f"保存: {saved_model}")
+print(f"Saved: {saved_model}")
 
-# Bentoサービスの定義
+# Define Bento service
 runner = bentoml.sklearn.get("churn_classifier:latest").to_runner()
 svc = bentoml.Service("churn_prediction_service", runners=[runner])
 
@@ -983,19 +986,19 @@ docker:
   distro: "debian"
 """
 
-# ビルドとデプロイ
+# Build and deploy
 # bentoml build
 # bentoml containerize churn_prediction_service:latest
 ```
 
 ---
 
-## 5. 本番監視
+## 5. Production Monitoring
 
-### 5.1 データドリフト検知
+### 5.1 Data Drift Detection
 
 ```python
-# コード例 12: Evidently でデータドリフトを検知する
+# Code Example 12: Detect data drift with Evidently
 from evidently.report import Report
 from evidently.metric_preset import (
     DataDriftPreset, TargetDriftPreset,
@@ -1007,11 +1010,11 @@ from evidently.metrics import (
 )
 import pandas as pd
 
-# 学習時のデータ (リファレンス) と本番データ (カレント)
+# Training data (reference) and production data (current)
 reference_data = pd.read_csv("data/train.csv")
 current_data = pd.read_csv("data/production_latest.csv")
 
-# 詳細なドリフトレポートを生成
+# Generate a detailed drift report
 report = Report(metrics=[
     DataDriftPreset(),
     TargetDriftPreset(),
@@ -1025,33 +1028,33 @@ report.run(
     current_data=current_data
 )
 
-# HTML レポートとして保存
+# Save as HTML report
 report.save_html("drift_report.html")
 
-# プログラムから結果を取得
+# Retrieve results programmatically
 result = report.as_dict()
 drift_detected = result["metrics"][0]["result"]["dataset_drift"]
 drift_share = result["metrics"][0]["result"]["share_of_drifted_columns"]
 
-print(f"データセットドリフト: {'検知' if drift_detected else '未検知'}")
-print(f"ドリフトした特徴量の割合: {drift_share:.1%}")
+print(f"Dataset drift: {'Detected' if drift_detected else 'Not detected'}")
+print(f"Share of drifted features: {drift_share:.1%}")
 
 if drift_detected:
-    print("WARNING: データドリフトを検知しました")
-    # ドリフトした特徴量の詳細を取得
+    print("WARNING: Data drift detected")
+    # Get details of drifted features
     drifted_columns = [
         col for col, info in
         result["metrics"][0]["result"]["drift_by_columns"].items()
         if info["drift_detected"]
     ]
-    print(f"ドリフトした特徴量: {drifted_columns}")
+    print(f"Drifted features: {drifted_columns}")
     trigger_retraining_pipeline()
 ```
 
-### 5.2 Evidently によるリアルタイム監視
+### 5.2 Real-time Monitoring with Evidently
 
 ```python
-# コード例 13: Evidently のテストスイートで品質ゲートを構築する
+# Code Example 13: Build quality gates with Evidently test suites
 from evidently.test_suite import TestSuite
 from evidently.tests import (
     TestShareOfDriftedColumns,
@@ -1062,21 +1065,21 @@ from evidently.tests import (
     TestColumnShareOfMissingValues,
 )
 
-# テストスイートの定義
+# Define test suite
 test_suite = TestSuite(tests=[
-    # ドリフトテスト
-    TestShareOfDriftedColumns(lt=0.3),  # 30%未満の特徴量がドリフト
+    # Drift tests
+    TestShareOfDriftedColumns(lt=0.3),  # Less than 30% of features drifted
     TestColumnDrift(column_name="age"),
     TestColumnDrift(column_name="income"),
 
-    # データ品質テスト
-    TestShareOfMissingValues(lt=0.05),  # 欠損率5%未満
+    # Data quality tests
+    TestShareOfMissingValues(lt=0.05),  # Missing rate below 5%
     TestColumnShareOfMissingValues(
-        column_name="customer_id", eq=0  # customer_id は欠損不可
+        column_name="customer_id", eq=0  # customer_id must not be missing
     ),
 
-    # 統計テスト
-    TestMeanInNSigmas(column_name="age", n=3),  # 平均が3σ以内
+    # Statistical tests
+    TestMeanInNSigmas(column_name="age", n=3),  # Mean within 3 sigma
     TestMeanInNSigmas(column_name="income", n=3),
 ])
 
@@ -1085,7 +1088,7 @@ test_suite.run(
     current_data=current_data
 )
 
-# 結果の判定
+# Evaluate results
 test_results = test_suite.as_dict()
 all_passed = all(
     test["status"] == "SUCCESS"
@@ -1097,24 +1100,24 @@ if not all_passed:
         test for test in test_results["tests"]
         if test["status"] == "FAIL"
     ]
-    print(f"失敗したテスト数: {len(failed_tests)}")
+    print(f"Number of failed tests: {len(failed_tests)}")
     for test in failed_tests:
         print(f"  - {test['name']}: {test['description']}")
 
-    # CI/CD パイプラインを停止するか、アラートを発火
+    # Stop the CI/CD pipeline or fire an alert
     send_alert_to_slack(failed_tests)
 ```
 
-### 5.3 モデル劣化の監視ダッシュボード
+### 5.3 Model Degradation Monitoring Dashboard
 
 ```python
-# コード例 14: Prometheus + Grafana 用のメトリクスを公開する
+# Code Example 14: Expose metrics for Prometheus + Grafana
 from prometheus_client import Counter, Histogram, Gauge, start_http_server
 import time
 import numpy as np
 from collections import deque
 
-# メトリクス定義
+# Metrics definitions
 PREDICTION_COUNT = Counter(
     'model_predictions_total',
     'Total number of predictions',
@@ -1141,10 +1144,10 @@ FEATURE_DISTRIBUTION = Histogram(
     buckets=[-3, -2, -1, -0.5, 0, 0.5, 1, 2, 3]
 )
 
-# メトリクスサーバー起動 (ポート 8001)
+# Start metrics server (port 8001)
 start_http_server(8001)
 
-# ローリングウィンドウで精度を追跡
+# Track accuracy with a rolling window
 class RollingAccuracyTracker:
     def __init__(self, window_size=1000):
         self.predictions = deque(maxlen=window_size)
@@ -1153,7 +1156,7 @@ class RollingAccuracyTracker:
     def update(self, prediction, actual):
         self.predictions.append(prediction)
         self.actuals.append(actual)
-        if len(self.predictions) >= 100:  # 最低100件で計算
+        if len(self.predictions) >= 100:  # Calculate with at least 100 samples
             accuracy = np.mean(
                 np.array(list(self.predictions)) == np.array(list(self.actuals))
             )
@@ -1166,17 +1169,17 @@ def predict_with_monitoring(model, features, model_version="v1.0"):
 
     prediction = model.predict(features)
 
-    # レイテンシを記録
+    # Record latency
     latency = time.time() - start_time
     PREDICTION_LATENCY.observe(latency)
 
-    # 予測カウントを記録
+    # Record prediction count
     PREDICTION_COUNT.labels(
         model_version=model_version,
         prediction_class=str(prediction)
     ).inc()
 
-    # 特徴量の分布を記録
+    # Record feature distributions
     for i, feature_name in enumerate(feature_names):
         FEATURE_DISTRIBUTION.labels(
             feature_name=feature_name
@@ -1185,10 +1188,10 @@ def predict_with_monitoring(model, features, model_version="v1.0"):
     return prediction
 ```
 
-### 5.4 自動再学習パイプライン
+### 5.4 Automatic Retraining Pipeline
 
 ```python
-# コード例 15: ドリフト検知から自動再学習までのパイプライン
+# Code Example 15: Pipeline from drift detection to automatic retraining
 import schedule
 import time
 from datetime import datetime, timedelta
@@ -1197,7 +1200,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class AutoRetrainingPipeline:
-    """ドリフト検知ベースの自動再学習パイプライン"""
+    """Drift detection-based automatic retraining pipeline"""
 
     def __init__(self, config):
         self.config = config
@@ -1205,46 +1208,46 @@ class AutoRetrainingPipeline:
         self.consecutive_drift_count = 0
 
     def check_and_retrain(self):
-        """定期的にドリフトを検知し、必要に応じて再学習する"""
-        logger.info(f"ドリフトチェック開始: {datetime.now()}")
+        """Periodically detect drift and retrain if necessary"""
+        logger.info(f"Drift check started: {datetime.now()}")
 
-        # 1. 直近の本番データを取得
+        # 1. Fetch recent production data
         current_data = self.fetch_production_data(
             since=datetime.now() - timedelta(days=1)
         )
 
-        # 2. ドリフト検知
+        # 2. Detect drift
         drift_result = self.detect_drift(current_data)
 
         if drift_result["drift_detected"]:
             self.consecutive_drift_count += 1
             logger.warning(
-                f"ドリフト検知 (連続{self.consecutive_drift_count}回): "
-                f"ドリフト特徴量={drift_result['drifted_features']}"
+                f"Drift detected (consecutive count: {self.consecutive_drift_count}): "
+                f"Drifted features={drift_result['drifted_features']}"
             )
 
-            # 3. 連続で閾値を超えたら再学習をトリガー
+            # 3. Trigger retraining if threshold exceeded consecutively
             if self.consecutive_drift_count >= self.config["retrain_threshold"]:
-                logger.info("自動再学習をトリガーします")
+                logger.info("Triggering automatic retraining")
                 self.trigger_retraining()
                 self.consecutive_drift_count = 0
         else:
             self.consecutive_drift_count = 0
-            logger.info("ドリフト未検知")
+            logger.info("No drift detected")
 
-        # 4. 精度ベースのチェック
+        # 4. Accuracy-based check
         if drift_result.get("accuracy_below_threshold", False):
             logger.warning(
-                f"精度低下検知: {drift_result['current_accuracy']:.4f} "
+                f"Accuracy degradation detected: {drift_result['current_accuracy']:.4f} "
                 f"< {self.config['accuracy_threshold']}"
             )
             self.trigger_retraining()
 
     def trigger_retraining(self):
-        """再学習パイプラインを実行する"""
-        logger.info("再学習パイプラインを開始")
+        """Execute the retraining pipeline"""
+        logger.info("Starting retraining pipeline")
 
-        # Kubeflow Pipeline をトリガー
+        # Trigger Kubeflow Pipeline
         import kfp
         client = kfp.Client(host=self.config["kubeflow_host"])
         run = client.create_run_from_pipeline_func(
@@ -1257,11 +1260,11 @@ class AutoRetrainingPipeline:
                 "model_name": self.config["model_name"],
             },
         )
-        logger.info(f"再学習ジョブ開始: run_id={run.run_id}")
+        logger.info(f"Retraining job started: run_id={run.run_id}")
         self.last_retrain_date = datetime.now()
 
     def fetch_production_data(self, since):
-        """本番データベースから直近データを取得"""
+        """Fetch recent data from the production database"""
         import pandas as pd
         query = f"""
         SELECT * FROM predictions
@@ -1272,7 +1275,7 @@ class AutoRetrainingPipeline:
         return pd.read_sql(query, self.config["db_connection"])
 
     def detect_drift(self, current_data):
-        """ドリフト検知を実行"""
+        """Execute drift detection"""
         from evidently.report import Report
         from evidently.metric_preset import DataDriftPreset
 
@@ -1292,16 +1295,16 @@ class AutoRetrainingPipeline:
             "drift_share": result["metrics"][0]["result"]["share_of_drifted_columns"],
         }
 
-# 定期実行のスケジューリング
+# Schedule periodic execution
 pipeline = AutoRetrainingPipeline(config={
-    "retrain_threshold": 3,  # 3回連続ドリフトで再学習
+    "retrain_threshold": 3,  # Retrain after 3 consecutive drift detections
     "accuracy_threshold": 0.85,
     "model_name": "churn-prediction",
     "kubeflow_host": "https://kubeflow.example.com",
     "db_connection": "postgresql://...",
 })
 
-# 毎日9時にドリフトチェック
+# Run drift check daily at 9:00 AM
 schedule.every().day.at("09:00").do(pipeline.check_and_retrain)
 
 while True:
@@ -1311,25 +1314,25 @@ while True:
 
 ---
 
-## 6. データ検証とテスト
+## 6. Data Validation and Testing
 
-### 6.1 Great Expectations によるデータ検証
+### 6.1 Data Validation with Great Expectations
 
 ```python
-# コード例 16: Great Expectations でデータ品質ゲートを構築する
+# Code Example 16: Build data quality gates with Great Expectations
 import great_expectations as gx
 
-# データコンテキストの初期化
+# Initialize data context
 context = gx.get_context()
 
-# データソースの設定
+# Configure data source
 datasource = context.sources.add_pandas("my_datasource")
 data_asset = datasource.add_dataframe_asset("training_data")
 
-# Expectation Suite の定義
+# Define Expectation Suite
 suite = context.add_expectation_suite("training_data_quality")
 
-# Expectation の追加
+# Add expectations
 suite.add_expectation(
     gx.expectations.ExpectColumnValuesToNotBeNull(column="customer_id")
 )
@@ -1359,7 +1362,7 @@ suite.add_expectation(
     )
 )
 
-# バリデーション実行
+# Run validation
 batch_request = data_asset.build_batch_request(dataframe=training_df)
 results = context.run_validation_operator(
     "action_list_operator",
@@ -1368,24 +1371,24 @@ results = context.run_validation_operator(
 
 if not results["success"]:
     failed = [r for r in results["results"] if not r["success"]]
-    print(f"データ検証失敗: {len(failed)}件")
+    print(f"Data validation failed: {len(failed)} issues")
     for f in failed:
         print(f"  - {f['expectation_config']['expectation_type']}: "
-              f"{f['result']['unexpected_count']}件の違反")
-    raise ValueError("データ品質基準を満たしていません")
+              f"{f['result']['unexpected_count']} violations")
+    raise ValueError("Data quality standards not met")
 ```
 
-### 6.2 モデルテスト戦略
+### 6.2 Model Testing Strategy
 
 ```python
-# コード例 17: ML モデルの包括的テスト
+# Code Example 17: Comprehensive ML model testing
 import pytest
 import numpy as np
 import joblib
 from sklearn.metrics import accuracy_score, f1_score
 
 class TestModelQuality:
-    """モデルの品質を検証するテストスイート"""
+    """Test suite for verifying model quality"""
 
     @pytest.fixture
     def model(self):
@@ -1400,28 +1403,28 @@ class TestModelQuality:
         return X, y
 
     def test_minimum_accuracy(self, model, test_data):
-        """最低精度の確認"""
+        """Verify minimum accuracy"""
         X, y = test_data
         y_pred = model.predict(X)
         accuracy = accuracy_score(y, y_pred)
-        assert accuracy >= 0.85, f"精度が閾値未満: {accuracy:.4f} < 0.85"
+        assert accuracy >= 0.85, f"Accuracy below threshold: {accuracy:.4f} < 0.85"
 
     def test_minimum_f1_score(self, model, test_data):
-        """最低F1スコアの確認"""
+        """Verify minimum F1 score"""
         X, y = test_data
         y_pred = model.predict(X)
         f1 = f1_score(y, y_pred, average="weighted")
-        assert f1 >= 0.80, f"F1が閾値未満: {f1:.4f} < 0.80"
+        assert f1 >= 0.80, f"F1 below threshold: {f1:.4f} < 0.80"
 
     def test_no_data_leakage(self, model, test_data):
-        """テストデータに対して過度に高い精度でないことを確認"""
+        """Verify accuracy is not suspiciously high on test data"""
         X, y = test_data
         y_pred = model.predict(X)
         accuracy = accuracy_score(y, y_pred)
-        assert accuracy < 0.99, f"精度が高すぎる（データリークの疑い）: {accuracy:.4f}"
+        assert accuracy < 0.99, f"Accuracy too high (suspected data leakage): {accuracy:.4f}"
 
     def test_prediction_latency(self, model, test_data):
-        """推論レイテンシの確認"""
+        """Verify inference latency"""
         import time
         X, y = test_data
 
@@ -1430,63 +1433,63 @@ class TestModelQuality:
             model.predict(single_sample)
         avg_latency = (time.time() - start) / 100
 
-        assert avg_latency < 0.01, f"推論が遅すぎる: {avg_latency:.4f}s > 0.01s"
+        assert avg_latency < 0.01, f"Inference too slow: {avg_latency:.4f}s > 0.01s"
 
     def test_fairness_across_groups(self, model, test_data):
-        """グループ間の公平性を確認"""
+        """Verify fairness across groups"""
         X, y = test_data
         y_pred = model.predict(X)
 
-        # グループ別精度の確認（例: 性別）
+        # Check accuracy by group (e.g., gender)
         if "gender" in X.columns:
             for group in X["gender"].unique():
                 mask = X["gender"] == group
                 group_acc = accuracy_score(y[mask], y_pred[mask])
                 assert group_acc >= 0.75, (
-                    f"グループ '{group}' の精度が低すぎる: {group_acc:.4f}"
+                    f"Accuracy too low for group '{group}': {group_acc:.4f}"
                 )
 
     def test_model_robustness(self, model, test_data):
-        """ノイズに対するロバスト性を確認"""
+        """Verify robustness against noise"""
         X, y = test_data
         baseline_pred = model.predict(X)
 
-        # 小さなノイズを追加
+        # Add small noise
         noise = np.random.normal(0, 0.01, X.shape)
         X_noisy = X + noise
         noisy_pred = model.predict(X_noisy)
 
-        # 予測の安定性を確認
+        # Verify prediction stability
         stability = np.mean(baseline_pred == noisy_pred)
         assert stability >= 0.95, (
-            f"ノイズに対する安定性が低い: {stability:.4f} < 0.95"
+            f"Low stability against noise: {stability:.4f} < 0.95"
         )
 
     def test_prediction_distribution(self, model, test_data):
-        """予測分布が想定範囲内か確認"""
+        """Verify prediction distribution is within expected range"""
         X, y = test_data
         y_pred = model.predict(X)
 
-        # 各クラスの予測割合をチェック
+        # Check prediction ratio for each class
         for cls in np.unique(y):
             pred_rate = np.mean(y_pred == cls)
             true_rate = np.mean(y == cls)
             assert abs(pred_rate - true_rate) < 0.2, (
-                f"クラス{cls}の予測率が大きく乖離: "
-                f"予測={pred_rate:.3f}, 実際={true_rate:.3f}"
+                f"Prediction rate for class {cls} significantly diverges: "
+                f"predicted={pred_rate:.3f}, actual={true_rate:.3f}"
             )
 ```
 
 ---
 
-## 7. A/Bテストとカナリアデプロイ
+## 7. A/B Testing and Canary Deployment
 
-### 7.1 モデルの A/B テスト実装
+### 7.1 A/B Testing Implementation for Models
 
 ```python
-# コード例 18: Istio を使ったトラフィック分割
+# Code Example 18: Traffic splitting with Istio
 """
-# Istio VirtualService でトラフィックを分割
+# Split traffic with Istio VirtualService
 
 apiVersion: networking.istio.io/v1beta1
 kind: VirtualService
@@ -1515,12 +1518,12 @@ spec:
           weight: 10
 """
 
-# A/B テストの統計的判定
+# Statistical evaluation of A/B tests
 import numpy as np
 from scipy import stats
 
 class ABTestAnalyzer:
-    """モデル A/B テストの統計分析"""
+    """Statistical analysis of model A/B tests"""
 
     def __init__(self, alpha=0.05, min_sample_size=1000):
         self.alpha = alpha
@@ -1528,8 +1531,8 @@ class ABTestAnalyzer:
 
     def calculate_sample_size(self, baseline_rate, mde, alpha=0.05, power=0.8):
         """
-        必要なサンプルサイズを計算する。
-        mde: 最小検出可能効果 (Minimum Detectable Effect)
+        Calculate the required sample size.
+        mde: Minimum Detectable Effect
         """
         from statsmodels.stats.power import NormalIndPower
         analysis = NormalIndPower()
@@ -1544,11 +1547,11 @@ class ABTestAnalyzer:
 
     def analyze(self, control_conversions, control_total,
                 treatment_conversions, treatment_total):
-        """A/B テストの結果を分析する"""
+        """Analyze A/B test results"""
         control_rate = control_conversions / control_total
         treatment_rate = treatment_conversions / treatment_total
 
-        # z検定
+        # Z-test
         pooled_rate = (control_conversions + treatment_conversions) / \
                       (control_total + treatment_total)
         se = np.sqrt(pooled_rate * (1 - pooled_rate) *
@@ -1556,10 +1559,10 @@ class ABTestAnalyzer:
         z_stat = (treatment_rate - control_rate) / se
         p_value = 2 * (1 - stats.norm.cdf(abs(z_stat)))
 
-        # 効果量
+        # Effect size
         lift = (treatment_rate - control_rate) / control_rate
 
-        # 信頼区間
+        # Confidence interval
         ci_95 = stats.norm.interval(
             0.95,
             loc=treatment_rate - control_rate,
@@ -1575,238 +1578,238 @@ class ABTestAnalyzer:
             "significant": p_value < self.alpha,
             "confidence_interval_95": ci_95,
             "recommendation": (
-                "Treatment を採用" if p_value < self.alpha and lift > 0
-                else "Control を維持"
+                "Adopt treatment" if p_value < self.alpha and lift > 0
+                else "Keep control"
             ),
         }
 
-# 使用例
+# Usage example
 analyzer = ABTestAnalyzer(alpha=0.05)
 
-# 必要サンプルサイズの計算
+# Calculate required sample size
 n = analyzer.calculate_sample_size(
-    baseline_rate=0.05,  # 基準コンバージョン率 5%
-    mde=0.005,           # 0.5%の改善を検出したい
+    baseline_rate=0.05,  # Baseline conversion rate of 5%
+    mde=0.005,           # Want to detect a 0.5% improvement
 )
-print(f"必要サンプルサイズ（各群）: {n:,}")
+print(f"Required sample size (per group): {n:,}")
 
-# A/B テスト結果の分析
+# Analyze A/B test results
 result = analyzer.analyze(
-    control_conversions=520, control_total=10000,   # 旧モデル
-    treatment_conversions=580, treatment_total=10000  # 新モデル
+    control_conversions=520, control_total=10000,   # Old model
+    treatment_conversions=580, treatment_total=10000  # New model
 )
-print(f"コントロール率: {result['control_rate']:.4f}")
-print(f"トリートメント率: {result['treatment_rate']:.4f}")
-print(f"リフト: {result['lift_pct']}")
-print(f"p値: {result['p_value']:.4f}")
-print(f"統計的有意: {result['significant']}")
-print(f"推奨: {result['recommendation']}")
+print(f"Control rate: {result['control_rate']:.4f}")
+print(f"Treatment rate: {result['treatment_rate']:.4f}")
+print(f"Lift: {result['lift_pct']}")
+print(f"P-value: {result['p_value']:.4f}")
+print(f"Statistically significant: {result['significant']}")
+print(f"Recommendation: {result['recommendation']}")
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-patterns
 
-### アンチパターン 1: 「ノートブック本番投入」
-
-```
-[誤り] Jupyter Notebook をそのまま本番環境で cron 実行する
-
-問題点:
-- 再現性がない（セルの実行順序依存、グローバル変数汚染）
-- テスト不可能
-- バージョン管理が困難（JSON差分が読めない）
-- エラーハンドリングが不十分
-- メモリリークのリスク
-
-[正解] ノートブックは探索・プロトタイプ用途に限定し、
-       本番コードは .py モジュールに変換する
-
-  notebook (探索) --> Python モジュール --> テスト --> パイプライン --> デプロイ
-
-具体的な移行手順:
-  1. ノートブックのコードを関数/クラスに分割
-  2. 設定値を外部ファイル (YAML/JSON) に分離
-  3. ユニットテストを追加
-  4. ロギングとエラーハンドリングを追加
-  5. CLIインターフェースを作成 (argparse/click)
-  6. CI/CDパイプラインに組み込み
-```
-
-### アンチパターン 2: 「モデルを置いて放置」
+### Anti-pattern 1: "Deploying Notebooks to Production"
 
 ```
-[誤り] モデルを一度デプロイしたら監視せずに放置する
+[Wrong] Running Jupyter Notebooks directly in production via cron
 
-実際に起きる問題:
-1. データドリフト: ユーザー行動が変化し、学習時と入力分布が乖離
-2. コンセプトドリフト: 予測対象自体の定義が変化
-3. 無言の劣化: エラーは出ないが精度が徐々に低下
-4. 季節性: 年末年始やセール時期で入力パターンが変化
+Problems:
+- No reproducibility (dependent on cell execution order, global variable pollution)
+- Cannot be tested
+- Difficult to version control (JSON diffs are unreadable)
+- Insufficient error handling
+- Risk of memory leaks
 
-  デプロイ時精度: 92% --> 3ヶ月後: 85% --> 6ヶ月後: 72%
-  (誰も気づかないまま劣化)
+[Correct] Limit notebooks to exploration/prototyping purposes,
+         and convert production code to .py modules
 
-[正解] 監視 + 自動再学習のフィードバックループを構築する
-  - 定期的なドリフト検知
-  - 精度閾値を設定し、下回ったらアラート
-  - 自動再学習パイプラインをトリガー
+  notebook (exploration) --> Python modules --> tests --> pipeline --> deploy
+
+Concrete migration steps:
+  1. Split notebook code into functions/classes
+  2. Extract configuration values to external files (YAML/JSON)
+  3. Add unit tests
+  4. Add logging and error handling
+  5. Create a CLI interface (argparse/click)
+  6. Integrate into CI/CD pipeline
 ```
 
-### アンチパターン 3: 「Training-Serving Skew」
+### Anti-pattern 2: "Deploy and Forget"
 
 ```
-[誤り] 学習時と推論時で異なる前処理を適用する
+[Wrong] Deploying a model once and leaving it unmonitored
 
-具体例:
-  学習時: StandardScaler → model.fit(scaled_data)
-  推論時: MinMaxScaler → model.predict(scaled_data)  # 異なるスケーラー!
+Problems that actually occur:
+1. Data drift: User behavior changes, causing divergence from training distribution
+2. Concept drift: The definition of the prediction target itself changes
+3. Silent degradation: No errors but accuracy gradually declines
+4. Seasonality: Input patterns change during holidays and sale periods
 
-  学習時: 特徴量 A,B,C,D を使用
-  推論時: 特徴量 A,B,C を使用（D を忘れた）
+  Accuracy at deploy: 92% --> After 3 months: 85% --> After 6 months: 72%
+  (Degradation goes unnoticed)
 
-  学習時: Python 3.10 + pandas 1.5
-  推論時: Python 3.11 + pandas 2.0（挙動が微妙に異なる）
-
-[正解]
-  1. 前処理をモデルと一緒に保存する（sklearn Pipeline, preprocessor pickle）
-  2. フィーチャーストアで特徴量定義を統一する
-  3. Docker イメージでランタイム環境を固定する
-  4. テストで学習/推論の一致を検証する
+[Correct] Build a feedback loop with monitoring + automatic retraining
+  - Periodic drift detection
+  - Set accuracy thresholds and alert when breached
+  - Trigger automatic retraining pipeline
 ```
 
-### アンチパターン 4: 「巨大モデルの無計画デプロイ」
+### Anti-pattern 3: "Training-Serving Skew"
 
 ```
-[誤り] 10GBのモデルをそのまま推論APIにデプロイする
+[Wrong] Applying different preprocessing at training time vs. inference time
 
-問題点:
-- コールドスタートに数分かかる
-- メモリ使用量が膨大
-- スケールアウトのコストが高い
-- レイテンシが要件を満たさない
+Concrete examples:
+  Training: StandardScaler → model.fit(scaled_data)
+  Inference: MinMaxScaler → model.predict(scaled_data)  # Different scaler!
 
-[正解] モデル最適化を行ってからデプロイする
-  - 量子化 (INT8/FP16): サイズ50-75%削減、速度2-4倍向上
-  - プルーニング: 不要なパラメータを削除
-  - 蒸留 (Distillation): 小さいモデルに知識を転写
-  - ONNX変換: フレームワーク最適化の恩恵
-  - バッチ推論: リアルタイム性不要なら一括処理
+  Training: Used features A, B, C, D
+  Inference: Used features A, B, C (forgot D)
+
+  Training: Python 3.10 + pandas 1.5
+  Inference: Python 3.11 + pandas 2.0 (subtly different behavior)
+
+[Correct]
+  1. Save preprocessing together with the model (sklearn Pipeline, preprocessor pickle)
+  2. Unify feature definitions with a feature store
+  3. Lock runtime environment with Docker images
+  4. Verify training/inference consistency with tests
+```
+
+### Anti-pattern 4: "Deploying Large Models Without Planning"
+
+```
+[Wrong] Deploying a 10GB model directly to an inference API
+
+Problems:
+- Cold start takes several minutes
+- Enormous memory usage
+- Scale-out costs are high
+- Latency doesn't meet requirements
+
+[Correct] Optimize the model before deploying
+  - Quantization (INT8/FP16): 50-75% size reduction, 2-4x speed improvement
+  - Pruning: Remove unnecessary parameters
+  - Distillation: Transfer knowledge to a smaller model
+  - ONNX conversion: Benefit from framework optimizations
+  - Batch inference: Process in bulk when real-time is not required
 ```
 
 ---
 
 ## 9. FAQ
 
-### Q1: 小規模チームでも MLOps は必要ですか？
+### Q1: Is MLOps necessary even for small teams?
 
-**A:** はい、ただし成熟度レベルを段階的に上げることが重要です。最低限として以下を推奨します。
+**A:** Yes, but it is important to raise the maturity level gradually. At minimum, we recommend the following:
 
-- **Level 0 からの脱却**: MLflow などで実験を記録する（数時間で導入可能）
-- **データバージョン管理**: DVC で学習データを管理する
-- **モデルレジストリ**: どのモデルが本番にあるか追跡する
+- **Moving beyond Level 0**: Record experiments with MLflow or similar (can be set up in a few hours)
+- **Data version control**: Manage training data with DVC
+- **Model registry**: Track which model is in production
 
-小規模チームでは Level 1（パイプライン化）まで到達できれば十分な場合が多いです。
+For small teams, reaching Level 1 (pipeline automation) is often sufficient.
 
-**段階的導入ロードマップ（推奨）:**
+**Recommended gradual adoption roadmap:**
 
-| 期間 | 施策 | 工数 |
-|------|------|------|
-| 1週目 | MLflow 導入、実験記録を開始 | 4時間 |
-| 2週目 | DVC でデータバージョン管理 | 8時間 |
-| 1ヶ月目 | モデルの Docker コンテナ化 | 16時間 |
-| 2ヶ月目 | CI/CD で自動テスト・デプロイ | 24時間 |
-| 3ヶ月目 | Evidently でドリフト監視 | 16時間 |
+| Period | Action | Effort |
+|--------|--------|--------|
+| Week 1 | Introduce MLflow, start recording experiments | 4 hours |
+| Week 2 | Data version control with DVC | 8 hours |
+| Month 1 | Containerize the model with Docker | 16 hours |
+| Month 2 | Automated testing and deployment with CI/CD | 24 hours |
+| Month 3 | Drift monitoring with Evidently | 16 hours |
 
-### Q2: モデルの A/B テストはどう実装しますか？
+### Q2: How should I implement A/B testing for models?
 
-**A:** 一般的なアプローチは以下の通りです。
+**A:** Common approaches are as follows:
 
-1. **トラフィック分割**: ロードバランサーやサービスメッシュ（Istio 等）でトラフィックを分割
-2. **シャドーモード**: 新モデルに本番トラフィックのコピーを流し、結果を記録するだけ（ユーザーには影響なし）
-3. **カナリアリリース**: 段階的にトラフィック比率を増やす（5% → 25% → 50% → 100%）
+1. **Traffic splitting**: Split traffic using a load balancer or service mesh (e.g., Istio)
+2. **Shadow mode**: Send a copy of production traffic to the new model, recording results only (no impact on users)
+3. **Canary release**: Gradually increase the traffic ratio (5% -> 25% -> 50% -> 100%)
 
-統計的に有意な差が確認できるまでテストを継続し、メトリクス（精度、ビジネス KPI）で判断します。
+Continue the test until a statistically significant difference is confirmed, and make decisions based on metrics (accuracy, business KPIs).
 
-### Q3: GPU サーバーのコストを最適化するには？
+### Q3: How can I optimize GPU server costs?
 
-**A:** 以下の戦略が有効です。
+**A:** The following strategies are effective:
 
-- **スポットインスタンス**: 学習ジョブにスポット/プリエンプティブルインスタンスを使用（最大 90% コスト削減）
-- **オートスケーリング**: 推論サーバーをトラフィックに応じてスケールイン/アウト
-- **モデル最適化**: 量子化（INT8）、蒸留、プルーニングで推論コストを削減
-- **バッチ推論**: リアルタイム性が不要な場合はバッチ処理で GPU 利用効率を向上
-- **マルチテナンシー**: NVIDIA Triton の Dynamic Batching で GPU 利用率を最大化
-- **Serverless GPU**: Modal、RunPod 等のサーバーレス GPU で使用分のみ課金
+- **Spot instances**: Use spot/preemptible instances for training jobs (up to 90% cost reduction)
+- **Auto-scaling**: Scale inference servers in/out based on traffic
+- **Model optimization**: Reduce inference costs with quantization (INT8), distillation, and pruning
+- **Batch inference**: Improve GPU utilization with batch processing when real-time is not required
+- **Multi-tenancy**: Maximize GPU utilization with NVIDIA Triton's Dynamic Batching
+- **Serverless GPU**: Pay only for what you use with Modal, RunPod, and other serverless GPU services
 
-### Q4: オンプレミスとクラウドのどちらで MLOps を構築すべきですか？
+### Q4: Should I build MLOps on-premises or in the cloud?
 
-**A:** 判断基準は以下の通りです。
+**A:** The decision criteria are as follows:
 
-| 観点 | オンプレミス | クラウド |
-|------|-------------|---------|
-| 初期コスト | 高い（GPU 購入） | 低い（従量課金） |
-| 運用コスト | 低い（長期運用） | 使用量依存 |
-| スケーラビリティ | 限定的 | 高い |
-| データセキュリティ | 完全制御 | 共有責任 |
-| 立ち上げ速度 | 遅い | 速い |
+| Aspect | On-premises | Cloud |
+|--------|-------------|-------|
+| Initial Cost | High (GPU purchase) | Low (pay-per-use) |
+| Operational Cost | Low (long-term operation) | Usage-dependent |
+| Scalability | Limited | High |
+| Data Security | Full control | Shared responsibility |
+| Time to Launch | Slow | Fast |
 
-多くのチームは「クラウドで始めて、規模が大きくなったらハイブリッド」が現実的です。
+For most teams, "start in the cloud and move to hybrid as you scale" is the most practical approach.
 
-### Q5: MLOps プラットフォームを自前構築するべきですか？
+### Q5: Should I build an MLOps platform from scratch?
 
-**A:** 基本的にはマネージドサービスの活用を推奨します。自前構築は運用コストが高く、本来の ML 開発に充てるべきリソースを消費します。
+**A:** Generally, we recommend leveraging managed services. Building from scratch has high operational costs and consumes resources that should be devoted to actual ML development.
 
-- **AWS**: SageMaker（学習・デプロイ統合）
-- **GCP**: Vertex AI（AutoML + カスタムモデル）
-- **Azure**: Azure ML（Enterprise 統合）
-- **OSS**: Kubeflow + MLflow + Feast の組み合わせ
+- **AWS**: SageMaker (integrated training and deployment)
+- **GCP**: Vertex AI (AutoML + custom models)
+- **Azure**: Azure ML (enterprise integration)
+- **OSS**: Combination of Kubeflow + MLflow + Feast
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Building practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how things work.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What common mistakes do beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping straight to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 10. まとめ
-
-| カテゴリ | ポイント | 代表ツール |
-|----------|----------|------------|
-| 実験管理 | パラメータ・メトリクス・アーティファクトを記録 | MLflow, W&B |
-| データ管理 | データのバージョン管理と再現性確保 | DVC, LakeFS |
-| データ検証 | データ品質ゲートの自動化 | Great Expectations, Evidently |
-| フィーチャーストア | 特徴量の一元管理と再利用 | Feast, Tecton |
-| モデルレジストリ | モデルのライフサイクル管理 | MLflow, Vertex AI |
-| パイプライン | 学習・評価の自動化 | Kubeflow, Airflow, Dagster |
-| サービング | リアルタイム/バッチ推論の提供 | TF Serving, Triton, BentoML |
-| CI/CD | モデルの継続的デプロイ | GitHub Actions, Jenkins |
-| 監視 | ドリフト検知・精度監視 | Evidently, Grafana |
-| フィードバック | 自動再学習トリガー | Kubeflow Pipelines |
+Knowledge of this topic is frequently applied in daily development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## 10. Summary
 
-- [責任ある AI](./03-responsible-ai.md) — 公平性・説明可能性・プライバシーの実装
-- データ前処理と特徴量エンジニアリング — MLOps パイプラインに組み込む前処理設計
-- システム設計ガイド — MLOps インフラの設計原則
+| Category | Key Point | Representative Tools |
+|----------|-----------|---------------------|
+| Experiment Management | Record parameters, metrics, and artifacts | MLflow, W&B |
+| Data Management | Data version control and reproducibility | DVC, LakeFS |
+| Data Validation | Automated data quality gates | Great Expectations, Evidently |
+| Feature Store | Centralized feature management and reuse | Feast, Tecton |
+| Model Registry | Model lifecycle management | MLflow, Vertex AI |
+| Pipelines | Automation of training and evaluation | Kubeflow, Airflow, Dagster |
+| Serving | Real-time/batch inference delivery | TF Serving, Triton, BentoML |
+| CI/CD | Continuous model deployment | GitHub Actions, Jenkins |
+| Monitoring | Drift detection and accuracy monitoring | Evidently, Grafana |
+| Feedback | Automatic retraining triggers | Kubeflow Pipelines |
 
 ---
 
-## 参考文献
+## Recommended Next Guides
+
+- [Responsible AI](./03-responsible-ai.md) — Implementing fairness, explainability, and privacy
+- Data Preprocessing and Feature Engineering — Preprocessing design for MLOps pipelines
+- System Design Guide — Design principles for MLOps infrastructure
+
+---
+
+## References
 
 1. Sculley, D. et al. (2015). "Hidden Technical Debt in Machine Learning Systems." *Advances in Neural Information Processing Systems 28 (NIPS 2015)*. Google. https://papers.nips.cc/paper/5656-hidden-technical-debt-in-machine-learning-systems
 2. Google Cloud. (2023). "MLOps: Continuous delivery and automation pipelines in machine learning." *Google Cloud Architecture Center*. https://cloud.google.com/architecture/mlops-continuous-delivery-and-automation-pipelines-in-machine-learning
