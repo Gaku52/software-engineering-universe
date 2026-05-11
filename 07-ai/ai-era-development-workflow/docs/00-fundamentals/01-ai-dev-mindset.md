@@ -1,91 +1,97 @@
-# AI時代のマインドセット ── 人間+AIの協業原則
+# Mindset for the AI Era -- Principles of Human-AI Collaboration
 
-> AI開発ツールを最大限に活かすために必要な思考法と協業原則を学び、人間の判断力とAIの処理能力を最適に組み合わせるフレームワークを身につける。
-
----
-
-## この章で学ぶこと
-
-1. **人間とAIの役割分担** ── 各々が得意な領域を理解し、最適な分業体制を設計する
-2. **AI時代に求められるスキルセット** ── コーディング以外に伸ばすべき能力を特定する
-3. **協業のメンタルモデル** ── AIをツールではなくペアプログラミングのパートナーとして捉える方法
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [AI開発の現状 ── ツール全体像と生産性への影響](./00-ai-dev-landscape.md) の内容を理解していること
+> Learn the thinking methods and collaboration principles needed to maximize AI development tools, and acquire a framework for optimally combining human judgment and AI processing capabilities.
 
 ---
 
-## 1. 人間とAIの最適な役割分担
+## What You Will Learn in This Chapter
 
-### 1.1 能力比較マップ
+1. **Division of Roles Between Humans and AI** -- Understand each party's strengths and design an optimal division of labor
+2. **Skill Sets Required in the AI Era** -- Identify capabilities to develop beyond coding
+3. **Mental Model for Collaboration** -- How to view AI not as a tool but as a pair programming partner
 
-```
-        人間が優位                    AIが優位
-  ◄─────────────────────────────────────────────►
 
-  ┌─────────────┐                ┌──────────────┐
-  │ 要件の本質   │                │ パターン認識  │
-  │ を見抜く     │                │ と再現       │
-  ├─────────────┤                ├──────────────┤
-  │ ステークホル │                │ 大量コードの  │
-  │ ダーとの対話 │                │ 高速生成     │
-  ├─────────────┤                ├──────────────┤
-  │ 倫理的判断   │                │ 網羅的な      │
-  │ と責任       │                │ テスト生成   │
-  ├─────────────┤                ├──────────────┤
-  │ 創造的な     │                │ ドキュメント  │
-  │ 問題解決     │                │ の自動生成   │
-  ├─────────────┤                ├──────────────┤
-  │ ドメイン     │                │ リファクタリ  │
-  │ 知識の統合   │                │ ングの実行   │
-  └─────────────┘                └──────────────┘
-```
+## Prerequisites
 
-### 1.2 協業モデルの3段階
+Before reading this guide, having the following knowledge will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Understanding of the content in [AI Development Landscape -- Tool Overview and Impact on Productivity](./00-ai-dev-landscape.md)
+
+---
+
+## 1. Optimal Division of Roles Between Humans and AI
+
+### 1.1 Capability Comparison Map
 
 ```
-レベル1: 道具として使う (Tool)
-┌──────────┐     指示      ┌──────────┐
-│  人間    │──────────────►│   AI     │
-│ (主導)   │◄──────────────│ (実行)   │
-└──────────┘     結果      └──────────┘
+        Human Advantage                AI Advantage
+  <------------------------------------------------------->
 
-レベル2: パートナーとして使う (Partner)
-┌──────────┐  ◄── 対話 ──► ┌──────────┐
-│  人間    │               │   AI     │
-│ (判断)   │  ◄── 提案 ──► │ (支援)   │
-└──────────┘               └──────────┘
+  +---------------+                +----------------+
+  | Discerning    |                | Pattern        |
+  | the essence   |                | recognition    |
+  | of requirements|               | and reproduction|
+  +---------------+                +----------------+
+  | Dialogue with |                | High-speed     |
+  | stakeholders  |                | bulk code      |
+  |               |                | generation     |
+  +---------------+                +----------------+
+  | Ethical        |                | Comprehensive  |
+  | judgment and   |                | test           |
+  | responsibility |                | generation     |
+  +---------------+                +----------------+
+  | Creative       |                | Automated      |
+  | problem        |                | documentation  |
+  | solving        |                | generation     |
+  +---------------+                +----------------+
+  | Domain         |                | Executing      |
+  | knowledge      |                | refactoring    |
+  | integration    |                |                |
+  +---------------+                +----------------+
+```
 
-レベル3: オーケストレーターとして使う (Orchestrator)
-┌──────────┐     設計      ┌──────────┐
-│  人間    │──────────────►│   AI     │
-│ (設計者) │◄──────────────│(実行部隊)│
-└──────────┘   成果物      └──────────┘
-                            │ Agent 1
-                            │ Agent 2
-                            │ Agent 3
+### 1.2 Three Stages of the Collaboration Model
+
+```
+Level 1: Using as a Tool (Tool)
++----------+     Instruction  +----------+
+|  Human   |----------------->|    AI    |
+| (Leads)  |<-----------------|(Executes)|
++----------+      Result      +----------+
+
+Level 2: Using as a Partner (Partner)
++----------+  <-- Dialogue --> +----------+
+|  Human   |                  |    AI    |
+| (Judges) |  <-- Proposals ->| (Assists)|
++----------+                  +----------+
+
+Level 3: Using as an Orchestrator (Orchestrator)
++----------+      Design      +----------+
+|  Human   |----------------->|    AI    |
+|(Designer)|<-----------------|(Execution|
++----------+    Deliverables  |  Squad)  |
+                              +----------+
+                               | Agent 1
+                               | Agent 2
+                               | Agent 3
 ```
 
 ---
 
-## 2. AI時代に必要なスキルの変化
+## 2. Changes in Skills Needed for the AI Era
 
-### コード例1: 従来型 vs AI時代の開発アプローチ
+### Code Example 1: Traditional vs. AI-Era Development Approach
 
 ```python
-# ===== 従来型: コードをゼロから書く =====
-# 開発者が全てのロジックを手動で実装
+# ===== Traditional: Writing code from scratch =====
+# Developer manually implements all logic
 import csv
 from datetime import datetime
 
 def parse_sales_report(filepath: str) -> dict:
-    """売上レポートを解析する（手動実装: 約30分）"""
+    """Parse a sales report (manual implementation: ~30 minutes)"""
     results = {'total': 0, 'by_category': {}, 'by_month': {}}
     with open(filepath, 'r') as f:
         reader = csv.DictReader(f)
@@ -101,125 +107,126 @@ def parse_sales_report(filepath: str) -> dict:
             results['by_month'][month] += amount
     return results
 
-# ===== AI時代: 意図を伝えてAIに実装させる =====
-# プロンプト: "CSVの売上レポートを解析して、合計・カテゴリ別・月別に集計する関数を作って。
-#             pandasを使い、型ヒント付き、エラーハンドリングも入れて"
-# → AIが完全な実装を生成 → 人間がレビュー（約5分）
+# ===== AI Era: Communicate intent and let AI implement =====
+# Prompt: "Create a function that parses a CSV sales report and aggregates
+#          by total, category, and month.
+#          Use pandas, include type hints and error handling."
+# -> AI generates complete implementation -> Human reviews (~5 minutes)
 ```
 
-### コード例2: プロンプトエンジニアリングの実践
+### Code Example 2: Practicing Prompt Engineering
 
 ```python
-# AI時代の中核スキル: 的確なプロンプト設計
+# Core skill of the AI era: Precise prompt design
 
-# BAD: 曖昧なプロンプト
-prompt_bad = "APIを作って"
+# BAD: Vague prompt
+prompt_bad = "Create an API"
 
-# GOOD: 構造化されたプロンプト
+# GOOD: Structured prompt
 prompt_good = """
-以下の仕様でREST APIエンドポイントを実装してください。
+Please implement a REST API endpoint with the following specifications.
 
-## 要件
-- フレームワーク: FastAPI
-- エンドポイント: POST /api/v1/orders
-- 認証: Bearer Token (JWT)
-- バリデーション: Pydanticモデル
+## Requirements
+- Framework: FastAPI
+- Endpoint: POST /api/v1/orders
+- Authentication: Bearer Token (JWT)
+- Validation: Pydantic model
 
-## データモデル
-- order_id: UUID (自動生成)
-- user_id: int (必須)
-- items: list[OrderItem] (1個以上)
-- total: Decimal (自動計算)
+## Data Model
+- order_id: UUID (auto-generated)
+- user_id: int (required)
+- items: list[OrderItem] (1 or more)
+- total: Decimal (auto-calculated)
 
-## エラーハンドリング
-- 401: 認証エラー
-- 422: バリデーションエラー
-- 500: サーバーエラー
+## Error Handling
+- 401: Authentication error
+- 422: Validation error
+- 500: Server error
 
-## テスト
-- 正常系1件、異常系2件のテストも含めてください
+## Tests
+- Please include 1 happy path test and 2 error case tests
 """
 ```
 
-### コード例3: AIとの対話的開発
+### Code Example 3: Interactive Development with AI
 
 ```python
-# Step 1: AIに初期設計を依頼
+# Step 1: Request initial design from AI
 """
-プロンプト: "ECサイトの在庫管理システムのドメインモデルを設計して。
-DDDのパターンを使って、集約ルートはInventoryItem"
-"""
-
-# Step 2: AIの出力をレビューし、フィードバック
-"""
-プロンプト: "良い設計だが、以下を修正して:
-1. 在庫引当(reservation)の概念が抜けている
-2. 楽観ロックのバージョン管理を追加して
-3. ドメインイベントを発行するようにして"
+Prompt: "Design a domain model for an e-commerce inventory management system.
+Use DDD patterns with InventoryItem as the aggregate root."
 """
 
-# Step 3: 段階的に品質を高める
+# Step 2: Review AI output and provide feedback
 """
-プロンプト: "このドメインモデルに対して:
-1. 不変条件(invariant)を明示的にassertで表現して
-2. Property-based testingのテストを追加して
-3. 並行性のテストシナリオも作って"
+Prompt: "Good design, but please modify the following:
+1. The concept of inventory reservation is missing
+2. Add optimistic lock version management
+3. Make it emit domain events"
+"""
+
+# Step 3: Incrementally improve quality
+"""
+Prompt: "For this domain model:
+1. Express invariants explicitly with assert statements
+2. Add property-based testing tests
+3. Create concurrency test scenarios as well"
 """
 ```
 
-### コード例4: メタ認知 ── AIの出力を評価する力
+### Code Example 4: Metacognition -- The Ability to Evaluate AI Output
 
 ```python
-# AIが生成したコードを評価するチェックリスト
+# Checklist for evaluating AI-generated code
 
 class AIOutputReviewer:
-    """AIの出力をレビューするための思考フレームワーク"""
+    """Thinking framework for reviewing AI output"""
 
     CHECKLIST = {
-        "正確性": [
-            "ビジネスロジックは要件を正しく反映しているか？",
-            "エッジケースは考慮されているか？",
-            "型の整合性は取れているか？",
+        "Accuracy": [
+            "Does the business logic correctly reflect the requirements?",
+            "Are edge cases considered?",
+            "Is type consistency maintained?",
         ],
-        "セキュリティ": [
-            "入力のバリデーションは適切か？",
-            "SQLインジェクション等の脆弱性はないか？",
-            "秘密情報がハードコードされていないか？",
+        "Security": [
+            "Is input validation adequate?",
+            "Are there vulnerabilities such as SQL injection?",
+            "Are secrets not hardcoded?",
         ],
-        "保守性": [
-            "命名は明確で一貫しているか？",
-            "単一責任の原則を守っているか？",
-            "テスタブルな構造になっているか？",
+        "Maintainability": [
+            "Are names clear and consistent?",
+            "Does it follow the single responsibility principle?",
+            "Is the structure testable?",
         ],
-        "性能": [
-            "N+1クエリは発生しないか？",
-            "不要なメモリ確保はないか？",
-            "適切なインデックスを前提としているか？",
+        "Performance": [
+            "Will N+1 queries occur?",
+            "Are there unnecessary memory allocations?",
+            "Does it assume appropriate indexes?",
         ],
     }
 
     @staticmethod
     def review(code: str, context: str) -> list[str]:
-        """レビュー観点に基づいてチェック項目を返す"""
+        """Return check items based on review perspectives"""
         findings = []
         for category, checks in AIOutputReviewer.CHECKLIST.items():
             for check in checks:
-                # 人間が各項目を確認
+                # Human verifies each item
                 findings.append(f"[{category}] {check}")
         return findings
 ```
 
-### コード例5: AI活用の成熟度モデル
+### Code Example 5: AI Utilization Maturity Model
 
 ```typescript
-// 開発者のAI活用成熟度を段階的に表現
+// Expressing developer AI utilization maturity in stages
 
 enum AIMaturityLevel {
-  LEVEL_1 = "コード補完の受け入れ",      // Tab補完を使う程度
-  LEVEL_2 = "チャットでの質問",          // エラー解決を聞く
-  LEVEL_3 = "プロンプト駆動開発",        // 仕様からコード生成
-  LEVEL_4 = "AIペアプログラミング",      // 対話的に設計・実装
-  LEVEL_5 = "AIオーケストレーション",    // 複数AIエージェントを統括
+  LEVEL_1 = "Code completion acceptance",     // Using Tab completion
+  LEVEL_2 = "Asking questions via chat",      // Asking about error resolution
+  LEVEL_3 = "Prompt-driven development",      // Code generation from specs
+  LEVEL_4 = "AI pair programming",            // Interactive design & implementation
+  LEVEL_5 = "AI orchestration",               // Managing multiple AI agents
 }
 
 interface DeveloperProfile {
@@ -228,146 +235,150 @@ interface DeveloperProfile {
   aiSkills: string[];
 }
 
-// レベル5の開発者プロファイル例
+// Example profile of a Level 5 developer
 const seniorAIDev: DeveloperProfile = {
   maturityLevel: AIMaturityLevel.LEVEL_5,
   coreSkills: [
-    "アーキテクチャ設計",
-    "ドメインモデリング",
-    "技術選定と評価",
-    "チームリーディング",
+    "Architecture design",
+    "Domain modeling",
+    "Technology selection and evaluation",
+    "Team leadership",
   ],
   aiSkills: [
-    "プロンプトエンジニアリング",
-    "AIエージェントの設計",
-    "MCP/Tool Useの構築",
-    "AI出力の品質保証",
+    "Prompt engineering",
+    "AI agent design",
+    "MCP/Tool Use construction",
+    "AI output quality assurance",
   ],
 };
 ```
 
 ---
 
-## 3. マインドセットの転換
+## 3. Mindset Shift
 
-### 3.1 従来型 vs AI時代の開発者マインド比較
+### 3.1 Traditional vs. AI-Era Developer Mindset Comparison
 
-| 観点 | 従来型マインド | AI時代のマインド |
-|------|---------------|-----------------|
-| コードの価値 | 書いたコード量が成果 | 解決した問題が成果 |
-| 学習方法 | 文法・APIを暗記 | パターンと原則を理解 |
-| 生産性 | タイピング速度が重要 | 問題定義の精度が重要 |
-| 品質保証 | 手動レビューが中心 | AI+人間のハイブリッド |
-| キャリア | 特定言語の専門家 | 問題解決の専門家 |
-| 失敗への態度 | 失敗を恐れて慎重に | 高速に試行錯誤 |
+| Aspect | Traditional Mindset | AI-Era Mindset |
+|--------|-------------------|---------------|
+| Code value | Lines of code written = output | Problems solved = output |
+| Learning method | Memorize syntax and APIs | Understand patterns and principles |
+| Productivity | Typing speed matters | Precision of problem definition matters |
+| Quality assurance | Manual review is central | Hybrid of AI + human |
+| Career | Expert in a specific language | Expert in problem solving |
+| Attitude toward failure | Cautious, fearing failure | Rapid trial and error |
 
-### 3.2 伸ばすべきスキル vs 委譲すべきスキル
+### 3.2 Skills to Develop vs. Skills to Delegate
 
-| 伸ばすべきスキル | 理由 | AIに委譲すべき作業 | 理由 |
-|----------------|------|-------------------|------|
-| 問題分解能力 | AIに正しい指示を出す基盤 | ボイラープレート生成 | パターン化された作業 |
-| システム思考 | 全体最適を判断できる | テスト網羅 | 機械的に列挙可能 |
-| コミュニケーション | AIも人間も動かす力 | ドキュメント初稿 | 構造化された作業 |
-| ドメイン知識 | AIが持てない深い理解 | コード変換・移行 | ルールベースの変換 |
-| 批判的思考 | AI出力の品質を判断 | 定型リファクタリング | パターンマッチング |
-
----
-
-## 4. 実践的な協業パターン
-
-### パターン図: AI協業ワークフロー
-
-```
-┌─────────────────────────────────────────────────────┐
-│                AI協業ワークフロー                      │
-│                                                     │
-│  [人間] 問題定義・要件整理                            │
-│     │                                               │
-│     ▼                                               │
-│  [人間] プロンプト設計・コンテキスト提供               │
-│     │                                               │
-│     ▼                                               │
-│  [AI]  初期コード生成・設計提案                       │
-│     │                                               │
-│     ▼                                               │
-│  [人間] レビュー・フィードバック ◄─── 繰り返し        │
-│     │                             │                 │
-│     ▼                             │                 │
-│  [AI]  修正・改善 ────────────────┘                  │
-│     │                                               │
-│     ▼                                               │
-│  [人間] 最終判断・責任を持ってマージ                   │
-│     │                                               │
-│     ▼                                               │
-│  [AI]  テスト生成・ドキュメント生成                    │
-│     │                                               │
-│     ▼                                               │
-│  [人間] デプロイ判断・モニタリング                     │
-└─────────────────────────────────────────────────────┘
-```
+| Skills to Develop | Reason | Tasks to Delegate to AI | Reason |
+|-------------------|--------|------------------------|--------|
+| Problem decomposition | Foundation for giving correct instructions to AI | Boilerplate generation | Patterned tasks |
+| Systems thinking | Ability to judge global optimization | Test coverage | Mechanically enumerable |
+| Communication | Power to motivate both AI and humans | Document first drafts | Structured tasks |
+| Domain knowledge | Deep understanding AI cannot possess | Code conversion/migration | Rule-based transformation |
+| Critical thinking | Judging AI output quality | Routine refactoring | Pattern matching |
 
 ---
 
-## 5. AI協業のフレームワーク詳細
+## 4. Practical Collaboration Patterns
 
-### 5.1 HALO フレームワーク（Human-AI Leverage Optimization）
+### Pattern Diagram: AI Collaboration Workflow
 
 ```
-┌──────────────────────────────────────────────────────┐
-│          HALO フレームワーク                            │
-│          (Human-AI Leverage Optimization)              │
-│                                                      │
-│  H: Human Judgment（人間の判断）                       │
-│  ┌──────────────────────────────────────────────┐    │
-│  │ ・要件の妥当性判断                             │    │
-│  │ ・アーキテクチャ上の意思決定                    │    │
-│  │ ・ステークホルダーとの合意形成                  │    │
-│  │ ・リスク評価とトレードオフ判断                  │    │
-│  └──────────────────────────────────────────────┘    │
-│                                                      │
-│  A: AI Acceleration（AI加速）                          │
-│  ┌──────────────────────────────────────────────┐    │
-│  │ ・コード生成・テスト生成の高速化               │    │
-│  │ ・パターン認識による問題発見                    │    │
-│  │ ・ドキュメントの自動生成・更新                  │    │
-│  │ ・反復的なリファクタリング作業                  │    │
-│  └──────────────────────────────────────────────┘    │
-│                                                      │
-│  L: Leverage Point（レバレッジポイント）                │
-│  ┌──────────────────────────────────────────────┐    │
-│  │ ・プロンプト設計（人間→AI の最大のレバー）      │    │
-│  │ ・レビュープロセス（AI→人間 の品質フィルター）  │    │
-│  │ ・フィードバックループ（継続的改善のエンジン）  │    │
-│  └──────────────────────────────────────────────┘    │
-│                                                      │
-│  O: Outcome Ownership（成果の責任）                    │
-│  ┌──────────────────────────────────────────────┐    │
-│  │ ・最終品質の責任は常に人間にある               │    │
-│  │ ・AIの出力に対する説明責任を果たす             │    │
-│  │ ・チームとしてのガバナンスを維持               │    │
-│  └──────────────────────────────────────────────┘    │
-└──────────────────────────────────────────────────────┘
++-----------------------------------------------------+
+|            AI Collaboration Workflow                  |
+|                                                      |
+|  [Human] Problem definition & requirements gathering |
+|     |                                                |
+|     v                                                |
+|  [Human] Prompt design & context provision           |
+|     |                                                |
+|     v                                                |
+|  [AI]  Initial code generation & design proposals    |
+|     |                                                |
+|     v                                                |
+|  [Human] Review & feedback <--- Iterate              |
+|     |                        |                       |
+|     v                        |                       |
+|  [AI]  Corrections & improvements ---+               |
+|     |                                                |
+|     v                                                |
+|  [Human] Final judgment & responsible merge          |
+|     |                                                |
+|     v                                                |
+|  [AI]  Test generation & documentation generation    |
+|     |                                                |
+|     v                                                |
+|  [Human] Deployment decision & monitoring            |
++-----------------------------------------------------+
 ```
 
-### 5.2 タスク分類マトリクス
+---
+
+## 5. AI Collaboration Framework Details
+
+### 5.1 HALO Framework (Human-AI Leverage Optimization)
+
+```
++------------------------------------------------------+
+|          HALO Framework                               |
+|          (Human-AI Leverage Optimization)              |
+|                                                       |
+|  H: Human Judgment                                    |
+|  +------------------------------------------------+  |
+|  | - Judging the validity of requirements          |  |
+|  | - Architectural decision making                 |  |
+|  | - Building consensus with stakeholders          |  |
+|  | - Risk assessment and trade-off decisions        |  |
+|  +------------------------------------------------+  |
+|                                                       |
+|  A: AI Acceleration                                   |
+|  +------------------------------------------------+  |
+|  | - Accelerating code and test generation          |  |
+|  | - Problem discovery through pattern recognition  |  |
+|  | - Automated documentation generation & updates   |  |
+|  | - Repetitive refactoring tasks                   |  |
+|  +------------------------------------------------+  |
+|                                                       |
+|  L: Leverage Point                                    |
+|  +------------------------------------------------+  |
+|  | - Prompt design (the greatest lever from        |  |
+|  |   human to AI)                                  |  |
+|  | - Review process (quality filter from AI        |  |
+|  |   to human)                                     |  |
+|  | - Feedback loop (engine for continuous          |  |
+|  |   improvement)                                  |  |
+|  +------------------------------------------------+  |
+|                                                       |
+|  O: Outcome Ownership                                 |
+|  +------------------------------------------------+  |
+|  | - Responsibility for final quality always lies   |  |
+|  |   with the human                                |  |
+|  | - Fulfill accountability for AI output           |  |
+|  | - Maintain governance as a team                  |  |
+|  +------------------------------------------------+  |
++------------------------------------------------------+
+```
+
+### 5.2 Task Classification Matrix
 
 ```python
-# AI協業のタスク分類と最適な協業パターン
+# Task classification and optimal collaboration patterns for AI collaboration
 
 from enum import Enum
 from dataclasses import dataclass
 
 class TaskComplexity(Enum):
-    LOW = "低"       # ボイラープレート、定型変換
-    MEDIUM = "中"    # 機能実装、テスト作成
-    HIGH = "高"      # アーキテクチャ設計、最適化
-    CRITICAL = "最重要"  # セキュリティ、決済
+    LOW = "Low"           # Boilerplate, routine conversion
+    MEDIUM = "Medium"     # Feature implementation, test creation
+    HIGH = "High"         # Architecture design, optimization
+    CRITICAL = "Critical" # Security, payments
 
 class AIContribution(Enum):
-    GENERATE = "生成"      # AIが初稿を作る
-    ASSIST = "支援"        # AIが提案、人間が判断
-    VERIFY = "検証"        # 人間が作り、AIがチェック
-    NONE = "不使用"        # 人間のみで対応
+    GENERATE = "Generate"  # AI creates the first draft
+    ASSIST = "Assist"      # AI proposes, human decides
+    VERIFY = "Verify"      # Human creates, AI checks
+    NONE = "None"          # Human only
 
 @dataclass
 class TaskClassification:
@@ -378,148 +389,150 @@ class TaskClassification:
     human_time_with_ai: str
     risk_level: str
 
-# タスク分類の具体例
+# Concrete examples of task classification
 TASK_CLASSIFICATIONS = [
     TaskClassification(
-        task_type="CRUD API実装",
+        task_type="CRUD API implementation",
         complexity=TaskComplexity.LOW,
         ai_contribution=AIContribution.GENERATE,
-        human_time_without_ai="2-4時間",
-        human_time_with_ai="15-30分",
-        risk_level="低"
+        human_time_without_ai="2-4 hours",
+        human_time_with_ai="15-30 minutes",
+        risk_level="Low"
     ),
     TaskClassification(
-        task_type="ビジネスロジック実装",
+        task_type="Business logic implementation",
         complexity=TaskComplexity.MEDIUM,
         ai_contribution=AIContribution.ASSIST,
-        human_time_without_ai="4-8時間",
-        human_time_with_ai="1-2時間",
-        risk_level="中"
+        human_time_without_ai="4-8 hours",
+        human_time_with_ai="1-2 hours",
+        risk_level="Medium"
     ),
     TaskClassification(
-        task_type="マイクロサービス設計",
+        task_type="Microservice design",
         complexity=TaskComplexity.HIGH,
         ai_contribution=AIContribution.ASSIST,
-        human_time_without_ai="数日",
-        human_time_with_ai="数時間+レビュー",
-        risk_level="高"
+        human_time_without_ai="Several days",
+        human_time_with_ai="Several hours + review",
+        risk_level="High"
     ),
     TaskClassification(
-        task_type="認証・暗号化実装",
+        task_type="Authentication & encryption implementation",
         complexity=TaskComplexity.CRITICAL,
         ai_contribution=AIContribution.VERIFY,
-        human_time_without_ai="数日",
-        human_time_with_ai="数日（AIはレビュー役）",
-        risk_level="最高"
+        human_time_without_ai="Several days",
+        human_time_with_ai="Several days (AI as reviewer)",
+        risk_level="Highest"
     ),
     TaskClassification(
-        task_type="テストコード生成",
+        task_type="Test code generation",
         complexity=TaskComplexity.LOW,
         ai_contribution=AIContribution.GENERATE,
-        human_time_without_ai="1-3時間",
-        human_time_with_ai="10-20分",
-        risk_level="低"
+        human_time_without_ai="1-3 hours",
+        human_time_with_ai="10-20 minutes",
+        risk_level="Low"
     ),
     TaskClassification(
-        task_type="パフォーマンスチューニング",
+        task_type="Performance tuning",
         complexity=TaskComplexity.HIGH,
         ai_contribution=AIContribution.ASSIST,
-        human_time_without_ai="数日",
-        human_time_with_ai="数時間",
-        risk_level="中"
+        human_time_without_ai="Several days",
+        human_time_with_ai="Several hours",
+        risk_level="Medium"
     ),
 ]
 ```
 
-### 5.3 フィードバックループの設計
+### 5.3 Designing the Feedback Loop
 
 ```
-┌──────────────────────────────────────────────────────┐
-│         AI協業フィードバックループ                       │
-│                                                      │
-│  ┌───────────────────────────────────────────────┐   │
-│  │           短期フィードバック（即時）             │   │
-│  │                                               │   │
-│  │  プロンプト → AI出力 → 人間レビュー            │   │
-│  │      ▲                      │                │   │
-│  │      └──── 修正指示 ────────┘                │   │
-│  │                                               │   │
-│  │  サイクルタイム: 1-5分                         │   │
-│  │  目的: 個別タスクの品質向上                    │   │
-│  └───────────────────────────────────────────────┘   │
-│                                                      │
-│  ┌───────────────────────────────────────────────┐   │
-│  │          中期フィードバック（週次）              │   │
-│  │                                               │   │
-│  │  プロンプトテンプレート → チーム利用 → 効果測定  │   │
-│  │      ▲                              │        │   │
-│  │      └──── テンプレート改善 ──────────┘        │   │
-│  │                                               │   │
-│  │  サイクルタイム: 1週間                         │   │
-│  │  目的: チーム全体の生産性向上                  │   │
-│  └───────────────────────────────────────────────┘   │
-│                                                      │
-│  ┌───────────────────────────────────────────────┐   │
-│  │          長期フィードバック（月次/四半期）       │   │
-│  │                                               │   │
-│  │  AI活用戦略 → 組織展開 → KPI測定 → 戦略改訂   │   │
-│  │      ▲                              │        │   │
-│  │      └──── ベストプラクティス更新 ────┘        │   │
-│  │                                               │   │
-│  │  サイクルタイム: 1-3ヶ月                       │   │
-│  │  目的: 組織的なAI活用の最適化                  │   │
-│  └───────────────────────────────────────────────┘   │
-└──────────────────────────────────────────────────────┘
++------------------------------------------------------+
+|         AI Collaboration Feedback Loop                |
+|                                                       |
+|  +------------------------------------------------+  |
+|  |         Short-term Feedback (Immediate)         |  |
+|  |                                                 |  |
+|  |  Prompt -> AI Output -> Human Review            |  |
+|  |      ^                      |                   |  |
+|  |      +-- Correction Request-+                   |  |
+|  |                                                 |  |
+|  |  Cycle time: 1-5 minutes                        |  |
+|  |  Purpose: Improving quality of individual tasks  |  |
+|  +------------------------------------------------+  |
+|                                                       |
+|  +------------------------------------------------+  |
+|  |          Mid-term Feedback (Weekly)              |  |
+|  |                                                 |  |
+|  |  Prompt Templates -> Team Usage -> Measurement  |  |
+|  |      ^                              |           |  |
+|  |      +-- Template Improvement ------+           |  |
+|  |                                                 |  |
+|  |  Cycle time: 1 week                             |  |
+|  |  Purpose: Improving team-wide productivity       |  |
+|  +------------------------------------------------+  |
+|                                                       |
+|  +------------------------------------------------+  |
+|  |       Long-term Feedback (Monthly/Quarterly)     |  |
+|  |                                                 |  |
+|  |  AI Strategy -> Org Rollout -> KPI -> Revise    |  |
+|  |      ^                              |           |  |
+|  |      +-- Best Practice Updates -----+           |  |
+|  |                                                 |  |
+|  |  Cycle time: 1-3 months                         |  |
+|  |  Purpose: Optimizing organizational AI adoption  |  |
+|  +------------------------------------------------+  |
++------------------------------------------------------+
 ```
 
 ---
 
-## 6. AI時代のキャリア設計
+## 6. Career Design in the AI Era
 
-### 6.1 キャリアパスの変化
+### 6.1 Changes in Career Paths
 
 ```
-┌──────────────────────────────────────────────────────┐
-│        AI時代の開発者キャリアパス                       │
-│                                                      │
-│  従来のキャリアパス:                                   │
-│  Jr. Dev → Sr. Dev → Tech Lead → Architect          │
-│  (コーディング力で昇進)                               │
-│                                                      │
-│  AI時代のキャリアパス:                                 │
-│                                                      │
-│  ┌──────────┐                                        │
-│  │ Jr. Dev  │ AI活用の基礎、補完受け入れ              │
-│  └────┬─────┘                                        │
-│       │                                              │
-│       ├────────────────────┐                          │
-│       ▼                    ▼                          │
-│  ┌──────────┐         ┌──────────┐                   │
-│  │AI-Powered│         │ Domain   │                   │
-│  │Engineer  │         │ Expert   │                   │
-│  │(実装重視) │         │(判断重視) │                   │
-│  └────┬─────┘         └────┬─────┘                   │
-│       │                    │                          │
-│       ├────────────────────┤                          │
-│       ▼                    ▼                          │
-│  ┌──────────┐         ┌──────────┐                   │
-│  │AI Platform│        │Solution  │                   │
-│  │Architect │         │Architect │                   │
-│  │(基盤構築) │         │(設計判断) │                   │
-│  └──────────┘         └──────────┘                   │
-│                                                      │
-│  新しい専門職:                                        │
-│  ├── AI Developer Experience (DX) Engineer           │
-│  ├── Prompt Engineer / AI UX Designer                │
-│  ├── AI Quality Assurance Specialist                 │
-│  └── AI Ethics & Governance Lead                     │
-└──────────────────────────────────────────────────────┘
++------------------------------------------------------+
+|        Developer Career Paths in the AI Era           |
+|                                                       |
+|  Traditional career path:                             |
+|  Jr. Dev -> Sr. Dev -> Tech Lead -> Architect         |
+|  (Promoted by coding ability)                         |
+|                                                       |
+|  AI-era career path:                                  |
+|                                                       |
+|  +----------+                                         |
+|  | Jr. Dev  | AI fundamentals, accepting completions  |
+|  +----+-----+                                         |
+|       |                                               |
+|       +--------------------+                          |
+|       v                    v                          |
+|  +----------+         +----------+                    |
+|  |AI-Powered|         | Domain   |                    |
+|  |Engineer  |         | Expert   |                    |
+|  |(Impl-    |         |(Judgment-|                    |
+|  | focused) |         | focused) |                    |
+|  +----+-----+         +----+-----+                    |
+|       |                    |                          |
+|       +--------------------+                          |
+|       v                    v                          |
+|  +----------+         +----------+                    |
+|  |AI Platform|        |Solution  |                    |
+|  |Architect |         |Architect |                    |
+|  |(Platform |         |(Design   |                    |
+|  | building)|         | decisions)|                   |
+|  +----------+         +----------+                    |
+|                                                       |
+|  New specialized roles:                               |
+|  +-- AI Developer Experience (DX) Engineer            |
+|  +-- Prompt Engineer / AI UX Designer                 |
+|  +-- AI Quality Assurance Specialist                  |
+|  +-- AI Ethics & Governance Lead                      |
++------------------------------------------------------+
 ```
 
-### 6.2 スキル投資の優先順位
+### 6.2 Skill Investment Priorities
 
 ```python
-# AI時代のスキル投資ROI分析
+# ROI analysis of skill investment in the AI era
 
 from dataclasses import dataclass
 
@@ -528,314 +541,319 @@ class SkillInvestment:
     skill: str
     category: str
     time_to_learn: str
-    ai_replacement_risk: str  # AIに代替されるリスク
-    career_impact: str        # キャリアへの影響度
-    roi_score: int            # 1-10 (投資対効果)
+    ai_replacement_risk: str  # Risk of being replaced by AI
+    career_impact: str        # Impact on career
+    roi_score: int            # 1-10 (return on investment)
 
 SKILL_INVESTMENTS = [
-    # 高ROI: AI時代に価値が上がるスキル
-    SkillInvestment("問題構造化・仕様設計", "コア", "3-6ヶ月", "低", "非常に高い", 10),
-    SkillInvestment("アーキテクチャ設計", "コア", "1-2年", "低", "非常に高い", 9),
-    SkillInvestment("プロンプトエンジニアリング", "AI", "1-3ヶ月", "中", "高い", 9),
-    SkillInvestment("ドメイン知識（業界専門）", "ビジネス", "1-3年", "非常に低", "高い", 9),
-    SkillInvestment("コードレビュー・品質判断", "コア", "6ヶ月", "低", "高い", 8),
-    SkillInvestment("システム思考・全体設計", "コア", "1-2年", "低", "非常に高い", 8),
+    # High ROI: Skills that increase in value in the AI era
+    SkillInvestment("Problem structuring & spec design", "Core", "3-6 months", "Low", "Very high", 10),
+    SkillInvestment("Architecture design", "Core", "1-2 years", "Low", "Very high", 9),
+    SkillInvestment("Prompt engineering", "AI", "1-3 months", "Medium", "High", 9),
+    SkillInvestment("Domain knowledge (industry expertise)", "Business", "1-3 years", "Very low", "High", 9),
+    SkillInvestment("Code review & quality judgment", "Core", "6 months", "Low", "High", 8),
+    SkillInvestment("Systems thinking & holistic design", "Core", "1-2 years", "Low", "Very high", 8),
 
-    # 中ROI: 依然として重要だが変化するスキル
-    SkillInvestment("テスト戦略設計", "エンジニアリング", "3-6ヶ月", "中", "高い", 7),
-    SkillInvestment("デバッグ・トラブルシューティング", "コア", "6ヶ月", "中", "中程度", 6),
-    SkillInvestment("特定フレームワーク熟練", "技術", "3-6ヶ月", "高", "中程度", 5),
+    # Medium ROI: Still important but changing skills
+    SkillInvestment("Test strategy design", "Engineering", "3-6 months", "Medium", "High", 7),
+    SkillInvestment("Debugging & troubleshooting", "Core", "6 months", "Medium", "Moderate", 6),
+    SkillInvestment("Specific framework proficiency", "Technical", "3-6 months", "High", "Moderate", 5),
 
-    # 低ROI: AIに代替されやすいスキル（投資優先度低）
-    SkillInvestment("ボイラープレート記述", "技術", "1ヶ月", "非常に高", "低い", 2),
-    SkillInvestment("API仕様暗記", "技術", "1-3ヶ月", "非常に高", "低い", 2),
-    SkillInvestment("定型コード変換", "技術", "1ヶ月", "非常に高", "低い", 1),
+    # Low ROI: Skills easily replaced by AI (low investment priority)
+    SkillInvestment("Boilerplate writing", "Technical", "1 month", "Very high", "Low", 2),
+    SkillInvestment("API specification memorization", "Technical", "1-3 months", "Very high", "Low", 2),
+    SkillInvestment("Routine code conversion", "Technical", "1 month", "Very high", "Low", 1),
 ]
 
 def prioritize_learning(skills: list[SkillInvestment]) -> list[SkillInvestment]:
-    """ROIスコア順に学習優先度をソート"""
+    """Sort learning priorities by ROI score"""
     return sorted(skills, key=lambda s: s.roi_score, reverse=True)
 ```
 
-### 6.3 学習計画テンプレート
+### 6.3 Learning Plan Template
 
 ```markdown
-# AI時代の開発者学習計画（12ヶ月プラン）
+# Developer Learning Plan for the AI Era (12-Month Plan)
 
-## Q1: 基礎固め（月1-3）
-### AI活用の基本
-- [ ] AIコーディングツール（Copilot/Cursor/Claude Code）の操作習得
-- [ ] プロンプト設計の基本パターン（CRISP/CLEAR）の習得
-- [ ] AI出力のレビュースキル（5層モデル）の練習
+## Q1: Building Foundations (Months 1-3)
+### AI Utilization Basics
+- [ ] Master AI coding tools (Copilot/Cursor/Claude Code)
+- [ ] Learn basic prompt design patterns (CRISP/CLEAR)
+- [ ] Practice AI output review skills (5-layer model)
 
-### コアスキル強化
-- [ ] 問題構造化能力: 曖昧な要件を明確な仕様に変換する練習
-- [ ] アーキテクチャパターン: Clean Architecture/Hexagonal の理解
+### Core Skill Strengthening
+- [ ] Problem structuring ability: Practice converting vague requirements into clear specs
+- [ ] Architecture patterns: Understand Clean Architecture/Hexagonal
 
-## Q2: 実践応用（月4-6）
-### AI協業の深化
-- [ ] エージェントモードの活用（Claude Code/Cursor Agent）
-- [ ] MCPサーバーの構築と社内ツール連携
-- [ ] CI/CDパイプラインへのAI統合
+## Q2: Practical Application (Months 4-6)
+### Deepening AI Collaboration
+- [ ] Leveraging agent mode (Claude Code/Cursor Agent)
+- [ ] Building MCP servers and integrating with internal tools
+- [ ] Integrating AI into CI/CD pipelines
 
-### 専門領域の強化
-- [ ] ドメイン知識の深掘り（業界固有の知識体系化）
-- [ ] セキュリティレビュースキルの強化
+### Strengthening Specialized Areas
+- [ ] Deepening domain knowledge (systematizing industry-specific knowledge)
+- [ ] Strengthening security review skills
 
-## Q3: リーダーシップ（月7-9）
-### チーム展開
-- [ ] チーム向けAI活用研修の設計と実施
-- [ ] プロンプトライブラリの構築と共有
-- [ ] AI活用ガイドラインの策定
+## Q3: Leadership (Months 7-9)
+### Team Rollout
+- [ ] Design and deliver AI utilization training for the team
+- [ ] Build and share a prompt library
+- [ ] Establish AI utilization guidelines
 
-### 高度な活用
-- [ ] マルチエージェント設計（並列Agent運用）
-- [ ] AI品質メトリクスの設計と計測
+### Advanced Utilization
+- [ ] Multi-agent design (parallel agent operation)
+- [ ] Design and measure AI quality metrics
 
-## Q4: 組織的展開（月10-12）
-### 戦略的活用
-- [ ] AI活用のROI測定と経営レポート
-- [ ] 次世代ツールの評価と導入計画
-- [ ] AI倫理ガイドラインの策定
+## Q4: Organizational Deployment (Months 10-12)
+### Strategic Utilization
+- [ ] ROI measurement and executive reporting on AI utilization
+- [ ] Evaluation and adoption planning for next-generation tools
+- [ ] Establishing AI ethics guidelines
 
-### 継続的改善
-- [ ] ベストプラクティスの文書化
-- [ ] メンタリングプログラムの確立
+### Continuous Improvement
+- [ ] Documenting best practices
+- [ ] Establishing mentoring programs
 ```
 
 ---
 
-## 7. 実践ケーススタディ
+## 7. Practical Case Studies
 
-### 7.1 ケース1: レガシーシステム移行プロジェクト
+### 7.1 Case 1: Legacy System Migration Project
 
 ```
-┌──────────────────────────────────────────────────────┐
-│  ケース: JavaモノリスからGoマイクロサービスへの移行     │
-│                                                      │
-│  チーム構成: 5名                                      │
-│  期間: 6ヶ月 → AI活用で4ヶ月に短縮                     │
-│                                                      │
-│  AI活用ポイント:                                      │
-│  ┌──────────────────────────────────────────────┐    │
-│  │ 1. コード分析（2週間→3日に短縮）             │    │
-│  │    - AIが依存関係グラフを自動生成              │    │
-│  │    - モジュール間の結合度を分析                │    │
-│  │    - 移行リスクの高い箇所を特定               │    │
-│  │                                              │    │
-│  │ 2. API仕様変換（4週間→1週間に短縮）           │    │
-│  │    - Java DTOからGoのstructを自動生成          │    │
-│  │    - OpenAPI仕様書の自動生成                   │    │
-│  │    - クライアントSDKの自動生成                 │    │
-│  │                                              │    │
-│  │ 3. テスト移行（3週間→5日に短縮）              │    │
-│  │    - JUnitテストからGoテストへの変換           │    │
-│  │    - カバレッジの維持・向上                    │    │
-│  │    - 結合テストの自動生成                     │    │
-│  │                                              │    │
-│  │ 4. 人間が担当した判断（短縮不可）              │    │
-│  │    - サービス分割の境界設計                    │    │
-│  │    - データベース移行戦略                      │    │
-│  │    - ゼロダウンタイムデプロイ計画              │    │
-│  │    - ステークホルダーとの合意形成              │    │
-│  └──────────────────────────────────────────────┘    │
-│                                                      │
-│  成果:                                               │
-│  ├── 開発期間: 6ヶ月 → 4ヶ月（33%短縮）              │
-│  ├── バグ密度: 15%低減（AI生成テストの効果）          │
-│  ├── ドキュメント: 従来の3倍の量を自動生成            │
-│  └── チーム満足度: 4.2/5.0                           │
-└──────────────────────────────────────────────────────┘
++------------------------------------------------------+
+|  Case: Migration from Java Monolith to Go             |
+|        Microservices                                  |
+|                                                       |
+|  Team size: 5 members                                 |
+|  Duration: 6 months -> Shortened to 4 months with AI  |
+|                                                       |
+|  AI Utilization Points:                               |
+|  +------------------------------------------------+  |
+|  | 1. Code Analysis (2 weeks -> 3 days)            |  |
+|  |    - AI automatically generated dependency graph |  |
+|  |    - Analyzed coupling between modules           |  |
+|  |    - Identified high-risk migration areas        |  |
+|  |                                                 |  |
+|  | 2. API Spec Conversion (4 weeks -> 1 week)      |  |
+|  |    - Auto-generated Go structs from Java DTOs    |  |
+|  |    - Auto-generated OpenAPI specifications       |  |
+|  |    - Auto-generated client SDKs                  |  |
+|  |                                                 |  |
+|  | 3. Test Migration (3 weeks -> 5 days)            |  |
+|  |    - Converted JUnit tests to Go tests           |  |
+|  |    - Maintained and improved coverage            |  |
+|  |    - Auto-generated integration tests            |  |
+|  |                                                 |  |
+|  | 4. Decisions Handled by Humans (Not reducible)   |  |
+|  |    - Service boundary design                     |  |
+|  |    - Database migration strategy                 |  |
+|  |    - Zero-downtime deployment planning           |  |
+|  |    - Building stakeholder consensus              |  |
+|  +------------------------------------------------+  |
+|                                                       |
+|  Results:                                             |
+|  +-- Development time: 6 months -> 4 months (33% cut) |
+|  +-- Bug density: 15% reduction (AI test effect)      |
+|  +-- Documentation: 3x more auto-generated            |
+|  +-- Team satisfaction: 4.2/5.0                       |
++------------------------------------------------------+
 ```
 
-### 7.2 ケース2: スタートアップMVP開発
+### 7.2 Case 2: Startup MVP Development
 
 ```python
-# スタートアップでのAI活用実例
+# Real-world example of AI utilization at a startup
 
-# 従来アプローチ: 3名のエンジニアで3ヶ月
-# AI活用アプローチ: 2名のエンジニアで6週間
+# Traditional approach: 3 engineers over 3 months
+# AI-powered approach: 2 engineers over 6 weeks
 
 """
-AI活用の具体的内訳:
+Specific breakdown of AI utilization:
 
-Week 1-2: 設計フェーズ
-  人間の作業:
-    - ユーザーインタビューの分析と要件整理
-    - ビジネスモデルの検証
-    - 技術選定の最終判断
-  AIの作業:
-    - ワイヤーフレームからコンポーネント構造の提案
-    - データベーススキーマの初案生成
-    - API設計書のドラフト作成
+Week 1-2: Design Phase
+  Human tasks:
+    - Analysis of user interviews and requirements gathering
+    - Business model validation
+    - Final technology selection decisions
+  AI tasks:
+    - Proposing component structure from wireframes
+    - Generating initial database schema drafts
+    - Creating API design document drafts
 
-Week 3-4: バックエンド実装
-  人間の作業:
-    - 決済フローの設計とレビュー
-    - サードパーティAPI統合の設計
-    - セキュリティ要件の確認
-  AIの作業:
-    - CRUD APIの自動生成（全20エンドポイント）
-    - バリデーションロジックの実装
-    - テストコードの自動生成（カバレッジ85%）
+Week 3-4: Backend Implementation
+  Human tasks:
+    - Payment flow design and review
+    - Third-party API integration design
+    - Security requirements verification
+  AI tasks:
+    - Auto-generating CRUD APIs (all 20 endpoints)
+    - Implementing validation logic
+    - Auto-generating test code (85% coverage)
 
-Week 5-6: フロントエンド + デプロイ
-  人間の作業:
-    - UXの微調整と最終確認
-    - デプロイ戦略の決定
-    - セキュリティ監査
-  AIの作業:
-    - Reactコンポーネントの生成
-    - Tailwind CSSでのスタイリング
-    - E2Eテストのシナリオ生成
-    - Terraform設定ファイルの生成
+Week 5-6: Frontend + Deployment
+  Human tasks:
+    - UX fine-tuning and final review
+    - Deployment strategy decisions
+    - Security audit
+  AI tasks:
+    - Generating React components
+    - Styling with Tailwind CSS
+    - Generating E2E test scenarios
+    - Generating Terraform configuration files
 """
 ```
 
-### 7.3 ケース3: 大規模チームでのAI導入
+### 7.3 Case 3: AI Adoption in a Large Team
 
 ```
-導入前の状態:
-  - 50名のエンジニアチーム
-  - AI利用は個人の裁量（バラバラ）
-  - 品質基準が統一されていない
+Pre-adoption state:
+  - 50-member engineering team
+  - AI usage left to individual discretion (inconsistent)
+  - Quality standards not unified
 
-導入プロセス（3ヶ月間）:
+Adoption process (3 months):
 
-Month 1: パイロット
-  ┌──────────────────────────────────────────┐
-  │ 対象: 5名のイノベーションチーム           │
-  │ 施策:                                    │
-  │   - Claude Code + Cursor の試験導入       │
-  │   - CLAUDE.md / .cursorrules の作成      │
-  │   - 効果測定の基準策定                    │
-  │ 結果:                                    │
-  │   - PR作成時間 40% 短縮                   │
-  │   - テストカバレッジ 65% → 82%            │
-  │   - レビュー指摘件数 30% 減少              │
-  └──────────────────────────────────────────┘
+Month 1: Pilot
+  +------------------------------------------+
+  | Target: 5-person innovation team          |
+  | Measures:                                 |
+  |   - Trial adoption of Claude Code + Cursor|
+  |   - Creating CLAUDE.md / .cursorrules     |
+  |   - Establishing effectiveness metrics    |
+  | Results:                                  |
+  |   - PR creation time reduced by 40%       |
+  |   - Test coverage 65% -> 82%              |
+  |   - Review comments reduced by 30%        |
+  +------------------------------------------+
 
-Month 2: 段階展開
-  ┌──────────────────────────────────────────┐
-  │ 対象: 20名に拡大（4チーム）              │
-  │ 施策:                                    │
-  │   - 2時間のハンズオン研修 × 4回           │
-  │   - AIペアプロの週次セッション            │
-  │   - プロンプトライブラリの構築             │
-  │ 結果:                                    │
-  │   - 80% のメンバーが日常的にAIを活用      │
-  │   - チーム間でのベストプラクティス共有      │
-  └──────────────────────────────────────────┘
+Month 2: Phased Rollout
+  +------------------------------------------+
+  | Target: Expanded to 20 people (4 teams)   |
+  | Measures:                                 |
+  |   - 2-hour hands-on training x4 sessions  |
+  |   - Weekly AI pair programming sessions   |
+  |   - Building a prompt library             |
+  | Results:                                  |
+  |   - 80% of members using AI daily         |
+  |   - Best practice sharing across teams    |
+  +------------------------------------------+
 
-Month 3: 全社展開
-  ┌──────────────────────────────────────────┐
-  │ 対象: 50名全員                           │
-  │ 施策:                                    │
-  │   - AIコーディングガイドラインの策定       │
-  │   - GitHub ActionsへのAIレビュー統合      │
-  │   - セキュリティポリシーの整備            │
-  │   - 月次振り返り会の開始                  │
-  │ 結果:                                    │
-  │   - 全体の開発速度 25% 向上               │
-  │   - バグ発生率 35% 減少                   │
-  │   - 開発者満足度 4.1/5.0                  │
-  └──────────────────────────────────────────┘
+Month 3: Company-wide Rollout
+  +------------------------------------------+
+  | Target: All 50 members                    |
+  | Measures:                                 |
+  |   - Establishing AI coding guidelines     |
+  |   - Integrating AI review into GitHub     |
+  |     Actions                               |
+  |   - Developing security policies          |
+  |   - Starting monthly retrospectives       |
+  | Results:                                  |
+  |   - Overall development speed up 25%      |
+  |   - Bug rate reduced by 35%               |
+  |   - Developer satisfaction 4.1/5.0        |
+  +------------------------------------------+
 ```
 
 ---
 
-## 8. AI時代の倫理と責任
+## 8. Ethics and Responsibility in the AI Era
 
-### 8.1 開発者の倫理的責任
+### 8.1 Ethical Responsibilities of Developers
 
 ```
-┌──────────────────────────────────────────────────────┐
-│         AI時代の開発者倫理原則                          │
-│                                                      │
-│  原則1: 説明責任（Accountability）                     │
-│  ┌──────────────────────────────────────────────┐    │
-│  │ AIが生成したコードの品質・安全性の責任は       │    │
-│  │ 常に人間の開発者にある。                       │    │
-│  │ "AIが書いた" は免責理由にならない。            │    │
-│  └──────────────────────────────────────────────┘    │
-│                                                      │
-│  原則2: 透明性（Transparency）                        │
-│  ┌──────────────────────────────────────────────┐    │
-│  │ AI生成コードであることをチームに開示する。     │    │
-│  │ PRやコミットメッセージにAI利用を明記する。     │    │
-│  │ AIの限界を正直に伝える。                       │    │
-│  └──────────────────────────────────────────────┘    │
-│                                                      │
-│  原則3: 品質維持（Quality Assurance）                  │
-│  ┌──────────────────────────────────────────────┐    │
-│  │ AIの出力を未検証のままプロダクションに投入     │    │
-│  │ しない。セキュリティ・パフォーマンス・正確性   │    │
-│  │ を人間が検証する。                             │    │
-│  └──────────────────────────────────────────────┘    │
-│                                                      │
-│  原則4: 公平性（Fairness）                            │
-│  ┌──────────────────────────────────────────────┐    │
-│  │ AIの生成物にバイアスが含まれる可能性を認識し、 │    │
-│  │ 多様な視点でレビューする。                     │    │
-│  └──────────────────────────────────────────────┘    │
-│                                                      │
-│  原則5: 学習継続（Continuous Learning）                │
-│  ┌──────────────────────────────────────────────┐    │
-│  │ AIに依存しすぎず、基礎的な技術力の          │    │
-│  │ 維持・向上を継続する。                        │    │
-│  └──────────────────────────────────────────────┘    │
-└──────────────────────────────────────────────────────┘
++------------------------------------------------------+
+|         Developer Ethics Principles in the AI Era     |
+|                                                       |
+|  Principle 1: Accountability                          |
+|  +------------------------------------------------+  |
+|  | Responsibility for the quality and safety of     |  |
+|  | AI-generated code always lies with the human     |  |
+|  | developer. "AI wrote it" is not an excuse.       |  |
+|  +------------------------------------------------+  |
+|                                                       |
+|  Principle 2: Transparency                            |
+|  +------------------------------------------------+  |
+|  | Disclose to the team that code is AI-generated.  |  |
+|  | Note AI usage in PRs and commit messages.        |  |
+|  | Be honest about AI's limitations.                |  |
+|  +------------------------------------------------+  |
+|                                                       |
+|  Principle 3: Quality Assurance                       |
+|  +------------------------------------------------+  |
+|  | Do not deploy AI output to production without    |  |
+|  | verification. Humans must verify security,       |  |
+|  | performance, and correctness.                    |  |
+|  +------------------------------------------------+  |
+|                                                       |
+|  Principle 4: Fairness                                |
+|  +------------------------------------------------+  |
+|  | Recognize that AI output may contain biases,     |  |
+|  | and review from diverse perspectives.            |  |
+|  +------------------------------------------------+  |
+|                                                       |
+|  Principle 5: Continuous Learning                     |
+|  +------------------------------------------------+  |
+|  | Do not become overly dependent on AI;            |  |
+|  | continue maintaining and improving fundamental   |  |
+|  | technical skills.                                |  |
+|  +------------------------------------------------+  |
++------------------------------------------------------+
 ```
 
-### 8.2 AI生成コードのライセンスと知的財産
+### 8.2 Licensing and Intellectual Property of AI-Generated Code
 
-| 観点 | リスク | 対策 |
-|------|--------|------|
-| 著作権 | AIが学習データのコードを再現する可能性 | ライセンススキャンツールの導入 |
-| 特許 | AI生成コードが既存特許を侵害するリスク | 法務チームとの事前確認 |
-| 機密情報 | プロンプトに含めた情報がAIに学習される | プライベートモード/オプトアウト設定 |
-| OSS互換性 | AI生成コードのOSSライセンス互換性 | 依存パッケージのライセンス確認 |
-| 帰属表示 | AI生成コードの帰属権 | チーム内ルールの明文化 |
+| Aspect | Risk | Countermeasure |
+|--------|------|----------------|
+| Copyright | Possibility of AI reproducing training data code | Introduce license scanning tools |
+| Patents | Risk of AI-generated code infringing existing patents | Prior consultation with legal team |
+| Confidential info | Information included in prompts may be learned by AI | Private mode / opt-out settings |
+| OSS compatibility | OSS license compatibility of AI-generated code | Verify licenses of dependent packages |
+| Attribution | Attribution rights for AI-generated code | Codify team-internal rules |
 
 ---
 
-## 9. 生産性計測と効果測定
+## 9. Productivity Measurement and Effectiveness Assessment
 
-### 9.1 AI活用前後の生産性比較
+### 9.1 Productivity Comparison Before and After AI Adoption
 
 ```
-┌──────────────────────────────────────────────────────┐
-│         生産性指標の変化                               │
-│                                                      │
-│  指標                    AI前    AI後     変化率      │
-│  ──────────────────      ────    ────    ──────      │
-│  コード記述速度          100%    250%    +150%       │
-│  バグ修正時間            100%     55%    -45%        │
-│  テスト作成時間          100%     30%    -70%        │
-│  ドキュメント更新頻度    100%    300%    +200%       │
-│  PR作成〜マージ          100%     50%    -50%        │
-│  新機能開発サイクル      100%     60%    -40%        │
-│  レビュー往復回数        100%     65%    -35%        │
-│                                                      │
-│  ※ 注意: 速度向上と品質維持のバランスが重要            │
-│  ※ 品質指標（バグ密度、セキュリティ脆弱性）も         │
-│    並行して計測すること                               │
-└──────────────────────────────────────────────────────┘
++------------------------------------------------------+
+|         Changes in Productivity Metrics               |
+|                                                       |
+|  Metric                 Pre-AI  Post-AI  Change       |
+|  --------------------   ------  -------  ------       |
+|  Code writing speed       100%    250%   +150%        |
+|  Bug fix time             100%     55%   -45%         |
+|  Test creation time       100%     30%   -70%         |
+|  Doc update frequency     100%    300%   +200%        |
+|  PR creation to merge     100%     50%   -50%         |
+|  New feature dev cycle    100%     60%   -40%         |
+|  Review round trips       100%     65%   -35%         |
+|                                                       |
+|  * Note: Balancing speed improvement with quality     |
+|    maintenance is critical                            |
+|  * Quality metrics (bug density, security             |
+|    vulnerabilities) should also be measured in        |
+|    parallel                                           |
++------------------------------------------------------+
 ```
 
-### 9.2 AI活用効果の計測ダッシュボード
+### 9.2 AI Effectiveness Measurement Dashboard
 
 ```python
-# チーム生産性ダッシュボードの指標設計
+# Metric design for a team productivity dashboard
 
 from dataclasses import dataclass
 from enum import Enum
 
 class MetricCategory(Enum):
-    SPEED = "速度"
-    QUALITY = "品質"
-    SATISFACTION = "満足度"
-    COST = "コスト"
+    SPEED = "Speed"
+    QUALITY = "Quality"
+    SATISFACTION = "Satisfaction"
+    COST = "Cost"
 
 @dataclass
 class AIEffectivenessMetric:
@@ -846,144 +864,144 @@ class AIEffectivenessMetric:
     frequency: str
 
 METRICS = [
-    # 速度指標
+    # Speed metrics
     AIEffectivenessMetric(
-        "PR作成〜マージ時間", MetricCategory.SPEED,
-        "GitHub API で自動計測", "50% 短縮", "週次"
+        "PR creation to merge time", MetricCategory.SPEED,
+        "Auto-measured via GitHub API", "50% reduction", "Weekly"
     ),
     AIEffectivenessMetric(
-        "1人あたりデプロイ頻度", MetricCategory.SPEED,
-        "CI/CD ログから計測", "2倍に増加", "週次"
+        "Deploys per person", MetricCategory.SPEED,
+        "Measured from CI/CD logs", "2x increase", "Weekly"
     ),
     AIEffectivenessMetric(
-        "バグ修正リードタイム", MetricCategory.SPEED,
-        "Issue クローズまでの時間", "40% 短縮", "月次"
-    ),
-
-    # 品質指標
-    AIEffectivenessMetric(
-        "本番バグ密度", MetricCategory.QUALITY,
-        "バグ数 / 1000行コード", "30% 減少", "月次"
-    ),
-    AIEffectivenessMetric(
-        "テストカバレッジ", MetricCategory.QUALITY,
-        "CI計測", "80% 以上維持", "PR ごと"
-    ),
-    AIEffectivenessMetric(
-        "セキュリティ脆弱性検出数", MetricCategory.QUALITY,
-        "SAST / DAST ツール", "増加（早期発見）", "月次"
+        "Bug fix lead time", MetricCategory.SPEED,
+        "Time to issue close", "40% reduction", "Monthly"
     ),
 
-    # 満足度指標
+    # Quality metrics
     AIEffectivenessMetric(
-        "開発者満足度", MetricCategory.SATISFACTION,
-        "月次アンケート（1-5）", "4.0 以上", "月次"
+        "Production bug density", MetricCategory.QUALITY,
+        "Bugs / 1000 lines of code", "30% reduction", "Monthly"
     ),
     AIEffectivenessMetric(
-        "AI活用自信度", MetricCategory.SATISFACTION,
-        "自己評価（1-5）", "全員3.0以上", "四半期"
+        "Test coverage", MetricCategory.QUALITY,
+        "CI measurement", "Maintain above 80%", "Per PR"
+    ),
+    AIEffectivenessMetric(
+        "Security vulnerabilities detected", MetricCategory.QUALITY,
+        "SAST / DAST tools", "Increase (early detection)", "Monthly"
     ),
 
-    # コスト指標
+    # Satisfaction metrics
     AIEffectivenessMetric(
-        "AIツール月額費用", MetricCategory.COST,
-        "請求額集計", "ROI 3倍以上", "月次"
+        "Developer satisfaction", MetricCategory.SATISFACTION,
+        "Monthly survey (1-5)", "4.0 or above", "Monthly"
     ),
     AIEffectivenessMetric(
-        "人件費あたり生産量", MetricCategory.COST,
-        "機能ポイント / 人月", "25% 向上", "四半期"
+        "AI utilization confidence", MetricCategory.SATISFACTION,
+        "Self-assessment (1-5)", "Everyone 3.0+", "Quarterly"
+    ),
+
+    # Cost metrics
+    AIEffectivenessMetric(
+        "AI tool monthly cost", MetricCategory.COST,
+        "Billing total", "ROI 3x or more", "Monthly"
+    ),
+    AIEffectivenessMetric(
+        "Output per labor cost", MetricCategory.COST,
+        "Function points / person-month", "25% improvement", "Quarterly"
     ),
 ]
 ```
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン 1: AIブラインドトラスト（盲目的信頼）
+### Anti-Pattern 1: AI Blind Trust
 
 ```python
-# BAD: AIの出力を検証せずにプロダクションにデプロイ
-# AIが「正しそう」に見えるコードを生成しても、
-# ドメイン固有のバグが潜んでいる可能性がある
+# BAD: Deploying AI output to production without verification
+# Even if AI generates code that "looks correct,"
+# domain-specific bugs may be lurking
 
 def calculate_shipping_fee(weight_kg: float, zone: str) -> int:
-    """AIが生成した送料計算"""
-    # AIは一般的なロジックを生成するが、
-    # 自社固有の送料テーブル、割引ルール、
-    # 離島料金などは知らない
-    base = weight_kg * 100  # ← 自社の料金体系と異なる可能性
+    """Shipping fee calculation generated by AI"""
+    # AI generates generic logic, but
+    # it doesn't know your company's specific rate tables,
+    # discount rules, or remote island surcharges
+    base = weight_kg * 100  # <- May differ from your rate structure
     return int(base)
 
-# GOOD: AIの出力をドメイン知識で検証
+# GOOD: Verify AI output with domain knowledge
 def calculate_shipping_fee(weight_kg: float, zone: str) -> int:
-    """送料計算 - 自社料金テーブルに基づく"""
-    # 自社固有のビジネスルールを適用
-    rate = SHIPPING_RATE_TABLE[zone]  # 実際の料金テーブルを参照
+    """Shipping fee calculation - based on company rate table"""
+    # Apply company-specific business rules
+    rate = SHIPPING_RATE_TABLE[zone]  # Reference actual rate table
     base = weight_kg * rate.per_kg
     if zone in REMOTE_ISLAND_ZONES:
         base += rate.remote_surcharge
     return max(int(base), rate.minimum_fee)
 ```
 
-### アンチパターン 2: AI恐怖症（テクノフォビア）
+### Anti-Pattern 2: AI Phobia (Technophobia)
 
 ```
-❌ AI恐怖症の症状:
-   - "AIが書いたコードは信用できない" と全否定
-   - "自分で書いた方が早い" と旧来手法に固執
-   - "AIを使うとスキルが落ちる" と使用を拒否
-   - チームメンバーのAI利用も制限する
+Symptoms of AI phobia:
+   - Blanket rejection: "Code written by AI can't be trusted"
+   - Clinging to old methods: "It's faster if I write it myself"
+   - Refusing to use: "Using AI will dull my skills"
+   - Restricting team members' AI usage
 
-✅ 健全なスタンス:
-   - AIの出力は「経験の浅いペアプログラマーの提案」として扱う
-   - 自分の判断力を養うためにAI出力をレビューする
-   - 定型作業はAIに任せ、自分は高度な判断に集中する
-   - チーム全体のAI活用を推進し、知見を共有する
+Healthy stance:
+   - Treat AI output as "proposals from a junior pair programmer"
+   - Review AI output to develop your own judgment
+   - Delegate routine tasks to AI and focus on higher-level decisions
+   - Promote team-wide AI adoption and share insights
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise in basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -992,26 +1010,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Should have raised an exception"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise in advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1019,7 +1037,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1030,14 +1048,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Remove by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1045,7 +1063,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1053,44 +1071,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1099,7 +1117,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1114,47 +1132,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f} sec")
+    print(f"Efficient version:   {fast_time:.6f} sec")
+    print(f"Speedup factor: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm computational complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Configuration file issues | Verify config file path and format |
+| Timeout | Network latency / resource shortage | Adjust timeout values, add retry logic |
+| Out of memory | Data volume increase | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Verify executing user's permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, transaction management |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace and identify the location
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Formulate hypotheses**: List possible causes
+4. **Verify incrementally**: Use log output and debuggers to verify hypotheses
+5. **Fix and regression test**: After fixing, run tests on related areas as well
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1162,102 +1180,103 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Calling: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return value: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O waits**: Check disk and network I/O status
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem Type | Diagnostic Tool | Countermeasure |
+|-------------|----------------|----------------|
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper reference release |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+Here is a summary of decision criteria for technology selection.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to prioritize | When to compromise |
+|-----------|-------------------|-------------------|
+| Performance | Real-time processing, large-scale data | Admin dashboards, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
-┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
-│                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
-│                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
-│                                                 │
-└─────────────────────────────────────────────────┘
++-------------------------------------------------+
+|        Architecture Selection Flow               |
++-------------------------------------------------+
+|                                                  |
+|  1. Team size?                                   |
+|    +-- Small (1-5) -> Monolith                   |
+|    +-- Large (10+) -> Go to 2                    |
+|                                                  |
+|  2. Deployment frequency?                        |
+|    +-- Once a week or less -> Monolith +         |
+|    |   module separation                         |
+|    +-- Daily/multiple -> Go to 3                 |
+|                                                  |
+|  3. Independence between teams?                  |
+|    +-- High -> Microservices                     |
+|    +-- Moderate -> Modular monolith              |
+|                                                  |
++-------------------------------------------------+
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A method that is fast in the short term may become technical debt in the long term
+- Conversely, over-engineering incurs high short-term costs and causes project delays
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies enables best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction offers high reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1267,17 +1286,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1285,7 +1304,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1293,15 +1312,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
-            icon = "✅" if c['type'] == 'positive' else "⚠️"
+            icon = "+" if c['type'] == 'positive' else "!"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1309,53 +1328,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to quickly release a product with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum set of features
+- Automated tests only for the critical path
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't pursue perfection (YAGNI principle)
+- Obtain user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Legacy System Modernization
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Incrementally modernizing a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- If existing tests are absent, create Characterization Tests first
+- Use an API gateway to allow old and new systems to coexist
+- Perform data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work Content | Estimated Duration | Risk |
+|-------|-------------|-------------------|------|
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration start | Sequential migration from peripheral features | 3-6 months | Medium |
+| 4. Core migration | Migration of core features | 6-12 months | High |
+| 5. Completion | Decommissioning the old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development in a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** More than 50 engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with Domain-Driven Design
+- Set ownership per team
+- Manage shared libraries via Inner Source
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1368,20 +1387,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Verify SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1390,7 +1409,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1411,63 +1430,63 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical System
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** System requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Cache strategy (L1: In-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Method | Effect | Implementation Cost | Application Context |
+|-------------------|--------|-------------------|-------------------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | When CPU-bound |
 ---
 
 ## FAQ
 
-### Q1: AIを使いすぎると自分のプログラミングスキルが落ちないか？
+### Q1: Will using AI too much cause my programming skills to decline?
 
-スキル低下のリスクは実在する。対策として「AIなしの時間」を意図的に設ける（例: 毎週金曜はAI禁止デー）、AIの出力を必ず理解してから受け入れる、基礎的なアルゴリズムやデータ構造の学習は継続するの3つが有効。AIは「電卓」と同じで、使い方次第で計算力を鈍らせも鋭くもする。
+The risk of skill decline is real. Three effective countermeasures are: intentionally setting aside "AI-free time" (e.g., AI-free Fridays), always understanding AI output before accepting it, and continuing to study fundamental algorithms and data structures. AI is like a "calculator" -- depending on how you use it, it can either dull or sharpen your computational ability.
 
-### Q2: チーム内でAIツールの使い方にバラつきがある場合、どう統一すればよいか？
+### Q2: How should we standardize AI tool usage when there is inconsistency within the team?
 
-まずチーム全体のAI成熟度を5段階で評価し、最も低い層に合わせた研修を実施する。次に「AIコーディングガイドライン」を作成し、利用ルール（レビュー必須、プロンプトの共有など）を明文化する。定期的なAIペアプロセッションで知見を共有し、ボトムアップでレベルを揃えていく。
+First, assess the entire team's AI maturity on a 5-level scale and conduct training tailored to the lowest tier. Next, create "AI Coding Guidelines" that codify usage rules (mandatory reviews, prompt sharing, etc.). Share insights through regular AI pair programming sessions and level up the team from the bottom up.
 
-### Q3: AI時代に最も価値が高まるエンジニアスキルは何か？
+### Q3: What engineering skills will become most valuable in the AI era?
 
-3つのスキルが特に重要になる。(1) 問題構造化能力 ── 曖昧な要件を明確な仕様に変換する力。(2) システム思考 ── 部分最適ではなく全体最適を設計する力。(3) 検証能力 ── AIの出力の正しさをドメイン知識で判断する力。いずれもAIが苦手とする「判断」に関わるスキルである。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| 役割分担 | 人間は判断・設計・責任、AIは実行・生成・検索 |
-| マインドセット | コードを書く人→問題を解決する人への転換 |
-| 成熟度 | 5段階のレベルで成長パスを設計する |
-| 協業モデル | Tool→Partner→Orchestratorの3段階 |
-| 伸ばすスキル | 問題分解、システム思考、ドメイン知識、批判的思考 |
-| 避けるべき | 盲目的信頼とAI恐怖症の両極端 |
+Three skills become particularly important: (1) Problem structuring ability -- the power to convert vague requirements into clear specifications. (2) Systems thinking -- the power to design for global optimization rather than local optimization. (3) Verification ability -- the power to judge the correctness of AI output with domain knowledge. All of these are skills related to "judgment," which AI struggles with.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [02-prompt-driven-development.md](./02-prompt-driven-development.md) ── プロンプト駆動開発の具体的手法
-- [../01-ai-coding/03-ai-coding-best-practices.md](../01-ai-coding/03-ai-coding-best-practices.md) ── AIコーディングのベストプラクティス
-- [../03-team/00-ai-team-practices.md](../03-team/00-ai-team-practices.md) ── チームでのAI活用
+| Item | Key Point |
+|------|-----------|
+| Division of roles | Humans handle judgment, design, and responsibility; AI handles execution, generation, and search |
+| Mindset | Shift from "person who writes code" to "person who solves problems" |
+| Maturity | Design a growth path across 5 maturity levels |
+| Collaboration model | Three stages: Tool -> Partner -> Orchestrator |
+| Skills to develop | Problem decomposition, systems thinking, domain knowledge, critical thinking |
+| What to avoid | Both extremes: blind trust and AI phobia |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
+
+- [02-prompt-driven-development.md](./02-prompt-driven-development.md) -- Concrete techniques for prompt-driven development
+- [../01-ai-coding/03-ai-coding-best-practices.md](../01-ai-coding/03-ai-coding-best-practices.md) -- Best practices for AI coding
+- [../03-team/00-ai-team-practices.md](../03-team/00-ai-team-practices.md) -- AI utilization in teams
+
+---
+
+## References
 
 1. Addy Osmani, "AI-Assisted Software Engineering," O'Reilly Media, 2024.
 2. Kent Beck, "Tidy First?: A Personal Exercise in Empirical Software Design," O'Reilly Media, 2023.
