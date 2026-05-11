@@ -1,73 +1,73 @@
-# AIコンサルティング — 提案書、ROI算定
+# AI Consulting — Proposals and ROI Calculation
 
-> AIコンサルティングビジネスの立ち上げから実践まで、提案書作成、ROI算定、プロジェクト遂行、リピート獲得の全プロセスを実践的に解説する。
-
----
-
-## この章で学ぶこと
-
-1. **AIコンサルティング事業の設計** — サービス体系、ポジショニング、価格設定の戦略
-2. **提案書とROI算定の技術** — クライアントを説得する提案書の構成と定量的ROI計算手法
-3. **プロジェクト遂行と信頼構築** — デリバリー品質の担保からリピート・紹介獲得までの実務
-4. **営業プロセスとリード獲得** — 見込み顧客の発見からクロージングまでの体系的アプローチ
-5. **スケーリングと組織化** — 個人コンサルから組織への成長戦略
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [AI SaaS — プロダクト設計、MVP、PMF](./00-ai-saas.md) の内容を理解していること
+> A practical guide covering the full process of launching and running an AI consulting business: proposal writing, ROI calculation, project delivery, and winning repeat business.
 
 ---
 
-## 1. AIコンサルティング事業設計
+## What You Will Learn in This Chapter
 
-### 1.1 サービス体系
+1. **Designing an AI Consulting Business** — Strategy for service structure, positioning, and pricing
+2. **Proposal and ROI Calculation Skills** — Proposal structure that convinces clients, and quantitative ROI calculation methods
+3. **Project Delivery and Trust Building** — From ensuring delivery quality to winning repeat business and referrals
+4. **Sales Process and Lead Generation** — A systematic approach from finding prospects to closing deals
+5. **Scaling and Organizing** — Growth strategy from solo consultant to organization
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of [AI SaaS — Product Design, MVP, PMF](./00-ai-saas.md)
+
+---
+
+## 1. AI Consulting Business Design
+
+### 1.1 Service Structure
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│           AIコンサルティング サービス体系                    │
+│           AI Consulting Service Structure                 │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  Tier 1: AIアセスメント（入口サービス）                     │
+│  Tier 1: AI Assessment (Entry Service)                   │
 │  ┌──────────────────────────────────────────────┐       │
-│  │ 期間: 2-4週間  |  価格: 50-150万円            │       │
-│  │ 内容: 現状分析、AI活用可能性調査、ロードマップ   │       │
+│  │ Duration: 2-4 weeks  |  Price: 500K-1.5M JPY │       │
+│  │ Content: Current state analysis, AI feasibility study, roadmap │
 │  └──────────────────────────────────────────────┘       │
 │           │                                              │
 │           ▼                                              │
-│  Tier 2: AI導入支援（主力サービス）                         │
+│  Tier 2: AI Implementation Support (Core Service)        │
 │  ┌──────────────────────────────────────────────┐       │
-│  │ 期間: 2-6ヶ月  |  価格: 200-1000万円          │       │
-│  │ 内容: PoC開発、システム統合、社員トレーニング    │       │
+│  │ Duration: 2-6 months  |  Price: 2M-10M JPY   │       │
+│  │ Content: PoC development, system integration, employee training │
 │  └──────────────────────────────────────────────┘       │
 │           │                                              │
 │           ▼                                              │
-│  Tier 3: AI運用・最適化（継続収益）                         │
+│  Tier 3: AI Operations & Optimization (Recurring Revenue)│
 │  ┌──────────────────────────────────────────────┐       │
-│  │ 期間: 月次契約  |  価格: 30-100万円/月         │       │
-│  │ 内容: 性能監視、モデル改善、新機能開発          │       │
+│  │ Duration: Monthly contract  |  Price: 300K-1M JPY/month │
+│  │ Content: Performance monitoring, model improvement, new feature development │
 │  └──────────────────────────────────────────────┘       │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 ポジショニングマトリクス
+### 1.2 Positioning Matrix
 
-| ポジション | 対象企業 | 単価 | 競合 | 差別化 |
-|-----------|---------|------|------|--------|
-| 業界特化型 | 特定業界 | 高 | 少 | 業界知識 |
-| 技術特化型 | 技術企業 | 中〜高 | 中 | 技術力 |
-| 中小企業向け | SMB | 低〜中 | 多 | 価格・速度 |
-| エンタープライズ | 大企業 | 最高 | 少 | 実績・信頼 |
-| スタートアップ向け | VC出資先 | 中 | 中 | 速度・柔軟性 |
+| Position | Target Company | Unit Price | Competition | Differentiation |
+|----------|---------------|-----------|-------------|-----------------|
+| Industry Specialist | Specific industry | High | Low | Industry knowledge |
+| Technology Specialist | Tech companies | Mid–High | Medium | Technical expertise |
+| SMB-Focused | SMB | Low–Mid | High | Price & speed |
+| Enterprise | Large companies | Highest | Low | Track record & trust |
+| Startup-Focused | VC-backed startups | Medium | Medium | Speed & flexibility |
 
-### 1.3 年間収益シミュレーション
+### 1.3 Annual Revenue Simulation
 
 ```python
-# AIコンサルティング年間収益モデル
+# AI consulting annual revenue model
 revenue_model = {
     "year_1": {
         "tier1_assessments": {
@@ -82,7 +82,7 @@ revenue_model = {
             "count": 3, "monthly": 500000, "months": 6,
             "total": 9_000_000
         },
-        "annual_revenue": 41_000_000,  # 4,100万円
+        "annual_revenue": 41_000_000,  # 41M JPY
         "costs": {
             "tools_and_apis": 1_200_000,
             "subcontractors": 8_000_000,
@@ -90,17 +90,17 @@ revenue_model = {
             "overhead": 3_000_000,
             "total": 14_200_000
         },
-        "profit": 26_800_000,  # 2,680万円
+        "profit": 26_800_000,  # 26.8M JPY
         "margin": 65.4  # 65.4%
     }
 }
 ```
 
-### 1.4 詳細な収益成長モデル
+### 1.4 Detailed Revenue Growth Model
 
 ```python
 class ConsultingRevenueModel:
-    """AIコンサルティングの収益モデルと成長予測"""
+    """Revenue model and growth forecast for AI consulting"""
 
     def __init__(self):
         self.service_tiers = {
@@ -124,7 +124,7 @@ class ConsultingRevenueModel:
         }
 
     def project_3_years(self) -> list:
-        """3年間の収益予測"""
+        """3-year revenue forecast"""
         projections = []
 
         for year in range(1, 4):
@@ -134,18 +134,18 @@ class ConsultingRevenueModel:
             implementations = int(4 * growth_factor)
             retainers_new = int(3 * growth_factor)
 
-            # アセスメント収益
+            # Assessment revenue
             assessment_rev = assessments * 1_000_000
 
-            # 実装プロジェクト収益
+            # Implementation project revenue
             impl_avg_price = 5_000_000 * (1 + (year - 1) * 0.2)
             impl_rev = implementations * impl_avg_price
 
-            # リテイナー収益（累積効果）
+            # Retainer revenue (cumulative effect)
             retainer_monthly = 500_000
             retainer_months = min(12, 6 + year * 2)
             active_retainers = retainers_new + max(0,
-                (year - 1) * 2)  # 前年からの継続
+                (year - 1) * 2)  # Continuing from previous year
             retainer_rev = active_retainers * retainer_monthly * retainer_months
 
             total = assessment_rev + impl_rev + retainer_rev
@@ -166,7 +166,7 @@ class ConsultingRevenueModel:
 
     def calculate_utilization(self, billable_hours: int,
                                total_hours: int = 2000) -> dict:
-        """稼働率の計算"""
+        """Calculate utilization rate"""
         utilization = billable_hours / total_hours
         non_billable = {
             "marketing": total_hours * 0.15,
@@ -179,75 +179,75 @@ class ConsultingRevenueModel:
             "billable_hours": billable_hours,
             "total_hours": total_hours,
             "utilization_rate": round(utilization * 100, 1),
-            "target": "65-75%が健全な範囲",
+            "target": "65-75% is a healthy range",
             "non_billable_breakdown": non_billable,
         }
 
 
-# 使用例
+# Usage example
 model = ConsultingRevenueModel()
 projections = model.project_3_years()
 for p in projections:
-    print(f"Year {p['year']}: 売上 {p['total_revenue']:,}円 "
-          f"(チーム{p['team_size']}人)")
+    print(f"Year {p['year']}: Revenue {p['total_revenue']:,} JPY "
+          f"(Team size: {p['team_size']})")
 ```
 
-### 1.5 営業プロセスとリード獲得
+### 1.5 Sales Process and Lead Generation
 
 ```python
 class SalesProcess:
-    """AIコンサルティングの営業プロセス"""
+    """Sales process for AI consulting"""
 
     PIPELINE_STAGES = {
         "lead": {
-            "description": "リード獲得",
+            "description": "Lead acquisition",
             "sources": [
-                "コンテンツマーケティング（ブログ、登壇）",
-                "紹介・口コミ",
+                "Content marketing (blog, speaking engagements)",
+                "Referrals and word of mouth",
                 "LinkedIn DM",
-                "ウェビナー参加者",
-                "問い合わせフォーム",
+                "Webinar attendees",
+                "Contact form inquiries",
             ],
-            "conversion_rate": 0.30,  # → 商談
+            "conversion_rate": 0.30,  # → meeting
             "avg_days": 7,
         },
         "discovery": {
-            "description": "ヒアリング・課題発見",
+            "description": "Listening and problem discovery",
             "activities": [
-                "初回ミーティング（30-60分）",
-                "課題の深掘りと構造化",
-                "AI活用の可能性評価",
-                "キーパーソン・予算の特定",
+                "Initial meeting (30-60 minutes)",
+                "Deep-dive and structuring of challenges",
+                "AI utilization feasibility assessment",
+                "Identifying key stakeholders and budget",
             ],
-            "conversion_rate": 0.50,  # → 提案
+            "conversion_rate": 0.50,  # → proposal
             "avg_days": 14,
         },
         "proposal": {
-            "description": "提案・見積",
+            "description": "Proposal and estimate",
             "activities": [
-                "提案書作成（1-2週間）",
-                "プレゼンテーション",
-                "質疑応答・修正",
-                "社内稟議サポート",
+                "Proposal document creation (1-2 weeks)",
+                "Presentation",
+                "Q&A and revisions",
+                "Support for internal approval process",
             ],
-            "conversion_rate": 0.60,  # → 受注
+            "conversion_rate": 0.60,  # → order
             "avg_days": 21,
         },
         "negotiation": {
-            "description": "交渉・契約",
+            "description": "Negotiation and contract",
             "activities": [
-                "価格・スコープ調整",
-                "契約書レビュー",
-                "NDA締結",
-                "発注書・契約締結",
+                "Price and scope adjustment",
+                "Contract review",
+                "NDA signing",
+                "Purchase order and contract execution",
             ],
-            "conversion_rate": 0.80,  # → 開始
+            "conversion_rate": 0.80,  # → start
             "avg_days": 14,
         },
     }
 
     def calculate_pipeline_metrics(self, monthly_leads: int) -> dict:
-        """パイプラインメトリクスの計算"""
+        """Calculate pipeline metrics"""
         funnel = {"monthly_leads": monthly_leads}
         current = monthly_leads
 
@@ -263,7 +263,7 @@ class SalesProcess:
         funnel["monthly_deals"] = current
         funnel["overall_conversion"] = current / max(monthly_leads, 1)
 
-        # 必要リード数の逆算
+        # Back-calculate required leads
         target_monthly_deals = 2
         required_leads = target_monthly_deals
         for stage in reversed(list(self.PIPELINE_STAGES.values())):
@@ -274,44 +274,41 @@ class SalesProcess:
 
     @staticmethod
     def create_outreach_templates() -> dict:
-        """営業テンプレート"""
+        """Sales outreach templates"""
         return {
             "cold_linkedin": {
                 "subject": None,
                 "body": (
-                    "{name}さん\n\n"
-                    "{company}の{recent_activity}について拝見しました。\n"
-                    "AIを活用した{use_case}で、同業の{reference_company}では"
-                    "{result}を達成されています。\n\n"
-                    "15分ほどお話しする機会をいただけないでしょうか？\n"
-                    "御社の{department}における課題を伺い、"
-                    "AI活用の可能性についてご提案できればと思います。"
+                    "Hi {name},\n\n"
+                    "I saw {company}'s {recent_activity}.\n"
+                    "Using AI for {use_case}, a similar company {reference_company} "
+                    "achieved {result}.\n\n"
+                    "Would you have 15 minutes to chat?\n"
+                    "I'd love to hear about challenges in your {department} "
+                    "and discuss how AI could help."
                 ),
                 "follow_up_days": [3, 7, 14],
             },
             "warm_introduction": {
-                "subject": "{introducer_name}さんからのご紹介",
+                "subject": "Introduction from {introducer_name}",
                 "body": (
-                    "{name}さん\n\n"
-                    "{introducer_name}さんからご紹介いただきました、"
-                    "{my_name}と申します。\n"
-                    "AI導入コンサルティングを専門としており、"
-                    "{industry}業界での実績があります。\n\n"
-                    "御社の{challenge}について、"
-                    "AIでの解決アプローチをご提案できると思います。\n"
-                    "30分ほどお時間をいただけますでしょうか？"
+                    "Hi {name},\n\n"
+                    "I was introduced to you by {introducer_name}. "
+                    "My name is {my_name}, and I specialize in AI implementation consulting "
+                    "with a track record in the {industry} industry.\n\n"
+                    "I believe I can propose an AI-based approach to address your {challenge}. "
+                    "Would you have 30 minutes for a conversation?"
                 ),
             },
             "post_webinar": {
-                "subject": "ウェビナーご参加ありがとうございました",
+                "subject": "Thank you for attending the webinar",
                 "body": (
-                    "{name}さん\n\n"
-                    "先日のウェビナー「{webinar_title}」に"
-                    "ご参加いただきありがとうございました。\n\n"
-                    "ウェビナーでご紹介した{topic}について、"
-                    "御社でのAI活用の可能性を個別にご相談させていただければ幸いです。\n"
-                    "無料の30分アセスメントセッションを実施しておりますので、"
-                    "ご興味あればお知らせください。"
+                    "Hi {name},\n\n"
+                    "Thank you for attending our recent webinar \"{webinar_title}\".\n\n"
+                    "Regarding the {topic} we introduced, I would be happy to "
+                    "discuss AI utilization possibilities specific to your company individually.\n"
+                    "We offer a free 30-minute assessment session — "
+                    "please let us know if you're interested."
                 ),
             },
         }
@@ -319,79 +316,79 @@ class SalesProcess:
 
 ---
 
-## 2. 提案書作成
+## 2. Proposal Writing
 
-### 2.1 提案書の構成テンプレート
+### 2.1 Proposal Structure Template
 
 ```
-AI導入提案書 標準構成:
+AI Implementation Proposal Standard Structure:
 
-  1. エグゼクティブサマリー     ←  意思決定者向け（1ページ）
-     └─ 課題 → 解決策 → 期待効果 → 投資額
+  1. Executive Summary          ←  For decision makers (1 page)
+     └─ Challenge → Solution → Expected outcome → Investment amount
 
-  2. 現状分析                   ←  信頼性の根拠
-     └─ ヒアリング結果 → 業務フロー → ペインポイント
+  2. Current State Analysis     ←  Basis for credibility
+     └─ Interview findings → Business workflow → Pain points
 
-  3. AI活用提案                 ←  技術的実現性
-     └─ ソリューション概要 → アーキテクチャ → 技術選定
+  3. AI Utilization Proposal    ←  Technical feasibility
+     └─ Solution overview → Architecture → Technology selection
 
-  4. ROI分析                    ←  経営判断の材料
-     └─ コスト試算 → 効果予測 → 投資回収期間
+  4. ROI Analysis               ←  Material for management decisions
+     └─ Cost estimate → Impact forecast → Payback period
 
-  5. 実施計画                   ←  実現可能性
-     └─ フェーズ分け → スケジュール → 体制
+  5. Implementation Plan        ←  Feasibility
+     └─ Phase breakdown → Schedule → Team structure
 
-  6. リスクと対策               ←  懸念への先回り
-     └─ 技術リスク → 運用リスク → 法的リスク
+  6. Risks and Countermeasures  ←  Proactive handling of concerns
+     └─ Technical risks → Operational risks → Legal risks
 
-  7. 投資・見積                 ←  具体的金額
-     └─ 初期費用 → ランニングコスト → 支払条件
+  7. Investment & Estimate      ←  Concrete figures
+     └─ Initial cost → Running cost → Payment terms
 ```
 
-### 2.2 提案書自動生成ツール
+### 2.2 Automated Proposal Generation Tool
 
 ```python
 class ProposalGenerator:
-    """AI提案書自動生成エンジン"""
+    """AI proposal auto-generation engine"""
 
     def __init__(self, client):
         self.client = client
 
     def generate_proposal(self, assessment: dict) -> dict:
-        """アセスメント結果から提案書を自動生成"""
+        """Auto-generate proposal from assessment results"""
         sections = {}
 
-        # 1. エグゼクティブサマリー
+        # 1. Executive Summary
         sections["executive_summary"] = self._generate_section(
             f"""
-以下のアセスメント結果に基づき、経営者向けエグゼクティブサマリーを作成:
-- 企業名: {assessment['company']}
-- 業界: {assessment['industry']}
-- 課題: {assessment['pain_points']}
-- 提案: {assessment['proposed_solutions']}
-形式: 課題→解決策→期待効果→投資額の流れで1ページ以内。
+Based on the following assessment results, create an executive summary for management:
+- Company: {assessment['company']}
+- Industry: {assessment['industry']}
+- Challenges: {assessment['pain_points']}
+- Proposal: {assessment['proposed_solutions']}
+Format: Within 1 page following the flow of Challenge → Solution → Expected outcome → Investment amount.
 """
         )
 
-        # 2. ROI分析
+        # 2. ROI Analysis
         roi = self.calculate_roi(assessment)
         sections["roi_analysis"] = roi
 
-        # 3. 実施計画
+        # 3. Implementation Plan
         sections["implementation_plan"] = self._generate_section(
             f"""
-以下のAI導入プロジェクトの実施計画を作成:
-- ソリューション: {assessment['proposed_solutions']}
-- 予算規模: {assessment['budget_range']}
-- 期間: {assessment['timeline']}
-形式: Phase 1(PoC)→Phase 2(本開発)→Phase 3(運用)の3段階。
+Create an implementation plan for the following AI implementation project:
+- Solution: {assessment['proposed_solutions']}
+- Budget range: {assessment['budget_range']}
+- Timeline: {assessment['timeline']}
+Format: 3 phases — Phase 1 (PoC) → Phase 2 (Full development) → Phase 3 (Operations).
 """
         )
 
         return sections
 
     def calculate_roi(self, assessment: dict) -> dict:
-        """ROI計算"""
+        """ROI calculation"""
         costs = assessment["estimated_costs"]
         benefits = assessment["estimated_benefits"]
 
@@ -422,132 +419,132 @@ class ProposalGenerator:
         return response.content[0].text
 ```
 
-### 2.3 提案書のセクション別詳細テンプレート
+### 2.3 Detailed Section-by-Section Proposal Templates
 
 ```python
 class ProposalTemplates:
-    """提案書の各セクション詳細テンプレート"""
+    """Detailed templates for each section of a proposal"""
 
     @staticmethod
     def executive_summary_template(data: dict) -> str:
-        """エグゼクティブサマリーテンプレート"""
+        """Executive summary template"""
         return f"""
-# エグゼクティブサマリー
+# Executive Summary
 
-## 背景と課題
-{data['company_name']}様は、{data['business_context']}において
-{data['main_challenge']}という課題を抱えておられます。
-現在、{data['current_process']}に月間約{data['hours_spent']}時間、
-年間約{data['annual_cost']:,}円のコストが発生しています。
+## Background and Challenges
+{data['company_name']} is facing the challenge of {data['main_challenge']}
+in the context of {data['business_context']}.
+Currently, {data['current_process']} incurs approximately {data['hours_spent']} hours per month
+and approximately {data['annual_cost']:,} JPY annually.
 
-## ご提案内容
-AI技術（{data['ai_technology']}）を活用した
-{data['solution_name']}の導入をご提案いたします。
+## Proposed Solution
+We propose implementing {data['solution_name']}
+leveraging AI technology ({data['ai_technology']}).
 
-## 期待効果
-- 処理時間: {data['time_reduction']}%削減
-- コスト: 年間{data['cost_saving']:,}円削減
-- 品質: {data['quality_improvement']}
+## Expected Outcomes
+- Processing time: {data['time_reduction']}% reduction
+- Cost: {data['cost_saving']:,} JPY annual savings
+- Quality: {data['quality_improvement']}
 
-## 投資額と回収期間
-- 初期投資: {data['initial_cost']:,}円
-- 月額運用コスト: {data['monthly_cost']:,}円
-- 投資回収期間: {data['payback_months']}ヶ月
-- 初年度ROI: {data['year1_roi']}%
+## Investment and Payback Period
+- Initial investment: {data['initial_cost']:,} JPY
+- Monthly operating cost: {data['monthly_cost']:,} JPY
+- Payback period: {data['payback_months']} months
+- Year 1 ROI: {data['year1_roi']}%
 """
 
     @staticmethod
     def risk_assessment_template() -> dict:
-        """リスク評価テンプレート"""
+        """Risk assessment template"""
         return {
             "technical_risks": [
                 {
-                    "risk": "AIモデルの精度が目標に達しない",
-                    "probability": "中",
-                    "impact": "高",
-                    "mitigation": "PoC段階で精度を検証。"
-                                  "目標未達の場合は別アプローチを検討",
+                    "risk": "AI model accuracy does not reach target",
+                    "probability": "Medium",
+                    "impact": "High",
+                    "mitigation": "Verify accuracy at the PoC stage. "
+                                  "Consider alternative approaches if target is not met.",
                 },
                 {
-                    "risk": "AIプロバイダのAPI障害",
-                    "probability": "低",
-                    "impact": "高",
-                    "mitigation": "マルチプロバイダ構成。"
-                                  "フォールバック機能を実装",
+                    "risk": "AI provider API outage",
+                    "probability": "Low",
+                    "impact": "High",
+                    "mitigation": "Multi-provider configuration. "
+                                  "Implement fallback functionality.",
                 },
                 {
-                    "risk": "既存システムとの統合が困難",
-                    "probability": "中",
-                    "impact": "中",
-                    "mitigation": "API層で疎結合に設計。"
-                                  "段階的な統合アプローチ",
+                    "risk": "Difficulty integrating with existing systems",
+                    "probability": "Medium",
+                    "impact": "Medium",
+                    "mitigation": "Design with loose coupling via API layer. "
+                                  "Phased integration approach.",
                 },
             ],
             "operational_risks": [
                 {
-                    "risk": "社員のAIへの抵抗感",
-                    "probability": "高",
-                    "impact": "中",
-                    "mitigation": "早期段階からのユーザー参加。"
-                                  "丁寧なトレーニングプログラム",
+                    "risk": "Employee resistance to AI",
+                    "probability": "High",
+                    "impact": "Medium",
+                    "mitigation": "Early user involvement from the start. "
+                                  "Thorough training program.",
                 },
                 {
-                    "risk": "運用担当者のスキル不足",
-                    "probability": "中",
-                    "impact": "中",
-                    "mitigation": "運用マニュアル整備。"
-                                  "引き継ぎ期間の設定（1-2ヶ月）",
+                    "risk": "Insufficient skills of operations staff",
+                    "probability": "Medium",
+                    "impact": "Medium",
+                    "mitigation": "Prepare operations manual. "
+                                  "Set a handover period (1-2 months).",
                 },
             ],
             "legal_risks": [
                 {
-                    "risk": "個人情報のAIへの入力",
-                    "probability": "高",
-                    "impact": "高",
-                    "mitigation": "PII検出・マスキング処理。"
-                                  "データ処理契約（DPA）の締結",
+                    "risk": "Entering personal information into AI",
+                    "probability": "High",
+                    "impact": "High",
+                    "mitigation": "PII detection and masking. "
+                                  "Execute a Data Processing Agreement (DPA).",
                 },
                 {
-                    "risk": "AI生成物の著作権問題",
-                    "probability": "低",
-                    "impact": "中",
-                    "mitigation": "利用規約への明記。"
-                                  "AI生成物の人間によるレビュー必須化",
+                    "risk": "Copyright issues with AI-generated content",
+                    "probability": "Low",
+                    "impact": "Medium",
+                    "mitigation": "Clearly state in terms of use. "
+                                  "Require human review of all AI-generated content.",
                 },
             ],
         }
 
     @staticmethod
     def pricing_template() -> dict:
-        """見積テンプレート"""
+        """Estimate template"""
         return {
             "initial_costs": {
                 "assessment": {
-                    "description": "現状分析・要件定義",
+                    "description": "Current state analysis and requirements definition",
                     "hours": 40,
                     "rate": 25000,
                     "total": 1_000_000,
                 },
                 "poc_development": {
-                    "description": "PoC開発・検証",
+                    "description": "PoC development and validation",
                     "hours": 120,
                     "rate": 25000,
                     "total": 3_000_000,
                 },
                 "production_development": {
-                    "description": "本番システム開発",
+                    "description": "Production system development",
                     "hours": 200,
                     "rate": 25000,
                     "total": 5_000_000,
                 },
                 "integration_testing": {
-                    "description": "統合テスト・品質保証",
+                    "description": "Integration testing and quality assurance",
                     "hours": 60,
                     "rate": 25000,
                     "total": 1_500_000,
                 },
                 "training": {
-                    "description": "社員トレーニング",
+                    "description": "Employee training",
                     "hours": 20,
                     "rate": 30000,
                     "total": 600_000,
@@ -556,86 +553,86 @@ AI技術（{data['ai_technology']}）を活用した
             },
             "monthly_costs": {
                 "ai_api": {
-                    "description": "AI API使用料",
+                    "description": "AI API usage fees",
                     "monthly": 200_000,
                 },
                 "infrastructure": {
-                    "description": "インフラ運用費",
+                    "description": "Infrastructure operating costs",
                     "monthly": 50_000,
                 },
                 "support": {
-                    "description": "運用サポート",
+                    "description": "Operations support",
                     "monthly": 300_000,
                 },
                 "subtotal": 550_000,
             },
             "payment_terms": {
                 "schedule": [
-                    "契約時: 30%",
-                    "PoC完了時: 30%",
-                    "本番リリース時: 30%",
-                    "検収完了時: 10%",
+                    "At contract signing: 30%",
+                    "At PoC completion: 30%",
+                    "At production release: 30%",
+                    "At acceptance completion: 10%",
                 ],
-                "payment_method": "銀行振込（請求書発行後30日以内）",
+                "payment_method": "Bank transfer (within 30 days of invoice)",
             },
         }
 ```
 
 ---
 
-## 3. ROI算定フレームワーク
+## 3. ROI Calculation Framework
 
-### 3.1 ROI計算の4つの柱
+### 3.1 The Four Pillars of ROI Calculation
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                ROI算定フレームワーク                        │
+│                ROI Calculation Framework                  │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  ■ 直接的コスト削減                ■ 生産性向上           │
+│  ■ Direct Cost Reduction           ■ Productivity Gains  │
 │  ┌────────────────────┐          ┌────────────────────┐ │
-│  │ 人件費削減          │          │ 処理速度向上        │ │
-│  │ 外注費削減          │          │ スループット増加    │ │
-│  │ エラーコスト削減    │          │ 意思決定の高速化    │ │
+│  │ Labor cost savings  │          │ Processing speed    │ │
+│  │ Outsourcing savings │          │ Throughput increase │ │
+│  │ Error cost savings  │          │ Faster decisions    │ │
 │  └────────────────────┘          └────────────────────┘ │
 │                                                          │
-│  ■ 売上向上                        ■ 戦略的価値         │
+│  ■ Revenue Growth                  ■ Strategic Value     │
 │  ┌────────────────────┐          ┌────────────────────┐ │
-│  │ 顧客満足度向上      │          │ 競争優位性          │ │
-│  │ アップセル機会       │          │ スケーラビリティ    │ │
-│  │ 新規顧客獲得        │          │ データ資産蓄積      │ │
+│  │ Higher satisfaction │          │ Competitive edge    │ │
+│  │ Upsell opportunities│          │ Scalability         │ │
+│  │ New customer acq.   │          │ Data asset buildup  │ │
 │  └────────────────────┘          └────────────────────┘ │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 業務別ROI算出テンプレート
+### 3.2 ROI Calculation Templates by Business Function
 
 ```python
-# 業務別ROI算出
+# ROI calculation by business function
 roi_templates = {
     "customer_support": {
         "current_state": {
             "agents": 10,
-            "salary_per_agent": 4_000_000,  # 年間
+            "salary_per_agent": 4_000_000,  # annual
             "tickets_per_month": 5000,
             "avg_resolution_time_min": 15,
             "customer_satisfaction": 72  # %
         },
         "after_ai": {
-            "agents_needed": 6,  # 40%削減
+            "agents_needed": 6,  # 40% reduction
             "ai_cost_annual": 3_600_000,
-            "avg_resolution_time_min": 5,  # 67%短縮
+            "avg_resolution_time_min": 5,  # 67% reduction
             "customer_satisfaction": 85  # +13pt
         },
         "roi_calculation": {
-            "salary_saved": 4 * 4_000_000,     # 1,600万円
-            "ai_cost": 3_600_000,               # 360万円
-            "net_benefit": 16_000_000 - 3_600_000,  # 1,240万円
-            "satisfaction_impact": "解約率2%減 ≒ 年500万円",
+            "salary_saved": 4 * 4_000_000,     # 16M JPY
+            "ai_cost": 3_600_000,               # 3.6M JPY
+            "net_benefit": 16_000_000 - 3_600_000,  # 12.4M JPY
+            "satisfaction_impact": "2% churn reduction ≈ 5M JPY/year",
             "total_annual_benefit": 17_400_000,
             "implementation_cost": 8_000_000,
             "roi_year1": "117%",
-            "payback": "5.5ヶ月"
+            "payback": "5.5 months"
         }
     },
     "document_processing": {
@@ -659,7 +656,7 @@ roi_templates = {
             "net_annual_benefit": 20_200_000,
             "implementation_cost": 6_000_000,
             "roi_year1": "237%",
-            "payback": "3.6ヶ月",
+            "payback": "3.6 months",
         },
     },
     "sales_forecasting": {
@@ -678,25 +675,25 @@ roi_templates = {
             "net_annual_benefit": 20_000_000,
             "implementation_cost": 10_000_000,
             "roi_year1": "100%",
-            "payback": "6ヶ月",
+            "payback": "6 months",
         },
     },
 }
 ```
 
-### 3.3 ROI計算ツール
+### 3.3 ROI Calculation Tool
 
 ```python
 class ROICalculator:
-    """包括的なROI計算ツール"""
+    """Comprehensive ROI calculation tool"""
 
     def __init__(self):
-        self.discount_rate = 0.08  # 割引率8%
+        self.discount_rate = 0.08  # Discount rate 8%
 
     def calculate_simple_roi(self, investment: float,
                               annual_benefit: float,
                               annual_cost: float) -> dict:
-        """単純ROI計算"""
+        """Simple ROI calculation"""
         net_benefit = annual_benefit - annual_cost
         roi = (net_benefit - investment) / investment * 100
         payback = investment / max(net_benefit / 12, 1)
@@ -713,7 +710,7 @@ class ROICalculator:
     def calculate_npv(self, investment: float,
                        cash_flows: list,
                        discount_rate: float = None) -> dict:
-        """NPV（正味現在価値）計算"""
+        """NPV (Net Present Value) calculation"""
         rate = discount_rate or self.discount_rate
         npv = -investment
 
@@ -737,8 +734,8 @@ class ROICalculator:
 
     def calculate_irr(self, investment: float,
                        cash_flows: list) -> float:
-        """IRR（内部収益率）計算"""
-        # 二分法で計算
+        """IRR (Internal Rate of Return) calculation"""
+        # Calculate using bisection method
         low, high = -0.5, 5.0
 
         for _ in range(100):
@@ -758,7 +755,7 @@ class ROICalculator:
 
     def sensitivity_analysis(self, base_case: dict,
                               variables: dict) -> list:
-        """感度分析"""
+        """Sensitivity analysis"""
         results = []
 
         for var_name, var_range in variables.items():
@@ -783,7 +780,7 @@ class ROICalculator:
         return results
 
     def generate_roi_report(self, assessment: dict) -> str:
-        """ROIレポートの自動生成"""
+        """Auto-generate ROI report"""
         simple = self.calculate_simple_roi(
             investment=assessment["investment"],
             annual_benefit=assessment["annual_benefit"],
@@ -792,117 +789,117 @@ class ROICalculator:
 
         cash_flows = [
             assessment["annual_benefit"] - assessment["annual_cost"]
-        ] * 3  # 3年間
+        ] * 3  # 3 years
 
         npv = self.calculate_npv(assessment["investment"], cash_flows)
         irr = self.calculate_irr(assessment["investment"], cash_flows)
 
         report = f"""
-## ROI分析レポート
+## ROI Analysis Report
 
-### 投資概要
-- 初期投資額: {assessment['investment']:,}円
-- 年間期待効果: {assessment['annual_benefit']:,}円
-- 年間運用コスト: {assessment['annual_cost']:,}円
+### Investment Overview
+- Initial investment: {assessment['investment']:,} JPY
+- Annual expected benefit: {assessment['annual_benefit']:,} JPY
+- Annual operating cost: {assessment['annual_cost']:,} JPY
 
-### 主要指標
+### Key Metrics
 - **ROI**: {simple['roi_percentage']}%
-- **投資回収期間**: {simple['payback_months']}ヶ月
-- **NPV（3年、割引率{self.discount_rate*100}%）**: {npv['npv']:,}円
+- **Payback period**: {simple['payback_months']} months
+- **NPV (3 years, discount rate {self.discount_rate*100}%)**: {npv['npv']:,} JPY
 - **IRR**: {irr}%
 
-### 判定
-{'投資推奨: ROI 100%以上、回収12ヶ月以内' if simple['roi_percentage'] > 100
- else '要検討: ROIまたは回収期間の改善が必要'}
+### Verdict
+{'Recommended: ROI over 100%, payback within 12 months' if simple['roi_percentage'] > 100
+ else 'Needs review: ROI or payback period improvement required'}
 """
         return report
 
 
-# 使用例
+# Usage example
 calculator = ROICalculator()
 
-# カスタマーサポートAI導入のROI
+# ROI for customer support AI implementation
 result = calculator.calculate_simple_roi(
     investment=8_000_000,
     annual_benefit=17_400_000,
     annual_cost=3_600_000,
 )
 print(f"ROI: {result['roi_percentage']}%")
-print(f"回収期間: {result['payback_months']}ヶ月")
+print(f"Payback period: {result['payback_months']} months")
 
-# NPV計算
+# NPV calculation
 npv = calculator.calculate_npv(
     investment=8_000_000,
     cash_flows=[13_800_000, 13_800_000, 13_800_000],
 )
-print(f"NPV: {npv['npv']:,}円")
+print(f"NPV: {npv['npv']:,} JPY")
 ```
 
-| 計算項目 | 計算式 | 目安値 |
-|---------|--------|--------|
-| 単純ROI | (利益 - 投資) / 投資 x 100 | 100%以上 |
-| 投資回収期間 | 初期投資 / 月次純利益 | 6ヶ月以内 |
-| NPV | 将来CFの現在価値合計 - 投資 | 正の値 |
-| IRR | NPV=0となる割引率 | 20%以上 |
-| LTV/CAC | 顧客生涯価値 / 獲得コスト | 3倍以上 |
+| Metric | Formula | Benchmark |
+|--------|---------|-----------|
+| Simple ROI | (Profit - Investment) / Investment x 100 | 100%+ |
+| Payback Period | Initial investment / Monthly net profit | Within 6 months |
+| NPV | Sum of discounted future CFs - Investment | Positive value |
+| IRR | Discount rate where NPV = 0 | 20%+ |
+| LTV/CAC | Customer lifetime value / Acquisition cost | 3x+ |
 
 ---
 
-## 4. プロジェクト遂行
+## 4. Project Delivery
 
-### 4.1 標準プロジェクトフロー
+### 4.1 Standard Project Flow
 
 ```python
-# AIコンサルティングプロジェクト管理
+# AI consulting project management
 project_phases = {
-    "Phase 0: Discovery (1-2週間)": {
+    "Phase 0: Discovery (1-2 weeks)": {
         "activities": [
-            "ステークホルダーインタビュー",
-            "現行業務フロー分析",
-            "データ品質評価",
-            "技術環境調査"
+            "Stakeholder interviews",
+            "Current business workflow analysis",
+            "Data quality assessment",
+            "Technical environment survey"
         ],
-        "deliverables": ["アセスメントレポート", "提案書"],
-        "success_criteria": "経営層の承認"
+        "deliverables": ["Assessment report", "Proposal"],
+        "success_criteria": "Management approval"
     },
-    "Phase 1: PoC (2-4週間)": {
+    "Phase 1: PoC (2-4 weeks)": {
         "activities": [
-            "プロトタイプ開発",
-            "限定データでのAI検証",
-            "精度・性能測定",
-            "ユーザーテスト"
+            "Prototype development",
+            "AI validation with limited data",
+            "Accuracy and performance measurement",
+            "User testing"
         ],
-        "deliverables": ["PoCレポート", "デモ", "Go/No-Go判定"],
-        "success_criteria": "精度目標達成 + ビジネス価値確認"
+        "deliverables": ["PoC report", "Demo", "Go/No-Go decision"],
+        "success_criteria": "Accuracy target achieved + business value confirmed"
     },
-    "Phase 2: Build (1-3ヶ月)": {
+    "Phase 2: Build (1-3 months)": {
         "activities": [
-            "本番システム開発",
-            "既存システム統合",
-            "セキュリティ対策",
-            "負荷テスト"
+            "Production system development",
+            "Integration with existing systems",
+            "Security measures",
+            "Load testing"
         ],
-        "deliverables": ["本番システム", "運用マニュアル"],
-        "success_criteria": "SLA要件達成"
+        "deliverables": ["Production system", "Operations manual"],
+        "success_criteria": "SLA requirements met"
     },
-    "Phase 3: Launch & Optimize (継続)": {
+    "Phase 3: Launch & Optimize (ongoing)": {
         "activities": [
-            "段階的ロールアウト",
-            "モニタリング設定",
-            "モデル改善",
-            "社員トレーニング"
+            "Staged rollout",
+            "Monitoring setup",
+            "Model improvement",
+            "Employee training"
         ],
-        "deliverables": ["月次レポート", "改善提案"],
-        "success_criteria": "ROI目標達成"
+        "deliverables": ["Monthly report", "Improvement proposals"],
+        "success_criteria": "ROI target achieved"
     }
 }
 ```
 
-### 4.2 プロジェクト管理ツールキット
+### 4.2 Project Management Toolkit
 
 ```python
 class ProjectManagement:
-    """AIコンサルティングプロジェクト管理"""
+    """AI consulting project management"""
 
     def __init__(self, project_name: str, client: str):
         self.project_name = project_name
@@ -912,7 +909,7 @@ class ProjectManagement:
         self.milestones = []
 
     def create_project_charter(self) -> dict:
-        """プロジェクト憲章の作成"""
+        """Create project charter"""
         return {
             "project_name": self.project_name,
             "client": self.client,
@@ -942,38 +939,38 @@ class ProjectManagement:
         }
 
     def create_status_report(self, week: int, data: dict) -> str:
-        """週次ステータスレポート生成"""
+        """Generate weekly status report"""
         report = f"""
-# 週次ステータスレポート - Week {week}
+# Weekly Status Report - Week {week}
 
-## プロジェクト: {self.project_name}
-## クライアント: {self.client}
+## Project: {self.project_name}
+## Client: {self.client}
 
-### 進捗サマリー
-- 全体進捗: {data.get('overall_progress', 0)}%
-- 今週の完了タスク: {', '.join(data.get('completed_tasks', []))}
-- 来週の予定タスク: {', '.join(data.get('planned_tasks', []))}
+### Progress Summary
+- Overall progress: {data.get('overall_progress', 0)}%
+- Completed tasks this week: {', '.join(data.get('completed_tasks', []))}
+- Planned tasks next week: {', '.join(data.get('planned_tasks', []))}
 
-### ハイライト
+### Highlights
 {chr(10).join(f'- {h}' for h in data.get('highlights', []))}
 
-### リスク・課題
+### Risks and Issues
 {chr(10).join(f'- [{r["severity"]}] {r["description"]}: {r["action"]}'
               for r in data.get('risks', []))}
 
-### KPI
-| 指標 | 目標 | 現在値 | ステータス |
-|------|------|--------|-----------|
+### KPIs
+| Metric | Target | Current | Status |
+|--------|--------|---------|--------|
 """
         for kpi in data.get('kpis', []):
-            status = "達成" if kpi['current'] >= kpi['target'] else "未達"
+            status = "Achieved" if kpi['current'] >= kpi['target'] else "Not met"
             report += (f"| {kpi['name']} | {kpi['target']} | "
                       f"{kpi['current']} | {status} |\n")
 
         return report
 
     def create_handover_document(self, system_info: dict) -> dict:
-        """引き継ぎドキュメントテンプレート"""
+        """Handover document template"""
         return {
             "system_overview": {
                 "architecture": system_info.get("architecture", ""),
@@ -982,93 +979,93 @@ class ProjectManagement:
             },
             "operational_guide": {
                 "daily_tasks": [
-                    "AI出力品質のサンプルチェック（10件/日）",
-                    "エラーログの確認",
-                    "使用量・コストの確認",
+                    "Sample check of AI output quality (10 items/day)",
+                    "Review error logs",
+                    "Check usage and costs",
                 ],
                 "weekly_tasks": [
-                    "精度メトリクスの集計・レポート",
-                    "ユーザーフィードバックの確認",
-                    "コスト最適化の検討",
+                    "Compile and report accuracy metrics",
+                    "Review user feedback",
+                    "Consider cost optimization",
                 ],
                 "monthly_tasks": [
-                    "月次レポート作成",
-                    "モデル/プロンプト改善の検討",
-                    "新機能要望の整理",
+                    "Create monthly report",
+                    "Review model/prompt improvements",
+                    "Organize new feature requests",
                 ],
             },
             "troubleshooting": {
                 "common_issues": [
                     {
-                        "issue": "AI APIのレスポンスが遅い",
-                        "cause": "APIプロバイダ側の負荷",
-                        "solution": "フォールバックモデルに切替。"
-                                    "キャッシュヒット率を確認。",
+                        "issue": "Slow AI API response",
+                        "cause": "Load on the API provider side",
+                        "solution": "Switch to fallback model. "
+                                    "Check cache hit rate.",
                     },
                     {
-                        "issue": "AI出力の品質低下",
-                        "cause": "入力データの変化、プロンプトの劣化",
-                        "solution": "入力データの分布を確認。"
-                                    "プロンプトのA/Bテスト実施。",
+                        "issue": "Degraded AI output quality",
+                        "cause": "Changes in input data, prompt degradation",
+                        "solution": "Check distribution of input data. "
+                                    "Run A/B test on prompts.",
                     },
                 ],
             },
             "escalation": {
-                "l1_support": "社内運用チーム",
-                "l2_support": "コンサルタント（月次契約内）",
-                "emergency": "緊急連絡先: xxx-xxxx-xxxx",
+                "l1_support": "In-house operations team",
+                "l2_support": "Consultant (within monthly contract)",
+                "emergency": "Emergency contact: xxx-xxxx-xxxx",
             },
         }
 ```
 
-### 4.3 PoC成功のフレームワーク
+### 4.3 PoC Success Framework
 
 ```python
 class PoCFramework:
-    """PoC（概念実証）の設計と評価フレームワーク"""
+    """Design and evaluation framework for PoC (Proof of Concept)"""
 
     @staticmethod
     def design_poc(requirements: dict) -> dict:
-        """PoC設計"""
+        """PoC design"""
         return {
             "objective": requirements.get("objective", ""),
             "hypothesis": requirements.get("hypothesis", ""),
             "scope": {
-                "data": "本番データの10-20%サンプル",
-                "users": "3-5名のテストユーザー",
-                "duration": "2-4週間",
-                "features": "コア機能1つのみ",
+                "data": "10-20% sample of production data",
+                "users": "3-5 test users",
+                "duration": "2-4 weeks",
+                "features": "Core feature only (one)",
             },
             "success_criteria": {
                 "accuracy": {
                     "metric": requirements.get("accuracy_metric", "F1"),
                     "threshold": requirements.get("accuracy_threshold", 0.85),
-                    "measurement": "テストデータセットでの評価",
+                    "measurement": "Evaluation on test dataset",
                 },
                 "performance": {
-                    "latency_p50": "1秒以内",
-                    "latency_p95": "3秒以内",
-                    "throughput": "10 req/sec以上",
+                    "latency_p50": "Within 1 second",
+                    "latency_p95": "Within 3 seconds",
+                    "throughput": "10 req/sec or more",
                 },
                 "user_acceptance": {
-                    "satisfaction": "テストユーザーの70%が「使いたい」",
-                    "usability": "SUS 70以上",
+                    "satisfaction": "70% of test users say 'I want to use this'",
+                    "usability": "SUS 70 or above",
                 },
                 "cost": {
-                    "api_cost_per_request": "50円以内",
-                    "monthly_projection": "予算の120%以内",
+                    "api_cost_per_request": "Within 50 JPY",
+                    "monthly_projection": "Within 120% of budget",
                 },
             },
             "go_no_go_criteria": {
-                "go": "4指標中3つ以上を達成",
-                "conditional_go": "2つ達成 + 改善計画あり",
-                "no_go": "1つ以下の達成 → ピボットまたは中止",
+                "go": "3 or more out of 4 criteria met",
+                "conditional_go": "2 criteria met + improvement plan in place",
+                "no_go": "1 or fewer criteria met → pivot or cancel",
             },
         }
 
     @staticmethod
     def evaluate_poc(results: dict, criteria: dict) -> dict:
-        """PoC結果の評価"""
+        """Evaluate PoC results"""
         scores = {}
         passed = 0
         total = 0
@@ -1103,146 +1100,146 @@ class PoCFramework:
 
 ---
 
-## 5. アンチパターン
+## 5. Anti-Patterns
 
-### アンチパターン1: 技術先行の提案
+### Anti-Pattern 1: Technology-First Proposals
 
 ```python
-# BAD: 技術的に面白いが、ビジネス価値が不明確
+# BAD: Technically interesting but business value is unclear
 proposal_bad = {
-    "title": "最新GPT-4o + RAG + ベクトルDB導入提案",
-    "focus": "技術アーキテクチャの先進性",
-    "roi": "算定なし",
-    "result": "経営層: 「で、いくら儲かるの？」→ 却下"
+    "title": "Proposal to Introduce Latest GPT-4o + RAG + Vector DB",
+    "focus": "Cutting-edge nature of technical architecture",
+    "roi": "Not calculated",
+    "result": "Management: 'So, how much money will we make?' → Rejected"
 }
 
-# GOOD: ビジネス課題起点で技術は手段として説明
+# GOOD: Starting from the business challenge; technology is explained as the means
 proposal_good = {
-    "title": "カスタマーサポートコスト40%削減 AI導入提案",
-    "focus": "コスト削減額と顧客満足度向上",
-    "roi": "初年度ROI 117%、投資回収5.5ヶ月",
-    "technology": "補足資料に記載（興味ある方向け）",
-    "result": "経営層: 「すぐ始めよう」→ 受注"
+    "title": "AI Implementation Proposal: 40% Reduction in Customer Support Costs",
+    "focus": "Cost reduction amount and improved customer satisfaction",
+    "roi": "Year 1 ROI 117%, payback in 5.5 months",
+    "technology": "Listed in supplementary materials (for interested parties)",
+    "result": "Management: 'Let's start right away' → Order won"
 }
 ```
 
-### アンチパターン2: PoC止まり
+### Anti-Pattern 2: Getting Stuck at PoC
 
 ```python
-# BAD: PoCは成功するが本番移行しない
+# BAD: PoC succeeds but never moves to production
 poc_trap = {
     "poc_success_rate": "80%",
-    "production_rate": "20%",  # PoC成功の25%しか本番化しない
-    "reason": "PoCのゴール設定が曖昧、本番要件を考慮していない"
+    "production_rate": "20%",  # Only 25% of successful PoCs reach production
+    "reason": "Vague PoC goals, production requirements not considered"
 }
 
-# GOOD: PoCに本番移行基準を最初から組み込む
+# GOOD: Build production transition criteria into PoC from the start
 poc_with_exit_criteria = {
     "go_criteria": [
-        "精度: 目標値の90%以上を達成",
-        "速度: レスポンスタイム2秒以内",
-        "コスト: API費用が月10万円以内",
-        "ユーザー: テストユーザーの70%以上が「使いたい」"
+        "Accuracy: Achieve 90% or more of target value",
+        "Speed: Response time within 2 seconds",
+        "Cost: API fees within 100K JPY/month",
+        "Users: 70% or more of test users say 'I want to use this'"
     ],
-    "no_go_action": "ピボットまたは中止（追加投資しない）",
-    "go_action": "Phase 2の予算承認を同時に取得"
+    "no_go_action": "Pivot or cancel (no additional investment)",
+    "go_action": "Simultaneously obtain Phase 2 budget approval"
 }
 ```
 
-### アンチパターン3: スコープクリープ
+### Anti-Pattern 3: Scope Creep
 
 ```python
-# BAD: プロジェクト中に要件が際限なく膨らむ
+# BAD: Requirements expand without limit during the project
 scope_creep = {
-    "original_scope": "カスタマーサポートチャットボット",
-    "week_2": "+ メール対応も追加して",
-    "week_4": "+ 電話の文字起こしも",
-    "week_6": "+ 営業部門のFAQも対応して",
-    "result": "予算2倍、期間3倍、品質低下"
+    "original_scope": "Customer support chatbot",
+    "week_2": "+ Add email handling too",
+    "week_4": "+ Also transcribe phone calls",
+    "week_6": "+ Handle sales department FAQs too",
+    "result": "Budget doubled, timeline tripled, quality degraded"
 }
 
-# GOOD: 変更管理プロセスを導入
+# GOOD: Introduce a change management process
 change_management = {
     "process": [
-        "1. 変更要求を書面で受領",
-        "2. 影響分析（コスト、期間、品質）",
-        "3. 見積書を提出",
-        "4. クライアント承認後に実施",
+        "1. Receive change request in writing",
+        "2. Impact analysis (cost, timeline, quality)",
+        "3. Submit estimate",
+        "4. Implement only after client approval",
     ],
     "template": {
         "change_request_id": "CR-001",
-        "description": "メール対応機能の追加",
-        "impact_cost": "+1,500,000円",
-        "impact_timeline": "+3週間",
+        "description": "Adding email handling functionality",
+        "impact_cost": "+1,500,000 JPY",
+        "impact_timeline": "+3 weeks",
         "priority": "medium",
         "approval_required": True,
     },
 }
 ```
 
-### アンチパターン4: 価格の安売り
+### Anti-Pattern 4: Underpricing
 
 ```python
-# BAD: 実績作りのために安く受ける
+# BAD: Taking work at a low price to build a track record
 underpricing = {
-    "quote": 500_000,  # 相場の1/3
-    "actual_hours": 200,  # 想定の3倍
-    "effective_rate": 2500,  # 時給2,500円
-    "result": "疲弊、品質低下、クライアントの期待値も歪む"
+    "quote": 500_000,  # 1/3 of market rate
+    "actual_hours": 200,  # 3x the estimate
+    "effective_rate": 2500,  # 2,500 JPY per hour
+    "result": "Burnout, quality degradation, and distorted client expectations"
 }
 
-# GOOD: バリューベースの価格設定
+# GOOD: Value-based pricing
 value_pricing = {
-    "client_current_cost": 20_000_000,  # 年間2000万円の課題
-    "expected_saving": 12_000_000,  # 60%削減
-    "fee": 3_000_000,  # 削減額の25%
-    "value_ratio": 4.0,  # クライアントにとって4倍のリターン
-    "message": "300万円の投資で1200万円の削減。ROI 300%です。"
+    "client_current_cost": 20_000_000,  # 20M JPY annual problem
+    "expected_saving": 12_000_000,  # 60% reduction
+    "fee": 3_000_000,  # 25% of savings
+    "value_ratio": 4.0,  # 4x return for the client
+    "message": "A 3M JPY investment yields 12M JPY in savings. ROI: 300%."
 }
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise on basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1251,26 +1248,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise on advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1278,7 +1275,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1289,14 +1286,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1304,7 +1301,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1312,44 +1309,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1358,7 +1355,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1373,93 +1370,93 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 ---
 
 ## 6. FAQ
 
-### Q1: AIコンサルティングの相場は？
+### Q1: What are the typical rates for AI consulting?
 
-**A:** 日本市場では (1) アセスメント: 50-200万円（2-4週間）、(2) PoC: 100-500万円（1-2ヶ月）、(3) 本番導入: 300-2000万円（3-6ヶ月）、(4) 運用保守: 30-100万円/月。個人コンサルタントは日単価5-15万円、ファーム経由は20-50万円が目安。実績と業界知識で単価は大きく変動する。
+**A:** In the Japanese market: (1) Assessment: 500K–2M JPY (2-4 weeks), (2) PoC: 1M–5M JPY (1-2 months), (3) Full implementation: 3M–20M JPY (3-6 months), (4) Operations and maintenance: 300K–1M JPY/month. Independent consultants charge 50K–150K JPY/day; through a firm, 200K–500K JPY/day is the norm. Rates vary significantly based on track record and industry knowledge.
 
-### Q2: 技術力とビジネス力、どちらが重要？
+### Q2: Which is more important — technical skills or business skills?
 
-**A:** 比率は「ビジネス70%:技術30%」。AIの技術的実装はAPI呼び出しで済むケースが増えており、むしろ (1) クライアントの業務理解、(2) 課題の構造化能力、(3) ROIの定量化スキル、(4) ステークホルダー管理力が差別化要因。技術は外注できるが、信頼関係と業務理解は外注できない。
+**A:** The ratio is "70% business : 30% technology." AI technical implementation increasingly comes down to API calls, so the differentiating factors are (1) understanding the client's business, (2) ability to structure problems, (3) skills to quantify ROI, and (4) stakeholder management. Technical work can be outsourced; trust and business understanding cannot.
 
-### Q3: クライアントの社内抵抗への対処法は？
+### Q3: How do you handle internal resistance at the client?
 
-**A:** 3段階で対応する。(1) 早期巻き込み — 現場担当者をPoC段階から参加させ「自分事」にする、(2) 小さな成功 — 最もインパクトが大きく抵抗が少ない業務から始める、(3) データで説得 — 「AI導入前後で処理時間が70%削減」等の定量データを可視化。特に「AIに仕事を奪われる」不安には「AIは補助であり、より価値の高い業務に集中できる」と具体例で示す。
+**A:** Address it in three stages. (1) Early involvement — bring frontline staff into the PoC stage so they feel ownership, (2) Small wins — start with the task that has the most impact and least resistance, (3) Data-driven persuasion — visualize quantitative data such as "processing time reduced 70% after AI implementation." For the specific fear of "AI will take our jobs," demonstrate with concrete examples that "AI is a support tool, freeing you to focus on higher-value work."
 
-### Q4: 初めてのクライアントをどう獲得するか？
+### Q4: How do you acquire your first client?
 
-**A:** 初期のクライアント獲得には5つのアプローチが効果的です。(1) 無料アセスメント: 30分の無料AI活用診断をオファーし、課題を具体化して提案につなげる。(2) コンテンツ発信: 業界特化のAI活用事例をブログ・登壇・SNSで発信し、専門家としてのポジションを確立。(3) 前職のネットワーク: 元同僚や取引先に「AI導入の相談に乗れます」と声をかける。(4) パートナーシップ: Web制作会社やSIerと提携し、AI案件の紹介を受ける。(5) コミュニティ参加: AI関連の勉強会やカンファレンスで人脈を構築。最初の3件は多少の値引きをしてでも実績と推薦をもらうことが重要。
+**A:** Five approaches are effective for initial client acquisition. (1) Free assessment: Offer a 30-minute free AI utilization diagnosis to surface challenges and convert to a proposal. (2) Content publishing: Publish industry-specific AI use cases on blogs, speaking engagements, and social media to establish yourself as an expert. (3) Past network: Contact former colleagues and business partners, letting them know "I'm available to consult on AI implementation." (4) Partnerships: Partner with web development firms and SIers to receive AI project referrals. (5) Community participation: Build relationships at AI-related study groups and conferences. For the first three clients, it is important to get case studies and recommendations even if it means a slight discount.
 
-### Q5: 契約形態はどうすべきか？
+### Q5: What contract structure should I use?
 
-**A:** プロジェクトの性質によって最適な契約形態が異なります。(1) 準委任契約（時間ベース）: 要件が不明確な探索フェーズに最適。時間単価×稼働時間で請求。クライアントとの信頼関係構築が必要。(2) 請負契約（成果物ベース）: 要件が明確なPoC・開発フェーズに適切。納品物と受入基準を明確に定義。(3) 成果報酬型: コスト削減額の一定割合を報酬とする。クライアントのリスクが低く、受注しやすいが、効果測定の合意が必要。初期は準委任契約から始め、信頼関係ができたら請負や成果報酬を組み合わせるのが一般的です。
+**A:** The optimal contract type depends on the nature of the project. (1) Quasi-mandate contract (time-based): Best for exploratory phases where requirements are unclear. Billed at hourly rate × hours worked. Requires trust with the client. (2) Contract for work (deliverable-based): Appropriate for PoC and development phases where requirements are clear. Clearly define deliverables and acceptance criteria. (3) Performance-based: Fee is a percentage of the cost savings achieved. Low risk for the client and easier to win, but requires agreement on how results are measured. It is common to start with a quasi-mandate contract, and once trust is established, combine it with contracts for work or performance-based arrangements.
 
-### Q6: プロジェクトが失敗しそうなときの対応は？
+### Q6: What do you do when a project looks like it might fail?
 
-**A:** プロジェクト危機管理の3ステップ。(1) 早期警告: 週次のステータスレポートで「黄色信号」を事前に共有。問題を隠すのは最悪の対応。(2) 原因分析と再計画: 技術的課題なのか、要件の認識齟齬なのかを特定し、スコープ・スケジュール・予算の再調整案を提示。(3) エスカレーション: 必要に応じてクライアントのエグゼクティブスポンサーを巻き込み、Go/No-Go判断を仰ぐ。「失敗」ではなく「学び」として位置付け、「このアプローチは有効でないことが判明した。次のアプローチを提案する」というスタンスが信頼を維持するコツです。
+**A:** Three steps for project crisis management. (1) Early warning: Share "yellow flags" proactively in weekly status reports. Hiding problems is the worst response. (2) Root cause analysis and replanning: Identify whether the issue is technical or a misalignment on requirements, and present options for adjusting scope, schedule, or budget. (3) Escalation: If necessary, involve the client's executive sponsor and seek a Go/No-Go decision. The key to maintaining trust is to frame it not as a "failure" but as a "learning," with a stance of "this approach was found to be ineffective; here is the next approach we propose."
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Accumulating hands-on experience is most important. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| サービス設計 | アセスメント→導入支援→運用保守の3層 |
-| 提案書の鍵 | ビジネス課題起点、ROI定量化、リスク先回り |
-| ROI算定 | コスト削減+生産性向上+売上向上+戦略的価値の4軸 |
-| プロジェクト | Discovery→PoC→Build→Launchの4フェーズ |
-| 営業プロセス | リード→ヒアリング→提案→契約の体系化 |
-| 収益モデル | 初年度4,000万円+（個人〜小規模チーム） |
-| 成功の鍵 | ビジネス理解70% + 技術力30% |
-| スコープ管理 | 変更管理プロセスの導入が必須 |
-| 価格設定 | バリューベース（効果の20-30%）が最適 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [02-content-creation.md](./02-content-creation.md) — コンテンツ制作ビジネス
-- [../02-monetization/00-pricing-models.md](../02-monetization/00-pricing-models.md) — 価格モデル設計
-- [../03-case-studies/02-startup-guide.md](../03-case-studies/02-startup-guide.md) — スタートアップガイド
+| Item | Key Point |
+|------|-----------|
+| Service design | Three tiers: Assessment → Implementation support → Operations & maintenance |
+| Key to proposals | Start from business challenges, quantify ROI, proactively address risks |
+| ROI calculation | Four axes: Cost reduction + productivity gains + revenue growth + strategic value |
+| Project | Four phases: Discovery → PoC → Build → Launch |
+| Sales process | Systematize: Lead → Discovery → Proposal → Contract |
+| Revenue model | Year 1: ~40M JPY+ (solo to small team) |
+| Key to success | 70% business understanding + 30% technical ability |
+| Scope management | Introducing a change management process is essential |
+| Pricing | Value-based (20-30% of realized benefit) is optimal |
 
 ---
 
-## 参考文献
+## What to Read Next
 
-1. **"The Trusted Advisor" — David Maister** — コンサルタントの信頼構築の古典的名著
-2. **"Value-Based Fees" — Alan Weiss** — 時間単価ではなく価値ベースの料金設定手法
-3. **McKinsey & Company "The State of AI" (2024)** — AI導入の成功率・ROI実績データ
-4. **"Flawless Consulting" — Peter Block** — コンサルティングプロセスの実践ガイド
-5. **"Million Dollar Consulting" — Alan Weiss** — コンサルティング事業の成長戦略
-6. **Harvard Business Review: AI Implementation** — AI導入プロジェクトの成功要因分析
+- [02-content-creation.md](./02-content-creation.md) — Content creation business
+- [../02-monetization/00-pricing-models.md](../02-monetization/00-pricing-models.md) — Pricing model design
+- [../03-case-studies/02-startup-guide.md](../03-case-studies/02-startup-guide.md) — Startup guide
+
+---
+
+## References
+
+1. **"The Trusted Advisor" — David Maister** — Classic work on building trust as a consultant
+2. **"Value-Based Fees" — Alan Weiss** — Methods for value-based fee setting rather than hourly rates
+3. **McKinsey & Company "The State of AI" (2024)** — Data on AI implementation success rates and ROI results
+4. **"Flawless Consulting" — Peter Block** — Practical guide to the consulting process
+5. **"Million Dollar Consulting" — Alan Weiss** — Growth strategy for the consulting business
+6. **Harvard Business Review: AI Implementation** — Analysis of success factors in AI implementation projects

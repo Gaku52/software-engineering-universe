@@ -1,40 +1,40 @@
-# AIマーケットプレイス — HuggingFace、Replicate
+# AI Marketplace — HuggingFace, Replicate
 
-> AIモデルとサービスのマーケットプレイスを活用したビジネス戦略を解説し、HuggingFace、Replicate、その他主要プラットフォームでの公開・収益化・運用の実践知識を提供する。
-
----
-
-## この章で学ぶこと
-
-1. **AIマーケットプレイスのエコシステム理解** — 主要プラットフォームの特徴、ビジネスモデル、ポジショニング
-2. **モデル公開と収益化の実践** — HuggingFace/Replicate でのモデル公開、APIエンドポイント構築、課金設計
-3. **マーケットプレイス戦略** — 差別化、プロモーション、コミュニティ構築による成長
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [コンテンツ制作 — ブログ、動画、SNS自動化](./02-content-creation.md) の内容を理解していること
+> A guide to business strategies leveraging AI model and service marketplaces, providing practical knowledge on publishing, monetizing, and operating models on HuggingFace, Replicate, and other major platforms.
 
 ---
 
-## 1. AIマーケットプレイスの全体像
+## What You Will Learn
 
-### 1.1 主要プラットフォームマップ
+1. **Understanding the AI Marketplace Ecosystem** — Key platform characteristics, business models, and positioning
+2. **Practical Model Publishing and Monetization** — Publishing models on HuggingFace/Replicate, building API endpoints, and designing pricing
+3. **Marketplace Strategy** — Differentiation, promotion, and community-driven growth
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Content Creation — Blog, Video, SNS Automation](./02-content-creation.md)
+
+---
+
+## 1. Overview of AI Marketplaces
+
+### 1.1 Major Platform Map
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│           AIマーケットプレイス エコシステム                   │
+│           AI Marketplace Ecosystem                        │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  モデルハブ              API/推論              アプリ      │
+│  Model Hubs            API/Inference        Apps         │
 │  ┌──────────┐          ┌──────────┐        ┌─────────┐ │
 │  │HuggingFace│          │Replicate │        │GPTs     │ │
-│  │ 100万+    │          │ ワンクリック│      │ Store   │ │
-│  │ モデル    │          │ デプロイ  │        │         │ │
+│  │ 1M+      │          │ One-click│        │ Store   │ │
+│  │ Models   │          │ Deploy   │        │         │ │
 │  └──────────┘          └──────────┘        └─────────┘ │
 │                                                          │
 │  ┌──────────┐          ┌──────────┐        ┌─────────┐ │
@@ -44,37 +44,37 @@
 │                        │Marketplace│                    │
 │  ┌──────────┐          └──────────┘        ┌─────────┐ │
 │  │Civitai   │                              │Claude   │ │
-│  │(画像特化) │          ┌──────────┐        │ MCP     │ │
+│  │(Image)   │          ┌──────────┐        │ MCP     │ │
 │  └──────────┘          │Together  │        └─────────┘ │
 │                        │AI        │                     │
 │                        └──────────┘                     │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 プラットフォーム比較
+### 1.2 Platform Comparison
 
-| プラットフォーム | 特徴 | 収益化 | 対象ユーザー | モデル数 |
-|---------------|------|--------|------------|---------|
-| HuggingFace | モデルハブ + Spaces | Inference API課金 | ML開発者 | 100万+ |
-| Replicate | ワンクリックデプロイ | 従量課金（実行時間） | 開発者 | 数千 |
-| AWS Marketplace | エンタープライズ | サブスク/従量 | 企業 | 数百 |
-| GPT Store | ChatGPTプラグイン | 収益シェア | 一般ユーザー | 数万 |
-| Poe | チャットボット | 利用量シェア | 一般ユーザー | 数千 |
-| Together AI | OSS推論 | API従量 | ML開発者 | 数百 |
+| Platform | Features | Monetization | Target Users | Models |
+|----------|----------|--------------|--------------|--------|
+| HuggingFace | Model hub + Spaces | Inference API billing | ML developers | 1M+ |
+| Replicate | One-click deploy | Pay-per-use (execution time) | Developers | Thousands |
+| AWS Marketplace | Enterprise | Subscription/pay-per-use | Enterprises | Hundreds |
+| GPT Store | ChatGPT plugins | Revenue share | General users | Tens of thousands |
+| Poe | Chatbots | Usage share | General users | Thousands |
+| Together AI | OSS inference | API pay-per-use | ML developers | Hundreds |
 
 ---
 
-## 2. HuggingFace 活用
+## 2. Using HuggingFace
 
-### 2.1 モデル公開フロー
+### 2.1 Model Publishing Flow
 
 ```python
-# HuggingFace にモデルをアップロード
+# Upload a model to HuggingFace
 from huggingface_hub import HfApi, create_repo
 from transformers import AutoTokenizer, AutoModelForCausalLM
 
 class HuggingFacePublisher:
-    """HuggingFace モデル公開管理"""
+    """HuggingFace model publishing manager"""
 
     def __init__(self, token: str):
         self.api = HfApi(token=token)
@@ -82,8 +82,8 @@ class HuggingFacePublisher:
 
     def publish_model(self, model_path: str, repo_name: str,
                       model_card: str) -> str:
-        """モデルを公開"""
-        # 1. リポジトリ作成
+        """Publish a model"""
+        # 1. Create repository
         repo_url = create_repo(
             repo_name,
             token=self.token,
@@ -91,14 +91,14 @@ class HuggingFacePublisher:
             repo_type="model"
         )
 
-        # 2. モデルファイルをアップロード
+        # 2. Upload model files
         self.api.upload_folder(
             folder_path=model_path,
             repo_id=repo_name,
             token=self.token
         )
 
-        # 3. モデルカード作成
+        # 3. Create model card
         self.api.upload_file(
             path_or_fileobj=model_card.encode(),
             path_in_repo="README.md",
@@ -109,7 +109,7 @@ class HuggingFacePublisher:
         return repo_url
 
     def create_model_card(self, config: dict) -> str:
-        """モデルカード（README）生成"""
+        """Generate model card (README)"""
         return f"""---
 license: {config['license']}
 language: {config['language']}
@@ -144,21 +144,21 @@ result = pipe("Your input text here")
 """
 ```
 
-### 2.2 HuggingFace Spaces（デモ公開）
+### 2.2 HuggingFace Spaces (Publishing Demos)
 
 ```python
-# Gradio アプリ（HuggingFace Spaces 用）
+# Gradio app (for HuggingFace Spaces)
 import gradio as gr
 from transformers import pipeline
 
-# モデルロード
+# Load model
 classifier = pipeline(
     "text-classification",
     model="your-org/your-model"
 )
 
 def classify_text(text: str) -> dict:
-    """テキスト分類デモ"""
+    """Text classification demo"""
     results = classifier(text)
     return {r["label"]: round(r["score"], 4) for r in results}
 
@@ -166,16 +166,16 @@ def classify_text(text: str) -> dict:
 demo = gr.Interface(
     fn=classify_text,
     inputs=gr.Textbox(
-        label="テキスト入力",
-        placeholder="分類したいテキストを入力..."
+        label="Text Input",
+        placeholder="Enter text to classify..."
     ),
-    outputs=gr.Label(label="分類結果"),
-    title="AI テキスト分類デモ",
-    description="日本語テキストの感情・カテゴリ分類",
+    outputs=gr.Label(label="Classification Result"),
+    title="AI Text Classification Demo",
+    description="Sentiment and category classification for text",
     examples=[
-        ["このサービスは素晴らしいです！大満足です。"],
-        ["配送が3日も遅れて非常に困っています。"],
-        ["新機能の追加予定はありますか？"]
+        ["This service is amazing! Completely satisfied."],
+        ["The delivery was 3 days late and I'm very frustrated."],
+        ["Are there any plans to add new features?"]
     ]
 )
 
@@ -184,22 +184,22 @@ demo.launch()
 
 ---
 
-## 3. Replicate 活用
+## 3. Using Replicate
 
-### 3.1 モデルデプロイ
+### 3.1 Model Deployment
 
 ```python
-# Replicate でのモデル公開と実行
+# Publishing and running a model on Replicate
 import replicate
 
 class ReplicateDeployer:
-    """Replicate モデルデプロイ管理"""
+    """Replicate model deployment manager"""
 
     def __init__(self, api_token: str):
         self.client = replicate.Client(api_token=api_token)
 
     def run_model(self, model_id: str, inputs: dict) -> any:
-        """既存モデルを実行"""
+        """Run an existing model"""
         output = replicate.run(
             model_id,
             input=inputs
@@ -207,7 +207,7 @@ class ReplicateDeployer:
         return output
 
     def run_image_generation(self, prompt: str) -> str:
-        """画像生成モデル実行"""
+        """Run image generation model"""
         output = replicate.run(
             "stability-ai/sdxl:latest",
             input={
@@ -218,10 +218,10 @@ class ReplicateDeployer:
                 "num_outputs": 1
             }
         )
-        return output[0]  # 画像URL
+        return output[0]  # Image URL
 
     def run_llm(self, prompt: str, model: str = "meta/llama-2-70b-chat") -> str:
-        """LLM実行"""
+        """Run LLM"""
         output = replicate.run(
             model,
             input={
@@ -233,10 +233,10 @@ class ReplicateDeployer:
         return "".join(output)
 ```
 
-### 3.2 Cog によるカスタムモデルパッケージング
+### 3.2 Custom Model Packaging with Cog
 
 ```python
-# cog.yaml - Replicate用モデル定義
+# cog.yaml - Model definition for Replicate
 """
 build:
   python_version: "3.11"
@@ -256,7 +256,7 @@ import torch
 
 class Predictor(BasePredictor):
     def setup(self):
-        """モデルロード（起動時に1回だけ実行）"""
+        """Load model (runs once at startup)"""
         self.model = AutoModelForCausalLM.from_pretrained(
             "your-model-path",
             torch_dtype=torch.float16,
@@ -266,11 +266,11 @@ class Predictor(BasePredictor):
 
     def predict(
         self,
-        prompt: str = Input(description="入力テキスト"),
-        max_tokens: int = Input(description="最大トークン数", default=256),
-        temperature: float = Input(description="温度", default=0.7),
+        prompt: str = Input(description="Input text"),
+        max_tokens: int = Input(description="Maximum token count", default=256),
+        temperature: float = Input(description="Temperature", default=0.7),
     ) -> str:
-        """推論実行"""
+        """Run inference"""
         inputs = self.tokenizer(prompt, return_tensors="pt").to("cuda")
         outputs = self.model.generate(
             **inputs,
@@ -283,60 +283,60 @@ class Predictor(BasePredictor):
 
 ---
 
-## 4. 収益化戦略
+## 4. Monetization Strategy
 
-### 4.1 マーケットプレイス別収益モデル
+### 4.1 Revenue Models by Marketplace
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│            AIマーケットプレイス 収益化パターン               │
+│            AI Marketplace Monetization Patterns           │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
 │  HuggingFace:                                            │
 │  ┌──────────────────────────────────────┐               │
-│  │ 無料モデル公開 → ブランド認知          │               │
-│  │ Pro Inference API → 従量課金           │               │
-│  │ Enterprise Hub → ライセンス契約        │               │
-│  │ コンサルティング → モデル紹介経由       │               │
+│  │ Free model publishing → Brand awareness│              │
+│  │ Pro Inference API → Pay-per-use       │               │
+│  │ Enterprise Hub → License contracts    │               │
+│  │ Consulting → Model referral leads     │               │
 │  └──────────────────────────────────────┘               │
 │                                                          │
 │  Replicate:                                              │
 │  ┌──────────────────────────────────────┐               │
-│  │ モデル公開 → 実行ごとに収益           │               │
-│  │ 料金: $0.0001-$0.01/秒（GPU種別依存）  │               │
-│  │ 人気モデル: 月 $1,000-$50,000+        │               │
+│  │ Model publishing → Revenue per run   │               │
+│  │ Rate: $0.0001-$0.01/sec (GPU-dependent)│              │
+│  │ Popular models: $1,000-$50,000+/mo   │               │
 │  └──────────────────────────────────────┘               │
 │                                                          │
 │  GPT Store:                                              │
 │  ┌──────────────────────────────────────┐               │
-│  │ GPTs作成 → 利用量に応じた収益シェア    │               │
-│  │ ブランド認知 → 本体サービスへの導線    │               │
+│  │ Create GPTs → Revenue share by usage │               │
+│  │ Brand awareness → Funnel to core service│             │
 │  └──────────────────────────────────────┘               │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 月収シミュレーション
+### 4.2 Monthly Revenue Simulation
 
-| 収益源 | 月間利用量 | 単価 | 月収 |
-|--------|----------|------|------|
-| Replicate モデル | 10万回実行 | $0.005/回 | $500 |
-| HuggingFace API | 50万リクエスト | $0.001/回 | $500 |
-| GPT Store | 1万ユーザー | 収益シェア | $200-$1000 |
-| コンサル誘導 | 2件/月 | $2000/件 | $4000 |
-| 合計 | — | — | $5,200-$6,000 |
+| Revenue Source | Monthly Usage | Unit Price | Monthly Revenue |
+|----------------|---------------|------------|-----------------|
+| Replicate model | 100K runs | $0.005/run | $500 |
+| HuggingFace API | 500K requests | $0.001/req | $500 |
+| GPT Store | 10K users | Revenue share | $200-$1,000 |
+| Consulting referrals | 2 clients/mo | $2,000/client | $4,000 |
+| Total | — | — | $5,200-$6,000 |
 
 ---
 
-## 5. アンチパターン
+## 5. Anti-Patterns
 
-### アンチパターン1: ドキュメントなしの公開
+### Anti-Pattern 1: Publishing Without Documentation
 
 ```python
-# BAD: モデルだけアップロード、README無し
+# BAD: Upload model only, no README
 api.upload_folder(folder_path="./model", repo_id="my-model")
-# → 誰も使い方がわからない、ダウンロード数ゼロ
+# → Nobody knows how to use it, zero downloads
 
-# GOOD: 充実したモデルカード + デモ + 使用例
+# GOOD: Rich model card + demo + usage examples
 publish_model_with_docs(
     model_path="./model",
     model_card=create_detailed_model_card(),
@@ -344,29 +344,29 @@ publish_model_with_docs(
     examples=create_usage_examples(),
     benchmarks=create_benchmark_results()
 )
-# → ドキュメントが充実 → 信頼性UP → ダウンロード増
+# → Rich documentation → Higher trust → More downloads
 ```
 
-### アンチパターン2: 既存モデルの薄いラッパー
+### Anti-Pattern 2: Thin Wrapper Around Existing Models
 
 ```python
-# BAD: GPT-4のプロンプトを変えただけのGPTs
+# BAD: GPTs that just change the GPT-4 prompt
 gpt_store_app = {
     "name": "Amazing Writer AI",
-    "prompt": "あなたは優秀なライターです",  # これだけ
-    "value": "ゼロ（誰でも作れる）"
+    "prompt": "You are an excellent writer",  # That's all
+    "value": "Zero (anyone can do this)"
 }
 
-# GOOD: 独自データ・独自処理で差別化
+# GOOD: Differentiate with proprietary data and processing
 gpt_store_app = {
-    "name": "法務契約レビューAI",
+    "name": "Legal Contract Review AI",
     "features": [
-        "1000件の契約書データで学習済みナレッジ",
-        "リスク条項の自動検出アルゴリズム",
-        "業界別チェックリスト統合",
-        "判例データベース連携"
+        "Knowledge trained on 1,000 real contracts",
+        "Automatic risk clause detection algorithm",
+        "Industry-specific checklist integration",
+        "Case law database integration"
     ],
-    "value": "弁護士3時間分の作業を10分に短縮"
+    "value": "Reduces 3 hours of attorney work to 10 minutes"
 }
 ```
 
@@ -374,86 +374,86 @@ gpt_store_app = {
 
 ## 6. FAQ
 
-### Q1: HuggingFaceとReplicateどちらを使うべき？
+### Q1: Should I use HuggingFace or Replicate?
 
-**A:** 目的で選ぶ。(1) モデルを共有しコミュニティで認知を得たい → HuggingFace、(2) モデルを即座にAPIとして収益化したい → Replicate、(3) 両方やるのがベスト。HuggingFaceで無料公開しつつ、高性能版をReplicateで有料提供する二段構えが効果的。
+**A:** Choose based on your goal. (1) Want to share a model and gain community recognition → HuggingFace; (2) Want to instantly monetize a model as an API → Replicate; (3) Doing both is best. A two-tier approach — free public release on HuggingFace, paid premium version on Replicate — is effective.
 
-### Q2: 独自モデルがなくてもマーケットプレイスで収益化できる？
+### Q2: Can I monetize on a marketplace without a proprietary model?
 
-**A:** できる。(1) 既存OSSモデルのファインチューニング版を公開、(2) 複数モデルを組み合わせたパイプラインを公開、(3) GPT Storeで特定業界向けGPTsを作成。技術力よりドメイン知識が差別化になる。法務、医療、不動産等の特化型は高い需要がある。
+**A:** Yes. (1) Publish a fine-tuned version of an existing OSS model; (2) Publish a pipeline combining multiple models; (3) Create domain-specific GPTs in the GPT Store. Domain knowledge differentiates more than technical skills. Specialized models for legal, medical, real estate, etc., are in high demand.
 
-### Q3: モデルの知的財産を守るには？
+### Q3: How can I protect my model's intellectual property?
 
-**A:** 3つの方法がある。(1) ライセンス設定 — 商用利用禁止や改変禁止のライセンスを適用、(2) API提供のみ — モデル重みは非公開でAPI経由のみ利用可能にする（Replicate推奨）、(3) 段階的公開 — 小型版は無料公開、高性能版は有料APIのみ。完全な保護は困難なので、継続的な改善で優位性を維持する戦略が現実的。
+**A:** Three approaches. (1) License settings — apply a license prohibiting commercial use or modifications; (2) API-only access — keep model weights private and allow access only via API (Replicate recommended); (3) Tiered release — free public release of a smaller version, paid API-only for the high-performance version. Complete protection is difficult, so maintaining a competitive edge through continuous improvement is the pragmatic strategy.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Rather than theory alone, actually writing code and verifying behavior deepens understanding.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| HuggingFace | モデルハブ＋コミュニティ、認知獲得に最適 |
-| Replicate | ワンクリックAPI化、即座に収益化可能 |
-| GPT Store | 一般ユーザー向け、ドメイン特化で差別化 |
-| 収益化の鍵 | 独自データ＋ドメイン知識＋充実ドキュメント |
-| 月収目安 | $500〜$6,000+（マルチプラットフォーム戦略） |
-| 知財保護 | ライセンス＋API限定＋継続的改善 |
+Knowledge of this topic is frequently applied in day-to-day development work. It is especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [../02-monetization/00-pricing-models.md](../02-monetization/00-pricing-models.md) — 価格モデル設計
-- [../02-monetization/01-cost-management.md](../02-monetization/01-cost-management.md) — コスト管理
-- [../03-case-studies/00-successful-ai-products.md](../03-case-studies/00-successful-ai-products.md) — 成功事例
+| Item | Key Point |
+|------|-----------|
+| HuggingFace | Model hub + community, ideal for gaining visibility |
+| Replicate | One-click API creation, immediate monetization possible |
+| GPT Store | For general users, differentiate with domain specialization |
+| Key to monetization | Proprietary data + domain knowledge + rich documentation |
+| Monthly revenue estimate | $500–$6,000+ (multi-platform strategy) |
+| IP protection | License + API-only access + continuous improvement |
 
 ---
 
-## 7. 実践的な公開・運用フロー
+## Next Guides to Read
 
-### 7.1 HuggingFace モデル公開の詳細手順
+- [../02-monetization/00-pricing-models.md](../02-monetization/00-pricing-models.md) — Pricing model design
+- [../02-monetization/01-cost-management.md](../02-monetization/01-cost-management.md) — Cost management
+- [../03-case-studies/00-successful-ai-products.md](../03-case-studies/00-successful-ai-products.md) — Success stories
+
+---
+
+## 7. Practical Publishing and Operations Flow
+
+### 7.1 Detailed HuggingFace Model Publishing Steps
 
 ```python
-# HuggingFace モデル公開の完全フロー
+# Complete flow for HuggingFace model publishing
 class HuggingFacePublishFlow:
-    """HuggingFace への公開からプロモーションまでの完全フロー"""
+    """Complete flow from publishing to promotion on HuggingFace"""
 
     def __init__(self, token: str, org_name: str):
         self.api = HfApi(token=token)
         self.org = org_name
 
     def full_publish_flow(self, model_config: dict):
-        """完全な公開フロー"""
+        """Complete publishing flow"""
 
-        # Step 1: リポジトリ作成
+        # Step 1: Create repository
         repo_id = f"{self.org}/{model_config['name']}"
         create_repo(repo_id, token=self.api.token, private=False)
 
-        # Step 2: モデルファイルアップロード
+        # Step 2: Upload model files
         self.api.upload_folder(
             folder_path=model_config["model_path"],
             repo_id=repo_id,
             commit_message="Initial model upload"
         )
 
-        # Step 3: 充実したモデルカード作成
+        # Step 3: Create a comprehensive model card
         model_card = self._create_comprehensive_card(model_config)
         self.api.upload_file(
             path_or_fileobj=model_card.encode(),
@@ -461,7 +461,7 @@ class HuggingFacePublishFlow:
             repo_id=repo_id
         )
 
-        # Step 4: サンプルコード追加
+        # Step 4: Add sample code
         examples = self._create_examples(model_config)
         self.api.upload_file(
             path_or_fileobj=examples.encode(),
@@ -469,7 +469,7 @@ class HuggingFacePublishFlow:
             repo_id=repo_id
         )
 
-        # Step 5: ベンチマーク結果追加
+        # Step 5: Add benchmark results
         benchmarks = self._create_benchmarks(model_config)
         self.api.upload_file(
             path_or_fileobj=benchmarks.encode(),
@@ -477,7 +477,7 @@ class HuggingFacePublishFlow:
             repo_id=repo_id
         )
 
-        # Step 6: Spaces デモ作成
+        # Step 6: Create Spaces demo
         self._create_demo_space(model_config, repo_id)
 
         return {
@@ -487,7 +487,7 @@ class HuggingFacePublishFlow:
         }
 
     def _create_comprehensive_card(self, config: dict) -> str:
-        """包括的なモデルカード生成"""
+        """Generate a comprehensive model card"""
         return f"""---
 license: {config.get('license', 'apache-2.0')}
 language:
@@ -559,7 +559,7 @@ print(result)
 """
 
     def _create_demo_space(self, config: dict, model_repo_id: str):
-        """Spaces デモアプリ作成"""
+        """Create Spaces demo app"""
         space_id = f"{self.org}/{config['name']}-demo"
         create_repo(space_id, repo_type="space", space_sdk="gradio")
 
@@ -567,7 +567,7 @@ print(result)
 import gradio as gr
 from transformers import pipeline
 
-# モデルロード
+# Load model
 model = pipeline("{config.get('task', 'text-generation')}", model="{model_repo_id}")
 
 def predict(text):
@@ -593,18 +593,18 @@ demo.launch()
         )
 ```
 
-### 7.2 Replicate 本番運用ガイド
+### 7.2 Replicate Production Operations Guide
 
 ```python
-# Replicate モデルの本番運用設定
+# Production configuration for Replicate models
 class ReplicateProductionSetup:
-    """Replicate モデルの本番運用管理"""
+    """Production operations manager for Replicate models"""
 
     def __init__(self, api_token: str):
         self.client = replicate.Client(api_token=api_token)
 
     def setup_production_model(self, model_config: dict) -> dict:
-        """本番用モデルのセットアップ"""
+        """Set up a model for production use"""
         return {
             "deployment": {
                 "model_id": model_config["model_id"],
@@ -632,19 +632,19 @@ class ReplicateProductionSetup:
         }
 
     def _select_hardware(self, config: dict) -> str:
-        """モデルサイズに基づくハードウェア選択"""
+        """Select hardware based on model size"""
         param_count = config.get("param_count_billions", 7)
         if param_count <= 3:
-            return "cpu"  # 小型モデル
+            return "cpu"  # Small model
         elif param_count <= 13:
-            return "gpu-t4"  # 中型モデル
+            return "gpu-t4"  # Medium model
         elif param_count <= 70:
-            return "gpu-a40-large"  # 大型モデル
+            return "gpu-a40-large"  # Large model
         else:
-            return "gpu-a100-80gb"  # 超大型モデル
+            return "gpu-a100-80gb"  # Extra-large model
 
     def create_api_wrapper(self, model_id: str) -> dict:
-        """API ラッパーの構築パターン"""
+        """API wrapper construction pattern"""
         return {
             "endpoint": f"https://api.replicate.com/v1/models/{model_id}/predictions",
             "rate_limiting": {
@@ -667,112 +667,112 @@ class ReplicateProductionSetup:
         }
 ```
 
-### 7.3 GPT Store 成功パターン
+### 7.3 GPT Store Success Patterns
 
 ```python
-# GPT Store での成功パターン分析
+# Analysis of success patterns in the GPT Store
 gpt_store_strategies = {
     "category_leaders": {
         "productivity": {
-            "example": "議事録AI要約ツール",
-            "differentiator": "Zoom/Teams統合、日本語最適化",
+            "example": "Meeting Minutes AI Summarizer",
+            "differentiator": "Zoom/Teams integration, optimized for English",
             "monthly_users": "10,000+",
-            "revenue_model": "ChatGPT Plus経由の収益シェア"
+            "revenue_model": "Revenue share via ChatGPT Plus"
         },
         "education": {
-            "example": "TOEIC対策AIチューター",
-            "differentiator": "問題生成+弱点分析+学習計画",
+            "example": "TOEIC Prep AI Tutor",
+            "differentiator": "Question generation + weakness analysis + study plan",
             "monthly_users": "25,000+",
-            "revenue_model": "GPT利用量シェア + 外部サービス誘導"
+            "revenue_model": "GPT usage share + external service referral"
         },
         "legal": {
-            "example": "契約書レビューGPT",
-            "differentiator": "日本法準拠チェック、判例DB連携",
+            "example": "Contract Review GPT",
+            "differentiator": "Compliance check, case law DB integration",
             "monthly_users": "5,000+",
-            "revenue_model": "GPT利用量シェア + コンサル誘導"
+            "revenue_model": "GPT usage share + consulting referral"
         }
     },
     "success_factors": [
-        "明確なニッチ: 汎用ではなく特定用途に特化",
-        "独自データ: 公開データにない専門知識を組み込む",
-        "アクション連携: 外部APIとの統合で実用性を高める",
-        "継続的改善: ユーザーフィードバックに基づく週次更新",
-        "SEO対策: GPT Storeの検索最適化（タイトル、説明文）"
+        "Clear niche: specialize for a specific use case, not general purpose",
+        "Proprietary data: embed domain expertise not found in public data",
+        "Action integration: enhance utility through external API integrations",
+        "Continuous improvement: weekly updates based on user feedback",
+        "SEO optimization: optimize for GPT Store search (title, description)"
     ],
     "monetization_flow": {
-        "step_1": "無料GPTで認知獲得（月1万ユーザー目標）",
-        "step_2": "プレミアム機能を外部SaaSで提供",
-        "step_3": "企業向けカスタムGPT開発の受注",
-        "step_4": "GPT Store 収益シェア + 外部売上の2軸"
+        "step_1": "Gain awareness with a free GPT (target: 10K users/month)",
+        "step_2": "Offer premium features via external SaaS",
+        "step_3": "Take orders for custom GPT development for enterprises",
+        "step_4": "Dual revenue: GPT Store share + external sales"
     }
 }
 ```
 
 ---
 
-## 8. マーケットプレイス成長戦略
+## 8. Marketplace Growth Strategy
 
-### 8.1 コミュニティ構築
+### 8.1 Community Building
 
 ```python
-# AIマーケットプレイスでのコミュニティ構築戦略
+# Community building strategy for AI marketplaces
 community_strategy = {
     "huggingface_community": {
         "activities": [
-            "モデルカードに詳細なドキュメントを記載",
-            "Discussionsタブで質問に回答",
-            "定期的なモデル更新（月1回以上）",
-            "Spacesでインタラクティブデモを公開",
-            "他の人気モデルとの比較ベンチマークを公開"
+            "Include detailed documentation in the model card",
+            "Answer questions in the Discussions tab",
+            "Regular model updates (at least once a month)",
+            "Publish interactive demos on Spaces",
+            "Publish comparison benchmarks against other popular models"
         ],
         "growth_metrics": {
-            "downloads_monthly": "目標: 1000+",
-            "likes": "目標: 50+",
-            "community_engagement": "Discussion回答率 90%+"
+            "downloads_monthly": "Target: 1,000+",
+            "likes": "Target: 50+",
+            "community_engagement": "Discussion response rate 90%+"
         }
     },
     "cross_platform_promotion": {
-        "twitter": "週2回のモデル紹介ツイート + デモ動画",
-        "reddit": "r/MachineLearning, r/LocalLLaMA に月1投稿",
-        "youtube": "モデルの使い方チュートリアル動画（月1本）",
-        "blog": "技術ブログでモデルの設計思想を解説",
-        "discord": "AIコミュニティのDiscordサーバーで情報共有"
+        "twitter": "2 model introduction tweets per week + demo videos",
+        "reddit": "1 post per month on r/MachineLearning, r/LocalLLaMA",
+        "youtube": "Model tutorial video (1 per month)",
+        "blog": "Explain model design philosophy on a tech blog",
+        "discord": "Share information in AI community Discord servers"
     },
     "collaboration_opportunities": [
-        "他のモデル作者との共同研究",
-        "企業との共同ファインチューニング",
-        "学術論文への貢献",
-        "オープンソースプロジェクトへの統合"
+        "Joint research with other model creators",
+        "Co-fine-tuning with enterprises",
+        "Contributions to academic papers",
+        "Integration into open-source projects"
     ]
 }
 ```
 
-### 8.2 プライシング最適化
+### 8.2 Pricing Optimization
 
 ```python
-# マーケットプレイス別の価格最適化
+# Price optimization by marketplace
 pricing_optimization = {
     "replicate_pricing": {
         "strategies": [
             {
-                "name": "フリーミアム入口",
-                "approach": "最初の100回実行無料、以降従量課金",
-                "implementation": "Webhook経由でカウント、上限到達後にリダイレクト",
+                "name": "Freemium Entry",
+                "approach": "First 100 runs free, then pay-per-use",
+                "implementation": "Count via webhook, redirect after limit reached",
                 "conversion_rate": "5-10%"
             },
             {
-                "name": "段階的価格",
-                "approach": "利用量に応じた価格逓減",
+                "name": "Tiered Pricing",
+                "approach": "Decreasing price per unit as usage increases",
                 "tiers": [
                     {"up_to": 1000, "per_run": "$0.01"},
                     {"up_to": 10000, "per_run": "$0.005"},
                     {"up_to": None, "per_run": "$0.002"}
                 ],
-                "benefit": "大口利用者を獲得しやすい"
+                "benefit": "Easier to attract high-volume users"
             },
             {
-                "name": "品質別価格",
-                "approach": "推論精度/速度に応じた複数バリエーション",
+                "name": "Quality-Based Pricing",
+                "approach": "Multiple variants based on inference accuracy/speed",
                 "variants": {
                     "fast": {"speed": "100ms", "quality": "90%", "price": "$0.001"},
                     "balanced": {"speed": "500ms", "quality": "95%", "price": "$0.005"},
@@ -783,151 +783,151 @@ pricing_optimization = {
     },
     "huggingface_pricing": {
         "inference_api": {
-            "free_tier": "レート制限あり（月1000リクエスト）",
-            "pro_tier": "月$9で10倍のレート",
-            "enterprise": "専用エンドポイント、SLA付き"
+            "free_tier": "Rate limited (1,000 requests/month)",
+            "pro_tier": "$9/month for 10x the rate",
+            "enterprise": "Dedicated endpoint with SLA"
         },
         "spaces_hosting": {
-            "free": "CPU、2GB RAM、72時間スリープ",
-            "basic": "$5/月、持続稼働",
-            "gpu": "$20-100/月、GPU付き"
+            "free": "CPU, 2GB RAM, 72-hour sleep",
+            "basic": "$5/month, always-on",
+            "gpu": "$20-100/month, with GPU"
         }
     }
 }
 ```
 
-### 8.3 競合分析と差別化
+### 8.3 Competitive Analysis and Differentiation
 
 ```
-AIマーケットプレイス ポジショニングマップ:
+AI Marketplace Positioning Map:
 
-  専門性
-  高 ┤ ● 医療AI    ● 法務AI
-     │   （規制対応）  （判例学習）
-     │
-  中 ┤ ● 画像生成  ● テキスト分類
-     │   （SDXL派生） （BERTベース）
-     │
-  低 ┤ ● チャットbot ● 翻訳
-     │   （GPTラッパー） （一般的）
-     └──┬────────────┬────────────┬──
-       参入容易      中           参入困難
-                 参入障壁
+  Specialization
+  High ┤ ● Medical AI   ● Legal AI
+       │   (Regulatory)  (Case law)
+       │
+  Mid  ┤ ● Image Gen    ● Text Classification
+       │   (SDXL-based)  (BERT-based)
+       │
+  Low  ┤ ● Chatbot      ● Translation
+       │   (GPT wrapper) (Generic)
+       └──┬────────────┬────────────┬──
+         Low barrier   Mid         High barrier
+                    Entry Barrier
 
-  ★ 右上（高専門性×高参入障壁）= 最高の収益性
-  ★ 差別化の鍵:
-    1. 独自学習データ（公開データにない専門データ）
-    2. ドメイン知識（業界経験者との協業）
-    3. 品質保証（精度保証、SLA）
-    4. コンプライアンス（規制対応）
-```
-
----
-
-## 9. トラブルシューティング
-
-### 9.1 よくある問題と解決策
-
-| 問題 | 原因 | 解決策 |
-|------|------|--------|
-| モデルのダウンロード数が伸びない | ドキュメント不足 | モデルカードを充実させ、使用例を3つ以上追加 |
-| Replicate の推論が遅い | コールドスタート | min_instances=1 に設定して常時起動を維持 |
-| GPT Store での露出が少ない | 検索最適化不足 | タイトルにキーワードを含め、説明文を充実 |
-| API利用料が赤字 | 価格設定ミス | コスト+30%マージンを確保した価格設定に変更 |
-| モデルの精度クレーム | テスト不足 | 公開前にベンチマークを実施、制限事項を明記 |
-| ライセンス違反の指摘 | 学習データの権利問題 | 学習データの出所を確認、適切なライセンス選択 |
-
-### 9.2 モデル品質管理チェックリスト
-
-```
-公開前チェックリスト:
-
-  □ モデル品質
-    - ベンチマークテスト完了（精度、速度、メモリ）
-    - エッジケースのテスト（長文、特殊文字、多言語）
-    - 既存モデルとの比較結果を文書化
-    - バイアステスト（性別、人種、年齢に関する偏り確認）
-
-  □ ドキュメント
-    - モデルカード（README.md）が充実
-    - 使用例コードが動作確認済み
-    - 制限事項とリスクの明記
-    - ライセンス条件の明確化
-
-  □ デプロイメント
-    - GPU/CPUの両方でテスト
-    - メモリ使用量の確認（推論時のピーク）
-    - コンカレント実行のテスト
-    - エラーハンドリングの実装
-
-  □ セキュリティ
-    - モデルファイルのマルウェアスキャン
-    - 入力バリデーション（プロンプトインジェクション対策）
-    - API キーのセキュアな管理
-    - PII データの排除確認
+  ★ Upper right (high specialization × high entry barrier) = highest profitability
+  ★ Keys to differentiation:
+    1. Proprietary training data (specialized data not in public datasets)
+    2. Domain knowledge (collaboration with industry experts)
+    3. Quality assurance (accuracy guarantees, SLA)
+    4. Compliance (regulatory adherence)
 ```
 
 ---
 
-## 10. 将来のAIマーケットプレイストレンド
+## 9. Troubleshooting
 
-### 10.1 2025-2027年の予測
+### 9.1 Common Issues and Solutions
+
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Model download count not growing | Insufficient documentation | Enrich the model card and add 3+ usage examples |
+| Replicate inference is slow | Cold start | Set min_instances=1 to keep always warm |
+| Low exposure in GPT Store | Poor search optimization | Include keywords in title, enrich description |
+| API usage costs exceed revenue | Pricing mistake | Change to pricing that ensures cost + 30% margin |
+| Accuracy complaints | Insufficient testing | Run benchmarks before publishing, document limitations clearly |
+| License violation claims | Training data rights issues | Verify origin of training data, choose appropriate license |
+
+### 9.2 Model Quality Management Checklist
+
+```
+Pre-Publication Checklist:
+
+  □ Model Quality
+    - Benchmark tests complete (accuracy, speed, memory)
+    - Edge case tests (long text, special characters, multilingual)
+    - Comparison results with existing models documented
+    - Bias tests (check for gender, race, age biases)
+
+  □ Documentation
+    - Model card (README.md) is comprehensive
+    - Usage example code has been verified to work
+    - Limitations and risks clearly stated
+    - License terms clearly defined
+
+  □ Deployment
+    - Tested on both GPU and CPU
+    - Memory usage confirmed (peak during inference)
+    - Concurrent execution tested
+    - Error handling implemented
+
+  □ Security
+    - Model files scanned for malware
+    - Input validation (prompt injection countermeasures)
+    - Secure management of API keys
+    - Confirmed removal of PII data
+```
+
+---
+
+## 10. Future AI Marketplace Trends
+
+### 10.1 Predictions for 2025–2027
 
 ```python
 marketplace_trends = {
     "2025": {
         "key_trends": [
-            "マルチモーダルモデルの標準化（テキスト+画像+音声）",
-            "エージェントマーケットプレイスの台頭",
-            "ファインチューニングのセルフサービス化",
-            "モデルのコンポーザビリティ（組み合わせ利用）"
+            "Standardization of multimodal models (text + image + audio)",
+            "Rise of agent marketplaces",
+            "Self-service fine-tuning",
+            "Model composability (combining multiple models)"
         ],
         "market_size": "$5B",
         "dominant_platforms": ["HuggingFace", "Replicate", "Together AI"]
     },
     "2026": {
         "key_trends": [
-            "業界特化型AIマーケットプレイスの出現",
-            "AIエージェント間の連携プロトコル標準化",
-            "オンデバイスAIモデルマーケットの成長",
-            "AI品質認証制度の普及"
+            "Emergence of industry-specific AI marketplaces",
+            "Standardization of AI agent interoperability protocols",
+            "Growth of on-device AI model markets",
+            "Proliferation of AI quality certification schemes"
         ],
         "market_size": "$12B",
         "opportunities": [
-            "業界特化マーケットプレイスの構築",
-            "AIモデル品質テストサービス",
-            "エージェント連携ミドルウェア"
+            "Building industry-specific marketplaces",
+            "AI model quality testing services",
+            "Agent integration middleware"
         ]
     },
     "2027": {
         "key_trends": [
-            "自律型AIエージェントのマーケットプレイス",
-            "合成データマーケットプレイス",
-            "AIモデルの資産化（NFT/トークン化）",
-            "規制対応AIマーケット（RegTech AI）"
+            "Marketplaces for autonomous AI agents",
+            "Synthetic data marketplaces",
+            "Tokenization of AI models as assets (NFT/tokenization)",
+            "Compliance-ready AI markets (RegTech AI)"
         ],
         "market_size": "$25B+"
     }
 }
 ```
 
-### 10.2 新興プラットフォームと参入機会
+### 10.2 Emerging Platforms and Entry Opportunities
 
-| プラットフォーム | 特徴 | 参入時期 | 推奨戦略 |
-|---------------|------|---------|---------|
-| Claude MCP | Anthropic エコシステム | 2025- | MCP Tool開発、早期参入で優位性確保 |
-| OpenAI Assistants API | GPTエコシステム | 2024- | Action開発、既存GPTからの移行 |
-| Apple MLX | オンデバイスAI | 2025- | iOS/macOS最適化モデル |
-| NVIDIA NIM | エンタープライズAI | 2025- | 高性能推論、大企業向け |
-| Ollama Registry | ローカルLLM | 2025- | Ollama最適化モデル配布 |
+| Platform | Features | Entry Timing | Recommended Strategy |
+|----------|----------|--------------|----------------------|
+| Claude MCP | Anthropic ecosystem | 2025- | MCP tool development, early entry for competitive advantage |
+| OpenAI Assistants API | GPT ecosystem | 2024- | Action development, migration from existing GPTs |
+| Apple MLX | On-device AI | 2025- | iOS/macOS optimized models |
+| NVIDIA NIM | Enterprise AI | 2025- | High-performance inference for large enterprises |
+| Ollama Registry | Local LLM | 2025- | Distributing Ollama-optimized models |
 
 ---
 
-## 11. マルチプラットフォーム運用の実践
+## 11. Practical Multi-Platform Operations
 
-### 11.1 統合ダッシュボードの構築
+### 11.1 Building an Integrated Dashboard
 
-複数のAIマーケットプレイスで同時にモデルを公開する場合、各プラットフォームの指標を一元管理するダッシュボードが不可欠になる。以下の実装例は、HuggingFace、Replicate、GPT Storeの主要指標を統合的に監視するシステムを示す。
+When publishing models simultaneously across multiple AI marketplaces, a dashboard that centrally manages metrics from each platform becomes essential. The following implementation example shows a system for integrated monitoring of key metrics from HuggingFace, Replicate, and GPT Store.
 
 ```python
 import asyncio
@@ -939,7 +939,7 @@ import json
 
 @dataclass
 class PlatformMetrics:
-    """各プラットフォームの指標データ"""
+    """Metrics data for each platform"""
     platform: str
     model_name: str
     downloads_total: int = 0
@@ -953,29 +953,29 @@ class PlatformMetrics:
     last_updated: datetime = field(default_factory=datetime.now)
 
 class MultiPlatformDashboard:
-    """マルチプラットフォーム統合ダッシュボード"""
+    """Multi-platform integrated dashboard"""
 
     def __init__(self, config: dict):
         self.config = config
         self.metrics_history: list[dict] = []
         self.alert_thresholds = {
-            "error_rate_max": 0.05,        # 5%以上でアラート
-            "latency_max_ms": 3000,         # 3秒以上でアラート
-            "revenue_drop_pct": 0.20,       # 20%以上の収益減でアラート
-            "download_spike_pct": 5.0       # 5倍以上のスパイクで通知
+            "error_rate_max": 0.05,        # Alert if above 5%
+            "latency_max_ms": 3000,         # Alert if above 3 seconds
+            "revenue_drop_pct": 0.20,       # Alert if revenue drops more than 20%
+            "download_spike_pct": 5.0       # Notify if downloads spike 5x or more
         }
 
     async def collect_huggingface_metrics(self, model_id: str) -> PlatformMetrics:
-        """HuggingFace のモデル指標を取得"""
+        """Fetch HuggingFace model metrics"""
         async with aiohttp.ClientSession() as session:
-            # モデル情報の取得
+            # Fetch model information
             async with session.get(
                 f"https://huggingface.co/api/models/{model_id}",
                 headers={"Authorization": f"Bearer {self.config['hf_token']}"}
             ) as resp:
                 data = await resp.json()
 
-            # ダウンロード統計の取得
+            # Fetch download statistics
             async with session.get(
                 f"https://huggingface.co/api/models/{model_id}/downloads"
             ) as resp:
@@ -989,12 +989,12 @@ class MultiPlatformDashboard:
                     d.get("count", 0) for d in downloads.get("last_30_days", [])
                 ),
                 active_users=data.get("likes", 0),
-                rating=0.0,  # HuggingFaceにはレーティングなし
+                rating=0.0,  # HuggingFace has no rating system
                 last_updated=datetime.now()
             )
 
     async def collect_replicate_metrics(self, model_id: str) -> PlatformMetrics:
-        """Replicate のモデル指標を取得"""
+        """Fetch Replicate model metrics"""
         async with aiohttp.ClientSession() as session:
             async with session.get(
                 f"https://api.replicate.com/v1/models/{model_id}",
@@ -1002,7 +1002,7 @@ class MultiPlatformDashboard:
             ) as resp:
                 data = await resp.json()
 
-            # 実行統計の取得
+            # Fetch execution statistics
             async with session.get(
                 f"https://api.replicate.com/v1/models/{model_id}/predictions",
                 headers={"Authorization": f"Token {self.config['replicate_token']}"},
@@ -1023,7 +1023,7 @@ class MultiPlatformDashboard:
             )
 
     def _calc_avg_latency(self, predictions: list) -> float:
-        """平均レイテンシの計算"""
+        """Calculate average latency"""
         if not predictions:
             return 0.0
         latencies = []
@@ -1035,7 +1035,7 @@ class MultiPlatformDashboard:
         return sum(latencies) / len(latencies) if latencies else 0.0
 
     async def collect_all_metrics(self) -> list[PlatformMetrics]:
-        """全プラットフォームの指標を並列収集"""
+        """Collect metrics from all platforms in parallel"""
         tasks = []
         for model in self.config.get("huggingface_models", []):
             tasks.append(self.collect_huggingface_metrics(model))
@@ -1045,11 +1045,11 @@ class MultiPlatformDashboard:
         results = await asyncio.gather(*tasks, return_exceptions=True)
         metrics = [r for r in results if isinstance(r, PlatformMetrics)]
 
-        # アラートチェック
+        # Check alerts
         for m in metrics:
             self._check_alerts(m)
 
-        # 履歴に保存
+        # Save to history
         self.metrics_history.append({
             "timestamp": datetime.now().isoformat(),
             "metrics": [self._to_dict(m) for m in metrics]
@@ -1058,22 +1058,22 @@ class MultiPlatformDashboard:
         return metrics
 
     def _check_alerts(self, metrics: PlatformMetrics) -> list[str]:
-        """閾値ベースのアラートチェック"""
+        """Threshold-based alert check"""
         alerts = []
         if metrics.error_rate > self.alert_thresholds["error_rate_max"]:
             alerts.append(
                 f"[ALERT] {metrics.platform}/{metrics.model_name}: "
-                f"エラー率 {metrics.error_rate:.1%} が閾値超過"
+                f"Error rate {metrics.error_rate:.1%} exceeds threshold"
             )
         if metrics.avg_latency_ms > self.alert_thresholds["latency_max_ms"]:
             alerts.append(
                 f"[ALERT] {metrics.platform}/{metrics.model_name}: "
-                f"レイテンシ {metrics.avg_latency_ms:.0f}ms が閾値超過"
+                f"Latency {metrics.avg_latency_ms:.0f}ms exceeds threshold"
             )
         return alerts
 
     def _to_dict(self, m: PlatformMetrics) -> dict:
-        """PlatformMetrics を辞書に変換"""
+        """Convert PlatformMetrics to dictionary"""
         return {
             "platform": m.platform,
             "model_name": m.model_name,
@@ -1088,48 +1088,48 @@ class MultiPlatformDashboard:
         }
 
     def generate_weekly_report(self) -> str:
-        """週次レポートの生成"""
+        """Generate weekly report"""
         report_lines = [
             "=" * 60,
-            f"  AIマーケットプレイス 週次レポート",
-            f"  期間: {(datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')} "
+            f"  AI Marketplace Weekly Report",
+            f"  Period: {(datetime.now() - timedelta(days=7)).strftime('%Y-%m-%d')} "
             f"- {datetime.now().strftime('%Y-%m-%d')}",
             "=" * 60,
             ""
         ]
 
-        # プラットフォーム別集計
+        # Aggregate by platform
         if self.metrics_history:
             latest = self.metrics_history[-1]["metrics"]
             for m in latest:
                 report_lines.extend([
                     f"[{m['platform']}] {m['model_name']}",
-                    f"  ダウンロード数(30日): {m['downloads_30d']:,}",
-                    f"  API呼び出し: {m['api_calls_today']:,}",
-                    f"  平均レイテンシ: {m['avg_latency_ms']:.0f}ms",
-                    f"  エラー率: {m['error_rate']:.2%}",
-                    f"  月間収益: ${m['revenue_mtd']:,.2f}",
+                    f"  Downloads (30 days): {m['downloads_30d']:,}",
+                    f"  API calls: {m['api_calls_today']:,}",
+                    f"  Avg latency: {m['avg_latency_ms']:.0f}ms",
+                    f"  Error rate: {m['error_rate']:.2%}",
+                    f"  Monthly revenue: ${m['revenue_mtd']:,.2f}",
                     ""
                 ])
 
         return "\n".join(report_lines)
 ```
 
-### 11.2 クロスプラットフォーム公開自動化
+### 11.2 Cross-Platform Publishing Automation
 
 ```python
 class CrossPlatformPublisher:
-    """複数プラットフォームへの同時公開"""
+    """Publish to multiple platforms simultaneously"""
 
     def __init__(self, credentials: dict):
         self.credentials = credentials
         self.publish_log: list[dict] = []
 
     async def publish_to_all(self, model_config: dict) -> dict:
-        """全プラットフォームに同時公開"""
+        """Publish to all platforms simultaneously"""
         results = {}
 
-        # 各プラットフォーム向けにモデルを最適化して公開
+        # Optimize and publish model for each platform
         publish_tasks = {
             "huggingface": self._publish_huggingface(model_config),
             "replicate": self._publish_replicate(model_config),
@@ -1159,7 +1159,7 @@ class CrossPlatformPublisher:
         return results
 
     async def _publish_huggingface(self, config: dict) -> str:
-        """HuggingFace に公開"""
+        """Publish to HuggingFace"""
         from huggingface_hub import HfApi
         api = HfApi(token=self.credentials["hf_token"])
 
@@ -1172,8 +1172,8 @@ class CrossPlatformPublisher:
         return f"https://huggingface.co/{repo_id}"
 
     async def _publish_replicate(self, config: dict) -> str:
-        """Replicate に公開"""
-        # Cog設定ファイルの自動生成
+        """Publish to Replicate"""
+        # Auto-generate Cog configuration file
         cog_config = {
             "build": {
                 "python_version": config.get("python_version", "3.11"),
@@ -1182,7 +1182,7 @@ class CrossPlatformPublisher:
             "predict": config.get("predict_file", "predict.py:Predictor")
         }
 
-        # cog push コマンドの実行
+        # Run cog push command
         import subprocess
         result = subprocess.run(
             ["cog", "push", f"r8.im/{config['author']}/{config['name']}"],
@@ -1195,8 +1195,8 @@ class CrossPlatformPublisher:
         return f"https://replicate.com/{config['author']}/{config['name']}"
 
     async def _publish_ollama(self, config: dict) -> str:
-        """Ollama Registry に公開"""
-        # Modelfile の生成
+        """Publish to Ollama Registry"""
+        # Generate Modelfile
         modelfile_content = f"""
 FROM {config.get('base_model', './model.gguf')}
 PARAMETER temperature {config.get('temperature', 0.7)}
@@ -1208,12 +1208,12 @@ SYSTEM \"\"\"{config.get('system_prompt', 'You are a helpful assistant.')}\"\"\"
             f.write(modelfile_content)
 
         import subprocess
-        # ローカルモデル作成
+        # Create local model
         subprocess.run(
             ["ollama", "create", config["name"], "-f", modelfile_path],
             check=True
         )
-        # レジストリにプッシュ
+        # Push to registry
         subprocess.run(
             ["ollama", "push", f"{config['author']}/{config['name']}"],
             check=True
@@ -1221,105 +1221,106 @@ SYSTEM \"\"\"{config.get('system_prompt', 'You are a helpful assistant.')}\"\"\"
         return f"https://ollama.com/library/{config['author']}/{config['name']}"
 ```
 
-### 11.3 モデルバージョン管理戦略
+### 11.3 Model Versioning Strategy
 
 ```
-バージョニング戦略:
+Versioning Strategy:
 
-  セマンティックバージョニング（AI モデル版）
+  Semantic Versioning (AI Model Edition)
   ──────────────────────────────────────────
   v{MAJOR}.{MINOR}.{PATCH}
 
-  MAJOR: アーキテクチャ変更、API互換性なし
-    例: v1.0.0 → v2.0.0（BERTからT5に変更）
-  MINOR: 学習データ追加、精度向上（API互換）
-    例: v1.0.0 → v1.1.0（新しい学習データで再トレーニング）
-  PATCH: バグ修正、メタデータ更新
-    例: v1.0.0 → v1.0.1（推論コードのバグ修正）
+  MAJOR: Architecture change, no API compatibility
+    Example: v1.0.0 → v2.0.0 (Changed from BERT to T5)
+  MINOR: Additional training data, improved accuracy (API compatible)
+    Example: v1.0.0 → v1.1.0 (Retrained with new training data)
+  PATCH: Bug fixes, metadata updates
+    Example: v1.0.0 → v1.0.1 (Bug fix in inference code)
 
-  リリースチャネル:
+  Release Channels:
   ┌───────────┐  ┌───────────┐  ┌───────────┐
   │  dev      │─▶│  staging  │─▶│  stable   │
-  │ 最新開発版 │  │ RC版     │  │ 本番推奨  │
-  │ 精度未検証 │  │ ベンチ済 │  │ SLA対象   │
+  │ Latest    │  │ RC        │  │ Recommended│
+  │ (unverified│  │ benchmarked│  │ for prod  │
+  │  accuracy)│  │           │  │ (SLA)     │
   └───────────┘  └───────────┘  └───────────┘
 
-  マイグレーションガイド:
-  - v1 → v2: エンドポイントURL変更、入力形式変更の案内
-  - 旧バージョン: 6ヶ月の猶予期間後にサポート終了
-  - 移行ツール: 自動変換スクリプトの提供
+  Migration Guide:
+  - v1 → v2: Notify of endpoint URL changes and input format changes
+  - Old versions: Support ends after a 6-month grace period
+  - Migration tools: Provide automatic conversion scripts
 ```
 
 ---
 
-## 12. 法務・コンプライアンス対応
+## 12. Legal and Compliance
 
-### 12.1 ライセンス選択ガイド
+### 12.1 License Selection Guide
 
-AIモデルをマーケットプレイスに公開する際、ライセンス選択は収益性と利用拡大のバランスに直結する。以下のフローチャートでプロジェクトに適したライセンスを選択する。
+When publishing AI models to a marketplace, the license choice directly affects the balance between profitability and broader adoption. Use the following flowchart to select the appropriate license for your project.
 
 ```
-ライセンス選択フロー:
+License Selection Flow:
 
-  商用利用を許可するか？
-  ├── YES → 帰属表示を求めるか？
+  Allow commercial use?
+  ├── YES → Require attribution?
   │         ├── YES → Apache 2.0 / CC BY 4.0
   │         └── NO  → MIT / BSD
-  └── NO  → 研究利用のみか？
-            ├── YES → CC BY-NC 4.0 / 独自学術ライセンス
-            └── NO  → 独自商用ライセンス（有償）
+  └── NO  → Research use only?
+            ├── YES → CC BY-NC 4.0 / Custom academic license
+            └── NO  → Custom commercial license (paid)
 
-  AI特化ライセンス比較:
+  AI-Specific License Comparison:
   ┌──────────────────┬──────────┬──────────┬──────────┐
-  │ ライセンス        │ 商用利用 │ 派生公開 │ 収益化   │
+  │ License          │ Commercial│ Derivative│ Monetize │
   ├──────────────────┼──────────┼──────────┼──────────┤
-  │ Apache 2.0       │ 可       │ 任意     │ 自由     │
-  │ MIT              │ 可       │ 任意     │ 自由     │
-  │ RAIL (BigScience)│ 制限付   │ 必須     │ 制限付   │
-  │ Llama License    │ 制限付   │ 必須     │ 7億MAU制限│
-  │ CC BY-NC 4.0     │ 不可     │ 任意     │ 不可     │
-  │ 独自商用          │ 有償のみ │ 不可     │ 要契約   │
+  │ Apache 2.0       │ Allowed  │ Optional │ Free     │
+  │ MIT              │ Allowed  │ Optional │ Free     │
+  │ RAIL (BigScience)│ Restricted│ Required │ Restricted│
+  │ Llama License    │ Restricted│ Required │ 700M MAU limit│
+  │ CC BY-NC 4.0     │ Prohibited│ Optional │ Prohibited│
+  │ Custom Commercial│ Paid only│ Prohibited│ Contract req.│
   └──────────────────┴──────────┴──────────┴──────────┘
 ```
 
-### 12.2 データプライバシーと規制対応
+### 12.2 Data Privacy and Regulatory Compliance
 
 ```python
 class ComplianceChecker:
-    """AIモデル公開時のコンプライアンスチェッカー"""
+    """Compliance checker when publishing AI models"""
 
     REGULATIONS = {
         "GDPR": {
             "region": "EU",
             "requirements": [
-                "学習データに個人情報が含まれていないことの確認",
-                "データ処理の法的根拠の文書化",
-                "データ主体の権利（削除要求等）への対応手順",
-                "データ保護影響評価（DPIA）の実施"
+                "Confirm no personal information is included in training data",
+                "Document the legal basis for data processing",
+                "Procedures for responding to data subject rights (deletion requests, etc.)",
+                "Conduct a Data Protection Impact Assessment (DPIA)"
             ]
         },
         "AI_Act": {
             "region": "EU",
             "requirements": [
-                "AIシステムのリスク分類（高リスク/限定リスク/最小リスク）",
-                "高リスクAIの場合: 適合性評価の実施",
-                "透明性要件: AI生成コンテンツの明示",
-                "技術文書の作成と保管"
+                "Risk classification of AI system (high-risk/limited-risk/minimal-risk)",
+                "For high-risk AI: conduct conformity assessment",
+                "Transparency requirement: disclose AI-generated content",
+                "Create and retain technical documentation"
             ]
         },
         "APPI": {
             "region": "Japan",
             "requirements": [
-                "個人情報の利用目的の特定と通知",
-                "要配慮個人情報の取得に関する同意",
-                "第三者提供時の記録義務",
-                "越境移転に関する規制への対応"
+                "Specify and notify the purpose of use of personal information",
+                "Obtain consent for acquiring sensitive personal information",
+                "Record-keeping obligations for third-party transfers",
+                "Compliance with regulations on cross-border transfers"
             ]
         }
     }
 
     def check_model_compliance(self, model_info: dict) -> dict:
-        """モデルのコンプライアンス状況をチェック"""
+        """Check compliance status of a model"""
         results = {}
         target_regions = model_info.get("target_regions", ["global"])
 
@@ -1344,15 +1345,15 @@ class ComplianceChecker:
         return results
 
     def _evaluate_requirement(self, model_info: dict, requirement: str) -> str:
-        """個別要件の評価"""
-        # 学習データの透明性チェック
-        if "個人情報" in requirement or "personal" in requirement.lower():
+        """Evaluate an individual requirement"""
+        # Check training data transparency
+        if "personal information" in requirement.lower() or "personal" in requirement.lower():
             if model_info.get("training_data_audit"):
                 return "compliant"
             return "needs_review"
 
-        # ドキュメント要件チェック
-        if "文書" in requirement or "記録" in requirement:
+        # Check documentation requirements
+        if "document" in requirement.lower() or "record" in requirement.lower():
             if model_info.get("documentation_complete"):
                 return "compliant"
             return "needs_action"
@@ -1360,11 +1361,11 @@ class ComplianceChecker:
         return "needs_review"
 
     def generate_compliance_report(self, results: dict) -> str:
-        """コンプライアンスレポートの生成"""
-        report = ["# コンプライアンスレポート", ""]
+        """Generate compliance report"""
+        report = ["# Compliance Report", ""]
         for reg_name, reg_data in results.items():
             report.append(f"## {reg_name} ({reg_data['region']})")
-            report.append(f"全体ステータス: {reg_data['overall']}")
+            report.append(f"Overall status: {reg_data['overall']}")
             report.append("")
             for check in reg_data["checks"]:
                 icon = "[OK]" if check["status"] == "compliant" else "[!!]"
@@ -1375,35 +1376,35 @@ class ComplianceChecker:
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
-|------|---------|
-| プラットフォーム選択 | HuggingFace（モデルハブ）、Replicate（簡単デプロイ）、GPT Store（一般ユーザー向け） |
-| 収益化の鍵 | ニッチ特化 × 高品質ドキュメント × コミュニティ構築 |
-| マルチプラットフォーム | 統合ダッシュボードで指標一元管理、クロスプラットフォーム公開の自動化 |
-| 価格戦略 | フリーミアム入口 → 段階的価格 → 品質別バリエーション |
-| 差別化要素 | 独自データ、ドメイン知識、品質保証、コンプライアンス対応 |
-| 法務対応 | ライセンス選択はビジネスモデルと整合、地域規制に準拠 |
-| 将来展望 | エージェントマーケットプレイス、業界特化、オンデバイスAIが成長領域 |
-
----
-
-## 次に読むべきガイド
-
-- [../02-monetization/00-pricing-models.md](../02-monetization/00-pricing-models.md) — プライシングモデルの詳細設計
-- [../02-monetization/02-scaling-strategy.md](../02-monetization/02-scaling-strategy.md) — スケーリング戦略
-- [../03-case-studies/03-future-opportunities.md](../03-case-studies/03-future-opportunities.md) — 将来のAIビジネス機会
+| Item | Key Point |
+|------|-----------|
+| Platform selection | HuggingFace (model hub), Replicate (easy deploy), GPT Store (for general users) |
+| Key to monetization | Niche specialization × high-quality documentation × community building |
+| Multi-platform | Centralize metrics with an integrated dashboard, automate cross-platform publishing |
+| Pricing strategy | Freemium entry → tiered pricing → quality-based variants |
+| Differentiation factors | Proprietary data, domain knowledge, quality assurance, compliance |
+| Legal compliance | Align license selection with business model, comply with regional regulations |
+| Future outlook | Agent marketplaces, industry-specific, and on-device AI are growth areas |
 
 ---
 
-## 参考文献
+## Next Guides to Read
 
-1. **HuggingFace Documentation** — https://huggingface.co/docs — モデルハブ、Spaces、Inference APIの公式ガイド
-2. **Replicate Documentation** — https://replicate.com/docs — Cog、API、モデルデプロイの公式ガイド
-3. **"Building ML-Powered Applications" — Emmanuel Ameisen (O'Reilly)** — MLプロダクト構築の実践ガイド
-4. **a16z "AI Marketplace Dynamics" (2024)** — AIマーケットプレイスの経済分析レポート
-5. **OpenAI GPT Store Documentation** — https://platform.openai.com — GPTs作成と公開のガイド
-6. **Together AI Documentation** — https://docs.together.ai — OSS推論プラットフォームの活用ガイド
-7. **EU AI Act (2024)** — https://eur-lex.europa.eu — EU人工知能規制法の全文
-8. **OECD AI Policy Observatory** — https://oecd.ai — 各国AI政策の比較分析
+- [../02-monetization/00-pricing-models.md](../02-monetization/00-pricing-models.md) — Detailed pricing model design
+- [../02-monetization/02-scaling-strategy.md](../02-monetization/02-scaling-strategy.md) — Scaling strategy
+- [../03-case-studies/03-future-opportunities.md](../03-case-studies/03-future-opportunities.md) — Future AI business opportunities
+
+---
+
+## References
+
+1. **HuggingFace Documentation** — https://huggingface.co/docs — Official guide for model hub, Spaces, and Inference API
+2. **Replicate Documentation** — https://replicate.com/docs — Official guide for Cog, API, and model deployment
+3. **"Building ML-Powered Applications" — Emmanuel Ameisen (O'Reilly)** — Practical guide to building ML products
+4. **a16z "AI Marketplace Dynamics" (2024)** — Economic analysis report on AI marketplaces
+5. **OpenAI GPT Store Documentation** — https://platform.openai.com — Guide for creating and publishing GPTs
+6. **Together AI Documentation** — https://docs.together.ai — Guide for using the OSS inference platform
+7. **EU AI Act (2024)** — https://eur-lex.europa.eu — Full text of the EU Artificial Intelligence Regulation
+8. **OECD AI Policy Observatory** — https://oecd.ai — Comparative analysis of AI policies across countries
