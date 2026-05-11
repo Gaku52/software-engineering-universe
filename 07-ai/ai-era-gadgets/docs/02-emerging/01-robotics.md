@@ -1,212 +1,220 @@
-# ロボティクスガイド
+# Robotics Guide
 
-> Boston Dynamics、Figure、家庭用ロボットなどAI時代のロボット技術を包括的に解説する
+> A comprehensive guide to AI-era robotics including Boston Dynamics, Figure, and home robots
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **ロボティクスの基礎** — センサー、アクチュエータ、制御系の構成と役割
-2. **主要ロボット企業** — Boston Dynamics、Figure、Tesla Optimus、家庭用ロボットの技術と戦略
-3. **AIとロボットの融合** — 基盤モデル（Foundation Model）によるロボット制御の革新
-4. **シミュレーションと転移** — Isaac Sim、MuJoCo、Sim-to-Realの実践手法
-5. **安全設計** — ロボット安全規格、多層防御、人間-ロボット協調
+1. **Robotics Fundamentals** -- Composition and roles of sensors, actuators, and control systems
+2. **Major Robotics Companies** -- Technologies and strategies of Boston Dynamics, Figure, Tesla Optimus, and home robots
+3. **AI-Robot Fusion** -- Innovation in robot control through Foundation Models
+4. **Simulation and Transfer** -- Practical methods for Isaac Sim, MuJoCo, and Sim-to-Real
+5. **Safety Design** -- Robot safety standards, defense in depth, and human-robot collaboration
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, familiarity with the following will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [AR/VR × AI ガイド](./00-ar-vr-ai.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [AR/VR x AI Guide](./00-ar-vr-ai.md)
 
 ---
 
-## 1. ロボティクスの基本構成
+## 1. Basic Structure of Robotics
 
-### ロボットシステムの構造
+### Robot System Architecture
 
 ```
 +-----------------------------------------------------------+
-|                 ロボットシステム全体像                       |
+|                  Robot System Overview                      |
 +-----------------------------------------------------------+
 |                                                           |
 |  +------------------+     +------------------+            |
-|  | 知覚 (Perception)|     | 計画 (Planning)  |            |
-|  | カメラ、LiDAR    | --> | 経路計画          |            |
-|  | 触覚センサー     |     | タスク計画        |            |
-|  | IMU、力覚        |     | モーション計画    |            |
+|  | Perception       |     | Planning         |            |
+|  | Camera, LiDAR    | --> | Path planning    |            |
+|  | Tactile sensors  |     | Task planning    |            |
+|  | IMU, Force       |     | Motion planning  |            |
 |  +------------------+     +------------------+            |
 |                                  |                        |
 |                                  v                        |
 |  +------------------+     +------------------+            |
-|  | 学習 (Learning)  |     | 制御 (Control)   |            |
-|  | 強化学習         | <-> | PID制御           |            |
-|  | 模倣学習         |     | MPC               |            |
-|  | 基盤モデル       |     | トルク制御        |            |
+|  | Learning         |     | Control          |            |
+|  | Reinforcement    | <-> | PID control      |            |
+|  | Imitation        |     | MPC              |            |
+|  | Foundation model |     | Torque control   |            |
 |  +------------------+     +------------------+            |
 |                                  |                        |
 |                                  v                        |
 |                          +------------------+             |
-|                          | 行動 (Action)    |             |
-|                          | モーター、油圧    |             |
-|                          | グリッパー       |             |
+|                          | Action           |             |
+|                          | Motor, Hydraulic |             |
+|                          | Gripper          |             |
 |                          +------------------+             |
 +-----------------------------------------------------------+
 ```
 
-### センサーの種類と用途
+### Types and Applications of Sensors
 
 ```
 +-----------------------------------------------------------+
-|  ロボットセンサー体系                                       |
+|  Robot Sensor Taxonomy                                     |
 +-----------------------------------------------------------+
 |                                                           |
-|  視覚系                                                    |
-|  +-- RGB カメラ: 色・形状認識                              |
-|  +-- 深度カメラ (ToF/構造化光): 3D空間認識                 |
-|  +-- ステレオカメラ: 立体視による距離推定                   |
-|  +-- LiDAR: 高精度3Dマッピング                             |
-|  +-- イベントカメラ: 超高速変化検出（ダイナミックビジョン） |
+|  Vision                                                    |
+|  +-- RGB Camera: Color and shape recognition              |
+|  +-- Depth Camera (ToF/Structured Light): 3D perception   |
+|  +-- Stereo Camera: Distance estimation via stereoscopy   |
+|  +-- LiDAR: High-precision 3D mapping                    |
+|  +-- Event Camera: Ultra-fast change detection            |
+|      (Dynamic Vision)                                     |
 |                                                           |
-|  力覚系                                                    |
-|  +-- 力覚/トルクセンサー: 接触力の検出                     |
-|  +-- 触覚センサー: 表面テクスチャ・滑り検出                |
-|  +-- 圧力センサー: 把持力の制御                            |
-|  +-- 電子皮膚: 全身分布型触覚（柔軟な表面）               |
+|  Force Sensing                                             |
+|  +-- Force/Torque Sensor: Contact force detection         |
+|  +-- Tactile Sensor: Surface texture and slip detection   |
+|  +-- Pressure Sensor: Grasping force control              |
+|  +-- Electronic Skin: Distributed full-body tactile       |
+|      sensing (flexible surface)                           |
 |                                                           |
-|  慣性系                                                    |
-|  +-- IMU (加速度+ジャイロ): 姿勢・動き検出                 |
-|  +-- エンコーダ: 関節角度の精密計測                         |
-|  +-- 磁気エンコーダ: 非接触角度検出                        |
+|  Inertial                                                  |
+|  +-- IMU (Accelerometer + Gyro): Pose and motion          |
+|      detection                                            |
+|  +-- Encoder: Precise joint angle measurement             |
+|  +-- Magnetic Encoder: Non-contact angle detection        |
 |                                                           |
-|  環境系                                                    |
-|  +-- 超音波: 近距離障害物検出                              |
-|  +-- 赤外線: 熱源検出、人感センサー                        |
-|  +-- マイクロフォンアレイ: 音源方向定位                     |
+|  Environmental                                             |
+|  +-- Ultrasonic: Short-range obstacle detection           |
+|  +-- Infrared: Heat source detection, proximity sensor    |
+|  +-- Microphone Array: Sound source localization          |
 +-----------------------------------------------------------+
 ```
 
-### アクチュエータの種類と特性
+### Types and Characteristics of Actuators
 
 ```
 +-----------------------------------------------------------+
-|  ロボット用アクチュエータの比較                              |
+|  Comparison of Robot Actuators                              |
 +-----------------------------------------------------------+
 |                                                           |
-|  電動モーター（DC/BLDC）                                   |
-|  +-- 精密制御が容易、応答性が高い                          |
-|  +-- 効率: 80-95%                                          |
-|  +-- 用途: ロボットアーム、ヒューマノイド関節               |
-|  +-- Atlas(電動), Figure 02, Optimus が採用                |
+|  Electric Motor (DC/BLDC)                                  |
+|  +-- Easy precise control, high responsiveness            |
+|  +-- Efficiency: 80-95%                                   |
+|  +-- Use: Robot arms, humanoid joints                     |
+|  +-- Adopted by Atlas (electric), Figure 02, Optimus     |
 |                                                           |
-|  油圧アクチュエータ                                        |
-|  +-- 高出力、重量物の操作                                  |
-|  +-- 効率: 40-60%                                          |
-|  +-- 用途: 建設機械、旧Atlas（油圧版）                     |
-|  +-- 油漏れ、メンテナンス性が課題                          |
+|  Hydraulic Actuator                                        |
+|  +-- High output, heavy object manipulation               |
+|  +-- Efficiency: 40-60%                                   |
+|  +-- Use: Construction machinery, old Atlas (hydraulic)   |
+|  +-- Oil leakage and maintenance are challenges           |
 |                                                           |
-|  空圧アクチュエータ                                        |
-|  +-- 軽量、安全（低出力）                                  |
-|  +-- 効率: 20-30%                                          |
-|  +-- 用途: ソフトロボティクス、グリッパー                  |
+|  Pneumatic Actuator                                        |
+|  +-- Lightweight, safe (low output)                       |
+|  +-- Efficiency: 20-30%                                   |
+|  +-- Use: Soft robotics, grippers                         |
 |                                                           |
-|  人工筋肉（SMA/EAP）                                       |
-|  +-- 軽量、柔軟、生体に近い動き                            |
-|  +-- 効率: 1-10%（現状）                                   |
-|  +-- 用途: 研究段階、ソフトロボティクス                    |
+|  Artificial Muscle (SMA/EAP)                               |
+|  +-- Lightweight, flexible, biomimetic motion             |
+|  +-- Efficiency: 1-10% (current)                          |
+|  +-- Use: Research stage, soft robotics                   |
 |                                                           |
-|  準直動アクチュエータ（QDD）                               |
-|  +-- 低減速比で高バックドライバビリティ                     |
-|  +-- 衝突時に力を逃がせる（安全性↑）                       |
-|  +-- Unitree H1/G1、MIT Cheetah が採用                    |
+|  Quasi-Direct Drive Actuator (QDD)                         |
+|  +-- Low gear ratio with high backdrivability             |
+|  +-- Can dissipate force on collision (improved safety)   |
+|  +-- Adopted by Unitree H1/G1, MIT Cheetah               |
 +-----------------------------------------------------------+
 ```
 
 ---
 
-## 2. 主要ロボット企業と製品
+## 2. Major Robotics Companies and Products
 
-### 企業・製品比較表
+### Company and Product Comparison Table
 
-| 企業 | 代表製品 | カテゴリ | 自由度 | AIアプローチ | 状況(2025) |
-|------|---------|---------|--------|------------|-----------|
-| Boston Dynamics | Atlas (電動) | ヒューマノイド | 28+ | 強化学習+MPC | 研究・商用デモ |
-| Boston Dynamics | Spot | 四足歩行 | 17 | 自律ナビゲーション | 商用展開中 |
-| Figure | Figure 02 | ヒューマノイド | 40+ | OpenAIモデル統合 | プロトタイプ |
-| Tesla | Optimus Gen 2 | ヒューマノイド | 28 | FSD技術転用 | 開発中 |
-| Unitree | H1/G1 | ヒューマノイド | 23-40 | 強化学習 | 商用開始 |
-| Agility Robotics | Digit | ヒューマノイド | 16+ | 倉庫作業特化 | Amazon試験導入 |
-| 1X Technologies | NEO Beta | ヒューマノイド | 25+ | OpenAI支援 | プロトタイプ |
-| Apptronik | Apollo | ヒューマノイド | 30+ | Mercedes-Benz連携 | 工場テスト |
-| iRobot | Roomba j9+ | 家庭用掃除 | - | 物体認識AI | 一般販売中 |
-| Sony | aibo (ERS-1000) | ペットロボット | 22 | 感情AI | 一般販売中 |
+| Company | Representative Product | Category | DOF | AI Approach | Status (2025) |
+|---------|----------------------|----------|-----|-------------|---------------|
+| Boston Dynamics | Atlas (Electric) | Humanoid | 28+ | RL + MPC | Research / Commercial Demo |
+| Boston Dynamics | Spot | Quadruped | 17 | Autonomous Navigation | Commercial Deployment |
+| Figure | Figure 02 | Humanoid | 40+ | OpenAI Model Integration | Prototype |
+| Tesla | Optimus Gen 2 | Humanoid | 28 | FSD Technology Transfer | In Development |
+| Unitree | H1/G1 | Humanoid | 23-40 | Reinforcement Learning | Commercial Launch |
+| Agility Robotics | Digit | Humanoid | 16+ | Warehouse-Specialized | Amazon Pilot |
+| 1X Technologies | NEO Beta | Humanoid | 25+ | OpenAI-Backed | Prototype |
+| Apptronik | Apollo | Humanoid | 30+ | Mercedes-Benz Partnership | Factory Testing |
+| iRobot | Roomba j9+ | Home Cleaning | - | Object Recognition AI | General Sale |
+| Sony | aibo (ERS-1000) | Pet Robot | 22 | Emotion AI | General Sale |
 
-### ヒューマノイドロボットの世代進化
+### Generational Evolution of Humanoid Robots
 
 ```
 +-----------------------------------------------------------+
-|  ヒューマノイドロボットの進化                                |
+|  Evolution of Humanoid Robots                              |
 +-----------------------------------------------------------+
 |                                                           |
-|  第1世代 (2000-2015): ASIMO, HRP                          |
+|  Gen 1 (2000-2015): ASIMO, HRP                           |
 |  |██|                                                     |
-|  ZMP歩行、事前プログラム動作、限定環境                      |
+|  ZMP walking, pre-programmed motions, limited environment |
 |                                                           |
-|  第2世代 (2015-2022): Atlas (油圧), Pepper                 |
+|  Gen 2 (2015-2022): Atlas (Hydraulic), Pepper             |
 |  |██████|                                                 |
-|  ダイナミック歩行、バク転、基本的な自律性                    |
+|  Dynamic walking, backflips, basic autonomy               |
 |                                                           |
-|  第3世代 (2022-2025): Atlas (電動), Figure, Optimus        |
+|  Gen 3 (2022-2025): Atlas (Electric), Figure, Optimus    |
 |  |████████████|                                           |
-|  電動アクチュエータ、AIビジョン、タスク学習                  |
+|  Electric actuators, AI vision, task learning             |
 |                                                           |
-|  第4世代 (2025-): 基盤モデル統合型                          |
+|  Gen 4 (2025-): Foundation Model Integrated               |
 |  |████████████████████|                                   |
-|  言語指示で動作、汎用タスク実行、自己学習                    |
+|  Language-instructed motion, general task execution,       |
+|  self-learning                                            |
 +-----------------------------------------------------------+
 ```
 
-### 各社のAI戦略比較
+### AI Strategy Comparison by Company
 
 ```
 +-----------------------------------------------------------+
-|  ヒューマノイドロボット AI戦略比較                           |
+|  Humanoid Robot AI Strategy Comparison                      |
 +-----------------------------------------------------------+
 |                                                           |
 |  Boston Dynamics (Atlas)                                   |
-|  +-- 制御: MPC + 強化学習のハイブリッド                    |
-|  +-- 知覚: 独自ビジョンパイプライン                        |
-|  +-- 学習: シミュレーション強化学習 → 実機転移             |
-|  +-- 強み: 運動性能、堅牢性                                |
+|  +-- Control: MPC + Reinforcement Learning hybrid         |
+|  +-- Perception: Proprietary vision pipeline              |
+|  +-- Learning: Sim RL -> Real-world transfer              |
+|  +-- Strength: Locomotion performance, robustness         |
 |                                                           |
 |  Figure (Figure 02)                                        |
-|  +-- 制御: 基盤モデル（OpenAI VLM）で高レベル計画          |
-|  +-- 知覚: カメラ + 言語理解                               |
-|  +-- 学習: テレオペ + 模倣学習 + 強化学習                  |
-|  +-- 強み: 自然言語指示での汎用タスク                      |
+|  +-- Control: Foundation Model (OpenAI VLM) for           |
+|      high-level planning                                  |
+|  +-- Perception: Camera + Language understanding          |
+|  +-- Learning: Teleop + Imitation learning + RL           |
+|  +-- Strength: General tasks via natural language         |
 |                                                           |
 |  Tesla (Optimus)                                           |
-|  +-- 制御: FSD (Full Self-Driving) の技術転用              |
-|  +-- 知覚: カメラのみ（LiDARなし、FSDと同じ哲学）         |
-|  +-- 学習: 大規模データ + ニューラルネット                 |
-|  +-- 強み: スケーラビリティ、コスト削減                    |
+|  +-- Control: FSD (Full Self-Driving) technology          |
+|      transfer                                             |
+|  +-- Perception: Camera only (no LiDAR, same philosophy  |
+|      as FSD)                                              |
+|  +-- Learning: Large-scale data + Neural networks         |
+|  +-- Strength: Scalability, cost reduction                |
 |                                                           |
 |  Unitree (H1/G1)                                           |
-|  +-- 制御: 強化学習（Isaac Gym で学習）                    |
-|  +-- 知覚: LiDAR + カメラ + IMU                            |
-|  +-- 学習: Sim-to-Real 転移                                |
-|  +-- 強み: 低コスト（$90,000〜）、俊敏な動作               |
+|  +-- Control: Reinforcement Learning (trained in          |
+|      Isaac Gym)                                           |
+|  +-- Perception: LiDAR + Camera + IMU                     |
+|  +-- Learning: Sim-to-Real transfer                       |
+|  +-- Strength: Low cost ($90,000+), agile motion          |
 +-----------------------------------------------------------+
 ```
 
 ---
 
-## 3. AI × ロボティクスの融合
+## 3. AI x Robotics Fusion
 
-### コード例1: ROS 2 でのロボット制御基本
+### Code Example 1: Basic Robot Control with ROS 2
 
 ```python
-# ROS 2 (Robot Operating System) によるロボットノードの基本
+# Basic robot node using ROS 2 (Robot Operating System)
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import Twist
@@ -217,36 +225,36 @@ class ObstacleAvoidanceNode(Node):
     def __init__(self):
         super().__init__('obstacle_avoidance')
 
-        # LiDARデータの購読
+        # Subscribe to LiDAR data
         self.scan_sub = self.create_subscription(
             LaserScan, '/scan', self.scan_callback, 10
         )
 
-        # 速度指令の発行
+        # Publish velocity commands
         self.cmd_pub = self.create_publisher(Twist, '/cmd_vel', 10)
 
-        self.min_distance = 0.5  # 最小安全距離 (メートル)
-        self.get_logger().info('障害物回避ノード起動')
+        self.min_distance = 0.5  # Minimum safe distance (meters)
+        self.get_logger().info('Obstacle avoidance node started')
 
     def scan_callback(self, msg: LaserScan):
-        """LiDARスキャンデータから障害物を検出し回避"""
+        """Detect obstacles from LiDAR scan data and avoid them"""
         ranges = np.array(msg.ranges)
         ranges = np.where(np.isinf(ranges), 10.0, ranges)
 
-        # 前方180度のスキャンデータ
+        # Front 180 degrees of scan data
         front_ranges = ranges[len(ranges)//4 : 3*len(ranges)//4]
 
         cmd = Twist()
 
         if np.min(front_ranges) < self.min_distance:
-            # 障害物検出 → 回転
-            cmd.angular.z = 0.5  # 左旋回
+            # Obstacle detected -> rotate
+            cmd.angular.z = 0.5  # Turn left
             cmd.linear.x = 0.0
             self.get_logger().warn(
-                f'障害物検出: {np.min(front_ranges):.2f}m — 回避中'
+                f'Obstacle detected: {np.min(front_ranges):.2f}m -- avoiding'
             )
         else:
-            # 安全 → 前進
+            # Safe -> move forward
             cmd.linear.x = 0.3
             cmd.angular.z = 0.0
 
@@ -259,7 +267,7 @@ def main():
     rclpy.shutdown()
 ```
 
-### コード例2: 模倣学習（Imitation Learning）
+### Code Example 2: Imitation Learning
 
 ```python
 import torch
@@ -267,10 +275,10 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 
 class RobotPolicy(nn.Module):
-    """画像観測から行動を予測する方策ネットワーク"""
+    """Policy network that predicts actions from image observations"""
     def __init__(self, action_dim=7):
         super().__init__()
-        # 視覚エンコーダ
+        # Vision encoder
         self.vision = nn.Sequential(
             nn.Conv2d(3, 32, 3, stride=2, padding=1),
             nn.ReLU(),
@@ -279,7 +287,7 @@ class RobotPolicy(nn.Module):
             nn.AdaptiveAvgPool2d(4),
             nn.Flatten(),
         )
-        # 行動予測ヘッド
+        # Action prediction head
         self.policy = nn.Sequential(
             nn.Linear(64 * 16, 256),
             nn.ReLU(),
@@ -293,7 +301,7 @@ class RobotPolicy(nn.Module):
         action = self.policy(features)
         return action
 
-# 人間のデモンストレーションデータから学習
+# Learn from human demonstration data
 class DemonstrationDataset(torch.utils.data.Dataset):
     def __init__(self, demo_path):
         self.demos = load_demonstrations(demo_path)
@@ -306,7 +314,7 @@ class DemonstrationDataset(torch.utils.data.Dataset):
         image, action = self.demos[idx]
         return torch.tensor(image).float(), torch.tensor(action).float()
 
-# 学習ループ
+# Training loop
 policy = RobotPolicy().to(device)
 optimizer = torch.optim.Adam(policy.parameters(), lr=1e-4)
 
@@ -319,7 +327,7 @@ for epoch in range(100):
         optimizer.step()
 ```
 
-### コード例3: Diffusion Policy（拡散モデルベースの行動生成）
+### Code Example 3: Diffusion Policy (Diffusion Model-Based Action Generation)
 
 ```python
 import torch
@@ -327,13 +335,13 @@ import torch.nn as nn
 
 class DiffusionPolicy(nn.Module):
     """
-    Diffusion Policy: 拡散モデルを使ったロボット行動生成
-    ノイズから行動軌道を段階的にデノイズして生成する
+    Diffusion Policy: Robot action generation using diffusion models
+    Generates action trajectories by gradually denoising from noise
 
-    利点:
-    - マルチモーダルな行動分布を表現可能
-    - 複雑な操作タスクで高い成功率
-    - 2024-2025年のロボティクスで最も注目される手法
+    Advantages:
+    - Can represent multimodal action distributions
+    - High success rate in complex manipulation tasks
+    - Most notable method in robotics for 2024-2025
     """
     def __init__(self, obs_dim=512, action_dim=7, action_horizon=16,
                  n_diffusion_steps=100):
@@ -342,7 +350,7 @@ class DiffusionPolicy(nn.Module):
         self.action_horizon = action_horizon
         self.n_steps = n_diffusion_steps
 
-        # 観測エンコーダ（画像→特徴量）
+        # Observation encoder (image -> features)
         self.obs_encoder = nn.Sequential(
             nn.Conv2d(3, 64, 3, stride=2, padding=1),
             nn.ReLU(),
@@ -353,7 +361,7 @@ class DiffusionPolicy(nn.Module):
             nn.Linear(128 * 16, obs_dim),
         )
 
-        # ノイズ予測ネットワーク（1D U-Net的構造）
+        # Noise prediction network (1D U-Net-like structure)
         self.noise_pred_net = nn.Sequential(
             nn.Linear(action_dim * action_horizon + obs_dim + 1, 512),
             nn.ReLU(),
@@ -363,7 +371,7 @@ class DiffusionPolicy(nn.Module):
         )
 
     def forward(self, obs, noisy_action, timestep):
-        """ノイズ予測: 現在の観測と汚染された行動からノイズを推定"""
+        """Noise prediction: estimate noise from current observation and corrupted action"""
         obs_feat = self.obs_encoder(obs)
         noisy_flat = noisy_action.flatten(start_dim=1)
         t_embed = timestep.float().unsqueeze(1) / self.n_steps
@@ -374,21 +382,21 @@ class DiffusionPolicy(nn.Module):
 
     @torch.no_grad()
     def generate_action(self, obs):
-        """推論: ノイズから行動軌道を段階的にデノイズ"""
+        """Inference: gradually denoise action trajectory from noise"""
         batch_size = obs.shape[0]
         device = obs.device
 
-        # ランダムノイズから開始
+        # Start from random noise
         action = torch.randn(
             batch_size, self.action_horizon, self.action_dim, device=device
         )
 
-        # DDPM デノイジングプロセス
+        # DDPM denoising process
         for t in reversed(range(self.n_steps)):
             timestep = torch.full((batch_size,), t, device=device)
             noise_pred = self.forward(obs, action, timestep)
 
-            # デノイジングステップ（簡略化）
+            # Denoising step (simplified)
             alpha = 1 - 0.02 * t / self.n_steps
             action = (action - (1 - alpha) * noise_pred) / alpha.sqrt()
 
@@ -397,18 +405,18 @@ class DiffusionPolicy(nn.Module):
 
         return action  # (batch, horizon, action_dim)
 
-# 学習
+# Training
 policy = DiffusionPolicy().to(device)
 optimizer = torch.optim.AdamW(policy.parameters(), lr=1e-4)
 
 for epoch in range(100):
     for obs, expert_actions in dataloader:
-        # ランダムタイムステップでノイズ追加
+        # Add noise at random timesteps
         t = torch.randint(0, policy.n_steps, (obs.shape[0],), device=device)
         noise = torch.randn_like(expert_actions)
         noisy_actions = expert_actions + noise * (t.float() / policy.n_steps).unsqueeze(1).unsqueeze(2)
 
-        # ノイズ予測の学習
+        # Learn noise prediction
         noise_pred = policy(obs.to(device), noisy_actions.to(device), t)
         loss = nn.MSELoss()(noise_pred, noise.to(device))
 
@@ -417,14 +425,15 @@ for epoch in range(100):
         optimizer.step()
 ```
 
-### コード例4: 言語指示によるロボット制御（基盤モデル統合）
+### Code Example 4: Language-Instructed Robot Control (Foundation Model Integration)
 
 ```python
-# VLM（Vision-Language Model）によるロボット制御の概念コード
+# Conceptual code for robot control using VLM (Vision-Language Model)
 class VLMRobotController:
     """
-    言語指示を理解し、カメラ画像から状況判断して
-    ロボットの行動を生成するコントローラ
+    Controller that understands language instructions,
+    assesses the situation from camera images, and
+    generates robot actions
     """
     def __init__(self):
         self.vlm = load_vlm("rt-2-x")  # Robotics Transformer
@@ -432,60 +441,60 @@ class VLMRobotController:
 
     def execute_instruction(self, instruction: str, camera_image):
         """
-        例: instruction = "テーブルの上の赤いカップを取って、棚に置いて"
+        Example: instruction = "Pick up the red cup on the table and place it on the shelf"
         """
-        # VLMが画像と指示を理解し、行動トークンを生成
+        # VLM understands image and instruction, generates action tokens
         action_tokens = self.vlm.predict(
             image=camera_image,
             instruction=instruction,
         )
-        # action_tokens → [dx, dy, dz, rx, ry, rz, gripper_open]
+        # action_tokens -> [dx, dy, dz, rx, ry, rz, gripper_open]
 
-        # 低レベル制御器でモーター指令に変換
+        # Convert to motor commands via low-level controller
         for action in action_tokens:
             joint_torques = self.low_level_controller.inverse_kinematics(action)
             self.low_level_controller.execute(joint_torques)
 
         return action_tokens
 
-# Google RT-2-X のアプローチ:
-# 1. 大規模言語モデル（PaLM-E）で言語理解
-# 2. ビジョンエンコーダで環境認識
-# 3. 行動トークンとして離散化した動作を生成
-# 4. デモリファイニング(学習済み)モデルで実行
+# Google RT-2-X approach:
+# 1. Large language model (PaLM-E) for language understanding
+# 2. Vision encoder for environment perception
+# 3. Generate discretized actions as action tokens
+# 4. Execute with demo-refined (pre-trained) model
 ```
 
 ---
 
-## 4. ロボット制御手法の比較
+## 4. Comparison of Robot Control Methods
 
-### 制御手法の比較表
+### Control Methods Comparison Table
 
-| 手法 | 適用場面 | 汎用性 | 安全性 | 学習コスト | 代表例 |
-|------|---------|--------|--------|-----------|--------|
-| PID制御 | 関節角度制御 | 低 | 高 | なし | 産業用ロボットアーム |
-| MPC（モデル予測制御） | 歩行・移動 | 中 | 高 | 低 | Boston Dynamics Atlas |
-| 強化学習（RL） | 複雑な動作獲得 | 高 | 中 | 高（sim-to-real） | 歩行、マニピュレーション |
-| 模倣学習（IL） | タスク固有動作 | 中 | 中 | 中（デモ収集） | 組立作業、調理 |
-| Diffusion Policy | 精密操作 | 高 | 中 | 中 | 折り畳み、組立 |
-| 基盤モデル（FM） | 汎用タスク | 非常に高 | 開発中 | 高（大規模学習） | RT-2, Figure + OpenAI |
+| Method | Application | Generality | Safety | Training Cost | Example |
+|--------|-------------|-----------|--------|--------------|---------|
+| PID Control | Joint angle control | Low | High | None | Industrial robot arms |
+| MPC (Model Predictive Control) | Walking / Locomotion | Medium | High | Low | Boston Dynamics Atlas |
+| Reinforcement Learning (RL) | Complex motion acquisition | High | Medium | High (sim-to-real) | Walking, Manipulation |
+| Imitation Learning (IL) | Task-specific motions | Medium | Medium | Medium (demo collection) | Assembly, Cooking |
+| Diffusion Policy | Precise manipulation | High | Medium | Medium | Folding, Assembly |
+| Foundation Model (FM) | General tasks | Very High | In Development | High (large-scale training) | RT-2, Figure + OpenAI |
 
-### コード例5: 強化学習によるロボット歩行（Isaac Gym）
+### Code Example 5: Robot Walking via Reinforcement Learning (Isaac Gym)
 
 ```python
-# NVIDIA Isaac Gym を使った四足歩行ロボットの強化学習
+# Reinforcement learning for quadruped walking using NVIDIA Isaac Gym
 import isaacgym
 from isaacgym import gymapi, gymutil
 import torch
 
 class QuadrupedEnv:
-    """四足歩行ロボットの並列シミュレーション環境"""
+    """Parallel simulation environment for quadruped walking robot"""
 
     def __init__(self, num_envs=4096):
         self.num_envs = num_envs
         self.gym = gymapi.acquire_gym()
 
-        # シミュレーション設定
+        # Simulation settings
         sim_params = gymapi.SimParams()
         sim_params.dt = 1.0 / 200.0  # 200Hz
         sim_params.substeps = 2
@@ -496,15 +505,15 @@ class QuadrupedEnv:
 
         self.sim = self.gym.create_sim(0, 0, gymapi.SIM_PHYSX, sim_params)
 
-        # 4096個の環境を並列作成（GPU上で同時シミュレーション）
+        # Create 4096 environments in parallel (simultaneous GPU simulation)
         self._create_envs()
 
     def _create_envs(self):
-        """並列環境の作成"""
+        """Create parallel environments"""
         asset_root = "/path/to/urdf/"
         asset_file = "a1_robot.urdf"
 
-        # ロボットモデルのロード
+        # Load robot model
         asset = self.gym.load_asset(self.sim, asset_root, asset_file)
 
         for i in range(self.num_envs):
@@ -512,8 +521,8 @@ class QuadrupedEnv:
             self.gym.create_actor(env, asset, ...)
 
     def step(self, actions):
-        """1ステップ実行（全環境を同時に進める）"""
-        # actions: (num_envs, 12) — 各脚3関節 × 4脚
+        """Execute one step (advance all environments simultaneously)"""
+        # actions: (num_envs, 12) -- 3 joints per leg x 4 legs
         self.gym.set_dof_position_target_tensor(self.sim, actions)
         self.gym.simulate(self.sim)
         self.gym.fetch_results(self.sim, True)
@@ -525,29 +534,29 @@ class QuadrupedEnv:
         return obs, rewards, dones
 
     def _compute_rewards(self):
-        """報酬関数"""
-        # 前進速度への報酬
+        """Reward function"""
+        # Reward for forward velocity
         forward_reward = self.base_velocity[:, 0] * 2.0
 
-        # エネルギーペナルティ（省エネ歩行を促進）
+        # Energy penalty (encourage energy-efficient walking)
         energy_penalty = -0.005 * torch.sum(self.torques ** 2, dim=1)
 
-        # 姿勢安定性（転倒ペナルティ）
+        # Posture stability (falling penalty)
         orientation_penalty = -1.0 * torch.sum(
             (self.base_orientation[:, :2]) ** 2, dim=1
         )
 
-        # 足の接地パターン（対角歩行を促進）
+        # Foot contact pattern (encourage diagonal gait)
         gait_reward = self._compute_gait_reward()
 
         return forward_reward + energy_penalty + orientation_penalty + gait_reward
 
-# PPO (Proximal Policy Optimization) で学習
-# 4096環境を並列 → 1時間で数億ステップの学習が可能
-# → 実機では歩行を即座に実行できる
+# Train with PPO (Proximal Policy Optimization)
+# 4096 parallel environments -> hundreds of millions of steps in 1 hour
+# -> Walking can be executed immediately on the real robot
 ```
 
-### コード例6: テレオペレーション（遠隔操作）によるデモ収集
+### Code Example 6: Teleoperation Demo Collection
 
 ```python
 import numpy as np
@@ -557,18 +566,18 @@ import h5py
 
 @dataclass
 class DemoStep:
-    """デモの1ステップ"""
+    """One step of a demonstration"""
     timestamp: float
-    image: np.ndarray       # (H, W, 3) RGB画像
-    depth: np.ndarray       # (H, W) 深度画像
-    joint_positions: np.ndarray   # 関節角度
-    joint_velocities: np.ndarray  # 関節速度
-    ee_position: np.ndarray      # エンドエフェクタ位置 [x, y, z]
-    ee_orientation: np.ndarray   # エンドエフェクタ姿勢 [qx, qy, qz, qw]
-    gripper_state: float         # グリッパー開閉 (0-1)
+    image: np.ndarray       # (H, W, 3) RGB image
+    depth: np.ndarray       # (H, W) Depth image
+    joint_positions: np.ndarray   # Joint angles
+    joint_velocities: np.ndarray  # Joint velocities
+    ee_position: np.ndarray      # End-effector position [x, y, z]
+    ee_orientation: np.ndarray   # End-effector orientation [qx, qy, qz, qw]
+    gripper_state: float         # Gripper open/close (0-1)
 
 class TeleopDataCollector:
-    """テレオペレーションによるデモンストレーションデータ収集"""
+    """Demonstration data collection via teleoperation"""
 
     def __init__(self, robot, camera, save_dir="demos"):
         self.robot = robot
@@ -578,12 +587,12 @@ class TeleopDataCollector:
         self.demo_count = 0
 
     def start_recording(self):
-        """デモ記録開始"""
+        """Start demo recording"""
         self.current_demo = []
-        print("デモ記録を開始しました。")
+        print("Demo recording started.")
 
     def record_step(self):
-        """現在のロボット状態を記録"""
+        """Record the current robot state"""
         step = DemoStep(
             timestamp=time.time(),
             image=self.camera.get_rgb(),
@@ -597,7 +606,7 @@ class TeleopDataCollector:
         self.current_demo.append(step)
 
     def save_demo(self, task_name: str):
-        """デモデータをHDF5形式で保存"""
+        """Save demo data in HDF5 format"""
         filename = f"{self.save_dir}/{task_name}_demo_{self.demo_count:04d}.hdf5"
 
         with h5py.File(filename, 'w') as f:
@@ -605,7 +614,7 @@ class TeleopDataCollector:
             f.attrs['task'] = task_name
             f.attrs['n_steps'] = n_steps
 
-            # 各データフィールドをバッチで保存
+            # Save each data field in batch
             images = np.stack([s.image for s in self.current_demo])
             f.create_dataset('images', data=images, compression='gzip')
 
@@ -619,78 +628,83 @@ class TeleopDataCollector:
             f.create_dataset('joint_positions', data=joint_pos)
 
         self.demo_count += 1
-        print(f"デモ保存完了: {filename} ({n_steps} ステップ)")
+        print(f"Demo saved: {filename} ({n_steps} steps)")
 
-# テレオペデバイス
-# - VR コントローラー (Meta Quest): 手の位置・姿勢を直接マッピング
-# - 3Dマウス (SpaceMouse): 6DoFの入力デバイス
-# - リーダーフォロワー: 2台のロボットアームで操作
-# - Apple Vision Pro: 手のトラッキングでロボット制御
+# Teleop devices
+# - VR Controller (Meta Quest): Directly map hand position/orientation
+# - 3D Mouse (SpaceMouse): 6DoF input device
+# - Leader-Follower: Operate using two robot arms
+# - Apple Vision Pro: Control robot via hand tracking
 ```
 
 ---
 
-## 5. シミュレーションとSim-to-Real転移
+## 5. Simulation and Sim-to-Real Transfer
 
-### シミュレータの比較
+### Simulator Comparison
 
-| シミュレータ | 開発元 | GPU並列 | 物理エンジン | 主な用途 | ライセンス |
-|------------|--------|--------|------------|---------|----------|
-| Isaac Gym/Lab | NVIDIA | 数千環境 | PhysX | 強化学習 | 無料 |
-| MuJoCo | Google | 限定的 | 独自 | 研究 | Apache 2.0 |
-| PyBullet | Coumans | なし | Bullet | 教育・研究 | MIT |
-| Gazebo | Open Robotics | なし | ODE/DART | ROS統合 | Apache 2.0 |
-| Isaac Sim | NVIDIA | 対応 | PhysX 5 | フォトリアル | 無料 |
-| Genesis | 研究チーム | 数万環境 | 独自 | 超大規模RL | 研究用 |
+| Simulator | Developer | GPU Parallel | Physics Engine | Primary Use | License |
+|-----------|-----------|-------------|---------------|-------------|---------|
+| Isaac Gym/Lab | NVIDIA | Thousands of envs | PhysX | Reinforcement Learning | Free |
+| MuJoCo | Google | Limited | Proprietary | Research | Apache 2.0 |
+| PyBullet | Coumans | None | Bullet | Education / Research | MIT |
+| Gazebo | Open Robotics | None | ODE/DART | ROS Integration | Apache 2.0 |
+| Isaac Sim | NVIDIA | Supported | PhysX 5 | Photorealistic | Free |
+| Genesis | Research Team | Tens of thousands | Proprietary | Ultra-large-scale RL | Research |
 
-### Sim-to-Real 転移のフレームワーク
+### Sim-to-Real Transfer Framework
 
 ```
 +-----------------------------------------------------------+
-|  Sim-to-Real 転移の全体像                                   |
+|  Sim-to-Real Transfer Overview                             |
 +-----------------------------------------------------------+
 |                                                           |
-|  シミュレーション                                          |
+|  Simulation                                                |
 |  +----------------------------------------------+        |
 |  |                                              |        |
-|  |  1. ドメインランダム化                        |        |
-|  |     摩擦: 0.2-1.0                            |        |
-|  |     質量: ±20%                               |        |
-|  |     重力: 9.6-10.2 m/s^2                     |        |
-|  |     センサーノイズ: ±5%                       |        |
-|  |     視覚: 色、照明、テクスチャのランダム化     |        |
-|  |     遅延: 0-30ms のランダム制御遅延           |        |
+|  |  1. Domain Randomization                     |        |
+|  |     Friction: 0.2-1.0                        |        |
+|  |     Mass: +/-20%                             |        |
+|  |     Gravity: 9.6-10.2 m/s^2                  |        |
+|  |     Sensor noise: +/-5%                      |        |
+|  |     Visual: Randomize color, lighting,       |        |
+|  |            texture                           |        |
+|  |     Latency: 0-30ms random control delay     |        |
 |  |                                              |        |
-|  |  2. 大規模並列学習                            |        |
-|  |     Isaac Gym: 4096環境 → ~1時間で数億ステップ |        |
+|  |  2. Large-Scale Parallel Training            |        |
+|  |     Isaac Gym: 4096 envs -> ~hundreds of     |        |
+|  |     millions of steps in 1 hour              |        |
 |  |                                              |        |
-|  |  3. 方策の学習                                |        |
+|  |  3. Policy Training                          |        |
 |  |     PPO / SAC / TD3                          |        |
 |  +----------------------------------------------+        |
 |                    |                                      |
 |                    v                                      |
-|  転移 (Sim-to-Real Gap の縮小)                            |
+|  Transfer (Reducing the Sim-to-Real Gap)                  |
 |  +----------------------------------------------+        |
-|  |  システム同定: 実機パラメータの精密計測        |        |
-|  |  残差学習: 実機データで微修正                  |        |
-|  |  適応制御: 実機環境にオンラインで適応          |        |
+|  |  System Identification: Precise measurement   |        |
+|  |  of real robot parameters                     |        |
+|  |  Residual Learning: Fine-tuning with real     |        |
+|  |  robot data                                   |        |
+|  |  Adaptive Control: Online adaptation to real  |        |
+|  |  environment                                  |        |
 |  +----------------------------------------------+        |
 |                    |                                      |
 |                    v                                      |
-|  実機                                                     |
+|  Real Robot                                               |
 |  +----------------------------------------------+        |
-|  |  少量の実機データでファインチューニング        |        |
-|  |  安全フィルターの適用                          |        |
-|  |  段階的な難易度上昇                            |        |
+|  |  Fine-tuning with small amount of real data   |        |
+|  |  Apply safety filters                         |        |
+|  |  Gradual difficulty escalation                |        |
 |  +----------------------------------------------+        |
 +-----------------------------------------------------------+
 ```
 
 ---
 
-## 6. 家庭用ロボット
+## 6. Home Robots
 
-### コード例7: Roomba 的な経路計画アルゴリズム
+### Code Example 7: Roomba-Style Coverage Planning Algorithm
 
 ```python
 import numpy as np
@@ -702,17 +716,17 @@ class CoverageState(Enum):
     RANDOM = "random"
 
 class CoveragePlanner:
-    """家庭用掃除ロボットのカバレッジ計画"""
+    """Coverage planning for home cleaning robots"""
 
     def __init__(self, grid_size=(100, 100)):
-        self.grid = np.zeros(grid_size, dtype=bool)  # 掃除済みマップ
+        self.grid = np.zeros(grid_size, dtype=bool)  # Cleaned area map
         self.obstacles = np.zeros(grid_size, dtype=bool)
         self.position = (50, 50)
-        self.heading = 0  # 0-359度
+        self.heading = 0  # 0-359 degrees
         self.state = CoverageState.SPIRAL
 
     def plan_next_action(self, bumper_hit, cliff_detected):
-        """センサー入力に基づいて次の行動を決定"""
+        """Determine the next action based on sensor input"""
         if cliff_detected:
             return self._backup_and_turn(180)
 
@@ -729,54 +743,54 @@ class CoveragePlanner:
         return self._random_bounce()
 
     def _coverage_percentage(self):
-        """掃除済み面積の割合"""
+        """Percentage of cleaned area"""
         cleanable = ~self.obstacles
         return np.sum(self.grid & cleanable) / np.sum(cleanable)
 
     def _spiral_outward(self):
-        """スパイラル移動パターン"""
-        # 中心から外側に向かって渦巻き状に移動
-        # 障害物に当たったら状態遷移
+        """Spiral movement pattern"""
+        # Move in a spiral from center outward
+        # Transition state when hitting an obstacle
         pass
 
     def _wall_follow(self):
-        """壁沿い移動（部屋の端を掃除）"""
+        """Wall-following movement (clean room edges)"""
         pass
 
     def _move_to_uncovered(self):
-        """未掃除エリアへ移動"""
+        """Move to uncleaned area"""
         uncovered = ~self.grid & ~self.obstacles
         if np.any(uncovered):
             target = find_nearest_uncovered(self.position, uncovered)
             return plan_path_to(self.position, target)
 ```
 
-### コード例8: ロボットアームの逆運動学
+### Code Example 8: Inverse Kinematics for a Robot Arm
 
 ```python
 import numpy as np
 
 class SimpleRobotArm:
-    """2リンクロボットアームの逆運動学"""
+    """Inverse kinematics for a 2-link robot arm"""
 
     def __init__(self, l1=0.3, l2=0.25):
-        self.l1 = l1  # 第1リンク長 (m)
-        self.l2 = l2  # 第2リンク長 (m)
+        self.l1 = l1  # Link 1 length (m)
+        self.l2 = l2  # Link 2 length (m)
 
     def forward_kinematics(self, theta1, theta2):
-        """順運動学: 関節角度 → エンドエフェクタ位置"""
+        """Forward kinematics: joint angles -> end-effector position"""
         x = self.l1 * np.cos(theta1) + self.l2 * np.cos(theta1 + theta2)
         y = self.l1 * np.sin(theta1) + self.l2 * np.sin(theta1 + theta2)
         return x, y
 
     def inverse_kinematics(self, x, y):
-        """逆運動学: 目標位置 → 関節角度"""
+        """Inverse kinematics: target position -> joint angles"""
         d = (x**2 + y**2 - self.l1**2 - self.l2**2) / (2 * self.l1 * self.l2)
 
         if abs(d) > 1:
-            raise ValueError("目標位置がワークスペース外です")
+            raise ValueError("Target position is outside the workspace")
 
-        theta2 = np.arctan2(np.sqrt(1 - d**2), d)  # 肘上解
+        theta2 = np.arctan2(np.sqrt(1 - d**2), d)  # Elbow-up solution
         theta1 = np.arctan2(y, x) - np.arctan2(
             self.l2 * np.sin(theta2),
             self.l1 + self.l2 * np.cos(theta2)
@@ -785,10 +799,10 @@ class SimpleRobotArm:
         return theta1, theta2
 
     def plan_trajectory(self, start, end, steps=50):
-        """始点から終点への滑らかな軌道計画"""
+        """Smooth trajectory planning from start to end"""
         trajectory = []
         for t in np.linspace(0, 1, steps):
-            # 3次補間で滑らかな動き
+            # Cubic interpolation for smooth motion
             s = 3*t**2 - 2*t**3  # smoothstep
             x = start[0] + s * (end[0] - start[0])
             y = start[1] + s * (end[1] - start[1])
@@ -797,18 +811,18 @@ class SimpleRobotArm:
         return trajectory
 ```
 
-### コード例9: 6DoF ロボットアームの運動学（DH法）
+### Code Example 9: 6-DOF Robot Arm Kinematics (DH Method)
 
 ```python
 import numpy as np
 
 def dh_transform(theta, d, a, alpha):
     """
-    Denavit-Hartenberg 変換行列
-    theta: 関節角度 (回転関節)
-    d: リンクオフセット
-    a: リンク長
-    alpha: リンクのねじり角
+    Denavit-Hartenberg transformation matrix
+    theta: Joint angle (revolute joint)
+    d: Link offset
+    a: Link length
+    alpha: Link twist angle
     """
     ct, st = np.cos(theta), np.sin(theta)
     ca, sa = np.cos(alpha), np.sin(alpha)
@@ -821,10 +835,10 @@ def dh_transform(theta, d, a, alpha):
     ])
 
 class Robot6DOF:
-    """6自由度ロボットアーム（Puma 560 風 DH パラメータ）"""
+    """6-DOF robot arm (Puma 560-style DH parameters)"""
 
     def __init__(self):
-        # DH パラメータ [d, a, alpha] (theta は変数)
+        # DH parameters [d, a, alpha] (theta is variable)
         self.dh_params = [
             [0.670, 0,     np.pi/2],   # Joint 1
             [0,     0.432, 0],          # Joint 2
@@ -835,14 +849,14 @@ class Robot6DOF:
         ]
 
     def forward_kinematics(self, joint_angles):
-        """順運動学: 6関節角度 → エンドエフェクタの4x4変換行列"""
+        """Forward kinematics: 6 joint angles -> 4x4 end-effector transform"""
         T = np.eye(4)
         for i, (d, a, alpha) in enumerate(self.dh_params):
             T = T @ dh_transform(joint_angles[i], d, a, alpha)
         return T
 
     def jacobian(self, joint_angles, delta=1e-6):
-        """数値ヤコビアン: 関節速度 → エンドエフェクタ速度の変換"""
+        """Numerical Jacobian: joint velocities -> end-effector velocities"""
         J = np.zeros((6, 6))
         T0 = self.forward_kinematics(joint_angles)
         pos0 = T0[:3, 3]
@@ -852,10 +866,10 @@ class Robot6DOF:
             angles_plus[i] += delta
             T_plus = self.forward_kinematics(angles_plus)
 
-            # 位置のヤコビアン
+            # Position Jacobian
             J[:3, i] = (T_plus[:3, 3] - pos0) / delta
 
-            # 姿勢のヤコビアン（簡略化）
+            # Orientation Jacobian (simplified)
             dR = T_plus[:3, :3] @ T0[:3, :3].T
             J[3:, i] = np.array([dR[2, 1], dR[0, 2], dR[1, 0]]) / delta
 
@@ -863,8 +877,8 @@ class Robot6DOF:
 
     def inverse_kinematics_numerical(self, target_pos, target_orient=None,
                                       max_iter=100, tol=1e-4):
-        """数値的逆運動学（ヤコビアンベース）"""
-        q = np.zeros(6)  # 初期姿勢
+        """Numerical inverse kinematics (Jacobian-based)"""
+        q = np.zeros(6)  # Initial posture
 
         for iteration in range(max_iter):
             T_current = self.forward_kinematics(q)
@@ -874,220 +888,232 @@ class Robot6DOF:
                 return q
 
             J = self.jacobian(q)
-            J_pos = J[:3, :]  # 位置のヤコビアンのみ
+            J_pos = J[:3, :]  # Position Jacobian only
 
-            # ダンプ付き擬似逆行列（特異姿勢対策）
+            # Damped pseudoinverse (singularity avoidance)
             lambda_sq = 0.01
             J_pinv = J_pos.T @ np.linalg.inv(
                 J_pos @ J_pos.T + lambda_sq * np.eye(3)
             )
 
             dq = J_pinv @ pos_error
-            q += dq * 0.5  # ステップサイズ
+            q += dq * 0.5  # Step size
 
         return q
 ```
 
 ---
 
-## 7. 安全設計と規格
+## 7. Safety Design and Standards
 
-### ロボット安全アーキテクチャ
+### Robot Safety Architecture
 
 ```
 +-----------------------------------------------------------+
-|  ロボット安全の多層防御アーキテクチャ                        |
+|  Robot Safety Defense-in-Depth Architecture                 |
 +-----------------------------------------------------------+
 |                                                           |
-|  Layer 5: 環境設計                                        |
-|  +-- 作業ゾーンの物理的分離（フェンス、光カーテン）        |
-|  +-- 速度・力の制限ゾーン設定                              |
-|  +-- 緊急停止ボタンの配置                                  |
+|  Layer 5: Environmental Design                            |
+|  +-- Physical separation of work zones (fences,          |
+|      light curtains)                                      |
+|  +-- Speed and force limit zone configuration             |
+|  +-- Emergency stop button placement                      |
 |                                                           |
-|  Layer 4: AI安全フィルター                                 |
-|  +-- 異常行動検出（学習済みモデルの出力チェック）          |
-|  +-- 予測衝突回避（軌道予測 + 回避行動）                  |
-|  +-- 不確実性の高い行動の拒否                              |
+|  Layer 4: AI Safety Filter                                |
+|  +-- Anomalous behavior detection (output check of       |
+|      trained models)                                      |
+|  +-- Predictive collision avoidance (trajectory           |
+|      prediction + evasive action)                         |
+|  +-- Rejection of actions with high uncertainty           |
 |                                                           |
-|  Layer 3: ソフトウェア安全制約                              |
-|  +-- 速度上限: max_velocity = 1.5 m/s（人と共存時）       |
-|  +-- 力上限: max_force = 150 N（ISO/TS 15066準拠）        |
-|  +-- ワークスペース制限（動作範囲の制限）                  |
+|  Layer 3: Software Safety Constraints                     |
+|  +-- Speed limit: max_velocity = 1.5 m/s (when           |
+|      coexisting with humans)                              |
+|  +-- Force limit: max_force = 150 N (ISO/TS 15066        |
+|      compliant)                                           |
+|  +-- Workspace limits (range of motion restriction)       |
 |                                                           |
-|  Layer 2: ハードウェア安全                                 |
-|  +-- 力覚センサーによる衝突検出                            |
-|  +-- バックドライバブルアクチュエータ（衝突時に力を逃す）  |
-|  +-- 電流制限（トルクの物理的制限）                        |
+|  Layer 2: Hardware Safety                                 |
+|  +-- Collision detection via force/torque sensors         |
+|  +-- Backdrivable actuators (dissipate force on           |
+|      collision)                                           |
+|  +-- Current limiting (physical torque limitation)        |
 |                                                           |
-|  Layer 1: 緊急停止（E-Stop）                              |
-|  +-- ハードウェアE-Stop（物理ボタン）                     |
-|  +-- ソフトウェアE-Stop（通信断でも安全側に）              |
-|  +-- SIL 3 (Safety Integrity Level 3) 準拠                |
+|  Layer 1: Emergency Stop (E-Stop)                         |
+|  +-- Hardware E-Stop (physical button)                    |
+|  +-- Software E-Stop (fail-safe even on communication     |
+|      loss)                                                |
+|  +-- SIL 3 (Safety Integrity Level 3) compliant           |
 |                                                           |
-|  常に下位層が上位層を上書きできる構造にする                 |
+|  Lower layers must always be able to override upper       |
+|  layers                                                   |
 +-----------------------------------------------------------+
 ```
 
-### 主要ロボット安全規格
+### Key Robot Safety Standards
 
-| 規格 | 内容 | 対象 |
-|------|------|------|
-| ISO 10218-1/2 | 産業用ロボットの安全要求 | 工場ロボット |
-| ISO/TS 15066 | 協働ロボットの安全（力・速度制限） | コボット |
-| ISO 13482 | パーソナルケアロボットの安全 | 家庭用ロボット |
-| IEC 61508 | 機能安全の一般規格 | 全安全システム |
-| ISO 26262 | 自動車の機能安全 | 自動運転車 |
-| ISO/DIS 22166 | 自律移動ロボットの安全 | AMR |
+| Standard | Content | Target |
+|----------|---------|--------|
+| ISO 10218-1/2 | Safety requirements for industrial robots | Factory robots |
+| ISO/TS 15066 | Collaborative robot safety (force/speed limits) | Cobots |
+| ISO 13482 | Safety for personal care robots | Home robots |
+| IEC 61508 | General functional safety standard | All safety systems |
+| ISO 26262 | Automotive functional safety | Autonomous vehicles |
+| ISO/DIS 22166 | Safety for autonomous mobile robots | AMR |
 
 ---
 
-## 8. ロボティクスの産業応用
+## 8. Industrial Applications of Robotics
 
-### 産業分野別ロボット導入状況
+### Robot Adoption by Industry Sector
 
 ```
 +-----------------------------------------------------------+
-|  産業ロボティクスの導入分野                                  |
+|  Industrial Robotics Adoption Sectors                      |
 +-----------------------------------------------------------+
 |                                                           |
-|  製造業                                                    |
-|  +-- 自動車組立ライン: 溶接、塗装、組立                   |
-|  +-- 電子機器: SMT実装、検査                              |
-|  +-- 食品加工: ピッキング、パッケージング                  |
-|  +-- BMW/Figure 02: ヒューマノイドの工場試験導入           |
+|  Manufacturing                                             |
+|  +-- Automotive assembly line: Welding, painting,         |
+|      assembly                                             |
+|  +-- Electronics: SMT mounting, inspection                |
+|  +-- Food processing: Picking, packaging                  |
+|  +-- BMW/Figure 02: Humanoid pilot deployment in          |
+|      factories                                            |
 |                                                           |
-|  物流・倉庫                                                |
-|  +-- Amazon: Proteus（自律移動ロボット）                   |
-|  +-- Amazon: Digit（Agility Robotics、箱運搬）             |
-|  +-- 仕分け: ピースピッキングロボット                      |
-|  +-- 自律搬送車 (AMR): Fetch, Locus                       |
+|  Logistics and Warehousing                                 |
+|  +-- Amazon: Proteus (autonomous mobile robot)            |
+|  +-- Amazon: Digit (Agility Robotics, box handling)       |
+|  +-- Sorting: Piece-picking robots                        |
+|  +-- Autonomous Mobile Robots (AMR): Fetch, Locus         |
 |                                                           |
-|  農業                                                      |
-|  +-- 収穫ロボット: イチゴ、トマトのピッキング              |
-|  +-- 除草ロボット: カメラ+AIで雑草を識別                   |
-|  +-- ドローン: 農薬散布、作物モニタリング                  |
+|  Agriculture                                               |
+|  +-- Harvesting robots: Strawberry and tomato picking     |
+|  +-- Weeding robots: Weed identification via camera + AI  |
+|  +-- Drones: Pesticide spraying, crop monitoring          |
 |                                                           |
-|  医療・介護                                                |
-|  +-- 手術ロボット: da Vinci（直感的操作）                  |
-|  +-- リハビリ: 外骨格ロボット                              |
-|  +-- 搬送: 病院内の物品搬送ロボット                        |
+|  Healthcare and Nursing Care                               |
+|  +-- Surgical robots: da Vinci (intuitive operation)      |
+|  +-- Rehabilitation: Exoskeleton robots                   |
+|  +-- Transport: In-hospital goods delivery robots         |
 |                                                           |
-|  建設                                                      |
-|  +-- Spot (Boston Dynamics): 建設現場の巡回・検査          |
-|  +-- 3Dプリンティング: コンクリート積層                    |
-|  +-- 解体ロボット: 危険区域の遠隔操作                      |
+|  Construction                                              |
+|  +-- Spot (Boston Dynamics): Construction site patrol     |
+|      and inspection                                       |
+|  +-- 3D Printing: Concrete layering                       |
+|  +-- Demolition robots: Remote operation in hazardous     |
+|      areas                                                |
 +-----------------------------------------------------------+
 ```
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### アンチパターン1: シミュレーションと現実のギャップを無視
-
-```
-NG: シミュレーション（MuJoCo, Isaac Sim）で完璧に動く
-    → そのまま実機に転送
-    → 現実では全く動かない（sim-to-real gap）
-
-OK: Sim-to-Real 転移の対策を講じる
-    1. ドメインランダム化: 物理パラメータを乱数で変える
-       - 摩擦係数: 0.3-0.8
-       - 重力: 9.6-10.0 m/s^2
-       - 質量: ±10%
-       - センサーノイズ: ±5%
-       - 制御遅延: 0-30ms
-    2. システム同定: 実機のパラメータを正確に計測
-    3. 段階的転移: sim → sim-to-real → 実機少量データ
-    4. 残差学習: simで基本方策 → 実機データで差分を学習
-```
-
-### アンチパターン2: 安全機構なしでのAI制御
+### Anti-Pattern 1: Ignoring the Simulation-Reality Gap
 
 ```
-NG: AIモデルの出力をそのままモーターに送る
-    → 予期しない動作で人や物を損傷
+BAD: Works perfectly in simulation (MuJoCo, Isaac Sim)
+     -> Transfer directly to real robot
+     -> Doesn't work at all in reality (sim-to-real gap)
 
-OK: 多層安全アーキテクチャ
-    Layer 1: AIポリシー（学習済みモデル）
-    Layer 2: 安全フィルター（速度・力の上限制限）
-    Layer 3: 衝突検出（力覚センサー閾値）
-    Layer 4: 緊急停止（ハードウェアE-stop）
-
-    常に Layer 2-4 が Layer 1 を上書きできる構造にする
+GOOD: Apply Sim-to-Real transfer countermeasures
+    1. Domain Randomization: Randomize physical parameters
+       - Friction coefficient: 0.3-0.8
+       - Gravity: 9.6-10.0 m/s^2
+       - Mass: +/-10%
+       - Sensor noise: +/-5%
+       - Control latency: 0-30ms
+    2. System Identification: Precisely measure real robot parameters
+    3. Gradual transfer: sim -> sim-to-real -> small real-world data
+    4. Residual Learning: Base policy in sim -> learn the delta with real data
 ```
 
-### アンチパターン3: エンドツーエンドへの過信
+### Anti-Pattern 2: AI Control Without Safety Mechanisms
 
 ```
-NG: 画像入力 → 行動出力 を単一モデルで学習
-    → ブラックボックスで何が起きているか分からない
-    → デバッグ不可能、安全性の検証不可能
+BAD: Send AI model output directly to motors
+     -> Unexpected motion damages people or objects
 
-OK: モジュラーアーキテクチャ + 基盤モデル
-    1. 知覚モジュール: 物体認識、環境理解
-    2. 計画モジュール: タスク分解、行動計画
-    3. 制御モジュール: 低レベルモーター制御
-    各モジュールの入出力を検証可能にする
-    基盤モデルは計画レベルで活用（制御は従来手法）
+GOOD: Multi-layered safety architecture
+    Layer 1: AI Policy (trained model)
+    Layer 2: Safety Filter (speed/force upper limits)
+    Layer 3: Collision Detection (force sensor thresholds)
+    Layer 4: Emergency Stop (hardware E-stop)
+
+    Layers 2-4 must always be able to override Layer 1
 ```
 
-### アンチパターン4: データ収集の軽視
+### Anti-Pattern 3: Overreliance on End-to-End
 
 ```
-NG: シミュレーションデータだけで十分と考える
-    → 実環境の多様性をカバーできない
+BAD: Train a single model from image input to action output
+     -> Black box with no visibility into what's happening
+     -> Impossible to debug, impossible to verify safety
 
-OK: 体系的なデータ収集パイプライン
-    1. テレオペレーション: VR/リーダーフォロワーで人間がデモ
-    2. 自律探索: 安全範囲内でロボットが自己データ収集
-    3. マルチロボット: 複数台で並列データ収集
-    4. データ拡張: 視覚ランダム化、ノイズ追加
-    目安: 1タスクあたり50-200デモ（Diffusion Policy基準）
+GOOD: Modular architecture + Foundation Models
+    1. Perception module: Object recognition, environment understanding
+    2. Planning module: Task decomposition, action planning
+    3. Control module: Low-level motor control
+    Make each module's inputs/outputs verifiable
+    Use foundation models at the planning level (conventional methods for control)
+```
+
+### Anti-Pattern 4: Neglecting Data Collection
+
+```
+BAD: Assume simulation data alone is sufficient
+     -> Cannot cover the diversity of real environments
+
+GOOD: Systematic data collection pipeline
+    1. Teleoperation: Humans demo via VR/leader-follower
+    2. Autonomous exploration: Robot self-collects data within safe bounds
+    3. Multi-robot: Parallel data collection with multiple units
+    4. Data augmentation: Visual randomization, noise injection
+    Target: 50-200 demos per task (Diffusion Policy benchmark)
 ```
 
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1096,26 +1122,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1123,7 +1149,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1134,14 +1160,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Remove by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1149,7 +1175,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1157,44 +1183,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1203,7 +1229,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1218,74 +1244,74 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm time complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 ---
 
 ## FAQ
 
-### Q1. ヒューマノイドロボットはいつ家庭に普及するか？
+### Q1. When will humanoid robots become widespread in homes?
 
-2025年時点では商用デプロイの初期段階。BMW工場でのFigure 02の試験導入、AmazonでのDigitの導入テストなど産業用途が先行。家庭用は2030年代前半に初期製品、価格が車程度（300-500万円）まで下がるには2030年代後半と予測される。Tesla Optimusが量産を目指しているが、汎用家庭用ロボットの技術的課題（柔軟な物体操作、未知環境への適応）は依然として大きい。
+As of 2025, we are in the early stages of commercial deployment. Industrial applications are leading, such as the Figure 02 pilot at BMW factories and Digit pilot testing at Amazon. Initial home products are predicted for the early 2030s, with prices reaching car-level ($20,000-$35,000) by the late 2030s. Tesla Optimus aims for mass production, but the technical challenges for general-purpose home robots (flexible object manipulation, adaptation to unknown environments) remain significant.
 
-### Q2. ロボット開発に必要なスキルセットは？
+### Q2. What skill sets are needed for robot development?
 
-ハードウェア（メカニクス、電子回路）、ソフトウェア（C++/Python、ROS 2）、制御工学（PID、MPC）、AI（強化学習、コンピュータビジョン）、数学（線形代数、最適化）が必要。全てを一人でカバーする必要はなく、チーム開発が基本。2025年時点では特に模倣学習/Diffusion Policyの実装経験、Isaac Gym/Labでの強化学習経験が求められている。
+Hardware (mechanics, electronic circuits), software (C++/Python, ROS 2), control engineering (PID, MPC), AI (reinforcement learning, computer vision), and mathematics (linear algebra, optimization) are needed. You don't need to cover everything yourself -- team development is the norm. As of 2025, experience with imitation learning/Diffusion Policy implementation and reinforcement learning with Isaac Gym/Lab is particularly in demand.
 
-### Q3. ROS 2 と Isaac Sim の関係は？
+### Q3. What is the relationship between ROS 2 and Isaac Sim?
 
-ROS 2 はロボットソフトウェアの標準フレームワーク（通信、センサー統合、経路計画）。Isaac Sim は NVIDIA のロボットシミュレータで、ROS 2 と連携して動作する。Isaac Sim でシミュレーション学習を行い、ROS 2 で実機に展開するのが典型的なワークフロー。Isaac Lab（旧Orbit）は強化学習に特化したフレームワークで、Isaac Sim上で動作する。
+ROS 2 is the standard framework for robot software (communication, sensor integration, path planning). Isaac Sim is NVIDIA's robot simulator that works in conjunction with ROS 2. The typical workflow is to perform simulation training in Isaac Sim and deploy to real robots via ROS 2. Isaac Lab (formerly Orbit) is a reinforcement learning-focused framework that runs on top of Isaac Sim.
 
-### Q4. Diffusion Policyとは何か？なぜ注目されているか？
+### Q4. What is Diffusion Policy? Why is it attracting attention?
 
-Diffusion Policyは拡散モデル（Stable Diffusionと同じ原理）をロボットの行動生成に適用した手法。行動をノイズから段階的にデノイズして生成する。従来の模倣学習では表現できなかった「同じ状況で複数の正解がある」マルチモーダルな行動分布を自然に扱える。2024年以降、折り畳み、組立、調理などの精密操作タスクで従来手法を大幅に上回る成功率を示している。
+Diffusion Policy applies diffusion models (same principle as Stable Diffusion) to robot action generation. It generates actions by gradually denoising from noise. It can naturally handle multimodal action distributions -- "multiple correct answers for the same situation" -- which conventional imitation learning could not express. Since 2024, it has shown significantly higher success rates than conventional methods in precise manipulation tasks such as folding, assembly, and cooking.
 
-### Q5. 強化学習の学習時間を短縮するには？
+### Q5. How can reinforcement learning training time be reduced?
 
-Isaac Gym/Lab を使ったGPU並列シミュレーションが最も効果的。1つのGPUで4096個以上の環境を同時にシミュレーションし、数時間で数億ステップの学習が可能。カリキュラム学習（簡単な環境から段階的に難しく）、報酬のシェーピング（段階的な報酬設計）、事前学習済みモデルの転移も有効。
-
----
-
-## まとめ
-
-| 概念 | 要点 |
-|------|------|
-| 知覚-計画-行動 | ロボット制御の基本サイクル |
-| ROS 2 | ロボットソフトウェアの標準フレームワーク |
-| 強化学習 | シミュレーションで動作を試行錯誤で獲得 |
-| 模倣学習 | 人間のデモンストレーションから動作を学習 |
-| Diffusion Policy | 拡散モデルベースの精密行動生成 |
-| 基盤モデル | 言語指示でロボットを汎用的に制御 |
-| Sim-to-Real | シミュレーションから実機への転移技術 |
-| 逆運動学 | 目標位置から関節角度を逆算 |
-| 安全フィルター | AI制御の上位に配置する安全制約 |
-| テレオペレーション | 遠隔操作によるデモデータ収集 |
-| QDD アクチュエータ | 安全なロボット向け低減速比モーター |
+GPU-parallel simulation using Isaac Gym/Lab is most effective. A single GPU can simulate over 4,096 environments simultaneously, enabling hundreds of millions of training steps in a few hours. Curriculum learning (gradually increasing difficulty from easy environments), reward shaping (staged reward design), and transfer from pre-trained models are also effective.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- **02-emerging/02-smart-home.md** — スマートホーム：Matter、AI家電
-- **02-emerging/00-ar-vr-ai.md** — AR/VR×AI：Vision Pro、Quest
-- **01-computing/02-edge-ai.md** — エッジAI：NPU、Coral、Jetson
+| Concept | Key Point |
+|---------|-----------|
+| Perception-Planning-Action | Basic cycle of robot control |
+| ROS 2 | Standard framework for robot software |
+| Reinforcement Learning | Acquire motions through trial and error in simulation |
+| Imitation Learning | Learn motions from human demonstrations |
+| Diffusion Policy | Precise action generation based on diffusion models |
+| Foundation Model | Control robots universally via language instructions |
+| Sim-to-Real | Transfer technology from simulation to real robots |
+| Inverse Kinematics | Calculate joint angles from target positions |
+| Safety Filter | Safety constraints placed above AI control |
+| Teleoperation | Demo data collection via remote operation |
+| QDD Actuator | Low gear ratio motor for safe robots |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
 
-1. **ROS 2 公式ドキュメント** https://docs.ros.org/en/rolling/
-2. **Google DeepMind — RT-2 論文** https://robotics-transformer2.github.io/
-3. **Boston Dynamics 公式** https://bostondynamics.com/
+- **02-emerging/02-smart-home.md** -- Smart Home: Matter, AI Appliances
+- **02-emerging/00-ar-vr-ai.md** -- AR/VR x AI: Vision Pro, Quest
+- **01-computing/02-edge-ai.md** -- Edge AI: NPU, Coral, Jetson
+
+---
+
+## References
+
+1. **ROS 2 Official Documentation** https://docs.ros.org/en/rolling/
+2. **Google DeepMind -- RT-2 Paper** https://robotics-transformer2.github.io/
+3. **Boston Dynamics Official** https://bostondynamics.com/
 4. **NVIDIA Isaac Sim** https://developer.nvidia.com/isaac-sim
 5. **Diffusion Policy** https://diffusion-policy.cs.columbia.edu/
 6. **Figure AI** https://figure.ai/
