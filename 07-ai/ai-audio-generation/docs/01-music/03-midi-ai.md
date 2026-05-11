@@ -1,46 +1,46 @@
-# MIDI×AI — 自動作曲、アレンジ、コード進行生成
+# MIDI x AI — Automatic Composition, Arrangement, and Chord Progression Generation
 
-> AIを活用したMIDI音楽制作（自動作曲、コード進行生成、アレンジ）の技術と実践を解説する
+> A guide to MIDI music production techniques and practices using AI, including automatic composition, chord progression generation, and arrangement
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. MIDIデータの基礎知識とAI処理のためのデータ表現
-2. AI自動作曲・コード進行生成の主要手法とモデル
-3. DAW連携とプロダクションワークフローへの統合
-4. メロディ生成・ベースライン生成・ドラムパターン生成の実装
-5. MIDIデータの前処理・後処理テクニック
-6. 実務で使えるAI作曲パイプラインの構築
+1. MIDI data fundamentals and data representation for AI processing
+2. Major methods and models for AI automatic composition and chord progression generation
+3. DAW integration and incorporation into production workflows
+4. Implementation of melody generation, bassline generation, and drum pattern generation
+5. MIDI data preprocessing and postprocessing techniques
+6. Building AI composition pipelines for practical use
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [音声エフェクト — AI EQ、ノイズ除去、マスタリング](./02-audio-effects.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [Audio Effects — AI EQ, Noise Removal, Mastering](./02-audio-effects.md)
 
 ---
 
-## 1. MIDIの基礎
+## 1. MIDI Fundamentals
 
-### 1.1 MIDIデータ構造
+### 1.1 MIDI Data Structure
 
 ```
-MIDIメッセージの構造
+MIDI Message Structure
 ==================================================
 
-MIDIイベントの基本単位:
+Basic unit of a MIDI event:
 ┌──────────┬──────────┬──────────┬──────────┐
 │  Delta   │ Status   │  Data 1  │  Data 2  │
 │  Time    │  Byte    │  (Note)  │(Velocity)│
-│ (時間差) │(メッセージ種別)│(0-127)│ (0-127) │
+│(time diff)│(msg type)│ (0-127) │ (0-127)  │
 └──────────┴──────────┴──────────┴──────────┘
 
 Note On:  0x90 | channel, note_number, velocity
 Note Off: 0x80 | channel, note_number, velocity
 
-ピアノロール表現:
+Piano Roll Representation:
   MIDI Note Number
   ↑
   72│        ■■■■
@@ -52,47 +52,47 @@ Note Off: 0x80 | channel, note_number, velocity
   60│                ■■■■■■■■■■
     └──────────────────────────→ Time (ticks)
 
-ノート番号と音名の対応:
-  C4(ド)=60, D4(レ)=62, E4(ミ)=64, F4(ファ)=65
-  G4(ソ)=67, A4(ラ)=69, B4(シ)=71, C5(ド)=72
+Note Number to Pitch Name Mapping:
+  C4=60, D4=62, E4=64, F4=65
+  G4=67, A4=69, B4=71, C5=72
 ==================================================
 ```
 
-### 1.2 MIDIファイルフォーマットの詳細
+### 1.2 MIDI File Format Details
 
 ```
-MIDIファイル構造:
+MIDI File Structure:
 ==================================================
 
-SMF (Standard MIDI File) フォーマット:
+SMF (Standard MIDI File) Format:
 
-■ Format 0: 全トラックを1つにまとめたフォーマット
+■ Format 0: All tracks merged into a single track
   ┌────────────┬────────────────────────┐
   │ Header     │ Track 0                │
-  │ MThd       │ (全チャンネルのデータ)   │
+  │ MThd       │ (all channel data)     │
   └────────────┴────────────────────────┘
 
-■ Format 1: マルチトラック（同期再生）
+■ Format 1: Multi-track (synchronized playback)
   ┌────────────┬──────────┬──────────┬──────────┐
   │ Header     │ Track 0  │ Track 1  │ Track 2  │
-  │ MThd       │(テンポ等)│(メロディ)│(ベース)  │
+  │ MThd       │(tempo etc)│(melody) │ (bass)   │
   └────────────┴──────────┴──────────┴──────────┘
 
-■ Format 2: マルチトラック（独立再生、稀に使用）
+■ Format 2: Multi-track (independent playback, rarely used)
 
 Header Chunk (MThd):
   4D 54 68 64  = "MThd"
-  00 00 00 06  = チャンクサイズ（常に6）
-  00 01        = フォーマット（0/1/2）
-  00 03        = トラック数
-  01 E0        = 分解能（480 ticks/beat）
+  00 00 00 06  = Chunk size (always 6)
+  00 01        = Format (0/1/2)
+  00 03        = Number of tracks
+  01 E0        = Resolution (480 ticks/beat)
 
 Track Chunk (MTrk):
   4D 54 72 6B  = "MTrk"
-  xx xx xx xx  = チャンクサイズ
-  [イベントデータ...]
+  xx xx xx xx  = Chunk size
+  [Event data...]
 
-MIDIチャンネルメッセージ一覧:
+MIDI Channel Message List:
   0x80-0x8F  Note Off          (2 data bytes)
   0x90-0x9F  Note On           (2 data bytes)
   0xA0-0xAF  Polyphonic Aftertouch (2 data bytes)
@@ -101,46 +101,46 @@ MIDIチャンネルメッセージ一覧:
   0xD0-0xDF  Channel Aftertouch (1 data byte)
   0xE0-0xEF  Pitch Bend        (2 data bytes)
 
-主要コントロールチェンジ番号:
-  CC#1   = モジュレーション
-  CC#7   = ボリューム
-  CC#10  = パン
-  CC#11  = エクスプレッション
-  CC#64  = サステインペダル
-  CC#91  = リバーブ
-  CC#93  = コーラス
+Major Control Change Numbers:
+  CC#1   = Modulation
+  CC#7   = Volume
+  CC#10  = Pan
+  CC#11  = Expression
+  CC#64  = Sustain Pedal
+  CC#91  = Reverb
+  CC#93  = Chorus
 ==================================================
 ```
 
-### 1.3 MIDIデータのプログラミング
+### 1.3 Programming MIDI Data
 
 ```python
 import mido
 from mido import MidiFile, MidiTrack, Message, MetaMessage
 
 def create_chord_progression():
-    """コード進行をMIDIで生成"""
+    """Generate a chord progression in MIDI"""
     mid = MidiFile(ticks_per_beat=480)
     track = MidiTrack()
     mid.tracks.append(track)
 
-    # テンポ設定（BPM 120）
+    # Tempo setting (BPM 120)
     track.append(MetaMessage('set_tempo', tempo=mido.bpm2tempo(120)))
 
-    # C-Am-F-G のコード進行
+    # C-Am-F-G chord progression
     chords = [
-        {"name": "C",  "notes": [60, 64, 67], "duration": 480 * 2},  # 2拍
+        {"name": "C",  "notes": [60, 64, 67], "duration": 480 * 2},  # 2 beats
         {"name": "Am", "notes": [57, 60, 64], "duration": 480 * 2},
         {"name": "F",  "notes": [53, 57, 60], "duration": 480 * 2},
         {"name": "G",  "notes": [55, 59, 62], "duration": 480 * 2},
     ]
 
     for chord in chords:
-        # Note On（全音同時）
+        # Note On (all notes simultaneously)
         for i, note in enumerate(chord["notes"]):
             track.append(Message('note_on', note=note, velocity=80, time=0))
 
-        # Note Off（duration 後）
+        # Note Off (after duration)
         for i, note in enumerate(chord["notes"]):
             time = chord["duration"] if i == 0 else 0
             track.append(Message('note_off', note=note, velocity=0, time=time))
@@ -148,45 +148,45 @@ def create_chord_progression():
     mid.save('chord_progression.mid')
     return mid
 
-# MIDI → トークン列（AI入力用）
+# MIDI -> Token sequence (for AI input)
 def midi_to_tokens(midi_file: str) -> list:
-    """MIDIをAI処理用のトークン列に変換"""
+    """Convert MIDI to a token sequence for AI processing"""
     mid = MidiFile(midi_file)
     tokens = []
 
     for msg in mid.tracks[0]:
         if msg.type == 'note_on' and msg.velocity > 0:
             tokens.append(f"NOTE_ON_{msg.note}")
-            tokens.append(f"VELOCITY_{msg.velocity // 8}")  # 0-15に量子化
+            tokens.append(f"VELOCITY_{msg.velocity // 8}")  # Quantize to 0-15
         elif msg.type == 'note_off' or (msg.type == 'note_on' and msg.velocity == 0):
             tokens.append(f"NOTE_OFF_{msg.note}")
         if msg.time > 0:
-            # 時間を量子化
-            time_token = min(msg.time // 120, 15)  # 0-15に量子化
+            # Quantize time
+            time_token = min(msg.time // 120, 15)  # Quantize to 0-15
             tokens.append(f"TIME_SHIFT_{time_token}")
 
     return tokens
 ```
 
-### 1.4 pretty_midi によるMIDI操作
+### 1.4 MIDI Operations with pretty_midi
 
 ```python
 import pretty_midi
 import numpy as np
 
 class MIDIProcessor:
-    """pretty_midiを使った高度なMIDI操作"""
+    """Advanced MIDI operations using pretty_midi"""
 
     def __init__(self):
         self.pm = None
 
     def load(self, filepath: str):
-        """MIDIファイルの読み込みと解析"""
+        """Load and analyze a MIDI file"""
         self.pm = pretty_midi.PrettyMIDI(filepath)
         return self.analyze()
 
     def analyze(self) -> dict:
-        """MIDIファイルの詳細解析"""
+        """Detailed analysis of a MIDI file"""
         info = {
             "tempo_changes": self.pm.get_tempo_changes(),
             "time_signatures": [],
@@ -230,26 +230,26 @@ class MIDIProcessor:
         return info
 
     def extract_piano_roll(self, fs: int = 100) -> np.ndarray:
-        """ピアノロール行列の抽出（AI入力用）"""
+        """Extract piano roll matrix (for AI input)"""
         # shape: (128, time_steps)
         piano_roll = self.pm.get_piano_roll(fs=fs)
         return piano_roll
 
     def extract_chroma(self, fs: int = 100) -> np.ndarray:
-        """クロマグラム抽出（コード検出用）"""
+        """Extract chromagram (for chord detection)"""
         # shape: (12, time_steps)
         chroma = self.pm.get_chroma(fs=fs)
         return chroma
 
     def transpose(self, semitones: int) -> pretty_midi.PrettyMIDI:
-        """全体を移調"""
+        """Transpose the entire piece"""
         for inst in self.pm.instruments:
             for note in inst.notes:
                 note.pitch = max(0, min(127, note.pitch + semitones))
         return self.pm
 
     def change_tempo(self, factor: float) -> pretty_midi.PrettyMIDI:
-        """テンポ変更（factor=2.0で倍速）"""
+        """Change tempo (factor=2.0 for double speed)"""
         for inst in self.pm.instruments:
             for note in inst.notes:
                 note.start /= factor
@@ -257,7 +257,7 @@ class MIDIProcessor:
         return self.pm
 
     def split_by_instrument(self) -> dict:
-        """楽器別にMIDIを分割"""
+        """Split MIDI by instrument"""
         result = {}
         for inst in self.pm.instruments:
             new_midi = pretty_midi.PrettyMIDI()
@@ -272,7 +272,7 @@ class MIDIProcessor:
         return result
 
     def merge_midis(self, midi_files: list) -> pretty_midi.PrettyMIDI:
-        """複数のMIDIファイルをマージ"""
+        """Merge multiple MIDI files"""
         merged = pretty_midi.PrettyMIDI()
         for filepath in midi_files:
             pm = pretty_midi.PrettyMIDI(filepath)
@@ -282,25 +282,25 @@ class MIDIProcessor:
 
     def quantize_notes(self, grid_size: float = 0.125,
                        strength: float = 0.8):
-        """ノートのクオンタイズ（grid_size秒単位）"""
+        """Quantize notes (in grid_size second units)"""
         for inst in self.pm.instruments:
             for note in inst.notes:
                 nearest_start = round(note.start / grid_size) * grid_size
                 nearest_end = round(note.end / grid_size) * grid_size
                 note.start += (nearest_start - note.start) * strength
                 note.end += (nearest_end - note.end) * strength
-                # 最小デュレーション保証
+                # Guarantee minimum duration
                 if note.end - note.start < grid_size * 0.5:
                     note.end = note.start + grid_size * 0.5
         return self.pm
 
     def extract_melody(self, track_index: int = 0) -> list:
-        """指定トラックからメロディ（最高音）を抽出"""
+        """Extract melody (highest notes) from the specified track"""
         inst = self.pm.instruments[track_index]
-        # 時間でソート
+        # Sort by time
         sorted_notes = sorted(inst.notes, key=lambda n: n.start)
 
-        # 重複するノートのうち最高音だけを残す
+        # Keep only the highest note among overlapping notes
         melody = []
         current_time = -1
         for note in sorted_notes:
@@ -314,28 +314,28 @@ class MIDIProcessor:
         return melody
 ```
 
-### 1.5 MIDIデータの数値表現とAI前処理
+### 1.5 Numerical Representation of MIDI Data and AI Preprocessing
 
 ```python
 import numpy as np
 from typing import List, Tuple
 
 class MIDIFeatureExtractor:
-    """MIDI特徴量抽出（AI学習データ前処理用）"""
+    """MIDI feature extraction (for AI training data preprocessing)"""
 
     def __init__(self, resolution: int = 480):
         self.resolution = resolution  # ticks per beat
 
     def notes_to_matrix(self, notes: list,
                         duration_beats: int = 32) -> np.ndarray:
-        """ノートリストを行列表現に変換
+        """Convert a note list to matrix representation
 
-        出力: (128, time_steps) の行列
-        - 行: MIDIノート番号 (0-127)
-        - 列: 時間ステップ（16分音符単位）
-        - 値: ベロシティ (0-127)
+        Output: (128, time_steps) matrix
+        - Rows: MIDI note numbers (0-127)
+        - Columns: Time steps (in 16th note units)
+        - Values: Velocity (0-127)
         """
-        steps_per_beat = 4  # 16分音符
+        steps_per_beat = 4  # 16th notes
         total_steps = duration_beats * steps_per_beat
         matrix = np.zeros((128, total_steps), dtype=np.float32)
 
@@ -354,7 +354,7 @@ class MIDIFeatureExtractor:
 
     def matrix_to_notes(self, matrix: np.ndarray,
                         threshold: float = 0.1) -> list:
-        """行列表現からノートリストに復元"""
+        """Restore note list from matrix representation"""
         notes = []
         steps_per_beat = 4
 
@@ -381,7 +381,7 @@ class MIDIFeatureExtractor:
 
     def extract_rhythm_pattern(self, notes: list,
                                 beats: int = 4) -> np.ndarray:
-        """リズムパターンの抽出（16分音符グリッド）"""
+        """Extract rhythm pattern (16th note grid)"""
         steps = beats * 4
         pattern = np.zeros(steps, dtype=np.float32)
 
@@ -393,14 +393,14 @@ class MIDIFeatureExtractor:
         return pattern
 
     def compute_pitch_histogram(self, notes: list) -> np.ndarray:
-        """ピッチクラスヒストグラム（12次元、コード検出用）"""
+        """Pitch class histogram (12 dimensions, for chord detection)"""
         histogram = np.zeros(12, dtype=np.float32)
         for note in notes:
             pitch_class = note["pitch"] % 12
             duration = note["end"] - note["start"]
             histogram[pitch_class] += duration
 
-        # 正規化
+        # Normalize
         total = np.sum(histogram)
         if total > 0:
             histogram /= total
@@ -408,7 +408,7 @@ class MIDIFeatureExtractor:
         return histogram
 
     def compute_interval_histogram(self, notes: list) -> np.ndarray:
-        """音程ヒストグラム（メロディ特徴量）"""
+        """Interval histogram (melody features)"""
         sorted_notes = sorted(notes, key=lambda n: n["start"])
         intervals = np.zeros(25, dtype=np.float32)  # -12 to +12
 
@@ -423,7 +423,7 @@ class MIDIFeatureExtractor:
         return intervals
 
     def compute_velocity_statistics(self, notes: list) -> dict:
-        """ベロシティの統計量"""
+        """Velocity statistics"""
         velocities = [n["velocity"] for n in notes]
         if not velocities:
             return {"mean": 0, "std": 0, "min": 0, "max": 0}
@@ -436,7 +436,7 @@ class MIDIFeatureExtractor:
 
     def compute_note_density(self, notes: list,
                               window_beats: float = 1.0) -> list:
-        """ノート密度の時系列（拍単位）"""
+        """Note density time series (per beat)"""
         if not notes:
             return []
         max_time = max(n["end"] for n in notes)
@@ -455,53 +455,53 @@ class MIDIFeatureExtractor:
 
 ---
 
-## 2. AI自動作曲
+## 2. AI Automatic Composition
 
-### 2.1 MIDIトークナイザ
+### 2.1 MIDI Tokenizer
 
 ```python
-# MidiTok: MIDI専用トークナイザライブラリ
+# MidiTok: A tokenizer library dedicated to MIDI
 
 from miditok import REMI, TokenizerConfig
 from pathlib import Path
 
-# トークナイザの設定
+# Tokenizer configuration
 config = TokenizerConfig(
-    num_velocities=32,      # ベロシティの量子化数
-    use_chords=True,        # コード検出を有効化
-    use_tempos=True,        # テンポ変化を含める
+    num_velocities=32,      # Number of velocity quantization levels
+    use_chords=True,        # Enable chord detection
+    use_tempos=True,        # Include tempo changes
     use_time_signatures=True,
-    nb_tempos=32,           # テンポの量子化数
+    nb_tempos=32,           # Number of tempo quantization levels
     tempo_range=(40, 250),
 )
 
-# REMI トークナイザの作成
+# Create REMI tokenizer
 tokenizer = REMI(config)
 
-# MIDIファイルをトークン化
+# Tokenize a MIDI file
 tokens = tokenizer("song.mid")
-print(f"トークン数: {len(tokens.ids)}")
-print(f"最初の10トークン: {tokens.tokens[:10]}")
-# 例: ['Bar_None', 'Position_0', 'Chord_C:maj', 'Pitch_60', 'Velocity_80', ...]
+print(f"Token count: {len(tokens.ids)}")
+print(f"First 10 tokens: {tokens.tokens[:10]}")
+# Example: ['Bar_None', 'Position_0', 'Chord_C:maj', 'Pitch_60', 'Velocity_80', ...]
 
-# トークンからMIDI復元
+# Reconstruct MIDI from tokens
 reconstructed_midi = tokenizer.decode(tokens)
 reconstructed_midi.dump_midi("reconstructed.mid")
 ```
 
-### 2.2 各種トークン化手法の比較と実装
+### 2.2 Comparison and Implementation of Tokenization Methods
 
 ```python
 from miditok import REMI, TSD, MIDILike, Structured, CPWord
 
 class TokenizerComparison:
-    """各トークン化手法の比較実装"""
+    """Comparison implementation of various tokenization methods"""
 
     def __init__(self, config: TokenizerConfig):
         self.config = config
 
     def compare_tokenizers(self, midi_path: str) -> dict:
-        """全トークナイザで同一MIDIをトークン化し比較"""
+        """Tokenize the same MIDI with all tokenizers and compare"""
         tokenizers = {
             "REMI": REMI(self.config),
             "TSD": TSD(self.config),
@@ -524,43 +524,43 @@ class TokenizerComparison:
 
     def _get_description(self, name: str) -> str:
         descriptions = {
-            "REMI": "位置ベース。Bar/Position/Pitch/Velocity/Duration。"
-                    "最も直感的で広く使われる。",
-            "TSD": "Time Shift + Duration。相対的な時間表現。"
-                   "シーケンスが短くなる傾向。",
-            "MIDILike": "生MIDIメッセージに近い表現。"
-                        "Note On/Off を明示的に表現。",
-            "Structured": "トラック/小節/位置を階層的に表現。"
-                          "マルチトラック向き。",
-            "CPWord": "Compound Word。複数属性を1トークンに圧縮。"
-                      "シーケンス長を大幅に削減。",
+            "REMI": "Position-based. Bar/Position/Pitch/Velocity/Duration. "
+                    "Most intuitive and widely used.",
+            "TSD": "Time Shift + Duration. Relative time representation. "
+                   "Tends to produce shorter sequences.",
+            "MIDILike": "Representation close to raw MIDI messages. "
+                        "Explicitly represents Note On/Off.",
+            "Structured": "Hierarchically represents track/bar/position. "
+                          "Suited for multi-track.",
+            "CPWord": "Compound Word. Compresses multiple attributes into one token. "
+                      "Significantly reduces sequence length.",
         }
         return descriptions.get(name, "")
 
 
-# トークン化の具体例
+# Concrete tokenization examples
 """
-REMI トークン列の例（Cメジャーコード、4分音符）:
+REMI token sequence example (C major chord, quarter note):
 
-  Bar_0                    ← 小節0の開始
-  Position_0               ← 拍頭（位置0）
-  Chord_C:maj              ← コード検出結果
-  Pitch_60                 ← ノートC4
-  Velocity_80              ← ベロシティ
-  Duration_2.0             ← 2拍（4分音符x2）
-  Pitch_64                 ← ノートE4
+  Bar_0                    <- Start of bar 0
+  Position_0               <- Downbeat (position 0)
+  Chord_C:maj              <- Chord detection result
+  Pitch_60                 <- Note C4
+  Velocity_80              <- Velocity
+  Duration_2.0             <- 2 beats (quarter note x 2)
+  Pitch_64                 <- Note E4
   Velocity_80
   Duration_2.0
-  Pitch_67                 ← ノートG4
+  Pitch_67                 <- Note G4
   Velocity_80
   Duration_2.0
 
-TSD トークン列の例（同じ内容）:
+TSD token sequence example (same content):
 
   Pitch_60
   Velocity_80
-  Duration_480             ← ticks
-  TimeShift_0              ← 同時発音
+  Duration_480             <- ticks
+  TimeShift_0              <- Simultaneous notes
   Pitch_64
   Velocity_80
   Duration_480
@@ -568,24 +568,24 @@ TSD トークン列の例（同じ内容）:
   Pitch_67
   Velocity_80
   Duration_480
-  TimeShift_960            ← 次のイベントまでの時間
+  TimeShift_960            <- Time until next event
 """
 ```
 
-### 2.3 Transformer による作曲
+### 2.3 Composition with Transformers
 
 ```python
-# Transformerベースの自動作曲モデル（概念実装）
+# Transformer-based automatic composition model (conceptual implementation)
 
 import torch
 import torch.nn as nn
 
 class MusicTransformer(nn.Module):
-    """MIDI自動作曲用 Transformer"""
+    """Transformer for MIDI automatic composition"""
 
     def __init__(
         self,
-        vocab_size: int = 512,    # トークン語彙サイズ
+        vocab_size: int = 512,    # Token vocabulary size
         d_model: int = 512,
         n_heads: int = 8,
         n_layers: int = 6,
@@ -611,7 +611,7 @@ class MusicTransformer(nn.Module):
 
         embeddings = self.embedding(x) + self.pos_encoding(positions)
 
-        # Causal mask（未来のトークンを見ない）
+        # Causal mask (prevent looking at future tokens)
         mask = torch.triu(torch.ones(seq_len, seq_len), diagonal=1).bool()
         mask = mask.to(x.device)
 
@@ -621,7 +621,7 @@ class MusicTransformer(nn.Module):
         return logits
 
     def generate(self, seed_tokens, max_length=512, temperature=0.8, top_k=40):
-        """自動作曲（トークン生成）"""
+        """Automatic composition (token generation)"""
         self.eval()
         generated = seed_tokens.clone()
 
@@ -630,7 +630,7 @@ class MusicTransformer(nn.Module):
                 logits = self.forward(generated)
                 next_logits = logits[:, -1, :] / temperature
 
-                # Top-K フィルタリング
+                # Top-K filtering
                 top_k_logits, top_k_indices = torch.topk(next_logits, top_k)
                 probs = torch.softmax(top_k_logits, dim=-1)
                 idx = torch.multinomial(probs, 1)
@@ -641,7 +641,7 @@ class MusicTransformer(nn.Module):
         return generated
 ```
 
-### 2.4 相対位置エンコーディングによる Music Transformer
+### 2.4 Music Transformer with Relative Position Encoding
 
 ```python
 import torch
@@ -650,11 +650,11 @@ import torch.nn.functional as F
 import math
 
 class RelativeAttention(nn.Module):
-    """相対位置エンコーディング付きSelf-Attention
+    """Self-Attention with Relative Position Encoding
 
-    Music Transformer (Huang et al., 2018) の核心技術。
-    絶対位置ではなく、ノート間の相対的な距離を考慮することで
-    長期的な構造（反復、変奏）を捉える。
+    Core technique of Music Transformer (Huang et al., 2018).
+    By considering the relative distance between notes rather than
+    absolute positions, it captures long-term structure (repetition, variation).
     """
 
     def __init__(self, d_model: int, n_heads: int,
@@ -670,7 +670,7 @@ class RelativeAttention(nn.Module):
         self.W_v = nn.Linear(d_model, d_model)
         self.W_o = nn.Linear(d_model, d_model)
 
-        # 相対位置埋め込み
+        # Relative position embeddings
         self.relative_embeddings = nn.Embedding(
             2 * max_relative_position + 1, self.d_k
         )
@@ -678,7 +678,7 @@ class RelativeAttention(nn.Module):
     def forward(self, x, mask=None):
         batch_size, seq_len, _ = x.shape
 
-        # Q, K, V の計算
+        # Compute Q, K, V
         Q = self.W_q(x).view(batch_size, seq_len, self.n_heads, self.d_k)
         K = self.W_k(x).view(batch_size, seq_len, self.n_heads, self.d_k)
         V = self.W_v(x).view(batch_size, seq_len, self.n_heads, self.d_k)
@@ -687,10 +687,10 @@ class RelativeAttention(nn.Module):
         K = K.transpose(1, 2)
         V = V.transpose(1, 2)
 
-        # コンテンツベースのattention
+        # Content-based attention
         content_score = torch.matmul(Q, K.transpose(-2, -1))
 
-        # 相対位置ベースのattention
+        # Relative position-based attention
         positions = torch.arange(seq_len, device=x.device)
         relative_pos = positions.unsqueeze(0) - positions.unsqueeze(1)
         relative_pos = relative_pos.clamp(
@@ -703,7 +703,7 @@ class RelativeAttention(nn.Module):
             'bhqd,qkd->bhqk', Q, rel_embeddings
         )
 
-        # 統合スコア
+        # Combined score
         scores = (content_score + position_score) / math.sqrt(self.d_k)
 
         if mask is not None:
@@ -718,7 +718,7 @@ class RelativeAttention(nn.Module):
 
 
 class MusicTransformerV2(nn.Module):
-    """相対位置エンコーディング付き Music Transformer"""
+    """Music Transformer with Relative Position Encoding"""
 
     def __init__(self, vocab_size=512, d_model=512,
                  n_heads=8, n_layers=6, max_seq_len=2048):
@@ -762,7 +762,7 @@ class MusicTransformerV2(nn.Module):
         return self.output_proj(h)
 ```
 
-### 2.5 学習パイプライン
+### 2.5 Training Pipeline
 
 ```python
 import torch
@@ -770,7 +770,7 @@ from torch.utils.data import Dataset, DataLoader
 from pathlib import Path
 
 class MIDIDataset(Dataset):
-    """MIDIトークンデータセット"""
+    """MIDI token dataset"""
 
     def __init__(self, data_dir: str, tokenizer, max_seq_len: int = 1024):
         self.tokenizer = tokenizer
@@ -784,16 +784,16 @@ class MIDIDataset(Dataset):
             try:
                 tokens = tokenizer(str(midi_file))
                 ids = tokens.ids
-                # 固定長シーケンスに分割
+                # Split into fixed-length sequences
                 for i in range(0, len(ids) - max_seq_len, max_seq_len // 2):
                     seq = ids[i:i + max_seq_len + 1]
                     if len(seq) == max_seq_len + 1:
                         self.sequences.append(seq)
             except Exception as e:
-                print(f"スキップ: {midi_file} - {e}")
+                print(f"Skipped: {midi_file} - {e}")
 
-        print(f"読み込み完了: {len(self.sequences)} シーケンス "
-              f"({len(midi_files)} MIDIファイル)")
+        print(f"Loading complete: {len(self.sequences)} sequences "
+              f"({len(midi_files)} MIDI files)")
 
     def __len__(self):
         return len(self.sequences)
@@ -806,7 +806,7 @@ class MIDIDataset(Dataset):
 
 
 class MusicTrainer:
-    """Music Transformer の学習"""
+    """Music Transformer training"""
 
     def __init__(self, model, tokenizer, device="cuda"):
         self.model = model.to(device)
@@ -821,7 +821,7 @@ class MusicTrainer:
         self.criterion = nn.CrossEntropyLoss()
 
     def train_epoch(self, dataloader: DataLoader) -> float:
-        """1エポックの学習"""
+        """Train for one epoch"""
         self.model.train()
         total_loss = 0
         total_batches = 0
@@ -855,7 +855,7 @@ class MusicTrainer:
 
     def train(self, data_dir: str, epochs: int = 50,
               batch_size: int = 16, save_dir: str = "checkpoints"):
-        """学習ループ"""
+        """Training loop"""
         dataset = MIDIDataset(data_dir, self.tokenizer)
         dataloader = DataLoader(
             dataset, batch_size=batch_size,
@@ -875,14 +875,14 @@ class MusicTrainer:
                     self.model.state_dict(),
                     f"{save_dir}/best_model.pt"
                 )
-                print(f"  ベストモデル保存 (loss={best_loss:.4f})")
+                print(f"  Best model saved (loss={best_loss:.4f})")
 
-            # 定期的にサンプル生成
+            # Periodically generate samples
             if (epoch + 1) % 10 == 0:
                 self._generate_sample(epoch + 1, save_dir)
 
     def _generate_sample(self, epoch: int, save_dir: str):
-        """学習中のサンプル生成"""
+        """Generate samples during training"""
         self.model.eval()
         seed = torch.randint(0, 100, (1, 16)).to(self.device)
         with torch.no_grad():
@@ -893,18 +893,18 @@ class MusicTrainer:
         tokens_list = generated[0].cpu().tolist()
         midi = self.tokenizer.decode(tokens_list)
         midi.dump_midi(f"{save_dir}/sample_epoch{epoch}.mid")
-        print(f"  サンプル生成: sample_epoch{epoch}.mid")
+        print(f"  Sample generated: sample_epoch{epoch}.mid")
 ```
 
-### 2.6 コード進行生成
+### 2.6 Chord Progression Generation
 
 ```python
 import random
 
 class ChordProgressionGenerator:
-    """音楽理論ベース + AI のコード進行生成"""
+    """Chord progression generation based on music theory + AI"""
 
-    # ダイアトニックコード（Cメジャー）
+    # Diatonic chords (C major)
     DIATONIC_CHORDS = {
         "I":   {"root": "C",  "type": "maj", "notes": [0, 4, 7]},
         "ii":  {"root": "Dm", "type": "min", "notes": [2, 5, 9]},
@@ -915,21 +915,21 @@ class ChordProgressionGenerator:
         "vii": {"root": "Bdim","type": "dim", "notes": [11, 2, 5]},
     }
 
-    # 一般的なコード進行パターン
+    # Common chord progression patterns
     COMMON_PROGRESSIONS = {
-        "ポップ定番":     ["I", "V", "vi", "IV"],
-        "カノン進行":     ["I", "V", "vi", "iii", "IV", "I", "IV", "V"],
-        "小室進行":       ["vi", "IV", "V", "I"],
-        "王道バラード":   ["I", "vi", "IV", "V"],
-        "ジャズ定番":     ["ii", "V", "I", "I"],
-        "ブルース":       ["I", "I", "IV", "I", "V", "IV", "I", "V"],
-        "逆循環":         ["I", "vi", "ii", "V"],
-        "レディオヘッド": ["I", "iii", "vi", "IV"],
-        "ネオソウル":     ["ii", "V", "I", "vi"],
-        "ボサノバ":       ["I", "vi", "ii", "V"],
+        "Pop Standard":       ["I", "V", "vi", "IV"],
+        "Canon Progression":  ["I", "V", "vi", "iii", "IV", "I", "IV", "V"],
+        "Komuro Progression": ["vi", "IV", "V", "I"],
+        "Classic Ballad":     ["I", "vi", "IV", "V"],
+        "Jazz Standard":      ["ii", "V", "I", "I"],
+        "Blues":              ["I", "I", "IV", "I", "V", "IV", "I", "V"],
+        "Reverse Cycle":      ["I", "vi", "ii", "V"],
+        "Radiohead":          ["I", "iii", "vi", "IV"],
+        "Neo Soul":           ["ii", "V", "I", "vi"],
+        "Bossa Nova":         ["I", "vi", "ii", "V"],
     }
 
-    # テンションコード定義
+    # Tension chord definitions
     TENSION_CHORDS = {
         "Imaj7":   {"notes": [0, 4, 7, 11]},
         "ii7":     {"notes": [2, 5, 9, 0]},
@@ -942,30 +942,30 @@ class ChordProgressionGenerator:
         "IV#dim":  {"notes": [6, 9, 0]},
     }
 
-    def generate(self, style: str = "ポップ定番", key: str = "C",
+    def generate(self, style: str = "Pop Standard", key: str = "C",
                  bars: int = 8, use_tensions: bool = False) -> list:
-        """コード進行を生成"""
+        """Generate a chord progression"""
         base_progression = self.COMMON_PROGRESSIONS.get(style)
         if not base_progression:
             base_progression = random.choice(
                 list(self.COMMON_PROGRESSIONS.values()))
 
-        # barsに合わせて繰り返しまたはバリエーション生成
+        # Repeat or generate variations to match the number of bars
         progression = []
         while len(progression) < bars:
             progression.extend(base_progression)
         progression = progression[:bars]
 
-        # テンション付加
+        # Add tensions
         if use_tensions:
             progression = self._add_tensions(progression)
 
-        # キー変換
+        # Key transposition
         transposed = self._transpose(progression, key)
         return transposed
 
     def _add_tensions(self, progression: list) -> list:
-        """確率的にテンションコードを付加"""
+        """Probabilistically add tension chords"""
         tension_map = {
             "I": "Imaj7", "ii": "ii7", "iii": "iii7",
             "IV": "IVmaj7", "V": "V7", "vi": "vi7",
@@ -979,7 +979,7 @@ class ChordProgressionGenerator:
         return result
 
     def _transpose(self, progression, target_key):
-        """キー変換"""
+        """Key transposition"""
         key_offsets = {
             "C": 0, "C#": 1, "D": 2, "Eb": 3, "E": 4, "F": 5,
             "F#": 6, "G": 7, "Ab": 8, "A": 9, "Bb": 10, "B": 11,
@@ -989,8 +989,8 @@ class ChordProgressionGenerator:
 
     def generate_with_markov(self, length: int = 8,
                               start: str = "I") -> list:
-        """マルコフ連鎖によるコード進行生成"""
-        # 遷移確率行列（音楽理論ベース）
+        """Generate chord progression using Markov chain"""
+        # Transition probability matrix (based on music theory)
         transitions = {
             "I":   {"ii": 0.15, "iii": 0.05, "IV": 0.30,
                     "V": 0.30, "vi": 0.15, "vii": 0.05},
@@ -1023,7 +1023,7 @@ class ChordProgressionGenerator:
 
     def to_midi(self, progression: list, key: str = "C",
                 bpm: int = 120, beats_per_chord: int = 4) -> 'MidiFile':
-        """コード進行をMIDIに変換"""
+        """Convert chord progression to MIDI"""
         from mido import MidiFile, MidiTrack, Message, MetaMessage
         import mido
 
@@ -1064,30 +1064,30 @@ class ChordProgressionGenerator:
         return mid
 
 
-# 使用例
+# Usage example
 gen = ChordProgressionGenerator()
 
-# パターンベース生成
-chords = gen.generate(style="小室進行", key="A", bars=8)
-print(f"パターン生成: {chords}")
+# Pattern-based generation
+chords = gen.generate(style="Komuro Progression", key="A", bars=8)
+print(f"Pattern generation: {chords}")
 
-# マルコフ連鎖生成
+# Markov chain generation
 markov_chords = gen.generate_with_markov(length=8, start="I")
-print(f"マルコフ生成: {markov_chords}")
+print(f"Markov generation: {markov_chords}")
 ```
 
 ---
 
-## 3. メロディ生成
+## 3. Melody Generation
 
-### 3.1 条件付きメロディ生成
+### 3.1 Conditional Melody Generation
 
 ```python
 import numpy as np
 import random
 
 class MelodyGenerator:
-    """コード進行に基づくメロディ生成"""
+    """Melody generation based on chord progressions"""
 
     SCALES = {
         "major":      [0, 2, 4, 5, 7, 9, 11],
@@ -1098,7 +1098,7 @@ class MelodyGenerator:
         "blues":      [0, 3, 5, 6, 7, 10],
     }
 
-    # コードトーン重み（コード構成音を優先）
+    # Chord tone weight (prioritize chord tones)
     CHORD_TONE_WEIGHT = 0.6
     SCALE_TONE_WEIGHT = 0.3
     PASSING_TONE_WEIGHT = 0.1
@@ -1116,9 +1116,9 @@ class MelodyGenerator:
     def generate(self, chord_progression: list,
                  notes_per_chord: int = 8,
                  style: str = "stepwise") -> list:
-        """コード進行に沿ったメロディを生成"""
+        """Generate melody following a chord progression"""
         melody = []
-        prev_pitch = 60 + self.key_offset  # 開始音
+        prev_pitch = 60 + self.key_offset  # Starting note
 
         for chord in chord_progression:
             chord_notes = self._get_chord_tones(chord)
@@ -1161,21 +1161,21 @@ class MelodyGenerator:
     def _stepwise_motion(self, prev_pitch: int,
                           chord_notes: list,
                           scale_notes: list) -> int:
-        """隣接音進行（ステップワイズモーション）"""
-        # 近隣のスケール内ノートを候補に
+        """Stepwise motion (adjacent note progression)"""
+        # Use nearby scale notes as candidates
         candidates = []
         weights = []
 
         for note in scale_notes:
             distance = abs(note - prev_pitch)
-            if distance <= 7:  # 5度以内
+            if distance <= 7:  # Within a 5th
                 candidates.append(note)
-                # コードトーンは重み高い
+                # Chord tones get higher weight
                 if note % 12 in [n % 12 for n in chord_notes]:
                     weight = self.CHORD_TONE_WEIGHT
                 else:
                     weight = self.SCALE_TONE_WEIGHT
-                # 近い音ほど重み高い
+                # Closer notes get higher weight
                 weight *= max(0.1, 1.0 - distance / 7.0)
                 weights.append(weight)
 
@@ -1188,11 +1188,11 @@ class MelodyGenerator:
 
     def _arpeggio_motion(self, prev_pitch: int,
                           chord_notes: list, index: int) -> int:
-        """アルペジオ進行"""
+        """Arpeggio motion"""
         if not chord_notes:
             return prev_pitch
         target = chord_notes[index % len(chord_notes)]
-        # 最も近いオクターブを選択
+        # Select the nearest octave
         best_pitch = target
         best_distance = abs(target - prev_pitch)
         for octave_shift in [-12, 0, 12]:
@@ -1206,7 +1206,7 @@ class MelodyGenerator:
         return best_pitch
 
     def _get_chord_tones(self, chord: str) -> list:
-        """コード構成音をMIDIノート番号で返す"""
+        """Return chord tones as MIDI note numbers"""
         chord_intervals = {
             "I": [0, 4, 7], "ii": [2, 5, 9], "iii": [4, 7, 11],
             "IV": [5, 9, 0], "V": [7, 11, 2], "vi": [9, 0, 4],
@@ -1221,7 +1221,7 @@ class MelodyGenerator:
         return notes
 
     def _get_available_notes(self) -> list:
-        """使用可能なスケール内ノートを取得"""
+        """Get available scale notes"""
         scale = self.SCALES[self.scale]
         notes = []
         for octave in range(self.octave_range[0], self.octave_range[1] + 1):
@@ -1231,8 +1231,8 @@ class MelodyGenerator:
         return sorted(notes)
 
     def _generate_velocity(self, position: int, total: int) -> int:
-        """位置に応じたベロシティ生成"""
-        # 拍頭は強め、裏拍は弱め
+        """Generate velocity based on position"""
+        # Downbeats are stronger, offbeats are weaker
         if position % 4 == 0:
             base = 90
         elif position % 2 == 0:
@@ -1243,12 +1243,12 @@ class MelodyGenerator:
         return max(40, min(127, base + variation))
 
     def _generate_duration(self, position: int, total: int) -> float:
-        """位置に応じたデュレーション生成（拍単位）"""
+        """Generate duration based on position (in beats)"""
         durations = [0.25, 0.5, 0.5, 0.25, 0.5, 0.25, 0.5, 0.25]
         return durations[position % len(durations)]
 ```
 
-### 3.2 VAEによるメロディ生成（MusicVAE風）
+### 3.2 Melody Generation with VAE (MusicVAE-style)
 
 ```python
 import torch
@@ -1256,10 +1256,10 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 class MelodyVAE(nn.Module):
-    """VAEベースのメロディ生成モデル
+    """VAE-based melody generation model
 
-    MusicVAE (Roberts et al., 2018) からインスパイアされた実装。
-    潜在空間での補間によりメロディのモーフィングが可能。
+    Implementation inspired by MusicVAE (Roberts et al., 2018).
+    Enables melody morphing through interpolation in latent space.
     """
 
     def __init__(self, input_dim=128, hidden_dim=256,
@@ -1285,22 +1285,22 @@ class MelodyVAE(nn.Module):
         self.output_proj = nn.Linear(hidden_dim, input_dim)
 
     def encode(self, x):
-        """入力メロディを潜在空間にエンコード"""
+        """Encode input melody to latent space"""
         _, (h, _) = self.encoder(x)
-        # 双方向の最終隠れ状態を結合
+        # Concatenate bidirectional final hidden states
         h = torch.cat([h[-2], h[-1]], dim=-1)
         mu = self.fc_mu(h)
         logvar = self.fc_logvar(h)
         return mu, logvar
 
     def reparameterize(self, mu, logvar):
-        """再パラメータ化トリック"""
+        """Reparameterization trick"""
         std = torch.exp(0.5 * logvar)
         eps = torch.randn_like(std)
         return mu + eps * std
 
     def decode(self, z, target=None):
-        """潜在変数からメロディを復元"""
+        """Reconstruct melody from latent variable"""
         batch_size = z.shape[0]
         decoder_init = self.decoder_input(z).unsqueeze(0).repeat(2, 1, 1)
         h = (decoder_init, torch.zeros_like(decoder_init))
@@ -1329,7 +1329,7 @@ class MelodyVAE(nn.Module):
         return recon, mu, logvar
 
     def interpolate(self, melody_a, melody_b, steps=8):
-        """2つのメロディ間の潜在空間補間"""
+        """Latent space interpolation between two melodies"""
         self.eval()
         with torch.no_grad():
             mu_a, _ = self.encode(melody_a.unsqueeze(0))
@@ -1344,7 +1344,7 @@ class MelodyVAE(nn.Module):
         return interpolated
 
     def sample(self, n_samples=1, temperature=1.0):
-        """潜在空間からランダムサンプリング"""
+        """Random sampling from latent space"""
         self.eval()
         with torch.no_grad():
             z = torch.randn(n_samples, self.latent_dim) * temperature
@@ -1354,12 +1354,12 @@ class MelodyVAE(nn.Module):
 
 ---
 
-## 4. DAW連携
+## 4. DAW Integration
 
-### 4.1 DAW連携アーキテクチャ
+### 4.1 DAW Integration Architecture
 
 ```
-AI × DAW ワークフロー
+AI x DAW Workflow
 ==================================================
 
 ┌────────────────────────────────────────┐
@@ -1379,21 +1379,21 @@ AI × DAW ワークフロー
 └──────────┼─────────┼──────────────────┘
            │         │
     ┌──────▼─────────▼──────┐
-    │    AI 作曲エンジン     │
+    │   AI Composition Engine│
     │                       │
     │  Input: MIDI + Config  │
-    │  ├─ コード進行提案      │
-    │  ├─ メロディ生成        │
-    │  ├─ ベースライン生成    │
-    │  ├─ ドラムパターン生成  │
-    │  └─ アレンジ提案       │
+    │  ├─ Chord progression  │
+    │  ├─ Melody generation  │
+    │  ├─ Bassline generation│
+    │  ├─ Drum pattern gen.  │
+    │  └─ Arrangement        │
     │                       │
     │  Output: MIDI          │
     └───────────────────────┘
 ==================================================
 ```
 
-### 4.2 仮想MIDIポートによるリアルタイム連携
+### 4.2 Real-time Integration via Virtual MIDI Ports
 
 ```python
 import mido
@@ -1401,23 +1401,23 @@ import time
 import threading
 
 class RealtimeMIDIBridge:
-    """DAWとAIエンジンのリアルタイムMIDI連携"""
+    """Real-time MIDI integration between DAW and AI engine"""
 
     def __init__(self, input_port_name: str = None,
                  output_port_name: str = None):
         """
-        macOS: IAC Driver を使用
-        Windows: loopMIDI を使用
-        Linux: ALSA仮想ポートを使用
+        macOS: Use IAC Driver
+        Windows: Use loopMIDI
+        Linux: Use ALSA virtual ports
         """
         if input_port_name is None:
             available = mido.get_input_names()
-            print(f"利用可能な入力ポート: {available}")
+            print(f"Available input ports: {available}")
             input_port_name = available[0] if available else None
 
         if output_port_name is None:
             available = mido.get_output_names()
-            print(f"利用可能な出力ポート: {available}")
+            print(f"Available output ports: {available}")
             output_port_name = available[0] if available else None
 
         self.input_port = mido.open_input(input_port_name)
@@ -1427,33 +1427,33 @@ class RealtimeMIDIBridge:
         self.callback = None
 
     def set_callback(self, callback):
-        """MIDI入力時のコールバック設定"""
+        """Set callback for MIDI input"""
         self.callback = callback
 
     def start(self):
-        """リアルタイム処理開始"""
+        """Start real-time processing"""
         self.running = True
         self.thread = threading.Thread(target=self._listen_loop)
         self.thread.daemon = True
         self.thread.start()
-        print("MIDI Bridge 開始")
+        print("MIDI Bridge started")
 
     def stop(self):
-        """停止"""
+        """Stop"""
         self.running = False
         self.thread.join()
         self.input_port.close()
         self.output_port.close()
-        print("MIDI Bridge 停止")
+        print("MIDI Bridge stopped")
 
     def _listen_loop(self):
-        """MIDIメッセージ受信ループ"""
+        """MIDI message receive loop"""
         while self.running:
             for msg in self.input_port.iter_pending():
                 if msg.type == 'note_on' and msg.velocity > 0:
                     self.note_buffer.append(msg)
 
-                    # バッファが一定量たまったらAI処理
+                    # Trigger AI processing when buffer reaches threshold
                     if len(self.note_buffer) >= 4:
                         if self.callback:
                             response = self.callback(
@@ -1462,16 +1462,16 @@ class RealtimeMIDIBridge:
                             self._send_response(response)
                         self.note_buffer.clear()
 
-            time.sleep(0.001)  # 1ms間隔
+            time.sleep(0.001)  # 1ms interval
 
     def _send_response(self, midi_messages: list):
-        """AI生成結果をDAWに送信"""
+        """Send AI-generated results to DAW"""
         for msg in midi_messages:
             self.output_port.send(msg)
 
     def send_note(self, note: int, velocity: int = 80,
                   channel: int = 0, duration: float = 0.5):
-        """単一ノートの送信"""
+        """Send a single note"""
         on = mido.Message('note_on', note=note,
                           velocity=velocity, channel=channel)
         off = mido.Message('note_off', note=note,
@@ -1482,7 +1482,7 @@ class RealtimeMIDIBridge:
 
     def send_chord(self, notes: list, velocity: int = 80,
                    channel: int = 0, duration: float = 1.0):
-        """コードの送信"""
+        """Send a chord"""
         for note in notes:
             on = mido.Message('note_on', note=note,
                               velocity=velocity, channel=channel)
@@ -1496,12 +1496,12 @@ class RealtimeMIDIBridge:
             self.output_port.send(off)
 
 
-# 使用例: リアルタイムハーモナイズ
+# Usage example: Real-time harmonization
 def harmonize_callback(input_notes: list) -> list:
-    """入力ノートに対してハーモニーを生成"""
+    """Generate harmony for input notes"""
     response = []
     for msg in input_notes:
-        # 3度上と5度上のハーモニーを追加
+        # Add harmonies a 3rd and 5th above
         harmony_3rd = mido.Message(
             'note_on', note=min(127, msg.note + 4),
             velocity=int(msg.velocity * 0.7), channel=1
@@ -1514,15 +1514,15 @@ def harmonize_callback(input_notes: list) -> list:
     return response
 ```
 
-### 4.3 ドラムパターン生成
+### 4.3 Drum Pattern Generation
 
 ```python
 import numpy as np
 
 class DrumPatternGenerator:
-    """AIドラムパターン生成器"""
+    """AI drum pattern generator"""
 
-    # General MIDI ドラムマップ（抜粋）
+    # General MIDI Drum Map (excerpt)
     GM_DRUMS = {
         "kick":     36,
         "snare":    38,
@@ -1540,7 +1540,7 @@ class DrumPatternGenerator:
         "shaker":   70,
     }
 
-    # 基本パターンテンプレート（16分音符グリッド）
+    # Basic pattern templates (16th note grid)
     PATTERNS = {
         "basic_rock": {
             "kick":    [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0],
@@ -1577,7 +1577,7 @@ class DrumPatternGenerator:
     }
 
     def generate(self, style="basic_rock", bars=4, humanize=True):
-        """ドラムパターンを生成"""
+        """Generate a drum pattern"""
         base = self.PATTERNS.get(style, self.PATTERNS["basic_rock"])
 
         pattern = {}
@@ -1591,7 +1591,7 @@ class DrumPatternGenerator:
 
     def generate_variation(self, base_style: str = "basic_rock",
                             variation_amount: float = 0.2) -> dict:
-        """ベースパターンにバリエーションを加える"""
+        """Add variation to a base pattern"""
         base = self.PATTERNS.get(base_style, self.PATTERNS["basic_rock"])
         varied = {}
 
@@ -1599,13 +1599,13 @@ class DrumPatternGenerator:
             new_beat = beat.copy()
             for i in range(len(new_beat)):
                 if random.random() < variation_amount:
-                    new_beat[i] = 1 - new_beat[i]  # トグル
+                    new_beat[i] = 1 - new_beat[i]  # Toggle
             varied[instrument] = new_beat
 
         return varied
 
     def generate_fill(self, length_16ths: int = 16) -> dict:
-        """ドラムフィルの生成"""
+        """Generate a drum fill"""
         fill = {
             "snare": [0] * length_16ths,
             "tom_high": [0] * length_16ths,
@@ -1614,11 +1614,11 @@ class DrumPatternGenerator:
             "crash": [0] * length_16ths,
         }
 
-        # フィルパターン生成（徐々に密度を上げる）
+        # Fill pattern generation (gradually increase density)
         for i in range(length_16ths):
             density = (i + 1) / length_16ths
             if random.random() < density * 0.8:
-                # 高→低のタム回し
+                # High-to-low tom roll
                 if i < length_16ths * 0.33:
                     fill["tom_high"][i] = 1
                 elif i < length_16ths * 0.66:
@@ -1629,13 +1629,13 @@ class DrumPatternGenerator:
                     else:
                         fill["snare"][i] = 1
 
-        # 最後にクラッシュ
+        # Crash at the end
         fill["crash"][-1] = 1
 
         return fill
 
     def _humanize(self, pattern, timing_var=10, velocity_var=15):
-        """人間らしさを付与（タイミング/ベロシティのゆらぎ）"""
+        """Add human feel (timing/velocity fluctuation)"""
         humanized = []
         for hit in pattern:
             if hit:
@@ -1653,7 +1653,7 @@ class DrumPatternGenerator:
         return humanized
 
     def to_midi(self, pattern, bpm=120, ticks_per_beat=480):
-        """パターンをMIDIに変換"""
+        """Convert pattern to MIDI"""
         from mido import MidiFile, MidiTrack, Message, MetaMessage
         import mido
 
@@ -1664,7 +1664,7 @@ class DrumPatternGenerator:
 
         tick_per_16th = ticks_per_beat // 4
 
-        # 全楽器のイベントを時系列にソート
+        # Sort all instrument events chronologically
         events = []
         for instrument, beats in pattern.items():
             note = self.GM_DRUMS[instrument]
@@ -1703,18 +1703,18 @@ class DrumPatternGenerator:
         return mid
 ```
 
-### 4.4 ベースライン生成
+### 4.4 Bassline Generation
 
 ```python
 class BasslineGenerator:
-    """コード進行に基づくベースライン自動生成"""
+    """Automatic bassline generation based on chord progressions"""
 
     STYLES = {
-        "root_notes": "ルート音のみ（シンプル）",
-        "walking": "ウォーキングベース（ジャズ）",
-        "syncopated": "シンコペーション（ファンク）",
-        "octave": "オクターブ奏法（ロック）",
-        "arpeggiated": "アルペジオ（ポップ）",
+        "root_notes": "Root notes only (simple)",
+        "walking": "Walking bass (jazz)",
+        "syncopated": "Syncopation (funk)",
+        "octave": "Octave playing (rock)",
+        "arpeggiated": "Arpeggio (pop)",
     }
 
     def __init__(self, key: str = "C"):
@@ -1727,7 +1727,7 @@ class BasslineGenerator:
     def generate(self, chord_progression: list,
                  style: str = "root_notes",
                  beats_per_chord: int = 4) -> list:
-        """ベースラインを生成"""
+        """Generate a bassline"""
         bassline = []
 
         for chord in chord_progression:
@@ -1758,30 +1758,30 @@ class BasslineGenerator:
         return bassline
 
     def _get_root_note(self, chord: str) -> int:
-        """コードのルート音をMIDIノート番号で取得（ベース音域）"""
+        """Get chord root note as MIDI note number (bass register)"""
         chord_roots = {
             "I": 0, "ii": 2, "iii": 4, "IV": 5,
             "V": 7, "vi": 9, "vii": 11,
         }
         interval = chord_roots.get(chord, 0)
-        # ベース音域: C2-C4 (36-60)
+        # Bass register: C2-C4 (36-60)
         return 36 + (interval + self.key_offset) % 12
 
     def _get_chord_tones(self, chord: str) -> list:
-        """コードトーンをベース音域で取得"""
+        """Get chord tones in bass register"""
         root = self._get_root_note(chord)
         if chord in ["I", "IV", "V"]:
-            return [root, root + 4, root + 7]  # メジャー
+            return [root, root + 4, root + 7]  # Major
         elif chord in ["ii", "iii", "vi"]:
-            return [root, root + 3, root + 7]  # マイナー
+            return [root, root + 3, root + 7]  # Minor
         else:
-            return [root, root + 3, root + 6]  # ディミニッシュ
+            return [root, root + 3, root + 6]  # Diminished
 
     def _root_note_pattern(self, root: int,
                             beats: int) -> list:
-        """ルート音パターン"""
+        """Root note pattern"""
         notes = []
-        for i in range(beats * 2):  # 8分音符
+        for i in range(beats * 2):  # 8th notes
             if i % 2 == 0:
                 notes.append({
                     "pitch": root,
@@ -1790,7 +1790,7 @@ class BasslineGenerator:
                 })
             else:
                 notes.append({
-                    "pitch": 0,  # 休符
+                    "pitch": 0,  # Rest
                     "velocity": 0,
                     "duration": 0.5,
                 })
@@ -1799,15 +1799,15 @@ class BasslineGenerator:
     def _walking_pattern(self, root: int,
                           chord_tones: list,
                           beats: int) -> list:
-        """ウォーキングベースパターン"""
+        """Walking bass pattern"""
         notes = []
-        scale = [0, 2, 3, 5, 7, 9, 10]  # ミクソリディアン的
+        scale = [0, 2, 3, 5, 7, 9, 10]  # Mixolydian-like
 
         for i in range(beats):
             if i == 0:
                 pitch = root
             elif i == beats - 1:
-                # 次のコードへのアプローチノート
+                # Approach note to next chord
                 pitch = root + random.choice([-1, 1, -2, 2])
             else:
                 degree = random.choice(scale)
@@ -1826,10 +1826,10 @@ class BasslineGenerator:
     def _syncopated_pattern(self, root: int,
                              chord_tones: list,
                              beats: int) -> list:
-        """シンコペーションパターン"""
-        # 16分音符グリッド
+        """Syncopation pattern"""
+        # 16th note grid
         grid = [0] * (beats * 4)
-        # シンコペーション配置
+        # Syncopation placement
         syncopation = [1,0,0,1, 0,0,1,0, 0,1,0,0, 1,0,0,1]
 
         notes = []
@@ -1850,7 +1850,7 @@ class BasslineGenerator:
         return notes
 
     def _octave_pattern(self, root: int, beats: int) -> list:
-        """オクターブ奏法パターン"""
+        """Octave playing pattern"""
         notes = []
         for i in range(beats * 2):
             pitch = root if i % 2 == 0 else root + 12
@@ -1864,7 +1864,7 @@ class BasslineGenerator:
     def _arpeggiated_pattern(self, root: int,
                               chord_tones: list,
                               beats: int) -> list:
-        """アルペジオパターン"""
+        """Arpeggio pattern"""
         notes = []
         for i in range(beats * 2):
             pitch = chord_tones[i % len(chord_tones)]
@@ -1878,13 +1878,13 @@ class BasslineGenerator:
 
 ---
 
-## 5. AI作曲パイプライン統合
+## 5. AI Composition Pipeline Integration
 
-### 5.1 エンドツーエンドの作曲システム
+### 5.1 End-to-End Composition System
 
 ```python
 class AICompositionPipeline:
-    """AI作曲パイプライン統合クラス"""
+    """AI composition pipeline integration class"""
 
     def __init__(self, key="C", scale="major", bpm=120):
         self.key = key
@@ -1896,33 +1896,33 @@ class AICompositionPipeline:
         self.drum_gen = DrumPatternGenerator()
 
     def compose(self, bars: int = 16,
-                chord_style: str = "ポップ定番",
+                chord_style: str = "Pop Standard",
                 melody_style: str = "mixed",
                 bass_style: str = "root_notes",
                 drum_style: str = "basic_rock") -> dict:
-        """楽曲全体を自動生成"""
+        """Automatically generate an entire piece"""
 
-        # 1. コード進行生成
+        # 1. Generate chord progression
         chord_progression = self.chord_gen.generate(
             style=chord_style, key=self.key, bars=bars
         )
         chord_names = [c[0] for c in chord_progression]
 
-        # 2. メロディ生成
+        # 2. Generate melody
         melody = self.melody_gen.generate(
             chord_progression=chord_names,
             notes_per_chord=8,
             style=melody_style
         )
 
-        # 3. ベースライン生成
+        # 3. Generate bassline
         bassline = self.bass_gen.generate(
             chord_progression=chord_names,
             style=bass_style,
             beats_per_chord=4
         )
 
-        # 4. ドラムパターン生成
+        # 4. Generate drum pattern
         drums = self.drum_gen.generate(
             style=drum_style, bars=bars, humanize=True
         )
@@ -1942,14 +1942,14 @@ class AICompositionPipeline:
 
     def export_midi(self, composition: dict,
                     output_path: str = "composition.mid"):
-        """作曲結果をマルチトラックMIDIに出力"""
+        """Export composition result as multi-track MIDI"""
         from mido import MidiFile, MidiTrack, Message, MetaMessage
         import mido
 
         mid = MidiFile(ticks_per_beat=480)
         tpb = 480
 
-        # テンポトラック
+        # Tempo track
         tempo_track = MidiTrack()
         mid.tracks.append(tempo_track)
         tempo_track.append(MetaMessage(
@@ -1959,7 +1959,7 @@ class AICompositionPipeline:
             'track_name', name='Tempo', time=0
         ))
 
-        # メロディトラック
+        # Melody track
         melody_track = MidiTrack()
         mid.tracks.append(melody_track)
         melody_track.append(MetaMessage(
@@ -1986,7 +1986,7 @@ class AICompositionPipeline:
             ))
             prev_time = start_ticks + duration_ticks
 
-        # ベーストラック
+        # Bass track
         bass_track = MidiTrack()
         mid.tracks.append(bass_track)
         bass_track.append(MetaMessage(
@@ -2016,15 +2016,15 @@ class AICompositionPipeline:
                 ))
 
         mid.save(output_path)
-        print(f"MIDIファイル出力: {output_path}")
+        print(f"MIDI file exported: {output_path}")
         return mid
 
 
-# 使用例
+# Usage example
 pipeline = AICompositionPipeline(key="C", scale="major", bpm=120)
 composition = pipeline.compose(
     bars=16,
-    chord_style="カノン進行",
+    chord_style="Canon Progression",
     melody_style="mixed",
     bass_style="walking",
     drum_style="basic_rock"
@@ -2034,58 +2034,58 @@ pipeline.export_midi(composition, "my_song.mid")
 
 ---
 
-## 6. 比較表
+## 6. Comparison Tables
 
-### 6.1 AI作曲ツール比較
+### 6.1 AI Composition Tool Comparison
 
-| 項目 | Magenta | MuseNet | AIVA | Amper/Shutterstock | MusicTransformer | Suno |
+| Item | Magenta | MuseNet | AIVA | Amper/Shutterstock | MusicTransformer | Suno |
 |------|---------|---------|------|-------------------|-----------------|------|
-| 種別 | OSS | API(終了) | SaaS | SaaS | 研究 | SaaS |
-| MIDI出力 | 対応 | 非対応 | 対応 | 限定的 | 対応 | 非対応 |
-| ジャンル | 多様 | 多様 | クラシック中心 | 多様 | 多様 | 多様 |
-| インタラクティブ | 対応 | 非対応 | 一部 | 非対応 | 非対応 | 一部 |
-| カスタマイズ | 高い | 低い | 中程度 | 低い | 高い | 低い |
-| 商用利用 | Apache 2.0 | - | 有料プラン | 有料プラン | 研究用 | 有料プラン |
-| API提供 | Python | - | REST | REST | - | REST |
+| Type | OSS | API (discontinued) | SaaS | SaaS | Research | SaaS |
+| MIDI Output | Supported | Not supported | Supported | Limited | Supported | Not supported |
+| Genres | Diverse | Diverse | Classical-focused | Diverse | Diverse | Diverse |
+| Interactive | Supported | Not supported | Partial | Not supported | Not supported | Partial |
+| Customization | High | Low | Medium | Low | High | Low |
+| Commercial Use | Apache 2.0 | - | Paid plan | Paid plan | Research only | Paid plan |
+| API | Python | - | REST | REST | - | REST |
 
-### 6.2 コード進行生成手法の比較
+### 6.2 Chord Progression Generation Method Comparison
 
-| 手法 | 音楽理論知識 | 創造性 | 制御性 | 実装コスト | 学習データ量 |
+| Method | Music Theory Knowledge | Creativity | Controllability | Implementation Cost | Training Data Volume |
 |------|-------------|--------|--------|-----------|------------|
-| ルールベース | 必須 | 低い | 最高 | 低い | 不要 |
-| マルコフ連鎖 | 不要（学習） | 中程度 | 中程度 | 低い | 少量 |
-| LSTM/GRU | 不要（学習） | 高い | 低い | 中程度 | 中量 |
-| Transformer | 不要（学習） | 最高 | 低い | 高い | 大量 |
-| ルール+AI混合 | 一部必要 | 高い | 高い | 中程度 | 中量 |
-| VAE | 不要（学習） | 高い | 中〜高 | 高い | 大量 |
-| GAN | 不要（学習） | 高い | 低い | 最高 | 大量 |
-| Diffusion | 不要（学習） | 最高 | 中程度 | 最高 | 大量 |
+| Rule-based | Required | Low | Highest | Low | Not needed |
+| Markov Chain | Not needed (learned) | Medium | Medium | Low | Small |
+| LSTM/GRU | Not needed (learned) | High | Low | Medium | Medium |
+| Transformer | Not needed (learned) | Highest | Low | High | Large |
+| Rule + AI Hybrid | Partially required | High | High | Medium | Medium |
+| VAE | Not needed (learned) | High | Medium-High | High | Large |
+| GAN | Not needed (learned) | High | Low | Highest | Large |
+| Diffusion | Not needed (learned) | Highest | Medium | Highest | Large |
 
-### 6.3 MIDIトークン化手法の比較
+### 6.3 MIDI Tokenization Method Comparison
 
-| 手法 | シーケンス長 | 情報保持 | マルチトラック | 実装難易度 | 代表ライブラリ |
+| Method | Sequence Length | Information Retention | Multi-track | Implementation Difficulty | Representative Library |
 |------|------------|---------|-------------|-----------|-------------|
-| REMI | 長い | 高い | 限定的 | 低い | MidiTok |
-| TSD | 中程度 | 高い | 限定的 | 低い | MidiTok |
-| MIDILike | 最長 | 最高 | 対応 | 最低 | MidiTok |
-| Structured | 中程度 | 高い | 対応 | 中程度 | MidiTok |
-| CPWord | 最短 | 高い | 限定的 | 高い | MidiTok |
-| Octuple | 短い | 高い | 対応 | 高い | MidiTok |
+| REMI | Long | High | Limited | Low | MidiTok |
+| TSD | Medium | High | Limited | Low | MidiTok |
+| MIDILike | Longest | Highest | Supported | Lowest | MidiTok |
+| Structured | Medium | High | Supported | Medium | MidiTok |
+| CPWord | Shortest | High | Limited | High | MidiTok |
+| Octuple | Short | High | Supported | High | MidiTok |
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-patterns
 
-### 7.1 アンチパターン: 音楽理論の完全無視
+### 7.1 Anti-pattern: Completely Ignoring Music Theory
 
 ```python
-# BAD: 完全ランダムなノート生成
+# BAD: Completely random note generation
 def bad_melody_generation(length=32):
     notes = [random.randint(0, 127) for _ in range(length)]
     velocities = [random.randint(0, 127) for _ in range(length)]
-    return notes, velocities  # 不協和音だらけ
+    return notes, velocities  # Full of dissonance
 
-# GOOD: スケール制約付き生成
+# GOOD: Generation with scale constraints
 def good_melody_generation(length=32, key="C", scale="major"):
     scales = {
         "major":     [0, 2, 4, 5, 7, 9, 11],
@@ -2096,8 +2096,7 @@ def good_melody_generation(length=32, key="C", scale="major"):
 
     scale_notes = scales[scale]
     offset = key_offset[key]
-
-    # 使用可能なノート（複数オクターブ）
+    # Available notes (multiple octaves)
     available_notes = []
     for octave in range(3, 6):  # C3-C6
         for degree in scale_notes:
@@ -2105,62 +2104,62 @@ def good_melody_generation(length=32, key="C", scale="major"):
             if 48 <= note <= 84:
                 available_notes.append(note)
 
-    # メロディ生成（隣接音への進行を優先）
+    # Melody generation (prioritize stepwise motion)
     melody = [random.choice(available_notes)]
     for _ in range(length - 1):
         current = melody[-1]
-        # 隣接する3音から選択（ステップワイズモーション）
+        # Select from 3 adjacent notes (stepwise motion)
         nearby = [n for n in available_notes if abs(n - current) <= 4]
         melody.append(random.choice(nearby))
 
     return melody
 ```
 
-### 7.2 アンチパターン: クオンタイズの機械的適用
+### 7.2 Anti-pattern: Mechanical Application of Quantization
 
 ```python
-# BAD: 全ノートを完全にクオンタイズ
+# BAD: Fully quantize all notes
 def bad_quantize(midi_events, grid=480):
     for event in midi_events:
         event.time = round(event.time / grid) * grid
-    return midi_events  # 機械的でグルーブが失われる
+    return midi_events  # Mechanical, groove is lost
 
-# GOOD: グルーブ保持クオンタイズ
+# GOOD: Groove-preserving quantization
 def good_quantize(midi_events, grid=480, strength=0.75, swing=0.0):
     """
     Parameters:
-        grid: クオンタイズグリッド（ticks）
-        strength: 0.0（なし）〜 1.0（完全）
-        swing: 0.0（ストレート）〜 1.0（フルスイング）
+        grid: Quantize grid (ticks)
+        strength: 0.0 (none) to 1.0 (full)
+        swing: 0.0 (straight) to 1.0 (full swing)
     """
     for event in midi_events:
-        # 最寄りのグリッドポイント
+        # Nearest grid point
         nearest = round(event.time / grid) * grid
 
-        # スウィング適用（偶数拍のみずらす）
+        # Apply swing (shift even beats only)
         if swing > 0 and (nearest // grid) % 2 == 1:
             nearest += int(grid * swing * 0.33)
 
-        # strength に応じて部分的にクオンタイズ
+        # Partially quantize according to strength
         event.time = int(event.time + (nearest - event.time) * strength)
 
     return midi_events
 ```
 
-### 7.3 アンチパターン: 過大なコンテキスト長
+### 7.3 Anti-pattern: Excessive Context Length
 
 ```python
-# BAD: メモリ不足を招く超長シーケンス
+# BAD: Ultra-long sequence causing out-of-memory
 def bad_training():
-    model = MusicTransformer(max_seq_len=16384)  # 長すぎる
-    # → メモリ不足、学習が極端に遅い
-    # → Attention の計算量は O(n^2)
+    model = MusicTransformer(max_seq_len=16384)  # Too long
+    # -> Out of memory, training is extremely slow
+    # -> Attention computation is O(n^2)
 
-# GOOD: 適切なコンテキスト長と分割戦略
+# GOOD: Appropriate context length and splitting strategy
 def good_training():
-    model = MusicTransformer(max_seq_len=2048)  # 適切な長さ
+    model = MusicTransformer(max_seq_len=2048)  # Appropriate length
 
-    # 長い楽曲は重複ありで分割
+    # Split long pieces with overlap
     def split_with_overlap(tokens, max_len=2048, overlap=256):
         segments = []
         for i in range(0, len(tokens) - max_len, max_len - overlap):
@@ -2168,15 +2167,15 @@ def good_training():
         return segments
 ```
 
-### 7.4 アンチパターン: 学習データの偏り
+### 7.4 Anti-pattern: Biased Training Data
 
 ```python
-# BAD: 特定ジャンルの学習データのみ
+# BAD: Training data from only one specific genre
 def bad_dataset():
-    # クラシック音楽のみ10,000曲
-    # → ポップスを生成しようとしても全てクラシック風になる
+    # Only 10,000 classical music pieces
+    # -> Even when trying to generate pop, everything sounds classical
 
-# GOOD: バランスの取れたデータセット構築
+# GOOD: Building a balanced dataset
 def good_dataset():
     dataset_config = {
         "genres": {
@@ -2188,15 +2187,15 @@ def good_dataset():
         },
         "total": 10000,
         "augmentation": {
-            "transpose": True,      # 全12キーに移調
-            "tempo_variation": True, # テンポを±20%変化
-            "velocity_scaling": True, # ベロシティスケール
+            "transpose": True,      # Transpose to all 12 keys
+            "tempo_variation": True, # Vary tempo by +/-20%
+            "velocity_scaling": True, # Velocity scaling
         },
         "filtering": {
-            "min_notes": 50,        # 最低ノート数
-            "max_notes": 10000,     # 最大ノート数
-            "min_duration": 30,     # 最低30秒
-            "max_duration": 600,    # 最大10分
+            "min_notes": 50,        # Minimum note count
+            "max_notes": 10000,     # Maximum note count
+            "min_duration": 30,     # Minimum 30 seconds
+            "max_duration": 600,    # Maximum 10 minutes
         }
     }
     return dataset_config
@@ -2206,75 +2205,75 @@ def good_dataset():
 
 ## 8. FAQ
 
-### Q1: AI作曲で生成されたMIDIデータの著作権はどうなりますか？
+### Q1: What is the copyright status of AI-generated MIDI data?
 
-MIDIデータ自体は著作物として保護される可能性がありますが、AI生成物の著作権帰属は法的にグレーゾーンです。多くのAI作曲サービス（AIVA、Amper等）は有料プランで商用利用権を付与しています。OSSモデル（Magenta等）で生成した場合、学習データの著作権問題が残ります。安全策として、(1) AI生成を出発点に人間が大幅に編集する、(2) 商用利用を明示的に許可するサービスを使う、(3) 生成プロセスを記録しておく、が推奨されます。
+MIDI data itself may be protected as a copyrighted work, but the copyright attribution of AI-generated content is legally a gray area. Many AI composition services (AIVA, Amper, etc.) grant commercial use rights under paid plans. When generated with OSS models (Magenta, etc.), copyright issues with training data remain. As a safeguard, it is recommended to: (1) use AI generation as a starting point and have humans substantially edit it, (2) use services that explicitly permit commercial use, and (3) keep records of the generation process.
 
-### Q2: AIで生成したコード進行をDAWで使うにはどうすればよいですか？
+### Q2: How can I use AI-generated chord progressions in a DAW?
 
-最も簡単な方法は、(1) Python等でMIDIファイルを出力、(2) DAWにMIDIファイルをドラッグ&ドロップ。リアルタイム連携には、(1) 仮想MIDIポート（macOS: IAC Driver、Windows: loopMIDI）経由で送信、(2) Ableton LiveのMax for Live デバイス内でAIモデルを実行、(3) OSCプロトコルでDAWとAIエンジン間を通信。MidiTokやpretty_midiライブラリを使うと、AI出力をDAWフレンドリーなMIDIファイルに変換しやすくなります。
+The simplest method is: (1) output a MIDI file using Python etc., (2) drag and drop the MIDI file into the DAW. For real-time integration: (1) send via virtual MIDI ports (macOS: IAC Driver, Windows: loopMIDI), (2) run AI models within Ableton Live's Max for Live devices, (3) communicate between DAW and AI engine using the OSC protocol. Using libraries like MidiTok or pretty_midi makes it easy to convert AI output to DAW-friendly MIDI files.
 
-### Q3: メロディ生成AIの品質を向上させるコツは？
+### Q3: What are tips for improving melody generation AI quality?
 
-効果的な手法は5つあります。(1) スケール制約: 使用可能なノートをスケール内に限定。(2) コンテキスト長の拡大: より長い文脈を考慮するモデル（Transformer）を使用。(3) コード条件付き生成: コード進行に沿ったメロディ生成。(4) 後処理ルール: 連続する同音の制限、跳躍の制限、フレーズ終止の処理。(5) 温度パラメータの調整: 低い値（0.6-0.8）でより「安全な」メロディ、高い値（1.0-1.2）でより実験的なメロディ。
+There are five effective techniques: (1) Scale constraints: limit available notes to those within the scale. (2) Expanding context length: use models that consider longer context (Transformer). (3) Chord-conditioned generation: generate melody following chord progressions. (4) Post-processing rules: limit consecutive identical notes, limit leaps, handle phrase endings. (5) Temperature parameter tuning: lower values (0.6-0.8) for "safer" melodies, higher values (1.0-1.2) for more experimental melodies.
 
-### Q4: MIDIデータの前処理で気をつけるべき点は？
+### Q4: What should I watch out for in MIDI data preprocessing?
 
-MIDI前処理の重要ポイントは以下の通りです。(1) 分解能の統一: 異なるソースのMIDIファイルは分解能（ticks_per_beat）が異なるため、480に統一するのが標準的。(2) チャンネルの整理: 不要なチャンネル（GM System Exclusive等）を除去。(3) ノートの正規化: ベロシティ範囲の正規化（例: 20-120を0-127に線形マッピング）。(4) 重複ノートの除去: Note Onが連続してNote Offがない異常データの修正。(5) テンポ情報の処理: テンポ変化を含むMIDIは相対時間に変換してから処理する。
+Key points for MIDI preprocessing are as follows: (1) Unify resolution: MIDI files from different sources have different resolutions (ticks_per_beat), and standardizing to 480 is common practice. (2) Clean up channels: remove unnecessary channels (GM System Exclusive, etc.). (3) Normalize notes: normalize velocity range (e.g., linear mapping from 20-120 to 0-127). (4) Remove duplicate notes: fix abnormal data where Note On events occur consecutively without Note Off. (5) Handle tempo information: convert MIDI with tempo changes to relative time before processing.
 
-### Q5: リアルタイムでAI作曲を使うには遅延をどう解決しますか？
+### Q5: How do you solve latency for real-time AI composition?
 
-リアルタイム推論の遅延対策は3段階あります。(1) モデルの軽量化: 蒸留モデルやONNXランタイムで推論速度を10倍以上改善可能。(2) バッファリング戦略: 4拍分のバッファを設けて先読み生成。ユーザーが演奏中に次の4拍を生成する。(3) キャッシュとプリコンピュート: よく使うコード進行パターンの結果を事前計算してキャッシュしておく。GPU搭載のPCであれば、512トークンの生成が100ms以下で完了するため、実用的なリアルタイム性が確保できます。
+There are three stages of latency countermeasures for real-time inference: (1) Model optimization: distilled models or ONNX runtime can improve inference speed by 10x or more. (2) Buffering strategy: set a 4-beat buffer for look-ahead generation. Generate the next 4 beats while the user is performing. (3) Caching and precomputation: precompute and cache results for commonly used chord progression patterns. On a PC with a GPU, generating 512 tokens can be completed in under 100ms, ensuring practical real-time performance.
 
-### Q6: 学習データに適したMIDIデータセットはどこで入手できますか？
+### Q6: Where can I obtain MIDI datasets suitable for training?
 
-主要なMIDIデータセットは以下の通りです。(1) Lakh MIDI Dataset: 約17万曲の大規模データセット。ジャンルが多様で研究用途に最適。(2) MAESTRO: Google Magentaが公開するピアノ演奏データセット。高品質なパフォーマンスMIDI。(3) GiantMIDI-Piano: 約1万曲のクラシックピアノ曲。(4) ADL Piano MIDI: 約11,000曲のポップス/ロックのピアノMIDI。(5) MusicNet: アノテーション付きの音楽データセット。ライセンスは各データセットごとに異なるため、商用利用時は必ず確認してください。
+Major MIDI datasets include the following: (1) Lakh MIDI Dataset: a large-scale dataset of approximately 170,000 songs. Diverse genres, ideal for research. (2) MAESTRO: a piano performance dataset published by Google Magenta. High-quality performance MIDI. (3) GiantMIDI-Piano: approximately 10,000 classical piano pieces. (4) ADL Piano MIDI: approximately 11,000 pop/rock piano MIDI files. (5) MusicNet: an annotated music dataset. Licenses vary by dataset, so be sure to verify before commercial use.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how things work.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in everyday development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |------|------|
-| MIDIデータ | ノート番号(0-127) + ベロシティ + タイミングの3要素 |
-| トークン化 | REMI、Compound Word等でMIDIをLM入力に変換 |
-| AI作曲 | Transformer ベースが主流。コンテキスト長が品質に直結 |
-| コード進行 | 音楽理論ルール + AI のハイブリッドが実用的 |
-| メロディ生成 | コード条件付き+スケール制約で品質確保 |
-| ベースライン | スタイル別テンプレート + AI変奏が効率的 |
-| ドラムパターン | パターンDB + ヒューマナイズで自然なグルーブ |
-| DAW連携 | MIDIファイル出力 or 仮想MIDIポートで接続 |
-| 品質向上 | スケール制約 + コード条件付き + 適切な温度設定 |
-| 学習パイプライン | データ前処理→トークン化→学習→サンプル生成の自動化 |
+| MIDI Data | Three elements: note number (0-127) + velocity + timing |
+| Tokenization | Convert MIDI to LM input using REMI, Compound Word, etc. |
+| AI Composition | Transformer-based is mainstream. Context length directly affects quality |
+| Chord Progressions | Hybrid of music theory rules + AI is practical |
+| Melody Generation | Chord-conditioned + scale constraints ensure quality |
+| Basslines | Style-specific templates + AI variations are efficient |
+| Drum Patterns | Pattern DB + humanization for natural groove |
+| DAW Integration | Connect via MIDI file output or virtual MIDI ports |
+| Quality Improvement | Scale constraints + chord conditioning + appropriate temperature settings |
+| Training Pipeline | Automate data preprocessing -> tokenization -> training -> sample generation |
 
-## 次に読むべきガイド
+## Recommended Next Guides
 
-- [00-music-generation.md](./00-music-generation.md) — 音楽生成（Suno、MusicGen）
-- [02-audio-effects.md](./02-audio-effects.md) — 音声エフェクト
-- [../03-development/01-audio-processing.md](../03-development/01-audio-processing.md) — 音声処理ライブラリ
+- [00-music-generation.md](./00-music-generation.md) — Music Generation (Suno, MusicGen)
+- [02-audio-effects.md](./02-audio-effects.md) — Audio Effects
+- [../03-development/01-audio-processing.md](../03-development/01-audio-processing.md) — Audio Processing Libraries
 
-## 参考文献
+## References
 
-1. Huang, C.Z.A., et al. (2018). "Music Transformer: Generating Music with Long-Term Structure" — Music Transformer論文。相対位置エンコーディングによる長期構造の生成
-2. Fraternali, D., et al. (2023). "MidiTok: A Python package for MIDI file tokenization" — MidiTok論文。MIDI トークン化ライブラリ
-3. Roberts, A., et al. (2018). "A Hierarchical Latent Vector Model for Learning Long-Term Structure in Music Generation" — MusicVAE論文。階層的潜在変数による音楽生成
-4. Dong, H.W., et al. (2018). "MuseGAN: Multi-track Sequential Generative Adversarial Networks for Symbolic Music Generation and Accompaniment" — マルチトラックGANによる音楽生成
-5. Hawthorne, C., et al. (2019). "Enabling Factorized Piano Music Modeling and Generation with the MAESTRO Dataset" — MAESTROデータセットとピアノ音楽生成
-6. Lakh MIDI Dataset — https://colinraffel.com/projects/lmd/ — 大規模MIDI研究用データセット
+1. Huang, C.Z.A., et al. (2018). "Music Transformer: Generating Music with Long-Term Structure" — Music Transformer paper. Generation of long-term structure via relative position encoding
+2. Fraternali, D., et al. (2023). "MidiTok: A Python package for MIDI file tokenization" — MidiTok paper. MIDI tokenization library
+3. Roberts, A., et al. (2018). "A Hierarchical Latent Vector Model for Learning Long-Term Structure in Music Generation" — MusicVAE paper. Music generation via hierarchical latent variables
+4. Dong, H.W., et al. (2018). "MuseGAN: Multi-track Sequential Generative Adversarial Networks for Symbolic Music Generation and Accompaniment" — Music generation via multi-track GAN
+5. Hawthorne, C., et al. (2019). "Enabling Factorized Piano Music Modeling and Generation with the MAESTRO Dataset" — MAESTRO dataset and piano music generation
+6. Lakh MIDI Dataset — https://colinraffel.com/projects/lmd/ — Large-scale MIDI research dataset
