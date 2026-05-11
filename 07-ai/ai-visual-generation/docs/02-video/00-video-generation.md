@@ -1,82 +1,81 @@
-# 動画生成 — Sora、Runway、Pika
+# Video Generation — Sora, Runway, Pika
 
-> AI による動画生成技術の仕組みと主要プラットフォームの使い方を、テキスト-to-ビデオから画像-to-ビデオまで実践的に解説する。
-
----
-
-## この章で学ぶこと
-
-1. **動画生成モデルの原理** — 時間軸への拡散モデルの拡張、時空間アーキテクチャ
-2. **主要プラットフォームの比較と使い分け** — Sora、Runway Gen-3、Pika、Kling の特徴
-3. **プロダクション向けワークフロー** — 生成動画の品質管理と後処理パイプライン
-4. **フレーム補間と超解像** — RIFE、Real-ESRGAN による動画品質向上テクニック
-5. **実務統合** — API連携、バッチ処理、コスト管理の実践手法
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> A practical guide covering the mechanisms of AI video generation technology and how to use major platforms, from text-to-video to image-to-video.
 
 ---
 
-## 1. 動画生成の技術基盤
+## What You Will Learn in This Chapter
 
-### 1.1 動画拡散モデルの数学的基礎
+1. **Principles of Video Generation Models** — Extending diffusion models to the temporal axis, spatiotemporal architectures
+2. **Comparing and Choosing Major Platforms** — Features of Sora, Runway Gen-3, Pika, and Kling
+3. **Production Workflows** — Quality control and post-processing pipelines for generated videos
+4. **Frame Interpolation and Super-Resolution** — Video quality enhancement techniques using RIFE and Real-ESRGAN
+5. **Practical Integration** — API integration, batch processing, and cost management techniques
 
-動画拡散モデルは、画像拡散モデルの自然な拡張として構築される。画像拡散モデルがノイズ付きの2D画像からクリーンな画像を推定するのに対し、動画拡散モデルは3Dテンソル（フレーム数 x 高さ x 幅）を扱う。
+
+## Prerequisites
+
+Before reading this guide, having the following knowledge will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+
+---
+
+## 1. Technical Foundation of Video Generation
+
+### 1.1 Mathematical Foundation of Video Diffusion Models
+
+Video diffusion models are built as a natural extension of image diffusion models. While image diffusion models estimate clean images from noisy 2D images, video diffusion models handle 3D tensors (frames x height x width).
 
 ```
-画像拡散 vs 動画拡散:
+Image Diffusion vs Video Diffusion:
 
-画像: x ∈ R^{C×H×W}      →  空間的なノイズ除去
-動画: x ∈ R^{F×C×H×W}    →  時空間的なノイズ除去
+Image: x in R^{C x H x W}      ->  Spatial denoising
+Video: x in R^{F x C x H x W}  ->  Spatiotemporal denoising
 
-ここで:
-  F = フレーム数 (16, 24, 48, etc.)
-  C = チャネル数 (3: RGB)
-  H, W = 高さ、幅
+Where:
+  F = Number of frames (16, 24, 48, etc.)
+  C = Number of channels (3: RGB)
+  H, W = Height, Width
 
-前方拡散過程:
-  q(x_t | x_{t-1}) = N(x_t; √(1-β_t)x_{t-1}, β_t I)
+Forward diffusion process:
+  q(x_t | x_{t-1}) = N(x_t; sqrt(1-beta_t)x_{t-1}, beta_t I)
 
-逆拡散過程 (学習対象):
-  p_θ(x_{t-1} | x_t) = N(x_{t-1}; μ_θ(x_t, t, c), σ_t^2 I)
+Reverse diffusion process (learned):
+  p_theta(x_{t-1} | x_t) = N(x_{t-1}; mu_theta(x_t, t, c), sigma_t^2 I)
 
-条件 c には:
-  - テキストプロンプト (CLIP / T5 エンコーディング)
-  - 参照画像 (Image-to-Video の場合)
-  - カメラパラメータ (カメラ制御の場合)
-  が含まれる
+Condition c includes:
+  - Text prompt (CLIP / T5 encoding)
+  - Reference image (for Image-to-Video)
+  - Camera parameters (for camera control)
 ```
 
-### コード例1: 時空間拡散モデルの概念
+### Code Example 1: Concept of Spatiotemporal Diffusion Models
 
 ```python
 """
-動画生成モデルの基本構造:
-画像の拡散モデルに時間軸の処理を追加
+Basic structure of video generation models:
+Adding temporal axis processing to image diffusion models
 
-Image Diffusion:  UNet(x_t, t, text) → ε(空間ノイズ)
-Video Diffusion:  UNet(x_t, t, text) → ε(時空間ノイズ)
-                  x_t の形状: [B, F, C, H, W]
-                  (バッチ, フレーム数, チャネル, 高さ, 幅)
+Image Diffusion:  UNet(x_t, t, text) -> epsilon (spatial noise)
+Video Diffusion:  UNet(x_t, t, text) -> epsilon (spatiotemporal noise)
+                  x_t shape: [B, F, C, H, W]
+                  (batch, frames, channels, height, width)
 """
 
 import torch
 import torch.nn as nn
 
 class TemporalAttention(nn.Module):
-    """フレーム間の時間的注意機構"""
+    """Temporal attention mechanism between frames"""
     def __init__(self, dim, num_heads=8):
         super().__init__()
         self.attention = nn.MultiheadAttention(dim, num_heads)
         self.norm = nn.LayerNorm(dim)
 
     def forward(self, x):
-        # x: [B*H*W, F, C] — 各空間位置でフレーム間の注意
+        # x: [B*H*W, F, C] — Attention between frames at each spatial position
         residual = x
         x = self.norm(x)
         x, _ = self.attention(x, x, x)
@@ -84,10 +83,10 @@ class TemporalAttention(nn.Module):
 
 class SpatioTemporalBlock(nn.Module):
     """
-    時空間処理ブロック:
-    1. 空間注意 (各フレーム内)
-    2. 時間注意 (フレーム間)
-    3. Cross-Attention (テキスト条件)
+    Spatiotemporal processing block:
+    1. Spatial attention (within each frame)
+    2. Temporal attention (between frames)
+    3. Cross-Attention (text conditioning)
     """
     def __init__(self, dim):
         super().__init__()
@@ -103,35 +102,35 @@ class SpatioTemporalBlock(nn.Module):
     def forward(self, x, text_emb):
         B, F, C, H, W = x.shape
 
-        # 1. 空間注意 (各フレーム独立)
+        # 1. Spatial attention (each frame independently)
         x_spatial = x.view(B * F, C, H * W).permute(0, 2, 1)
         x_spatial, _ = self.spatial_attn(x_spatial, x_spatial, x_spatial)
         x = x_spatial.permute(0, 2, 1).view(B, F, C, H, W) + x
 
-        # 2. 時間注意 (フレーム間)
+        # 2. Temporal attention (between frames)
         x_temporal = x.permute(0, 3, 4, 1, 2).reshape(B * H * W, F, C)
         x_temporal = self.temporal_attn(x_temporal)
         x = x_temporal.reshape(B, H, W, F, C).permute(0, 3, 4, 1, 2) + x
 
-        # 3. テキスト条件付けクロス注意
-        # (簡略化)
+        # 3. Text-conditioned cross-attention
+        # (simplified)
 
         return x
 ```
 
-### 1.2 DiT (Diffusion Transformer) ベースのアーキテクチャ
+### 1.2 DiT (Diffusion Transformer) Based Architecture
 
-Sora に代表される最新の動画生成モデルは、従来の UNet ベースから DiT (Diffusion Transformer) ベースに移行している。DiT はスケーリング則に優れ、大規模データでの学習に適している。
+The latest video generation models, exemplified by Sora, have transitioned from traditional UNet-based to DiT (Diffusion Transformer) based architectures. DiT excels in scaling laws and is well-suited for training on large-scale data.
 
 ```python
 class VideoDiTBlock(nn.Module):
     """
     Video Diffusion Transformer Block
 
-    Sora 等が採用するアーキテクチャの概念実装:
-    - パッチ化: 動画を時空間パッチに分割
-    - Transformer: パッチ間の全注意
-    - スケーラビリティ: モデルサイズに比例して品質向上
+    Conceptual implementation of the architecture adopted by Sora and others:
+    - Patchification: Divide video into spatiotemporal patches
+    - Transformer: Full attention between patches
+    - Scalability: Quality improves proportionally to model size
     """
 
     def __init__(self, dim, num_heads, mlp_ratio=4.0):
@@ -152,10 +151,10 @@ class VideoDiTBlock(nn.Module):
 
     def forward(self, x, c):
         """
-        x: [B, N, D] — N = 時空間パッチ数
-        c: [B, D] — 条件ベクトル (timestep + text)
+        x: [B, N, D] — N = number of spatiotemporal patches
+        c: [B, D] — condition vector (timestep + text)
         """
-        # AdaLN パラメータの計算
+        # Compute AdaLN parameters
         shift_msa, scale_msa, gate_msa, shift_mlp, scale_mlp, gate_mlp = (
             self.adaLN_modulation(c).chunk(6, dim=-1)
         )
@@ -174,13 +173,13 @@ class VideoDiTBlock(nn.Module):
 
 
 class VideoTokenizer:
-    """動画を時空間パッチ (トークン) に変換"""
+    """Convert video into spatiotemporal patches (tokens)"""
 
     def __init__(self, patch_size=(2, 16, 16), latent_dim=1024):
         """
         patch_size: (temporal, height, width)
-        - temporal=2: 2フレームずつをグループ化
-        - height=16, width=16: 16x16のパッチ
+        - temporal=2: Group every 2 frames
+        - height=16, width=16: 16x16 patches
         """
         self.patch_size = patch_size
         self.latent_dim = latent_dim
@@ -188,13 +187,13 @@ class VideoTokenizer:
     def patchify(self, video_latent):
         """
         video_latent: [B, F, C, H, W]
-        → patches: [B, N, D]
+        -> patches: [B, N, D]
         N = (F/pt) * (H/ph) * (W/pw)
         """
         B, F, C, H, W = video_latent.shape
         pt, ph, pw = self.patch_size
 
-        # フレーム、高さ、幅をパッチに分割
+        # Split frames, height, and width into patches
         n_t = F // pt
         n_h = H // ph
         n_w = W // pw
@@ -208,7 +207,7 @@ class VideoTokenizer:
         return patches  # [B, N, pt*C*ph*pw]
 
     def unpatchify(self, patches, original_shape):
-        """パッチを動画に復元"""
+        """Reconstruct video from patches"""
         B, F, C, H, W = original_shape
         pt, ph, pw = self.patch_size
         n_t, n_h, n_w = F // pt, H // ph, W // pw
@@ -220,93 +219,93 @@ class VideoTokenizer:
         return video
 ```
 
-### ASCII図解1: 動画生成モデルのアーキテクチャ
+### ASCII Diagram 1: Video Generation Model Architecture
 
 ```
-┌──────────── 動画生成パイプライン ─────────────────┐
-│                                                   │
-│  テキスト/画像入力                                 │
-│       │                                           │
-│       v                                           │
-│  ┌──────────────┐                                 │
-│  │ Text Encoder │  (T5 / CLIP)                    │
-│  └──────┬───────┘                                 │
-│         │                                         │
-│         v                                         │
-│  ┌──────────────────────────────────────┐         │
-│  │  Spatio-Temporal DiT / UNet          │         │
-│  │                                      │         │
-│  │  フレーム1  フレーム2  ...  フレームN │ ← ノイズ│
-│  │  ┌──┐      ┌──┐           ┌──┐      │         │
-│  │  │空│──時──│空│──時──...──│空│      │         │
-│  │  │間│  間  │間│  間       │間│      │         │
-│  │  │注│  注  │注│  注       │注│      │         │
-│  │  │意│  意  │意│  意       │意│      │         │
-│  │  └──┘      └──┘           └──┘      │         │
-│  │       ↕         ↕              ↕     │         │
-│  │  [Cross-Attention: テキスト条件]     │         │
-│  └──────────────┬───────────────────────┘         │
-│                 │                                  │
-│                 v                                  │
-│  ┌──────────────┐                                 │
-│  │ VAE Decoder  │  各フレームをデコード             │
-│  └──────┬───────┘                                 │
-│         │                                         │
-│         v                                         │
-│  [フレーム1] [フレーム2] ... [フレームN] = 動画    │
-└───────────────────────────────────────────────────┘
++------------- Video Generation Pipeline -----------------+
+|                                                          |
+|  Text/Image Input                                        |
+|       |                                                  |
+|       v                                                  |
+|  +--------------+                                        |
+|  | Text Encoder |  (T5 / CLIP)                           |
+|  +------+-------+                                        |
+|         |                                                |
+|         v                                                |
+|  +--------------------------------------+                |
+|  |  Spatio-Temporal DiT / UNet          |                |
+|  |                                      |                |
+|  |  Frame 1    Frame 2    ...  Frame N  | <- Noise       |
+|  |  +--+       +--+            +--+     |                |
+|  |  |Sp|--Te---|Sp|--Te--...--|Sp|     |                |
+|  |  |at|  mp   |at|  mp       |at|     |                |
+|  |  |ia|  or   |ia|  or       |ia|     |                |
+|  |  |l |  al   |l |  al       |l |     |                |
+|  |  +--+       +--+            +--+     |                |
+|  |       ^         ^              ^     |                |
+|  |  [Cross-Attention: Text Conditioning]|                |
+|  +----------------+---------------------+                |
+|                   |                                       |
+|                   v                                       |
+|  +--------------+                                        |
+|  | VAE Decoder  |  Decode each frame                     |
+|  +------+-------+                                        |
+|         |                                                |
+|         v                                                |
+|  [Frame 1] [Frame 2] ... [Frame N] = Video               |
++----------------------------------------------------------+
 ```
 
-### ASCII図解: DiT vs UNet アーキテクチャの比較
+### ASCII Diagram: DiT vs UNet Architecture Comparison
 
 ```
-UNet ベース (Stable Video Diffusion 等):
+UNet Based (Stable Video Diffusion, etc.):
 
-入力 ──→ [Down1]──→[Down2]──→[Down3]──→[Bottleneck]
-                                              │
-出力 ←── [Up1] ←──[Up2] ←──[Up3] ←──────────┘
-          ↑          ↑          ↑
-          └──Skip────┘──Skip────┘
-※ 各ブロック内に空間注意 + 時間注意
+Input --> [Down1]-->[Down2]-->[Down3]-->[Bottleneck]
+                                              |
+Output <-- [Up1] <--[Up2] <--[Up3] <----------+
+            ^          ^          ^
+            +--Skip----+--Skip----+
+* Each block contains spatial attention + temporal attention
 
-DiT ベース (Sora 等):
+DiT Based (Sora, etc.):
 
-入力動画 ──→ [パッチ化] ──→ [位置エンコーディング]
-                                    │
-                        ┌───────────┘
+Input Video --> [Patchify] --> [Positional Encoding]
+                                    |
+                        +-----------+
                         v
-          ┌──── DiT Block 1 ────┐
-          │  AdaLN → Self-Attn  │
-          │  AdaLN → FFN        │
-          └─────────┬───────────┘
+          +---- DiT Block 1 ----+
+          |  AdaLN -> Self-Attn |
+          |  AdaLN -> FFN       |
+          +---------+-----------+
                     v
-          ┌──── DiT Block 2 ────┐
-          │  (同様)             │
-          └─────────┬───────────┘
+          +---- DiT Block 2 ----+
+          |  (same)             |
+          +---------+-----------+
                     v
                    ...
                     v
-          ┌──── DiT Block N ────┐
-          │  (同様)             │
-          └─────────┬───────────┘
+          +---- DiT Block N ----+
+          |  (same)             |
+          +---------+-----------+
                     v
-          [逆パッチ化] ──→ 出力動画
+          [Unpatchify] --> Output Video
 
-利点:
-- スケーリング則に従いやすい
-- Skip connection 不要でシンプル
-- 可変解像度/可変長に対応可能
+Advantages:
+- Follows scaling laws well
+- Simpler without skip connections
+- Supports variable resolution/variable length
 ```
 
 ---
 
-## 2. 主要プラットフォーム
+## 2. Major Platforms
 
-### コード例2: Runway Gen-3 Alpha API
+### Code Example 2: Runway Gen-3 Alpha API
 
 ```python
 """
-Runway ML Gen-3 Alpha API を使用した動画生成
+Video generation using the Runway ML Gen-3 Alpha API
 """
 import requests
 import time
@@ -323,9 +322,9 @@ class RunwayClient:
     def generate_video(self, prompt, duration=4,
                        aspect_ratio="16:9", style=None):
         """
-        テキストから動画を生成
+        Generate video from text
 
-        duration: 4 or 10 (秒)
+        duration: 4 or 10 (seconds)
         aspect_ratio: "16:9", "9:16", "1:1"
         """
         payload = {
@@ -347,9 +346,9 @@ class RunwayClient:
     def image_to_video(self, image_url, prompt,
                        duration=4, motion_amount=5):
         """
-        画像から動画を生成 (Image-to-Video)
+        Generate video from image (Image-to-Video)
 
-        motion_amount: 1-10 (動きの量)
+        motion_amount: 1-10 (amount of motion)
         """
         payload = {
             "image_url": image_url,
@@ -367,7 +366,7 @@ class RunwayClient:
         return self._poll_result(task_id)
 
     def _poll_result(self, task_id, timeout=300):
-        """結果をポーリングで取得"""
+        """Poll for results"""
         for _ in range(timeout // 5):
             resp = requests.get(
                 f"{self.BASE_URL}/generations/{task_id}",
@@ -377,14 +376,14 @@ class RunwayClient:
             if status == "completed":
                 return resp.json()["output"]["video_url"]
             elif status == "failed":
-                raise Exception(f"生成失敗: {resp.json()}")
+                raise Exception(f"Generation failed: {resp.json()}")
             time.sleep(5)
-        raise TimeoutError("生成タイムアウト")
+        raise TimeoutError("Generation timed out")
 
-# 使用例
+# Usage example
 client = RunwayClient("your_api_key")
 
-# テキストから動画
+# Text to video
 video_url = client.generate_video(
     prompt="Aerial view of cherry blossom trees along a river "
            "in Tokyo, petals floating in the wind, golden hour",
@@ -392,7 +391,7 @@ video_url = client.generate_video(
     aspect_ratio="16:9",
 )
 
-# 画像から動画
+# Image to video
 video_url = client.image_to_video(
     image_url="https://example.com/landscape.jpg",
     prompt="Gentle camera zoom out, clouds moving slowly",
@@ -400,81 +399,81 @@ video_url = client.image_to_video(
 )
 ```
 
-### コード例3: Pika Labs による動画生成
+### Code Example 3: Video Generation with Pika Labs
 
 ```python
 """
-Pika API (概念的なインターフェース)
-公式APIは順次公開。Discordボット経由の利用が主流。
+Pika API (conceptual interface)
+The official API is being rolled out gradually. Discord bot usage is mainstream.
 """
 
 PIKA_FEATURES = {
     "text_to_video": {
-        "説明": "テキストプロンプトから3秒の動画を生成",
-        "構文": "/create prompt: [テキスト]",
-        "例": "/create prompt: a cat walking on a rainbow bridge, "
+        "description": "Generate a 3-second video from a text prompt",
+        "syntax": "/create prompt: [text]",
+        "example": "/create prompt: a cat walking on a rainbow bridge, "
               "anime style -ar 16:9 -motion 2",
-        "パラメータ": {
-            "-ar": "アスペクト比 (16:9, 9:16, 1:1)",
-            "-motion": "動きの量 (1-4)",
-            "-gs": "ガイダンススケール (8-24)",
-            "-seed": "再現性のためのシード値",
-            "-fps": "フレームレート (8, 24)",
+        "parameters": {
+            "-ar": "Aspect ratio (16:9, 9:16, 1:1)",
+            "-motion": "Amount of motion (1-4)",
+            "-gs": "Guidance scale (8-24)",
+            "-seed": "Seed value for reproducibility",
+            "-fps": "Frame rate (8, 24)",
         },
     },
     "image_to_video": {
-        "説明": "静止画にモーションを付与",
-        "構文": "/animate [画像添付] prompt: [テキスト]",
-        "強み": "入力画像の忠実度が高い",
+        "description": "Add motion to a still image",
+        "syntax": "/animate [attach image] prompt: [text]",
+        "strength": "High fidelity to input image",
     },
     "video_to_video": {
-        "説明": "既存動画のスタイル変換",
-        "構文": "/modify [動画添付] prompt: [テキスト]",
-        "用途": "実写→アニメ変換、色調変更",
+        "description": "Style transfer on existing video",
+        "syntax": "/modify [attach video] prompt: [text]",
+        "use_case": "Live-action to anime conversion, color tone changes",
     },
     "lip_sync": {
-        "説明": "キャラクターの口を音声に同期",
-        "構文": "/lip-sync [動画] [音声]",
+        "description": "Sync character lip movements to audio",
+        "syntax": "/lip-sync [video] [audio]",
     },
 }
 
-# プロンプト設計のベストプラクティス
+# Best practices for prompt design
 VIDEO_PROMPT_TIPS = """
-動画プロンプトの書き方:
+How to write video prompts:
 
-1. カメラワークを明示する:
-   - "slow dolly forward" (ドリー前進)
-   - "aerial flyover" (空撮)
-   - "static shot" (固定ショット)
-   - "tracking shot following..." (追跡ショット)
+1. Specify camera movements explicitly:
+   - "slow dolly forward"
+   - "aerial flyover"
+   - "static shot"
+   - "tracking shot following..."
 
-2. 動きを具体的に記述する:
-   - "wind blowing through hair" (髪が風になびく)
-   - "waves crashing on shore" (波が打ち寄せる)
-   - "person slowly turning around" (人がゆっくり振り返る)
+2. Describe motion concretely:
+   - "wind blowing through hair"
+   - "waves crashing on shore"
+   - "person slowly turning around"
 
-3. 時間的変化を指定する:
-   - "transitioning from day to night" (昼→夜)
-   - "flower blooming in timelapse" (花がタイムラプスで咲く)
+3. Specify temporal changes:
+   - "transitioning from day to night"
+   - "flower blooming in timelapse"
 
-4. 避けるべきこと:
-   - 複雑な人物動作 (まだ苦手)
-   - テキストの表示 (歪みやすい)
-   - 物理的に不可能な動き
+4. Things to avoid:
+   - Complex human actions (still a weakness)
+   - Text display (tends to distort)
+   - Physically impossible movements
 """
 ```
 
-### 2.1 Stable Video Diffusion (SVD) — オープンソース動画生成
+### 2.1 Stable Video Diffusion (SVD) — Open-Source Video Generation
 
 ```python
 """
-Stable Video Diffusion: オープンソースの Image-to-Video モデル
+Stable Video Diffusion: Open-source Image-to-Video model
 
-特徴:
-- Stability AI による公開モデル
-- Image-to-Video に特化
-- ローカル環境で実行可能
-- ComfyUI / A1111 でも使用可能
+Features:
+- Public model by Stability AI
+- Specialized for Image-to-Video
+- Can run in local environments
+- Also usable with ComfyUI / A1111
 """
 from diffusers import StableVideoDiffusionPipeline
 from diffusers.utils import load_image, export_to_video
@@ -490,15 +489,15 @@ def generate_video_svd(
     decode_chunk_size=8,
 ):
     """
-    Stable Video Diffusion による動画生成
+    Video generation with Stable Video Diffusion
 
     Parameters:
-        image_path: 入力画像パス
-        num_frames: 生成フレーム数 (14 or 25)
-        fps: 出力フレームレート
-        motion_bucket_id: 動きの量 (0-255, 高い=動き大)
-        noise_aug_strength: 入力画像へのノイズ (0-1)
-        decode_chunk_size: VAEデコードのチャンクサイズ
+        image_path: Input image path
+        num_frames: Number of frames to generate (14 or 25)
+        fps: Output frame rate
+        motion_bucket_id: Amount of motion (0-255, higher = more motion)
+        noise_aug_strength: Noise added to input image (0-1)
+        decode_chunk_size: Chunk size for VAE decoding
     """
     pipe = StableVideoDiffusionPipeline.from_pretrained(
         "stabilityai/stable-video-diffusion-img2vid-xt",
@@ -506,15 +505,15 @@ def generate_video_svd(
         variant="fp16",
     ).to("cuda")
 
-    # メモリ最適化
+    # Memory optimization
     pipe.enable_model_cpu_offload()
     pipe.unet.enable_forward_chunking()
 
-    # 入力画像の読み込みとリサイズ
+    # Load and resize input image
     image = load_image(image_path)
-    image = image.resize((1024, 576))  # SVD の推奨入力サイズ
+    image = image.resize((1024, 576))  # SVD recommended input size
 
-    # 動画生成
+    # Generate video
     generator = torch.manual_seed(42)
     frames = pipe(
         image,
@@ -525,12 +524,12 @@ def generate_video_svd(
         generator=generator,
     ).frames[0]
 
-    # 動画として保存
+    # Save as video
     export_to_video(frames, output_path, fps=fps)
-    print(f"動画生成完了: {output_path}")
-    print(f"  フレーム数: {num_frames}")
+    print(f"Video generation complete: {output_path}")
+    print(f"  Frames: {num_frames}")
     print(f"  FPS: {fps}")
-    print(f"  長さ: {num_frames / fps:.1f}秒")
+    print(f"  Duration: {num_frames / fps:.1f}s")
 
     return output_path
 
@@ -541,7 +540,7 @@ def batch_image_to_video(
     motion_bucket_id=127,
     num_frames=25,
 ):
-    """ディレクトリ内の全画像を動画化"""
+    """Convert all images in a directory to videos"""
     from pathlib import Path
 
     input_path = Path(image_dir)
@@ -564,20 +563,20 @@ def batch_image_to_video(
 
         output_file = out_path / f"{img_file.stem}.mp4"
         export_to_video(frames, str(output_file), fps=7)
-        print(f"完了: {img_file.name} → {output_file.name}")
+        print(f"Done: {img_file.name} -> {output_file.name}")
 ```
 
-### 2.2 CogVideoX — オープンソース Text-to-Video
+### 2.2 CogVideoX — Open-Source Text-to-Video
 
 ```python
 """
-CogVideoX: テキストから動画を生成するオープンソースモデル
+CogVideoX: Open-source model for generating videos from text
 
-特徴:
-- Text-to-Video 対応 (SVD は Image-to-Video のみ)
-- 6秒の動画生成
-- 720x480 解像度
-- 5B / 2B パラメータのバリエーション
+Features:
+- Text-to-Video support (SVD is Image-to-Video only)
+- 6-second video generation
+- 720x480 resolution
+- 5B / 2B parameter variants
 """
 from diffusers import CogVideoXPipeline
 from diffusers.utils import export_to_video
@@ -591,13 +590,13 @@ def generate_video_cogvideo(
     num_inference_steps=50,
 ):
     """
-    CogVideoX によるテキストから動画生成
+    Text-to-video generation with CogVideoX
 
     Parameters:
-        prompt: テキストプロンプト
-        num_frames: フレーム数 (49 = 約6秒@8fps)
-        guidance_scale: テキスト一致度
-        num_inference_steps: 推論ステップ数
+        prompt: Text prompt
+        num_frames: Number of frames (49 = approx. 6 seconds at 8fps)
+        guidance_scale: Text alignment strength
+        num_inference_steps: Number of inference steps
     """
     pipe = CogVideoXPipeline.from_pretrained(
         "THUDM/CogVideoX-5b",
@@ -619,53 +618,53 @@ def generate_video_cogvideo(
     export_to_video(video, output_path, fps=8)
     return output_path
 
-# 使用例
+# Usage example
 generate_video_cogvideo(
     prompt="A golden retriever running on a beach at sunset, "
            "waves splashing, cinematic lighting, slow motion",
 )
 ```
 
-### ASCII図解2: 主要動画生成プラットフォームの機能マップ
+### ASCII Diagram 2: Feature Map of Major Video Generation Platforms
 
 ```
-┌──────── 動画生成プラットフォーム比較 ─────────────────┐
-│                                                      │
-│     Sora          Runway Gen-3     Pika 2.0         │
-│  ┌─────────┐    ┌─────────────┐  ┌──────────┐      │
-│  │最長60秒  │    │最長10秒     │  │最長10秒   │      │
-│  │1080p     │    │4K対応       │  │1080p      │      │
-│  │DiT base  │    │独自モデル   │  │独自モデル  │      │
-│  │          │    │             │  │           │      │
-│  │Text→Video│    │Text→Video   │  │Text→Video │      │
-│  │Img→Video │    │Img→Video    │  │Img→Video  │      │
-│  │          │    │Motion Brush │  │Vid→Video  │      │
-│  │          │    │Camera Control│ │Lip Sync   │      │
-│  └─────────┘    └─────────────┘  └──────────┘      │
-│                                                      │
-│     Kling         Luma Dream      Stable Video       │
-│  ┌─────────┐    ┌─────────────┐  ┌──────────┐      │
-│  │最長120秒 │    │最長5秒      │  │最長4秒    │      │
-│  │1080p     │    │1080p        │  │1024x576   │      │
-│  │中国発    │    │Dream Machine│  │SVD base   │      │
-│  │Motion    │    │             │  │           │      │
-│  │Transfer  │    │Text→Video   │  │Img→Video  │      │
-│  └─────────┘    └─────────────┘  └──────────┘      │
-│                                                      │
-│  ┌─────────── オープンソース ─────────────────┐      │
-│  │  CogVideoX    Open-Sora    AnimateDiff    │      │
-│  │  Text→Video   Text→Video   Img→Video      │      │
-│  │  5B/2B params  研究用       SD Extension   │      │
-│  │  ローカル実行可  ローカル実行可  ComfyUI対応  │      │
-│  └───────────────────────────────────────────┘      │
-└──────────────────────────────────────────────────────┘
++--------- Video Generation Platform Comparison -----------+
+|                                                           |
+|     Sora          Runway Gen-3     Pika 2.0              |
+|  +---------+    +-------------+  +----------+            |
+|  |Up to 60s |    |Up to 10s    |  |Up to 10s  |            |
+|  |1080p     |    |4K support   |  |1080p      |            |
+|  |DiT base  |    |Custom model |  |Custom model|            |
+|  |          |    |             |  |           |            |
+|  |Text->Vid |    |Text->Vid   |  |Text->Vid  |            |
+|  |Img->Vid  |    |Img->Vid    |  |Img->Vid   |            |
+|  |          |    |Motion Brush|  |Vid->Vid   |            |
+|  |          |    |Camera Ctrl |  |Lip Sync   |            |
+|  +---------+    +-------------+  +----------+            |
+|                                                           |
+|     Kling         Luma Dream      Stable Video            |
+|  +---------+    +-------------+  +----------+            |
+|  |Up to 120s|    |Up to 5s     |  |Up to 4s   |            |
+|  |1080p     |    |1080p        |  |1024x576   |            |
+|  |China-orig|    |Dream Machine|  |SVD base   |            |
+|  |Motion    |    |             |  |           |            |
+|  |Transfer  |    |Text->Vid   |  |Img->Vid   |            |
+|  +---------+    +-------------+  +----------+            |
+|                                                           |
+|  +------------ Open Source -----------------------+      |
+|  |  CogVideoX    Open-Sora    AnimateDiff         |      |
+|  |  Text->Vid    Text->Vid    Img->Vid             |      |
+|  |  5B/2B params  Research    SD Extension         |      |
+|  |  Local exec    Local exec  ComfyUI support      |      |
+|  +------------------------------------------------+      |
++-----------------------------------------------------------+
 ```
 
 ---
 
-## 3. プロダクション向けワークフロー
+## 3. Production Workflows
 
-### コード例4: 動画生成の品質管理パイプライン
+### Code Example 4: Video Generation Quality Control Pipeline
 
 ```python
 import subprocess
@@ -673,23 +672,23 @@ from pathlib import Path
 import json
 
 class VideoProductionPipeline:
-    """動画生成の品質管理ワークフロー"""
+    """Quality control workflow for video generation"""
 
     def __init__(self, output_dir="./output"):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(exist_ok=True)
 
     def generate_candidates(self, prompt, num_candidates=5):
-        """複数の候補動画を生成"""
+        """Generate multiple candidate videos"""
         candidates = []
         for i in range(num_candidates):
-            # 各サービスで生成 (シードを変えて)
+            # Generate with each service (varying seeds)
             video_path = self._generate_single(prompt, seed=i * 1000)
             candidates.append(video_path)
         return candidates
 
     def evaluate_quality(self, video_path):
-        """動画品質のチェック"""
+        """Check video quality"""
         checks = {
             "temporal_consistency": self._check_temporal_consistency(video_path),
             "artifact_score": self._check_artifacts(video_path),
@@ -700,8 +699,8 @@ class VideoProductionPipeline:
         return {"checks": checks, "overall": overall}
 
     def post_process(self, video_path, output_path):
-        """FFmpegによる後処理"""
-        # フレーム補間 (24fps → 60fps)
+        """Post-processing with FFmpeg"""
+        # Frame interpolation (24fps -> 60fps)
         subprocess.run([
             "ffmpeg", "-i", str(video_path),
             "-vf", "minterpolate=fps=60:mi_mode=mci",
@@ -710,8 +709,8 @@ class VideoProductionPipeline:
         ])
 
     def upscale_video(self, video_path, output_path, scale=2):
-        """動画のAIアップスケーリング"""
-        # フレーム抽出
+        """AI upscaling of video"""
+        # Extract frames
         frames_dir = self.output_dir / "frames"
         frames_dir.mkdir(exist_ok=True)
         subprocess.run([
@@ -719,11 +718,11 @@ class VideoProductionPipeline:
             str(frames_dir / "frame_%04d.png"),
         ])
 
-        # 各フレームをアップスケール (Real-ESRGAN等)
+        # Upscale each frame (using Real-ESRGAN, etc.)
         for frame in sorted(frames_dir.glob("*.png")):
             self._upscale_frame(frame, scale)
 
-        # フレームを動画に再結合
+        # Reassemble frames into video
         subprocess.run([
             "ffmpeg", "-framerate", "24",
             "-i", str(frames_dir / "frame_%04d_upscaled.png"),
@@ -732,7 +731,7 @@ class VideoProductionPipeline:
         ])
 
     def _check_temporal_consistency(self, video_path):
-        """時間的一貫性のチェック"""
+        """Check temporal consistency"""
         import cv2
         import numpy as np
 
@@ -756,7 +755,7 @@ class VideoProductionPipeline:
         if not diffs:
             return 0.0
 
-        # 急激な変化がないかチェック
+        # Check for abrupt changes
         mean_diff = np.mean(diffs)
         std_diff = np.std(diffs)
         outliers = sum(1 for d in diffs if abs(d - mean_diff) > 2 * std_diff)
@@ -765,7 +764,7 @@ class VideoProductionPipeline:
         return max(0.0, min(1.0, consistency))
 
     def _check_motion_quality(self, video_path):
-        """動きの品質チェック (オプティカルフロー解析)"""
+        """Motion quality check (optical flow analysis)"""
         import cv2
         import numpy as np
 
@@ -792,63 +791,63 @@ class VideoProductionPipeline:
         if not flow_magnitudes:
             return 0.0
 
-        # 動きの滑らかさを評価
+        # Evaluate motion smoothness
         smoothness = 1.0 - np.std(flow_magnitudes) / (np.mean(flow_magnitudes) + 1e-8)
         return max(0.0, min(1.0, smoothness))
 ```
 
-### コード例5: 動画生成プロンプトの体系的設計
+### Code Example 5: Systematic Design of Video Generation Prompts
 
 ```python
 class VideoPromptBuilder:
-    """動画生成用プロンプトの構築"""
+    """Build prompts for video generation"""
 
     CAMERA_MOVES = {
-        "固定": "static shot, locked camera",
-        "パン左": "slow pan left, horizontal camera movement",
-        "パン右": "slow pan right, horizontal camera movement",
-        "ティルトアップ": "tilt up, camera looking upward",
-        "ティルトダウン": "tilt down, camera looking downward",
-        "ドリーイン": "slow dolly forward, approaching subject",
-        "ドリーアウト": "slow dolly backward, pulling away",
-        "空撮": "aerial drone shot, bird's eye view, flying over",
-        "軌道": "orbiting shot, rotating around subject",
-        "ステディカム": "steadicam tracking shot, smooth movement",
-        "ズームイン": "slow zoom in, focusing on subject",
-        "ズームアウト": "slow zoom out, revealing environment",
-        "クレーン": "crane shot, moving upward and forward",
-        "手持ち": "handheld camera, slight shake, documentary style",
+        "static": "static shot, locked camera",
+        "pan_left": "slow pan left, horizontal camera movement",
+        "pan_right": "slow pan right, horizontal camera movement",
+        "tilt_up": "tilt up, camera looking upward",
+        "tilt_down": "tilt down, camera looking downward",
+        "dolly_in": "slow dolly forward, approaching subject",
+        "dolly_out": "slow dolly backward, pulling away",
+        "aerial": "aerial drone shot, bird's eye view, flying over",
+        "orbit": "orbiting shot, rotating around subject",
+        "steadicam": "steadicam tracking shot, smooth movement",
+        "zoom_in": "slow zoom in, focusing on subject",
+        "zoom_out": "slow zoom out, revealing environment",
+        "crane": "crane shot, moving upward and forward",
+        "handheld": "handheld camera, slight shake, documentary style",
     }
 
     MOTION_TYPES = {
-        "自然": "natural movement, wind, water flow, clouds",
-        "人物": "person walking, human motion, gesture",
-        "動物": "animal movement, natural behavior",
-        "抽象": "abstract motion, particle flow, morphing",
-        "タイムラプス": "timelapse, accelerated time, day to night",
-        "スローモーション": "slow motion, 120fps, dramatic timing",
-        "静的": "minimal movement, subtle animation, cinemagraph",
+        "natural": "natural movement, wind, water flow, clouds",
+        "human": "person walking, human motion, gesture",
+        "animal": "animal movement, natural behavior",
+        "abstract": "abstract motion, particle flow, morphing",
+        "timelapse": "timelapse, accelerated time, day to night",
+        "slow_motion": "slow motion, 120fps, dramatic timing",
+        "static": "minimal movement, subtle animation, cinemagraph",
     }
 
     LIGHTING_PRESETS = {
-        "ゴールデンアワー": "golden hour, warm sunlight, long shadows",
-        "ブルーアワー": "blue hour, twilight, cool tones",
-        "スタジオ": "studio lighting, three-point, professional",
-        "ネオン": "neon lights, cyberpunk, colorful reflections",
-        "月明かり": "moonlight, nighttime, ethereal glow",
-        "逆光": "backlit, silhouette, rim lighting",
-        "曇天": "overcast, diffused light, no harsh shadows",
+        "golden_hour": "golden hour, warm sunlight, long shadows",
+        "blue_hour": "blue hour, twilight, cool tones",
+        "studio": "studio lighting, three-point, professional",
+        "neon": "neon lights, cyberpunk, colorful reflections",
+        "moonlight": "moonlight, nighttime, ethereal glow",
+        "backlit": "backlit, silhouette, rim lighting",
+        "overcast": "overcast, diffused light, no harsh shadows",
     }
 
     STYLE_PRESETS = {
-        "シネマティック": "cinematic, film grain, anamorphic lens, 2.39:1",
-        "ドキュメンタリー": "documentary style, natural, raw footage",
-        "アニメ": "anime style, cel shading, vibrant colors",
-        "ピクサー風": "Pixar style, 3D animation, colorful, cute",
-        "ノワール": "film noir, black and white, high contrast",
-        "ヴィンテージ": "vintage, 8mm film, desaturated, vignette",
-        "ハイパーリアル": "hyperrealistic, photorealistic, 8K, HDR",
-        "ミニチュア": "tilt-shift, miniature effect, shallow depth of field",
+        "cinematic": "cinematic, film grain, anamorphic lens, 2.39:1",
+        "documentary": "documentary style, natural, raw footage",
+        "anime": "anime style, cel shading, vibrant colors",
+        "pixar": "Pixar style, 3D animation, colorful, cute",
+        "noir": "film noir, black and white, high contrast",
+        "vintage": "vintage, 8mm film, desaturated, vignette",
+        "hyperreal": "hyperrealistic, photorealistic, 8K, HDR",
+        "miniature": "tilt-shift, miniature effect, shallow depth of field",
     }
 
     def __init__(self):
@@ -882,7 +881,7 @@ class VideoPromptBuilder:
         return self
 
     def build(self):
-        # negative は分離
+        # Separate negative prompt
         positive_parts = {
             k: v for k, v in self.parts.items() if k != "negative"
         }
@@ -895,64 +894,64 @@ class VideoPromptBuilder:
             }
         return {"prompt": prompt}
 
-# 使用例
+# Usage example
 result = (
     VideoPromptBuilder()
     .set_scene("Ancient temple in Kyoto surrounded by maple trees")
-    .set_camera("ドリーイン")
-    .set_motion("自然", "leaves gently falling, mist rising")
-    .set_lighting("ゴールデンアワー")
-    .set_style("シネマティック")
+    .set_camera("dolly_in")
+    .set_motion("natural", "leaves gently falling, mist rising")
+    .set_lighting("golden_hour")
+    .set_style("cinematic")
     .set_negative("blurry, low quality, text, watermark")
     .build()
 )
 print(result["prompt"])
 ```
 
-### ASCII図解3: プロダクション動画生成ワークフロー
+### ASCII Diagram 3: Production Video Generation Workflow
 
 ```
-┌─ Phase 1: 企画 ──┐  ┌─ Phase 2: 生成 ──┐  ┌─ Phase 3: 後処理 ┐
-│                   │  │                   │  │                   │
-│ ストーリーボード  │  │ プロンプト設計    │  │ フレーム補間      │
-│       │           │  │       │           │  │ (24fps→60fps)     │
-│       v           │  │       v           │  │       │           │
-│ シーン分割       │→│ 複数候補生成      │→│ アップスケール    │
-│ (3-5秒単位)      │  │ (5候補/シーン)    │  │ (1080p→4K)       │
-│       │           │  │       │           │  │       │           │
-│       v           │  │       v           │  │       v           │
-│ カメラワーク設計  │  │ 品質評価・選択    │  │ 色調補正          │
-│                   │  │                   │  │       │           │
-└───────────────────┘  └───────────────────┘  │       v           │
-                                               │ 音楽・SE追加      │
-                                               │       │           │
-                                               │       v           │
-                                               │ 最終書き出し      │
-                                               └───────────────────┘
++- Phase 1: Planning -+  +- Phase 2: Generation +  +- Phase 3: Post-proc -+
+|                      |  |                      |  |                      |
+| Storyboard           |  | Prompt design        |  | Frame interpolation  |
+|       |              |  |       |              |  | (24fps->60fps)       |
+|       v              |  |       v              |  |       |              |
+| Scene splitting     |->| Multi-candidate gen  |->| Upscaling            |
+| (3-5 sec units)     |  | (5 candidates/scene) |  | (1080p->4K)          |
+|       |              |  |       |              |  |       |              |
+|       v              |  |       v              |  |       v              |
+| Camera work design   |  | Quality eval/select  |  | Color grading        |
+|                      |  |                      |  |       |              |
++----------------------+  +----------------------+  |       v              |
+                                                    | Music/SFX addition   |
+                                                    |       |              |
+                                                    |       v              |
+                                                    | Final export         |
+                                                    +----------------------+
 
-品質チェックポイント:
-  ✓ 時間的一貫性 (フリッカーなし)
-  ✓ 物理的整合性 (不自然な動きなし)
-  ✓ プロンプト忠実度
-  ✓ アーティファクトなし
-  ✓ シーン間の繋がり
+Quality Checkpoints:
+  - Temporal consistency (no flickering)
+  - Physical coherence (no unnatural motion)
+  - Prompt fidelity
+  - No artifacts
+  - Scene-to-scene continuity
 ```
 
 ---
 
-## 4. フレーム補間と動画品質向上
+## 4. Frame Interpolation and Video Quality Enhancement
 
-### 4.1 RIFE によるフレーム補間
+### 4.1 Frame Interpolation with RIFE
 
 ```python
 """
 RIFE (Real-Time Intermediate Flow Estimation)
-動画のフレームレートを向上させるAIベースのフレーム補間
+AI-based frame interpolation to improve video frame rate
 
-用途:
-- 24fps → 60fps (滑らかな再生)
-- 低FPSの生成動画を高FPSに変換
-- スローモーション効果
+Use cases:
+- 24fps -> 60fps (smoother playback)
+- Convert low-FPS generated videos to high FPS
+- Slow motion effects
 """
 
 import cv2
@@ -961,15 +960,14 @@ from pathlib import Path
 import subprocess
 
 class RIFEInterpolator:
-    """RIFE によるフレーム補間パイプライン"""
+    """Frame interpolation pipeline using RIFE"""
 
     def __init__(self, model_path="weights/rife-v4.6.pth", device="cuda"):
         self.device = device
         self.model = self._load_model(model_path)
 
     def _load_model(self, model_path):
-        """RIFE モデルのロード"""
-        # 実際にはRIFEのモデルクラスをインポート
+        """Load RIFE model"""
         import torch
         from rife.RIFE import Model
 
@@ -980,18 +978,18 @@ class RIFEInterpolator:
 
     def interpolate_frames(self, frame1, frame2, num_mid_frames=1):
         """
-        2フレーム間に中間フレームを生成
+        Generate intermediate frames between two frames
 
         Parameters:
             frame1, frame2: numpy array [H, W, C]
-            num_mid_frames: 生成する中間フレームの数
+            num_mid_frames: Number of intermediate frames to generate
 
         Returns:
-            list of numpy arrays (中間フレーム)
+            list of numpy arrays (intermediate frames)
         """
         import torch
 
-        # numpy → tensor
+        # numpy -> tensor
         def to_tensor(img):
             t = torch.from_numpy(img.copy()).permute(2, 0, 1).float() / 255.0
             return t.unsqueeze(0).to(self.device)
@@ -1004,7 +1002,7 @@ class RIFEInterpolator:
             timestep = i / (num_mid_frames + 1)
             with torch.no_grad():
                 mid = self.model.inference(t1, t2, timestep)
-            # tensor → numpy
+            # tensor -> numpy
             mid_np = (mid.squeeze(0).permute(1, 2, 0).cpu().numpy() * 255).astype(np.uint8)
             mid_frames.append(mid_np)
 
@@ -1013,12 +1011,12 @@ class RIFEInterpolator:
     def interpolate_video(self, input_path, output_path,
                           target_fps=60, codec="libx264", crf=18):
         """
-        動画全体のフレーム補間
+        Frame interpolation for the entire video
 
         Parameters:
-            input_path: 入力動画
-            output_path: 出力動画
-            target_fps: 目標FPS
+            input_path: Input video
+            output_path: Output video
+            target_fps: Target FPS
         """
         cap = cv2.VideoCapture(str(input_path))
         src_fps = cap.get(cv2.CAP_PROP_FPS)
@@ -1029,8 +1027,8 @@ class RIFEInterpolator:
         multiplier = int(target_fps / src_fps)
         num_mid = multiplier - 1
 
-        print(f"入力: {src_fps}fps → 出力: {target_fps}fps "
-              f"(x{multiplier}, 中間{num_mid}フレーム)")
+        print(f"Input: {src_fps}fps -> Output: {target_fps}fps "
+              f"(x{multiplier}, {num_mid} intermediate frames)")
 
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         writer = cv2.VideoWriter(
@@ -1046,11 +1044,11 @@ class RIFEInterpolator:
                 break
 
             if prev_frame is not None:
-                # 中間フレームを生成
+                # Generate intermediate frames
                 mid_frames = self.interpolate_frames(
                     prev_frame, frame, num_mid
                 )
-                # 前フレーム → 中間フレーム → 現フレーム の順で書き出し
+                # Write in order: previous frame -> intermediate frames -> current frame
                 writer.write(prev_frame)
                 for mf in mid_frames:
                     writer.write(mf)
@@ -1063,28 +1061,28 @@ class RIFEInterpolator:
             if frame_idx % 50 == 0:
                 print(f"  [{frame_idx}/{total_frames}]")
 
-        # 最後のフレーム
+        # Last frame
         if prev_frame is not None:
             writer.write(prev_frame)
 
         cap.release()
         writer.release()
 
-        print(f"完了: {output_path}")
+        print(f"Done: {output_path}")
         return output_path
 ```
 
-### 4.2 動画の色調統一（シーン間の一貫性）
+### 4.2 Video Color Harmonization (Cross-Scene Consistency)
 
 ```python
 class VideoColorHarmonizer:
-    """複数ショットの色調を統一するパイプライン"""
+    """Pipeline for unifying color tones across multiple shots"""
 
     def __init__(self):
         pass
 
     def extract_color_stats(self, video_path, num_samples=10):
-        """動画の色統計情報を抽出"""
+        """Extract color statistics from a video"""
         cap = cv2.VideoCapture(str(video_path))
         total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         sample_interval = max(1, total_frames // num_samples)
@@ -1115,27 +1113,27 @@ class VideoColorHarmonizer:
     def harmonize_videos(self, video_paths, reference_idx=0,
                          output_dir="harmonized"):
         """
-        複数動画の色調をリファレンスに合わせる
+        Match color tones of multiple videos to a reference
 
         Parameters:
-            video_paths: 動画パスのリスト
-            reference_idx: リファレンスとする動画のインデックス
-            output_dir: 出力ディレクトリ
+            video_paths: List of video paths
+            reference_idx: Index of the reference video
+            output_dir: Output directory
         """
         out_dir = Path(output_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
 
-        # リファレンスの色統計
+        # Color statistics of the reference
         ref_stats = self.extract_color_stats(video_paths[reference_idx])
 
         for i, vp in enumerate(video_paths):
             if i == reference_idx:
-                # リファレンスはそのままコピー
+                # Copy reference as-is
                 import shutil
                 shutil.copy(vp, out_dir / Path(vp).name)
                 continue
 
-            # 色補正を適用
+            # Apply color correction
             src_stats = self.extract_color_stats(vp)
             self._apply_color_transfer(
                 vp,
@@ -1146,7 +1144,7 @@ class VideoColorHarmonizer:
 
     def _apply_color_transfer(self, input_path, output_path,
                                src_stats, ref_stats):
-        """フレームごとに色転写を適用"""
+        """Apply color transfer frame by frame"""
         cap = cv2.VideoCapture(str(input_path))
         fps = cap.get(cv2.CAP_PROP_FPS)
         w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -1179,9 +1177,9 @@ class VideoColorHarmonizer:
 
 ---
 
-## 5. 動画生成の自動化と統合
+## 5. Video Generation Automation and Integration
 
-### 5.1 マルチプラットフォーム動画生成オーケストレーター
+### 5.1 Multi-Platform Video Generation Orchestrator
 
 ```python
 import asyncio
@@ -1197,13 +1195,13 @@ class Platform(Enum):
 
 class VideoGenerationOrchestrator:
     """
-    複数プラットフォームを統合する動画生成オーケストレーター
+    Video generation orchestrator integrating multiple platforms
 
-    機能:
-    - プラットフォーム自動選択 (要件に基づく)
-    - 並列生成
-    - コスト管理
-    - 品質評価と自動リトライ
+    Features:
+    - Automatic platform selection (based on requirements)
+    - Parallel generation
+    - Cost management
+    - Quality evaluation and automatic retry
     """
 
     def __init__(self, api_keys=None):
@@ -1211,7 +1209,7 @@ class VideoGenerationOrchestrator:
         self.cost_tracker = CostTracker()
 
     def recommend_platform(self, requirements):
-        """要件に基づくプラットフォーム推薦"""
+        """Platform recommendation based on requirements"""
         duration = requirements.get("duration", 4)
         quality = requirements.get("quality", "high")
         budget = requirements.get("budget_per_clip", 1.0)
@@ -1222,28 +1220,28 @@ class VideoGenerationOrchestrator:
 
         if input_type == "text":
             if quality == "highest" and budget >= 0.50:
-                recommendations.append(("Sora", "最高品質、長尺対応"))
+                recommendations.append(("Sora", "Highest quality, long-form support"))
             if quality in ("high", "highest") and budget >= 0.10:
-                recommendations.append(("Runway Gen-3", "高品質、カメラ制御"))
+                recommendations.append(("Runway Gen-3", "High quality, camera control"))
             if budget < 0.10:
-                recommendations.append(("Pika", "コスパ最良"))
+                recommendations.append(("Pika", "Best cost-performance"))
             if local_gpu:
-                recommendations.append(("CogVideoX", "ローカル実行、コスト0"))
+                recommendations.append(("CogVideoX", "Local execution, zero cost"))
 
         elif input_type == "image":
             if quality == "highest":
-                recommendations.append(("Runway Gen-3", "I2V最高品質"))
+                recommendations.append(("Runway Gen-3", "Best I2V quality"))
             if local_gpu:
-                recommendations.append(("SVD", "ローカルI2V、コスト0"))
+                recommendations.append(("SVD", "Local I2V, zero cost"))
 
         if duration > 10:
-            recommendations.insert(0, ("Kling", f"最長{duration}秒対応"))
+            recommendations.insert(0, ("Kling", f"Supports up to {duration}s"))
 
         return recommendations
 
     async def generate_multi_platform(self, prompt, platforms=None,
                                        num_per_platform=2):
-        """複数プラットフォームで並列生成し、最良の結果を選択"""
+        """Generate in parallel across multiple platforms and select the best result"""
         if platforms is None:
             platforms = [Platform.RUNWAY, Platform.PIKA]
 
@@ -1256,12 +1254,12 @@ class VideoGenerationOrchestrator:
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
-        # エラーを除外
+        # Filter out errors
         valid_results = [
             r for r in results if not isinstance(r, Exception)
         ]
 
-        # 品質スコアで並べ替え
+        # Sort by quality score
         scored_results = []
         for result in valid_results:
             quality = self._evaluate_quality(result["video_path"])
@@ -1275,13 +1273,13 @@ class VideoGenerationOrchestrator:
         return scored_results
 
     async def _generate_one(self, platform, prompt, seed=0):
-        """1つのプラットフォームで生成"""
+        """Generate on a single platform"""
         if platform == Platform.RUNWAY:
             client = RunwayClient(self.api_keys.get("runway"))
             url = client.generate_video(prompt)
             cost = 0.10
         elif platform == Platform.PIKA:
-            # Pika API実装
+            # Pika API implementation
             url = None
             cost = 0.05
         else:
@@ -1299,7 +1297,7 @@ class VideoGenerationOrchestrator:
 
 
 class CostTracker:
-    """動画生成コストの追跡"""
+    """Track video generation costs"""
 
     def __init__(self):
         self.records = []
@@ -1334,11 +1332,11 @@ class CostTracker:
         }
 ```
 
-### 5.2 ストーリーボードからの自動動画生成
+### 5.2 Automatic Video Generation from Storyboards
 
 ```python
 class StoryboardToVideo:
-    """ストーリーボードから動画を自動生成するパイプライン"""
+    """Pipeline for automatically generating videos from storyboards"""
 
     def __init__(self, orchestrator):
         self.orchestrator = orchestrator
@@ -1346,20 +1344,20 @@ class StoryboardToVideo:
 
     def parse_storyboard(self, storyboard_json):
         """
-        ストーリーボードJSON を解析
+        Parse storyboard JSON
 
         Expected format:
         {
-            "title": "プロダクト紹介動画",
+            "title": "Product Introduction Video",
             "target_duration": 30,
             "shots": [
                 {
                     "id": "shot_01",
-                    "description": "高層ビルの屋上から都市を俯瞰",
-                    "camera": "空撮",
-                    "motion": "自然",
+                    "description": "Overlooking the city from a skyscraper rooftop",
+                    "camera": "aerial",
+                    "motion": "natural",
                     "duration": 5,
-                    "style": "シネマティック",
+                    "style": "cinematic",
                     "transition": "fade"
                 },
                 ...
@@ -1374,9 +1372,9 @@ class StoryboardToVideo:
             prompt = (
                 self.prompt_builder
                 .set_scene(shot_data["description"])
-                .set_camera(shot_data.get("camera", "固定"))
-                .set_motion(shot_data.get("motion", "自然"))
-                .set_style(shot_data.get("style", "シネマティック"))
+                .set_camera(shot_data.get("camera", "static"))
+                .set_motion(shot_data.get("motion", "natural"))
+                .set_style(shot_data.get("style", "cinematic"))
                 .build()
             )
             shots.append({
@@ -1393,7 +1391,7 @@ class StoryboardToVideo:
         }
 
     def generate_all_shots(self, storyboard, num_candidates=3):
-        """全ショットを生成"""
+        """Generate all shots"""
         results = {}
         for shot in storyboard["shots"]:
             print(f"Generating: {shot['id']}")
@@ -1412,24 +1410,24 @@ class StoryboardToVideo:
     def assemble_final_video(self, shot_videos, transitions,
                               output_path, audio_path=None):
         """
-        ショットを結合して最終動画を作成
+        Combine shots into a final video
 
         shot_videos: {"shot_01": "path/to/video.mp4", ...}
-        transitions: {"shot_01→shot_02": "fade", ...}
+        transitions: {"shot_01->shot_02": "fade", ...}
         """
-        # FFmpeg の concat フィルタで結合
+        # Combine using FFmpeg concat filter
         filter_complex = []
         inputs = []
 
         for i, (shot_id, video_path) in enumerate(shot_videos.items()):
             inputs.extend(["-i", str(video_path)])
 
-        # トランジションの適用
+        # Apply transitions
         cmd = ["ffmpeg"]
         for inp in inputs:
             cmd.append(inp)
 
-        # concat フィルタ
+        # Concat filter
         n = len(shot_videos)
         filter_str = "".join(
             f"[{i}:v:0]" for i in range(n)
@@ -1443,7 +1441,7 @@ class StoryboardToVideo:
             "-crf", "18",
         ])
 
-        # 音声の追加
+        # Add audio
         if audio_path:
             cmd.extend([
                 "-i", str(audio_path),
@@ -1459,238 +1457,238 @@ class StoryboardToVideo:
 
 ---
 
-## 6. 比較表
+## 6. Comparison Tables
 
-### 比較表1: 動画生成プラットフォーム詳細比較
+### Comparison Table 1: Detailed Video Generation Platform Comparison
 
-| 項目 | Sora | Runway Gen-3 | Pika 2.0 | Kling | Luma |
+| Item | Sora | Runway Gen-3 | Pika 2.0 | Kling | Luma |
 |------|------|-------------|---------|-------|------|
-| **最大長** | 60秒 | 10秒 | 10秒 | 120秒 | 5秒 |
-| **解像度** | 1080p | 4K | 1080p | 1080p | 1080p |
-| **Text→Video** | あり | あり | あり | あり | あり |
-| **Img→Video** | あり | あり | あり | あり | あり |
-| **Vid→Video** | あり | あり | あり | あり | なし |
-| **カメラ制御** | 自動 | Motion Brush | パラメータ | あり | 限定的 |
-| **品質** | ★★★★★ | ★★★★☆ | ★★★★☆ | ★★★★☆ | ★★★☆☆ |
-| **速度** | 数分 | 30秒~2分 | 30秒~1分 | 1~5分 | 30秒~1分 |
-| **価格** | $20~/月 | $12~/月 | $8~/月 | 無料~有料 | $24~/月 |
+| **Max Duration** | 60s | 10s | 10s | 120s | 5s |
+| **Resolution** | 1080p | 4K | 1080p | 1080p | 1080p |
+| **Text->Video** | Yes | Yes | Yes | Yes | Yes |
+| **Img->Video** | Yes | Yes | Yes | Yes | Yes |
+| **Vid->Video** | Yes | Yes | Yes | Yes | No |
+| **Camera Control** | Auto | Motion Brush | Parameters | Yes | Limited |
+| **Quality** | ★★★★★ | ★★★★☆ | ★★★★☆ | ★★★★☆ | ★★★☆☆ |
+| **Speed** | Minutes | 30s-2min | 30s-1min | 1-5min | 30s-1min |
+| **Price** | $20+/mo | $12+/mo | $8+/mo | Free-Paid | $24+/mo |
 
-### 比較表2: ユースケース別推奨プラットフォーム
+### Comparison Table 2: Recommended Platforms by Use Case
 
-| ユースケース | 推奨 | 理由 |
-|-------------|------|------|
-| **SNS短尺動画** | Pika / Runway | コスパと手軽さ |
-| **広告動画プロトタイプ** | Sora / Runway | 高品質、カメラ制御 |
-| **ミュージックビデオ** | Runway Gen-3 | Motion Brush、スタイル一貫性 |
-| **プレゼン素材** | Pika | 低コスト、十分な品質 |
-| **映画制作 (プリビズ)** | Sora | 最長尺、最高品質 |
-| **ECサイト商品動画** | Kling | 長尺対応、コスパ |
-| **個人/研究用** | CogVideoX / SVD | 無料、ローカル実行 |
-| **アニメーション** | Pika + スタイル指定 | アニメスタイル変換 |
+| Use Case | Recommended | Reason |
+|----------|------------|--------|
+| **Short-form social media videos** | Pika / Runway | Cost-effectiveness and ease of use |
+| **Ad video prototyping** | Sora / Runway | High quality, camera control |
+| **Music videos** | Runway Gen-3 | Motion Brush, style consistency |
+| **Presentation assets** | Pika | Low cost, sufficient quality |
+| **Film production (previz)** | Sora | Longest duration, highest quality |
+| **E-commerce product videos** | Kling | Long-form support, cost-effectiveness |
+| **Personal/research use** | CogVideoX / SVD | Free, local execution |
+| **Animation** | Pika + style specification | Anime style transfer |
 
-### 比較表3: オープンソース動画生成モデル
+### Comparison Table 3: Open-Source Video Generation Models
 
-| モデル | タイプ | 解像度 | 長さ | VRAM | 特徴 |
-|--------|-------|--------|------|------|------|
-| **SVD** | Img→Video | 1024x576 | 4秒 | 12GB+ | 安定、高品質 |
-| **SVD-XT** | Img→Video | 1024x576 | 4秒 | 16GB+ | 25フレーム対応 |
-| **CogVideoX-2B** | Text→Video | 720x480 | 6秒 | 16GB+ | 軽量版 |
-| **CogVideoX-5B** | Text→Video | 720x480 | 6秒 | 24GB+ | 高品質版 |
-| **AnimateDiff** | Img→Video | 512x512 | 2秒 | 8GB | SD Extension |
-| **Open-Sora** | Text→Video | 各種 | 可変 | 24GB+ | 研究目的 |
+| Model | Type | Resolution | Duration | VRAM | Features |
+|-------|------|-----------|----------|------|----------|
+| **SVD** | Img->Video | 1024x576 | 4s | 12GB+ | Stable, high quality |
+| **SVD-XT** | Img->Video | 1024x576 | 4s | 16GB+ | 25-frame support |
+| **CogVideoX-2B** | Text->Video | 720x480 | 6s | 16GB+ | Lightweight version |
+| **CogVideoX-5B** | Text->Video | 720x480 | 6s | 24GB+ | High quality version |
+| **AnimateDiff** | Img->Video | 512x512 | 2s | 8GB | SD Extension |
+| **Open-Sora** | Text->Video | Various | Variable | 24GB+ | Research purpose |
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン1: 長い動画を一度に生成しようとする
-
-```
-[問題]
-30秒のCM動画を1つのプロンプトで生成しようとする。
-
-[なぜ問題か]
-- 現行モデルは4-10秒が実用的な上限
-- 長い生成は品質が急激に低下
-- 意図した展開をコントロールできない
-- 生成時間とコストが非線形に増加
-
-[正しいアプローチ]
-- 3-5秒のショットに分割して個別生成
-- ストーリーボードで各ショットを設計
-- 後処理で繋ぎ合わせ、トランジションを追加
-- 一貫性のためにスタイルリファレンスを共有
-```
-
-### アンチパターン2: テキストや複雑な人物動作を期待する
+### Anti-Pattern 1: Attempting to Generate Long Videos at Once
 
 ```
-[問題]
-「人がテニスをプレイし、スコアボードが表示される」
-のような複雑なシーンを生成しようとする。
+[Problem]
+Trying to generate a 30-second commercial video with a single prompt.
 
-[なぜ問題か]
-- テキスト/数字の表示は現行モデルの弱点
-- 複雑な人体動作 (スポーツ等) は不自然になりやすい
-- 複数人物のインタラクションは一貫性が低い
+[Why It's a Problem]
+- Current models have a practical limit of 4-10 seconds
+- Quality degrades sharply for longer generations
+- Cannot control the intended progression
+- Generation time and cost increase non-linearly
 
-[正しいアプローチ]
-- テキストは後処理で合成
-- 複雑な動作は実写+AIスタイル変換を検討
-- 自然現象、風景、抽象的動きを中心に活用
-- 人物は固定or単純な動作に限定
+[Correct Approach]
+- Split into 3-5 second shots and generate individually
+- Design each shot with a storyboard
+- Combine in post-processing with transitions
+- Share style references for consistency
 ```
 
-### アンチパターン3: 生成動画をそのまま納品する
+### Anti-Pattern 2: Expecting Text Display or Complex Human Actions
 
 ```
-[問題]
-AI生成動画の出力をそのまま最終成果物として使用する。
+[Problem]
+Trying to generate complex scenes like
+"a person playing tennis with a scoreboard displayed."
 
-[なぜ問題か]
-- フレームレートが低い (多くのモデルは8-24fps)
-- 解像度が不十分 (720p-1080p)
-- 色調が不統一 (特にマルチショット)
-- 微細なアーティファクトが残る
+[Why It's a Problem]
+- Text/number display is a weakness of current models
+- Complex human body movements (sports, etc.) tend to look unnatural
+- Multi-person interactions have low consistency
 
-[正しいアプローチ]
-- フレーム補間 (RIFE) で滑らかに
-- 超解像 (Real-ESRGAN) で高解像度化
-- カラーグレーディングで統一感を出す
-- 人の目で品質チェック後に書き出し
+[Correct Approach]
+- Composite text in post-processing
+- Consider live-action + AI style transfer for complex actions
+- Focus on natural phenomena, landscapes, and abstract motion
+- Limit human subjects to static or simple movements
 ```
 
-### アンチパターン4: プロンプトに文学的な表現を使う
+### Anti-Pattern 3: Delivering Generated Videos Without Post-Processing
 
 ```
-[問題]
-「時の流れが儚く、美しい桜が静寂の中で舞い散る」
-のような抽象的・文学的なプロンプトを使用する。
+[Problem]
+Using AI-generated video output as-is for the final deliverable.
 
-[なぜ問題か]
-- AIは具体的な視覚表現に反応する
-- 抽象概念 (「儚い」「静寂」) は映像に直結しない
-- 結果が意図と乖離しやすい
+[Why It's a Problem]
+- Frame rate is low (most models produce 8-24fps)
+- Resolution is insufficient (720p-1080p)
+- Color tones are inconsistent (especially in multi-shot work)
+- Subtle artifacts remain
 
-[正しいアプローチ]
-- 視覚的に具体的な記述を使う
-  × 「儚く美しい桜」
-  ○ 「pink cherry blossom petals slowly falling,
+[Correct Approach]
+- Smooth with frame interpolation (RIFE)
+- Upscale with super-resolution (Real-ESRGAN)
+- Unify appearance with color grading
+- Human quality check before final export
+```
+
+### Anti-Pattern 4: Using Literary Expressions in Prompts
+
+```
+[Problem]
+Using abstract, literary prompts like
+"the fleeting flow of time, beautiful cherry blossoms dancing in silence."
+
+[Why It's a Problem]
+- AI responds to concrete visual descriptions
+- Abstract concepts ("fleeting," "silence") don't directly translate to visuals
+- Results tend to diverge from intent
+
+[Correct Approach]
+- Use visually concrete descriptions
+  x "fleeting beautiful cherry blossoms"
+  o "pink cherry blossom petals slowly falling,
       single tree, soft focus background,
-      gentle breeze, golden hour lighting」
-- カメラワークと動きを明示する
-- スタイル修飾語を付加する
+      gentle breeze, golden hour lighting"
+- Explicitly specify camera work and motion
+- Add style modifiers
 ```
 
 ---
 
 ## FAQ
 
-### Q1: Sora はいつから使える? 代替手段は?
+### Q1: When is Sora available? What are the alternatives?
 
-**A:** Sora は2024年12月に一般公開されました:
+**A:** Sora was publicly released in December 2024:
 
-- **ChatGPT Plus/Pro ユーザー:** Sora にアクセス可能
-- **代替手段:** Runway Gen-3 Alpha が最も近い品質。Pika がコスパ最良
-- **中国発:** Kling (快影) が120秒対応で注目
-- **オープンソース:** CogVideo、Open-Sora が研究用に利用可能
+- **ChatGPT Plus/Pro users:** Can access Sora
+- **Alternatives:** Runway Gen-3 Alpha offers the closest quality. Pika is the best value
+- **China-originated:** Kling is notable for supporting up to 120 seconds
+- **Open source:** CogVideo and Open-Sora are available for research use
 
-### Q2: 生成動画の解像度や長さの制限を突破するには?
-
-**A:**
-
-- **長さ:** ショット分割 + 動画編集ソフトで結合。フレーム補間で滑らかに
-- **解像度:** Real-ESRGAN のフレーム単位適用で 4K 化
-- **FPS:** RIFE (Real-Time Intermediate Flow Estimation) でフレーム補間
-- **注意:** 後処理の重ね掛けは品質低下のリスクあり。最小限に抑える
-
-### Q3: 動画生成にかかるコストの目安は?
+### Q2: How can I overcome resolution and duration limitations of generated videos?
 
 **A:**
 
-- **Runway Gen-3:** 約$0.05~0.10/秒 (生成1回あたり)
-- **Pika:** 月$8 で150クレジット (1動画=約10クレジット)
-- **Sora:** ChatGPT Plus ($20/月) に含まれる
-- **30秒CM制作例:** 6-10ショット x 5候補 x $0.10 = $3-5 (生成コスト)
-- **総コスト:** 生成 + 後処理 + 人件費 を含めて見積もる
+- **Duration:** Split into shots + combine with video editing software. Smooth with frame interpolation
+- **Resolution:** Apply Real-ESRGAN frame-by-frame for 4K upscaling
+- **FPS:** Frame interpolation with RIFE (Real-Time Intermediate Flow Estimation)
+- **Note:** Stacking post-processing steps risks quality degradation. Keep it minimal
 
-### Q4: ローカル環境で動画生成を行うには?
+### Q3: What are the approximate costs of video generation?
 
-**A:** 以下のモデルがローカル実行に対応しています:
+**A:**
 
-| モデル | 最低VRAM | インストール方法 |
-|--------|---------|----------------|
+- **Runway Gen-3:** Approx. $0.05-0.10/second (per generation)
+- **Pika:** $8/month for 150 credits (1 video = approx. 10 credits)
+- **Sora:** Included with ChatGPT Plus ($20/month)
+- **30-second commercial example:** 6-10 shots x 5 candidates x $0.10 = $3-5 (generation cost)
+- **Total cost:** Estimate including generation + post-processing + labor
+
+### Q4: How can I generate videos in a local environment?
+
+**A:** The following models support local execution:
+
+| Model | Min VRAM | Installation Method |
+|-------|---------|-------------------|
 | **SVD** | 12GB | `pip install diffusers` |
 | **CogVideoX-2B** | 16GB | `pip install diffusers` |
 | **AnimateDiff** | 8GB | ComfyUI Extension |
 | **Open-Sora** | 24GB | GitHub clone + install |
 
-推奨環境:
-- GPU: NVIDIA RTX 4090 (24GB) 以上
-- RAM: 32GB 以上
-- ストレージ: SSD 100GB+ (モデルウェイト用)
+Recommended environment:
+- GPU: NVIDIA RTX 4090 (24GB) or higher
+- RAM: 32GB or more
+- Storage: SSD 100GB+ (for model weights)
 
-### Q5: 複数ショットの一貫性を保つには?
+### Q5: How do I maintain consistency across multiple shots?
 
-**A:** シーン間の視覚的一貫性は動画生成の最大の課題の一つです。以下のアプローチが有効です:
+**A:** Visual consistency across scenes is one of the biggest challenges in video generation. The following approaches are effective:
 
-1. **Image-to-Video を活用:** 統一したスタイルの画像を先に生成し、それを基に動画化
-2. **スタイルリファレンス:** 共通のスタイルプロンプト接尾辞を使用
-3. **カラーグレーディング:** 後処理で色調を統一 (前述の VideoColorHarmonizer)
-4. **シード管理:** 同じシードを使用し、類似した雰囲気を維持
-5. **LoRA 微調整:** 特定のスタイル/キャラクターに特化したモデルを作成
+1. **Leverage Image-to-Video:** Generate images with a unified style first, then convert them to video
+2. **Style references:** Use a common style prompt suffix
+3. **Color grading:** Unify color tones in post-processing (using VideoColorHarmonizer described above)
+4. **Seed management:** Use the same seed to maintain a similar atmosphere
+5. **LoRA fine-tuning:** Create models specialized for specific styles/characters
 
-### Q6: 動画生成の著作権と商用利用は?
+### Q6: What about copyright and commercial use of generated videos?
 
 **A:**
 
-| プラットフォーム | 商用利用 | 著作権 | 注意事項 |
-|----------------|---------|--------|---------|
-| **Sora** | 有料プランで可 | 生成者に帰属 | OpenAI利用規約に従う |
-| **Runway** | 有料プランで可 | 生成者に帰属 | C2PA メタデータ付与 |
-| **Pika** | 有料プランで可 | 生成者に帰属 | 利用規約確認 |
-| **SVD** | 研究用ライセンス | 要確認 | 商用は追加許諾が必要な場合あり |
-| **CogVideoX** | Apache 2.0 | 自由 | オープンソース |
+| Platform | Commercial Use | Copyright | Notes |
+|----------|---------------|-----------|-------|
+| **Sora** | Allowed on paid plans | Belongs to creator | Subject to OpenAI terms of service |
+| **Runway** | Allowed on paid plans | Belongs to creator | C2PA metadata attached |
+| **Pika** | Allowed on paid plans | Belongs to creator | Check terms of service |
+| **SVD** | Research license | Check details | Additional permission may be required for commercial use |
+| **CogVideoX** | Apache 2.0 | Free | Open source |
 
 ---
 
-## まとめ表
+## Summary Table
 
-| 項目 | 要点 |
-|------|------|
-| **技術基盤** | 時空間拡散モデル (画像拡散 + 時間軸注意機構) |
-| **最新アーキテクチャ** | DiT ベース (Sora 等)。スケーリング則に優れる |
-| **プラットフォーム** | Sora (品質最高)、Runway (バランス)、Pika (コスパ) |
-| **オープンソース** | SVD (I2V)、CogVideoX (T2V)、AnimateDiff |
-| **実用長** | 4-10秒/ショットが現実的。長尺は分割+結合 |
-| **プロンプト** | カメラワーク + 動きの記述 + スタイル が三本柱 |
-| **後処理** | フレーム補間 (RIFE)、超解像、色調補正が必須 |
-| **弱点** | テキスト表示、複雑な人物動作、物理シミュレーション |
-| **コスト** | API: $0.05-0.50/クリップ、ローカル: GPU電気代のみ |
-
----
-
-
-## まとめ
-
-このガイドでは以下の重要なポイントを学びました:
-
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
+| Item | Key Points |
+|------|-----------|
+| **Technical Foundation** | Spatiotemporal diffusion models (image diffusion + temporal attention) |
+| **Latest Architecture** | DiT-based (Sora, etc.). Excels in scaling laws |
+| **Platforms** | Sora (highest quality), Runway (balanced), Pika (best value) |
+| **Open Source** | SVD (I2V), CogVideoX (T2V), AnimateDiff |
+| **Practical Duration** | 4-10s/shot is realistic. Split + combine for longer content |
+| **Prompts** | Camera work + motion description + style are the three pillars |
+| **Post-Processing** | Frame interpolation (RIFE), super-resolution, color correction are essential |
+| **Weaknesses** | Text display, complex human actions, physics simulation |
+| **Cost** | API: $0.05-0.50/clip, Local: GPU electricity cost only |
 
 ---
 
-## 次に読むべきガイド
 
-- [01-video-editing.md](./01-video-editing.md) — AI動画編集ツール
-- [02-animation.md](./02-animation.md) — AIアニメーション技術
-- [../01-image/00-image-generation.md](../01-image/00-image-generation.md) — 画像生成 (動画の入力素材)
+## Summary
+
+In this guide, you learned the following key points:
+
+- Understanding of fundamental concepts and principles
+- Practical implementation patterns
+- Best practices and considerations
+- Methods for real-world application
 
 ---
 
-## 参考文献
+## Recommended Next Guides
+
+- [01-video-editing.md](./01-video-editing.md) — AI Video Editing Tools
+- [02-animation.md](./02-animation.md) — AI Animation Technology
+- [../01-image/00-image-generation.md](../01-image/00-image-generation.md) — Image Generation (input assets for video)
+
+---
+
+## References
 
 1. Brooks, T. et al. (2024). "Video generation models as world simulators (Sora)." *OpenAI Technical Report*. https://openai.com/research/video-generation-models-as-world-simulators
 2. Blattmann, A. et al. (2023). "Stable Video Diffusion: Scaling Latent Video Diffusion Models to Large Datasets." *arXiv*. https://arxiv.org/abs/2311.15127
