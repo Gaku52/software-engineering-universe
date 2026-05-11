@@ -1,115 +1,117 @@
-# 価格モデル — 従量制、サブスク、フリーミアム
+# Pricing Models — Pay-as-you-go, Subscriptions, and Freemium
 
-> AI SaaSおよびAIサービスの価格設計を体系的に解説し、従量課金、サブスクリプション、フリーミアムの各モデルの設計原則、実装方法、最適化戦略を提供する。
-
----
-
-## この章で学ぶこと
-
-1. **AI特有の価格設計の原則** — コスト構造（API費用、GPU費用）を考慮した価格設定フレームワーク
-2. **3大価格モデルの設計と実装** — 従量制、サブスクリプション、フリーミアムの詳細設計
-3. **価格最適化と実験手法** — A/Bテスト、価格感度分析、LTV最大化の実践
-4. **ハイブリッド価格モデル** — 複数モデルの組み合わせによる収益最大化
-5. **心理的価格設計** — 行動経済学に基づくプライシングテクニック
-6. **国際価格戦略** — 地域別価格設定とPPP（購買力平価）対応
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> A systematic guide to pricing design for AI SaaS and AI services, covering the design principles, implementation methods, and optimization strategies for usage-based, subscription, and freemium models.
 
 ---
 
-## 1. AI価格設計の原則
+## What You Will Learn in This Chapter
 
-### 1.1 AI SaaS のコスト構造
+1. **Pricing Design Principles Specific to AI** — A pricing framework that accounts for cost structure (API costs, GPU costs)
+2. **Design and Implementation of the 3 Major Pricing Models** — Detailed design of usage-based, subscription, and freemium models
+3. **Price Optimization and Experimentation** — Practical application of A/B testing, price sensitivity analysis, and LTV maximization
+4. **Hybrid Pricing Models** — Maximizing revenue through combinations of multiple models
+5. **Psychological Pricing Design** — Pricing techniques based on behavioral economics
+6. **International Pricing Strategy** — Region-specific pricing and PPP (Purchasing Power Parity) support
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+
+---
+
+## 1. AI Pricing Design Principles
+
+### 1.1 AI SaaS Cost Structure
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│              AI SaaS コスト構造分解                         │
+│              AI SaaS Cost Structure Breakdown             │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  固定費（月額）           変動費（利用量比例）              │
+│  Fixed Costs (Monthly)        Variable Costs (Usage-Based)│
 │  ┌──────────────┐      ┌──────────────────┐            │
-│  │ サーバー      │      │ AI API呼び出し    │ ← 最大変動要因│
-│  │ ¥30,000      │      │ ¥0.5-50/リクエスト│            │
+│  │ Server        │      │ AI API calls      │ ← Biggest variable│
+│  │ ¥30,000      │      │ ¥0.5-50/request  │            │
 │  ├──────────────┤      ├──────────────────┤            │
-│  │ DB/ストレージ │      │ GPU推論時間       │            │
-│  │ ¥10,000      │      │ ¥0.1-5/秒        │            │
+│  │ DB/Storage   │      │ GPU inference time│            │
+│  │ ¥10,000      │      │ ¥0.1-5/sec       │            │
 │  ├──────────────┤      ├──────────────────┤            │
-│  │ 監視/ログ     │      │ ストレージ増分    │            │
-│  │ ¥5,000       │      │ ¥0.01/MB         │            │
-│  ├──────────────┤      ├──────────────────┤            │
-│  │ ドメイン/SSL  │      │ 帯域/転送量       │            │
-│  │ ¥2,000       │      │ ¥0.001/MB        │            │
-│  └──────────────┘      └──────────────────┘            │
-│  合計: ~¥47,000/月      合計: ¥1-100/ユーザー/日         │
+│  │ Monitoring/  │      │ Storage increment │            │
+│  │ Logging      │      │ ¥0.01/MB         │            │
+│  │ ¥5,000       │      ├──────────────────┤            │
+│  ├──────────────┤      │ Bandwidth/Transfer│            │
+│  │ Domain/SSL   │      │ ¥0.001/MB        │            │
+│  │ ¥2,000       │      └──────────────────┘            │
+│  └──────────────┘                                        │
+│  Total: ~¥47,000/mo     Total: ¥1-100/user/day          │
 │                                                          │
-│  ★ AI APIコストが売上の20-40%を占めるのがAI SaaSの特徴    │
+│  ★ AI API costs accounting for 20-40% of revenue is     │
+│    a defining characteristic of AI SaaS                  │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 価格設定フレームワーク
+### 1.2 Pricing Framework
 
 ```python
-# 価格設定の3要素
+# Three elements of pricing
 pricing_framework = {
     "cost_based": {
-        "description": "原価+マージンで決定",
-        "formula": "価格 = API原価 / (1 - 目標粗利率)",
-        "example": "API原価¥200/回、粗利70%目標 → ¥667/回",
-        "pros": "赤字回避",
-        "cons": "価値を反映しない"
+        "description": "Determined by cost + margin",
+        "formula": "Price = API cost / (1 - target gross margin)",
+        "example": "API cost ¥200/call, 70% gross margin target → ¥667/call",
+        "pros": "Avoids losses",
+        "cons": "Does not reflect value"
     },
     "value_based": {
-        "description": "顧客が得る価値で決定",
-        "formula": "価格 = 顧客の時間節約額 × 30-50%",
-        "example": "3時間の作業を10分に → 時給¥5,000 × 3h × 30% = ¥4,500",
-        "pros": "高単価可能",
-        "cons": "価値の定量化が難しい"
+        "description": "Determined by the value the customer receives",
+        "formula": "Price = Customer's time savings × 30-50%",
+        "example": "3-hour task reduced to 10 minutes → ¥5,000/hr × 3h × 30% = ¥4,500",
+        "pros": "Enables high unit prices",
+        "cons": "Difficult to quantify value"
     },
     "competition_based": {
-        "description": "競合価格を参考に決定",
-        "formula": "価格 = 競合平均 × 差別化係数",
-        "example": "競合平均$49/月、品質1.5倍 → $69/月",
-        "pros": "市場整合性",
-        "cons": "価格競争に巻き込まれる"
+        "description": "Determined by reference to competitor pricing",
+        "formula": "Price = Competitor average × differentiation coefficient",
+        "example": "Competitor average $49/mo, 1.5x quality → $69/mo",
+        "pros": "Market alignment",
+        "cons": "Risk of being drawn into price wars"
     }
 }
 ```
 
-### 1.3 AI SaaS特有の価格設計原則
+### 1.3 Pricing Principles Specific to AI SaaS
 
-AI SaaSの価格設定は従来のSaaSとは根本的に異なる。最大の違いは**限界費用がゼロではない**ことだ。従来のSaaSでは新規ユーザー1人の追加コストはほぼゼロだが、AI SaaSではAPIコールやGPU推論のたびに直接コストが発生する。
+Pricing for AI SaaS differs fundamentally from traditional SaaS. The biggest difference is that **marginal cost is not zero**. In traditional SaaS, the cost of adding one new user is nearly zero, but in AI SaaS, every API call and GPU inference incurs a direct cost.
 
 ```python
 class AIPricingPrinciples:
-    """AI SaaS価格設計の原則"""
+    """Principles of AI SaaS pricing design"""
 
     def __init__(self):
         self.principles = {
             "marginal_cost_awareness": {
-                "description": "限界費用の可視化",
-                "detail": "各APIコールのコストをリアルタイムで把握",
-                "implementation": "コスト追跡ミドルウェアの導入"
+                "description": "Visibility into marginal costs",
+                "detail": "Track the cost of each API call in real time",
+                "implementation": "Introduce cost-tracking middleware"
             },
             "value_metric_alignment": {
-                "description": "価値指標との整合",
-                "detail": "顧客が感じる価値と課金単位を一致させる",
-                "implementation": "アウトプット単位での課金設計"
+                "description": "Alignment with value metrics",
+                "detail": "Match the billing unit to the value the customer perceives",
+                "implementation": "Design billing based on output units"
             },
             "cost_floor_guarantee": {
-                "description": "コストフロアの保証",
-                "detail": "どのプランでも変動費を下回らない価格設定",
-                "implementation": "動的価格下限の設定"
+                "description": "Guarantee of cost floor",
+                "detail": "Pricing that never falls below variable costs on any plan",
+                "implementation": "Set dynamic pricing floors"
             },
             "usage_predictability": {
-                "description": "利用量の予測可能性",
-                "detail": "顧客が月額費用を予測できる仕組み",
-                "implementation": "使用量ダッシュボードと予算アラート"
+                "description": "Predictability of usage",
+                "detail": "A mechanism that lets customers predict their monthly bill",
+                "implementation": "Usage dashboard and budget alerts"
             }
         }
 
@@ -120,7 +122,7 @@ class AIPricingPrinciples:
         target_gross_margin: float = 0.70,
         fixed_cost_per_user: float = 500
     ) -> dict:
-        """最低価格の算出"""
+        """Calculate the minimum price"""
         variable_cost = api_cost_per_request * avg_requests_per_user
         total_cost = variable_cost + fixed_cost_per_user
         minimum_price = total_cost / (1 - target_gross_margin)
@@ -131,105 +133,105 @@ class AIPricingPrinciples:
             "total_cost": total_cost,
             "minimum_price": round(minimum_price),
             "target_gross_margin": f"{target_gross_margin * 100}%",
-            "recommendation": f"¥{round(minimum_price / 100) * 100}以上に設定"
+            "recommendation": f"Set to ¥{round(minimum_price / 100) * 100} or above"
         }
 
     def model_cost_comparison(self) -> dict:
-        """モデル別コスト比較"""
+        """Cost comparison by model"""
         return {
             "gpt-4o": {
                 "input_per_1k_tokens": 2.5,  # ¥
                 "output_per_1k_tokens": 10.0,
                 "avg_cost_per_request": 15.0,
-                "recommended_for": "高品質な分析・生成タスク"
+                "recommended_for": "High-quality analysis and generation tasks"
             },
             "gpt-4o-mini": {
                 "input_per_1k_tokens": 0.15,
                 "output_per_1k_tokens": 0.6,
                 "avg_cost_per_request": 1.0,
-                "recommended_for": "大量処理・簡易タスク"
+                "recommended_for": "High-volume processing and simple tasks"
             },
             "claude-3.5-sonnet": {
                 "input_per_1k_tokens": 3.0,
                 "output_per_1k_tokens": 15.0,
                 "avg_cost_per_request": 20.0,
-                "recommended_for": "コード生成・複雑な推論"
+                "recommended_for": "Code generation and complex reasoning"
             },
             "claude-3.5-haiku": {
                 "input_per_1k_tokens": 0.25,
                 "output_per_1k_tokens": 1.25,
                 "avg_cost_per_request": 2.0,
-                "recommended_for": "高速応答・分類タスク"
+                "recommended_for": "Fast response and classification tasks"
             }
         }
 
 
-# 使用例
+# Usage example
 principles = AIPricingPrinciples()
 min_price = principles.calculate_minimum_price(
-    api_cost_per_request=15.0,  # GPT-4oの平均
-    avg_requests_per_user=200,  # 月200リクエスト
+    api_cost_per_request=15.0,  # GPT-4o average
+    avg_requests_per_user=200,  # 200 requests/month
     target_gross_margin=0.70
 )
-# → minimum_price: ¥10,500、recommendation: "¥10,500以上に設定"
+# → minimum_price: ¥10,500, recommendation: "Set to ¥10,500 or above"
 ```
 
-### 1.4 価値指標（Value Metric）の選定
+### 1.4 Selecting Value Metrics
 
-価値指標とは、顧客に課金する単位のことだ。正しい価値指標を選ぶことは、価格モデル全体の成功を左右する。
+A value metric is the unit by which you charge customers. Choosing the right value metric determines the success of the entire pricing model.
 
 ```python
 class ValueMetricSelector:
-    """価値指標の選定ツール"""
+    """Tool for selecting value metrics"""
 
     VALUE_METRICS = {
         "api_calls": {
-            "description": "API呼び出し回数",
-            "pros": ["計測が簡単", "開発者に馴染み深い"],
-            "cons": ["価値と乖離する可能性", "複雑なリクエストも同一課金"],
-            "best_for": "開発者向けAPI（OpenAI、Anthropic）",
-            "example": "$0.01/リクエスト"
+            "description": "Number of API calls",
+            "pros": ["Easy to measure", "Familiar to developers"],
+            "cons": ["May diverge from value", "Complex requests billed the same"],
+            "best_for": "Developer-facing APIs (OpenAI, Anthropic)",
+            "example": "$0.01/request"
         },
         "tokens": {
-            "description": "入出力トークン数",
-            "pros": ["リソース消費に正比例", "公平性が高い"],
-            "cons": ["顧客に分かりにくい", "予算予測が困難"],
-            "best_for": "LLM APIプロバイダー",
-            "example": "$0.003/1Kトークン"
+            "description": "Number of input/output tokens",
+            "pros": ["Directly proportional to resource consumption", "High fairness"],
+            "cons": ["Hard for customers to understand", "Difficult to predict budget"],
+            "best_for": "LLM API providers",
+            "example": "$0.003/1K tokens"
         },
         "outputs": {
-            "description": "生成されたアウトプット数",
-            "pros": ["価値と直結", "顧客に分かりやすい"],
-            "cons": ["品質の差が反映されない"],
-            "best_for": "コンテンツ生成ツール（Jasper、Copy.ai）",
-            "example": "¥50/記事生成"
+            "description": "Number of outputs generated",
+            "pros": ["Directly tied to value", "Easy for customers to understand"],
+            "cons": ["Quality differences not reflected"],
+            "best_for": "Content generation tools (Jasper, Copy.ai)",
+            "example": "¥50/article generated"
         },
         "seats": {
-            "description": "利用ユーザー数",
-            "pros": ["予測可能", "営業しやすい"],
-            "cons": ["利用量と無関係", "シート共有の問題"],
-            "best_for": "チーム向けSaaS（Notion AI）",
-            "example": "¥1,500/ユーザー/月"
+            "description": "Number of users",
+            "pros": ["Predictable", "Easy to sell"],
+            "cons": ["Unrelated to usage volume", "Seat sharing issues"],
+            "best_for": "Team-oriented SaaS (Notion AI)",
+            "example": "¥1,500/user/month"
         },
         "outcomes": {
-            "description": "成果ベース",
-            "pros": ["最高の価値整合", "顧客満足度が高い"],
-            "cons": ["計測が困難", "成果の定義が曖昧"],
-            "best_for": "営業支援AI（受注確率向上）",
-            "example": "成約金額の5%"
+            "description": "Outcome-based",
+            "pros": ["Best value alignment", "High customer satisfaction"],
+            "cons": ["Difficult to measure", "Outcome definitions can be ambiguous"],
+            "best_for": "Sales support AI (improving close probability)",
+            "example": "5% of closed deal value"
         },
         "compute_time": {
-            "description": "計算時間",
-            "pros": ["リソース消費に正確", "公平"],
-            "cons": ["顧客体験が悪い", "最適化インセンティブ低"],
-            "best_for": "ML学習プラットフォーム",
-            "example": "$0.50/GPU時間"
+            "description": "Compute time",
+            "pros": ["Accurate resource consumption tracking", "Fair"],
+            "cons": ["Poor customer experience", "Low optimization incentive"],
+            "best_for": "ML training platforms",
+            "example": "$0.50/GPU hour"
         }
     }
 
     def recommend_metric(self, target_audience: str,
                          product_type: str) -> dict:
-        """ターゲットに適した価値指標を推薦"""
+        """Recommend the appropriate value metric for the target"""
         recommendations = {
             ("developer", "api"): ["tokens", "api_calls"],
             ("developer", "platform"): ["compute_time", "api_calls"],
@@ -245,21 +247,21 @@ class ValueMetricSelector:
             return {
                 "primary": self.VALUE_METRICS[metrics[0]],
                 "secondary": self.VALUE_METRICS[metrics[1]],
-                "reasoning": f"{target_audience}向け{product_type}には"
-                           f"{metrics[0]}が最適"
+                "reasoning": f"{metrics[0]} is the best fit for "
+                           f"{product_type} targeting {target_audience}"
             }
-        return {"error": "該当する組み合わせなし"}
+        return {"error": "No matching combination found"}
 ```
 
 ---
 
-## 2. 従量課金モデル
+## 2. Usage-Based Pricing Model
 
-### 2.1 従量課金の設計
+### 2.1 Designing Usage-Based Pricing
 
 ```python
 class UsageBasedPricing:
-    """従量課金エンジン"""
+    """Usage-based pricing engine"""
 
     def __init__(self):
         self.tiers = [
@@ -270,7 +272,7 @@ class UsageBasedPricing:
         ]
 
     def calculate_cost(self, usage: int) -> dict:
-        """階段型従量課金の計算"""
+        """Calculate cost using tiered usage-based pricing"""
         total = 0
         remaining = usage
         breakdown = []
@@ -302,23 +304,23 @@ class UsageBasedPricing:
             "breakdown": breakdown
         }
 
-# 使用例
+# Usage example
 pricing = UsageBasedPricing()
 result = pricing.calculate_cost(5000)
 # → ¥19,000 (1000×¥5 + 4000×¥3.5)
 ```
 
-### 2.2 従量課金の変形パターン
+### 2.2 Usage-Based Pricing Variations
 
-| パターン | 課金単位 | 適用例 | メリット |
-|---------|---------|--------|---------|
-| リクエスト単位 | API呼び出し回数 | OpenAI API | 直感的 |
-| トークン単位 | 入出力トークン数 | Claude API | 公平 |
-| クレジット制 | プリペイドクレジット | Replicate | 先払い |
-| 時間単位 | GPU利用秒数 | AWS SageMaker | 正確 |
-| 成果単位 | 生成されたコンテンツ数 | Jasper | 価値連動 |
+| Pattern | Billing Unit | Use Case | Advantage |
+|---------|-------------|----------|-----------|
+| Per request | Number of API calls | OpenAI API | Intuitive |
+| Per token | Input/output token count | Claude API | Fair |
+| Credit system | Prepaid credits | Replicate | Prepaid |
+| Per time unit | GPU usage in seconds | AWS SageMaker | Precise |
+| Per outcome | Number of generated items | Jasper | Value-aligned |
 
-### 2.3 高度な従量課金実装
+### 2.3 Advanced Usage-Based Pricing Implementation
 
 ```python
 from datetime import datetime, timedelta
@@ -328,29 +330,29 @@ import redis
 
 
 class AdvancedUsageTracker:
-    """高度な従量課金トラッカー"""
+    """Advanced usage-based billing tracker"""
 
     def __init__(self, redis_client: redis.Redis):
         self.redis = redis_client
 
     def record_usage(self, user_id: str, usage_type: str,
                      quantity: int, metadata: dict = None) -> dict:
-        """利用量を記録"""
+        """Record usage"""
         now = datetime.utcnow()
         month_key = now.strftime("%Y-%m")
         day_key = now.strftime("%Y-%m-%d")
 
-        # 月間累計
+        # Monthly cumulative
         monthly_key = f"usage:{user_id}:{usage_type}:{month_key}"
         self.redis.incrby(monthly_key, quantity)
-        self.redis.expire(monthly_key, 90 * 86400)  # 90日保持
+        self.redis.expire(monthly_key, 90 * 86400)  # Retain for 90 days
 
-        # 日次累計
+        # Daily cumulative
         daily_key = f"usage:{user_id}:{usage_type}:{day_key}"
         self.redis.incrby(daily_key, quantity)
-        self.redis.expire(daily_key, 35 * 86400)  # 35日保持
+        self.redis.expire(daily_key, 35 * 86400)  # Retain for 35 days
 
-        # 詳細ログ（課金エビデンス用）
+        # Detailed log (billing evidence)
         log_entry = {
             "timestamp": now.isoformat(),
             "user_id": user_id,
@@ -371,7 +373,7 @@ class AdvancedUsageTracker:
 
     def get_usage_summary(self, user_id: str,
                           period: str = "month") -> dict:
-        """利用量サマリーを取得"""
+        """Get usage summary"""
         now = datetime.utcnow()
 
         if period == "month":
@@ -393,7 +395,7 @@ class AdvancedUsageTracker:
 
     def check_quota(self, user_id: str, usage_type: str,
                     limit: int) -> dict:
-        """クォータチェック"""
+        """Check quota"""
         now = datetime.utcnow()
         month_key = f"usage:{user_id}:{usage_type}:{now.strftime('%Y-%m')}"
         current = int(self.redis.get(month_key) or 0)
@@ -420,9 +422,9 @@ class AdvancedUsageTracker:
 
 
 class CreditSystem:
-    """プリペイドクレジット制の実装"""
+    """Prepaid credit system implementation"""
 
-    # 操作ごとのクレジット消費量
+    # Credit consumption per operation
     CREDIT_COSTS = {
         "text_generation_basic": 1,
         "text_generation_advanced": 5,
@@ -436,7 +438,7 @@ class CreditSystem:
         "voice_synthesis": 8
     }
 
-    # クレジットパック定義
+    # Credit pack definitions
     CREDIT_PACKS = {
         "starter": {"credits": 100, "price": 980, "bonus": 0},
         "standard": {"credits": 500, "price": 3980, "bonus": 50},
@@ -449,7 +451,7 @@ class CreditSystem:
 
     def purchase_credits(self, user_id: str,
                          pack_name: str) -> dict:
-        """クレジット購入"""
+        """Purchase credits"""
         pack = self.CREDIT_PACKS[pack_name]
         total_credits = pack["credits"] + pack["bonus"]
 
@@ -475,24 +477,24 @@ class CreditSystem:
 
     def consume_credits(self, user_id: str,
                         operation: str) -> dict:
-        """クレジット消費"""
+        """Consume credits"""
         cost = self.CREDIT_COSTS.get(operation)
         if cost is None:
-            return {"error": f"不明な操作: {operation}"}
+            return {"error": f"Unknown operation: {operation}"}
 
-        # 残高チェック
+        # Balance check
         balance = self.db.fetchone(
             "SELECT credits FROM users WHERE id = %s", (user_id,)
         )
         if balance["credits"] < cost:
             return {
-                "error": "クレジット不足",
+                "error": "Insufficient credits",
                 "required": cost,
                 "balance": balance["credits"],
                 "suggested_pack": self._suggest_pack(cost)
             }
 
-        # 消費実行
+        # Execute consumption
         self.db.execute(
             "UPDATE users SET credits = credits - %s WHERE id = %s",
             (cost, user_id)
@@ -508,14 +510,14 @@ class CreditSystem:
         }
 
     def _suggest_pack(self, needed: int) -> dict:
-        """推奨パックを提案"""
+        """Suggest a recommended pack"""
         for name, pack in self.CREDIT_PACKS.items():
             if pack["credits"] >= needed:
                 return {"pack": name, "price": pack["price"]}
         return {"pack": "enterprise", "price": 49800}
 ```
 
-### 2.4 従量課金のメータリングインフラ
+### 2.4 Metering Infrastructure for Usage-Based Pricing
 
 ```python
 from dataclasses import dataclass, field
@@ -535,7 +537,7 @@ class MeteringEventType(Enum):
 
 @dataclass
 class MeteringEvent:
-    """メータリングイベント"""
+    """Metering event"""
     user_id: str
     event_type: MeteringEventType
     quantity: float
@@ -544,7 +546,7 @@ class MeteringEvent:
 
 
 class MeteringPipeline:
-    """メータリングパイプライン"""
+    """Metering pipeline"""
 
     def __init__(self, batch_size: int = 100,
                  flush_interval: float = 5.0):
@@ -554,29 +556,29 @@ class MeteringPipeline:
         self.aggregated: dict = defaultdict(float)
 
     async def record(self, event: MeteringEvent):
-        """イベントを記録（バッファリング）"""
+        """Record an event (with buffering)"""
         self.buffer.append(event)
 
-        # バッチサイズに達したらフラッシュ
+        # Flush when batch size is reached
         if len(self.buffer) >= self.batch_size:
             await self.flush()
 
     async def flush(self):
-        """バッファをデータベースにフラッシュ"""
+        """Flush the buffer to the database"""
         if not self.buffer:
             return
 
         events = self.buffer.copy()
         self.buffer.clear()
 
-        # 集約
+        # Aggregate
         aggregated = defaultdict(lambda: defaultdict(float))
         for event in events:
             key = (event.user_id, event.event_type.value)
             month = event.timestamp.strftime("%Y-%m")
             aggregated[key][month] += event.quantity
 
-        # DB書き込み（バッチ）
+        # DB write (batch)
         batch_inserts = []
         for (user_id, event_type), months in aggregated.items():
             for month, quantity in months.items():
@@ -591,29 +593,29 @@ class MeteringPipeline:
         return {"flushed": len(events), "aggregated": len(batch_inserts)}
 
     async def _bulk_upsert(self, records: list[dict]):
-        """バルクUPSERT（実装はDB依存）"""
-        # PostgreSQLの場合:
+        """Bulk UPSERT (implementation depends on DB)"""
+        # For PostgreSQL:
         # INSERT INTO metering (user_id, event_type, month, quantity)
         # VALUES ... ON CONFLICT (user_id, event_type, month)
         # DO UPDATE SET quantity = metering.quantity + EXCLUDED.quantity
         pass
 
     async def start_periodic_flush(self):
-        """定期フラッシュタスク"""
+        """Periodic flush task"""
         while True:
             await asyncio.sleep(self.flush_interval)
             await self.flush()
 
 
 class InvoiceGenerator:
-    """請求書生成"""
+    """Invoice generation"""
 
     def __init__(self, pricing_config: dict):
         self.pricing = pricing_config
 
     def generate_invoice(self, user_id: str,
                          usage: dict, month: str) -> dict:
-        """月次請求書を生成"""
+        """Generate a monthly invoice"""
         line_items = []
         total = 0
 
@@ -622,7 +624,7 @@ class InvoiceGenerator:
             if not rate:
                 continue
 
-            # 階段型課金の計算
+            # Calculate tiered cost
             cost = self._calculate_tiered_cost(quantity, rate["tiers"])
             line_items.append({
                 "description": rate["description"],
@@ -632,13 +634,13 @@ class InvoiceGenerator:
             })
             total += cost
 
-        # 最低課金額チェック
+        # Check minimum charge
         minimum = self.pricing.get("minimum_charge", 0)
         if total < minimum:
             line_items.append({
-                "description": "最低利用料金調整",
+                "description": "Minimum charge adjustment",
                 "quantity": 1,
-                "unit": "式",
+                "unit": "flat",
                 "amount": minimum - total
             })
             total = minimum
@@ -648,7 +650,7 @@ class InvoiceGenerator:
             "month": month,
             "line_items": line_items,
             "subtotal": total,
-            "tax": round(total * 0.10),  # 消費税10%
+            "tax": round(total * 0.10),  # 10% consumption tax
             "total": round(total * 1.10),
             "due_date": f"{month}-28",
             "status": "draft"
@@ -656,7 +658,7 @@ class InvoiceGenerator:
 
     def _calculate_tiered_cost(self, quantity: float,
                                 tiers: list[dict]) -> float:
-        """階段型コスト計算"""
+        """Calculate tiered cost"""
         total = 0
         remaining = quantity
 
@@ -674,37 +676,39 @@ class InvoiceGenerator:
 
 ---
 
-## 3. サブスクリプションモデル
+## 3. Subscription Model
 
-### 3.1 プラン設計
+### 3.1 Plan Design
 
 ```
-サブスクリプション 3プラン設計:
+Subscription 3-Plan Design:
 
   ┌──────────┐    ┌──────────┐    ┌──────────┐
   │  Starter │    │   Pro    │    │Enterprise│
   │  ¥2,980  │    │  ¥9,800  │    │ ¥49,800  │
-  │   /月    │    │   /月    │    │   /月    │
+  │   /mo    │    │   /mo    │    │   /mo    │
   ├──────────┤    ├──────────┤    ├──────────┤
-  │ 100回/月 │    │ 1000回/月│    │ 無制限   │
-  │ 基本機能 │    │ 全機能   │    │ 全機能   │
-  │ メール   │    │ チャット │    │ 専任担当 │
-  │ サポート │    │ サポート │    │ SLA 99.9%│
-  │          │    │ API連携  │    │ カスタム │
-  │          │    │ チーム3人│    │ SSO/SAML │
+  │ 100/mo   │    │ 1000/mo  │    │Unlimited │
+  │ Basic    │    │ All      │    │ All      │
+  │ features │    │ features │    │ features │
+  │ Email    │    │ Chat     │    │ Dedicated│
+  │ support  │    │ support  │    │ manager  │
+  │          │    │ API      │    │ SLA 99.9%│
+  │          │    │ Team (3) │    │ Custom   │
+  │          │    │          │    │ SSO/SAML │
   └──────────┘    └──────────┘    └──────────┘
        │               │               │
-    フリーミアム     ★ 主力プラン     アカウント
-    からの転換       （売上の60%）     マネージャー
+  Conversion      ★ Core Plan      Account
+  from freemium   (60% of revenue)  manager
 ```
 
-### 3.2 Stripe実装
+### 3.2 Stripe Implementation
 
 ```python
 import stripe
 
 class SubscriptionManager:
-    """Stripe サブスクリプション管理"""
+    """Stripe subscription management"""
 
     PLANS = {
         "starter": {
@@ -722,7 +726,7 @@ class SubscriptionManager:
         "enterprise": {
             "price_id": "price_enterprise_monthly",
             "amount": 49800,
-            "credits": -1,  # 無制限
+            "credits": -1,  # Unlimited
             "features": ["all_features", "api_access",
                         "unlimited_team", "sso", "sla"]
         }
@@ -733,7 +737,7 @@ class SubscriptionManager:
 
     def create_subscription(self, customer_id: str,
                             plan: str) -> dict:
-        """サブスクリプション作成"""
+        """Create a subscription"""
         plan_config = self.PLANS[plan]
         subscription = stripe.Subscription.create(
             customer=customer_id,
@@ -752,12 +756,12 @@ class SubscriptionManager:
 
     def handle_usage_overage(self, user_id: str,
                               current_usage: int) -> dict:
-        """利用量超過時の処理"""
+        """Handle usage overage"""
         user = get_user(user_id)
         plan = self.PLANS[user.plan]
         limit = plan["credits"]
 
-        if limit == -1:  # 無制限プラン
+        if limit == -1:  # Unlimited plan
             return {"status": "ok"}
 
         if current_usage >= limit:
@@ -765,25 +769,25 @@ class SubscriptionManager:
                 "status": "limit_reached",
                 "options": [
                     {"action": "upgrade", "plan": "pro",
-                     "message": "Proプランにアップグレードで10倍の利用量"},
+                     "message": "Upgrade to Pro for 10x more usage"},
                     {"action": "addon", "amount": 980,
                      "credits": 100,
-                     "message": "追加100回 ¥980で購入"},
+                     "message": "Add 100 more uses for ¥980"},
                     {"action": "wait",
-                     "message": f"次月リセット: {next_reset_date()}"}
+                     "message": f"Next reset: {next_reset_date()}"}
                 ]
             }
         return {"status": "ok", "remaining": limit - current_usage}
 ```
 
-### 3.3 年間プランと割引設計
+### 3.3 Annual Plans and Discount Design
 
 ```python
 class AnnualPlanManager:
-    """年間プラン管理"""
+    """Annual plan management"""
 
     def __init__(self):
-        self.discount_rate = 0.20  # 年間プランで20%割引
+        self.discount_rate = 0.20  # 20% discount for annual plan
         self.plans = {
             "starter": {
                 "monthly": 2980,
@@ -803,7 +807,7 @@ class AnnualPlanManager:
         }
 
     def calculate_savings(self, plan: str) -> dict:
-        """年間プランの節約額を計算"""
+        """Calculate savings on annual plan"""
         p = self.plans[plan]
         monthly_total = p["monthly"] * 12
         annual_total = p["annual_total"]
@@ -811,42 +815,42 @@ class AnnualPlanManager:
 
         return {
             "plan": plan,
-            "monthly_price": f"¥{p['monthly']:,}/月",
-            "annual_price": f"¥{p['annual_monthly']:,}/月（年払い）",
-            "annual_total": f"¥{annual_total:,}/年",
-            "savings": f"¥{savings:,}/年お得",
-            "savings_months": f"約{savings / p['monthly']:.1f}ヶ月分お得",
-            "message": f"年間プランで¥{savings:,}（"
-                      f"{self.discount_rate*100:.0f}%）お得！"
+            "monthly_price": f"¥{p['monthly']:,}/mo",
+            "annual_price": f"¥{p['annual_monthly']:,}/mo (annual billing)",
+            "annual_total": f"¥{annual_total:,}/year",
+            "savings": f"Save ¥{savings:,}/year",
+            "savings_months": f"About {savings / p['monthly']:.1f} months free",
+            "message": f"Save ¥{savings:,} ({self.discount_rate*100:.0f}%) "
+                      f"with an annual plan!"
         }
 
     def offer_annual_upgrade(self, user_id: str,
                               current_plan: str,
                               months_on_monthly: int) -> dict:
-        """月払いユーザーへの年間プラン提案"""
+        """Offer annual plan to monthly billing users"""
         if months_on_monthly < 3:
-            return {"offer": False, "reason": "利用期間が短い"}
+            return {"offer": False, "reason": "Usage period is too short"}
 
         savings = self.calculate_savings(current_plan)
         p = self.plans[current_plan]
 
-        # 過去の月払い合計
+        # Total past monthly payments
         past_spend = p["monthly"] * months_on_monthly
 
         return {
             "offer": True,
             "user_id": user_id,
-            "current_monthly_spend": f"¥{p['monthly']:,}/月",
+            "current_monthly_spend": f"¥{p['monthly']:,}/mo",
             "annual_offer": savings,
-            "pitch": f"過去{months_on_monthly}ヶ月で"
-                    f"¥{past_spend:,}お支払いいただきました。"
-                    f"年間プランなら{savings['savings']}お得です！",
-            "urgency": "今月中のお切り替えで初月無料"
+            "pitch": f"You've paid ¥{past_spend:,} over the past "
+                    f"{months_on_monthly} months. "
+                    f"Switch to an annual plan and {savings['savings']}!",
+            "urgency": "Switch this month and get the first month free"
         }
 
 
 class TrialManager:
-    """トライアル管理"""
+    """Trial management"""
 
     TRIAL_CONFIGS = {
         "standard": {
@@ -871,7 +875,7 @@ class TrialManager:
 
     def start_trial(self, user_id: str,
                     trial_type: str = "standard") -> dict:
-        """トライアル開始"""
+        """Start a trial"""
         config = self.TRIAL_CONFIGS[trial_type]
         end_date = datetime.utcnow() + timedelta(
             days=config["duration_days"]
@@ -886,35 +890,35 @@ class TrialManager:
             "features_unlocked": "all",
             "reminder_schedule": [
                 {"day": config["duration_days"] - 3,
-                 "type": "email", "subject": "トライアル残り3日"},
+                 "type": "email", "subject": "3 days left in your trial"},
                 {"day": config["duration_days"] - 1,
-                 "type": "email", "subject": "トライアル明日終了"},
+                 "type": "email", "subject": "Your trial ends tomorrow"},
                 {"day": config["duration_days"],
-                 "type": "in_app", "subject": "トライアル終了"}
+                 "type": "in_app", "subject": "Trial ended"}
             ]
         }
 
     def check_trial_engagement(self, user_id: str,
                                 usage_data: dict) -> dict:
-        """トライアルユーザーのエンゲージメント分析"""
+        """Analyze trial user engagement"""
         score = 0
         signals = []
 
         if usage_data.get("days_active", 0) >= 5:
             score += 30
-            signals.append("アクティブ日数5日以上")
+            signals.append("Active for 5+ days")
         if usage_data.get("features_used", 0) >= 3:
             score += 25
-            signals.append("3機能以上を利用")
+            signals.append("Used 3+ features")
         if usage_data.get("api_connected", False):
             score += 20
-            signals.append("API連携済み")
+            signals.append("API connected")
         if usage_data.get("team_invited", False):
             score += 15
-            signals.append("チームメンバー招待済み")
+            signals.append("Team member invited")
         if usage_data.get("export_used", False):
             score += 10
-            signals.append("エクスポート機能利用")
+            signals.append("Export feature used")
 
         likelihood = "high" if score >= 60 else (
             "medium" if score >= 30 else "low"
@@ -930,44 +934,44 @@ class TrialManager:
 
     def _get_action(self, likelihood: str) -> str:
         actions = {
-            "high": "割引なしで転換促進メール送信",
-            "medium": "10%割引オファーで転換促進",
-            "low": "トライアル延長オファー（+7日）"
+            "high": "Send conversion email without discount",
+            "medium": "Promote conversion with 10% discount offer",
+            "low": "Offer trial extension (+7 days)"
         }
-        return actions.get(likelihood, "標準フォローアップ")
+        return actions.get(likelihood, "Standard follow-up")
 ```
 
-### 3.4 プランアップグレード/ダウングレードの処理
+### 3.4 Handling Plan Upgrades and Downgrades
 
 ```python
 class PlanChangeManager:
-    """プラン変更管理"""
+    """Plan change management"""
 
     def __init__(self, stripe_key: str):
         stripe.api_key = stripe_key
 
     def upgrade_plan(self, user_id: str,
                      from_plan: str, to_plan: str) -> dict:
-        """アップグレード処理"""
+        """Handle upgrade"""
         user = get_user(user_id)
         sub = stripe.Subscription.retrieve(user.subscription_id)
 
-        # 日割り計算
+        # Proration calculation
         current_period_end = datetime.fromtimestamp(
             sub.current_period_end
         )
         days_remaining = (current_period_end - datetime.utcnow()).days
-        total_days = 30  # 近似
+        total_days = 30  # Approximation
 
         from_price = self.PLANS[from_plan]["amount"]
         to_price = self.PLANS[to_plan]["amount"]
 
-        # プロレーション（日割り差額）
+        # Proration (prorated difference)
         proration = round(
             (to_price - from_price) * days_remaining / total_days
         )
 
-        # Stripeで即時アップグレード
+        # Immediate upgrade via Stripe
         stripe.Subscription.modify(
             sub.id,
             items=[{
@@ -982,26 +986,26 @@ class PlanChangeManager:
             "from_plan": from_plan,
             "to_plan": to_plan,
             "proration_charge": proration,
-            "effective": "即時",
+            "effective": "Immediately",
             "new_limits": self.PLANS[to_plan]["credits"],
-            "message": f"{to_plan}プランへのアップグレード完了！"
-                      f"差額¥{proration:,}を日割り請求します。"
+            "message": f"Upgrade to {to_plan} plan complete! "
+                      f"A prorated charge of ¥{proration:,} will be billed."
         }
 
     def downgrade_plan(self, user_id: str,
                        from_plan: str, to_plan: str) -> dict:
-        """ダウングレード処理"""
+        """Handle downgrade"""
         user = get_user(user_id)
         sub = stripe.Subscription.retrieve(user.subscription_id)
 
-        # ダウングレードは期末に適用
+        # Downgrade takes effect at end of billing period
         stripe.Subscription.modify(
             sub.id,
             items=[{
                 "id": sub["items"]["data"][0].id,
                 "price": self.PLANS[to_plan]["price_id"]
             }],
-            proration_behavior="none"  # 日割り返金なし
+            proration_behavior="none"  # No prorated refund
         )
 
         period_end = datetime.fromtimestamp(
@@ -1013,41 +1017,41 @@ class PlanChangeManager:
             "from_plan": from_plan,
             "to_plan": to_plan,
             "effective_date": period_end,
-            "message": f"現在の請求期間終了({period_end})後に"
-                      f"{to_plan}プランに変更されます。"
-                      f"それまでは{from_plan}の機能をご利用いただけます。"
+            "message": f"Your plan will change to {to_plan} after "
+                      f"the current billing period ends ({period_end}). "
+                      f"You can continue using {from_plan} features until then."
         }
 
     def handle_churn_prevention(self, user_id: str,
                                  cancel_reason: str) -> dict:
-        """解約防止オファー"""
+        """Churn prevention offers"""
         offers = {
             "too_expensive": {
-                "offer": "3ヶ月間50%割引",
+                "offer": "50% off for 3 months",
                 "discount_pct": 50,
                 "duration_months": 3,
-                "message": "特別価格でご継続いただけます"
+                "message": "Continue at a special price"
             },
             "not_using_enough": {
-                "offer": "下位プランへの変更",
+                "offer": "Suggest a lower plan",
                 "action": "downgrade_suggestion",
-                "message": "より適したプランをご提案します"
+                "message": "We'll recommend a better-fitting plan for you"
             },
             "missing_feature": {
-                "offer": "機能リクエスト優先対応",
+                "offer": "Priority feature request handling",
                 "action": "feature_request",
-                "message": "ご要望の機能を優先的に開発いたします"
+                "message": "We'll prioritize developing your requested feature"
             },
             "competitor": {
-                "offer": "6ヶ月間40%割引 + 優先サポート",
+                "offer": "40% off for 6 months + priority support",
                 "discount_pct": 40,
                 "duration_months": 6,
-                "message": "乗り換え防止の特別オファーです"
+                "message": "A special offer to keep you from switching"
             },
             "other": {
-                "offer": "1ヶ月無料延長",
+                "offer": "1 free month extension",
                 "action": "free_month",
-                "message": "もう1ヶ月無料でお試しください"
+                "message": "Try one more month on us"
             }
         }
 
@@ -1064,83 +1068,83 @@ class PlanChangeManager:
 
 ---
 
-## 4. フリーミアムモデル
+## 4. Freemium Model
 
-### 4.1 フリーミアム設計の黄金比率
+### 4.1 The Golden Ratio of Freemium Design
 
 ```
-フリーミアム コンバージョンファネル:
+Freemium Conversion Funnel:
 
-  100% ┤ ■■■■■■■■■■ 無料ユーザー
+  100% ┤ ■■■■■■■■■■ Free users
        │
-   30% ┤ ■■■        アクティブユーザー（週1以上利用）
+   30% ┤ ■■■        Active users (use at least once/week)
        │
-   10% ┤ ■          パワーユーザー（制限にぶつかる）
+   10% ┤ ■          Power users (hit the limit)
        │
-  3-5% ┤ ▪          有料転換ユーザー
+  3-5% ┤ ▪          Converted paid users
        │
-  0.5% ┤ ·          Enterprise転換
+  0.5% ┤ ·          Enterprise conversions
        └──────────────────────────────────────
-                    目標転換率
+                    Target conversion rate
 ```
 
-### 4.2 無料/有料の境界設計
+### 4.2 Designing the Free/Paid Boundary
 
 ```python
-# フリーミアム境界設計
+# Freemium boundary design
 freemium_design = {
     "free_tier": {
-        "purpose": "価値体験 + バイラル獲得",
+        "purpose": "Value experience + viral acquisition",
         "limits": {
             "generations_per_month": 10,
-            "output_quality": "standard",  # GPT-3.5相当
+            "output_quality": "standard",  # GPT-3.5 equivalent
             "export_format": ["txt"],
-            "history_retention": "7日",
+            "history_retention": "7 days",
             "watermark": True,
             "api_access": False
         },
         "must_provide": [
-            "コア機能の体験（制限付き）",
-            "十分な回数で価値を実感",
-            "シェア機能（バイラル）"
+            "Experience core features (with limits)",
+            "Enough uses to feel the value",
+            "Share features (viral)"
         ]
     },
     "paid_tier": {
-        "purpose": "ヘビーユーザーの収益化",
+        "purpose": "Monetizing heavy users",
         "unlocks": {
             "generations_per_month": 1000,
-            "output_quality": "premium",  # GPT-4相当
+            "output_quality": "premium",  # GPT-4 equivalent
             "export_format": ["txt", "docx", "pdf", "html"],
-            "history_retention": "無制限",
+            "history_retention": "Unlimited",
             "watermark": False,
             "api_access": True,
             "team_features": True
         },
         "trigger_points": [
-            "月10回の制限到達",
-            "高品質モデルの利用",
-            "エクスポート時",
-            "チーム招待時"
+            "Reaching the 10/month limit",
+            "Accessing the high-quality model",
+            "On export",
+            "On team invitation"
         ]
     }
 }
 ```
 
-### 4.3 フリーミアム転換率最適化
+### 4.3 Freemium Conversion Rate Optimization
 
 ```python
 class FreemiumOptimizer:
-    """フリーミアム転換率最適化エンジン"""
+    """Freemium conversion rate optimization engine"""
 
     def __init__(self):
         self.conversion_triggers = []
         self.paywall_events = []
 
     def analyze_conversion_funnel(self, users: list[dict]) -> dict:
-        """コンバージョンファネル分析"""
+        """Analyze the conversion funnel"""
         total = len(users)
         if total == 0:
-            return {"error": "ユーザーデータなし"}
+            return {"error": "No user data"}
 
         stages = {
             "registered": total,
@@ -1171,124 +1175,124 @@ class FreemiumOptimizer:
     def identify_conversion_opportunities(
         self, user_id: str, behavior: dict
     ) -> list[dict]:
-        """転換機会の特定"""
+        """Identify conversion opportunities"""
         opportunities = []
 
-        # 制限到達時
+        # When approaching the limit
         if behavior.get("usage_ratio", 0) >= 0.8:
             opportunities.append({
                 "trigger": "usage_limit_approaching",
                 "urgency": "high",
-                "message": "今月の無料枠の80%を使用しました。"
-                          "Proプランで制限なしにアップグレード！",
-                "cta": "Proプランを見る",
+                "message": "You've used 80% of your free quota this month. "
+                          "Upgrade to Pro for unlimited usage!",
+                "cta": "View Pro Plan",
                 "discount": None
             })
 
-        # 高品質機能を試した時
+        # When a premium feature is tried
         if behavior.get("tried_premium_feature", False):
             opportunities.append({
                 "trigger": "premium_feature_tease",
                 "urgency": "medium",
-                "message": "GPT-4の高品質出力をお試しいただけます。"
-                          "Proプランで常にご利用可能です。",
-                "cta": "14日間無料トライアル",
+                "message": "Try GPT-4 high-quality output. "
+                          "Available anytime on the Pro plan.",
+                "cta": "14-day free trial",
                 "discount": None
             })
 
-        # チーム招待時
+        # When team invitation is attempted
         if behavior.get("invite_attempted", False):
             opportunities.append({
                 "trigger": "team_feature_gate",
                 "urgency": "high",
-                "message": "チーム機能はProプラン以上でご利用いただけます。",
-                "cta": "チームプランを見る",
-                "discount": "初月50%OFF"
+                "message": "Team features are available on the Pro plan and above.",
+                "cta": "View Team Plans",
+                "discount": "50% off first month"
             })
 
-        # 長期無料ユーザー
+        # Long-term free user
         if behavior.get("days_on_free", 0) >= 30:
             if behavior.get("sessions", 0) >= 10:
                 opportunities.append({
                     "trigger": "engaged_free_user",
                     "urgency": "low",
-                    "message": "1ヶ月以上ご利用いただきありがとうございます！"
-                              "特別割引でProプランをお試しください。",
-                    "cta": "特別オファーを見る",
-                    "discount": "初年度30%OFF"
+                    "message": "Thank you for using us for over a month! "
+                              "Try the Pro plan with a special discount.",
+                    "cta": "View Special Offer",
+                    "discount": "30% off first year"
                 })
 
         return opportunities
 
     def design_paywall(self, context: str) -> dict:
-        """コンテキスト別ペイウォール設計"""
+        """Paywall design by context"""
         paywalls = {
             "soft": {
-                "description": "ソフトペイウォール",
-                "behavior": "機能は使えるが品質や速度を制限",
-                "example": "無料版は低品質モデル、有料版は高品質モデル",
+                "description": "Soft paywall",
+                "behavior": "Features are usable but quality or speed is limited",
+                "example": "Free version uses low-quality model, paid uses high-quality",
                 "conversion_rate": "2-4%",
-                "user_experience": "良い（ストレス低）"
+                "user_experience": "Good (low stress)"
             },
             "hard": {
-                "description": "ハードペイウォール",
-                "behavior": "制限到達で完全にブロック",
-                "example": "月10回の上限に達したら使用不可",
+                "description": "Hard paywall",
+                "behavior": "Completely blocked when the limit is reached",
+                "example": "Blocked after reaching the 10/month cap",
                 "conversion_rate": "4-8%",
-                "user_experience": "やや悪い（フラストレーション）"
+                "user_experience": "Somewhat poor (frustrating)"
             },
             "metered": {
-                "description": "メータードペイウォール",
-                "behavior": "一定回数は無料、超過分は自動課金",
-                "example": "月50回無料、51回目から¥10/回",
+                "description": "Metered paywall",
+                "behavior": "A certain number of uses are free, overages are auto-charged",
+                "example": "50/month free, ¥10/use from the 51st",
                 "conversion_rate": "5-10%",
-                "user_experience": "中程度（予測可能）"
+                "user_experience": "Moderate (predictable)"
             },
             "feature": {
-                "description": "フィーチャーペイウォール",
-                "behavior": "高度な機能のみ有料",
-                "example": "基本生成は無料、API/エクスポートは有料",
+                "description": "Feature paywall",
+                "behavior": "Only advanced features are paid",
+                "example": "Basic generation is free, API/export is paid",
                 "conversion_rate": "3-6%",
-                "user_experience": "良い（コア機能は無料）"
+                "user_experience": "Good (core features are free)"
             }
         }
 
         return paywalls.get(context, paywalls["soft"])
 ```
 
-### 4.4 フリーミアムの経済学
+### 4.4 Freemium Economics
 
 ```python
 class FreemiumEconomics:
-    """フリーミアムの経済分析"""
+    """Economic analysis of freemium"""
 
     def calculate_unit_economics(
         self,
         total_users: int,
         free_users: int,
         paid_users: int,
-        arpu: float,  # Average Revenue Per User (有料)
+        arpu: float,  # Average Revenue Per User (paid)
         cost_per_free_user: float,
         cost_per_paid_user: float,
         cac: float  # Customer Acquisition Cost
     ) -> dict:
-        """ユニットエコノミクス計算"""
+        """Calculate unit economics"""
         conversion_rate = paid_users / total_users if total_users > 0 else 0
 
-        # 収益
+        # Revenue
         monthly_revenue = paid_users * arpu
         annual_revenue = monthly_revenue * 12
 
-        # コスト
+        # Costs
         free_user_cost = free_users * cost_per_free_user
         paid_user_cost = paid_users * cost_per_paid_user
         total_cost = free_user_cost + paid_user_cost
         acquisition_cost = total_users * cac
 
-        # 無料ユーザーのコストを有料ユーザーが負担
+        # Free user costs are borne by paid users
         effective_cost_per_paid_user = total_cost / paid_users if paid_users > 0 else 0
 
-        # LTV計算（平均契約期間18ヶ月と仮定）
+        # LTV calculation (assuming average contract duration of 18 months)
         avg_lifetime_months = 18
         ltv = arpu * avg_lifetime_months
         ltv_cac_ratio = ltv / cac if cac > 0 else 0
@@ -1319,54 +1323,54 @@ class FreemiumEconomics:
     def _generate_recommendations(
         self, cvr: float, ltv_cac: float, free_cost: float
     ) -> list[str]:
-        """改善推奨事項"""
+        """Generate improvement recommendations"""
         recs = []
         if cvr < 0.02:
-            recs.append("転換率が低い: 無料プランの制限を強化するか、"
-                       "有料プランの価値訴求を改善する")
+            recs.append("Low conversion rate: Tighten free plan limits or "
+                       "improve value communication for paid plans")
         if cvr > 0.10:
-            recs.append("転換率が高すぎる: 無料プランが制限しすぎの可能性。"
-                       "バイラル成長が阻害されている恐れ")
+            recs.append("Conversion rate too high: Free plan may be too restrictive. "
+                       "Viral growth may be impaired")
         if ltv_cac < 3.0:
-            recs.append("LTV/CAC比が低い: 解約率の改善またはARPUの向上が必要")
+            recs.append("LTV/CAC ratio is low: Need to improve churn rate or increase ARPU")
         if free_cost > 100:
-            recs.append("無料ユーザーのコストが高い: キャッシュの導入や"
-                       "軽量モデルへの切り替えを検討")
+            recs.append("Free user cost is high: Consider introducing caching or "
+                       "switching to a lighter model")
         return recs
 
 
-# 使用例
+# Usage example
 economics = FreemiumEconomics()
 result = economics.calculate_unit_economics(
     total_users=10000,
     free_users=9500,
     paid_users=500,
     arpu=9800,
-    cost_per_free_user=50,      # 無料ユーザー1人月¥50
-    cost_per_paid_user=2500,    # 有料ユーザー1人月¥2,500
-    cac=3000                    # 獲得コスト¥3,000/人
+    cost_per_free_user=50,      # ¥50/free user/month
+    cost_per_paid_user=2500,    # ¥2,500/paid user/month
+    cac=3000                    # Acquisition cost ¥3,000/person
 )
 ```
 
 ---
 
-## 5. ハイブリッド価格モデル
+## 5. Hybrid Pricing Model
 
-### 5.1 サブスク + 従量制ハイブリッド
+### 5.1 Subscription + Usage-Based Hybrid
 
-最も成功しているAI SaaSの多くが採用するモデル。基本料金で一定量を含み、超過分を従量課金する。
+The model adopted by many of the most successful AI SaaS products. A base fee covers a fixed amount, and overages are charged on a per-use basis.
 
 ```python
 class HybridPricingEngine:
-    """ハイブリッド価格エンジン"""
+    """Hybrid pricing engine"""
 
     PLANS = {
         "starter": {
             "base_price": 2980,
             "included_credits": 100,
-            "overage_rate": 50,  # ¥50/回（超過分）
+            "overage_rate": 50,  # ¥50/use (overages)
             "features": ["basic"],
-            "max_overage": 30000  # 月間超過上限
+            "max_overage": 30000  # Monthly overage cap
         },
         "pro": {
             "base_price": 9800,
@@ -1381,13 +1385,13 @@ class HybridPricingEngine:
             "overage_rate": 15,
             "features": ["basic", "advanced", "api",
                         "sso", "sla", "custom"],
-            "max_overage": None  # 上限なし
+            "max_overage": None  # No cap
         }
     }
 
     def calculate_monthly_bill(self, plan: str,
                                 usage: int) -> dict:
-        """月額請求額を計算"""
+        """Calculate monthly bill"""
         config = self.PLANS[plan]
         base = config["base_price"]
         included = config["included_credits"]
@@ -1418,12 +1422,12 @@ class HybridPricingEngine:
 
     def _recommend_plan(self, current_plan: str,
                         usage: int) -> str:
-        """プラン推奨"""
+        """Recommend a plan"""
         current = self.PLANS[current_plan]
         included = current["included_credits"]
 
         if usage > included * 1.5:
-            # 次のプランの方が安い可能性
+            # Next plan may be cheaper
             plans = list(self.PLANS.keys())
             idx = plans.index(current_plan)
             if idx < len(plans) - 1:
@@ -1434,19 +1438,19 @@ class HybridPricingEngine:
                                current["overage_rate"])
                 next_cost = next_config["base_price"]
                 if next_cost < current_cost:
-                    return (f"{next_plan}プランへのアップグレード推奨"
-                           f"（¥{current_cost - next_cost:,}お得）")
+                    return (f"Recommend upgrading to {next_plan} plan "
+                           f"(saves ¥{current_cost - next_cost:,})")
         elif usage < included * 0.3:
             plans = list(self.PLANS.keys())
             idx = plans.index(current_plan)
             if idx > 0:
                 prev_plan = plans[idx - 1]
-                return f"利用量が少ないため{prev_plan}プランも検討ください"
+                return f"Low usage — consider the {prev_plan} plan"
 
-        return "現在のプランが最適です"
+        return "Your current plan is optimal"
 
     def simulate_plans(self, expected_usage: int) -> list[dict]:
-        """全プランのコストシミュレーション"""
+        """Simulate costs across all plans"""
         results = []
         for plan_name, config in self.PLANS.items():
             result = self.calculate_monthly_bill(plan_name,
@@ -1458,41 +1462,41 @@ class HybridPricingEngine:
                 "overage": result["overage_charge"]
             })
 
-        # コスト順ソート
+        # Sort by cost
         results.sort(key=lambda x: x["monthly_cost"])
         results[0]["best_value"] = True
 
         return results
 ```
 
-### 5.2 成果報酬型ハイブリッド
+### 5.2 Outcome-Based Hybrid
 
 ```python
 class OutcomeBasedPricing:
-    """成果報酬型の価格モデル"""
+    """Outcome-based pricing model"""
 
     def __init__(self):
         self.outcome_definitions = {
             "lead_generated": {
-                "description": "AI生成リードの獲得",
-                "base_rate": 500,  # ¥500/リード
+                "description": "AI-generated lead acquired",
+                "base_rate": 500,  # ¥500/lead
                 "quality_multiplier": {
-                    "hot": 3.0,    # ホットリード: ¥1,500
-                    "warm": 1.5,   # ウォームリード: ¥750
-                    "cold": 1.0    # コールドリード: ¥500
+                    "hot": 3.0,    # Hot lead: ¥1,500
+                    "warm": 1.5,   # Warm lead: ¥750
+                    "cold": 1.0    # Cold lead: ¥500
                 }
             },
             "document_processed": {
-                "description": "AI文書処理の完了",
+                "description": "AI document processing completed",
                 "base_rate": 100,
                 "complexity_multiplier": {
-                    "simple": 1.0,   # 1-5ページ
-                    "medium": 2.0,   # 6-20ページ
-                    "complex": 5.0   # 21+ページ
+                    "simple": 1.0,   # 1-5 pages
+                    "medium": 2.0,   # 6-20 pages
+                    "complex": 5.0   # 21+ pages
                 }
             },
             "customer_resolved": {
-                "description": "AI顧客対応の解決",
+                "description": "AI customer support resolved",
                 "base_rate": 200,
                 "channel_multiplier": {
                     "chat": 1.0,
@@ -1506,9 +1510,9 @@ class OutcomeBasedPricing:
         self, outcome_type: str, quantity: int,
         quality_or_complexity: str
     ) -> dict:
-        """成果報酬額の計算"""
+        """Calculate outcome-based charge"""
         definition = self.outcome_definitions[outcome_type]
-        multiplier_key = list(definition.keys())[-1]  # 最後のmultiplier
+        multiplier_key = list(definition.keys())[-1]  # Last multiplier
         multiplier_dict = definition[multiplier_key]
         multiplier = multiplier_dict.get(quality_or_complexity, 1.0)
 
@@ -1526,19 +1530,19 @@ class OutcomeBasedPricing:
 
     def design_hybrid_plan(self, base_monthly: float,
                            outcome_configs: list[dict]) -> dict:
-        """ハイブリッドプラン設計"""
+        """Design a hybrid plan"""
         return {
             "base_fee": {
                 "amount": base_monthly,
-                "includes": "プラットフォーム利用料 + 基本サポート",
-                "billing": "月初固定請求"
+                "includes": "Platform usage fee + basic support",
+                "billing": "Fixed billing at start of month"
             },
             "outcome_fees": [
                 {
                     "type": config["type"],
                     "rate": config["rate"],
                     "cap": config.get("monthly_cap"),
-                    "billing": "月末実績ベース請求"
+                    "billing": "End-of-month billing based on actuals"
                 }
                 for config in outcome_configs
             ],
@@ -1552,66 +1556,66 @@ class OutcomeBasedPricing:
 
 ---
 
-## 6. 心理的価格設計
+## 6. Psychological Pricing Design
 
-### 6.1 行動経済学に基づく価格テクニック
+### 6.1 Pricing Techniques Based on Behavioral Economics
 
 ```python
 class PsychologicalPricing:
-    """心理的価格設計"""
+    """Psychological pricing design"""
 
     TECHNIQUES = {
         "charm_pricing": {
-            "name": "端数価格（チャームプライシング）",
-            "description": "¥9,800は¥10,000より大幅に安く感じる",
-            "implementation": "価格を80/90で終わらせる",
-            "effectiveness": "コンバージョン+8-15%",
+            "name": "Charm pricing",
+            "description": "¥9,800 feels significantly cheaper than ¥10,000",
+            "implementation": "End prices in 80 or 90",
+            "effectiveness": "+8-15% conversion",
             "examples": ["¥2,980", "¥9,800", "¥49,800"]
         },
         "anchoring": {
-            "name": "アンカリング効果",
-            "description": "高価格を先に見せることで中価格が安く感じる",
-            "implementation": "Enterpriseプランを最初（左側）に表示",
-            "effectiveness": "Pro選択率+20-30%",
-            "examples": ["Enterprise ¥49,800 → Pro ¥9,800 が安く見える"]
+            "name": "Anchoring effect",
+            "description": "Showing a high price first makes the mid price seem cheaper",
+            "implementation": "Show Enterprise plan first (on the left)",
+            "effectiveness": "+20-30% Pro selection rate",
+            "examples": ["Enterprise ¥49,800 → Pro ¥9,800 looks cheap"]
         },
         "decoy_effect": {
-            "name": "おとり効果（デコイ効果）",
-            "description": "3プランで中間を魅力的に見せる",
-            "implementation": "上位プランとわずかな差の中間プランを設計",
-            "effectiveness": "中間プラン選択率+30-40%",
+            "name": "Decoy effect",
+            "description": "Make the middle option look attractive in a 3-plan setup",
+            "implementation": "Design a middle plan that is close to the higher-end plan",
+            "effectiveness": "+30-40% middle plan selection rate",
             "examples": [
-                "Starter ¥2,980 (100回)",
-                "Pro ¥9,800 (1000回) ★おすすめ",
-                "Enterprise ¥49,800 (無制限)"
+                "Starter ¥2,980 (100 uses)",
+                "Pro ¥9,800 (1000 uses) ★ Recommended",
+                "Enterprise ¥49,800 (Unlimited)"
             ]
         },
         "loss_aversion": {
-            "name": "損失回避",
-            "description": "「今ならX%OFF」で機会損失を強調",
-            "implementation": "期間限定割引 + カウントダウンタイマー",
-            "effectiveness": "即時転換率+25-35%",
-            "caution": "過度な使用はブランド毀損リスク"
+            "name": "Loss aversion",
+            "description": "Emphasize missed opportunity with 'X% OFF today only'",
+            "implementation": "Time-limited discount + countdown timer",
+            "effectiveness": "+25-35% immediate conversion rate",
+            "caution": "Excessive use risks brand damage"
         },
         "round_number_avoidance": {
-            "name": "端数回避",
-            "description": "B2Bでは逆にラウンドナンバーが信頼感を与える",
-            "implementation": "Enterprise向けは¥50,000/月のようなきりの良い数字",
-            "effectiveness": "B2B商談成約率+5-10%",
-            "examples": ["¥50,000/月", "¥500,000/年"]
+            "name": "Round number effect",
+            "description": "In B2B, round numbers actually convey trustworthiness",
+            "implementation": "Use round numbers like ¥50,000/month for Enterprise",
+            "effectiveness": "+5-10% B2B deal close rate",
+            "examples": ["¥50,000/month", "¥500,000/year"]
         }
     }
 
     def apply_charm_pricing(self, base_price: float) -> dict:
-        """チャームプライシングの適用"""
+        """Apply charm pricing"""
         options = []
-        # 80で終わる価格
+        # Price ending in 80
         charm_80 = round(base_price / 100) * 100 - 20
         options.append({"price": charm_80, "ending": "80"})
-        # 00で終わる価格（切り上げ）
+        # Rounded-up price
         round_up = round(base_price / 1000) * 1000
         options.append({"price": round_up, "ending": "000"})
-        # 980で終わる価格
+        # Price ending in 980
         charm_980 = round(base_price / 1000) * 1000 - 20
         if charm_980 < 1000:
             charm_980 = 980
@@ -1620,108 +1624,108 @@ class PsychologicalPricing:
         return {
             "original": base_price,
             "options": options,
-            "recommendation": options[2],  # 980が最も効果的
-            "reasoning": "日本市場では980円台が最も効果が高い"
+            "recommendation": options[2],  # 980 is most effective
+            "reasoning": "In the Japanese market, prices ending in 980 yen are most effective"
         }
 
     def design_pricing_page(self, plans: list[dict]) -> dict:
-        """心理的に最適化された価格ページ設計"""
+        """Design a psychologically optimized pricing page"""
         if len(plans) != 3:
-            return {"error": "3プラン構成を推奨"}
+            return {"error": "3-plan layout recommended"}
 
         return {
             "layout": {
-                "order": "右から左: Enterprise → Pro → Starter",
-                "highlight": "中間プラン（Pro）を視覚的に強調",
-                "recommended_badge": "Pro に「最も人気」バッジ",
-                "cta_color": "Proのみ主要カラー、他はグレー系"
+                "order": "Right to left: Enterprise → Pro → Starter",
+                "highlight": "Visually emphasize the middle plan (Pro)",
+                "recommended_badge": "Add 'Most Popular' badge to Pro",
+                "cta_color": "Pro uses primary color only, others use gray tones"
             },
             "copy_techniques": {
                 "starter": {
-                    "label": "個人向け",
-                    "cta": "まずはこちらから",
-                    "emphasis": "リスクなし"
+                    "label": "For individuals",
+                    "cta": "Get started here",
+                    "emphasis": "No risk"
                 },
                 "pro": {
-                    "label": "★ 最も人気",
-                    "cta": "今すぐ始める",
-                    "emphasis": "最もお得"
+                    "label": "★ Most Popular",
+                    "cta": "Start now",
+                    "emphasis": "Best value"
                 },
                 "enterprise": {
-                    "label": "チーム・法人向け",
-                    "cta": "お問い合わせ",
-                    "emphasis": "フルサポート"
+                    "label": "For teams and businesses",
+                    "cta": "Contact us",
+                    "emphasis": "Full support"
                 }
             },
             "social_proof": {
-                "position": "価格表の上部",
-                "content": "10,000社以上が利用中",
-                "logos": "認知度の高い企業ロゴ 5-8社"
+                "position": "Above the pricing table",
+                "content": "Trusted by 10,000+ companies",
+                "logos": "5-8 recognizable company logos"
             },
             "guarantee": {
-                "position": "価格表の下部",
-                "content": "30日間返金保証",
-                "icon": "シールド/鍵アイコン"
+                "position": "Below the pricing table",
+                "content": "30-day money-back guarantee",
+                "icon": "Shield/lock icon"
             }
         }
 ```
 
-### 6.2 価格表示の最適化
+### 6.2 Price Display Optimization
 
 ```python
 class PriceDisplayOptimizer:
-    """価格表示の最適化"""
+    """Price display optimization"""
 
     def format_price_display(self, monthly_price: float,
                               annual_price: float) -> dict:
-        """最適な価格表示形式"""
+        """Optimal price display format"""
         monthly_if_annual = annual_price / 12
         savings = monthly_price - monthly_if_annual
         savings_pct = savings / monthly_price * 100
 
         return {
             "primary_display": {
-                "format": f"¥{monthly_if_annual:,.0f}/月",
-                "subtext": f"年払い ¥{annual_price:,.0f}/年",
-                "reasoning": "最小月額を強調（年払い時）"
+                "format": f"¥{monthly_if_annual:,.0f}/mo",
+                "subtext": f"Annual billing ¥{annual_price:,.0f}/year",
+                "reasoning": "Emphasize the lowest monthly rate (when billed annually)"
             },
             "savings_display": {
-                "format": f"月額¥{savings:,.0f}お得",
-                "percentage": f"{savings_pct:.0f}%OFF",
-                "annual_savings": f"年間¥{savings*12:,.0f}お得",
-                "best_format": f"2ヶ月分無料"
+                "format": f"Save ¥{savings:,.0f}/month",
+                "percentage": f"{savings_pct:.0f}% OFF",
+                "annual_savings": f"Save ¥{savings*12:,.0f}/year",
+                "best_format": "2 months free"
                               if savings_pct >= 15 else
-                              f"年間¥{savings*12:,.0f}お得"
+                              f"Save ¥{savings*12:,.0f}/year"
             },
             "toggle_design": {
-                "default": "annual",  # 年払いをデフォルト選択
-                "monthly_label": "月払い",
-                "annual_label": "年払い（お得）",
-                "annual_badge": f"{savings_pct:.0f}%OFF"
+                "default": "annual",  # Default to annual billing
+                "monthly_label": "Monthly",
+                "annual_label": "Annual (Best value)",
+                "annual_badge": f"{savings_pct:.0f}% OFF"
             }
         }
 
     def price_localization(self, base_price_usd: float,
                            region: str) -> dict:
-        """地域別価格最適化"""
-        # PPP（購買力平価）係数
+        """Region-specific price optimization"""
+        # PPP (Purchasing Power Parity) multipliers
         ppp_multipliers = {
             "us": 1.0,
-            "jp": 1.1,      # 日本: やや高め
-            "eu": 0.95,     # EU: ほぼ同等
+            "jp": 1.1,      # Japan: slightly higher
+            "eu": 0.95,     # EU: roughly equivalent
             "uk": 0.90,
-            "in": 0.25,     # インド: 大幅割引
-            "br": 0.35,     # ブラジル: 割引
-            "sea": 0.30,    # 東南アジア: 割引
-            "kr": 0.85,     # 韓国
-            "cn": 0.40,     # 中国
-            "au": 1.05      # オーストラリア
+            "in": 0.25,     # India: significant discount
+            "br": 0.35,     # Brazil: discount
+            "sea": 0.30,    # Southeast Asia: discount
+            "kr": 0.85,     # South Korea
+            "cn": 0.40,     # China
+            "au": 1.05      # Australia
         }
 
         multiplier = ppp_multipliers.get(region, 1.0)
         local_price_usd = base_price_usd * multiplier
 
-        # 通貨変換レート（概算）
+        # Currency conversion rates (approximate)
         currency_rates = {
             "us": ("USD", 1.0), "jp": ("JPY", 150),
             "eu": ("EUR", 0.92), "uk": ("GBP", 0.79),
@@ -1746,41 +1750,41 @@ class PriceDisplayOptimizer:
 
 ---
 
-## 7. 価格実験と最適化
+## 7. Price Experimentation and Optimization
 
-### 7.1 価格感度分析
+### 7.1 Price Sensitivity Analysis
 
 ```
-Van Westendorp 価格感度メーター:
+Van Westendorp Price Sensitivity Meter:
 
-  回答率
+  Response rate
   100%┤
-     │  ＼安すぎ     高すぎ／
-     │    ＼         ／
-  50%┤     ＼ PMF  ／
-     │      ＼ 価格／
-     │       ＼  ／
-     │        ＼／  ← 最適価格帯
+     │  \Too cheap     Too expensive/
+     │    \           /
+  50%┤     \ PMF    /
+     │      \ Price/
+     │       \   /
+     │        \ /  ← Optimal price range
    0%┤─────────╳────────────────
      └──┬──┬──┬──┬──┬──┬──
       ¥1k ¥3k ¥5k ¥8k ¥10k ¥15k
-              価格
+              Price
 
-  「安すぎて不安」と「高すぎる」の交点 = 最適価格
+  Intersection of "too cheap to trust" and "too expensive" = Optimal price
 ```
 
-### 7.2 A/Bテスト実装
+### 7.2 A/B Test Implementation
 
 ```python
 class PricingExperiment:
-    """価格A/Bテスト"""
+    """Pricing A/B test"""
 
     def __init__(self):
         self.experiments = {}
 
     def create_experiment(self, name: str,
                           variants: list[dict]) -> str:
-        """価格実験を作成"""
+        """Create a pricing experiment"""
         experiment = {
             "name": name,
             "variants": variants,
@@ -1793,9 +1797,9 @@ class PricingExperiment:
 
     def assign_variant(self, user_id: str,
                         experiment_name: str) -> dict:
-        """ユーザーをバリアントに割り当て"""
+        """Assign a user to a variant"""
         experiment = self.experiments[experiment_name]
-        # 決定的ハッシュで一貫した割り当て
+        # Deterministic hash for consistent assignment
         variant_index = hash(f"{user_id}:{experiment_name}") % len(
             experiment["variants"]
         )
@@ -1805,13 +1809,13 @@ class PricingExperiment:
 
     def record_conversion(self, experiment_name: str,
                            variant_name: str):
-        """コンバージョンを記録"""
+        """Record a conversion"""
         self.experiments[experiment_name]["results"][variant_name][
             "conversions"
         ] += 1
 
     def get_results(self, experiment_name: str) -> dict:
-        """結果を取得"""
+        """Get results"""
         results = self.experiments[experiment_name]["results"]
         for name, data in results.items():
             data["cvr"] = (
@@ -1820,16 +1824,16 @@ class PricingExperiment:
             )
         return results
 
-# 使用例
+# Usage example
 exp = PricingExperiment()
 exp.create_experiment("pro_pricing", [
-    {"name": "A", "price": 7800, "label": "¥7,800/月"},
-    {"name": "B", "price": 9800, "label": "¥9,800/月"},
-    {"name": "C", "price": 12800, "label": "¥12,800/月"}
+    {"name": "A", "price": 7800, "label": "¥7,800/mo"},
+    {"name": "B", "price": 9800, "label": "¥9,800/mo"},
+    {"name": "C", "price": 12800, "label": "¥12,800/mo"}
 ])
 ```
 
-### 7.3 統計的有意性の判定
+### 7.3 Determining Statistical Significance
 
 ```python
 import math
@@ -1837,22 +1841,22 @@ from typing import Tuple
 
 
 class StatisticalSignificance:
-    """価格テストの統計的有意性判定"""
+    """Determining statistical significance for pricing tests"""
 
     @staticmethod
     def calculate_z_score(
         control_conversions: int, control_views: int,
         variant_conversions: int, variant_views: int
     ) -> Tuple[float, bool]:
-        """Z検定によるA/Bテスト有意性判定"""
+        """Determine A/B test significance using Z-test"""
         p1 = control_conversions / control_views
         p2 = variant_conversions / variant_views
 
-        # プールされた比率
+        # Pooled proportion
         p_pool = (control_conversions + variant_conversions) / \
                  (control_views + variant_views)
 
-        # 標準誤差
+        # Standard error
         se = math.sqrt(
             p_pool * (1 - p_pool) *
             (1 / control_views + 1 / variant_views)
@@ -1862,7 +1866,7 @@ class StatisticalSignificance:
             return 0, False
 
         z_score = (p2 - p1) / se
-        # 95%信頼水準（Z > 1.96で有意）
+        # 95% confidence level (significant if Z > 1.96)
         is_significant = abs(z_score) > 1.96
 
         return round(z_score, 3), is_significant
@@ -1874,10 +1878,10 @@ class StatisticalSignificance:
         significance_level: float = 0.05,
         power: float = 0.80
     ) -> int:
-        """必要サンプルサイズの計算"""
-        # Z値
-        z_alpha = 1.96  # 95%信頼水準
-        z_beta = 0.84   # 80%検出力
+        """Calculate required sample size"""
+        # Z values
+        z_alpha = 1.96  # 95% confidence level
+        z_beta = 0.84   # 80% power
 
         p1 = baseline_cvr
         p2 = baseline_cvr * (1 + minimum_detectable_effect)
@@ -1890,12 +1894,12 @@ class StatisticalSignificance:
         return math.ceil(n)
 
     def analyze_experiment(self, experiment_results: dict) -> dict:
-        """実験結果の包括的分析"""
+        """Comprehensive analysis of experiment results"""
         variants = list(experiment_results.items())
         if len(variants) < 2:
-            return {"error": "2つ以上のバリアントが必要"}
+            return {"error": "At least 2 variants are required"}
 
-        # コントロール（最初のバリアント）
+        # Control (first variant)
         control_name, control_data = variants[0]
         analyses = []
 
@@ -1917,11 +1921,11 @@ class StatisticalSignificance:
                 "z_score": z_score,
                 "significant": significant,
                 "recommendation": (
-                    f"{name}を採用（有意に改善）"
+                    f"Adopt {name} (significantly improved)"
                     if significant and lift > 0
-                    else f"{name}は有意差なし、テスト継続"
+                    else f"{name} shows no significant difference — continue testing"
                     if not significant
-                    else f"{name}はコントロールより悪い"
+                    else f"{name} is worse than control"
                 )
             })
 
@@ -1939,15 +1943,15 @@ class StatisticalSignificance:
         if significant_winners:
             best = max(significant_winners,
                       key=lambda x: float(x["lift"].rstrip("%")))
-            return f"推奨: {best['variant']}を採用（{best['lift']}改善）"
-        return "有意な勝者なし。テストを継続するか、新バリアントを追加"
+            return f"Recommendation: Adopt {best['variant']} ({best['lift']} improvement)"
+        return "No significant winner. Continue testing or add new variants"
 ```
 
-### 7.4 LTV最大化と価格最適化
+### 7.4 LTV Maximization and Price Optimization
 
 ```python
 class LTVOptimizer:
-    """LTV（顧客生涯価値）最大化"""
+    """LTV (Customer Lifetime Value) maximization"""
 
     def calculate_ltv(
         self,
@@ -1955,7 +1959,7 @@ class LTVOptimizer:
         monthly_churn_rate: float,
         gross_margin: float = 0.70
     ) -> dict:
-        """LTVの計算"""
+        """Calculate LTV"""
         avg_lifetime_months = 1 / monthly_churn_rate if monthly_churn_rate > 0 else 0
         ltv_gross = arpu * avg_lifetime_months
         ltv_net = ltv_gross * gross_margin
@@ -1966,18 +1970,18 @@ class LTVOptimizer:
             "avg_lifetime_months": round(avg_lifetime_months, 1),
             "ltv_gross": f"¥{ltv_gross:,.0f}",
             "ltv_net": f"¥{ltv_net:,.0f}",
-            "max_cac": f"¥{ltv_net / 3:,.0f}",  # LTV/CAC≥3
-            "health": "健全" if avg_lifetime_months >= 12 else "要改善"
+            "max_cac": f"¥{ltv_net / 3:,.0f}",  # LTV/CAC >= 3
+            "health": "Healthy" if avg_lifetime_months >= 12 else "Needs improvement"
         }
 
     def price_sensitivity_matrix(self, prices: list[float],
                                   churn_rates: list[float]) -> list[dict]:
-        """価格と解約率のマトリックス分析"""
+        """Matrix analysis of price vs. churn rate"""
         results = []
         for price in prices:
             for churn in churn_rates:
                 ltv = price / churn if churn > 0 else 0
-                revenue_index = ltv * (1 - churn)  # 粗収益指標
+                revenue_index = ltv * (1 - churn)  # Gross revenue indicator
                 results.append({
                     "price": price,
                     "churn": f"{churn*100:.0f}%",
@@ -1985,7 +1989,7 @@ class LTVOptimizer:
                     "revenue_index": round(revenue_index),
                 })
 
-        # 最適な組み合わせを特定
+        # Identify the optimal combination
         best = max(results, key=lambda x: x["revenue_index"])
         for r in results:
             r["optimal"] = (r["price"] == best["price"] and
@@ -1994,8 +1998,9 @@ class LTVOptimizer:
         return results
 
     def cohort_analysis(self, cohorts: dict) -> dict:
-        """コホート分析によるLTV予測"""
+        """LTV prediction via cohort analysis"""
         predictions = {}
+
         for cohort_month, data in cohorts.items():
             initial_users = data["initial_users"]
             monthly_retention = data["monthly_active"]
@@ -2005,14 +2010,14 @@ class LTVOptimizer:
                 for active in monthly_retention
             ]
 
-            # 累積収益
+            # Cumulative revenue
             arpu = data.get("arpu", 9800)
             cumulative_revenue = [
                 sum(monthly_retention[:i+1]) * arpu
                 for i in range(len(monthly_retention))
             ]
 
-            # LTV予測（指数減衰フィッティング）
+            # LTV prediction (exponential decay fitting)
             if len(retention_rates) >= 3:
                 avg_decay = sum(
                     retention_rates[i+1] / retention_rates[i]
@@ -2022,7 +2027,7 @@ class LTVOptimizer:
 
                 predicted_ltv = arpu * retention_rates[-1] / (1 - avg_decay)
             else:
-                predicted_ltv = arpu * 12  # デフォルト推定
+                predicted_ltv = arpu * 12  # Default estimate
 
             predictions[cohort_month] = {
                 "initial_users": initial_users,
@@ -2037,36 +2042,36 @@ class LTVOptimizer:
 
 ---
 
-## 8. 国際価格戦略
+## 8. International Pricing Strategy
 
-### 8.1 地域別価格設定
+### 8.1 Region-Based Pricing
 
 ```python
 class InternationalPricingStrategy:
-    """国際価格戦略"""
+    """International pricing strategy"""
 
     REGIONAL_CONFIGS = {
         "tier1": {
             "regions": ["us", "uk", "eu", "au", "jp"],
-            "pricing_approach": "標準価格",
+            "pricing_approach": "Standard pricing",
             "discount_pct": 0,
             "payment_methods": ["card", "paypal"]
         },
         "tier2": {
             "regions": ["kr", "tw", "sg", "hk"],
-            "pricing_approach": "やや割引",
+            "pricing_approach": "Slight discount",
             "discount_pct": 15,
             "payment_methods": ["card", "paypal", "local"]
         },
         "tier3": {
             "regions": ["br", "mx", "th", "my", "ph"],
-            "pricing_approach": "大幅割引",
+            "pricing_approach": "Significant discount",
             "discount_pct": 40,
             "payment_methods": ["card", "pix", "local"]
         },
         "tier4": {
             "regions": ["in", "id", "vn", "ng", "pk"],
-            "pricing_approach": "PPP割引",
+            "pricing_approach": "PPP discount",
             "discount_pct": 65,
             "payment_methods": ["upi", "local", "card"]
         }
@@ -2074,7 +2079,7 @@ class InternationalPricingStrategy:
 
     def get_regional_price(self, base_price_usd: float,
                            country_code: str) -> dict:
-        """地域別価格の取得"""
+        """Get region-specific price"""
         for tier_name, config in self.REGIONAL_CONFIGS.items():
             if country_code in config["regions"]:
                 discount = config["discount_pct"] / 100
@@ -2090,7 +2095,7 @@ class InternationalPricingStrategy:
                     "approach": config["pricing_approach"]
                 }
 
-        # デフォルト（Tier 1扱い）
+        # Default (treated as Tier 1)
         return {
             "country": country_code,
             "tier": "tier1",
@@ -2098,11 +2103,11 @@ class InternationalPricingStrategy:
             "adjusted_price_usd": base_price_usd,
             "discount": "0%",
             "payment_methods": ["card", "paypal"],
-            "approach": "標準価格"
+            "approach": "Standard pricing"
         }
 
     def prevent_arbitrage(self, user_data: dict) -> dict:
-        """地域別価格の裁定取引防止"""
+        """Prevent arbitrage on region-based pricing"""
         checks = {
             "ip_geolocation": user_data.get("ip_country"),
             "payment_country": user_data.get("card_country"),
@@ -2115,9 +2120,9 @@ class InternationalPricingStrategy:
             return {
                 "risk": "high",
                 "action": "verify",
-                "reason": "複数国の情報が検出されました",
+                "reason": "Multiple countries detected",
                 "detected": checks,
-                "recommendation": "最も高い価格帯を適用"
+                "recommendation": "Apply the highest pricing tier"
             }
 
         return {
@@ -2129,94 +2134,94 @@ class InternationalPricingStrategy:
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### アンチパターン1: コストを無視した価格設定
+### Anti-Pattern 1: Pricing That Ignores Costs
 
 ```python
-# BAD: 競合に合わせて安価に設定、APIコストで赤字
+# BAD: Set low to match competitors, losing money on API costs
 pricing_bad = {
     "plan": "Pro",
-    "price": 1980,   # ¥1,980/月
-    "api_cost_per_user": 2500,  # API費用 ¥2,500/月
-    "result": "使われるほど赤字が拡大"
+    "price": 1980,   # ¥1,980/month
+    "api_cost_per_user": 2500,  # API cost ¥2,500/month
+    "result": "Losses grow the more it is used"
 }
 
-# GOOD: コスト構造を把握した上で価格設定
+# GOOD: Set pricing after understanding the cost structure
 pricing_good = {
     "plan": "Pro",
     "api_cost_per_user": 2500,
     "target_gross_margin": 0.70,
     "minimum_price": 2500 / (1 - 0.70),  # ¥8,333
-    "set_price": 9800,  # マージン込みで¥9,800
+    "set_price": 9800,  # ¥9,800 with margin
     "actual_margin": (9800 - 2500) / 9800  # 74.5%
 }
 ```
 
-### アンチパターン2: 無料プランが豊富すぎる
+### Anti-Pattern 2: An Overly Generous Free Plan
 
 ```python
-# BAD: 無料で十分使えてしまう
+# BAD: Free plan provides too much value
 free_plan_bad = {
-    "generations": 100,  # 月100回で十分
-    "quality": "premium",  # 最高品質
-    "result": "誰も有料にならない（転換率0.5%以下）"
+    "generations": 100,  # 100/month is enough
+    "quality": "premium",  # Best quality
+    "result": "Nobody upgrades to paid (conversion rate < 0.5%)"
 }
 
-# GOOD: 無料で価値は体験できるが、物足りなくなる設計
+# GOOD: Designed so free is valuable but leaves users wanting more
 free_plan_good = {
-    "generations": 10,  # 「もっと使いたい」が生まれる量
-    "quality": "standard",  # 有料版の品質差を実感
-    "result": "転換率3-5%、NPS高い"
+    "generations": 10,  # Enough to generate "I want more"
+    "quality": "standard",  # Users feel the quality difference vs. paid
+    "result": "Conversion rate 3-5%, high NPS"
 }
 ```
 
-### アンチパターン3: 複雑すぎる価格体系
+### Anti-Pattern 3: Overly Complex Pricing Structure
 
 ```python
-# BAD: 理解不能な価格体系
+# BAD: Incomprehensible pricing structure
 pricing_complex_bad = {
-    "plans": 7,  # プランが多すぎる
-    "add_ons": 12,  # アドオンが多すぎる
-    "pricing_page": "スクロールが必要な長さ",
-    "result": "顧客が混乱して離脱（直帰率60%+）"
+    "plans": 7,  # Too many plans
+    "add_ons": 12,  # Too many add-ons
+    "pricing_page": "Requires scrolling",
+    "result": "Customers confused and bounce (bounce rate 60%+)"
 }
 
-# GOOD: シンプルで直感的な価格体系
+# GOOD: Simple, intuitive pricing structure
 pricing_simple_good = {
     "plans": 3,  # Starter / Pro / Enterprise
-    "add_ons": 2,  # 追加クレジット / 追加メンバー
-    "pricing_page": "1画面で全プラン比較可能",
-    "result": "理解容易、意思決定が早い"
+    "add_ons": 2,  # Extra credits / Extra members
+    "pricing_page": "All plans comparable on one screen",
+    "result": "Easy to understand, fast decision-making"
 }
 ```
 
-### アンチパターン4: 値上げの失敗パターン
+### Anti-Pattern 4: Failed Price Increase Patterns
 
 ```python
-# BAD: 突然の大幅値上げ
+# BAD: Sudden large price increase
 price_increase_bad = {
     "old_price": 4980,
     "new_price": 9800,
     "increase_pct": "96.8%",
-    "notice_period": "2週間",
+    "notice_period": "2 weeks",
     "grandfathering": False,
-    "result": "大量解約（チャーン率35%増加）、SNSで炎上"
+    "result": "Mass cancellations (churn rate up 35%), social media backlash"
 }
 
-# GOOD: 段階的・透明な値上げ
+# GOOD: Gradual and transparent price increase
 price_increase_good = {
     "old_price": 4980,
-    "new_price": 6980,  # 1回目: 40%値上げ
-    "future_price": 9800,  # 2回目（6ヶ月後）: さらに値上げ
-    "notice_period": "60日前",
-    "grandfathering": True,  # 既存ユーザーは旧価格を12ヶ月維持
+    "new_price": 6980,  # Round 1: 40% increase
+    "future_price": 9800,  # Round 2 (6 months later): further increase
+    "notice_period": "60 days in advance",
+    "grandfathering": True,  # Existing users keep old price for 12 months
     "communication": [
-        "新機能追加に伴う価格改定",
-        "既存ユーザーは12ヶ月間旧価格",
-        "年間プランなら旧価格をさらに12ヶ月延長"
+        "Price adjustment due to new feature additions",
+        "Existing users keep old price for 12 months",
+        "Annual plan extends old price for another 12 months"
     ],
-    "result": "チャーン率5%増（許容範囲）、ARPU40%向上"
+    "result": "Churn rate up 5% (acceptable), ARPU up 40%"
 }
 ```
 
@@ -2224,79 +2229,75 @@ price_increase_good = {
 
 ## 10. FAQ
 
-### Q1: 従量制とサブスクどちらが良い？
+### Q1: Which is better, usage-based or subscription?
 
-**A:** ユースケースで判断する。(1) 利用量が予測しにくい → 従量制（開発者向けAPI等）、(2) 利用量が安定 → サブスク（ビジネスユーザー向け等）、(3) 最強は「サブスク + 従量制のハイブリッド」。基本料金で一定量含み、超過分は従量課金。Slack、Twilio、AWS等の成功例がこのモデル。
+**A:** Decide based on the use case. (1) If usage is unpredictable → usage-based (developer APIs, etc.), (2) If usage is stable → subscription (business users, etc.), (3) The strongest option is a "subscription + usage-based hybrid." A base fee includes a fixed amount, and overages are charged per use. Successful examples include Slack, Twilio, and AWS.
 
-### Q2: 値上げのタイミングと方法は？
+### Q2: When and how should I raise prices?
 
-**A:** 3つの原則。(1) タイミング — PMF達成後、機能追加時、年1回の定期見直し、(2) 方法 — 既存ユーザーは旧価格据え置き（グランドファザリング）+ 新規は新価格、(3) 幅 — 一度に20%以上の値上げは避け、10-15%ずつ段階的に。通知は最低30日前、値上げの理由（新機能追加等）を明確に伝える。
+**A:** Three principles. (1) Timing — after achieving PMF, when adding features, during an annual review, (2) Method — grandfather existing users at the old price + charge new users the new price, (3) Magnitude — avoid raising more than 20% at once; increase gradually in 10-15% increments. Give at least 30 days' notice, and communicate the reason for the increase (e.g., new features added) clearly.
 
-### Q3: AI SaaSの適正粗利率は？
+### Q3: What is the appropriate gross margin for AI SaaS?
 
-**A:** 業界目安は70-80%。ただしAI SaaSはAPIコストが高いため、立ち上げ期は60%でも許容範囲。改善方法: (1) キャッシュ導入で同一リクエストのAPI呼び出し削減（30-50%削減可能）、(2) 軽量モデルの活用（簡単なタスクはGPT-3.5で十分）、(3) バッチ処理でAPI効率化。年々APIコストが下がるトレンドもあり、粗利は自然に改善する傾向。
+**A:** The industry benchmark is 70-80%. However, because AI SaaS has high API costs, 60% is acceptable in the early stage. Ways to improve: (1) Introduce caching to reduce API calls for the same request (30-50% reduction possible), (2) Use lightweight models (GPT-3.5 is sufficient for simple tasks), (3) Batch processing for API efficiency. API costs also tend to decrease over time, so gross margins naturally improve.
 
-### Q4: 競合が大幅に安い場合どうする？
+### Q4: What should I do if a competitor is significantly cheaper?
 
-**A:** 価格で勝負しない。(1) 差別化要素を明確にする（精度、速度、サポート品質）、(2) ターゲットセグメントをずらす（SMBではなくEnterpriseにフォーカス）、(3) 無料トライアルで品質を体験させる。価格競争に巻き込まれると全員が負ける。価値ベースの価格設定に徹することが重要。
+**A:** Don't compete on price. (1) Clarify differentiating factors (accuracy, speed, support quality), (2) Target a different segment (focus on Enterprise rather than SMB), (3) Let customers experience quality through a free trial. Everyone loses in a price war. Stick to value-based pricing.
 
-### Q5: フリーミアムの転換率が低い場合の改善策は？
+### Q5: How can I improve a low freemium conversion rate?
 
-**A:** 段階的に改善する。(1) 無料プランの制限を見直す（回数を減らすか、機能を制限）、(2) 有料プランの価値を強調するUIの改善（制限到達時のアップグレード導線）、(3) オンボーディングを改善して早期に価値を実感させる（Time to Valueの短縮）、(4) 期間限定割引のトリガーメールを設計。ただし無料プランを過度に制限するとバイラル効果が失われるので注意。
+**A:** Improve iteratively. (1) Revisit free plan limits (reduce usage count or restrict features), (2) Improve UI to emphasize paid plan value (upgrade prompts when limits are reached), (3) Improve onboarding to help users realize value early (reduce Time to Value), (4) Design triggered emails with time-limited discounts. However, be careful not to restrict the free plan too much, as this diminishes viral growth.
 
-### Q6: B2BとB2Cで価格戦略はどう変わる？
+### Q6: How does pricing strategy differ between B2B and B2C?
 
-**A:** 大きく異なる。B2Bは(1) 年間契約推奨、(2) シートベース課金、(3) カスタム価格交渉あり、(4) ROI訴求が重要、(5) 端数価格よりきりの良い数字。B2Cは(1) 月額課金が主流、(2) 利用量ベース課金、(3) 固定価格、(4) 感情・利便性訴求、(5) 端数価格（¥980）が効果的。
+**A:** It differs significantly. For B2B: (1) Annual contracts recommended, (2) Seat-based billing, (3) Custom price negotiation available, (4) ROI messaging is key, (5) Round numbers preferred over charm pricing. For B2C: (1) Monthly billing is standard, (2) Usage-based billing, (3) Fixed pricing, (4) Emotional and convenience appeal, (5) Charm pricing (¥980) is effective.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point in learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| コスト構造 | AI APIが売上の20-40%、粗利70%以上が目標 |
-| 従量制 | 開発者向け・利用量変動大に最適 |
-| サブスク | ビジネスユーザー向け・予測可能な収益 |
-| フリーミアム | 転換率3-5%が目標、無料は「もう少し」の設計 |
-| ハイブリッド | サブスク基本料 + 従量超過課金が最強 |
-| 心理的価格 | アンカリング・おとり効果・端数価格を活用 |
-| 国際展開 | PPPに基づく地域別価格設定 |
-| 最適化 | A/Bテスト + Van Westendorp + LTV分析 |
-| 値上げ | グランドファザリング + 段階的 + 透明性 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [01-cost-management.md](./01-cost-management.md) — API費用最適化
-- [02-scaling-strategy.md](./02-scaling-strategy.md) — スケーリング戦略
-- [../01-business/00-ai-saas.md](../01-business/00-ai-saas.md) — AI SaaSプロダクト設計
+| Item | Key Point |
+|------|-----------|
+| Cost structure | AI API accounts for 20-40% of revenue; target 70%+ gross margin |
+| Usage-based | Best for developer-facing products and high usage variability |
+| Subscription | For business users; delivers predictable revenue |
+| Freemium | Target 3-5% conversion; design free tier to leave users wanting more |
+| Hybrid | Subscription base fee + usage-based overage is the strongest option |
+| Psychological pricing | Leverage anchoring, decoy effect, and charm pricing |
+| International expansion | Region-specific pricing based on PPP |
+| Optimization | A/B testing + Van Westendorp + LTV analysis |
+| Price increases | Grandfathering + gradual + transparency |
 
 ---
 
-## 参考文献
+## Further Reading
 
-1. **"Monetizing Innovation" — Madhavan Ramanujam** — 価格設計の体系的手法、SaaS価格の必読書
-2. **OpenView Partners "SaaS Pricing" (2024)** — https://openviewpartners.com — SaaS価格ベンチマーク
-3. **"The Psychology of Price" — Leigh Caldwell** — 行動経済学に基づく価格設計
-4. **Stripe Billing Documentation** — https://stripe.com/docs/billing — サブスクリプション実装ガイド
-5. **"Predictably Irrational" — Dan Ariely** — 価格の心理学と行動経済学
-6. **ProfitWell "SaaS Pricing Strategy" (2024)** — https://www.profitwell.com — 価格最適化データ
-7. **Kyle Poyar "Growth Unhinged" Newsletter** — PLG・従量課金の最新トレンド
+- [01-cost-management.md](./01-cost-management.md) — API cost optimization
+- [02-scaling-strategy.md](./02-scaling-strategy.md) — Scaling strategy
+- [../01-business/00-ai-saas.md](../01-business/00-ai-saas.md) — AI SaaS product design
+
+---
+
+## References
+
+1. **"Monetizing Innovation" — Madhavan Ramanujam** — Systematic approach to pricing design; essential reading for SaaS pricing
+2. **OpenView Partners "SaaS Pricing" (2024)** — https://openviewpartners.com — SaaS pricing benchmarks
+3. **"The Psychology of Price" — Leigh Caldwell** — Pricing design based on behavioral economics
