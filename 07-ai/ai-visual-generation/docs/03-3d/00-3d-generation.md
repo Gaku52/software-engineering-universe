@@ -1,186 +1,192 @@
-# AI 3Dモデル生成 技術・ツール・活用ガイド
+# AI 3D Model Generation: Technology, Tools, and Practical Guide
 
-> NeRF、3D Gaussian Splatting、Point-E、Shap-E など最先端のAI 3D生成技術を体系的に解説し、原理の理解からツール活用、本番ワークフローへの統合までを網羅する。
-
----
-
-## この章で学ぶこと
-
-1. **主要なAI 3D生成手法**（NeRF、3DGS、拡散モデル系）の原理と特徴を理解し、適材適所で使い分けられる
-2. **テキスト/画像から3Dモデルを生成**する実践的なワークフローを構築できる
-3. **生成した3Dモデルの後処理・最適化・エクスポート**までの本番パイプラインを設計できる
-4. **商用APIサービス**（Meshy、Tripo3D等）を効果的に活用できる
-5. **ゲームエンジン・Webへの統合**まで含めた実務パイプラインを構築できる
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> A comprehensive guide to cutting-edge AI 3D generation technologies including NeRF, 3D Gaussian Splatting, Point-E, and Shap-E — covering everything from understanding the underlying principles to tool usage and integration into production workflows.
 
 ---
 
-## 1. AI 3D生成技術の全体像
+## What You Will Learn in This Chapter
 
-### 1.1 技術マップ
+1. Understand the principles and characteristics of **major AI 3D generation methods** (NeRF, 3DGS, diffusion model-based) and apply them appropriately
+2. Build practical workflows to **generate 3D models from text/images**
+3. Design production pipelines covering **post-processing, optimization, and export of generated 3D models**
+4. Effectively utilize **commercial API services** (Meshy, Tripo3D, etc.)
+5. Build end-to-end production pipelines including **game engine and web integration**
+
+
+## Prerequisites
+
+Having the following knowledge will help deepen your understanding of this guide:
+
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+
+---
+
+## 1. Overview of AI 3D Generation Technology
+
+### 1.1 Technology Map
 
 ```
 ┌───────────────────────────────────────────────────────────┐
-│                AI 3D生成技術マップ                          │
+│              AI 3D Generation Technology Map               │
 ├───────────────────────────────────────────────────────────┤
 │                                                           │
-│  入力                   手法              出力             │
-│  ─────                 ─────            ─────            │
+│  Input                Method            Output            │
+│  ─────               ─────            ─────              │
 │                                                           │
-│  複数画像 ────> [NeRF]          ────> 暗黙的3D表現         │
-│                [3D Gaussian     ────> 点群+ガウシアン      │
-│                 Splatting]                                 │
+│  Multi-image ──> [NeRF]          ────> Implicit 3D repr.  │
+│                  [3D Gaussian     ────> Point cloud +      │
+│                   Splatting]            Gaussians          │
 │                                                           │
-│  テキスト ────> [Shap-E]        ────> メッシュ/点群        │
-│                [Point-E]        ────> 点群→メッシュ        │
-│                [DreamFusion]    ────> NeRF→メッシュ        │
-│                [Meshy/Tripo]    ────> メッシュ(商用API)     │
+│  Text ────────> [Shap-E]        ────> Mesh / Point cloud  │
+│                 [Point-E]        ────> Point cloud → Mesh  │
+│                 [DreamFusion]    ────> NeRF → Mesh         │
+│                 [Meshy/Tripo]    ────> Mesh (commercial    │
+│                                        API)               │
 │                                                           │
-│  単一画像 ────> [Zero-1-to-3]   ────> マルチビュー→3D      │
-│                [One-2-3-45]     ────> メッシュ             │
-│                [TripoSR]        ────> メッシュ             │
-│                [InstantMesh]    ────> メッシュ             │
+│  Single image ─> [Zero-1-to-3]   ────> Multi-view → 3D   │
+│                  [One-2-3-45]     ────> Mesh              │
+│                  [TripoSR]        ────> Mesh              │
+│                  [InstantMesh]    ────> Mesh              │
 │                                                           │
-│  3Dスキャン ──> [COLMAP+NeRF]   ────> 高品質3Dシーン       │
-│                [3DGS]           ────> リアルタイム描画      │
+│  3D scan ─────> [COLMAP+NeRF]   ────> High-quality 3D    │
+│                                        scene              │
+│                 [3DGS]           ────> Real-time rendering │
 │                                                           │
 └───────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 手法間の進化系譜
+### 1.2 Evolutionary Lineage of Methods
 
 ```
 2020  NeRF (Mildenhall et al.)
-  │     └─ 暗黙的ニューラル表現の革命
+  │     └─ Revolution in implicit neural representations
   │
 2021  Instant-NGP
-  │     └─ ハッシュエンコーディングで高速化
+  │     └─ Accelerated with hash encoding
   │
 2022  DreamFusion (Google)
-  │     └─ テキストから3D (SDS Loss)
+  │     └─ Text-to-3D (SDS Loss)
   │   Point-E / Shap-E (OpenAI)
-  │     └─ 拡散モデルで直接3D生成
+  │     └─ Direct 3D generation with diffusion models
   │
 2023  3D Gaussian Splatting
-  │     └─ 明示的表現でリアルタイム描画
+  │     └─ Explicit representation for real-time rendering
   │   TripoSR / InstantMesh
-  │     └─ 単一画像から高速3D再構成
+  │     └─ Fast 3D reconstruction from a single image
   │
-2024  大規模3D基盤モデル
-  │     └─ LRM, GRM, Trellis等
+2024  Large-scale 3D foundation models
+  │     └─ LRM, GRM, Trellis, etc.
   │
-2025  統合マルチモーダル3D生成
-        └─ テキスト・画像・動画から高品質3D
+2025  Unified multimodal 3D generation
+        └─ High-quality 3D from text, images, and video
 ```
 
-### 1.3 3D表現形式の比較
+### 1.3 Comparison of 3D Representation Formats
 
 ```
-┌─────────────────── 3D表現形式の比較 ───────────────────┐
-│                                                        │
-│  メッシュ (Mesh)                                       │
-│  ┌────────────┐  頂点 + 面で構成                       │
-│  │  △ △ △     │  ゲームエンジン・DCCツール互換          │
-│  │ △ △ △ △   │  テクスチャマッピング容易                │
-│  │  △ △ △     │  ファイル形式: OBJ, FBX, glTF          │
-│  └────────────┘  LOD制御が容易                         │
-│                                                        │
-│  点群 (Point Cloud)                                    │
-│  ┌────────────┐  3D空間の座標点の集合                   │
-│  │ . . . .    │  スキャンデータに直結                   │
-│  │  . . . .   │  レンダリングにはスプラッティング必要   │
-│  │ . . . .    │  ファイル形式: PLY, PCD, LAS            │
-│  └────────────┘  メッシュ変換が必要な場合が多い         │
-│                                                        │
-│  暗黙的表現 (Implicit)                                 │
-│  ┌────────────┐  ニューラルネットワークで表現           │
-│  │ f(x,y,z)=σ │  連続的な密度場                        │
-│  │ + color    │  Marching Cubesでメッシュ化            │
-│  └────────────┘  コンパクトだが推論コスト高い           │
-│                                                        │
-│  ガウシアン (3DGS)                                     │
-│  ┌────────────┐  3Dガウシアン関数の集合                 │
-│  │ ○ ○ ○     │  位置+共分散+色+不透明度               │
-│  │  ○ ○ ○    │  ラスタライゼーションで高速描画         │
-│  │ ○ ○ ○     │  編集が直感的                          │
-│  └────────────┘  メモリ使用量は大きい                   │
-│                                                        │
-│  ボクセル (Voxel)                                      │
-│  ┌────────────┐  3Dグリッドの各セルに値を格納          │
-│  │ ■ ■ □     │  単純だがメモリ効率が悪い               │
-│  │ □ ■ ■     │  解像度に制限あり                       │
-│  │ ■ □ ■     │  畳み込み演算に適する                   │
-│  └────────────┘  ファイル形式: VDB, numpy array         │
-└────────────────────────────────────────────────────────┘
+┌──────────────── Comparison of 3D Representations ─────────────────┐
+│                                                                    │
+│  Mesh                                                              │
+│  ┌────────────┐  Composed of vertices + faces                      │
+│  │  △ △ △     │  Compatible with game engines & DCC tools          │
+│  │ △ △ △ △   │  Easy texture mapping                              │
+│  │  △ △ △     │  File formats: OBJ, FBX, glTF                     │
+│  └────────────┘  Easy LOD control                                  │
+│                                                                    │
+│  Point Cloud                                                       │
+│  ┌────────────┐  Collection of coordinate points in 3D space       │
+│  │ . . . .    │  Directly tied to scan data                        │
+│  │  . . . .   │  Requires splatting for rendering                  │
+│  │ . . . .    │  File formats: PLY, PCD, LAS                      │
+│  └────────────┘  Often requires mesh conversion                    │
+│                                                                    │
+│  Implicit Representation                                           │
+│  ┌────────────┐  Represented by neural networks                    │
+│  │ f(x,y,z)=σ │  Continuous density field                          │
+│  │ + color    │  Meshed via Marching Cubes                         │
+│  └────────────┘  Compact but high inference cost                   │
+│                                                                    │
+│  Gaussian (3DGS)                                                   │
+│  ┌────────────┐  Collection of 3D Gaussian functions               │
+│  │ ○ ○ ○     │  Position + covariance + color + opacity           │
+│  │  ○ ○ ○    │  Fast rendering via rasterization                  │
+│  │ ○ ○ ○     │  Intuitive editing                                 │
+│  └────────────┘  High memory usage                                 │
+│                                                                    │
+│  Voxel                                                             │
+│  ┌────────────┐  Stores values in each cell of a 3D grid          │
+│  │ ■ ■ □     │  Simple but memory-inefficient                     │
+│  │ □ ■ ■     │  Resolution limited                                │
+│  │ ■ □ ■     │  Suitable for convolution operations               │
+│  └────────────┘  File formats: VDB, numpy array                   │
+└────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. NeRF（Neural Radiance Fields）
+## 2. NeRF (Neural Radiance Fields)
 
-### 2.1 原理
+### 2.1 Principle
 
 ```
-カメラ位置 (x,y,z) + 視線方向 (θ,φ)
+Camera position (x,y,z) + viewing direction (θ,φ)
             │
             v
    ┌──────────────────┐
-   │  MLPネットワーク   │
-   │  (多層パーセプトロン) │
-   │                  │
-   │  位置エンコーディング│
-   │       ↓          │
-   │  256次元隠れ層×8   │
-   │       ↓          │
-   │  密度σ + 色(r,g,b)│
+   │  MLP Network       │
+   │  (Multi-Layer      │
+   │   Perceptron)      │
+   │                    │
+   │  Positional        │
+   │  Encoding          │
+   │       ↓            │
+   │  256-dim hidden    │
+   │  layer × 8         │
+   │       ↓            │
+   │  Density σ +       │
+   │  Color (r,g,b)     │
    └──────────────────┘
             │
             v
-   ボリュームレンダリング
+   Volume Rendering
    C(r) = Σ T_i (1-exp(-σ_i δ_i)) c_i
             │
             v
-   新規視点画像の生成
+   Novel view synthesis
 ```
 
-### 2.2 NeRFの数学的基礎
+### 2.2 Mathematical Foundations of NeRF
 
 ```python
 """
-NeRF のボリュームレンダリング方程式:
+NeRF Volume Rendering Equation:
 
-レイ r(t) = o + t*d  (o: 原点, d: 方向)
+Ray r(t) = o + t*d  (o: origin, d: direction)
 
-色の積分:
+Color integral:
   C(r) = ∫[t_n, t_f] T(t) * σ(r(t)) * c(r(t), d) dt
 
-透過率:
+Transmittance:
   T(t) = exp(-∫[t_n, t] σ(r(s)) ds)
 
-離散近似 (実装で使用):
+Discrete approximation (used in implementation):
   C(r) ≈ Σ_{i=1}^{N} T_i * (1 - exp(-σ_i * δ_i)) * c_i
   T_i = exp(-Σ_{j=1}^{i-1} σ_j * δ_j)
-  δ_i = t_{i+1} - t_i  (サンプル間距離)
+  δ_i = t_{i+1} - t_i  (distance between samples)
 """
 
 import torch
 import torch.nn as nn
 
 class PositionalEncoding(nn.Module):
-    """NeRF の位置エンコーディング"""
+    """Positional encoding for NeRF"""
 
     def __init__(self, input_dim, num_frequencies=10):
         super().__init__()
         self.num_frequencies = num_frequencies
         self.input_dim = input_dim
-        # 出力次元 = 入力次元 * (2 * num_frequencies + 1)
+        # Output dimension = input dimension * (2 * num_frequencies + 1)
         self.output_dim = input_dim * (2 * num_frequencies + 1)
 
     def forward(self, x):
@@ -199,16 +205,16 @@ class PositionalEncoding(nn.Module):
 
 
 class NeRFModel(nn.Module):
-    """NeRF のコアネットワーク"""
+    """Core NeRF network"""
 
     def __init__(self, pos_dim=63, dir_dim=27, hidden_dim=256):
         super().__init__()
 
-        # 位置エンコーディング
+        # Positional encoding
         self.pos_encoder = PositionalEncoding(3, num_frequencies=10)
         self.dir_encoder = PositionalEncoding(3, num_frequencies=4)
 
-        # 密度ネットワーク (位置のみに依存)
+        # Density network (depends only on position)
         self.density_net = nn.Sequential(
             nn.Linear(pos_dim, hidden_dim), nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
@@ -216,17 +222,17 @@ class NeRFModel(nn.Module):
             nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
         )
 
-        # スキップ接続後の続き
+        # Continuation after skip connection
         self.density_net2 = nn.Sequential(
             nn.Linear(hidden_dim + pos_dim, hidden_dim), nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
             nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
         )
 
-        # 密度出力
+        # Density output
         self.sigma_out = nn.Linear(hidden_dim, 1)
 
-        # 色ネットワーク (位置+方向に依存)
+        # Color network (depends on position + direction)
         self.color_net = nn.Sequential(
             nn.Linear(hidden_dim + dir_dim, hidden_dim // 2), nn.ReLU(),
             nn.Linear(hidden_dim // 2, 3), nn.Sigmoid(),
@@ -234,18 +240,18 @@ class NeRFModel(nn.Module):
 
     def forward(self, positions, directions):
         """
-        positions: [N, 3] — 3D座標
-        directions: [N, 3] — 視線方向
+        positions: [N, 3] — 3D coordinates
+        directions: [N, 3] — viewing directions
         """
         pos_enc = self.pos_encoder(positions)  # [N, 63]
         dir_enc = self.dir_encoder(directions)  # [N, 27]
 
-        # 密度の計算
+        # Compute density
         h = self.density_net(pos_enc)
         h = self.density_net2(torch.cat([h, pos_enc], dim=-1))
         sigma = torch.relu(self.sigma_out(h))
 
-        # 色の計算
+        # Compute color
         color = self.color_net(torch.cat([h, dir_enc], dim=-1))
 
         return sigma, color
@@ -253,16 +259,16 @@ class NeRFModel(nn.Module):
 
 def volume_rendering(sigmas, colors, deltas):
     """
-    ボリュームレンダリング (離散近似)
+    Volume rendering (discrete approximation)
 
-    sigmas: [N_rays, N_samples] — 密度
-    colors: [N_rays, N_samples, 3] — 色
-    deltas: [N_rays, N_samples] — サンプル間距離
+    sigmas: [N_rays, N_samples] — density
+    colors: [N_rays, N_samples, 3] — color
+    deltas: [N_rays, N_samples] — distance between samples
     """
-    # αの計算: α_i = 1 - exp(-σ_i * δ_i)
+    # Compute alpha: α_i = 1 - exp(-σ_i * δ_i)
     alphas = 1.0 - torch.exp(-sigmas * deltas)
 
-    # 透過率の計算: T_i = Π_{j<i} (1 - α_j)
+    # Compute transmittance: T_i = Π_{j<i} (1 - α_j)
     transmittance = torch.cumprod(
         torch.cat([
             torch.ones_like(alphas[:, :1]),
@@ -271,31 +277,31 @@ def volume_rendering(sigmas, colors, deltas):
         dim=1,
     )
 
-    # 重みの計算: w_i = T_i * α_i
+    # Compute weights: w_i = T_i * α_i
     weights = transmittance * alphas
 
-    # 色の積算: C = Σ w_i * c_i
+    # Accumulate color: C = Σ w_i * c_i
     rendered_color = torch.sum(weights.unsqueeze(-1) * colors, dim=1)
 
-    # 深度の推定
+    # Depth estimation
     depths = torch.sum(weights * deltas.cumsum(dim=1), dim=1)
 
     return rendered_color, depths, weights
 ```
 
-### 2.3 nerfstudioでのNeRF実装
+### 2.3 NeRF Implementation with nerfstudio
 
 ```python
-# nerfstudioを使ったNeRFパイプライン
-# インストール: pip install nerfstudio
+# NeRF pipeline using nerfstudio
+# Installation: pip install nerfstudio
 
-# 1. データ準備（COLMAPでカメラ推定）
+# 1. Data preparation (camera estimation with COLMAP)
 # ns-process-data images --data ./my_images --output-dir ./processed
 
-# 2. 学習実行
+# 2. Training
 # ns-train nerfacto --data ./processed
 
-# 3. Pythonからの制御
+# 3. Control from Python
 from nerfstudio.configs.method_configs import method_configs
 from nerfstudio.engine.trainer import TrainerConfig
 from pathlib import Path
@@ -306,16 +312,16 @@ def train_nerf(
     method: str = "nerfacto",
     max_iterations: int = 30000,
 ):
-    """NeRFモデルを学習する"""
+    """Train a NeRF model"""
     config = method_configs[method]
     config.data = Path(data_dir)
     config.output_dir = Path(output_dir)
     config.max_num_iterations = max_iterations
 
-    # GPU設定
+    # GPU settings
     config.machine.num_gpus = 1
 
-    # 学習パラメータ調整
+    # Training parameter adjustments
     config.pipeline.model.near_plane = 0.01
     config.pipeline.model.far_plane = 1000.0
 
@@ -323,39 +329,39 @@ def train_nerf(
     trainer.train()
     return trainer
 
-# 4. メッシュエクスポート
+# 4. Mesh export
 # ns-export poisson --load-config outputs/.../config.yml
 #   --output-dir exports/ --target-num-faces 50000
 ```
 
-### 2.4 撮影プロトコル — 高品質NeRF/3DGS のためのデータ収集
+### 2.4 Capture Protocol — Data Collection for High-Quality NeRF/3DGS
 
 ```python
 class CaptureProtocol:
-    """NeRF/3DGS 用の撮影ガイドライン"""
+    """Capture guidelines for NeRF/3DGS"""
 
     GUIDELINES = {
         "camera_settings": {
-            "iso": "固定 (400以下推奨)",
-            "aperture": "f/8〜f/11 (被写界深度確保)",
-            "shutter_speed": "手ブレ防止 (1/250以上)",
-            "white_balance": "固定 (変動防止)",
-            "format": "RAW推奨 (後処理の自由度)",
-            "resolution": "4000x3000以上",
+            "iso": "Fixed (400 or below recommended)",
+            "aperture": "f/8 to f/11 (ensure depth of field)",
+            "shutter_speed": "Prevent motion blur (1/250 or faster)",
+            "white_balance": "Fixed (prevent variation)",
+            "format": "RAW recommended (flexibility in post-processing)",
+            "resolution": "4000x3000 or higher",
         },
         "shooting_pattern": {
             "minimum_images": 50,
             "recommended_images": "100-200",
-            "overlap": "70%以上 (隣接画像間)",
-            "coverage": "対象物を360度 + 上下から",
-            "orbit_levels": "3段階 (低/中/高アングル)",
-            "close_ups": "ディテール部分のクローズアップ",
+            "overlap": "70% or more (between adjacent images)",
+            "coverage": "360 degrees around the subject + top and bottom",
+            "orbit_levels": "3 levels (low / mid / high angle)",
+            "close_ups": "Close-up shots of detailed areas",
         },
         "environment": {
-            "lighting": "均一な拡散光 (曇天 or スタジオ)",
-            "avoid": "強い影、反射、透明物体",
-            "background": "動かない静的な背景",
-            "turntable": "小物体はターンテーブル推奨",
+            "lighting": "Uniform diffused light (overcast or studio)",
+            "avoid": "Strong shadows, reflections, transparent objects",
+            "background": "Static, non-moving background",
+            "turntable": "Turntable recommended for small objects",
         },
     }
 
@@ -366,7 +372,7 @@ class CaptureProtocol:
         num_levels=3,
         elevation_range=(15, 75),
     ):
-        """理想的なカメラ位置を計算"""
+        """Compute ideal camera positions"""
         import numpy as np
 
         positions = []
@@ -397,63 +403,64 @@ class CaptureProtocol:
 
 ## 3. 3D Gaussian Splatting
 
-### 3.1 NeRFとの比較
+### 3.1 Comparison with NeRF
 
-| 項目 | NeRF | 3D Gaussian Splatting |
-|------|------|----------------------|
-| 3D表現 | 暗黙的（MLP） | 明示的（ガウシアン点群） |
-| レンダリング | レイマーチング | ラスタライゼーション |
-| 描画速度 | 遅い（数秒/フレーム） | リアルタイム（100+ FPS） |
-| 学習速度 | 数時間 | 数十分 |
-| メモリ使用量 | 小（MLPの重み） | 大（数百万ガウシアン） |
-| 編集容易性 | 困難 | 容易（点の操作） |
-| メッシュ化 | Marching Cubes | 表面再構成が必要 |
-| 品質 | 高（特に反射） | 高（特にテクスチャ） |
+| Attribute | NeRF | 3D Gaussian Splatting |
+|-----------|------|----------------------|
+| 3D Representation | Implicit (MLP) | Explicit (Gaussian point cloud) |
+| Rendering | Ray marching | Rasterization |
+| Rendering Speed | Slow (seconds/frame) | Real-time (100+ FPS) |
+| Training Speed | Hours | Tens of minutes |
+| Memory Usage | Small (MLP weights) | Large (millions of Gaussians) |
+| Ease of Editing | Difficult | Easy (point manipulation) |
+| Mesh Extraction | Marching Cubes | Requires surface reconstruction |
+| Quality | High (especially reflections) | High (especially textures) |
 
-### 3.2 3DGSの原理
+### 3.2 Principles of 3DGS
 
 ```
-3D Gaussian Splatting の各ガウシアン:
+3D Gaussian Splatting — Each Gaussian:
 
-1つのガウシアン = {
-    位置:     μ ∈ R^3          (3D空間の中心座標)
-    共分散:   Σ ∈ R^{3×3}      (形状と向き)
-    不透明度: α ∈ [0, 1]       (透明度)
-    色:       SH係数 ∈ R^{K}   (球面調和関数で視点依存の色)
+One Gaussian = {
+    Position:     μ ∈ R^3          (center coordinates in 3D space)
+    Covariance:   Σ ∈ R^{3×3}      (shape and orientation)
+    Opacity:      α ∈ [0, 1]       (transparency)
+    Color:        SH coefficients ∈ R^{K}   (view-dependent color via
+                                              spherical harmonics)
 }
 
-共分散行列の分解:
+Covariance matrix decomposition:
   Σ = R * S * S^T * R^T
-  R: 回転行列 (quaternionで表現)
-  S: スケール行列 (対角, 3軸のサイズ)
+  R: Rotation matrix (represented as quaternion)
+  S: Scale matrix (diagonal, size along 3 axes)
 
-レンダリング:
-  1. カメラへの投影 (3D → 2D ガウシアン)
-  2. ソート (深度順)
-  3. α-blending (前→後)
+Rendering:
+  1. Projection to camera (3D → 2D Gaussian)
+  2. Sorting (by depth)
+  3. Alpha-blending (front-to-back)
 
-  投影: Σ' = J * W * Σ * W^T * J^T
-    J: ヤコビアン (投影微分)
-    W: ワールド→カメラ変換
+  Projection: Σ' = J * W * Σ * W^T * J^T
+    J: Jacobian (projection derivative)
+    W: World-to-camera transform
 ```
 
-### 3.3 3DGSの実装
+### 3.3 3DGS Implementation
 
 ```python
-# 3D Gaussian Splatting パイプライン
-# リポジトリ: https://github.com/graphdeco-inria/gaussian-splatting
+# 3D Gaussian Splatting Pipeline
+# Repository: https://github.com/graphdeco-inria/gaussian-splatting
 
 import subprocess
 from pathlib import Path
 
 class GaussianSplattingPipeline:
-    """3D Gaussian Splatting の学習・レンダリングパイプライン"""
+    """Training and rendering pipeline for 3D Gaussian Splatting"""
 
     def __init__(self, repo_path: str = "./gaussian-splatting"):
         self.repo = Path(repo_path)
 
     def prepare_data(self, images_dir: str, output_dir: str):
-        """COLMAPでSfM（Structure from Motion）を実行"""
+        """Run SfM (Structure from Motion) with COLMAP"""
         cmd = [
             "python", str(self.repo / "convert.py"),
             "-s", images_dir,
@@ -469,7 +476,7 @@ class GaussianSplattingPipeline:
         densify_until: int = 15000,
         sh_degree: int = 3,
     ):
-        """3DGSモデルを学習"""
+        """Train a 3DGS model"""
         cmd = [
             "python", str(self.repo / "train.py"),
             "-s", data_dir,
@@ -477,7 +484,7 @@ class GaussianSplattingPipeline:
             "--iterations", str(iterations),
             "--densify_until_iter", str(densify_until),
             "--sh_degree", str(sh_degree),
-            # 品質調整パラメータ
+            # Quality tuning parameters
             "--position_lr_init", "0.00016",
             "--scaling_lr", "0.005",
             "--opacity_lr", "0.05",
@@ -485,7 +492,7 @@ class GaussianSplattingPipeline:
         subprocess.run(cmd, check=True)
 
     def render(self, model_dir: str, output_dir: str):
-        """学習済みモデルからレンダリング"""
+        """Render from a trained model"""
         cmd = [
             "python", str(self.repo / "render.py"),
             "-m", model_dir,
@@ -494,12 +501,12 @@ class GaussianSplattingPipeline:
         subprocess.run(cmd, check=True)
 
     def export_ply(self, model_dir: str) -> str:
-        """PLY形式で点群をエクスポート"""
+        """Export point cloud in PLY format"""
         ply_path = Path(model_dir) / "point_cloud" / "iteration_30000" / "point_cloud.ply"
         return str(ply_path)
 
     def compact_model(self, model_dir: str, target_points: int = 500000):
-        """ガウシアン数を削減してモデルを軽量化"""
+        """Reduce Gaussian count to create a lightweight model"""
         import numpy as np
         from plyfile import PlyData
 
@@ -511,11 +518,11 @@ class GaussianSplattingPipeline:
         if current_count <= target_points:
             return ply_path
 
-        # 不透明度でソートし、上位を保持
+        # Sort by opacity and keep the top entries
         opacities = vertices['opacity']
         indices = np.argsort(opacities)[::-1][:target_points]
 
-        # サブセットの作成
+        # Create subset
         new_vertices = vertices[indices]
         new_plydata = PlyData(
             [PlyElement.describe(new_vertices, 'vertex')],
@@ -525,31 +532,31 @@ class GaussianSplattingPipeline:
         output_path = ply_path.replace(".ply", f"_compact_{target_points}.ply")
         new_plydata.write(output_path)
 
-        print(f"圧縮: {current_count} → {target_points} ガウシアン")
+        print(f"Compacted: {current_count} → {target_points} Gaussians")
         return output_path
 ```
 
-### 3.4 Web ビューアでの 3DGS 表示
+### 3.4 Displaying 3DGS in a Web Viewer
 
 ```python
 """
-3D Gaussian Splatting をWebブラウザで表示する方法
+Displaying 3D Gaussian Splatting in a web browser
 
-主要なWebビューア:
-1. gsplat.js — WebGL ベース
-2. splat — Three.js ベース
+Major web viewers:
+1. gsplat.js — WebGL-based
+2. splat — Three.js-based
 3. Luma AI WebGL Viewer
 """
 
 def create_web_viewer(ply_path: str, output_dir: str = "viewer"):
-    """3DGSモデルのWebビューアを生成"""
+    """Generate a web viewer for a 3DGS model"""
     from pathlib import Path
     import shutil
 
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
 
-    # HTMLテンプレート
+    # HTML template
     html_content = f"""<!DOCTYPE html>
 <html>
 <head>
@@ -583,33 +590,33 @@ def create_web_viewer(ply_path: str, output_dir: str = "viewer"):
     with open(out / "index.html", "w") as f:
         f.write(html_content)
 
-    # PLYをsplat形式に変換
+    # Convert PLY to splat format
     convert_ply_to_splat(ply_path, str(out / "model.splat"))
 
-    print(f"Webビューア生成: {out / 'index.html'}")
-    print("ローカルサーバー起動: python -m http.server 8080")
+    print(f"Web viewer generated: {out / 'index.html'}")
+    print("Start local server: python -m http.server 8080")
 ```
 
 ---
 
-## 4. テキスト/画像からの3D生成
+## 4. 3D Generation from Text/Images
 
-### 4.1 主要手法の比較
+### 4.1 Comparison of Major Methods
 
-| 手法 | 入力 | 生成速度 | 品質 | 出力形式 | 商用利用 |
-|------|------|---------|------|---------|---------|
-| Shap-E | テキスト/画像 | 数秒 | 中 | メッシュ/NeRF | MIT |
-| Point-E | テキスト/画像 | 数分 | 中 | 点群 | MIT |
-| DreamFusion | テキスト | 数時間 | 高 | NeRF | 研究用 |
-| TripoSR | 単一画像 | 数秒 | 高 | メッシュ | MIT |
-| InstantMesh | 単一画像 | 数十秒 | 高 | メッシュ | Apache 2.0 |
-| Meshy API | テキスト/画像 | 数分 | 高 | メッシュ(テクスチャ付) | 商用API |
-| Tripo API | テキスト/画像 | 数十秒 | 高 | メッシュ(テクスチャ付) | 商用API |
+| Method | Input | Generation Speed | Quality | Output Format | Commercial Use |
+|--------|-------|-----------------|---------|--------------|---------------|
+| Shap-E | Text/Image | Seconds | Medium | Mesh/NeRF | MIT |
+| Point-E | Text/Image | Minutes | Medium | Point cloud | MIT |
+| DreamFusion | Text | Hours | High | NeRF | Research only |
+| TripoSR | Single image | Seconds | High | Mesh | MIT |
+| InstantMesh | Single image | Tens of seconds | High | Mesh | Apache 2.0 |
+| Meshy API | Text/Image | Minutes | High | Mesh (textured) | Commercial API |
+| Tripo API | Text/Image | Tens of seconds | High | Mesh (textured) | Commercial API |
 
-### 4.2 Shap-Eによるテキストからの3D生成
+### 4.2 Text-to-3D Generation with Shap-E
 
 ```python
-# Shap-E: テキストから3Dモデル生成
+# Shap-E: Generate 3D models from text
 import torch
 from shap_e.diffusion.sample import sample_latents
 from shap_e.diffusion.gaussian_diffusion import diffusion_from_config
@@ -623,15 +630,15 @@ def generate_3d_from_text(
     guidance_scale: float = 15.0,
     num_steps: int = 64,
 ) -> str:
-    """テキストプロンプトから3Dメッシュを生成"""
+    """Generate a 3D mesh from a text prompt"""
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # モデルロード
+    # Load models
     xm = load_model("transmitter", device=device)
     model = load_model("text300M", device=device)
     diffusion = diffusion_from_config(load_config("diffusion"))
 
-    # 潜在表現のサンプリング
+    # Sample latent representations
     latents = sample_latents(
         batch_size=batch_size,
         model=model,
@@ -648,7 +655,7 @@ def generate_3d_from_text(
         s_churn=0,
     )
 
-    # メッシュにデコード
+    # Decode to mesh
     for i, latent in enumerate(latents):
         mesh = decode_latent_mesh(xm, latent).tri_mesh()
         with open(output_path, "w") as f:
@@ -656,17 +663,17 @@ def generate_3d_from_text(
 
     return output_path
 
-# 使用例
+# Usage example
 generate_3d_from_text(
     prompt="a red sports car, detailed, high quality",
     output_path="car.obj",
 )
 ```
 
-### 4.3 TripoSRによる単一画像からの3D再構成
+### 4.3 Single-Image 3D Reconstruction with TripoSR
 
 ```python
-# TripoSR: 単一画像から高速3D再構成
+# TripoSR: Fast 3D reconstruction from a single image
 import torch
 from tsr.system import TSR
 from PIL import Image
@@ -677,10 +684,10 @@ def image_to_3d(
     chunk_size: int = 8192,
     mc_resolution: int = 256,
 ) -> str:
-    """単一画像から3Dメッシュを生成"""
+    """Generate a 3D mesh from a single image"""
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # モデルロード
+    # Load model
     model = TSR.from_pretrained(
         "stabilityai/TripoSR",
         config_name="config.yaml",
@@ -688,25 +695,25 @@ def image_to_3d(
     )
     model = model.to(device)
 
-    # 画像読み込み・前処理
+    # Load and preprocess image
     image = Image.open(image_path)
 
-    # 3D生成（数秒で完了）
+    # 3D generation (completes in seconds)
     with torch.no_grad():
         scene_codes = model([image], device=device)
 
-    # メッシュ抽出（Marching Cubes）
+    # Mesh extraction (Marching Cubes)
     meshes = model.extract_mesh(
         scene_codes,
         resolution=mc_resolution,
     )
 
-    # エクスポート
+    # Export
     meshes[0].export(output_path)
     return output_path
 ```
 
-### 4.4 商用API (Meshy / Tripo3D) の活用
+### 4.4 Using Commercial APIs (Meshy / Tripo3D)
 
 ```python
 import requests
@@ -714,7 +721,7 @@ import time
 from pathlib import Path
 
 class Meshy3DClient:
-    """Meshy API による3Dモデル生成"""
+    """3D model generation via the Meshy API"""
 
     BASE_URL = "https://api.meshy.ai/v2"
 
@@ -726,8 +733,8 @@ class Meshy3DClient:
 
     def text_to_3d(self, prompt: str, art_style: str = "realistic",
                    negative_prompt: str = "", topology: str = "quad"):
-        """テキストから3Dモデルを生成"""
-        # Step 1: プレビュー生成
+        """Generate a 3D model from text"""
+        # Step 1: Preview generation
         resp = requests.post(
             f"{self.BASE_URL}/text-to-3d",
             headers=self.headers,
@@ -741,10 +748,10 @@ class Meshy3DClient:
         )
         task_id = resp.json()["result"]
 
-        # ポーリング
+        # Polling
         result = self._wait_for_completion(task_id)
 
-        # Step 2: リファイン生成 (高品質化)
+        # Step 2: Refine generation (higher quality)
         resp = requests.post(
             f"{self.BASE_URL}/text-to-3d",
             headers=self.headers,
@@ -759,7 +766,7 @@ class Meshy3DClient:
         return self._wait_for_completion(refine_id)
 
     def image_to_3d(self, image_url: str):
-        """画像から3Dモデルを生成"""
+        """Generate a 3D model from an image"""
         resp = requests.post(
             f"{self.BASE_URL}/image-to-3d",
             headers=self.headers,
@@ -773,7 +780,7 @@ class Meshy3DClient:
         return self._wait_for_completion(task_id)
 
     def _wait_for_completion(self, task_id, timeout=600):
-        """タスク完了を待機"""
+        """Wait for task completion"""
         for _ in range(timeout // 5):
             resp = requests.get(
                 f"{self.BASE_URL}/text-to-3d/{task_id}",
@@ -787,12 +794,12 @@ class Meshy3DClient:
                     "task_id": task_id,
                 }
             elif data["status"] == "FAILED":
-                raise Exception(f"生成失敗: {data}")
+                raise Exception(f"Generation failed: {data}")
             time.sleep(5)
-        raise TimeoutError("タイムアウト")
+        raise TimeoutError("Timed out")
 
     def download_model(self, model_urls: dict, output_dir: str):
-        """生成モデルをダウンロード"""
+        """Download generated models"""
         out = Path(output_dir)
         out.mkdir(parents=True, exist_ok=True)
 
@@ -801,11 +808,11 @@ class Meshy3DClient:
             file_path = out / f"model.{fmt}"
             with open(file_path, "wb") as f:
                 f.write(resp.content)
-            print(f"ダウンロード: {file_path}")
+            print(f"Downloaded: {file_path}")
 
 
 class Tripo3DClient:
-    """Tripo3D API による3Dモデル生成"""
+    """3D model generation via the Tripo3D API"""
 
     BASE_URL = "https://api.tripo3d.ai/v2/openapi"
 
@@ -816,7 +823,7 @@ class Tripo3DClient:
         }
 
     def text_to_model(self, prompt: str):
-        """テキストから3Dモデルを生成"""
+        """Generate a 3D model from text"""
         resp = requests.post(
             f"{self.BASE_URL}/task",
             headers=self.headers,
@@ -829,7 +836,7 @@ class Tripo3DClient:
         return self._wait_for_result(task_id)
 
     def image_to_model(self, image_token: str):
-        """画像から3Dモデルを生成"""
+        """Generate a 3D model from an image"""
         resp = requests.post(
             f"{self.BASE_URL}/task",
             headers=self.headers,
@@ -842,7 +849,7 @@ class Tripo3DClient:
         return self._wait_for_result(task_id)
 
     def _wait_for_result(self, task_id, timeout=300):
-        """結果を待機"""
+        """Wait for result"""
         for _ in range(timeout // 3):
             resp = requests.get(
                 f"{self.BASE_URL}/task/{task_id}",
@@ -852,37 +859,37 @@ class Tripo3DClient:
             if data["status"] == "success":
                 return data["output"]
             elif data["status"] == "failed":
-                raise Exception(f"失敗: {data}")
+                raise Exception(f"Failed: {data}")
             time.sleep(3)
-        raise TimeoutError("タイムアウト")
+        raise TimeoutError("Timed out")
 ```
 
-### 4.5 DreamFusion — SDS Loss によるテキストから3D
+### 4.5 DreamFusion — Text-to-3D via SDS Loss
 
 ```python
 """
-DreamFusion: Score Distillation Sampling (SDS) を用いたテキストから3D生成
+DreamFusion: Text-to-3D generation using Score Distillation Sampling (SDS)
 
-原理:
-1. ランダムな3D表現 (NeRF) を初期化
-2. ランダムな視点からレンダリング
-3. 事前学習済みの画像拡散モデル (Imagen / SD) で
-   「このレンダリング結果がプロンプトに合っているか」を評価
-4. SDS Loss を計算し、3D表現を更新
-5. 2-4 を繰り返す (数千イテレーション)
+Principle:
+1. Initialize a random 3D representation (NeRF)
+2. Render from a random viewpoint
+3. Use a pretrained image diffusion model (Imagen / SD) to evaluate
+   "does this rendering match the prompt?"
+4. Compute SDS Loss and update the 3D representation
+5. Repeat steps 2-4 (thousands of iterations)
 
 SDS Loss:
   ∇_θ L_SDS = E_{t,ε} [w(t) * (ε_φ(z_t; y, t) - ε) * ∂z/∂θ]
 
-  θ: NeRFのパラメータ
-  z: レンダリング結果のVAEエンコーディング
-  ε_φ: 拡散モデルの予測ノイズ
-  y: テキストプロンプト
-  t: ノイズレベル
+  θ: NeRF parameters
+  z: VAE encoding of the rendered result
+  ε_φ: Predicted noise from the diffusion model
+  y: Text prompt
+  t: Noise level
 """
 
 class DreamFusionConcept:
-    """DreamFusion の概念的な実装"""
+    """Conceptual implementation of DreamFusion"""
 
     def __init__(self, prompt, diffusion_model="stabilityai/stable-diffusion-2-1"):
         self.prompt = prompt
@@ -890,15 +897,15 @@ class DreamFusionConcept:
         self.diffusion = self._load_diffusion(diffusion_model)
 
     def train_step(self, iteration):
-        """1イテレーションの学習"""
-        # 1. ランダムなカメラ位置をサンプリング
+        """One training iteration"""
+        # 1. Sample a random camera position
         camera = self._random_camera()
 
-        # 2. 現在のNeRFからレンダリング
+        # 2. Render from the current NeRF
         rendered_image = self.nerf.render(camera)
 
-        # 3. SDS Loss の計算
-        # (拡散モデルが「この画像がプロンプトに合うか」を評価)
+        # 3. Compute SDS Loss
+        # (the diffusion model evaluates "does this image match the prompt?")
         t = self._sample_timestep()
         noise = torch.randn_like(rendered_image)
         noisy_image = self._add_noise(rendered_image, noise, t)
@@ -906,118 +913,118 @@ class DreamFusionConcept:
         with torch.no_grad():
             predicted_noise = self.diffusion(noisy_image, t, self.prompt)
 
-        # SDS勾配
+        # SDS gradient
         gradient = predicted_noise - noise
 
-        # 4. NeRFパラメータの更新
+        # 4. Update NeRF parameters
         self.nerf.backward(gradient)
         self.optimizer.step()
 
     def optimize(self, num_iterations=10000):
-        """最適化ループ"""
+        """Optimization loop"""
         for i in range(num_iterations):
             self.train_step(i)
             if i % 1000 == 0:
                 print(f"Iteration {i}/{num_iterations}")
                 self._save_checkpoint(i)
 
-        # 5. メッシュ抽出
+        # 5. Mesh extraction
         mesh = self.nerf.extract_mesh(resolution=256)
         return mesh
 ```
 
 ---
 
-## 5. 後処理・最適化パイプライン
+## 5. Post-Processing and Optimization Pipeline
 
-### 5.1 3Dモデル後処理フロー
+### 5.1 3D Model Post-Processing Flow
 
 ```
-生成された3Dモデル
+Generated 3D model
         │
         v
 ┌──────────────────┐
-│  メッシュクリーン  │  孤立頂点・重複面の除去
+│  Mesh Cleanup     │  Remove isolated vertices & duplicate faces
 └──────────────────┘
         │
         v
 ┌──────────────────┐
-│  メッシュ簡略化    │  ポリゴン数の最適化
+│  Mesh Simplification │  Optimize polygon count
 └──────────────────┘
         │
         v
 ┌──────────────────┐
-│  UV展開          │  テクスチャマッピング準備
+│  UV Unwrapping    │  Prepare for texture mapping
 └──────────────────┘
         │
         v
 ┌──────────────────┐
-│  テクスチャベイク  │  色・法線マップの生成
+│  Texture Baking   │  Generate color & normal maps
 └──────────────────┘
         │
         v
 ┌──────────────────┐
-│  フォーマット変換  │  glTF/FBX/USD等へ変換
+│  Format Conversion │  Convert to glTF/FBX/USD, etc.
 └──────────────────┘
         │
         v
-   最終3Dアセット
+   Final 3D asset
 ```
 
-### 5.2 Trimeshによるメッシュ後処理
+### 5.2 Mesh Post-Processing with Trimesh
 
 ```python
-# Trimeshを使ったメッシュ後処理
+# Mesh post-processing with Trimesh
 import trimesh
 import numpy as np
 
 class MeshPostProcessor:
-    """生成された3Dメッシュの後処理"""
+    """Post-processing for generated 3D meshes"""
 
     def __init__(self, mesh_path: str):
         self.mesh = trimesh.load(mesh_path)
 
     def clean(self) -> "MeshPostProcessor":
-        """メッシュのクリーンアップ"""
-        # 重複頂点の統合
+        """Mesh cleanup"""
+        # Merge duplicate vertices
         self.mesh.merge_vertices()
-        # 退化面（面積ゼロ）の除去
+        # Remove degenerate faces (zero area)
         self.mesh.remove_degenerate_faces()
-        # 孤立頂点の除去
+        # Remove isolated vertices
         self.mesh.remove_unreferenced_vertices()
-        # 法線の再計算
+        # Recalculate normals
         self.mesh.fix_normals()
         return self
 
     def simplify(self, target_faces: int = 10000) -> "MeshPostProcessor":
-        """メッシュの簡略化（ポリゴン削減）"""
+        """Mesh simplification (polygon reduction)"""
         if len(self.mesh.faces) > target_faces:
             self.mesh = self.mesh.simplify_quadric_decimation(target_faces)
         return self
 
     def smooth(self, iterations: int = 3) -> "MeshPostProcessor":
-        """ラプラシアンスムージング"""
+        """Laplacian smoothing"""
         trimesh.smoothing.filter_laplacian(
             self.mesh, iterations=iterations
         )
         return self
 
     def center_and_normalize(self) -> "MeshPostProcessor":
-        """原点中心に正規化"""
-        # 重心を原点に
+        """Center and normalize to origin"""
+        # Move centroid to origin
         self.mesh.vertices -= self.mesh.centroid
-        # バウンディングボックスを[-1,1]に正規化
+        # Normalize bounding box to [-1, 1]
         scale = 2.0 / max(self.mesh.extents)
         self.mesh.vertices *= scale
         return self
 
     def fill_holes(self) -> "MeshPostProcessor":
-        """穴の修復"""
+        """Repair holes"""
         trimesh.repair.fill_holes(self.mesh)
         return self
 
     def remesh(self, target_edge_length: float = 0.02) -> "MeshPostProcessor":
-        """リメッシュ (均一なポリゴン分布に)"""
+        """Remesh (create uniform polygon distribution)"""
         try:
             import pymeshlab
             ms = pymeshlab.MeshSet()
@@ -1033,11 +1040,11 @@ class MeshPostProcessor:
                 faces=result.face_matrix(),
             )
         except ImportError:
-            print("pymeshlab が必要です: pip install pymeshlab")
+            print("pymeshlab is required: pip install pymeshlab")
         return self
 
     def generate_lod(self, levels=(50000, 10000, 2000, 500)):
-        """LOD (Level of Detail) メッシュを生成"""
+        """Generate LOD (Level of Detail) meshes"""
         lod_meshes = {}
         for level in levels:
             mesh_copy = self.mesh.copy()
@@ -1047,7 +1054,7 @@ class MeshPostProcessor:
         return lod_meshes
 
     def get_stats(self) -> dict:
-        """メッシュの統計情報"""
+        """Get mesh statistics"""
         return {
             "vertices": len(self.mesh.vertices),
             "faces": len(self.mesh.faces),
@@ -1060,24 +1067,24 @@ class MeshPostProcessor:
         }
 
     def export(self, output_path: str, file_type: str = None):
-        """メッシュをエクスポート"""
+        """Export mesh"""
         self.mesh.export(output_path, file_type=file_type)
 
-# 使用例
+# Usage example
 processor = MeshPostProcessor("generated.obj")
 processor.clean().simplify(target_faces=50000).smooth().center_and_normalize()
 processor.export("optimized.glb", file_type="glb")
 print(processor.get_stats())
 ```
 
-### 5.3 テクスチャベイキングとUV展開
+### 5.3 Texture Baking and UV Unwrapping
 
 ```python
 def auto_uv_and_bake(mesh_path: str, output_dir: str):
     """
-    UV展開とテクスチャベイキングの自動化
+    Automated UV unwrapping and texture baking
 
-    Blender Python API を使用
+    Uses the Blender Python API
     """
     import subprocess
 
@@ -1085,16 +1092,16 @@ def auto_uv_and_bake(mesh_path: str, output_dir: str):
 import bpy
 import sys
 
-# 引数の取得
+# Get arguments
 mesh_path = sys.argv[-2]
 output_dir = sys.argv[-1]
 
-# メッシュのインポート
+# Import mesh
 bpy.ops.import_scene.obj(filepath=mesh_path)
 obj = bpy.context.selected_objects[0]
 bpy.context.view_layer.objects.active = obj
 
-# UV展開 (Smart UV Project)
+# UV unwrapping (Smart UV Project)
 bpy.ops.object.mode_set(mode='EDIT')
 bpy.ops.mesh.select_all(action='SELECT')
 bpy.ops.uv.smart_project(
@@ -1104,7 +1111,7 @@ bpy.ops.uv.smart_project(
 )
 bpy.ops.object.mode_set(mode='OBJECT')
 
-# テクスチャベイキング用のイメージ作成
+# Create image for texture baking
 bpy.ops.image.new(
     name='BakedTexture',
     width=2048,
@@ -1112,7 +1119,7 @@ bpy.ops.image.new(
     color=(0, 0, 0, 1),
 )
 
-# マテリアルとテクスチャノードの設定
+# Set up material and texture nodes
 mat = obj.data.materials[0] if obj.data.materials else bpy.data.materials.new("Material")
 if not obj.data.materials:
     obj.data.materials.append(mat)
@@ -1124,17 +1131,17 @@ tex_node.image = bpy.data.images['BakedTexture']
 tex_node.select = True
 nodes.active = tex_node
 
-# ベイキング実行
+# Execute baking
 bpy.context.scene.render.engine = 'CYCLES'
 bpy.context.scene.cycles.bake_type = 'DIFFUSE'
 bpy.ops.object.bake(type='DIFFUSE')
 
-# テクスチャの保存
+# Save texture
 bpy.data.images['BakedTexture'].save_render(
     filepath=output_dir + '/texture_diffuse.png'
 )
 
-# glTF形式でエクスポート
+# Export in glTF format
 bpy.ops.export_scene.gltf(
     filepath=output_dir + '/model.glb',
     export_format='GLB',
@@ -1144,7 +1151,7 @@ bpy.ops.export_scene.gltf(
 )
 '''
 
-    # Blenderをヘッドレスモードで実行
+    # Run Blender in headless mode
     script_path = Path(output_dir) / "bake_script.py"
     with open(script_path, "w") as f:
         f.write(blender_script)
@@ -1158,12 +1165,12 @@ bpy.ops.export_scene.gltf(
 
 ---
 
-## 6. ゲームエンジン・Web統合
+## 6. Game Engine and Web Integration
 
-### 6.1 Unity への3Dモデル統合
+### 6.1 Integrating 3D Models into Unity
 
 ```csharp
-// Unity での AI生成3Dモデル読み込み (概念コード)
+// Loading AI-generated 3D models in Unity (conceptual code)
 using UnityEngine;
 using System.Threading.Tasks;
 
@@ -1179,19 +1186,19 @@ public class AI3DModelLoader : MonoBehaviour
 
     public async Task<GameObject> GenerateAndLoad(string prompt)
     {
-        // 1. API で3Dモデルを生成
+        // 1. Generate 3D model via API
         string modelUrl = await RequestGeneration(prompt);
 
-        // 2. glTFファイルをダウンロード
+        // 2. Download glTF file
         byte[] modelData = await DownloadModel(modelUrl);
 
-        // 3. Unityにインポート (GLTFUtility等を使用)
+        // 3. Import into Unity (using GLTFUtility, etc.)
         GameObject model = GLTFUtility.ImportGLB(modelData);
 
-        // 4. LOD設定
+        // 4. Set up LOD
         SetupLOD(model);
 
-        // 5. コライダー追加
+        // 5. Add collider
         model.AddComponent<MeshCollider>();
 
         return model;
@@ -1200,16 +1207,16 @@ public class AI3DModelLoader : MonoBehaviour
     private void SetupLOD(GameObject model)
     {
         LODGroup lodGroup = model.AddComponent<LODGroup>();
-        // AI生成モデルは通常ハイポリなので
-        // ランタイムでLODを設定
+        // AI-generated models are typically high-poly,
+        // so set up LOD at runtime
     }
 }
 ```
 
-### 6.2 Three.js での Web 表示
+### 6.2 Web Display with Three.js
 
 ```javascript
-// Three.js での AI生成3Dモデル表示
+// Displaying AI-generated 3D models with Three.js
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -1225,14 +1232,14 @@ class AI3DViewer {
         this.renderer.shadowMap.enabled = true;
         container.appendChild(this.renderer.domElement);
 
-        // コントロール
+        // Controls
         this.controls = new OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
 
-        // ライティング
+        // Lighting
         this.setupLighting();
 
-        // カメラ位置
+        // Camera position
         this.camera.position.set(2, 2, 2);
         this.camera.lookAt(0, 0, 0);
 
@@ -1240,19 +1247,19 @@ class AI3DViewer {
     }
 
     setupLighting() {
-        // 環境光
+        // Ambient light
         const ambient = new THREE.AmbientLight(0x404040, 0.5);
         this.scene.add(ambient);
 
-        // ディレクショナルライト
+        // Directional light
         const directional = new THREE.DirectionalLight(0xffffff, 1.0);
         directional.position.set(5, 10, 5);
         directional.castShadow = true;
         this.scene.add(directional);
 
-        // 環境マップ (IBL)
+        // Environment map (IBL)
         const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
-        // HDR環境マップのロードと設定
+        // Load and set HDR environment map
     }
 
     async loadModel(url) {
@@ -1261,7 +1268,7 @@ class AI3DViewer {
             loader.load(url, (gltf) => {
                 const model = gltf.scene;
 
-                // 正規化 (バウンディングボックスを統一)
+                // Normalize (unify bounding box)
                 const box = new THREE.Box3().setFromObject(model);
                 const center = box.getCenter(new THREE.Vector3());
                 const size = box.getSize(new THREE.Vector3());
@@ -1287,116 +1294,116 @@ class AI3DViewer {
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### 7.1 アンチパターン：撮影品質を無視したNeRF/3DGS
+### 7.1 Anti-Pattern: Ignoring Capture Quality for NeRF/3DGS
 
 ```
-NG: 適当に撮影した数枚の画像でNeRFを学習
-  - ブレた画像、露出バラバラ、カバレッジ不足
-  - → 浮遊アーティファクト、穴だらけのモデル
+BAD: Training NeRF with a few casually taken images
+  - Blurry images, inconsistent exposure, insufficient coverage
+  - → Floating artifacts, models full of holes
 
-OK: 体系的な撮影プロトコル
-  - 均一な照明条件（曇天 or スタジオライト）
-  - オーバーラップ70%以上の連続撮影
-  - 対象物を360度+上下からカバー
-  - 最低50-100枚、高解像度、手ブレなし
+GOOD: Systematic capture protocol
+  - Uniform lighting conditions (overcast or studio lights)
+  - Continuous capture with 70%+ overlap
+  - Cover the subject 360 degrees + from above and below
+  - At least 50-100 images, high resolution, no motion blur
 ```
 
-**問題点**: NeRF/3DGSの品質は入力画像の品質に直結する。「ゴミを入れればゴミが出る」原則がそのまま当てはまる。
+**Problem**: NeRF/3DGS quality is directly tied to input image quality. The "garbage in, garbage out" principle applies directly.
 
-### 7.2 アンチパターン：後処理なしでの本番利用
+### 7.2 Anti-Pattern: Using Raw Output in Production
 
 ```python
-# NG: 生成されたメッシュをそのままゲームエンジンに投入
+# BAD: Loading a generated mesh directly into a game engine
 raw_mesh = generate_3d("a medieval castle")
-game_engine.load(raw_mesh)  # 100万ポリゴン、UV未設定
+game_engine.load(raw_mesh)  # 1 million polygons, no UV setup
 
-# OK: 適切な後処理パイプラインを通す
+# GOOD: Apply a proper post-processing pipeline
 raw_mesh = generate_3d("a medieval castle")
 processor = MeshPostProcessor(raw_mesh)
 optimized = (
     processor.clean()
-    .simplify(target_faces=10000)  # LODに応じた削減
+    .simplify(target_faces=10000)  # Reduce based on LOD requirements
     .smooth()
     .center_and_normalize()
 )
 optimized.export("castle_game_ready.glb")
 ```
 
-**問題点**: AI生成メッシュはポリゴン数過多、トポロジー不整合、UV未設定が一般的。本番利用には必ず後処理が必要。
+**Problem**: AI-generated meshes typically have excessive polygon counts, topology inconsistencies, and no UV setup. Post-processing is always required for production use.
 
-### 7.3 アンチパターン：単一手法への依存
-
-```
-NG: 全てのユースケースで Shap-E を使う
-  - プロトタイプには良いが品質が限定的
-  - テクスチャの質が不十分
-  - 複雑な形状の再現が困難
-
-OK: ユースケースに応じた手法選択
-  - コンセプト検討: Shap-E / Point-E (高速、無料)
-  - プロトタイプ: Meshy / Tripo API (テクスチャ付き)
-  - 本番アセット: 商用API + 手動リタッチ
-  - リアルスキャン: 3DGS / NeRF (実物ベース)
-```
-
-### 7.4 アンチパターン：メモリ制限を無視した3DGS学習
+### 7.3 Anti-Pattern: Relying on a Single Method
 
 ```
-NG: 高解像度画像200枚 + SH degree=3 で一気に学習
-  - VRAM不足で学習が停止
-  - ガウシアン数が爆発的に増加
+BAD: Using Shap-E for every use case
+  - Good for prototyping but limited quality
+  - Insufficient texture quality
+  - Difficulty reproducing complex shapes
 
-OK: リソースに応じた設定
-  - 画像解像度を1600x1200程度にリサイズ
-  - densify_until を制限 (15000-20000)
-  - sh_degree を 2 に下げる (品質は若干低下)
-  - 定期的にプルーニング
+GOOD: Choose the method based on the use case
+  - Concept exploration: Shap-E / Point-E (fast, free)
+  - Prototyping: Meshy / Tripo API (textured)
+  - Production assets: Commercial API + manual retouching
+  - Real-world scanning: 3DGS / NeRF (based on actual objects)
+```
+
+### 7.4 Anti-Pattern: Ignoring Memory Limits During 3DGS Training
+
+```
+BAD: Training with 200 high-resolution images + SH degree=3 all at once
+  - Training halts due to VRAM shortage
+  - Explosive increase in Gaussian count
+
+GOOD: Configure settings based on available resources
+  - Resize images to around 1600x1200
+  - Limit densify_until (15000-20000)
+  - Lower sh_degree to 2 (slight quality reduction)
+  - Prune periodically
 ```
 
 ---
 
 ## 8. FAQ
 
-### Q1: NeRFと3D Gaussian Splattingはどちらを選ぶべきか?
+### Q1: Should I choose NeRF or 3D Gaussian Splatting?
 
-**A**: リアルタイム描画が必要ならば3DGS、最高品質の新規視点合成が目的ならばNeRF（nerfacto等）が適している。3DGSは編集が容易で描画が速いが、メモリ使用量が多い。NeRFはコンパクトだがレンダリングが遅い。2024年以降は3DGSが主流になりつつある。
+**A**: If real-time rendering is required, choose 3DGS. If the goal is the highest quality novel view synthesis, NeRF (nerfacto, etc.) is more suitable. 3DGS is easy to edit and renders fast, but uses more memory. NeRF is compact but rendering is slow. Since 2024, 3DGS has been becoming the mainstream choice.
 
-### Q2: テキストから実用品質の3Dモデルを生成できるか?
+### Q2: Can text generate production-quality 3D models?
 
-**A**: 2025年時点で、商用APIサービス（Meshy、Tripo3D等）を使えばプロトタイピングレベルの3Dモデルが生成可能。ゲームのバックグラウンドアセットやコンセプトモデルとしては十分使える。ただし、主要キャラクターや製品ビジュアライゼーションなど高品質が求められる場面では、生成モデルをベースに手動で調整するワークフローが現実的。
+**A**: As of 2025, commercial API services (Meshy, Tripo3D, etc.) can generate 3D models at prototyping quality. They are sufficient for game background assets and concept models. However, for scenarios requiring high quality such as main characters or product visualizations, a workflow where the generated model serves as a base for manual refinement is more realistic.
 
-### Q3: 3D生成に必要なGPUスペックは?
+### Q3: What GPU specs are needed for 3D generation?
 
-**A**: 手法別の推奨GPU。
+**A**: Recommended GPUs by method:
 
-| 手法 | 最低VRAM | 推奨GPU | 備考 |
-|------|---------|---------|------|
-| NeRF (nerfacto) | 8GB | RTX 3080以上 | 学習に数時間 |
-| 3DGS | 12GB | RTX 4080以上 | シーン規模に依存 |
-| Shap-E | 6GB | RTX 3060以上 | 数秒で生成 |
-| TripoSR | 8GB | RTX 3070以上 | 数秒で生成 |
-| DreamFusion | 16GB+ | RTX 4090/A100 | 数時間の最適化 |
-| InstantMesh | 8GB | RTX 3070以上 | 数十秒で生成 |
-| Meshy API | 0 (クラウド) | 不要 | API呼び出しのみ |
+| Method | Minimum VRAM | Recommended GPU | Notes |
+|--------|-------------|----------------|-------|
+| NeRF (nerfacto) | 8GB | RTX 3080 or higher | Training takes hours |
+| 3DGS | 12GB | RTX 4080 or higher | Depends on scene scale |
+| Shap-E | 6GB | RTX 3060 or higher | Generates in seconds |
+| TripoSR | 8GB | RTX 3070 or higher | Generates in seconds |
+| DreamFusion | 16GB+ | RTX 4090 / A100 | Hours of optimization |
+| InstantMesh | 8GB | RTX 3070 or higher | Generates in tens of seconds |
+| Meshy API | 0 (cloud) | Not required | API calls only |
 
-### Q4: 3DGSモデルをメッシュに変換するには?
+### Q4: How do I convert a 3DGS model to a mesh?
 
-**A**: 3DGSのガウシアン点群からメッシュを生成するには、以下のアプローチがあります:
+**A**: To generate a mesh from 3DGS Gaussian point clouds, the following approaches are available:
 
-1. **PoissontReconstructon**: 点群から表面を再構成（Open3Dで実装可能）
-2. **SuGaR**: 3DGSに正則化を追加してメッシュ抽出を改善する手法
-3. **2DGS**: 2Dガウシアンを使って表面をより正確に表現
+1. **Poisson Reconstruction**: Reconstruct surfaces from point clouds (implementable with Open3D)
+2. **SuGaR**: A method that adds regularization to 3DGS to improve mesh extraction
+3. **2DGS**: Uses 2D Gaussians to represent surfaces more accurately
 
 ```python
 import open3d as o3d
 
 def gaussians_to_mesh(ply_path, output_path, depth=9):
-    """3DGS点群からPoisson Surface Reconstructionでメッシュ化"""
+    """Convert 3DGS point cloud to mesh via Poisson Surface Reconstruction"""
     pcd = o3d.io.read_point_cloud(ply_path)
 
-    # 法線推定
+    # Estimate normals
     pcd.estimate_normals(
         search_param=o3d.geometry.KDTreeSearchParamHybrid(
             radius=0.1, max_nn=30
@@ -1409,7 +1416,7 @@ def gaussians_to_mesh(ply_path, output_path, depth=9):
         pcd, depth=depth, width=0, scale=1.1, linear_fit=False
     )
 
-    # 低密度領域の除去
+    # Remove low-density regions
     vertices_to_remove = densities < np.quantile(densities, 0.05)
     mesh.remove_vertices_by_mask(vertices_to_remove)
 
@@ -1417,69 +1424,69 @@ def gaussians_to_mesh(ply_path, output_path, depth=9):
     return output_path
 ```
 
-### Q5: 生成した3Dモデルの著作権は?
+### Q5: What about the copyright of generated 3D models?
 
 **A:**
 
-| ツール/API | ライセンス | 商用利用 | 注意点 |
-|-----------|----------|---------|--------|
-| **Shap-E** | MIT | 可能 | モデルの品質は限定的 |
-| **TripoSR** | MIT | 可能 | Stability AI が公開 |
-| **InstantMesh** | Apache 2.0 | 可能 | TencentARC が公開 |
-| **Meshy** | 利用規約 | 有料プランで可 | 生成物は利用者に帰属 |
-| **Tripo3D** | 利用規約 | 有料プランで可 | 利用規約を要確認 |
-| **DreamFusion** | 研究用 | 非商用 | Google の研究論文 |
+| Tool/API | License | Commercial Use | Notes |
+|----------|---------|---------------|-------|
+| **Shap-E** | MIT | Allowed | Model quality is limited |
+| **TripoSR** | MIT | Allowed | Released by Stability AI |
+| **InstantMesh** | Apache 2.0 | Allowed | Released by TencentARC |
+| **Meshy** | Terms of Service | Allowed on paid plans | Generated content belongs to the user |
+| **Tripo3D** | Terms of Service | Allowed on paid plans | Check terms of service |
+| **DreamFusion** | Research only | Non-commercial | Google research paper |
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how things work.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 9. まとめ
-
-| カテゴリ | ポイント |
-|---------|---------|
-| NeRF | 暗黙的ニューラル表現、高品質だが低速 |
-| 3DGS | 明示的ガウシアン表現、リアルタイム描画、編集容易 |
-| テキスト→3D | Shap-E/DreamFusionが研究、Meshy/Tripoが商用 |
-| 画像→3D | TripoSR/InstantMeshが高速・高品質 |
-| 商用API | Meshy/Tripo3D がテクスチャ付き高品質モデルを提供 |
-| 後処理 | メッシュクリーン→簡略化→UV展開→テクスチャベイクが必須 |
-| ゲーム統合 | glTF形式、LOD設定、コライダー設定が重要 |
-| Web統合 | Three.js + GLTFLoader、3DGSはgsplat.js |
-| 品質の鍵 | 入力データ品質と後処理パイプラインが最終品質を決定 |
-| GPU要件 | 推論は8GB~、学習は12-16GB~が目安 |
+Knowledge of this topic is frequently applied in everyday development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## 9. Summary
 
-- [01-game-assets.md](./01-game-assets.md) — AIによるゲームアセット生成の実践
-- AI画像生成基礎 — 2D画像生成技術の基盤理解
-- 3Dレンダリングパイプライン — 従来型3DCG技術との統合
+| Category | Key Points |
+|----------|-----------|
+| NeRF | Implicit neural representation; high quality but slow |
+| 3DGS | Explicit Gaussian representation; real-time rendering; easy to edit |
+| Text-to-3D | Shap-E/DreamFusion for research; Meshy/Tripo for commercial use |
+| Image-to-3D | TripoSR/InstantMesh are fast and high quality |
+| Commercial APIs | Meshy/Tripo3D provide high-quality textured models |
+| Post-processing | Mesh cleanup → simplification → UV unwrapping → texture baking is essential |
+| Game integration | glTF format, LOD setup, and collider configuration are important |
+| Web integration | Three.js + GLTFLoader; gsplat.js for 3DGS |
+| Key to quality | Input data quality and post-processing pipeline determine final quality |
+| GPU requirements | 8GB+ for inference; 12-16GB+ for training as a guideline |
 
 ---
 
-## 参考文献
+## Recommended Next Reading
+
+- [01-game-assets.md](./01-game-assets.md) — Practical AI game asset generation
+- AI Image Generation Fundamentals — Foundational understanding of 2D image generation
+- 3D Rendering Pipeline — Integration with traditional 3DCG techniques
+
+---
+
+## References
 
 1. Mildenhall et al., "NeRF: Representing Scenes as Neural Radiance Fields for View Synthesis" — https://www.matthewtancik.com/nerf
 2. Kerbl et al., "3D Gaussian Splatting for Real-Time Radiance Field Rendering" — https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/
 3. OpenAI Shap-E — https://github.com/openai/shap-e
-4. nerfstudio ドキュメント — https://docs.nerf.studio/
+4. nerfstudio Documentation — https://docs.nerf.studio/
 5. TripoSR — https://github.com/VAST-AI-Research/TripoSR
 6. Poole et al., "DreamFusion: Text-to-3D using 2D Diffusion" — https://dreamfusion3d.github.io/
 7. Xu et al., "InstantMesh: Efficient 3D Mesh Generation from a Single Image" — https://arxiv.org/abs/2404.07191
