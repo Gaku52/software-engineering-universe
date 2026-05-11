@@ -1,107 +1,112 @@
-# AI倫理と開発 ── 責任あるAI活用のためのエンジニアリング実践
+# AI Ethics and Development -- Engineering Practices for Responsible AI
 
-> AIが生成するコードには人間のバイアスが反映される。開発者が知るべきAI倫理の原則、バイアスの検出と軽減、透明性の確保、そして責任あるAI開発の実践手法を体系的に解説する。
-
----
-
-## この章で学ぶこと
-
-1. **AI開発における倫理的課題の全体像** ── バイアス、公平性、透明性、プライバシーの4領域を理解する
-2. **実践的なバイアス検出・軽減手法** ── コード・データ・モデル各層でのバイアス対策を習得する
-3. **責任あるAI開発のガバナンス体制** ── 組織として倫理的AI活用を推進するフレームワークを構築する
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [ソフトウェア開発の未来 ── AIネイティブ開発と次世代エンジニアリング](./02-future-of-development.md) の内容を理解していること
+> AI-generated code reflects human biases. This guide systematically explains the principles of AI ethics that developers should know, bias detection and mitigation, ensuring transparency, and practical methods for responsible AI development.
 
 ---
 
-## 1. AI開発における倫理的課題
+## What You Will Learn in This Chapter
 
-### 1.1 倫理課題の4領域
+1. **Overview of Ethical Challenges in AI Development** -- Understand the four domains of bias, fairness, transparency, and privacy
+2. **Practical Bias Detection and Mitigation Techniques** -- Master bias countermeasures at the code, data, and model layers
+3. **Governance Structure for Responsible AI Development** -- Build a framework for promoting ethical AI use as an organization
+
+
+## Prerequisites
+
+Before reading this guide, the following knowledge will help deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [The Future of Software Development -- AI-Native Development and Next-Generation Engineering](./02-future-of-development.md)
+
+---
+
+## 1. Ethical Challenges in AI Development
+
+### 1.1 Four Domains of Ethical Challenges
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│             AI開発の倫理的課題 4領域                       │
+│         Four Domains of Ethical Challenges in AI          │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
 │  ┌────────────────────┐  ┌────────────────────┐        │
-│  │    バイアス         │  │    公平性           │        │
 │  │    Bias            │  │    Fairness         │        │
 │  │                    │  │                    │        │
-│  │ ・学習データ偏り    │  │ ・特定集団への不利益 │        │
-│  │ ・アルゴリズム偏り  │  │ ・機会の不平等      │        │
-│  │ ・出力バイアス      │  │ ・格差の拡大       │        │
+│  │                    │  │                    │        │
+│  │ - Training data    │  │ - Disadvantage to  │        │
+│  │   imbalance        │  │   specific groups  │        │
+│  │ - Algorithm bias   │  │ - Unequal          │        │
+│  │ - Output bias      │  │   opportunities    │        │
+│  │                    │  │ - Widening gaps     │        │
 │  └────────────────────┘  └────────────────────┘        │
 │                                                          │
 │  ┌────────────────────┐  ┌────────────────────┐        │
-│  │    透明性           │  │    プライバシー      │        │
 │  │    Transparency     │  │    Privacy          │        │
 │  │                    │  │                    │        │
-│  │ ・判断根拠の説明    │  │ ・個人データ保護    │        │
-│  │ ・AI利用の開示      │  │ ・学習データの権利  │        │
-│  │ ・監査可能性        │  │ ・データ最小化      │        │
+│  │                    │  │                    │        │
+│  │ - Explaining       │  │ - Personal data    │        │
+│  │   decision basis   │  │   protection       │        │
+│  │ - Disclosing       │  │ - Rights over      │        │
+│  │   AI usage         │  │   training data    │        │
+│  │ - Auditability     │  │ - Data             │        │
+│  │                    │  │   minimization     │        │
 │  └────────────────────┘  └────────────────────┘        │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 開発現場で直面する具体的な倫理問題
+### 1.2 Specific Ethical Issues Encountered in Development
 
 ```python
-# 例1: AIコード生成におけるバイアス
-# AIに「ユーザープロフィール」の実装を依頼すると…
+# Example 1: Bias in AI code generation
+# When asking AI to implement a "user profile"...
 
-# BAD: AIが生成しがちなバイアスのあるコード
+# BAD: Biased code that AI tends to generate
 class UserProfile:
     def __init__(self):
-        self.gender = ""         # 二項対立を前提
-        self.title = "Mr./Mrs."  # 性別に基づく敬称
-        self.maiden_name = ""    # ジェンダーバイアス
-        self.age = 0             # 年齢差別の温床
+        self.gender = ""         # Assumes binary
+        self.title = "Mr./Mrs."  # Gender-based honorifics
+        self.maiden_name = ""    # Gender bias
+        self.age = 0             # Breeding ground for age discrimination
 
     def calculate_insurance_rate(self):
         if self.gender == "female":
-            return self.base_rate * 0.9  # 性別に基づく料率差
+            return self.base_rate * 0.9  # Gender-based rate difference
         return self.base_rate
 
-# GOOD: バイアスを考慮した設計
+# GOOD: Design that considers bias
 class UserProfile:
     def __init__(self):
         self.display_name = ""
-        self.pronouns = ""           # 自己申告の代名詞
-        self.honorific = ""          # 任意の敬称
-        self.previous_names = []     # 性別を前提としない
-        self.date_of_birth = None    # 必要な場合のみ
+        self.pronouns = ""           # Self-declared pronouns
+        self.honorific = ""          # Optional honorific
+        self.previous_names = []     # No gender assumption
+        self.date_of_birth = None    # Only when necessary
 
     def calculate_insurance_rate(self):
-        # 性別ではなく、リスク要因に基づく
+        # Based on risk factors, not gender
         risk_factors = self.assess_risk_factors()
         return self.base_rate * risk_factors.multiplier
 ```
 
 ```python
-# 例2: AI推薦システムのバイアス
-# 採用AIが学習データの偏りを反映する問題
+# Example 2: Bias in AI recommendation systems
+# The problem of recruitment AI reflecting training data bias
 
-# BAD: 過去の採用データをそのまま学習
+# BAD: Learning directly from historical hiring data
 class BiasedRecruitmentAI:
     def rank_candidates(self, candidates):
-        """過去の採用実績に基づくランキング
-        問題: 過去に男性が多く採用された部署では
-        男性候補者が不当に高いスコアを得る"""
+        """Ranking based on past hiring records
+        Problem: In departments where mostly men were hired,
+        male candidates receive unfairly high scores"""
         return self.model.predict(candidates)
 
-# GOOD: バイアス監査と緩和を組み込む
+# GOOD: Incorporating bias auditing and mitigation
 class FairRecruitmentAI:
     def rank_candidates(self, candidates):
         raw_scores = self.model.predict(candidates)
 
-        # バイアス監査
+        # Bias audit
         audit = self.bias_auditor.check(
             scores=raw_scores,
             protected_attributes=["gender", "ethnicity", "age"],
@@ -109,7 +114,7 @@ class FairRecruitmentAI:
         )
 
         if audit.has_bias:
-            # バイアス緩和を適用
+            # Apply bias mitigation
             adjusted_scores = self.mitigator.adjust(
                 scores=raw_scores,
                 bias_report=audit,
@@ -122,29 +127,32 @@ class FairRecruitmentAI:
 
 ---
 
-## 2. バイアスの種類と検出手法
+## 2. Types of Bias and Detection Methods
 
-### 2.1 AI開発で発生するバイアスの分類
+### 2.1 Classification of Biases in AI Development
 
 ```
-バイアスの発生箇所:
+Where biases occur:
 
-  データ収集       前処理        モデル学習      出力生成       利用
+  Data Collection  Preprocessing  Model Training  Output Generation  Usage
   ┌─────┐      ┌─────┐      ┌─────┐      ┌─────┐      ┌─────┐
   │     │─────→│     │─────→│     │─────→│     │─────→│     │
   │  A  │      │  B  │      │  C  │      │  D  │      │  E  │
   │     │      │     │      │     │      │     │      │     │
   └─────┘      └─────┘      └─────┘      └─────┘      └─────┘
     ↑             ↑             ↑             ↑            ↑
-  選択バイアス  ラベルバイアス 学習バイアス  生成バイアス  確証バイアス
-  代表性の欠如  注釈者の偏り  過学習       ステレオタイプ 結果の偏った解釈
-  歴史的偏り    カテゴリ設計  集団間格差   有害コンテンツ フィードバックループ
+  Selection     Label bias   Training     Generation   Confirmation
+  bias                       bias         bias         bias
+  Lack of       Annotator    Overfitting  Stereotypes  Biased
+  representat.  bias                                   interpretation
+  Historical    Category     Inter-group  Harmful      Feedback
+  bias          design       disparity    content      loops
 ```
 
-### 2.2 バイアス検出のためのコード
+### 2.2 Code for Bias Detection
 
 ```python
-# バイアス検出フレームワーク
+# Bias detection framework
 from dataclasses import dataclass
 from typing import Any
 
@@ -158,14 +166,14 @@ class BiasMetric:
     recommendation: str
 
 class BiasDetector:
-    """AIシステムのバイアスを検出するフレームワーク"""
+    """Framework for detecting bias in AI systems"""
 
     def demographic_parity(
         self,
         predictions: list[int],
         protected_attribute: list[str],
     ) -> BiasMetric:
-        """人口統計的均等性: 各グループの陽性率が等しいか"""
+        """Demographic parity: Are positive rates equal across groups?"""
         groups = set(protected_attribute)
         positive_rates = {}
 
@@ -188,15 +196,15 @@ class BiasDetector:
         return BiasMetric(
             name="demographic_parity",
             value=disparity,
-            threshold=0.1,  # 10%以上の差は要注意
+            threshold=0.1,  # A difference of 10% or more requires attention
             is_biased=disparity > 0.1,
             affected_groups=[
                 g for g, r in positive_rates.items()
                 if r == min_rate
             ],
             recommendation=(
-                "陽性率に大きな差があります。"
-                "学習データの分布を確認してください。"
+                "There is a significant difference in positive rates. "
+                "Please review the distribution of training data."
             ),
         )
 
@@ -206,7 +214,7 @@ class BiasDetector:
         labels: list[int],
         protected_attribute: list[str],
     ) -> BiasMetric:
-        """均等化オッズ: 各グループのTPR/FPRが等しいか"""
+        """Equalized odds: Are TPR/FPR equal across groups?"""
         groups = set(protected_attribute)
         tpr_by_group = {}
 
@@ -241,76 +249,80 @@ class BiasDetector:
                 if r == min_tpr
             ],
             recommendation=(
-                "真陽性率にグループ間で差があります。"
-                "モデルの学習パラメータを調整してください。"
+                "There is a difference in true positive rates between groups. "
+                "Please adjust the model's training parameters."
             ),
         )
 ```
 
-### 2.3 バイアス検出メトリクス比較
+### 2.3 Comparison of Bias Detection Metrics
 
-| メトリクス | 定義 | 適用場面 | 限界 |
-|-----------|------|---------|------|
-| 人口統計的均等性 | 各グループの陽性予測率が等しい | 採用、融資審査 | 基底率の差を無視 |
-| 均等化オッズ | 各グループのTPR/FPRが等しい | 医療診断、犯罪予測 | 完全な達成は困難 |
-| 予測均等性 | 各グループの精度が等しい | 信用スコア | 他の公平性と両立不可の場合あり |
-| 個人公平性 | 類似した個人は類似した予測を受ける | 保険料率設定 | 「類似」の定義が困難 |
-| 反事実的公平性 | 保護属性を変えても予測が変わらない | 差別検出 | 因果推論が必要 |
+| Metric | Definition | Use Case | Limitations |
+|--------|-----------|----------|-------------|
+| Demographic Parity | Positive prediction rates are equal across groups | Hiring, loan approval | Ignores differences in base rates |
+| Equalized Odds | TPR/FPR are equal across groups | Medical diagnosis, crime prediction | Difficult to achieve perfectly |
+| Predictive Parity | Accuracy is equal across groups | Credit scoring | May be incompatible with other fairness criteria |
+| Individual Fairness | Similar individuals receive similar predictions | Insurance rate setting | Defining "similar" is difficult |
+| Counterfactual Fairness | Predictions remain the same when protected attributes are changed | Discrimination detection | Requires causal inference |
 
-### 2.4 AIコード生成におけるバイアスチェックリスト
+### 2.4 Bias Checklist for AI Code Generation
 
-| チェック項目 | 確認内容 | 対策 |
-|-------------|---------|------|
-| 変数名・関数名 | ジェンダー・文化的偏りがないか | 包括的な命名規約を策定 |
-| デフォルト値 | 特定の文化・地域を前提としていないか | 国際化を考慮した設計 |
-| バリデーション | 氏名・住所の形式が特定文化前提でないか | 多文化対応のバリデーション |
-| テストデータ | 多様な属性のテストケースがあるか | 多様性のあるテストデータ生成 |
-| エラーメッセージ | 特定のグループを排除する表現がないか | 包括的な言語レビュー |
-| アクセシビリティ | 障害のあるユーザーを考慮しているか | WCAG準拠のチェック |
+| Check Item | What to Verify | Countermeasure |
+|-----------|---------------|----------------|
+| Variable/function names | Are there gender or cultural biases? | Establish inclusive naming conventions |
+| Default values | Do they assume a specific culture or region? | Design with internationalization in mind |
+| Validation | Do name/address formats assume a specific culture? | Multicultural validation |
+| Test data | Are there test cases with diverse attributes? | Generate diverse test data |
+| Error messages | Are there expressions that exclude specific groups? | Inclusive language review |
+| Accessibility | Are users with disabilities considered? | WCAG compliance checks |
 
 ---
 
-## 3. 透明性と説明可能性
+## 3. Transparency and Explainability
 
-### 3.1 AI利用の透明性レベル
+### 3.1 Transparency Levels of AI Usage
 
 ```
-透明性の4段階:
+Four Levels of Transparency:
 
-Level 1: 存在の開示
+Level 1: Disclosure of Existence
 ┌─────────────────────────────────────┐
-│ 「このコードはAIの支援で生成されました」│
-│  → 最低限の情報                      │
+│ "This code was generated with AI    │
+│  assistance"                        │
+│  → Minimum information              │
 └─────────────────────────────────────┘
 
-Level 2: プロセスの開示
+Level 2: Disclosure of Process
 ┌─────────────────────────────────────┐
-│ 「Claude Code v4を使用し、           │
-│  以下のプロンプトで生成しました」      │
-│  → ツールと手法を明記                │
+│ "Generated using Claude Code v4     │
+│  with the following prompt"         │
+│  → Specifying tools and methods     │
 └─────────────────────────────────────┘
 
-Level 3: 判断根拠の開示
+Level 3: Disclosure of Decision Basis
 ┌─────────────────────────────────────┐
-│ 「この設計はパフォーマンス要件と       │
-│  チームのスキルセットを考慮し、       │
-│  3つの選択肢からAIが推薦しました」    │
-│  → なぜその判断に至ったかを説明       │
+│ "Considering performance            │
+│  requirements and team skill set,   │
+│  AI recommended this from 3 options"│
+│  → Explaining why that decision     │
+│    was reached                      │
 └─────────────────────────────────────┘
 
-Level 4: 完全な監査証跡
+Level 4: Complete Audit Trail
 ┌─────────────────────────────────────┐
-│ 「入力プロンプト、生成過程、          │
-│  人間のレビュー内容、修正箇所         │
-│  全ての記録を監査可能な形で保持」      │
-│  → 規制要件を満たす完全な記録         │
+│ "Input prompts, generation process, │
+│  human review content, modified     │
+│  sections — all records maintained  │
+│  in an auditable format"            │
+│  → Complete records meeting         │
+│    regulatory requirements          │
 └─────────────────────────────────────┘
 ```
 
-### 3.2 透明性を実装するコード
+### 3.2 Code for Implementing Transparency
 
 ```python
-# AI生成コードのメタデータを記録するデコレータ
+# Decorator for recording metadata of AI-generated code
 import functools
 import json
 from datetime import datetime, timezone
@@ -323,7 +335,7 @@ def ai_generated(
     reviewer: str = "",
     modifications: str = "",
 ):
-    """AI生成コードに透明性メタデータを付与するデコレータ"""
+    """Decorator to attach transparency metadata to AI-generated code"""
 
     def decorator(func):
         func._ai_metadata = {
@@ -345,16 +357,16 @@ def ai_generated(
         return wrapper
     return decorator
 
-# 使用例
+# Usage example
 @ai_generated(
     model="Claude Opus 4",
-    prompt_summary="年齢に基づかない保険料率計算の実装",
+    prompt_summary="Implement insurance rate calculation not based on age",
     human_reviewed=True,
     reviewer="tanaka@example.com",
-    modifications="リスク要因の重み付けを手動調整",
+    modifications="Manually adjusted risk factor weighting",
 )
 def calculate_insurance_rate(risk_factors: dict) -> float:
-    """リスク要因に基づく保険料率計算（年齢差別排除版）"""
+    """Insurance rate calculation based on risk factors (age discrimination excluded)"""
     base_rate = 10000
     multiplier = 1.0
 
@@ -366,7 +378,7 @@ def calculate_insurance_rate(risk_factors: dict) -> float:
 ```
 
 ```typescript
-// AI意思決定の監査ログシステム
+// AI decision audit log system
 interface AIDecisionLog {
   timestamp: string;
   component: string;
@@ -395,7 +407,7 @@ class AIAuditTrail {
     this.persistLog(log);
   }
 
-  // 規制当局向けの監査レポート生成
+  // Generate audit report for regulatory authorities
   generateAuditReport(
     startDate: string,
     endDate: string
@@ -416,52 +428,60 @@ class AIAuditTrail {
   }
 
   private persistLog(log: AIDecisionLog): void {
-    // 改ざん防止のためハッシュチェーンで保存
+    // Store with hash chain for tamper prevention
     const previousHash = this.getLastHash();
     const entry = { ...log, previousHash, hash: "" };
     entry.hash = this.computeHash(JSON.stringify(entry));
-    // ストレージに書き込み
+    // Write to storage
   }
 }
 ```
 
 ---
 
-## 4. プライバシーとデータ保護
+## 4. Privacy and Data Protection
 
-### 4.1 AI開発におけるプライバシーリスク
+### 4.1 Privacy Risks in AI Development
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│           AI開発のプライバシーリスクマップ                  │
+│            Privacy Risk Map for AI Development             │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  コード送信リスク          学習データリスク                 │
+│  Code Submission Risk      Training Data Risk             │
 │  ┌──────────────┐        ┌──────────────┐              │
-│  │ 社内コードを  │        │ 個人データが  │              │
-│  │ 外部AIに送信  │        │ モデルに記憶  │              │
+│  │ Sending       │        │ Personal data │              │
+│  │ internal code │        │ memorized by  │              │
+│  │ to external AI│        │ the model     │              │
 │  │              │        │              │              │
-│  │ ・APIキー漏洩 │        │ ・PII混入    │              │
-│  │ ・営業秘密   │        │ ・医療データ  │              │
-│  │ ・顧客データ │        │ ・金融データ  │              │
+│  │ - API key     │        │ - PII         │              │
+│  │   leakage     │        │   contamination│             │
+│  │ - Trade       │        │ - Medical data │              │
+│  │   secrets     │        │ - Financial   │              │
+│  │ - Customer    │        │   data        │              │
+│  │   data        │        │              │              │
 │  └──────────────┘        └──────────────┘              │
 │                                                          │
-│  推論リスク               二次利用リスク                   │
+│  Inference Risk            Secondary Use Risk             │
 │  ┌──────────────┐        ┌──────────────┐              │
-│  │ AI出力から   │        │ 生成コードの  │              │
-│  │ 元データ復元  │        │ ライセンス問題│              │
+│  │ Recovering    │        │ License issues│              │
+│  │ original data │        │ with generated│              │
+│  │ from AI output│        │ code          │              │
 │  │              │        │              │              │
-│  │ ・メンバーシップ│       │ ・GPL汚染    │              │
-│  │  推論攻撃    │        │ ・著作権侵害  │              │
-│  │ ・モデル反転  │        │ ・特許抵触    │              │
+│  │ - Membership  │        │ - GPL         │              │
+│  │   inference   │        │   contamination│             │
+│  │   attacks     │        │ - Copyright   │              │
+│  │ - Model       │        │   infringement│              │
+│  │   inversion   │        │ - Patent      │              │
+│  │              │        │   conflicts   │              │
 │  └──────────────┘        └──────────────┘              │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 プライバシー保護の実装パターン
+### 4.2 Implementation Patterns for Privacy Protection
 
 ```python
-# コード送信前のPII（個人識別情報）除去
+# PII (Personally Identifiable Information) removal before code submission
 import re
 from typing import NamedTuple
 
@@ -471,7 +491,7 @@ class PIIPattern(NamedTuple):
     replacement: str
 
 class CodeSanitizer:
-    """AIに送信する前にコードからPIIを除去"""
+    """Remove PII from code before sending to AI"""
 
     PII_PATTERNS = [
         PIIPattern(
@@ -502,7 +522,7 @@ class CodeSanitizer:
     ]
 
     def sanitize(self, code: str) -> tuple[str, list[str]]:
-        """コードからPIIを除去し、除去した項目を返す"""
+        """Remove PII from code and return the list of removed items"""
         removed = []
         sanitized = code
 
@@ -510,7 +530,7 @@ class CodeSanitizer:
             matches = re.findall(pii.pattern, sanitized)
             if matches:
                 removed.append(
-                    f"{pii.name}: {len(matches)}件を除去"
+                    f"{pii.name}: {len(matches)} item(s) removed"
                 )
                 sanitized = re.sub(
                     pii.pattern, pii.replacement, sanitized
@@ -518,47 +538,51 @@ class CodeSanitizer:
 
         return sanitized, removed
 
-# 使用例
+# Usage example
 sanitizer = CodeSanitizer()
 clean_code, report = sanitizer.sanitize(original_code)
-print(f"除去レポート: {report}")
-# AI APIに clean_code を送信
+print(f"Removal report: {report}")
+# Send clean_code to the AI API
 ```
 
 ---
 
-## 5. 責任あるAI開発のフレームワーク
+## 5. Framework for Responsible AI Development
 
-### 5.1 RAI（Responsible AI）開発プロセス
+### 5.1 RAI (Responsible AI) Development Process
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│              責任あるAI開発プロセス (RAI-SDLC)                 │
+│           Responsible AI Development Process (RAI-SDLC)       │
 ├──────────────────────────────────────────────────────────────┤
 │                                                              │
 │  Phase 1         Phase 2         Phase 3         Phase 4    │
-│  倫理影響評価      バイアス検証     透明性実装       継続監視   │
+│  Ethics Impact   Bias            Transparency    Continuous  │
+│  Assessment      Verification    Implementation  Monitoring  │
 │                                                              │
 │  ┌──────┐       ┌──────┐       ┌──────┐       ┌──────┐    │
-│  │ 計画 │──────→│ 開発 │──────→│ デプロイ│──────→│ 運用 │    │
+│  │ Plan │──────→│ Dev  │──────→│Deploy │──────→│ Ops  │    │
 │  └──┬───┘       └──┬───┘       └──┬───┘       └──┬───┘    │
 │     │              │              │              │          │
-│  ・ステーク       ・公平性テスト  ・説明文書     ・ドリフト   │
-│   ホルダー分析    ・バイアス監査  ・利用規約     ・監視      │
-│  ・リスク評価     ・セキュリティ  ・監査ログ     ・インシデント│
-│  ・影響範囲特定    レビュー       ・開示方針      対応       │
-│  ・倫理ガイド     ・アクセシビリ  ・苦情受付     ・定期監査   │
-│   ライン確認      ティ検証       ・窓口設置     ・再学習判断 │
+│  - Stakeholder   - Fairness     - Documentation - Drift     │
+│    analysis       testing       - Terms of use   monitoring │
+│  - Risk          - Bias audit   - Audit logs   - Incident   │
+│    assessment    - Security     - Disclosure     response   │
+│  - Impact scope   review         policy       - Periodic    │
+│    identification- Accessibility- Complaint      audits     │
+│  - Ethics         testing        intake       - Retraining  │
+│    guideline                   - Contact        decisions   │
+│    review                        point setup               │
 │                                                              │
-│  ←─────────── フィードバックループ ───────────────→          │
+│  ←─────────── Feedback Loop ──────────────────→             │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 倫理チェックをCI/CDに組み込む
+### 5.2 Integrating Ethics Checks into CI/CD
 
 ```yaml
 # .github/workflows/ethics-check.yml
-# AI倫理チェックをCIパイプラインに統合
+# Integrating AI ethics checks into the CI pipeline
 
 name: AI Ethics Check
 on:
@@ -573,28 +597,28 @@ jobs:
 
       - name: Check for biased variable names
         run: |
-          # 偏りのある変数名・関数名を検出
+          # Detect biased variable/function names
           python scripts/check_inclusive_naming.py \
             --config .ethics/naming-rules.yaml \
             --path src/
 
       - name: Check for hardcoded cultural assumptions
         run: |
-          # ハードコードされた文化的前提を検出
+          # Detect hardcoded cultural assumptions
           python scripts/check_cultural_assumptions.py \
             --rules .ethics/cultural-rules.yaml \
             --path src/
 
       - name: PII leak detection
         run: |
-          # コード内のPII（個人情報）漏洩を検出
+          # Detect PII (personal information) leaks in code
           python scripts/detect_pii.py \
             --patterns .ethics/pii-patterns.yaml \
             --path src/ --path tests/
 
       - name: AI transparency check
         run: |
-          # AI生成コードに適切なメタデータがあるか確認
+          # Verify AI-generated code has proper metadata
           python scripts/check_ai_transparency.py \
             --require-metadata \
             --min-level L2 \
@@ -602,7 +626,7 @@ jobs:
 
       - name: License compliance
         run: |
-          # AI生成コードのライセンス互換性を確認
+          # Verify license compatibility of AI-generated code
           python scripts/check_license_compliance.py \
             --policy .ethics/license-policy.yaml
 
@@ -619,57 +643,57 @@ jobs:
             --protected-attributes gender,age,ethnicity
 ```
 
-### 5.3 倫理ガイドライン比較
+### 5.3 Comparison of Ethics Guidelines
 
-| フレームワーク | 提唱者 | 主要原則 | 特徴 |
-|--------------|--------|---------|------|
-| AI Safety Levels | Anthropic | 安全性レベル(ASL)の段階的定義 | モデル能力に応じた安全対策 |
-| Responsible AI | Microsoft | 公平性、信頼性、安全性、プライバシー、包括性、透明性、説明責任 | 6原則+実践ガイド |
-| AI倫理原則 | OECD | 包括的成長、持続可能な開発、人間中心の価値観、透明性、堅牢性、説明責任 | 42カ国が採択 |
-| 人間中心のAI社会原則 | 内閣府 | 人間の尊厳、多様性、持続可能性 | 日本国内の指針 |
-| EU AI Act | 欧州連合 | リスクベースの規制アプローチ | 法的拘束力のある規制 |
+| Framework | Proposed By | Key Principles | Characteristics |
+|-----------|------------|----------------|-----------------|
+| AI Safety Levels | Anthropic | Staged AI Safety Level (ASL) definitions | Safety measures aligned with model capabilities |
+| Responsible AI | Microsoft | Fairness, reliability, safety, privacy, inclusiveness, transparency, accountability | 6 principles + practical guides |
+| AI Ethics Principles | OECD | Inclusive growth, sustainable development, human-centered values, transparency, robustness, accountability | Adopted by 42 countries |
+| Human-Centric AI Society Principles | Cabinet Office (Japan) | Human dignity, diversity, sustainability | Domestic Japanese guidelines |
+| EU AI Act | European Union | Risk-based regulatory approach | Legally binding regulation |
 
-### 5.4 AI規制対応の比較
+### 5.4 Comparison of AI Regulations
 
-| 規制/基準 | 地域 | 対象 | 開発者への影響 |
-|----------|------|------|--------------|
-| EU AI Act | EU | 高リスクAIシステム | 適合性評価、技術文書、透明性要件 |
-| AI基本法（検討中）| 日本 | AI全般 | ガイドライン準拠、リスク評価 |
-| Executive Order 14110 | 米国 | 政府利用AI | 安全性テスト、レッドチーミング |
-| ISO/IEC 42001 | 国際 | AI管理システム | 認証取得、継続改善 |
-| NIST AI RMF | 米国 | AI全般（任意） | リスク管理フレームワークの適用 |
+| Regulation/Standard | Region | Scope | Impact on Developers |
+|--------------------|--------|-------|---------------------|
+| EU AI Act | EU | High-risk AI systems | Conformity assessments, technical documentation, transparency requirements |
+| AI Basic Act (under discussion) | Japan | AI in general | Guideline compliance, risk assessment |
+| Executive Order 14110 | USA | Government-used AI | Safety testing, red teaming |
+| ISO/IEC 42001 | International | AI management systems | Certification acquisition, continuous improvement |
+| NIST AI RMF | USA | AI in general (voluntary) | Application of risk management framework |
 
 ---
 
-## 6. 著作権とライセンスの問題
+## 6. Copyright and Licensing Issues
 
-### 6.1 AI生成コードの法的リスク
+### 6.1 Legal Risks of AI-Generated Code
 
 ```python
-# AI生成コードの著作権リスクを理解する
+# Understanding copyright risks of AI-generated code
 
-# リスク1: 学習データの著作物混入
-# AIモデルはオープンソースコードを含む大量のデータで学習されている
-# 生成されたコードが既存のGPLコードと酷似する可能性がある
+# Risk 1: Copyrighted works mixed into training data
+# AI models are trained on large amounts of data including open source code
+# Generated code may closely resemble existing GPL code
 
-# リスク2: AI生成物の著作権帰属
-# 多くの法域で「AI生成物に著作権は発生しない」とされる傾向
-# → 自社のコアIPをAI生成のみに依存するリスク
+# Risk 2: Copyright ownership of AI-generated works
+# Many jurisdictions tend toward "no copyright for AI-generated works"
+# → Risk of relying solely on AI generation for core IP
 
-# リスク3: ライセンス汚染
-# AI生成コードがGPL等のコピーレフトライセンスの
-# コードを含む場合、プロジェクト全体に影響する可能性
+# Risk 3: License contamination
+# If AI-generated code contains copyleft-licensed code such as GPL,
+# it may affect the entire project
 
-# 対策の例
+# Example countermeasure
 class LicenseComplianceChecker:
-    """AI生成コードのライセンス互換性をチェック"""
+    """Check license compatibility of AI-generated code"""
 
     def check_similarity(
         self,
         generated_code: str,
         threshold: float = 0.85,
     ) -> list[dict]:
-        """生成コードと既知のOSSコードの類似性を検査"""
+        """Inspect similarity between generated code and known OSS code"""
         results = []
         for oss_project in self.oss_database:
             similarity = self.compute_similarity(
@@ -689,112 +713,120 @@ class LicenseComplianceChecker:
 
     def assess_risk(self, license_type: str) -> str:
         risk_map = {
-            "MIT": "低 - 帰属表示のみ",
-            "Apache-2.0": "低 - 帰属表示+特許条項",
-            "BSD-2-Clause": "低 - 帰属表示のみ",
-            "GPL-3.0": "高 - コピーレフト感染の可能性",
-            "AGPL-3.0": "最高 - SaaSにも適用",
-            "SSPL": "最高 - サービス提供にも制約",
+            "MIT": "Low - Attribution only",
+            "Apache-2.0": "Low - Attribution + patent clause",
+            "BSD-2-Clause": "Low - Attribution only",
+            "GPL-3.0": "High - Possible copyleft contamination",
+            "AGPL-3.0": "Highest - Applies to SaaS as well",
+            "SSPL": "Highest - Restrictions on service provision",
         }
-        return risk_map.get(license_type, "不明 - 法務確認必須")
+        return risk_map.get(license_type, "Unknown - Legal review required")
 ```
 
 ---
 
-## 7. 実践：倫理的AI開発チェックリスト
+## 7. Practice: Ethical AI Development Checklist
 
-### 7.1 開発フェーズ別チェックリスト
+### 7.1 Checklist by Development Phase
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│          倫理的AI開発チェックリスト                            │
+│            Ethical AI Development Checklist                   │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  【設計フェーズ】                                             │
-│  □ ステークホルダーへの影響を評価したか                        │
-│  □ 保護すべき属性（性別、年齢、民族等）を特定したか            │
-│  □ 公平性の定義を関係者と合意したか                           │
-│  □ データ収集方針がプライバシー法に準拠しているか              │
-│  □ AI利用の開示方針を決定したか                              │
+│  [Design Phase]                                             │
+│  □ Have you assessed the impact on stakeholders?            │
+│  □ Have you identified protected attributes                 │
+│    (gender, age, ethnicity, etc.)?                          │
+│  □ Have you agreed on a definition of fairness              │
+│    with stakeholders?                                       │
+│  □ Does your data collection policy comply                  │
+│    with privacy laws?                                       │
+│  □ Have you determined the AI usage                         │
+│    disclosure policy?                                       │
 │                                                             │
-│  【開発フェーズ】                                             │
-│  □ 学習データの偏りを分析したか                               │
-│  □ 包括的な命名規約に従っているか                             │
-│  □ バイアス検出テストを実装したか                             │
-│  □ AI生成コードにメタデータを付与しているか                   │
-│  □ PIIの除去・匿名化を行ったか                               │
+│  [Development Phase]                                        │
+│  □ Have you analyzed training data for bias?                │
+│  □ Are you following inclusive naming conventions?           │
+│  □ Have you implemented bias detection tests?               │
+│  □ Are you attaching metadata to AI-generated code?         │
+│  □ Have you removed/anonymized PII?                         │
 │                                                             │
-│  【デプロイフェーズ】                                         │
-│  □ バイアス監査を実施し結果を文書化したか                     │
-│  □ 説明可能性の要件を満たしているか                           │
-│  □ 苦情・フィードバック受付窓口を設置したか                   │
-│  □ ロールバック計画を策定したか                               │
-│  □ 監査ログが適切に記録されているか                           │
+│  [Deployment Phase]                                         │
+│  □ Have you conducted a bias audit and                      │
+│    documented the results?                                  │
+│  □ Do you meet explainability requirements?                 │
+│  □ Have you set up a complaint/feedback                     │
+│    intake channel?                                          │
+│  □ Have you prepared a rollback plan?                       │
+│  □ Are audit logs being properly recorded?                  │
 │                                                             │
-│  【運用フェーズ】                                             │
-│  □ 定期的なバイアスモニタリングを実施しているか               │
-│  □ インシデント対応プロセスが機能しているか                   │
-│  □ モデルドリフトを監視しているか                             │
-│  □ 倫理ガイドラインを定期的に更新しているか                   │
-│  □ 関連法規制の変更を追跡しているか                           │
+│  [Operations Phase]                                         │
+│  □ Are you conducting regular bias monitoring?              │
+│  □ Is the incident response process functioning?            │
+│  □ Are you monitoring for model drift?                      │
+│  □ Are you regularly updating ethics guidelines?            │
+│  □ Are you tracking changes in relevant regulations?        │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン 1: 倫理ウォッシング（Ethics Washing）
+### Anti-Pattern 1: Ethics Washing
 
 ```
-❌ 倫理ウォッシングのパターン:
+❌ Ethics washing pattern:
 
-  「我々はAI倫理を重視しています」と宣言するが…
+  "We take AI ethics seriously" — but in reality...
 
   ┌────────────────────────────────────┐
-  │  ✗ 倫理委員会はあるが開催実績なし  │
-  │  ✗ ガイドラインは策定したが         │
-  │    誰もレビューに使っていない       │
-  │  ✗ バイアステストのCIは             │
-  │    常にスキップされている           │
-  │  ✗ 問題が起きても「想定外」で片付け │
+  │  ✗ Ethics committee exists but     │
+  │    has never convened              │
+  │  ✗ Guidelines were drafted but     │
+  │    nobody uses them in reviews     │
+  │  ✗ Bias testing in CI is           │
+  │    always being skipped            │
+  │  ✗ Problems are dismissed as       │
+  │    "unexpected"                    │
   └────────────────────────────────────┘
 
-✅ 実効性のある倫理ガバナンス:
+✅ Effective ethics governance:
 
-  1. 具体的なメトリクスと閾値を定義
-     - 「公平性スコア > 0.9」など定量基準
-  2. CIパイプラインに自動チェックを組み込み
-     - バイアス検出が失敗したらマージ不可
-  3. 四半期ごとの倫理監査を実施
-     - 外部監査者を含める
-  4. インシデント報告と改善のサイクルを確立
-     - 問題を隠さない文化の醸成
-  5. 経営層のコミットメントを明文化
-     - 倫理要件は機能要件と同等の優先度
+  1. Define specific metrics and thresholds
+     - Quantitative criteria such as "fairness score > 0.9"
+  2. Embed automated checks in the CI pipeline
+     - Block merges when bias detection fails
+  3. Conduct quarterly ethics audits
+     - Include external auditors
+  4. Establish an incident reporting and improvement cycle
+     - Foster a culture of not hiding problems
+  5. Document executive commitment
+     - Ethics requirements have equal priority with functional requirements
 ```
 
-### アンチパターン 2: バイアスの後付け対応（Bias Afterthought）
+### Anti-Pattern 2: Bias Afterthought
 
 ```python
-# BAD: リリース後にバイアスが発覚して慌てて対処
+# BAD: Scrambling to fix bias discovered after release
 class AfterThoughtApproach:
     def develop(self):
         model = self.train_model(data)
         self.deploy_to_production(model)
-        # ... 数ヶ月後 ...
-        # ニュース「御社のAIは差別的だ！」
-        self.panic_fix(model)  # ← 手遅れ
+        # ... months later ...
+        # News: "Your AI is discriminatory!"
+        self.panic_fix(model)  # ← Too late
 
-# GOOD: 設計段階から公平性を組み込む（Fairness by Design）
+# GOOD: Building in fairness from the design stage (Fairness by Design)
 class FairnessByDesign:
     def develop(self):
-        # Phase 1: データ監査
+        # Phase 1: Data audit
         data = self.collect_data()
         bias_report = self.audit_data_bias(data)
         data = self.mitigate_data_bias(data, bias_report)
 
-        # Phase 2: モデル学習（公平性制約付き）
+        # Phase 2: Model training (with fairness constraints)
         model = self.train_model(
             data,
             fairness_constraints={
@@ -803,83 +835,83 @@ class FairnessByDesign:
             },
         )
 
-        # Phase 3: 公平性テスト
+        # Phase 3: Fairness testing
         fairness_result = self.test_fairness(model)
         if not fairness_result.passes_all_criteria:
             raise FairnessViolation(fairness_result)
 
-        # Phase 4: 段階的デプロイ
+        # Phase 4: Staged deployment
         self.canary_deploy(model, monitor_fairness=True)
 ```
 
-### アンチパターン 3: プライバシー劇場（Privacy Theater）
+### Anti-Pattern 3: Privacy Theater
 
 ```
-❌ プライバシーを守っている「つもり」のパターン:
+❌ Patterns of "thinking" privacy is being protected:
 
-  1. 「匿名化済み」と称して氏名だけ削除
-     → メールアドレス、住所、電話番号が残っている
-     → 組み合わせれば個人特定が可能
+  1. Claiming "anonymized" but only removing names
+     → Email addresses, physical addresses, phone numbers remain
+     → Individuals can be identified through combinations
 
-  2. 「社内AIだからプライバシーは問題ない」
-     → 社内でも部署間のアクセス制御は必要
-     → 退職者のデータ、人事評価データ等
+  2. "It's an internal AI so privacy isn't an issue"
+     → Access control between departments is still necessary
+     → Data of former employees, performance reviews, etc.
 
-  3. 「同意を取得済み」
-     → 利用目的が曖昧な包括同意
-     → AI学習への利用は明記されていない
+  3. "Consent has been obtained"
+     → Blanket consent with vague purposes of use
+     → Usage for AI training is not explicitly stated
 
-✅ 実効性のあるプライバシー保護:
+✅ Effective privacy protection:
 
-  1. k-匿名性: 同一属性の個人がk人以上存在
-  2. 差分プライバシー: 個人の追加・削除が結果に影響しない
-  3. 目的限定: AI利用の具体的な目的を明記した同意
-  4. データ最小化: 必要最小限のデータのみ収集・利用
-  5. アクセス制御: ロールベースの厳格なアクセス管理
+  1. k-Anonymity: At least k individuals share the same attributes
+  2. Differential privacy: Addition/removal of individuals doesn't affect results
+  3. Purpose limitation: Consent stating specific purposes for AI use
+  4. Data minimization: Collect and use only the minimum necessary data
+  5. Access control: Strict role-based access management
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Perform input data validation
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -888,26 +920,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -915,7 +947,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -926,14 +958,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -941,7 +973,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -949,44 +981,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -995,7 +1027,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1010,47 +1042,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup factor: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm computational complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|---------|
+| Initialization error | Configuration file issues | Verify configuration file path and format |
+| Timeout | Network latency / Insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access permissions | Verify user permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, transaction management |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace and identify the location
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Formulate hypotheses**: List possible causes
+4. **Verify step by step**: Use logging or a debugger to validate hypotheses
+5. **Fix and regression test**: After fixing, also run tests on related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1058,102 +1090,103 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O waits**: Review disk and network I/O conditions
+4. **Check concurrent connections**: Review connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Issue Type | Diagnostic Tool | Solution |
+|-----------|----------------|----------|
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Asynchronous I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexing, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology selections.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to Prioritize | When It Can Be Compromised |
+|-----------|-------------------|---------------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│          Architecture Selection Flow              │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. Team size?                                  │
+│    ├─ Small (1-5) → Monolith                    │
+│    └─ Large (10+) → Go to 2.                    │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. Deployment frequency?                       │
+│    ├─ Once a week or less → Monolith             │
+│    │  + Module separation                       │
+│    └─ Daily/multiple times → Go to 3.            │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. Independence between teams?                  │
+│    ├─ High → Microservices                       │
+│    └─ Medium → Modular monolith                  │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A method that is fast in the short term can become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies enables the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction offers high reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision recording template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1163,17 +1196,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1181,7 +1214,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1189,15 +1222,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1205,53 +1238,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Practical Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum necessary features
+- Automated tests only for the critical path
+- Introduce monitoring from early on
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't aim for perfection (YAGNI principle)
+- Obtain user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Legacy System Modernization
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually modernize a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- If no existing tests, create Characterization Tests first
+- Use an API gateway to coexist old and new systems
+- Perform data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work Content | Estimated Duration | Risk |
+|-------|-------------|-------------------|------|
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration start | Sequential migration starting with peripheral features | 3-6 months | Medium |
+| 4. Core migration | Migration of core functionality | 6-12 months | High |
+| 5. Completion | Decommission legacy system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** More than 50 engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with Domain-Driven Design
+- Set ownership per team
+- Manage shared libraries using Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# Inter-team API contract definition
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1264,20 +1297,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """Inter-team API contract"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Verify SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1286,7 +1319,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1307,104 +1340,105 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical System
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: In-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Method | Impact | Implementation Cost | Application |
+|--------------------|--------|-------------------|-------------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Asynchronous processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | When CPU-bound |
 
 ---
 
-## チーム開発での活用
+## Team Development Practices
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to verify in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Are naming conventions consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Is there any impact on performance?
+- [ ] Are there any security concerns?
+- [ ] Is documentation updated?
 
-### ナレッジ共有のベストプラクティス
+### Best Practices for Knowledge Sharing
 
-| 方法 | 頻度 | 対象 | 効果 |
-|------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Method | Frequency | Target | Effect |
+|--------|-----------|--------|--------|
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talks | Weekly | Entire team | Horizontal knowledge transfer |
+| ADR (Decision Records) | As needed | Future members | Decision transparency |
+| Retrospectives | Biweekly | Entire team | Continuous improvement |
+| Mob programming | Monthly | Important design | Consensus building |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
+        Impact High
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │ Plan │ Act  │
+    │ and  │ imme-│
+    │ sche-│ dia- │
+    │ dule │ tely │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │Record│ Next │
+    │ only │Sprint│
+    │      │      │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Impact Low
+    Frequency Low  Frequency High
 ```
 
 ---
 
-## セキュリティの考慮事項
+## Security Considerations
 
-### 一般的な脆弱性と対策
+### Common Vulnerabilities and Countermeasures
 
-| 脆弱性 | リスクレベル | 対策 | 検出方法 |
-|--------|------------|------|---------|
-| インジェクション攻撃 | 高 | 入力値のバリデーション・パラメータ化クエリ | SAST/DAST |
-| 認証の不備 | 高 | 多要素認証・セッション管理の強化 | ペネトレーションテスト |
-| 機密データの露出 | 高 | 暗号化・アクセス制御 | セキュリティ監査 |
-| 設定の不備 | 中 | セキュリティヘッダー・最小権限の原則 | 構成スキャン |
-| ログの不足 | 中 | 構造化ログ・監査証跡 | ログ分析 |
+| Vulnerability | Risk Level | Countermeasure | Detection Method |
+|--------------|-----------|----------------|-----------------|
+| Injection attacks | High | Input validation, parameterized queries | SAST/DAST |
+| Authentication flaws | High | Multi-factor authentication, session management hardening | Penetration testing |
+| Sensitive data exposure | High | Encryption, access control | Security audits |
+| Configuration issues | Medium | Security headers, principle of least privilege | Configuration scans |
+| Insufficient logging | Medium | Structured logging, audit trails | Log analysis |
 
-### セキュアコーディングのベストプラクティス
+### Secure Coding Best Practices
 
 ```python
-# セキュアコーディング例
+# Secure coding example
 import hashlib
 import secrets
 import hmac
 from typing import Optional
 
 class SecurityUtils:
-    """セキュリティユーティリティ"""
+    """Security utilities"""
 
     @staticmethod
     def generate_token(length: int = 32) -> str:
-        """暗号学的に安全なトークン生成"""
+        """Generate cryptographically secure token"""
         return secrets.token_urlsafe(length)
 
     @staticmethod
     def hash_password(password: str, salt: Optional[str] = None) -> tuple:
-        """パスワードのハッシュ化"""
+        """Hash a password"""
         if salt is None:
             salt = secrets.token_hex(16)
         hashed = hashlib.pbkdf2_hmac(
@@ -1417,87 +1451,87 @@ class SecurityUtils:
 
     @staticmethod
     def verify_password(password: str, hashed: str, salt: str) -> bool:
-        """パスワードの検証"""
+        """Verify a password"""
         new_hash, _ = SecurityUtils.hash_password(password, salt)
         return hmac.compare_digest(new_hash, hashed)
 
     @staticmethod
     def sanitize_input(value: str) -> str:
-        """入力値のサニタイズ"""
+        """Sanitize input value"""
         dangerous_chars = ['<', '>', '"', "'", '&', '\\']
         result = value
         for char in dangerous_chars:
             result = result.replace(char, '')
         return result.strip()
 
-# 使用例
+# Usage example
 token = SecurityUtils.generate_token()
 hashed, salt = SecurityUtils.hash_password("my_password")
 is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 ```
 
-### セキュリティチェックリスト
+### Security Checklist
 
-- [ ] 全ての入力値がバリデーションされている
-- [ ] 機密情報がログに出力されていない
-- [ ] HTTPS が強制されている
-- [ ] CORS ポリシーが適切に設定されている
-- [ ] 依存パッケージの脆弱性スキャンが実施されている
-- [ ] エラーメッセージに内部情報が含まれていない
+- [ ] All input values are validated
+- [ ] Sensitive information is not output to logs
+- [ ] HTTPS is enforced
+- [ ] CORS policy is properly configured
+- [ ] Vulnerability scanning of dependencies is performed
+- [ ] Error messages do not contain internal information
 ---
 
 ## FAQ
 
-### Q1: AI生成コードに著作権は発生するのか？
+### Q1: Does copyright arise for AI-generated code?
 
-2026年時点では多くの法域で判例が積み上がりつつある段階であり、明確な結論は出ていない。米国著作権局は「AIが自律的に生成した部分には著作権が発生しない」との見解を示しつつ、「人間が十分な創作的関与を行った場合は著作権が認められ得る」としている。日本では著作権法30条の4により学習段階でのデータ利用は広く許容される一方、生成物の著作権帰属は議論が続いている。開発者としては、(1) AI生成コードに過度に依存せずコアIPは人間が設計する、(2) ライセンス互換性の確認を怠らない、(3) 法的動向を継続的にウォッチする、の3点が重要である。
+As of 2026, precedents are still accumulating in many jurisdictions and no clear conclusion has been reached. The U.S. Copyright Office has indicated that "copyright does not arise for portions autonomously generated by AI," while also stating that "copyright may be recognized when a human has made sufficient creative contribution." In Japan, Article 30-4 of the Copyright Act broadly permits data use at the training stage, while the ownership of copyright in generated works remains under discussion. For developers, three points are important: (1) do not overly rely on AI-generated code and have humans design core IP, (2) do not neglect to verify license compatibility, and (3) continuously monitor legal developments.
 
-### Q2: チーム内でAI倫理の意識をどう高めればよいか？
+### Q2: How can we raise AI ethics awareness within the team?
 
-3つのアプローチが有効である。(1) 具体的なケーススタディを用いたワークショップの定期開催（抽象的な原則より実例が効く）、(2) コードレビューのチェックリストに倫理項目を追加し日常業務に組み込む、(3) AI倫理の「チャンピオン」をチーム内に任命し、最新の知見やインシデント事例を定期的に共有する。形式的な研修よりも、実際の開発プロセスに倫理チェックを埋め込む方が定着しやすい。
+Three approaches are effective: (1) Hold regular workshops using concrete case studies (real examples work better than abstract principles), (2) Add ethics items to code review checklists and embed them into daily workflows, (3) Appoint an AI ethics "champion" within the team to regularly share the latest findings and incident case studies. Embedding ethics checks into the actual development process is more effective at achieving adoption than formal training.
 
-### Q3: バイアスを完全に排除することは可能か？
+### Q3: Is it possible to completely eliminate bias?
 
-理論的に不可能である。全てのバイアスを同時に排除することは数学的に証明された不可能性（Impossibility Theorem）が存在する。例えば、人口統計的均等性と予測均等性を同時に完全に満たすことはできない（基底率が異なるグループ間では）。重要なのは「どのバイアスを優先的に軽減するか」を関係者と合意の上で明確に定義し、残存するバイアスを透明に開示し、継続的に改善することである。完璧を目指すのではなく、説明可能で改善可能な状態を維持することが現実的な目標となる。
+It is theoretically impossible. The mathematical impossibility of simultaneously eliminating all biases has been proven (Impossibility Theorem). For example, demographic parity and predictive parity cannot be perfectly satisfied at the same time (between groups with different base rates). What is important is to clearly define "which biases to prioritize mitigating" in agreement with stakeholders, transparently disclose remaining biases, and continuously improve. Rather than aiming for perfection, the realistic goal is to maintain a state that is explainable and improvable.
 
-### Q4: EU AI Actへの対応は日本企業にも必要か？
+### Q4: Do Japanese companies also need to comply with the EU AI Act?
 
-EUで事業を展開する、またはEU居住者にサービスを提供する企業は対応が必要である。GDPRと同様に域外適用があるため、日本国内のみで開発していてもEU向けサービスには規制が及ぶ。高リスクに分類されるAIシステム（採用、信用審査、医療等）は特に厳格な要件が課される。対応のポイントは、(1) 自社AIシステムのリスク分類を行う、(2) 技術文書と適合性評価の準備、(3) 透明性要件（AI利用の開示）の実装、(4) 人間による監視体制の構築、である。
+Companies that operate in the EU or provide services to EU residents need to comply. Like the GDPR, it has extraterritorial application, so even if development takes place solely within Japan, the regulation applies to services targeting the EU. AI systems classified as high-risk (hiring, credit assessment, healthcare, etc.) are subject to particularly strict requirements. Key points for compliance are: (1) classify the risk of your AI systems, (2) prepare technical documentation and conformity assessments, (3) implement transparency requirements (disclosure of AI usage), and (4) establish human oversight mechanisms.
 
-### Q5: オープンソースのAIモデルを使えば著作権リスクは回避できるのか？
+### Q5: Can using open-source AI models avoid copyright risks?
 
-モデル自体がオープンソースであることと、そのモデルが生成するコードの著作権リスクは別問題である。オープンソースモデルであっても、学習データに著作権のあるコードが含まれていれば、生成物が既存コードに酷似するリスクは残る。むしろ、オープンソースモデルの方が学習データの透明性が高い場合があり、リスク評価がしやすいという利点がある。いずれにせよ、生成コードの類似性チェックとライセンス互換性の確認は、使用するモデルの種類に関わらず必須である。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| 倫理4領域 | バイアス、公平性、透明性、プライバシーを包括的に扱う |
-| バイアス対策 | データ収集から運用まで全フェーズで検出・軽減を実装 |
-| 透明性 | 4段階の開示レベルを定義し、監査証跡を残す |
-| プライバシー | PII除去、差分プライバシー、データ最小化を実践 |
-| ガバナンス | CI/CDに倫理チェックを組み込み、定期監査を実施 |
-| 著作権 | ライセンス互換性の確認とコア IPの人間設計を維持 |
-| 規制対応 | EU AI Act等の域外適用に注意し、リスク分類を行う |
-| 継続改善 | 完璧を目指さず、説明可能で改善可能な状態を維持 |
+The fact that a model itself is open source and the copyright risks of the code it generates are separate issues. Even with an open-source model, if the training data contains copyrighted code, the risk of generated output closely resembling existing code remains. In fact, open-source models may sometimes have greater transparency regarding training data, offering an advantage for risk assessment. In any case, similarity checks and license compatibility verification of generated code are essential regardless of the type of model used.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [02-future-of-development.md](./02-future-of-development.md) -- ソフトウェア開発の未来とAIネイティブ開発
-- [00-ai-team-practices.md](./00-ai-team-practices.md) -- AI活用のチーム開発プラクティス
-- [../02-workflow/01-ai-code-review.md](../02-workflow/01-ai-code-review.md) -- AIコードレビューにおける品質・倫理チェック
+| Item | Key Point |
+|------|-----------|
+| Four Ethics Domains | Address bias, fairness, transparency, and privacy comprehensively |
+| Bias Countermeasures | Implement detection and mitigation across all phases from data collection to operations |
+| Transparency | Define four levels of disclosure and maintain audit trails |
+| Privacy | Practice PII removal, differential privacy, and data minimization |
+| Governance | Embed ethics checks in CI/CD and conduct periodic audits |
+| Copyright | Verify license compatibility and maintain human design of core IP |
+| Regulatory Compliance | Be aware of extraterritorial application of the EU AI Act, etc., and classify risks |
+| Continuous Improvement | Rather than aiming for perfection, maintain an explainable and improvable state |
 
 ---
 
-## 参考文献
+## Recommended Next Guides
+
+- [02-future-of-development.md](./02-future-of-development.md) -- The future of software development and AI-native development
+- [00-ai-team-practices.md](./00-ai-team-practices.md) -- Team development practices for AI utilization
+- [../02-workflow/01-ai-code-review.md](../02-workflow/01-ai-code-review.md) -- Quality and ethics checks in AI code review
+
+---
+
+## References
 
 1. Anthropic, "Core Views on AI Safety," 2023. https://www.anthropic.com/research/core-views-on-ai-safety
 2. European Commission, "AI Act: Regulation on Artificial Intelligence," 2024. https://digital-strategy.ec.europa.eu/en/policies/regulatory-framework-ai
 3. OECD, "OECD AI Principles," 2024. https://oecd.ai/en/ai-principles
 4. NIST, "AI Risk Management Framework (AI RMF 1.0)," 2023. https://www.nist.gov/artificial-intelligence/ai-risk-management-framework
-5. 内閣府, "人間中心のAI社会原則," 2019. https://www8.cao.go.jp/cstp/ai/humancentricai.pdf
+5. Cabinet Office (Japan), "Human-Centric AI Society Principles," 2019. https://www8.cao.go.jp/cstp/ai/humancentricai.pdf
 6. Mehrabi, N. et al., "A Survey on Bias and Fairness in Machine Learning," ACM Computing Surveys, 2021. https://dl.acm.org/doi/10.1145/3457607
