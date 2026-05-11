@@ -1,362 +1,365 @@
-# 音声AI概要 — 音声合成/認識の歴史と現在
+# Audio AI Overview — History and Current State of Speech Synthesis/Recognition
 
-> 音声AIの全体像を俯瞰し、合成・認識・生成の3領域がどのように進化してきたかを理解する
+> Get a bird's-eye view of audio AI and understand how the three domains — synthesis, recognition, and generation — have evolved
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. 音声AI技術の歴史的変遷と主要なブレークスルー
-2. 音声合成(TTS)・音声認識(STT)・音声生成の3分野の位置づけ
-3. 2024-2026年の最新動向とエコシステムの全体像
+1. The historical evolution of audio AI technologies and major breakthroughs
+2. The positioning of the three fields: Text-to-Speech (TTS), Speech-to-Text (STT), and audio generation
+3. The latest trends and overall ecosystem landscape from 2024 to 2026
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. 音声AI技術の歴史
+## 1. History of Audio AI Technologies
 
-### 1.1 年代別の進化
+### 1.1 Evolution by Era
 
 ```
-音声AI技術の進化タイムライン
+Audio AI Technology Evolution Timeline
 ==================================================
 
-1950s-1970s: 規則ベースの時代
-├── 1952: Bell Labs「Audrey」（数字認識）
-├── 1961: IBM「Shoebox」（16単語認識）
-└── 1968: HAL 9000（SF的ビジョン）
+1950s-1970s: Rule-Based Era
+├── 1952: Bell Labs "Audrey" (digit recognition)
+├── 1961: IBM "Shoebox" (16-word recognition)
+└── 1968: HAL 9000 (sci-fi vision)
 
-1980s-1990s: 統計モデルの時代
-├── HMM（隠れマルコフモデル）
-├── GMM（混合ガウスモデル）
-└── 連結音声合成
+1980s-1990s: Statistical Model Era
+├── HMM (Hidden Markov Model)
+├── GMM (Gaussian Mixture Model)
+└── Concatenative speech synthesis
 
-2000s-2010s: ディープラーニング黎明期
-├── 2011: Siri（Apple）
-├── 2014: Alexa（Amazon）
-├── 2016: WaveNet（DeepMind）
-└── 2017: Tacotron（Google）
+2000s-2010s: Deep Learning Dawn
+├── 2011: Siri (Apple)
+├── 2014: Alexa (Amazon)
+├── 2016: WaveNet (DeepMind)
+└── 2017: Tacotron (Google)
 
-2020s: 基盤モデルの時代
-├── 2022: Whisper（OpenAI）
-├── 2023: VALL-E（Microsoft）/ Bark
+2020s: Foundation Model Era
+├── 2022: Whisper (OpenAI)
+├── 2023: VALL-E (Microsoft) / Bark
 ├── 2024: GPT-4o Audio / Suno v3
-└── 2025-2026: リアルタイムマルチモーダル
+└── 2025-2026: Real-time multimodal
 ==================================================
 ```
 
-### 1.2 パラダイムシフトの比較
+### 1.2 Paradigm Shift Comparison
 
 ```python
-# 各時代の音声認識アプローチ比較（概念コード）
+# Comparison of speech recognition approaches across eras (conceptual code)
 
-# 1. 規則ベース（1960s-1980s）
+# 1. Rule-Based (1960s-1980s)
 def rule_based_stt(audio):
-    """手動で定義した音素規則に基づく認識"""
+    """Recognition based on manually defined phoneme rules"""
     phonemes = extract_phonemes_by_rules(audio)
     words = match_phoneme_dictionary(phonemes)
     return words
 
-# 2. 統計モデル（1990s-2010s）
+# 2. Statistical Model (1990s-2010s)
 def hmm_based_stt(audio):
-    """HMM + GMM による確率的認識"""
-    features = extract_mfcc(audio)           # メル周波数ケプストラム係数
-    phoneme_probs = gmm_score(features)      # 各音素の確率計算
-    best_path = viterbi_decode(phoneme_probs) # 最尤パス探索
-    words = language_model_rescore(best_path) # 言語モデルで再スコア
+    """Probabilistic recognition using HMM + GMM"""
+    features = extract_mfcc(audio)           # Mel-Frequency Cepstral Coefficients
+    phoneme_probs = gmm_score(features)      # Probability calculation for each phoneme
+    best_path = viterbi_decode(phoneme_probs) # Maximum likelihood path search
+    words = language_model_rescore(best_path) # Rescore with language model
     return words
 
-# 3. End-to-End DL（2020s）
+# 3. End-to-End DL (2020s)
 def transformer_stt(audio):
-    """Transformer ベースの End-to-End 認識"""
+    """Transformer-based End-to-End recognition"""
     mel_spec = compute_mel_spectrogram(audio)
     encoder_out = transformer_encoder(mel_spec)
-    text = transformer_decoder(encoder_out)  # 直接テキスト出力
+    text = transformer_decoder(encoder_out)  # Direct text output
     return text
 ```
 
-### 1.3 各時代の詳細と技術的背景
+### 1.3 Detailed Technical Background of Each Era
 
 ```python
-# 各時代の技術的特徴を詳細に比較
+# Detailed comparison of technical characteristics across eras
 
 paradigm_details = {
-    "規則ベース (1950s-1970s)": {
-        "特徴": [
-            "音素ルールを手動で定義",
-            "フォルマント周波数の分析に基づく",
-            "限られた語彙（数十〜数百語）",
-            "話者依存（特定の話者にのみ対応）",
+    "Rule-Based (1950s-1970s)": {
+        "characteristics": [
+            "Manually defined phoneme rules",
+            "Based on formant frequency analysis",
+            "Limited vocabulary (tens to hundreds of words)",
+            "Speaker-dependent (only supported specific speakers)",
         ],
-        "代表的システム": {
-            "Audrey (1952)": "10個の数字を認識。単一話者。認識率97%",
-            "Shoebox (1961)": "16の英語単語を認識。音声で計算機を操作",
-            "HARPY (1976)": "1011語の語彙。連続音声認識の先駆け",
+        "representative_systems": {
+            "Audrey (1952)": "Recognized 10 digits. Single speaker. 97% accuracy",
+            "Shoebox (1961)": "Recognized 16 English words. Operated a calculator via voice",
+            "HARPY (1976)": "1011-word vocabulary. Pioneer of continuous speech recognition",
         },
-        "限界": "語彙追加に膨大な労力。環境変化に脆弱。多話者対応困難",
+        "limitations": "Enormous effort to add vocabulary. Vulnerable to environmental changes. Difficult multi-speaker support",
     },
-    "統計モデル (1980s-2000s)": {
-        "特徴": [
-            "HMM（隠れマルコフモデル）による時系列モデリング",
-            "GMM（混合ガウスモデル）による音響モデル",
-            "N-gram言語モデルによる文脈理解",
-            "Viterbiアルゴリズムによる最尤パス探索",
+    "Statistical Model (1980s-2000s)": {
+        "characteristics": [
+            "Time-series modeling with HMM (Hidden Markov Model)",
+            "Acoustic modeling with GMM (Gaussian Mixture Model)",
+            "Context understanding with N-gram language models",
+            "Maximum likelihood path search with Viterbi algorithm",
         ],
-        "代表的システム": {
-            "Sphinx (CMU)": "最初のオープンソース音声認識システム",
-            "HTK (Cambridge)": "HMMの代表的ツールキット。研究の標準に",
-            "Dragon NaturallySpeaking": "商用音声認識ソフトの先駆け",
+        "representative_systems": {
+            "Sphinx (CMU)": "First open-source speech recognition system",
+            "HTK (Cambridge)": "Definitive HMM toolkit. Became the research standard",
+            "Dragon NaturallySpeaking": "Pioneer of commercial speech recognition software",
         },
-        "限界": "特徴量設計に専門知識が必要。長距離依存の処理が困難",
+        "limitations": "Feature engineering requires domain expertise. Difficult to handle long-range dependencies",
     },
-    "ディープラーニング (2010s)": {
-        "特徴": [
-            "DNN-HMM ハイブリッド: DNNで音響モデルを置換",
-            "RNN/LSTM: 時系列データの長期依存性を学習",
-            "Attention機構: 入出力のアライメントを自動学習",
-            "End-to-End: 特徴抽出からテキスト出力まで単一モデル",
+    "Deep Learning (2010s)": {
+        "characteristics": [
+            "DNN-HMM Hybrid: Replace acoustic model with DNN",
+            "RNN/LSTM: Learn long-term dependencies in time-series data",
+            "Attention mechanism: Automatically learn input-output alignment",
+            "End-to-End: Single model from feature extraction to text output",
         ],
-        "ブレークスルー": {
-            "2012 DNN-HMM": "Hintonらが音響モデルにDNNを適用。WER 30%改善",
-            "2014 Seq2Seq": "音声認識をシーケンス変換問題として定式化",
-            "2016 WaveNet": "生波形からの直接音声合成。自然さが飛躍的向上",
-            "2017 Transformer": "Self-Attention機構の提案。NLPの革命",
+        "breakthroughs": {
+            "2012 DNN-HMM": "Hinton et al. applied DNN to acoustic model. 30% WER improvement",
+            "2014 Seq2Seq": "Formulated speech recognition as a sequence transduction problem",
+            "2016 WaveNet": "Direct speech synthesis from raw waveforms. Dramatic naturalness improvement",
+            "2017 Transformer": "Proposal of Self-Attention mechanism. Revolution in NLP",
         },
-        "限界": "大量の学習データが必要。計算コストが高い",
+        "limitations": "Requires large amounts of training data. High computational cost",
     },
-    "基盤モデル (2020s-現在)": {
-        "特徴": [
-            "大規模事前学習による汎用的な音声理解",
-            "マルチタスク学習（認識+翻訳+言語検出）",
-            "ゼロショット/フューショット適応",
-            "マルチモーダル統合（音声+テキスト+画像）",
+    "Foundation Model (2020s-Present)": {
+        "characteristics": [
+            "General-purpose speech understanding through large-scale pre-training",
+            "Multi-task learning (recognition + translation + language detection)",
+            "Zero-shot / few-shot adaptation",
+            "Multimodal integration (audio + text + image)",
         ],
-        "ブレークスルー": {
-            "Whisper (2022)": "680K時間のデータで学習。多言語対応",
-            "VALL-E (2023)": "3秒の参照音声でゼロショットTTS",
-            "GPT-4o (2024)": "音声を直接理解・生成するマルチモーダルモデル",
-            "Gemini Live (2024)": "リアルタイム音声対話",
+        "breakthroughs": {
+            "Whisper (2022)": "Trained on 680K hours of data. Multilingual support",
+            "VALL-E (2023)": "Zero-shot TTS with 3-second reference audio",
+            "GPT-4o (2024)": "Multimodal model that directly understands and generates audio",
+            "Gemini Live (2024)": "Real-time voice conversation",
         },
-        "今後の方向": "エッジデバイスでの高速推論、パーソナライゼーション",
+        "future_direction": "Fast inference on edge devices, personalization",
     },
 }
 
-# 各パラダイムのWER（単語誤り率）の推移
+# WER (Word Error Rate) progression across paradigms
 wer_history = {
-    "1990年": {"技術": "HMM-GMM", "WER": "約40%", "対象": "読み上げ音声"},
-    "2000年": {"技術": "HMM-GMM改良", "WER": "約20%", "対象": "読み上げ音声"},
-    "2012年": {"技術": "DNN-HMM", "WER": "約15%", "対象": "会話音声"},
-    "2016年": {"技術": "Seq2Seq + Attention", "WER": "約8%", "対象": "会話音声"},
-    "2020年": {"技術": "Conformer", "WER": "約5%", "対象": "会話音声"},
-    "2023年": {"技術": "Whisper large-v3", "WER": "約3%", "対象": "多言語会話"},
-    "2025年": {"技術": "マルチモーダル基盤", "WER": "約2%", "対象": "多言語+ノイズ環境"},
+    "1990": {"technology": "HMM-GMM", "WER": "~40%", "target": "Read speech"},
+    "2000": {"technology": "HMM-GMM improved", "WER": "~20%", "target": "Read speech"},
+    "2012": {"technology": "DNN-HMM", "WER": "~15%", "target": "Conversational speech"},
+    "2016": {"technology": "Seq2Seq + Attention", "WER": "~8%", "target": "Conversational speech"},
+    "2020": {"technology": "Conformer", "WER": "~5%", "target": "Conversational speech"},
+    "2023": {"technology": "Whisper large-v3", "WER": "~3%", "target": "Multilingual conversation"},
+    "2025": {"technology": "Multimodal foundation", "WER": "~2%", "target": "Multilingual + noisy environments"},
 }
 ```
 
 ---
 
-## 2. 音声AIの3大領域
+## 2. The Three Major Domains of Audio AI
 
-### 2.1 領域マップ
+### 2.1 Domain Map
 
 ```
-音声AIの3大領域
+Three Major Domains of Audio AI
 ==================================================
 
           ┌──────────────┐
-          │   音声AI     │
-          │ (Audio AI)   │
+          │   Audio AI   │
+          │              │
           └──────┬───────┘
                  │
     ┌────────────┼────────────┐
     ▼            ▼            ▼
 ┌────────┐ ┌─────────┐ ┌─────────┐
-│ 音声認識 │ │ 音声合成 │ │ 音声生成 │
-│  (STT)  │ │  (TTS)  │ │ (Gen)   │
+│  STT   │ │  TTS    │ │  Audio  │
+│(Speech │ │(Text-to │ │  Gen    │
+│to Text)│ │ Speech) │ │         │
 ├────────┤ ├─────────┤ ├─────────┤
-│音声→文字│ │文字→音声│ │AI→音声  │
+│Audio→  │ │Text→   │ │AI→Audio│
+│ Text   │ │ Audio  │ │        │
 │        │ │        │ │        │
 │Whisper │ │VITS    │ │Suno    │
 │Azure   │ │Bark    │ │Udio   │
 │Google  │ │Eleven  │ │MusicGen│
 └────────┘ └─────────┘ └─────────┘
     ↑                        │
-    └────── フィードバック ────┘
+    └────── Feedback ────────┘
 ==================================================
 ```
 
-### 2.2 各領域の主要プレイヤー
+### 2.2 Major Players in Each Domain
 
 ```python
-# 音声AI エコシステムの主要プレイヤー（2025-2026年）
+# Audio AI ecosystem major players (2025-2026)
 
 audio_ai_ecosystem = {
-    "STT (音声認識)": {
-        "オープンソース": ["Whisper (OpenAI)", "Vosk", "wav2vec 2.0"],
-        "クラウドAPI": ["Google Speech-to-Text", "Azure Speech", "AWS Transcribe"],
-        "特化型": ["Deepgram", "AssemblyAI", "Rev.ai"],
+    "STT (Speech-to-Text)": {
+        "Open Source": ["Whisper (OpenAI)", "Vosk", "wav2vec 2.0"],
+        "Cloud API": ["Google Speech-to-Text", "Azure Speech", "AWS Transcribe"],
+        "Specialized": ["Deepgram", "AssemblyAI", "Rev.ai"],
     },
-    "TTS (音声合成)": {
-        "オープンソース": ["VITS", "Bark", "Coqui TTS", "Piper"],
-        "クラウドAPI": ["ElevenLabs", "Google TTS", "Azure TTS", "OpenAI TTS"],
-        "特化型": ["PlayHT", "LMNT", "WellSaid Labs"],
+    "TTS (Text-to-Speech)": {
+        "Open Source": ["VITS", "Bark", "Coqui TTS", "Piper"],
+        "Cloud API": ["ElevenLabs", "Google TTS", "Azure TTS", "OpenAI TTS"],
+        "Specialized": ["PlayHT", "LMNT", "WellSaid Labs"],
     },
-    "音声生成 (Music/Sound)": {
-        "音楽生成": ["Suno", "Udio", "MusicGen (Meta)", "Stable Audio"],
-        "効果音": ["AudioGen", "Make-An-Audio", "Stable Audio Open"],
-        "ボイスクローン": ["RVC", "So-VITS-SVC", "OpenVoice"],
+    "Audio Generation (Music/Sound)": {
+        "Music Generation": ["Suno", "Udio", "MusicGen (Meta)", "Stable Audio"],
+        "Sound Effects": ["AudioGen", "Make-An-Audio", "Stable Audio Open"],
+        "Voice Cloning": ["RVC", "So-VITS-SVC", "OpenVoice"],
     },
-    "マルチモーダル": {
-        "対話型": ["GPT-4o Audio", "Gemini Live", "Claude Voice"],
-        "リアルタイム": ["OpenAI Realtime API", "LiveKit", "Daily"],
+    "Multimodal": {
+        "Conversational": ["GPT-4o Audio", "Gemini Live", "Claude Voice"],
+        "Real-time": ["OpenAI Realtime API", "LiveKit", "Daily"],
     },
 }
 ```
 
-### 2.3 各領域の技術的詳細
+### 2.3 Technical Details of Each Domain
 
 ```python
-# STT（音声認識）の詳細分類
+# STT (Speech-to-Text) detailed taxonomy
 
 stt_taxonomy = {
-    "アーキテクチャ別": {
+    "By Architecture": {
         "CTC (Connectionist Temporal Classification)": {
-            "説明": "入力と出力の長さが異なる問題を確率的に解決",
-            "モデル例": ["wav2vec 2.0", "DeepSpeech 2"],
-            "特徴": "デコーダ不要で高速。条件付き独立仮定が制約",
-            "適用場面": "リアルタイム処理、エッジデバイス",
+            "description": "Probabilistically solves the problem of differing input and output lengths",
+            "model_examples": ["wav2vec 2.0", "DeepSpeech 2"],
+            "characteristics": "Fast without decoder. Conditional independence assumption is a constraint",
+            "use_cases": "Real-time processing, edge devices",
         },
         "Attention-based Encoder-Decoder": {
-            "説明": "エンコーダの出力にAttentionを適用して逐次デコード",
-            "モデル例": ["Whisper", "Conformer"],
-            "特徴": "高精度だが自己回帰のため速度に制約",
-            "適用場面": "オフライン高精度文字起こし",
+            "description": "Applies attention to encoder output for sequential decoding",
+            "model_examples": ["Whisper", "Conformer"],
+            "characteristics": "High accuracy but speed constrained by autoregressive nature",
+            "use_cases": "Offline high-accuracy transcription",
         },
         "Transducer (RNN-T)": {
-            "説明": "CTC + Attentionの良いとこ取り",
-            "モデル例": ["Google USM", "Conformer Transducer"],
-            "特徴": "ストリーミング対応かつ高精度",
-            "適用場面": "リアルタイム音声認識、音声アシスタント",
+            "description": "Best of both CTC and Attention",
+            "model_examples": ["Google USM", "Conformer Transducer"],
+            "characteristics": "Streaming-capable and high accuracy",
+            "use_cases": "Real-time speech recognition, voice assistants",
         },
     },
-    "処理モード別": {
-        "バッチ処理": "録音済み音声を一括処理。最高精度",
-        "ストリーミング": "リアルタイムで逐次認識。低遅延",
-        "セミリアルタイム": "短いバッファで分割処理。バランス型",
+    "By Processing Mode": {
+        "Batch Processing": "Process recorded audio in bulk. Highest accuracy",
+        "Streaming": "Sequential real-time recognition. Low latency",
+        "Semi-real-time": "Process in short buffered segments. Balanced approach",
     },
-    "特殊機能": {
-        "話者分離 (Diarization)": "誰が何を言ったかを識別",
-        "感情認識": "声のトーンから感情を推定",
-        "言語検出": "話されている言語を自動判定",
-        "コードスイッチング": "複数言語が混在する発話に対応",
+    "Special Features": {
+        "Speaker Diarization": "Identify who said what",
+        "Emotion Recognition": "Estimate emotions from voice tone",
+        "Language Detection": "Automatically detect the spoken language",
+        "Code-Switching": "Handle utterances mixing multiple languages",
     },
 }
 
-# TTS（音声合成）の詳細分類
+# TTS (Text-to-Speech) detailed taxonomy
 
 tts_taxonomy = {
-    "生成方式別": {
-        "自己回帰型": {
-            "説明": "トークンを1つずつ逐次生成",
-            "モデル例": ["Tacotron 2", "VALL-E", "Bark"],
-            "特徴": "高品質だが生成速度が遅い",
+    "By Generation Method": {
+        "Autoregressive": {
+            "description": "Generate tokens one by one sequentially",
+            "model_examples": ["Tacotron 2", "VALL-E", "Bark"],
+            "characteristics": "High quality but slow generation speed",
         },
-        "非自己回帰型": {
-            "説明": "並列にトークンを生成",
-            "モデル例": ["FastSpeech 2", "VITS"],
-            "特徴": "高速だが品質はやや劣る場合がある",
+        "Non-autoregressive": {
+            "description": "Generate tokens in parallel",
+            "model_examples": ["FastSpeech 2", "VITS"],
+            "characteristics": "Fast but quality may be slightly lower in some cases",
         },
-        "拡散モデル型": {
-            "説明": "ノイズから徐々に音声を復元",
-            "モデル例": ["Grad-TTS", "DiffGAN-TTS"],
-            "特徴": "高品質だがステップ数に応じて速度が変化",
+        "Diffusion Model": {
+            "description": "Gradually recover audio from noise",
+            "model_examples": ["Grad-TTS", "DiffGAN-TTS"],
+            "characteristics": "High quality but speed varies with number of steps",
         },
-        "フロー型": {
-            "説明": "可逆変換で潜在空間から音声を生成",
-            "モデル例": ["VITS (Flow + VAE)", "Glow-TTS"],
-            "特徴": "高速かつ高品質のバランスが良い",
+        "Flow-based": {
+            "description": "Generate audio from latent space via invertible transformations",
+            "model_examples": ["VITS (Flow + VAE)", "Glow-TTS"],
+            "characteristics": "Good balance of speed and quality",
         },
     },
-    "制御機能": {
-        "プロソディ制御": "話速、ピッチ、強勢の調整",
-        "感情制御": "喜怒哀楽の表現",
-        "スタイル制御": "ニュース読み、会話、ナレーション等",
-        "話者制御": "ゼロショット / フューショット話者適応",
+    "Control Features": {
+        "Prosody Control": "Adjust speaking rate, pitch, and stress",
+        "Emotion Control": "Express joy, anger, sadness, and happiness",
+        "Style Control": "News reading, conversation, narration, etc.",
+        "Speaker Control": "Zero-shot / few-shot speaker adaptation",
     },
 }
 ```
 
 ---
 
-## 3. 技術スタックの全体像
+## 3. Overall Technology Stack
 
-### 3.1 レイヤー構成
+### 3.1 Layer Architecture
 
 ```
-音声AI技術スタック
+Audio AI Technology Stack
 ==================================================
 
 ┌─────────────────────────────────────────┐
-│         アプリケーション層               │
-│  音声アシスタント / ポッドキャスト /     │
-│  音楽制作 / コールセンター / 翻訳       │
+│         Application Layer               │
+│  Voice Assistants / Podcasts /          │
+│  Music Production / Call Centers /      │
+│  Translation                            │
 ├─────────────────────────────────────────┤
-│         APIサービス層                    │
+│         API Service Layer               │
 │  OpenAI Audio / ElevenLabs / Google /   │
 │  Azure Cognitive Services               │
 ├─────────────────────────────────────────┤
-│         モデル層                         │
+│         Model Layer                     │
 │  Whisper / VITS / MusicGen / VALL-E /   │
 │  Bark / Encodec / DAC                   │
 ├─────────────────────────────────────────┤
-│         フレームワーク層                 │
+│         Framework Layer                 │
 │  PyTorch / TensorFlow / ONNX Runtime /  │
 │  torchaudio / librosa                   │
 ├─────────────────────────────────────────┤
-│         音声処理基盤層                   │
+│         Audio Processing Foundation     │
 │  FFmpeg / PortAudio / Web Audio API /   │
 │  ALSA / CoreAudio / WASAPI             │
 └─────────────────────────────────────────┘
 ==================================================
 ```
 
-### 3.2 典型的なパイプライン
+### 3.2 Typical Pipeline
 
 ```python
-# 音声AIアプリケーションの典型的なパイプライン
+# Typical pipeline for audio AI applications
 
 import numpy as np
 
 class AudioAIPipeline:
-    """音声入力 → 処理 → 音声出力の基本パイプライン"""
+    """Basic pipeline: audio input -> processing -> audio output"""
 
     def __init__(self):
-        self.stt_model = None   # 音声認識モデル
-        self.llm = None         # 言語モデル
-        self.tts_model = None   # 音声合成モデル
+        self.stt_model = None   # Speech recognition model
+        self.llm = None         # Language model
+        self.tts_model = None   # Text-to-speech model
 
     def process(self, audio_input: np.ndarray) -> np.ndarray:
-        # Step 1: 音声認識（STT）
+        # Step 1: Speech-to-Text (STT)
         text = self.stt_model.transcribe(audio_input)
-        print(f"認識結果: {text}")
+        print(f"Recognition result: {text}")
 
-        # Step 2: テキスト処理（LLM）
+        # Step 2: Text Processing (LLM)
         response = self.llm.generate(text)
-        print(f"応答テキスト: {response}")
+        print(f"Response text: {response}")
 
-        # Step 3: 音声合成（TTS）
+        # Step 3: Text-to-Speech (TTS)
         audio_output = self.tts_model.synthesize(response)
-        print(f"合成音声: {len(audio_output)} samples")
+        print(f"Synthesized audio: {len(audio_output)} samples")
 
         return audio_output
 
     def streaming_process(self, audio_stream):
-        """ストリーミング版パイプライン"""
+        """Streaming version of the pipeline"""
         for chunk in audio_stream:
             partial_text = self.stt_model.transcribe_streaming(chunk)
             if partial_text.is_final:
@@ -364,279 +367,279 @@ class AudioAIPipeline:
                 yield self.tts_model.synthesize_streaming(response)
 ```
 
-### 3.3 市場規模と動向
+### 3.3 Market Size and Trends
 
 ```python
-# 音声AI市場の成長予測（概算）
+# Audio AI market growth forecast (approximate)
 
 market_data = {
-    "2023": {"市場規模_億ドル": 120, "主要トレンド": "LLM統合の始まり"},
-    "2024": {"市場規模_億ドル": 180, "主要トレンド": "マルチモーダルAIの台頭"},
-    "2025": {"市場規模_億ドル": 260, "主要トレンド": "リアルタイム音声対話の普及"},
-    "2026": {"市場規模_億ドル": 350, "主要トレンド": "パーソナライズド音声AIの成熟"},
+    "2023": {"market_size_billion_usd": 120, "key_trend": "Beginning of LLM integration"},
+    "2024": {"market_size_billion_usd": 180, "key_trend": "Rise of multimodal AI"},
+    "2025": {"market_size_billion_usd": 260, "key_trend": "Proliferation of real-time voice conversation"},
+    "2026": {"market_size_billion_usd": 350, "key_trend": "Maturation of personalized audio AI"},
 }
 
-# 成長率計算
+# Growth rate calculation
 for year in ["2024", "2025", "2026"]:
-    prev = market_data[str(int(year) - 1)]["市場規模_億ドル"]
-    curr = market_data[year]["市場規模_億ドル"]
+    prev = market_data[str(int(year) - 1)]["market_size_billion_usd"]
+    curr = market_data[year]["market_size_billion_usd"]
     growth = (curr - prev) / prev * 100
-    print(f"{year}年: ${curr}B（前年比 +{growth:.0f}%）- {market_data[year]['主要トレンド']}")
+    print(f"{year}: ${curr}B (YoY +{growth:.0f}%) - {market_data[year]['key_trend']}")
 ```
 
-### 3.4 セグメント別市場分析
+### 3.4 Market Analysis by Segment
 
 ```python
-# 音声AI市場のセグメント別分析
+# Audio AI market segment analysis
 
 market_segments = {
-    "コンシューマー向け音声アシスタント": {
-        "市場規模_2025": "約80億ドル",
-        "主要プレイヤー": ["Apple Siri", "Google Assistant", "Amazon Alexa"],
-        "成長ドライバー": "スマートスピーカー普及、車載AI統合",
-        "課題": "プライバシー懸念、多言語対応品質",
+    "Consumer Voice Assistants": {
+        "market_size_2025": "~$8 billion",
+        "major_players": ["Apple Siri", "Google Assistant", "Amazon Alexa"],
+        "growth_drivers": "Smart speaker adoption, in-vehicle AI integration",
+        "challenges": "Privacy concerns, multilingual support quality",
     },
-    "エンタープライズ音声ソリューション": {
-        "市場規模_2025": "約50億ドル",
-        "主要プレイヤー": ["Nuance (Microsoft)", "Google CCAI", "Amazon Connect"],
-        "成長ドライバー": "コールセンター自動化、会議文字起こし",
-        "課題": "セキュリティ要件、既存システム統合",
+    "Enterprise Voice Solutions": {
+        "market_size_2025": "~$5 billion",
+        "major_players": ["Nuance (Microsoft)", "Google CCAI", "Amazon Connect"],
+        "growth_drivers": "Call center automation, meeting transcription",
+        "challenges": "Security requirements, legacy system integration",
     },
-    "音楽・クリエイティブ": {
-        "市場規模_2025": "約20億ドル",
-        "主要プレイヤー": ["Suno", "Udio", "Stable Audio"],
-        "成長ドライバー": "コンテンツ制作需要、BGM自動生成",
-        "課題": "著作権問題、品質の一貫性",
+    "Music & Creative": {
+        "market_size_2025": "~$2 billion",
+        "major_players": ["Suno", "Udio", "Stable Audio"],
+        "growth_drivers": "Content creation demand, automated BGM generation",
+        "challenges": "Copyright issues, quality consistency",
     },
-    "ヘルスケア": {
-        "市場規模_2025": "約15億ドル",
-        "主要プレイヤー": ["Nuance DAX", "Amazon Transcribe Medical"],
-        "成長ドライバー": "電子カルテ音声入力、遠隔医療",
-        "課題": "医療用語精度、規制対応（HIPAA等）",
+    "Healthcare": {
+        "market_size_2025": "~$1.5 billion",
+        "major_players": ["Nuance DAX", "Amazon Transcribe Medical"],
+        "growth_drivers": "Voice input for electronic health records, telemedicine",
+        "challenges": "Medical terminology accuracy, regulatory compliance (HIPAA, etc.)",
     },
-    "教育・アクセシビリティ": {
-        "市場規模_2025": "約10億ドル",
-        "主要プレイヤー": ["Google Live Transcribe", "Otter.ai", "Microsoft Teams"],
-        "成長ドライバー": "オンライン学習、聴覚障害者支援",
-        "課題": "多言語対応、リアルタイム精度",
+    "Education & Accessibility": {
+        "market_size_2025": "~$1 billion",
+        "major_players": ["Google Live Transcribe", "Otter.ai", "Microsoft Teams"],
+        "growth_drivers": "Online learning, hearing-impaired support",
+        "challenges": "Multilingual support, real-time accuracy",
     },
 }
 
-# 技術トレンド（2025-2026年）
+# Technology Trends (2025-2026)
 tech_trends = {
-    "マルチモーダル統合": {
-        "説明": "音声・テキスト・画像を統一的に処理するモデル",
-        "代表例": "GPT-4o, Gemini, Claude",
-        "影響": "音声アシスタントの対話品質が飛躍的に向上",
+    "Multimodal Integration": {
+        "description": "Models that process audio, text, and images in a unified manner",
+        "examples": "GPT-4o, Gemini, Claude",
+        "impact": "Dramatic improvement in voice assistant conversation quality",
     },
-    "リアルタイム音声対話": {
-        "説明": "300ms以下の応答遅延を実現する技術",
-        "代表例": "OpenAI Realtime API, LiveKit",
-        "影響": "電話相当の自然な対話がAIで可能に",
+    "Real-time Voice Conversation": {
+        "description": "Technology achieving response latency under 300ms",
+        "examples": "OpenAI Realtime API, LiveKit",
+        "impact": "Natural phone-like conversation becomes possible with AI",
     },
-    "パーソナライゼーション": {
-        "説明": "個人の声、話し方、好みに適応するAI",
-        "代表例": "ボイスクローニング、適応型TTS",
-        "影響": "ユーザー体験の個人最適化",
+    "Personalization": {
+        "description": "AI that adapts to individual voices, speech patterns, and preferences",
+        "examples": "Voice cloning, adaptive TTS",
+        "impact": "Individually optimized user experiences",
     },
-    "エッジAI音声処理": {
-        "説明": "スマートフォン・IoTデバイスでの音声AI実行",
-        "代表例": "Apple Neural Engine, Qualcomm AI Engine",
-        "影響": "プライバシー保護、オフライン動作、低遅延",
+    "Edge AI Audio Processing": {
+        "description": "Running audio AI on smartphones and IoT devices",
+        "examples": "Apple Neural Engine, Qualcomm AI Engine",
+        "impact": "Privacy protection, offline operation, low latency",
     },
-    "音声透かしとAI検出": {
-        "説明": "AI生成音声の識別と来歴追跡技術",
-        "代表例": "AudioSeal (Meta), Watermarking standards",
-        "影響": "ディープフェイク対策、信頼性確保",
+    "Audio Watermarking and AI Detection": {
+        "description": "Technology for identifying AI-generated audio and tracking provenance",
+        "examples": "AudioSeal (Meta), Watermarking standards",
+        "impact": "Deepfake countermeasures, trust assurance",
     },
 }
 ```
 
 ---
 
-## 4. 比較表
+## 4. Comparison Tables
 
-### 4.1 音声AI 3領域の比較
+### 4.1 Comparison of the Three Audio AI Domains
 
-| 項目 | STT（音声認識） | TTS（音声合成） | 音声生成 |
+| Item | STT (Speech Recognition) | TTS (Speech Synthesis) | Audio Generation |
 |------|----------------|----------------|---------|
-| 入力 | 音声波形 | テキスト | テキスト/プロンプト |
-| 出力 | テキスト | 音声波形 | 音楽/効果音/音声 |
-| 代表モデル | Whisper | VITS / Bark | MusicGen / Suno |
-| レイテンシ要求 | リアルタイム必要 | 準リアルタイム | バッチ処理可 |
-| 精度指標 | WER（単語誤り率） | MOS（主観評価） | 主観的品質 |
-| 計算コスト | 中 | 中〜高 | 高 |
-| 主要ユースケース | 文字起こし/指示理解 | ナレーション/案内 | 音楽制作/コンテンツ |
-| 成熟度 | 高い | 高い | 発展途上 |
+| Input | Audio waveform | Text | Text / Prompt |
+| Output | Text | Audio waveform | Music / Sound effects / Voice |
+| Representative Models | Whisper | VITS / Bark | MusicGen / Suno |
+| Latency Requirements | Real-time required | Near real-time | Batch processing acceptable |
+| Accuracy Metrics | WER (Word Error Rate) | MOS (Mean Opinion Score) | Subjective quality |
+| Computational Cost | Medium | Medium to High | High |
+| Primary Use Cases | Transcription / Command understanding | Narration / Announcements | Music production / Content |
+| Maturity | High | High | Developing |
 
-### 4.2 クラウドAPI vs ローカル実行の比較
+### 4.2 Cloud API vs Local Execution Comparison
 
-| 項目 | クラウドAPI | ローカル実行 |
+| Item | Cloud API | Local Execution |
 |------|-----------|-------------|
-| レイテンシ | ネットワーク遅延あり | 低レイテンシ |
-| コスト | 従量課金 | GPU初期投資 |
-| プライバシー | データ送信必要 | オンプレミス完結 |
-| スケーラビリティ | 自動スケール | 手動スケール |
-| 品質 | 最高品質（最新モデル） | モデルサイズ制限 |
-| セットアップ | API Key のみ | 環境構築が必要 |
-| オフライン対応 | 不可 | 可能 |
-| カスタマイズ | 限定的 | フルカスタマイズ |
+| Latency | Network delay present | Low latency |
+| Cost | Pay-per-use | Initial GPU investment |
+| Privacy | Data transmission required | On-premises only |
+| Scalability | Auto-scaling | Manual scaling |
+| Quality | Highest quality (latest models) | Model size limitations |
+| Setup | API key only | Environment setup required |
+| Offline Support | Not available | Available |
+| Customization | Limited | Full customization |
 
-### 4.3 主要フレームワーク・ライブラリ比較
+### 4.3 Major Framework and Library Comparison
 
-| フレームワーク | 言語 | 主な用途 | GPU対応 | コミュニティ規模 |
+| Framework | Language | Primary Use | GPU Support | Community Size |
 |--------------|------|---------|---------|---------------|
-| torchaudio | Python | 音声処理全般 | 対応 | 大規模 |
-| librosa | Python | 音声分析・特徴抽出 | CPU中心 | 大規模 |
-| soundfile | Python | 音声ファイルI/O | CPU | 中規模 |
-| audiocraft | Python | 音楽生成 (MusicGen) | 対応 | 中規模 |
-| transformers | Python | Whisper, TTS等 | 対応 | 最大級 |
-| Web Audio API | JavaScript | ブラウザ音声処理 | 一部 | 大規模 |
-| FFmpeg | C/CLI | フォーマット変換 | 一部 | 最大級 |
-| PortAudio | C | リアルタイム入出力 | N/A | 中規模 |
-| ONNX Runtime | 多言語 | モデル推論最適化 | 対応 | 大規模 |
+| torchaudio | Python | General audio processing | Supported | Large |
+| librosa | Python | Audio analysis & feature extraction | CPU-centric | Large |
+| soundfile | Python | Audio file I/O | CPU | Medium |
+| audiocraft | Python | Music generation (MusicGen) | Supported | Medium |
+| transformers | Python | Whisper, TTS, etc. | Supported | Largest |
+| Web Audio API | JavaScript | Browser audio processing | Partial | Large |
+| FFmpeg | C/CLI | Format conversion | Partial | Largest |
+| PortAudio | C | Real-time I/O | N/A | Medium |
+| ONNX Runtime | Multi-language | Model inference optimization | Supported | Large |
 
-### 4.4 音声AIのユースケースマトリクス
+### 4.4 Audio AI Use Case Matrix
 
-| ユースケース | STT | TTS | 音声生成 | LLM | リアルタイム |
+| Use Case | STT | TTS | Audio Gen | LLM | Real-time |
 |-------------|-----|-----|---------|-----|------------|
-| 音声アシスタント | 必須 | 必須 | - | 必須 | 必須 |
-| 文字起こしサービス | 必須 | - | - | オプション | オプション |
-| ポッドキャスト制作 | 必須 | オプション | - | 推奨 | - |
-| 音楽制作 | - | - | 必須 | オプション | - |
-| コールセンター自動化 | 必須 | 必須 | - | 必須 | 必須 |
-| ナレーション制作 | - | 必須 | - | - | - |
-| 言語学習アプリ | 必須 | 必須 | - | 推奨 | 推奨 |
-| ゲーム開発 | オプション | 推奨 | 推奨 | オプション | 推奨 |
-| アクセシビリティ | 必須 | 必須 | - | オプション | 必須 |
+| Voice Assistant | Required | Required | - | Required | Required |
+| Transcription Service | Required | - | - | Optional | Optional |
+| Podcast Production | Required | Optional | - | Recommended | - |
+| Music Production | - | - | Required | Optional | - |
+| Call Center Automation | Required | Required | - | Required | Required |
+| Narration Production | - | Required | - | - | - |
+| Language Learning App | Required | Required | - | Recommended | Recommended |
+| Game Development | Optional | Recommended | Recommended | Optional | Recommended |
+| Accessibility | Required | Required | - | Optional | Required |
 
 ---
 
-## 5. 実践的な開発環境構築
+## 5. Practical Development Environment Setup
 
-### 5.1 音声AI開発の推奨環境
+### 5.1 Recommended Environment for Audio AI Development
 
 ```python
-# 音声AI開発環境の構築ガイド
+# Audio AI development environment setup guide
 
 development_environment = {
-    "ハードウェア推奨": {
-        "GPU": "NVIDIA RTX 3060以上 (VRAM 8GB+)",
-        "RAM": "16GB以上（大規模モデルは32GB推奨）",
-        "ストレージ": "SSD 256GB以上（モデルキャッシュ用）",
-        "マイク": "USBコンデンサーマイク（開発テスト用）",
+    "recommended_hardware": {
+        "GPU": "NVIDIA RTX 3060 or higher (VRAM 8GB+)",
+        "RAM": "16GB or more (32GB recommended for large models)",
+        "Storage": "SSD 256GB or more (for model cache)",
+        "Microphone": "USB condenser microphone (for development testing)",
     },
-    "ソフトウェア基盤": {
+    "software_foundation": {
         "OS": "Ubuntu 22.04+ / macOS 13+ / Windows 11",
         "Python": "3.10-3.12",
-        "CUDA": "12.1+（NVIDIA GPU使用時）",
+        "CUDA": "12.1+ (when using NVIDIA GPU)",
         "FFmpeg": "6.0+",
     },
-    "主要パッケージ": {
-        "音声処理": ["librosa", "soundfile", "pydub", "torchaudio"],
+    "key_packages": {
+        "Audio Processing": ["librosa", "soundfile", "pydub", "torchaudio"],
         "AI/ML": ["torch", "transformers", "openai", "faster-whisper"],
         "Web/API": ["fastapi", "websockets", "aiohttp"],
-        "音声I/O": ["pyaudio", "sounddevice"],
+        "Audio I/O": ["pyaudio", "sounddevice"],
     },
 }
 
-# 環境構築スクリプト（概念）
+# Environment setup script (conceptual)
 setup_commands = """
-# Python仮想環境の作成
+# Create Python virtual environment
 python -m venv audio_ai_env
 source audio_ai_env/bin/activate
 
-# 基本パッケージのインストール
+# Install base packages
 pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
 pip install transformers accelerate
 pip install librosa soundfile pydub
 pip install openai faster-whisper
 pip install fastapi uvicorn websockets
 
-# FFmpeg のインストール（Ubuntu）
+# Install FFmpeg (Ubuntu)
 sudo apt install ffmpeg
 
-# 動作確認
+# Verify installation
 python -c "import torch; print(f'PyTorch: {torch.__version__}, CUDA: {torch.cuda.is_available()}')"
 python -c "import librosa; print(f'librosa: {librosa.__version__}')"
 """
 ```
 
-### 5.2 Hello World: 音声AIの最小構成
+### 5.2 Hello World: Minimal Audio AI Configuration
 
 ```python
-# 音声AI Hello World - 最小のSTT + TTS パイプライン
+# Audio AI Hello World - Minimal STT + TTS pipeline
 
 from openai import OpenAI
 
 def audio_ai_hello_world():
-    """音声AIの最小構成デモ"""
+    """Minimal audio AI configuration demo"""
     client = OpenAI()
 
-    # Step 1: 音声ファイルの文字起こし（STT）
+    # Step 1: Transcribe audio file (STT)
     with open("sample_audio.mp3", "rb") as audio_file:
         transcription = client.audio.transcriptions.create(
             model="whisper-1",
             file=audio_file,
             language="ja",
         )
-    print(f"認識結果: {transcription.text}")
+    print(f"Recognition result: {transcription.text}")
 
-    # Step 2: LLMで応答生成
+    # Step 2: Generate response with LLM
     chat_response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
-            {"role": "system", "content": "簡潔に日本語で回答してください。"},
+            {"role": "system", "content": "Please answer concisely in Japanese."},
             {"role": "user", "content": transcription.text},
         ],
     )
     response_text = chat_response.choices[0].message.content
-    print(f"応答: {response_text}")
+    print(f"Response: {response_text}")
 
-    # Step 3: 音声合成（TTS）
+    # Step 3: Text-to-Speech (TTS)
     speech = client.audio.speech.create(
         model="tts-1",
         voice="nova",
         input=response_text,
     )
     speech.stream_to_file("response.mp3")
-    print("音声ファイル生成完了: response.mp3")
+    print("Audio file generated: response.mp3")
 
-# ローカルWhisperを使った代替実装
+# Alternative implementation using local Whisper
 def local_stt_example():
-    """ローカルWhisperによる文字起こし"""
+    """Transcription using local Whisper"""
     from faster_whisper import WhisperModel
 
     model = WhisperModel("base", device="cpu", compute_type="int8")
     segments, info = model.transcribe("sample_audio.mp3", language="ja")
 
-    print(f"検出言語: {info.language} (確率: {info.language_probability:.2f})")
+    print(f"Detected language: {info.language} (probability: {info.language_probability:.2f})")
     for segment in segments:
         print(f"[{segment.start:.1f}s - {segment.end:.1f}s] {segment.text}")
 ```
 
 ---
 
-## 6. アンチパターン
+## 6. Anti-Patterns
 
-### 6.1 アンチパターン: 単一モデルへの過度な依存
+### 6.1 Anti-Pattern: Over-Reliance on a Single Model
 
 ```python
-# BAD: 単一のクラウドAPIに全依存
+# BAD: Full dependency on a single cloud API
 class BadAudioService:
     def transcribe(self, audio):
-        # 1つのAPIだけに依存 → 障害時に全停止
+        # Depending on only one API -> complete outage on failure
         return openai_client.audio.transcriptions.create(
             model="whisper-1", file=audio
         )
 
-# GOOD: フォールバック付きマルチプロバイダー
+# GOOD: Multi-provider with fallback
 class GoodAudioService:
     def __init__(self):
         self.providers = [
             OpenAITranscriber(),
             GoogleTranscriber(),
-            LocalWhisperTranscriber(),  # ローカルフォールバック
+            LocalWhisperTranscriber(),  # Local fallback
         ]
 
     def transcribe(self, audio):
@@ -646,51 +649,51 @@ class GoodAudioService:
             except Exception as e:
                 logger.warning(f"{provider.name} failed: {e}")
                 continue
-        raise AllProvidersFailedError("全プロバイダーが失敗")
+        raise AllProvidersFailedError("All providers failed")
 ```
 
-### 6.2 アンチパターン: 前処理なしの生音声投入
+### 6.2 Anti-Pattern: Feeding Raw Audio Without Preprocessing
 
 ```python
-# BAD: 生の音声をそのままモデルに入力
+# BAD: Feeding raw audio directly to the model
 def bad_transcribe(raw_audio):
-    return model.transcribe(raw_audio)  # ノイズ、無音区間がそのまま
+    return model.transcribe(raw_audio)  # Noise and silence segments remain as-is
 
-# GOOD: 前処理パイプラインを通す
+# GOOD: Pass through a preprocessing pipeline
 def good_transcribe(raw_audio):
-    # Step 1: ノイズ除去
+    # Step 1: Noise reduction
     cleaned = noise_reduction(raw_audio)
-    # Step 2: 無音区間除去（VAD: Voice Activity Detection）
+    # Step 2: Remove silence segments (VAD: Voice Activity Detection)
     segments = vad_segment(cleaned)
-    # Step 3: 正規化（音量レベル調整）
+    # Step 3: Normalization (volume level adjustment)
     normalized = normalize_audio(segments, target_db=-20)
-    # Step 4: リサンプリング（モデル要求のサンプルレートに合わせる）
+    # Step 4: Resampling (match the model's required sample rate)
     resampled = resample(normalized, target_sr=16000)
     return model.transcribe(resampled)
 ```
 
-### 6.3 アンチパターン: 音声データのセキュリティ軽視
+### 6.3 Anti-Pattern: Neglecting Audio Data Security
 
 ```python
-# BAD: 音声データのセキュリティを考慮しない
+# BAD: Not considering audio data security
 class BadAudioHandler:
     def process(self, audio_data):
-        # 音声データをログに書き出し（個人情報漏洩リスク）
+        # Writing audio data to logs (personal information leakage risk)
         logger.info(f"Processing audio: {audio_data[:100]}")
-        # 平文でクラウドに送信
+        # Sending in plaintext to the cloud
         requests.post("http://api.example.com/transcribe", data=audio_data)
-        # 処理後のデータを削除しない
+        # Not deleting data after processing
         save_to_disk(audio_data, "tmp/audio_cache/")
 
-# GOOD: セキュリティを考慮した実装
+# GOOD: Security-conscious implementation
 class GoodAudioHandler:
     def process(self, audio_data):
-        # ログには識別子のみ記録
+        # Log only identifiers
         audio_id = generate_uuid()
         logger.info(f"Processing audio: id={audio_id}, size={len(audio_data)}B")
 
         try:
-            # TLS暗号化通信で送信
+            # Send via TLS-encrypted communication
             result = requests.post(
                 "https://api.example.com/transcribe",
                 data=audio_data,
@@ -699,128 +702,128 @@ class GoodAudioHandler:
 
             return result.json()
         finally:
-            # 処理完了後、音声データを確実に削除
+            # Ensure audio data is deleted after processing
             del audio_data
-            # ディスクキャッシュも削除
+            # Also delete disk cache
             cleanup_temp_files(audio_id)
 ```
 
-### 6.4 アンチパターン: レイテンシの無計画な積み上げ
+### 6.4 Anti-Pattern: Unplanned Latency Accumulation
 
 ```python
-# BAD: 各処理を直列実行してレイテンシが積み上がる
+# BAD: Sequential execution of each process, accumulating latency
 def bad_voice_assistant(audio):
-    text = stt(audio)          # 1.5秒
-    enhanced = llm(text)       # 2.0秒
-    response = tts(enhanced)   # 1.5秒
-    return response            # 合計: 5.0秒（会話として不自然）
+    text = stt(audio)          # 1.5 seconds
+    enhanced = llm(text)       # 2.0 seconds
+    response = tts(enhanced)   # 1.5 seconds
+    return response            # Total: 5.0 seconds (unnatural for conversation)
 
-# GOOD: ストリーミング + パイプライン並列化
+# GOOD: Streaming + pipeline parallelization
 async def good_voice_assistant(audio_stream):
-    # STTストリーミング: 音声チャンクごとに認識
+    # STT streaming: recognize per audio chunk
     async for text_chunk in stt_streaming(audio_stream):
         if text_chunk.is_final:
-            # LLMストリーミング: トークンごとに出力
+            # LLM streaming: output per token
             async for response_token in llm_streaming(text_chunk.text):
-                # TTSストリーミング: 文単位で音声合成
+                # TTS streaming: synthesize per sentence
                 if is_sentence_end(response_token):
                     sentence = buffer.flush()
                     async for audio_chunk in tts_streaming(sentence):
                         yield audio_chunk
-    # 合計体感遅延: 0.5-1.0秒（ストリーミングにより大幅短縮）
+    # Total perceived latency: 0.5-1.0 seconds (significantly reduced by streaming)
 ```
 
 ---
 
-## 7. トラブルシューティングガイド
+## 7. Troubleshooting Guide
 
-### 7.1 よくある問題と解決策
+### 7.1 Common Problems and Solutions
 
 ```python
-# 音声AI開発でよく遭遇する問題と解決策
+# Common problems encountered in audio AI development and their solutions
 
 troubleshooting_guide = {
-    "問題1: STTの精度が低い": {
-        "症状": "認識結果に誤りが多い、ハルシネーションが発生",
-        "原因と対策": [
-            ("サンプルレート不一致", "モデルの要求するSR（通常16kHz）にリサンプリング"),
-            ("ノイズ環境", "前処理でノイズ除去を行う。VADで非音声区間を除去"),
-            ("モデルサイズ不足", "large-v3モデルに変更。faster-whisperで高速化"),
-            ("言語指定なし", "language='ja'を明示的に指定"),
-            ("プロンプトなし", "initial_promptに固有名詞リストを含める"),
+    "Problem 1: Low STT accuracy": {
+        "symptoms": "Many errors in recognition results, hallucinations occur",
+        "causes_and_solutions": [
+            ("Sample rate mismatch", "Resample to the model's required SR (typically 16kHz)"),
+            ("Noisy environment", "Apply noise reduction in preprocessing. Remove non-speech segments with VAD"),
+            ("Insufficient model size", "Switch to large-v3 model. Speed up with faster-whisper"),
+            ("No language specification", "Explicitly specify language='ja'"),
+            ("No prompt", "Include a list of proper nouns in initial_prompt"),
         ],
     },
-    "問題2: TTSの音声が不自然": {
-        "症状": "イントネーションが変、読み間違いがある",
-        "原因と対策": [
-            ("テキスト前処理不足", "数字、略語、記号を読み仮名に変換"),
-            ("文が長すぎる", "句読点で分割して合成"),
-            ("モデル選択の問題", "用途に合ったモデル/ボイスに変更"),
-            ("サンプリングパラメータ", "temperature/top_kを調整"),
+    "Problem 2: Unnatural TTS output": {
+        "symptoms": "Strange intonation, mispronunciations",
+        "causes_and_solutions": [
+            ("Insufficient text preprocessing", "Convert numbers, abbreviations, and symbols to phonetic readings"),
+            ("Sentences too long", "Split at punctuation marks before synthesis"),
+            ("Model selection issue", "Switch to a model/voice suited for the use case"),
+            ("Sampling parameters", "Adjust temperature/top_k"),
         ],
     },
-    "問題3: GPU メモリ不足": {
-        "症状": "CUDA OOM、処理が途中で停止",
-        "原因と対策": [
-            ("モデルが大きすぎる", "量子化（INT8/FP16）を適用"),
-            ("バッチサイズが大きい", "バッチサイズを縮小、チャンク分割処理"),
-            ("メモリリーク", "torch.cuda.empty_cache()を適宜呼び出し"),
-            ("複数モデルの同時ロード", "使用後にモデルをアンロード"),
+    "Problem 3: GPU memory shortage": {
+        "symptoms": "CUDA OOM, processing stops midway",
+        "causes_and_solutions": [
+            ("Model too large", "Apply quantization (INT8/FP16)"),
+            ("Batch size too large", "Reduce batch size, process in chunks"),
+            ("Memory leak", "Call torch.cuda.empty_cache() as needed"),
+            ("Multiple models loaded simultaneously", "Unload models after use"),
         ],
     },
-    "問題4: レイテンシが高い": {
-        "症状": "応答に数秒以上かかる",
-        "原因と対策": [
-            ("バッチ処理", "ストリーミング処理に切り替え"),
-            ("モデルサイズ", "小さいモデル or ONNX最適化を使用"),
-            ("ネットワーク", "エッジ処理（ローカル実行）に切り替え"),
-            ("直列処理", "パイプライン並列化を導入"),
+    "Problem 4: High latency": {
+        "symptoms": "Response takes several seconds or more",
+        "causes_and_solutions": [
+            ("Batch processing", "Switch to streaming processing"),
+            ("Model size", "Use smaller model or ONNX optimization"),
+            ("Network", "Switch to edge processing (local execution)"),
+            ("Sequential processing", "Introduce pipeline parallelization"),
         ],
     },
-    "問題5: 日本語特有の問題": {
-        "症状": "漢字の読み間違い、助詞の認識ミス",
-        "原因と対策": [
-            ("ファインチューニング不足", "ReazonSpeech等の日本語データで追加学習"),
-            ("形態素解析の不足", "MeCab/Sudachiによる後処理"),
-            ("固有名詞の未登録", "カスタム語彙/辞書の追加"),
-            ("方言・口語体", "ドメイン特化データでの追加学習"),
+    "Problem 5: Japanese-specific issues": {
+        "symptoms": "Kanji mispronunciations, particle recognition errors",
+        "causes_and_solutions": [
+            ("Insufficient fine-tuning", "Additional training with Japanese data such as ReazonSpeech"),
+            ("Lack of morphological analysis", "Post-processing with MeCab/Sudachi"),
+            ("Unregistered proper nouns", "Add custom vocabulary/dictionaries"),
+            ("Dialects/colloquial speech", "Additional training with domain-specific data"),
         ],
     },
 }
 ```
 
-### 7.2 パフォーマンス最適化チェックリスト
+### 7.2 Performance Optimization Checklist
 
 ```python
-# 音声AIシステムのパフォーマンス最適化チェックリスト
+# Audio AI system performance optimization checklist
 
 performance_checklist = {
-    "モデル最適化": [
-        "[ ] 適切なモデルサイズの選択（用途に対して過大でないか）",
-        "[ ] FP16/INT8 量子化の適用",
-        "[ ] ONNX Runtime への変換",
-        "[ ] TensorRT（NVIDIA GPU向け）の検討",
-        "[ ] バッチ推論の活用（オフライン処理時）",
+    "Model Optimization": [
+        "[ ] Select appropriate model size (not oversized for the use case)",
+        "[ ] Apply FP16/INT8 quantization",
+        "[ ] Convert to ONNX Runtime",
+        "[ ] Consider TensorRT (for NVIDIA GPUs)",
+        "[ ] Leverage batch inference (for offline processing)",
     ],
-    "パイプライン最適化": [
-        "[ ] ストリーミング処理の導入",
-        "[ ] 非同期処理（async/await）の活用",
-        "[ ] パイプラインの並列化（STT/LLM/TTS同時進行）",
-        "[ ] 結果キャッシュの実装",
-        "[ ] 不要な前処理ステップの省略",
+    "Pipeline Optimization": [
+        "[ ] Introduce streaming processing",
+        "[ ] Leverage asynchronous processing (async/await)",
+        "[ ] Parallelize the pipeline (STT/LLM/TTS concurrent execution)",
+        "[ ] Implement result caching",
+        "[ ] Eliminate unnecessary preprocessing steps",
     ],
-    "インフラ最適化": [
-        "[ ] GPUリソースの適切な割り当て",
-        "[ ] モデルの事前ロード（コールドスタート回避）",
-        "[ ] 接続プーリングの実装",
-        "[ ] CDN/エッジキャッシュの活用（TTS結果）",
-        "[ ] オートスケーリングの設定",
+    "Infrastructure Optimization": [
+        "[ ] Allocate GPU resources appropriately",
+        "[ ] Pre-load models (avoid cold starts)",
+        "[ ] Implement connection pooling",
+        "[ ] Leverage CDN/edge caching (for TTS results)",
+        "[ ] Configure auto-scaling",
     ],
-    "音声データ最適化": [
-        "[ ] 適切なサンプルレートへの統一（16kHz for STT）",
-        "[ ] VADによる非音声区間の除去",
-        "[ ] 音声圧縮（Opus for WebRTC, FLAC for API）",
-        "[ ] チャンク分割による段階的処理",
+    "Audio Data Optimization": [
+        "[ ] Standardize to appropriate sample rate (16kHz for STT)",
+        "[ ] Remove non-speech segments with VAD",
+        "[ ] Compress audio (Opus for WebRTC, FLAC for API)",
+        "[ ] Progressive processing via chunk splitting",
     ],
 }
 ```
@@ -828,45 +831,45 @@ performance_checklist = {
 
 ---
 
-## 実践演習
+## Hands-on Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -875,26 +878,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -902,7 +905,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -913,14 +916,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -928,7 +931,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -936,44 +939,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -982,7 +985,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -997,76 +1000,77 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f} seconds")
+    print(f"Efficient version:   {fast_time:.6f} seconds")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm computational complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | When Prioritized | When Compromisable |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services with expected growth | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development Speed | MVP, time-to-market speed | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│          Architecture Selection Flow             │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. Team size?                                  │
+│    ├─ Small (1-5 people) -> Monolith            │
+│    └─ Large (10+ people) -> Go to 2.            │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. Deployment frequency?                       │
+│    ├─ Once a week or less -> Monolith +         │
+│    │    module separation                       │
+│    └─ Daily / multiple times -> Go to 3.        │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. Inter-team independence?                    │
+│    ├─ High -> Microservices                     │
+│    └─ Medium -> Modular Monolith                │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A method that is fast short-term can become technical debt long-term
+- Conversely, over-engineering has high short-term cost and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies enables best-fit solutions but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction offers high reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Create an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1076,17 +1080,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1094,7 +1098,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1102,15 +1106,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
-            icon = "✅" if c['type'] == 'positive' else "⚠️"
-            md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+            icon = "+" if c['type'] == 'positive' else "!"
+            md += f"- [{icon}] {c['description']}\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1118,53 +1122,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum viable set of features
+- Automated tests only for critical paths
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't seek perfection (YAGNI principle)
+- Obtain user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Legacy System Modernization
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Incrementally modernize a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Gradual migration using the Strangler Fig pattern
+- Create Characterization Tests first if existing tests are absent
+- Use an API gateway to allow old and new systems to coexist
+- Perform data migration incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration Start | Sequential migration from peripheral features | 3-6 months | Medium |
+| 4. Core Migration | Migration of core features | 6-12 months | High |
+| 5. Completion | Decommission legacy system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** More than 50 engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with Domain-Driven Design
+- Set ownership per team
+- Manage shared libraries via Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1177,20 +1181,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Verify SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1199,7 +1203,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1220,104 +1224,105 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical System
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Cache strategy (L1: In-memory, L2: Redis, L3: CDN)
+2. Leverage asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization Method | Impact | Implementation Cost | Use Case |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory Cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Asynchronous Processing | Medium | Medium | I/O-heavy processing |
+| DB Optimization | High | High | When queries are slow |
+| Code Optimization | Low-Medium | High | When CPU-bound |
 
 ---
 
-## チーム開発での活用
+## Team Development Practices
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Key points to check in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Naming conventions are consistent
+- [ ] Error handling is appropriate
+- [ ] Test coverage is sufficient
+- [ ] No performance impact
+- [ ] No security issues
+- [ ] Documentation is updated
 
-### ナレッジ共有のベストプラクティス
+### Knowledge Sharing Best Practices
 
-| 方法 | 頻度 | 対象 | 効果 |
+| Method | Frequency | Target | Effectiveness |
 |------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Pair Programming | As needed | Complex tasks | Immediate feedback |
+| Tech Talk | Weekly | Entire team | Horizontal knowledge transfer |
+| ADR (Decision Records) | As needed | Future members | Decision transparency |
+| Retrospective | Biweekly | Entire team | Continuous improvement |
+| Mob Programming | Monthly | Important designs | Consensus building |
 
-### 技術的負債の管理
+### Technical Debt Management
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
-          │
+        High Impact
+          |
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │ Plan │ Fix  │
+    │ for  │ Imme-│
+    │ later│ dia- │
+    │      │ tely │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │Record│ Next │
+    │ only │Sprint│
+    │      │      │
     └─────┼─────┘
-          │
-        影響度 低
-    発生頻度 低  発生頻度 高
+          |
+        Low Impact
+    Low Frequency  High Frequency
 ```
 
 ---
 
-## セキュリティの考慮事項
+## Security Considerations
 
-### 一般的な脆弱性と対策
+### Common Vulnerabilities and Countermeasures
 
-| 脆弱性 | リスクレベル | 対策 | 検出方法 |
+| Vulnerability | Risk Level | Countermeasure | Detection Method |
 |--------|------------|------|---------|
-| インジェクション攻撃 | 高 | 入力値のバリデーション・パラメータ化クエリ | SAST/DAST |
-| 認証の不備 | 高 | 多要素認証・セッション管理の強化 | ペネトレーションテスト |
-| 機密データの露出 | 高 | 暗号化・アクセス制御 | セキュリティ監査 |
-| 設定の不備 | 中 | セキュリティヘッダー・最小権限の原則 | 構成スキャン |
-| ログの不足 | 中 | 構造化ログ・監査証跡 | ログ分析 |
+| Injection Attacks | High | Input validation, parameterized queries | SAST/DAST |
+| Authentication Flaws | High | Multi-factor authentication, session management hardening | Penetration testing |
+| Sensitive Data Exposure | High | Encryption, access control | Security audit |
+| Misconfiguration | Medium | Security headers, principle of least privilege | Configuration scanning |
+| Insufficient Logging | Medium | Structured logging, audit trails | Log analysis |
 
-### セキュアコーディングのベストプラクティス
+### Secure Coding Best Practices
 
 ```python
-# セキュアコーディング例
+# Secure coding examples
 import hashlib
 import secrets
 import hmac
 from typing import Optional
 
 class SecurityUtils:
-    """セキュリティユーティリティ"""
+    """Security utilities"""
 
     @staticmethod
     def generate_token(length: int = 32) -> str:
-        """暗号学的に安全なトークン生成"""
+        """Generate a cryptographically secure token"""
         return secrets.token_urlsafe(length)
 
     @staticmethod
     def hash_password(password: str, salt: Optional[str] = None) -> tuple:
-        """パスワードのハッシュ化"""
+        """Hash a password"""
         if salt is None:
             salt = secrets.token_hex(16)
         hashed = hashlib.pbkdf2_hmac(
@@ -1330,50 +1335,50 @@ class SecurityUtils:
 
     @staticmethod
     def verify_password(password: str, hashed: str, salt: str) -> bool:
-        """パスワードの検証"""
+        """Verify a password"""
         new_hash, _ = SecurityUtils.hash_password(password, salt)
         return hmac.compare_digest(new_hash, hashed)
 
     @staticmethod
     def sanitize_input(value: str) -> str:
-        """入力値のサニタイズ"""
+        """Sanitize input value"""
         dangerous_chars = ['<', '>', '"', "'", '&', '\\']
         result = value
         for char in dangerous_chars:
             result = result.replace(char, '')
         return result.strip()
 
-# 使用例
+# Usage example
 token = SecurityUtils.generate_token()
 hashed, salt = SecurityUtils.hash_password("my_password")
 is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 ```
 
-### セキュリティチェックリスト
+### Security Checklist
 
-- [ ] 全ての入力値がバリデーションされている
-- [ ] 機密情報がログに出力されていない
-- [ ] HTTPS が強制されている
-- [ ] CORS ポリシーが適切に設定されている
-- [ ] 依存パッケージの脆弱性スキャンが実施されている
-- [ ] エラーメッセージに内部情報が含まれていない
+- [ ] All input values are validated
+- [ ] Sensitive information is not output to logs
+- [ ] HTTPS is enforced
+- [ ] CORS policy is properly configured
+- [ ] Dependency vulnerability scanning has been performed
+- [ ] Error messages do not contain internal information
 
 ---
 
-## マイグレーションガイド
+## Migration Guide
 
-### バージョンアップ時の注意点
+### Notes for Version Upgrades
 
-| バージョン | 主な変更点 | 移行作業 | 影響範囲 |
+| Version | Major Changes | Migration Work | Impact Scope |
 |-----------|-----------|---------|---------|
-| v1.x → v2.x | API設計の刷新 | エンドポイント変更 | 全クライアント |
-| v2.x → v3.x | 認証方式の変更 | トークン形式更新 | 認証関連 |
-| v3.x → v4.x | データモデル変更 | マイグレーションスクリプト実行 | DB関連 |
+| v1.x -> v2.x | API design overhaul | Endpoint changes | All clients |
+| v2.x -> v3.x | Authentication method change | Token format update | Auth-related |
+| v3.x -> v4.x | Data model changes | Run migration scripts | DB-related |
 
-### 段階的移行の手順
+### Step-by-Step Migration Procedure
 
 ```python
-# マイグレーションスクリプトのテンプレート
+# Migration script template
 import json
 import logging
 from pathlib import Path
@@ -1383,7 +1388,7 @@ from typing import List, Dict, Callable
 logger = logging.getLogger(__name__)
 
 class MigrationRunner:
-    """段階的マイグレーション実行エンジン"""
+    """Incremental migration execution engine"""
 
     def __init__(self, migration_dir: str):
         self.migration_dir = Path(migration_dir)
@@ -1392,7 +1397,7 @@ class MigrationRunner:
 
     def register(self, version: str, description: str,
                  up: Callable, down: Callable):
-        """マイグレーションの登録"""
+        """Register a migration"""
         self.migrations.append({
             'version': version,
             'description': description,
@@ -1402,35 +1407,35 @@ class MigrationRunner:
         })
 
     def run_up(self, target_version: str = None):
-        """マイグレーションの実行（アップグレード）"""
+        """Execute migrations (upgrade)"""
         for migration in self.migrations:
             if migration['version'] in self.completed:
                 continue
-            logger.info(f"実行中: {migration['version']} - "
+            logger.info(f"Running: {migration['version']} - "
                        f"{migration['description']}")
             try:
                 migration['up']()
                 self.completed.append(migration['version'])
-                logger.info(f"完了: {migration['version']}")
+                logger.info(f"Completed: {migration['version']}")
             except Exception as e:
-                logger.error(f"失敗: {migration['version']}: {e}")
+                logger.error(f"Failed: {migration['version']}: {e}")
                 raise
             if target_version and migration['version'] == target_version:
                 break
 
     def run_down(self, target_version: str):
-        """マイグレーションのロールバック"""
+        """Rollback migrations"""
         for migration in reversed(self.migrations):
             if migration['version'] not in self.completed:
                 continue
             if migration['version'] == target_version:
                 break
-            logger.info(f"ロールバック: {migration['version']}")
+            logger.info(f"Rolling back: {migration['version']}")
             migration['down']()
             self.completed.remove(migration['version'])
 
     def status(self) -> Dict:
-        """マイグレーション状態の確認"""
+        """Check migration status"""
         return {
             'total': len(self.migrations),
             'completed': len(self.completed),
@@ -1443,87 +1448,87 @@ class MigrationRunner:
         }
 ```
 
-### ロールバック計画
+### Rollback Plan
 
-移行作業には必ずロールバック計画を準備してください:
+Always prepare a rollback plan for migration work:
 
-1. **データのバックアップ**: 移行前に完全バックアップを取得
-2. **テスト環境での検証**: 本番と同等の環境で事前検証
-3. **段階的なロールアウト**: カナリアリリースで段階的に展開
-4. **監視の強化**: 移行中はメトリクスの監視間隔を短縮
-5. **判断基準の明確化**: ロールバックを判断する基準を事前に定義
+1. **Data Backup**: Take a full backup before migration
+2. **Test Environment Validation**: Pre-validate in an environment equivalent to production
+3. **Gradual Rollout**: Deploy incrementally with canary releases
+4. **Enhanced Monitoring**: Shorten metrics monitoring intervals during migration
+5. **Clear Decision Criteria**: Pre-define criteria for deciding when to rollback
 ---
 
 ## 8. FAQ
 
-### Q1: 音声AIを始めるには何から学ぶべきですか？
+### Q1: What should I learn first to get started with audio AI?
 
-まずは音声の基礎（サンプリング、周波数、スペクトログラム）を理解した上で、Whisper（STT）とOpenAI TTS API（TTS）を使った簡単なアプリケーションを作ることを推奨します。これにより、音声AIの入力と出力の両方を体験できます。次のステップとして、ローカルでのモデル実行（VITS、Bark）やファインチューニングに進むとよいでしょう。
+We recommend first understanding the basics of audio (sampling, frequency, spectrograms), then building a simple application using Whisper (STT) and the OpenAI TTS API (TTS). This lets you experience both the input and output sides of audio AI. As a next step, you can move on to running models locally (VITS, Bark) and fine-tuning.
 
-### Q2: 日本語の音声AIは英語と比べて精度が低いですか？
+### Q2: Is Japanese audio AI less accurate compared to English?
 
-2025年時点では、主要モデル（Whisper large-v3、Google Speech-to-Text v2）での日本語認識精度は大幅に向上しており、一般的な会話では WER 5-10% 程度を達成しています。ただし、専門用語、方言、ノイズ環境下では英語より精度が落ちる傾向があります。日本語特化のファインチューニングや、ReazonSpeech などの日本語特化モデルの活用が有効です。
+As of 2025, Japanese recognition accuracy with major models (Whisper large-v3, Google Speech-to-Text v2) has improved significantly, achieving WER of about 5-10% for general conversation. However, accuracy tends to be lower than English for specialized terminology, dialects, and noisy environments. Fine-tuning specifically for Japanese and leveraging Japanese-specialized models like ReazonSpeech are effective approaches.
 
-### Q3: 音声AIの商用利用でライセンス上の注意点は？
+### Q3: What licensing considerations apply to commercial use of audio AI?
 
-主要な注意点は3つあります。(1) 学習データのライセンス: モデルの学習データに著作権で保護されたコンテンツが含まれている場合の法的リスク。(2) 音声クローニングの倫理: 他人の声を無断で複製・使用することへの法規制（各国で法整備が進行中）。(3) 生成物の著作権: AI生成音声・音楽の著作権帰属は法的にグレーゾーンが多い。商用利用時は各サービスの利用規約を確認し、法務に相談することを強く推奨します。
+There are three main considerations: (1) Training data licensing: Legal risks if the model's training data includes copyright-protected content. (2) Voice cloning ethics: Legal regulations on unauthorized replication and use of others' voices (legislation is progressing in various countries). (3) Copyright of generated content: Copyright attribution of AI-generated audio and music has many legal gray areas. For commercial use, we strongly recommend checking each service's terms of use and consulting with legal counsel.
 
-### Q4: エッジデバイス（スマートフォン、Raspberry Pi等）で音声AIを動かせますか？
+### Q4: Can audio AI run on edge devices (smartphones, Raspberry Pi, etc.)?
 
-はい、適切なモデルを選べば可能です。(1) STT: Whisper tiny/baseモデルはRaspberry Pi 4でも動作可能（リアルタイムの数倍の速度）。faster-whisperのINT8量子化でさらに高速化できます。(2) TTS: Piper TTSは軽量で、Raspberry Pi上でもリアルタイム合成が可能です。(3) ウェイクワード検出: Porcupine、OpenWakeWordはエッジデバイスでの動作を前提に設計されています。モデルサイズとレイテンシのトレードオフを考慮して選択してください。
+Yes, it's possible with appropriate model selection. (1) STT: Whisper tiny/base models can run on a Raspberry Pi 4 (at several times real-time speed). Further acceleration is possible with faster-whisper's INT8 quantization. (2) TTS: Piper TTS is lightweight and can perform real-time synthesis on Raspberry Pi. (3) Wake word detection: Porcupine and OpenWakeWord are designed to run on edge devices. Choose based on the trade-off between model size and latency.
 
-### Q5: 音声AIシステムのテスト方法は？
+### Q5: How should audio AI systems be tested?
 
-音声AIのテストには特有の手法が必要です。(1) 単体テスト: 既知の音声データセットでWER/MOSを測定。(2) 統合テスト: パイプライン全体のエンドツーエンドテスト。(3) ノイズ耐性テスト: 様々なSNR（信号対雑音比）でのテスト。(4) ストレステスト: 同時接続数増加時の性能劣化を測定。(5) A/Bテスト: 人間の聴取者によるブラインド比較。(6) リグレッションテスト: モデル更新時の品質劣化を検知。テストデータセットは多様な話者、環境、コンテンツを含むようにしてください。
+Audio AI testing requires specialized methods: (1) Unit tests: Measure WER/MOS with known audio datasets. (2) Integration tests: End-to-end testing of the entire pipeline. (3) Noise robustness tests: Test at various SNR (Signal-to-Noise Ratio) levels. (4) Stress tests: Measure performance degradation as concurrent connections increase. (5) A/B tests: Blind comparison by human listeners. (6) Regression tests: Detect quality degradation when models are updated. Ensure test datasets include diverse speakers, environments, and content.
 
-### Q6: 音声AIとプライバシーの関係は？
+### Q6: What is the relationship between audio AI and privacy?
 
-音声データは生体情報を含む非常にセンシティブなデータです。(1) データ最小化: 必要最小限の音声データのみ収集・保存する。(2) 同意取得: ユーザーに音声データの利用目的を明示し、同意を得る。(3) ローカル処理: 可能な限りオンデバイスで処理し、クラウド送信を最小化。(4) 暗号化: 送信時はTLS、保存時は暗号化。(5) 削除権: ユーザーが自身の音声データの削除を要求できる仕組み。(6) 規制対応: GDPR（EU）、個人情報保護法（日本）等の規制に準拠。
+Audio data is highly sensitive as it contains biometric information. (1) Data minimization: Collect and store only the minimum necessary audio data. (2) Consent acquisition: Clearly state the purpose of audio data usage and obtain user consent. (3) Local processing: Process on-device whenever possible, minimizing cloud transmission. (4) Encryption: TLS for transmission, encryption at rest. (5) Right to deletion: Provide mechanisms for users to request deletion of their audio data. (6) Regulatory compliance: Comply with regulations such as GDPR (EU) and the Act on Protection of Personal Information (Japan).
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point in learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not only through theory but also by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently utilized in day-to-day development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |------|------|
-| 歴史 | 規則ベース → 統計モデル → DL → 基盤モデルと進化 |
-| 3大領域 | STT（認識）、TTS（合成）、音声生成の3本柱 |
-| 最新動向 | マルチモーダル統合、リアルタイム対話、パーソナライズ |
-| 技術スタック | 基盤層 → フレームワーク → モデル → API → アプリ |
-| 選択基準 | ユースケース、レイテンシ要求、コスト、プライバシーで判断 |
-| 重要ポイント | 前処理の品質がモデル性能を大きく左右する |
-| セキュリティ | 音声データは生体情報。最小化・暗号化・同意が必須 |
-| パフォーマンス | ストリーミング・並列化・量子化で最適化 |
+| History | Evolved from rule-based -> statistical models -> DL -> foundation models |
+| Three Domains | Three pillars: STT (recognition), TTS (synthesis), and audio generation |
+| Latest Trends | Multimodal integration, real-time conversation, personalization |
+| Technology Stack | Foundation layer -> Framework -> Model -> API -> Application |
+| Selection Criteria | Decide based on use case, latency requirements, cost, and privacy |
+| Key Takeaway | Preprocessing quality greatly affects model performance |
+| Security | Audio data is biometric information. Minimization, encryption, and consent are essential |
+| Performance | Optimize through streaming, parallelization, and quantization |
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [01-audio-basics.md](./01-audio-basics.md) — 音声の基礎理論（サンプリング、周波数、フーリエ変換）
-- [02-tts-technologies.md](./02-tts-technologies.md) — TTS技術の詳細（VITS、Bark、ElevenLabs）
-- [03-stt-technologies.md](./03-stt-technologies.md) — STT技術の詳細（Whisper、Google、Azure）
+- [01-audio-basics.md](./01-audio-basics.md) — Audio fundamentals (sampling, frequency, Fourier transform)
+- [02-tts-technologies.md](./02-tts-technologies.md) — TTS technology details (VITS, Bark, ElevenLabs)
+- [03-stt-technologies.md](./03-stt-technologies.md) — STT technology details (Whisper, Google, Azure)
 
-## 参考文献
+## References
 
-1. Radford, A., et al. (2023). "Robust Speech Recognition via Large-Scale Weak Supervision" — Whisper論文。OpenAIによる大規模音声認識モデルの設計と評価
-2. Kim, J., et al. (2021). "Conditional Variational Autoencoder with Adversarial Learning for End-to-End Text-to-Speech" — VITS論文。End-to-End TTS の画期的手法
-3. van den Oord, A., et al. (2016). "WaveNet: A Generative Model for Raw Audio" — DeepMind WaveNet論文。ニューラル音声合成の基礎を築いた記念碑的研究
-4. Défossez, A., et al. (2023). "High Fidelity Neural Audio Compression" — Encodec論文。Meta による音声圧縮技術で多くの音声生成モデルの基盤となっている
-5. Gulati, A., et al. (2020). "Conformer: Convolution-augmented Transformer for Speech Recognition" — Conformer論文。CNN + Transformer の融合アーキテクチャ
-6. Shen, J., et al. (2018). "Natural TTS Synthesis by Conditioning WaveNet on Mel Spectrogram Predictions" — Tacotron 2論文。ニューラルTTSのマイルストーン
-7. Baevski, A., et al. (2020). "wav2vec 2.0: A Framework for Self-Supervised Learning of Speech Representations" — wav2vec 2.0論文。自己教師あり学習による音声表現学習
+1. Radford, A., et al. (2023). "Robust Speech Recognition via Large-Scale Weak Supervision" — Whisper paper. Design and evaluation of a large-scale speech recognition model by OpenAI
+2. Kim, J., et al. (2021). "Conditional Variational Autoencoder with Adversarial Learning for End-to-End Text-to-Speech" — VITS paper. A groundbreaking approach to End-to-End TTS
+3. van den Oord, A., et al. (2016). "WaveNet: A Generative Model for Raw Audio" — DeepMind WaveNet paper. A landmark study that laid the foundation for neural speech synthesis
+4. Defossez, A., et al. (2023). "High Fidelity Neural Audio Compression" — Encodec paper. Audio compression technology by Meta that serves as the foundation for many audio generation models
+5. Gulati, A., et al. (2020). "Conformer: Convolution-augmented Transformer for Speech Recognition" — Conformer paper. A fusion architecture of CNN + Transformer
+6. Shen, J., et al. (2018). "Natural TTS Synthesis by Conditioning WaveNet on Mel Spectrogram Predictions" — Tacotron 2 paper. A milestone in neural TTS
+7. Baevski, A., et al. (2020). "wav2vec 2.0: A Framework for Self-Supervised Learning of Speech Representations" — wav2vec 2.0 paper. Speech representation learning through self-supervised learning
