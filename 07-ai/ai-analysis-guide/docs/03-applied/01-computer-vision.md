@@ -1,54 +1,54 @@
-# コンピュータビジョン
+# Computer Vision
 
-> 物体検出、セグメンテーション、画像分類の主要手法と実装パターンを実践的に理解する
+> Gain practical understanding of key techniques and implementation patterns for object detection, segmentation, and image classification
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **画像分類と特徴抽出** — CNN、転移学習、Vision Transformer の活用
-2. **物体検出** — YOLO、DETR の仕組みとリアルタイム検出
-3. **セグメンテーション** — セマンティック/インスタンスセグメンテーション、SAM
+1. **Image Classification and Feature Extraction** — Leveraging CNNs, transfer learning, and Vision Transformers
+2. **Object Detection** — How YOLO and DETR work, and real-time detection
+3. **Segmentation** — Semantic/instance segmentation, SAM
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will help deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [NLP — テキスト分類、固有表現抽出、感情分析](./00-nlp.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [NLP — Text Classification, Named Entity Recognition, Sentiment Analysis](./00-nlp.md)
 
 ---
 
-## 1. 画像分類の基礎
+## 1. Fundamentals of Image Classification
 
 ```
-CNN の基本構造
-===============
+Basic Structure of a CNN
+=========================
 
-入力画像 [224x224x3]
+Input Image [224x224x3]
     |
     v
-[Conv 3x3, 64] --> [ReLU] --> [MaxPool 2x2]  --> 特徴マップ [112x112x64]
+[Conv 3x3, 64] --> [ReLU] --> [MaxPool 2x2]  --> Feature Map [112x112x64]
     |
     v
-[Conv 3x3, 128] --> [ReLU] --> [MaxPool 2x2] --> 特徴マップ [56x56x128]
+[Conv 3x3, 128] --> [ReLU] --> [MaxPool 2x2] --> Feature Map [56x56x128]
     |
     v
-[Conv 3x3, 256] --> [ReLU] --> [MaxPool 2x2] --> 特徴マップ [28x28x256]
+[Conv 3x3, 256] --> [ReLU] --> [MaxPool 2x2] --> Feature Map [28x28x256]
     |
     v
 [Global Average Pooling] --> [256]
     |
     v
-[FC 256 -> num_classes] --> [Softmax] --> 分類結果
+[FC 256 -> num_classes] --> [Softmax] --> Classification Result
 
-畳み込みの役割:
-  浅い層: エッジ、テクスチャを検出
-  中間層: パーツ（目、車輪等）を検出
-  深い層: オブジェクト全体を認識
+Role of Convolutions:
+  Shallow layers: Detect edges and textures
+  Middle layers: Detect parts (eyes, wheels, etc.)
+  Deep layers: Recognize entire objects
 ```
 
-### コード例 1: 転移学習による画像分類
+### Code Example 1: Image Classification with Transfer Learning
 
 ```python
 import torch
@@ -56,13 +56,13 @@ import torch.nn as nn
 import torchvision.models as models
 from torchvision import transforms
 
-# 事前学習済みモデルをベースに分類器を構築
+# Build a classifier based on a pretrained model
 class ImageClassifier(nn.Module):
     def __init__(self, num_classes, backbone="resnet50"):
         super().__init__()
         self.backbone = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
 
-        # 最終層を置き換え
+        # Replace the final layer
         in_features = self.backbone.fc.in_features
         self.backbone.fc = nn.Sequential(
             nn.Dropout(0.3),
@@ -72,14 +72,14 @@ class ImageClassifier(nn.Module):
             nn.Linear(512, num_classes),
         )
 
-        # バックボーンの一部を凍結
+        # Freeze part of the backbone
         for param in list(self.backbone.parameters())[:-20]:
             param.requires_grad = False
 
     def forward(self, x):
         return self.backbone(x)
 
-# データ拡張
+# Data augmentation
 train_transform = transforms.Compose([
     transforms.RandomResizedCrop(224),
     transforms.RandomHorizontalFlip(),
@@ -91,7 +91,7 @@ train_transform = transforms.Compose([
 model = ImageClassifier(num_classes=10)
 ```
 
-### コード例 1b: 転移学習の完全な学習・評価パイプライン
+### Code Example 1b: Complete Training and Evaluation Pipeline for Transfer Learning
 
 ```python
 import torch
@@ -104,7 +104,7 @@ import json
 from pathlib import Path
 
 class TransferLearningTrainer:
-    """転移学習の完全な学習・評価パイプライン"""
+    """Complete training and evaluation pipeline for transfer learning"""
 
     def __init__(self, model, device="auto"):
         self.device = torch.device(
@@ -116,11 +116,11 @@ class TransferLearningTrainer:
 
     def train(self, train_loader, val_loader, epochs=30, lr=1e-3,
               patience=5, save_dir="checkpoints"):
-        """段階的ファインチューニング付き学習"""
+        """Training with progressive fine-tuning"""
         Path(save_dir).mkdir(parents=True, exist_ok=True)
 
-        # Phase 1: 分類ヘッドのみ学習
-        print("Phase 1: 分類ヘッドの学習")
+        # Phase 1: Train only the classification head
+        print("Phase 1: Training the classification head")
         optimizer = optim.Adam(
             filter(lambda p: p.requires_grad, self.model.parameters()),
             lr=lr
@@ -132,7 +132,7 @@ class TransferLearningTrainer:
         no_improve_count = 0
 
         for epoch in range(epochs):
-            # 学習フェーズ
+            # Training phase
             self.model.train()
             total_loss, correct, total = 0, 0, 0
             start = time.time()
@@ -154,7 +154,7 @@ class TransferLearningTrainer:
             train_loss = total_loss / total
             train_acc = correct / total
 
-            # 検証フェーズ
+            # Validation phase
             val_loss, val_acc = self.evaluate(val_loader, criterion)
             elapsed = time.time() - start
 
@@ -180,14 +180,14 @@ class TransferLearningTrainer:
                     print(f"  Early stopping at epoch {epoch+1}")
                     break
 
-        # 最良モデルの復元
+        # Restore the best model
         self.model.load_state_dict(
             torch.load(f"{save_dir}/best_model.pt")
         )
         return self.history
 
     def evaluate(self, loader, criterion=None):
-        """検証/テスト評価"""
+        """Validation/test evaluation"""
         if criterion is None:
             criterion = nn.CrossEntropyLoss()
 
@@ -207,7 +207,7 @@ class TransferLearningTrainer:
         return total_loss / total, correct / total
 
     def predict(self, images):
-        """バッチ推論"""
+        """Batch inference"""
         self.model.eval()
         with torch.no_grad():
             images = images.to(self.device)
@@ -217,7 +217,7 @@ class TransferLearningTrainer:
         return predicted.cpu(), probabilities.cpu()
 
     def save_training_report(self, path="training_report.json"):
-        """学習レポートをJSON保存"""
+        """Save training report as JSON"""
         report = {
             "best_val_acc": max(self.history["val_acc"]),
             "final_train_acc": self.history["train_acc"][-1],
@@ -227,13 +227,13 @@ class TransferLearningTrainer:
         with open(path, "w") as f:
             json.dump(report, f, indent=2)
 
-# 使用例
+# Usage example
 # trainer = TransferLearningTrainer(model)
 # history = trainer.train(train_loader, val_loader, epochs=30)
 # trainer.save_training_report()
 ```
 
-### コード例 1c: Vision Transformer (ViT) による画像分類
+### Code Example 1c: Image Classification with Vision Transformer (ViT)
 
 ```python
 import torch
@@ -241,7 +241,7 @@ import torch.nn as nn
 from torchvision import models
 
 class ViTClassifier(nn.Module):
-    """Vision Transformer ベースの画像分類器"""
+    """Vision Transformer-based image classifier"""
 
     def __init__(self, num_classes, model_name="vit_b_16", pretrained=True):
         super().__init__()
@@ -254,7 +254,7 @@ class ViTClassifier(nn.Module):
                 weights=models.ViT_L_16_Weights.IMAGENET1K_V1 if pretrained else None
             )
 
-        # 分類ヘッドを置き換え
+        # Replace the classification head
         in_features = self.backbone.heads.head.in_features
         self.backbone.heads.head = nn.Sequential(
             nn.LayerNorm(in_features),
@@ -269,33 +269,33 @@ class ViTClassifier(nn.Module):
         return self.backbone(x)
 
     def freeze_backbone(self):
-        """バックボーンを凍結"""
+        """Freeze the backbone"""
         for name, param in self.backbone.named_parameters():
             if "heads" not in name:
                 param.requires_grad = False
 
     def unfreeze_last_n_blocks(self, n=4):
-        """最後のN個のTransformerブロックを解凍"""
-        # まず全部凍結
+        """Unfreeze the last N Transformer blocks"""
+        # First, freeze everything
         for param in self.backbone.parameters():
             param.requires_grad = False
-        # ヘッドは常に学習可能
+        # The head is always trainable
         for param in self.backbone.heads.parameters():
             param.requires_grad = True
-        # 最後のNブロックを解凍
+        # Unfreeze the last N blocks
         total_blocks = len(self.backbone.encoder.layers)
         for i in range(total_blocks - n, total_blocks):
             for param in self.backbone.encoder.layers[i].parameters():
                 param.requires_grad = True
 
     def get_attention_maps(self, x):
-        """Attentionマップを取得（可視化用）"""
+        """Retrieve attention maps (for visualization)"""
         self.backbone.eval()
         attention_maps = []
         hooks = []
 
         def hook_fn(module, input, output):
-            # Multi-Head Attentionの出力を記録
+            # Record Multi-Head Attention output
             attention_maps.append(output)
 
         for layer in self.backbone.encoder.layers:
@@ -310,31 +310,31 @@ class ViTClassifier(nn.Module):
 
         return attention_maps
 
-# 使用例
+# Usage example
 vit_model = ViTClassifier(num_classes=10, model_name="vit_b_16")
 vit_model.freeze_backbone()
-print(f"学習可能パラメータ: {sum(p.numel() for p in vit_model.parameters() if p.requires_grad):,}")
+print(f"Trainable parameters: {sum(p.numel() for p in vit_model.parameters() if p.requires_grad):,}")
 ```
 
-### コード例 1d: DINOv2 による自己教師あり特徴抽出
+### Code Example 1d: Self-Supervised Feature Extraction with DINOv2
 
 ```python
 import torch
 import torch.nn as nn
 
 class DINOv2Classifier(nn.Module):
-    """DINOv2の事前学習済み特徴抽出器を使った分類器"""
+    """Classifier using DINOv2 pretrained feature extractor"""
 
     def __init__(self, num_classes, model_size="small"):
         super().__init__()
-        # DINOv2モデルの読み込み
+        # Load the DINOv2 model
         model_name = f"dinov2_vit{model_size[0]}14"
         self.backbone = torch.hub.load("facebookresearch/dinov2", model_name)
 
-        # バックボーンの特徴次元を取得
+        # Get the feature dimension of the backbone
         embed_dim = self.backbone.embed_dim
 
-        # 分類ヘッド
+        # Classification head
         self.classifier = nn.Sequential(
             nn.LayerNorm(embed_dim),
             nn.Linear(embed_dim, 512),
@@ -343,7 +343,7 @@ class DINOv2Classifier(nn.Module):
             nn.Linear(512, num_classes),
         )
 
-        # バックボーンを凍結（線形プロービング）
+        # Freeze the backbone (linear probing)
         for param in self.backbone.parameters():
             param.requires_grad = False
 
@@ -352,49 +352,49 @@ class DINOv2Classifier(nn.Module):
             features = self.backbone(x)  # [batch, embed_dim]
         return self.classifier(features)
 
-# 使用例
+# Usage example
 # dino_model = DINOv2Classifier(num_classes=10, model_size="small")
 ```
 
 ---
 
-## 2. 物体検出
+## 2. Object Detection
 
 ```
-物体検出の主要アプローチ
-==========================
+Major Approaches to Object Detection
+======================================
 
-1-Stage (高速):
-  YOLO: 画像をグリッドに分割、各セルで直接予測
-  SSD:  マルチスケールの特徴マップで検出
+1-Stage (Fast):
+  YOLO: Divides the image into a grid, predicts directly in each cell
+  SSD:  Detects using multi-scale feature maps
 
-  入力 --> [CNN Backbone] --> [Detection Head] --> Boxes + Classes
-  速度: 30-150+ FPS
+  Input --> [CNN Backbone] --> [Detection Head] --> Boxes + Classes
+  Speed: 30-150+ FPS
 
-2-Stage (高精度):
+2-Stage (High Accuracy):
   Faster R-CNN: Region Proposal + Classification
-  Cascade R-CNN: 複数段階のリファインメント
+  Cascade R-CNN: Multi-stage refinement
 
-  入力 --> [CNN] --> [RPN] --> [ROI Pooling] --> [Classifier]
-  速度: 5-15 FPS
+  Input --> [CNN] --> [RPN] --> [ROI Pooling] --> [Classifier]
+  Speed: 5-15 FPS
 
-Transformer ベース:
-  DETR: End-to-End の物体検出
-  入力 --> [CNN] --> [Transformer Encoder] --> [Decoder + FFN] --> Boxes
+Transformer-based:
+  DETR: End-to-End object detection
+  Input --> [CNN] --> [Transformer Encoder] --> [Decoder + FFN] --> Boxes
 ```
 
-### コード例 2: YOLOv8 による物体検出
+### Code Example 2: Object Detection with YOLOv8
 
 ```python
 from ultralytics import YOLO
 
-# 事前学習済みモデルのロード
-model = YOLO("yolov8n.pt")  # nano (最速), s, m, l, x (最高精度)
+# Load a pretrained model
+model = YOLO("yolov8n.pt")  # nano (fastest), s, m, l, x (highest accuracy)
 
-# 画像で推論
+# Run inference on an image
 results = model("image.jpg")
 
-# 結果の処理
+# Process the results
 for result in results:
     boxes = result.boxes
     for box in boxes:
@@ -404,7 +404,7 @@ for result in results:
         class_name = model.names[class_id]
         print(f"{class_name}: {confidence:.2f} at ({x1:.0f},{y1:.0f})-({x2:.0f},{y2:.0f})")
 
-# カスタムデータでのファインチューニング
+# Fine-tuning on custom data
 model.train(
     data="dataset.yaml",
     epochs=100,
@@ -413,14 +413,14 @@ model.train(
     device="cuda",
 )
 
-# リアルタイム動画検出
+# Real-time video detection
 results = model("video.mp4", stream=True)
 for result in results:
     annotated_frame = result.plot()
-    # フレームの表示/保存
+    # Display/save the frame
 ```
 
-### コード例 2b: YOLOv8 カスタムデータセットの準備と学習
+### Code Example 2b: Preparing and Training a YOLOv8 Custom Dataset
 
 ```python
 import os
@@ -431,13 +431,13 @@ import random
 
 def prepare_yolo_dataset(image_dir, label_dir, output_dir,
                           train_ratio=0.8, val_ratio=0.1):
-    """YOLO形式のデータセットを準備する"""
+    """Prepare a dataset in YOLO format"""
     output = Path(output_dir)
     for split in ["train", "val", "test"]:
         (output / "images" / split).mkdir(parents=True, exist_ok=True)
         (output / "labels" / split).mkdir(parents=True, exist_ok=True)
 
-    # 画像リストを取得してシャッフル
+    # Get and shuffle the list of images
     images = sorted(Path(image_dir).glob("*.jpg"))
     random.shuffle(images)
 
@@ -453,9 +453,9 @@ def prepare_yolo_dataset(image_dir, label_dir, output_dir,
 
     for split_name, split_images in splits.items():
         for img_path in split_images:
-            # 画像をコピー
+            # Copy the image
             shutil.copy2(img_path, output / "images" / split_name / img_path.name)
-            # ラベルをコピー
+            # Copy the label
             label_path = Path(label_dir) / f"{img_path.stem}.txt"
             if label_path.exists():
                 shutil.copy2(label_path, output / "labels" / split_name / label_path.name)
@@ -463,13 +463,13 @@ def prepare_yolo_dataset(image_dir, label_dir, output_dir,
     print(f"Train: {len(splits['train'])}, Val: {len(splits['val'])}, "
           f"Test: {len(splits['test'])}")
 
-    # dataset.yaml を生成
+    # Generate dataset.yaml
     config = {
         "path": str(output.resolve()),
         "train": "images/train",
         "val": "images/val",
         "test": "images/test",
-        "names": {0: "class_0", 1: "class_1", 2: "class_2"},  # クラス名を適宜変更
+        "names": {0: "class_0", 1: "class_1", 2: "class_2"},  # Change class names as needed
     }
     yaml_path = output / "dataset.yaml"
     with open(yaml_path, "w") as f:
@@ -479,7 +479,7 @@ def prepare_yolo_dataset(image_dir, label_dir, output_dir,
 
 
 def train_yolo_with_best_practices(dataset_yaml, model_size="n"):
-    """ベストプラクティスを適用したYOLO学習"""
+    """Train YOLO with best practices applied"""
     from ultralytics import YOLO
 
     model = YOLO(f"yolov8{model_size}.pt")
@@ -491,37 +491,37 @@ def train_yolo_with_best_practices(dataset_yaml, model_size="n"):
         batch=16,
         patience=20,          # Early stopping
         save=True,
-        save_period=10,       # 10エポックごとにチェックポイント
+        save_period=10,       # Checkpoint every 10 epochs
         device="0",           # GPU 0
         workers=8,
         optimizer="AdamW",
         lr0=0.001,
-        lrf=0.01,             # 最終学習率の比率
+        lrf=0.01,             # Final learning rate ratio
         warmup_epochs=3,
         warmup_momentum=0.8,
-        cos_lr=True,          # Cosine学習率スケジューラ
-        # データ拡張
+        cos_lr=True,          # Cosine learning rate scheduler
+        # Data augmentation
         augment=True,
-        hsv_h=0.015,          # 色相の変化
-        hsv_s=0.7,            # 彩度の変化
-        hsv_v=0.4,            # 明度の変化
-        degrees=10.0,         # 回転角度
-        translate=0.1,        # 平行移動
-        scale=0.5,            # スケール変化
-        fliplr=0.5,           # 左右反転確率
-        mosaic=1.0,           # Mosaic拡張確率
-        mixup=0.15,           # Mixup確率
+        hsv_h=0.015,          # Hue variation
+        hsv_s=0.7,            # Saturation variation
+        hsv_v=0.4,            # Brightness variation
+        degrees=10.0,         # Rotation angle
+        translate=0.1,        # Translation
+        scale=0.5,            # Scale variation
+        fliplr=0.5,           # Horizontal flip probability
+        mosaic=1.0,           # Mosaic augmentation probability
+        mixup=0.15,           # Mixup probability
     )
     return results
 
 
 def evaluate_yolo_model(model_path, dataset_yaml):
-    """学習済みモデルの詳細評価"""
+    """Detailed evaluation of a trained model"""
     from ultralytics import YOLO
 
     model = YOLO(model_path)
 
-    # 検証セットで評価
+    # Evaluate on the validation set
     metrics = model.val(data=dataset_yaml, split="val")
 
     print(f"mAP50:    {metrics.box.map50:.4f}")
@@ -529,14 +529,14 @@ def evaluate_yolo_model(model_path, dataset_yaml):
     print(f"Precision: {metrics.box.mp:.4f}")
     print(f"Recall:    {metrics.box.mr:.4f}")
 
-    # クラスごとの性能
+    # Per-class performance
     for i, name in enumerate(metrics.names.values()):
         print(f"  {name}: mAP50={metrics.box.ap50[i]:.4f}")
 
     return metrics
 ```
 
-### コード例 3: DETR による物体検出
+### Code Example 3: Object Detection with DETR
 
 ```python
 from transformers import DetrImageProcessor, DetrForObjectDetection
@@ -552,7 +552,7 @@ inputs = processor(images=image, return_tensors="pt")
 with torch.no_grad():
     outputs = model(**inputs)
 
-# 後処理: 閾値以上の検出結果を取得
+# Post-processing: retrieve detections above the threshold
 target_sizes = torch.tensor([image.size[::-1]])
 results = processor.post_process_object_detection(
     outputs, target_sizes=target_sizes, threshold=0.7
@@ -563,7 +563,7 @@ for score, label, box in zip(results["scores"], results["labels"], results["boxe
     print(f"{model.config.id2label[label.item()]}: {score:.3f} {box}")
 ```
 
-### コード例 3b: Grounding DINO によるオープンセット物体検出
+### Code Example 3b: Open-Set Object Detection with Grounding DINO
 
 ```python
 from transformers import AutoProcessor, AutoModelForZeroShotObjectDetection
@@ -571,7 +571,7 @@ from PIL import Image
 import torch
 
 class OpenVocabularyDetector:
-    """テキストプロンプトで任意のオブジェクトを検出する"""
+    """Detect arbitrary objects using text prompts"""
 
     def __init__(self, model_name="IDEA-Research/grounding-dino-base"):
         self.processor = AutoProcessor.from_pretrained(model_name)
@@ -580,7 +580,7 @@ class OpenVocabularyDetector:
         self.model.to(self.device)
 
     def detect(self, image_path, text_prompt, threshold=0.3):
-        """テキストプロンプトに基づく物体検出"""
+        """Object detection based on a text prompt"""
         image = Image.open(image_path).convert("RGB")
         inputs = self.processor(
             images=image,
@@ -611,7 +611,7 @@ class OpenVocabularyDetector:
 
         return detections
 
-# 使用例
+# Usage example
 # detector = OpenVocabularyDetector()
 # results = detector.detect("photo.jpg", "dog. cat. person.")
 # for det in results:
@@ -620,55 +620,55 @@ class OpenVocabularyDetector:
 
 ---
 
-## 3. セグメンテーション
+## 3. Segmentation
 
 ```
-セグメンテーションの種類
-==========================
+Types of Segmentation
+=======================
 
-セマンティックセグメンテーション:
-  各ピクセルにクラスラベルを付与
-  [空][空][木][木][車][車][道][道]
-  個体の区別なし
+Semantic Segmentation:
+  Assigns a class label to each pixel
+  [Sky][Sky][Tree][Tree][Car][Car][Road][Road]
+  No distinction between individual instances
 
-インスタンスセグメンテーション:
-  各オブジェクトインスタンスを区別
-  [空][空][木1][木2][車1][車2][道][道]
-  個体を区別
+Instance Segmentation:
+  Distinguishes each object instance
+  [Sky][Sky][Tree1][Tree2][Car1][Car2][Road][Road]
+  Distinguishes individual instances
 
-パノプティックセグメンテーション:
-  セマンティック + インスタンス
-  背景(stuff) + 前景(things) を統合
+Panoptic Segmentation:
+  Semantic + Instance
+  Integrates background (stuff) + foreground (things)
 ```
 
-### コード例 4: SAM（Segment Anything Model）
+### Code Example 4: SAM (Segment Anything Model)
 
 ```python
 from segment_anything import SamPredictor, sam_model_registry
 
-# モデルのロード
+# Load the model
 sam = sam_model_registry"vit_h"
 sam.to(device="cuda")
 predictor = SamPredictor(sam)
 
-# 画像の設定
+# Set the image
 image = cv2.imread("image.jpg")
 image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
 predictor.set_image(image_rgb)
 
-# ポイントプロンプトでセグメンテーション
-input_label = np.array([1])  # 1=前景, 0=背景
+# Segmentation with point prompts
+input_label = np.array([1])  # 1=foreground, 0=background
 
 masks, scores, logits = predictor.predict(
     point_coords=input_point,
     point_labels=input_label,
-    multimask_output=True,  # 複数のマスク候補を返す
+    multimask_output=True,  # Return multiple mask candidates
 )
 
-# 最も信頼度の高いマスク
+# Select the mask with the highest confidence
 best_mask = masks[scores.argmax()]
 
-# バウンディングボックスプロンプト
+# Bounding box prompt
 input_box = np.array([100, 100, 400, 400])  # [x1, y1, x2, y2]
 masks, _, _ = predictor.predict(
     box=input_box,
@@ -676,27 +676,27 @@ masks, _, _ = predictor.predict(
 )
 ```
 
-### コード例 4b: SAM 2 による動画セグメンテーション
+### Code Example 4b: Video Segmentation with SAM 2
 
 ```python
 import torch
 import numpy as np
 
 class VideoSegmentationPipeline:
-    """SAM 2 を使った動画セグメンテーション"""
+    """Video segmentation using SAM 2"""
 
     def __init__(self, model_path="sam2_hiera_large.pt"):
-        # SAM 2 の初期化（概念的なコード）
+        # Initialize SAM 2 (conceptual code)
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     def segment_video(self, video_path, initial_prompts, output_path=None):
         """
-        動画全体をセグメンテーション
+        Segment an entire video
 
         Parameters:
-            video_path: 入力動画のパス
-            initial_prompts: 初期フレームのプロンプト
-            output_path: 出力動画のパス
+            video_path: Path to the input video
+            initial_prompts: Prompts for the initial frame
+            output_path: Path to the output video
         """
         import cv2
 
@@ -720,16 +720,16 @@ class VideoSegmentationPipeline:
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
             if frame_idx == initial_prompts.get("frame_idx", 0):
-                # 初期フレーム: プロンプトベースのセグメンテーション
+                # Initial frame: prompt-based segmentation
                 mask = self._segment_with_prompt(frame_rgb, initial_prompts)
             else:
-                # 後続フレーム: 前フレームのマスクを伝播
+                # Subsequent frames: propagate the mask from the previous frame
                 mask = self._propagate_mask(frame_rgb, masks_history[-1])
 
             masks_history.append(mask)
 
             if output_path:
-                # マスクをオーバーレイ
+                # Overlay the mask
                 overlay = self._apply_mask_overlay(frame, mask)
                 writer.write(overlay)
 
@@ -742,17 +742,17 @@ class VideoSegmentationPipeline:
         return masks_history
 
     def _segment_with_prompt(self, frame, prompts):
-        """プロンプトベースのセグメンテーション（初期フレーム）"""
-        # 実装は SAM 2 の API に依存
+        """Prompt-based segmentation (initial frame)"""
+        # Implementation depends on the SAM 2 API
         pass
 
     def _propagate_mask(self, frame, prev_mask):
-        """前フレームのマスクを現フレームに伝播"""
-        # SAM 2 のメモリメカニズムで追跡
+        """Propagate the previous frame's mask to the current frame"""
+        # Track using SAM 2's memory mechanism
         pass
 
     def _apply_mask_overlay(self, frame, mask, color=(0, 255, 0), alpha=0.4):
-        """マスクを画像にオーバーレイ"""
+        """Overlay a mask on the image"""
         overlay = frame.copy()
         overlay[mask > 0] = (
             overlay[mask > 0] * (1 - alpha) +
@@ -761,7 +761,7 @@ class VideoSegmentationPipeline:
         return overlay
 ```
 
-### コード例 5: セマンティックセグメンテーション
+### Code Example 5: Semantic Segmentation
 
 ```python
 from transformers import SegformerForSemanticSegmentation, SegformerImageProcessor
@@ -777,24 +777,24 @@ inputs = processor(images=image, return_tensors="pt")
 with torch.no_grad():
     outputs = model(**inputs)
 
-# ピクセルごとのクラス予測
+# Per-pixel class prediction
 logits = outputs.logits  # [batch, num_classes, height, width]
 upsampled = torch.nn.functional.interpolate(
     logits, size=image.size[::-1], mode="bilinear", align_corners=False
 )
 predicted = upsampled.argmax(dim=1).squeeze().numpy()
 
-# クラスマッピング: 0=road, 1=sidewalk, 2=building, ...
+# Class mapping: 0=road, 1=sidewalk, 2=building, ...
 ```
 
-### コード例 5b: U-Net によるカスタムセグメンテーション
+### Code Example 5b: Custom Segmentation with U-Net
 
 ```python
 import torch
 import torch.nn as nn
 
 class DoubleConv(nn.Module):
-    """U-Netの基本ブロック: Conv -> BN -> ReLU -> Conv -> BN -> ReLU"""
+    """Basic U-Net block: Conv -> BN -> ReLU -> Conv -> BN -> ReLU"""
 
     def __init__(self, in_channels, out_channels):
         super().__init__()
@@ -812,7 +812,7 @@ class DoubleConv(nn.Module):
 
 
 class UNet(nn.Module):
-    """U-Net セグメンテーションモデル"""
+    """U-Net segmentation model"""
 
     def __init__(self, in_channels=3, num_classes=2, features=[64, 128, 256, 512]):
         super().__init__()
@@ -820,28 +820,28 @@ class UNet(nn.Module):
         self.ups = nn.ModuleList()
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
 
-        # ダウンサンプリングパス（エンコーダ）
+        # Downsampling path (encoder)
         for feature in features:
             self.downs.append(DoubleConv(in_channels, feature))
             in_channels = feature
 
-        # ボトルネック
+        # Bottleneck
         self.bottleneck = DoubleConv(features[-1], features[-1] * 2)
 
-        # アップサンプリングパス（デコーダ）
+        # Upsampling path (decoder)
         for feature in reversed(features):
             self.ups.append(
                 nn.ConvTranspose2d(feature * 2, feature, kernel_size=2, stride=2)
             )
             self.ups.append(DoubleConv(feature * 2, feature))
 
-        # 最終出力
+        # Final output
         self.final_conv = nn.Conv2d(features[0], num_classes, kernel_size=1)
 
     def forward(self, x):
         skip_connections = []
 
-        # エンコーダ
+        # Encoder
         for down in self.downs:
             x = down(x)
             skip_connections.append(x)
@@ -850,26 +850,26 @@ class UNet(nn.Module):
         x = self.bottleneck(x)
         skip_connections = skip_connections[::-1]
 
-        # デコーダ
+        # Decoder
         for idx in range(0, len(self.ups), 2):
             x = self.upsidx  # TransposedConv
             skip = skip_connections[idx // 2]
 
-            # サイズが一致しない場合のパディング
+            # Padding if sizes don't match
             if x.shape != skip.shape:
                 x = nn.functional.pad(x, [
                     0, skip.shape[3] - x.shape[3],
                     0, skip.shape[2] - x.shape[2]
                 ])
 
-            x = torch.cat([skip, x], dim=1)  # スキップ接続
+            x = torch.cat([skip, x], dim=1)  # Skip connection
             x = self.upsidx + 1  # DoubleConv
 
         return self.final_conv(x)
 
 
 def dice_loss(pred, target, smooth=1.0):
-    """Dice Loss: セグメンテーション用の損失関数"""
+    """Dice Loss: a loss function for segmentation"""
     pred = torch.sigmoid(pred)
     pred_flat = pred.view(-1)
     target_flat = target.view(-1)
@@ -881,7 +881,7 @@ def dice_loss(pred, target, smooth=1.0):
 
 
 class CombinedLoss(nn.Module):
-    """BCE + Dice の複合損失関数"""
+    """Combined BCE + Dice loss function"""
 
     def __init__(self, bce_weight=0.5, dice_weight=0.5):
         super().__init__()
@@ -894,17 +894,17 @@ class CombinedLoss(nn.Module):
         d_loss = dice_loss(pred, target)
         return self.bce_weight * bce_loss + self.dice_weight * d_loss
 
-# 使用例
+# Usage example
 model = UNet(in_channels=3, num_classes=1)
 criterion = CombinedLoss(bce_weight=0.5, dice_weight=0.5)
-print(f"パラメータ数: {sum(p.numel() for p in model.parameters()):,}")
+print(f"Number of parameters: {sum(p.numel() for p in model.parameters()):,}")
 ```
 
 ---
 
-## 4. 画像処理の高度な応用
+## 4. Advanced Applications of Image Processing
 
-### コード例 6: 画像の品質評価と前処理パイプライン
+### Code Example 6: Image Quality Assessment and Preprocessing Pipeline
 
 ```python
 import torch
@@ -914,7 +914,7 @@ from pathlib import Path
 import cv2
 
 class ImageQualityChecker:
-    """画像品質の自動チェックと前処理"""
+    """Automated image quality checking and preprocessing"""
 
     def __init__(self, min_size=100, max_size=4096,
                  min_brightness=30, max_brightness=230):
@@ -924,42 +924,42 @@ class ImageQualityChecker:
         self.max_brightness = max_brightness
 
     def check_image(self, image_path):
-        """画像の品質チェック"""
+        """Check the quality of an image"""
         issues = []
         img = cv2.imread(str(image_path))
         if img is None:
             return {"path": str(image_path), "valid": False,
-                    "issues": ["読み込み失敗"]}
+                    "issues": ["Failed to load"]}
 
         h, w = img.shape[:2]
 
-        # サイズチェック
+        # Size check
         if h < self.min_size or w < self.min_size:
-            issues.append(f"小さすぎる: {w}x{h}")
+            issues.append(f"Too small: {w}x{h}")
         if h > self.max_size or w > self.max_size:
-            issues.append(f"大きすぎる: {w}x{h}")
+            issues.append(f"Too large: {w}x{h}")
 
-        # アスペクト比チェック
+        # Aspect ratio check
         aspect = max(h, w) / min(h, w)
         if aspect > 5:
-            issues.append(f"極端なアスペクト比: {aspect:.1f}")
+            issues.append(f"Extreme aspect ratio: {aspect:.1f}")
 
-        # 明るさチェック
+        # Brightness check
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         mean_brightness = gray.mean()
         if mean_brightness < self.min_brightness:
-            issues.append(f"暗すぎる: 平均輝度={mean_brightness:.0f}")
+            issues.append(f"Too dark: mean brightness={mean_brightness:.0f}")
         if mean_brightness > self.max_brightness:
-            issues.append(f"明るすぎる: 平均輝度={mean_brightness:.0f}")
+            issues.append(f"Too bright: mean brightness={mean_brightness:.0f}")
 
-        # ぼかし検出（Laplacianの分散）
+        # Blur detection (Laplacian variance)
         laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
         if laplacian_var < 50:
-            issues.append(f"ぼやけている: Laplacian分散={laplacian_var:.1f}")
+            issues.append(f"Blurry: Laplacian variance={laplacian_var:.1f}")
 
-        # 破損チェック
+        # Corruption check
         if img.shape[2] != 3:
-            issues.append(f"チャネル数が異常: {img.shape[2]}")
+            issues.append(f"Abnormal number of channels: {img.shape[2]}")
 
         return {
             "path": str(image_path),
@@ -971,7 +971,7 @@ class ImageQualityChecker:
         }
 
     def check_dataset(self, image_dir, extensions=(".jpg", ".jpeg", ".png")):
-        """データセット全体の品質チェック"""
+        """Check the quality of an entire dataset"""
         results = []
         image_dir = Path(image_dir)
         for ext in extensions:
@@ -982,27 +982,27 @@ class ImageQualityChecker:
         valid = sum(1 for r in results if r["valid"])
         invalid = total - valid
 
-        print(f"画像総数: {total}")
-        print(f"正常: {valid} ({valid/total*100:.1f}%)")
-        print(f"問題あり: {invalid} ({invalid/total*100:.1f}%)")
+        print(f"Total images: {total}")
+        print(f"Valid: {valid} ({valid/total*100:.1f}%)")
+        print(f"With issues: {invalid} ({invalid/total*100:.1f}%)")
 
-        # 問題のサマリー
+        # Summary of issues
         all_issues = [issue for r in results for issue in r["issues"]]
         from collections import Counter
         issue_counts = Counter(all_issues)
         if issue_counts:
-            print("\n問題の種類:")
+            print("\nTypes of issues:")
             for issue, count in issue_counts.most_common():
-                print(f"  {issue}: {count}件")
+                print(f"  {issue}: {count} cases")
 
         return results
 
-# 使用例
+# Usage example
 # checker = ImageQualityChecker()
 # results = checker.check_dataset("data/images/")
 ```
 
-### コード例 7: TensorRT による推論最適化
+### Code Example 7: Inference Optimization with TensorRT
 
 ```python
 import torch
@@ -1010,11 +1010,11 @@ import time
 import numpy as np
 
 class InferenceOptimizer:
-    """推論の最適化とベンチマーク"""
+    """Inference optimization and benchmarking"""
 
     @staticmethod
     def export_to_onnx(model, input_shape, output_path="model.onnx"):
-        """PyTorchモデルをONNXにエクスポート"""
+        """Export a PyTorch model to ONNX"""
         model.eval()
         dummy_input = torch.randn(*input_shape)
 
@@ -1025,16 +1025,16 @@ class InferenceOptimizer:
             dynamic_axes={"input": {0: "batch"}, "output": {0: "batch"}},
             opset_version=17,
         )
-        print(f"ONNXモデル保存: {output_path}")
+        print(f"ONNX model saved: {output_path}")
 
     @staticmethod
     def benchmark_model(model, input_shape, n_runs=100, device="cuda"):
-        """モデルの推論速度をベンチマーク"""
+        """Benchmark model inference speed"""
         model.eval()
         model.to(device)
         dummy = torch.randn(*input_shape).to(device)
 
-        # ウォームアップ
+        # Warmup
         for _ in range(10):
             with torch.no_grad():
                 _ = model(dummy)
@@ -1042,7 +1042,7 @@ class InferenceOptimizer:
         if device == "cuda":
             torch.cuda.synchronize()
 
-        # ベンチマーク
+        # Benchmark
         latencies = []
         for _ in range(n_runs):
             start = time.time()
@@ -1053,12 +1053,12 @@ class InferenceOptimizer:
             latencies.append((time.time() - start) * 1000)
 
         latencies = np.array(latencies)
-        print(f"推論レイテンシ (ms):")
-        print(f"  平均: {latencies.mean():.2f}")
-        print(f"  中央値: {np.median(latencies):.2f}")
+        print(f"Inference Latency (ms):")
+        print(f"  Mean: {latencies.mean():.2f}")
+        print(f"  Median: {np.median(latencies):.2f}")
         print(f"  P95: {np.percentile(latencies, 95):.2f}")
         print(f"  P99: {np.percentile(latencies, 99):.2f}")
-        print(f"  スループット: {1000 / latencies.mean():.1f} FPS")
+        print(f"  Throughput: {1000 / latencies.mean():.1f} FPS")
 
         return {
             "mean_ms": latencies.mean(),
@@ -1069,17 +1069,17 @@ class InferenceOptimizer:
 
     @staticmethod
     def optimize_with_torch_compile(model):
-        """torch.compile による最適化（PyTorch 2.0+）"""
+        """Optimization with torch.compile (PyTorch 2.0+)"""
         optimized = torch.compile(model, mode="reduce-overhead")
         return optimized
 
     @staticmethod
     def quantize_model(model, calibration_loader=None):
-        """INT8 量子化"""
+        """INT8 quantization"""
         model.eval()
 
         if calibration_loader:
-            # 動的量子化
+            # Dynamic quantization
             quantized = torch.quantization.quantize_dynamic(
                 model, {torch.nn.Linear, torch.nn.Conv2d}, dtype=torch.qint8
             )
@@ -1088,7 +1088,7 @@ class InferenceOptimizer:
                 model, {torch.nn.Linear}, dtype=torch.qint8
             )
 
-        # サイズ比較
+        # Size comparison
         import os, tempfile
         with tempfile.NamedTemporaryFile(suffix=".pt") as f:
             torch.save(model.state_dict(), f.name)
@@ -1097,13 +1097,13 @@ class InferenceOptimizer:
             torch.save(quantized.state_dict(), f.name)
             quantized_size = os.path.getsize(f.name) / 1024 / 1024
 
-        print(f"元のサイズ: {original_size:.1f} MB")
-        print(f"量子化後: {quantized_size:.1f} MB")
-        print(f"圧縮率: {original_size / quantized_size:.1f}x")
+        print(f"Original size: {original_size:.1f} MB")
+        print(f"After quantization: {quantized_size:.1f} MB")
+        print(f"Compression ratio: {original_size / quantized_size:.1f}x")
 
         return quantized
 
-# 使用例
+# Usage example
 # optimizer = InferenceOptimizer()
 # optimizer.benchmark_model(model, (1, 3, 224, 224))
 # optimizer.export_to_onnx(model, (1, 3, 224, 224))
@@ -1111,9 +1111,9 @@ class InferenceOptimizer:
 
 ---
 
-## 5. 実践的なユースケース
+## 5. Practical Use Cases
 
-### ユースケース1: 製品の外観検査（異常検出）
+### Use Case 1: Product Appearance Inspection (Anomaly Detection)
 
 ```python
 import torch
@@ -1121,12 +1121,12 @@ import torch.nn as nn
 from torchvision import models, transforms
 
 class AnomalyDetector:
-    """製造ラインでの外観異常検出"""
+    """Visual anomaly detection on a manufacturing line"""
 
     def __init__(self, feature_extractor="resnet18"):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         backbone = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
-        # 特徴抽出器として使用（最終層の前まで）
+        # Use as a feature extractor (up to the layer before the final one)
         self.feature_extractor = nn.Sequential(
             *list(backbone.children())[:-1]
         ).to(self.device)
@@ -1143,7 +1143,7 @@ class AnomalyDetector:
         self.threshold = None
 
     def fit(self, normal_images):
-        """正常画像から特徴量分布を学習"""
+        """Learn the feature distribution from normal images"""
         features_list = []
         for img in normal_images:
             img_tensor = self.transform(img).unsqueeze(0).to(self.device)
@@ -1156,18 +1156,18 @@ class AnomalyDetector:
         self.mean = self.normal_features.mean(axis=0)
         self.cov_inv = np.linalg.pinv(np.cov(self.normal_features.T))
 
-        # マハラノビス距離の閾値を設定
+        # Set the Mahalanobis distance threshold
         distances = [self._mahalanobis_distance(f) for f in self.normal_features]
         self.threshold = np.percentile(distances, 95)
 
     def _mahalanobis_distance(self, feature):
-        """マハラノビス距離を計算"""
+        """Compute the Mahalanobis distance"""
         import numpy as np
         diff = feature - self.mean
         return float(np.sqrt(diff @ self.cov_inv @ diff))
 
     def predict(self, image):
-        """異常スコアを計算"""
+        """Compute the anomaly score"""
         img_tensor = self.transform(image).unsqueeze(0).to(self.device)
         with torch.no_grad():
             feat = self.feature_extractor(img_tensor).squeeze().cpu().numpy()
@@ -1180,22 +1180,22 @@ class AnomalyDetector:
         }
 ```
 
-### ユースケース2: OCR（光学文字認識）パイプライン
+### Use Case 2: OCR (Optical Character Recognition) Pipeline
 
 ```python
 class OCRPipeline:
-    """画像からテキストを抽出するOCRパイプライン"""
+    """OCR pipeline for extracting text from images"""
 
     def __init__(self):
         self.reader = None
 
     def initialize(self, languages=["ja", "en"]):
-        """EasyOCR の初期化"""
+        """Initialize EasyOCR"""
         import easyocr
         self.reader = easyocr.Reader(languages, gpu=torch.cuda.is_available())
 
     def extract_text(self, image_path, detail=True):
-        """画像からテキストを抽出"""
+        """Extract text from an image"""
         results = self.reader.readtext(str(image_path))
 
         if detail:
@@ -1211,14 +1211,14 @@ class OCRPipeline:
             return " ".join([text for _, text, _ in results])
 
     def extract_from_document(self, image_path, layout_analysis=True):
-        """文書画像からの構造化テキスト抽出"""
+        """Structured text extraction from a document image"""
         results = self.extract_text(image_path, detail=True)
 
         if layout_analysis:
-            # 上から下、左から右の順に並べ替え
+            # Sort from top to bottom, left to right
             results.sort(key=lambda r: (
-                min(p[1] for p in r["bbox"]),  # y座標でソート
-                min(p[0] for p in r["bbox"]),  # x座標でソート
+                min(p[1] for p in r["bbox"]),  # Sort by y-coordinate
+                min(p[0] for p in r["bbox"]),  # Sort by x-coordinate
             ))
 
         lines = []
@@ -1241,53 +1241,53 @@ class OCRPipeline:
 
 ---
 
-## モデル選択比較表
+## Model Selection Comparison Table
 
-| タスク | モデル | 速度 | 精度 | ユースケース |
+| Task | Model | Speed | Accuracy | Use Case |
 |---|---|---|---|---|
-| **画像分類** | EfficientNet | 速い | 高い | モバイル、エッジ |
-| **画像分類** | ViT-Large | 遅い | 最高 | サーバーサイド |
-| **画像分類** | DINOv2 | 中 | 最高 | ゼロショット・少数ショット |
-| **物体検出（高速）** | YOLOv8n | 最速 | 中 | リアルタイム |
-| **物体検出（高精度）** | YOLOv8x | 中 | 高い | 高精度要求 |
-| **物体検出（E2E）** | DETR | 遅い | 高い | 研究、カスタム |
-| **物体検出（オープン）** | Grounding DINO | 遅い | 高い | テキスト指定検出 |
-| **セグメンテーション** | SAM | 中 | 最高 | ゼロショット |
-| **セグメンテーション** | SAM 2 | 中 | 最高 | 動画セグメンテーション |
-| **セグメンテーション** | SegFormer | 速い | 高い | 自動運転 |
-| **セグメンテーション** | U-Net | 速い | 高い | 医療画像 |
+| **Image Classification** | EfficientNet | Fast | High | Mobile, edge |
+| **Image Classification** | ViT-Large | Slow | Highest | Server-side |
+| **Image Classification** | DINOv2 | Medium | Highest | Zero-shot / few-shot |
+| **Object Detection (Fast)** | YOLOv8n | Fastest | Medium | Real-time |
+| **Object Detection (Accurate)** | YOLOv8x | Medium | High | High-accuracy requirements |
+| **Object Detection (E2E)** | DETR | Slow | High | Research, custom |
+| **Object Detection (Open)** | Grounding DINO | Slow | High | Text-guided detection |
+| **Segmentation** | SAM | Medium | Highest | Zero-shot |
+| **Segmentation** | SAM 2 | Medium | Highest | Video segmentation |
+| **Segmentation** | SegFormer | Fast | High | Autonomous driving |
+| **Segmentation** | U-Net | Fast | High | Medical imaging |
 
-### 画像サイズと精度の関係
+### Relationship Between Image Size and Accuracy
 
-| 入力サイズ | 推論速度 | 精度 | 用途 |
+| Input Size | Inference Speed | Accuracy | Application |
 |---|---|---|---|
-| 224x224 | 最速 | 低〜中 | モバイル分類 |
-| 416x416 | 速い | 中 | リアルタイム検出 |
-| 640x640 | 中 | 高い | 標準的な検出 |
-| 1280x1280 | 遅い | 最高 | 高精度要求 |
+| 224x224 | Fastest | Low-Medium | Mobile classification |
+| 416x416 | Fast | Medium | Real-time detection |
+| 640x640 | Medium | High | Standard detection |
+| 1280x1280 | Slow | Highest | High-accuracy requirements |
 
-### 推論最適化手法の比較
+### Comparison of Inference Optimization Techniques
 
-| 手法 | 速度向上 | 精度影響 | 導入難易度 | 対応フレームワーク |
+| Technique | Speedup | Accuracy Impact | Difficulty | Supported Frameworks |
 |---|---|---|---|---|
-| torch.compile | 1.5-3x | なし | 低 | PyTorch 2.0+ |
-| ONNX Runtime | 1.5-2x | なし | 低 | フレームワーク非依存 |
-| TensorRT | 2-5x | 微小 | 中 | NVIDIA GPU |
-| INT8量子化 | 2-4x | 小 | 中 | 各フレームワーク |
-| プルーニング | 1.5-3x | 小〜中 | 高 | PyTorch |
-| 知識蒸留 | 2-10x | 小〜中 | 高 | 各フレームワーク |
+| torch.compile | 1.5-3x | None | Low | PyTorch 2.0+ |
+| ONNX Runtime | 1.5-2x | None | Low | Framework-agnostic |
+| TensorRT | 2-5x | Minimal | Medium | NVIDIA GPU |
+| INT8 Quantization | 2-4x | Small | Medium | Various frameworks |
+| Pruning | 1.5-3x | Small-Medium | High | PyTorch |
+| Knowledge Distillation | 2-10x | Small-Medium | High | Various frameworks |
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### 問題1: GPUメモリ不足（CUDA Out of Memory）
+### Problem 1: GPU Out of Memory (CUDA Out of Memory)
 
 ```python
-# 対処法1: バッチサイズを減らす
-train_loader = DataLoader(dataset, batch_size=8)  # 16 → 8
+# Solution 1: Reduce batch size
+train_loader = DataLoader(dataset, batch_size=8)  # 16 -> 8
 
-# 対処法2: 混合精度学習（メモリ使用量を約半減）
+# Solution 2: Mixed precision training (reduces memory usage by roughly half)
 from torch.cuda.amp import autocast, GradScaler
 scaler = GradScaler()
 with autocast():
@@ -1297,8 +1297,8 @@ scaler.scale(loss).backward()
 scaler.step(optimizer)
 scaler.update()
 
-# 対処法3: 勾配蓄積（実効バッチサイズを維持しつつメモリ節約）
-accumulation_steps = 4  # 4回分の勾配を蓄積
+# Solution 3: Gradient accumulation (maintain effective batch size while saving memory)
+accumulation_steps = 4  # Accumulate gradients over 4 steps
 for i, (images, labels) in enumerate(train_loader):
     outputs = model(images.cuda())
     loss = criterion(outputs, labels.cuda()) / accumulation_steps
@@ -1307,26 +1307,26 @@ for i, (images, labels) in enumerate(train_loader):
         optimizer.step()
         optimizer.zero_grad()
 
-# 対処法4: 画像サイズを縮小
-transform = transforms.Resize(160)  # 224 → 160
+# Solution 4: Reduce image size
+transform = transforms.Resize(160)  # 224 -> 160
 
-# 対処法5: 不要なテンソルの解放
+# Solution 5: Release unnecessary tensors
 del outputs, loss
 torch.cuda.empty_cache()
 ```
 
-### 問題2: 学習が収束しない
+### Problem 2: Training Does Not Converge
 
 ```python
-# チェックリスト:
-# 1. 学習率が適切か確認
-# 2. データの正規化が正しいか確認
-# 3. 損失関数が適切か確認
+# Checklist:
+# 1. Check if the learning rate is appropriate
+# 2. Check if data normalization is correct
+# 3. Check if the loss function is appropriate
 
-# 学習率探索（LR Finder）
+# Learning Rate Finder (LR Finder)
 from torch.optim.lr_scheduler import OneCycleLR
 
-# 小さい学習率から大きい学習率まで試す
+# Try from a small learning rate to a large one
 lrs = []
 losses = []
 lr = 1e-7
@@ -1344,18 +1344,18 @@ for batch in train_loader:
 
     lrs.append(lr)
     losses.append(loss.item())
-    lr *= 1.1  # 学習率を指数的に増加
+    lr *= 1.1  # Increase learning rate exponentially
 
     if lr > 1.0:
         break
 
-# 損失が最も急激に減少する学習率を選択
+# Select the learning rate where the loss decreases most rapidly
 ```
 
-### 問題3: クラス不均衡
+### Problem 3: Class Imbalance
 
 ```python
-# 対処法1: 重み付き損失関数
+# Solution 1: Weighted loss function
 from collections import Counter
 class_counts = Counter(labels)
 total = sum(class_counts.values())
@@ -1363,13 +1363,13 @@ weights = torch.tensor([total / class_counts[i] for i in range(num_classes)])
 weights = weights / weights.sum() * num_classes
 criterion = nn.CrossEntropyLoss(weight=weights.cuda())
 
-# 対処法2: オーバーサンプリング
+# Solution 2: Oversampling
 from torch.utils.data import WeightedRandomSampler
 sample_weights = [1.0 / class_counts[label] for label in labels]
 sampler = WeightedRandomSampler(sample_weights, len(sample_weights))
 train_loader = DataLoader(dataset, batch_size=32, sampler=sampler)
 
-# 対処法3: Focal Loss
+# Solution 3: Focal Loss
 class FocalLoss(nn.Module):
     def __init__(self, alpha=1, gamma=2):
         super().__init__()
@@ -1385,34 +1385,34 @@ class FocalLoss(nn.Module):
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### 1. データ拡張なしでの学習
+### 1. Training Without Data Augmentation
 
-**問題**: 小規模データセットでデータ拡張を行わないと、モデルが学習データに過学習し、本番で性能が出ない。
+**Problem**: Without data augmentation on a small dataset, the model overfits to the training data and performs poorly in production.
 
-**対策**: 回転、反転、色調変換、Mixup、CutMix 等のデータ拡張を適用する。特に小規模データでは拡張が精度に大きく影響する。
+**Solution**: Apply data augmentation such as rotation, flipping, color jittering, Mixup, and CutMix. Augmentation has a significant impact on accuracy, especially with small datasets.
 
-### 2. 不適切な入力前処理
+### 2. Improper Input Preprocessing
 
-**問題**: 事前学習済みモデルの正規化パラメータ（ImageNet の mean/std）を使わずに推論すると、精度が大幅に低下する。
+**Problem**: Running inference without using the pretrained model's normalization parameters (ImageNet mean/std) significantly degrades accuracy.
 
-**対策**: 使用するモデルの前処理仕様を確認し、学習時と推論時で同一の前処理を適用する。
+**Solution**: Verify the preprocessing specifications for the model being used and apply identical preprocessing during both training and inference.
 
-### 3. 転移学習で全層を最初から学習
+### 3. Training All Layers from the Start in Transfer Learning
 
 ```python
-# BAD: 全パラメータを同じ学習率で学習
+# BAD: Train all parameters with the same learning rate
 optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-# GOOD: 段階的ファインチューニング
-# Phase 1: ヘッドのみ
+# GOOD: Progressive fine-tuning
+# Phase 1: Head only
 for param in model.backbone.parameters():
     param.requires_grad = False
 optimizer = optim.Adam(model.backbone.fc.parameters(), lr=0.001)
-# 数エポック学習
+# Train for a few epochs
 
-# Phase 2: 全体を低い学習率で
+# Phase 2: Entire model with a lower learning rate
 for param in model.parameters():
     param.requires_grad = True
 optimizer = optim.Adam([
@@ -1421,11 +1421,11 @@ optimizer = optim.Adam([
 ], lr=1e-5)
 ```
 
-### 4. テスト時にmodel.eval()を忘れる
+### 4. Forgetting model.eval() During Inference
 
 ```python
-# BAD: 推論時にモードを切り替えない
-output = model(test_images)  # Dropout/BNが学習モードのまま
+# BAD: Not switching modes during inference
+output = model(test_images)  # Dropout/BN remain in training mode
 
 # GOOD:
 model.eval()
@@ -1435,71 +1435,71 @@ with torch.no_grad():
 
 ---
 
-## パフォーマンス最適化チェックリスト
+## Performance Optimization Checklist
 
-- [ ] **データローダー**: `num_workers > 0`, `pin_memory=True`（GPU使用時）
-- [ ] **混合精度学習**: `torch.cuda.amp` でFP16を使用
-- [ ] **バッチサイズ**: GPUメモリに収まる最大サイズを使用
-- [ ] **データ拡張**: GPU上で実行（`torchvision.transforms.v2` or Albumentations）
-- [ ] **モデル選択**: タスクに適したサイズのモデルを選択
-- [ ] **学習率**: Warmup + Cosine Annealing が安定
-- [ ] **Early Stopping**: 過学習防止のために必須
-- [ ] **勾配クリッピング**: `torch.nn.utils.clip_grad_norm_` で安定化
-- [ ] **推論最適化**: ONNX/TensorRT/torch.compile で高速化
-- [ ] **キャッシュ**: 前処理済みデータのキャッシュで I/O削減
+- [ ] **Data Loader**: `num_workers > 0`, `pin_memory=True` (when using GPU)
+- [ ] **Mixed Precision Training**: Use FP16 with `torch.cuda.amp`
+- [ ] **Batch Size**: Use the maximum size that fits in GPU memory
+- [ ] **Data Augmentation**: Execute on GPU (`torchvision.transforms.v2` or Albumentations)
+- [ ] **Model Selection**: Choose a model of appropriate size for the task
+- [ ] **Learning Rate**: Warmup + Cosine Annealing is stable
+- [ ] **Early Stopping**: Essential for preventing overfitting
+- [ ] **Gradient Clipping**: Stabilize with `torch.nn.utils.clip_grad_norm_`
+- [ ] **Inference Optimization**: Speed up with ONNX/TensorRT/torch.compile
+- [ ] **Caching**: Cache preprocessed data to reduce I/O
 
 ---
 
 ## FAQ
 
-### Q1: CNN と Vision Transformer のどちらを使うべきですか？
+### Q1: Should I use a CNN or a Vision Transformer?
 
-**A**: データが少ない（数千枚以下）場合は CNN + 転移学習が安定します。大規模データ（数万枚以上）があれば ViT が高精度です。実用的には EfficientNet（CNN）か DINOv2（ViT ベースの自己教師学習）が汎用性が高いです。
+**A**: If you have limited data (a few thousand images or less), CNN + transfer learning is more reliable. With large-scale data (tens of thousands of images or more), ViT achieves higher accuracy. In practice, EfficientNet (CNN) or DINOv2 (ViT-based self-supervised learning) offer the best versatility.
 
-### Q2: リアルタイム物体検出の最低要件は？
+### Q2: What are the minimum requirements for real-time object detection?
 
-**A**: 30 FPS 以上を目指す場合、YOLOv8n + GPU（RTX 3060 以上）で 640x640 入力が基本です。エッジデバイスでは TensorRT や ONNX Runtime での最適化が必要です。
+**A**: To achieve 30+ FPS, the baseline is YOLOv8n + GPU (RTX 3060 or above) with 640x640 input. For edge devices, optimization with TensorRT or ONNX Runtime is required.
 
-### Q3: SAM は何がすごいのですか？
+### Q3: What makes SAM so impressive?
 
-**A**: SAM は「ゼロショット」でセグメンテーションを実行できます。特定のクラスの学習データなしに、クリック1つで任意のオブジェクトをセグメント化できるため、アノテーションツールや汎用的な画像編集に革命的です。
+**A**: SAM can perform "zero-shot" segmentation. Without any class-specific training data, it can segment any object with a single click, making it revolutionary for annotation tools and general-purpose image editing.
 
-### Q4: 画像データのアノテーションを効率化するには？
+### Q4: How can I make image data annotation more efficient?
 
-**A**: (1) SAMをベースにした半自動アノテーション（クリック1つで輪郭生成）、(2) アクティブラーニング（モデルが不確実なサンプルを優先的にアノテーション）、(3) 弱教師あり学習（画像レベルのラベルからピクセルレベルの予測）、(4) データ拡張で少量のアノテーションから多くの学習データを生成。ツールとしてはLabel Studio、CVAT、Roboflowが代表的。
+**A**: (1) Semi-automatic annotation based on SAM (generate contours with a single click), (2) Active learning (prioritize annotating samples where the model is uncertain), (3) Weakly supervised learning (pixel-level predictions from image-level labels), (4) Generate more training data from a small amount of annotations through data augmentation. Representative tools include Label Studio, CVAT, and Roboflow.
 
-### Q5: エッジデバイスへのデプロイ方法は？
+### Q5: How do I deploy to edge devices?
 
-**A**: (1) モデルの軽量化（MobileNet、EfficientNet-Lite）、(2) 量子化（INT8、FP16）、(3) TensorRT/ONNX Runtimeでの最適化、(4) NVIDIA Jetson、Apple Neural Engine、Google Coral等のハードウェアアクセラレータの活用。Jetson Nanoでは YOLOv8n が TensorRT 最適化で 30+ FPS を達成可能。
+**A**: (1) Use lightweight models (MobileNet, EfficientNet-Lite), (2) Quantization (INT8, FP16), (3) Optimization with TensorRT/ONNX Runtime, (4) Leverage hardware accelerators such as NVIDIA Jetson, Apple Neural Engine, and Google Coral. On Jetson Nano, YOLOv8n can achieve 30+ FPS with TensorRT optimization.
 
-### Q6: 3D コンピュータビジョンにはどんな手法がありますか？
+### Q6: What techniques exist for 3D computer vision?
 
-**A**: (1) NeRF（Neural Radiance Fields）: 2D画像群から3Dシーンを再構成、(2) 3D Gaussian Splatting: リアルタイム3Dレンダリング、(3) Point Cloud処理: LiDARデータの分類・セグメンテーション（PointNet++、Point Transformer）、(4) Depth Estimation: 単眼深度推定（MiDaS、Depth Anything）。
+**A**: (1) NeRF (Neural Radiance Fields): Reconstruct 3D scenes from collections of 2D images, (2) 3D Gaussian Splatting: Real-time 3D rendering, (3) Point Cloud processing: Classification and segmentation of LiDAR data (PointNet++, Point Transformer), (4) Depth Estimation: Monocular depth estimation (MiDaS, Depth Anything).
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Topic | Key Points |
 |---|---|
-| 画像分類 | CNN + 転移学習が基本。大規模データでは ViT |
-| 物体検出 | リアルタイムは YOLO、高精度は DETR |
-| セグメンテーション | SAM でゼロショット、SegFormer で高速処理 |
-| データ拡張 | 小規模データでは必須。精度に直結 |
-| 前処理 | モデルごとの正規化パラメータを厳守 |
-| エッジ推論 | TensorRT/ONNX で最適化、量子化で高速化 |
-| 品質管理 | 画像品質チェックをパイプラインに組み込む |
-| 新技術 | DINOv2、SAM 2、Grounding DINO が注目 |
+| Image Classification | CNN + transfer learning is the baseline. ViT for large-scale data |
+| Object Detection | YOLO for real-time, DETR for high accuracy |
+| Segmentation | SAM for zero-shot, SegFormer for fast processing |
+| Data Augmentation | Essential for small datasets. Directly impacts accuracy |
+| Preprocessing | Strictly follow per-model normalization parameters |
+| Edge Inference | Optimize with TensorRT/ONNX, speed up with quantization |
+| Quality Control | Integrate image quality checks into the pipeline |
+| Emerging Tech | DINOv2, SAM 2, and Grounding DINO are noteworthy |
 
-## 次に読むべきガイド
+## Recommended Next Guides
 
-- [MLOps](./02-mlops.md) — CV モデルのデプロイと運用
-- [RNN/Transformer](../02-deep-learning/02-rnn-transformer.md) — Vision Transformer の基礎
+- [MLOps](./02-mlops.md) — Deploying and operating CV models
+- [RNN/Transformer](../02-deep-learning/02-rnn-transformer.md) — Foundations of Vision Transformers
 
-## 参考文献
+## References
 
-1. **Ultralytics**: [YOLOv8 Documentation](https://docs.ultralytics.com/) — YOLO の最新ドキュメント
-2. **Kirillov et al.**: [Segment Anything (2023)](https://arxiv.org/abs/2304.02643) — SAM の原論文
-3. **Dosovitskiy et al.**: [An Image is Worth 16x16 Words (2020)](https://arxiv.org/abs/2010.11929) — Vision Transformer の原論文
-4. **Oquab et al.**: [DINOv2: Learning Robust Visual Features (2023)](https://arxiv.org/abs/2304.07193) — DINOv2 の原論文
-5. **Liu et al.**: [Grounding DINO (2023)](https://arxiv.org/abs/2303.05499) — オープンセット物体検出
+1. **Ultralytics**: [YOLOv8 Documentation](https://docs.ultralytics.com/) — Latest YOLO documentation
+2. **Kirillov et al.**: [Segment Anything (2023)](https://arxiv.org/abs/2304.02643) — Original SAM paper
+3. **Dosovitskiy et al.**: [An Image is Worth 16x16 Words (2020)](https://arxiv.org/abs/2010.11929) — Original Vision Transformer paper
+4. **Oquab et al.**: [DINOv2: Learning Robust Visual Features (2023)](https://arxiv.org/abs/2304.07193) — Original DINOv2 paper
+5. **Liu et al.**: [Grounding DINO (2023)](https://arxiv.org/abs/2303.05499) — Open-set object detection
