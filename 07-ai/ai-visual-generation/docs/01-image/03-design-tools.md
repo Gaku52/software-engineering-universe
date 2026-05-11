@@ -1,66 +1,71 @@
-# デザインツール -- Canva AI、Adobe Firefly、Figma AI
+# Design Tools -- Canva AI, Adobe Firefly, Figma AI
 
-> AI機能を統合した主要デザインプラットフォームの特徴と活用法を、ワークフロー視点で比較し、非デザイナーでもプロフェッショナルな成果物を効率的に制作するための実践手法を解説する
+> Compare the features of major design platforms with integrated AI capabilities from a workflow perspective, and explain practical methods for efficiently creating professional deliverables even for non-designers
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **各ツールのAI機能** -- Canva Magic Studio、Adobe Firefly、Figma AI の中核機能と得意領域
-2. **ワークフローへの統合** -- 企画→デザイン→フィードバック→納品の各段階でのAI活用法
-3. **プロンプト設計とカスタマイズ** -- 意図通りの出力を得るためのプロンプト技法とブランド統一手法
+1. **AI Features of Each Tool** -- Core capabilities and strengths of Canva Magic Studio, Adobe Firefly, and Figma AI
+2. **Workflow Integration** -- How to leverage AI at each stage: planning, design, feedback, and delivery
+3. **Prompt Design and Customization** -- Prompt techniques and brand unification methods for achieving intended outputs
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [アップスケーリング — Real-ESRGAN、超解像](./02-upscaling.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Upscaling -- Real-ESRGAN, Super Resolution](./02-upscaling.md)
 
 ---
 
-## 1. 各ツールのAI機能
+## 1. AI Features of Each Tool
 
-### 1.1 機能マップ
+### 1.1 Feature Map
 
 ```
-デザインツール AI機能マップ
+Design Tool AI Feature Map
 
   Canva Magic Studio          Adobe Firefly              Figma AI
   +------------------+       +------------------+       +------------------+
   | Magic Design     |       | Text to Image    |       | Auto Layout AI   |
-  | (テンプレ自動生成)|       | (テキスト画像生成) |       | (レイアウト提案)  |
+  | (Auto template   |       | (Text-to-image   |       | (Layout          |
+  |  generation)     |       |  generation)     |       |  suggestions)    |
   +------------------+       +------------------+       +------------------+
   | Magic Edit       |       | Generative Fill  |       | Component Suggest|
-  | (AI画像編集)     |       | (生成塗りつぶし)  |       | (コンポーネント提案)|
+  | (AI image editing)|      | (Generative fill)|       | (Component       |
+  |                  |       |                  |       |  suggestions)    |
   +------------------+       +------------------+       +------------------+
   | Magic Write      |       | Text Effects     |       | Content Reel     |
-  | (AI文章生成)     |       | (テキスト装飾)    |       | (コンテンツ一括)  |
+  | (AI text gen)    |       | (Text decoration)|       | (Bulk content)   |
   +------------------+       +------------------+       +------------------+
   | Magic Eraser     |       | Generative Expand|       | Variable Suggest |
-  | (不要物除去)     |       | (画像拡張)       |       | (変数自動設定)    |
+  | (Object removal) |       | (Image expansion)|       | (Auto variable   |
+  |                  |       |                  |       |  configuration)  |
   +------------------+       +------------------+       +------------------+
   | Background Remover|       | Structure Ref   |       | Prototype AI     |
-  | (背景除去)       |       | (構図参照生成)    |       | (プロトタイプ支援)|
+  | (Background      |       | (Structure       |       | (Prototype       |
+  |  removal)        |       |  reference gen)  |       |  assistance)     |
   +------------------+       +------------------+       +------------------+
 
-  対象ユーザー:
-  Canva    = 非デザイナー、マーケター、中小企業
-  Firefly  = プロデザイナー、フォトグラファー
-  Figma AI = UI/UXデザイナー、エンジニア
+  Target Users:
+  Canva    = Non-designers, marketers, small businesses
+  Firefly  = Professional designers, photographers
+  Figma AI = UI/UX designers, engineers
 ```
 
-### 1.2 ワークフロー全体像
+### 1.2 Overall Workflow
 
 ```
-デザインワークフローにおけるAI活用
+AI Utilization in the Design Workflow
 
-  1. 企画           2. デザイン         3. レビュー        4. 納品
+  1. Planning        2. Design           3. Review          4. Delivery
   +----------+     +----------+       +----------+      +----------+
-  | AI で     |     | AI で    |       | AI で    |      | AI で    |
-  | ブレスト  | --> | 初稿生成 | --->  | バリエー | ---> | リサイズ |
-  | アイデア  |     | テンプレ |       | ション   |      | フォーマ |
-  | 出し      |     | 選択     |       | 生成     |      | ット変換 |
+  | AI for   |     | AI for   |       | AI for   |      | AI for   |
+  | brain-   | --> | first    | --->  | variation| ---> | resizing |
+  | storming |     | draft    |       | genera-  |      | format   |
+  | ideas    |     | template |       | tion     |      | convert  |
+  |          |     | selection|       |          |      |          |
   +----------+     +----------+       +----------+      +----------+
   |Canva:     |    |Firefly:   |     |Canva:     |    |Canva:     |
   | Magic     |    | Text to   |     | Magic     |    | Resize    |
@@ -71,148 +76,150 @@
   +-----------+    +-----------+     +-----------+    +-----------+
 ```
 
-### 1.3 技術進化のタイムライン
+### 1.3 Technology Evolution Timeline
 
 ```
-AIデザインツール進化史
+AI Design Tool Evolution History
 
-2020 ─── Canva: 基本的な背景除去機能を追加
-         Adobe: Neural Filters を Photoshop に統合（ベータ）
-         Figma: Smart Selection 導入
+2020 --- Canva: Added basic background removal feature
+         Adobe: Integrated Neural Filters into Photoshop (beta)
+         Figma: Introduced Smart Selection
 
-2021 ─── Canva: Magic Resize リリース
-         Adobe: Neural Filters 正式版、Super Resolution
-         Figma: Auto Layout v3、Interactive Components
+2021 --- Canva: Released Magic Resize
+         Adobe: Neural Filters official release, Super Resolution
+         Figma: Auto Layout v3, Interactive Components
 
-2022 ─── Canva: Magic Write（AI文章生成）、Text to Image
-         Adobe: Firefly プロジェクト発表
-         Figma: Component Properties、Variable Modes
-         Microsoft: Designer（DALL-E統合）リリース
+2022 --- Canva: Magic Write (AI text generation), Text to Image
+         Adobe: Firefly project announced
+         Figma: Component Properties, Variable Modes
+         Microsoft: Released Designer (DALL-E integration)
 
-2023 ─── Canva: Magic Studio（統合AIスイート）リリース
-         Adobe: Firefly 正式版、Photoshop に Generative Fill
-         Figma: AI機能プレビュー、First Draft
-         Google: Gemini を Workspace に統合
+2023 --- Canva: Released Magic Studio (integrated AI suite)
+         Adobe: Firefly official release, Generative Fill in Photoshop
+         Figma: AI feature preview, First Draft
+         Google: Integrated Gemini into Workspace
 
-2024 ─── Canva: Dream Lab（高品質画像生成）、Magic Expand
-         Adobe: Firefly 3（Generative Match、Structure Reference）
-         Figma: AI機能拡充、Dev Mode 改善
-         Penpot: オープンソースにAI機能追加
+2024 --- Canva: Dream Lab (high-quality image generation), Magic Expand
+         Adobe: Firefly 3 (Generative Match, Structure Reference)
+         Figma: Expanded AI features, Dev Mode improvements
+         Penpot: Added AI features to open source
 
-2025 ─── Canva: Magic Design v3（マルチページ対応）
-         Adobe: Firefly 4（ビデオ生成対応）
-         Figma: AI Prototyping、Design System Intelligence
-         各ツール: マルチモーダルAI統合が標準化
+2025 --- Canva: Magic Design v3 (multi-page support)
+         Adobe: Firefly 4 (video generation support)
+         Figma: AI Prototyping, Design System Intelligence
+         All tools: Multimodal AI integration becomes standard
 ```
 
-### 1.4 AI デザインツールのアーキテクチャ
+### 1.4 AI Design Tool Architecture
 
 ```
-AI デザインツールの内部構造
+Internal Structure of AI Design Tools
 
 ┌─────────────────────────────────────────────────┐
-│                 ユーザーインターフェース              │
+│                 User Interface                    │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐      │
-│  │ テンプレ  │  │ エディタ  │  │プレビュー │      │
-│  │ ブラウザ  │  │  キャンバス│  │  パネル  │      │
+│  │ Template  │  │ Editor   │  │ Preview  │      │
+│  │ Browser   │  │ Canvas   │  │ Panel    │      │
 │  └─────┬────┘  └─────┬────┘  └─────┬────┘      │
 │        └────────────┼────────────┘              │
 │                     ▼                            │
 │  ┌──────────────────────────────────────────┐   │
-│  │        AI オーケストレーションレイヤー       │   │
+│  │       AI Orchestration Layer              │   │
 │  │  ┌────────┐ ┌────────┐ ┌────────────┐   │   │
-│  │  │プロンプ │ │コンテキ│ │ブランド     │   │   │
-│  │  │ト解析  │ │スト理解│ │ガイドライン │   │   │
-│  │  │エンジン │ │エンジン│ │エンジン     │   │   │
+│  │  │Prompt  │ │Context │ │Brand       │   │   │
+│  │  │Parsing │ │Under-  │ │Guidelines  │   │   │
+│  │  │Engine  │ │standing│ │Engine      │   │   │
+│  │  │        │ │Engine  │ │            │   │   │
 │  │  └───┬────┘ └───┬────┘ └──────┬─────┘   │   │
 │  │      └──────────┼───────────┘           │   │
 │  │                 ▼                        │   │
 │  │  ┌──────────────────────────────────┐   │   │
-│  │  │     AIモデルディスパッチャー        │   │   │
-│  │  │  画像生成 | 編集 | テキスト | 提案 │   │   │
+│  │  │      AI Model Dispatcher          │   │   │
+│  │  │  Image Gen | Edit | Text | Suggest│   │   │
 │  │  └──────────────────────────────────┘   │   │
 │  └──────────────────────────────────────────┘   │
 │                     ▼                            │
 │  ┌──────────────────────────────────────────┐   │
-│  │           バックエンド AI サービス          │   │
+│  │          Backend AI Services              │   │
 │  │  Diffusion Models | LLM | Vision Models  │   │
 │  └──────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────┘
 ```
 
-### 1.5 料金体系の詳細比較
+### 1.5 Detailed Pricing Comparison
 
-| 項目 | Canva Free | Canva Pro | Adobe CC | Figma Starter | Figma Pro |
+| Item | Canva Free | Canva Pro | Adobe CC | Figma Starter | Figma Pro |
 |------|-----------|-----------|----------|--------------|-----------|
-| 月額 | ¥0 | ¥1,500 | ¥7,780〜 | $0 | $15/人 |
-| AI画像生成 | 50回/月 | 500回/月 | 250クレジット/月 | -- | -- |
-| AI編集 | 制限あり | 無制限 | 含む | 基本機能のみ | 全機能 |
-| ストレージ | 5GB | 1TB | 100GB〜 | 無制限 | 無制限 |
-| ブランドキット | 1個 | 100個 | -- | -- | チーム共有 |
-| API アクセス | -- | 対応 | 対応 | -- | 対応 |
-| チーム機能 | -- | 5人〜 | 含む | 2人 | 無制限 |
-| 商用利用 | 制限あり | 全て可 | 全て可 | 可 | 可 |
-| IP補償 | -- | -- | あり | -- | -- |
+| Monthly fee | $0 | ~$13 | ~$55+ | $0 | $15/person |
+| AI image generation | 50/month | 500/month | 250 credits/month | -- | -- |
+| AI editing | Limited | Unlimited | Included | Basic features only | Full features |
+| Storage | 5GB | 1TB | 100GB+ | Unlimited | Unlimited |
+| Brand kit | 1 | 100 | -- | -- | Team shared |
+| API access | -- | Supported | Supported | -- | Supported |
+| Team features | -- | 5+ people | Included | 2 people | Unlimited |
+| Commercial use | Limited | All allowed | All allowed | Allowed | Allowed |
+| IP indemnification | -- | -- | Yes | -- | -- |
 
 ---
 
-## 2. Canva Magic Studio の実践
+## 2. Canva Magic Studio in Practice
 
-### 2.1 Magic Design でのテンプレート生成
+### 2.1 Template Generation with Magic Design
 
 ```
-プロンプト例: SNS投稿の自動生成
+Prompt Example: Auto-generation of SNS Posts
 
-  入力:
-    目的: Instagram 投稿
-    トーン: モダン、ミニマル
-    テーマ: 新商品発売のお知らせ
-    ブランドカラー: #2563EB (青)
-    テキスト: 「新コレクション登場 | 2026年春」
+  Input:
+    Purpose: Instagram post
+    Tone: Modern, minimal
+    Theme: New product launch announcement
+    Brand color: #2563EB (blue)
+    Text: "New Collection Arrival | Spring 2026"
 
-  Magic Design が生成:
+  Magic Design generates:
   +----------------------------------+
-  |  [AI生成画像: 商品イメージ]       |
+  |  [AI-generated image: product]   |
   |                                  |
-  |      新コレクション登場            |
-  |      2026年春                    |
+  |      New Collection Arrival      |
+  |      Spring 2026                 |
   |                                  |
   |  #NewCollection #Spring2026      |
   +----------------------------------+
-  → 5-10バリエーションから選択 → カスタマイズ
+  -> Select from 5-10 variations -> Customize
 ```
 
-### 2.2 Magic Edit の活用
+### 2.2 Utilizing Magic Edit
 
 ```
-Magic Edit ワークフロー
+Magic Edit Workflow
 
-  元画像                  指示              結果
+  Original Image            Instruction          Result
   +------------+         +-----------+    +------------+
-  | [商品写真]  |  --->  | 背景を     |    | [商品写真]  |
-  | (白背景)   |         | カフェの   | -> | (カフェ背景)|
-  |            |         | テーブルに |    |            |
+  | [Product   |  --->  | Change     |    | [Product   |
+  |  photo]    |         | background | -> |  photo]    |
+  | (white bg) |         | to a cafe  |    | (cafe bg)  |
+  |            |         | table      |    |            |
   +------------+         +-----------+    +------------+
 
-  プロンプト例:
-  - 「背景を暖かい色調のカフェのテーブルに変更」
-  - 「商品の横にコーヒーカップを追加」
-  - 「全体をフィルム写真風のトーンに変更」
+  Prompt examples:
+  - "Change the background to a warm-toned cafe table"
+  - "Add a coffee cup next to the product"
+  - "Change the overall tone to a film photography style"
 ```
 
-### 2.3 Bulk Create（一括作成）
+### 2.3 Bulk Create
 
 ```python
-# Canva API でバリエーションを一括生成 (擬似コード)
+# Bulk generate variations with Canva API (pseudo-code)
 import canva_api
 
-template_id = "DAF-xxxxx"  # テンプレートID
+template_id = "DAF-xxxxx"  # Template ID
 
-# CSV データから一括生成
+# Bulk generation from CSV data
 products = [
-    {"name": "プロダクトA", "price": "¥3,980", "image_url": "https://..."},
-    {"name": "プロダクトB", "price": "¥5,480", "image_url": "https://..."},
-    {"name": "プロダクトC", "price": "¥2,980", "image_url": "https://..."},
+    {"name": "Product A", "price": "$29.99", "image_url": "https://..."},
+    {"name": "Product B", "price": "$39.99", "image_url": "https://..."},
+    {"name": "Product C", "price": "$19.99", "image_url": "https://..."},
 ]
 
 for product in products:
@@ -225,15 +232,15 @@ for product in products:
         }
     )
     design.export(format="png", quality="high")
-    print(f"生成完了: {product['name']}")
+    print(f"Generation complete: {product['name']}")
 ```
 
-### 2.4 Brand Kit の統合管理
+### 2.4 Integrated Brand Kit Management
 
 ```python
-# Canva Brand Kit の自動設定とバリデーション
+# Canva Brand Kit auto-configuration and validation
 class CanvaBrandManager:
-    """ブランド一貫性を維持するための管理クラス"""
+    """Management class for maintaining brand consistency"""
 
     def __init__(self, api_key: str, brand_id: str):
         self.client = canva_api.Client(api_key=api_key)
@@ -241,7 +248,7 @@ class CanvaBrandManager:
         self.brand_kit = None
 
     def load_brand_kit(self) -> dict:
-        """ブランドキットを読み込み"""
+        """Load the brand kit"""
         self.brand_kit = self.client.get_brand_kit(self.brand_id)
         return {
             "colors": {
@@ -259,11 +266,11 @@ class CanvaBrandManager:
         }
 
     def validate_design(self, design_id: str) -> dict:
-        """デザインがブランドガイドラインに適合しているか検証"""
+        """Verify whether a design complies with brand guidelines"""
         design = self.client.get_design(design_id)
         issues = []
 
-        # カラーチェック
+        # Color check
         used_colors = design.get_used_colors()
         allowed_colors = set(self.brand_kit.all_colors)
         unauthorized = used_colors - allowed_colors
@@ -271,11 +278,11 @@ class CanvaBrandManager:
             issues.append({
                 "type": "color_violation",
                 "severity": "warning",
-                "detail": f"未承認カラー使用: {unauthorized}",
-                "suggestion": f"許可カラー: {allowed_colors}"
+                "detail": f"Unauthorized colors used: {unauthorized}",
+                "suggestion": f"Allowed colors: {allowed_colors}"
             })
 
-        # フォントチェック
+        # Font check
         used_fonts = design.get_used_fonts()
         allowed_fonts = set(self.brand_kit.all_fonts)
         unauthorized_fonts = used_fonts - allowed_fonts
@@ -283,19 +290,19 @@ class CanvaBrandManager:
             issues.append({
                 "type": "font_violation",
                 "severity": "error",
-                "detail": f"未承認フォント使用: {unauthorized_fonts}",
-                "suggestion": f"許可フォント: {allowed_fonts}"
+                "detail": f"Unauthorized fonts used: {unauthorized_fonts}",
+                "suggestion": f"Allowed fonts: {allowed_fonts}"
             })
 
-        # ロゴ配置チェック
+        # Logo placement check
         logo_placements = design.get_logo_placements()
         for placement in logo_placements:
             if placement.clear_space < self.brand_kit.min_clear_space:
                 issues.append({
                     "type": "logo_clearspace",
                     "severity": "error",
-                    "detail": f"ロゴの余白不足: {placement.clear_space}px",
-                    "suggestion": f"最小余白: {self.brand_kit.min_clear_space}px"
+                    "detail": f"Insufficient logo clear space: {placement.clear_space}px",
+                    "suggestion": f"Minimum clear space: {self.brand_kit.min_clear_space}px"
                 })
 
         return {
@@ -311,22 +318,22 @@ class CanvaBrandManager:
         output_formats: list[str] = ["png"],
         sizes: list[str] = None,
     ) -> list[dict]:
-        """ブランドキット適用済みの一括生成"""
+        """Bulk generation with brand kit applied"""
         results = []
         for data in data_list:
             design = self.client.create_from_template(
                 template_id=template_id,
                 data=data,
-                brand_kit_id=self.brand_id,  # ブランドキット自動適用
+                brand_kit_id=self.brand_id,  # Auto-apply brand kit
             )
 
-            # バリデーション
+            # Validation
             validation = self.validate_design(design.id)
             if not validation["is_compliant"]:
-                # 自動修正を試行
+                # Attempt auto-fix
                 design = self._auto_fix_brand_issues(design, validation["issues"])
 
-            # 複数サイズで書き出し
+            # Export in multiple sizes
             exports = []
             target_sizes = sizes or ["instagram_post", "facebook_post", "twitter_post"]
             for size in target_sizes:
@@ -352,18 +359,18 @@ class CanvaBrandManager:
         return results
 
     def _auto_fix_brand_issues(self, design, issues):
-        """ブランド違反の自動修正"""
+        """Auto-fix brand violations"""
         for issue in issues:
             if issue["type"] == "color_violation":
-                # 最も近いブランドカラーに置換
+                # Replace with nearest brand color
                 design.replace_colors_to_nearest_brand()
             elif issue["type"] == "font_violation":
-                # ブランドフォントに置換
+                # Replace with brand fonts
                 design.replace_fonts_to_brand()
         return design
 
 
-# 使用例
+# Usage example
 brand_mgr = CanvaBrandManager(
     api_key="your-api-key",
     brand_id="brand-123"
@@ -371,11 +378,11 @@ brand_mgr = CanvaBrandManager(
 
 brand_mgr.load_brand_kit()
 
-# SNS投稿の一括生成
+# Bulk generation of SNS posts
 products_data = [
-    {"title": "春の新作コレクション", "subtitle": "2026 Spring", "image": "spring.jpg"},
-    {"title": "サマーセール開催中", "subtitle": "最大50%OFF", "image": "summer.jpg"},
-    {"title": "秋の限定アイテム", "subtitle": "数量限定", "image": "autumn.jpg"},
+    {"title": "Spring New Collection", "subtitle": "2026 Spring", "image": "spring.jpg"},
+    {"title": "Summer Sale Now On", "subtitle": "Up to 50% OFF", "image": "summer.jpg"},
+    {"title": "Autumn Limited Items", "subtitle": "Limited Quantity", "image": "autumn.jpg"},
 ]
 
 results = brand_mgr.batch_generate_with_brand(
@@ -386,93 +393,95 @@ results = brand_mgr.batch_generate_with_brand(
 )
 
 for r in results:
-    print(f"デザイン {r['design_id']}: スコア={r['validation']['score']}")
+    print(f"Design {r['design_id']}: Score={r['validation']['score']}")
     for export in r["exports"]:
         print(f"  {export['size']} ({export['format']}): {export['url']}")
 ```
 
-### 2.5 Magic Write を活用したコピーライティング
+### 2.5 Copywriting with Magic Write
 
 ```
-Magic Write の効果的なプロンプト構成
+Effective Prompt Structure for Magic Write
 
 ┌────────────────────────────────────────────────────┐
-│ レベル1: 基本プロンプト                              │
-│ 「商品紹介のキャッチコピーを書いて」                   │
-│ → 汎用的で個性のないコピーが生成される                  │
+│ Level 1: Basic Prompt                              │
+│ "Write a product introduction catchphrase"         │
+│ -> Generic, personality-less copy is generated      │
 ├────────────────────────────────────────────────────┤
-│ レベル2: コンテキスト付きプロンプト                    │
-│ 「20代女性向けの春物ワンピース（¥8,980）の            │
-│   Instagram投稿用キャッチコピーを3案書いて」           │
-│ → ターゲットに合ったコピーが生成される                  │
+│ Level 2: Context-aware Prompt                      │
+│ "Write 3 Instagram post catchphrase options for    │
+│  a spring dress ($69.99) targeting women in their  │
+│  20s"                                              │
+│ -> Copy tailored to the target audience is generated│
 ├────────────────────────────────────────────────────┤
-│ レベル3: ブランドボイス指定プロンプト                  │
-│ 「ブランドボイス: 上品だが親しみやすい                  │
-│   トーン: 明るく前向き                                │
-│   NG表現: 『激安』『爆安』などの安売り表現              │
-│   必須要素: 素材の良さ、着心地の良さ                   │
-│   CTA: ECサイトへの誘導                               │
-│   文字数: 80-120字                                    │
-│   ハッシュタグ: 5個」                                 │
-│ → ブランドに一致した高品質なコピーが生成される           │
+│ Level 3: Brand Voice-specified Prompt              │
+│ "Brand voice: Elegant yet approachable             │
+│  Tone: Bright and positive                         │
+│  Prohibited expressions: 'dirt cheap', 'bargain    │
+│  bin' and similar discount-heavy language           │
+│  Required elements: Material quality, comfort       │
+│  CTA: Drive traffic to e-commerce site             │
+│  Character count: 80-120 characters                │
+│  Hashtags: 5"                                      │
+│ -> High-quality copy matching the brand is generated│
 └────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. Adobe Firefly の実践
+## 3. Adobe Firefly in Practice
 
-### 3.1 Text to Image の効果的なプロンプト
+### 3.1 Effective Prompts for Text to Image
 
 ```
-プロンプト構成テンプレート:
+Prompt Structure Template:
 
-  [被写体] + [スタイル] + [構図] + [照明] + [色調] + [品質修飾子]
+  [Subject] + [Style] + [Composition] + [Lighting] + [Color Tone] + [Quality Modifiers]
 
-  例:
+  Example:
   "minimalist product photography of a ceramic coffee mug,
    on a marble surface, soft natural window light,
    warm neutral tones, studio quality, 4K"
 
-  Structure Reference (構図参照):
-  - 参照画像をアップロード → 同じ構図で別の内容を生成
-  - ブランド一貫性の維持に有効
+  Structure Reference:
+  - Upload a reference image -> Generate different content with the same composition
+  - Effective for maintaining brand consistency
 
-  Style Reference (スタイル参照):
-  - 参照画像の色調・雰囲気を新しい画像に適用
-  - ブランドのビジュアルアイデンティティ統一
+  Style Reference:
+  - Apply the color tone and atmosphere of a reference image to a new image
+  - Unify brand visual identity
 ```
 
-### 3.2 Generative Fill (生成塗りつぶし)
+### 3.2 Generative Fill
 
 ```
-Photoshop + Firefly ワークフロー
+Photoshop + Firefly Workflow
 
-  Step 1: 選択範囲を作成
+  Step 1: Create a selection
   +------------------+
-  | [人物写真]        |
-  | [---選択---]     |  ← 背景部分を選択
-  +------------------+
-
-  Step 2: プロンプト入力
-  「東京の夜景、ネオンライト、雨上がりの反射」
-
-  Step 3: AI生成
-  +------------------+
-  | [人物写真]        |
-  | [東京夜景背景]    |  ← 自然な合成
+  | [Portrait photo]  |
+  | [---Selection---] |  <- Select the background area
   +------------------+
 
-  活用例:
-  - 商品画像の背景変更
-  - 被写体の拡張（画像の端を生成で広げる）
-  - 不要なオブジェクトの除去と背景生成
+  Step 2: Enter prompt
+  "Tokyo night cityscape, neon lights, post-rain reflections"
+
+  Step 3: AI generation
+  +------------------+
+  | [Portrait photo]  |
+  | [Tokyo night bg]  |  <- Natural composite
+  +------------------+
+
+  Use cases:
+  - Changing product image backgrounds
+  - Extending subjects (expanding the edges of an image with generation)
+  - Removing unwanted objects and generating background
 ```
 
-### 3.3 Firefly API 連携
+### 3.3 Firefly API Integration
 
 ```python
-# Adobe Firefly API (擬似コード)
+# Adobe Firefly API (pseudo-code)
 import adobe_firefly
 
 client = adobe_firefly.Client(api_key="your-api-key")
@@ -495,18 +504,18 @@ for i, image in enumerate(result.images):
 # Generative Fill
 result = client.generative_fill(
     image_path="product.jpg",
-    mask_path="mask.png",          # 白=生成領域、黒=保持領域
+    mask_path="mask.png",          # White=generation area, Black=preserve area
     prompt="wooden table surface with soft shadows",
 )
 result.image.save("product_on_wood.jpg")
 ```
 
-### 3.4 Firefly と Creative Cloud の統合ワークフロー
+### 3.4 Firefly and Creative Cloud Integration Workflow
 
 ```python
-# Adobe Creative Cloud 統合ワークフロー
+# Adobe Creative Cloud integration workflow
 class AdobeCreativeWorkflow:
-    """Firefly + Photoshop + Illustrator の統合パイプライン"""
+    """Integrated pipeline for Firefly + Photoshop + Illustrator"""
 
     def __init__(self, client_id: str, client_secret: str):
         self.auth = self._authenticate(client_id, client_secret)
@@ -515,7 +524,7 @@ class AdobeCreativeWorkflow:
         self.illustrator = IllustratorAPIClient(self.auth)
 
     def _authenticate(self, client_id, client_secret):
-        """Adobe IMS OAuth認証"""
+        """Adobe IMS OAuth authentication"""
         import requests
         response = requests.post(
             "https://ims-na1.adobelogin.com/ims/token/v3",
@@ -534,32 +543,32 @@ class AdobeCreativeWorkflow:
         scene_prompt: str,
         output_sizes: dict = None,
     ) -> dict:
-        """商品ヒーロー画像の生成パイプライン
+        """Product hero image generation pipeline
 
-        1. 商品画像の背景除去
-        2. Firefly でシーン生成
-        3. Photoshop で合成・レタッチ
-        4. 複数サイズで書き出し
+        1. Remove background from product image
+        2. Generate scene with Firefly
+        3. Composite and retouch with Photoshop
+        4. Export in multiple sizes
         """
-        # Step 1: 背景除去
+        # Step 1: Background removal
         cutout = self.photoshop.remove_background(
             input_path=product_image_path,
             output_format="png",
-            refine_edge=True,      # エッジの精密処理
-            edge_feather=1.5,      # 自然なフェザリング
+            refine_edge=True,      # Precise edge processing
+            edge_feather=1.5,      # Natural feathering
         )
 
-        # Step 2: シーン背景を Firefly で生成
+        # Step 2: Generate scene background with Firefly
         background = self.firefly.generate_image(
             prompt=scene_prompt,
             style="photo",
             aspect_ratio="16:9",
             content_class="photo",
             visual_intensity=5,
-            num_variations=4,       # 4パターン生成
+            num_variations=4,       # Generate 4 patterns
         )
 
-        # Step 3: Photoshop API で合成
+        # Step 3: Composite with Photoshop API
         composites = []
         for i, bg in enumerate(background.images):
             composite = self.photoshop.composite_images(
@@ -586,7 +595,7 @@ class AdobeCreativeWorkflow:
             )
             composites.append(composite)
 
-        # Step 4: 複数サイズで書き出し
+        # Step 4: Export in multiple sizes
         sizes = output_sizes or {
             "hero_desktop": {"width": 1920, "height": 1080},
             "hero_mobile": {"width": 750, "height": 1334},
@@ -595,14 +604,14 @@ class AdobeCreativeWorkflow:
         }
 
         final_outputs = {}
-        best_composite = composites[0]  # または手動選択
+        best_composite = composites[0]  # Or manual selection
 
         for name, size in sizes.items():
             output = self.photoshop.resize_and_crop(
                 image=best_composite.url,
                 width=size["width"],
                 height=size["height"],
-                crop_mode="smart",   # AI による最適クロップ
+                crop_mode="smart",   # AI-optimized cropping
                 format="jpg",
                 quality=92,
             )
@@ -619,9 +628,9 @@ class AdobeCreativeWorkflow:
         style_reference: str,
         strength: float = 0.7,
     ) -> list[str]:
-        """Style Reference を使ったバッチスタイル統一
+        """Batch style unification using Style Reference
 
-        ブランドの写真すべてを同じトーンに統一する
+        Unify all brand photos to the same tone
         """
         results = []
         for img_path in source_images:
@@ -629,20 +638,20 @@ class AdobeCreativeWorkflow:
                 source_image=img_path,
                 style_reference=style_reference,
                 strength=strength,
-                preserve_structure=True,    # 構図を保持
-                preserve_color_range=0.3,   # 色の変更範囲
+                preserve_structure=True,    # Preserve composition
+                preserve_color_range=0.3,   # Color change range
             )
             results.append(result.url)
         return results
 
 
-# 使用例: ECサイトの商品画像制作
+# Usage example: Product image creation for an e-commerce site
 workflow = AdobeCreativeWorkflow(
     client_id="your-client-id",
     client_secret="your-client-secret"
 )
 
-# 商品ヒーロー画像生成
+# Generate product hero image
 hero = workflow.generate_product_hero(
     product_image_path="product_sneaker.jpg",
     scene_prompt="urban street at golden hour, wet asphalt reflection, "
@@ -654,97 +663,97 @@ hero = workflow.generate_product_hero(
     }
 )
 
-print(f"バリエーション: {len(hero['variations'])}個生成")
+print(f"Variations: {len(hero['variations'])} generated")
 for name, url in hero["final_outputs"].items():
     print(f"  {name}: {url}")
 ```
 
-### 3.5 Generative Expand（画像拡張）の実践テクニック
+### 3.5 Practical Techniques for Generative Expand
 
 ```
-Generative Expand の活用パターン
+Generative Expand Usage Patterns
 
-パターン1: アスペクト比変換
+Pattern 1: Aspect Ratio Conversion
   ┌──────────┐
-  │ 元の画像  │ 1:1 (Instagram)
+  │ Original  │ 1:1 (Instagram)
   │ 1080x1080│
   └──────────┘
        ↓ Generative Expand
   ┌────────────────────────┐
-  │ [←拡張] 元画像 [拡張→] │ 16:9 (YouTube サムネイル)
+  │ [←expand] Original [expand→] │ 16:9 (YouTube thumbnail)
   │    1920 x 1080         │
   └────────────────────────┘
 
-パターン2: 印刷用の余白追加
+Pattern 2: Adding Margins for Print
   ┌──────────┐         ┌────────────────┐
-  │ [デザイン]│  →     │    [余白]       │
+  │ [Design]  │  →     │    [Margin]     │
   │          │         │  ┌──────────┐  │
-  │          │         │  │[デザイン] │  │ 裁ち落とし
-  │          │         │  └──────────┘  │ 余白を AI で生成
+  │          │         │  │ [Design]  │  │ Bleed margins
+  │          │         │  └──────────┘  │ generated by AI
   └──────────┘         └────────────────┘
 
-パターン3: パノラマ化
+Pattern 3: Panoramic Expansion
   ┌──────────┐
-  │ [風景写真]│
-  │          │
+  │ [Landscape│
+  │  photo]  │
   └──────────┘
-       ↓ 左右に Generative Expand
+       ↓ Generative Expand left and right
   ┌──────────────────────────────────────┐
-  │ [←AI生成拡張] [元の風景写真] [拡張→] │
-  │            超ワイドパノラマ            │
+  │ [←AI expand] [Original landscape] [expand→] │
+  │            Ultra-wide panorama        │
   └──────────────────────────────────────┘
 
-プロンプトのコツ:
-- 拡張部分に何を生成すべきかを具体的に指示
-- 「continue the same style and lighting」を追加
-- 構図のバランスを意識した指示
-- NG: 「拡張して」だけでは不自然な結果になりやすい
+Prompt Tips:
+- Provide specific instructions for what to generate in the expanded area
+- Add "continue the same style and lighting"
+- Give instructions mindful of compositional balance
+- Avoid: Just saying "expand" tends to produce unnatural results
 ```
 
 ---
 
-## 4. Figma AI の実践
+## 4. Figma AI in Practice
 
 ### 4.1 Auto Layout AI
 
 ```
-Figma AI のデザイン支援
+Figma AI Design Assistance
 
-  /auto-layout コマンド:
-  選択した要素に最適な Auto Layout を自動適用
-  ├── パディング推定
-  ├── ギャップ推定
-  └── アラインメント推定
+  /auto-layout command:
+  Automatically apply optimal Auto Layout to selected elements
+  ├── Padding estimation
+  ├── Gap estimation
+  └── Alignment estimation
 
-  /suggest-component コマンド:
-  デザインシステムから類似コンポーネントを提案
-  ├── 既存のボタンスタイル候補
-  ├── カードレイアウト候補
-  └── ナビゲーションパターン候補
+  /suggest-component command:
+  Suggest similar components from the design system
+  ├── Existing button style candidates
+  ├── Card layout candidates
+  └── Navigation pattern candidates
 ```
 
-### 4.2 プロトタイプ支援
+### 4.2 Prototype Assistance
 
 ```
-  デザイン画面                  AI 提案
+  Design Screen                AI Suggestions
   +------------------+         +------------------+
-  | [ログイン画面]    |  --->   | インタラクション: |
-  |                  |         | - ボタン→ホーム  |
-  | Email: [____]    |         | - エラー表示     |
-  | Pass:  [____]    |         | - ローディング    |
-  | [ログイン]       |         | - パスワード忘れ  |
+  | [Login Screen]    |  --->   | Interactions:    |
+  |                  |         | - Button→Home    |
+  | Email: [____]    |         | - Error display  |
+  | Pass:  [____]    |         | - Loading        |
+  | [Login]          |         | - Forgot password|
   +------------------+         +------------------+
 ```
 
-### 4.3 Figma API を活用した自動化
+### 4.3 Automation with the Figma API
 
 ```python
-# Figma API でデザインデータを取得・操作
+# Retrieve and manipulate design data with the Figma API
 import requests
 import json
 
 class FigmaDesignAutomation:
-    """Figma API を使ったデザインプロセス自動化"""
+    """Design process automation using the Figma API"""
 
     BASE_URL = "https://api.figma.com/v1"
 
@@ -752,7 +761,7 @@ class FigmaDesignAutomation:
         self.headers = {"X-FIGMA-TOKEN": access_token}
 
     def get_file(self, file_key: str, depth: int = 2) -> dict:
-        """Figma ファイルの構造を取得"""
+        """Retrieve the structure of a Figma file"""
         response = requests.get(
             f"{self.BASE_URL}/files/{file_key}",
             headers=self.headers,
@@ -762,7 +771,7 @@ class FigmaDesignAutomation:
         return response.json()
 
     def get_components(self, file_key: str) -> list[dict]:
-        """ファイル内のコンポーネント一覧を取得"""
+        """Retrieve the list of components in a file"""
         response = requests.get(
             f"{self.BASE_URL}/files/{file_key}/components",
             headers=self.headers,
@@ -779,7 +788,7 @@ class FigmaDesignAutomation:
         ]
 
     def get_design_tokens(self, file_key: str) -> dict:
-        """デザイントークン（Variables）を取得"""
+        """Retrieve design tokens (Variables)"""
         response = requests.get(
             f"{self.BASE_URL}/files/{file_key}/variables/local",
             headers=self.headers,
@@ -793,7 +802,7 @@ class FigmaDesignAutomation:
             values = var.get("valuesByMode", {})
 
             if resolved == "COLOR":
-                # RGBA値を取得
+                # Retrieve RGBA values
                 for mode_id, value in values.items():
                     if isinstance(value, dict) and "r" in value:
                         hex_color = self._rgba_to_hex(value)
@@ -810,7 +819,7 @@ class FigmaDesignAutomation:
         node_ids: list[str],
         output_dir: str = "./exports",
     ) -> list[str]:
-        """コンポーネントをSVGとしてエクスポート"""
+        """Export components as SVG"""
         import os
         os.makedirs(output_dir, exist_ok=True)
 
@@ -839,11 +848,11 @@ class FigmaDesignAutomation:
         return exported
 
     def generate_design_audit_report(self, file_key: str) -> dict:
-        """デザインファイルの品質監査レポートを生成"""
+        """Generate a quality audit report for a design file"""
         file_data = self.get_file(file_key, depth=4)
         components = self.get_components(file_key)
 
-        # ページ分析
+        # Page analysis
         pages = file_data.get("document", {}).get("children", [])
         report = {
             "file_name": file_data.get("name", "Unknown"),
@@ -853,7 +862,7 @@ class FigmaDesignAutomation:
             "recommendations": [],
         }
 
-        # コンポーネント使用状況の分析
+        # Component usage analysis
         detached_instances = 0
         unnamed_layers = 0
         inconsistent_spacing = set()
@@ -864,35 +873,35 @@ class FigmaDesignAutomation:
                 unnamed_layers, inconsistent_spacing
             )
 
-        # レポート生成
+        # Report generation
         if unnamed_layers > 10:
             report["issues"].append({
                 "type": "naming",
                 "severity": "warning",
-                "message": f"{unnamed_layers}個の命名されていないレイヤーがあります",
-                "fix": "レイヤーに意味のある名前を付けてください",
+                "message": f"{unnamed_layers} unnamed layers found",
+                "fix": "Please give meaningful names to layers",
             })
 
         if detached_instances > 0:
             report["issues"].append({
                 "type": "consistency",
                 "severity": "error",
-                "message": f"{detached_instances}個のデタッチされたインスタンスがあります",
-                "fix": "メインコンポーネントに再リンクしてください",
+                "message": f"{detached_instances} detached instances found",
+                "fix": "Please re-link to main components",
             })
 
         report["score"] = max(0, 100 - len(report["issues"]) * 10)
         return report
 
     def _rgba_to_hex(self, rgba: dict) -> str:
-        """RGBA値を16進カラーコードに変換"""
+        """Convert RGBA values to hex color code"""
         r = int(rgba["r"] * 255)
         g = int(rgba["g"] * 255)
         b = int(rgba["b"] * 255)
         return f"#{r:02x}{g:02x}{b:02x}"
 
     def _analyze_node(self, node, report, detached, unnamed, spacing):
-        """ノードを再帰的に分析"""
+        """Recursively analyze nodes"""
         if node.get("name", "").startswith("Frame ") or node.get("name", "").startswith("Group "):
             unnamed += 1
         children = node.get("children", [])
@@ -900,29 +909,29 @@ class FigmaDesignAutomation:
             self._analyze_node(child, report, detached, unnamed, spacing)
 
 
-# 使用例
+# Usage example
 figma = FigmaDesignAutomation(access_token="your-figma-token")
 
-# デザイントークンの取得
+# Retrieve design tokens
 tokens = figma.get_design_tokens(file_key="abc123xyz")
-print("カラートークン:")
+print("Color tokens:")
 for name, color in tokens["colors"].items():
     print(f"  {name}: {color}")
 
-# 品質監査レポート
+# Quality audit report
 report = figma.generate_design_audit_report(file_key="abc123xyz")
-print(f"\nデザイン監査スコア: {report['score']}/100")
+print(f"\nDesign audit score: {report['score']}/100")
 for issue in report["issues"]:
     print(f"  [{issue['severity']}] {issue['message']}")
 ```
 
-### 4.4 デザインシステムの AI 活用
+### 4.4 AI Utilization in Design Systems
 
 ```
-デザインシステムにおける AI の役割
+The Role of AI in Design Systems
 
 ┌──────────────────────────────────────────────────────────┐
-│                    デザインシステム                         │
+│                    Design System                          │
 │                                                          │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
 │  │ Foundation    │  │ Components   │  │ Patterns     │  │
@@ -938,13 +947,14 @@ for issue in report["issues"]:
 │  │              AI Intelligence Layer                  │  │
 │  │                                                    │  │
 │  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │  │
-│  │  │コンポーネント │ │アクセシビリ │ │一貫性       │ │  │
-│  │  │推薦エンジン  │ │ティチェック │ │チェッカー    │ │  │
+│  │  │Component    │ │Accessibility│ │Consistency  │ │  │
+│  │  │Recommenda-  │ │Check        │ │Checker      │ │  │
+│  │  │tion Engine  │ │             │ │             │ │  │
 │  │  └─────────────┘ └─────────────┘ └─────────────┘ │  │
 │  │                                                    │  │
 │  │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ │  │
-│  │  │レスポンシブ  │ │ダークモード │ │多言語対応    │ │  │
-│  │  │レイアウト    │ │自動生成     │ │レイアウト    │ │  │
+│  │  │Responsive   │ │Dark Mode    │ │Multilingual │ │  │
+│  │  │Layout       │ │Auto-gen     │ │Layout       │ │  │
 │  │  └─────────────┘ └─────────────┘ └─────────────┘ │  │
 │  └────────────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────────────┘
@@ -952,14 +962,14 @@ for issue in report["issues"]:
 
 ---
 
-## 5. ツール連携とパイプライン構築
+## 5. Tool Integration and Pipeline Construction
 
-### 5.1 マルチツールワークフロー
+### 5.1 Multi-tool Workflow
 
 ```python
-# 複数ツールを連携させた制作パイプライン
+# Production pipeline integrating multiple tools
 class DesignPipeline:
-    """Canva + Firefly + Figma の統合パイプライン"""
+    """Integrated pipeline for Canva + Firefly + Figma"""
 
     def __init__(self, config: dict):
         self.canva = CanvaBrandManager(
@@ -980,15 +990,15 @@ class DesignPipeline:
         product_images: list[str],
         brand_guidelines: dict,
     ) -> dict:
-        """製品ローンチキャンペーンの全デザイン素材を一括生成
+        """Bulk generate all design assets for a product launch campaign
 
-        1. Firefly で高品質商品画像を生成
-        2. Canva でSNS投稿素材を一括生成
-        3. Figma のデザインシステムから LP コンポーネントを取得
+        1. Generate high-quality product images with Firefly
+        2. Bulk generate SNS post assets with Canva
+        3. Retrieve LP components from Figma's design system
         """
         results = {"hero_images": [], "sns_assets": [], "lp_components": []}
 
-        # Phase 1: 商品ヒーロー画像（Adobe Firefly）
+        # Phase 1: Product hero images (Adobe Firefly)
         for img in product_images:
             hero = self.adobe.generate_product_hero(
                 product_image_path=img,
@@ -999,14 +1009,14 @@ class DesignPipeline:
             )
             results["hero_images"].append(hero)
 
-        # Phase 2: SNS 素材（Canva）
+        # Phase 2: SNS assets (Canva)
         sns_data = []
         for i, hero in enumerate(results["hero_images"]):
             sns_data.append({
                 "product_name": product_name,
                 "hero_image": hero["final_outputs"]["square"],
-                "campaign_text": f"{product_name} 新発売",
-                "cta_text": "詳しくはプロフィールのリンクから",
+                "campaign_text": f"{product_name} Now Available",
+                "cta_text": "Learn more via the link in our profile",
             })
 
         results["sns_assets"] = self.canva.batch_generate_with_brand(
@@ -1016,7 +1026,7 @@ class DesignPipeline:
                    "facebook_post", "twitter_post"],
         )
 
-        # Phase 3: LP コンポーネント（Figma）
+        # Phase 3: LP components (Figma)
         components = self.figma.get_components(
             file_key=brand_guidelines["figma_file_key"]
         )
@@ -1029,7 +1039,7 @@ class DesignPipeline:
         return results
 
 
-# パイプライン実行
+# Execute the pipeline
 pipeline = DesignPipeline(config={
     "canva_api_key": "canva-key",
     "canva_brand_id": "brand-123",
@@ -1039,7 +1049,7 @@ pipeline = DesignPipeline(config={
 })
 
 campaign = pipeline.product_launch_campaign(
-    product_name="EcoBreeze スニーカー",
+    product_name="EcoBreeze Sneakers",
     product_images=["sneaker_front.jpg", "sneaker_side.jpg"],
     brand_guidelines={
         "hero_scene": "urban rooftop at sunset, concrete and plants",
@@ -1048,111 +1058,111 @@ campaign = pipeline.product_launch_campaign(
     },
 )
 
-print(f"ヒーロー画像: {len(campaign['hero_images'])}パターン")
-print(f"SNS素材: {len(campaign['sns_assets'])}セット")
-print(f"LPコンポーネント: {len(campaign['lp_components'])}個")
+print(f"Hero images: {len(campaign['hero_images'])} patterns")
+print(f"SNS assets: {len(campaign['sns_assets'])} sets")
+print(f"LP components: {len(campaign['lp_components'])} items")
 ```
 
 ---
 
-## 6. ツール比較表
+## 6. Tool Comparison Table
 
-| 機能 | Canva | Adobe Firefly | Figma AI |
-|------|:-----:|:------------:|:--------:|
-| テキスト→画像生成 | Magic Media | Text to Image | -- |
-| 画像編集 AI | Magic Edit | Generative Fill | -- |
-| 背景除去 | 対応 | 対応 | -- |
-| テンプレート自動生成 | Magic Design | -- | Auto Layout |
-| 文章生成 | Magic Write | -- | -- |
-| UI コンポーネント提案 | -- | -- | 対応 |
-| プロトタイプ AI | -- | -- | 対応 |
-| API 連携 | Canva API | Firefly API | Figma API |
-| 料金 | 無料〜月額1,500円 | Creative Cloud に含む | 無料〜月額$15 |
-| 対象ユーザー | 全般・非デザイナー | プロデザイナー | UI/UXデザイナー |
+| Feature | Canva | Adobe Firefly | Figma AI |
+|---------|:-----:|:------------:|:--------:|
+| Text-to-image generation | Magic Media | Text to Image | -- |
+| AI image editing | Magic Edit | Generative Fill | -- |
+| Background removal | Supported | Supported | -- |
+| Auto template generation | Magic Design | -- | Auto Layout |
+| Text generation | Magic Write | -- | -- |
+| UI component suggestions | -- | -- | Supported |
+| Prototype AI | -- | -- | Supported |
+| API integration | Canva API | Firefly API | Figma API |
+| Pricing | Free to ~$13/month | Included in Creative Cloud | Free to $15/month |
+| Target users | General / Non-designers | Professional designers | UI/UX designers |
 
-| ユースケース | 推奨ツール | 理由 |
-|------------|-----------|------|
-| SNS 投稿画像 | Canva | テンプレート+一括生成 |
-| 商品画像の背景変更 | Adobe Firefly | 高品質な Generative Fill |
-| Webサイト UI デザイン | Figma AI | コンポーネント管理+プロトタイプ |
-| プレゼン資料 | Canva | テンプレート豊富、操作簡単 |
-| 写真加工・合成 | Adobe Firefly | Photoshop 連携、プロ品質 |
-| デザインシステム構築 | Figma AI | 変数管理、コンポーネントライブラリ |
+| Use Case | Recommended Tool | Reason |
+|----------|-----------------|--------|
+| SNS post images | Canva | Templates + bulk generation |
+| Product image background changes | Adobe Firefly | High-quality Generative Fill |
+| Website UI design | Figma AI | Component management + prototype |
+| Presentation materials | Canva | Rich templates, easy operation |
+| Photo editing and compositing | Adobe Firefly | Photoshop integration, pro quality |
+| Design system construction | Figma AI | Variable management, component library |
 
 ---
 
-## 6. アンチパターン
+## 6. Anti-patterns
 
-### アンチパターン 1: AI 生成をそのまま使う
+### Anti-pattern 1: Using AI-generated Output As-is
 
 ```
 BAD:
-  AI で画像生成 → ブランドガイドライン無視でそのまま使用
-  → 色調がバラバラ、フォントが統一されない、ブランドイメージが崩壊
+  Generate image with AI -> Use as-is ignoring brand guidelines
+  -> Inconsistent color tones, non-unified fonts, brand image collapse
 
 GOOD:
-  1. ブランドキット（カラー、フォント、ロゴ）を事前設定
-  2. AI 生成をベースとして使用
-  3. ブランドガイドラインに合わせて調整
-  4. チームレビューを経て公開
+  1. Pre-configure brand kit (colors, fonts, logos)
+  2. Use AI generation as a base
+  3. Adjust to match brand guidelines
+  4. Publish after team review
 ```
 
-### アンチパターン 2: 1つのツールで全てをこなそうとする
+### Anti-pattern 2: Trying to Do Everything with One Tool
 
 ```
 BAD:
-  Canva で UI デザイン → レスポンシブ対応できない
-  Figma で SNS 画像 → テンプレート機能が弱い
+  UI design with Canva -> Cannot handle responsive design
+  SNS images with Figma -> Weak template features
 
-GOOD: ツールを使い分ける
-  企画・アイデア出し    → Canva (Magic Write)
-  UI/UXデザイン         → Figma AI
-  写真加工・商品画像    → Adobe Firefly + Photoshop
-  SNS投稿・マーケ素材   → Canva (Magic Design)
+GOOD: Use the right tool for the job
+  Planning and ideation       -> Canva (Magic Write)
+  UI/UX design                -> Figma AI
+  Photo editing / product images -> Adobe Firefly + Photoshop
+  SNS posts / marketing assets   -> Canva (Magic Design)
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input values"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1161,26 +1171,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1188,7 +1198,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1199,14 +1209,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1214,7 +1224,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1222,44 +1232,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1268,7 +1278,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1283,75 +1293,75 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f} sec")
+    print(f"Efficient version:   {fast_time:.6f} sec")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm time complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 ---
 
 ## 7. FAQ
 
-### Q1. AI 生成画像の著作権はどうなる？
+### Q1. What about the copyright of AI-generated images?
 
-**A.** 各ツールで規約が異なる。**Canva**: 商用利用可。生成画像の著作権はユーザーに帰属。**Adobe Firefly**: 商用利用可。学習データは Adobe Stock とライセンス済み素材のみ（著作権侵害リスクが低い）。IP 補償あり。**Figma**: AI 提案のレイアウト自体に著作権は発生しない。いずれも利用規約を定期的に確認すること。
+**A.** Terms differ by tool. **Canva**: Commercial use allowed. Copyright of generated images belongs to the user. **Adobe Firefly**: Commercial use allowed. Training data consists only of Adobe Stock and licensed materials (low risk of copyright infringement). IP indemnification provided. **Figma**: Copyright does not apply to AI-suggested layouts themselves. Always check the terms of service regularly for all tools.
 
-### Q2. デザインの一貫性をAIで維持するには？
+### Q2. How can AI help maintain design consistency?
 
-**A.** (1) **ブランドキット**を各ツールに事前登録する（カラーパレット、フォント、ロゴ）。(2) Adobe Firefly の **Style Reference** で色調・雰囲気を統一する。(3) Canva の **Brand Kit** 機能でテンプレートを標準化する。(4) Figma の **Design Tokens** でコンポーネントの変数を管理する。AI 生成時にこれらの制約を入力として与えることで一貫性を維持する。
+**A.** (1) Pre-register a **brand kit** in each tool (color palette, fonts, logos). (2) Use Adobe Firefly's **Style Reference** to unify color tones and atmosphere. (3) Use Canva's **Brand Kit** feature to standardize templates. (4) Use Figma's **Design Tokens** to manage component variables. Providing these constraints as input during AI generation maintains consistency.
 
-### Q3. 非デザイナーがデザインツールを選ぶ基準は？
+### Q3. What criteria should non-designers use when choosing a design tool?
 
-**A.** (1) **学習コストが最も低い**のは Canva（テンプレートベースで直感的操作）。(2) SNS やプレゼン資料なら Canva で十分。(3) Web/アプリの UI デザインが必要なら Figma（エンジニアとの連携が容易）。(4) 高品質な画像加工が必要なら Adobe Firefly（Photoshop 連携）。まず Canva から始め、必要に応じて他ツールを追加するのが現実的。
+**A.** (1) **Canva has the lowest learning curve** (template-based with intuitive operation). (2) Canva is sufficient for SNS and presentation materials. (3) If web/app UI design is needed, choose Figma (easy collaboration with engineers). (4) If high-quality image editing is needed, choose Adobe Firefly (Photoshop integration). Start with Canva and add other tools as needed -- this is the most practical approach.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory but by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| Canva | 非デザイナー向け。テンプレート + AI で高速にデザイン制作 |
-| Adobe Firefly | プロ向け。Photoshop 連携、高品質な画像生成・編集 |
-| Figma AI | UI/UX 向け。コンポーネント提案、Auto Layout、プロトタイプ支援 |
-| ツール選定 | ユースケースと対象ユーザーのスキルレベルで判断 |
-| ブランド一貫性 | Brand Kit、Style Reference、Design Tokens で統一 |
-| AI 生成の注意点 | そのまま使わず、ブランドガイドラインに合わせて調整 |
+Knowledge of this topic is frequently utilized in everyday development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [動画編集](../02-video/01-video-editing.md) -- AI を活用した動画編集ツール
-- [アニメーション](../02-video/02-animation.md) -- AI アニメーション生成
-- [倫理的考慮](../03-3d/03-ethical-considerations.md) -- AI 生成コンテンツの著作権と倫理
+| Item | Key Point |
+|------|-----------|
+| Canva | For non-designers. Rapid design creation with templates + AI |
+| Adobe Firefly | For professionals. Photoshop integration, high-quality image generation and editing |
+| Figma AI | For UI/UX. Component suggestions, Auto Layout, prototype assistance |
+| Tool selection | Decide based on use case and target user skill level |
+| Brand consistency | Unify with Brand Kit, Style Reference, and Design Tokens |
+| AI generation caveats | Do not use as-is; adjust to match brand guidelines |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
 
-1. **Canva Design School** -- https://www.canva.com/designschool/ -- Canva の公式学習リソース
-2. **Adobe Firefly Documentation** -- https://www.adobe.com/products/firefly.html -- Firefly の公式ドキュメント
-3. **Figma Learn** -- https://help.figma.com/ -- Figma の公式ヘルプセンター
+- [Video Editing](../02-video/01-video-editing.md) -- AI-powered video editing tools
+- [Animation](../02-video/02-animation.md) -- AI animation generation
+- [Ethical Considerations](../03-3d/03-ethical-considerations.md) -- Copyright and ethics of AI-generated content
+
+---
+
+## References
+
+1. **Canva Design School** -- https://www.canva.com/designschool/ -- Official learning resources for Canva
+2. **Adobe Firefly Documentation** -- https://www.adobe.com/products/firefly.html -- Official Firefly documentation
+3. **Figma Learn** -- https://help.figma.com/ -- Official Figma help center
