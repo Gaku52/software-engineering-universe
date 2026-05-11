@@ -1,83 +1,83 @@
-# 音声エフェクト — AI EQ、ノイズ除去、マスタリング
+# Audio Effects — AI EQ, Noise Removal, Mastering
 
-> AIを活用した音声エフェクト処理（EQ、ノイズ除去、マスタリング）の技術と実装を解説する
+> An explanation of AI-powered audio effect processing (EQ, noise removal, mastering) techniques and implementation
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. 従来の音声エフェクトとAIエフェクトの違い、主要な処理カテゴリ
-2. AIノイズ除去、自動EQ、自動マスタリングの技術的仕組みと実装
-3. 実践的なエフェクトチェーン構築と品質改善パターン
+1. Differences between traditional and AI audio effects, and the main processing categories
+2. Technical mechanisms and implementation of AI noise removal, automatic EQ, and automatic mastering
+3. Building practical effect chains and quality improvement patterns
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge will deepen your understanding of this guide:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [ステム分離 — Demucs、LALAL.AI](./01-stem-separation.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding the content of [Stem Separation — Demucs, LALAL.AI](./01-stem-separation.md)
 
 ---
 
-## 1. 音声エフェクトの基礎
+## 1. Audio Effects Fundamentals
 
-### 1.1 エフェクトチェーンの構成
+### 1.1 Effect Chain Structure
 
 ```
-標準的な音声エフェクトチェーン
+Standard Audio Effect Chain
 ==================================================
 
-入力音声
-  │
-  ▼
-┌──────────────┐
-│ 1. ノイズ除去 │  背景ノイズ、ハム音除去
-│   (Denoise)  │  ← AI が最も効果的
-└──────┬───────┘
-       ▼
-┌──────────────┐
-│ 2. EQ        │  周波数バランス調整
-│  (Equalizer) │  ← AI で自動最適化
-└──────┬───────┘
-       ▼
-┌──────────────┐
-│ 3. コンプ    │  ダイナミックレンジ圧縮
-│ (Compressor) │  音量差を均一化
-└──────┬───────┘
-       ▼
-┌──────────────┐
-│ 4. リバーブ   │  空間的広がり付与
-│  (Reverb)    │
-└──────┬───────┘
-       ▼
-┌──────────────┐
-│ 5. リミッター │  ピーク制御
-│  (Limiter)   │  クリッピング防止
-└──────┬───────┘
-       ▼
-┌──────────────┐
-│ 6. マスタリング│  最終調整
-│  (Mastering) │  ← AI で自動化可能
-└──────┬───────┘
-       ▼
-  出力音声
+Input Audio
+  |
+  v
++-----------------+
+| 1. Denoise      |  Background noise, hum removal
+|   (Denoise)     |  <- AI is most effective here
++--------+--------+
+         v
++-----------------+
+| 2. EQ           |  Frequency balance adjustment
+|  (Equalizer)    |  <- AI auto-optimization
++--------+--------+
+         v
++-----------------+
+| 3. Comp         |  Dynamic range compression
+| (Compressor)    |  Leveling volume differences
++--------+--------+
+         v
++-----------------+
+| 4. Reverb       |  Adding spatial depth
+|  (Reverb)       |
++--------+--------+
+         v
++-----------------+
+| 5. Limiter      |  Peak control
+|  (Limiter)      |  Clipping prevention
++--------+--------+
+         v
++-----------------+
+| 6. Mastering    |  Final adjustment
+|  (Mastering)    |  <- Can be automated with AI
++--------+--------+
+         v
+  Output Audio
 ==================================================
 ```
 
-### 1.2 従来 vs AI エフェクトの比較
+### 1.2 Traditional vs AI Effects Comparison
 
 ```python
-# 従来のノイズ除去 vs AIノイズ除去の比較
+# Comparison of traditional noise removal vs AI noise removal
 
 import numpy as np
 
-# 従来手法: スペクトルサブトラクション
+# Traditional method: Spectral subtraction
 def spectral_subtraction(noisy_signal, noise_profile, sr=16000):
     """
-    スペクトルサブトラクション法
-    - ノイズプロファイル（無音区間）を事前に推定
-    - ノイズスペクトルをクリーン音声から減算
-    - 制限: 定常ノイズにのみ有効、ミュージカルノイズ発生
+    Spectral Subtraction Method
+    - Pre-estimate noise profile (from silent segments)
+    - Subtract noise spectrum from clean audio
+    - Limitation: Only effective for stationary noise, produces musical noise
     """
     n_fft = 2048
     hop = 512
@@ -86,100 +86,100 @@ def spectral_subtraction(noisy_signal, noise_profile, sr=16000):
     noisy_stft = np.fft.rfft(noisy_signal)
     noise_stft = np.fft.rfft(noise_profile)
 
-    # スペクトル減算
+    # Spectral subtraction
     noise_power = np.abs(noise_stft) ** 2
     noisy_power = np.abs(noisy_stft) ** 2
     clean_power = np.maximum(noisy_power - noise_power, 0)
 
-    # 位相は元のまま保持
+    # Preserve original phase
     phase = np.angle(noisy_stft)
     clean_stft = np.sqrt(clean_power) * np.exp(1j * phase)
 
     return np.fft.irfft(clean_stft)
 
-# AI手法: ニューラルネットワーク
+# AI method: Neural network
 def ai_denoise(noisy_signal, model):
     """
-    AIノイズ除去
-    - 非定常ノイズにも対応
-    - ノイズプロファイル不要
-    - ミュージカルノイズが発生しにくい
+    AI Noise Removal
+    - Handles non-stationary noise
+    - No noise profile required
+    - Less prone to musical noise artifacts
     """
-    # 前処理
+    # Preprocessing
     mel_spec = compute_mel_spectrogram(noisy_signal)
-    # マスク推定（U-Net型モデル）
+    # Mask estimation (U-Net model)
     clean_mask = model.predict(mel_spec)
-    # マスク適用
+    # Apply mask
     clean_spec = mel_spec * clean_mask
-    # 逆変換
+    # Inverse transform
     return inverse_mel_spectrogram(clean_spec)
 ```
 
-### 1.3 エフェクトの信号処理的分類
+### 1.3 Signal Processing Classification of Audio Effects
 
-音声エフェクトは信号処理の観点から、大きく以下のカテゴリに分類できる。それぞれのカテゴリでAIがどのように従来手法を改善しているかを理解することが重要である。
+Audio effects can be broadly classified from a signal processing perspective into the following categories. It is important to understand how AI improves upon traditional methods in each category.
 
 ```
-音声エフェクトの信号処理的分類
+Signal Processing Classification of Audio Effects
 ==================================================
 
-1. 時間領域エフェクト
-   ├── ディレイ（遅延）
-   ├── リバーブ（残響）
-   ├── コーラス（揺れ）
-   └── フランジャー / フェイザー
+1. Time-Domain Effects
+   +-- Delay
+   +-- Reverb (Reverberation)
+   +-- Chorus (Modulation)
+   +-- Flanger / Phaser
 
-2. 周波数領域エフェクト
-   ├── EQ（周波数バランス調整）
-   ├── ローパス / ハイパスフィルタ
-   ├── ノッチフィルタ（特定周波数除去）
-   └── ワウ（周波数スイープ）
+2. Frequency-Domain Effects
+   +-- EQ (Frequency balance adjustment)
+   +-- Low-pass / High-pass filter
+   +-- Notch filter (Specific frequency removal)
+   +-- Wah (Frequency sweep)
 
-3. ダイナミクス系エフェクト
-   ├── コンプレッサー（音量差圧縮）
-   ├── リミッター（ピーク制御）
-   ├── ノイズゲート（無音時のノイズ除去）
-   └── エキスパンダー（静音部をさらに静かに）
+3. Dynamics Effects
+   +-- Compressor (Volume difference compression)
+   +-- Limiter (Peak control)
+   +-- Noise Gate (Noise removal during silence)
+   +-- Expander (Makes quiet parts even quieter)
 
-4. ノイズ処理系
-   ├── ノイズ除去（定常/非定常）
-   ├── デリバーブ（残響除去）
-   ├── ディエッサー（歯擦音除去）
-   └── ハム除去（電源ノイズ除去）
+4. Noise Processing
+   +-- Noise Removal (Stationary / Non-stationary)
+   +-- De-reverb (Reverberation removal)
+   +-- De-esser (Sibilance removal)
+   +-- Hum Removal (Power line noise removal)
 
-5. 空間系エフェクト
-   ├── パンニング（左右配置）
-   ├── ステレオイメージング
-   ├── バイノーラル処理（3D音響）
-   └── HRTF（頭部伝達関数）
+5. Spatial Effects
+   +-- Panning (Left-right placement)
+   +-- Stereo Imaging
+   +-- Binaural Processing (3D audio)
+   +-- HRTF (Head-Related Transfer Function)
 
-AIの得意領域:
-  ★★★ ノイズ処理系 — 非定常ノイズ対応で圧倒的優位
-  ★★☆ 周波数領域 — ターゲットプロファイル自動調整
-  ★★☆ ダイナミクス系 — 文脈に応じた自動パラメータ
-  ★☆☆ 空間系 — ルーム推定と自動リバーブ
-  ★☆☆ 時間領域 — 創造的エフェクトは人間が優位
+AI Strengths:
+  ★★★ Noise Processing — Overwhelming advantage with non-stationary noise
+  ★★☆ Frequency Domain — Automatic target profile adjustment
+  ★★☆ Dynamics — Context-aware automatic parameters
+  ★☆☆ Spatial — Room estimation and automatic reverb
+  ★☆☆ Time Domain — Humans excel at creative effects
 ==================================================
 ```
 
-### 1.4 音声処理における基本概念の詳細
+### 1.4 Detailed Fundamental Concepts in Audio Processing
 
 ```python
 import numpy as np
 from scipy import signal
 
 class AudioEffectsFoundation:
-    """音声エフェクトの基礎概念を示すクラス"""
+    """A class demonstrating the fundamental concepts of audio effects"""
 
     @staticmethod
     def compute_stft(audio: np.ndarray, n_fft: int = 2048,
                      hop_length: int = 512) -> np.ndarray:
         """
-        短時間フーリエ変換（STFT）
-        - 音声を時間-周波数表現に変換
-        - エフェクト処理の基盤となる変換
-        - n_fft: FFTウィンドウサイズ（周波数解像度に影響）
-        - hop_length: ウィンドウ間隔（時間解像度に影響）
+        Short-Time Fourier Transform (STFT)
+        - Converts audio to time-frequency representation
+        - The foundational transform for effect processing
+        - n_fft: FFT window size (affects frequency resolution)
+        - hop_length: Window interval (affects time resolution)
         """
         window = np.hanning(n_fft)
         n_frames = (len(audio) - n_fft) // hop_length + 1
@@ -194,7 +194,7 @@ class AudioEffectsFoundation:
 
     @staticmethod
     def compute_magnitude_phase(stft: np.ndarray):
-        """スペクトログラムを振幅と位相に分解"""
+        """Decompose spectrogram into magnitude and phase"""
         magnitude = np.abs(stft)
         phase = np.angle(stft)
         return magnitude, phase
@@ -202,7 +202,7 @@ class AudioEffectsFoundation:
     @staticmethod
     def reconstruct_from_stft(magnitude: np.ndarray, phase: np.ndarray,
                                hop_length: int = 512) -> np.ndarray:
-        """振幅と位相からSTFTを再構成し、逆変換で音声に戻す"""
+        """Reconstruct STFT from magnitude and phase, and convert back to audio via inverse transform"""
         stft = magnitude * np.exp(1j * phase)
         n_fft = (stft.shape[0] - 1) * 2
         n_frames = stft.shape[1]
@@ -219,27 +219,27 @@ class AudioEffectsFoundation:
 
     @staticmethod
     def db_to_linear(db: float) -> float:
-        """デシベルをリニア値に変換"""
+        """Convert decibels to linear value"""
         return 10 ** (db / 20)
 
     @staticmethod
     def linear_to_db(linear: float) -> float:
-        """リニア値をデシベルに変換"""
+        """Convert linear value to decibels"""
         return 20 * np.log10(max(linear, 1e-10))
 
     @staticmethod
     def compute_rms(audio: np.ndarray) -> float:
-        """RMS（二乗平均平方根）レベルを計算"""
+        """Calculate RMS (Root Mean Square) level"""
         return np.sqrt(np.mean(audio ** 2))
 
     @staticmethod
     def compute_peak(audio: np.ndarray) -> float:
-        """ピークレベルを計算"""
+        """Calculate peak level"""
         return np.max(np.abs(audio))
 
     @staticmethod
     def compute_crest_factor(audio: np.ndarray) -> float:
-        """クレストファクター（ピーク/RMS比）を計算"""
+        """Calculate crest factor (peak/RMS ratio)"""
         rms = np.sqrt(np.mean(audio ** 2))
         peak = np.max(np.abs(audio))
         if rms > 0:
@@ -249,16 +249,16 @@ class AudioEffectsFoundation:
 
 ---
 
-## 2. AIノイズ除去
+## 2. AI Noise Removal
 
-### 2.1 主要なAIノイズ除去モデル
+### 2.1 Major AI Noise Removal Models
 
 ```python
-# 1. Meta Denoiser (Demucs ベース)
+# 1. Meta Denoiser (Demucs-based)
 import torchaudio
 
 def demucs_denoise(audio_path: str) -> torch.Tensor:
-    """Demucsベースのノイズ除去"""
+    """Demucs-based noise removal"""
     from denoiser import pretrained
     from denoiser.dsp import convert_audio
 
@@ -273,20 +273,20 @@ def demucs_denoise(audio_path: str) -> torch.Tensor:
 
     return denoised
 
-# 2. noisereduce ライブラリ
+# 2. noisereduce library
 import noisereduce as nr
 import soundfile as sf
 
 def noisereduce_simple(audio_path: str) -> np.ndarray:
-    """noisereduce による簡易ノイズ除去"""
+    """Simple noise removal with noisereduce"""
     audio, sr = sf.read(audio_path)
 
-    # 自動ノイズプロファイル推定
+    # Automatic noise profile estimation
     reduced = nr.reduce_noise(
         y=audio,
         sr=sr,
-        stationary=False,     # 非定常ノイズ対応
-        prop_decrease=0.8,    # ノイズ削減量（0-1）
+        stationary=False,     # Non-stationary noise support
+        prop_decrease=0.8,    # Noise reduction amount (0-1)
         freq_mask_smooth_hz=500,
         time_mask_smooth_ms=50,
     )
@@ -296,10 +296,10 @@ def noisereduce_simple(audio_path: str) -> np.ndarray:
 # 3. RNNoise (Mozilla)
 def rnnoise_denoise(audio_path: str):
     """
-    RNNoise: 超軽量リアルタイムノイズ除去
-    - GRU ベースのリカレントモデル
-    - CPU上でリアルタイム動作
-    - 48kHz / 16bit モノラル入力
+    RNNoise: Ultra-lightweight real-time noise removal
+    - GRU-based recurrent model
+    - Runs in real-time on CPU
+    - 48kHz / 16bit mono input
     """
     import rnnoise
     denoiser = rnnoise.RNNoise()
@@ -307,7 +307,7 @@ def rnnoise_denoise(audio_path: str):
     with open(audio_path, "rb") as f:
         audio_data = f.read()
 
-    # フレーム単位（10ms = 480サンプル @ 48kHz）で処理
+    # Process in frame units (10ms = 480 samples @ 48kHz)
     frame_size = 480
     denoised_frames = []
     for i in range(0, len(audio_data), frame_size * 2):
@@ -318,48 +318,52 @@ def rnnoise_denoise(audio_path: str):
     return b"".join(denoised_frames)
 ```
 
-### 2.2 ノイズ除去パイプライン
+### 2.2 Noise Removal Pipeline
 
 ```
-AIノイズ除去の処理フロー
+AI Noise Removal Processing Flow
 ==================================================
 
-   入力音声 (ノイズ混入)
-       │
-       ▼
-┌─────────────────┐
-│ VAD (音声区間検出)│  音声/非音声区間の識別
-└────────┬────────┘
-         ▼
-┌─────────────────┐
-│ ノイズ分類       │  ノイズ種別の自動判定
-│ - 定常ノイズ     │  (エアコン、ファン等)
-│ - 非定常ノイズ   │  (キーボード、ドア等)
-│ - 反響          │  (エコー、残響)
-└────────┬────────┘
-         ▼
-┌─────────────────┐
-│ モデル選択       │  ノイズ種別に最適な
-│                 │  除去アルゴリズムを選択
-└────────┬────────┘
-         ▼
-┌─────────────────┐
-│ ノイズ除去実行   │  DNNベースの除去処理
-└────────┬────────┘
-         ▼
-┌─────────────────┐
-│ 後処理          │  アーティファクト抑制
-│ - スムージング   │  急激な変化を緩和
-│ - ゲーティング   │  残留ノイズの除去
-└────────┬────────┘
-         ▼
-   出力音声 (クリーン)
+   Input Audio (with noise)
+       |
+       v
++--------------------+
+| VAD (Voice Activity|  Voice/non-voice segment
+|     Detection)     |  identification
++---------+----------+
+          v
++--------------------+
+| Noise Classification|  Automatic noise type
+| - Stationary noise  |  detection
+|   (AC, fan, etc.)   |  (AC, fan, etc.)
+| - Non-stationary    |  (keyboard, door, etc.)
+|   noise             |
+| - Reverberation     |  (echo, reverb)
++---------+----------+
+          v
++--------------------+
+| Model Selection    |  Select optimal removal
+|                    |  algorithm for noise type
++---------+----------+
+          v
++--------------------+
+| Noise Removal      |  DNN-based removal
+|   Execution        |  processing
++---------+----------+
+          v
++--------------------+
+| Post-processing    |  Artifact suppression
+| - Smoothing        |  Mitigate abrupt changes
+| - Gating           |  Remove residual noise
++---------+----------+
+          v
+   Output Audio (clean)
 ==================================================
 ```
 
-### 2.3 高度なノイズ除去: マルチステージパイプライン
+### 2.3 Advanced Noise Removal: Multi-Stage Pipeline
 
-実務でのノイズ除去は単一のモデルではなく、複数のステージを組み合わせることで最高品質を達成する。各ステージは特定のノイズタイプに対応し、順次処理される。
+In practice, noise removal achieves the highest quality not with a single model but by combining multiple stages. Each stage handles a specific noise type and processes sequentially.
 
 ```python
 import numpy as np
@@ -369,51 +373,51 @@ from typing import Optional, List, Tuple
 
 @dataclass
 class NoiseAnalysisResult:
-    """ノイズ分析結果"""
-    has_hum: bool           # 電源ハム（50Hz/60Hz）
-    has_broadband: bool     # ブロードバンドノイズ（ホワイトノイズ系）
-    has_impulse: bool       # インパルスノイズ（クリック、ポップ）
-    has_reverb: bool        # 過剰な残響
-    has_sibilance: bool     # 過剰な歯擦音
-    snr_estimate: float     # 推定SNR（dB）
-    dominant_noise_freq: Optional[float]  # 主要ノイズ周波数
+    """Noise analysis result"""
+    has_hum: bool           # Power hum (50Hz/60Hz)
+    has_broadband: bool     # Broadband noise (white noise type)
+    has_impulse: bool       # Impulse noise (clicks, pops)
+    has_reverb: bool        # Excessive reverberation
+    has_sibilance: bool     # Excessive sibilance
+    snr_estimate: float     # Estimated SNR (dB)
+    dominant_noise_freq: Optional[float]  # Dominant noise frequency
 
 class MultiStageDenoiser:
-    """マルチステージノイズ除去パイプライン"""
+    """Multi-stage noise removal pipeline"""
 
     def __init__(self, sr: int = 16000):
         self.sr = sr
 
     def analyze_noise(self, audio: np.ndarray) -> NoiseAnalysisResult:
-        """ノイズの種類と特性を分析"""
-        # スペクトル分析
+        """Analyze the type and characteristics of noise"""
+        # Spectral analysis
         fft = np.fft.rfft(audio)
         freqs = np.fft.rfftfreq(len(audio), 1 / self.sr)
         magnitude = np.abs(fft)
 
-        # 電源ハム検出（50Hz/60Hz付近のピーク）
+        # Power hum detection (peaks near 50Hz/60Hz)
         hum_50 = self._check_peak(freqs, magnitude, 50, bandwidth=5)
         hum_60 = self._check_peak(freqs, magnitude, 60, bandwidth=5)
         has_hum = hum_50 or hum_60
 
-        # ブロードバンドノイズ検出（高周波帯域のフロアレベル）
+        # Broadband noise detection (floor level in high-frequency band)
         high_freq_mask = freqs > 4000
         noise_floor = np.median(magnitude[high_freq_mask])
         signal_level = np.max(magnitude)
         has_broadband = noise_floor > signal_level * 0.01
 
-        # SNR推定
+        # SNR estimation
         snr_estimate = 20 * np.log10(signal_level / (noise_floor + 1e-10))
 
-        # インパルスノイズ検出（急激な振幅変化）
+        # Impulse noise detection (sudden amplitude changes)
         diff = np.abs(np.diff(audio))
         impulse_threshold = np.mean(diff) + 5 * np.std(diff)
         has_impulse = np.any(diff > impulse_threshold)
 
-        # 残響推定（エネルギー減衰特性）
+        # Reverberation estimation (energy decay characteristics)
         has_reverb = self._estimate_reverb(audio)
 
-        # 歯擦音検出（4-10kHz帯域のエネルギー集中）
+        # Sibilance detection (energy concentration in 4-10kHz band)
         sibilance_mask = (freqs > 4000) & (freqs < 10000)
         mid_mask = (freqs > 500) & (freqs < 4000)
         sibilance_ratio = np.mean(magnitude[sibilance_mask]) / (
@@ -432,42 +436,42 @@ class MultiStageDenoiser:
         )
 
     def process(self, audio: np.ndarray) -> np.ndarray:
-        """マルチステージノイズ除去を実行"""
+        """Execute multi-stage noise removal"""
         analysis = self.analyze_noise(audio)
         processed = audio.copy()
 
-        # Stage 1: ハム除去（検出された場合のみ）
+        # Stage 1: Hum removal (only if detected)
         if analysis.has_hum:
             processed = self._remove_hum(
                 processed, analysis.dominant_noise_freq
             )
-            print(f"Stage 1: ハム除去 ({analysis.dominant_noise_freq}Hz)")
+            print(f"Stage 1: Hum removal ({analysis.dominant_noise_freq}Hz)")
 
-        # Stage 2: インパルスノイズ除去
+        # Stage 2: Impulse noise removal
         if analysis.has_impulse:
             processed = self._remove_impulse(processed)
-            print("Stage 2: インパルスノイズ除去")
+            print("Stage 2: Impulse noise removal")
 
-        # Stage 3: ブロードバンドノイズ除去（AI）
+        # Stage 3: Broadband noise removal (AI)
         if analysis.has_broadband:
             strength = self._determine_strength(analysis.snr_estimate)
             processed = self._ai_denoise(processed, strength)
-            print(f"Stage 3: ブロードバンドノイズ除去 (強度: {strength})")
+            print(f"Stage 3: Broadband noise removal (strength: {strength})")
 
-        # Stage 4: デリバーブ（残響除去）
+        # Stage 4: De-reverb (reverberation removal)
         if analysis.has_reverb:
             processed = self._dereverberate(processed)
-            print("Stage 4: デリバーブ")
+            print("Stage 4: De-reverb")
 
-        # Stage 5: ディエッサー（歯擦音抑制）
+        # Stage 5: De-esser (sibilance suppression)
         if analysis.has_sibilance:
             processed = self._deess(processed)
-            print("Stage 5: ディエッサー")
+            print("Stage 5: De-esser")
 
         return processed
 
     def _check_peak(self, freqs, magnitude, target_freq, bandwidth=5):
-        """特定周波数にピークがあるか検出"""
+        """Detect whether a peak exists at a specific frequency"""
         mask = (freqs > target_freq - bandwidth) & (
             freqs < target_freq + bandwidth
         )
@@ -481,18 +485,18 @@ class MultiStageDenoiser:
         return peak_level > surrounding_mean * 3
 
     def _estimate_reverb(self, audio: np.ndarray) -> bool:
-        """残響の有無を推定"""
-        # 自己相関を計算して残響の特性を推定
+        """Estimate the presence of reverberation"""
+        # Compute autocorrelation to estimate reverb characteristics
         autocorr = np.correlate(audio[:4096], audio[:4096], mode='full')
         autocorr = autocorr[len(autocorr) // 2:]
         autocorr = autocorr / autocorr[0]
-        # 残響がある場合、自己相関の減衰が遅い
+        # If reverb is present, autocorrelation decay is slow
         decay_point = np.argmax(autocorr < 0.1)
         decay_time_ms = decay_point / self.sr * 1000
-        return decay_time_ms > 100  # 100ms以上の残響
+        return decay_time_ms > 100  # Reverb longer than 100ms
 
     def _determine_strength(self, snr: float) -> str:
-        """SNRに基づいてノイズ除去強度を決定"""
+        """Determine noise removal strength based on SNR"""
         if snr > 30:
             return "light"
         elif snr > 15:
@@ -501,16 +505,16 @@ class MultiStageDenoiser:
             return "heavy"
 
     def _remove_hum(self, audio, freq):
-        """ノッチフィルタによるハム除去"""
+        """Hum removal using notch filter"""
         from scipy.signal import iirnotch, filtfilt
-        # 基本周波数と倍音（2次, 3次）を除去
+        # Remove fundamental frequency and harmonics (2nd, 3rd)
         for harmonic in [1, 2, 3]:
             b, a = iirnotch(freq * harmonic, Q=30, fs=self.sr)
             audio = filtfilt(b, a, audio)
         return audio
 
     def _remove_impulse(self, audio):
-        """中央値フィルタによるインパルスノイズ除去"""
+        """Impulse noise removal using median filter"""
         from scipy.signal import medfilt
         diff = np.abs(np.diff(audio))
         threshold = np.mean(diff) + 4 * np.std(diff)
@@ -521,7 +525,7 @@ class MultiStageDenoiser:
         return result
 
     def _ai_denoise(self, audio, strength="medium"):
-        """AIベースのブロードバンドノイズ除去"""
+        """AI-based broadband noise removal"""
         import noisereduce as nr
         prop_map = {"light": 0.5, "medium": 0.7, "heavy": 0.85}
         return nr.reduce_noise(
@@ -533,28 +537,28 @@ class MultiStageDenoiser:
         )
 
     def _dereverberate(self, audio):
-        """WPE（Weighted Prediction Error）ベースの残響除去"""
-        # 簡易的な残響除去（スペクトラルサブトラクション応用）
+        """WPE (Weighted Prediction Error)-based reverberation removal"""
+        # Simplified de-reverb (spectral subtraction adaptation)
         stft = np.fft.rfft(audio)
         magnitude = np.abs(stft)
         phase = np.angle(stft)
-        # 残響テールの推定と除去
+        # Estimate and remove reverb tail
         reverb_estimate = np.convolve(magnitude, np.ones(10) / 10, mode='same')
         clean_magnitude = np.maximum(magnitude - 0.3 * reverb_estimate, 0)
         clean_stft = clean_magnitude * np.exp(1j * phase)
         return np.fft.irfft(clean_stft, n=len(audio))
 
     def _deess(self, audio):
-        """周波数帯域ベースのディエッサー"""
+        """Frequency band-based de-esser"""
         from scipy.signal import butter, filtfilt
-        # 4-10kHz帯域のエネルギーを検出して抑制
+        # Detect and suppress energy in the 4-10kHz band
         b, a = butter(4, [4000, 10000], btype='band', fs=self.sr)
         sibilance_band = filtfilt(b, a, audio)
         envelope = np.abs(sibilance_band)
-        # スムージング
+        # Smoothing
         from scipy.ndimage import uniform_filter1d
         envelope = uniform_filter1d(envelope, size=int(self.sr * 0.01))
-        # 閾値以上の歯擦音を抑制
+        # Suppress sibilance above threshold
         threshold = np.percentile(envelope, 90)
         gain = np.where(envelope > threshold, threshold / (envelope + 1e-10), 1.0)
         gain = np.clip(gain, 0.3, 1.0)
@@ -562,21 +566,21 @@ class MultiStageDenoiser:
         return audio_deessed
 ```
 
-### 2.4 ノイズ除去品質の客観評価
+### 2.4 Objective Evaluation of Noise Removal Quality
 
 ```python
 import numpy as np
 from typing import Dict
 
 class DenoiseQualityMetrics:
-    """ノイズ除去の品質を客観的に評価するメトリクス集"""
+    """A collection of metrics for objectively evaluating noise removal quality"""
 
     @staticmethod
     def compute_snr(clean: np.ndarray, noisy: np.ndarray) -> float:
         """
-        SNR（Signal-to-Noise Ratio）
-        - クリーン信号とノイズの比率
-        - 高いほどノイズが少ない
+        SNR (Signal-to-Noise Ratio)
+        - Ratio of clean signal to noise
+        - Higher means less noise
         """
         noise = noisy - clean
         signal_power = np.mean(clean ** 2)
@@ -587,21 +591,21 @@ class DenoiseQualityMetrics:
     def compute_pesq(clean: np.ndarray, denoised: np.ndarray,
                      sr: int = 16000) -> float:
         """
-        PESQ（Perceptual Evaluation of Speech Quality）
-        - ITU-T P.862 規格
-        - 音声品質の知覚的評価（-0.5 ~ 4.5）
-        - 高いほど良い
+        PESQ (Perceptual Evaluation of Speech Quality)
+        - ITU-T P.862 standard
+        - Perceptual evaluation of speech quality (-0.5 to 4.5)
+        - Higher is better
         """
         from pesq import pesq
-        return pesq(sr, clean, denoised, 'wb')  # wb=ワイドバンド
+        return pesq(sr, clean, denoised, 'wb')  # wb=wideband
 
     @staticmethod
     def compute_stoi(clean: np.ndarray, denoised: np.ndarray,
                      sr: int = 16000) -> float:
         """
-        STOI（Short-Time Objective Intelligibility）
-        - 音声の了解度（明瞭度）を評価（0 ~ 1）
-        - 高いほど明瞭
+        STOI (Short-Time Objective Intelligibility)
+        - Evaluates speech intelligibility (0 to 1)
+        - Higher is more intelligible
         """
         from pystoi import stoi
         return stoi(clean, denoised, sr, extended=True)
@@ -609,9 +613,9 @@ class DenoiseQualityMetrics:
     @staticmethod
     def compute_sdr(reference: np.ndarray, estimated: np.ndarray) -> float:
         """
-        SDR（Signal-to-Distortion Ratio）
-        - 音源分離の標準的な評価指標
-        - 高いほど歪みが少ない
+        SDR (Signal-to-Distortion Ratio)
+        - Standard evaluation metric for source separation
+        - Higher means less distortion
         """
         noise = estimated - reference
         sdr = 10 * np.log10(
@@ -622,8 +626,8 @@ class DenoiseQualityMetrics:
     @staticmethod
     def compute_sisdr(reference: np.ndarray, estimated: np.ndarray) -> float:
         """
-        SI-SDR（Scale-Invariant SDR）
-        - スケール不変のSDR（音量差に影響されない）
+        SI-SDR (Scale-Invariant SDR)
+        - Scale-invariant SDR (unaffected by volume differences)
         """
         alpha = np.dot(estimated, reference) / (np.dot(reference, reference) + 1e-10)
         target = alpha * reference
@@ -634,11 +638,11 @@ class DenoiseQualityMetrics:
 
     def full_evaluation(self, clean: np.ndarray, noisy: np.ndarray,
                         denoised: np.ndarray, sr: int = 16000) -> Dict:
-        """総合評価レポート"""
+        """Comprehensive evaluation report"""
         return {
-            "入力SNR (dB)": round(self.compute_snr(clean, noisy), 2),
-            "出力SNR (dB)": round(self.compute_snr(clean, denoised), 2),
-            "SNR改善 (dB)": round(
+            "Input SNR (dB)": round(self.compute_snr(clean, noisy), 2),
+            "Output SNR (dB)": round(self.compute_snr(clean, denoised), 2),
+            "SNR Improvement (dB)": round(
                 self.compute_snr(clean, denoised) - self.compute_snr(clean, noisy), 2
             ),
             "PESQ": round(self.compute_pesq(clean, denoised, sr), 3),
@@ -647,17 +651,17 @@ class DenoiseQualityMetrics:
             "SI-SDR (dB)": round(self.compute_sisdr(clean, denoised), 2),
         }
 
-# 使用例
+# Usage example
 """
 metrics = DenoiseQualityMetrics()
 report = metrics.full_evaluation(clean_audio, noisy_audio, denoised_audio, sr=16000)
 for metric, value in report.items():
     print(f"{metric}: {value}")
 
-# 出力例:
-# 入力SNR (dB): 5.23
-# 出力SNR (dB): 22.17
-# SNR改善 (dB): 16.94
+# Example output:
+# Input SNR (dB): 5.23
+# Output SNR (dB): 22.17
+# SNR Improvement (dB): 16.94
 # PESQ: 3.456
 # STOI: 0.9234
 # SDR (dB): 18.92
@@ -665,7 +669,7 @@ for metric, value in report.items():
 """
 ```
 
-### 2.5 リアルタイムノイズ除去の実装
+### 2.5 Real-Time Noise Removal Implementation
 
 ```python
 import numpy as np
@@ -674,7 +678,7 @@ import queue
 from typing import Callable
 
 class RealtimeDenoiser:
-    """リアルタイムノイズ除去エンジン"""
+    """Real-time noise removal engine"""
 
     def __init__(self, model_type: str = "rnnoise", sr: int = 48000,
                  frame_ms: int = 10):
@@ -686,24 +690,24 @@ class RealtimeDenoiser:
         self.output_queue = queue.Queue()
         self.running = False
 
-        # 遅延計測用
+        # For latency measurement
         self.total_frames = 0
         self.processing_time_sum = 0
 
     def start(self):
-        """処理スレッドを開始"""
+        """Start the processing thread"""
         self.running = True
         self.thread = threading.Thread(target=self._process_loop)
         self.thread.daemon = True
         self.thread.start()
 
     def stop(self):
-        """処理スレッドを停止"""
+        """Stop the processing thread"""
         self.running = False
         self.thread.join()
 
     def process_frame(self, frame: np.ndarray) -> np.ndarray:
-        """1フレームを処理（同期版）"""
+        """Process a single frame (synchronous version)"""
         import time
         start = time.perf_counter()
 
@@ -721,7 +725,7 @@ class RealtimeDenoiser:
         return denoised
 
     def _process_loop(self):
-        """バックグラウンド処理ループ"""
+        """Background processing loop"""
         while self.running:
             try:
                 frame = self.input_queue.get(timeout=0.1)
@@ -731,18 +735,18 @@ class RealtimeDenoiser:
                 continue
 
     def _rnnoise_frame(self, frame: np.ndarray) -> np.ndarray:
-        """RNNoiseによるフレーム処理"""
-        # RNNoiseは480サンプル（10ms @ 48kHz）単位で処理
-        # 実際にはrnnoise Cライブラリのバインディングを使用
-        return frame  # プレースホルダー
+        """Frame processing with RNNoise"""
+        # RNNoise processes in 480-sample units (10ms @ 48kHz)
+        # In practice, uses rnnoise C library bindings
+        return frame  # Placeholder
 
     def _demucs_frame(self, frame: np.ndarray) -> np.ndarray:
-        """Demucs Denoiserによるフレーム処理"""
-        # GPUを使用したリアルタイム推論
-        return frame  # プレースホルダー
+        """Frame processing with Demucs Denoiser"""
+        # Real-time inference using GPU
+        return frame  # Placeholder
 
     def get_latency_stats(self) -> dict:
-        """遅延統計を取得"""
+        """Get latency statistics"""
         if self.total_frames == 0:
             return {"avg_ms": 0, "frame_ms": self.frame_ms}
         avg_ms = (self.processing_time_sum / self.total_frames) * 1000
@@ -756,7 +760,7 @@ class RealtimeDenoiser:
 
 
 class StreamingDenoisePipeline:
-    """PyAudioを使ったストリーミングノイズ除去"""
+    """Streaming noise removal using PyAudio"""
 
     def __init__(self, model_type="rnnoise"):
         import pyaudio
@@ -764,7 +768,7 @@ class StreamingDenoisePipeline:
         self.denoiser = RealtimeDenoiser(model_type=model_type)
 
     def run(self, input_device=None, output_device=None):
-        """リアルタイムノイズ除去を実行"""
+        """Run real-time noise removal"""
         import pyaudio
 
         sr = self.denoiser.sr
@@ -772,7 +776,7 @@ class StreamingDenoisePipeline:
 
         def callback(in_data, frame_count, time_info, status):
             audio = np.frombuffer(in_data, dtype=np.int16).astype(np.float32)
-            audio = audio / 32768.0  # 正規化
+            audio = audio / 32768.0  # Normalize
 
             denoised = self.denoiser.process_frame(audio)
 
@@ -792,8 +796,8 @@ class StreamingDenoisePipeline:
         )
 
         stream.start_stream()
-        print("リアルタイムノイズ除去を開始しました")
-        print("Ctrl+C で停止")
+        print("Real-time noise removal started")
+        print("Press Ctrl+C to stop")
 
         try:
             while stream.is_active():
@@ -805,22 +809,22 @@ class StreamingDenoisePipeline:
             stream.stop_stream()
             stream.close()
             stats = self.denoiser.get_latency_stats()
-            print(f"遅延統計: {stats}")
+            print(f"Latency statistics: {stats}")
 ```
 
 ---
 
-## 3. AI EQ と自動マスタリング
+## 3. AI EQ and Automatic Mastering
 
-### 3.1 AI EQ の実装概念
+### 3.1 AI EQ Implementation Concept
 
 ```python
 import numpy as np
 
 class AIEqualizer:
-    """AIベースの自動EQ"""
+    """AI-based automatic EQ"""
 
-    # 標準的なEQバンド
+    # Standard EQ bands
     BANDS = {
         "Sub Bass":    (20, 60),
         "Bass":        (60, 250),
@@ -831,7 +835,7 @@ class AIEqualizer:
         "Brilliance":  (6000, 20000),
     }
 
-    # ターゲットプロファイル（ジャンル別）
+    # Target profiles (by genre)
     TARGET_PROFILES = {
         "podcast": {
             "Sub Bass": -6, "Bass": -2, "Low Mid": 0,
@@ -848,7 +852,7 @@ class AIEqualizer:
     }
 
     def analyze_spectrum(self, audio: np.ndarray, sr: int) -> dict:
-        """スペクトル解析"""
+        """Spectrum analysis"""
         fft = np.fft.rfft(audio)
         freqs = np.fft.rfftfreq(len(audio), 1/sr)
         magnitude = np.abs(fft)
@@ -863,20 +867,20 @@ class AIEqualizer:
 
     def compute_eq_curve(self, audio: np.ndarray, sr: int,
                          target: str = "podcast") -> dict:
-        """AI EQ: 現在のスペクトルとターゲットの差分からEQカーブを計算"""
+        """AI EQ: Compute EQ curve from the difference between current spectrum and target"""
         current = self.analyze_spectrum(audio, sr)
         target_profile = self.TARGET_PROFILES[target]
 
         eq_adjustments = {}
         for band in self.BANDS:
             diff = target_profile[band] - (current[band] - np.mean(list(current.values())))
-            # 過度な補正を制限（最大 +-12dB）
+            # Limit excessive correction (max +-12dB)
             eq_adjustments[band] = np.clip(diff, -12, 12)
 
         return eq_adjustments
 ```
 
-### 3.2 パラメトリックEQの実装
+### 3.2 Parametric EQ Implementation
 
 ```python
 import numpy as np
@@ -884,7 +888,7 @@ from scipy.signal import sosfilt, sosfiltfilt
 from scipy.signal import iirpeak, iirnotch
 
 class ParametricEQ:
-    """パラメトリックEQの実装"""
+    """Parametric EQ implementation"""
 
     def __init__(self, sr: int = 44100):
         self.sr = sr
@@ -893,12 +897,12 @@ class ParametricEQ:
     def add_band(self, freq: float, gain_db: float, q: float = 1.0,
                  band_type: str = "peak"):
         """
-        EQバンドを追加
+        Add an EQ band
 
         Parameters:
-            freq: 中心周波数 (Hz)
-            gain_db: ゲイン (dB)
-            q: Q値（帯域幅の逆数。高いほど狭い）
+            freq: Center frequency (Hz)
+            gain_db: Gain (dB)
+            q: Q factor (inverse of bandwidth; higher means narrower)
             band_type: "peak", "low_shelf", "high_shelf", "notch"
         """
         self.bands.append({
@@ -909,7 +913,7 @@ class ParametricEQ:
         })
 
     def _design_peak_filter(self, freq, gain_db, q):
-        """ピーキングEQフィルタの設計（RBJクックブック）"""
+        """Design a peaking EQ filter (RBJ Cookbook)"""
         A = 10 ** (gain_db / 40)
         w0 = 2 * np.pi * freq / self.sr
         alpha = np.sin(w0) / (2 * q)
@@ -924,7 +928,7 @@ class ParametricEQ:
         return np.array([b0/a0, b1/a0, b2/a0, 1.0, a1/a0, a2/a0])
 
     def _design_low_shelf(self, freq, gain_db, q=0.707):
-        """ローシェルフフィルタの設計"""
+        """Design a low shelf filter"""
         A = 10 ** (gain_db / 40)
         w0 = 2 * np.pi * freq / self.sr
         alpha = np.sin(w0) / (2 * q)
@@ -939,7 +943,7 @@ class ParametricEQ:
         return np.array([b0/a0, b1/a0, b2/a0, 1.0, a1/a0, a2/a0])
 
     def _design_high_shelf(self, freq, gain_db, q=0.707):
-        """ハイシェルフフィルタの設計"""
+        """Design a high shelf filter"""
         A = 10 ** (gain_db / 40)
         w0 = 2 * np.pi * freq / self.sr
         alpha = np.sin(w0) / (2 * q)
@@ -954,7 +958,7 @@ class ParametricEQ:
         return np.array([b0/a0, b1/a0, b2/a0, 1.0, a1/a0, a2/a0])
 
     def apply(self, audio: np.ndarray) -> np.ndarray:
-        """全バンドのEQを適用"""
+        """Apply EQ across all bands"""
         result = audio.copy()
         for band in self.bands:
             if band["type"] == "peak":
@@ -967,81 +971,81 @@ class ParametricEQ:
                 sos = self._design_high_shelf(band["freq"], band["gain_db"])
             else:
                 continue
-            # SOS形式に変換して適用
+            # Convert to SOS format and apply
             sos_2d = sos.reshape(1, 6)
             result = sosfiltfilt(sos_2d, result)
         return result
 
 
-# 使用例: ポッドキャスト向けAI EQプリセット
+# Usage example: AI EQ preset for podcasts
 def apply_podcast_eq(audio: np.ndarray, sr: int = 44100) -> np.ndarray:
-    """ポッドキャスト向けの自動EQ"""
+    """Automatic EQ for podcasts"""
     eq = ParametricEQ(sr=sr)
 
-    # ローカット（マイク振動やエアコンノイズ除去）
-    eq.add_band(80, -18, q=0.707, band_type="high_shelf")  # 実際はHPF
+    # Low cut (remove mic vibration and AC noise)
+    eq.add_band(80, -18, q=0.707, band_type="high_shelf")  # Actually HPF
 
-    # 近接効果の補正（ボーカルの低域ブースト抑制）
+    # Proximity effect correction (suppress vocal low-end boost)
     eq.add_band(200, -3, q=1.0, band_type="peak")
 
-    # 明瞭度向上（プレゼンス帯域）
+    # Clarity enhancement (presence band)
     eq.add_band(3000, +3, q=1.5, band_type="peak")
 
-    # 息づかい・歯擦音抑制
+    # Breath and sibilance suppression
     eq.add_band(6000, -2, q=2.0, band_type="peak")
 
-    # エアー（高域の空気感）
+    # Air (high-frequency airiness)
     eq.add_band(12000, +1, q=0.707, band_type="high_shelf")
 
     return eq.apply(audio)
 ```
 
-### 3.3 自動マスタリング
+### 3.3 Automatic Mastering
 
 ```python
 class AutoMastering:
-    """AI自動マスタリング処理"""
+    """AI automatic mastering processing"""
 
     def __init__(self, target_lufs=-14.0, target_true_peak=-1.0):
-        self.target_lufs = target_lufs        # 配信標準: -14 LUFS
+        self.target_lufs = target_lufs        # Streaming standard: -14 LUFS
         self.target_true_peak = target_true_peak
 
     def master(self, audio: np.ndarray, sr: int) -> np.ndarray:
-        """自動マスタリングチェーン"""
-        # Step 1: DC オフセット除去
+        """Automatic mastering chain"""
+        # Step 1: DC offset removal
         audio = audio - np.mean(audio)
 
-        # Step 2: AI EQ（スペクトルバランス補正）
+        # Step 2: AI EQ (spectral balance correction)
         audio = self.apply_ai_eq(audio, sr)
 
-        # Step 3: マルチバンドコンプレッション
+        # Step 3: Multiband compression
         audio = self.multiband_compress(audio, sr)
 
-        # Step 4: ステレオイメージ調整
+        # Step 4: Stereo image adjustment
         if audio.ndim == 2 and audio.shape[0] == 2:
             audio = self.stereo_enhance(audio)
 
-        # Step 5: ラウドネス正規化（LUFS準拠）
+        # Step 5: Loudness normalization (LUFS-compliant)
         audio = self.loudness_normalize(audio, sr)
 
-        # Step 6: True Peak リミッティング
+        # Step 6: True Peak limiting
         audio = self.true_peak_limit(audio, sr)
 
         return audio
 
     def loudness_normalize(self, audio, sr):
-        """ITU-R BS.1770 準拠のラウドネス正規化"""
+        """ITU-R BS.1770 compliant loudness normalization"""
         current_lufs = self.measure_lufs(audio, sr)
         gain_db = self.target_lufs - current_lufs
         gain_linear = 10 ** (gain_db / 20)
         return audio * gain_linear
 
     def multiband_compress(self, audio, sr):
-        """マルチバンドコンプレッション"""
+        """Multiband compression"""
         bands = [
-            (20, 200, {"threshold": -20, "ratio": 2.0}),   # 低域
-            (200, 2000, {"threshold": -18, "ratio": 2.5}),  # 中域
-            (2000, 20000, {"threshold": -22, "ratio": 3.0}), # 高域
+            (20, 200, {"threshold": -20, "ratio": 2.0}),   # Low
+            (200, 2000, {"threshold": -18, "ratio": 2.5}),  # Mid
+            (2000, 20000, {"threshold": -22, "ratio": 3.0}), # High
         ]
         result = np.zeros_like(audio)
         for low, high, params in bands:
@@ -1051,15 +1055,15 @@ class AutoMastering:
         return result
 
     def measure_lufs(self, audio, sr):
-        """LUFS測定（簡略版）"""
-        # K-weight フィルタ適用
-        # ゲート処理
-        # RMS計算
+        """LUFS measurement (simplified version)"""
+        # Apply K-weighting filter
+        # Gate processing
+        # RMS calculation
         rms = np.sqrt(np.mean(audio ** 2))
         return 20 * np.log10(rms + 1e-10)
 ```
 
-### 3.4 LUFS準拠の高精度ラウドネス正規化
+### 3.4 High-Precision LUFS-Compliant Loudness Normalization
 
 ```python
 import numpy as np
@@ -1067,25 +1071,26 @@ from scipy.signal import sosfilt
 
 class LUFSMeter:
     """
-    ITU-R BS.1770-5 準拠のLUFS測定器
+    ITU-R BS.1770-5 compliant LUFS meter
 
-    LUFS (Loudness Units Full Scale) は人間の聴覚特性を反映した
-    ラウドネス測定単位で、各配信プラットフォームの基準値として使用される。
+    LUFS (Loudness Units Full Scale) is a loudness measurement unit that
+    reflects human auditory characteristics, used as the reference value
+    for each streaming platform.
     """
 
     def __init__(self, sr: int = 48000):
         self.sr = sr
-        self.block_size = int(0.4 * sr)  # 400ms ゲーティングブロック
-        self.overlap = int(0.1 * sr)     # 75% オーバーラップ（100ms ステップ）
+        self.block_size = int(0.4 * sr)  # 400ms gating block
+        self.overlap = int(0.1 * sr)     # 75% overlap (100ms step)
 
     def _k_weight_filter(self, audio: np.ndarray) -> np.ndarray:
         """
-        K-weightingフィルタ
-        - Stage 1: シェルビングフィルタ（高域ブースト）
-        - Stage 2: ハイパスフィルタ（低域カット）
-        人間の聴覚感度を反映
+        K-weighting filter
+        - Stage 1: Shelving filter (high-frequency boost)
+        - Stage 2: High-pass filter (low-frequency cut)
+        Reflects human auditory sensitivity
         """
-        # Stage 1: ハイシェルフフィルタ（+4dB @ 高域）
+        # Stage 1: High shelf filter (+4dB @ high frequencies)
         f0 = 1681.974450955533
         G = 3.999843853973347
         Q = 0.7071752369554196
@@ -1102,7 +1107,7 @@ class LUFSMeter:
         a2 = (1.0 - K / Q + K * K) / a0
 
 
-        # Stage 2: ハイパスフィルタ
+        # Stage 2: High-pass filter
         f0 = 38.13547087602444
         Q = 0.5003270373238773
 
@@ -1121,21 +1126,21 @@ class LUFSMeter:
 
     def measure_integrated(self, audio: np.ndarray) -> float:
         """
-        統合ラウドネス（Integrated Loudness）の計測
+        Integrated Loudness measurement
 
-        BS.1770のアルゴリズム:
-        1. K-weightingフィルタ適用
-        2. 400msブロックごとのラウドネス計算
-        3. 絶対ゲート（-70 LUFS以上のブロックのみ）
-        4. 相対ゲート（平均-10 LUFS以上のブロックのみ）
-        5. ゲート通過ブロックの平均 = 統合ラウドネス
+        BS.1770 algorithm:
+        1. Apply K-weighting filter
+        2. Calculate loudness per 400ms block
+        3. Absolute gate (only blocks above -70 LUFS)
+        4. Relative gate (only blocks above mean -10 LUFS)
+        5. Mean of gated blocks = integrated loudness
         """
         if audio.ndim == 1:
             audio = audio.reshape(1, -1)  # (channels, samples)
 
         n_channels = audio.shape[0]
 
-        # チャンネル重み（サラウンド対応）
+        # Channel weights (surround-compatible)
         channel_weights = {
             1: [1.0],
             2: [1.0, 1.0],
@@ -1143,10 +1148,10 @@ class LUFSMeter:
         }
         weights = channel_weights.get(n_channels, [1.0] * n_channels)
 
-        # K-weightingフィルタ適用
+        # Apply K-weighting filter
         filtered = np.array([self._k_weight_filter(ch) for ch in audio])
 
-        # ブロックごとのラウドネス計算
+        # Calculate loudness per block
         step = self.block_size - self.overlap
         n_blocks = max(1, (filtered.shape[1] - self.block_size) // step + 1)
 
@@ -1157,7 +1162,7 @@ class LUFSMeter:
             if end > filtered.shape[1]:
                 break
 
-            # チャンネルごとの平均パワー
+            # Mean power per channel
             power_sum = 0
             for ch in range(n_channels):
                 block = filtered[ch, start:end]
@@ -1168,12 +1173,12 @@ class LUFSMeter:
 
         block_loudness = np.array(block_loudness)
 
-        # 絶対ゲート（-70 LUFS）
+        # Absolute gate (-70 LUFS)
         abs_gate_mask = block_loudness > -70
         if not abs_gate_mask.any():
             return -70.0
 
-        # 相対ゲート
+        # Relative gate
         abs_gated_mean = np.mean(
             10 ** (block_loudness[abs_gate_mask] / 10)
         )
@@ -1183,7 +1188,7 @@ class LUFSMeter:
         if not rel_gate_mask.any():
             return -70.0
 
-        # 最終計算
+        # Final calculation
         final_mean = np.mean(
             10 ** (block_loudness[rel_gate_mask] / 10)
         )
@@ -1193,14 +1198,14 @@ class LUFSMeter:
 
     def measure_momentary(self, audio: np.ndarray) -> np.ndarray:
         """
-        モーメンタリーラウドネス（400msウィンドウ）
-        リアルタイムメーター表示用
+        Momentary loudness (400ms window)
+        For real-time meter display
         """
         if audio.ndim == 1:
             audio = audio.reshape(1, -1)
 
         filtered = np.array([self._k_weight_filter(ch) for ch in audio])
-        step = int(0.1 * self.sr)  # 100msステップ
+        step = int(0.1 * self.sr)  # 100ms step
         n_steps = (filtered.shape[1] - self.block_size) // step + 1
 
         momentary = []
@@ -1214,64 +1219,65 @@ class LUFSMeter:
         return np.array(momentary)
 
 
-# プラットフォーム別LUFS要件
+# Platform-specific LUFS requirements
 PLATFORM_LOUDNESS_SPECS = {
     "Spotify": {
         "target_lufs": -14.0,
         "true_peak_limit": -1.0,
-        "normalization": "トラック別またはアルバム別",
-        "notes": "ラウドネス超過時は自動で下げられる",
+        "normalization": "Per-track or per-album",
+        "notes": "Automatically reduced when loudness is exceeded",
     },
     "Apple Music": {
         "target_lufs": -16.0,
         "true_peak_limit": -1.0,
-        "normalization": "Sound Check有効時のみ",
-        "notes": "Sound Check OFFの場合は正規化されない",
+        "normalization": "Only when Sound Check is enabled",
+        "notes": "Not normalized when Sound Check is OFF",
     },
     "YouTube": {
         "target_lufs": -14.0,
         "true_peak_limit": -1.0,
-        "normalization": "常に適用",
-        "notes": "-14 LUFS超過は下げられるが、以下は上げられない",
+        "normalization": "Always applied",
+        "notes": "Above -14 LUFS is reduced, but below is not boosted",
     },
     "Amazon Music": {
         "target_lufs": -14.0,
         "true_peak_limit": -2.0,
-        "normalization": "自動",
-        "notes": "True Peak制限がやや厳しい",
+        "normalization": "Automatic",
+        "notes": "Slightly stricter True Peak limit",
     },
-    "Podcast (一般)": {
+    "Podcast (General)": {
         "target_lufs": -16.0,
         "true_peak_limit": -1.0,
-        "normalization": "推奨値（強制ではない）",
-        "notes": "モノラル -19 LUFS推奨の場合も",
+        "normalization": "Recommended (not enforced)",
+        "notes": "Mono -19 LUFS may also be recommended",
     },
-    "放送 (EBU R128)": {
+    "Broadcast (EBU R128)": {
         "target_lufs": -23.0,
         "true_peak_limit": -1.0,
-        "normalization": "厳格に準拠",
-        "notes": "欧州放送基準。許容誤差 ±1 LU",
+        "normalization": "Strictly compliant",
+        "notes": "European broadcasting standard. Tolerance +/-1 LU",
     },
-    "放送 (ATSC A/85)": {
+    "Broadcast (ATSC A/85)": {
         "target_lufs": -24.0,
         "true_peak_limit": -2.0,
-        "normalization": "厳格に準拠",
-        "notes": "米国放送基準",
+        "normalization": "Strictly compliant",
+        "notes": "US broadcasting standard",
     },
 }
 ```
 
-### 3.5 コンプレッサーの詳細実装
+### 3.5 Detailed Compressor Implementation
 
 ```python
 import numpy as np
 
 class DynamicCompressor:
     """
-    ダイナミックレンジコンプレッサーの実装
+    Dynamic Range Compressor Implementation
 
-    コンプレッサーはオーディオ信号のダイナミックレンジ（最大音量と最小音量の差）
-    を圧縮し、音量差を均一化するエフェクトである。
+    A compressor is an effect that compresses the dynamic range
+    (difference between maximum and minimum volume) of an audio signal,
+    leveling out volume differences.
     """
 
     def __init__(self, sr: int = 44100, threshold_db: float = -20,
@@ -1280,12 +1286,12 @@ class DynamicCompressor:
                  makeup_gain_db: float = 0.0):
         """
         Parameters:
-            threshold_db: 圧縮開始レベル（dB）
-            ratio: 圧縮比（4:1 = 閾値を超えた4dBに対し1dB出力）
-            attack_ms: アタックタイム（圧縮開始までの時間）
-            release_ms: リリースタイム（圧縮解除までの時間）
-            knee_db: ニー幅（ソフトニーの範囲）
-            makeup_gain_db: メイクアップゲイン（圧縮後の音量補正）
+            threshold_db: Compression onset level (dB)
+            ratio: Compression ratio (4:1 = 1dB output for every 4dB above threshold)
+            attack_ms: Attack time (time until compression starts)
+            release_ms: Release time (time until compression releases)
+            knee_db: Knee width (soft knee range)
+            makeup_gain_db: Makeup gain (volume compensation after compression)
         """
         self.sr = sr
         self.threshold_db = threshold_db
@@ -1296,53 +1302,53 @@ class DynamicCompressor:
         self.makeup_gain = 10 ** (makeup_gain_db / 20)
 
     def _compute_gain(self, level_db: float) -> float:
-        """ゲインリダクションの計算（ソフトニー対応）"""
+        """Calculate gain reduction (with soft knee support)"""
         if self.knee_db <= 0:
-            # ハードニー
+            # Hard knee
             if level_db <= self.threshold_db:
                 return 0.0
             else:
                 return -(level_db - self.threshold_db) * (1 - 1 / self.ratio)
         else:
-            # ソフトニー
+            # Soft knee
             half_knee = self.knee_db / 2
             if level_db < self.threshold_db - half_knee:
                 return 0.0
             elif level_db > self.threshold_db + half_knee:
                 return -(level_db - self.threshold_db) * (1 - 1 / self.ratio)
             else:
-                # ニー内の滑らかな遷移
+                # Smooth transition within the knee
                 x = level_db - self.threshold_db + half_knee
                 return -(x ** 2) / (2 * self.knee_db) * (1 - 1 / self.ratio)
 
     def process(self, audio: np.ndarray) -> np.ndarray:
-        """コンプレッション処理"""
+        """Compression processing"""
         output = np.zeros_like(audio)
         envelope = 0.0
 
         for i in range(len(audio)):
-            # エンベロープ追従
+            # Envelope following
             level = np.abs(audio[i])
             if level > envelope:
                 envelope = self.attack_coeff * envelope + (1 - self.attack_coeff) * level
             else:
                 envelope = self.release_coeff * envelope + (1 - self.release_coeff) * level
 
-            # dBに変換
+            # Convert to dB
             level_db = 20 * np.log10(envelope + 1e-10)
 
-            # ゲインリダクション計算
+            # Calculate gain reduction
             gain_reduction_db = self._compute_gain(level_db)
             gain = 10 ** (gain_reduction_db / 20)
 
-            # ゲイン適用 + メイクアップゲイン
+            # Apply gain + makeup gain
             output[i] = audio[i] * gain * self.makeup_gain
 
         return output
 
     def auto_makeup_gain(self, audio: np.ndarray) -> float:
-        """自動メイクアップゲインの計算"""
-        # 圧縮前後のRMSレベル差から自動計算
+        """Automatic makeup gain calculation"""
+        # Automatically calculate from RMS level difference before and after compression
         original_rms = np.sqrt(np.mean(audio ** 2))
         compressed = self.process(audio)
         compressed_rms = np.sqrt(np.mean(compressed ** 2))
@@ -1353,7 +1359,7 @@ class DynamicCompressor:
 
 
 class MultibandCompressor:
-    """マルチバンドコンプレッサー"""
+    """Multiband Compressor"""
 
     def __init__(self, sr: int = 44100):
         self.sr = sr
@@ -1369,7 +1375,7 @@ class MultibandCompressor:
         ]
 
     def _bandpass(self, audio, low, high):
-        """バンドパスフィルタ"""
+        """Bandpass filter"""
         from scipy.signal import butter, sosfiltfilt
         nyq = self.sr / 2
         low_norm = max(low / nyq, 0.001)
@@ -1378,7 +1384,7 @@ class MultibandCompressor:
         return sosfiltfilt(sos, audio)
 
     def process(self, audio: np.ndarray) -> np.ndarray:
-        """マルチバンドコンプレッション"""
+        """Multiband compression"""
         result = np.zeros_like(audio)
 
         for band in self.bands:
@@ -1402,93 +1408,93 @@ class MultibandCompressor:
 
 ---
 
-## 4. 比較表
+## 4. Comparison Tables
 
-### 4.1 ノイズ除去ツール比較
+### 4.1 Noise Removal Tool Comparison
 
-| 項目 | RNNoise | noisereduce | Demucs Denoiser | Adobe Podcast | Krisp |
+| Item | RNNoise | noisereduce | Demucs Denoiser | Adobe Podcast | Krisp |
 |------|---------|-------------|-----------------|--------------|-------|
-| 種別 | OSS | OSS | OSS | SaaS | SaaS |
-| リアルタイム | 対応 | 非対応 | 非対応 | 非対応 | 対応 |
-| 品質 | 良い | 良い | 非常に良い | 最高 | 非常に良い |
-| 計算コスト | 極めて低い | 低い | 高い(GPU) | クラウド | 低い |
-| 非定常ノイズ | 対応 | 対応 | 対応 | 対応 | 対応 |
-| 音声劣化 | 少ない | 中程度 | 少ない | 最小 | 少ない |
-| 対応入力 | 48kHz mono | 柔軟 | 柔軟 | 柔軟 | 柔軟 |
+| Type | OSS | OSS | OSS | SaaS | SaaS |
+| Real-time | Supported | Not supported | Not supported | Not supported | Supported |
+| Quality | Good | Good | Very good | Best | Very good |
+| Compute cost | Extremely low | Low | High (GPU) | Cloud | Low |
+| Non-stationary noise | Supported | Supported | Supported | Supported | Supported |
+| Audio degradation | Minimal | Moderate | Minimal | Least | Minimal |
+| Supported input | 48kHz mono | Flexible | Flexible | Flexible | Flexible |
 
-### 4.2 マスタリングサービス比較
+### 4.2 Mastering Service Comparison
 
-| 項目 | LANDR | eMastered | iZotope Ozone | CloudBounce |
+| Item | LANDR | eMastered | iZotope Ozone | CloudBounce |
 |------|-------|-----------|--------------|-------------|
-| AI自動化 | 完全自動 | 完全自動 | 半自動 | 完全自動 |
-| カスタマイズ | 3プリセット | スライダー | フル制御 | 限定的 |
-| 品質 | 高い | 高い | 最高 | 中〜高 |
-| 価格 | $4.99/曲〜 | $3.99/曲〜 | $249買切 | $2.99/曲〜 |
-| LUFS準拠 | 対応 | 対応 | 対応 | 対応 |
-| プロ利用 | やや不向き | やや不向き | 業界標準 | やや不向き |
+| AI automation | Fully automatic | Fully automatic | Semi-automatic | Fully automatic |
+| Customization | 3 presets | Sliders | Full control | Limited |
+| Quality | High | High | Best | Medium to high |
+| Price | $4.99/track~ | $3.99/track~ | $249 one-time | $2.99/track~ |
+| LUFS-compliant | Supported | Supported | Supported | Supported |
+| Professional use | Somewhat unsuitable | Somewhat unsuitable | Industry standard | Somewhat unsuitable |
 
-### 4.3 AIエフェクトプラグイン比較
+### 4.3 AI Effects Plugin Comparison
 
-| 項目 | iZotope RX | Waves Clarity | Sonnox | Accusonus ERA |
+| Item | iZotope RX | Waves Clarity | Sonnox | Accusonus ERA |
 |------|-----------|--------------|--------|-------------|
-| ノイズ除去 | 最高品質 | 非常に良い | 良い | 良い |
-| 自動EQ | Neutron連携 | 非対応 | 非対応 | 非対応 |
-| デリバーブ | 最高品質 | 良い | 良い | 中程度 |
-| ディエッサー | 高品質 | 良い | 最高品質 | 良い |
-| バッチ処理 | 対応 | 非対応 | 非対応 | 対応 |
-| リアルタイム | 一部対応 | 対応 | 対応 | 対応 |
-| DAW統合 | VST/AU/AAX | VST/AU/AAX | VST/AU/AAX | VST/AU/AAX |
-| 価格帯 | $399-1199 | $149-249 | $299+ | $99-199 |
-| AI深度 | ★★★★★ | ★★★☆☆ | ★★☆☆☆ | ★★★☆☆ |
+| Noise removal | Best quality | Very good | Good | Good |
+| Auto EQ | Neutron integration | Not supported | Not supported | Not supported |
+| De-reverb | Best quality | Good | Good | Moderate |
+| De-esser | High quality | Good | Best quality | Good |
+| Batch processing | Supported | Not supported | Not supported | Supported |
+| Real-time | Partially supported | Supported | Supported | Supported |
+| DAW integration | VST/AU/AAX | VST/AU/AAX | VST/AU/AAX | VST/AU/AAX |
+| Price range | $399-1199 | $149-249 | $299+ | $99-199 |
+| AI depth | ★★★★★ | ★★★☆☆ | ★★☆☆☆ | ★★★☆☆ |
 
 ---
 
-## 5. アンチパターン
+## 5. Anti-patterns
 
-### 5.1 アンチパターン: エフェクトの順序無視
+### 5.1 Anti-pattern: Ignoring Effect Order
 
 ```python
-# BAD: エフェクトの順序が不適切
+# BAD: Inappropriate effect order
 def bad_effects_chain(audio, sr):
-    audio = apply_reverb(audio)      # リバーブ後のノイズ除去は困難
-    audio = apply_compression(audio) # 圧縮後のEQは予測困難
-    audio = denoise(audio)           # リバーブのテールもノイズと判定
-    audio = equalize(audio)          # 既に歪んだスペクトルをEQ
+    audio = apply_reverb(audio)      # Hard to denoise after reverb
+    audio = apply_compression(audio) # Unpredictable EQ after compression
+    audio = denoise(audio)           # Reverb tails detected as noise
+    audio = equalize(audio)          # EQ on already distorted spectrum
     return audio
 
-# GOOD: 正しいエフェクト順序
+# GOOD: Correct effect order
 def good_effects_chain(audio, sr):
-    # 1. まずノイズ除去（クリーンな信号を確保）
+    # 1. Denoise first (ensure clean signal)
     audio = denoise(audio)
-    # 2. EQ（周波数バランス調整）
+    # 2. EQ (frequency balance adjustment)
     audio = equalize(audio, target="podcast")
-    # 3. コンプレッション（ダイナミックレンジ制御）
+    # 3. Compression (dynamic range control)
     audio = compress(audio, threshold=-20, ratio=3)
-    # 4. リバーブ等の空間系（クリーンな信号に適用）
+    # 4. Spatial effects like reverb (apply to clean signal)
     audio = apply_reverb(audio, room_size=0.3)
-    # 5. リミッター（最終的なピーク制御）
+    # 5. Limiter (final peak control)
     audio = limit(audio, ceiling=-1.0)
     return audio
 ```
 
-### 5.2 アンチパターン: 過度なノイズ除去
+### 5.2 Anti-pattern: Excessive Noise Removal
 
 ```python
-# BAD: ノイズ除去を最大に設定
+# BAD: Noise removal set to maximum
 def bad_denoise(audio, sr):
     return nr.reduce_noise(
         y=audio, sr=sr,
-        prop_decrease=1.0,  # 100%除去 → 音声も劣化
+        prop_decrease=1.0,  # 100% removal -> audio also degrades
         n_fft=4096,
     )
 
-# GOOD: 適切な設定と段階的処理
+# GOOD: Appropriate settings with gradual processing
 def good_denoise(audio, sr, strength="medium"):
-    """段階的なノイズ除去"""
+    """Gradual noise removal"""
     settings = {
-        "light":  {"prop_decrease": 0.5, "note": "軽微なノイズ向け"},
-        "medium": {"prop_decrease": 0.7, "note": "標準的なノイズ向け"},
-        "heavy":  {"prop_decrease": 0.85, "note": "強いノイズ向け（音声劣化注意）"},
+        "light":  {"prop_decrease": 0.5, "note": "For light noise"},
+        "medium": {"prop_decrease": 0.7, "note": "For standard noise"},
+        "heavy":  {"prop_decrease": 0.85, "note": "For heavy noise (watch for audio degradation)"},
     }
     s = settings[strength]
 
@@ -1496,43 +1502,43 @@ def good_denoise(audio, sr, strength="medium"):
         y=audio, sr=sr,
         stationary=False,
         prop_decrease=s["prop_decrease"],
-        freq_mask_smooth_hz=500,    # スムージングでアーティファクト軽減
+        freq_mask_smooth_hz=500,    # Smoothing to reduce artifacts
         time_mask_smooth_ms=50,
     )
 
-    # 音声品質チェック
+    # Audio quality check
     snr = compute_snr(audio, result)
     if snr < 5:
-        print("警告: 音声品質が大幅に劣化しています。strengthを下げてください。")
+        print("Warning: Audio quality is significantly degraded. Please reduce the strength.")
 
     return result
 ```
 
-### 5.3 アンチパターン: LUFS準拠なしのラウドネス調整
+### 5.3 Anti-pattern: Loudness Adjustment Without LUFS Compliance
 
 ```python
-# BAD: ピーク正規化だけでラウドネスを調整
+# BAD: Adjusting loudness with only peak normalization
 def bad_loudness(audio):
     peak = np.max(np.abs(audio))
-    return audio / peak * 0.9  # ピーク -0.9dBFS
-    # 問題: LUFS は音声の内容（ダイナミクス）に依存
-    #        同じピークでもポッドキャストと音楽ではLUFSが大幅に異なる
+    return audio / peak * 0.9  # Peak -0.9dBFS
+    # Problem: LUFS depends on the audio content (dynamics)
+    #          Same peak yields vastly different LUFS for podcasts vs music
 
-# GOOD: LUFS測定 → 正規化 → True Peak リミッティング
+# GOOD: LUFS measurement -> normalization -> True Peak limiting
 def good_loudness(audio, sr, target_lufs=-14.0, true_peak=-1.0):
-    """LUFS準拠のラウドネス正規化"""
+    """LUFS-compliant loudness normalization"""
     meter = LUFSMeter(sr=sr)
 
-    # 現在のLUFSを測定
+    # Measure current LUFS
     current_lufs = meter.measure_integrated(audio)
-    print(f"現在のLUFS: {current_lufs}")
+    print(f"Current LUFS: {current_lufs}")
 
-    # LUFS差分から必要なゲインを計算
+    # Calculate required gain from LUFS difference
     gain_db = target_lufs - current_lufs
     gain_linear = 10 ** (gain_db / 20)
     audio = audio * gain_linear
 
-    # True Peakリミッティング
+    # True Peak limiting
     true_peak_linear = 10 ** (true_peak / 20)
     oversampled = np.interp(
         np.linspace(0, len(audio) - 1, len(audio) * 4),
@@ -1544,37 +1550,37 @@ def good_loudness(audio, sr, target_lufs=-14.0, true_peak=-1.0):
         audio = audio * (true_peak_linear / peak)
 
     final_lufs = meter.measure_integrated(audio)
-    print(f"正規化後のLUFS: {final_lufs}")
+    print(f"LUFS after normalization: {final_lufs}")
 
     return audio
 ```
 
-### 5.4 アンチパターン: サンプルレート不整合
+### 5.4 Anti-pattern: Sample Rate Mismatch
 
 ```python
-# BAD: サンプルレートを考慮しないエフェクト適用
+# BAD: Applying effects without considering sample rate
 def bad_sample_rate(audio_path):
-    audio, sr = sf.read(audio_path)  # sr=48000かもしれない
-    # RNNoiseは48kHz前提
+    audio, sr = sf.read(audio_path)  # sr might be 48000
+    # RNNoise assumes 48kHz
     denoised = rnnoise(audio)
-    # noisereduceは内部でsrを使う
-    eq_applied = apply_eq(denoised)  # EQの周波数がずれる
+    # noisereduce uses sr internally
+    eq_applied = apply_eq(denoised)  # EQ frequencies will be off
     return eq_applied
 
-# GOOD: サンプルレートの統一管理
+# GOOD: Unified sample rate management
 def good_sample_rate(audio_path, target_sr=44100):
-    """サンプルレートを統一してからエフェクト適用"""
+    """Unify sample rate before applying effects"""
     import librosa
 
     audio, sr = sf.read(audio_path)
-    print(f"元のサンプルレート: {sr}Hz")
+    print(f"Original sample rate: {sr}Hz")
 
-    # エフェクトチェーンの要求サンプルレートに統一
+    # Unify to the effect chain's required sample rate
     if sr != target_sr:
         audio = librosa.resample(audio, orig_sr=sr, target_sr=target_sr)
-        print(f"リサンプリング: {sr}Hz → {target_sr}Hz")
+        print(f"Resampling: {sr}Hz -> {target_sr}Hz")
 
-    # 全エフェクトで同じsrを使用
+    # Use the same sr for all effects
     audio = denoise(audio, sr=target_sr)
     audio = equalize(audio, sr=target_sr)
     audio = compress(audio, sr=target_sr)
@@ -1585,9 +1591,9 @@ def good_sample_rate(audio_path, target_sr=44100):
 
 ---
 
-## 6. 実践的なユースケース
+## 6. Practical Use Cases
 
-### 6.1 ポッドキャスト完全処理パイプライン
+### 6.1 Complete Podcast Processing Pipeline
 
 ```python
 import numpy as np
@@ -1595,64 +1601,64 @@ import soundfile as sf
 from pathlib import Path
 
 class PodcastProcessor:
-    """ポッドキャスト音声の完全処理パイプライン"""
+    """Complete processing pipeline for podcast audio"""
 
     def __init__(self, sr: int = 44100):
         self.sr = sr
 
     def process_episode(self, input_path: str, output_path: str,
                         speakers: int = 2):
-        """ポッドキャストエピソードの完全処理"""
+        """Complete processing of a podcast episode"""
         audio, sr = sf.read(input_path)
 
-        # サンプルレート統一
+        # Unify sample rate
         if sr != self.sr:
             import librosa
             audio = librosa.resample(audio, orig_sr=sr, target_sr=self.sr)
 
-        # Step 1: ノイズ分析と除去
-        print("Step 1: ノイズ除去")
+        # Step 1: Noise analysis and removal
+        print("Step 1: Noise removal")
         audio = self._denoise(audio)
 
-        # Step 2: ハイパスフィルタ（80Hz以下カット）
-        print("Step 2: ハイパスフィルタ")
+        # Step 2: High-pass filter (cut below 80Hz)
+        print("Step 2: High-pass filter")
         audio = self._highpass(audio, cutoff=80)
 
         # Step 3: EQ
-        print("Step 3: EQ補正")
+        print("Step 3: EQ correction")
         audio = self._podcast_eq(audio)
 
-        # Step 4: コンプレッション
-        print("Step 4: コンプレッション")
+        # Step 4: Compression
+        print("Step 4: Compression")
         comp = DynamicCompressor(
             sr=self.sr, threshold_db=-18, ratio=3.0,
             attack_ms=5, release_ms=50, knee_db=6.0,
         )
         audio = comp.process(audio)
 
-        # Step 5: ラウドネス正規化（-16 LUFS）
-        print("Step 5: ラウドネス正規化")
+        # Step 5: Loudness normalization (-16 LUFS)
+        print("Step 5: Loudness normalization")
         meter = LUFSMeter(sr=self.sr)
         current_lufs = meter.measure_integrated(audio)
         gain_db = -16.0 - current_lufs
         audio = audio * (10 ** (gain_db / 20))
 
-        # Step 6: True Peak リミッティング
-        print("Step 6: リミッティング")
+        # Step 6: True Peak limiting
+        print("Step 6: Limiting")
         audio = self._true_peak_limit(audio, ceiling_db=-1.0)
 
-        # 保存
+        # Save
         sf.write(output_path, audio, self.sr, subtype='PCM_24')
-        print(f"完了: {output_path}")
+        print(f"Complete: {output_path}")
 
-        # 品質レポート
+        # Quality report
         final_lufs = meter.measure_integrated(audio)
         peak_db = 20 * np.log10(np.max(np.abs(audio)) + 1e-10)
-        print(f"最終LUFS: {final_lufs:.1f}")
-        print(f"ピークレベル: {peak_db:.1f} dBFS")
+        print(f"Final LUFS: {final_lufs:.1f}")
+        print(f"Peak level: {peak_db:.1f} dBFS")
 
     def _denoise(self, audio):
-        """ポッドキャスト向けノイズ除去"""
+        """Noise removal for podcasts"""
         import noisereduce as nr
         return nr.reduce_noise(
             y=audio, sr=self.sr,
@@ -1663,22 +1669,22 @@ class PodcastProcessor:
         )
 
     def _highpass(self, audio, cutoff=80):
-        """ハイパスフィルタ"""
+        """High-pass filter"""
         from scipy.signal import butter, sosfiltfilt
         nyq = self.sr / 2
         sos = butter(4, cutoff / nyq, btype='high', output='sos')
         return sosfiltfilt(sos, audio)
 
     def _podcast_eq(self, audio):
-        """ポッドキャスト向けEQ"""
+        """Podcast EQ"""
         eq = ParametricEQ(sr=self.sr)
-        eq.add_band(200, -2, q=1.0, band_type="peak")    # 近接効果補正
-        eq.add_band(3000, +3, q=1.5, band_type="peak")   # プレゼンスブースト
-        eq.add_band(6000, -1.5, q=2.0, band_type="peak") # 歯擦音抑制
+        eq.add_band(200, -2, q=1.0, band_type="peak")    # Proximity effect correction
+        eq.add_band(3000, +3, q=1.5, band_type="peak")   # Presence boost
+        eq.add_band(6000, -1.5, q=2.0, band_type="peak") # Sibilance suppression
         return eq.apply(audio)
 
     def _true_peak_limit(self, audio, ceiling_db=-1.0):
-        """True Peakリミッティング"""
+        """True Peak limiting"""
         ceiling = 10 ** (ceiling_db / 20)
         peak = np.max(np.abs(audio))
         if peak > ceiling:
@@ -1686,11 +1692,11 @@ class PodcastProcessor:
         return audio
 ```
 
-### 6.2 音楽マスタリング自動化
+### 6.2 Music Mastering Automation
 
 ```python
 class MusicMasteringPipeline:
-    """音楽マスタリングの自動化パイプライン"""
+    """Automated music mastering pipeline"""
 
     def __init__(self, sr: int = 44100, target_platform: str = "Spotify"):
         self.sr = sr
@@ -1699,7 +1705,7 @@ class MusicMasteringPipeline:
 
     def master(self, input_path: str, output_path: str,
                genre: str = "pop") -> dict:
-        """マスタリング処理"""
+        """Mastering processing"""
         audio, sr = sf.read(input_path, always_2d=True)
         audio = audio.T  # (channels, samples)
 
@@ -1710,42 +1716,42 @@ class MusicMasteringPipeline:
                 for ch in audio
             ])
 
-        # 分析レポート
+        # Analysis report
         pre_analysis = self._analyze(audio)
-        print(f"分析結果: {pre_analysis}")
+        print(f"Analysis result: {pre_analysis}")
 
-        # DC除去
+        # DC removal
         audio = audio - np.mean(audio, axis=1, keepdims=True)
 
-        # ジャンル別EQ
+        # Genre-specific EQ
         genre_eq = self._get_genre_eq(genre)
         for ch in range(audio.shape[0]):
             audio[ch] = genre_eq.apply(audio[ch])
 
-        # マルチバンドコンプレッション
+        # Multiband compression
         mb_comp = MultibandCompressor(sr=self.sr)
         for ch in range(audio.shape[0]):
             audio[ch] = mb_comp.process(audio[ch])
 
-        # ステレオイメージング（ステレオの場合）
+        # Stereo imaging (for stereo sources)
         if audio.shape[0] == 2:
             audio = self._stereo_enhance(audio)
 
-        # ラウドネス正規化
+        # Loudness normalization
         target_lufs = self.specs.get("target_lufs", -14.0)
         meter = LUFSMeter(sr=self.sr)
         current = meter.measure_integrated(audio)
         gain = 10 ** ((target_lufs - current) / 20)
         audio = audio * gain
 
-        # True Peak リミッティング
+        # True Peak limiting
         tp_limit = self.specs.get("true_peak_limit", -1.0)
         audio = self._true_peak_limit_stereo(audio, tp_limit)
 
-        # 保存
+        # Save
         sf.write(output_path, audio.T, self.sr, subtype='PCM_24')
 
-        # 最終分析
+        # Final analysis
         post_analysis = self._analyze(audio)
         return {
             "before": pre_analysis,
@@ -1755,7 +1761,7 @@ class MusicMasteringPipeline:
         }
 
     def _analyze(self, audio):
-        """音声の分析"""
+        """Audio analysis"""
         meter = LUFSMeter(sr=self.sr)
         return {
             "lufs": meter.measure_integrated(audio),
@@ -1767,7 +1773,7 @@ class MusicMasteringPipeline:
         }
 
     def _get_genre_eq(self, genre):
-        """ジャンル別EQプリセット"""
+        """Genre-specific EQ presets"""
         eq = ParametricEQ(sr=self.sr)
         if genre == "pop":
             eq.add_band(60, +2, q=1.0, band_type="peak")
@@ -1787,17 +1793,17 @@ class MusicMasteringPipeline:
         return eq
 
     def _stereo_enhance(self, audio):
-        """ステレオイメージの強調"""
+        """Stereo image enhancement"""
         mid = (audio[0] + audio[1]) / 2
         side = (audio[0] - audio[1]) / 2
-        # サイド成分を軽くブースト（ステレオ感の強調）
+        # Slightly boost side component (enhance stereo feel)
         side = side * 1.2
         audio[0] = mid + side
         audio[1] = mid - side
         return audio
 
     def _true_peak_limit_stereo(self, audio, ceiling_db):
-        """ステレオTrue Peakリミッティング"""
+        """Stereo True Peak limiting"""
         ceiling = 10 ** (ceiling_db / 20)
         for ch in range(audio.shape[0]):
             peak = np.max(np.abs(audio[ch]))
@@ -1810,75 +1816,75 @@ class MusicMasteringPipeline:
 
 ## 7. FAQ
 
-### Q1: ポッドキャスト録音のノイズ除去で推奨される設定は？
+### Q1: What are the recommended settings for noise removal in podcast recordings?
 
-ポッドキャストの場合、(1) まず環境ノイズをnoisereduceで軽〜中程度（prop_decrease=0.6-0.7）除去、(2) ハイパスフィルタで80Hz以下をカット（エアコン音、振動）、(3) ディエッサーで歯擦音を制御。重要なのは過度に除去しないこと。少量のノイズが残る方が、アーティファクトだらけのクリーン音声より聞きやすいです。Adobe Podcastの「Enhance Speech」機能は最も簡単かつ高品質な選択肢です。
+For podcasts, (1) first remove environmental noise with noisereduce at light to moderate levels (prop_decrease=0.6-0.7), (2) cut below 80Hz with a high-pass filter (AC noise, vibration), (3) control sibilance with a de-esser. The key is not to over-remove. A small amount of remaining noise sounds better than artifact-laden "clean" audio. Adobe Podcast's "Enhance Speech" feature is the simplest and highest-quality option.
 
-### Q2: LUFS（ラウドネスユニット）とは何ですか？なぜ重要ですか？
+### Q2: What is LUFS (Loudness Units) and why is it important?
 
-LUFSはITU-R BS.1770で規定されたラウドネス測定単位で、人間の聴覚特性を考慮した音量の指標です。各配信プラットフォームが要求するLUFS値が異なります。Spotify: -14 LUFS、YouTube: -14 LUFS、Apple Music: -16 LUFS、ポッドキャスト: -16 to -14 LUFS。この値に合わせないと、プラットフォーム側で自動的にラウドネス調整が行われ、意図しない音質変化が起きます。
+LUFS is a loudness measurement unit defined by ITU-R BS.1770 that takes human auditory characteristics into account. Each streaming platform requires different LUFS values: Spotify: -14 LUFS, YouTube: -14 LUFS, Apple Music: -16 LUFS, Podcasts: -16 to -14 LUFS. If you don't match these values, the platform will automatically adjust the loudness, resulting in unintended audio quality changes.
 
-### Q3: AIマスタリングはプロのマスタリングエンジニアを置き換えられますか？
+### Q3: Can AI mastering replace professional mastering engineers?
 
-2025年時点では「完全な置き換え」には至っていません。AIマスタリングは、(1) 技術的な正確さ（LUFS準拠、True Peakリミッティング）、(2) 一貫した品質、(3) 低コスト・高速という利点があります。一方で、(1) 楽曲の芸術的意図の理解、(2) マスタリング連作での統一感、(3) 問題の発見と創造的解決、はまだ人間のエンジニアが優れています。Demo/ポッドキャスト/YouTubeコンテンツにはAIマスタリングが十分で、商業リリースにはプロのエンジニアを推奨します。
+As of 2025, it has not achieved "complete replacement." AI mastering has advantages in (1) technical accuracy (LUFS compliance, True Peak limiting), (2) consistent quality, and (3) low cost and fast turnaround. On the other hand, (1) understanding the artistic intent of a track, (2) maintaining consistency across album mastering, and (3) identifying problems and finding creative solutions are still areas where human engineers excel. AI mastering is sufficient for demos/podcasts/YouTube content, while professional engineers are recommended for commercial releases.
 
-### Q4: リアルタイムでのAIエフェクト処理に必要なハードウェア要件は？
+### Q4: What are the hardware requirements for real-time AI effect processing?
 
-リアルタイム処理の要件は使用するモデルにより大きく異なります。RNNoiseはCPUのみで動作し、Raspberry Piでも処理可能（遅延約5ms）です。Demucs Denoiserの場合はGPU（NVIDIA RTX 3060以上）が推奨され、遅延は20-50ms程度です。重要なのは「バッファサイズとレイテンシのトレードオフ」で、バッファを小さくすると遅延は減るが処理負荷が増えます。一般的に、音声通話では40ms以下、音楽演奏では10ms以下が快適なレイテンシの目安です。
+Hardware requirements for real-time processing vary significantly depending on the model used. RNNoise runs on CPU only and can process on a Raspberry Pi (latency ~5ms). Demucs Denoiser recommends a GPU (NVIDIA RTX 3060 or higher) with latency around 20-50ms. The key consideration is the "buffer size vs. latency tradeoff" -- smaller buffers reduce latency but increase processing load. Generally, latency below 40ms is comfortable for voice calls, and below 10ms for music performance.
 
-### Q5: EQとコンプレッサーのパラメータ設定の経験則は？
+### Q5: What are the rules of thumb for EQ and compressor parameter settings?
 
-ボーカル収録の場合、EQではまず80Hz以下のハイパスフィルタでランブルノイズを除去し、200-300Hzの「もこもこ感」を2-3dBカット、2-4kHzの「プレゼンス」を2-3dBブーストします。コンプレッサーではスレッショルド-18〜-24dB、レシオ3:1〜4:1、アタック5-10ms、リリース40-80msが出発点です。ただしこれらはあくまで経験則であり、実際の素材や環境に応じて耳で調整することが最も重要です。
+For vocal recording, with EQ: first apply a high-pass filter below 80Hz to remove rumble noise, cut 2-3dB in the 200-300Hz "muddiness" range, and boost 2-3dB in the 2-4kHz "presence" range. For the compressor: threshold -18 to -24dB, ratio 3:1 to 4:1, attack 5-10ms, release 40-80ms as a starting point. However, these are merely rules of thumb, and adjusting by ear according to the actual material and environment is most important.
 
-### Q6: ディザリングとは何ですか？いつ必要ですか？
+### Q6: What is dithering and when is it needed?
 
-ディザリングはビット深度を下げる際（例: 24bit→16bit）に発生する量子化歪みを軽減するために、意図的に微小なノイズを付加する処理です。マスタリングの最終段階でCD用16bit WAVやMP3に変換する際に必要になります。ディザリングなしにビット深度を下げると、低レベル信号で量子化ノイズが知覚可能な歪みとなります。TPDF（Triangular Probability Density Function）ディザが最も一般的で、iZotope OzoneやFabFilter Pro-Lなどのリミッタープラグインに組み込まれています。
+Dithering is a process that intentionally adds minute noise to reduce quantization distortion that occurs when reducing bit depth (e.g., 24-bit to 16-bit). It is needed at the final stage of mastering when converting to CD-quality 16-bit WAV or MP3. Reducing bit depth without dithering causes quantization noise that becomes perceptible distortion at low signal levels. TPDF (Triangular Probability Density Function) dither is the most common type and is built into limiter plugins like iZotope Ozone and FabFilter Pro-L.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory but by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+The knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Item | Key Points |
 |------|------|
-| エフェクト順序 | ノイズ除去 → EQ → コンプ → 空間系 → リミッター |
-| AIノイズ除去 | 非定常ノイズ対応、プロファイル不要が利点 |
-| AI EQ | ターゲットプロファイルとの差分で自動調整 |
-| 自動マスタリング | LUFS正規化が核。配信先の要求値に準拠 |
-| 過度な処理の回避 | ノイズ除去は70-80%が目安。100%は音声劣化 |
-| プロ vs AI | 配信コンテンツはAI十分。商業リリースはプロ推奨 |
-| 品質評価 | SNR/PESQ/STOI/SDRで客観評価。聴感評価も重要 |
-| リアルタイム | RNNoiseはCPUで可能。GPU系は20-50ms遅延 |
+| Effect order | Denoise -> EQ -> Compressor -> Spatial -> Limiter |
+| AI noise removal | Handles non-stationary noise, no profile needed |
+| AI EQ | Automatic adjustment based on difference from target profile |
+| Auto mastering | LUFS normalization is core. Comply with target platform requirements |
+| Avoid excessive processing | 70-80% noise removal is the guideline. 100% degrades audio |
+| Professional vs AI | AI is sufficient for streaming content. Professional recommended for commercial releases |
+| Quality evaluation | Objective evaluation with SNR/PESQ/STOI/SDR. Listening evaluation is also important |
+| Real-time | RNNoise works on CPU. GPU-based models have 20-50ms latency |
 
-## 次に読むべきガイド
+## Recommended Next Guides
 
-- [03-midi-ai.md](./03-midi-ai.md) — MIDI×AI（自動作曲、コード進行生成）
-- [01-stem-separation.md](./01-stem-separation.md) — ステム分離との組み合わせ
-- [../03-development/01-audio-processing.md](../03-development/01-audio-processing.md) — librosa/torchaudio実装
+- [03-midi-ai.md](./03-midi-ai.md) — MIDI x AI (Automatic Composition, Chord Progression Generation)
+- [01-stem-separation.md](./01-stem-separation.md) — Combining with Stem Separation
+- [../03-development/01-audio-processing.md](../03-development/01-audio-processing.md) — librosa/torchaudio Implementation
 
-## 参考文献
+## References
 
-1. Défossez, A., et al. (2020). "Real Time Speech Enhancement in the Waveform Domain" — Meta Denoiser論文。波形領域でのリアルタイムノイズ除去
-2. Valin, J.M., et al. (2018). "A Hybrid DSP/Deep Learning Approach to Real-Time Full-Band Speech Enhancement" — RNNoise論文。超軽量リアルタイムノイズ除去
-3. ITU-R BS.1770-5 (2023). "Algorithms to measure audio programme loudness and true-peak audio level" — ラウドネス測定の国際規格
-4. EBU R128 (2020). "Loudness normalisation and permitted maximum level of audio signals" — 欧州放送連合のラウドネス規格
-5. Rix, A.W., et al. (2001). "Perceptual Evaluation of Speech Quality (PESQ)" — ITU-T P.862 音声品質評価規格
-6. Taal, C.H., et al. (2011). "An Algorithm for Intelligibility Prediction of Time-Frequency Weighted Noisy Speech" — STOI音声明瞭度評価
-7. Smith, J.O. (2007). "Introduction to Digital Filters with Audio Applications" — デジタルフィルタ設計の教科書
-8. Zölzer, U. (2011). "DAFX: Digital Audio Effects" — デジタルオーディオエフェクトの包括的教科書
+1. Defossez, A., et al. (2020). "Real Time Speech Enhancement in the Waveform Domain" — Meta Denoiser paper. Real-time noise removal in the waveform domain
+2. Valin, J.M., et al. (2018). "A Hybrid DSP/Deep Learning Approach to Real-Time Full-Band Speech Enhancement" — RNNoise paper. Ultra-lightweight real-time noise removal
+3. ITU-R BS.1770-5 (2023). "Algorithms to measure audio programme loudness and true-peak audio level" — International standard for loudness measurement
+4. EBU R128 (2020). "Loudness normalisation and permitted maximum level of audio signals" — European Broadcasting Union loudness standard
+5. Rix, A.W., et al. (2001). "Perceptual Evaluation of Speech Quality (PESQ)" — ITU-T P.862 speech quality evaluation standard
+6. Taal, C.H., et al. (2011). "An Algorithm for Intelligibility Prediction of Time-Frequency Weighted Noisy Speech" — STOI speech intelligibility evaluation
+7. Smith, J.O. (2007). "Introduction to Digital Filters with Audio Applications" — Textbook on digital filter design
+8. Zolzer, U. (2011). "DAFX: Digital Audio Effects" — Comprehensive textbook on digital audio effects
