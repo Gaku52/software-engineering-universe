@@ -1,239 +1,250 @@
-# プロンプト駆動開発 ── 仕様からプロンプトへ、プロンプトからコードへ
+# Prompt-Driven Development -- From Specs to Prompts, From Prompts to Code
 
-> ソフトウェア開発の起点を「コードを書くこと」から「プロンプトを設計すること」へ移行させ、仕様→プロンプト→コード→検証の新しい開発サイクルを体系的に習得する。
-
----
-
-## この章で学ぶこと
-
-1. **プロンプト駆動開発（PDD）のプロセス** ── 仕様定義からコード生成までの一貫したワークフローを理解する
-2. **効果的なプロンプト設計パターン** ── 再現性と品質を高めるプロンプトテンプレートを習得する
-3. **プロンプトの反復改善手法** ── AIの出力品質を段階的に向上させるテクニックを身につける
-4. **実践的なPDDワークフロー** ── 実プロジェクトでPDDを導入・運用する方法を習得する
-5. **チームでのPDD標準化** ── プロンプトの品質管理とナレッジ共有の体制を構築する
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [AI時代のマインドセット ── 人間+AIの協業原則](./01-ai-dev-mindset.md) の内容を理解していること
+> Shift the starting point of software development from "writing code" to "designing prompts," and systematically learn the new development cycle of specification -> prompt -> code -> verification.
 
 ---
 
-## 1. プロンプト駆動開発（PDD）とは
+## What You Will Learn in This Chapter
 
-### 1.1 開発パラダイムの変遷
+1. **Prompt-Driven Development (PDD) Process** -- Understand a consistent workflow from specification definition to code generation
+2. **Effective Prompt Design Patterns** -- Master prompt templates that improve reproducibility and quality
+3. **Iterative Prompt Refinement Techniques** -- Acquire techniques to incrementally improve AI output quality
+4. **Practical PDD Workflow** -- Learn how to introduce and operate PDD in real projects
+5. **Standardizing PDD Across Teams** -- Build a system for prompt quality management and knowledge sharing
 
-```
-手続型開発          オブジェクト指向      テスト駆動開発(TDD)   プロンプト駆動開発(PDD)
-(1960s-)           (1990s-)            (2000s-)            (2024s-)
 
-コード → 動作      設計 → コード        テスト → コード      プロンプト → コード
+## Prerequisites
 
-┌──────┐          ┌──────┐           ┌──────┐            ┌──────────┐
-│手続き │          │クラス │           │Red   │            │ 仕様定義  │
-│を書く │          │設計  │           │Green │            │    ↓     │
-│  ↓   │          │  ↓   │           │Refac │            │プロンプト │
-│デバッグ│          │実装  │           │ tor  │            │    ↓     │
-└──────┘          └──────┘           └──────┘            │AI生成    │
-                                                         │    ↓     │
-                                                         │検証・改善 │
-                                                         └──────────┘
-```
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-### 1.2 PDDのワークフロー
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Understanding of the content in [AI-Era Mindset -- Principles for Human+AI Collaboration](./01-ai-dev-mindset.md)
 
-```
-┌──────────────────────────────────────────────────────┐
-│              プロンプト駆動開発サイクル                  │
-│                                                      │
-│   ┌─────────┐    ┌─────────┐    ┌─────────┐         │
-│   │ 1.仕様  │───►│2.プロン │───►│ 3.生成  │         │
-│   │  定義   │    │ プト設計│    │ (AI)    │         │
-│   └─────────┘    └─────────┘    └────┬────┘         │
-│        ▲                              │              │
-│        │                              ▼              │
-│   ┌─────────┐    ┌─────────┐    ┌─────────┐         │
-│   │ 6.統合  │◄───│5.改善   │◄───│ 4.検証  │         │
-│   │         │    │(反復)   │    │ (人間)  │         │
-│   └─────────┘    └─────────┘    └─────────┘         │
-│                                                      │
-│   各ステップの所要時間:                                │
-│   仕様(10min) → プロンプト(5min) → 生成(1min)        │
-│   → 検証(5min) → 改善(3min) → 統合(5min)            │
-│   合計: 約30分 (従来: 2-4時間)                        │
-└──────────────────────────────────────────────────────┘
-```
+---
 
-### 1.3 PDDの基本原則
+## 1. What Is Prompt-Driven Development (PDD)?
 
-プロンプト駆動開発を成功させるための5つの基本原則を理解する。
+### 1.1 Evolution of Development Paradigms
 
 ```
-原則1: Specification First（仕様優先）
-  - コードを書く前に、必ず仕様を明文化する
-  - 仕様がプロンプトの品質を決定し、プロンプトがコード品質を決定する
-  - 曖昧な仕様 → 曖昧なプロンプト → 曖昧なコード（ゴミイン・ゴミアウト）
+Procedural Dev        Object-Oriented      Test-Driven Dev(TDD)  Prompt-Driven Dev(PDD)
+(1960s-)              (1990s-)             (2000s-)              (2024s-)
 
-原則2: Incremental Refinement（段階的改善）
-  - 一度で完璧を目指さず、反復的に改善する
-  - 各ラウンドで1つの品質軸（機能正確性、エラー処理、パフォーマンスなど）に集中
-  - 3ラウンド以内で実用品質に到達することを目標とする
+Code -> Behavior      Design -> Code       Test -> Code          Prompt -> Code
 
-原則3: Context is King（コンテキストが王）
-  - AIは提供された情報の範囲内でしか最適解を出せない
-  - 既存コード、規約、アーキテクチャ決定を必ずコンテキストとして与える
-  - コンテキストの質がプロンプトの効果を指数関数的に向上させる
-
-原則4: Human in the Loop（人間の関与）
-  - AIの出力を無条件に受け入れない
-  - ドメイン知識、セキュリティ、パフォーマンスの観点で必ず人間がレビュー
-  - 最終的な品質責任は人間にある
-
-原則5: Prompt as Asset（プロンプトは資産）
-  - 優れたプロンプトはコードと同等の資産価値を持つ
-  - バージョン管理し、レビューし、再利用可能にする
-  - チームのプロンプトライブラリは組織の競争力になる
++---------+           +---------+          +---------+           +------------+
+| Write   |           | Class   |          | Red     |           | Define     |
+| proce-  |           | design  |          | Green   |           | spec       |
+| dures   |           |   |     |          | Refac-  |           |   |        |
+|   |     |           |   v     |          |  tor    |           | Prompt     |
+| Debug   |           | Imple-  |          |         |           |   |        |
+|         |           | ment    |          |         |           | AI gen     |
++---------+           +---------+          +---------+           |   |        |
+                                                                 | Verify &   |
+                                                                 | improve    |
+                                                                 +------------+
 ```
 
-### 1.4 PDDと従来手法の比較
+### 1.2 PDD Workflow
 
 ```
-┌──────────────┬──────────────┬──────────────┬──────────────┐
-│    観点       │   従来開発    │     TDD     │     PDD      │
-├──────────────┼──────────────┼──────────────┼──────────────┤
-│ 開発の起点    │ コード       │ テスト       │ プロンプト    │
-│ 設計の表現    │ UMLなど      │ テストケース │ 構造化文書    │
-│ 反復単位      │ 実装→デバッグ │ Red→Green   │ 生成→検証    │
-│ 品質の保証    │ コードレビュー│ テスト通過   │ プロンプト品質│
-│ スケール      │ 線形的       │ 線形的       │ 指数的       │
-│ 学習曲線      │ 高い         │ 中程度       │ 新しいスキル  │
-│ 再利用性      │ ライブラリ    │ テスト       │ テンプレート  │
-│ ドキュメント  │ 別途作成     │ テスト=文書  │ プロンプト=文書│
-└──────────────┴──────────────┴──────────────┴──────────────┘
++------------------------------------------------------+
+|            Prompt-Driven Development Cycle            |
+|                                                      |
+|   +---------+    +---------+    +---------+          |
+|   | 1.Spec  |--->| 2.Prompt|--->| 3.Gene- |          |
+|   | defini- |    | design  |    | ration  |          |
+|   | tion    |    |         |    | (AI)    |          |
+|   +---------+    +---------+    +----+----+          |
+|        ^                             |               |
+|        |                             v               |
+|   +---------+    +---------+    +---------+          |
+|   | 6.Inte- |<---| 5.Refine|<---| 4.Veri- |          |
+|   | gration |    | (iterate)|   | fication|          |
+|   |         |    |         |    | (human) |          |
+|   +---------+    +---------+    +---------+          |
+|                                                      |
+|   Estimated time per step:                           |
+|   Spec(10min) -> Prompt(5min) -> Generation(1min)    |
+|   -> Verification(5min) -> Refinement(3min)          |
+|   -> Integration(5min)                               |
+|   Total: ~30 min (traditional: 2-4 hours)            |
++------------------------------------------------------+
 ```
 
-### 1.5 PDDが適するケースと適さないケース
+### 1.3 Fundamental Principles of PDD
+
+Understand the five fundamental principles for making prompt-driven development successful.
+
+```
+Principle 1: Specification First
+  - Always document specifications before writing code
+  - Spec quality determines prompt quality, which determines code quality
+  - Vague specs -> Vague prompts -> Vague code (Garbage In, Garbage Out)
+
+Principle 2: Incremental Refinement
+  - Don't aim for perfection in one shot; improve iteratively
+  - Focus on one quality dimension per round (functional correctness, error handling, performance, etc.)
+  - Target reaching production quality within 3 rounds
+
+Principle 3: Context is King
+  - AI can only produce optimal solutions within the scope of information provided
+  - Always provide existing code, conventions, and architectural decisions as context
+  - Context quality exponentially improves prompt effectiveness
+
+Principle 4: Human in the Loop
+  - Don't unconditionally accept AI output
+  - Humans must review from perspectives of domain knowledge, security, and performance
+  - Ultimate quality responsibility lies with humans
+
+Principle 5: Prompt as Asset
+  - Excellent prompts have asset value equal to code
+  - Version-control, review, and make them reusable
+  - A team's prompt library becomes a competitive advantage for the organization
+```
+
+### 1.4 Comparing PDD with Traditional Approaches
+
+```
++--------------+--------------+--------------+--------------+
+|   Aspect     | Traditional  |     TDD      |     PDD      |
++--------------+--------------+--------------+--------------+
+| Starting     | Code         | Tests        | Prompts      |
+| point        |              |              |              |
+| Design       | UML, etc.    | Test cases   | Structured   |
+| expression   |              |              | documents    |
+| Iteration    | Implement -> | Red -> Green | Generate ->  |
+| unit         | Debug        |              | Verify       |
+| Quality      | Code review  | Tests pass   | Prompt       |
+| assurance    |              |              | quality      |
+| Scalability  | Linear       | Linear       | Exponential  |
+| Learning     | High         | Moderate     | New skill    |
+| curve        |              |              | required     |
+| Reusability  | Libraries    | Tests        | Templates    |
+| Documentation| Created      | Tests = Docs | Prompts =    |
+|              | separately   |              | Docs         |
++--------------+--------------+--------------+--------------+
+```
+
+### 1.5 When PDD Is and Isn't Suitable
 
 ```python
-# PDDが特に効果を発揮するケース
+# Cases where PDD is particularly effective
 pdd_suitable_cases = {
-    "CRUD操作": "定型的なAPI・画面の大量生成",
-    "ボイラープレート": "設定ファイル、初期コード、スキャフォールド",
-    "テストコード": "網羅的なテストケースの生成",
-    "データ変換": "ETL、マイグレーション、フォーマット変換",
-    "ドキュメント": "APIドキュメント、JSDoc/docstring",
-    "プロトタイピング": "概念実証、MVP開発",
-    "標準パターン": "認証、RBAC、監査ログなど",
+    "CRUD operations": "Bulk generation of standardized APIs and screens",
+    "Boilerplate": "Config files, initial code, scaffolding",
+    "Test code": "Comprehensive test case generation",
+    "Data transformation": "ETL, migrations, format conversions",
+    "Documentation": "API docs, JSDoc/docstring",
+    "Prototyping": "Proof of concept, MVP development",
+    "Standard patterns": "Authentication, RBAC, audit logging, etc.",
 }
 
-# PDDの効果が限定的なケース
+# Cases where PDD has limited effectiveness
 pdd_limited_cases = {
-    "高度なアルゴリズム": "競プロ的な最適化、数学的証明が必要なケース",
-    "ドメイン固有知識": "業界特有の複雑なビジネスルール",
-    "パフォーマンス最適化": "μsec単位のチューニング",
-    "セキュリティクリティカル": "暗号実装、認証基盤の核心部分",
-    "レガシー統合": "文書化されていない古いシステムとの統合",
-    "ハードウェア連携": "ドライバ、組み込み系の低レイヤー",
+    "Advanced algorithms": "Competitive programming optimization, cases requiring mathematical proofs",
+    "Domain-specific knowledge": "Complex business rules unique to an industry",
+    "Performance optimization": "Microsecond-level tuning",
+    "Security-critical": "Cryptographic implementation, core authentication infrastructure",
+    "Legacy integration": "Integration with undocumented legacy systems",
+    "Hardware interaction": "Drivers, low-level embedded systems",
 }
 
-# 判定フレームワーク
+# Decision framework
 def should_use_pdd(task: dict) -> str:
-    """タスクがPDDに適しているかを判定する"""
+    """Determine whether a task is suitable for PDD"""
     score = 0
-    if task.get("is_well_defined"):        score += 2  # 仕様が明確
-    if task.get("has_standard_pattern"):    score += 2  # 標準パターンが存在
-    if task.get("is_repetitive"):          score += 1  # 繰り返し作業
-    if task.get("needs_domain_expertise"): score -= 2  # 専門知識が必要
-    if task.get("is_security_critical"):   score -= 2  # セキュリティ重要
-    if task.get("has_existing_examples"):  score += 1  # 参考例がある
+    if task.get("is_well_defined"):        score += 2  # Spec is clear
+    if task.get("has_standard_pattern"):    score += 2  # Standard pattern exists
+    if task.get("is_repetitive"):          score += 1  # Repetitive work
+    if task.get("needs_domain_expertise"): score -= 2  # Domain expertise needed
+    if task.get("is_security_critical"):   score -= 2  # Security-critical
+    if task.get("has_existing_examples"):  score += 1  # Reference examples exist
 
     if score >= 3:
-        return "PDD推奨: プロンプトで効率的に生成可能"
+        return "PDD recommended: Can be efficiently generated with prompts"
     elif score >= 1:
-        return "PDD部分適用: 骨格をPDDで生成し、詳細を手動で調整"
+        return "Partial PDD: Generate skeleton with PDD, manually adjust details"
     else:
-        return "従来開発推奨: 手動実装の方が安全かつ効率的"
+        return "Traditional development recommended: Manual implementation is safer and more efficient"
 ```
 
 ---
 
-## 2. プロンプト設計パターン
+## 2. Prompt Design Patterns
 
-### コード例1: 基本テンプレート（CRISP形式）
+### Code Example 1: Basic Template (CRISP Format)
 
 ```markdown
-# CRISP プロンプトテンプレート
+# CRISP Prompt Template
 
-## Context（文脈）
-- プロジェクト: ECサイトの注文管理システム
-- 技術スタック: Python 3.12, FastAPI, SQLAlchemy, PostgreSQL
-- 既存コードの規約: PEP 8準拠、型ヒント必須、docstring必須
+## Context
+- Project: E-commerce order management system
+- Tech stack: Python 3.12, FastAPI, SQLAlchemy, PostgreSQL
+- Existing code conventions: PEP 8 compliant, type hints required, docstrings required
 
-## Role（AIの役割）
-あなたはシニアバックエンドエンジニアです。
-クリーンアーキテクチャとDDDに精通しています。
+## Role
+You are a senior backend engineer.
+You are well-versed in Clean Architecture and DDD.
 
-## Intent（意図・目的）
-注文のキャンセル機能を実装したい。
-キャンセル可能な条件（発送前のみ）を厳密にチェックし、
-在庫の復元とユーザーへの通知も行う必要がある。
+## Intent
+I want to implement an order cancellation feature.
+It needs to strictly check cancellation conditions (only before shipment)
+and also restore inventory and notify the user.
 
-## Specifics（具体的要件）
-- エンドポイント: POST /api/v1/orders/{order_id}/cancel
-- キャンセル条件: ステータスが "pending" または "confirmed" のみ
-- 副作用: 在庫数の復元、キャンセルメールの送信
-- エラー: 既にキャンセル済み(409)、発送済み(422)
+## Specifics
+- Endpoint: POST /api/v1/orders/{order_id}/cancel
+- Cancellation conditions: Only when status is "pending" or "confirmed"
+- Side effects: Restore inventory count, send cancellation email
+- Errors: Already cancelled (409), Already shipped (422)
 
-## Pattern（出力形式）
-- ドメイン層、ユースケース層、プレゼンテーション層に分離
-- 各層のファイルを別々に出力
-- テストコードも含める
+## Pattern (Output Format)
+- Separate into domain layer, use case layer, and presentation layer
+- Output each layer as a separate file
+- Include test code
 ```
 
-### コード例2: 段階的詳細化パターン
+### Code Example 2: Incremental Refinement Pattern
 
 ```python
-# === ステップ1: 大枠の設計を依頼 ===
+# === Step 1: Request high-level design ===
 prompt_step1 = """
-注文キャンセル機能の設計を以下の観点で提案してください:
-1. ドメインモデルの変更点
-2. ユースケースのフロー
-3. 必要なインターフェース
-コードは不要。箇条書きで構造だけ示してください。
+Please propose a design for the order cancellation feature from the following perspectives:
+1. Changes to the domain model
+2. Use case flow
+3. Required interfaces
+No code needed. Just outline the structure in bullet points.
 """
 
-# === ステップ2: 設計をレビューしてコード生成 ===
+# === Step 2: Review design and generate code ===
 prompt_step2 = """
-上記の設計に同意します。以下の修正を加えてコードを生成してください:
-- OrderCancelledイベントを追加
-- 冪等性を保証する（同じリクエストを2回送っても安全）
-- CancelReasonをenumで定義
+I agree with the above design. Please generate code with the following modifications:
+- Add an OrderCancelled event
+- Guarantee idempotency (safe to send the same request twice)
+- Define CancelReason as an enum
 """
 
-# === ステップ3: テストとエッジケース ===
+# === Step 3: Tests and edge cases ===
 prompt_step3 = """
-生成されたコードに対して以下のテストを作成してください:
-1. 正常系: pending状態の注文をキャンセル
-2. 正常系: confirmed状態の注文をキャンセル
-3. 異常系: shipped状態の注文をキャンセル試行
-4. 異常系: 既にキャンセル済みの注文を再キャンセル
-5. 境界: 在庫が0の商品を含む注文のキャンセル
-6. 並行: 同時に2つのキャンセルリクエスト
+Please create the following tests for the generated code:
+1. Happy path: Cancel an order in pending state
+2. Happy path: Cancel an order in confirmed state
+3. Error case: Attempt to cancel an order in shipped state
+4. Error case: Re-cancel an already cancelled order
+5. Boundary: Cancel an order containing a product with 0 inventory
+6. Concurrency: Two simultaneous cancel requests
 """
 ```
 
-### コード例3: コンテキスト注入パターン
+### Code Example 3: Context Injection Pattern
 
 ```markdown
-# 既存コードをコンテキストとして提供し、一貫性を保つ
+# Provide existing code as context to maintain consistency
 
-## 既存のドメインモデル（参考）
+## Existing Domain Model (Reference)
 ```python
-# domain/order.py の既存コード
+# Existing code in domain/order.py
 class Order:
     def __init__(self, order_id: OrderId, items: list[OrderItem]):
         self._id = order_id
@@ -248,49 +259,49 @@ class Order:
         self._events.append(OrderConfirmed(self._id))
 ```
 
-## 依頼
-上記の既存パターン（イベント発行、例外クラス、命名規則）に
-完全に一致する形で `cancel` メソッドを追加してください。
-既存コードとの差分のみを出力してください。
+## Request
+Please add a `cancel` method that fully matches the existing patterns
+(event publishing, exception classes, naming conventions) shown above.
+Output only the diff from the existing code.
 ```
 
-### コード例4: 制約指定パターン
+### Code Example 4: Constraint Specification Pattern
 
 ```python
-# AIの出力を制約で制御する
+# Control AI output with constraints
 
 PROMPT_WITH_CONSTRAINTS = """
-以下の制約に従ってReactコンポーネントを作成してください。
+Please create a React component following the constraints below.
 
-## 機能要件
-ユーザー一覧テーブル（検索・ソート・ページネーション付き）
+## Functional Requirements
+User list table (with search, sort, and pagination)
 
-## 制約条件（必ず守ること）
-- DO: TypeScript strict mode で型安全にする
-- DO: TanStack Table v8 を使う
-- DO: サーバーサイドページネーション対応
-- DO: ローディング・エラー・空状態の3つのUIステートを実装
-- DO: アクセシビリティ（aria属性）を含める
+## Constraints (must be followed)
+- DO: Make it type-safe with TypeScript strict mode
+- DO: Use TanStack Table v8
+- DO: Support server-side pagination
+- DO: Implement three UI states: loading, error, and empty
+- DO: Include accessibility (aria attributes)
 
-- DON'T: any型を使わない
-- DON'T: useEffectの中でデータフェッチしない（TanStack Queryを使う）
-- DON'T: CSSをインラインで書かない（Tailwind CSSを使う）
-- DON'T: 1コンポーネント200行を超えない
+- DON'T: Use the any type
+- DON'T: Fetch data inside useEffect (use TanStack Query)
+- DON'T: Write inline CSS (use Tailwind CSS)
+- DON'T: Exceed 200 lines per component
 """
 ```
 
-### コード例5: プロンプトのバージョン管理
+### Code Example 5: Prompt Version Control
 
 ```yaml
 # .prompts/order-cancel.yaml
-# プロンプトをコードと同様にバージョン管理する
+# Version-control prompts just like code
 
 metadata:
   id: order-cancel-v3
   author: "team-backend"
   created: "2025-03-15"
   model: "claude-sonnet-4-20250514"
-  quality_score: 0.92  # 過去の出力品質スコア
+  quality_score: 0.92  # Quality score from past outputs
 
 context:
   project: "ec-platform"
@@ -301,55 +312,55 @@ context:
     - Result type for error handling (no exceptions in domain layer)
 
 prompt: |
-  注文キャンセルのユースケースを実装してください。
+  Please implement the order cancellation use case.
 
-  入力: order_id (UUID), reason (CancelReason enum), cancelled_by (UserId)
-  出力: Result[CancelledOrder, CancelError]
+  Input: order_id (UUID), reason (CancelReason enum), cancelled_by (UserId)
+  Output: Result[CancelledOrder, CancelError]
 
-  ビジネスルール:
-  1. キャンセル可能なステータス: PENDING, CONFIRMED
-  2. 発送後はキャンセル不可 → ReturnRequestへ誘導
-  3. キャンセル時に在庫を復元
-  4. OrderCancelledイベントを発行
+  Business rules:
+  1. Cancellable statuses: PENDING, CONFIRMED
+  2. Cannot cancel after shipment -> Redirect to ReturnRequest
+  3. Restore inventory upon cancellation
+  4. Publish an OrderCancelled event
 
-  制約:
-  - 冪等性を保証すること
-  - 楽観ロックでの並行制御
+  Constraints:
+  - Guarantee idempotency
+  - Concurrency control with optimistic locking
 
 validation:
-  - "CancelError型が定義されていること"
-  - "Result型で返していること"
-  - "DomainEventが発行されていること"
-  - "テストが5件以上含まれていること"
+  - "CancelError type is defined"
+  - "Returns using Result type"
+  - "DomainEvent is published"
+  - "At least 5 tests are included"
 ```
 
-### コード例6: マルチモーダルプロンプトパターン
+### Code Example 6: Multimodal Prompt Pattern
 
 ```markdown
-# 画像やダイアグラムを含むプロンプト
+# Prompts that include images and diagrams
 
-## UIモックアップからのコード生成
+## Code Generation from UI Mockups
 
-### プロンプト構造
-1. スクリーンショットまたはFigmaエクスポートを添付
-2. 以下のテキストプロンプトを付与
+### Prompt Structure
+1. Attach a screenshot or Figma export
+2. Add the following text prompt
 
-## テキストプロンプト
+## Text Prompt
 
-添付のUI設計をReactコンポーネントとして実装してください。
+Please implement the attached UI design as React components.
 
-### 技術仕様
-- フレームワーク: Next.js 14 App Router
-- スタイリング: Tailwind CSS + shadcn/ui
-- 状態管理: React Server Components + useActionState
+### Technical Specifications
+- Framework: Next.js 14 App Router
+- Styling: Tailwind CSS + shadcn/ui
+- State management: React Server Components + useActionState
 
-### レイアウト解析指示
-1. 添付画像の各セクションを独立したコンポーネントに分割
-2. レスポンシブデザイン（モバイル→デスクトップ）
-3. カラーコードは画像から正確に抽出
-4. フォントサイズは相対的な比率を維持
+### Layout Analysis Instructions
+1. Split each section of the attached image into independent components
+2. Responsive design (mobile -> desktop)
+3. Extract color codes accurately from the image
+4. Maintain relative font size ratios
 
-### コンポーネント構造の期待形式
+### Expected Component Structure
 ```
 src/
   components/
@@ -364,68 +375,68 @@ src/
         index.tsx
 ```
 
-### 出力形式
-- 各ファイルを個別に出力
-- コンポーネントごとにStorybookのストーリーも生成
-- レスポンシブのブレークポイント: sm(640px), md(768px), lg(1024px)
+### Output Format
+- Output each file separately
+- Generate Storybook stories for each component
+- Responsive breakpoints: sm(640px), md(768px), lg(1024px)
 ```
 
-### コード例7: ドメインエキスパートプロンプトパターン
+### Code Example 7: Domain Expert Prompt Pattern
 
 ```python
-# 特定ドメインの知識をAIに注入して精度を高める
+# Inject specific domain knowledge into AI to improve accuracy
 
 DOMAIN_EXPERT_PROMPT = """
-## ドメイン知識（金融取引システム）
+## Domain Knowledge (Financial Trading System)
 
-### 用語定義
-- 約定（やくじょう）: 売買注文が成立すること
-- 受渡日（うけわたしび）: 約定日の2営業日後（T+2）
-- 洗替（あらいがえ）: 含み損益を日次で再計算すること
-- ネッティング: 同一通貨の債権債務を相殺すること
+### Terminology
+- Execution (yakujo): When a buy/sell order is fulfilled
+- Settlement date (ukewatashibi): 2 business days after the execution date (T+2)
+- Mark-to-market (araigae): Daily recalculation of unrealized gains/losses
+- Netting: Offsetting receivables and payables in the same currency
 
-### ビジネスルール（厳守）
-1. 取引金額は1億円未満の場合、自動承認
-2. 1億円以上10億円未満は部長承認が必要
-3. 10億円以上は役員承認が必要
-4. 同一顧客への1日の合計取引額が50億円を超える場合、アラート
+### Business Rules (strictly enforced)
+1. Transactions under 100 million yen: auto-approved
+2. 100 million to under 1 billion yen: department head approval required
+3. 1 billion yen and above: executive approval required
+4. Alert if total daily transactions to the same customer exceed 5 billion yen
 
-### 規制要件
-- 金商法に基づく取引記録の7年間保存
-- 反社会的勢力チェック（毎取引時）
-- マネーロンダリング検知（パターンマッチング）
+### Regulatory Requirements
+- 7-year retention of transaction records per the Financial Instruments and Exchange Act
+- Anti-social forces screening (per transaction)
+- Money laundering detection (pattern matching)
 
-## 依頼
-上記のドメイン知識に基づき、取引承認ワークフローのドメインモデルを
-実装してください。TypeScript + Prisma で記述し、承認ステート管理に
-State パターンを使用してください。
+## Request
+Based on the domain knowledge above, implement a domain model for the
+transaction approval workflow. Write it in TypeScript + Prisma and use
+the State pattern for approval state management.
 """
 ```
 
 ---
 
-## 3. プロンプト品質の評価基準
+## 3. Prompt Quality Evaluation Criteria
 
-### 3.1 CLEAR基準
+### 3.1 CLEAR Criteria
 
-| 基準 | 説明 | チェック項目 |
-|------|------|-------------|
-| **C**oncrete（具体的） | 曖昧さがない | 入出力の型、エラーケースが明記されているか |
-| **L**ayered（段階的） | 複雑さを分解 | 1プロンプトの責務が適切に限定されているか |
-| **E**xample-rich（例が豊富） | 期待する形式を示す | 入出力例やコードスニペットが含まれているか |
-| **A**ctionable（実行可能） | 即座にコードに変換可能 | AIが追加質問なしに実装できるか |
-| **R**eproducible（再現可能） | 誰が実行しても同じ結果 | モデル、バージョン、コンテキストが固定されているか |
+| Criterion | Description | Checklist |
+|-----------|-------------|-----------|
+| **C**oncrete | No ambiguity | Are input/output types and error cases explicitly stated? |
+| **L**ayered | Decomposes complexity | Is the scope of a single prompt appropriately limited? |
+| **E**xample-rich | Shows expected format | Are input/output examples or code snippets included? |
+| **A**ctionable | Immediately convertible to code | Can the AI implement it without additional questions? |
+| **R**eproducible | Same result regardless of who runs it | Are model, version, and context fixed? |
 
-### 3.2 プロンプト品質 vs コード品質の相関
+### 3.2 Correlation Between Prompt Quality and Code Quality
 
-| プロンプト品質 | コード品質の傾向 | 修正回数 | 総所要時間 |
-|--------------|----------------|---------|-----------|
-| 曖昧（1行） | 動くが設計が悪い | 5-10回 | 従来と同等 |
-| 基本的（要件列挙） | 機能は正しい | 2-3回 | 従来の50% |
-| 構造化（CRISP） | 設計も品質も高い | 0-1回 | 従来の25% |
-| 完全（例+制約付き） | プロダクション品質 | 0回 | 従来の15% |
+| Prompt Quality | Code Quality Tendency | Revision Count | Total Time |
+|----------------|----------------------|----------------|------------|
+| Vague (1 line) | Works but poorly designed | 5-10 times | Same as traditional |
+| Basic (requirements list) | Functionally correct | 2-3 times | 50% of traditional |
+| Structured (CRISP) | High design and quality | 0-1 times | 25% of traditional |
+| Complete (with examples + constraints) | Production quality | 0 times | 15% of traditional |
 
-### 3.3 プロンプト品質評価スコアカード
+### 3.3 Prompt Quality Score Card
 
 ```python
 from dataclasses import dataclass
@@ -439,18 +450,18 @@ class QualityLevel(Enum):
 
 @dataclass
 class PromptScoreCard:
-    """プロンプトの品質を定量的に評価するスコアカード"""
+    """Score card to quantitatively evaluate prompt quality"""
 
-    # CLEAR基準の各スコア（1-4）
-    concrete: QualityLevel      # 具体性
-    layered: QualityLevel       # 段階性
-    example_rich: QualityLevel  # 例の豊富さ
-    actionable: QualityLevel    # 実行可能性
-    reproducible: QualityLevel  # 再現可能性
+    # CLEAR criteria scores (1-4)
+    concrete: QualityLevel      # Concreteness
+    layered: QualityLevel       # Layering
+    example_rich: QualityLevel  # Richness of examples
+    actionable: QualityLevel    # Actionability
+    reproducible: QualityLevel  # Reproducibility
 
     @property
     def total_score(self) -> int:
-        """総合スコア（5-20）"""
+        """Total score (5-20)"""
         return sum([
             self.concrete.value,
             self.layered.value,
@@ -461,44 +472,44 @@ class PromptScoreCard:
 
     @property
     def quality_grade(self) -> str:
-        """品質グレード"""
+        """Quality grade"""
         score = self.total_score
         if score >= 18:
-            return "A: プロダクション品質のコードが期待できる"
+            return "A: Production-quality code can be expected"
         elif score >= 14:
-            return "B: 軽微な修正で使用可能なコードが期待できる"
+            return "B: Code usable with minor modifications can be expected"
         elif score >= 10:
-            return "C: 骨格は正しいが大幅な修正が必要"
+            return "C: Skeleton is correct but significant modifications needed"
         else:
-            return "D: プロンプトの再設計が必要"
+            return "D: Prompt redesign required"
 
     def improvement_suggestions(self) -> list[str]:
-        """改善提案を生成"""
+        """Generate improvement suggestions"""
         suggestions = []
         if self.concrete.value <= 2:
             suggestions.append(
-                "具体性向上: 入出力の型、エラーケース、境界条件を明記する"
+                "Improve concreteness: Specify input/output types, error cases, and boundary conditions"
             )
         if self.layered.value <= 2:
             suggestions.append(
-                "段階性向上: 1つのプロンプトで扱う範囲を絞り、複数ステップに分割する"
+                "Improve layering: Narrow the scope of a single prompt and split into multiple steps"
             )
         if self.example_rich.value <= 2:
             suggestions.append(
-                "例の追加: 入出力の具体例、期待するコードスタイルのサンプルを含める"
+                "Add examples: Include concrete input/output examples and sample code style references"
             )
         if self.actionable.value <= 2:
             suggestions.append(
-                "実行可能性向上: 技術スタック、ライブラリバージョン、環境情報を追加する"
+                "Improve actionability: Add tech stack, library versions, and environment information"
             )
         if self.reproducible.value <= 2:
             suggestions.append(
-                "再現性向上: モデル名、Temperature設定、使用ツールを固定する"
+                "Improve reproducibility: Fix model name, temperature setting, and tools used"
             )
         return suggestions
 
 
-# 使用例
+# Usage example
 score = PromptScoreCard(
     concrete=QualityLevel.EXCELLENT,
     layered=QualityLevel.GOOD,
@@ -506,69 +517,69 @@ score = PromptScoreCard(
     actionable=QualityLevel.EXCELLENT,
     reproducible=QualityLevel.BASIC,
 )
-print(f"総合スコア: {score.total_score}/20")
-print(f"品質グレード: {score.quality_grade}")
+print(f"Total score: {score.total_score}/20")
+print(f"Quality grade: {score.quality_grade}")
 for suggestion in score.improvement_suggestions():
-    print(f"  改善: {suggestion}")
+    print(f"  Improvement: {suggestion}")
 ```
 
-### 3.4 品質メトリクスの自動計測
+### 3.4 Automated Quality Metrics Collection
 
 ```python
 import re
 from typing import NamedTuple
 
 class PromptMetrics(NamedTuple):
-    """プロンプトの定量的メトリクス"""
-    word_count: int          # 単語数
-    has_context: bool        # コンテキスト情報の有無
-    has_constraints: bool    # 制約条件の有無
-    has_examples: bool       # 例の有無
-    has_error_cases: bool    # エラーケースの記述
-    specificity_score: float # 具体性スコア（0-1）
-    estimated_quality: str   # 推定品質レベル
+    """Quantitative prompt metrics"""
+    word_count: int          # Word count
+    has_context: bool        # Presence of context information
+    has_constraints: bool    # Presence of constraints
+    has_examples: bool       # Presence of examples
+    has_error_cases: bool    # Description of error cases
+    specificity_score: float # Specificity score (0-1)
+    estimated_quality: str   # Estimated quality level
 
 def analyze_prompt(prompt: str) -> PromptMetrics:
-    """プロンプトを分析してメトリクスを算出する"""
+    """Analyze a prompt and compute metrics"""
     words = prompt.split()
     word_count = len(words)
 
-    # コンテキスト情報の検出
+    # Context information detection
     context_patterns = [
-        r"プロジェクト|技術スタック|既存|アーキテクチャ|規約",
+        r"project|tech stack|existing|architecture|convention",
         r"context|project|stack|architecture|convention",
     ]
     has_context = any(
         re.search(p, prompt, re.IGNORECASE) for p in context_patterns
     )
 
-    # 制約条件の検出
+    # Constraint detection
     constraint_patterns = [
-        r"制約|DON'?T|禁止|必ず|MUST|SHOULD NOT",
+        r"constraint|DON'?T|forbidden|must|MUST|SHOULD NOT",
         r"constraint|restriction|requirement",
     ]
     has_constraints = any(
         re.search(p, prompt, re.IGNORECASE) for p in constraint_patterns
     )
 
-    # 例の検出
-    has_examples = bool(re.search(r"例[：:]|例えば|```|example|e\.g\.", prompt))
+    # Example detection
+    has_examples = bool(re.search(r"example[：:]|for example|```|example|e\.g\.", prompt))
 
-    # エラーケースの検出
+    # Error case detection
     has_error_cases = bool(
-        re.search(r"エラー|異常|例外|失敗|error|exception|failure", prompt, re.IGNORECASE)
+        re.search(r"error|abnormal|exception|failure|error|exception|failure", prompt, re.IGNORECASE)
     )
 
-    # 具体性スコアの計算
+    # Specificity score calculation
     specificity_indicators = [
         has_context, has_constraints, has_examples, has_error_cases,
         word_count > 50, word_count > 100, word_count > 200,
-        bool(re.search(r"\d+", prompt)),  # 数値を含む
+        bool(re.search(r"\d+", prompt)),  # Contains numbers
         bool(re.search(r"(int|str|bool|float|list|dict|string|number)", prompt)),
     ]
     specificity_score = sum(specificity_indicators) / len(specificity_indicators)
 
-    # 推定品質レベル
+    # Estimated quality level
     if specificity_score >= 0.8:
         estimated_quality = "EXCELLENT"
     elif specificity_score >= 0.6:
@@ -591,204 +602,204 @@ def analyze_prompt(prompt: str) -> PromptMetrics:
 
 ---
 
-## 4. 反復改善のテクニック
+## 4. Iterative Refinement Techniques
 
-### 4.1 フィードバックループ
+### 4.1 Feedback Loop
 
 ```
-┌────────────────────────────────────────────────┐
-│          プロンプト反復改善プロセス               │
-│                                                │
-│  Round 1: 初回生成                              │
-│  ┌──────────┐    ┌──────────┐                  │
-│  │プロンプト │───►│  出力    │──► 評価: 60点    │
-│  │ (v1)     │    │ (Draft1) │                  │
-│  └──────────┘    └──────────┘                  │
-│       │                                        │
-│       │ 修正: "エラーハンドリングが不足"          │
-│       ▼                                        │
-│  Round 2: 改善                                  │
-│  ┌──────────┐    ┌──────────┐                  │
-│  │プロンプト │───►│  出力    │──► 評価: 80点    │
-│  │ (v2)     │    │ (Draft2) │                  │
-│  └──────────┘    └──────────┘                  │
-│       │                                        │
-│       │ 修正: "テストのエッジケース追加"          │
-│       ▼                                        │
-│  Round 3: 完成                                  │
-│  ┌──────────┐    ┌──────────┐                  │
-│  │プロンプト │───►│  出力    │──► 評価: 95点    │
-│  │ (v3)     │    │ (Final)  │                  │
-│  └──────────┘    └──────────┘                  │
-└────────────────────────────────────────────────┘
++------------------------------------------------+
+|        Prompt Iterative Refinement Process      |
+|                                                 |
+|  Round 1: Initial generation                    |
+|  +----------+    +----------+                   |
+|  | Prompt   |--->| Output   |---> Score: 60     |
+|  | (v1)     |    | (Draft1) |                   |
+|  +----------+    +----------+                   |
+|       |                                         |
+|       | Fix: "Error handling is insufficient"    |
+|       v                                         |
+|  Round 2: Improvement                           |
+|  +----------+    +----------+                   |
+|  | Prompt   |--->| Output   |---> Score: 80     |
+|  | (v2)     |    | (Draft2) |                   |
+|  +----------+    +----------+                   |
+|       |                                         |
+|       | Fix: "Add edge case tests"              |
+|       v                                         |
+|  Round 3: Completion                            |
+|  +----------+    +----------+                   |
+|  | Prompt   |--->| Output   |---> Score: 95     |
+|  | (v3)     |    | (Final)  |                   |
+|  +----------+    +----------+                   |
++------------------------------------------------+
 ```
 
-### 4.2 反復改善の具体的テクニック
+### 4.2 Specific Iterative Refinement Techniques
 
 ```python
-# テクニック1: 差分指示法
-# 前の出力を参照し、変更点のみを指示する
+# Technique 1: Diff instruction method
+# Reference previous output and only specify changes
 
 DIFF_INSTRUCTION_PROMPT = """
-前回生成したコードに以下の修正を加えてください。
-変更部分のみ出力してください（変更のないファイルは省略）。
+Please apply the following modifications to the previously generated code.
+Output only the changed parts (omit unchanged files).
 
-## 修正指示
-1. OrderService.cancel() にリトライロジックを追加
-   - 最大3回、指数バックオフ（1s, 2s, 4s）
-   - OptimisticLockException の場合のみリトライ
+## Modification Instructions
+1. Add retry logic to OrderService.cancel()
+   - Max 3 retries, exponential backoff (1s, 2s, 4s)
+   - Retry only on OptimisticLockException
 
-2. CancelledOrder のレスポンスに以下を追加
-   - refund_amount: 返金額（税込）
-   - refund_estimated_date: 返金予定日（3営業日後）
+2. Add the following to the CancelledOrder response
+   - refund_amount: Refund amount (tax included)
+   - refund_estimated_date: Estimated refund date (3 business days later)
 
-3. テストに以下のケースを追加
-   - リトライ成功のケース
-   - リトライ上限超過のケース
+3. Add the following test cases
+   - Retry success case
+   - Retry limit exceeded case
 """
 
-# テクニック2: 観点切り替え法
-# 異なる観点からレビューと改善を依頼する
+# Technique 2: Perspective switching method
+# Request review and improvement from different perspectives
 
 PERSPECTIVE_SWITCH_PROMPTS = {
     "security": """
-    生成されたコードをセキュリティの観点でレビューしてください:
-    - SQLインジェクション、XSSの可能性
-    - 認可チェックの漏れ
-    - 情報漏洩リスク（ログ出力、エラーメッセージ）
-    - レートリミットの必要性
-    修正が必要な箇所を具体的に指摘してください。
+    Please review the generated code from a security perspective:
+    - Potential SQL injection, XSS vulnerabilities
+    - Missing authorization checks
+    - Information leakage risks (log output, error messages)
+    - Need for rate limiting
+    Specifically point out areas that need fixing.
     """,
 
     "performance": """
-    生成されたコードをパフォーマンスの観点でレビューしてください:
-    - N+1クエリの有無
-    - 不要なメモリアロケーション
-    - キャッシュ戦略の妥当性
-    - インデックスの必要性
-    改善案を具体的なコード修正として示してください。
+    Please review the generated code from a performance perspective:
+    - Presence of N+1 queries
+    - Unnecessary memory allocations
+    - Appropriateness of caching strategy
+    - Need for indexes
+    Show improvement proposals as specific code modifications.
     """,
 
     "maintainability": """
-    生成されたコードを保守性の観点でレビューしてください:
-    - SOLID原則への準拠
-    - 関数の責務の明確さ
-    - テスタビリティ
-    - 命名の適切さ
-    リファクタリング案を具体的に示してください。
+    Please review the generated code from a maintainability perspective:
+    - Compliance with SOLID principles
+    - Clarity of function responsibilities
+    - Testability
+    - Appropriateness of naming
+    Show specific refactoring proposals.
     """,
 }
 
-# テクニック3: 比較生成法
-# 複数のアプローチを生成させて比較する
+# Technique 3: Comparative generation method
+# Generate multiple approaches and compare them
 
 COMPARISON_PROMPT = """
-以下の機能を3つの異なるアプローチで実装してください。
+Please implement the following feature using 3 different approaches.
 
-## 機能: 注文キャンセル処理
+## Feature: Order Cancellation Processing
 
-### アプローチA: ドメインイベント方式
-- 利点・欠点を明記
+### Approach A: Domain Event pattern
+- State pros and cons
 
-### アプローチB: サーガパターン方式
-- 利点・欠点を明記
+### Approach B: Saga pattern
+- State pros and cons
 
-### アプローチC: ステートマシン方式
-- 利点・欠点を明記
+### Approach C: State Machine pattern
+- State pros and cons
 
-最後に、推奨アプローチとその理由を述べてください。
+Finally, state the recommended approach and the reasoning.
 """
 ```
 
-### 4.3 プロンプトチェーニング
+### 4.3 Prompt Chaining
 
 ```python
-# 複数のプロンプトを連鎖させて複雑な成果物を構築する
+# Chain multiple prompts to build complex deliverables
 
 class PromptChain:
-    """プロンプトを連鎖的に実行して段階的に成果物を構築する"""
+    """Chain prompts sequentially to incrementally build deliverables"""
 
     def __init__(self, ai_client):
         self.client = ai_client
-        self.context = {}  # 各ステップの出力を蓄積
+        self.context = {}  # Accumulate output from each step
 
     def execute_chain(self, feature_spec: dict) -> dict:
-        """プロンプトチェーンを実行"""
+        """Execute the prompt chain"""
 
-        # Step 1: アーキテクチャ設計
+        # Step 1: Architecture design
         arch_prompt = f"""
-        以下の機能のアーキテクチャを設計してください。
+        Please design the architecture for the following feature.
 
-        機能: {feature_spec['name']}
-        要件: {feature_spec['requirements']}
+        Feature: {feature_spec['name']}
+        Requirements: {feature_spec['requirements']}
 
-        以下の形式で出力:
-        1. コンポーネント図（テキスト形式）
-        2. データフロー
-        3. API設計（エンドポイント一覧）
-        4. データモデル（ER図テキスト形式）
+        Output in the following format:
+        1. Component diagram (text format)
+        2. Data flow
+        3. API design (endpoint list)
+        4. Data model (ER diagram in text format)
         """
         self.context['architecture'] = self.client.generate(arch_prompt)
 
-        # Step 2: ドメインモデル実装
+        # Step 2: Domain model implementation
         domain_prompt = f"""
-        以下のアーキテクチャ設計に基づき、ドメインモデルを実装してください。
+        Please implement the domain model based on the following architecture design.
 
-        ## アーキテクチャ設計
+        ## Architecture Design
         {self.context['architecture']}
 
-        ## 制約
+        ## Constraints
         - Python 3.12 + dataclasses
-        - 値オブジェクトは frozen=True
-        - ドメインイベントを含める
-        - ファクトリメソッドを使用
+        - Value objects use frozen=True
+        - Include domain events
+        - Use factory methods
         """
         self.context['domain'] = self.client.generate(domain_prompt)
 
-        # Step 3: ユースケース実装
+        # Step 3: Use case implementation
         usecase_prompt = f"""
-        以下のドメインモデルを使用してユースケースを実装してください。
+        Please implement the use cases using the following domain model.
 
-        ## ドメインモデル
+        ## Domain Model
         {self.context['domain']}
 
-        ## 制約
-        - Repository インターフェースを定義（実装は後のステップ）
-        - トランザクション境界を明確にする
-        - Result型でエラーを表現
+        ## Constraints
+        - Define Repository interfaces (implementation in a later step)
+        - Clarify transaction boundaries
+        - Express errors using Result type
         """
         self.context['usecase'] = self.client.generate(usecase_prompt)
 
-        # Step 4: インフラ層実装
+        # Step 4: Infrastructure layer implementation
         infra_prompt = f"""
-        以下のRepository インターフェースの実装を作成してください。
+        Please create the implementation for the following Repository interfaces.
 
-        ## ユースケース（Repository インターフェース定義を含む）
+        ## Use Cases (including Repository interface definitions)
         {self.context['usecase']}
 
-        ## 制約
+        ## Constraints
         - SQLAlchemy 2.0 + asyncio
-        - PostgreSQL用
-        - マイグレーション（Alembic）も含める
+        - For PostgreSQL
+        - Include migrations (Alembic)
         """
         self.context['infra'] = self.client.generate(infra_prompt)
 
-        # Step 5: テスト生成
+        # Step 5: Test generation
         test_prompt = f"""
-        以下の全レイヤーのテストを作成してください。
+        Please create tests for all layers below.
 
-        ## ドメインモデル
+        ## Domain Model
         {self.context['domain']}
 
-        ## ユースケース
+        ## Use Cases
         {self.context['usecase']}
 
-        ## 制約
+        ## Constraints
         - pytest + pytest-asyncio
-        - ドメイン層: 単体テスト（モック不要）
-        - ユースケース層: Repository をモック
-        - インフラ層: testcontainers でPostgreSQLを起動
-        - カバレッジ90%以上を目標
+        - Domain layer: Unit tests (no mocks needed)
+        - Use case layer: Mock Repository
+        - Infrastructure layer: Start PostgreSQL with testcontainers
+        - Target coverage of 90% or higher
         """
         self.context['tests'] = self.client.generate(test_prompt)
 
@@ -797,432 +808,432 @@ class PromptChain:
 
 ---
 
-## 5. 実践的なPDDワークフロー
+## 5. Practical PDD Workflow
 
-### 5.1 フルスタック機能開発のPDDフロー
+### 5.1 Full-Stack Feature Development PDD Flow
 
 ```python
-# 実際のプロジェクトでPDDを適用する完全なワークフロー例
+# Complete workflow example applying PDD to a real project
 
 class PDDWorkflow:
     """
-    プロンプト駆動開発の実践ワークフロー
+    Practical PDD Workflow
 
-    典型的な機能開発（ユーザー検索機能）での適用例
+    Application example for typical feature development (user search feature)
     """
 
-    # Phase 1: 仕様定義（人間が行う）
+    # Phase 1: Specification definition (done by humans)
     SPEC = """
-    ## ユーザー検索機能の仕様
+    ## User Search Feature Specification
 
-    ### 目的
-    管理画面からユーザーを高速に検索し、詳細情報を表示する
+    ### Purpose
+    Quickly search for users from the admin panel and display detailed information
 
-    ### 検索条件
-    - フリーテキスト（名前、メール、電話番号に部分一致）
-    - ステータスフィルター（active, suspended, deleted）
-    - 登録期間（from - to）
-    - ソート（名前、登録日、最終ログイン日）
+    ### Search Conditions
+    - Free text (partial match on name, email, phone number)
+    - Status filter (active, suspended, deleted)
+    - Registration period (from - to)
+    - Sort (name, registration date, last login date)
 
-    ### 非機能要件
-    - レスポンスタイム: 200ms以下（100万件のデータ）
-    - ページネーション: オフセット方式、1ページ20件
-    - アクセス制御: ADMIN, SUPPORT ロールのみアクセス可能
+    ### Non-Functional Requirements
+    - Response time: Under 200ms (with 1 million records)
+    - Pagination: Offset-based, 20 items per page
+    - Access control: Only ADMIN and SUPPORT roles can access
     """
 
-    # Phase 2: プロンプト設計（人間がテンプレートを活用）
+    # Phase 2: Prompt design (humans leverage templates)
     PROMPTS = {
         "api_design": """
         ## Context
         - FastAPI + SQLAlchemy + PostgreSQL
-        - 既存のユーザーテーブル: users (id, name, email, phone,
+        - Existing user table: users (id, name, email, phone,
           status, created_at, last_login_at)
-        - 認証: JWT + RBAC (roles: ADMIN, SUPPORT, USER)
+        - Authentication: JWT + RBAC (roles: ADMIN, SUPPORT, USER)
 
-        ## 依頼
-        ユーザー検索APIのエンドポイントを設計してください。
+        ## Request
+        Please design the user search API endpoint.
 
-        ### 検索仕様
+        ### Search Specification
         - GET /api/v1/admin/users/search
-        - クエリパラメータ: q(フリーテキスト), status,
+        - Query parameters: q (free text), status,
           from_date, to_date, sort_by, sort_order, page, per_page
-        - レスポンス: ページネーション付きのユーザー一覧
+        - Response: Paginated user list
 
-        ### 出力形式
-        - Pydanticのリクエスト/レスポンスモデル
-        - FastAPIのルーター
-        - 検索サービス
-        - SQLAlchemyのクエリビルダー
-        - テストコード（pytest）
+        ### Output Format
+        - Pydantic request/response models
+        - FastAPI router
+        - Search service
+        - SQLAlchemy query builder
+        - Test code (pytest)
         """,
 
         "frontend": """
         ## Context
         - Next.js 14 App Router + TypeScript
         - UI: shadcn/ui + Tailwind CSS
-        - 状態管理: TanStack Query v5
-        - 先ほど設計したAPI: GET /api/v1/admin/users/search
+        - State management: TanStack Query v5
+        - Previously designed API: GET /api/v1/admin/users/search
 
-        ## 依頼
-        管理画面のユーザー検索ページを実装してください。
+        ## Request
+        Please implement the admin user search page.
 
-        ### UI仕様
-        - 検索フォーム（デバウンス付きテキスト入力）
-        - フィルターパネル（ステータス、期間）
-        - 結果テーブル（ソート対応、ページネーション）
-        - ローディング、エラー、空結果の各状態
+        ### UI Specification
+        - Search form (debounced text input)
+        - Filter panel (status, date range)
+        - Results table (sortable, paginated)
+        - Loading, error, and empty result states
 
-        ### 出力形式
-        - page.tsx（Server Component）
-        - SearchForm.tsx（Client Component）
-        - UserTable.tsx（Client Component）
-        - useUserSearch.ts（カスタムフック）
-        - 型定義ファイル
+        ### Output Format
+        - page.tsx (Server Component)
+        - SearchForm.tsx (Client Component)
+        - UserTable.tsx (Client Component)
+        - useUserSearch.ts (custom hook)
+        - Type definition file
         """,
     }
 
-    # Phase 3: 検証チェックリスト（人間が確認）
+    # Phase 3: Verification checklist (confirmed by humans)
     VERIFICATION = """
-    ## 検証チェックリスト
+    ## Verification Checklist
 
-    ### 機能検証
-    - [ ] フリーテキスト検索が名前・メール・電話番号で動作する
-    - [ ] ステータスフィルターが正しく適用される
-    - [ ] 日付範囲フィルターが正しく動作する
-    - [ ] ソートが昇順・降順で動作する
-    - [ ] ページネーションが正しく動作する
+    ### Functional Verification
+    - [ ] Free text search works on name, email, and phone number
+    - [ ] Status filter is correctly applied
+    - [ ] Date range filter works correctly
+    - [ ] Sorting works in ascending and descending order
+    - [ ] Pagination works correctly
 
-    ### セキュリティ検証
-    - [ ] ADMIN, SUPPORT以外のロールはアクセスできない
-    - [ ] SQLインジェクション対策がされている
-    - [ ] フリーテキストにXSSペイロードを入れても安全
+    ### Security Verification
+    - [ ] Roles other than ADMIN and SUPPORT cannot access
+    - [ ] SQL injection countermeasures are in place
+    - [ ] XSS payloads in free text are handled safely
 
-    ### パフォーマンス検証
-    - [ ] 100万件のテストデータで200ms以下
-    - [ ] 適切なインデックスが定義されている
-    - [ ] N+1クエリが発生していない
+    ### Performance Verification
+    - [ ] Under 200ms with 1 million test records
+    - [ ] Appropriate indexes are defined
+    - [ ] No N+1 queries occur
 
-    ### UX検証
-    - [ ] 検索デバウンスが300ms程度
-    - [ ] ローディング中にスケルトンが表示される
-    - [ ] エラー時にリトライボタンが表示される
+    ### UX Verification
+    - [ ] Search debounce is approximately 300ms
+    - [ ] Skeleton is displayed during loading
+    - [ ] Retry button is displayed on error
     """
 ```
 
-### 5.2 レガシーコードリファクタリングのPDD
+### 5.2 PDD for Legacy Code Refactoring
 
 ```python
-# レガシーコードを段階的にリファクタリングするPDDアプローチ
+# PDD approach for incrementally refactoring legacy code
 
 LEGACY_REFACTORING_PROMPTS = {
     "step1_analysis": """
     ## Context
-    以下のレガシーコードを分析してください。
+    Please analyze the following legacy code.
 
     ```python
-    # legacy_order_processor.py（800行の神クラス）
+    # legacy_order_processor.py (800-line god class)
     class OrderProcessor:
         def __init__(self, db):
             self.db = db
 
         def process(self, order_data):
-            # バリデーション、在庫チェック、決済、通知、ログ...
-            # 800行のメソッド
+            # Validation, inventory check, payment, notification, logging...
+            # 800-line method
             ...
     ```
 
-    ## 依頼
-    1. 責務を分析して一覧化してください
-    2. 依存関係を図示してください
-    3. リファクタリングの優先順位を提案してください
-    4. 段階的な移行計画（5ステップ以内）を作成してください
+    ## Request
+    1. Analyze and list the responsibilities
+    2. Diagram the dependencies
+    3. Propose refactoring priorities
+    4. Create a phased migration plan (5 steps or fewer)
     """,
 
     "step2_interface": """
     ## Context
-    前回の分析結果に基づき、新しいインターフェースを設計してください。
+    Based on the previous analysis results, please design new interfaces.
 
-    ## 制約
-    - 既存のOrderProcessorを一度に全て書き換えない
-    - Strangler Fig パターンで段階的に移行
-    - 各ステップでテストが通る状態を維持
-    - 新しいコードはClean Architecture準拠
+    ## Constraints
+    - Don't rewrite the entire OrderProcessor at once
+    - Migrate incrementally using the Strangler Fig pattern
+    - Maintain passing tests at each step
+    - New code must follow Clean Architecture
     """,
 
     "step3_migration": """
     ## Context
-    設計済みのインターフェースに基づき、最初の移行ステップを実装してください。
+    Based on the designed interfaces, please implement the first migration step.
 
-    ## 移行対象
-    バリデーションロジックをOrderValidatorクラスに抽出
+    ## Migration Target
+    Extract validation logic into an OrderValidator class
 
-    ## 制約
-    - OrderProcessorはOrderValidatorに委譲する形に変更
-    - 外部インターフェースは変更しない
-    - 移行前後で全テストがパスすること
-    - 移行のロールバック手順も含める
+    ## Constraints
+    - Modify OrderProcessor to delegate to OrderValidator
+    - Don't change external interfaces
+    - All tests must pass before and after migration
+    - Include rollback procedures for the migration
     """,
 }
 ```
 
-### 5.3 API設計のPDD
+### 5.3 PDD for API Design
 
 ```python
-# OpenAPI仕様をプロンプトで生成するワークフロー
+# Workflow for generating OpenAPI specifications with prompts
 
 API_DESIGN_PDD = """
 ## Context
-- マイクロサービスアーキテクチャ
+- Microservices architecture
 - API Gateway: Kong
-- 認証: OAuth 2.0 + JWT
-- バージョニング: URL path方式 (/api/v1/)
-- ドキュメント: OpenAPI 3.1
+- Authentication: OAuth 2.0 + JWT
+- Versioning: URL path method (/api/v1/)
+- Documentation: OpenAPI 3.1
 
-## 依頼
-以下のリソースに対するREST APIを設計してください。
+## Request
+Please design REST APIs for the following resources.
 
-### リソース: プロジェクト管理
-- Project: プロジェクトの作成・更新・削除・一覧・詳細
-- Task: プロジェクト内のタスク管理
-- Member: プロジェクトメンバーの管理
+### Resources: Project Management
+- Project: Create, update, delete, list, and detail projects
+- Task: Task management within projects
+- Member: Project member management
 
-### 設計要件
-1. HATEOAS準拠のレスポンス形式
-2. Cursor-based pagination（大量データ対応）
-3. Partial response（fieldsパラメータ）
-4. 一括操作API（batch endpoint）
-5. Webhook通知の登録API
+### Design Requirements
+1. HATEOAS-compliant response format
+2. Cursor-based pagination (for large datasets)
+3. Partial response (fields parameter)
+4. Batch operation API (batch endpoint)
+5. Webhook notification registration API
 
-### 出力形式
-1. OpenAPI 3.1 YAML形式
-2. 各エンドポイントにリクエスト/レスポンスの例を含める
-3. エラーレスポンスのスキーマ（RFC 7807準拠）
-4. 認可ルール（どのロールがどのエンドポイントにアクセスできるか）
+### Output Format
+1. OpenAPI 3.1 YAML format
+2. Include request/response examples for each endpoint
+3. Error response schema (RFC 7807 compliant)
+4. Authorization rules (which roles can access which endpoints)
 """
 ```
 
 ---
 
-## 6. プロンプトテンプレートライブラリ
+## 6. Prompt Template Library
 
-### 6.1 汎用テンプレート集
+### 6.1 General-Purpose Template Collection
 
 ```yaml
 # .prompts/templates/crud-api.yaml
-name: "CRUD API生成テンプレート"
-description: "標準的なCRUD APIを生成するための汎用テンプレート"
+name: "CRUD API Generation Template"
+description: "General-purpose template for generating standard CRUD APIs"
 version: "2.0"
 
 parameters:
   - name: entity_name
-    description: "エンティティ名（例: User, Product）"
+    description: "Entity name (e.g., User, Product)"
     required: true
   - name: fields
-    description: "フィールド定義（名前: 型の配列）"
+    description: "Field definitions (array of name: type)"
     required: true
   - name: tech_stack
-    description: "技術スタック"
+    description: "Tech stack"
     default: "Python + FastAPI + SQLAlchemy"
   - name: auth_required
-    description: "認証要否"
+    description: "Whether authentication is required"
     default: true
   - name: soft_delete
-    description: "論理削除の使用"
+    description: "Whether to use soft delete"
     default: true
 
 template: |
   ## Context
-  技術スタック: {{tech_stack}}
-  エンティティ: {{entity_name}}
+  Tech stack: {{tech_stack}}
+  Entity: {{entity_name}}
 
-  ## フィールド定義
+  ## Field Definitions
   {{#each fields}}
-  - {{this.name}}: {{this.type}} {{#if this.required}}(必須){{/if}}
+  - {{this.name}}: {{this.type}} {{#if this.required}}(required){{/if}}
   {{/each}}
 
-  ## 依頼
-  {{entity_name}}のCRUD APIを以下の仕様で実装してください。
+  ## Request
+  Please implement a CRUD API for {{entity_name}} with the following specification.
 
-  ### エンドポイント
-  - POST   /api/v1/{{entity_name | lower}}s     - 作成
-  - GET    /api/v1/{{entity_name | lower}}s     - 一覧（ページネーション付き）
-  - GET    /api/v1/{{entity_name | lower}}s/:id - 詳細
-  - PUT    /api/v1/{{entity_name | lower}}s/:id - 更新
-  - DELETE /api/v1/{{entity_name | lower}}s/:id - 削除{{#if soft_delete}}（論理削除）{{/if}}
+  ### Endpoints
+  - POST   /api/v1/{{entity_name | lower}}s     - Create
+  - GET    /api/v1/{{entity_name | lower}}s     - List (with pagination)
+  - GET    /api/v1/{{entity_name | lower}}s/:id - Detail
+  - PUT    /api/v1/{{entity_name | lower}}s/:id - Update
+  - DELETE /api/v1/{{entity_name | lower}}s/:id - Delete{{#if soft_delete}} (soft delete){{/if}}
 
-  ### 共通仕様
-  {{#if auth_required}}- JWT認証必須{{/if}}
-  - バリデーション（Pydantic）
-  - エラーハンドリング（RFC 7807形式）
-  - ログ出力（構造化ログ）
-  - テストコード（pytest、カバレッジ90%以上）
+  ### Common Specifications
+  {{#if auth_required}}- JWT authentication required{{/if}}
+  - Validation (Pydantic)
+  - Error handling (RFC 7807 format)
+  - Log output (structured logging)
+  - Test code (pytest, coverage 90% or higher)
 ```
 
-### 6.2 コードレビュープロンプトテンプレート
+### 6.2 Code Review Prompt Template
 
 ```yaml
 # .prompts/templates/code-review.yaml
-name: "AIコードレビューテンプレート"
+name: "AI Code Review Template"
 version: "1.5"
 
 template: |
-  以下のコードを多角的にレビューしてください。
+  Please review the following code from multiple perspectives.
 
-  ## レビュー対象コード
+  ## Code Under Review
   ```
   {{code}}
   ```
 
-  ## レビュー観点（各観点で1-5のスコアをつけてください）
+  ## Review Perspectives (score 1-5 for each)
 
-  ### 1. 正確性（Correctness）
-  - ビジネスロジックに誤りがないか
-  - エッジケースの処理漏れがないか
-  - 型の不整合がないか
+  ### 1. Correctness
+  - Any errors in business logic
+  - Missing edge case handling
+  - Type mismatches
 
-  ### 2. セキュリティ（Security）
-  - インジェクション系の脆弱性
-  - 認証・認可の漏れ
-  - 機密情報の露出
+  ### 2. Security
+  - Injection vulnerabilities
+  - Missing authentication/authorization
+  - Sensitive information exposure
 
-  ### 3. パフォーマンス（Performance）
-  - 不要な計算やIO
-  - メモリリーク
-  - 最適化の余地
+  ### 3. Performance
+  - Unnecessary computation or IO
+  - Memory leaks
+  - Room for optimization
 
-  ### 4. 可読性（Readability）
-  - 命名の適切さ
-  - コメントの過不足
-  - 関数の長さと複雑度
+  ### 4. Readability
+  - Appropriateness of naming
+  - Over/under-commenting
+  - Function length and complexity
 
-  ### 5. テスタビリティ（Testability）
-  - 依存性の注入
-  - モックの容易さ
-  - 副作用の分離
+  ### 5. Testability
+  - Dependency injection
+  - Ease of mocking
+  - Separation of side effects
 
-  ## 出力形式
-  各観点のスコアと具体的な改善提案をコード付きで示してください。
-  致命的な問題は🔴、改善推奨は🟡、軽微は🟢でマークしてください。
+  ## Output Format
+  Show scores and specific improvement proposals with code for each perspective.
+  Mark critical issues with red, recommendations with yellow, minor with green.
 ```
 
-### 6.3 テスト生成テンプレート
+### 6.3 Test Generation Template
 
 ```yaml
 # .prompts/templates/test-generation.yaml
-name: "包括的テスト生成テンプレート"
+name: "Comprehensive Test Generation Template"
 version: "2.0"
 
 template: |
-  以下のコードに対する包括的なテストスイートを作成してください。
+  Please create a comprehensive test suite for the following code.
 
-  ## 対象コード
+  ## Target Code
   ```
   {{code}}
   ```
 
-  ## テスト要件
+  ## Test Requirements
 
-  ### カテゴリ別テストケース
-  1. **正常系（Happy Path）**
-     - 典型的な入力での正常動作
-     - 各分岐パスの通過確認
+  ### Test Cases by Category
+  1. **Happy Path**
+     - Normal operation with typical input
+     - Confirm each branch path is traversed
 
-  2. **境界値（Boundary）**
-     - 最小値、最大値
-     - 空リスト、空文字列
-     - ゼロ、負数
+  2. **Boundary Values**
+     - Minimum and maximum values
+     - Empty list, empty string
+     - Zero, negative numbers
 
-  3. **異常系（Error Cases）**
-     - 不正な入力
+  3. **Error Cases**
+     - Invalid input
      - null/undefined
-     - 型不一致
-     - リソース不足（メモリ、ディスク）
+     - Type mismatch
+     - Resource exhaustion (memory, disk)
 
-  4. **並行性（Concurrency）**
-     - 同時実行
-     - レースコンディション
-     - デッドロック
+  4. **Concurrency**
+     - Simultaneous execution
+     - Race conditions
+     - Deadlocks
 
-  5. **統合（Integration）**
-     - 外部サービスとの連携
-     - DB操作
-     - ファイルI/O
+  5. **Integration**
+     - External service integration
+     - DB operations
+     - File I/O
 
-  ## 制約
-  - テストフレームワーク: {{test_framework}}
-  - カバレッジ目標: {{coverage_target}}%
-  - モックライブラリ: {{mock_library}}
-  - 各テストは独立して実行可能であること
-  - Given-When-Thenの形式でテスト名を記述
+  ## Constraints
+  - Test framework: {{test_framework}}
+  - Coverage target: {{coverage_target}}%
+  - Mock library: {{mock_library}}
+  - Each test must be independently executable
+  - Write test names in Given-When-Then format
 ```
 
 ---
 
-## 7. 高度なプロンプトテクニック
+## 7. Advanced Prompt Techniques
 
-### 7.1 メタプロンプティング
+### 7.1 Meta-Prompting
 
 ```python
-# プロンプトを生成するプロンプト（メタプロンプト）
+# A prompt that generates prompts (meta-prompt)
 
 META_PROMPT = """
-あなたはプロンプトエンジニアです。
-以下の要件に基づいて、最適なプロンプトを生成してください。
+You are a prompt engineer.
+Please generate an optimal prompt based on the following requirements.
 
-## 要件
-- 目的: {purpose}
-- 技術: {tech_stack}
-- 複雑度: {complexity}  # low / medium / high
-- 品質要件: {quality_requirements}
+## Requirements
+- Purpose: {purpose}
+- Technology: {tech_stack}
+- Complexity: {complexity}  # low / medium / high
+- Quality requirements: {quality_requirements}
 
-## プロンプト設計の指針
-1. CRISP形式を使用
-2. 具体的な入出力例を含める
-3. 制約条件を明示する
-4. 品質チェックリストを含める
+## Prompt Design Guidelines
+1. Use CRISP format
+2. Include concrete input/output examples
+3. Explicitly state constraints
+4. Include a quality checklist
 
-## 出力
-生成したプロンプトを以下の形式で出力してください:
-1. プロンプト本文
-2. 使用方法の説明
-3. 想定される出力の品質レベル
-4. さらに改善するためのヒント
+## Output
+Please output the generated prompt in the following format:
+1. Prompt body
+2. Usage instructions
+3. Expected output quality level
+4. Tips for further improvement
 """
 
-# 使用例: 認証機能のプロンプトを自動生成
+# Usage example: Auto-generate a prompt for authentication feature
 auth_meta = META_PROMPT.format(
-    purpose="OAuth 2.0 + PKCE認証フローの実装",
+    purpose="OAuth 2.0 + PKCE authentication flow implementation",
     tech_stack="Next.js 14 + NextAuth.js v5",
     complexity="high",
-    quality_requirements="セキュリティ監査をパスできるレベル",
+    quality_requirements="Level that can pass a security audit",
 )
 ```
 
-### 7.2 自己改善プロンプト
+### 7.2 Self-Improving Prompts
 
 ```python
-# AIに自分のプロンプトを評価・改善させる
+# Have the AI evaluate and improve its own prompts
 
 SELF_IMPROVEMENT_PROMPT = """
-## ステップ1
-以下のプロンプトでコードを生成してください。
+## Step 1
+Generate code using the following prompt.
 
 {original_prompt}
 
-## ステップ2
-生成したコードの品質を自己評価してください（1-10点）。
+## Step 2
+Self-evaluate the quality of the generated code (1-10 points).
 
-## ステップ3
-品質が8点未満の場合、プロンプトのどの部分が不足していたか分析し、
-改善版のプロンプトを提案してください。
+## Step 3
+If the quality is below 8 points, analyze which parts of the prompt
+were insufficient and propose an improved version of the prompt.
 
-## ステップ4
-改善版プロンプトでコードを再生成し、品質の変化を報告してください。
+## Step 4
+Regenerate code with the improved prompt and report the quality change.
 """
 
-# 自動改善ループの実装
+# Implementation of an auto-improvement loop
 class SelfImprovingPrompt:
-    """プロンプトを自動的に改善するループ"""
+    """Loop that automatically improves prompts"""
 
     def __init__(self, ai_client, initial_prompt: str, target_score: int = 8):
         self.client = ai_client
@@ -1232,13 +1243,13 @@ class SelfImprovingPrompt:
 
     def run(self, max_iterations: int = 5) -> dict:
         for i in range(max_iterations):
-            # 生成
+            # Generate
             output = self.client.generate(self.prompt)
 
-            # 自己評価
+            # Self-evaluate
             evaluation = self.client.generate(f"""
-            以下のコードの品質を1-10点で評価してください。
-            スコアと改善点を JSON形式で出力。
+            Please evaluate the quality of the following code on a 1-10 scale.
+            Output the score and improvements in JSON format.
 
             {output}
             """)
@@ -1259,204 +1270,205 @@ class SelfImprovingPrompt:
                     'history': self.history,
                 }
 
-            # プロンプト改善
+            # Improve prompt
             self.prompt = self.client.generate(f"""
-            元のプロンプト:
+            Original prompt:
             {self.prompt}
 
-            評価フィードバック:
+            Evaluation feedback:
             {evaluation['improvements']}
 
-            上記のフィードバックを反映した改善版プロンプトを出力してください。
+            Please output an improved version of the prompt reflecting the above feedback.
             """)
 
         return {
             'final_prompt': self.prompt,
             'iterations': max_iterations,
             'history': self.history,
-            'note': 'ターゲットスコアに達しませんでした',
+            'note': 'Target score was not reached',
         }
 ```
 
-### 7.3 条件分岐プロンプト
+### 7.3 Conditional Branching Prompts
 
 ```python
-# 出力内容を条件に応じて動的に変化させるプロンプト
+# Prompts that dynamically change output content based on conditions
 
 CONDITIONAL_PROMPT_TEMPLATE = """
-## 基本要件
+## Base Requirements
 {base_requirement}
 
-## 条件分岐
+## Conditional Branching
 
-### if ターゲット環境 == "production"
-- エラーハンドリングを完全に実装
-- 構造化ログ（JSON形式）を出力
-- Prometheus メトリクスを追加
-- ヘルスチェックエンドポイントを含める
-- Graceful shutdown を実装
+### if target_environment == "production"
+- Fully implement error handling
+- Output structured logs (JSON format)
+- Add Prometheus metrics
+- Include health check endpoint
+- Implement graceful shutdown
 
-### elif ターゲット環境 == "staging"
-- エラーハンドリングを実装
-- デバッグログを有効化
-- テストデータ生成ユーティリティを含める
+### elif target_environment == "staging"
+- Implement error handling
+- Enable debug logging
+- Include test data generation utilities
 
-### elif ターゲット環境 == "development"
-- 基本的なエラーハンドリングのみ
-- ホットリロード対応
-- コンソールログ
-- swagger UIを有効化
+### elif target_environment == "development"
+- Basic error handling only
+- Hot reload support
+- Console logging
+- Enable Swagger UI
 
-## 現在のターゲット環境: {target_env}
-上記の条件に従い、適切なコードを生成してください。
+## Current target environment: {target_env}
+Please generate appropriate code following the conditions above.
 """
 
-# 使用例
+# Usage example
 prompt = CONDITIONAL_PROMPT_TEMPLATE.format(
-    base_requirement="ユーザー管理API（CRUD）",
+    base_requirement="User management API (CRUD)",
     target_env="production",
 )
 ```
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン 1: ワンショット万能プロンプト
+### Anti-Pattern 1: One-Shot Do-Everything Prompt
 
 ```markdown
-# BAD: 1つのプロンプトで全てを解決しようとする
-"ECサイトの全機能を実装して。ユーザー管理、商品管理、注文管理、
-決済連携、在庫管理、レコメンド、通知機能を含めて。
-フロントはReact、バックはFastAPI、DBはPostgreSQLで。"
+# BAD: Trying to solve everything with a single prompt
+"Implement all features of an e-commerce site. Include user management,
+product management, order management, payment integration, inventory
+management, recommendations, and notification features.
+Frontend in React, backend in FastAPI, DB in PostgreSQL."
 
-# → 出力が膨大かつ品質が低い。コンテキスト制限にも引っかかる。
+# -> Output is massive and low quality. Also hits context limits.
 
-# GOOD: 機能単位で分割し、依存関係順に生成する
-"Step 1: ドメインモデル（User, Product, Order）の定義"
-"Step 2: Userの CRUD API実装"
-"Step 3: Productの CRUD API実装（Step 2の規約に従う）"
-# ...段階的に構築
+# GOOD: Split by feature unit and generate in dependency order
+"Step 1: Define domain models (User, Product, Order)"
+"Step 2: Implement User CRUD API"
+"Step 3: Implement Product CRUD API (following Step 2 conventions)"
+# ...build incrementally
 ```
 
-### アンチパターン 2: コンテキスト不足プロンプト
+### Anti-Pattern 2: Context-Deficient Prompt
 
 ```markdown
-# BAD: プロジェクト固有の情報を提供しない
-"ログイン機能を作って"
+# BAD: Not providing project-specific information
+"Create a login feature"
 
-# → 汎用的すぎるコードが生成され、既存コードと整合しない
+# -> Generates overly generic code that doesn't align with existing code
 
-# GOOD: 既存コードと規約をコンテキストとして提供
-"以下の既存認証モジュール（auth/service.py）のパターンに従い、
-OAuth2.0によるGoogleログイン機能を追加してください。
-既存のSessionManagerを再利用し、UserRepositoryに
-google_idフィールドを追加する想定です。"
+# GOOD: Provide existing code and conventions as context
+"Following the pattern of the existing authentication module (auth/service.py),
+add a Google login feature via OAuth 2.0.
+Reuse the existing SessionManager and assume adding a
+google_id field to UserRepository."
 ```
 
-### アンチパターン 3: プロンプトの放置
+### Anti-Pattern 3: Abandoned Prompts
 
 ```markdown
-# BAD: プロンプトを一度書いたら放置する
-# 3ヶ月前に書いたプロンプトをそのまま使い続ける
-# → モデルが更新され、技術スタックも変わり、品質が劣化
+# BAD: Writing a prompt once and never updating it
+# Using a prompt written 3 months ago as-is
+# -> Model updates, tech stack changes, quality degrades
 
-# GOOD: プロンプトも定期的にメンテナンスする
+# GOOD: Maintain prompts regularly just like code
 # .prompts/CHANGELOG.md
 ## 2025-04-01
-- claude-sonnet-4-20250514 対応: Temperature指定を削除（不要になったため）
-- React 19対応: use()フックの使用を許可する制約を追加
-- テスト: Vitest v2対応のプロンプトに更新
+- claude-sonnet-4-20250514 support: Removed temperature specification (no longer needed)
+- React 19 support: Added constraint permitting use of the use() hook
+- Tests: Updated prompts for Vitest v2 compatibility
 ```
 
-### アンチパターン 4: 出力の無条件受け入れ
+### Anti-Pattern 4: Unconditional Acceptance of Output
 
 ```python
-# BAD: AIの出力をそのまま本番コードに投入
+# BAD: Deploying AI output directly to production
 generated_code = ai.generate(prompt)
-deploy(generated_code)  # 危険！
+deploy(generated_code)  # Dangerous!
 
-# GOOD: 必ず検証プロセスを経る
+# GOOD: Always go through a verification process
 generated_code = ai.generate(prompt)
 
-# Step 1: 静的解析
+# Step 1: Static analysis
 lint_result = run_linter(generated_code)
 assert lint_result.errors == 0
 
-# Step 2: 型チェック
+# Step 2: Type checking
 type_result = run_type_checker(generated_code)
 assert type_result.errors == 0
 
-# Step 3: テスト実行
+# Step 3: Run tests
 test_result = run_tests(generated_code)
 assert test_result.passed
 
-# Step 4: セキュリティスキャン
+# Step 4: Security scan
 security_result = run_security_scan(generated_code)
 assert security_result.critical == 0
 
-# Step 5: 人間によるレビュー
+# Step 5: Human review
 review = request_human_review(generated_code)
 assert review.approved
 
-# Step 6: デプロイ
+# Step 6: Deploy
 deploy(generated_code)
 ```
 
-### アンチパターン 5: コンテキストウィンドウの浪費
+### Anti-Pattern 5: Wasting the Context Window
 
 ```markdown
-# BAD: 不要な情報をプロンプトに詰め込む
-"以下のプロジェクト全体のファイル一覧です（500ファイル）。
-この中のorder.pyを修正してください..."
+# BAD: Stuffing unnecessary information into the prompt
+"Here is the entire file list for the project (500 files).
+Please modify order.py from this list..."
 
-# → コンテキストウィンドウを浪費し、肝心の指示が薄まる
+# -> Wastes context window, diluting the actual instructions
 
-# GOOD: 必要最小限のコンテキストを厳選する
-"以下のorder.pyと、関連するorder_repository.py、
-order_event.pyを提供します。
-order.pyのcancelメソッドを修正してください。"
+# GOOD: Carefully select the minimum necessary context
+"I'm providing order.py and the related order_repository.py
+and order_event.py.
+Please modify the cancel method in order.py."
 ```
 
 ---
 
-## 8. チームでのPDD運用
+## 8. Operating PDD in Teams
 
-### 8.1 プロンプトレビュー体制
+### 8.1 Prompt Review System
 
 ```yaml
 # .github/PULL_REQUEST_TEMPLATE/prompt_review.md
 
-## プロンプト変更レビューチェックリスト
+## Prompt Change Review Checklist
 
-### 必須確認項目
-- [ ] CLEAR基準を満たしているか
-- [ ] 既存のプロンプトとの一貫性があるか
-- [ ] テンプレートパラメータが文書化されているか
-- [ ] バリデーション条件が定義されているか
-- [ ] 想定される出力例が含まれているか
+### Required Verification Items
+- [ ] Does it meet CLEAR criteria?
+- [ ] Is it consistent with existing prompts?
+- [ ] Are template parameters documented?
+- [ ] Are validation conditions defined?
+- [ ] Are expected output examples included?
 
-### 品質スコア
-- 具体性: /4
-- 段階性: /4
-- 例の豊富さ: /4
-- 実行可能性: /4
-- 再現可能性: /4
-- **合計: /20**
+### Quality Score
+- Concreteness: /4
+- Layering: /4
+- Richness of examples: /4
+- Actionability: /4
+- Reproducibility: /4
+- **Total: /20**
 
-### セキュリティ確認
-- [ ] プロンプトインジェクションに対する防御があるか
-- [ ] 機密情報がハードコードされていないか
-- [ ] 出力にセンシティブなデータが含まれないか
+### Security Verification
+- [ ] Is there defense against prompt injection?
+- [ ] Is no sensitive information hardcoded?
+- [ ] Does the output not contain sensitive data?
 
-### レビュアーコメント
-（自由記述）
+### Reviewer Comments
+(free-form)
 ```
 
-### 8.2 プロンプト品質ダッシュボード
+### 8.2 Prompt Quality Dashboard
 
 ```python
-# チーム全体のプロンプト品質を可視化するダッシュボード
+# Dashboard to visualize prompt quality across the team
 
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -1465,31 +1477,31 @@ import json
 
 @dataclass
 class PromptUsageRecord:
-    """プロンプト使用記録"""
+    """Prompt usage record"""
     prompt_id: str
     user: str
     timestamp: datetime
     model: str
     quality_score: float         # 0-1
-    iteration_count: int          # 何回改善したか
-    output_accepted: bool         # 出力が受け入れられたか
-    time_saved_minutes: Optional[float] = None  # 推定節約時間
+    iteration_count: int          # Number of refinement iterations
+    output_accepted: bool         # Whether the output was accepted
+    time_saved_minutes: Optional[float] = None  # Estimated time saved
 
 @dataclass
 class TeamPromptMetrics:
-    """チーム全体のプロンプトメトリクス"""
+    """Team-wide prompt metrics"""
     records: list[PromptUsageRecord] = field(default_factory=list)
 
     @property
     def average_quality(self) -> float:
-        """平均品質スコア"""
+        """Average quality score"""
         if not self.records:
             return 0
         return sum(r.quality_score for r in self.records) / len(self.records)
 
     @property
     def acceptance_rate(self) -> float:
-        """出力受け入れ率"""
+        """Output acceptance rate"""
         if not self.records:
             return 0
         accepted = sum(1 for r in self.records if r.output_accepted)
@@ -1497,21 +1509,21 @@ class TeamPromptMetrics:
 
     @property
     def average_iterations(self) -> float:
-        """平均反復回数"""
+        """Average iteration count"""
         if not self.records:
             return 0
         return sum(r.iteration_count for r in self.records) / len(self.records)
 
     @property
     def total_time_saved(self) -> float:
-        """総節約時間（時間）"""
+        """Total time saved (hours)"""
         return sum(
             r.time_saved_minutes for r in self.records
             if r.time_saved_minutes is not None
         ) / 60
 
     def top_prompts(self, n: int = 10) -> list[dict]:
-        """品質スコアの高いプロンプトTop N"""
+        """Top N prompts by quality score"""
         from collections import defaultdict
         prompt_scores = defaultdict(list)
         for r in self.records:
@@ -1524,95 +1536,95 @@ class TeamPromptMetrics:
         return sorted(averaged, key=lambda x: x["avg_score"], reverse=True)[:n]
 
     def generate_report(self) -> str:
-        """週次レポートを生成"""
+        """Generate weekly report"""
         return f"""
-        ## プロンプト駆動開発 週次レポート
+        ## Prompt-Driven Development Weekly Report
 
-        ### サマリー
-        - 総使用回数: {len(self.records)}
-        - 平均品質スコア: {self.average_quality:.2f}
-        - 出力受け入れ率: {self.acceptance_rate:.1%}
-        - 平均反復回数: {self.average_iterations:.1f}
-        - 総節約時間: {self.total_time_saved:.1f}時間
+        ### Summary
+        - Total usage count: {len(self.records)}
+        - Average quality score: {self.average_quality:.2f}
+        - Output acceptance rate: {self.acceptance_rate:.1%}
+        - Average iteration count: {self.average_iterations:.1f}
+        - Total time saved: {self.total_time_saved:.1f} hours
 
-        ### トッププロンプト
+        ### Top Prompts
         {json.dumps(self.top_prompts(5), indent=2, ensure_ascii=False)}
         """
 ```
 
-### 8.3 PDD導入ロードマップ
+### 8.3 PDD Adoption Roadmap
 
 ```
-Phase 1: 試験導入（1-2週間）
-├── チーム内に2-3名のPDDチャンピオンを選出
-├── 既存のボイラープレート作業をPDDに置き換え
-├── 基本テンプレート（CRISP）の研修
-└── 成果と課題をドキュメント化
+Phase 1: Pilot Introduction (1-2 weeks)
++-- Select 2-3 PDD champions within the team
++-- Replace existing boilerplate work with PDD
++-- Training on basic templates (CRISP)
++-- Document results and challenges
 
-Phase 2: 拡大（3-4週間）
-├── チーム全員にPDD研修を実施
-├── プロンプトテンプレートライブラリの構築開始
-├── プロンプトレビューをコードレビューに統合
-├── 品質メトリクスの計測開始
-└── 週次レトロスペクティブにPDDの振り返りを追加
+Phase 2: Expansion (3-4 weeks)
++-- Conduct PDD training for the entire team
++-- Begin building the prompt template library
++-- Integrate prompt review into code review
++-- Start measuring quality metrics
++-- Add PDD retrospective to weekly retrospectives
 
-Phase 3: 標準化（5-8週間）
-├── プロンプト品質基準の正式策定
-├── CI/CDパイプラインへのプロンプト検証の組み込み
-├── ナレッジベースの運用開始
-├── 他チームへの横展開
-└── ROI分析と経営報告
+Phase 3: Standardization (5-8 weeks)
++-- Formally establish prompt quality standards
++-- Integrate prompt validation into CI/CD pipeline
++-- Begin operating the knowledge base
++-- Lateral deployment to other teams
++-- ROI analysis and executive reporting
 
-Phase 4: 最適化（継続的）
-├── プロンプトの自動改善パイプライン
-├── チーム横断のベストプラクティス共有
-├── 新しいAIモデルへの適応
-├── メトリクスに基づく継続的改善
-└── 業界カンファレンスでの知見共有
+Phase 4: Optimization (ongoing)
++-- Automated prompt improvement pipeline
++-- Cross-team best practice sharing
++-- Adaptation to new AI models
++-- Continuous improvement based on metrics
++-- Sharing insights at industry conferences
 ```
 
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1621,26 +1633,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1648,7 +1660,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1659,14 +1671,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Remove by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1674,7 +1686,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1682,44 +1694,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All applied tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1728,7 +1740,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1743,71 +1755,71 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup factor: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm time complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 ---
 
 ## FAQ
 
-### Q1: PDDはTDD（テスト駆動開発）と併用できるか？
+### Q1: Can PDD be used alongside TDD (Test-Driven Development)?
 
-完全に併用可能であり、むしろ相性が良い。手順は「(1) テストの仕様をプロンプトで記述 → (2) AIがテストコードを生成 → (3) テストの正しさを人間がレビュー → (4) 実装コードをプロンプトで生成 → (5) テストが通ることを確認」となる。TDDの「Red→Green→Refactor」サイクルの各段階でAIを活用できる。
+They are fully compatible and in fact complement each other well. The procedure is: (1) Describe test specifications with a prompt -> (2) AI generates test code -> (3) Humans review test correctness -> (4) Generate implementation code with a prompt -> (5) Confirm tests pass. AI can be leveraged at each stage of TDD's "Red -> Green -> Refactor" cycle.
 
-### Q2: プロンプトの再利用性を高めるにはどうすればよいか？
+### Q2: How can I improve the reusability of prompts?
 
-3つの方法がある。(1) テンプレート化: CRISPなどの形式でチーム共有テンプレートを作成、(2) パラメータ化: 変数部分を `{entity_name}` のようにプレースホルダーにする、(3) バージョン管理: `.prompts/` ディレクトリでGit管理し、品質スコアをメタデータとして記録する。
+There are three approaches: (1) Templatize: Create team-shared templates in formats like CRISP. (2) Parameterize: Use placeholders like `{entity_name}` for variable parts. (3) Version control: Manage in a `.prompts/` directory with Git and record quality scores as metadata.
 
-### Q3: プロンプトの品質をチーム内でどう標準化すればよいか？
+### Q3: How should prompt quality be standardized within a team?
 
-「プロンプトレビュー」をコードレビューと同様のプロセスとして導入する。CLEAR基準によるチェックリストを作成し、PRにプロンプトも含める。優れたプロンプトはチームWikiに登録し、パターンライブラリとして蓄積する。月次で「プロンプト品質向上会」を実施し、ベストプラクティスを更新する。
+Introduce "prompt review" as a process similar to code review. Create checklists based on CLEAR criteria and include prompts in PRs. Register excellent prompts in the team wiki and accumulate them as a pattern library. Hold monthly "prompt quality improvement sessions" to update best practices.
 
-### Q4: PDDでのAIモデル選択はどうすればよいか？
+### Q4: How should AI models be selected for PDD?
 
-タスクの複雑度に応じてモデルを使い分ける。(1) 定型的なCRUD生成やボイラープレート: 軽量・高速なモデル（Claude Haiku等）で十分、(2) 設計判断を伴う中程度の複雑さ: バランス型モデル（Claude Sonnet等）が最適、(3) アーキテクチャ設計や複雑なリファクタリング: 最高性能モデル（Claude Opus等）を使用。コスト最適化のために、段階的に上位モデルにエスカレーションする戦略が有効。
+Use different models depending on task complexity: (1) For routine CRUD generation and boilerplate, a lightweight/fast model (Claude Haiku, etc.) is sufficient. (2) For moderate complexity involving design decisions, a balanced model (Claude Sonnet, etc.) is optimal. (3) For architecture design and complex refactoring, use a top-tier model (Claude Opus, etc.). An escalation strategy of progressively moving to higher-tier models is effective for cost optimization.
 
-### Q5: プロンプトインジェクションへの対策はどうすればよいか？
+### Q5: How should prompt injection be addressed?
 
-ユーザー入力をプロンプトに組み込む場合は特に注意が必要。対策として (1) ユーザー入力とシステムプロンプトを明確に分離する、(2) 入力のサニタイズ（特殊文字のエスケープ）を行う、(3) AIの出力を信頼せず、必ずバリデーションを行う、(4) 権限の最小化（AIにシステムコマンドの実行権限を与えない）を徹底する。
+Special care is needed when incorporating user input into prompts. Countermeasures include: (1) Clearly separate user input from system prompts. (2) Sanitize input (escape special characters). (3) Don't trust AI output -- always validate. (4) Apply the principle of least privilege (don't give AI permission to execute system commands).
 
-### Q6: PDDの効果をどう測定すればよいか？
+### Q6: How should PDD effectiveness be measured?
 
-以下のメトリクスを追跡する。(1) 開発速度: 同種のタスクの完了時間の変化、(2) 品質: バグ発生率、コードレビューでの指摘件数の変化、(3) 再利用性: プロンプトテンプレートの使用頻度と種類数、(4) 満足度: 開発者のサーベイ（PDDに対する満足度と生産性の自己評価）。導入前のベースラインを必ず計測しておくこと。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| PDDの定義 | 仕様→プロンプト→生成→検証のサイクルで開発する手法 |
-| 設計パターン | CRISP形式、段階的詳細化、コンテキスト注入、制約指定 |
-| 品質基準 | CLEAR（具体的・段階的・例付き・実行可能・再現可能） |
-| 反復改善 | 平均2-3回の改善で95点品質に到達 |
-| バージョン管理 | プロンプトもコードと同様にGit管理する |
-| チーム運用 | プロンプトレビュー、品質ダッシュボード、テンプレートライブラリ |
-| 注意点 | ワンショット禁止、コンテキスト必須、出力の無条件受け入れ禁止 |
-| 高度テクニック | メタプロンプティング、自己改善、プロンプトチェーニング |
+Track the following metrics: (1) Development speed: Change in completion time for similar tasks. (2) Quality: Change in bug occurrence rate and code review feedback count. (3) Reusability: Usage frequency and variety of prompt templates. (4) Satisfaction: Developer surveys (self-assessment of satisfaction and productivity with PDD). Always measure a baseline before adoption.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [../01-ai-coding/00-github-copilot.md](../01-ai-coding/00-github-copilot.md) ── GitHub Copilotでのプロンプト実践
-- [../01-ai-coding/01-claude-code.md](../01-ai-coding/01-claude-code.md) ── Claude Codeでの高度なPDD
-- [../02-workflow/00-ai-testing.md](../02-workflow/00-ai-testing.md) ── PDD+TDDの統合アプローチ
+| Item | Key Points |
+|------|------------|
+| PDD Definition | A methodology that develops through the cycle of spec -> prompt -> generation -> verification |
+| Design Patterns | CRISP format, incremental refinement, context injection, constraint specification |
+| Quality Criteria | CLEAR (Concrete, Layered, Example-rich, Actionable, Reproducible) |
+| Iterative Refinement | Average of 2-3 iterations to reach 95-point quality |
+| Version Control | Manage prompts with Git just like code |
+| Team Operations | Prompt review, quality dashboard, template library |
+| Cautions | No one-shot prompts, context required, no unconditional acceptance of output |
+| Advanced Techniques | Meta-prompting, self-improvement, prompt chaining |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
+
+- [../01-ai-coding/00-github-copilot.md](../01-ai-coding/00-github-copilot.md) -- Practical prompting with GitHub Copilot
+- [../01-ai-coding/01-claude-code.md](../01-ai-coding/01-claude-code.md) -- Advanced PDD with Claude Code
+- [../02-workflow/00-ai-testing.md](../02-workflow/00-ai-testing.md) -- Integrated PDD + TDD approach
+
+---
+
+## References
 
 1. Elvis Saravia, "Prompt Engineering Guide," 2024. https://www.promptingguide.ai/
 2. Anthropic, "Prompt Engineering Documentation," 2025. https://docs.anthropic.com/en/docs/build-with-claude/prompt-engineering
