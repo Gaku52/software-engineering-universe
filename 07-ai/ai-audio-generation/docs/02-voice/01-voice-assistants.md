@@ -1,91 +1,92 @@
-# 音声アシスタント — カスタムウェイクワード、対話AI
+# Voice Assistants — Custom Wake Words, Conversational AI
 
-> カスタム音声アシスタントの構築技術（ウェイクワード検出、対話管理、音声インターフェース設計）を解説する
+> Explains techniques for building custom voice assistants, including wake word detection, dialog management, and voice interface design
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. 音声アシスタントの全体アーキテクチャとパイプライン設計
-2. ウェイクワード検出、対話管理、マルチターン会話の実装
-3. LLM統合によるインテリジェント音声対話システムの構築
+1. Overall architecture and pipeline design for voice assistants
+2. Implementation of wake word detection, dialog management, and multi-turn conversations
+3. Building intelligent voice dialog systems with LLM integration
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Understanding the following will help you get the most out of this guide:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [ボイスクローニング — RVC、So-VITS、倫理的考慮](./00-voice-cloning.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Voice Cloning — RVC, So-VITS, Ethical Considerations](./00-voice-cloning.md)
 
 ---
 
-## 1. 音声アシスタントのアーキテクチャ
+## 1. Voice Assistant Architecture
 
-### 1.1 全体パイプライン
+### 1.1 Overall Pipeline
 
 ```
-音声アシスタント パイプライン
+Voice Assistant Pipeline
 ==================================================
 
-          常時リスニング
-               │
-               ▼
-┌──────────────────────┐
-│  Wake Word Detection  │  「Hey, アシスタント」
-│  (ウェイクワード検出)  │  Porcupine / OpenWakeWord
-└───────────┬──────────┘
-            │ 検出!
-            ▼
-┌──────────────────────┐
-│  VAD + 録音           │  音声区間を検出して録音
-│  (Voice Activity Det.)│  webrtcvad / Silero VAD
-└───────────┬──────────┘
-            │ 発話終了
-            ▼
-┌──────────────────────┐
-│  STT (音声認識)       │  Whisper / Google STT
-│                      │  「明日の天気を教えて」
-└───────────┬──────────┘
-            │ テキスト
-            ▼
-┌──────────────────────┐
-│  NLU / LLM           │  意図理解 + 応答生成
-│  (自然言語理解)       │  GPT-4o / Claude
-└───────────┬──────────┘
-            │ 応答テキスト
-            ▼
-┌──────────────────────┐
-│  TTS (音声合成)       │  OpenAI TTS / VITS
-│                      │  「明日は晴れです」
-└───────────┬──────────┘
-            │ 音声
-            ▼
-       スピーカー出力
+          Always Listening
+               |
+               v
++----------------------+
+|  Wake Word Detection  |  "Hey, Assistant"
+|                       |  Porcupine / OpenWakeWord
++-----------+----------+
+            | Detected!
+            v
++----------------------+
+|  VAD + Recording      |  Detect and record speech segments
+|  (Voice Activity Det.)|  webrtcvad / Silero VAD
++-----------+----------+
+            | End of utterance
+            v
++----------------------+
+|  STT (Speech-to-Text) |  Whisper / Google STT
+|                       |  "What's the weather tomorrow?"
++-----------+----------+
+            | Text
+            v
++----------------------+
+|  NLU / LLM            |  Intent understanding + response generation
+|  (Natural Language     |  GPT-4o / Claude
+|   Understanding)       |
++-----------+----------+
+            | Response text
+            v
++----------------------+
+|  TTS (Text-to-Speech) |  OpenAI TTS / VITS
+|                       |  "Tomorrow will be sunny"
++-----------+----------+
+            | Audio
+            v
+       Speaker Output
 ==================================================
 ```
 
-### 1.2 ウェイクワード検出
+### 1.2 Wake Word Detection
 
 ```python
-# Porcupine（Picovoice）によるウェイクワード検出
+# Wake word detection using Porcupine (Picovoice)
 
 import pvporcupine
 import pyaudio
 import struct
 
 class WakeWordDetector:
-    """ウェイクワード検出器"""
+    """Wake word detector"""
 
     def __init__(self, access_key: str, keyword: str = "computer"):
         """
         keyword options:
-        - 組み込み: "alexa", "computer", "jarvis", "hey google" 等
-        - カスタム: Picovoice Console で作成した .ppn ファイル
+        - Built-in: "alexa", "computer", "jarvis", "hey google", etc.
+        - Custom: .ppn files created with Picovoice Console
         """
         self.porcupine = pvporcupine.create(
             access_key=access_key,
             keywords=[keyword],
-            sensitivities=[0.7],  # 感度（0-1、高いほど誤検知増）
+            sensitivities=[0.7],  # Sensitivity (0-1, higher = more false positives)
         )
 
         self.audio = pyaudio.PyAudio()
@@ -98,8 +99,8 @@ class WakeWordDetector:
         )
 
     def listen(self, callback):
-        """ウェイクワードを待機"""
-        print("ウェイクワード待機中...")
+        """Wait for wake word"""
+        print("Waiting for wake word...")
         try:
             while True:
                 pcm = self.stream.read(self.porcupine.frame_length)
@@ -109,7 +110,7 @@ class WakeWordDetector:
 
                 keyword_index = self.porcupine.process(pcm)
                 if keyword_index >= 0:
-                    print("ウェイクワード検出!")
+                    print("Wake word detected!")
                     callback()
 
         except KeyboardInterrupt:
@@ -122,17 +123,17 @@ class WakeWordDetector:
         self.porcupine.delete()
 ```
 
-### 1.3 OpenWakeWord（OSS版）
+### 1.3 OpenWakeWord (OSS Version)
 
 ```python
-# OpenWakeWord: オープンソースのウェイクワード検出
+# OpenWakeWord: Open-source wake word detection
 
 from openwakeword import Model
 import pyaudio
 import numpy as np
 
 class OpenWakeWordDetector:
-    """OSSウェイクワード検出（OpenWakeWord）"""
+    """OSS wake word detection (OpenWakeWord)"""
 
     def __init__(self, model_path: str = None):
         self.model = Model(
@@ -144,7 +145,7 @@ class OpenWakeWordDetector:
         self.chunk_size = 1280  # 80ms @ 16kHz
 
     def listen_continuous(self, on_wake):
-        """連続リスニング"""
+        """Continuous listening"""
         stream = self.audio.open(
             format=pyaudio.paInt16,
             channels=1,
@@ -153,21 +154,21 @@ class OpenWakeWordDetector:
             frames_per_buffer=self.chunk_size,
         )
 
-        print("リスニング開始...")
+        print("Listening started...")
         while True:
             audio_data = stream.read(self.chunk_size)
             audio_array = np.frombuffer(audio_data, dtype=np.int16)
 
-            # 推論
+            # Inference
             prediction = self.model.predict(audio_array)
 
             for mdl_name, score in prediction.items():
-                if score > 0.5:  # 閾値
-                    print(f"検出: {mdl_name} (score: {score:.3f})")
+                if score > 0.5:  # Threshold
+                    print(f"Detected: {mdl_name} (score: {score:.3f})")
                     on_wake()
 ```
 
-### 1.4 VAD（Voice Activity Detection）の詳細実装
+### 1.4 VAD (Voice Activity Detection) Detailed Implementation
 
 ```python
 import numpy as np
@@ -176,10 +177,10 @@ from typing import Optional, Callable
 
 class SileroVADDetector:
     """
-    Silero VADによる高精度音声区間検出
+    High-accuracy voice activity detection using Silero VAD
 
-    Silero VADはPyTorchベースの軽量VADモデルで、
-    webrtcvadより高精度で言語非依存の音声検出が可能。
+    Silero VAD is a lightweight PyTorch-based VAD model that provides
+    higher accuracy than webrtcvad with language-independent speech detection.
     """
 
     def __init__(self, threshold: float = 0.5, sr: int = 16000):
@@ -195,7 +196,7 @@ class SileroVADDetector:
         self.window_size = 512  # 32ms @ 16kHz
 
     def detect_speech_regions(self, audio: np.ndarray) -> list:
-        """音声区間を検出"""
+        """Detect speech regions"""
         import torch
         audio_tensor = torch.tensor(audio, dtype=torch.float32)
         speech_timestamps = self.get_speech_timestamps(
@@ -207,7 +208,7 @@ class SileroVADDetector:
         return speech_timestamps
 
     def is_speech(self, frame: np.ndarray) -> bool:
-        """フレーム単位での音声判定"""
+        """Frame-level speech detection"""
         import torch
         frame_tensor = torch.tensor(frame, dtype=torch.float32)
         confidence = self.model(frame_tensor, self.sr).item()
@@ -216,42 +217,42 @@ class SileroVADDetector:
 
 class AdaptiveVAD:
     """
-    環境適応型VAD
+    Environment-adaptive VAD
 
-    背景ノイズレベルに動的に適応し、
-    さまざまな環境で安定した音声検出を実現する。
+    Dynamically adapts to background noise levels to achieve
+    stable speech detection across various environments.
     """
 
     def __init__(self, sr: int = 16000, frame_ms: int = 30):
         self.sr = sr
         self.frame_size = int(sr * frame_ms / 1000)
         self.noise_floor = 0.0
-        self.noise_alpha = 0.95  # ノイズフロア追従係数
-        self.speech_threshold_db = 15  # ノイズフロアからの閾値
-        self.hangover_frames = 10  # 発話終了後の保持フレーム数
+        self.noise_alpha = 0.95  # Noise floor tracking coefficient
+        self.speech_threshold_db = 15  # Threshold above noise floor
+        self.hangover_frames = 10  # Frames to hold after end of speech
         self.hangover_counter = 0
         self.is_speaking = False
 
     def update_noise_floor(self, frame: np.ndarray):
-        """ノイズフロアの動的更新"""
+        """Dynamically update noise floor"""
         rms = np.sqrt(np.mean(frame ** 2))
         rms_db = 20 * np.log10(rms + 1e-10)
 
         if not self.is_speaking:
-            # 非音声区間でのみノイズフロアを更新
+            # Update noise floor only during non-speech segments
             self.noise_floor = (
                 self.noise_alpha * self.noise_floor +
                 (1 - self.noise_alpha) * rms_db
             )
 
     def process_frame(self, frame: np.ndarray) -> bool:
-        """フレームを処理して音声有無を判定"""
+        """Process a frame and determine speech presence"""
         rms = np.sqrt(np.mean(frame ** 2))
         rms_db = 20 * np.log10(rms + 1e-10)
 
         self.update_noise_floor(frame)
 
-        # 動的閾値
+        # Dynamic threshold
         threshold = self.noise_floor + self.speech_threshold_db
 
         if rms_db > threshold:
@@ -267,20 +268,20 @@ class AdaptiveVAD:
 
 class SmartRecorder:
     """
-    VAD統合スマート録音器
+    VAD-integrated smart recorder
 
-    ウェイクワード検出後、ユーザーの発話を
-    VADで自動的に区間検出して録音する。
+    After wake word detection, automatically detects and records
+    the user's speech using VAD for segment detection.
     """
 
     def __init__(self, sr: int = 16000, max_duration: float = 15.0,
                  silence_timeout: float = 1.5, min_duration: float = 0.5):
         """
         Parameters:
-            sr: サンプルレート
-            max_duration: 最大録音時間（秒）
-            silence_timeout: 無音がこの時間続いたら録音終了（秒）
-            min_duration: 最小録音時間（秒）
+            sr: Sample rate
+            max_duration: Maximum recording duration (seconds)
+            silence_timeout: Stop recording after this duration of silence (seconds)
+            min_duration: Minimum recording duration (seconds)
         """
         self.sr = sr
         self.max_duration = max_duration
@@ -289,7 +290,7 @@ class SmartRecorder:
         self.vad = AdaptiveVAD(sr=sr)
 
     def record(self) -> Optional[np.ndarray]:
-        """VAD付き録音を実行"""
+        """Execute VAD-enabled recording"""
         pa = pyaudio.PyAudio()
         frame_size = self.vad.frame_size
 
@@ -308,7 +309,7 @@ class SmartRecorder:
         min_frames = int(self.min_duration * self.sr / frame_size)
         speech_started = False
 
-        print("録音中... (話してください)")
+        print("Recording... (please speak)")
 
         for _ in range(max_frames):
             data = stream.read(frame_size, exception_on_overflow=False)
@@ -323,7 +324,7 @@ class SmartRecorder:
             elif speech_started:
                 silent_frames += 1
 
-            # 十分な発話後、無音が続いたら終了
+            # End after sufficient speech followed by sustained silence
             if speech_started and silent_frames > max_silent and len(frames) > min_frames:
                 break
 
@@ -332,49 +333,49 @@ class SmartRecorder:
         pa.terminate()
 
         if not speech_started or len(frames) < min_frames:
-            print("音声が検出されませんでした")
+            print("No speech detected")
             return None
 
         audio = np.concatenate(frames)
-        print(f"録音完了: {len(audio) / self.sr:.1f}秒")
+        print(f"Recording complete: {len(audio) / self.sr:.1f} seconds")
         return audio
 ```
 
 ---
 
-## 2. 対話管理
+## 2. Dialog Management
 
-### 2.1 LLM統合の対話エンジン
+### 2.1 LLM-Integrated Dialog Engine
 
 ```python
 from openai import OpenAI
 import json
 
 class VoiceAssistantEngine:
-    """LLM統合の音声アシスタントエンジン"""
+    """LLM-integrated voice assistant engine"""
 
     def __init__(self):
         self.client = OpenAI()
         self.conversation_history = []
-        self.system_prompt = """あなたは日本語の音声アシスタントです。
-以下のルールに従ってください:
-- 簡潔に回答する（音声で聞くので長すぎない）
-- 1-3文で回答する
-- 専門用語は避ける
-- 友好的な口調"""
+        self.system_prompt = """You are a voice assistant.
+Follow these rules:
+- Keep answers concise (they will be spoken aloud, so not too long)
+- Answer in 1-3 sentences
+- Avoid technical jargon
+- Use a friendly tone"""
 
-        # ツール定義（Function Calling）
+        # Tool definitions (Function Calling)
         self.tools = [
             {
                 "type": "function",
                 "function": {
                     "name": "get_weather",
-                    "description": "指定された場所の天気を取得する",
+                    "description": "Get the weather for a specified location",
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "location": {"type": "string", "description": "場所名"},
-                            "date": {"type": "string", "description": "日付 (YYYY-MM-DD)"},
+                            "location": {"type": "string", "description": "Location name"},
+                            "date": {"type": "string", "description": "Date (YYYY-MM-DD)"},
                         },
                         "required": ["location"],
                     },
@@ -384,12 +385,12 @@ class VoiceAssistantEngine:
                 "type": "function",
                 "function": {
                     "name": "set_timer",
-                    "description": "タイマーを設定する",
+                    "description": "Set a timer",
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "minutes": {"type": "integer", "description": "分数"},
-                            "label": {"type": "string", "description": "タイマーのラベル"},
+                            "minutes": {"type": "integer", "description": "Number of minutes"},
+                            "label": {"type": "string", "description": "Timer label"},
                         },
                         "required": ["minutes"],
                     },
@@ -398,7 +399,7 @@ class VoiceAssistantEngine:
         ]
 
     def process_input(self, user_text: str) -> str:
-        """ユーザー入力を処理して応答を生成"""
+        """Process user input and generate a response"""
         self.conversation_history.append({
             "role": "user",
             "content": user_text,
@@ -408,15 +409,15 @@ class VoiceAssistantEngine:
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": self.system_prompt},
-                *self.conversation_history[-10:],  # 直近10ターン
+                *self.conversation_history[-10:],  # Last 10 turns
             ],
             tools=self.tools,
-            max_tokens=200,  # 音声出力なので短め
+            max_tokens=200,  # Short for voice output
         )
 
         message = response.choices[0].message
 
-        # Function Call の処理
+        # Handle Function Calls
         if message.tool_calls:
             return self._handle_tool_calls(message)
 
@@ -429,7 +430,7 @@ class VoiceAssistantEngine:
         return assistant_text
 
     def _handle_tool_calls(self, message):
-        """ツール呼び出しの処理"""
+        """Handle tool calls"""
         self.conversation_history.append(message)
 
         for tool_call in message.tool_calls:
@@ -444,7 +445,7 @@ class VoiceAssistantEngine:
                 "content": json.dumps(result, ensure_ascii=False),
             })
 
-        # ツール結果を踏まえた応答生成
+        # Generate response based on tool results
         followup = self.client.chat.completions.create(
             model="gpt-4o",
             messages=[
@@ -456,22 +457,22 @@ class VoiceAssistantEngine:
         return followup.choices[0].message.content
 
     def _execute_function(self, name, args):
-        """関数の実行"""
+        """Execute a function"""
         if name == "get_weather":
-            return {"weather": "晴れ", "temperature": 22, "location": args["location"]}
+            return {"weather": "sunny", "temperature": 22, "location": args["location"]}
         elif name == "set_timer":
             return {"status": "set", "minutes": args["minutes"]}
         return {"error": "unknown function"}
 ```
 
-### 2.2 完全統合パイプライン
+### 2.2 Fully Integrated Pipeline
 
 ```python
 import threading
 import queue
 
 class VoiceAssistant:
-    """完全統合型音声アシスタント"""
+    """Fully integrated voice assistant"""
 
     def __init__(self):
         self.wake_detector = WakeWordDetector(access_key="...", keyword="computer")
@@ -482,43 +483,43 @@ class VoiceAssistant:
         self.audio_queue = queue.Queue()
 
     def run(self):
-        """メインループ"""
-        print("音声アシスタント起動")
+        """Main loop"""
+        print("Voice assistant started")
         self.wake_detector.listen(callback=self._on_wake)
 
     def _on_wake(self):
-        """ウェイクワード検出時の処理"""
-        # 応答音を再生（「ポーン」）
+        """Handle wake word detection"""
+        # Play acknowledgment sound ("ding")
         play_acknowledgment_sound()
 
-        # 音声録音（VAD で自動終了）
+        # Record audio (auto-stop via VAD)
         audio = self._record_with_vad(max_duration=10)
 
         # STT
         user_text = self.stt.transcribe(audio)
-        print(f"ユーザー: {user_text}")
+        print(f"User: {user_text}")
 
         if not user_text.strip():
             return
 
-        # LLM処理
+        # LLM processing
         response_text = self.engine.process_input(user_text)
-        print(f"アシスタント: {response_text}")
+        print(f"Assistant: {response_text}")
 
-        # TTS + 再生
+        # TTS + playback
         audio_response = self.tts.synthesize(response_text)
         play_audio(audio_response)
 
     def _record_with_vad(self, max_duration=10, silence_threshold=1.5):
-        """VAD付き録音（無音が続いたら自動停止）"""
+        """Record with VAD (auto-stop on sustained silence)"""
         import webrtcvad
 
-        vad = webrtcvad.Vad(2)  # 0-3（高いほど厳しい）
+        vad = webrtcvad.Vad(2)  # 0-3 (higher = stricter)
         frames = []
         silent_frames = 0
-        max_silent = int(silence_threshold / 0.03)  # 30msフレーム
+        max_silent = int(silence_threshold / 0.03)  # 30ms frames
 
-        # 録音ストリーム
+        # Recording stream
         stream = open_audio_stream(sample_rate=16000, frame_duration_ms=30)
 
         for _ in range(int(max_duration / 0.03)):
@@ -537,7 +538,7 @@ class VoiceAssistant:
         return b"".join(frames)
 ```
 
-### 2.3 高度な対話管理: コンテキスト管理とスロットフィリング
+### 2.3 Advanced Dialog Management: Context Management and Slot Filling
 
 ```python
 from dataclasses import dataclass, field
@@ -547,7 +548,7 @@ import json
 from datetime import datetime
 
 class DialogState(Enum):
-    """対話状態"""
+    """Dialog state"""
     IDLE = "idle"
     LISTENING = "listening"
     PROCESSING = "processing"
@@ -557,7 +558,7 @@ class DialogState(Enum):
 
 @dataclass
 class ConversationContext:
-    """会話コンテキスト管理"""
+    """Conversation context management"""
     session_id: str
     started_at: datetime = field(default_factory=datetime.now)
     history: List[Dict] = field(default_factory=list)
@@ -568,7 +569,7 @@ class ConversationContext:
     turn_count: int = 0
 
     def add_turn(self, role: str, content: str):
-        """ターンを追加"""
+        """Add a turn"""
         self.history.append({
             "role": role,
             "content": content,
@@ -578,24 +579,24 @@ class ConversationContext:
             self.turn_count += 1
 
     def get_recent_history(self, n: int = 10) -> List[Dict]:
-        """直近N件の履歴を取得"""
+        """Get the last N history entries"""
         return self.history[-n:]
 
     def summarize(self) -> str:
-        """長くなった会話を要約"""
+        """Summarize a long conversation"""
         if len(self.history) <= 10:
             return ""
-        # 古い履歴を要約テキストに圧縮
+        # Compress old history into a summary text
         old_turns = self.history[:-10]
         topics = set()
         for turn in old_turns:
             if turn["role"] == "user":
                 topics.add(turn["content"][:50])
-        return f"これまでの話題: {', '.join(list(topics)[:5])}"
+        return f"Topics discussed so far: {', '.join(list(topics)[:5])}"
 
 
 class IntentSlotManager:
-    """インテント・スロット管理"""
+    """Intent and slot management"""
 
     INTENT_SCHEMAS = {
         "set_alarm": {
@@ -603,8 +604,8 @@ class IntentSlotManager:
             "optional_slots": ["label", "repeat"],
             "confirm_before_execute": True,
             "prompts": {
-                "time": "何時にアラームを設定しますか？",
-                "label": "アラームにラベルを付けますか？",
+                "time": "What time should I set the alarm for?",
+                "label": "Would you like to add a label to the alarm?",
             },
         },
         "play_music": {
@@ -612,7 +613,7 @@ class IntentSlotManager:
             "optional_slots": ["source", "shuffle"],
             "confirm_before_execute": False,
             "prompts": {
-                "query": "何を再生しますか？",
+                "query": "What would you like to play?",
             },
         },
         "get_weather": {
@@ -620,7 +621,7 @@ class IntentSlotManager:
             "optional_slots": ["date", "detail_level"],
             "confirm_before_execute": False,
             "prompts": {
-                "location": "どの場所の天気を知りたいですか？",
+                "location": "Which location would you like the weather for?",
             },
         },
         "send_message": {
@@ -628,8 +629,8 @@ class IntentSlotManager:
             "optional_slots": ["app"],
             "confirm_before_execute": True,
             "prompts": {
-                "recipient": "誰にメッセージを送りますか？",
-                "message": "メッセージの内容は何ですか？",
+                "recipient": "Who would you like to send the message to?",
+                "message": "What is the message content?",
             },
         },
         "control_device": {
@@ -637,19 +638,19 @@ class IntentSlotManager:
             "optional_slots": ["value"],
             "confirm_before_execute": False,
             "prompts": {
-                "device": "どのデバイスを操作しますか？",
-                "action": "何をしますか？（オン/オフ/調整）",
+                "device": "Which device would you like to control?",
+                "action": "What would you like to do? (on/off/adjust)",
             },
         },
     }
 
     def check_slots(self, intent: str, filled_slots: dict) -> Optional[str]:
         """
-        未入力のスロットを確認し、次の質問を返す
+        Check for unfilled slots and return the next question
 
         Returns:
-            None: 全スロット入力済み
-            str: 次に聞くべき質問
+            None: All slots are filled
+            str: The next question to ask
         """
         schema = self.INTENT_SCHEMAS.get(intent)
         if not schema:
@@ -657,33 +658,33 @@ class IntentSlotManager:
 
         for slot in schema["required_slots"]:
             if slot not in filled_slots or not filled_slots[slot]:
-                return schema["prompts"].get(slot, f"{slot}を教えてください")
+                return schema["prompts"].get(slot, f"Please provide the {slot}")
 
         return None
 
     def needs_confirmation(self, intent: str) -> bool:
-        """実行前に確認が必要か"""
+        """Check if confirmation is needed before execution"""
         schema = self.INTENT_SCHEMAS.get(intent, {})
         return schema.get("confirm_before_execute", False)
 
     def generate_confirmation(self, intent: str, slots: dict) -> str:
-        """確認メッセージを生成"""
+        """Generate a confirmation message"""
         if intent == "set_alarm":
-            time = slots.get("time", "不明")
+            time = slots.get("time", "unknown")
             label = slots.get("label", "")
-            msg = f"{time}にアラームを設定します"
+            msg = f"I'll set an alarm for {time}"
             if label:
-                msg += f"（ラベル: {label}）"
-            return msg + "。よろしいですか？"
+                msg += f" (label: {label})"
+            return msg + ". Is that correct?"
         elif intent == "send_message":
-            recipient = slots.get("recipient", "不明")
-            message = slots.get("message", "不明")
-            return f"{recipient}に「{message}」と送信します。よろしいですか？"
-        return "実行してよろしいですか？"
+            recipient = slots.get("recipient", "unknown")
+            message = slots.get("message", "unknown")
+            return f"I'll send \"{message}\" to {recipient}. Is that correct?"
+        return "Shall I proceed?"
 
 
 class AdvancedDialogManager:
-    """高度な対話管理システム"""
+    """Advanced dialog management system"""
 
     def __init__(self):
         self.client = OpenAI()
@@ -691,7 +692,7 @@ class AdvancedDialogManager:
         self.contexts: Dict[str, ConversationContext] = {}
 
     def get_or_create_context(self, session_id: str) -> ConversationContext:
-        """セッションコンテキストを取得または作成"""
+        """Get or create a session context"""
         if session_id not in self.contexts:
             self.contexts[session_id] = ConversationContext(
                 session_id=session_id
@@ -699,23 +700,23 @@ class AdvancedDialogManager:
         return self.contexts[session_id]
 
     def process(self, session_id: str, user_input: str) -> str:
-        """対話処理のメインループ"""
+        """Main dialog processing loop"""
         ctx = self.get_or_create_context(session_id)
         ctx.add_turn("user", user_input)
         ctx.state = DialogState.PROCESSING
 
-        # 確認待ち状態の処理
+        # Handle confirmation-pending state
         if ctx.state == DialogState.CONFIRMING:
             return self._handle_confirmation(ctx, user_input)
 
-        # LLMでインテントとスロットを抽出
+        # Extract intent and slots using LLM
         intent_result = self._extract_intent(ctx, user_input)
 
         if intent_result.get("intent"):
             ctx.current_intent = intent_result["intent"]
             ctx.slots.update(intent_result.get("slots", {}))
 
-            # スロットの充足チェック
+            # Check slot fulfillment
             next_question = self.slot_manager.check_slots(
                 ctx.current_intent, ctx.slots
             )
@@ -724,7 +725,7 @@ class AdvancedDialogManager:
                 ctx.add_turn("assistant", next_question)
                 return next_question
 
-            # 確認が必要な場合
+            # If confirmation is required
             if self.slot_manager.needs_confirmation(ctx.current_intent):
                 confirmation = self.slot_manager.generate_confirmation(
                     ctx.current_intent, ctx.slots
@@ -733,29 +734,29 @@ class AdvancedDialogManager:
                 ctx.add_turn("assistant", confirmation)
                 return confirmation
 
-            # 実行
+            # Execute
             result = self._execute_intent(ctx)
             ctx.add_turn("assistant", result)
             ctx.current_intent = None
             ctx.slots.clear()
             return result
 
-        # 通常の対話応答
+        # Normal dialog response
         response = self._generate_response(ctx, user_input)
         ctx.add_turn("assistant", response)
         return response
 
     def _extract_intent(self, ctx: ConversationContext,
                         user_input: str) -> dict:
-        """LLMでインテントとスロットを抽出"""
+        """Extract intent and slots using LLM"""
         extraction_prompt = f"""
-ユーザーの入力からインテントとスロットを抽出してください。
-利用可能なインテント: {list(IntentSlotManager.INTENT_SCHEMAS.keys())}
+Extract the intent and slots from the user's input.
+Available intents: {list(IntentSlotManager.INTENT_SCHEMAS.keys())}
 
-ユーザー入力: {user_input}
+User input: {user_input}
 
-JSON形式で回答:
-{{"intent": "インテント名またはnull", "slots": {{"slot名": "値"}}}}
+Respond in JSON format:
+{{"intent": "intent_name or null", "slots": {{"slot_name": "value"}}}}
 """
         response = self.client.chat.completions.create(
             model="gpt-4o",
@@ -771,9 +772,9 @@ JSON形式で回答:
 
     def _handle_confirmation(self, ctx: ConversationContext,
                              user_input: str) -> str:
-        """確認応答の処理"""
-        affirmative = any(w in user_input for w in ["はい", "うん", "OK", "お願い", "yes"])
-        negative = any(w in user_input for w in ["いいえ", "いや", "やめ", "キャンセル", "no"])
+        """Handle confirmation responses"""
+        affirmative = any(w in user_input for w in ["yes", "yeah", "OK", "please", "sure"])
+        negative = any(w in user_input for w in ["no", "nope", "cancel", "stop", "nevermind"])
 
         if affirmative:
             result = self._execute_intent(ctx)
@@ -785,41 +786,41 @@ JSON形式で回答:
             ctx.current_intent = None
             ctx.slots.clear()
             ctx.state = DialogState.IDLE
-            return "キャンセルしました。"
+            return "Cancelled."
         else:
-            return "はい、またはいいえでお答えください。"
+            return "Please answer yes or no."
 
     def _execute_intent(self, ctx: ConversationContext) -> str:
-        """インテントを実行"""
+        """Execute the intent"""
         intent = ctx.current_intent
         slots = ctx.slots
 
         if intent == "set_alarm":
-            return f"アラームを{slots.get('time', '')}に設定しました。"
+            return f"Alarm set for {slots.get('time', '')}."
         elif intent == "get_weather":
-            return f"{slots.get('location', '')}の天気は晴れ、気温22度です。"
+            return f"The weather in {slots.get('location', '')} is sunny, 22 degrees."
         elif intent == "play_music":
-            return f"「{slots.get('query', '')}」を再生します。"
+            return f"Playing \"{slots.get('query', '')}\"."
         elif intent == "send_message":
-            return f"{slots.get('recipient', '')}にメッセージを送信しました。"
+            return f"Message sent to {slots.get('recipient', '')}."
         elif intent == "control_device":
-            return f"{slots.get('device', '')}を{slots.get('action', '')}しました。"
+            return f"{slots.get('device', '')} has been {slots.get('action', '')}."
 
-        return "処理が完了しました。"
+        return "Processing complete."
 
     def _generate_response(self, ctx: ConversationContext,
                            user_input: str) -> str:
-        """通常の対話応答を生成"""
+        """Generate a normal dialog response"""
         messages = [
-            {"role": "system", "content": "簡潔に、1-3文で回答してください。"},
+            {"role": "system", "content": "Answer concisely in 1-3 sentences."},
         ]
 
-        # 要約があれば追加
+        # Add summary if available
         summary = ctx.summarize()
         if summary:
             messages.append({"role": "system", "content": summary})
 
-        # 直近の履歴
+        # Recent history
         for turn in ctx.get_recent_history(8):
             messages.append({
                 "role": turn["role"],
@@ -837,47 +838,48 @@ JSON形式で回答:
 
 ---
 
-## 3. マルチモーダル対話
+## 3. Multimodal Dialog
 
 ### 3.1 OpenAI Realtime API
 
 ```
-OpenAI Realtime API アーキテクチャ
+OpenAI Realtime API Architecture
 ==================================================
 
-クライアント                  サーバー
-    │                           │
-    │  WebSocket接続             │
-    │ ─────────────────────────→│
-    │                           │
-    │  音声ストリーム送信        │
-    │  (PCM 24kHz 16bit)        │
-    │ ─────────────────────────→│
-    │                           │
-    │         GPT-4o            │
-    │     音声→理解→生成        │
-    │                           │
-    │  音声ストリーム受信        │
-    │←───────────────────────── │
-    │  (PCM 24kHz 16bit)        │
-    │                           │
-    │  Function Call             │
-    │←───────────────────────── │
-    │  結果送信                  │
-    │ ─────────────────────────→│
-    │                           │
-    │  続き音声ストリーム        │
-    │←───────────────────────── │
+Client                       Server
+    |                           |
+    |  WebSocket connection     |
+    | ------------------------->|
+    |                           |
+    |  Send audio stream        |
+    |  (PCM 24kHz 16bit)        |
+    | ------------------------->|
+    |                           |
+    |         GPT-4o            |
+    |     Audio -> Understand   |
+    |         -> Generate       |
+    |                           |
+    |  Receive audio stream     |
+    |<------------------------- |
+    |  (PCM 24kHz 16bit)        |
+    |                           |
+    |  Function Call            |
+    |<------------------------- |
+    |  Send result              |
+    | ------------------------->|
+    |                           |
+    |  Continued audio stream   |
+    |<------------------------- |
 
-特徴:
-- STT/LLM/TTS が単一モデルで統合
-- 300ms以下のレイテンシ
-- 割り込み（Interruption）対応
-- 感情・トーンの理解
+Features:
+- STT/LLM/TTS integrated in a single model
+- Sub-300ms latency
+- Interruption support
+- Emotion and tone understanding
 ==================================================
 ```
 
-### 3.2 Realtime API の実装
+### 3.2 Realtime API Implementation
 
 ```python
 import asyncio
@@ -888,11 +890,11 @@ import numpy as np
 
 class RealtimeVoiceAssistant:
     """
-    OpenAI Realtime API を使ったリアルタイム音声アシスタント
+    Real-time voice assistant using OpenAI Realtime API
 
-    従来のパイプライン（STT→LLM→TTS）と異なり、
-    音声入力を直接理解して音声で応答する統合モデルを使用。
-    レイテンシが大幅に削減される。
+    Unlike traditional pipelines (STT -> LLM -> TTS), this uses an
+    integrated model that directly understands voice input and responds
+    with voice output, significantly reducing latency.
     """
 
     def __init__(self, api_key: str, model: str = "gpt-4o-realtime-preview"):
@@ -903,7 +905,7 @@ class RealtimeVoiceAssistant:
         self.on_audio_callback = None
 
     async def connect(self):
-        """WebSocket接続を確立"""
+        """Establish WebSocket connection"""
         url = f"wss://api.openai.com/v1/realtime?model={self.model}"
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -911,12 +913,12 @@ class RealtimeVoiceAssistant:
         }
         self.ws = await websockets.connect(url, extra_headers=headers)
 
-        # セッション設定
+        # Session configuration
         await self._send({
             "type": "session.update",
             "session": {
                 "modalities": ["text", "audio"],
-                "instructions": "あなたは日本語の音声アシスタントです。簡潔に回答してください。",
+                "instructions": "You are a voice assistant. Answer concisely.",
                 "voice": "alloy",
                 "input_audio_format": "pcm16",
                 "output_audio_format": "pcm16",
@@ -934,7 +936,7 @@ class RealtimeVoiceAssistant:
         })
 
     async def send_audio(self, audio_chunk: bytes):
-        """音声チャンクを送信"""
+        """Send an audio chunk"""
         encoded = base64.b64encode(audio_chunk).decode()
         await self._send({
             "type": "input_audio_buffer.append",
@@ -942,49 +944,49 @@ class RealtimeVoiceAssistant:
         })
 
     async def listen_responses(self):
-        """応答を受信するループ"""
+        """Response listening loop"""
         async for message in self.ws:
             event = json.loads(message)
             event_type = event.get("type", "")
 
             if event_type == "response.audio.delta":
-                # 音声応答チャンクを受信
+                # Received audio response chunk
                 audio_data = base64.b64decode(event["delta"])
                 if self.on_audio_callback:
                     self.on_audio_callback(audio_data)
 
             elif event_type == "response.audio_transcript.delta":
-                # テキストトランスクリプト
+                # Text transcript
                 print(event.get("delta", ""), end="", flush=True)
 
             elif event_type == "input_audio_buffer.speech_started":
-                # ユーザーが話し始めた（割り込み検知）
-                print("\n[ユーザー発話開始]")
+                # User started speaking (interruption detected)
+                print("\n[User speech started]")
 
             elif event_type == "input_audio_buffer.speech_stopped":
-                print("\n[ユーザー発話終了]")
+                print("\n[User speech ended]")
 
             elif event_type == "response.function_call_arguments.done":
-                # Function Call を処理
+                # Handle Function Call
                 await self._handle_function_call(event)
 
             elif event_type == "error":
-                print(f"エラー: {event.get('error', {}).get('message', '')}")
+                print(f"Error: {event.get('error', {}).get('message', '')}")
 
     async def _send(self, data: dict):
-        """メッセージ送信"""
+        """Send a message"""
         await self.ws.send(json.dumps(data))
 
     async def _handle_function_call(self, event):
-        """Function Callの処理"""
+        """Handle a Function Call"""
         call_id = event.get("call_id", "")
         name = event.get("name", "")
         args = json.loads(event.get("arguments", "{}"))
 
-        # 関数実行
+        # Execute function
         result = self._execute_function(name, args)
 
-        # 結果を返送
+        # Send result back
         await self._send({
             "type": "conversation.item.create",
             "item": {
@@ -994,15 +996,15 @@ class RealtimeVoiceAssistant:
             },
         })
 
-        # 応答生成をトリガー
+        # Trigger response generation
         await self._send({"type": "response.create"})
 
     def _execute_function(self, name, args):
-        """関数実行（プレースホルダー）"""
-        return {"status": "ok", "result": f"{name}を実行しました"}
+        """Execute function (placeholder)"""
+        return {"status": "ok", "result": f"Executed {name}"}
 
     def add_tool(self, name: str, description: str, parameters: dict):
-        """ツール（関数）を追加"""
+        """Add a tool (function)"""
         self.tools.append({
             "type": "function",
             "name": name,
@@ -1012,13 +1014,13 @@ class RealtimeVoiceAssistant:
 
 
 async def main():
-    """Realtime API アシスタントのメイン処理"""
+    """Main process for Realtime API assistant"""
     assistant = RealtimeVoiceAssistant(api_key="sk-...")
 
-    # ツール登録
+    # Register tools
     assistant.add_tool(
         name="get_weather",
-        description="天気を取得する",
+        description="Get the weather",
         parameters={
             "type": "object",
             "properties": {
@@ -1028,41 +1030,41 @@ async def main():
         },
     )
 
-    # 音声出力コールバック
+    # Audio output callback
     def play_audio(data):
-        # PyAudioで再生
+        # Play with PyAudio
         pass
     assistant.on_audio_callback = play_audio
 
-    # 接続
+    # Connect
     await assistant.connect()
 
-    # マイク入力タスクと応答受信タスクを並行実行
+    # Run microphone input and response listening tasks concurrently
     await asyncio.gather(
         capture_microphone(assistant),
         assistant.listen_responses(),
     )
 ```
 
-### 3.3 エッジデバイス向け音声アシスタント
+### 3.3 Edge Device Voice Assistant
 
 ```python
 class EdgeVoiceAssistant:
     """
-    エッジデバイス（Raspberry Pi等）向け音声アシスタント
+    Voice assistant for edge devices (Raspberry Pi, etc.)
 
-    ウェイクワード検出とVADをローカルで実行し、
-    STT/LLM/TTSはクラウドまたはローカルモデルを選択可能。
-    プライバシー重視の設計。
+    Runs wake word detection and VAD locally, with STT/LLM/TTS
+    selectable between cloud and local models.
+    Privacy-focused design.
     """
 
     def __init__(self, config: dict = None):
         self.config = config or self._default_config()
 
-        # ウェイクワード（常にローカル）
+        # Wake word (always local)
         self.wake_detector = OpenWakeWordDetector()
 
-        # STT（ローカルまたはクラウド）
+        # STT (local or cloud)
         if self.config["stt_local"]:
             self.stt = self._init_local_stt()
         else:
@@ -1084,62 +1086,62 @@ class EdgeVoiceAssistant:
 
     def _default_config(self):
         return {
-            "stt_local": True,      # faster-whisperをローカル実行
-            "llm_local": False,     # LLMはクラウド推奨
-            "tts_local": True,      # Piper TTSをローカル実行
-            "stt_model": "base",    # Whisperモデルサイズ
+            "stt_local": True,      # Run faster-whisper locally
+            "llm_local": False,     # Cloud recommended for LLM
+            "tts_local": True,      # Run Piper TTS locally
+            "stt_model": "base",    # Whisper model size
             "wake_word": "hey_jarvis",
             "language": "ja",
             "max_recording_sec": 10,
         }
 
     def _init_local_stt(self):
-        """ローカルSTT（faster-whisper）"""
+        """Local STT (faster-whisper)"""
         from faster_whisper import WhisperModel
         return WhisperModel(
             self.config["stt_model"],
             device="cpu",
-            compute_type="int8",  # 軽量推論
+            compute_type="int8",  # Lightweight inference
         )
 
     def _init_cloud_stt(self):
-        """クラウドSTT"""
-        return None  # OpenAI Whisper API等
+        """Cloud STT"""
+        return None  # OpenAI Whisper API, etc.
 
     def _init_local_llm(self):
-        """ローカルLLM（llama.cpp等）"""
+        """Local LLM (llama.cpp, etc.)"""
         return None  # Placeholder
 
     def _init_cloud_llm(self):
-        """クラウドLLM"""
+        """Cloud LLM"""
         from openai import OpenAI
         return OpenAI()
 
     def _init_local_tts(self):
-        """ローカルTTS（Piper）"""
+        """Local TTS (Piper)"""
         return None  # Piper TTS
 
     def _init_cloud_tts(self):
-        """クラウドTTS"""
+        """Cloud TTS"""
         return None  # OpenAI TTS
 
     def run(self):
-        """メインループ"""
-        print(f"エッジ音声アシスタント起動")
-        print(f"STT: {'ローカル' if self.config['stt_local'] else 'クラウド'}")
-        print(f"LLM: {'ローカル' if self.config['llm_local'] else 'クラウド'}")
-        print(f"TTS: {'ローカル' if self.config['tts_local'] else 'クラウド'}")
+        """Main loop"""
+        print(f"Edge voice assistant started")
+        print(f"STT: {'local' if self.config['stt_local'] else 'cloud'}")
+        print(f"LLM: {'local' if self.config['llm_local'] else 'cloud'}")
+        print(f"TTS: {'local' if self.config['tts_local'] else 'cloud'}")
 
         self.wake_detector.listen_continuous(on_wake=self._on_wake)
 
     def _on_wake(self):
-        """ウェイクワード検出時の処理"""
+        """Handle wake word detection"""
         import time
 
-        # LED点灯（GPIOがある場合）
+        # Turn on LED (if GPIO available)
         self._set_status_led("listening")
 
-        # 録音
+        # Record
         audio = self.recorder.record()
         if audio is None:
             self._set_status_led("idle")
@@ -1158,7 +1160,7 @@ class EdgeVoiceAssistant:
             user_text = self._cloud_transcribe(audio)
 
         stt_time = time.time() - start
-        print(f"STT ({stt_time:.2f}秒): {user_text}")
+        print(f"STT ({stt_time:.2f}s): {user_text}")
 
         if not user_text.strip():
             self._set_status_led("idle")
@@ -1168,29 +1170,29 @@ class EdgeVoiceAssistant:
         start = time.time()
         response = self._generate_response(user_text)
         llm_time = time.time() - start
-        print(f"LLM ({llm_time:.2f}秒): {response}")
+        print(f"LLM ({llm_time:.2f}s): {response}")
 
         # TTS
         self._set_status_led("speaking")
         start = time.time()
         self._speak(response)
         tts_time = time.time() - start
-        print(f"TTS ({tts_time:.2f}秒)")
+        print(f"TTS ({tts_time:.2f}s)")
 
         total = stt_time + llm_time + tts_time
-        print(f"合計レイテンシ: {total:.2f}秒")
+        print(f"Total latency: {total:.2f}s")
 
         self._set_status_led("idle")
 
     def _generate_response(self, text: str) -> str:
-        """応答生成"""
+        """Generate response"""
         if self.config["llm_local"]:
-            return "ローカルLLMの応答"  # Placeholder
+            return "Local LLM response"  # Placeholder
         else:
             response = self.llm.chat.completions.create(
                 model="gpt-4o-mini",
                 messages=[
-                    {"role": "system", "content": "簡潔に1-2文で回答してください。"},
+                    {"role": "system", "content": "Answer concisely in 1-2 sentences."},
                     {"role": "user", "content": text},
                 ],
                 max_tokens=100,
@@ -1198,109 +1200,109 @@ class EdgeVoiceAssistant:
             return response.choices[0].message.content
 
     def _speak(self, text: str):
-        """テキストを音声で再生"""
-        pass  # TTS処理
+        """Play text as speech"""
+        pass  # TTS processing
 
     def _set_status_led(self, status: str):
-        """ステータスLEDの制御（Raspberry Pi GPIO）"""
+        """Control status LED (Raspberry Pi GPIO)"""
         led_colors = {
-            "idle": (0, 0, 0),       # 消灯
-            "listening": (0, 0, 255),  # 青
-            "processing": (255, 255, 0), # 黄
-            "speaking": (0, 255, 0),   # 緑
-            "error": (255, 0, 0),      # 赤
+            "idle": (0, 0, 0),       # Off
+            "listening": (0, 0, 255),  # Blue
+            "processing": (255, 255, 0), # Yellow
+            "speaking": (0, 255, 0),   # Green
+            "error": (255, 0, 0),      # Red
         }
-        # GPIO制御のプレースホルダー
+        # GPIO control placeholder
         color = led_colors.get(status, (0, 0, 0))
 
     def _cloud_transcribe(self, audio: np.ndarray) -> str:
-        """クラウドSTT"""
+        """Cloud STT"""
         return ""  # Placeholder
 ```
 
 ---
 
-## 4. 比較表
+## 4. Comparison Tables
 
-### 4.1 音声アシスタント構築アプローチ比較
+### 4.1 Voice Assistant Architecture Approaches
 
-| 項目 | パイプライン型 | Realtime API型 | エッジ型 |
-|------|-------------|--------------|---------|
-| アーキテクチャ | STT+LLM+TTS | 統合モデル | オンデバイス |
-| レイテンシ | 1-3秒 | 0.3-1秒 | 0.5-2秒 |
-| カスタマイズ | 各コンポーネント独立 | 限定的 | フル制御 |
-| コスト | 各API合算 | API従量課金 | GPU初期投資 |
-| プライバシー | クラウド送信 | クラウド送信 | ローカル完結 |
-| 品質 | 組み合わせ次第 | 最高 | 中程度 |
-| オフライン | 不可(※) | 不可 | 可能 |
+| Item | Pipeline | Realtime API | Edge |
+|------|----------|-------------|------|
+| Architecture | STT+LLM+TTS | Integrated model | On-device |
+| Latency | 1-3s | 0.3-1s | 0.5-2s |
+| Customization | Each component independent | Limited | Full control |
+| Cost | Sum of each API | API usage-based | GPU upfront investment |
+| Privacy | Sent to cloud | Sent to cloud | Fully local |
+| Quality | Depends on combination | Highest | Moderate |
+| Offline | No(*) | No | Yes |
 
-### 4.2 ウェイクワード検出エンジン比較
+### 4.2 Wake Word Detection Engine Comparison
 
-| 項目 | Porcupine | OpenWakeWord | Snowboy | Mycroft Precise |
+| Item | Porcupine | OpenWakeWord | Snowboy | Mycroft Precise |
 |------|-----------|-------------|---------|-----------------|
-| ライセンス | 商用(無料枠あり) | Apache 2.0 | 終了 | Apache 2.0 |
-| カスタムワード | 対応 | 対応 | - | 対応 |
-| 精度 | 非常に高い | 高い | - | 中程度 |
-| 誤検知率 | 非常に低い | 低い | - | 中程度 |
-| CPU使用率 | 極めて低い | 低い | - | 中程度 |
-| プラットフォーム | 多数 | Python | - | Python/Linux |
-| エッジ対応 | RPi対応 | RPi対応 | - | RPi対応 |
+| License | Commercial (free tier) | Apache 2.0 | Discontinued | Apache 2.0 |
+| Custom words | Supported | Supported | - | Supported |
+| Accuracy | Very high | High | - | Moderate |
+| False positive rate | Very low | Low | - | Moderate |
+| CPU usage | Extremely low | Low | - | Moderate |
+| Platforms | Many | Python | - | Python/Linux |
+| Edge support | RPi supported | RPi supported | - | RPi supported |
 
-### 4.3 STTモデル比較（音声アシスタント向け）
+### 4.3 STT Model Comparison (for Voice Assistants)
 
-| モデル | レイテンシ | 日本語精度 | オフライン | コスト | 推奨用途 |
-|-------|----------|----------|---------|-------|---------|
-| Whisper large-v3 | 3-10秒 | 最高 | 可(GPU) | 無料 | バッチ処理 |
-| Whisper base | 1-3秒 | 良い | 可(CPU) | 無料 | エッジ |
-| faster-whisper | 0.5-2秒 | 高い | 可 | 無料 | エッジ推奨 |
-| Google STT | 0.3-1秒 | 非常に高い | 不可 | 従量課金 | クラウド推奨 |
-| Azure STT | 0.3-1秒 | 非常に高い | 不可 | 従量課金 | エンタープライズ |
-| Deepgram | 0.2-0.5秒 | 高い | 不可 | 従量課金 | 低遅延 |
+| Model | Latency | Japanese accuracy | Offline | Cost | Recommended use |
+|-------|---------|-------------------|---------|------|-----------------|
+| Whisper large-v3 | 3-10s | Highest | Yes (GPU) | Free | Batch processing |
+| Whisper base | 1-3s | Good | Yes (CPU) | Free | Edge |
+| faster-whisper | 0.5-2s | High | Yes | Free | Edge (recommended) |
+| Google STT | 0.3-1s | Very high | No | Usage-based | Cloud (recommended) |
+| Azure STT | 0.3-1s | Very high | No | Usage-based | Enterprise |
+| Deepgram | 0.2-0.5s | High | No | Usage-based | Low latency |
 
-### 4.4 TTS選択肢比較
+### 4.4 TTS Options Comparison
 
-| TTS | 自然さ | 日本語 | レイテンシ | ストリーミング | コスト |
-|-----|-------|-------|----------|-------------|-------|
-| OpenAI TTS | 最高 | 対応 | 0.5-1秒 | 対応 | $15/1M文字 |
-| ElevenLabs | 最高 | 対応 | 0.3-1秒 | 対応 | $5/月〜 |
-| Google Cloud TTS | 高い | 対応 | 0.3-0.5秒 | 対応 | 従量課金 |
-| Azure TTS | 高い | 対応 | 0.3-0.5秒 | 対応 | 従量課金 |
-| VOICEVOX | 高い(アニメ系) | 日本語のみ | 0.5-2秒 | 非対応 | 無料 |
-| Piper | 中程度 | 限定的 | 0.1-0.3秒 | 非対応 | 無料 |
+| TTS | Naturalness | Japanese | Latency | Streaming | Cost |
+|-----|------------|----------|---------|-----------|------|
+| OpenAI TTS | Highest | Supported | 0.5-1s | Supported | $15/1M chars |
+| ElevenLabs | Highest | Supported | 0.3-1s | Supported | From $5/mo |
+| Google Cloud TTS | High | Supported | 0.3-0.5s | Supported | Usage-based |
+| Azure TTS | High | Supported | 0.3-0.5s | Supported | Usage-based |
+| VOICEVOX | High (anime style) | Japanese only | 0.5-2s | No | Free |
+| Piper | Moderate | Limited | 0.1-0.3s | No | Free |
 
 ---
 
-## 5. アンチパターン
+## 5. Anti-patterns
 
-### 5.1 アンチパターン: 同期処理のブロッキング
+### 5.1 Anti-pattern: Blocking with Synchronous Processing
 
 ```python
-# BAD: 全処理を同期的に実行（UI/UXが最悪）
+# BAD: Execute everything synchronously (worst UI/UX)
 def bad_assistant_loop():
     while True:
-        wake_word_detected = listen_for_wake_word()  # ブロック
+        wake_word_detected = listen_for_wake_word()  # Blocks
         if wake_word_detected:
-            audio = record_audio()          # ブロック
-            text = transcribe(audio)        # ブロック（1-3秒）
-            response = generate(text)       # ブロック（1-5秒）
-            speech = synthesize(response)   # ブロック（1-2秒）
-            play(speech)                    # ブロック
-            # 合計3-10秒の無反応時間
+            audio = record_audio()          # Blocks
+            text = transcribe(audio)        # Blocks (1-3s)
+            response = generate(text)       # Blocks (1-5s)
+            speech = synthesize(response)   # Blocks (1-2s)
+            play(speech)                    # Blocks
+            # Total 3-10 seconds of unresponsiveness
 
-# GOOD: 非同期 + ストリーミング処理
+# GOOD: Async + streaming processing
 import asyncio
 
 async def good_assistant_loop():
     while True:
         await listen_for_wake_word_async()
 
-        # 応答音を即座に再生（フィードバック）
+        # Play acknowledgment sound immediately (feedback)
         asyncio.create_task(play_acknowledgment())
 
-        # 録音とSTTを並行（ストリーミング）
+        # Record and STT in parallel (streaming)
         audio_stream = record_audio_stream()
 
-        # STTストリーミング（部分結果をリアルタイム表示）
+        # Streaming STT (display partial results in real-time)
         partial_text = ""
         async for chunk in audio_stream:
             partial = await stt_streaming(chunk)
@@ -1308,28 +1310,28 @@ async def good_assistant_loop():
                 partial_text = partial
                 display_partial(partial_text)
 
-        # LLMストリーミング
+        # Streaming LLM
         response_stream = generate_streaming(partial_text)
 
-        # TTSストリーミング（LLM出力を逐次音声化）
+        # Streaming TTS (incrementally convert LLM output to speech)
         async for text_chunk in response_stream:
             audio_chunk = await tts_streaming(text_chunk)
             await play_async(audio_chunk)
 ```
 
-### 5.2 アンチパターン: エラーハンドリングの欠如
+### 5.2 Anti-pattern: Lack of Error Handling
 
 ```python
-# BAD: エラーで完全停止
+# BAD: Complete failure on any error
 def bad_process(audio):
     text = stt(audio)
     response = llm(text)
     speech = tts(response)
-    return speech  # どこかで例外 → 全停止
+    return speech  # Any exception -> total failure
 
-# GOOD: グレースフルデグラデーション
+# GOOD: Graceful degradation
 async def good_process(audio):
-    """段階的なフォールバック"""
+    """Staged fallback"""
     # STT with fallback
     try:
         text = await stt_primary(audio)
@@ -1337,87 +1339,87 @@ async def good_process(audio):
         try:
             text = await stt_fallback(audio)
         except Exception:
-            await speak("すみません、聞き取れませんでした。もう一度お願いします。")
+            await speak("Sorry, I couldn't hear you. Please try again.")
             return
 
     # LLM with timeout
     try:
         response = await asyncio.wait_for(llm(text), timeout=5.0)
     except asyncio.TimeoutError:
-        response = "申し訳ありません、処理に時間がかかっています。"
+        response = "Sorry, processing is taking longer than expected."
     except Exception:
-        response = "エラーが発生しました。もう一度お試しください。"
+        response = "An error occurred. Please try again."
 
     # TTS with fallback
     try:
         await speak_with_tts(response)
     except Exception:
-        # TTS失敗時はテキスト表示
+        # Fall back to text display on TTS failure
         display_text(response)
 ```
 
-### 5.3 アンチパターン: ウェイクワードの感度設定ミス
+### 5.3 Anti-pattern: Misconfigured Wake Word Sensitivity
 
 ```python
-# BAD: 感度を高く設定しすぎ → 誤検知頻発
+# BAD: Sensitivity set too high -> frequent false positives
 def bad_wake_word():
     detector = WakeWordDetector(
-        sensitivity=0.99,  # テレビの音にも反応してしまう
+        sensitivity=0.99,  # Reacts to TV audio as well
     )
 
-# BAD: 感度を低く設定しすぎ → 反応しない
+# BAD: Sensitivity set too low -> no response
 def bad_wake_word_low():
     detector = WakeWordDetector(
-        sensitivity=0.1,  # 大声で叫んでも反応しない
+        sensitivity=0.1,  # Doesn't respond even when shouting
     )
 
-# GOOD: 環境に応じた感度調整 + 二段階検証
+# GOOD: Environment-adapted sensitivity + two-stage verification
 def good_wake_word():
-    """二段階検証による誤検知低減"""
+    """Two-stage verification to reduce false positives"""
     detector = WakeWordDetector(
-        sensitivity=0.6,  # やや高めに設定
+        sensitivity=0.6,  # Set slightly high
     )
 
     def on_first_detection():
-        """一次検出後の確認処理"""
-        # 直後の音声を分析して話者を確認
+        """Verification after initial detection"""
+        # Analyze audio immediately after detection for speaker verification
         audio = record_short(duration_ms=500)
 
-        # 話者照合（登録済み話者かどうか）
+        # Speaker verification (check if registered speaker)
         if verify_speaker(audio):
-            # 本物の呼びかけ → アシスタント起動
+            # Genuine wake word -> start assistant
             start_assistant()
         else:
-            # テレビ等の誤検知 → 無視
+            # False positive from TV, etc. -> ignore
             pass
 
     detector.listen(callback=on_first_detection)
 ```
 
-### 5.4 アンチパターン: 会話コンテキストの未管理
+### 5.4 Anti-pattern: Unmanaged Conversation Context
 
 ```python
-# BAD: 毎ターン独立した処理
+# BAD: Each turn processed independently
 def bad_conversation(text):
-    # 前のターンの内容を覚えていない
-    response = llm(text)  # 「それ」が何か分からない
+    # Doesn't remember previous turns
+    response = llm(text)  # Can't resolve "that" or "it"
     return response
 
-# GOOD: コンテキスト管理付き
+# GOOD: With context management
 class GoodConversation:
     def __init__(self):
         self.history = []
         self.max_history = 20
-        self.entity_memory = {}  # 言及されたエンティティを記憶
+        self.entity_memory = {}  # Remember mentioned entities
 
     def process(self, text):
         self.history.append({"role": "user", "content": text})
 
-        # エンティティ抽出と記憶
+        # Extract and remember entities
         entities = extract_entities(text)
         self.entity_memory.update(entities)
 
-        # コンテキスト付きでLLM呼び出し
+        # Call LLM with context
         response = llm(
             messages=self.history[-self.max_history:],
             context=self.entity_memory,
@@ -1425,11 +1427,11 @@ class GoodConversation:
 
         self.history.append({"role": "assistant", "content": response})
 
-        # 履歴が長くなったら要約
+        # Summarize when history gets too long
         if len(self.history) > self.max_history:
             summary = summarize(self.history[:self.max_history // 2])
             self.history = [
-                {"role": "system", "content": f"これまでの要約: {summary}"},
+                {"role": "system", "content": f"Summary so far: {summary}"},
                 *self.history[self.max_history // 2:],
             ]
 
@@ -1438,21 +1440,21 @@ class GoodConversation:
 
 ---
 
-## 6. 実践的なユースケース
+## 6. Practical Use Cases
 
-### 6.1 スマートホーム音声コントローラ
+### 6.1 Smart Home Voice Controller
 
 ```python
 class SmartHomeVoiceController:
-    """スマートホーム音声コントローラ"""
+    """Smart home voice controller"""
 
     def __init__(self):
         self.devices = {
-            "リビングの照明": {"type": "light", "id": "living_light"},
-            "寝室の照明": {"type": "light", "id": "bedroom_light"},
-            "エアコン": {"type": "ac", "id": "main_ac"},
-            "テレビ": {"type": "tv", "id": "living_tv"},
-            "加湿器": {"type": "humidifier", "id": "bedroom_hum"},
+            "living room light": {"type": "light", "id": "living_light"},
+            "bedroom light": {"type": "light", "id": "bedroom_light"},
+            "air conditioner": {"type": "ac", "id": "main_ac"},
+            "TV": {"type": "tv", "id": "living_tv"},
+            "humidifier": {"type": "humidifier", "id": "bedroom_hum"},
         }
 
         self.engine = VoiceAssistantEngine()
@@ -1461,7 +1463,7 @@ class SmartHomeVoiceController:
                 "type": "function",
                 "function": {
                     "name": "control_light",
-                    "description": "照明の制御（オン/オフ/調光/色変更）",
+                    "description": "Control lighting (on/off/dim/change color)",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -1484,7 +1486,7 @@ class SmartHomeVoiceController:
                 "type": "function",
                 "function": {
                     "name": "control_ac",
-                    "description": "エアコンの制御",
+                    "description": "Control the air conditioner",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -1505,15 +1507,15 @@ class SmartHomeVoiceController:
         ])
 
     def process_command(self, voice_text: str) -> str:
-        """音声コマンドを処理"""
+        """Process a voice command"""
         return self.engine.process_input(voice_text)
 ```
 
-### 6.2 会議アシスタント
+### 6.2 Meeting Assistant
 
 ```python
 class MeetingAssistant:
-    """会議中に動作する音声アシスタント"""
+    """Voice assistant that operates during meetings"""
 
     def __init__(self):
         self.client = OpenAI()
@@ -1522,7 +1524,7 @@ class MeetingAssistant:
         self.participants = set()
 
     def process_segment(self, speaker: str, text: str):
-        """発話セグメントを処理"""
+        """Process a speech segment"""
         self.transcript.append({
             "speaker": speaker,
             "text": text,
@@ -1530,7 +1532,7 @@ class MeetingAssistant:
         })
         self.participants.add(speaker)
 
-        # アクションアイテムの自動検出
+        # Automatic action item detection
         if self._is_action_item(text):
             self.action_items.append({
                 "speaker": speaker,
@@ -1539,16 +1541,16 @@ class MeetingAssistant:
             })
 
     def _is_action_item(self, text: str) -> bool:
-        """アクションアイテムかどうかを判定"""
+        """Determine if the text is an action item"""
         indicators = [
-            "やっておきます", "確認します", "対応します",
-            "担当します", "調べておきます", "報告します",
-            "次回までに", "来週までに", "明日までに",
+            "I'll take care of", "I'll check", "I'll handle",
+            "I'm responsible for", "I'll look into", "I'll report",
+            "by next meeting", "by next week", "by tomorrow",
         ]
         return any(ind in text for ind in indicators)
 
     def generate_summary(self) -> str:
-        """会議の要約を生成"""
+        """Generate a meeting summary"""
         transcript_text = "\n".join(
             f"{t['speaker']}: {t['text']}" for t in self.transcript
         )
@@ -1557,11 +1559,11 @@ class MeetingAssistant:
             model="gpt-4o",
             messages=[
                 {"role": "system", "content": """
-会議の議事録から以下を抽出してください:
-1. 議題の要約（3-5行）
-2. 決定事項
-3. アクションアイテム（担当者・期限付き）
-4. 次回の議題候補
+Extract the following from the meeting transcript:
+1. Agenda summary (3-5 lines)
+2. Decisions made
+3. Action items (with assignees and deadlines)
+4. Suggested topics for the next meeting
 """},
                 {"role": "user", "content": transcript_text},
             ],
@@ -1570,7 +1572,7 @@ class MeetingAssistant:
         return response.choices[0].message.content
 
     def answer_question(self, question: str) -> str:
-        """会議内容に関する質問に回答"""
+        """Answer a question about the meeting content"""
         transcript_text = "\n".join(
             f"{t['speaker']}: {t['text']}" for t in self.transcript[-50:]
         )
@@ -1578,7 +1580,7 @@ class MeetingAssistant:
         response = self.client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": f"以下の会議内容に基づいて質問に回答してください:\n{transcript_text}"},
+                {"role": "system", "content": f"Answer the question based on the following meeting content:\n{transcript_text}"},
                 {"role": "user", "content": question},
             ],
             max_tokens=200,
@@ -1591,73 +1593,73 @@ class MeetingAssistant:
 
 ## 7. FAQ
 
-### Q1: カスタムウェイクワードを作るにはどうすればよいですか？
+### Q1: How do I create a custom wake word?
 
-主に3つの方法があります。(1) Picovoice Console: Web上でウェイクワードを入力し、.ppnファイルを生成（商用利用は有料）。(2) OpenWakeWord: 自分のデータ（100-500サンプル）でモデルを学習。TTS生成の合成音声でもデータ作成可能。(3) 自作: 小型のCNNまたはRNNモデルをMFCC特徴量で学習。いずれの方法でも、誤検知率テスト（False Accept Rate < 1回/24時間が目安）を必ず実施してください。
+There are three main methods. (1) Picovoice Console: Enter the wake word on the web to generate a .ppn file (commercial use requires a paid license). (2) OpenWakeWord: Train a model with your own data (100-500 samples). You can also generate training data using TTS-synthesized speech. (3) Custom build: Train a small CNN or RNN model with MFCC features. Regardless of the method, always perform false accept rate testing (target: less than 1 false activation per 24 hours).
 
-### Q2: 音声アシスタントのレイテンシを改善するには？
+### Q2: How can I improve voice assistant latency?
 
-レイテンシ改善の主要策は、(1) ストリーミングSTT: バッチ処理ではなくストリーミング認識を使用（Google/Azure STT）。(2) LLMストリーミング: 最初のトークンが生成された時点でTTSを開始。(3) TTSストリーミング: PCM/Opusフォーマットで逐次再生。(4) 事前キャッシュ: 頻出応答（挨拶、確認等）を事前に音声化しておく。(5) エッジ推論: STTをローカル（faster-whisper tiny/base）で実行。これらを組み合わせると、体感1秒以下の応答が実現可能です。
+Key strategies for latency improvement include: (1) Streaming STT: Use streaming recognition instead of batch processing (Google/Azure STT). (2) LLM streaming: Start TTS as soon as the first token is generated. (3) TTS streaming: Play back incrementally in PCM/Opus format. (4) Pre-caching: Pre-synthesize frequently used responses (greetings, confirmations, etc.). (5) Edge inference: Run STT locally (faster-whisper tiny/base). Combining these approaches can achieve a perceived response time of under 1 second.
 
-### Q3: プライバシーに配慮した音声アシスタントを作るには？
+### Q3: How do I build a privacy-focused voice assistant?
 
-プライバシー重視の設計として、(1) オンデバイス処理: ウェイクワード検出とVADは必ずローカルで実行し、ウェイクワード検出前の音声はクラウドに送信しない。(2) ローカルSTT: faster-whisperをローカルGPUで実行。(3) 録音の最小化: VAD終了後すぐに録音停止、処理後は即座に音声データを削除。(4) 暗号化: 通信は必ずTLS、保存データは暗号化。(5) ユーザー制御: ミュートボタン、履歴削除機能、データ収集のオプトイン/アウトを提供。
+For privacy-focused design: (1) On-device processing: Always run wake word detection and VAD locally; never send audio to the cloud before wake word detection. (2) Local STT: Run faster-whisper on a local GPU. (3) Minimal recording: Stop recording immediately after VAD endpoint; delete audio data immediately after processing. (4) Encryption: Always use TLS for communication; encrypt stored data. (5) User control: Provide a mute button, history deletion, and data collection opt-in/opt-out options.
 
-### Q4: 音声アシスタントをマルチ言語対応にするには？
+### Q4: How do I make a voice assistant multilingual?
 
-マルチ言語対応のアプローチとして、(1) 言語検出: ウェイクワード検出後の音声を言語識別し、適切なSTTモデルを選択。Whisperは自動言語検出に対応しています。(2) LLM: GPT-4oやClaude等の多言語モデルはプロンプトなしで多言語に対応可能。(3) TTS: 各言語に対応したTTSモデルまたはAPIを用意。(4) ウェイクワード: 言語別のウェイクワードを用意するか、言語非依存のウェイクワード（固有名詞等）を使用。
+Approaches for multilingual support: (1) Language detection: Identify the language of audio after wake word detection and select the appropriate STT model. Whisper supports automatic language detection. (2) LLM: Multilingual models like GPT-4o and Claude can handle multiple languages without special prompts. (3) TTS: Prepare TTS models or APIs for each supported language. (4) Wake word: Prepare language-specific wake words or use a language-independent wake word (e.g., a proper noun).
 
-### Q5: 音声アシスタントの割り込み（Interruption）対応はどう実装しますか？
+### Q5: How do I implement interruption handling in a voice assistant?
 
-割り込み対応の実装方法として、(1) OpenAI Realtime API: server_vadによる自動割り込み検知が組み込み。(2) パイプライン型: TTS再生中もマイクを監視し、VADが音声を検出したらTTS再生を中断。(3) 技術的課題: スピーカーの出力をマイクが拾う「エコー」を除去するAEC（Acoustic Echo Cancellation）が必要。WebRTCのAECモジュールやspeexdsp-pyが利用可能。(4) UX: 中断時は「はい？」等の短い応答を返し、新しい発話を待つのが自然な対話フローです。
+Approaches for interruption handling: (1) OpenAI Realtime API: Built-in automatic interruption detection via server_vad. (2) Pipeline approach: Monitor the microphone during TTS playback and interrupt TTS when VAD detects speech. (3) Technical challenge: AEC (Acoustic Echo Cancellation) is needed to remove the "echo" of speaker output picked up by the microphone. WebRTC's AEC module or speexdsp-py can be used. (4) UX: When interrupted, return a short response like "Yes?" and wait for the new utterance for a natural conversational flow.
 
-### Q6: Raspberry Piで音声アシスタントを動かす際の推奨構成は？
+### Q6: What is the recommended setup for running a voice assistant on Raspberry Pi?
 
-Raspberry Pi 4（4GB以上）での推奨構成として、(1) マイク: ReSpeaker 2-Mic Hat またはUSBマイク（指向性推奨）。(2) スピーカー: 3.5mmジャックまたはBluetooth。(3) ウェイクワード: Porcupine（CPU使用率2%以下）またはOpenWakeWord。(4) STT: faster-whisper tinyモデル（CPU推論で3秒以下）。(5) LLM: クラウドAPI推奨（GPT-4o-mini等）。ローカルの場合はGemma 2B等の小型モデル。(6) TTS: Piper（CPU推論でリアルタイム以下）。(7) OS: Raspberry Pi OS Lite（GUIなし）で軽量化。全体でのレイテンシは2-4秒程度です。
+Recommended configuration for Raspberry Pi 4 (4GB or more): (1) Microphone: ReSpeaker 2-Mic Hat or USB microphone (directional recommended). (2) Speaker: 3.5mm jack or Bluetooth. (3) Wake word: Porcupine (under 2% CPU usage) or OpenWakeWord. (4) STT: faster-whisper tiny model (under 3 seconds with CPU inference). (5) LLM: Cloud API recommended (GPT-4o-mini, etc.). For local, use small models like Gemma 2B. (6) TTS: Piper (sub-realtime with CPU inference). (7) OS: Raspberry Pi OS Lite (no GUI) for minimal footprint. Overall latency is approximately 2-4 seconds.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point to keep in mind when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
-|------|------|
-| パイプライン | Wake Word → VAD → STT → LLM → TTS の5段階 |
-| ウェイクワード | Porcupine（商用品質）、OpenWakeWord（OSS） |
-| 対話管理 | LLM + Function Calling で柔軟な対話実現 |
-| レイテンシ | ストリーミング処理で体感1秒以下が可能 |
-| マルチモーダル | OpenAI Realtime APIで統合音声対話 |
-| プライバシー | ウェイクワード検出はローカル必須 |
-| エッジ展開 | RPi4でfaster-whisper+Piper構成が実用的 |
-| 対話状態管理 | インテント/スロット管理で構造化対話を実現 |
+| Item | Key Point |
+|------|-----------|
+| Pipeline | 5 stages: Wake Word -> VAD -> STT -> LLM -> TTS |
+| Wake word | Porcupine (commercial quality), OpenWakeWord (OSS) |
+| Dialog management | Flexible dialog via LLM + Function Calling |
+| Latency | Sub-1-second perceived response with streaming |
+| Multimodal | Integrated voice dialog via OpenAI Realtime API |
+| Privacy | Wake word detection must be local |
+| Edge deployment | faster-whisper + Piper on RPi4 is practical |
+| Dialog state management | Structured dialog via intent/slot management |
 
-## 次に読むべきガイド
+## Recommended Next Guides
 
-- [02-podcast-tools.md](./02-podcast-tools.md) — ポッドキャストツール
-- [../03-development/02-real-time-audio.md](../03-development/02-real-time-audio.md) — リアルタイム音声処理
-- [../00-fundamentals/03-stt-technologies.md](../00-fundamentals/03-stt-technologies.md) — STT技術詳細
+- [02-podcast-tools.md](./02-podcast-tools.md) — Podcast Tools
+- [../03-development/02-real-time-audio.md](../03-development/02-real-time-audio.md) — Real-time Audio Processing
+- [../00-fundamentals/03-stt-technologies.md](../00-fundamentals/03-stt-technologies.md) — STT Technology Details
 
-## 参考文献
+## References
 
-1. Picovoice Documentation (2025). "Porcupine Wake Word Engine" — 商用品質のウェイクワードエンジンのドキュメント
-2. OpenAI (2024). "Realtime API Documentation" — GPT-4oベースのリアルタイム音声対話APIのガイド
-3. Rasa Open Source (2024). "Building Conversational AI" — オープンソースの対話管理フレームワークのドキュメント
-4. Silero Team (2024). "Silero VAD" — 高精度軽量VADモデルの実装と評価
-5. Radford, A., et al. (2023). "Robust Speech Recognition via Large-Scale Weak Supervision" — Whisper論文。大規模弱教師あり学習によるSTT
-6. Hughes, T., et al. (2023). "OpenWakeWord: An Open-Source Wakeword Detection Library" — OSSウェイクワード検出ライブラリ
+1. Picovoice Documentation (2025). "Porcupine Wake Word Engine" — Documentation for a commercial-quality wake word engine
+2. OpenAI (2024). "Realtime API Documentation" — Guide for the GPT-4o-based real-time voice dialog API
+3. Rasa Open Source (2024). "Building Conversational AI" — Documentation for an open-source dialog management framework
+4. Silero Team (2024). "Silero VAD" — Implementation and evaluation of a high-accuracy lightweight VAD model
+5. Radford, A., et al. (2023). "Robust Speech Recognition via Large-Scale Weak Supervision" — The Whisper paper on STT via large-scale weak supervision
+6. Hughes, T., et al. (2023). "OpenWakeWord: An Open-Source Wakeword Detection Library" — OSS wake word detection library
