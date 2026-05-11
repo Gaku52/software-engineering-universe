@@ -1,152 +1,163 @@
-# AIアシスタント — Siri / Google Assistant / Alexa と LLM統合
+# AI Assistants — Siri / Google Assistant / Alexa and LLM Integration
 
-> 音声AIアシスタントの仕組みから、音声認識パイプライン、LLM（大規模言語モデル）との統合、そしてカスタム音声アプリの開発手法まで体系的に解説する。
-
----
-
-## この章で学ぶこと
-
-1. **音声認識パイプラインの構造** — 音声入力から意図理解・応答生成までの処理フロー
-2. **主要アシスタントの技術比較** — Siri / Google Assistant / Alexa の設計思想と強み
-3. **LLM統合の最前線** — ChatGPT / Gemini によるアシスタント進化と開発手法
-4. **音声アプリの実装** — カスタムスキル・アクション開発の実践的手法
-5. **ローカルLLM音声アシスタント** — プライバシー重視のオンデバイス音声AI構築
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [AIカメラ — 計算フォトグラフィ、ナイトモード、AI編集](./01-ai-cameras.md) の内容を理解していること
+> A systematic guide covering how voice AI assistants work, from speech recognition pipelines and LLM (Large Language Model) integration to developing custom voice applications.
 
 ---
 
-## 1. 音声アシスタントのアーキテクチャ
+## What You'll Learn in This Chapter
+
+1. **Speech Recognition Pipeline Architecture** — Processing flow from voice input to intent understanding and response generation
+2. **Technical Comparison of Major Assistants** — Design philosophies and strengths of Siri / Google Assistant / Alexa
+3. **The Frontier of LLM Integration** — Assistant evolution through ChatGPT / Gemini and development techniques
+4. **Voice App Implementation** — Practical techniques for developing custom skills and actions
+5. **Local LLM Voice Assistants** — Building privacy-focused on-device voice AI
+
+
+## Prerequisites
+
+Before reading this guide, the following knowledge will help deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [AI Cameras — Computational Photography, Night Mode, AI Editing](./01-ai-cameras.md)
+
+---
+
+## 1. Voice Assistant Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│              音声アシスタント処理パイプライン                    │
+│           Voice Assistant Processing Pipeline                │
 │                                                               │
-│  ユーザー発話                                                  │
+│  User Speech                                                  │
 │      │                                                        │
 │      ▼                                                        │
 │  ┌─────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   │
 │  │ Wake Word│──▶│ ASR      │──▶│ NLU      │──▶│ Dialog   │   │
-│  │ Detection│   │ (音声→  │   │ (意図    │   │ Manager  │   │
-│  │ "Hey     │   │  テキスト)│   │  理解)   │   │ (対話    │   │
-│  │  Siri"   │   │ Whisper等│   │ BERT等   │   │  管理)   │   │
+│  │ Detection│   │ (Speech  │   │ (Intent  │   │ Manager  │   │
+│  │ "Hey     │   │  →Text)  │   │  Under-  │   │ (Dialog  │   │
+│  │  Siri"   │   │ Whisper  │   │  standing)│   │  Mgmt)   │   │
 │  └─────────┘   └──────────┘   └──────────┘   └──────────┘   │
 │                                                    │          │
 │                                                    ▼          │
 │  ┌─────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   │
-│  │ スピーカー│◀──│ TTS      │◀──│ Response │◀──│ Action   │   │
-│  │ 出力     │   │ (テキスト│   │ Generator│   │ Executor │   │
-│  │          │   │  →音声)  │   │ (LLM)    │   │ (API呼出)│   │
+│  │ Speaker  │◀──│ TTS      │◀──│ Response │◀──│ Action   │   │
+│  │ Output   │   │ (Text    │   │ Generator│   │ Executor │   │
+│  │          │   │  →Speech)│   │ (LLM)    │   │ (API Call)│   │
 │  └─────────┘   └──────────┘   └──────────┘   └──────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 1.1 従来型 vs LLM統合型
+### 1.1 Traditional vs LLM-Integrated
 
 ```
 ┌─────────────────────────────────────────────┐
-│  【従来型】インテントベース                    │
+│  [Traditional] Intent-Based                   │
 │                                               │
-│  "明日の天気は？"                             │
+│  "What's the weather tomorrow?"               │
 │     ↓ NLU                                    │
 │  Intent: weather_query                        │
 │  Slot: date=tomorrow, location=current        │
-│     ↓ ルールベース                            │
-│  Weather API → 定型応答テンプレート            │
+│     ↓ Rule-Based                             │
+│  Weather API → Fixed Response Template        │
 │                                               │
-│  【LLM統合型】自由対話                        │
+│  [LLM-Integrated] Free-Form Conversation      │
 │                                               │
-│  "明日の天気は？ ピクニックに行けそう？"       │
+│  "What's the weather tomorrow? Can I go       │
+│   on a picnic?"                               │
 │     ↓ LLM (Gemini / GPT-4)                  │
-│  ・天気API呼び出し                            │
-│  ・気温・降水確率を考慮                       │
-│  ・「晴れで25℃なのでピクニック日和です！       │
-│    ただし午後から風が強まるので午前中が        │
-│    おすすめです」                              │
+│  - Call weather API                           │
+│  - Consider temperature & precipitation       │
+│    probability                                │
+│  - "It'll be sunny at 25°C, perfect for a    │
+│    picnic! However, winds will pick up in     │
+│    the afternoon, so morning is recommended." │
 └─────────────────────────────────────────────┘
 ```
 
-### 1.2 Wake Word 検出の技術詳細
+### 1.2 Technical Details of Wake Word Detection
 
-Wake Word（ウェイクワード）検出は、常にマイクを監視しつつ最小限の消費電力で動作する必要がある、音声アシスタントの最も重要なコンポーネントです。
+Wake word detection is the most critical component of a voice assistant, as it must constantly monitor the microphone while operating with minimal power consumption.
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│       Wake Word 検出のアーキテクチャ                   │
+│       Wake Word Detection Architecture               │
 │                                                       │
-│  マイク入力（常時）                                    │
+│  Microphone Input (always on)                         │
 │      │                                                │
 │      ▼                                                │
 │  ┌──────────────────────────┐                         │
-│  │ DSP (Digital Signal      │  ← 超低消費電力（~1mW） │
-│  │  Processor)              │     常時リスニング       │
-│  │ - VAD（音声区間検出）    │                         │
-│  │ - 前処理（ノイズ除去）    │                         │
+│  │ DSP (Digital Signal      │  ← Ultra-low power      │
+│  │  Processor)              │     (~1mW)               │
+│  │ - VAD (Voice Activity    │     Always listening     │
+│  │   Detection)             │                         │
+│  │ - Preprocessing (Noise   │                         │
+│  │   Removal)               │                         │
 │  └────────────┬─────────────┘                         │
-│               │ 音声検出時のみ                         │
+│               │ Only when speech detected             │
 │               ▼                                       │
 │  ┌──────────────────────────┐                         │
-│  │ NPU / 軽量CNN            │  ← 低消費電力（~10mW）  │
-│  │ - "Hey Siri" 検出        │     小さなキーワードモデル│
-│  │ - 話者識別（誰の声か）    │     ~200KB モデル        │
+│  │ NPU / Lightweight CNN    │  ← Low power (~10mW)    │
+│  │ - "Hey Siri" detection   │     Small keyword model  │
+│  │ - Speaker ID (whose      │     ~200KB model         │
+│  │   voice)                 │                         │
 │  └────────────┬─────────────┘                         │
-│               │ ウェイクワード検出時                    │
+│               │ When wake word detected               │
 │               ▼                                       │
 │  ┌──────────────────────────┐                         │
-│  │ メインプロセッサ起動      │  ← 通常消費電力          │
-│  │ - フルASR開始            │     Whisper等の大型モデル │
-│  │ - クラウド接続            │                         │
+│  │ Main Processor Activated  │  ← Normal power         │
+│  │ - Full ASR starts        │     consumption          │
+│  │ - Cloud connection       │     Large models like    │
+│  │                          │     Whisper              │
 │  └──────────────────────────┘                         │
 │                                                       │
-│  バッテリー影響:                                       │
-│  DSP常時リスニング: 1日あたり ~1-2% のバッテリー消費   │
-│  (NPUに移行することでさらに効率化が進む)               │
+│  Battery Impact:                                      │
+│  DSP always listening: ~1-2% battery drain per day    │
+│  (Further efficiency gains by transitioning to NPU)   │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 1.3 音声認識（ASR）のストリーミング処理
+### 1.3 Streaming Processing for Speech Recognition (ASR)
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│     ストリーミングASRの処理フロー                      │
+│     Streaming ASR Processing Flow                     │
 │                                                       │
-│  ユーザー発話:                                        │
-│  "明日  の  天気  を  教えて  ください"                │
-│   │     │    │    │    │       │                      │
-│   ▼     ▼    ▼    ▼    ▼       ▼                      │
-│  [チャンク1][チャンク2][チャンク3]                      │
+│  User Speech:                                         │
+│  "Tell  me  the  weather  for  tomorrow"              │
+│   │     │    │     │       │     │                    │
+│   ▼     ▼    ▼     ▼       ▼     ▼                    │
+│  [Chunk 1]  [Chunk 2]  [Chunk 3]                      │
 │   │                                                   │
 │   ▼                                                   │
-│  ストリーミングデコーダ                                │
+│  Streaming Decoder                                    │
 │   │                                                   │
-│   ├── 部分結果: "あした"                              │
-│   ├── 部分結果: "あしたの てんき"                     │
-│   ├── 部分結果: "あしたの てんきを おしえて"          │
-│   └── 最終結果: "明日の天気を教えてください"           │
+│   ├── Partial result: "tell"                          │
+│   ├── Partial result: "tell me the weather"           │
+│   ├── Partial result: "tell me the weather for"       │
+│   └── Final result: "Tell me the weather for tomorrow"│
 │                                                       │
-│  メリット:                                            │
-│  - 発話完了前から処理開始 → 体感遅延の大幅削減        │
-│  - 部分結果でインテント推定を先行実行（投機的実行）    │
-│  - 確信度が高ければASR完了前にAPI呼び出し開始          │
+│  Benefits:                                            │
+│  - Processing starts before speech ends               │
+│    → Significant reduction in perceived latency       │
+│  - Intent estimation runs ahead on partial results    │
+│    (speculative execution)                            │
+│  - If confidence is high, API calls begin before      │
+│    ASR completion                                     │
 │                                                       │
-│  レイテンシ比較:                                      │
-│  バッチASR:     発話完了 → 全体認識 → 結果 (~1.5秒)  │
-│  ストリーミング: 発話中 → 逐次認識 → 結果 (~0.3秒)    │
+│  Latency Comparison:                                  │
+│  Batch ASR:     Speech end → Full recognition         │
+│                 → Result (~1.5s)                       │
+│  Streaming:     During speech → Incremental           │
+│                 recognition → Result (~0.3s)           │
 └─────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. コード例
+## 2. Code Examples
 
-### コード例 1: Google Actions SDK によるカスタムアクション
+### Code Example 1: Custom Action with Google Actions SDK
 
 ```javascript
 const { conversation } = require('@assistant/conversation');
@@ -154,32 +165,32 @@ const functions = require('firebase-functions');
 
 const app = conversation();
 
-// メインインテントの処理
+// Handle main intent
 app.handle('greeting', (conv) => {
-  conv.add('こんにちは！AIアシスタントガイドへようこそ。');
-  conv.add('何についてお手伝いしましょうか？');
+  conv.add('Hello! Welcome to the AI Assistant Guide.');
+  conv.add('How can I help you?');
 });
 
-// 天気照会のインテント処理
+// Handle weather query intent
 app.handle('weather_query', async (conv) => {
   const location = conv.intent.params.location?.resolved;
   const date = conv.intent.params.date?.resolved;
 
-  // 外部API呼び出し
+  // External API call
   const weather = await fetchWeather(location, date);
 
-  conv.add(`${location}の${date}の天気は${weather.condition}、`
-    + `気温は${weather.temp}℃の予報です。`);
+  conv.add(`The weather in ${location} on ${date} will be ${weather.condition}, `
+    + `with a temperature of ${weather.temp}°C.`);
 
   if (weather.rain_probability > 50) {
-    conv.add('傘をお持ちになることをおすすめします。');
+    conv.add('I recommend bringing an umbrella.');
   }
 });
 
 exports.ActionsOnGoogleFulfillment = functions.https.onRequest(app);
 ```
 
-### コード例 2: Alexa Skill（Python Lambda）
+### Code Example 2: Alexa Skill (Python Lambda)
 
 ```python
 from ask_sdk_core.skill_builder import SkillBuilder
@@ -189,7 +200,7 @@ from ask_sdk_core.utils import is_intent_name
 sb = SkillBuilder()
 
 class RecipeIntentHandler(AbstractRequestHandler):
-    """料理レシピを提案するスキル"""
+    """Skill to suggest cooking recipes"""
 
     def can_handle(self, handler_input):
         return is_intent_name("RecipeIntent")(handler_input)
@@ -198,48 +209,48 @@ class RecipeIntentHandler(AbstractRequestHandler):
         slots = handler_input.request_envelope.request.intent.slots
         ingredient = slots["ingredient"].value
 
-        # LLMでレシピ生成（Bedrock経由）
+        # Generate recipe with LLM (via Bedrock)
         import boto3
         bedrock = boto3.client('bedrock-runtime')
         response = bedrock.invoke_model(
             modelId='anthropic.claude-3-sonnet',
             body=json.dumps({
-                "prompt": f"{ingredient}を使った簡単なレシピを1つ提案してください。",
+                "prompt": f"Suggest one simple recipe using {ingredient}.",
                 "max_tokens": 200
             })
         )
         recipe = json.loads(response['body'].read())['completion']
 
-        speech = f"{ingredient}を使ったレシピをご紹介します。{recipe}"
+        speech = f"Here's a recipe using {ingredient}. {recipe}"
         return handler_input.response_builder.speak(speech).response
 
 sb.add_request_handler(RecipeIntentHandler())
 lambda_handler = sb.lambda_handler()
 ```
 
-### コード例 3: Siri Shortcuts + Intents（Swift）
+### Code Example 3: Siri Shortcuts + Intents (Swift)
 
 ```swift
 import Intents
 import IntentsUI
 
-// カスタムIntentの定義（Xcode Intent Definition File）
+// Custom Intent definition (Xcode Intent Definition File)
 class OrderCoffeeIntentHandler: NSObject, OrderCoffeeIntentHandling {
 
     func handle(intent: OrderCoffeeIntent,
                 completion: @escaping (OrderCoffeeIntentResponse) -> Void) {
 
-        let coffeeType = intent.coffeeType ?? "ラテ"
+        let coffeeType = intent.coffeeType ?? "latte"
         let size = intent.size ?? .medium
 
-        // 注文処理
+        // Order processing
         CoffeeAPI.placeOrder(type: coffeeType, size: size) { result in
             switch result {
             case .success(let order):
                 let response = OrderCoffeeIntentResponse(code: .success,
                     userActivity: nil)
                 response.orderNumber = order.id
-                response.estimatedTime = "\(order.waitMinutes)分"
+                response.estimatedTime = "\(order.waitMinutes) min"
                 completion(response)
 
             case .failure:
@@ -249,7 +260,7 @@ class OrderCoffeeIntentHandler: NSObject, OrderCoffeeIntentHandling {
         }
     }
 
-    // Siriへの提案
+    // Suggestion to Siri
     func resolveCoffeeType(for intent: OrderCoffeeIntent,
         with completion: @escaping (INStringResolutionResult) -> Void) {
         if let type = intent.coffeeType {
@@ -261,7 +272,7 @@ class OrderCoffeeIntentHandler: NSObject, OrderCoffeeIntentHandling {
 }
 ```
 
-### コード例 4: OpenAI Realtime API によるリアルタイム音声対話
+### Code Example 4: Real-Time Voice Conversation with OpenAI Realtime API
 
 ```python
 import asyncio
@@ -271,7 +282,7 @@ import base64
 import pyaudio
 
 async def realtime_voice_assistant():
-    """OpenAI Realtime API でリアルタイム音声アシスタント"""
+    """Real-time voice assistant using OpenAI Realtime API"""
 
     url = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview"
     headers = {
@@ -280,23 +291,23 @@ async def realtime_voice_assistant():
     }
 
     async with websockets.connect(url, extra_headers=headers) as ws:
-        # セッション設定
+        # Session configuration
         await ws.send(json.dumps({
             "type": "session.update",
             "session": {
                 "modalities": ["text", "audio"],
-                "instructions": "あなたは親切な日本語アシスタントです。",
+                "instructions": "You are a helpful assistant.",
                 "voice": "alloy",
                 "input_audio_format": "pcm16",
                 "output_audio_format": "pcm16",
                 "turn_detection": {
-                    "type": "server_vad",  # サーバー側VAD
+                    "type": "server_vad",  # Server-side VAD
                     "threshold": 0.5
                 }
             }
         }))
 
-        # マイク入力を送信
+        # Send microphone input
         audio = pyaudio.PyAudio()
         stream = audio.open(format=pyaudio.paInt16,
                           channels=1, rate=24000,
@@ -317,7 +328,7 @@ async def realtime_voice_assistant():
                 msg = json.loads(await ws.recv())
                 if msg["type"] == "response.audio.delta":
                     audio_data = base64.b64decode(msg["delta"])
-                    # スピーカーに出力
+                    # Output to speaker
                     play_audio(audio_data)
 
         await asyncio.gather(send_audio(), receive_response())
@@ -325,7 +336,7 @@ async def realtime_voice_assistant():
 asyncio.run(realtime_voice_assistant())
 ```
 
-### コード例 5: ローカルLLM音声アシスタント（Whisper + Ollama）
+### Code Example 5: Local LLM Voice Assistant (Whisper + Ollama)
 
 ```python
 import whisper
@@ -335,18 +346,18 @@ import sounddevice as sd
 import numpy as np
 
 class LocalVoiceAssistant:
-    """完全ローカルで動作する音声アシスタント"""
+    """Voice assistant that runs entirely locally"""
 
     def __init__(self):
-        # Whisper（音声認識）
+        # Whisper (speech recognition)
         self.asr_model = whisper.load_model("base")
-        # TTS エンジン
+        # TTS engine
         self.tts = pyttsx3.init()
         self.tts.setProperty('rate', 180)
 
     def listen(self, duration=5, sample_rate=16000):
-        """マイクから音声を録音"""
-        print("聞いています...")
+        """Record audio from microphone"""
+        print("Listening...")
         audio = sd.rec(int(duration * sample_rate),
                       samplerate=sample_rate, channels=1,
                       dtype='float32')
@@ -354,17 +365,17 @@ class LocalVoiceAssistant:
         return audio.flatten()
 
     def transcribe(self, audio):
-        """音声をテキストに変換（Whisper）"""
+        """Convert speech to text (Whisper)"""
         result = self.asr_model.transcribe(
             audio, language="ja", fp16=False
         )
         return result["text"]
 
     def think(self, user_text, context=None):
-        """ローカルLLMで応答生成（Ollama）"""
+        """Generate response with local LLM (Ollama)"""
         messages = [
             {"role": "system",
-             "content": "簡潔に日本語で回答してください。"},
+             "content": "Please respond concisely."},
         ]
         if context:
             messages.append({"role": "assistant", "content": context})
@@ -374,22 +385,22 @@ class LocalVoiceAssistant:
         return response['message']['content']
 
     def speak(self, text):
-        """テキストを音声で読み上げ"""
-        print(f"アシスタント: {text}")
+        """Read text aloud"""
+        print(f"Assistant: {text}")
         self.tts.say(text)
         self.tts.runAndWait()
 
     def run(self):
-        """メインループ"""
-        print("ローカル音声アシスタント起動（Ctrl+Cで終了）")
+        """Main loop"""
+        print("Local voice assistant started (Ctrl+C to exit)")
         context = None
         while True:
             audio = self.listen()
             text = self.transcribe(audio)
-            print(f"ユーザー: {text}")
+            print(f"User: {text}")
 
-            if "終了" in text or "さようなら" in text:
-                self.speak("さようなら。")
+            if "quit" in text.lower() or "goodbye" in text.lower():
+                self.speak("Goodbye.")
                 break
 
             response = self.think(text, context)
@@ -400,31 +411,31 @@ assistant = LocalVoiceAssistant()
 assistant.run()
 ```
 
-### コード例 6: Apple App Intents（iOS 16+）による Siri 統合
+### Code Example 6: Siri Integration with Apple App Intents (iOS 16+)
 
 ```swift
 import AppIntents
 
-/// App Intents フレームワークによるSiri統合（iOS 16+）
-/// 従来の SiriKit Intent Definition よりも簡潔で型安全
+/// Siri integration using the App Intents framework (iOS 16+)
+/// More concise and type-safe than traditional SiriKit Intent Definitions
 struct SearchRecipeIntent: AppIntent {
-    static var title: LocalizedStringResource = "レシピ検索"
-    static var description = IntentDescription("食材からレシピを検索します")
+    static var title: LocalizedStringResource = "Search Recipes"
+    static var description = IntentDescription("Search recipes by ingredient")
 
-    // Siriに自然言語で問いかけるとこのパラメータが自動抽出される
-    @Parameter(title: "食材")
+    // This parameter is automatically extracted when querying Siri with natural language
+    @Parameter(title: "Ingredient")
     var ingredient: String
 
-    @Parameter(title: "調理時間（分）", default: 30)
+    @Parameter(title: "Cooking Time (minutes)", default: 30)
     var maxCookingTime: Int
 
-    // Siri Shortcuts アプリにも自動表示される
+    // Also automatically displayed in the Siri Shortcuts app
     static var parameterSummary: some ParameterSummary {
-        Summary("「\(\.$ingredient)」を使った\(\.$maxCookingTime)分以内のレシピ")
+        Summary("Recipes using \(\.$ingredient) within \(\.$maxCookingTime) minutes")
     }
 
     func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
-        // レシピ検索ロジック
+        // Recipe search logic
         let recipes = try await RecipeService.search(
             ingredient: ingredient,
             maxTime: maxCookingTime
@@ -432,35 +443,35 @@ struct SearchRecipeIntent: AppIntent {
 
         guard let topRecipe = recipes.first else {
             return .result(
-                dialog: "\(ingredient)を使ったレシピが見つかりませんでした。"
+                dialog: "No recipes found using \(ingredient)."
             )
         }
 
-        // Siri応答 + リッチUIスニペット
+        // Siri response + rich UI snippet
         return .result(
-            dialog: "\(topRecipe.name)はいかがですか？調理時間は\(topRecipe.cookingTime)分です。",
+            dialog: "How about \(topRecipe.name)? Cooking time is \(topRecipe.cookingTime) minutes.",
             view: RecipeSnippetView(recipe: topRecipe)
         )
     }
 }
 
-/// Shortcuts アプリで表示されるショートカットプロバイダ
+/// Shortcut provider displayed in the Shortcuts app
 struct RecipeShortcuts: AppShortcutsProvider {
     static var appShortcuts: [AppShortcut] {
         AppShortcut(
             intent: SearchRecipeIntent(),
             phrases: [
-                "「\(.applicationName)」で\(\.$ingredient)のレシピを探して",
-                "「\(.applicationName)」で簡単な料理を提案して",
+                "Search for \(\.$ingredient) recipes in \(.applicationName)",
+                "Suggest a simple dish in \(.applicationName)",
             ],
-            shortTitle: "レシピ検索",
+            shortTitle: "Search Recipes",
             systemImageName: "fork.knife"
         )
     }
 }
 ```
 
-### コード例 7: Function Calling による外部API連携アシスタント
+### Code Example 7: External API Integration Assistant with Function Calling
 
 ```python
 import openai
@@ -469,13 +480,13 @@ import requests
 
 class FunctionCallingAssistant:
     """
-    Function Calling を使った高度なAIアシスタント
-    LLMが適切なAPIを自動選択して実行する
+    Advanced AI assistant using Function Calling.
+    The LLM automatically selects and executes the appropriate API.
 
-    なぜ Function Calling か:
-    - 従来のインテント分類では対応できない複雑なクエリに対応
-    - LLMが文脈に応じて適切な関数を自動選択
-    - 複数の関数を順次呼び出すチェーン実行が可能
+    Why Function Calling:
+    - Handles complex queries that traditional intent classification cannot
+    - The LLM automatically selects appropriate functions based on context
+    - Enables chained execution of multiple functions sequentially
     """
 
     def __init__(self, api_key):
@@ -485,12 +496,12 @@ class FunctionCallingAssistant:
                 "type": "function",
                 "function": {
                     "name": "get_weather",
-                    "description": "指定した場所の天気予報を取得する",
+                    "description": "Get the weather forecast for a specified location",
                     "parameters": {
                         "type": "object",
                         "properties": {
-                            "location": {"type": "string", "description": "都市名"},
-                            "date": {"type": "string", "description": "日付（YYYY-MM-DD）"}
+                            "location": {"type": "string", "description": "City name"},
+                            "date": {"type": "string", "description": "Date (YYYY-MM-DD)"}
                         },
                         "required": ["location"]
                     }
@@ -500,13 +511,13 @@ class FunctionCallingAssistant:
                 "type": "function",
                 "function": {
                     "name": "search_restaurant",
-                    "description": "レストランを検索する",
+                    "description": "Search for restaurants",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "location": {"type": "string"},
-                            "cuisine": {"type": "string", "description": "料理のジャンル"},
-                            "budget": {"type": "integer", "description": "予算（円）"}
+                            "cuisine": {"type": "string", "description": "Type of cuisine"},
+                            "budget": {"type": "integer", "description": "Budget (JPY)"}
                         },
                         "required": ["location"]
                     }
@@ -516,7 +527,7 @@ class FunctionCallingAssistant:
                 "type": "function",
                 "function": {
                     "name": "set_reminder",
-                    "description": "リマインダーを設定する",
+                    "description": "Set a reminder",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -531,13 +542,13 @@ class FunctionCallingAssistant:
         ]
 
     def chat(self, user_message, conversation_history=None):
-        """ユーザーメッセージを処理し、必要に応じてAPIを呼び出す"""
+        """Process user message and call APIs as needed"""
         if conversation_history is None:
             conversation_history = []
 
         messages = [
-            {"role": "system", "content": "あなたは親切な日本語アシスタントです。"
-             "ユーザーの要望に応じて適切なツールを使用してください。"},
+            {"role": "system", "content": "You are a helpful assistant. "
+             "Use the appropriate tools based on the user's request."},
             *conversation_history,
             {"role": "user", "content": user_message}
         ]
@@ -551,14 +562,14 @@ class FunctionCallingAssistant:
 
         message = response.choices[0].message
 
-        # Function Call が要求された場合
+        # If a Function Call is requested
         if message.tool_calls:
             results = []
             for tool_call in message.tool_calls:
                 func_name = tool_call.function.name
                 args = json.loads(tool_call.function.arguments)
 
-                # 関数を実行
+                # Execute the function
                 result = self._execute_function(func_name, args)
                 results.append({
                     "tool_call_id": tool_call.id,
@@ -566,7 +577,7 @@ class FunctionCallingAssistant:
                     "content": json.dumps(result, ensure_ascii=False)
                 })
 
-            # 関数の結果をLLMに渡して最終応答を生成
+            # Pass function results to LLM for final response generation
             messages.append(message)
             messages.extend(results)
 
@@ -579,35 +590,35 @@ class FunctionCallingAssistant:
         return message.content
 
     def _execute_function(self, name, args):
-        """関数を実行して結果を返す"""
+        """Execute a function and return the result"""
         if name == "get_weather":
-            return {"condition": "晴れ", "temp": 22, "rain_prob": 10}
+            return {"condition": "sunny", "temp": 22, "rain_prob": 10}
         elif name == "search_restaurant":
-            return {"name": "鮨かねさか", "rating": 4.8, "price": "¥15,000"}
+            return {"name": "Sushi Kanesaka", "rating": 4.8, "price": "¥15,000"}
         elif name == "set_reminder":
             return {"status": "success", "id": "rem_123"}
         return {"error": "Unknown function"}
 
-# 使用例
+# Usage example
 assistant = FunctionCallingAssistant(api_key="sk-...")
-# 複合クエリ: 天気確認 + レストラン検索を自動で実行
+# Compound query: automatically checks weather + searches restaurants
 response = assistant.chat(
-    "明日の東京の天気を調べて、天気が良ければ表参道でランチのお店を探して"
+    "Check tomorrow's weather in Tokyo, and if it's nice, find a lunch spot in Omotesando"
 )
 print(response)
 ```
 
-### コード例 8: Home Assistant ローカル音声パイプライン（Wyoming Protocol）
+### Code Example 8: Home Assistant Local Voice Pipeline (Wyoming Protocol)
 
 ```python
 """
-Home Assistant Wyoming Protocol を使ったローカル音声パイプライン
+Local voice pipeline using Home Assistant Wyoming Protocol
 
-Wyoming Protocol は音声処理コンポーネント間の通信プロトコル:
-  マイク → Wake Word (openWakeWord) → ASR (Whisper) →
-  Intent → TTS (Piper) → スピーカー
+The Wyoming Protocol is a communication protocol between voice processing components:
+  Microphone → Wake Word (openWakeWord) → ASR (Whisper) →
+  Intent → TTS (Piper) → Speaker
 
-全てローカルで動作し、クラウド不要
+Everything runs locally with no cloud required.
 """
 import asyncio
 import json
@@ -618,30 +629,30 @@ import whisper
 import numpy as np
 
 class LocalASRServer:
-    """Whisper ベースのローカルASRサーバー"""
+    """Whisper-based local ASR server"""
 
     def __init__(self, model_name="base"):
         self.model = whisper.load_model(model_name)
-        print(f"Whisper {model_name} モデルロード完了")
+        print(f"Whisper {model_name} model loaded")
 
     async def handle_client(self, reader, writer):
-        """Wyoming プロトコルでASRリクエストを処理"""
-        # 音声データを受信
+        """Process ASR requests via Wyoming protocol"""
+        # Receive audio data
         audio_data = await self._receive_audio(reader)
 
-        # Whisper で認識
+        # Recognize with Whisper
         audio_np = np.frombuffer(audio_data, dtype=np.int16).astype(np.float32) / 32768.0
         result = self.model.transcribe(audio_np, language="ja", fp16=False)
 
         transcript = result["text"].strip()
-        print(f"認識結果: {transcript}")
+        print(f"Recognition result: {transcript}")
 
-        # Wyoming プロトコルで結果を返す
+        # Return result via Wyoming protocol
         response = Transcript(text=transcript)
         await self._send_response(writer, response)
 
     async def _receive_audio(self, reader):
-        """音声データの受信"""
+        """Receive audio data"""
         chunks = []
         while True:
             data = await reader.read(4096)
@@ -651,7 +662,7 @@ class LocalASRServer:
         return b"".join(chunks)
 
     async def _send_response(self, writer, response):
-        """応答の送信"""
+        """Send response"""
         writer.write(json.dumps({"text": response.text}).encode())
         await writer.drain()
         writer.close()
@@ -659,90 +670,90 @@ class LocalASRServer:
 async def main():
     server = LocalASRServer(model_name="small")
     srv = await asyncio.start_server(
-        server.handle_client, "0.0.0.0", 10300  # Wyoming ASR ポート
+        server.handle_client, "0.0.0.0", 10300  # Wyoming ASR port
     )
-    print("Wyoming ASR サーバー起動: port 10300")
+    print("Wyoming ASR server started: port 10300")
     async with srv:
         await srv.serve_forever()
 
-# 起動: python wyoming_asr.py
-# Home Assistant で Wyoming 統合を追加して接続
+# Start: python wyoming_asr.py
+# Add Wyoming integration in Home Assistant to connect
 ```
 
 ---
 
-## 3. 比較表
+## 3. Comparison Tables
 
-### 比較表 1: 主要AIアシスタント比較
+### Comparison Table 1: Major AI Assistants
 
-| 項目 | Siri (Apple) | Google Assistant | Alexa (Amazon) |
+| Item | Siri (Apple) | Google Assistant | Alexa (Amazon) |
 |------|-------------|-----------------|---------------|
-| LLM統合 | Apple Intelligence + ChatGPT | Gemini | Alexa LLM + Bedrock |
-| オンデバイス処理 | Neural Engine | Tensor TPU | 限定的 |
-| 対応言語数 | 21言語 | 40+言語 | 8言語 |
-| スマートホーム | HomeKit | Google Home | Alexa Smart Home |
-| サードパーティ拡張 | Shortcuts / App Intents | Actions on Google | Alexa Skills |
-| プライバシー | データは端末優先 | Googleアカウント連携 | クラウド処理中心 |
-| 音声認識精度 | 高い（英語） | 最高水準 | 高い |
-| マルチモーダル | テキスト+音声+画像 | テキスト+音声+画像+動画 | テキスト+音声 |
+| LLM Integration | Apple Intelligence + ChatGPT | Gemini | Alexa LLM + Bedrock |
+| On-Device Processing | Neural Engine | Tensor TPU | Limited |
+| Supported Languages | 21 languages | 40+ languages | 8 languages |
+| Smart Home | HomeKit | Google Home | Alexa Smart Home |
+| Third-Party Extensions | Shortcuts / App Intents | Actions on Google | Alexa Skills |
+| Privacy | Device-first data processing | Google Account integration | Cloud-centric processing |
+| Speech Recognition Accuracy | High (English) | Top-tier | High |
+| Multimodal | Text+Voice+Image | Text+Voice+Image+Video | Text+Voice |
 
-### 比較表 2: 音声認識技術の比較
+### Comparison Table 2: Speech Recognition Technologies
 
-| モデル | 開発元 | パラメータ | 対応言語 | WER (英語) | ローカル実行 |
+| Model | Developer | Parameters | Languages | WER (English) | Local Execution |
 |--------|-------|----------|---------|-----------|------------|
-| Whisper large-v3 | OpenAI | 1.5B | 100+ | 3.0% | 可（GPU推奨） |
-| Gemini ASR | Google | 非公開 | 100+ | 2.8% | 一部 |
-| Azure Speech | Microsoft | 非公開 | 100+ | 3.5% | 不可 |
-| Vosk | Alpha Cephei | ~50M | 20+ | 8.0% | 可（CPU可） |
-| Whisper tiny | OpenAI | 39M | 100+ | 8.5% | 可（CPU可） |
+| Whisper large-v3 | OpenAI | 1.5B | 100+ | 3.0% | Yes (GPU recommended) |
+| Gemini ASR | Google | Undisclosed | 100+ | 2.8% | Partial |
+| Azure Speech | Microsoft | Undisclosed | 100+ | 3.5% | No |
+| Vosk | Alpha Cephei | ~50M | 20+ | 8.0% | Yes (CPU capable) |
+| Whisper tiny | OpenAI | 39M | 100+ | 8.5% | Yes (CPU capable) |
 
-### 比較表 3: TTS（音声合成）技術の比較
+### Comparison Table 3: TTS (Text-to-Speech) Technologies
 
-| エンジン | 開発元 | 日本語品質 | レイテンシ | ローカル実行 | コスト |
+| Engine | Developer | Japanese Quality | Latency | Local Execution | Cost |
 |---------|-------|----------|----------|------------|--------|
-| OpenAI TTS | OpenAI | 非常に高い | ~500ms | 不可 | API課金 |
-| Google Cloud TTS | Google | 非常に高い | ~300ms | 不可 | API課金 |
-| Amazon Polly | AWS | 高い | ~200ms | 不可 | API課金 |
-| Piper | Rhasspy | 中〜高 | ~50ms | 可（CPU可） | 無料 |
-| VOICEVOX | VOICEVOX | 高い（キャラ音声） | ~100ms | 可 | 無料 |
-| Style-TTS 2 | 研究 | 高い | ~200ms | 可（GPU推奨） | 無料 |
+| OpenAI TTS | OpenAI | Very High | ~500ms | No | API billing |
+| Google Cloud TTS | Google | Very High | ~300ms | No | API billing |
+| Amazon Polly | AWS | High | ~200ms | No | API billing |
+| Piper | Rhasspy | Medium-High | ~50ms | Yes (CPU capable) | Free |
+| VOICEVOX | VOICEVOX | High (character voices) | ~100ms | Yes | Free |
+| Style-TTS 2 | Research | High | ~200ms | Yes (GPU recommended) | Free |
 
-### 比較表 4: 音声アシスタント開発プラットフォーム比較
+### Comparison Table 4: Voice Assistant Development Platforms
 
-| 項目 | Alexa Skills Kit | Google Actions | Apple App Intents | Rasa + Wyoming |
+| Item | Alexa Skills Kit | Google Actions | Apple App Intents | Rasa + Wyoming |
 |------|-----------------|---------------|-------------------|---------------|
-| 開発言語 | Python/Node.js | Node.js | Swift | Python |
-| ホスティング | AWS Lambda | Firebase | App内蔵 | セルフホスト |
-| NLU | Alexa NLU | Dialogflow | 自動 | Rasa NLU |
-| LLM統合 | Bedrock | Vertex AI | ChatGPT連携 | Ollama等 |
-| 収益化 | In-Skill Purchases | - | App Store | - |
-| プライバシー | クラウド必須 | クラウド必須 | オンデバイス可 | 完全ローカル可 |
-| 日本語対応 | 完全対応 | 完全対応 | 完全対応 | コミュニティ |
+| Dev Language | Python/Node.js | Node.js | Swift | Python |
+| Hosting | AWS Lambda | Firebase | Built into App | Self-hosted |
+| NLU | Alexa NLU | Dialogflow | Automatic | Rasa NLU |
+| LLM Integration | Bedrock | Vertex AI | ChatGPT integration | Ollama etc. |
+| Monetization | In-Skill Purchases | - | App Store | - |
+| Privacy | Cloud required | Cloud required | On-device capable | Fully local capable |
+| Japanese Support | Full support | Full support | Full support | Community |
 
 ---
 
-## 4. 実践的ユースケース
+## 4. Practical Use Cases
 
-### ユースケース 1: マルチモーダル音声アシスタント
+### Use Case 1: Multimodal Voice Assistant
 
 ```python
 class MultimodalAssistant:
     """
-    テキスト + 音声 + 画像を統合するマルチモーダルアシスタント
-    例: 「この写真の料理のカロリーを教えて」と音声で質問 + 写真撮影
+    Multimodal assistant integrating text + voice + image.
+    Example: Ask by voice "What's the calorie count of this dish?" + take a photo
     """
     def __init__(self):
         self.asr = whisper.load_model("base")
         self.vlm_client = openai.OpenAI()  # GPT-4V
 
     async def process_multimodal_query(self, audio_data, image_data=None):
-        """音声 + 画像のマルチモーダルクエリを処理"""
+        """Process a multimodal query with voice + image"""
 
-        # 1. 音声認識
+        # 1. Speech recognition
         text = self.asr.transcribe(audio_data, language="ja")["text"]
-        print(f"認識テキスト: {text}")
+        print(f"Recognized text: {text}")
 
-        # 2. 画像がある場合はマルチモーダルLLMで処理
+        # 2. Process with multimodal LLM if image is available
         if image_data:
             import base64
             image_b64 = base64.b64encode(image_data).decode()
@@ -766,7 +777,7 @@ class MultimodalAssistant:
             )
             return response.choices[0].message.content
 
-        # 3. テキストのみの場合
+        # 3. Text-only case
         response = self.vlm_client.chat.completions.create(
             model="gpt-4o",
             messages=[{"role": "user", "content": text}]
@@ -774,25 +785,25 @@ class MultimodalAssistant:
         return response.choices[0].message.content
 ```
 
-### ユースケース 2: プロアクティブアシスタント
+### Use Case 2: Proactive Assistant
 
 ```python
 class ProactiveAssistant:
     """
-    ユーザーが明示的に指示しなくても、コンテキストに基づいて
-    先回りして情報を提供するプロアクティブアシスタント
+    A proactive assistant that provides information ahead of time
+    based on context, without explicit user instructions.
 
-    なぜプロアクティブか:
-    - 従来のアシスタントは「質問→回答」の受動型
-    - プロアクティブ型は状況を監視し、適切なタイミングで介入
-    - Apple Intelligence の「Personal Context」がこの方向性
+    Why proactive:
+    - Traditional assistants are passive: "question → answer"
+    - Proactive assistants monitor the situation and intervene at the right time
+    - Apple Intelligence's "Personal Context" follows this direction
     """
     def __init__(self):
         self.context_store = {}
         self.rules = []
 
     def update_context(self, context_type, data):
-        """コンテキスト情報を更新"""
+        """Update context information"""
         self.context_store[context_type] = {
             "data": data,
             "timestamp": time.time()
@@ -800,540 +811,544 @@ class ProactiveAssistant:
         self._evaluate_rules()
 
     def _evaluate_rules(self):
-        """ルールを評価してプロアクティブな提案を生成"""
+        """Evaluate rules and generate proactive suggestions"""
         suggestions = []
 
-        # ルール1: 出発時刻が近い場合、交通情報を提供
+        # Rule 1: Provide traffic info when departure time is approaching
         if "calendar" in self.context_store and "location" in self.context_store:
             next_event = self.context_store["calendar"]["data"]
             if next_event.get("departure_in_minutes", float('inf')) < 30:
                 weather = self._get_weather()
                 traffic = self._get_traffic(next_event["location"])
                 suggestions.append(
-                    f"{next_event['title']}の{next_event['departure_in_minutes']}分前です。"
-                    f"現在の交通状況: {traffic['duration']}分。"
-                    f"{'傘を忘れずに。' if weather['rain_prob'] > 50 else ''}"
+                    f"{next_event['departure_in_minutes']} minutes until {next_event['title']}. "
+                    f"Current traffic: {traffic['duration']} minutes. "
+                    f"{'Don\\'t forget your umbrella.' if weather['rain_prob'] > 50 else ''}"
                 )
 
-        # ルール2: 異常な健康データを検出
+        # Rule 2: Detect abnormal health data
         if "health" in self.context_store:
             hr = self.context_store["health"]["data"].get("heart_rate", 0)
             if hr > 100 and self.context_store.get("activity", {}).get("data", {}).get("type") == "resting":
                 suggestions.append(
-                    f"安静時心拍数が{hr}BPMと高めです。"
-                    "ストレスや脱水の可能性があります。水分を取りましょう。"
+                    f"Your resting heart rate is elevated at {hr} BPM. "
+                    "This may indicate stress or dehydration. Please stay hydrated."
                 )
 
-        # ルール3: 定期的なタスクのリマインド
+        # Rule 3: Remind about recurring tasks
         if "habits" in self.context_store:
             habits = self.context_store["habits"]["data"]
             for habit in habits:
                 if habit["due"] and not habit["completed"]:
-                    suggestions.append(f"まだ「{habit['name']}」が完了していません。")
+                    suggestions.append(f"You haven't completed \"{habit['name']}\" yet.")
 
         for suggestion in suggestions:
             self._notify_user(suggestion)
 
     def _notify_user(self, message):
-        """ユーザーに通知"""
-        print(f"[プロアクティブ提案] {message}")
+        """Notify the user"""
+        print(f"[Proactive Suggestion] {message}")
 ```
 
 ---
 
-## 5. トラブルシューティング
+## 5. Troubleshooting
 
-### 問題 1: 音声認識の精度が低い
-
-```
-症状: アシスタントが発話内容を正しく認識しない
-
-対処法:
-1. 環境ノイズの問題
-   → 静かな環境で使用する
-   → ビームフォーミングマイク搭載デバイスを使用
-   → Whisper の場合、--condition_on_previous_text=False で誤認識連鎖を防止
-
-2. 言語・方言の問題
-   → 音声認識の言語設定を確認
-   → Google Assistant: 日本語(日本)を明示設定
-   → Whisper: language="ja" を明示指定
-
-3. マイクの問題
-   → マイクの権限が許可されているか確認
-   → マイクにカバーやケースが被っていないか確認
-   → Bluetooth接続のマイクは遅延が大きい場合がある
-
-4. ネットワーク遅延
-   → Wi-Fi 接続を確認（クラウドASRの場合）
-   → オフライン認識を有効化（対応デバイスの場合）
-```
-
-### 問題 2: レスポンスが遅い
+### Problem 1: Low Speech Recognition Accuracy
 
 ```
-症状: 音声コマンドから応答まで数秒かかる
+Symptom: The assistant fails to correctly recognize spoken content
 
-チェックポイント:
-1. ASR処理時間
-   → ストリーミングASR を有効化（Google: ストリーミング認識を使用）
-   → ローカルASRの場合、Whisper tiny/base にダウングレード
+Solutions:
+1. Environmental noise issues
+   → Use in a quiet environment
+   → Use a device with beamforming microphones
+   → For Whisper, use --condition_on_previous_text=False to prevent
+     cascading misrecognitions
 
-2. LLM応答時間
-   → GPT-4 → GPT-3.5-turbo に切り替え（速度重視の場合）
-   → ローカルLLM: Gemma 2B / Phi-3 Mini を使用
-   → ストリーミング応答を有効化
+2. Language/dialect issues
+   → Verify the speech recognition language setting
+   → Google Assistant: Explicitly set to Japanese (Japan)
+   → Whisper: Explicitly specify language="ja"
 
-3. TTS処理時間
-   → Piper（ローカル）: ~50ms で高速
-   → OpenAI TTS: ストリーミング対応で体感速度改善
-   → 最初の文だけ先にTTS → 残りを並列処理
+3. Microphone issues
+   → Check that microphone permissions are granted
+   → Ensure no cover or case is blocking the microphone
+   → Bluetooth microphones may have significant latency
 
-4. ネットワーク遅延
-   → CDNに近いリージョンのAPIを使用
-   → WebSocket で持続接続（HTTP毎回接続より高速）
+4. Network latency
+   → Check Wi-Fi connection (for cloud ASR)
+   → Enable offline recognition (on supported devices)
 ```
 
-### 問題 3: Wake Word の誤検出
+### Problem 2: Slow Response
 
 ```
-症状: アシスタントが呼ばれていないのに起動する
+Symptom: Several seconds pass between voice command and response
 
-対処法:
-1. Wake Word モデルの感度調整
-   → Alexa: 設定 > ウェイクワード感度を「低」に変更
-   → Google: 「OK Google」の再トレーニング
-   → Apple: 「Hey Siri」の再学習
+Checkpoints:
+1. ASR processing time
+   → Enable streaming ASR (Google: use streaming recognition)
+   → For local ASR, downgrade to Whisper tiny/base
 
-2. 環境音対策
-   → テレビやラジオの音声に反応する場合
-   → デバイスをスピーカーから離す
-   → マルチマイクデバイスはビームフォーミングで話者方向を限定
+2. LLM response time
+   → Switch from GPT-4 to GPT-3.5-turbo (when speed is priority)
+   → Local LLM: Use Gemma 2B / Phi-3 Mini
+   → Enable streaming responses
 
-3. 話者認識の活用
-   → 登録した声のみに反応する設定を有効化
-   → Apple: 「Hey Siri」に個人の声を認識させる
-   → Google: Voice Match で家族の声を登録
+3. TTS processing time
+   → Piper (local): ~50ms, very fast
+   → OpenAI TTS: Streaming support improves perceived speed
+   → TTS the first sentence first → process the rest in parallel
 
-4. openWakeWord（ローカル）の場合
-   → 検出閾値を 0.5 → 0.7 に引き上げ
-   → カスタムウェイクワードの学習データを増やす
+4. Network latency
+   → Use API in a region close to CDN
+   → Use WebSocket for persistent connection (faster than HTTP per-request)
 ```
 
-### 問題 4: スマートホーム連携が動作しない
+### Problem 3: False Wake Word Detection
 
 ```
-症状: 「リビングの照明をつけて」が動作しない
+Symptom: The assistant activates when not called
 
-対処法:
-1. デバイス名の問題
-   → アシスタントに登録されたデバイス名を確認
-   → 「リビングの照明」ではなく登録名「リビングライト」を使用
-   → デバイス名を短く明確にリネーム
+Solutions:
+1. Adjust wake word model sensitivity
+   → Alexa: Settings > Change wake word sensitivity to "Low"
+   → Google: Retrain "OK Google"
+   → Apple: Retrain "Hey Siri"
 
-2. アカウント連携の問題
-   → スマートホームプロバイダとの連携を再設定
-   → OAuth トークンの有効期限切れを確認
-   → Home Assistant: Nabu Casa クラウド接続を確認
+2. Ambient sound countermeasures
+   → If responding to TV or radio audio
+   → Move device away from speakers
+   → Multi-mic devices use beamforming to limit speaker direction
 
-3. ネットワークの問題
-   → IoTデバイスがWi-Fiに接続されているか確認
-   → VLANを使用している場合、mDNS/UPnPの転送設定を確認
-   → Thread/Zigbee: Border Router が動作しているか確認
+3. Use speaker recognition
+   → Enable setting to respond only to registered voices
+   → Apple: Train "Hey Siri" to recognize your personal voice
+   → Google: Register family voices with Voice Match
+
+4. For openWakeWord (local)
+   → Raise detection threshold from 0.5 to 0.7
+   → Increase training data for custom wake words
+```
+
+### Problem 4: Smart Home Integration Not Working
+
+```
+Symptom: "Turn on the living room lights" doesn't work
+
+Solutions:
+1. Device name issues
+   → Verify the device name registered with the assistant
+   → Use the registered name "Living Room Light" instead of
+     "living room lights"
+   → Rename devices to short, clear names
+
+2. Account linking issues
+   → Reconfigure integration with smart home provider
+   → Check for expired OAuth tokens
+   → Home Assistant: Verify Nabu Casa cloud connection
+
+3. Network issues
+   → Verify IoT devices are connected to Wi-Fi
+   → If using VLANs, check mDNS/UPnP forwarding settings
+   → Thread/Zigbee: Verify Border Router is operational
 ```
 
 ---
 
-## 6. パフォーマンス最適化Tips
+## 6. Performance Optimization Tips
 
-### Tip 1: End-to-End レイテンシの削減
+### Tip 1: Reducing End-to-End Latency
 
 ```
 ┌────────────────────────────────────────────────────┐
-│     音声アシスタント レイテンシ最適化                │
+│     Voice Assistant Latency Optimization            │
 ├────────────────────────────────────────────────────┤
 │                                                      │
-│  従来型パイプライン (合計: 2-5秒)                    │
+│  Traditional Pipeline (total: 2-5s)                  │
 │  ASR(1s) → NLU(0.3s) → API(0.5s) → TTS(0.5s)     │
 │                                                      │
-│  最適化後パイプライン (合計: 0.5-1.5秒)             │
+│  Optimized Pipeline (total: 0.5-1.5s)               │
 │                                                      │
-│  1. ストリーミングASR: 発話中から認識開始            │
-│     → 発話完了時にはほぼ認識完了                     │
+│  1. Streaming ASR: Start recognition during speech   │
+│     → Recognition nearly complete by end of speech   │
 │                                                      │
-│  2. 投機的実行: ASR部分結果でIntent推定開始          │
-│     → "明日の天気" の時点で Weather API を先行呼出   │
+│  2. Speculative execution: Begin intent estimation   │
+│     on partial ASR results                           │
+│     → Pre-call Weather API at "tomorrow's weather"   │
 │                                                      │
-│  3. ストリーミングTTS: LLMの最初のトークンで         │
-│     TTS開始、音声生成と出力を並列実行                │
+│  3. Streaming TTS: Start TTS on the LLM's first     │
+│     token, run audio generation and playback in      │
+│     parallel                                         │
 │                                                      │
-│  4. キャッシュ: 頻出クエリの結果をキャッシュ         │
-│     → 「今何時？」等はローカルで即時応答             │
+│  4. Caching: Cache results for frequent queries      │
+│     → "What time is it?" responds locally instantly  │
 │                                                      │
-│  5. プリウォーム: Wake Word検出時に                  │
-│     LLMコネクション確立とモデルロードを先行実行      │
+│  5. Pre-warming: On wake word detection,             │
+│     pre-establish LLM connection and preload model   │
 └────────────────────────────────────────────────────┘
 ```
 
-### Tip 2: Whisper モデルの選択ガイド
+### Tip 2: Whisper Model Selection Guide
 
 ```
-Whisper モデル選択フローチャート:
+Whisper Model Selection Flowchart:
 
-デバイスのスペックは？
+What are your device specs?
     │
-    ├── スマートフォン / Raspberry Pi
+    ├── Smartphone / Raspberry Pi
     │   → Whisper tiny (39M, ~1GB RAM)
-    │   → 精度: WER 8.5% (英語)
-    │   → 速度: リアルタイムの ~6倍速
+    │   → Accuracy: WER 8.5% (English)
+    │   → Speed: ~6x real-time
     │
-    ├── ノートPC (CPU only)
+    ├── Laptop (CPU only)
     │   → Whisper base (74M, ~2GB RAM)
-    │   → 精度: WER 5.0% (英語)
-    │   → 速度: リアルタイムの ~4倍速
+    │   → Accuracy: WER 5.0% (English)
+    │   → Speed: ~4x real-time
     │
-    ├── デスクトップ (GPU あり)
+    ├── Desktop (with GPU)
     │   → Whisper small (244M, ~4GB RAM)
-    │   → 精度: WER 3.4% (英語)
-    │   → 速度: リアルタイムの ~15倍速
+    │   → Accuracy: WER 3.4% (English)
+    │   → Speed: ~15x real-time
     │
-    └── サーバー (H100等)
+    └── Server (H100 etc.)
         → Whisper large-v3 (1.5B, ~10GB RAM)
-        → 精度: WER 3.0% (英語)
-        → 速度: リアルタイムの ~50倍速
+        → Accuracy: WER 3.0% (English)
+        → Speed: ~50x real-time
 
-日本語の場合:
-  - large-v3 が最も高精度
-  - base でも実用的な精度（CER ~10%）
-  - faster-whisper (CTranslate2) で 2-4倍高速化
-  - distil-whisper で精度を維持しつつ 6倍高速化
+For Japanese:
+  - large-v3 offers the highest accuracy
+  - base provides practical accuracy (CER ~10%)
+  - faster-whisper (CTranslate2) provides 2-4x speedup
+  - distil-whisper provides 6x speedup while maintaining accuracy
 ```
 
-### Tip 3: コスト最適化
+### Tip 3: Cost Optimization
 
 ```
-音声アシスタントの運用コスト比較（1000リクエスト/日の場合）:
+Voice assistant operational cost comparison (at 1,000 requests/day):
 
 ┌───────────────────────────────────────────────────┐
-│  構成パターンA: フルクラウド                       │
+│  Configuration A: Full Cloud                       │
 │  ASR: Google Cloud Speech ($0.006/15s)             │
 │  LLM: GPT-4o ($0.01/1K tokens * 500 tokens avg)   │
 │  TTS: Google Cloud TTS ($4/1M chars)               │
-│  月額: ~$200-400                                   │
+│  Monthly: ~$200-400                                │
 ├───────────────────────────────────────────────────┤
-│  構成パターンB: ハイブリッド                       │
-│  ASR: Whisper (ローカル、無料)                     │
+│  Configuration B: Hybrid                           │
+│  ASR: Whisper (local, free)                        │
 │  LLM: GPT-3.5-turbo ($0.002/1K tokens)            │
-│  TTS: Piper (ローカル、無料)                       │
-│  月額: ~$30-60                                     │
+│  TTS: Piper (local, free)                          │
+│  Monthly: ~$30-60                                  │
 ├───────────────────────────────────────────────────┤
-│  構成パターンC: 完全ローカル                       │
-│  ASR: Whisper (ローカル)                           │
-│  LLM: Ollama + Gemma 9B (ローカル)                │
-│  TTS: Piper / VOICEVOX (ローカル)                  │
-│  月額: $0 (電気代のみ)                             │
-│  ※ 初期投資: PC ($1,000-2,000)                     │
+│  Configuration C: Fully Local                      │
+│  ASR: Whisper (local)                              │
+│  LLM: Ollama + Gemma 9B (local)                   │
+│  TTS: Piper / VOICEVOX (local)                     │
+│  Monthly: $0 (electricity only)                    │
+│  * Initial investment: PC ($1,000-2,000)           │
 └───────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 7. 設計パターン
+## 7. Design Patterns
 
-### パターン 1: ハイブリッドルーティング
+### Pattern 1: Hybrid Routing
 
 ```python
 class HybridRouter:
     """
-    単純なコマンドはルールベースで即時処理、
-    複雑な質問はLLMにルーティングするハイブリッド設計
+    Hybrid design that handles simple commands instantly via rules,
+    and routes complex questions to LLM.
 
-    なぜハイブリッドか:
-    - 「タイマー3分」にLLMは不要（遅延・コストの無駄）
-    - 「明日の天気を考慮してコーデを提案」はLLMが適切
+    Why hybrid:
+    - "Timer 3 minutes" doesn't need an LLM (wastes latency & cost)
+    - "Suggest an outfit considering tomorrow's weather" is suited for LLM
     """
     def __init__(self):
         self.simple_commands = {
-            "タイマー": self._handle_timer,
-            "アラーム": self._handle_alarm,
-            "音量": self._handle_volume,
-            "電話": self._handle_call,
+            "timer": self._handle_timer,
+            "alarm": self._handle_alarm,
+            "volume": self._handle_volume,
+            "call": self._handle_call,
         }
         self.llm = OllamaClient()
 
     def route(self, text):
-        # 1. 単純コマンドのマッチング（正規表現ベース）
+        # 1. Simple command matching (regex-based)
         for keyword, handler in self.simple_commands.items():
             if keyword in text:
                 return handler(text), "rule"
 
-        # 2. LLMにルーティング
+        # 2. Route to LLM
         return self.llm.chat(text), "llm"
 
     def _handle_timer(self, text):
         import re
-        match = re.search(r'(\d+)\s*分', text)
+        match = re.search(r'(\d+)\s*min', text)
         if match:
             minutes = int(match.group(1))
-            return f"タイマーを{minutes}分にセットしました。"
-        return "何分のタイマーですか？"
+            return f"Timer set for {minutes} minutes."
+        return "How many minutes for the timer?"
 ```
 
-### パターン 2: コンテキスト維持型対話管理
+### Pattern 2: Context-Preserving Dialog Management
 
 ```python
 class ContextualDialogManager:
     """
-    対話コンテキストを維持し、自然な連続会話を実現する
+    Maintains dialog context for natural continuous conversation.
 
-    問題: 「東京の天気は？」→「じゃあ明日は？」
-    → 文脈がないと「何のことですか？」になる
+    Problem: "What's the weather in Tokyo?" → "What about tomorrow?"
+    → Without context: "What do you mean?"
 
-    解決: 直近の対話履歴を保持し、代名詞・省略を解決
+    Solution: Retain recent dialog history and resolve pronouns/omissions.
     """
     def __init__(self, max_history=10):
         self.history = []
-        self.entities = {}  # 抽出されたエンティティのキャッシュ
+        self.entities = {}  # Cache of extracted entities
         self.max_history = max_history
 
     def process(self, user_input):
-        # エンティティ追跡
+        # Entity tracking
         new_entities = self._extract_entities(user_input)
         self.entities.update(new_entities)
 
-        # 省略された情報を補完
+        # Fill in omitted information
         enriched_input = self._resolve_references(user_input)
 
-        # 対話履歴に追加
+        # Add to dialog history
         self.history.append({"role": "user", "content": enriched_input})
 
-        # LLMで応答生成（履歴を含む）
+        # Generate response with LLM (including history)
         response = self._generate_response()
 
         self.history.append({"role": "assistant", "content": response})
 
-        # 履歴の上限管理
+        # Manage history limit
         if len(self.history) > self.max_history * 2:
             self.history = self.history[-self.max_history * 2:]
 
         return response
 
     def _extract_entities(self, text):
-        """テキストからエンティティを抽出"""
+        """Extract entities from text"""
         entities = {}
-        # 場所の抽出
-        locations = ["東京", "大阪", "名古屋", "福岡", "札幌"]
+        # Location extraction
+        locations = ["Tokyo", "Osaka", "Nagoya", "Fukuoka", "Sapporo"]
         for loc in locations:
-            if loc in text:
+            if loc.lower() in text.lower():
                 entities["location"] = loc
-        # 日付の抽出
-        if "明日" in text:
+        # Date extraction
+        if "tomorrow" in text.lower():
             entities["date"] = "tomorrow"
-        elif "今日" in text:
+        elif "today" in text.lower():
             entities["date"] = "today"
         return entities
 
     def _resolve_references(self, text):
-        """代名詞や省略を解決"""
-        # 「じゃあ明日は？」→ 「じゃあ東京の明日の天気は？」
-        if len(text) < 10 and "location" in self.entities:
-            if "明日" in text or "今日" in text:
-                text = f"{self.entities['location']}の{text}"
+        """Resolve pronouns and omissions"""
+        # "What about tomorrow?" → "What about Tokyo's weather tomorrow?"
+        if len(text) < 20 and "location" in self.entities:
+            if "tomorrow" in text.lower() or "today" in text.lower():
+                text = f"{self.entities['location']} weather {text}"
         return text
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン 1: すべてをLLMに委ねる
-
-```
-❌ 悪い例:
-「タイマーを3分にセット」→ LLM（GPT-4）に送信して応答を待つ
-→ 2秒の遅延、不必要なAPI費用
-
-✅ 正しいアプローチ:
-- 単純なコマンド（タイマー、アラーム、電話）→ ルールベースで即座に実行
-- 複雑な質問（調べもの、要約、創作）→ LLMにルーティング
-- ハイブリッド設計: インテント分類器が振り分ける
-```
-
-### アンチパターン 2: コンテキストを無視した単発応答
+### Anti-Pattern 1: Delegating Everything to the LLM
 
 ```
-❌ 悪い例:
-ユーザー: 「東京の天気は？」→ 「晴れです」
-ユーザー: 「じゃあ明日は？」→ 「何についてですか？」（文脈喪失）
+Bad example:
+"Set a timer for 3 minutes" → Sent to LLM (GPT-4) and wait for response
+→ 2-second delay, unnecessary API costs
 
-✅ 正しいアプローチ:
-- 対話履歴（直近5〜10ターン）をLLMコンテキストに含める
-- エンティティ解決: 「じゃあ明日は」→ 「東京の明日の天気」と推論
-- セッション管理で文脈を維持する
+Correct approach:
+- Simple commands (timer, alarm, phone) → Execute immediately with rules
+- Complex questions (research, summarization, creative tasks) → Route to LLM
+- Hybrid design: An intent classifier handles the routing
 ```
 
-### アンチパターン 3: エラーハンドリングなしの音声パイプライン
+### Anti-Pattern 2: Single-Turn Responses Without Context
 
 ```
-❌ 悪い例:
-ASR失敗 → クラッシュ
-LLM タイムアウト → 無応答のまま固まる
+Bad example:
+User: "What's the weather in Tokyo?" → "It's sunny"
+User: "What about tomorrow?" → "What are you referring to?" (context lost)
 
-✅ 正しいアプローチ:
-- ASR失敗時: 「すみません、聞き取れませんでした。もう一度お願いします。」
-- LLMタイムアウト: 「少々お待ちください...」→ 5秒後に「処理に時間がかかっています」
-- ネットワークエラー: ローカルフォールバック（オフライン応答）
-- TTS失敗: テキスト表示にフォールバック
+Correct approach:
+- Include dialog history (last 5-10 turns) in the LLM context
+- Entity resolution: Infer "What about tomorrow" → "Tokyo's weather tomorrow"
+- Maintain context through session management
 ```
 
-### アンチパターン 4: プライバシーを考慮しない設計
+### Anti-Pattern 3: Voice Pipeline Without Error Handling
 
 ```
-❌ 悪い例:
-- 全音声データをクラウドに送信して永続保存
-- ユーザーの同意なく会話ログを学習データに使用
-- 子供の音声を区別せず処理
+Bad example:
+ASR failure → Crash
+LLM timeout → Freezes with no response
 
-✅ 正しいアプローチ:
-- Wake Word 検出前の音声はデバイスから出さない
-- 音声データの自動削除ポリシーを設定（30日等）
-- ユーザーに録音データの閲覧・削除機能を提供
-- 子供アカウントには COPPA 準拠の制限を適用
-- ローカル処理オプション（Whisper + Ollama）を提供
+Correct approach:
+- ASR failure: "Sorry, I didn't catch that. Could you say that again?"
+- LLM timeout: "Just a moment..." → After 5s: "This is taking longer than expected"
+- Network error: Local fallback (offline response)
+- TTS failure: Fall back to text display
+```
+
+### Anti-Pattern 4: Design Without Privacy Considerations
+
+```
+Bad example:
+- Send all voice data to the cloud and store permanently
+- Use conversation logs as training data without user consent
+- Process children's voices without distinction
+
+Correct approach:
+- Never send audio captured before wake word detection off device
+- Set automatic deletion policies for voice data (e.g., 30 days)
+- Provide users with the ability to view and delete recorded data
+- Apply COPPA-compliant restrictions for children's accounts
+- Offer local processing options (Whisper + Ollama)
 ```
 
 ---
 
-## 9. エッジケース分析
+## 9. Edge Case Analysis
 
-### エッジケース 1: 多言語混在の発話
+### Edge Case 1: Multilingual Mixed-Language Speech
 
-日本語と英語が混在する発話（コードスイッチング）は、ASRモデルにとって困難なケースです。
-
-```
-例: 「ChatGPTのAPIキーをSlackにセットアップして」
-
-課題:
-- "ChatGPT", "API", "Slack" は英語の固有名詞
-- "キー", "セットアップ" は外来語（カタカナ）
-- 日本語モードの ASR は英語部分を誤認識しやすい
-
-対策:
-1. Whisper large-v3 は多言語対応で混在に強い
-2. 後処理で固有名詞を辞書マッチングで補正
-3. ホットワード機能（Whisper の initial_prompt パラメータ）
-   → initial_prompt="ChatGPT, API, Slack, セットアップ"
-4. ドメイン特化の語彙リストを ASR に提供
-```
-
-### エッジケース 2: 騒音環境での音声認識
+Utterances mixing Japanese and English (code-switching) are challenging cases for ASR models.
 
 ```
-環境ノイズ別の認識精度低下:
+Example: "Set up the ChatGPT API key in Slack"
 
-| 環境 | SNR (dB) | WER増加率 | 対策 |
+Challenges:
+- "ChatGPT", "API", "Slack" are English proper nouns
+- Katakana loanwords may mix in
+- Japanese-mode ASR tends to misrecognize English portions
+
+Solutions:
+1. Whisper large-v3 is multilingual and handles mixing well
+2. Post-process with dictionary matching to correct proper nouns
+3. Hot word feature (Whisper's initial_prompt parameter)
+   → initial_prompt="ChatGPT, API, Slack, setup"
+4. Provide domain-specific vocabulary lists to ASR
+```
+
+### Edge Case 2: Speech Recognition in Noisy Environments
+
+```
+Recognition accuracy degradation by environment noise:
+
+| Environment | SNR (dB) | WER Increase | Solution |
 |------|----------|----------|------|
-| 静かなオフィス | 30+ | +0% | 対策不要 |
-| カフェ | 15-20 | +5-10% | ビームフォーミング |
-| 車内（走行中） | 10-15 | +10-20% | ノイズキャンセリング |
-| 工事現場 | 0-5 | +30-50% | 近接マイク必須 |
-| 音楽再生中 | 5-10 | +20-30% | AEC（音響エコー除去） |
+| Quiet office | 30+ | +0% | No action needed |
+| Cafe | 15-20 | +5-10% | Beamforming |
+| In-car (driving) | 10-15 | +10-20% | Noise cancellation |
+| Construction site | 0-5 | +30-50% | Close-talk mic required |
+| Music playing | 5-10 | +20-30% | AEC (Acoustic Echo Cancellation) |
 
-技術的対策:
+Technical solutions:
 1. AEC (Acoustic Echo Cancellation)
-   → スピーカーから出ている音楽/応答音を除去
+   → Remove music/response audio playing from speakers
 2. Beamforming
-   → 複数マイクで話者方向の音を強調
+   → Enhance sound from speaker direction using multiple microphones
 3. RNNoise / DeepFilterNet
-   → AIベースのリアルタイムノイズ除去
+   → AI-based real-time noise removal
 4. VAD (Voice Activity Detection)
-   → 人の声がある区間のみASRに送信
+   → Send only segments with human voice to ASR
 ```
 
 ---
 
-## 10. 開発者チェックリスト
+## 10. Developer Checklist
 
 ```
-音声アシスタント開発チェックリスト:
+Voice Assistant Development Checklist:
 
-□ 音声認識（ASR）
-  □ Whisper / Google STT / Azure Speech の選定
-  □ ストリーミング認識の実装
-  □ 言語・方言の設定
-  □ ノイズ耐性のテスト
+□ Speech Recognition (ASR)
+  □ Select Whisper / Google STT / Azure Speech
+  □ Implement streaming recognition
+  □ Configure language/dialect settings
+  □ Test noise resilience
 
-□ 自然言語理解（NLU）
-  □ インテント分類の設計
-  □ スロット/エンティティの定義
-  □ LLM vs ルールベースのルーティング
-  □ コンテキスト管理の実装
+□ Natural Language Understanding (NLU)
+  □ Design intent classification
+  □ Define slots/entities
+  □ LLM vs rule-based routing
+  □ Implement context management
 
-□ 応答生成
-  □ LLMの選定（クラウド vs ローカル）
-  □ Function Calling の設計
-  □ 安全フィルターの実装
-  □ レスポンス長の制限
+□ Response Generation
+  □ Select LLM (cloud vs local)
+  □ Design Function Calling
+  □ Implement safety filters
+  □ Set response length limits
 
-□ 音声合成（TTS）
-  □ TTS エンジンの選定
-  □ 日本語の自然さ確認
-  □ ストリーミングTTSの実装
+□ Text-to-Speech (TTS)
+  □ Select TTS engine
+  □ Verify Japanese naturalness
+  □ Implement streaming TTS
 
-□ パフォーマンス
-  □ End-to-End レイテンシ < 2秒
-  □ Wake Word 誤検出率 < 1%
-  □ ASR 精度テスト
-  □ バッテリー影響の計測
+□ Performance
+  □ End-to-end latency < 2 seconds
+  □ Wake word false detection rate < 1%
+  □ ASR accuracy testing
+  □ Measure battery impact
 
-□ プライバシー
-  □ 音声データの保存ポリシー
-  □ ユーザー同意フローの実装
-  □ データ削除機能の提供
+□ Privacy
+  □ Voice data retention policy
+  □ Implement user consent flow
+  □ Provide data deletion capability
 ```
 
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1342,26 +1357,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1369,7 +1384,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1380,14 +1395,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Remove by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1395,7 +1410,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1403,44 +1418,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1449,7 +1464,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1464,74 +1479,74 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithmic complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 ---
 
 ## FAQ
 
-### Q1: Siri は ChatGPT で何が変わりましたか？
+### Q1: What changed about Siri with ChatGPT?
 
-**A:** Apple Intelligence により、Siri は画面上のコンテキストを理解し、アプリ間で横断的な操作が可能になりました。例えば「昨日友人から送られた写真をメールに添付して」のような複合タスクを処理できます。複雑な質問は ChatGPT にオフロードされますが、ユーザーの許可が毎回求められ、プライバシーが保護されます。
+**A:** With Apple Intelligence, Siri can understand on-screen context and perform cross-app operations. For example, it can handle compound tasks like "Attach the photo my friend sent yesterday to an email." Complex questions are offloaded to ChatGPT, but user permission is requested each time, protecting privacy.
 
-### Q2: 音声アシスタントの応答速度を改善するには？
+### Q2: How can I improve voice assistant response speed?
 
-**A:** 主な改善ポイントは以下の3つです:
-1. **Wake Word検出をオンデバイスに** — ネットワーク遅延ゼロで起動
-2. **ストリーミングASR** — 発話完了前から認識を開始
-3. **投機的実行** — NLUが高確信度のインテントを検出したら、ASR完了前にAPI呼び出しを開始
+**A:** The three main improvement points are:
+1. **On-device wake word detection** — Zero network latency for activation
+2. **Streaming ASR** — Start recognition before speech completes
+3. **Speculative execution** — When NLU detects a high-confidence intent, begin API calls before ASR finishes
 
-### Q3: 自作の音声アシスタントを作るにはどうすればよいですか？
+### Q3: How do I build my own voice assistant?
 
-**A:** 最小構成は以下の通りです:
-1. **音声認識**: Whisper（ローカル）または Google Speech-to-Text（クラウド）
-2. **対話管理**: Ollama + ローカルLLM または OpenAI API
-3. **音声合成**: pyttsx3（ローカル）、VOICEVOX（高品質日本語）、または OpenAI TTS
-4. **統合**: Python でパイプラインを構築（コード例5参照）
+**A:** The minimum configuration is as follows:
+1. **Speech Recognition**: Whisper (local) or Google Speech-to-Text (cloud)
+2. **Dialog Management**: Ollama + local LLM or OpenAI API
+3. **Text-to-Speech**: pyttsx3 (local), VOICEVOX (high-quality Japanese), or OpenAI TTS
+4. **Integration**: Build the pipeline in Python (see Code Example 5)
 
-### Q4: Alexa Skills と Google Actions の開発、どちらが始めやすいですか？
+### Q4: Which is easier to get started with, Alexa Skills or Google Actions development?
 
-**A:** Alexa Skills Kit の方が入門には適しています。理由は: 1) ドキュメントが充実している、2) AWS Lambda との統合が簡単、3) 無料枠が広い。一方、Google Actions は Dialogflow との統合で複雑な対話設計がしやすく、多言語対応が強力です。日本市場ではどちらも利用可能ですが、Alexaの方がスキルストアのエコシステムが大きいです。
+**A:** Alexa Skills Kit is more suitable for beginners. Reasons: 1) Documentation is comprehensive, 2) Integration with AWS Lambda is straightforward, 3) The free tier is generous. On the other hand, Google Actions makes it easier to design complex dialogs through Dialogflow integration and has stronger multilingual support. Both are available in the Japanese market, but Alexa has a larger skill store ecosystem.
 
-### Q5: ローカル音声アシスタントのプライバシーはどの程度保護されますか？
+### Q5: How well is privacy protected with a local voice assistant?
 
-**A:** 完全ローカル構成（Whisper + Ollama + Piper）では、音声データが一切外部に送信されません。インターネット接続なしで動作するため、盗聴やデータ漏洩のリスクがゼロです。ただし、ローカルLLMの品質はクラウドLLM（GPT-4, Gemini）より劣るため、精度とプライバシーのトレードオフを考慮する必要があります。Gemma 9B や Llama 3.1 8B の Q4量子化版は日常会話なら十分実用的な品質です。
+**A:** With a fully local setup (Whisper + Ollama + Piper), no voice data is ever sent externally. It operates without an internet connection, so the risk of eavesdropping or data leakage is zero. However, local LLM quality is inferior to cloud LLMs (GPT-4, Gemini), so you need to consider the trade-off between accuracy and privacy. Q4-quantized versions of Gemma 9B and Llama 3.1 8B offer sufficiently practical quality for everyday conversation.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Points |
 |------|---------|
-| パイプライン | Wake Word → ASR → NLU → Dialog → Action → TTS |
-| LLM統合 | 複雑な質問・マルチステップタスクをLLMが処理 |
-| オンデバイス | プライバシー・低遅延のためにWake Word/ASRをローカル実行 |
-| 主要プラットフォーム | Siri（Apple Intelligence）、Google（Gemini）、Alexa（Bedrock） |
-| 開発手法 | App Intents / Actions SDK / Alexa Skills Kit |
-| Function Calling | LLMが適切なAPIを自動選択して実行する設計パターン |
-| ハイブリッドルーティング | 単純コマンドはルールベース、複雑な質問はLLM |
-| 今後の展望 | マルチモーダル対話、プロアクティブアシスタント |
+| Pipeline | Wake Word → ASR → NLU → Dialog → Action → TTS |
+| LLM Integration | LLM handles complex questions and multi-step tasks |
+| On-Device | Run Wake Word/ASR locally for privacy and low latency |
+| Major Platforms | Siri (Apple Intelligence), Google (Gemini), Alexa (Bedrock) |
+| Development Methods | App Intents / Actions SDK / Alexa Skills Kit |
+| Function Calling | Design pattern where LLM automatically selects and executes appropriate APIs |
+| Hybrid Routing | Simple commands via rules, complex questions via LLM |
+| Future Outlook | Multimodal conversation, proactive assistants |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [ウェアラブル — Apple Watch / Galaxy Watch](./03-wearables.md)
-- 音声AI概要 — TTS/STT/音楽生成
-- ボイスクローン — ElevenLabs、RVC
+- [Wearables — Apple Watch / Galaxy Watch](./03-wearables.md)
+- Voice AI Overview — TTS/STT/Music Generation
+- Voice Cloning — ElevenLabs, RVC
 
 ---
 
-## 参考文献
+## References
 
 1. **Apple** — "Introducing Apple Intelligence," apple.com, 2024
 2. **Google** — "Gemini in Google Assistant," blog.google, 2024
