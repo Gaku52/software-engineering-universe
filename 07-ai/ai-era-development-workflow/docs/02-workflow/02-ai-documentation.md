@@ -1,112 +1,114 @@
-# AIドキュメント生成 -- README、API仕様、技術文書の自動化
+# AI Document Generation -- Automating README, API Specs, and Technical Documents
 
-> AIを活用してプロジェクトのドキュメントを効率的に生成・保守する手法を学び、README・API仕様書・アーキテクチャ文書・変更履歴の自動生成パイプラインを構築して開発者体験（DX）を向上させる
+> Learn how to efficiently generate and maintain project documentation using AI, and build automated generation pipelines for README, API specifications, architecture documents, and changelogs to improve Developer Experience (DX)
 
-## この章で学ぶこと
+## What You'll Learn in This Chapter
 
-1. **AIドキュメント生成の基盤技術** -- LLMによるコード解析、JSDoc/docstringからの仕様書生成、コンテキスト理解の仕組み
-2. **実装パイプライン** -- README自動生成、OpenAPI仕様書生成、CHANGELOG自動作成、アーキテクチャ図の生成
-3. **品質管理と運用** -- 生成ドキュメントのレビュープロセス、CI/CD統合、鮮度維持の自動化戦略
+1. **Foundational Technologies for AI Document Generation** -- Code analysis by LLMs, spec generation from JSDoc/docstrings, and how context understanding works
+2. **Implementation Pipelines** -- Automated README generation, OpenAPI spec generation, CHANGELOG creation, and architecture diagram generation
+3. **Quality Management and Operations** -- Review processes for generated documents, CI/CD integration, and automation strategies for maintaining freshness
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [AIコードレビュー ── 自動レビュー、品質チェック](./01-ai-code-review.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [AI Code Review -- Automated Review and Quality Checks](./01-ai-code-review.md)
 
 ---
 
-## 1. AIドキュメント生成の全体像
+## 1. Overview of AI Document Generation
 
-### 1.1 ドキュメント生成パイプライン
+### 1.1 Document Generation Pipeline
 
 ```
-AI ドキュメント生成パイプライン
+AI Document Generation Pipeline
 
-  ソースコード           AI 処理               出力
+  Source Code              AI Processing            Output
   +----------+         +------------------+   +----------+
-  | ソースコード|         | 1. コード解析     |   | README.md|
-  | (*.ts,    | ------> | 2. 構造理解       | ->| API仕様  |
-  |  *.py)    |         | 3. 文章生成       |   | CHANGELOG|
-  +----------+         | 4. フォーマット    |   +----------+
-  +----------+         |                  |   +----------+
-  | コメント   | ------> |                  | ->| アーキ   |
-  | JSDoc     |         +------------------+   | テクチャ図|
-  | docstring |                                +----------+
+  | Source    |         | 1. Code Analysis |   | README.md|
+  | Code     | ------> | 2. Structure     | ->| API Spec |
+  | (*.ts,   |         |    Understanding |   | CHANGELOG|
+  |  *.py)   |         | 3. Text          |   +----------+
+  +----------+         |    Generation    |   +----------+
+  +----------+         | 4. Formatting    | ->| Arch     |
+  | Comments | ------> |                  |   | Diagrams |
+  | JSDoc    |         +------------------+   +----------+
+  | docstring|
   +----------+
   +----------+
-  | Git履歴   | ------> [差分分析 + 要約]  --> | 変更履歴  |
-  | PR/Issue  |                                +----------+
+  | Git      | ------> [Diff Analysis     --> | Change   |
+  | History  |          + Summarization]       | Log      |
+  | PR/Issue |                                +----------+
   +----------+
 ```
 
-### 1.2 技術スタック
+### 1.2 Technology Stack
 
 ```
-AI ドキュメント生成 技術マップ
+AI Document Generation Technology Map
 
-  LLM / AI モデル
-  ├── Claude            --- コード理解・文書生成（長文コンテキスト）
-  ├── GPT-4             --- 汎用的な文書生成
-  ├── GitHub Copilot    --- インラインドキュメント生成
-  └── Gemini            --- 大規模コードベース解析
+  LLM / AI Models
+  ├── Claude            --- Code understanding & document generation (long context)
+  ├── GPT-4             --- General-purpose document generation
+  ├── GitHub Copilot    --- Inline documentation generation
+  └── Gemini            --- Large-scale codebase analysis
 
-  ドキュメント生成ツール
-  ├── TypeDoc           --- TypeScript API ドキュメント
-  ├── Sphinx            --- Python ドキュメント
-  ├── Swagger/OpenAPI   --- REST API 仕様書
-  ├── Storybook         --- UIコンポーネントカタログ
-  └── Mermaid           --- ダイアグラム生成
+  Documentation Generation Tools
+  ├── TypeDoc           --- TypeScript API documentation
+  ├── Sphinx            --- Python documentation
+  ├── Swagger/OpenAPI   --- REST API specifications
+  ├── Storybook         --- UI component catalog
+  └── Mermaid           --- Diagram generation
 
-  CI/CD 統合
-  ├── GitHub Actions    --- 自動生成・デプロイ
-  ├── Pre-commit hooks  --- コミット時のドキュメントチェック
-  └── Dependabot        --- 依存関係ドキュメント更新
+  CI/CD Integration
+  ├── GitHub Actions    --- Automated generation & deployment
+  ├── Pre-commit hooks  --- Documentation checks on commit
+  └── Dependabot        --- Dependency documentation updates
 
-  ホスティング
-  ├── GitHub Pages      --- 静的サイト公開
-  ├── Notion API        --- チームWiki連携
-  └── Confluence API    --- エンタープライズWiki
+  Hosting
+  ├── GitHub Pages      --- Static site publishing
+  ├── Notion API        --- Team Wiki integration
+  └── Confluence API    --- Enterprise Wiki
 ```
 
-### 1.3 ドキュメント種別と生成戦略
+### 1.3 Document Types and Generation Strategies
 
 ```
-  ドキュメント種別         生成方法              更新頻度
-  ──────────────────────────────────────────────────
-  README.md               AI + 手動レビュー     リリースごと
-  API 仕様書 (OpenAPI)     コードから自動生成    コミットごと
-  CHANGELOG               Git 履歴から自動生成  リリースごと
-  アーキテクチャ図          AI + 手動調整        大きな変更時
-  コードコメント           Copilot + 手動       コーディング時
-  オンボーディング文書      AI 初稿 + 手動改善   四半期ごと
-  ADR (決定記録)           AI テンプレート + 手動 設計判断時
+  Document Type            Generation Method          Update Frequency
+  ──────────────────────────────────────────────────────────────────────
+  README.md               AI + Manual Review         Per release
+  API Spec (OpenAPI)       Auto-generated from code   Per commit
+  CHANGELOG               Auto-generated from Git    Per release
+  Architecture Diagrams    AI + Manual Adjustment     On major changes
+  Code Comments           Copilot + Manual           During coding
+  Onboarding Docs         AI Draft + Manual Polish   Quarterly
+  ADR (Decision Records)   AI Template + Manual       On design decisions
 ```
 
 ---
 
-## 2. README 自動生成
+## 2. Automated README Generation
 
-### 2.1 コードベース解析から README を生成
+### 2.1 Generating README from Codebase Analysis
 
 ```python
-# AI による README 自動生成スクリプト
+# Automated README generation script using AI
 import os
 import json
 from pathlib import Path
 
 class ReadmeGenerator:
-    """プロジェクト構造を解析して README を自動生成"""
+    """Automatically generates README by analyzing project structure"""
 
     def __init__(self, project_root: str):
         self.root = Path(project_root)
         self.analysis = {}
 
     def analyze_project(self) -> dict:
-        """プロジェクト構造を解析"""
+        """Analyze project structure"""
         self.analysis = {
             "name": self._detect_project_name(),
             "language": self._detect_language(),
@@ -121,7 +123,7 @@ class ReadmeGenerator:
         return self.analysis
 
     def _detect_project_name(self) -> str:
-        """package.json, pyproject.toml 等からプロジェクト名を取得"""
+        """Get project name from package.json, pyproject.toml, etc."""
         pkg_json = self.root / "package.json"
         if pkg_json.exists():
             data = json.loads(pkg_json.read_text())
@@ -129,7 +131,7 @@ class ReadmeGenerator:
 
         pyproject = self.root / "pyproject.toml"
         if pyproject.exists():
-            # TOML パースしてプロジェクト名を取得
+            # Parse TOML to get project name
             import tomllib
             data = tomllib.loads(pyproject.read_text())
             return data.get("project", {}).get("name", self.root.name)
@@ -137,7 +139,7 @@ class ReadmeGenerator:
         return self.root.name
 
     def _detect_language(self) -> list[str]:
-        """ファイル拡張子からプログラミング言語を推定"""
+        """Infer programming languages from file extensions"""
         extensions = {}
         for f in self.root.rglob("*"):
             if f.is_file() and not any(
@@ -160,7 +162,7 @@ class ReadmeGenerator:
         return detected[:3]
 
     def _parse_dependencies(self) -> dict:
-        """依存関係を解析"""
+        """Analyze dependencies"""
         deps = {"runtime": [], "dev": []}
         pkg_json = self.root / "package.json"
         if pkg_json.exists():
@@ -170,7 +172,7 @@ class ReadmeGenerator:
         return deps
 
     def _parse_scripts(self) -> dict:
-        """実行可能なスクリプトを解析"""
+        """Analyze available scripts"""
         pkg_json = self.root / "package.json"
         if pkg_json.exists():
             data = json.loads(pkg_json.read_text())
@@ -178,7 +180,7 @@ class ReadmeGenerator:
         return {}
 
     def generate_readme(self) -> str:
-        """解析結果から README を生成"""
+        """Generate README from analysis results"""
         if not self.analysis:
             self.analyze_project()
 
@@ -199,7 +201,7 @@ class ReadmeGenerator:
         return "\n".join(filter(None, sections))
 
     def _generate_quick_start(self, a: dict) -> str:
-        """クイックスタートセクションの生成"""
+        """Generate Quick Start section"""
         scripts = a.get("scripts", {})
         lines = ["## Quick Start\n", "```bash"]
 
@@ -221,32 +223,32 @@ class ReadmeGenerator:
         return "\n".join(lines)
 ```
 
-### 2.2 AI プロンプトによる README 改善
+### 2.2 Improving README with AI Prompts
 
 ```python
-# LLM を使った README の品質改善
+# Improving README quality using LLM
 README_IMPROVEMENT_PROMPT = """
-あなたは優秀なテクニカルライターです。
-以下の自動生成された README を改善してください。
+You are an excellent technical writer.
+Please improve the following auto-generated README.
 
-改善基準:
-1. 最初の3行でプロジェクトの価値が伝わること
-2. セットアップ手順が過不足なくコピペで動くこと
-3. 主要な機能が箇条書きで一覧できること
-4. コントリビューション方法が明確なこと
-5. ライセンスが明記されていること
+Improvement criteria:
+1. The project's value should be clear in the first 3 lines
+2. Setup instructions should be complete and copy-pasteable
+3. Key features should be listed as bullet points
+4. Contribution methods should be clearly stated
+5. License should be specified
 
-自動生成 README:
+Auto-generated README:
 {auto_generated_readme}
 
-プロジェクト解析結果:
+Project analysis results:
 {project_analysis}
 
-改善された README をマークダウン形式で出力してください。
+Please output the improved README in markdown format.
 """
 
 def improve_readme_with_ai(auto_readme: str, analysis: dict, client) -> str:
-    """AI で README を改善"""
+    """Improve README with AI"""
     prompt = README_IMPROVEMENT_PROMPT.format(
         auto_generated_readme=auto_readme,
         project_analysis=json.dumps(analysis, ensure_ascii=False, indent=2),
@@ -261,18 +263,18 @@ def improve_readme_with_ai(auto_readme: str, analysis: dict, client) -> str:
 
 ---
 
-## 3. API 仕様書の自動生成
+## 3. Automated API Specification Generation
 
-### 3.1 コードから OpenAPI 仕様書を生成
+### 3.1 Generating OpenAPI Specs from Code
 
 ```python
-# FastAPI の場合: 自動で OpenAPI 仕様が生成される
+# For FastAPI: OpenAPI specs are generated automatically
 from fastapi import FastAPI, Query, Path, HTTPException
 from pydantic import BaseModel, Field
 
 app = FastAPI(
-    title="ユーザー管理 API",
-    description="ユーザーの CRUD 操作を提供する REST API",
+    title="User Management API",
+    description="REST API providing CRUD operations for users",
     version="1.0.0",
     docs_url="/docs",           # Swagger UI
     redoc_url="/redoc",         # ReDoc
@@ -280,105 +282,105 @@ app = FastAPI(
 )
 
 class UserCreate(BaseModel):
-    """ユーザー作成リクエスト"""
-    name: str = Field(..., min_length=1, max_length=100, description="ユーザー名")
-    email: str = Field(..., description="メールアドレス")
-    role: str = Field(default="member", description="ロール (admin, member, viewer)")
+    """User creation request"""
+    name: str = Field(..., min_length=1, max_length=100, description="User name")
+    email: str = Field(..., description="Email address")
+    role: str = Field(default="member", description="Role (admin, member, viewer)")
 
     model_config = {
         "json_schema_extra": {
             "examples": [
-                {"name": "田中太郎", "email": "tanaka@example.com", "role": "member"}
+                {"name": "Taro Tanaka", "email": "tanaka@example.com", "role": "member"}
             ]
         }
     }
 
 class UserResponse(BaseModel):
-    """ユーザーレスポンス"""
-    id: int = Field(..., description="ユーザーID")
-    name: str = Field(..., description="ユーザー名")
-    email: str = Field(..., description="メールアドレス")
-    role: str = Field(..., description="ロール")
+    """User response"""
+    id: int = Field(..., description="User ID")
+    name: str = Field(..., description="User name")
+    email: str = Field(..., description="Email address")
+    role: str = Field(..., description="Role")
 
 @app.post(
     "/users",
     response_model=UserResponse,
     status_code=201,
-    summary="ユーザーを作成",
-    description="新しいユーザーを作成します。メールアドレスは一意である必要があります。",
+    summary="Create a user",
+    description="Creates a new user. The email address must be unique.",
     tags=["users"],
 )
 async def create_user(user: UserCreate):
     """
-    ユーザーを新規作成します。
+    Creates a new user.
 
-    - **name**: 1〜100文字のユーザー名
-    - **email**: 有効なメールアドレス (一意制約)
-    - **role**: admin, member, viewer のいずれか
+    - **name**: User name between 1-100 characters
+    - **email**: Valid email address (unique constraint)
+    - **role**: One of admin, member, or viewer
     """
-    # 実装...
+    # Implementation...
     return UserResponse(id=1, **user.model_dump())
 
 
 @app.get(
     "/users/{user_id}",
     response_model=UserResponse,
-    summary="ユーザーを取得",
+    summary="Get a user",
     tags=["users"],
 )
 async def get_user(
-    user_id: int = Path(..., ge=1, description="ユーザーID"),
+    user_id: int = Path(..., ge=1, description="User ID"),
 ):
-    """指定された ID のユーザー情報を取得します。"""
-    # 実装...
+    """Retrieves user information for the specified ID."""
+    # Implementation...
     pass
 ```
 
-### 3.2 TypeScript の型定義からドキュメント生成
+### 3.2 Generating Documentation from TypeScript Type Definitions
 
 ```typescript
-// TypeDoc 用のドキュメントコメント
-// TSDoc 形式で記述すると TypeDoc が自動でドキュメント生成
+// Documentation comments for TypeDoc
+// Writing in TSDoc format enables automatic documentation generation by TypeDoc
 
 /**
- * ユーザーサービス
+ * User Service
  *
- * ユーザーの作成・取得・更新・削除を担当するサービスクラス。
- * リポジトリパターンでデータアクセスを抽象化し、
- * ビジネスロジックを集中管理する。
+ * Service class responsible for creating, retrieving, updating, and deleting users.
+ * Abstracts data access using the repository pattern
+ * and centralizes business logic management.
  *
  * @example
  * ```typescript
  * const service = new UserService(userRepository);
  * const user = await service.createUser({
- *   name: "田中太郎",
+ *   name: "Taro Tanaka",
  *   email: "tanaka@example.com",
  * });
  * ```
  *
- * @see {@link UserRepository} データアクセス層
- * @see {@link UserController} コントローラー層
+ * @see {@link UserRepository} Data access layer
+ * @see {@link UserController} Controller layer
  */
 export class UserService {
   /**
-   * ユーザーを作成する
+   * Create a user
    *
-   * @param input - ユーザー作成パラメータ
-   * @returns 作成されたユーザーオブジェクト
-   * @throws {DuplicateEmailError} メールアドレスが既に登録されている場合
-   * @throws {ValidationError} 入力値が不正な場合
+   * @param input - User creation parameters
+   * @returns The created user object
+   * @throws {DuplicateEmailError} When the email address is already registered
+   * @throws {ValidationError} When input values are invalid
    */
   async createUser(input: CreateUserInput): Promise<User> {
-    // 実装...
+    // Implementation...
     return {} as User;
   }
 
   /**
-   * ユーザーを検索する
+   * Search for users
    *
-   * @param query - 検索条件
-   * @param options - ページネーションオプション
-   * @returns ページネーション付きユーザーリスト
+   * @param query - Search criteria
+   * @param options - Pagination options
+   * @returns Paginated user list
    *
    * @example
    * ```typescript
@@ -386,32 +388,32 @@ export class UserService {
    *   { role: "admin" },
    *   { page: 1, limit: 20 }
    * );
-   * console.log(result.total); // 総件数
-   * console.log(result.items); // ユーザー配列
+   * console.log(result.total); // Total count
+   * console.log(result.items); // User array
    * ```
    */
   async searchUsers(
     query: SearchQuery,
     options: PaginationOptions
   ): Promise<PaginatedResult<User>> {
-    // 実装...
+    // Implementation...
     return {} as PaginatedResult<User>;
   }
 }
 ```
 
-### 3.3 docstring からの自動生成
+### 3.3 Auto-generation from Docstrings
 
 ```python
-# Python の docstring から AI でドキュメントを拡充
+# Enriching documentation from Python docstrings using AI
 import ast
 import inspect
 
 class DocstringEnhancer:
-    """既存の docstring を AI で拡充するツール"""
+    """Tool to enrich existing docstrings using AI"""
 
     def extract_functions(self, source_code: str) -> list[dict]:
-        """ソースコードから関数情報を抽出"""
+        """Extract function information from source code"""
         tree = ast.parse(source_code)
         functions = []
 
@@ -430,21 +432,21 @@ class DocstringEnhancer:
         return functions
 
     def generate_enhanced_docstring(self, func_info: dict, client) -> str:
-        """AI で拡充された docstring を生成"""
+        """Generate an AI-enhanced docstring"""
         prompt = f"""
-以下の Python 関数に対して、Google スタイルの docstring を生成してください。
+Please generate a Google-style docstring for the following Python function.
 
-関数名: {func_info['name']}
-引数: {func_info['args']}
-戻り値: {func_info['returns']}
-既存の docstring: {func_info['docstring'] or 'なし'}
+Function name: {func_info['name']}
+Arguments: {func_info['args']}
+Return value: {func_info['returns']}
+Existing docstring: {func_info['docstring'] or 'None'}
 
-以下を含めてください:
-1. 関数の説明（1-2文）
-2. Args セクション（各引数の型と説明）
-3. Returns セクション（戻り値の説明）
-4. Raises セクション（発生しうる例外）
-5. Example セクション（使用例）
+Please include the following:
+1. Function description (1-2 sentences)
+2. Args section (type and description for each argument)
+3. Returns section (description of return value)
+4. Raises section (possible exceptions)
+5. Example section (usage example)
 """
         response = client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -456,18 +458,18 @@ class DocstringEnhancer:
 
 ---
 
-## 4. CHANGELOG 自動生成
+## 4. Automated CHANGELOG Generation
 
-### 4.1 Git 履歴からの CHANGELOG 生成
+### 4.1 Generating CHANGELOG from Git History
 
 ```python
-# Conventional Commits から CHANGELOG を自動生成
+# Auto-generating CHANGELOG from Conventional Commits
 import subprocess
 import re
 from datetime import datetime
 
 class ChangelogGenerator:
-    """Git コミット履歴から CHANGELOG を自動生成"""
+    """Automatically generates CHANGELOG from Git commit history"""
 
     COMMIT_TYPES = {
         "feat": "Features",
@@ -482,7 +484,7 @@ class ChangelogGenerator:
         "chore": "Chores",
     }
 
-    # Conventional Commit パターン
+    # Conventional Commit pattern
     PATTERN = re.compile(
         r"^(?P<type>feat|fix|docs|style|refactor|perf|test|build|ci|chore)"
         r"(?:\((?P<scope>[^)]+)\))?"
@@ -491,7 +493,7 @@ class ChangelogGenerator:
     )
 
     def get_commits_since_tag(self, tag: str = None) -> list[dict]:
-        """指定タグ以降のコミットを取得"""
+        """Get commits since the specified tag"""
         cmd = ["git", "log", "--pretty=format:%H|%s|%an|%aI"]
         if tag:
             cmd.append(f"{tag}..HEAD")
@@ -520,7 +522,7 @@ class ChangelogGenerator:
         return commits
 
     def generate_changelog(self, version: str, tag: str = None) -> str:
-        """CHANGELOG マークダウンを生成"""
+        """Generate CHANGELOG markdown"""
         commits = self.get_commits_since_tag(tag)
         today = datetime.now().strftime("%Y-%m-%d")
 
@@ -535,7 +537,7 @@ class ChangelogGenerator:
                 lines.append(f"- {scope}{c['description']} ({c['hash']})")
             lines.append("")
 
-        # タイプ別に分類
+        # Group by type
         grouped = {}
         for c in commits:
             type_label = self.COMMIT_TYPES.get(c["type"], c["type"])
@@ -551,32 +553,32 @@ class ChangelogGenerator:
         return "\n".join(lines)
 
 
-# 使用例
+# Usage example
 generator = ChangelogGenerator()
 changelog = generator.generate_changelog("1.2.0", tag="v1.1.0")
 print(changelog)
 ```
 
-### 4.2 AI によるリリースノート生成
+### 4.2 Generating Release Notes with AI
 
 ```python
-# Git 差分を AI で要約してリリースノートを生成
+# Summarizing Git diffs with AI to generate release notes
 
 RELEASE_NOTE_PROMPT = """
-以下の Git コミット一覧から、エンドユーザー向けのリリースノートを生成してください。
+Please generate end-user-facing release notes from the following list of Git commits.
 
-コミット一覧:
+Commit list:
 {commits}
 
-要件:
-1. 技術的な詳細ではなく、ユーザーにとっての価値を伝える
-2. 「新機能」「改善」「修正」のカテゴリに分類
-3. 各項目は1-2文で簡潔に
-4. 日本語で記述
+Requirements:
+1. Convey the value to users rather than technical details
+2. Categorize into "New Features", "Improvements", and "Fixes"
+3. Keep each item concise at 1-2 sentences
+4. Write in English
 """
 
 def generate_release_notes(commits: list[dict], client) -> str:
-    """AI でリリースノートを生成"""
+    """Generate release notes with AI"""
     commits_text = "\n".join(
         f"- [{c['type']}] {c['description']}" for c in commits
     )
@@ -592,9 +594,9 @@ def generate_release_notes(commits: list[dict], client) -> str:
 
 ---
 
-## 5. CI/CD 統合
+## 5. CI/CD Integration
 
-### 5.1 GitHub Actions でのドキュメント自動生成
+### 5.1 Automated Documentation Generation with GitHub Actions
 
 ```yaml
 # .github/workflows/docs.yml
@@ -612,7 +614,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 全履歴を取得（CHANGELOG生成用）
+          fetch-depth: 0  # Fetch full history (for CHANGELOG generation)
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -622,23 +624,23 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # API ドキュメント生成
+      # Generate API documentation
       - name: Generate API docs
         run: npx typedoc --out docs/api src/
 
-      # OpenAPI 仕様書の整合性チェック
+      # Validate OpenAPI specification consistency
       - name: Validate OpenAPI spec
         run: npx @redocly/cli lint openapi.yaml
 
-      # README の鮮度チェック
+      # Check README freshness
       - name: Check README freshness
         run: |
           python scripts/check_readme_freshness.py \
             --readme README.md \
             --package package.json \
-            --threshold 30  # 30日以上更新なしで警告
+            --threshold 30  # Warn if not updated for 30+ days
 
-      # ドキュメントをデプロイ
+      # Deploy documentation
       - name: Deploy docs
         if: github.ref == 'refs/heads/main'
         uses: peaceiris/actions-gh-pages@v3
@@ -651,7 +653,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # エクスポートされた関数のドキュメントカバレッジ
+      # Documentation coverage for exported functions
       - name: Check documentation coverage
         run: |
           python scripts/doc_coverage.py \
@@ -678,7 +680,7 @@ jobs:
             });
 ```
 
-### 5.2 Pre-commit フックでのドキュメントチェック
+### 5.2 Documentation Checks with Pre-commit Hooks
 
 ```yaml
 # .pre-commit-config.yaml
@@ -708,124 +710,124 @@ repos:
 
 ---
 
-## 6. 比較表
+## 6. Comparison Tables
 
-| ドキュメント種別 | 自動化度 | AI 活用効果 | 推奨ツール | 更新頻度 |
-|----------------|:-------:|:--------:|:--------:|:------:|
-| README | 中 | 高 (初稿生成) | Claude + 手動 | リリースごと |
-| API 仕様書 (OpenAPI) | 高 | 中 (補足生成) | FastAPI / TypeDoc | コミットごと |
-| CHANGELOG | 高 | 高 (要約) | Conventional Commits | リリースごと |
-| コードコメント | 中 | 高 (初稿) | Copilot | コーディング時 |
-| アーキテクチャ図 | 低 | 中 (Mermaid生成) | Claude + Mermaid | 設計変更時 |
-| ADR | 低 | 中 (テンプレート) | Claude + 手動 | 決定時 |
+| Document Type | Automation Level | AI Effectiveness | Recommended Tools | Update Frequency |
+|--------------|:---------------:|:---------------:|:----------------:|:---------------:|
+| README | Medium | High (Draft generation) | Claude + Manual | Per release |
+| API Spec (OpenAPI) | High | Medium (Supplemental) | FastAPI / TypeDoc | Per commit |
+| CHANGELOG | High | High (Summarization) | Conventional Commits | Per release |
+| Code Comments | Medium | High (Draft) | Copilot | During coding |
+| Architecture Diagrams | Low | Medium (Mermaid generation) | Claude + Mermaid | On design changes |
+| ADR | Low | Medium (Templates) | Claude + Manual | On decisions |
 
-| アプローチ | 品質 | 速度 | コスト | 保守性 |
-|-----------|:----:|:---:|:-----:|:-----:|
-| 完全手動 | 最高 | 低 | 高 (人件費) | 低 (陳腐化) |
-| AI 初稿 + 人間レビュー | 高 | 高 | 中 | 高 |
-| コードから完全自動生成 | 中 | 最高 | 低 | 最高 |
-| AI のみ (レビューなし) | 低〜中 | 最高 | 最低 | 中 |
-
----
-
-## 7. アンチパターン
-
-### アンチパターン 1: AI 生成ドキュメントを無検証で公開
-
-```
-BAD:
-  AI が生成した API ドキュメントをそのまま公開
-  → 実装と異なる記述、存在しないエンドポイントの記載
-  → ハルシネーション（AI の幻覚）による誤情報
-  → 利用者が誤った情報に基づいて実装し、障害発生
-
-GOOD:
-  1. AI で初稿を生成（速度向上）
-  2. 実際のコードとの整合性を自動チェック
-  3. テクニカルライターまたは開発者がレビュー
-  4. サンプルコードは実際に動作確認
-  5. CI で OpenAPI spec と実装の不整合を検出
-```
-
-### アンチパターン 2: ドキュメントの鮮度管理を怠る
-
-```
-BAD:
-  プロジェクト開始時に立派な README を作成
-  → 半年後、セットアップ手順が古くて動かない
-  → API 仕様書が実装と乖離
-  → 新メンバーが誤った情報でハマる
-
-GOOD:
-  - CI でドキュメントの最終更新日をチェック
-  - package.json の変更時に README の依存関係セクションを自動更新
-  - PR テンプレートに「ドキュメント更新の要否」チェックボックス
-  - 月次でドキュメント鮮度レポートを生成
-  - 「docs」ラベルの Issue を自動作成
-```
-
-### アンチパターン 3: 全てを1つの README に詰め込む
-
-```
-BAD:
-  README.md が 2000 行超
-  → セットアップ手順、API リファレンス、アーキテクチャ説明、
-     トラブルシューティングが全て1ファイル
-  → 必要な情報を見つけられない
-
-GOOD:
-  README.md はエントリーポイント（100行以内）にとどめる:
-  - プロジェクト概要（3行）
-  - クイックスタート（10行）
-  - 主要機能一覧
-  - 詳細ドキュメントへのリンク集
-    - docs/setup.md  --- セットアップ手順
-    - docs/api.md    --- API リファレンス
-    - docs/architecture.md --- 設計文書
-```
-
+| Approach | Quality | Speed | Cost | Maintainability |
+|----------|:-------:|:-----:|:----:|:--------------:|
+| Fully Manual | Highest | Low | High (Labor) | Low (Becomes outdated) |
+| AI Draft + Human Review | High | High | Medium | High |
+| Fully Auto-generated from Code | Medium | Highest | Low | Highest |
+| AI Only (No Review) | Low-Medium | Highest | Lowest | Medium |
 
 ---
 
-## 実践演習
+## 7. Anti-patterns
 
-### 演習1: 基本的な実装
+### Anti-pattern 1: Publishing AI-generated Documentation Without Verification
 
-以下の要件を満たすコードを実装してください。
+```
+BAD:
+  Publishing AI-generated API documentation as-is
+  -> Descriptions inconsistent with implementation, non-existent endpoints documented
+  -> Misinformation due to hallucinations
+  -> Users implement based on incorrect information, causing incidents
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+GOOD:
+  1. Generate initial draft with AI (speed improvement)
+  2. Automatically check consistency with actual code
+  3. Technical writer or developer reviews
+  4. Verify sample code actually works
+  5. Detect inconsistencies between OpenAPI spec and implementation in CI
+```
+
+### Anti-pattern 2: Neglecting Document Freshness Management
+
+```
+BAD:
+  Creating an impressive README at project start
+  -> Six months later, setup instructions are outdated and don't work
+  -> API specs diverge from implementation
+  -> New team members get stuck on incorrect information
+
+GOOD:
+  - Check document last-updated dates in CI
+  - Auto-update README dependency section when package.json changes
+  - Add "Documentation update needed?" checkbox in PR template
+  - Generate monthly documentation freshness reports
+  - Auto-create Issues with "docs" label
+```
+
+### Anti-pattern 3: Cramming Everything into a Single README
+
+```
+BAD:
+  README.md exceeds 2,000 lines
+  -> Setup instructions, API reference, architecture explanation,
+     and troubleshooting all in one file
+  -> Cannot find needed information
+
+GOOD:
+  Keep README.md as an entry point (under 100 lines):
+  - Project overview (3 lines)
+  - Quick start (10 lines)
+  - Key features list
+  - Links to detailed documentation
+    - docs/setup.md  --- Setup instructions
+    - docs/api.md    --- API reference
+    - docs/architecture.md --- Design documents
+```
+
+
+---
+
+## Hands-on Exercises
+
+### Exercise 1: Basic Implementation
+
+Implement code that meets the following requirements.
+
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -834,26 +836,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -861,7 +863,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -872,14 +874,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -887,7 +889,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -895,44 +897,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -941,7 +943,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -956,41 +958,41 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 ---
 
 ## 8. FAQ
 
-### Q1. AI でドキュメントを生成する際の品質を確保するには？
+### Q1. How can you ensure quality when generating documentation with AI?
 
-**A.** (1) **コンテキストの提供**: ソースコード、テスト、既存ドキュメントをまとめて AI に渡すことで精度が向上する。(2) **テンプレートの活用**: プロジェクト固有のドキュメントテンプレートを定義し、AI に従わせる。(3) **自動検証**: 生成されたサンプルコードを CI で実行し、動作を確認する。(4) **段階的導入**: まず内部ドキュメント（ADR、設計メモ）から始め、精度を確認してから外部向けドキュメントに展開する。AI 生成ドキュメントの品質は、入力の品質に大きく依存する。
+**A.** (1) **Provide context**: Accuracy improves when you provide source code, tests, and existing documentation together to the AI. (2) **Use templates**: Define project-specific documentation templates and have the AI follow them. (3) **Automated verification**: Run generated sample code in CI to verify it works. (4) **Gradual adoption**: Start with internal documentation (ADRs, design notes), verify accuracy, then expand to external-facing documentation. The quality of AI-generated documentation heavily depends on the quality of the input.
 
-### Q2. ドキュメントの自動生成を CI に組み込むベストプラクティスは？
+### Q2. What are best practices for integrating automated documentation generation into CI?
 
-**A.** (1) **PR 時のチェック**: docstring カバレッジ、OpenAPI 整合性、リンク切れ検出を PR のチェック項目に含める。(2) **マージ時の生成**: main ブランチへのマージ時に API ドキュメントを自動再生成・デプロイする。(3) **リリース時の CHANGELOG**: タグ作成時に Conventional Commits から CHANGELOG を自動生成する。(4) **定期レポート**: 週次でドキュメント鮮度レポートを Slack に通知する。段階的に自動化範囲を広げるのが現実的。
+**A.** (1) **PR-time checks**: Include docstring coverage, OpenAPI consistency, and broken link detection as PR check items. (2) **Merge-time generation**: Automatically regenerate and deploy API documentation when merging to the main branch. (3) **Release-time CHANGELOG**: Automatically generate CHANGELOG from Conventional Commits when creating tags. (4) **Regular reports**: Send weekly documentation freshness reports to Slack. Gradually expanding the scope of automation is the practical approach.
 
-### Q3. 小規模チームでドキュメント管理を効率化するには？
+### Q3. How can small teams streamline documentation management?
 
-**A.** (1) **README 駆動開発**: コーディング前に README を書き、それを仕様として開発する。AI で初稿を生成すると高速。(2) **Docs as Code**: ドキュメントをコードと同じリポジトリで管理し、PR でレビューする。(3) **ADR の活用**: 設計判断を Architecture Decision Records として記録し、「なぜこの設計にしたか」を残す。(4) **自動化の優先順位**: まず CHANGELOG の自動生成、次に API ドキュメント、最後に README の鮮度管理の順で導入する。小規模チームこそ自動化の効果が大きい。
+**A.** (1) **README-driven development**: Write the README before coding and use it as the specification for development. Generating the initial draft with AI speeds this up. (2) **Docs as Code**: Manage documentation in the same repository as code and review via PRs. (3) **Use ADRs**: Record design decisions as Architecture Decision Records, preserving "why this design was chosen." (4) **Automation priorities**: Introduce CHANGELOG auto-generation first, then API documentation, and finally README freshness management. Small teams benefit the most from automation.
 
 ---
 
-## 9. アーキテクチャドキュメントの自動生成
+## 9. Architecture Documentation Auto-generation
 
-### 9.1 コードベースからMermaidダイアグラムを生成
+### 9.1 Generating Mermaid Diagrams from Codebase
 
 ```python
-# ソースコードを解析してアーキテクチャダイアグラムを自動生成
+# Automatically generate architecture diagrams by analyzing source code
 
 import ast
 from pathlib import Path
@@ -1002,7 +1004,7 @@ class DependencyInfo(NamedTuple):
     relationship: str  # "imports", "inherits", "uses"
 
 class ArchitectureDiagramGenerator:
-    """コードベースからMermaidダイアグラムを自動生成"""
+    """Automatically generates Mermaid diagrams from codebase"""
 
     def __init__(self, project_root: str):
         self.root = Path(project_root)
@@ -1010,7 +1012,7 @@ class ArchitectureDiagramGenerator:
         self.modules: dict[str, dict] = {}
 
     def analyze_python_project(self) -> dict:
-        """Pythonプロジェクトの依存関係を解析"""
+        """Analyze Python project dependencies"""
         for py_file in self.root.rglob("*.py"):
             if any(skip in str(py_file) for skip in [
                 "__pycache__", "node_modules", ".venv", "venv", "test"
@@ -1049,10 +1051,10 @@ class ArchitectureDiagramGenerator:
         }
 
     def generate_component_diagram(self) -> str:
-        """コンポーネント図をMermaid形式で生成"""
+        """Generate a component diagram in Mermaid format"""
         lines = ["graph TD"]
 
-        # モジュールをレイヤーでグループ化
+        # Group modules by layer
         layers = self._detect_layers()
 
         for layer_name, modules in layers.items():
@@ -1064,7 +1066,7 @@ class ArchitectureDiagramGenerator:
                 lines.append(f'        {mod.replace(".", "_")}["{label}"]')
             lines.append("    end")
 
-        # 依存関係の矢印
+        # Dependency arrows
         for dep in self.dependencies:
             if dep.target in self.modules:
                 source_id = dep.source.replace(".", "_")
@@ -1074,7 +1076,7 @@ class ArchitectureDiagramGenerator:
         return "\n".join(lines)
 
     def generate_class_diagram(self) -> str:
-        """クラス図をMermaid形式で生成"""
+        """Generate a class diagram in Mermaid format"""
         lines = ["classDiagram"]
 
         for mod_name, mod_info in self.modules.items():
@@ -1086,33 +1088,33 @@ class ArchitectureDiagramGenerator:
                     lines.append(f"        {visibility}{method}()")
                 lines.append("    }")
 
-                # 継承関係
+                # Inheritance relationships
                 for base in cls.get("bases", []):
                     lines.append(f"    {base} <|-- {cls_name}")
 
         return "\n".join(lines)
 
     def generate_ai_prompt(self) -> str:
-        """AI にアーキテクチャ解説を依頼するプロンプトを生成"""
+        """Generate a prompt to ask AI for architecture documentation"""
         return f"""
-以下のプロジェクト構造を分析し、アーキテクチャドキュメントを作成してください。
+Please analyze the following project structure and create an architecture document.
 
-## モジュール一覧（{len(self.modules)}モジュール）
+## Module List ({len(self.modules)} modules)
 {self._format_module_summary()}
 
-## 依存関係（{len(self.dependencies)}件）
+## Dependencies ({len(self.dependencies)} entries)
 {self._format_dependency_summary()}
 
-## 出力形式
-1. アーキテクチャ概要（3-5文）
-2. レイヤー構成の説明
-3. 主要コンポーネントの責務
-4. データフローの説明
-5. 改善提案（あれば）
+## Output Format
+1. Architecture overview (3-5 sentences)
+2. Layer composition explanation
+3. Responsibilities of key components
+4. Data flow explanation
+5. Improvement suggestions (if any)
 """
 
     def _detect_layers(self) -> dict[str, list[str]]:
-        """モジュール名からレイヤーを自動検出"""
+        """Auto-detect layers from module names"""
         layer_keywords = {
             "Presentation": ["controller", "handler", "view", "route", "api"],
             "Application": ["service", "usecase", "command", "query"],
@@ -1167,83 +1169,83 @@ class ArchitectureDiagramGenerator:
 
     def _format_module_summary(self) -> str:
         return "\n".join(
-            f"- {name}: {info['loc']}行, "
-            f"クラス{len(info['classes'])}個, 関数{len(info['functions'])}個"
+            f"- {name}: {info['loc']} lines, "
+            f"{len(info['classes'])} classes, {len(info['functions'])} functions"
             for name, info in sorted(self.modules.items())
         )
 
     def _format_dependency_summary(self) -> str:
         return "\n".join(
-            f"- {d.source} → {d.target} ({d.relationship})"
+            f"- {d.source} -> {d.target} ({d.relationship})"
             for d in self.dependencies[:20]
         )
 ```
 
-### 9.2 ADR（Architecture Decision Records）の自動生成
+### 9.2 Auto-generating ADR (Architecture Decision Records)
 
 ```python
-# AI で ADR のドラフトを自動生成
+# Automatically generate ADR drafts with AI
 
 ADR_TEMPLATE_PROMPT = """
-以下の設計判断について、ADR (Architecture Decision Record) を作成してください。
+Please create an ADR (Architecture Decision Record) for the following design decision.
 
-## 設計判断の概要
+## Decision Overview
 {decision_summary}
 
-## コンテキスト
+## Context
 {context}
 
-## 検討した選択肢
+## Options Considered
 {options}
 
-## ADR テンプレート（以下の形式で出力）
+## ADR Template (output in the following format)
 
 # ADR-{adr_number}: {title}
 
-## ステータス
-提案中 / 承認済み / 廃止
+## Status
+Proposed / Accepted / Deprecated
 
-## コンテキスト
-（この決定が必要になった背景・課題を記述）
+## Context
+(Describe the background and challenges that necessitated this decision)
 
-## 決定
-（採用した解決策を具体的に記述）
+## Decision
+(Describe the adopted solution in detail)
 
-## 検討した選択肢
-### 選択肢A: ...
-- 利点: ...
-- 欠点: ...
+## Options Considered
+### Option A: ...
+- Pros: ...
+- Cons: ...
 
-### 選択肢B: ...
-- 利点: ...
-- 欠点: ...
+### Option B: ...
+- Pros: ...
+- Cons: ...
 
-### 選択肢C: ...
-- 利点: ...
-- 欠点: ...
+### Option C: ...
+- Pros: ...
+- Cons: ...
 
-## 決定の根拠
-（なぜこの選択肢を選んだかの理由を記述）
+## Rationale
+(Describe why this option was chosen)
 
-## 影響
-- 良い影響: ...
-- リスク: ...
-- 移行計画: ...
+## Consequences
+- Positive impacts: ...
+- Risks: ...
+- Migration plan: ...
 
-## 参考情報
-- 関連するADR: ...
-- 参考文献: ...
+## References
+- Related ADRs: ...
+- Bibliography: ...
 """
 
 class ADRGenerator:
-    """ADRの自動生成と管理"""
+    """Auto-generation and management of ADRs"""
 
     def __init__(self, adr_dir: str = "docs/adr"):
         self.adr_dir = Path(adr_dir)
         self.adr_dir.mkdir(parents=True, exist_ok=True)
 
     def get_next_number(self) -> int:
-        """次のADR番号を取得"""
+        """Get the next ADR number"""
         existing = list(self.adr_dir.glob("*.md"))
         if not existing:
             return 1
@@ -1257,7 +1259,7 @@ class ADRGenerator:
         return max(numbers, default=0) + 1
 
     def generate_adr(self, decision: dict, client) -> str:
-        """AIでADRのドラフトを生成"""
+        """Generate an ADR draft with AI"""
         adr_number = self.get_next_number()
         prompt = ADR_TEMPLATE_PROMPT.format(
             adr_number=adr_number,
@@ -1283,12 +1285,12 @@ class ADRGenerator:
 
 ---
 
-## 10. ドキュメント鮮度モニタリング
+## 10. Document Freshness Monitoring
 
-### 10.1 自動鮮度チェックシステム
+### 10.1 Automated Freshness Check System
 
 ```python
-# ドキュメントの鮮度を自動的に監視し、陳腐化を防止する
+# Automatically monitor document freshness and prevent staleness
 
 import subprocess
 from datetime import datetime, timedelta
@@ -1296,7 +1298,7 @@ from dataclasses import dataclass, field
 
 @dataclass
 class DocFreshnessReport:
-    """ドキュメント鮮度レポート"""
+    """Document freshness report"""
     file_path: str
     last_modified: datetime
     related_code_modified: datetime
@@ -1305,33 +1307,33 @@ class DocFreshnessReport:
     related_changes: list[str] = field(default_factory=list)
 
 class DocFreshnessMonitor:
-    """ドキュメントの鮮度を監視するシステム"""
+    """System for monitoring document freshness"""
 
     STALENESS_THRESHOLDS = {
-        "README.md": 30,           # 30日
-        "CONTRIBUTING.md": 90,     # 90日
-        "docs/api/": 14,           # 14日
-        "docs/architecture/": 60,  # 60日
-        "CHANGELOG.md": 7,         # 7日（リリースサイクルに依存）
+        "README.md": 30,           # 30 days
+        "CONTRIBUTING.md": 90,     # 90 days
+        "docs/api/": 14,           # 14 days
+        "docs/architecture/": 60,  # 60 days
+        "CHANGELOG.md": 7,         # 7 days (depends on release cycle)
     }
 
     def check_freshness(self, doc_path: str) -> DocFreshnessReport:
-        """ドキュメントの鮮度をチェック"""
-        # ドキュメントの最終更新日
+        """Check document freshness"""
+        # Last modification date of the document
         doc_modified = self._get_last_modified(doc_path)
 
-        # 関連コードの最終更新日
+        # Last modification date of related code
         related_code = self._find_related_code(doc_path)
         code_modified = max(
             (self._get_last_modified(f) for f in related_code),
             default=doc_modified,
         )
 
-        # 鮮度の計算
+        # Calculate freshness
         days_stale = (datetime.now() - doc_modified).days
         code_days_ahead = (code_modified - doc_modified).days
 
-        # 鮮度レベルの判定
+        # Determine freshness level
         threshold = self._get_threshold(doc_path)
         if code_days_ahead > threshold:
             staleness_level = "critical"
@@ -1342,7 +1344,7 @@ class DocFreshnessMonitor:
         else:
             staleness_level = "fresh"
 
-        # 関連する変更の取得
+        # Get related changes
         related_changes = self._get_changes_since(doc_modified, related_code)
 
         return DocFreshnessReport(
@@ -1355,7 +1357,7 @@ class DocFreshnessMonitor:
         )
 
     def generate_freshness_report(self, doc_paths: list[str]) -> str:
-        """ドキュメント鮮度の全体レポートを生成"""
+        """Generate an overall document freshness report"""
         reports = [self.check_freshness(path) for path in doc_paths]
 
         critical = [r for r in reports if r.staleness_level == "critical"]
@@ -1363,27 +1365,27 @@ class DocFreshnessMonitor:
         aging = [r for r in reports if r.staleness_level == "aging"]
         fresh = [r for r in reports if r.staleness_level == "fresh"]
 
-        output = "# ドキュメント鮮度レポート\n\n"
-        output += f"生成日時: {datetime.now().isoformat()}\n\n"
-        output += f"## サマリー\n"
-        output += f"- 最新: {len(fresh)}件\n"
-        output += f"- 経年: {len(aging)}件\n"
-        output += f"- 要更新: {len(stale)}件\n"
-        output += f"- 緊急: {len(critical)}件\n\n"
+        output = "# Document Freshness Report\n\n"
+        output += f"Generated: {datetime.now().isoformat()}\n\n"
+        output += f"## Summary\n"
+        output += f"- Fresh: {len(fresh)} items\n"
+        output += f"- Aging: {len(aging)} items\n"
+        output += f"- Needs Update: {len(stale)} items\n"
+        output += f"- Critical: {len(critical)} items\n\n"
 
         if critical:
-            output += "## 緊急対応が必要なドキュメント\n\n"
+            output += "## Documents Requiring Urgent Attention\n\n"
             for r in critical:
                 output += f"- **{r.file_path}**: "
-                output += f"{r.days_stale}日前に更新、"
-                output += f"関連コードは{(r.related_code_modified - r.last_modified).days}日先行\n"
+                output += f"Last updated {r.days_stale} days ago, "
+                output += f"related code is {(r.related_code_modified - r.last_modified).days} days ahead\n"
                 for change in r.related_changes[:3]:
                     output += f"  - {change}\n"
 
         return output
 
     def _get_last_modified(self, file_path: str) -> datetime:
-        """Gitからファイルの最終更新日を取得"""
+        """Get the last modification date of a file from Git"""
         try:
             result = subprocess.run(
                 ["git", "log", "-1", "--format=%aI", "--", file_path],
@@ -1396,23 +1398,23 @@ class DocFreshnessMonitor:
         return datetime.now()
 
     def _get_threshold(self, doc_path: str) -> int:
-        """ドキュメントパスに応じた閾値を返す"""
+        """Return threshold based on document path"""
         for pattern, threshold in self.STALENESS_THRESHOLDS.items():
             if pattern in doc_path:
                 return threshold
-        return 30  # デフォルト30日
+        return 30  # Default 30 days
 
     def _find_related_code(self, doc_path: str) -> list[str]:
-        """ドキュメントに関連するソースコードファイルを推定"""
+        """Estimate source code files related to the document"""
         related = []
-        # ドキュメント内のファイル参照を解析
-        # 例: README.md → src/ 配下のファイル
-        # 例: docs/api/users.md → src/controllers/users.ts
+        # Analyze file references within the document
+        # e.g.: README.md -> files under src/
+        # e.g.: docs/api/users.md -> src/controllers/users.ts
         return related
 
     def _get_changes_since(self, since: datetime,
                            files: list[str]) -> list[str]:
-        """指定日時以降の変更を取得"""
+        """Get changes since the specified datetime"""
         changes = []
         for f in files:
             try:
@@ -1428,19 +1430,19 @@ class DocFreshnessMonitor:
         return changes
 ```
 
-### 10.2 Slack通知との統合
+### 10.2 Integration with Slack Notifications
 
 ```python
-# ドキュメント鮮度レポートをSlackに自動通知
+# Automatically notify document freshness reports to Slack
 
 class DocFreshnessNotifier:
-    """ドキュメント鮮度をSlackに通知"""
+    """Notify document freshness to Slack"""
 
     def __init__(self, webhook_url: str):
         self.webhook_url = webhook_url
 
     def notify_stale_docs(self, reports: list[DocFreshnessReport]) -> None:
-        """陳腐化したドキュメントをSlackに通知"""
+        """Notify stale documents to Slack"""
         import requests
 
         stale_docs = [r for r in reports if r.staleness_level in ("stale", "critical")]
@@ -1452,7 +1454,7 @@ class DocFreshnessNotifier:
                 "type": "header",
                 "text": {
                     "type": "plain_text",
-                    "text": f"ドキュメント鮮度アラート（{len(stale_docs)}件）",
+                    "text": f"Document Freshness Alert ({len(stale_docs)} items)",
                 }
             },
         ]
@@ -1465,9 +1467,9 @@ class DocFreshnessNotifier:
                     "type": "mrkdwn",
                     "text": (
                         f"{emoji} *{doc.file_path}*\n"
-                        f"最終更新: {doc.days_stale}日前 | "
-                        f"関連コードとの差: "
-                        f"{(doc.related_code_modified - doc.last_modified).days}日"
+                        f"Last updated: {doc.days_stale} days ago | "
+                        f"Gap with related code: "
+                        f"{(doc.related_code_modified - doc.last_modified).days} days"
                     ),
                 }
             })
@@ -1481,46 +1483,46 @@ class DocFreshnessNotifier:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| README 生成 | プロジェクト構造を自動解析 → AI で初稿生成 → 人間がレビュー |
-| API 仕様書 | FastAPI/TypeDoc で自動生成。Pydantic の型情報がそのまま仕様に |
-| CHANGELOG | Conventional Commits + 自動生成。AI でリリースノートを要約 |
-| CI/CD 統合 | ドキュメントカバレッジ、鮮度チェック、自動デプロイをパイプラインに組み込む |
-| 品質管理 | AI 生成は初稿。必ず人間がレビューし、サンプルコードは動作確認 |
-| 鮮度維持 | 自動チェック + PR テンプレート + 月次レポートで陳腐化を防止 |
-| アーキテクチャ図 | コードベース解析からMermaidダイアグラムを自動生成 |
-| ADR | AI でドラフトを生成し、設計判断の記録を効率化 |
+Knowledge of this topic is frequently applied in daily development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [AIデバッグ](./03-ai-debugging.md) -- AI を活用したデバッグ効率化
-- AIコーディング -- AI によるコード生成の実践
-- [開発の未来](../03-team/02-future-of-development.md) -- AI 時代の開発プロセス展望
+| Item | Key Points |
+|------|-----------|
+| README Generation | Auto-analyze project structure -> Generate initial draft with AI -> Human review |
+| API Specs | Auto-generated with FastAPI/TypeDoc. Pydantic type info becomes the spec directly |
+| CHANGELOG | Conventional Commits + auto-generation. AI summarizes release notes |
+| CI/CD Integration | Incorporate documentation coverage, freshness checks, and auto-deployment into the pipeline |
+| Quality Management | AI generation is the initial draft. Always have humans review and verify sample code works |
+| Freshness Maintenance | Prevent staleness with automated checks + PR templates + monthly reports |
+| Architecture Diagrams | Auto-generate Mermaid diagrams from codebase analysis |
+| ADR | Generate drafts with AI and streamline recording of design decisions |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
 
-1. **Docs for Developers** -- Jared Bhatt & Zachary Sarah Corleissen (Apress, 2021) -- 開発者向けドキュメント執筆ガイド
-2. **Conventional Commits** -- https://www.conventionalcommits.org/ -- コミットメッセージ規約
-3. **TypeDoc** -- https://typedoc.org/ -- TypeScript ドキュメント生成ツール
-4. **OpenAPI Specification** -- https://spec.openapis.org/oas/latest.html -- REST API 仕様の標準
+- [AI Debugging](./03-ai-debugging.md) -- Streamlining debugging with AI
+- AI Coding -- Practical code generation with AI
+- [The Future of Development](../03-team/02-future-of-development.md) -- Outlook on development processes in the AI era
+
+---
+
+## References
+
+1. **Docs for Developers** -- Jared Bhatt & Zachary Sarah Corleissen (Apress, 2021) -- Guide to writing documentation for developers
+2. **Conventional Commits** -- https://www.conventionalcommits.org/ -- Commit message conventions
+3. **TypeDoc** -- https://typedoc.org/ -- TypeScript documentation generation tool
+4. **OpenAPI Specification** -- https://spec.openapis.org/oas/latest.html -- Standard for REST API specifications
