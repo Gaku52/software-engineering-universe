@@ -1,47 +1,47 @@
-# アップスケーリング — Real-ESRGAN、超解像
+# Upscaling — Real-ESRGAN, Super-Resolution
 
-> AI超解像技術による画像の高解像度化を、古典手法から最新のディープラーニングモデルまで体系的に解説する。
-
----
-
-## この章で学ぶこと
-
-1. **超解像の原理と種類** — 単一画像超解像 (SISR) の数学的基礎と進化
-2. **主要モデルの比較と使い分け** — Real-ESRGAN、SwinIR、SUPIR の特徴と適用場面
-3. **拡散モデルベースの超解像** — Stable Diffusion を活用した高品質アップスケール
-4. **実務パイプライン構築** — バッチ処理、API統合、品質管理の実践手法
-5. **顔復元と超解像の組み合わせ** — GFPGAN、CodeFormer との連携テクニック
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [画像編集 — インペインティング、アウトペインティング](./01-image-editing.md) の内容を理解していること
+> A systematic guide to AI-based super-resolution for image upscaling, from classical methods to state-of-the-art deep learning models.
 
 ---
 
-## 1. 超解像の基本概念
+## What You Will Learn in This Chapter
 
-### 1.1 数学的基礎
+1. **Principles and Types of Super-Resolution** — Mathematical foundations and evolution of Single Image Super-Resolution (SISR)
+2. **Comparison and Selection of Key Models** — Characteristics and use cases for Real-ESRGAN, SwinIR, and SUPIR
+3. **Diffusion Model-Based Super-Resolution** — High-quality upscaling using Stable Diffusion
+4. **Building Production Pipelines** — Practical techniques for batch processing, API integration, and quality control
+5. **Combining Face Restoration with Super-Resolution** — Integration techniques with GFPGAN and CodeFormer
 
-超解像は、低解像度画像 $I_{LR}$ から高解像度画像 $I_{HR}$ を推定する逆問題（Inverse Problem）として定式化される。劣化モデルは以下のように表現できる：
+
+## Prerequisites
+
+Before reading this guide, the following knowledge will help deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Familiarity with the content of [Image Editing — Inpainting, Outpainting](./01-image-editing.md)
+
+---
+
+## 1. Fundamental Concepts of Super-Resolution
+
+### 1.1 Mathematical Foundations
+
+Super-resolution is formulated as an inverse problem of estimating a high-resolution image $I_{HR}$ from a low-resolution image $I_{LR}$. The degradation model can be expressed as follows:
 
 ```
 I_LR = (I_HR * k) ↓_s + n
 
-ここで:
-  k   = ぼかしカーネル（ガウシアンブラーなど）
-  ↓_s = ダウンサンプリング（倍率 s）
-  n   = ノイズ
-  *   = 畳み込み演算
+Where:
+  k   = blur kernel (e.g., Gaussian blur)
+  ↓_s = downsampling (scale factor s)
+  n   = noise
+  *   = convolution operation
 ```
 
-この劣化過程は不可逆であるため、超解像は本質的に不良設定問題（ill-posed problem）であり、1つの低解像度画像に対して複数の高解像度画像が候補となる。
+Since this degradation process is irreversible, super-resolution is inherently an ill-posed problem, meaning multiple high-resolution images are candidates for a single low-resolution image.
 
-### コード例1: 古典手法と AI 超解像の比較
+### Code Example 1: Comparison of Classical and AI Super-Resolution Methods
 
 ```python
 from PIL import Image
@@ -49,60 +49,60 @@ import cv2
 import numpy as np
 
 def compare_upscaling_methods(image_path, scale=4):
-    """古典手法とAI超解像の比較"""
+    """Compare classical methods and AI super-resolution"""
     img = Image.open(image_path)
     w, h = img.size
     new_w, new_h = w * scale, h * scale
 
     results = {}
 
-    # 1. 最近傍補間 (Nearest Neighbor)
+    # 1. Nearest Neighbor Interpolation
     results["nearest"] = img.resize(
         (new_w, new_h), Image.NEAREST
     )
 
-    # 2. バイリニア補間
+    # 2. Bilinear Interpolation
     results["bilinear"] = img.resize(
         (new_w, new_h), Image.BILINEAR
     )
 
-    # 3. バイキュービック補間
+    # 3. Bicubic Interpolation
     results["bicubic"] = img.resize(
         (new_w, new_h), Image.BICUBIC
     )
 
-    # 4. Lanczos補間
+    # 4. Lanczos Interpolation
     results["lanczos"] = img.resize(
         (new_w, new_h), Image.LANCZOS
     )
 
     return results
 
-# 品質メトリクスの計算
+# Calculate quality metrics
 def calculate_psnr(original, upscaled):
-    """PSNR (ピーク信号対雑音比) を計算"""
+    """Calculate PSNR (Peak Signal-to-Noise Ratio)"""
     mse = np.mean((np.array(original) - np.array(upscaled)) ** 2)
     if mse == 0:
         return float('inf')
     return 20 * np.log10(255.0 / np.sqrt(mse))
 
 def calculate_ssim(original, upscaled):
-    """SSIM (構造的類似性) を計算"""
+    """Calculate SSIM (Structural Similarity Index)"""
     from skimage.metrics import structural_similarity
     return structural_similarity(
         np.array(original),
         np.array(upscaled),
-        channel_axis=2,  # カラー画像
+        channel_axis=2,  # Color image
     )
 
 def calculate_lpips(original, upscaled):
-    """LPIPS (知覚的類似性) を計算 — 人間の知覚に近い指標"""
+    """Calculate LPIPS (Learned Perceptual Image Patch Similarity) — a metric closer to human perception"""
     import torch
     import lpips
 
     loss_fn = lpips.LPIPS(net='alex')
 
-    # PIL → Tensor に変換 ([-1, 1] 範囲)
+    # PIL → Tensor conversion ([-1, 1] range)
     def to_tensor(img):
         arr = np.array(img).astype(np.float32) / 255.0
         arr = arr * 2.0 - 1.0
@@ -114,26 +114,26 @@ def calculate_lpips(original, upscaled):
     with torch.no_grad():
         score = loss_fn(t_orig, t_upsc)
 
-    return score.item()  # 低いほど類似度が高い
+    return score.item()  # Lower means higher similarity
 
 
 def comprehensive_quality_assessment(original_path, upscaled_path):
-    """包括的な品質評価レポートを生成"""
+    """Generate a comprehensive quality assessment report"""
     from PIL import Image
     import json
 
     original = Image.open(original_path)
     upscaled = Image.open(upscaled_path)
 
-    # 解像度チェック
+    # Resolution check
     orig_w, orig_h = original.size
     upsc_w, upsc_h = upscaled.size
     scale_w = upsc_w / orig_w
     scale_h = upsc_h / orig_h
 
-    # メトリクス計算
-    # ※PSNRとSSIMは同サイズの画像で比較するため、
-    # 元画像を同じサイズにリサイズして比較
+    # Metric calculation
+    # Note: PSNR and SSIM require same-size images for comparison,
+    # so resize the original to match
     original_resized = original.resize(
         (upsc_w, upsc_h), Image.LANCZOS
     )
@@ -165,57 +165,57 @@ def comprehensive_quality_assessment(original_path, upscaled_path):
     return report
 ```
 
-### ASCII図解1: 超解像の種類と進化
+### ASCII Diagram 1: Types and Evolution of Super-Resolution
 
 ```
-超解像技術の分類:
+Classification of Super-Resolution Techniques:
 
-┌─────────── 古典手法 ──────────────────────────────┐
-│  最近傍 → バイリニア → バイキュービック → Lanczos   │
-│  (1970s)   (1980s)     (1990s)         (2000s)    │
-│  品質: ★   品質: ★★   品質: ★★★     品質: ★★★☆  │
-└───────────────────────────────────────────────────┘
+┌─────────── Classical Methods ───────────────────────┐
+│  Nearest → Bilinear → Bicubic → Lanczos             │
+│  (1970s)   (1980s)    (1990s)   (2000s)             │
+│  Quality: ★ Quality: ★★ Quality: ★★★ Quality: ★★★☆ │
+└─────────────────────────────────────────────────────┘
                       │
-                      v  ディープラーニングの登場
-┌─────────── CNN ベース ────────────────────────────┐
-│  SRCNN → EDSR → RCAN → SwinIR                    │
-│  (2014)  (2017)  (2018)  (2021)                   │
-│  品質: ★★★★  品質: ★★★★☆ 品質: ★★★★★            │
-└───────────────────────────────────────────────────┘
+                      v  Advent of Deep Learning
+┌─────────── CNN-Based ───────────────────────────────┐
+│  SRCNN → EDSR → RCAN → SwinIR                       │
+│  (2014)  (2017)  (2018)  (2021)                      │
+│  Quality: ★★★★  Quality: ★★★★☆  Quality: ★★★★★     │
+└─────────────────────────────────────────────────────┘
                       │
-                      v  GAN / 拡散モデルの登場
-┌─────────── 生成ベース ───────────────────────────┐
-│  SRGAN → Real-ESRGAN → StableSR → SUPIR          │
-│  (2017)   (2021)       (2023)     (2024)          │
-│  品質: ★★★★☆  品質: ★★★★★  リアルさ: ★★★★★     │
-│  ※ディテールを「生成」するため忠実度は低下する場合あり │
-└───────────────────────────────────────────────────┘
+                      v  Advent of GAN / Diffusion Models
+┌─────────── Generative-Based ────────────────────────┐
+│  SRGAN → Real-ESRGAN → StableSR → SUPIR              │
+│  (2017)   (2021)       (2023)     (2024)              │
+│  Quality: ★★★★☆  Quality: ★★★★★  Realism: ★★★★★    │
+│  * Fidelity may decrease as details are "generated"   │
+└─────────────────────────────────────────────────────┘
 ```
 
-### 1.2 劣化モデルの詳細理解
+### 1.2 Understanding the Degradation Model in Detail
 
-実世界の画像劣化は、単純なダウンサンプリングとは異なる複合的な劣化である。Real-ESRGAN の成功の鍵は、この実世界の劣化をより正確にモデル化した点にある。
+Real-world image degradation is a composite degradation that differs from simple downsampling. The key to Real-ESRGAN's success lies in more accurately modeling this real-world degradation.
 
 ```python
 def simulate_real_world_degradation(image, scale=4):
     """
-    Real-ESRGAN の第2次劣化モデルを再現
+    Reproduces Real-ESRGAN's second-order degradation model
 
-    実世界の劣化 = ぼかし + ダウンサンプリング + ノイズ + JPEG圧縮
-    これを2回繰り返す (second-order degradation)
+    Real-world degradation = blur + downsampling + noise + JPEG compression
+    This is repeated twice (second-order degradation)
     """
     import cv2
     import numpy as np
 
     img = np.array(image).astype(np.float32) / 255.0
 
-    # === 第1次劣化 ===
-    # 1. ぼかし (等方性/異方性ガウシアン)
+    # === First-order degradation ===
+    # 1. Blur (isotropic/anisotropic Gaussian)
     kernel_size = np.random.choice([7, 9, 11, 13, 15, 17, 19, 21])
     sigma = np.random.uniform(0.2, 3.0)
     img = cv2.GaussianBlur(img, (kernel_size, kernel_size), sigma)
 
-    # 2. ダウンサンプリング (バイキュービック/バイリニア/エリア)
+    # 2. Downsampling (bicubic/bilinear/area)
     h, w = img.shape[:2]
     method = np.random.choice([
         cv2.INTER_CUBIC,
@@ -228,7 +228,7 @@ def simulate_real_world_degradation(image, scale=4):
         interpolation=method,
     )
 
-    # 3. ノイズ追加 (ガウシアン/ポアソン)
+    # 3. Noise addition (Gaussian/Poisson)
     noise_type = np.random.choice(["gaussian", "poisson"])
     if noise_type == "gaussian":
         sigma_n = np.random.uniform(1, 30) / 255.0
@@ -238,20 +238,20 @@ def simulate_real_world_degradation(image, scale=4):
         vals = 2 ** np.ceil(np.log2(len(np.unique(img))))
         img = np.random.poisson(img * vals) / vals
 
-    # 4. JPEG圧縮アーティファクト
+    # 4. JPEG compression artifacts
     quality = np.random.randint(30, 95)
     encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), quality]
     _, enc = cv2.imencode('.jpg', (img * 255).astype(np.uint8),
                           encode_param)
     img = cv2.imdecode(enc, cv2.IMREAD_COLOR).astype(np.float32) / 255.0
 
-    # === 第2次劣化 (繰り返し) ===
-    # 同様の処理をもう一度適用（パラメータは異なる範囲で）
+    # === Second-order degradation (repeated) ===
+    # Apply the same process again (with different parameter ranges)
     kernel_size2 = np.random.choice([7, 9, 11, 13, 15, 17, 19, 21])
     sigma2 = np.random.uniform(0.2, 1.5)
     img = cv2.GaussianBlur(img, (kernel_size2, kernel_size2), sigma2)
 
-    # 最終リサイズ
+    # Final resize
     img = cv2.resize(
         img, (w // scale, h // scale),
         interpolation=cv2.INTER_LINEAR,
@@ -261,58 +261,58 @@ def simulate_real_world_degradation(image, scale=4):
     return (img * 255).astype(np.uint8)
 ```
 
-### ASCII図解: Real-ESRGAN の第2次劣化モデル
+### ASCII Diagram: Real-ESRGAN's Second-Order Degradation Model
 
 ```
-Real-ESRGAN の学習用劣化パイプライン:
+Real-ESRGAN Training Degradation Pipeline:
 
-高解像度画像 (GT)
+High-Resolution Image (GT)
      │
-     ▼ ─── 第1次劣化 ───
+     ▼ ─── First-Order Degradation ───
      │
-     ├── ぼかし (等方性/異方性/焦点外)
-     │     │ カーネル: ガウシアン, 一般化ガウシアン, プラトーガウシアン
-     │     │ サイズ: 7-21, σ: 0.2-3.0
+     ├── Blur (isotropic/anisotropic/out-of-focus)
+     │     │ Kernels: Gaussian, generalized Gaussian, plateau Gaussian
+     │     │ Size: 7-21, σ: 0.2-3.0
      │
-     ├── リサイズ (ダウンサンプリング)
-     │     │ 方式: バイキュービック / バイリニア / エリア
-     │     │ 倍率: 0.15-1.5
+     ├── Resize (downsampling)
+     │     │ Methods: bicubic / bilinear / area
+     │     │ Scale: 0.15-1.5
      │
-     ├── ノイズ
-     │     │ ガウシアン: σ = 1-30
-     │     │ ポアソン: scale = 0.05-3.0
+     ├── Noise
+     │     │ Gaussian: σ = 1-30
+     │     │ Poisson: scale = 0.05-3.0
      │
-     └── JPEG圧縮
-           │ 品質: 30-95
+     └── JPEG Compression
+           │ Quality: 30-95
            ▼
      │
-     ▼ ─── 第2次劣化 ─── (同じ4ステップを再度適用)
+     ▼ ─── Second-Order Degradation ─── (same 4 steps applied again)
      │
-     ├── ぼかし (σ: 0.2-1.5, より穏やか)
-     ├── リサイズ
-     ├── ノイズ (σ: 1-25)
-     └── JPEG/WEBP圧縮
+     ├── Blur (σ: 0.2-1.5, milder)
+     ├── Resize
+     ├── Noise (σ: 1-25)
+     └── JPEG/WEBP Compression
            │
            ▼
-     低解像度画像 (LR) ← 学習ペアとして使用
+     Low-Resolution Image (LR) ← Used as training pair
 ```
 
 ---
 
 ## 2. Real-ESRGAN
 
-### 2.1 アーキテクチャの詳細
+### 2.1 Architecture Details
 
-Real-ESRGAN は RRDB (Residual in Residual Dense Block) ネットワークをバックボーンとして使用する。U-Net ディスクリミネータとスペクトル正規化を組み合わせることで、安定した学習を実現している。
+Real-ESRGAN uses the RRDB (Residual in Residual Dense Block) network as its backbone. It achieves stable training by combining a U-Net discriminator with spectral normalization.
 
 ```
-RRDB ネットワーク構造:
+RRDB Network Structure:
 
-入力 (3ch) ──→ Conv3x3 ──→ [RRDB x 23] ──→ Conv3x3 ──→ Upsample ──→ 出力 (3ch)
+Input (3ch) ──→ Conv3x3 ──→ [RRDB x 23] ──→ Conv3x3 ──→ Upsample ──→ Output (3ch)
                               │                              │
                               └───── Skip Connection ─────────┘
 
-1つの RRDB:
+Single RRDB:
 ┌─────────────────────────────────┐
 │  ┌──── Dense Block 1 ────┐      │
 │  │ Conv → LeakyReLU       │      │
@@ -323,16 +323,16 @@ RRDB ネットワーク構造:
 │  └─── × β (0.2) ─────────┘      │
 │                │                  │
 │  ┌──── Dense Block 2 ────┐      │
-│  │ (同様の構造)           │      │
+│  │ (same structure)       │      │
 │  └─── × β (0.2) ─────────┘      │
 │                │                  │
 │  ┌──── Dense Block 3 ────┐      │
-│  │ (同様の構造)           │      │
+│  │ (same structure)       │      │
 │  └─── × β (0.2) ─────────┘      │
-└──────── × β (0.2) ──── + 入力 ──┘
+└──────── × β (0.2) ──── + Input ─┘
 ```
 
-### コード例2: Real-ESRGAN の使用
+### Code Example 2: Using Real-ESRGAN
 
 ```python
 # pip install realesrgan
@@ -343,9 +343,9 @@ import numpy as np
 import cv2
 
 def upscale_with_realesrgan(image_path, scale=4, model_name="x4plus"):
-    """Real-ESRGAN による超解像"""
+    """Super-resolution with Real-ESRGAN"""
 
-    # モデル選択
+    # Model selection
     models = {
         "x4plus": {
             "model": RRDBNet(
@@ -382,10 +382,10 @@ def upscale_with_realesrgan(image_path, scale=4, model_name="x4plus"):
         scale=config["scale"],
         model_path=config["url"],
         model=config["model"],
-        tile=0,          # タイル処理 (0=無効, 推奨: 400)
-        tile_pad=10,     # タイル間のパディング
+        tile=0,          # Tile processing (0=disabled, recommended: 400)
+        tile_pad=10,     # Padding between tiles
         pre_pad=0,
-        half=True,       # FP16 で高速化
+        half=True,       # Speed up with FP16
     )
 
     img = cv2.imread(image_path, cv2.IMREAD_UNCHANGED)
@@ -394,24 +394,24 @@ def upscale_with_realesrgan(image_path, scale=4, model_name="x4plus"):
 
     return output
 
-# アニメ画像用
+# For anime images
 upscale_with_realesrgan("anime.png", model_name="x4plus_anime")
 
-# 写真用
+# For photos
 upscale_with_realesrgan("photo.jpg", model_name="x4plus")
 ```
 
-### コード例3: タイル処理による大画像の超解像
+### Code Example 3: Super-Resolution for Large Images with Tile Processing
 
 ```python
 def tiled_upscale(image_path, tile_size=512, overlap=64, scale=4):
     """
-    大画像をタイル分割して超解像
+    Super-resolution by splitting large images into tiles
 
-    メモリ制限のある環境で大画像を処理する手法:
-    1. 画像をタイルに分割
-    2. 各タイルを個別に超解像
-    3. 重複領域をブレンドして結合
+    Technique for processing large images in memory-constrained environments:
+    1. Split the image into tiles
+    2. Apply super-resolution to each tile individually
+    3. Blend overlapping regions and merge
     """
     from PIL import Image
     import numpy as np
@@ -423,11 +423,11 @@ def tiled_upscale(image_path, tile_size=512, overlap=64, scale=4):
     output = np.zeros((out_h, out_w, c), dtype=np.float32)
     weight = np.zeros((out_h, out_w, c), dtype=np.float32)
 
-    # タイルの位置を計算
+    # Calculate tile positions
     y_positions = list(range(0, h - tile_size + 1, tile_size - overlap))
     x_positions = list(range(0, w - tile_size + 1, tile_size - overlap))
 
-    # 端が含まれない場合は追加
+    # Add positions if edges are not covered
     if y_positions[-1] + tile_size < h:
         y_positions.append(h - tile_size)
     if x_positions[-1] + tile_size < w:
@@ -435,81 +435,81 @@ def tiled_upscale(image_path, tile_size=512, overlap=64, scale=4):
 
     for y in y_positions:
         for x in x_positions:
-            # タイルを切り出し
+            # Extract tile
             tile = img[y:y+tile_size, x:x+tile_size]
 
-            # 超解像を適用 (ここでは仮のアップスケール)
+            # Apply super-resolution (placeholder upscale here)
             upscaled_tile = upscale_single_tile(tile, scale)
 
-            # 重み付けマスク (端を滑らかにブレンド)
+            # Weighted mask (smooth blending at edges)
             blend_mask = create_blend_mask(
                 tile_size * scale, tile_size * scale,
                 overlap * scale
             )
 
-            # 結果に加算
+            # Add to result
             oy, ox = y * scale, x * scale
             ts = tile_size * scale
             output[oy:oy+ts, ox:ox+ts] += upscaled_tile * blend_mask
             weight[oy:oy+ts, ox:ox+ts] += blend_mask
 
-    # 正規化
+    # Normalize
     output = output / np.maximum(weight, 1e-8)
     return output.astype(np.uint8)
 
 def create_blend_mask(h, w, margin):
-    """タイルブレンド用のグラデーションマスク"""
+    """Gradient mask for tile blending"""
     mask = np.ones((h, w, 1), dtype=np.float32)
-    # 四辺にグラデーションを適用
+    # Apply gradients to all four edges
     for i in range(margin):
         alpha = i / margin
-        mask[i, :, :] *= alpha      # 上辺
-        mask[h-1-i, :, :] *= alpha  # 下辺
-        mask[:, i, :] *= alpha      # 左辺
-        mask[:, w-1-i, :] *= alpha  # 右辺
+        mask[i, :, :] *= alpha      # Top edge
+        mask[h-1-i, :, :] *= alpha  # Bottom edge
+        mask[:, i, :] *= alpha      # Left edge
+        mask[:, w-1-i, :] *= alpha  # Right edge
     return mask
 ```
 
-### ASCII図解2: タイル処理のブレンド概念
+### ASCII Diagram 2: Tile Processing Blending Concept
 
 ```
-元画像のタイル分割:
+Tile split of original image:
 ┌────────┬──┬────────┐
-│ Tile A │重│ Tile B │
-│        │複│        │
-├──── 重複 ──┼────────┤
+│ Tile A │OL│ Tile B │
 │        │  │        │
-│ Tile C │重│ Tile D │
-│        │複│        │
+├── Overlap ─┼────────┤
+│        │  │        │
+│ Tile C │OL│ Tile D │
+│        │  │        │
 └────────┴──┴────────┘
 
-ブレンドマスク (1タイルの重み):
+Blend mask (weight for one tile):
 ┌────────────────────┐
-│ 0.0  0.5  1.0  0.5│  ← 左右のグラデーション
+│ 0.0  0.5  1.0  0.5│  ← Left-right gradient
 │ 0.5  1.0  1.0  0.5│
-│ 1.0  1.0  1.0  1.0│  ← 中央は最大重み
+│ 1.0  1.0  1.0  1.0│  ← Maximum weight at center
 │ 0.5  1.0  1.0  0.5│
-│ 0.0  0.5  1.0  0.5│  ← 上下のグラデーション
+│ 0.0  0.5  1.0  0.5│  ← Top-bottom gradient
 └────────────────────┘
 
-結合結果:
- タイルA×重みA + タイルB×重みB
-───────────────────────────── = 最終ピクセル値
-      重みA + 重みB
+Merged result:
+ TileA×WeightA + TileB×WeightB
+─────────────────────────────── = Final pixel value
+      WeightA + WeightB
 ```
 
-### 2.2 Real-ESRGAN の高度な使い方
+### 2.2 Advanced Usage of Real-ESRGAN
 
 ```python
 class RealESRGANPipeline:
     """
-    Real-ESRGAN を実務で使うための本格的なパイプライン
+    Production-ready pipeline for Real-ESRGAN
 
-    機能:
-    - 自動モデル選択 (画像種別判定)
-    - バッチ処理
-    - 品質評価
-    - 進捗レポート
+    Features:
+    - Automatic model selection (image type detection)
+    - Batch processing
+    - Quality evaluation
+    - Progress reporting
     """
 
     def __init__(self, device="cuda", half=True):
@@ -519,7 +519,7 @@ class RealESRGANPipeline:
         self._load_models()
 
     def _load_models(self):
-        """モデルの遅延ロード準備"""
+        """Prepare lazy loading of models"""
         self.model_configs = {
             "photo": {
                 "arch": RRDBNet(
@@ -540,7 +540,7 @@ class RealESRGANPipeline:
         }
 
     def _get_upsampler(self, model_type, tile=0):
-        """必要なモデルだけを遅延ロード"""
+        """Lazy load only the required model"""
         if model_type not in self.models:
             config = self.model_configs[model_type]
             self.models[model_type] = RealESRGANer(
@@ -555,27 +555,27 @@ class RealESRGANPipeline:
         return self.models[model_type]
 
     def detect_image_type(self, image_path):
-        """画像の種類を自動判別"""
+        """Automatically detect image type"""
         img = cv2.imread(image_path)
         if img is None:
-            raise ValueError(f"画像読み込み失敗: {image_path}")
+            raise ValueError(f"Failed to load image: {image_path}")
 
-        # 色のユニーク数と分散で判断
-        # アニメ/イラストは色数が少なく、グラデーションも少ない
+        # Determine by unique color count and variance
+        # Anime/illustrations have fewer colors and less gradation
         h, w = img.shape[:2]
-        sample = img[::4, ::4]  # 4ピクセルおきにサンプリング
+        sample = img[::4, ::4]  # Sample every 4th pixel
 
         unique_colors = len(np.unique(
             sample.reshape(-1, 3), axis=0
         ))
         color_ratio = unique_colors / (sample.shape[0] * sample.shape[1])
 
-        # エッジの鮮明さ
+        # Edge sharpness
         gray = cv2.cvtColor(sample, cv2.COLOR_BGR2GRAY)
         edges = cv2.Canny(gray, 50, 150)
         edge_ratio = np.sum(edges > 0) / edges.size
 
-        # 判定ロジック
+        # Classification logic
         if color_ratio < 0.3 and edge_ratio > 0.05:
             return "anime"
         else:
@@ -584,33 +584,33 @@ class RealESRGANPipeline:
     def upscale(self, image_path, output_path=None,
                 model_type=None, scale=4, tile=0):
         """
-        画像を超解像
+        Upscale an image with super-resolution
 
         Parameters:
-            image_path: 入力画像パス
-            output_path: 出力画像パス (None=自動命名)
-            model_type: "photo" / "anime" / None (自動判定)
-            scale: 出力倍率 (2 or 4)
-            tile: タイルサイズ (0=無効, 400-512推奨)
+            image_path: Input image path
+            output_path: Output image path (None=auto-naming)
+            model_type: "photo" / "anime" / None (auto-detect)
+            scale: Output scale factor (2 or 4)
+            tile: Tile size (0=disabled, 400-512 recommended)
 
         Returns:
-            dict: 処理結果 (出力パス、メタデータ)
+            dict: Processing results (output path, metadata)
         """
         import time
         start_time = time.time()
 
-        # モデル選択
+        # Model selection
         if model_type is None:
             model_type = self.detect_image_type(image_path)
 
-        # VRAM に応じたタイルサイズ自動決定
+        # Automatic tile size based on VRAM
         if tile == 0:
             img = cv2.imread(image_path)
             h, w = img.shape[:2]
             total_pixels = h * w
-            if total_pixels > 2_000_000:  # 2MP以上
+            if total_pixels > 2_000_000:  # Over 2MP
                 tile = 400
-            elif total_pixels > 4_000_000:  # 4MP以上
+            elif total_pixels > 4_000_000:  # Over 4MP
                 tile = 256
 
         upsampler = self._get_upsampler(model_type, tile=tile)
@@ -640,7 +640,7 @@ class RealESRGANPipeline:
     def batch_upscale(self, input_dir, output_dir,
                       model_type=None, scale=4, tile=400,
                       extensions=("png", "jpg", "jpeg", "webp")):
-        """ディレクトリ内の全画像を一括超解像"""
+        """Batch super-resolution for all images in a directory"""
         from pathlib import Path
         import json
 
@@ -675,7 +675,7 @@ class RealESRGANPipeline:
                 }
             results.append(result)
 
-        # レポート出力
+        # Output report
         report_path = output_path / "upscale_report.json"
         with open(report_path, "w", encoding="utf-8") as fout:
             json.dump(results, fout, indent=2, ensure_ascii=False)
@@ -683,53 +683,53 @@ class RealESRGANPipeline:
         success_count = sum(
             1 for r in results if r["status"] == "success"
         )
-        print(f"\n完了: {success_count}/{total} 成功")
+        print(f"\nComplete: {success_count}/{total} succeeded")
         return results
 ```
 
 ---
 
-## 3. 拡散モデルベースの超解像
+## 3. Diffusion Model-Based Super-Resolution
 
-### コード例4: Stable Diffusion による超解像 (SD Upscaler)
+### Code Example 4: Super-Resolution with Stable Diffusion (SD Upscaler)
 
 ```python
 from diffusers import StableDiffusionUpscalePipeline
 from PIL import Image
 import torch
 
-# SD x4 Upscaler パイプライン
+# SD x4 Upscaler pipeline
 pipe = StableDiffusionUpscalePipeline.from_pretrained(
     "stabilityai/stable-diffusion-x4-upscaler",
     torch_dtype=torch.float16,
 ).to("cuda")
 
-# 低解像度画像を読み込み
-low_res = Image.open("small_image.png")  # 例: 256x256
+# Load low-resolution image
+low_res = Image.open("small_image.png")  # e.g., 256x256
 
-# プロンプトガイド付きアップスケール
+# Prompt-guided upscaling
 upscaled = pipe(
     prompt="high resolution, sharp details, photorealistic, 8K",
     negative_prompt="blurry, noisy, artifacts, low quality",
     image=low_res,
     num_inference_steps=25,
-    guidance_scale=4.0,    # 低めが推奨 (高すぎるとアーティファクト)
-    noise_level=20,        # ノイズレベル (0-350, 推奨: 20-50)
+    guidance_scale=4.0,    # Lower values recommended (too high causes artifacts)
+    noise_level=20,        # Noise level (0-350, recommended: 20-50)
 ).images[0]
 
-upscaled.save("high_res.png")  # 出力: 1024x1024
+upscaled.save("high_res.png")  # Output: 1024x1024
 ```
 
-### 3.1 StableSR — 拡散事前学習を活用した超解像
+### 3.1 StableSR — Super-Resolution Leveraging Diffusion Priors
 
 ```python
 """
-StableSR: Stable Diffusion の事前知識を活用した超解像
+StableSR: Super-resolution leveraging Stable Diffusion's prior knowledge
 
-特徴:
-- Stable Diffusion の学習済み知識をそのまま利用
-- Time-aware Encoder で忠実度と品質のバランスを制御
-- CFW (Controllable Feature Wrapping) モジュール
+Features:
+- Directly utilizes Stable Diffusion's pre-trained knowledge
+- Time-aware Encoder controls the balance between fidelity and quality
+- CFW (Controllable Feature Wrapping) module
 """
 
 from diffusers import (
@@ -739,18 +739,18 @@ from diffusers import (
 import torch
 
 class StableSRPipeline:
-    """StableSR の概念的な実装"""
+    """Conceptual implementation of StableSR"""
 
     def __init__(self, sd_model_path, sr_module_path, device="cuda"):
         self.device = device
 
-        # Stable Diffusion ベースモデル
+        # Stable Diffusion base model
         self.sd_pipe = StableDiffusionPipeline.from_pretrained(
             sd_model_path,
             torch_dtype=torch.float16,
         ).to(device)
 
-        # 超解像用の追加モジュール
+        # Additional module for super-resolution
         self.encoder_module = self._load_sr_encoder(sr_module_path)
 
     def upscale(self, image, scale=4,
@@ -759,32 +759,32 @@ class StableSRPipeline:
                 num_steps=50,
                 color_fix="wavelet"):
         """
-        StableSR によるアップスケール
+        Upscale with StableSR
 
         Parameters:
-            image: PIL Image (低解像度)
-            scale: 拡大倍率
-            positive_prompt: 品質向上プロンプト
-            negative_prompt: 抑制プロンプト
-            num_steps: 拡散ステップ数
-            color_fix: 色補正方式 ("none", "adain", "wavelet")
+            image: PIL Image (low resolution)
+            scale: Upscale factor
+            positive_prompt: Quality enhancement prompt
+            negative_prompt: Suppression prompt
+            num_steps: Number of diffusion steps
+            color_fix: Color correction method ("none", "adain", "wavelet")
         """
-        # 1. 低解像度画像をエンコード
+        # 1. Encode the low-resolution image
         lr_features = self.encoder_module.encode(image)
 
-        # 2. 拡散過程で高解像度化
-        #    Time-aware Encoder が各ステップの特徴を調整
+        # 2. Upscale through the diffusion process
+        #    Time-aware Encoder adjusts features at each step
         hr_latent = self.sd_pipe(
             prompt=positive_prompt,
             negative_prompt=negative_prompt,
             num_inference_steps=num_steps,
-            # 独自の条件付けメカニズム
+            # Custom conditioning mechanism
             cross_attention_kwargs={
                 "lr_features": lr_features
             },
         )
 
-        # 3. 色補正
+        # 3. Color correction
         result = hr_latent.images[0]
         if color_fix == "wavelet":
             result = self._wavelet_color_fix(image, result)
@@ -794,11 +794,10 @@ class StableSRPipeline:
         return result
 
     def _wavelet_color_fix(self, source, target):
-        """ウェーブレット変換による色補正"""
+        """Color correction using wavelet transform"""
         import pywt
-
-        # 低周波成分（色情報）を元画像から取得
-        # 高周波成分（ディテール）を超解像結果から取得
+        # Extract low-frequency components (color info) from the original image
+        # Extract high-frequency components (details) from the super-resolved result
         source_resized = source.resize(target.size, Image.LANCZOS)
 
         src_arr = np.array(source_resized).astype(np.float32)
@@ -807,11 +806,11 @@ class StableSRPipeline:
         result = np.zeros_like(tgt_arr)
 
         for ch in range(3):
-            # ウェーブレット分解
+            # Wavelet decomposition
             src_coeffs = pywt.dwt2(src_arr[:, :, ch], 'haar')
             tgt_coeffs = pywt.dwt2(tgt_arr[:, :, ch], 'haar')
 
-            # 低周波は元画像、高周波は超解像結果
+            # Low frequency from original, high frequency from super-resolved result
             new_coeffs = (src_coeffs[0], tgt_coeffs[1])
             result[:, :, ch] = pywt.idwt2(new_coeffs, 'haar')
 
@@ -820,7 +819,7 @@ class StableSRPipeline:
         )
 
     def _adain_color_fix(self, source, target):
-        """AdaIN による色補正"""
+        """Color correction using AdaIN"""
         source_resized = source.resize(target.size, Image.LANCZOS)
         src = np.array(source_resized).astype(np.float32)
         tgt = np.array(target).astype(np.float32)
@@ -837,21 +836,21 @@ class StableSRPipeline:
         )
 ```
 
-### コード例5: SUPIR による高品質アップスケール
+### Code Example 5: High-Quality Upscaling with SUPIR
 
 ```python
 """
 SUPIR (Scaling Up to Excellence: Practicing Model Scaling
        for Photo-Realistic Image Restoration)
 
-大規模言語モデル (SDXL) を活用した超解像。
-テキストプロンプトで生成するディテールを制御可能。
+Super-resolution leveraging a large-scale language model (SDXL).
+Allows controlling generated details via text prompts.
 """
 
-# SUPIR は通常CLIまたはGradioで使用
+# SUPIR is typically used via CLI or Gradio
 # pip install git+https://github.com/Fanghua-Yu/SUPIR.git
 
-# CLI使用例:
+# CLI usage example:
 # python inference.py \
 #   --input_path input.png \
 #   --output_path output.png \
@@ -859,33 +858,33 @@ SUPIR (Scaling Up to Excellence: Practicing Model Scaling
 #   --upscale 4 \
 #   --model_path SUPIR-v0Q.ckpt
 
-# API的な使用 (概念コード):
+# API-style usage (conceptual code):
 class SUPIRUpscaler:
-    """SUPIR超解像の概念的なラッパー"""
+    """Conceptual wrapper for SUPIR super-resolution"""
 
     def __init__(self, model_path, device="cuda"):
         self.device = device
-        # モデルロード (実際にはSUPIRの設定に従う)
+        # Model loading (follows SUPIR's configuration)
         self.model = self._load_model(model_path)
 
     def upscale(self, image, prompt="", scale=4,
                 restoration_strength=0.7):
         """
-        テキストガイド付き超解像
+        Text-guided super-resolution
 
         restoration_strength:
-          0.0-0.3: 忠実度重視 (元画像に近い)
-          0.4-0.6: バランス
-          0.7-1.0: 品質重視 (ディテール生成多め)
+          0.0-0.3: Fidelity-focused (closer to original)
+          0.4-0.6: Balanced
+          0.7-1.0: Quality-focused (more detail generation)
         """
-        # 1. 低品質画像のエンコード
-        # 2. テキストプロンプトのエンコード
-        # 3. 拡散過程で高解像度画像を生成
-        # 4. 元画像との整合性を保ちつつ復元
+        # 1. Encode the low-quality image
+        # 2. Encode the text prompt
+        # 3. Generate high-resolution image through diffusion
+        # 4. Restore while maintaining consistency with original
         pass
 
     def batch_upscale(self, image_dir, output_dir, **kwargs):
-        """ディレクトリ内の全画像を一括処理"""
+        """Batch process all images in a directory"""
         from pathlib import Path
         for img_path in Path(image_dir).glob("*.{png,jpg,jpeg}"):
             img = Image.open(img_path)
@@ -893,27 +892,29 @@ class SUPIRUpscaler:
             result.save(Path(output_dir) / img_path.name)
 ```
 
-### ASCII図解3: 超解像パイプライン選択フローチャート
+### ASCII Diagram 3: Super-Resolution Pipeline Selection Flowchart
 
 ```
                     START
                       │
                       v
               ┌──────────────┐
-              │ 用途は何か?  │
+              │ What is the  │
+              │ use case?    │
               └──────┬───────┘
                      │
         ┌────────────┼────────────┐
         v            v            v
    ┌────────┐  ┌──────────┐  ┌────────┐
-   │写真/実写│  │アニメ/   │  │テキスト│
-   │        │  │イラスト  │  │/文書   │
+   │ Photo/ │  │ Anime/   │  │ Text/  │
+   │ Real   │  │ Illustra-│  │ Docu-  │
+   │        │  │ tion     │  │ ment   │
    └───┬────┘  └────┬─────┘  └───┬────┘
        │            │            │
        v            v            v
   ┌─────────┐ ┌──────────┐ ┌─────────┐
-  │忠実度   │ │Real-ESRGAN│ │waifu2x  │
-  │重視?    │ │anime      │ │/Lanczos │
+  │Fidelity │ │Real-ESRGAN│ │waifu2x  │
+  │priority?│ │anime      │ │/Lanczos │
   └──┬──────┘ └──────────┘ └─────────┘
      │
   ┌──┴──┐
@@ -922,21 +923,21 @@ class SUPIRUpscaler:
 ┌──────┐ ┌──────────┐
 │Real- │ │SUPIR /   │
 │ESRGAN│ │StableSR  │
-│x4plus│ │(生成型)  │
+│x4plus│ │(generative)│
 └──────┘ └──────────┘
 
-判断基準:
-  忠実度重視 = 医療画像、証拠写真、科学データ
-  品質重視   = SNS投稿、印刷物、プレゼン資料
+Selection Criteria:
+  Fidelity priority = Medical images, evidence photos, scientific data
+  Quality priority  = Social media posts, print materials, presentations
 ```
 
 ---
 
-## 4. 顔復元と超解像の組み合わせ
+## 4. Combining Face Restoration with Super-Resolution
 
-### 4.1 GFPGAN による顔特化復元
+### 4.1 Face-Specific Restoration with GFPGAN
 
-顔画像の超解像では、汎用モデルだけでは不十分な場合が多い。GFPGAN (Generative Facial Prior GAN) は、顔の幾何学的構造を事前知識として利用することで、高品質な顔復元を実現する。
+For face image super-resolution, general-purpose models are often insufficient. GFPGAN (Generative Facial Prior GAN) achieves high-quality face restoration by leveraging facial geometric structure as prior knowledge.
 
 ```python
 from gfpgan import GFPGANer
@@ -944,12 +945,12 @@ import cv2
 import numpy as np
 
 class FaceRestorationPipeline:
-    """顔復元 + 超解像の統合パイプライン"""
+    """Integrated pipeline for face restoration + super-resolution"""
 
     def __init__(self, device="cuda"):
         self.device = device
 
-        # GFPGAN 顔復元モデル
+        # GFPGAN face restoration model
         self.face_restorer = GFPGANer(
             model_path="weights/GFPGANv1.4.pth",
             upscale=4,
@@ -959,7 +960,7 @@ class FaceRestorationPipeline:
         )
 
     def _create_bg_upsampler(self):
-        """背景用の Real-ESRGAN アップサンプラー"""
+        """Real-ESRGAN upsampler for backgrounds"""
         from realesrgan import RealESRGANer
         from basicsr.archs.rrdbnet_arch import RRDBNet
 
@@ -980,19 +981,19 @@ class FaceRestorationPipeline:
     def restore(self, image_path, output_path=None,
                 fidelity_weight=0.5, only_center_face=False):
         """
-        顔復元 + 背景超解像
+        Face restoration + background super-resolution
 
         Parameters:
-            image_path: 入力画像パス
-            fidelity_weight: 忠実度の重み (0=品質重視, 1=忠実度重視)
-            only_center_face: 最大の顔のみ処理するか
+            image_path: Input image path
+            fidelity_weight: Fidelity weight (0=quality-focused, 1=fidelity-focused)
+            only_center_face: Whether to process only the largest face
 
         Returns:
-            dict: 復元結果と検出情報
+            dict: Restoration results and detection info
         """
         img = cv2.imread(image_path, cv2.IMREAD_COLOR)
 
-        # 顔復元実行
+        # Execute face restoration
         _, _, output = self.face_restorer.enhance(
             img,
             has_aligned=False,
@@ -1013,7 +1014,7 @@ class FaceRestorationPipeline:
 
     def batch_restore(self, input_dir, output_dir,
                       fidelity_weight=0.5):
-        """ディレクトリ内の全画像を顔復元"""
+        """Face restoration for all images in a directory"""
         from pathlib import Path
 
         input_path = Path(input_dir)
@@ -1044,18 +1045,18 @@ class FaceRestorationPipeline:
         return results
 ```
 
-### 4.2 CodeFormer — コードブックベースの顔復元
+### 4.2 CodeFormer — Codebook-Based Face Restoration
 
 ```python
 """
-CodeFormer: 離散コードブックを用いた顔復元
+CodeFormer: Face restoration using a discrete codebook
 
-GFPGAN との違い:
-- コードブック: VQ-VAE で学習した離散表現を使用
-- 忠実度制御: パラメータ w で連続的に制御可能
-  w=0: 高品質だが忠実度低い
-  w=1: 忠実度高いが品質は低い
-  推奨: w=0.5-0.7
+Differences from GFPGAN:
+- Codebook: Uses discrete representations learned via VQ-VAE
+- Fidelity control: Continuously controllable via parameter w
+  w=0: High quality but low fidelity
+  w=1: High fidelity but lower quality
+  Recommended: w=0.5-0.7
 """
 
 # pip install codeformer-pip
@@ -1067,7 +1068,7 @@ def restore_face_codeformer(
     upscale=4,
     detection_model="retinaface_resnet50",
 ):
-    """CodeFormer による顔復元"""
+    """Face restoration with CodeFormer"""
     import subprocess
 
     cmd = [
@@ -1089,14 +1090,14 @@ def restore_face_codeformer(
     return output_path
 ```
 
-### ASCII図解: 顔復元パイプラインの全体像
+### ASCII Diagram: Face Restoration Pipeline Overview
 
 ```
-入力画像 (低解像度、劣化あり)
+Input Image (low resolution, degraded)
      │
      ▼
 ┌────────────────────────────────┐
-│   顔検出 (RetinaFace/MTCNN)   │
+│   Face Detection (RetinaFace/MTCNN)   │
 │   ┌─────┐  ┌─────┐  ┌─────┐  │
 │   │Face1│  │Face2│  │Face3│  │
 │   └──┬──┘  └──┬──┘  └──┬──┘  │
@@ -1104,9 +1105,9 @@ def restore_face_codeformer(
        │        │        │
        ▼        ▼        ▼
 ┌─────────────────────────────────┐
-│     顔アラインメント             │
-│  (5点ランドマーク → affine変換)  │
-│  → 512x512 に正規化             │
+│     Face Alignment               │
+│  (5-point landmarks → affine)    │
+│  → Normalized to 512x512         │
 └──────────┬──────────────────────┘
            │
      ┌─────┴─────┐
@@ -1116,40 +1117,41 @@ def restore_face_codeformer(
 │          │ │           │
 │ GAN Prior│ │ Codebook  │
 │ + Style  │ │ + VQ-VAE  │
-│ Transfer │ │ + w制御   │
+│ Transfer │ │ + w ctrl  │
 └────┬─────┘ └────┬──────┘
      │            │
      ▼            ▼
 ┌────────────────────────┐
-│  逆アフィン変換         │
-│  (元の位置に貼り戻し)   │
+│  Inverse Affine Transform │
+│  (Paste back to original  │
+│   position)               │
 └────────┬───────────────┘
          │
          ▼
 ┌────────────────────────┐
-│  背景超解像              │
-│  (Real-ESRGAN x4plus)  │
-│  顔以外の領域を処理      │
+│  Background Super-Resolution │
+│  (Real-ESRGAN x4plus)       │
+│  Process non-face regions    │
 └────────┬───────────────┘
          │
          ▼
-    高解像度出力画像
+    High-Resolution Output Image
 ```
 
 ---
 
-## 5. SwinIR — Transformer ベースの超解像
+## 5. SwinIR — Transformer-Based Super-Resolution
 
-### 5.1 SwinIR の実装と使い方
+### 5.1 SwinIR Implementation and Usage
 
 ```python
 """
-SwinIR: Swin Transformer を超解像に適用
+SwinIR: Applying Swin Transformer to super-resolution
 
-特徴:
-- CNN より広い受容野 (ウィンドウアテンション)
-- シフトウィンドウで隣接ウィンドウ間の情報交換
-- 忠実度が高い (GAN系ほどディテールを「想像」しない)
+Features:
+- Wider receptive field than CNNs (window attention)
+- Shifted windows for information exchange between adjacent windows
+- High fidelity (does not "hallucinate" details as much as GAN-based methods)
 """
 
 import torch
@@ -1158,17 +1160,17 @@ import numpy as np
 
 def upscale_with_swinir(image_path, scale=4, task="real_sr"):
     """
-    SwinIR による超解像
+    Super-resolution with SwinIR
 
     task:
-      "classical_sr": 古典的超解像 (bicubic劣化想定)
-      "real_sr": 実世界超解像 (複合劣化想定)
-      "lightweight_sr": 軽量版
-      "jpeg_car": JPEG圧縮アーティファクト除去
-      "color_dn": カラーノイズ除去
-      "gray_dn": グレースケールノイズ除去
+      "classical_sr": Classical super-resolution (assumes bicubic degradation)
+      "real_sr": Real-world super-resolution (assumes composite degradation)
+      "lightweight_sr": Lightweight version
+      "jpeg_car": JPEG compression artifact removal
+      "color_dn": Color noise removal
+      "gray_dn": Grayscale noise removal
     """
-    # モデル設定
+    # Model configuration
     model_configs = {
         "classical_sr": {
             "model_path": "weights/001_classicalSR_DF2K_s64w8_"
@@ -1192,25 +1194,25 @@ def upscale_with_swinir(image_path, scale=4, task="real_sr"):
 
     config = model_configs[task]
 
-    # 画像読み込みとパディング
+    # Load image and apply padding
     img = np.array(Image.open(image_path)).astype(np.float32) / 255.0
     img = torch.from_numpy(img).permute(2, 0, 1).unsqueeze(0)
 
-    # ウィンドウサイズの倍数にパディング
+    # Pad to a multiple of window size
     ws = config["window_size"]
     _, _, h, w = img.shape
     pad_h = (ws - h % ws) % ws
     pad_w = (ws - w % ws) % ws
     img = torch.nn.functional.pad(img, (0, pad_w, 0, pad_h), mode="reflect")
 
-    # モデルロードと推論
+    # Model loading and inference
     model = torch.load(config["model_path"])
     model.eval()
 
     with torch.no_grad():
         output = model(img.to("cuda"))
 
-    # パディング除去
+    # Remove padding
     output = output[:, :, :h * scale, :w * scale]
 
     # Tensor → PIL Image
@@ -1219,45 +1221,45 @@ def upscale_with_swinir(image_path, scale=4, task="real_sr"):
     return Image.fromarray(output)
 ```
 
-### 5.2 SwinIR と Real-ESRGAN の使い分け
+### 5.2 Choosing Between SwinIR and Real-ESRGAN
 
 ```
-SwinIR vs Real-ESRGAN の判断マトリクス:
+SwinIR vs Real-ESRGAN Decision Matrix:
 
-                 忠実度優先          品質優先
+                 Fidelity Priority    Quality Priority
                   ┌──────┐          ┌──────┐
- 処理速度重視 ──→ │SwinIR│          │Real- │ ←── 処理速度重視
+ Speed Priority → │SwinIR│          │Real- │ ← Speed Priority
                   │(L)   │          │ESRGAN│
                   └──────┘          └──────┘
 
                   ┌──────┐          ┌──────┐
- 品質最優先 ───→  │SwinIR│          │SUPIR │ ←── 品質最優先
-                  │+ 後処│          │      │
-                  │理    │          │      │
+ Max Quality →    │SwinIR│          │SUPIR │ ← Max Quality
+                  │+ Post│          │      │
+                  │proc. │          │      │
                   └──────┘          └──────┘
 
-具体的な選択基準:
+Specific Selection Criteria:
 
 ┌─────────────────┬──────────┬─────────────┐
-│ 要件            │ SwinIR   │ Real-ESRGAN │
+│ Requirement     │ SwinIR   │ Real-ESRGAN │
 ├─────────────────┼──────────┼─────────────┤
-│ 医療/科学画像   │ ◎        │ △           │
-│ 証拠写真        │ ◎        │ △           │
-│ EC商品写真      │ ○        │ ◎           │
-│ SNS投稿         │ △        │ ◎           │
-│ 印刷物          │ ○        │ ○           │
-│ アニメ/イラスト  │ △        │ ◎           │
-│ バッチ処理      │ ○        │ ◎           │
-│ エッジ保持      │ ◎        │ ○           │
-│ テクスチャ生成  │ △        │ ◎           │
+│ Medical/Science │ ◎        │ △           │
+│ Evidence Photos │ ◎        │ △           │
+│ E-commerce      │ ○        │ ◎           │
+│ Social Media    │ △        │ ◎           │
+│ Print Materials │ ○        │ ○           │
+│ Anime/Illustr.  │ △        │ ◎           │
+│ Batch Process   │ ○        │ ◎           │
+│ Edge Preserv.   │ ◎        │ ○           │
+│ Texture Gen.    │ △        │ ◎           │
 └─────────────────┴──────────┴─────────────┘
 ```
 
 ---
 
-## 6. 動画超解像
+## 6. Video Super-Resolution
 
-### 6.1 フレーム単位の超解像
+### 6.1 Frame-by-Frame Super-Resolution
 
 ```python
 import cv2
@@ -1265,7 +1267,7 @@ from pathlib import Path
 import time
 
 class VideoUpscaler:
-    """動画超解像パイプライン"""
+    """Video super-resolution pipeline"""
 
     def __init__(self, model_type="realesrgan", scale=4, device="cuda"):
         self.scale = scale
@@ -1273,7 +1275,7 @@ class VideoUpscaler:
         self._init_model(device)
 
     def _init_model(self, device):
-        """モデル初期化"""
+        """Initialize model"""
         if self.model_type == "realesrgan":
             from basicsr.archs.rrdbnet_arch import RRDBNet
             from realesrgan import RealESRGANer
@@ -1295,14 +1297,14 @@ class VideoUpscaler:
                       codec="libx264", crf=18,
                       audio_copy=True):
         """
-        動画を超解像
+        Upscale a video with super-resolution
 
         Parameters:
-            input_path: 入力動画パス
-            output_path: 出力動画パス
-            codec: 出力コーデック
-            crf: 品質 (0=ロスレス, 51=最低, 18推奨)
-            audio_copy: 音声をコピーするか
+            input_path: Input video path
+            output_path: Output video path
+            codec: Output codec
+            crf: Quality (0=lossless, 51=lowest, 18 recommended)
+            audio_copy: Whether to copy audio
         """
         cap = cv2.VideoCapture(input_path)
 
@@ -1314,15 +1316,15 @@ class VideoUpscaler:
         out_w = w * self.scale
         out_h = h * self.scale
 
-        # 一時ファイルに映像のみ出力
+        # Output video only to a temporary file
         tmp_video = output_path + ".tmp.mp4"
         fourcc = cv2.VideoWriter_fourcc(*'mp4v')
         writer = cv2.VideoWriter(
             tmp_video, fourcc, fps, (out_w, out_h)
         )
 
-        print(f"入力: {w}x{h} @ {fps}fps, {total_frames}フレーム")
-        print(f"出力: {out_w}x{out_h}")
+        print(f"Input: {w}x{h} @ {fps}fps, {total_frames} frames")
+        print(f"Output: {out_w}x{out_h}")
 
         start_time = time.time()
         frame_idx = 0
@@ -1332,7 +1334,7 @@ class VideoUpscaler:
             if not ret:
                 break
 
-            # 超解像
+            # Super-resolution
             output, _ = self.upsampler.enhance(
                 frame, outscale=self.scale
             )
@@ -1352,7 +1354,7 @@ class VideoUpscaler:
         cap.release()
         writer.release()
 
-        # ffmpeg で音声を結合
+        # Merge audio with ffmpeg
         if audio_copy:
             import subprocess
             cmd = [
@@ -1372,7 +1374,7 @@ class VideoUpscaler:
             Path(tmp_video).rename(output_path)
 
         total_time = time.time() - start_time
-        print(f"\n完了: {total_time:.1f}秒 "
+        print(f"\nComplete: {total_time:.1f}s "
               f"({total_frames / total_time:.1f} fps)")
 
         return {
@@ -1384,48 +1386,48 @@ class VideoUpscaler:
         }
 ```
 
-### 6.2 時間的一貫性の確保
+### 6.2 Ensuring Temporal Consistency
 
 ```python
 def temporal_consistent_upscale(frames, upsampler, flow_model=None):
     """
-    時間的一貫性を保った超解像
+    Super-resolution with temporal consistency
 
-    単純にフレーム毎に超解像すると、フレーム間で
-    ディテールが揺れる (temporal flickering) 問題が発生する。
+    Simply applying super-resolution frame by frame causes
+    detail flickering between frames (temporal flickering).
 
-    対策:
-    1. オプティカルフロー整合化
-    2. 前フレームの結果を参照
-    3. テンポラルブレンディング
+    Countermeasures:
+    1. Optical flow alignment
+    2. Reference previous frame results
+    3. Temporal blending
     """
 
     results = []
     prev_output = None
 
     for i, frame in enumerate(frames):
-        # 現フレームを超解像
+        # Super-resolve current frame
         current_output, _ = upsampler.enhance(
             frame, outscale=4
         )
 
         if prev_output is not None and flow_model is not None:
-            # オプティカルフローで前フレームをワープ
+            # Warp previous frame using optical flow
             flow = flow_model.estimate(
                 frames[i-1], frame
             )
             warped_prev = warp_image(prev_output, flow, scale=4)
 
-            # 現フレームとワープ前フレームをブレンド
-            # → テンポラルフリッカリングを抑制
-            alpha = 0.3  # ブレンド比率
+            # Blend current frame and warped previous frame
+            # → Suppress temporal flickering
+            alpha = 0.3  # Blend ratio
             occlusion_mask = compute_occlusion_mask(flow)
 
             current_output = np.where(
                 occlusion_mask[..., None],
-                current_output,  # オクルージョン領域は現フレームのみ
+                current_output,  # Use current frame only for occluded regions
                 (1 - alpha) * current_output
-                + alpha * warped_prev  # その他はブレンド
+                + alpha * warped_prev  # Blend for other regions
             ).astype(np.uint8)
 
         results.append(current_output)
@@ -1436,9 +1438,9 @@ def temporal_consistent_upscale(frames, upsampler, flow_model=None):
 
 ---
 
-## 7. 実務パイプライン統合
+## 7. Production Pipeline Integration
 
-### 7.1 REST API による超解像サービス
+### 7.1 REST API Super-Resolution Service
 
 ```python
 from fastapi import FastAPI, UploadFile, File, HTTPException
@@ -1449,7 +1451,7 @@ from pathlib import Path
 
 app = FastAPI(title="Super Resolution API")
 
-# グローバルパイプライン
+# Global pipeline
 pipeline = RealESRGANPipeline(device="cuda", half=True)
 
 @app.post("/upscale")
@@ -1459,14 +1461,14 @@ async def upscale_image(
     model: str = "auto",
 ):
     """
-    画像をアップスケールする API エンドポイント
+    API endpoint for image upscaling
 
     Parameters:
-        file: アップロード画像
-        scale: 拡大倍率 (2 or 4)
-        model: モデル名 ("photo", "anime", "auto")
+        file: Uploaded image
+        scale: Scale factor (2 or 4)
+        model: Model name ("photo", "anime", "auto")
     """
-    # バリデーション
+    # Validation
     if scale not in (2, 4):
         raise HTTPException(400, "scale must be 2 or 4")
 
@@ -1474,12 +1476,12 @@ async def upscale_image(
     if file.content_type not in allowed_types:
         raise HTTPException(400, f"Unsupported: {file.content_type}")
 
-    # ファイルサイズ制限 (20MB)
+    # File size limit (20MB)
     contents = await file.read()
     if len(contents) > 20 * 1024 * 1024:
         raise HTTPException(400, "File too large (max 20MB)")
 
-    # 一時ファイルに保存
+    # Save to temporary file
     job_id = str(uuid.uuid4())
     tmp_dir = Path(tempfile.mkdtemp())
     input_path = tmp_dir / f"input_{job_id}.png"
@@ -1519,14 +1521,14 @@ async def batch_upscale(
     scale: int = 4,
     model: str = "auto",
 ):
-    """複数画像の一括アップスケール"""
+    """Batch upscaling of multiple images"""
     if len(files) > 50:
         raise HTTPException(400, "Max 50 files per batch")
 
     results = []
     for file in files:
         try:
-            # 各ファイルを個別処理
+            # Process each file individually
             result = await upscale_image(file, scale, model)
             results.append({
                 "filename": file.filename,
@@ -1542,7 +1544,7 @@ async def batch_upscale(
     return {"results": results}
 ```
 
-### 7.2 Gradio による GUI アプリケーション
+### 7.2 Gradio GUI Application
 
 ```python
 import gradio as gr
@@ -1550,16 +1552,16 @@ from PIL import Image
 import numpy as np
 
 def create_upscaling_ui():
-    """Gradio ベースの超解像 GUI"""
+    """Gradio-based super-resolution GUI"""
 
     pipeline = RealESRGANPipeline(device="cuda")
 
     def upscale_handler(image, model_choice, scale, tile_size):
-        """超解像処理ハンドラ"""
+        """Super-resolution processing handler"""
         if image is None:
-            return None, "画像をアップロードしてください"
+            return None, "Please upload an image"
 
-        # PIL → 一時ファイル → 処理 → PIL
+        # PIL → temporary file → process → PIL
         import tempfile
         with tempfile.NamedTemporaryFile(
             suffix=".png", delete=False
@@ -1568,7 +1570,7 @@ def create_upscaling_ui():
             result = pipeline.upscale(
                 tmp.name,
                 model_type=(
-                    None if model_choice == "自動判定"
+                    None if model_choice == "Auto Detect"
                     else model_choice.lower()
                 ),
                 scale=scale,
@@ -1577,37 +1579,37 @@ def create_upscaling_ui():
 
         output = Image.open(result["output"])
         info = (
-            f"入力: {result['input_size']} → "
-            f"出力: {result['output_size']}\n"
-            f"モデル: {result['model']}\n"
-            f"処理時間: {result['elapsed_seconds']}秒"
+            f"Input: {result['input_size']} → "
+            f"Output: {result['output_size']}\n"
+            f"Model: {result['model']}\n"
+            f"Processing time: {result['elapsed_seconds']}s"
         )
         return np.array(output), info
 
-    with gr.Blocks(title="AI 超解像") as demo:
-        gr.Markdown("# AI 超解像ツール")
+    with gr.Blocks(title="AI Super-Resolution") as demo:
+        gr.Markdown("# AI Super-Resolution Tool")
 
         with gr.Row():
             with gr.Column():
-                input_img = gr.Image(label="入力画像")
+                input_img = gr.Image(label="Input Image")
                 model_choice = gr.Radio(
-                    ["自動判定", "Photo", "Anime"],
-                    label="モデル",
-                    value="自動判定",
+                    ["Auto Detect", "Photo", "Anime"],
+                    label="Model",
+                    value="Auto Detect",
                 )
                 scale = gr.Slider(
                     minimum=2, maximum=4, step=2,
-                    value=4, label="拡大倍率",
+                    value=4, label="Scale Factor",
                 )
                 tile_size = gr.Slider(
                     minimum=0, maximum=800, step=100,
-                    value=400, label="タイルサイズ (0=無効)",
+                    value=400, label="Tile Size (0=disabled)",
                 )
-                btn = gr.Button("超解像を実行", variant="primary")
+                btn = gr.Button("Run Super-Resolution", variant="primary")
 
             with gr.Column():
-                output_img = gr.Image(label="出力画像")
-                info_text = gr.Textbox(label="処理情報")
+                output_img = gr.Image(label="Output Image")
+                info_text = gr.Textbox(label="Processing Info")
 
         btn.click(
             fn=upscale_handler,
@@ -1621,7 +1623,7 @@ def create_upscaling_ui():
 # demo.launch(server_name="0.0.0.0", server_port=7860)
 ```
 
-### 7.3 クラウド API 活用（Replicate / RunPod）
+### 7.3 Cloud API Usage (Replicate / RunPod)
 
 ```python
 import replicate
@@ -1629,13 +1631,13 @@ import requests
 from pathlib import Path
 
 class CloudUpscaler:
-    """クラウド API を使った超解像 (ローカルGPU不要)"""
+    """Super-resolution using cloud APIs (no local GPU required)"""
 
     def __init__(self, provider="replicate"):
         self.provider = provider
 
     def upscale_replicate(self, image_path, scale=4, model="real-esrgan"):
-        """Replicate API で超解像"""
+        """Super-resolution via Replicate API"""
         model_versions = {
             "real-esrgan": "xinntao/realesrgan:latest",
             "supir": "cjwbw/supir:latest",
@@ -1652,7 +1654,7 @@ class CloudUpscaler:
                 },
             )
 
-        # 結果のダウンロード
+        # Download result
         output_path = Path(image_path).stem + "_upscaled.png"
         if isinstance(output, str):
             response = requests.get(output)
@@ -1666,7 +1668,7 @@ class CloudUpscaler:
         return output_path
 
     def upscale_runpod(self, image_path, scale=4):
-        """RunPod Serverless で超解像"""
+        """Super-resolution via RunPod Serverless"""
         import base64
 
         with open(image_path, "rb") as f:
@@ -1689,7 +1691,7 @@ class CloudUpscaler:
 
         job_id = response.json()["id"]
 
-        # ポーリングで結果を取得
+        # Poll for results
         import time
         while True:
             status = requests.get(
@@ -1715,42 +1717,42 @@ class CloudUpscaler:
 
 ---
 
-## 8. 比較表
+## 8. Comparison Tables
 
-### 比較表1: 超解像モデルの詳細比較
+### Comparison Table 1: Detailed Comparison of Super-Resolution Models
 
-| モデル | 種類 | 最大倍率 | 速度 | 品質 | VRAM | 忠実度 |
+| Model | Type | Max Scale | Speed | Quality | VRAM | Fidelity |
 |--------|------|---------|------|------|------|--------|
-| **Lanczos** | 古典 | 無制限 | 極速 | ★★★ | 0 | 最高 |
-| **Real-ESRGAN** | GAN | x4 | 速い | ★★★★☆ | 2GB | 高い |
-| **ESRGAN anime** | GAN | x4 | 速い | ★★★★ | 2GB | 高い |
-| **SwinIR** | Transformer | x4 | 中 | ★★★★☆ | 4GB | 高い |
-| **SD x4 Upscaler** | 拡散 | x4 | 遅い | ★★★★★ | 6GB | 中程度 |
-| **StableSR** | 拡散 | x4 | 遅い | ★★★★★ | 8GB | 中程度 |
-| **SUPIR** | 拡散+LLM | x4 | 非常に遅い | ★★★★★ | 12GB+ | 中程度 |
+| **Lanczos** | Classical | Unlimited | Very Fast | ★★★ | 0 | Highest |
+| **Real-ESRGAN** | GAN | x4 | Fast | ★★★★☆ | 2GB | High |
+| **ESRGAN anime** | GAN | x4 | Fast | ★★★★ | 2GB | High |
+| **SwinIR** | Transformer | x4 | Medium | ★★★★☆ | 4GB | High |
+| **SD x4 Upscaler** | Diffusion | x4 | Slow | ★★★★★ | 6GB | Moderate |
+| **StableSR** | Diffusion | x4 | Slow | ★★★★★ | 8GB | Moderate |
+| **SUPIR** | Diffusion+LLM | x4 | Very Slow | ★★★★★ | 12GB+ | Moderate |
 
-### 比較表2: ユースケース別推奨モデル
+### Comparison Table 2: Recommended Models by Use Case
 
-| ユースケース | 推奨モデル | 理由 |
+| Use Case | Recommended Model | Reason |
 |-------------|-----------|------|
-| **SNS投稿の高画質化** | Real-ESRGAN x4plus | 速度と品質のバランス |
-| **アニメ/イラスト** | Real-ESRGAN anime | アニメ特化の学習 |
-| **印刷用の高解像化** | SUPIR / StableSR | 最高品質のディテール生成 |
-| **バッチ処理 (大量)** | Real-ESRGAN | 処理速度が速い |
-| **医療/科学画像** | SwinIR / Lanczos | 忠実度が最優先 |
-| **顔写真の復元** | GFPGAN + Real-ESRGAN | 顔特化モデルとの組み合わせ |
-| **古い写真の復元** | SUPIR | テキストガイドでディテール追加 |
-| **EC商品写真** | Real-ESRGAN + 色補正 | テクスチャ保持と色再現 |
-| **監視カメラ映像** | SwinIR | 忠実度重視、証拠保全 |
-| **衛星画像** | SwinIR + ドメイン特化微調整 | 地理情報の正確性 |
+| **Social media quality boost** | Real-ESRGAN x4plus | Balance of speed and quality |
+| **Anime/Illustrations** | Real-ESRGAN anime | Anime-specialized training |
+| **Print-quality upscaling** | SUPIR / StableSR | Highest quality detail generation |
+| **Batch processing (large volume)** | Real-ESRGAN | Fast processing speed |
+| **Medical/Scientific images** | SwinIR / Lanczos | Fidelity is top priority |
+| **Face photo restoration** | GFPGAN + Real-ESRGAN | Combination with face-specific model |
+| **Old photo restoration** | SUPIR | Text-guided detail addition |
+| **E-commerce product photos** | Real-ESRGAN + color correction | Texture preservation and color accuracy |
+| **Surveillance footage** | SwinIR | Fidelity-focused, evidence preservation |
+| **Satellite imagery** | SwinIR + domain-specific fine-tuning | Geographic information accuracy |
 
-### 比較表3: 処理速度ベンチマーク
+### Comparison Table 3: Processing Speed Benchmark
 
 ```
-テスト条件: 512x512 → 2048x2048 (4x), NVIDIA RTX 4090
+Test conditions: 512x512 → 2048x2048 (4x), NVIDIA RTX 4090
 
 ┌──────────────────┬───────────┬────────────┬────────────┐
-│ モデル           │ 処理時間  │ VRAM使用量 │ スループット│
+│ Model            │ Time      │ VRAM Usage │ Throughput │
 ├──────────────────┼───────────┼────────────┼────────────┤
 │ Lanczos (CPU)    │ 0.002s    │ 0          │ 500 img/s  │
 │ Real-ESRGAN      │ 0.05s     │ 1.8GB      │ 20 img/s   │
@@ -1762,122 +1764,120 @@ class CloudUpscaler:
 │ SUPIR (50step)   │ 25s       │ 14GB       │ 0.04 img/s │
 └──────────────────┴───────────┴────────────┴────────────┘
 
-※ バッチ処理時はモデルロード時間を除く
-※ タイル処理有効時は画像サイズに比例して増加
+* Excludes model loading time for batch processing
+* Increases proportionally to image size with tile processing enabled
 ```
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### アンチパターン1: 超解像を何度も繰り返す
-
-```
-[問題]
-4倍超解像を2回適用すれば16倍になると考え、
-繰り返し処理を行う。
-
-[なぜ問題か]
-- 各処理でアーティファクトが蓄積される
-- GAN系はパターンを過剰に強調してしまう
-- 実在しないディテールが増幅される
-- 2回目の処理は品質向上に寄与しないことが多い
-
-[正しいアプローチ]
-- 一度の処理で目標解像度に到達する (4x が限界の目安)
-- 大きな拡大が必要な場合: Lanczos で中間サイズ → AI超解像
-- 拡散ベース (SUPIR等) で一度に高品質化する
-```
-
-### アンチパターン2: 全画像に同じモデルを適用
+### Anti-Pattern 1: Repeating Super-Resolution Multiple Times
 
 ```
-[問題]
-写真もアニメもイラストも全て Real-ESRGAN x4plus で処理する。
+[Problem]
+Applying 4x super-resolution twice, thinking it will achieve 16x.
 
-[なぜ問題か]
-- 写真用モデルをアニメに使うとテクスチャが過剰
-- アニメ用モデルを写真に使うとのっぺりした結果に
-- テキスト画像には不向き (文字がぼやける)
+[Why It's a Problem]
+- Artifacts accumulate with each processing pass
+- GAN-based models over-emphasize patterns
+- Non-existent details get amplified
+- The second pass rarely contributes to quality improvement
 
-[正しいアプローチ]
-- 入力画像の種類を判別してモデルを切り替え
-- 写真: x4plus / SUPIR
-- アニメ: x4plus_anime / waifu2x
-- テキスト: Lanczos / SwinIR
-- 混合コンテンツ: 領域分割して個別処理
+[Correct Approach]
+- Reach the target resolution in a single pass (4x is the practical limit)
+- For larger upscaling: Lanczos to intermediate size → AI super-resolution
+- Use diffusion-based methods (SUPIR, etc.) for one-shot high-quality upscaling
 ```
 
-### アンチパターン3: VRAM不足を無視してフルサイズ処理
+### Anti-Pattern 2: Applying the Same Model to All Images
 
 ```
-[問題]
-8000x6000 の画像を tile=0 (タイル処理無効) のまま
-超解像しようとして OOM (Out of Memory) エラーが発生する。
+[Problem]
+Processing photos, anime, and illustrations all with Real-ESRGAN x4plus.
 
-[なぜ問題か]
-- VRAM は画像サイズの二乗に比例して消費される
-- 4x超解像では出力が 32000x24000 になり膨大なメモリが必要
-- OOM発生時にGPUプロセスが残留し、他の処理にも影響
+[Why It's a Problem]
+- Photo models applied to anime produce excessive textures
+- Anime models applied to photos produce flat-looking results
+- Not suitable for text images (characters become blurry)
 
-[正しいアプローチ]
-- 常に tile パラメータを設定する (推奨: 400-512)
-- 入力サイズに応じて自動的にタイルサイズを調整
-- VRAM監視を組み込み、危険な場合は警告を出す
-- try-except で OOM をキャッチし、タイルサイズを縮小して再試行
+[Correct Approach]
+- Detect input image type and switch models accordingly
+- Photos: x4plus / SUPIR
+- Anime: x4plus_anime / waifu2x
+- Text: Lanczos / SwinIR
+- Mixed content: Segment regions and process individually
 ```
 
-### アンチパターン4: 超解像結果を無検証で納品
+### Anti-Pattern 3: Ignoring VRAM Limits and Processing at Full Size
 
 ```
-[問題]
-超解像の出力をそのまま最終成果物として使用する。
+[Problem]
+Attempting to super-resolve an 8000x6000 image with tile=0 (tile processing disabled),
+resulting in an OOM (Out of Memory) error.
 
-[なぜ問題か]
-- GAN系は「ハルシネーション」を起こすことがある
-  (存在しないテクスチャ/パターンの生成)
-- 顔が微妙に変わる場合がある
-- JPEG圧縮アーティファクトが増幅される場合がある
-- 色味が変化する場合がある
+[Why It's a Problem]
+- VRAM consumption scales quadratically with image size
+- 4x super-resolution would produce 32000x24000 output, requiring massive memory
+- OOM errors can leave GPU processes lingering, affecting other tasks
 
-[正しいアプローチ]
-- 超解像後に人間によるレビューを必ず行う
-- 品質メトリクス (PSNR, SSIM, LPIPS) を自動チェック
-- 閾値を設けて異常値の場合はアラートを出す
-- 特に顔や文字の部分は重点的に確認する
+[Correct Approach]
+- Always set the tile parameter (recommended: 400-512)
+- Automatically adjust tile size based on input size
+- Incorporate VRAM monitoring and issue warnings when dangerous
+- Catch OOM with try-except, reduce tile size, and retry
 ```
 
-### アンチパターン5: 圧縮済み画像にさらにJPEG保存
+### Anti-Pattern 4: Delivering Super-Resolution Results Without Validation
 
 ```
-[問題]
-JPEG画像を超解像し、結果を再度JPEGで保存する。
+[Problem]
+Using super-resolution output directly as the final deliverable.
 
-[なぜ問題か]
-- 超解像で改善したディテールがJPEG圧縮で失われる
-- 二重のJPEG圧縮アーティファクト
-- 特にエッジ部分でモスキートノイズが発生
+[Why It's a Problem]
+- GAN-based models can "hallucinate" (generate non-existent textures/patterns)
+- Faces may subtly change
+- JPEG compression artifacts may be amplified
+- Color tones may shift
 
-[正しいアプローチ]
-- 超解像の出力は必ず PNG (ロスレス) で保存
-- 最終的にJPEGが必要な場合は quality=95 以上
-- WebP (ロスレスモード) も良い選択肢
-- ワークフロー全体でロスレスフォーマットを維持
+[Correct Approach]
+- Always perform human review after super-resolution
+- Automatically check quality metrics (PSNR, SSIM, LPIPS)
+- Set thresholds and alert on anomalous values
+- Pay special attention to faces and text areas
+```
+
+### Anti-Pattern 5: Saving JPEG-Compressed Images as JPEG Again
+
+```
+[Problem]
+Super-resolving a JPEG image and saving the result as JPEG again.
+
+[Why It's a Problem]
+- Details improved by super-resolution are lost to JPEG compression
+- Double JPEG compression artifacts
+- Mosquito noise appears especially at edges
+
+[Correct Approach]
+- Always save super-resolution output as PNG (lossless)
+- If JPEG is required for final delivery, use quality=95 or higher
+- WebP (lossless mode) is also a good choice
+- Maintain lossless formats throughout the workflow
 ```
 
 ---
 
-## 10. トラブルシューティング
+## 10. Troubleshooting
 
-### 10.1 よくあるエラーと解決策
+### 10.1 Common Errors and Solutions
 
 ```python
 class UpscaleErrorHandler:
-    """超解像でよくあるエラーのハンドリング"""
+    """Handling common errors in super-resolution"""
 
     @staticmethod
     def handle_oom(func):
-        """OOM エラー時にタイルサイズを縮小して再試行"""
+        """Retry with reduced tile size on OOM error"""
         import functools
 
         @functools.wraps(func)
@@ -1892,70 +1892,70 @@ class UpscaleErrorHandler:
                 except RuntimeError as e:
                     if "out of memory" in str(e).lower():
                         last_error = e
-                        # GPU メモリをクリア
+                        # Clear GPU memory
                         import torch
                         torch.cuda.empty_cache()
                         if tile_size == 0:
                             print(
-                                "VRAM不足: タイル処理に切り替え "
+                                "VRAM insufficient: switching to tile processing "
                                 f"(tile={tile_sizes[1]})"
                             )
                         else:
                             print(
-                                f"VRAM不足: タイル縮小 "
-                                f"(tile={tile_size}→次のサイズ)"
+                                f"VRAM insufficient: reducing tile size "
+                                f"(tile={tile_size} → next size)"
                             )
                     else:
                         raise
 
             raise RuntimeError(
-                f"全タイルサイズで OOM: {last_error}"
+                f"OOM with all tile sizes: {last_error}"
             )
 
         return wrapper
 
     @staticmethod
     def validate_input(image_path):
-        """入力画像のバリデーション"""
+        """Validate input image"""
         import cv2
         from pathlib import Path
 
         path = Path(image_path)
 
-        # ファイル存在チェック
+        # File existence check
         if not path.exists():
-            raise FileNotFoundError(f"ファイルが見つかりません: {path}")
+            raise FileNotFoundError(f"File not found: {path}")
 
-        # 拡張子チェック
+        # Extension check
         valid_exts = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff"}
         if path.suffix.lower() not in valid_exts:
             raise ValueError(
-                f"非対応フォーマット: {path.suffix}\n"
-                f"対応: {valid_exts}"
+                f"Unsupported format: {path.suffix}\n"
+                f"Supported: {valid_exts}"
             )
 
-        # 画像読み込みテスト
+        # Image loading test
         img = cv2.imread(str(path))
         if img is None:
-            raise ValueError(f"画像読み込み失敗 (破損?): {path}")
+            raise ValueError(f"Failed to load image (corrupted?): {path}")
 
         h, w = img.shape[:2]
 
-        # サイズチェック
+        # Size check
         if h < 16 or w < 16:
             raise ValueError(
-                f"画像が小さすぎます: {w}x{h} (最小: 16x16)"
+                f"Image too small: {w}x{h} (minimum: 16x16)"
             )
 
         if h > 10000 or w > 10000:
             print(
-                f"警告: 大画像 ({w}x{h})。"
-                "タイル処理を推奨します。"
+                f"Warning: Large image ({w}x{h}). "
+                "Tile processing is recommended."
             )
 
-        # メモリ見積もり (4x超解像)
+        # Memory estimate (4x super-resolution)
         estimated_vram_gb = (
-            w * h * 3 * 4 * 16  # 概算
+            w * h * 3 * 4 * 16  # Rough estimate
         ) / (1024 ** 3)
 
         return {
@@ -1964,13 +1964,13 @@ class UpscaleErrorHandler:
             "channels": img.shape[2] if len(img.shape) > 2 else 1,
             "estimated_vram_gb": round(estimated_vram_gb, 2),
             "recommendation": (
-                "タイル処理推奨" if w * h > 2_000_000
-                else "タイル処理不要"
+                "Tile processing recommended" if w * h > 2_000_000
+                else "Tile processing not needed"
             ),
         }
 ```
 
-### 10.2 色味の変化への対処
+### 10.2 Handling Color Shifts
 
 ```python
 def post_process_color_correction(
@@ -1978,10 +1978,10 @@ def post_process_color_correction(
     method="histogram_matching"
 ):
     """
-    超解像後の色補正
+    Color correction after super-resolution
 
-    超解像モデルは色味を変える場合がある。
-    元画像の色分布を参照して補正する。
+    Super-resolution models may alter color tones.
+    Correct by referencing the original image's color distribution.
     """
     import cv2
     import numpy as np
@@ -1989,14 +1989,14 @@ def post_process_color_correction(
     original = cv2.imread(original_path)
     upscaled = cv2.imread(upscaled_path)
 
-    # 元画像を超解像サイズにリサイズ (参照用)
+    # Resize original to super-resolved size (for reference)
     h, w = upscaled.shape[:2]
     original_resized = cv2.resize(
         original, (w, h), interpolation=cv2.INTER_LANCZOS4
     )
 
     if method == "histogram_matching":
-        # ヒストグラムマッチング
+        # Histogram matching
         result = np.zeros_like(upscaled)
         for ch in range(3):
             result[:, :, ch] = _match_histogram(
@@ -2005,11 +2005,11 @@ def post_process_color_correction(
             )
 
     elif method == "color_transfer":
-        # LAB色空間での統計的色転写
+        # Statistical color transfer in LAB color space
         result = _lab_color_transfer(original_resized, upscaled)
 
     elif method == "linear":
-        # 線形回帰による色補正
+        # Linear regression color correction
         result = _linear_color_correction(
             original_resized, upscaled
         )
@@ -2019,7 +2019,7 @@ def post_process_color_correction(
 
 
 def _match_histogram(source, reference):
-    """ヒストグラムマッチング (単一チャネル)"""
+    """Histogram matching (single channel)"""
     src_values, src_unique_indices, src_counts = np.unique(
         source.ravel(), return_inverse=True, return_counts=True
     )
@@ -2040,7 +2040,7 @@ def _match_histogram(source, reference):
 
 
 def _lab_color_transfer(source, target):
-    """LAB色空間での色転写 (Reinhard et al.)"""
+    """Color transfer in LAB color space (Reinhard et al.)"""
     source_lab = cv2.cvtColor(source, cv2.COLOR_BGR2LAB).astype(np.float32)
     target_lab = cv2.cvtColor(target, cv2.COLOR_BGR2LAB).astype(np.float32)
 
@@ -2064,44 +2064,44 @@ def _lab_color_transfer(source, target):
 
 ## FAQ
 
-### Q1: 超解像とただの拡大の違いは?
+### Q1: What is the difference between super-resolution and simple upscaling?
 
-**A:** 根本的に異なります:
+**A:** They are fundamentally different:
 
-- **拡大 (リサイズ):** 既存のピクセルを補間。新しい情報は追加されない。必ずぼやける
-- **超解像 (Super Resolution):** AIが学習したパターンから**新しいディテールを推定/生成**する。エッジが鮮明になり、テクスチャが復元される
-- **注意:** 超解像は「推定」なので、元画像に存在しないディテールを「想像」で追加する場合がある。忠実度が求められる場合は注意
+- **Upscaling (resizing):** Interpolates existing pixels. No new information is added. Always results in blurriness
+- **Super-Resolution:** AI **estimates/generates new details** from learned patterns. Edges become sharper and textures are restored
+- **Note:** Super-resolution is "estimation," so it may add details that did not exist in the original image through "hallucination." Exercise caution when fidelity is required
 
-### Q2: アップスケール倍率はどこまで実用的?
+### Q2: What upscale factor is practical?
 
 **A:**
 
-- **2倍:** 最も安全。高品質で忠実度も高い
-- **4倍:** 実用的な上限。写真なら十分な品質
-- **8倍以上:** ディテールの多くがAI生成。アート/クリエイティブ用途なら可
-- **目安:** 元画像が 512x512 なら 4倍 (2048x2048) が実用限界
-- **大きな拡大が必要な場合:** 拡散ベース (SUPIR) で品質を担保
+- **2x:** Safest. High quality with high fidelity
+- **4x:** Practical upper limit. Sufficient quality for photos
+- **8x and above:** Most details are AI-generated. Acceptable for art/creative purposes
+- **Rule of thumb:** For a 512x512 original, 4x (2048x2048) is the practical limit
+- **For larger upscaling:** Use diffusion-based methods (SUPIR) to ensure quality
 
-### Q3: 超解像処理でVRAMが足りない場合は?
+### Q3: What if VRAM is insufficient for super-resolution?
 
-**A:** 以下の対策があります:
+**A:** The following countermeasures are available:
 
-1. **タイル処理:** 画像を分割して個別に処理 (推奨 tile_size=400-512)
-2. **FP16 (半精度):** half=True でVRAM使用量を半減
-3. **CPU処理:** 遅いがVRAM不要。Real-ESRGAN は CPU でも動作
-4. **モデルサイズの削減:** RealESRGAN_x4plus_anime (6B) は軽量版
-5. **クラウドAPI:** Replicate 等のAPIサービスを利用
+1. **Tile processing:** Split the image and process each part (recommended tile_size=400-512)
+2. **FP16 (half precision):** half=True halves VRAM usage
+3. **CPU processing:** Slower but requires no VRAM. Real-ESRGAN works on CPU
+4. **Smaller model size:** RealESRGAN_x4plus_anime (6B) is a lightweight version
+5. **Cloud APIs:** Use API services like Replicate
 
-### Q4: 超解像モデルをファインチューニングするには?
+### Q4: How to fine-tune a super-resolution model?
 
-**A:** ドメイン特化の超解像が必要な場合、以下の手順でファインチューニングできます:
+**A:** When domain-specific super-resolution is needed, fine-tuning can be done with these steps:
 
-1. **データセット準備:** 高解像度画像を収集 (最低500枚、理想は5000枚以上)
-2. **劣化ペア作成:** 高解像度画像から劣化モデルで低解像度画像を生成
-3. **Real-ESRGAN のファインチューニング:**
+1. **Dataset preparation:** Collect high-resolution images (minimum 500, ideally 5000+)
+2. **Create degradation pairs:** Generate low-resolution images from high-resolution ones using a degradation model
+3. **Fine-tune Real-ESRGAN:**
 
 ```python
-# BasicSR の設定ファイル例
+# BasicSR configuration file example
 # finetune_realesrgan_x4plus.yml
 
 name: finetune_RealESRGANx4plus
@@ -2113,15 +2113,15 @@ datasets:
   train:
     name: custom_dataset
     type: RealESRGANPairedDataset
-    dataroot_gt: /data/train/HR  # 高解像度画像
-    dataroot_lq: /data/train/LR  # 低解像度画像
+    dataroot_gt: /data/train/HR  # High-resolution images
+    dataroot_lq: /data/train/LR  # Low-resolution images
     io_backend:
       type: disk
     gt_size: 256
     use_hflip: true
     use_rot: true
 
-# ネットワーク設定
+# Network configuration
 network_g:
   type: RRDBNet
   num_in_ch: 3
@@ -2131,7 +2131,7 @@ network_g:
   num_grow_ch: 32
   scale: 4
 
-# 学習設定
+# Training configuration
 train:
   optim_g:
     type: Adam
@@ -2139,7 +2139,7 @@ train:
     weight_decay: 0
     betas: [0.9, 0.99]
 
-  # 事前学習済みモデルから開始
+  # Start from pre-trained model
   path:
     pretrain_network_g: weights/RealESRGAN_x4plus.pth
     strict_load_g: true
@@ -2148,26 +2148,26 @@ train:
   warmup_iter: -1
 ```
 
-### Q5: WebP や AVIF など新しいフォーマットでの超解像は?
+### Q5: What about super-resolution for newer formats like WebP and AVIF?
 
-**A:** 入力フォーマットに関しては、OpenCV / Pillow が対応していれば問題ありません。重要なのは出力フォーマットの選択です:
+**A:** For input formats, there are no issues as long as OpenCV / Pillow supports them. What matters is the output format selection:
 
-| フォーマット | ロスレス | 推奨用途 | 注意点 |
+| Format | Lossless | Recommended Use | Notes |
 |-------------|---------|---------|--------|
-| **PNG** | はい | 中間ファイル、品質最優先 | ファイルサイズ大 |
-| **WebP** | 両方 | Web公開、ロスレス保存 | 一部ビューアで非対応 |
-| **AVIF** | 両方 | 最新Web、高圧縮 | エンコード遅い |
-| **JPEG XL** | 両方 | 将来標準、移行中 | ブラウザ対応限定 |
-| **TIFF** | はい | 印刷、アーカイブ | ファイルサイズ大 |
-| **JPEG** | いいえ | 最終配信のみ | Q95+推奨 |
+| **PNG** | Yes | Intermediate files, quality priority | Large file size |
+| **WebP** | Both | Web publishing, lossless storage | Some viewers unsupported |
+| **AVIF** | Both | Modern web, high compression | Slow encoding |
+| **JPEG XL** | Both | Future standard, transitioning | Limited browser support |
+| **TIFF** | Yes | Print, archiving | Large file size |
+| **JPEG** | No | Final delivery only | Q95+ recommended |
 
-### Q6: 複数の超解像モデルの結果をアンサンブルできる?
+### Q6: Can results from multiple super-resolution models be ensembled?
 
-**A:** 可能です。ただし処理時間が倍増するため、品質が最重要の場合に限ります:
+**A:** Yes, it is possible. However, since processing time doubles, this should be limited to cases where quality is paramount:
 
 ```python
 def ensemble_upscale(image_path, models, weights=None):
-    """複数モデルの結果を重み付き平均で統合"""
+    """Combine results from multiple models using weighted average"""
     results = []
     for model in models:
         result = model.upscale(image_path)
@@ -2187,44 +2187,44 @@ def ensemble_upscale(image_path, models, weights=None):
 
 ---
 
-## まとめ表
+## Summary Table
 
-| 項目 | 要点 |
+| Item | Key Points |
 |------|------|
-| **古典手法** | Lanczos が最良。忠実度100%だがディテール追加なし |
-| **GAN系 (Real-ESRGAN)** | 高速・高品質。実写/アニメでモデルを使い分け |
-| **Transformer系 (SwinIR)** | GAN系より忠実度が高い。処理はやや遅い |
-| **拡散系 (SUPIR)** | 最高品質だが遅い。テキストガイドで制御可能 |
-| **顔復元 (GFPGAN)** | 顔特化。背景は Real-ESRGAN と組み合わせ |
-| **タイル処理** | 大画像やVRAM不足時の必須テクニック |
-| **実用倍率** | 4倍が上限目安。2倍が最も安全 |
-| **色補正** | 超解像後のヒストグラムマッチングが有効 |
-| **動画超解像** | フレーム単位処理 + 時間的一貫性の確保が重要 |
-| **品質評価** | PSNR/SSIM/LPIPS を組み合わせて総合判断 |
+| **Classical Methods** | Lanczos is the best. 100% fidelity but no detail addition |
+| **GAN-Based (Real-ESRGAN)** | Fast and high quality. Use different models for photos/anime |
+| **Transformer-Based (SwinIR)** | Higher fidelity than GAN-based. Slightly slower processing |
+| **Diffusion-Based (SUPIR)** | Highest quality but slow. Controllable via text guidance |
+| **Face Restoration (GFPGAN)** | Face-specific. Combine with Real-ESRGAN for backgrounds |
+| **Tile Processing** | Essential technique for large images or limited VRAM |
+| **Practical Scale** | 4x is the upper limit guideline. 2x is the safest |
+| **Color Correction** | Histogram matching after super-resolution is effective |
+| **Video Super-Resolution** | Frame-by-frame processing + ensuring temporal consistency is key |
+| **Quality Evaluation** | Combine PSNR/SSIM/LPIPS for comprehensive assessment |
 
 ---
 
 
-## まとめ
+## Summary
 
-このガイドでは以下の重要なポイントを学びました:
+In this guide, you learned the following important points:
 
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
-
----
-
-## 次に読むべきガイド
-
-- [03-design-tools.md](./03-design-tools.md) — デザインツールに統合された超解像機能
-- [../02-video/00-video-generation.md](../02-video/00-video-generation.md) — 動画の超解像
-- [../03-3d/00-3d-generation.md](../03-3d/00-3d-generation.md) — 3Dテクスチャの高解像度化
+- Understanding of fundamental concepts and principles
+- Practical implementation patterns
+- Best practices and caveats
+- Real-world application methods
 
 ---
 
-## 参考文献
+## Recommended Next Reads
+
+- [03-design-tools.md](./03-design-tools.md) — Super-resolution features integrated into design tools
+- [../02-video/00-video-generation.md](../02-video/00-video-generation.md) — Video super-resolution
+- [../03-3d/00-3d-generation.md](../03-3d/00-3d-generation.md) — High-resolution 3D textures
+
+---
+
+## References
 
 1. Wang, X. et al. (2021). "Real-ESRGAN: Training Real-World Blind Super-Resolution with Pure Synthetic Data." *ICCV Workshop 2021*. https://arxiv.org/abs/2107.10833
 2. Liang, J. et al. (2021). "SwinIR: Image Restoration Using Swin Transformer." *ICCV Workshop 2021*. https://arxiv.org/abs/2108.10257
