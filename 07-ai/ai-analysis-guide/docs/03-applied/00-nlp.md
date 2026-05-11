@@ -1,56 +1,56 @@
-# NLP — テキスト分類、固有表現抽出、感情分析
+# NLP — Text Classification, Named Entity Recognition, Sentiment Analysis
 
-> 自然言語処理の主要タスクを実装し、テキストデータから価値ある情報を抽出する
+> Implement key natural language processing tasks and extract valuable information from text data
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. **テキスト前処理** — トークン化、ベクトル化、埋め込み表現の構築
-2. **テキスト分類と感情分析** — 古典手法からTransformerファインチューニングまで
-3. **固有表現抽出（NER）** — 系列ラベリングによる情報抽出
-4. **テキスト生成と要約** — 文章自動生成、抽出型・生成型要約の実装
-5. **実践的パイプライン構築** — 前処理からデプロイまでの一気通貫設計
+1. **Text Preprocessing** — Tokenization, vectorization, and building embedding representations
+2. **Text Classification and Sentiment Analysis** — From classical methods to Transformer fine-tuning
+3. **Named Entity Recognition (NER)** — Information extraction through sequence labeling
+4. **Text Generation and Summarization** — Automatic text generation, extractive and abstractive summarization
+5. **Building Practical Pipelines** — End-to-end design from preprocessing to deployment
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. テキスト前処理
+## 1. Text Preprocessing
 
-### NLPパイプライン
+### NLP Pipeline
 
 ```
-生テキスト → 前処理パイプライン → 特徴量 → モデル → 出力
+Raw Text -> Preprocessing Pipeline -> Features -> Model -> Output
 
-┌──────────────┐
-│ 生テキスト   │
-│ "東京は晴れ" │
-└──────┬───────┘
-       │
-       v
+┌──────────────────┐
+│ Raw Text         │
+│ "Tokyo is sunny" │
+└────────┬─────────┘
+         │
+         v
 ┌──────────────┐   ┌──────────────┐   ┌──────────────┐
-│ 正規化       │   │ トークン化   │   │ ベクトル化   │
-│ ・小文字化   │──>│ ・形態素解析 │──>│ ・BoW        │
-│ ・記号除去   │   │ ・BPE/WordPiece│ │ ・TF-IDF     │
-│ ・Unicode正規│   │ ・サブワード │   │ ・Word2Vec   │
-└──────────────┘   └──────────────┘   │ ・BERT埋め込み│
-                                       └──────────────┘
-                                              │
-                                              v
-                                       ┌──────────────┐
-                                       │ モデル       │
-                                       │ ・SVM        │
-                                       │ ・BERT       │
-                                       │ ・GPT        │
-                                       └──────────────┘
+│ Normalization│   │ Tokenization │   │ Vectorization│
+│ - Lowercasing│──>│ - Morphology │──>│ - BoW        │
+│ - Symbol rem.│   │ - BPE/WordPiece│ │ - TF-IDF     │
+│ - Unicode    │   │ - Subword    │   │ - Word2Vec   │
+│   norm.      │   │              │   │ - BERT embed.│
+└──────────────┘   └──────────────┘   └──────────────┘
+                                             │
+                                             v
+                                      ┌──────────────┐
+                                      │ Model        │
+                                      │ - SVM        │
+                                      │ - BERT       │
+                                      │ - GPT        │
+                                      └──────────────┘
 ```
 
-### コード例1: テキスト前処理パイプライン
+### Code Example 1: Text Preprocessing Pipeline
 
 ```python
 import re
@@ -60,14 +60,14 @@ from dataclasses import dataclass
 
 @dataclass
 class TokenInfo:
-    """トークンの詳細情報"""
-    surface: str      # 表層形
-    base: str = ""    # 原形
-    pos: str = ""     # 品詞
-    reading: str = "" # 読み
+    """Detailed token information"""
+    surface: str      # Surface form
+    base: str = ""    # Base form
+    pos: str = ""     # Part of speech
+    reading: str = "" # Reading
 
 class TextPreprocessor:
-    """日本語/英語対応の高度なテキスト前処理"""
+    """Advanced text preprocessing for Japanese/English"""
 
     def __init__(self, language: str = "ja"):
         self.language = language
@@ -95,39 +95,39 @@ class TextPreprocessor:
         }
 
     def normalize(self, text: str) -> str:
-        """Unicode正規化 + 基本的なクリーニング"""
-        # NFKC正規化（全角→半角、異体字統一）
+        """Unicode normalization + basic cleaning"""
+        # NFKC normalization (fullwidth -> halfwidth, variant unification)
         text = unicodedata.normalize("NFKC", text)
-        # URL/メール/ハッシュタグの置換
+        # Replace URLs/emails/hashtags
         text = re.sub(r"https?://\S+", "[URL]", text)
         text = re.sub(r"\S+@\S+", "[EMAIL]", text)
         text = re.sub(r"#(\w+)", r"[HASHTAG:\1]", text)
         text = re.sub(r"@(\w+)", r"[MENTION:\1]", text)
-        # 連続する空白の正規化
+        # Normalize consecutive whitespace
         text = re.sub(r"\s+", " ", text).strip()
-        # HTML タグの除去
+        # Remove HTML tags
         text = re.sub(r"<[^>]+>", "", text)
-        # 制御文字の除去
+        # Remove control characters
         text = "".join(c for c in text if unicodedata.category(c)[0] != "C" or c in "\n\t ")
         return text
 
     def normalize_neologd(self, text: str) -> str:
-        """NEologd 風の正規化（日本語向け）"""
+        """NEologd-style normalization (for Japanese)"""
         text = self.normalize(text)
-        # 長音記号の正規化
+        # Normalize prolonged sound marks
         text = re.sub(r"[〜～]", "ー", text)
-        # 繰り返し記号の削減
+        # Reduce repeated symbols
         text = re.sub(r"([!?！？]){2,}", r"\1", text)
         text = re.sub(r"(ー){2,}", "ー", text)
         text = re.sub(r"(っ){2,}", "っ", text)
         text = re.sub(r"(。){2,}", "。", text)
-        # 括弧の正規化
+        # Normalize brackets
         text = re.sub(r"[（\(]", "(", text)
         text = re.sub(r"[）\)]", ")", text)
         return text
 
     def tokenize_ja(self, text: str, with_pos: bool = False) -> List:
-        """日本語形態素解析（MeCab）"""
+        """Japanese morphological analysis (MeCab)"""
         import MeCab
         tagger = MeCab.Tagger()
         parsed = tagger.parse(text)
@@ -155,9 +155,9 @@ class TextPreprocessor:
         return tokens
 
     def tokenize_en(self, text: str) -> List[str]:
-        """英語トークン化"""
+        """English tokenization"""
         text = text.lower()
-        # 基本的なトークン化（句読点を分離）
+        # Basic tokenization (separate punctuation)
         text = re.sub(r"([.!?,;:'\"-])", r" \1 ", text)
         text = re.sub(r"\s+", " ", text).strip()
         return text.split()
@@ -176,14 +176,14 @@ class TextPreprocessor:
         return [t for t in tokens if t not in stopwords and len(t) > 1]
 
     def extract_keywords(self, text: str, top_k: int = 10) -> List[Dict]:
-        """TF-IDFベースのキーワード抽出"""
+        """TF-IDF-based keyword extraction"""
         from sklearn.feature_extraction.text import TfidfVectorizer
         import numpy as np
 
         tokens = self.tokenize(text)
         clean_tokens = self.remove_stopwords(tokens)
 
-        # 疑似TF-IDF（単文書の場合はTFのみ）
+        # Pseudo TF-IDF (TF only for single-document case)
         word_freq = {}
         for token in clean_tokens:
             word_freq[token] = word_freq.get(token, 0) + 1
@@ -196,32 +196,32 @@ class TextPreprocessor:
 
         return keywords
 
-# 使用例
+# Usage example
 preprocessor = TextPreprocessor(language="ja")
 text = "東京は今日も晴れです。  気温は２５度でした。https://example.com"
 normalized = preprocessor.normalize(text)
 tokens = preprocessor.tokenize(normalized)
 clean_tokens = preprocessor.remove_stopwords(tokens)
-print(f"正規化: {normalized}")
-print(f"トークン: {tokens}")
-print(f"前処理後: {clean_tokens}")
+print(f"Normalized: {normalized}")
+print(f"Tokens: {tokens}")
+print(f"After preprocessing: {clean_tokens}")
 ```
 
-### コード例2: サブワードトークナイザの比較
+### Code Example 2: Comparing Subword Tokenizers
 
 ```python
 from transformers import AutoTokenizer
 
 def compare_tokenizers(text: str):
-    """複数のトークナイザの挙動を比較する"""
+    """Compare the behavior of multiple tokenizers"""
     tokenizer_names = {
-        "BERT (日本語)": "cl-tohoku/bert-base-japanese-v3",
+        "BERT (Japanese)": "cl-tohoku/bert-base-japanese-v3",
         "GPT-2": "gpt2",
         "T5": "t5-small",
         "Llama2": "meta-llama/Llama-2-7b-hf",
     }
 
-    print(f"テキスト: '{text}'")
+    print(f"Text: '{text}'")
     print("-" * 60)
 
     for name, model_name in tokenizer_names.items():
@@ -232,12 +232,12 @@ def compare_tokenizers(text: str):
             decoded = tokenizer.decode(ids)
 
             print(f"\n{name}:")
-            print(f"  トークン数: {len(tokens)}")
-            print(f"  トークン: {tokens[:20]}{'...' if len(tokens) > 20 else ''}")
-            print(f"  ID: {ids[:10]}{'...' if len(ids) > 10 else ''}")
-            print(f"  復元: {decoded[:100]}")
+            print(f"  Token count: {len(tokens)}")
+            print(f"  Tokens: {tokens[:20]}{'...' if len(tokens) > 20 else ''}")
+            print(f"  IDs: {ids[:10]}{'...' if len(ids) > 10 else ''}")
+            print(f"  Decoded: {decoded[:100]}")
         except Exception as e:
-            print(f"\n{name}: スキップ ({e})")
+            print(f"\n{name}: Skipped ({e})")
 
 # compare_tokenizers("自然言語処理は人工知能の重要な研究分野です。")
 # compare_tokenizers("Natural language processing is important.")
@@ -245,25 +245,26 @@ def compare_tokenizers(text: str):
 
 ---
 
-## 2. テキスト分類
+## 2. Text Classification
 
-### 分類アプローチの進化
+### Evolution of Classification Approaches
 
 ```
-テキスト分類の発展:
+Evolution of text classification:
 
-  2010年以前         2013-2018          2018-現在
+  Before 2010         2013-2018          2018-Present
   ┌─────────┐     ┌───────────┐     ┌────────────┐
   │ BoW     │     │ Word2Vec  │     │ BERT       │
   │ TF-IDF  │ ──> │ + CNN/LSTM│ ──> │ GPT        │
   │ + SVM   │     │           │     │ Fine-tuning│
   │ + NB    │     │           │     │ Few-shot   │
   └─────────┘     └───────────┘     └────────────┘
-  手作り特徴量     分散表現+DL        事前学習+転移
-  精度: 中         精度: 高            精度: 最高
+  Handcrafted      Distributed       Pre-training
+  features         repr. + DL        + Transfer
+  Accuracy: Med    Accuracy: High    Accuracy: Best
 ```
 
-### コード例3: 古典的テキスト分類（本格版）
+### Code Example 3: Classical Text Classification (Full Version)
 
 ```python
 import pandas as pd
@@ -279,7 +280,7 @@ from sklearn.metrics import classification_report, confusion_matrix
 from sklearn.calibration import CalibratedClassifierCV
 
 class TextClassificationPipeline:
-    """テキスト分類の包括的パイプライン"""
+    """Comprehensive text classification pipeline"""
 
     def __init__(self, language: str = "ja"):
         self.language = language
@@ -287,14 +288,14 @@ class TextClassificationPipeline:
         self.pipeline = None
 
     def build_pipeline(self, model_type: str = "svm") -> Pipeline:
-        """分類パイプラインを構築する"""
+        """Build a classification pipeline"""
         tfidf = TfidfVectorizer(
             analyzer="char_wb" if self.language == "ja" else "word",
             ngram_range=(2, 4) if self.language == "ja" else (1, 2),
             max_features=50000,
-            sublinear_tf=True,     # TFのlog正規化
-            min_df=2,              # 最低2文書に出現
-            max_df=0.95,           # 95%以上の文書に出現する語は除外
+            sublinear_tf=True,     # Log normalization of TF
+            min_df=2,              # Must appear in at least 2 documents
+            max_df=0.95,           # Exclude terms appearing in >95% of documents
         )
 
         models = {
@@ -320,7 +321,7 @@ class TextClassificationPipeline:
         return self.pipeline
 
     def evaluate(self, texts, labels, cv=5):
-        """交差検証で評価する"""
+        """Evaluate using cross-validation"""
         skf = StratifiedKFold(n_splits=cv, shuffle=True, random_state=42)
         scores = cross_val_score(
             self.pipeline, texts, labels,
@@ -330,13 +331,13 @@ class TextClassificationPipeline:
         return scores
 
     def train_and_report(self, X_train, y_train, X_test, y_test):
-        """学習して詳細レポートを出力する"""
+        """Train and output a detailed report"""
         self.pipeline.fit(X_train, y_train)
         y_pred = self.pipeline.predict(X_test)
         print(classification_report(y_test, y_pred))
         return y_pred
 
-# 使用例
+# Usage example
 texts = [
     "この映画は素晴らしい演技で感動した",
     "ストーリーが退屈で眠くなった",
@@ -356,10 +357,10 @@ pipeline.pipeline.fit(texts, labels)
 test_texts = ["感動的な映画だった", "退屈な映画だった"]
 preds = pipeline.pipeline.predict(test_texts)
 for t, p in zip(test_texts, preds):
-    print(f"  '{t}' -> {'ポジティブ' if p == 1 else 'ネガティブ'}")
+    print(f"  '{t}' -> {'Positive' if p == 1 else 'Negative'}")
 ```
 
-### コード例4: BERTファインチューニング（完全版）
+### Code Example 4: BERT Fine-tuning (Complete Version)
 
 ```python
 from transformers import (
@@ -372,7 +373,7 @@ import numpy as np
 from sklearn.metrics import accuracy_score, f1_score, precision_score, recall_score
 
 class BERTClassifier:
-    """日本語BERTのファインチューニングパイプライン"""
+    """Japanese BERT fine-tuning pipeline"""
 
     def __init__(self, model_name: str = "cl-tohoku/bert-base-japanese-v3",
                  num_labels: int = 2, max_length: int = 128):
@@ -385,7 +386,7 @@ class BERTClassifier:
         )
 
     def prepare_dataset(self, texts, labels, test_size=0.2):
-        """データセットを準備する"""
+        """Prepare the dataset"""
         dataset = Dataset.from_dict({"text": texts, "label": labels})
         dataset = dataset.train_test_split(test_size=test_size, seed=42,
                                             stratify_by_column="label")
@@ -404,7 +405,7 @@ class BERTClassifier:
         return tokenized
 
     def compute_metrics(self, eval_pred):
-        """評価メトリクスを計算する"""
+        """Compute evaluation metrics"""
         logits, labels = eval_pred
         predictions = np.argmax(logits, axis=-1)
         return {
@@ -416,7 +417,7 @@ class BERTClassifier:
 
     def train(self, tokenized_dataset, output_dir="./results",
               epochs=5, batch_size=16, lr=2e-5):
-        """学習を実行する"""
+        """Run training"""
         training_args = TrainingArguments(
             output_dir=output_dir,
             num_train_epochs=epochs,
@@ -449,7 +450,7 @@ class BERTClassifier:
         return trainer
 
     def predict(self, texts: list) -> list:
-        """テキストを分類する"""
+        """Classify texts"""
         self.model.eval()
         inputs = self.tokenizer(
             texts, padding=True, truncation=True,
@@ -464,21 +465,21 @@ class BERTClassifier:
 
         return predictions.cpu().tolist()
 
-# 使用例
+# Usage example
 # classifier = BERTClassifier(num_labels=2)
 # dataset = classifier.prepare_dataset(texts, labels)
 # trainer = classifier.train(dataset)
 # predictions = classifier.predict(["素晴らしい映画だった"])
 ```
 
-### コード例5: LLM によるゼロショット/フューショット分類
+### Code Example 5: Zero-shot / Few-shot Classification with LLMs
 
 ```python
 from transformers import pipeline
 import json
 
 class LLMClassifier:
-    """LLMを使ったゼロショット/フューショット分類"""
+    """Zero-shot / few-shot classification using LLMs"""
 
     def __init__(self, model_name: str = "facebook/bart-large-mnli"):
         self.zero_shot = pipeline(
@@ -488,7 +489,7 @@ class LLMClassifier:
 
     def classify_zero_shot(self, text: str, labels: list,
                             multi_label: bool = False) -> dict:
-        """ゼロショット分類"""
+        """Zero-shot classification"""
         result = self.zero_shot(
             text, labels,
             multi_label=multi_label
@@ -504,7 +505,7 @@ class LLMClassifier:
         }
 
     def classify_batch(self, texts: list, labels: list) -> list:
-        """バッチゼロショット分類"""
+        """Batch zero-shot classification"""
         results = self.zero_shot(texts, labels)
         if not isinstance(results, list):
             results = [results]
@@ -520,65 +521,65 @@ class LLMClassifier:
     @staticmethod
     def few_shot_prompt(text: str, examples: list,
                          labels: list) -> str:
-        """フューショット学習用のプロンプトを構築する"""
-        prompt = "以下のテキストを分類してください。\n\n"
-        prompt += f"カテゴリ: {', '.join(labels)}\n\n"
-        prompt += "例:\n"
+        """Build a prompt for few-shot learning"""
+        prompt = "Please classify the following text.\n\n"
+        prompt += f"Categories: {', '.join(labels)}\n\n"
+        prompt += "Examples:\n"
         for ex in examples:
-            prompt += f"テキスト: {ex['text']}\n"
-            prompt += f"カテゴリ: {ex['label']}\n\n"
-        prompt += f"テキスト: {text}\n"
-        prompt += "カテゴリ: "
+            prompt += f"Text: {ex['text']}\n"
+            prompt += f"Category: {ex['label']}\n\n"
+        prompt += f"Text: {text}\n"
+        prompt += "Category: "
         return prompt
 
-# 使用例
+# Usage example
 # classifier = LLMClassifier()
 # result = classifier.classify_zero_shot(
 #     "この商品は品質が良く、価格も手頃です",
-#     ["ポジティブ", "ネガティブ", "ニュートラル"]
+#     ["Positive", "Negative", "Neutral"]
 # )
-# print(f"分類結果: {result['top_label']} ({result['top_score']})")
+# print(f"Classification result: {result['top_label']} ({result['top_score']})")
 ```
 
 ---
 
-## 3. 固有表現抽出（NER）
+## 3. Named Entity Recognition (NER)
 
-### NERのタグ体系
+### NER Tag Schemes
 
 ```
-BIO タグ体系:
+BIO Tag Scheme:
 
-  テキスト: "田中太郎は東京大学の教授です"
+  Text: "Taro Tanaka is a professor at the University of Tokyo"
 
-  トークン:  田中  太郎  は  東京  大学  の  教授  です
-  タグ:      B-PER I-PER O  B-ORG I-ORG O  B-TTL O
+  Tokens:  Taro  Tanaka  is  a  professor  at  the  University  of  Tokyo
+  Tags:    B-PER I-PER   O   O  B-TTL      O   O    B-ORG       I-ORG I-ORG
 
-  B = Begin（エンティティの開始）
-  I = Inside（エンティティの内部）
-  O = Outside（エンティティ外）
+  B = Begin (start of an entity)
+  I = Inside (inside an entity)
+  O = Outside (not an entity)
 
-  エンティティ種別:
+  Entity Types:
   ┌──────────────────────────────────────────┐
-  │ PER (Person)        : 人名               │
-  │ ORG (Organization)  : 組織名             │
-  │ LOC (Location)      : 地名               │
-  │ DATE                : 日付               │
-  │ MONEY               : 金額               │
-  │ TTL (Title)         : 肩書               │
-  │ PRODUCT             : 製品名             │
-  │ EVENT               : イベント名         │
-  │ PERCENT             : パーセンテージ     │
-  │ QUANTITY            : 数量               │
+  │ PER (Person)        : Person name        │
+  │ ORG (Organization)  : Organization name  │
+  │ LOC (Location)      : Place name         │
+  │ DATE                : Date               │
+  │ MONEY               : Monetary amount    │
+  │ TTL (Title)         : Title/Position     │
+  │ PRODUCT             : Product name       │
+  │ EVENT               : Event name         │
+  │ PERCENT             : Percentage         │
+  │ QUANTITY            : Quantity            │
   └──────────────────────────────────────────┘
 
-  BIOES (拡張):
+  BIOES (Extended):
   B = Begin, I = Inside, O = Outside
-  E = End（エンティティの終端）
-  S = Single（1トークンのエンティティ）
+  E = End (end of an entity)
+  S = Single (single-token entity)
 ```
 
-### コード例6: spaCy + Transformers による NER
+### Code Example 6: NER with spaCy + Transformers
 
 ```python
 import spacy
@@ -595,7 +596,7 @@ class Entity:
     score: float = 1.0
 
 class NERPipeline:
-    """複数バックエンドに対応するNERパイプライン"""
+    """NER pipeline supporting multiple backends"""
 
     def __init__(self, backend: str = "spacy", model_name: str = None):
         self.backend = backend
@@ -611,7 +612,7 @@ class NERPipeline:
             )
 
     def extract(self, text: str) -> List[Entity]:
-        """固有表現を抽出する"""
+        """Extract named entities"""
         if self.backend == "spacy":
             return self._extract_spacy(text)
         else:
@@ -643,13 +644,13 @@ class NERPipeline:
         ]
 
     def extract_batch(self, texts: List[str]) -> List[List[Entity]]:
-        """バッチでNERを実行する"""
+        """Run NER in batch"""
         return [self.extract(text) for text in texts]
 
     def format_output(self, text: str, entities: List[Entity]) -> str:
-        """エンティティをハイライトした文字列を生成する"""
+        """Generate a string with entities highlighted"""
         result = text
-        # 末尾からの置換で位置がずれないようにする
+        # Replace from the end to avoid position shifts
         for ent in sorted(entities, key=lambda e: e.start, reverse=True):
             result = (
                 result[:ent.start]
@@ -658,16 +659,16 @@ class NERPipeline:
             )
         return result
 
-# 使用例
+# Usage example
 ner = NERPipeline(backend="transformers", model_name="dslim/bert-base-NER")
 text = "Apple CEO Tim Cook announced new products in San Francisco."
 entities = ner.extract(text)
 for ent in entities:
-    print(f"  [{ent.label}] {ent.text} (信頼度: {ent.score})")
-print(f"\n  注釈付き: {ner.format_output(text, entities)}")
+    print(f"  [{ent.label}] {ent.text} (confidence: {ent.score})")
+print(f"\n  Annotated: {ner.format_output(text, entities)}")
 ```
 
-### コード例7: カスタム NER モデルの学習
+### Code Example 7: Training a Custom NER Model
 
 ```python
 from transformers import (
@@ -678,7 +679,7 @@ from datasets import Dataset
 import numpy as np
 
 class CustomNERTrainer:
-    """カスタムNERモデルの学習パイプライン"""
+    """Training pipeline for custom NER models"""
 
     def __init__(self, model_name: str = "cl-tohoku/bert-base-japanese-v3",
                  label_list: list = None):
@@ -699,7 +700,7 @@ class CustomNERTrainer:
         )
 
     def tokenize_and_align(self, examples):
-        """トークン化してラベルをアラインメントする"""
+        """Tokenize and align labels"""
         tokenized = self.tokenizer(
             examples["tokens"],
             truncation=True,
@@ -715,11 +716,11 @@ class CustomNERTrainer:
 
             for word_idx in word_ids:
                 if word_idx is None:
-                    label_ids.append(-100)  # 特殊トークンは無視
+                    label_ids.append(-100)  # Ignore special tokens
                 elif word_idx != previous_word_idx:
                     label_ids.append(label[word_idx])
                 else:
-                    # サブワードの2番目以降: B- を I- に変換
+                    # For 2nd+ subwords: convert B- to I-
                     lbl = label[word_idx]
                     if self.label_list[lbl].startswith("B-"):
                         lbl = self.label2id[
@@ -734,11 +735,11 @@ class CustomNERTrainer:
         return tokenized
 
     def compute_metrics(self, eval_pred):
-        """NER用のメトリクスを計算する"""
+        """Compute NER metrics"""
         predictions, labels = eval_pred
         predictions = np.argmax(predictions, axis=2)
 
-        # -100を除外して評価
+        # Evaluate excluding -100
         true_labels = []
         true_predictions = []
         for pred, label in zip(predictions, labels):
@@ -747,13 +748,13 @@ class CustomNERTrainer:
                     true_labels.append(self.label_list[l])
                     true_predictions.append(self.label_list[p])
 
-        # エンティティレベルのF1
+        # Entity-level F1
         from seqeval.metrics import f1_score, classification_report
         f1 = f1_score([true_labels], [true_predictions])
         return {"f1": f1}
 
     def train(self, train_dataset, eval_dataset, output_dir="./ner_model"):
-        """NERモデルを学習する"""
+        """Train the NER model"""
         data_collator = DataCollatorForTokenClassification(
             self.tokenizer, pad_to_multiple_of=8
         )
@@ -787,9 +788,9 @@ class CustomNERTrainer:
 
 ---
 
-## 4. 感情分析
+## 4. Sentiment Analysis
 
-### コード例8: 多機能感情分析パイプライン
+### Code Example 8: Multi-functional Sentiment Analysis Pipeline
 
 ```python
 from transformers import pipeline
@@ -798,7 +799,7 @@ from typing import Dict, List
 import numpy as np
 
 class SentimentAnalyzer:
-    """マルチ言語・マルチアスペクト感情分析"""
+    """Multi-language, multi-aspect sentiment analysis"""
 
     def __init__(self, model_name: str = None):
         if model_name is None:
@@ -807,7 +808,7 @@ class SentimentAnalyzer:
                               device=-1)
 
     def analyze(self, texts: list) -> pd.DataFrame:
-        """テキストリストの感情分析"""
+        """Sentiment analysis on a list of texts"""
         results = self.pipe(texts, truncation=True, max_length=512)
 
         df = pd.DataFrame({
@@ -818,10 +819,10 @@ class SentimentAnalyzer:
         return df
 
     def analyze_aspects(self, text: str, aspects: list) -> dict:
-        """アスペクトベースの感情分析"""
+        """Aspect-based sentiment analysis"""
         results = {}
         for aspect in aspects:
-            prompt = f"{aspect}について: {text}"
+            prompt = f"Regarding {aspect}: {text}"
             result = self.pipe(prompt, truncation=True)[0]
             results[aspect] = {
                 "label": result["label"],
@@ -831,9 +832,9 @@ class SentimentAnalyzer:
 
     def analyze_with_context(self, text: str,
                                context: str = None) -> Dict:
-        """コンテキスト付き感情分析"""
+        """Sentiment analysis with context"""
         if context:
-            input_text = f"[コンテキスト: {context}] {text}"
+            input_text = f"[Context: {context}] {text}"
         else:
             input_text = text
 
@@ -847,7 +848,7 @@ class SentimentAnalyzer:
 
     def analyze_trends(self, texts: list,
                         timestamps: list = None) -> pd.DataFrame:
-        """時系列での感情トレンド分析"""
+        """Time-series sentiment trend analysis"""
         results = self.pipe(texts, truncation=True)
 
         df = pd.DataFrame({
@@ -860,12 +861,12 @@ class SentimentAnalyzer:
             df["timestamp"] = timestamps
             df = df.sort_values("timestamp")
 
-        # 感情スコアの移動平均
+        # Moving average of sentiment scores
         df["score_ma"] = df["score"].rolling(window=5, min_periods=1).mean()
 
         return df
 
-# 使用例
+# Usage example
 analyzer = SentimentAnalyzer()
 
 reviews = [
@@ -879,18 +880,18 @@ reviews = [
 df = analyzer.analyze(reviews)
 print(df.to_string(index=False))
 
-# アスペクトベース
+# Aspect-based
 # result = analyzer.analyze_aspects(
-#     "料理は美味しかったが、サービスが遅かった",
-#     aspects=["料理", "サービス", "雰囲気"]
+#     "The food was delicious but the service was slow",
+#     aspects=["food", "service", "atmosphere"]
 # )
 ```
 
 ---
 
-## 5. テキスト埋め込みと類似度検索
+## 5. Text Embeddings and Similarity Search
 
-### コード例9: 高性能セマンティック検索
+### Code Example 9: High-performance Semantic Search
 
 ```python
 from sentence_transformers import SentenceTransformer
@@ -899,7 +900,7 @@ from typing import List, Dict, Optional
 import json
 
 class SemanticSearch:
-    """文埋め込みによる高度なセマンティック検索"""
+    """Advanced semantic search using sentence embeddings"""
 
     def __init__(self, model_name: str = "all-MiniLM-L6-v2"):
         self.model = SentenceTransformer(model_name)
@@ -908,7 +909,7 @@ class SemanticSearch:
         self.embeddings = None
 
     def index(self, documents: list, metadata: list = None) -> None:
-        """ドキュメントをインデックス化"""
+        """Index documents"""
         self.documents = documents
         self.metadata = metadata or [{}] * len(documents)
         self.embeddings = self.model.encode(
@@ -918,7 +919,7 @@ class SemanticSearch:
 
     def search(self, query: str, top_k: int = 5,
                threshold: float = 0.0) -> list:
-        """クエリに最も類似するドキュメントを検索"""
+        """Search for the most similar documents to a query"""
         query_emb = self.model.encode(
             [query], normalize_embeddings=True
         )
@@ -938,7 +939,7 @@ class SemanticSearch:
         return results
 
     def find_similar_pairs(self, threshold: float = 0.8) -> list:
-        """類似度が高い文書ペアを検出する"""
+        """Detect document pairs with high similarity"""
         sim_matrix = np.dot(self.embeddings, self.embeddings.T)
         pairs = []
         n = len(self.documents)
@@ -955,7 +956,7 @@ class SemanticSearch:
         return sorted(pairs, key=lambda x: x["similarity"], reverse=True)
 
     def cluster_documents(self, n_clusters: int = 5) -> dict:
-        """ドキュメントをクラスタリングする"""
+        """Cluster documents"""
         from sklearn.cluster import KMeans
 
         kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
@@ -972,7 +973,7 @@ class SemanticSearch:
 
         return clusters
 
-# 使用例
+# Usage example
 search = SemanticSearch()
 docs = [
     "Python is a programming language.",
@@ -990,21 +991,21 @@ results = search.search("AI and data science", top_k=3)
 for r in results:
     print(f"  [{r['similarity']:.3f}] {r['document']}")
 
-# 類似ペア検出
-print("\n類似文書ペア:")
+# Detect similar pairs
+print("\nSimilar document pairs:")
 pairs = search.find_similar_pairs(threshold=0.5)
 for p in pairs[:5]:
     print(f"  [{p['similarity']:.3f}] '{p['doc1']}' <-> '{p['doc2']}'")
 ```
 
-### コード例10: RAG (Retrieval-Augmented Generation) パイプライン
+### Code Example 10: RAG (Retrieval-Augmented Generation) Pipeline
 
 ```python
 from sentence_transformers import SentenceTransformer
 import numpy as np
 
 class SimpleRAG:
-    """シンプルなRAGパイプライン"""
+    """Simple RAG pipeline"""
 
     def __init__(self, embedding_model: str = "all-MiniLM-L6-v2"):
         self.encoder = SentenceTransformer(embedding_model)
@@ -1012,14 +1013,14 @@ class SimpleRAG:
         self.embeddings = None
 
     def add_documents(self, documents: list):
-        """ドキュメントを追加する"""
+        """Add documents"""
         self.documents.extend(documents)
         self.embeddings = self.encoder.encode(
             self.documents, normalize_embeddings=True
         )
 
     def retrieve(self, query: str, top_k: int = 3) -> list:
-        """関連ドキュメントを検索する"""
+        """Retrieve relevant documents"""
         query_emb = self.encoder.encode(
             [query], normalize_embeddings=True
         )
@@ -1035,104 +1036,104 @@ class SimpleRAG:
         ]
 
     def build_prompt(self, query: str, contexts: list) -> str:
-        """コンテキスト付きプロンプトを構築する"""
+        """Build a prompt with context"""
         context_text = "\n\n".join(
-            f"[文書{i+1}] {ctx['text']}"
+            f"[Document {i+1}] {ctx['text']}"
             for i, ctx in enumerate(contexts)
         )
 
-        prompt = f"""以下の参考文書に基づいて質問に回答してください。
-参考文書に情報がない場合は「情報がありません」と回答してください。
+        prompt = f"""Please answer the question based on the following reference documents.
+If the information is not found in the reference documents, respond with "No information available."
 
-## 参考文書
+## Reference Documents
 {context_text}
 
-## 質問
+## Question
 {query}
 
-## 回答
+## Answer
 """
         return prompt
 
     def query(self, question: str, top_k: int = 3) -> dict:
-        """質問に対して検索→回答生成を行う"""
-        # 1. 検索
+        """Perform retrieval -> answer generation for a question"""
+        # 1. Retrieve
         contexts = self.retrieve(question, top_k=top_k)
 
-        # 2. プロンプト構築
+        # 2. Build prompt
         prompt = self.build_prompt(question, contexts)
 
-        # 3. LLMで生成（ここではプロンプトを返す）
+        # 3. Generate with LLM (returns prompt here)
         return {
             "question": question,
             "contexts": contexts,
             "prompt": prompt,
-            # "answer": llm.generate(prompt)  # LLM呼び出し
+            # "answer": llm.generate(prompt)  # LLM call
         }
 
-# 使用例
+# Usage example
 # rag = SimpleRAG()
 # rag.add_documents([
-#     "Pythonは1991年にGuido van Rossumによって作られた。",
-#     "Pythonはインタプリタ型の高水準プログラミング言語。",
-#     "Pythonはデータサイエンスや機械学習で広く使われている。",
+#     "Python was created by Guido van Rossum in 1991.",
+#     "Python is an interpreted high-level programming language.",
+#     "Python is widely used in data science and machine learning.",
 # ])
-# result = rag.query("Pythonは誰が作った？")
+# result = rag.query("Who created Python?")
 # print(result["prompt"])
 ```
 
 ---
 
-## 比較表
+## Comparison Tables
 
-### テキスト分類手法の比較
+### Text Classification Methods Comparison
 
-| 手法 | 精度 | 速度 | データ量要件 | 解釈性 | 多言語 | コスト |
+| Method | Accuracy | Speed | Data Requirement | Interpretability | Multilingual | Cost |
 |---|---|---|---|---|---|---|
-| BoW + NaiveBayes | 中 | 極速 | 少量OK | 高い | 要対応 | 無料 |
-| TF-IDF + SVM | 中〜高 | 速い | 中量 | 中程度 | 要対応 | 無料 |
-| Word2Vec + LSTM | 高い | 中程度 | 中量 | 低い | 要対応 | GPU推奨 |
-| BERT Fine-tuning | 最高 | 遅い | 少量OK | 低い | モデル依存 | GPU必要 |
-| GPT Few-shot | 高い | 遅い | 極少量 | 低い | 高い | API課金 |
-| GPT Zero-shot | 中〜高 | 遅い | 不要 | 低い | 高い | API課金 |
+| BoW + NaiveBayes | Medium | Very Fast | Small OK | High | Needs adaptation | Free |
+| TF-IDF + SVM | Medium-High | Fast | Medium | Moderate | Needs adaptation | Free |
+| Word2Vec + LSTM | High | Moderate | Medium | Low | Needs adaptation | GPU recommended |
+| BERT Fine-tuning | Best | Slow | Small OK | Low | Model-dependent | GPU required |
+| GPT Few-shot | High | Slow | Very Small | Low | High | API billing |
+| GPT Zero-shot | Medium-High | Slow | None | Low | High | API billing |
 
-### 日本語NLPライブラリの比較
+### Japanese NLP Libraries Comparison
 
-| ライブラリ | 形態素解析 | NER | 分類 | 速度 | 精度 | 用途 |
+| Library | Morphological Analysis | NER | Classification | Speed | Accuracy | Use Case |
 |---|---|---|---|---|---|---|
-| MeCab | ○ | x | x | 極速 | 高い | 前処理 |
-| Janome | ○ | x | x | 速い | 中程度 | 軽量環境 |
-| spaCy (ja) | ○ | ○ | ○ | 速い | 高い | パイプライン |
-| GiNZA | ○ | ○ | △ | 中程度 | 高い | 詳細分析 |
-| SudachiPy | ○ | x | x | 速い | 高い | 正規化に強い |
-| Transformers (BERT) | △ | ○ | ○ | 遅い | 最高 | 高精度タスク |
+| MeCab | O | x | x | Very Fast | High | Preprocessing |
+| Janome | O | x | x | Fast | Moderate | Lightweight environments |
+| spaCy (ja) | O | O | O | Fast | High | Pipelines |
+| GiNZA | O | O | △ | Moderate | High | Detailed analysis |
+| SudachiPy | O | x | x | Fast | High | Strong in normalization |
+| Transformers (BERT) | △ | O | O | Slow | Best | High-accuracy tasks |
 
-### 埋め込みモデルの比較
+### Embedding Models Comparison
 
-| モデル | 次元数 | 速度 | 品質 | 多言語 | サイズ |
+| Model | Dimensions | Speed | Quality | Multilingual | Size |
 |---|---|---|---|---|---|
-| all-MiniLM-L6-v2 | 384 | 高速 | 高い | 英語中心 | 80MB |
-| multilingual-e5-large | 1024 | 中程度 | 最高 | ○ | 2.2GB |
-| paraphrase-multilingual | 768 | 中程度 | 高い | ○ | 1.1GB |
-| text-embedding-ada-002 | 1536 | API依存 | 最高 | ○ | API |
-| text-embedding-3-small | 1536 | API依存 | 高い | ○ | API |
+| all-MiniLM-L6-v2 | 384 | Fast | High | English-centric | 80MB |
+| multilingual-e5-large | 1024 | Moderate | Best | O | 2.2GB |
+| paraphrase-multilingual | 768 | Moderate | High | O | 1.1GB |
+| text-embedding-ada-002 | 1536 | API-dependent | Best | O | API |
+| text-embedding-3-small | 1536 | API-dependent | High | O | API |
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### アンチパターン1: テキスト長を考慮しないトークン化
+### Anti-pattern 1: Tokenization Without Considering Text Length
 
 ```python
-# BAD: BERTの512トークン制限を無視
-inputs = tokenizer(long_text, return_tensors="pt")  # 切り詰められる!
+# BAD: Ignoring BERT's 512-token limit
+inputs = tokenizer(long_text, return_tensors="pt")  # Gets truncated!
 
-# GOOD: 長文対応戦略
+# GOOD: Long text handling strategy
 def handle_long_text(text, tokenizer, model, max_length=512, stride=128):
-    """オーバーラップチャンク分割で長文を処理"""
+    """Process long text with overlapping chunk splitting"""
     inputs = tokenizer(
         text, max_length=max_length, truncation=True,
-        stride=stride, return_overflowing_tokens=True,
+        stride=stride, return_overflapping_tokens=True,
         return_tensors="pt", padding=True
     )
 
@@ -1146,19 +1147,19 @@ def handle_long_text(text, tokenizer, model, max_length=512, stride=128):
             outputs = model(**chunk_inputs)
             all_logits.append(outputs.logits)
 
-    # チャンクの結果を統合（平均）
+    # Aggregate chunk results (average)
     avg_logits = torch.stack(all_logits).mean(dim=0)
     return avg_logits
 ```
 
-### アンチパターン2: 前処理の不統一
+### Anti-pattern 2: Inconsistent Preprocessing
 
 ```python
-# BAD: 学習時と推論時で前処理が異なる
-# 学習時: 小文字化 + 記号除去
-# 推論時: そのまま入力 → 性能低下
+# BAD: Different preprocessing at training vs. inference time
+# Training: lowercasing + symbol removal
+# Inference: raw input -> performance degradation
 
-# GOOD: 前処理をパイプラインに組み込む
+# GOOD: Embed preprocessing in the pipeline
 from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 
@@ -1170,23 +1171,23 @@ pipeline = Pipeline([
     )),
     ("classifier", LogisticRegression()),
 ])
-# 学習時も推論時も同じ前処理が自動適用
+# Same preprocessing is automatically applied at both training and inference time
 ```
 
-### アンチパターン3: 日本語のBPEトークン化の落とし穴
+### Anti-pattern 3: Pitfalls of BPE Tokenization for Japanese
 
 ```python
-# BAD: 英語用BPEトークナイザを日本語に適用
+# BAD: Applying an English BPE tokenizer to Japanese
 tokenizer = AutoTokenizer.from_pretrained("gpt2")
 tokens = tokenizer.tokenize("東京は日本の首都です")
-# → 1文字ずつバイト分割され、大量のトークンを消費
+# -> Split into individual bytes, consuming many tokens
 
-# GOOD: 日本語対応モデルを使う
+# GOOD: Use a Japanese-compatible model
 tokenizer = AutoTokenizer.from_pretrained("cl-tohoku/bert-base-japanese-v3")
 tokens = tokenizer.tokenize("東京は日本の首都です")
-# → 形態素に近い単位でトークン化される
+# -> Tokenized into units close to morphemes
 
-# 多言語の場合: 多言語対応モデルを使用
+# For multilingual: Use a multilingual model
 tokenizer = AutoTokenizer.from_pretrained(
     "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 )
@@ -1195,45 +1196,45 @@ tokenizer = AutoTokenizer.from_pretrained(
 
 ---
 
-## 実践演習
+## Hands-on Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1242,26 +1243,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Should have raised an exception"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1269,7 +1270,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1280,14 +1281,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Remove by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1295,7 +1296,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1303,44 +1304,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1349,7 +1350,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1364,90 +1365,90 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm computational complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 ---
 
 ## FAQ
 
-### Q1: BERTファインチューニングに必要なデータ量は？
+### Q1: How much data is needed for BERT fine-tuning?
 
-**A:** タスクによるが、1クラスあたり100〜500サンプルで有効。特にBERTは事前学習の知識があるため少量データでも高性能。10サンプル程度ならFew-shot学習（GPT系）の方が適する。1000サンプル以上あればBERTファインチューニングが安定する。
+**A:** It depends on the task, but 100-500 samples per class is generally effective. BERT has pre-trained knowledge, so it performs well even with small datasets. For around 10 samples, few-shot learning (GPT-based) is more suitable. With 1000+ samples, BERT fine-tuning becomes stable.
 
-**データ量の目安:**
+**Data Volume Guidelines:**
 
-| データ量 | 推奨アプローチ | 期待精度 |
+| Data Volume | Recommended Approach | Expected Accuracy |
 |----------|-------------|---------|
-| 0件 | GPT Zero-shot | 中〜高 |
-| 5-20件 | GPT Few-shot | 高い |
-| 100-500件 | BERT Fine-tuning | 高い |
-| 1000件以上 | BERT Fine-tuning | 最高 |
-| 10000件以上 | 古典ML or BERT | 最高 |
+| 0 samples | GPT Zero-shot | Medium-High |
+| 5-20 samples | GPT Few-shot | High |
+| 100-500 samples | BERT Fine-tuning | High |
+| 1000+ samples | BERT Fine-tuning | Best |
+| 10000+ samples | Classical ML or BERT | Best |
 
-### Q2: 日本語NLPの特有の課題は？
+### Q2: What are the unique challenges of Japanese NLP?
 
-**A:** (1) 単語の区切りがない（形態素解析が必要）、(2) 漢字・ひらがな・カタカナの混在、(3) 敬語による表現の多様性、(4) 学習データが英語に比べて少ない。BERTモデルは「cl-tohoku/bert-base-japanese-v3」、「nlp-waseda/roberta-base-japanese」等の日本語特化モデルを使用する。
+**A:** (1) No word boundaries (morphological analysis is required), (2) Mixed kanji, hiragana, and katakana characters, (3) Diversity of expressions due to honorific language, (4) Less training data compared to English. For BERT models, use Japanese-specific models such as "cl-tohoku/bert-base-japanese-v3" and "nlp-waseda/roberta-base-japanese".
 
-### Q3: 感情分析の精度を上げるには？
+### Q3: How can sentiment analysis accuracy be improved?
 
-**A:** (1) ドメイン固有のラベル付きデータで追加学習、(2) アスペクトベース分析で側面ごとに評価、(3) 否定表現（「良くない」）やスラングへの対応、(4) 文脈を考慮（皮肉、比喩の検出）。LLMをアノテーターとして使い、高品質なラベルデータを効率的に作成する手法も有効。
+**A:** (1) Additional training with domain-specific labeled data, (2) Aspect-based analysis to evaluate each facet, (3) Handling negation expressions (e.g., "not good") and slang, (4) Considering context (detecting sarcasm and metaphors). Using LLMs as annotators to efficiently create high-quality labeled data is also effective.
 
-### Q4: RAG と Fine-tuning のどちらを使うべきですか？
+### Q4: Should I use RAG or Fine-tuning?
 
-**A:** 用途によります。
+**A:** It depends on the use case.
 
-| 観点 | RAG | Fine-tuning |
+| Aspect | RAG | Fine-tuning |
 |------|-----|-------------|
-| データの鮮度 | リアルタイム更新可能 | 再学習が必要 |
-| ハルシネーション | 根拠を提示可能 | 抑制しにくい |
-| コスト | 検索インフラが必要 | 学習GPU が必要 |
-| カスタマイズ | 外部知識の追加が容易 | モデルの挙動を変更 |
-| 推奨場面 | FAQ、ドキュメント検索 | スタイル変更、専門タスク |
+| Data freshness | Real-time updates possible | Retraining required |
+| Hallucination | Can provide evidence | Difficult to suppress |
+| Cost | Search infrastructure needed | Training GPU needed |
+| Customization | Easy to add external knowledge | Modifies model behavior |
+| Recommended for | FAQ, document search | Style changes, specialized tasks |
 
-両者を組み合わせることも有効です（Fine-tuned モデル + RAG）。
+Combining both approaches is also effective (Fine-tuned model + RAG).
 
-### Q5: テキスト分類で不均衡データにどう対処しますか？
+### Q5: How do you handle imbalanced data in text classification?
 
-**A:** 以下の戦略を組み合わせます。
+**A:** Combine the following strategies.
 
-1. **データレベル**: オーバーサンプリング（SMOTE）、アンダーサンプリング
-2. **損失関数**: Focal Loss、Class-weighted Cross Entropy
-3. **評価指標**: Accuracy ではなく F1-score, AUPRC を使用
-4. **データ拡張**: 同義語置換、バック翻訳、LLMによるパラフレーズ生成
+1. **Data level**: Oversampling (SMOTE), undersampling
+2. **Loss function**: Focal Loss, Class-weighted Cross Entropy
+3. **Evaluation metrics**: Use F1-score and AUPRC instead of Accuracy
+4. **Data augmentation**: Synonym replacement, back-translation, LLM-based paraphrase generation
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
+| Topic | Key Points |
 |---|---|
-| 前処理 | 正規化→トークン化→ベクトル化。一貫したパイプラインで管理 |
-| テキスト分類 | ベースライン: TF-IDF+SVM。高精度: BERT Fine-tuning |
-| NER | BIOタグで系列ラベリング。spaCy or Transformers |
-| 感情分析 | 事前学習済みモデルで即座に利用可能。ドメイン適応で精度向上 |
-| 埋め込み | SentenceTransformersで文ベクトル化。類似度検索に活用 |
-| RAG | 検索+生成で知識ベースのQAを構築 |
-| Zero/Few-shot | ラベルデータなしでGPT/BARTで分類可能 |
+| Preprocessing | Normalization -> Tokenization -> Vectorization. Manage with a consistent pipeline |
+| Text Classification | Baseline: TF-IDF+SVM. High accuracy: BERT Fine-tuning |
+| NER | Sequence labeling with BIO tags. spaCy or Transformers |
+| Sentiment Analysis | Immediately usable with pre-trained models. Improve accuracy with domain adaptation |
+| Embeddings | Vectorize sentences with SentenceTransformers. Use for similarity search |
+| RAG | Build knowledge-based QA with retrieval + generation |
+| Zero/Few-shot | Classify with GPT/BART without labeled data |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Guides
 
-- [01-computer-vision.md](./01-computer-vision.md) — コンピュータビジョンの応用
-- [02-mlops.md](./02-mlops.md) — NLPモデルのデプロイと運用
+- [01-computer-vision.md](./01-computer-vision.md) — Computer Vision Applications
+- [02-mlops.md](./02-mlops.md) — Deploying and Operating NLP Models
 
 ---
 
-## 参考文献
+## References
 
 1. **Jacob Devlin et al.** "BERT: Pre-training of Deep Bidirectional Transformers" NAACL 2019
 2. **Hugging Face** "Transformers Documentation" — https://huggingface.co/docs/transformers/
