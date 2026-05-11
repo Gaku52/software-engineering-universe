@@ -1,103 +1,109 @@
-# AIコーディングのベストプラクティス ── レビュー、検証、品質保証
+# AI Coding Best Practices -- Review, Verification, and Quality Assurance
 
-> AIが生成したコードの品質を保証するための体系的なレビュー手法と検証プロセスを学び、AI支援コーディングにおける信頼性と保守性を確保する。
-
----
-
-## この章で学ぶこと
-
-1. **AIコード品質の評価フレームワーク** ── AI出力を体系的にレビューする基準と手順を確立する
-2. **検証プロセスの設計** ── AI生成コードを安全にプロダクションに投入するためのゲートを構築する
-3. **継続的な品質改善** ── AI活用の品質を組織的に底上げするフィードバックループを構築する
-4. **言語別ベストプラクティス** ── Python、TypeScript、Goなど言語ごとのAIコード品質パターンを習得する
-5. **プロンプト設計と品質の関係** ── 高品質コードを生成するためのプロンプトエンジニアリングを理解する
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Cursor / Windsurf ── AI IDE、コンテキスト管理](./02-cursor-and-windsurf.md) の内容を理解していること
+> Learn systematic review methods and verification processes to ensure the quality of AI-generated code, and secure reliability and maintainability in AI-assisted coding.
 
 ---
 
-## 1. AI生成コードの品質評価
+## What You Will Learn in This Chapter
 
-### 1.1 レビューの5層モデル
+1. **AI Code Quality Evaluation Framework** -- Establish criteria and procedures for systematically reviewing AI output
+2. **Designing Verification Processes** -- Build gates for safely deploying AI-generated code to production
+3. **Continuous Quality Improvement** -- Build feedback loops to organizationally elevate the quality of AI utilization
+4. **Language-Specific Best Practices** -- Master AI code quality patterns for each language such as Python, TypeScript, and Go
+5. **Prompt Design and Quality Relationship** -- Understand prompt engineering for generating high-quality code
+
+
+## Prerequisites
+
+Before reading this guide, having the following knowledge will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Cursor / Windsurf -- AI IDEs and Context Management](./02-cursor-and-windsurf.md)
+
+---
+
+## 1. Quality Evaluation of AI-Generated Code
+
+### 1.1 Five-Layer Review Model
 
 ```
 ┌──────────────────────────────────────────────────┐
-│            AI生成コード レビュー5層モデル           │
+│        AI-Generated Code: Five-Layer Review Model │
 │                                                  │
-│  Layer 5: ビジネスロジック検証                     │
+│  Layer 5: Business Logic Verification            │
 │  ┌────────────────────────────────────────────┐  │
-│  │ 要件との整合性、エッジケース、ドメインルール  │  │
+│  │ Requirements alignment, edge cases,        │  │
+│  │ domain rules                               │  │
 │  └────────────────────────────────────────────┘  │
 │                                                  │
-│  Layer 4: セキュリティ検証                        │
+│  Layer 4: Security Verification                  │
 │  ┌────────────────────────────────────────────┐  │
-│  │ 入力検証、認証・認可、暗号化、脆弱性チェック  │  │
+│  │ Input validation, authentication/          │  │
+│  │ authorization, encryption, vulnerability   │  │
+│  │ checks                                     │  │
 │  └────────────────────────────────────────────┘  │
 │                                                  │
-│  Layer 3: パフォーマンス検証                      │
+│  Layer 3: Performance Verification               │
 │  ┌────────────────────────────────────────────┐  │
-│  │ 計算量、メモリ使用量、N+1問題、キャッシュ     │  │
+│  │ Computational complexity, memory usage,    │  │
+│  │ N+1 problems, caching                      │  │
 │  └────────────────────────────────────────────┘  │
 │                                                  │
-│  Layer 2: 設計品質検証                            │
+│  Layer 2: Design Quality Verification            │
 │  ┌────────────────────────────────────────────┐  │
-│  │ SOLID原則、命名、凝集度、結合度、テスト容易性 │  │
+│  │ SOLID principles, naming, cohesion,        │  │
+│  │ coupling, testability                      │  │
 │  └────────────────────────────────────────────┘  │
 │                                                  │
-│  Layer 1: 構文・スタイル検証                       │
+│  Layer 1: Syntax and Style Verification          │
 │  ┌────────────────────────────────────────────┐  │
-│  │ リンター、フォーマッター、型チェック（自動化） │  │
+│  │ Linters, formatters, type checking         │  │
+│  │ (automated)                                │  │
 │  └────────────────────────────────────────────┘  │
 └──────────────────────────────────────────────────┘
-  ※ Layer 1-2は自動化可能。Layer 3-5は人間の判断が必要
+  * Layers 1-2 can be automated. Layers 3-5 require human judgment
 ```
 
-### 1.2 品質ゲートのフロー
+### 1.2 Quality Gate Flow
 
 ```
-AI生成コード
+AI-Generated Code
     │
     ▼
-┌──────────────┐  失敗  ┌──────────┐
-│ Gate 1: Lint │──────►│ AIに修正  │
-│ + Format     │       │ を依頼    │──┐
-└──────┬───────┘       └──────────┘  │
-       │ 通過                         │
+┌──────────────┐  Fail   ┌──────────┐
+│ Gate 1: Lint │───────►│ Request  │
+│ + Format     │        │ AI fix   │──┐
+└──────┬───────┘        └──────────┘  │
+       │ Pass                         │
        ▼                             │
-┌──────────────┐  失敗               │
-│ Gate 2: 型   │──────────────────────┤
-│ チェック     │                      │
+┌──────────────┐  Fail               │
+│ Gate 2: Type │──────────────────────┤
+│ Check        │                      │
 └──────┬───────┘                      │
-       │ 通過                         │
+       │ Pass                         │
        ▼                             │
-┌──────────────┐  失敗               │
-│ Gate 3: テスト│──────────────────────┤
-│ (自動)       │                      │
+┌──────────────┐  Fail               │
+│ Gate 3: Test │──────────────────────┤
+│ (Automated)  │                      │
 └──────┬───────┘                      │
-       │ 通過                         │
+       │ Pass                         │
        ▼                             │
-┌──────────────┐  問題あり            │
-│ Gate 4: 人間 │──────────────────────┘
-│ レビュー     │
+┌──────────────┐  Issues found       │
+│ Gate 4:      │──────────────────────┘
+│ Human Review │
 └──────┬───────┘
-       │ 承認
+       │ Approved
        ▼
-  プロダクション
+   Production
 ```
 
-### 1.3 各層のレビュー観点詳細
+### 1.3 Detailed Review Points for Each Layer
 
-各層で確認すべき具体的な項目を詳細に整理する。
+Organize the specific items to check at each layer in detail.
 
 ```python
-# 5層モデルの各層を定義するレビューチェックシステム
+# Review check system defining each layer of the five-layer model
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Callable
@@ -117,28 +123,28 @@ class Severity(Enum):
 
 @dataclass
 class ReviewItem:
-    """レビュー項目"""
+    """Review item"""
     layer: ReviewLayer
     category: str
     description: str
     severity: Severity
-    automated: bool  # 自動化可能か
-    checker: Callable | None = None  # 自動チェック関数
+    automated: bool  # Whether it can be automated
+    checker: Callable | None = None  # Automated check function
 
 @dataclass
 class ReviewChecklist:
-    """AI生成コード レビューチェックリスト"""
+    """AI-generated code review checklist"""
     items: list[ReviewItem] = field(default_factory=list)
 
     def add_layer1_items(self) -> None:
-        """Layer 1: 構文・スタイル検証"""
+        """Layer 1: Syntax and style verification"""
         checks = [
-            ("フォーマット", "コードフォーマッタ（black/prettier）に準拠しているか", True),
-            ("リンティング", "リンターの警告・エラーがないか", True),
-            ("型注釈", "型注釈が適切に付与されているか", True),
-            ("import整理", "未使用importがなく、順序が正しいか", True),
-            ("命名規則", "プロジェクトの命名規則に従っているか", True),
-            ("コメント", "不要なコメントや説明不足がないか", False),
+            ("Formatting", "Does it comply with code formatters (black/prettier)?", True),
+            ("Linting", "Are there no linter warnings or errors?", True),
+            ("Type annotations", "Are type annotations properly applied?", True),
+            ("Import organization", "Are there no unused imports and is the order correct?", True),
+            ("Naming conventions", "Does it follow the project's naming conventions?", True),
+            ("Comments", "Are there no unnecessary comments or insufficient explanations?", False),
         ]
         for category, desc, automated in checks:
             self.items.append(ReviewItem(
@@ -150,16 +156,16 @@ class ReviewChecklist:
             ))
 
     def add_layer2_items(self) -> None:
-        """Layer 2: 設計品質検証"""
+        """Layer 2: Design quality verification"""
         checks = [
-            ("単一責任", "各関数・クラスが1つの責任のみを持っているか", Severity.ERROR),
-            ("DRY原則", "コードの重複がないか", Severity.WARNING),
-            ("凝集度", "関連する機能が適切にグループ化されているか", Severity.WARNING),
-            ("結合度", "モジュール間の依存が最小限か", Severity.WARNING),
-            ("テスト容易性", "モック不要で単体テスト可能な設計か", Severity.ERROR),
-            ("拡張性", "将来の変更に対して開放的な設計か", Severity.INFO),
-            ("エラーハンドリング", "例外処理が適切で一貫しているか", Severity.ERROR),
-            ("抽象化レベル", "関数内の抽象化レベルが統一されているか", Severity.WARNING),
+            ("Single responsibility", "Does each function/class have only one responsibility?", Severity.ERROR),
+            ("DRY principle", "Is there no code duplication?", Severity.WARNING),
+            ("Cohesion", "Are related features properly grouped?", Severity.WARNING),
+            ("Coupling", "Are inter-module dependencies minimized?", Severity.WARNING),
+            ("Testability", "Is the design unit-testable without mocks?", Severity.ERROR),
+            ("Extensibility", "Is the design open to future changes?", Severity.INFO),
+            ("Error handling", "Is exception handling appropriate and consistent?", Severity.ERROR),
+            ("Abstraction level", "Is the abstraction level unified within functions?", Severity.WARNING),
         ]
         for category, desc, severity in checks:
             self.items.append(ReviewItem(
@@ -171,14 +177,14 @@ class ReviewChecklist:
             ))
 
     def add_layer3_items(self) -> None:
-        """Layer 3: パフォーマンス検証"""
+        """Layer 3: Performance verification"""
         checks = [
-            ("計算量", "O(n²)以上のアルゴリズムが不必要に使われていないか", Severity.ERROR),
-            ("N+1問題", "ループ内でDB/APIクエリが発行されていないか", Severity.CRITICAL),
-            ("メモリ使用", "大量データをメモリに展開していないか", Severity.ERROR),
-            ("キャッシュ", "キャッシュが活用されているか", Severity.WARNING),
-            ("並行処理", "非同期処理が適切に使われているか", Severity.WARNING),
-            ("インデックス", "DBクエリに適切なインデックスが考慮されているか", Severity.ERROR),
+            ("Computational complexity", "Are O(n^2) or higher algorithms not used unnecessarily?", Severity.ERROR),
+            ("N+1 problem", "Are DB/API queries not issued inside loops?", Severity.CRITICAL),
+            ("Memory usage", "Is large data not expanded entirely in memory?", Severity.ERROR),
+            ("Caching", "Is caching being utilized?", Severity.WARNING),
+            ("Concurrency", "Is asynchronous processing used appropriately?", Severity.WARNING),
+            ("Indexing", "Are appropriate indexes considered for DB queries?", Severity.ERROR),
         ]
         for category, desc, severity in checks:
             self.items.append(ReviewItem(
@@ -190,15 +196,15 @@ class ReviewChecklist:
             ))
 
     def add_layer4_items(self) -> None:
-        """Layer 4: セキュリティ検証"""
+        """Layer 4: Security verification"""
         checks = [
-            ("入力検証", "全ての外部入力がバリデーションされているか", Severity.CRITICAL),
-            ("SQLインジェクション", "パラメータ化クエリが使われているか", Severity.CRITICAL),
-            ("XSS", "出力がエスケープされているか", Severity.CRITICAL),
-            ("認証・認可", "適切なアクセス制御が実装されているか", Severity.CRITICAL),
-            ("秘密情報", "ハードコードされた秘密情報がないか", Severity.CRITICAL),
-            ("CSRF対策", "状態変更リクエストにCSRFトークンがあるか", Severity.ERROR),
-            ("レート制限", "API エンドポイントにレート制限があるか", Severity.WARNING),
+            ("Input validation", "Are all external inputs validated?", Severity.CRITICAL),
+            ("SQL injection", "Are parameterized queries used?", Severity.CRITICAL),
+            ("XSS", "Is output escaped?", Severity.CRITICAL),
+            ("Authentication/Authorization", "Is proper access control implemented?", Severity.CRITICAL),
+            ("Secrets", "Are there no hardcoded secrets?", Severity.CRITICAL),
+            ("CSRF protection", "Do state-changing requests have CSRF tokens?", Severity.ERROR),
+            ("Rate limiting", "Do API endpoints have rate limiting?", Severity.WARNING),
         ]
         for category, desc, severity in checks:
             self.items.append(ReviewItem(
@@ -206,18 +212,18 @@ class ReviewChecklist:
                 category=category,
                 description=desc,
                 severity=severity,
-                automated=category in ("SQLインジェクション", "秘密情報"),
+                automated=category in ("SQL injection", "Secrets"),
             ))
 
     def add_layer5_items(self) -> None:
-        """Layer 5: ビジネスロジック検証"""
+        """Layer 5: Business logic verification"""
         checks = [
-            ("要件整合性", "仕様書・ユーザーストーリーの要件を満たしているか", Severity.CRITICAL),
-            ("エッジケース", "境界値やnull/空のケースが処理されているか", Severity.ERROR),
-            ("ドメインルール", "業務ルール（消費税計算、在庫管理等）が正確か", Severity.CRITICAL),
-            ("データ整合性", "トランザクション境界が適切か", Severity.CRITICAL),
-            ("冪等性", "リトライ時に副作用が重複しないか", Severity.ERROR),
-            ("監査証跡", "重要な操作のログが記録されているか", Severity.WARNING),
+            ("Requirements alignment", "Does it meet the requirements of specs/user stories?", Severity.CRITICAL),
+            ("Edge cases", "Are boundary values and null/empty cases handled?", Severity.ERROR),
+            ("Domain rules", "Are business rules (tax calculation, inventory management, etc.) accurate?", Severity.CRITICAL),
+            ("Data integrity", "Are transaction boundaries appropriate?", Severity.CRITICAL),
+            ("Idempotency", "Are side effects not duplicated on retry?", Severity.ERROR),
+            ("Audit trail", "Are important operations logged?", Severity.WARNING),
         ]
         for category, desc, severity in checks:
             self.items.append(ReviewItem(
@@ -229,7 +235,7 @@ class ReviewChecklist:
             ))
 
     def generate_report(self) -> dict:
-        """レビューレポートを生成"""
+        """Generate a review report"""
         report = {
             "total_items": len(self.items),
             "automated_count": sum(1 for item in self.items if item.automated),
@@ -249,7 +255,7 @@ class ReviewChecklist:
             )
         return report
 
-# 使用例
+# Usage example
 checklist = ReviewChecklist()
 checklist.add_layer1_items()
 checklist.add_layer2_items()
@@ -258,39 +264,39 @@ checklist.add_layer4_items()
 checklist.add_layer5_items()
 report = checklist.generate_report()
 # → automated_count: ~10, manual_count: ~25
-# → Layer 1-2はほぼ自動化可能、Layer 3-5は人間の判断が中心
+# → Layers 1-2 are mostly automatable, Layers 3-5 are primarily human judgment
 ```
 
 ---
 
-## 2. 具体的なレビュー手法
+## 2. Concrete Review Methods
 
-### コード例1: セキュリティレビューチェックリスト
+### Code Example 1: Security Review Checklist
 
 ```python
-# AI生成コードに対するセキュリティレビューの実施例
+# Example of conducting a security review on AI-generated code
 
-# === AIが生成した認証コード ===
+# === AI-generated authentication code ===
 from fastapi import Depends, HTTPException
 from jose import jwt
 
-SECRET_KEY = "my-secret-key-12345"  # ⚠️ 問題1: ハードコード
+SECRET_KEY = "my-secret-key-12345"  # ⚠️ Issue 1: Hardcoded
 ALGORITHM = "HS256"
 
 async def get_current_user(token: str):
     payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-    user_id = payload.get("sub")  # ⚠️ 問題2: 型チェックなし
+    user_id = payload.get("sub")  # ⚠️ Issue 2: No type check
     if user_id is None:
         raise HTTPException(status_code=401)
-    return user_id  # ⚠️ 問題3: ユーザー存在チェックなし
+    return user_id  # ⚠️ Issue 3: No user existence check
 
-# === レビュー後の修正版 ===
+# === Revised version after review ===
 import os
 from fastapi import Depends, HTTPException, status
 from jose import jwt, JWTError
 from datetime import datetime, timezone
 
-SECRET_KEY = os.environ["JWT_SECRET_KEY"]  # 修正1: 環境変数から取得
+SECRET_KEY = os.environ["JWT_SECRET_KEY"]  # Fix 1: Retrieved from environment variable
 ALGORITHM = "HS256"
 
 async def get_current_user(
@@ -304,34 +310,34 @@ async def get_current_user(
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str | None = payload.get("sub")  # 修正2: 型注釈
+        user_id: str | None = payload.get("sub")  # Fix 2: Type annotation
         if user_id is None:
             raise credentials_exception
-        # 修正3: 期限チェック
+        # Fix 3: Expiration check
         exp = payload.get("exp")
         if exp and datetime.fromtimestamp(exp, tz=timezone.utc) < datetime.now(timezone.utc):
             raise credentials_exception
     except JWTError:
         raise credentials_exception
 
-    # 修正4: ユーザー存在チェック
+    # Fix 4: User existence check
     user = await db.get(User, int(user_id))
     if user is None or not user.is_active:
         raise credentials_exception
     return user
 ```
 
-### コード例2: パフォーマンスレビュー
+### Code Example 2: Performance Review
 
 ```python
-# AI生成コードのパフォーマンス問題を特定する
+# Identifying performance issues in AI-generated code
 
-# === AIが生成したコード（N+1問題あり） ===
+# === AI-generated code (with N+1 problem) ===
 async def get_orders_with_items(db: AsyncSession) -> list[dict]:
     orders = await db.execute(select(Order))
     result = []
     for order in orders.scalars():
-        # ⚠️ N+1問題: 注文ごとにクエリが発行される
+        # ⚠️ N+1 problem: A query is issued for each order
         items = await db.execute(
             select(OrderItem).where(OrderItem.order_id == order.id)
         )
@@ -341,14 +347,14 @@ async def get_orders_with_items(db: AsyncSession) -> list[dict]:
         })
     return result
 
-# === レビュー後の修正版（Eager Loading） ===
+# === Revised version after review (Eager Loading) ===
 async def get_orders_with_items(db: AsyncSession) -> list[dict]:
-    # JOINで1クエリに統合
+    # Consolidated into a single query with JOIN
     query = (
         select(Order)
         .options(selectinload(Order.items))  # Eager Loading
         .order_by(Order.created_at.desc())
-        .limit(100)  # ページネーション
+        .limit(100)  # Pagination
     )
     result = await db.execute(query)
     orders = result.scalars().unique().all()
@@ -358,24 +364,24 @@ async def get_orders_with_items(db: AsyncSession) -> list[dict]:
     ]
 ```
 
-### コード例3: テスト生成と検証
+### Code Example 3: Test Generation and Verification
 
 ```python
-# AIにテストを生成させ、その品質を検証する
+# Having AI generate tests and verifying their quality
 
-# Step 1: AIにテスト生成を依頼
-# プロンプト: "calculate_discount関数のテストを生成して。
-#             正常系3件、異常系3件、境界値2件"
+# Step 1: Request AI to generate tests
+# Prompt: "Generate tests for the calculate_discount function.
+#          3 normal cases, 3 error cases, 2 boundary values"
 
-# Step 2: AIが生成したテスト
+# Step 2: AI-generated tests
 import pytest
 from decimal import Decimal
 from app.pricing import calculate_discount
 
 class TestCalculateDiscount:
-    """割引計算のテスト"""
+    """Discount calculation tests"""
 
-    # 正常系
+    # Normal cases
     def test_percentage_discount(self):
         assert calculate_discount(Decimal("1000"), "SAVE10") == Decimal("900")
 
@@ -385,7 +391,7 @@ class TestCalculateDiscount:
     def test_no_discount(self):
         assert calculate_discount(Decimal("1000"), None) == Decimal("1000")
 
-    # 異常系
+    # Error cases
     def test_expired_coupon(self):
         with pytest.raises(CouponExpiredError):
             calculate_discount(Decimal("1000"), "EXPIRED01")
@@ -398,39 +404,39 @@ class TestCalculateDiscount:
         with pytest.raises(ValueError):
             calculate_discount(Decimal("-100"), "SAVE10")
 
-    # 境界値
+    # Boundary values
     def test_zero_amount(self):
         assert calculate_discount(Decimal("0"), "SAVE10") == Decimal("0")
 
     def test_discount_exceeds_amount(self):
-        # 割引額が商品額を超える場合 → 0になるべき
+        # When the discount exceeds the product price → should become 0
         assert calculate_discount(Decimal("100"), "FLAT500") == Decimal("0")
 
-# Step 3: 人間がレビューすべきポイント
-# ✓ テストが実際のビジネスルールを反映しているか
-# ✓ エッジケースが網羅されているか
-# ✓ テストの独立性が保たれているか
-# ✗ 不足: 並行実行テストが含まれていない → 追加指示
+# Step 3: Points that humans should review
+# ✓ Do the tests reflect actual business rules?
+# ✓ Are edge cases covered?
+# ✓ Is test independence maintained?
+# ✗ Missing: No concurrent execution tests → additional instructions needed
 ```
 
-### コード例4: AI生成コードのリファクタリング判断
+### Code Example 4: Refactoring Decisions for AI-Generated Code
 
 ```typescript
-// AIが一度に生成した大きな関数を分割する判断基準
+// Criteria for splitting large functions generated by AI at once
 
-// === AIが生成した200行の関数（要リファクタリング） ===
+// === A 200-line function generated by AI (needs refactoring) ===
 async function processOrder(orderData: OrderInput): Promise<OrderResult> {
-  // バリデーション (30行) → 分離対象
-  // 在庫チェック (20行)  → 分離対象
-  // 価格計算 (40行)     → 分離対象
-  // 決済処理 (30行)     → 分離対象
-  // 在庫更新 (20行)     → 分離対象
-  // 通知送信 (20行)     → 分離対象
-  // ログ記録 (20行)     → 分離対象
-  // ... 全て1関数内
+  // Validation (30 lines) → candidate for separation
+  // Inventory check (20 lines) → candidate for separation
+  // Price calculation (40 lines) → candidate for separation
+  // Payment processing (30 lines) → candidate for separation
+  // Inventory update (20 lines) → candidate for separation
+  // Notification sending (20 lines) → candidate for separation
+  // Logging (20 lines) → candidate for separation
+  // ... all in one function
 }
 
-// === リファクタリング後 ===
+// === After refactoring ===
 async function processOrder(orderData: OrderInput): Promise<OrderResult> {
   const validatedOrder = validateOrder(orderData);
   await checkInventory(validatedOrder.items);
@@ -443,14 +449,14 @@ async function processOrder(orderData: OrderInput): Promise<OrderResult> {
   return { orderId: payment.orderId, total: pricing.total };
 }
 
-// 各関数は単一責任で20-30行以内に収まる
+// Each function has a single responsibility and fits within 20-30 lines
 ```
 
-### コード例5: 品質メトリクス自動計測
+### Code Example 5: Automated Quality Metrics Collection
 
 ```yaml
 # .github/workflows/ai-code-quality.yml
-# AI生成コードの品質を自動計測するCI
+# CI that automatically measures the quality of AI-generated code
 
 name: AI Code Quality Check
 on: [pull_request]
@@ -470,7 +476,7 @@ jobs:
       - name: Test Coverage
         run: |
           npx vitest run --coverage
-          # カバレッジが80%未満なら失敗
+          # Fail if coverage is below 80%
           npx istanbul check-coverage --lines 80
 
       - name: Security Audit
@@ -478,7 +484,7 @@ jobs:
 
       - name: Complexity Check
         run: |
-          # 循環的複雑度が10を超える関数がないかチェック
+          # Check if any functions exceed cyclomatic complexity of 10
           npx eslint . --rule '{"complexity": ["error", 10]}'
 
       - name: Bundle Size Check
@@ -489,31 +495,31 @@ jobs:
 
 ---
 
-## 3. AI活用の品質パターン集
+## 3. Quality Pattern Collection for AI Utilization
 
-### 効果的なパターン比較
+### Effective Pattern Comparison
 
-| パターン | 説明 | 品質への影響 |
-|---------|------|-------------|
-| テストファースト | テストを先に書いてからAIに実装させる | 非常に高い |
-| 段階的生成 | 小さな単位で生成→検証を繰り返す | 高い |
-| コンテキスト注入 | 既存コードの規約をAIに提供 | 高い |
-| ワンショット生成 | 1回で全て生成させる | 低い |
-| 無検証マージ | AI出力をそのままマージ | 危険 |
+| Pattern | Description | Impact on Quality |
+|---------|-------------|-------------------|
+| Test-First | Write tests first, then have AI implement | Very High |
+| Incremental Generation | Generate in small units → verify repeatedly | High |
+| Context Injection | Provide existing code conventions to AI | High |
+| One-Shot Generation | Generate everything in one go | Low |
+| No-Verification Merge | Merge AI output as-is | Dangerous |
 
-### AI活用成熟度と品質指標
+### AI Utilization Maturity and Quality Indicators
 
-| 成熟度レベル | テストカバレッジ | バグ発生率 | レビュー時間 |
-|------------|---------------|-----------|-------------|
-| Level 1: 補完のみ | 40-50% | 従来と同等 | 従来と同等 |
-| Level 2: 生成+手動レビュー | 60-70% | 20%減少 | 30%短縮 |
-| Level 3: 生成+自動テスト | 80-90% | 50%減少 | 70%短縮 |
-| Level 4: エージェント+CI | 90%以上 | 70%減少 | 70%短縮 |
+| Maturity Level | Test Coverage | Bug Rate | Review Time |
+|----------------|---------------|----------|-------------|
+| Level 1: Completion only | 40-50% | Same as before | Same as before |
+| Level 2: Generation + Manual review | 60-70% | 20% reduction | 30% reduction |
+| Level 3: Generation + Automated tests | 80-90% | 50% reduction | 70% reduction |
+| Level 4: Agent + CI | 90%+ | 70% reduction | 70% reduction |
 
-### 3.1 パターン別の適用ガイド
+### 3.1 Pattern Application Guide
 
 ```python
-# 各パターンの選択基準を判定するヘルパー
+# Helper to determine selection criteria for each pattern
 
 from dataclasses import dataclass
 from enum import Enum
@@ -532,38 +538,38 @@ class RiskLevel(Enum):
 
 @dataclass
 class TaskCharacteristics:
-    """タスクの特性を表現"""
+    """Represents task characteristics"""
     complexity: int  # 1-10
-    security_sensitivity: bool  # セキュリティ関連か
-    has_existing_tests: bool  # 既存テストがあるか
-    has_existing_code: bool  # 既存コードがあるか
-    domain_complexity: int  # ドメイン複雑度 1-10
-    team_familiarity: int  # チームの技術習熟度 1-10
+    security_sensitivity: bool  # Whether security-related
+    has_existing_tests: bool  # Whether existing tests exist
+    has_existing_code: bool  # Whether existing code exists
+    domain_complexity: int  # Domain complexity 1-10
+    team_familiarity: int  # Team's technical proficiency 1-10
 
 def recommend_pattern(task: TaskCharacteristics) -> GenerationPattern:
-    """タスク特性に基づいてAI生成パターンを推薦する"""
+    """Recommend an AI generation pattern based on task characteristics"""
 
-    # セキュリティ関連 or ドメイン複雑度が高い → テストファースト必須
+    # Security-related or high domain complexity → test-first is mandatory
     if task.security_sensitivity or task.domain_complexity >= 7:
         return GenerationPattern.TEST_FIRST
 
-    # 複雑度が高い → 段階的生成
+    # High complexity → incremental generation
     if task.complexity >= 7:
         return GenerationPattern.INCREMENTAL
 
-    # 既存コードがあり、規約に沿わせたい → コンテキスト注入
+    # Existing code and wanting to follow conventions → context injection
     if task.has_existing_code and task.team_familiarity >= 5:
         return GenerationPattern.CONTEXT_INJECTION
 
-    # 単純なタスク → ワンショットでも可
+    # Simple task → one-shot is acceptable
     if task.complexity <= 3 and not task.security_sensitivity:
         return GenerationPattern.ONE_SHOT
 
-    # デフォルト: 段階的生成
+    # Default: incremental generation
     return GenerationPattern.INCREMENTAL
 
 def estimate_risk(task: TaskCharacteristics) -> RiskLevel:
-    """AI生成コードのリスクレベルを推定"""
+    """Estimate the risk level of AI-generated code"""
     score = 0
     score += task.complexity * 2
     score += task.domain_complexity * 2
@@ -583,7 +589,7 @@ def estimate_risk(task: TaskCharacteristics) -> RiskLevel:
     else:
         return RiskLevel.LOW
 
-# 使用例
+# Usage example
 task = TaskCharacteristics(
     complexity=6,
     security_sensitivity=True,
@@ -595,40 +601,44 @@ task = TaskCharacteristics(
 pattern = recommend_pattern(task)
 risk = estimate_risk(task)
 # pattern = TEST_FIRST, risk = CRITICAL
-# → テストを先に書いてからAIに実装させ、全層レビューを実施
+# → Write tests first, then have AI implement, and conduct a full-layer review
 ```
 
 ---
 
-## 4. 検証の自動化
+## 4. Automating Verification
 
 ```
 ┌────────────────────────────────────────────────────┐
-│           AI生成コード検証パイプライン               │
+│        AI-Generated Code Verification Pipeline     │
 │                                                    │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐        │
-│  │ 静的解析  │  │ テスト   │  │ セキュリ │        │
-│  │ (自動)   │─►│ (自動)   │─►│ ティ検査 │        │
-│  │          │  │          │  │ (自動)   │        │
-│  │ ・ESLint │  │ ・Unit   │  │ ・SAST   │        │
-│  │ ・tsc    │  │ ・Integra│  │ ・Dep    │        │
-│  │ ・mypy   │  │ ・E2E    │  │  Audit   │        │
+│  │ Static   │  │ Testing  │  │ Security │        │
+│  │ Analysis │─►│ (Auto)   │─►│ Scan     │        │
+│  │ (Auto)   │  │          │  │ (Auto)   │        │
+│  │          │  │          │  │          │        │
+│  │ - ESLint │  │ - Unit   │  │ - SAST   │        │
+│  │ - tsc    │  │ - Integra│  │ - Dep    │        │
+│  │ - mypy   │  │ - E2E    │  │   Audit  │        │
 │  └──────────┘  └──────────┘  └────┬─────┘        │
 │                                    │              │
 │                                    ▼              │
 │                 ┌──────────────────────────┐      │
-│                 │ 人間レビュー（残り10-20%） │      │
-│                 │ ・ビジネスロジック検証      │      │
-│                 │ ・アーキテクチャ適合性      │      │
-│                 │ ・ドメイン知識との整合       │      │
+│                 │ Human Review (remaining  │      │
+│                 │ 10-20%)                  │      │
+│                 │ - Business logic         │      │
+│                 │   verification           │      │
+│                 │ - Architecture alignment │      │
+│                 │ - Domain knowledge       │      │
+│                 │   consistency            │      │
 │                 └──────────────────────────┘      │
 └────────────────────────────────────────────────────┘
 ```
 
-### 4.1 自動検証パイプラインの実装
+### 4.1 Implementing the Automated Verification Pipeline
 
 ```python
-# AI生成コード検証パイプラインの実装例
+# Implementation example of an AI-generated code verification pipeline
 
 import subprocess
 import json
@@ -643,7 +653,7 @@ class GateResult(Enum):
 
 @dataclass
 class GateOutput:
-    """ゲートの実行結果"""
+    """Gate execution result"""
     gate_name: str
     result: GateResult
     details: str
@@ -652,14 +662,14 @@ class GateOutput:
     warnings: list[str] = field(default_factory=list)
 
 class AICodeValidator:
-    """AI生成コードを段階的に検証するバリデーター"""
+    """Validator that verifies AI-generated code in stages"""
 
     def __init__(self, project_root: Path):
         self.project_root = project_root
         self.gates: list[GateOutput] = []
 
     def run_gate1_lint(self, files: list[Path]) -> GateOutput:
-        """Gate 1: リント + フォーマットチェック"""
+        """Gate 1: Lint + format check"""
         import time
         start = time.monotonic()
         errors = []
@@ -667,7 +677,7 @@ class AICodeValidator:
 
         for file_path in files:
             if file_path.suffix == ".py":
-                # Ruff（高速Pythonリンター）でチェック
+                # Check with Ruff (fast Python linter)
                 result = subprocess.run(
                     ["ruff", "check", str(file_path), "--output-format=json"],
                     capture_output=True, text=True
@@ -681,16 +691,16 @@ class AICodeValidator:
                         else:
                             warnings.append(msg)
 
-                # フォーマットチェック
+                # Format check
                 fmt_result = subprocess.run(
                     ["ruff", "format", "--check", str(file_path)],
                     capture_output=True, text=True
                 )
                 if fmt_result.returncode != 0:
-                    errors.append(f"{file_path}: フォーマットが不正")
+                    errors.append(f"{file_path}: Formatting is invalid")
 
             elif file_path.suffix in (".ts", ".tsx"):
-                # ESLint でチェック
+                # Check with ESLint
                 result = subprocess.run(
                     ["npx", "eslint", str(file_path), "--format=json"],
                     capture_output=True, text=True,
@@ -723,7 +733,7 @@ class AICodeValidator:
         return output
 
     def run_gate2_typecheck(self) -> GateOutput:
-        """Gate 2: 型チェック"""
+        """Gate 2: Type check"""
         import time
         start = time.monotonic()
         errors = []
@@ -762,13 +772,13 @@ class AICodeValidator:
         return output
 
     def run_gate3_tests(self, coverage_threshold: float = 80.0) -> GateOutput:
-        """Gate 3: テスト実行 + カバレッジ"""
+        """Gate 3: Test execution + coverage"""
         import time
         start = time.monotonic()
         errors = []
         warnings = []
 
-        # pytest実行
+        # Run pytest
         test_result = subprocess.run(
             ["pytest", "--tb=short", "--cov=app", "--cov-report=json", "-q"],
             capture_output=True, text=True,
@@ -776,9 +786,9 @@ class AICodeValidator:
         )
 
         if test_result.returncode != 0:
-            errors.append(f"テスト失敗:\n{test_result.stdout}")
+            errors.append(f"Test failure:\n{test_result.stdout}")
 
-        # カバレッジ確認
+        # Check coverage
         coverage_file = self.project_root / "coverage.json"
         if coverage_file.exists():
             with open(coverage_file) as f:
@@ -786,7 +796,7 @@ class AICodeValidator:
             total_coverage = cov_data.get("totals", {}).get("percent_covered", 0)
             if total_coverage < coverage_threshold:
                 warnings.append(
-                    f"カバレッジ {total_coverage:.1f}% < 閾値 {coverage_threshold}%"
+                    f"Coverage {total_coverage:.1f}% < threshold {coverage_threshold}%"
                 )
 
         elapsed = (time.monotonic() - start) * 1000
@@ -804,7 +814,7 @@ class AICodeValidator:
         return output
 
     def run_gate4_security(self) -> GateOutput:
-        """Gate 4: セキュリティ検査"""
+        """Gate 4: Security scan"""
         import time
         start = time.monotonic()
         errors = []
@@ -826,14 +836,14 @@ class AICodeValidator:
                 else:
                     warnings.append(msg)
 
-        # 秘密情報スキャン（gitleaks）
+        # Secret scanning (gitleaks)
         gitleaks_result = subprocess.run(
             ["gitleaks", "detect", "--no-git", "-s", ".", "-r", "/tmp/gitleaks.json"],
             capture_output=True, text=True,
             cwd=str(self.project_root)
         )
         if gitleaks_result.returncode != 0:
-            errors.append("秘密情報がコード内に検出されました")
+            errors.append("Secrets detected in the code")
 
         elapsed = (time.monotonic() - start) * 1000
         output = GateOutput(
@@ -850,8 +860,8 @@ class AICodeValidator:
         return output
 
     def generate_summary(self) -> str:
-        """全ゲートのサマリーを生成"""
-        lines = ["=== AI生成コード検証サマリー ===\n"]
+        """Generate a summary for all gates"""
+        lines = ["=== AI-Generated Code Verification Summary ===\n"]
         all_passed = True
 
         for gate in self.gates:
@@ -859,38 +869,38 @@ class AICodeValidator:
             lines.append(f"{icon} {gate.gate_name}: {gate.result.value} ({gate.duration_ms:.0f}ms)")
             if gate.errors:
                 all_passed = False
-                for err in gate.errors[:3]:  # 最初の3つだけ表示
+                for err in gate.errors[:3]:  # Show only the first 3
                     lines.append(f"   - {err}")
                 if len(gate.errors) > 3:
-                    lines.append(f"   ... 他 {len(gate.errors) - 3} 件")
+                    lines.append(f"   ... and {len(gate.errors) - 3} more")
 
         lines.append("")
         if all_passed:
-            lines.append("結果: 全ゲート通過 → 人間レビューに進めます")
+            lines.append("Result: All gates passed → Ready for human review")
         else:
-            lines.append("結果: ゲート未通過 → AIに修正を依頼してください")
+            lines.append("Result: Gates not passed → Please request AI to fix the issues")
 
         return "\n".join(lines)
 ```
 
 ---
 
-## 5. 言語別AIコーディングベストプラクティス
+## 5. Language-Specific AI Coding Best Practices
 
-### 5.1 Python固有の品質チェック
+### 5.1 Python-Specific Quality Checks
 
 ```python
-# Python AI生成コードで頻出する問題と修正パターン
+# Common problems and fix patterns in Python AI-generated code
 
-# === 問題パターン1: ミュータブルデフォルト引数 ===
-# AI生成コードでよく発生する
+# === Problem Pattern 1: Mutable default arguments ===
+# Frequently occurs in AI-generated code
 
-# BAD: AIが生成しがちなパターン
+# BAD: Pattern that AI tends to generate
 def add_item(item: str, items: list[str] = []) -> list[str]:
-    items.append(item)  # ⚠️ デフォルト引数はミュータブル → 呼び出し間で共有される
+    items.append(item)  # ⚠️ Default argument is mutable → shared across calls
     return items
 
-# GOOD: 修正版
+# GOOD: Fixed version
 def add_item(item: str, items: list[str] | None = None) -> list[str]:
     if items is None:
         items = []
@@ -898,31 +908,31 @@ def add_item(item: str, items: list[str] | None = None) -> list[str]:
     return items
 
 
-# === 問題パターン2: 例外のベアキャッチ ===
-# BAD: AIが安全のために広い例外をキャッチしがち
+# === Problem Pattern 2: Bare exception catch ===
+# BAD: AI tends to catch broad exceptions for safety
 def parse_config(config_str: str) -> dict:
     try:
         return json.loads(config_str)
-    except Exception:  # ⚠️ 全例外キャッチ → バグを隠す
+    except Exception:  # ⚠️ Catches all exceptions → hides bugs
         return {}
 
-# GOOD: 具体的な例外をキャッチ
+# GOOD: Catch specific exceptions
 def parse_config(config_str: str) -> dict:
     try:
         return json.loads(config_str)
     except json.JSONDecodeError as e:
         logger.warning("Invalid JSON config", error=str(e), input_length=len(config_str))
-        raise ConfigParseError(f"設定の解析に失敗: {e}") from e
+        raise ConfigParseError(f"Failed to parse config: {e}") from e
 
 
-# === 問題パターン3: 同期/非同期の混在 ===
-# BAD: AIが非同期コンテキストで同期的にI/Oを呼ぶ
+# === Problem Pattern 3: Mixing sync/async ===
+# BAD: AI calls synchronous I/O in an async context
 async def get_user_data(user_id: int) -> dict:
-    # ⚠️ requestsは同期 → イベントループをブロック
+    # ⚠️ requests is synchronous → blocks the event loop
     response = requests.get(f"https://api.example.com/users/{user_id}")
     return response.json()
 
-# GOOD: 非同期HTTPクライアントを使用
+# GOOD: Use an async HTTP client
 async def get_user_data(user_id: int) -> dict:
     async with httpx.AsyncClient() as client:
         response = await client.get(f"https://api.example.com/users/{user_id}")
@@ -930,29 +940,29 @@ async def get_user_data(user_id: int) -> dict:
         return response.json()
 
 
-# === 問題パターン4: コンテキストマネージャの不使用 ===
-# BAD: AIがリソース解放を忘れる
+# === Problem Pattern 4: Not using context managers ===
+# BAD: AI forgets resource cleanup
 def read_file(path: str) -> str:
-    f = open(path, "r")  # ⚠️ 例外時にファイルが閉じられない
+    f = open(path, "r")  # ⚠️ File not closed on exception
     content = f.read()
     f.close()
     return content
 
-# GOOD: コンテキストマネージャを使用
+# GOOD: Use a context manager
 def read_file(path: Path) -> str:
     with open(path, "r", encoding="utf-8") as f:
         return f.read()
 
 
-# === 問題パターン5: 型ヒントの不足・不正確 ===
-# BAD: AIが型ヒントを省略したり不正確にする
-def process_data(data):  # ⚠️ 型ヒントなし
+# === Problem Pattern 5: Missing or inaccurate type hints ===
+# BAD: AI omits or provides inaccurate type hints
+def process_data(data):  # ⚠️ No type hints
     result = {}
     for item in data:
         result[item['id']] = item['value'] * 2
     return result
 
-# GOOD: 正確な型ヒントと入力検証
+# GOOD: Accurate type hints and input validation
 from typing import TypedDict
 
 class DataItem(TypedDict):
@@ -960,17 +970,17 @@ class DataItem(TypedDict):
     value: float
 
 def process_data(data: list[DataItem]) -> dict[str, float]:
-    """データを処理してIDをキーとする辞書を返す"""
+    """Process data and return a dictionary keyed by ID"""
     return {item["id"]: item["value"] * 2 for item in data}
 ```
 
-### 5.2 TypeScript/React固有の品質チェック
+### 5.2 TypeScript/React-Specific Quality Checks
 
 ```typescript
-// TypeScript AI生成コードで頻出する問題と修正パターン
+// Common problems and fix patterns in TypeScript AI-generated code
 
-// === 問題パターン1: any型の乱用 ===
-// BAD: AIが型定義を面倒がってanyを使う
+// === Problem Pattern 1: Overuse of any type ===
+// BAD: AI uses any to avoid type definitions
 function processResponse(data: any): any {
   return data.results.map((item: any) => ({
     id: item.id,
@@ -978,7 +988,7 @@ function processResponse(data: any): any {
   }));
 }
 
-// GOOD: 適切な型定義
+// GOOD: Proper type definitions
 interface ApiResponse {
   results: ApiItem[];
   total: number;
@@ -1004,19 +1014,19 @@ function processResponse(data: ApiResponse): ProcessedItem[] {
 }
 
 
-// === 問題パターン2: useEffectの依存配列ミス ===
-// BAD: AIが依存配列を不完全にする
+// === Problem Pattern 2: Incorrect useEffect dependency array ===
+// BAD: AI makes the dependency array incomplete
 function UserProfile({ userId }: { userId: string }) {
   const [user, setUser] = useState<User | null>(null);
 
   useEffect(() => {
     fetchUser(userId).then(setUser);
-  }, []); // ⚠️ userIdが依存配列に含まれていない
+  }, []); // ⚠️ userId is not included in the dependency array
 
   return <div>{user?.name}</div>;
 }
 
-// GOOD: 依存配列を正確に指定
+// GOOD: Specify the dependency array correctly
 function UserProfile({ userId }: { userId: string }) {
   const [user, setUser] = useState<User | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -1032,7 +1042,7 @@ function UserProfile({ userId }: { userId: string }) {
         if (!cancelled) setError(err.message);
       });
 
-    return () => { cancelled = true; };  // クリーンアップ
+    return () => { cancelled = true; };  // Cleanup
   }, [userId]);
 
   if (error) return <ErrorMessage message={error} />;
@@ -1041,18 +1051,18 @@ function UserProfile({ userId }: { userId: string }) {
 }
 
 
-// === 問題パターン3: メモ化の不適切な使用 ===
-// BAD: AIが全てをmemoしがち
+// === Problem Pattern 3: Inappropriate use of memoization ===
+// BAD: AI tends to memo everything
 const UserList = React.memo(({ users }: { users: User[] }) => {
-  // ⚠️ useMemoを使っているがdepsが毎回新しい配列を参照
+  // ⚠️ Using useMemo but deps reference a new array each time
   const sortedUsers = useMemo(
     () => users.sort((a, b) => a.name.localeCompare(b.name)),
-    [users]  // usersの参照が変わるたびに再計算
+    [users]  // Recalculated every time the users reference changes
   );
 
-  // ⚠️ useCallbackの依存配列が空 → staleクロージャ
+  // ⚠️ Empty dependency array in useCallback → stale closure
   const handleClick = useCallback((id: string) => {
-    const user = users.find(u => u.id === id);  // 古いusersを参照
+    const user = users.find(u => u.id === id);  // References stale users
     console.log(user);
   }, []);
 
@@ -1067,9 +1077,9 @@ const UserList = React.memo(({ users }: { users: User[] }) => {
   );
 });
 
-// GOOD: 適切なメモ化
+// GOOD: Proper memoization
 function UserList({ users }: { users: User[] }) {
-  // sort()は破壊的 → toSorted()を使用
+  // sort() is destructive → use toSorted()
   const sortedUsers = useMemo(
     () => users.toSorted((a, b) => a.name.localeCompare(b.name)),
     [users]
@@ -1080,7 +1090,7 @@ function UserList({ users }: { users: User[] }) {
     if (user) {
       console.log(user);
     }
-  }, [users]);  // usersを依存配列に含める
+  }, [users]);  // Include users in the dependency array
 
   return (
     <ul>
@@ -1094,14 +1104,14 @@ function UserList({ users }: { users: User[] }) {
 }
 
 
-// === 問題パターン4: エラーハンドリングの不足 ===
-// BAD: AIがハッピーパスだけ実装
+// === Problem Pattern 4: Insufficient error handling ===
+// BAD: AI only implements the happy path
 async function fetchData<T>(url: string): Promise<T> {
   const response = await fetch(url);
-  return response.json();  // ⚠️ レスポンスステータスチェックなし
+  return response.json();  // ⚠️ No response status check
 }
 
-// GOOD: 堅牢なエラーハンドリング
+// GOOD: Robust error handling
 class ApiError extends Error {
   constructor(
     message: string,
@@ -1142,19 +1152,19 @@ async function fetchData<T>(
 }
 ```
 
-### 5.3 Go固有の品質チェック
+### 5.3 Go-Specific Quality Checks
 
 ```go
-// Go AI生成コードで頻出する問題と修正パターン
+// Common problems and fix patterns in Go AI-generated code
 
-// === 問題パターン1: エラーの握り潰し ===
-// BAD: AIがエラー処理を省略
+// === Problem Pattern 1: Swallowing errors ===
+// BAD: AI omits error handling
 func GetUser(id int) *User {
-    user, _ := db.FindUser(id)  // ⚠️ エラー無視
+    user, _ := db.FindUser(id)  // ⚠️ Error ignored
     return user
 }
 
-// GOOD: エラーを適切に伝播
+// GOOD: Properly propagate errors
 func GetUser(ctx context.Context, id int) (*User, error) {
     user, err := db.FindUser(ctx, id)
     if err != nil {
@@ -1167,22 +1177,22 @@ func GetUser(ctx context.Context, id int) (*User, error) {
 }
 
 
-// === 問題パターン2: goroutineリーク ===
-// BAD: AIがgoroutineの終了条件を考慮しない
+// === Problem Pattern 2: Goroutine leaks ===
+// BAD: AI does not consider goroutine termination conditions
 func ProcessItems(items []Item) {
     for _, item := range items {
         go func(i Item) {
-            result := heavyProcess(i)  // ⚠️ タイムアウトなし
-            saveToDB(result)            // ⚠️ エラーハンドリングなし
+            result := heavyProcess(i)  // ⚠️ No timeout
+            saveToDB(result)            // ⚠️ No error handling
         }(item)
     }
-    // ⚠️ goroutineの完了を待たない
+    // ⚠️ Does not wait for goroutine completion
 }
 
-// GOOD: errgroup + contextで制御
+// GOOD: Control with errgroup + context
 func ProcessItems(ctx context.Context, items []Item) error {
     g, ctx := errgroup.WithContext(ctx)
-    g.SetLimit(10)  // 同時実行数を制限
+    g.SetLimit(10)  // Limit concurrent executions
 
     for _, item := range items {
         item := item
@@ -1206,22 +1216,22 @@ func ProcessItems(ctx context.Context, items []Item) error {
 }
 
 
-// === 問題パターン3: deferの誤用 ===
-// BAD: ループ内でdeferを使う
+// === Problem Pattern 3: Misuse of defer ===
+// BAD: Using defer inside a loop
 func ProcessFiles(paths []string) error {
     for _, path := range paths {
         f, err := os.Open(path)
         if err != nil {
             return err
         }
-        defer f.Close()  // ⚠️ 関数終了まで閉じられない → ファイルディスクリプタ枯渇
+        defer f.Close()  // ⚠️ Not closed until function exits → file descriptor exhaustion
 
-        // ファイル処理...
+        // File processing...
     }
     return nil
 }
 
-// GOOD: 個別の関数に分離
+// GOOD: Separate into individual functions
 func ProcessFiles(paths []string) error {
     for _, path := range paths {
         if err := processFile(path); err != nil {
@@ -1236,66 +1246,66 @@ func processFile(path string) error {
     if err != nil {
         return err
     }
-    defer f.Close()  // この関数のスコープで確実に閉じられる
+    defer f.Close()  // Reliably closed within this function's scope
 
-    // ファイル処理...
+    // File processing...
     return nil
 }
 ```
 
 ---
 
-## 6. プロンプト設計と品質の関係
+## 6. Prompt Design and Quality Relationship
 
-### 6.1 高品質コードを生成するプロンプト設計
+### 6.1 Prompt Design for Generating High-Quality Code
 
 ```python
-# 品質指向のプロンプトテンプレート
+# Quality-oriented prompt template
 
 QUALITY_PROMPT_TEMPLATE = """
-## 実装タスク
+## Implementation Task
 {task_description}
 
-## 技術要件
-- 言語: {language}
-- フレームワーク: {framework}
-- 対象Python/Nodeバージョン: {runtime_version}
+## Technical Requirements
+- Language: {language}
+- Framework: {framework}
+- Target Python/Node version: {runtime_version}
 
-## 品質要件（必須）
-1. **型安全性**: 全ての関数に型ヒント/型注釈を付与
-2. **エラーハンドリング**: 全ての外部呼び出しにtry-except/try-catchを設置
-3. **入力検証**: 公開APIの引数をバリデーション
-4. **ログ**: 重要な処理ポイントに構造化ログを追加
-5. **テスト**: 実装と同時にユニットテストを生成
+## Quality Requirements (Mandatory)
+1. **Type safety**: Add type hints/annotations to all functions
+2. **Error handling**: Place try-except/try-catch for all external calls
+3. **Input validation**: Validate arguments of public APIs
+4. **Logging**: Add structured logging at important processing points
+5. **Testing**: Generate unit tests simultaneously with implementation
 
-## コーディング規約
+## Coding Standards
 {coding_standards}
 
-## 既存コードのパターン例
+## Existing Code Pattern Example
 ```{language}
 {existing_code_example}
 ```
 
-## 禁止事項
-- any型の使用禁止（TypeScript）
-- ベアexceptの使用禁止（Python）
-- ハードコードされた秘密情報の禁止
-- グローバル変数の使用禁止
-- sleep/time.sleepによる待機の禁止
+## Prohibited Items
+- No use of any type (TypeScript)
+- No bare except usage (Python)
+- No hardcoded secrets
+- No use of global variables
+- No waiting with sleep/time.sleep
 
-## 出力形式
-1. 実装コード
-2. ユニットテスト
-3. 変更点の説明
+## Output Format
+1. Implementation code
+2. Unit tests
+3. Description of changes
 """
 
 
-# プロンプト品質スコアリング
+# Prompt quality scoring
 from dataclasses import dataclass
 
 @dataclass
 class PromptQualityScore:
-    """プロンプトの品質を評価するスコア"""
+    """Score for evaluating prompt quality"""
     has_task_description: bool = False
     has_technical_context: bool = False
     has_quality_requirements: bool = False
@@ -1306,7 +1316,7 @@ class PromptQualityScore:
 
     @property
     def score(self) -> float:
-        """0-100のスコアを返す"""
+        """Return a score from 0-100"""
         weights = {
             "has_task_description": 20,
             "has_technical_context": 15,
@@ -1324,33 +1334,33 @@ class PromptQualityScore:
 
     @property
     def grade(self) -> str:
-        """品質グレードを返す"""
+        """Return a quality grade"""
         s = self.score
         if s >= 90:
-            return "A: 高品質プロンプト → 高品質コード期待"
+            return "A: High-quality prompt → High-quality code expected"
         elif s >= 70:
-            return "B: 良好プロンプト → 中程度の品質修正が必要"
+            return "B: Good prompt → Moderate quality fixes needed"
         elif s >= 50:
-            return "C: 基本プロンプト → 大幅な品質修正が必要"
+            return "C: Basic prompt → Significant quality fixes needed"
         else:
-            return "D: 不十分 → コード生成前にプロンプト改善必須"
+            return "D: Insufficient → Prompt improvement required before code generation"
 
     def improvement_suggestions(self) -> list[str]:
-        """改善提案を返す"""
+        """Return improvement suggestions"""
         suggestions = []
         if not self.has_quality_requirements:
-            suggestions.append("品質要件（型安全性、エラーハンドリング等）を追加")
+            suggestions.append("Add quality requirements (type safety, error handling, etc.)")
         if not self.has_examples:
-            suggestions.append("既存コードのパターン例を追加")
+            suggestions.append("Add existing code pattern examples")
         if not self.has_coding_standards:
-            suggestions.append("チームのコーディング規約を追加")
+            suggestions.append("Add team coding standards")
         if not self.has_constraints:
-            suggestions.append("禁止事項・制約条件を明示")
+            suggestions.append("Specify prohibited items and constraints explicitly")
         if not self.has_technical_context:
-            suggestions.append("使用技術スタック・バージョンを明記")
+            suggestions.append("Specify the technology stack and versions used")
         return suggestions
 
-# 使用例
+# Usage example
 score = PromptQualityScore(
     has_task_description=True,
     has_technical_context=True,
@@ -1365,28 +1375,28 @@ print(f"Grade: {score.grade}")     # B
 print(f"Suggestions: {score.improvement_suggestions()}")
 ```
 
-### 6.2 段階的生成の具体的手順
+### 6.2 Concrete Steps for Incremental Generation
 
 ```python
-# 段階的にAI生成コードの品質を高める実践例
+# Practical example of incrementally improving AI-generated code quality
 
-# ステップ1: インターフェース定義を先に生成させる
+# Step 1: Have AI generate interface definitions first
 STEP1_PROMPT = """
-以下のユーザーストーリーに基づいて、
-Pythonのインターフェース（プロトコル/ABC）を定義してください。
-実装は不要です。
+Based on the following user story,
+define Python interfaces (Protocol/ABC).
+No implementation is needed.
 
-ユーザーストーリー:
-「管理者として、ユーザーのアクティビティレポートを
- CSV/PDF形式で生成・ダウンロードしたい」
+User Story:
+"As an administrator, I want to generate and download
+ user activity reports in CSV/PDF format"
 
-要件:
-- レポート生成は非同期で行う
-- CSV と PDF の2形式に対応
-- 日付範囲でフィルタリング可能
+Requirements:
+- Report generation should be asynchronous
+- Support both CSV and PDF formats
+- Filterable by date range
 """
 
-# AIの出力例
+# AI output example
 from abc import ABC, abstractmethod
 from datetime import date
 from pathlib import Path
@@ -1397,7 +1407,7 @@ class ReportFormat(Enum):
     PDF = "pdf"
 
 class ReportFilter:
-    """レポートのフィルタ条件"""
+    """Report filter conditions"""
     def __init__(
         self,
         start_date: date,
@@ -1411,7 +1421,7 @@ class ReportFilter:
         self.user_ids = user_ids
 
 class ReportGenerator(ABC):
-    """レポート生成のインターフェース"""
+    """Report generation interface"""
 
     @abstractmethod
     async def generate(
@@ -1419,50 +1429,50 @@ class ReportGenerator(ABC):
         report_filter: ReportFilter,
         format: ReportFormat,
     ) -> Path:
-        """レポートを生成してファイルパスを返す"""
+        """Generate a report and return the file path"""
         ...
 
     @abstractmethod
     async def get_status(self, report_id: str) -> str:
-        """レポート生成の進捗状況を返す"""
+        """Return the progress status of report generation"""
         ...
 
 
-# ステップ2: インターフェースに基づいてテストを生成させる
+# Step 2: Have AI generate tests based on the interface
 STEP2_PROMPT = """
-上記のReportGeneratorインターフェースに対するテストを生成してください。
-正常系3件、異常系3件、境界値2件。
+Generate tests for the above ReportGenerator interface.
+3 normal cases, 3 error cases, 2 boundary values.
 """
 
 
-# ステップ3: テストを満たす実装を生成させる
+# Step 3: Have AI generate implementation that satisfies the tests
 STEP3_PROMPT = """
-上記のテストが全て通る ReportGenerator の実装を作成してください。
-以下の制約に従ってください:
-- SQLAlchemy AsyncSessionでDBアクセス
-- レポート生成は10分のタイムアウト付き
-- ファイルは一時ディレクトリに保存
+Create a ReportGenerator implementation that passes all the above tests.
+Follow these constraints:
+- DB access via SQLAlchemy AsyncSession
+- Report generation with a 10-minute timeout
+- Files saved to a temporary directory
 """
 
 
-# ステップ4: レビュー + 改善指示
+# Step 4: Review + improvement instructions
 STEP4_PROMPT = """
-生成された実装について以下の観点でレビューして改善してください:
-1. エラーハンドリングの網羅性
-2. パフォーマンス（大量データ対応）
-3. セキュリティ（パストラバーサル対策）
-4. ログ追加
+Review and improve the generated implementation from the following perspectives:
+1. Completeness of error handling
+2. Performance (handling large data volumes)
+3. Security (path traversal protection)
+4. Add logging
 """
 ```
 
 ---
 
-## 7. コードレビュー自動化ツールの構築
+## 7. Building Code Review Automation Tools
 
-### 7.1 AI生成コード専用レビューボット
+### 7.1 Review Bot Specialized for AI-Generated Code
 
 ```python
-# GitHub PRに対してAI生成コードの品質チェックを行うレビューボット
+# Review bot that performs quality checks on AI-generated code for GitHub PRs
 
 import re
 from dataclasses import dataclass, field
@@ -1470,7 +1480,7 @@ from pathlib import Path
 
 @dataclass
 class ReviewComment:
-    """レビューコメント"""
+    """Review comment"""
     file: str
     line: int
     severity: str  # "error", "warning", "info"
@@ -1479,9 +1489,9 @@ class ReviewComment:
     suggestion: str | None = None
 
 class AICodeReviewBot:
-    """AI生成コードに特化したレビューボット"""
+    """Review bot specialized for AI-generated code"""
 
-    # AI生成コードで頻出する問題パターン
+    # Common problem patterns in AI-generated code
     PATTERNS: dict[str, list[dict]] = {
         "python": [
             {
@@ -1489,48 +1499,48 @@ class AICodeReviewBot:
                 "pattern": r'(?:password|secret|api_key|token)\s*=\s*["\'][^"\']+["\']',
                 "severity": "error",
                 "category": "security",
-                "message": "ハードコードされた秘密情報が検出されました",
-                "suggestion": "環境変数またはシークレットマネージャーを使用してください",
+                "message": "Hardcoded secret detected",
+                "suggestion": "Use environment variables or a secret manager",
             },
             {
                 "name": "bare_except",
                 "pattern": r'except\s*:',
                 "severity": "error",
                 "category": "design",
-                "message": "ベアexceptが検出されました",
-                "suggestion": "具体的な例外クラスをキャッチしてください（例: except ValueError:）",
+                "message": "Bare except detected",
+                "suggestion": "Catch a specific exception class (e.g., except ValueError:)",
             },
             {
                 "name": "mutable_default",
                 "pattern": r'def\s+\w+\([^)]*(?::\s*list|:\s*dict|:\s*set)\s*=\s*(?:\[\]|\{\}|set\(\))',
                 "severity": "warning",
                 "category": "design",
-                "message": "ミュータブルなデフォルト引数が検出されました",
-                "suggestion": "None をデフォルトにして関数内で初期化してください",
+                "message": "Mutable default argument detected",
+                "suggestion": "Use None as default and initialize inside the function",
             },
             {
                 "name": "sync_in_async",
                 "pattern": r'async\s+def.*\n(?:.*\n)*?.*requests\.(get|post|put|delete)',
                 "severity": "error",
                 "category": "performance",
-                "message": "非同期関数内で同期HTTPクライアントが使用されています",
-                "suggestion": "httpx.AsyncClient または aiohttp を使用してください",
+                "message": "Synchronous HTTP client used inside an async function",
+                "suggestion": "Use httpx.AsyncClient or aiohttp",
             },
             {
                 "name": "no_type_hints",
                 "pattern": r'def\s+\w+\([^:)]*\)\s*:',
                 "severity": "warning",
                 "category": "style",
-                "message": "型ヒントが不足しています",
-                "suggestion": "全ての引数と戻り値に型ヒントを追加してください",
+                "message": "Missing type hints",
+                "suggestion": "Add type hints to all arguments and return values",
             },
             {
                 "name": "string_format_sql",
                 "pattern": r'(?:execute|query)\s*\(\s*f["\']|(?:execute|query)\s*\([^)]*%\s',
                 "severity": "error",
                 "category": "security",
-                "message": "SQLインジェクションのリスクが検出されました",
-                "suggestion": "パラメータ化クエリを使用してください",
+                "message": "SQL injection risk detected",
+                "suggestion": "Use parameterized queries",
             },
         ],
         "typescript": [
@@ -1539,24 +1549,24 @@ class AICodeReviewBot:
                 "pattern": r':\s*any\b',
                 "severity": "warning",
                 "category": "style",
-                "message": "any型が使用されています",
-                "suggestion": "具体的な型またはunknownを使用してください",
+                "message": "any type is used",
+                "suggestion": "Use a specific type or unknown",
             },
             {
                 "name": "empty_catch",
                 "pattern": r'catch\s*\([^)]*\)\s*\{\s*\}',
                 "severity": "error",
                 "category": "design",
-                "message": "空のcatchブロックが検出されました",
-                "suggestion": "エラーをログに記録するか再throwしてください",
+                "message": "Empty catch block detected",
+                "suggestion": "Log the error or re-throw it",
             },
             {
                 "name": "no_error_handling_fetch",
                 "pattern": r'await\s+fetch\([^)]+\)(?!\s*\.then|\s*;?\s*\n\s*if\s*\(!)',
                 "severity": "warning",
                 "category": "design",
-                "message": "fetchの結果に対するエラーチェックが不足している可能性があります",
-                "suggestion": "response.ok をチェックしてエラーハンドリングを追加してください",
+                "message": "Possible missing error check on fetch result",
+                "suggestion": "Check response.ok and add error handling",
             },
         ],
     }
@@ -1565,10 +1575,10 @@ class AICodeReviewBot:
         self.comments: list[ReviewComment] = []
 
     def review_file(self, file_path: str, content: str) -> list[ReviewComment]:
-        """ファイルをレビューしてコメントを返す"""
+        """Review a file and return comments"""
         comments = []
 
-        # 言語判定
+        # Determine language
         ext = Path(file_path).suffix
         lang_map = {".py": "python", ".ts": "typescript", ".tsx": "typescript"}
         lang = lang_map.get(ext)
@@ -1580,7 +1590,7 @@ class AICodeReviewBot:
 
         for pattern_def in self.PATTERNS[lang]:
             for match in re.finditer(pattern_def["pattern"], content, re.MULTILINE):
-                # マッチ位置から行番号を特定
+                # Determine line number from match position
                 line_num = content[:match.start()].count("\n") + 1
 
                 comment = ReviewComment(
@@ -1597,44 +1607,44 @@ class AICodeReviewBot:
         return comments
 
     def generate_pr_review(self) -> str:
-        """PR用のレビューサマリーを生成"""
+        """Generate a review summary for a PR"""
         if not self.comments:
-            return "AI生成コードレビュー: 問題は検出されませんでした ✅"
+            return "AI-generated code review: No issues detected ✅"
 
         errors = [c for c in self.comments if c.severity == "error"]
         warnings = [c for c in self.comments if c.severity == "warning"]
 
         lines = [
-            "## AI生成コード レビュー結果\n",
-            f"- エラー: {len(errors)}件",
-            f"- 警告: {len(warnings)}件\n",
+            "## AI-Generated Code Review Results\n",
+            f"- Errors: {len(errors)}",
+            f"- Warnings: {len(warnings)}\n",
         ]
 
         if errors:
-            lines.append("### エラー（修正必須）\n")
+            lines.append("### Errors (Must Fix)\n")
             for c in errors:
                 lines.append(f"- **{c.file}:{c.line}** [{c.category}] {c.message}")
                 if c.suggestion:
-                    lines.append(f"  - 提案: {c.suggestion}")
+                    lines.append(f"  - Suggestion: {c.suggestion}")
 
         if warnings:
-            lines.append("\n### 警告（確認推奨）\n")
+            lines.append("\n### Warnings (Review Recommended)\n")
             for c in warnings:
                 lines.append(f"- **{c.file}:{c.line}** [{c.category}] {c.message}")
                 if c.suggestion:
-                    lines.append(f"  - 提案: {c.suggestion}")
+                    lines.append(f"  - Suggestion: {c.suggestion}")
 
         return "\n".join(lines)
 ```
 
-### 7.2 pre-commitフックによるAI生成コード品質保証
+### 7.2 Quality Assurance for AI-Generated Code with Pre-Commit Hooks
 
 ```yaml
 # .pre-commit-config.yaml
-# AI生成コードの品質を自動チェックするpre-commitフック
+# Pre-commit hooks that automatically check AI-generated code quality
 
 repos:
-  # Python: フォーマット + リント
+  # Python: Format + Lint
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.8.0
     hooks:
@@ -1642,7 +1652,7 @@ repos:
         args: [--fix]
       - id: ruff-format
 
-  # Python: 型チェック
+  # Python: Type check
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.13.0
     hooks:
@@ -1650,13 +1660,13 @@ repos:
         additional_dependencies: [types-requests, pydantic]
         args: [--strict]
 
-  # セキュリティ: 秘密情報スキャン
+  # Security: Secret scanning
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.21.0
     hooks:
       - id: gitleaks
 
-  # セキュリティ: Python SAST
+  # Security: Python SAST
   - repo: https://github.com/PyCQA/bandit
     rev: 1.8.0
     hooks:
@@ -1673,7 +1683,7 @@ repos:
         language: system
         types: [typescript]
 
-  # カスタム: AI生成コード品質チェック
+  # Custom: AI-generated code quality check
   - repo: local
     hooks:
       - id: ai-code-quality
@@ -1686,52 +1696,52 @@ repos:
 
 ```python
 # scripts/ai_code_quality_check.py
-# pre-commitフック用のAI生成コード品質チェッカー
+# AI-generated code quality checker for pre-commit hooks
 
 import ast
 import sys
 from pathlib import Path
 
 class PythonQualityChecker(ast.NodeVisitor):
-    """Python ASTを解析して品質問題を検出"""
+    """Analyze Python AST to detect quality issues"""
 
     def __init__(self, filename: str):
         self.filename = filename
         self.issues: list[str] = []
 
     def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
-        """関数定義の品質チェック"""
-        # 型ヒントチェック
+        """Quality check for function definitions"""
+        # Type hint check
         if not node.returns:
             self.issues.append(
                 f"{self.filename}:{node.lineno}: "
-                f"関数 '{node.name}' に戻り値の型ヒントがありません"
+                f"Function '{node.name}' is missing a return type hint"
             )
 
         for arg in node.args.args:
             if arg.arg != "self" and not arg.annotation:
                 self.issues.append(
                     f"{self.filename}:{node.lineno}: "
-                    f"引数 '{arg.arg}' に型ヒントがありません"
+                    f"Argument '{arg.arg}' is missing a type hint"
                 )
 
-        # 関数の行数チェック（50行以上は警告）
+        # Function line count check (warn if over 50 lines)
         end_line = node.end_lineno or node.lineno
         func_lines = end_line - node.lineno
         if func_lines > 50:
             self.issues.append(
                 f"{self.filename}:{node.lineno}: "
-                f"関数 '{node.name}' が {func_lines} 行あります（推奨: 50行以下）"
+                f"Function '{node.name}' is {func_lines} lines long (recommended: 50 lines or fewer)"
             )
 
-        # docstringチェック
+        # Docstring check
         if not (node.body and isinstance(node.body[0], ast.Expr)
                 and isinstance(node.body[0].value, ast.Constant)
                 and isinstance(node.body[0].value.value, str)):
             if not node.name.startswith("_"):
                 self.issues.append(
                     f"{self.filename}:{node.lineno}: "
-                    f"公開関数 '{node.name}' にdocstringがありません"
+                    f"Public function '{node.name}' is missing a docstring"
                 )
 
         self.generic_visit(node)
@@ -1739,24 +1749,24 @@ class PythonQualityChecker(ast.NodeVisitor):
     visit_AsyncFunctionDef = visit_FunctionDef
 
     def visit_ExceptHandler(self, node: ast.ExceptHandler) -> None:
-        """例外ハンドラのチェック"""
+        """Check exception handlers"""
         if node.type is None:
             self.issues.append(
                 f"{self.filename}:{node.lineno}: "
-                f"ベアexceptが検出されました。具体的な例外クラスを指定してください"
+                f"Bare except detected. Please specify a specific exception class"
             )
 
-        # 空のexceptブロック
+        # Empty except block
         if len(node.body) == 1 and isinstance(node.body[0], ast.Pass):
             self.issues.append(
                 f"{self.filename}:{node.lineno}: "
-                f"空のexceptブロックが検出されました。エラーをログに記録してください"
+                f"Empty except block detected. Please log the error"
             )
 
         self.generic_visit(node)
 
 def check_file(filepath: str) -> list[str]:
-    """ファイルを検査して問題リストを返す"""
+    """Inspect a file and return a list of issues"""
     path = Path(filepath)
     if path.suffix != ".py":
         return []
@@ -1765,14 +1775,14 @@ def check_file(filepath: str) -> list[str]:
         source = path.read_text(encoding="utf-8")
         tree = ast.parse(source, filename=filepath)
     except SyntaxError as e:
-        return [f"{filepath}:{e.lineno}: 構文エラー: {e.msg}"]
+        return [f"{filepath}:{e.lineno}: Syntax error: {e.msg}"]
 
     checker = PythonQualityChecker(filepath)
     checker.visit(tree)
     return checker.issues
 
 def main() -> int:
-    """メインエントリポイント"""
+    """Main entry point"""
     files = sys.argv[1:]
     all_issues: list[str] = []
 
@@ -1781,10 +1791,10 @@ def main() -> int:
         all_issues.extend(issues)
 
     if all_issues:
-        print("AI生成コード品質チェック: 問題が検出されました\n")
+        print("AI-generated code quality check: Issues detected\n")
         for issue in all_issues:
             print(f"  {issue}")
-        print(f"\n合計: {len(all_issues)} 件の問題")
+        print(f"\nTotal: {len(all_issues)} issues")
         return 1
 
     return 0
@@ -1795,76 +1805,76 @@ if __name__ == "__main__":
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン 1: テストなしマージ
+### Anti-Pattern 1: Merging Without Tests
 
 ```python
-# BAD: AIが生成したコードをテストなしでマージ
-# "AIが書いたんだから正しいだろう" → 危険な思い込み
+# BAD: Merging AI-generated code without tests
+# "AI wrote it, so it must be correct" → Dangerous assumption
 
-# 実際にあった事故例:
+# A real incident example:
 def send_notification(user_id: int, message: str) -> bool:
-    """AIが生成した通知送信関数"""
-    users = get_all_users()  # ← 全ユーザーを取得してしまう
+    """Notification sending function generated by AI"""
+    users = get_all_users()  # ← Retrieves all users
     for user in users:
         if user.id == user_id:
             email_service.send(user.email, message)
             return True
     return False
-    # 問題: 10万ユーザーいる場合、毎回全件取得 → 性能破壊
+    # Problem: With 100,000 users, retrieves all records every time → performance disaster
 
-# GOOD: テストで性能問題を検出
+# GOOD: Detect performance issues with tests
 def test_send_notification_performance():
-    """通知送信が1秒以内に完了すること"""
+    """Notification sending should complete within 1 second"""
     with time_limit(seconds=1):
         send_notification(user_id=42, message="test")
 ```
 
-### アンチパターン 2: AI生成コードの過剰信頼スコアリング
+### Anti-Pattern 2: Over-Trusting AI-Generated Code Confidence Scores
 
 ```
-❌ BAD: "AIの出力確率が高いから品質も高い"
-   - LLMの出力確率と正確性は別物
-   - 「自信満々に間違える」のがLLMの特性
-   - 統計的に正しそうに見えるが論理的に誤っている場合がある
+❌ BAD: "The AI's output probability is high, so the quality must be high"
+   - LLM output probability and accuracy are separate things
+   - "Confidently wrong" is a characteristic of LLMs
+   - May appear statistically correct but be logically wrong
 
-✅ GOOD: 実行ベースの品質検証
-   - テストを実行して結果で判断
-   - 型チェッカーで整合性を確認
-   - 既存テストが全てパスすることを確認
-   - 人間がドメイン知識で最終判断
+✅ GOOD: Execution-based quality verification
+   - Judge by running tests and evaluating results
+   - Verify consistency with type checkers
+   - Confirm all existing tests pass
+   - Human makes final judgment with domain knowledge
 ```
 
-### アンチパターン 3: コンテキスト不足のプロンプト
+### Anti-Pattern 3: Prompts Without Sufficient Context
 
 ```python
-# BAD: コンテキストなしでAIにコード生成を依頼
-# プロンプト: "ユーザー登録APIを作って"
+# BAD: Requesting code generation from AI without context
+# Prompt: "Create a user registration API"
 
-# → AIはフレームワーク、DB、認証方式、バリデーション要件が
-#   わからないため、汎用的で低品質なコードを生成する
+# → AI doesn't know the framework, DB, auth method, or validation requirements,
+#   so it generates generic, low-quality code
 
-# GOOD: 十分なコンテキストを提供
-# プロンプト:
+# GOOD: Provide sufficient context
+# Prompt:
 # """
-# FastAPI + SQLAlchemy(async) + PostgreSQL環境で
-# ユーザー登録APIを実装してください。
+# In a FastAPI + SQLAlchemy(async) + PostgreSQL environment,
+# implement a user registration API.
 #
-# 既存パターン: app/api/v1/auth.py の login エンドポイントを参照
-# バリデーション: Pydantic v2のモデルで入力検証
-# パスワード: bcryptでハッシュ化
-# レスポンス: app/schemas/user.py のUserResponseスキーマを使用
-# テスト: tests/api/test_auth.py のパターンに従う
+# Existing pattern: Refer to the login endpoint in app/api/v1/auth.py
+# Validation: Input validation with Pydantic v2 models
+# Password: Hash with bcrypt
+# Response: Use the UserResponse schema from app/schemas/user.py
+# Testing: Follow the pattern in tests/api/test_auth.py
 # """
 ```
 
-### アンチパターン 4: 生成コードの丸コピ
+### Anti-Pattern 4: Copy-Pasting Generated Code As-Is
 
 ```python
-# BAD: 別プロジェクト用にAIが生成したコードをそのまま流用
+# BAD: Reusing AI-generated code from another project as-is
 
-# プロジェクトA用に生成されたコード（Django + MySQL）
+# Code generated for Project A (Django + MySQL)
 class UserView(APIView):
     def post(self, request):
         serializer = UserSerializer(data=request.data)
@@ -1872,23 +1882,23 @@ class UserView(APIView):
         serializer.save()
         return Response(serializer.data, status=201)
 
-# プロジェクトBにそのまま持ってくる
-# → フレームワーク（FastAPI）、ORM（SQLAlchemy）、DB（PostgreSQL）が
-#   全て異なるため動作しない or 設計が不適合
+# Bringing it directly into Project B
+# → Framework (FastAPI), ORM (SQLAlchemy), and DB (PostgreSQL) are
+#   all different, so it won't work or the design won't fit
 
-# GOOD: プロジェクト固有のコンテキストで再生成
-# プロジェクトBの既存コードパターンをAIに提供し、
-# そのプロジェクトの慣習に沿ったコードを新たに生成させる
+# GOOD: Regenerate with project-specific context
+# Provide Project B's existing code patterns to AI and
+# have it generate new code that follows that project's conventions
 ```
 
 ---
 
-## 8. チームでのAI品質運用
+## 8. AI Quality Operations in Teams
 
-### 8.1 品質メトリクスダッシュボード
+### 8.1 Quality Metrics Dashboard
 
 ```python
-# チーム全体のAI生成コード品質を可視化するダッシュボード
+# Dashboard to visualize AI-generated code quality across the team
 
 from dataclasses import dataclass, field
 from datetime import datetime, date
@@ -1896,7 +1906,7 @@ from collections import defaultdict
 
 @dataclass
 class PRMetrics:
-    """PR単位の品質メトリクス"""
+    """Quality metrics per PR"""
     pr_number: int
     author: str
     ai_generated_lines: int
@@ -1912,24 +1922,24 @@ class PRMetrics:
 
 @dataclass
 class TeamQualityDashboard:
-    """チーム品質ダッシュボード"""
+    """Team quality dashboard"""
 
     metrics: list[PRMetrics] = field(default_factory=list)
 
     def ai_code_ratio(self) -> float:
-        """AI生成コードの比率"""
+        """Ratio of AI-generated code"""
         total = sum(m.total_lines for m in self.metrics)
         ai = sum(m.ai_generated_lines for m in self.metrics)
         return (ai / total * 100) if total > 0 else 0
 
     def average_coverage(self) -> float:
-        """平均テストカバレッジ"""
+        """Average test coverage"""
         if not self.metrics:
             return 0
         return sum(m.test_coverage for m in self.metrics) / len(self.metrics)
 
     def defect_density(self) -> float:
-        """欠陥密度（バグ数 / AI生成1000行あたり）"""
+        """Defect density (bugs per 1000 AI-generated lines)"""
         total_ai_lines = sum(m.ai_generated_lines for m in self.metrics)
         total_bugs = sum(m.bugs_found_post_merge for m in self.metrics)
         if total_ai_lines == 0:
@@ -1937,7 +1947,7 @@ class TeamQualityDashboard:
         return (total_bugs / total_ai_lines) * 1000
 
     def review_efficiency(self) -> dict[str, float]:
-        """レビュー効率の分析"""
+        """Review efficiency analysis"""
         if not self.metrics:
             return {}
         return {
@@ -1947,7 +1957,7 @@ class TeamQualityDashboard:
         }
 
     def quality_trend(self, period_days: int = 30) -> dict[str, list]:
-        """品質トレンド（週次推移）"""
+        """Quality trend (weekly progression)"""
         from datetime import timedelta
 
         cutoff = datetime.now() - timedelta(days=period_days)
@@ -1982,116 +1992,116 @@ class TeamQualityDashboard:
         return trend
 
     def generate_report(self) -> str:
-        """月次品質レポートを生成"""
+        """Generate a monthly quality report"""
         lines = [
-            "# AI生成コード品質レポート\n",
-            f"- 対象PR数: {len(self.metrics)}",
-            f"- AI生成コード比率: {self.ai_code_ratio():.1f}%",
-            f"- 平均テストカバレッジ: {self.average_coverage():.1f}%",
-            f"- 欠陥密度: {self.defect_density():.2f} bugs/1000行",
+            "# AI-Generated Code Quality Report\n",
+            f"- Target PRs: {len(self.metrics)}",
+            f"- AI-generated code ratio: {self.ai_code_ratio():.1f}%",
+            f"- Average test coverage: {self.average_coverage():.1f}%",
+            f"- Defect density: {self.defect_density():.2f} bugs/1000 lines",
             "",
         ]
 
         efficiency = self.review_efficiency()
         if efficiency:
             lines.extend([
-                "## レビュー効率",
-                f"- 平均レビュー時間: {efficiency['avg_review_time_min']:.0f}分",
-                f"- 平均コメント数: {efficiency['avg_comments_per_pr']:.1f}件/PR",
-                f"- レビュー速度: {efficiency['avg_lines_per_minute']:.0f}行/分",
+                "## Review Efficiency",
+                f"- Average review time: {efficiency['avg_review_time_min']:.0f} min",
+                f"- Average comments: {efficiency['avg_comments_per_pr']:.1f} per PR",
+                f"- Review speed: {efficiency['avg_lines_per_minute']:.0f} lines/min",
             ])
 
         return "\n".join(lines)
 ```
 
-### 8.2 品質改善のフィードバックループ
+### 8.2 Feedback Loop for Quality Improvement
 
 ```
-AI生成コードの品質改善サイクル:
+AI-generated code quality improvement cycle:
 
 ┌─────────────────────────────────────────────────┐
 │                                                 │
-│  ① 生成: AIがコードを生成                       │
+│  ① Generate: AI generates code                  │
 │     │                                           │
 │     ▼                                           │
-│  ② 検証: 自動ゲート + 人間レビュー              │
+│  ② Verify: Automated gates + human review       │
 │     │                                           │
 │     ▼                                           │
-│  ③ 計測: 品質メトリクスを記録                    │
+│  ③ Measure: Record quality metrics              │
 │     │                                           │
 │     ▼                                           │
-│  ④ 分析: パターン別の品質傾向を分析              │
+│  ④ Analyze: Analyze quality trends by pattern   │
 │     │                                           │
 │     ▼                                           │
-│  ⑤ 改善: プロンプト・ルール・CIを更新            │
+│  ⑤ Improve: Update prompts, rules, and CI       │
 │     │                                           │
-│     └──────────► ① に戻る                       │
+│     └──────────► Return to ①                    │
 │                                                 │
-│  各サイクル: 2週間スプリントで回す               │
-│  KPI: カバレッジ、欠陥密度、レビュー時間         │
+│  Each cycle: Run in 2-week sprints              │
+│  KPIs: Coverage, defect density, review time    │
 └─────────────────────────────────────────────────┘
 
-改善アクション例:
-- セキュリティ問題が多い → プロンプトにセキュリティ要件を追加
-- 型エラーが多い → CIに strictモードの型チェックを追加
-- N+1問題が多い → レビューチェックリストにDB関連項目を追加
-- テストカバレッジが低い → テストファーストパターンを標準化
+Example improvement actions:
+- Many security issues → Add security requirements to prompts
+- Many type errors → Add strict mode type checking to CI
+- Many N+1 problems → Add DB-related items to review checklist
+- Low test coverage → Standardize the test-first pattern
 ```
 
 ---
 
 ## FAQ
 
-### Q1: AI生成コードのレビューにどれくらい時間をかけるべきか？
+### Q1: How much time should be spent reviewing AI-generated code?
 
-目安は「AI生成にかかった時間の30-50%」。10分でAIが生成したコードなら3-5分のレビュー。ただし、セキュリティクリティカルな部分（認証、決済、個人情報処理）は通常の2-3倍の時間をかける。レビュー効率を上げるには、Layer 1-3を自動化し、人間はLayer 4-5に集中する。
+A guideline is "30-50% of the time it took for AI to generate the code." If AI generated code in 10 minutes, review for 3-5 minutes. However, for security-critical areas (authentication, payments, personal data processing), spend 2-3 times the normal amount. To improve review efficiency, automate Layers 1-3 and have humans focus on Layers 4-5.
 
-### Q2: AIが生成したテストコードの品質はどう保証するか？
+### Q2: How do you ensure the quality of AI-generated test code?
 
-AIが生成したテスト自体を検証する必要がある。具体的には(1) ミューテーションテスト（Stryker等）でテストの有効性を検証、(2) テストが実際に失敗すべきケースで失敗するか確認（assertを削除して確認）、(3) カバレッジだけでなく、ビジネスルールの網羅性を人間が確認する。
+You need to verify the AI-generated tests themselves. Specifically: (1) Use mutation testing (Stryker, etc.) to verify test effectiveness, (2) Confirm that tests fail when they should fail (verify by removing asserts), (3) Have humans verify not just coverage but also the completeness of business rule coverage.
 
-### Q3: チームでAIコード品質基準をどう統一するか？
+### Q3: How do you standardize AI code quality criteria across a team?
 
-3つのレベルで統一する。(1) 自動化レベル: CI/CDに品質ゲートを組み込む（lint、型チェック、テスト、カバレッジ）、(2) ガイドラインレベル: 「AIコードレビューチェックリスト」をチームWikiに作成、(3) 文化レベル: 定期的なAIコードレビュー会で知見を共有し、ベストプラクティスを更新する。
+Standardize at three levels: (1) Automation level: Embed quality gates in CI/CD (lint, type checking, tests, coverage), (2) Guideline level: Create an "AI Code Review Checklist" in the team wiki, (3) Culture level: Share knowledge in regular AI code review meetings and update best practices.
 
-### Q4: AI生成コードに著作権やライセンスの問題はあるか？
+### Q4: Are there copyright or licensing issues with AI-generated code?
 
-AI生成コードの著作権は法的にグレーゾーンだが、実務上以下の対策が重要。(1) AIが生成したコードが既存のOSSコードと高い類似性を持っていないか確認する（特にコピーレフトライセンスのコード）、(2) 社内ポリシーでAI生成コードの利用範囲を明確にする、(3) AIツールの利用規約を確認し、生成コードの商用利用が許可されていることを確認する、(4) PRの説明にAI支援の範囲を記録し、監査証跡を残す。
+The copyright of AI-generated code is legally a gray area, but the following measures are practically important: (1) Verify that AI-generated code does not have high similarity to existing OSS code (especially copyleft-licensed code), (2) Clarify the scope of AI-generated code usage in internal policies, (3) Review the AI tool's terms of service to confirm that commercial use of generated code is permitted, (4) Record the scope of AI assistance in PR descriptions and maintain an audit trail.
 
-### Q5: AI生成コードのパフォーマンスが悪い場合の対処法は？
+### Q5: What should be done when AI-generated code has poor performance?
 
-AI生成コードのパフォーマンス問題は以下のステップで対処する。(1) ベンチマークテストで問題箇所を特定する（pytest-benchmark、k6等）、(2) プロファイラでボトルネックを可視化する（cProfile、py-spy、Chrome DevTools）、(3) AIに改善プロンプトを投げる際に、具体的なパフォーマンス要件（「1000リクエスト/秒」「レスポンス100ms以下」等）を明示する、(4) 改善前後でベンチマーク結果を比較する。パフォーマンス要件をプロンプトに含めることで、初回生成時から最適化されたコードを得やすくなる。
+Address performance issues in AI-generated code with these steps: (1) Identify problem areas with benchmark tests (pytest-benchmark, k6, etc.), (2) Visualize bottlenecks with profilers (cProfile, py-spy, Chrome DevTools), (3) When sending improvement prompts to AI, specify concrete performance requirements ("1000 requests/sec," "response under 100ms," etc.), (4) Compare benchmark results before and after improvements. Including performance requirements in prompts makes it easier to get optimized code from the initial generation.
 
-### Q6: 大規模プロジェクトでAIコード品質を管理するにはどうすればよいか？
+### Q6: How should AI code quality be managed in large-scale projects?
 
-大規模プロジェクトでは以下の戦略が有効。(1) モノレポ全体に統一された品質ゲートをCIで強制する（lint、型チェック、テスト、セキュリティスキャン）、(2) CODEOWNERS で各ディレクトリのレビュー担当を明確にし、AI生成コードも必ず人間レビューを通す、(3) 品質メトリクスダッシュボード（本章の8.1参照）でチーム横断的にトレンドを監視する、(4) 月次の品質振り返り会で、AI生成コードの欠陥パターンを共有し、プロンプトテンプレートやCIルールを更新する、(5) 新規メンバーのオンボーディングにAIコード品質ガイドを含める。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| レビュー5層 | 構文→設計→性能→セキュリティ→ビジネスロジック |
-| 品質ゲート | Lint→型→テスト→人間レビューの4段階 |
-| 自動化範囲 | Layer 1-3（80%）は自動化、Layer 4-5は人間 |
-| テスト戦略 | テストファーストでAIに実装させるのが最高品質 |
-| メトリクス | カバレッジ、複雑度、セキュリティ監査を自動計測 |
-| チーム運用 | CI/CD + ガイドライン + 定期レビュー会の3層 |
-| 言語別対策 | Python/TypeScript/Goそれぞれの頻出問題を把握 |
-| プロンプト品質 | コンテキスト充実が生成コード品質に直結 |
+The following strategies are effective for large-scale projects: (1) Enforce unified quality gates across the entire monorepo via CI (lint, type checking, tests, security scans), (2) Use CODEOWNERS to clarify review owners for each directory, ensuring AI-generated code also goes through human review, (3) Monitor trends across teams with a quality metrics dashboard (see Section 8.1 in this chapter), (4) Share defect patterns of AI-generated code in monthly quality retrospectives and update prompt templates and CI rules, (5) Include an AI code quality guide in new member onboarding.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [../02-workflow/00-ai-testing.md](../02-workflow/00-ai-testing.md) ── AIテストの詳細手法
-- [../02-workflow/01-ai-code-review.md](../02-workflow/01-ai-code-review.md) ── AIコードレビューの実践
-- [../03-team/00-ai-team-practices.md](../03-team/00-ai-team-practices.md) ── チーム品質基準の策定
+| Item | Key Points |
+|------|-----------|
+| Five-Layer Review | Syntax → Design → Performance → Security → Business Logic |
+| Quality Gates | Lint → Type → Test → Human Review in 4 stages |
+| Automation Scope | Layers 1-3 (80%) automated, Layers 4-5 by humans |
+| Test Strategy | Test-first approach with AI implementation yields highest quality |
+| Metrics | Automatically measure coverage, complexity, and security audits |
+| Team Operations | Three layers: CI/CD + Guidelines + Regular review meetings |
+| Language-Specific Measures | Understand common issues in Python/TypeScript/Go |
+| Prompt Quality | Rich context directly correlates to generated code quality |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
+
+- [../02-workflow/00-ai-testing.md](../02-workflow/00-ai-testing.md) -- Detailed AI Testing Methods
+- [../02-workflow/01-ai-code-review.md](../02-workflow/01-ai-code-review.md) -- Practical AI Code Review
+- [../03-team/00-ai-team-practices.md](../03-team/00-ai-team-practices.md) -- Establishing Team Quality Standards
+
+---
+
+## References
 
 1. Google Engineering Practices, "Code Review Developer Guide," 2024. https://google.github.io/eng-practices/review/
 2. OWASP, "OWASP Code Review Guide," 2024. https://owasp.org/www-project-code-review-guide/
