@@ -1,128 +1,128 @@
-# ワークフロー自動化 — Zapier、n8n、Make 実践ガイド
+# Workflow Automation — Practical Guide to Zapier, n8n, and Make
 
-> 3大ワークフロー自動化プラットフォーム（Zapier、n8n、Make）を比較し、AIと連携した実用的な自動化フローの設計・構築・運用を実践的に解説する。
-
----
-
-## この章で学ぶこと
-
-1. **3大プラットフォームの特徴と選定基準** — Zapier、n8n、Makeの強み・弱みを理解し、ユースケースに応じた選択ができる
-2. **AI連携ワークフローの設計パターン** — トリガー→AI処理→アクションの基本パターンから複雑な分岐処理まで
-3. **本番運用のベストプラクティス** — エラーハンドリング、モニタリング、コスト最適化の実践手法
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [AI自動化概要 — ノーコード/ローコードからAI統合まで](./00-automation-overview.md) の内容を理解していること
+> Compare the three major workflow automation platforms (Zapier, n8n, Make), and learn how to design, build, and operate practical automation flows integrated with AI.
 
 ---
 
-## 1. プラットフォーム比較
+## What You Will Learn in This Chapter
 
-### 1.1 3大プラットフォーム概要
+1. **Characteristics and Selection Criteria of the Three Platforms** — Understand the strengths and weaknesses of Zapier, n8n, and Make, and choose the right one for your use case
+2. **Design Patterns for AI-Integrated Workflows** — From the basic trigger → AI processing → action pattern to complex branching logic
+3. **Best Practices for Production Operations** — Practical techniques for error handling, monitoring, and cost optimization
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [AI Automation Overview — From No-Code/Low-Code to AI Integration](./00-automation-overview.md)
+
+---
+
+## 1. Platform Comparison
+
+### 1.1 Overview of the Three Platforms
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│            ワークフロー自動化プラットフォーム比較              │
+│            Workflow Automation Platform Comparison           │
 ├──────────┬──────────────┬──────────────┬───────────────────┤
 │          │   Zapier     │    Make      │      n8n          │
 ├──────────┼──────────────┼──────────────┼───────────────────┤
-│ 種類     │ SaaS         │ SaaS         │ OSS / セルフホスト│
-│ 価格     │ $20-$800/月  │ $9-$300/月   │ 無料(自前) /$20+  │
-│ 連携数   │ 7,000+       │ 1,800+       │ 400+              │
-│ AI連携   │ ネイティブ    │ HTTP経由     │ ネイティブ+HTTP   │
-│ 難易度   │ 初級         │ 中級         │ 中級〜上級        │
-│ 実行上限 │ プラン依存    │ Ops数依存    │ 無制限(自前)      │
+│ Type     │ SaaS         │ SaaS         │ OSS / Self-hosted │
+│ Price    │ $20-$800/mo  │ $9-$300/mo   │ Free(self) /$20+  │
+│ Integr.  │ 7,000+       │ 1,800+       │ 400+              │
+│ AI Integ.│ Native       │ Via HTTP     │ Native + HTTP     │
+│ Difficulty│ Beginner    │ Intermediate │ Intermediate-Adv  │
+│ Exec Lmt │ Plan-based   │ Ops-based    │ Unlimited(self)   │
 └──────────┴──────────────┴──────────────┴───────────────────┘
 ```
 
-### 1.2 詳細比較表
+### 1.2 Detailed Comparison Table
 
-| 比較項目 | Zapier | Make | n8n |
-|---------|--------|------|-----|
-| 初期設定の容易さ | 非常に簡単 | 簡単 | やや複雑 |
-| ビジュアルエディタ | リスト型 | フロー図型 | フロー図型 |
-| 条件分岐 | Paths機能 | Router | IF/Switch |
-| ループ処理 | 制限あり | Iterator | Loop/SplitInBatches |
-| Webhook | 有料プラン | 全プラン | 全プラン |
-| データ変換 | Formatter | 組込み関数 | Function/Code |
-| セルフホスト | 不可 | 不可 | Docker/npm |
-| API制限 | 月間タスク数 | Operations数 | なし(自前) |
-| チーム機能 | Business+ | Team+ | 全プラン |
-| デバッグ | 実行ログ | 実行履歴 | 実行ログ+デバッガ |
+| Comparison Item | Zapier | Make | n8n |
+|----------------|--------|------|-----|
+| Ease of initial setup | Very easy | Easy | Somewhat complex |
+| Visual editor | List-based | Flow diagram | Flow diagram |
+| Conditional branching | Paths feature | Router | IF/Switch |
+| Loop processing | Limited | Iterator | Loop/SplitInBatches |
+| Webhook | Paid plans | All plans | All plans |
+| Data transformation | Formatter | Built-in functions | Function/Code |
+| Self-hosting | Not available | Not available | Docker/npm |
+| API limits | Monthly task count | Operations count | None (self-hosted) |
+| Team features | Business+ | Team+ | All plans |
+| Debugging | Execution logs | Execution history | Execution logs + debugger |
 
-### 1.3 コスト比較シミュレーション
+### 1.3 Cost Comparison Simulation
 
 ```python
-# 月間処理量別のコスト比較
+# Cost comparison by monthly processing volume
 cost_comparison = {
     "monthly_tasks_1000": {
         "zapier": {"plan": "Starter", "cost_usd": 20, "included_tasks": 750,
                    "overage": "$0.01/task"},
         "make": {"plan": "Core", "cost_usd": 9, "included_ops": 10000,
-                 "overage": "N/A（余裕あり）"},
+                 "overage": "N/A (plenty of room)"},
         "n8n_cloud": {"plan": "Starter", "cost_usd": 20, "included_execs": 2500,
                       "overage": "N/A"},
         "n8n_self": {"plan": "Self-hosted", "cost_usd": 5,
-                     "note": "VPS費用のみ（Hetzner等）"}
+                     "note": "VPS cost only (Hetzner, etc.)"}
     },
     "monthly_tasks_10000": {
         "zapier": {"plan": "Professional", "cost_usd": 49, "included_tasks": 2000,
-                   "overage": "$80追加で10000タスク"},
+                   "overage": "+$80 for 10000 tasks"},
         "make": {"plan": "Core", "cost_usd": 9, "included_ops": 10000,
-                 "overage": "ギリギリ"},
-        "n8n_cloud": {"plan": "Starter", "cost_usd": 20, "note": "余裕あり"},
+                 "overage": "Right at the limit"},
+        "n8n_cloud": {"plan": "Starter", "cost_usd": 20, "note": "Plenty of room"},
         "n8n_self": {"plan": "Self-hosted", "cost_usd": 10,
-                     "note": "VPS増強が必要な場合あり"}
+                     "note": "May need to upgrade VPS"}
     },
     "monthly_tasks_100000": {
-        "zapier": {"plan": "Team", "cost_usd": 400, "note": "追加課金必要"},
-        "make": {"plan": "Teams", "cost_usd": 99, "note": "追加Ops購入必要"},
-        "n8n_cloud": {"plan": "Pro", "cost_usd": 50, "note": "余裕あり"},
+        "zapier": {"plan": "Team", "cost_usd": 400, "note": "Additional charges required"},
+        "make": {"plan": "Teams", "cost_usd": 99, "note": "Need to purchase additional Ops"},
+        "n8n_cloud": {"plan": "Pro", "cost_usd": 50, "note": "Plenty of room"},
         "n8n_self": {"plan": "Self-hosted", "cost_usd": 30,
-                     "note": "高性能VPS必要"}
+                     "note": "High-performance VPS required"}
     }
 }
 ```
 
-### 1.4 選定フローチャート
+### 1.4 Platform Selection Flowchart
 
 ```
-プラットフォーム選定フロー:
+Platform Selection Flow:
 
-  Q1: 技術的なスキルは？
+  Q1: What is your technical skill level?
       │
-      ├── 非エンジニア → Zapier
+      ├── Non-engineer → Zapier
       │
-      ├── 基本的なプログラミング可 → Make
+      ├── Basic programming skills → Make
       │
-      └── エンジニア
+      └── Engineer
             │
-            Q2: データセキュリティ要件は？
+            Q2: What are your data security requirements?
                 │
-                ├── 厳格（オンプレ必須） → n8n（セルフホスト）
+                ├── Strict (on-premises required) → n8n (self-hosted)
                 │
-                └── 標準的
+                └── Standard
                       │
-                      Q3: 月間タスク数は？
+                      Q3: How many monthly tasks?
                           │
-                          ├── 1万以下 → Make（コスパ最良）
+                          ├── Under 10,000 → Make (best value)
                           │
-                          └── 1万超 → n8n（無制限）
+                          └── Over 10,000 → n8n (unlimited)
 ```
 
 ---
 
-## 2. Zapier + AI ワークフロー
+## 2. Zapier + AI Workflows
 
-### 2.1 基本構造
+### 2.1 Basic Structure
 
 ```
-Zapier AI ワークフロー基本構造:
+Zapier AI Workflow Basic Structure:
 
   ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
   │ Trigger  │───▶│ AI Step  │───▶│ Filter/  │───▶│ Action   │
@@ -131,19 +131,19 @@ Zapier AI ワークフロー基本構造:
        │                                                │
        │           ┌──────────┐                         │
        └──────────▶│ Formatter│─────────────────────────┘
-                   │ (整形)   │
+                   │ (Format) │
                    └──────────┘
 ```
 
-### 2.2 実装例: 顧客問い合わせ自動分類
+### 2.2 Implementation Example: Automatic Customer Inquiry Classification
 
 ```python
-# Zapier フロー定義（概念的にPythonで表現）
+# Zapier flow definition (expressed conceptually in Python)
 zapier_flow = {
-    "name": "顧客問い合わせ自動分類・対応",
+    "name": "Automatic Customer Inquiry Classification & Response",
     "trigger": {
         "app": "Gmail",
-        "event": "新規メール受信",
+        "event": "New email received",
         "filter": "from:*@customer.com"
     },
     "steps": [
@@ -153,13 +153,13 @@ zapier_flow = {
             "config": {
                 "model": "gpt-4",
                 "prompt": """
-以下のメールを分析し、JSON形式で返答してください:
+Analyze the following email and respond in JSON format:
 - category: billing/technical/sales/other
 - urgency: high/medium/low
-- summary: 50文字以内の要約
-- suggested_response: 推奨返信文
+- summary: summary in 50 characters or less
+- suggested_response: recommended reply text
 
-メール本文:
+Email body:
 {{trigger.body}}
 """,
                 "memory_key": "customer_{{trigger.from}}"
@@ -174,7 +174,7 @@ zapier_flow = {
             "app": "Paths",
             "conditions": [
                 {
-                    "name": "緊急対応",
+                    "name": "Urgent response",
                     "condition": "{{step2.urgency}} == high",
                     "actions": [
                         {"app": "Slack", "channel": "#urgent-support"},
@@ -182,7 +182,7 @@ zapier_flow = {
                     ]
                 },
                 {
-                    "name": "通常対応",
+                    "name": "Normal response",
                     "condition": "{{step2.urgency}} != high",
                     "actions": [
                         {"app": "Notion", "database": "Support Tickets"},
@@ -195,69 +195,69 @@ zapier_flow = {
 }
 ```
 
-### 2.3 Zapier高度パターン: マルチステップAI処理
+### 2.3 Advanced Zapier Pattern: Multi-Step AI Processing
 
 ```python
-# Zapier マルチステップ AI ワークフロー
+# Zapier multi-step AI workflow
 zapier_advanced = {
-    "name": "営業リードスコアリング＆自動フォローアップ",
+    "name": "Sales Lead Scoring & Automated Follow-up",
     "trigger": {
         "app": "Typeform",
-        "event": "新規回答受信"
+        "event": "New response received"
     },
     "steps": [
         {
             "step": 1,
             "app": "ChatGPT",
-            "action": "リードスコアリング",
+            "action": "Lead scoring",
             "prompt": """
-以下のフォーム回答からリードの質を0-100でスコアリング:
-- 会社名: {{trigger.company}}
-- 役職: {{trigger.title}}
-- 従業員数: {{trigger.employees}}
-- 予算: {{trigger.budget}}
-- 導入時期: {{trigger.timeline}}
-- 課題: {{trigger.challenge}}
+Score the lead quality from 0-100 based on the following form responses:
+- Company: {{trigger.company}}
+- Title: {{trigger.title}}
+- Number of employees: {{trigger.employees}}
+- Budget: {{trigger.budget}}
+- Implementation timeline: {{trigger.timeline}}
+- Challenge: {{trigger.challenge}}
 
-JSON形式で返答: {score, reasoning, segment, recommended_action}
+Respond in JSON format: {score, reasoning, segment, recommended_action}
 """
         },
         {
             "step": 2,
             "app": "Formatter",
-            "action": "JSON解析"
+            "action": "JSON parsing"
         },
         {
             "step": 3,
             "app": "Paths",
             "conditions": [
                 {
-                    "name": "ホットリード（80+）",
+                    "name": "Hot lead (80+)",
                     "condition": "score >= 80",
                     "actions": [
-                        {"app": "Salesforce", "action": "リード作成", "priority": "Hot"},
+                        {"app": "Salesforce", "action": "Create lead", "priority": "Hot"},
                         {"app": "Slack", "channel": "#sales-hot-leads"},
-                        {"app": "Calendly", "action": "即日ミーティングリンク送信"},
-                        {"app": "Gmail", "action": "パーソナライズドメール送信",
+                        {"app": "Calendly", "action": "Send same-day meeting link"},
+                        {"app": "Gmail", "action": "Send personalized email",
                          "template": "hot_lead_template"}
                     ]
                 },
                 {
-                    "name": "ウォームリード（50-79）",
+                    "name": "Warm lead (50-79)",
                     "condition": "50 <= score < 80",
                     "actions": [
-                        {"app": "HubSpot", "action": "コンタクト作成",
+                        {"app": "HubSpot", "action": "Create contact",
                          "lifecycle": "MQL"},
-                        {"app": "Mailchimp", "action": "ナーチャリングシーケンス登録"},
+                        {"app": "Mailchimp", "action": "Enroll in nurturing sequence"},
                         {"app": "Slack", "channel": "#sales-pipeline"}
                     ]
                 },
                 {
-                    "name": "コールドリード（50未満）",
+                    "name": "Cold lead (under 50)",
                     "condition": "score < 50",
                     "actions": [
-                        {"app": "Mailchimp", "action": "一般メルマガ登録"},
-                        {"app": "Google Sheets", "action": "記録のみ"}
+                        {"app": "Mailchimp", "action": "Subscribe to general newsletter"},
+                        {"app": "Google Sheets", "action": "Record only"}
                     ]
                 }
             ]
@@ -266,49 +266,49 @@ JSON形式で返答: {score, reasoning, segment, recommended_action}
 }
 ```
 
-### 2.4 Zapier Tables + AI の活用
+### 2.4 Using Zapier Tables + AI
 
 ```python
-# Zapier Tables を AI ナレッジベースとして活用
+# Using Zapier Tables as an AI knowledge base
 zapier_tables_ai = {
-    "name": "AI FAQ自動応答 + ナレッジベース学習",
+    "name": "AI FAQ Auto-Response + Knowledge Base Learning",
     "architecture": {
         "zapier_tables": {
             "faq_table": {
                 "columns": ["question", "answer", "category",
                             "usage_count", "last_updated", "feedback_score"],
-                "purpose": "FAQ データベース"
+                "purpose": "FAQ database"
             },
             "feedback_table": {
                 "columns": ["query", "ai_response", "user_rating",
                             "corrected_answer", "timestamp"],
-                "purpose": "フィードバック収集"
+                "purpose": "Feedback collection"
             }
         },
         "flow": [
-            "1. ユーザーが質問をSubmit",
-            "2. Zapier Tables から類似FAQ検索",
-            "3. 見つかった → そのまま回答（APIコストゼロ）",
-            "4. 見つからない → AI生成 → 回答 → Tablesに追加",
-            "5. ユーザーがフィードバック → 品質改善ループ"
+            "1. User submits a question",
+            "2. Search Zapier Tables for similar FAQs",
+            "3. Found → reply directly (zero API cost)",
+            "4. Not found → AI generates answer → reply → add to Tables",
+            "5. User provides feedback → quality improvement loop"
         ]
     },
     "cost_savings": {
-        "without_cache": "月$500（全問AI呼び出し）",
-        "with_tables_cache": "月$100（80%キャッシュヒット）",
-        "savings": "80% ($400/月)"
+        "without_cache": "$500/month (all queries call AI)",
+        "with_tables_cache": "$100/month (80% cache hit rate)",
+        "savings": "80% ($400/month)"
     }
 }
 ```
 
 ---
 
-## 3. n8n + AI ワークフロー
+## 3. n8n + AI Workflows
 
-### 3.1 n8nのセルフホスト構成
+### 3.1 n8n Self-Hosted Configuration
 
 ```yaml
-# docker-compose.yml - n8n セルフホスト
+# docker-compose.yml - n8n self-hosted
 version: '3.8'
 services:
   n8n:
@@ -340,7 +340,7 @@ volumes:
   postgres_data:
 ```
 
-### 3.2 n8nワークフロー: ドキュメント要約パイプライン
+### 3.2 n8n Workflow: Document Summarization Pipeline
 
 ```json
 {
@@ -359,7 +359,7 @@ volumes:
       "type": "n8n-nodes-base.code",
       "name": "Preprocess",
       "parameters": {
-        "jsCode": "// ドキュメントをチャンクに分割\nconst text = $input.first().json.document;\nconst chunkSize = 3000;\nconst chunks = [];\nfor (let i = 0; i < text.length; i += chunkSize) {\n  chunks.push({ chunk: text.slice(i, i + chunkSize), index: i / chunkSize });\n}\nreturn chunks.map(c => ({ json: c }));"
+        "jsCode": "// Split document into chunks\nconst text = $input.first().json.document;\nconst chunkSize = 3000;\nconst chunks = [];\nfor (let i = 0; i < text.length; i += chunkSize) {\n  chunks.push({ chunk: text.slice(i, i + chunkSize), index: i / chunkSize });\n}\nreturn chunks.map(c => ({ json: c }));"
       }
     },
     {
@@ -367,7 +367,7 @@ volumes:
       "name": "Summarize Chunks",
       "parameters": {
         "model": "gpt-4",
-        "prompt": "以下のテキストを日本語で3行に要約:\n\n{{$json.chunk}}"
+        "prompt": "Summarize the following text in 3 lines:\n\n{{$json.chunk}}"
       }
     },
     {
@@ -382,19 +382,19 @@ volumes:
       "name": "Final Summary",
       "parameters": {
         "model": "gpt-4",
-        "prompt": "以下の部分要約を統合し、構造化された最終要約を作成:\n\n{{$json.combined}}"
+        "prompt": "Integrate the following partial summaries and create a structured final summary:\n\n{{$json.combined}}"
       }
     }
   ]
 }
 ```
 
-### 3.3 n8n高度パターン: RAG付きカスタマーサポートボット
+### 3.3 Advanced n8n Pattern: RAG-Enabled Customer Support Bot
 
 ```json
 {
   "name": "RAG Customer Support Bot",
-  "description": "ベクトルDBを活用したAIカスタマーサポート",
+  "description": "AI customer support leveraging a vector database",
   "nodes": [
     {
       "type": "n8n-nodes-base.webhook",
@@ -409,7 +409,7 @@ volumes:
       "type": "n8n-nodes-base.code",
       "name": "Query Preprocessing",
       "parameters": {
-        "jsCode": "const query = $input.first().json.message;\nconst userId = $input.first().json.user_id;\n\n// 会話履歴の取得\nconst history = await $getWorkflowStaticData('global');\nconst userHistory = history[userId] || [];\n\n// 直近5件の会話を保持\nconst context = userHistory.slice(-5).map(h => `${h.role}: ${h.content}`).join('\\n');\n\nreturn [{ json: { query, userId, context, userHistory } }];"
+        "jsCode": "const query = $input.first().json.message;\nconst userId = $input.first().json.user_id;\n\n// Retrieve conversation history\nconst history = await $getWorkflowStaticData('global');\nconst userHistory = history[userId] || [];\n\n// Keep the last 5 exchanges\nconst context = userHistory.slice(-5).map(h => `${h.role}: ${h.content}`).join('\\n');\n\nreturn [{ json: { query, userId, context, userHistory } }];"
       }
     },
     {
@@ -426,29 +426,29 @@ volumes:
       "name": "Generate Response",
       "parameters": {
         "model": "gpt-4",
-        "systemPrompt": "あなたはカスタマーサポートAIです。ナレッジベースの情報に基づいて正確に回答してください。不明な場合は正直に伝え、人間のサポートへのエスカレーションを提案してください。",
-        "prompt": "会話履歴:\n{{$json.context}}\n\n関連情報:\n{{$json.documents}}\n\n質問: {{$json.query}}"
+        "systemPrompt": "You are a customer support AI. Answer accurately based on the knowledge base information. If unsure, be honest and suggest escalating to a human support agent.",
+        "prompt": "Conversation history:\n{{$json.context}}\n\nRelevant information:\n{{$json.documents}}\n\nQuestion: {{$json.query}}"
       }
     },
     {
       "type": "n8n-nodes-base.code",
       "name": "Save History & Route",
       "parameters": {
-        "jsCode": "const response = $input.first().json.text;\nconst confidence = response.includes('不明') || response.includes('確認') ? 'low' : 'high';\n\n// エスカレーション判定\nif (confidence === 'low') {\n  return [{ json: { response, action: 'escalate', channel: '#support-escalation' } }];\n}\n\nreturn [{ json: { response, action: 'reply', confidence } }];"
+        "jsCode": "const response = $input.first().json.text;\nconst confidence = response.includes('unknown') || response.includes('confirm') ? 'low' : 'high';\n\n// Escalation decision\nif (confidence === 'low') {\n  return [{ json: { response, action: 'escalate', channel: '#support-escalation' } }];\n}\n\nreturn [{ json: { response, action: 'reply', confidence } }];"
       }
     }
   ]
 }
 ```
 
-### 3.4 n8nセルフホスト: 本番環境構築ガイド
+### 3.4 n8n Self-Hosted: Production Environment Setup Guide
 
 ```yaml
-# docker-compose.production.yml - 本番環境用
+# docker-compose.production.yml - for production environment
 version: '3.8'
 services:
   n8n:
-    image: n8nio/n8n:1.30.0  # バージョン固定
+    image: n8nio/n8n:1.30.0  # pin version
     ports:
       - "5678:5678"
     environment:
@@ -467,11 +467,11 @@ services:
       - DB_POSTGRESDB_USER=n8n
       - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD}
       - EXECUTIONS_DATA_PRUNE=true
-      - EXECUTIONS_DATA_MAX_AGE=168  # 7日
+      - EXECUTIONS_DATA_MAX_AGE=168  # 7 days
       - EXECUTIONS_DATA_SAVE_ON_ERROR=all
-      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=none  # 成功時は保存しない
+      - EXECUTIONS_DATA_SAVE_ON_SUCCESS=none  # do not save on success
       - GENERIC_TIMEZONE=Asia/Tokyo
-      - N8N_METRICS=true  # Prometheus メトリクス有効化
+      - N8N_METRICS=true  # enable Prometheus metrics
     volumes:
       - n8n_data:/home/node/.n8n
     depends_on:
@@ -532,7 +532,7 @@ volumes:
 ```
 
 ```
-# Caddyfile - リバースプロキシ設定
+# Caddyfile - reverse proxy configuration
 n8n.yourdomain.com {
     reverse_proxy n8n:5678
     encode gzip
@@ -546,17 +546,17 @@ n8n.yourdomain.com {
 
 ---
 
-## 4. Make (Integromat) + AI ワークフロー
+## 4. Make (Integromat) + AI Workflows
 
-### 4.1 Make のシナリオ設計
+### 4.1 Make Scenario Design
 
 ```
-Make シナリオ: SNS投稿自動生成
+Make Scenario: Automated SNS Post Generation
 
   ┌─────────┐   ┌─────────┐   ┌─────────┐
   │ RSS     │──▶│ OpenAI  │──▶│ Router  │
-  │ Watch   │   │ 要約+   │   │         │
-  │ (ブログ)│   │ SNS文生成│   │         │
+  │ Watch   │   │ Summary+│   │         │
+  │ (Blog)  │   │ SNS text│   │         │
   └─────────┘   └─────────┘   └────┬────┘
                                     │
                     ┌───────────────┼───────────────┐
@@ -570,7 +570,7 @@ Make シナリオ: SNS投稿自動生成
 ### 4.2 Make HTTP + OpenAI
 
 ```python
-# Make HTTP モジュール設定（概念的表現）
+# Make HTTP module configuration (conceptual representation)
 make_scenario = {
     "modules": [
         {
@@ -593,11 +593,11 @@ make_scenario = {
                     "model": "gpt-4",
                     "messages": [{
                         "role": "user",
-                        "content": "以下のブログ記事からSNS投稿を3種類生成:\n"
-                                   "- Twitter用(140文字)\n"
-                                   "- LinkedIn用(300文字、ビジネス調)\n"
-                                   "- Facebook用(200文字、カジュアル)\n\n"
-                                   "記事: {{1.title}} - {{1.description}}"
+                        "content": "Generate 3 types of SNS posts from the following blog article:\n"
+                                   "- For Twitter (140 characters)\n"
+                                   "- For LinkedIn (300 characters, business tone)\n"
+                                   "- For Facebook (200 characters, casual)\n\n"
+                                   "Article: {{1.title}} - {{1.description}}"
                     }]
                 }
             }
@@ -612,12 +612,12 @@ make_scenario = {
 }
 ```
 
-### 4.3 Make高度パターン: eコマース注文処理自動化
+### 4.3 Advanced Make Pattern: E-Commerce Order Processing Automation
 
 ```python
-# Make eコマース注文AI処理シナリオ
+# Make e-commerce order AI processing scenario
 make_ecommerce = {
-    "name": "AI注文処理・不正検知・顧客対応",
+    "name": "AI Order Processing, Fraud Detection & Customer Response",
     "trigger": {
         "module": "Shopify - Watch Orders",
         "config": {"status": "any"}
@@ -626,16 +626,16 @@ make_ecommerce = {
         {
             "step": 1,
             "module": "HTTP - OpenAI API",
-            "purpose": "注文の不正リスク判定",
+            "purpose": "Determine fraud risk for the order",
             "prompt": """
-以下の注文情報から不正リスクを0-100で判定:
-- 注文額: {{order.total_price}}
-- 配送先: {{order.shipping_address}}
-- 請求先: {{order.billing_address}}
-- メール: {{order.email}}
-- IP国: {{order.browser_ip_country}}
-- 過去注文数: {{customer.orders_count}}
-- アカウント作成日: {{customer.created_at}}
+Assess the fraud risk of the following order on a scale of 0-100:
+- Order amount: {{order.total_price}}
+- Shipping address: {{order.shipping_address}}
+- Billing address: {{order.billing_address}}
+- Email: {{order.email}}
+- IP country: {{order.browser_ip_country}}
+- Past order count: {{customer.orders_count}}
+- Account creation date: {{customer.created_at}}
 
 JSON: {risk_score, risk_factors, recommendation}
 """
@@ -645,29 +645,29 @@ JSON: {risk_score, risk_factors, recommendation}
             "module": "Router",
             "routes": [
                 {
-                    "name": "高リスク（80+）",
+                    "name": "High risk (80+)",
                     "filter": "risk_score >= 80",
                     "actions": [
-                        "Shopify: 注文を保留",
-                        "Slack: #fraud-alert に通知",
-                        "Email: 確認メール送信"
+                        "Shopify: Put order on hold",
+                        "Slack: Notify #fraud-alert",
+                        "Email: Send verification email"
                     ]
                 },
                 {
-                    "name": "中リスク（50-79）",
+                    "name": "Medium risk (50-79)",
                     "filter": "50 <= risk_score < 80",
                     "actions": [
-                        "Shopify: 手動レビューフラグ設定",
-                        "Slack: #orders-review に通知"
+                        "Shopify: Set manual review flag",
+                        "Slack: Notify #orders-review"
                     ]
                 },
                 {
-                    "name": "低リスク（50未満）",
+                    "name": "Low risk (under 50)",
                     "filter": "risk_score < 50",
                     "actions": [
-                        "Shopify: 自動承認",
-                        "Email: 注文確認メール（AIパーソナライズ）",
-                        "Slack: #orders に記録"
+                        "Shopify: Auto-approve",
+                        "Email: Send order confirmation (AI personalized)",
+                        "Slack: Log in #orders"
                     ]
                 }
             ]
@@ -675,26 +675,26 @@ JSON: {risk_score, risk_factors, recommendation}
         {
             "step": 3,
             "module": "HTTP - OpenAI API",
-            "purpose": "パーソナライズド確認メール生成",
+            "purpose": "Generate personalized confirmation email",
             "prompt": """
-以下の顧客に合わせた注文確認メールを生成:
-- 名前: {{customer.first_name}}
-- 注文商品: {{order.line_items}}
-- 過去の購入回数: {{customer.orders_count}}
-- リピーターか: {{customer.orders_count > 1}}
+Generate an order confirmation email tailored to the following customer:
+- Name: {{customer.first_name}}
+- Ordered items: {{order.line_items}}
+- Number of past purchases: {{customer.orders_count}}
+- Is repeat customer: {{customer.orders_count > 1}}
 
-トーン: 親しみやすく、ブランドに合った表現
-含めること: おすすめ商品（購入履歴ベース）
+Tone: Friendly and consistent with the brand
+Include: Recommended products (based on purchase history)
 """
         }
     ]
 }
 ```
 
-### 4.4 Makeのデータ変換テクニック
+### 4.4 Make Data Transformation Techniques
 
 ```python
-# Make 組み込み関数の活用パターン
+# Patterns for using Make built-in functions
 make_data_transforms = {
     "text_operations": {
         "trim": "{{trim(data.text)}}",
@@ -735,14 +735,14 @@ make_data_transforms = {
 
 ---
 
-## 5. 共通設計パターン
+## 5. Common Design Patterns
 
-### 5.1 エラーハンドリングパターン
+### 5.1 Error Handling Pattern
 
 ```python
-# ワークフローエラーハンドリングの3層構造
+# Three-layer structure for workflow error handling
 class WorkflowErrorHandler:
-    """ワークフロー共通エラーハンドリング"""
+    """Common workflow error handling"""
 
     def __init__(self):
         self.retry_count = 0
@@ -750,19 +750,19 @@ class WorkflowErrorHandler:
         self.dead_letter_queue = []
 
     def handle_error(self, error, step_name: str, input_data: dict):
-        """3層エラーハンドリング"""
-        # Layer 1: リトライ
+        """Three-layer error handling"""
+        # Layer 1: Retry
         if self.retry_count < self.max_retries:
             self.retry_count += 1
             wait_time = 2 ** self.retry_count
-            print(f"[{step_name}] リトライ {self.retry_count}/{self.max_retries} "
-                  f"({wait_time}秒後)")
+            print(f"[{step_name}] Retry {self.retry_count}/{self.max_retries} "
+                  f"(in {wait_time}s)")
             time.sleep(wait_time)
             return "retry"
 
-        # Layer 2: フォールバック
+        # Layer 2: Fallback
         if hasattr(self, f"fallback_{step_name}"):
-            print(f"[{step_name}] フォールバック実行")
+            print(f"[{step_name}] Executing fallback")
             return getattr(self, f"fallback_{step_name}")(input_data)
 
         # Layer 3: Dead Letter Queue
@@ -776,15 +776,15 @@ class WorkflowErrorHandler:
         return "failed"
 
     def fallback_ai_summarize(self, input_data):
-        """AI要約のフォールバック: 安いモデルで再試行"""
+        """Fallback for AI summarization: retry with a cheaper model"""
         return call_ai(input_data["text"], model="gpt-3.5-turbo")
 
     def notify_admin(self, step_name, error):
-        """管理者通知"""
-        send_slack(f"ワークフロー障害: {step_name} - {error}")
+        """Admin notification"""
+        send_slack(f"Workflow failure: {step_name} - {error}")
 ```
 
-### 5.2 レート制限対応パターン
+### 5.2 Rate Limit Handling Pattern
 
 ```python
 import asyncio
@@ -792,7 +792,7 @@ from datetime import datetime, timedelta
 from collections import deque
 
 class RateLimitedWorkflow:
-    """レート制限対応ワークフロー実行エンジン"""
+    """Workflow execution engine with rate limit handling"""
 
     def __init__(self, max_requests_per_minute: int = 60,
                  max_tokens_per_minute: int = 100000):
@@ -802,10 +802,10 @@ class RateLimitedWorkflow:
         self.token_usage = deque()
 
     async def execute_with_rate_limit(self, tasks: list[dict]) -> list[dict]:
-        """レート制限を守りながらタスクを実行"""
+        """Execute tasks while respecting rate limits"""
         results = []
         for task in tasks:
-            # レート制限チェック
+            # Check rate limit
             await self._wait_for_rate_limit(task.get("estimated_tokens", 1000))
 
             try:
@@ -813,7 +813,7 @@ class RateLimitedWorkflow:
                 results.append({"status": "success", "result": result})
             except Exception as e:
                 if "rate_limit" in str(e).lower():
-                    # レート制限エラー: 指数バックオフで再試行
+                    # Rate limit error: retry with exponential backoff
                     await asyncio.sleep(60)
                     result = await self._execute_task(task)
                     results.append({"status": "success", "result": result})
@@ -825,42 +825,42 @@ class RateLimitedWorkflow:
         return results
 
     async def _wait_for_rate_limit(self, estimated_tokens: int):
-        """レート制限の待機"""
+        """Wait for rate limit"""
         now = datetime.now()
         one_minute_ago = now - timedelta(minutes=1)
 
-        # 古いエントリを削除
+        # Remove old entries
         while self.request_timestamps and self.request_timestamps[0] < one_minute_ago:
             self.request_timestamps.popleft()
         while self.token_usage and self.token_usage[0][0] < one_minute_ago:
             self.token_usage.popleft()
 
-        # RPMチェック
+        # RPM check
         if len(self.request_timestamps) >= self.max_rpm:
             wait_time = (self.request_timestamps[0] - one_minute_ago).total_seconds()
             await asyncio.sleep(max(0, wait_time) + 1)
 
-        # TPMチェック
+        # TPM check
         current_tokens = sum(t[1] for t in self.token_usage)
         if current_tokens + estimated_tokens > self.max_tpm:
             await asyncio.sleep(60)
 
     def _record_request(self, tokens: int):
-        """リクエスト記録"""
+        """Record request"""
         now = datetime.now()
         self.request_timestamps.append(now)
         self.token_usage.append((now, tokens))
 ```
 
-### 5.3 データ変換・正規化パターン
+### 5.3 Data Transformation and Normalization Pattern
 
 ```python
 class DataNormalizer:
-    """ワークフロー間データ正規化"""
+    """Data normalization across workflows"""
 
     @staticmethod
     def normalize_contact(source: str, data: dict) -> dict:
-        """異なるソースからの連絡先データを統一形式に変換"""
+        """Convert contact data from different sources to a unified format"""
         normalizers = {
             "gmail": lambda d: {
                 "email": d.get("from", ""),
@@ -898,17 +898,17 @@ class DataNormalizer:
 
         normalizer = normalizers.get(source)
         if not normalizer:
-            raise ValueError(f"未対応のソース: {source}")
+            raise ValueError(f"Unsupported source: {source}")
 
         normalized = normalizer(data)
-        # 共通バリデーション
+        # Common validation
         normalized["email"] = normalized["email"].lower().strip()
         normalized["name"] = normalized["name"].strip()
         return normalized
 
     @staticmethod
     def _extract_company_from_email(email: str) -> str:
-        """メールアドレスから会社名を推定"""
+        """Infer company name from email address"""
         domain = email.split("@")[-1] if "@" in email else ""
         free_domains = {"gmail.com", "yahoo.co.jp", "hotmail.com", "outlook.com"}
         if domain in free_domains:
@@ -916,42 +916,42 @@ class DataNormalizer:
         return domain.split(".")[0].capitalize()
 ```
 
-### 5.4 テスト戦略
+### 5.4 Testing Strategy
 
 ```python
 class WorkflowTestSuite:
-    """ワークフローのテスト実行フレームワーク"""
+    """Test execution framework for workflows"""
 
     def __init__(self, workflow_config: dict):
         self.config = workflow_config
         self.test_results = []
 
     def run_unit_tests(self):
-        """各ステップの単体テスト"""
+        """Unit tests for each step"""
         test_cases = {
             "email_classification": [
                 {
-                    "input": {"subject": "請求書について", "body": "先月の請求額が違います"},
+                    "input": {"subject": "About the invoice", "body": "Last month's billing amount is incorrect"},
                     "expected": {"category": "billing", "priority": "high"}
                 },
                 {
-                    "input": {"subject": "新機能の提案", "body": "こんな機能があると便利です"},
+                    "input": {"subject": "New feature proposal", "body": "It would be convenient to have this feature"},
                     "expected": {"category": "sales", "priority": "low"}
                 },
                 {
-                    "input": {"subject": "システムエラー", "body": "ログインできません"},
+                    "input": {"subject": "System error", "body": "Cannot log in"},
                     "expected": {"category": "technical", "priority": "high"}
                 }
             ],
             "lead_scoring": [
                 {
-                    "input": {"company": "大手株式会社", "employees": 500,
-                              "budget": "500万円以上", "timeline": "今月中"},
+                    "input": {"company": "Large Corporation Inc.", "employees": 500,
+                              "budget": "Over $50,000", "timeline": "This month"},
                     "expected_range": {"score_min": 70, "score_max": 100}
                 },
                 {
-                    "input": {"company": "個人", "employees": 1,
-                              "budget": "検討中", "timeline": "未定"},
+                    "input": {"company": "Individual", "employees": 1,
+                              "budget": "Under consideration", "timeline": "Undecided"},
                     "expected_range": {"score_min": 0, "score_max": 40}
                 }
             ]
@@ -972,18 +972,18 @@ class WorkflowTestSuite:
         return self.test_results
 
     def run_integration_test(self, test_data: dict):
-        """エンドツーエンドの統合テスト"""
-        print("=== 統合テスト開始 ===")
+        """End-to-end integration test"""
+        print("=== Integration test started ===")
         results = []
         for step in self.config["steps"]:
             result = self._execute_step(step["name"], test_data)
             results.append({"step": step["name"], "result": result})
-            test_data = {**test_data, **result}  # 次のステップに結果を渡す
-        print(f"=== 統合テスト完了: {len(results)}ステップ ===")
+            test_data = {**test_data, **result}  # pass results to next step
+        print(f"=== Integration test completed: {len(results)} steps ===")
         return results
 
     def run_load_test(self, concurrent_requests: int = 10):
-        """負荷テスト"""
+        """Load test"""
         import time
         start_time = time.time()
         results = []
@@ -1002,12 +1002,12 @@ class WorkflowTestSuite:
         }
 
     def _execute_step(self, step_name: str, input_data: dict) -> dict:
-        """ステップ実行（モック対応）"""
-        # テスト環境ではAI APIをモックに差し替え
+        """Step execution (supports mocking)"""
+        # Replace AI API with mock in test environment
         return {"status": "success", "mock": True}
 
     def _validate_result(self, result: dict, expected: dict) -> bool:
-        """結果の検証"""
+        """Validate result"""
         if "expected" in expected:
             return all(result.get(k) == v for k, v in expected["expected"].items())
         if "expected_range" in expected:
@@ -1016,10 +1016,10 @@ class WorkflowTestSuite:
         return True
 
     def _generate_test_data(self) -> dict:
-        """テストデータ生成"""
+        """Generate test data"""
         return {
-            "subject": "テストメール",
-            "body": "これはテスト用のメール本文です。",
+            "subject": "Test email",
+            "body": "This is the body text of a test email.",
             "sender": "test@example.com",
             "date": "2025-01-01T00:00:00Z"
         }
@@ -1027,21 +1027,21 @@ class WorkflowTestSuite:
 
 ---
 
-## 6. モニタリングとオブザーバビリティ
+## 6. Monitoring and Observability
 
-### 6.1 ワークフロー監視ダッシュボード設計
+### 6.1 Workflow Monitoring Dashboard Design
 
 ```
-ワークフロー監視ダッシュボード:
+Workflow Monitoring Dashboard:
 
   ┌──────────────────────────────────────────────────────────┐
-  │                    全体ステータス                          │
+  │                    Overall Status                         │
   ├──────────────────────────────────────────────────────────┤
-  │  稼働中: 12 ワークフロー | 停止中: 2 | エラー: 1          │
-  │  今日の実行: 1,234 | 成功率: 98.7% | 平均所要時間: 3.2秒  │
+  │  Running: 12 workflows | Stopped: 2 | Error: 1           │
+  │  Today's executions: 1,234 | Success rate: 98.7% | Avg: 3.2s │
   ├──────────────────────────────────────────────────────────┤
   │                                                          │
-  │  ■ 実行成功率（24時間推移）                               │
+  │  ■ Execution Success Rate (24-hour trend)                │
   │  100%┤                                                    │
   │   95%┤  ╱╲  ──────────╲   ╱──────────                   │
   │   90%┤ ╱  ╲            ╲╱                                │
@@ -1049,76 +1049,76 @@ class WorkflowTestSuite:
   │      └──┬──┬──┬──┬──┬──┬──┬──┬──                        │
   │        0h  3h  6h  9h  12h 15h 18h 21h                   │
   │                                                          │
-  │  ■ APIコスト（日次推移）                                   │
+  │  ■ API Cost (daily trend)                                 │
   │  $50 ┤                                                    │
   │  $40 ┤     ╱╲                                             │
   │  $30 ┤    ╱  ╲   ╱╲                                      │
   │  $20 ┤ ──╱    ╲─╱  ╲──                                   │
   │  $10 ┤                                                    │
   │      └──┬────┬────┬────┬────┬────┬──                     │
-  │        月    火    水    木    金    土                      │
+  │        Mon   Tue   Wed   Thu   Fri   Sat                  │
   │                                                          │
-  │  ■ ワークフロー別成功率                                    │
-  │  メール分類:     ████████████░ 98.5%                       │
-  │  リードスコア:    ███████████░░ 96.2%                       │
-  │  SNS投稿生成:    █████████████ 99.1%                       │
-  │  注文処理:       ███████░░░░░░ 87.3% ← 要確認              │
+  │  ■ Success Rate by Workflow                               │
+  │  Email classification: ████████████░ 98.5%               │
+  │  Lead scoring:         ███████████░░ 96.2%               │
+  │  SNS post generation:  █████████████ 99.1%               │
+  │  Order processing:     ███████░░░░░░ 87.3% ← needs check │
   └──────────────────────────────────────────────────────────┘
 ```
 
-### 6.2 アラート設計
+### 6.2 Alert Design
 
 ```python
 class WorkflowAlertManager:
-    """ワークフローアラート管理"""
+    """Workflow alert management"""
 
     def __init__(self):
         self.alert_rules = [
             {
-                "name": "成功率低下",
+                "name": "Success rate drop",
                 "condition": lambda metrics: metrics["success_rate"] < 95,
                 "severity": "warning",
                 "channel": "slack:#workflow-alerts",
-                "message": "ワークフロー成功率が{success_rate}%に低下"
+                "message": "Workflow success rate dropped to {success_rate}%"
             },
             {
-                "name": "成功率危機",
+                "name": "Success rate critical",
                 "condition": lambda metrics: metrics["success_rate"] < 80,
                 "severity": "critical",
                 "channel": "pagerduty",
-                "message": "ワークフロー成功率が{success_rate}%に急落"
+                "message": "Workflow success rate plummeted to {success_rate}%"
             },
             {
-                "name": "APIコスト超過",
+                "name": "API cost exceeded",
                 "condition": lambda metrics: metrics["daily_api_cost"] > 50,
                 "severity": "warning",
                 "channel": "slack:#cost-alerts",
-                "message": "日次APIコストが${daily_api_cost}に到達"
+                "message": "Daily API cost reached ${daily_api_cost}"
             },
             {
-                "name": "レスポンス遅延",
+                "name": "Response delay",
                 "condition": lambda metrics: metrics["avg_latency_sec"] > 10,
                 "severity": "warning",
                 "channel": "slack:#workflow-alerts",
-                "message": "平均レスポンス時間が{avg_latency_sec}秒に悪化"
+                "message": "Average response time degraded to {avg_latency_sec}s"
             },
             {
-                "name": "Dead Letter Queue 蓄積",
+                "name": "Dead Letter Queue accumulation",
                 "condition": lambda metrics: metrics["dlq_count"] > 10,
                 "severity": "warning",
                 "channel": "slack:#workflow-alerts",
-                "message": "未処理のDLQメッセージが{dlq_count}件に蓄積"
+                "message": "{dlq_count} unprocessed DLQ messages accumulated"
             }
         ]
 
     def check_alerts(self, metrics: dict):
-        """メトリクスを確認してアラートを発火"""
+        """Check metrics and fire alerts"""
         for rule in self.alert_rules:
             if rule"condition":
                 self._send_alert(rule, metrics)
 
     def _send_alert(self, rule: dict, metrics: dict):
-        """アラート送信"""
+        """Send alert"""
         message = rule["message"].format(**metrics)
         if rule["severity"] == "critical":
             send_pagerduty(message)
@@ -1129,247 +1129,247 @@ class WorkflowAlertManager:
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン1: ステップ過多のリニアフロー
+### Anti-Pattern 1: Linear Flow with Too Many Steps
 
 ```
-BAD: 20ステップが直列に並ぶ
+BAD: 20 steps in series
   Step1 → Step2 → Step3 → ... → Step20
-  - 1箇所の失敗で全体が停止
-  - デバッグが困難
-  - 実行時間が長い
+  - A single failure stops everything
+  - Difficult to debug
+  - Long execution time
 
-GOOD: モジュール化 + 並列実行
+GOOD: Modularization + parallel execution
   ┌─ Module A (Step1→2→3) ─┐
   │                         ├──▶ Merge → Final
   └─ Module B (Step4→5→6) ─┘
-  - 独立テスト可能
-  - 並列実行で高速化
-  - 障害の影響範囲が限定的
+  - Independent testing possible
+  - Faster with parallel execution
+  - Failure impact is contained
 ```
 
-### アンチパターン2: AIへの過度な依存
+### Anti-Pattern 2: Over-Reliance on AI
 
 ```python
-# BAD: 全判断をAIに委ねる
+# BAD: leaving all decisions to AI
 def process_order(order):
-    decision = call_ai(f"この注文を処理すべきか?: {order}")
-    if "はい" in decision:
-        charge_customer(order)  # AIの回答で課金処理
+    decision = call_ai(f"Should this order be processed?: {order}")
+    if "yes" in decision:
+        charge_customer(order)  # billing based on AI response
 
-# GOOD: AIは補助、ルールベースと併用
+# GOOD: AI as an aid, combined with rule-based logic
 def process_order(order):
-    # ルールベースのバリデーション（確実）
+    # Rule-based validation (reliable)
     if order.amount > 100000:
         return flag_for_review(order)
     if order.customer.is_blocked:
         return reject(order)
 
-    # AIは追加の異常検知にのみ使用
-    fraud_score = call_ai(f"不正スコアを0-100で判定: {order}")
+    # AI is used only for additional anomaly detection
+    fraud_score = call_ai(f"Rate fraud score 0-100: {order}")
     if int(fraud_score) > 80:
         return flag_for_review(order)
 
     return approve(order)
 ```
 
-### アンチパターン3: テスト不足のままの本番投入
+### Anti-Pattern 3: Deploying to Production Without Sufficient Testing
 
 ```python
-# BAD: 開発環境で数回テストしただけで本番投入
+# BAD: deploy to production after only a few tests in dev
 def deploy_workflow_bad():
     workflow = build_workflow()
-    deploy_to_production(workflow)  # いきなり全トラフィック
-    # → 予期しないデータでエラー続出
+    deploy_to_production(workflow)  # full traffic immediately
+    # → errors will pile up with unexpected data
 
-# GOOD: 段階的デプロイ
+# GOOD: gradual deployment
 def deploy_workflow_good():
     workflow = build_workflow()
 
-    # 1. ユニットテスト
+    # 1. Unit tests
     run_unit_tests(workflow)
 
-    # 2. ステージング環境で統合テスト
+    # 2. Integration tests in staging environment
     deploy_to_staging(workflow)
     run_integration_tests(workflow, test_data=generate_diverse_test_data(100))
 
-    # 3. カナリアデプロイ（10%のトラフィック）
+    # 3. Canary deployment (10% of traffic)
     deploy_canary(workflow, traffic_percentage=10)
     wait_and_monitor(duration_hours=24)
 
-    # 4. メトリクス確認後に全展開
+    # 4. Full deployment after confirming metrics
     if get_canary_metrics()["success_rate"] > 99:
         deploy_full(workflow)
     else:
         rollback(workflow)
-        alert("カナリアデプロイ失敗 — ロールバック実行")
+        alert("Canary deployment failed — rollback executed")
 ```
 
-### アンチパターン4: セキュリティの軽視
+### Anti-Pattern 4: Neglecting Security
 
 ```python
-# BAD: APIキーをワークフローにハードコード
+# BAD: hardcoding API keys in workflow
 zapier_step = {
     "url": "https://api.openai.com/v1/chat/completions",
-    "headers": {"Authorization": "Bearer sk-abc123..."}  # ハードコード
+    "headers": {"Authorization": "Bearer sk-abc123..."}  # hardcoded
 }
 
-# GOOD: 環境変数・シークレット管理
+# GOOD: use environment variables / secret management
 zapier_step = {
     "url": "https://api.openai.com/v1/chat/completions",
-    "headers": {"Authorization": "Bearer {{env.OPENAI_API_KEY}}"}  # 環境変数参照
+    "headers": {"Authorization": "Bearer {{env.OPENAI_API_KEY}}"}  # environment variable reference
 }
 
-# n8nの場合: Credentials機能を使用
+# For n8n: use the Credentials feature
 n8n_credentials = {
     "type": "openAiApi",
     "name": "Production OpenAI",
     "data": {
-        "apiKey": "{{$credentials.openAiApiKey}}"  # 暗号化保存
+        "apiKey": "{{$credentials.openAiApiKey}}"  # stored encrypted
     }
 }
 ```
 
 ---
 
-## 8. ユースケース別実装レシピ集
+## 8. Use-Case Implementation Recipe Collection
 
-### 8.1 カスタマーサポート自動化
+### 8.1 Customer Support Automation
 
 ```python
-# カスタマーサポート自動化レシピ
+# Customer support automation recipe
 support_automation = {
-    "name": "AI カスタマーサポート自動化",
-    "platform": "n8n（推奨）/ Zapier / Make",
+    "name": "AI Customer Support Automation",
+    "platform": "n8n (recommended) / Zapier / Make",
     "components": {
         "tier_1_auto_reply": {
-            "description": "FAQ・よくある質問への自動回答",
-            "trigger": "Intercom / Zendesk 新規チケット",
+            "description": "Automated responses to FAQs and common questions",
+            "trigger": "Intercom / Zendesk new ticket",
             "process": [
-                "受信メッセージを分類",
-                "FAQデータベースから類似質問を検索",
-                "類似度90%以上 → 自動回答",
-                "類似度70-90% → ドラフト生成 + 人間レビュー",
-                "類似度70%未満 → エスカレーション"
+                "Classify the received message",
+                "Search FAQ database for similar questions",
+                "Similarity >= 90% → auto-reply",
+                "Similarity 70-90% → generate draft + human review",
+                "Similarity < 70% → escalation"
             ],
             "expected_automation_rate": "40-60%",
-            "implementation_time": "2-3日"
+            "implementation_time": "2-3 days"
         },
         "sentiment_routing": {
-            "description": "感情分析によるルーティング",
-            "trigger": "チケット作成/更新",
+            "description": "Routing based on sentiment analysis",
+            "trigger": "Ticket created/updated",
             "process": [
-                "テキストの感情分析（positive/neutral/negative）",
-                "negative + urgent → シニアスタッフに即座にルーティング",
-                "negative + not urgent → 優先対応キューに追加",
-                "positive → 通常キュー + アップセル機会フラグ"
+                "Sentiment analysis of text (positive/neutral/negative)",
+                "Negative + urgent → route immediately to senior staff",
+                "Negative + not urgent → add to priority queue",
+                "Positive → normal queue + flag upsell opportunity"
             ],
-            "expected_benefit": "顧客満足度15%向上、エスカレーション25%削減"
+            "expected_benefit": "15% improvement in customer satisfaction, 25% reduction in escalations"
         },
         "multi_language": {
-            "description": "多言語自動対応",
-            "trigger": "非日本語メッセージの受信",
+            "description": "Automated multi-language support",
+            "trigger": "Receipt of a non-English message",
             "process": [
-                "言語検出",
-                "日本語に翻訳（内部処理用）",
-                "AI回答生成（日本語）",
-                "元言語に翻訳して返信",
-                "翻訳品質チェック（信頼度スコア）"
+                "Language detection",
+                "Translate to English (for internal processing)",
+                "Generate AI response (in English)",
+                "Translate back to source language and reply",
+                "Translation quality check (confidence score)"
             ],
-            "supported_languages": "英語、中国語、韓国語、スペイン語、フランス語",
-            "implementation_time": "1-2日"
+            "supported_languages": "English, Chinese, Korean, Spanish, French",
+            "implementation_time": "1-2 days"
         }
     }
 }
 ```
 
-### 8.2 マーケティング自動化
+### 8.2 Marketing Automation
 
 ```python
-# マーケティング自動化レシピ
+# Marketing automation recipe
 marketing_automation = {
-    "name": "AI マーケティング自動化パイプライン",
+    "name": "AI Marketing Automation Pipeline",
     "workflows": {
         "content_repurposing": {
-            "trigger": "新規ブログ記事の公開（WordPress Webhook）",
+            "trigger": "New blog post published (WordPress Webhook)",
             "steps": [
-                "ブログ記事の全文取得",
-                "AI: 記事から5つのSNS投稿を生成",
-                "  - Twitter: 3ツイート（スレッド形式）",
-                "  - LinkedIn: 1投稿（ビジネス向け）",
-                "  - Instagram: 1キャプション + ハッシュタグ",
-                "AI: メルマガ用要約を生成",
-                "Buffer/Hootsuite: 投稿をスケジュール",
-                "Mailchimp: メルマガドラフト作成"
+                "Retrieve full blog article text",
+                "AI: Generate 5 SNS posts from the article",
+                "  - Twitter: 3 tweets (thread format)",
+                "  - LinkedIn: 1 post (business-oriented)",
+                "  - Instagram: 1 caption + hashtags",
+                "AI: Generate newsletter summary",
+                "Buffer/Hootsuite: Schedule posts",
+                "Mailchimp: Create newsletter draft"
             ],
-            "monthly_time_saved": "20時間",
-            "api_cost": "月$15程度"
+            "monthly_time_saved": "20 hours",
+            "api_cost": "~$15/month"
         },
         "competitor_monitoring": {
-            "trigger": "毎日9:00 AM（スケジュール）",
+            "trigger": "Daily at 9:00 AM (scheduled)",
             "steps": [
-                "RSS: 競合ブログの新記事を取得",
-                "AI: 競合記事の要約と分析",
-                "AI: 自社との差分分析",
-                "AI: 対策コンテンツの提案",
-                "Slack: #competitive-intel に日次レポート送信",
-                "Notion: 競合データベースに記録"
+                "RSS: Retrieve new articles from competitor blogs",
+                "AI: Summarize and analyze competitor articles",
+                "AI: Analyze differences from own company",
+                "AI: Suggest counter-content",
+                "Slack: Send daily report to #competitive-intel",
+                "Notion: Record in competitor database"
             ],
-            "monthly_time_saved": "10時間",
-            "api_cost": "月$20程度"
+            "monthly_time_saved": "10 hours",
+            "api_cost": "~$20/month"
         },
         "review_monitoring": {
-            "trigger": "新規レビュー検出（G2, Capterra, App Store）",
+            "trigger": "New review detected (G2, Capterra, App Store)",
             "steps": [
-                "レビュー内容の取得",
-                "AI: 感情分析 + カテゴリ分類",
-                "negative → Slack #reviews-alert に即通知",
-                "AI: 返信ドラフト生成",
-                "positive → 社内Slackに共有（モチベーション）",
-                "Google Sheets: レビューデータベースに記録"
+                "Retrieve review content",
+                "AI: Sentiment analysis + category classification",
+                "Negative → Immediate notification to Slack #reviews-alert",
+                "AI: Generate reply draft",
+                "Positive → Share in internal Slack (for morale)",
+                "Google Sheets: Record in review database"
             ],
-            "monthly_time_saved": "5時間",
-            "api_cost": "月$5程度"
+            "monthly_time_saved": "5 hours",
+            "api_cost": "~$5/month"
         }
     }
 }
 ```
 
-### 8.3 データパイプライン自動化
+### 8.3 Data Pipeline Automation
 
 ```python
-# データパイプライン自動化レシピ
+# Data pipeline automation recipe
 data_pipeline = {
-    "name": "AI データ処理パイプライン",
+    "name": "AI Data Processing Pipeline",
     "workflows": {
         "invoice_processing": {
-            "description": "請求書の自動処理",
-            "trigger": "Gmail: 添付ファイル付きメール受信（件名に「請求書」含む）",
+            "description": "Automated invoice processing",
+            "trigger": "Gmail: Receive email with attachment (subject contains 'invoice')",
             "steps": [
-                "添付PDF/画像を取得",
-                "OCR: テキスト抽出（Cloud Vision API）",
-                "AI: 構造化データ抽出（金額、日付、取引先、項目）",
-                "バリデーション: 金額チェック、重複チェック",
-                "会計ソフト（freee/MFクラウド）: 仕訳データ作成",
-                "Google Sheets: 管理台帳に記録",
-                "Slack: 処理完了通知"
+                "Retrieve attached PDF/image",
+                "OCR: Extract text (Cloud Vision API)",
+                "AI: Extract structured data (amount, date, vendor, line items)",
+                "Validation: Amount check, duplicate check",
+                "Accounting software (freee/MF Cloud): Create journal entry",
+                "Google Sheets: Record in management ledger",
+                "Slack: Send processing completion notification"
             ],
-            "accuracy": "95%以上（人間レビュー推奨）",
-            "processing_time": "1請求書あたり30秒"
+            "accuracy": "95%+ (human review recommended)",
+            "processing_time": "30 seconds per invoice"
         },
         "crm_enrichment": {
-            "description": "CRMデータの自動エンリッチメント",
-            "trigger": "HubSpot/Salesforce: 新規コンタクト作成",
+            "description": "Automated CRM data enrichment",
+            "trigger": "HubSpot/Salesforce: New contact created",
             "steps": [
-                "メールドメインから会社情報を取得",
-                "LinkedIn API: 会社規模、業界を取得",
-                "AI: コンタクトのスコアリングと推奨アクション生成",
-                "CRM: フィールド更新（会社規模、業界、スコア）",
-                "Slack: 高スコアリードを営業チームに通知"
+                "Retrieve company information from email domain",
+                "LinkedIn API: Retrieve company size and industry",
+                "AI: Score the contact and generate recommended actions",
+                "CRM: Update fields (company size, industry, score)",
+                "Slack: Notify sales team about high-score leads"
             ],
-            "enrichment_rate": "80%のコンタクトを自動エンリッチ",
-            "monthly_cost": "$30程度"
+            "enrichment_rate": "80% of contacts auto-enriched",
+            "monthly_cost": "~$30"
         }
     }
 }
@@ -1377,131 +1377,131 @@ data_pipeline = {
 
 ---
 
-## 9. トラブルシューティング
+## 9. Troubleshooting
 
-### 9.1 よくある問題と解決策
+### 9.1 Common Issues and Solutions
 
-| 問題 | 原因 | 解決策 |
-|------|------|--------|
-| ワークフローが突然停止 | APIキー期限切れ | キー有効期限の監視、自動更新の仕組み |
-| AI応答がJSON形式でない | プロンプトの曖昧さ | プロンプトに「必ずJSON形式で返答」を明記、出力パーサーにフォールバック追加 |
-| 実行が遅い（タイムアウト） | AI API の応答遅延 | タイムアウト値を延長、非同期処理に切り替え |
-| 重複実行される | Webhook の再送 | 冪等性キー（idempotency key）の実装 |
-| コストが想定以上 | プロンプトが長すぎる | プロンプト最適化、キャッシュ導入、軽量モデル使い分け |
-| データが欠損する | ステップ間のマッピングミス | データスキーマのバリデーション、ログの充実 |
-| 特定時間帯にエラー頻発 | APIレート制限 | レート制限対応のキューイング実装 |
+| Issue | Cause | Solution |
+|-------|-------|---------|
+| Workflow stops suddenly | API key expired | Monitor key expiration, implement auto-renewal |
+| AI response is not in JSON format | Ambiguous prompt | Explicitly state "always respond in JSON format" in prompt, add fallback to output parser |
+| Slow execution (timeout) | AI API response delay | Extend timeout value, switch to asynchronous processing |
+| Duplicate executions | Webhook retries | Implement idempotency key |
+| Costs exceed expectations | Prompts are too long | Optimize prompts, introduce caching, use lighter models |
+| Data is missing | Mapping errors between steps | Validate data schema, enrich logs |
+| Errors spike during specific hours | API rate limits | Implement queuing with rate limit handling |
 
-### 9.2 デバッグチェックリスト
+### 9.2 Debugging Checklist
 
 ```
-ワークフローデバッグチェックリスト:
+Workflow Debugging Checklist:
 
-  □ 1. トリガー確認
-     - Webhookの URL は正しいか？
-     - テストデータでトリガーが発火するか？
-     - フィルター条件が厳しすぎないか？
+  □ 1. Verify trigger
+     - Is the Webhook URL correct?
+     - Does the trigger fire with test data?
+     - Are filter conditions too strict?
 
-  □ 2. データフロー確認
-     - 各ステップの入出力データを確認
-     - フィールド名のtypoはないか？
-     - データ型の不一致はないか？（文字列 vs 数値）
+  □ 2. Verify data flow
+     - Check input/output data at each step
+     - Are there any typos in field names?
+     - Are there data type mismatches? (string vs. number)
 
-  □ 3. AI ステップ確認
-     - プロンプトに変数が正しく挿入されているか？
-     - AIの応答をログに記録しているか？
-     - JSONパースのエラーハンドリングはあるか？
+  □ 3. Verify AI steps
+     - Are variables correctly inserted into the prompt?
+     - Are AI responses being logged?
+     - Is there error handling for JSON parsing?
 
-  □ 4. 条件分岐確認
-     - 全分岐パターンをテストしたか？
-     - デフォルトケース（else）は設定したか？
-     - 境界値（ちょうど閾値）のテストは？
+  □ 4. Verify conditional branching
+     - Have all branch patterns been tested?
+     - Is a default case (else) configured?
+     - Have boundary values (exactly at threshold) been tested?
 
-  □ 5. エラーハンドリング確認
-     - リトライ設定は適切か？
-     - エラー通知は送信されるか？
-     - Dead Letter Queue は機能しているか？
+  □ 5. Verify error handling
+     - Are retry settings appropriate?
+     - Are error notifications being sent?
+     - Is the Dead Letter Queue functioning?
 
-  □ 6. パフォーマンス確認
-     - 実行時間は許容範囲内か？
-     - メモリ使用量は問題ないか？
-     - APIレート制限に抵触していないか？
+  □ 6. Verify performance
+     - Is execution time within acceptable range?
+     - Is memory usage acceptable?
+     - Are API rate limits being hit?
 ```
 
 ---
 
 ## 10. FAQ
 
-### Q1: Zapier、Make、n8n のどれを選ぶべき？
+### Q1: Which should I choose: Zapier, Make, or n8n?
 
-**A:** 判断基準は3つ。(1) 予算 — 無料~低コストならn8n（セルフホスト）、中予算ならMake、予算十分ならZapier。(2) 技術力 — 非エンジニアはZapier、エンジニアはn8n。(3) 規模 — 小規模はZapier、大量処理はn8nかMake。月1,000タスク以下ならZapier無料プラン、1万タスク以上ならn8nセルフホストが費用対効果最良。
+**A:** There are three criteria. (1) Budget — for free to low cost, n8n (self-hosted); for medium budget, Make; for sufficient budget, Zapier. (2) Technical skill — non-engineers use Zapier, engineers use n8n. (3) Scale — small-scale use Zapier, high-volume use n8n or Make. For under 1,000 tasks/month, the Zapier free plan works; for over 10,000 tasks/month, n8n self-hosted offers the best cost-effectiveness.
 
-### Q2: AI APIのコストが心配。抑える方法は？
+### Q2: I'm worried about AI API costs. How can I keep them down?
 
-**A:** 3つの戦略がある。(1) キャッシュ — 同一入力の結果をRedis/DBに保存し再利用、(2) モデル選択 — 簡単なタスクはgpt-3.5-turbo（GPT-4の1/20コスト）、(3) プロンプト最適化 — 不要なコンテキストを削り入力トークン数を減らす。実測で月$500→$80に削減した事例もある。
+**A:** Three strategies: (1) Caching — save results for identical inputs in Redis/DB and reuse them; (2) Model selection — use gpt-3.5-turbo for simple tasks (1/20th the cost of GPT-4); (3) Prompt optimization — trim unnecessary context to reduce input token count. There are real-world cases of reducing monthly costs from $500 to $80.
 
-### Q3: ワークフローのテスト方法は？
+### Q3: How do I test workflows?
 
-**A:** 3段階でテストする。(1) ユニットテスト — 各ステップを個別にモックデータで実行、(2) 統合テスト — テスト用Webhookで全フロー実行、(3) 本番モニタリング — 成功率・実行時間・コストをダッシュボードで監視。n8nはデバッガ内蔵、Zapierは実行ログで確認可能。
+**A:** Test in three stages: (1) Unit tests — run each step individually with mock data; (2) Integration tests — run the full flow with a test Webhook; (3) Production monitoring — monitor success rate, execution time, and costs on a dashboard. n8n has a built-in debugger; Zapier allows checking via execution logs.
 
-### Q4: ワークフローのバージョン管理はどうすべきか？
+### Q4: How should I manage workflow versions?
 
-**A:** プラットフォーム別の対策がある。(1) n8n — ワークフローのJSON定義をGitで管理。n8n CLIでエクスポート/インポート可能。CI/CDパイプラインに組み込むのが理想。(2) Zapier — バージョン機能は制限的。変更前にスクリーンショットを撮り、Notionに変更履歴を記録するのが現実的。(3) Make — ブループリントのエクスポートでJSON保存可能。主要変更時にエクスポートしてGit管理する。いずれのプラットフォームでも、本番ワークフローの直接編集は避け、テスト用コピーで変更→検証→本番反映のフローを確立すべき。
+**A:** Platform-specific approaches: (1) n8n — manage the JSON workflow definition in Git. Export/import is possible with the n8n CLI. Integrating into a CI/CD pipeline is ideal. (2) Zapier — version control is limited. A practical approach is to take screenshots before changes and record change history in Notion. (3) Make — JSON export via blueprint export is possible. Export on major changes and manage in Git. Across all platforms, avoid editing production workflows directly — establish a flow of test copy → change → verify → apply to production.
 
-### Q5: 複数プラットフォームを組み合わせることは可能か？
+### Q5: Is it possible to combine multiple platforms?
 
-**A:** 可能であり、実際に推奨されるケースもある。(1) Zapier（簡単なトリガー・アクション） + n8n（複雑なAI処理）の組み合わせが人気、(2) 連携方法はWebhook。Zapierのトリガーでn8nのWebhookを呼び出し、n8nで処理した結果をZapierに返す、(3) Make + n8nの組み合わせも同様に可能。注意点: 2つのプラットフォームを跨ぐとデバッグが複雑になるため、十分なログ出力が必要。
+**A:** It is possible, and in fact there are cases where it is recommended. (1) Combining Zapier (simple triggers/actions) + n8n (complex AI processing) is popular; (2) Integration is done via Webhook — Zapier's trigger calls n8n's Webhook, n8n processes it and returns the result to Zapier; (3) Make + n8n combinations are similarly possible. Note: debugging becomes complex when spanning two platforms, so sufficient log output is required.
 
-### Q6: セキュリティ上の注意点は？
+### Q6: What security precautions should I take?
 
-**A:** 5つの重要ポイント。(1) APIキーの管理 — 各プラットフォームのシークレット管理機能を使い、ハードコードしない、(2) Webhook認証 — Webhook URLにシークレットトークンを含めるか、ヘッダーで認証する、(3) データマスキング — 個人情報はAI APIに送信する前にマスク処理、(4) ログの管理 — 実行ログに機密データが含まれないよう設定、(5) n8nセルフホスト — ファイアウォール設定、HTTPS強制、IP制限を適用。特にn8nのセルフホストではBasic認証だけでなく、Cloudflare Tunnels等のゼロトラスト接続を検討すべき。
+**A:** Five important points. (1) API key management — use each platform's secret management features and never hardcode; (2) Webhook authentication — include a secret token in the Webhook URL or authenticate via headers; (3) Data masking — mask personal information before sending to AI APIs; (4) Log management — configure logs to not contain sensitive data; (5) n8n self-hosting — apply firewall settings, enforce HTTPS, and restrict IPs. Especially for n8n self-hosting, consider zero-trust connectivity like Cloudflare Tunnels in addition to Basic Auth.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining hands-on experience is most important. Understanding deepens not just through theory, but by actually writing code and confirming its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Jumping to advanced topics without mastering the basics. We recommend thoroughly understanding the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in actual practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| Zapier | 最多連携、初心者向け、コスト高め |
-| Make | コスパ良好、ビジュアル設計、中級者向け |
-| n8n | OSS、無制限実行、技術者向け |
-| AI連携の鍵 | キャッシュ + モデル選択 + プロンプト最適化 |
-| エラー処理 | リトライ → フォールバック → Dead Letter Queue |
-| 設計原則 | モジュール化、並列化、Human-in-the-Loop |
-| テスト | ユニット → 統合 → カナリア → 本番の4段階 |
-| 監視 | 成功率 + コスト + レイテンシの3軸ダッシュボード |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [02-document-processing.md](./02-document-processing.md) — ドキュメント処理の自動化
-- [03-email-communication.md](./03-email-communication.md) — メール/コミュニケーション自動化
-- [../02-monetization/01-cost-management.md](../02-monetization/01-cost-management.md) — API費用最適化
+| Item | Key Point |
+|------|-----------|
+| Zapier | Most integrations, beginner-friendly, higher cost |
+| Make | Good value, visual design, intermediate-level |
+| n8n | OSS, unlimited executions, for technical users |
+| Key to AI integration | Caching + model selection + prompt optimization |
+| Error handling | Retry → Fallback → Dead Letter Queue |
+| Design principles | Modularization, parallelization, Human-in-the-Loop |
+| Testing | 4 stages: unit → integration → canary → production |
+| Monitoring | 3-axis dashboard: success rate + cost + latency |
 
 ---
 
-## 参考文献
+## Next Guides to Read
 
-1. **Zapier公式ドキュメント** — https://zapier.com/help — トリガー・アクション一覧とベストプラクティス
-2. **n8n Documentation** — https://docs.n8n.io — ノード設定、セルフホスト、AI統合ガイド
-3. **Make (Integromat) Help Center** — https://www.make.com/en/help — シナリオ設計とHTTPモジュール活用
-4. **"Workflow Automation with AI" — Packt (2024)** — AI連携ワークフローの設計パターン集
-5. **n8n Community Forum** — https://community.n8n.io — ワークフローテンプレートとトラブルシューティング
-6. **Zapier University** — https://zapier.com/university — 自動化スキルの体系的学習コース
+- [02-document-processing.md](./02-document-processing.md) — Document processing automation
+- [03-email-communication.md](./03-email-communication.md) — Email/communication automation
+- [../02-monetization/01-cost-management.md](../02-monetization/01-cost-management.md) — API cost optimization
+
+---
+
+## References
+
+1. **Zapier Official Documentation** — https://zapier.com/help — Trigger/action list and best practices
+2. **n8n Documentation** — https://docs.n8n.io — Node configuration, self-hosting, AI integration guide
+3. **Make (Integromat) Help Center** — https://www.make.com/en/help — Scenario design and HTTP module usage
+4. **"Workflow Automation with AI" — Packt (2024)** — Design patterns for AI-integrated workflows
+5. **n8n Community Forum** — https://community.n8n.io — Workflow templates and troubleshooting
+6. **Zapier University** — https://zapier.com/university — Systematic learning course for automation skills
