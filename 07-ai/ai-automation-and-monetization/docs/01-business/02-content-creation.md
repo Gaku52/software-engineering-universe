@@ -1,69 +1,69 @@
-# コンテンツ制作 — ブログ、動画、SNS自動化
+# Content Creation — Blog, Video, and Social Media Automation
 
-> AIを活用したコンテンツ制作の自動化と効率化を体系的に解説し、ブログ記事、動画制作、SNS運用の各領域で実践的な手法とツールチェーンを提供する。
-
----
-
-## この章で学ぶこと
-
-1. **AIコンテンツ制作パイプライン** — 企画→生成→編集→配信の自動化フロー設計
-2. **マルチチャネル最適化** — ブログ、YouTube、Twitter/X、Instagram、LinkedIn向け最適コンテンツ生成
-3. **品質管理とブランド一貫性** — AI生成コンテンツの品質保証とトーン・スタイルの統一
-4. **収益化とスケーリング** — コンテンツ制作の事業化、KPI管理、チーム構築
-5. **法務・倫理ガイドライン** — 著作権、景表法、ステルスマーケティング規制への対応
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [AIコンサルティング — 提案書、ROI算定](./01-ai-consulting.md) の内容を理解していること
+> A systematic guide to AI-powered content creation automation and efficiency, covering practical techniques and tool chains for blog articles, video production, and social media management.
 
 ---
 
-## 1. コンテンツ制作パイプライン
+## What You Will Learn
 
-### 1.1 全体アーキテクチャ
+1. **AI Content Creation Pipeline** — Automated flow design from planning to generation, editing, and distribution
+2. **Multi-Channel Optimization** — Generating optimal content for blogs, YouTube, Twitter/X, Instagram, and LinkedIn
+3. **Quality Control and Brand Consistency** — Quality assurance and tone/style unification for AI-generated content
+4. **Monetization and Scaling** — Commercializing content creation, KPI management, and team building
+5. **Legal and Ethical Guidelines** — Handling copyright, Premiums Representation Act, and stealth marketing regulations
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [AI Consulting — Proposals and ROI Calculation](./01-ai-consulting.md)
+
+---
+
+## 1. Content Creation Pipeline
+
+### 1.1 Overall Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│           AIコンテンツ制作パイプライン                       │
+│           AI Content Creation Pipeline                    │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  企画         生成         編集        配信        分析    │
+│  Planning    Generate    Edit       Distribute  Analyze  │
 │  ┌────┐    ┌────┐     ┌────┐     ┌────┐     ┌────┐   │
-│  │トレンド│──▶│AI   │──▶│品質  │──▶│各   │──▶│効果 │   │
-│  │分析  │   │生成  │   │チェック│  │チャネル│  │測定  │   │
-│  │キーワード│ │テキスト│  │ファクト│  │最適化 │  │改善  │   │
-│  │競合分析│  │画像  │   │チェック│  │スケジュール││フィード│  │
-│  └────┘    │動画  │   │ブランド│  └────┘     │バック │   │
-│            └────┘     │チェック│              └────┘   │
+│  │Trend│──▶│AI   │──▶│Quality│──▶│Each │──▶│Effect│   │
+│  │Analysis│ │Generate│  │Check  │  │Channel│  │Measure│  │
+│  │Keyword│  │Text │   │Fact   │  │Optimize│  │Improve│  │
+│  │Comp. │  │Image│   │Check  │  │Schedule│  │Feed  │   │
+│  │Analysis│ │Video│   │Brand  │  └────┘     │back  │   │
+│  └────┘    └────┘     │Check  │              └────┘   │
 │                        └────┘                           │
 │                                                          │
-│  ツール例:                                                │
+│  Tool Examples:                                          │
 │  BuzzSumo  GPT-4     Grammarly  Buffer     Google       │
-│  Ahrefs    Claude    人間レビュー Hootsuite  Analytics    │
-│  SEMrush   DALL-E              Zapier      PostHog      │
+│  Ahrefs    Claude    Human      Hootsuite  Analytics    │
+│  SEMrush   DALL-E    Review     Zapier     PostHog      │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 コンテンツ種別と自動化レベル
+### 1.2 Content Types and Automation Levels
 
-| コンテンツ種別 | AI自動化率 | 人間介入 | 品質リスク | ROI |
-|--------------|-----------|---------|-----------|-----|
-| ブログ記事 | 70-80% | 編集・監修 | 中 | 高 |
-| SNS投稿 | 80-90% | 承認 | 低 | 最高 |
-| メルマガ | 60-70% | 編集・承認 | 中 | 高 |
-| 動画スクリプト | 50-60% | 大幅編集 | 中〜高 | 中 |
-| 動画編集 | 30-50% | 監修 | 高 | 中 |
-| ホワイトペーパー | 40-50% | 大幅編集 | 高 | 中 |
-| ポッドキャスト台本 | 60-70% | 編集 | 中 | 中 |
-| プレスリリース | 50-60% | 法務確認 | 高 | 中 |
-| ケーススタディ | 30-40% | 取材・編集 | 高 | 高 |
+| Content Type | AI Automation Rate | Human Involvement | Quality Risk | ROI |
+|--------------|-------------------|-------------------|--------------|-----|
+| Blog Article | 70-80% | Editing/Supervision | Medium | High |
+| Social Media Post | 80-90% | Approval | Low | Highest |
+| Newsletter | 60-70% | Editing/Approval | Medium | High |
+| Video Script | 50-60% | Heavy Editing | Medium-High | Medium |
+| Video Editing | 30-50% | Supervision | High | Medium |
+| White Paper | 40-50% | Heavy Editing | High | Medium |
+| Podcast Script | 60-70% | Editing | Medium | Medium |
+| Press Release | 50-60% | Legal Review | High | Medium |
+| Case Study | 30-40% | Interview/Editing | High | High |
 
-### 1.3 コンテンツ管理システム（CMS連携）
+### 1.3 Content Management System (CMS Integration)
 
 ```python
 import os
@@ -94,7 +94,7 @@ class ContentType(Enum):
 
 @dataclass
 class ContentItem:
-    """コンテンツアイテムの管理単位"""
+    """Content item management unit"""
     id: str
     title: str
     content_type: ContentType
@@ -140,7 +140,7 @@ class ContentItem:
 
 
 class ContentPipeline:
-    """コンテンツ制作パイプライン管理"""
+    """Content creation pipeline management"""
 
     def __init__(self, storage_path: str = "./content_db"):
         self.storage_path = storage_path
@@ -150,7 +150,7 @@ class ContentPipeline:
     def create_content(self, title: str, content_type: ContentType,
                        topic: str, keywords: list[str],
                        target_audience: str = "") -> ContentItem:
-        """新規コンテンツアイテムの作成"""
+        """Create a new content item"""
         import uuid
         item = ContentItem(
             id=str(uuid.uuid4())[:8],
@@ -165,7 +165,7 @@ class ContentPipeline:
         return item
 
     def advance_status(self, item_id: str) -> ContentItem:
-        """ステータスを次の段階に進める"""
+        """Advance status to the next stage"""
         item = self.items[item_id]
         status_flow = [
             ContentStatus.IDEA,
@@ -184,11 +184,11 @@ class ContentPipeline:
         return item
 
     def get_by_status(self, status: ContentStatus) -> list[ContentItem]:
-        """ステータス別にコンテンツを取得"""
+        """Retrieve content filtered by status"""
         return [item for item in self.items.values() if item.status == status]
 
     def get_overdue(self) -> list[ContentItem]:
-        """期限超過のコンテンツを取得"""
+        """Retrieve overdue content"""
         now = datetime.now()
         return [
             item for item in self.items.values()
@@ -197,7 +197,7 @@ class ContentPipeline:
         ]
 
     def get_pipeline_summary(self) -> dict:
-        """パイプライン全体のサマリーを取得"""
+        """Get a summary of the entire pipeline"""
         summary = {}
         for status in ContentStatus:
             items = self.get_by_status(status)
@@ -213,11 +213,11 @@ class ContentPipeline:
             json.dump(item.to_dict(), f, ensure_ascii=False, indent=2)
 ```
 
-### 1.4 コンテンツ戦略フレームワーク
+### 1.4 Content Strategy Framework
 
 ```python
 class ContentStrategy:
-    """コンテンツ戦略の設計と管理"""
+    """Content strategy design and management"""
 
     def __init__(self, client):
         self.client = client
@@ -225,30 +225,30 @@ class ContentStrategy:
     def generate_content_pillars(self, business_description: str,
                                   target_audience: str,
                                   competitors: list[str]) -> dict:
-        """コンテンツピラー（柱）の設計"""
+        """Design content pillars"""
         prompt = f"""
-あなたはコンテンツマーケティングの専門家です。
-以下のビジネスに対して、コンテンツ戦略のピラー（柱）を設計してください。
+You are a content marketing expert.
+Please design content strategy pillars for the following business.
 
-ビジネス概要: {business_description}
-ターゲット読者: {target_audience}
-主要競合: {', '.join(competitors)}
+Business Overview: {business_description}
+Target Audience: {target_audience}
+Key Competitors: {', '.join(competitors)}
 
-以下の形式で回答:
-1. コンテンツピラー（3-5個）
-   - ピラー名
-   - 概要（1-2文）
-   - 対象キーワード群（5-10個）
-   - コンテンツタイプ（ブログ、動画、SNS等）
-   - 想定記事テーマ例（5個）
+Respond in the following format:
+1. Content Pillars (3-5)
+   - Pillar name
+   - Overview (1-2 sentences)
+   - Target keyword groups (5-10)
+   - Content types (blog, video, social media, etc.)
+   - Example article topics (5)
 
-2. コンテンツミックス比率
-   - 教育コンテンツ: X%
-   - エンタメコンテンツ: X%
-   - セールスコンテンツ: X%
-   - コミュニティコンテンツ: X%
+2. Content Mix Ratio
+   - Educational content: X%
+   - Entertainment content: X%
+   - Sales content: X%
+   - Community content: X%
 
-3. 競合との差別化ポイント
+3. Differentiation from Competitors
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -259,27 +259,27 @@ class ContentStrategy:
 
     def create_editorial_calendar(self, pillars: list[str],
                                    months: int = 3) -> dict:
-        """編集カレンダーの自動生成"""
+        """Auto-generate an editorial calendar"""
         prompt = f"""
-以下のコンテンツピラーに基づき、{months}ヶ月分の編集カレンダーを作成:
+Create a {months}-month editorial calendar based on the following content pillars:
 
-ピラー: {', '.join(pillars)}
+Pillars: {', '.join(pillars)}
 
-要件:
-- 週3本のブログ記事
-- 毎日のSNS投稿（Twitter/LinkedIn）
-- 月2本の動画コンテンツ
-- 月1本のメルマガ
+Requirements:
+- 3 blog articles per week
+- Daily social media posts (Twitter/LinkedIn)
+- 2 video content pieces per month
+- 1 newsletter per month
 
-各エントリに:
-- 公開日
-- コンテンツタイプ
-- タイトル案
-- ターゲットキーワード
-- 担当（AI/人間/ハイブリッド）
-- 制作所要時間（目安）
+For each entry include:
+- Publication date
+- Content type
+- Title idea
+- Target keyword
+- Responsibility (AI/Human/Hybrid)
+- Estimated production time
 
-季節イベント、業界イベントも考慮すること。
+Consider seasonal and industry events.
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -291,9 +291,9 @@ class ContentStrategy:
 
 ---
 
-## 2. ブログ記事AI生成
+## 2. Blog Article AI Generation
 
-### 2.1 記事生成エンジン
+### 2.1 Article Generation Engine
 
 ```python
 import anthropic
@@ -310,31 +310,31 @@ class ArticlePlan:
     outline: list[str] = None
 
 class BlogGenerator:
-    """AIブログ記事生成エンジン"""
+    """AI blog article generation engine"""
 
     def __init__(self, api_key: str):
         self.client = anthropic.Anthropic(api_key=api_key)
         self.brand_voice = ""
 
     def set_brand_voice(self, examples: list[str]):
-        """ブランドボイスを学習"""
+        """Learn brand voice"""
         self.brand_voice = f"""
-以下は弊社のブログ記事例です。このトーンとスタイルを維持してください:
+The following are examples of our blog articles. Please maintain this tone and style:
 
-{chr(10).join(f'例{i+1}: {ex[:500]}' for i, ex in enumerate(examples[:3]))}
+{chr(10).join(f'Example {i+1}: {ex[:500]}' for i, ex in enumerate(examples[:3]))}
 """
 
     def generate_outline(self, plan: ArticlePlan) -> list[str]:
-        """記事構成案を生成"""
+        """Generate article structure outline"""
         prompt = f"""
-以下のブログ記事の構成案（見出しリスト）を生成:
-- トピック: {plan.topic}
-- メインKW: {plan.target_keyword}
-- サブKW: {', '.join(plan.secondary_keywords)}
-- 対象読者: {plan.audience}
-- 目標文字数: {plan.target_length}文字
+Generate a heading list (outline) for the following blog article:
+- Topic: {plan.topic}
+- Main KW: {plan.target_keyword}
+- Sub KWs: {', '.join(plan.secondary_keywords)}
+- Target Audience: {plan.audience}
+- Target Length: {plan.target_length} characters
 
-SEO最適化された見出し構成を提案。H2は5-7個、H3は各H2に2-3個。
+Propose an SEO-optimized heading structure. 5-7 H2 headings, 2-3 H3 headings per H2.
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -344,26 +344,26 @@ SEO最適化された見出し構成を提案。H2は5-7個、H3は各H2に2-3�
         return response.content[0].text
 
     def generate_article(self, plan: ArticlePlan) -> dict:
-        """記事本文を生成"""
+        """Generate article body"""
         outline = plan.outline or self.generate_outline(plan)
 
         prompt = f"""
 {self.brand_voice}
 
-以下の構成でブログ記事を執筆:
+Write a blog article using the following structure:
 
-トピック: {plan.topic}
-構成: {outline}
-トーン: {plan.tone}
-メインキーワード: {plan.target_keyword}（自然に5-8回使用）
-サブキーワード: {', '.join(plan.secondary_keywords)}
-目標文字数: {plan.target_length}文字
+Topic: {plan.topic}
+Structure: {outline}
+Tone: {plan.tone}
+Main Keyword: {plan.target_keyword} (use naturally 5-8 times)
+Sub Keywords: {', '.join(plan.secondary_keywords)}
+Target Length: {plan.target_length} characters
 
-ルール:
-- 導入部は読者の課題に共感し、記事を読む価値を明示
-- 各セクションに具体例やデータを含める
-- CTAで次のアクションを促す
-- meta descriptionも生成
+Rules:
+- The introduction should empathize with the reader's challenges and clarify the value of reading the article
+- Include specific examples and data in each section
+- Use a CTA to encourage the next action
+- Also generate a meta description
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -382,7 +382,7 @@ SEO最適化された見出し構成を提案。H2は5-7個、H3は各H2に2-3�
         }
 
     def _calculate_seo_score(self, text, main_kw, sub_kws) -> float:
-        """簡易SEOスコア計算"""
+        """Simple SEO score calculation"""
         score = 0
         main_count = text.lower().count(main_kw.lower())
         if 3 <= main_count <= 10:
@@ -395,7 +395,7 @@ SEO最適化された見出し構成を提案。H2は5-7個、H3は各H2に2-3�
         return min(100, score)
 
     def _calculate_readability(self, text: str) -> float:
-        """可読性スコア（日本語向け簡易版）"""
+        """Readability score (simple version for Japanese)"""
         sentences = text.split("。")
         avg_length = sum(len(s) for s in sentences) / max(len(sentences), 1)
         if avg_length < 60:
@@ -406,42 +406,44 @@ SEO最適化された見出し構成を提案。H2は5-7個、H3は各H2に2-3�
             return 50
 ```
 
-### 2.2 SEO最適化フロー
+### 2.2 SEO Optimization Flow
 
 ```
-SEO最適化パイプライン:
+SEO Optimization Pipeline:
 
-  キーワードリサーチ
+  Keyword Research
   ┌────────────┐
-  │ Ahrefs/    │──▶ 検索ボリューム、難易度、関連KW
+  │ Ahrefs/    │──▶ Search volume, difficulty, related KWs
   │ SEMrush    │
   └────────────┘
         │
         ▼
-  競合分析
+  Competitor Analysis
   ┌────────────┐
-  │ 上位10記事  │──▶ 文字数、構成、カバー範囲
-  │ スクレイピング│
+  │ Top 10     │──▶ Word count, structure, coverage
+  │ Articles   │
+  │ Scraping   │
   └────────────┘
         │
         ▼
-  記事生成
+  Article Generation
   ┌────────────┐
-  │ AI生成     │──▶ 競合を上回る構成・深さ・独自性
+  │ AI         │──▶ Structure, depth, and uniqueness that surpass competitors
+  │ Generate   │
   │ (Claude)   │
   └────────────┘
         │
         ▼
-  最適化
+  Optimization
   ┌────────────┐
-  │ タイトル    │──▶ 32文字以内、KW含む、CTR最適化
-  │ メタ       │──▶ 120文字、行動喚起
-  │ 見出し     │──▶ KW含む、階層構造
-  │ 内部リンク  │──▶ 関連記事への自然なリンク
+  │ Title      │──▶ Within 32 chars, include KW, CTR optimization
+  │ Meta       │──▶ 120 chars, call to action
+  │ Headings   │──▶ Include KW, hierarchical structure
+  │ Int. Links │──▶ Natural links to related articles
   └────────────┘
 ```
 
-### 2.3 高度なSEO分析エンジン
+### 2.3 Advanced SEO Analysis Engine
 
 ```python
 import re
@@ -450,7 +452,7 @@ from dataclasses import dataclass
 
 @dataclass
 class SEOAnalysis:
-    """SEO分析結果"""
+    """SEO analysis results"""
     overall_score: float
     title_score: float
     meta_score: float
@@ -464,79 +466,79 @@ class SEOAnalysis:
     recommendations: list[str]
 
 class AdvancedSEOAnalyzer:
-    """高度なSEO分析エンジン"""
+    """Advanced SEO analysis engine"""
 
     def __init__(self):
         self.min_word_count = 1500
         self.max_keyword_density = 0.03
         self.min_keyword_density = 0.005
-        self.optimal_title_length = 32  # 日本語文字数
-        self.optimal_meta_length = 120  # 日本語文字数
+        self.optimal_title_length = 32  # Japanese character count
+        self.optimal_meta_length = 120  # Japanese character count
 
     def analyze(self, content: str, title: str,
                 meta_description: str,
                 target_keyword: str,
                 secondary_keywords: list[str]) -> SEOAnalysis:
-        """総合SEO分析を実行"""
+        """Run comprehensive SEO analysis"""
         recommendations = []
 
-        # タイトル分析
+        # Title analysis
         title_score = self._analyze_title(title, target_keyword, recommendations)
 
-        # メタディスクリプション分析
+        # Meta description analysis
         meta_score = self._analyze_meta(meta_description, target_keyword, recommendations)
 
-        # 見出し構造分析
+        # Heading structure analysis
         heading_score = self._analyze_headings(content, target_keyword, recommendations)
 
-        # キーワード密度分析
+        # Keyword density analysis
         keyword_density = self._calculate_keyword_density(
             content, target_keyword
         )
         if keyword_density > self.max_keyword_density:
             recommendations.append(
-                f"キーワード密度が高すぎます({keyword_density:.1%})。"
-                f"{self.max_keyword_density:.1%}以下に抑えてください。"
+                f"Keyword density is too high ({keyword_density:.1%}). "
+                f"Keep it below {self.max_keyword_density:.1%}."
             )
         elif keyword_density < self.min_keyword_density:
             recommendations.append(
-                f"キーワード密度が低すぎます({keyword_density:.1%})。"
-                f"自然にキーワードを追加してください。"
+                f"Keyword density is too low ({keyword_density:.1%}). "
+                f"Add keywords naturally."
             )
 
-        # 可読性分析
+        # Readability analysis
         readability_score = self._analyze_readability(content, recommendations)
 
-        # リンク分析
+        # Link analysis
         internal_links = len(re.findall(r'\[.*?\]\((?!https?://)', content))
         external_links = len(re.findall(r'\[.*?\]\(https?://', content))
         if internal_links < 3:
-            recommendations.append("内部リンクを3個以上追加してください。")
+            recommendations.append("Add 3 or more internal links.")
         if external_links < 2:
-            recommendations.append("信頼できる外部ソースへのリンクを追加してください。")
+            recommendations.append("Add links to trustworthy external sources.")
 
-        # 画像alt分析
+        # Image alt analysis
         images = re.findall(r'!\[(.*?)\]', content)
         images_with_alt = [img for img in images if img.strip()]
         image_alt_coverage = len(images_with_alt) / max(len(images), 1)
 
-        # 文字数チェック
+        # Word count check
         word_count = len(content)
         if word_count < self.min_word_count:
             recommendations.append(
-                f"文字数が不足しています（{word_count}文字）。"
-                f"{self.min_word_count}文字以上を目指してください。"
+                f"Word count is insufficient ({word_count} characters). "
+                f"Aim for {self.min_word_count} characters or more."
             )
 
-        # サブキーワードカバレッジ
+        # Sub-keyword coverage
         covered = sum(1 for kw in secondary_keywords if kw in content)
         if covered < len(secondary_keywords) * 0.7:
             missing = [kw for kw in secondary_keywords if kw not in content]
             recommendations.append(
-                f"以下のサブキーワードが未使用です: {', '.join(missing[:5])}"
+                f"The following sub-keywords are unused: {', '.join(missing[:5])}"
             )
 
-        # 総合スコア計算
+        # Overall score calculation
         overall_score = (
             title_score * 0.15 +
             meta_score * 0.1 +
@@ -564,53 +566,53 @@ class AdvancedSEOAnalyzer:
 
     def _analyze_title(self, title: str, keyword: str,
                        recommendations: list) -> float:
-        """タイトル分析"""
+        """Title analysis"""
         score = 0
         if keyword in title:
             score += 40
         else:
-            recommendations.append("タイトルにメインキーワードを含めてください。")
+            recommendations.append("Include the main keyword in the title.")
 
         title_len = len(title)
         if 20 <= title_len <= self.optimal_title_length:
             score += 30
         elif title_len > self.optimal_title_length:
             recommendations.append(
-                f"タイトルが長すぎます({title_len}文字)。"
-                f"{self.optimal_title_length}文字以内に。"
+                f"Title is too long ({title_len} characters). "
+                f"Keep it within {self.optimal_title_length} characters."
             )
             score += 15
 
-        # パワーワードチェック
-        power_words = ["完全ガイド", "入門", "まとめ", "比較",
-                       "おすすめ", "方法", "解説", "徹底"]
+        # Power word check
+        power_words = ["Complete Guide", "Introduction", "Summary", "Comparison",
+                       "Recommended", "How to", "Explanation", "Thorough"]
         if any(pw in title for pw in power_words):
             score += 15
-        # 数字を含むか
+        # Contains numbers?
         if re.search(r'\d+', title):
             score += 15
         return min(100, score)
 
     def _analyze_meta(self, meta: str, keyword: str,
                       recommendations: list) -> float:
-        """メタディスクリプション分析"""
+        """Meta description analysis"""
         score = 0
         if keyword in meta:
             score += 40
         if 80 <= len(meta) <= self.optimal_meta_length:
             score += 30
         elif len(meta) > self.optimal_meta_length:
-            recommendations.append("メタディスクリプションが長すぎます。")
+            recommendations.append("Meta description is too long.")
             score += 15
-        # CTA含有チェック
-        cta_words = ["詳しく", "チェック", "今すぐ", "無料", "限定"]
+        # CTA presence check
+        cta_words = ["Learn more", "Check", "Now", "Free", "Exclusive"]
         if any(cta in meta for cta in cta_words):
             score += 30
         return min(100, score)
 
     def _analyze_headings(self, content: str, keyword: str,
                           recommendations: list) -> float:
-        """見出し構造分析"""
+        """Heading structure analysis"""
         score = 0
         h2_matches = re.findall(r'^## (.+)$', content, re.MULTILINE)
         h3_matches = re.findall(r'^### (.+)$', content, re.MULTILINE)
@@ -618,19 +620,19 @@ class AdvancedSEOAnalyzer:
         if 4 <= len(h2_matches) <= 8:
             score += 30
         elif len(h2_matches) < 4:
-            recommendations.append("H2見出しを4個以上設置してください。")
+            recommendations.append("Add 4 or more H2 headings.")
 
         if len(h3_matches) >= len(h2_matches):
             score += 20
 
-        # キーワード含有率
+        # Keyword inclusion rate
         kw_in_headings = sum(
             1 for h in h2_matches + h3_matches if keyword in h
         )
         if kw_in_headings >= 2:
             score += 30
 
-        # 階層構造の正しさ
+        # Heading hierarchy correctness
         lines = content.split('\n')
         prev_level = 0
         structure_ok = True
@@ -652,13 +654,13 @@ class AdvancedSEOAnalyzer:
         if structure_ok:
             score += 20
         else:
-            recommendations.append("見出しの階層構造が不正です（H2→H4のスキップ等）。")
+            recommendations.append("Heading hierarchy is incorrect (e.g., skipping from H2 to H4).")
 
         return min(100, score)
 
     def _calculate_keyword_density(self, content: str,
                                     keyword: str) -> float:
-        """キーワード密度を計算"""
+        """Calculate keyword density"""
         total_chars = len(content)
         if total_chars == 0:
             return 0
@@ -667,7 +669,7 @@ class AdvancedSEOAnalyzer:
 
     def _analyze_readability(self, content: str,
                               recommendations: list) -> float:
-        """可読性分析"""
+        """Readability analysis"""
         sentences = [s.strip() for s in content.split("。") if s.strip()]
         if not sentences:
             return 50
@@ -680,10 +682,10 @@ class AdvancedSEOAnalyzer:
         elif avg_sentence_length < 80:
             score += 25
         else:
-            recommendations.append("文が長すぎます。1文60文字以内を目安に。")
+            recommendations.append("Sentences are too long. Aim for 60 characters or fewer per sentence.")
             score += 10
 
-        # 段落チェック
+        # Paragraph check
         paragraphs = content.split('\n\n')
         avg_para_length = sum(len(p) for p in paragraphs) / max(len(paragraphs), 1)
         if avg_para_length < 300:
@@ -691,9 +693,9 @@ class AdvancedSEOAnalyzer:
         elif avg_para_length < 500:
             score += 20
         else:
-            recommendations.append("段落が長すぎます。適宜改行を入れてください。")
+            recommendations.append("Paragraphs are too long. Add line breaks as appropriate.")
 
-        # リストや箇条書きの使用
+        # Use of lists and bullet points
         list_items = len(re.findall(r'^[-*]\s', content, re.MULTILINE))
         if list_items >= 3:
             score += 30
@@ -703,33 +705,33 @@ class AdvancedSEOAnalyzer:
         return min(100, score)
 ```
 
-### 2.4 コンテンツリライトエンジン
+### 2.4 Content Rewriting Engine
 
 ```python
 class ContentRewriter:
-    """既存記事のAIリライト・改善エンジン"""
+    """AI rewriting and improvement engine for existing articles"""
 
     def __init__(self, client):
         self.client = client
 
     def rewrite_for_freshness(self, original: str,
                                new_data: str = "") -> str:
-        """既存記事の鮮度を更新"""
+        """Update existing article for freshness"""
         prompt = f"""
-以下の既存記事を最新情報で更新してください。
+Please update the following existing article with the latest information.
 
-既存記事:
+Existing article:
 {original[:3000]}
 
-最新情報（ある場合）:
+Latest information (if any):
 {new_data}
 
-指示:
-1. 古い統計やデータを最新のものに更新
-2. 新しいトレンドや技術に言及
-3. 日付参照を更新
-4. 既存の構成や良い点は維持
-5. SEO面で改善できる部分があれば対応
+Instructions:
+1. Update old statistics and data with the latest
+2. Mention new trends and technologies
+3. Update date references
+4. Retain the existing structure and good points
+5. Address any SEO improvements if possible
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -740,22 +742,22 @@ class ContentRewriter:
 
     def expand_thin_content(self, original: str,
                              target_length: int = 3000) -> str:
-        """薄いコンテンツの拡充"""
+        """Expand thin content"""
         prompt = f"""
-以下の記事を{target_length}文字以上に拡充してください。
+Please expand the following article to {target_length} characters or more.
 
-現在の記事:
+Current article:
 {original}
 
-拡充方針:
-1. 各セクションに具体例や事例を追加
-2. データや統計を引用
-3. 実践的なステップバイステップの手順を追加
-4. FAQ セクションを追加
-5. 関連するサブトピックをカバー
-6. 読者の疑問に先回りして回答
+Expansion strategy:
+1. Add concrete examples and case studies to each section
+2. Cite data and statistics
+3. Add practical step-by-step instructions
+4. Add a FAQ section
+5. Cover related sub-topics
+6. Proactively answer reader questions
 
-元の構成や主張は維持すること。
+Maintain the original structure and arguments.
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -767,18 +769,18 @@ class ContentRewriter:
     def convert_format(self, content: str,
                         from_format: str,
                         to_format: str) -> str:
-        """コンテンツ形式の変換"""
+        """Convert content format"""
         prompt = f"""
-以下の{from_format}形式のコンテンツを{to_format}形式に変換してください。
+Please convert the following {from_format} format content to {to_format} format.
 
-元コンテンツ:
+Original content:
 {content[:3000]}
 
-変換ルール:
-- ブログ → SNS: 核心メッセージを抽出、簡潔に
-- ブログ → 動画スクリプト: 視覚的表現を追加、話し言葉に
-- SNS → ブログ: 詳細を追加、SEO要素を含める
-- ブログ → メルマガ: パーソナルなトーン、CTA強化
+Conversion rules:
+- Blog → Social Media: Extract core message, make concise
+- Blog → Video Script: Add visual expressions, use spoken language
+- Social Media → Blog: Add details, include SEO elements
+- Blog → Newsletter: Personal tone, stronger CTA
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -789,29 +791,29 @@ class ContentRewriter:
 
 
 class ContentRepurposer:
-    """1つのコンテンツから複数形式への再利用エンジン"""
+    """Engine for repurposing one piece of content into multiple formats"""
 
     def __init__(self, client):
         self.client = client
 
     def repurpose(self, source_content: str,
                    source_type: str = "blog") -> dict:
-        """1つのコンテンツを複数形式に展開"""
+        """Expand one piece of content into multiple formats"""
         prompt = f"""
-以下の{source_type}コンテンツを、複数の形式に変換してください。
+Please convert the following {source_type} content into multiple formats.
 
-元コンテンツ:
+Original content:
 {source_content[:3000]}
 
-以下の形式を生成:
-1. Twitter/Xスレッド（5-8ツイート）
-2. LinkedInの長文投稿（500-1000文字）
-3. Instagram用キャプション（ハッシュタグ10個付き）
-4. YouTubeショート用スクリプト（60秒）
-5. メルマガの一部として使えるセクション（300文字）
-6. ポッドキャスト台本の話題（2分間）
+Generate the following formats:
+1. Twitter/X thread (5-8 tweets)
+2. LinkedIn long-form post (500-1000 characters)
+3. Instagram caption (with 10 hashtags)
+4. YouTube Shorts script (60 seconds)
+5. Newsletter section (300 characters)
+6. Podcast topic script (2 minutes)
 
-各形式ごとに最適化し、プラットフォーム特性を活かすこと。
+Optimize for each format and leverage each platform's characteristics.
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -823,36 +825,36 @@ class ContentRepurposer:
 
 ---
 
-## 3. SNS自動化
+## 3. Social Media Automation
 
-### 3.1 マルチプラットフォーム投稿生成
+### 3.1 Multi-Platform Post Generation
 
 ```python
 class SocialMediaGenerator:
-    """マルチプラットフォームSNS投稿生成"""
+    """Multi-platform social media post generation"""
 
     PLATFORM_SPECS = {
         "twitter": {
             "max_length": 280,
-            "tone": "カジュアル、簡潔、インパクト重視",
+            "tone": "Casual, concise, impactful",
             "hashtags": 2,
             "emoji": True
         },
         "linkedin": {
             "max_length": 3000,
-            "tone": "プロフェッショナル、知見共有、ストーリー",
+            "tone": "Professional, knowledge-sharing, story-driven",
             "hashtags": 5,
             "emoji": False
         },
         "instagram": {
             "max_length": 2200,
-            "tone": "ビジュアル訴求、共感、ライフスタイル",
+            "tone": "Visual appeal, empathy, lifestyle",
             "hashtags": 15,
             "emoji": True
         },
         "facebook": {
             "max_length": 500,
-            "tone": "親しみやすい、コミュニティ、質問形式",
+            "tone": "Friendly, community-oriented, question format",
             "hashtags": 3,
             "emoji": True
         }
@@ -863,17 +865,17 @@ class SocialMediaGenerator:
 
     def generate_posts(self, content: str,
                        platforms: list[str]) -> dict:
-        """1つのコンテンツから各プラットフォーム用の投稿を生成"""
+        """Generate platform-specific posts from one piece of content"""
         prompt = f"""
-以下のコンテンツを各SNSプラットフォーム向けに変換:
+Convert the following content for each social media platform:
 
-元コンテンツ:
+Original content:
 {content}
 
-各プラットフォームの制約:
+Platform constraints:
 {self._format_specs(platforms)}
 
-JSON形式で各プラットフォームの投稿を返す。
+Return posts for each platform in JSON format.
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -884,17 +886,17 @@ JSON形式で各プラットフォームの投稿を返す。
 
     def create_content_calendar(self, topics: list[str],
                                  frequency: dict) -> list[dict]:
-        """コンテンツカレンダー自動生成"""
+        """Auto-generate a content calendar"""
         prompt = f"""
-以下のトピックから1ヶ月分のSNSコンテンツカレンダーを作成:
+Create a 1-month social media content calendar from the following topics:
 
-トピック: {', '.join(topics)}
-投稿頻度:
-- Twitter: {frequency.get('twitter', '毎日2回')}
-- LinkedIn: {frequency.get('linkedin', '週3回')}
-- Instagram: {frequency.get('instagram', '週5回')}
+Topics: {', '.join(topics)}
+Posting frequency:
+- Twitter: {frequency.get('twitter', 'twice daily')}
+- LinkedIn: {frequency.get('linkedin', '3 times a week')}
+- Instagram: {frequency.get('instagram', '5 times a week')}
 
-各投稿に: 日時、プラットフォーム、投稿内容、ハッシュタグ、画像のイメージ
+For each post: date/time, platform, content, hashtags, image concept
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -909,7 +911,7 @@ JSON形式で各プラットフォームの投稿を返す。
         )
 
     def _parse_posts(self, text):
-        """レスポンスをパース"""
+        """Parse response"""
         try:
             import json
             return json.loads(text)
@@ -917,25 +919,25 @@ JSON形式で各プラットフォームの投稿を返す。
             return {"raw": text}
 
     def _parse_calendar(self, text):
-        """カレンダーレスポンスをパース"""
+        """Parse calendar response"""
         return [{"content": text}]
 ```
 
-### 3.2 プラットフォーム別最適化比較
+### 3.2 Platform-by-Platform Optimization Comparison
 
-| 要素 | Twitter/X | LinkedIn | Instagram | Facebook | TikTok |
-|------|----------|----------|-----------|----------|--------|
-| 最適投稿長 | 70-100文字 | 500-1500文字 | 500-1000文字 | 100-250文字 | 15-50文字 |
-| ベスト投稿時間 | 12:00, 18:00 | 8:00, 12:00 | 11:00, 19:00 | 13:00, 16:00 | 19:00, 21:00 |
-| 画像重要度 | 中 | 中 | 最高 | 高 | 動画必須 |
-| ハッシュタグ数 | 1-2 | 3-5 | 10-15 | 2-3 | 3-5 |
-| エンゲージメント型 | RT/引用 | コメント | いいね/保存 | シェア | いいね/シェア |
-| アルゴリズム優遇 | 引用RT | 長文投稿 | リール | ライブ | デュエット |
-| コンテンツ寿命 | 数時間 | 1-3日 | 1-2日 | 1日 | 1-7日 |
-| B2B向き | 中 | 最高 | 低 | 中 | 低 |
-| B2C向き | 高 | 低 | 最高 | 高 | 最高 |
+| Element | Twitter/X | LinkedIn | Instagram | Facebook | TikTok |
+|---------|----------|----------|-----------|----------|--------|
+| Optimal post length | 70-100 chars | 500-1500 chars | 500-1000 chars | 100-250 chars | 15-50 chars |
+| Best posting time | 12:00, 18:00 | 8:00, 12:00 | 11:00, 19:00 | 13:00, 16:00 | 19:00, 21:00 |
+| Image importance | Medium | Medium | Highest | High | Video required |
+| Hashtag count | 1-2 | 3-5 | 10-15 | 2-3 | 3-5 |
+| Engagement type | RT/Quote | Comments | Likes/Saves | Shares | Likes/Shares |
+| Algorithm favors | Quote RT | Long posts | Reels | Live | Duets |
+| Content lifespan | A few hours | 1-3 days | 1-2 days | 1 day | 1-7 days |
+| B2B suitability | Medium | Highest | Low | Medium | Low |
+| B2C suitability | High | Low | Highest | High | Highest |
 
-### 3.3 エンゲージメント分析エンジン
+### 3.3 Engagement Analysis Engine
 
 ```python
 from datetime import datetime, timedelta
@@ -943,7 +945,7 @@ from dataclasses import dataclass
 
 @dataclass
 class PostMetrics:
-    """投稿メトリクス"""
+    """Post metrics"""
     post_id: str
     platform: str
     published_at: datetime
@@ -971,19 +973,19 @@ class PostMetrics:
 
 
 class EngagementAnalyzer:
-    """SNSエンゲージメント分析"""
+    """Social media engagement analysis"""
 
     def __init__(self):
         self.metrics_history: list[PostMetrics] = []
 
     def add_metrics(self, metrics: PostMetrics):
-        """メトリクスを追加"""
+        """Add metrics"""
         self.metrics_history.append(metrics)
 
     def get_best_performing(self, platform: str = None,
                              metric: str = "engagement_rate",
                              top_n: int = 10) -> list[PostMetrics]:
-        """パフォーマンスの高い投稿を取得"""
+        """Retrieve top-performing posts"""
         filtered = self.metrics_history
         if platform:
             filtered = [m for m in filtered if m.platform == platform]
@@ -995,7 +997,7 @@ class EngagementAnalyzer:
         )[:top_n]
 
     def get_optimal_posting_times(self, platform: str) -> dict:
-        """最適な投稿時間を分析"""
+        """Analyze optimal posting times"""
         platform_metrics = [
             m for m in self.metrics_history if m.platform == platform
         ]
@@ -1023,7 +1025,7 @@ class EngagementAnalyzer:
         }
 
     def get_content_type_performance(self, platform: str) -> dict:
-        """コンテンツタイプ別のパフォーマンス分析"""
+        """Performance analysis by content type"""
         platform_metrics = [
             m for m in self.metrics_history if m.platform == platform
         ]
@@ -1042,7 +1044,7 @@ class EngagementAnalyzer:
         }
 
     def generate_weekly_report(self, week_start: datetime) -> dict:
-        """週次レポート生成"""
+        """Generate weekly report"""
         week_end = week_start + timedelta(days=7)
         week_metrics = [
             m for m in self.metrics_history
@@ -1070,7 +1072,7 @@ class EngagementAnalyzer:
         return report
 ```
 
-### 3.4 自動投稿スケジューラ
+### 3.4 Automated Post Scheduler
 
 ```python
 import asyncio
@@ -1078,7 +1080,7 @@ from datetime import datetime, timedelta
 from typing import Callable
 
 class PostScheduler:
-    """SNS自動投稿スケジューラ"""
+    """Social media automated post scheduler"""
 
     def __init__(self):
         self.scheduled_posts: list[dict] = []
@@ -1086,14 +1088,14 @@ class PostScheduler:
         self.platform_apis: dict[str, Callable] = {}
 
     def register_platform(self, platform: str, api_func: Callable):
-        """プラットフォームAPIを登録"""
+        """Register platform API"""
         self.platform_apis[platform] = api_func
 
     def schedule_post(self, platform: str, content: str,
                        post_at: datetime,
                        media_urls: list[str] = None,
                        hashtags: list[str] = None):
-        """投稿をスケジュール"""
+        """Schedule a post"""
         post = {
             "id": f"{platform}_{post_at.strftime('%Y%m%d%H%M')}",
             "platform": platform,
@@ -1108,12 +1110,12 @@ class PostScheduler:
         return post
 
     def schedule_batch(self, posts: list[dict]):
-        """バッチスケジュール"""
+        """Batch scheduling"""
         for post in posts:
             self.schedule_post(**post)
 
     def get_upcoming(self, hours: int = 24) -> list[dict]:
-        """今後の予定投稿を取得"""
+        """Get upcoming scheduled posts"""
         cutoff = datetime.now() + timedelta(hours=hours)
         return [
             p for p in self.scheduled_posts
@@ -1121,7 +1123,7 @@ class PostScheduler:
         ]
 
     async def execute_scheduled(self):
-        """スケジュール済み投稿を実行"""
+        """Execute scheduled posts"""
         now = datetime.now()
         due_posts = [
             p for p in self.scheduled_posts
@@ -1153,7 +1155,7 @@ class PostScheduler:
         return results
 
     def get_analytics_summary(self) -> dict:
-        """スケジューラの分析サマリー"""
+        """Scheduler analytics summary"""
         return {
             "total_scheduled": len(self.scheduled_posts),
             "total_posted": len(self.posted),
@@ -1168,61 +1170,62 @@ class PostScheduler:
 
 ---
 
-## 4. 動画コンテンツ自動化
+## 4. Video Content Automation
 
-### 4.1 動画制作パイプライン
+### 4.1 Video Production Pipeline
 
 ```
-動画AI制作パイプライン:
+Video AI Production Pipeline:
 
   ┌─────────┐   ┌─────────┐   ┌─────────┐   ┌─────────┐
-  │企画     │──▶│スクリプト│──▶│素材生成 │──▶│編集     │
-  │トレンド │   │AI生成   │   │AI画像   │   │AI編集   │
-  │分析     │   │構成案   │   │TTS音声  │   │字幕     │
-  └─────────┘   └─────────┘   └─────────┘   └─────────┘
-                                                  │
+  │Planning │──▶│Script   │──▶│Asset    │──▶│Edit     │
+  │Trend    │   │AI       │   │Generate │   │AI Edit  │
+  │Analysis │   │Generate │   │AI Image │   │Subtitle │
+  └─────────┘   │Outline  │   │TTS Audio│   └─────────┘
+                └─────────┘   └─────────┘        │
                                            ┌──────▼──────┐
-                                           │サムネイル    │
-                                           │AI生成       │
-                                           │A/Bテスト    │
+                                           │Thumbnail    │
+                                           │AI Generate  │
+                                           │A/B Test     │
                                            └──────┬──────┘
                                                   │
                                            ┌──────▼──────┐
-                                           │配信・分析    │
+                                           │Distribute/  │
+                                           │Analyze      │
                                            │YouTube      │
                                            │TikTok       │
                                            │Instagram    │
                                            └─────────────┘
 ```
 
-### 4.2 動画スクリプト生成
+### 4.2 Video Script Generation
 
 ```python
 class VideoScriptGenerator:
-    """動画スクリプトAI生成"""
+    """AI video script generation"""
 
     def __init__(self, client):
         self.client = client
 
     def generate_youtube_script(self, topic: str,
                                  duration_minutes: int = 10) -> dict:
-        """YouTube動画スクリプト生成"""
+        """Generate YouTube video script"""
         prompt = f"""
-{duration_minutes}分のYouTube動画スクリプトを作成:
+Create a {duration_minutes}-minute YouTube video script:
 
-トピック: {topic}
-構成:
-1. フック（最初の10秒で視聴者を引きつける）
-2. 問題提起（なぜこのトピックが重要か）
-3. 本編（3-5つのポイントに分割）
-4. CTA（チャンネル登録、コメント促進）
+Topic: {topic}
+Structure:
+1. Hook (grab viewers in the first 10 seconds)
+2. Problem statement (why this topic matters)
+3. Main content (split into 3-5 points)
+4. CTA (encourage channel subscription and comments)
 
-各セクションに:
-- 話す内容（ナレーション文）
-- 画面表示の指示（テロップ、画像、アニメーション）
-- タイムスタンプ目安
+For each section include:
+- Content to speak (narration text)
+- On-screen instructions (captions, images, animations)
+- Approximate timestamp
 
-タイトル案を3つ（CTR最適化）、説明文、タグも作成。
+Also create 3 title ideas (CTR-optimized), description, and tags.
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -1233,18 +1236,18 @@ class VideoScriptGenerator:
 
     def generate_short_script(self, topic: str,
                                platform: str = "tiktok") -> dict:
-        """ショート動画スクリプト生成（60秒以内）"""
+        """Generate short video script (60 seconds or less)"""
         prompt = f"""
-{platform}向け60秒ショート動画スクリプト:
+60-second short video script for {platform}:
 
-トピック: {topic}
-構成:
-- 0-3秒: フック（スクロールを止める一言）
-- 3-10秒: 問題提起
-- 10-45秒: 解決策/コンテンツ
-- 45-60秒: CTA
+Topic: {topic}
+Structure:
+- 0-3 seconds: Hook (one line to stop scrolling)
+- 3-10 seconds: Problem statement
+- 10-45 seconds: Solution/content
+- 45-60 seconds: CTA
 
-テンポよく、1文は短く、視覚的な演出指示も含める。
+Keep the pace fast, sentences short, and include visual direction instructions.
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -1256,25 +1259,25 @@ class VideoScriptGenerator:
     def generate_tutorial_script(self, topic: str,
                                   steps: list[str],
                                   duration_minutes: int = 15) -> dict:
-        """チュートリアル動画スクリプト生成"""
+        """Generate tutorial video script"""
         prompt = f"""
-{duration_minutes}分のチュートリアル動画スクリプトを作成:
+Create a {duration_minutes}-minute tutorial video script:
 
-トピック: {topic}
-ステップ: {chr(10).join(f'{i+1}. {s}' for i, s in enumerate(steps))}
+Topic: {topic}
+Steps: {chr(10).join(f'{i+1}. {s}' for i, s in enumerate(steps))}
 
-構成:
-1. イントロ（完成物を先に見せる）: 30秒
-2. 準備（必要な環境・ツール）: 1分
-3. 各ステップの実演: メインパート
-4. まとめとTips: 1分
-5. CTA: 15秒
+Structure:
+1. Intro (show the finished result first): 30 seconds
+2. Preparation (required environment and tools): 1 minute
+3. Demonstration of each step: Main part
+4. Summary and Tips: 1 minute
+5. CTA: 15 seconds
 
-各ステップに:
-- 画面操作の詳細手順
-- ナレーション文
-- 重要ポイントのテロップ指示
-- つまづきやすい箇所の注意事項
+For each step include:
+- Detailed on-screen operation instructions
+- Narration text
+- Caption instructions for key points
+- Notes on common stumbling points
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -1284,38 +1287,38 @@ class VideoScriptGenerator:
         return {"script": response.content[0].text}
 ```
 
-### 4.3 サムネイル最適化エンジン
+### 4.3 Thumbnail Optimization Engine
 
 ```python
 class ThumbnailOptimizer:
-    """サムネイル生成・最適化"""
+    """Thumbnail generation and optimization"""
 
     def __init__(self, client):
         self.client = client
 
     def generate_thumbnail_concept(self, video_title: str,
                                      video_topic: str) -> dict:
-        """サムネイルのコンセプトを生成"""
+        """Generate thumbnail concepts"""
         prompt = f"""
-以下のYouTube動画のサムネイルコンセプトを3パターン提案してください。
+Please propose 3 thumbnail concept patterns for the following YouTube video.
 
-タイトル: {video_title}
-トピック: {video_topic}
+Title: {video_title}
+Topic: {video_topic}
 
-各パターンに:
-1. メインビジュアルの説明
-2. テキストオーバーレイ（3-5文字の短い言葉）
-3. 色使い（背景色、テキスト色）
-4. 表情/感情（驚き、疑問、喜びなど）
-5. レイアウト（人物の位置、テキストの位置）
-6. A/Bテスト時のバリエーション提案
+For each pattern include:
+1. Main visual description
+2. Text overlay (short 3-5 character phrase)
+3. Color scheme (background color, text color)
+4. Expression/emotion (surprise, curiosity, joy, etc.)
+5. Layout (person position, text position)
+6. A/B test variation proposals
 
-CTR最適化のポイント:
-- コントラストの高い色使い
-- 人の顔が入っているとCTRが上がる
-- テキストは3-5文字で読みやすく
-- 画面の1/3ルールを意識
-- 競合サムネイルとの差別化
+CTR optimization points:
+- High-contrast color usage
+- Including a human face increases CTR
+- Text within 3-5 characters for readability
+- Be mindful of the rule of thirds
+- Differentiation from competitor thumbnails
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -1326,7 +1329,7 @@ CTR最適化のポイント:
 
     def analyze_thumbnail_performance(self,
                                         thumbnails: list[dict]) -> dict:
-        """サムネイルのA/Bテスト結果を分析"""
+        """Analyze A/B test results for thumbnails"""
         best = max(thumbnails, key=lambda t: t.get("ctr", 0))
         worst = min(thumbnails, key=lambda t: t.get("ctr", 0))
 
@@ -1334,13 +1337,13 @@ CTR最適化のポイント:
             "best_performing": best,
             "worst_performing": worst,
             "avg_ctr": sum(t.get("ctr", 0) for t in thumbnails) / len(thumbnails),
-            "recommendation": f"パターン'{best.get('name', 'A')}'が最も効果的。"
+            "recommendation": f"Pattern '{best.get('name', 'A')}' is most effective. "
                              f"CTR: {best.get('ctr', 0):.2%}"
         }
 
 
 class VideoSEOOptimizer:
-    """YouTube SEO最適化"""
+    """YouTube SEO optimization"""
 
     def __init__(self, client):
         self.client = client
@@ -1348,34 +1351,34 @@ class VideoSEOOptimizer:
     def optimize_metadata(self, video_title: str,
                            video_description: str,
                            target_keyword: str) -> dict:
-        """動画メタデータのSEO最適化"""
+        """SEO-optimize video metadata"""
         prompt = f"""
-以下のYouTube動画のメタデータをSEO最適化してください。
+Please SEO-optimize the metadata for the following YouTube video.
 
-現在のタイトル: {video_title}
-現在の説明文: {video_description}
-ターゲットキーワード: {target_keyword}
+Current title: {video_title}
+Current description: {video_description}
+Target keyword: {target_keyword}
 
-以下を生成:
-1. 最適化タイトル案（3パターン）
-   - 60文字以内
-   - キーワードを前半に含む
-   - CTRを高める要素を含む
+Generate the following:
+1. Optimized title options (3 patterns)
+   - Within 60 characters
+   - Include keyword in the first half
+   - Include elements that boost CTR
 
-2. 最適化説明文
-   - 最初の2行にキーワードと核心内容
-   - タイムスタンプ（チャプター）
-   - 関連リンク
-   - SNSリンク
-   - ハッシュタグ（5-10個）
+2. Optimized description
+   - Include keyword and core content in the first 2 lines
+   - Timestamps (chapters)
+   - Related links
+   - Social media links
+   - Hashtags (5-10)
 
-3. タグ候補（15-20個）
-   - メインキーワード
-   - ロングテールキーワード
-   - 関連キーワード
-   - 競合が使用しているタグ推測
+3. Tag candidates (15-20)
+   - Main keyword
+   - Long-tail keywords
+   - Related keywords
+   - Estimated tags used by competitors
 
-4. カード・エンドスクリーンの提案
+4. Card and end screen suggestions
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -1386,22 +1389,22 @@ class VideoSEOOptimizer:
 
     def generate_chapters(self, script: str,
                            duration_minutes: int) -> list[dict]:
-        """動画チャプター自動生成"""
+        """Auto-generate video chapters"""
         prompt = f"""
-以下の{duration_minutes}分の動画スクリプトからチャプター（タイムスタンプ）を生成:
+Generate chapters (timestamps) from the following {duration_minutes}-minute video script:
 
-スクリプト:
+Script:
 {script[:3000]}
 
-フォーマット:
-00:00 イントロ
-01:30 セクション名
+Format:
+00:00 Intro
+01:30 Section name
 ...
 
-ルール:
-- 最初のタイムスタンプは必ず 00:00
-- チャプター数は5-10個
-- 各チャプター名はキーワードを含む簡潔な表現
+Rules:
+- First timestamp must always be 00:00
+- Number of chapters: 5-10
+- Each chapter name should be a concise expression containing keywords
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -1411,37 +1414,37 @@ class VideoSEOOptimizer:
         return {"chapters": response.content[0].text}
 ```
 
-### 4.4 自動字幕生成と多言語対応
+### 4.4 Automated Subtitle Generation and Multilingual Support
 
 ```python
 class SubtitleGenerator:
-    """字幕自動生成・翻訳"""
+    """Automated subtitle generation and translation"""
 
     def __init__(self, client):
         self.client = client
 
     def generate_srt(self, transcript: str,
                       timing_data: list[dict] = None) -> str:
-        """SRT形式の字幕ファイルを生成"""
+        """Generate SRT subtitle file"""
         if timing_data:
             return self._from_timing_data(transcript, timing_data)
 
-        # タイミングデータがない場合はAIで推定
+        # Estimate timing with AI if timing data is unavailable
         prompt = f"""
-以下のトランスクリプトをSRT字幕形式に変換してください。
-各字幕は2行以内、1行35文字以内にしてください。
+Please convert the following transcript to SRT subtitle format.
+Each subtitle should be within 2 lines and each line within 35 characters.
 
-トランスクリプト:
+Transcript:
 {transcript[:3000]}
 
-SRTフォーマット:
+SRT format:
 1
 00:00:00,000 --> 00:00:03,000
-字幕テキスト
+Subtitle text
 
 2
 00:00:03,500 --> 00:00:07,000
-次の字幕テキスト
+Next subtitle text
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -1452,11 +1455,11 @@ SRTフォーマット:
 
     def translate_subtitles(self, srt_content: str,
                              target_language: str) -> str:
-        """字幕の翻訳"""
+        """Translate subtitles"""
         prompt = f"""
-以下のSRT字幕を{target_language}に翻訳してください。
-タイムスタンプは変更しないでください。
-文化的に自然な表現を使い、直訳を避けてください。
+Please translate the following SRT subtitles to {target_language}.
+Do not change the timestamps.
+Use culturally natural expressions and avoid literal translations.
 
 {srt_content[:5000]}
 """
@@ -1469,7 +1472,7 @@ SRTフォーマット:
 
     def _from_timing_data(self, transcript: str,
                            timing_data: list[dict]) -> str:
-        """タイミングデータからSRT生成"""
+        """Generate SRT from timing data"""
         srt_lines = []
         for i, segment in enumerate(timing_data, 1):
             start = self._format_time(segment["start"])
@@ -1482,7 +1485,7 @@ SRTフォーマット:
         return "\n".join(srt_lines)
 
     def _format_time(self, seconds: float) -> str:
-        """秒数をSRT形式に変換"""
+        """Convert seconds to SRT format"""
         hours = int(seconds // 3600)
         minutes = int((seconds % 3600) // 60)
         secs = int(seconds % 60)
@@ -1492,13 +1495,13 @@ SRTフォーマット:
 
 ---
 
-## 5. メールマーケティング自動化
+## 5. Email Marketing Automation
 
-### 5.1 メルマガ生成エンジン
+### 5.1 Newsletter Generation Engine
 
 ```python
 class NewsletterGenerator:
-    """AIメルマガ生成エンジン"""
+    """AI newsletter generation engine"""
 
     def __init__(self, client):
         self.client = client
@@ -1506,34 +1509,34 @@ class NewsletterGenerator:
     def generate_newsletter(self, topic: str,
                               audience: str,
                               sections: list[str] = None,
-                              tone: str = "プロフェッショナルかつ親しみやすい") -> dict:
-        """メルマガ本文を生成"""
+                              tone: str = "Professional yet approachable") -> dict:
+        """Generate newsletter body"""
         default_sections = [
-            "冒頭の挨拶（パーソナル）",
-            "今週のメイントピック",
-            "実践Tips（3つ）",
-            "おすすめリソース",
-            "編集後記",
+            "Opening greeting (personal)",
+            "This week's main topic",
+            "Practical tips (3)",
+            "Recommended resources",
+            "Editor's note",
         ]
         sections = sections or default_sections
 
         prompt = f"""
-以下の要件でメルマガを生成してください。
+Please generate a newsletter with the following requirements.
 
-トピック: {topic}
-読者層: {audience}
-トーン: {tone}
+Topic: {topic}
+Audience: {audience}
+Tone: {tone}
 
-構成:
+Structure:
 {chr(10).join(f'{i+1}. {s}' for i, s in enumerate(sections))}
 
-要件:
-- 件名候補を3つ（開封率を最大化）
-- プレヘッダーテキスト（50文字以内）
-- 本文はHTML形式でも使える構成
-- CTA（行動喚起）を自然に含める
-- 配信停止リンクの文言
-- 読了時間の目安を冒頭に表示
+Requirements:
+- 3 subject line candidates (maximize open rate)
+- Preheader text (within 50 characters)
+- Body structured for HTML use
+- Naturally include a CTA (call to action)
+- Unsubscribe link wording
+- Estimated reading time displayed at the beginning
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -1545,30 +1548,29 @@ class NewsletterGenerator:
     def generate_drip_sequence(self, product: str,
                                  audience: str,
                                  sequence_length: int = 7) -> list[dict]:
-        """ドリップメールシーケンスの生成"""
+        """Generate drip email sequence"""
         prompt = f"""
-以下の製品/サービスに対するドリップメールシーケンスを
-{sequence_length}通分生成してください。
+Please generate a {sequence_length}-email drip sequence for the following product/service.
 
-製品: {product}
-ターゲット: {audience}
+Product: {product}
+Target: {audience}
 
-各メールに:
-- 件名
-- 送信タイミング（登録後X日）
-- 目的（教育/信頼構築/セールスなど）
-- 本文
+For each email include:
+- Subject line
+- Send timing (X days after signup)
+- Purpose (education/trust building/sales, etc.)
+- Body
 - CTA
-- 次のメールへの導線
+- Lead-in to next email
 
-全体の流れ:
-1通目: ウェルカム（価値提供）
-2通目: 問題の深掘り
-3通目: 解決策の提示
-4通目: 社会的証明（事例）
-5通目: 限定オファー
-6通目: Q&A/反論処理
-7通目: 最終CTA
+Overall flow:
+Email 1: Welcome (value delivery)
+Email 2: Deep-dive into the problem
+Email 3: Presenting the solution
+Email 4: Social proof (case studies)
+Email 5: Limited offer
+Email 6: Q&A / objection handling
+Email 7: Final CTA
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -1579,25 +1581,25 @@ class NewsletterGenerator:
 
     def ab_test_subject_lines(self, topic: str,
                                 count: int = 5) -> list[dict]:
-        """件名のA/Bテスト候補生成"""
+        """Generate A/B test subject line candidates"""
         prompt = f"""
-以下のトピックに対するメルマガ件名を{count}パターン生成。
-各パターンで異なるアプローチを使用:
+Generate {count} patterns of newsletter subject lines for the following topic.
+Use a different approach for each pattern:
 
-トピック: {topic}
+Topic: {topic}
 
-アプローチ:
-1. 数字を使う（「3つの方法」「7割の人が」）
-2. 疑問形（「〜していませんか？」）
-3. 緊急性（「見逃すと損する」「今だけ」）
-4. パーソナル（「あなたの〜」「[名前]さんへ」）
-5. 好奇心（「意外な真実」「知られざる」）
+Approaches:
+1. Use numbers ("3 methods", "70% of people")
+2. Question form ("Are you not doing ~?")
+3. Urgency ("Lose out if you miss this", "Limited time")
+4. Personal ("Your ~", "For [Name]")
+5. Curiosity ("Surprising truth", "Little-known")
 
-各件名に:
-- 件名テキスト
-- アプローチ種類
-- 想定開封率（高/中/低）
-- 使用すべきセグメント
+For each subject line include:
+- Subject line text
+- Approach type
+- Estimated open rate (high/medium/low)
+- Target segment to use
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -1609,20 +1611,20 @@ class NewsletterGenerator:
 
 ---
 
-## 6. コンテンツ品質管理
+## 6. Content Quality Management
 
-### 6.1 品質チェックエンジン
+### 6.1 Quality Check Engine
 
 ```python
 class ContentQualityChecker:
-    """AI生成コンテンツの品質チェック"""
+    """Quality check for AI-generated content"""
 
     def __init__(self, client):
         self.client = client
 
     def full_quality_check(self, content: str,
                             content_type: str = "blog") -> dict:
-        """総合品質チェック"""
+        """Comprehensive quality check"""
         checks = {
             "factual_accuracy": self._check_facts(content),
             "brand_consistency": self._check_brand(content),
@@ -1642,23 +1644,23 @@ class ContentQualityChecker:
         }
 
     def _check_facts(self, content: str) -> dict:
-        """ファクトチェック"""
+        """Fact check"""
         prompt = f"""
-以下のコンテンツに含まれる事実主張を検証してください。
+Please verify the factual claims in the following content.
 
-コンテンツ:
+Content:
 {content[:3000]}
 
-以下を確認:
-1. 統計データの正確性
-2. 日付や固有名詞の正確性
-3. 技術的な記述の正確性
-4. 引用元の確認
-5. 古い情報がないか
+Check the following:
+1. Accuracy of statistical data
+2. Accuracy of dates and proper nouns
+3. Accuracy of technical descriptions
+4. Verification of sources
+5. Whether any outdated information is present
 
-JSON形式で回答:
-- claims: 検出された主張のリスト
-- issues: 問題のある記述のリスト
+Respond in JSON format:
+- claims: list of detected claims
+- issues: list of problematic statements
 - passed: true/false
 """
         response = self.client.messages.create(
@@ -1669,18 +1671,18 @@ JSON形式で回答:
         return {"result": response.content[0].text, "passed": True}
 
     def _check_brand(self, content: str) -> dict:
-        """ブランド一貫性チェック"""
-        # NG ワードリストによるチェック
-        ng_words = ["絶対に", "必ず", "100%", "最高の", "世界一"]
+        """Brand consistency check"""
+        # Check against list of prohibited words
+        ng_words = ["absolutely", "definitely", "100%", "the best", "world's number one"]
         found_ng = [w for w in ng_words if w in content]
         return {
             "passed": len(found_ng) == 0,
             "ng_words_found": found_ng,
-            "recommendation": "誇大表現を避けてください" if found_ng else "OK"
+            "recommendation": "Avoid exaggerated expressions" if found_ng else "OK"
         }
 
     def _check_readability(self, content: str) -> dict:
-        """可読性チェック"""
+        """Readability check"""
         sentences = [s.strip() for s in content.split("。") if s.strip()]
         avg_length = sum(len(s) for s in sentences) / max(len(sentences), 1)
         long_sentences = [s for s in sentences if len(s) > 80]
@@ -1693,45 +1695,45 @@ JSON形式で回答:
         }
 
     def _check_originality(self, content: str) -> dict:
-        """独自性チェック（簡易版）"""
-        # 一般的な定型文パターンの検出
+        """Originality check (simplified)"""
+        # Detect common boilerplate patterns
         generic_patterns = [
-            "いかがでしたか",
-            "最後までお読みいただき",
-            "参考になれば幸いです",
-            "ぜひ試してみてください",
+            "How was that?",
+            "Thank you for reading to the end",
+            "I hope this was helpful",
+            "Please give it a try",
         ]
         found_generic = [p for p in generic_patterns if p in content]
 
         return {
             "passed": len(found_generic) <= 1,
             "generic_patterns_found": found_generic,
-            "recommendation": "AI臭い定型文を減らしてください" if found_generic else "OK"
+            "recommendation": "Reduce AI-sounding boilerplate phrases" if found_generic else "OK"
         }
 
     def _check_legal(self, content: str, content_type: str) -> dict:
-        """法的コンプライアンスチェック"""
+        """Legal compliance check"""
         issues = []
 
-        # 景品表示法チェック
+        # Premiums Representation Act check
         misleading_terms = [
-            "業界No.1", "日本初", "世界初", "最安値",
-            "効果抜群", "副作用なし", "返金保証"
+            "Industry No.1", "First in Japan", "World's first", "Lowest price",
+            "Highly effective", "No side effects", "Money-back guarantee"
         ]
         for term in misleading_terms:
             if term in content:
-                issues.append(f"景表法リスク: '{term}'の使用。根拠の明示が必要。")
+                issues.append(f"Premiums Act risk: Use of '{term}'. Evidence must be disclosed.")
 
-        # ステルスマーケティング規制
+        # Stealth marketing regulations
         if content_type in ["blog", "sns_post"]:
-            ad_indicators = ["PR", "広告", "提供", "アフィリエイト", "#PR", "#ad"]
-            # 広告的内容がある場合は表示が必要
-            promotional_words = ["おすすめ", "購入", "お得", "クーポン"]
+            ad_indicators = ["PR", "Ad", "Sponsored", "Affiliate", "#PR", "#ad"]
+            # Disclosure is required if advertising content is present
+            promotional_words = ["recommended", "purchase", "great deal", "coupon"]
             has_promotional = any(w in content for w in promotional_words)
             has_disclosure = any(i in content for i in ad_indicators)
             if has_promotional and not has_disclosure:
                 issues.append(
-                    "ステマ規制リスク: 広告的内容にPR表示がありません。"
+                    "Stealth marketing risk: Advertising content without PR disclosure."
                 )
 
         return {
@@ -1740,7 +1742,7 @@ JSON形式で回答:
         }
 
     def _check_seo(self, content: str) -> dict:
-        """SEO品質チェック"""
+        """SEO quality check"""
         headings = len([l for l in content.split('\n') if l.startswith('#')])
         paragraphs = content.split('\n\n')
         has_lists = any('- ' in p or '* ' in p for p in paragraphs)
@@ -1748,11 +1750,11 @@ JSON形式で回答:
 
         issues = []
         if headings < 4:
-            issues.append("見出しが少なすぎます。")
+            issues.append("Too few headings.")
         if not has_lists:
-            issues.append("箇条書きを追加してスキャナビリティを向上させてください。")
+            issues.append("Add bullet points to improve scannability.")
         if word_count < 2000:
-            issues.append(f"文字数が不足しています（{word_count}文字）。")
+            issues.append(f"Insufficient word count ({word_count} characters).")
 
         return {
             "passed": len(issues) == 0,
@@ -1763,11 +1765,11 @@ JSON形式で回答:
         }
 ```
 
-### 6.2 ブランドボイスガード
+### 6.2 Brand Voice Guard
 
 ```python
 class BrandVoiceGuard:
-    """ブランドボイスの一貫性を保証"""
+    """Ensures brand voice consistency"""
 
     def __init__(self, client):
         self.client = client
@@ -1776,7 +1778,7 @@ class BrandVoiceGuard:
     def set_guidelines(self, tone: str, vocabulary: dict,
                         examples: list[str],
                         forbidden_phrases: list[str]):
-        """ブランドガイドラインを設定"""
+        """Set brand guidelines"""
         self.brand_guidelines = {
             "tone": tone,
             "preferred_words": vocabulary.get("preferred", []),
@@ -1786,36 +1788,36 @@ class BrandVoiceGuard:
         }
 
     def validate(self, content: str) -> dict:
-        """コンテンツがブランドガイドラインに適合するかチェック"""
+        """Check whether content conforms to brand guidelines"""
         issues = []
 
-        # 禁止フレーズチェック
+        # Forbidden phrase check
         for phrase in self.brand_guidelines.get("forbidden_phrases", []):
             if phrase in content:
-                issues.append(f"禁止フレーズ検出: '{phrase}'")
+                issues.append(f"Forbidden phrase detected: '{phrase}'")
 
-        # 回避すべき単語チェック
+        # Words to avoid check
         for word in self.brand_guidelines.get("avoid_words", []):
             count = content.count(word)
             if count > 0:
-                issues.append(f"回避推奨語: '{word}'が{count}回使用されています")
+                issues.append(f"Word to avoid: '{word}' used {count} time(s)")
 
-        # AIによるトーンチェック
+        # AI tone check
         prompt = f"""
-以下のコンテンツが指定されたブランドトーンに適合しているか評価してください。
+Please evaluate whether the following content conforms to the specified brand tone.
 
-ブランドトーン: {self.brand_guidelines.get('tone', '')}
-参考例:
+Brand tone: {self.brand_guidelines.get('tone', '')}
+Reference examples:
 {chr(10).join(self.brand_guidelines.get('examples', [])[:3])}
 
-評価対象:
+Content to evaluate:
 {content[:2000]}
 
-評価基準:
-1. トーンの一致度（1-10）
-2. 語彙の適切性（1-10）
-3. 文体の一貫性（1-10）
-4. 具体的な改善提案（箇条書き）
+Evaluation criteria:
+1. Tone match (1-10)
+2. Vocabulary appropriateness (1-10)
+3. Writing style consistency (1-10)
+4. Specific improvement suggestions (bullet points)
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -1830,21 +1832,21 @@ class BrandVoiceGuard:
         }
 
     def rewrite_to_brand(self, content: str) -> str:
-        """コンテンツをブランドボイスに合わせてリライト"""
+        """Rewrite content to match brand voice"""
         prompt = f"""
-以下のコンテンツをブランドガイドラインに合わせてリライトしてください。
+Please rewrite the following content to conform to the brand guidelines.
 
-ブランドトーン: {self.brand_guidelines.get('tone', '')}
-使うべき語彙: {', '.join(self.brand_guidelines.get('preferred_words', [])[:20])}
-避けるべき語彙: {', '.join(self.brand_guidelines.get('avoid_words', [])[:20])}
+Brand tone: {self.brand_guidelines.get('tone', '')}
+Vocabulary to use: {', '.join(self.brand_guidelines.get('preferred_words', [])[:20])}
+Vocabulary to avoid: {', '.join(self.brand_guidelines.get('avoid_words', [])[:20])}
 
-参考例:
+Reference examples:
 {chr(10).join(self.brand_guidelines.get('examples', [])[:2])}
 
-リライト対象:
+Content to rewrite:
 {content[:3000]}
 
-内容や主張は変えず、トーンと語彙のみ調整してください。
+Adjust only the tone and vocabulary without changing the content or arguments.
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -1856,9 +1858,9 @@ class BrandVoiceGuard:
 
 ---
 
-## 7. コンテンツ分析・KPI管理
+## 7. Content Analytics and KPI Management
 
-### 7.1 KPIダッシュボード
+### 7.1 KPI Dashboard
 
 ```python
 from dataclasses import dataclass, field
@@ -1866,38 +1868,38 @@ from datetime import datetime, timedelta
 
 @dataclass
 class ContentKPI:
-    """コンテンツマーケティングKPI"""
+    """Content marketing KPI"""
     period_start: datetime
     period_end: datetime
 
-    # トラフィック
+    # Traffic
     total_pageviews: int = 0
     unique_visitors: int = 0
     organic_traffic: int = 0
     referral_traffic: int = 0
     social_traffic: int = 0
 
-    # エンゲージメント
-    avg_time_on_page: float = 0.0  # 秒
+    # Engagement
+    avg_time_on_page: float = 0.0  # seconds
     bounce_rate: float = 0.0  # %
     pages_per_session: float = 0.0
     comments_count: int = 0
     social_shares: int = 0
 
-    # コンバージョン
+    # Conversion
     email_signups: int = 0
     lead_forms: int = 0
     trial_signups: int = 0
     purchases: int = 0
     conversion_rate: float = 0.0
 
-    # コンテンツ制作
+    # Content production
     articles_published: int = 0
     videos_published: int = 0
     sns_posts: int = 0
     newsletters_sent: int = 0
 
-    # コスト
+    # Cost
     ai_api_cost: float = 0.0
     tools_cost: float = 0.0
     freelancer_cost: float = 0.0
@@ -1918,15 +1920,15 @@ class ContentKPI:
 
     @property
     def roi(self) -> float:
-        """コンテンツマーケティングROI"""
+        """Content marketing ROI"""
         if self.total_cost == 0:
             return 0
-        revenue = self.purchases * 10000  # 仮: 1購入=1万円
+        revenue = self.purchases * 10000  # Assumption: 1 purchase = 10,000 yen
         return (revenue - self.total_cost) / self.total_cost
 
 
 class ContentAnalyticsDashboard:
-    """コンテンツ分析ダッシュボード"""
+    """Content analytics dashboard"""
 
     def __init__(self):
         self.kpi_history: list[ContentKPI] = []
@@ -1935,7 +1937,7 @@ class ContentAnalyticsDashboard:
         self.kpi_history.append(kpi)
 
     def get_trend(self, metric: str, periods: int = 12) -> list[dict]:
-        """メトリクスのトレンドを取得"""
+        """Get metric trends"""
         recent = self.kpi_history[-periods:]
         return [
             {
@@ -1947,7 +1949,7 @@ class ContentAnalyticsDashboard:
 
     def compare_periods(self, current: ContentKPI,
                          previous: ContentKPI) -> dict:
-        """期間比較"""
+        """Period comparison"""
         metrics = [
             "total_pageviews", "unique_visitors", "organic_traffic",
             "email_signups", "conversion_rate", "social_shares"
@@ -1969,7 +1971,7 @@ class ContentAnalyticsDashboard:
         return comparison
 
     def get_content_roi_report(self) -> dict:
-        """コンテンツROIレポート"""
+        """Content ROI report"""
         if not self.kpi_history:
             return {"error": "No data available"}
 
@@ -1992,11 +1994,11 @@ class ContentAnalyticsDashboard:
         }
 ```
 
-### 7.2 コンテンツパフォーマンス予測
+### 7.2 Content Performance Prediction
 
 ```python
 class ContentPerformancePredictor:
-    """コンテンツパフォーマンス予測"""
+    """Content performance prediction"""
 
     def __init__(self, client):
         self.client = client
@@ -2004,26 +2006,26 @@ class ContentPerformancePredictor:
     def predict_performance(self, title: str,
                               content_preview: str,
                               historical_data: list[dict]) -> dict:
-        """公開前のパフォーマンス予測"""
+        """Predict performance before publication"""
         avg_views = sum(d.get("views", 0) for d in historical_data) / max(len(historical_data), 1)
         avg_engagement = sum(d.get("engagement_rate", 0) for d in historical_data) / max(len(historical_data), 1)
 
         prompt = f"""
-以下の記事の予想パフォーマンスを分析してください。
+Please analyze the expected performance of the following article.
 
-タイトル: {title}
-内容プレビュー: {content_preview[:1000]}
+Title: {title}
+Content preview: {content_preview[:1000]}
 
-過去の記事パフォーマンス平均:
-- 平均PV: {avg_views:.0f}
-- 平均エンゲージメント率: {avg_engagement:.2%}
+Past article performance averages:
+- Average PV: {avg_views:.0f}
+- Average engagement rate: {avg_engagement:.2%}
 
-以下を予測してください:
-1. 予想PV範囲（最小-最大）
-2. 予想エンゲージメント率
-3. SEOポテンシャル（高/中/低）
-4. SNSバイラル可能性（高/中/低）
-5. 改善提案（タイトル、構成、CTA等）
+Please predict the following:
+1. Expected PV range (min-max)
+2. Expected engagement rate
+3. SEO potential (high/medium/low)
+4. Social media viral potential (high/medium/low)
+5. Improvement suggestions (title, structure, CTA, etc.)
 """
         response = self.client.messages.create(
             model="claude-sonnet-4-20250514",
@@ -2035,38 +2037,38 @@ class ContentPerformancePredictor:
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン1: 大量生成・低品質戦略
+### Anti-Pattern 1: Mass Production / Low Quality Strategy
 
 ```python
-# BAD: AIで毎日10記事を無差別に量産
+# BAD: Mass-producing 10 articles daily with AI indiscriminately
 def mass_produce():
     for topic in get_trending_topics(100):
-        article = ai.generate(topic)  # ノーチェック
-        publish(article)  # 即公開
-    # → Googleからスパム判定、信頼性低下
+        article = ai.generate(topic)  # No checks
+        publish(article)  # Publish immediately
+    # → Flagged as spam by Google, credibility declines
 
-# GOOD: 質を担保した計画的制作
+# GOOD: Planned production with quality guaranteed
 def quality_first():
-    topics = research_topics(5)  # 月5記事に厳選
+    topics = research_topics(5)  # Curate down to 5 articles per month
     for topic in topics:
-        draft = ai.generate(topic)         # AI生成
-        reviewed = human_review(draft)      # 人間編集
-        fact_checked = verify_facts(reviewed) # ファクトチェック
-        optimized = seo_optimize(fact_checked) # SEO最適化
-        schedule_publish(optimized)         # スケジュール公開
+        draft = ai.generate(topic)         # AI generation
+        reviewed = human_review(draft)      # Human editing
+        fact_checked = verify_facts(reviewed) # Fact check
+        optimized = seo_optimize(fact_checked) # SEO optimization
+        schedule_publish(optimized)         # Scheduled publication
 ```
 
-### アンチパターン2: プラットフォーム無視のコピペ投稿
+### Anti-Pattern 2: Copy-Pasting Posts Ignoring Platform Differences
 
 ```python
-# BAD: 同じ文章を全SNSにコピペ
+# BAD: Copy-pasting the same text to all social platforms
 def post_everywhere(content):
     for platform in ["twitter", "linkedin", "instagram"]:
-        post(platform, content)  # 全部同じ文面
+        post(platform, content)  # Same text everywhere
 
-# GOOD: プラットフォーム最適化
+# GOOD: Platform-optimized posting
 def post_optimized(content):
     posts = social_generator.generate_posts(
         content,
@@ -2080,80 +2082,80 @@ def post_optimized(content):
         )
 ```
 
-### アンチパターン3: 分析なきコンテンツ制作
+### Anti-Pattern 3: Content Creation Without Analytics
 
 ```python
-# BAD: 効果測定なしの投稿を続ける
+# BAD: Continue posting without measuring effectiveness
 def post_blindly():
     for week in range(52):
         content = ai.generate(random_topic())
         publish(content)
-        # メトリクスを見ない → 何が効果的か不明
+        # Never look at metrics → unclear what is effective
 
-# GOOD: データドリブンなコンテンツ改善
+# GOOD: Data-driven content improvement
 def data_driven_content():
-    # 先月のパフォーマンスを分析
+    # Analyze last month's performance
     top_content = analytics.get_best_performing(top_n=5)
     worst_content = analytics.get_worst_performing(top_n=5)
 
-    # 成功パターンを抽出
+    # Extract success patterns
     patterns = analyze_success_patterns(top_content)
-    # → 例: 「ハウツー系が強い」「木曜公開がPV高い」
+    # → e.g.: "How-to content performs well", "Thursday posts get high PV"
 
-    # パターンに基づいて次月のコンテンツを企画
+    # Plan next month's content based on patterns
     next_month_plan = create_plan_from_patterns(patterns)
     execute_plan(next_month_plan)
 ```
 
-### アンチパターン4: AI依存100%
+### Anti-Pattern 4: 100% AI Dependency
 
 ```python
-# BAD: 人間の関与ゼロ
+# BAD: Zero human involvement
 def fully_automated():
     article = ai.generate(topic)
-    # ファクトチェックなし
-    # ブランドチェックなし
-    # 独自知見なし
+    # No fact check
+    # No brand check
+    # No original insights
     publish(article)
-    # → 没個性、信頼性低下、法的リスク
+    # → Lack of personality, credibility declines, legal risk
 
-# GOOD: AI + 人間のハイブリッド
+# GOOD: AI + Human hybrid
 def hybrid_creation():
-    # AIが下書き
+    # AI creates draft
     draft = ai.generate(topic, brand_voice=brand_guide)
 
-    # 人間が独自知見を追加
+    # Human adds original insights
     draft_with_insights = add_original_insights(draft)
 
-    # ファクトチェック
+    # Fact check
     verified = fact_check(draft_with_insights)
 
-    # ブランドチェック
+    # Brand check
     brand_approved = brand_voice_guard.validate(verified)
 
-    # 法務チェック
+    # Legal check
     legal_approved = legal_check(brand_approved)
 
-    # 最終承認後に公開
+    # Publish after all checks pass
     if all_checks_passed:
         schedule_publish(legal_approved)
 ```
 
-### アンチパターン5: パーソナライゼーション無視
+### Anti-Pattern 5: Ignoring Personalization
 
 ```python
-# BAD: 全読者に同じメルマガ
+# BAD: Same newsletter for all readers
 def one_size_fits_all():
     newsletter = generate_newsletter(topic)
-    send_to_all(newsletter)  # 全員に同じ内容
-    # → 開封率低下、配信停止増加
+    send_to_all(newsletter)  # Same content for everyone
+    # → Open rate drops, unsubscribes increase
 
-# GOOD: セグメント別パーソナライゼーション
+# GOOD: Segment-based personalization
 def personalized_content():
     segments = {
-        "beginners": {"tone": "やさしい", "depth": "入門"},
-        "intermediate": {"tone": "実践的", "depth": "中級"},
-        "advanced": {"tone": "テクニカル", "depth": "上級"},
+        "beginners": {"tone": "gentle", "depth": "introductory"},
+        "intermediate": {"tone": "practical", "depth": "intermediate"},
+        "advanced": {"tone": "technical", "depth": "advanced"},
     }
     for segment, config in segments.items():
         newsletter = generate_newsletter(
@@ -2168,88 +2170,88 @@ def personalized_content():
 
 ## 9. FAQ
 
-### Q1: AI生成コンテンツはSEOに不利？
+### Q1: Is AI-generated content disadvantageous for SEO?
 
-**A:** Googleは「AIで作られたかどうか」ではなく「ユーザーに価値があるか」で判断すると公式に表明（2023年）。ただし (1) 事実誤認を含む記事はペナルティの対象、(2) 大量の低品質記事はスパム判定される、(3) E-E-A-T（経験、専門性、権威性、信頼性）の観点で独自の知見や体験を加えることが重要。AI生成+人間の専門知識という組み合わせが最強。
+**A:** Google has officially stated (2023) that it judges based on "whether it has value for users" rather than "whether it was made by AI." However, (1) articles containing factual errors are subject to penalties, (2) large volumes of low-quality articles are flagged as spam, (3) from an E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness) perspective, adding original insights and experience is important. The combination of AI generation + human expertise is the most effective approach.
 
-### Q2: 著作権の問題は？
+### Q2: What about copyright issues?
 
-**A:** 現状の法的見解（2025年時点）。(1) AI生成テキストの著作権は不明確（日本では「創作的寄与」があれば人間に帰属）、(2) 他者の著作物をAIに学習させた場合のリスクあり、(3) 画像生成AIは既存画像との類似性に注意。対策: AI生成物を「素材」として扱い、人間が編集・加工することで著作権を確保する。
+**A:** Current legal views (as of 2025): (1) Copyright of AI-generated text is unclear (in Japan, it belongs to humans if there is "creative contribution"), (2) there are risks if others' copyrighted works were used to train the AI, (3) be mindful of similarity to existing images for image-generating AI. Countermeasure: Treat AI output as "raw material" and secure copyright by having humans edit and process it.
 
-### Q3: ブランドの一貫性を保つには？
+### Q3: How do you maintain brand consistency?
 
-**A:** 3つの仕組みを構築する。(1) ブランドボイスガイド — トーン、使用語彙、禁止表現を定義しプロンプトに組み込む、(2) テンプレートシステム — 記事構成、SNS投稿、メルマガの型を統一、(3) レビューチェックリスト — AI生成物を公開前にブランドガイドと照合。Custom Instructionsや System Promptを活用すれば80%は自動で一貫性を保てる。
+**A:** Build three mechanisms: (1) Brand voice guide — define tone, vocabulary to use, and prohibited expressions and embed them in prompts; (2) Template system — standardize formats for article structures, social media posts, and newsletters; (3) Review checklist — cross-check AI output against brand guidelines before publication. Using Custom Instructions or System Prompts can automatically maintain consistency for about 80%.
 
-### Q4: コンテンツ制作のコストはどのくらい？
+### Q4: What does content creation cost?
 
-**A:** AI活用時の概算コスト（月間）を以下に示す。ブログ記事（月10本）: AI API費 $30-50 + 人間編集 5-10時間 = 総コスト約5-15万円。SNS投稿（月60本）: AI API費 $10-20 + 承認作業 3-5時間 = 総コスト約3-8万円。動画コンテンツ（月4本）: AI API費 $10-20 + 撮影・編集 20-40時間 = 総コスト約20-50万円。比較: AI未使用の場合は上記の3-5倍のコストが一般的。特にブログ記事は外注で1本3-5万円が相場のため、AI活用で70-80%のコスト削減が可能。
+**A:** Estimated costs with AI (monthly): Blog articles (10 per month): AI API cost $30-50 + human editing 5-10 hours = total cost approx. 50,000-150,000 yen. Social media posts (60 per month): AI API cost $10-20 + approval work 3-5 hours = total cost approx. 30,000-80,000 yen. Video content (4 per month): AI API cost $10-20 + filming/editing 20-40 hours = total cost approx. 200,000-500,000 yen. Comparison: Without AI, the above costs are typically 3-5x higher. Especially for blog articles, outsourcing costs 30,000-50,000 yen per article, so AI can reduce costs by 70-80%.
 
-### Q5: ステルスマーケティング規制への対応は？
+### Q5: How do you handle stealth marketing regulations?
 
-**A:** 2023年10月施行のステマ規制（景品表示法の指定告示）への対応が必須。(1) 広告主からの依頼で作成したコンテンツには「広告」「PR」「提供」等の表示が必要、(2) アフィリエイトリンクを含む記事も対象、(3) SNS投稿では「#PR」「#広告」等のハッシュタグを付ける、(4) 表示は「一般消費者が認識できる位置・サイズ」で行う。違反した場合は措置命令の対象となり、広告主側に責任が生じる。AI生成コンテンツであっても同様の規制が適用される。
+**A:** Compliance with the stealth marketing regulations (Premiums Representation Act designated notification) enacted in October 2023 is mandatory. (1) Content created at the request of an advertiser must display "Advertisement," "PR," "Sponsored," etc.; (2) Articles containing affiliate links are also covered; (3) Social media posts should include hashtags like "#PR" or "#ad"; (4) Disclosure must be in a "position and size recognizable to general consumers." Violations are subject to corrective orders, and the advertiser bears responsibility. AI-generated content is subject to the same regulations.
 
-### Q6: どのAIモデルがコンテンツ制作に最適？
+### Q6: Which AI model is best for content creation?
 
-**A:** 用途別の推奨モデル。ブログ記事（長文）: Claude（文章品質が高い、日本語が自然）。SNS投稿（短文大量生成）: GPT-4o-mini（コスト効率が良い）。画像生成: DALL-E 3、Midjourney、Stable Diffusion（用途により選択）。動画スクリプト: Claude（構成力が高い）。翻訳: DeepL API（翻訳品質）またはClaude（文脈理解力）。メルマガ: GPT-4o（パーソナライゼーションが得意）。コスト重視の場合はGPT-4o-miniやClaude Haiku、品質重視の場合はGPT-4oやClaude Sonnet/Opusを使い分ける。
+**A:** Recommended models by use case: Blog articles (long-form): Claude (high text quality, natural language). Social media posts (short, high volume): GPT-4o-mini (cost-efficient). Image generation: DALL-E 3, Midjourney, Stable Diffusion (select by use case). Video scripts: Claude (strong structuring capability). Translation: DeepL API (translation quality) or Claude (contextual understanding). Newsletters: GPT-4o (strong personalization). For cost-sensitive cases, use GPT-4o-mini or Claude Haiku; for quality-sensitive cases, use GPT-4o or Claude Sonnet/Opus.
 
-### Q7: AIコンテンツの「AI臭さ」を消すには？
+### Q7: How do you eliminate the "AI smell" from AI content?
 
-**A:** 5つの実践テクニック。(1) 具体的なデータや事例を追加する（「多くの企業が」→「当社の調査では67%の企業が」）、(2) 個人的な経験や見解を混ぜる（「筆者の場合は〜」）、(3) 業界特有の専門用語を自然に使う、(4) 定型文を排除する（「いかがでしたか」「参考になれば幸いです」等を削除）、(5) 文章のリズムに変化をつける（短文と長文を交互に、問いかけを混ぜるなど）。最終的に人間のレビューアが「自分の言葉で書き直す」工程を入れるのが最も効果的。
+**A:** Five practical techniques: (1) Add specific data and case studies ("Many companies" → "According to our research, 67% of companies"); (2) Mix in personal experiences and opinions ("In the author's case..."); (3) Use industry-specific technical terms naturally; (4) Remove boilerplate phrases ("How was that?", "I hope this was helpful," etc.); (5) Vary the rhythm of sentences (alternate short and long sentences, mix in questions). Ultimately, having a human reviewer "rewrite it in their own words" is the most effective approach.
 
-### Q8: コンテンツカレンダーの運用で失敗しないコツは？
+### Q8: What are tips for managing a content calendar without failure?
 
-**A:** 4つのポイント。(1) 2週間先までの計画にとどめる（1ヶ月以上先は柔軟に変更できる枠だけ確保）。(2) 70-20-10ルール: 70%は計画通りのコンテンツ、20%はトレンド対応、10%は実験的コンテンツに配分。(3) 「ネタ切れ」を防ぐため、常に30個以上のアイデアストックを維持（Notionやスプレッドシートで管理）。(4) 週次のレトロスペクティブで前週の数値を確認し、翌週の計画を微調整する。完璧な計画を作ることよりも、PDCAサイクルを回すことが重要。
+**A:** Four key points: (1) Limit planning to 2 weeks ahead (reserve flexible slots for anything beyond 1 month). (2) 70-20-10 rule: allocate 70% to planned content, 20% to trend responses, and 10% to experimental content. (3) To prevent "running out of ideas," always maintain a stock of 30+ ideas (manage in Notion or a spreadsheet). (4) Conduct weekly retrospectives to review previous week's numbers and fine-tune the following week's plan. Running the PDCA cycle is more important than creating a perfect plan.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping straight to advanced topics. It is recommended to thoroughly understand the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| パイプライン | 企画→生成→編集→配信→分析の5段階 |
-| ブログ | AI生成70%+人間編集30%で最高ROI |
-| SNS | プラットフォーム別最適化が必須 |
-| 動画 | スクリプト生成から字幕まで段階的自動化 |
-| メルマガ | ドリップシーケンス+パーソナライゼーション |
-| 品質管理 | ファクトチェック + ブランドボイス + 人間レビュー |
-| SEO | 量より質、E-E-A-Tの充足が鍵 |
-| 分析 | KPIダッシュボードでデータドリブンに改善 |
-| 法務 | ステマ規制・景表法・著作権への対応を忘れずに |
-| コスト | AI活用で従来の3-5分の1にコスト削減可能 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [03-ai-marketplace.md](./03-ai-marketplace.md) — AIマーケットプレイス活用
-- [../02-monetization/02-scaling-strategy.md](../02-monetization/02-scaling-strategy.md) — スケーリング戦略
-- [../03-case-studies/01-solo-developer.md](../03-case-studies/01-solo-developer.md) — 個人開発者の成功事例
+| Item | Key Point |
+|------|-----------|
+| Pipeline | 5 stages: Planning → Generation → Editing → Distribution → Analysis |
+| Blog | Best ROI with 70% AI generation + 30% human editing |
+| Social Media | Platform-specific optimization is essential |
+| Video | Staged automation from script generation to subtitles |
+| Newsletter | Drip sequences + personalization |
+| Quality Control | Fact check + brand voice + human review |
+| SEO | Quality over quantity; satisfying E-E-A-T is key |
+| Analytics | Data-driven improvement with a KPI dashboard |
+| Legal | Don't forget stealth marketing regulations, Premiums Act, and copyright |
+| Cost | AI can reduce costs to 1/3 to 1/5 of traditional methods |
 
 ---
 
-## 参考文献
+## Guides to Read Next
 
-1. **Google Search Central: AI-generated content** — https://developers.google.com/search/docs — AI生成コンテンツに対するGoogleの公式見解
-2. **"Content Inc." — Joe Pulizzi (2021)** — コンテンツファーストのビジネス構築
-3. **Buffer State of Social Media Report (2024)** — SNSマーケティングの最新トレンドとデータ
-4. **"AI for Marketers" — Christopher Penn (2024)** — マーケターのためのAI活用実践ガイド
-5. **消費者庁: ステルスマーケティング規制** — https://www.caa.go.jp/ — 景品表示法に基づくステマ規制ガイドライン
-6. **"They Ask, You Answer" — Marcus Sheridan (2019)** — コンテンツマーケティングの基本戦略
-7. **HubSpot: State of Marketing Report (2024)** — マーケティング全般のトレンドとベンチマーク
+- [03-ai-marketplace.md](./03-ai-marketplace.md) — Leveraging AI Marketplaces
+- [../02-monetization/02-scaling-strategy.md](../02-monetization/02-scaling-strategy.md) — Scaling Strategy
+- [../03-case-studies/01-solo-developer.md](../03-case-studies/01-solo-developer.md) — Solo Developer Success Stories
+
+---
+
+## References
+
+1. **Google Search Central: AI-generated content** — https://developers.google.com/search/docs — Google's official stance on AI-generated content
+2. **"Content Inc." — Joe Pulizzi (2021)** — Building a content-first business
+3. **Buffer State of Social Media Report (2024)** — Latest trends and data in social media marketing
+4. **"AI for Marketers" — Christopher Penn (2024)** — Practical AI guide for marketers
+5. **Consumer Affairs Agency: Stealth Marketing Regulations** — https://www.caa.go.jp/ — Stealth marketing regulation guidelines under the Premiums Representation Act
+6. **"They Ask, You Answer" — Marcus Sheridan (2019)** — Fundamental strategy for content marketing
+7. **HubSpot: State of Marketing Report (2024)** — Overall marketing trends and benchmarks
