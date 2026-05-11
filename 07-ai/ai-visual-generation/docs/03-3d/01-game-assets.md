@@ -1,146 +1,146 @@
-# AIによるゲームアセット生成 実践ガイド
+# Practical Guide to AI Game Asset Generation
 
-> テクスチャ、3Dモデル、アニメーション、レベルデザインなど、ゲーム開発に必要なアセットをAIで効率的に生成・活用するための実践的ワークフローを解説する。
-
----
-
-## この章で学ぶこと
-
-1. **ゲームアセットの種類別にAI生成手法を使い分け**、プロトタイプから本番品質まで段階的に活用できる
-2. **テクスチャ、3Dモデル、アニメーションの自動生成パイプライン**を構築し、ゲームエンジンと統合できる
-3. **AI生成アセットの品質管理・ライセンス・パフォーマンス最適化**の実務的な課題に対処できる
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [AI 3Dモデル生成 技術・ツール・活用ガイド](./00-3d-generation.md) の内容を理解していること
+> This guide explains practical workflows for efficiently generating and utilizing game development assets—textures, 3D models, animations, level designs, and more—using AI.
 
 ---
 
-## 1. ゲームアセット生成の全体像
+## What You Will Learn in This Chapter
 
-### 1.1 アセット種別とAI生成手法のマッピング
+1. **Select the appropriate AI generation method for each asset type**, enabling staged utilization from prototypes to production quality
+2. **Build automated generation pipelines for textures, 3D models, and animations** and integrate them with game engines
+3. **Address practical challenges in quality control, licensing, and performance optimization** of AI-generated assets
+
+
+## Prerequisites
+
+Before reading this guide, having the following knowledge will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [AI 3D Model Generation: Technology, Tools & Utilization Guide](./00-3d-generation.md)
+
+---
+
+## 1. Overview of Game Asset Generation
+
+### 1.1 Mapping Asset Types to AI Generation Methods
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│          ゲームアセット × AI生成手法マトリクス              │
+│       Game Asset × AI Generation Method Matrix           │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
-│  テクスチャ ──────> Stable Diffusion / DALL-E            │
-│  │  ├ ディフューズマップ    (色・模様)                    │
-│  │  ├ ノーマルマップ        (凹凸)                       │
-│  │  ├ ラフネスマップ        (粗さ)                       │
-│  │  └ 環境マップ/HDRI      (照明)                       │
+│  Textures ──────> Stable Diffusion / DALL-E             │
+│  │  ├ Diffuse Map          (Color & Pattern)            │
+│  │  ├ Normal Map           (Bumps)                      │
+│  │  ├ Roughness Map        (Surface Roughness)          │
+│  │  └ Environment Map/HDRI (Lighting)                   │
 │  │                                                      │
-│  3Dモデル ──────> TripoSR / Meshy / Shap-E              │
-│  │  ├ プロップ(小物)        (椅子、武器、アイテム)        │
-│  │  ├ 建物・構造物          (城、家、橋)                 │
-│  │  └ キャラクター          (要手動調整)                 │
+│  3D Models ──────> TripoSR / Meshy / Shap-E             │
+│  │  ├ Props (Small Items)  (Chairs, Weapons, Items)     │
+│  │  ├ Buildings/Structures (Castles, Houses, Bridges)   │
+│  │  └ Characters           (Manual Adjustment Required) │
 │  │                                                      │
-│  アニメーション ──> MDM / MotionDiffuse / Mixamo         │
-│  │  ├ 歩行・走行            (モーションキャプチャ代替)    │
-│  │  ├ アクション            (攻撃、ジャンプ)             │
-│  │  └ フェイシャル          (表情変化)                   │
+│  Animations ──────> MDM / MotionDiffuse / Mixamo        │
+│  │  ├ Walk/Run             (Motion Capture Alternative) │
+│  │  ├ Actions              (Attack, Jump)               │
+│  │  └ Facial               (Expression Changes)         │
 │  │                                                      │
-│  レベルデザイン ──> WaveFunctionCollapse / PCG + LLM     │
-│     ├ 地形生成              (高さマップ)                 │
-│     ├ ダンジョン配置        (部屋・通路生成)             │
-│     └ オブジェクト配置      (自動デコレーション)          │
+│  Level Design ──────> WaveFunctionCollapse / PCG + LLM  │
+│     ├ Terrain Generation   (Height Maps)                │
+│     ├ Dungeon Layout       (Room & Corridor Generation) │
+│     └ Object Placement     (Auto Decoration)            │
 │                                                         │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 AI生成アセットの品質段階
+### 1.2 Quality Levels of AI-Generated Assets
 
 ```
-品質レベル        用途                   AI依存度    手動調整
+Quality Level        Use Case               AI Reliance  Manual Adjustment
 ──────────────────────────────────────────────────────────
-Lv.1 プレースホルダ  プロトタイプ           100% AI    なし
-Lv.2 ドラフト       内部レビュー用          90% AI     軽微
-Lv.3 ゲームレディ   インディーゲーム        60% AI     中程度
-Lv.4 AAA品質       商用ゲーム             30% AI     大幅
+Lv.1 Placeholder     Prototype              100% AI      None
+Lv.2 Draft           Internal Review         90% AI      Minor
+Lv.3 Game-Ready      Indie Games             60% AI      Moderate
+Lv.4 AAA Quality     Commercial Games        30% AI      Extensive
 ──────────────────────────────────────────────────────────
 ```
 
-### 1.3 ジャンル別アセット要件マトリクス
+### 1.3 Genre-Specific Asset Requirements Matrix
 
 ```
-ゲームジャンル別 AI 生成アセットの適合度:
+AI-Generated Asset Suitability by Game Genre:
 
-ジャンル         テクスチャ  3Dモデル  アニメ  レベル  適合度
+Genre              Textures  3D Models  Anim  Level  Suitability
 ──────────────────────────────────────────────────────────
-ローグライク      ◎         ◎        ○      ◎      最高
-サンドボックス    ◎         ○        △      ◎      高い
-モバイルRPG      ◎         ○        ○      ○      高い
-インディー2D     ◎         -        △      ○      中程度
-AAA オープンワールド ○      △        △      ○      やや低い
-格闘ゲーム       ○         △        ✕      -      低い
+Roguelike           ◎         ◎         ○     ◎     Highest
+Sandbox             ◎         ○         △     ◎     High
+Mobile RPG          ◎         ○         ○     ○     High
+Indie 2D            ◎         -         △     ○     Moderate
+AAA Open World      ○         △         △     ○     Somewhat Low
+Fighting Game       ○         △         ✕     -     Low
 ──────────────────────────────────────────────────────────
 
-◎ = そのまま使える  ○ = 調整すれば使える  △ = 大幅調整必要
-✕ = 非推奨          - = 該当なし
+◎ = Usable as-is  ○ = Usable with adjustments  △ = Major adjustments needed
+✕ = Not recommended  - = Not applicable
 ```
 
-### 1.4 AI生成パイプラインの全体アーキテクチャ
+### 1.4 Overall Architecture of the AI Generation Pipeline
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│            AI ゲームアセット生成パイプライン v2.0                │
+│          AI Game Asset Generation Pipeline v2.0               │
 ├──────────────────────────────────────────────────────────────┤
 │                                                              │
-│  [入力]                                                      │
-│  ├── ゲームデザインドキュメント (GDD)                          │
-│  ├── スタイルガイド / リファレンスアート                        │
-│  ├── 技術仕様 (ポリゴン予算、テクスチャ解像度)                  │
-│  └── プロンプトライブラリ                                      │
+│  [Input]                                                     │
+│  ├── Game Design Document (GDD)                              │
+│  ├── Style Guide / Reference Art                             │
+│  ├── Technical Specs (Polygon Budget, Texture Resolution)    │
+│  └── Prompt Library                                          │
 │       │                                                      │
 │       v                                                      │
 │  ┌──────────────────────────────────────────┐               │
-│  │  Phase 1: AI生成 (バッチ処理)              │               │
-│  │  ├── テクスチャ: SD/DALL-E → PBRセット     │               │
-│  │  ├── 3Dモデル: Meshy/TripoSR → GLB        │               │
-│  │  ├── アニメ: MDM/Mixamo → BVH/FBX         │               │
-│  │  └── レベル: WFC/PCG → マップデータ         │               │
+│  │  Phase 1: AI Generation (Batch Process)   │               │
+│  │  ├── Textures: SD/DALL-E → PBR Set        │               │
+│  │  ├── 3D Models: Meshy/TripoSR → GLB       │               │
+│  │  ├── Animation: MDM/Mixamo → BVH/FBX      │               │
+│  │  └── Level: WFC/PCG → Map Data             │               │
 │  └──────────────┬───────────────────────────┘               │
 │                  │                                           │
 │                  v                                           │
 │  ┌──────────────────────────────────────────┐               │
-│  │  Phase 2: 自動品質チェック                  │               │
-│  │  ├── ポリゴン数チェック                     │               │
-│  │  ├── テクスチャサイズ検証                   │               │
-│  │  ├── UV重なりチェック                       │               │
-│  │  ├── マテリアル数検証                       │               │
-│  │  └── スタイル一貫性スコア (CLIP類似度)       │               │
+│  │  Phase 2: Automated Quality Check         │               │
+│  │  ├── Polygon Count Check                  │               │
+│  │  ├── Texture Size Validation              │               │
+│  │  ├── UV Overlap Check                     │               │
+│  │  ├── Material Count Validation            │               │
+│  │  └── Style Consistency Score (CLIP sim.)  │               │
 │  └──────────────┬───────────────────────────┘               │
 │                  │                                           │
 │                  v                                           │
 │  ┌──────────────────────────────────────────┐               │
-│  │  Phase 3: 後処理・最適化                    │               │
-│  │  ├── 自動リトポロジー (Instant Meshes)      │               │
-│  │  ├── LOD 自動生成                           │               │
-│  │  ├── テクスチャアトラス化                    │               │
-│  │  ├── コリジョンメッシュ生成                  │               │
-│  │  └── メタデータ付与 (タグ、カテゴリ)         │               │
+│  │  Phase 3: Post-Processing & Optimization  │               │
+│  │  ├── Auto Retopology (Instant Meshes)     │               │
+│  │  ├── LOD Auto Generation                  │               │
+│  │  ├── Texture Atlas Packing                │               │
+│  │  ├── Collision Mesh Generation            │               │
+│  │  └── Metadata Assignment (Tags, Category) │               │
 │  └──────────────┬───────────────────────────┘               │
 │                  │                                           │
 │                  v                                           │
-│  [出力] → ゲームエンジン対応アセットバンドル                    │
+│  [Output] → Game Engine-Compatible Asset Bundle              │
 │                                                              │
 └──────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. テクスチャ生成
+## 2. Texture Generation
 
-### 2.1 PBRテクスチャセットの自動生成
+### 2.1 Automated PBR Texture Set Generation
 
 ```python
-# AI + 画像処理によるPBRテクスチャセット生成
+# PBR texture set generation using AI + image processing
 from diffusers import StableDiffusionPipeline
 import torch
 import numpy as np
@@ -148,7 +148,7 @@ from PIL import Image, ImageFilter
 import cv2
 
 class PBRTextureGenerator:
-    """PBR(Physically Based Rendering)テクスチャセットを生成"""
+    """Generate PBR (Physically Based Rendering) texture sets"""
 
     def __init__(self, model_id: str = "stabilityai/stable-diffusion-xl-base-1.0"):
         self.pipe = StableDiffusionPipeline.from_pretrained(
@@ -162,7 +162,7 @@ class PBRTextureGenerator:
         size: int = 1024,
         seamless: bool = True,
     ) -> Image.Image:
-        """ディフューズ（アルベド）マップを生成"""
+        """Generate a diffuse (albedo) map"""
         full_prompt = (
             f"seamless tileable texture of {prompt}, "
             f"top-down view, flat lighting, no shadows, "
@@ -181,44 +181,44 @@ class PBRTextureGenerator:
         return image
 
     def generate_normal_map(self, diffuse: Image.Image) -> Image.Image:
-        """ディフューズマップからノーマルマップを推定"""
+        """Estimate a normal map from the diffuse map"""
         gray = np.array(diffuse.convert("L"), dtype=np.float32) / 255.0
 
-        # Sobelフィルタで勾配計算
+        # Compute gradients using Sobel filters
         grad_x = cv2.Sobel(gray, cv2.CV_32F, 1, 0, ksize=3)
         grad_y = cv2.Sobel(gray, cv2.CV_32F, 0, 1, ksize=3)
 
-        # 法線ベクトルの構築
+        # Construct normal vectors
         normal = np.zeros((*gray.shape, 3), dtype=np.float32)
-        normal[:, :, 0] = -grad_x  # X成分
-        normal[:, :, 1] = -grad_y  # Y成分
-        normal[:, :, 2] = 1.0      # Z成分
+        normal[:, :, 0] = -grad_x  # X component
+        normal[:, :, 1] = -grad_y  # Y component
+        normal[:, :, 2] = 1.0      # Z component
 
-        # 正規化
+        # Normalize
         norm = np.linalg.norm(normal, axis=2, keepdims=True)
         normal = normal / (norm + 1e-8)
 
-        # [−1,1] → [0,255]
+        # [-1,1] → [0,255]
         normal_map = ((normal + 1.0) * 0.5 * 255).astype(np.uint8)
         return Image.fromarray(normal_map)
 
     def generate_roughness_map(self, diffuse: Image.Image) -> Image.Image:
-        """ディフューズマップからラフネスマップを推定"""
+        """Estimate a roughness map from the diffuse map"""
         gray = diffuse.convert("L")
-        # 高周波成分が多い = 粗い表面
+        # More high-frequency content = rougher surface
         blurred = gray.filter(ImageFilter.GaussianBlur(radius=5))
         diff = np.abs(
             np.array(gray, dtype=np.float32)
             - np.array(blurred, dtype=np.float32)
         )
-        # 正規化してラフネスマップに
+        # Normalize into a roughness map
         roughness = (diff / diff.max() * 200 + 55).clip(0, 255)
         return Image.fromarray(roughness.astype(np.uint8))
 
     def generate_ao_map(self, diffuse: Image.Image) -> Image.Image:
-        """ディフューズマップからアンビエントオクルージョンマップを推定"""
+        """Estimate an ambient occlusion map from the diffuse map"""
         gray = np.array(diffuse.convert("L"), dtype=np.float32)
-        # 複数スケールのブラーで擬似AO
+        # Pseudo-AO using multi-scale blur
         ao = np.ones_like(gray)
         for radius in [3, 7, 15, 31]:
             blurred = cv2.GaussianBlur(gray, (0, 0), radius)
@@ -229,13 +229,13 @@ class PBRTextureGenerator:
         return Image.fromarray(ao.astype(np.uint8))
 
     def generate_height_map(self, diffuse: Image.Image) -> Image.Image:
-        """ディフューズマップから高さマップを推定"""
+        """Estimate a height map from the diffuse map"""
         gray = np.array(diffuse.convert("L"), dtype=np.float32)
-        # エッジ検出で凹凸を推定
+        # Estimate bumps using edge detection
         edges = cv2.Canny(gray.astype(np.uint8), 50, 150)
-        # ガウスブラーで滑らかに
+        # Smooth with Gaussian blur
         height = cv2.GaussianBlur(gray, (0, 0), 3)
-        # エッジ周辺を強調
+        # Emphasize areas around edges
         height = height - edges.astype(np.float32) * 0.3
         height = np.clip(height, 0, 255)
         return Image.fromarray(height.astype(np.uint8))
@@ -243,7 +243,7 @@ class PBRTextureGenerator:
     def generate_full_set(
         self, prompt: str, output_dir: str, size: int = 1024
     ) -> dict[str, str]:
-        """完全なPBRテクスチャセットを生成"""
+        """Generate a complete PBR texture set"""
         from pathlib import Path
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -268,17 +268,17 @@ class PBRTextureGenerator:
         return paths
 
     def _make_seamless(self, image: Image.Image) -> Image.Image:
-        """タイリング可能なシームレステクスチャに変換"""
+        """Convert to a seamless tileable texture"""
         arr = np.array(image, dtype=np.float32)
         h, w = arr.shape[:2]
         blend_size = w // 4
 
-        # 左右のブレンド
+        # Left-right blending
         for i in range(blend_size):
             alpha = i / blend_size
             arr[:, i] = arr[:, i] * alpha + arr[:, w - blend_size + i] * (1 - alpha)
 
-        # 上下のブレンド
+        # Top-bottom blending
         for i in range(blend_size):
             alpha = i / blend_size
             arr[i, :] = arr[i, :] * alpha + arr[h - blend_size + i, :] * (1 - alpha)
@@ -286,11 +286,11 @@ class PBRTextureGenerator:
         return Image.fromarray(arr.astype(np.uint8))
 ```
 
-### 2.2 テクスチャバリエーション生成パイプライン
+### 2.2 Texture Variation Generation Pipeline
 
 ```python
 class TextureVariationPipeline:
-    """同一スタイルのテクスチャバリエーションを一括生成"""
+    """Batch-generate texture variations in a unified style"""
 
     def __init__(self, generator: PBRTextureGenerator):
         self.generator = generator
@@ -302,9 +302,9 @@ class TextureVariationPipeline:
         output_dir: str,
         style_reference: str = "",
     ) -> dict[str, dict[str, str]]:
-        """同一マテリアルファミリーのバリエーション生成
+        """Generate variations of the same material family
 
-        例:
+        Example:
             base_material = "stone wall"
             variations = ["mossy", "cracked", "weathered", "clean"]
         """
@@ -326,9 +326,9 @@ class TextureVariationPipeline:
         output_dir: str,
         size: int = 512,
     ) -> dict[str, str]:
-        """タイルセット（地面、壁、天井等）を統一スタイルで生成
+        """Generate a tileset (floor, wall, ceiling, etc.) in a unified style
 
-        例:
+        Example:
             theme = "medieval dungeon"
             tile_types = ["floor_stone", "wall_brick",
                          "ceiling_wooden", "pillar_marble"]
@@ -354,7 +354,7 @@ class TextureVariationPipeline:
         damage_levels: int = 4,
         output_dir: str = "./damage_progression",
     ) -> list[dict[str, str]]:
-        """ダメージ段階テクスチャ（耐久度に応じた見た目変化）"""
+        """Generate damage progression textures (visual changes based on durability)"""
         results = []
         damage_descriptions = [
             "pristine clean undamaged",
@@ -373,11 +373,11 @@ class TextureVariationPipeline:
         return results
 ```
 
-### 2.3 HDRI環境マップの生成
+### 2.3 HDRI Environment Map Generation
 
 ```python
 class HDRIGenerator:
-    """ゲーム用 HDRI 環境マップ生成"""
+    """HDRI environment map generation for games"""
 
     def __init__(self, pipe):
         self.pipe = pipe
@@ -390,12 +390,12 @@ class HDRIGenerator:
         width: int = 2048,
         height: int = 1024,
     ) -> Image.Image:
-        """パノラミック HDRI 環境マップを生成
+        """Generate a panoramic HDRI environment map
 
         Args:
-            environment: 環境の説明 ("forest", "city", "desert" 等)
-            time_of_day: 時間帯 ("dawn", "noon", "sunset", "night")
-            weather: 天候 ("clear", "cloudy", "overcast", "stormy")
+            environment: Description of the environment ("forest", "city", "desert", etc.)
+            time_of_day: Time of day ("dawn", "noon", "sunset", "night")
+            weather: Weather condition ("clear", "cloudy", "overcast", "stormy")
         """
         prompt = (
             f"360 degree equirectangular panorama HDRI, "
@@ -418,7 +418,7 @@ class HDRIGenerator:
         environment: str,
         face_size: int = 1024,
     ) -> dict[str, Image.Image]:
-        """6面スカイボックステクスチャを生成"""
+        """Generate 6-face skybox textures"""
         faces = {}
         directions = {
             "front": "facing forward",
@@ -445,56 +445,56 @@ class HDRIGenerator:
 
 ---
 
-## 3. 3Dモデル生成とゲームエンジン統合
+## 3. 3D Model Generation and Game Engine Integration
 
-### 3.1 ゲームアセット向け3D生成パイプライン
+### 3.1 3D Generation Pipeline for Game Assets
 
 ```
-テキスト/画像プロンプト
+Text/Image Prompt
         │
         v
 ┌──────────────────┐
-│  AI 3D生成       │  Meshy API / TripoSR
-│  (ハイポリ)      │  100K-500K ポリゴン
+│  AI 3D Generation │  Meshy API / TripoSR
+│  (High-Poly)      │  100K-500K Polygons
 └──────────────────┘
         │
         v
 ┌──────────────────┐
-│  自動リトポロジー │  Instant Meshes / Blender
-│  (ローポリ化)    │  1K-50K ポリゴン
+│  Auto Retopology  │  Instant Meshes / Blender
+│  (Low-Poly)       │  1K-50K Polygons
 └──────────────────┘
         │
         v
 ┌──────────────────┐
-│  UV展開          │  xatlas / Blender
-│  + テクスチャベイク│  法線/AO/ディフューズ
+│  UV Unwrap        │  xatlas / Blender
+│  + Texture Bake   │  Normal/AO/Diffuse
 └──────────────────┘
         │
         v
 ┌──────────────────┐
-│  LOD生成         │  Level of Detail
-│  LOD0: 10K faces │  近距離用
-│  LOD1: 2K faces  │  中距離用
-│  LOD2: 500 faces │  遠距離用
+│  LOD Generation   │  Level of Detail
+│  LOD0: 10K faces  │  Close Range
+│  LOD1: 2K faces   │  Mid Range
+│  LOD2: 500 faces  │  Far Range
 └──────────────────┘
         │
         v
 ┌──────────────────┐
-│  エクスポート     │  glTF 2.0 / FBX
-│  + メタデータ     │  コリジョン / タグ
+│  Export           │  glTF 2.0 / FBX
+│  + Metadata       │  Collision / Tags
 └──────────────────┘
 ```
 
-### 3.2 Meshy APIを使った商用品質のアセット生成
+### 3.2 Commercial-Quality Asset Generation Using Meshy API
 
 ```python
-# Meshy API: テキストから商用品質3Dアセットを生成
+# Meshy API: Generate commercial-quality 3D assets from text
 import requests
 import time
 from pathlib import Path
 
 class MeshyAssetGenerator:
-    """Meshy APIによるゲームアセット生成"""
+    """Game asset generation using Meshy API"""
 
     BASE_URL = "https://api.meshy.ai/v2"
 
@@ -509,9 +509,9 @@ class MeshyAssetGenerator:
         topology: str = "quad",
         target_polycount: int = 30000,
     ) -> str:
-        """テキストから3Dモデルを生成（タスクIDを返す）"""
+        """Generate a 3D model from text (returns task ID)"""
         payload = {
-            "mode": "preview",  # preview → refine の2段階
+            "mode": "preview",  # Two-stage: preview → refine
             "prompt": prompt,
             "negative_prompt": negative_prompt,
             "art_style": art_style,
@@ -531,7 +531,7 @@ class MeshyAssetGenerator:
         image_url: str,
         target_polycount: int = 30000,
     ) -> str:
-        """参照画像から3Dモデルを生成"""
+        """Generate a 3D model from a reference image"""
         payload = {
             "image_url": image_url,
             "target_polycount": target_polycount,
@@ -546,7 +546,7 @@ class MeshyAssetGenerator:
         return resp.json()["result"]
 
     def refine_model(self, preview_task_id: str) -> str:
-        """プレビューモデルをリファインして高品質化"""
+        """Refine a preview model to higher quality"""
         payload = {
             "mode": "refine",
             "preview_task_id": preview_task_id,
@@ -562,7 +562,7 @@ class MeshyAssetGenerator:
     def wait_and_download(
         self, task_id: str, output_dir: str, poll_interval: int = 10
     ) -> dict[str, str]:
-        """タスク完了を待ってダウンロード"""
+        """Wait for task completion and download results"""
         while True:
             resp = requests.get(
                 f"{self.BASE_URL}/text-to-3d/{task_id}",
@@ -573,12 +573,12 @@ class MeshyAssetGenerator:
             if data["status"] == "SUCCEEDED":
                 break
             elif data["status"] == "FAILED":
-                raise RuntimeError(f"生成失敗: {data.get('error')}")
+                raise RuntimeError(f"Generation failed: {data.get('error')}")
 
-            print(f"進捗: {data.get('progress', 0)}%")
+            print(f"Progress: {data.get('progress', 0)}%")
             time.sleep(poll_interval)
 
-        # ダウンロード
+        # Download
         Path(output_dir).mkdir(parents=True, exist_ok=True)
         paths = {}
         for fmt in ["glb", "fbx", "obj"]:
@@ -590,7 +590,7 @@ class MeshyAssetGenerator:
                     f.write(content)
                 paths[fmt] = path
 
-        # テクスチャダウンロード
+        # Download textures
         for tex in data.get("texture_urls", []):
             tex_path = f"{output_dir}/{tex['name']}"
             content = requests.get(tex["url"]).content
@@ -600,7 +600,7 @@ class MeshyAssetGenerator:
 
         return paths
 
-# 使用例
+# Usage example
 generator = MeshyAssetGenerator(api_key="your-api-key")
 task_id = generator.text_to_3d(
     prompt="medieval wooden barrel, game prop, low poly style",
@@ -610,7 +610,7 @@ task_id = generator.text_to_3d(
 assets = generator.wait_and_download(task_id, "./assets/barrel")
 ```
 
-### 3.3 バッチ生成とアセットカタログ管理
+### 3.3 Batch Generation and Asset Catalog Management
 
 ```python
 import json
@@ -621,7 +621,7 @@ from pathlib import Path
 
 @dataclass
 class AssetMetadata:
-    """AI生成アセットのメタデータ"""
+    """Metadata for AI-generated assets"""
     asset_id: str
     name: str
     category: str              # "prop", "character", "environment", "weapon"
@@ -640,7 +640,7 @@ class AssetMetadata:
     status: str = "generated"  # "generated", "reviewed", "approved", "rejected"
 
 class AssetCatalog:
-    """AI生成アセットのカタログ管理"""
+    """Catalog management for AI-generated assets"""
 
     def __init__(self, catalog_path: str = "./asset_catalog.json"):
         self.catalog_path = catalog_path
@@ -662,7 +662,7 @@ class AssetCatalog:
             )
 
     def register(self, metadata: AssetMetadata) -> str:
-        """アセットをカタログに登録"""
+        """Register an asset in the catalog"""
         if not metadata.asset_id:
             metadata.asset_id = hashlib.md5(
                 f"{metadata.prompt}{datetime.now().isoformat()}".encode()
@@ -680,7 +680,7 @@ class AssetCatalog:
         style: str = "",
         min_quality: float = 0.0,
     ) -> list[AssetMetadata]:
-        """カタログからアセットを検索"""
+        """Search assets in the catalog"""
         results = []
         for asset in self.assets.values():
             if category and asset.category != category:
@@ -700,7 +700,7 @@ class AssetCatalog:
         asset_list: list[dict],
         output_base: str = "./assets",
     ) -> list[str]:
-        """アセットリストから一括生成"""
+        """Batch-generate assets from a list"""
         generated_ids = []
         for spec in asset_list:
             try:
@@ -725,14 +725,14 @@ class AssetCatalog:
                 )
                 asset_id = self.register(metadata)
                 generated_ids.append(asset_id)
-                print(f"生成完了: {spec['name']} ({asset_id})")
+                print(f"Generation complete: {spec['name']} ({asset_id})")
 
             except Exception as e:
-                print(f"生成失敗: {spec['name']}: {e}")
+                print(f"Generation failed: {spec['name']}: {e}")
 
         return generated_ids
 
-# 使用例: バッチ生成
+# Usage example: Batch generation
 catalog = AssetCatalog()
 asset_specs = [
     {
@@ -762,38 +762,38 @@ asset_specs = [
 ]
 ```
 
-### 3.4 Unity向けアセットインポーター
+### 3.4 Unity Asset Importer
 
 ```csharp
-// Unity: AI生成アセットの自動インポートと設定
+// Unity: Automatic import and configuration of AI-generated assets
 using UnityEngine;
 using UnityEditor;
 using System.IO;
 
 public class AIAssetImporter : AssetPostprocessor
 {
-    // AI生成アセットの自動設定
+    // Automatic configuration for AI-generated assets
     void OnPreprocessModel()
     {
-        // AI生成アセットフォルダを判定
+        // Determine if the asset is in the AI-generated folder
         if (!assetPath.Contains("AI_Generated")) return;
 
         ModelImporter importer = assetImporter as ModelImporter;
 
-        // メッシュ最適化設定
+        // Mesh optimization settings
         importer.optimizeMeshPolygons = true;
         importer.optimizeMeshVertices = true;
         importer.meshCompression = ModelImporterMeshCompression.Medium;
 
-        // コリジョン生成
+        // Collision generation
         importer.addCollider = true;
 
-        // LOD自動設定
+        // LOD automatic configuration
         importer.importNormals = ModelImporterNormals.Calculate;
         importer.normalCalculationMode =
             ModelImporterNormalCalculationMode.AreaAndAngleWeighted;
 
-        // スケール調整（AI生成モデルはスケールがバラバラ）
+        // Scale adjustment (AI-generated models have inconsistent scales)
         importer.globalScale = 1.0f;
         importer.useFileScale = false;
     }
@@ -804,7 +804,7 @@ public class AIAssetImporter : AssetPostprocessor
 
         TextureImporter importer = assetImporter as TextureImporter;
 
-        // テクスチャ種別の自動判定
+        // Automatic texture type detection
         string fileName = Path.GetFileNameWithoutExtension(assetPath).ToLower();
 
         if (fileName.Contains("normal"))
@@ -814,7 +814,7 @@ public class AIAssetImporter : AssetPostprocessor
         else if (fileName.Contains("roughness") || fileName.Contains("metallic"))
         {
             importer.textureType = TextureImporterType.Default;
-            importer.sRGBTexture = false; // リニア空間
+            importer.sRGBTexture = false; // Linear space
         }
         else if (fileName.Contains("ao") || fileName.Contains("occlusion"))
         {
@@ -827,21 +827,21 @@ public class AIAssetImporter : AssetPostprocessor
             importer.sRGBTexture = false;
         }
 
-        // 圧縮設定
+        // Compression settings
         importer.textureCompression = TextureImporterCompression.CompressedHQ;
         importer.maxTextureSize = 2048;
     }
 }
 ```
 
-### 3.5 Unreal Engine向けアセットインポーター
+### 3.5 Unreal Engine Asset Importer
 
 ```python
-# Unreal Engine: Python Editor Scripting によるAI生成アセットの自動インポート
+# Unreal Engine: Automatic import of AI-generated assets via Python Editor Scripting
 import unreal
 
 class AIAssetImporterUE:
-    """Unreal Engine 向け AI 生成アセットインポーター"""
+    """Unreal Engine AI-generated asset importer"""
 
     def __init__(self, asset_base_path="/Game/AI_Generated"):
         self.asset_base_path = asset_base_path
@@ -853,7 +853,7 @@ class AIAssetImporterUE:
         destination_path: str,
         asset_name: str,
     ):
-        """FBXファイルをAI生成アセット向けの設定でインポート"""
+        """Import an FBX file with AI-generated asset-optimized settings"""
         task = unreal.AssetImportTask()
         task.set_editor_property("automated", True)
         task.set_editor_property("filename", source_path)
@@ -862,14 +862,14 @@ class AIAssetImporterUE:
         task.set_editor_property("replace_existing", True)
         task.set_editor_property("save", True)
 
-        # FBX インポート設定
+        # FBX import settings
         options = unreal.FbxImportUI()
         options.set_editor_property("import_mesh", True)
         options.set_editor_property("import_textures", True)
         options.set_editor_property("import_materials", True)
         options.set_editor_property("import_as_skeletal", False)
 
-        # スタティックメッシュ設定
+        # Static mesh settings
         options.static_mesh_import_data.set_editor_property(
             "combine_meshes", True
         )
@@ -890,16 +890,16 @@ class AIAssetImporterUE:
         static_mesh_path: str,
         lod_count: int = 3,
     ):
-        """LODの自動セットアップ"""
+        """Automatic LOD setup"""
         mesh = unreal.EditorAssetLibrary.load_asset(static_mesh_path)
         if not mesh:
             return
 
-        # LOD グループ設定
+        # LOD group settings
         reduction_settings = []
         for i in range(1, lod_count):
             settings = unreal.MeshReductionSettings()
-            # LOD レベルに応じたポリゴン削減率
+            # Polygon reduction ratio based on LOD level
             percent = max(0.1, 1.0 - (i * 0.3))
             settings.set_editor_property("percent_triangles", percent)
             reduction_settings.append(settings)
@@ -911,7 +911,7 @@ class AIAssetImporterUE:
         source_directory: str,
         destination_path: str = None,
     ):
-        """ディレクトリ内の全FBX/GLBファイルを一括インポート"""
+        """Batch-import all FBX/GLB files in a directory"""
         import os
         if destination_path is None:
             destination_path = self.asset_base_path
@@ -935,24 +935,24 @@ class AIAssetImporterUE:
 
 ---
 
-## 4. AIアニメーション生成
+## 4. AI Animation Generation
 
-### 4.1 モーション生成手法の比較
+### 4.1 Comparison of Motion Generation Methods
 
-| 手法 | 入力 | 品質 | 速度 | 適用場面 |
-|------|------|------|------|---------|
-| Mixamo | リグ付きモデル | 高 | 即時 | 汎用人型モーション |
-| MDM | テキスト | 中~高 | 数秒 | テキスト記述のモーション |
-| MotionDiffuse | テキスト | 中~高 | 数秒 | テキスト記述のモーション |
-| Motion Matching | データベース | 高 | リアルタイム | ゲーム内遷移 |
-| RAG+LLM | テキスト+DB | 高 | 数秒 | カスタムモーション |
-| MotionGPT | テキスト | 高 | 数秒 | 自然言語からモーション |
-| MoMask | テキスト/マスク | 中~高 | 数秒 | 部分的モーション編集 |
+| Method | Input | Quality | Speed | Use Case |
+|--------|-------|---------|-------|----------|
+| Mixamo | Rigged Model | High | Instant | General Humanoid Motion |
+| MDM | Text | Medium-High | Seconds | Text-Described Motion |
+| MotionDiffuse | Text | Medium-High | Seconds | Text-Described Motion |
+| Motion Matching | Database | High | Real-time | In-Game Transitions |
+| RAG+LLM | Text+DB | High | Seconds | Custom Motion |
+| MotionGPT | Text | High | Seconds | Natural Language to Motion |
+| MoMask | Text/Mask | Medium-High | Seconds | Partial Motion Editing |
 
-### 4.2 テキストからモーション生成
+### 4.2 Text-to-Motion Generation
 
 ```python
-# Motion Diffusion Model (MDM) を使ったテキストからモーション生成
+# Text-to-motion generation using Motion Diffusion Model (MDM)
 import torch
 from motion_diffusion_model import MDM, HumanML3DDataset
 
@@ -962,14 +962,14 @@ def generate_motion_from_text(
     num_samples: int = 1,
     model_path: str = "pretrained/mdm_humanml.pth",
 ) -> dict:
-    """テキストプロンプトからモーションを生成"""
+    """Generate motion from a text prompt"""
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # モデルロード
+    # Load model
     model = MDM.load_pretrained(model_path).to(device)
     model.eval()
 
-    # フレーム数計算（30fps想定）
+    # Calculate frame count (assuming 30fps)
     n_frames = int(duration * 30)
 
     with torch.no_grad():
@@ -979,7 +979,7 @@ def generate_motion_from_text(
             guidance_scale=2.5,
         )
 
-    # 関節位置データを返す
+    # Return joint position data
     return {
         "joints": motions.cpu().numpy(),  # (samples, frames, joints, 3)
         "fps": 30,
@@ -988,10 +988,10 @@ def generate_motion_from_text(
     }
 
 def export_to_bvh(motion_data: dict, output_path: str):
-    """モーションデータをBVH形式でエクスポート"""
+    """Export motion data to BVH format"""
     from motion_utils import joints_to_bvh
 
-    joints = motion_data["joints"][0]  # 最初のサンプル
+    joints = motion_data["joints"][0]  # First sample
     bvh_data = joints_to_bvh(
         joints,
         fps=motion_data["fps"],
@@ -1001,7 +1001,7 @@ def export_to_bvh(motion_data: dict, output_path: str):
     with open(output_path, "w") as f:
         f.write(bvh_data)
 
-# 使用例
+# Usage example
 motion = generate_motion_from_text(
     prompt="a person swings a sword overhead then steps forward",
     duration=2.5,
@@ -1009,11 +1009,11 @@ motion = generate_motion_from_text(
 export_to_bvh(motion, "sword_attack.bvh")
 ```
 
-### 4.3 モーションブレンドと遷移生成
+### 4.3 Motion Blending and Transition Generation
 
 ```python
 class MotionBlender:
-    """AI生成モーション間のスムーズな遷移を生成"""
+    """Generate smooth transitions between AI-generated motions"""
 
     def __init__(self, model):
         self.model = model
@@ -1025,13 +1025,13 @@ class MotionBlender:
         blend_frames: int = 15,
         method: str = "slerp",
     ) -> dict:
-        """2つのモーション間をブレンドして繋ぐ
+        """Blend and connect two motions
 
         Args:
-            motion_a: 前のモーション
-            motion_b: 次のモーション
-            blend_frames: ブレンドに使うフレーム数
-            method: "slerp" (球面線形補間) or "lerp" (線形補間)
+            motion_a: Previous motion
+            motion_b: Next motion
+            blend_frames: Number of frames used for blending
+            method: "slerp" (spherical linear interpolation) or "lerp" (linear interpolation)
         """
         import numpy as np
         from scipy.spatial.transform import Rotation, Slerp
@@ -1039,7 +1039,7 @@ class MotionBlender:
         joints_a = motion_a["joints"][0]  # (frames, joints, 3)
         joints_b = motion_b["joints"][0]
 
-        # 最後のblend_framesフレームと最初のblend_framesフレームをブレンド
+        # Blend the last blend_frames of A with the first blend_frames of B
         end_a = joints_a[-blend_frames:]
         start_b = joints_b[:blend_frames]
 
@@ -1047,11 +1047,11 @@ class MotionBlender:
         for i in range(blend_frames):
             t = i / (blend_frames - 1)  # 0.0 ~ 1.0
             if method == "slerp":
-                # 球面線形補間（回転に適した補間）
+                # Spherical linear interpolation (suitable for rotations)
                 t = self._ease_in_out(t)
             blended[i] = end_a[i] * (1 - t) + start_b[i] * t
 
-        # 結合
+        # Concatenate
         result = np.concatenate([
             joints_a[:-blend_frames],
             blended,
@@ -1066,7 +1066,7 @@ class MotionBlender:
         }
 
     def _ease_in_out(self, t: float) -> float:
-        """Ease-in-out 補間カーブ"""
+        """Ease-in-out interpolation curve"""
         return t * t * (3 - 2 * t)
 
     def create_animation_state_machine(
@@ -1075,7 +1075,7 @@ class MotionBlender:
         transitions: list[tuple[str, str]],
         blend_frames: int = 10,
     ) -> dict:
-        """アニメーションステートマシン用の遷移データを生成
+        """Generate transition data for an animation state machine
 
         Args:
             states: {"idle": motion_data, "walk": motion_data, ...}
@@ -1099,47 +1099,47 @@ class MotionBlender:
 
 ---
 
-## 5. プロシージャルレベル生成
+## 5. Procedural Level Generation
 
-### 5.1 Wave Function Collapse + AIの組み合わせ
+### 5.1 Combining Wave Function Collapse with AI
 
 ```python
-# WFC + LLMによるインテリジェントレベル生成
+# Intelligent level generation using WFC + LLM
 import numpy as np
 from dataclasses import dataclass
 from typing import Optional
 
 @dataclass
 class Tile:
-    """タイルデータ"""
+    """Tile data"""
     id: str
     asset_path: str
-    connections: dict  # 方向 -> 接続タイプ
+    connections: dict  # Direction -> Connection type
     weight: float = 1.0
     tags: list[str] = None
 
 class WFCLevelGenerator:
-    """Wave Function Collapseベースのレベル生成"""
+    """Level generation based on Wave Function Collapse"""
 
     def __init__(self, width: int, height: int, tiles: list[Tile]):
         self.width = width
         self.height = height
         self.tiles = tiles
-        # 各セルの可能なタイルセット
+        # Set of possible tiles for each cell
         self.grid = [
             [set(range(len(tiles))) for _ in range(width)]
             for _ in range(height)
         ]
 
     def collapse(self) -> np.ndarray:
-        """WFCアルゴリズムでグリッドを確定"""
+        """Resolve the grid using WFC algorithm"""
         while not self._is_fully_collapsed():
-            # 最もエントロピーが低いセルを選択
+            # Select the cell with lowest entropy
             y, x = self._find_min_entropy_cell()
             if y is None:
-                raise RuntimeError("矛盾が発生: バックトラックが必要")
+                raise RuntimeError("Contradiction occurred: backtracking required")
 
-            # 重み付きランダムで1タイルに確定
+            # Collapse to a single tile via weighted random selection
             possible = list(self.grid[y][x])
             weights = [self.tiles[t].weight for t in possible]
             total = sum(weights)
@@ -1147,10 +1147,10 @@ class WFCLevelGenerator:
             chosen = np.random.choice(possible, p=probs)
             self.grid[y][x] = {chosen}
 
-            # 制約伝播
+            # Constraint propagation
             self._propagate(x, y)
 
-        # 結果をグリッドに変換
+        # Convert result to grid
         result = np.zeros((self.height, self.width), dtype=int)
         for y in range(self.height):
             for x in range(self.width):
@@ -1176,7 +1176,7 @@ class WFCLevelGenerator:
         return min_pos
 
     def _propagate(self, start_x: int, start_y: int):
-        """制約伝播: 隣接セルの可能性を絞り込む"""
+        """Constraint propagation: narrow down possibilities in adjacent cells"""
         stack = [(start_x, start_y)]
         directions = [(0, -1, "up"), (0, 1, "down"), (-1, 0, "left"), (1, 0, "right")]
         opposite = {"up": "down", "down": "up", "left": "right", "right": "left"}
@@ -1186,7 +1186,7 @@ class WFCLevelGenerator:
             for dx, dy, direction in directions:
                 nx, ny = x + dx, y + dy
                 if 0 <= nx < self.width and 0 <= ny < self.height:
-                    # 現在のセルから許可される接続
+                    # Allowed connections from the current cell
                     allowed = set()
                     for t in self.grid[y][x]:
                         conn_type = self.tiles[t].connections.get(direction)
@@ -1199,15 +1199,15 @@ class WFCLevelGenerator:
                     if len(new_possible) < len(self.grid[ny][nx]):
                         self.grid[ny][nx] = new_possible
                         if len(new_possible) == 0:
-                            raise RuntimeError(f"矛盾: ({nx},{ny})")
+                            raise RuntimeError(f"Contradiction: ({nx},{ny})")
                         stack.append((nx, ny))
 ```
 
-### 5.2 LLMベースのレベルデザインアシスタント
+### 5.2 LLM-Based Level Design Assistant
 
 ```python
 class LLMLevelDesigner:
-    """LLMを活用したインテリジェントレベルデザイン"""
+    """Intelligent level design powered by LLM"""
 
     def __init__(self, llm_client, wfc_generator: WFCLevelGenerator):
         self.llm = llm_client
@@ -1219,30 +1219,30 @@ class LLMLevelDesigner:
         width: int = 20,
         height: int = 20,
     ) -> dict:
-        """自然言語の説明からレベルを生成
+        """Generate a level from a natural language description
 
         Args:
-            description: "暗い洞窟で、中央に大きな湖がある。
-                         北側に宝箱部屋、南側に入口がある。"
+            description: "A dark cave with a large lake in the center.
+                         A treasure room to the north, entrance to the south."
         """
-        # Step 1: LLMでレベルの構造を計画
+        # Step 1: Plan the level structure using LLM
         plan_prompt = f"""
-ゲームレベルを設計してください。
+Design a game level.
 
-説明: {description}
-サイズ: {width}x{height}
+Description: {description}
+Size: {width}x{height}
 
-以下のJSON形式で出力してください:
+Output in the following JSON format:
 {{
     "zones": [
-        {{"name": "入口", "position": [x, y], "size": [w, h], "type": "entrance"}},
-        {{"name": "メインエリア", "position": [x, y], "size": [w, h], "type": "open"}},
+        {{"name": "Entrance", "position": [x, y], "size": [w, h], "type": "entrance"}},
+        {{"name": "Main Area", "position": [x, y], "size": [w, h], "type": "open"}},
     ],
     "connections": [
-        {{"from": "入口", "to": "メインエリア", "type": "corridor"}},
+        {{"from": "Entrance", "to": "Main Area", "type": "corridor"}},
     ],
     "poi": [
-        {{"name": "宝箱", "zone": "北の部屋", "importance": "high"}},
+        {{"name": "Treasure Chest", "zone": "North Room", "importance": "high"}},
     ],
     "atmosphere": "dark_cave"
 }}
@@ -1250,14 +1250,14 @@ class LLMLevelDesigner:
         plan = await self.llm.generate(plan_prompt)
         level_plan = json.loads(plan)
 
-        # Step 2: WFCで詳細なタイル配置を生成
-        # ゾーン情報をWFCの重みに反映
+        # Step 2: Generate detailed tile placement with WFC
+        # Reflect zone information in WFC weights
         for zone in level_plan["zones"]:
             self._apply_zone_weights(zone)
 
         grid = self.wfc.collapse()
 
-        # Step 3: POI（ポイントオブインタレスト）を配置
+        # Step 3: Place Points of Interest (POIs)
         poi_placements = self._place_points_of_interest(
             grid, level_plan["poi"], level_plan["zones"]
         )
@@ -1274,27 +1274,27 @@ class LLMLevelDesigner:
         }
 
     def _apply_zone_weights(self, zone: dict):
-        """ゾーン情報に基づきタイルの重みを調整"""
+        """Adjust tile weights based on zone information"""
         zone_type = zone["type"]
         x, y = zone["position"]
         w, h = zone["size"]
 
-        # ゾーンタイプに応じたタイル重みの調整
+        # Tile weight adjustments based on zone type
         type_preferences = {
             "entrance": {"door": 5.0, "floor": 2.0, "wall": 1.0},
             "open": {"floor": 3.0, "wall": 0.5},
             "corridor": {"floor": 2.0, "wall": 2.0},
             "treasure": {"floor": 2.0, "decoration": 3.0},
         }
-        # 実装は省略: ゾーン領域のタイル重みを動的に変更
+        # Implementation omitted: dynamically modify tile weights for zone regions
 
     def _place_points_of_interest(
         self, grid, pois, zones
     ) -> list[dict]:
-        """POIをグリッド上に配置"""
+        """Place POIs on the grid"""
         placements = []
         for poi in pois:
-            # 対象ゾーン内のフロアタイルからランダムに選択
+            # Randomly select from floor tiles within the target zone
             zone = next(z for z in zones if z["name"] == poi["zone"])
             zx, zy = zone["position"]
             zw, zh = zone["size"]
@@ -1305,7 +1305,7 @@ class LLMLevelDesigner:
                     gx, gy = zx + dx, zy + dy
                     if 0 <= gx < len(grid[0]) and 0 <= gy < len(grid):
                         tile_id = grid[gy][gx]
-                        # フロアタイルの場合のみ候補
+                        # Only floor tiles are candidates
                         if self.wfc.tiles[tile_id].id.startswith("floor"):
                             candidates.append((gx, gy))
 
@@ -1322,35 +1322,35 @@ class LLMLevelDesigner:
 
 ---
 
-## 6. パフォーマンス最適化
+## 6. Performance Optimization
 
-### 6.1 AI生成アセットの最適化チェックリスト
+### 6.1 Optimization Checklist for AI-Generated Assets
 
-| チェック項目 | 基準値 | ツール |
-|------------|--------|-------|
-| ポリゴン数 | モバイル: <5K, PC: <50K | Blender Decimate |
-| テクスチャサイズ | モバイル: 512px, PC: 2048px | ImageMagick |
-| ドローコール | オブジェクトあたり1-3 | Unity Profiler |
-| UV重なり | 0% | UV Checker |
-| 法線方向 | 全て外向き | Blender Recalculate |
-| マテリアル数 | 1-2個/オブジェクト | アトラス化 |
-| LOD段階 | 3段階以上 | 自動LOD生成 |
-| テクスチャ圧縮 | BC7/ASTC | GPU圧縮 |
-| メッシュバウンド | 適切なAABB | エンジン確認 |
-| コリジョン | 単純化メッシュ | プリミティブ代用 |
+| Check Item | Threshold | Tool |
+|------------|-----------|------|
+| Polygon Count | Mobile: <5K, PC: <50K | Blender Decimate |
+| Texture Size | Mobile: 512px, PC: 2048px | ImageMagick |
+| Draw Calls | 1-3 per object | Unity Profiler |
+| UV Overlap | 0% | UV Checker |
+| Normal Direction | All outward-facing | Blender Recalculate |
+| Material Count | 1-2 per object | Atlas Packing |
+| LOD Levels | 3 or more | Auto LOD Generation |
+| Texture Compression | BC7/ASTC | GPU Compression |
+| Mesh Bounds | Proper AABB | Engine Verification |
+| Collision | Simplified mesh | Primitive Substitution |
 
-### 6.2 自動最適化パイプライン
+### 6.2 Automated Optimization Pipeline
 
 ```python
 class AssetOptimizer:
-    """AI生成アセットの自動最適化パイプライン"""
+    """Automated optimization pipeline for AI-generated assets"""
 
     def __init__(self, target_platform: str = "pc"):
         self.platform = target_platform
         self.budgets = self._get_platform_budgets()
 
     def _get_platform_budgets(self) -> dict:
-        """プラットフォーム別のアセット予算"""
+        """Asset budgets by platform"""
         budgets = {
             "mobile": {
                 "max_poly": 5000,
@@ -1374,7 +1374,7 @@ class AssetOptimizer:
         return budgets.get(self.platform, budgets["pc"])
 
     def validate_asset(self, asset_path: str) -> dict:
-        """アセットのバリデーション"""
+        """Validate an asset"""
         import trimesh
 
         mesh = trimesh.load(asset_path)
@@ -1386,13 +1386,13 @@ class AssetOptimizer:
             "bounding_box": mesh.bounding_box.extents.tolist(),
         }
 
-        # 予算チェック
+        # Budget check
         results["poly_over_budget"] = (
             results["poly_count"] > self.budgets["max_poly"]
         )
         results["needs_decimation"] = results["poly_over_budget"]
 
-        # UV チェック
+        # UV check
         if hasattr(mesh.visual, 'uv') and mesh.visual.uv is not None:
             uv = mesh.visual.uv
             results["has_uv"] = True
@@ -1411,7 +1411,7 @@ class AssetOptimizer:
         output_path: str,
         target_faces: int = None,
     ) -> dict:
-        """メッシュの自動最適化"""
+        """Automatic mesh optimization"""
         import trimesh
 
         mesh = trimesh.load(input_path)
@@ -1425,10 +1425,10 @@ class AssetOptimizer:
             ratio = target_faces / original_faces
             mesh = mesh.simplify_quadric_decimation(target_faces)
 
-        # 法線の再計算
+        # Recalculate normals
         mesh.fix_normals()
 
-        # エクスポート
+        # Export
         mesh.export(output_path)
 
         return {
@@ -1443,7 +1443,7 @@ class AssetOptimizer:
         output_dir: str,
         lod_ratios: list[float] = None,
     ) -> list[str]:
-        """LODメッシュの自動生成"""
+        """Automatic LOD mesh generation"""
         import trimesh
         from pathlib import Path
 
@@ -1469,11 +1469,11 @@ class AssetOptimizer:
         return lod_paths
 ```
 
-### 6.3 テクスチャアトラス自動化
+### 6.3 Texture Atlas Automation
 
 ```python
 class TextureAtlasBuilder:
-    """複数アセットのテクスチャをアトラスに統合"""
+    """Combine textures from multiple assets into an atlas"""
 
     def __init__(self, atlas_size: int = 2048):
         self.atlas_size = atlas_size
@@ -1483,7 +1483,7 @@ class TextureAtlasBuilder:
         textures: list[dict],
         output_path: str,
     ) -> dict:
-        """テクスチャアトラスを生成
+        """Generate a texture atlas
 
         Args:
             textures: [{"name": "barrel", "image": PIL.Image, "size": (256, 256)}, ...]
@@ -1491,7 +1491,7 @@ class TextureAtlasBuilder:
         from PIL import Image
         import numpy as np
 
-        # パッキング（単純なシェルフアルゴリズム）
+        # Packing (simple shelf algorithm)
         atlas = Image.new("RGBA", (self.atlas_size, self.atlas_size), (0, 0, 0, 0))
         uv_mapping = {}
 
@@ -1503,22 +1503,22 @@ class TextureAtlasBuilder:
             img = tex_info["image"]
             w, h = img.size
 
-            # 行をまたぐ場合
+            # Wrap to next row if needed
             if current_x + w > self.atlas_size:
                 current_x = 0
                 current_y += row_height
                 row_height = 0
 
-            # アトラスに収まらない場合
+            # Check if it fits in the atlas
             if current_y + h > self.atlas_size:
                 raise ValueError(
-                    f"アトラスサイズ {self.atlas_size}px に収まりません"
+                    f"Cannot fit within atlas size of {self.atlas_size}px"
                 )
 
-            # テクスチャを配置
+            # Place texture
             atlas.paste(img, (current_x, current_y))
 
-            # UV マッピング情報を記録
+            # Record UV mapping information
             uv_mapping[tex_info["name"]] = {
                 "offset": (
                     current_x / self.atlas_size,
@@ -1541,7 +1541,7 @@ class TextureAtlasBuilder:
         }
 
     def _calculate_utilization(self, mapping: dict) -> float:
-        """アトラスの利用率を計算"""
+        """Calculate atlas utilization rate"""
         total_used = sum(
             m["scale"][0] * m["scale"][1] for m in mapping.values()
         )
@@ -1550,13 +1550,13 @@ class TextureAtlasBuilder:
 
 ---
 
-## 7. スタイル統一とアートディレクション
+## 7. Style Unification and Art Direction
 
-### 7.1 CLIP ベースのスタイル一貫性チェック
+### 7.1 CLIP-Based Style Consistency Check
 
 ```python
 class StyleConsistencyChecker:
-    """CLIP を使ったアセットのスタイル一貫性チェック"""
+    """Check asset style consistency using CLIP"""
 
     def __init__(self):
         from transformers import CLIPModel, CLIPProcessor
@@ -1568,7 +1568,7 @@ class StyleConsistencyChecker:
         reference_image: Image.Image,
         target_image: Image.Image,
     ) -> float:
-        """リファレンスとターゲットのスタイル類似度を計算"""
+        """Compute style similarity between reference and target"""
         import torch
 
         inputs = self.processor(
@@ -1579,7 +1579,7 @@ class StyleConsistencyChecker:
         with torch.no_grad():
             features = self.model.get_image_features(**inputs)
 
-        # コサイン類似度
+        # Cosine similarity
         similarity = torch.nn.functional.cosine_similarity(
             features[0:1], features[1:2]
         ).item()
@@ -1592,7 +1592,7 @@ class StyleConsistencyChecker:
         assets: list[Image.Image],
         threshold: float = 0.75,
     ) -> list[dict]:
-        """複数アセットのスタイル一貫性を一括チェック"""
+        """Batch-check style consistency across multiple assets"""
         results = []
         for i, asset in enumerate(assets):
             sim = self.compute_style_similarity(reference, asset)
@@ -1610,11 +1610,11 @@ class StyleConsistencyChecker:
         return results
 ```
 
-### 7.2 LoRA / IP-Adapter によるスタイル固定
+### 7.2 Style Locking with LoRA / IP-Adapter
 
 ```python
 class StyleFixedGenerator:
-    """LoRA や IP-Adapter を使ってスタイルを固定した生成"""
+    """Generate with fixed style using LoRA or IP-Adapter"""
 
     def __init__(self, base_model: str, lora_path: str = None):
         from diffusers import StableDiffusionXLPipeline
@@ -1633,7 +1633,7 @@ class StyleFixedGenerator:
         style_prompt: str = "low poly, hand-painted, stylized game asset",
         color_palette: list[str] = None,
     ) -> list[Image.Image]:
-        """統一されたスタイルで複数アセットのテクスチャを生成"""
+        """Generate textures for multiple assets in a unified style"""
         results = []
 
         palette_suffix = ""
@@ -1654,123 +1654,123 @@ class StyleFixedGenerator:
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### 8.1 アンチパターン：AI生成モデルを無検証で大量投入
-
-```
-NG: 1000個のAI生成プロップをそのままシーンに配置
-  - ポリゴン数合計: 5000万 → フレームレート激減
-  - テクスチャメモリ: 20GB → VRAM不足
-  - スタイルの不統一 → 世界観の崩壊
-
-OK: 品質ゲートを設けた段階的投入
-  1. AI生成 → 自動品質チェック（ポリ数、テクスチャサイズ）
-  2. スタイル一貫性チェック（色パレット、ディテール密度）
-  3. パフォーマンスプロファイリング
-  4. アートディレクターレビュー
-  5. 本番シーンに投入
-```
-
-### 8.2 アンチパターン：ライセンス未確認のAI生成アセット
+### 8.1 Anti-Pattern: Mass-Deploying AI-Generated Models Without Validation
 
 ```
-NG: AI生成アセットのライセンスを確認せずに商用リリース
-  - 学習データの著作権問題
-  - APIの利用規約違反
-  - 類似性の高い既存作品との権利衝突
+BAD: Placing 1000 AI-generated props directly into the scene
+  - Total polygon count: 50 million → Frame rate plummets
+  - Texture memory: 20GB → VRAM shortage
+  - Style inconsistency → World-building falls apart
 
-OK: ライセンスチェックフローの構築
-  1. 使用したAIツール/APIの利用規約を確認
-  2. 商用利用可否を明確化
-  3. 生成物の権利帰属を確認
-  4. 法務チームによるレビュー
-  5. 利用規約のスナップショットを保存
+GOOD: Staged deployment with quality gates
+  1. AI generation → Automated quality check (poly count, texture size)
+  2. Style consistency check (color palette, detail density)
+  3. Performance profiling
+  4. Art director review
+  5. Deploy to production scene
 ```
 
-### 8.3 アンチパターン：スケール不統一の放置
+### 8.2 Anti-Pattern: Using AI-Generated Assets Without License Verification
 
 ```
-NG: AI生成モデル間でスケールがバラバラ
-  - 樽が家と同じ大きさ
-  - 剣がキャラクターより大きい
-  - コリジョンが見た目と合わない
+BAD: Releasing commercially without verifying AI-generated asset licenses
+  - Copyright issues with training data
+  - API terms of service violations
+  - Rights conflicts with highly similar existing works
 
-OK: スケール正規化パイプライン
-  1. 基準オブジェクト（1m の立方体）を設定
-  2. カテゴリ別のスケール基準表を作成
-     - 小物: 0.1-0.5m
-     - 家具: 0.5-2.0m
-     - 建物: 3-20m
-  3. インポート時に自動スケーリング
-  4. バウンディングボックスの検証
+GOOD: Building a license check workflow
+  1. Review terms of service for the AI tool/API used
+  2. Clarify commercial use permissions
+  3. Confirm ownership rights of generated outputs
+  4. Legal team review
+  5. Archive a snapshot of the terms of service
 ```
 
-### 8.4 アンチパターン：リトポロジーなしの直接使用
+### 8.3 Anti-Pattern: Ignoring Inconsistent Scales
 
 ```
-NG: AI生成のハイポリメッシュをそのままゲームに使用
-  - 三角形のみの不規則なトポロジー
-  - ポリゴン密度の偏り（平坦な面にも大量のポリゴン）
-  - アニメーションが破綻する
-  - LOD生成の品質が低い
+BAD: Inconsistent scales across AI-generated models
+  - Barrel is the same size as a house
+  - Sword is larger than the character
+  - Collision doesn't match the visual
 
-OK: 適切なリトポロジーワークフロー
-  1. AI生成ハイポリ → Instant Meshes で自動リトポ
-  2. Quad ベースの均等なトポロジー取得
-  3. 重要な形状エッジにループを維持
-  4. UV展開 → テクスチャベイク（法線マップでディテール保持）
-  5. LOD生成で段階的な簡略化
+GOOD: Scale normalization pipeline
+  1. Set a reference object (1m cube)
+  2. Create a scale reference table by category
+     - Small items: 0.1-0.5m
+     - Furniture: 0.5-2.0m
+     - Buildings: 3-20m
+  3. Auto-scale on import
+  4. Bounding box validation
+```
+
+### 8.4 Anti-Pattern: Using High-Poly Meshes Without Retopology
+
+```
+BAD: Using AI-generated high-poly meshes directly in-game
+  - Irregular topology with only triangles
+  - Uneven polygon density (flat surfaces with excessive polygons)
+  - Animation breaks down
+  - LOD generation quality is poor
+
+GOOD: Proper retopology workflow
+  1. AI-generated high-poly → Auto retopo with Instant Meshes
+  2. Obtain even quad-based topology
+  3. Maintain edge loops on important shape edges
+  4. UV unwrap → Texture bake (preserve detail via normal maps)
+  5. LOD generation for staged simplification
 ```
 
 ---
 
-## 9. トラブルシューティング
+## 9. Troubleshooting
 
-### 9.1 よくある問題と解決策
+### 9.1 Common Problems and Solutions
 
-| 問題 | 原因 | 解決策 |
-|------|------|--------|
-| テクスチャがタイリングで目立つ | シームの処理不足 | シームレス化処理を適用、ブレンド幅を増加 |
-| 3Dモデルに穴がある | 非多様体メッシュ | メッシュ修復ツール（MeshFix）で自動修正 |
-| ノーマルマップが反転 | OpenGL/DirectX規格の違い | Y軸を反転、エンジン設定を確認 |
-| テクスチャが伸びる | UV展開の失敗 | xatlasで再展開、ストレッチチェック |
-| LOD切り替えがチラつく | LOD間の差が大きすぎる | 中間LODを追加、ブレンド距離を調整 |
-| マテリアルが黒く表示 | メタリックマップの不備 | メタリック値を0に、PBR設定を確認 |
-| アニメーションが浮く | ルートモーションの不整合 | 足のIKを適用、地面との接地チェック |
-| ゲームの起動が遅い | テクスチャのメモリ不足 | ストリーミング有効化、ミップマップ生成 |
-| フレームレートが低い | ドローコール過多 | テクスチャアトラス化、インスタンシング |
-| モデルのシルエットが不自然 | ポリゴン不足 | 重要なエッジにポリゴンを追加 |
+| Problem | Cause | Solution |
+|---------|-------|----------|
+| Texture tiling is visible | Insufficient seam processing | Apply seamless processing, increase blend width |
+| 3D model has holes | Non-manifold mesh | Auto-repair with mesh repair tools (MeshFix) |
+| Normal map is inverted | OpenGL/DirectX convention difference | Flip Y-axis, check engine settings |
+| Texture stretching | UV unwrap failure | Re-unwrap with xatlas, check stretch |
+| LOD switching flickers | Too large a gap between LODs | Add intermediate LODs, adjust blend distance |
+| Material appears black | Metallic map issues | Set metallic value to 0, check PBR settings |
+| Animation floats | Root motion misalignment | Apply foot IK, check ground contact |
+| Slow game startup | Insufficient texture memory | Enable streaming, generate mipmaps |
+| Low frame rate | Too many draw calls | Texture atlas packing, instancing |
+| Unnatural model silhouette | Insufficient polygons | Add polygons to important edges |
 
-### 9.2 プラットフォーム別の制約対応
+### 9.2 Platform-Specific Constraint Handling
 
 ```
-モバイル向け最適化チェックリスト:
+Mobile Optimization Checklist:
 ┌─────────────────────────────────────────────┐
-│  [ ] ポリゴン数: オブジェクトあたり500-5000   │
-│  [ ] テクスチャ: 256-512px、ASTC圧縮          │
-│  [ ] マテリアル: オブジェクトあたり1つ         │
-│  [ ] シェーダー: Unlit または Simple Lit       │
-│  [ ] ドローコール: シーン全体で100以下         │
-│  [ ] メモリ: テクスチャ合計 200MB 以下         │
-│  [ ] LOD: 2段階以上                           │
-│  [ ] アニメーション: ボーン数30以下            │
-│  [ ] パーティクル: 同時表示50以下              │
-│  [ ] ライトマップ: プリベイク推奨              │
+│  [ ] Polygon count: 500-5000 per object      │
+│  [ ] Textures: 256-512px, ASTC compression   │
+│  [ ] Materials: 1 per object                 │
+│  [ ] Shaders: Unlit or Simple Lit            │
+│  [ ] Draw calls: Under 100 per scene         │
+│  [ ] Memory: Under 200MB total textures      │
+│  [ ] LOD: 2 or more levels                   │
+│  [ ] Animation: Under 30 bones               │
+│  [ ] Particles: Under 50 simultaneous        │
+│  [ ] Lightmaps: Pre-bake recommended         │
 └─────────────────────────────────────────────┘
 
-PC/コンソール向け最適化チェックリスト:
+PC/Console Optimization Checklist:
 ┌─────────────────────────────────────────────┐
-│  [ ] ポリゴン数: オブジェクトあたり5K-50K     │
-│  [ ] テクスチャ: 1024-4096px、BC7圧縮         │
-│  [ ] マテリアル: オブジェクトあたり1-3         │
-│  [ ] シェーダー: PBR Standard                  │
-│  [ ] ドローコール: シーン全体で2000以下        │
-│  [ ] メモリ: テクスチャ合計 2GB 以下           │
-│  [ ] LOD: 3-4段階                             │
-│  [ ] アニメーション: ボーン数100以下           │
-│  [ ] ライティング: リアルタイムGI対応          │
-│  [ ] レイトレーシング: メッシュ最適化済み       │
+│  [ ] Polygon count: 5K-50K per object        │
+│  [ ] Textures: 1024-4096px, BC7 compression  │
+│  [ ] Materials: 1-3 per object               │
+│  [ ] Shaders: PBR Standard                   │
+│  [ ] Draw calls: Under 2000 per scene        │
+│  [ ] Memory: Under 2GB total textures        │
+│  [ ] LOD: 3-4 levels                         │
+│  [ ] Animation: Under 100 bones              │
+│  [ ] Lighting: Real-time GI supported        │
+│  [ ] Ray tracing: Mesh optimized             │
 └─────────────────────────────────────────────┘
 ```
 
@@ -1778,85 +1778,85 @@ PC/コンソール向け最適化チェックリスト:
 
 ## 10. FAQ
 
-### Q1: AI生成アセットだけでゲームを完成できるか？
+### Q1: Can a game be completed using only AI-generated assets?
 
-**A**: インディーゲームやプロトタイプであれば十分可能。特にローポリスタイルやスタイライズドなアートスタイルでは、AI生成アセットの品質がそのまま使えることが多い。ただし、キャラクターのリギングやアニメーション、UI要素は手動調整が必要。AAA品質を目指す場合は、AI生成をベースに専門アーティストが仕上げるハイブリッドワークフローが現実的。2025年現在、インディーゲームの約30%が何らかのAI生成アセットを使用しているとされる。
+**A**: It is entirely possible for indie games and prototypes. AI-generated asset quality is often usable as-is, especially for low-poly or stylized art styles. However, character rigging and animation, as well as UI elements, require manual adjustment. For AAA quality, a hybrid workflow where specialized artists refine AI-generated bases is more practical. As of 2025, approximately 30% of indie games are said to use some form of AI-generated assets.
 
-### Q2: AI生成アセットのスタイル統一はどうするか？
+### Q2: How do you unify the style of AI-generated assets?
 
-**A**: (1) プロンプトにスタイルガイドを含める（"low poly, pastel colors, hand-painted style"等）、(2) LoRAやControlNetでスタイルを固定、(3) 後処理シェーダーで統一感を出す、(4) カラーパレットを制限する。最も効果的なのは、少数の高品質リファレンス画像を用意し、img2imgやIP-Adapterで一貫したスタイルを適用する手法。CLIP ベースのスタイル類似度チェックを自動化すると、パイプラインに組み込みやすい。
+**A**: (1) Include a style guide in prompts (e.g., "low poly, pastel colors, hand-painted style"), (2) Lock the style using LoRA or ControlNet, (3) Apply post-processing shaders for visual coherence, (4) Restrict the color palette. The most effective approach is to prepare a small number of high-quality reference images and apply a consistent style using img2img or IP-Adapter. Automating CLIP-based style similarity checks makes it easy to integrate into the pipeline.
 
-### Q3: ゲームエンジン別の推奨ワークフローは？
+### Q3: What are the recommended workflows for each game engine?
 
 **A**:
 
-| エンジン | 推奨フォーマット | インポート方法 | 自動化 |
-|---------|---------------|--------------|--------|
-| Unity | glTF 2.0 / FBX | AssetPostprocessor | C#スクリプト |
+| Engine | Recommended Format | Import Method | Automation |
+|--------|-------------------|---------------|------------|
+| Unity | glTF 2.0 / FBX | AssetPostprocessor | C# Script |
 | Unreal Engine | FBX / USD | Python Editor Script | Blueprint/Python |
 | Godot | glTF 2.0 | EditorImportPlugin | GDScript |
 
-### Q4: AI生成モーションの品質を向上させるには？
+### Q4: How can I improve the quality of AI-generated motion?
 
-**A**: (1) テキストプロンプトを具体的にする（「歩く」→「ゆっくりと慎重に歩く、周囲を警戒しながら」）、(2) 生成後にモーションエディタで微調整する、(3) 足のIKを適用して接地感を改善する、(4) モーションブレンドで遷移を滑らかにする、(5) 複数サンプルを生成して最良のものを選択する。特に格闘ゲームやアクションゲームでは、手動調整が必要になるケースが多い。
+**A**: (1) Make text prompts specific ("walk" becomes "walk slowly and cautiously, looking around alertly"), (2) Fine-tune in a motion editor after generation, (3) Apply foot IK to improve ground contact, (4) Smooth transitions with motion blending, (5) Generate multiple samples and select the best one. Manual adjustment is often necessary, especially for fighting games and action games.
 
-### Q5: テクスチャ生成でシームレス化がうまくいかない場合は？
+### Q5: What if seamless texture generation doesn't work well?
 
-**A**: (1) プロンプトに "seamless tileable" を必ず含める、(2) 生成後にシームレス化処理を適用する（ブレンド幅を画像の1/4程度に）、(3) 複数回生成して最もシームレスなものを選択する、(4) 後処理で境界部分にクローンスタンプ的な修正を適用する、(5) ControlNet の Tile モードを使うと品質が向上する場合がある。
+**A**: (1) Always include "seamless tileable" in the prompt, (2) Apply seamless processing after generation (blend width of about 1/4 of the image), (3) Generate multiple times and select the most seamless result, (4) Apply clone-stamp-like corrections to boundary areas in post-processing, (5) Using ControlNet's Tile mode can improve quality in some cases.
 
-### Q6: AI生成アセットのバージョン管理はどうすべきか？
+### Q6: How should AI-generated assets be version-controlled?
 
-**A**: (1) Git LFS でアセットファイルを管理する（テクスチャ、メッシュ）、(2) 生成に使用したプロンプト、パラメータ、モデルバージョンをメタデータとして保存する、(3) アセットカタログ（JSON/DB）で管理し、検索・フィルタを可能にする、(4) プロンプトのバージョン管理をコードと同様に行う、(5) 再生成可能性を担保するためにシード値を記録する。
+**A**: (1) Manage asset files (textures, meshes) with Git LFS, (2) Save the prompts, parameters, and model versions used for generation as metadata, (3) Manage with an asset catalog (JSON/DB) enabling search and filtering, (4) Version-control prompts the same way as code, (5) Record seed values to ensure reproducibility.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 11. まとめ
-
-| カテゴリ | ポイント |
-|---------|---------|
-| テクスチャ | Stable Diffusionでシームレス生成、PBRセット自動作成、バリエーション一括生成 |
-| 3Dモデル | Meshy/TripoSRで生成、リトポ+LODで最適化、バッチ生成で効率化 |
-| アニメーション | MDMでテキストからモーション、Mixamoで汎用動作、ブレンドで遷移生成 |
-| レベル | WFC+LLMでインテリジェントな自動配置、自然言語からレベル設計 |
-| 品質管理 | 自動チェックゲート+CLIP一貫性チェック+アートディレクターレビュー |
-| パフォーマンス | ポリゴン予算、テクスチャアトラス、LOD必須、プラットフォーム別最適化 |
-| ライセンス | 必ず利用規約を確認、法務レビューを挟む、メタデータで記録 |
-| スタイル統一 | LoRA/IP-Adapter活用、カラーパレット制限、CLIPスコアチェック |
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## 11. Summary
 
-- [00-3d-generation.md](./00-3d-generation.md) -- AI 3Dモデル生成技術の基礎
-- ゲームエンジン統合 -- UnityやUEとの詳細な連携方法
-- プロシージャル生成 -- 高度なPCG技術の応用
+| Category | Key Points |
+|----------|-----------|
+| Textures | Seamless generation with Stable Diffusion, automated PBR set creation, batch variation generation |
+| 3D Models | Generate with Meshy/TripoSR, optimize with retopo + LOD, streamline with batch generation |
+| Animation | Text-to-motion with MDM, general-purpose motion with Mixamo, transition generation with blending |
+| Level | Intelligent auto-placement with WFC + LLM, level design from natural language |
+| Quality Control | Automated check gates + CLIP consistency checks + art director review |
+| Performance | Polygon budgets, texture atlas, LOD required, platform-specific optimization |
+| Licensing | Always verify terms of service, include legal review, record in metadata |
+| Style Unification | Leverage LoRA/IP-Adapter, restrict color palette, CLIP score checking |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
 
-1. Meshy API ドキュメント -- https://docs.meshy.ai/
+- [00-3d-generation.md](./00-3d-generation.md) -- Fundamentals of AI 3D Model Generation Technology
+- Game Engine Integration -- Detailed integration methods with Unity and UE
+- Procedural Generation -- Advanced PCG technique applications
+
+---
+
+## References
+
+1. Meshy API Documentation -- https://docs.meshy.ai/
 2. Gumin, "WaveFunctionCollapse" -- https://github.com/mxgmn/WaveFunctionCollapse
 3. Tevet et al., "Human Motion Diffusion Model" -- https://guytevet.github.io/mdm-page/
-4. Unity Asset Pipeline ドキュメント -- https://docs.unity3d.com/Manual/AssetWorkflow.html
-5. KhronosGroup glTF 仕様 -- https://www.khronos.org/gltf/
+4. Unity Asset Pipeline Documentation -- https://docs.unity3d.com/Manual/AssetWorkflow.html
+5. KhronosGroup glTF Specification -- https://www.khronos.org/gltf/
 6. Instant Meshes -- https://github.com/wjakob/instant-meshes
-7. xatlas UV パッキング -- https://github.com/jpcy/xatlas
+7. xatlas UV Packing -- https://github.com/jpcy/xatlas
 8. Radford et al., "Learning Transferable Visual Models From Natural Language Supervision (CLIP)" -- https://arxiv.org/abs/2103.00020
