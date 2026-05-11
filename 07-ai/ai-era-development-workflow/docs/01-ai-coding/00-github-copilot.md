@@ -1,242 +1,251 @@
-# GitHub Copilot ── 設定、効果的な使い方、制限
+# GitHub Copilot -- Setup, Effective Usage, and Limitations
 
-> GitHub Copilotの仕組みから実践的な活用法、知っておくべき制限事項までを網羅し、日常のコーディングで最大限の生産性向上を実現する方法を学ぶ。
-
----
-
-## この章で学ぶこと
-
-1. **Copilotのアーキテクチャと設定** ── 補完エンジンの仕組みを理解し、最適な環境設定を行う
-2. **効果的な利用パターン** ── 補完精度を最大化するテクニックとワークフローを習得する
-3. **制限事項と代替戦略** ── Copilotが苦手とする領域を知り、適切に対処する方法を学ぶ
-4. **チーム導入と運用** ── 組織でCopilotを効果的に展開するための戦略とガバナンスを学ぶ
-5. **パフォーマンス計測と最適化** ── Copilotの効果を定量的に評価し、継続的に改善する方法を身につける
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> From how GitHub Copilot works to practical usage tips and limitations you should know, learn how to maximize productivity gains in your daily coding.
 
 ---
 
-## 1. GitHub Copilotのアーキテクチャ
+## What You Will Learn in This Chapter
 
-### 1.1 動作の仕組み
+1. **Copilot Architecture and Setup** -- Understand how the completion engine works and configure the optimal environment
+2. **Effective Usage Patterns** -- Master techniques and workflows that maximize completion accuracy
+3. **Limitations and Alternative Strategies** -- Learn areas where Copilot struggles and how to address them appropriately
+4. **Team Adoption and Operations** -- Learn strategies and governance for effectively deploying Copilot across an organization
+5. **Performance Measurement and Optimization** -- Learn how to quantitatively evaluate Copilot's effectiveness and continuously improve it
+
+
+## Prerequisites
+
+Before reading this guide, having the following knowledge will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+
+---
+
+## 1. GitHub Copilot Architecture
+
+### 1.1 How It Works
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                  GitHub Copilot 動作フロー            │
+│              GitHub Copilot Workflow                  │
 │                                                     │
-│  エディタ (VSCode / JetBrains / Neovim)             │
+│  Editor (VSCode / JetBrains / Neovim)               │
 │  ┌────────────────────────────────────────┐         │
-│  │  カーソル位置の前後のコード              │         │
-│  │  開いているファイルのコンテキスト         │         │
-│  │  ファイルパス・言語情報                  │         │
+│  │  Code before and after cursor position  │         │
+│  │  Context of open files                  │         │
+│  │  File path and language information     │         │
 │  └─────────────┬──────────────────────────┘         │
-│                │ 送信                               │
+│                │ Send                               │
 │                ▼                                    │
 │  ┌────────────────────────────────────────┐         │
-│  │  GitHub Copilot サーバー                │         │
+│  │  GitHub Copilot Server                  │         │
 │  │  ┌──────────────┐  ┌───────────────┐  │         │
-│  │  │ コンテキスト  │  │ LLMモデル     │  │         │
-│  │  │ 構築エンジン  │─►│ (GPT-4o等)    │  │         │
+│  │  │ Context      │  │ LLM Model     │  │         │
+│  │  │ Build Engine │─►│ (GPT-4o etc.) │  │         │
 │  │  └──────────────┘  └───────┬───────┘  │         │
 │  └────────────────────────────┼──────────┘         │
 │                │              │                     │
-│                │ 候補返却     │                     │
+│                │ Return       │                     │
+│                │ candidates   │                     │
 │                ▼              ▼                     │
 │  ┌────────────────────────────────────────┐         │
-│  │  補完候補（グレーテキスト / Ghost Text）  │         │
-│  │  Tab で受け入れ / Esc で拒否            │         │
+│  │  Completion candidates (Ghost Text)     │         │
+│  │  Tab to accept / Esc to reject          │         │
 │  └────────────────────────────────────────┘         │
 └─────────────────────────────────────────────────────┘
 ```
 
-### 1.2 Copilotの製品ラインナップ
+### 1.2 Copilot Product Lineup
 
 ```
 ┌─────────────────────────────────────────────────┐
-│           GitHub Copilot 製品体系                 │
+│           GitHub Copilot Product Family           │
 │                                                 │
 │  ┌─────────────┐  ┌──────────────┐             │
 │  │ Individual  │  │  Business    │             │
-│  │ $10/月      │  │  $19/月/人   │             │
+│  │ $10/month   │  │  $19/mo/user │             │
 │  │             │  │              │             │
-│  │ ・コード補完 │  │ ・Individual │             │
-│  │ ・チャット   │  │   の全機能   │             │
-│  │ ・CLI       │  │ ・組織管理   │             │
-│  │             │  │ ・ポリシー   │             │
-│  └─────────────┘  │ ・監査ログ   │             │
+│  │ - Code      │  │ - All        │             │
+│  │   completion│  │   Individual │             │
+│  │ - Chat      │  │   features   │             │
+│  │ - CLI       │  │ - Org mgmt   │             │
+│  │             │  │ - Policies   │             │
+│  └─────────────┘  │ - Audit logs │             │
 │                   └──────────────┘             │
 │  ┌──────────────────────────────┐               │
-│  │  Enterprise   $39/月/人      │               │
-│  │  ・Business の全機能          │               │
-│  │  ・Fine-tuning               │               │
-│  │  ・Knowledge Base 連携        │               │
-│  │  ・IP補償                     │               │
+│  │  Enterprise   $39/mo/user    │               │
+│  │  - All Business features     │               │
+│  │  - Fine-tuning               │               │
+│  │  - Knowledge Base integration│               │
+│  │  - IP indemnity              │               │
 │  └──────────────────────────────┘               │
 └─────────────────────────────────────────────────┘
 ```
 
-### 1.3 コンテキスト構築エンジンの内部動作
+### 1.3 Internal Workings of the Context Build Engine
 
-Copilotがどのようにコンテキストを構築してLLMに送信するかを理解することは、補完精度を高めるために不可欠である。
+Understanding how Copilot builds context and sends it to the LLM is essential for improving completion accuracy.
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│          コンテキスト構築の詳細フロー                    │
+│        Detailed Context Build Flow                    │
 │                                                      │
-│  Step 1: ローカル情報の収集                            │
+│  Step 1: Collecting Local Information                │
 │  ┌────────────────────────────────────────┐          │
-│  │ ・現在のファイルの全内容                  │          │
-│  │ ・カーソル位置（行番号、カラム）           │          │
-│  │ ・ファイルパス（言語推定に使用）           │          │
-│  │ ・開いているタブのファイル一覧             │          │
+│  │ - Full content of the current file      │          │
+│  │ - Cursor position (line, column)        │          │
+│  │ - File path (used for language          │          │
+│  │   detection)                            │          │
+│  │ - List of files open in tabs            │          │
 │  └──────────────┬─────────────────────────┘          │
 │                 ▼                                    │
-│  Step 2: コンテキストの優先順位付け                    │
+│  Step 2: Context Prioritization                      │
 │  ┌────────────────────────────────────────┐          │
-│  │ 優先度1: カーソル前後のコード（最大2000行）│          │
-│  │ 優先度2: 同一ファイル内のimport文          │          │
-│  │ 優先度3: 関連ファイル（同名 .test / .d.ts）│          │
-│  │ 優先度4: 開いているタブの内容              │          │
-│  │ 優先度5: 隣接ディレクトリのファイル         │          │
+│  │ Priority 1: Code around cursor         │          │
+│  │             (up to 2000 lines)         │          │
+│  │ Priority 2: Import statements in       │          │
+│  │             the same file              │          │
+│  │ Priority 3: Related files              │          │
+│  │             (same name .test / .d.ts)  │          │
+│  │ Priority 4: Content of open tabs       │          │
+│  │ Priority 5: Files in adjacent          │          │
+│  │             directories               │          │
 │  └──────────────┬─────────────────────────┘          │
 │                 ▼                                    │
-│  Step 3: トークン制限内でのプロンプト構築              │
+│  Step 3: Prompt Construction Within Token Limits     │
 │  ┌────────────────────────────────────────┐          │
-│  │ 総トークン予算: 約8,000トークン          │          │
-│  │ ・Prefix（カーソル前）: 約4,000トークン   │          │
-│  │ ・Suffix（カーソル後）: 約2,000トークン   │          │
-│  │ ・関連ファイル: 約2,000トークン           │          │
+│  │ Total token budget: ~8,000 tokens      │          │
+│  │ - Prefix (before cursor): ~4,000       │          │
+│  │ - Suffix (after cursor): ~2,000        │          │
+│  │ - Related files: ~2,000                │          │
 │  └──────────────┬─────────────────────────┘          │
 │                 ▼                                    │
-│  Step 4: LLM呼出と候補生成                            │
+│  Step 4: LLM Invocation and Candidate Generation     │
 │  ┌────────────────────────────────────────┐          │
-│  │ ・Fill-in-the-Middle (FIM) 形式で送信    │          │
-│  │ ・複数候補を並列生成（通常3候補）         │          │
-│  │ ・post-processingでフィルタリング         │          │
+│  │ - Sent in Fill-in-the-Middle (FIM)     │          │
+│  │   format                               │          │
+│  │ - Multiple candidates generated in     │          │
+│  │   parallel (typically 3)               │          │
+│  │ - Post-processing filtering applied    │          │
 │  └────────────────────────────────────────┘          │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 1.4 Copilot Agentモードのアーキテクチャ
+### 1.4 Copilot Agent Mode Architecture
 
-2025年後半からCopilotに追加されたAgentモードは、従来のインライン補完とは根本的に異なるアーキテクチャを持つ。
+Agent Mode, added to Copilot in late 2025, has a fundamentally different architecture from traditional inline completion.
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│            Copilot Agent Mode アーキテクチャ            │
+│          Copilot Agent Mode Architecture              │
 │                                                      │
 │  ┌────────────────────────────────────────────┐      │
-│  │  ユーザー指示                                │      │
-│  │  "認証機能を実装して、テストも書いて"         │      │
+│  │  User Instruction                           │      │
+│  │  "Implement auth and write tests for it"    │      │
 │  └──────────────┬─────────────────────────────┘      │
 │                 ▼                                    │
 │  ┌────────────────────────────────────────────┐      │
 │  │  Planning Agent                             │      │
 │  │  ┌────────────────────────────────────┐    │      │
-│  │  │ 1. タスクを分解                      │    │      │
-│  │  │ 2. ファイル構成を計画                 │    │      │
-│  │  │ 3. 実行順序を決定                    │    │      │
+│  │  │ 1. Decompose task                  │    │      │
+│  │  │ 2. Plan file structure             │    │      │
+│  │  │ 3. Determine execution order       │    │      │
 │  │  └────────────────────────────────────┘    │      │
 │  └──────────────┬─────────────────────────────┘      │
 │                 ▼                                    │
 │  ┌────────────────────────────────────────────┐      │
 │  │  Execution Agent                            │      │
 │  │  ┌──────────┐ ┌──────────┐ ┌──────────┐  │      │
-│  │  │ ファイル  │ │ コード   │ │ ターミナル│  │      │
-│  │  │ 検索     │ │ 編集     │ │ コマンド  │  │      │
+│  │  │ File     │ │ Code     │ │ Terminal │  │      │
+│  │  │ Search   │ │ Edit     │ │ Commands │  │      │
 │  │  └──────────┘ └──────────┘ └──────────┘  │      │
 │  │  ┌──────────┐ ┌──────────┐               │      │
-│  │  │ テスト   │ │ エラー   │               │      │
-│  │  │ 実行     │ │ 修正     │               │      │
+│  │  │ Test     │ │ Error    │               │      │
+│  │  │ Execution│ │ Fixing   │               │      │
 │  │  └──────────┘ └──────────┘               │      │
 │  └──────────────┬─────────────────────────────┘      │
 │                 ▼                                    │
 │  ┌────────────────────────────────────────────┐      │
-│  │  結果の提示                                  │      │
-│  │  ・変更ファイルの差分プレビュー               │      │
-│  │  ・テスト結果のサマリー                       │      │
-│  │  ・Accept/Reject の選択肢                    │      │
+│  │  Result Presentation                        │      │
+│  │  - Diff preview of changed files            │      │
+│  │  - Test result summary                      │      │
+│  │  - Accept/Reject options                    │      │
 │  └────────────────────────────────────────────┘      │
 └──────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. 最適な設定
+## 2. Optimal Setup
 
-### コード例1: VSCode設定
+### Code Example 1: VSCode Settings
 
 ```jsonc
 // .vscode/settings.json
 {
-  // Copilot基本設定
+  // Copilot basic settings
   "github.copilot.enable": {
     "*": true,
-    "plaintext": false,     // プレーンテキストでは無効
-    "markdown": true,        // Markdownでは有効
+    "plaintext": false,     // Disable for plain text
+    "markdown": true,        // Enable for Markdown
     "yaml": true,
     "json": true
   },
 
-  // インライン補完の表示設定
+  // Inline completion display settings
   "editor.inlineSuggest.enabled": true,
   "editor.inlineSuggest.showToolbar": "onHover",
 
-  // Copilot Chat設定
-  "github.copilot.chat.localeOverride": "ja",  // 日本語で回答
+  // Copilot Chat settings
+  "github.copilot.chat.localeOverride": "ja",  // Respond in Japanese
 
-  // 除外パターン（機密ファイルをCopilotに送信しない）
+  // Exclusion patterns (prevent sending sensitive files to Copilot)
   "github.copilot.advanced": {
     "debug.overrideEngine": "",
-    "inlineSuggest.count": 3  // 候補数
+    "inlineSuggest.count": 3  // Number of candidates
   }
 }
 ```
 
-### コード例2: .copilotignore でファイルを除外
+### Code Example 2: Excluding Files with .copilotignore
 
 ```gitignore
-# .copilotignore - Copilotに送信しないファイル
+# .copilotignore - Files not to send to Copilot
 
-# 機密情報
+# Sensitive information
 .env
 .env.local
 *.pem
 *.key
 credentials/
 
-# 生成ファイル（ノイズになる）
+# Generated files (become noise)
 dist/
 node_modules/
 *.min.js
 
-# ライセンス上の問題があるコード
+# Code with licensing issues
 vendor/proprietary/
 ```
 
-### コード例3: 効果的なコメント駆動補完
+### Code Example 3: Effective Comment-Driven Completion
 
 ```python
-# Copilotの補完精度を高めるコメントの書き方
+# How to write comments that improve Copilot's completion accuracy
 
-# BAD: 曖昧なコメント
-# データを処理する
+# BAD: Vague comment
+# Process data
 def process():
-    pass  # → 何を処理するか不明で、低品質な補完
+    pass  # -> Unclear what to process, resulting in low-quality completion
 
-# GOOD: 具体的な仕様をコメントで記述
-# 売上CSVファイルを読み込み、月別・カテゴリ別に集計する
-# 入力: CSVファイルパス（ヘッダー: date, category, amount）
-# 出力: dict[str, dict[str, float]] = {月: {カテゴリ: 合計}}
-# エラー: FileNotFoundError, csv.Error
+# GOOD: Describe specific requirements in comments
+# Read a sales CSV file and aggregate by month and category
+# Input: CSV file path (headers: date, category, amount)
+# Output: dict[str, dict[str, float]] = {month: {category: total}}
+# Errors: FileNotFoundError, csv.Error
 def aggregate_sales(filepath: str) -> dict[str, dict[str, float]]:
-    # → Copilotが正確な実装を補完
+    # -> Copilot completes with an accurate implementation
     import csv
     from collections import defaultdict
     from datetime import datetime
@@ -254,82 +263,82 @@ def aggregate_sales(filepath: str) -> dict[str, dict[str, float]]:
     return dict(result)
 ```
 
-### コード例4: Copilot Chatの活用
+### Code Example 4: Using Copilot Chat
 
 ```python
-# Copilot Chat (Cmd+I) の効果的な使い方
+# Effective ways to use Copilot Chat (Cmd+I)
 
-# 1. コード説明を求める
-# 選択範囲 → /explain → 日本語で説明が返る
+# 1. Request code explanation
+# Select range -> /explain -> Returns explanation
 
-# 2. テスト生成
-# 関数を選択 → /tests → pytestのテストが生成される
+# 2. Test generation
+# Select function -> /tests -> Generates pytest tests
 
-# 3. リファクタリング
-# コードブロックを選択 → "この関数をリファクタリングして。
-# 単一責任の原則に従い、3つの関数に分割して"
+# 3. Refactoring
+# Select code block -> "Refactor this function.
+# Follow the single responsibility principle and split into 3 functions"
 
-# 4. バグ修正
-# エラーメッセージをペースト → /fix → 修正コードが提案される
+# 4. Bug fixing
+# Paste error message -> /fix -> Fix code is suggested
 
-# 5. ドキュメント生成
-# 関数を選択 → /doc → docstringが生成される
+# 5. Documentation generation
+# Select function -> /doc -> Docstring is generated
 ```
 
-### コード例5: Copilot CLIの活用
+### Code Example 5: Using Copilot CLI
 
 ```bash
-# GitHub Copilot CLI（ターミナル補完）
+# GitHub Copilot CLI (terminal completion)
 
-# コマンドの説明を求める
+# Request command explanation
 gh copilot explain "find . -name '*.py' -exec grep -l 'import os' {} +"
 
-# 自然言語からコマンドを生成
-gh copilot suggest "過去7日間に変更されたPythonファイルを検索"
-# → find . -name "*.py" -mtime -7
+# Generate command from natural language
+gh copilot suggest "Find Python files modified in the last 7 days"
+# -> find . -name "*.py" -mtime -7
 
-# Gitの複雑な操作
-gh copilot suggest "mainブランチとの差分があるファイル一覧を表示"
-# → git diff --name-only main...HEAD
+# Complex Git operations
+gh copilot suggest "Show list of files that differ from the main branch"
+# -> git diff --name-only main...HEAD
 
-# システム管理
-gh copilot suggest "ポート3000を使っているプロセスを見つけて終了"
-# → lsof -ti:3000 | xargs kill -9
+# System administration
+gh copilot suggest "Find and kill the process using port 3000"
+# -> lsof -ti:3000 | xargs kill -9
 ```
 
-### コード例6: JetBrains IDEでのCopilot設定
+### Code Example 6: Copilot Setup in JetBrains IDEs
 
 ```xml
-<!-- JetBrains IDE (IntelliJ IDEA / PyCharm / WebStorm) の設定 -->
-<!-- Settings → Plugins → "GitHub Copilot" をインストール -->
+<!-- JetBrains IDE (IntelliJ IDEA / PyCharm / WebStorm) settings -->
+<!-- Settings -> Plugins -> Install "GitHub Copilot" -->
 
-<!-- Copilotの動作カスタマイズ -->
-<!-- Settings → Languages & Frameworks → GitHub Copilot -->
+<!-- Customize Copilot behavior -->
+<!-- Settings -> Languages & Frameworks -> GitHub Copilot -->
 ```
 
 ```kotlin
-// JetBrains IDEでのCopilot活用例
+// Copilot usage examples in JetBrains IDEs
 
-// 1. コード補完はVSCodeとほぼ同じ操作感
-// Tab: 受け入れ、Esc: 拒否
+// 1. Code completion operates similarly to VSCode
+// Tab: accept, Esc: reject
 
-// 2. JetBrains固有の強み
-// - リファクタリング機能との併用
-//   Copilotで生成 → IntelliJのリファクタリングで整理
+// 2. JetBrains-specific strengths
+// - Combine with refactoring features
+//   Generate with Copilot -> Clean up with IntelliJ refactoring
 
-// 3. Copilot Chatの利用
-// Tool Window → GitHub Copilot Chat
+// 3. Using Copilot Chat
+// Tool Window -> GitHub Copilot Chat
 
-// 実践例: Kotlinでのデータクラス生成
-// コメントで仕様を記述すると、Copilotが補完する
+// Practical example: Generating data classes in Kotlin
+// Describe the spec in comments and Copilot completes it
 
-// ユーザー情報を管理するデータクラス
-// - id: UUID（自動生成）
-// - name: 氏名（1-100文字）
-// - email: メールアドレス（RFC 5322準拠）
-// - role: 権限（ADMIN, EDITOR, VIEWER）
-// - createdAt: 作成日時
-// - updatedAt: 更新日時
+// Data class for managing user information
+// - id: UUID (auto-generated)
+// - name: Full name (1-100 characters)
+// - email: Email address (RFC 5322 compliant)
+// - role: Permission (ADMIN, EDITOR, VIEWER)
+// - createdAt: Creation timestamp
+// - updatedAt: Update timestamp
 
 data class User(
     val id: UUID = UUID.randomUUID(),
@@ -352,44 +361,44 @@ enum class UserRole {
 }
 ```
 
-### コード例7: Neovimでのcopilot.vim設定
+### Code Example 7: copilot.vim Setup for Neovim
 
 ```lua
--- Neovim の init.lua でCopilot設定
+-- Copilot setup in Neovim's init.lua
 
--- copilot.vimプラグインのインストール（lazy.nvim使用）
+-- Install copilot.vim plugin (using lazy.nvim)
 return {
   {
     "github/copilot.vim",
     event = "InsertEnter",
     config = function()
-      -- 補完の有効/無効を言語別に設定
+      -- Enable/disable completion per language
       vim.g.copilot_filetypes = {
         ["*"] = true,
         ["markdown"] = true,
         ["yaml"] = true,
         ["json"] = true,
-        ["plaintext"] = false,  -- プレーンテキストでは無効
+        ["plaintext"] = false,  -- Disable for plain text
       }
 
-      -- キーマッピングのカスタマイズ
+      -- Customize key mappings
       vim.g.copilot_no_tab_map = true
       vim.keymap.set("i", "<C-J>", 'copilot#Accept("\\<CR>")', {
         expr = true,
         replace_keycodes = false,
       })
-      vim.keymap.set("i", "<C-]>", "<Plug>(copilot-next)")     -- 次の候補
-      vim.keymap.set("i", "<C-[>", "<Plug>(copilot-previous)") -- 前の候補
-      vim.keymap.set("i", "<C-\\>", "<Plug>(copilot-dismiss)") -- 拒否
+      vim.keymap.set("i", "<C-]>", "<Plug>(copilot-next)")     -- Next candidate
+      vim.keymap.set("i", "<C-[>", "<Plug>(copilot-previous)") -- Previous candidate
+      vim.keymap.set("i", "<C-\\>", "<Plug>(copilot-dismiss)") -- Dismiss
 
-      -- 除外ディレクトリの設定
+      -- Excluded directory settings
       vim.g.copilot_workspace_folders = {
         vim.fn.expand("~/projects/current-project"),
       }
     end,
   },
 
-  -- copilot-cmp（nvim-cmpとの統合）
+  -- copilot-cmp (integration with nvim-cmp)
   {
     "zbirenbaum/copilot-cmp",
     dependencies = { "zbirenbaum/copilot.lua" },
@@ -405,58 +414,58 @@ return {
 
 ---
 
-## 3. 制限事項と対処法
+## 3. Limitations and Workarounds
 
-### 3.1 Copilotの得意・不得意
+### 3.1 Copilot's Strengths and Weaknesses
 
-| 得意な領域 | 不得意な領域 |
-|-----------|-------------|
-| 定型的なCRUD操作 | 複雑なビジネスロジック |
-| 標準ライブラリの使用 | ドメイン固有の処理 |
-| テストコードの生成 | セキュリティクリティカルな実装 |
-| ドキュメントコメント | マルチファイルの大規模リファクタリング |
-| 正規表現の作成 | プロジェクト全体のアーキテクチャ設計 |
-| データ変換ロジック | 社内独自フレームワークの利用 |
+| Strengths | Weaknesses |
+|-----------|------------|
+| Boilerplate CRUD operations | Complex business logic |
+| Standard library usage | Domain-specific processing |
+| Test code generation | Security-critical implementations |
+| Documentation comments | Large-scale multi-file refactoring |
+| Regex creation | Project-wide architecture design |
+| Data transformation logic | In-house proprietary framework usage |
 
-### 3.2 補完品質の比較（言語別）
+### 3.2 Completion Quality Comparison (By Language)
 
-| 言語 | 補完精度 | 理由 |
-|------|---------|------|
-| Python | 非常に高い | 学習データが豊富、コミュニティが大きい |
-| TypeScript | 非常に高い | 型情報がコンテキストとして有効 |
-| Java | 高い | 定型パターンが多く予測しやすい |
-| Rust | 中程度 | 所有権システムの理解が完全ではない |
-| Haskell | 中程度 | 関数型パターンの学習データが少ない |
-| COBOL | 低い | 学習データが限定的 |
+| Language | Completion Accuracy | Reason |
+|----------|-------------------|--------|
+| Python | Very high | Abundant training data, large community |
+| TypeScript | Very high | Type information is effective as context |
+| Java | High | Many boilerplate patterns make prediction easy |
+| Rust | Moderate | Ownership system not fully understood |
+| Haskell | Moderate | Less training data for functional patterns |
+| COBOL | Low | Limited training data |
 
-### 3.3 フレームワーク別の補完品質
+### 3.3 Completion Quality by Framework
 
-| フレームワーク | 補完精度 | 得意なパターン | 注意点 |
-|--------------|---------|-------------|--------|
-| React | 非常に高い | コンポーネント定義、hooks | 最新のServer Componentsは精度低下 |
-| Next.js | 高い | ルーティング、API Routes | App Router vs Pages Routerの混同 |
-| Django | 非常に高い | モデル定義、ビュー、フォーム | カスタムミドルウェアは精度低下 |
-| FastAPI | 高い | エンドポイント定義、Pydanticモデル | 複雑なDependency Injectionは弱い |
-| Spring Boot | 高い | Controller、Service、Repository | AOP設定の補完精度は中程度 |
-| Ruby on Rails | 高い | MVC全般、マイグレーション | metaprogrammingパターンは弱い |
-| Flutter | 中程度 | Widget定義、State管理 | カスタムRenderObjectは弱い |
-| SwiftUI | 中程度 | ビュー定義、修飾子 | 複雑なアニメーションは弱い |
+| Framework | Completion Accuracy | Strong Patterns | Notes |
+|-----------|-------------------|-----------------|-------|
+| React | Very high | Component definitions, hooks | Accuracy drops for latest Server Components |
+| Next.js | High | Routing, API Routes | Confuses App Router vs Pages Router |
+| Django | Very high | Model definitions, views, forms | Accuracy drops for custom middleware |
+| FastAPI | High | Endpoint definitions, Pydantic models | Weak with complex Dependency Injection |
+| Spring Boot | High | Controller, Service, Repository | Moderate accuracy for AOP configuration |
+| Ruby on Rails | High | MVC overall, migrations | Weak with metaprogramming patterns |
+| Flutter | Moderate | Widget definitions, State management | Weak with custom RenderObject |
+| SwiftUI | Moderate | View definitions, modifiers | Weak with complex animations |
 
-### 3.4 制限への具体的な対処法
+### 3.4 Specific Workarounds for Limitations
 
 ```python
-# 制限1: 古いAPIバージョンのコードを生成する問題
-# 対処: コメントでバージョンを明示する
+# Limitation 1: Generates code for outdated API versions
+# Workaround: Explicitly specify the version in comments
 
-# GOOD: バージョンを明示
-# Python 3.12, FastAPI 0.109, Pydantic v2 を使用
-from pydantic import BaseModel, field_validator  # v2のAPIを指定
+# GOOD: Specify the version explicitly
+# Using Python 3.12, FastAPI 0.109, Pydantic v2
+from pydantic import BaseModel, field_validator  # Specify v2 API
 
 class UserCreate(BaseModel):
     name: str
     email: str
 
-    # Pydantic v2の書き方を明示
+    # Explicitly use Pydantic v2 syntax
     @field_validator("email")
     @classmethod
     def validate_email(cls, v: str) -> str:
@@ -464,67 +473,67 @@ class UserCreate(BaseModel):
             raise ValueError("Invalid email")
         return v
 
-# 制限2: プロジェクト固有の命名規則を知らない問題
-# 対処: 同一ファイル内に例を示す
+# Limitation 2: Doesn't know project-specific naming conventions
+# Workaround: Provide examples in the same file
 
-# プロジェクトの命名規則:
-# - サービス名: XxxService（例: OrderService, PaymentService）
-# - リポジトリ名: XxxRepository（例: OrderRepository）
-# - DTOクラス名: XxxDto（例: OrderDto, OrderCreateDto）
+# Project naming conventions:
+# - Service names: XxxService (e.g., OrderService, PaymentService)
+# - Repository names: XxxRepository (e.g., OrderRepository)
+# - DTO class names: XxxDto (e.g., OrderDto, OrderCreateDto)
 
 class OrderService:
-    """注文関連のビジネスロジック"""
+    """Business logic for orders"""
     def __init__(self, order_repo: OrderRepository):
         self.order_repo = order_repo
 
-    # → 以降のメソッド補完では命名規則が反映される
+    # -> Subsequent method completions will follow the naming conventions
 
-# 制限3: ビジネスロジックの文脈を理解できない問題
-# 対処: ドメイン用語をコメントで定義する
+# Limitation 3: Cannot understand business logic context
+# Workaround: Define domain terms in comments
 
-# ドメイン用語:
-# - SKU: Stock Keeping Unit（在庫管理単位）
-# - MOQ: Minimum Order Quantity（最小発注数量）
-# - Lead Time: 発注から納品までの日数
-# - Safety Stock: 安全在庫（需要変動のバッファ）
+# Domain terminology:
+# - SKU: Stock Keeping Unit
+# - MOQ: Minimum Order Quantity
+# - Lead Time: Days from order to delivery
+# - Safety Stock: Buffer inventory for demand fluctuations
 
 def calculate_reorder_point(
     average_daily_demand: float,
     lead_time_days: int,
     safety_stock: int
 ) -> int:
-    """再発注点の計算（ROP = 平均日次需要 × リードタイム + 安全在庫）"""
+    """Calculate reorder point (ROP = average daily demand x lead time + safety stock)"""
     return int(average_daily_demand * lead_time_days) + safety_stock
 ```
 
-### 3.5 セキュリティリスクと対策
+### 3.5 Security Risks and Countermeasures
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│         Copilot セキュリティリスクマトリクス                │
+│           Copilot Security Risk Matrix                    │
 │                                                          │
-│  リスク              影響度    発生頻度    対策            │
+│  Risk                Impact  Frequency  Countermeasure   │
 │  ─────────────────────────────────────────────────       │
-│  機密情報の漏洩        高       中        .copilotignore │
-│  脆弱なコードの生成    中       高        レビュー必須    │
-│  ライセンス違反        中       低        public code    │
-│                                         filter有効化    │
-│  古いAPIの使用         低       高        バージョン明示  │
-│  意図しないデータ送信  中       中        ネットワーク     │
-│                                         ポリシー設定    │
+│  Sensitive data leak   High    Medium   .copilotignore   │
+│  Vulnerable code gen   Med     High     Review required  │
+│  License violation     Med     Low      Enable public    │
+│                                        code filter      │
+│  Outdated API usage    Low     High     Specify version  │
+│  Unintended data       Med     Medium   Network policy   │
+│  transmission                          configuration    │
 │                                                          │
-│  セキュリティチェックリスト:                               │
-│  □ .copilotignore が設定されている                        │
-│  □ public code filter が有効                             │
-│  □ 組織のセキュリティポリシーに準拠                        │
-│  □ 生成コードのセキュリティレビュープロセスがある           │
-│  □ 機密リポジトリでのCopilot使用ポリシーが定義済み         │
-│  □ SOC2/ISO27001要件との整合性を確認済み                  │
+│  Security checklist:                                     │
+│  [ ] .copilotignore is configured                        │
+│  [ ] Public code filter is enabled                       │
+│  [ ] Compliant with organization security policies       │
+│  [ ] Security review process for generated code exists   │
+│  [ ] Copilot usage policy for sensitive repos defined    │
+│  [ ] SOC2/ISO27001 compliance verified                   │
 └──────────────────────────────────────────────────────────┘
 ```
 
 ```python
-# セキュリティ観点でCopilotの生成コードを検証するチェッカー
+# Checker to validate Copilot-generated code from a security perspective
 
 import ast
 import re
@@ -550,70 +559,70 @@ class SecurityFinding:
 
 
 class CopilotSecurityChecker:
-    """Copilotが生成したコードのセキュリティ問題を検出する"""
+    """Detects security issues in Copilot-generated code"""
 
-    # 危険なパターン定義
+    # Dangerous pattern definitions
     DANGEROUS_PATTERNS = [
         {
             "pattern": r"eval\(",
             "severity": Severity.CRITICAL,
             "category": "injection",
-            "message": "eval()の使用は任意コード実行の脆弱性を生む",
-            "suggestion": "ast.literal_eval()またはjson.loads()を使用する",
+            "message": "Using eval() creates arbitrary code execution vulnerability",
+            "suggestion": "Use ast.literal_eval() or json.loads() instead",
         },
         {
             "pattern": r"exec\(",
             "severity": Severity.CRITICAL,
             "category": "injection",
-            "message": "exec()の使用は任意コード実行の脆弱性を生む",
-            "suggestion": "安全な代替手段を検討する",
+            "message": "Using exec() creates arbitrary code execution vulnerability",
+            "suggestion": "Consider safe alternatives",
         },
         {
             "pattern": r"subprocess\.call\(.*, shell=True",
             "severity": Severity.HIGH,
             "category": "injection",
-            "message": "shell=Trueはコマンドインジェクションのリスク",
-            "suggestion": "shell=Falseでリスト形式の引数を使用する",
+            "message": "shell=True poses command injection risk",
+            "suggestion": "Use shell=False with list-form arguments",
         },
         {
             "pattern": r"pickle\.loads?\(",
             "severity": Severity.HIGH,
             "category": "deserialization",
-            "message": "pickleの読み込みは任意コード実行の脆弱性を生む",
-            "suggestion": "json形式などの安全なシリアライゼーションを使用する",
+            "message": "Loading pickle creates arbitrary code execution vulnerability",
+            "suggestion": "Use safe serialization formats such as JSON",
         },
         {
             "pattern": r"password\s*=\s*['\"][^'\"]+['\"]",
             "severity": Severity.CRITICAL,
             "category": "hardcoded_secret",
-            "message": "パスワードがハードコードされている",
-            "suggestion": "環境変数またはシークレット管理サービスを使用する",
+            "message": "Password is hardcoded",
+            "suggestion": "Use environment variables or a secret management service",
         },
         {
             "pattern": r"(api_key|secret_key|token)\s*=\s*['\"][^'\"]+['\"]",
             "severity": Severity.CRITICAL,
             "category": "hardcoded_secret",
-            "message": "APIキーまたはシークレットがハードコードされている",
-            "suggestion": "環境変数またはシークレット管理サービスを使用する",
+            "message": "API key or secret is hardcoded",
+            "suggestion": "Use environment variables or a secret management service",
         },
         {
             "pattern": r"verify\s*=\s*False",
             "severity": Severity.MEDIUM,
             "category": "ssl",
-            "message": "SSL証明書の検証が無効化されている",
-            "suggestion": "本番環境では必ずverify=Trueにする",
+            "message": "SSL certificate verification is disabled",
+            "suggestion": "Always set verify=True in production environments",
         },
         {
             "pattern": r"md5\(|sha1\(",
             "severity": Severity.MEDIUM,
             "category": "crypto",
-            "message": "弱いハッシュアルゴリズムの使用",
-            "suggestion": "SHA-256以上のアルゴリズムを使用する",
+            "message": "Using weak hash algorithm",
+            "suggestion": "Use SHA-256 or stronger algorithms",
         },
     ]
 
     def check_code(self, code: str) -> list[SecurityFinding]:
-        """コードをスキャンしてセキュリティ問題を検出する"""
+        """Scan code and detect security issues"""
         findings: list[SecurityFinding] = []
 
         for line_num, line in enumerate(code.split("\n"), 1):
@@ -630,14 +639,14 @@ class CopilotSecurityChecker:
         return findings
 
     def generate_report(self, findings: list[SecurityFinding]) -> str:
-        """検出結果のレポートを生成する"""
+        """Generate a report of detected issues"""
         if not findings:
-            return "セキュリティ問題は検出されませんでした。"
+            return "No security issues detected."
 
-        report_lines = ["## セキュリティスキャン結果\n"]
-        report_lines.append(f"検出数: {len(findings)}\n")
+        report_lines = ["## Security Scan Results\n"]
+        report_lines.append(f"Issues found: {len(findings)}\n")
 
-        # 重大度別にグループ化
+        # Group by severity
         by_severity = {}
         for f in findings:
             by_severity.setdefault(f.severity.value, []).append(f)
@@ -649,12 +658,12 @@ class CopilotSecurityChecker:
                     report_lines.append(
                         f"- L{finding.line_number}: {finding.message}"
                     )
-                    report_lines.append(f"  修正案: {finding.suggestion}")
+                    report_lines.append(f"  Fix: {finding.suggestion}")
 
         return "\n".join(report_lines)
 
 
-# 使用例
+# Usage example
 checker = CopilotSecurityChecker()
 code_to_check = '''
 import subprocess
@@ -667,39 +676,42 @@ print(checker.generate_report(findings))
 
 ---
 
-## 4. 補完精度を高めるテクニック
+## 4. Techniques to Improve Completion Accuracy
 
-### テクニック図解
+### Technique Illustration
 
 ```
 ┌─────────────────────────────────────────────────┐
-│         Copilot 補完精度向上テクニック             │
+│     Copilot Completion Accuracy Techniques        │
 │                                                 │
-│  1. ファイル名を明確に                            │
-│     ✗ utils.py                                  │
-│     ✓ order_cancellation_service.py             │
+│  1. Use clear file names                         │
+│     x utils.py                                  │
+│     o order_cancellation_service.py             │
 │                                                 │
-│  2. 関連ファイルを開いておく                      │
-│     タブで開いているファイル = コンテキスト         │
-│     → モデル定義ファイルを開くと補完精度UP         │
+│  2. Keep related files open                      │
+│     Files open in tabs = context                │
+│     -> Opening model definition files            │
+│        improves completion accuracy              │
 │                                                 │
-│  3. 型ヒント / JSDocを先に書く                    │
-│     型情報 → 補完の制約 → 精度向上               │
+│  3. Write type hints / JSDoc first               │
+│     Type info -> constrains completion           │
+│     -> accuracy improves                         │
 │                                                 │
-│  4. テストファイルで実装の意図を示す              │
-│     テストを先に書く → 実装ファイルの補完が向上    │
+│  4. Show intent through test files               │
+│     Write tests first -> improves completion     │
+│     in the implementation file                   │
 │                                                 │
-│  5. 段階的に補完を受け入れる                      │
-│     Ctrl+→ で単語単位の部分受け入れ              │
+│  5. Accept completions incrementally             │
+│     Ctrl+Right for word-by-word partial accept   │
 └─────────────────────────────────────────────────┘
 ```
 
-### 4.1 テスト駆動でCopilotの精度を上げる
+### 4.1 Improving Accuracy with Test-Driven Development
 
 ```python
-# テストを先に書くことでCopilotの補完精度を飛躍的に向上させる
+# Dramatically improve Copilot's completion accuracy by writing tests first
 
-# Step 1: テストファイルを先に作成（test_order_service.py）
+# Step 1: Create the test file first (test_order_service.py)
 import pytest
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -709,10 +721,10 @@ from app.models.order import Order, OrderStatus, OrderItem
 
 
 class TestOrderService:
-    """OrderServiceのテスト"""
+    """Tests for OrderService"""
 
     def test_create_order_with_valid_items(self):
-        """有効なアイテムで注文を作成できる"""
+        """Can create an order with valid items"""
         service = OrderService()
         items = [
             OrderItem(product_id="PROD-001", quantity=2, unit_price=Decimal("1500")),
@@ -723,13 +735,13 @@ class TestOrderService:
         assert order.total == Decimal("6000")
 
     def test_create_order_with_empty_items_raises_error(self):
-        """空のアイテムリストでは注文できない"""
+        """Cannot create an order with an empty item list"""
         service = OrderService()
         with pytest.raises(ValueError, match="At least one item is required"):
             service.create_order(customer_id="CUST-001", items=[])
 
     def test_cancel_order_within_grace_period(self):
-        """猶予期間内のキャンセルは返金される"""
+        """Cancellation within grace period results in a refund"""
         service = OrderService()
         order = service.create_order(
             customer_id="CUST-001",
@@ -740,7 +752,7 @@ class TestOrderService:
         assert result.refund_amount == Decimal("1000")
 
     def test_cancel_shipped_order_raises_error(self):
-        """出荷済み注文はキャンセルできない"""
+        """Cannot cancel a shipped order"""
         service = OrderService()
         order = service.create_order(
             customer_id="CUST-001",
@@ -751,17 +763,17 @@ class TestOrderService:
             service.cancel_order(order.id, reason="customer_request")
 
 
-# Step 2: 実装ファイルに移動（order_service.py）
-# → テストファイルがタブで開いているため、
-#   Copilotはテストの仕様を参考にして正確に実装を補完する
+# Step 2: Switch to the implementation file (order_service.py)
+# -> Since the test file is open in a tab,
+#    Copilot references the test specs to accurately complete the implementation
 ```
 
-### 4.2 型ヒントによる精度向上
+### 4.2 Improving Accuracy with Type Hints
 
 ```typescript
-// TypeScriptの型定義を先に書くとCopilotの精度が劇的に向上する
+// Writing TypeScript type definitions first dramatically improves Copilot accuracy
 
-// Step 1: 型定義ファイルを作成（types/order.ts）
+// Step 1: Create the type definition file (types/order.ts)
 export interface Order {
   id: string;
   customerId: string;
@@ -808,65 +820,66 @@ export interface OrderSummary {
   statusBreakdown: Record<OrderStatus, number>;
 }
 
-// Step 2: サービスファイルに移動
-// → 型定義ファイルが開いているため、Copilotは
-//   CreateOrderRequestの構造に沿った実装を正確に補完する
+// Step 2: Switch to the service file
+// -> Since the type definition file is open, Copilot
+//    accurately completes the implementation following the CreateOrderRequest structure
 ```
 
-### 4.3 コンテキストウィンドウの効果的な活用
+### 4.3 Effective Use of the Context Window
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│       コンテキスト最適化のための開くべきファイル戦略        │
+│     Files to Open for Optimal Context Strategy            │
 │                                                          │
-│  タスク              開いておくべきファイル                │
+│  Task                Files to keep open                  │
 │  ─────────────────────────────────────────────────       │
-│  新しいAPI実装       ┌─────────────────────────┐         │
-│                     │ 1. 既存の類似APIファイル   │         │
-│                     │ 2. リクエスト/レスポンス型 │         │
-│                     │ 3. ルーティング設定       │         │
-│                     │ 4. テストファイル         │         │
+│  New API             ┌─────────────────────────┐         │
+│  implementation      │ 1. Existing similar API  │         │
+│                     │ 2. Request/response types │         │
+│                     │ 3. Routing config         │         │
+│                     │ 4. Test file              │         │
 │                     └─────────────────────────┘         │
 │                                                          │
-│  DB操作追加          ┌─────────────────────────┐         │
-│                     │ 1. スキーマ定義           │         │
-│                     │ 2. 既存リポジトリ         │         │
-│                     │ 3. マイグレーションファイル │         │
+│  Adding DB           ┌─────────────────────────┐         │
+│  operations          │ 1. Schema definition     │         │
+│                     │ 2. Existing repository    │         │
+│                     │ 3. Migration file         │         │
 │                     └─────────────────────────┘         │
 │                                                          │
-│  テスト作成          ┌─────────────────────────┐         │
-│                     │ 1. テスト対象ファイル      │         │
-│                     │ 2. 既存テスト（同ディレクトリ）│     │
-│                     │ 3. テストヘルパー/フィクスチャ│     │
-│                     │ 4. 型定義ファイル          │         │
+│  Writing tests       ┌─────────────────────────┐         │
+│                     │ 1. Target file            │         │
+│                     │ 2. Existing tests         │         │
+│                     │    (same directory)       │         │
+│                     │ 3. Test helpers/fixtures  │         │
+│                     │ 4. Type definition file   │         │
 │                     └─────────────────────────┘         │
 │                                                          │
-│  フロントエンド       ┌─────────────────────────┐         │
-│  コンポーネント作成   │ 1. 類似コンポーネント     │         │
-│                     │ 2. 共通UIコンポーネント    │         │
-│                     │ 3. APIクライアント         │         │
-│                     │ 4. スタイル変数/テーマ     │         │
+│  Frontend            ┌─────────────────────────┐         │
+│  component           │ 1. Similar component     │         │
+│  creation            │ 2. Shared UI components  │         │
+│                     │ 3. API client             │         │
+│                     │ 4. Style variables/theme  │         │
 │                     └─────────────────────────┘         │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 4.4 プロンプトエンジニアリングテクニック
+### 4.4 Prompt Engineering Techniques
 
 ```python
-# Copilotの補完を最大限活用するプロンプトテクニック集
+# Prompt technique collection to maximize Copilot completions
 
-# テクニック1: 段階的詳細化（Progressive Refinement）
-# まず大枠のコメントを書き、徐々に詳細化する
+# Technique 1: Progressive Refinement
+# First write a high-level comment, then progressively add detail
 
-# === バッチ処理エンジン ===
-# 目的: 大量のデータを効率的に処理する
-# 要件:
-#   - 入力: ジェネレータ（メモリ効率を考慮）
-#   - バッチサイズ: 設定可能（デフォルト100件）
-#   - エラーハンドリング: 個別エラーはスキップしてログ記録
-#   - リトライ: 指数バックオフで最大3回
-#   - 進捗報告: コールバック関数で通知
-#   - 並行処理: asyncioベースで最大同時実行数を制限
+# === Batch Processing Engine ===
+# Purpose: Efficiently process large volumes of data
+# Requirements:
+#   - Input: Generator (for memory efficiency)
+#   - Batch size: Configurable (default 100 items)
+#   - Error handling: Skip individual errors and log them
+#   - Retry: Exponential backoff with max 3 retries
+#   - Progress reporting: Notify via callback function
+#   - Concurrency: asyncio-based with max concurrent execution limit
 
 import asyncio
 import logging
@@ -881,7 +894,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class BatchConfig:
-    """バッチ処理の設定"""
+    """Batch processing configuration"""
     batch_size: int = 100
     max_retries: int = 3
     max_concurrency: int = 10
@@ -891,7 +904,7 @@ class BatchConfig:
 
 @dataclass
 class BatchResult(Generic[R]):
-    """バッチ処理の結果"""
+    """Batch processing result"""
     successful: list[R] = field(default_factory=list)
     failed: list[tuple[Exception, T]] = field(default_factory=list)
     total_processed: int = 0
@@ -900,9 +913,9 @@ class BatchResult(Generic[R]):
 
 class BatchProcessor(Generic[T, R]):
     """
-    大量データの非同期バッチ処理エンジン。
+    Async batch processing engine for large data volumes.
 
-    使用例:
+    Usage:
         processor = BatchProcessor(
             process_fn=send_email,
             config=BatchConfig(batch_size=50, max_concurrency=5)
@@ -922,7 +935,7 @@ class BatchProcessor(Generic[T, R]):
         self._semaphore = asyncio.Semaphore(self.config.max_concurrency)
 
     async def _process_with_retry(self, item: T) -> R:
-        """リトライ付きで単一アイテムを処理する"""
+        """Process a single item with retry"""
         last_error: Exception | None = None
         for attempt in range(self.config.max_retries):
             try:
@@ -944,7 +957,7 @@ class BatchProcessor(Generic[T, R]):
         raise last_error
 
     async def run(self, items: AsyncGenerator[T, None] | list[T]) -> BatchResult[R]:
-        """バッチ処理を実行する"""
+        """Execute batch processing"""
         result = BatchResult()
         batch: list[T] = []
 
@@ -978,52 +991,55 @@ class BatchProcessor(Generic[T, R]):
 
 ---
 
-## 5. チーム導入ガイド
+## 5. Team Adoption Guide
 
-### 5.1 導入フェーズと計画
+### 5.1 Adoption Phases and Planning
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│            Copilot チーム導入ロードマップ                   │
+│           Copilot Team Adoption Roadmap                   │
 │                                                          │
-│  Phase 1: パイロット（2週間）                              │
+│  Phase 1: Pilot (2 weeks)                                │
 │  ┌────────────────────────────────────────────┐          │
-│  │ ・3-5名のアーリーアダプターを選定            │          │
-│  │ ・Individual プランで試用開始               │          │
-│  │ ・週次で使用感をフィードバック               │          │
-│  │ ・セキュリティチェックリストの作成            │          │
+│  │ - Select 3-5 early adopters               │          │
+│  │ - Start trial with Individual plan        │          │
+│  │ - Weekly feedback on usage experience     │          │
+│  │ - Create security checklist               │          │
 │  └────────────────────────────────────────────┘          │
 │                    ▼                                     │
-│  Phase 2: 評価（2週間）                                   │
+│  Phase 2: Evaluation (2 weeks)                           │
 │  ┌────────────────────────────────────────────┐          │
-│  │ ・定量指標の計測（補完受入率、開発速度）      │          │
-│  │ ・定性フィードバック収集                     │          │
-│  │ ・.copilotignore の標準化                   │          │
-│  │ ・ガイドラインの策定                        │          │
+│  │ - Measure quantitative metrics            │          │
+│  │   (acceptance rate, development speed)    │          │
+│  │ - Collect qualitative feedback            │          │
+│  │ - Standardize .copilotignore              │          │
+│  │ - Develop guidelines                      │          │
 │  └────────────────────────────────────────────┘          │
 │                    ▼                                     │
-│  Phase 3: 拡大展開（1ヶ月）                               │
+│  Phase 3: Expanded Rollout (1 month)                     │
 │  ┌────────────────────────────────────────────┐          │
-│  │ ・Business プランに移行                     │          │
-│  │ ・全開発チームへ展開                        │          │
-│  │ ・トレーニングセッション実施                 │          │
-│  │ ・コーディング規約の更新（Copilot考慮）      │          │
+│  │ - Migrate to Business plan                │          │
+│  │ - Deploy to all development teams         │          │
+│  │ - Conduct training sessions               │          │
+│  │ - Update coding standards                 │          │
+│  │   (accounting for Copilot)               │          │
 │  └────────────────────────────────────────────┘          │
 │                    ▼                                     │
-│  Phase 4: 最適化（継続）                                  │
+│  Phase 4: Optimization (ongoing)                         │
 │  ┌────────────────────────────────────────────┐          │
-│  │ ・月次で効果測定レポートを作成               │          │
-│  │ ・ベストプラクティスのナレッジベース構築      │          │
-│  │ ・Enterprise検討（Knowledge Base活用）      │          │
-│  │ ・CI/CDパイプラインとの統合                  │          │
+│  │ - Produce monthly effectiveness reports   │          │
+│  │ - Build best practices knowledge base     │          │
+│  │ - Consider Enterprise                     │          │
+│  │   (Knowledge Base integration)           │          │
+│  │ - Integrate with CI/CD pipeline           │          │
 │  └────────────────────────────────────────────┘          │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 5.2 効果測定フレームワーク
+### 5.2 Effectiveness Measurement Framework
 
 ```python
-# Copilot導入効果の測定スクリプト
+# Script for measuring Copilot adoption effectiveness
 
 import json
 from dataclasses import dataclass, asdict
@@ -1033,48 +1049,48 @@ from typing import Optional
 
 @dataclass
 class CopilotMetrics:
-    """Copilot利用メトリクス"""
+    """Copilot usage metrics"""
     date: date
     developer_id: str
 
-    # 補完関連
-    suggestions_shown: int = 0      # 表示された補完候補数
-    suggestions_accepted: int = 0    # 受け入れた補完候補数
-    characters_accepted: int = 0     # 受け入れた文字数
+    # Completion-related
+    suggestions_shown: int = 0      # Number of suggestions shown
+    suggestions_accepted: int = 0    # Number of suggestions accepted
+    characters_accepted: int = 0     # Number of characters accepted
 
-    # 生産性関連
-    lines_of_code_written: int = 0   # 書いたコード行数
-    pull_requests_created: int = 0   # 作成したPR数
-    time_to_first_commit: float = 0  # 最初のコミットまでの時間（分）
+    # Productivity-related
+    lines_of_code_written: int = 0   # Lines of code written
+    pull_requests_created: int = 0   # Number of PRs created
+    time_to_first_commit: float = 0  # Time to first commit (minutes)
 
-    # 品質関連
-    bugs_introduced: int = 0         # 導入したバグ数
-    code_review_iterations: int = 0  # コードレビューの往復回数
-    test_coverage_change: float = 0  # テストカバレッジの変化
+    # Quality-related
+    bugs_introduced: int = 0         # Number of bugs introduced
+    code_review_iterations: int = 0  # Number of code review round-trips
+    test_coverage_change: float = 0  # Change in test coverage
 
     @property
     def acceptance_rate(self) -> float:
-        """補完受入率"""
+        """Completion acceptance rate"""
         if self.suggestions_shown == 0:
             return 0.0
         return self.suggestions_accepted / self.suggestions_shown * 100
 
     @property
     def productivity_score(self) -> float:
-        """総合生産性スコア（0-100）"""
-        # 加重平均で算出
+        """Overall productivity score (0-100)"""
+        # Calculated as weighted average
         scores = {
-            "acceptance_rate": min(self.acceptance_rate / 40 * 30, 30),  # 最大30点
-            "code_volume": min(self.lines_of_code_written / 200 * 20, 20),  # 最大20点
-            "pr_velocity": min(self.pull_requests_created / 3 * 20, 20),  # 最大20点
+            "acceptance_rate": min(self.acceptance_rate / 40 * 30, 30),  # Max 30 points
+            "code_volume": min(self.lines_of_code_written / 200 * 20, 20),  # Max 20 points
+            "pr_velocity": min(self.pull_requests_created / 3 * 20, 20),  # Max 20 points
             "quality": max(0, 30 - self.bugs_introduced * 10 -
-                          self.code_review_iterations * 5),  # 最大30点
+                          self.code_review_iterations * 5),  # Max 30 points
         }
         return sum(scores.values())
 
 
 class CopilotDashboard:
-    """チーム全体のCopilot利用状況ダッシュボード"""
+    """Dashboard for team-wide Copilot usage"""
 
     def __init__(self):
         self.metrics_history: list[CopilotMetrics] = []
@@ -1083,7 +1099,7 @@ class CopilotDashboard:
         self.metrics_history.append(metrics)
 
     def team_summary(self) -> dict:
-        """チーム全体のサマリーを返す"""
+        """Return team-wide summary"""
         if not self.metrics_history:
             return {"error": "No data available"}
 
@@ -1115,116 +1131,116 @@ class CopilotDashboard:
         }
 
     def generate_report(self) -> str:
-        """レポートを生成する"""
+        """Generate a report"""
         summary = self.team_summary()
         report = f"""
-## Copilot 利用レポート
+## Copilot Usage Report
 
-### 期間
-{summary.get('period', {}).get('start', 'N/A')} 〜 {summary.get('period', {}).get('end', 'N/A')}
+### Period
+{summary.get('period', {}).get('start', 'N/A')} to {summary.get('period', {}).get('end', 'N/A')}
 
-### チーム概要
-- チーム人数: {summary.get('team_size', 0)}名
-- 補完候補表示数: {summary.get('total_suggestions_shown', 0):,}
-- 補完受入数: {summary.get('total_suggestions_accepted', 0):,}
-- 平均受入率: {summary.get('average_acceptance_rate', 0)}%
-- 平均生産性スコア: {summary.get('average_productivity_score', 0)}/100
-- 受入文字数: {summary.get('total_characters_accepted', 0):,}
-- 推定節約時間: {summary.get('estimated_time_saved_hours', 0)}時間
+### Team Overview
+- Team size: {summary.get('team_size', 0)} members
+- Suggestions shown: {summary.get('total_suggestions_shown', 0):,}
+- Suggestions accepted: {summary.get('total_suggestions_accepted', 0):,}
+- Average acceptance rate: {summary.get('average_acceptance_rate', 0)}%
+- Average productivity score: {summary.get('average_productivity_score', 0)}/100
+- Characters accepted: {summary.get('total_characters_accepted', 0):,}
+- Estimated time saved: {summary.get('estimated_time_saved_hours', 0)} hours
 
-### 評価
-受入率の目標は25-35%が健全な範囲。
-これ以上高い場合はコードレビューの厳密化を検討。
-これ以下の場合はコンテキスト改善やトレーニングが必要。
+### Assessment
+A healthy acceptance rate target is 25-35%.
+If higher, consider stricter code reviews.
+If lower, context improvement or training is needed.
 """
         return report
 ```
 
-### 5.3 組織ポリシーテンプレート
+### 5.3 Organization Policy Template
 
 ```markdown
-# GitHub Copilot 利用ポリシー
+# GitHub Copilot Usage Policy
 
-## 1. 利用対象者
-- 正社員の開発者全員（契約社員は要個別承認）
-- QAエンジニア、SREも利用可能
+## 1. Eligible Users
+- All full-time developers (contractors require individual approval)
+- QA engineers and SREs are also eligible
 
-## 2. 利用禁止事項
-- [ ] 機密情報（顧客データ、認証情報）を含むファイルでの使用
-- [ ] セキュリティクリティカルな暗号化・認証コードの無検証での使用
-- [ ] 外部委託先のリポジトリでの使用（契約確認が必要）
-- [ ] オフショアチームへのライセンス提供（法務確認が必要）
+## 2. Prohibited Uses
+- [ ] Using Copilot with files containing sensitive information (customer data, credentials)
+- [ ] Using security-critical encryption/authentication code without review
+- [ ] Using in outsourced partner repositories (contract review required)
+- [ ] Providing licenses to offshore teams (legal review required)
 
-## 3. 必須設定
-- .copilotignore の設定（テンプレートを使用）
-- public code filter の有効化
-- チャットログの保存期間設定
+## 3. Required Configuration
+- Configure .copilotignore (use the template)
+- Enable public code filter
+- Configure chat log retention period
 
-## 4. コードレビュー要件
-- Copilot生成コードも通常のコードレビュープロセスを適用
-- セキュリティ関連のコードは追加のセキュリティレビューを実施
-- 生成コードには // Generated with Copilot のコメントを推奨
+## 4. Code Review Requirements
+- Apply standard code review process to Copilot-generated code
+- Conduct additional security review for security-related code
+- Recommend adding // Generated with Copilot comments to generated code
 
-## 5. 品質基準
-- 生成コードのテストカバレッジ80%以上
-- Lintエラーゼロ
-- ドキュメント付きの公開API
+## 5. Quality Standards
+- 80%+ test coverage for generated code
+- Zero lint errors
+- Documented public APIs
 ```
 
 ---
 
-## 6. トラブルシューティング
+## 6. Troubleshooting
 
-### 6.1 よくある問題と解決策
+### 6.1 Common Issues and Solutions
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│           Copilot トラブルシューティングガイド                  │
+│           Copilot Troubleshooting Guide                       │
 │                                                              │
-│  問題1: 補完候補が表示されない                                 │
+│  Issue 1: No completion suggestions appear                    │
 │  ─────────────────────────────────────────────               │
-│  確認1: VSCodeステータスバーのCopilotアイコン                  │
-│          → 有効(緑) / 無効(灰) / エラー(赤)                   │
-│  確認2: ネットワーク接続                                      │
-│          → プロキシ設定、ファイアウォールを確認                 │
-│  確認3: ファイルタイプの除外設定                               │
-│          → settings.json の copilot.enable を確認             │
-│  確認4: 拡張機能の競合                                        │
-│          → 他のAI補完拡張機能を無効化                          │
-│  確認5: 認証状態                                              │
-│          → GitHub Copilot: Sign Out → 再ログイン              │
+│  Check 1: Copilot icon in VSCode status bar                  │
+│           -> Active (green) / Disabled (gray) / Error (red)  │
+│  Check 2: Network connection                                 │
+│           -> Verify proxy settings and firewall              │
+│  Check 3: File type exclusion settings                       │
+│           -> Check copilot.enable in settings.json           │
+│  Check 4: Extension conflicts                                │
+│           -> Disable other AI completion extensions           │
+│  Check 5: Authentication status                              │
+│           -> GitHub Copilot: Sign Out -> Sign in again       │
 │                                                              │
-│  問題2: 補完品質が低い                                        │
+│  Issue 2: Low completion quality                              │
 │  ─────────────────────────────────────────────               │
-│  対策1: コメントで文脈を補強する                               │
-│  対策2: 型ヒント/JSDocを追加する                               │
-│  対策3: 関連ファイルをタブで開く                               │
-│  対策4: ファイル名を明確にする                                 │
-│  対策5: ワークスペース設定を確認する                           │
+│  Fix 1: Reinforce context with comments                      │
+│  Fix 2: Add type hints / JSDoc                               │
+│  Fix 3: Open related files in tabs                           │
+│  Fix 4: Use clear file names                                 │
+│  Fix 5: Review workspace settings                            │
 │                                                              │
-│  問題3: 古いコード/APIが生成される                             │
+│  Issue 3: Outdated code/APIs are generated                    │
 │  ─────────────────────────────────────────────               │
-│  対策1: コメントでバージョンを明示する                         │
-│  対策2: 最新のサンプルコードを同ファイル内に配置               │
-│  対策3: @docs や Web検索で最新情報を参照                      │
-│  対策4: .cursorrules / CLAUDE.md でバージョン固定              │
+│  Fix 1: Explicitly specify versions in comments              │
+│  Fix 2: Place up-to-date sample code in the same file        │
+│  Fix 3: Reference latest info via @docs or web search        │
+│  Fix 4: Pin versions in .cursorrules / CLAUDE.md             │
 │                                                              │
-│  問題4: 他のエディタ拡張と競合する                             │
+│  Issue 4: Conflicts with other editor extensions              │
 │  ─────────────────────────────────────────────               │
-│  対策1: TabNine等の他AI補完を無効化                            │
-│  対策2: IntelliCode補完との優先順位を設定                      │
-│  対策3: キーバインドの競合を解決                               │
-│         (Cmd+K, Ctrl+Space等)                                │
+│  Fix 1: Disable other AI completions such as TabNine         │
+│  Fix 2: Set priority with IntelliCode completion             │
+│  Fix 3: Resolve keybinding conflicts                         │
+│         (Cmd+K, Ctrl+Space, etc.)                            │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-### 6.2 パフォーマンス最適化
+### 6.2 Performance Optimization
 
 ```jsonc
-// VSCode設定によるCopilotパフォーマンス最適化
+// VSCode settings for optimizing Copilot performance
 
 {
-  // 大規模リポジトリでの最適化
+  // Optimization for large repositories
   "files.watcherExclude": {
     "**/node_modules/**": true,
     "**/dist/**": true,
@@ -1233,15 +1249,15 @@ class CopilotDashboard:
     "**/vendor/**": true
   },
 
-  // Copilot応答速度の改善
+  // Improve Copilot response speed
   "editor.quickSuggestions": {
-    "strings": false  // 文字列内での補完を無効化（ノイズ減少）
+    "strings": false  // Disable completion in strings (reduce noise)
   },
 
-  // メモリ使用量の最適化
+  // Optimize memory usage
   "editor.maxTokenizationLineLength": 5000,
 
-  // ネットワーク最適化（プロキシ環境）
+  // Network optimization (proxy environments)
   "http.proxy": "http://proxy.company.com:8080",
   "http.proxyStrictSSL": true,
   "github.copilot.advanced": {
@@ -1250,31 +1266,31 @@ class CopilotDashboard:
 }
 ```
 
-### 6.3 企業ネットワークでの設定
+### 6.3 Configuration for Corporate Networks
 
 ```bash
-# 企業プロキシ環境でのCopilot設定
+# Copilot configuration in corporate proxy environments
 
-# 1. プロキシ設定の確認
+# 1. Verify proxy settings
 echo $HTTP_PROXY
 echo $HTTPS_PROXY
 
-# 2. VS Codeのプロキシ設定
-# Settings → proxy で検索
+# 2. VS Code proxy settings
+# Settings -> Search for "proxy"
 # "http.proxy": "http://proxy.example.com:8080"
 
-# 3. npm（copilot-cli）のプロキシ設定
+# 3. npm (copilot-cli) proxy settings
 npm config set proxy http://proxy.example.com:8080
 npm config set https-proxy http://proxy.example.com:8080
 
-# 4. Git のプロキシ設定
+# 4. Git proxy settings
 git config --global http.proxy http://proxy.example.com:8080
 
-# 5. 認証テスト
-gh auth status  # GitHubへの接続を確認
-gh copilot --version  # Copilot CLIの動作確認
+# 5. Authentication test
+gh auth status  # Verify connection to GitHub
+gh copilot --version  # Verify Copilot CLI operation
 
-# 6. ファイアウォールで許可が必要なドメイン
+# 6. Domains that need firewall allowlisting
 # - github.com
 # - api.github.com
 # - copilot-proxy.githubusercontent.com
@@ -1284,36 +1300,38 @@ gh copilot --version  # Copilot CLIの動作確認
 
 ---
 
-## 7. Copilot Extensions と今後の展望
+## 7. Copilot Extensions and Future Outlook
 
 ### 7.1 Copilot Extensions
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│           Copilot Extensions エコシステム                  │
+│           Copilot Extensions Ecosystem                    │
 │                                                          │
 │  ┌──────────────────────────────────┐                    │
 │  │  Copilot Extensions              │                    │
-│  │  ・サードパーティがCopilotを拡張   │                    │
-│  │  ・Chatで@拡張名 で呼び出し       │                    │
-│  │  ・GitHub Marketplace で配布     │                    │
+│  │  - Third parties extend Copilot  │                    │
+│  │  - Invoke via @extension_name    │                    │
+│  │    in Chat                       │                    │
+│  │  - Distributed on GitHub         │                    │
+│  │    Marketplace                   │                    │
 │  └──────────────┬───────────────────┘                    │
 │                 │                                        │
 │  ┌──────────────▼───────────────────┐                    │
-│  │  主要なExtensions                │                    │
+│  │  Major Extensions                │                    │
 │  │                                  │                    │
-│  │  @docker     Docker関連の支援     │                    │
-│  │  @sentry     エラー追跡統合       │                    │
-│  │  @datadog    モニタリング統合     │                    │
-│  │  @mongodb    MongoDB操作支援     │                    │
-│  │  @azure      Azure開発支援       │                    │
-│  │  @hashicorp  Terraform支援       │                    │
+│  │  @docker     Docker assistance   │                    │
+│  │  @sentry     Error tracking      │                    │
+│  │  @datadog    Monitoring          │                    │
+│  │  @mongodb    MongoDB operations  │                    │
+│  │  @azure      Azure development   │                    │
+│  │  @hashicorp  Terraform support   │                    │
 │  └──────────────────────────────────┘                    │
 │                                                          │
-│  利用例:                                                  │
-│  > @docker このアプリのDockerfileを最適化して              │
-│  > @sentry 最近の本番エラーをまとめて                      │
-│  > @azure このAPIをAzure Functionsにデプロイして          │
+│  Usage examples:                                         │
+│  > @docker Optimize the Dockerfile for this app          │
+│  > @sentry Summarize recent production errors            │
+│  > @azure Deploy this API to Azure Functions             │
 └──────────────────────────────────────────────────────────┘
 ```
 
@@ -1321,68 +1339,71 @@ gh copilot --version  # Copilot CLIの動作確認
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│            Copilot Workspace 概要                         │
+│            Copilot Workspace Overview                     │
 │                                                          │
-│  Copilot Workspaceは、IssueからPRまでの全工程を           │
-│  AIが支援する次世代開発環境。                               │
+│  Copilot Workspace is a next-generation development      │
+│  environment where AI assists the entire workflow         │
+│  from Issue to Pull Request.                             │
 │                                                          │
 │  ┌─────────┐                                            │
-│  │ Issue   │ ← 自然言語で問題を記述                      │
+│  │ Issue   │ <- Describe the problem in natural language │
 │  └────┬────┘                                            │
 │       ▼                                                  │
 │  ┌─────────┐                                            │
-│  │ 分析    │ ← AIがIssueを分析し、影響範囲を特定          │
+│  │ Analyze │ <- AI analyzes the issue and identifies     │
+│  └────┬────┘    the scope of impact                     │
+│       ▼                                                  │
+│  ┌─────────┐                                            │
+│  │ Plan    │ <- Proposes a change plan                   │
+│  └────┬────┘    (files and changes)                     │
+│       ▼                                                  │
+│  ┌─────────┐                                            │
+│  │Implement│ <- Generates code based on the plan        │
 │  └────┬────┘                                            │
 │       ▼                                                  │
 │  ┌─────────┐                                            │
-│  │ 計画    │ ← 変更計画を提案（ファイル・変更内容）        │
+│  │ Verify  │ <- Runs tests, checks links                │
 │  └────┬────┘                                            │
 │       ▼                                                  │
 │  ┌─────────┐                                            │
-│  │ 実装    │ ← 計画に基づいてコードを生成                 │
-│  └────┬────┘                                            │
-│       ▼                                                  │
-│  ┌─────────┐                                            │
-│  │ 検証    │ ← テスト実行、リンク確認                     │
-│  └────┬────┘                                            │
-│       ▼                                                  │
-│  ┌─────────┐                                            │
-│  │ PR作成  │ ← レビュー可能なPRを自動作成                 │
+│  │Create PR│ <- Automatically creates a reviewable PR   │
 │  └─────────┘                                            │
 │                                                          │
-│  従来のフロー:                                            │
-│  Issue → 開発者が分析 → 設計 → 実装 → テスト → PR         │
-│  所要時間: 数時間〜数日                                    │
+│  Traditional flow:                                       │
+│  Issue -> Developer analyzes -> Design -> Implement      │
+│  -> Test -> PR                                          │
+│  Time required: Hours to days                            │
 │                                                          │
-│  Workspace:                                               │
-│  Issue → AI分析 → AI提案 → 人間が確認・修正 → PR          │
-│  所要時間: 数分〜数時間                                    │
+│  Workspace:                                              │
+│  Issue -> AI analysis -> AI proposal -> Human review     │
+│  and refinement -> PR                                   │
+│  Time required: Minutes to hours                         │
 └──────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## アンチパターン
+## Anti-patterns
 
-### アンチパターン 1: Tab連打開発
+### Anti-pattern 1: Tab-Mashing Development
 
 ```python
-# BAD: Copilotの提案を連続でTabで受け入れ続ける
-# → 意図しないロジックが混入するリスク
+# BAD: Continuously accepting Copilot suggestions by mashing Tab
+# -> Risk of unintended logic sneaking in
 
-# 例: Copilotが提案した認証コード
+# Example: Authentication code suggested by Copilot
 def verify_token(token: str) -> bool:
-    # Tabで受け入れたが、実は期限切れチェックが抜けている
+    # Accepted via Tab, but expiration check is missing
     decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
-    return decoded is not None  # ← 期限切れでもTrueを返す！
+    return decoded is not None  # <- Returns True even if expired!
 
-# GOOD: 各提案を読んで理解してから受け入れる
+# GOOD: Read and understand each suggestion before accepting
 def verify_token(token: str) -> bool:
     try:
         decoded = jwt.decode(
             token, SECRET_KEY,
             algorithms=["HS256"],
-            options={"verify_exp": True}  # 期限切れを検証
+            options={"verify_exp": True}  # Verify expiration
         )
         return True
     except jwt.ExpiredSignatureError:
@@ -1391,63 +1412,63 @@ def verify_token(token: str) -> bool:
         return False
 ```
 
-### アンチパターン 2: Copilot依存のコード理解放棄
+### Anti-pattern 2: Abandoning Code Understanding Due to Copilot Dependency
 
 ```
-❌ 悪い習慣:
-   - 補完されたコードを読まずにそのまま使う
-   - "動いているから正しい"と判断する
-   - Copilotなしではコードが書けなくなる
+Bad habits:
+   - Using completed code without reading it
+   - Judging "it works so it must be correct"
+   - Becoming unable to write code without Copilot
 
-✅ 良い習慣:
-   - 受け入れる前に必ずコードを読む
-   - 補完内容を声に出して説明できるか確認
-   - 週に1回はCopilotオフでコーディング練習
-   - 補完されたコードにテストを書く
+Good habits:
+   - Always read the code before accepting
+   - Verify you can explain the completion out loud
+   - Practice coding without Copilot once a week
+   - Write tests for completed code
 ```
 
-### アンチパターン 3: コンテキスト汚染
+### Anti-pattern 3: Context Pollution
 
 ```python
-# BAD: 無関係なコードがファイル内に散在し、
-# Copilotのコンテキストを汚染する
+# BAD: Unrelated code scattered throughout the file,
+# polluting Copilot's context
 
 # =============================================
-# ここから一時的なデバッグコード（後で消す）
+# Temporary debug code (remove later)
 # =============================================
 # import pdb; pdb.set_trace()
 # print("DEBUG: user_data =", user_data)
-# # TODO: このif文は意味不明だが消すと壊れる
+# # TODO: This if statement makes no sense but breaks if removed
 # if True:
 #     pass
 # =============================================
 
 class OrderService:
-    # → Copilotがこのデバッグコードの影響を受けて
-    #   低品質な補完を生成する
+    # -> Copilot is influenced by this debug code
+    #    and generates low-quality completions
 
-# GOOD: ファイルをクリーンに保つ
-# - デバッグコードは用が済んだらすぐ削除
-# - TODO/HACKコメントは定期的にクリーンアップ
-# - 未使用のimportは自動削除（isort / autoflake）
+# GOOD: Keep files clean
+# - Remove debug code as soon as you're done with it
+# - Regularly clean up TODO/HACK comments
+# - Auto-remove unused imports (isort / autoflake)
 ```
 
-### アンチパターン 4: テストなしでのCopilot生成コードの投入
+### Anti-pattern 4: Deploying Copilot-Generated Code Without Tests
 
 ```python
-# BAD: Copilotが生成したコードをテストなしで本番投入
+# BAD: Deploying Copilot-generated code to production without tests
 def calculate_discount(price: float, coupon: str) -> float:
-    # Copilotの補完をそのまま使用
+    # Using Copilot's completion as-is
     if coupon == "SUMMER20":
         return price * 0.8
     elif coupon == "VIP50":
         return price * 0.5
     return price
-    # → 負の価格、0円、float精度問題を考慮していない
+    # -> Does not handle negative price, zero price, or float precision issues
 
-# GOOD: 必ずテストを書いてから本番投入
+# GOOD: Always write tests before deploying to production
 def calculate_discount(price: Decimal, coupon: str) -> Decimal:
-    """割引価格を計算する"""
+    """Calculate discounted price"""
     if price < 0:
         raise ValueError("Price must be non-negative")
 
@@ -1460,7 +1481,7 @@ def calculate_discount(price: Decimal, coupon: str) -> Decimal:
     discounted = (price * multiplier).quantize(Decimal("0.01"))
     return max(discounted, Decimal("0"))
 
-# テスト
+# Tests
 class TestCalculateDiscount:
     def test_valid_coupon(self):
         assert calculate_discount(Decimal("1000"), "SUMMER20") == Decimal("800.00")
@@ -1478,114 +1499,114 @@ class TestCalculateDiscount:
 
 ---
 
-## エッジケース分析
+## Edge Case Analysis
 
-### エッジケース 1: 大規模モノレポでのCopilot
+### Edge Case 1: Copilot in Large Monorepos
 
 ```
-問題: 数千ファイルのモノレポでCopilotの精度が低下する
+Problem: Copilot accuracy decreases in monorepos with thousands of files
 
-原因:
-- コンテキストウィンドウの制限（約8Kトークン）
-- 類似名ファイルが多く、誤ったコンテキストが選択される
-- 異なるチームの異なる規約が混在
+Causes:
+- Context window limitation (~8K tokens)
+- Many similarly named files lead to incorrect context selection
+- Mixed coding conventions from different teams
 
-対策:
-1. ワークスペースフォルダで対象ディレクトリを限定
+Countermeasures:
+1. Limit target directories with workspace folders
    {
      "folders": [
-       {"path": "packages/my-service"}  // ← 関連パッケージのみ
+       {"path": "packages/my-service"}  // <- Only relevant packages
      ]
    }
 
-2. .copilotignore で無関係なパッケージを除外
+2. Exclude unrelated packages with .copilotignore
    packages/other-service/
    packages/legacy-code/
 
-3. ファイル命名でスコープを明確化
+3. Clarify scope through file naming
    packages/order-service/src/services/OrderCalculationService.ts
-   (パッケージ名がファイルパスに含まれる)
+   (package name is included in the file path)
 ```
 
-### エッジケース 2: レガシーコードベースでのCopilot
+### Edge Case 2: Copilot in Legacy Codebases
 
 ```
-問題: 古いパターン（jQuery、ES5、callback地獄）を学習して
-     それに合わせたコードを生成してしまう
+Problem: Learns old patterns (jQuery, ES5, callback hell)
+        and generates code matching them
 
-対策:
-1. 新しいコードの「お手本ファイル」を作成
-   → Copilotはそのパターンを参照して補完する
+Countermeasures:
+1. Create "example files" with modern code
+   -> Copilot references these patterns for completions
 
-2. コメントで明示的にモダンパターンを指定
-   // React 18 + TypeScript + hooks パターンで実装
-   // jQuery, class componentは使用しない
+2. Explicitly specify modern patterns in comments
+   // Implement using React 18 + TypeScript + hooks pattern
+   // Do not use jQuery or class components
 
-3. 新旧コードを別ディレクトリに分離
+3. Separate old and new code into different directories
    src/
-   ├── legacy/  (.copilotignoreに追加)
-   └── modern/  (Copilotがこちらのみ参照)
+   ├── legacy/  (add to .copilotignore)
+   └── modern/  (Copilot only references this)
 ```
 
 ---
 
 ## FAQ
 
-### Q1: CopilotがSuggestionを出さない場合の対処法は？
+### Q1: What should I do when Copilot doesn't show suggestions?
 
-原因は主に3つ。(1) ネットワーク接続の問題 → ステータスバーのCopilotアイコンを確認、(2) ファイルタイプが除外されている → settings.jsonの `github.copilot.enable` を確認、(3) コンテキスト不足 → コメントや型ヒントを追加する。それでも解決しない場合は `Copilot: Toggle` でON/OFFを試す。
+There are three main causes. (1) Network connection issues -- check the Copilot icon in the status bar, (2) File type is excluded -- check `github.copilot.enable` in settings.json, (3) Insufficient context -- add comments or type hints. If the issue persists, try toggling with `Copilot: Toggle`.
 
-### Q2: Copilotが生成したコードの著作権はどうなるか？
+### Q2: Who owns the copyright of Copilot-generated code?
 
-GitHubのTOSによると、Copilotの出力に対してユーザーが著作権を持つ。ただし、学習データと酷似したコード（verbatim copy）が出力されるリスクがある。Enterprise版にはIP補償が含まれる。OSSライセンスとの互換性を確保するため、`public code filter` を有効にすることを推奨する。
+According to GitHub's TOS, users hold the copyright for Copilot's output. However, there is a risk of output being very similar to training data (verbatim copy). The Enterprise plan includes IP indemnity. To ensure compatibility with OSS licenses, it is recommended to enable `public code filter`.
 
-### Q3: CopilotとCursorのどちらを選ぶべきか？
+### Q3: Should I choose Copilot or Cursor?
 
-用途で判断する。Copilotは「既存エディタに追加する補完ツール」として優秀で、VSCodeやJetBrainsを離れたくない場合に最適。CursorはAIを前提に設計されたIDEで、マルチファイル編集やコードベース全体の理解が必要な場合に優位。両方を試して判断するのが理想的だが、コストを抑えたいなら まずCopilot Individualから始めるとよい。
+Decide based on your use case. Copilot excels as a "completion tool added to your existing editor" and is ideal if you don't want to leave VSCode or JetBrains. Cursor is an IDE designed with AI in mind and has advantages for multi-file editing and understanding the entire codebase. Ideally, try both, but if you want to minimize costs, start with Copilot Individual.
 
-### Q4: Copilotの補完を受け入れた後に元に戻すには？
+### Q4: How do I undo after accepting a Copilot completion?
 
-通常のUndo（Cmd+Z / Ctrl+Z）で元に戻せる。Copilotの補完受入は通常のテキスト編集として扱われるため、エディタの標準的なUndo機能が使える。複数行の補完を受け入れた場合も、1回のUndoで全体が取り消される。
+Use the standard Undo (Cmd+Z / Ctrl+Z) to revert. Since accepting Copilot completions is treated as regular text editing, the editor's standard Undo functionality works. Even multi-line completions are undone in a single Undo operation.
 
-### Q5: Copilotの利用統計を確認するには？
+### Q5: How can I check Copilot usage statistics?
 
-GitHub.com → Settings → Copilot → Usage で確認可能。Business/Enterpriseプランでは管理者ダッシュボードで組織全体の統計が見られる。VSCode内ではステータスバーのCopilotアイコンをクリックすると、セッション中の受入率が表示される。
+Available at GitHub.com -> Settings -> Copilot -> Usage. Business/Enterprise plans provide an admin dashboard with organization-wide statistics. Within VSCode, clicking the Copilot icon in the status bar shows the session acceptance rate.
 
-### Q6: 社内のプライベートライブラリをCopilotに学習させることはできるか？
+### Q6: Can I train Copilot on our internal private libraries?
 
-Enterprise版のKnowledge Base機能を使えば、社内リポジトリのコードをCopilotのコンテキストとして活用できる。ただし、これはFine-tuningではなくRAG（検索拡張生成）ベースのアプローチであり、補完時に関連コードを検索して参照する仕組みである。Individual/Businessプランではこの機能は利用できない。
+With the Enterprise plan's Knowledge Base feature, you can leverage internal repository code as Copilot context. However, this is a RAG (Retrieval-Augmented Generation) based approach, not fine-tuning -- it searches for and references relevant code during completion. This feature is not available on Individual/Business plans.
 
-### Q7: CopilotとClaude Codeは併用できるか？
+### Q7: Can Copilot and Claude Code be used together?
 
-問題なく併用可能。エディタ内ではCopilotがインライン補完を提供し、ターミナルではClaude Codeがエージェントタスクを実行するという役割分担が効果的。ただし、Cursor IDE + Copilotの組み合わせはAI補完機能が競合する場合がある。VSCode + Copilot + ターミナルのClaude Codeという組み合わせが最も衝突が少ない。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| 仕組み | エディタからコンテキストをサーバーに送信、LLMが補完候補を返却 |
-| 設定 | .copilotignoreで機密除外、言語別有効/無効化 |
-| 精度向上 | 型ヒント、明確なファイル名、関連ファイルを開く |
-| Chatの活用 | /explain, /tests, /fix, /doc で4大ユースケース |
-| CLI | `gh copilot suggest` でターミナル操作も補完 |
-| 制限 | 複雑なビジネスロジック、セキュリティ実装は人間が判断 |
-| チーム導入 | パイロット → 評価 → 拡大展開 → 最適化の4段階 |
-| 効果測定 | 受入率25-35%が健全、定期レポートで改善 |
-| セキュリティ | .copilotignore、public code filter、レビュープロセス |
+Yes, they work well together. An effective division of labor is having Copilot provide inline completions in the editor while Claude Code handles agent tasks in the terminal. However, combining Cursor IDE + Copilot may cause AI completion features to conflict. The combination of VSCode + Copilot + Claude Code in the terminal has the fewest conflicts.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [01-claude-code.md](./01-claude-code.md) ── Claude Codeでのエージェント型開発
-- [02-cursor-and-windsurf.md](./02-cursor-and-windsurf.md) ── AI IDEとの比較
-- [03-ai-coding-best-practices.md](./03-ai-coding-best-practices.md) ── AIコーディングのベストプラクティス
+| Item | Key Points |
+|------|-----------|
+| How it works | Sends context from editor to server, LLM returns completion candidates |
+| Setup | Exclude sensitive files with .copilotignore, enable/disable per language |
+| Accuracy improvement | Type hints, clear file names, open related files |
+| Chat usage | Four major use cases: /explain, /tests, /fix, /doc |
+| CLI | `gh copilot suggest` for terminal operation completion |
+| Limitations | Complex business logic and security implementations require human judgment |
+| Team adoption | Four phases: Pilot -> Evaluation -> Expanded rollout -> Optimization |
+| Effectiveness measurement | 25-35% acceptance rate is healthy, improve through regular reports |
+| Security | .copilotignore, public code filter, review process |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
+
+- [01-claude-code.md](./01-claude-code.md) -- Agent-based development with Claude Code
+- [02-cursor-and-windsurf.md](./02-cursor-and-windsurf.md) -- Comparison with AI IDEs
+- [03-ai-coding-best-practices.md](./03-ai-coding-best-practices.md) -- AI coding best practices
+
+---
+
+## References
 
 1. GitHub, "GitHub Copilot Documentation," 2025. https://docs.github.com/en/copilot
 2. Albert Ziegler et al., "Productivity Assessment of Neural Code Completion," ACM, 2022. https://doi.org/10.1145/3520312.3534864
