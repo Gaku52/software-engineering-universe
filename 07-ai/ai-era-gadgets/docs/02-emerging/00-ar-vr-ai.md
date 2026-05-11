@@ -1,236 +1,244 @@
-# AR/VR × AI ガイド
+# AR/VR x AI Guide
 
-> Vision Pro、Quest、AI空間コンピューティングの技術と未来を包括的に解説する
+> A comprehensive guide to Vision Pro, Quest, and AI spatial computing technologies and their future
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **AR/VRの基礎技術** — ディスプレイ、トラッキング、レンダリングの仕組み
-2. **主要プラットフォーム** — Apple Vision Pro、Meta Quest、その他XRデバイスの比較
-3. **AI × 空間コンピューティング** — AIがAR/VRにもたらす革新と実践的な開発手法
+1. **AR/VR Fundamentals** — How displays, tracking, and rendering work
+2. **Major Platforms** — Comparison of Apple Vision Pro, Meta Quest, and other XR devices
+3. **AI x Spatial Computing** — Innovations AI brings to AR/VR and practical development approaches
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related fundamental concepts
 
 ---
 
-## 1. AR/VR/MR の基本概念
+## 1. Basic Concepts of AR/VR/MR
 
-### Reality-Virtuality Continuum（現実-仮想連続体）
+### Reality-Virtuality Continuum
 
 ```
-現実世界                                           仮想世界
+Real World                                          Virtual World
    |                                                  |
    v                                                  v
 +------+--------+----------------+-----------+--------+
-| 現実  |   AR   |      MR       |    VR     | 完全仮想|
-|      | 拡張現実| 複合現実       | 仮想現実  |        |
+| Real |   AR   |      MR       |    VR     | Fully  |
+|      |Augmented| Mixed Reality | Virtual   |Virtual |
+|      |Reality |               | Reality   |        |
 +------+--------+----------------+-----------+--------+
    |       |            |              |          |
-   |   スマホ AR    Vision Pro     Quest 3     VRChat
-   |   ポケモンGO  HoloLens 2    (パススルー)  メタバース
+   |   Mobile AR   Vision Pro     Quest 3     VRChat
+   |   Pokemon GO  HoloLens 2   (Passthrough) Metaverse
    |   Google Lens                PSVR 2
    |
-   +--- XR (Extended Reality): AR + MR + VR の総称
+   +--- XR (Extended Reality): Umbrella term for AR + MR + VR
 ```
 
-### XRヘッドセットの基本構成
+### Basic Components of an XR Headset
 
 ```
 +-----------------------------------------------------------+
-|              XR ヘッドセット 内部構造                        |
+|              XR Headset Internal Structure                  |
 +-----------------------------------------------------------+
 |                                                           |
 |  +------------------+  +------------------+               |
-|  | ディスプレイ      |  | レンズ           |               |
-|  | Micro-OLED       |  | パンケーキレンズ  |               |
-|  | 片目 2K-4K       |  | 薄型・軽量化     |               |
+|  | Display          |  | Lens             |               |
+|  | Micro-OLED       |  | Pancake Lens     |               |
+|  | 2K-4K per eye    |  | Thin & Lightweight|              |
 |  +------------------+  +------------------+               |
 |                                                           |
 |  +------------------+  +------------------+               |
-|  | チップセット      |  | センサー群       |               |
-|  | SoC (GPU+CPU+NPU)|  | カメラ(パススルー)|               |
+|  | Chipset          |  | Sensor Array     |               |
+|  | SoC (GPU+CPU+NPU)|  | Camera(Passthrough)|             |
 |  | Apple M2/R1      |  | LiDAR/ToF       |               |
-|  | Snapdragon XR2   |  | IMU (加速度+ジャイロ)|           |
+|  | Snapdragon XR2   |  | IMU (Accel+Gyro)|               |
 |  +------------------+  +------------------+               |
 |                                                           |
 |  +------------------+  +------------------+               |
-|  | トラッキング      |  | 入力デバイス     |               |
-|  | Inside-Out 6DoF  |  | ハンドトラッキング|               |
-|  | アイトラッキング  |  | コントローラ     |               |
-|  | SLAM             |  | 音声入力         |               |
+|  | Tracking         |  | Input Devices    |               |
+|  | Inside-Out 6DoF  |  | Hand Tracking    |               |
+|  | Eye Tracking     |  | Controller       |               |
+|  | SLAM             |  | Voice Input      |               |
 |  +------------------+  +------------------+               |
 +-----------------------------------------------------------+
 ```
 
-### XR技術スタックの詳細レイヤー構成
+### Detailed Layer Structure of the XR Technology Stack
 
 ```
 +-----------------------------------------------------------+
-|              XR 技術スタック                                 |
+|              XR Technology Stack                            |
 +-----------------------------------------------------------+
 |                                                           |
-|  L6: アプリケーション層                                    |
-|  +-- ゲーム、コラボレーション、教育、医療                  |
-|  +-- 3Dビューア、空間デザイン                              |
+|  L6: Application Layer                                    |
+|  +-- Games, Collaboration, Education, Healthcare          |
+|  +-- 3D Viewers, Spatial Design                           |
 |                                                           |
-|  L5: フレームワーク層                                      |
+|  L5: Framework Layer                                      |
 |  +-- ARKit / ARCore / OpenXR                               |
 |  +-- RealityKit / SceneKit / WebXR                         |
 |                                                           |
-|  L4: レンダリングエンジン層                                |
+|  L4: Rendering Engine Layer                               |
 |  +-- Unity / Unreal Engine / RealityKit                    |
 |  +-- Vulkan / Metal / WebGL                                |
 |                                                           |
-|  L3: AI/ML処理層                                           |
+|  L3: AI/ML Processing Layer                               |
 |  +-- Core ML / TFLite / ONNX Runtime                       |
-|  +-- 空間認識、ハンドトラッキング、アイトラッキング          |
+|  +-- Spatial Recognition, Hand Tracking, Eye Tracking      |
 |                                                           |
-|  L2: OS/ランタイム層                                       |
+|  L2: OS/Runtime Layer                                     |
 |  +-- visionOS / Android (Horizon OS) / SteamVR             |
-|  +-- デバイスドライバ、センサーフュージョン                 |
+|  +-- Device Drivers, Sensor Fusion                        |
 |                                                           |
-|  L1: ハードウェア層                                        |
-|  +-- SoC (M2, XR2)、ディスプレイ、レンズ                   |
-|  +-- カメラ、LiDAR、IMU、バッテリー                        |
+|  L1: Hardware Layer                                       |
+|  +-- SoC (M2, XR2), Displays, Lenses                      |
+|  +-- Cameras, LiDAR, IMU, Battery                         |
 +-----------------------------------------------------------+
 ```
 
 ---
 
-## 2. 主要XRプラットフォーム比較
+## 2. Major XR Platform Comparison
 
-### デバイス比較表
+### Device Comparison Table
 
-| 項目 | Apple Vision Pro | Meta Quest 3 | Meta Quest Pro | PSVR 2 |
+| Item | Apple Vision Pro | Meta Quest 3 | Meta Quest Pro | PSVR 2 |
 |------|-----------------|--------------|----------------|--------|
-| 発売年 | 2024 | 2023 | 2022 | 2023 |
-| 価格 | $3,499 | $499 | $999 | $549 |
-| チップ | M2 + R1 | Snapdragon XR2 Gen 2 | Snapdragon XR2+ | 独自チップ(PS5接続) |
-| 解像度(片目) | 3,660×3,200 | 2,064×2,208 | 1,800×1,920 | 2,000×2,040 |
-| リフレッシュレート | 90-100Hz | 90-120Hz | 90Hz | 90-120Hz |
-| トラッキング | 6DoF + Eye + Hand | 6DoF + Hand | 6DoF + Eye + Hand | 6DoF + Eye |
-| パススルー | 高品質カラー | カラー | カラー | なし(純VR) |
-| OS | visionOS | Android(Meta Horizon) | Android(Meta Horizon) | PS5専用 |
-| 重量 | 600-650g | 515g | 722g | 560g |
-| 主な用途 | 空間コンピューティング | ゲーム・MR | ビジネス | ゲーム |
+| Release Year | 2024 | 2023 | 2022 | 2023 |
+| Price | $3,499 | $499 | $999 | $549 |
+| Chip | M2 + R1 | Snapdragon XR2 Gen 2 | Snapdragon XR2+ | Custom Chip (PS5 Connected) |
+| Resolution (per eye) | 3,660x3,200 | 2,064x2,208 | 1,800x1,920 | 2,000x2,040 |
+| Refresh Rate | 90-100Hz | 90-120Hz | 90Hz | 90-120Hz |
+| Tracking | 6DoF + Eye + Hand | 6DoF + Hand | 6DoF + Eye + Hand | 6DoF + Eye |
+| Passthrough | High-Quality Color | Color | Color | None (Pure VR) |
+| OS | visionOS | Android (Meta Horizon) | Android (Meta Horizon) | PS5 Exclusive |
+| Weight | 600-650g | 515g | 722g | 560g |
+| Primary Use | Spatial Computing | Gaming/MR | Business | Gaming |
 
-### 次世代デバイス動向（2025-2026年）
+### Next-Generation Device Trends (2025-2026)
 
-| デバイス | メーカー | 特徴 | 予想価格帯 |
-|---------|---------|------|-----------|
-| Vision Pro 2 | Apple | M4チップ、軽量化、低価格化 | $2,499-2,999 |
-| Quest 4 | Meta | Snapdragon XR2+ Gen 3、8K表示 | $499-699 |
-| Project Moohan | Samsung | Android XR、Qualcomm XR2+ Gen 2 | $1,000-1,500 |
-| HoloLens 3 | Microsoft | 軍事/産業特化、広FoV | $3,000+ |
-| MagicLeap 3 | Magic Leap | 産業AR、軽量グラス型 | $2,500+ |
+| Device | Manufacturer | Features | Expected Price Range |
+|---------|-------------|----------|---------------------|
+| Vision Pro 2 | Apple | M4 chip, lighter, lower price | $2,499-2,999 |
+| Quest 4 | Meta | Snapdragon XR2+ Gen 3, 8K display | $499-699 |
+| Project Moohan | Samsung | Android XR, Qualcomm XR2+ Gen 2 | $1,000-1,500 |
+| HoloLens 3 | Microsoft | Military/industrial focused, wide FoV | $3,000+ |
+| MagicLeap 3 | Magic Leap | Industrial AR, lightweight glasses form | $2,500+ |
 
-### ディスプレイ技術の進化
+### Display Technology Evolution
 
 ```
 +-----------------------------------------------------------+
-|  XR ディスプレイ技術                                        |
+|  XR Display Technologies                                   |
 +-----------------------------------------------------------+
 |                                                           |
-|  LCD         |████████████|  低コスト、Quest 2             |
-|  解像度: 中   コントラスト: 低   応答速度: 中               |
+|  LCD         |████████████|  Low cost, Quest 2             |
+|  Resolution: Mid  Contrast: Low   Response: Mid            |
 |                                                           |
-|  OLED        |██████████████████|  高コントラスト、PSVR 2  |
-|  解像度: 高   コントラスト: 高   応答速度: 高               |
+|  OLED        |██████████████████|  High contrast, PSVR 2  |
+|  Resolution: High  Contrast: High  Response: High          |
 |                                                           |
 |  Micro-OLED  |████████████████████████|  Vision Pro        |
-|  解像度: 最高  コントラスト: 最高  応答速度: 最高            |
+|  Resolution: Highest  Contrast: Highest  Response: Highest |
 |                                                           |
-|  Micro-LED   |██████████████████████████████|  次世代       |
-|  解像度: 最高  コントラスト: 最高  輝度: 最高  消費電力: 低 |
+|  Micro-LED   |██████████████████████████████|  Next-Gen    |
+|  Resolution: Highest  Contrast: Highest  Brightness: Highest  Power: Low |
 +-----------------------------------------------------------+
 ```
 
-### レンズ技術の比較
+### Lens Technology Comparison
 
-| レンズ方式 | 厚さ | 重量 | 視野角(FoV) | 歪み | 採用例 |
-|-----------|------|------|------------|------|--------|
-| フレネルレンズ | 厚い | 重い | 100-110度 | 中 | Quest 2, Valve Index |
-| パンケーキレンズ | 薄い | 軽い | 90-110度 | 少 | Quest 3, Vision Pro |
-| 可変焦点(Varifocal) | 中 | 中 | 90-100度 | 極少 | Half Dome(試作) |
-| ホログラフィック | 極薄 | 極軽 | 40-60度 | 少 | HoloLens, MagicLeap |
-| メタサーフェスレンズ | 極薄 | 極軽 | 研究段階 | 極少 | 将来のARグラス |
+| Lens Type | Thickness | Weight | FoV | Distortion | Examples |
+|-----------|----------|--------|-----|-----------|----------|
+| Fresnel Lens | Thick | Heavy | 100-110 deg | Medium | Quest 2, Valve Index |
+| Pancake Lens | Thin | Light | 90-110 deg | Low | Quest 3, Vision Pro |
+| Varifocal | Medium | Medium | 90-100 deg | Very Low | Half Dome (Prototype) |
+| Holographic | Ultra-Thin | Ultra-Light | 40-60 deg | Low | HoloLens, MagicLeap |
+| Metasurface Lens | Ultra-Thin | Ultra-Light | Research Stage | Very Low | Future AR Glasses |
 
 ---
 
-## 3. AI × 空間コンピューティング
+## 3. AI x Spatial Computing
 
-### AIが変えるXR体験
-
-```
-+-----------------------------------------------------------+
-|  AI × XR の融合領域                                        |
-+-----------------------------------------------------------+
-|                                                           |
-|  視覚AI                                                   |
-|  +-- 空間認識: 部屋の3Dマッピング (SLAM + NeRF)           |
-|  +-- 物体認識: 現実世界の物体をリアルタイム認識            |
-|  +-- セグメンテーション: 背景と前景の分離                  |
-|  +-- オクルージョン: 仮想物体の前後関係を正確に処理        |
-|                                                           |
-|  自然言語AI                                                |
-|  +-- 音声コマンド: 空間UIの音声操作                        |
-|  +-- リアルタイム翻訳: AR字幕                              |
-|  +-- 空間的会話AI: 仮想アバターとの対話                    |
-|                                                           |
-|  生成AI                                                    |
-|  +-- 3Dアセット生成: テキストから3Dモデル                  |
-|  +-- 環境生成: AIによるVR空間の自動生成                    |
-|  +-- アバター生成: 写真1枚からリアルアバター                |
-|                                                           |
-|  予測AI                                                    |
-|  +-- フォービエイテッドレンダリング: 視線予測で描画最適化  |
-|  +-- モーション予測: 遅延を感じさせない動き補間            |
-|  +-- アダプティブ品質: 負荷予測による動的品質調整          |
-+-----------------------------------------------------------+
-```
-
-### SLAM（Simultaneous Localization and Mapping）の仕組み
+### How AI is Transforming XR Experiences
 
 ```
 +-----------------------------------------------------------+
-|  SLAM パイプライン詳細                                      |
+|  AI x XR Convergence Areas                                 |
 +-----------------------------------------------------------+
 |                                                           |
-|  入力センサー                                              |
-|  ├── モノカメラ / ステレオカメラ                            |
-|  ├── IMU（加速度・ジャイロ）                                |
-|  ├── LiDAR / ToF センサー                                  |
-|  └── 深度センサー                                          |
-|       │                                                   |
+|  Visual AI                                                |
+|  +-- Spatial Recognition: 3D room mapping (SLAM + NeRF)  |
+|  +-- Object Recognition: Real-time recognition of         |
+|  |   real-world objects                                   |
+|  +-- Segmentation: Separating foreground and background   |
+|  +-- Occlusion: Accurately handling depth ordering of     |
+|      virtual objects                                      |
+|                                                           |
+|  Natural Language AI                                      |
+|  +-- Voice Commands: Voice control for spatial UI         |
+|  +-- Real-time Translation: AR subtitles                  |
+|  +-- Spatial Conversational AI: Dialogue with virtual     |
+|      avatars                                              |
+|                                                           |
+|  Generative AI                                            |
+|  +-- 3D Asset Generation: 3D models from text             |
+|  +-- Environment Generation: AI-driven VR space creation  |
+|  +-- Avatar Generation: Realistic avatar from a single    |
+|      photo                                                |
+|                                                           |
+|  Predictive AI                                            |
+|  +-- Foveated Rendering: Gaze prediction for render       |
+|      optimization                                         |
+|  +-- Motion Prediction: Motion interpolation to eliminate |
+|      perceived latency                                    |
+|  +-- Adaptive Quality: Dynamic quality adjustment based   |
+|      on load prediction                                   |
++-----------------------------------------------------------+
+```
+
+### How SLAM (Simultaneous Localization and Mapping) Works
+
+```
++-----------------------------------------------------------+
+|  SLAM Pipeline Details                                     |
++-----------------------------------------------------------+
+|                                                           |
+|  Input Sensors                                            |
+|  +-- Mono Camera / Stereo Camera                          |
+|  +-- IMU (Accelerometer + Gyroscope)                      |
+|  +-- LiDAR / ToF Sensor                                   |
+|  +-- Depth Sensor                                         |
+|       |                                                   |
 |       v                                                   |
-|  ┌──────────────────────────────────────┐                  |
-|  │  フロントエンド                       │                  |
-|  │  ├── 特徴点検出 (ORB, SIFT, SuperPoint)│                |
-|  │  ├── 特徴点マッチング                 │                  |
-|  │  ├── Visual Odometry (視覚オドメトリ) │                  |
-|  │  └── IMU プリインテグレーション       │                  |
-|  └──────────────────────────────────────┘                  |
-|       │                                                   |
+|  +----------------------------------------------+         |
+|  |  Front-End                                    |         |
+|  |  +-- Feature Detection (ORB, SIFT, SuperPoint)|        |
+|  |  +-- Feature Matching                         |         |
+|  |  +-- Visual Odometry                          |         |
+|  |  +-- IMU Pre-Integration                      |         |
+|  +----------------------------------------------+         |
+|       |                                                   |
 |       v                                                   |
-|  ┌──────────────────────────────────────┐                  |
-|  │  バックエンド                         │                  |
-|  │  ├── バンドル調整 (Bundle Adjustment) │                  |
-|  │  ├── ポーズグラフ最適化               │                  |
-|  │  ├── ループクロージャ検出             │                  |
-|  │  └── キーフレーム管理                 │                  |
-|  └──────────────────────────────────────┘                  |
-|       │                                                   |
+|  +----------------------------------------------+         |
+|  |  Back-End                                     |         |
+|  |  +-- Bundle Adjustment                        |         |
+|  |  +-- Pose Graph Optimization                  |         |
+|  |  +-- Loop Closure Detection                   |         |
+|  |  +-- Keyframe Management                      |         |
+|  +----------------------------------------------+         |
+|       |                                                   |
 |       v                                                   |
-|  出力: 3Dマップ + カメラ姿勢の推定                         |
+|  Output: 3D Map + Camera Pose Estimation                  |
 +-----------------------------------------------------------+
 ```
 
-### コード例1: ARKit での平面検出と3D配置
+### Code Example 1: Plane Detection and 3D Placement with ARKit
 
 ```swift
 import ARKit
@@ -242,7 +250,7 @@ class ViewController: UIViewController, ARSessionDelegate {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        // AR セッション設定
+        // AR session configuration
         let config = ARWorldTrackingConfiguration()
         config.planeDetection = [.horizontal, .vertical]
         config.sceneReconstruction = .meshWithClassification
@@ -251,7 +259,7 @@ class ViewController: UIViewController, ARSessionDelegate {
         arView.session.delegate = self
         arView.session.run(config)
 
-        // タップで3Dオブジェクトを配置
+        // Place 3D object on tap
         let tapGesture = UITapGestureRecognizer(
             target: self, action: #selector(handleTap)
         )
@@ -261,13 +269,13 @@ class ViewController: UIViewController, ARSessionDelegate {
     @objc func handleTap(_ sender: UITapGestureRecognizer) {
         let location = sender.location(in: arView)
 
-        // レイキャストで平面との交差点を取得
+        // Get intersection point with plane via raycast
         if let result = arView.raycast(
             from: location,
             allowing: .estimatedPlane,
             alignment: .horizontal
         ).first {
-            // 3Dオブジェクトの配置
+            // Place a 3D object
             let anchor = AnchorEntity(world: result.worldTransform)
             let box = ModelEntity(
                 mesh: .generateBox(size: 0.1),
@@ -280,7 +288,7 @@ class ViewController: UIViewController, ARSessionDelegate {
 }
 ```
 
-### コード例2: visionOS での空間コンピューティング
+### Code Example 2: Spatial Computing with visionOS
 
 ```swift
 import SwiftUI
@@ -289,19 +297,19 @@ import RealityKit
 @main
 struct MyVisionApp: App {
     var body: some Scene {
-        // ウィンドウ（2D UI）
+        // Window (2D UI)
         WindowGroup {
             ContentView()
         }
 
-        // ボリューム（3D コンテンツ）
+        // Volume (3D Content)
         WindowGroup(id: "3d-viewer") {
             VolumetricView()
         }
         .windowStyle(.volumetric)
         .defaultSize(width: 0.5, height: 0.5, depth: 0.5, in: .meters)
 
-        // イマーシブ空間（フル没入体験）
+        // Immersive Space (Fully Immersive Experience)
         ImmersiveSpace(id: "immersive") {
             ImmersiveView()
         }
@@ -311,14 +319,14 @@ struct MyVisionApp: App {
 struct VolumetricView: View {
     var body: some View {
         RealityView { content in
-            // 3Dモデルの読み込みと表示
+            // Load and display a 3D model
             if let model = try? await ModelEntity(named: "Globe") {
                 model.scale = [0.3, 0.3, 0.3]
                 content.add(model)
             }
         }
         .gesture(
-            // ハンドジェスチャーで回転
+            // Rotate with hand gestures
             RotateGesture3D()
                 .targetedToAnyEntity()
                 .onChanged { value in
@@ -329,11 +337,11 @@ struct VolumetricView: View {
 }
 ```
 
-### コード例3: AI による空間理解
+### Code Example 3: Spatial Understanding with AI
 
 ```python
-# Meta Quest の Scene Understanding API（概念コード）
-# MR アプリで部屋の構造を理解する
+# Meta Quest Scene Understanding API (conceptual code)
+# Understanding room structure in an MR app
 
 class SpatialAIProcessor:
     def __init__(self):
@@ -341,19 +349,19 @@ class SpatialAIProcessor:
         self.object_detector = load_model("3d_object_detection")
 
     def process_scene(self, depth_map, rgb_image, imu_data):
-        """空間認識パイプライン"""
-        # 1. 深度マップから3Dポイントクラウド生成
+        """Spatial recognition pipeline"""
+        # 1. Generate 3D point cloud from depth map
         point_cloud = depth_to_pointcloud(depth_map, camera_intrinsics)
 
-        # 2. セマンティックセグメンテーション（壁、床、天井、家具）
+        # 2. Semantic segmentation (walls, floor, ceiling, furniture)
         segmentation = self.scene_model.predict(point_cloud, rgb_image)
-        # → {'wall': [...], 'floor': [...], 'ceiling': [...], 'furniture': [...]}
+        # -> {'wall': [...], 'floor': [...], 'ceiling': [...], 'furniture': [...]}
 
-        # 3. 3D物体検出と分類
+        # 3. 3D object detection and classification
         objects = self.object_detector.detect(point_cloud, rgb_image)
-        # → [{'class': 'chair', 'bbox_3d': ..., 'confidence': 0.95}, ...]
+        # -> [{'class': 'chair', 'bbox_3d': ..., 'confidence': 0.95}, ...]
 
-        # 4. 空間メッシュの構築
+        # 4. Build spatial mesh
         scene_mesh = reconstruct_mesh(point_cloud, segmentation)
 
         return {
@@ -363,7 +371,7 @@ class SpatialAIProcessor:
         }
 ```
 
-### コード例4: visionOS でのハンドトラッキングとジェスチャー認識
+### Code Example 4: Hand Tracking and Gesture Recognition on visionOS
 
 ```swift
 import SwiftUI
@@ -375,7 +383,7 @@ struct HandTrackingView: View {
 
     var body: some View {
         RealityView { content in
-            // ハンドトラッキングの有効化
+            // Enable hand tracking
             let session = ARKitSession()
             let handTracking = HandTrackingProvider()
 
@@ -387,7 +395,7 @@ struct HandTrackingView: View {
 
                     switch update.event {
                     case .added:
-                        // 手のジョイント位置を可視化
+                        // Visualize hand joint positions
                         let entity = createHandVisualization(from: anchor)
                         content.add(entity)
                         handAnchorEntities[anchor.id] = entity
@@ -398,7 +406,7 @@ struct HandTrackingView: View {
                             from: anchor
                         )
 
-                        // ピンチジェスチャー検出
+                        // Detect pinch gesture
                         if let thumbTip = anchor.handSkeleton?.joint(.thumbTip),
                            let indexTip = anchor.handSkeleton?.joint(.indexFingerTip) {
                             let distance = simd_distance(
@@ -420,7 +428,7 @@ struct HandTrackingView: View {
 
     func createHandVisualization(from anchor: HandAnchor) -> AnchorEntity {
         let entity = AnchorEntity()
-        // 各関節にスフィアを配置
+        // Place a sphere at each joint
         if let skeleton = anchor.handSkeleton {
             for joint in HandSkeleton.JointName.allCases {
                 let sphere = ModelEntity(
@@ -434,7 +442,7 @@ struct HandTrackingView: View {
     }
 
     func updateHandVisualization(entity: AnchorEntity?, from anchor: HandAnchor) {
-        // 各ジョイントの位置更新
+        // Update position of each joint
         guard let entity = entity, let skeleton = anchor.handSkeleton else { return }
         for (index, joint) in HandSkeleton.JointName.allCases.enumerated() {
             if index < entity.children.count {
@@ -445,12 +453,12 @@ struct HandTrackingView: View {
     }
 
     func handlePinchGesture(at transform: simd_float4x4) {
-        print("ピンチジェスチャー検出: \(transform.columns.3)")
+        print("Pinch gesture detected: \(transform.columns.3)")
     }
 }
 ```
 
-### コード例5: 空間アンカーの永続化と共有
+### Code Example 5: Persisting and Sharing Spatial Anchors
 
 ```swift
 import ARKit
@@ -466,26 +474,26 @@ class SpatialAnchorManager {
         self.session = session
     }
 
-    /// 現在のワールドマップを保存（空間アンカーの永続化）
+    /// Save the current world map (persist spatial anchors)
     func saveWorldMap() async throws -> Data {
         let worldMap = try await session.currentWorldMap
         self.worldMap = worldMap
 
-        // ワールドマップをシリアライズ
+        // Serialize the world map
         let data = try NSKeyedArchiver.archivedData(
             withRootObject: worldMap,
             requiringSecureCoding: true
         )
 
-        // ファイルに保存
+        // Save to file
         let url = getDocumentsDirectory().appendingPathComponent("worldmap.arexperience")
         try data.write(to: url)
 
-        print("ワールドマップ保存完了: \(worldMap.anchors.count)個のアンカー")
+        print("World map saved: \(worldMap.anchors.count) anchors")
         return data
     }
 
-    /// 保存されたワールドマップを復元
+    /// Restore a saved world map
     func loadWorldMap(from data: Data) throws {
         guard let worldMap = try NSKeyedUnarchiver.unarchivedObject(
             ofClass: ARWorldMap.self, from: data
@@ -499,7 +507,7 @@ class SpatialAnchorManager {
         session.run(config, options: [.resetTracking, .removeExistingAnchors])
     }
 
-    /// 空間アンカーを特定位置に追加
+    /// Add a spatial anchor at a specific position
     func addAnchor(at transform: simd_float4x4, name: String) -> ARAnchor {
         let anchor = ARAnchor(name: name, transform: transform)
         session.add(anchor: anchor)
@@ -507,11 +515,11 @@ class SpatialAnchorManager {
         return anchor
     }
 
-    /// マルチユーザー共有用のアンカーデータ送信
+    /// Send anchor data for multi-user sharing
     func shareAnchors(via session: MCSession) throws {
         guard let worldMap = self.worldMap else {
             throw NSError(domain: "AR", code: -1, userInfo: [
-                NSLocalizedDescriptionKey: "ワールドマップが未保存です"
+                NSLocalizedDescriptionKey: "World map has not been saved yet"
             ])
         }
 
@@ -521,7 +529,7 @@ class SpatialAnchorManager {
         )
 
         try session.send(data, toPeers: session.connectedPeers, with: .reliable)
-        print("アンカーデータを\(session.connectedPeers.count)台のデバイスに送信")
+        print("Anchor data sent to \(session.connectedPeers.count) devices")
     }
 
     private func getDocumentsDirectory() -> URL {
@@ -530,10 +538,10 @@ class SpatialAnchorManager {
 }
 ```
 
-### コード例6: WebXR でのARアプリケーション
+### Code Example 6: AR Application with WebXR
 
 ```javascript
-// WebXR API を使ったブラウザベースのARアプリ
+// Browser-based AR app using the WebXR API
 class WebXRApp {
     constructor() {
         this.session = null;
@@ -544,43 +552,43 @@ class WebXRApp {
 
     async checkSupport() {
         if (!navigator.xr) {
-            throw new Error('WebXR API がサポートされていません');
+            throw new Error('WebXR API is not supported');
         }
         const isSupported = await navigator.xr.isSessionSupported('immersive-ar');
         if (!isSupported) {
-            throw new Error('AR セッションがサポートされていません');
+            throw new Error('AR sessions are not supported');
         }
         return true;
     }
 
     async startAR() {
-        // AR セッションの開始
+        // Start AR session
         this.session = await navigator.xr.requestSession('immersive-ar', {
             requiredFeatures: ['hit-test', 'dom-overlay', 'anchors'],
             optionalFeatures: ['plane-detection', 'depth-sensing'],
             domOverlay: { root: document.getElementById('overlay') }
         });
 
-        // WebGL コンテキストの設定
+        // Set up WebGL context
         const canvas = document.createElement('canvas');
         this.gl = canvas.getContext('webgl2', { xrCompatible: true });
 
         await this.gl.makeXRCompatible();
 
-        // レンダリングレイヤーの設定
+        // Set up rendering layer
         const layer = new XRWebGLLayer(this.session, this.gl);
         await this.session.updateRenderState({ baseLayer: layer });
 
-        // 参照空間の取得
+        // Get reference space
         this.referenceSpace = await this.session.requestReferenceSpace('local');
 
-        // ヒットテストの開始
+        // Start hit testing
         const viewerSpace = await this.session.requestReferenceSpace('viewer');
         this.hitTestSource = await this.session.requestHitTestSource({
             space: viewerSpace,
         });
 
-        // フレームループの開始
+        // Start frame loop
         this.session.requestAnimationFrame(this.onFrame.bind(this));
     }
 
@@ -588,7 +596,7 @@ class WebXRApp {
         const session = frame.session;
         session.requestAnimationFrame(this.onFrame.bind(this));
 
-        // ヒットテスト結果の取得
+        // Get hit test results
         if (this.hitTestSource) {
             const results = frame.getHitTestResults(this.hitTestSource);
             if (results.length > 0) {
@@ -598,7 +606,7 @@ class WebXRApp {
             }
         }
 
-        // レンダリング
+        // Rendering
         const glLayer = session.renderState.baseLayer;
         this.gl.bindFramebuffer(this.gl.FRAMEBUFFER, glLayer.framebuffer);
 
@@ -619,99 +627,100 @@ class WebXRApp {
         const results = frame.getHitTestResults(this.hitTestSource);
         if (results.length > 0) {
             const pose = results[0].getPose(this.referenceSpace);
-            // 空間アンカーを作成してオブジェクトを配置
+            // Create a spatial anchor and place object
             const anchor = await frame.createAnchor(
                 pose.transform, this.referenceSpace
             );
             this.addVirtualObject(anchor);
-            console.log('3Dオブジェクトを配置しました');
+            console.log('3D object placed');
         }
     }
 
     updateReticle(transform) {
-        // ヒットポイントにレティクルを表示
+        // Display reticle at hit point
     }
 
     renderScene(projectionMatrix, transform) {
-        // 3Dシーンのレンダリング
+        // Render the 3D scene
     }
 
     addVirtualObject(anchor) {
-        // アンカー位置に仮想オブジェクトを追加
+        // Add a virtual object at the anchor position
     }
 }
 
-// 使用例
+// Usage example
 const app = new WebXRApp();
 document.getElementById('start-ar').addEventListener('click', async () => {
     try {
         await app.checkSupport();
         await app.startAR();
     } catch (e) {
-        console.error('AR起動エラー:', e.message);
+        console.error('AR launch error:', e.message);
     }
 });
 ```
 
 ---
 
-## 4. フォービエイテッドレンダリング
+## 4. Foveated Rendering
 
-### AI視線予測による描画最適化
+### Render Optimization via AI Gaze Prediction
 
 ```
 +-----------------------------------------------------------+
-|  フォービエイテッド レンダリング                             |
+|  Foveated Rendering                                        |
 +-----------------------------------------------------------+
 |                                                           |
-|  従来: 画面全体を高解像度でレンダリング                    |
+|  Traditional: Render entire screen at high resolution      |
 |  +--------------------------------------------+          |
 |  |############################################|          |
 |  |############################################|          |
 |  |############################################|          |
 |  |############################################|          |
 |  +--------------------------------------------+          |
-|  → GPU負荷: 100%                                         |
+|  -> GPU load: 100%                                        |
 |                                                           |
-|  フォービエイテッド: 視線の中心のみ高解像度                |
+|  Foveated: High resolution only at gaze center            |
 |  +--------------------------------------------+          |
 |  |.........:::::::::::::::::::::...............|          |
 |  |......::::::::#########::::::::..............|          |
-|  |....::::::::##(視線中心)##::::::::............|          |
+|  |....::::::::##(Gaze Center)##::::::::........|          |
 |  |......::::::::#########::::::::..............|          |
 |  |.........:::::::::::::::::::::...............|          |
 |  +--------------------------------------------+          |
-|  # = 高解像度  : = 中解像度  . = 低解像度                 |
-|  → GPU負荷: 30-50%（AI視線予測で遅延補償）                |
+|  # = High res  : = Mid res  . = Low res                   |
+|  -> GPU load: 30-50% (AI gaze prediction for latency      |
+|     compensation)                                         |
 +-----------------------------------------------------------+
 ```
 
-### フォービエイテッドレンダリングの実装パターン
+### Foveated Rendering Implementation Pattern
 
 ```python
 class FoveatedRenderer:
-    """AI視線予測によるフォービエイテッドレンダリング"""
+    """Foveated rendering with AI gaze prediction"""
 
     def __init__(self, display_resolution=(3660, 3200)):
         self.display_res = display_resolution
         self.eye_tracker = EyeTracker()
         self.gaze_predictor = GazePredictionModel()
 
-        # 解像度ゾーンの設定
+        # Resolution zone configuration
         self.zones = {
-            'foveal': {'radius': 0.1, 'scale': 1.0},    # 中心窩: 全解像度
-            'para_foveal': {'radius': 0.3, 'scale': 0.5}, # 傍中心窩: 50%
-            'peripheral': {'radius': 1.0, 'scale': 0.25}, # 周辺視: 25%
+            'foveal': {'radius': 0.1, 'scale': 1.0},    # Fovea: full resolution
+            'para_foveal': {'radius': 0.3, 'scale': 0.5}, # Parafovea: 50%
+            'peripheral': {'radius': 1.0, 'scale': 0.25}, # Peripheral: 25%
         }
 
     def get_render_targets(self, current_gaze, dt):
         """
-        視線位置に基づいてレンダリングターゲットを生成
+        Generate render targets based on gaze position
 
-        AIによる視線予測で20ms先の視線位置を推定し、
-        レンダリング遅延を補償する
+        Uses AI gaze prediction to estimate gaze position 20ms ahead,
+        compensating for rendering latency
         """
-        # AIによる視線予測（20ms先を予測）
+        # AI gaze prediction (predict 20ms ahead)
         predicted_gaze = self.gaze_predictor.predict(
             current_gaze=current_gaze,
             prediction_horizon_ms=20,
@@ -733,11 +742,11 @@ class FoveatedRenderer:
         return targets
 
     def composite_frame(self, rendered_zones):
-        """各ゾーンのレンダリング結果を合成"""
+        """Composite rendering results from each zone"""
         final_frame = create_framebuffer(self.display_res)
 
         for zone in reversed(rendered_zones):
-            # 低解像度から順に合成（上書き方式）
+            # Composite from lowest resolution first (overwrite method)
             upscaled = bilinear_upscale(zone.image, self.display_res)
             blend_to_framebuffer(final_frame, upscaled, zone.mask)
 
@@ -748,100 +757,100 @@ class FoveatedRenderer:
 
 ```
 +-----------------------------------------------------------+
-|  フレーム補間技術                                           |
+|  Frame Interpolation Technology                            |
 +-----------------------------------------------------------+
 |                                                           |
-|  問題: GPUがフレームレート(90fps)を維持できない             |
-|        → VR酔い、ちらつきの原因                            |
+|  Problem: GPU cannot maintain frame rate (90fps)           |
+|           -> Causes VR sickness and flickering             |
 |                                                           |
-|  解決策: ASW / Timewarp                                    |
+|  Solution: ASW / Timewarp                                  |
 |                                                           |
-|  フレーム N    フレーム N+1    フレーム N+2                 |
-|  [実レンダ]   [AI補間生成]    [実レンダ]                   |
+|  Frame N      Frame N+1       Frame N+2                    |
+|  [Real Render] [AI Interpolated] [Real Render]             |
 |      |             |              |                        |
 |      v             v              v                        |
-|  GPU: 45fps → 表示: 90fps                                  |
+|  GPU: 45fps -> Display: 90fps                              |
 |                                                           |
-|  AI補間の仕組み:                                           |
-|  1. 前フレームの深度バッファを取得                          |
-|  2. 頭部の動き(IMU)から次フレームの視点を予測               |
-|  3. 深度ベースのリプロジェクションで画像を変形               |
-|  4. 穴(disocclusion)をAIで補填                             |
+|  How AI interpolation works:                               |
+|  1. Obtain depth buffer from previous frame                |
+|  2. Predict next frame viewpoint from head movement (IMU)  |
+|  3. Warp image using depth-based reprojection              |
+|  4. Fill holes (disocclusion) with AI                      |
 |                                                           |
-|  結果: ユーザーには90fpsに見える                            |
+|  Result: Appears as 90fps to the user                      |
 +-----------------------------------------------------------+
 ```
 
 ---
 
-## 5. XR開発プラットフォーム比較表
+## 5. XR Development Platform Comparison
 
-| 項目 | Unity | Unreal Engine | visionOS (RealityKit) | WebXR |
+| Item | Unity | Unreal Engine | visionOS (RealityKit) | WebXR |
 |------|-------|--------------|----------------------|-------|
-| 対応デバイス | Quest, Vision Pro, PSVR等 | Quest, PSVR等 | Vision Pro専用 | ブラウザ全般 |
-| 言語 | C# | C++/Blueprint | Swift | JavaScript |
-| 学習コスト | 中 | 高 | 中 | 低 |
-| グラフィック品質 | 高 | 非常に高 | 高 | 中 |
-| AI統合 | Barracuda, ONNX | NNE Plugin | Core ML, Create ML | TF.js, ONNX.js |
-| 3D物理演算 | PhysX | Chaos Physics | RealityKit Physics | Ammo.js |
-| ライセンス | 無料〜有料 | ロイヤリティ制 | 無料 | 無料 |
+| Supported Devices | Quest, Vision Pro, PSVR, etc. | Quest, PSVR, etc. | Vision Pro only | All browsers |
+| Language | C# | C++/Blueprint | Swift | JavaScript |
+| Learning Curve | Medium | High | Medium | Low |
+| Graphics Quality | High | Very High | High | Medium |
+| AI Integration | Barracuda, ONNX | NNE Plugin | Core ML, Create ML | TF.js, ONNX.js |
+| 3D Physics | PhysX | Chaos Physics | RealityKit Physics | Ammo.js |
+| License | Free to Paid | Royalty-based | Free | Free |
 
-### OpenXR 標準とその意義
+### OpenXR Standard and Its Significance
 
 ```
 +-----------------------------------------------------------+
-|  OpenXR アーキテクチャ                                      |
+|  OpenXR Architecture                                       |
 +-----------------------------------------------------------+
 |                                                           |
-|  アプリケーション                                          |
-|  ├── Unity XR Plugin                                       |
-|  ├── Unreal OpenXR Plugin                                  |
-|  └── 独自エンジン                                          |
-|       │                                                   |
+|  Applications                                             |
+|  +-- Unity XR Plugin                                       |
+|  +-- Unreal OpenXR Plugin                                  |
+|  +-- Custom Engines                                        |
+|       |                                                   |
 |       v                                                   |
-|  ┌──────────────────────────────┐                          |
-|  │  OpenXR API (統一インターフェース)│                      |
-|  │  ・入力: アクション、ポーズ    │                          |
-|  │  ・描画: スワップチェーン      │                          |
-|  │  ・空間: 参照空間、アンカー    │                          |
-|  │  ・拡張: ハンドトラッキング等  │                          |
-|  └──────────────────────────────┘                          |
-|       │                                                   |
+|  +----------------------------------------------+         |
+|  |  OpenXR API (Unified Interface)               |         |
+|  |  - Input: Actions, Poses                      |         |
+|  |  - Rendering: Swapchain                       |         |
+|  |  - Spatial: Reference Spaces, Anchors         |         |
+|  |  - Extensions: Hand Tracking, etc.            |         |
+|  +----------------------------------------------+         |
+|       |                                                   |
 |       v                                                   |
-|  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    |
-|  │ SteamVR      │  │ Oculus       │  │ WMR          │    |
-|  │ ランタイム   │  │ ランタイム   │  │ ランタイム   │    |
-|  └──────────────┘  └──────────────┘  └──────────────┘    |
-|       │                 │                  │              |
+|  +--------------+  +--------------+  +--------------+     |
+|  | SteamVR      |  | Oculus       |  | WMR          |     |
+|  | Runtime      |  | Runtime      |  | Runtime      |     |
+|  +--------------+  +--------------+  +--------------+     |
+|       |                 |                  |              |
 |       v                 v                  v              |
 |  [Valve Index]    [Quest 3]         [HP Reverb G2]       |
 |                                                           |
-|  メリット: 1つのコードベースで複数デバイス対応              |
+|  Benefit: Support multiple devices with a single codebase |
 +-----------------------------------------------------------+
 ```
 
 ---
 
-## 6. XR ユースケースと産業応用
+## 6. XR Use Cases and Industrial Applications
 
-### 産業別XR活用事例
+### XR Applications by Industry
 
-| 産業 | ユースケース | 使用技術 | 効果 |
-|------|------------|---------|------|
-| 医療 | 手術シミュレーション | VR + 触覚フィードバック | 手術成功率15%向上 |
-| 医療 | 解剖学教育 | AR + 3Dモデル | 学習効率40%向上 |
-| 製造 | リモート保守支援 | AR + AIアシスタント | ダウンタイム30%削減 |
-| 製造 | 組立作業指示 | AR + ステップバイステップ | エラー率60%削減 |
-| 建築 | 設計プレビュー | MR + BIMモデル | 設計変更50%削減 |
-| 教育 | 仮想フィールドトリップ | VR + 360度映像 | 学習定着率3倍 |
-| 小売 | バーチャル試着 | AR + 3Dボディスキャン | 返品率25%削減 |
-| 不動産 | VR内覧 | VR + 3Dスキャン | 成約率20%向上 |
+| Industry | Use Case | Technology Used | Impact |
+|----------|---------|----------------|--------|
+| Healthcare | Surgical Simulation | VR + Haptic Feedback | 15% improvement in surgery success rate |
+| Healthcare | Anatomy Education | AR + 3D Models | 40% improvement in learning efficiency |
+| Manufacturing | Remote Maintenance Support | AR + AI Assistant | 30% reduction in downtime |
+| Manufacturing | Assembly Work Instructions | AR + Step-by-Step | 60% reduction in error rate |
+| Architecture | Design Preview | MR + BIM Models | 50% reduction in design changes |
+| Education | Virtual Field Trips | VR + 360-degree Video | 3x improvement in learning retention |
+| Retail | Virtual Try-On | AR + 3D Body Scan | 25% reduction in returns |
+| Real Estate | VR Property Tours | VR + 3D Scanning | 20% improvement in conversion rate |
 
-### コード例7: 産業AR保守支援システムの概念設計
+### Code Example 7: Conceptual Design of an Industrial AR Maintenance Support System
 
 ```python
 class IndustrialARSupport:
-    """産業向けAR保守支援システム"""
+    """Industrial AR maintenance support system"""
 
     def __init__(self):
         self.equipment_db = EquipmentDatabase()
@@ -850,8 +859,8 @@ class IndustrialARSupport:
         self.remote_expert = RemoteExpertConnection()
 
     async def identify_equipment(self, camera_frame):
-        """カメラ画像から設備を識別"""
-        # AI物体認識で設備を特定
+        """Identify equipment from camera image"""
+        # Identify equipment using AI object recognition
         detection = await self.ai_diagnostic.identify(camera_frame)
         equipment = self.equipment_db.get_info(detection.equipment_id)
 
@@ -864,7 +873,7 @@ class IndustrialARSupport:
         }
 
     async def diagnose_issue(self, equipment_id, sensor_data, visual_data):
-        """AIによる故障診断"""
+        """AI-powered fault diagnosis"""
         diagnosis = await self.ai_diagnostic.analyze(
             equipment_id=equipment_id,
             sensor_readings=sensor_data,
@@ -880,24 +889,24 @@ class IndustrialARSupport:
         }
 
     def overlay_repair_instructions(self, equipment_id, step_number):
-        """AR上に修理手順をオーバーレイ表示"""
+        """Overlay repair instructions in AR"""
         instructions = self.equipment_db.get_repair_steps(equipment_id)
         step = instructions[step_number]
 
         self.ar_overlay.show({
             'type': 'step_instruction',
             'text': step.description,
-            'highlight_parts': step.target_parts,  # 対象部品をハイライト
-            'arrows': step.directional_hints,       # 方向指示矢印
-            'safety_warnings': step.warnings,       # 安全注意表示
-            'video_guide': step.video_url,           # 参考動画
+            'highlight_parts': step.target_parts,  # Highlight target parts
+            'arrows': step.directional_hints,       # Directional arrows
+            'safety_warnings': step.warnings,       # Safety warning display
+            'video_guide': step.video_url,           # Reference video
         })
 
     async def connect_remote_expert(self, issue_description):
-        """リモートエキスパートとのAR共有接続"""
+        """AR-shared connection with a remote expert"""
         session = await self.remote_expert.connect()
-        # エキスパートが現場のAR映像をリアルタイムで閲覧
-        # AR上にアノテーションを描画して指示
+        # Expert views the on-site AR feed in real time
+        # Draws annotations on AR to provide instructions
         session.share_ar_view(
             enable_annotation=True,
             enable_voice=True,
@@ -908,195 +917,200 @@ class IndustrialARSupport:
 
 ---
 
-## 7. 3DGaussian Splatting と NeRF のXR応用
+## 7. 3D Gaussian Splatting and NeRF for XR
 
-### XRにおけるリアル空間の3D再構成
+### 3D Reconstruction of Real Spaces for XR
 
 ```
 +-----------------------------------------------------------+
-|  3D再構成技術のXR応用                                       |
+|  3D Reconstruction Technologies for XR                     |
 +-----------------------------------------------------------+
 |                                                           |
-|  撮影 (スマホ/ドローン)                                    |
-|       │                                                   |
+|  Capture (Smartphone/Drone)                               |
+|       |                                                   |
 |       v                                                   |
-|  ┌──────────────────┐                                      |
-|  │ SfM (COLMAP)     │  カメラ位置推定                      |
-|  └──────────────────┘                                      |
-|       │                                                   |
+|  +----------------------+                                  |
+|  | SfM (COLMAP)         |  Camera Pose Estimation          |
+|  +----------------------+                                  |
+|       |                                                   |
 |       v                                                   |
-|  ┌──────────────────┐  ┌──────────────────┐               |
-|  │ NeRF             │  │ 3D Gaussian      │               |
-|  │ (暗黙的表現)     │  │ Splatting        │               |
-|  │ 高品質だが遅い   │  │ (明示的表現)     │               |
-|  └──────────────────┘  │ リアルタイム描画  │               |
-|                        └──────────────────┘               |
-|       │                      │                            |
+|  +----------------------+  +----------------------+        |
+|  | NeRF                 |  | 3D Gaussian          |        |
+|  | (Implicit            |  | Splatting             |        |
+|  |  Representation)     |  | (Explicit             |        |
+|  | High quality but slow|  |  Representation)      |        |
+|  +----------------------+  | Real-time rendering   |        |
+|                            +----------------------+        |
+|       |                      |                            |
 |       v                      v                            |
-|  ┌──────────────────────────────────┐                      |
-|  │  XR体験                          │                      |
-|  │  ・仮想観光（遠隔地の3Dウォーク） │                      |
-|  │  ・不動産VR内覧                  │                      |
-|  │  ・文化財デジタルアーカイブ       │                      |
-|  │  ・リモートコラボ空間            │                      |
-|  └──────────────────────────────────┘                      |
+|  +------------------------------------------+              |
+|  |  XR Experiences                           |              |
+|  |  - Virtual Tourism (Remote 3D Walkthrough)|              |
+|  |  - Real Estate VR Tours                   |              |
+|  |  - Cultural Heritage Digital Archives     |              |
+|  |  - Remote Collaboration Spaces            |              |
+|  +------------------------------------------+              |
 +-----------------------------------------------------------+
 ```
 
 ---
 
-## 8. アンチパターン
+## 8. Anti-Patterns
 
-### アンチパターン1: VR酔いを無視した設計
-
-```
-NG:
-- フレームレートが60fps以下に落ちる
-- カメラをプログラムで強制移動させる
-- 加速度のある移動（急発進・急停止）
-- UIを視界の端に固定配置する
-
-OK:
-- 常に90fps以上を維持（フォービエイテッドレンダリング活用）
-- 移動はテレポート方式 or ビネット効果付き
-- ユーザー主導のカメラ制御
-- 固定UIの代わりに空間にアンカーされたUI
-- 加速度運動を避け、等速直線運動を基本にする
-```
-
-### アンチパターン2: エッジケースでのトラッキング喪失
+### Anti-Pattern 1: Ignoring VR Sickness in Design
 
 ```
-NG:
-- トラッキング喪失時に何も対策しない
-  → ユーザーの位置が突然飛ぶ、VR酔い発生
+BAD:
+- Frame rate drops below 60fps
+- Forcing camera movement programmatically
+- Movement with acceleration (sudden starts/stops)
+- Fixing UI at the edges of the field of view
 
-OK:
-- IMU（慣性計測装置）でのフォールバック推定
-- トラッキング喪失を検出してユーザーに通知
-- 最後の有効な位置にスムーズに戻す
-- 暗い部屋や反射面など、喪失しやすい環境の事前検出
+GOOD:
+- Maintain 90fps or above at all times (use foveated rendering)
+- Use teleportation or vignette effects for locomotion
+- User-driven camera control
+- Use spatially anchored UI instead of fixed UI
+- Avoid accelerated movement; use constant velocity as the default
 ```
 
-### アンチパターン3: パフォーマンス検証なしでの没入体験設計
+### Anti-Pattern 2: Tracking Loss in Edge Cases
 
 ```
-NG:
-- 開発用PCのスペックでのみテストし、実機で動作確認しない
-- 大量のリアルタイムライティングやパーティクルを使用
-- テクスチャサイズやポリゴン数の上限を設定しない
-- メモリ管理を無視してアセットをロードし続ける
+BAD:
+- No countermeasures when tracking is lost
+  -> User's position suddenly jumps, causing VR sickness
 
-OK:
-- ターゲットデバイスでの定期的なパフォーマンステスト
-- フレームバジェットの設定
-  ├── Quest 3: 72Hz → 13.9ms/フレーム
-  ├── Quest 3: 90Hz → 11.1ms/フレーム
-  └── Vision Pro: 90Hz → 11.1ms/フレーム
-- LOD（Level of Detail）の適切な設定
-- テクスチャアトラスと圧縮フォーマットの活用
-- オクルージョンカリングの実装
+GOOD:
+- IMU (Inertial Measurement Unit) fallback estimation
+- Detect tracking loss and notify the user
+- Smoothly return to the last valid position
+- Pre-detect environments prone to loss (dark rooms, reflective surfaces)
 ```
 
-### アンチパターン4: アクセシビリティの無視
+### Anti-Pattern 3: Designing Immersive Experiences Without Performance Testing
 
 ```
-NG:
-- 色だけで情報を区別（色覚多様性への未対応）
-- 音声のみのフィードバック（聴覚障害への未対応）
-- 細かすぎるジェスチャー要求（運動障害への未対応）
-- 立位前提の設計（車椅子ユーザーへの未対応）
+BAD:
+- Testing only on development PC specs without testing on actual devices
+- Using excessive real-time lighting and particles
+- Not setting upper limits for texture sizes and polygon counts
+- Continuously loading assets without memory management
 
-OK:
-- 色 + 形状 + テキストの組み合わせで情報を伝達
-- 視覚 + 触覚(コントローラ振動) + 音声の多重フィードバック
-- ジェスチャーの代替入力（音声、コントローラ、視線）を用意
-- 座位でも快適に使えるUIレイアウト
-- 酔いやすさの個人差に対応した快適設定オプション
+GOOD:
+- Regular performance testing on target devices
+- Setting frame budgets
+  +-- Quest 3: 72Hz -> 13.9ms/frame
+  +-- Quest 3: 90Hz -> 11.1ms/frame
+  +-- Vision Pro: 90Hz -> 11.1ms/frame
+- Proper LOD (Level of Detail) configuration
+- Using texture atlases and compressed formats
+- Implementing occlusion culling
 ```
 
----
-
-## 9. トラブルシューティング
-
-### よくある問題と解決策
-
-| 問題 | 原因 | 解決策 |
-|------|------|--------|
-| フレームレートが低い | GPU負荷が高すぎる | フォービエイテッドレンダリング導入、LOD設定、ドローコール削減 |
-| トラッキングが不安定 | 環境の照明/反射 | 照明条件を改善、テクスチャの少ない壁にマーカーを追加 |
-| パススルーの遅延 | カメラ→表示のパイプライン遅延 | ASW/Timewarpの有効化、レイテンシ最適化 |
-| ハンドトラッキングの精度不足 | 手が暗い場所にある/遮蔽 | 補助照明の追加、コントローラへのフォールバック |
-| アプリの起動が遅い | アセットの読み込み時間 | 非同期ロード、アセットストリーミング、圧縮テクスチャの使用 |
-| バッテリー消耗が早い | CPU/GPU使用率が高い | 描画品質の動的調整、アイドル時のフレームレート低下 |
-| 空間オーディオの定位がずれる | HRTF設定の不適切 | 個人化HRTF、頭部サイズの計測、リアルタイム更新 |
-
-### パフォーマンスプロファイリングの手順
+### Anti-Pattern 4: Ignoring Accessibility
 
 ```
-1. フレーム時間の計測
-   ├── GPU時間: レンダリングにかかる時間
-   ├── CPU時間: ゲームロジック、物理演算
-   └── 合計がフレームバジェットを超えていないか確認
+BAD:
+- Distinguishing information by color alone (not accommodating color vision diversity)
+- Audio-only feedback (not accommodating hearing impairment)
+- Requiring overly fine gestures (not accommodating motor disabilities)
+- Designing only for standing use (not accommodating wheelchair users)
 
-2. ボトルネックの特定
-   ├── GPU bound → ドローコール削減、シェーダー最適化
-   ├── CPU bound → ロジック最適化、マルチスレッド化
-   └── メモリ bound → テクスチャ圧縮、メモリプール
-
-3. 最適化の優先順位
-   ├── 高: フレームレートの維持（VR酔い防止）
-   ├── 中: メモリ使用量の削減（バッテリー寿命）
-   └── 低: 起動時間の短縮（UX改善）
-
-4. ツール
-   ├── Meta Quest: OVR Metrics Tool, RenderDoc
-   ├── Vision Pro: Xcode Instruments, RealityKit Profiler
-   └── PC VR: NVIDIA Nsight, PIX for Windows
+GOOD:
+- Convey information using color + shape + text
+- Multi-modal feedback: visual + haptic (controller vibration) + audio
+- Provide alternative inputs for gestures (voice, controller, gaze)
+- UI layout that is comfortable for seated use
+- Comfort setting options to accommodate individual differences in motion sickness susceptibility
 ```
 
 ---
 
-## 10. ベストプラクティス
+## 9. Troubleshooting
 
-### XRアプリ開発のベストプラクティス
+### Common Issues and Solutions
 
-1. **パフォーマンスファースト**: 品質よりもフレームレートを優先。90fpsを維持できないなら機能を削る
-2. **ユーザー主導の移動**: カメラの強制移動は最小限に。テレポートやビネット効果を活用
-3. **快適な距離感**: UIは0.5m〜3mの距離に配置。近すぎると目の疲労、遠すぎると読みにくい
-4. **漸進的な没入**: いきなりフル没入ではなく、段階的に没入度を上げる
-5. **セーフティガード**: 物理的な障害物警告、バウンダリーシステムの実装
-6. **クロスプラットフォーム設計**: OpenXRベースで開発し、デバイス固有機能は抽象化
-7. **テスト多様性**: 様々な体格、部屋サイズ、照明条件でテスト
+| Issue | Cause | Solution |
+|-------|-------|----------|
+| Low frame rate | GPU load too high | Introduce foveated rendering, set up LOD, reduce draw calls |
+| Unstable tracking | Lighting/reflections in environment | Improve lighting conditions, add markers to textureless walls |
+| Passthrough latency | Camera-to-display pipeline delay | Enable ASW/Timewarp, optimize latency |
+| Poor hand tracking accuracy | Hand in dark area / occluded | Add supplementary lighting, fall back to controller |
+| Slow app startup | Asset loading time | Async loading, asset streaming, use compressed textures |
+| Rapid battery drain | High CPU/GPU usage | Dynamic render quality adjustment, lower frame rate when idle |
+| Spatial audio localization off | Improper HRTF settings | Personalized HRTF, head size measurement, real-time updates |
 
-### VRコンテンツのUIデザイン原則
+### Performance Profiling Procedure
+
+```
+1. Measure Frame Timing
+   +-- GPU time: Time spent on rendering
+   +-- CPU time: Game logic, physics simulation
+   +-- Check if total exceeds the frame budget
+
+2. Identify Bottleneck
+   +-- GPU bound -> Reduce draw calls, optimize shaders
+   +-- CPU bound -> Optimize logic, use multithreading
+   +-- Memory bound -> Compress textures, use memory pools
+
+3. Optimization Priority
+   +-- High: Maintain frame rate (prevent VR sickness)
+   +-- Medium: Reduce memory usage (battery life)
+   +-- Low: Reduce startup time (UX improvement)
+
+4. Tools
+   +-- Meta Quest: OVR Metrics Tool, RenderDoc
+   +-- Vision Pro: Xcode Instruments, RealityKit Profiler
+   +-- PC VR: NVIDIA Nsight, PIX for Windows
+```
+
+---
+
+## 10. Best Practices
+
+### Best Practices for XR App Development
+
+1. **Performance First**: Prioritize frame rate over quality. Cut features if you cannot maintain 90fps
+2. **User-Driven Locomotion**: Minimize forced camera movement. Use teleportation and vignette effects
+3. **Comfortable Distances**: Place UI at 0.5m to 3m. Too close causes eye strain; too far makes it unreadable
+4. **Gradual Immersion**: Increase immersion level gradually rather than starting with full immersion
+5. **Safety Guards**: Implement physical obstacle warnings and boundary systems
+6. **Cross-Platform Design**: Develop on an OpenXR base and abstract device-specific features
+7. **Testing Diversity**: Test across various body sizes, room sizes, and lighting conditions
+
+### UI Design Principles for VR Content
 
 ```
 +-----------------------------------------------------------+
-|  空間UIデザインの推奨配置                                    |
+|  Recommended Spatial UI Placement                          |
 +-----------------------------------------------------------+
 |                                                           |
-|  ユーザーの視界（水平120度 × 垂直100度）                   |
+|  User's Field of View (120 deg horizontal x 100 deg       |
+|  vertical)                                                |
 |                                                           |
-|       ┌─────────── 快適ゾーン ──────────┐                  |
-|       │                                │                  |
-|       │    ┌─────────────────────┐     │                  |
-|       │    │  メインUI           │     │                  |
-|       │    │  距離: 1.5-2.0m     │     │                  |
-|       │    │  角度: 正面±30度    │     │                  |
-|       │    └─────────────────────┘     │                  |
-|       │                                │                  |
-|  ←────┼── サブUI ──── サブUI ──────────┼────→             |
-|       │  距離: 1.0m   距離: 1.0m       │                  |
-|       │  角度: ±45度  角度: ±45度      │                  |
-|       │                                │                  |
-|       └────────────────────────────────┘                  |
+|       +---------- Comfort Zone -----------+               |
+|       |                                   |               |
+|       |    +-------------------------+    |               |
+|       |    |  Main UI                |    |               |
+|       |    |  Distance: 1.5-2.0m     |    |               |
+|       |    |  Angle: Front +/-30 deg |    |               |
+|       |    +-------------------------+    |               |
+|       |                                   |               |
+|  <----+-- Sub UI ------ Sub UI -----------+---->          |
+|       |  Dist: 1.0m    Dist: 1.0m         |               |
+|       |  Angle: +/-45 deg  Angle: +/-45 deg|              |
+|       |                                   |               |
+|       +-----------------------------------+               |
 |                                                           |
-|  推奨:                                                    |
-|  ・テキストサイズ: 最低1.5度の視角（約4cm @ 1.5m）         |
-|  ・ボタンサイズ: 最低5cm × 5cm（タッチ精度を考慮）        |
-|  ・重要情報: 正面の快適ゾーン内に配置                      |
-|  ・控えめな情報: 周辺部に配置（視線移動で確認）            |
+|  Recommendations:                                         |
+|  - Text size: At least 1.5 deg visual angle (~4cm @ 1.5m)|
+|  - Button size: At least 5cm x 5cm (considering touch     |
+|    precision)                                             |
+|  - Important information: Place within the front comfort  |
+|    zone                                                   |
+|  - Secondary information: Place in periphery (confirmed   |
+|    via gaze)                                              |
 +-----------------------------------------------------------+
 ```
 
@@ -1104,64 +1118,64 @@ OK:
 
 ## FAQ
 
-### Q1. Vision Pro は買うべきか？
+### Q1. Should I buy the Vision Pro?
 
-2024年時点で一般消費者にはまだ高価（$3,499）。空間コンピューティングの開発者、3D映像・デザインのプロフェッショナル、アーリーアダプターには価値がある。一般的なVRゲーム目的なら Quest 3（$499）の方がコスパが圧倒的に良い。
+As of 2024, it is still expensive ($3,499) for general consumers. It offers value for spatial computing developers, 3D video/design professionals, and early adopters. For general VR gaming purposes, the Quest 3 ($499) provides overwhelmingly better cost-performance.
 
-### Q2. WebXR で実用的なAR/VRアプリは作れるか？
+### Q2. Can practical AR/VR apps be built with WebXR?
 
-シンプルなARフィルターや3Dビューアーは十分実用的。Three.js + WebXR APIで開発でき、アプリストアを介さずURLで配布できるのが強み。ただしネイティブアプリと比べてGPU性能への制約が大きく、複雑なMR体験には向かない。
+Simple AR filters and 3D viewers are sufficiently practical. Development is possible with Three.js + WebXR API, and the advantage is distribution via URL without going through an app store. However, GPU performance constraints are significant compared to native apps, making it unsuitable for complex MR experiences.
 
-### Q3. 空間コンピューティングの「キラーアプリ」は何か？
+### Q3. What is the "killer app" for spatial computing?
 
-現時点で最も有望なのは、1) リモートコラボレーション（空間を共有した会議）、2) 空間デザイン（建築・インテリアの実寸プレビュー）、3) 教育・トレーニング（外科手術シミュレーション等）、4) エンターテインメント（空間を使った没入体験）。AIアシスタントとの空間的対話も今後の有力候補。
+The most promising candidates at present are: 1) Remote collaboration (meetings in shared spaces), 2) Spatial design (full-scale previews for architecture/interior design), 3) Education and training (surgical simulations, etc.), and 4) Entertainment (immersive experiences using physical space). Spatial dialogue with AI assistants is also a strong future candidate.
 
-### Q4. XR開発を始めるのに最適な学習パスは？
+### Q4. What is the optimal learning path to start XR development?
 
-ステップ1: UnityまたはUnreal Engineの基本を学ぶ（2D/3Dゲーム開発の基礎）。ステップ2: XR Interaction Toolkitを使った簡単なVRアプリを作成。ステップ3: Quest 3でテスト（最も入手しやすい開発デバイス）。ステップ4: ARKit/ARCoreでモバイルARを体験。ステップ5: 空間UI設計やAI統合など高度な技術に進む。
+Step 1: Learn the basics of Unity or Unreal Engine (fundamentals of 2D/3D game development). Step 2: Create a simple VR app using the XR Interaction Toolkit. Step 3: Test on Quest 3 (the most accessible development device). Step 4: Experience mobile AR with ARKit/ARCore. Step 5: Advance to sophisticated techniques such as spatial UI design and AI integration.
 
-### Q5. 企業がXRを導入する際の注意点は？
+### Q5. What should companies consider when adopting XR?
 
-ROIの明確化が最重要。「VRだから」ではなく「VRでなければ解決できない課題」を特定する。パイロットプロジェクトで効果を実証し、段階的に展開する。デバイスの管理・充電・衛生管理のオペレーションコストも見積もる。Wi-Fi環境やIT部門のサポート体制も事前に整備が必要。
+Clarifying ROI is paramount. Identify challenges that "can only be solved with VR," not just "because it's VR." Demonstrate effectiveness through pilot projects and deploy incrementally. Also factor in operational costs for device management, charging, and hygiene. Wi-Fi infrastructure and IT department support must be prepared in advance.
 
-### Q6. 6DoFと3DoFの違いと選び方は？
+### Q6. What is the difference between 6DoF and 3DoF, and how do I choose?
 
-3DoF（3 Degrees of Freedom）は回転のみ（pitch、yaw、roll）を追跡し、位置の移動は追跡しない。360度動画の視聴など受動的な体験に適している。6DoF（6 Degrees of Freedom）は回転に加えて位置の移動（x、y、z）も追跡し、空間内を歩き回ったり、手を伸ばして物体をつかんだりできる。インタラクティブな体験には6DoFが必須。現行の主要デバイス（Quest 3、Vision Pro）はすべて6DoF対応。
-
----
-
-## まとめ
-
-| 概念 | 要点 |
-|------|------|
-| AR/VR/MR/XR | 現実-仮想の連続体上の各技術 |
-| Vision Pro | 空間コンピューティングの先駆、Micro-OLED |
-| Quest 3 | 最もコスパの良いMRデバイス |
-| SLAM | 自己位置推定と環境地図の同時構築 |
-| フォービエイテッドレンダリング | AI視線予測でGPU負荷60-70%削減 |
-| 空間UI | 3D空間に配置するユーザーインターフェース |
-| NeRF / 3D Gaussian Splatting | AIによる3Dシーン再構築 |
-| 6DoF | 位置(x,y,z) + 回転(pitch,yaw,roll) の6自由度トラッキング |
-| OpenXR | クロスプラットフォームXR開発の標準API |
-| ハンドトラッキング | コントローラ不要の自然な入力方式 |
-| ASW/Timewarp | フレーム補間によるVR酔い防止技術 |
+3DoF (3 Degrees of Freedom) tracks only rotation (pitch, yaw, roll) without tracking positional movement. It is suitable for passive experiences such as viewing 360-degree videos. 6DoF (6 Degrees of Freedom) tracks both rotation and positional movement (x, y, z), enabling walking around in a space and reaching out to grab objects. 6DoF is essential for interactive experiences. All current major devices (Quest 3, Vision Pro) support 6DoF.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- **02-emerging/01-robotics.md** — ロボティクス：Boston Dynamics、Figure
-- **02-emerging/02-smart-home.md** — スマートホーム：Matter、AI家電
-- **01-computing/02-edge-ai.md** — エッジAI：NPU、Coral、Jetson
+| Concept | Key Point |
+|---------|-----------|
+| AR/VR/MR/XR | Technologies along the reality-virtuality continuum |
+| Vision Pro | Pioneer of spatial computing, Micro-OLED |
+| Quest 3 | Most cost-effective MR device |
+| SLAM | Simultaneous self-localization and environment mapping |
+| Foveated Rendering | 60-70% GPU load reduction via AI gaze prediction |
+| Spatial UI | User interfaces placed in 3D space |
+| NeRF / 3D Gaussian Splatting | AI-powered 3D scene reconstruction |
+| 6DoF | 6-degree-of-freedom tracking: position (x,y,z) + rotation (pitch,yaw,roll) |
+| OpenXR | Standard API for cross-platform XR development |
+| Hand Tracking | Natural input method without controllers |
+| ASW/Timewarp | Frame interpolation technology to prevent VR sickness |
 
 ---
 
-## 参考文献
+## Recommended Next Guides
+
+- **02-emerging/01-robotics.md** — Robotics: Boston Dynamics, Figure
+- **02-emerging/02-smart-home.md** — Smart Home: Matter, AI Appliances
+- **01-computing/02-edge-ai.md** — Edge AI: NPU, Coral, Jetson
+
+---
+
+## References
 
 1. **Apple — visionOS Developer Documentation** https://developer.apple.com/visionos/
 2. **Meta Quest Developer Hub** https://developer.oculus.com/
 3. **WebXR Device API — W3C** https://www.w3.org/TR/webxr/
-4. **NeRF (Neural Radiance Fields) 原論文** https://www.matthewtancik.com/nerf
+4. **NeRF (Neural Radiance Fields) Original Paper** https://www.matthewtancik.com/nerf
 5. **OpenXR Specification — Khronos Group** https://www.khronos.org/openxr/
 6. **ARKit Documentation — Apple** https://developer.apple.com/documentation/arkit
-7. **3D Gaussian Splatting 原論文** https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/
+7. **3D Gaussian Splatting Original Paper** https://repo-sam.inria.fr/fungraph/3d-gaussian-splatting/
