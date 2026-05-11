@@ -1,145 +1,147 @@
-# バーチャル試着
+# Virtual Try-On
 
-> AIとコンピュータビジョン技術を活用したバーチャル試着システムの仕組みを、人体推定・衣服変形・リアルタイムレンダリングの観点から解説し、ECサイトやアパレル業界での実装手法を示す
+> Explains the mechanisms of virtual try-on systems leveraging AI and computer vision technology from the perspectives of human body estimation, garment deformation, and real-time rendering, and demonstrates implementation methods for e-commerce sites and the apparel industry
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **バーチャル試着の技術基盤** -- 人体ポーズ推定、セマンティックセグメンテーション、衣服変形アルゴリズム
-2. **主要アプローチの比較** -- 2D画像ベース vs 3Dモデルベース vs AR ベースの手法と精度
-3. **実装パイプラインと課題** -- データ準備、モデル訓練、リアルタイム推論の実現
+1. **Technical Foundations of Virtual Try-On** -- Human pose estimation, semantic segmentation, garment deformation algorithms
+2. **Comparison of Major Approaches** -- 2D image-based vs 3D model-based vs AR-based methods and accuracy
+3. **Implementation Pipeline and Challenges** -- Data preparation, model training, achieving real-time inference
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will help deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [AIによるゲームアセット生成 実践ガイド](./01-game-assets.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [AI Game Asset Generation Practical Guide](./01-game-assets.md)
 
 ---
 
-## 1. バーチャル試着の全体像
+## 1. Overview of Virtual Try-On
 
-### 1.1 システムアーキテクチャ
+### 1.1 System Architecture
 
 ```
-バーチャル試着パイプライン
+Virtual Try-On Pipeline
 
-  入力                    処理                      出力
-  +----------+           +-------------------+     +----------+
-  | ユーザー  |           | 1. 人体推定        |     | 試着結果  |
-  | 写真/動画 | -------> | 2. セグメンテーション| --> | 画像/動画 |
-  +----------+           | 3. 衣服変形         |     +----------+
-  +----------+           | 4. 合成・レンダリング|
-  | 衣服画像  | -------> |                     |
-  | (カタログ) |          +-------------------+
+  Input                   Processing                    Output
+  +----------+           +-------------------+         +----------+
+  | User     |           | 1. Body Estimation |        | Try-On   |
+  | Photo/   | -------> | 2. Segmentation     | -->   | Result   |
+  | Video    |           | 3. Garment Warping  |       | Image/   |
+  +----------+           | 4. Compositing &    |       | Video    |
+  +----------+           |    Rendering        |       +----------+
+  | Garment  | -------> |                     |
+  | Image    |           +-------------------+
+  | (Catalog)|
   +----------+
 ```
 
-### 1.2 技術スタック
+### 1.2 Technology Stack
 
 ```
-レイヤー構成
+Layer Structure
 
-  フロントエンド
-  ├── WebGL / Three.js    --- 3D レンダリング
-  ├── MediaPipe           --- リアルタイム人体推定
-  └── WebRTC              --- カメラ入力
+  Frontend
+  +-- WebGL / Three.js    --- 3D Rendering
+  +-- MediaPipe           --- Real-time Body Estimation
+  +-- WebRTC              --- Camera Input
 
-  AI モデル
-  ├── DWPose / OpenPose   --- 人体ポーズ推定
-  ├── SAM (Meta)          --- セグメンテーション
-  ├── HR-VITON            --- 画像ベース試着
-  ├── CatVTON             --- カテゴリ対応試着
-  └── StableVITON         --- Diffusion ベース試着
+  AI Models
+  +-- DWPose / OpenPose   --- Human Pose Estimation
+  +-- SAM (Meta)          --- Segmentation
+  +-- HR-VITON            --- Image-based Try-On
+  +-- CatVTON             --- Category-aware Try-On
+  +-- StableVITON         --- Diffusion-based Try-On
 
-  バックエンド
-  ├── ONNX Runtime        --- モデル推論
-  ├── TensorRT            --- GPU 最適化推論
-  └── Triton Server       --- 推論サーバー
+  Backend
+  +-- ONNX Runtime        --- Model Inference
+  +-- TensorRT            --- GPU-optimized Inference
+  +-- Triton Server       --- Inference Server
 ```
 
-### 1.3 3つのアプローチ
+### 1.3 Three Approaches
 
 ```
-【2D 画像ベース（Image-based VTON）】
-  ユーザー写真 + 衣服画像 → AI が合成
-  精度: 中〜高
-  速度: 中（1-3秒）
-  用途: EC サイト、カタログ
+[2D Image-based (Image-based VTON)]
+  User photo + Garment image -> AI composites
+  Accuracy: Medium-High
+  Speed: Medium (1-3 seconds)
+  Use case: E-commerce sites, catalogs
 
-【3D モデルベース】
-  3Dボディスキャン + 3D衣服モデル → 物理シミュレーション
-  精度: 最高
-  速度: 低（数秒〜数十秒）
-  用途: 高級アパレル、オーダーメイド
+[3D Model-based]
+  3D body scan + 3D garment model -> Physics simulation
+  Accuracy: Highest
+  Speed: Low (seconds to tens of seconds)
+  Use case: Luxury apparel, made-to-order
 
-【AR リアルタイム】
-  カメラ映像 + AR オーバーレイ → リアルタイム合成
-  精度: 低〜中
-  速度: リアルタイム（30fps）
-  用途: 店舗ミラー、モバイルアプリ
+[AR Real-time]
+  Camera feed + AR overlay -> Real-time compositing
+  Accuracy: Low-Medium
+  Speed: Real-time (30fps)
+  Use case: In-store mirrors, mobile apps
 ```
 
-### 1.4 技術進化のタイムライン
+### 1.4 Technology Evolution Timeline
 
 ```
 2018  VITON (Han et al.)
-  │     └─ 画像ベース試着の原点、Thin Plate Spline 変形
-  │
+  |     +-- Origin of image-based try-on, Thin Plate Spline warping
+  |
 2019  CP-VTON (Wang et al.)
-  │     └─ Geometric Matching Module の導入
-  │
+  |     +-- Introduction of Geometric Matching Module
+  |
 2020  ACGPN (Yang et al.)
-  │     └─ セマンティックセグメンテーションの精緻化
-  │
+  |     +-- Refinement of semantic segmentation
+  |
 2021  PF-AFN (Ge et al.)
-  │     └─ Parser-Free アプローチ（パーシング不要化）
-  │
+  |     +-- Parser-Free approach (eliminating the need for parsing)
+  |
 2022  HR-VITON (Lee et al.)
-  │     └─ 高解像度対応、条件付き正規化フロー
-  │
+  |     +-- High-resolution support, conditional normalizing flows
+  |
 2023  StableVITON (Kim et al.)
-  │     └─ Stable Diffusion ベース、高品質合成
-  │   CatVTON (Zheng et al.)
-  │     └─ カテゴリ認識型試着
-  │
+  |     +-- Stable Diffusion-based, high-quality compositing
+  |   CatVTON (Zheng et al.)
+  |     +-- Category-aware try-on
+  |
 2024  OOTDiffusion (Xu et al.)
-  │     └─ Outfitting Fusion、全身対応
-  │   IDM-VTON
-  │     └─ Identity-preserving 試着
-  │
-2025  マルチモーダル統合
-        └─ テキスト指示による衣服変更、3D統合
+  |     +-- Outfitting Fusion, full-body support
+  |   IDM-VTON
+  |     +-- Identity-preserving try-on
+  |
+2025  Multimodal Integration
+        +-- Garment modification via text instructions, 3D integration
 ```
 
 ---
 
-## 2. 2D 画像ベース試着の実装
+## 2. 2D Image-based Try-On Implementation
 
-### 2.1 HR-VITON パイプライン
+### 2.1 HR-VITON Pipeline
 
 ```python
-# HR-VITON による試着画像生成 (擬似コード)
+# Try-on image generation with HR-VITON (pseudocode)
 import torch
 from hr_viton import HRVITONModel
 from utils import load_image, preprocess
 
-# モデルロード
+# Load model
 model = HRVITONModel.from_pretrained("hr-viton-checkpoint")
 model.to("cuda")
 
-# 入力準備
-person_image = load_image("person.jpg")           # ユーザー写真
-garment_image = load_image("tshirt_catalog.jpg")   # 衣服カタログ画像
+# Prepare inputs
+person_image = load_image("person.jpg")           # User photo
+garment_image = load_image("tshirt_catalog.jpg")   # Garment catalog image
 
-# 前処理: 人体パーシング + ポーズ推定
-person_parse = segment_person(person_image)         # 体のパーツ分割
-person_pose = estimate_pose(person_image)           # 関節位置推定
-garment_mask = segment_garment(garment_image)       # 衣服領域抽出
+# Preprocessing: Human parsing + Pose estimation
+person_parse = segment_person(person_image)         # Body part segmentation
+person_pose = estimate_pose(person_image)           # Joint position estimation
+garment_mask = segment_garment(garment_image)       # Garment region extraction
 
-# 試着画像生成
+# Generate try-on image
 result = model.inference(
     person_image=person_image,
     garment_image=garment_image,
@@ -151,10 +153,10 @@ result = model.inference(
 result.save("try_on_result.jpg")
 ```
 
-### 2.2 DensePose による人体表面推定
+### 2.2 Human Surface Estimation with DensePose
 
 ```python
-# DensePose: 人体表面の UV マッピング
+# DensePose: UV mapping of the human body surface
 from detectron2 import model_zoo
 from detectron2.engine import DefaultPredictor
 from detectron2.config import get_cfg
@@ -170,22 +172,22 @@ cfg.MODEL.WEIGHTS = "densepose_model.pkl"
 predictor = DefaultPredictor(cfg)
 outputs = predictor(person_image)
 
-# DensePose は人体の表面を UV 座標にマッピング
-# → 衣服テクスチャを人体表面に正確に貼り付け可能
+# DensePose maps the human body surface to UV coordinates
+# -> Enables accurate garment texture mapping onto the body surface
 ```
 
-### 2.3 セグメンテーション
+### 2.3 Segmentation
 
 ```python
-# 人体パーシング (LIP / ATR フォーマット)
-# 各ピクセルを体のパーツに分類
+# Human parsing (LIP / ATR format)
+# Classifies each pixel into body parts
 
-# パーツラベル:
-#  0: 背景, 1: 帽子, 2: 髪, 3: サングラス
-#  4: 上着, 5: スカート, 6: パンツ, 7: ドレス
-#  8: ベルト, 9: 左靴, 10: 右靴, 11: 顔
-#  12: 左足, 13: 右足, 14: 左腕, 15: 右腕
-#  16: バッグ, 17: スカーフ
+# Part labels:
+#  0: Background, 1: Hat, 2: Hair, 3: Sunglasses
+#  4: Upper clothes, 5: Skirt, 6: Pants, 7: Dress
+#  8: Belt, 9: Left shoe, 10: Right shoe, 11: Face
+#  12: Left leg, 13: Right leg, 14: Left arm, 15: Right arm
+#  16: Bag, 17: Scarf
 
 from transformers import SegformerForSemanticSegmentation, SegformerImageProcessor
 
@@ -199,27 +201,27 @@ model = SegformerForSemanticSegmentation.from_pretrained(
 inputs = processor(images=person_image, return_tensors="pt")
 outputs = model(**inputs)
 
-# 各ピクセルのパーツラベルを取得
+# Get the part label for each pixel
 parse_map = outputs.logits.argmax(dim=1).squeeze()
 ```
 
-### 2.4 OOTDiffusion による高品質試着
+### 2.4 High-Quality Try-On with OOTDiffusion
 
 ```python
-# OOTDiffusion: Outfitting Fusion ベースの試着モデル
-# Stable Diffusion をベースとした最新の VTON 手法
+# OOTDiffusion: Try-on model based on Outfitting Fusion
+# A state-of-the-art VTON method built on Stable Diffusion
 
 import torch
 from ootd.inference import OOTDInference
 from PIL import Image
 
 class OOTDiffusionPipeline:
-    """OOTDiffusion による高品質バーチャル試着"""
+    """High-quality virtual try-on with OOTDiffusion"""
 
     def __init__(self, model_path: str = "levihsu/OOTDiffusion"):
         self.model = OOTDInference(
             model_path=model_path,
-            model_type="hd",  # "hd" (半身) or "dc" (全身)
+            model_type="hd",  # "hd" (half-body) or "dc" (full-body)
         )
 
     def try_on(
@@ -233,17 +235,17 @@ class OOTDiffusionPipeline:
         seed: int = 42,
     ) -> list:
         """
-        バーチャル試着を実行
+        Execute virtual try-on
 
         category:
-          - "upperbody": 上半身（Tシャツ、シャツ、ジャケット等）
-          - "lowerbody": 下半身（パンツ、スカート等）
-          - "dress": ワンピース、ドレス
+          - "upperbody": Upper body (T-shirts, shirts, jackets, etc.)
+          - "lowerbody": Lower body (pants, skirts, etc.)
+          - "dress": One-piece dresses
 
         guidance_scale:
-          - 1.0-2.0: 自然な仕上がり
-          - 2.0-3.0: 衣服のディテール重視
-          - 3.0+: 過度に強調（アーティファクト注意）
+          - 1.0-2.0: Natural finish
+          - 2.0-3.0: Emphasizes garment details
+          - 3.0+: Over-emphasized (watch for artifacts)
         """
         person_img = Image.open(person_image_path).resize((768, 1024))
         garment_img = Image.open(garment_image_path).resize((768, 1024))
@@ -267,7 +269,7 @@ class OOTDiffusionPipeline:
         output_dir: str,
         category: str = "upperbody",
     ) -> dict:
-        """複数の衣服を一括で試着"""
+        """Batch try-on with multiple garments"""
         from pathlib import Path
         Path(output_dir).mkdir(parents=True, exist_ok=True)
 
@@ -288,49 +290,49 @@ class OOTDiffusionPipeline:
         return results
 
 
-# 使用例
+# Usage example
 pipeline = OOTDiffusionPipeline()
 
-# 単一衣服の試着
+# Single garment try-on
 result = pipeline.try_on(
     person_image_path="user_photo.jpg",
     garment_image_path="blue_tshirt.jpg",
     category="upperbody",
-    num_samples=3,  # 3つのバリエーションを生成
+    num_samples=3,  # Generate 3 variations
     guidance_scale=2.0,
 )
 
-# 結果の保存
+# Save results
 for i, img in enumerate(result):
     img.save(f"tryon_result_{i}.png")
 ```
 
-### 2.5 衣服変形アルゴリズムの詳細
+### 2.5 Garment Deformation Algorithm Details
 
 ```python
-# Thin Plate Spline (TPS) 変形
-# 衣服画像をユーザーの体型に合わせて変形する手法
+# Thin Plate Spline (TPS) Warping
+# A method to deform garment images to fit the user's body shape
 
 import numpy as np
 import cv2
 
 class ThinPlateSplineWarper:
-    """TPS (薄板スプライン) による衣服変形"""
+    """Garment deformation using TPS (Thin Plate Spline)"""
 
     def __init__(self, source_points: np.ndarray, target_points: np.ndarray):
         """
-        source_points: 衣服画像上の制御点 (N, 2)
-        target_points: ユーザー画像上の対応点 (N, 2)
+        source_points: Control points on the garment image (N, 2)
+        target_points: Corresponding points on the user image (N, 2)
         """
         self.source = source_points
         self.target = target_points
         self.n = len(source_points)
 
-        # TPS パラメータの計算
+        # Compute TPS parameters
         self._compute_parameters()
 
     def _compute_parameters(self):
-        """TPS 変形パラメータを計算"""
+        """Compute TPS deformation parameters"""
         n = self.n
         K = np.zeros((n, n))
 
@@ -340,16 +342,16 @@ class ThinPlateSplineWarper:
                     r = np.linalg.norm(self.source[i] - self.source[j])
                     K[i, j] = r ** 2 * np.log(r + 1e-6)
 
-        # 線形部分の行列
+        # Linear part matrix
         P = np.hstack([np.ones((n, 1)), self.source])
 
-        # 連立方程式の構築
+        # Build system of equations
         L = np.zeros((n + 3, n + 3))
         L[:n, :n] = K
         L[:n, n:] = P
         L[n:, :n] = P.T
 
-        # 各軸について解く
+        # Solve for each axis
         self.params_x = np.linalg.solve(
             L + np.eye(n + 3) * 1e-6,
             np.concatenate([self.target[:, 0], [0, 0, 0]])
@@ -360,7 +362,7 @@ class ThinPlateSplineWarper:
         )
 
     def warp_image(self, image: np.ndarray) -> np.ndarray:
-        """画像を TPS 変形する"""
+        """Apply TPS warping to an image"""
         h, w = image.shape[:2]
         output = np.zeros_like(image)
 
@@ -368,11 +370,11 @@ class ThinPlateSplineWarper:
             for x in range(w):
                 point = np.array([x, y], dtype=float)
 
-                # TPS による座標変換
+                # Coordinate transformation via TPS
                 new_x = self._transform_point(point, self.params_x)
                 new_y = self._transform_point(point, self.params_y)
 
-                # バイリニア補間でピクセル値を取得
+                # Get pixel value via bilinear interpolation
                 if 0 <= new_x < w and 0 <= new_y < h:
                     output[y, x] = self._bilinear_interpolate(
                         image, new_x, new_y
@@ -381,7 +383,7 @@ class ThinPlateSplineWarper:
         return output
 
     def _transform_point(self, point, params):
-        """1点の座標変換"""
+        """Transform a single point's coordinates"""
         result = params[self.n] + params[self.n + 1] * point[0] + params[self.n + 2] * point[1]
         for i in range(self.n):
             r = np.linalg.norm(point - self.source[i])
@@ -390,7 +392,7 @@ class ThinPlateSplineWarper:
         return result
 
     def _bilinear_interpolate(self, image, x, y):
-        """バイリニア補間"""
+        """Bilinear interpolation"""
         x0 = int(np.floor(x))
         x1 = min(x0 + 1, image.shape[1] - 1)
         y0 = int(np.floor(y))
@@ -409,10 +411,10 @@ class ThinPlateSplineWarper:
 
 ---
 
-## 3. AR リアルタイム試着
+## 3. AR Real-time Try-On
 
 ```python
-# MediaPipe + Three.js でリアルタイム AR 試着 (概念コード)
+# Real-time AR try-on with MediaPipe + Three.js (conceptual code)
 import mediapipe as mp
 import cv2
 
@@ -431,16 +433,16 @@ while cap.isOpened():
     if not ret:
         break
 
-    # ポーズ推定
+    # Pose estimation
     results = pose.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
 
     if results.pose_landmarks:
         landmarks = results.pose_landmarks.landmark
-        # 肩、腰、腕の座標を取得
+        # Get coordinates of shoulders, hips, and arms
         left_shoulder = landmarks[mp_pose.PoseLandmark.LEFT_SHOULDER]
         right_shoulder = landmarks[mp_pose.PoseLandmark.RIGHT_SHOULDER]
 
-        # 衣服画像をポーズに合わせて変形・合成
+        # Warp and composite garment image to match the pose
         garment_overlay = warp_garment_to_pose(
             garment_image, landmarks, frame.shape
         )
@@ -449,10 +451,10 @@ while cap.isOpened():
     cv2.imshow('Virtual Try-On', frame)
 ```
 
-### 3.1 WebAR 実装パターン
+### 3.1 WebAR Implementation Pattern
 
 ```javascript
-// WebAR を使ったブラウザベース試着
+// Browser-based try-on using WebAR
 // Three.js + MediaPipe Holistic
 
 class WebARTryOn {
@@ -460,7 +462,7 @@ class WebARTryOn {
     this.video = videoElement;
     this.canvas = canvasElement;
 
-    // Three.js のセットアップ
+    // Three.js setup
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(75, 16 / 9, 0.1, 1000);
     this.renderer = new THREE.WebGLRenderer({
@@ -468,7 +470,7 @@ class WebARTryOn {
       alpha: true,
     });
 
-    // MediaPipe Pose の初期化
+    // Initialize MediaPipe Pose
     this.pose = new Pose({
       locateFile: (file) => {
         return `https://cdn.jsdelivr.net/npm/@mediapipe/pose/${file}`;
@@ -484,7 +486,7 @@ class WebARTryOn {
 
     this.pose.onResults(this.onPoseResults.bind(this));
 
-    // 衣服メッシュ
+    // Garment mesh
     this.garmentMesh = null;
   }
 
@@ -500,29 +502,29 @@ class WebARTryOn {
 
     const landmarks = results.poseLandmarks;
 
-    // 肩の座標からスケールと位置を計算
+    // Calculate scale and position from shoulder coordinates
     const leftShoulder = landmarks[11];
     const rightShoulder = landmarks[12];
     const leftHip = landmarks[23];
     const rightHip = landmarks[24];
 
-    // 肩幅から衣服のスケーリング
+    // Scale garment based on shoulder width
     const shoulderWidth = Math.sqrt(
       Math.pow(rightShoulder.x - leftShoulder.x, 2) +
       Math.pow(rightShoulder.y - leftShoulder.y, 2)
     );
 
-    // 体の中心座標
+    // Body center coordinates
     const centerX = (leftShoulder.x + rightShoulder.x) / 2;
     const centerY = (leftShoulder.y + leftHip.y) / 2;
 
-    // 体の傾きを計算
+    // Calculate body tilt angle
     const angle = Math.atan2(
       rightShoulder.y - leftShoulder.y,
       rightShoulder.x - leftShoulder.x
     );
 
-    // メッシュの位置・回転・スケールを更新
+    // Update mesh position, rotation, and scale
     this.garmentMesh.position.set(
       (centerX - 0.5) * 4,
       -(centerY - 0.5) * 4,
@@ -549,7 +551,7 @@ class WebARTryOn {
   }
 }
 
-// 使用例
+// Usage example
 const tryOn = new WebARTryOn(
   document.getElementById('video'),
   document.getElementById('canvas')
@@ -558,17 +560,17 @@ await tryOn.loadGarment('/models/tshirt.glb');
 await tryOn.start();
 ```
 
-### 3.2 サイズ推薦システム
+### 3.2 Size Recommendation System
 
 ```python
-# AI ベースのサイズ推薦システム
+# AI-based size recommendation system
 
 import numpy as np
 from dataclasses import dataclass
 
 @dataclass
 class BodyMeasurements:
-    """体型計測データ"""
+    """Body measurement data"""
     height_cm: float
     weight_kg: float
     chest_cm: float
@@ -579,9 +581,9 @@ class BodyMeasurements:
     inseam_cm: float
 
 class SizeRecommender:
-    """体型データに基づくサイズ推薦"""
+    """Size recommendation based on body measurement data"""
 
-    # ブランドごとのサイズチャート（例）
+    # Size chart per brand (example)
     SIZE_CHARTS = {
         "standard_jp": {
             "S": {"chest": (80, 88), "waist": (68, 76), "hip": (82, 90)},
@@ -596,14 +598,14 @@ class SizeRecommender:
 
     def estimate_body_from_image(self, image_path: str, height_cm: float) -> BodyMeasurements:
         """
-        写真と身長から体型を推定
+        Estimate body measurements from a photo and height
 
-        実際の実装では:
-        1. DensePose で体表面の UV マッピング
-        2. SMPL / SMPL-X で 3D 体型パラメータ推定
-        3. パラメータから各部位の寸法を計算
+        Actual implementation:
+        1. UV mapping of body surface with DensePose
+        2. Estimate 3D body parameters with SMPL / SMPL-X
+        3. Calculate dimensions for each body part from parameters
         """
-        # SMPL モデルによる体型推定（擬似コード）
+        # Body estimation with SMPL model (pseudocode)
         from smpl_estimation import estimate_smpl_params
 
         smpl_params = estimate_smpl_params(image_path, height_cm)
@@ -627,11 +629,11 @@ class SizeRecommender:
         fit_preference: str = "regular",
     ) -> dict:
         """
-        サイズを推薦
+        Recommend a size
 
         fit_preference: "slim", "regular", "loose"
         """
-        # フィット調整（cm）
+        # Fit adjustment (cm)
         fit_adjustment = {
             "slim": -2,
             "regular": 0,
@@ -639,7 +641,7 @@ class SizeRecommender:
         }
         adj = fit_adjustment.get(fit_preference, 0)
 
-        # 各サイズとの適合度を計算
+        # Calculate fit score for each size
         scores = {}
         for size, ranges in self.size_chart.items():
             score = 0
@@ -654,7 +656,7 @@ class SizeRecommender:
 
             scores[size] = max(0, score)
 
-        # 最適サイズ
+        # Best size
         best_size = max(scores, key=scores.get)
         confidence = scores[best_size] / max(sum(scores.values()), 1e-6)
 
@@ -663,13 +665,13 @@ class SizeRecommender:
             "confidence": round(confidence, 2),
             "scores": scores,
             "fit_preference": fit_preference,
-            "note": f"バスト{measurements.chest_cm}cm に基づく推薦"
+            "note": f"Recommendation based on chest {measurements.chest_cm}cm"
                     if garment_type == "top"
-                    else f"ウエスト{measurements.waist_cm}cm に基づく推薦",
+                    else f"Recommendation based on waist {measurements.waist_cm}cm",
         }
 
 
-# 使用例
+# Usage example
 recommender = SizeRecommender(brand="standard_jp")
 
 measurements = BodyMeasurements(
@@ -688,18 +690,18 @@ result = recommender.recommend_size(
     garment_type="top",
     fit_preference="regular",
 )
-print(f"推薦サイズ: {result['recommended_size']}")
-print(f"信頼度: {result['confidence']}")
+print(f"Recommended size: {result['recommended_size']}")
+print(f"Confidence: {result['confidence']}")
 ```
 
 ---
 
-## 4. EC サイト向け実装ガイド
+## 4. Implementation Guide for E-Commerce Sites
 
-### 4.1 バックエンド API 設計
+### 4.1 Backend API Design
 
 ```python
-# FastAPI を使ったバーチャル試着 API
+# Virtual try-on API with FastAPI
 
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from pydantic import BaseModel
@@ -723,32 +725,32 @@ class TryOnResponse(BaseModel):
     size_recommendation: Optional[dict] = None
 
 class VTONService:
-    """バーチャル試着サービス"""
+    """Virtual try-on service"""
 
     def __init__(self):
-        self.model = None  # 遅延ロード
+        self.model = None  # Lazy loading
         self._load_model()
 
     def _load_model(self):
-        """モデルの遅延ロード"""
+        """Lazy model loading"""
         import torch
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        # ここで VTON モデルをロード
+        # Load VTON model here
         print(f"Model loaded on {self.device}")
 
     async def process_try_on(self, request: TryOnRequest) -> TryOnResponse:
-        """試着リクエストを処理"""
+        """Process a try-on request"""
         import time
         start = time.time()
 
         request_id = str(uuid.uuid4())
 
         try:
-            # 画像取得
+            # Fetch images
             person_img = await self._fetch_image(request.person_image_id)
             garment_img = await self._fetch_garment(request.garment_id)
 
-            # 試着実行
+            # Execute try-on
             results = self._run_inference(
                 person_img, garment_img,
                 category=request.category,
@@ -756,7 +758,7 @@ class VTONService:
                 num_samples=request.num_samples,
             )
 
-            # 結果保存
+            # Save results
             result_urls = []
             for i, result in enumerate(results):
                 url = await self._save_result(request_id, i, result)
@@ -778,44 +780,44 @@ class VTONService:
             )
 
     def _run_inference(self, person_img, garment_img, **kwargs):
-        """推論実行"""
-        # 実際の推論ロジック
+        """Execute inference"""
+        # Actual inference logic
         pass
 
     async def _fetch_image(self, image_id):
-        """S3 等から画像を取得"""
+        """Fetch image from S3, etc."""
         pass
 
     async def _fetch_garment(self, garment_id):
-        """カタログ DB から衣服画像を取得"""
+        """Fetch garment image from catalog DB"""
         pass
 
     async def _save_result(self, request_id, index, image):
-        """結果を S3 に保存"""
+        """Save result to S3"""
         pass
 
 vton_service = VTONService()
 
 @app.post("/api/v1/try-on", response_model=TryOnResponse)
 async def try_on(request: TryOnRequest):
-    """バーチャル試着 API エンドポイント"""
+    """Virtual try-on API endpoint"""
     return await vton_service.process_try_on(request)
 
 @app.post("/api/v1/upload-photo")
 async def upload_photo(file: UploadFile = File(...)):
-    """ユーザー写真のアップロード"""
+    """Upload user photo"""
     if file.content_type not in ["image/jpeg", "image/png"]:
-        raise HTTPException(400, "JPEG または PNG のみ対応")
+        raise HTTPException(400, "Only JPEG or PNG supported")
 
     image_id = str(uuid.uuid4())
-    # S3 に保存
+    # Save to S3
     return {"image_id": image_id, "status": "uploaded"}
 ```
 
-### 4.2 フロントエンド統合パターン
+### 4.2 Frontend Integration Pattern
 
 ```typescript
-// React コンポーネントでの統合例
+// Integration example with React components
 
 interface TryOnResult {
   requestId: string;
@@ -848,26 +850,26 @@ async function virtualTryOn(
   return response.json();
 }
 
-// UX パターン: プログレッシブ表示
-// 1. ローディングスケルトン表示
-// 2. 低解像度のプレビューを先に表示（512px）
-// 3. 高解像度の結果に差し替え（1024px+）
+// UX Pattern: Progressive display
+// 1. Show loading skeleton
+// 2. Display low-resolution preview first (512px)
+// 3. Replace with high-resolution result (1024px+)
 ```
 
 ---
 
-## 5. パフォーマンス最適化
+## 5. Performance Optimization
 
-### 5.1 推論高速化テクニック
+### 5.1 Inference Acceleration Techniques
 
 ```python
-# TensorRT による推論高速化
+# Inference acceleration with TensorRT
 
 import tensorrt as trt
 import numpy as np
 
 class TRTOptimizedVTON:
-    """TensorRT で最適化されたバーチャル試着モデル"""
+    """Virtual try-on model optimized with TensorRT"""
 
     def __init__(self, engine_path: str):
         self.logger = trt.Logger(trt.Logger.WARNING)
@@ -882,7 +884,7 @@ class TRTOptimizedVTON:
         fp16: bool = True,
         max_batch: int = 4,
     ):
-        """ONNX モデルを TensorRT エンジンに変換"""
+        """Convert ONNX model to TensorRT engine"""
         builder = trt.Builder(trt.Logger(trt.Logger.WARNING))
         network = builder.create_network(
             1 << int(trt.NetworkDefinitionCreationFlag.EXPLICIT_BATCH)
@@ -898,7 +900,7 @@ class TRTOptimizedVTON:
         if fp16:
             config.set_flag(trt.BuilderFlag.FP16)
 
-        # ダイナミックバッチサイズ
+        # Dynamic batch size
         profile = builder.create_optimization_profile()
         input_shape = network.get_input(0).shape
         profile.set_shape(
@@ -916,42 +918,42 @@ class TRTOptimizedVTON:
         print(f"TRT engine saved: {output_path}")
 
 
-# 高速化の効果比較
-# ┌──────────────┬──────────┬──────────┬──────────┐
-# │ 手法          │ 推論時間  │ VRAM     │ 品質     │
-# ├──────────────┼──────────┼──────────┼──────────┤
-# │ PyTorch FP32 │ 3.5秒    │ 8GB      │ 最高     │
-# │ PyTorch FP16 │ 1.8秒    │ 4GB      │ ほぼ同等  │
-# │ ONNX Runtime │ 1.2秒    │ 4GB      │ ほぼ同等  │
-# │ TensorRT FP16│ 0.6秒    │ 3GB      │ ほぼ同等  │
-# │ TensorRT INT8│ 0.3秒    │ 2GB      │ やや低下  │
-# └──────────────┴──────────┴──────────┴──────────┘
+# Acceleration comparison
+# +----------------+----------+----------+----------+
+# | Method         | Latency  | VRAM     | Quality  |
+# +----------------+----------+----------+----------+
+# | PyTorch FP32   | 3.5s     | 8GB      | Highest  |
+# | PyTorch FP16   | 1.8s     | 4GB      | Near equal|
+# | ONNX Runtime   | 1.2s     | 4GB      | Near equal|
+# | TensorRT FP16  | 0.6s     | 3GB      | Near equal|
+# | TensorRT INT8  | 0.3s     | 2GB      | Slightly lower|
+# +----------------+----------+----------+----------+
 ```
 
-### 5.2 バッチ処理とキャッシング
+### 5.2 Batch Processing and Caching
 
 ```python
-# Redis を使った試着結果のキャッシング
+# Caching try-on results with Redis
 
 import hashlib
 import redis
 import json
 
 class TryOnCache:
-    """試着結果のキャッシュ管理"""
+    """Cache management for try-on results"""
 
     def __init__(self, redis_url: str = "redis://localhost:6379"):
         self.redis = redis.from_url(redis_url)
-        self.ttl = 3600 * 24  # 24時間
+        self.ttl = 3600 * 24  # 24 hours
 
     def _generate_key(self, person_hash: str, garment_id: str, params: dict) -> str:
-        """キャッシュキーの生成"""
+        """Generate cache key"""
         param_str = json.dumps(params, sort_keys=True)
         raw = f"{person_hash}:{garment_id}:{param_str}"
         return f"vton:{hashlib.sha256(raw.encode()).hexdigest()}"
 
     def get_cached_result(self, person_hash: str, garment_id: str, params: dict):
-        """キャッシュから結果を取得"""
+        """Retrieve result from cache"""
         key = self._generate_key(person_hash, garment_id, params)
         result = self.redis.get(key)
         if result:
@@ -959,12 +961,12 @@ class TryOnCache:
         return None
 
     def cache_result(self, person_hash: str, garment_id: str, params: dict, result_urls: list):
-        """結果をキャッシュに保存"""
+        """Save result to cache"""
         key = self._generate_key(person_hash, garment_id, params)
         self.redis.setex(key, self.ttl, json.dumps(result_urls))
 
     def get_cache_stats(self) -> dict:
-        """キャッシュ統計"""
+        """Cache statistics"""
         info = self.redis.info("stats")
         return {
             "hits": info.get("keyspace_hits", 0),
@@ -976,207 +978,207 @@ class TryOnCache:
 
 ---
 
-## 6. 比較表
+## 6. Comparison Tables
 
-| 手法 | 精度 | 速度 | コスト | 要件 |
-|------|:----:|:----:|:-----:|------|
-| 2D 画像ベース (HR-VITON) | 高 | 1-3秒 | 中 | GPU サーバー |
-| Diffusion ベース (StableVITON) | 最高 | 5-15秒 | 高 | 高性能 GPU |
-| OOTDiffusion | 最高 | 3-8秒 | 高 | 高性能 GPU |
-| 3D モデルベース | 最高 | 10-30秒 | 最高 | 3D スキャンデータ |
-| AR リアルタイム (MediaPipe) | 中 | リアルタイム | 低 | カメラのみ |
-| 簡易オーバーレイ | 低 | リアルタイム | 最低 | なし |
+| Method | Accuracy | Speed | Cost | Requirements |
+|--------|:--------:|:-----:|:----:|------|
+| 2D Image-based (HR-VITON) | High | 1-3s | Medium | GPU server |
+| Diffusion-based (StableVITON) | Highest | 5-15s | High | High-performance GPU |
+| OOTDiffusion | Highest | 3-8s | High | High-performance GPU |
+| 3D Model-based | Highest | 10-30s | Highest | 3D scan data |
+| AR Real-time (MediaPipe) | Medium | Real-time | Low | Camera only |
+| Simple Overlay | Low | Real-time | Lowest | None |
 
-| ユースケース | 推奨手法 | 理由 |
-|------------|---------|------|
-| EC 商品ページ | 2D 画像ベース | バッチ処理可能、高品質 |
-| 店舗の AR ミラー | AR リアルタイム | 即時フィードバック |
-| 高級ブランド | 3D モデルベース | 最高品質、サイズ感再現 |
-| モバイルアプリ | AR リアルタイム | GPU 軽量、UX 良好 |
-| ルックブック自動生成 | OOTDiffusion | 高品質、全身対応 |
+| Use Case | Recommended Method | Reason |
+|----------|-------------------|--------|
+| E-commerce product pages | 2D Image-based | Batch processing capable, high quality |
+| In-store AR mirrors | AR Real-time | Immediate feedback |
+| Luxury brands | 3D Model-based | Highest quality, accurate size representation |
+| Mobile apps | AR Real-time | Lightweight GPU usage, good UX |
+| Automated lookbook generation | OOTDiffusion | High quality, full-body support |
 
-### VTON モデル世代別比較
+### VTON Model Generational Comparison
 
-| 世代 | 代表モデル | 特徴 | 制限 |
-|------|----------|------|------|
-| 第1世代 (2018) | VITON, CP-VTON | TPS 変形 + 合成 | 変形の不自然さ |
-| 第2世代 (2020) | ACGPN, PF-AFN | セグメンテーション改善 | 複雑な衣服に弱い |
-| 第3世代 (2022) | HR-VITON | 高解像度、正規化フロー | 特定ポーズに限定 |
-| 第4世代 (2023-) | StableVITON, OOTDiffusion | Diffusion ベース | 処理速度が遅い |
-
----
-
-## 7. トラブルシューティング
-
-### 7.1 よくある問題と対処法
-
-```
-問題1: 衣服のテクスチャが潰れる
-──────────────────────────────
-原因: 入力画像の解像度が低い、または衣服画像に影や折り目が多い
-対処:
-  1. 衣服画像は白背景・フラットな状態で撮影（推奨: 1024x1024以上）
-  2. 影除去の前処理を適用
-  3. guidance_scale を下げる（1.5-2.0）
-
-問題2: 体型が不自然に変形する
-──────────────────────────────
-原因: 人体パーシングの精度が低い、ポーズ推定の失敗
-対処:
-  1. 正面・全身が写った写真を使用
-  2. 背景がシンプルな写真を選択
-  3. 複数の推定結果をアンサンブル
-
-問題3: 衣服と肌の境界が不自然
-──────────────────────────────
-原因: セグメンテーションの精度不足、ブレンド処理の欠如
-対処:
-  1. マスクにフェザリング（ぼかし）を適用
-  2. 境界部分の色調を統一する後処理
-  3. DensePose の UV マップを活用した精密な合成
-
-問題4: AR モードでちらつき（フリッカー）
-──────────────────────────────
-原因: ポーズ推定のフレーム間ジッター
-対処:
-  1. One Euro Filter でランドマークを平滑化
-  2. min_tracking_confidence を上げる（0.7-0.8）
-  3. 指数移動平均でポジションをスムージング
-
-問題5: 処理速度が遅い（5秒以上）
-──────────────────────────────
-原因: モデルの最適化不足、大きすぎる解像度
-対処:
-  1. TensorRT / ONNX Runtime で推論を最適化
-  2. FP16 精度に変更
-  3. 入力解像度を 768x1024 に統一
-  4. バッチ処理でスループットを向上
-```
-
-### 7.2 衣服画像の品質チェックリスト
-
-```
-撮影条件チェックリスト:
-  □ 白または単色の背景
-  □ 均一な照明（影なし）
-  □ 正面から撮影（平置きまたはマネキン）
-  □ 衣服全体が収まっている
-  □ 最低 1024x1024 ピクセル
-  □ JPEG 品質 90% 以上
-  □ 色の正確性（ホワイトバランス調整済み）
-  □ シワや折り目が最小限
-
-前処理パイプライン:
-  1. 背景除去 → 白背景に統一
-  2. ホワイトバランス補正
-  3. 影除去（Intrinsic Image Decomposition）
-  4. 解像度統一（1024x1024 にリサイズ）
-  5. 衣服マスクの生成（SAM or U2-Net）
-```
+| Generation | Representative Models | Features | Limitations |
+|------------|----------------------|----------|-------------|
+| 1st Gen (2018) | VITON, CP-VTON | TPS warping + compositing | Unnatural deformations |
+| 2nd Gen (2020) | ACGPN, PF-AFN | Improved segmentation | Weak with complex garments |
+| 3rd Gen (2022) | HR-VITON | High resolution, normalizing flows | Limited to specific poses |
+| 4th Gen (2023-) | StableVITON, OOTDiffusion | Diffusion-based | Slow processing speed |
 
 ---
 
-## 8. アンチパターン
+## 7. Troubleshooting
 
-### アンチパターン 1: 体型の多様性を無視する
+### 7.1 Common Issues and Solutions
+
+```
+Issue 1: Garment texture is crushed/blurred
+----------------------------------------------
+Cause: Low input image resolution, or garment image has too many shadows/creases
+Solution:
+  1. Photograph garments on a white background in a flat state (recommended: 1024x1024+)
+  2. Apply shadow removal preprocessing
+  3. Lower the guidance_scale (1.5-2.0)
+
+Issue 2: Body shape is unnaturally deformed
+----------------------------------------------
+Cause: Low accuracy in human parsing, pose estimation failure
+Solution:
+  1. Use front-facing, full-body photos
+  2. Select photos with simple backgrounds
+  3. Ensemble multiple estimation results
+
+Issue 3: Unnatural boundary between garment and skin
+----------------------------------------------
+Cause: Insufficient segmentation accuracy, lack of blending
+Solution:
+  1. Apply feathering (blur) to masks
+  2. Post-process to unify color tones at boundaries
+  3. Use DensePose UV maps for precise compositing
+
+Issue 4: Flickering in AR mode
+----------------------------------------------
+Cause: Frame-to-frame jitter in pose estimation
+Solution:
+  1. Smooth landmarks with One Euro Filter
+  2. Increase min_tracking_confidence (0.7-0.8)
+  3. Smooth positions with exponential moving average
+
+Issue 5: Slow processing speed (over 5 seconds)
+----------------------------------------------
+Cause: Insufficient model optimization, resolution too large
+Solution:
+  1. Optimize inference with TensorRT / ONNX Runtime
+  2. Switch to FP16 precision
+  3. Standardize input resolution to 768x1024
+  4. Improve throughput with batch processing
+```
+
+### 7.2 Garment Image Quality Checklist
+
+```
+Photography Conditions Checklist:
+  [ ] White or solid-color background
+  [ ] Uniform lighting (no shadows)
+  [ ] Photographed from the front (flat lay or mannequin)
+  [ ] Entire garment is visible in frame
+  [ ] Minimum 1024x1024 pixels
+  [ ] JPEG quality 90% or higher
+  [ ] Color accuracy (white balance adjusted)
+  [ ] Minimal wrinkles and creases
+
+Preprocessing Pipeline:
+  1. Background removal -> Standardize to white background
+  2. White balance correction
+  3. Shadow removal (Intrinsic Image Decomposition)
+  4. Resolution standardization (resize to 1024x1024)
+  5. Garment mask generation (SAM or U2-Net)
+```
+
+---
+
+## 8. Anti-Patterns
+
+### Anti-Pattern 1: Ignoring Body Type Diversity
 
 ```
 BAD:
-  標準体型のモデルでのみ学習
-  → 多様な体型のユーザーで試着結果が不自然
-  → 衣服がはみ出す、伸びる、変形する
+  Training only with standard body type models
+  -> Unnatural try-on results for users with diverse body types
+  -> Garments overflow, stretch, or deform
 
 GOOD:
-  - 多様な体型のデータで学習
-  - 体型パラメータ（身長、体重、バスト/ウエスト/ヒップ）を入力として使用
-  - ユーザーの体型に応じたサイズ推薦機能を併設
+  - Train with diverse body type data
+  - Use body parameters (height, weight, bust/waist/hip) as input
+  - Include a size recommendation feature tailored to the user's body type
 ```
 
-### アンチパターン 2: 照明・色味の不一致
+### Anti-Pattern 2: Lighting and Color Mismatch
 
 ```
 BAD:
-  スタジオ照明の衣服画像 + 屋外自然光のユーザー写真
-  → 明らかな合成感、色味の不一致
-  → ユーザーの購買判断に悪影響
+  Studio-lit garment image + outdoor natural light user photo
+  -> Obvious compositing artifacts, color mismatch
+  -> Negative impact on user purchase decisions
 
 GOOD:
-  - 照明推定（Light Estimation）で環境光を分析
-  - 衣服の色温度・明度をユーザー写真に合わせて調整
-  - 影の方向を統一（シャドウハーモナイゼーション）
+  - Analyze ambient light with Light Estimation
+  - Adjust garment color temperature and brightness to match the user photo
+  - Unify shadow direction (Shadow Harmonization)
 ```
 
-### アンチパターン 3: 単一アングルのみの対応
+### Anti-Pattern 3: Supporting Only a Single Angle
 
 ```
 BAD:
-  正面写真のみ対応し、横向き・後ろ姿は完全に非対応
-  → ユーザーが衣服の全体像を把握できない
-  → 「背中のデザインが見えない」というクレーム
+  Only supporting front-facing photos, completely unsupported for side/back views
+  -> Users cannot see the full garment
+  -> Complaints like "I can't see the back design"
 
 GOOD:
-  - マルチビュー対応: 正面、側面、背面の試着画像を生成
-  - 3D ボディモデル推定 → 複数視点からのレンダリング
-  - ユーザーに対して「正面写真」の撮影をガイドする UI
-  - 将来的には動画入力から 3D 再構成
+  - Multi-view support: generate try-on images from front, side, and back
+  - Estimate 3D body model -> Render from multiple viewpoints
+  - UI that guides users to take "front-facing photos"
+  - Future: 3D reconstruction from video input
 ```
 
-### アンチパターン 4: エラーハンドリングの欠如
+### Anti-Pattern 4: Lack of Error Handling
 
 ```
 BAD:
-  ポーズ推定の失敗時に何も表示せず、変形した試着結果を返す
-  → ユーザーが不自然な画像を見て離脱
+  When pose estimation fails, display nothing and return a deformed try-on result
+  -> Users see unnatural images and leave
 
 GOOD:
-  - ポーズ推定の信頼度スコアをチェック
-  - 信頼度が低い場合は「撮り直し」を促すメッセージ
-  - フォールバック: 標準モデルでの試着を代替表示
-  - 各処理ステージの品質ゲートを設定
+  - Check pose estimation confidence scores
+  - Display a "please retake photo" message when confidence is low
+  - Fallback: show try-on with a standard model as alternative
+  - Set quality gates at each processing stage
 ```
 
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1185,26 +1187,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation and add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1212,7 +1214,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1223,14 +1225,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1238,7 +1240,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1246,44 +1248,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1292,7 +1294,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1307,76 +1309,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm computational complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criteria | When to Prioritize | When Compromise Is Acceptable |
+|----------|-------------------|-------------------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development Speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
-┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
-│                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
-│                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
-│                                                 │
-└─────────────────────────────────────────────────┘
++---------------------------------------------------+
+|           Architecture Selection Flow              |
++---------------------------------------------------+
+|                                                   |
+|  (1) Team size?                                   |
+|    +-- Small (1-5 people) -> Monolith             |
+|    +-- Large (10+ people) -> Go to (2)            |
+|                                                   |
+|  (2) Deploy frequency?                            |
+|    +-- Once a week or less -> Monolith + modules  |
+|    +-- Daily/multiple times -> Go to (3)          |
+|                                                   |
+|  (3) Team independence?                           |
+|    +-- High -> Microservices                      |
+|    +-- Medium -> Modular monolith                 |
+|                                                   |
++---------------------------------------------------+
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Costs**
+- A method that is fast in the short term may become technical debt in the long term
+- Conversely, over-engineering incurs high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies enables best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction improves reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1386,17 +1388,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1404,7 +1406,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1412,15 +1414,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
-            icon = "✅" if c['type'] == 'positive' else "⚠️"
+            icon = "+" if c['type'] == 'positive' else "!"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1428,53 +1430,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum necessary features
+- Automated tests only for the critical path
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't pursue perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Legacy System Modernization
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually modernize a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate gradually using the Strangler Fig pattern
+- Create Characterization Tests first if existing tests are missing
+- Use an API gateway to coexist old and new systems
+- Perform data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work | Estimated Duration | Risk |
+|-------|------|--------------------|------|
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration Start | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core Migration | Migrate core functionality | 6-12 months | High |
+| 5. Completion | Decommission legacy system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** More than 50 engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with Domain-Driven Design
+- Assign ownership per team
+- Manage shared libraries using Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1487,20 +1489,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Verify SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1509,7 +1511,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1530,94 +1532,94 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical System
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system that requires millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leverage asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Method | Effect | Implementation Cost | Applicable Scenario |
+|--------------------|--------|--------------------|--------------------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low-Medium | High | CPU-bound cases |
 ---
 
 ## 9. FAQ
 
-### Q1. バーチャル試着の精度はどの程度実用的か？
+### Q1. How practical is the accuracy of virtual try-on?
 
-**A.** 2D 画像ベースの最新手法（StableVITON 等）は、正面写真での上半身衣服の試着において実用レベルに達している。ただし、(1) 複雑な柄やテクスチャの再現、(2) 横向き・後ろ向きのポーズ、(3) レイヤード（重ね着）のシナリオではまだ課題がある。EC サイトでの「参考イメージ」としては十分な品質。
+**A.** The latest 2D image-based methods (StableVITON, etc.) have reached a practical level for upper-body garment try-on with front-facing photos. However, challenges remain with (1) reproducing complex patterns and textures, (2) side-facing and back-facing poses, and (3) layered outfit scenarios. The quality is sufficient as a "reference image" on e-commerce sites.
 
-### Q2. バーチャル試着は返品率の削減に効果があるか？
+### Q2. Does virtual try-on effectively reduce return rates?
 
-**A.** 複数の調査で返品率の25-35%削減が報告されている。特にサイズ感の不一致による返品が大幅に減少する。AR 試着を導入したアパレルECでは、試着機能を使ったユーザーの購入率が2-3倍高いというデータもある。ただし、色の正確な再現がディスプレイ依存であるため、色味理由の返品には効果が限定的。
+**A.** Multiple studies report a 25-35% reduction in return rates. Returns due to size mismatch are significantly reduced in particular. Data shows that users who use the try-on feature on apparel e-commerce sites with AR try-on have a 2-3x higher purchase rate. However, since accurate color reproduction is display-dependent, the effect on color-related returns is limited.
 
-### Q3. 自社で実装する場合の最低要件は？
+### Q3. What are the minimum requirements for in-house implementation?
 
-**A.** (1) **GPU サーバー**: NVIDIA A10G 以上（AWS: g5.xlarge 相当）。(2) **データ**: 衣服のカタログ画像（白背景、正面）。(3) **モデル**: HR-VITON や CatVTON のオープンソースモデルを出発点にする。(4) **推論時間**: バッチ処理なら2-5秒/枚が現実的。リアルタイム AR が必要なら MediaPipe + 簡易合成から始める。最小構成で PoC を作り、効果を検証してから本格投資する。
+**A.** (1) **GPU server**: NVIDIA A10G or higher (AWS: g5.xlarge equivalent). (2) **Data**: Garment catalog images (white background, front-facing). (3) **Model**: Start with open-source models like HR-VITON or CatVTON. (4) **Inference time**: 2-5 seconds per image is realistic for batch processing. If real-time AR is needed, start with MediaPipe + simple compositing. Build a minimum PoC, verify effectiveness, then invest further.
 
-### Q4. バーチャル試着のプライバシー対策は？
+### Q4. What privacy measures are needed for virtual try-on?
 
-**A.** ユーザーの体型写真は極めて機密性の高い個人情報である。(1) **オンデバイス処理**: 可能な限りユーザーのデバイス上で推論する（WebGPU / Core ML）。(2) **サーバー送信時**: TLS 暗号化必須、処理完了後に即時削除。(3) **保存ポリシー**: ユーザー写真は原則保存しない。必要な場合は明示的同意を取得。(4) **アクセス制御**: 試着結果へのアクセスはユーザー本人のみに限定。(5) **GDPR / 個人情報保護法**: データ処理の法的根拠を明確にし、プライバシーポリシーに明記。
+**A.** User body photos are highly sensitive personal information. (1) **On-device processing**: Perform inference on the user's device whenever possible (WebGPU / Core ML). (2) **When sending to server**: TLS encryption required, delete immediately after processing. (3) **Storage policy**: Do not store user photos as a rule. Obtain explicit consent when necessary. (4) **Access control**: Limit access to try-on results to the user only. (5) **GDPR / Personal Information Protection Act**: Clearly establish legal basis for data processing and state it in the privacy policy.
 
-### Q5. アクセサリー（帽子、メガネ、靴）の試着は可能か？
+### Q5. Is try-on possible for accessories (hats, glasses, shoes)?
 
-**A.** アクセサリーの試着はカテゴリごとに成熟度が異なる。**メガネ**: AR ベースが非常に成熟しており、Warby Parker 等で実用化済み。顔のランドマーク検出が正確なため高精度。**帽子**: 頭部のサイズ推定が課題だが、AR で一定の品質を実現可能。**靴**: 足のサイズ推定 + AR が進展中（Nike Fit 等）。**アクセサリー全般**: 3D モデルベースの AR が最も適している。
+**A.** Maturity of accessory try-on varies by category. **Glasses**: AR-based is very mature, already in practical use at Warby Parker, etc. High accuracy due to precise facial landmark detection. **Hats**: Head size estimation is challenging, but AR can achieve a certain level of quality. **Shoes**: Foot size estimation + AR is progressing (Nike Fit, etc.). **Accessories in general**: 3D model-based AR is the most suitable approach.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing and running code.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| 技術基盤 | 人体ポーズ推定 + セグメンテーション + 衣服変形 + 合成 |
-| 2D 画像ベース | EC サイト向け。HR-VITON、StableVITON が主要手法 |
-| AR リアルタイム | 店舗・モバイル向け。MediaPipe で軽量実装可能 |
-| 3D モデルベース | 最高精度だがコスト高。高級ブランド向け |
-| ビジネス効果 | 返品率25-35%削減、購入率2-3倍向上の報告 |
-| 課題 | 体型多様性、照明一致、複雑な衣服の再現 |
-| 最適化 | TensorRT で 6 倍高速化、キャッシング必須 |
-| プライバシー | ユーザー写真は即時削除、オンデバイス処理推奨 |
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [倫理的考慮](./03-ethical-considerations.md) -- AI 生成画像の倫理と著作権
-- [アニメーション](../02-video/02-animation.md) -- AI アニメーション技術
-- [デザインツール](../01-image/03-design-tools.md) -- 商品画像のAI編集
+| Item | Key Points |
+|------|-----------|
+| Technical Foundation | Human pose estimation + Segmentation + Garment warping + Compositing |
+| 2D Image-based | For e-commerce sites. HR-VITON and StableVITON are the main methods |
+| AR Real-time | For in-store/mobile use. Lightweight implementation possible with MediaPipe |
+| 3D Model-based | Highest accuracy but high cost. For luxury brands |
+| Business Impact | Reports of 25-35% reduction in returns, 2-3x improvement in purchase rates |
+| Challenges | Body type diversity, lighting consistency, complex garment reproduction |
+| Optimization | 6x speedup with TensorRT, caching is essential |
+| Privacy | Delete user photos immediately, on-device processing recommended |
 
 ---
 
-## 参考文献
+## Recommended Next Guides
 
-1. **HR-VITON** -- Lee et al. (ECCV 2022) -- 高解像度バーチャル試着
-2. **StableVITON** -- Kim et al. (2024) -- Diffusion ベースの試着モデル
-3. **DensePose** -- Guler et al. (CVPR 2018) -- 人体表面の密なマッピング
-4. **OOTDiffusion** -- Xu et al. (2024) -- Outfitting Fusion ベースの VTON
-5. **SMPL** -- Loper et al. (SIGGRAPH Asia 2015) -- パラメトリック人体モデル
-6. **MediaPipe Pose** -- Google (2020) -- リアルタイム人体ポーズ推定
+- [Ethical Considerations](./03-ethical-considerations.md) -- Ethics and copyright of AI-generated images
+- [Animation](../02-video/02-animation.md) -- AI animation technology
+- [Design Tools](../01-image/03-design-tools.md) -- AI editing of product images
+
+---
+
+## References
+
+1. **HR-VITON** -- Lee et al. (ECCV 2022) -- High-resolution virtual try-on
+2. **StableVITON** -- Kim et al. (2024) -- Diffusion-based try-on model
+3. **DensePose** -- Guler et al. (CVPR 2018) -- Dense mapping of the human body surface
+4. **OOTDiffusion** -- Xu et al. (2024) -- Outfitting Fusion-based VTON
+5. **SMPL** -- Loper et al. (SIGGRAPH Asia 2015) -- Parametric human body model
+6. **MediaPipe Pose** -- Google (2020) -- Real-time human pose estimation
