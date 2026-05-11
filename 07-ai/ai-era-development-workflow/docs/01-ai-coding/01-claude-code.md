@@ -1,41 +1,41 @@
-# Claude Code ── CLI、エージェント、MCP
+# Claude Code -- CLI, Agent, and MCP
 
-> Anthropic公式のCLI型AIコーディングツール「Claude Code」の全機能を理解し、エージェントモードとMCPプロトコルを活用した高度な開発ワークフローを構築する。
-
----
-
-## この章で学ぶこと
-
-1. **Claude Codeの基本操作** ── インストールからCLI操作、CLAUDE.mdによるプロジェクト設定までを習得する
-2. **エージェントモードの活用** ── 自律的にタスクを完遂するエージェントの設計と運用を学ぶ
-3. **MCPによるツール拡張** ── Model Context Protocolでカスタムツールを接続し、開発環境を拡張する
-4. **実運用パターン** ── CI/CDパイプライン統合、チーム運用、大規模プロジェクト対応の実践知を身につける
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [GitHub Copilot ── 設定、効果的な使い方、制限](./00-github-copilot.md) の内容を理解していること
+> Understand the full capabilities of "Claude Code," Anthropic's official CLI-based AI coding tool, and build advanced development workflows leveraging agent mode and the MCP protocol.
 
 ---
 
-## 1. Claude Codeの基本アーキテクチャ
+## What You Will Learn in This Chapter
 
-### 1.1 システム構成
+1. **Claude Code Basics** -- From installation to CLI operations and project configuration with CLAUDE.md
+2. **Leveraging Agent Mode** -- Designing and operating agents that autonomously complete tasks
+3. **Tool Extension via MCP** -- Connecting custom tools through the Model Context Protocol to extend your development environment
+4. **Production Patterns** -- Practical knowledge for CI/CD pipeline integration, team operations, and large-scale project management
+
+
+## Prerequisites
+
+Before reading this guide, having the following knowledge will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [GitHub Copilot -- Setup, Effective Usage, and Limitations](./00-github-copilot.md)
+
+---
+
+## 1. Core Architecture of Claude Code
+
+### 1.1 System Configuration
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│                  Claude Code アーキテクチャ            │
+│                Claude Code Architecture               │
 │                                                      │
 │  ┌──────────┐     ┌───────────────────────────────┐  │
-│  │ ターミナル │     │      Claude Code CLI          │  │
-│  │ (ユーザー) │────►│                               │  │
+│  │ Terminal  │     │      Claude Code CLI          │  │
+│  │ (User)    │────►│                               │  │
 │  └──────────┘     │  ┌─────────┐  ┌────────────┐ │  │
-│                   │  │プロンプト│  │ コンテキスト│ │  │
-│                   │  │解析     │  │ 管理       │ │  │
+│                   │  │ Prompt  │  │  Context   │ │  │
+│                   │  │ Parsing │  │  Manager   │ │  │
 │                   │  └────┬────┘  └─────┬──────┘ │  │
 │                   │       │             │        │  │
 │                   │  ┌────▼─────────────▼──────┐ │  │
@@ -50,7 +50,7 @@
 │                   │  │  └─────┘└─────┘└──────┘│ │  │
 │                   │  └────────────┬────────────┘ │  │
 │                   └──────────────┼───────────────┘  │
-│                                  │ API呼出          │
+│                                  │ API Call          │
 │                                  ▼                  │
 │                   ┌───────────────────────────────┐  │
 │                   │   Anthropic API (Claude)       │  │
@@ -59,250 +59,252 @@
 └──────────────────────────────────────────────────────┘
 ```
 
-### 1.2 主要機能マップ
+### 1.2 Feature Map
 
 ```
-Claude Code 機能マップ
-├── 対話モード
-│   ├── 通常チャット（質問・相談）
-│   ├── コード生成（仕様→実装）
-│   └── デバッグ支援（エラー→修正）
-├── エージェントモード
-│   ├── 自律タスク実行
-│   ├── マルチファイル編集
-│   └── テスト実行→修正ループ
-├── ツール連携
-│   ├── File System（Read/Write/Glob/Grep）
-│   ├── Bash（コマンド実行）
-│   └── MCP（外部ツール）
-├── プロジェクト設定
-│   ├── CLAUDE.md（指示ファイル）
+Claude Code Feature Map
+├── Interactive Mode
+│   ├── Regular Chat (Questions & Consultation)
+│   ├── Code Generation (Spec → Implementation)
+│   └── Debugging Assistance (Error → Fix)
+├── Agent Mode
+│   ├── Autonomous Task Execution
+│   ├── Multi-File Editing
+│   └── Test Execution → Fix Loop
+├── Tool Integration
+│   ├── File System (Read/Write/Glob/Grep)
+│   ├── Bash (Command Execution)
+│   └── MCP (External Tools)
+├── Project Configuration
+│   ├── CLAUDE.md (Instruction File)
 │   ├── .claude/settings.json
-│   └── 権限管理
-└── ワークフロー統合
-    ├── Git連携
+│   └── Permission Management
+└── Workflow Integration
+    ├── Git Integration
     ├── GitHub PR/Issue
-    └── CI/CDパイプライン
+    └── CI/CD Pipeline
 ```
 
-### 1.3 Claude Codeの内部処理フロー
+### 1.3 Internal Processing Flow of Claude Code
 
 ```
-ユーザー入力
+User Input
     │
     ▼
 ┌─────────────────────────────────────────┐
-│ 1. プロンプト解析                         │
-│    - CLAUDE.md の読み込みと適用           │
-│    - 会話履歴のコンテキスト構築           │
-│    - システムプロンプトのマージ           │
+│ 1. Prompt Parsing                       │
+│    - Load and apply CLAUDE.md           │
+│    - Build context from conversation    │
+│      history                            │
+│    - Merge system prompts               │
 └────────────────┬────────────────────────┘
                  │
                  ▼
 ┌─────────────────────────────────────────┐
-│ 2. API リクエスト構築                     │
-│    - トークン数の計算                     │
-│    - ツール定義の付与                     │
-│    - モデル選択（Sonnet/Opus）            │
+│ 2. API Request Construction             │
+│    - Calculate token count              │
+│    - Attach tool definitions            │
+│    - Select model (Sonnet/Opus)         │
 └────────────────┬────────────────────────┘
                  │
                  ▼
 ┌─────────────────────────────────────────┐
-│ 3. レスポンス処理                         │
-│    ├── テキスト応答 → 表示               │
-│    ├── Tool Use → ツール実行             │
-│    │   ├── 権限チェック                  │
-│    │   ├── 実行・結果取得               │
-│    │   └── 結果をAPIに再送信            │
-│    └── 終了判定                          │
+│ 3. Response Processing                  │
+│    ├── Text response → Display          │
+│    ├── Tool Use → Execute tool          │
+│    │   ├── Permission check             │
+│    │   ├── Execute & retrieve results   │
+│    │   └── Resend results to API        │
+│    └── Termination check                │
 └────────────────┬────────────────────────┘
                  │
                  ▼
 ┌─────────────────────────────────────────┐
-│ 4. ループ制御                             │
-│    - ツール実行後に再度API呼び出し       │
-│    - 最大反復回数のチェック              │
-│    - ユーザー承認が必要な操作の確認      │
+│ 4. Loop Control                         │
+│    - Call API again after tool execution │
+│    - Check maximum iteration count      │
+│    - Confirm operations requiring user  │
+│      approval                           │
 └─────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. 基本操作
+## 2. Basic Operations
 
-### コード例1: インストールと初期設定
+### Code Example 1: Installation and Initial Setup
 
 ```bash
-# インストール（npm経由）
+# Install (via npm)
 npm install -g @anthropic-ai/claude-code
 
-# 初回起動（認証が必要）
+# First launch (authentication required)
 claude
 
-# バージョン確認
+# Check version
 claude --version
 
-# ヘルプ表示
+# Show help
 claude --help
 
-# 非対話モードで実行
-claude -p "package.jsonの依存関係を一覧にして"
+# Run in non-interactive mode
+claude -p "List the dependencies in package.json"
 
-# ファイルをパイプで渡す
-cat error.log | claude -p "このエラーログを分析して原因を特定して"
+# Pipe a file
+cat error.log | claude -p "Analyze this error log and identify the cause"
 
-# 特定ディレクトリで実行
-claude --cwd /path/to/project "テストを実行して失敗しているものを修正して"
+# Run in a specific directory
+claude --cwd /path/to/project "Run the tests and fix the failing ones"
 
-# JSON形式で出力（スクリプト連携用）
-claude -p "package.jsonのdependenciesを一覧にして" --output-format json
+# Output in JSON format (for script integration)
+claude -p "List the dependencies in package.json" --output-format json
 
-# 特定のモデルを指定して実行
-claude --model claude-sonnet-4-20250514 -p "コードレビューして"
+# Run with a specific model
+claude --model claude-sonnet-4-20250514 -p "Review the code"
 
-# 会話の継続（resume）
-claude --resume  # 最後の会話を継続
-claude --resume <session-id>  # 特定セッションを継続
+# Resume a conversation
+claude --resume  # Resume the last conversation
+claude --resume <session-id>  # Resume a specific session
 ```
 
-### コード例2: CLAUDE.mdによるプロジェクト設定
+### Code Example 2: Project Configuration with CLAUDE.md
 
 ```markdown
-# CLAUDE.md - プロジェクト固有のAI指示
+# CLAUDE.md - Project-Specific AI Instructions
 
-## プロジェクト概要
-ECプラットフォームのバックエンドAPI。Python 3.12 + FastAPI。
+## Project Overview
+Backend API for an e-commerce platform. Python 3.12 + FastAPI.
 
-## コーディング規約
-- 型ヒントは必須。Any型は禁止
-- docstringはGoogle style
-- テストはpytestで書く。カバレッジ80%以上
-- import順: stdlib → third-party → local（isortで管理）
-- エラーハンドリングはResult型（returns ライブラリ）
+## Coding Standards
+- Type hints are mandatory. Any type is prohibited
+- Docstrings follow Google style
+- Tests are written with pytest. Coverage must be 80% or higher
+- Import order: stdlib → third-party → local (managed by isort)
+- Error handling uses Result types (returns library)
 
-## アーキテクチャ
+## Architecture
 - Clean Architecture: domain/ → usecase/ → infra/ → presentation/
-- ドメイン層は外部依存なし
-- DI（依存注入）はdependency-injectorを使用
+- Domain layer has no external dependencies
+- DI (Dependency Injection) uses dependency-injector
 
-## データベース
+## Database
 - PostgreSQL 16 + SQLAlchemy 2.0
-- マイグレーションはAlembic
-- テスト用DBはSQLite in-memory
+- Migrations use Alembic
+- Test DB uses SQLite in-memory
 
-## テスト実行
+## Running Tests
 ```bash
 pytest tests/ -v --cov=src --cov-report=term-missing
 ```
 
-## やってはいけないこと
-- .envファイルを読んだり変更したりしない
-- main ブランチに直接コミットしない
-- 既存のテストを削除しない
+## Prohibited Actions
+- Do not read or modify .env files
+- Do not commit directly to the main branch
+- Do not delete existing tests
 ```
 
-### コード例3: CLAUDE.mdの階層構成
+### Code Example 3: Hierarchical CLAUDE.md Structure
 
 ```
-プロジェクトルート/
-├── CLAUDE.md                    # プロジェクト全体の規約
+Project Root/
+├── CLAUDE.md                    # Project-wide conventions
 ├── src/
-│   ├── CLAUDE.md                # ソースコード固有のルール
+│   ├── CLAUDE.md                # Source code specific rules
 │   ├── domain/
-│   │   └── CLAUDE.md            # ドメイン層の制約
+│   │   └── CLAUDE.md            # Domain layer constraints
 │   └── presentation/
-│       └── CLAUDE.md            # API層の規約
+│       └── CLAUDE.md            # API layer conventions
 ├── tests/
-│   └── CLAUDE.md                # テスト固有のルール
+│   └── CLAUDE.md                # Test-specific rules
 └── .claude/
-    └── settings.json            # ツール権限設定
+    └── settings.json            # Tool permission settings
 ```
 
 ```markdown
 # src/domain/CLAUDE.md
 
-## ドメイン層の厳格なルール
-- 外部ライブラリのimportは絶対に禁止
-- フレームワーク依存のコードを書かない
-- データベースやHTTPの概念を持ち込まない
-- 全ての値オブジェクトは不変（frozen=True）
-- ドメインイベントで副作用を表現する
-- 例外は domain/exceptions.py に定義されたもののみ使用
+## Strict Rules for the Domain Layer
+- Importing external libraries is strictly prohibited
+- Do not write framework-dependent code
+- Do not introduce database or HTTP concepts
+- All value objects must be immutable (frozen=True)
+- Express side effects through domain events
+- Only use exceptions defined in domain/exceptions.py
 ```
 
-### コード例4: 日常的な対話操作
+### Code Example 4: Everyday Interactive Operations
 
 ```bash
-# バグ修正
-claude "tests/test_order.py の test_cancel_shipped_order が
-       失敗している。原因を調べて修正して"
+# Bug fix
+claude "test_cancel_shipped_order in tests/test_order.py is
+       failing. Investigate the cause and fix it"
 
-# リファクタリング
-claude "src/services/payment.py が300行を超えている。
-       単一責任の原則に従って分割して"
+# Refactoring
+claude "src/services/payment.py exceeds 300 lines.
+       Split it following the Single Responsibility Principle"
 
-# 新機能実装
-claude "以下の仕様でクーポン機能を実装して:
-       - クーポンコード: 英数字8桁
-       - 割引タイプ: 定額 or 定率
-       - 有効期限あり
-       - 1ユーザー1回のみ使用可能
-       テストも含めてお願い"
+# New feature implementation
+claude "Implement a coupon feature with the following spec:
+       - Coupon code: 8 alphanumeric characters
+       - Discount type: fixed amount or percentage
+       - Has an expiration date
+       - Each user can use it only once
+       Please include tests as well"
 
-# コードレビュー
-claude "git diff main...HEAD の変更をレビューして。
-       セキュリティ、パフォーマンス、保守性の観点で"
+# Code review
+claude "Review the changes in git diff main...HEAD.
+       Focus on security, performance, and maintainability"
 
-# ドキュメント生成
-claude "src/api/ 配下のエンドポイントを分析して
-       OpenAPI仕様書を生成して。既存のdocs/api.yamlを更新"
+# Documentation generation
+claude "Analyze the endpoints under src/api/
+       and generate an OpenAPI specification. Update the existing docs/api.yaml"
 
-# 依存関係の分析
-claude "このプロジェクトの依存関係グラフを分析して
-       循環依存がないか確認し、あれば解消案を提示して"
+# Dependency analysis
+claude "Analyze the dependency graph of this project,
+       check for circular dependencies, and suggest solutions if any exist"
 ```
 
-### コード例5: エージェントモードの活用
+### Code Example 5: Leveraging Agent Mode
 
 ```bash
-# 複雑なタスクを自律的に実行
-claude "以下のステップでAPIのバージョンアップを行って:
-1. OpenAPI仕様書(docs/api.yaml)を読んで現状を把握
-2. 全エンドポイントにv2プレフィックスを追加
-3. v1は後方互換のため残す（v2にリダイレクト）
-4. 全テストを更新して通ることを確認
-5. CHANGELOG.mdを更新"
+# Execute complex tasks autonomously
+claude "Perform the API version upgrade with the following steps:
+1. Read the OpenAPI spec (docs/api.yaml) to understand the current state
+2. Add a v2 prefix to all endpoints
+3. Keep v1 for backward compatibility (redirect to v2)
+4. Update all tests and verify they pass
+5. Update CHANGELOG.md"
 
-# Claude Codeは以下を自律的に実行:
-# - ファイルを読んで現状を分析
-# - 必要な変更を計画
-# - コードを修正
-# - テストを実行
-# - 失敗したら修正を繰り返す
-# - 最終確認してレポート
+# Claude Code autonomously executes the following:
+# - Reads files to analyze the current state
+# - Plans the necessary changes
+# - Modifies the code
+# - Runs tests
+# - Repeats fixes if tests fail
+# - Performs a final check and reports
 ```
 
-### コード例6: サブエージェント（Task）の活用
+### Code Example 6: Leveraging Sub-Agents (Task)
 
 ```bash
-# Task ツールを活用した並列調査
-claude "以下の3つを並行して調査して:
-1. src/services/ の全サービスクラスのメソッド一覧
-2. tests/ のカバレッジが低いモジュール上位5つ
-3. package.json の脆弱性のある依存パッケージ
-それぞれの結果をまとめて報告して"
+# Parallel investigation using the Task tool
+claude "Investigate the following 3 items in parallel:
+1. List all methods of every service class in src/services/
+2. Top 5 modules with the lowest coverage in tests/
+3. Vulnerable dependencies in package.json
+Summarize and report the results for each"
 
-# Claude Codeは内部でTaskサブエージェントを生成し
-# 並行して調査を実行する
+# Claude Code internally spawns Task sub-agents
+# to run investigations in parallel
 ```
 
-### コード例7: MCP（Model Context Protocol）の設定
+### Code Example 7: MCP (Model Context Protocol) Configuration
 
 ```jsonc
-// .claude/settings.json - MCP サーバー設定
+// .claude/settings.json - MCP Server Configuration
 {
   "mcpServers": {
-    // PostgreSQLへの直接アクセス
+    // Direct access to PostgreSQL
     "postgres": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-postgres"],
@@ -311,7 +313,7 @@ claude "以下の3つを並行して調査して:
       }
     },
 
-    // GitHubリポジトリ操作
+    // GitHub repository operations
     "github": {
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-github"],
@@ -320,7 +322,7 @@ claude "以下の3つを並行して調査して:
       }
     },
 
-    // Slack通知
+    // Slack notifications
     "slack": {
       "command": "npx",
       "args": ["-y", "@anthropic/mcp-server-slack"],
@@ -329,13 +331,13 @@ claude "以下の3つを並行して調査して:
       }
     },
 
-    // Playwright（ブラウザテスト）
+    // Playwright (browser testing)
     "playwright": {
       "command": "npx",
       "args": ["-y", "@anthropic/mcp-server-playwright"]
     },
 
-    // Sentry（エラー監視）
+    // Sentry (error monitoring)
     "sentry": {
       "command": "npx",
       "args": ["-y", "@anthropic/mcp-server-sentry"],
@@ -350,43 +352,43 @@ claude "以下の3つを並行して調査して:
 
 ---
 
-## 3. 高度な活用パターン
+## 3. Advanced Usage Patterns
 
-### 3.1 MCPツール連携のフロー
+### 3.1 MCP Tool Integration Flow
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│              MCP連携ワークフロー例                         │
+│              MCP Integration Workflow Example              │
 │                                                          │
-│  ユーザー: "Issue #42を修正してPRを作成して"                │
+│  User: "Fix Issue #42 and create a PR"                    │
 │                                                          │
 │  ┌─────────┐  MCP:GitHub   ┌─────────┐                  │
-│  │Claude   │──────────────►│GitHub   │ Issueの内容を取得 │
-│  │Code     │◄──────────────│API      │                  │
+│  │Claude   │──────────────►│GitHub   │ Retrieve issue    │
+│  │Code     │◄──────────────│API      │ details           │
 │  │         │               └─────────┘                  │
 │  │         │  Tool:Read                                  │
-│  │         │──────────────► ソースコードを読む              │
+│  │         │──────────────► Read source code              │
 │  │         │                                             │
 │  │         │  Tool:Write                                  │
-│  │         │──────────────► 修正コードを書き込む            │
+│  │         │──────────────► Write fix code                │
 │  │         │                                             │
 │  │         │  Tool:Bash                                   │
-│  │         │──────────────► テスト実行                     │
+│  │         │──────────────► Run tests                     │
 │  │         │                                             │
 │  │         │  MCP:GitHub   ┌─────────┐                  │
-│  │         │──────────────►│GitHub   │ PR作成            │
+│  │         │──────────────►│GitHub   │ Create PR         │
 │  │         │◄──────────────│API      │                  │
 │  └─────────┘               └─────────┘                  │
 │                                                          │
-│  結果: "PR #123を作成しました: https://..."                │
+│  Result: "Created PR #123: https://..."                   │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 3.2 カスタムMCPサーバーの構築
+### 3.2 Building a Custom MCP Server
 
 ```typescript
 // custom-mcp-server.ts
-// 社内システムと連携するカスタムMCPサーバーの例
+// Example of a custom MCP server that integrates with internal systems
 
 import { Server } from "@modelcontextprotocol/sdk/server/index.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
@@ -396,23 +398,23 @@ const server = new Server(
   { capabilities: { tools: {} } }
 );
 
-// 社内チケットシステムとの連携
+// Integration with internal ticket system
 server.setRequestHandler("tools/list", async () => ({
   tools: [
     {
       name: "get_ticket",
-      description: "社内チケットシステムからチケット情報を取得",
+      description: "Retrieve ticket information from the internal ticket system",
       inputSchema: {
         type: "object",
         properties: {
-          ticket_id: { type: "string", description: "チケットID" }
+          ticket_id: { type: "string", description: "Ticket ID" }
         },
         required: ["ticket_id"]
       }
     },
     {
       name: "update_ticket_status",
-      description: "チケットのステータスを更新",
+      description: "Update ticket status",
       inputSchema: {
         type: "object",
         properties: {
@@ -428,12 +430,12 @@ server.setRequestHandler("tools/list", async () => ({
     },
     {
       name: "search_wiki",
-      description: "社内Wikiを検索",
+      description: "Search the internal wiki",
       inputSchema: {
         type: "object",
         properties: {
-          query: { type: "string", description: "検索クエリ" },
-          category: { type: "string", description: "カテゴリ" }
+          query: { type: "string", description: "Search query" },
+          category: { type: "string", description: "Category" }
         },
         required: ["query"]
       }
@@ -459,7 +461,7 @@ server.setRequestHandler("tools/call", async (request) => {
         { status: args.status, comment: args.comment }
       );
       return {
-        content: [{ type: "text", text: "ステータスを更新しました" }]
+        content: [{ type: "text", text: "Status updated successfully" }]
       };
 
     case "search_wiki":
@@ -474,35 +476,35 @@ const transport = new StdioServerTransport();
 await server.connect(transport);
 ```
 
-### 3.3 Copilot vs Claude Code 比較
+### 3.3 Copilot vs Claude Code Comparison
 
-| 機能 | GitHub Copilot | Claude Code |
-|------|---------------|-------------|
-| 動作形式 | エディタ内補完 | CLI / エージェント |
-| コンテキスト | 開いているファイル | プロジェクト全体 |
-| 操作範囲 | 1ファイル内 | マルチファイル |
-| ツール連携 | エディタ機能のみ | MCP / Bash / Git |
-| テスト実行 | 不可 | 自律的に実行・修正 |
-| Git操作 | 不可 | コミット・PR作成 |
-| 最適用途 | リアルタイム補完 | 複雑なタスク自動化 |
-| 料金 | $10-39/月 | API使用量ベース |
+| Feature | GitHub Copilot | Claude Code |
+|---------|---------------|-------------|
+| Operation Style | In-editor completion | CLI / Agent |
+| Context | Open files | Entire project |
+| Scope | Within a single file | Multi-file |
+| Tool Integration | Editor features only | MCP / Bash / Git |
+| Test Execution | Not possible | Autonomous execution & fixes |
+| Git Operations | Not possible | Commits & PR creation |
+| Best Use Case | Real-time completion | Complex task automation |
+| Pricing | $10-39/month | API usage-based |
 
-### 3.4 Copilot + Claude Code の併用戦略
+### 3.4 Copilot + Claude Code Combined Strategy
 
-| 場面 | 推奨ツール | 理由 |
-|------|-----------|------|
-| 関数内のロジック記述 | Copilot | リアルタイム補完が快適 |
-| 新機能の設計と実装 | Claude Code | マルチファイル対応が必要 |
-| バグ調査 | Claude Code | ログ分析・grep・テスト実行が必要 |
-| テスト追加 | 両方 | Copilotで補完しつつ、Claude Codeで検証 |
-| ドキュメント生成 | Claude Code | プロジェクト全体の理解が必要 |
-| リファクタリング | Claude Code | 影響範囲分析とテスト確認が必要 |
+| Scenario | Recommended Tool | Reason |
+|----------|-----------------|--------|
+| Writing logic within a function | Copilot | Real-time completion is comfortable |
+| Designing and implementing new features | Claude Code | Requires multi-file support |
+| Bug investigation | Claude Code | Requires log analysis, grep, and test execution |
+| Adding tests | Both | Complete with Copilot, verify with Claude Code |
+| Documentation generation | Claude Code | Requires understanding the entire project |
+| Refactoring | Claude Code | Requires impact analysis and test verification |
 
 ---
 
-## 4. CI/CD統合パターン
+## 4. CI/CD Integration Patterns
 
-### 4.1 GitHub Actionsでのコードレビュー自動化
+### 4.1 Automating Code Reviews with GitHub Actions
 
 ```yaml
 # .github/workflows/claude-review.yml
@@ -532,11 +534,12 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          # 差分を取得してClaude Codeにレビューを依頼
+          # Get the diff and request a review from Claude Code
           DIFF=$(git diff origin/main...HEAD)
-          claude -p "以下のコード差分をレビューしてください。
-          セキュリティ、パフォーマンス、保守性の観点で問題を指摘し、
-          改善案を提示してください。マークダウン形式で出力してください。
+          claude -p "Please review the following code diff.
+          Point out issues from the perspectives of security, performance,
+          and maintainability, and suggest improvements.
+          Output in markdown format.
 
           $DIFF" > review.md
 
@@ -554,7 +557,7 @@ jobs:
             });
 ```
 
-### 4.2 テスト生成の自動化
+### 4.2 Automating Test Generation
 
 ```yaml
 # .github/workflows/claude-test-gen.yml
@@ -582,447 +585,451 @@ jobs:
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          claude -p "以下の変更ファイルに対してテストが不足している箇所を
-          特定し、テストコードを生成してください。
-          既存のテストスタイルに合わせてください。
+          claude -p "Identify areas lacking test coverage for the following
+          changed files and generate test code.
+          Match the style of existing tests.
 
-          変更ファイル: ${{ steps.changed.outputs.files }}"
+          Changed files: ${{ steps.changed.outputs.files }}"
 ```
 
-### 4.3 コミットメッセージの自動生成
+### 4.3 Automated Commit Message Generation
 
 ```bash
 #!/bin/bash
 # scripts/ai-commit.sh
-# AIによるコミットメッセージの自動生成
+# Automated commit message generation with AI
 
-# ステージされた変更の差分を取得
+# Get the diff of staged changes
 STAGED_DIFF=$(git diff --cached)
 
 if [ -z "$STAGED_DIFF" ]; then
-    echo "ステージされた変更がありません"
+    echo "No staged changes"
     exit 1
 fi
 
-# Claude Codeにコミットメッセージを生成させる
-MESSAGE=$(claude -p "以下のgit diffに基づいて、
-Conventional Commitsの形式でコミットメッセージを生成してください。
-1行目: type(scope): 簡潔な説明（50文字以内）
-3行目以降: 変更の詳細（任意）
+# Have Claude Code generate a commit message
+MESSAGE=$(claude -p "Based on the following git diff,
+generate a commit message in Conventional Commits format.
+Line 1: type(scope): concise description (50 chars or less)
+Line 3 onwards: details of the changes (optional)
 
 diff:
 $STAGED_DIFF" --output-format text)
 
-echo "生成されたコミットメッセージ:"
+echo "Generated commit message:"
 echo "$MESSAGE"
 echo ""
-read -p "このメッセージでコミットしますか？ (y/n): " CONFIRM
+read -p "Commit with this message? (y/n): " CONFIRM
 
 if [ "$CONFIRM" = "y" ]; then
     git commit -m "$MESSAGE"
-    echo "コミットしました"
+    echo "Committed successfully"
 else
-    echo "キャンセルしました"
+    echo "Cancelled"
 fi
 ```
 
 ---
 
-## 5. 権限管理とセキュリティ
+## 5. Permission Management and Security
 
-### 5.1 権限設定の詳細
+### 5.1 Permission Configuration Details
 
 ```jsonc
-// .claude/settings.json - 権限管理
+// .claude/settings.json - Permission Management
 {
   "permissions": {
-    // 許可するツールと範囲
+    // Allowed tools and scopes
     "allow": [
-      "Read",                              // 全ファイル読み取り可
-      "Write(src/**,tests/**,docs/**)",    // 特定ディレクトリのみ書き込み可
-      "Bash(npm test,npm run *,pytest *)", // 特定コマンドのみ実行可
-      "Grep",                              // 検索は無制限
-      "Glob"                               // ファイル一覧も無制限
+      "Read",                              // Read all files
+      "Write(src/**,tests/**,docs/**)",    // Write only to specific directories
+      "Bash(npm test,npm run *,pytest *)", // Execute only specific commands
+      "Grep",                              // Unlimited search
+      "Glob"                               // Unlimited file listing
     ],
-    // 明示的に拒否するツールと範囲
+    // Explicitly denied tools and scopes
     "deny": [
-      "Bash(rm -rf *)",          // 全削除禁止
-      "Bash(git push --force*)", // 強制プッシュ禁止
-      "Write(.env*)",            // 環境変数ファイル変更禁止
-      "Write(*.pem)",            // 証明書ファイル変更禁止
-      "Write(*.key)",            // 秘密鍵ファイル変更禁止
-      "Read(.env*)",             // 環境変数ファイル読み取り禁止
-      "Bash(curl *)",            // 外部通信禁止
-      "Bash(wget *)"             // 外部ダウンロード禁止
+      "Bash(rm -rf *)",          // Prohibit delete all
+      "Bash(git push --force*)", // Prohibit force push
+      "Write(.env*)",            // Prohibit modifying environment variable files
+      "Write(*.pem)",            // Prohibit modifying certificate files
+      "Write(*.key)",            // Prohibit modifying private key files
+      "Read(.env*)",             // Prohibit reading environment variable files
+      "Bash(curl *)",            // Prohibit external communication
+      "Bash(wget *)"             // Prohibit external downloads
     ]
   }
 }
 ```
 
-### 5.2 セキュリティベストプラクティス
+### 5.2 Security Best Practices
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│           Claude Code セキュリティ対策                  │
+│           Claude Code Security Measures               │
 │                                                      │
-│  1. 最小権限の原則                                     │
-│     ├── 必要なディレクトリのみ書き込み許可             │
-│     ├── 実行可能なコマンドをホワイトリスト管理         │
-│     └── .env, secrets は読み書き禁止                  │
+│  1. Principle of Least Privilege                      │
+│     ├── Allow writing only to required directories   │
+│     ├── Whitelist executable commands                 │
+│     └── Prohibit reading/writing .env and secrets    │
 │                                                      │
-│  2. レビュー必須のフロー                               │
-│     ├── AIの変更は必ず git diff で確認                 │
-│     ├── 破壊的操作はユーザー承認を要求                 │
-│     └── 本番環境への直接操作は禁止                    │
+│  2. Mandatory Review Flow                             │
+│     ├── Always verify AI changes with git diff        │
+│     ├── Require user approval for destructive ops    │
+│     └── Prohibit direct operations on production     │
 │                                                      │
-│  3. 監査ログ                                          │
-│     ├── Claude Codeの操作ログを保存                   │
-│     ├── ~/.claude/logs/ にセッション履歴              │
-│     └── チーム共有の操作ポリシーを策定                │
+│  3. Audit Logs                                        │
+│     ├── Save Claude Code operation logs              │
+│     ├── Session history in ~/.claude/logs/            │
+│     └── Establish team-shared operation policies     │
 │                                                      │
-│  4. ネットワークセキュリティ                           │
-│     ├── API通信はHTTPS（TLS 1.3）                     │
-│     ├── プロキシ環境にも対応                          │
-│     └── VPN経由での利用を推奨                        │
+│  4. Network Security                                  │
+│     ├── API communication via HTTPS (TLS 1.3)        │
+│     ├── Compatible with proxy environments           │
+│     └── VPN usage recommended                        │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 5.3 チーム向けセキュリティポリシーテンプレート
+### 5.3 Team Security Policy Template
 
 ```markdown
-# Claude Code チームセキュリティポリシー
+# Claude Code Team Security Policy
 
-## 1. API キー管理
-- 個人のAPI キーは環境変数で管理（.envに直書き禁止）
-- チーム共有キーは AWS Secrets Manager 等で管理
-- 月次でキーをローテーション
+## 1. API Key Management
+- Manage personal API keys via environment variables (no hardcoding in .env)
+- Manage shared team keys with AWS Secrets Manager or similar
+- Rotate keys monthly
 
-## 2. 操作制限
-- 本番DBへの直接接続は禁止
-- 本番環境のファイルシステムへのアクセスは禁止
-- パッケージのインストール（npm install, pip install）は事前承認制
+## 2. Operation Restrictions
+- Direct connection to production DB is prohibited
+- Access to production file systems is prohibited
+- Package installation (npm install, pip install) requires prior approval
 
-## 3. コードレビュー
-- AI生成コードは通常のコードと同じレビュープロセスを適用
-- セキュリティ関連コード（認証、暗号化等）は2名以上のレビュー必須
-- AI生成コードであることをPRに明記
+## 3. Code Review
+- AI-generated code follows the same review process as regular code
+- Security-related code (authentication, encryption, etc.) requires review by 2+ people
+- AI-generated code must be noted in the PR
 
-## 4. データ保護
-- 個人情報を含むデータをプロンプトに含めない
-- テスト用データは匿名化されたものを使用
-- APIに送信されるコードの範囲を理解し管理する
+## 4. Data Protection
+- Do not include personal information in prompts
+- Use anonymized data for testing
+- Understand and manage the scope of code sent to the API
 ```
 
 ---
 
-## 6. 大規模プロジェクトでの運用
+## 6. Operating at Scale
 
-### 6.1 コンテキスト管理戦略
+### 6.1 Context Management Strategy
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│       大規模プロジェクトのコンテキスト管理              │
+│       Context Management for Large Projects           │
 │                                                      │
-│  課題: 100万行超のコードベースを扱う場合               │
+│  Challenge: Handling codebases with 1M+ lines        │
 │                                                      │
-│  戦略1: CLAUDE.mdの階層化                             │
+│  Strategy 1: Hierarchical CLAUDE.md                   │
 │  ┌─────────────────────────────────────┐             │
-│  │ root/CLAUDE.md        (全体方針)    │             │
-│  │ └── src/CLAUDE.md     (開発規約)    │             │
-│  │     └── api/CLAUDE.md (API固有)    │             │
+│  │ root/CLAUDE.md     (Overall policy) │             │
+│  │ └── src/CLAUDE.md  (Dev standards)  │             │
+│  │     └── api/CLAUDE.md (API-specific)│             │
 │  └─────────────────────────────────────┘             │
 │                                                      │
-│  戦略2: タスクの分割と委譲                            │
+│  Strategy 2: Task Splitting and Delegation            │
 │  ┌─────────────────────────────────────┐             │
-│  │ メインAgent: 全体計画策定           │             │
-│  │ ├── SubAgent 1: フロントエンド修正  │             │
-│  │ ├── SubAgent 2: バックエンド修正    │             │
-│  │ └── SubAgent 3: テスト更新         │             │
+│  │ Main Agent: Overall plan creation   │             │
+│  │ ├── SubAgent 1: Frontend changes    │             │
+│  │ ├── SubAgent 2: Backend changes     │             │
+│  │ └── SubAgent 3: Test updates        │             │
 │  └─────────────────────────────────────┘             │
 │                                                      │
-│  戦略3: /compact による会話圧縮                       │
+│  Strategy 3: Conversation compression via /compact    │
 │  ┌─────────────────────────────────────┐             │
-│  │ 長い会話 → /compact → 要約された   │             │
-│  │ コンテキストで続行                  │             │
+│  │ Long conversation → /compact →      │             │
+│  │ Continue with summarized context    │             │
 │  └─────────────────────────────────────┘             │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 6.2 モノレポでの活用
+### 6.2 Usage in Monorepos
 
 ```bash
-# モノレポ構成でのClaude Code活用例
+# Claude Code usage example in a monorepo
 # packages/
 # ├── frontend/     (React)
 # ├── backend/      (FastAPI)
-# ├── shared/       (共通型定義)
+# ├── shared/       (Shared type definitions)
 # └── infra/        (Terraform)
 
-# 特定パッケージに対してタスクを実行
-claude --cwd packages/backend "新しいAPIエンドポイントを追加して"
+# Run a task against a specific package
+claude --cwd packages/backend "Add a new API endpoint"
 
-# パッケージ間の整合性チェック
-claude "packages/shared/types.tsの型定義と
-       packages/backend/schemas.pyのPydanticモデルが
-       整合しているか確認して。不整合があれば修正して"
+# Cross-package consistency check
+claude "Verify that the type definitions in packages/shared/types.ts
+       and the Pydantic models in packages/backend/schemas.py
+       are consistent. Fix any inconsistencies"
 
-# インフラとアプリケーションの一貫した変更
-claude "新しいマイクロサービスをデプロイするために:
-1. packages/infra/にECSタスク定義を追加
-2. packages/backend/に新しいサービスのスケルトンを生成
-3. packages/shared/にサービス間通信の型を追加
-4. docker-compose.ymlにサービスを追加"
+# Consistent changes across infrastructure and application
+claude "To deploy a new microservice:
+1. Add an ECS task definition in packages/infra/
+2. Generate a new service skeleton in packages/backend/
+3. Add inter-service communication types in packages/shared/
+4. Add the service to docker-compose.yml"
 ```
 
-### 6.3 エージェント運用のベストプラクティス
+### 6.3 Best Practices for Agent Operations
 
 ```
-エージェント運用の最適化指針
+Agent Operations Optimization Guidelines
 
-1. タスク粒度の設計
+1. Task Granularity Design
    ┌──────────────────────────────────────┐
-   │ 大きすぎるタスク → コンテキスト溢れ   │
-   │   "アプリ全体をリファクタリングして"   │
+   │ Too large → Context overflow          │
+   │   "Refactor the entire app"           │
    │                                      │
-   │ 小さすぎるタスク → 往復コスト増大     │
-   │   "この変数名を変えて"               │
+   │ Too small → Increased round-trip cost │
+   │   "Rename this variable"             │
    │                                      │
-   │ 最適な粒度 → 1機能・1モジュール単位   │
-   │   "注文キャンセル機能を実装して       │
-   │    テストも含めて"                    │
+   │ Optimal → Per feature/module          │
+   │   "Implement the order cancellation  │
+   │    feature, including tests"          │
    └──────────────────────────────────────┘
 
-2. コンテキストウィンドウの管理
-   - 1セッションあたり10-15ファイルが最適
-   - 50ファイル以上を扱うと途中停止のリスク
-   - /compact を定期的に使用してコンテキストを圧縮
+2. Context Window Management
+   - 10-15 files per session is optimal
+   - 50+ files risk mid-session termination
+   - Use /compact regularly to compress context
 
-3. 並列Agent実行
-   - 独立したタスクは並列Agentで同時実行
-   - 同時Agent数は8-10が最適（15以上はリソース過多）
-   - 依存関係のあるタスクは直列に実行
+3. Parallel Agent Execution
+   - Run independent tasks with parallel agents simultaneously
+   - 8-10 concurrent agents is optimal (15+ is excessive)
+   - Execute dependent tasks sequentially
 
-4. エラーリカバリ
-   - Agentが停止した場合は --resume で再開
-   - レート制限時は非生成タスク（分析・レビュー）に切り替え
-   - 再試行は同じプロンプトではなく、追加コンテキストを付与
+4. Error Recovery
+   - If an agent stops, resume with --resume
+   - When rate-limited, switch to non-generative tasks (analysis/review)
+   - When retrying, add extra context rather than using the same prompt
 ```
 
 ---
 
-## 7. 実践ユースケース集
+## 7. Practical Use Case Collection
 
-### 7.1 レガシーコードのモダナイゼーション
+### 7.1 Legacy Code Modernization
 
 ```bash
-# Step 1: 現状分析
-claude "src/legacy/ ディレクトリのコードを分析して:
-1. 使用されている技術・パターンを一覧化
-2. テストカバレッジを確認
-3. 依存関係グラフを作成
-4. リスクの高いモジュール（循環依存、巨大ファイル等）を特定"
+# Step 1: Current state analysis
+claude "Analyze the code in the src/legacy/ directory:
+1. List the technologies and patterns in use
+2. Check test coverage
+3. Create a dependency graph
+4. Identify high-risk modules (circular dependencies, large files, etc.)"
 
-# Step 2: 移行計画の策定
-claude "分析結果に基づいて、以下の条件で移行計画を立てて:
-- 段階的に移行（ビッグバンは不可）
-- 各フェーズでテストが通ること
-- 移行中も既存機能が動作すること
-- Strangler Fig パターンを適用"
+# Step 2: Create a migration plan
+claude "Based on the analysis results, create a migration plan with these conditions:
+- Migrate incrementally (no big bang)
+- Tests must pass at each phase
+- Existing functionality must remain operational during migration
+- Apply the Strangler Fig pattern"
 
-# Step 3: 段階的な実行
-claude "移行計画のPhase 1を実行して:
-- UserService クラスをClean Architectureに分割
-- 既存のテストを新構造に適応
-- 新旧のコードが共存できるアダプターを作成"
+# Step 3: Incremental execution
+claude "Execute Phase 1 of the migration plan:
+- Split the UserService class into Clean Architecture
+- Adapt existing tests to the new structure
+- Create adapters that allow old and new code to coexist"
 ```
 
-### 7.2 データベースマイグレーションの支援
+### 7.2 Database Migration Assistance
 
 ```bash
-# スキーマ変更の自動生成
-claude "以下の要件でAlembicマイグレーションを作成して:
-1. usersテーブルにemail_verifiedカラムを追加（boolean, default=false）
-2. user_preferencesテーブルを新規作成
-3. 既存データの移行スクリプトも含める
-4. ロールバック手順も定義して"
+# Auto-generate schema changes
+claude "Create an Alembic migration with the following requirements:
+1. Add an email_verified column to the users table (boolean, default=false)
+2. Create a new user_preferences table
+3. Include a data migration script for existing data
+4. Define the rollback procedure as well"
 
-# データ整合性チェック
-claude "現在のSQLAlchemyモデル定義とDBスキーマの差分を検出して。
-       models/ ディレクトリのモデルと
-       alembic/versions/ の最新マイグレーションを比較して"
+# Data consistency check
+claude "Detect differences between the current SQLAlchemy model definitions
+       and the DB schema. Compare the models in the models/ directory
+       with the latest migration in alembic/versions/"
 ```
 
-### 7.3 パフォーマンスチューニング
+### 7.3 Performance Tuning
 
 ```bash
-# ボトルネック調査
-claude "以下のエンドポイントが遅い:
+# Bottleneck investigation
+claude "The following endpoint is slow:
 GET /api/v1/products?category=electronics&sort=price
 
-1. src/api/products.py のクエリを分析
-2. SQLAlchemyのクエリログから問題のSQLを特定
-3. N+1クエリがないか確認
-4. インデックスの提案
-5. クエリ最適化の実装"
+1. Analyze the queries in src/api/products.py
+2. Identify problematic SQL from the SQLAlchemy query log
+3. Check for N+1 queries
+4. Suggest indexes
+5. Implement query optimization"
 
-# ロードテスト結果の分析
-claude "locustのテスト結果（results/load_test.csv）を分析して:
-1. レスポンスタイムのp50, p95, p99を計算
-2. スループットのボトルネックを特定
-3. メモリリークの兆候がないか確認
-4. 改善提案を優先度順にリストアップ"
+# Load test result analysis
+claude "Analyze the locust test results (results/load_test.csv):
+1. Calculate p50, p95, p99 response times
+2. Identify throughput bottlenecks
+3. Check for signs of memory leaks
+4. List improvement suggestions in priority order"
 ```
 
-### 7.4 セキュリティ監査
+### 7.4 Security Audit
 
 ```bash
-# コードベースのセキュリティスキャン
-claude "セキュリティの観点でコードベースを監査して:
-1. ハードコードされたシークレットの検出
-2. SQLインジェクションの可能性がある箇所
-3. XSS脆弱性の可能性がある箇所
-4. 認証・認可のバイパスが可能な箇所
-5. 依存パッケージの既知の脆弱性
-各問題の深刻度（Critical/High/Medium/Low）と修正方法も示して"
+# Security scan of the codebase
+claude "Audit the codebase from a security perspective:
+1. Detect hardcoded secrets
+2. Locations with potential SQL injection
+3. Locations with potential XSS vulnerabilities
+4. Locations where authentication/authorization could be bypassed
+5. Known vulnerabilities in dependencies
+Show the severity (Critical/High/Medium/Low) and fix method for each issue"
 ```
 
-### 7.5 APIドキュメントの自動メンテナンス
+### 7.5 Automated API Documentation Maintenance
 
 ```bash
-# 実装とドキュメントの同期
-claude "src/api/ のエンドポイント実装と docs/api.yaml のOpenAPI仕様を比較して:
-1. ドキュメントに記載がないエンドポイント
-2. 実装と異なるパラメータ定義
-3. レスポンスコードの不一致
-不整合を全て修正して docs/api.yaml を更新して"
+# Sync implementation with documentation
+claude "Compare the endpoint implementations in src/api/ with the OpenAPI spec in docs/api.yaml:
+1. Endpoints not documented
+2. Parameter definitions that differ from the implementation
+3. Mismatched response codes
+Fix all inconsistencies and update docs/api.yaml"
 ```
 
 ---
 
-## 8. トラブルシューティング
+## 8. Troubleshooting
 
-### 8.1 よくあるエラーと対処法
+### 8.1 Common Errors and Solutions
 
 ```
 ┌───────────────────────────────────────────────────────┐
-│          Claude Code トラブルシューティング              │
+│          Claude Code Troubleshooting                   │
 │                                                       │
-│  エラー1: "Rate limit exceeded"                        │
+│  Error 1: "Rate limit exceeded"                        │
 │  ┌─────────────────────────────────────────────┐      │
-│  │ 原因: APIレート制限に到達                     │      │
-│  │ 対処:                                        │      │
-│  │   - 数分待ってリトライ                        │      │
-│  │   - Claude Max契約で制限緩和                  │      │
-│  │   - 非生成タスク（分析・レビュー）に切替      │      │
-│  │   - --model でより低コストモデルに変更         │      │
+│  │ Cause: Reached API rate limit                │      │
+│  │ Solutions:                                   │      │
+│  │   - Wait a few minutes and retry             │      │
+│  │   - Upgrade to Claude Max for higher limits  │      │
+│  │   - Switch to non-generative tasks           │      │
+│  │     (analysis/review)                        │      │
+│  │   - Use --model to switch to a lower-cost    │      │
+│  │     model                                    │      │
 │  └─────────────────────────────────────────────┘      │
 │                                                       │
-│  エラー2: "Context window exceeded"                    │
+│  Error 2: "Context window exceeded"                    │
 │  ┌─────────────────────────────────────────────┐      │
-│  │ 原因: 会話コンテキストがトークン上限を超過     │      │
-│  │ 対処:                                        │      │
-│  │   - /compact で会話を圧縮                     │      │
-│  │   - 新しいセッションを開始                    │      │
-│  │   - タスクを小さい単位に分割                  │      │
-│  │   - Read時にoffset/limitで部分読み込み        │      │
+│  │ Cause: Conversation context exceeded token   │      │
+│  │        limit                                 │      │
+│  │ Solutions:                                   │      │
+│  │   - Compress conversation with /compact      │      │
+│  │   - Start a new session                      │      │
+│  │   - Split tasks into smaller units           │      │
+│  │   - Use offset/limit for partial file reads  │      │
 │  └─────────────────────────────────────────────┘      │
 │                                                       │
-│  エラー3: "Permission denied"                          │
+│  Error 3: "Permission denied"                          │
 │  ┌─────────────────────────────────────────────┐      │
-│  │ 原因: settings.jsonの権限設定                 │      │
-│  │ 対処:                                        │      │
-│  │   - .claude/settings.json を確認             │      │
-│  │   - 必要な権限をallowに追加                   │      │
-│  │   - denyルールと競合していないか確認          │      │
-│  │   - グローバル設定とプロジェクト設定の優先順位 │      │
+│  │ Cause: Permission settings in settings.json  │      │
+│  │ Solutions:                                   │      │
+│  │   - Check .claude/settings.json              │      │
+│  │   - Add required permissions to allow        │      │
+│  │   - Verify no conflicts with deny rules      │      │
+│  │   - Check priority between global and        │      │
+│  │     project settings                         │      │
 │  └─────────────────────────────────────────────┘      │
 │                                                       │
-│  エラー4: "MCP server connection failed"               │
+│  Error 4: "MCP server connection failed"               │
 │  ┌─────────────────────────────────────────────┐      │
-│  │ 原因: MCPサーバーの起動/接続エラー            │      │
-│  │ 対処:                                        │      │
-│  │   - npxコマンドが正しいか確認                 │      │
-│  │   - 環境変数が設定されているか確認            │      │
-│  │   - MCPサーバーを単体で起動テスト             │      │
-│  │   - ポート競合がないか確認                    │      │
+│  │ Cause: MCP server startup/connection error   │      │
+│  │ Solutions:                                   │      │
+│  │   - Verify the npx command is correct        │      │
+│  │   - Verify environment variables are set     │      │
+│  │   - Test starting the MCP server standalone  │      │
+│  │   - Check for port conflicts                 │      │
 │  └─────────────────────────────────────────────┘      │
 │                                                       │
-│  エラー5: "Tool execution timeout"                     │
+│  Error 5: "Tool execution timeout"                     │
 │  ┌─────────────────────────────────────────────┐      │
-│  │ 原因: Bashコマンド等のタイムアウト            │      │
-│  │ 対処:                                        │      │
-│  │   - タイムアウト設定を延長                    │      │
-│  │   - 重いテストスイートは対象を限定            │      │
-│  │   - ビルドはバックグラウンド実行を検討        │      │
+│  │ Cause: Timeout on Bash commands, etc.        │      │
+│  │ Solutions:                                   │      │
+│  │   - Extend the timeout setting               │      │
+│  │   - Limit scope for heavy test suites        │      │
+│  │   - Consider background execution for builds │      │
 │  └─────────────────────────────────────────────┘      │
 └───────────────────────────────────────────────────────┘
 ```
 
-### 8.2 パフォーマンス最適化
+### 8.2 Performance Optimization
 
 ```
-Claude Code 応答速度の最適化
+Claude Code Response Speed Optimization
 
-1. プロンプトの最適化
-   ├── 具体的な指示ほど処理が速い
-   ├── 不必要なコンテキストを含めない
-   └── 段階的な指示で1回あたりの処理量を抑える
+1. Prompt Optimization
+   ├── More specific instructions → faster processing
+   ├── Avoid including unnecessary context
+   └── Use step-by-step instructions to reduce per-request workload
 
-2. モデル選択の最適化
-   ├── 単純なタスク → Sonnet（高速・低コスト）
-   ├── 複雑なタスク → Opus（高品質・高コスト）
-   └── コード補完 → Haiku（最速・最低コスト）
+2. Model Selection Optimization
+   ├── Simple tasks → Sonnet (fast, low cost)
+   ├── Complex tasks → Opus (high quality, high cost)
+   └── Code completion → Haiku (fastest, lowest cost)
 
-3. ツール実行の最適化
-   ├── Glob/Grepで事前絞り込み → Read
-   ├── 大きなファイルはoffset/limitで部分読み込み
-   └── 不要なBash実行を避ける
+3. Tool Execution Optimization
+   ├── Pre-filter with Glob/Grep → then Read
+   ├── Use offset/limit for partial reads of large files
+   └── Avoid unnecessary Bash executions
 
-4. セッション管理
-   ├── 定期的に /compact で圧縮
-   ├── 長大なセッションより短いセッションの連続
-   └── 関連性の薄いタスクは別セッションで実行
+4. Session Management
+   ├── Compress regularly with /compact
+   ├── Prefer short session chains over long sessions
+   └── Run unrelated tasks in separate sessions
 ```
 
-### 8.3 デバッグ手法
+### 8.3 Debugging Techniques
 
 ```bash
-# Claude Codeのデバッグログを有効化
-CLAUDE_CODE_DEBUG=1 claude "タスクを実行して"
+# Enable Claude Code debug logging
+CLAUDE_CODE_DEBUG=1 claude "Execute the task"
 
-# APIリクエストの詳細を確認
-ANTHROPIC_LOG=debug claude -p "テスト"
+# View API request details
+ANTHROPIC_LOG=debug claude -p "test"
 
-# セッションログの確認
+# Check session logs
 ls -la ~/.claude/logs/
-# 各セッションのログが保存されている
+# Each session's logs are stored here
 
-# MCPサーバーの接続テスト
+# Test MCP server connection
 npx -y @modelcontextprotocol/server-postgres 2>&1
-# エラーメッセージを確認
+# Check error messages
 ```
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン 1: 権限設定の放置
+### Anti-Pattern 1: Neglecting Permission Configuration
 
 ```jsonc
-// BAD: 全ツールを無制限に許可
+// BAD: Allow all tools without restrictions
 {
   "permissions": {
-    "allow": ["*"]  // 危険！何でも実行できる
+    "allow": ["*"]  // Dangerous! Can execute anything
   }
 }
 
-// GOOD: 必要最小限の権限を設定
+// GOOD: Set minimum required permissions
 {
   "permissions": {
     "allow": [
       "Read",
-      "Write(src/**,tests/**)",   // src/とtests/のみ書き込み可
-      "Bash(npm test,npm run *)", // 特定コマンドのみ
+      "Write(src/**,tests/**)",   // Write only to src/ and tests/
+      "Bash(npm test,npm run *)", // Only specific commands
       "Grep",
       "Glob"
     ],
@@ -1035,94 +1042,94 @@ npx -y @modelcontextprotocol/server-postgres 2>&1
 }
 ```
 
-### アンチパターン 2: CLAUDE.mdの未設定
+### Anti-Pattern 2: Not Setting Up CLAUDE.md
 
 ```
-❌ CLAUDE.mdなしで使う問題:
-   - AIがプロジェクトの規約を知らない
-   - 毎回同じ説明を繰り返す必要がある
-   - チームメンバー間でAIの振る舞いが不統一
-   - 機密ファイルにアクセスするリスク
+Problems with not having CLAUDE.md:
+   - AI does not know the project conventions
+   - You need to repeat the same explanations every time
+   - AI behavior is inconsistent across team members
+   - Risk of accessing sensitive files
 
-✅ CLAUDE.mdを適切に設定する効果:
-   - 一貫したコーディングスタイル
-   - プロジェクト固有の制約を自動適用
-   - 「やってはいけないこと」を明示
-   - チーム全体で同じAI体験を共有
+Benefits of properly configuring CLAUDE.md:
+   - Consistent coding style
+   - Project-specific constraints applied automatically
+   - "Prohibited actions" are explicitly defined
+   - The entire team shares the same AI experience
 ```
 
-### アンチパターン 3: 巨大タスクの一括投入
+### Anti-Pattern 3: Submitting Massive Tasks All at Once
 
 ```
-❌ BAD: 一度に全てを依頼
-   "プロジェクト全体をTypeScript化して、テストも全部書き直して、
-    ドキュメントも更新して"
-   → コンテキスト溢れ、品質低下、途中停止
+BAD: Request everything at once
+   "Convert the entire project to TypeScript, rewrite all tests,
+    and update all documentation"
+   → Context overflow, quality degradation, mid-task termination
 
-✅ GOOD: 段階的に実行
-   Phase 1: "src/utils/ をTypeScript化して"
-   Phase 2: "src/utils/ のテストを更新して"
-   Phase 3: "src/services/ をTypeScript化して"
-   → 各フェーズで品質確認し、問題があれば即座に対処
+GOOD: Execute in stages
+   Phase 1: "Convert src/utils/ to TypeScript"
+   Phase 2: "Update the tests for src/utils/"
+   Phase 3: "Convert src/services/ to TypeScript"
+   → Verify quality at each phase, address issues immediately
 ```
 
-### アンチパターン 4: コンテキストの汚染
+### Anti-Pattern 4: Context Pollution
 
 ```
-❌ BAD: 無関係な情報をセッションに蓄積
-   - 複数の無関係なタスクを同一セッションで実行
-   - 大量のログやエラーメッセージをペースト
-   - 試行錯誤の失敗結果をそのまま会話に残す
+BAD: Accumulating unrelated information in the session
+   - Running multiple unrelated tasks in the same session
+   - Pasting large amounts of logs or error messages
+   - Leaving trial-and-error failure results in the conversation
 
-✅ GOOD: クリーンなコンテキスト管理
-   - タスクごとに新しいセッションを使用
-   - /compact で不要な履歴を圧縮
-   - エラー情報は要約して提供
-   - 必要な情報だけをコンテキストに含める
+GOOD: Clean context management
+   - Use a new session for each task
+   - Compress unnecessary history with /compact
+   - Provide summarized error information
+   - Include only necessary information in the context
 ```
 
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1131,26 +1138,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation and add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1158,7 +1165,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1169,14 +1176,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Remove by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1184,7 +1191,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1192,44 +1199,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1238,7 +1245,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1253,67 +1260,67 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup factor: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on minimum required features
+- Automated tests only for the critical path
+- Introduce monitoring from the start
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Do not aim for perfection (YAGNI principle)
+- Obtain user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Legacy System Modernization
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Incrementally modernize a system that has been in operation for 10+ years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Use the Strangler Fig pattern for incremental migration
+- Create Characterization Tests first if existing tests are missing
+- Use an API gateway to allow old and new systems to coexist
+- Perform data migration incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work Content | Estimated Duration | Risk |
+|-------|-------------|-------------------|------|
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration Start | Sequential migration from peripheral features | 3-6 months | Medium |
+| 4. Core Migration | Migration of core features | 6-12 months | High |
+| 5. Completion | Decommission legacy system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Define clear boundaries with Domain-Driven Design
+- Set ownership per team
+- Manage shared libraries using Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definitions between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1326,20 +1333,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Export in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1348,7 +1355,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1369,58 +1376,58 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical System
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Cache strategy (L1: In-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Method | Impact | Implementation Cost | Applicable Scenario |
+|--------------------|--------|-------------------|-------------------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Asynchronous processing | Medium | Medium | I/O-heavy operations |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low-Medium | High | CPU-bound cases |
 
 ---
 
-## セキュリティの考慮事項
+## Security Considerations
 
-### 一般的な脆弱性と対策
+### Common Vulnerabilities and Countermeasures
 
-| 脆弱性 | リスクレベル | 対策 | 検出方法 |
-|--------|------------|------|---------|
-| インジェクション攻撃 | 高 | 入力値のバリデーション・パラメータ化クエリ | SAST/DAST |
-| 認証の不備 | 高 | 多要素認証・セッション管理の強化 | ペネトレーションテスト |
-| 機密データの露出 | 高 | 暗号化・アクセス制御 | セキュリティ監査 |
-| 設定の不備 | 中 | セキュリティヘッダー・最小権限の原則 | 構成スキャン |
-| ログの不足 | 中 | 構造化ログ・監査証跡 | ログ分析 |
+| Vulnerability | Risk Level | Countermeasure | Detection Method |
+|--------------|-----------|---------------|-----------------|
+| Injection attacks | High | Input validation, parameterized queries | SAST/DAST |
+| Authentication flaws | High | Multi-factor auth, session management hardening | Penetration testing |
+| Sensitive data exposure | High | Encryption, access control | Security audit |
+| Configuration issues | Medium | Security headers, principle of least privilege | Configuration scanning |
+| Insufficient logging | Medium | Structured logs, audit trails | Log analysis |
 
-### セキュアコーディングのベストプラクティス
+### Secure Coding Best Practices
 
 ```python
-# セキュアコーディング例
+# Secure coding example
 import hashlib
 import secrets
 import hmac
 from typing import Optional
 
 class SecurityUtils:
-    """セキュリティユーティリティ"""
+    """Security utilities"""
 
     @staticmethod
     def generate_token(length: int = 32) -> str:
-        """暗号学的に安全なトークン生成"""
+        """Generate a cryptographically secure token"""
         return secrets.token_urlsafe(length)
 
     @staticmethod
     def hash_password(password: str, salt: Optional[str] = None) -> tuple:
-        """パスワードのハッシュ化"""
+        """Hash a password"""
         if salt is None:
             salt = secrets.token_hex(16)
         hashed = hashlib.pbkdf2_hmac(
@@ -1433,50 +1440,50 @@ class SecurityUtils:
 
     @staticmethod
     def verify_password(password: str, hashed: str, salt: str) -> bool:
-        """パスワードの検証"""
+        """Verify a password"""
         new_hash, _ = SecurityUtils.hash_password(password, salt)
         return hmac.compare_digest(new_hash, hashed)
 
     @staticmethod
     def sanitize_input(value: str) -> str:
-        """入力値のサニタイズ"""
+        """Sanitize input value"""
         dangerous_chars = ['<', '>', '"', "'", '&', '\\']
         result = value
         for char in dangerous_chars:
             result = result.replace(char, '')
         return result.strip()
 
-# 使用例
+# Usage example
 token = SecurityUtils.generate_token()
 hashed, salt = SecurityUtils.hash_password("my_password")
 is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 ```
 
-### セキュリティチェックリスト
+### Security Checklist
 
-- [ ] 全ての入力値がバリデーションされている
-- [ ] 機密情報がログに出力されていない
-- [ ] HTTPS が強制されている
-- [ ] CORS ポリシーが適切に設定されている
-- [ ] 依存パッケージの脆弱性スキャンが実施されている
-- [ ] エラーメッセージに内部情報が含まれていない
+- [ ] All input values are validated
+- [ ] Sensitive information is not output in logs
+- [ ] HTTPS is enforced
+- [ ] CORS policy is properly configured
+- [ ] Dependency vulnerability scanning is implemented
+- [ ] Error messages do not contain internal information
 
 ---
 
-## マイグレーションガイド
+## Migration Guide
 
-### バージョンアップ時の注意点
+### Version Upgrade Considerations
 
-| バージョン | 主な変更点 | 移行作業 | 影響範囲 |
-|-----------|-----------|---------|---------|
-| v1.x → v2.x | API設計の刷新 | エンドポイント変更 | 全クライアント |
-| v2.x → v3.x | 認証方式の変更 | トークン形式更新 | 認証関連 |
-| v3.x → v4.x | データモデル変更 | マイグレーションスクリプト実行 | DB関連 |
+| Version | Key Changes | Migration Work | Impact Scope |
+|---------|-----------|---------------|-------------|
+| v1.x to v2.x | API design overhaul | Endpoint changes | All clients |
+| v2.x to v3.x | Authentication method change | Token format update | Auth-related |
+| v3.x to v4.x | Data model change | Run migration scripts | DB-related |
 
-### 段階的移行の手順
+### Incremental Migration Steps
 
 ```python
-# マイグレーションスクリプトのテンプレート
+# Migration script template
 import json
 import logging
 from pathlib import Path
@@ -1486,7 +1493,7 @@ from typing import List, Dict, Callable
 logger = logging.getLogger(__name__)
 
 class MigrationRunner:
-    """段階的マイグレーション実行エンジン"""
+    """Incremental migration execution engine"""
 
     def __init__(self, migration_dir: str):
         self.migration_dir = Path(migration_dir)
@@ -1495,7 +1502,7 @@ class MigrationRunner:
 
     def register(self, version: str, description: str,
                  up: Callable, down: Callable):
-        """マイグレーションの登録"""
+        """Register a migration"""
         self.migrations.append({
             'version': version,
             'description': description,
@@ -1505,35 +1512,35 @@ class MigrationRunner:
         })
 
     def run_up(self, target_version: str = None):
-        """マイグレーションの実行（アップグレード）"""
+        """Run migrations (upgrade)"""
         for migration in self.migrations:
             if migration['version'] in self.completed:
                 continue
-            logger.info(f"実行中: {migration['version']} - "
+            logger.info(f"Running: {migration['version']} - "
                        f"{migration['description']}")
             try:
                 migration['up']()
                 self.completed.append(migration['version'])
-                logger.info(f"完了: {migration['version']}")
+                logger.info(f"Completed: {migration['version']}")
             except Exception as e:
-                logger.error(f"失敗: {migration['version']}: {e}")
+                logger.error(f"Failed: {migration['version']}: {e}")
                 raise
             if target_version and migration['version'] == target_version:
                 break
 
     def run_down(self, target_version: str):
-        """マイグレーションのロールバック"""
+        """Rollback migrations"""
         for migration in reversed(self.migrations):
             if migration['version'] not in self.completed:
                 continue
             if migration['version'] == target_version:
                 break
-            logger.info(f"ロールバック: {migration['version']}")
+            logger.info(f"Rolling back: {migration['version']}")
             migration['down']()
             self.completed.remove(migration['version'])
 
     def status(self) -> Dict:
-        """マイグレーション状態の確認"""
+        """Check migration status"""
         return {
             'total': len(self.migrations),
             'completed': len(self.completed),
@@ -1546,77 +1553,77 @@ class MigrationRunner:
         }
 ```
 
-### ロールバック計画
+### Rollback Plan
 
-移行作業には必ずロールバック計画を準備してください:
+Always prepare a rollback plan for migration work:
 
-1. **データのバックアップ**: 移行前に完全バックアップを取得
-2. **テスト環境での検証**: 本番と同等の環境で事前検証
-3. **段階的なロールアウト**: カナリアリリースで段階的に展開
-4. **監視の強化**: 移行中はメトリクスの監視間隔を短縮
-5. **判断基準の明確化**: ロールバックを判断する基準を事前に定義
+1. **Data Backup**: Take a full backup before migration
+2. **Test Environment Verification**: Pre-verify in an environment equivalent to production
+3. **Gradual Rollout**: Deploy incrementally with canary releases
+4. **Enhanced Monitoring**: Shorten metrics monitoring intervals during migration
+5. **Clear Decision Criteria**: Pre-define criteria for deciding when to rollback
 ---
 
 ## FAQ
 
-### Q1: Claude Codeの料金体系はどうなっているか？
+### Q1: What is the pricing model for Claude Code?
 
-Claude CodeはAnthropicのAPI使用量に基づく従量課金。Claude Sonnetは入力$3/100万トークン、出力$15/100万トークン。1日の開発で平均$5-20程度（使用量による）。Claude Max契約（月額$100/$200）を利用すると、一定量のClaude Code利用が含まれる。
+Claude Code uses pay-per-use billing based on Anthropic API usage. Claude Sonnet costs $3/1M input tokens and $15/1M output tokens. Average daily development costs around $5-20 (depending on usage). With a Claude Max subscription ($100/$200 per month), a certain amount of Claude Code usage is included.
 
-### Q2: オフライン環境でClaude Codeは使えるか？
+### Q2: Can Claude Code be used in an offline environment?
 
-Claude Code自体はAnthropicのAPIに接続する必要があるため、完全なオフライン使用は不可。ただし、MCPサーバーをローカルに立てれば、ファイル操作やコマンド実行はローカルで完結する。API通信のみがインターネット接続を必要とする。VPN経由での利用は問題ない。
+Claude Code itself requires a connection to the Anthropic API, so completely offline usage is not possible. However, if you run MCP servers locally, file operations and command execution can be completed locally. Only API communication requires an internet connection. Usage via VPN is fully supported.
 
-### Q3: Claude CodeとCursorのどちらをメインツールにすべきか？
+### Q3: Should I use Claude Code or Cursor as my primary tool?
 
-両者は補完的な関係にある。Cursorは「GUIでの対話的開発」に優れ、コードの視覚的な確認やリアルタイム補完が得意。Claude Codeは「CLIでの自動化・エージェント実行」に優れ、複雑なマルチステップタスクやCI/CD統合に向く。理想はCursorで日常コーディング、Claude Codeで複雑タスクの自動化という使い分け。
+The two are complementary. Cursor excels at "interactive development with a GUI" and is good at visual code review and real-time completion. Claude Code excels at "CLI-based automation and agent execution" and is suited for complex multi-step tasks and CI/CD integration. Ideally, use Cursor for everyday coding and Claude Code for automating complex tasks.
 
-### Q4: CLAUDE.mdはチームで共有すべきか？
+### Q4: Should CLAUDE.md be shared with the team?
 
-CLAUDE.mdはリポジトリにコミットしてチーム全体で共有すべき。これにより全メンバーが同じAI体験を得られ、コーディング規約やアーキテクチャの制約が自動的に適用される。ただし、個人の好みに関する設定（エディタ設定等）は `~/.claude/CLAUDE.md` に記述してグローバルに適用するとよい。
+CLAUDE.md should be committed to the repository and shared across the entire team. This ensures all members have the same AI experience, and coding standards and architectural constraints are automatically applied. However, personal preference settings (editor config, etc.) should be written in `~/.claude/CLAUDE.md` and applied globally.
 
-### Q5: MCPサーバーのセキュリティリスクはあるか？
+### Q5: Are there security risks with MCP servers?
 
-MCPサーバーはローカルプロセスとして動作するため、ネットワーク露出のリスクは低い。ただし、DBやAPIへのアクセストークンを環境変数で渡す際は、`.env` ファイルの管理に注意が必要。本番環境のクレデンシャルは使用せず、開発用のアクセス権限のみを付与する。MCPサーバーのコード自体も信頼できるソースのみを使用する。
+MCP servers operate as local processes, so the risk of network exposure is low. However, when passing access tokens for DBs and APIs via environment variables, careful management of `.env` files is necessary. Do not use production credentials -- only grant development access permissions. Also, only use MCP server code from trusted sources.
 
-### Q6: Claude Codeのコスト最適化のコツは？
+### Q6: What are tips for optimizing Claude Code costs?
 
-以下の戦略でコストを抑えられる。(1) 単純なタスクはSonnetモデルを指定（Opusの約1/5のコスト）、(2) プロンプトを具体的にして往復回数を減らす、(3) /compact で会話コンテキストを圧縮して入力トークンを削減、(4) CLAUDE.mdでプロジェクト情報を事前に提供してAIの問い合わせを減らす、(5) 大量のタスクはバッチ化して非対話モード（`claude -p`）で実行する。
+The following strategies can help reduce costs: (1) Specify the Sonnet model for simple tasks (about 1/5 the cost of Opus), (2) Make prompts specific to reduce round trips, (3) Compress conversation context with /compact to reduce input tokens, (4) Pre-provide project information in CLAUDE.md to reduce AI queries, (5) Batch large volumes of tasks and run them in non-interactive mode (`claude -p`).
 
-### Q7: Claude Codeで生成したコードの著作権はどうなるか？
+### Q7: What about copyright for code generated by Claude Code?
 
-AnthropicのTerms of Serviceに基づき、Claude Codeで生成したコードの著作権はユーザーに帰属する。ただし、AIが学習データから既存のオープンソースコードを再現する可能性があるため、ライセンス互換性の確認は開発者の責任で行う必要がある。セキュリティ上重要なコードや特許に関わるコードは、生成後に人間が必ずレビューすべきである。
+Based on Anthropic's Terms of Service, copyright for code generated by Claude Code belongs to the user. However, since AI may reproduce existing open-source code from training data, verifying license compatibility is the developer's responsibility. Security-critical code and code related to patents should always be reviewed by humans after generation.
 
-### Q8: 大規模チーム（50人以上）でClaude Codeを導入する際の注意点は？
+### Q8: What should be considered when deploying Claude Code in a large team (50+ people)?
 
-大規模チームでは以下に注意する。(1) API使用量の予算管理（チーム/個人の上限設定）、(2) CLAUDE.mdのガバナンス（変更はチームリードの承認が必要）、(3) セキュリティポリシーの統一（.claude/settings.jsonのテンプレート化）、(4) ナレッジ共有（効果的なプロンプトパターンのチームWiki化）、(5) オンボーディングプロセスの整備（新メンバー向けClaude Code研修）。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| 基本形式 | CLI型のAIエージェント、プロジェクト全体を操作可能 |
-| CLAUDE.md | プロジェクト規約・制約をAIに伝える設定ファイル（階層化可能） |
-| エージェント | 複雑なタスクを自律的にステップ実行（Task で並列化も可能） |
-| MCP | 外部ツール（DB、GitHub、Slack等）との連携プロトコル |
-| 権限管理 | 必要最小限の権限設定が重要（allow/deny の明示） |
-| CI/CD統合 | GitHub ActionsでのPRレビュー・テスト生成の自動化 |
-| 併用戦略 | Copilotでリアルタイム補完、Claude Codeで複雑タスク |
-| 大規模対応 | コンテキスト管理、タスク分割、/compact の活用が鍵 |
+For large teams, pay attention to the following: (1) Budget management for API usage (set limits per team/individual), (2) CLAUDE.md governance (changes require team lead approval), (3) Unified security policies (template .claude/settings.json), (4) Knowledge sharing (team wiki of effective prompt patterns), (5) Onboarding process (Claude Code training for new members).
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [02-cursor-and-windsurf.md](./02-cursor-and-windsurf.md) ── Cursor/WindsurfとのAI IDE比較
-- [03-ai-coding-best-practices.md](./03-ai-coding-best-practices.md) ── AIコーディングの品質保証
-- [../02-workflow/03-ai-debugging.md](../02-workflow/03-ai-debugging.md) ── Claude Codeを使ったデバッグ
+| Item | Key Points |
+|------|-----------|
+| Basic Format | CLI-based AI agent capable of operating on the entire project |
+| CLAUDE.md | Configuration file that communicates project conventions and constraints to AI (supports hierarchy) |
+| Agent | Autonomously executes complex tasks step by step (parallelization possible with Task) |
+| MCP | Protocol for integrating with external tools (DB, GitHub, Slack, etc.) |
+| Permission Management | Setting minimum required permissions is critical (explicit allow/deny) |
+| CI/CD Integration | Automated PR reviews and test generation via GitHub Actions |
+| Combined Strategy | Copilot for real-time completion, Claude Code for complex tasks |
+| Scaling | Context management, task splitting, and leveraging /compact are key |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
+
+- [02-cursor-and-windsurf.md](./02-cursor-and-windsurf.md) -- AI IDE comparison with Cursor/Windsurf
+- [03-ai-coding-best-practices.md](./03-ai-coding-best-practices.md) -- Quality assurance for AI coding
+- [../02-workflow/03-ai-debugging.md](../02-workflow/03-ai-debugging.md) -- Debugging with Claude Code
+
+---
+
+## References
 
 1. Anthropic, "Claude Code Documentation," 2025. https://docs.anthropic.com/en/docs/claude-code
 2. Anthropic, "Model Context Protocol (MCP) Specification," 2024. https://modelcontextprotocol.io/
