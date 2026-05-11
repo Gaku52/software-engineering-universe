@@ -1,66 +1,69 @@
-# ポッドキャストツール — 自動文字起こし・要約・編集
+# Podcast Tools — Automatic Transcription, Summarization & Editing
 
-> 音声コンテンツの制作・管理を AI で革新する。自動文字起こし、インテリジェント要約、AI アシスト編集の技術と実装を体系的に学ぶ。
-
----
-
-## この章で学ぶこと
-
-1. **自動文字起こし (ASR)** — Whisper をはじめとする最新 ASR エンジンの活用法と精度向上テクニック
-2. **インテリジェント要約** — 長時間音声からチャプター分割・要約・ショーノートを自動生成する手法
-3. **AI アシスト編集** — フィラー除去、無音検出、ノイズ除去、BGM ダッキングの自動化
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [音声アシスタント — カスタムウェイクワード、対話AI](./01-voice-assistants.md) の内容を理解していること
+> Revolutionize audio content production and management with AI. Systematically learn the techniques and implementation of automatic transcription, intelligent summarization, and AI-assisted editing.
 
 ---
 
-## 1. ポッドキャスト制作パイプラインの全体像
+## What You Will Learn in This Chapter
 
-### 1.1 AI 活用パイプライン
+1. **Automatic Transcription (ASR)** — How to use state-of-the-art ASR engines like Whisper and techniques to improve accuracy
+2. **Intelligent Summarization** — Methods for automatically generating chapter splits, summaries, and show notes from long-form audio
+3. **AI-Assisted Editing** — Automating filler removal, silence detection, noise reduction, and BGM ducking
+
+
+## Prerequisites
+
+Before reading this guide, having the following knowledge will help deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Voice Assistants — Custom Wake Words and Conversational AI](./01-voice-assistants.md)
+
+---
+
+## 1. Overview of the Podcast Production Pipeline
+
+### 1.1 AI-Powered Pipeline
 
 ```
 +----------+     +----------+     +-----------+     +-----------+
-|  録音    | --> |  前処理   | --> |  文字起こし | --> |  後処理    |
-|          |     |  ノイズ除去|     |  ASR      |     |  要約/編集 |
-+----------+     +----------+     +-----------+     +-----------+
+| Recording| --> |  Pre-    | --> | Transcrip-| --> |  Post-    |
+|          |     | processing|    |  tion     |     | processing|
+|          |     | Denoising|     |  ASR      |     | Summary/  |
++----------+     +----------+     +-----------+     | Editing   |
+                                                    +-----------+
                                                           |
                       +-----------------------------------+
                       |
                       v
 +----------+     +-----------+     +-----------+
-|  公開    | <-- |  最終編集  | <-- |  AI支援    |
-|  配信    |     |  マスタリング|    |  チャプター |
-+----------+     +-----------+     +-----------+
+| Publish  | <-- |  Final    | <-- | AI-Assist |
+| Distribute|    |  Editing  |     | Chapters  |
++----------+     | Mastering |     +-----------+
+                 +-----------+
 ```
 
-### 1.2 従来ワークフローと AI 活用ワークフローの比較
+### 1.2 Comparison of Traditional vs. AI-Powered Workflows
 
-| 工程 | 従来の手法 | AI 活用手法 | 時間削減 |
-|------|-----------|------------|---------|
-| 文字起こし | 手動 (音声の3〜5倍の時間) | Whisper 自動起こし | 90%+ |
-| 要約/ショーノート | 手動作成 | LLM による自動生成 | 80%+ |
-| フィラー除去 | 波形を目視で編集 | AI 検出 + 自動除去 | 70%+ |
-| ノイズ除去 | DAW プラグイン手動調整 | AI ワンクリック | 60%+ |
-| チャプター分割 | 手動タイムスタンプ | トピック検出 + 自動分割 | 85%+ |
+| Process | Traditional Method | AI-Powered Method | Time Savings |
+|---------|-------------------|-------------------|-------------|
+| Transcription | Manual (3-5x audio length) | Whisper automatic transcription | 90%+ |
+| Summary/Show Notes | Manual creation | Auto-generation via LLM | 80%+ |
+| Filler Removal | Visual waveform editing | AI detection + automatic removal | 70%+ |
+| Noise Reduction | Manual DAW plugin adjustment | AI one-click | 60%+ |
+| Chapter Splitting | Manual timestamps | Topic detection + auto-splitting | 85%+ |
 
-### 1.3 ポッドキャスト制作の品質チェックリスト
+### 1.3 Podcast Production Quality Checklist
 
 ```python
-# ポッドキャスト品質チェックパイプライン
+# Podcast quality check pipeline
 from dataclasses import dataclass
 from typing import Optional
 import numpy as np
 
 @dataclass
 class QualityReport:
-    """ポッドキャスト品質レポート"""
+    """Podcast quality report"""
     loudness_lufs: float
     true_peak_dbtp: float
     noise_floor_db: float
@@ -71,9 +74,9 @@ class QualityReport:
     overall_grade: str
 
 class PodcastQualityChecker:
-    """ポッドキャスト品質自動チェッカー"""
+    """Automatic podcast quality checker"""
 
-    # 配信プラットフォーム別の推奨値
+    # Recommended values by distribution platform
     PLATFORM_SPECS = {
         "apple_podcasts": {
             "lufs_target": -16.0,
@@ -103,7 +106,7 @@ class PodcastQualityChecker:
 
     def check_audio(self, audio: np.ndarray, sr: int,
                      platform: str = "apple_podcasts") -> QualityReport:
-        """音声品質を包括的にチェック"""
+        """Comprehensive audio quality check"""
         spec = self.PLATFORM_SPECS[platform]
 
         loudness = self._measure_lufs(audio, sr)
@@ -114,7 +117,7 @@ class PodcastQualityChecker:
         dc_offset = float(np.mean(audio))
         stereo_balance = self._check_stereo_balance(audio)
 
-        # 総合評価
+        # Overall evaluation
         grade = self._compute_grade(
             loudness, true_peak, noise_floor, clipping, spec
         )
@@ -131,38 +134,38 @@ class PodcastQualityChecker:
         )
 
     def _measure_lufs(self, audio, sr):
-        """LUFS(ラウドネスユニット)を測定"""
-        # ITU-R BS.1770 準拠の簡略版
+        """Measure LUFS (Loudness Units Full Scale)"""
+        # Simplified version compliant with ITU-R BS.1770
         rms = np.sqrt(np.mean(audio ** 2))
         return 20 * np.log10(rms + 1e-10)
 
     def _measure_true_peak(self, audio):
-        """True Peak(dBTP)を測定"""
+        """Measure True Peak (dBTP)"""
         peak = np.max(np.abs(audio))
         return 20 * np.log10(peak + 1e-10)
 
     def _measure_noise_floor(self, audio, sr, frame_ms=50):
-        """ノイズフロアを推定"""
+        """Estimate noise floor"""
         frame_size = int(sr * frame_ms / 1000)
         frames = [audio[i:i+frame_size] for i in range(0, len(audio)-frame_size, frame_size)]
         frame_energies = [20 * np.log10(np.sqrt(np.mean(f**2)) + 1e-10) for f in frames]
-        # 最も静かな10%のフレームの平均 = ノイズフロア推定
+        # Average of the quietest 10% of frames = noise floor estimate
         frame_energies.sort()
         bottom_10 = frame_energies[:max(1, len(frame_energies) // 10)]
         return np.mean(bottom_10)
 
     def _measure_silence_ratio(self, audio, threshold_db=-50):
-        """無音区間の割合を計算"""
+        """Calculate the ratio of silent segments"""
         threshold = 10 ** (threshold_db / 20)
         silent_samples = np.sum(np.abs(audio) < threshold)
         return silent_samples / len(audio)
 
     def _count_clipping(self, audio, threshold=0.99):
-        """クリッピング箇所のカウント"""
+        """Count clipping occurrences"""
         return int(np.sum(np.abs(audio) > threshold))
 
     def _check_stereo_balance(self, audio):
-        """ステレオバランスチェック（モノラルなら0.0）"""
+        """Check stereo balance (returns 0.0 for mono)"""
         if audio.ndim < 2:
             return 0.0
         left_rms = np.sqrt(np.mean(audio[0] ** 2))
@@ -172,7 +175,7 @@ class PodcastQualityChecker:
         return (left_rms - right_rms) / (left_rms + right_rms)
 
     def _compute_grade(self, loudness, true_peak, noise_floor, clipping, spec):
-        """総合評価グレードを算出"""
+        """Compute overall quality grade"""
         issues = []
         if abs(loudness - spec["lufs_target"]) > spec["lufs_tolerance"]:
             issues.append("loudness")
@@ -184,49 +187,49 @@ class PodcastQualityChecker:
             issues.append("clipping")
 
         if len(issues) == 0:
-            return "A (配信品質)"
+            return "A (broadcast quality)"
         elif len(issues) == 1:
-            return f"B (要改善: {issues[0]})"
+            return f"B (needs improvement: {issues[0]})"
         else:
-            return f"C (問題あり: {', '.join(issues)})"
+            return f"C (issues found: {', '.join(issues)})"
 
-# 使用例
+# Usage example
 checker = PodcastQualityChecker()
 # report = checker.check_audio(audio_data, sr=44100, platform="apple_podcasts")
 ```
 
 ---
 
-## 2. 自動文字起こし
+## 2. Automatic Transcription
 
-### 2.1 Whisper による高精度文字起こし
+### 2.1 High-Accuracy Transcription with Whisper
 
 ```python
-# コード例 1: OpenAI Whisper で日本語ポッドキャストを文字起こしする
+# Code Example 1: Transcribe a Japanese podcast with OpenAI Whisper
 import whisper
 import json
 
-# モデルをロード (tiny/base/small/medium/large-v3)
+# Load model (tiny/base/small/medium/large-v3)
 model = whisper.load_model("large-v3")
 
-# 文字起こし実行
+# Run transcription
 result = model.transcribe(
     "podcast_episode_042.mp3",
-    language="ja",           # 日本語を指定
-    task="transcribe",       # "translate" で英訳も可能
-    word_timestamps=True,    # 単語レベルのタイムスタンプ
-    condition_on_previous_text=True,  # 文脈を考慮
-    initial_prompt="ポッドキャスト「テックトーク」第42回。ゲスト: 田中太郎。"
+    language="ja",           # Specify Japanese
+    task="transcribe",       # Use "translate" for English translation
+    word_timestamps=True,    # Word-level timestamps
+    condition_on_previous_text=True,  # Consider context
+    initial_prompt="Podcast 'Tech Talk' Episode 42. Guest: Taro Tanaka."
 )
 
-# セグメントごとの結果
+# Results per segment
 for segment in result["segments"]:
     start = segment["start"]
     end = segment["end"]
     text = segment["text"]
     print(f"[{start:.1f}s - {end:.1f}s] {text}")
 
-# SRT字幕ファイルとして出力
+# Output as SRT subtitle file
 def to_srt(segments):
     srt = []
     for i, seg in enumerate(segments, 1):
@@ -246,55 +249,55 @@ with open("episode_042.srt", "w", encoding="utf-8") as f:
     f.write(to_srt(result["segments"]))
 ```
 
-### 2.2 faster-whisper で高速推論
+### 2.2 High-Speed Inference with faster-whisper
 
 ```python
-# コード例 2: faster-whisper による高速文字起こし (CTranslate2 ベース)
+# Code Example 2: High-speed transcription with faster-whisper (CTranslate2-based)
 from faster_whisper import WhisperModel
 
-# INT8量子化モデルで高速化
+# Speed up with INT8 quantized model
 model = WhisperModel(
     "large-v3",
     device="cuda",
-    compute_type="int8_float16"  # INT8量子化で2〜4倍高速
+    compute_type="int8_float16"  # 2-4x faster with INT8 quantization
 )
 
 segments, info = model.transcribe(
     "podcast_episode_042.mp3",
     language="ja",
     beam_size=5,
-    vad_filter=True,           # Voice Activity Detection で無音を除外
+    vad_filter=True,           # Exclude silence with Voice Activity Detection
     vad_parameters=dict(
-        min_silence_duration_ms=500,  # 500ms以上の無音を区切りに
+        min_silence_duration_ms=500,  # Use silences of 500ms+ as boundaries
         speech_pad_ms=200,
     ),
 )
 
-print(f"検出言語: {info.language} (確信度: {info.language_probability:.2f})")
-print(f"音声全体の長さ: {info.duration:.1f}秒")
+print(f"Detected language: {info.language} (confidence: {info.language_probability:.2f})")
+print(f"Total audio length: {info.duration:.1f} seconds")
 
 for segment in segments:
     print(f"[{segment.start:.1f}s -> {segment.end:.1f}s] {segment.text}")
 ```
 
-### 2.3 話者分離 (Speaker Diarization)
+### 2.3 Speaker Diarization
 
 ```python
-# コード例 3: pyannote.audio で話者分離 + Whisper 文字起こし
+# Code Example 3: Speaker diarization with pyannote.audio + Whisper transcription
 from pyannote.audio import Pipeline
 import whisper
 import torch
 
-# 話者分離パイプライン
+# Speaker diarization pipeline
 diarization_pipeline = Pipeline.from_pretrained(
     "pyannote/speaker-diarization-3.1",
     use_auth_token="YOUR_HF_TOKEN"
 )
 
-# 話者分離を実行
+# Run speaker diarization
 diarization = diarization_pipeline("podcast_episode_042.wav")
 
-# Whisper で文字起こし
+# Transcribe with Whisper
 whisper_model = whisper.load_model("large-v3")
 transcription = whisper_model.transcribe(
     "podcast_episode_042.wav",
@@ -302,13 +305,13 @@ transcription = whisper_model.transcribe(
     word_timestamps=True
 )
 
-# 話者分離結果と文字起こしを統合
+# Merge diarization results with transcription
 def merge_diarization_transcription(diarization, segments):
-    """話者ラベルとテキストを結合する"""
+    """Combine speaker labels with text"""
     result = []
     for segment in segments:
         mid_time = (segment["start"] + segment["end"]) / 2
-        # 最も近い話者ラベルを見つける
+        # Find the closest speaker label
         speaker = "Unknown"
         for turn, _, spk in diarization.itertracks(yield_label=True):
             if turn.start <= mid_time <= turn.end:
@@ -329,13 +332,13 @@ for entry in merged:
     print(f"[{entry['speaker']}] {entry['start']:.1f}s: {entry['text']}")
 ```
 
-### 2.4 文字起こし精度向上テクニック
+### 2.4 Transcription Accuracy Improvement Techniques
 
 ```python
-# Whisper の精度を最大化するテクニック集
+# Collection of techniques to maximize Whisper accuracy
 
 class WhisperAccuracyOptimizer:
-    """Whisper文字起こし精度最適化"""
+    """Whisper transcription accuracy optimizer"""
 
     def __init__(self, model_size="large-v3"):
         self.model = whisper.load_model(model_size)
@@ -345,28 +348,28 @@ class WhisperAccuracyOptimizer:
         audio_path: str,
         domain: str = "tech",
     ) -> dict:
-        """ドメイン特化プロンプトで精度向上"""
-        # ドメイン別の専門用語プロンプト
+        """Improve accuracy with domain-specific prompts"""
+        # Domain-specific terminology prompts
         domain_prompts = {
             "tech": (
-                "テクノロジーポッドキャスト。API、Docker、Kubernetes、"
-                "マイクロサービス、CI/CD、GitHub Actions、TypeScript、"
-                "React、Next.js、AWS、GCP、Azure、LLM、GPT、Claude。"
+                "Technology podcast. API, Docker, Kubernetes, "
+                "microservices, CI/CD, GitHub Actions, TypeScript, "
+                "React, Next.js, AWS, GCP, Azure, LLM, GPT, Claude."
             ),
             "medical": (
-                "医療ポッドキャスト。患者、診断、治療、"
-                "インスリン、コレステロール、血圧、MRI、CT、"
-                "免疫療法、抗体、ワクチン。"
+                "Medical podcast. Patient, diagnosis, treatment, "
+                "insulin, cholesterol, blood pressure, MRI, CT, "
+                "immunotherapy, antibodies, vaccines."
             ),
             "finance": (
-                "金融ポッドキャスト。株式、債券、投資信託、"
-                "日経平均、TOPIX、PER、PBR、ROE、配当利回り、"
-                "マクロ経済、金融政策。"
+                "Finance podcast. Stocks, bonds, mutual funds, "
+                "Nikkei Average, TOPIX, PER, PBR, ROE, dividend yield, "
+                "macroeconomics, monetary policy."
             ),
             "gaming": (
-                "ゲームポッドキャスト。PlayStation、Nintendo Switch、"
-                "Steam、FPS、RPG、MMO、eスポーツ、ストリーミング、"
-                "GPU、フレームレート。"
+                "Gaming podcast. PlayStation, Nintendo Switch, "
+                "Steam, FPS, RPG, MMO, esports, streaming, "
+                "GPU, frame rate."
             ),
         }
 
@@ -378,7 +381,7 @@ class WhisperAccuracyOptimizer:
             initial_prompt=initial_prompt,
             word_timestamps=True,
             condition_on_previous_text=True,
-            # ハルシネーション抑制パラメータ
+            # Hallucination suppression parameters
             no_speech_threshold=0.6,
             logprob_threshold=-1.0,
             compression_ratio_threshold=2.4,
@@ -387,19 +390,19 @@ class WhisperAccuracyOptimizer:
         return result
 
     def post_process_transcript(self, segments: list) -> list:
-        """文字起こし結果の後処理"""
+        """Post-process transcription results"""
         processed = []
 
         for seg in segments:
             text = seg["text"]
 
-            # 1. 重複テキストの除去
+            # 1. Remove duplicate text
             text = self._remove_repetitions(text)
 
-            # 2. 句読点の正規化
+            # 2. Normalize punctuation
             text = self._normalize_punctuation(text)
 
-            # 3. 数値表現の統一
+            # 3. Unify number representations
             text = self._normalize_numbers(text)
 
             processed.append({**seg, "text": text})
@@ -407,17 +410,17 @@ class WhisperAccuracyOptimizer:
         return processed
 
     def _remove_repetitions(self, text: str) -> str:
-        """Whisperのハルシネーションによる繰り返しを除去"""
+        """Remove repetitions caused by Whisper hallucinations"""
         import re
-        # 3回以上繰り返されるフレーズを検出
+        # Detect phrases repeated 3 or more times
         pattern = r"(.{3,}?)\1{2,}"
         return re.sub(pattern, r"\1", text)
 
     def _normalize_punctuation(self, text: str) -> str:
-        """句読点を統一"""
+        """Unify punctuation"""
         replacements = {
-            "．": "。",
-            "，": "、",
+            "\uff0e": "\u3002",
+            "\uff0c": "\u3001",
             "  ": " ",
         }
         for old, new in replacements.items():
@@ -425,30 +428,30 @@ class WhisperAccuracyOptimizer:
         return text.strip()
 
     def _normalize_numbers(self, text: str) -> str:
-        """数値表現の統一（全角→半角）"""
-        zen = "０１２３４５６７８９"
+        """Unify number representations (full-width to half-width)"""
+        zen = "\uff10\uff11\uff12\uff13\uff14\uff15\uff16\uff17\uff18\uff19"
         han = "0123456789"
         for z, h in zip(zen, han):
             text = text.replace(z, h)
         return text
 
     def validate_transcript(self, segments: list) -> dict:
-        """文字起こし品質のバリデーション"""
+        """Validate transcription quality"""
         total_segments = len(segments)
         low_confidence = []
         hallucination_suspects = []
         empty_segments = []
 
         for i, seg in enumerate(segments):
-            # 信頼度チェック
+            # Confidence check
             if seg.get("avg_logprob", 0) < -0.8:
                 low_confidence.append(i)
 
-            # ハルシネーション疑い（圧縮率が高い = 繰り返し）
+            # Hallucination suspect (high compression ratio = repetition)
             if seg.get("compression_ratio", 0) > 2.4:
                 hallucination_suspects.append(i)
 
-            # 空セグメント
+            # Empty segment
             if not seg.get("text", "").strip():
                 empty_segments.append(i)
 
@@ -465,7 +468,7 @@ class WhisperAccuracyOptimizer:
         }
 ```
 
-### 2.5 バッチ処理パイプライン
+### 2.5 Batch Processing Pipeline
 
 ```python
 import os
@@ -475,7 +478,7 @@ from concurrent.futures import ProcessPoolExecutor
 from datetime import datetime
 
 class PodcastBatchProcessor:
-    """複数エピソードの一括処理パイプライン"""
+    """Batch processing pipeline for multiple episodes"""
 
     def __init__(self, output_dir: str, model_size: str = "large-v3"):
         self.output_dir = Path(output_dir)
@@ -483,7 +486,7 @@ class PodcastBatchProcessor:
         self.model_size = model_size
 
     def process_episode(self, audio_path: str, metadata: dict = None) -> dict:
-        """1エピソードを完全処理"""
+        """Fully process a single episode"""
         episode_name = Path(audio_path).stem
         episode_dir = self.output_dir / episode_name
         episode_dir.mkdir(exist_ok=True)
@@ -494,23 +497,23 @@ class PodcastBatchProcessor:
             "processed_at": datetime.now().isoformat(),
         }
 
-        # Step 1: 音声前処理
+        # Step 1: Audio preprocessing
         preprocessed_path = self._preprocess(audio_path, episode_dir)
         results["preprocessed"] = str(preprocessed_path)
 
-        # Step 2: 文字起こし
+        # Step 2: Transcription
         transcript = self._transcribe(preprocessed_path)
         transcript_path = episode_dir / "transcript.json"
         with open(transcript_path, "w", encoding="utf-8") as f:
             json.dump(transcript, f, ensure_ascii=False, indent=2)
         results["transcript_path"] = str(transcript_path)
 
-        # Step 3: SRT字幕生成
+        # Step 3: Generate SRT subtitles
         srt_path = episode_dir / "subtitles.srt"
         self._generate_srt(transcript["segments"], srt_path)
         results["srt_path"] = str(srt_path)
 
-        # Step 4: テキスト全文出力
+        # Step 4: Output full text
         full_text_path = episode_dir / "full_text.txt"
         full_text = " ".join(s["text"] for s in transcript["segments"])
         with open(full_text_path, "w", encoding="utf-8") as f:
@@ -520,23 +523,23 @@ class PodcastBatchProcessor:
         return results
 
     def process_batch(self, audio_paths: list, max_workers: int = 2) -> list:
-        """複数エピソードの並列処理"""
+        """Parallel processing of multiple episodes"""
         results = []
         for path in audio_paths:
             try:
                 result = self.process_episode(path)
                 results.append(result)
-                print(f"完了: {path}")
+                print(f"Completed: {path}")
             except Exception as e:
-                print(f"エラー: {path} - {e}")
+                print(f"Error: {path} - {e}")
                 results.append({"audio_path": path, "error": str(e)})
         return results
 
     def _preprocess(self, audio_path, output_dir):
-        """音声前処理（ノイズ除去・正規化）"""
+        """Audio preprocessing (noise reduction & normalization)"""
         import subprocess
         output_path = output_dir / "preprocessed.wav"
-        # ffmpeg で 16kHz モノラルに変換
+        # Convert to 16kHz mono with ffmpeg
         cmd = [
             "ffmpeg", "-y", "-i", audio_path,
             "-ar", "16000", "-ac", "1",
@@ -547,7 +550,7 @@ class PodcastBatchProcessor:
         return output_path
 
     def _transcribe(self, audio_path):
-        """Whisper文字起こし"""
+        """Whisper transcription"""
         from faster_whisper import WhisperModel
         model = WhisperModel(self.model_size, device="cuda", compute_type="int8_float16")
         segments, info = model.transcribe(
@@ -571,7 +574,7 @@ class PodcastBatchProcessor:
         }
 
     def _generate_srt(self, segments, output_path):
-        """SRT字幕ファイル生成"""
+        """Generate SRT subtitle file"""
         lines = []
         for i, seg in enumerate(segments, 1):
             start = self._format_srt_time(seg["start"])
@@ -590,73 +593,73 @@ class PodcastBatchProcessor:
 
 ---
 
-## 3. インテリジェント要約
+## 3. Intelligent Summarization
 
-### 3.1 LLM による自動要約とショーノート生成
+### 3.1 Automatic Summarization and Show Note Generation with LLMs
 
 ```python
-# コード例 4: GPT-4 / Claude でポッドキャスト要約を生成する
+# Code Example 4: Generate podcast summaries with GPT-4 / Claude
 from openai import OpenAI
 
 client = OpenAI()
 
 def generate_show_notes(transcript: str, episode_title: str) -> str:
-    """文字起こしからショーノートを自動生成する"""
-    prompt = f"""以下はポッドキャスト「{episode_title}」の文字起こしです。
-以下のフォーマットでショーノートを生成してください:
+    """Automatically generate show notes from a transcript"""
+    prompt = f"""Below is the transcript of the podcast "{episode_title}".
+Please generate show notes in the following format:
 
-1. エピソード概要 (3〜5文)
-2. 主要トピック (箇条書き、各トピックに簡単な説明)
-3. チャプターマーク (タイムスタンプ付き)
-4. キーワード/用語集
-5. 関連リンク (言及されたツール、書籍、サービスなど)
+1. Episode overview (3-5 sentences)
+2. Key topics (bullet points with brief descriptions for each topic)
+3. Chapter marks (with timestamps)
+4. Keywords/glossary
+5. Related links (tools, books, services mentioned)
 
-文字起こし:
+Transcript:
 {transcript}
 """
 
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[
-            {"role": "system", "content": "あなたはポッドキャスト編集者です。"},
+            {"role": "system", "content": "You are a podcast editor."},
             {"role": "user", "content": prompt}
         ],
         max_tokens=2000,
-        temperature=0.3  # 要約は低温度で安定させる
+        temperature=0.3  # Use low temperature for stable summaries
     )
 
     return response.choices[0].message.content
 ```
 
-### 3.2 チャプター分割のアルゴリズム
+### 3.2 Chapter Splitting Algorithm
 
 ```
 +--------------------------------------------------------------+
-|  音声ストリーム                                                |
+|  Audio Stream                                                 |
 |  =============================================>               |
 |                                                                |
-|  Step 1: 文字起こし + タイムスタンプ                           |
-|  [0:00] "今日は..." [2:30] "次に..." [15:20] "最後に..."     |
+|  Step 1: Transcription + Timestamps                           |
+|  [0:00] "Today..." [2:30] "Next..." [15:20] "Finally..."     |
 |                                                                |
-|  Step 2: テキストをウィンドウ分割                              |
+|  Step 2: Split text into windows                              |
 |  [Win1: 0-5min] [Win2: 5-10min] [Win3: 10-15min] ...         |
 |                                                                |
-|  Step 3: 各ウィンドウの埋め込みベクトルを計算                  |
+|  Step 3: Compute embedding vectors for each window            |
 |  [Vec1] [Vec2] [Vec3] ...                                      |
 |                                                                |
-|  Step 4: 隣接ウィンドウのコサイン類似度を計算                  |
+|  Step 4: Compute cosine similarity between adjacent windows   |
 |  cos(V1,V2)=0.92  cos(V2,V3)=0.45  cos(V3,V4)=0.88          |
 |                  ^^^^^^^^^^^^                                   |
-|                  類似度が低い = トピック境界                     |
+|                  Low similarity = topic boundary                |
 |                                                                |
-|  Step 5: 境界にチャプターマークを生成                          |
-|  Chapter 1: 0:00 - 10:00 "イントロダクション"                  |
-|  Chapter 2: 10:00 - 25:00 "ゲストインタビュー"                 |
-|  Chapter 3: 25:00 - 35:00 "Q&Aコーナー"                       |
+|  Step 5: Generate chapter marks at boundaries                 |
+|  Chapter 1: 0:00 - 10:00 "Introduction"                      |
+|  Chapter 2: 10:00 - 25:00 "Guest Interview"                  |
+|  Chapter 3: 25:00 - 35:00 "Q&A Segment"                      |
 +--------------------------------------------------------------+
 ```
 
-### 3.3 セマンティックチャプター分割の実装
+### 3.3 Semantic Chapter Detection Implementation
 
 ```python
 from sentence_transformers import SentenceTransformer
@@ -664,7 +667,7 @@ import numpy as np
 from typing import Optional
 
 class SemanticChapterDetector:
-    """セマンティック分析によるチャプター自動分割"""
+    """Automatic chapter splitting via semantic analysis"""
 
     def __init__(self, model_name: str = "intfloat/multilingual-e5-large"):
         self.embedder = SentenceTransformer(model_name)
@@ -677,49 +680,49 @@ class SemanticChapterDetector:
         min_chapter_seconds: float = 180.0,
     ) -> list:
         """
-        文字起こしセグメントからチャプター境界を自動検出
+        Automatically detect chapter boundaries from transcription segments
 
         Parameters:
-            segments: Whisperの出力セグメント [{start, end, text}, ...]
-            window_seconds: テキストウィンドウの幅（秒）
-            similarity_threshold: 境界判定の閾値（低いほど多くの境界を検出）
-            min_chapter_seconds: 最小チャプター長（秒）
+            segments: Whisper output segments [{start, end, text}, ...]
+            window_seconds: Text window width (seconds)
+            similarity_threshold: Boundary detection threshold (lower = more boundaries)
+            min_chapter_seconds: Minimum chapter length (seconds)
 
         Returns:
             [{start, end, title, summary}, ...]
         """
-        # Step 1: 時間ウィンドウごとにテキストを集約
+        # Step 1: Aggregate text by time window
         windows = self._create_windows(segments, window_seconds)
 
         if len(windows) < 2:
             return [{"start": 0, "end": segments[-1]["end"],
-                     "title": "全体", "summary": ""}]
+                     "title": "Full Episode", "summary": ""}]
 
-        # Step 2: 各ウィンドウの埋め込みベクトルを計算
+        # Step 2: Compute embedding vectors for each window
         texts = [w["text"] for w in windows]
         embeddings = self.embedder.encode(texts, normalize_embeddings=True)
 
-        # Step 3: 隣接ウィンドウ間のコサイン類似度を計算
+        # Step 3: Compute cosine similarity between adjacent windows
         similarities = []
         for i in range(len(embeddings) - 1):
             sim = np.dot(embeddings[i], embeddings[i + 1])
             similarities.append(sim)
 
-        # Step 4: 類似度が閾値以下の箇所を境界として検出
-        boundaries = [0]  # 先頭は常に境界
+        # Step 4: Detect positions where similarity is below threshold as boundaries
+        boundaries = [0]  # The beginning is always a boundary
         for i, sim in enumerate(similarities):
             if sim < similarity_threshold:
                 boundary_time = windows[i + 1]["start"]
-                # 最小チャプター長をチェック
+                # Check minimum chapter length
                 if boundary_time - boundaries[-1] >= min_chapter_seconds:
                     boundaries.append(boundary_time)
 
-        # 末尾を追加
+        # Add the end
         end_time = segments[-1]["end"]
         if end_time not in boundaries:
             boundaries.append(end_time)
 
-        # Step 5: チャプター情報を構築
+        # Step 5: Build chapter information
         chapters = []
         for i in range(len(boundaries) - 1):
             chapter_segments = [
@@ -730,13 +733,13 @@ class SemanticChapterDetector:
             chapters.append({
                 "start": boundaries[i],
                 "end": boundaries[i + 1],
-                "text": chapter_text[:500],  # 要約生成用に先頭500文字
+                "text": chapter_text[:500],  # First 500 characters for summary generation
             })
 
         return chapters
 
     def _create_windows(self, segments, window_seconds):
-        """セグメントを時間ウィンドウに集約"""
+        """Aggregate segments into time windows"""
         if not segments:
             return []
         windows = []
@@ -764,17 +767,17 @@ class SemanticChapterDetector:
         return windows
 ```
 
-### 3.4 マルチフォーマット出力
+### 3.4 Multi-Format Output
 
 ```python
 class PodcastContentGenerator:
-    """ポッドキャストコンテンツの多形式出力"""
+    """Multi-format output for podcast content"""
 
     def __init__(self, llm_client):
         self.llm = llm_client
 
     def generate_all_formats(self, transcript: str, metadata: dict) -> dict:
-        """全フォーマットのコンテンツを一括生成"""
+        """Generate all content formats at once"""
         return {
             "show_notes": self._generate_show_notes(transcript, metadata),
             "blog_post": self._generate_blog_post(transcript, metadata),
@@ -784,96 +787,96 @@ class PodcastContentGenerator:
         }
 
     def _generate_show_notes(self, transcript, metadata):
-        """Apple Podcasts/Spotify向けショーノート"""
-        prompt = f"""以下のポッドキャスト文字起こしからショーノートを生成してください。
+        """Show notes for Apple Podcasts/Spotify"""
+        prompt = f"""Please generate show notes from the following podcast transcript.
 
-タイトル: {metadata.get('title', '')}
-ゲスト: {metadata.get('guest', '')}
+Title: {metadata.get('title', '')}
+Guest: {metadata.get('guest', '')}
 
-フォーマット:
-## 概要
-(3-5文でエピソードの要約)
+Format:
+## Overview
+(3-5 sentence episode summary)
 
-## トピック
-- (主要トピック1)
-- (主要トピック2)
+## Topics
+- (Key topic 1)
+- (Key topic 2)
 ...
 
-## チャプター
-- 00:00 (チャプター名)
+## Chapters
+- 00:00 (Chapter name)
 ...
 
-## メンション
-(言及されたツール、書籍、サービス)
+## Mentions
+(Tools, books, services mentioned)
 
-文字起こし:
+Transcript:
 {transcript[:8000]}
 """
         return self._call_llm(prompt)
 
     def _generate_social_posts(self, transcript, metadata):
-        """SNS投稿（Twitter/X、LinkedIn）を生成"""
-        prompt = f"""以下のポッドキャスト文字起こしから、SNS投稿を3パターン生成してください。
+        """Generate social media posts (Twitter/X, LinkedIn)"""
+        prompt = f"""Please generate 3 social media post variations from the following podcast transcript.
 
-タイトル: {metadata.get('title', '')}
+Title: {metadata.get('title', '')}
 
-1. Twitter/X用（280文字以内、ハッシュタグ付き）
-2. LinkedIn用（500文字程度、ビジネス寄り）
-3. Instagram用（キャッチーな引用 + 解説）
+1. For Twitter/X (within 280 characters, with hashtags)
+2. For LinkedIn (around 500 characters, business-oriented)
+3. For Instagram (catchy quote + commentary)
 
-文字起こし:
+Transcript:
 {transcript[:4000]}
 """
         return self._call_llm(prompt)
 
     def _extract_keywords(self, transcript):
-        """SEO向けキーワード抽出"""
-        prompt = f"""以下の文字起こしから、検索エンジン最適化に役立つキーワードを20個抽出してください。
-重要度順に並べ、各キーワードの出現回数も示してください。
+        """Extract keywords for SEO"""
+        prompt = f"""Please extract 20 keywords useful for search engine optimization from the following transcript.
+List them in order of importance and include occurrence counts for each keyword.
 
-文字起こし:
+Transcript:
 {transcript[:6000]}
 """
         return self._call_llm(prompt)
 
     def _generate_blog_post(self, transcript, metadata):
-        """ブログ記事に変換"""
-        prompt = f"""以下のポッドキャスト文字起こしを、読みやすいブログ記事に変換してください。
+        """Convert to blog article"""
+        prompt = f"""Please convert the following podcast transcript into a readable blog article.
 
-要件:
-- 会話形式ではなく、記事形式に再構成
-- 見出し（H2, H3）を適切に使用
-- 重要な引用を「」で強調
-- 1500-2500文字程度
+Requirements:
+- Restructure from conversational to article format
+- Use headings (H2, H3) appropriately
+- Emphasize important quotes with quotation marks
+- Approximately 1500-2500 words
 
-タイトル: {metadata.get('title', '')}
-文字起こし:
+Title: {metadata.get('title', '')}
+Transcript:
 {transcript[:10000]}
 """
         return self._call_llm(prompt)
 
     def _generate_newsletter(self, transcript, metadata):
-        """メールニュースレター用テキスト"""
-        prompt = f"""以下のポッドキャストの内容を、メールニュースレター用に要約してください。
+        """Text for email newsletter"""
+        prompt = f"""Please summarize the following podcast content for an email newsletter.
 
-要件:
-- 件名（開封率を高める魅力的なもの）
-- リード文（50文字以内）
-- 本文（3つのキーポイント）
-- CTA（ポッドキャストを聴くへの誘導）
+Requirements:
+- Subject line (compelling to maximize open rate)
+- Lead text (within 50 characters)
+- Body (3 key points)
+- CTA (drive listeners to the podcast)
 
-タイトル: {metadata.get('title', '')}
-文字起こし:
+Title: {metadata.get('title', '')}
+Transcript:
 {transcript[:6000]}
 """
         return self._call_llm(prompt)
 
     def _call_llm(self, prompt):
-        """LLM API呼び出し（共通）"""
+        """LLM API call (common)"""
         response = self.llm.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "あなたはポッドキャストの編集・マーケティング担当です。"},
+                {"role": "system", "content": "You are a podcast editing and marketing specialist."},
                 {"role": "user", "content": prompt}
             ],
             max_tokens=2000,
@@ -884,19 +887,19 @@ class PodcastContentGenerator:
 
 ---
 
-## 4. AI アシスト編集
+## 4. AI-Assisted Editing
 
-### 4.1 フィラー除去
+### 4.1 Filler Removal
 
 ```python
-# コード例 5: フィラーワードを検出して除去する
+# Code Example 5: Detect and remove filler words
 import pydub
 from pydub import AudioSegment
 import re
 
 def remove_fillers(transcript_segments, audio_path, filler_patterns=None):
     """
-    フィラーワード（えーと、あの、まあ等）を検出し、音声から除去する。
+    Detect filler words (um, uh, like, you know, etc.) and remove them from audio.
     """
     if filler_patterns is None:
         filler_patterns = [
@@ -907,7 +910,7 @@ def remove_fillers(transcript_segments, audio_path, filler_patterns=None):
     audio = AudioSegment.from_file(audio_path)
     combined_pattern = "|".join(filler_patterns)
 
-    # フィラー区間を特定
+    # Identify filler regions
     filler_regions = []
     for seg in transcript_segments:
         if re.fullmatch(combined_pattern, seg["text"].strip()):
@@ -916,7 +919,7 @@ def remove_fillers(transcript_segments, audio_path, filler_patterns=None):
                 int(seg["end"] * 1000)
             ))
 
-    # フィラー区間を除去して連結
+    # Remove filler regions and concatenate
     if not filler_regions:
         return audio
 
@@ -930,13 +933,13 @@ def remove_fillers(transcript_segments, audio_path, filler_patterns=None):
 
     result = cleaned_parts[0]
     for part in cleaned_parts[1:]:
-        # クロスフェードで自然な接続
+        # Crossfade for natural transitions
         result = result.append(part, crossfade=50)
 
     return result
 ```
 
-### 4.2 高度な音声編集パイプライン
+### 4.2 Advanced Audio Editing Pipeline
 
 ```python
 from pydub import AudioSegment
@@ -944,7 +947,7 @@ from pydub.effects import normalize, compress_dynamic_range
 import numpy as np
 
 class PodcastEditor:
-    """AIアシスト ポッドキャスト編集パイプライン"""
+    """AI-assisted podcast editing pipeline"""
 
     def __init__(self, audio_path: str):
         self.audio = AudioSegment.from_file(audio_path)
@@ -953,7 +956,7 @@ class PodcastEditor:
 
     def remove_long_silences(self, threshold_db=-45, min_silence_ms=2000,
                               keep_ms=500):
-        """長い無音区間を短縮"""
+        """Shorten long silent segments"""
         from pydub.silence import detect_silence
 
         silences = detect_silence(
@@ -965,7 +968,7 @@ class PodcastEditor:
         if not silences:
             return self
 
-        # 無音区間を keep_ms に短縮
+        # Shorten silent segments to keep_ms
         parts = []
         prev_end = 0
         removed_ms = 0
@@ -979,12 +982,12 @@ class PodcastEditor:
 
         parts.append(self.audio[prev_end:])
         self.audio = sum(parts)
-        self.edit_log.append(f"無音短縮: {removed_ms/1000:.1f}秒削減")
+        self.edit_log.append(f"Silence reduction: {removed_ms/1000:.1f}s removed")
         return self
 
     def auto_level(self, target_dbfs=-16.0):
-        """音量の自動レベリング（セクションごと）"""
-        chunk_ms = 30000  # 30秒チャンク
+        """Automatic volume leveling (per section)"""
+        chunk_ms = 30000  # 30-second chunks
         chunks = []
 
         for i in range(0, len(self.audio), chunk_ms):
@@ -992,19 +995,19 @@ class PodcastEditor:
             current_db = chunk.dBFS
             if current_db != float('-inf'):
                 gain = target_dbfs - current_db
-                # 極端なゲイン変更を制限
+                # Limit extreme gain changes
                 gain = max(-12, min(12, gain))
                 chunk = chunk + gain
             chunks.append(chunk)
 
         self.audio = sum(chunks)
-        self.edit_log.append(f"自動レベリング: 目標 {target_dbfs} dBFS")
+        self.edit_log.append(f"Auto leveling: target {target_dbfs} dBFS")
         return self
 
     def apply_podcast_eq(self):
-        """ポッドキャスト向けEQ（ハイパスフィルタ + プレゼンス強調）"""
-        # pydub では直接的なEQは限定的なので、
-        # ffmpeg 連携で実装
+        """Podcast-oriented EQ (high-pass filter + presence boost)"""
+        # Direct EQ is limited in pydub, so we use
+        # ffmpeg integration for implementation
         import subprocess
         import tempfile
 
@@ -1015,13 +1018,13 @@ class PodcastEditor:
         with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp_out:
             tmp_out_path = tmp_out.name
 
-        # ffmpeg のEQフィルタ
-        # ハイパス80Hz + プレゼンス帯域(2-5kHz)ブースト
+        # ffmpeg EQ filters
+        # High-pass 80Hz + presence band (2-5kHz) boost
         eq_filter = (
             "highpass=f=80,"
-            "equalizer=f=200:t=q:w=1.5:g=-2,"    # 低域の濁り除去
-            "equalizer=f=3000:t=q:w=1.0:g=3,"     # プレゼンスブースト
-            "equalizer=f=8000:t=q:w=1.5:g=1"       # エアバンド
+            "equalizer=f=200:t=q:w=1.5:g=-2,"    # Remove low-frequency muddiness
+            "equalizer=f=3000:t=q:w=1.0:g=3,"     # Presence boost
+            "equalizer=f=8000:t=q:w=1.5:g=1"       # Air band
         )
 
         cmd = [
@@ -1032,34 +1035,34 @@ class PodcastEditor:
         subprocess.run(cmd, capture_output=True, check=True)
 
         self.audio = AudioSegment.from_wav(tmp_out_path)
-        self.edit_log.append("ポッドキャストEQ適用")
+        self.edit_log.append("Podcast EQ applied")
 
-        # 一時ファイル削除
+        # Delete temporary files
         os.unlink(tmp_in_path)
         os.unlink(tmp_out_path)
         return self
 
     def add_intro_outro(self, intro_path: str = None, outro_path: str = None,
                          crossfade_ms: int = 2000):
-        """イントロ/アウトロの追加"""
+        """Add intro/outro"""
         if intro_path:
             intro = AudioSegment.from_file(intro_path)
-            # BGMのボリュームを下げる
+            # Lower BGM volume
             intro = intro - 6  # -6dB
             self.audio = intro.append(self.audio, crossfade=crossfade_ms)
-            self.edit_log.append("イントロ追加")
+            self.edit_log.append("Intro added")
 
         if outro_path:
             outro = AudioSegment.from_file(outro_path)
             outro = outro - 6
             self.audio = self.audio.append(outro, crossfade=crossfade_ms)
-            self.edit_log.append("アウトロ追加")
+            self.edit_log.append("Outro added")
 
         return self
 
     def export(self, output_path: str, format: str = "mp3",
                bitrate: str = "192k", tags: dict = None):
-        """最終出力"""
+        """Final output"""
         export_params = {"format": format}
         if format == "mp3":
             export_params["bitrate"] = bitrate
@@ -1067,17 +1070,17 @@ class PodcastEditor:
             export_params["tags"] = tags
 
         self.audio.export(output_path, **export_params)
-        print(f"出力: {output_path}")
-        print(f"長さ: {len(self.audio)/1000:.1f}秒")
-        print(f"編集ログ: {', '.join(self.edit_log)}")
+        print(f"Output: {output_path}")
+        print(f"Duration: {len(self.audio)/1000:.1f} seconds")
+        print(f"Edit log: {', '.join(self.edit_log)}")
         return output_path
 ```
 
-### 4.3 BGMダッキング
+### 4.3 BGM Ducking
 
 ```python
 class BGMDucker:
-    """話者音声に合わせたBGM自動ダッキング"""
+    """Automatic BGM ducking synchronized with speaker voice"""
 
     def __init__(self, duck_db: float = -15.0, attack_ms: int = 200,
                  release_ms: int = 500):
@@ -1087,29 +1090,29 @@ class BGMDucker:
 
     def apply(self, voice_audio: AudioSegment,
               bgm_audio: AudioSegment) -> AudioSegment:
-        """話者音声に合わせてBGMをダッキング"""
+        """Duck BGM in sync with speaker voice"""
 
-        # BGMを話者音声の長さに合わせてループ
+        # Loop BGM to match voice audio length
         while len(bgm_audio) < len(voice_audio):
             bgm_audio = bgm_audio + bgm_audio
         bgm_audio = bgm_audio[:len(voice_audio)]
 
-        # VADで話者区間を検出
+        # Detect voice regions with VAD
         voice_regions = self._detect_voice_regions(voice_audio)
 
-        # ダッキングカーブを生成
+        # Generate ducking curve
         duck_curve = self._create_duck_curve(
             len(voice_audio), voice_regions
         )
 
-        # BGMにダッキングカーブを適用
+        # Apply ducking curve to BGM
         ducked_bgm = self._apply_curve(bgm_audio, duck_curve)
 
-        # ミックス
+        # Mix
         return voice_audio.overlay(ducked_bgm)
 
     def _detect_voice_regions(self, audio, chunk_ms=100, threshold_db=-35):
-        """話者音声区間を検出"""
+        """Detect voice regions"""
         regions = []
         for i in range(0, len(audio), chunk_ms):
             chunk = audio[i:i + chunk_ms]
@@ -1118,7 +1121,7 @@ class BGMDucker:
         return self._merge_regions(regions, gap_ms=300)
 
     def _merge_regions(self, regions, gap_ms):
-        """近接区間をマージ"""
+        """Merge adjacent regions"""
         if not regions:
             return []
         merged = [regions[0]]
@@ -1130,21 +1133,21 @@ class BGMDucker:
         return merged
 
     def _create_duck_curve(self, total_ms, voice_regions):
-        """ダッキングカーブ生成（0.0 = フルダック、1.0 = ノーダック）"""
+        """Generate ducking curve (0.0 = full duck, 1.0 = no duck)"""
         curve = np.ones(total_ms)
         duck_linear = 10 ** (self.duck_db / 20)
 
         for start, end in voice_regions:
-            # アタック（フェードダウン）
+            # Attack (fade down)
             attack_start = max(0, start - self.attack_ms)
             for i in range(attack_start, start):
                 progress = (i - attack_start) / self.attack_ms
                 curve[i] = 1.0 - (1.0 - duck_linear) * progress
 
-            # ダック区間
+            # Duck region
             curve[start:end] = duck_linear
 
-            # リリース（フェードアップ）
+            # Release (fade up)
             release_end = min(total_ms, end + self.release_ms)
             for i in range(end, release_end):
                 progress = (i - end) / self.release_ms
@@ -1153,9 +1156,9 @@ class BGMDucker:
         return curve
 
     def _apply_curve(self, audio, curve):
-        """ダッキングカーブをオーディオに適用"""
+        """Apply ducking curve to audio"""
         samples = np.array(audio.get_array_of_samples(), dtype=np.float64)
-        # カーブをサンプル単位に補間
+        # Interpolate curve to sample-level
         sample_curve = np.interp(
             np.linspace(0, len(curve), len(samples)),
             np.arange(len(curve)),
@@ -1165,22 +1168,22 @@ class BGMDucker:
         return audio._spawn(ducked_samples.tobytes())
 ```
 
-### 4.4 ノイズ除去ツール比較
+### 4.4 Noise Reduction Tool Comparison
 
-| ツール | 手法 | リアルタイム | 品質 | コスト |
-|--------|------|-------------|------|--------|
-| RNNoise | RNNベースの音声強調 | ○ | 良 | 無料 (OSS) |
-| Adobe Podcast Enhance | クラウドAI | x | 優 | 無料 (制限付き) |
-| NVIDIA Broadcast | RTXベースAI | ○ | 優 | 無料 (GPU必要) |
-| Dolby.io | クラウドAPI | x | 優 | 有料 |
-| Auphonic | マルチバンドAI | x | 優 | フリーミアム |
-| Descript | AIトランスクリプション+編集 | x | 優 | 有料 |
+| Tool | Method | Real-time | Quality | Cost |
+|------|--------|-----------|---------|------|
+| RNNoise | RNN-based speech enhancement | Yes | Good | Free (OSS) |
+| Adobe Podcast Enhance | Cloud AI | No | Excellent | Free (with limits) |
+| NVIDIA Broadcast | RTX-based AI | Yes | Excellent | Free (GPU required) |
+| Dolby.io | Cloud API | No | Excellent | Paid |
+| Auphonic | Multi-band AI | No | Excellent | Freemium |
+| Descript | AI transcription + editing | No | Excellent | Paid |
 
 ---
 
-## 5. ポッドキャストホスティングとRSSフィード
+## 5. Podcast Hosting and RSS Feeds
 
-### 5.1 RSSフィード自動生成
+### 5.1 Automatic RSS Feed Generation
 
 ```python
 from xml.etree.ElementTree import Element, SubElement, tostring
@@ -1189,7 +1192,7 @@ from datetime import datetime
 import hashlib
 
 class PodcastRSSGenerator:
-    """ポッドキャストRSSフィード自動生成"""
+    """Automatic podcast RSS feed generation"""
 
     def __init__(self, title: str, description: str, author: str,
                  website: str, image_url: str):
@@ -1206,7 +1209,7 @@ class PodcastRSSGenerator:
                      episode_number: int = None,
                      season_number: int = None,
                      chapters: list = None):
-        """エピソードを追加"""
+        """Add an episode"""
         self.episodes.append({
             "title": title,
             "description": description,
@@ -1221,7 +1224,7 @@ class PodcastRSSGenerator:
         })
 
     def generate_rss(self) -> str:
-        """RSS 2.0 + iTunes拡張のXMLを生成"""
+        """Generate RSS 2.0 + iTunes extension XML"""
         rss = Element("rss", version="2.0")
         rss.set("xmlns:itunes", "http://www.itunes.com/dtds/podcast-1.0.dtd")
         rss.set("xmlns:podcast", "https://podcastindex.org/namespace/1.0")
@@ -1232,13 +1235,13 @@ class PodcastRSSGenerator:
         SubElement(channel, "link").text = self.website
         SubElement(channel, "language").text = "ja"
 
-        # iTunes拡張
+        # iTunes extensions
         SubElement(channel, "itunes:author").text = self.author
         SubElement(channel, "itunes:summary").text = self.description
         image = SubElement(channel, "itunes:image")
         image.set("href", self.image_url)
 
-        # エピソード
+        # Episodes
         for ep in sorted(self.episodes, key=lambda e: e["pub_date"], reverse=True):
             item = SubElement(channel, "item")
             SubElement(item, "title").text = ep["title"]
@@ -1254,7 +1257,7 @@ class PodcastRSSGenerator:
                 "%a, %d %b %Y %H:%M:%S +0900"
             )
 
-            # 再生時間
+            # Duration
             h = ep["duration"] // 3600
             m = (ep["duration"] % 3600) // 60
             s = ep["duration"] % 60
@@ -1269,30 +1272,30 @@ class PodcastRSSGenerator:
         return parseString(xml_str).toprettyxml(indent="  ")
 ```
 
-### 5.2 配信プラットフォーム自動投稿
+### 5.2 Automatic Distribution to Platforms
 
 ```python
 class PodcastDistributor:
-    """ポッドキャスト配信自動化"""
+    """Podcast distribution automation"""
 
     def __init__(self):
         self.platforms = {}
 
     def register_platform(self, name: str, api_client):
-        """配信プラットフォームを登録"""
+        """Register a distribution platform"""
         self.platforms[name] = api_client
 
     def publish_episode(self, episode_data: dict) -> dict:
-        """全プラットフォームにエピソードを配信"""
+        """Distribute an episode to all platforms"""
         results = {}
         for name, client in self.platforms.items():
             try:
                 result = client.publish(episode_data)
                 results[name] = {"status": "success", "url": result.get("url")}
-                print(f"[{name}] 配信完了: {result.get('url')}")
+                print(f"[{name}] Distribution complete: {result.get('url')}")
             except Exception as e:
                 results[name] = {"status": "error", "error": str(e)}
-                print(f"[{name}] 配信失敗: {e}")
+                print(f"[{name}] Distribution failed: {e}")
         return results
 
     def generate_episode_package(
@@ -1301,7 +1304,7 @@ class PodcastDistributor:
         transcript: str,
         metadata: dict,
     ) -> dict:
-        """エピソード配信パッケージの一括生成"""
+        """Batch generation of episode distribution package"""
         content_gen = PodcastContentGenerator(self._get_llm_client())
 
         package = {
@@ -1317,88 +1320,88 @@ class PodcastDistributor:
 
 ---
 
-## 6. トラブルシューティング
+## 6. Troubleshooting
 
-### 6.1 よくある問題と解決策
+### 6.1 Common Problems and Solutions
 
 ```
-問題: Whisperがハルシネーション（存在しない音声のテキスト生成）を起こす
+Problem: Whisper produces hallucinations (generating text for non-existent audio)
 ==================================================
-原因:
-- 無音区間が長い
-- ノイズが多い音声
-- condition_on_previous_text=True での誤った文脈引き継ぎ
+Causes:
+- Long silent segments
+- Noisy audio
+- Incorrect context carryover with condition_on_previous_text=True
 
-解決策:
-1. VADフィルタを有効化
+Solutions:
+1. Enable VAD filter
    model.transcribe(audio, vad_filter=True)
 
-2. ハルシネーション抑制パラメータの調整
-   no_speech_threshold=0.6     # 無音判定を厳しく
-   logprob_threshold=-1.0      # 低信頼度セグメントをスキップ
-   compression_ratio_threshold=2.4  # 繰り返し検出
+2. Adjust hallucination suppression parameters
+   no_speech_threshold=0.6     # Stricter silence detection
+   logprob_threshold=-1.0      # Skip low-confidence segments
+   compression_ratio_threshold=2.4  # Repetition detection
 
-3. condition_on_previous_text=False に設定
-   （精度は下がるが、ハルシネーションの連鎖を防止）
+3. Set condition_on_previous_text=False
+   (Accuracy decreases but prevents hallucination chains)
 
-4. 音声前処理でノイズ除去を先に実行
+4. Run noise reduction as a preprocessing step
 ==================================================
 
-問題: 話者分離の精度が低い（話者が入れ替わる）
+Problem: Low speaker diarization accuracy (speakers getting swapped)
 ==================================================
-原因:
-- 話者の声質が似ている
-- 重なり発話（オーバーラップ）が多い
-- 音声品質が低い（リモート収録等）
+Causes:
+- Speakers have similar voice characteristics
+- Frequent overlapping speech
+- Low audio quality (remote recording, etc.)
 
-解決策:
-1. 話者数を事前に指定
+Solutions:
+1. Specify the number of speakers in advance
    diarization(audio, num_speakers=2)
 
-2. 各話者を別マイク・別チャンネルで収録
-   （後処理不要の根本解決）
+2. Record each speaker on separate mic/channel
+   (Fundamental solution that eliminates post-processing needs)
 
-3. 話者の声紋（speaker embedding）を事前登録
-   - 各話者の3-10秒のサンプルを用意
-   - 事前にembeddingを抽出してリファレンスとして使用
+3. Pre-register speaker voiceprints (speaker embeddings)
+   - Prepare 3-10 second samples per speaker
+   - Extract embeddings in advance for use as references
 
-4. リモート収録時は各話者がローカル録音
-   （Riverside.fm、Zencastr等のサービスを利用）
+4. For remote recording, have each speaker record locally
+   (Use services like Riverside.fm, Zencastr, etc.)
 ==================================================
 
-問題: 長時間音声（3時間超）の処理でメモリ不足
+Problem: Out of memory when processing long audio (3+ hours)
 ==================================================
-原因:
-- 音声データ全体をメモリにロード
-- GPUメモリ不足
+Causes:
+- Loading entire audio data into memory
+- GPU memory shortage
 
-解決策:
-1. チャンク分割処理
-   - 30分ごとに分割（前後5秒オーバーラップ）
-   - 各チャンクを個別に処理
+Solutions:
+1. Chunk-based processing
+   - Split into 30-minute chunks (with 5-second overlap at boundaries)
+   - Process each chunk individually
 
-2. faster-whisper + VADフィルタ
-   - 無音区間をスキップしてメモリ削減
+2. faster-whisper + VAD filter
+   - Skip silent segments to reduce memory usage
 
-3. INT8量子化で必要VRAM削減
-   compute_type="int8_float16"  # large-v3: 10GB → 5GB
+3. Reduce required VRAM with INT8 quantization
+   compute_type="int8_float16"  # large-v3: 10GB -> 5GB
 
-4. CPU処理へのフォールバック
-   device="cpu", compute_type="int8"  # 遅いが安定
+4. Fallback to CPU processing
+   device="cpu", compute_type="int8"  # Slower but stable
 ==================================================
 ```
 
-### 6.2 パフォーマンスチューニング
+### 6.2 Performance Tuning
 
 ```python
-# 処理速度の最適化テクニック
+# Optimization techniques for processing speed
 
 class PerformanceOptimizer:
-    """ポッドキャスト処理のパフォーマンス最適化"""
+    """Performance optimization for podcast processing"""
 
     @staticmethod
     def benchmark_models(audio_path: str) -> dict:
-        """モデルサイズごとの処理時間を測定"""
+        """Measure processing time for each model size"""
         import time
         from faster_whisper import WhisperModel
 
@@ -1409,7 +1412,7 @@ class PerformanceOptimizer:
                                      compute_type="int8_float16")
                 start = time.time()
                 segments, info = model.transcribe(audio_path, language="ja")
-                # セグメントを消費（ジェネレータなので）
+                # Consume segments (since it's a generator)
                 text = " ".join(s.text for s in segments)
                 elapsed = time.time() - start
 
@@ -1429,7 +1432,7 @@ class PerformanceOptimizer:
     def optimal_settings(audio_duration_minutes: int,
                           gpu_vram_gb: int,
                           quality_priority: str = "balanced") -> dict:
-        """最適な設定を推奨"""
+        """Recommend optimal settings"""
         settings = {
             "model_size": "large-v3",
             "compute_type": "float16",
@@ -1437,7 +1440,7 @@ class PerformanceOptimizer:
             "vad_filter": True,
         }
 
-        # GPU VRAM に応じたモデル選択
+        # Model selection based on GPU VRAM
         if gpu_vram_gb < 4:
             settings["model_size"] = "small"
             settings["compute_type"] = "int8"
@@ -1451,7 +1454,7 @@ class PerformanceOptimizer:
             settings["model_size"] = "large-v3"
             settings["compute_type"] = "float16"
 
-        # 品質優先度に応じた調整
+        # Adjustment based on quality priority
         if quality_priority == "speed":
             settings["beam_size"] = 1
             if settings["model_size"] in ["large-v3", "medium"]:
@@ -1459,7 +1462,7 @@ class PerformanceOptimizer:
         elif quality_priority == "quality":
             settings["beam_size"] = 10
 
-        # 長時間音声の場合
+        # For long audio
         if audio_duration_minutes > 120:
             settings["vad_filter"] = True
             settings["chunk_processing"] = True
@@ -1470,202 +1473,202 @@ class PerformanceOptimizer:
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン 1: 「文字起こし結果を無検証で公開」
-
-```
-[誤り] Whisper の出力をそのまま字幕・記事として公開する
-
-問題点:
-- 固有名詞の誤認識（人名、製品名、技術用語）
-- ハルシネーション（無音区間に存在しないテキストが生成される）
-- 話者の混同（who said what が不正確）
-
-[正解] 自動起こし → 人間レビュー → 公開 の3ステップ
-  1. initial_prompt に固有名詞リストを渡して精度向上
-  2. 信頼度スコアが低いセグメントをハイライト表示
-  3. 人間が修正したデータをファインチューニングに活用
-```
-
-### アンチパターン 2: 「一括処理で全エピソードを同一設定」
+### Anti-Pattern 1: "Publishing Transcription Results Without Verification"
 
 ```
-[誤り] 収録環境・ゲスト・内容が異なるのに同じ設定で処理する
+[Wrong] Publishing Whisper output directly as subtitles or articles
 
-問題点:
-- 静かな環境で収録した回にノイズ除去を強くかけると音質劣化
-- ゲストの声質によって話者分離の精度が変わる
-- 専門用語が多い回はプロンプト調整が必要
+Problems:
+- Misrecognition of proper nouns (personal names, product names, technical terms)
+- Hallucinations (non-existent text generated during silent segments)
+- Speaker confusion (inaccurate "who said what")
 
-[正解] エピソードごとにメタデータを管理し、設定を調整する
-  - 収録環境プロファイル (スタジオ/リモート/屋外)
-  - ゲスト情報と声質プロファイル
-  - 専門分野に応じた用語辞書
+[Correct] Automatic transcription -> Human review -> Publish (3-step process)
+  1. Pass a list of proper nouns via initial_prompt to improve accuracy
+  2. Highlight segments with low confidence scores
+  3. Use human-corrected data for fine-tuning
 ```
 
-### アンチパターン 3: 「マスタリングなしで配信」
+### Anti-Pattern 2: "Processing All Episodes with Identical Settings"
 
 ```
-[誤り] 文字起こし・編集に注力し、マスタリングを省略する
+[Wrong] Using the same settings when recording environment, guests, and content differ
 
-問題点:
-- プラットフォーム間で音量が統一されない
-- リスナーが音量調整を頻繁に行う必要がある
-- True Peak超過でクリッピングが発生
+Problems:
+- Applying strong noise reduction to episodes recorded in quiet environments degrades audio quality
+- Speaker diarization accuracy varies with guest voice characteristics
+- Episodes with many technical terms require prompt adjustment
 
-[正解] 配信前に必ずラウドネス正規化を実施
-  1. ターゲットLUFSを設定（Apple Podcasts: -16, Spotify: -14）
-  2. True Peakを-1.0dBTP以下に制限
-  3. ノイズフロアが-50dB以下であることを確認
-  4. 全エピソードで一貫したラウドネスを維持
+[Correct] Manage metadata per episode and adjust settings accordingly
+  - Recording environment profile (studio/remote/outdoor)
+  - Guest information and voice characteristic profile
+  - Domain-specific terminology dictionary
+```
+
+### Anti-Pattern 3: "Distributing Without Mastering"
+
+```
+[Wrong] Focusing on transcription/editing and skipping mastering
+
+Problems:
+- Volume levels inconsistent across platforms
+- Listeners need to frequently adjust volume
+- Clipping occurs due to True Peak exceedance
+
+[Correct] Always perform loudness normalization before distribution
+  1. Set target LUFS (Apple Podcasts: -16, Spotify: -14)
+  2. Limit True Peak to -1.0 dBTP or below
+  3. Verify noise floor is -50 dB or below
+  4. Maintain consistent loudness across all episodes
 ```
 
 ---
 
-## 8. ベストプラクティス
+## 8. Best Practices
 
-### 8.1 ポッドキャスト制作のベストプラクティス
+### 8.1 Podcast Production Best Practices
 
 ```
-収録段階:
+Recording Stage:
 ==================================================
-1. マイクの選定
-   - USB: Blue Yeti, Rode NT-USB+ (手軽さ重視)
-   - XLR: Shure SM7B, Rode PodMic (品質重視)
-   - ラべリア: Rode Wireless GO II (リモート・屋外)
+1. Microphone Selection
+   - USB: Blue Yeti, Rode NT-USB+ (prioritizing convenience)
+   - XLR: Shure SM7B, Rode PodMic (prioritizing quality)
+   - Lavalier: Rode Wireless GO II (remote/outdoor)
 
-2. 録音環境の最適化
-   - 吸音材の設置（反響を -10dB 以上低減）
-   - エアコン・ファンの停止（ノイズフロア -50dB 以下目標）
-   - ポップフィルター使用（破裂音除去）
+2. Recording Environment Optimization
+   - Install acoustic absorption (reduce reverb by -10 dB or more)
+   - Turn off AC/fans (target noise floor below -50 dB)
+   - Use pop filter (eliminate plosives)
 
-3. 録音設定
-   - サンプルレート: 44.1kHz または 48kHz
-   - ビット深度: 24bit（ヘッドルーム確保）
-   - ゲイン: ピーク -6dB 程度（クリッピング防止）
-   - 各話者を別トラックで録音（後処理の柔軟性）
+3. Recording Settings
+   - Sample rate: 44.1 kHz or 48 kHz
+   - Bit depth: 24-bit (ensure headroom)
+   - Gain: approximately -6 dB peak (prevent clipping)
+   - Record each speaker on separate tracks (flexibility in post-processing)
 
-後処理段階:
+Post-Processing Stage:
 ==================================================
-4. 標準後処理フロー
-   Step 1: ノイズ除去（RNNoise or Adobe Enhance）
-   Step 2: フィラー除去（AI検出 → 手動確認 → 削除）
-   Step 3: EQ（ハイパス80Hz + プレゼンスブースト）
-   Step 4: コンプレッション（-20dB threshold, ratio 3:1）
-   Step 5: ラウドネス正規化（-16 LUFS for Apple Podcasts）
-   Step 6: True Peakリミッティング（-1.0 dBTP）
+4. Standard Post-Processing Flow
+   Step 1: Noise reduction (RNNoise or Adobe Enhance)
+   Step 2: Filler removal (AI detection -> manual review -> delete)
+   Step 3: EQ (high-pass 80 Hz + presence boost)
+   Step 4: Compression (-20 dB threshold, ratio 3:1)
+   Step 5: Loudness normalization (-16 LUFS for Apple Podcasts)
+   Step 6: True Peak limiting (-1.0 dBTP)
 
-5. 文字起こし・要約
-   - faster-whisper large-v3 + VAD でベースライン
-   - ドメイン特化プロンプトで精度向上
-   - LLM でショーノート・チャプター自動生成
-   - 必ず人間レビューを挟む
+5. Transcription & Summarization
+   - faster-whisper large-v3 + VAD as baseline
+   - Improve accuracy with domain-specific prompts
+   - Auto-generate show notes & chapters with LLM
+   - Always include human review
 
-配信段階:
+Distribution Stage:
 ==================================================
-6. ファイルフォーマット
-   - MP3: 128-192kbps CBR（最も互換性が高い）
-   - AAC: 128kbps（Apple推奨）
-   - ID3タグ: タイトル、アーティスト、アートワーク必須
+6. File Formats
+   - MP3: 128-192 kbps CBR (highest compatibility)
+   - AAC: 128 kbps (Apple recommended)
+   - ID3 tags: title, artist, artwork required
 
-7. メタデータの最適化
-   - タイトル: 検索しやすいキーワードを含む
-   - 説明文: 最初の2文が検索結果に表示される
-   - チャプターマーク: Apple Podcasts で対応
-   - 文字起こし: SEO効果 + アクセシビリティ向上
+7. Metadata Optimization
+   - Title: include searchable keywords
+   - Description: first 2 sentences appear in search results
+   - Chapter marks: supported on Apple Podcasts
+   - Transcript: improves SEO + accessibility
 ```
 
 ---
 
 ## 9. FAQ
 
-### Q1: Whisper のモデルサイズはどれを選ぶべきですか？
+### Q1: Which Whisper model size should I choose?
 
-**A:** 用途と環境に応じて選択します。
+**A:** Choose based on your use case and environment.
 
-- **tiny / base**: リアルタイム用途、エッジデバイス。日本語精度は低め
-- **small / medium**: バランス重視。GPU があれば medium を推奨
-- **large-v3**: 最高精度。日本語の文字起こし精度が大幅に改善。faster-whisper + INT8 量子化で実用速度に
+- **tiny / base**: For real-time use, edge devices. Japanese accuracy is lower
+- **small / medium**: Balanced choice. Medium is recommended if you have a GPU
+- **large-v3**: Highest accuracy. Significantly improved Japanese transcription accuracy. Practical speed achievable with faster-whisper + INT8 quantization
 
-処理時間の目安（1時間の音声、GPU使用時）: tiny=1分、small=3分、medium=8分、large-v3=15分
+Processing time estimates (1 hour of audio, with GPU): tiny=1 min, small=3 min, medium=8 min, large-v3=15 min
 
-### Q2: 話者分離の精度を上げるには？
+### Q2: How can I improve speaker diarization accuracy?
 
-**A:** 以下のアプローチが有効です。
+**A:** The following approaches are effective.
 
-1. **事前に話者数を指定**: `num_speakers=2` のように指定すると精度向上
-2. **話者の声サンプルを提供**: 事前登録した声紋との照合で精度向上
-3. **高品質な音声入力**: 各話者を別マイクで収録し、マルチチャンネルで処理
-4. **後処理ルール**: 「ホストは常に最初に話す」などのヒューリスティクス
+1. **Specify speaker count in advance**: Specifying `num_speakers=2` improves accuracy
+2. **Provide speaker voice samples**: Matching against pre-registered voiceprints improves accuracy
+3. **High-quality audio input**: Record each speaker on separate mics and process as multi-channel
+4. **Post-processing rules**: Heuristics like "the host always speaks first"
 
-### Q3: 長時間（3時間超）のポッドキャストを効率的に処理するには？
+### Q3: How do I efficiently process long podcasts (3+ hours)?
 
-**A:** 以下の戦略を推奨します。
+**A:** The following strategies are recommended.
 
-1. **チャンク分割**: 30分ごとに分割して並列処理（前後5秒のオーバーラップを設ける）
-2. **VAD 前処理**: 無音区間をスキップして処理時間を短縮
-3. **段階的処理**: まず small モデルで粗い文字起こし → 重要区間のみ large-v3 で再処理
-4. **ストリーミング API**: faster-whisper のストリーミングモードで逐次出力
+1. **Chunk splitting**: Split into 30-minute chunks for parallel processing (with 5-second overlap at boundaries)
+2. **VAD preprocessing**: Skip silent segments to reduce processing time
+3. **Staged processing**: First run a rough transcription with small model -> Re-process only important segments with large-v3
+4. **Streaming API**: Use faster-whisper's streaming mode for incremental output
 
-### Q4: ポッドキャストの音質を手軽に改善する最も効果的な方法は？
+### Q4: What is the most effective way to easily improve podcast audio quality?
 
-**A:** コストパフォーマンスの高い順に、(1) Adobe Podcast Enhance（無料、ウェブ上でワンクリック）、(2) ハイパスフィルタ（80Hz以下カット）、(3) ラウドネス正規化（-16 LUFS）。この3つだけで、聴感上の品質は大幅に改善します。特にAdobe Podcast Enhanceは、ノイズ除去・残響除去・EQを自動で行い、スタジオ品質に近づけてくれます。
+**A:** In order of cost-effectiveness: (1) Adobe Podcast Enhance (free, one-click on the web), (2) high-pass filter (cut below 80 Hz), (3) loudness normalization (-16 LUFS). These three alone will significantly improve perceived audio quality. Adobe Podcast Enhance in particular automatically performs noise reduction, reverb removal, and EQ to bring audio closer to studio quality.
 
-### Q5: AI文字起こしの結果を効率的にレビューするには？
+### Q5: How can I efficiently review AI transcription results?
 
-**A:** 全文を読むのではなく、以下の効率的レビュー手法を推奨します。(1) 信頼度スコアが低いセグメントのみをレビュー対象にする（avg_logprob < -0.8）。(2) 固有名詞リストを事前に作成し、誤認識がないか一括検索。(3) Descriptなどのテキストベース編集ツールを使い、テキストを修正すると音声も連動して編集される。(4) 修正データを蓄積し、定期的にファインチューニングに活用。
+**A:** Rather than reading the entire text, the following efficient review methods are recommended: (1) Only review segments with low confidence scores (avg_logprob < -0.8). (2) Create a list of proper nouns in advance and batch-search for misrecognitions. (3) Use text-based editing tools like Descript, where editing text automatically edits the corresponding audio. (4) Accumulate correction data and periodically use it for fine-tuning.
 
-### Q6: ポッドキャストの収益化にAIをどう活用できますか？
+### Q6: How can AI be used for podcast monetization?
 
-**A:** AIを収益化の複数段階で活用できます。(1) 文字起こしからSEO最適化されたブログ記事を自動生成し、検索流入を増加。(2) ソーシャルメディア投稿の自動生成で認知度向上。(3) チャプター分割と要約で聴取体験を改善し、リスナー維持率を向上。(4) 多言語翻訳（Whisperの翻訳機能 + LLM）でグローバル展開。(5) 有料メンバー向けに完全な文字起こしや拡張ショーノートを提供。
+**A:** AI can be leveraged at multiple stages of monetization: (1) Auto-generate SEO-optimized blog articles from transcriptions to increase search traffic. (2) Auto-generate social media posts to boost awareness. (3) Improve listening experience with chapter splitting and summaries to increase listener retention. (4) Expand globally with multilingual translation (Whisper's translation feature + LLM). (5) Offer complete transcripts and extended show notes to paid members.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 10. まとめ
-
-| 機能 | 技術 | 推奨ツール | 精度 |
-|------|------|-----------|------|
-| 文字起こし | ASR (Whisper) | faster-whisper, Whisper API | 95%+ (日本語) |
-| 話者分離 | Speaker Diarization | pyannote.audio 3.1 | 90%+ |
-| 要約生成 | LLM | GPT-4o, Claude | 高品質 |
-| チャプター分割 | トピック検出 | 埋め込み + 境界検出 | 85%+ |
-| フィラー除去 | ASR + ルール | Whisper + 正規表現 | 80%+ |
-| ノイズ除去 | 音声強調 AI | RNNoise, Auphonic | 高品質 |
-| BGMダッキング | VAD + ゲイン制御 | pydub + カスタム | 90%+ |
-| 品質チェック | 信号分析 | pyloudnorm, カスタム | 自動化 |
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## 10. Summary
 
-- [リアルタイム音声](../03-development/02-real-time-audio.md) — WebRTC、ストリーミング STT/TTS の実装
-- [音声エフェクト](../01-music/02-audio-effects.md) — AI EQ、ノイズ除去、マスタリング
-- [STT技術](../00-fundamentals/03-stt-technologies.md) — Whisper、Google Speech、Azure Speech の詳細
+| Feature | Technology | Recommended Tool | Accuracy |
+|---------|-----------|-----------------|----------|
+| Transcription | ASR (Whisper) | faster-whisper, Whisper API | 95%+ (Japanese) |
+| Speaker Diarization | Speaker Diarization | pyannote.audio 3.1 | 90%+ |
+| Summary Generation | LLM | GPT-4o, Claude | High quality |
+| Chapter Splitting | Topic Detection | Embeddings + boundary detection | 85%+ |
+| Filler Removal | ASR + Rules | Whisper + regex | 80%+ |
+| Noise Reduction | Speech Enhancement AI | RNNoise, Auphonic | High quality |
+| BGM Ducking | VAD + Gain Control | pydub + custom | 90%+ |
+| Quality Check | Signal Analysis | pyloudnorm, custom | Automated |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
+
+- [Real-Time Audio](../03-development/02-real-time-audio.md) — WebRTC, streaming STT/TTS implementation
+- [Audio Effects](../01-music/02-audio-effects.md) — AI EQ, noise reduction, mastering
+- [STT Technologies](../00-fundamentals/03-stt-technologies.md) — Whisper, Google Speech, Azure Speech in detail
+
+---
+
+## References
 
 1. Radford, A. et al. (2023). "Robust Speech Recognition via Large-Scale Weak Supervision." *Proceedings of the 40th International Conference on Machine Learning (ICML 2023)*. OpenAI. https://arxiv.org/abs/2212.04356
 2. Bredin, H. et al. (2023). "pyannote.audio 2.1: speaker diarization pipeline." *INTERSPEECH 2023*. https://doi.org/10.21437/Interspeech.2023-105
 3. Park, T.J. et al. (2022). "A Review of Speaker Diarization: Recent Advances with Deep Learning." *Computer Speech & Language, 72*. https://doi.org/10.1016/j.csl.2021.101317
-4. ITU-R BS.1770-5 (2023). "Algorithms to measure audio programme loudness and true-peak audio level" — ラウドネス測定の国際規格
-5. Apple (2024). "Apple Podcasts for Creators: Audio Requirements" — Apple Podcasts配信のオーディオ要件仕様
+4. ITU-R BS.1770-5 (2023). "Algorithms to measure audio programme loudness and true-peak audio level" — International standard for loudness measurement
+5. Apple (2024). "Apple Podcasts for Creators: Audio Requirements" — Audio requirement specifications for Apple Podcasts distribution
