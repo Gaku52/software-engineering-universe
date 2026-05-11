@@ -1,127 +1,128 @@
-# ステム分離 — Demucs、LALAL.AI
+# Stem Separation — Demucs, LALAL.AI
 
-> 音楽トラックをボーカル・ドラム・ベース・その他に分離するステム分離技術の仕組みと実践を解説する
+> An explanation of the principles and practice of stem separation technology that splits music tracks into vocals, drums, bass, and other components
 
-## この章で学ぶこと
+## What You Will Learn
 
-1. ステム分離の技術的原理（スペクトログラムマスキング、ニューラルネットワーク分離）
-2. 主要ツール（Demucs、LALAL.AI、Spleeter）の特徴と使い分け
-3. ステム分離の実装パターンと品質改善テクニック
+1. Technical principles of stem separation (spectrogram masking, neural network separation)
+2. Features and use cases of major tools (Demucs, LALAL.AI, Spleeter)
+3. Implementation patterns and quality improvement techniques for stem separation
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, familiarity with the following topics will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [音楽生成 — Suno、Udio、MusicGen](./00-music-generation.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Understanding of the content in [Music Generation — Suno, Udio, MusicGen](./00-music-generation.md)
 
 ---
 
-## 1. ステム分離の技術基盤
+## 1. Technical Foundations of Stem Separation
 
-### 1.1 ステム分離の概念
+### 1.1 Concept of Stem Separation
 
 ```
-ステム分離の基本概念
+Basic Concept of Stem Separation
 ==================================================
 
-入力: ミックスされた楽曲（2ch ステレオ）
-  ┌─────────────────────────────┐
-  │  ボーカル + ドラム + ベース  │
-  │  + ギター + ピアノ + ...    │
-  │  = 1つの波形                │
-  └──────────────┬──────────────┘
+Input: Mixed track (2ch stereo)
+  ┌─────────────────────────────────┐
+  │  Vocals + Drums + Bass          │
+  │  + Guitar + Piano + ...         │
+  │  = Single waveform              │
+  └──────────────┬──────────────────┘
                  │
-          ステム分離モデル
+        Stem Separation Model
                  │
     ┌────────────┼────────────┐
     ▼            ▼            ▼
 ┌────────┐ ┌────────┐ ┌────────┐
-│ボーカル │ │ドラム  │ │ベース  │
-│ (Vocal)│ │(Drums) │ │(Bass)  │
+│ Vocals │ │ Drums  │ │ Bass   │
+│        │ │        │ │        │
 └────────┘ └────────┘ └────────┘
                  │
                  ▼
            ┌────────┐
-           │その他  │
-           │(Other) │
-           │ギター等│
+           │ Other  │
+           │        │
+           │Guitar  │
+           │  etc.  │
            └────────┘
 
-理想: mix = vocal + drums + bass + other
-現実: mix ≈ vocal + drums + bass + other + artifacts
+Ideal: mix = vocal + drums + bass + other
+Reality: mix ≈ vocal + drums + bass + other + artifacts
 ==================================================
 ```
 
-### 1.2 技術的アプローチの進化
+### 1.2 Evolution of Technical Approaches
 
 ```
-ステム分離技術の進化
+Evolution of Stem Separation Technology
 ==================================================
 
-第1世代: スペクトログラムマスキング
-  ┌──────┐    ┌─────┐    ┌──────┐    ┌──────┐
-  │ STFT │───→│マスク│───→│適用  │───→│ ISTFT│
-  └──────┘    │推定  │    │      │    └──────┘
-              └─────┘    └──────┘
-  * 単純だが品質に限界
+Generation 1: Spectrogram Masking
+  ┌──────┐    ┌──────┐    ┌──────┐    ┌──────┐
+  │ STFT │───→│ Mask │───→│Apply │───→│ ISTFT│
+  └──────┘    │Estim.│    │      │    └──────┘
+              └──────┘    └──────┘
+  * Simple but limited quality
 
-第2世代: U-Net ベース（Spleeter, Open-Unmix）
+Generation 2: U-Net Based (Spleeter, Open-Unmix)
   ┌──────┐    ┌──────────┐    ┌──────┐
-  │スペク│───→│U-Net     │───→│マスク│
-  │トログ│    │(Encoder- │    │適用  │
-  │ラム  │    │ Decoder) │    │      │
+  │Spec- │───→│U-Net     │───→│ Mask │
+  │tro-  │    │(Encoder- │    │Apply │
+  │gram  │    │ Decoder) │    │      │
   └──────┘    └──────────┘    └──────┘
-  * スペクトログラム領域で処理
+  * Processing in the spectrogram domain
 
-第3世代: ハイブリッド（Demucs v4 / HTDemucs）
+Generation 3: Hybrid (Demucs v4 / HTDemucs)
   ┌──────┐    ┌────────────────┐    ┌──────┐
-  │波形  │───→│Temporal Branch │───→│      │
-  │      │    │(時間領域CNN)   │    │ 統合 │
+  │Wave- │───→│Temporal Branch │───→│      │
+  │form  │    │(Time-domain CNN)│   │Merge │
   └──────┘    └────────────────┘    │      │
   ┌──────┐    ┌────────────────┐    │      │
-  │スペク│───→│Spectral Branch │───→│      │
-  │トログ│    │(Transformer)   │    │      │
-  │ラム  │    └────────────────┘    └──────┘
-  * 時間領域+周波数領域のハイブリッド
-  * Transformerによるグローバルな文脈理解
+  │Spec- │───→│Spectral Branch │───→│      │
+  │tro-  │    │(Transformer)   │    │      │
+  │gram  │    └────────────────┘    └──────┘
+  * Hybrid of time-domain + frequency-domain
+  * Global context understanding via Transformer
 ==================================================
 ```
 
-### 1.3 マスキング手法の詳細
+### 1.3 Details of Masking Techniques
 
-ステム分離の核心技術はマスキングである。入力のスペクトログラムに対して、各音源に対応するマスクを推定し、それを適用することで各音源を分離する。
+The core technology of stem separation is masking. A mask corresponding to each source is estimated from the input spectrogram, and each source is separated by applying the mask.
 
 ```python
 import numpy as np
 import torch
 
 class MaskingMethods:
-    """ステム分離におけるマスキング手法"""
+    """Masking techniques for stem separation"""
 
     @staticmethod
     def ideal_binary_mask(source_stft, mix_stft):
         """
-        理想バイナリマスク（IBM）
-        - 各時間-周波数ビンで支配的な音源を判定
-        - マスク値は0または1
-        - 最も単純だがアーティファクトが発生しやすい
+        Ideal Binary Mask (IBM)
+        - Determines the dominant source at each time-frequency bin
+        - Mask values are 0 or 1
+        - Simplest approach but prone to artifacts
         """
         source_mag = np.abs(source_stft)
         mix_mag = np.abs(mix_stft)
-        # 元の音源が混合の50%以上を占めるビンを1に
+        # Set bins where the source accounts for more than 50% of the mix to 1
         mask = (source_mag > 0.5 * mix_mag).astype(float)
         return mask
 
     @staticmethod
     def ideal_ratio_mask(source_stft, mix_stft):
         """
-        理想比率マスク（IRM）
-        - 各ビンでの音源の比率をマスク値とする
-        - ソフトマスクでIBMより自然な音質
-        - 値は0〜1の連続値
+        Ideal Ratio Mask (IRM)
+        - Uses the ratio of the source at each bin as the mask value
+        - Soft mask with more natural sound quality than IBM
+        - Continuous values between 0 and 1
         """
         source_mag = np.abs(source_stft)
         mix_mag = np.abs(mix_stft) + 1e-10
@@ -131,10 +132,10 @@ class MaskingMethods:
     @staticmethod
     def wiener_filter_mask(sources_stfts, mix_stft):
         """
-        ウィーナーフィルタマスク
-        - 全音源のパワースペクトルの比率でマスクを計算
-        - 最も理論的に正当なマスキング手法
-        - Demucsの後処理でも使用される
+        Wiener Filter Mask
+        - Computes masks based on the ratio of power spectra across all sources
+        - The most theoretically justified masking technique
+        - Also used in Demucs post-processing
         """
         powers = [np.abs(s) ** 2 for s in sources_stfts]
         total_power = sum(powers) + 1e-10
@@ -144,20 +145,20 @@ class MaskingMethods:
     @staticmethod
     def complex_ideal_ratio_mask(source_stft, mix_stft):
         """
-        複素理想比率マスク（cIRM）
-        - 位相情報も含むマスク
-        - 実部と虚部を個別に推定
-        - 位相再構成の品質が向上
+        Complex Ideal Ratio Mask (cIRM)
+        - Mask that includes phase information
+        - Real and imaginary parts are estimated separately
+        - Improves phase reconstruction quality
         """
         mix_mag = np.abs(mix_stft) + 1e-10
-        # 複素マスク = source / mix
+        # Complex mask = source / mix
         mask_real = np.real(source_stft) / np.real(mix_stft + 1e-10)
         mask_imag = np.imag(source_stft) / np.imag(mix_stft + 1e-10)
         return mask_real, mask_imag
 
 
 class SpectrogramProcessor:
-    """スペクトログラム処理の基盤クラス"""
+    """Base class for spectrogram processing"""
 
     def __init__(self, n_fft: int = 4096, hop_length: int = 1024,
                  sr: int = 44100):
@@ -166,7 +167,7 @@ class SpectrogramProcessor:
         self.sr = sr
 
     def compute_stft(self, audio: np.ndarray) -> np.ndarray:
-        """STFT計算"""
+        """Compute STFT"""
         window = np.hanning(self.n_fft)
         n_frames = (len(audio) - self.n_fft) // self.hop_length + 1
         stft = np.zeros((self.n_fft // 2 + 1, n_frames), dtype=complex)
@@ -179,7 +180,7 @@ class SpectrogramProcessor:
         return stft
 
     def inverse_stft(self, stft: np.ndarray) -> np.ndarray:
-        """逆STFT計算（Griffin-Lim法ベース）"""
+        """Inverse STFT computation (Griffin-Lim based)"""
         n_frames = stft.shape[1]
         output_length = self.n_fft + (n_frames - 1) * self.hop_length
         output = np.zeros(output_length)
@@ -192,19 +193,19 @@ class SpectrogramProcessor:
             output[start:start + self.n_fft] += frame * window
             window_sum[start:start + self.n_fft] += window ** 2
 
-        # ウィンドウ正規化
+        # Window normalization
         mask = window_sum > 1e-8
         output[mask] /= window_sum[mask]
         return output
 
     def apply_mask(self, mix_stft: np.ndarray,
                    mask: np.ndarray) -> np.ndarray:
-        """マスク適用"""
+        """Apply mask"""
         return mix_stft * mask
 
     def separate_with_masks(self, mix_audio: np.ndarray,
                             masks: list) -> list:
-        """マスクを使って音源分離を実行"""
+        """Perform source separation using masks"""
         mix_stft = self.compute_stft(mix_audio)
         separated = []
         for mask in masks:
@@ -214,13 +215,13 @@ class SpectrogramProcessor:
         return separated
 ```
 
-### 1.4 Demucs v4（HTDemucs）のアーキテクチャ詳細
+### 1.4 Demucs v4 (HTDemucs) Architecture Details
 
 ```
-HTDemucs（Hybrid Transformer Demucs）の内部構造
+HTDemucs (Hybrid Transformer Demucs) Internal Structure
 ==================================================
 
-入力: ステレオ波形 (2, T)
+Input: Stereo waveform (2, T)
       │
       ├─────────────────────────────────────┐
       │                                     │
@@ -232,8 +233,8 @@ HTDemucs（Hybrid Transformer Demucs）の内部構造
 │              │                    │             │
 │ x5 layers    │                    │ x5 layers   │
 │ ch: 48→384   │                    │ STFT →      │
-│ stride: 4    │                    │ スペクトロ  │
-│              │                    │ グラム処理  │
+│ stride: 4    │                    │ Spectrogram │
+│              │                    │ processing  │
 └──────┬──────┘                    └──────┬──────┘
        │                                   │
        ▼                                   ▼
@@ -246,9 +247,10 @@ HTDemucs（Hybrid Transformer Demucs）の内部構造
 │  │ (Temporal)   │←──→│ (Spectral)   │       │
 │  └──────────────┘    └──────────────┘       │
 │                                             │
-│  * 時間領域と周波数領域の相互参照           │
-│  * グローバルな文脈の理解                   │
-│  * 5層のTransformerブロック                 │
+│  * Cross-referencing between time and       │
+│    frequency domains                        │
+│  * Global context understanding             │
+│  * 5 Transformer blocks                     │
 └───────────┬─────────────────┬───────────────┘
             │                 │
             ▼                 ▼
@@ -263,25 +265,25 @@ HTDemucs（Hybrid Transformer Demucs）の内部構造
        │                    │
        ▼                    ▼
 ┌──────────────────────────────┐
-│ 出力統合                      │
+│ Output Merge                  │
 │ temporal_out + spectral_out  │
-│ → 4ソース x (2, T)           │
+│ → 4 sources x (2, T)         │
 │ [drums, bass, other, vocals] │
 └──────────────────────────────┘
 
-モデルパラメータ:
-- パラメータ数: 約83M（htdemucs）/ 約83M（htdemucs_ft）
-- 入力: 44.1kHz ステレオ
-- 処理: 7.8秒のセグメント（デフォルト）
-- オーバーラップ: 25%
+Model Parameters:
+- Parameter count: ~83M (htdemucs) / ~83M (htdemucs_ft)
+- Input: 44.1kHz stereo
+- Processing: 7.8-second segments (default)
+- Overlap: 25%
 ==================================================
 ```
 
 ---
 
-## 2. Demucs の実装
+## 2. Demucs Implementation
 
-### 2.1 基本的な使い方
+### 2.1 Basic Usage
 
 ```python
 import torch
@@ -289,81 +291,81 @@ import torchaudio
 from demucs.pretrained import get_model
 from demucs.apply import apply_model
 
-# Demucs v4 (HTDemucs) モデルのロード
-model = get_model("htdemucs_ft")  # ファインチューニング版
+# Load Demucs v4 (HTDemucs) model
+model = get_model("htdemucs_ft")  # Fine-tuned version
 model.eval()
 
-# GPU使用（利用可能な場合）
+# Use GPU (if available)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
-# 音声ファイルの読み込み
+# Load audio file
 waveform, sr = torchaudio.load("song.wav")
 
-# リサンプリング（Demucsは44.1kHzを期待）
+# Resample (Demucs expects 44.1kHz)
 if sr != model.samplerate:
     resampler = torchaudio.transforms.Resample(sr, model.samplerate)
     waveform = resampler(waveform)
 
-# ステム分離の実行
+# Perform stem separation
 with torch.no_grad():
-    waveform = waveform.unsqueeze(0).to(device)  # バッチ次元追加
+    waveform = waveform.unsqueeze(0).to(device)  # Add batch dimension
     sources = apply_model(
         model,
         waveform,
-        shifts=1,       # ランダムシフトの回数（品質向上、速度低下）
-        overlap=0.25,   # オーバーラップ率
+        shifts=1,       # Number of random shifts (improves quality, reduces speed)
+        overlap=0.25,   # Overlap ratio
     )
 
-# 結果の取得
+# Retrieve results
 # sources shape: (batch, n_sources, channels, samples)
 source_names = model.sources  # ['drums', 'bass', 'other', 'vocals']
 
 for i, name in enumerate(source_names):
     source_audio = sources[0, i]  # (channels, samples)
     torchaudio.save(f"{name}.wav", source_audio.cpu(), model.samplerate)
-    print(f"保存: {name}.wav")
+    print(f"Saved: {name}.wav")
 ```
 
-### 2.2 CLI での使用
+### 2.2 CLI Usage
 
 ```python
-# コマンドラインでの使用方法（概念コード）
+# Command-line usage (conceptual code)
 
 """
-# 基本的な分離
+# Basic separation
 demucs song.wav
 
-# モデル指定
+# Specify model
 demucs --model htdemucs_ft song.wav
 
-# 2ステム分離（ボーカル/伴奏のみ）
+# 2-stem separation (vocals/accompaniment only)
 demucs --two-stems vocals song.wav
 
-# 出力先指定
+# Specify output directory
 demucs -o ./output song.wav
 
-# 品質向上オプション
+# Quality improvement options
 demucs --shifts 5 --overlap 0.5 song.wav
 
-# MP3出力
+# MP3 output
 demucs --mp3 --mp3-bitrate 320 song.wav
 
-# バッチ処理
+# Batch processing
 demucs song1.wav song2.wav song3.wav
 """
 
-# Python スクリプトでのバッチ処理
+# Batch processing with a Python script
 import subprocess
 from pathlib import Path
 
 def batch_separate(input_dir: str, output_dir: str, model: str = "htdemucs_ft"):
-    """ディレクトリ内の全音声ファイルをステム分離"""
+    """Stem-separate all audio files in a directory"""
     input_path = Path(input_dir)
     audio_files = list(input_path.glob("*.wav")) + list(input_path.glob("*.mp3"))
 
     for audio_file in audio_files:
-        print(f"処理中: {audio_file.name}")
+        print(f"Processing: {audio_file.name}")
         cmd = [
             "demucs",
             "--model", model,
@@ -372,12 +374,12 @@ def batch_separate(input_dir: str, output_dir: str, model: str = "htdemucs_ft"):
             str(audio_file),
         ]
         subprocess.run(cmd, check=True)
-        print(f"完了: {audio_file.name}")
+        print(f"Done: {audio_file.name}")
 
 batch_separate("./songs", "./separated")
 ```
 
-### 2.3 カスタムパイプライン
+### 2.3 Custom Pipeline
 
 ```python
 import torch
@@ -385,7 +387,7 @@ import torchaudio
 import numpy as np
 
 class StemSeparationPipeline:
-    """ステム分離 + 後処理パイプライン"""
+    """Stem separation + post-processing pipeline"""
 
     def __init__(self, model_name="htdemucs_ft"):
         from demucs.pretrained import get_model
@@ -395,7 +397,7 @@ class StemSeparationPipeline:
         self.model.to(self.device)
 
     def separate(self, audio_path: str) -> dict:
-        """分離 + 品質改善"""
+        """Separation + quality improvement"""
         from demucs.apply import apply_model
 
         waveform, sr = torchaudio.load(audio_path)
@@ -414,7 +416,7 @@ class StemSeparationPipeline:
         results = {}
         for i, name in enumerate(self.model.sources):
             stem = sources[0, i].cpu()
-            # 後処理: ノイズゲート + 正規化
+            # Post-processing: noise gate + normalization
             stem = self._noise_gate(stem, threshold_db=-60)
             stem = self._normalize(stem, target_db=-3)
             results[name] = stem
@@ -422,13 +424,13 @@ class StemSeparationPipeline:
         return results
 
     def _noise_gate(self, audio, threshold_db=-60):
-        """ノイズゲート: 閾値以下の音を無音化"""
+        """Noise gate: silence audio below the threshold"""
         threshold = 10 ** (threshold_db / 20)
         mask = torch.abs(audio) > threshold
         return audio * mask.float()
 
     def _normalize(self, audio, target_db=-3):
-        """ピーク正規化"""
+        """Peak normalization"""
         peak = torch.abs(audio).max()
         if peak > 0:
             target_level = 10 ** (target_db / 20)
@@ -436,14 +438,14 @@ class StemSeparationPipeline:
         return audio
 
     def karaoke_mix(self, audio_path: str) -> torch.Tensor:
-        """カラオケ版を生成（ボーカル除去）"""
+        """Generate a karaoke version (vocal removal)"""
         stems = self.separate(audio_path)
-        # ボーカル以外を合成
+        # Mix everything except vocals
         karaoke = stems["drums"] + stems["bass"] + stems["other"]
         return karaoke
 ```
 
-### 2.4 高度な分離パイプライン
+### 2.4 Advanced Separation Pipeline
 
 ```python
 import torch
@@ -453,7 +455,7 @@ from pathlib import Path
 from typing import Dict, Optional, Tuple
 
 class AdvancedStemSeparation:
-    """高度なステム分離パイプライン（品質最大化）"""
+    """Advanced stem separation pipeline (maximum quality)"""
 
     def __init__(self, model_name: str = "htdemucs_ft",
                  device: str = "auto"):
@@ -471,23 +473,23 @@ class AdvancedStemSeparation:
                                shifts: int = 5,
                                overlap: float = 0.5) -> Dict[str, torch.Tensor]:
         """
-        高品質分離モード
+        High-quality separation mode
 
         Parameters:
-            shifts: ランダムシフトの回数（高いほど高品質だが遅い）
-                    - 1: 高速（通常品質）
-                    - 3: バランス（推奨）
-                    - 5-10: 最高品質（低速）
-            overlap: セグメント間のオーバーラップ率
-                    - 0.25: 通常
-                    - 0.5: 高品質
-                    - 0.75: 最高品質（非常に遅い）
+            shifts: Number of random shifts (higher = better quality but slower)
+                    - 1: Fast (standard quality)
+                    - 3: Balanced (recommended)
+                    - 5-10: Best quality (slow)
+            overlap: Overlap ratio between segments
+                    - 0.25: Standard
+                    - 0.5: High quality
+                    - 0.75: Best quality (very slow)
         """
         from demucs.apply import apply_model
 
         waveform, sr = torchaudio.load(audio_path)
 
-        # モノラル→ステレオ変換
+        # Mono → stereo conversion
         if waveform.shape[0] == 1:
             waveform = waveform.repeat(2, 1)
 
@@ -512,15 +514,15 @@ class AdvancedStemSeparation:
 
     def separate_with_wiener(self, audio_path: str) -> Dict[str, torch.Tensor]:
         """
-        Wienerフィルタ後処理付き分離
+        Separation with Wiener filter post-processing
 
-        Demucsの出力に対してWienerフィルタを適用し、
-        ブリード（漏れ込み）を低減する
+        Applies a Wiener filter to Demucs output to reduce
+        bleed (leakage between stems)
         """
-        # 通常の分離
+        # Standard separation
         stems = self.separate_high_quality(audio_path, shifts=3)
 
-        # Wienerフィルタ後処理
+        # Wiener filter post-processing
         mix, sr = torchaudio.load(audio_path)
         if sr != self.model.samplerate:
             resampler = torchaudio.transforms.Resample(sr, self.model.samplerate)
@@ -532,20 +534,20 @@ class AdvancedStemSeparation:
     def _apply_wiener_filter(self, mix: torch.Tensor,
                               stems: Dict[str, torch.Tensor],
                               n_fft: int = 4096) -> Dict[str, torch.Tensor]:
-        """Wienerフィルタによる分離品質の改善"""
-        # ミックスのSTFT
+        """Improve separation quality with Wiener filtering"""
+        # STFT of the mix
         mix_stft = torch.stft(
             mix, n_fft=n_fft, return_complex=True
         )
 
-        # 各ステムのSTFT
+        # STFT of each stem
         stem_stfts = {}
         for name, stem in stems.items():
             stem_stfts[name] = torch.stft(
                 stem, n_fft=n_fft, return_complex=True
             )
 
-        # Wienerフィルタマスクの計算
+        # Compute Wiener filter masks
         powers = {name: torch.abs(stft) ** 2
                   for name, stft in stem_stfts.items()}
         total_power = sum(powers.values()) + 1e-10
@@ -555,7 +557,7 @@ class AdvancedStemSeparation:
             mask = powers[name] / total_power
             refined_stft = mix_stft * mask
 
-            # 逆STFT
+            # Inverse STFT
             refined_audio = torch.istft(
                 refined_stft, n_fft=n_fft
             )
@@ -566,10 +568,10 @@ class AdvancedStemSeparation:
     def ensemble_separate(self, audio_path: str,
                            models: list = None) -> Dict[str, torch.Tensor]:
         """
-        アンサンブル分離（複数モデルの結果を統合）
+        Ensemble separation (combining results from multiple models)
 
-        複数のモデルで分離し、結果を平均化することで
-        個々のモデルのアーティファクトを低減する
+        Separates with multiple models and averages the results
+        to reduce artifacts from individual models
         """
         if models is None:
             models = ["htdemucs", "htdemucs_ft"]
@@ -595,7 +597,7 @@ class AdvancedStemSeparation:
                 )
             all_stems.append(sources)
 
-        # アンサンブル（平均化）
+        # Ensemble (averaging)
         ensemble = sum(all_stems) / len(all_stems)
 
         results = {}
@@ -607,12 +609,12 @@ class AdvancedStemSeparation:
 
 
 class StemQualityAnalyzer:
-    """分離品質の分析ツール"""
+    """Analysis tool for separation quality"""
 
     @staticmethod
     def compute_sdr(reference: np.ndarray, estimated: np.ndarray) -> float:
-        """SDR（Signal-to-Distortion Ratio）の計算"""
-        # 長さを合わせる
+        """Compute SDR (Signal-to-Distortion Ratio)"""
+        # Align lengths
         min_len = min(len(reference), len(estimated))
         reference = reference[:min_len]
         estimated = estimated[:min_len]
@@ -626,7 +628,7 @@ class StemQualityAnalyzer:
     @staticmethod
     def compute_sir(reference: np.ndarray, estimated: np.ndarray,
                     interference: np.ndarray) -> float:
-        """SIR（Source-to-Interference Ratio）の計算"""
+        """Compute SIR (Source-to-Interference Ratio)"""
         min_len = min(len(reference), len(estimated), len(interference))
         reference = reference[:min_len]
         estimated = estimated[:min_len]
@@ -639,12 +641,12 @@ class StemQualityAnalyzer:
 
     @staticmethod
     def compute_sar(reference: np.ndarray, estimated: np.ndarray) -> float:
-        """SAR（Source-to-Artifact Ratio）の計算"""
+        """Compute SAR (Source-to-Artifact Ratio)"""
         min_len = min(len(reference), len(estimated))
         reference = reference[:min_len]
         estimated = estimated[:min_len]
 
-        # アーティファクト = 推定 - 参照 - 干渉
+        # Artifact = estimated - reference - interference
         artifact = estimated - reference
         sar = 10 * np.log10(
             np.sum(reference ** 2) / (np.sum(artifact ** 2) + 1e-10)
@@ -653,7 +655,7 @@ class StemQualityAnalyzer:
 
     def full_evaluation(self, reference_stems: dict,
                         estimated_stems: dict) -> dict:
-        """全ステムの品質評価"""
+        """Quality evaluation for all stems"""
         results = {}
         for name in reference_stems:
             if name in estimated_stems:
@@ -663,7 +665,7 @@ class StemQualityAnalyzer:
                     ref = ref.numpy()
                 if isinstance(est, torch.Tensor):
                     est = est.numpy()
-                # モノラル化
+                # Convert to mono
                 if ref.ndim == 2:
                     ref = ref.mean(axis=0)
                 if est.ndim == 2:
@@ -676,7 +678,7 @@ class StemQualityAnalyzer:
         return results
 ```
 
-### 2.5 メモリ効率の良い長時間楽曲の処理
+### 2.5 Memory-Efficient Processing of Long Tracks
 
 ```python
 import torch
@@ -685,7 +687,7 @@ import numpy as np
 from typing import Optional
 
 class LongTrackSeparator:
-    """長時間楽曲のメモリ効率的なステム分離"""
+    """Memory-efficient stem separation for long tracks"""
 
     def __init__(self, model_name: str = "htdemucs_ft",
                  max_memory_gb: float = 4.0):
@@ -697,19 +699,19 @@ class LongTrackSeparator:
         self.max_memory_gb = max_memory_gb
 
     def _estimate_chunk_size(self, channels: int, sr: int) -> int:
-        """利用可能なメモリから最適なチャンクサイズを推定"""
-        # GPU VRAMに基づく推定（概算）
+        """Estimate optimal chunk size based on available memory"""
+        # Estimation based on GPU VRAM (approximate)
         if self.device.type == "cuda":
             total_mem = torch.cuda.get_device_properties(0).total_memory
             available = min(total_mem * 0.7, self.max_memory_gb * 1e9)
         else:
             available = self.max_memory_gb * 1e9
 
-        # 1サンプルあたりのメモリ使用量（概算: モデルの4倍程度）
+        # Memory usage per sample (approximate: ~4x model overhead)
         bytes_per_sample = channels * 4 * 4  # float32 * 4x overhead
         max_samples = int(available / bytes_per_sample)
 
-        # 最大30秒、最小5秒に制限
+        # Clamp to between 5 and 30 seconds
         max_seconds = 30
         min_seconds = 5
         chunk_seconds = np.clip(max_samples / sr, min_seconds, max_seconds)
@@ -720,12 +722,12 @@ class LongTrackSeparator:
                              output_dir: str,
                              overlap_seconds: float = 2.0) -> dict:
         """
-        長時間楽曲をチャンク分割して分離
+        Separate long tracks by splitting into chunks
 
         Parameters:
-            audio_path: 入力音声パス
-            output_dir: 出力ディレクトリ
-            overlap_seconds: チャンク間のオーバーラップ（秒）
+            audio_path: Input audio path
+            output_dir: Output directory
+            overlap_seconds: Overlap between chunks (seconds)
         """
         from demucs.apply import apply_model
         from pathlib import Path
@@ -738,26 +740,26 @@ class LongTrackSeparator:
 
         total_samples = waveform.shape[-1]
         total_seconds = total_samples / sr
-        print(f"楽曲長: {total_seconds:.1f}秒")
+        print(f"Track length: {total_seconds:.1f} seconds")
 
         chunk_size = self._estimate_chunk_size(waveform.shape[0], sr)
         overlap = int(overlap_seconds * sr)
-        print(f"チャンクサイズ: {chunk_size / sr:.1f}秒, "
-              f"オーバーラップ: {overlap / sr:.1f}秒")
+        print(f"Chunk size: {chunk_size / sr:.1f}s, "
+              f"Overlap: {overlap / sr:.1f}s")
 
-        # 出力バッファ
+        # Output buffers
         n_sources = len(self.model.sources)
         output = torch.zeros(n_sources, waveform.shape[0], total_samples)
         weight = torch.zeros(total_samples)
 
-        # チャンク処理
+        # Chunk processing
         pos = 0
         chunk_idx = 0
         while pos < total_samples:
             end = min(pos + chunk_size, total_samples)
             chunk = waveform[:, pos:end]
 
-            print(f"チャンク {chunk_idx}: {pos/sr:.1f}s - {end/sr:.1f}s")
+            print(f"Chunk {chunk_idx}: {pos/sr:.1f}s - {end/sr:.1f}s")
 
             with torch.no_grad():
                 sources = apply_model(
@@ -767,7 +769,7 @@ class LongTrackSeparator:
                     overlap=0.25,
                 )
 
-            # クロスフェードウィンドウ
+            # Crossfade window
             chunk_len = end - pos
             fade = self._make_crossfade_window(chunk_len, overlap)
 
@@ -775,7 +777,7 @@ class LongTrackSeparator:
                 output[i, :, pos:end] += sources[0, i].cpu() * fade
             weight[pos:end] += fade
 
-            # メモリ解放
+            # Free memory
             del sources
             if self.device.type == "cuda":
                 torch.cuda.empty_cache()
@@ -783,12 +785,12 @@ class LongTrackSeparator:
             pos += chunk_size - overlap
             chunk_idx += 1
 
-        # 重み正規化
+        # Weight normalization
         weight = torch.clamp(weight, min=1e-8)
         for i in range(n_sources):
             output[i] /= weight
 
-        # 保存
+        # Save
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
         results = {}
@@ -796,18 +798,18 @@ class LongTrackSeparator:
             path = output_path / f"{name}.wav"
             torchaudio.save(str(path), output[i], sr)
             results[name] = str(path)
-            print(f"保存: {path}")
+            print(f"Saved: {path}")
 
         return results
 
     def _make_crossfade_window(self, length: int, overlap: int) -> torch.Tensor:
-        """クロスフェードウィンドウの生成"""
+        """Generate a crossfade window"""
         window = torch.ones(length)
         if overlap > 0 and overlap < length:
-            # フェードイン
+            # Fade in
             fade_in = torch.linspace(0, 1, overlap)
             window[:overlap] = fade_in
-            # フェードアウト
+            # Fade out
             fade_out = torch.linspace(1, 0, overlap)
             window[-overlap:] = fade_out
         return window
@@ -815,7 +817,7 @@ class LongTrackSeparator:
 
 ---
 
-## 3. クラウドサービスの利用
+## 3. Using Cloud Services
 
 ### 3.1 LALAL.AI API
 
@@ -824,7 +826,7 @@ import requests
 import time
 
 class LALALClient:
-    """LALAL.AI ステム分離クライアント（概念）"""
+    """LALAL.AI stem separation client (conceptual)"""
 
     BASE_URL = "https://www.lalal.ai/api/v1"
 
@@ -833,17 +835,17 @@ class LALALClient:
 
     def separate(self, audio_path: str, stem_type: str = "vocals") -> dict:
         """
-        ステム分離を実行
+        Perform stem separation
 
         stem_type options:
-        - vocals: ボーカル/伴奏
-        - drums: ドラム分離
-        - bass: ベース分離
-        - electric_guitar: エレキギター分離
-        - piano: ピアノ分離
-        - synthesizer: シンセサイザー分離
+        - vocals: Vocals/accompaniment
+        - drums: Drum separation
+        - bass: Bass separation
+        - electric_guitar: Electric guitar separation
+        - piano: Piano separation
+        - synthesizer: Synthesizer separation
         """
-        # Step 1: ファイルアップロード
+        # Step 1: Upload file
         with open(audio_path, "rb") as f:
             upload_resp = requests.post(
                 f"{self.BASE_URL}/upload",
@@ -853,7 +855,7 @@ class LALALClient:
             )
         task_id = upload_resp.json()["task_id"]
 
-        # Step 2: 処理完了を待機
+        # Step 2: Wait for processing to complete
         while True:
             status = requests.get(
                 f"{self.BASE_URL}/status/{task_id}",
@@ -862,27 +864,27 @@ class LALALClient:
             if status["state"] == "done":
                 return status["result"]
             elif status["state"] == "error":
-                raise Exception(f"分離失敗: {status['error']}")
+                raise Exception(f"Separation failed: {status['error']}")
             time.sleep(2)
 ```
 
-### 3.2 Spleeter の使い方
+### 3.2 Using Spleeter
 
 ```python
 class SpleeterPipeline:
     """
-    Spleeter（Deezer）によるステム分離
+    Stem separation with Spleeter (Deezer)
 
-    特徴:
-    - Tensorflow ベース
-    - 非常に高速（GPUなしでもリアルタイム以下）
-    - 2stems/4stems/5stems モデル
-    - 品質はDemucsに劣るが速度で優位
+    Features:
+    - TensorFlow-based
+    - Very fast (faster than real-time even without GPU)
+    - 2stems/4stems/5stems models
+    - Quality is inferior to Demucs but excels in speed
     """
 
     def __init__(self, n_stems: int = 2):
         """
-        n_stems: 分離ステム数
+        n_stems: Number of stems to separate
         - 2: vocals/accompaniment
         - 4: vocals/drums/bass/other
         - 5: vocals/drums/bass/piano/other
@@ -892,7 +894,7 @@ class SpleeterPipeline:
         self.n_stems = n_stems
 
     def separate(self, audio_path: str, output_dir: str = "./output"):
-        """分離を実行"""
+        """Perform separation"""
         self.separator.separate_to_file(
             audio_path,
             output_dir,
@@ -901,7 +903,7 @@ class SpleeterPipeline:
         )
 
     def separate_to_dict(self, audio_path: str) -> dict:
-        """分離結果をNumPy配列として取得"""
+        """Get separation results as NumPy arrays"""
         import numpy as np
         from spleeter.audio.adapter import AudioAdapter
 
@@ -912,14 +914,14 @@ class SpleeterPipeline:
         return prediction  # {"vocals": np.ndarray, "accompaniment": np.ndarray, ...}
 
     def quick_vocal_extract(self, audio_path: str, output_path: str):
-        """簡易ボーカル抽出"""
+        """Quick vocal extraction"""
         import soundfile as sf
         results = self.separate_to_dict(audio_path)
         vocals = results["vocals"]
         sf.write(output_path, vocals, 44100)
 ```
 
-### 3.3 分離結果の後処理パイプライン
+### 3.3 Post-Processing Pipeline for Separation Results
 
 ```python
 import numpy as np
@@ -927,7 +929,7 @@ import torch
 import torchaudio
 
 class StemPostProcessor:
-    """分離ステムの後処理"""
+    """Post-processing for separated stems"""
 
     def __init__(self, sr: int = 44100):
         self.sr = sr
@@ -935,37 +937,37 @@ class StemPostProcessor:
     def remove_bleed(self, stem: np.ndarray, mix: np.ndarray,
                      other_stems: list, threshold_db: float = -40) -> np.ndarray:
         """
-        ブリード（他ステムの漏れ込み）除去
+        Bleed removal (removal of leakage from other stems)
 
-        スペクトラルゲーティングにより、他のステムに支配されている
-        時間-周波数ビンのエネルギーを抑制する
+        Uses spectral gating to suppress energy in time-frequency bins
+        dominated by other stems
         """
         n_fft = 4096
         hop = 1024
 
-        # STFT計算
+        # Compute STFT
         from scipy.signal import stft as scipy_stft, istft as scipy_istft
 
         _, _, stem_stft = scipy_stft(stem, fs=self.sr, nperseg=n_fft,
                                       noverlap=n_fft - hop)
         stem_power = np.abs(stem_stft) ** 2
 
-        # 他ステムの合計パワー
+        # Total power of other stems
         other_power = np.zeros_like(stem_power)
         for other in other_stems:
             _, _, other_stft = scipy_stft(other, fs=self.sr, nperseg=n_fft,
                                            noverlap=n_fft - hop)
             other_power += np.abs(other_stft) ** 2
 
-        # マスク: ステムが支配的な部分のみ通過
+        # Mask: only pass bins where the stem is dominant
         ratio = stem_power / (stem_power + other_power + 1e-10)
         threshold = 10 ** (threshold_db / 10)
         mask = np.where(ratio > 0.3, 1.0, ratio / 0.3)
 
-        # マスク適用
+        # Apply mask
         cleaned_stft = stem_stft * mask
 
-        # 逆STFT
+        # Inverse STFT
         _, cleaned = scipy_istft(cleaned_stft, fs=self.sr, nperseg=n_fft,
                                   noverlap=n_fft - hop)
 
@@ -974,34 +976,34 @@ class StemPostProcessor:
     def smooth_transitions(self, stem: np.ndarray,
                            fade_ms: float = 5.0) -> np.ndarray:
         """
-        エッジスムージング
+        Edge smoothing
 
-        分離時のアーティファクト（急激な立ち上がり/立ち下がり）を
-        軽いフェードで緩和する
+        Mitigates artifacts from separation (abrupt onsets/offsets)
+        with gentle fades
         """
         fade_samples = int(fade_ms * self.sr / 1000)
         if fade_samples < 2:
             return stem
 
-        # 音声区間を検出
+        # Detect active audio regions
         threshold = np.max(np.abs(stem)) * 0.01
         is_active = np.abs(stem) > threshold
 
-        # 立ち上がり/立ち下がりエッジの検出
+        # Detect onset/offset edges
         edges = np.diff(is_active.astype(int))
         onsets = np.where(edges == 1)[0]
         offsets = np.where(edges == -1)[0]
 
         result = stem.copy()
 
-        # フェードイン適用
+        # Apply fade-in
         for onset in onsets:
             start = max(0, onset - fade_samples // 2)
             end = min(len(stem), onset + fade_samples // 2)
             fade = np.linspace(0, 1, end - start)
             result[start:end] *= fade
 
-        # フェードアウト適用
+        # Apply fade-out
         for offset in offsets:
             start = max(0, offset - fade_samples // 2)
             end = min(len(stem), offset + fade_samples // 2)
@@ -1013,20 +1015,20 @@ class StemPostProcessor:
     def phase_align(self, stem: np.ndarray,
                     reference: np.ndarray) -> np.ndarray:
         """
-        位相整合
+        Phase alignment
 
-        分離ステムと元のミックスの位相を比較し、
-        ステムの位相ずれを補正する
+        Compares the phase of a separated stem with the original mix
+        and corrects phase shifts in the stem
         """
         min_len = min(len(stem), len(reference))
         stem = stem[:min_len]
         reference = reference[:min_len]
 
-        # 相互相関で最適な遅延を推定
+        # Estimate optimal delay via cross-correlation
         correlation = np.correlate(stem, reference, mode='full')
         delay = np.argmax(np.abs(correlation)) - len(stem) + 1
 
-        # 遅延補正
+        # Delay correction
         if delay > 0:
             aligned = np.concatenate([np.zeros(delay), stem[:-delay]])
         elif delay < 0:
@@ -1034,7 +1036,7 @@ class StemPostProcessor:
         else:
             aligned = stem
 
-        # 極性チェック（反転している場合の補正）
+        # Polarity check (correct if inverted)
         corr_normal = np.sum(aligned * reference)
         corr_inverted = np.sum(-aligned * reference)
         if corr_inverted > corr_normal:
@@ -1045,94 +1047,94 @@ class StemPostProcessor:
 
 ---
 
-## 4. 比較表
+## 4. Comparison Tables
 
-### 4.1 主要ステム分離ツール比較
+### 4.1 Major Stem Separation Tools Comparison
 
-| 項目 | Demucs v4 | Spleeter | LALAL.AI | iZotope RX |
+| Item | Demucs v4 | Spleeter | LALAL.AI | iZotope RX |
 |------|----------|----------|---------|------------|
-| 種別 | OSS | OSS | SaaS | 商用ソフト |
-| 品質(SDR) | 9.0+ dB | 5.9 dB | 8.5+ dB | 8.0+ dB |
-| ステム数 | 4/6 | 2/4/5 | 最大8 | 柔軟 |
-| 速度 | 中程度 | 高速 | 中程度 | 中程度 |
-| GPU必須 | 推奨 | 不要 | 不要 | 不要 |
-| オフライン | 可能 | 可能 | 不可 | 可能 |
-| コスト | 無料 | 無料 | 従量課金 | $399+ |
-| APIアクセス | Python | Python | REST | プラグイン |
+| Type | OSS | OSS | SaaS | Commercial |
+| Quality (SDR) | 9.0+ dB | 5.9 dB | 8.5+ dB | 8.0+ dB |
+| Stems | 4/6 | 2/4/5 | Up to 8 | Flexible |
+| Speed | Medium | Fast | Medium | Medium |
+| GPU Required | Recommended | No | No | No |
+| Offline | Yes | Yes | No | Yes |
+| Cost | Free | Free | Pay-per-use | $399+ |
+| API Access | Python | Python | REST | Plugin |
 
-### 4.2 用途別推奨ツール
+### 4.2 Recommended Tools by Use Case
 
-| ユースケース | 推奨 | 理由 |
-|-------------|------|------|
-| DJ向けアカペラ抽出 | Demucs v4 | 最高品質、無料 |
-| カラオケ作成 | Demucs / LALAL.AI | ボーカル除去品質 |
-| リミックス素材 | Demucs v4 (6stems) | 細かい楽器分離 |
-| ポッドキスト音声分離 | Spleeter | 高速、2stems十分 |
-| プロ品質マスタリング | iZotope RX | 最高の柔軟性 |
-| バッチ処理 | Demucs CLI | スクリプト化容易 |
-| 非エンジニア | LALAL.AI | Web UIで簡単 |
+| Use Case | Recommended | Reason |
+|----------|-------------|--------|
+| Acapella extraction for DJs | Demucs v4 | Best quality, free |
+| Karaoke creation | Demucs / LALAL.AI | Vocal removal quality |
+| Remix materials | Demucs v4 (6stems) | Fine-grained instrument separation |
+| Podcast audio separation | Spleeter | Fast, 2stems is sufficient |
+| Professional mastering | iZotope RX | Maximum flexibility |
+| Batch processing | Demucs CLI | Easy to script |
+| Non-engineers | LALAL.AI | Simple Web UI |
 
-### 4.3 モデル別Demucsバリエーション
+### 4.3 Demucs Model Variations
 
-| モデル名 | パラメータ数 | ステム数 | SDR(ボーカル) | 特徴 |
-|---------|-----------|---------|-------------|------|
-| htdemucs | 83M | 4 | 8.5 dB | 標準モデル |
-| htdemucs_ft | 83M | 4 | 9.0 dB | ファインチューニング版 |
-| htdemucs_6s | 83M | 6 | 7.8 dB | ギター・ピアノ追加 |
-| mdx_extra | - | 4 | 8.3 dB | MDXモデル（軽量） |
-| mdx_extra_q | - | 4 | 8.0 dB | MDX量子化版（最軽量） |
+| Model Name | Parameters | Stems | SDR (Vocals) | Features |
+|-----------|-----------|-------|-------------|----------|
+| htdemucs | 83M | 4 | 8.5 dB | Standard model |
+| htdemucs_ft | 83M | 4 | 9.0 dB | Fine-tuned version |
+| htdemucs_6s | 83M | 6 | 7.8 dB | Adds guitar & piano |
+| mdx_extra | - | 4 | 8.3 dB | MDX model (lightweight) |
+| mdx_extra_q | - | 4 | 8.0 dB | MDX quantized (lightest) |
 
-### 4.4 処理速度の比較（5分のステレオ楽曲）
+### 4.4 Processing Speed Comparison (5-minute stereo track)
 
-| モデル | GPU (RTX 3060) | GPU (RTX 4090) | CPU (i7-13700) | Apple M2 |
+| Model | GPU (RTX 3060) | GPU (RTX 4090) | CPU (i7-13700) | Apple M2 |
 |-------|----------------|----------------|---------------|----------|
-| htdemucs_ft | 25秒 | 12秒 | 3分 | 1.5分 |
-| htdemucs_6s | 30秒 | 15秒 | 4分 | 2分 |
-| Spleeter 2stems | 5秒 | 3秒 | 15秒 | 10秒 |
-| Spleeter 5stems | 12秒 | 6秒 | 40秒 | 25秒 |
+| htdemucs_ft | 25s | 12s | 3 min | 1.5 min |
+| htdemucs_6s | 30s | 15s | 4 min | 2 min |
+| Spleeter 2stems | 5s | 3s | 15s | 10s |
+| Spleeter 5stems | 12s | 6s | 40s | 25s |
 
 ---
 
-## 5. アンチパターン
+## 5. Anti-Patterns
 
-### 5.1 アンチパターン: 分離品質の過信
+### 5.1 Anti-Pattern: Over-Trusting Separation Quality
 
 ```python
-# BAD: 分離結果をそのまま使用
+# BAD: Using separation results as-is
 def bad_remix(song_path):
     stems = separate(song_path)
-    # 問題: ボーカルステムに伴奏の漏れ込み(bleed)がある
-    # 問題: ドラムステムにゴースト音が含まれる
+    # Problem: Vocal stem has accompaniment bleed
+    # Problem: Drum stem contains ghost sounds
     return mix(stems["vocals"] * 1.5, stems["drums"], stems["bass"])
 
-# GOOD: アーティファクト対策を含む
+# GOOD: Include artifact mitigation
 def good_remix(song_path):
     stems = separate(song_path)
 
-    # 1. ボーカルのブリード除去
+    # 1. Remove bleed from vocals
     vocals = apply_spectral_gate(stems["vocals"], threshold=-40)
 
-    # 2. クロスフェード処理でアーティファクト軽減
+    # 2. Reduce artifacts with crossfade processing
     vocals = smooth_edges(vocals, fade_ms=10)
 
-    # 3. 位相整合（分離時の位相ずれ補正）
+    # 3. Phase alignment (correct phase shift from separation)
     drums = phase_align(stems["drums"], reference=original_mix)
 
     return mix(vocals * 1.5, drums, stems["bass"], stems["other"])
 ```
 
-### 5.2 アンチパターン: メモリ管理の不備
+### 5.2 Anti-Pattern: Poor Memory Management
 
 ```python
-# BAD: 長い楽曲をメモリに全ロード
+# BAD: Loading an entire long track into memory
 def bad_separate_long(audio_path):
-    audio, sr = torchaudio.load(audio_path)  # 10分 = ~100MB
-    # GPU VRAM不足でクラッシュ
+    audio, sr = torchaudio.load(audio_path)  # 10 min = ~100MB
+    # Crashes due to insufficient GPU VRAM
     sources = model(audio.unsqueeze(0).cuda())
 
-# GOOD: チャンク処理でメモリ制御
+# GOOD: Chunk processing for memory control
 def good_separate_long(audio_path, chunk_seconds=30, overlap_seconds=5):
-    """長い楽曲をチャンク分割して処理"""
+    """Process long tracks by splitting into chunks"""
     audio, sr = torchaudio.load(audio_path)
     chunk_size = chunk_seconds * sr
     overlap = overlap_seconds * sr
@@ -1147,80 +1149,80 @@ def good_separate_long(audio_path, chunk_seconds=30, overlap_seconds=5):
             sources = apply_model(model, chunk.unsqueeze(0).cuda())
             all_sources.append(sources.cpu())
 
-        # メモリ解放
+        # Free memory
         torch.cuda.empty_cache()
         pos += chunk_size - overlap
 
-    # オーバーラップ部分をクロスフェードして結合
+    # Merge with crossfading at overlap regions
     return crossfade_merge(all_sources, overlap)
 ```
 
-### 5.3 アンチパターン: モデル選択のミス
+### 5.3 Anti-Pattern: Wrong Model Selection
 
 ```python
-# BAD: 用途に合わないモデルを使用
+# BAD: Using a model unsuited for the purpose
 def bad_model_selection():
-    # 歌声変換の前処理にSpleeterを使用 → 品質不足
+    # Using Spleeter for voice conversion preprocessing → insufficient quality
     spleeter_result = spleeter_2stems("song.wav")
-    rvc_convert(spleeter_result["vocals"])  # 入力の品質が低い
+    rvc_convert(spleeter_result["vocals"])  # Input quality is too low
 
-    # 大量バッチ処理にhtdemucs_ft + shifts=10 → 時間がかかりすぎ
+    # Using htdemucs_ft + shifts=10 for large batch processing → too slow
     for song in glob("*.wav"):
         demucs_separate(song, model="htdemucs_ft", shifts=10)
 
-# GOOD: 用途に応じたモデルと設定の使い分け
+# GOOD: Select model and settings based on use case
 def good_model_selection(use_case: str, audio_path: str):
-    """用途に最適なモデルと設定を自動選択"""
+    """Automatically select the optimal model and settings for the use case"""
     configs = {
         "voice_conversion": {
             "model": "htdemucs_ft",
             "shifts": 3,
             "two_stems": "vocals",
-            "reason": "ボーカル品質最優先、2ステムで効率化",
+            "reason": "Vocal quality is top priority, 2-stem for efficiency",
         },
         "batch_karaoke": {
             "model": "htdemucs",
             "shifts": 1,
             "two_stems": "vocals",
-            "reason": "速度重視、品質は十分",
+            "reason": "Speed-focused, quality is sufficient",
         },
         "remix_production": {
             "model": "htdemucs_6s",
             "shifts": 5,
             "two_stems": None,
-            "reason": "楽器別分離、最高品質",
+            "reason": "Per-instrument separation, best quality",
         },
         "quick_preview": {
             "model": "mdx_extra_q",
             "shifts": 1,
             "two_stems": "vocals",
-            "reason": "最速プレビュー",
+            "reason": "Fastest preview",
         },
     }
 
     config = configs.get(use_case, configs["batch_karaoke"])
-    print(f"選択: {config['model']} ({config['reason']})")
+    print(f"Selected: {config['model']} ({config['reason']})")
     return config
 ```
 
-### 5.4 アンチパターン: 分離ステムの再構成不整合
+### 5.4 Anti-Pattern: Inconsistent Stem Reconstruction
 
 ```python
-# BAD: 分離ステムを合算してもオリジナルに戻らない
+# BAD: Summing separated stems does not match the original
 def bad_reconstruct(stems):
-    # 各ステムを個別に加工してから合成
-    vocals = normalize(stems["vocals"])      # 音量変更
-    drums = eq(stems["drums"])               # EQ変更
-    bass = compress(stems["bass"])           # ダイナミクス変更
+    # Process each stem individually then combine
+    vocals = normalize(stems["vocals"])      # Volume change
+    drums = eq(stems["drums"])               # EQ change
+    bass = compress(stems["bass"])           # Dynamics change
     other = stems["other"]
 
     remix = vocals + drums + bass + other
-    # 問題: 合計がオリジナルと大幅に異なる
+    # Problem: Sum differs significantly from the original
     return remix
 
-# GOOD: 分離→加工→再構成の一貫性を保つ
+# GOOD: Maintain consistency during separate → process → reconstruct
 def good_reconstruct(stems, mix_original):
-    """分離・加工後もオリジナルとの一貫性を維持"""
+    """Maintain consistency with the original after separation and processing"""
     vocals = normalize(stems["vocals"])
     drums = eq(stems["drums"])
     bass = compress(stems["bass"])
@@ -1228,11 +1230,11 @@ def good_reconstruct(stems, mix_original):
 
     remix = vocals + drums + bass + other
 
-    # 残差（分離誤差）の補正
+    # Residual correction (compensate for separation error)
     residual = mix_original - sum(stems.values())
-    remix += residual  # 分離時の誤差を戻す
+    remix += residual  # Add back the separation error
 
-    # ラウドネスをオリジナルに合わせる
+    # Match loudness to the original
     original_rms = np.sqrt(np.mean(mix_original ** 2))
     remix_rms = np.sqrt(np.mean(remix ** 2))
     if remix_rms > 0:
@@ -1243,9 +1245,9 @@ def good_reconstruct(stems, mix_original):
 
 ---
 
-## 6. 実践的なユースケース
+## 6. Practical Use Cases
 
-### 6.1 カラオケ動画自動生成
+### 6.1 Automatic Karaoke Video Generation
 
 ```python
 import torch
@@ -1255,7 +1257,7 @@ import soundfile as sf
 from pathlib import Path
 
 class KaraokeGenerator:
-    """カラオケ版の自動生成パイプライン"""
+    """Automated karaoke version generation pipeline"""
 
     def __init__(self):
         self.pipeline = StemSeparationPipeline(model_name="htdemucs_ft")
@@ -1263,34 +1265,34 @@ class KaraokeGenerator:
     def create_karaoke(self, input_path: str, output_dir: str,
                        keep_backing_vocals: bool = False) -> dict:
         """
-        カラオケ版を生成
+        Generate a karaoke version
 
         Parameters:
-            keep_backing_vocals: Trueの場合、コーラス/ハモリは維持
+            keep_backing_vocals: If True, keep chorus/harmony vocals
         """
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
 
-        # ステム分離
+        # Stem separation
         stems = self.pipeline.separate(input_path)
 
-        # カラオケミックス（ボーカルなし）
+        # Karaoke mix (without vocals)
         karaoke = stems["drums"] + stems["bass"] + stems["other"]
 
         if keep_backing_vocals:
-            # メインボーカルのみ除去（コーラスは維持）
-            # 中央定位のボーカルのみを除去する
+            # Remove only main vocals (keep chorus)
+            # Remove only center-panned vocals
             vocals = stems["vocals"]
-            mid = (vocals[0] + vocals[1]) / 2  # モノラル成分=メインボーカル
-            side = (vocals[0] - vocals[1]) / 2  # ステレオ成分=コーラス/ハモリ
-            # コーラス成分を戻す
+            mid = (vocals[0] + vocals[1]) / 2  # Mono component = main vocals
+            side = (vocals[0] - vocals[1]) / 2  # Stereo component = chorus/harmony
+            # Add back the chorus component
             chorus = torch.stack([side, -side])
             karaoke += chorus * 0.7
 
-        # ボーカルガイド版（ボーカル音量を下げた版）
+        # Vocal guide version (vocals at reduced volume)
         guide = karaoke + stems["vocals"] * 0.15
 
-        # 保存
+        # Save
         sr = self.pipeline.model.samplerate
         results = {
             "karaoke": str(output_path / "karaoke.wav"),
@@ -1308,49 +1310,49 @@ class KaraokeGenerator:
 
 
 class DJToolkit:
-    """DJ向けステム分離ツールキット"""
+    """DJ-oriented stem separation toolkit"""
 
     def __init__(self):
         self.pipeline = StemSeparationPipeline(model_name="htdemucs_ft")
 
     def extract_acapella(self, song_path: str, output_path: str,
                           quality: str = "high"):
-        """アカペラ抽出"""
+        """Extract acapella"""
         stems = self.pipeline.separate(song_path)
         vocals = stems["vocals"]
 
-        # 品質に応じた後処理
+        # Post-processing based on quality level
         if quality == "high":
-            # ノイズゲート + スペクトラルクリーニング
+            # Noise gate + spectral cleaning
             vocals = self._spectral_clean(vocals)
 
         torchaudio.save(output_path, vocals, self.pipeline.model.samplerate)
 
     def create_drum_break(self, song_path: str, output_path: str):
-        """ドラムブレイク抽出"""
+        """Extract drum break"""
         stems = self.pipeline.separate(song_path)
         drums = stems["drums"]
 
-        # ドラムステムの品質向上
+        # Enhance drum stem quality
         drums = self._enhance_drums(drums)
 
         torchaudio.save(output_path, drums, self.pipeline.model.samplerate)
 
     def create_loop_pack(self, song_path: str, output_dir: str,
                           bpm: float = None):
-        """ループパック生成（各ステムをBPM同期で分割）"""
+        """Generate a loop pack (split each stem in BPM-synced segments)"""
         stems = self.pipeline.separate(song_path)
         sr = self.pipeline.model.samplerate
 
-        # BPM検出（指定されていない場合）
+        # BPM detection (if not specified)
         if bpm is None:
             import librosa
             mix_np = stems["drums"].numpy().mean(axis=0)
             tempo, _ = librosa.beat.beat_track(y=mix_np, sr=sr)
             bpm = float(tempo)
 
-        # 1小節のサンプル数
-        bar_samples = int(4 * 60 / bpm * sr)  # 4拍=1小節
+        # Samples per bar
+        bar_samples = int(4 * 60 / bpm * sr)  # 4 beats = 1 bar
 
         output_path = Path(output_dir)
         for name, stem in stems.items():
@@ -1358,7 +1360,7 @@ class DJToolkit:
             stem_dir.mkdir(parents=True, exist_ok=True)
 
             n_bars = stem.shape[-1] // bar_samples
-            for i in range(min(n_bars, 16)):  # 最大16小節
+            for i in range(min(n_bars, 16)):  # Up to 16 bars
                 start = i * bar_samples
                 end = start + bar_samples
                 loop = stem[:, start:end]
@@ -1366,22 +1368,22 @@ class DJToolkit:
                 loop_path = stem_dir / f"loop_{i+1:02d}.wav"
                 torchaudio.save(str(loop_path), loop, sr)
 
-        print(f"BPM: {bpm:.1f}, {n_bars}小節をエクスポート")
+        print(f"BPM: {bpm:.1f}, exported {n_bars} bars")
 
     def _spectral_clean(self, audio):
-        """スペクトラルクリーニング"""
-        return audio  # プレースホルダー
+        """Spectral cleaning"""
+        return audio  # Placeholder
 
     def _enhance_drums(self, drums):
-        """ドラムステムの品質向上"""
-        return drums  # プレースホルダー
+        """Enhance drum stem quality"""
+        return drums  # Placeholder
 ```
 
-### 6.2 音楽教育・練習支援
+### 6.2 Music Education and Practice Support
 
 ```python
 class MusicPracticeHelper:
-    """音楽教育・練習支援ツール"""
+    """Music education and practice support tool"""
 
     def __init__(self):
         self.pipeline = StemSeparationPipeline(model_name="htdemucs_ft")
@@ -1390,18 +1392,18 @@ class MusicPracticeHelper:
                                 instrument: str,
                                 output_dir: str) -> dict:
         """
-        練習用トラックを生成
+        Generate practice tracks
 
-        - 指定楽器のみのソロトラック
-        - 指定楽器を除いたマイナスワントラック
-        - 指定楽器の音量を調整可能なミックス
+        - Solo track of the specified instrument only
+        - Minus-one track with the specified instrument removed
+        - Mix with adjustable volume for the specified instrument
         """
         stems = self.pipeline.separate(song_path)
         sr = self.pipeline.model.samplerate
 
         stem_map = {
             "vocal": "vocals",
-            "guitar": "other",  # 4ステムモデルではotherに含まれる
+            "guitar": "other",  # Included in "other" with the 4-stem model
             "bass": "bass",
             "drums": "drums",
         }
@@ -1412,19 +1414,19 @@ class MusicPracticeHelper:
 
         results = {}
 
-        # ソロトラック（指定楽器のみ）
+        # Solo track (specified instrument only)
         solo = stems[target_stem]
         solo_path = output_path / f"{instrument}_solo.wav"
         torchaudio.save(str(solo_path), solo, sr)
         results["solo"] = str(solo_path)
 
-        # マイナスワン（指定楽器を除去）
+        # Minus-one (specified instrument removed)
         minus_one = sum(s for n, s in stems.items() if n != target_stem)
         minus_path = output_path / f"minus_{instrument}.wav"
         torchaudio.save(str(minus_path), minus_one, sr)
         results["minus_one"] = str(minus_path)
 
-        # 音量調整版（楽器25%, 50%, 75%）
+        # Volume-adjusted versions (instrument at 25%, 50%, 75%)
         for level in [0.25, 0.50, 0.75]:
             mixed = minus_one + solo * level
             level_path = output_path / f"{instrument}_{int(level*100)}pct.wav"
@@ -1436,13 +1438,13 @@ class MusicPracticeHelper:
     def create_slow_practice(self, song_path: str,
                               tempo_factor: float = 0.75,
                               output_path: str = "slow_practice.wav"):
-        """テンポを落とした練習版を生成（ピッチ維持）"""
+        """Generate a slowed-down practice version (pitch preserved)"""
         import librosa
 
         stems = self.pipeline.separate(song_path)
         sr = self.pipeline.model.samplerate
 
-        # 各ステムのテンポ変更（ピッチ維持）
+        # Change tempo for each stem (pitch preserved)
         slowed_stems = {}
         for name, stem in stems.items():
             stem_np = stem.numpy()
@@ -1454,7 +1456,7 @@ class MusicPracticeHelper:
                 slowed_channels.append(slowed)
             slowed_stems[name] = torch.tensor(np.array(slowed_channels))
 
-        # リミックス
+        # Remix
         slow_mix = sum(slowed_stems.values())
         torchaudio.save(output_path, slow_mix, sr)
 
@@ -1465,73 +1467,73 @@ class MusicPracticeHelper:
 
 ## 6. FAQ
 
-### Q1: ステム分離の品質を測る指標は何ですか？
+### Q1: What metrics are used to measure stem separation quality?
 
-SDR（Signal-to-Distortion Ratio）が最も広く使われる指標で、dB単位で表されます。高いほど分離品質が高く、Demucs v4は約9dB以上を達成しています。他にSIR（Source-to-Interference Ratio、他ソースの漏れ込み量）、SAR（Source-to-Artifact Ratio、アーティファクトの量）もあります。ただし、数値上の品質と聴感上の品質は必ずしも一致しないため、最終的には聴感評価も重要です。
+SDR (Signal-to-Distortion Ratio) is the most widely used metric, expressed in dB. Higher values indicate better separation quality, and Demucs v4 achieves approximately 9 dB or more. Other metrics include SIR (Source-to-Interference Ratio, measuring leakage from other sources) and SAR (Source-to-Artifact Ratio, measuring the amount of artifacts). However, numerical quality and perceptual quality do not always align, so listening evaluation is ultimately important as well.
 
-### Q2: ボーカル以外の楽器（ギター、ピアノなど）を個別に分離できますか？
+### Q2: Can instruments other than vocals (guitar, piano, etc.) be separated individually?
 
-Demucs v4の6ステムモデル（htdemucs_6s）ではドラム、ベース、ボーカル、ギター、ピアノ、その他の6トラックに分離可能です。LALAL.AIはさらに細かく、エレキギター、アコースティックギター、ピアノ、シンセサイザーなど最大8種類の分離に対応しています。ただし、分離するステム数が増えるほど個々の品質は低下する傾向があります。
+The Demucs v4 6-stem model (htdemucs_6s) can separate into 6 tracks: drums, bass, vocals, guitar, piano, and other. LALAL.AI supports even finer separation, handling up to 8 types including electric guitar, acoustic guitar, piano, and synthesizer. However, the quality of individual stems tends to decrease as the number of separated stems increases.
 
-### Q3: リアルタイムでのステム分離は可能ですか？
+### Q3: Is real-time stem separation possible?
 
-2025年時点では、高品質なリアルタイムステム分離は困難です。Demucs v4はGPU使用でもリアルタイムの3-5倍の処理時間が必要です。ただし、軽量モデル（Spleeter、Open-Unmix）やDemucsのストリーミングモードを使えば準リアルタイム（1-2秒遅延）での処理は可能です。DJソフトウェア（djay、Traktor）には組み込みのリアルタイムステム分離が搭載されており、品質と速度のトレードオフの上で実用化されています。
+As of 2025, high-quality real-time stem separation remains difficult. Demucs v4 requires 3-5x real-time processing even with GPU. However, near-real-time processing (1-2 second latency) is possible using lightweight models (Spleeter, Open-Unmix) or Demucs streaming mode. DJ software (djay, Traktor) includes built-in real-time stem separation, achieving practical use through a trade-off between quality and speed.
 
-### Q4: 分離結果の品質が悪い場合に改善する方法は？
+### Q4: How can I improve separation results when quality is poor?
 
-いくつかのテクニックがあります。(1) shiftsパラメータを増やす（3-10）: ランダムシフト平均化で品質向上。(2) overlapを増やす（0.25→0.5）: セグメント境界のアーティファクト低減。(3) モデルアンサンブル: htdemucsとhtdemucs_ftの結果を平均化。(4) Wienerフィルタ後処理: 分離結果にWienerフィルタを適用してブリード除去。(5) 入力品質の改善: 高ビットレートの音源を使用し、事前にノイズ除去を行う。
+Several techniques are available: (1) Increase the shifts parameter (3-10): improves quality through random shift averaging. (2) Increase overlap (0.25 to 0.5): reduces artifacts at segment boundaries. (3) Model ensemble: average results from htdemucs and htdemucs_ft. (4) Wiener filter post-processing: apply Wiener filtering to separation results to remove bleed. (5) Improve input quality: use high-bitrate sources and perform noise removal beforehand.
 
-### Q5: ステム分離を音楽制作のワークフローに組み込むには？
+### Q5: How can stem separation be integrated into a music production workflow?
 
-DAW（Digital Audio Workstation）との統合方法として、(1) VST/AUプラグイン: iZotope RX、Spectralayers等のプラグインを使用。(2) バッチ前処理: Demucs CLIでフォルダ単位で分離し、結果をDAWにインポート。(3) Python統合: Pythonスクリプトで分離→後処理→エクスポートを自動化し、DAWのセッションフォルダに直接出力。(4) リモートサーバー: GPU搭載サーバーでAPIを構築し、DAWからHTTPリクエストで分離を実行。
+Integration methods with DAWs (Digital Audio Workstations) include: (1) VST/AU plugins: use plugins such as iZotope RX or Spectralayers. (2) Batch pre-processing: separate entire folders with Demucs CLI and import results into the DAW. (3) Python integration: automate the separation, post-processing, and export pipeline with Python scripts, outputting directly to DAW session folders. (4) Remote server: build an API on a GPU server and execute separation via HTTP requests from the DAW.
 
-### Q6: 著作権上、ステム分離した音源をどこまで利用できますか？
+### Q6: To what extent can stem-separated audio be used from a copyright perspective?
 
-著作権法上、既存楽曲のステム分離は「複製」に該当する可能性があります。個人的な練習・学習目的であれば私的使用として許容される場合が多いですが、分離結果を公開・配布・商用利用する場合は著作権者の許諾が必要です。特にサンプリングやリミックスとして配信する場合はライセンス取得が必須です。DJプレイでの使用は国・地域の著作権法と会場のライセンス契約に依存します。
+Under copyright law, stem separation of existing music may constitute "reproduction." While personal practice and study purposes are often permitted as fair use, publishing, distributing, or commercially using separation results requires permission from the copyright holder. Licensing is mandatory when distributing results as samples or remixes. Use in DJ performances depends on the copyright laws of the country/region and the venue's licensing agreements.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point for learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory but by actually writing code and verifying how things work.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What common mistakes do beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently utilized in everyday development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
-|------|------|
-| 技術進化 | マスキング→U-Net→ハイブリッド（時間+周波数）へ |
-| Demucs v4 | 最高品質のOSS。4ステム/6ステム対応 |
-| 品質指標 | SDR 9dB+が現在の最高水準 |
-| 主な制約 | ブリード（漏れ込み）、アーティファクト、位相ずれ |
-| 後処理 | ノイズゲート、スペクトラルゲート、位相整合が重要 |
-| メモリ管理 | 長い楽曲はチャンク分割 + クロスフェード結合 |
-| モデル選択 | 用途に応じてhtdemucs_ft/htdemucs_6s/Spleeterを使い分け |
-| Wienerフィルタ | 後処理で分離品質を追加改善可能 |
+| Item | Key Points |
+|------|------------|
+| Technology Evolution | Masking → U-Net → Hybrid (time + frequency) |
+| Demucs v4 | Best quality OSS. Supports 4-stem/6-stem |
+| Quality Metrics | SDR 9dB+ is the current state of the art |
+| Key Limitations | Bleed (leakage), artifacts, phase shift |
+| Post-Processing | Noise gate, spectral gate, phase alignment are important |
+| Memory Management | Split long tracks into chunks + crossfade merging |
+| Model Selection | Choose htdemucs_ft/htdemucs_6s/Spleeter based on use case |
+| Wiener Filter | Can further improve separation quality in post-processing |
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [02-audio-effects.md](./02-audio-effects.md) — AI音声エフェクト（EQ、ノイズ除去）
-- [00-music-generation.md](./00-music-generation.md) — 音楽生成との組み合わせ
-- [../03-development/01-audio-processing.md](../03-development/01-audio-processing.md) — librosa/torchaudioによる実装
+- [02-audio-effects.md](./02-audio-effects.md) — AI Audio Effects (EQ, noise removal)
+- [00-music-generation.md](./00-music-generation.md) — Combining with music generation
+- [../03-development/01-audio-processing.md](../03-development/01-audio-processing.md) — Implementation with librosa/torchaudio
 
-## 参考文献
+## References
 
-1. Rouard, S., et al. (2023). "Hybrid Transformers for Music Source Separation" — HTDemucs論文。ハイブリッドTransformerによる音楽ソース分離
-2. Défossez, A. (2021). "Hybrid Spectrogram and Waveform Source Separation" — Demucs v3論文。スペクトログラム+波形のハイブリッドアプローチ
-3. Hennequin, R., et al. (2020). "Spleeter: a fast and efficient music source separation tool" — Spleeter論文。Deezerによる軽量分離ツール
-4. Stöter, F.R., et al. (2019). "Open-Unmix - A Reference Implementation for Music Source Separation" — Open-Unmix。オープンソースのリファレンス実装
-5. Vincent, E., et al. (2006). "Performance measurement in blind audio source separation" — SDR/SIR/SAR評価指標の定義論文
-6. Uhlich, S., et al. (2017). "Improving music source separation based on deep neural networks through data augmentation and network blending" — データ拡張とネットワーク統合による品質改善
+1. Rouard, S., et al. (2023). "Hybrid Transformers for Music Source Separation" — HTDemucs paper. Music source separation with Hybrid Transformers
+2. Defossez, A. (2021). "Hybrid Spectrogram and Waveform Source Separation" — Demucs v3 paper. Hybrid spectrogram + waveform approach
+3. Hennequin, R., et al. (2020). "Spleeter: a fast and efficient music source separation tool" — Spleeter paper. Lightweight separation tool by Deezer
+4. Stoter, F.R., et al. (2019). "Open-Unmix - A Reference Implementation for Music Source Separation" — Open-Unmix. Open-source reference implementation
+5. Vincent, E., et al. (2006). "Performance measurement in blind audio source separation" — Paper defining SDR/SIR/SAR evaluation metrics
+6. Uhlich, S., et al. (2017). "Improving music source separation based on deep neural networks through data augmentation and network blending" — Quality improvement through data augmentation and network blending
