@@ -1,124 +1,124 @@
-# AI自動化概要 — ノーコード/ローコードからAI統合まで
+# AI Automation Overview — From No-Code/Low-Code to AI Integration
 
-> ビジネスプロセスにAIを組み込む自動化の全体像を俯瞰し、ノーコード/ローコードツールからカスタムAI統合まで、段階的なアプローチを体系的に解説する。
-
----
-
-## この章で学ぶこと
-
-1. **AI自動化の分類と成熟度モデル** — RPA、ノーコード、ローコード、フルコード各アプローチの使い分け
-2. **AI統合アーキテクチャ** — API連携、エージェント型、パイプライン型の設計パターン
-3. **導入ステップと ROI 評価** — 自動化プロジェクトの計画から効果測定までの実践フレームワーク
-4. **業種別導入パターン** — 業界ごとに異なるAI自動化の最適解を具体的に提示
-5. **組織変革マネジメント** — 技術導入だけでなく、人と組織の変革を成功させる方法論
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> A broad overview of automation that embeds AI into business processes, systematically explaining a step-by-step approach from no-code/low-code tools to custom AI integration.
 
 ---
 
-## 1. AI自動化の成熟度モデル
+## What You Will Learn in This Chapter
 
-### 1.1 4段階の自動化レベル
+1. **AI Automation Classification and Maturity Model** — When to use RPA, no-code, low-code, and full-code approaches
+2. **AI Integration Architecture** — Design patterns for API integration, agent-based, and pipeline-based systems
+3. **Implementation Steps and ROI Evaluation** — A practical framework covering everything from planning to measuring the impact of automation projects
+4. **Industry-Specific Adoption Patterns** — Concrete best practices for AI automation tailored to each industry
+5. **Organizational Change Management** — Methodologies for succeeding not only at technical adoption but also at transforming people and organizations
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+
+---
+
+## 1. AI Automation Maturity Model
+
+### 1.1 Four Levels of Automation
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                  AI 自動化成熟度モデル                        │
+│                  AI Automation Maturity Model                │
 ├──────────┬──────────────────────────────────────────────────┤
-│ Level 0  │ 手動作業 — スプレッドシート、コピペ中心           │
-│ Level 1  │ ルールベース自動化 — マクロ、IFTTT、cron          │
-│ Level 2  │ ノーコードAI — Zapier+OpenAI、Make+Claude        │
-│ Level 3  │ カスタムAIパイプライン — LangChain、独自API       │
-│ Level 4  │ 自律エージェント — マルチエージェント、自己改善    │
+│ Level 0  │ Manual Work — spreadsheets, copy-paste-centric   │
+│ Level 1  │ Rule-Based Automation — macros, IFTTT, cron      │
+│ Level 2  │ No-Code AI — Zapier+OpenAI, Make+Claude          │
+│ Level 3  │ Custom AI Pipelines — LangChain, proprietary API │
+│ Level 4  │ Autonomous Agents — multi-agent, self-improving  │
 └──────────┴──────────────────────────────────────────────────┘
 ```
 
-### 1.2 各レベルの特徴比較
+### 1.2 Comparison of Characteristics at Each Level
 
-| レベル | 初期コスト | 柔軟性 | 技術要件 | 適用範囲 |
-|--------|-----------|--------|---------|---------|
-| Level 0 | 0円 | 最低 | なし | 個人タスク |
-| Level 1 | ~1万円/月 | 低 | 基本IT | 定型業務 |
-| Level 2 | ~5万円/月 | 中 | ノーコード | 部門業務 |
-| Level 3 | ~20万円/月 | 高 | プログラミング | 全社業務 |
-| Level 4 | ~50万円/月 | 最高 | AI/ML専門 | 戦略的業務 |
+| Level | Initial Cost | Flexibility | Technical Requirement | Scope |
+|-------|-------------|-------------|----------------------|-------|
+| Level 0 | ¥0 | Lowest | None | Individual tasks |
+| Level 1 | ~¥10K/month | Low | Basic IT | Routine work |
+| Level 2 | ~¥50K/month | Medium | No-code | Departmental work |
+| Level 3 | ~¥200K/month | High | Programming | Company-wide work |
+| Level 4 | ~¥500K/month | Highest | AI/ML specialist | Strategic work |
 
-### 1.3 成熟度レベル移行の判断基準
+### 1.3 Criteria for Moving Between Maturity Levels
 
-企業がLevel 0からLevel 4に一足飛びに進むことはない。各レベルへの移行には明確な条件がある。
+Companies never jump straight from Level 0 to Level 4. There are clear conditions for transitioning to each level.
 
 ```python
 class AutomationMaturityAssessor:
-    """AI自動化成熟度の診断と移行計画策定"""
+    """Diagnoses AI automation maturity and formulates a migration plan"""
 
     LEVEL_CRITERIA = {
         0: {
-            "name": "手動作業",
+            "name": "Manual Work",
             "characteristics": [
-                "業務プロセスが属人化している",
-                "同じ作業を複数人が重複して行っている",
-                "データがExcelやメールに散在している"
+                "Business processes depend on specific individuals",
+                "Multiple people perform the same work redundantly",
+                "Data is scattered across Excel files and emails"
             ],
-            "upgrade_trigger": "同一作業の週5回以上の繰り返し",
+            "upgrade_trigger": "Same task repeated 5+ times per week",
             "upgrade_cost": 0,
-            "upgrade_time": "1-2週間"
+            "upgrade_time": "1-2 weeks"
         },
         1: {
-            "name": "ルールベース自動化",
+            "name": "Rule-Based Automation",
             "characteristics": [
-                "定型業務のマクロ/スクリプト化が完了",
-                "IFTTT/cron等でスケジュール実行している",
-                "トリガーとアクションが明確に定義されている"
+                "Routine tasks have been converted to macros/scripts",
+                "Scheduled execution via IFTTT/cron is in place",
+                "Triggers and actions are clearly defined"
             ],
-            "upgrade_trigger": "ルールでは対応できない例外処理が30%以上",
+            "upgrade_trigger": "Exception handling that rules cannot cover exceeds 30%",
             "upgrade_cost": 50000,
-            "upgrade_time": "2-4週間"
+            "upgrade_time": "2-4 weeks"
         },
         2: {
-            "name": "ノーコードAI",
+            "name": "No-Code AI",
             "characteristics": [
-                "Zapier/Make等でAI APIと連携している",
-                "自然言語処理による分類・要約が稼働している",
-                "非エンジニアがワークフローを管理できる"
+                "Integrated with AI APIs via Zapier/Make etc.",
+                "Classification and summarization via NLP are running",
+                "Non-engineers can manage workflows"
             ],
-            "upgrade_trigger": "ノーコードツールの制約に月5回以上ぶつかる",
+            "upgrade_trigger": "No-code tool limitations hit 5+ times per month",
             "upgrade_cost": 200000,
-            "upgrade_time": "1-2ヶ月"
+            "upgrade_time": "1-2 months"
         },
         3: {
-            "name": "カスタムAIパイプライン",
+            "name": "Custom AI Pipeline",
             "characteristics": [
-                "LangChain/独自APIでカスタムパイプラインが稼働",
-                "複数AIモデルの使い分けが実装されている",
-                "品質監視・コスト管理ダッシュボードが稼働"
+                "Custom pipeline running with LangChain/proprietary API",
+                "Use of multiple AI models is implemented",
+                "Quality monitoring and cost management dashboard is running"
             ],
-            "upgrade_trigger": "人間の介入なしで対応すべきタスクが50%以上",
+            "upgrade_trigger": "50%+ of tasks should be handled without human intervention",
             "upgrade_cost": 1000000,
-            "upgrade_time": "3-6ヶ月"
+            "upgrade_time": "3-6 months"
         },
         4: {
-            "name": "自律エージェント",
+            "name": "Autonomous Agents",
             "characteristics": [
-                "マルチエージェントシステムが自律的に動作",
-                "自己改善ループが組み込まれている",
-                "人間は例外処理と戦略的判断のみ"
+                "Multi-agent system operates autonomously",
+                "Self-improvement loops are built in",
+                "Humans handle only exceptions and strategic decisions"
             ],
-            "upgrade_trigger": "N/A（最上位レベル）",
+            "upgrade_trigger": "N/A (top level)",
             "upgrade_cost": 5000000,
-            "upgrade_time": "6-12ヶ月"
+            "upgrade_time": "6-12 months"
         }
     }
 
     def assess_current_level(self, answers: dict) -> dict:
-        """現在の成熟度レベルを診断"""
+        """Diagnoses the current maturity level"""
         score = 0
 
-        # 自動化の範囲
+        # Scope of automation
         if answers.get("has_scheduled_tasks"):
             score += 1
         if answers.get("uses_ai_api"):
@@ -143,18 +143,18 @@ class AutomationMaturityAssessor:
         }
 
     def _generate_recommendation(self, level: int) -> str:
-        """レベル別推奨アクション"""
+        """Recommended actions per level"""
         recommendations = {
-            0: "まず繰り返し作業を洗い出し、Google Apps Scriptやcronで自動化を開始してください",
-            1: "Zapier無料プランでAI連携を試し、効果を測定してください",
-            2: "月額コストが$200を超えたら、n8nセルフホストかカスタム開発への移行を検討",
-            3: "人間の介入率を計測し、50%未満ならエージェント化の投資回収が見込めます",
-            4: "自己改善ループの精度モニタリングとガバナンス強化に注力してください"
+            0: "Start by identifying repetitive tasks and automate them with Google Apps Script or cron",
+            1: "Try AI integration with Zapier's free plan and measure the impact",
+            2: "Once monthly costs exceed $200, consider migrating to n8n self-hosted or custom development",
+            3: "Measure human intervention rate; if below 50%, agent-based automation investment looks promising",
+            4: "Focus on monitoring the accuracy of self-improvement loops and strengthening governance"
         }
         return recommendations.get(level, "")
 
     def create_migration_plan(self, current: int, target: int) -> list[dict]:
-        """移行計画の策定"""
+        """Formulate a migration plan"""
         plan = []
         for level in range(current + 1, target + 1):
             criteria = self.LEVEL_CRITERIA[level]
@@ -165,236 +165,236 @@ class AutomationMaturityAssessor:
                 "estimated_time": criteria["upgrade_time"],
                 "prerequisites": criteria["characteristics"],
                 "success_criteria": [
-                    f"Level {level}の全特性を満たす",
-                    "ROI 100%以上を達成",
-                    "運用チームのトレーニング完了"
+                    f"Meet all Level {level} characteristics",
+                    "Achieve ROI of 100% or more",
+                    "Operations team training complete"
                 ]
             })
         return plan
 ```
 
-### 1.4 業務タイプ別の最適レベル
+### 1.4 Optimal Level by Work Type
 
-すべての業務をLevel 4にする必要はない。業務の特性に応じて最適なレベルは異なる。
+Not every task needs to reach Level 4. The optimal level differs depending on the nature of the work.
 
 ```
-業務タイプ別 最適自動化レベル:
+Optimal Automation Level by Work Type:
 
-  複雑度
-  高 ┤ ● 経営判断        ● 新規事業企画
-     │   → Level 0-1       → Level 0-1
-     │   (人間が主体)       (AIは補助のみ)
-     │
-  中 ┤ ● 契約書レビュー   ● 顧客対応
-     │   → Level 3          → Level 2-3
-     │   (AI+人間)          (AIメイン+人間監督)
-     │
-  低 ┤ ● データ入力       ● メール仕分け
-     │   → Level 2-3        → Level 4
-     │   (ほぼ完全自動)     (完全自動)
-     └──┬────────────┬────────────┬──
-       少量         中量         大量
-                処理量
+  Complexity
+  High ┤ ● Management decisions  ● New business planning
+       │   → Level 0-1              → Level 0-1
+       │   (human-led)              (AI assists only)
+       │
+  Med  ┤ ● Contract review        ● Customer support
+       │   → Level 3                → Level 2-3
+       │   (AI + human)             (AI-led + human oversight)
+       │
+  Low  ┤ ● Data entry             ● Email sorting
+       │   → Level 2-3              → Level 4
+       │   (near-fully automated)   (fully automated)
+       └──┬────────────┬────────────┬──
+         Low         Medium        High
+                   Volume
 
-  ★ 右下（大量×低複雑度）= Level 4が最適
-  ★ 左上（少量×高複雑度）= Level 0-1が現実的
+  ★ Bottom-right (high volume × low complexity) = Level 4 is optimal
+  ★ Top-left (low volume × high complexity) = Level 0-1 is realistic
 ```
 
-| 業務タイプ | 最適レベル | 理由 | 自動化率目安 |
-|-----------|-----------|------|------------|
-| 定型データ入力 | Level 3-4 | ルール明確、大量処理 | 95% |
-| メール分類・仕分け | Level 2-3 | パターン認識が得意 | 90% |
-| レポート生成 | Level 2-3 | テンプレート + AI生成 | 80% |
-| 顧客問い合わせ対応 | Level 2-3 | FAQ + AI + 人間エスカレ | 70% |
-| 契約書レビュー | Level 3 | AI分析 + 人間最終判断 | 60% |
-| 経営戦略立案 | Level 0-1 | 人間の創造性が不可欠 | 10% |
-| クリエイティブ制作 | Level 2 | AI生成 + 人間の編集 | 50% |
+| Work Type | Optimal Level | Reason | Automation Rate Target |
+|-----------|--------------|--------|----------------------|
+| Routine data entry | Level 3-4 | Clear rules, high volume | 95% |
+| Email classification/sorting | Level 2-3 | Good at pattern recognition | 90% |
+| Report generation | Level 2-3 | Template + AI generation | 80% |
+| Customer inquiry handling | Level 2-3 | FAQ + AI + human escalation | 70% |
+| Contract review | Level 3 | AI analysis + human final judgment | 60% |
+| Management strategy planning | Level 0-1 | Human creativity is essential | 10% |
+| Creative production | Level 2 | AI generation + human editing | 50% |
 
 ---
 
-## 2. ノーコード/ローコードAI統合
+## 2. No-Code/Low-Code AI Integration
 
-### 2.1 主要プラットフォーム比較
+### 2.1 Major Platform Comparison
 
 ```python
-# Zapier + OpenAI の概念的フロー（Pythonで表現）
+# Conceptual flow of Zapier + OpenAI (expressed in Python)
 automation_flow = {
-    "trigger": "新規メール受信（Gmail）",
+    "trigger": "New email received (Gmail)",
     "steps": [
-        {"action": "OpenAI GPT-4で要約生成", "model": "gpt-4"},
-        {"action": "感情分析で優先度判定", "threshold": 0.7},
-        {"action": "Slackに通知送信", "channel": "#urgent"},
-        {"action": "Notionにタスク作成", "database": "inbox"}
+        {"action": "Generate summary with OpenAI GPT-4", "model": "gpt-4"},
+        {"action": "Determine priority via sentiment analysis", "threshold": 0.7},
+        {"action": "Send Slack notification", "channel": "#urgent"},
+        {"action": "Create Notion task", "database": "inbox"}
     ],
-    "estimated_time_saved": "1日あたり2時間"
+    "estimated_time_saved": "2 hours per day"
 }
 ```
 
 ```yaml
-# n8n ワークフロー定義（YAML形式）
-name: "AI顧客対応自動化"
+# n8n workflow definition (YAML format)
+name: "AI Customer Support Automation"
 nodes:
   - type: webhook
-    name: "問い合わせ受信"
+    name: "Receive inquiry"
     config:
       method: POST
       path: /customer-inquiry
 
   - type: openai
-    name: "意図分類"
+    name: "Intent classification"
     config:
       model: gpt-4
       prompt: |
-        以下の問い合わせを分類してください:
-        - billing: 請求関連
-        - technical: 技術サポート
-        - sales: 営業関連
+        Classify the following inquiry:
+        - billing: billing-related
+        - technical: technical support
+        - sales: sales-related
 
   - type: switch
-    name: "ルーティング"
+    name: "Routing"
     rules:
       - value: "billing"
-        output: "経理チーム"
+        output: "Accounting team"
       - value: "technical"
-        output: "技術チーム"
+        output: "Technical team"
       - value: "sales"
-        output: "営業チーム"
+        output: "Sales team"
 ```
 
-### 2.2 ノーコード vs ローコード vs フルコード
+### 2.2 No-Code vs Low-Code vs Full-Code
 
-| 比較項目 | ノーコード | ローコード | フルコード |
-|---------|-----------|-----------|-----------|
-| 代表ツール | Zapier, Make | n8n, Retool | LangChain, 独自API |
-| 開発速度 | 数時間 | 数日 | 数週間 |
-| カスタマイズ性 | 低 | 中 | 高 |
-| スケーラビリティ | 制限あり | 中程度 | 無制限 |
-| 月額コスト目安 | $20-$200 | $0-$100 | $50-$500+ |
-| 対象ユーザー | ビジネス担当者 | パワーユーザー | エンジニア |
+| Comparison | No-Code | Low-Code | Full-Code |
+|-----------|---------|---------|-----------|
+| Representative tools | Zapier, Make | n8n, Retool | LangChain, proprietary API |
+| Development speed | Hours | Days | Weeks |
+| Customizability | Low | Medium | High |
+| Scalability | Limited | Moderate | Unlimited |
+| Monthly cost estimate | $20-$200 | $0-$100 | $50-$500+ |
+| Target users | Business staff | Power users | Engineers |
 
-### 2.3 プラットフォーム選定フローチャート
+### 2.3 Platform Selection Flowchart
 
-どのプラットフォームを使うべきか迷ったときは以下の判断基準で選択する。
+When unsure which platform to use, apply the following decision criteria.
 
 ```
-プラットフォーム選定フロー:
+Platform Selection Flow:
 
-  Q1: 技術チームはいるか？
+  Q1: Is there a technical team?
   │
-  ├── No → Q2: 予算は月$100以上あるか？
+  ├── No → Q2: Is the budget $100+/month?
   │         │
-  │         ├── No → Make（月$9〜、コスパ最良）
+  │         ├── No → Make (from $9/month, best value)
   │         │
-  │         └── Yes → Zapier（最も簡単、連携7000+）
+  │         └── Yes → Zapier (easiest, 7000+ integrations)
   │
-  └── Yes → Q3: データ主権の要件は厳しいか？
+  └── Yes → Q3: Are data sovereignty requirements strict?
               │
-              ├── Yes → n8nセルフホスト（完全自社管理）
+              ├── Yes → n8n self-hosted (fully in-house control)
               │
-              └── No → Q4: 月間処理量は1万件以上か？
+              └── No → Q4: Is monthly volume 10,000+ items?
                         │
                         ├── No → n8n Cloud / Zapier
                         │
-                        └── Yes → カスタム開発（LangChain等）
+                        └── Yes → Custom development (LangChain etc.)
 ```
 
-### 2.4 実践例: ノーコードで即日稼働する5つのAI自動化
+### 2.4 Practical Examples: 5 AI Automations You Can Launch the Same Day with No-Code
 
 ```python
-# 実践例1: 問い合わせメールの自動分類と通知
+# Example 1: Automatic classification and notification of inquiry emails
 workflow_1 = {
-    "name": "カスタマーサポート自動トリアージ",
+    "name": "Customer Support Auto-Triage",
     "platform": "Zapier",
-    "setup_time": "30分",
+    "setup_time": "30 minutes",
     "monthly_cost": "$20",
     "flow": [
-        "Gmail新着メール → OpenAI分類 → Slack通知 + Notion登録",
+        "New Gmail email → OpenAI classification → Slack notification + Notion entry",
     ],
-    "roi": "対応時間50%削減（1日2時間→1時間）"
+    "roi": "50% reduction in response time (2 hours/day → 1 hour)"
 }
 
-# 実践例2: 議事録の自動要約と共有
+# Example 2: Automatic summarization and sharing of meeting minutes
 workflow_2 = {
-    "name": "会議議事録の自動要約",
+    "name": "Automatic Meeting Minutes Summarization",
     "platform": "Make",
-    "setup_time": "1時間",
+    "setup_time": "1 hour",
     "monthly_cost": "$15",
     "flow": [
-        "Google Meet録画 → Whisper文字起こし → Claude要約 → Slackに共有",
+        "Google Meet recording → Whisper transcription → Claude summary → Shared to Slack",
     ],
-    "roi": "議事録作成時間90%削減（30分→3分）"
+    "roi": "90% reduction in meeting minutes creation time (30 min → 3 min)"
 }
 
-# 実践例3: SNS投稿の自動生成
+# Example 3: Automatic generation of SNS posts
 workflow_3 = {
-    "name": "ブログ記事→SNS投稿自動生成",
+    "name": "Blog Post → SNS Post Auto-Generation",
     "platform": "Zapier",
-    "setup_time": "45分",
+    "setup_time": "45 minutes",
     "monthly_cost": "$20",
     "flow": [
-        "WordPress新記事 → GPT-4で3プラットフォーム向け投稿生成 → Buffer予約投稿",
+        "New WordPress article → GPT-4 generates posts for 3 platforms → Buffer scheduled posting",
     ],
-    "roi": "SNS運用時間75%削減（月20時間→5時間）"
+    "roi": "75% reduction in SNS management time (20 hours/month → 5 hours)"
 }
 
-# 実践例4: 請求書データの自動抽出
+# Example 4: Automatic extraction of invoice data
 workflow_4 = {
-    "name": "請求書OCR自動処理",
+    "name": "Invoice OCR Automated Processing",
     "platform": "n8n",
-    "setup_time": "2時間",
-    "monthly_cost": "$0（セルフホスト）",
+    "setup_time": "2 hours",
+    "monthly_cost": "$0 (self-hosted)",
     "flow": [
-        "メール添付PDF → Cloud Vision OCR → GPT-4でデータ抽出 → スプレッドシート記録",
+        "Email attachment PDF → Cloud Vision OCR → GPT-4 data extraction → Spreadsheet entry",
     ],
-    "roi": "経理作業60%削減（月10時間→4時間）"
+    "roi": "60% reduction in accounting work (10 hours/month → 4 hours)"
 }
 
-# 実践例5: 競合モニタリング
+# Example 5: Competitor monitoring
 workflow_5 = {
-    "name": "競合サイト変更検知と分析",
+    "name": "Competitor Site Change Detection and Analysis",
     "platform": "Make",
-    "setup_time": "1.5時間",
+    "setup_time": "1.5 hours",
     "monthly_cost": "$30",
     "flow": [
-        "競合サイト定期チェック → 変更検知 → Claude分析 → レポート生成 → Slack通知",
+        "Periodic competitor site check → Change detection → Claude analysis → Report generation → Slack notification",
     ],
-    "roi": "競合分析の手動工数95%削減"
+    "roi": "95% reduction in manual competitor analysis effort"
 }
 ```
 
 ---
 
-## 3. AI統合アーキテクチャパターン
+## 3. AI Integration Architecture Patterns
 
-### 3.1 3つの基本パターン
+### 3.1 Three Basic Patterns
 
 ```
-パターン1: API直接呼び出し型
-┌──────┐     ┌──────────┐     ┌──────┐
-│ App  │────▶│ AI API   │────▶│ 結果  │
-│      │◀────│(GPT/Claude)◀────│      │
-└──────┘     └──────────┘     └──────┘
-  シンプル、低レイテンシ、単一タスク向き
+Pattern 1: Direct API Call
+┌──────┐     ┌──────────┐     ┌──────────┐
+│ App  │────▶│ AI API   │────▶│ Result   │
+│      │◀────│(GPT/Claude)◀────│          │
+└──────┘     └──────────┘     └──────────┘
+  Simple, low latency, suited for single tasks
 
-パターン2: パイプライン型
-┌──────┐   ┌──────┐   ┌──────┐   ┌──────┐
-│入力  │──▶│前処理│──▶│AI推論│──▶│後処理│──▶ 出力
-└──────┘   └──────┘   └──────┘   └──────┘
-  段階処理、品質管理、複雑なタスク向き
+Pattern 2: Pipeline
+┌──────┐   ┌───────────┐   ┌──────────┐   ┌──────────────┐
+│Input │──▶│Pre-process│──▶│AI Infer. │──▶│Post-process  │──▶ Output
+└──────┘   └───────────┘   └──────────┘   └──────────────┘
+  Step-by-step processing, quality control, suited for complex tasks
 
-パターン3: エージェント型
-              ┌──────────┐
-              │ 計画Agent │
-              └────┬─────┘
-         ┌────────┼────────┐
-    ┌────▼───┐ ┌──▼───┐ ┌──▼────┐
-    │検索Agent│ │分析   │ │実行   │
-    └────────┘ │Agent  │ │Agent  │
-               └───────┘ └───────┘
-  自律的、複雑な意思決定、高度なタスク向き
+Pattern 3: Agent-Based
+              ┌──────────────┐
+              │ Planner Agent │
+              └──────┬───────┘
+         ┌──────────┼──────────┐
+    ┌────▼────┐ ┌───▼────┐ ┌───▼──────┐
+    │Searcher │ │Analyzer│ │Executor  │
+    │Agent    │ │Agent   │ │Agent     │
+    └─────────┘ └────────┘ └──────────┘
+  Autonomous, complex decision-making, suited for advanced tasks
 ```
 
-### 3.2 パイプライン実装例
+### 3.2 Pipeline Implementation Example
 
 ```python
 from typing import Any
@@ -402,7 +402,7 @@ import openai
 import json
 
 class AIAutomationPipeline:
-    """AI自動化パイプラインの基本実装"""
+    """Basic implementation of an AI automation pipeline"""
 
     def __init__(self, api_key: str):
         self.client = openai.OpenAI(api_key=api_key)
@@ -410,16 +410,16 @@ class AIAutomationPipeline:
 
     def add_step(self, name: str, prompt_template: str,
                  model: str = "gpt-4") -> "AIAutomationPipeline":
-        """パイプラインにステップを追加"""
+        """Add a step to the pipeline"""
         self.steps.append({
             "name": name,
             "prompt_template": prompt_template,
             "model": model
         })
-        return self  # メソッドチェーン対応
+        return self  # Support method chaining
 
     def execute(self, input_data: dict[str, Any]) -> list[dict]:
-        """パイプラインを実行"""
+        """Execute the pipeline"""
         results = []
         context = input_data.copy()
 
@@ -435,30 +435,30 @@ class AIAutomationPipeline:
 
         return results
 
-# 使用例
+# Usage example
 pipeline = AIAutomationPipeline(api_key="sk-...")
 pipeline.add_step(
     name="summary",
-    prompt_template="以下の文書を3行で要約:\n{document}"
+    prompt_template="Summarize the following document in 3 lines:\n{document}"
 ).add_step(
     name="action_items",
-    prompt_template="要約: {summary}\n\nアクションアイテムを抽出:"
+    prompt_template="Summary: {summary}\n\nExtract action items:"
 ).add_step(
     name="priority",
-    prompt_template="アクション: {action_items}\n\n優先度を判定(高/中/低):"
+    prompt_template="Actions: {action_items}\n\nDetermine priority (high/medium/low):"
 )
 
-results = pipeline.execute({"document": "長い会議議事録..."})
+results = pipeline.execute({"document": "Long meeting minutes..."})
 ```
 
-### 3.3 エラーハンドリングとリトライ
+### 3.3 Error Handling and Retry
 
 ```python
 import time
 from functools import wraps
 
 def with_retry(max_retries: int = 3, backoff_factor: float = 2.0):
-    """AI API呼び出しのリトライデコレータ"""
+    """Retry decorator for AI API calls"""
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -468,7 +468,7 @@ def with_retry(max_retries: int = 3, backoff_factor: float = 2.0):
                     return func(*args, **kwargs)
                 except openai.RateLimitError:
                     wait = backoff_factor ** attempt
-                    print(f"レート制限。{wait}秒後にリトライ...")
+                    print(f"Rate limit hit. Retrying in {wait} seconds...")
                     time.sleep(wait)
                 except openai.APIError as e:
                     last_exception = e
@@ -481,7 +481,7 @@ def with_retry(max_retries: int = 3, backoff_factor: float = 2.0):
 
 @with_retry(max_retries=3)
 def call_ai(prompt: str) -> str:
-    """リトライ付きAI呼び出し"""
+    """AI call with retry"""
     response = client.chat.completions.create(
         model="gpt-4",
         messages=[{"role": "user", "content": prompt}]
@@ -489,9 +489,9 @@ def call_ai(prompt: str) -> str:
     return response.choices[0].message.content
 ```
 
-### 3.4 マルチプロバイダーフォールバック
+### 3.4 Multi-Provider Fallback
 
-単一のAI APIに依存すると、障害時にシステム全体が停止するリスクがある。複数プロバイダーのフォールバック戦略は本番運用で必須となる。
+Relying on a single AI API risks bringing the entire system down during an outage. A multi-provider fallback strategy is essential for production operations.
 
 ```python
 import time
@@ -511,7 +511,7 @@ class AIProvider:
     circuit_breaker_timeout: float = 60.0
 
 class MultiProviderAI:
-    """マルチプロバイダーAI呼び出しエンジン"""
+    """Multi-provider AI call engine"""
 
     def __init__(self):
         self.providers = {
@@ -523,7 +523,7 @@ class MultiProviderAI:
         self.anthropic_client = anthropic.Anthropic()
 
     def call(self, prompt: str, max_tokens: int = 1024) -> dict:
-        """フォールバック付きAI呼び出し"""
+        """AI call with fallback"""
         sorted_providers = sorted(
             self.providers.values(),
             key=lambda p: p.priority
@@ -537,7 +537,7 @@ class MultiProviderAI:
                 result = self._call_provider(
                     provider.name, prompt, max_tokens
                 )
-                # 成功時: エラーカウントリセット
+                # On success: reset error count
                 provider.error_count = 0
                 provider.is_healthy = True
                 return {
@@ -550,15 +550,15 @@ class MultiProviderAI:
                 provider.last_error_time = time.time()
                 if provider.error_count >= provider.circuit_breaker_threshold:
                     provider.is_healthy = False
-                print(f"[{provider.name}] エラー: {e}、次のプロバイダーへ")
+                print(f"[{provider.name}] Error: {e}, switching to next provider")
 
-        raise Exception("全プロバイダーが応答不可")
+        raise Exception("All providers are unavailable")
 
     def _is_available(self, provider: AIProvider) -> bool:
-        """サーキットブレーカーチェック"""
+        """Circuit breaker check"""
         if provider.is_healthy:
             return True
-        # タイムアウト後に復帰を試みる
+        # Attempt recovery after timeout
         elapsed = time.time() - provider.last_error_time
         if elapsed > provider.circuit_breaker_timeout:
             provider.is_healthy = True
@@ -568,7 +568,7 @@ class MultiProviderAI:
 
     def _call_provider(self, name: str, prompt: str,
                        max_tokens: int) -> str:
-        """プロバイダー別のAPI呼び出し"""
+        """API call per provider"""
         if name in ("openai", "openai_fallback"):
             model = "gpt-4o" if name == "openai" else "gpt-4o-mini"
             response = self.openai_client.chat.completions.create(
@@ -586,21 +586,21 @@ class MultiProviderAI:
             return response.content[0].text
         raise ValueError(f"Unknown provider: {name}")
 
-# 使用例
+# Usage example
 ai = MultiProviderAI()
-result = ai.call("売上データを3行で要約してください")
-print(f"使用プロバイダー: {result['provider']}")
-print(f"結果: {result['content']}")
+result = ai.call("Please summarize the sales data in 3 lines")
+print(f"Provider used: {result['provider']}")
+print(f"Result: {result['content']}")
 ```
 
-### 3.5 エージェント型アーキテクチャの詳細設計
+### 3.5 Detailed Design of Agent-Based Architecture
 
 ```python
 from abc import ABC, abstractmethod
 from typing import Any
 
 class BaseAgent(ABC):
-    """エージェントの基底クラス"""
+    """Base class for agents"""
 
     def __init__(self, name: str, model: str = "gpt-4o"):
         self.name = name
@@ -609,28 +609,28 @@ class BaseAgent(ABC):
 
     @abstractmethod
     def execute(self, task: dict) -> dict:
-        """タスクを実行（サブクラスで実装）"""
+        """Execute a task (implemented in subclass)"""
         pass
 
     def add_to_memory(self, item: dict):
-        """メモリに追加"""
+        """Add to memory"""
         self.memory.append(item)
 
 class PlannerAgent(BaseAgent):
-    """計画エージェント: タスクを分解して実行計画を立てる"""
+    """Planner agent: Breaks down tasks and creates an execution plan"""
 
     def execute(self, task: dict) -> dict:
         prompt = f"""
-タスク: {task['description']}
+Task: {task['description']}
 
-このタスクを実行するために必要なステップを分解してください。
-各ステップには以下を含めてください:
-- step_name: ステップ名
-- agent_type: 実行するエージェント（searcher/analyzer/executor）
-- input: 必要な入力
-- expected_output: 期待する出力
+Break down the steps needed to execute this task.
+Each step should include:
+- step_name: name of the step
+- agent_type: the agent to execute it (searcher/analyzer/executor)
+- input: required input
+- expected_output: expected output
 
-JSON配列で返してください。
+Return as a JSON array.
 """
         response = call_ai(prompt)
         plan = json.loads(response)
@@ -638,43 +638,43 @@ JSON配列で返してください。
         return {"plan": plan, "status": "planned"}
 
 class SearcherAgent(BaseAgent):
-    """検索エージェント: 情報を検索・収集する"""
+    """Searcher agent: Searches and collects information"""
 
     def execute(self, task: dict) -> dict:
         prompt = f"""
-検索タスク: {task['description']}
-検索対象: {task.get('source', '一般知識')}
+Search task: {task['description']}
+Search target: {task.get('source', 'general knowledge')}
 
-以下の情報を収集してください:
+Please collect the following information:
 {task.get('query', '')}
 
-構造化されたJSON形式で結果を返してください。
+Return the results in structured JSON format.
 """
         response = call_ai(prompt)
         self.add_to_memory({"task": task, "result": response})
         return {"findings": response, "status": "completed"}
 
 class AnalyzerAgent(BaseAgent):
-    """分析エージェント: データを分析して洞察を生成する"""
+    """Analyzer agent: Analyzes data and generates insights"""
 
     def execute(self, task: dict) -> dict:
         prompt = f"""
-分析タスク: {task['description']}
-入力データ: {task.get('data', '')}
+Analysis task: {task['description']}
+Input data: {task.get('data', '')}
 
-以下の観点で分析してください:
-1. 主要な発見
-2. リスクと機会
-3. 推奨アクション
+Please analyze from the following perspectives:
+1. Key findings
+2. Risks and opportunities
+3. Recommended actions
 
-JSON形式で返してください。
+Return in JSON format.
 """
         response = call_ai(prompt)
         self.add_to_memory({"task": task, "analysis": response})
         return {"analysis": response, "status": "completed"}
 
 class MultiAgentOrchestrator:
-    """マルチエージェントのオーケストレーター"""
+    """Orchestrator for multi-agent systems"""
 
     def __init__(self):
         self.agents = {
@@ -685,13 +685,13 @@ class MultiAgentOrchestrator:
         self.execution_log: list[dict] = []
 
     def execute_task(self, description: str) -> dict:
-        """タスクの計画→実行→結果統合"""
-        # Step 1: 計画
+        """Plan → Execute → Integrate results for a task"""
+        # Step 1: Plan
         plan_result = self.agents["planner"].execute(
             {"description": description}
         )
 
-        # Step 2: 計画に従って各エージェントを実行
+        # Step 2: Execute each agent according to the plan
         results = []
         for step in plan_result["plan"]:
             agent_type = step["agent_type"]
@@ -715,74 +715,74 @@ class MultiAgentOrchestrator:
             "execution_log": self.execution_log
         }
 
-# 使用例
+# Usage example
 orchestrator = MultiAgentOrchestrator()
 result = orchestrator.execute_task(
-    "競合3社のAI SaaS製品を調査し、自社プロダクトの差別化ポイントを分析"
+    "Research 3 competing AI SaaS products and analyze differentiation points for our product"
 )
 ```
 
 ---
 
-## 4. 導入ステップとROI評価
+## 4. Implementation Steps and ROI Evaluation
 
-### 4.1 自動化ROI計算フレームワーク
+### 4.1 Automation ROI Calculation Framework
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│              自動化ROI計算シート                          │
+│              Automation ROI Calculation Sheet            │
 ├─────────────────────────────────────────────────────────┤
 │                                                         │
-│  ■ コスト（月額）                                        │
-│    ツール費用        : ¥50,000                           │
-│    API利用料         : ¥30,000                           │
-│    開発・保守工数    : ¥100,000 (20h × ¥5,000)          │
+│  ■ Costs (monthly)                                      │
+│    Tool fees            : ¥50,000                       │
+│    API usage fees       : ¥30,000                       │
+│    Development/maint.   : ¥100,000 (20h × ¥5,000)      │
 │    ─────────────────────────────                        │
-│    合計コスト        : ¥180,000/月                       │
+│    Total costs          : ¥180,000/month                │
 │                                                         │
-│  ■ 効果（月額）                                          │
-│    削減工数          : 80h × ¥3,000 = ¥240,000          │
-│    エラー削減        : 月5件 × ¥20,000 = ¥100,000       │
-│    顧客満足度向上    : 解約率-2% ≒ ¥50,000              │
+│  ■ Benefits (monthly)                                   │
+│    Hours saved          : 80h × ¥3,000 = ¥240,000      │
+│    Error reduction      : 5 cases/month × ¥20,000 = ¥100,000 │
+│    Customer satisfaction: churn rate -2% ≒ ¥50,000     │
 │    ─────────────────────────────                        │
-│    合計効果          : ¥390,000/月                       │
+│    Total benefits       : ¥390,000/month                │
 │                                                         │
 │  ■ ROI = (390,000 - 180,000) / 180,000 = 116%          │
-│  ■ 投資回収期間 ≒ 0.9ヶ月                               │
+│  ■ Payback period ≒ 0.9 months                          │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 段階的導入ロードマップ
+### 4.2 Phased Implementation Roadmap
 
 ```python
-# 導入フェーズの定義
+# Definition of implementation phases
 roadmap = {
-    "Phase 1 (1-2週間)": {
-        "目標": "クイックウィン獲得",
-        "対象": "メール自動分類、定型回答生成",
-        "ツール": "Zapier + OpenAI",
-        "KPI": "対応時間 50% 削減"
+    "Phase 1 (1-2 weeks)": {
+        "goal": "Achieve quick wins",
+        "target": "Email auto-classification, canned response generation",
+        "tools": "Zapier + OpenAI",
+        "kpi": "50% reduction in response time"
     },
-    "Phase 2 (1-2ヶ月)": {
-        "目標": "部門横断自動化",
-        "対象": "契約書レビュー、レポート生成",
-        "ツール": "n8n + Claude API",
-        "KPI": "月間 100時間削減"
+    "Phase 2 (1-2 months)": {
+        "goal": "Cross-departmental automation",
+        "target": "Contract review, report generation",
+        "tools": "n8n + Claude API",
+        "kpi": "100 hours saved per month"
     },
-    "Phase 3 (3-6ヶ月)": {
-        "目標": "戦略的AI統合",
-        "対象": "顧客対応エージェント、予測分析",
-        "ツール": "カスタムパイプライン",
-        "KPI": "売上 20% 向上"
+    "Phase 3 (3-6 months)": {
+        "goal": "Strategic AI integration",
+        "target": "Customer support agent, predictive analytics",
+        "tools": "Custom pipeline",
+        "kpi": "20% revenue increase"
     }
 }
 ```
 
-### 4.3 ROI計算の自動化ツール
+### 4.3 ROI Calculation Automation Tool
 
 ```python
 class AutomationROICalculator:
-    """AI自動化のROI自動計算エンジン"""
+    """Automated ROI calculation engine for AI automation"""
 
     def __init__(self):
         self.cost_items: list[dict] = []
@@ -791,7 +791,7 @@ class AutomationROICalculator:
 
     def add_cost(self, name: str, monthly_amount: float,
                  category: str = "operational"):
-        """月次コスト項目を追加"""
+        """Add a monthly cost item"""
         self.cost_items.append({
             "name": name,
             "amount": monthly_amount,
@@ -801,7 +801,7 @@ class AutomationROICalculator:
     def add_benefit(self, name: str, monthly_amount: float,
                     category: str = "cost_reduction",
                     confidence: float = 0.8):
-        """月次効果項目を追加（信頼度付き）"""
+        """Add a monthly benefit item (with confidence level)"""
         self.benefit_items.append({
             "name": name,
             "amount": monthly_amount,
@@ -810,11 +810,11 @@ class AutomationROICalculator:
         })
 
     def set_implementation_cost(self, amount: float):
-        """初期導入コストを設定"""
+        """Set the initial implementation cost"""
         self.implementation_cost = amount
 
     def calculate(self) -> dict:
-        """ROI計算"""
+        """Calculate ROI"""
         monthly_cost = sum(item["amount"] for item in self.cost_items)
         monthly_benefit = sum(
             item["amount"] * item["confidence"]
@@ -822,13 +822,13 @@ class AutomationROICalculator:
         )
         monthly_net = monthly_benefit - monthly_cost
 
-        # 投資回収期間
+        # Payback period
         payback_months = (
             self.implementation_cost / monthly_net
             if monthly_net > 0 else float('inf')
         )
 
-        # 1年間のROI
+        # Year 1 ROI
         year1_total_benefit = monthly_benefit * 12
         year1_total_cost = monthly_cost * 12 + self.implementation_cost
         year1_roi = (
@@ -836,7 +836,7 @@ class AutomationROICalculator:
             if year1_total_cost > 0 else 0
         )
 
-        # 3年間NPV（割引率8%）
+        # 3-year NPV (8% discount rate)
         discount_rate = 0.08
         npv = -self.implementation_cost
         for month in range(1, 37):
@@ -857,120 +857,120 @@ class AutomationROICalculator:
         }
 
     def _get_recommendation(self, roi: float, payback: float) -> str:
-        """投資判断の推奨"""
+        """Investment decision recommendation"""
         if roi > 200 and payback < 3:
-            return "強く推奨: ROI非常に高く、投資回収も早い"
+            return "Strongly recommended: Very high ROI and fast payback"
         elif roi > 100 and payback < 6:
-            return "推奨: 健全なROIと合理的な投資回収期間"
+            return "Recommended: Healthy ROI and reasonable payback period"
         elif roi > 50 and payback < 12:
-            return "条件付き推奨: ROIは正だが慎重に進めるべき"
+            return "Conditionally recommended: ROI is positive but proceed carefully"
         elif roi > 0:
-            return "要検討: ROIは正だがリスク要因を精査すべき"
+            return "Needs consideration: ROI is positive but risk factors should be examined"
         else:
-            return "非推奨: 現時点ではコストが効果を上回る"
+            return "Not recommended: Costs currently outweigh benefits"
 
     def generate_report(self) -> str:
-        """レポート生成"""
+        """Generate report"""
         result = self.calculate()
         report = f"""
-=== AI自動化 ROI分析レポート ===
+=== AI Automation ROI Analysis Report ===
 
-■ 月次コスト: ¥{result['monthly_cost']:,.0f}
+■ Monthly costs: ¥{result['monthly_cost']:,.0f}
 """
         for item in self.cost_items:
             report += f"  - {item['name']}: ¥{item['amount']:,.0f}\n"
 
         report += f"""
-■ 月次効果（リスク調整済み）: ¥{result['monthly_benefit']:,.0f}
+■ Monthly benefits (risk-adjusted): ¥{result['monthly_benefit']:,.0f}
 """
         for item in self.benefit_items:
             adjusted = item['amount'] * item['confidence']
-            report += f"  - {item['name']}: ¥{adjusted:,.0f} (信頼度{item['confidence']*100:.0f}%)\n"
+            report += f"  - {item['name']}: ¥{adjusted:,.0f} (confidence {item['confidence']*100:.0f}%)\n"
 
         report += f"""
-■ 月次純効果: ¥{result['monthly_net']:,.0f}
-■ 初期投資: ¥{result['implementation_cost']:,.0f}
-■ 投資回収期間: {result['payback_months']}ヶ月
-■ 初年度ROI: {result['year1_roi_percent']}%
-■ 3年NPV: ¥{result['npv_3years']:,.0f}
+■ Monthly net benefit: ¥{result['monthly_net']:,.0f}
+■ Initial investment: ¥{result['implementation_cost']:,.0f}
+■ Payback period: {result['payback_months']} months
+■ Year 1 ROI: {result['year1_roi_percent']}%
+■ 3-year NPV: ¥{result['npv_3years']:,.0f}
 
-■ 判定: {result['recommendation']}
+■ Verdict: {result['recommendation']}
 """
         return report
 
-# 使用例
+# Usage example
 calc = AutomationROICalculator()
-calc.set_implementation_cost(500000)  # 初期導入50万円
+calc.set_implementation_cost(500000)  # Initial implementation cost: ¥500K
 calc.add_cost("Zapier Pro", 5000)
 calc.add_cost("OpenAI API", 30000)
-calc.add_cost("保守工数", 50000)
-calc.add_benefit("メール対応工数削減", 120000, confidence=0.9)
-calc.add_benefit("レポート作成自動化", 80000, confidence=0.85)
-calc.add_benefit("エラー削減", 50000, confidence=0.7)
+calc.add_cost("Maintenance hours", 50000)
+calc.add_benefit("Email handling hours saved", 120000, confidence=0.9)
+calc.add_benefit("Report creation automation", 80000, confidence=0.85)
+calc.add_benefit("Error reduction", 50000, confidence=0.7)
 
 print(calc.generate_report())
 ```
 
-### 4.4 業種別ROI比較
+### 4.4 ROI Comparison by Industry
 
-| 業種 | 主要自動化対象 | 月次削減額 | 月次コスト | ROI | 回収期間 |
-|------|-------------|----------|----------|-----|---------|
-| IT/SaaS | カスタマーサポート | ¥400K | ¥120K | 233% | 2ヶ月 |
-| 不動産 | 物件査定・書類作成 | ¥300K | ¥80K | 275% | 1.5ヶ月 |
-| 法務 | 契約書レビュー | ¥500K | ¥150K | 233% | 3ヶ月 |
-| マーケティング | コンテンツ生成 | ¥350K | ¥100K | 250% | 2ヶ月 |
-| 人事 | 書類選考・面接調整 | ¥250K | ¥70K | 257% | 2ヶ月 |
-| 経理 | 請求書処理・仕訳 | ¥200K | ¥60K | 233% | 2.5ヶ月 |
-| 製造 | 品質検査レポート | ¥300K | ¥100K | 200% | 3ヶ月 |
+| Industry | Primary Automation Target | Monthly Savings | Monthly Cost | ROI | Payback |
+|----------|--------------------------|----------------|-------------|-----|---------|
+| IT/SaaS | Customer support | ¥400K | ¥120K | 233% | 2 months |
+| Real estate | Property valuation / document creation | ¥300K | ¥80K | 275% | 1.5 months |
+| Legal | Contract review | ¥500K | ¥150K | 233% | 3 months |
+| Marketing | Content generation | ¥350K | ¥100K | 250% | 2 months |
+| HR | Resume screening / interview scheduling | ¥250K | ¥70K | 257% | 2 months |
+| Accounting | Invoice processing / bookkeeping | ¥200K | ¥60K | 233% | 2.5 months |
+| Manufacturing | Quality inspection reports | ¥300K | ¥100K | 200% | 3 months |
 
 ---
 
-## 5. セキュリティとガバナンス
+## 5. Security and Governance
 
-### 5.1 AI自動化のセキュリティアーキテクチャ
+### 5.1 Security Architecture for AI Automation
 
 ```
-AI自動化のセキュリティレイヤー:
+Security Layers for AI Automation:
 
   ┌─────────────────────────────────────────────┐
-  │ Layer 1: 入力検証                             │
+  │ Layer 1: Input Validation                    │
   │ ┌─────────────────────────────────────────┐ │
-  │ │ PII検出・マスキング                      │ │
-  │ │ プロンプトインジェクション検知            │ │
-  │ │ 入力サイズ制限                           │ │
+  │ │ PII detection and masking               │ │
+  │ │ Prompt injection detection              │ │
+  │ │ Input size limits                       │ │
   │ └─────────────────────────────────────────┘ │
   ├─────────────────────────────────────────────┤
-  │ Layer 2: API通信                              │
+  │ Layer 2: API Communication                   │
   │ ┌─────────────────────────────────────────┐ │
-  │ │ TLS 1.3暗号化                            │ │
-  │ │ APIキーのVault管理                       │ │
-  │ │ レート制限・クォータ管理                  │ │
+  │ │ TLS 1.3 encryption                      │ │
+  │ │ API key Vault management                │ │
+  │ │ Rate limiting and quota management      │ │
   │ └─────────────────────────────────────────┘ │
   ├─────────────────────────────────────────────┤
-  │ Layer 3: 出力検証                             │
+  │ Layer 3: Output Validation                   │
   │ ┌─────────────────────────────────────────┐ │
-  │ │ ハルシネーション検出                     │ │
-  │ │ 有害コンテンツフィルタリング              │ │
-  │ │ ファクトチェック（重要データ）            │ │
+  │ │ Hallucination detection                 │ │
+  │ │ Harmful content filtering               │ │
+  │ │ Fact-checking (critical data)           │ │
   │ └─────────────────────────────────────────┘ │
   ├─────────────────────────────────────────────┤
-  │ Layer 4: 監査ログ                             │
+  │ Layer 4: Audit Logs                          │
   │ ┌─────────────────────────────────────────┐ │
-  │ │ 全API呼び出しのログ記録                  │ │
-  │ │ ユーザーアクションのトレース              │ │
-  │ │ コスト・品質メトリクスの可視化            │ │
+  │ │ Logging of all API calls                │ │
+  │ │ Tracing of user actions                 │ │
+  │ │ Visibility into cost and quality metrics│ │
   │ └─────────────────────────────────────────┘ │
   └─────────────────────────────────────────────┘
 ```
 
-### 5.2 PIIマスキングの実装
+### 5.2 PII Masking Implementation
 
 ```python
 import re
 from typing import Optional
 
 class PIIMasker:
-    """個人情報の検出とマスキング"""
+    """Detection and masking of personally identifiable information"""
 
     PATTERNS = {
         "email": r'[\w.-]+@[\w.-]+\.\w+',
@@ -982,7 +982,7 @@ class PIIMasker:
     }
 
     def mask(self, text: str) -> tuple[str, dict]:
-        """テキスト中のPIIをマスク"""
+        """Mask PII in text"""
         masked = text
         found_pii = {}
 
@@ -998,121 +998,121 @@ class PIIMasker:
 
     def is_safe_for_api(self, text: str,
                          threshold: int = 0) -> tuple[bool, dict]:
-        """APIに送信して安全か判定"""
+        """Determine whether it is safe to send to an API"""
         _, found_pii = self.mask(text)
         total_pii = sum(found_pii.values())
         return total_pii <= threshold, found_pii
 
-# 使用例
+# Usage example
 masker = PIIMasker()
-text = "田中太郎さん（tanaka@example.com）の電話番号は03-1234-5678です"
+text = "Mr. Taro Tanaka (tanaka@example.com) can be reached at 03-1234-5678"
 masked, pii_found = masker.mask(text)
 print(masked)
-# → [NAME_JP_1]さん（[EMAIL_1]）の電話番号は[PHONE_JP_1]です
+# → [NAME_JP_1] ([EMAIL_1]) can be reached at [PHONE_JP_1]
 print(pii_found)
 # → {'name_jp': 1, 'email': 1, 'phone_jp': 1}
 ```
 
-### 5.3 AI自動化ガバナンスチェックリスト
+### 5.3 AI Automation Governance Checklist
 
-| チェック項目 | 重要度 | 対策 | 確認頻度 |
-|------------|--------|------|---------|
-| PII保護 | 最高 | マスキング + 暗号化 | 毎回 |
-| プロンプトインジェクション対策 | 最高 | 入力バリデーション | 毎回 |
-| APIキー管理 | 最高 | Vault/環境変数、ローテーション | 月次 |
-| 出力品質モニタリング | 高 | サンプリング検査 | 週次 |
-| コスト上限設定 | 高 | API使用量アラート | 日次 |
-| アクセスログ | 高 | 全操作のログ記録 | リアルタイム |
-| データ保持ポリシー | 中 | TTL設定、定期削除 | 月次 |
-| 障害復旧計画 | 中 | フォールバック先の確認 | 四半期 |
-| コンプライアンス | 中 | 規制変更の確認 | 四半期 |
+| Check Item | Importance | Countermeasure | Frequency |
+|-----------|-----------|----------------|-----------|
+| PII protection | Highest | Masking + encryption | Every time |
+| Prompt injection countermeasures | Highest | Input validation | Every time |
+| API key management | Highest | Vault/env vars, rotation | Monthly |
+| Output quality monitoring | High | Sampling inspection | Weekly |
+| Cost cap settings | High | API usage alerts | Daily |
+| Access logs | High | Log all operations | Real-time |
+| Data retention policy | Medium | TTL settings, periodic deletion | Monthly |
+| Disaster recovery plan | Medium | Confirm fallback options | Quarterly |
+| Compliance | Medium | Monitor regulatory changes | Quarterly |
 
 ---
 
-## 6. 組織変革マネジメント
+## 6. Organizational Change Management
 
-### 6.1 AI自動化導入の組織的課題
+### 6.1 Organizational Challenges in AI Automation Adoption
 
-技術的な実装以上に、組織の変革が成否を分ける。AI自動化プロジェクトの失敗原因の70%は技術ではなく、組織的な要因である。
+Organizational transformation is more decisive than technical implementation. 70% of AI automation project failures stem from organizational rather than technical factors.
 
 ```
-AI自動化プロジェクトの失敗原因（業界調査）:
+Causes of AI Automation Project Failure (Industry Survey):
 
-  70% ──────────────────────── 組織的要因
-  │ ● 現場の抵抗（29%）
-  │ ● 経営層の理解不足（18%）
-  │ ● スキル不足（14%）
-  │ ● 不明確なKPI（9%）
+  70% ──────────────────────── Organizational factors
+  │ ● Resistance from staff (29%)
+  │ ● Lack of management understanding (18%)
+  │ ● Skill gaps (14%)
+  │ ● Unclear KPIs (9%)
   │
-  30% ──────── 技術的要因
-    ● データ品質（12%）
-    ● 精度不足（10%）
-    ● スケーラビリティ（8%）
+  30% ──────── Technical factors
+    ● Data quality (12%)
+    ● Insufficient accuracy (10%)
+    ● Scalability (8%)
 ```
 
-### 6.2 変革管理フレームワーク
+### 6.2 Change Management Framework
 
 ```python
 class ChangeManagementPlan:
-    """AI自動化の組織変革管理計画"""
+    """Organizational change management plan for AI automation"""
 
     PHASES = {
         "awareness": {
-            "name": "認知フェーズ",
-            "duration": "2-4週間",
+            "name": "Awareness Phase",
+            "duration": "2-4 weeks",
             "activities": [
-                "経営層へのAI自動化ブリーフィング",
-                "部門長向けワークショップ",
-                "全社向けAI活用事例の共有",
-                "FAQ作成と社内公開"
+                "AI automation briefing for senior management",
+                "Workshop for department heads",
+                "Company-wide sharing of AI use cases",
+                "FAQ creation and internal publication"
             ],
-            "key_message": "AIは仕事を奪うのではなく、退屈な作業を引き受けてくれるパートナー",
-            "success_criteria": "80%の社員がAI自動化の目的を理解"
+            "key_message": "AI is not here to take jobs — it's a partner that handles tedious work",
+            "success_criteria": "80% of employees understand the purpose of AI automation"
         },
         "involvement": {
-            "name": "巻き込みフェーズ",
-            "duration": "2-4週間",
+            "name": "Involvement Phase",
+            "duration": "2-4 weeks",
             "activities": [
-                "各部門からチャンピオンを選出",
-                "自動化候補業務のワークショップ",
-                "小規模パイロットの実施",
-                "成功体験の社内共有"
+                "Select champions from each department",
+                "Workshop to identify automation candidate tasks",
+                "Conduct small-scale pilots",
+                "Share success stories internally"
             ],
-            "key_message": "あなたの業務を最もよく知るのはあなた。改善提案を歓迎します",
-            "success_criteria": "各部門から1名以上のチャンピオン選出"
+            "key_message": "You know your work best. Improvement suggestions are welcome",
+            "success_criteria": "At least one champion selected from each department"
         },
         "execution": {
-            "name": "実行フェーズ",
-            "duration": "1-3ヶ月",
+            "name": "Execution Phase",
+            "duration": "1-3 months",
             "activities": [
-                "本格的な自動化ワークフロー構築",
-                "トレーニングプログラムの実施",
-                "週次レビューと改善",
-                "成功事例のドキュメント化"
+                "Build full-scale automation workflows",
+                "Run training programs",
+                "Weekly reviews and improvements",
+                "Document success stories"
             ],
-            "key_message": "段階的に進め、問題があればすぐに調整します",
-            "success_criteria": "パイロット部門で目標KPIの80%達成"
+            "key_message": "We proceed step by step and adjust quickly if issues arise",
+            "success_criteria": "Pilot department achieves 80% of target KPIs"
         },
         "optimization": {
-            "name": "最適化フェーズ",
-            "duration": "継続",
+            "name": "Optimization Phase",
+            "duration": "Ongoing",
             "activities": [
-                "全社展開の計画策定",
-                "ROIレポートの定期公開",
-                "新しい自動化候補の継続的発掘",
-                "ベストプラクティスの標準化"
+                "Plan company-wide rollout",
+                "Publish periodic ROI reports",
+                "Continuously identify new automation candidates",
+                "Standardize best practices"
             ],
-            "key_message": "AI自動化は導入で終わりではなく、継続的な改善プロセス",
-            "success_criteria": "年間でROI 200%以上を維持"
+            "key_message": "AI automation is not finished at launch — it is a continuous improvement process",
+            "success_criteria": "Maintain ROI of 200%+ annually"
         }
     }
 
     def generate_plan(self, company_size: str) -> dict:
-        """会社規模に応じた変革管理計画を生成"""
+        """Generate a change management plan based on company size"""
         timeline_multiplier = {
-            "startup": 0.5,     # スタートアップは速い
-            "smb": 1.0,         # 中小企業は標準
-            "enterprise": 2.0   # 大企業は時間がかかる
+            "startup": 0.5,     # Startups move fast
+            "smb": 1.0,         # SMBs are standard
+            "enterprise": 2.0   # Large enterprises take more time
         }
 
         multiplier = timeline_multiplier.get(company_size, 1.0)
@@ -1129,43 +1129,43 @@ class ChangeManagementPlan:
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン1: 「全部自動化」症候群
+### Anti-Pattern 1: "Automate Everything" Syndrome
 
 ```python
-# BAD: 判断が必要な業務まで無理に自動化
+# BAD: Forcing automation even for tasks that require judgment
 def auto_approve_all_contracts(contract):
-    """全契約を自動承認 — 危険！"""
-    ai_review = call_ai(f"この契約を承認すべきか: {contract}")
-    if "承認" in ai_review:
-        approve(contract)  # AIの判断だけで承認してしまう
+    """Auto-approve all contracts — dangerous!"""
+    ai_review = call_ai(f"Should this contract be approved: {contract}")
+    if "approve" in ai_review:
+        approve(contract)  # Approving based solely on AI judgment
 
-# GOOD: AIは補助、最終判断は人間
+# GOOD: AI assists, humans make the final decision
 def ai_assisted_contract_review(contract):
-    """AI支援付き契約レビュー"""
-    risk_analysis = call_ai(f"リスク分析: {contract}")
-    recommendation = call_ai(f"推奨アクション: {contract}")
+    """Contract review with AI assistance"""
+    risk_analysis = call_ai(f"Risk analysis: {contract}")
+    recommendation = call_ai(f"Recommended action: {contract}")
 
     return {
         "risk_analysis": risk_analysis,
         "recommendation": recommendation,
-        "status": "要人間レビュー",  # 必ず人間が確認
+        "status": "Requires human review",  # Human must always verify
         "reviewer": assign_reviewer(contract)
     }
 ```
 
-### アンチパターン2: ベンダーロックイン
+### Anti-Pattern 2: Vendor Lock-In
 
 ```python
-# BAD: 特定プラットフォームに密結合
+# BAD: Tightly coupled to a specific platform
 class ZapierOnlyWorkflow:
     def run(self):
-        zapier.trigger("hook_abc123")  # Zapier固有のAPI
+        zapier.trigger("hook_abc123")  # Zapier-specific API
 
-# GOOD: 抽象化レイヤーで切り替え可能に
+# GOOD: Use an abstraction layer to allow switching
 class AutomationPlatform:
-    """プラットフォーム抽象化"""
+    """Platform abstraction"""
     def trigger_workflow(self, event: dict): ...
     def get_status(self, workflow_id: str): ...
 
@@ -1175,33 +1175,33 @@ class ZapierAdapter(AutomationPlatform):
 class N8nAdapter(AutomationPlatform):
     def trigger_workflow(self, event): ...
 
-# プラットフォーム切り替えが容易
-platform = N8nAdapter()  # Zapier → n8n への移行が1行
+# Easy platform switching
+platform = N8nAdapter()  # Migrating from Zapier to n8n in one line
 platform.trigger_workflow({"type": "new_email"})
 ```
 
-### アンチパターン3: 測定なき自動化
+### Anti-Pattern 3: Automating Without Measurement
 
 ```python
-# BAD: 効果測定なしに自動化を推進
+# BAD: Driving automation without measuring its effect
 def automate_blindly():
-    """効果を測らずに自動化を続ける"""
+    """Continue automating without measuring impact"""
     for process in all_processes:
         automate(process)
-    # → 実は手動の方が速かったプロセスまで自動化
-    # → コストが増えたことに気づかない
+    # → Even processes that were faster manually get automated
+    # → Costs increase without anyone noticing
 
-# GOOD: 導入前後の定量比較を必須にする
+# GOOD: Require quantitative before/after comparison
 def automate_with_measurement(process):
-    """効果測定付き自動化"""
-    # Before: 現状計測
+    """Automation with effect measurement"""
+    # Before: Measure current state
     baseline = measure_process(process)
-    # 処理時間、エラー率、コスト、満足度を記録
+    # Record processing time, error rate, cost, satisfaction
 
-    # 自動化実装
+    # Implement automation
     automated = implement_automation(process)
 
-    # After: 2週間後に効果測定
+    # After: Measure impact after 2 weeks
     result = measure_process(automated)
 
     comparison = {
@@ -1211,142 +1211,142 @@ def automate_with_measurement(process):
         "satisfaction_change": result.satisfaction - baseline.satisfaction,
     }
 
-    # 効果がなければロールバック
+    # Roll back if no improvement
     if comparison["time_reduction"] < 0.2:
         rollback(process)
-        return {"status": "rolled_back", "reason": "効果不十分"}
+        return {"status": "rolled_back", "reason": "Insufficient improvement"}
 
     return {"status": "success", "improvement": comparison}
 ```
 
-### アンチパターン4: 一括導入
+### Anti-Pattern 4: Big-Bang Rollout
 
 ```python
-# BAD: 全部門に同時導入
+# BAD: Deploy to all departments simultaneously
 def big_bang_rollout():
     for department in all_departments:
         deploy_ai_automation(department)
-    # → 全部門で同時に問題発生、サポートが追いつかない
+    # → Issues arise in all departments simultaneously, support can't keep up
 
-# GOOD: 段階的ロールアウト
+# GOOD: Phased rollout
 def phased_rollout():
-    # Phase 1: 最もモチベーションが高い部門
+    # Phase 1: The department with the highest motivation
     pilot = deploy_ai_automation(departments["marketing"])
-    evaluate(pilot)  # 2週間の評価期間
+    evaluate(pilot)  # 2-week evaluation period
 
     if pilot.roi > 100:
-        # Phase 2: 類似業務の部門
+        # Phase 2: Departments with similar work
         wave2 = [departments["sales"], departments["cs"]]
         for dept in wave2:
             deploy_with_lessons_learned(dept, pilot.learnings)
 
-        # Phase 3: 全社展開
+        # Phase 3: Company-wide rollout
         for dept in remaining_departments:
             deploy_with_best_practices(dept)
 ```
 
 ---
 
-## 8. トラブルシューティング
+## 8. Troubleshooting
 
-### 8.1 よくある問題と解決策
+### 8.1 Common Issues and Solutions
 
 ```
-AI自動化 トラブルシューティングフローチャート:
+AI Automation Troubleshooting Flowchart:
 
-  問題: 自動化が期待通りに動かない
+  Problem: Automation is not working as expected
   │
-  ├── AI出力の品質が低い
-  │   ├── プロンプトが曖昧 → 具体的な指示とfew-shotを追加
-  │   ├── 入力データが不適切 → 前処理の改善
-  │   └── モデルが不適合 → タスクに合ったモデルに変更
+  ├── AI output quality is poor
+  │   ├── Prompt is vague → Add specific instructions and few-shot examples
+  │   ├── Input data is inappropriate → Improve pre-processing
+  │   └── Model is unsuitable → Switch to a model suited for the task
   │
-  ├── 処理が遅い
-  │   ├── API応答遅延 → キャッシュ導入、バッチ処理
-  │   ├── 大量データ処理 → 非同期処理、並列実行
-  │   └── ネットワーク遅延 → エッジロケーション検討
+  ├── Processing is slow
+  │   ├── API response delay → Introduce caching, batch processing
+  │   ├── Processing large volumes of data → Async processing, parallel execution
+  │   └── Network latency → Consider edge locations
   │
-  ├── コストが予想を超えている
-  │   ├── 不要なAPI呼び出し → キャッシュ、モデルルーティング
-  │   ├── プロンプトが長すぎる → トークン最適化
-  │   └── ヘビーユーザーの集中 → 使用量制限、段階課金
+  ├── Costs exceed expectations
+  │   ├── Unnecessary API calls → Caching, model routing
+  │   ├── Prompts are too long → Token optimization
+  │   └── Heavy user concentration → Usage limits, tiered billing
   │
-  └── エラーが頻発する
-      ├── API障害 → フォールバック、リトライ
-      ├── データ形式不整合 → バリデーション強化
-      └── 権限不足 → IAM設定の見直し
+  └── Errors are frequent
+      ├── API outage → Fallback, retry
+      ├── Data format mismatch → Strengthen validation
+      └── Insufficient permissions → Review IAM settings
 ```
 
-### 8.2 パフォーマンスチューニングチェックリスト
+### 8.2 Performance Tuning Checklist
 
-| チェック項目 | 目標値 | 対策 |
-|------------|--------|------|
-| API応答時間 | < 3秒 | キャッシュ、軽量モデル |
-| エラー率 | < 1% | リトライ、フォールバック |
-| キャッシュヒット率 | > 30% | セマンティックキャッシュ導入 |
-| 月額APIコスト | 売上の20%以下 | モデルルーティング、プロンプト最適化 |
-| 処理スループット | 目標値の1.5倍 | 非同期処理、並列化 |
-| 可用性 | 99.9% | マルチプロバイダー、ヘルスチェック |
+| Check Item | Target | Countermeasure |
+|-----------|--------|----------------|
+| API response time | < 3 seconds | Caching, lightweight model |
+| Error rate | < 1% | Retry, fallback |
+| Cache hit rate | > 30% | Introduce semantic cache |
+| Monthly API cost | < 20% of revenue | Model routing, prompt optimization |
+| Processing throughput | 1.5x target | Async processing, parallelization |
+| Availability | 99.9% | Multi-provider, health checks |
 
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+Below is a summary of decision criteria for technology selection.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to Prioritize | When to Compromise |
+|-----------|-------------------|--------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① What is the team size?                       │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to ②              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② How often do you deploy?                     │
+│    ├─ Weekly or less → Monolith + modular split  │
+│    └─ Daily/multiple times → Go to ③             │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ How independent are teams from each other?   │
+│    ├─ High → Microservices                       │
+│    └─ Moderate → Modular monolith                │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- Methods that are fast in the short term can become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified tech stack has lower learning costs
+- Adopting diverse technologies enables the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction promotes reusability but can make debugging harder
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Create an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1356,17 +1356,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision made"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1374,7 +1374,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1382,15 +1382,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1399,101 +1399,101 @@ class ArchitectureDecisionRecord:
 
 ## 9. FAQ
 
-### Q1: ノーコードツールとカスタム開発、どちらから始めるべき？
+### Q1: Should I start with no-code tools or custom development?
 
-**A:** まずノーコードツール（Zapier/Make）から始めることを強く推奨する。理由は3つ。(1) 数時間で動くプロトタイプが作れる、(2) ビジネス要件の検証が低コストでできる、(3) 本当に必要な機能が明確になってからカスタム開発に移行すれば無駄がない。目安として月額$200を超えるか、ノーコードの制約に頻繁にぶつかるようになったら移行を検討する。
+**A:** Starting with no-code tools (Zapier/Make) is strongly recommended. There are three reasons: (1) you can build a working prototype in a few hours, (2) you can validate business requirements at low cost, and (3) moving to custom development only after your actual requirements are clear eliminates waste. As a rule of thumb, consider migrating when monthly costs exceed $200 or when you frequently run into no-code limitations.
 
-### Q2: AI自動化のセキュリティリスクは？
+### Q2: What are the security risks of AI automation?
 
-**A:** 主要リスクは3つ。(1) データ漏洩 — 機密データがAI APIに送信される、(2) プロンプトインジェクション — 悪意ある入力でAIの動作を改変される、(3) 幻覚（ハルシネーション） — AIが事実と異なる出力を生成する。対策として、PII（個人情報）のマスキング、入力バリデーション、出力の人間レビューを必ず組み込む。
+**A:** There are three major risks: (1) Data leakage — confidential data is sent to AI APIs, (2) Prompt injection — malicious input alters AI behavior, (3) Hallucination — AI generates output that differs from fact. As countermeasures, always incorporate PII masking, input validation, and human review of output.
 
-### Q3: 小規模チームでも導入効果はある？
+### Q3: Is adoption worthwhile for small teams?
 
-**A:** ある。むしろ小規模チーム（1-5人）こそ効果が大きい。大企業と異なり承認プロセスが少なく即導入でき、一人が複数業務を兼務しているため自動化の恩恵が大きい。実例として、3人のスタートアップがメール対応と請求処理を自動化し、月40時間の削減に成功した事例がある。
+**A:** Yes. In fact, small teams (1-5 people) often benefit the most. Unlike large companies, there are fewer approval processes allowing for immediate adoption, and because individuals handle multiple roles, the benefits of automation are greater. As a real example, a 3-person startup automated email handling and billing, achieving a 40-hour monthly reduction.
 
-### Q4: 既存の業務システム（基幹系）とAI自動化の統合方法は？
+### Q4: How do I integrate AI automation with existing business systems (legacy)?
 
-**A:** 3つのアプローチがある。(1) API連携 — 基幹系にAPIがあればn8n/Zapierから直接連携、(2) RPA+AI — UiPath/Power AutomateでUI操作を自動化し、AI判断を組み込む、(3) データベース直接連携 — 基幹系DBからデータを取得しAI処理して結果を書き戻す。レガシーシステムでAPIがない場合は(2)のRPA+AIが最も現実的。ただしUI変更への脆さがあるため、中長期的にはAPI化を推進すべき。
+**A:** There are three approaches: (1) API integration — if the legacy system has an API, connect directly from n8n/Zapier, (2) RPA + AI — automate UI operations with UiPath/Power Automate and incorporate AI judgment, (3) Direct database integration — retrieve data from the legacy DB, process with AI, and write results back. For legacy systems without an API, (2) RPA + AI is most practical. However, due to vulnerability to UI changes, you should push toward API-ification in the medium to long term.
 
-### Q5: AI自動化の導入を経営層に提案する方法は？
+### Q5: How do I propose AI automation adoption to senior management?
 
-**A:** 経営層は「技術」より「ビジネスインパクト」に興味がある。提案の鉄則は (1) 具体的な金額 — 「月40時間の削減 = 年間480万円の効果」、(2) 競合事例 — 「競合A社はAI導入で顧客対応時間を50%削減」、(3) リスク最小化 — 「初期投資50万円、2ヶ月で投資回収可能。PoC段階でストップ可能」。技術的な詳細（GPT-4、LangChain等）はAppendixに回し、メインスライドはROIとビジネスインパクトに集中する。
+**A:** Management is more interested in "business impact" than "technology." The golden rules for proposals are: (1) Concrete figures — "Saving 40 hours/month = ¥4.8M annual benefit," (2) Competitor examples — "Competitor A reduced customer response time by 50% with AI," (3) Risk minimization — "¥500K initial investment, payback in 2 months. Can stop at PoC stage." Push technical details (GPT-4, LangChain, etc.) to an appendix, and focus the main slides on ROI and business impact.
 
-### Q6: AI自動化の品質管理はどうすべき？
+### Q6: How should quality control for AI automation be handled?
 
-**A:** 3層の品質管理体制を推奨する。(1) 自動検証 — ルールベースの出力チェック（フォーマット、長さ、禁止ワード）、(2) サンプリング監査 — 1日の処理のうち5-10%を人間がランダム確認、(3) ユーザーフィードバック — 「この結果は正確でしたか？」のフィードバックボタンを設置。自動化率が80%を超えたら、残りの20%は人間が対応する「80/20ルール」を基本とする。
+**A:** A three-layer quality management system is recommended: (1) Automated verification — rule-based output checks (format, length, prohibited words), (2) Sampling audit — humans randomly review 5-10% of daily processed items, (3) User feedback — install a "Was this result accurate?" feedback button. Once the automation rate exceeds 80%, use the "80/20 rule" as a baseline — humans handle the remaining 20%.
 
 ---
 
-## 10. 演習問題
+## 10. Exercises
 
-### 基礎演習: AI自動化の候補業務を洗い出す
+### Basic Exercise: Identify Candidate Tasks for AI Automation
 
-自社（または想定企業）の業務リストを作成し、各業務について以下を評価せよ。
+Create a list of tasks for your company (or a hypothetical company) and evaluate each task on the following criteria.
 
-1. 繰り返し頻度（日/週/月）
-2. 1回あたりの所要時間
-3. 判断の複雑度（低/中/高）
-4. AI適合度スコア（1-5）
-5. 推奨自動化レベル（0-4）
+1. Repetition frequency (daily/weekly/monthly)
+2. Time required per instance
+3. Decision complexity (low/medium/high)
+4. AI suitability score (1-5)
+5. Recommended automation level (0-4)
 
-### 応用演習: ROI計算とプラットフォーム選定
+### Applied Exercise: ROI Calculation and Platform Selection
 
-上記で特定した上位3業務について、(1) ROICalculatorを使って投資効果を算出し、(2) 業務特性に応じた最適プラットフォーム（Zapier/Make/n8n/カスタム）を選定し、理由を述べよ。
+For the top 3 tasks identified above, (1) use the ROICalculator to calculate the return on investment, and (2) select the optimal platform (Zapier/Make/n8n/custom) based on the task characteristics and explain your reasoning.
 
-### 発展演習: マルチエージェントシステムの設計
+### Advanced Exercise: Multi-Agent System Design
 
-「競合分析→レポート生成→Slack通知」の一連の業務をマルチエージェントシステムとして設計せよ。PlannerAgent、SearcherAgent、AnalyzerAgentの各ロールと通信プロトコルを含めること。
+Design the end-to-end workflow of "competitor analysis → report generation → Slack notification" as a multi-agent system. Include the roles of PlannerAgent, SearcherAgent, and AnalyzerAgent along with their communication protocols.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and rushing to advanced topics. It is recommended that you thoroughly understand the foundational concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| 成熟度モデル | Level 0（手動）→ Level 4（自律エージェント）の5段階 |
-| 開始点 | ノーコード（Zapier/Make）で小さく始める |
-| アーキテクチャ | API直接、パイプライン、エージェントの3パターン |
-| ROI目安 | 100%以上を初月から達成可能 |
-| 最重要原則 | Human-in-the-Loop（人間による監督）を維持 |
-| リスク管理 | データ保護、入力検証、出力レビューの3層防御 |
-| 組織変革 | 技術導入と同時に変革マネジメントを実施 |
-| 品質管理 | 自動検証 + サンプリング監査 + ユーザーFBの3層 |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [01-workflow-automation.md](./01-workflow-automation.md) — Zapier/n8n/Make の実践的ワークフロー構築
-- [02-document-processing.md](./02-document-processing.md) — OCR・PDF解析のAI自動化
-- [../01-business/00-ai-saas.md](../01-business/00-ai-saas.md) — AI SaaS プロダクト設計
+| Item | Key Point |
+|------|----------|
+| Maturity model | 5 levels from Level 0 (manual) to Level 4 (autonomous agents) |
+| Starting point | Start small with no-code tools (Zapier/Make) |
+| Architecture | 3 patterns: direct API, pipeline, agent-based |
+| ROI target | 100%+ achievable from the first month |
+| Most important principle | Maintain Human-in-the-Loop (human oversight) |
+| Risk management | Three-layer defense: data protection, input validation, output review |
+| Organizational change | Implement change management alongside technical adoption |
+| Quality control | Three layers: automated verification + sampling audit + user feedback |
 
 ---
 
-## 参考文献
+## Guides to Read Next
 
-1. **"Automating with AI" — O'Reilly Media (2024)** — AI自動化の設計パターンと実装ガイド
-2. **"The AI-First Company" — Ash Fontana (2024)** — AI中心のビジネス構築戦略
-3. **OpenAI Platform Documentation** — https://platform.openai.com/docs — API統合のベストプラクティス
-4. **n8n Documentation** — https://docs.n8n.io — オープンソース自動化プラットフォーム
-5. **"Building LLM Applications" — Anthropic (2024)** — Claude API活用ガイド
-6. **McKinsey "The State of AI" (2024)** — AI導入の成功率・ROI実績データ
-7. **Zapier公式ドキュメント** — https://zapier.com/help — ノーコード自動化のベストプラクティス
-8. **"Leading Change" — John P. Kotter** — 組織変革の8段階モデル（AI導入にも適用可能）
+- [01-workflow-automation.md](./01-workflow-automation.md) — Practical workflow building with Zapier/n8n/Make
+- [02-document-processing.md](./02-document-processing.md) — AI automation for OCR and PDF analysis
+- [../01-business/00-ai-saas.md](../01-business/00-ai-saas.md) — AI SaaS product design
+
+---
+
+## References
+
+1. **"Automating with AI" — O'Reilly Media (2024)** — Design patterns and implementation guide for AI automation
+2. **"The AI-First Company" — Ash Fontana (2024)** — Strategy for building an AI-centric business
+3. **OpenAI Platform Documentation** — https://platform.openai.com/docs — Best practices for API integration
+4. **n8n Documentation** — https://docs.n8n.io — Open-source automation platform
+5. **"Building LLM Applications" — Anthropic (2024)** — Guide to using the Claude API
+6. **McKinsey "The State of AI" (2024)** — Success rate and ROI data on AI adoption
+7. **Zapier Official Documentation** — https://zapier.com/help — Best practices for no-code automation
+8. **"Leading Change" — John P. Kotter** — 8-step model for organizational change (also applicable to AI adoption)
