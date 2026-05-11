@@ -1,119 +1,120 @@
-# 音声AI API 比較・統合・活用ガイド
+# Audio AI API Comparison, Integration & Utilization Guide
 
-> Google Cloud Speech、Amazon Polly、Azure Speech Services、OpenAI Whisper など主要音声AI APIの特徴・料金・統合方法を体系的に解説し、最適な選定と実装を支援する。
-
----
-
-## この章で学ぶこと
-
-1. **主要音声AI APIの機能・料金・精度を比較**し、ユースケース別に最適なサービスを選定できる
-2. **REST/gRPC/WebSocket各プロトコルでの統合パターン**を理解し、音声認識・合成を実装できる
-3. **フォールバック・キャッシュ・レート制限**など本番運用で必要な設計手法を習得する
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> A systematic guide covering the features, pricing, and integration methods of major audio AI APIs — Google Cloud Speech, Amazon Polly, Azure Speech Services, OpenAI Whisper, and more — to help you select and implement the optimal service.
 
 ---
 
-## 1. 音声AI APIの全体像
+## What You Will Learn in This Chapter
 
-### 1.1 主要サービスのカテゴリ
+1. **Compare the features, pricing, and accuracy of major audio AI APIs** and select the optimal service for each use case
+2. **Understand integration patterns across REST/gRPC/WebSocket protocols** and implement speech recognition and synthesis
+3. **Master design techniques required for production operation** such as fallback, caching, and rate limiting
+
+
+## Prerequisites
+
+Before reading this guide, having the following knowledge will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+
+---
+
+## 1. Overview of Audio AI APIs
+
+### 1.1 Major Service Categories
 
 ```
 +----------------------------------------------------------+
-|                   音声AI APIエコシステム                    |
+|                Audio AI API Ecosystem                     |
 +----------------------------------------------------------+
 |                                                          |
 |  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐  |
-|  │  音声認識     │  │  音声合成     │  │  音声分析      │  |
+|  │  Speech       │  │  Speech      │  │  Audio        │  |
+|  │  Recognition  │  │  Synthesis   │  │  Analysis     │  |
 |  │  (STT)       │  │  (TTS)       │  │  (Analysis)   │  |
 |  ├──────────────┤  ├──────────────┤  ├───────────────┤  |
-|  │ Google STT   │  │ Amazon Polly │  │ 話者識別       │  |
-|  │ Azure Speech │  │ Azure TTS    │  │ 感情分析       │  |
-|  │ AWS Transcr. │  │ Google TTS   │  │ キーワード検出  │  |
-|  │ Whisper API  │  │ ElevenLabs   │  │ 言語検出       │  |
-|  │ Deepgram     │  │ OpenAI TTS   │  │ トピック分類    │  |
+|  │ Google STT   │  │ Amazon Polly │  │ Speaker ID     │  |
+|  │ Azure Speech │  │ Azure TTS    │  │ Sentiment      │  |
+|  │ AWS Transcr. │  │ Google TTS   │  │ Keyword Det.   │  |
+|  │ Whisper API  │  │ ElevenLabs   │  │ Language Det.  │  |
+|  │ Deepgram     │  │ OpenAI TTS   │  │ Topic Classif. │  |
 |  └──────────────┘  └──────────────┘  └───────────────┘  |
 +----------------------------------------------------------+
 ```
 
-### 1.2 APIの通信パターン
+### 1.2 API Communication Patterns
 
 ```
 +-------------------+     +-------------------+
-|  クライアント      |     |  音声AI API       |
+|  Client           |     |  Audio AI API     |
 +-------------------+     +-------------------+
 |                   |     |                   |
-| [REST/HTTP]       |────>| バッチ処理         |
-|  音声ファイル送信  |<────| 結果JSON返却       |
+| [REST/HTTP]       |────>| Batch Processing  |
+|  Send audio file  |<────| Return JSON result|
 |                   |     |                   |
-| [WebSocket]       |<===>| リアルタイム処理    |
-|  ストリーミング    |<===>| 逐次結果返却       |
+| [WebSocket]       |<===>| Real-time Process |
+|  Streaming        |<===>| Incremental result|
 |                   |     |                   |
-| [gRPC]            |<===>| 高速双方向通信     |
-|  バイナリ最適化    |<===>| Protocol Buffers  |
+| [gRPC]            |<===>| High-speed bidir. |
+|  Binary optimized |<===>| Protocol Buffers  |
 +-------------------+     +-------------------+
 ```
 
-### 1.3 API選定のフローチャート
+### 1.3 API Selection Flowchart
 
 ```
-音声AI API 選定ガイド
+Audio AI API Selection Guide
 ==================================================
 
-Q1: リアルタイム処理が必要か？
+Q1: Do you need real-time processing?
     │
-    ├── Yes → Q2: 遅延要件は？
+    ├── Yes → Q2: What is the latency requirement?
     │         ├── <100ms → Deepgram (WebSocket)
     │         ├── <300ms → Azure Speech / Google STT
     │         └── <500ms → AWS Transcribe Streaming
     │
-    └── No → Q3: 何が重要か？
-              ├── 精度最優先 → Whisper API / Google STT
-              ├── コスト最優先 → Deepgram / Whisper OSS
-              ├── カスタマイズ → Azure Custom Speech
-              └── オフライン → Whisper / faster-whisper
+    └── No → Q3: What matters most?
+              ├── Accuracy first → Whisper API / Google STT
+              ├── Cost first → Deepgram / Whisper OSS
+              ├── Customization → Azure Custom Speech
+              └── Offline → Whisper / faster-whisper
 
-Q4: TTS（音声合成）も必要か？
-    ├── 日本語品質重視 → Azure Speech TTS
-    ├── 音声クローン → ElevenLabs
-    ├── SSML制御 → Amazon Polly / Azure
-    └── シンプルAPI → OpenAI TTS
+Q4: Do you also need TTS (speech synthesis)?
+    ├── Japanese quality focus → Azure Speech TTS
+    ├── Voice cloning → ElevenLabs
+    ├── SSML control → Amazon Polly / Azure
+    └── Simple API → OpenAI TTS
 ==================================================
 ```
 
 ---
 
-## 2. 主要STT（音声認識）API比較
+## 2. Major STT (Speech Recognition) API Comparison
 
-### 2.1 比較表：音声認識API
+### 2.1 Comparison Table: Speech Recognition APIs
 
-| 項目 | Google Cloud STT | Azure Speech | AWS Transcribe | OpenAI Whisper | Deepgram |
+| Item | Google Cloud STT | Azure Speech | AWS Transcribe | OpenAI Whisper | Deepgram |
 |------|-----------------|--------------|----------------|---------------|----------|
-| 対応言語数 | 125+ | 100+ | 100+ | 97 | 36 |
-| リアルタイム | 対応 | 対応 | 対応 | 非対応(API版) | 対応 |
-| 話者分離 | 対応 | 対応 | 対応 | 非対応 | 対応 |
-| カスタム語彙 | 対応 | 対応 | 対応 | 非対応 | 対応 |
-| 日本語精度 | 高 | 高 | 中~高 | 高 | 中 |
-| 料金/分 | $0.006~ | $0.0053~ | $0.024 | $0.006 | $0.0043~ |
-| セルフホスト | 不可 | コンテナ可 | 不可 | OSS利用可 | 不可 |
-| 最大音声長 | 480分 | 無制限(ストリーム) | 14,400分 | 25MB | 無制限 |
-| 感情分析 | 非対応 | 非対応 | 非対応 | 非対応 | 対応 |
-| 要約生成 | 非対応 | 非対応 | 非対応 | 非対応 | 対応 |
+| Supported Languages | 125+ | 100+ | 100+ | 97 | 36 |
+| Real-time | Supported | Supported | Supported | Not supported (API ver.) | Supported |
+| Speaker Diarization | Supported | Supported | Supported | Not supported | Supported |
+| Custom Vocabulary | Supported | Supported | Supported | Not supported | Supported |
+| Japanese Accuracy | High | High | Medium-High | High | Medium |
+| Price/min | $0.006~ | $0.0053~ | $0.024 | $0.006 | $0.0043~ |
+| Self-hosted | No | Container available | No | OSS available | No |
+| Max Audio Length | 480 min | Unlimited (stream) | 14,400 min | 25MB | Unlimited |
+| Sentiment Analysis | Not supported | Not supported | Not supported | Not supported | Supported |
+| Summary Generation | Not supported | Not supported | Not supported | Not supported | Supported |
 
-### 2.2 Google Cloud Speech-to-Text の実装
+### 2.2 Google Cloud Speech-to-Text Implementation
 
 ```python
-# Google Cloud Speech-to-Text: 同期認識
+# Google Cloud Speech-to-Text: Synchronous Recognition
 from google.cloud import speech_v1
 
 def transcribe_audio_sync(audio_path: str, language: str = "ja-JP") -> str:
-    """音声ファイルを同期的に文字起こしする"""
+    """Synchronously transcribe an audio file"""
     client = speech_v1.SpeechClient()
 
     with open(audio_path, "rb") as f:
@@ -124,11 +125,11 @@ def transcribe_audio_sync(audio_path: str, language: str = "ja-JP") -> str:
         encoding=speech_v1.RecognitionConfig.AudioEncoding.LINEAR16,
         sample_rate_hertz=16000,
         language_code=language,
-        # 高精度オプション
-        enable_automatic_punctuation=True,  # 自動句読点
-        enable_word_time_offsets=True,       # 単語タイムスタンプ
-        model="latest_long",                 # 長時間音声用モデル
-        use_enhanced=True,                   # 強化モデル使用
+        # High accuracy options
+        enable_automatic_punctuation=True,  # Auto punctuation
+        enable_word_time_offsets=True,       # Word timestamps
+        model="latest_long",                 # Model for long audio
+        use_enhanced=True,                   # Use enhanced model
     )
 
     response = client.recognize(config=config, audio=audio)
@@ -151,7 +152,7 @@ def transcribe_audio_sync(audio_path: str, language: str = "ja-JP") -> str:
     return results
 
 
-# Google Cloud Speech-to-Text V2: 最新API
+# Google Cloud Speech-to-Text V2: Latest API
 from google.cloud import speech_v2 as speech
 
 def transcribe_v2(
@@ -159,7 +160,7 @@ def transcribe_v2(
     project_id: str,
     language: str = "ja-JP",
 ) -> list[dict]:
-    """V2 APIで文字起こし（より多機能）"""
+    """Transcribe with V2 API (more features)"""
     client = speech.SpeechClient()
 
     with open(audio_path, "rb") as f:
@@ -196,12 +197,12 @@ def transcribe_v2(
     return results
 
 
-# Google Cloud STT: 非同期処理（長時間音声向け）
+# Google Cloud STT: Asynchronous Processing (for long audio)
 def transcribe_async(
     gcs_uri: str,
     language: str = "ja-JP",
 ) -> list[dict]:
-    """GCS上の長時間音声を非同期で文字起こし"""
+    """Asynchronously transcribe long audio on GCS"""
     client = speech_v1.SpeechClient()
 
     audio = speech_v1.RecognitionAudio(uri=gcs_uri)
@@ -212,7 +213,7 @@ def transcribe_async(
         enable_automatic_punctuation=True,
         enable_word_time_offsets=True,
         model="latest_long",
-        # 話者分離
+        # Speaker diarization
         diarization_config=speech_v1.SpeakerDiarizationConfig(
             enable_speaker_diarization=True,
             min_speaker_count=2,
@@ -221,9 +222,9 @@ def transcribe_async(
     )
 
     operation = client.long_running_recognize(config=config, audio=audio)
-    print("処理中... (数分かかる場合があります)")
+    print("Processing... (may take several minutes)")
 
-    response = operation.result(timeout=3600)  # 最大1時間待機
+    response = operation.result(timeout=3600)  # Wait up to 1 hour
 
     results = []
     for result in response.results:
@@ -236,16 +237,16 @@ def transcribe_async(
     return results
 ```
 
-### 2.3 Azure Speech Services の実装
+### 2.3 Azure Speech Services Implementation
 
 ```python
-# Azure Speech Services: リアルタイムストリーミング認識
+# Azure Speech Services: Real-time Streaming Recognition
 import azure.cognitiveservices.speech as speechsdk
 import asyncio
 from typing import Callable
 
 class AzureRealtimeTranscriber:
-    """Azure Speech Servicesを使ったリアルタイム文字起こし"""
+    """Real-time transcription using Azure Speech Services"""
 
     def __init__(self, subscription_key: str, region: str = "japaneast"):
         self.config = speechsdk.SpeechConfig(
@@ -253,7 +254,7 @@ class AzureRealtimeTranscriber:
             region=region,
         )
         self.config.speech_recognition_language = "ja-JP"
-        # 高精度設定
+        # High accuracy settings
         self.config.set_property(
             speechsdk.PropertyId.SpeechServiceConnection_InitialSilenceTimeoutMs,
             "15000"
@@ -263,7 +264,7 @@ class AzureRealtimeTranscriber:
     def transcribe_from_microphone(
         self, on_recognized: Callable[[str], None]
     ):
-        """マイク入力からリアルタイム文字起こし"""
+        """Real-time transcription from microphone input"""
         audio_config = speechsdk.AudioConfig(
             use_default_microphone=True
         )
@@ -272,21 +273,21 @@ class AzureRealtimeTranscriber:
             audio_config=audio_config,
         )
 
-        # イベントハンドラ登録
+        # Register event handlers
         recognizer.recognized.connect(
             lambda evt: on_recognized(evt.result.text)
         )
         recognizer.session_stopped.connect(
-            lambda evt: print("セッション終了")
+            lambda evt: print("Session ended")
         )
 
         recognizer.start_continuous_recognition()
-        return recognizer  # stop_continuous_recognition()で停止
+        return recognizer  # Stop with stop_continuous_recognition()
 
     def transcribe_from_file(self, file_path: str) -> list[dict]:
-        """音声ファイルから文字起こし（話者分離付き）"""
+        """Transcribe from audio file (with speaker diarization)"""
         audio_config = speechsdk.AudioConfig(filename=file_path)
-        # 会話文字起こし（話者分離対応）
+        # Conversation transcription (supports speaker diarization)
         conversation_transcriber = speechsdk.ConversationTranscriber(
             speech_config=self.config,
             audio_config=audio_config,
@@ -317,7 +318,7 @@ class AzureRealtimeTranscriber:
         source_lang: str = "ja-JP",
         target_langs: list[str] = ["en"],
     ) -> dict:
-        """音声翻訳（STT + 翻訳の同時実行）"""
+        """Speech translation (simultaneous STT + translation)"""
         translation_config = speechsdk.translation.SpeechTranslationConfig(
             subscription=self.config.subscription_key,
             region=self.config.region,
@@ -345,10 +346,10 @@ class AzureRealtimeTranscriber:
         return {"error": str(result.reason)}
 ```
 
-### 2.4 OpenAI Whisper API の実装
+### 2.4 OpenAI Whisper API Implementation
 
 ```python
-# OpenAI Whisper API: シンプルで高精度な文字起こし
+# OpenAI Whisper API: Simple and High-Accuracy Transcription
 from openai import OpenAI
 from pathlib import Path
 
@@ -357,7 +358,7 @@ def transcribe_with_whisper(
     language: str = "ja",
     response_format: str = "verbose_json",
 ) -> dict:
-    """Whisper APIで文字起こし"""
+    """Transcribe with Whisper API"""
     client = OpenAI()
 
     with open(audio_path, "rb") as audio_file:
@@ -366,7 +367,7 @@ def transcribe_with_whisper(
             file=audio_file,
             language=language,
             response_format=response_format,
-            # タイムスタンプ粒度: segment or word
+            # Timestamp granularity: segment or word
             timestamp_granularities=["word", "segment"],
         )
 
@@ -394,7 +395,7 @@ def transcribe_with_whisper(
 
 
 def translate_with_whisper(audio_path: str) -> dict:
-    """Whisper APIで音声を英語に翻訳"""
+    """Translate audio to English with Whisper API"""
     client = OpenAI()
 
     with open(audio_path, "rb") as audio_file:
@@ -413,12 +414,12 @@ def translate_with_whisper(audio_path: str) -> dict:
 
 def transcribe_large_file(
     audio_path: str,
-    chunk_duration_ms: int = 600000,  # 10分
+    chunk_duration_ms: int = 600000,  # 10 minutes
     language: str = "ja",
 ) -> list[dict]:
     """
-    大容量ファイルの分割文字起こし
-    Whisper APIのファイルサイズ制限（25MB）を超える場合に使用
+    Chunked transcription for large files
+    Used when the file exceeds Whisper API's size limit (25MB)
     """
     from pydub import AudioSegment
 
@@ -435,12 +436,12 @@ def transcribe_large_file(
         result["chunk_end_ms"] = min(i + chunk_duration_ms, len(audio))
         chunks.append(result)
 
-        Path(chunk_path).unlink()  # 一時ファイル削除
+        Path(chunk_path).unlink()  # Delete temporary file
 
     return chunks
 ```
 
-### 2.5 Deepgram の実装
+### 2.5 Deepgram Implementation
 
 ```python
 from deepgram import DeepgramClient, PrerecordedOptions, LiveOptions
@@ -448,7 +449,7 @@ import asyncio
 import json
 
 class DeepgramSTT:
-    """Deepgramによる高機能文字起こし"""
+    """Feature-rich transcription with Deepgram"""
 
     def __init__(self, api_key: str):
         self.client = DeepgramClient(api_key)
@@ -459,7 +460,7 @@ class DeepgramSTT:
         model: str = "nova-2",
         language: str = "ja",
     ) -> dict:
-        """ファイルの文字起こし（全機能活用）"""
+        """Transcribe a file (utilizing all features)"""
         with open(audio_path, "rb") as f:
             buffer_data = f.read()
 
@@ -504,7 +505,7 @@ class DeepgramSTT:
         model: str = "nova-2",
         language: str = "ja",
     ):
-        """ストリーミング文字起こし"""
+        """Streaming transcription"""
         options = LiveOptions(
             model=model,
             language=language,
@@ -535,7 +536,7 @@ class DeepgramSTT:
         await connection.finish()
 
     def transcribe_url(self, audio_url: str) -> dict:
-        """URLからの文字起こし（ファイルアップロード不要）"""
+        """Transcribe from URL (no file upload required)"""
         payload = {"url": audio_url}
 
         options = PrerecordedOptions(
@@ -554,30 +555,30 @@ class DeepgramSTT:
 
 ---
 
-## 3. 主要TTS（音声合成）API比較
+## 3. Major TTS (Speech Synthesis) API Comparison
 
-### 3.1 比較表：音声合成API
+### 3.1 Comparison Table: Speech Synthesis APIs
 
-| 項目 | Amazon Polly | Azure TTS | Google TTS | OpenAI TTS | ElevenLabs |
+| Item | Amazon Polly | Azure TTS | Google TTS | OpenAI TTS | ElevenLabs |
 |------|-------------|-----------|------------|------------|------------|
-| 音声数 | 60+ | 400+ | 220+ | 6 | カスタム無制限 |
-| SSML対応 | 対応 | 対応 | 対応 | 非対応 | 部分対応 |
-| Neural音声 | 対応 | 対応 | 対応 | 標準 | 標準 |
-| 音声クローン | 非対応 | カスタム可 | カスタム可 | 非対応 | 対応 |
-| 日本語音声数 | 4 | 20+ | 10+ | 6(多言語) | カスタム |
-| 料金/100万文字 | $4(標準) | $4~$16 | $4~$16 | $15 | $3~$99 |
-| リアルタイム | 対応 | 対応 | 対応 | 対応 | 対応 |
-| 感情表現 | 限定的 | 豊富 | 限定的 | 自動 | 豊富 |
+| Number of Voices | 60+ | 400+ | 220+ | 6 | Unlimited custom |
+| SSML Support | Supported | Supported | Supported | Not supported | Partial |
+| Neural Voices | Supported | Supported | Supported | Standard | Standard |
+| Voice Cloning | Not supported | Custom available | Custom available | Not supported | Supported |
+| Japanese Voices | 4 | 20+ | 10+ | 6 (multilingual) | Custom |
+| Price/1M chars | $4 (standard) | $4~$16 | $4~$16 | $15 | $3~$99 |
+| Real-time | Supported | Supported | Supported | Supported | Supported |
+| Emotion Expression | Limited | Rich | Limited | Automatic | Rich |
 
-### 3.2 Amazon Polly の実装
+### 3.2 Amazon Polly Implementation
 
 ```python
-# Amazon Polly: SSML対応の音声合成
+# Amazon Polly: Speech Synthesis with SSML Support
 import boto3
 from contextlib import closing
 
 class PollyTTSEngine:
-    """Amazon Polly音声合成エンジン"""
+    """Amazon Polly speech synthesis engine"""
 
     def __init__(self, region: str = "ap-northeast-1"):
         self.client = boto3.client("polly", region_name=region)
@@ -585,11 +586,11 @@ class PollyTTSEngine:
     def synthesize(
         self,
         text: str,
-        voice_id: str = "Mizuki",  # 日本語女性
+        voice_id: str = "Mizuki",  # Japanese female
         engine: str = "neural",
         output_format: str = "mp3",
     ) -> bytes:
-        """テキストから音声を合成"""
+        """Synthesize speech from text"""
         response = self.client.synthesize_speech(
             Text=text,
             VoiceId=voice_id,
@@ -602,14 +603,14 @@ class PollyTTSEngine:
             return stream.read()
 
     def synthesize_ssml(self, ssml: str, voice_id: str = "Mizuki") -> bytes:
-        """SSML記法で細かい制御を行った音声合成"""
+        """Synthesize speech with fine-grained control using SSML notation"""
         ssml_text = f"""
         <speak>
             <prosody rate="90%" pitch="+5%">
                 {ssml}
             </prosody>
             <break time="500ms"/>
-            <emphasis level="strong">重要なポイント</emphasis>
+            <emphasis level="strong">Important point</emphasis>
         </speak>
         """
         response = self.client.synthesize_speech(
@@ -629,7 +630,7 @@ class PollyTTSEngine:
         s3_bucket: str = "my-audio-bucket",
         s3_key_prefix: str = "tts-output/",
     ) -> str:
-        """長文テキストの非同期合成（S3出力）"""
+        """Asynchronous synthesis of long text (S3 output)"""
         response = self.client.start_speech_synthesis_task(
             Text=text,
             VoiceId=voice_id,
@@ -643,7 +644,7 @@ class PollyTTSEngine:
         return task_id
 
     def list_japanese_voices(self) -> list[dict]:
-        """利用可能な日本語音声一覧を取得"""
+        """Retrieve list of available Japanese voices"""
         response = self.client.describe_voices(LanguageCode="ja-JP")
         return [
             {
@@ -656,14 +657,14 @@ class PollyTTSEngine:
         ]
 ```
 
-### 3.3 OpenAI TTS の実装
+### 3.3 OpenAI TTS Implementation
 
 ```python
 from openai import OpenAI
 from pathlib import Path
 
 class OpenAITTSEngine:
-    """OpenAI TTS音声合成エンジン"""
+    """OpenAI TTS speech synthesis engine"""
 
     VOICES = ["alloy", "echo", "fable", "onyx", "nova", "shimmer"]
 
@@ -678,7 +679,7 @@ class OpenAITTSEngine:
         speed: float = 1.0,
         output_path: str = "output.mp3",
     ) -> str:
-        """テキストから音声を合成"""
+        """Synthesize speech from text"""
         response = self.client.audio.speech.create(
             model=model,
             voice=voice,
@@ -696,7 +697,7 @@ class OpenAITTSEngine:
         voice: str = "nova",
         model: str = "tts-1",
     ):
-        """ストリーミング音声合成（低遅延）"""
+        """Streaming speech synthesis (low latency)"""
         response = self.client.audio.speech.create(
             model=model,
             voice=voice,
@@ -704,7 +705,7 @@ class OpenAITTSEngine:
             response_format="opus",
         )
 
-        # チャンク単位でストリーミング
+        # Stream in chunks
         for chunk in response.iter_bytes(chunk_size=4096):
             yield chunk
 
@@ -714,7 +715,7 @@ class OpenAITTSEngine:
         voice: str = "nova",
         output_dir: str = "./tts_output",
     ) -> list[str]:
-        """複数テキストの一括合成"""
+        """Batch synthesis of multiple texts"""
         output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
 
@@ -727,13 +728,13 @@ class OpenAITTSEngine:
         return results
 ```
 
-### 3.4 ElevenLabs の実装
+### 3.4 ElevenLabs Implementation
 
 ```python
 from elevenlabs import ElevenLabs, VoiceSettings
 
 class ElevenLabsTTS:
-    """ElevenLabs音声合成（音声クローン対応）"""
+    """ElevenLabs speech synthesis (voice cloning supported)"""
 
     def __init__(self, api_key: str):
         self.client = ElevenLabs(api_key=api_key)
@@ -747,7 +748,7 @@ class ElevenLabsTTS:
         similarity_boost: float = 0.75,
         style: float = 0.5,
     ) -> bytes:
-        """テキストから音声を合成"""
+        """Synthesize speech from text"""
         audio = self.client.text_to_speech.convert(
             text=text,
             voice_id=voice_id,
@@ -767,7 +768,7 @@ class ElevenLabsTTS:
         description: str,
         audio_files: list[str],
     ) -> str:
-        """音声クローンの作成"""
+        """Create a voice clone"""
         files = []
         for path in audio_files:
             with open(path, "rb") as f:
@@ -781,7 +782,7 @@ class ElevenLabsTTS:
         return voice.voice_id
 
     def list_voices(self) -> list[dict]:
-        """利用可能な音声一覧"""
+        """List available voices"""
         voices = self.client.voices.get_all()
         return [
             {
@@ -796,34 +797,34 @@ class ElevenLabsTTS:
 
 ---
 
-## 4. マルチプロバイダ統合アーキテクチャ
+## 4. Multi-Provider Integration Architecture
 
-### 4.1 フォールバック付き統合クライアント
+### 4.1 Integrated Client with Fallback
 
 ```
 ┌────────────────────────────────────────────────┐
-│           統合音声AIクライアント                  │
+│         Integrated Audio AI Client              │
 ├────────────────────────────────────────────────┤
 │                                                │
-│  Request ──> [ルーター] ──> Primary Provider    │
+│  Request ──> [Router] ──> Primary Provider     │
 │                  │              │               │
-│                  │         (失敗時)              │
+│                  │         (on failure)         │
 │                  │              v               │
 │                  └───> Fallback Provider        │
 │                              │                 │
-│                         (失敗時)                │
+│                         (on failure)           │
 │                              v                 │
 │                       Local Fallback           │
-│                       (Whisper OSS等)           │
+│                       (Whisper OSS, etc.)      │
 │                                                │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐    │
-│  │ キャッシュ │  │レート制限 │  │ メトリクス│    │
+│  │  Cache    │  │Rate Limit│  │ Metrics  │    │
 │  └──────────┘  └──────────┘  └──────────┘    │
 └────────────────────────────────────────────────┘
 ```
 
 ```python
-# マルチプロバイダ統合クライアント
+# Multi-provider integrated client
 from abc import ABC, abstractmethod
 from typing import Optional
 import time
@@ -831,7 +832,7 @@ import hashlib
 import json
 
 class STTProvider(ABC):
-    """音声認識プロバイダの抽象基底クラス"""
+    """Abstract base class for speech recognition providers"""
 
     @abstractmethod
     def transcribe(self, audio: bytes, language: str) -> dict:
@@ -842,7 +843,7 @@ class STTProvider(ABC):
         pass
 
 class TTSProvider(ABC):
-    """音声合成プロバイダの抽象基底クラス"""
+    """Abstract base class for speech synthesis providers"""
 
     @abstractmethod
     def synthesize(self, text: str, voice: str) -> bytes:
@@ -853,7 +854,7 @@ class TTSProvider(ABC):
         pass
 
 class MultiProviderSTT:
-    """フォールバック付きマルチプロバイダSTTクライアント"""
+    """Multi-provider STT client with fallback"""
 
     def __init__(self):
         self.providers: list[tuple[str, STTProvider]] = []
@@ -868,7 +869,7 @@ class MultiProviderSTT:
         max_requests_per_min: int = 60,
         priority: int = 0,
     ):
-        """プロバイダを優先順位順に追加"""
+        """Add a provider in priority order"""
         self.providers.append((name, provider))
         self.providers.sort(key=lambda x: priority)
         self.metrics[name] = {
@@ -880,17 +881,17 @@ class MultiProviderSTT:
         }
 
     def _check_rate_limit(self, name: str) -> bool:
-        """レート制限チェック"""
+        """Check rate limit"""
         limit = self.rate_limits[name]
         now = time.time()
-        # 1分以内のリクエストのみ保持
+        # Keep only requests within the last minute
         limit["requests"] = [
             t for t in limit["requests"] if now - t < 60
         ]
         return len(limit["requests"]) < limit["max"]
 
     def _get_cache_key(self, audio: bytes, language: str) -> str:
-        """キャッシュキーを生成"""
+        """Generate cache key"""
         audio_hash = hashlib.sha256(audio).hexdigest()
         return f"{audio_hash}:{language}"
 
@@ -900,8 +901,8 @@ class MultiProviderSTT:
         language: str = "ja-JP",
         use_cache: bool = True,
     ) -> dict:
-        """フォールバック付き文字起こし"""
-        # キャッシュ確認
+        """Transcribe with fallback"""
+        # Check cache
         cache_key = self._get_cache_key(audio, language)
         if use_cache and cache_key in self.cache:
             return self.cache[cache_key]
@@ -918,12 +919,12 @@ class MultiProviderSTT:
                 result = provider.transcribe(audio, language)
                 latency = time.time() - start
 
-                # メトリクス更新
+                # Update metrics
                 self.metrics[name]["success"] += 1
                 self.metrics[name]["total_latency"] += latency
                 self.rate_limits[name]["requests"].append(time.time())
 
-                # キャッシュ保存
+                # Save to cache
                 result["provider"] = name
                 result["latency"] = latency
                 if use_cache:
@@ -937,11 +938,11 @@ class MultiProviderSTT:
                 continue
 
         raise RuntimeError(
-            f"全プロバイダで文字起こし失敗: {last_error}"
+            f"Transcription failed on all providers: {last_error}"
         )
 
     def get_metrics(self) -> dict:
-        """メトリクスの取得"""
+        """Retrieve metrics"""
         result = {}
         for name, m in self.metrics.items():
             total = m["success"] + m["failure"]
@@ -956,11 +957,11 @@ class MultiProviderSTT:
         return result
 ```
 
-### 4.2 統合TTS クライアント
+### 4.2 Integrated TTS Client
 
 ```python
 class MultiProviderTTS:
-    """フォールバック付きマルチプロバイダTTSクライアント"""
+    """Multi-provider TTS client with fallback"""
 
     def __init__(self):
         self.providers: dict[str, TTSProvider] = {}
@@ -978,7 +979,7 @@ class MultiProviderTTS:
         provider: Optional[str] = None,
         use_cache: bool = True,
     ) -> bytes:
-        """音声合成（フォールバック付き）"""
+        """Synthesize speech (with fallback)"""
         cache_key = hashlib.sha256(
             f"{text}:{voice}:{provider}".encode()
         ).hexdigest()
@@ -1007,24 +1008,24 @@ class MultiProviderTTS:
                 last_error = e
                 continue
 
-        raise RuntimeError(f"全TTSプロバイダ失敗: {last_error}")
+        raise RuntimeError(f"All TTS providers failed: {last_error}")
 ```
 
 ---
 
-## 5. ストリーミング処理パターン
+## 5. Streaming Processing Patterns
 
-### 5.1 WebSocketによるリアルタイム処理
+### 5.1 Real-time Processing with WebSocket
 
 ```python
-# WebSocketベースのリアルタイム音声認識サーバー
+# WebSocket-based real-time speech recognition server
 import asyncio
 import websockets
 import json
 from google.cloud import speech_v1
 
 async def audio_stream_handler(websocket, path):
-    """WebSocketで音声ストリームを受信し、逐次文字起こし結果を返す"""
+    """Receive audio stream via WebSocket and return incremental transcription results"""
     client = speech_v1.SpeechClient()
 
     config = speech_v1.StreamingRecognitionConfig(
@@ -1034,11 +1035,11 @@ async def audio_stream_handler(websocket, path):
             language_code="ja-JP",
             enable_automatic_punctuation=True,
         ),
-        interim_results=True,  # 中間結果も返す
+        interim_results=True,  # Also return interim results
     )
 
     async def request_generator():
-        """音声チャンクをgRPCリクエストに変換"""
+        """Convert audio chunks to gRPC requests"""
         yield speech_v1.StreamingRecognizeRequest(
             streaming_config=config
         )
@@ -1048,7 +1049,7 @@ async def audio_stream_handler(websocket, path):
                     audio_content=message
                 )
 
-    # ストリーミング認識実行
+    # Execute streaming recognition
     responses = client.streaming_recognize(
         requests=request_generator()
     )
@@ -1065,20 +1066,20 @@ async def audio_stream_handler(websocket, path):
             }
             await websocket.send(json.dumps(msg, ensure_ascii=False))
 
-# サーバー起動
+# Start server
 async def main():
     async with websockets.serve(audio_stream_handler, "0.0.0.0", 8765):
-        await asyncio.Future()  # 永続実行
+        await asyncio.Future()  # Run indefinitely
 ```
 
-### 5.2 FastAPI によるストリーミングAPIサーバー
+### 5.2 Streaming API Server with FastAPI
 
 ```python
 from fastapi import FastAPI, UploadFile, File, WebSocket, WebSocketDisconnect
 from fastapi.responses import StreamingResponse
 import io
 
-app = FastAPI(title="音声AI API Gateway")
+app = FastAPI(title="Audio AI API Gateway")
 
 @app.post("/api/v1/stt")
 async def speech_to_text(
@@ -1086,11 +1087,11 @@ async def speech_to_text(
     language: str = "ja",
     provider: str = "whisper",
 ):
-    """音声ファイルを文字起こし"""
+    """Transcribe an audio file"""
     audio_bytes = await file.read()
 
     stt_client = MultiProviderSTT()
-    # プロバイダー登録は省略
+    # Provider registration omitted
 
     result = stt_client.transcribe(audio_bytes, language)
     return result
@@ -1101,7 +1102,7 @@ async def text_to_speech(
     voice: str = "nova",
     provider: str = "openai",
 ):
-    """テキストを音声合成"""
+    """Synthesize speech from text"""
     tts_client = MultiProviderTTS()
     audio_bytes = tts_client.synthesize(text, voice, provider)
 
@@ -1113,13 +1114,13 @@ async def text_to_speech(
 
 @app.websocket("/ws/stt")
 async def websocket_stt(websocket: WebSocket):
-    """WebSocketによるストリーミング文字起こし"""
+    """Streaming transcription via WebSocket"""
     await websocket.accept()
 
     try:
         while True:
             audio_chunk = await websocket.receive_bytes()
-            # STT処理（省略）
+            # STT processing (omitted)
             result = {"text": "...", "is_final": True}
             await websocket.send_json(result)
     except WebSocketDisconnect:
@@ -1127,49 +1128,49 @@ async def websocket_stt(websocket: WebSocket):
 
 @app.get("/api/v1/metrics")
 async def get_metrics():
-    """APIメトリクスを取得"""
+    """Retrieve API metrics"""
     stt_client = MultiProviderSTT()
     return stt_client.get_metrics()
 ```
 
 ---
 
-## 6. コスト最適化
+## 6. Cost Optimization
 
-### 6.1 コスト比較シミュレーション
+### 6.1 Cost Comparison Simulation
 
 ```python
 class CostCalculator:
-    """音声API利用コストの計算"""
+    """Calculate audio API usage costs"""
 
-    # 料金テーブル（2024年時点の参考価格）
+    # Pricing table (reference prices as of 2024)
     PRICING = {
         "google_stt": {
-            "standard": 0.006,      # $/分
+            "standard": 0.006,      # $/min
             "enhanced": 0.009,
             "data_logging_opt_in": 0.004,
         },
         "azure_stt": {
-            "standard": 0.0053,     # $/分（東日本リージョン）
+            "standard": 0.0053,     # $/min (Japan East region)
             "custom": 0.0106,
         },
         "aws_transcribe": {
-            "standard": 0.024,      # $/分
+            "standard": 0.024,      # $/min
             "medical": 0.075,
         },
         "whisper_api": {
-            "standard": 0.006,      # $/分
+            "standard": 0.006,      # $/min
         },
         "deepgram": {
-            "nova_2": 0.0043,       # $/分
+            "nova_2": 0.0043,       # $/min
             "enhanced": 0.0145,
         },
         "openai_tts": {
-            "tts_1": 15.0,          # $/100万文字
+            "tts_1": 15.0,          # $/1M characters
             "tts_1_hd": 30.0,
         },
         "amazon_polly": {
-            "standard": 4.0,        # $/100万文字
+            "standard": 4.0,        # $/1M characters
             "neural": 16.0,
         },
     }
@@ -1180,7 +1181,7 @@ class CostCalculator:
         tier: str,
         audio_minutes: float,
     ) -> float:
-        """STTコストの見積もり"""
+        """Estimate STT cost"""
         rate = self.PRICING.get(provider, {}).get(tier, 0)
         return rate * audio_minutes
 
@@ -1190,7 +1191,7 @@ class CostCalculator:
         tier: str,
         character_count: int,
     ) -> float:
-        """TTSコストの見積もり"""
+        """Estimate TTS cost"""
         rate = self.PRICING.get(provider, {}).get(tier, 0)
         return rate * (character_count / 1_000_000)
 
@@ -1199,7 +1200,7 @@ class CostCalculator:
         audio_minutes: float,
         monthly: bool = True,
     ) -> dict:
-        """プロバイダ間のコスト比較"""
+        """Compare costs across providers"""
         multiplier = 30 if monthly else 1
         total_minutes = audio_minutes * multiplier
 
@@ -1214,53 +1215,53 @@ class CostCalculator:
                         "total_minutes": total_minutes,
                     }
 
-        # コスト順にソート
+        # Sort by cost
         return dict(sorted(
             comparison.items(),
             key=lambda x: x[1]["total_cost"]
         ))
 
-# 使用例
+# Usage example
 calc = CostCalculator()
 comparison = calc.compare_providers(
-    audio_minutes=60,  # 1日60分
-    monthly=True,       # 月間コスト
+    audio_minutes=60,  # 60 minutes per day
+    monthly=True,       # Monthly cost
 )
 for provider, cost in comparison.items():
-    print(f"{provider}: ${cost['total_cost']:.2f}/月")
+    print(f"{provider}: ${cost['total_cost']:.2f}/month")
 ```
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### 7.1 アンチパターン：同期バッチ処理のみに依存
+### 7.1 Anti-Pattern: Relying Only on Synchronous Batch Processing
 
 ```python
-# NG: 長時間音声をすべてメモリに読み込んで同期処理
+# BAD: Loading entire long audio into memory for synchronous processing
 def bad_transcribe(audio_path: str) -> str:
     with open(audio_path, "rb") as f:
-        huge_audio = f.read()  # 数GBのファイルでもメモリに全読込
-    # タイムアウトのリスク、メモリ不足のリスク
+        huge_audio = f.read()  # Loads multi-GB files entirely into memory
+    # Risk of timeout, risk of out-of-memory
     result = client.recognize(audio=huge_audio)
     return result
 
-# OK: チャンク分割 + 非同期処理
+# GOOD: Chunked splitting + asynchronous processing
 async def good_transcribe(audio_path: str) -> list[str]:
     chunks = split_audio(audio_path, chunk_seconds=30)
     tasks = [transcribe_chunk(c) for c in chunks]
     return await asyncio.gather(*tasks)
 ```
 
-**問題点**: 大容量音声ファイルをメモリに全読込するとOOM（メモリ不足）やタイムアウトが発生する。ストリーミングまたはチャンク分割で処理すること。
+**Problem**: Loading large audio files entirely into memory can cause OOM (out of memory) errors or timeouts. Process using streaming or chunked splitting instead.
 
-### 7.2 アンチパターン：APIキーのハードコード
+### 7.2 Anti-Pattern: Hardcoding API Keys
 
 ```python
-# NG: ソースコードにAPIキーを直接記述
+# BAD: Writing API keys directly in source code
 client = SpeechClient(api_key="sk-1234567890abcdef")
 
-# OK: 環境変数またはシークレットマネージャーを使用
+# GOOD: Use environment variables or a secret manager
 import os
 from google.cloud import secretmanager
 
@@ -1271,19 +1272,19 @@ def get_api_key(secret_id: str) -> str:
     return response.payload.data.decode("utf-8")
 ```
 
-**問題点**: APIキーがバージョン管理に含まれるとセキュリティリスク。環境変数、Secret Manager、Vaultなどを使って安全に管理する。
+**Problem**: Including API keys in version control creates a security risk. Manage them securely using environment variables, Secret Manager, Vault, etc.
 
-### 7.3 アンチパターン：レート制限の無視
+### 7.3 Anti-Pattern: Ignoring Rate Limits
 
 ```python
-# NG: レート制限を考慮せず高速ループ
+# BAD: Fast loop without considering rate limits
 def bad_batch_transcribe(files):
     results = []
     for f in files:
-        results.append(api.transcribe(f))  # レート制限でエラー
+        results.append(api.transcribe(f))  # Error due to rate limiting
     return results
 
-# OK: レート制限を考慮した処理
+# GOOD: Processing with rate limit awareness
 import time
 from functools import wraps
 
@@ -1310,45 +1311,45 @@ def good_transcribe(audio_path):
 
 ---
 
-## 実践演習
+## Hands-on Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1357,26 +1358,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1384,7 +1385,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1395,14 +1396,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1410,7 +1411,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1418,44 +1419,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1464,7 +1465,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1479,98 +1480,98 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 ---
 
 ## 8. FAQ
 
-### Q1: 日本語音声認識で最も精度が高いAPIは？
+### Q1: Which API has the highest accuracy for Japanese speech recognition?
 
-**A**: 一般的な会話音声であればOpenAI Whisperが高い精度を示す。ただし、専門用語が多い場合はGoogle Cloud STTやAzure Speechのカスタム語彙機能を使うことで精度が向上する。医療・法律・金融など特定ドメインでは、カスタムモデル訓練が可能なAzureが有利。
+**A**: For general conversational audio, OpenAI Whisper demonstrates high accuracy. However, when specialized terminology is frequent, accuracy can be improved by using Google Cloud STT or Azure Speech's custom vocabulary features. For specific domains such as medical, legal, or financial, Azure has the advantage as it supports custom model training.
 
-### Q2: リアルタイム音声認識の遅延はどの程度か？
+### Q2: What is the latency for real-time speech recognition?
 
-**A**: 主要APIのリアルタイム認識レイテンシは以下のとおり。
+**A**: The real-time recognition latency for major APIs is as follows.
 
-| API | 平均遅延 | 最小遅延 | 備考 |
+| API | Avg Latency | Min Latency | Notes |
 |-----|---------|---------|------|
-| Google STT | 200-400ms | 100ms | gRPC使用時 |
-| Azure Speech | 150-300ms | 80ms | 東日本リージョン |
-| Deepgram | 100-250ms | 50ms | WebSocket使用時 |
-| AWS Transcribe | 300-500ms | 200ms | WebSocket使用時 |
+| Google STT | 200-400ms | 100ms | Using gRPC |
+| Azure Speech | 150-300ms | 80ms | Japan East region |
+| Deepgram | 100-250ms | 50ms | Using WebSocket |
+| AWS Transcribe | 300-500ms | 200ms | Using WebSocket |
 
-### Q3: 音声合成で最も自然な日本語音声はどれか？
+### Q3: Which produces the most natural Japanese speech synthesis?
 
-**A**: Azure Speech Servicesが日本語Neural音声の種類が最も豊富（20+）で、感情表現やスタイル切替も可能。ElevenLabsは音声クローンの品質が高く、特定話者の再現に優れる。Amazon Pollyは安定性と低コストが強み。
+**A**: Azure Speech Services offers the most diverse Japanese Neural voices (20+), with emotion expression and style switching capabilities. ElevenLabs excels in voice cloning quality and is superior for reproducing specific speakers. Amazon Polly's strengths are stability and low cost.
 
-### Q4: APIの料金を最小化するには？
+### Q4: How can I minimize API costs?
 
-**A**: (1) キャッシュを活用し同じ音声の再処理を避ける、(2) 音声を適切にトリミングして無音部分を送信しない、(3) バッチ処理可能なものはリアルタイムAPIを使わない、(4) 短い音声にはWhisper APIの従量課金が有利。
+**A**: (1) Leverage caching to avoid reprocessing the same audio, (2) trim audio appropriately to avoid sending silent segments, (3) use batch processing instead of real-time APIs when possible, (4) for short audio, Whisper API's pay-per-use pricing is advantageous.
 
-### Q5: オフラインで使える音声認識は？
+### Q5: What speech recognition options work offline?
 
-**A**: OpenAI Whisperのオープンソース版をローカルで実行する方法が最も実用的。faster-whisperを使えばCTranslate2最適化により2-4倍高速に動作する。NVIDIA GPUがあれば `compute_type="float16"` でさらに高速化可能。CPUのみの環境では `compute_type="int8"` で量子化すると実用的な速度になる。
+**A**: The most practical approach is running the open-source version of OpenAI Whisper locally. Using faster-whisper, you can achieve 2-4x speedup through CTranslate2 optimization. With an NVIDIA GPU, you can further accelerate using `compute_type="float16"`. In CPU-only environments, quantization with `compute_type="int8"` provides practical speeds.
 
-### Q6: 音声合成のSSML記法はどう使うか？
+### Q6: How do you use SSML notation for speech synthesis?
 
-**A**: SSML（Speech Synthesis Markup Language）はXMLベースで音声合成を細かく制御する規格。主なタグ: `<prosody>` で速度・ピッチ・音量を制御、`<break>` でポーズ挿入、`<emphasis>` で強調、`<say-as>` で読み方指定（日付・数値等）。Amazon PollyとAzure Speechが最も豊富なSSMLサポートを提供している。
+**A**: SSML (Speech Synthesis Markup Language) is an XML-based standard for fine-grained control of speech synthesis. Key tags include: `<prosody>` for controlling speed, pitch, and volume; `<break>` for inserting pauses; `<emphasis>` for emphasis; and `<say-as>` for specifying pronunciation (dates, numbers, etc.). Amazon Polly and Azure Speech provide the most comprehensive SSML support.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing and running code.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in everyday development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## 9. まとめ
+## 9. Summary
 
-| カテゴリ | ポイント |
+| Category | Key Points |
 |---------|---------|
-| STT選定 | 精度重視ならWhisper、リアルタイムならAzure/Deepgram、カスタマイズならGoogle |
-| TTS選定 | 日本語品質ならAzure、低コストならPolly、クローンならElevenLabs |
-| 統合設計 | マルチプロバイダ+フォールバックで可用性確保 |
-| リアルタイム | WebSocket/gRPCストリーミングで低レイテンシ実現 |
-| コスト最適化 | キャッシュ、チャンク分割、適切なAPI選択で削減 |
-| セキュリティ | APIキーはSecret Manager管理、音声データは暗号化転送 |
-| 運用監視 | レイテンシ・エラー率・コストのメトリクスを常時監視 |
+| STT Selection | Whisper for accuracy, Azure/Deepgram for real-time, Google for customization |
+| TTS Selection | Azure for Japanese quality, Polly for low cost, ElevenLabs for cloning |
+| Integration Design | Ensure availability with multi-provider + fallback |
+| Real-time | Achieve low latency with WebSocket/gRPC streaming |
+| Cost Optimization | Reduce costs with caching, chunked splitting, and appropriate API selection |
+| Security | Manage API keys with Secret Manager, encrypt audio data in transit |
+| Operational Monitoring | Continuously monitor latency, error rate, and cost metrics |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [01-audio-processing.md](./01-audio-processing.md) — 音声処理パイプラインの実装
-- [02-real-time-audio.md](./02-real-time-audio.md) — リアルタイム音声処理
-- [../00-fundamentals/03-stt-technologies.md](../00-fundamentals/03-stt-technologies.md) — STT技術の詳細
+- [01-audio-processing.md](./01-audio-processing.md) — Implementing Audio Processing Pipelines
+- [02-real-time-audio.md](./02-real-time-audio.md) — Real-time Audio Processing
+- [../00-fundamentals/03-stt-technologies.md](../00-fundamentals/03-stt-technologies.md) — STT Technologies in Detail
 
 ---
 
-## 参考文献
+## References
 
-1. Google Cloud Speech-to-Text ドキュメント — https://cloud.google.com/speech-to-text/docs
-2. Azure AI Speech Services ドキュメント — https://learn.microsoft.com/azure/ai-services/speech-service/
-3. OpenAI Whisper API リファレンス — https://platform.openai.com/docs/guides/speech-to-text
-4. Amazon Polly 開発者ガイド — https://docs.aws.amazon.com/polly/latest/dg/
-5. Deepgram API ドキュメント — https://developers.deepgram.com/docs
-6. ElevenLabs API ドキュメント — https://docs.elevenlabs.io/
+1. Google Cloud Speech-to-Text Documentation — https://cloud.google.com/speech-to-text/docs
+2. Azure AI Speech Services Documentation — https://learn.microsoft.com/azure/ai-services/speech-service/
+3. OpenAI Whisper API Reference — https://platform.openai.com/docs/guides/speech-to-text
+4. Amazon Polly Developer Guide — https://docs.aws.amazon.com/polly/latest/dg/
+5. Deepgram API Documentation — https://developers.deepgram.com/docs
+6. ElevenLabs API Documentation — https://docs.elevenlabs.io/
