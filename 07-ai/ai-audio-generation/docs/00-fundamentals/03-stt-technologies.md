@@ -1,87 +1,87 @@
-# STT技術 — Whisper、Google Speech、Azure Speech
+# STT Technologies — Whisper, Google Speech, Azure Speech
 
-> 音声をテキストに変換するSTT（Speech-to-Text）技術の仕組み、主要サービスの比較、実装パターンを解説する
+> An explanation of the mechanisms behind STT (Speech-to-Text) technology that converts speech to text, a comparison of major services, and implementation patterns
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. 現代STTのアーキテクチャ（CTC、Attention、Transducer）と動作原理
-2. OpenAI Whisperの仕組み、使い方、ファインチューニング
-3. クラウドSTT API（Google、Azure、AWS）の実装と使い分け
+1. Modern STT architectures (CTC, Attention, Transducer) and how they work
+2. How OpenAI Whisper works, how to use it, and how to fine-tune it
+3. Implementing and choosing between cloud STT APIs (Google, Azure, AWS)
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Understanding the following will help you get the most out of this guide:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [TTS技術 — VITS、Bark、ElevenLabs](./02-tts-technologies.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Familiarity with the content of [TTS Technologies — VITS, Bark, ElevenLabs](./02-tts-technologies.md)
 
 ---
 
-## 1. STT技術のアーキテクチャ
+## 1. STT Technology Architecture
 
-### 1.1 主要なSTTアーキテクチャ
+### 1.1 Major STT Architectures
 
 ```
-STTの3つのアーキテクチャ
+Three STT Architectures
 ==================================================
 
-1. CTC（Connectionist Temporal Classification）
+1. CTC (Connectionist Temporal Classification)
 ┌────────┐    ┌──────────┐    ┌─────┐
-│メル     │───→│Encoder   │───→│CTC  │───→ テキスト
-│スペクト │    │(Conformer)│   │Loss │
-│グラム   │    └──────────┘    └─────┘
-  * デコーダ不要で高速
-  * 条件付き独立仮定（精度に限界）
+│Mel     │───→│Encoder   │───→│CTC  │───→ Text
+│Spectro │    │(Conformer)│   │Loss │
+│gram    │    └──────────┘    └─────┘
+  * No decoder needed, fast inference
+  * Conditional independence assumption (limits accuracy)
 
 2. Attention-based Encoder-Decoder
 ┌────────┐    ┌──────────┐    ┌──────────┐
-│メル     │───→│Encoder   │───→│Decoder   │───→ テキスト
-│スペクト │    │(Transformer)│  │(自己回帰)│
-│グラム   │    └──────────┘    └──────────┘
+│Mel     │───→│Encoder   │───→│Decoder   │───→ Text
+│Spectro │    │(Transformer)│  │(Autoregr)│
+│gram    │    └──────────┘    └──────────┘
                     ↕ Attention
-  * 高精度（文脈を考慮）
-  * 自己回帰のため低速
+  * High accuracy (considers context)
+  * Slow due to autoregressive decoding
 
-3. Transducer（RNN-T / Conformer-T）
+3. Transducer (RNN-T / Conformer-T)
 ┌────────┐    ┌──────────┐
-│メル     │───→│Encoder   │──┐
-│スペクト │    └──────────┘  │ Joint
-│グラム   │                  ├──────→ テキスト
+│Mel     │───→│Encoder   │──┐
+│Spectro │    └──────────┘  │ Joint
+│gram    │                  ├──────→ Text
               ┌──────────┐  │
               │Prediction│──┘
               │Network   │
               └──────────┘
-  * ストリーミング対応
-  * CTC + Attentionの良いとこ取り
+  * Supports streaming
+  * Best of both CTC and Attention
 ==================================================
 ```
 
-### 1.2 CTCアーキテクチャの詳細
+### 1.2 CTC Architecture in Detail
 
-CTC（Connectionist Temporal Classification）は、入力と出力のアライメントを明示的に求めず、全ての可能なアライメントの合計確率を最大化するアプローチである。
+CTC (Connectionist Temporal Classification) is an approach that maximizes the total probability across all possible alignments without explicitly determining the alignment between input and output.
 
 ```python
-# CTCベースのSTTモデル概念実装
+# Conceptual implementation of a CTC-based STT model
 import torch
 import torch.nn as nn
 import torchaudio
 
 class CTCModel(nn.Module):
-    """CTC損失を使用した音声認識モデル"""
+    """Speech recognition model using CTC loss"""
 
     def __init__(
         self,
-        input_dim: int = 80,      # メルスペクトログラムのビン数
+        input_dim: int = 80,      # Number of mel spectrogram bins
         hidden_dim: int = 512,
         num_layers: int = 6,
-        vocab_size: int = 5000,    # サブワード語彙サイズ
+        vocab_size: int = 5000,    # Subword vocabulary size
         dropout: float = 0.1,
     ):
         super().__init__()
 
-        # 特徴量前処理: Conv2Dサブサンプリング
+        # Feature preprocessing: Conv2D subsampling
         self.conv_subsample = nn.Sequential(
             nn.Conv2d(1, 32, kernel_size=3, stride=2, padding=1),
             nn.ReLU(),
@@ -89,7 +89,7 @@ class CTCModel(nn.Module):
             nn.ReLU(),
         )
 
-        # Conformerエンコーダ
+        # Conformer encoder
         conv_out_dim = 32 * (input_dim // 4)
         self.linear_in = nn.Linear(conv_out_dim, hidden_dim)
 
@@ -102,13 +102,13 @@ class CTCModel(nn.Module):
         )
         self.encoder = nn.TransformerEncoder(encoder_layer, num_layers)
 
-        # 出力層（blank token含む）
+        # Output layer (including blank token)
         self.output_proj = nn.Linear(hidden_dim, vocab_size + 1)  # +1 for blank
 
     def forward(self, x, x_lengths):
         """
-        x: (batch, time, mel_bins) メルスペクトログラム
-        x_lengths: (batch,) 各入力の長さ
+        x: (batch, time, mel_bins) mel spectrogram
+        x_lengths: (batch,) length of each input
         """
         # (B, T, F) -> (B, 1, T, F) -> Conv2D
         x = x.unsqueeze(1)
@@ -122,15 +122,15 @@ class CTCModel(nn.Module):
         x = self.encoder(x)
         logits = self.output_proj(x)
 
-        # CTC用にlog_softmax
+        # log_softmax for CTC
         log_probs = torch.log_softmax(logits, dim=-1)
         return log_probs
 
     def decode_greedy(self, log_probs):
-        """グリーディデコード: 最も確率の高いトークンを選択"""
+        """Greedy decoding: select the most probable token"""
         predictions = torch.argmax(log_probs, dim=-1)
 
-        # blank除去と連続重複除去
+        # Remove blanks and collapse consecutive duplicates
         decoded = []
         prev = -1
         for token in predictions[0]:
@@ -142,20 +142,20 @@ class CTCModel(nn.Module):
         return decoded
 ```
 
-CTCの主な特徴は以下の通り:
+Key characteristics of CTC:
 
-- **利点**: デコーダが不要なため推論が高速、ストリーミング処理との相性が良い
-- **限界**: 条件付き独立仮定により、出力トークン間の依存関係をモデル化できない
-- **改善策**: 外部言語モデルとの組み合わせ、CTC+Attentionハイブリッド
+- **Advantages**: Fast inference since no decoder is needed, good compatibility with streaming processing
+- **Limitations**: Cannot model dependencies between output tokens due to the conditional independence assumption
+- **Improvements**: Combining with external language models, CTC+Attention hybrid
 
-### 1.3 Transducerアーキテクチャの詳細
+### 1.3 Transducer Architecture in Detail
 
-Transducer（特にRNN-T / Conformer-T）は、ストリーミング音声認識の主流アーキテクチャである。
+The Transducer (especially RNN-T / Conformer-T) is the mainstream architecture for streaming speech recognition.
 
 ```python
-# RNN-Transducerの概念構造
+# Conceptual structure of RNN-Transducer
 class RNNTransducer(nn.Module):
-    """RNN-T モデルの簡略実装"""
+    """Simplified implementation of an RNN-T model"""
 
     def __init__(
         self,
@@ -167,16 +167,16 @@ class RNNTransducer(nn.Module):
     ):
         super().__init__()
 
-        # Encoder: 音響特徴量を処理（Conformerベース）
+        # Encoder: processes acoustic features (Conformer-based)
         self.encoder = nn.LSTM(
             input_size=input_dim,
             hidden_size=encoder_dim,
             num_layers=6,
             batch_first=True,
-            bidirectional=False,  # ストリーミングのため単方向
+            bidirectional=False,  # Unidirectional for streaming
         )
 
-        # Prediction Network: 過去の出力トークンを処理
+        # Prediction Network: processes past output tokens
         self.prediction = nn.LSTM(
             input_size=vocab_size,
             hidden_size=decoder_dim,
@@ -184,7 +184,7 @@ class RNNTransducer(nn.Module):
             batch_first=True,
         )
 
-        # Joint Network: EncoderとPredictionの出力を結合
+        # Joint Network: combines Encoder and Prediction outputs
         self.joint_enc = nn.Linear(encoder_dim, joint_dim)
         self.joint_pred = nn.Linear(decoder_dim, joint_dim)
         self.joint_out = nn.Linear(joint_dim, vocab_size + 1)  # +blank
@@ -207,110 +207,110 @@ class RNNTransducer(nn.Module):
         return logits
 ```
 
-Transducerの重要な設計ポイント:
+Key design considerations for Transducers:
 
-| 要素 | 説明 | 設計上の考慮点 |
-|------|------|--------------|
-| Encoder | 音響特徴量の処理 | 単方向LSTM/Conformerでストリーミング対応 |
-| Prediction Network | 言語モデルの役割 | 小さめのLSTMで十分（軽量化） |
-| Joint Network | 結合判定 | ブランク vs 出力の判定がボトルネック |
-| ビームサーチ | デコード | ビーム幅4-10が精度と速度のバランス |
+| Component | Description | Design Consideration |
+|-----------|-------------|---------------------|
+| Encoder | Processes acoustic features | Streaming support with unidirectional LSTM/Conformer |
+| Prediction Network | Acts as a language model | A small LSTM is sufficient (lightweight) |
+| Joint Network | Combines and decides | Blank vs. output decision is the bottleneck |
+| Beam Search | Decoding | Beam width of 4-10 balances accuracy and speed |
 
-### 1.4 Whisperのアーキテクチャ
+### 1.4 Whisper Architecture
 
 ```
-Whisper アーキテクチャ詳細
+Whisper Architecture Details
 ==================================================
 
-音声入力 (30秒パディング)
+Audio Input (padded to 30 seconds)
     │
     ▼
 ┌─────────────────────┐
-│ メルスペクトログラム   │  80チャネル, 30秒固定
+│ Mel Spectrogram      │  80 channels, fixed 30 seconds
 │ (80 x 3000 frames)  │
 └──────────┬──────────┘
            ▼
 ┌─────────────────────┐
 │  Audio Encoder       │
-│  ├─ Conv1D (2層)     │  位置エンコーディング
-│  └─ Transformer      │  tiny:4層, base:6層,
-│     (Self-Attention)  │  small:12層, medium:24層,
-└──────────┬──────────┘  large:32層
+│  ├─ Conv1D (2 layers)│  Positional encoding
+│  └─ Transformer      │  tiny:4 layers, base:6 layers,
+│     (Self-Attention)  │  small:12 layers, medium:24 layers,
+└──────────┬──────────┘  large:32 layers
            │
            │ Cross-Attention
            ▼
 ┌─────────────────────┐
-│  Text Decoder        │  自己回帰的にトークン生成
+│  Text Decoder        │  Generates tokens autoregressively
 │  ├─ Self-Attention   │
-│  ├─ Cross-Attention  │  ← Encoder出力を参照
+│  ├─ Cross-Attention  │  ← References Encoder output
 │  └─ FFN              │
 └──────────┬──────────┘
            ▼
 ┌─────────────────────┐
 │  Special Tokens      │
 │  <|startoftranscript|>│
-│  <|ja|>              │  言語タグ
-│  <|transcribe|>      │  タスク指定
-│  <|notimestamps|>    │  タイムスタンプ制御
+│  <|ja|>              │  Language tag
+│  <|transcribe|>      │  Task specification
+│  <|notimestamps|>    │  Timestamp control
 └──────────┬──────────┘
            ▼
-      テキスト出力
+      Text Output
 ==================================================
 ```
 
-### 1.5 Whisper の学習データと多言語対応
+### 1.5 Whisper Training Data and Multilingual Support
 
-Whisperは680,000時間のインターネット音声データで学習されている。この大規模弱教師あり学習が高い汎化性能の源泉となっている。
-
-```
-Whisper 学習データ構成
-==================================================
-
-総量: 680,000 時間の音声データ
-
-言語分布:
-  英語           : ████████████████████ 65%
-  ヨーロッパ言語 : ██████ 15%
-  アジア言語     : ████ 10%
-    - 日本語     : 約7,000時間（推定）
-    - 中国語     : 約12,000時間（推定）
-    - 韓国語     : 約3,000時間（推定）
-  その他         : ███ 10%
-
-タスク分布:
-  文字起こし     : 75%（音声→同一言語テキスト）
-  翻訳           : 25%（音声→英語テキスト）
-
-データソース:
-  - インターネット上の字幕付き動画
-  - ポッドキャスト + 書き起こし
-  - オーディオブック + テキスト
-  ※ 弱教師あり = 完全なアライメントなしで学習
-==================================================
-```
-
-### 1.6 アーキテクチャの選択指針
+Whisper was trained on 680,000 hours of internet audio data. This large-scale weakly supervised training is the source of its high generalization performance.
 
 ```
-STTアーキテクチャ 選択フローチャート
+Whisper Training Data Composition
 ==================================================
 
-               ストリーミングが必要？
+Total: 680,000 hours of audio data
+
+Language Distribution:
+  English          : ████████████████████ 65%
+  European langs   : ██████ 15%
+  Asian langs      : ████ 10%
+    - Japanese     : ~7,000 hours (estimated)
+    - Chinese      : ~12,000 hours (estimated)
+    - Korean       : ~3,000 hours (estimated)
+  Other            : ███ 10%
+
+Task Distribution:
+  Transcription    : 75% (audio → same-language text)
+  Translation      : 25% (audio → English text)
+
+Data Sources:
+  - Internet videos with subtitles
+  - Podcasts + transcriptions
+  - Audiobooks + text
+  * Weakly supervised = trained without perfect alignment
+==================================================
+```
+
+### 1.6 Architecture Selection Guide
+
+```
+STT Architecture Selection Flowchart
+==================================================
+
+               Streaming required?
               /                    \
           Yes                       No
            |                        |
-     リアルタイム性            最高精度が必要？
-     最優先？               /            \
-    /        \           Yes              No
- Yes          No          |               |
-  |            |     Attention-based    CTC + 言語モデル
-Transducer  Transducer  Encoder-Decoder  (コスト重視)
-(Conformer-T) (RNN-T)   (Whisper等)
+     Real-time                 Need highest
+     top priority?             accuracy?
+    /        \               /            \
+ Yes          No          Yes              No
+  |            |     Attention-based    CTC + Language Model
+Transducer  Transducer  Encoder-Decoder  (cost-focused)
+(Conformer-T) (RNN-T)   (Whisper, etc.)
   |            |          |               |
-遅延<100ms  遅延<300ms  バッチ処理     低コスト処理
-on-device   サーバー    最高精度      組込みデバイス
+Latency<100ms Latency<300ms Batch proc. Low-cost proc.
+on-device   server      highest acc.  embedded devices
 
-代表的な実装:
+Representative implementations:
   Transducer : Google USM, Conformer-Transducer
   Attention  : Whisper, Canary (NVIDIA NeMo)
   CTC        : wav2vec 2.0, HuBERT
@@ -319,39 +319,39 @@ on-device   サーバー    最高精度      組込みデバイス
 
 ---
 
-## 2. Whisperの実装
+## 2. Whisper Implementation
 
-### 2.1 基本的な使い方
+### 2.1 Basic Usage
 
 ```python
 import whisper
 
-# モデルのロード
+# Load model
 model = whisper.load_model("large-v3")  # tiny, base, small, medium, large-v3
 
-# 基本的な文字起こし
+# Basic transcription
 result = model.transcribe(
     "audio.wav",
-    language="ja",           # 言語指定（自動検出も可能）
+    language="ja",           # Language specification (auto-detection also available)
     task="transcribe",       # transcribe or translate
-    fp16=True,               # GPU使用時はFP16で高速化
+    fp16=True,               # FP16 for faster GPU inference
 )
 
 print(result["text"])
 
-# セグメント単位の詳細結果
+# Detailed results per segment
 for segment in result["segments"]:
     print(f"[{segment['start']:.1f}s - {segment['end']:.1f}s] {segment['text']}")
-    print(f"  信頼度: {segment['avg_logprob']:.3f}")
+    print(f"  Confidence: {segment['avg_logprob']:.3f}")
 ```
 
-### 2.2 Whisperの詳細オプション
+### 2.2 Whisper Advanced Options
 
 ```python
 import whisper
 import numpy as np
 
-# 詳細なパラメータ設定
+# Detailed parameter configuration
 model = whisper.load_model("large-v3")
 
 result = model.transcribe(
@@ -359,69 +359,69 @@ result = model.transcribe(
     language="ja",
     task="transcribe",
 
-    # デコーディングオプション
-    temperature=0.0,            # 0.0 = グリーディ、>0 = サンプリング
-    best_of=5,                  # temperature > 0 のとき複数候補から最善を選択
-    beam_size=5,                # ビームサーチのビーム数
-    patience=1.0,               # ビームサーチの忍耐度
-    length_penalty=None,        # 長さペナルティ（Noneで無効）
+    # Decoding options
+    temperature=0.0,            # 0.0 = greedy, >0 = sampling
+    best_of=5,                  # Select best from multiple candidates when temperature > 0
+    beam_size=5,                # Number of beams for beam search
+    patience=1.0,               # Beam search patience
+    length_penalty=None,        # Length penalty (None to disable)
 
-    # 前処理オプション
-    fp16=True,                  # FP16で推論（GPU必須）
-    no_speech_threshold=0.6,    # 無音セグメントの閾値
-    logprob_threshold=-1.0,     # 低信頼度セグメントの閾値
-    compression_ratio_threshold=2.4,  # 繰り返し検出の閾値
+    # Preprocessing options
+    fp16=True,                  # FP16 inference (GPU required)
+    no_speech_threshold=0.6,    # Threshold for silent segments
+    logprob_threshold=-1.0,     # Threshold for low-confidence segments
+    compression_ratio_threshold=2.4,  # Threshold for repetition detection
 
-    # 出力制御
-    word_timestamps=True,       # 単語レベルのタイムスタンプ
-    prepend_punctuations="\"'"¿([{-",  # 前置句読点
-    append_punctuations="\"'.。,，!！?？:：\"')]}、",  # 後置句読点
+    # Output control
+    word_timestamps=True,       # Word-level timestamps
+    prepend_punctuations="\"'"¿([{-",  # Prepend punctuation
+    append_punctuations="\"'.。,，!！?？:：\"')]}、",  # Append punctuation
 
-    # 初期プロンプト（コンテキスト提供）
-    initial_prompt="以下は会議の議事録です。参加者は田中、佐藤、鈴木の3名です。",
+    # Initial prompt (provides context)
+    initial_prompt="The following is meeting minutes. Participants are Tanaka, Sato, and Suzuki.",
 
-    # 条件付きテキスト（特定フォーマットの強制）
-    condition_on_previous_text=True,  # 前セグメントのテキストを条件に
+    # Conditional text (forces specific format)
+    condition_on_previous_text=True,  # Condition on previous segment text
 )
 
-# 単語レベルのタイムスタンプ
+# Word-level timestamps
 for segment in result["segments"]:
     if "words" in segment:
         for word in segment["words"]:
             print(f"  [{word['start']:.2f}s - {word['end']:.2f}s] {word['word']}")
 ```
 
-### 2.3 faster-whisper（高速版）
+### 2.3 faster-whisper (Optimized Version)
 
 ```python
 from faster_whisper import WhisperModel
 
-# CTranslate2 による最適化版（2-4倍高速）
+# CTranslate2-optimized version (2-4x faster)
 model = WhisperModel(
     "large-v3",
     device="cuda",
     compute_type="float16",  # float16, int8_float16, int8
 )
 
-# バッチ処理
+# Batch processing
 segments, info = model.transcribe(
     "audio.wav",
     language="ja",
     beam_size=5,
     best_of=5,
-    vad_filter=True,         # VADで無音区間をスキップ
+    vad_filter=True,         # Skip silent segments with VAD
     vad_parameters=dict(
-        min_silence_duration_ms=500,  # 500ms以上の無音で分割
+        min_silence_duration_ms=500,  # Split on silence of 500ms or more
     ),
 )
 
-print(f"検出言語: {info.language} (確率: {info.language_probability:.2f})")
+print(f"Detected language: {info.language} (probability: {info.language_probability:.2f})")
 
 for segment in segments:
     print(f"[{segment.start:.1f}s - {segment.end:.1f}s] {segment.text}")
 ```
 
-### 2.4 faster-whisper の高度な設定
+### 2.4 Advanced faster-whisper Configuration
 
 ```python
 from faster_whisper import WhisperModel, BatchedInferencePipeline
@@ -429,26 +429,26 @@ import numpy as np
 
 def advanced_faster_whisper_transcription(audio_path: str) -> dict:
     """
-    faster-whisperの高度な設定を使った文字起こし
-    - VADフィルタリング
-    - バッチ推論
-    - 詳細パラメータ調整
+    Transcription using advanced faster-whisper settings
+    - VAD filtering
+    - Batched inference
+    - Detailed parameter tuning
     """
     model = WhisperModel(
         "large-v3",
         device="cuda",
         compute_type="float16",
-        cpu_threads=4,           # CPUスレッド数
-        num_workers=2,           # データローダワーカー数
+        cpu_threads=4,           # Number of CPU threads
+        num_workers=2,           # Number of data loader workers
     )
 
-    # 高度なVAD設定
+    # Advanced VAD settings
     vad_params = {
-        "threshold": 0.5,                  # VAD確率閾値
-        "min_speech_duration_ms": 250,     # 最小発話持続時間
-        "max_speech_duration_s": 30,       # 最大発話持続時間（Whisperの上限に合わせる）
-        "min_silence_duration_ms": 500,    # 無音区間の最小持続時間
-        "speech_pad_ms": 200,              # 発話前後のパディング
+        "threshold": 0.5,                  # VAD probability threshold
+        "min_speech_duration_ms": 250,     # Minimum speech duration
+        "max_speech_duration_s": 30,       # Maximum speech duration (aligned with Whisper's limit)
+        "min_silence_duration_ms": 500,    # Minimum silence duration
+        "speech_pad_ms": 200,              # Padding before/after speech
     }
 
     segments, info = model.transcribe(
@@ -458,16 +458,16 @@ def advanced_faster_whisper_transcription(audio_path: str) -> dict:
         best_of=5,
         patience=1.5,
         length_penalty=1.0,
-        repetition_penalty=1.2,    # 繰り返し抑制
-        no_repeat_ngram_size=3,    # 3-gram繰り返し禁止
-        temperature=[0.0, 0.2, 0.4, 0.6, 0.8, 1.0],  # 段階的温度
+        repetition_penalty=1.2,    # Repetition suppression
+        no_repeat_ngram_size=3,    # Forbid 3-gram repetitions
+        temperature=[0.0, 0.2, 0.4, 0.6, 0.8, 1.0],  # Gradual temperature
         compression_ratio_threshold=2.4,
         log_prob_threshold=-1.0,
         no_speech_threshold=0.6,
         word_timestamps=True,
         vad_filter=True,
         vad_parameters=vad_params,
-        initial_prompt="以下は日本語の音声です。",
+        initial_prompt="The following is Japanese audio.",
     )
 
     results = {
@@ -503,10 +503,10 @@ def advanced_faster_whisper_transcription(audio_path: str) -> dict:
     return results
 ```
 
-### 2.5 Whisper のファインチューニング
+### 2.5 Fine-tuning Whisper
 
 ```python
-# Hugging Face Transformers によるファインチューニング
+# Fine-tuning with Hugging Face Transformers
 
 from transformers import (
     WhisperForConditionalGeneration,
@@ -520,22 +520,22 @@ import torch
 from dataclasses import dataclass
 from typing import Any, Dict, List, Union
 
-# モデルとプロセッサのロード
+# Load model and processor
 model_name = "openai/whisper-small"
 processor = WhisperProcessor.from_pretrained(model_name)
 model = WhisperForConditionalGeneration.from_pretrained(model_name)
 
-# 日本語用のタスク設定
+# Task settings for Japanese
 model.config.forced_decoder_ids = processor.get_decoder_prompt_ids(
     language="ja", task="transcribe"
 )
 
-# データセットの準備
+# Prepare dataset
 dataset = load_dataset("mozilla-foundation/common_voice_16_1", "ja")
 dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
 
 def prepare_dataset(batch):
-    """音声データの前処理"""
+    """Preprocess audio data"""
     audio = batch["audio"]
     batch["input_features"] = processor.feature_extractor(
         audio["array"], sampling_rate=audio["sampling_rate"]
@@ -543,14 +543,14 @@ def prepare_dataset(batch):
     batch["labels"] = processor.tokenizer(batch["sentence"]).input_ids
     return batch
 
-# データセットの前処理を適用
+# Apply dataset preprocessing
 dataset = dataset.map(
     prepare_dataset,
     remove_columns=dataset.column_names["train"],
     num_proc=4,
 )
 
-# カスタムデータコレーター
+# Custom data collator
 @dataclass
 class DataCollatorSpeechSeq2SeqWithPadding:
     processor: Any
@@ -586,7 +586,7 @@ data_collator = DataCollatorSpeechSeq2SeqWithPadding(
     decoder_start_token_id=model.config.decoder_start_token_id,
 )
 
-# 評価メトリクス
+# Evaluation metrics
 wer_metric = evaluate.load("wer")
 cer_metric = evaluate.load("cer")
 
@@ -603,7 +603,7 @@ def compute_metrics(pred):
 
     return {"wer": wer, "cer": cer}
 
-# トレーニング設定
+# Training configuration
 training_args = Seq2SeqTrainingArguments(
     output_dir="./whisper-ja-finetuned",
     per_device_train_batch_size=16,
@@ -625,7 +625,7 @@ training_args = Seq2SeqTrainingArguments(
     push_to_hub=False,
 )
 
-# トレーナーの初期化と学習
+# Initialize trainer and start training
 trainer = Seq2SeqTrainer(
     args=training_args,
     model=model,
@@ -639,41 +639,41 @@ trainer = Seq2SeqTrainer(
 trainer.train()
 ```
 
-### 2.6 日本語特化のファインチューニングデータセット
+### 2.6 Japanese-Specific Fine-tuning Datasets
 
 ```python
-# ReazonSpeechを使った日本語ファインチューニング
+# Japanese fine-tuning with ReazonSpeech
 
 from datasets import load_dataset, Audio
 from transformers import WhisperProcessor
 
 def prepare_reazon_speech_dataset():
     """
-    ReazonSpeech: 日本語特化の大規模音声データセット
-    - 約19,000時間の日本語音声
-    - NHKニュースの読み上げ音声
-    - 高品質なアライメント
+    ReazonSpeech: A large-scale Japanese-specific speech dataset
+    - Approximately 19,000 hours of Japanese audio
+    - NHK news read-aloud audio
+    - High-quality alignment
     """
-    # ReazonSpeechデータセットのロード
+    # Load ReazonSpeech dataset
     dataset = load_dataset(
         "reazon-research/reazonspeech",
         "all",
         trust_remote_code=True,
     )
 
-    # サンプリングレートの統一
+    # Unify sampling rate
     dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
 
     processor = WhisperProcessor.from_pretrained("openai/whisper-small")
 
     def preprocess(batch):
         audio = batch["audio"]
-        # Whisper用の特徴量抽出
+        # Feature extraction for Whisper
         batch["input_features"] = processor.feature_extractor(
             audio["array"],
             sampling_rate=16000,
         ).input_features[0]
-        # テキストのトークン化
+        # Tokenize text
         batch["labels"] = processor.tokenizer(
             batch["transcription"]
         ).input_ids
@@ -685,9 +685,9 @@ def prepare_reazon_speech_dataset():
 def prepare_jsut_dataset():
     """
     JSUT (Japanese Speech corpus of Saruwatari-lab, University of Tokyo)
-    - 約10時間の高品質日本語音声
-    - 1名の女性話者
-    - ファインチューニングの小規模実験に最適
+    - Approximately 10 hours of high-quality Japanese audio
+    - Single female speaker
+    - Ideal for small-scale fine-tuning experiments
     """
     dataset = load_dataset("esb/jsut", trust_remote_code=True)
     dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
@@ -695,10 +695,10 @@ def prepare_jsut_dataset():
 
 def prepare_common_voice_ja():
     """
-    Common Voice 日本語
-    - Mozilla による多話者日本語データセット
-    - 多様な話者によるクラウドソーシングデータ
-    - バリデーション済みの高品質サブセットあり
+    Common Voice Japanese
+    - Multi-speaker Japanese dataset by Mozilla
+    - Crowdsourced data from diverse speakers
+    - Has a validated high-quality subset
     """
     dataset = load_dataset(
         "mozilla-foundation/common_voice_16_1",
@@ -707,30 +707,30 @@ def prepare_common_voice_ja():
     )
     dataset = dataset.cast_column("audio", Audio(sampling_rate=16000))
 
-    # バリデーション済みのデータのみフィルタリング
+    # Filter to validated data only
     dataset = dataset.filter(lambda x: x["up_votes"] >= 2 and x["down_votes"] == 0)
 
     return dataset
 ```
 
-### 2.7 Whisperの後処理パイプライン
+### 2.7 Whisper Post-processing Pipeline
 
 ```python
 import re
 from typing import Optional
 
 class WhisperPostProcessor:
-    """Whisper出力の後処理パイプライン"""
+    """Post-processing pipeline for Whisper output"""
 
     def __init__(self):
-        self.custom_dict = {}  # カスタム辞書（固有名詞等）
+        self.custom_dict = {}  # Custom dictionary (for proper nouns, etc.)
 
     def add_custom_words(self, word_map: dict):
-        """カスタム辞書の追加（誤認識の修正用）"""
+        """Add custom dictionary entries (for correcting misrecognitions)"""
         self.custom_dict.update(word_map)
 
     def process(self, text: str) -> str:
-        """全後処理ステップを順次実行"""
+        """Execute all post-processing steps sequentially"""
         text = self._remove_hallucinations(text)
         text = self._fix_punctuation(text)
         text = self._apply_custom_dict(text)
@@ -739,20 +739,20 @@ class WhisperPostProcessor:
         return text.strip()
 
     def _remove_hallucinations(self, text: str) -> str:
-        """Whisperのハルシネーション（幻覚）パターンを除去"""
-        # 繰り返しパターンの検出と除去
-        # 例: "ありがとうございますありがとうございますありがとうございます"
+        """Remove Whisper hallucination patterns"""
+        # Detect and remove repetitive patterns
+        # Example: "thank you very muchthank you very muchthank you very much"
         for length in range(5, 50):
             pattern = r'(.{' + str(length) + r',})\1{2,}'
             text = re.sub(pattern, r'\1', text)
 
-        # 典型的なハルシネーションフレーズ
+        # Typical hallucination phrases
         hallucination_patterns = [
-            r'ご視聴ありがとうございました。?$',
-            r'チャンネル登録.*お願いします。?$',
-            r'お疲れ様でした。?$',
-            r'(?:\.{3,})',  # 連続するピリオド
-            r'(?:。{2,})',  # 連続する句点
+            r'Thank you for watching\.?$',
+            r'Please subscribe.*\.?$',
+            r'Good job\.?$',
+            r'(?:\.{3,})',  # Consecutive periods
+            r'(?:。{2,})',  # Consecutive full stops
         ]
         for pattern in hallucination_patterns:
             text = re.sub(pattern, '', text)
@@ -760,37 +760,37 @@ class WhisperPostProcessor:
         return text
 
     def _fix_punctuation(self, text: str) -> str:
-        """句読点の修正"""
-        # 半角句読点を全角に統一
+        """Fix punctuation"""
+        # Normalize half-width punctuation to full-width
         text = text.replace(',', '、')
         text = text.replace('.', '。')
         text = text.replace('!', '！')
         text = text.replace('?', '？')
 
-        # 連続する句読点を1つに
+        # Collapse consecutive punctuation marks into one
         text = re.sub(r'[、。]{2,}', '。', text)
 
-        # 文末に句点がない場合に追加
+        # Add a period at the end if missing
         if text and text[-1] not in '。！？':
             text += '。'
 
         return text
 
     def _apply_custom_dict(self, text: str) -> str:
-        """カスタム辞書による置換"""
+        """Apply custom dictionary replacements"""
         for wrong, correct in self.custom_dict.items():
             text = text.replace(wrong, correct)
         return text
 
     def _normalize_numbers(self, text: str) -> str:
-        """数値表現の正規化"""
-        # 全角数字を半角に変換
+        """Normalize number representations"""
+        # Convert full-width digits to half-width
         zen_to_han = str.maketrans('０１２３４５６７８９', '0123456789')
         text = text.translate(zen_to_han)
         return text
 
     def _remove_filler_words(self, text: str) -> str:
-        """フィラーワード（えー、あの）の除去"""
+        """Remove filler words (um, uh, well)"""
         fillers = [
             r'えー[、と]?\s*',
             r'あのー?\s*',
@@ -803,7 +803,7 @@ class WhisperPostProcessor:
         return text
 
 
-# 使用例
+# Usage example
 post_processor = WhisperPostProcessor()
 post_processor.add_custom_words({
     "ファスターウィスパー": "faster-whisper",
@@ -820,7 +820,7 @@ print(cleaned)
 
 ---
 
-## 3. クラウドSTT API
+## 3. Cloud STT APIs
 
 ### 3.1 Google Speech-to-Text
 
@@ -839,9 +839,9 @@ def google_stt(audio_file: str, language: str = "ja-JP") -> str:
         language_codes=[language],
         model="long",  # long, short, telephony, medical_dictation
         features=speech.RecognitionFeatures(
-            enable_automatic_punctuation=True,  # 自動句読点
-            enable_word_time_offsets=True,       # 単語タイムスタンプ
-            enable_word_confidence=True,         # 単語信頼度
+            enable_automatic_punctuation=True,  # Auto punctuation
+            enable_word_time_offsets=True,       # Word timestamps
+            enable_word_confidence=True,         # Word confidence
         ),
     )
 
@@ -855,15 +855,15 @@ def google_stt(audio_file: str, language: str = "ja-JP") -> str:
 
     for result in response.results:
         alt = result.alternatives[0]
-        print(f"テキスト: {alt.transcript}")
-        print(f"信頼度: {alt.confidence:.3f}")
+        print(f"Text: {alt.transcript}")
+        print(f"Confidence: {alt.confidence:.3f}")
         for word in alt.words:
             print(f"  {word.word} ({word.start_offset} - {word.end_offset})")
 
     return response.results[0].alternatives[0].transcript
 ```
 
-### 3.2 Google Speech-to-Text ストリーミング認識
+### 3.2 Google Speech-to-Text Streaming Recognition
 
 ```python
 from google.cloud import speech_v1
@@ -872,7 +872,7 @@ import queue
 import threading
 
 class GoogleStreamingSTT:
-    """Google Cloud STTのストリーミング認識実装"""
+    """Streaming recognition implementation for Google Cloud STT"""
 
     def __init__(
         self,
@@ -888,13 +888,13 @@ class GoogleStreamingSTT:
             model=model,
             enable_automatic_punctuation=True,
             enable_word_time_offsets=True,
-            # 話者分離を有効化
+            # Enable speaker diarization
             diarization_config=speech_v1.SpeakerDiarizationConfig(
                 enable_speaker_diarization=True,
                 min_speaker_count=2,
                 max_speaker_count=4,
             ),
-            # カスタム語彙のブースト
+            # Custom vocabulary boosting
             speech_contexts=[
                 speech_v1.SpeechContext(
                     phrases=["Whisper", "STT", "TTS", "API"],
@@ -905,20 +905,20 @@ class GoogleStreamingSTT:
         self.streaming_config = speech_v1.StreamingRecognitionConfig(
             config=self.config,
             interim_results=True,
-            single_utterance=False,  # 複数発話を継続認識
+            single_utterance=False,  # Continuous recognition for multiple utterances
         )
         self.audio_queue = queue.Queue()
         self.sample_rate = sample_rate
 
     def start_microphone_stream(self, on_result, duration_seconds=60):
-        """マイク入力からストリーミング認識"""
+        """Streaming recognition from microphone input"""
         p = pyaudio.PyAudio()
         stream = p.open(
             format=pyaudio.paInt16,
             channels=1,
             rate=self.sample_rate,
             input=True,
-            frames_per_buffer=1600,  # 100msチャンク
+            frames_per_buffer=1600,  # 100ms chunks
             stream_callback=lambda in_data, *args: (
                 self.audio_queue.put(in_data),
                 (None, pyaudio.paContinue),
@@ -965,7 +965,7 @@ def azure_stt(audio_file: str) -> str:
     )
     speech_config.speech_recognition_language = "ja-JP"
 
-    # 詳細設定
+    # Detailed settings
     speech_config.set_property(
         speechsdk.PropertyId.SpeechServiceConnection_InitialSilenceTimeoutMs,
         "5000"
@@ -981,16 +981,16 @@ def azure_stt(audio_file: str) -> str:
         audio_config=audio_config
     )
 
-    # 連続認識（長時間音声向け）
+    # Continuous recognition (for long audio)
     results = []
 
     def on_recognized(evt):
         if evt.result.reason == speechsdk.ResultReason.RecognizedSpeech:
             results.append(evt.result.text)
-            print(f"認識: {evt.result.text}")
+            print(f"Recognized: {evt.result.text}")
 
     def on_canceled(evt):
-        print(f"キャンセル: {evt.cancellation_details.reason}")
+        print(f"Canceled: {evt.cancellation_details.reason}")
 
     recognizer.recognized.connect(on_recognized)
     recognizer.canceled.connect(on_canceled)
@@ -998,20 +998,20 @@ def azure_stt(audio_file: str) -> str:
     recognizer.start_continuous_recognition()
 
     import time
-    time.sleep(30)  # 認識完了を待機（実際はイベントベースで制御）
+    time.sleep(30)  # Wait for recognition to complete (use event-based control in practice)
     recognizer.stop_continuous_recognition()
 
     return " ".join(results)
 ```
 
-### 3.4 Azure Speech Services 高度な機能
+### 3.4 Azure Speech Services Advanced Features
 
 ```python
 import azure.cognitiveservices.speech as speechsdk
 import json
 
 class AzureAdvancedSTT:
-    """Azure Speech Servicesの高度な機能を活用したSTT"""
+    """STT leveraging advanced features of Azure Speech Services"""
 
     def __init__(self, subscription_key: str, region: str = "japaneast"):
         self.speech_config = speechsdk.SpeechConfig(
@@ -1021,7 +1021,7 @@ class AzureAdvancedSTT:
         self.speech_config.speech_recognition_language = "ja-JP"
 
     def transcribe_with_diarization(self, audio_file: str) -> list[dict]:
-        """話者分離付き文字起こし"""
+        """Transcription with speaker diarization"""
         audio_config = speechsdk.audio.AudioConfig(filename=audio_file)
 
         conversation_transcriber = speechsdk.ConversationTranscriber(
@@ -1037,7 +1037,7 @@ class AzureAdvancedSTT:
                 results.append({
                     "speaker_id": evt.result.speaker_id,
                     "text": evt.result.text,
-                    "offset_ms": evt.result.offset / 10000,  # 100nsから変換
+                    "offset_ms": evt.result.offset / 10000,  # Convert from 100ns
                     "duration_ms": evt.result.duration / 10000,
                 })
 
@@ -1061,7 +1061,7 @@ class AzureAdvancedSTT:
     def transcribe_with_pronunciation_assessment(
         self, audio_file: str, reference_text: str
     ) -> dict:
-        """発音評価付き文字起こし（語学学習向け）"""
+        """Transcription with pronunciation assessment (for language learning)"""
         pronunciation_config = speechsdk.PronunciationAssessmentConfig(
             reference_text=reference_text,
             grading_system=speechsdk.PronunciationAssessmentGradingSystem.HundredMark,
@@ -1101,7 +1101,7 @@ class AzureAdvancedSTT:
     def transcribe_with_keyword_spotting(
         self, audio_file: str, keywords: list[str]
     ) -> dict:
-        """キーワードスポッティング付き文字起こし"""
+        """Transcription with keyword spotting"""
         self.speech_config.set_property(
             speechsdk.PropertyId.SpeechServiceConnection_InitialSilenceTimeoutMs,
             "10000"
@@ -1109,13 +1109,13 @@ class AzureAdvancedSTT:
 
         audio_config = speechsdk.audio.AudioConfig(filename=audio_file)
 
-        # カスタムキーワードモデルの作成（簡略版）
+        # Create custom keyword model (simplified version)
         recognizer = speechsdk.SpeechRecognizer(
             speech_config=self.speech_config,
             audio_config=audio_config,
         )
 
-        # 語句リストを追加
+        # Add phrase list
         phrase_list = speechsdk.PhraseListGrammar.from_recognizer(recognizer)
         for keyword in keywords:
             phrase_list.addPhrase(keyword)
@@ -1123,7 +1123,7 @@ class AzureAdvancedSTT:
         result = recognizer.recognize_once_async().get()
 
         if result.reason == speechsdk.ResultReason.RecognizedSpeech:
-            # キーワードの出現をチェック
+            # Check for keyword occurrences
             found_keywords = [
                 kw for kw in keywords if kw in result.text
             ]
@@ -1137,7 +1137,7 @@ class AzureAdvancedSTT:
         return {"error": str(result.reason)}
 ```
 
-### 3.5 AWS Transcribe の実装
+### 3.5 AWS Transcribe Implementation
 
 ```python
 import boto3
@@ -1146,7 +1146,7 @@ import time
 from urllib.request import urlopen
 
 class AWSTranscribeSTT:
-    """AWS Transcribe による文字起こし"""
+    """Transcription using AWS Transcribe"""
 
     def __init__(self, region: str = "ap-northeast-1"):
         self.client = boto3.client("transcribe", region_name=region)
@@ -1159,7 +1159,7 @@ class AWSTranscribeSTT:
         language: str = "ja-JP",
         speaker_count: int = 2,
     ) -> dict:
-        """S3上の音声ファイルを文字起こし"""
+        """Transcribe an audio file on S3"""
         self.client.start_transcription_job(
             TranscriptionJobName=job_name,
             Media={"MediaFileUri": s3_uri},
@@ -1170,11 +1170,11 @@ class AWSTranscribeSTT:
                 "MaxSpeakerLabels": speaker_count,
                 "ShowAlternatives": True,
                 "MaxAlternatives": 3,
-                "VocabularyName": "my-custom-vocab",  # カスタム語彙
+                "VocabularyName": "my-custom-vocab",  # Custom vocabulary
             },
         )
 
-        # ジョブ完了を待機
+        # Wait for job completion
         while True:
             status = self.client.get_transcription_job(
                 TranscriptionJobName=job_name
@@ -1190,10 +1190,10 @@ class AWSTranscribeSTT:
             result = json.loads(urlopen(result_url).read())
             return self._parse_result(result)
         else:
-            raise RuntimeError(f"文字起こしジョブ失敗: {job_status}")
+            raise RuntimeError(f"Transcription job failed: {job_status}")
 
     def _parse_result(self, result: dict) -> dict:
-        """AWS Transcribe結果のパース"""
+        """Parse AWS Transcribe results"""
         items = result["results"]["items"]
         segments = []
         current_speaker = None
@@ -1225,7 +1225,7 @@ class AWSTranscribeSTT:
         phrases: list[dict],
         language: str = "ja-JP",
     ):
-        """カスタム語彙の作成"""
+        """Create a custom vocabulary"""
         self.client.create_vocabulary(
             VocabularyName=vocab_name,
             LanguageCode=language,
@@ -1240,38 +1240,38 @@ class AWSTranscribeSTT:
         )
 ```
 
-### 3.6 Deepgram の実装
+### 3.6 Deepgram Implementation
 
 ```python
 from deepgram import DeepgramClient, PrerecordedOptions, LiveOptions
 import asyncio
 
 class DeepgramSTT:
-    """Deepgramによる高速文字起こし"""
+    """High-speed transcription with Deepgram"""
 
     def __init__(self, api_key: str):
         self.client = DeepgramClient(api_key)
 
     def transcribe_file(self, audio_path: str) -> dict:
-        """ファイルの文字起こし"""
+        """Transcribe a file"""
         with open(audio_path, "rb") as f:
             buffer_data = f.read()
 
         payload = {"buffer": buffer_data}
 
         options = PrerecordedOptions(
-            model="nova-2",           # 最新モデル
+            model="nova-2",           # Latest model
             language="ja",
-            smart_format=True,        # 自動フォーマット
-            punctuate=True,           # 句読点挿入
-            diarize=True,             # 話者分離
-            utterances=True,          # 発話単位分割
-            detect_language=True,     # 言語自動検出
-            paragraphs=True,          # 段落分割
-            summarize="v2",           # 要約生成
-            topics=True,              # トピック抽出
-            intents=True,             # 意図分析
-            sentiment=True,           # 感情分析
+            smart_format=True,        # Auto formatting
+            punctuate=True,           # Insert punctuation
+            diarize=True,             # Speaker diarization
+            utterances=True,          # Utterance-level segmentation
+            detect_language=True,     # Auto language detection
+            paragraphs=True,          # Paragraph segmentation
+            summarize="v2",           # Summary generation
+            topics=True,              # Topic extraction
+            intents=True,             # Intent analysis
+            sentiment=True,           # Sentiment analysis
         )
 
         response = self.client.listen.prerecorded.v("1").transcribe_file(
@@ -1291,7 +1291,7 @@ class DeepgramSTT:
         }
 
     async def transcribe_stream(self, audio_stream, on_result):
-        """ストリーミング文字起こし"""
+        """Streaming transcription"""
         options = LiveOptions(
             model="nova-2",
             language="ja",
@@ -1323,7 +1323,7 @@ class DeepgramSTT:
         await connection.finish()
 ```
 
-### 3.7 プロバイダー統合ラッパー
+### 3.7 Unified Provider Wrapper
 
 ```python
 from abc import ABC, abstractmethod
@@ -1354,7 +1354,7 @@ class STTProvider(ABC):
         pass
 
 class UnifiedSTT:
-    """複数STTプロバイダーの統合インターフェース"""
+    """Unified interface for multiple STT providers"""
 
     def __init__(self):
         self.providers: dict[str, STTProvider] = {}
@@ -1377,8 +1377,8 @@ class UnifiedSTT:
         provider: Optional[str] = None,
         use_cache: bool = True,
     ) -> TranscriptionResult:
-        """文字起こし（フォールバック付き）"""
-        # キャッシュチェック
+        """Transcribe with fallback support"""
+        # Cache check
         cache_key = self._make_cache_key(audio_path, language)
         if use_cache and cache_key in self._cache:
             return self._cache[cache_key]
@@ -1395,7 +1395,7 @@ class UnifiedSTT:
                 continue
             try:
                 result = self._transcribe_single(name, audio_path, language)
-                if result.confidence > 0.5:  # 信頼度閾値
+                if result.confidence > 0.5:  # Confidence threshold
                     if use_cache:
                         self._cache[cache_key] = result
                     return result
@@ -1404,12 +1404,12 @@ class UnifiedSTT:
                 print(f"{name} failed: {e}")
                 continue
 
-        raise RuntimeError(f"全プロバイダー失敗: {last_error}")
+        raise RuntimeError(f"All providers failed: {last_error}")
 
     def _transcribe_single(
         self, name: str, audio_path: str, language: Optional[str]
     ) -> TranscriptionResult:
-        """単一プロバイダーで文字起こし（メトリクス計測付き）"""
+        """Transcribe with a single provider (with metrics tracking)"""
         start = time.time()
         try:
             result = self.providers[name].transcribe(audio_path, language)
@@ -1423,13 +1423,13 @@ class UnifiedSTT:
             raise
 
     def _make_cache_key(self, audio_path: str, language: Optional[str]) -> str:
-        """キャッシュキーの生成"""
+        """Generate cache key"""
         with open(audio_path, "rb") as f:
             file_hash = hashlib.sha256(f.read()).hexdigest()[:16]
         return f"{file_hash}:{language}"
 
     def get_metrics(self) -> dict:
-        """各プロバイダーのメトリクスを取得"""
+        """Get metrics for each provider"""
         metrics = {}
         for name, m in self._metrics.items():
             total = m["success"] + m["failure"]
@@ -1446,23 +1446,23 @@ class UnifiedSTT:
 
 ---
 
-## 4. 話者分離（Speaker Diarization）
+## 4. Speaker Diarization
 
-### 4.1 pyannote-audio を使った話者分離
+### 4.1 Speaker Diarization with pyannote-audio
 
 ```python
 from pyannote.audio import Pipeline
 import torch
 
 class SpeakerDiarizer:
-    """pyannote-audioを使った話者分離"""
+    """Speaker diarization using pyannote-audio"""
 
     def __init__(self, auth_token: str):
         self.pipeline = Pipeline.from_pretrained(
             "pyannote/speaker-diarization-3.1",
             use_auth_token=auth_token,
         )
-        # GPU使用
+        # Use GPU
         if torch.cuda.is_available():
             self.pipeline.to(torch.device("cuda"))
 
@@ -1472,7 +1472,7 @@ class SpeakerDiarizer:
         min_speakers: int = 2,
         max_speakers: int = 5,
     ) -> list[dict]:
-        """話者分離を実行"""
+        """Perform speaker diarization"""
         diarization = self.pipeline(
             audio_path,
             min_speakers=min_speakers,
@@ -1497,30 +1497,30 @@ class SpeakerDiarizer:
         min_speakers: int = 2,
         max_speakers: int = 5,
     ) -> list[dict]:
-        """話者分離 + Whisper文字起こしの統合"""
+        """Integrated speaker diarization + Whisper transcription"""
         import librosa
         import numpy as np
 
-        # Step 1: 話者分離
+        # Step 1: Speaker diarization
         diarization_result = self.diarize(
             audio_path, min_speakers, max_speakers
         )
 
-        # Step 2: 音声の読み込み
+        # Step 2: Load audio
         audio, sr = librosa.load(audio_path, sr=16000)
 
-        # Step 3: 各話者区間ごとにWhisperで文字起こし
+        # Step 3: Transcribe each speaker segment with Whisper
         results = []
         for segment in diarization_result:
             start_sample = int(segment["start"] * sr)
             end_sample = int(segment["end"] * sr)
             segment_audio = audio[start_sample:end_sample]
 
-            # 短すぎるセグメントはスキップ
+            # Skip segments that are too short
             if len(segment_audio) / sr < 0.5:
                 continue
 
-            # 一時ファイルに書き出して文字起こし
+            # Write to temporary file and transcribe
             import soundfile as sf
             import tempfile
 
@@ -1542,14 +1542,14 @@ class SpeakerDiarizer:
         return results
 ```
 
-### 4.2 話者分離結果のフォーマット出力
+### 4.2 Formatted Output of Diarization Results
 
 ```python
 def format_diarized_transcript(
     segments: list[dict],
     format_type: str = "text",
 ) -> str:
-    """話者分離結果をフォーマットして出力"""
+    """Format and output diarization results"""
 
     if format_type == "text":
         lines = []
@@ -1587,11 +1587,11 @@ def format_diarized_transcript(
             vtt_lines.append("")
         return "\n".join(vtt_lines)
 
-    raise ValueError(f"未対応のフォーマット: {format_type}")
+    raise ValueError(f"Unsupported format: {format_type}")
 
 
 def _format_srt_time(seconds: float) -> str:
-    """SRT形式のタイムスタンプに変換"""
+    """Convert to SRT timestamp format"""
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
     secs = int(seconds % 60)
@@ -1600,7 +1600,7 @@ def _format_srt_time(seconds: float) -> str:
 
 
 def _format_vtt_time(seconds: float) -> str:
-    """VTT形式のタイムスタンプに変換"""
+    """Convert to VTT timestamp format"""
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
     secs = int(seconds % 60)
@@ -1610,15 +1610,15 @@ def _format_vtt_time(seconds: float) -> str:
 
 ---
 
-## 5. 精度評価と改善
+## 5. Accuracy Evaluation and Improvement
 
-### 5.1 WER/CER の計算
+### 5.1 WER/CER Calculation
 
 ```python
 import evaluate
 
 class STTEvaluator:
-    """STTの精度評価ツール"""
+    """STT accuracy evaluation tool"""
 
     def __init__(self):
         self.wer_metric = evaluate.load("wer")
@@ -1629,7 +1629,7 @@ class STTEvaluator:
         predictions: list[str],
         references: list[str],
     ) -> dict:
-        """WERとCERを計算"""
+        """Calculate WER and CER"""
         wer = self.wer_metric.compute(
             predictions=predictions,
             references=references,
@@ -1639,7 +1639,7 @@ class STTEvaluator:
             references=references,
         )
 
-        # 詳細分析
+        # Detailed analysis
         analysis = self._analyze_errors(predictions, references)
 
         return {
@@ -1654,7 +1654,7 @@ class STTEvaluator:
         predictions: list[str],
         references: list[str],
     ) -> dict:
-        """エラーパターンの分析"""
+        """Analyze error patterns"""
         substitutions = 0
         insertions = 0
         deletions = 0
@@ -1663,7 +1663,7 @@ class STTEvaluator:
             pred_chars = list(pred)
             ref_chars = list(ref)
 
-            # 編集距離のバックトレースからエラータイプを分類
+            # Classify error types from edit distance backtrace
             n, m = len(ref_chars), len(pred_chars)
             dp = [[0] * (m + 1) for _ in range(n + 1)]
 
@@ -1678,12 +1678,12 @@ class STTEvaluator:
                         dp[i][j] = dp[i-1][j-1]
                     else:
                         dp[i][j] = 1 + min(
-                            dp[i-1][j],    # 削除
-                            dp[i][j-1],    # 挿入
-                            dp[i-1][j-1],  # 置換
+                            dp[i-1][j],    # Deletion
+                            dp[i][j-1],    # Insertion
+                            dp[i-1][j-1],  # Substitution
                         )
 
-            # バックトレース
+            # Backtrace
             i, j = n, m
             while i > 0 or j > 0:
                 if i > 0 and j > 0 and ref_chars[i-1] == pred_chars[j-1]:
@@ -1713,7 +1713,7 @@ class STTEvaluator:
             },
         }
 
-# 使用例
+# Usage example
 evaluator = STTEvaluator()
 results = evaluator.evaluate(
     predictions=["こんにちわ世界"],
@@ -1723,32 +1723,32 @@ print(f"WER: {results['wer']:.4f}")
 print(f"CER: {results['cer']:.4f}")
 ```
 
-### 5.2 精度改善テクニック
+### 5.2 Accuracy Improvement Techniques
 
 ```python
-# 音声前処理による精度改善
+# Accuracy improvement through audio preprocessing
 import librosa
 import numpy as np
 import noisereduce as nr
 
 class STTPreprocessor:
-    """STT精度改善のための前処理パイプライン"""
+    """Preprocessing pipeline for improving STT accuracy"""
 
     def preprocess(self, audio_path: str) -> np.ndarray:
-        """包括的な前処理を実行"""
-        # 1. 音声読み込み（16kHzにリサンプリング）
+        """Execute comprehensive preprocessing"""
+        # 1. Load audio (resample to 16kHz)
         audio, sr = librosa.load(audio_path, sr=16000, mono=True)
 
-        # 2. 無音トリミング
+        # 2. Trim silence
         audio = self._trim_silence(audio, sr)
 
-        # 3. ノイズ除去
+        # 3. Noise reduction
         audio = self._denoise(audio, sr)
 
-        # 4. 正規化
+        # 4. Normalization
         audio = self._normalize(audio)
 
-        # 5. 音声区間のみ抽出
+        # 5. Extract speech segments only
         audio = self._extract_speech(audio, sr)
 
         return audio
@@ -1756,23 +1756,23 @@ class STTPreprocessor:
     def _trim_silence(
         self, audio: np.ndarray, sr: int, top_db: float = 30
     ) -> np.ndarray:
-        """前後の無音をトリミング"""
+        """Trim leading and trailing silence"""
         trimmed, _ = librosa.effects.trim(audio, top_db=top_db)
         return trimmed
 
     def _denoise(self, audio: np.ndarray, sr: int) -> np.ndarray:
-        """スペクトル減算によるノイズ除去"""
-        # noisereduceライブラリを使用
+        """Noise reduction via spectral subtraction"""
+        # Using noisereduce library
         reduced = nr.reduce_noise(
             y=audio,
             sr=sr,
-            stationary=True,   # 定常ノイズ仮定
-            prop_decrease=0.75, # ノイズ削減率（0.5-1.0）
+            stationary=True,   # Assume stationary noise
+            prop_decrease=0.75, # Noise reduction ratio (0.5-1.0)
         )
         return reduced
 
     def _normalize(self, audio: np.ndarray) -> np.ndarray:
-        """ピーク正規化"""
+        """Peak normalization"""
         peak = np.max(np.abs(audio))
         if peak > 0:
             audio = audio / peak * 0.95
@@ -1781,7 +1781,7 @@ class STTPreprocessor:
     def _extract_speech(
         self, audio: np.ndarray, sr: int
     ) -> np.ndarray:
-        """Silero VADで音声区間のみ抽出"""
+        """Extract speech segments only using Silero VAD"""
         import torch
 
         model, utils = torch.hub.load(
@@ -1791,10 +1791,10 @@ class STTPreprocessor:
         )
         get_speech_timestamps = utils[0]
 
-        # 音声をtensorに変換
+        # Convert audio to tensor
         audio_tensor = torch.tensor(audio, dtype=torch.float32)
 
-        # 音声区間を検出
+        # Detect speech segments
         speech_timestamps = get_speech_timestamps(
             audio_tensor,
             model,
@@ -1804,7 +1804,7 @@ class STTPreprocessor:
             min_silence_duration_ms=100,
         )
 
-        # 音声区間のみ結合
+        # Concatenate speech segments only
         if speech_timestamps:
             speech_segments = []
             for ts in speech_timestamps:
@@ -1815,72 +1815,72 @@ class STTPreprocessor:
 
 ---
 
-## 6. 比較表
+## 6. Comparison Tables
 
-### 6.1 主要STTサービス比較
+### 6.1 Major STT Service Comparison
 
-| 項目 | Whisper (local) | Google Speech | Azure Speech | AWS Transcribe | Deepgram |
+| Item | Whisper (local) | Google Speech | Azure Speech | AWS Transcribe | Deepgram |
 |------|----------------|---------------|-------------|---------------|----------|
-| 日本語WER | 5-8% | 6-10% | 6-9% | 8-12% | 7-10% |
-| リアルタイム | 非対応(※) | 対応 | 対応 | 対応 | 対応 |
-| ストリーミング | 非対応(※) | 対応 | 対応 | 対応 | 対応 |
-| 話者分離 | 非対応 | 対応 | 対応 | 対応 | 対応 |
-| コスト | GPU費用のみ | $0.016/分 | $0.016/分 | $0.024/分 | $0.0043/分 |
-| オフライン | 可能 | 不可 | 不可 | 不可 | 不可 |
-| カスタム語彙 | ファインチューニング | ブースト対応 | カスタム辞書 | カスタム語彙 | キーワード |
-| 句読点自動挿入 | 限定的 | 対応 | 対応 | 対応 | 対応 |
-| 感情分析 | 非対応 | 非対応 | 非対応 | 非対応 | 対応 |
-| 要約生成 | 非対応 | 非対応 | 非対応 | 非対応 | 対応 |
-| 発音評価 | 非対応 | 非対応 | 対応 | 非対応 | 非対応 |
+| Japanese WER | 5-8% | 6-10% | 6-9% | 8-12% | 7-10% |
+| Real-time | Not supported(*) | Supported | Supported | Supported | Supported |
+| Streaming | Not supported(*) | Supported | Supported | Supported | Supported |
+| Speaker diarization | Not supported | Supported | Supported | Supported | Supported |
+| Cost | GPU cost only | $0.016/min | $0.016/min | $0.024/min | $0.0043/min |
+| Offline | Yes | No | No | No | No |
+| Custom vocabulary | Fine-tuning | Boost support | Custom dict | Custom vocab | Keywords |
+| Auto punctuation | Limited | Supported | Supported | Supported | Supported |
+| Sentiment analysis | Not supported | Not supported | Not supported | Not supported | Supported |
+| Summary generation | Not supported | Not supported | Not supported | Not supported | Supported |
+| Pronunciation assessment | Not supported | Not supported | Supported | Not supported | Not supported |
 
-※ faster-whisper + VAD で擬似リアルタイムは可能
+* Pseudo real-time is possible with faster-whisper + VAD
 
-### 6.2 Whisperモデルサイズ比較
+### 6.2 Whisper Model Size Comparison
 
-| モデル | パラメータ数 | VRAM | 速度(相対) | 日本語精度 | 推奨用途 |
-|--------|------------|------|-----------|-----------|---------|
-| tiny | 39M | ~1GB | 32x | 低い | テスト/プロトタイプ |
-| base | 74M | ~1GB | 16x | やや低い | 軽量アプリ |
-| small | 244M | ~2GB | 6x | 中程度 | バランス型 |
-| medium | 769M | ~5GB | 2x | 高い | 品質重視 |
-| large-v3 | 1550M | ~10GB | 1x | 最高 | 最高精度 |
-| large-v3-turbo | 809M | ~6GB | 4x | 高い | 速度と精度の両立 |
+| Model | Parameters | VRAM | Speed (relative) | Japanese Accuracy | Recommended Use |
+|-------|-----------|------|-------------------|-------------------|-----------------|
+| tiny | 39M | ~1GB | 32x | Low | Testing/prototyping |
+| base | 74M | ~1GB | 16x | Somewhat low | Lightweight apps |
+| small | 244M | ~2GB | 6x | Moderate | Balanced |
+| medium | 769M | ~5GB | 2x | High | Quality-focused |
+| large-v3 | 1550M | ~10GB | 1x | Highest | Maximum accuracy |
+| large-v3-turbo | 809M | ~6GB | 4x | High | Balance of speed and accuracy |
 
-### 6.3 STTユースケース別推奨構成
+### 6.3 Recommended Configurations by Use Case
 
-| ユースケース | 推奨プロバイダー | 構成 | 理由 |
-|------------|----------------|------|------|
-| 会議議事録 | Azure Speech | ストリーミング + 話者分離 | 話者分離精度が高い |
-| ポッドキャスト文字起こし | Whisper large-v3 | バッチ処理 + 後処理 | 最高精度、コスト効率 |
-| コールセンター | Google STT | ストリーミング + カスタム語彙 | 低遅延、用語ブースト |
-| 医療音声記録 | Azure Speech | カスタムモデル + 話者分離 | 医療用語対応 |
-| リアルタイム字幕 | Deepgram | WebSocket + nova-2 | 最低遅延 |
-| 多言語対応 | Whisper API | バッチ処理 | 97言語対応 |
-| オフライン処理 | faster-whisper | ローカルGPU | ネットワーク不要 |
-| 語学学習 | Azure Speech | 発音評価機能 | 発音スコアリング |
+| Use Case | Recommended Provider | Configuration | Reason |
+|----------|---------------------|---------------|--------|
+| Meeting minutes | Azure Speech | Streaming + diarization | High diarization accuracy |
+| Podcast transcription | Whisper large-v3 | Batch processing + post-processing | Highest accuracy, cost efficient |
+| Call center | Google STT | Streaming + custom vocabulary | Low latency, term boosting |
+| Medical dictation | Azure Speech | Custom model + diarization | Medical terminology support |
+| Real-time subtitles | Deepgram | WebSocket + nova-2 | Lowest latency |
+| Multilingual support | Whisper API | Batch processing | 97 language support |
+| Offline processing | faster-whisper | Local GPU | No network required |
+| Language learning | Azure Speech | Pronunciation assessment | Pronunciation scoring |
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-patterns
 
-### 7.1 アンチパターン: VADなしの長時間音声処理
+### 7.1 Anti-pattern: Processing Long Audio Without VAD
 
 ```python
-# BAD: 長時間音声をそのまま処理
+# BAD: Processing long audio as-is
 def bad_transcribe_long(audio_path):
-    # 2時間の音声 → メモリ不足 / タイムアウト
+    # 2-hour audio → out of memory / timeout
     result = whisper_model.transcribe(audio_path)
     return result["text"]
 
-# GOOD: VAD + チャンク分割で処理
+# GOOD: Processing with VAD + chunk splitting
 from faster_whisper import WhisperModel
 import numpy as np
 
 def good_transcribe_long(audio_path, chunk_duration=30):
-    """VAD付き長時間音声の文字起こし"""
+    """Transcribe long audio with VAD"""
     model = WhisperModel("large-v3", device="cuda")
 
-    # VADフィルタ付きで処理（自動的に音声区間を検出）
+    # Process with VAD filter (automatically detects speech segments)
     segments, info = model.transcribe(
         audio_path,
         language="ja",
@@ -1902,16 +1902,16 @@ def good_transcribe_long(audio_path, chunk_duration=30):
     return full_text
 ```
 
-### 7.2 アンチパターン: 信頼度スコアの無視
+### 7.2 Anti-pattern: Ignoring Confidence Scores
 
 ```python
-# BAD: 認識結果をそのまま信用
+# BAD: Blindly trusting recognition results
 def bad_process(result):
-    return result["text"]  # ハルシネーションが含まれる可能性
+    return result["text"]  # May contain hallucinations
 
-# GOOD: 信頼度ベースのフィルタリング
+# GOOD: Confidence-based filtering
 def good_process(segments, confidence_threshold=-0.5):
-    """信頼度に基づく品質フィルタリング"""
+    """Quality filtering based on confidence"""
     filtered = []
     low_confidence = []
 
@@ -1919,7 +1919,7 @@ def good_process(segments, confidence_threshold=-0.5):
         if seg["avg_logprob"] > confidence_threshold:
             filtered.append(seg["text"])
         else:
-            # 低信頼度セグメントは要確認としてマーク
+            # Mark low-confidence segments for review
             low_confidence.append({
                 "time": f"{seg['start']:.1f}-{seg['end']:.1f}s",
                 "text": seg["text"],
@@ -1927,60 +1927,60 @@ def good_process(segments, confidence_threshold=-0.5):
             })
 
     if low_confidence:
-        print(f"警告: {len(low_confidence)}個の低信頼度セグメントあり")
+        print(f"Warning: {len(low_confidence)} low-confidence segments found")
         for lc in low_confidence:
             print(f"  [{lc['time']}] {lc['text']} (logprob: {lc['confidence']:.3f})")
 
     return " ".join(filtered), low_confidence
 ```
 
-### 7.3 アンチパターン: 前処理なしでの直接認識
+### 7.3 Anti-pattern: Direct Recognition Without Preprocessing
 
 ```python
-# BAD: 生の音声をそのままSTTに入力
+# BAD: Feeding raw audio directly to STT
 def bad_raw_transcribe(audio_path):
     result = model.transcribe(audio_path)
     return result["text"]
-    # → ノイズ混入、不適切なサンプリングレートで精度低下
+    # → Accuracy degradation due to noise and inappropriate sampling rate
 
-# GOOD: 適切な前処理パイプライン
+# GOOD: Proper preprocessing pipeline
 def good_preprocessed_transcribe(audio_path):
-    """前処理パイプラインを通してから文字起こし"""
+    """Transcribe after passing through preprocessing pipeline"""
     preprocessor = STTPreprocessor()
 
-    # 1. 前処理
+    # 1. Preprocess
     processed_audio = preprocessor.preprocess(audio_path)
 
-    # 2. 一時ファイルに保存
+    # 2. Save to temporary file
     import soundfile as sf
     import tempfile
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
         sf.write(f.name, processed_audio, 16000)
         temp_path = f.name
 
-    # 3. 文字起こし
+    # 3. Transcribe
     result = model.transcribe(temp_path, language="ja")
 
-    # 4. 後処理
+    # 4. Post-process
     post_processor = WhisperPostProcessor()
     cleaned_text = post_processor.process(result["text"])
 
     return cleaned_text
 ```
 
-### 7.4 アンチパターン: 単一プロバイダーへの依存
+### 7.4 Anti-pattern: Dependency on a Single Provider
 
 ```python
-# BAD: 1つのAPIに完全依存
+# BAD: Complete dependency on a single API
 def bad_single_provider(audio_path):
     try:
         return google_stt(audio_path)
     except Exception:
-        raise  # サービス停止時に全機能停止
+        raise  # All functionality stops when the service is down
 
-# GOOD: フォールバック付きマルチプロバイダー
+# GOOD: Multi-provider with fallback
 def good_multi_provider(audio_path):
-    """複数プロバイダーによる冗長化"""
+    """Redundancy with multiple providers"""
     stt = UnifiedSTT()
     stt.register("whisper", WhisperProvider())
     stt.register("google", GoogleProvider())
@@ -1998,48 +1998,48 @@ def good_multi_provider(audio_path):
 
 ## 8. FAQ
 
-### Q1: Whisperはリアルタイム音声認識に使えますか？
+### Q1: Can Whisper be used for real-time speech recognition?
 
-標準のWhisperは30秒固定の入力を前提としたバッチ処理モデルのため、そのままではリアルタイム認識に不向きです。ただし、faster-whisperとVADを組み合わせた擬似リアルタイム処理や、whisper-streamingプロジェクトによるストリーミング対応は可能です。真のリアルタイム処理が必要な場合は、Google Speech-to-TextやAzure Speechのストリーミング認識APIを使うか、Whisperをストリーミング用にチューニングしたモデル（例: Distil-Whisper）を検討してください。
+Standard Whisper is a batch processing model that assumes 30-second fixed inputs, so it is not suitable for real-time recognition as-is. However, pseudo real-time processing using faster-whisper combined with VAD, or streaming support through the whisper-streaming project, is possible. If true real-time processing is needed, consider using the streaming recognition APIs of Google Speech-to-Text or Azure Speech, or models that have been tuned for streaming Whisper (e.g., Distil-Whisper).
 
-### Q2: 日本語STTの精度を上げるにはどうすればよいですか？
+### Q2: How can I improve Japanese STT accuracy?
 
-主な改善策は5つあります。(1) モデルサイズの拡大（large-v3が最高精度）。(2) 音声前処理の改善（ノイズ除去、正規化、リサンプリング）。(3) VADによる無音・非音声区間の除去。(4) 日本語特化データでのファインチューニング（ReazonSpeechデータセット等）。(5) 後処理の追加（句読点挿入、固有名詞補正、LLMによる校正）。特に、ドメイン特化のファインチューニングは専門用語の認識精度を大幅に改善します。
+There are five main improvement strategies: (1) Increase model size (large-v3 has the highest accuracy). (2) Improve audio preprocessing (noise reduction, normalization, resampling). (3) Remove silence and non-speech segments with VAD. (4) Fine-tune with Japanese-specific data (such as the ReazonSpeech dataset). (5) Add post-processing (punctuation insertion, proper noun correction, LLM-based proofreading). In particular, domain-specific fine-tuning significantly improves recognition accuracy for specialized terminology.
 
-### Q3: 複数話者の音声を区別して文字起こしするには？
+### Q3: How do I transcribe audio while distinguishing between multiple speakers?
 
-話者分離（Speaker Diarization）が必要です。Whisperは単体では話者分離機能を持ちませんが、pyannote-audioと組み合わせることで実現できます。手順は、(1) pyannote-audioで話者分離を実行、(2) 各話者区間ごとにWhisperで文字起こし、(3) タイムスタンプを照合して統合。クラウドAPIを使う場合は、Google Speech-to-TextやAzure Speechに組み込みの話者分離機能があり、設定を有効にするだけで利用できます。
+Speaker diarization is required. Whisper alone does not have speaker diarization capability, but it can be achieved by combining it with pyannote-audio. The steps are: (1) Perform speaker diarization with pyannote-audio, (2) Transcribe each speaker segment with Whisper, (3) Match and merge timestamps. When using cloud APIs, Google Speech-to-Text and Azure Speech have built-in speaker diarization features that can be used simply by enabling the settings.
 
-### Q4: Whisperのハルシネーション（幻覚）を防ぐには？
+### Q4: How can I prevent Whisper hallucinations?
 
-Whisperのハルシネーションは、無音区間や非音声区間で発生しやすい問題です。対策として以下が有効です。(1) VADフィルタの使用で無音区間を事前に除去する。(2) `no_speech_threshold` パラメータを調整する（デフォルト0.6、上げると厳しく判定）。(3) `compression_ratio_threshold` でリピート検出する（デフォルト2.4）。(4) 後処理で典型的なハルシネーションパターン（「ご視聴ありがとうございました」等）を除去する。(5) `logprob_threshold` で低信頼度セグメントをフィルタリングする。
+Whisper hallucinations tend to occur during silent or non-speech segments. The following countermeasures are effective: (1) Use VAD filters to remove silent segments beforehand. (2) Adjust the `no_speech_threshold` parameter (default 0.6; increase for stricter detection). (3) Detect repetitions with `compression_ratio_threshold` (default 2.4). (4) Remove typical hallucination patterns in post-processing (e.g., "Thank you for watching"). (5) Filter low-confidence segments using `logprob_threshold`.
 
-### Q5: STTの処理コストを最小化するには？
+### Q5: How can I minimize STT processing costs?
 
-コスト最適化の主な戦略は以下の通りです。(1) VADで音声区間のみを処理し、無音部分の課金を避ける。(2) 頻繁に同じ音声を処理する場合はキャッシュを活用する。(3) リアルタイム性が不要な場合はバッチAPIを使用する（一般にバッチの方が安価）。(4) Whisperをローカルで実行すれば、GPU費用のみでAPI課金なし。(5) 短い音声にはWhisper APIの従量課金、長時間音声にはfaster-whisperローカル処理が経済的。(6) Deepgramは1分あたり$0.0043と最安値であり、コスト重視の場合は有力な選択肢。
+The main cost optimization strategies are: (1) Use VAD to process only speech segments and avoid billing for silent portions. (2) Use caching when frequently processing the same audio. (3) Use batch APIs when real-time processing is not needed (batch is generally cheaper). (4) Running Whisper locally eliminates API charges, costing only GPU expenses. (5) For short audio, Whisper API's pay-per-use pricing is suitable; for long audio, local faster-whisper processing is more economical. (6) Deepgram at $0.0043 per minute is the cheapest option and a strong choice when cost is the priority.
 
-### Q6: STT結果をLLMで後処理する方法は？
+### Q6: How can I post-process STT results with an LLM?
 
 ```python
 from openai import OpenAI
 
 def llm_post_process(raw_transcript: str, context: str = "") -> str:
-    """LLMによるSTT結果の後処理"""
+    """Post-process STT results with an LLM"""
     client = OpenAI()
 
-    prompt = f"""以下は音声認識の結果です。以下のルールに従って修正してください:
-1. 誤認識と思われる部分を文脈から推測して修正
-2. 句読点を適切に挿入
-3. フィラーワード（えー、あの、まあ）を除去
-4. 固有名詞の表記を統一
-5. 口語表現を適切な書き言葉に変換
+    prompt = f"""The following is a speech recognition result. Please correct it according to these rules:
+1. Fix parts that appear to be misrecognized based on context
+2. Insert appropriate punctuation
+3. Remove filler words (um, uh, well)
+4. Standardize proper noun notation
+5. Convert colloquial expressions to appropriate written language
 
-{f"コンテキスト: {context}" if context else ""}
+{f"Context: {context}" if context else ""}
 
-音声認識結果:
+Speech recognition result:
 {raw_transcript}
 
-修正後のテキスト:"""
+Corrected text:"""
 
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -2055,45 +2055,45 @@ def llm_post_process(raw_transcript: str, context: str = "") -> str:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how things work.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in everyday development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | 要点 |
-|------|------|
-| アーキテクチャ | CTC（高速）、Attention（高精度）、Transducer（ストリーミング） |
-| Whisper | 汎用性最高のOSSモデル。large-v3が最高精度 |
-| faster-whisper | CTranslate2最適化で2-4倍高速。VADフィルタ付き |
-| クラウドAPI | リアルタイム・ストリーミングにはGoogle/Azureが優位 |
-| Deepgram | 最低遅延・最安値。感情分析・要約機能も内蔵 |
-| 精度改善 | 前処理 + VAD + ファインチューニング + 後処理の4段階 |
-| 話者分離 | pyannote-audio + Whisper、またはクラウドAPIの組込機能 |
-| ハルシネーション対策 | VADフィルタ + 閾値調整 + 後処理パターンマッチ |
-| コスト最適化 | VADフィルタ + キャッシュ + ローカル処理 + Deepgram |
+| Item | Key Points |
+|------|-----------|
+| Architecture | CTC (fast), Attention (high accuracy), Transducer (streaming) |
+| Whisper | Most versatile OSS model. large-v3 has the highest accuracy |
+| faster-whisper | 2-4x faster with CTranslate2 optimization. Includes VAD filter |
+| Cloud APIs | Google/Azure excel at real-time and streaming |
+| Deepgram | Lowest latency and cheapest. Built-in sentiment analysis and summarization |
+| Accuracy improvement | 4-stage approach: preprocessing + VAD + fine-tuning + post-processing |
+| Speaker diarization | pyannote-audio + Whisper, or built-in cloud API features |
+| Hallucination prevention | VAD filter + threshold tuning + post-processing pattern matching |
+| Cost optimization | VAD filter + caching + local processing + Deepgram |
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [../02-voice/01-voice-assistants.md](../02-voice/01-voice-assistants.md) — 音声アシスタント実装
-- [../02-voice/02-podcast-tools.md](../02-voice/02-podcast-tools.md) — ポッドキャスト文字起こし
-- [../03-development/02-real-time-audio.md](../03-development/02-real-time-audio.md) — リアルタイム音声処理
+- [../02-voice/01-voice-assistants.md](../02-voice/01-voice-assistants.md) — Voice Assistant Implementation
+- [../02-voice/02-podcast-tools.md](../02-voice/02-podcast-tools.md) — Podcast Transcription
+- [../03-development/02-real-time-audio.md](../03-development/02-real-time-audio.md) — Real-time Audio Processing
 
-## 参考文献
+## References
 
-1. Radford, A., et al. (2023). "Robust Speech Recognition via Large-Scale Weak Supervision" — Whisper論文。680K時間のデータで学習した大規模音声認識モデル
-2. Gulati, A., et al. (2020). "Conformer: Convolution-augmented Transformer for Speech Recognition" — Conformer論文。CNN + Transformer の融合アーキテクチャ
-3. Graves, A., et al. (2012). "Sequence Transduction with Recurrent Neural Networks" — RNN-T原論文。ストリーミング音声認識の基盤技術
-4. Bredin, H., et al. (2023). "pyannote.audio 2.1 speaker diarization pipeline" — pyannote-audio論文。話者分離の代表的フレームワーク
-5. Peng, Y., et al. (2023). "Reproducing Whisper-Style Training Using an Open-Source Toolkit and Publicly Available Data" — Whisper再現研究。OSSでのWhisperスタイル学習
-6. Park, D.S., et al. (2019). "SpecAugment: A Simple Data Augmentation Method for Automatic Speech Recognition" — データ拡張手法。音声認識精度を大幅に改善
+1. Radford, A., et al. (2023). "Robust Speech Recognition via Large-Scale Weak Supervision" — Whisper paper. Large-scale speech recognition model trained on 680K hours of data
+2. Gulati, A., et al. (2020). "Conformer: Convolution-augmented Transformer for Speech Recognition" — Conformer paper. A fusion architecture of CNN + Transformer
+3. Graves, A., et al. (2012). "Sequence Transduction with Recurrent Neural Networks" — Original RNN-T paper. Foundational technology for streaming speech recognition
+4. Bredin, H., et al. (2023). "pyannote.audio 2.1 speaker diarization pipeline" — pyannote-audio paper. A representative framework for speaker diarization
+5. Peng, Y., et al. (2023). "Reproducing Whisper-Style Training Using an Open-Source Toolkit and Publicly Available Data" — Whisper reproduction study. Whisper-style training with OSS
+6. Park, D.S., et al. (2019). "SpecAugment: A Simple Data Augmentation Method for Automatic Speech Recognition" — Data augmentation method that significantly improves speech recognition accuracy
