@@ -1,103 +1,107 @@
-# クラウドAIハードウェアガイド
+# Cloud AI Hardware Guide
 
-> TPU、Inferentia、GPU as a Serviceを活用し、スケーラブルなAIワークロードをクラウドで実行する
+> Leverage TPUs, Inferentia, and GPU as a Service to run scalable AI workloads in the cloud
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-1. **クラウドAIアクセラレータ** — Google TPU、AWS Inferentia/Trainium、NVIDIAクラウドGPUの特徴と使い分け
-2. **GPU as a Service** — 主要クラウドプロバイダのAIインスタンス比較と最適な選択方法
-3. **コスト最適化** — スポットインスタンス、リザーブド、サーバーレス推論の戦略
-4. **推論サービング** — Triton、vLLM、TensorRT-LLMによる本番推論基盤の構築
-5. **マルチクラウド戦略** — ベンダーロックインの回避とポータブルなAIインフラの設計
+1. **Cloud AI Accelerators** — Features and use cases of Google TPU, AWS Inferentia/Trainium, and NVIDIA cloud GPUs
+2. **GPU as a Service** — Comparing AI instances across major cloud providers and choosing the optimal option
+3. **Cost Optimization** — Strategies for spot instances, reserved instances, and serverless inference
+4. **Inference Serving** — Building production inference infrastructure with Triton, vLLM, and TensorRT-LLM
+5. **Multi-Cloud Strategy** — Avoiding vendor lock-in and designing portable AI infrastructure
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, the following knowledge will help deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [エッジAIガイド](./02-edge-ai.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Edge AI Guide](./02-edge-ai.md)
 
 ---
 
-## 1. クラウドAIハードウェアの全体像
+## 1. Overview of Cloud AI Hardware
 
-### クラウドAIアクセラレータの分類
+### Classification of Cloud AI Accelerators
 
 ```
 +-----------------------------------------------------------+
-|              クラウドAIアクセラレータ                        |
+|              Cloud AI Accelerators                         |
 +-----------------------------------------------------------+
 |                                                           |
 |  +------------------+  +------------------+               |
-|  | 汎用GPU          |  | 専用ASIC          |              |
-|  | NVIDIA H100/A100 |  | Google TPU        |              |
-|  | AMD MI300X       |  | AWS Inferentia    |              |
-|  | 学習 + 推論      |  | AWS Trainium      |              |
+|  | General-purpose  |  | Dedicated ASICs  |               |
+|  | GPUs             |  |                  |               |
+|  | NVIDIA H100/A100 |  | Google TPU       |               |
+|  | AMD MI300X       |  | AWS Inferentia   |               |
+|  | Training +       |  | AWS Trainium     |               |
+|  | Inference        |  |                  |               |
 |  +------------------+  +------------------+               |
 |         |                      |                          |
 |         v                      v                          |
-|  柔軟性が高い            特定用途で高効率                   |
-|  エコシステム充実        コスパが良い場合あり               |
-|  移植性が高い            ベンダーロックイン                 |
+|  High flexibility        High efficiency for              |
+|  Rich ecosystem          specific workloads               |
+|  High portability        Sometimes better cost-           |
+|                          performance                      |
+|                          Vendor lock-in risk              |
 +-----------------------------------------------------------+
 ```
 
-### クラウドプロバイダ別AIアクセラレータ
+### AI Accelerators by Cloud Provider
 
 ```
 +-----------------------------------------------------------+
 | AWS                                                       |
 |   GPU: P5 (H100), P4d (A100), G5 (A10G), G6 (L4)       |
 |   ASIC: Inf2 (Inferentia2), Trn1 (Trainium)             |
-|   Trn2 (Trainium2): 2025年〜提供開始                     |
+|   Trn2 (Trainium2): Available from 2025                  |
 +-----------------------------------------------------------+
 | Google Cloud                                              |
 |   GPU: A3 (H100), A2 (A100), G2 (L4)                    |
 |   ASIC: TPU v5e, TPU v5p, TPU v4                        |
-|   TPU v6e (Trillium): 2025年〜提供開始                    |
+|   TPU v6e (Trillium): Available from 2025                |
 +-----------------------------------------------------------+
 | Azure                                                     |
 |   GPU: ND H100 v5, ND A100 v4, NC A100 v4               |
 |   ASIC: AMD MI300X (ND MI300X v5)                        |
-|   Maia 100: Microsoft自社AIチップ(2025年〜)               |
+|   Maia 100: Microsoft's in-house AI chip (from 2025)     |
 +-----------------------------------------------------------+
-| 専業GPU クラウド                                           |
+| Dedicated GPU Clouds                                      |
 |   Lambda Labs, CoreWeave, RunPod, Vast.ai, Together AI   |
-|   → H100/A100 が主要クラウドより安い場合が多い            |
+|   -> H100/A100 often cheaper than major cloud providers   |
 +-----------------------------------------------------------+
 ```
 
-### クラウドAI市場の構造
+### Structure of the Cloud AI Market
 
 ```
 +-----------------------------------------------------------+
-|  クラウドAIハードウェア市場の階層構造                       |
+|  Hierarchical Structure of the Cloud AI Hardware Market    |
 +-----------------------------------------------------------+
 |                                                           |
-|  Tier 1: ハイパースケーラー (AWS, GCP, Azure)              |
-|  +-- 最大の品揃えとサービス統合                            |
+|  Tier 1: Hyperscalers (AWS, GCP, Azure)                   |
+|  +-- Largest selection and service integration             |
 |  +-- SLA: 99.9%+                                         |
-|  +-- マネージドサービス充実 (SageMaker, Vertex AI)        |
-|  +-- 高価格帯                                             |
+|  +-- Rich managed services (SageMaker, Vertex AI)         |
+|  +-- Higher price tier                                    |
 |                                                           |
-|  Tier 2: 専業GPUクラウド (CoreWeave, Lambda Labs)         |
-|  +-- GPU特化で低価格                                      |
-|  +-- H100/A100が豊富                                      |
-|  +-- サービスはベアメタル/VM中心                           |
+|  Tier 2: Dedicated GPU Clouds (CoreWeave, Lambda Labs)    |
+|  +-- GPU-specialized, lower prices                        |
+|  +-- Abundant H100/A100 availability                      |
+|  +-- Services mainly bare metal/VM                        |
 |  +-- SLA: 99.5-99.9%                                     |
 |                                                           |
-|  Tier 3: GPU マーケットプレイス (Vast.ai, RunPod)         |
-|  +-- 最安値（個人GPU提供者含む）                           |
-|  +-- 可用性は変動                                          |
-|  +-- 開発・実験用途向け                                    |
-|  +-- SLA: ベストエフォート                                |
+|  Tier 3: GPU Marketplaces (Vast.ai, RunPod)               |
+|  +-- Lowest prices (including individual GPU providers)    |
+|  +-- Variable availability                                |
+|  +-- Suited for development and experimentation           |
+|  +-- SLA: Best effort                                     |
 |                                                           |
-|  Tier 4: サーバーレス推論 (Replicate, Modal, Banana)      |
-|  +-- 完全従量課金                                          |
-|  +-- コールドスタート遅延あり                              |
-|  +-- 小規模・散発的ワークロード向け                        |
+|  Tier 4: Serverless Inference (Replicate, Modal, Banana)  |
+|  +-- Fully pay-per-use                                    |
+|  +-- Cold start latency                                   |
+|  +-- For small-scale and sporadic workloads               |
 +-----------------------------------------------------------+
 ```
 
@@ -105,18 +109,18 @@
 
 ## 2. Google TPU
 
-### TPU 世代比較表
+### TPU Generation Comparison Table
 
-| 世代 | 発表年 | チップ性能(BF16) | HBM | 接続 | 主な用途 |
+| Generation | Year | Chip Performance (BF16) | HBM | Interconnect | Primary Use |
 |------|--------|-----------------|-----|------|---------|
-| TPU v2 | 2017 | 45 TFLOPS | 8GB | 2D Torus | 学習入門 |
-| TPU v3 | 2018 | 123 TFLOPS | 16GB | 2D Torus | 中規模学習 |
-| TPU v4 | 2021 | 275 TFLOPS | 32GB | 3D Torus | 大規模学習 |
-| TPU v5e | 2023 | 197 TFLOPS | 16GB | ICI | コスト効率重視 |
-| TPU v5p | 2023 | 459 TFLOPS | 95GB | ICI | 最高性能学習 |
-| TPU v6e (Trillium) | 2024 | 918 TFLOPS | 32GB | ICI | 次世代学習・推論 |
+| TPU v2 | 2017 | 45 TFLOPS | 8GB | 2D Torus | Introductory training |
+| TPU v3 | 2018 | 123 TFLOPS | 16GB | 2D Torus | Medium-scale training |
+| TPU v4 | 2021 | 275 TFLOPS | 32GB | 3D Torus | Large-scale training |
+| TPU v5e | 2023 | 197 TFLOPS | 16GB | ICI | Cost-efficiency focused |
+| TPU v5p | 2023 | 459 TFLOPS | 95GB | ICI | Highest-performance training |
+| TPU v6e (Trillium) | 2024 | 918 TFLOPS | 32GB | ICI | Next-gen training & inference |
 
-### TPU の構造
+### TPU Architecture
 
 ```
 +-------------------------------------------------------+
@@ -140,41 +144,42 @@
 |  | HBM (High Bandwidth Memory) 16-95GB        |      |
 |  +--------------------------------------------+      |
 |                                                       |
-|  TPU Pod: 最大数千チップを ICI で相互接続              |
+|  TPU Pod: Up to thousands of chips                    |
+|  interconnected via ICI                               |
 +-------------------------------------------------------+
 ```
 
-### TPU Pod のスケーリング構造
+### TPU Pod Scaling Architecture
 
 ```
 +-----------------------------------------------------------+
-|  TPU Pod のスケーリング                                     |
+|  TPU Pod Scaling                                           |
 +-----------------------------------------------------------+
 |                                                           |
-|  TPU チップ (1個)                                          |
-|    ↓                                                      |
-|  TPU ボード (4チップ)                                      |
-|    ↓                                                      |
-|  TPU スライス (可変: 8, 16, 32, ... チップ)                |
-|    ↓                                                      |
-|  TPU Pod (最大数千チップ)                                   |
+|  TPU Chip (1 unit)                                        |
+|    |                                                      |
+|  TPU Board (4 chips)                                      |
+|    |                                                      |
+|  TPU Slice (variable: 8, 16, 32, ... chips)              |
+|    |                                                      |
+|  TPU Pod (up to thousands of chips)                       |
 |                                                           |
-|  例: TPU v5p Pod (8960 チップ)                             |
+|  Example: TPU v5p Pod (8960 chips)                        |
 |  +----+  +----+  +----+  +----+                           |
-|  |Chip|--|Chip|--|Chip|--|Chip|  ← ICI (Inter-Chip        |
+|  |Chip|--|Chip|--|Chip|--|Chip|  <- ICI (Inter-Chip       |
 |  +----+  +----+  +----+  +----+    Interconnect)          |
-|    |       |       |       |       で直結                  |
+|    |       |       |       |       direct connection      |
 |  +----+  +----+  +----+  +----+                           |
-|  |Chip|--|Chip|--|Chip|--|Chip|  総演算: 459 TFLOPS ×     |
-|  +----+  +----+  +----+  +----+  8960 = 4.1 EFLOPS       |
-|    ...     ...     ...     ...                             |
+|  |Chip|--|Chip|--|Chip|--|Chip|  Total compute: 459       |
+|  +----+  +----+  +----+  +----+  TFLOPS x 8960 =         |
+|    ...     ...     ...     ...   4.1 EFLOPS               |
 |                                                           |
-|  通信帯域: ICI 最大 4800 Gbps/chip                        |
-|  → GPU NVLink (900 Gbps) の5倍以上                        |
+|  Communication bandwidth: ICI up to 4800 Gbps/chip       |
+|  -> Over 5x GPU NVLink (900 Gbps)                        |
 +-----------------------------------------------------------+
 ```
 
-### コード例1: JAX + TPU での学習
+### Code Example 1: Training with JAX + TPU
 
 ```python
 import jax
@@ -183,11 +188,11 @@ from flax import linen as nn
 from flax.training import train_state
 import optax
 
-# TPU デバイスの確認
-print(f"デバイス: {jax.devices()}")
+# Check TPU devices
+print(f"Devices: {jax.devices()}")
 # [TpuDevice(id=0, ...), TpuDevice(id=1, ...), ...]
 
-# シンプルなモデル定義
+# Simple model definition
 class MLP(nn.Module):
     features: int
 
@@ -198,8 +203,8 @@ class MLP(nn.Module):
         x = nn.Dense(self.features)(x)
         return x
 
-# TPU Pod 上での分散学習
-@jax.pmap  # 自動的にTPUコア間でデータ並列化
+# Distributed training on TPU Pod
+@jax.pmap  # Automatically parallelizes data across TPU cores
 def train_step(state, batch):
     def loss_fn(params):
         logits = state.apply_fn({"params": params}, batch["input"])
@@ -208,35 +213,35 @@ def train_step(state, batch):
         ).mean()
 
     grads = jax.grad(loss_fn)(state.params)
-    # 勾配は自動的にTPUコア間で同期
+    # Gradients are automatically synchronized across TPU cores
     grads = jax.lax.pmean(grads, axis_name="batch")
     state = state.apply_gradients(grads=grads)
     return state
 ```
 
-### コード例2: TPU VM の起動と利用
+### Code Example 2: Launching and Using a TPU VM
 
 ```bash
-# TPU VM の作成 (Google Cloud)
+# Create a TPU VM (Google Cloud)
 gcloud compute tpus tpu-vm create my-tpu \
     --zone=us-central1-a \
     --accelerator-type=v5litepod-8 \
     --version=tpu-ubuntu2204-base
 
-# SSH 接続
+# SSH connection
 gcloud compute tpus tpu-vm ssh my-tpu --zone=us-central1-a
 
-# JAX の TPU 動作確認
+# Verify JAX TPU operation
 python3 -c "import jax; print(jax.devices())"
 
-# 学習実行
+# Run training
 python3 train.py --tpu --batch_size=1024
 
-# TPU VM の削除（課金停止）
+# Delete TPU VM (stop billing)
 gcloud compute tpus tpu-vm delete my-tpu --zone=us-central1-a
 ```
 
-### コード例3: TPU での大規模LLM学習（JAX + FSDP）
+### Code Example 3: Large-Scale LLM Training on TPU (JAX + FSDP)
 
 ```python
 import jax
@@ -244,29 +249,29 @@ import jax.numpy as jnp
 from jax.sharding import Mesh, PartitionSpec, NamedSharding
 from jax.experimental import mesh_utils
 
-# TPU Pod のデバイスメッシュを構築
-# 8x4 = 32 TPU チップの場合
+# Build device mesh for TPU Pod
+# For 8x4 = 32 TPU chips
 devices = mesh_utils.create_device_mesh((8, 4))
 mesh = Mesh(devices, axis_names=('data', 'model'))
 
-# FSDP (Fully Sharded Data Parallel) スタイルの分散
-# モデルパラメータをTPUチップ間でシャーディング
+# FSDP (Fully Sharded Data Parallel) style distribution
+# Shard model parameters across TPU chips
 def shard_params(params):
-    """パラメータを 'model' 軸にシャード"""
+    """Shard parameters along the 'model' axis"""
     def shard_fn(x):
         return jax.device_put(
             x, NamedSharding(mesh, PartitionSpec('model'))
         )
     return jax.tree_map(shard_fn, params)
 
-# データは 'data' 軸に分割
+# Data is split along the 'data' axis
 def shard_data(batch):
-    """バッチデータを 'data' 軸に分割"""
+    """Split batch data along the 'data' axis"""
     return jax.device_put(
         batch, NamedSharding(mesh, PartitionSpec('data'))
     )
 
-# 学習ステップ（自動的にメッシュ上で分散実行）
+# Training step (automatically distributed across the mesh)
 @jax.jit
 def train_step(state, batch):
     with mesh:
@@ -279,7 +284,7 @@ def train_step(state, batch):
         state = state.apply_gradients(grads=grads)
         return state, loss
 
-# 学習ループ
+# Training loop
 for epoch in range(num_epochs):
     for batch in dataloader:
         batch = shard_data(batch)
@@ -288,13 +293,13 @@ for epoch in range(num_epochs):
             print(f"Step {step}, Loss: {loss:.4f}")
 ```
 
-### コード例4: TPU Multislice 学習
+### Code Example 4: TPU Multislice Training
 
 ```python
-# TPU Multislice: 複数のTPU Podスライスを連結して超大規模学習
-# Google Cloud で Multislice を構成する場合
+# TPU Multislice: Connect multiple TPU Pod slices for ultra-large-scale training
+# Configuring Multislice on Google Cloud
 
-# 1. マルチスライス TPU の作成
+# 1. Create multi-slice TPU
 # gcloud compute tpus queued-resources create my-multislice \
 #     --node-count=4 \
 #     --accelerator-type=v5litepod-256 \
@@ -308,8 +313,8 @@ from jax.experimental.multihost_utils import (
 )
 
 def setup_multislice():
-    """Multislice TPU の初期化"""
-    # 各スライスのプロセスが独立に起動
+    """Initialize Multislice TPU"""
+    # Each slice's process starts independently
     jax.distributed.initialize()
 
     num_devices = jax.device_count()
@@ -320,77 +325,77 @@ def setup_multislice():
     print(f"Process {process_id}/{num_processes}: "
           f"{num_local} local devices, {num_devices} total")
 
-    # グローバルメッシュ（全スライスを統合）
+    # Global mesh (integrating all slices)
     devices = jax.devices()
-    # 4スライス × 256チップ = 1024チップのメッシュ
+    # 4 slices x 256 chips = 1024-chip mesh
     mesh = Mesh(
         np.array(devices).reshape(num_processes, -1),
         axis_names=('slice', 'device')
     )
     return mesh
 
-# Multislice の通信パターン
-# スライス内: ICI (超高速、〜4800 Gbps)
-# スライス間: DCN (データセンターネットワーク、〜200 Gbps)
-# → 勾配同期は DCN がボトルネックになりうる
-# → 非同期パイプライン並列で対策可能
+# Multislice communication patterns
+# Intra-slice: ICI (ultra-fast, ~4800 Gbps)
+# Inter-slice: DCN (data center network, ~200 Gbps)
+# -> Gradient synchronization can be bottlenecked by DCN
+# -> Can be mitigated with asynchronous pipeline parallelism
 ```
 
 ---
 
 ## 3. AWS Inferentia / Trainium
 
-### Inferentia と Trainium の世代比較
+### Inferentia and Trainium Generation Comparison
 
-| 項目 | Inferentia1 | Inferentia2 | Trainium1 | Trainium2 |
+| Item | Inferentia1 | Inferentia2 | Trainium1 | Trainium2 |
 |------|------------|-------------|-----------|-----------|
-| 発表年 | 2019 | 2022 | 2022 | 2024 |
+| Year | 2019 | 2022 | 2022 | 2024 |
 | NeuronCores | 4 | 2 | 2 | 2 |
-| コア性能(BF16) | - | 190 TFLOPS | 190 TFLOPS | 380 TFLOPS |
+| Core Performance (BF16) | - | 190 TFLOPS | 190 TFLOPS | 380 TFLOPS |
 | HBM | 8GB (DDR4) | 32GB (HBM2e) | 32GB (HBM2e) | 96GB (HBM3) |
-| NeuronLink | なし | 対応 | 対応 | 対応(高速化) |
-| 主な用途 | 推論 | 推論 | 学習 | 大規模学習 |
-| EC2インスタンス | inf1 | inf2 | trn1 | trn2 |
+| NeuronLink | None | Supported | Supported | Supported (faster) |
+| Primary Use | Inference | Inference | Training | Large-scale training |
+| EC2 Instance | inf1 | inf2 | trn1 | trn2 |
 
-### コード例5: AWS Inferentia2 での推論
+### Code Example 5: Inference on AWS Inferentia2
 
 ```python
-# Neuron SDK を使った Inferentia2 での推論
+# Inference on Inferentia2 using Neuron SDK
 import torch
 import torch_neuronx
 
-# PyTorch モデルを Neuron 形式にコンパイル
+# Compile PyTorch model to Neuron format
 model = AutoModelForSequenceClassification.from_pretrained("bert-base-uncased")
 model.eval()
 
-# Neuron コンパイル（Inferentia2 向け最適化）
+# Neuron compilation (optimized for Inferentia2)
 example_inputs = torch.zeros(1, 128, dtype=torch.long)
 model_neuron = torch_neuronx.trace(model, example_inputs)
 
-# コンパイル済みモデルの保存
+# Save compiled model
 model_neuron.save("bert_neuron.pt")
 
-# 推論実行（Inferentia2 で高速処理）
+# Run inference (high-speed processing on Inferentia2)
 model_neuron = torch.jit.load("bert_neuron.pt")
 output = model_neuron(input_ids)
 ```
 
-### コード例6: AWS Trainium での学習
+### Code Example 6: Training on AWS Trainium
 
 ```python
-# Neuron SDK + PyTorch XLA での Trainium 学習
+# Training on Trainium with Neuron SDK + PyTorch XLA
 import torch
 import torch_xla.core.xla_model as xm
 import torch_xla.distributed.parallel_loader as pl
 
-# Trainium デバイスの取得
+# Get Trainium device
 device = xm.xla_device()
 
-# モデルとオプティマイザをデバイスに配置
+# Place model and optimizer on device
 model = MyModel().to(device)
 optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
 
-# 分散データローダー
+# Distributed data loader
 train_loader = pl.MpDeviceLoader(train_dataloader, device)
 
 for epoch in range(num_epochs):
@@ -398,37 +403,37 @@ for epoch in range(num_epochs):
         optimizer.zero_grad()
         loss = model(batch)
         loss.backward()
-        xm.optimizer_step(optimizer)  # Trainium での勾配同期
+        xm.optimizer_step(optimizer)  # Gradient synchronization on Trainium
 ```
 
-### コード例7: Neuron SDK での LLM 推論（transformers-neuronx）
+### Code Example 7: LLM Inference with Neuron SDK (transformers-neuronx)
 
 ```python
-# transformers-neuronx で大規模LLMをInferentia2に展開
+# Deploy large-scale LLMs on Inferentia2 with transformers-neuronx
 from transformers_neuronx import LlamaForSampling
 from transformers import AutoTokenizer
 import torch
 
-# モデルのロードとコンパイル
-# Llama-2-7B を Inferentia2 (inf2.48xlarge: 12チップ) に展開
+# Load and compile model
+# Deploy Llama-2-7B on Inferentia2 (inf2.48xlarge: 12 chips)
 model = LlamaForSampling.from_pretrained(
     "meta-llama/Llama-2-7b-hf",
-    batch_size=4,             # 同時処理バッチ数
-    tp_degree=12,             # テンソル並列度（12チップ使用）
-    n_positions=2048,         # 最大シーケンス長
-    amp='bf16',               # BFloat16精度
+    batch_size=4,             # Concurrent processing batch size
+    tp_degree=12,             # Tensor parallelism degree (using 12 chips)
+    n_positions=2048,         # Maximum sequence length
+    amp='bf16',               # BFloat16 precision
 )
 
-# コンパイル（初回は数分かかる）
+# Compilation (takes several minutes on first run)
 model.to_neuron()
 
 tokenizer = AutoTokenizer.from_pretrained("meta-llama/Llama-2-7b-hf")
 
-# 推論実行
-prompt = "AIハードウェアの未来について説明してください。"
+# Run inference
+prompt = "Please explain the future of AI hardware."
 input_ids = tokenizer(prompt, return_tensors='pt').input_ids
 
-# トークン生成
+# Token generation
 with torch.no_grad():
     output_ids = model.sample(
         input_ids,
@@ -441,24 +446,24 @@ with torch.no_grad():
 response = tokenizer.decode(output_ids[0], skip_special_tokens=True)
 print(response)
 
-# パフォーマンス指標 (inf2.48xlarge)
+# Performance metrics (inf2.48xlarge)
 # - Llama-2-7B: ~50 tokens/sec per request
 # - Llama-2-13B: ~30 tokens/sec per request
-# - コスト: inf2.48xlarge $12.98/hr vs p4d.24xlarge $32.77/hr
-#   → 約60%のコスト削減（同等スループット時）
+# - Cost: inf2.48xlarge $12.98/hr vs p4d.24xlarge $32.77/hr
+#   -> Approximately 60% cost reduction (at equivalent throughput)
 ```
 
-### コード例8: SageMaker + Inferentia2 での推論エンドポイント
+### Code Example 8: Inference Endpoint with SageMaker + Inferentia2
 
 ```python
 import sagemaker
 from sagemaker.huggingface import HuggingFaceModel
 
-# SageMaker セッション設定
+# SageMaker session configuration
 sess = sagemaker.Session()
 role = sagemaker.get_execution_role()
 
-# Inferentia2 上に HuggingFace モデルをデプロイ
+# Deploy HuggingFace model on Inferentia2
 hub_model = HuggingFaceModel(
     model_data=None,
     role=role,
@@ -468,7 +473,7 @@ hub_model = HuggingFaceModel(
     env={
         "HF_MODEL_ID": "meta-llama/Llama-2-7b-hf",
         "HF_TASK": "text-generation",
-        "HF_NUM_CORES": "12",              # NeuronCores数
+        "HF_NUM_CORES": "12",              # Number of NeuronCores
         "HF_AUTO_CAST_TYPE": "bf16",
         "HF_BATCH_SIZE": "4",
         "MAX_INPUT_LENGTH": "1024",
@@ -482,7 +487,7 @@ hub_model = HuggingFaceModel(
     ),
 )
 
-# エンドポイントのデプロイ
+# Deploy endpoint
 predictor = hub_model.deploy(
     initial_instance_count=1,
     instance_type="ml.inf2.48xlarge",
@@ -491,9 +496,9 @@ predictor = hub_model.deploy(
     container_startup_health_check_timeout=1200,
 )
 
-# 推論リクエスト
+# Inference request
 response = predictor.predict({
-    "inputs": "AIの未来について",
+    "inputs": "About the future of AI",
     "parameters": {
         "max_new_tokens": 256,
         "temperature": 0.7,
@@ -502,7 +507,7 @@ response = predictor.predict({
 })
 print(response)
 
-# オートスケーリング設定
+# Auto-scaling configuration
 client = boto3.client("application-autoscaling")
 client.register_scalable_target(
     ServiceNamespace="sagemaker",
@@ -512,7 +517,7 @@ client.register_scalable_target(
     MaxCapacity=10,
 )
 
-# スケーリングポリシー（GPU使用率ベース）
+# Scaling policy (based on GPU utilization)
 client.put_scaling_policy(
     PolicyName="gpu-utilization-scaling",
     ServiceNamespace="sagemaker",
@@ -520,7 +525,7 @@ client.put_scaling_policy(
     ScalableDimension="sagemaker:variant:DesiredInstanceCount",
     PolicyType="TargetTrackingScaling",
     TargetTrackingScalingPolicyConfiguration={
-        "TargetValue": 70.0,  # GPU使用率70%を維持
+        "TargetValue": 70.0,  # Maintain 70% GPU utilization
         "PredefinedMetricSpecification": {
             "PredefinedMetricType": "SageMakerVariantInvocationsPerInstance"
         },
@@ -532,98 +537,100 @@ client.put_scaling_policy(
 
 ---
 
-## 4. GPU as a Service 比較
+## 4. GPU as a Service Comparison
 
-### 主要クラウドGPUインスタンス比較表
+### Major Cloud GPU Instance Comparison Table
 
-| プロバイダ | インスタンス | GPU | VRAM | 時間単価(USD) | 用途 |
+| Provider | Instance | GPU | VRAM | Hourly Rate (USD) | Use Case |
 |-----------|------------|-----|------|-------------|------|
-| AWS | p5.48xlarge | 8x H100 | 640GB | $98.32 | 大規模学習 |
-| AWS | p4d.24xlarge | 8x A100 | 320GB | $32.77 | 学習 |
-| AWS | g5.xlarge | 1x A10G | 24GB | $1.01 | 推論 |
-| AWS | g6.xlarge | 1x L4 | 24GB | $0.81 | 推論（新世代） |
-| AWS | inf2.xlarge | 1x Inferentia2 | 32GB | $0.76 | 推論（低コスト） |
-| GCP | a3-highgpu-8g | 8x H100 | 640GB | $98.45 | 大規模学習 |
-| GCP | a2-highgpu-1g | 1x A100 | 40GB | $3.67 | 学習 |
-| GCP | g2-standard-4 | 1x L4 | 24GB | $0.84 | 推論 |
-| GCP | TPU v5e-8 | 8x TPU v5e | 128GB | $12.88 | 学習（コスパ良） |
-| Azure | ND H100 v5 | 8x H100 | 640GB | $98.32 | 大規模学習 |
-| Azure | NC A100 v4 | 1x A100 | 80GB | $3.67 | 学習 |
-| Lambda Labs | 1x H100 | 1x H100 | 80GB | $2.49 | 学習（安い） |
-| CoreWeave | 1x H100 | 1x H100 | 80GB | $2.06 | 学習（安い） |
-| RunPod | 1x A100 | 1x A100 | 80GB | $1.64 | 学習（安い） |
-| Vast.ai | 1x A100 | 1x A100 | 80GB | $0.80-1.50 | 実験（最安） |
+| AWS | p5.48xlarge | 8x H100 | 640GB | $98.32 | Large-scale training |
+| AWS | p4d.24xlarge | 8x A100 | 320GB | $32.77 | Training |
+| AWS | g5.xlarge | 1x A10G | 24GB | $1.01 | Inference |
+| AWS | g6.xlarge | 1x L4 | 24GB | $0.81 | Inference (new gen) |
+| AWS | inf2.xlarge | 1x Inferentia2 | 32GB | $0.76 | Inference (low cost) |
+| GCP | a3-highgpu-8g | 8x H100 | 640GB | $98.45 | Large-scale training |
+| GCP | a2-highgpu-1g | 1x A100 | 40GB | $3.67 | Training |
+| GCP | g2-standard-4 | 1x L4 | 24GB | $0.84 | Inference |
+| GCP | TPU v5e-8 | 8x TPU v5e | 128GB | $12.88 | Training (cost-effective) |
+| Azure | ND H100 v5 | 8x H100 | 640GB | $98.32 | Large-scale training |
+| Azure | NC A100 v4 | 1x A100 | 80GB | $3.67 | Training |
+| Lambda Labs | 1x H100 | 1x H100 | 80GB | $2.49 | Training (affordable) |
+| CoreWeave | 1x H100 | 1x H100 | 80GB | $2.06 | Training (affordable) |
+| RunPod | 1x A100 | 1x A100 | 80GB | $1.64 | Training (affordable) |
+| Vast.ai | 1x A100 | 1x A100 | 80GB | $0.80-1.50 | Experimentation (cheapest) |
 
-### GPU vs 専用ASIC の使い分けフロー
+### GPU vs Dedicated ASIC Decision Flow
 
 ```
-AIワークロードの種類は？
+What type of AI workload?
         |
-        +-- 学習（Training）
+        +-- Training
         |       |
-        |       +-- PyTorch/TF で柔軟に → NVIDIA GPU (H100/A100)
-        |       +-- JAX + 大規模 → Google TPU
-        |       +-- AWS固定 + 大規模 → Trainium
-        |       +-- 予算重視 + 中規模 → Lambda Labs / CoreWeave
+        |       +-- Flexible with PyTorch/TF -> NVIDIA GPU (H100/A100)
+        |       +-- JAX + large-scale -> Google TPU
+        |       +-- Committed to AWS + large-scale -> Trainium
+        |       +-- Budget-focused + medium-scale -> Lambda Labs / CoreWeave
         |
-        +-- 推論（Inference）
+        +-- Inference
         |       |
-        |       +-- 汎用・柔軟性 → NVIDIA GPU (L4/T4/A10G)
-        |       +-- AWS + 低コスト → Inferentia2
-        |       +-- 高スループット → TensorRT + GPU
-        |       +-- LLM 推論 → vLLM + H100 or Inferentia2
-        |       +-- 散発的リクエスト → サーバーレス (Replicate, Modal)
+        |       +-- General-purpose / flexibility -> NVIDIA GPU (L4/T4/A10G)
+        |       +-- AWS + low cost -> Inferentia2
+        |       +-- High throughput -> TensorRT + GPU
+        |       +-- LLM inference -> vLLM + H100 or Inferentia2
+        |       +-- Sporadic requests -> Serverless (Replicate, Modal)
         |
-        +-- ファインチューニング
+        +-- Fine-tuning
                 |
-                +-- 小〜中規模 (7B以下) → 1x A100/H100
-                +-- 中規模 (7B-70B) → 4-8x A100/H100
-                +-- 大規模 (70B+) → 8x H100 or TPU Pod
-                +-- LoRA/QLoRA → 1x A100/RTX 4090 で十分
+                +-- Small to medium (7B or less) -> 1x A100/H100
+                +-- Medium (7B-70B) -> 4-8x A100/H100
+                +-- Large (70B+) -> 8x H100 or TPU Pod
+                +-- LoRA/QLoRA -> 1x A100/RTX 4090 is sufficient
 ```
 
-### 主要クラウド別マネージドAIサービス比較
+### Managed AI Service Comparison by Major Cloud Provider
 
 ```
 +-----------------------------------------------------------+
-| マネージド学習/推論サービスの比較                            |
+| Comparison of Managed Training/Inference Services          |
 +-----------------------------------------------------------+
 |                                                           |
 | AWS SageMaker                                             |
-|   +-- SageMaker Training: マネージド学習ジョブ             |
-|   +-- SageMaker Inference: リアルタイム/バッチ/非同期推論  |
-|   +-- SageMaker JumpStart: 事前学習済みモデルの1クリック展開|
-|   +-- SageMaker HyperPod: 大規模学習クラスタの自動管理     |
+|   +-- SageMaker Training: Managed training jobs           |
+|   +-- SageMaker Inference: Real-time/batch/async infer.   |
+|   +-- SageMaker JumpStart: One-click pretrained model     |
+|   |   deployment                                          |
+|   +-- SageMaker HyperPod: Auto-managed large-scale        |
+|       training clusters                                   |
 |                                                           |
 | Google Cloud Vertex AI                                    |
-|   +-- Vertex AI Training: カスタムジョブ/ハイパーチューン   |
-|   +-- Vertex AI Prediction: オンライン/バッチ予測          |
-|   +-- Model Garden: 事前学習済みモデルのギャラリー         |
-|   +-- Vertex AI Pipelines: MLOps パイプライン              |
+|   +-- Vertex AI Training: Custom jobs / hypertuning       |
+|   +-- Vertex AI Prediction: Online/batch prediction       |
+|   +-- Model Garden: Pretrained model gallery              |
+|   +-- Vertex AI Pipelines: MLOps pipelines                |
 |                                                           |
 | Azure Machine Learning                                    |
-|   +-- Azure ML Training: コンピュートクラスタ管理          |
-|   +-- Azure ML Endpoints: マネージドエンドポイント        |
-|   +-- Azure AI Studio: 統合開発環境                       |
-|   +-- Azure OpenAI Service: OpenAIモデルのホスティング     |
+|   +-- Azure ML Training: Compute cluster management       |
+|   +-- Azure ML Endpoints: Managed endpoints               |
+|   +-- Azure AI Studio: Integrated development environment |
+|   +-- Azure OpenAI Service: OpenAI model hosting          |
 +-----------------------------------------------------------+
 ```
 
 ---
 
-## 5. コスト最適化戦略
+## 5. Cost Optimization Strategies
 
-### コード例9: スポットインスタンスの活用
+### Code Example 9: Leveraging Spot Instances
 
 ```python
-# AWS Spot Instance での学習（70-90%割引）
+# Training with AWS Spot Instances (70-90% discount)
 import boto3
 
 ec2 = boto3.client('ec2')
 
-# スポットインスタンスリクエスト
+# Spot instance request
 response = ec2.request_spot_instances(
-    SpotPrice='10.00',  # 最大入札価格
+    SpotPrice='10.00',  # Maximum bid price
     InstanceCount=1,
     Type='one-time',
     LaunchSpecification={
@@ -634,7 +641,7 @@ response = ec2.request_spot_instances(
     }
 )
 
-# チェックポイントベースの学習（中断に備える）
+# Checkpoint-based training (prepare for interruptions)
 # train.py
 class CheckpointCallback:
     def __init__(self, save_path, save_every=1000):
@@ -648,11 +655,11 @@ class CheckpointCallback:
                 'model_state_dict': model.state_dict(),
                 'optimizer_state_dict': optimizer.state_dict(),
             }, f"{self.save_path}/checkpoint_{step}.pt")
-            # S3にもバックアップ
+            # Also back up to S3
             upload_to_s3(f"{self.save_path}/checkpoint_{step}.pt")
 ```
 
-### コード例10: スポットインスタンス中断ハンドリング
+### Code Example 10: Spot Instance Interruption Handling
 
 ```python
 import requests
@@ -662,8 +669,8 @@ import threading
 
 class SpotInterruptionHandler:
     """
-    AWSスポットインスタンスの中断通知をハンドリングし、
-    安全にチェックポイントを保存する
+    Handles AWS spot instance interruption notifications
+    and safely saves checkpoints
     """
 
     METADATA_URL = "http://169.254.169.254/latest/meta-data/spot/instance-action"
@@ -675,34 +682,34 @@ class SpotInterruptionHandler:
         self._start_monitoring()
 
     def _start_monitoring(self):
-        """バックグラウンドでスポット中断通知を監視"""
+        """Monitor spot interruption notifications in the background"""
         def monitor():
             while not self.interrupted:
                 try:
                     response = requests.get(self.METADATA_URL, timeout=2)
                     if response.status_code == 200:
                         action = response.json()
-                        print(f"⚠ スポット中断通知受信: {action}")
-                        print(f"  アクション: {action.get('action')}")
-                        print(f"  中断時刻: {action.get('time')}")
+                        print(f"Warning: Spot interruption notice received: {action}")
+                        print(f"  Action: {action.get('action')}")
+                        print(f"  Interruption time: {action.get('time')}")
                         self._handle_interruption()
                 except requests.exceptions.RequestException:
-                    pass  # 中断通知なし（正常）
-                time.sleep(5)  # 5秒ごとにチェック
+                    pass  # No interruption notice (normal)
+                time.sleep(5)  # Check every 5 seconds
 
         thread = threading.Thread(target=monitor, daemon=True)
         thread.start()
 
     def _handle_interruption(self):
-        """中断時の処理"""
+        """Handle interruption"""
         self.interrupted = True
-        print("チェックポイント保存中...")
+        print("Saving checkpoint...")
         self.checkpoint_fn()
         if self.cleanup_fn:
             self.cleanup_fn()
-        print("チェックポイント保存完了。安全に終了可能。")
+        print("Checkpoint saved. Safe to terminate.")
 
-# 使用例
+# Usage example
 def save_checkpoint():
     torch.save({
         'step': global_step,
@@ -711,7 +718,7 @@ def save_checkpoint():
         'scheduler': scheduler.state_dict(),
         'best_loss': best_loss,
     }, '/tmp/checkpoint_latest.pt')
-    # S3にアップロード
+    # Upload to S3
     boto3.client('s3').upload_file(
         '/tmp/checkpoint_latest.pt',
         'my-training-bucket',
@@ -720,51 +727,51 @@ def save_checkpoint():
 
 handler = SpotInterruptionHandler(checkpoint_fn=save_checkpoint)
 
-# 学習ループ
+# Training loop
 for step in range(num_steps):
     if handler.interrupted:
-        print("中断検出。学習を停止します。")
+        print("Interruption detected. Stopping training.")
         break
     train_one_step()
 ```
 
-### コスト最適化手法の比較表
+### Cost Optimization Methods Comparison Table
 
-| 手法 | コスト削減 | リスク | 適した用途 |
+| Method | Cost Reduction | Risk | Suitable Use Cases |
 |------|-----------|--------|-----------|
-| Spot/Preemptible | 60-90% | 中断される可能性 | チェックポイント対応の学習 |
-| Reserved (1年) | 30-40% | 契約期間の固定 | 継続利用が確実な推論 |
-| Reserved (3年) | 50-60% | 長期契約リスク | 大規模推論インフラ |
-| Savings Plan | 20-40% | 柔軟だが割引小 | 用途が変わりうる場合 |
-| サーバーレス | 従量課金 | コールドスタート | 散発的な推論リクエスト |
-| 専業クラウド | 40-60% | SLA/サポートが限定的 | 開発・研究用途 |
-| 混合精度学習 | GPU時間30-50%削減 | なし | 全学習ジョブ |
-| モデル量子化 | 推論GPU 50-75%削減 | 精度低下（軽微） | 推論サービング |
+| Spot/Preemptible | 60-90% | Possible interruption | Checkpoint-enabled training |
+| Reserved (1 year) | 30-40% | Fixed contract period | Continuous inference usage |
+| Reserved (3 years) | 50-60% | Long-term contract risk | Large-scale inference infra |
+| Savings Plan | 20-40% | Flexible but smaller discount | When usage may change |
+| Serverless | Pay-per-use | Cold start | Sporadic inference requests |
+| Dedicated clouds | 40-60% | Limited SLA/support | Development and research |
+| Mixed precision training | 30-50% GPU time reduction | None | All training jobs |
+| Model quantization | 50-75% inference GPU reduction | Slight accuracy loss | Inference serving |
 
-### コード例11: GCP Preemptible TPU でのコスト削減
+### Code Example 11: Cost Reduction with GCP Preemptible TPU
 
 ```bash
-# Preemptible TPU（60-90%割引）の作成
+# Create a Preemptible TPU (60-90% discount)
 gcloud compute tpus tpu-vm create my-preempt-tpu \
     --zone=us-central1-a \
     --accelerator-type=v5litepod-8 \
     --version=tpu-ubuntu2204-base \
-    --preemptible  # プリエンプティブル（中断可能）
+    --preemptible  # Preemptible (interruptible)
 
-# コスト比較 (TPU v5e-8)
-# オンデマンド: $12.88/hr → 月額 $9,274
-# プリエンプティブル: $3.86/hr → 月額 $2,779（70%割引）
-# Reserved (1年): $8.37/hr → 月額 $6,028（35%割引）
+# Cost comparison (TPU v5e-8)
+# On-demand: $12.88/hr -> $9,274/month
+# Preemptible: $3.86/hr -> $2,779/month (70% discount)
+# Reserved (1 year): $8.37/hr -> $6,028/month (35% discount)
 
-# 自動再起動スクリプト（プリエンプティブル中断対策）
+# Auto-restart script (preemptible interruption recovery)
 #!/bin/bash
 while true; do
-    # TPUが存在するかチェック
+    # Check if TPU exists
     STATUS=$(gcloud compute tpus tpu-vm describe my-preempt-tpu \
         --zone=us-central1-a --format="get(state)" 2>/dev/null)
 
     if [ "$STATUS" != "READY" ]; then
-        echo "TPU中断検出。再作成中..."
+        echo "TPU interruption detected. Recreating..."
         gcloud compute tpus tpu-vm delete my-preempt-tpu \
             --zone=us-central1-a --quiet 2>/dev/null
         gcloud compute tpus tpu-vm create my-preempt-tpu \
@@ -772,7 +779,7 @@ while true; do
             --accelerator-type=v5litepod-8 \
             --version=tpu-ubuntu2204-base \
             --preemptible
-        # チェックポイントからの学習再開
+        # Resume training from checkpoint
         gcloud compute tpus tpu-vm ssh my-preempt-tpu \
             --zone=us-central1-a \
             --command="cd /workspace && python train.py --resume"
@@ -781,7 +788,7 @@ while true; do
 done
 ```
 
-### コスト計算シミュレーション
+### Cost Calculation Simulation
 
 ```python
 def calculate_training_cost(
@@ -791,9 +798,9 @@ def calculate_training_cost(
     pricing: str = "on_demand",
     provider: str = "aws",
 ) -> dict:
-    """LLM学習のクラウドコストを概算する"""
+    """Estimate cloud cost for LLM training"""
 
-    # ハードウェア別 TFLOPS (BF16, 実効値)
+    # TFLOPS by hardware (BF16, effective values)
     hw_specs = {
         "h100": {"tflops": 990, "gpus_per_node": 8, "price_od": 98.32, "price_spot": 29.50},
         "a100_80g": {"tflops": 312, "gpus_per_node": 8, "price_od": 32.77, "price_spot": 9.83},
@@ -803,31 +810,31 @@ def calculate_training_cost(
 
     spec = hw_specs[hardware]
 
-    # Chinchilla スケーリング則: FLOPs ≈ 6 * N * D
+    # Chinchilla scaling law: FLOPs ~ 6 * N * D
     total_flops = 6 * model_params_billion * 1e9 * tokens_billion * 1e9
 
-    # 実効GPU利用率 (MFU: Model FLOPs Utilization)
-    mfu = 0.40  # 典型的な値: 30-50%
+    # Effective GPU utilization (MFU: Model FLOPs Utilization)
+    mfu = 0.40  # Typical value: 30-50%
     effective_tflops = spec["tflops"] * spec["gpus_per_node"] * mfu * 1e12
 
-    # 所要時間（秒）
+    # Time required (seconds)
     training_seconds = total_flops / effective_tflops
     training_hours = training_seconds / 3600
 
-    # コスト計算
+    # Cost calculation
     price = spec["price_spot"] if pricing == "spot" else spec["price_od"]
     total_cost = training_hours * price
 
     return {
-        "ハードウェア": hardware,
-        "料金体系": pricing,
-        "総FLOPs": f"{total_flops:.2e}",
-        "所要時間": f"{training_hours:.0f} 時間 ({training_hours/24:.1f} 日)",
-        "コスト": f"${total_cost:,.0f} (約{total_cost*150:,.0f}円)",
-        "1ノード想定（並列化なし）": True,
+        "hardware": hardware,
+        "pricing_model": pricing,
+        "total_flops": f"{total_flops:.2e}",
+        "time_required": f"{training_hours:.0f} hours ({training_hours/24:.1f} days)",
+        "cost": f"${total_cost:,.0f} (approx. {total_cost*150:,.0f} JPY)",
+        "single_node_assumption (no parallelization)": True,
     }
 
-# 7B モデルの学習コスト比較
+# Training cost comparison for a 7B model
 configs = [
     ("h100", "on_demand"), ("h100", "spot"),
     ("a100_80g", "on_demand"), ("a100_80g", "spot"),
@@ -836,31 +843,32 @@ configs = [
 
 for hw, pricing in configs:
     result = calculate_training_cost(7, 2000, hw, pricing)
-    print(f"{hw} ({pricing}): {result['コスト']} / {result['所要時間']}")
+    print(f"{hw} ({pricing}): {result['cost']} / {result['time_required']}")
 
-# 出力例（概算）:
-# h100 (on_demand): $26,373 (約395万円) / 268 時間 (11.2日)
-# h100 (spot):      $7,912 (約119万円) / 268 時間
-# a100_80g (on_demand): $87,651 (約1,315万円) / 2,676 時間 (111.5日)
-# a100_80g (spot):   $26,295 (約394万円) / 2,676 時間
-# tpu_v5e_8 (on_demand): $7,106 (約107万円) / 552 時間 (23.0日)
-# tpu_v5e_8 (spot):  $2,132 (約32万円) / 552 時間
+# Example output (estimates):
+# h100 (on_demand): $26,373 (approx. 3.95M JPY) / 268 hours (11.2 days)
+# h100 (spot):      $7,912 (approx. 1.19M JPY) / 268 hours
+# a100_80g (on_demand): $87,651 (approx. 13.15M JPY) / 2,676 hours (111.5 days)
+# a100_80g (spot):   $26,295 (approx. 3.94M JPY) / 2,676 hours
+# tpu_v5e_8 (on_demand): $7,106 (approx. 1.07M JPY) / 552 hours (23.0 days)
+# tpu_v5e_8 (spot):  $2,132 (approx. 320K JPY) / 552 hours
 ```
 
 ---
 
-## 6. 推論サービングアーキテクチャ
+## 6. Inference Serving Architecture
 
-### 推論サービングの構成
+### Inference Serving Configuration
 
 ```
 +-----------------------------------------------------------+
-|  クライアント → API Gateway → Load Balancer               |
+|  Client -> API Gateway -> Load Balancer                   |
 +-----------------------------------------------------------+
         |                    |                    |
         v                    v                    v
 +---------------+  +---------------+  +---------------+
-| 推論サーバー1  |  | 推論サーバー2  |  | 推論サーバー3  |
+| Inference     |  | Inference     |  | Inference     |
+| Server 1      |  | Server 2      |  | Server 3      |
 | GPU: T4       |  | GPU: T4       |  | GPU: T4       |
 | Model: v2.1   |  | Model: v2.1   |  | Model: v2.1   |
 | TensorRT      |  | TensorRT      |  | TensorRT      |
@@ -869,52 +877,52 @@ for hw, pricing in configs:
         v
 +-----------------------------------------------------------+
 | NVIDIA Triton Inference Server                            |
-| - モデルリポジトリ管理                                     |
-| - 動的バッチング（リクエストをまとめて効率化）             |
-| - マルチモデル同時サービング                               |
-| - モデルバージョン管理（ブルーグリーンデプロイ）           |
+| - Model repository management                            |
+| - Dynamic batching (batch requests for efficiency)        |
+| - Multi-model concurrent serving                         |
+| - Model version management (blue-green deployment)        |
 +-----------------------------------------------------------+
 ```
 
-### LLM推論サービングスタック
+### LLM Inference Serving Stack
 
 ```
 +-----------------------------------------------------------+
-|  LLM推論サービングの選択肢 (2025年)                        |
+|  LLM Inference Serving Options (2025)                      |
 +-----------------------------------------------------------+
 |                                                           |
 |  vLLM                                                     |
-|  +-- PagedAttention による効率的KVキャッシュ管理            |
-|  +-- 連続バッチング (Continuous Batching)                  |
-|  +-- OpenAI互換APIサーバー内蔵                             |
-|  +-- Tensor Parallel対応                                   |
-|  +-- AWQ/GPTQ/FP8 量子化対応                              |
+|  +-- Efficient KV cache management via PagedAttention      |
+|  +-- Continuous Batching                                   |
+|  +-- Built-in OpenAI-compatible API server                 |
+|  +-- Tensor Parallel support                               |
+|  +-- AWQ/GPTQ/FP8 quantization support                    |
 |                                                           |
 |  TensorRT-LLM                                             |
-|  +-- NVIDIA GPU に最適化                                   |
+|  +-- Optimized for NVIDIA GPUs                             |
 |  +-- In-Flight Batching                                    |
-|  +-- FP8/INT4 量子化                                       |
-|  +-- 最高スループット（NVIDIA GPU使用時）                   |
+|  +-- FP8/INT4 quantization                                 |
+|  +-- Highest throughput (on NVIDIA GPUs)                   |
 |                                                           |
 |  Text Generation Inference (TGI)                          |
-|  +-- Hugging Face 公式                                     |
-|  +-- Flash Attention 2 統合                                |
+|  +-- Official Hugging Face solution                        |
+|  +-- Flash Attention 2 integration                         |
 |  +-- Speculative Decoding                                  |
-|  +-- 簡単セットアップ                                      |
+|  +-- Easy setup                                            |
 |                                                           |
 |  Ollama                                                    |
-|  +-- ローカル/エッジ向け                                   |
-|  +-- GGUF量子化モデル対応                                  |
-|  +-- Docker不要、シングルバイナリ                          |
+|  +-- For local/edge deployment                             |
+|  +-- GGUF quantized model support                          |
+|  +-- No Docker required, single binary                     |
 +-----------------------------------------------------------+
 ```
 
-### コード例12: vLLM による LLM 推論サーバー
+### Code Example 12: LLM Inference Server with vLLM
 
 ```python
-# vLLM によるOpenAI互換推論サーバーの起動と利用
+# Launch and use an OpenAI-compatible inference server with vLLM
 
-# --- サーバー起動 (CLI) ---
+# --- Server startup (CLI) ---
 # pip install vllm
 # python -m vllm.entrypoints.openai.api_server \
 #     --model meta-llama/Llama-2-7b-hf \
@@ -923,25 +931,25 @@ for hw, pricing in configs:
 #     --max-model-len 4096 \
 #     --port 8000
 
-# --- クライアントコード ---
+# --- Client code ---
 from openai import OpenAI
 
-# vLLM サーバーに OpenAI 互換 API で接続
+# Connect to vLLM server via OpenAI-compatible API
 client = OpenAI(
     api_key="EMPTY",
     base_url="http://localhost:8000/v1",
 )
 
-# チャット形式の推論
+# Chat-style inference
 response = client.chat.completions.create(
     model="meta-llama/Llama-2-7b-hf",
     messages=[
-        {"role": "system", "content": "あなたは親切なAIアシスタントです。"},
-        {"role": "user", "content": "クラウドAIハードウェアの選び方を教えて。"},
+        {"role": "system", "content": "You are a helpful AI assistant."},
+        {"role": "user", "content": "How should I choose cloud AI hardware?"},
     ],
     max_tokens=512,
     temperature=0.7,
-    stream=True,  # ストリーミング応答
+    stream=True,  # Streaming response
 )
 
 for chunk in response:
@@ -949,23 +957,23 @@ for chunk in response:
         print(chunk.choices[0].delta.content, end="", flush=True)
 ```
 
-### コード例13: Triton Inference Server の設定
+### Code Example 13: Triton Inference Server Configuration
 
 ```python
-# Triton Inference Server のモデル設定と起動
+# Triton Inference Server model configuration and startup
 
-# --- ディレクトリ構造 ---
+# --- Directory structure ---
 # model_repository/
-# ├── bert-classifier/
-# │   ├── config.pbtxt
-# │   ├── 1/              # バージョン1
-# │   │   └── model.onnx
-# │   └── 2/              # バージョン2（最新）
-# │       └── model.onnx
-# └── image-classifier/
-#     ├── config.pbtxt
-#     └── 1/
-#         └── model.plan   # TensorRT エンジン
+# +-- bert-classifier/
+# |   +-- config.pbtxt
+# |   +-- 1/              # Version 1
+# |   |   +-- model.onnx
+# |   +-- 2/              # Version 2 (latest)
+# |       +-- model.onnx
+# +-- image-classifier/
+#     +-- config.pbtxt
+#     +-- 1/
+#         +-- model.plan   # TensorRT engine
 
 # --- config.pbtxt ---
 # name: "bert-classifier"
@@ -997,23 +1005,23 @@ for chunk in response:
 #   }
 # ]
 
-# --- Docker での起動 ---
+# --- Launch with Docker ---
 # docker run --gpus=all --rm -p 8000:8000 -p 8001:8001 -p 8002:8002 \
 #     -v $(pwd)/model_repository:/models \
 #     nvcr.io/nvidia/tritonserver:24.01-py3 \
 #     tritonserver --model-repository=/models
 
-# --- Python クライアント ---
+# --- Python client ---
 import tritonclient.http as httpclient
 import numpy as np
 
 client = httpclient.InferenceServerClient(url="localhost:8000")
 
-# サーバーの状態確認
+# Check server status
 assert client.is_server_live()
 assert client.is_model_ready("bert-classifier")
 
-# 推論リクエスト
+# Inference request
 input_ids = np.random.randint(0, 30000, size=(1, 128)).astype(np.int64)
 inputs = [httpclient.InferInput("input_ids", input_ids.shape, "INT64")]
 inputs[0].set_data_from_numpy(input_ids)
@@ -1022,30 +1030,30 @@ outputs = [httpclient.InferRequestedOutput("logits")]
 
 result = client.infer(
     model_name="bert-classifier",
-    model_version="2",  # バージョン指定（省略で最新）
+    model_version="2",  # Specify version (omit for latest)
     inputs=inputs,
     outputs=outputs,
 )
 
 logits = result.as_numpy("logits")
-print(f"予測結果: {np.argmax(logits)}")
+print(f"Prediction result: {np.argmax(logits)}")
 
-# モデル統計の取得
+# Get model statistics
 stats = client.get_model_statistics("bert-classifier")
-print(f"推論回数: {stats['model_stats'][0]['inference_count']}")
-print(f"平均レイテンシ: {stats['model_stats'][0]['inference_stats']['success']['compute_infer']['avg']/1e6:.2f}ms")
+print(f"Inference count: {stats['model_stats'][0]['inference_count']}")
+print(f"Average latency: {stats['model_stats'][0]['inference_stats']['success']['compute_infer']['avg']/1e6:.2f}ms")
 ```
 
 ---
 
-## 7. Kubernetes でのAIワークロード管理
+## 7. AI Workload Management with Kubernetes
 
-### コード例14: Kubernetes + GPU でのモデルサービング
+### Code Example 14: Model Serving with Kubernetes + GPU
 
 ```yaml
-# Kubernetes で GPU ワークロードを管理する
+# Managing GPU workloads with Kubernetes
 
-# --- GPU ノードプール作成 (GKE) ---
+# --- Create GPU node pool (GKE) ---
 # gcloud container node-pools create gpu-pool \
 #     --cluster=ai-cluster \
 #     --zone=us-central1-a \
@@ -1085,7 +1093,7 @@ spec:
         - containerPort: 8000
         resources:
           limits:
-            nvidia.com/gpu: 1      # 1 GPU を要求
+            nvidia.com/gpu: 1      # Request 1 GPU
             memory: "32Gi"
           requests:
             nvidia.com/gpu: 1
@@ -1121,7 +1129,7 @@ spec:
     targetPort: 8000
   type: ClusterIP
 ---
-# Horizontal Pod Autoscaler (GPU使用率ベース)
+# Horizontal Pod Autoscaler (GPU utilization-based)
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -1145,44 +1153,44 @@ spec:
 
 ---
 
-## 8. マルチクラウド・ハイブリッドクラウド戦略
+## 8. Multi-Cloud and Hybrid Cloud Strategy
 
-### マルチクラウドAIアーキテクチャ
+### Multi-Cloud AI Architecture
 
 ```
 +-----------------------------------------------------------+
-|  マルチクラウドAIアーキテクチャ                               |
+|  Multi-Cloud AI Architecture                                |
 +-----------------------------------------------------------+
 |                                                           |
-|  学習 (Training)                                          |
-|  +-- Lambda Labs / CoreWeave (コスト最適)                 |
-|  +-- GCP TPU (JAX大規模学習)                              |
-|  +-- AWS Trainium (AWSエコシステム活用時)                  |
+|  Training                                                 |
+|  +-- Lambda Labs / CoreWeave (cost-optimized)             |
+|  +-- GCP TPU (JAX large-scale training)                   |
+|  +-- AWS Trainium (when leveraging AWS ecosystem)         |
 |      |                                                    |
-|      v  モデルを ONNX / Safetensors でエクスポート         |
+|      v  Export model in ONNX / Safetensors format         |
 |      |                                                    |
-|  推論 (Inference)                                         |
-|  +-- AWS SageMaker (フルマネージド)                       |
-|  +-- GCP Vertex AI (GCPエコシステム)                      |
-|  +-- 自前 K8s + vLLM (柔軟性最大)                         |
+|  Inference                                                |
+|  +-- AWS SageMaker (fully managed)                        |
+|  +-- GCP Vertex AI (GCP ecosystem)                        |
+|  +-- Self-managed K8s + vLLM (maximum flexibility)        |
 |      |                                                    |
-|      v  モデルレジストリで一元管理                          |
+|      v  Centralized management via model registry         |
 |      |                                                    |
-|  モデルレジストリ                                          |
+|  Model Registry                                           |
 |  +-- MLflow Model Registry                                |
 |  +-- Weights & Biases                                     |
-|  +-- Hugging Face Hub (プライベートリポジトリ)             |
+|  +-- Hugging Face Hub (private repositories)              |
 +-----------------------------------------------------------+
 ```
 
-### コード例15: ONNX によるクラウド間モデルポータビリティ
+### Code Example 15: Cross-Cloud Model Portability with ONNX
 
 ```python
 import torch
 import onnx
 import onnxruntime as ort
 
-# --- PyTorch モデルを ONNX にエクスポート ---
+# --- Export PyTorch model to ONNX ---
 model = MyModel()
 model.load_state_dict(torch.load("model.pt"))
 model.eval()
@@ -1202,14 +1210,14 @@ torch.onnx.export(
     },
 )
 
-# ONNX モデルの検証
+# Validate ONNX model
 onnx_model = onnx.load("model.onnx")
 onnx.checker.check_model(onnx_model)
-print("ONNX モデルの検証: OK")
+print("ONNX model validation: OK")
 
-# --- 各クラウドでの ONNX 推論 ---
+# --- ONNX inference on each cloud ---
 
-# 1. ローカル（CPU/GPU）
+# 1. Local (CPU/GPU)
 session = ort.InferenceSession(
     "model.onnx",
     providers=["CUDAExecutionProvider", "CPUExecutionProvider"]
@@ -1217,65 +1225,66 @@ session = ort.InferenceSession(
 input_data = {"input": dummy_input.numpy()}
 output = session.run(None, input_data)
 
-# 2. AWS SageMaker にデプロイ
-# sagemaker の ONNX コンテナを使用
+# 2. Deploy to AWS SageMaker
+# Use SageMaker's ONNX container
 
-# 3. GCP Vertex AI にデプロイ
+# 3. Deploy to GCP Vertex AI
 # gcloud ai models upload --artifact-uri=gs://bucket/model.onnx
 
-# 4. Azure ML にデプロイ
+# 4. Deploy to Azure ML
 # az ml model deploy --model-path model.onnx --runtime onnx
 
-# → 同一モデルが全クラウドで動作
+# -> The same model runs on all clouds
 ```
 
 ---
 
-## 9. セキュリティとコンプライアンス
+## 9. Security and Compliance
 
-### クラウドAI環境のセキュリティ考慮事項
+### Security Considerations for Cloud AI Environments
 
 ```
 +-----------------------------------------------------------+
-|  クラウドAIワークロードのセキュリティ                        |
+|  Security for Cloud AI Workloads                           |
 +-----------------------------------------------------------+
 |                                                           |
-|  データセキュリティ                                        |
-|  +-- 学習データの暗号化（保存時 + 転送時）                 |
-|  +-- VPC内のプライベートサブネットでGPU起動                |
-|  +-- S3/GCS バケットのIAMポリシー厳格化                   |
-|  +-- データの地理的制限（GDPR等）                          |
+|  Data Security                                            |
+|  +-- Encryption of training data (at rest + in transit)   |
+|  +-- Launch GPUs in private subnets within VPC            |
+|  +-- Strict IAM policies for S3/GCS buckets              |
+|  +-- Geographic data restrictions (GDPR, etc.)            |
 |                                                           |
-|  モデルセキュリティ                                        |
-|  +-- モデルの重みファイルの暗号化保存                       |
-|  +-- モデルレジストリのアクセス制御                         |
-|  +-- 推論APIの認証・認可（API Key、OAuth2）               |
-|  +-- レートリミット・DDoS対策                              |
+|  Model Security                                           |
+|  +-- Encrypted storage of model weight files              |
+|  +-- Access control for model registry                    |
+|  +-- Authentication/authorization for inference API       |
+|  |   (API Key, OAuth2)                                    |
+|  +-- Rate limiting and DDoS protection                    |
 |                                                           |
-|  インフラセキュリティ                                      |
-|  +-- GPU VMへのSSH鍵管理                                   |
-|  +-- セキュリティグループの最小権限原則                     |
-|  +-- ネットワークACLによるIP制限                           |
-|  +-- CloudTrail/Cloud Audit Log の有効化                   |
+|  Infrastructure Security                                  |
+|  +-- SSH key management for GPU VMs                       |
+|  +-- Principle of least privilege for security groups      |
+|  +-- IP restrictions via network ACLs                     |
+|  +-- Enable CloudTrail/Cloud Audit Log                    |
 |                                                           |
-|  コンプライアンス                                          |
-|  +-- SOC 2, ISO 27001 対応クラウドの選択                   |
-|  +-- HIPAA対応（医療データの場合）                         |
-|  +-- 学習データの著作権・ライセンス確認                     |
+|  Compliance                                               |
+|  +-- Choose clouds with SOC 2, ISO 27001 compliance       |
+|  +-- HIPAA compliance (for healthcare data)               |
+|  +-- Verify copyright/licensing of training data          |
 +-----------------------------------------------------------+
 ```
 
 ---
 
-## 10. 監視とオブザーバビリティ
+## 10. Monitoring and Observability
 
-### コード例16: GPU 監視ダッシュボードの構築
+### Code Example 16: Building a GPU Monitoring Dashboard
 
 ```python
-# Prometheus + Grafana で GPU メトリクスを監視する
+# Monitor GPU metrics with Prometheus + Grafana
 
-# --- DCGM Exporter の Kubernetes デプロイ ---
-# NVIDIA DCGM (Data Center GPU Manager) でGPUメトリクスを収集
+# --- DCGM Exporter Kubernetes deployment ---
+# Collect GPU metrics with NVIDIA DCGM (Data Center GPU Manager)
 
 # dcgm-exporter DaemonSet
 # apiVersion: apps/v1
@@ -1294,13 +1303,13 @@ output = session.run(None, input_data)
 #         ports:
 #         - containerPort: 9400
 
-# --- カスタム監視スクリプト ---
+# --- Custom monitoring script ---
 import time
 import subprocess
 import json
 from prometheus_client import start_http_server, Gauge
 
-# Prometheus メトリクス定義
+# Prometheus metrics definition
 gpu_utilization = Gauge('gpu_utilization_percent', 'GPU utilization', ['gpu_id'])
 gpu_memory_used = Gauge('gpu_memory_used_bytes', 'GPU memory used', ['gpu_id'])
 gpu_memory_total = Gauge('gpu_memory_total_bytes', 'GPU memory total', ['gpu_id'])
@@ -1310,7 +1319,7 @@ inference_latency = Gauge('inference_latency_ms', 'Inference latency', ['model']
 inference_throughput = Gauge('inference_throughput_rps', 'Inference throughput', ['model'])
 
 def collect_gpu_metrics():
-    """nvidia-smi から GPU メトリクスを収集"""
+    """Collect GPU metrics from nvidia-smi"""
     result = subprocess.run(
         ["nvidia-smi", "--query-gpu=index,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw",
          "--format=csv,noheader,nounits"],
@@ -1326,15 +1335,15 @@ def collect_gpu_metrics():
         gpu_temperature.labels(gpu_id=gpu_id).set(float(parts[4]))
         gpu_power_draw.labels(gpu_id=gpu_id).set(float(parts[5]))
 
-# Prometheus メトリクスサーバー起動
+# Start Prometheus metrics server
 start_http_server(9090)
-print("GPU メトリクスサーバー起動: http://localhost:9090")
+print("GPU metrics server started: http://localhost:9090")
 
 while True:
     collect_gpu_metrics()
     time.sleep(10)
 
-# --- アラートルール (Prometheus) ---
+# --- Alert rules (Prometheus) ---
 # groups:
 # - name: gpu_alerts
 #   rules:
@@ -1344,7 +1353,7 @@ while True:
 #     labels:
 #       severity: warning
 #     annotations:
-#       summary: "GPU {{$labels.gpu_id}} のメモリ使用率が95%を超過"
+#       summary: "GPU {{$labels.gpu_id}} memory usage exceeded 95%"
 #
 #   - alert: GPUTemperatureHigh
 #     expr: gpu_temperature_celsius > 85
@@ -1352,150 +1361,150 @@ while True:
 #     labels:
 #       severity: critical
 #     annotations:
-#       summary: "GPU {{$labels.gpu_id}} の温度が85°Cを超過"
+#       summary: "GPU {{$labels.gpu_id}} temperature exceeded 85C"
 ```
 
 ---
 
-## 11. アンチパターン
+## 11. Anti-Patterns
 
-### アンチパターン1: 常時起動の高コストインスタンス
-
-```
-NG: p4d.24xlarge ($32.77/hr) を開発中も24時間起動
-    → 月額 $23,594（約350万円）
-
-OK:
-    - 開発/テスト → g5.xlarge ($1.01/hr) で十分
-    - 本番学習 → Spot Instance で60-90%割引
-    - 推論 → オートスケーリングで需要に応じてスケール
-    - 不使用時 → 自動停止スクリプトを設定
-```
-
-### アンチパターン2: ベンダーロックインへの無警戒
+### Anti-Pattern 1: Always-On Expensive Instances
 
 ```
-NG: TPU専用コード + JAX のみで開発
-    → Google Cloud以外に移行不可能
+BAD: Keeping p4d.24xlarge ($32.77/hr) running 24/7 during development
+    -> $23,594/month (approx. 3.5M JPY)
 
-OK:
-    - PyTorch/TensorFlow ベースで開発（移植性確保）
-    - ONNX 形式でモデルをエクスポート（プラットフォーム非依存）
-    - Kubernetes (GKE/EKS/AKS) で統一的なデプロイ
-    - コスト比較を定期的に実施し、最適なプロバイダに移行
+GOOD:
+    - Development/testing -> g5.xlarge ($1.01/hr) is sufficient
+    - Production training -> Spot Instances for 60-90% discount
+    - Inference -> Auto-scaling based on demand
+    - When idle -> Set up auto-stop scripts
 ```
 
-### アンチパターン3: 推論コストの無計画な増大
+### Anti-Pattern 2: Ignoring Vendor Lock-In
 
 ```
-NG: 学習時と同じ大型インスタンスで推論を提供
-    → 8x H100 ($98.32/hr) で推論 → 月額 $70,790
+BAD: Developing exclusively with TPU-specific code + JAX only
+    -> Cannot migrate away from Google Cloud
 
-OK:
-    1. モデル最適化
-       - 量子化: INT8/INT4 で推論 → 必要GPU数を1/4に
-       - 蒸留: 大モデル → 小モデルへ知識転移
-       - プルーニング: 不要なパラメータを削除
-    2. 適切なインスタンス選択
-       - 推論には T4/L4/A10G で十分
-       - Inferentia2 で更にコスト削減
-    3. オートスケーリング
-       - ゼロスケール可能な構成（Knative, KEDA）
-       - 夜間/週末のスケールダウン
+GOOD:
+    - Develop with PyTorch/TensorFlow (ensure portability)
+    - Export models in ONNX format (platform-independent)
+    - Unified deployment via Kubernetes (GKE/EKS/AKS)
+    - Regularly compare costs and migrate to the optimal provider
 ```
 
-### アンチパターン4: データ転送コストの見落とし
+### Anti-Pattern 3: Unplanned Inference Cost Growth
 
 ```
-NG: 学習はGCPのTPU、推論はAWSのSageMaker
-    → 大規模モデル(数百GB)の転送に高額な料金
+BAD: Serving inference on the same large instances used for training
+    -> 8x H100 ($98.32/hr) for inference -> $70,790/month
 
-OK:
-    - 転送コストを事前に計算
-      AWS出力: $0.09/GB → 100GBモデル = $9
-      GCP出力: $0.12/GB → 大量データは高額に
-    - 学習と推論を同一クラウドに集約（可能な場合）
-    - モデル圧縮後に転送
-    - CDN/エッジキャッシュの活用（推論モデルの配布）
+GOOD:
+    1. Model optimization
+       - Quantization: INT8/INT4 inference -> Reduce required GPUs by 1/4
+       - Distillation: Transfer knowledge from large to small model
+       - Pruning: Remove unnecessary parameters
+    2. Appropriate instance selection
+       - T4/L4/A10G is sufficient for inference
+       - Further cost reduction with Inferentia2
+    3. Auto-scaling
+       - Zero-scale capable setup (Knative, KEDA)
+       - Scale down during nights/weekends
 ```
 
-### アンチパターン5: GPUリソースの非効率利用
+### Anti-Pattern 4: Overlooking Data Transfer Costs
 
 ```
-NG: 1リクエストずつ推論処理（GPU使用率5-10%）
-    → $3.67/hr のA100を10%しか使っていない
+BAD: Training on GCP TPU, inference on AWS SageMaker
+    -> High fees for transferring large models (hundreds of GB)
 
-OK:
-    - 動的バッチング（Triton/vLLMの自動バッチ）
-      → 複数リクエストをまとめてGPU処理
-    - マルチモデルサービング
-      → 1つのGPUで複数モデルを時分割実行
-    - GPU共有（MIG: Multi-Instance GPU）
-      → A100を最大7つの独立GPUに分割
-    - リクエストキューの活用
-      → 非同期処理でバッチサイズを最大化
+GOOD:
+    - Calculate transfer costs in advance
+      AWS egress: $0.09/GB -> 100GB model = $9
+      GCP egress: $0.12/GB -> Expensive for large data volumes
+    - Consolidate training and inference on the same cloud (when possible)
+    - Compress models before transfer
+    - Use CDN/edge caching (for distributing inference models)
+```
+
+### Anti-Pattern 5: Inefficient GPU Resource Utilization
+
+```
+BAD: Processing one request at a time (GPU utilization 5-10%)
+    -> Using only 10% of $3.67/hr A100
+
+GOOD:
+    - Dynamic batching (Triton/vLLM auto-batching)
+      -> Batch multiple requests for GPU processing
+    - Multi-model serving
+      -> Time-share multiple models on a single GPU
+    - GPU sharing (MIG: Multi-Instance GPU)
+      -> Split A100 into up to 7 independent GPUs
+    - Request queue utilization
+      -> Maximize batch size with async processing
 ```
 
 ---
 
 ## FAQ
 
-### Q1. TPUとGPU、どちらを選ぶべきか？
+### Q1. Should I choose TPU or GPU?
 
-PyTorchメインならGPU一択。JAXを使っていてGCPに固定されているならTPU v5eが非常にコスパが良い。特にTransformerベースのモデルの学習ではTPUの行列演算効率が活きる。ただしカスタムCUDAカーネルが必要な最先端研究ではGPUが必須。2025年時点ではTPU v6e（Trillium）が登場し、BF16性能が918 TFLOPSに達しており、H100の990 TFLOPSに匹敵する性能をより低コストで提供している。
+If you primarily use PyTorch, GPU is the clear choice. If you use JAX and are committed to GCP, TPU v5e offers excellent cost-performance. TPU's matrix computation efficiency particularly shines for Transformer-based model training. However, GPU is essential for cutting-edge research requiring custom CUDA kernels. As of 2025, TPU v6e (Trillium) has arrived with 918 TFLOPS BF16 performance, rivaling the H100's 990 TFLOPS at a lower cost.
 
-### Q2. 推論のコストを最小化するには？
+### Q2. How can I minimize inference costs?
 
-1) モデル量子化（INT8/INT4）でGPU利用効率を上げる、2) 動的バッチングでスループットを最大化、3) AWS InferentiaやGoogle TPU推論などASICで単価を下げる、4) SageMaker/Vertex AI のサーバーレス推論で従量課金にする。特にLLM推論ではvLLMのPagedAttentionが効果的で、KVキャッシュの効率化により同一GPUで2-4倍のスループットを実現できる。
+1) Improve GPU utilization efficiency through model quantization (INT8/INT4), 2) Maximize throughput with dynamic batching, 3) Reduce unit costs with ASICs like AWS Inferentia or Google TPU inference, 4) Switch to pay-per-use with SageMaker/Vertex AI serverless inference. For LLM inference specifically, vLLM's PagedAttention is highly effective, achieving 2-4x throughput on the same GPU through efficient KV cache management.
 
-### Q3. マルチクラウド戦略は現実的か？
+### Q3. Is a multi-cloud strategy practical?
 
-学習と推論を別クラウドに分けるのは現実的。例えば学習はLambda Labs（安い）で行い、推論はAWS（SageMakerのエコシステム）で行う。ONNX形式でモデルを保存しておけば、プラットフォーム間の移動は容易。ただしデータ転送コストに注意。大規模モデル（数百GB）の転送には$10-50程度のコストがかかる。Kubernetes上でvLLMやTritonを動かす構成なら、GKE/EKS/AKSいずれでも同一のマニフェストで動作する。
+Separating training and inference across different clouds is practical. For example, train on Lambda Labs (affordable) and serve inference on AWS (SageMaker ecosystem). Saving models in ONNX format makes cross-platform migration easy. However, watch out for data transfer costs. Transferring large models (hundreds of GB) can cost $10-50. Running vLLM or Triton on Kubernetes allows the same manifests to work on GKE/EKS/AKS.
 
-### Q4. 専業GPUクラウド（Lambda Labs、CoreWeave）のリスクは？
+### Q4. What are the risks of dedicated GPU clouds (Lambda Labs, CoreWeave)?
 
-主要クラウド（AWS、GCP、Azure）と比較して、SLAが緩い（99.5%程度）、マネージドサービスが少ない（自前でのインフラ管理が必要）、サポート体制が限定的という点がリスク。一方でH100の時間単価が$2-3/hrと主要クラウドの半額以下であり、研究・開発用途では非常にコスパが良い。本番推論には主要クラウドのマネージドサービスを使い、学習には専業クラウドを使う「ハイブリッド戦略」が現実的。
+Compared to major clouds (AWS, GCP, Azure), the risks include looser SLAs (around 99.5%), fewer managed services (requiring self-managed infrastructure), and limited support. On the other hand, H100 hourly rates of $2-3/hr are less than half the price of major clouds, making them very cost-effective for research and development. A realistic "hybrid strategy" uses major cloud managed services for production inference while leveraging dedicated clouds for training.
 
-### Q5. GPUクラウドの品不足（GPU Drought）にどう対処するか？
+### Q5. How do I deal with GPU cloud shortages (GPU Drought)?
 
-H100/A100の需要が供給を上回る状況は2024-2025年に特に深刻だった。対策としては: 1) 複数プロバイダにアカウントを持ち在庫を確認、2) リザーブドインスタンスで確保、3) A100やL4など代替GPUの活用、4) Google TPUやAWS Trainiumなど非GPU代替の検討、5) モデル最適化（小型化、量子化）でGPU需要自体を削減する。
+The situation where H100/A100 demand exceeded supply was particularly severe in 2024-2025. Countermeasures include: 1) Maintain accounts with multiple providers and check availability, 2) Secure capacity with reserved instances, 3) Leverage alternative GPUs like A100 or L4, 4) Consider non-GPU alternatives like Google TPU or AWS Trainium, 5) Reduce GPU demand itself through model optimization (downsizing, quantization).
 
-### Q6. オンプレミスGPUサーバーとクラウド、損益分岐点は？
+### Q6. On-premises GPU servers vs cloud: What is the break-even point?
 
-A100 80GBを搭載したサーバー1台の購入費用は約$20,000-30,000。クラウドでA100を月720時間（常時稼働）使うと約$2,640/hr × 720 ≈ $2,000/月。したがって約10-15ヶ月で損益分岐する。ただしオンプレミスには電気代（$200-500/月）、冷却、保守、故障リスク、減価償却が加わるため、実質的な損益分岐は18-24ヶ月程度。GPU世代の更新サイクル（2-3年）を考えると、3年以上使う見込みがない限りクラウドが合理的。
+A server with an A100 80GB costs approximately $20,000-30,000 to purchase. Running an A100 on the cloud for 720 hours/month (always on) costs approximately $2,640/hr x 720 = ~$2,000/month. Therefore, the break-even point is around 10-15 months. However, on-premises costs include electricity ($200-500/month), cooling, maintenance, failure risk, and depreciation, making the effective break-even point around 18-24 months. Considering the GPU generation refresh cycle (2-3 years), cloud is more rational unless you plan to use the hardware for 3+ years.
 
 ---
 
-## まとめ
+## Summary
 
-| 概念 | 要点 |
+| Concept | Key Points |
 |------|------|
-| Google TPU | 行列演算特化ASIC、JAXとの親和性が高い、v6eで918 TFLOPS |
-| AWS Inferentia | 推論特化ASIC、低コスト推論、SageMaker統合 |
-| AWS Trainium | 学習特化ASIC、Neuron SDK、Trainium2で96GB HBM3 |
-| H100/A100 | 汎用GPU、最大のエコシステム、柔軟性最高 |
-| Spot Instance | 60-90%割引、中断対策（チェックポイント）必須 |
-| Triton Server | 推論サービングの業界標準、動的バッチング |
-| vLLM | LLM推論の事実上の標準、PagedAttention |
-| 専業GPUクラウド | Lambda Labs、CoreWeave — 安価なGPU |
-| ONNX | クラウド間の移植性を確保するモデル形式 |
-| MIG | A100を最大7分割して効率的に利用 |
-| Kubernetes | クラウド非依存のAIインフラ管理 |
+| Google TPU | Matrix computation-specialized ASIC, high affinity with JAX, 918 TFLOPS on v6e |
+| AWS Inferentia | Inference-specialized ASIC, low-cost inference, SageMaker integration |
+| AWS Trainium | Training-specialized ASIC, Neuron SDK, 96GB HBM3 on Trainium2 |
+| H100/A100 | General-purpose GPUs, largest ecosystem, maximum flexibility |
+| Spot Instance | 60-90% discount, checkpoint-based interruption handling required |
+| Triton Server | Industry standard for inference serving, dynamic batching |
+| vLLM | De facto standard for LLM inference, PagedAttention |
+| Dedicated GPU Clouds | Lambda Labs, CoreWeave — affordable GPUs |
+| ONNX | Model format ensuring cross-cloud portability |
+| MIG | Split A100 into up to 7 partitions for efficient utilization |
+| Kubernetes | Cloud-agnostic AI infrastructure management |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Guides
 
-- **01-computing/01-gpu-computing.md** — GPU：NVIDIA/AMD、CUDA
-- **01-computing/02-edge-ai.md** — エッジAI：NPU、Coral、Jetson
-- **02-emerging/03-future-hardware.md** — 未来のハードウェア：量子コンピュータ
+- **01-computing/01-gpu-computing.md** — GPU: NVIDIA/AMD, CUDA
+- **01-computing/02-edge-ai.md** — Edge AI: NPU, Coral, Jetson
+- **02-emerging/03-future-hardware.md** — Future Hardware: Quantum Computing
 
 ---
 
-## 参考文献
+## References
 
-1. **Google Cloud — TPU ドキュメント** https://cloud.google.com/tpu/docs
-2. **AWS — Neuron SDK ドキュメント** https://awsdocs-neuron.readthedocs-hosted.com/
+1. **Google Cloud — TPU Documentation** https://cloud.google.com/tpu/docs
+2. **AWS — Neuron SDK Documentation** https://awsdocs-neuron.readthedocs-hosted.com/
 3. **NVIDIA Triton Inference Server** https://developer.nvidia.com/triton-inference-server
 4. **MLPerf Benchmark Results** https://mlcommons.org/benchmarks/
 5. **vLLM — PagedAttention** https://docs.vllm.ai/
