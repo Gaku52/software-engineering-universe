@@ -1,399 +1,399 @@
-# 未来の機会 — 2025-2030年のAIビジネス
+# Future Opportunities — AI Business in 2025-2030
 
-> 2025年から2030年にかけてのAIビジネスの機会を体系的に予測し、新興市場、技術トレンド、参入戦略を実践的な視点で解説する。
-
----
-
-## この章で学ぶこと
-
-1. **2025-2030年のAI技術トレンド** — マルチモーダルAI、エージェント、オンデバイスAIの進化と事業機会
-2. **新興市場と参入戦略** — 業界別AI活用の未開拓領域と先行者優位の獲得方法
-3. **未来のAIビジネスモデル** — エージェントエコノミー、AIネイティブ組織、新しい収益モデル
-4. **具体的な参入ロードマップ** — 有望市場への参入手順と事業計画の立て方
-5. **リスクと規制** — AI規制の動向と事業リスクへの対応策
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [スタートアップガイド — 資金調達、チーム構築](./02-startup-guide.md) の内容を理解していること
+> A systematic forecast of AI business opportunities from 2025 to 2030, covering emerging markets, technology trends, and entry strategies from a practical perspective.
 
 ---
 
-## 1. AI技術トレンドマップ
+## What You Will Learn in This Chapter
 
-### 1.1 2025-2030 技術進化予測
+1. **AI Technology Trends 2025-2030** — Evolution of multimodal AI, agents, and on-device AI, along with business opportunities
+2. **Emerging Markets and Entry Strategies** — Untapped areas of industry-specific AI adoption and how to gain first-mover advantage
+3. **Future AI Business Models** — Agent economy, AI-native organizations, and new revenue models
+4. **Concrete Entry Roadmaps** — Steps for entering promising markets and how to build a business plan
+5. **Risks and Regulation** — AI regulatory trends and countermeasures for business risk
+
+
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with [Startup Guide — Fundraising and Team Building](./02-startup-guide.md)
+
+---
+
+## 1. AI Technology Trend Map
+
+### 1.1 Technology Evolution Forecast 2025-2030
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│           AI技術進化タイムライン 2025-2030                  │
+│           AI Technology Evolution Timeline 2025-2030       │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  2025 ─── 現在                                           │
-│  │ ● LLMの成熟（GPT-5、Claude 4級）                      │
-│  │ ● マルチモーダル標準化（テキスト+画像+音声）           │
-│  │ ● AIエージェント黎明期                                │
-│  │ ● RAG/ファインチューニングの普及                      │
+│  2025 ─── Present                                        │
+│  │ ● LLM maturity (GPT-5, Claude 4 class)               │
+│  │ ● Multimodal standardization (text + image + audio)  │
+│  │ ● Dawn of AI agents                                  │
+│  │ ● Widespread adoption of RAG/fine-tuning             │
 │  ▼                                                       │
-│  2026 ─── 短期                                           │
-│  │ ● AIエージェントの実用化                               │
-│  │ ● オンデバイスAIの普及（スマホ、PC）                   │
-│  │ ● AI規制フレームワーク整備                            │
-│  │ ● AIネイティブ企業の台頭                              │
+│  2026 ─── Near-term                                      │
+│  │ ● Practical deployment of AI agents                  │
+│  │ ● On-device AI proliferation (smartphones, PCs)      │
+│  │ ● AI regulatory framework established                │
+│  │ ● Rise of AI-native companies                        │
 │  ▼                                                       │
-│  2027-2028 ─── 中期                                      │
-│  │ ● マルチエージェントシステムの標準化                   │
-│  │ ● 業界特化AI基盤モデルの登場                          │
-│  │ ● AI + ロボティクス統合                               │
-│  │ ● 合成データ経済の確立                                │
+│  2027-2028 ─── Mid-term                                  │
+│  │ ● Standardization of multi-agent systems             │
+│  │ ● Emergence of industry-specific foundation models   │
+│  │ ● AI + robotics integration                          │
+│  │ ● Establishment of synthetic data economy            │
 │  ▼                                                       │
-│  2029-2030 ─── 長期                                      │
-│  │ ● AGIに近い汎用能力                                   │
-│  │ ● 自律的なAIワークフォース                            │
-│  │ ● AIによるAI開発の加速                                │
-│  │ ● 新しい人間-AI協働モデル                             │
+│  2029-2030 ─── Long-term                                 │
+│  │ ● General-purpose capabilities approaching AGI       │
+│  │ ● Autonomous AI workforce                            │
+│  │ ● AI-accelerated AI development                      │
+│  │ ● New human-AI collaboration models                  │
 │  ▼                                                       │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 技術トレンド別事業機会
+### 1.2 Business Opportunities by Technology Trend
 
-| トレンド | 時期 | 市場規模予測 | 参入難易度 | 機会の大きさ |
-|---------|------|------------|-----------|------------|
-| AIエージェント | 2025-26 | $50B (2030) | 中 | 巨大 |
-| オンデバイスAI | 2025-27 | $30B (2030) | 高 | 大 |
-| マルチモーダル | 2025-26 | $20B (2028) | 中 | 大 |
-| AI規制テック | 2025-27 | $15B (2030) | 中 | 大 |
-| 合成データ | 2026-28 | $10B (2030) | 高 | 中〜大 |
-| AI + ロボティクス | 2027-30 | $100B (2030) | 最高 | 巨大 |
-| 業界特化基盤モデル | 2026-28 | $25B (2030) | 高 | 大 |
+| Trend | Timing | Market Size Forecast | Entry Difficulty | Opportunity Size |
+|-------|--------|---------------------|-----------------|-----------------|
+| AI Agents | 2025-26 | $50B (2030) | Medium | Enormous |
+| On-device AI | 2025-27 | $30B (2030) | High | Large |
+| Multimodal | 2025-26 | $20B (2028) | Medium | Large |
+| AI RegTech | 2025-27 | $15B (2030) | Medium | Large |
+| Synthetic Data | 2026-28 | $10B (2030) | High | Medium–Large |
+| AI + Robotics | 2027-30 | $100B (2030) | Very High | Enormous |
+| Industry-specific Foundation Models | 2026-28 | $25B (2030) | High | Large |
 
-### 1.3 各技術トレンドの深掘り
+### 1.3 Deep Dive into Each Technology Trend
 
-#### マルチモーダルAIの事業機会
+#### Multimodal AI Business Opportunities
 
 ```python
 multimodal_opportunities = {
-    "画像 + テキスト": {
+    "image + text": {
         "applications": [
-            "ECサイト商品写真からの自動説明文生成",
-            "医療画像の分析と所見レポート自動生成",
-            "不動産物件写真からの査定・説明文生成",
-            "製造業の外観検査 + 不良品レポート",
+            "Automatic product description generation from e-commerce photos",
+            "Medical image analysis and automated finding report generation",
+            "Real estate valuation and description generation from property photos",
+            "Manufacturing visual inspection + defect report",
         ],
-        "market_readiness": "即座に参入可能",
+        "market_readiness": "Ready to enter immediately",
         "key_models": ["GPT-4o", "Claude 3.5 Sonnet", "Gemini Pro Vision"],
     },
-    "音声 + テキスト": {
+    "audio + text": {
         "applications": [
-            "会議の自動議事録 + アクション抽出",
-            "コールセンター通話の分析 + 品質スコアリング",
-            "多言語リアルタイム通訳サービス",
-            "音声メモからのタスク自動生成",
+            "Automatic meeting minutes + action item extraction",
+            "Call center call analysis + quality scoring",
+            "Multilingual real-time interpretation service",
+            "Automatic task generation from voice memos",
         ],
-        "market_readiness": "急速に成長中",
+        "market_readiness": "Rapidly growing",
         "key_models": ["Whisper", "Gemini", "ElevenLabs"],
     },
-    "動画 + テキスト": {
+    "video + text": {
         "applications": [
-            "動画コンテンツの自動要約・チャプター生成",
-            "監視カメラ映像の異常検知 + アラート",
-            "スポーツ映像の戦術分析",
-            "教育動画の理解度テスト自動生成",
+            "Automatic video content summarization and chapter generation",
+            "Anomaly detection + alerts from surveillance footage",
+            "Tactical analysis of sports footage",
+            "Automatic comprehension test generation for educational videos",
         ],
-        "market_readiness": "2026-2027年に本格化",
+        "market_readiness": "Scaling up in 2026-2027",
         "key_models": ["Sora", "Gemini 1.5 Pro", "GPT-4o with video"],
     },
-    "3D/空間 + テキスト": {
+    "3D/spatial + text": {
         "applications": [
-            "建築設計の3Dモデル自動生成",
-            "VR/ARコンテンツの自動制作",
-            "製造業の3D CADファイル分析",
-            "都市計画シミュレーション",
+            "Automatic 3D model generation for architectural design",
+            "Automated VR/AR content production",
+            "3D CAD file analysis for manufacturing",
+            "Urban planning simulations",
         ],
-        "market_readiness": "2027-2028年以降",
-        "key_models": "開発中（各社研究段階）",
+        "market_readiness": "Post-2027-2028",
+        "key_models": "In development (research stage at various companies)",
     }
 }
 ```
 
-#### オンデバイスAIの事業機会
+#### On-Device AI Business Opportunities
 
 ```python
 on_device_ai = {
-    "概要": {
-        "definition": "クラウドに送信せずデバイス上でAI推論を実行",
+    "overview": {
+        "definition": "Run AI inference on the device without sending data to the cloud",
         "benefits": [
-            "プライバシー保護（データがデバイスから出ない）",
-            "低レイテンシ（ネットワーク遅延なし）",
-            "オフライン動作",
-            "APIコスト削減",
+            "Privacy protection (data never leaves the device)",
+            "Low latency (no network delay)",
+            "Offline operation",
+            "API cost reduction",
         ],
         "enabling_tech": [
             "Apple Neural Engine (ANE)",
             "Qualcomm Snapdragon AI Engine",
             "Google Tensor TPU",
-            "小型LLM (Llama 3 8B, Gemma 2B, Phi-3)",
+            "Small LLMs (Llama 3 8B, Gemma 2B, Phi-3)",
         ]
     },
-    "事業機会": {
-        "プライバシー重視アプリ": {
+    "business_opportunities": {
+        "privacy-focused apps": {
             "examples": [
-                "オンデバイス健康データ分析",
-                "ローカル文書分析（機密文書対応）",
-                "オフライン翻訳アプリ",
+                "On-device health data analysis",
+                "Local document analysis (for confidential documents)",
+                "Offline translation app",
             ],
-            "pricing": "ワンタイム購入 or プレミアムサブスクリプション",
+            "pricing": "One-time purchase or premium subscription",
         },
-        "リアルタイム処理アプリ": {
+        "real-time processing apps": {
             "examples": [
-                "リアルタイムカメラAI（AR/MR）",
-                "ゲーム内AIキャラクター",
-                "音声リアルタイム処理",
+                "Real-time camera AI (AR/MR)",
+                "In-game AI characters",
+                "Real-time audio processing",
             ],
-            "pricing": "フリーミアム + アプリ内課金",
+            "pricing": "Freemium + in-app purchases",
         },
-        "エッジAIソリューション": {
+        "edge AI solutions": {
             "examples": [
-                "工場のエッジAI検査システム",
-                "小売店舗のAI顧客分析",
-                "農業IoTのエッジAI処理",
+                "Factory edge AI inspection systems",
+                "AI customer analytics for retail stores",
+                "Agricultural IoT edge AI processing",
             ],
-            "pricing": "ハードウェア + ソフトウェアライセンス",
+            "pricing": "Hardware + software license",
         }
     },
-    "技術的課題": [
-        "モデルサイズの制約（メモリ・ストレージ）",
-        "推論速度とバッテリー消費のトレードオフ",
-        "デバイス間の互換性確保",
-        "モデルアップデートの配信方法",
+    "technical_challenges": [
+        "Model size constraints (memory and storage)",
+        "Trade-off between inference speed and battery consumption",
+        "Ensuring cross-device compatibility",
+        "Model update delivery methods",
     ]
 }
 ```
 
 ---
 
-## 2. AIエージェント経済
+## 2. AI Agent Economy
 
-### 2.1 エージェント型ビジネスの設計
+### 2.1 Designing Agent-Based Businesses
 
 ```
-AIエージェント ビジネスモデル:
+AI Agent Business Model:
 
-  従来のSaaS:
+  Traditional SaaS:
   ┌────────┐         ┌────────┐
-  │ 人間   │──操作──▶│ ツール │──▶ 結果
+  │ Human  │──operate──▶│  Tool  │──▶ Result
   └────────┘         └────────┘
-  人間がツールを使う → 人間の時間が必要
+  Human uses tool → Human time required
 
-  エージェント時代:
+  Agent era:
   ┌────────┐         ┌──────────┐         ┌────────┐
-  │ 人間   │──指示──▶│AIエージェント│──操作──▶│ ツール │
-  └────────┘         │ 計画→実行  │         └────────┘
-                     │ 判断→報告  │
+  │ Human  │──instruct──▶│AI Agent  │──operate──▶│  Tool  │
+  └────────┘         │ Plan→Execute│         └────────┘
+                     │ Judge→Report│
                      └──────────┘
-  人間は指示と承認のみ → AIが実行
+  Human only gives instructions and approvals → AI executes
 ```
 
-### 2.2 エージェントビジネスの具体例
+### 2.2 Concrete Examples of Agent Businesses
 
 ```python
 future_agent_businesses = {
     "ai_sdr": {
-        "name": "AI営業開発担当（SDR）",
-        "description": "リード調査→メール送信→フォローアップを自律実行",
-        "market_size": "SDR年間人件費 $50B → AI化で$10-15B市場",
+        "name": "AI Sales Development Representative (SDR)",
+        "description": "Autonomously executes lead research → email sending → follow-up",
+        "market_size": "Annual SDR labor cost $50B → AI creates $10-15B market",
         "timeline": "2025-2026",
-        "pricing": "成果報酬型（商談獲得あたり$50-$500）",
+        "pricing": "Performance-based (¥50-¥500 per appointment booked)",
         "example_companies": ["11x.ai", "Artisan AI", "Regie.ai"]
     },
     "ai_accountant": {
-        "name": "AI経理担当",
-        "description": "請求書処理→仕訳→月次決算→税務申告を自動化",
-        "market_size": "経理業務 $30B → AI化で$5-10B市場",
+        "name": "AI Accountant",
+        "description": "Automates invoice processing → journaling → monthly close → tax filing",
+        "market_size": "Accounting operations $30B → AI creates $5-10B market",
         "timeline": "2025-2027",
-        "pricing": "月額$200-$2000（取引量ベース）",
+        "pricing": "Monthly $200-$2000 (volume-based)",
         "example_companies": ["Vic.ai", "Truewind", "Botkeeper"]
     },
     "ai_researcher": {
-        "name": "AIリサーチアシスタント",
-        "description": "論文収集→要約→仮説生成→実験設計を支援",
-        "market_size": "研究支援 $20B → AI化で$5B市場",
+        "name": "AI Research Assistant",
+        "description": "Supports paper collection → summarization → hypothesis generation → experiment design",
+        "market_size": "Research support $20B → AI creates $5B market",
         "timeline": "2026-2028",
-        "pricing": "月額$100-$500（研究者向け）",
+        "pricing": "Monthly $100-$500 (for researchers)",
         "example_companies": ["Elicit", "Consensus", "Semantic Scholar"]
     },
     "ai_legal_assistant": {
-        "name": "AIリーガルアシスタント",
-        "description": "契約レビュー→判例調査→書面ドラフト→コンプライアンス",
-        "market_size": "法務サービス $100B → AI化で$15-20B市場",
+        "name": "AI Legal Assistant",
+        "description": "Contract review → case law research → document drafting → compliance",
+        "market_size": "Legal services $100B → AI creates $15-20B market",
         "timeline": "2025-2027",
-        "pricing": "月額$500-$5000（企業規模別）",
+        "pricing": "Monthly $500-$5000 (by company size)",
         "example_companies": ["Harvey", "Casetext (Thomson Reuters)", "EvenUp"]
     }
 }
 ```
 
-### 2.3 AIエージェント開発のアーキテクチャ
+### 2.3 AI Agent Development Architecture
 
 ```python
-# AIエージェントの基本アーキテクチャ
+# Basic architecture for AI agents
 class AIAgentArchitecture:
-    """2025年以降のAIエージェント設計パターン"""
+    """AI agent design patterns for 2025 and beyond"""
 
     def __init__(self):
         self.architecture = {
             "perception_layer": {
-                "description": "環境からの情報取得",
+                "description": "Acquiring information from the environment",
                 "components": [
-                    "API連携（メール、CRM、カレンダー等）",
-                    "ドキュメント読み取り（OCR、PDF解析）",
-                    "Web情報収集（スクレイピング、検索）",
-                    "リアルタイムデータフィード",
+                    "API integrations (email, CRM, calendar, etc.)",
+                    "Document reading (OCR, PDF parsing)",
+                    "Web information gathering (scraping, search)",
+                    "Real-time data feeds",
                 ],
             },
             "reasoning_layer": {
-                "description": "情報の分析と意思決定",
+                "description": "Information analysis and decision-making",
                 "components": [
-                    "LLM推論（Claude、GPT-4等）",
-                    "RAG（関連ドキュメント検索）",
-                    "メモリシステム（短期・長期記憶）",
-                    "計画立案（タスク分解、優先順位付け）",
+                    "LLM inference (Claude, GPT-4, etc.)",
+                    "RAG (relevant document retrieval)",
+                    "Memory system (short-term and long-term)",
+                    "Planning (task decomposition, prioritization)",
                 ],
             },
             "action_layer": {
-                "description": "実際のアクション実行",
+                "description": "Executing actual actions",
                 "components": [
-                    "API呼び出し（メール送信、データ更新）",
-                    "ドキュメント生成（レポート、提案書）",
-                    "通知・アラート送信",
-                    "人間へのエスカレーション",
+                    "API calls (send email, update data)",
+                    "Document generation (reports, proposals)",
+                    "Notification and alert delivery",
+                    "Escalation to humans",
                 ],
             },
             "safety_layer": {
-                "description": "安全性とガバナンス",
+                "description": "Safety and governance",
                 "components": [
-                    "実行前の人間承認ゲート",
-                    "予算・権限の制限",
-                    "監査ログの記録",
-                    "異常検知とロールバック",
+                    "Human approval gate before execution",
+                    "Budget and permission restrictions",
+                    "Audit log recording",
+                    "Anomaly detection and rollback",
                 ],
             },
         }
 
     def design_agent_workflow(self, task_type: str) -> dict:
-        """タスク種別に応じたワークフロー設計"""
+        """Workflow design based on task type"""
         workflows = {
             "sales_outreach": {
-                "trigger": "新規リードの登録",
+                "trigger": "New lead registered",
                 "steps": [
-                    "1. リード情報の収集（LinkedIn、会社HP）",
-                    "2. パーソナライズされたメール文面の生成",
-                    "3. 送信タイミングの最適化",
-                    "4. メール送信（人間承認後 or 自動）",
-                    "5. 開封・クリック追跡",
-                    "6. フォローアップメールの自動送信",
-                    "7. 返信があれば分類→営業担当に通知",
+                    "1. Collect lead information (LinkedIn, company website)",
+                    "2. Generate personalized email copy",
+                    "3. Optimize sending timing",
+                    "4. Send email (after human approval or automatically)",
+                    "5. Track opens and clicks",
+                    "6. Automatically send follow-up emails",
+                    "7. Classify replies → notify sales representative",
                 ],
-                "human_checkpoints": ["初回テンプレート承認", "重要クライアントへの送信"],
-                "success_metric": "商談転換率",
+                "human_checkpoints": ["Initial template approval", "Sending to key clients"],
+                "success_metric": "Meeting conversion rate",
             },
             "customer_support": {
-                "trigger": "サポートチケットの発生",
+                "trigger": "Support ticket created",
                 "steps": [
-                    "1. チケット内容の分析と分類",
-                    "2. 過去の類似チケットと解決策の検索",
-                    "3. 回答案の生成",
-                    "4. 自信度が高ければ自動返信",
-                    "5. 自信度が低ければ人間にエスカレーション",
-                    "6. 解決後のフォローアップ",
-                    "7. FAQの自動更新",
+                    "1. Analyze and classify ticket content",
+                    "2. Search for similar past tickets and solutions",
+                    "3. Generate response draft",
+                    "4. Auto-reply if confidence is high",
+                    "5. Escalate to human if confidence is low",
+                    "6. Follow up after resolution",
+                    "7. Automatically update FAQ",
                 ],
-                "human_checkpoints": ["低自信度の回答", "返金・特別対応が必要なケース"],
-                "success_metric": "自動解決率、CSAT",
+                "human_checkpoints": ["Low-confidence responses", "Cases requiring refunds or special handling"],
+                "success_metric": "Auto-resolution rate, CSAT",
             },
             "content_creation": {
-                "trigger": "コンテンツカレンダーのスケジュール",
+                "trigger": "Content calendar schedule",
                 "steps": [
-                    "1. トレンド・キーワードリサーチ",
-                    "2. 記事構成の立案",
-                    "3. ドラフト執筆",
-                    "4. SEO最適化（タイトル、メタ、内部リンク）",
-                    "5. 画像生成 or 選定",
-                    "6. 人間レビュー → 修正",
-                    "7. CMS投稿 + SNS共有",
+                    "1. Trend and keyword research",
+                    "2. Article structure planning",
+                    "3. Draft writing",
+                    "4. SEO optimization (title, meta, internal links)",
+                    "5. Image generation or selection",
+                    "6. Human review → revision",
+                    "7. CMS posting + SNS sharing",
                 ],
-                "human_checkpoints": ["最終レビュー", "ブランドトーンの確認"],
-                "success_metric": "公開記事数、オーガニックトラフィック",
+                "human_checkpoints": ["Final review", "Brand tone check"],
+                "success_metric": "Number of published articles, organic traffic",
             }
         }
         return workflows.get(task_type, {})
 ```
 
-### 2.4 マルチエージェントシステム
+### 2.4 Multi-Agent Systems
 
 ```python
-# マルチエージェントシステムの設計パターン
+# Design patterns for multi-agent systems
 multi_agent_system = {
-    "概要": {
-        "definition": "複数のAIエージェントが協調して複雑なタスクを実行",
-        "advantage": "単一エージェントでは困難な複雑なワークフローを実現",
-        "timeline": "2027-2028年に本格化",
+    "overview": {
+        "definition": "Multiple AI agents collaborate to execute complex tasks",
+        "advantage": "Enables complex workflows that are difficult for a single agent",
+        "timeline": "Scaling up in 2027-2028",
     },
-    "設計パターン": {
+    "design_patterns": {
         "hierarchical": {
-            "name": "階層型",
+            "name": "Hierarchical",
             "structure": """
-            Orchestrator Agent（指揮者）
-                ├── Research Agent（調査）
-                ├── Writer Agent（執筆）
-                ├── Reviewer Agent（レビュー）
-                └── Publisher Agent（公開）
+            Orchestrator Agent (conductor)
+                ├── Research Agent
+                ├── Writer Agent
+                ├── Reviewer Agent
+                └── Publisher Agent
             """,
-            "use_case": "コンテンツ制作パイプライン",
+            "use_case": "Content production pipeline",
         },
         "collaborative": {
-            "name": "協調型",
+            "name": "Collaborative",
             "structure": """
-            Agent A（分析）←→ Agent B（提案）
-                ↕                   ↕
-            Agent C（検証）←→ Agent D（実行）
+            Agent A (analysis) ←→ Agent B (proposal)
+                ↕                       ↕
+            Agent C (verification) ←→ Agent D (execution)
             """,
-            "use_case": "データ分析→施策立案→実行→効果測定",
+            "use_case": "Data analysis → measure planning → execution → impact measurement",
         },
         "competitive": {
-            "name": "競争型",
+            "name": "Competitive",
             "structure": """
             Task → Agent A → Solution A ─┐
                  → Agent B → Solution B ──┤→ Best Solution
                  → Agent C → Solution C ─┘
             """,
-            "use_case": "複数の解決策を生成し最良のものを選択",
+            "use_case": "Generate multiple solutions and select the best one",
         }
     },
-    "ビジネス応用": {
+    "business_applications": {
         "ai_marketing_team": {
             "agents": [
-                "マーケティング戦略エージェント",
-                "コンテンツ制作エージェント",
-                "広告運用エージェント",
-                "分析・レポートエージェント",
+                "Marketing strategy agent",
+                "Content creation agent",
+                "Ad operations agent",
+                "Analytics and reporting agent",
             ],
-            "value": "マーケティングチーム3-5人分の業務を自動化",
-            "pricing": "月額¥300,000-¥1,000,000",
+            "value": "Automate the work of 3-5 marketing team members",
+            "pricing": "Monthly ¥300,000-¥1,000,000",
         },
         "ai_back_office": {
             "agents": [
-                "経理エージェント",
-                "人事エージェント",
-                "法務エージェント",
-                "総務エージェント",
+                "Accounting agent",
+                "HR agent",
+                "Legal agent",
+                "General affairs agent",
             ],
-            "value": "バックオフィス業務の70%を自動化",
-            "pricing": "月額¥200,000-¥500,000",
+            "value": "Automate 70% of back-office operations",
+            "pricing": "Monthly ¥200,000-¥500,000",
         }
     }
 }
@@ -401,141 +401,141 @@ multi_agent_system = {
 
 ---
 
-## 3. 業界別AI機会マップ
+## 3. Industry-Specific AI Opportunity Map
 
-### 3.1 未開拓市場の分析
+### 3.1 Analysis of Untapped Markets
 
 ```
-業界別AI浸透度と機会:
+AI Penetration and Opportunity by Industry:
 
-  AI浸透度
-  高 ┤ ● テック    ● 金融
-     │
-  中 ┤ ● マーケ    ● ヘルスケア
-     │   ● Eコマース
-  低 ┤ ● 建設     ● 農業     ● 教育
-     │ ● 不動産   ● 法務     ● 製造
-     │ ● 物流     ● 保険     ● 行政
-     └──┬────────────┬────────────┬──
-       小規模       中規模       大規模
-                  市場規模
+  AI Penetration
+  High ┤ ● Tech      ● Finance
+       │
+  Med  ┤ ● Marketing ● Healthcare
+       │   ● E-commerce
+  Low  ┤ ● Construction ● Agriculture ● Education
+       │ ● Real Estate  ● Legal       ● Manufacturing
+       │ ● Logistics    ● Insurance   ● Government
+       └──┬────────────┬────────────┬──
+         Small       Medium       Large
+                    Market Size
 
-  ★ 右下（大規模×低浸透）= 最大の機会
-  ★ 建設、農業、行政、保険が有望
+  ★ Bottom-right (Large × Low penetration) = Greatest opportunity
+  ★ Construction, Agriculture, Government, Insurance are promising
 ```
 
-### 3.2 有望業界の詳細分析
+### 3.2 Detailed Analysis of Promising Industries
 
-| 業界 | AI機会 | 市場規模 | 参入戦略 | 時期 |
-|------|--------|---------|---------|------|
-| 建設 | 設計自動化、安全管理 | $2T | 業界経験者と組む | 2025-27 |
-| 農業 | 収穫予測、病害検知 | $3T | IoT + AI | 2026-28 |
-| 教育 | 個別最適化学習 | $7T | EdTech経由 | 2025-26 |
-| 保険 | 引受自動化、不正検知 | $6T | RegTech連携 | 2025-27 |
-| 不動産 | 査定AI、管理自動化 | $3T | 既存SaaS連携 | 2025-26 |
-| 法務 | 契約AI、判例検索 | $1T | 弁護士と協業 | 2025-26 |
-| 行政 | 窓口自動化、書類処理 | $1T | 入札/パートナー | 2026-28 |
+| Industry | AI Opportunity | Market Size | Entry Strategy | Timing |
+|----------|---------------|-------------|---------------|--------|
+| Construction | Design automation, safety management | $2T | Partner with industry veterans | 2025-27 |
+| Agriculture | Harvest forecasting, disease detection | $3T | IoT + AI | 2026-28 |
+| Education | Personalized adaptive learning | $7T | Via EdTech | 2025-26 |
+| Insurance | Underwriting automation, fraud detection | $6T | RegTech collaboration | 2025-27 |
+| Real Estate | AI valuation, management automation | $3T | Existing SaaS integration | 2025-26 |
+| Legal | Contract AI, case law search | $1T | Collaborate with lawyers | 2025-26 |
+| Government | Counter automation, document processing | $1T | Bidding/partnerships | 2026-28 |
 
-### 3.3 業界別参入ロードマップ
+### 3.3 Industry-Specific Entry Roadmaps
 
 ```python
-# 業界別参入ロードマップ
+# Industry-specific entry roadmaps
 industry_entry_roadmaps = {
-    "教育": {
+    "education": {
         "phase_1": {
-            "period": "0-6ヶ月",
+            "period": "0-6 months",
             "actions": [
-                "教師10人以上にインタビュー",
-                "既存EdTechプロダクトの徹底調査",
-                "AI個別指導のプロトタイプ作成",
-                "学習塾1-2社でパイロット導入",
+                "Interview 10+ teachers",
+                "Thoroughly research existing EdTech products",
+                "Build AI tutoring prototype",
+                "Pilot deployment with 1-2 cram schools",
             ],
-            "target": "PMF検証",
-            "investment": "500万-1000万円"
+            "target": "PMF validation",
+            "investment": "¥5M-¥10M"
         },
         "phase_2": {
-            "period": "6-18ヶ月",
+            "period": "6-18 months",
             "actions": [
-                "学習データの蓄積と精度向上",
-                "教育委員会・学校法人への営業",
-                "学習効果の定量的エビデンス構築",
-                "文科省のEdTech補助金への対応",
+                "Accumulate learning data and improve accuracy",
+                "Sales to school boards and educational institutions",
+                "Build quantitative evidence of learning outcomes",
+                "Apply for MEXT EdTech subsidies",
             ],
-            "target": "有料顧客100校",
-            "investment": "3000万-1億円"
+            "target": "100 paying school customers",
+            "investment": "¥30M-¥100M"
         },
         "phase_3": {
-            "period": "18-36ヶ月",
+            "period": "18-36 months",
             "actions": [
-                "全国展開（都道府県教育委員会との連携）",
-                "海外展開（アジア市場から）",
-                "教科書出版社との提携",
-                "学習分析プラットフォームへの進化",
+                "National expansion (collaboration with prefectural boards of education)",
+                "Overseas expansion (starting from Asian markets)",
+                "Partnership with textbook publishers",
+                "Evolution into a learning analytics platform",
             ],
-            "target": "ARR 10億円、全国1000校導入",
-            "investment": "5-20億円（Series A-B）"
+            "target": "ARR ¥1B, 1,000 schools nationwide",
+            "investment": "¥500M-¥2B (Series A-B)"
         },
         "key_challenges": [
-            "教育現場のIT リテラシーのバラつき",
-            "学校の予算サイクル（年度単位）",
-            "個人情報保護（子どものデータは特に厳格）",
-            "教育効果の実証に時間がかかる",
+            "Variation in IT literacy at educational sites",
+            "School budget cycles (annual basis)",
+            "Personal information protection (especially strict for children's data)",
+            "Takes time to prove educational outcomes",
         ]
     },
-    "不動産": {
+    "real_estate": {
         "phase_1": {
-            "period": "0-6ヶ月",
+            "period": "0-6 months",
             "actions": [
-                "不動産会社10社にインタビュー",
-                "公示地価・取引事例データの収集と分析",
-                "AI査定プロトタイプの構築",
-                "不動産ポータルサイトとのAPI連携調査",
+                "Interview 10 real estate companies",
+                "Collect and analyze official land price and transaction data",
+                "Build AI valuation prototype",
+                "Investigate API integration with real estate portal sites",
             ],
-            "target": "AI査定精度 ±5%以内の実現",
+            "target": "Achieve AI valuation accuracy within ±5%",
         },
         "phase_2": {
-            "period": "6-18ヶ月",
+            "period": "6-18 months",
             "actions": [
-                "不動産仲介会社への販売開始",
-                "物件情報の自動取得と分析パイプライン構築",
-                "賃貸管理の自動化機能追加",
-                "REINSデータとの連携",
+                "Begin sales to real estate brokerage companies",
+                "Build automated property information acquisition and analysis pipeline",
+                "Add rental management automation features",
+                "Integration with REINS data",
             ],
-            "target": "有料顧客50社、MRR 500万円",
+            "target": "50 paying customers, MRR ¥5M",
         },
         "key_challenges": [
-            "不動産データの非構造性（間取り図、写真等）",
-            "地域差が大きい（都市部vs地方）",
-            "既存の業界慣行（対面商談文化）",
-            "宅建業法等の法規制対応",
+            "Unstructured nature of real estate data (floor plans, photos, etc.)",
+            "Large regional variation (urban vs. rural)",
+            "Existing industry practices (face-to-face negotiation culture)",
+            "Compliance with Real Estate Brokerage Act and other regulations",
         ]
     },
-    "保険": {
+    "insurance": {
         "phase_1": {
-            "period": "0-6ヶ月",
+            "period": "0-6 months",
             "actions": [
-                "保険会社のデジタル部門にアプローチ",
-                "保険金請求処理の自動化プロトタイプ",
-                "不正検知AIの精度検証",
-                "InsurTech アクセラレーターへの参加検討",
+                "Approach digital departments of insurance companies",
+                "Prototype for automating insurance claims processing",
+                "Accuracy validation of fraud detection AI",
+                "Consider joining an InsurTech accelerator",
             ],
-            "target": "保険会社1社とPoC契約",
+            "target": "PoC contract with one insurance company",
         },
         "phase_2": {
-            "period": "6-18ヶ月",
+            "period": "6-18 months",
             "actions": [
-                "保険引受審査の自動化",
-                "損害査定AIの開発",
-                "コンプライアンス対応（金融庁ガイドライン）",
-                "保険代理店向けツールの開発",
+                "Automate underwriting review",
+                "Develop loss assessment AI",
+                "Compliance response (FSA guidelines)",
+                "Develop tools for insurance agencies",
             ],
-            "target": "保険会社3-5社と本契約",
+            "target": "Full contracts with 3-5 insurance companies",
         },
         "key_challenges": [
-            "金融規制への対応（AI利用の説明責任）",
-            "長い営業サイクル（6ヶ月-1年）",
-            "既存システム（レガシー）との統合",
-            "AI判断の説明可能性（XAI）の要求",
+            "Regulatory compliance (accountability for AI use)",
+            "Long sales cycles (6 months–1 year)",
+            "Integration with existing legacy systems",
+            "Requirement for AI decision explainability (XAI)",
         ]
     }
 }
@@ -543,73 +543,73 @@ industry_entry_roadmaps = {
 
 ---
 
-## 4. 新しいAIビジネスモデル
+## 4. New AI Business Models
 
-### 4.1 成果報酬型AI
+### 4.1 Outcome-Based AI Pricing
 
 ```
-従来: SaaS月額課金
-  月額¥10,000 → ツール利用権
+Traditional: SaaS monthly subscription
+  Monthly ¥10,000 → Tool usage rights
 
-未来: AI成果報酬型
+Future: AI outcome-based pricing
   ┌──────────────────────────────────────┐
-  │ 成果に対して課金:                      │
-  │ ● AI営業: 商談獲得1件 → ¥50,000      │
-  │ ● AI経理: 処理した請求書1件 → ¥100    │
-  │ ● AI採用: 採用成功1人 → ¥300,000     │
-  │ ● AIカスタマーサクセス: チャーン防止1件→ ¥10,000 │
-  │                                      │
-  │ メリット:                              │
-  │ ● 顧客: リスクゼロ（成果がなければ無料）│
-  │ ● 提供者: 価値に連動した高収益        │
-  │ ● アップサイド: AIの能力向上 → 自動的に収益増 │
+  │ Charge based on outcomes:              │
+  │ ● AI sales: 1 meeting booked → ¥50,000 │
+  │ ● AI accounting: 1 invoice processed → ¥100 │
+  │ ● AI recruiting: 1 hire → ¥300,000    │
+  │ ● AI customer success: 1 churn prevented → ¥10,000 │
+  │                                        │
+  │ Benefits:                              │
+  │ ● Customer: Zero risk (free if no results) │
+  │ ● Provider: High revenue tied to value │
+  │ ● Upside: AI capability improves → revenue grows automatically │
   └──────────────────────────────────────┘
 ```
 
-#### 成果報酬型AIの実装パターン
+#### Implementation Patterns for Outcome-Based AI
 
 ```python
-# 成果報酬型AIの収益モデル
+# Revenue model for outcome-based AI
 outcome_based_pricing = {
     "design_principles": {
-        "成果の定義": "客観的に測定可能な成果指標を定義する",
-        "基本料金": "最低限のプラットフォーム利用料（月額固定）",
-        "成功報酬": "成果に連動した変動課金",
-        "上限設定": "月額上限を設けて顧客の予算管理を容易にする",
+        "outcome_definition": "Define objectively measurable outcome metrics",
+        "base_fee": "Minimum platform usage fee (fixed monthly)",
+        "success_fee": "Variable charge tied to outcomes",
+        "cap_setting": "Set monthly cap to make customer budget management easy",
     },
     "revenue_models": {
         "ai_sdr": {
-            "base_fee": 30000,          # 月額基本料 ¥30,000
-            "per_meeting": 50000,       # 商談獲得1件あたり ¥50,000
-            "monthly_cap": 500000,      # 月額上限 ¥500,000
-            "expected_meetings": 8,     # 月平均8件獲得
-            "expected_mrr": 430000,     # 基本料 + 8件 × ¥50,000
-            "margin": 0.85,             # 粗利率85%
+            "base_fee": 30000,          # Monthly base fee ¥30,000
+            "per_meeting": 50000,       # ¥50,000 per meeting booked
+            "monthly_cap": 500000,      # Monthly cap ¥500,000
+            "expected_meetings": 8,     # Average 8 bookings per month
+            "expected_mrr": 430000,     # Base fee + 8 meetings × ¥50,000
+            "margin": 0.85,             # Gross margin 85%
         },
         "ai_content": {
             "base_fee": 50000,
-            "per_article": 15000,       # 記事1本あたり ¥15,000
-            "per_1000_pv": 500,         # PV連動 ¥500/1000PV
+            "per_article": 15000,       # ¥15,000 per article
+            "per_1000_pv": 500,         # PV-linked ¥500/1000 PV
             "monthly_cap": 300000,
         },
         "ai_support": {
             "base_fee": 100000,
-            "per_resolution": 500,      # チケット自動解決1件 ¥500
-            "csat_bonus": 50000,        # CSAT 90%以上で月額ボーナス
+            "per_resolution": 500,      # ¥500 per auto-resolved ticket
+            "csat_bonus": 50000,        # Monthly bonus for CSAT ≥ 90%
             "monthly_cap": 1000000,
         }
     },
     "implementation_challenges": [
-        "成果の測定方法（アトリビューション問題）",
-        "成果が出るまでのタイムラグ",
-        "顧客側の環境要因による成果変動",
-        "成功報酬の公正な算出ロジック",
+        "Outcome measurement method (attribution problem)",
+        "Time lag until results appear",
+        "Outcome variability due to customer-side environmental factors",
+        "Fair calculation logic for success fees",
     ],
     "risk_mitigation": [
-        "初期は固定課金でデータ収集、精度が安定したら成果報酬に移行",
-        "A/Bテストでの効果実証",
-        "最低保証と上限のバランス設計",
-        "成果指標の定期的な見直し条項を契約に含める",
+        "Start with fixed billing to collect data, then transition to outcome-based once accuracy stabilizes",
+        "A/B testing to prove effectiveness",
+        "Balance design of minimum guarantee and cap",
+        "Include clauses for periodic review of outcome metrics in contracts",
     ]
 }
 ```
@@ -618,229 +618,229 @@ outcome_based_pricing = {
 
 ```python
 ai_workforce_model = {
-    "concept": "AIを「ツール」ではなく「労働力」として提供",
-    "pricing": "人間の人件費の1/10-1/5で同等の成果",
+    "concept": "Provide AI as 'workforce' rather than 'tool'",
+    "pricing": "Equivalent output at 1/10 to 1/5 the cost of human labor",
     "examples": {
         "ai_sdr_team": {
-            "human_cost": "SDR 1人 = 年間¥6,000,000",
-            "ai_cost": "AI SDR = 年間¥600,000",
-            "capability": "24時間稼働、多言語、無限スケール",
-            "limitation": "複雑な交渉、信頼関係構築は人間"
+            "human_cost": "1 SDR = ¥6,000,000/year",
+            "ai_cost": "AI SDR = ¥600,000/year",
+            "capability": "24-hour operation, multilingual, infinite scale",
+            "limitation": "Complex negotiation, relationship building requires humans"
         },
         "ai_content_team": {
-            "human_cost": "ライター3人 = 年間¥18,000,000",
-            "ai_cost": "AIコンテンツ = 年間¥2,400,000",
-            "capability": "月100本のブログ、SNS毎日投稿",
-            "limitation": "独自取材、インタビュー記事は人間"
+            "human_cost": "3 writers = ¥18,000,000/year",
+            "ai_cost": "AI content = ¥2,400,000/year",
+            "capability": "100 blog posts/month, daily SNS posting",
+            "limitation": "Original reporting, interview articles require humans"
         },
         "ai_support_team": {
-            "human_cost": "CS 5人 = 年間¥30,000,000",
-            "ai_cost": "AIサポート = 年間¥3,600,000",
-            "capability": "24/365対応、多言語、即時回答",
-            "limitation": "感情的なクレーム対応は人間"
+            "human_cost": "5 CS staff = ¥30,000,000/year",
+            "ai_cost": "AI support = ¥3,600,000/year",
+            "capability": "24/365 coverage, multilingual, instant response",
+            "limitation": "Emotional complaints require humans"
         }
     }
 }
 ```
 
-### 4.3 データフライホイール
+### 4.3 Data Flywheel
 
 ```
-AIデータフライホイール（自己強化ループ）:
+AI Data Flywheel (self-reinforcing loop):
 
-  ユーザー増加
+  More users
        │
        ▼
-  データ蓄積 ──────────────┐
-       │                    │
-       ▼                    │
-  AI精度向上                │
-       │                    │
-       ▼                    │
-  ユーザー体験向上          │
-       │                    │
-       ▼                    │
-  口コミ/紹介増加 ──────────┘
+  Data accumulation ──────────────┐
+       │                           │
+       ▼                           │
+  AI accuracy improves            │
+       │                           │
+       ▼                           │
+  Better user experience          │
+       │                           │
+       ▼                           │
+  Word-of-mouth/referrals grow ───┘
        │
        ▼
-  更にユーザー増加 → 更にデータ → ...
+  Even more users → Even more data → ...
 
-  ★ このフライホイールが回り始めると
-    後発が追いつけない「データモート」になる
+  ★ Once this flywheel starts spinning,
+    it becomes a "data moat" that latecomers cannot overcome
 ```
 
-#### データフライホイールの構築方法
+#### How to Build a Data Flywheel
 
 ```python
-# データフライホイールの設計と構築
+# Design and build a data flywheel
 data_flywheel_design = {
     "step_1_data_collection": {
-        "description": "プロダクト利用を通じた自然なデータ収集",
+        "description": "Natural data collection through product usage",
         "tactics": [
-            "ユーザーの入力データを（同意の上で）蓄積",
-            "AI出力へのフィードバック（サムズアップ/ダウン）を収集",
-            "ユーザー行動ログの分析（どの機能がよく使われるか）",
-            "エラーケースの自動収集と分類",
+            "Accumulate user input data (with consent)",
+            "Collect feedback on AI output (thumbs up/down)",
+            "Analyze user behavior logs (which features are used most)",
+            "Automatic collection and classification of error cases",
         ],
-        "privacy": "GDPR/個人情報保護法に準拠したデータ収集同意の取得",
+        "privacy": "Obtain data collection consent in compliance with GDPR/Personal Information Protection Act",
     },
     "step_2_model_improvement": {
-        "description": "蓄積データによるAI精度の向上",
+        "description": "Improve AI accuracy with accumulated data",
         "tactics": [
-            "フィードバックデータでプロンプトを最適化",
-            "業界特化の用語・パターン辞書の構築",
-            "ファインチューニング用データセットの生成",
-            "エッジケースの処理改善",
+            "Optimize prompts with feedback data",
+            "Build industry-specific terminology and pattern dictionaries",
+            "Generate fine-tuning datasets",
+            "Improve handling of edge cases",
         ],
     },
     "step_3_value_delivery": {
-        "description": "精度向上をユーザー体験に反映",
+        "description": "Reflect accuracy improvements in user experience",
         "tactics": [
-            "パーソナライズされた提案の精度向上",
-            "処理速度の改善",
-            "新機能の自動提案",
-            "業界ベンチマークの提供",
+            "Improve accuracy of personalized recommendations",
+            "Improve processing speed",
+            "Automatic suggestions for new features",
+            "Provide industry benchmarks",
         ],
     },
     "step_4_network_effects": {
-        "description": "ネットワーク効果の創出",
+        "description": "Creating network effects",
         "tactics": [
-            "ユーザー間のベストプラクティス共有",
-            "匿名化されたベンチマークデータの提供",
-            "テンプレート・ワークフローのマーケットプレイス",
-            "コミュニティ機能の追加",
+            "Sharing best practices among users",
+            "Providing anonymized benchmark data",
+            "Template and workflow marketplace",
+            "Adding community features",
         ],
     },
     "moat_strength": {
-        "weak": "単なるAPI呼び出しの薄いラッパー → データモートなし",
-        "medium": "業界特化のプロンプト/パイプライン → 模倣可能",
-        "strong": "独自データ + カスタムモデル + ワークフロー統合 → 強固なモート",
+        "weak": "Thin wrapper that only calls an API → no data moat",
+        "medium": "Industry-specific prompts/pipelines → can be imitated",
+        "strong": "Proprietary data + custom model + workflow integration → strong moat",
     }
 }
 ```
 
-### 4.4 AIネイティブ組織
+### 4.4 AI-Native Organizations
 
 ```python
-# AIネイティブ組織の設計
+# Design of AI-native organizations
 ai_native_organization = {
-    "definition": "AIを前提として設計された組織構造",
+    "definition": "Organizational structure designed with AI as a given",
     "characteristics": {
-        "人数": "10人で100人分の成果を出す",
-        "意思決定": "データ + AIインサイトに基づく",
-        "プロセス": "繰り返し業務は全てAIが実行",
-        "人間の役割": "戦略、創造性、人間関係",
+        "headcount": "10 people producing the output of 100",
+        "decision_making": "Based on data + AI insights",
+        "processes": "All repetitive tasks executed by AI",
+        "human_roles": "Strategy, creativity, human relationships",
     },
     "typical_10_person_company": {
         "human_roles": [
-            "CEO（戦略・対外活動）",
-            "CTO（技術方針・アーキテクチャ）",
-            "プロダクトマネージャー（優先順位・UX）",
-            "シニアエンジニア × 3（コア開発）",
-            "マーケティング（戦略・クリエイティブ）",
-            "セールス（ハイタッチ営業）",
-            "カスタマーサクセス（戦略・エスカレーション）",
-            "オペレーション（財務・法務・HR）",
+            "CEO (strategy, external affairs)",
+            "CTO (technology direction, architecture)",
+            "Product Manager (prioritization, UX)",
+            "Senior Engineer × 3 (core development)",
+            "Marketing (strategy, creative)",
+            "Sales (high-touch sales)",
+            "Customer Success (strategy, escalation)",
+            "Operations (finance, legal, HR)",
         ],
         "ai_handled": [
-            "コンテンツ制作（ブログ、SNS、メルマガ）",
-            "リード獲得（SDR業務）",
-            "カスタマーサポート（Tier 1）",
-            "経理（請求書処理、仕訳、月次決算）",
-            "コード生成（ボイラープレート、テスト）",
-            "データ分析・レポーティング",
-            "採用スクリーニング",
-            "法務チェック（契約書レビュー）",
+            "Content creation (blog, SNS, newsletters)",
+            "Lead generation (SDR operations)",
+            "Customer support (Tier 1)",
+            "Accounting (invoice processing, journaling, monthly close)",
+            "Code generation (boilerplate, tests)",
+            "Data analysis and reporting",
+            "Recruiting screening",
+            "Legal checks (contract review)",
         ],
-        "revenue_per_employee": "従来の5-10倍",
+        "revenue_per_employee": "5-10x traditional",
     }
 }
 ```
 
 ---
 
-## 5. AI規制と倫理
+## 5. AI Regulation and Ethics
 
-### 5.1 グローバルAI規制の動向
+### 5.1 Global AI Regulatory Trends
 
 ```python
 ai_regulation_landscape = {
     "EU_AI_Act": {
-        "status": "2024年施行開始、2025-2026年に段階適用",
+        "status": "Enforcement began 2024, phased application 2025-2026",
         "key_requirements": [
-            "AIシステムのリスク分類（禁止/高リスク/限定リスク/最小リスク）",
-            "高リスクAIの適合性評価義務",
-            "AI生成コンテンツの開示義務",
-            "人間による監視の義務",
+            "Risk classification of AI systems (prohibited/high-risk/limited-risk/minimal-risk)",
+            "Mandatory conformity assessment for high-risk AI",
+            "Disclosure obligation for AI-generated content",
+            "Obligation for human oversight",
         ],
-        "business_impact": "EU市場参入にはコンプライアンス対応が必須",
+        "business_impact": "Compliance is mandatory to enter the EU market",
     },
-    "日本": {
-        "status": "AI事業者ガイドライン（2024年策定、継続更新中）",
+    "Japan": {
+        "status": "AI Business Guidelines (established 2024, continuously updated)",
         "key_principles": [
-            "人間中心のAI社会原則",
-            "公平性・透明性・説明責任",
-            "安全性の確保",
-            "プライバシー保護",
+            "Human-centered AI society principles",
+            "Fairness, transparency, accountability",
+            "Ensuring safety",
+            "Privacy protection",
         ],
-        "business_impact": "ガイドラインベース（法的拘束力は限定的だが準拠が推奨）",
+        "business_impact": "Guideline-based (limited legal binding force, but compliance is recommended)",
     },
-    "米国": {
-        "status": "連邦レベルの包括規制は未成立、州法が先行",
+    "USA": {
+        "status": "No comprehensive federal regulation enacted, state laws leading",
         "key_developments": [
-            "大統領令（AI安全性に関する）",
-            "州法（カリフォルニア、コロラド等）",
-            "SEC、FTC等の個別規制機関のガイダンス",
+            "Executive Order (regarding AI safety)",
+            "State laws (California, Colorado, etc.)",
+            "Guidance from individual regulatory agencies such as SEC, FTC",
         ],
-        "business_impact": "セクター別の規制に対応が必要",
+        "business_impact": "Need to comply with sector-specific regulations",
     },
-    "ビジネス機会": {
-        "ai_governance_tools": "AIガバナンスプラットフォーム（$5B市場予測）",
-        "ai_audit_services": "AI監査・認証サービス",
-        "explainability_tools": "AI説明可能性ツール",
-        "bias_detection": "AIバイアス検出・軽減ツール",
+    "business_opportunities": {
+        "ai_governance_tools": "AI governance platform (projected $5B market)",
+        "ai_audit_services": "AI audit and certification services",
+        "explainability_tools": "AI explainability tools",
+        "bias_detection": "AI bias detection and mitigation tools",
     }
 }
 ```
 
-### 5.2 AI倫理のビジネスインパクト
+### 5.2 Business Impact of AI Ethics
 
 ```python
 ai_ethics_business_impact = {
-    "リスク": {
+    "risks": {
         "reputation_damage": {
-            "example": "AIによる差別的な出力がSNSで拡散",
-            "impact": "ブランド毀損、顧客離れ、訴訟リスク",
-            "prevention": "バイアステスト、出力フィルタリング、人間レビュー",
+            "example": "Discriminatory AI output spreads on social media",
+            "impact": "Brand damage, customer churn, litigation risk",
+            "prevention": "Bias testing, output filtering, human review",
         },
         "regulatory_penalty": {
-            "example": "EU AI Actの高リスクAI要件違反",
-            "impact": "最大3,500万ユーロまたは売上の7%の罰金",
-            "prevention": "コンプライアンス専門家の配置、定期監査",
+            "example": "Violation of EU AI Act high-risk AI requirements",
+            "impact": "Fine of up to €35M or 7% of revenue",
+            "prevention": "Deploy compliance experts, conduct regular audits",
         },
         "data_breach": {
-            "example": "AIモデルからの個人情報漏洩",
-            "impact": "GDPR罰金、集団訴訟、信頼喪失",
-            "prevention": "データ最小化、暗号化、アクセス制御",
+            "example": "Personal information leaked from an AI model",
+            "impact": "GDPR fines, class action lawsuits, loss of trust",
+            "prevention": "Data minimization, encryption, access control",
         }
     },
-    "機会": {
+    "opportunities": {
         "trust_as_differentiator": {
-            "strategy": "倫理的AI」をブランドの差別化要因にする",
+            "strategy": "Make 'ethical AI' a brand differentiator",
             "examples": [
-                "AI出力の透明性レポートを公開",
-                "第三者によるAI監査の実施と結果公開",
-                "ユーザーデータの利用方法を分かりやすく説明",
+                "Publish transparency reports on AI outputs",
+                "Conduct third-party AI audits and publish results",
+                "Explain clearly how user data is used",
             ],
-            "benefit": "信頼性が高い企業が選ばれる時代へ",
+            "benefit": "Entering an era where trustworthy companies get chosen",
         },
         "responsible_ai_tools": {
-            "market_size": "$10B (2030年予測)",
+            "market_size": "$10B (projected by 2030)",
             "products": [
-                "AIバイアス検出ツール",
-                "AI意思決定の説明可能性ツール",
-                "AIモデルの監査・認証サービス",
-                "AI倫理コンサルティング",
+                "AI bias detection tools",
+                "AI decision explainability tools",
+                "AI model audit and certification services",
+                "AI ethics consulting",
             ]
         }
     }
@@ -849,212 +849,212 @@ ai_ethics_business_impact = {
 
 ---
 
-## 6. 2030年の世界
+## 6. The World in 2030
 
-### 6.1 予測シナリオ
+### 6.1 Forecast Scenarios
 
 ```python
 scenarios_2030 = {
     "optimistic": {
-        "description": "AIが全産業に浸透、生産性2倍",
+        "description": "AI permeates all industries, productivity doubles",
         "ai_market_size": "$2T",
-        "new_jobs_created": "5000万件",
-        "ai_saas_penetration": "80%の企業がAI SaaS利用",
-        "opportunity": "AI統合の専門家、業界特化AIが最大機会"
+        "new_jobs_created": "50 million",
+        "ai_saas_penetration": "80% of companies using AI SaaS",
+        "opportunity": "AI integration specialists and industry-specific AI are the biggest opportunities"
     },
     "moderate": {
-        "description": "主要産業でAI活用、規制との共存",
+        "description": "AI adoption in major industries, coexistence with regulation",
         "ai_market_size": "$1T",
-        "new_jobs_created": "3000万件",
-        "ai_saas_penetration": "50%の企業がAI SaaS利用",
-        "opportunity": "規制対応AI、信頼性・安全性ツールが成長"
+        "new_jobs_created": "30 million",
+        "ai_saas_penetration": "50% of companies using AI SaaS",
+        "opportunity": "Regulatory-compliant AI, trust and safety tools growing"
     },
     "conservative": {
-        "description": "限定的なAI活用、規制強化",
+        "description": "Limited AI adoption, tightening regulation",
         "ai_market_size": "$500B",
-        "new_jobs_created": "1000万件",
-        "ai_saas_penetration": "30%の企業がAI SaaS利用",
-        "opportunity": "コンプライアンス、AI監査が重要分野に"
+        "new_jobs_created": "10 million",
+        "ai_saas_penetration": "30% of companies using AI SaaS",
+        "opportunity": "Compliance and AI auditing become important fields"
     }
 }
 ```
 
-### 6.2 消滅/変容する市場と新興市場
+### 6.2 Markets That Will Disappear/Transform and Emerging Markets
 
-| 変容する市場 | 影響 | 新興市場 | 機会 |
-|------------|------|---------|------|
-| コールセンター | 80%自動化 | AI品質管理 | 大 |
-| 翻訳業 | 90%自動化 | AI翻訳品質保証 | 中 |
-| データ入力 | 95%自動化 | AIデータ検証 | 中 |
-| 基本プログラミング | 70%自動化 | AI開発ツール | 巨大 |
-| 定型法務 | 60%自動化 | AI法務プラットフォーム | 大 |
-| 基本デザイン | 50%自動化 | AIクリエイティブツール | 大 |
+| Transforming Market | Impact | Emerging Market | Opportunity |
+|--------------------|--------|----------------|-------------|
+| Call centers | 80% automated | AI quality management | Large |
+| Translation industry | 90% automated | AI translation quality assurance | Medium |
+| Data entry | 95% automated | AI data validation | Medium |
+| Basic programming | 70% automated | AI development tools | Enormous |
+| Routine legal work | 60% automated | AI legal platforms | Large |
+| Basic design | 50% automated | AI creative tools | Large |
 
-### 6.3 2030年に最も価値が高いスキルセット
+### 6.3 Most Valuable Skill Sets in 2030
 
 ```python
 future_skills_2030 = {
     "technical_skills": {
         "ai_system_design": {
-            "description": "AIエージェントシステム全体の設計",
-            "demand": "非常に高い",
-            "current_scarcity": "極めて希少",
-            "learning_path": "ソフトウェアアーキテクチャ → LLMアプリ開発 → エージェント設計",
+            "description": "Designing entire AI agent systems",
+            "demand": "Very high",
+            "current_scarcity": "Extremely rare",
+            "learning_path": "Software architecture → LLM app development → agent design",
         },
         "ai_safety_alignment": {
-            "description": "AIの安全性とアラインメント",
-            "demand": "急速に増大",
-            "current_scarcity": "希少",
-            "learning_path": "ML基礎 → 安全性研究 → 実務応用",
+            "description": "AI safety and alignment",
+            "demand": "Rapidly increasing",
+            "current_scarcity": "Scarce",
+            "learning_path": "ML fundamentals → safety research → practical application",
         },
         "data_engineering_for_ai": {
-            "description": "AI向けデータパイプライン構築",
-            "demand": "高い",
-            "current_scarcity": "中程度",
-            "learning_path": "DB/SQL → データエンジニアリング → ML Ops",
+            "description": "Building data pipelines for AI",
+            "demand": "High",
+            "current_scarcity": "Moderate",
+            "learning_path": "DB/SQL → data engineering → ML Ops",
         },
     },
     "business_skills": {
         "ai_product_management": {
-            "description": "AI機能を含むプロダクトの企画・管理",
-            "demand": "非常に高い",
+            "description": "Planning and managing products with AI features",
+            "demand": "Very high",
             "key_competencies": [
-                "AIの能力と限界の理解",
-                "AI品質の評価方法",
-                "倫理的なAI利用の判断",
-                "AIコストの最適化",
+                "Understanding AI capabilities and limitations",
+                "How to evaluate AI quality",
+                "Ethical judgment in AI use",
+                "AI cost optimization",
             ],
         },
         "ai_strategy_consulting": {
-            "description": "企業のAI戦略策定支援",
-            "demand": "高い（特に非テック産業向け）",
+            "description": "Supporting corporate AI strategy formulation",
+            "demand": "High (especially for non-tech industries)",
             "key_competencies": [
-                "業界ドメイン知識 + AI技術理解",
-                "ROI分析とビジネスケース作成",
-                "変革管理とチェンジマネジメント",
+                "Industry domain knowledge + AI technology understanding",
+                "ROI analysis and business case development",
+                "Change management",
             ],
         },
     },
     "human_skills": {
-        "creative_direction": "AIを使った創造的プロジェクトのディレクション",
-        "complex_negotiation": "AIでは代替困難な高度な交渉・関係構築",
-        "ethical_judgment": "AI利用における倫理的判断と意思決定",
-        "cross_cultural_leadership": "グローバルなAIチームのリーダーシップ",
+        "creative_direction": "Directing creative projects using AI",
+        "complex_negotiation": "High-level negotiation and relationship building that AI cannot replace",
+        "ethical_judgment": "Ethical judgment and decision-making in AI use",
+        "cross_cultural_leadership": "Leadership of global AI teams",
     }
 }
 ```
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン1: 遠すぎる未来に賭ける
+### Anti-Pattern 1: Betting on a Too-Distant Future
 
 ```python
-# BAD: AGIの到来を前提としたビジネスプラン
+# BAD: Business plan premised on the arrival of AGI
 bad_bet = {
-    "premise": "2027年にAGIが実現する",
-    "plan": "AGI用のアプリプラットフォームを今から構築",
-    "risk": "AGIの到来は予測不能。到来しても想定と異なる形かも",
-    "result": "資金枯渇、技術の方向性が外れる"
+    "premise": "AGI will be realized in 2027",
+    "plan": "Build an app platform for AGI starting now",
+    "risk": "AGI arrival is unpredictable. Even if it arrives, it may differ from expectations",
+    "result": "Capital exhaustion, technology direction misses the mark"
 }
 
-# GOOD: 今の技術で価値を提供しつつ、未来に備える
+# GOOD: Deliver value with current technology while preparing for the future
 good_bet = {
-    "premise": "現在のLLM技術で解決できる課題に集中",
-    "plan": "契約書レビューAIを今すぐローンチ",
-    "future_ready": "アーキテクチャはモデル非依存、新技術を即統合可能",
-    "result": "今日から売上、将来の技術進化で更に強化"
+    "premise": "Focus on problems solvable with current LLM technology",
+    "plan": "Launch a contract review AI right now",
+    "future_ready": "Architecture is model-agnostic, new technology can be integrated immediately",
+    "result": "Revenue from today, further strengthened by future technological advances"
 }
 ```
 
-### アンチパターン2: テクノロジードリブンな発想
+### Anti-Pattern 2: Technology-Driven Thinking
 
 ```python
-# BAD: 「マルチモーダルAIが来たから何かやろう」
+# BAD: "Multimodal AI is coming, let's do something with it"
 tech_driven = {
-    "approach": "技術を探して用途を後付け",
-    "result": "ソリューションを探す問題（Solution in search of a problem）"
+    "approach": "Search for a technology and retrofit a use case",
+    "result": "Solution in search of a problem"
 }
 
-# GOOD: 「この業界の課題を新技術で解けるか」
+# GOOD: "Can we solve this industry's problem with the new technology?"
 problem_driven = {
-    "approach": "建設業の安全管理に年間1000億円の損失がある",
-    "technology": "マルチモーダルAI（画像認識）で現場の危険を検知",
-    "result": "明確な課題 × 適切な技術 = 大きな事業機会"
+    "approach": "The construction industry loses ¥100B annually to safety management failures",
+    "technology": "Multimodal AI (image recognition) detects hazards on job sites",
+    "result": "Clear problem × appropriate technology = large business opportunity"
 }
 ```
 
-### アンチパターン3: モート（参入障壁）なしの事業
+### Anti-Pattern 3: Business Without a Moat (Entry Barrier)
 
 ```python
-# BAD: APIラッパー型の事業
+# BAD: API wrapper-style business
 no_moat = {
-    "product": "GPT-4 APIを呼び出すだけのチャットボット",
-    "differentiation": "なし（誰でも作れる）",
+    "product": "Chatbot that only calls the GPT-4 API",
+    "differentiation": "None (anyone can build it)",
     "risk": [
-        "OpenAI自身が同じ機能を提供し始める",
-        "競合が数日で類似サービスを構築",
-        "APIの値上げで収益モデルが破綻",
+        "OpenAI itself starts offering the same feature",
+        "Competitors build a similar service in days",
+        "API price increases break the revenue model",
     ],
-    "result": "価格競争に陥り、利益が出ない"
+    "result": "Falls into price competition, no profit"
 }
 
-# GOOD: 独自の参入障壁を構築
+# GOOD: Build a unique entry barrier
 strong_moat = {
-    "product": "建設業界特化のAI安全管理システム",
+    "product": "AI safety management system specialized for the construction industry",
     "moat_sources": [
-        "建設現場の独自データ蓄積（10万件の危険検知データ）",
-        "業界規制への深い理解と対応",
-        "現場IoTデバイスとの統合",
-        "大手ゼネコンとの長期契約",
+        "Accumulated proprietary data from construction sites (100,000 hazard detection records)",
+        "Deep understanding of and compliance with industry regulations",
+        "Integration with on-site IoT devices",
+        "Long-term contracts with major general contractors",
     ],
-    "result": "後発の参入コストが高く、先行者優位を維持"
+    "result": "High entry cost for latecomers, first-mover advantage maintained"
 }
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Template for basic implementation
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1063,26 +1063,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should be raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1090,7 +1090,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1101,14 +1101,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1116,7 +1116,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1124,44 +1124,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1170,7 +1170,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1185,47 +1185,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup:      {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|---------|
+| Initialization error | Missing configuration file | Check configuration file path and format |
+| Timeout | Network delay / insufficient resources | Adjust timeout value, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access permissions | Check execution user permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, transaction management |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error message**: Read the stack trace and identify where it occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Formulate hypotheses**: List possible causes
+4. **Stepwise verification**: Verify hypotheses using log output or a debugger
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger setup
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1233,102 +1233,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input and output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Called: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return value: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception raised: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps to diagnose when a performance issue occurs:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O waits**: Check disk and network I/O status
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem Type | Diagnostic Tool | Countermeasure |
+|-------------|----------------|---------------|
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Index, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+Below is a summary of criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | Prioritize when | Can compromise when |
+|-----------|----------------|---------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed users |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality focus, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  ① Team size?                                   │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to ②              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  ② Deployment frequency?                        │
+│    ├─ Weekly or less → Monolith + module split  │
+│    └─ Daily / multiple times → Go to ③          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  ③ Independence between teams?                  │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A fast short-term approach can become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified tech stack has lower learning costs
+- Using diverse technologies allows the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction has high reusability but can make debugging difficult
+- Low abstraction is intuitive but code duplication is likely
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1338,17 +1338,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1356,7 +1356,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1364,15 +1364,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1380,53 +1380,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Practical Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum required features
+- Automated tests only for the critical path
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't strive for perfection (YAGNI principle)
+- Obtain user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Legacy System Modernization
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Incrementally renewing a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- If there are no existing tests, write Characterization Tests first
+- Let old and new systems coexist via an API gateway
+- Perform data migration in phases
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work Content | Estimated Duration | Risk |
+|-------|-----------|--------------------|------|
+| 1. Investigation | Current state analysis, mapping dependencies | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Start migration | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries using domain-driven design
+- Assign ownership per team
+- Manage shared libraries using Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1439,20 +1439,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1461,7 +1461,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1482,94 +1482,94 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** Systems requiring millisecond-level responses
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Method | Effect | Implementation Cost | Applicable Situation |
+|--------------------|--------|--------------------|--------------------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy operations |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low–Medium | High | CPU-bound cases |
 ---
 
 ## 8. FAQ
 
-### Q1: 今から参入しても間に合う分野は？
+### Q1: Are there still fields I can enter now and succeed?
 
-**A:** 業界特化AI全般が最大の機会。理由: (1) 汎用AI（ChatGPT等）は業界固有の課題を深く解けない、(2) 各業界のドメイン知識がモート（参入障壁）になる、(3) 規制産業（医療、金融、法務）はAI導入が遅れており大きな機会が残っている。具体的には「不動産AI査定」「建設安全AI」「農業収穫予測AI」等、まだ支配的プレイヤーがいない市場が数十個ある。
+**A:** Industry-specific AI overall is the biggest opportunity. Reasons: (1) General AI (ChatGPT, etc.) cannot deeply solve industry-specific problems, (2) Domain knowledge of each industry becomes a moat (entry barrier), (3) Regulated industries (healthcare, finance, legal) are slow to adopt AI, leaving large opportunities. Specifically, there are dozens of markets without a dominant player yet, such as "real estate AI valuation," "construction safety AI," and "agricultural harvest forecasting AI."
 
-### Q2: AIの進化で自分のプロダクトが不要にならない？
+### Q2: Won't AI advances make my product obsolete?
 
-**A:** このリスクは常に存在するが、3つの防御策がある。(1) ワークフロー統合 — AI単体ではなく業務プロセス全体に組み込む、(2) データモート — 使うほどデータが蓄積し精度が上がる仕組み、(3) スイッチングコスト — 顧客のデータ・設定・習慣が移行障壁になる。GPT-5が出てもJasperやNotionが死なないのは、AI APIの性能ではなくワークフロー統合が価値の源泉だから。
+**A:** This risk always exists, but there are three defenses. (1) Workflow integration — embed AI not just as a standalone but into the entire business process, (2) Data moat — a mechanism where accumulated data improves accuracy the more it is used, (3) Switching costs — the customer's data, settings, and habits become migration barriers. Even if GPT-5 comes out, Jasper and Notion won't die because the source of value is workflow integration, not the performance of the AI API.
 
-### Q3: 2030年に最も価値が高いスキルは？
+### Q3: What are the most valuable skills in 2030?
 
-**A:** 技術×ビジネス×ドメインの掛け算。具体的には (1) AI活用の設計力 — 「この業務にどのAIをどう組み込むか」を設計できる人、(2) プロンプトエンジニアリングの進化形 — AIシステム全体の設計・最適化、(3) AI時代のプロダクトマネジメント — AI機能の優先順位付け、品質管理、倫理判断。純粋な技術力よりも「AIを使って何を解決するか」を考えられる能力の価値が上がる。
+**A:** The combination of technology × business × domain. Specifically: (1) AI utilization design ability — people who can design "how to incorporate which AI into which operations," (2) The evolved form of prompt engineering — designing and optimizing entire AI systems, (3) Product management in the AI era — prioritizing AI features, quality management, ethical judgment. The value of the ability to think "what to solve using AI" will rise above pure technical ability.
 
-### Q4: AI規制は事業にどう影響するか？
+### Q4: How will AI regulation affect my business?
 
-**A:** 規制はリスクであると同時に機会でもある。(1) リスク: EU AI Actの高リスクAI要件に対応するコストと時間、(2) 機会: 規制対応ツール（AIガバナンス、監査、説明可能性）は新興市場として急成長、(3) 先行者有利: 早期に規制対応を実装した企業は、規制強化時に競合優位を獲得。具体的な対策として、プロダクト設計の初期段階から「説明可能性」「監査可能性」「人間の監視」を組み込むことを推奨する。
+**A:** Regulation is both a risk and an opportunity. (1) Risk: Cost and time to comply with EU AI Act high-risk AI requirements, (2) Opportunity: Regulatory compliance tools (AI governance, auditing, explainability) are a rapidly growing emerging market, (3) First-mover advantage: Companies that implement regulatory compliance early will gain competitive advantage when regulations tighten. As a concrete countermeasure, it is recommended to build in "explainability," "auditability," and "human oversight" from the initial stages of product design.
 
-### Q5: AIエージェント事業を始めるには何が必要？
+### Q5: What does it take to start an AI agent business?
 
-**A:** 3つの要素が必要。(1) 技術力: LLM API、ツール連携、ワークフロー設計のスキル。Claude MCP、LangChain、CrewAI等のフレームワークの理解、(2) ドメイン知識: ターゲット業務の深い理解（「AIでSDRを置き換える」ならSDR業務の実務経験が重要）、(3) 安全設計: 人間承認ゲート、権限制限、監査ログの実装。AIエージェントは「間違い」を犯す可能性があるため、ミスの影響を最小化する設計が事業の成否を分ける。
+**A:** Three elements are required. (1) Technical ability: Skills in LLM APIs, tool integration, and workflow design. Understanding of frameworks such as Claude MCP, LangChain, and CrewAI. (2) Domain knowledge: Deep understanding of the target operations (if "replacing SDRs with AI," practical experience in SDR operations is important). (3) Safety design: Implementation of human approval gates, permission restrictions, and audit logs. AI agents can make "mistakes," so design that minimizes the impact of errors determines business success or failure.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory but by actually writing code and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. It is recommended to thoroughly understand the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| 最大の機会 | AIエージェント経済（2025-2030年で$50B市場） |
-| 有望業界 | 建設、農業、教育、保険、不動産（低AI浸透×大市場） |
-| 新ビジネスモデル | 成果報酬型AI、AI-as-a-Workforce |
-| 参入戦略 | 業界特化 × ワークフロー統合 × データフライホイール |
-| 防御策 | ドメイン知識 + データモート + スイッチングコスト |
-| 規制対応 | 初期設計から説明可能性・監査可能性を組み込む |
-| 最重要原則 | 今の技術で今日の課題を解く。未来に備えつつ今日稼ぐ |
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [00-successful-ai-products.md](./00-successful-ai-products.md) — 現在の成功事例から学ぶ
-- [01-solo-developer.md](./01-solo-developer.md) — 個人開発者として今すぐ始める
-- [../01-business/00-ai-saas.md](../01-business/00-ai-saas.md) — AI SaaSプロダクト設計
+| Item | Key Point |
+|------|----------|
+| Biggest opportunity | AI agent economy ($50B market in 2025-2030) |
+| Promising industries | Construction, agriculture, education, insurance, real estate (low AI penetration × large market) |
+| New business models | Outcome-based AI, AI-as-a-Workforce |
+| Entry strategy | Industry specialization × workflow integration × data flywheel |
+| Defenses | Domain knowledge + data moat + switching costs |
+| Regulatory compliance | Build in explainability and auditability from the initial design |
+| Most important principle | Solve today's problems with today's technology. Earn today while preparing for the future |
 
 ---
 
-## 参考文献
+## Guides to Read Next
 
-1. **"AI 2041" — Kai-Fu Lee, Chen Qiufan** — 2041年のAI社会を予測するストーリー集
-2. **McKinsey "The State of AI in 2025"** — AI導入の最新状況と予測データ
-3. **a16z "Big Ideas 2025"** — https://a16z.com — トップVCによる技術・ビジネストレンド予測
-4. **World Economic Forum "Future of Jobs Report 2025"** — AI時代の労働市場予測
-5. **Stanford HAI "AI Index Report 2025"** — AI技術の進化を定量的に追跡するレポート
-6. **EU AI Act** — https://artificialintelligenceact.eu — EU AI規制法の原文と解説
-7. **"The Coming Wave" — Mustafa Suleyman** — AI技術の波と社会への影響
+- [00-successful-ai-products.md](./00-successful-ai-products.md) — Learn from current success stories
+- [01-solo-developer.md](./01-solo-developer.md) — Start immediately as an individual developer
+- [../01-business/00-ai-saas.md](../01-business/00-ai-saas.md) — AI SaaS product design
+
+---
+
+## References
+
+1. **"AI 2041" — Kai-Fu Lee, Chen Qiufan** — A collection of stories predicting AI society in 2041
+2. **McKinsey "The State of AI in 2025"** — Latest data and forecasts on AI adoption
+3. **a16z "Big Ideas 2025"** — https://a16z.com — Technology and business trend predictions from a top VC
+4. **World Economic Forum "Future of Jobs Report 2025"** — Labor market forecasts in the AI era
+5. **Stanford HAI "AI Index Report 2025"** — Report quantitatively tracking AI technology evolution
+6. **EU AI Act** — https://artificialintelligenceact.eu — Full text and commentary on EU AI regulation
+7. **"The Coming Wave" — Mustafa Suleyman** — The wave of AI technology and its impact on society
