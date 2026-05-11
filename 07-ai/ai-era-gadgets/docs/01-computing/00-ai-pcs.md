@@ -1,36 +1,37 @@
-# AI PC — NPU搭載PC、Copilot+ PC、ローカルLLM、Snapdragon X
+# AI PC — NPU-Equipped PCs, Copilot+ PCs, Local LLMs, Snapdragon X
 
-> AI PC の定義と技術要件を解説する。NPU搭載プロセッサ、Microsoft Copilot+ PC 仕様、Snapdragon X Elite / Intel Core Ultra / AMD Ryzen AI の比較、そしてローカルLLMの実行方法まで網羅する。
-
----
-
-## この章で学ぶこと
-
-1. **AI PCの定義と要件** — NPU 40+ TOPS、Copilot+ PC認定条件、Windows AI機能
-2. **主要プロセッサのNPU比較** — Snapdragon X / Intel Core Ultra / AMD Ryzen AI
-3. **ローカルLLMの実行** — Ollama / LM Studio / llama.cpp によるオンデバイス推論
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> This guide explains the definition and technical requirements of AI PCs. It covers NPU-equipped processors, Microsoft Copilot+ PC specifications, comparisons of Snapdragon X Elite / Intel Core Ultra / AMD Ryzen AI, and how to run local LLMs.
 
 ---
 
-## 1. AI PCのアーキテクチャ
+## What You Will Learn
+
+1. **AI PC Definition and Requirements** — NPU 40+ TOPS, Copilot+ PC certification conditions, Windows AI features
+2. **Major Processor NPU Comparison** — Snapdragon X / Intel Core Ultra / AMD Ryzen AI
+3. **Running Local LLMs** — On-device inference with Ollama / LM Studio / llama.cpp
+
+
+## Prerequisites
+
+Before reading this guide, having the following knowledge will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+
+---
+
+## 1. AI PC Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                    AI PC アーキテクチャ                        │
+│                    AI PC Architecture                         │
 │                                                               │
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
 │  │    CPU       │  │    GPU       │  │       NPU            │  │
-│  │ (汎用処理)  │  │ (グラフィック│  │ (AI推論専用)          │  │
-│  │ P+Eコア     │  │  + AI学習)  │  │ INT8/INT4最適化       │  │
-│  │ ~100 TOPS   │  │ ~100 TOPS   │  │ 40〜75 TOPS          │  │
+│  │ (General     │  │ (Graphics   │  │ (AI Inference         │  │
+│  │  Purpose)    │  │  + AI       │  │  Dedicated)           │  │
+│  │ P+E Cores   │  │  Training)  │  │ INT8/INT4 Optimized   │  │
+│  │ ~100 TOPS   │  │ ~100 TOPS   │  │ 40-75 TOPS           │  │
 │  │ (FP32)      │  │ (FP16)      │  │ (INT8)               │  │
 │  └─────────────┘  └─────────────┘  └─────────────────────┘  │
 │          │                │                    │              │
@@ -44,70 +45,71 @@
 │                           │                                   │
 │                   ┌───────▼──────┐                            │
 │                   │ Copilot+     │                            │
-│                   │ AI機能群     │                            │
-│                   │ (Recall等)  │                            │
+│                   │ AI Features  │                            │
+│                   │ (Recall etc.)│                            │
 │                   └──────────────┘                            │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 1.1 NPU推論パイプライン
+### 1.1 NPU Inference Pipeline
 
 ```
 ┌─────────────────────────────────────────────┐
-│          NPU推論パイプライン                   │
+│          NPU Inference Pipeline               │
 │                                               │
-│  入力データ                                   │
+│  Input Data                                   │
 │    │                                          │
 │    ▼                                          │
 │  ┌──────────┐                                │
-│  │ 量子化済み │  INT8/INT4モデル               │
-│  │ モデル    │  (ONNX形式)                    │
+│  │ Quantized │  INT8/INT4 Model               │
+│  │ Model     │  (ONNX Format)                 │
 │  └──────────┘                                │
 │    │                                          │
 │    ▼                                          │
 │  ┌──────────┐  ┌──────────┐  ┌──────────┐   │
 │  │ MAC Array│→ │ Activation│→ │ Output   │   │
-│  │ (行列積) │  │ (活性化)  │  │ (後処理) │   │
+│  │ (Matrix  │  │ (Activa- │  │ (Post-   │   │
+│  │  Multiply)│  │  tion)   │  │  Process)│   │
 │  │ INT8×INT8│  │ ReLU/GELU │  │ Softmax  │   │
 │  └──────────┘  └──────────┘  └──────────┘   │
 │                                    │          │
 │                                    ▼          │
-│                              推論結果          │
-│                              (3〜10ms)        │
+│                              Inference Result  │
+│                              (3-10ms)         │
 └─────────────────────────────────────────────┘
 ```
 
-### 1.2 AI PC のソフトウェアスタック詳細
+### 1.2 AI PC Software Stack Details
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│              AI PC ソフトウェアスタック                  │
+│              AI PC Software Stack                       │
 │                                                        │
 │  ┌────────────────────────────────────────────────┐   │
-│  │ アプリケーション層                                │   │
+│  │ Application Layer                                │   │
 │  │ Copilot, Adobe Creative Suite, DaVinci Resolve  │   │
-│  │ Visual Studio (IntelliCode), ブラウザ AI機能      │   │
+│  │ Visual Studio (IntelliCode), Browser AI Features │   │
 │  └───────────────────────┬────────────────────────┘   │
 │                           │                            │
 │  ┌───────────────────────▼────────────────────────┐   │
-│  │ AI フレームワーク層                               │   │
+│  │ AI Framework Layer                               │   │
 │  │ ONNX Runtime | DirectML | OpenVINO | Core ML    │   │
 │  │ PyTorch | TensorFlow | llama.cpp                │   │
 │  └───────────────────────┬────────────────────────┘   │
 │                           │                            │
 │  ┌───────────────────────▼────────────────────────┐   │
-│  │ API / ランタイム層                                │   │
+│  │ API / Runtime Layer                               │   │
 │  │ Windows ML | NNAPI | Vulkan Compute              │   │
 │  │ CUDA (NVIDIA) | ROCm (AMD) | oneAPI (Intel)     │   │
 │  └───────────────────────┬────────────────────────┘   │
 │                           │                            │
 │  ┌───────────────────────▼────────────────────────┐   │
-│  │ ドライバ / ハードウェア抽象化層                     │   │
+│  │ Driver / Hardware Abstraction Layer               │   │
 │  │ NPU Driver | GPU Driver | CPU Microcode          │   │
 │  └───────────────────────┬────────────────────────┘   │
 │                           │                            │
 │  ┌───────────────────────▼────────────────────────┐   │
-│  │ ハードウェア層                                    │   │
+│  │ Hardware Layer                                    │   │
 │  │ NPU (Hexagon/AI Boost/XDNA) | GPU | CPU         │   │
 │  └────────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────┘
@@ -115,26 +117,26 @@
 
 ---
 
-## 2. コード例
+## 2. Code Examples
 
-### コード例 1: Windows ML でNPU推論
+### Code Example 1: NPU Inference with Windows ML
 
 ```csharp
 using Microsoft.AI.MachineLearning;
 
-// ONNX モデルをNPUで実行
+// Run an ONNX model on the NPU
 async Task RunOnNPU()
 {
-    // モデルの読み込み
+    // Load the model
     var model = await LearningModel.LoadFromFilePath("model.onnx");
 
-    // NPU デバイスを指定
+    // Specify the NPU device
     var device = new LearningModelDevice(
-        LearningModelDeviceKind.DirectXHighPerformance // NPU優先
+        LearningModelDeviceKind.DirectXHighPerformance // NPU preferred
     );
     var session = new LearningModelSession(model, device);
 
-    // 入力データの準備
+    // Prepare input data
     var binding = new LearningModelBinding(session);
     var inputTensor = TensorFloat.CreateFromArray(
         new long[] { 1, 3, 224, 224 },
@@ -142,47 +144,47 @@ async Task RunOnNPU()
     );
     binding.Bind("input", inputTensor);
 
-    // 推論実行
+    // Run inference
     var result = await session.EvaluateAsync(binding, "inference");
     var output = result.Outputs["output"] as TensorFloat;
 
-    Console.WriteLine($"推論完了: {output.GetAsVectorView()[0]}");
+    Console.WriteLine($"Inference complete: {output.GetAsVectorView()[0]}");
 }
 ```
 
-### コード例 2: Ollama でローカルLLM実行
+### Code Example 2: Running a Local LLM with Ollama
 
 ```bash
-# Ollama のインストールと実行
+# Install and run Ollama
 
-# モデルのダウンロードと実行
+# Download and run models
 ollama pull llama3.1:8b        # Llama 3.1 8B (4.7GB)
 ollama pull gemma2:9b          # Gemma 2 9B (5.4GB)
 ollama pull phi3:mini           # Phi-3 Mini 3.8B (2.3GB)
 
-# 対話開始
+# Start a conversation
 ollama run llama3.1:8b
 
-# API経由で利用（REST API）
+# Use via API (REST API)
 curl http://localhost:11434/api/generate -d '{
   "model": "llama3.1:8b",
-  "prompt": "Pythonでクイックソートを実装してください",
+  "prompt": "Implement quicksort in Python",
   "stream": false
 }'
 ```
 
 ```python
-# Python からOllamaを利用
+# Use Ollama from Python
 import ollama
 
-# チャット
+# Chat
 response = ollama.chat(model='llama3.1:8b', messages=[
-    {'role': 'system', 'content': '日本語で簡潔に回答してください。'},
-    {'role': 'user', 'content': 'AI PCのNPUとは何ですか？'}
+    {'role': 'system', 'content': 'Please answer concisely.'},
+    {'role': 'user', 'content': 'What is the NPU in an AI PC?'}
 ])
 print(response['message']['content'])
 
-# ストリーミング
+# Streaming
 for chunk in ollama.chat(
     model='llama3.1:8b',
     messages=[{'role': 'user', 'content': 'Hello'}],
@@ -191,58 +193,58 @@ for chunk in ollama.chat(
     print(chunk['message']['content'], end='', flush=True)
 ```
 
-### コード例 3: llama.cpp でNPU/GPU活用
+### Code Example 3: Leveraging NPU/GPU with llama.cpp
 
 ```bash
-# llama.cpp のビルド（Vulkan GPU対応）
+# Build llama.cpp (with Vulkan GPU support)
 git clone https://github.com/ggerganov/llama.cpp
 cd llama.cpp
-cmake -B build -DGGML_VULKAN=ON  # GPUバックエンド
+cmake -B build -DGGML_VULKAN=ON  # GPU backend
 cmake --build build --config Release
 
-# 量子化モデルの実行（Q4_K_M: 品質とサイズのバランス）
+# Run a quantized model (Q4_K_M: balance between quality and size)
 ./build/bin/llama-cli \
   -m models/llama-3.1-8b-q4_k_m.gguf \
-  -p "AI PCの利点を3つ挙げてください：" \
+  -p "List 3 advantages of AI PCs:" \
   -n 256 \
-  --n-gpu-layers 33 \    # GPU層数
-  --threads 8 \           # CPUスレッド数
+  --n-gpu-layers 33 \    # Number of GPU layers
+  --threads 8 \           # Number of CPU threads
   --temp 0.7
 ```
 
 ```python
-# llama-cpp-python で利用
+# Use with llama-cpp-python
 from llama_cpp import Llama
 
 llm = Llama(
     model_path="models/llama-3.1-8b-q4_k_m.gguf",
-    n_ctx=4096,        # コンテキスト長
-    n_gpu_layers=33,   # GPU層（-1で全層GPU）
-    n_threads=8,       # CPUスレッド数
+    n_ctx=4096,        # Context length
+    n_gpu_layers=33,   # GPU layers (-1 for all layers on GPU)
+    n_threads=8,       # CPU threads
     verbose=False
 )
 
 output = llm(
-    "AI PCのNPUについて説明してください。",
+    "Explain the NPU in AI PCs.",
     max_tokens=256,
     temperature=0.7,
-    stop=["。\n\n"]
+    stop=[".\n\n"]
 )
 print(output['choices'][0]['text'])
-# トークン/秒を確認（NPU/GPU活用時は20-40 tok/s）
+# Check tokens/sec (20-40 tok/s when leveraging NPU/GPU)
 ```
 
-### コード例 4: ONNX Runtime でクロスプラットフォームNPU推論
+### Code Example 4: Cross-Platform NPU Inference with ONNX Runtime
 
 ```python
 import onnxruntime as ort
 import numpy as np
 
-# 利用可能なプロバイダを確認
-print("利用可能:", ort.get_available_providers())
+# Check available providers
+print("Available:", ort.get_available_providers())
 # → ['DmlExecutionProvider', 'QNNExecutionProvider', 'CPUExecutionProvider']
 
-# NPU (QNN) > GPU (DML) > CPU の優先順位で実行
+# Execute with priority: NPU (QNN) > GPU (DML) > CPU
 providers = ['QNNExecutionProvider', 'DmlExecutionProvider', 'CPUExecutionProvider']
 
 session = ort.InferenceSession(
@@ -255,64 +257,64 @@ session = ort.InferenceSession(
     ]
 )
 
-# 推論
+# Inference
 input_data = np.random.randn(1, 3, 224, 224).astype(np.float32)
 result = session.run(None, {"input": input_data})
 
-# 実行プロバイダを確認
+# Check the active execution provider
 active = session.get_providers()
-print(f"使用中: {active[0]}")  # → 'QNNExecutionProvider'（NPU）
+print(f"In use: {active[0]}")  # → 'QNNExecutionProvider' (NPU)
 ```
 
-### コード例 5: Copilot+ PC の Phi Silica（Windows AI API）
+### Code Example 5: Phi Silica on Copilot+ PC (Windows AI API)
 
 ```python
-# Windows AI Foundation Model API（Windows 11 24H2以降）
+# Windows AI Foundation Model API (Windows 11 24H2 and later)
 import windowsai
 
 async def use_phi_silica():
-    """Copilot+ PC 内蔵の Phi Silica モデルを使用"""
+    """Use the built-in Phi Silica model on a Copilot+ PC"""
 
-    # オンデバイスLLM（Phi Silica）にアクセス
+    # Access the on-device LLM (Phi Silica)
     model = await windowsai.LanguageModel.create_async()
 
-    # テキスト生成
+    # Text generation
     result = await model.generate_async(
-        prompt="この会議メモを要約してください：...",
+        prompt="Summarize these meeting notes: ...",
         max_tokens=200
     )
     print(result.text)
 
-    # ストリーミング生成
+    # Streaming generation
     async for token in model.generate_stream_async(
-        prompt="メールの返信案を書いてください",
+        prompt="Draft an email reply",
         max_tokens=300
     ):
         print(token, end="", flush=True)
 
-# ※ Copilot+ PC (NPU 40+ TOPS) でのみ実行可能
+# Note: Only runs on Copilot+ PCs (NPU 40+ TOPS)
 ```
 
-### コード例 6: OpenVINO でIntel NPU推論
+### Code Example 6: Intel NPU Inference with OpenVINO
 
 ```python
 import openvino as ov
 import numpy as np
 
 def run_on_intel_npu(model_path: str, input_data: np.ndarray):
-    """Intel Core Ultra の NPU (AI Boost) で推論"""
+    """Run inference on the Intel Core Ultra NPU (AI Boost)"""
 
     core = ov.Core()
 
-    # 利用可能なデバイスを確認
+    # Check available devices
     devices = core.available_devices
-    print(f"利用可能デバイス: {devices}")
+    print(f"Available devices: {devices}")
     # → ['CPU', 'GPU', 'NPU']
 
-    # モデルの読み込みとコンパイル
+    # Load the model
     model = core.read_model(model_path)
 
-    # NPU向けに最適化してコンパイル
+    # Compile with NPU optimization
     compiled_model = core.compile_model(
         model,
         device_name="NPU",
@@ -322,61 +324,61 @@ def run_on_intel_npu(model_path: str, input_data: np.ndarray):
         }
     )
 
-    # 推論リクエスト
+    # Inference request
     infer_request = compiled_model.create_infer_request()
     infer_request.set_input_tensor(ov.Tensor(input_data))
 
-    # 推論実行と計測
+    # Run inference and measure time
     import time
     start = time.perf_counter()
     infer_request.infer()
     elapsed = (time.perf_counter() - start) * 1000
 
     output = infer_request.get_output_tensor().data
-    print(f"推論時間: {elapsed:.2f}ms (NPU)")
+    print(f"Inference time: {elapsed:.2f}ms (NPU)")
 
     return output
 
-# INT8量子化モデルで推論
+# Run inference with an INT8 quantized model
 input_image = np.random.randn(1, 3, 224, 224).astype(np.float32)
 result = run_on_intel_npu("mobilenet_v3_int8.xml", input_image)
 ```
 
-### コード例 7: Ryzen AI (XDNA NPU) でのモデル実行
+### Code Example 7: Running Models on Ryzen AI (XDNA NPU)
 
 ```python
-# AMD Ryzen AI Software を使ったNPU推論
+# NPU inference using AMD Ryzen AI Software
 import vitis_ai_runtime as vai
 
 def run_on_ryzen_ai(model_path: str, input_data):
-    """AMD Ryzen AI (XDNA 2 NPU) で推論"""
+    """Run inference on the AMD Ryzen AI (XDNA 2 NPU)"""
 
-    # Vitis AI ランタイムの初期化
+    # Initialize Vitis AI runtime
     runner = vai.Runner(model_path)
 
-    # 入力テンソルの準備
+    # Prepare input tensors
     input_tensors = runner.get_input_tensors()
     output_tensors = runner.get_output_tensors()
 
-    # NPUで推論実行
+    # Run inference on the NPU
     job_id = runner.execute_async(input_data, output_tensors)
     runner.wait(job_id)
 
     return output_tensors
 
-# ONNX → Vitis AI 変換フロー
-# 1. ONNX モデルを準備
-# 2. Vitis AI Quantizer でINT8量子化
-# 3. Vitis AI Compiler でXDNA向けにコンパイル
-# 4. ランタイムで実行
+# ONNX → Vitis AI conversion flow
+# 1. Prepare the ONNX model
+# 2. Quantize to INT8 with Vitis AI Quantizer
+# 3. Compile for XDNA with Vitis AI Compiler
+# 4. Execute with the runtime
 
-# 変換コマンド例:
+# Example conversion commands:
 # vai_q_onnx quantize --model model.onnx \
 #     --output_model model_int8.onnx \
 #     --calibration_data_reader calibration_data
 ```
 
-### コード例 8: ローカルLLMベンチマークスクリプト
+### Code Example 8: Local LLM Benchmark Script
 
 ```python
 import time
@@ -394,13 +396,13 @@ class BenchmarkResult:
     backend: str
 
 def benchmark_ollama_model(model_name: str, prompt: str, num_runs: int = 5):
-    """Ollama モデルの性能ベンチマーク"""
+    """Benchmark performance of an Ollama model"""
     results = []
 
     for i in range(num_runs):
         start = time.perf_counter()
 
-        # Ollama API を呼び出し
+        # Call the Ollama API
         response = subprocess.run(
             ["curl", "-s", "http://localhost:11434/api/generate",
              "-d", json.dumps({
@@ -426,14 +428,14 @@ def benchmark_ollama_model(model_name: str, prompt: str, num_runs: int = 5):
             "total_time": elapsed,
         })
 
-    # 平均値を計算
+    # Calculate averages
     avg_tps = sum(r["tokens_per_sec"] for r in results) / len(results)
     avg_ttft = sum(r["ttft"] for r in results) / len(results)
 
-    print(f"=== {model_name} ベンチマーク結果 ===")
-    print(f"  平均生成速度: {avg_tps:.1f} tokens/sec")
-    print(f"  平均TTFT: {avg_ttft*1000:.0f}ms")
-    print(f"  実行回数: {num_runs}")
+    print(f"=== {model_name} Benchmark Results ===")
+    print(f"  Avg generation speed: {avg_tps:.1f} tokens/sec")
+    print(f"  Avg TTFT: {avg_ttft*1000:.0f}ms")
+    print(f"  Number of runs: {num_runs}")
 
     return BenchmarkResult(
         model_name=model_name,
@@ -444,7 +446,7 @@ def benchmark_ollama_model(model_name: str, prompt: str, num_runs: int = 5):
         backend="ollama"
     )
 
-# 複数モデルのベンチマーク
+# Benchmark multiple models
 models = ["phi3:mini", "llama3.1:8b", "gemma2:9b", "mistral:7b"]
 prompt = "Explain the concept of NPU in AI PCs in 3 sentences."
 
@@ -454,59 +456,59 @@ for model in models:
 
 ---
 
-## 3. 比較表
+## 3. Comparison Tables
 
-### 比較表 1: 主要AI PCプロセッサ比較
+### Comparison Table 1: Major AI PC Processor Comparison
 
-| 項目 | Snapdragon X Elite | Intel Core Ultra 200V | AMD Ryzen AI 300 |
+| Item | Snapdragon X Elite | Intel Core Ultra 200V | AMD Ryzen AI 300 |
 |------|-------------------|---------------------|-----------------|
-| NPU性能 | 45 TOPS | 48 TOPS | 50 TOPS |
-| NPU名称 | Hexagon NPU | Intel AI Boost (NPU4) | XDNA 2 (Ryzen AI) |
-| CPU | Oryon 12コア | P+Eコア (16スレッド) | Zen 5 (16スレッド) |
+| NPU Performance | 45 TOPS | 48 TOPS | 50 TOPS |
+| NPU Name | Hexagon NPU | Intel AI Boost (NPU4) | XDNA 2 (Ryzen AI) |
+| CPU | Oryon 12-core | P+E Cores (16 threads) | Zen 5 (16 threads) |
 | GPU | Adreno X1-85 | Intel Arc (Xe2) | Radeon 890M |
-| 電力効率 | 優秀（ARM） | 良好 | 良好 |
-| Copilot+ PC | 対応 | 対応 | 対応 |
-| ローカルLLM | 7B〜13Bモデル | 7B〜13Bモデル | 7B〜13Bモデル |
-| 対応OS | Windows 11 (ARM) | Windows 11 | Windows 11 |
+| Power Efficiency | Excellent (ARM) | Good | Good |
+| Copilot+ PC | Supported | Supported | Supported |
+| Local LLM | 7B-13B models | 7B-13B models | 7B-13B models |
+| Supported OS | Windows 11 (ARM) | Windows 11 | Windows 11 |
 
-### 比較表 2: ローカルLLM実行ツール比較
+### Comparison Table 2: Local LLM Execution Tool Comparison
 
-| ツール | GUI | API | 量子化対応 | NPU対応 | マルチモデル | 難易度 |
+| Tool | GUI | API | Quantization Support | NPU Support | Multi-Model | Difficulty |
 |--------|-----|-----|-----------|---------|------------|--------|
-| Ollama | なし（CLI） | REST API | GGUF (Q4/Q5/Q8) | 限定的 | 同時実行可 | 低 |
-| LM Studio | あり | OpenAI互換 | GGUF全般 | 限定的 | 切り替え式 | 低 |
-| llama.cpp | なし（CLI） | HTTP Server | GGUF全般 | Vulkan/CUDA | 単一 | 中 |
-| vLLM | なし | OpenAI互換 | AWQ/GPTQ | CUDA | バッチ推論 | 高 |
-| GPT4All | あり | Python API | GGUF | 限定的 | 切り替え式 | 低 |
+| Ollama | None (CLI) | REST API | GGUF (Q4/Q5/Q8) | Limited | Concurrent | Low |
+| LM Studio | Yes | OpenAI-compatible | All GGUF | Limited | Switchable | Low |
+| llama.cpp | None (CLI) | HTTP Server | All GGUF | Vulkan/CUDA | Single | Medium |
+| vLLM | None | OpenAI-compatible | AWQ/GPTQ | CUDA | Batch inference | High |
+| GPT4All | Yes | Python API | GGUF | Limited | Switchable | Low |
 
-### 比較表 3: GGUF量子化レベルと品質
+### Comparison Table 3: GGUF Quantization Levels and Quality
 
-| 量子化レベル | ビット幅 | 7Bモデルサイズ | 品質（Perplexity） | 推論速度 | 推奨用途 |
+| Quantization Level | Bit Width | 7B Model Size | Quality (Perplexity) | Inference Speed | Recommended Use |
 |------------|---------|-------------|------------------|---------|---------|
-| Q2_K | 2-3bit | ~2.8GB | 低（損失大） | 最速 | 速度最優先・テスト用 |
-| Q3_K_M | 3bit | ~3.3GB | やや低い | 速い | メモリ制約が厳しい場合 |
-| Q4_K_M | 4bit | ~4.1GB | 良好 | 速い | 最も推奨（バランス良） |
-| Q5_K_M | 5bit | ~4.8GB | 高い | 中程度 | 品質重視 |
-| Q6_K | 6bit | ~5.5GB | 非常に高い | やや遅い | 高品質推論 |
-| Q8_0 | 8bit | ~7.2GB | 最高 | 遅い | 品質最優先 |
-| FP16 | 16bit | ~14GB | 基準 | 最遅 | 研究・評価用 |
+| Q2_K | 2-3bit | ~2.8GB | Low (significant loss) | Fastest | Speed-first / testing |
+| Q3_K_M | 3bit | ~3.3GB | Slightly low | Fast | Tight memory constraints |
+| Q4_K_M | 4bit | ~4.1GB | Good | Fast | Most recommended (best balance) |
+| Q5_K_M | 5bit | ~4.8GB | High | Moderate | Quality-focused |
+| Q6_K | 6bit | ~5.5GB | Very high | Slightly slow | High-quality inference |
+| Q8_0 | 8bit | ~7.2GB | Highest | Slow | Quality-first |
+| FP16 | 16bit | ~14GB | Baseline | Slowest | Research / evaluation |
 
-### 比較表 4: Copilot+ PC AI機能一覧
+### Comparison Table 4: Copilot+ PC AI Feature List
 
-| 機能 | 説明 | 必要NPU | 処理場所 | 対応バージョン |
+| Feature | Description | Required NPU | Processing Location | Supported Version |
 |------|------|---------|---------|-------------|
-| Recall | 画面履歴のAI検索 | 40+ TOPS | NPU（オンデバイス） | Windows 11 24H2 |
-| Live Captions | リアルタイム翻訳字幕 | 40+ TOPS | NPU | Windows 11 24H2 |
-| Image Creator | テキストから画像生成 | 40+ TOPS | NPU | Windows 11 24H2 |
-| Cocreator (Paint) | AIアシスト描画 | 40+ TOPS | NPU | Windows 11 24H2 |
-| Windows Studio Effects | 背景ぼかし、視線補正 | 10+ TOPS | NPU | Windows 11 23H2+ |
-| Copilot | AIアシスタント | 不要 | クラウド | Windows 11全般 |
+| Recall | AI search of screen history | 40+ TOPS | NPU (on-device) | Windows 11 24H2 |
+| Live Captions | Real-time translated subtitles | 40+ TOPS | NPU | Windows 11 24H2 |
+| Image Creator | Text-to-image generation | 40+ TOPS | NPU | Windows 11 24H2 |
+| Cocreator (Paint) | AI-assisted drawing | 40+ TOPS | NPU | Windows 11 24H2 |
+| Windows Studio Effects | Background blur, eye contact | 10+ TOPS | NPU | Windows 11 23H2+ |
+| Copilot | AI assistant | Not required | Cloud | Windows 11 (all) |
 
 ---
 
-## 4. 実践的なユースケースと応用例
+## 4. Practical Use Cases and Applications
 
-### ユースケース 1: ローカルRAG（検索拡張生成）システム
+### Use Case 1: Local RAG (Retrieval-Augmented Generation) System
 
 ```python
 import ollama
@@ -515,19 +517,19 @@ from sentence_transformers import SentenceTransformer
 
 class LocalRAGSystem:
     """
-    AI PC上で完全ローカルに動作するRAGシステム
-    プライバシー保護: データが端末外に出ない
+    A fully local RAG system running on an AI PC.
+    Privacy protection: Data never leaves the device.
     """
 
     def __init__(self):
-        # 埋め込みモデル（ローカル実行）
+        # Embedding model (local execution)
         self.embedder = SentenceTransformer('all-MiniLM-L6-v2')
-        # ベクトルDB（ローカル永続化）
+        # Vector DB (local persistence)
         self.chroma = chromadb.PersistentClient(path="./local_vectordb")
         self.collection = self.chroma.get_or_create_collection("documents")
 
     def add_document(self, text: str, metadata: dict = None):
-        """ドキュメントをベクトルDBに追加"""
+        """Add a document to the vector DB"""
         embedding = self.embedder.encode(text).tolist()
         doc_id = f"doc_{self.collection.count()}"
         self.collection.add(
@@ -536,11 +538,11 @@ class LocalRAGSystem:
             ids=[doc_id],
             metadatas=[metadata or {}]
         )
-        print(f"ドキュメント追加: {doc_id}")
+        print(f"Document added: {doc_id}")
 
     def query(self, question: str, n_results: int = 3) -> str:
-        """質問に対してRAG応答を生成"""
-        # 類似ドキュメントを検索
+        """Generate a RAG response for a question"""
+        # Search for similar documents
         query_embedding = self.embedder.encode(question).tolist()
         results = self.collection.query(
             query_embeddings=[query_embedding],
@@ -549,26 +551,26 @@ class LocalRAGSystem:
 
         context = "\n\n".join(results['documents'][0])
 
-        # ローカルLLMで応答生成
+        # Generate response with a local LLM
         response = ollama.chat(
             model='llama3.1:8b',
             messages=[
                 {'role': 'system',
-                 'content': f'以下のコンテキストに基づいて回答してください。\n\nコンテキスト:\n{context}'},
+                 'content': f'Answer based on the following context.\n\nContext:\n{context}'},
                 {'role': 'user', 'content': question}
             ]
         )
         return response['message']['content']
 
-# 使用例
+# Usage example
 rag = LocalRAGSystem()
-rag.add_document("AI PCにはNPUが搭載され、40 TOPS以上の性能を持つ...")
-rag.add_document("Copilot+ PCはMicrosoftが定義したAI PC規格...")
-answer = rag.query("Copilot+ PCの要件は？")
+rag.add_document("AI PCs are equipped with NPUs that have 40+ TOPS of performance...")
+rag.add_document("Copilot+ PC is an AI PC standard defined by Microsoft...")
+answer = rag.query("What are the requirements for a Copilot+ PC?")
 print(answer)
 ```
 
-### ユースケース 2: ローカルコード補完サーバー
+### Use Case 2: Local Code Completion Server
 
 ```python
 from llama_cpp import Llama
@@ -576,17 +578,17 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# コード補完専用モデルをロード
+# Load a code completion model
 llm = Llama(
     model_path="models/codellama-7b-instruct-q4_k_m.gguf",
     n_ctx=4096,
-    n_gpu_layers=-1,  # 全層GPU
+    n_gpu_layers=-1,  # All layers on GPU
     n_threads=8,
 )
 
 @app.route('/v1/completions', methods=['POST'])
 def code_completion():
-    """VS Code / JetBrains 互換のコード補完API"""
+    """VS Code / JetBrains compatible code completion API"""
     data = request.json
     prompt = data.get('prompt', '')
     max_tokens = data.get('max_tokens', 128)
@@ -594,7 +596,7 @@ def code_completion():
     output = llm(
         prompt,
         max_tokens=max_tokens,
-        temperature=0.2,  # コード補完は低温推奨
+        temperature=0.2,  # Low temperature recommended for code completion
         stop=["\n\n", "```", "def ", "class "],
     )
 
@@ -606,13 +608,13 @@ def code_completion():
         "usage": output['usage']
     })
 
-# VS Code の Continue 拡張機能と連携可能
+# Can be used with VS Code's Continue extension
 # config.json: {"model": "codellama", "apiBase": "http://localhost:5000"}
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
 ```
 
-### ユースケース 3: NPUを活用したリアルタイム映像処理
+### Use Case 3: Real-Time Video Processing Using the NPU
 
 ```python
 import onnxruntime as ort
@@ -621,27 +623,27 @@ import numpy as np
 import time
 
 class NPUVideoProcessor:
-    """NPUでリアルタイム映像処理（背景ぼかし、物体検出）"""
+    """Real-time video processing with the NPU (background blur, object detection)"""
 
     def __init__(self):
-        # 背景セグメンテーションモデル（NPU実行）
+        # Background segmentation model (NPU execution)
         self.seg_session = ort.InferenceSession(
             "selfie_segmentation_int8.onnx",
             providers=['QNNExecutionProvider', 'DmlExecutionProvider', 'CPUExecutionProvider']
         )
 
-        # 物体検出モデル（NPU実行）
+        # Object detection model (NPU execution)
         self.det_session = ort.InferenceSession(
             "yolov8n_int8.onnx",
             providers=['QNNExecutionProvider', 'DmlExecutionProvider', 'CPUExecutionProvider']
         )
 
-        print(f"セグメンテーション: {self.seg_session.get_providers()[0]}")
-        print(f"物体検出: {self.det_session.get_providers()[0]}")
+        print(f"Segmentation: {self.seg_session.get_providers()[0]}")
+        print(f"Object detection: {self.det_session.get_providers()[0]}")
 
     def process_frame(self, frame):
-        """1フレームを処理（背景ぼかし + 物体検出）"""
-        # 背景セグメンテーション
+        """Process a single frame (background blur + object detection)"""
+        # Background segmentation
         input_seg = cv2.resize(frame, (256, 256))
         input_seg = input_seg.astype(np.float32) / 255.0
         input_seg = np.transpose(input_seg, (2, 0, 1))[np.newaxis]
@@ -649,7 +651,7 @@ class NPUVideoProcessor:
         mask = self.seg_session.run(None, {"input": input_seg})[0]
         mask = cv2.resize(mask[0, 0], (frame.shape[1], frame.shape[0]))
 
-        # 背景ぼかし適用
+        # Apply background blur
         blurred = cv2.GaussianBlur(frame, (21, 21), 0)
         mask_3d = np.stack([mask] * 3, axis=-1)
         result = (frame * mask_3d + blurred * (1 - mask_3d)).astype(np.uint8)
@@ -657,7 +659,7 @@ class NPUVideoProcessor:
         return result
 
     def run_camera(self):
-        """カメラ入力でリアルタイム処理"""
+        """Real-time processing from camera input"""
         cap = cv2.VideoCapture(0)
         fps_counter = []
 
@@ -684,101 +686,101 @@ class NPUVideoProcessor:
 
         cap.release()
 
-# NPU実行時: 30+ FPS (背景ぼかし + 物体検出)
-# CPU実行時: 5-10 FPS
+# With NPU: 30+ FPS (background blur + object detection)
+# With CPU: 5-10 FPS
 ```
 
 ---
 
-## 5. トラブルシューティングガイド
+## 5. Troubleshooting Guide
 
-### 問題 1: Ollama で「out of memory」エラー
+### Problem 1: "Out of Memory" Error in Ollama
 
 ```
-症状: ollama run llama3.1:8b が "out of memory" でクラッシュ
+Symptom: ollama run llama3.1:8b crashes with "out of memory"
 
-診断手順:
-1. 利用可能メモリの確認
-   $ free -h (Linux) / タスクマネージャー (Windows)
-   → 最低でもモデルサイズ + 2GB の空きRAMが必要
+Diagnostic steps:
+1. Check available memory
+   $ free -h (Linux) / Task Manager (Windows)
+   → At least model size + 2GB of free RAM is needed
 
-2. 量子化レベルの変更
+2. Change quantization level
    $ ollama pull llama3.1:8b    # Q4_K_M (4.7GB) → RAM 8GB+
    $ ollama pull phi3:mini       # (2.3GB) → RAM 6GB+
    $ ollama pull gemma2:2b       # (1.6GB) → RAM 4GB+
 
-3. GPU VRAM の確認（GPU オフロード時）
+3. Check GPU VRAM (when using GPU offloading)
    $ nvidia-smi  # NVIDIA
-   → GPUメモリ不足の場合、n_gpu_layers を下げる
+   → If GPU memory is insufficient, reduce n_gpu_layers
 
-4. スワップの確認
-   → スワップ使用量が増えている場合、推論速度が大幅低下
-   → モデルを小さくするか、RAMを増設
+4. Check swap usage
+   → If swap usage is increasing, inference speed will drop significantly
+   → Use a smaller model or add more RAM
 ```
 
-### 問題 2: NPUが認識されない
+### Problem 2: NPU Not Recognized
 
 ```
-症状: ONNX Runtime で QNNExecutionProvider が表示されない
+Symptom: QNNExecutionProvider does not appear in ONNX Runtime
 
-対処法:
-1. NPUドライバの確認
-   → デバイスマネージャー > ニューラルプロセッサ
-   → ドライバが最新版か確認
+Solutions:
+1. Check NPU driver
+   → Device Manager > Neural Processors
+   → Verify the driver is up to date
 
-2. ONNX Runtime バージョンの確認
-   → NPU対応は ort 1.17+ が必要
-   $ pip install onnxruntime-qnn  # Qualcomm NPU向け
+2. Check ONNX Runtime version
+   → NPU support requires ort 1.17+
+   $ pip install onnxruntime-qnn  # For Qualcomm NPU
    $ pip install onnxruntime-directml  # DirectML (GPU + NPU)
 
-3. Windows バージョンの確認
-   → NPU完全対応は Windows 11 24H2 以降
-   → 設定 > システム > バージョン情報で確認
+3. Check Windows version
+   → Full NPU support requires Windows 11 24H2 or later
+   → Settings > System > About to verify
 
-4. モデルの互換性確認
-   → NPUはINT8量子化モデルのみ対応
-   → FP32/FP16モデルはGPU/CPUにフォールバック
+4. Check model compatibility
+   → NPU only supports INT8 quantized models
+   → FP32/FP16 models will fall back to GPU/CPU
 ```
 
-### 問題 3: ローカルLLMの推論速度が遅い
+### Problem 3: Slow Local LLM Inference Speed
 
 ```
-症状: 期待した tokens/sec が出ない
+Symptom: Not achieving the expected tokens/sec
 
-チェックリスト:
-□ GPU オフロードが有効か？
-  → llama.cpp: --n-gpu-layers 33 (全層GPU)
-  → Ollama: 自動検出だが、CUDA/ROCm が未インストールの場合CPU実行
+Checklist:
+[ ] Is GPU offloading enabled?
+  → llama.cpp: --n-gpu-layers 33 (all layers on GPU)
+  → Ollama: Auto-detected, but runs on CPU if CUDA/ROCm is not installed
 
-□ コンテキスト長が長すぎないか？
-  → n_ctx=4096 → 8192 にすると速度が約半分に
-  → 必要最小限のコンテキスト長を設定
+[ ] Is the context length too long?
+  → n_ctx=4096 → 8192 roughly halves the speed
+  → Set the minimum necessary context length
 
-□ バッチサイズは適切か？
-  → n_batch=512 がデフォルト。メモリに余裕があれば 1024 に
+[ ] Is the batch size appropriate?
+  → n_batch=512 is the default. Increase to 1024 if memory allows
 
-□ 量子化レベルは適切か？
-  → Q4_K_M が速度と品質のベストバランス
-  → Q2_K は最速だが品質低下が大きい
+[ ] Is the quantization level appropriate?
+  → Q4_K_M is the best balance of speed and quality
+  → Q2_K is fastest but has significant quality loss
 
-□ バックグラウンドプロセスがCPU/GPUを占有していないか？
-  → ブラウザのGPUアクセラレーション等を一時無効化
+[ ] Are background processes consuming CPU/GPU?
+  → Temporarily disable browser GPU acceleration, etc.
 ```
 
 ---
 
-## 6. パフォーマンス最適化Tips
+## 6. Performance Optimization Tips
 
-### Tip 1: モデルサイズとRAMの関係
+### Tip 1: Relationship Between Model Size and RAM
 
 ```
 ┌────────────────────────────────────────────────┐
-│         RAM別 推奨モデルサイズ早見表             │
+│     Recommended Model Size by RAM Quick Guide   │
 │                                                  │
 │  RAM 8GB  ━━━━━━━━━━━━━━━━━━━                  │
 │           Phi-3 Mini 3.8B (Q4) ✓                │
 │           Gemma 2 2B (Q4) ✓                     │
-│           Llama 3.1 8B (Q4) △ (ギリギリ)        │
+│           Llama 3.1 8B (Q4) △ (Barely fits)     │
 │                                                  │
 │  RAM 16GB ━━━━━━━━━━━━━━━━━━━━━━━━━━━━         │
 │           Llama 3.1 8B (Q4) ✓                   │
@@ -796,155 +798,155 @@ class NPUVideoProcessor:
 │           Qwen 72B (Q4) ✓                       │
 │           Command R+ 104B (Q4) △                 │
 │                                                  │
-│  ✓ = 快適動作  △ = 動作するが遅い場合あり        │
+│  ✓ = Runs smoothly  △ = Runs but may be slow    │
 └────────────────────────────────────────────────┘
 ```
 
-### Tip 2: NPU vs GPU vs CPU の使い分け
+### Tip 2: Choosing Between NPU vs GPU vs CPU
 
-| ワークロード | 推奨 | 理由 |
+| Workload | Recommended | Reason |
 |------------|------|------|
-| 常時背景ぼかし（ビデオ会議） | NPU | 省電力で常時実行 |
-| LLM推論（チャット） | GPU | VRAM活用で高速 |
-| バッチ画像分類 | NPU | INT8量子化で高効率 |
-| 画像生成（Stable Diffusion） | GPU | FP16/BF16が必要 |
-| 音声認識（リアルタイム） | NPU | 低遅延が重要 |
-| コード補完 | GPU+CPU | 中程度の速度で十分 |
-| RAG検索（埋め込み生成） | NPU | 小モデルの高速推論 |
-| 動画編集AIエフェクト | GPU | 高スループットが必要 |
+| Always-on background blur (video calls) | NPU | Power-efficient continuous execution |
+| LLM inference (chat) | GPU | High speed with VRAM utilization |
+| Batch image classification | NPU | High efficiency with INT8 quantization |
+| Image generation (Stable Diffusion) | GPU | Requires FP16/BF16 |
+| Speech recognition (real-time) | NPU | Low latency is critical |
+| Code completion | GPU+CPU | Moderate speed is sufficient |
+| RAG search (embedding generation) | NPU | Fast inference for small models |
+| Video editing AI effects | GPU | High throughput needed |
 
-### Tip 3: Windows での AI開発環境構築
+### Tip 3: Setting Up an AI Development Environment on Windows
 
 ```bash
-# 1. 基本環境
+# 1. Basic environment
 winget install Python.Python.3.12
 winget install Git.Git
 winget install Ollama.Ollama
 
-# 2. CUDA (NVIDIA GPU の場合)
-# https://developer.nvidia.com/cuda-downloads からインストール
+# 2. CUDA (for NVIDIA GPUs)
+# Install from https://developer.nvidia.com/cuda-downloads
 
-# 3. Python AI パッケージ
+# 3. Python AI packages
 pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 pip install onnxruntime-directml  # DirectML (GPU + NPU)
 pip install transformers accelerate
-pip install llama-cpp-python  # ローカルLLM
+pip install llama-cpp-python  # Local LLM
 
-# 4. Ollama モデルダウンロード
+# 4. Download Ollama models
 ollama pull llama3.1:8b
 ollama pull codellama:7b-instruct
-ollama pull nomic-embed-text  # 埋め込みモデル
+ollama pull nomic-embed-text  # Embedding model
 
-# 5. 動作確認
+# 5. Verify setup
 python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}')"
 python -c "import onnxruntime as ort; print(ort.get_available_providers())"
-curl http://localhost:11434/api/tags  # Ollamaモデル一覧
+curl http://localhost:11434/api/tags  # List Ollama models
 ```
 
 ---
 
-## 7. アンチパターン
+## 7. Anti-Patterns
 
-### アンチパターン 1: NPU TOPSだけでAI性能を判断する
-
-```
-❌ 悪い例:
-「50 TOPSのNPUだから何でも高速に動く」と思い込む
-→ NPUはINT8推論に特化。FP32モデルはGPU/CPUにフォールバック
-
-✅ 正しいアプローチ:
-- NPU TOPS = INT8量子化モデル専用の指標
-- LLM実行はGPU (VRAM) の方が重要
-- 実際のベンチマーク（推論速度 tok/s）で判断
-- モデルのNPU対応状況を事前確認
-```
-
-### アンチパターン 2: RAM不足で大規模LLMを実行しようとする
+### Anti-Pattern 1: Judging AI Performance Solely by NPU TOPS
 
 ```
-❌ 悪い例:
-16GB RAMのPCで70Bパラメータモデルを実行しようとする
-→ スワップ発生で推論速度が1/10以下に低下
+Bad example:
+Assuming "50 TOPS NPU means everything runs fast"
+→ NPU is specialized for INT8 inference. FP32 models fall back to GPU/CPU.
 
-✅ 正しいアプローチ（RAM別推奨モデル）:
+Correct approach:
+- NPU TOPS is a metric exclusively for INT8 quantized models
+- GPU (VRAM) matters more for LLM execution
+- Judge by actual benchmarks (inference speed in tok/s)
+- Verify NPU compatibility of models in advance
+```
+
+### Anti-Pattern 2: Trying to Run Large LLMs with Insufficient RAM
+
+```
+Bad example:
+Trying to run a 70B parameter model on a PC with 16GB RAM
+→ Swap occurs and inference speed drops to less than 1/10
+
+Correct approach (recommended models by RAM):
 - 8GB RAM  → Phi-3 Mini (3.8B, Q4) / Gemma 2 2B
 - 16GB RAM → Llama 3.1 8B (Q4) / Mistral 7B (Q4)
 - 32GB RAM → Llama 3.1 8B (Q8) / Mixtral 8x7B (Q4)
 - 64GB RAM → Llama 3.1 70B (Q4) / Qwen 72B (Q4)
 ```
 
-### アンチパターン 3: セキュリティを考慮せずにローカルLLMを公開する
+### Anti-Pattern 3: Exposing a Local LLM Without Security Considerations
 
 ```
-❌ 悪い例:
-Ollama API をファイアウォールなしでネットワークに公開
-→ 外部からモデルの不正利用、プロンプトインジェクション攻撃
+Bad example:
+Exposing the Ollama API to the network without a firewall
+→ Unauthorized model usage, prompt injection attacks from outside
 
-✅ 正しいアプローチ:
-- Ollama はデフォルトで localhost のみにバインド
-- 外部公開する場合はリバースプロキシ + 認証を設定
-- レート制限を導入（1分あたりの最大リクエスト数）
-- 入力のサニタイズとプロンプトインジェクション対策
-- SSL/TLS を必ず有効化
+Correct approach:
+- Ollama binds to localhost only by default
+- Set up a reverse proxy + authentication for external access
+- Implement rate limiting (max requests per minute)
+- Sanitize inputs and protect against prompt injection
+- Always enable SSL/TLS
 ```
 
-### アンチパターン 4: ARM版Windowsの互換性問題を無視する
+### Anti-Pattern 4: Ignoring ARM Windows Compatibility Issues
 
 ```
-❌ 悪い例:
-Snapdragon X Elite (ARM) PCでx86専用アプリを使おうとする
-→ エミュレーション層による性能低下、一部アプリが動作しない
+Bad example:
+Trying to use x86-only apps on a Snapdragon X Elite (ARM) PC
+→ Performance degradation from the emulation layer, some apps may not work
 
-✅ 正しいアプローチ:
-- ARM ネイティブ対応アプリを優先（Python, VS Code, Chrome等は対応済み）
-- llama.cpp は ARM ビルドが利用可能
-- Ollama は ARM Windows ネイティブ対応
-- x86エミュレーションが必要な場合は性能低下を覚悟
-- 購入前にターゲットアプリのARM対応状況を確認
+Correct approach:
+- Prefer ARM-native apps (Python, VS Code, Chrome, etc. are supported)
+- llama.cpp has ARM builds available
+- Ollama natively supports ARM Windows
+- Expect performance degradation when x86 emulation is needed
+- Check ARM compatibility of target apps before purchasing
 ```
 
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -953,26 +955,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation and add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -980,7 +982,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -991,14 +993,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1006,7 +1008,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1014,44 +1016,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1060,7 +1062,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1075,76 +1077,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm computational complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criterion | When to Prioritize | When Compromise Is Acceptable |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow             │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  (1) Team size?                                  │
+│    ├─ Small (1-5) → Monolith                     │
+│    └─ Large (10+) → Go to (2)                    │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  (2) Deploy frequency?                           │
+│    ├─ Once a week or less → Monolith + modules   │
+│    └─ Daily / multiple times → Go to (3)         │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  (3) Independence between teams?                 │
+│    ├─ High → Microservices                       │
+│    └─ Moderate → Modular monolith                │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-Off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze them from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Costs**
+- A method that is fast in the short term can become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified tech stack has lower learning costs
+- Adopting diverse technologies enables the right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction offers high reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Create an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1154,17 +1156,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1172,7 +1174,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1180,15 +1182,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1196,53 +1198,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum necessary features
+- Automated tests only for critical paths
+- Introduce monitoring from the start
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't aim for perfection (YAGNI principle)
+- Obtain user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Legacy System Modernization
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually modernize a system that has been running for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- Create characterization tests first if existing tests are missing
+- Use an API gateway to run old and new systems side by side
+- Perform data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration start | Migrate from peripheral features | 3-6 months | Medium |
+| 4. Core migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Decommission legacy system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** More than 50 engineers working on the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with Domain-Driven Design
+- Set ownership per team
+- Manage shared libraries with an Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1255,20 +1257,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1277,7 +1279,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1298,131 +1300,132 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system that requires millisecond-level responses
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: In-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization Method | Impact | Implementation Cost | Applicable Scenario |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy operations |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low-Medium | High | CPU-bound operations |
 
 ---
 
-## チーム開発での活用
+## Team Development Practices
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to verify during code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Are naming conventions consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Is there any impact on performance?
+- [ ] Are there any security issues?
+- [ ] Is documentation updated?
 
-### ナレッジ共有のベストプラクティス
+### Knowledge Sharing Best Practices
 
-| 方法 | 頻度 | 対象 | 効果 |
+| Method | Frequency | Target | Impact |
 |------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talks | Weekly | Entire team | Horizontal knowledge sharing |
+| ADR (Decision Records) | As needed | Future members | Decision transparency |
+| Retrospectives | Biweekly | Entire team | Continuous improvement |
+| Mob programming | Monthly | Important designs | Consensus building |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
+        Impact High
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │ Plan │ Fix  │
+    │ and  │ Imme-│
+    │ sche-│ dia- │
+    │ dule │ tely │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │ Log  │ Next │
+    │ only │ Sprint│
+    │      │      │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Impact Low
+    Frequency Low  Frequency High
 ```
 ---
 
 ## 8. FAQ
 
-### Q1: Copilot+ PCとは何ですか？通常のPCとの違いは？
+### Q1: What is a Copilot+ PC? How is it different from a regular PC?
 
-**A:** Copilot+ PCはMicrosoftが定義したAI PC規格で、以下の要件を満たす必要があります:
+**A:** A Copilot+ PC is an AI PC standard defined by Microsoft that must meet the following requirements:
 - NPU 40+ TOPS
-- RAM 16GB以上
-- SSD 256GB以上
-- Windows 11 24H2以降
+- RAM 16GB or more
+- SSD 256GB or more
+- Windows 11 24H2 or later
 
-通常のPCとの違いは、Recall（画面履歴AI検索）、Live Captions（リアルタイム翻訳字幕）、Image Creator（オンデバイス画像生成）などのAI機能がNPUで高速動作する点です。
+The key difference from regular PCs is that AI features such as Recall (AI search of screen history), Live Captions (real-time translated subtitles), and Image Creator (on-device image generation) run at high speed on the NPU.
 
-### Q2: ローカルLLMでどの程度の品質が得られますか？
+### Q2: What level of quality can be achieved with local LLMs?
 
-**A:** 8Bパラメータ（Q4量子化）モデルの場合、簡単な質問応答、コード生成、要約タスクで実用的な品質が得られます。GPT-4やClaude 3.5と比較すると推論能力は劣りますが、プライバシー保護・オフライン利用・無料という利点があります。13B以上のモデルではかなり高品質になります。
+**A:** With an 8B parameter (Q4 quantized) model, you can get practical quality for simple Q&A, code generation, and summarization tasks. Reasoning capabilities are inferior compared to GPT-4 or Claude 3.5, but the advantages include privacy protection, offline usage, and being free. Models with 13B+ parameters deliver considerably high quality.
 
-### Q3: NPUとGPUのどちらをAI処理に使うべきですか？
+### Q3: Should I use the NPU or GPU for AI processing?
 
-**A:** タスクにより異なります:
-- **NPU向き**: 常時実行のバックグラウンドAI（音声認識、カメラ補正、通知フィルタリング）。省電力が重要。
-- **GPU向き**: LLM推論、画像生成、バッチ処理。VRAMとスループットが重要。
-- **ハイブリッド**: NPUで前処理、GPUで本推論という組み合わせが最適。
+**A:** It depends on the task:
+- **NPU-suited**: Always-on background AI (speech recognition, camera correction, notification filtering). Power efficiency is critical.
+- **GPU-suited**: LLM inference, image generation, batch processing. VRAM and throughput are critical.
+- **Hybrid**: The optimal approach is preprocessing on the NPU and main inference on the GPU.
 
-### Q4: AI PCで画像生成（Stable Diffusion）は実用的ですか？
+### Q4: Is image generation (Stable Diffusion) practical on AI PCs?
 
-**A:** GPUの性能に依存します:
-- **Snapdragon X Elite (Adreno)**: SD 1.5が15-30秒程度。SDXL はメモリ不足で困難。
-- **Intel Arc (Xe2)**: OpenVINO最適化でSD 1.5が10-20秒。
-- **AMD Radeon 890M**: ROCm対応でSD 1.5が10-25秒。
-- **dGPU (RTX 4060+)**: SD 1.5が3-5秒、SDXLが10-15秒で実用的。
-- NPUは画像生成には不向き（FP16/FP32が必要なため）。
+**A:** It depends on GPU performance:
+- **Snapdragon X Elite (Adreno)**: SD 1.5 takes about 15-30 seconds. SDXL is difficult due to memory constraints.
+- **Intel Arc (Xe2)**: SD 1.5 takes 10-20 seconds with OpenVINO optimization.
+- **AMD Radeon 890M**: SD 1.5 takes 10-25 seconds with ROCm support.
+- **dGPU (RTX 4060+)**: SD 1.5 takes 3-5 seconds, SDXL takes 10-15 seconds, practical for use.
+- NPU is not suitable for image generation (requires FP16/FP32).
 
-### Q5: Macbook (Apple Silicon) とAI PCの比較は？
+### Q5: How does a MacBook (Apple Silicon) compare to an AI PC?
 
-**A:** Apple Silicon (M3/M4) は統合メモリアーキテクチャで独自の強みがあります:
-- **メモリ**: CPU/GPU/NPU共有で最大128GB。GPUメモリ不足が発生しない。
-- **Neural Engine**: 最大38 TOPS。Core ML統合が優秀。
-- **MLX**: Apple独自のAIフレームワークで最適化。
-- **LLM実行**: 70Bモデルも64GBモデルで実行可能。
-- Windows AI PCの利点はソフトウェアエコシステムの広さと低価格帯のラインナップ。
+**A:** Apple Silicon (M3/M4) has unique strengths with its unified memory architecture:
+- **Memory**: Up to 128GB shared between CPU/GPU/NPU. No GPU memory shortages occur.
+- **Neural Engine**: Up to 38 TOPS. Excellent Core ML integration.
+- **MLX**: Optimized with Apple's proprietary AI framework.
+- **LLM execution**: 70B models can run on the 64GB model.
+- Windows AI PCs have the advantage of a broader software ecosystem and lower-priced lineups.
 
 ---
 
-## 9. エッジケース分析
+## 9. Edge Case Analysis
 
-### エッジケース 1: 統合メモリとディスクリートGPUの競合
+### Edge Case 1: Conflicts Between Integrated Memory and Discrete GPUs
 
-AI PCの多くはiGPUを内蔵しつつ、外付けeGPUやThunderbolt接続のdGPUも利用可能です。この場合、DirectML/ONNX Runtimeがどのデバイスを選択するかが問題になります。
+Many AI PCs have an iGPU built in while also supporting external eGPUs or Thunderbolt-connected dGPUs. In this case, which device DirectML/ONNX Runtime selects becomes an issue.
 
 ```python
-# 複数GPUが存在する場合のデバイス列挙と明示的選択
+# Device enumeration and explicit selection when multiple GPUs are present
 import onnxruntime as ort
 
-# 利用可能な全ExecutionProviderを確認
+# Check all available ExecutionProviders
 providers = ort.get_available_providers()
-print(f"利用可能: {providers}")
-# 例: ['TensorrtExecutionProvider', 'CUDAExecutionProvider',
-#       'DmlExecutionProvider', 'QNNExecutionProvider', 'CPUExecutionProvider']
+print(f"Available: {providers}")
+# e.g.: ['TensorrtExecutionProvider', 'CUDAExecutionProvider',
+#         'DmlExecutionProvider', 'QNNExecutionProvider', 'CPUExecutionProvider']
 
-# dGPU (CUDA) を優先し、なければ iGPU (DirectML)、最後にNPU
+# Prefer dGPU (CUDA), then iGPU (DirectML), then NPU
 preferred_providers = [
     ('CUDAExecutionProvider', {'device_id': 0}),
     ('DmlExecutionProvider', {'device_id': 0}),  # iGPU
@@ -1432,100 +1435,100 @@ preferred_providers = [
 
 session = ort.InferenceSession("model.onnx", providers=preferred_providers)
 active = session.get_providers()
-print(f"実際に使用中: {active[0]}")
+print(f"Currently in use: {active[0]}")
 ```
 
-**注意点**: eGPU接続時にホットプラグ（動作中の抜き差し）を行うと、セッションがクラッシュします。eGPU使用時は必ず起動前に接続し、セッション終了後に取り外してください。
+**Note**: Hot-plugging (connecting/disconnecting while running) an eGPU will crash the session. When using an eGPU, always connect it before startup and disconnect after the session ends.
 
-### エッジケース 2: NPUモデルの精度劣化と検出
+### Edge Case 2: Accuracy Degradation in NPU Models and Detection
 
-INT8量子化でNPUに最適化したモデルは、FP32オリジナルと比較して精度が低下する場合があります。特に以下のケースで顕著です:
+Models optimized for NPU with INT8 quantization may have lower accuracy compared to the FP32 original. This is particularly noticeable in the following cases:
 
 ```
-精度劣化が起きやすいケース:
-├── 長文生成（500トークン以上）
-│   → 累積誤差で出力品質が低下
-├── 多言語混在テキスト
-│   → 日本語・英語の切り替え時に劣化
-├── 数値計算を含む推論
-│   → 四則演算の精度がINT8では不足
-└── 小さい物体の検出（画像AI）
-    → 量子化で微細な特徴が失われる
+Cases prone to accuracy degradation:
+├── Long text generation (500+ tokens)
+│   → Cumulative errors degrade output quality
+├── Mixed-language text
+│   → Degradation when switching between languages
+├── Inference involving numerical calculations
+│   → INT8 precision is insufficient for arithmetic
+└── Small object detection (image AI)
+    → Quantization loses fine-grained features
 
-精度検証スクリプト:
+Accuracy verification script:
 $ python -c "
 from sklearn.metrics import accuracy_score
-# FP32とINT8の出力を比較
+# Compare FP32 and INT8 outputs
 fp32_results = run_model('model_fp32.onnx', test_data)
 int8_results = run_model('model_int8.onnx', test_data)
 acc = accuracy_score(fp32_results, int8_results)
-print(f'INT8一致率: {acc:.4f}')  # 0.98以上なら許容範囲
+print(f'INT8 agreement rate: {acc:.4f}')  # 0.98+ is acceptable
 "
 ```
 
-### エッジケース 3: バッテリー駆動時のAI性能スロットリング
+### Edge Case 3: AI Performance Throttling on Battery Power
 
-ノートPCのバッテリー駆動時、NPUとGPUの両方がパワースロットリングを受けます:
+When a laptop runs on battery, both NPU and GPU are subject to power throttling:
 
-| 電源状態 | NPU性能 | GPU性能 | LLM推論速度 |
+| Power State | NPU Performance | GPU Performance | LLM Inference Speed |
 |---------|---------|---------|------------|
-| AC電源接続 | 100% (45 TOPS) | 100% | 15 tok/s |
-| バッテリー（高性能） | 80% (36 TOPS) | 70% | 10 tok/s |
-| バッテリー（バランス） | 50% (22 TOPS) | 40% | 6 tok/s |
-| バッテリー（省電力） | 30% (13 TOPS) | 20% | 3 tok/s |
+| AC power connected | 100% (45 TOPS) | 100% | 15 tok/s |
+| Battery (High Performance) | 80% (36 TOPS) | 70% | 10 tok/s |
+| Battery (Balanced) | 50% (22 TOPS) | 40% | 6 tok/s |
+| Battery (Power Saver) | 30% (13 TOPS) | 20% | 3 tok/s |
 
 ```powershell
-# Windows で電源プランをプログラムから確認・変更
+# Check and change the power plan programmatically on Windows
 powercfg /getactivescheme
-# AI処理実行前に高性能モードへ切り替え
+# Switch to high performance mode before running AI processing
 powercfg /setactive 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
 ```
 
-**ベストプラクティス**: バッテリー駆動時はモデルサイズを自動的に小さいものに切り替える adaptive loading パターンを実装しましょう。
+**Best Practice**: Implement an adaptive loading pattern that automatically switches to smaller models when running on battery power.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in real-world work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in everyday development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-| 項目 | ポイント |
+| Item | Key Point |
 |------|---------|
-| AI PCの定義 | NPU 40+ TOPS搭載、Copilot+ PC認定 |
-| 主要NPU | Hexagon (Qualcomm), AI Boost (Intel), XDNA (AMD) |
-| ローカルLLM | Ollama/LM Studio で7B〜13Bモデルが実用的 |
-| 量子化 | INT8/INT4 (GGUF形式) でNPU/メモリ最適化 |
-| 開発ツール | ONNX Runtime, DirectML, Windows ML, OpenVINO |
-| 選定基準 | TOPSよりRAM容量と実測ベンチマークを重視 |
-| セキュリティ | ローカルLLMの公開には認証・レート制限が必須 |
-| ARM互換性 | Snapdragon X ではARM対応アプリを優先 |
+| AI PC Definition | Equipped with NPU 40+ TOPS, Copilot+ PC certified |
+| Major NPUs | Hexagon (Qualcomm), AI Boost (Intel), XDNA (AMD) |
+| Local LLM | 7B-13B models are practical with Ollama/LM Studio |
+| Quantization | INT8/INT4 (GGUF format) optimized for NPU/memory |
+| Dev Tools | ONNX Runtime, DirectML, Windows ML, OpenVINO |
+| Selection Criteria | Prioritize RAM capacity and actual benchmarks over TOPS |
+| Security | Authentication and rate limiting are essential when exposing local LLMs |
+| ARM Compatibility | Prefer ARM-native apps on Snapdragon X |
 
 ---
 
-## 次に読むべきガイド
+## Recommended Next Reads
 
-- [GPUコンピューティング — NVIDIA RTX、CUDA](./01-gpu-computing.md)
-- [エッジAI — Jetson、Coral、ONNX Runtime](./02-edge-ai.md)
-- DLフレームワーク — PyTorch、TensorFlow
+- [GPU Computing — NVIDIA RTX, CUDA](./01-gpu-computing.md)
+- [Edge AI — Jetson, Coral, ONNX Runtime](./02-edge-ai.md)
+- DL Frameworks — PyTorch, TensorFlow
 
 ---
 
-## 参考文献
+## References
 
 1. **Microsoft** — "Copilot+ PCs Technical Specifications," microsoft.com, 2024
 2. **Qualcomm** — "Snapdragon X Elite Compute Platform," qualcomm.com, 2024
