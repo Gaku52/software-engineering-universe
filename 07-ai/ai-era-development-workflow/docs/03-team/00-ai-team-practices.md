@@ -1,132 +1,133 @@
-# AI時代のチーム開発プラクティス
+# Team Development Practices in the AI Era
 
-> AIペアプログラミング、コード共有、レビュー文化、生産性向上など、AI時代に適応したチーム開発の方法論とベストプラクティスを体系的に解説する。
-
----
-
-## この章で学ぶこと
-
-1. **AIペアプログラミングの効果的な運用方法**を理解し、チーム全体の生産性を最大化できる
-2. **AIを活用したコードレビュー・品質管理のプロセス**を設計し、品質と速度の両立を実現できる
-3. **チームのAIリテラシー格差を解消**し、全員がAIを効果的に活用できる文化を構築できる
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> A systematic guide to team development methodologies and best practices adapted for the AI era, including AI pair programming, code sharing, review culture, and productivity improvement.
 
 ---
 
-## 1. AI時代のチーム開発の全体像
+## What You Will Learn in This Chapter
 
-### 1.1 従来型開発とAI時代の開発の変化
+1. **Understand effective AI pair programming practices** and maximize the productivity of the entire team
+2. **Design code review and quality management processes leveraging AI** to achieve both quality and speed
+3. **Bridge AI literacy gaps within the team** and build a culture where everyone can effectively leverage AI
+
+
+## Prerequisites
+
+Before reading this guide, the following knowledge will help deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+
+---
+
+## 1. Overview of Team Development in the AI Era
+
+### 1.1 Changes from Traditional Development to AI-Era Development
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│              開発ワークフローの進化                      │
+│           Evolution of Development Workflow           │
 ├──────────────────────────────────────────────────────┤
 │                                                      │
-│  従来型                    AI時代                     │
-│  ──────                   ──────                     │
+│  Traditional              AI Era                     │
+│  ───────────             ──────                      │
 │                                                      │
-│  要件定義    ──────>   AI支援要件分析                 │
-│  (数日)                (数時間 + LLMレビュー)         │
+│  Requirements  ──────>   AI-Assisted Req. Analysis   │
+│  (Days)                  (Hours + LLM Review)        │
 │                                                      │
-│  設計       ──────>   AI生成設計案 + 人間レビュー     │
-│  (数日)                (数時間)                       │
+│  Design       ──────>   AI-Generated Design          │
+│  (Days)                  + Human Review (Hours)      │
 │                                                      │
-│  実装       ──────>   AI補完/生成 + 人間監督         │
-│  (数週間)              (数日)                        │
+│  Implementation ─────>  AI Completion/Generation     │
+│  (Weeks)                 + Human Oversight (Days)    │
 │                                                      │
-│  レビュー    ──────>   AI事前レビュー + 人間承認      │
-│  (数日)                (数時間)                       │
+│  Review       ──────>   AI Pre-Review                │
+│  (Days)                  + Human Approval (Hours)    │
 │                                                      │
-│  テスト      ──────>   AIテスト生成 + 人間検証       │
-│  (数日)                (数時間)                       │
+│  Testing      ──────>   AI Test Generation           │
+│  (Days)                  + Human Verification (Hours)│
 │                                                      │
-│  デバッグ    ──────>   AIエラー分析 + 人間判断       │
-│  (不定)                (大幅短縮)                     │
+│  Debugging    ──────>   AI Error Analysis            │
+│  (Variable)              + Human Judgment (Much Less)│
 │                                                      │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 1.2 チームにおけるAIの役割分類
+### 1.2 Classification of AI Roles Within a Team
 
 ```
 ┌───────────────────────────────────────────────┐
-│         チーム内AIの役割マトリクス               │
+│       AI Role Matrix Within the Team          │
 ├───────────────────────────────────────────────┤
 │                                               │
-│  [ペアプログラマ]     [レビュアー]             │
-│  ・コード補完         ・静的解析              │
-│  ・リファクタリング    ・セキュリティチェック   │
-│  ・バグ修正提案       ・コード品質評価        │
+│  [Pair Programmer]       [Reviewer]           │
+│  - Code completion       - Static analysis    │
+│  - Refactoring           - Security checks    │
+│  - Bug fix suggestions   - Code quality eval  │
 │                                               │
-│  [ドキュメンター]     [テスター]              │
-│  ・API文書自動生成    ・テストケース生成      │
-│  ・READMEメンテ       ・エッジケース発見      │
-│  ・コメント整理       ・回帰テスト提案        │
+│  [Documenter]            [Tester]             │
+│  - Auto API doc gen      - Test case gen      │
+│  - README maintenance    - Edge case discovery│
+│  - Comment organization  - Regression test    │
 │                                               │
-│  [アーキテクト補助]   [ナレッジベース]         │
-│  ・設計パターン提案    ・コード検索            │
-│  ・依存関係分析       ・過去事例の検索        │
-│  ・技術選定支援       ・暗黙知の形式知化      │
+│  [Architect Assistant]   [Knowledge Base]     │
+│  - Design pattern        - Code search        │
+│    suggestions           - Past case search   │
+│  - Dependency analysis   - Formalizing tacit   │
+│  - Tech selection assist   knowledge          │
 │                                               │
 └───────────────────────────────────────────────┘
 ```
 
 ---
 
-## 2. AIペアプログラミングの実践
+## 2. Practicing AI Pair Programming
 
-### 2.1 効果的なAIペアプロの原則
+### 2.1 Principles for Effective AI Pair Programming
 
-| 原則 | 説明 | 具体例 |
-|------|------|-------|
-| 人間が舵を取る | AIは提案者、人間が最終判断 | AIの生成コードを必ずレビュー |
-| コンテキストを最大化 | AIに十分な文脈を与える | 関連ファイル、仕様書、テストを提供 |
-| 段階的に依頼 | 大きなタスクを分割して依頼 | 関数単位→クラス単位→モジュール単位 |
-| 検証可能な粒度 | 人間が検証できる量に制限 | 一度に100行以下のコード生成 |
-| 学習機会の確保 | AIに丸投げせず理解する | 生成コードの意図を説明させる |
+| Principle | Description | Example |
+|-----------|-------------|---------|
+| Humans steer | AI proposes, humans make final decisions | Always review AI-generated code |
+| Maximize context | Provide AI with sufficient context | Supply related files, specs, and tests |
+| Delegate incrementally | Break large tasks into smaller requests | Function-level -> Class-level -> Module-level |
+| Verifiable granularity | Limit output to a human-verifiable amount | Generate no more than 100 lines at a time |
+| Preserve learning opportunities | Don't fully delegate to AI; understand the output | Ask AI to explain the intent of generated code |
 
-### 2.2 プロンプトテンプレートのチーム共有
+### 2.2 Sharing Prompt Templates Across the Team
 
 ```yaml
 # .ai/prompts/code-review.yaml
-# チーム共有プロンプトテンプレート
-name: コードレビュー依頼
-description: PRのコードレビューをAIに依頼する標準テンプレート
+# Shared team prompt template
+name: Code Review Request
+description: Standard template for requesting AI code review on a PR
 template: |
-  以下のPull Requestをレビューしてください。
+  Please review the following Pull Request.
 
-  ## コンテキスト
-  - プロジェクト: {{project_name}}
-  - 機能概要: {{feature_description}}
-  - 対象ファイル: {{changed_files}}
+  ## Context
+  - Project: {{project_name}}
+  - Feature overview: {{feature_description}}
+  - Target files: {{changed_files}}
 
-  ## レビュー観点
-  1. ロジックの正当性
-  2. エッジケースの考慮
-  3. パフォーマンスへの影響
-  4. セキュリティリスク
-  5. コーディング規約の遵守
-  6. テストの十分性
+  ## Review criteria
+  1. Correctness of logic
+  2. Edge case consideration
+  3. Performance impact
+  4. Security risks
+  5. Coding standards compliance
+  6. Test sufficiency
 
-  ## コーディング規約
+  ## Coding standards
   - {{coding_standards_url}}
 
-  ## 変更差分
+  ## Change diff
   ```diff
   {{diff_content}}
   ```
 
-  ## 期待する出力
-  - 重要度(Critical/Major/Minor)付きの指摘リスト
-  - 各指摘に対する修正案
-  - 全体的な評価コメント
+  ## Expected output
+  - List of issues with severity (Critical/Major/Minor)
+  - Suggested fix for each issue
+  - Overall assessment comment
 
 variables:
   - project_name
@@ -136,10 +137,10 @@ variables:
   - diff_content
 ```
 
-### 2.3 AIペアプロのセッション管理
+### 2.3 AI Pair Programming Session Management
 
 ```python
-# AIペアプロセッション管理ツール
+# AI pair programming session management tool
 import json
 from datetime import datetime
 from pathlib import Path
@@ -147,10 +148,10 @@ from dataclasses import dataclass, field, asdict
 
 @dataclass
 class AISession:
-    """AIペアプロセッションの記録"""
+    """Record of an AI pair programming session"""
     session_id: str
     developer: str
-    ai_tool: str                # Claude, GPT, Copilot等
+    ai_tool: str                # Claude, GPT, Copilot, etc.
     task_type: str              # feature, bugfix, refactor, test
     start_time: str = field(default_factory=lambda: datetime.now().isoformat())
     end_time: str = ""
@@ -167,14 +168,14 @@ class AISession:
         return self.accepted_suggestions / total if total > 0 else 0.0
 
 class AISessionTracker:
-    """チーム全体のAIセッションを追跡"""
+    """Track AI sessions across the entire team"""
 
     def __init__(self, log_dir: str = ".ai/sessions"):
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
 
     def start_session(self, developer: str, ai_tool: str, task_type: str) -> AISession:
-        """新しいセッションを開始"""
+        """Start a new session"""
         session_id = f"{developer}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         session = AISession(
             session_id=session_id,
@@ -185,7 +186,7 @@ class AISessionTracker:
         return session
 
     def end_session(self, session: AISession, rating: int = 3):
-        """セッションを終了して保存"""
+        """End a session and save it"""
         session.end_time = datetime.now().isoformat()
         session.effectiveness_rating = rating
 
@@ -194,7 +195,7 @@ class AISessionTracker:
             json.dump(asdict(session), f, indent=2, ensure_ascii=False)
 
     def team_stats(self) -> dict:
-        """チーム全体の統計を集計"""
+        """Aggregate statistics for the entire team"""
         sessions = []
         for path in self.log_dir.glob("*.json"):
             with open(path) as f:
@@ -233,44 +234,45 @@ class AISessionTracker:
 
 ---
 
-## 3. AIを活用したコードレビュー
+## 3. Code Review with AI
 
-### 3.1 AI+人間の二段階レビューフロー
+### 3.1 Two-Stage Review Flow: AI + Human
 
 ```
-PR作成
-  │
+PR Created
+  |
   v
 ┌──────────────────────┐
-│  Stage 1: AIレビュー  │  (自動実行、数分)
+│  Stage 1: AI Review   │  (Automated, minutes)
 ├──────────────────────┤
-│ ・静的解析            │
-│ ・セキュリティスキャン │
-│ ・コーディング規約     │
-│ ・テストカバレッジ     │
-│ ・パフォーマンス懸念   │
+│ - Static analysis     │
+│ - Security scan       │
+│ - Coding standards    │
+│ - Test coverage       │
+│ - Performance concerns│
 └──────────────────────┘
-  │
-  │ AI指摘のうち
-  │ Critical → 即ブロック
-  │ Major/Minor → コメント
-  │
+  |
+  | Among AI findings:
+  | Critical -> Immediate block
+  | Major/Minor -> Comment
+  |
   v
 ┌──────────────────────┐
-│  Stage 2: 人間レビュー │  (指名レビュアー)
+│ Stage 2: Human Review │  (Assigned reviewer)
 ├──────────────────────┤
-│ ・ビジネスロジック     │
-│ ・設計判断             │
-│ ・ユーザー体験         │
-│ ・チーム方針との整合    │
-│ ・AI指摘の妥当性確認   │
+│ - Business logic      │
+│ - Design decisions    │
+│ - User experience     │
+│ - Alignment with      │
+│   team policies       │
+│ - Validate AI findings│
 └──────────────────────┘
-  │
+  |
   v
-マージ判断
+Merge Decision
 ```
 
-### 3.2 GitHub Actions による自動AIレビュー
+### 3.2 Automated AI Review with GitHub Actions
 
 ```yaml
 # .github/workflows/ai-review.yml
@@ -306,7 +308,7 @@ jobs:
             const fs = require('fs');
             const diff = fs.readFileSync('/tmp/diff.txt', 'utf8');
 
-            // AIレビュー実行（Anthropic API呼び出し）
+            // Execute AI review (Anthropic API call)
             const response = await fetch('https://api.anthropic.com/v1/messages', {
               method: 'POST',
               headers: {
@@ -319,9 +321,9 @@ jobs:
                 max_tokens: 4096,
                 messages: [{
                   role: 'user',
-                  content: `以下のdiffをレビューしてください。
-                    重要度(Critical/Major/Minor)付きで指摘し、
-                    修正案を提示してください。\n\n${diff}`
+                  content: `Please review the following diff.
+                    Provide findings with severity (Critical/Major/Minor)
+                    and suggest fixes.\n\n${diff}`
                 }],
               }),
             });
@@ -329,7 +331,7 @@ jobs:
             const result = await response.json();
             const review = result.content[0].text;
 
-            // PRにコメント投稿
+            // Post comment on the PR
             await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -340,60 +342,60 @@ jobs:
 
 ---
 
-## 4. チーム生産性メトリクス
+## 4. Team Productivity Metrics
 
-### 4.1 AI活用の効果測定
+### 4.1 Measuring the Impact of AI Adoption
 
-| メトリクス | 測定方法 | AI導入前の目安 | AI導入後の目安 |
-|-----------|---------|--------------|--------------|
-| PR作成〜マージ時間 | GitHubメトリクス | 2-5日 | 0.5-2日 |
-| コードレビュー時間 | レビュー開始〜承認 | 4-8時間 | 1-3時間 |
-| バグ検出率(レビュー) | レビュー指摘/全バグ | 30-50% | 50-70% |
-| テストカバレッジ | CI計測 | 60-70% | 75-85% |
-| 開発者満足度 | 月次サーベイ | ベースライン | +15-30% |
-| 1人あたりPR数/週 | GitHub統計 | 3-5件 | 5-10件 |
-| ドキュメント更新率 | コミット連動 | 20-30% | 60-80% |
+| Metric | Measurement Method | Pre-AI Baseline | Post-AI Baseline |
+|--------|-------------------|----------------|-----------------|
+| PR creation to merge time | GitHub metrics | 2-5 days | 0.5-2 days |
+| Code review time | Review start to approval | 4-8 hours | 1-3 hours |
+| Bug detection rate (review) | Review findings / total bugs | 30-50% | 50-70% |
+| Test coverage | CI measurement | 60-70% | 75-85% |
+| Developer satisfaction | Monthly survey | Baseline | +15-30% |
+| PRs per person per week | GitHub stats | 3-5 | 5-10 |
+| Documentation update rate | Commit-linked | 20-30% | 60-80% |
 
-### 4.2 DORA メトリクスへの影響
+### 4.2 Impact on DORA Metrics
 
 ```
-              AI導入の影響
-              ────────────
+              Impact of AI Adoption
+              ─────────────────────
 
-  デプロイ頻度       ▲▲▲  大幅改善
-  (週1→日複数回)
+  Deployment Frequency  ▲▲▲  Significant improvement
+  (Weekly -> Multiple/day)
 
-  変更リードタイム    ▲▲▲  大幅改善
-  (数日→数時間)
+  Lead Time for Changes ▲▲▲  Significant improvement
+  (Days -> Hours)
 
-  変更失敗率         ▲▲   改善
-  (15%→8%)
+  Change Failure Rate   ▲▲   Improvement
+  (15% -> 8%)
 
-  復旧時間           ▲    やや改善
-  (数時間→1時間)
+  Time to Restore       ▲    Slight improvement
+  (Hours -> 1 hour)
 
-  ▲▲▲ = 大幅改善  ▲▲ = 改善  ▲ = やや改善
+  ▲▲▲ = Significant  ▲▲ = Improvement  ▲ = Slight improvement
 ```
 
 ---
 
-## 5. AIリテラシー格差の解消
+## 5. Bridging AI Literacy Gaps
 
-### 5.1 チームAIスキルマトリクス
+### 5.1 Team AI Skill Matrix
 
 ```python
-# チームAIスキル評価・可視化ツール
+# Team AI skill assessment and visualization tool
 from dataclasses import dataclass
 
 @dataclass
 class AISkillAssessment:
-    """開発者のAIスキル評価"""
+    """AI skill assessment for a developer"""
     developer: str
-    prompt_engineering: int    # 1-5: プロンプト設計力
-    tool_proficiency: int      # 1-5: AIツール操作力
-    output_evaluation: int     # 1-5: AI出力の評価力
-    workflow_integration: int  # 1-5: ワークフロー統合力
-    teaching_ability: int      # 1-5: 他者への指導力
+    prompt_engineering: int    # 1-5: Prompt design ability
+    tool_proficiency: int      # 1-5: AI tool proficiency
+    output_evaluation: int     # 1-5: AI output evaluation ability
+    workflow_integration: int  # 1-5: Workflow integration ability
+    teaching_ability: int      # 1-5: Ability to mentor others
 
     @property
     def total_score(self) -> int:
@@ -418,9 +420,9 @@ class AISkillAssessment:
             return "AI Beginner"
 
 def generate_skill_matrix(team: list[AISkillAssessment]) -> str:
-    """チームスキルマトリクスをテキスト表示"""
+    """Display the team skill matrix as text"""
     header = (
-        f"{'名前':12s} {'Prompt':8s} {'Tool':8s} "
+        f"{'Name':12s} {'Prompt':8s} {'Tool':8s} "
         f"{'Eval':8s} {'Flow':8s} {'Teach':8s} {'Level':16s}"
     )
     lines = [header, "-" * len(header)]
@@ -439,33 +441,33 @@ def generate_skill_matrix(team: list[AISkillAssessment]) -> str:
     return "\n".join(lines)
 ```
 
-### 5.2 ペアローテーション制度
+### 5.2 Pair Rotation System
 
 ```
-週次AIペアローテーション
+Weekly AI Pair Rotation
 ──────────────────────
 
 Week 1: Champion + Beginner
-  → 基本操作の伝授、プロンプトの書き方
+  -> Teach basic operations and prompt writing
 
 Week 2: Practitioner + Learner
-  → 実タスクでのAI活用、ワークフロー統合
+  -> AI usage in real tasks, workflow integration
 
 Week 3: Champion + Practitioner
-  → 高度なテクニック共有、ツール評価
+  -> Share advanced techniques, evaluate tools
 
-Week 4: チーム全体ワークショップ
-  → 知見共有会、新ツール評価、プロンプト集更新
+Week 4: Full Team Workshop
+  -> Knowledge sharing session, new tool evaluation, prompt library update
 ```
 
 ---
 
-## 6. AIを活用した知識管理とナレッジベース
+## 6. Knowledge Management and Knowledge Base with AI
 
-### 6.1 チーム知識の構造化・形式知化
+### 6.1 Structuring and Formalizing Team Knowledge
 
 ```python
-# AIを活用したチーム知識管理システム
+# Team knowledge management system powered by AI
 
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -474,32 +476,32 @@ from pathlib import Path
 import json
 
 class KnowledgeType(Enum):
-    DECISION = "decision"           # 設計判断・意思決定
-    PATTERN = "pattern"             # コードパターン・慣習
-    TROUBLESHOOT = "troubleshoot"   # トラブルシューティング
-    DOMAIN = "domain"              # ドメイン知識
-    PROCESS = "process"            # プロセス・手順
-    TOOLING = "tooling"            # ツール使用法
+    DECISION = "decision"           # Design decisions
+    PATTERN = "pattern"             # Code patterns and conventions
+    TROUBLESHOOT = "troubleshoot"   # Troubleshooting
+    DOMAIN = "domain"              # Domain knowledge
+    PROCESS = "process"            # Processes and procedures
+    TOOLING = "tooling"            # Tool usage
 
 @dataclass
 class KnowledgeEntry:
-    """知識ベースのエントリ"""
+    """Knowledge base entry"""
     id: str
     title: str
     knowledge_type: KnowledgeType
     content: str
-    context: str                    # どのような状況で使うか
+    context: str                    # When to use this knowledge
     created_by: str
     created_at: str = field(default_factory=lambda: datetime.now().isoformat())
     tags: list[str] = field(default_factory=list)
     related_files: list[str] = field(default_factory=list)
-    ai_generated: bool = False      # AIが生成した知識か
-    verified_by: str = ""           # 人間の検証者
-    usage_count: int = 0            # 参照回数
+    ai_generated: bool = False      # Whether AI generated this knowledge
+    verified_by: str = ""           # Human verifier
+    usage_count: int = 0            # Reference count
 
 @dataclass
 class TeamKnowledgeBase:
-    """チーム知識ベース管理"""
+    """Team knowledge base management"""
     team_name: str
     entries: list[KnowledgeEntry] = field(default_factory=list)
     kb_dir: Path = field(default_factory=lambda: Path(".ai/knowledge"))
@@ -511,13 +513,13 @@ class TeamKnowledgeBase:
         learning: str,
         related_code: str,
     ) -> KnowledgeEntry:
-        """コードレビューから知識を抽出して登録"""
+        """Extract and register knowledge from a code review"""
         entry = KnowledgeEntry(
             id=f"review-{pr_number}-{len(self.entries)}",
-            title=f"PR #{pr_number} からの学び",
+            title=f"Learnings from PR #{pr_number}",
             knowledge_type=KnowledgeType.PATTERN,
             content=learning,
-            context=f"PR #{pr_number} のレビュー中に発見",
+            context=f"Discovered during review of PR #{pr_number}",
             created_by=reviewer,
             related_files=[related_code],
             tags=["code-review", f"pr-{pr_number}"],
@@ -533,23 +535,23 @@ class TeamKnowledgeBase:
         fix_description: str,
         prevention: str,
     ) -> KnowledgeEntry:
-        """インシデント対応から知識を抽出"""
+        """Extract knowledge from incident response"""
         content = f"""
-## 根本原因
+## Root Cause
 {root_cause}
 
-## 修正内容
+## Fix Applied
 {fix_description}
 
-## 再発防止策
+## Prevention Measures
 {prevention}
 """
         entry = KnowledgeEntry(
             id=f"incident-{incident_id}",
-            title=f"インシデント {incident_id} の教訓",
+            title=f"Lessons from Incident {incident_id}",
             knowledge_type=KnowledgeType.TROUBLESHOOT,
             content=content,
-            context=f"インシデント {incident_id} の事後分析",
+            context=f"Post-mortem analysis of Incident {incident_id}",
             created_by=responder,
             tags=["incident", "postmortem"],
         )
@@ -557,31 +559,31 @@ class TeamKnowledgeBase:
         return entry
 
     def ai_generate_summary(self) -> str:
-        """AIに知識ベースの要約を生成させるためのプロンプト"""
+        """Generate a prompt for AI to summarize the knowledge base"""
         entries_text = "\n".join(
             f"- [{e.knowledge_type.value}] {e.title}: {e.content[:100]}..."
-            for e in self.entries[-20:]  # 直近20件
+            for e in self.entries[-20:]  # Last 20 entries
         )
 
         return f"""
-以下のチーム知識ベースの直近エントリを分析し、
-チームの技術的傾向と改善提案を生成してください。
+Analyze the following recent entries from the team knowledge base
+and generate insights on technical trends and improvement suggestions.
 
-チーム: {self.team_name}
-エントリ数: {len(self.entries)}
+Team: {self.team_name}
+Total entries: {len(self.entries)}
 
-直近のエントリ:
+Recent entries:
 {entries_text}
 
-分析してほしい観点:
-1. 繰り返し発生している問題パターン
-2. チームの技術的強み・弱み
-3. 知識が不足している領域
-4. 推奨するアクション（研修、ツール導入等）
+Please analyze from the following perspectives:
+1. Recurring problem patterns
+2. Team's technical strengths and weaknesses
+3. Areas where knowledge is lacking
+4. Recommended actions (training, tool adoption, etc.)
 """
 
     def search(self, query: str, top_k: int = 5) -> list[KnowledgeEntry]:
-        """知識ベースをキーワード検索"""
+        """Search the knowledge base by keyword"""
         scored = []
         query_lower = query.lower()
         for entry in self.entries:
@@ -600,7 +602,7 @@ class TeamKnowledgeBase:
         return [entry for _, entry in scored[:top_k]]
 
     def save(self) -> None:
-        """知識ベースをファイルに保存"""
+        """Save the knowledge base to files"""
         self.kb_dir.mkdir(parents=True, exist_ok=True)
         for entry in self.entries:
             path = self.kb_dir / f"{entry.id}.json"
@@ -621,17 +623,17 @@ class TeamKnowledgeBase:
                 }, f, indent=2, ensure_ascii=False)
 ```
 
-### 6.2 ADR（Architecture Decision Record）のAI支援
+### 6.2 AI-Assisted ADR (Architecture Decision Record)
 
 ```python
-# AIを活用したADR（アーキテクチャ決定記録）管理
+# AI-assisted ADR (Architecture Decision Record) management
 
 from dataclasses import dataclass, field
 from datetime import date
 
 @dataclass
 class ADREntry:
-    """アーキテクチャ決定記録"""
+    """Architecture Decision Record"""
     number: int
     title: str
     status: str  # "proposed", "accepted", "deprecated", "superseded"
@@ -640,10 +642,10 @@ class ADREntry:
     decision: str
     consequences: str
     alternatives_considered: list[str] = field(default_factory=list)
-    ai_analysis: str = ""  # AIによるトレードオフ分析
+    ai_analysis: str = ""  # Trade-off analysis by AI
 
 class ADRManager:
-    """ADR管理ツール"""
+    """ADR management tool"""
 
     def __init__(self, adr_dir: str = "docs/adr"):
         self.adr_dir = Path(adr_dir)
@@ -655,68 +657,68 @@ class ADRManager:
         context: str,
         options: list[str],
     ) -> str:
-        """ADR作成のためのAIプロンプトを生成"""
+        """Generate an AI prompt for ADR creation"""
         options_text = "\n".join(f"  {i+1}. {opt}" for i, opt in enumerate(options))
 
         return f"""
-以下のアーキテクチャ決定について、ADRを作成してください。
+Please create an ADR for the following architecture decision.
 
-## タイトル
+## Title
 {title}
 
-## コンテキスト
+## Context
 {context}
 
-## 検討中の選択肢
+## Options Under Consideration
 {options_text}
 
-以下の形式で出力してください:
+Please output in the following format:
 
-### 各選択肢のトレードオフ分析
-（メリット、デメリット、リスクを具体的に）
+### Trade-off Analysis for Each Option
+(Specific pros, cons, and risks)
 
-### 推奨される決定
-（理由と共に）
+### Recommended Decision
+(With rationale)
 
-### 予測される影響
-（短期的・長期的な影響）
+### Predicted Impact
+(Short-term and long-term impact)
 
-### 将来の見直しトリガー
-（この決定を見直すべき条件）
+### Triggers for Future Review
+(Conditions under which this decision should be revisited)
 """
 
     def generate_adr_markdown(self, entry: ADREntry) -> str:
-        """ADRをMarkdown形式で生成"""
+        """Generate ADR in Markdown format"""
         alternatives = "\n".join(
             f"- {alt}" for alt in entry.alternatives_considered
         )
 
         return f"""# ADR-{entry.number:04d}: {entry.title}
 
-## ステータス
+## Status
 {entry.status}
 
-## 日付
+## Date
 {entry.date}
 
-## コンテキスト
+## Context
 {entry.context}
 
-## 検討した代替案
+## Alternatives Considered
 {alternatives}
 
-## 決定
+## Decision
 {entry.decision}
 
-## AIによるトレードオフ分析
+## AI Trade-off Analysis
 {entry.ai_analysis}
 
-## 結果
+## Consequences
 {entry.consequences}
 """
 
     def save_adr(self, entry: ADREntry) -> Path:
-        """ADRをファイルとして保存"""
+        """Save ADR as a file"""
         filename = f"{entry.number:04d}-{entry.title.replace(' ', '-').lower()}.md"
         path = self.adr_dir / filename
         content = self.generate_adr_markdown(entry)
@@ -726,88 +728,88 @@ class ADRManager:
 
 ---
 
-## 7. AI時代のコミュニケーションプラクティス
+## 7. Communication Practices in the AI Era
 
-### 7.1 AI支援による非同期コミュニケーション
+### 7.1 AI-Assisted Asynchronous Communication
 
 ```yaml
 # .ai/communication/templates.yaml
-# チームコミュニケーション用AIテンプレート
+# AI templates for team communication
 
 templates:
-  # PRの説明文を自動生成
+  # Auto-generate PR descriptions
   pr_description:
-    name: "PR説明文自動生成"
-    trigger: "PR作成時に自動実行"
+    name: "Auto-Generate PR Description"
+    trigger: "Automatically triggered on PR creation"
     prompt: |
-      以下のgit diffから、PR説明文を生成してください。
+      Please generate a PR description from the following git diff.
 
-      ## 形式
-      ### 変更概要
-      （1-2文で変更の目的を説明）
+      ## Format
+      ### Change Summary
+      (Explain the purpose of the change in 1-2 sentences)
 
-      ### 変更内容
-      （箇条書きで具体的な変更を列挙）
+      ### Changes
+      (List specific changes as bullet points)
 
-      ### テスト方法
-      （動作確認の手順）
+      ### How to Test
+      (Steps for verifying the changes)
 
-      ### 影響範囲
-      （この変更が影響するコンポーネント・機能）
+      ### Impact Scope
+      (Components/features affected by this change)
 
-      ### レビュー観点
-      （レビュアーに特に見てほしいポイント）
+      ### Review Focus
+      (Points you especially want the reviewer to examine)
 
       ## diff
       {{diff}}
 
-  # デイリースタンドアップのサマリー生成
+  # Generate daily standup summary
   standup_summary:
-    name: "スタンドアップサマリー"
-    trigger: "毎朝9:00に自動実行"
+    name: "Standup Summary"
+    trigger: "Automatically triggered every morning at 9:00"
     prompt: |
-      以下のチームメンバーのGitHub活動データから、
-      デイリースタンドアップ用のサマリーを生成してください。
+      Please generate a daily standup summary from
+      the following GitHub activity data for team members.
 
-      ## データソース
-      - 昨日のコミット: {{commits}}
-      - オープンPR: {{open_prs}}
-      - マージされたPR: {{merged_prs}}
-      - 新規Issue: {{new_issues}}
+      ## Data Sources
+      - Yesterday's commits: {{commits}}
+      - Open PRs: {{open_prs}}
+      - Merged PRs: {{merged_prs}}
+      - New issues: {{new_issues}}
 
-      ## 出力形式
-      各メンバーについて:
-      - 昨日やったこと
-      - 今日の予定（推測）
-      - ブロッカー（あれば）
+      ## Output Format
+      For each member:
+      - What they did yesterday
+      - What they plan to do today (estimated)
+      - Blockers (if any)
 
-  # Slackでの技術質問への自動回答
+  # Auto-respond to technical questions on Slack
   tech_support:
-    name: "技術質問自動回答"
-    trigger: "#dev-support チャンネルへの投稿"
+    name: "Technical Question Auto-Response"
+    trigger: "Post in #dev-support channel"
     prompt: |
-      以下の技術質問に対して、チームの知識ベースと
-      プロジェクトのドキュメントを参照して回答してください。
+      Please answer the following technical question
+      by referencing the team's knowledge base and project documentation.
 
-      質問: {{question}}
+      Question: {{question}}
 
-      参考ドキュメント: {{relevant_docs}}
-      過去の類似質問: {{similar_questions}}
+      Reference documents: {{relevant_docs}}
+      Similar past questions: {{similar_questions}}
 
-      回答後に「この回答は正確ですか？」と確認を求めてください。
+      After responding, please ask "Is this answer accurate?"
 ```
 
-### 7.2 会議の効率化
+### 7.2 Making Meetings More Efficient
 
 ```python
-# AI支援による会議の効率化ツール
+# AI-assisted meeting efficiency tool
 
 from dataclasses import dataclass, field
 from datetime import datetime
 
 @dataclass
 class MeetingAgenda:
-    """AIが生成する会議アジェンダ"""
+    """AI-generated meeting agenda"""
     title: str
     date: str
     duration_minutes: int
@@ -816,7 +818,7 @@ class MeetingAgenda:
 
 @dataclass
 class MeetingFacilitator:
-    """AI会議ファシリテーター"""
+    """AI meeting facilitator"""
 
     def generate_sprint_review_agenda(
         self,
@@ -825,131 +827,131 @@ class MeetingFacilitator:
         incomplete_stories: list[str],
         metrics: dict,
     ) -> str:
-        """スプリントレビューのアジェンダを自動生成"""
+        """Auto-generate sprint review agenda"""
         completed_list = "\n".join(f"  - {s}" for s in completed_stories)
         incomplete_list = "\n".join(f"  - {s}" for s in incomplete_stories)
 
         return f"""
-# Sprint {sprint_number} レビュー アジェンダ
+# Sprint {sprint_number} Review Agenda
 
-## 1. スプリント概要（5分）
-- 期間: {metrics.get('start_date', 'N/A')} 〜 {metrics.get('end_date', 'N/A')}
-- 計画ポイント: {metrics.get('planned_points', 0)}
-- 完了ポイント: {metrics.get('completed_points', 0)}
-- 達成率: {metrics.get('completion_rate', 0):.0%}
+## 1. Sprint Overview (5 min)
+- Period: {metrics.get('start_date', 'N/A')} - {metrics.get('end_date', 'N/A')}
+- Planned points: {metrics.get('planned_points', 0)}
+- Completed points: {metrics.get('completed_points', 0)}
+- Completion rate: {metrics.get('completion_rate', 0):.0%}
 
-## 2. 完了ストーリーのデモ（20分）
+## 2. Demo of Completed Stories (20 min)
 {completed_list}
 
-## 3. 未完了ストーリーの状況報告（10分）
+## 3. Status Report on Incomplete Stories (10 min)
 {incomplete_list}
 
-## 4. AI活用メトリクス（5分）
-- AIペアプロセッション数: {metrics.get('ai_sessions', 0)}
-- AI生成コード比率: {metrics.get('ai_code_ratio', 0):.0%}
-- AIレビュー指摘の採用率: {metrics.get('ai_review_acceptance', 0):.0%}
+## 4. AI Utilization Metrics (5 min)
+- Number of AI pair programming sessions: {metrics.get('ai_sessions', 0)}
+- AI-generated code ratio: {metrics.get('ai_code_ratio', 0):.0%}
+- AI review finding acceptance rate: {metrics.get('ai_review_acceptance', 0):.0%}
 
-## 5. 振り返り・改善提案（10分）
-- チームからのフィードバック
-- AI活用の改善ポイント
+## 5. Retrospective and Improvement Proposals (10 min)
+- Feedback from the team
+- Areas to improve AI utilization
 
-## 6. 次スプリントの優先事項（10分）
+## 6. Next Sprint Priorities (10 min)
 """
 
     def generate_retro_prompts(self, sprint_metrics: dict) -> str:
-        """レトロスペクティブのAI支援プロンプト"""
+        """Generate AI-assisted retrospective prompts"""
         return f"""
-チームのスプリントメトリクスに基づいて、
-レトロスペクティブの議論のたたき台を生成してください。
+Based on the team's sprint metrics, please generate
+a discussion starting point for the retrospective.
 
-メトリクス:
-- ベロシティ: {sprint_metrics.get('velocity', 'N/A')}
-- テストカバレッジ: {sprint_metrics.get('coverage', 'N/A')}%
-- バグ発生率: {sprint_metrics.get('bug_rate', 'N/A')}件/スプリント
-- PRマージ平均時間: {sprint_metrics.get('pr_merge_time', 'N/A')}時間
-- AI活用度: {sprint_metrics.get('ai_usage', 'N/A')}%
+Metrics:
+- Velocity: {sprint_metrics.get('velocity', 'N/A')}
+- Test coverage: {sprint_metrics.get('coverage', 'N/A')}%
+- Bug rate: {sprint_metrics.get('bug_rate', 'N/A')} per sprint
+- Average PR merge time: {sprint_metrics.get('pr_merge_time', 'N/A')} hours
+- AI utilization rate: {sprint_metrics.get('ai_usage', 'N/A')}%
 
-以下の形式で出力してください:
+Please output in the following format:
 
-### うまくいったこと（Keep）
-- メトリクスから読み取れるポジティブな傾向を3つ
+### What Went Well (Keep)
+- 3 positive trends inferred from the metrics
 
-### 改善すべきこと（Problem）
-- メトリクスから読み取れる課題を3つ
+### What Needs Improvement (Problem)
+- 3 issues inferred from the metrics
 
-### 試したいこと（Try）
-- 具体的な改善アクションを3つ（AI活用の観点含む）
+### What to Try (Try)
+- 3 concrete improvement actions (including AI utilization perspective)
 """
 ```
 
 ---
 
-## 8. チームのAIガバナンスフレームワーク
+## 8. AI Governance Framework for Teams
 
-### 8.1 AIガバナンスポリシーの策定
+### 8.1 Establishing an AI Governance Policy
 
 ```yaml
 # .ai/governance/ai-usage-policy.yaml
-# チームAI利用ポリシー
+# Team AI usage policy
 
 policy:
   version: "2.0"
   last_updated: "2026-02-01"
   approved_by: "Engineering Manager"
 
-  # データセキュリティ
+  # Data security
   data_security:
     allowed_data_types:
-      - "オープンソースコード"
-      - "社内技術ドキュメント（機密以外）"
-      - "テストデータ（匿名化済み）"
+      - "Open source code"
+      - "Internal technical documentation (non-confidential)"
+      - "Test data (anonymized)"
     prohibited_data_types:
-      - "顧客の個人情報（PII）"
-      - "認証情報（APIキー、パスワード、トークン）"
-      - "財務データ（未公開）"
-      - "医療データ"
-      - "契約書・法務文書"
-    encryption_requirement: "転送中のデータはTLS 1.3以上"
+      - "Customer personally identifiable information (PII)"
+      - "Credentials (API keys, passwords, tokens)"
+      - "Financial data (unpublished)"
+      - "Medical data"
+      - "Contracts and legal documents"
+    encryption_requirement: "Data in transit must use TLS 1.3 or higher"
 
-  # AIツール使用ルール
+  # AI tool usage rules
   tool_usage:
     approved_tools:
       - name: "Claude Code"
-        allowed_for: ["コード生成", "レビュー", "テスト", "ドキュメント"]
-        restrictions: "機密コードには使用禁止"
+        allowed_for: ["Code generation", "Review", "Testing", "Documentation"]
+        restrictions: "Prohibited for use with confidential code"
       - name: "GitHub Copilot"
-        allowed_for: ["コード補完", "テスト生成"]
-        restrictions: "Telemetry無効化必須"
+        allowed_for: ["Code completion", "Test generation"]
+        restrictions: "Telemetry must be disabled"
     approval_required_for:
-      - "新しいAIツールの導入"
-      - "AIツールの本番環境への統合"
-      - "カスタムAIモデルのデプロイ"
+      - "Introducing new AI tools"
+      - "Integrating AI tools into production environments"
+      - "Deploying custom AI models"
 
-  # コード品質ルール
+  # Code quality rules
   code_quality:
     ai_generated_code_rules:
-      - "全てのAI生成コードは人間のレビューを通すこと"
-      - "セキュリティクリティカルなコードはシニアエンジニア以上がレビュー"
-      - "AI生成コードにはテストの追加が必須"
-      - "PRの説明にAI支援の範囲を記載"
+      - "All AI-generated code must go through human review"
+      - "Security-critical code must be reviewed by senior engineers or above"
+      - "Tests are mandatory for AI-generated code"
+      - "Describe the scope of AI assistance in the PR description"
     minimum_test_coverage: 80
     mandatory_security_scan: true
 
-  # 監査・記録
+  # Audit and record keeping
   audit:
     log_ai_usage: true
     retention_period_days: 365
     quarterly_review: true
     metrics_tracking:
-      - "AI生成コード比率"
-      - "AI生成コードの欠陥密度"
-      - "AIレビュー指摘の精度"
+      - "AI-generated code ratio"
+      - "Defect density of AI-generated code"
+      - "Accuracy of AI review findings"
 ```
 
-### 8.2 コンプライアンスチェッカー
+### 8.2 Compliance Checker
 
 ```python
-# AIガバナンスポリシーの自動チェックツール
+# Automated AI governance policy compliance checking tool
 
 import re
 from dataclasses import dataclass, field
@@ -957,7 +959,7 @@ from pathlib import Path
 
 @dataclass
 class ComplianceIssue:
-    """コンプライアンス違反"""
+    """Compliance violation"""
     severity: str  # "critical", "warning", "info"
     category: str
     message: str
@@ -965,34 +967,34 @@ class ComplianceIssue:
     line: int = 0
 
 class AIGovernanceChecker:
-    """AIガバナンスポリシーのコンプライアンスチェック"""
+    """Compliance check for AI governance policy"""
 
-    # チェック対象パターン
+    # Patterns to check
     SENSITIVE_PATTERNS = {
         "pii_email": {
             "pattern": r'[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}',
-            "message": "メールアドレスが検出されました",
+            "message": "Email address detected",
             "severity": "critical",
             "exclude_files": ["*.test.*", "*.spec.*"],
         },
         "api_key": {
             "pattern": r'(?:api[_-]?key|apikey)\s*[=:]\s*["\'][a-zA-Z0-9]{20,}',
-            "message": "APIキーのハードコードが検出されました",
+            "message": "Hardcoded API key detected",
             "severity": "critical",
         },
         "password": {
             "pattern": r'(?:password|passwd|pwd)\s*[=:]\s*["\'][^"\']{4,}',
-            "message": "パスワードのハードコードが検出されました",
+            "message": "Hardcoded password detected",
             "severity": "critical",
         },
         "private_key": {
             "pattern": r'-----BEGIN (?:RSA |EC )?PRIVATE KEY-----',
-            "message": "秘密鍵が検出されました",
+            "message": "Private key detected",
             "severity": "critical",
         },
         "ip_address": {
             "pattern": r'\b(?:10|172\.(?:1[6-9]|2\d|3[01])|192\.168)\.\d{1,3}\.\d{1,3}\b',
-            "message": "内部IPアドレスが検出されました",
+            "message": "Internal IP address detected",
             "severity": "warning",
         },
     }
@@ -1001,7 +1003,7 @@ class AIGovernanceChecker:
         self.issues: list[ComplianceIssue] = []
 
     def check_file(self, file_path: Path) -> list[ComplianceIssue]:
-        """ファイルのコンプライアンスチェック"""
+        """Run compliance check on a file"""
         issues = []
         try:
             content = file_path.read_text(encoding="utf-8")
@@ -1009,7 +1011,7 @@ class AIGovernanceChecker:
             return issues
 
         for name, check in self.SENSITIVE_PATTERNS.items():
-            # 除外ファイルの確認
+            # Check file exclusions
             excludes = check.get("exclude_files", [])
             if any(file_path.match(exc) for exc in excludes):
                 continue
@@ -1029,85 +1031,85 @@ class AIGovernanceChecker:
         return issues
 
     def check_pr_description(self, description: str) -> list[ComplianceIssue]:
-        """PRの説明文にAI支援の記載があるかチェック"""
+        """Check if the PR description mentions AI assistance"""
         issues = []
 
-        # AI支援の記載確認
-        ai_keywords = ["AI", "Copilot", "Claude", "GPT", "AI支援", "AI生成"]
+        # Check for AI assistance mention
+        ai_keywords = ["AI", "Copilot", "Claude", "GPT", "AI-assisted", "AI-generated"]
         has_ai_mention = any(kw.lower() in description.lower() for kw in ai_keywords)
 
         if not has_ai_mention:
             issues.append(ComplianceIssue(
                 severity="warning",
                 category="transparency",
-                message="PR説明にAI支援の範囲が記載されていません。"
-                        "AIを使用した場合は記載してください。",
+                message="The PR description does not mention the scope of AI assistance. "
+                        "Please include it if AI was used.",
             ))
 
         self.issues.extend(issues)
         return issues
 
     def generate_report(self) -> str:
-        """コンプライアンスレポートを生成"""
+        """Generate a compliance report"""
         critical = [i for i in self.issues if i.severity == "critical"]
         warnings = [i for i in self.issues if i.severity == "warning"]
         infos = [i for i in self.issues if i.severity == "info"]
 
         lines = [
-            "# AIガバナンス コンプライアンスレポート\n",
-            f"チェック日時: {datetime.now().isoformat()}",
-            f"検出数: Critical {len(critical)}, Warning {len(warnings)}, Info {len(infos)}\n",
+            "# AI Governance Compliance Report\n",
+            f"Check date: {datetime.now().isoformat()}",
+            f"Findings: Critical {len(critical)}, Warning {len(warnings)}, Info {len(infos)}\n",
         ]
 
         if critical:
-            lines.append("## Critical Issues（即座に対応が必要）\n")
+            lines.append("## Critical Issues (Immediate action required)\n")
             for issue in critical:
                 lines.append(f"- [{issue.category}] {issue.message}")
                 if issue.file:
-                    lines.append(f"  ファイル: {issue.file}:{issue.line}")
+                    lines.append(f"  File: {issue.file}:{issue.line}")
 
         if warnings:
-            lines.append("\n## Warnings（確認推奨）\n")
+            lines.append("\n## Warnings (Review recommended)\n")
             for issue in warnings:
                 lines.append(f"- [{issue.category}] {issue.message}")
                 if issue.file:
-                    lines.append(f"  ファイル: {issue.file}:{issue.line}")
+                    lines.append(f"  File: {issue.file}:{issue.line}")
 
         return "\n".join(lines)
 ```
 
 ---
 
-## 9. アンチパターン
+## 9. Anti-Patterns
 
-### 6.1 アンチパターン：AI出力を無検証で採用
-
-```
-NG: AIが生成したコードをコピペしてそのままコミット
-  - セキュリティ脆弱性の混入リスク
-  - プロジェクト固有のパターンとの不整合
-  - テストなしでのデプロイ
-
-OK: AI出力の検証フロー
-  1. AIがコードを生成
-  2. 開発者がロジックを理解・検証
-  3. 既存テストを実行して回帰確認
-  4. 新規テストを追加
-  5. コードレビューで他者の目を通す
-  6. CI/CDパイプラインで自動チェック
-```
-
-**問題点**: AIは自信を持って誤ったコードを生成することがある。特にセキュリティ関連やビジネスロジックでは人間の検証が不可欠。
-
-### 6.2 アンチパターン：チーム内でプロンプトが属人化
+### 9.1 Anti-Pattern: Adopting AI Output Without Verification
 
 ```
-NG: 各自がバラバラのプロンプトでAIを使用
-  - 品質にバラつき
-  - 知見が共有されない
-  - 新メンバーが効果的に使えない
+NG: Copy-pasting AI-generated code and committing it as-is
+  - Risk of introducing security vulnerabilities
+  - Inconsistency with project-specific patterns
+  - Deployment without tests
 
-OK: プロンプトライブラリの共有管理
+OK: AI Output Verification Flow
+  1. AI generates code
+  2. Developer understands and verifies the logic
+  3. Run existing tests for regression check
+  4. Add new tests
+  5. Pass through code review by others
+  6. Automated checks via CI/CD pipeline
+```
+
+**Problem**: AI can confidently generate incorrect code. Human verification is essential, especially for security-related and business logic code.
+
+### 9.2 Anti-Pattern: Prompts Becoming Siloed to Individuals
+
+```
+NG: Each person uses their own ad-hoc prompts with AI
+  - Inconsistent quality
+  - Knowledge not shared
+  - New members can't use AI effectively
+
+OK: Shared prompt library management
   .ai/
   ├── prompts/
   │   ├── code-review.yaml
@@ -1123,50 +1125,50 @@ OK: プロンプトライブラリの共有管理
       └── bug-report.md
 ```
 
-**問題点**: プロンプトの品質がチーム生産性に直結する。個人の暗黙知をチームの形式知に変換し、継続的に改善する仕組みが必要。
+**Problem**: Prompt quality directly impacts team productivity. A mechanism is needed to convert individual tacit knowledge into shared explicit knowledge, with continuous improvement.
 
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1175,26 +1177,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1202,7 +1204,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1213,14 +1215,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Remove by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1228,7 +1230,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1236,44 +1238,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1282,7 +1284,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1297,47 +1299,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup:             {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Configuration file issues | Check the path and format of config files |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Increased data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access permissions | Verify execution user permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Procedure
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form a hypothesis**: List possible causes
+4. **Verify step by step**: Use log output or a debugger to validate hypotheses
+5. **Fix and regression test**: After fixing, also run tests on related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1345,102 +1347,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input and output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps to diagnose when performance issues occur:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O waits**: Examine disk and network I/O status
+4. **Check concurrent connections**: Examine connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem Type | Diagnostic Tool | Countermeasure |
+|-------------|----------------|----------------|
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexing, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the decision criteria when making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criteria | When to Prioritize | When to Compromise |
+|----------|-------------------|-------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│         Architecture Selection Flowchart        │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  (1) Team size?                                 │
+│    ├─ Small (1-5) -> Monolith                   │
+│    └─ Large (10+) -> Go to (2)                  │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  (2) Deployment frequency?                      │
+│    ├─ Weekly or less -> Monolith + Module split  │
+│    └─ Daily/Multiple -> Go to (3)               │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  (3) Team independence?                         │
+│    ├─ High -> Microservices                     │
+│    └─ Moderate -> Modular Monolith              │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A short-term fast approach may become technical debt in the long run
+- Conversely, over-engineering incurs high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified tech stack has lower learning costs
+- Adopting diverse technologies enables the right tool for the right job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction offers better reusability but can make debugging harder
+- Low abstraction is more intuitive but tends to lead to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Create an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1450,17 +1452,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1468,7 +1470,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1476,15 +1478,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
-            icon = "✅" if c['type'] == 'positive' else "⚠️"
+            icon = "+" if c['type'] == 'positive' else "!"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1492,53 +1494,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum viable features
+- Automated testing only for critical paths
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't aim for perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually modernize a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- Create Characterization Tests first if no existing tests
+- Use an API gateway to let old and new systems coexist
+- Perform data migration incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Tasks | Estimated Duration | Risk |
+|-------|-------|-------------------|------|
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration Start | Sequential migration from peripheral features | 3-6 months | Medium |
+| 4. Core Migration | Migration of core features | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development in a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with Domain-Driven Design
+- Set ownership per team
+- Manage common libraries via Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# Inter-team API contract definition
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1551,20 +1553,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """Inter-team API contract"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Verify SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1573,7 +1575,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1594,96 +1596,96 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical System
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system that requires millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: In-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Method | Impact | Implementation Cost | When to Apply |
+|--------------------|--------|-------------------|---------------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low-Medium | High | CPU-bound cases |
 ---
 
 ## 7. FAQ
 
-### Q1: AIツールの選定基準は？
+### Q1: What are the criteria for selecting AI tools?
 
-**A**: チームのAIツール選定では以下の観点で評価する。
+**A**: Evaluate team AI tool selection from the following perspectives.
 
-| 観点 | 重要度 | 例 |
-|------|--------|-----|
-| セキュリティ | 最高 | コードの外部送信ポリシー |
-| 精度 | 高 | 使用言語・フレームワークでの性能 |
-| 統合性 | 高 | IDE/CI/CDとの連携 |
-| コスト | 中 | 人数×単価のROI |
-| 学習コスト | 中 | チーム全員が使えるまでの時間 |
+| Perspective | Importance | Example |
+|-------------|------------|---------|
+| Security | Highest | Policy on sending code externally |
+| Accuracy | High | Performance with your language/framework |
+| Integration | High | Integration with IDE/CI/CD |
+| Cost | Medium | ROI of cost per person |
+| Learning cost | Medium | Time for the entire team to become proficient |
 
-### Q2: AI活用のガバナンスルールはどう設計するか？
+### Q2: How should AI usage governance rules be designed?
 
-**A**: 最低限以下のルールを策定する。(1) 機密コード（認証、暗号化、個人情報処理）へのAI使用制限、(2) AI生成コードの必須レビュー基準、(3) 外部APIへのコード送信に関するセキュリティポリシー、(4) AI出力の著作権・ライセンス取り扱い。これらをチームのContributing Guideに明記する。
+**A**: At a minimum, establish the following rules: (1) Restrictions on AI usage for sensitive code (authentication, encryption, PII processing), (2) Mandatory review criteria for AI-generated code, (3) Security policy regarding sending code to external APIs, (4) Handling of copyright/licensing for AI output. Document these in the team's Contributing Guide.
 
-### Q3: AI導入に抵抗するメンバーへの対応は？
+### Q3: How to handle team members who resist AI adoption?
 
-**A**: (1) 強制せず成功体験を見せる（AIで時間短縮できた実例共有）、(2) AIは代替ではなく拡張であることを強調、(3) 小さなタスク（テスト生成、ドキュメント作成）から始めるよう提案、(4) ペアプロでChampionと組ませる。強制的な導入は逆効果になるため、自然な動機付けを重視する。
+**A**: (1) Show success stories instead of forcing adoption (share real examples where AI saved time), (2) Emphasize that AI is an augmentation, not a replacement, (3) Suggest starting with small tasks (test generation, documentation), (4) Pair them with a Champion for pair programming. Forced adoption is counterproductive; focus on natural motivation.
 
-### Q4: リモートチームでのAI活用のコツは？
+### Q4: Tips for leveraging AI in remote teams?
 
-**A**: (1) 非同期コミュニケーションでのAIレビュー活用（タイムゾーン差をAIが埋める）、(2) 共有プロンプトリポジトリの整備、(3) AIセッションの録画共有（Screen Recording + AI操作の実演）、(4) SlackボットによるAI支援の民主化。
+**A**: (1) Use AI reviews for asynchronous communication (AI bridges timezone gaps), (2) Maintain a shared prompt repository, (3) Share AI session recordings (screen recordings demonstrating AI usage), (4) Democratize AI support via Slack bots.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What common mistakes do beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before proceeding to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## 8. まとめ
-
-| カテゴリ | ポイント |
-|---------|---------|
-| ペアプロ | 人間が舵取り、AIは提案者。コンテキスト最大化が鍵 |
-| コードレビュー | AI事前レビュー+人間最終判断の二段階フロー |
-| 生産性計測 | DORA指標+AI固有メトリクスで効果を可視化 |
-| スキル格差 | スキルマトリクス+ペアローテーションで底上げ |
-| ガバナンス | セキュリティ・品質・ライセンスのルール明文化 |
-| 文化醸成 | 強制より成功体験の共有で自然な導入を促進 |
-| プロンプト共有 | リポジトリ管理で属人化を防止 |
+Knowledge of this topic is frequently used in everyday development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## 8. Summary
 
-- [01-ai-onboarding.md](./01-ai-onboarding.md) — AI時代の開発者オンボーディング
-- AIコーディングアシスタント徹底比較 — ツール選定の詳細
-- プロンプトエンジニアリング for 開発者 — 効果的なプロンプト設計
+| Category | Key Point |
+|----------|-----------|
+| Pair Programming | Humans steer, AI proposes. Maximizing context is the key |
+| Code Review | Two-stage flow: AI pre-review + human final judgment |
+| Productivity Measurement | Visualize effectiveness with DORA metrics + AI-specific metrics |
+| Skill Gap | Level up the team with skill matrices + pair rotation |
+| Governance | Clearly document rules for security, quality, and licensing |
+| Culture Building | Promote natural adoption through sharing success stories rather than forcing |
+| Prompt Sharing | Prevent silos by managing prompts in a repository |
 
 ---
 
-## 参考文献
+## Recommended Next Reads
 
-1. DORA "Accelerate State of DevOps Report" — https://dora.dev/research/
-2. GitHub "The Impact of AI on Developer Productivity" — https://github.blog/news-insights/research/
-3. Anthropic Claude Documentation — https://docs.anthropic.com/
-4. ThoughtWorks Technology Radar — https://www.thoughtworks.com/radar
-5. Martin Fowler, "Continuous Integration" — https://martinfowler.com/articles/continuousIntegration.html
+- [01-ai-onboarding.md](./01-ai-onboarding.md) -- Developer Onboarding in the AI Era
+- AI Coding Assistant Comprehensive Comparison -- Detailed tool selection guide
+- Prompt Engineering for Developers -- Effective prompt design
+
+---
+
+## References
+
+1. DORA "Accelerate State of DevOps Report" -- https://dora.dev/research/
+2. GitHub "The Impact of AI on Developer Productivity" -- https://github.blog/news-insights/research/
+3. Anthropic Claude Documentation -- https://docs.anthropic.com/
+4. ThoughtWorks Technology Radar -- https://www.thoughtworks.com/radar
+5. Martin Fowler, "Continuous Integration" -- https://martinfowler.com/articles/continuousIntegration.html
