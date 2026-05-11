@@ -1,254 +1,254 @@
-# 個人開発者 — 1人AI SaaS、月収100万円
+# Solo Developer — ¥1M/Month with a One-Person AI SaaS
 
-> 個人開発者がAI SaaSで月収100万円を達成するための具体的なロードマップ、技術スタック、マーケティング、運用ノウハウを実例とともに解説する。
-
----
-
-## この章で学ぶこと
-
-1. **1人AI SaaSの設計原則** — 最小限のリソースで最大の価値を生む、個人開発に最適化された設計
-2. **月収100万円達成のロードマップ** — 0→1→10→100万円の各フェーズで取るべきアクション
-3. **持続可能な運用体制** — 1人でも回る自動化、サポート、成長の仕組み
-4. **実践的なコード実装** — 認証、課金、AI機能、モニタリングの具体的実装パターン
-5. **リスク管理と法務** — 個人事業主として押さえるべき法的・税務的な注意点
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [成功事例 — Jasper、Copy.ai、Notion AI](./00-successful-ai-products.md) の内容を理解していること
+> A concrete roadmap, tech stack, marketing strategy, and operational know-how for a solo developer to reach ¥1,000,000/month in revenue with an AI SaaS — illustrated with real-world examples.
 
 ---
 
-## 1. 個人AI SaaSの全体像
+## What You Will Learn
 
-### 1.1 1人開発の成功モデル
+1. **Design principles for a one-person AI SaaS** — Designs optimized for solo development that generate maximum value with minimal resources
+2. **Roadmap to ¥1M/month** — Actions to take at each phase of the 0 → ¥10K → ¥200K → ¥1M journey
+3. **A sustainable operating model** — Automation, support, and growth systems that run with one person
+4. **Practical code implementations** — Concrete implementation patterns for auth, billing, AI features, and monitoring
+5. **Risk management and legal basics** — Legal and tax considerations you must know as a sole proprietor
+
+
+## Prerequisites
+
+The following background knowledge will help you get more out of this guide:
+
+- Basic programming knowledge
+- Understanding of relevant foundational concepts
+- Familiarity with the content in [Successful AI Products — Jasper, Copy.ai, Notion AI](./00-successful-ai-products.md)
+
+---
+
+## 1. Overview of a Solo AI SaaS
+
+### 1.1 The Successful Solo-Developer Model
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│           個人開発 AI SaaS 成功モデル                       │
+│           Solo Developer AI SaaS Success Model           │
 ├──────────────────────────────────────────────────────────┤
 │                                                          │
-│  月収100万円 = 200人 × ¥5,000/月                         │
+│  ¥1M/month = 200 users × ¥5,000/month                   │
 │                                                          │
-│  ┌──────────────┐                                       │
-│  │ ニッチ特化   │ ← 大企業が参入しない小さな市場          │
-│  │ 明確な課題   │ ← 「これがないと困る」レベルの痛み      │
-│  │ AI活用      │ ← AIで10倍の生産性向上を実現            │
-│  │ セルフサーブ │ ← 営業不要、自己登録・自己解決          │
-│  │ 自動化運用  │ ← 週5時間以下の運用で維持               │
-│  └──────────────┘                                       │
+│  ┌──────────────┐                                        │
+│  │ Niche focus  │ ← Small market large companies ignore  │
+│  │ Clear pain   │ ← A problem they "can't live without"  │
+│  │ AI leverage  │ ← 10x productivity gain through AI     │
+│  │ Self-serve   │ ← No sales; self-signup & self-resolve │
+│  │ Automated    │ ← Maintained in under 5 hours/week     │
+│  └──────────────┘                                        │
 │                                                          │
-│  時間配分:                                                │
-│  ┌──────────────────────────────────────────┐           │
-│  │ 開発 40% | マーケ 30% | サポート 15% | 管理 15% │      │
-│  └──────────────────────────────────────────┘           │
+│  Time allocation:                                        │
+│  ┌──────────────────────────────────────────┐            │
+│  │ Dev 40% | Marketing 30% | Support 15% | Admin 15% │   │
+│  └──────────────────────────────────────────┘            │
 └──────────────────────────────────────────────────────────┘
 ```
 
-### 1.2 成功事例の分析
+### 1.2 Analysis of Success Stories
 
-| 事例 | プロダクト | ニッチ | 月収 | 開発期間 |
-|------|----------|--------|------|---------|
-| A氏 | AI履歴書レビュー | 転職活動者 | ¥120万 | 3週間 |
-| B氏 | AIメール返信 | フリーランス | ¥80万 | 1ヶ月 |
-| C氏 | AI契約書チェック | 中小企業 | ¥200万 | 2ヶ月 |
-| D氏 | AI画像背景除去 | ECセラー | ¥150万 | 2週間 |
-| E氏 | AIレシピ生成 | 料理愛好家 | ¥60万 | 1ヶ月 |
-| F氏 | AIコード翻訳 | 開発者 | ¥90万 | 6週間 |
+| Case | Product | Niche | Monthly Revenue | Dev Time |
+|------|---------|-------|----------------|----------|
+| A | AI Resume Review | Job seekers | ¥1.2M | 3 weeks |
+| B | AI Email Reply | Freelancers | ¥800K | 1 month |
+| C | AI Contract Review | SMEs | ¥2M | 2 months |
+| D | AI Background Removal | E-commerce sellers | ¥1.5M | 2 weeks |
+| E | AI Recipe Generator | Home cooks | ¥600K | 1 month |
+| F | AI Code Translator | Developers | ¥900K | 6 weeks |
 
-### 1.3 成功事例の深掘り分析
+### 1.3 Deep-Dive into Success Stories
 
-#### 事例A: AI履歴書レビューサービス
+#### Case A: AI Resume Review Service
 
 ```
-背景:
-  開発者: 元リクルート系エンジニア（経験5年）
-  気付き: 転職エージェントの履歴書添削は1件30分、AIなら10秒
+Background:
+  Developer: Former recruiting-industry engineer (5 years experience)
+  Insight: Resume review by a human recruiter = 30 min/resume; AI = 10 seconds
 
-開発タイムライン:
-  Week 1: Claude API + Next.js でプロトタイプ
-  Week 2: Stripe課金 + ユーザー認証
-  Week 3: LP + Product Hunt 準備
+Development timeline:
+  Week 1: Prototype with Claude API + Next.js
+  Week 2: Stripe billing + user auth
+  Week 3: Landing page + Product Hunt prep
 
-ビジネスモデル:
-  無料プラン: 月3回のレビュー（基本的なフィードバック）
-  Proプラン: ¥4,980/月（無制限レビュー + 業界別最適化 + ATS対策）
-  Premiumプラン: ¥9,800/月（英語レビュー + LinkedIn最適化）
+Business model:
+  Free plan:    3 reviews/month (basic feedback)
+  Pro plan:     ¥4,980/month (unlimited reviews + industry-specific optimization + ATS tips)
+  Premium plan: ¥9,800/month (English reviews + LinkedIn optimization)
 
-成長軌跡:
-  Month 1: 無料ユーザー 200人、有料 5人（MRR ¥25,000）
-  Month 2: 無料 800人、有料 30人（MRR ¥150,000）
-  Month 3: 無料 2,000人、有料 80人（MRR ¥400,000）
-  Month 6: 無料 5,000人、有料 250人（MRR ¥1,200,000）
+Growth trajectory:
+  Month 1: 200 free users, 5 paid (MRR ¥25,000)
+  Month 2: 800 free, 30 paid (MRR ¥150,000)
+  Month 3: 2,000 free, 80 paid (MRR ¥400,000)
+  Month 6: 5,000 free, 250 paid (MRR ¥1,200,000)
 
-成功要因:
-  1. 転職市場は年間を通じて一定の需要がある
-  2. 履歴書は「不安」が購買動機 → 高い転換率
-  3. SEOブログ「転職 履歴書 書き方」で自然流入を確保
-  4. Twitter/Xの #転職活動 ハッシュタグで毎日発信
+Key success factors:
+  1. The job market has steady demand year-round
+  2. Resumes trigger "anxiety" as the buying motive → high conversion rate
+  3. SEO blog ("how to write a resume for job hunting") drives organic traffic
+  4. Daily posts on Twitter/X with #jobhunting hashtag
 ```
 
-#### 事例C: AI契約書チェックサービス
+#### Case C: AI Contract Review Service
 
 ```python
-# AI契約書チェックの核心ロジック（簡略版）
+# Core logic of the AI contract review service (simplified)
 contract_review_system = {
-    "input": "契約書PDF/テキスト",
+    "input": "Contract PDF / text",
     "processing_pipeline": [
         {
-            "step": "文書構造化",
-            "action": "OCR + セクション分割",
-            "tool": "pdf-parse + GPT-4o（画像認識）"
+            "step": "Document structuring",
+            "action": "OCR + section splitting",
+            "tool": "pdf-parse + GPT-4o (image recognition)"
         },
         {
-            "step": "リスク分析",
-            "action": "各条項のリスクスコアリング",
-            "tool": "Claude（法務プロンプト）",
+            "step": "Risk analysis",
+            "action": "Risk scoring for each clause",
+            "tool": "Claude (legal prompt)",
             "prompt_template": """
-あなたは日本の契約法に精通した法務AIアシスタントです。
-以下の契約書条項を分析し、リスクを評価してください。
+You are a legal AI assistant well-versed in Japanese contract law.
+Analyze the following contract clause and evaluate the risk.
 
-【条項】
+[Clause]
 {clause_text}
 
-【評価基準】
-1. 一方的に不利な条項はないか
-2. 損害賠償の上限は適切か
-3. 解約条件は合理的か
-4. 知的財産権の帰属は明確か
-5. 秘密保持義務の範囲は適切か
+[Evaluation criteria]
+1. Are there any one-sidedly unfavorable clauses?
+2. Is the cap on damages appropriate?
+3. Are the termination conditions reasonable?
+4. Is the ownership of intellectual property rights clear?
+5. Is the scope of confidentiality obligations appropriate?
 
-JSON形式で回答してください:
+Reply in JSON format:
 {
   "risk_level": "high/medium/low",
-  "issues": ["問題点のリスト"],
-  "suggestions": ["改善提案のリスト"],
-  "explanation": "平易な日本語での解説"
+  "issues": ["list of issues"],
+  "suggestions": ["list of improvement suggestions"],
+  "explanation": "Plain-language explanation"
 }
 """
         },
         {
-            "step": "レポート生成",
-            "action": "リスクサマリー + 推奨アクション",
-            "output": "PDF/HTML レポート"
+            "step": "Report generation",
+            "action": "Risk summary + recommended actions",
+            "output": "PDF/HTML report"
         }
     ],
-    "pricing_logic": "1契約書あたりの価値: 弁護士依頼 ¥30,000-100,000",
-    "competitive_advantage": "10秒で結果、弁護士の1/10の費用"
+    "pricing_logic": "Value per contract: attorney fee ¥30,000-100,000",
+    "competitive_advantage": "Results in 10 seconds at 1/10 the cost of an attorney"
 }
 ```
 
-### 1.4 個人開発に向いているAI SaaSの特徴
+### 1.4 Characteristics of AI SaaS Products Suited to Solo Development
 
 ```
-向いているプロダクト:
-  ✅ テキスト入力 → AI処理 → テキスト出力（シンプルなI/O）
-  ✅ ターゲットが明確（職種・業種で絞れる）
-  ✅ 既存の手作業を置き換える（価値が明確）
-  ✅ 結果の品質を非専門家でも判断できる
-  ✅ リピート利用がある（月額課金が成立する）
-  ✅ 規制が少ない領域（医療・金融は個人では困難）
+Good fit:
+  ✅ Text in → AI processing → text out (simple I/O)
+  ✅ Well-defined target (filterable by job title or industry)
+  ✅ Replaces an existing manual task (value is obvious)
+  ✅ Even non-experts can judge output quality
+  ✅ Repeat usage exists (monthly subscription is viable)
+  ✅ Low-regulation domain (healthcare and finance are tough for individuals)
 
-向いていないプロダクト:
-  ❌ リアルタイム処理が必要（インフラコスト大）
-  ❌ 大量のトレーニングデータが必要（ファインチューニング前提）
-  ❌ ハードウェア連携が必要（IoT等）
-  ❌ 法規制が厳しい（医療診断、金融アドバイス等）
-  ❌ エンタープライズ営業が必要（個人では無理）
-  ❌ 2-sided marketplace（鶏と卵問題）
+Poor fit:
+  ❌ Requires real-time processing (high infrastructure cost)
+  ❌ Requires large training datasets (fine-tuning assumed)
+  ❌ Requires hardware integration (IoT, etc.)
+  ❌ Heavily regulated (medical diagnosis, financial advice, etc.)
+  ❌ Requires enterprise sales (not feasible solo)
+  ❌ Two-sided marketplace (chicken-and-egg problem)
 ```
 
 ---
 
-## 2. 月収100万円ロードマップ
+## 2. Roadmap to ¥1M/Month
 
-### 2.1 4フェーズモデル
+### 2.1 The Four-Phase Model
 
 ```
 Phase 0 → Phase 1 → Phase 2 → Phase 3
-アイデア    MVP       PMF       スケール
-(2週間)    (4週間)   (2ヶ月)    (継続)
+Idea       MVP       PMF       Scale
+(2 weeks)  (4 weeks) (2 months) (ongoing)
 
-  ¥0       ¥1万     ¥20万      ¥100万+
+  ¥0       ¥10K     ¥200K      ¥1M+
   │         │        │          │
   ▼         ▼        ▼          ▼
 
-  課題発見   最初の    有料       成長の
-  検証      10ユーザー 50ユーザー  自動化
+  Problem   First 10  50 paid   Automate
+  discovery users     users     growth
 ```
 
-### 2.2 Phase 0: アイデア検証（2週間）
+### 2.2 Phase 0: Idea Validation (2 Weeks)
 
 ```python
-# アイデア評価スコアカード
+# Idea evaluation scorecard
 idea_scorecard = {
     "criteria": [
         {
-            "name": "課題の深刻度",
-            "question": "これがないと何時間/何円の損失?",
+            "name": "Severity of the problem",
+            "question": "Without this, how many hours/yen are lost?",
             "weight": 3,
             "score_guide": {
-                5: "月10万円以上の損失 or 月10時間以上の浪費",
-                3: "月5万円 or 月5時間",
-                1: "あると便利だが、なくても困らない"
+                5: "Loss of ¥100K+/month or 10+ hours/month wasted",
+                3: "¥50K/month or 5 hours/month",
+                1: "Nice to have, but not critical"
             }
         },
         {
-            "name": "市場サイズ",
-            "question": "この課題を持つ人は何人?",
+            "name": "Market size",
+            "question": "How many people have this problem?",
             "weight": 2,
             "score_guide": {
-                5: "100万人以上（グローバル）",
-                3: "10万-100万人",
-                1: "1万人未満"
+                5: "1M+ people (global)",
+                3: "100K–1M people",
+                1: "Under 10K people"
             }
         },
         {
-            "name": "AI適合度",
-            "question": "AIで既存の10倍以上改善できる?",
+            "name": "AI fit",
+            "question": "Can AI deliver 10x improvement over existing solutions?",
             "weight": 3,
             "score_guide": {
-                5: "AIなしでは不可能な体験を提供",
-                3: "AIで大幅に効率化",
-                1: "AIを使う意味が薄い"
+                5: "Delivers an experience impossible without AI",
+                3: "AI enables major efficiency gains",
+                1: "Little reason to use AI"
             }
         },
         {
-            "name": "1人開発可能性",
-            "question": "4週間以内にMVPを作れる?",
+            "name": "Solo-dev feasibility",
+            "question": "Can you build an MVP within 4 weeks?",
             "weight": 2,
             "score_guide": {
-                5: "2週間で動くプロトタイプ可能",
-                3: "4週間で可能",
-                1: "3ヶ月以上必要"
+                5: "Working prototype possible in 2 weeks",
+                3: "Possible in 4 weeks",
+                1: "Requires 3+ months"
             }
         },
         {
-            "name": "収益化容易性",
-            "question": "ユーザーは月¥3,000-¥10,000払う?",
+            "name": "Monetization ease",
+            "question": "Will users pay ¥3,000–¥10,000/month?",
             "weight": 3,
             "score_guide": {
-                5: "既にお金を払っている代替手段がある",
-                3: "払う意思を確認済み",
-                1: "無料が当然の領域"
+                5: "An existing paid alternative already exists",
+                3: "Willingness to pay confirmed",
+                1: "Domain where free is the default"
             }
         }
     ],
-    "threshold": 50,  # 65点満点中50点以上で実行
+    "threshold": 50,  # Execute if 50+ out of 65
     "max_score": 65
 }
 ```
 
-#### アイデア検証の具体的手法
+#### Concrete Idea Validation Methods
 
 ```python
-# 検証ステップの実装
+# Validation steps
 class IdeaValidator:
-    """2週間でアイデアを検証するフレームワーク"""
+    """Framework for validating an idea in 2 weeks"""
 
     def __init__(self, idea_name: str, target_audience: str):
         self.idea_name = idea_name
@@ -256,35 +256,35 @@ class IdeaValidator:
         self.validation_results = {}
 
     def week1_demand_validation(self):
-        """Week 1: 需要の検証"""
+        """Week 1: Validate demand"""
         steps = {
             "day_1_2": {
-                "task": "競合調査",
+                "task": "Competitor research",
                 "actions": [
-                    "Google検索で類似サービスを10個リストアップ",
-                    "各サービスの価格・機能・レビューを記録",
-                    "SimilarWebでトラフィック量を調査",
-                    "App StoreレビューやG2で不満点を収集"
+                    "List 10 similar services via Google search",
+                    "Record pricing, features, and reviews for each",
+                    "Research traffic volume with SimilarWeb",
+                    "Collect complaints from App Store reviews and G2"
                 ],
                 "output": "competitive_analysis.md"
             },
             "day_3_4": {
-                "task": "ターゲットインタビュー",
+                "task": "Target audience interviews",
                 "actions": [
-                    "Twitter/XでDMを20人に送る",
-                    "Reddit関連サブレで質問投稿",
-                    "知人・友人ネットワークで5人以上と通話",
-                    "「この問題にいくら払いますか？」を必ず聞く"
+                    "Send DMs to 20 people on Twitter/X",
+                    "Post a question on relevant subreddits",
+                    "Call 5+ people from personal/professional network",
+                    "Always ask: 'How much would you pay to solve this?'"
                 ],
                 "output": "interview_notes.md"
             },
             "day_5_7": {
-                "task": "ランディングページテスト",
+                "task": "Landing page test",
                 "actions": [
-                    "Carrd.co で1ページLP作成（30分）",
-                    "「近日公開」+ メール登録フォーム",
-                    "Twitter広告 ¥5,000 でLP誘導テスト",
-                    "メール登録率 10%以上なら需要あり"
+                    "Build a one-page LP on Carrd.co (30 minutes)",
+                    "'Coming soon' + email signup form",
+                    "Run a ¥5,000 Twitter ad to drive traffic to LP",
+                    "10%+ email signup rate = demand confirmed"
                 ],
                 "output": "lp_conversion_data.csv"
             }
@@ -292,40 +292,40 @@ class IdeaValidator:
         return steps
 
     def week2_technical_validation(self):
-        """Week 2: 技術的実現可能性の検証"""
+        """Week 2: Validate technical feasibility"""
         steps = {
             "day_8_9": {
-                "task": "AI精度テスト",
+                "task": "AI accuracy test",
                 "actions": [
-                    "Claude/GPT-4 APIで10件のサンプル処理",
-                    "出力品質を5段階評価",
-                    "プロンプトの最適化（3回以上イテレーション）",
-                    "合格基準: 80%以上が4以上の評価"
+                    "Process 10 sample inputs with Claude/GPT-4 API",
+                    "Rate output quality on a 1–5 scale",
+                    "Optimize prompts (3+ iterations)",
+                    "Pass criteria: 80%+ rated 4 or above"
                 ]
             },
             "day_10_11": {
-                "task": "コスト試算",
+                "task": "Cost estimation",
                 "actions": [
-                    "API呼び出し1回あたりのトークン数を計測",
-                    "月200ユーザー × 平均利用回数 でAPI費用算出",
-                    "粗利率70%以上を確認",
-                    "スケール時のコスト変動もシミュレーション"
+                    "Measure token count per API call",
+                    "Calculate API cost for 200 users × avg usage frequency",
+                    "Confirm gross margin of 70%+",
+                    "Simulate cost changes at scale"
                 ]
             },
             "day_12_14": {
-                "task": "プロトタイプ作成",
+                "task": "Prototype",
                 "actions": [
-                    "Streamlit/Gradio で動くデモ作成",
-                    "Week 1のインタビュー対象者に見せる",
-                    "「お金を払いますか？」の最終確認",
-                    "Go/No-Go 判定"
+                    "Build a working demo with Streamlit/Gradio",
+                    "Show it to Week 1 interviewees",
+                    "Final check: 'Would you pay for this?'",
+                    "Go/No-Go decision"
                 ]
             }
         }
         return steps
 
     def go_nogo_decision(self, metrics: dict) -> str:
-        """Go/No-Go判定"""
+        """Go/No-Go decision"""
         criteria = {
             "lp_conversion_rate": (metrics.get("lp_signups", 0) /
                                    max(metrics.get("lp_visitors", 1), 1)),
@@ -336,73 +336,73 @@ class IdeaValidator:
         }
 
         go_conditions = [
-            criteria["lp_conversion_rate"] >= 0.10,     # LP転換率10%以上
-            criteria["interview_willingness"] >= 0.50,    # 50%以上が支払い意思あり
-            criteria["ai_quality_score"] >= 4.0,          # AI品質4.0/5.0以上
-            criteria["gross_margin"] >= 0.70,             # 粗利率70%以上
+            criteria["lp_conversion_rate"] >= 0.10,     # LP conversion rate 10%+
+            criteria["interview_willingness"] >= 0.50,    # 50%+ willing to pay
+            criteria["ai_quality_score"] >= 4.0,          # AI quality 4.0/5.0+
+            criteria["gross_margin"] >= 0.70,             # Gross margin 70%+
         ]
 
         passed = sum(go_conditions)
         if passed >= 4:
-            return "GO: 全条件クリア。MVP開発に進む"
+            return "GO: All conditions met. Proceed to MVP development."
         elif passed >= 3:
-            return "CONDITIONAL GO: 弱い条件を改善しつつMVP開発"
+            return "CONDITIONAL GO: Improve weak conditions while building MVP."
         else:
-            return "NO-GO: アイデアを見直すか別のアイデアへ"
+            return "NO-GO: Rethink the idea or move to a different one."
 ```
 
-### 2.3 Phase 1: MVP構築（4週間）
+### 2.3 Phase 1: Build the MVP (4 Weeks)
 
 ```python
-# 個人開発者向け最速MVPスタック
+# Fastest MVP stack for solo developers
 solo_dev_stack = {
     "week_1": {
         "tasks": [
-            "Next.js プロジェクト初期化",
-            "Supabase セットアップ（DB + Auth）",
-            "Stripe 接続（テストモード）",
-            "LP作成（1ページ）"
+            "Initialize Next.js project",
+            "Set up Supabase (DB + Auth)",
+            "Connect Stripe (test mode)",
+            "Create landing page (single page)"
         ],
         "tools": "Next.js 14 + shadcn/ui + Supabase + Stripe"
     },
     "week_2": {
         "tasks": [
-            "コアAI機能の実装（1機能のみ）",
-            "OpenAI/Claude API 統合",
-            "入力フォーム → AI処理 → 結果表示",
-            "エラーハンドリング"
+            "Implement core AI feature (one feature only)",
+            "Integrate OpenAI/Claude API",
+            "Input form → AI processing → result display",
+            "Error handling"
         ],
         "tools": "Vercel AI SDK + OpenAI API"
     },
     "week_3": {
         "tasks": [
-            "使用量制限（無料10回/月）",
-            "Stripe Checkout 統合",
-            "ユーザーダッシュボード",
-            "基本的な使用量トラッキング"
+            "Usage limits (free: 10/month)",
+            "Stripe Checkout integration",
+            "User dashboard",
+            "Basic usage tracking"
         ],
         "tools": "Stripe + Supabase Edge Functions"
     },
     "week_4": {
         "tasks": [
-            "Vercel デプロイ",
-            "独自ドメイン設定",
-            "基本SEO（タイトル、meta、OGP）",
-            "Product Hunt 準備",
-            "テストと修正"
+            "Deploy to Vercel",
+            "Custom domain setup",
+            "Basic SEO (title, meta, OGP)",
+            "Product Hunt prep",
+            "Testing and bug fixes"
         ],
         "tools": "Vercel + Google Search Console"
     }
 }
 ```
 
-#### Week 1 詳細: プロジェクト初期化
+#### Week 1 Detail: Project Initialization
 
 ```typescript
-// プロジェクト初期化スクリプト
+// Project initialization script
 // npx create-next-app@latest my-ai-saas --typescript --tailwind --app
 
-// src/app/layout.tsx - 基本レイアウト
+// src/app/layout.tsx - Base layout
 import { Inter } from 'next/font/google'
 import { Toaster } from '@/components/ui/toaster'
 import { AuthProvider } from '@/components/auth-provider'
@@ -410,11 +410,11 @@ import { AuthProvider } from '@/components/auth-provider'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata = {
-  title: 'AI SaaS - あなたの[課題]を10倍速く解決',
-  description: 'AIを使って[ターゲット]の[課題]を自動化するサービス',
+  title: 'AI SaaS - Solve Your [Problem] 10x Faster',
+  description: 'An AI-powered service that automates [problem] for [target audience]',
   openGraph: {
-    title: 'AI SaaS - あなたの[課題]を10倍速く解決',
-    description: 'AIを使って[ターゲット]の[課題]を自動化するサービス',
+    title: 'AI SaaS - Solve Your [Problem] 10x Faster',
+    description: 'An AI-powered service that automates [problem] for [target audience]',
     images: ['/og-image.png'],
   },
 }
@@ -425,7 +425,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="ja">
+    <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
           {children}
@@ -438,7 +438,7 @@ export default function RootLayout({
 ```
 
 ```typescript
-// src/lib/supabase/client.ts - Supabaseクライアント設定
+// src/lib/supabase/client.ts - Supabase client setup
 import { createBrowserClient } from '@supabase/ssr'
 
 export function createClient() {
@@ -448,7 +448,7 @@ export function createClient() {
   )
 }
 
-// src/lib/supabase/server.ts - サーバーサイドクライアント
+// src/lib/supabase/server.ts - Server-side client
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
@@ -474,10 +474,10 @@ export function createServerSupabaseClient() {
 }
 ```
 
-#### Week 2 詳細: AI機能実装
+#### Week 2 Detail: Implementing the AI Feature
 
 ```typescript
-// src/app/api/generate/route.ts - AI生成APIルート
+// src/app/api/generate/route.ts - AI generation API route
 import { NextRequest, NextResponse } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
@@ -486,7 +486,7 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 })
 
-// レート制限用のシンプルなインメモリキャッシュ
+// Simple in-memory cache for rate limiting
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>()
 
 function checkRateLimit(userId: string, maxRequests: number = 10): boolean {
@@ -494,7 +494,7 @@ function checkRateLimit(userId: string, maxRequests: number = 10): boolean {
   const userLimit = rateLimitMap.get(userId)
 
   if (!userLimit || now > userLimit.resetAt) {
-    rateLimitMap.set(userId, { count: 1, resetAt: now + 60000 }) // 1分間
+    rateLimitMap.set(userId, { count: 1, resetAt: now + 60000 }) // 1 minute window
     return true
   }
 
@@ -510,7 +510,7 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createServerSupabaseClient()
 
-    // 認証チェック
+    // Auth check
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) {
       return NextResponse.json(
@@ -519,7 +519,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // レート制限チェック
+    // Rate limit check
     if (!checkRateLimit(user.id)) {
       return NextResponse.json(
         { error: 'Rate limit exceeded. Please wait a moment.' },
@@ -527,7 +527,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // 使用量チェック
+    // Usage check
     const currentMonth = new Date().toISOString().slice(0, 7) // "2026-02"
     const { data: usage } = await supabase
       .from('usage')
@@ -538,7 +538,7 @@ export async function POST(request: NextRequest) {
 
     const currentCount = usage?.count || 0
 
-    // プラン別の制限
+    // Plan-based limits
     const { data: profile } = await supabase
       .from('profiles')
       .select('plan')
@@ -562,7 +562,7 @@ export async function POST(request: NextRequest) {
       }, { status: 403 })
     }
 
-    // リクエストボディの取得
+    // Get request body
     const { input, options } = await request.json()
 
     if (!input || typeof input !== 'string' || input.length > 10000) {
@@ -572,7 +572,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    // AI生成
+    // AI generation
     const message = await anthropic.messages.create({
       model: 'claude-sonnet-4-20250514',
       max_tokens: 2048,
@@ -590,7 +590,7 @@ export async function POST(request: NextRequest) {
 
     const tokensUsed = message.usage.input_tokens + message.usage.output_tokens
 
-    // 使用量の更新
+    // Update usage
     await supabase.from('usage').upsert({
       user_id: user.id,
       month: currentMonth,
@@ -600,10 +600,10 @@ export async function POST(request: NextRequest) {
         : tokensUsed,
     })
 
-    // 履歴の保存
+    // Save history
     await supabase.from('history').insert({
       user_id: user.id,
-      input: input.slice(0, 1000), // 保存は先頭1000文字まで
+      input: input.slice(0, 1000), // Save only first 1000 chars
       output: result.slice(0, 2000),
       tokens_used: tokensUsed,
       model: 'claude-sonnet-4-20250514',
@@ -633,56 +633,56 @@ export async function POST(request: NextRequest) {
 }
 
 function buildPrompt(input: string, options?: Record<string, any>): string {
-  // プロダクト固有のプロンプトテンプレート
-  const systemContext = `あなたは[専門分野]のプロフェッショナルです。
-ユーザーの入力を分析し、具体的で実用的なアドバイスを提供してください。
+  // Product-specific prompt template
+  const systemContext = `You are a professional in [domain].
+Analyze the user's input and provide specific, actionable advice.
 
-ルール:
-- 日本語で回答
-- 具体的な数値や例を含める
-- 実行可能なアクションアイテムを提示
-- 専門用語は平易な説明を添える`
+Rules:
+- Reply in English
+- Include specific numbers and examples
+- Present executable action items
+- Add plain-language explanations for technical terms`
 
-  return `${systemContext}\n\n---\n\nユーザー入力:\n${input}`
+  return `${systemContext}\n\n---\n\nUser input:\n${input}`
 }
 ```
 
-### 2.4 Phase 2: PMF達成（2ヶ月）
+### 2.4 Phase 2: Achieving PMF (2 Months)
 
 ```
-PMF達成のための活動:
+PMF-achieving activities:
 
-  Week 1-2: 初期ユーザー獲得
+  Week 1-2: Acquire initial users
   ┌──────────────────────────────────────┐
-  │ ● Twitter/Xで開発過程を公開          │
-  │ ● Reddit/HN の関連サブレに投稿       │
-  │ ● Product Hunt ローンチ               │
-  │ 目標: 無料ユーザー100人              │
+  │ ● Share development progress on Twitter/X  │
+  │ ● Post to relevant Reddit/HN communities   │
+  │ ● Product Hunt launch                      │
+  │ Goal: 100 free users                       │
   └──────────────────────────────────────┘
            │
            ▼
-  Week 3-4: フィードバック収集
+  Week 3-4: Collect feedback
   ┌──────────────────────────────────────┐
-  │ ● ユーザーインタビュー（10人以上）    │
-  │ ● 離脱ポイントの分析                 │
-  │ ● 最も使われる機能の特定             │
-  │ 目標: 「ないと困る」機能を特定        │
+  │ ● User interviews (10+ people)       │
+  │ ● Analyze drop-off points            │
+  │ ● Identify most-used features        │
+  │ Goal: Identify the "can't live without it" feature │
   └──────────────────────────────────────┘
            │
            ▼
-  Week 5-8: 改善と有料化
+  Week 5-8: Improve and monetize
   ┌──────────────────────────────────────┐
-  │ ● コア機能の品質向上                 │
-  │ ● 有料プランの適正価格テスト          │
-  │ ● 紹介プログラム導入                 │
-  │ 目標: 有料ユーザー50人 (月収25万円)   │
+  │ ● Improve core feature quality       │
+  │ ● Test optimal pricing for paid plan │
+  │ ● Launch referral program            │
+  │ Goal: 50 paid users (MRR ¥250K)      │
   └──────────────────────────────────────┘
 ```
 
-#### PMF測定のための実装
+#### Implementation for Measuring PMF
 
 ```python
-# PMFスコア測定システム
+# PMF score measurement system
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Optional
@@ -690,26 +690,26 @@ from typing import Optional
 
 @dataclass
 class PMFMetrics:
-    """PMF達成度を測定するメトリクス"""
+    """Metrics for measuring PMF achievement"""
 
-    # Sean Ellis テスト: 「このプロダクトが使えなくなったらどう感じますか？」
-    very_disappointed_pct: float  # 「とても困る」と答えた割合
+    # Sean Ellis test: "How would you feel if you could no longer use this product?"
+    very_disappointed_pct: float  # % who answered "Very disappointed"
 
-    # エンゲージメント指標
-    dau_mau_ratio: float         # DAU/MAU比率
-    weekly_active_rate: float    # 週次アクティブ率
+    # Engagement metrics
+    dau_mau_ratio: float         # DAU/MAU ratio
+    weekly_active_rate: float    # Weekly active rate
 
-    # リテンション指標
-    day7_retention: float        # 7日後リテンション
-    day30_retention: float       # 30日後リテンション
-    monthly_churn_rate: float    # 月次解約率
+    # Retention metrics
+    day7_retention: float        # Day-7 retention
+    day30_retention: float       # Day-30 retention
+    monthly_churn_rate: float    # Monthly churn rate
 
-    # 成長指標
-    organic_signup_rate: float   # オーガニック登録の割合
+    # Growth metrics
+    organic_signup_rate: float   # % of signups from organic sources
     nps_score: float             # Net Promoter Score
 
     def pmf_score(self) -> float:
-        """PMFスコアを0-100で計算"""
+        """Calculate PMF score 0–100"""
         scores = {
             "sean_ellis": min(self.very_disappointed_pct / 0.40 * 30, 30),
             "engagement": min(self.dau_mau_ratio / 0.20 * 20, 20),
@@ -720,32 +720,32 @@ class PMFMetrics:
         return sum(scores.values())
 
     def pmf_status(self) -> str:
-        """PMFステータスの判定"""
+        """Determine PMF status"""
         score = self.pmf_score()
         if score >= 80:
-            return "Strong PMF - スケール段階に進める"
+            return "Strong PMF - Ready to scale"
         elif score >= 60:
-            return "Early PMF - 改善しつつ慎重にスケール"
+            return "Early PMF - Scale carefully while improving"
         elif score >= 40:
-            return "Pre-PMF - 機能改善に集中"
+            return "Pre-PMF - Focus on feature improvement"
         else:
-            return "No PMF - ピボットを検討"
+            return "No PMF - Consider pivoting"
 
     def improvement_priorities(self) -> list[str]:
-        """改善の優先順位を返す"""
+        """Return improvement priorities"""
         priorities = []
         if self.very_disappointed_pct < 0.40:
-            priorities.append("Sean Ellisスコアが低い: コア価値の明確化が必要")
+            priorities.append("Sean Ellis score low: need to clarify core value")
         if self.day30_retention < 0.20:
-            priorities.append("30日リテンションが低い: オンボーディング改善")
+            priorities.append("Day-30 retention low: improve onboarding")
         if self.monthly_churn_rate > 0.10:
-            priorities.append("チャーン率が高い: 解約理由の調査と対策")
+            priorities.append("Churn rate high: investigate and address cancellation reasons")
         if self.organic_signup_rate < 0.30:
-            priorities.append("オーガニック流入が低い: SEOとバイラル施策")
+            priorities.append("Organic traffic low: SEO and viral tactics needed")
         return priorities
 
 
-# 使用例
+# Usage example
 metrics = PMFMetrics(
     very_disappointed_pct=0.45,
     dau_mau_ratio=0.15,
@@ -757,45 +757,45 @@ metrics = PMFMetrics(
     nps_score=35.0,
 )
 
-print(f"PMFスコア: {metrics.pmf_score():.1f}/100")
-print(f"ステータス: {metrics.pmf_status()}")
-print(f"改善優先: {metrics.improvement_priorities()}")
+print(f"PMF score: {metrics.pmf_score():.1f}/100")
+print(f"Status: {metrics.pmf_status()}")
+print(f"Top improvements: {metrics.improvement_priorities()}")
 ```
 
-### 2.5 Phase 3: スケール（月収100万円へ）
+### 2.5 Phase 3: Scale (Toward ¥1M/Month)
 
 ```python
-# スケール戦略の実装
+# Scaling strategy implementation
 scaling_strategy = {
     "revenue_levers": {
         "increase_users": {
             "current": 50,
             "target": 200,
             "tactics": [
-                "SEOブログ: 週2記事で月間1万PV → 月50登録",
-                "紹介プログラム: 既存ユーザーの20%が1人紹介",
-                "Twitter/X: フォロワー5,000人 → 月30登録",
-                "Product Hunt再ローンチ: 半年後にv2.0で",
+                "SEO blog: 2 articles/week → 10K PV/month → 50 signups/month",
+                "Referral program: 20% of existing users refer 1 person",
+                "Twitter/X: 5,000 followers → 30 signups/month",
+                "Product Hunt re-launch: v2.0 after 6 months",
             ]
         },
         "increase_arpu": {
             "current": 5000,
             "target": 6000,
             "tactics": [
-                "上位プラン追加: ¥9,800/月のPremiumプラン",
-                "年間プラン割引: 月額の80%で年間契約推進",
-                "アドオン機能: API アクセス ¥3,000/月",
-                "利用量ベース課金の追加: 基本枠超過分",
+                "Add higher tier: ¥9,800/month Premium plan",
+                "Annual discount: promote annual contracts at 80% of monthly",
+                "Add-on feature: API access ¥3,000/month",
+                "Usage-based overage billing above base quota",
             ]
         },
         "reduce_churn": {
             "current": 0.08,
             "target": 0.04,
             "tactics": [
-                "解約前アンケート + 特別オファー",
-                "利用減少ユーザーへの自動リエンゲージメント",
-                "機能アップデートの定期告知",
-                "ユーザーコミュニティの構築",
+                "Pre-cancellation survey + special offer",
+                "Automatic re-engagement for users with declining usage",
+                "Regular announcements of feature updates",
+                "Build a user community",
             ]
         }
     },
@@ -809,12 +809,12 @@ scaling_strategy = {
 
 ---
 
-## 3. 技術実装の詳細
+## 3. Technical Implementation Details
 
-### 3.1 最小構成のコード例
+### 3.1 Minimal Code Example
 
 ```python
-# FastAPI での最小AI SaaS バックエンド
+# Minimal AI SaaS backend with FastAPI
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import anthropic
@@ -823,21 +823,21 @@ from supabase import create_client
 
 app = FastAPI()
 
-# 環境変数
+# Environment variables
 ANTHROPIC_KEY = os.getenv("ANTHROPIC_API_KEY")
 STRIPE_KEY = os.getenv("STRIPE_SECRET_KEY")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-# クライアント初期化
+# Initialize clients
 ai = anthropic.Anthropic(api_key=ANTHROPIC_KEY)
 stripe.api_key = STRIPE_KEY
 db = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 @app.post("/api/generate")
 async def generate(request: dict, user=Depends(auth)):
-    """コアAI機能"""
-    # 1. 使用量チェック
+    """Core AI feature"""
+    # 1. Check usage
     usage = db.table("usage").select("count") \
         .eq("user_id", user.id) \
         .eq("month", current_month()).execute()
@@ -851,7 +851,7 @@ async def generate(request: dict, user=Depends(auth)):
             detail={"error": "limit_reached", "upgrade_url": "/pricing"}
         )
 
-    # 2. AI生成
+    # 2. AI generation
     response = ai.messages.create(
         model="claude-sonnet-4-20250514",
         max_tokens=1024,
@@ -863,14 +863,14 @@ async def generate(request: dict, user=Depends(auth)):
 
     result = response.content[0].text
 
-    # 3. 使用量記録
+    # 3. Record usage
     db.table("usage").upsert({
         "user_id": user.id,
         "month": current_month(),
         "count": current + 1
     }).execute()
 
-    # 4. 履歴保存
+    # 4. Save history
     db.table("history").insert({
         "user_id": user.id,
         "input": request["input"],
@@ -881,13 +881,13 @@ async def generate(request: dict, user=Depends(auth)):
     return {"result": result, "remaining": limit - current - 1}
 ```
 
-### 3.2 データベーススキーマ設計
+### 3.2 Database Schema Design
 
 ```sql
--- Supabase用 テーブル定義
--- 個人AI SaaS に必要な最小限のスキーマ
+-- Supabase table definitions
+-- Minimal schema for a solo AI SaaS
 
--- ユーザープロフィール
+-- User profiles
 CREATE TABLE profiles (
     id UUID REFERENCES auth.users(id) PRIMARY KEY,
     email TEXT NOT NULL,
@@ -898,20 +898,20 @@ CREATE TABLE profiles (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 使用量トラッキング
+-- Usage tracking
 CREATE TABLE usage (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES profiles(id) NOT NULL,
-    month TEXT NOT NULL,  -- '2026-02' 形式
+    month TEXT NOT NULL,  -- '2026-02' format
     count INTEGER DEFAULT 0,
     tokens_total BIGINT DEFAULT 0,
-    api_cost_cents INTEGER DEFAULT 0,  -- APIコスト追跡（セント単位）
+    api_cost_cents INTEGER DEFAULT 0,  -- API cost tracking (in cents)
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(user_id, month)
 );
 
--- 生成履歴
+-- Generation history
 CREATE TABLE history (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES profiles(id) NOT NULL,
@@ -924,7 +924,7 @@ CREATE TABLE history (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- フィードバック（PMF測定用）
+-- Feedback (for PMF measurement)
 CREATE TABLE feedback (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     user_id UUID REFERENCES profiles(id) NOT NULL,
@@ -949,13 +949,13 @@ CREATE POLICY "Users can read own usage"
 CREATE POLICY "Users can read own history"
     ON history FOR SELECT USING (auth.uid() = user_id);
 
--- インデックス
+-- Indexes
 CREATE INDEX idx_usage_user_month ON usage(user_id, month);
 CREATE INDEX idx_history_user_created ON history(user_id, created_at DESC);
 CREATE INDEX idx_feedback_type ON feedback(type, created_at DESC);
 ```
 
-### 3.3 Stripe Webhook 実装
+### 3.3 Stripe Webhook Implementation
 
 ```typescript
 // src/app/api/webhooks/stripe/route.ts
@@ -966,7 +966,7 @@ import { createClient } from '@supabase/supabase-js'
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
 const supabase = createClient(
   process.env.SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!  // Webhook はサービスロールキー使用
+  process.env.SUPABASE_SERVICE_ROLE_KEY!  // Webhooks use service role key
 )
 
 export async function POST(request: NextRequest) {
@@ -1054,39 +1054,39 @@ async function handleSubscriptionCanceled(subscription: Stripe.Subscription) {
 }
 
 async function handlePaymentFailed(invoice: Stripe.Invoice) {
-  // 支払い失敗の通知（Resend等でメール送信）
+  // Notify on payment failure (e.g., send email via Resend)
   console.warn(`Payment failed for invoice ${invoice.id}`)
 }
 ```
 
-### 3.4 月額コスト内訳
+### 3.4 Monthly Cost Breakdown
 
 ```
-1人AI SaaS 月額コスト内訳（200ユーザー時）:
+Solo AI SaaS monthly cost breakdown (at 200 users):
 
-  ┌──────────────────────────────────┐
-  │ 項目              │ 月額コスト    │
-  ├──────────────────────────────────┤
-  │ Vercel Pro        │ ¥3,000      │
-  │ Supabase Pro      │ ¥4,000      │
-  │ AI API (Claude)   │ ¥80,000     │ ← 最大コスト
-  │ ドメイン按分       │ ¥200        │
-  │ Sentry            │ ¥0 (無料枠)  │
-  │ PostHog           │ ¥0 (無料枠)  │
-  │ Stripe手数料      │ ¥30,000     │ (3.6%)
-  │ メール (Resend)   │ ¥0 (無料枠)  │
-  ├──────────────────────────────────┤
-  │ 合計              │ ¥117,200    │
-  │ 売上 (200×¥5,000) │ ¥1,000,000  │
-  │ 粗利              │ ¥882,800    │
-  │ 粗利率            │ 88.3%       │
-  └──────────────────────────────────┘
+  ┌──────────────────────────────────────┐
+  │ Item                  │ Monthly Cost  │
+  ├──────────────────────────────────────┤
+  │ Vercel Pro            │ ¥3,000       │
+  │ Supabase Pro          │ ¥4,000       │
+  │ AI API (Claude)       │ ¥80,000      │ ← Largest cost
+  │ Domain (prorated)     │ ¥200         │
+  │ Sentry                │ ¥0 (free tier) │
+  │ PostHog               │ ¥0 (free tier) │
+  │ Stripe fees           │ ¥30,000      │ (3.6%)
+  │ Email (Resend)        │ ¥0 (free tier) │
+  ├──────────────────────────────────────┤
+  │ Total                 │ ¥117,200     │
+  │ Revenue (200×¥5,000)  │ ¥1,000,000   │
+  │ Gross profit          │ ¥882,800     │
+  │ Gross margin          │ 88.3%        │
+  └──────────────────────────────────────┘
 ```
 
-### 3.5 APIコスト最適化テクニック
+### 3.5 API Cost Optimization Techniques
 
 ```python
-# APIコスト削減のための実装パターン
+# Implementation patterns for reducing AI API costs
 
 import hashlib
 import json
@@ -1095,15 +1095,15 @@ from datetime import datetime, timedelta
 
 
 class APICostOptimizer:
-    """AI APIのコストを最適化するユーティリティ"""
+    """Utility for optimizing AI API costs"""
 
     def __init__(self, redis_client=None):
         self.redis = redis_client
-        self.cost_per_1k_input = 0.003   # Claude Sonnet入力: $3/MTok
-        self.cost_per_1k_output = 0.015  # Claude Sonnet出力: $15/MTok
+        self.cost_per_1k_input = 0.003   # Claude Sonnet input: $3/MTok
+        self.cost_per_1k_output = 0.015  # Claude Sonnet output: $15/MTok
 
     def cache_key(self, prompt: str, model: str) -> str:
-        """キャッシュキーの生成"""
+        """Generate cache key"""
         content = f"{model}:{prompt}"
         return f"ai_cache:{hashlib.sha256(content.encode()).hexdigest()}"
 
@@ -1114,15 +1114,15 @@ class APICostOptimizer:
         model: str = "claude-sonnet-4-20250514",
         cache_ttl: int = 3600
     ):
-        """キャッシュ付きAI生成"""
-        # 1. キャッシュチェック
+        """AI generation with caching"""
+        # 1. Check cache
         if self.redis:
             key = self.cache_key(prompt, model)
             cached = await self.redis.get(key)
             if cached:
                 return json.loads(cached), {"cached": True, "cost": 0}
 
-        # 2. API呼び出し
+        # 2. API call
         response = client.messages.create(
             model=model,
             max_tokens=1024,
@@ -1132,7 +1132,7 @@ class APICostOptimizer:
         result = response.content[0].text
         cost = self._calculate_cost(response.usage)
 
-        # 3. キャッシュ保存
+        # 3. Save to cache
         if self.redis:
             await self.redis.setex(
                 key,
@@ -1143,17 +1143,17 @@ class APICostOptimizer:
         return result, {"cached": False, "cost": cost}
 
     def _calculate_cost(self, usage) -> float:
-        """APIコストの計算（USD）"""
+        """Calculate API cost (USD)"""
         input_cost = (usage.input_tokens / 1000) * self.cost_per_1k_input
         output_cost = (usage.output_tokens / 1000) * self.cost_per_1k_output
         return round(input_cost + output_cost, 6)
 
     def select_optimal_model(self, task_complexity: str) -> str:
-        """タスク複雑度に応じた最適モデル選択"""
+        """Select the best model based on task complexity"""
         model_map = {
-            "simple": "claude-haiku-4-20250514",      # 分類、抽出 → 安い
-            "moderate": "claude-sonnet-4-20250514",   # 一般的な生成
-            "complex": "claude-sonnet-4-20250514",    # 高品質な分析
+            "simple": "claude-haiku-4-20250514",      # Classification, extraction → cheap
+            "moderate": "claude-sonnet-4-20250514",   # General generation
+            "complex": "claude-sonnet-4-20250514",    # High-quality analysis
         }
         return model_map.get(task_complexity, "claude-sonnet-4-20250514")
 
@@ -1164,7 +1164,7 @@ class APICostOptimizer:
         avg_input_tokens: int = 500,
         avg_output_tokens: int = 800
     ) -> dict:
-        """月間APIコストの見積もり"""
+        """Estimate monthly API cost"""
         total_requests = users * avg_requests_per_user
         total_input_tokens = total_requests * avg_input_tokens
         total_output_tokens = total_requests * avg_output_tokens
@@ -1172,7 +1172,7 @@ class APICostOptimizer:
         input_cost = (total_input_tokens / 1_000_000) * 3.0    # $3/MTok
         output_cost = (total_output_tokens / 1_000_000) * 15.0  # $15/MTok
         total_usd = input_cost + output_cost
-        total_jpy = total_usd * 150  # 為替レート仮定
+        total_jpy = total_usd * 150  # Assumed exchange rate
 
         return {
             "total_requests": total_requests,
@@ -1184,54 +1184,54 @@ class APICostOptimizer:
         }
 
 
-# コスト見積もり例
+# Cost estimation example
 optimizer = APICostOptimizer()
 estimate = optimizer.estimate_monthly_cost(
     users=200,
-    avg_requests_per_user=30,  # 月30回利用
+    avg_requests_per_user=30,  # 30 uses/month
     avg_input_tokens=500,
     avg_output_tokens=800
 )
-# → { "cost_jpy": 約81,000, "cost_per_request_jpy": 13.5 }
+# → { "cost_jpy": ~81,000, "cost_per_request_jpy": 13.5 }
 ```
 
 ---
 
-## 4. マーケティング（1人でできる方法）
+## 4. Marketing (Methods for One Person)
 
-### 4.1 チャネル優先順位
+### 4.1 Channel Priorities
 
-| 優先度 | チャネル | 工数/週 | 期待効果 | 立ち上がり |
-|--------|---------|---------|---------|-----------|
-| 1 | Twitter/X (Build in Public) | 3h | 高 | 即日 |
-| 2 | SEOブログ | 4h | 最高 | 3ヶ月 |
-| 3 | Product Hunt | 8h (1回) | 中〜高 | 即日 |
-| 4 | Reddit/HN | 2h | 中 | 即日 |
-| 5 | YouTube | 5h | 高 | 2ヶ月 |
-| 6 | IndieHackers | 1h | 中 | 1ヶ月 |
+| Priority | Channel | Effort/week | Expected impact | Ramp-up time |
+|----------|---------|-------------|----------------|--------------|
+| 1 | Twitter/X (Build in Public) | 3h | High | Immediate |
+| 2 | SEO blog | 4h | Highest | 3 months |
+| 3 | Product Hunt | 8h (one-time) | Medium–High | Immediate |
+| 4 | Reddit/HN | 2h | Medium | Immediate |
+| 5 | YouTube | 5h | High | 2 months |
+| 6 | IndieHackers | 1h | Medium | 1 month |
 
-### 4.2 Build in Public 戦略
+### 4.2 Build in Public Strategy
 
 ```python
 build_in_public = {
     "daily_tweets": [
-        "開発進捗（スクショ付き）",
-        "ユーザー数/MRRの公開",
-        "学んだ教訓",
-        "技術的な挑戦と解決策"
+        "Development progress (with screenshots)",
+        "Public user count / MRR",
+        "Lessons learned",
+        "Technical challenges and solutions"
     ],
     "weekly_posts": [
-        "週次レポート（数字付き）",
-        "機能リリースの告知",
-        "ユーザーフィードバックの共有"
+        "Weekly report (with numbers)",
+        "Feature release announcements",
+        "Sharing user feedback"
     ],
     "milestone_posts": [
-        "最初の有料ユーザー獲得",
-        "MRR $1,000 達成",
-        "Product Hunt ローンチ",
-        "月収100万円達成"
+        "First paid user acquired",
+        "MRR $1,000 reached",
+        "Product Hunt launch",
+        "¥1M/month achieved"
     ],
-    "effect": "フォロワー → 初期ユーザー → バイラル拡散",
+    "effect": "Followers → early users → viral spread",
     "example_format": (
         "Day 47 of building [ProductName]:\n\n"
         "This week:\n"
@@ -1244,104 +1244,104 @@ build_in_public = {
 }
 ```
 
-### 4.3 SEOブログ戦略の詳細
+### 4.3 SEO Blog Strategy Details
 
 ```python
-# SEOコンテンツ戦略
+# SEO content strategy
 seo_content_strategy = {
     "keyword_research": {
-        "tools": ["Ubersuggest（無料枠）", "Google Keyword Planner", "AnswerThePublic"],
+        "tools": ["Ubersuggest (free tier)", "Google Keyword Planner", "AnswerThePublic"],
         "target_keywords": {
             "transactional": [
-                "[課題] ツール",
-                "[課題] 自動化",
-                "[課題] 効率化 方法",
+                "[problem] tool",
+                "[problem] automation",
+                "[problem] how to streamline",
             ],
             "informational": [
-                "[課題] とは",
-                "[課題] やり方",
-                "[課題] コツ",
-                "[課題] テンプレート",
+                "what is [problem]",
+                "how to [problem]",
+                "tips for [problem]",
+                "[problem] template",
             ],
             "comparison": [
-                "[競合A] vs [競合B]",
-                "[競合名] 代替",
-                "[競合名] 料金",
+                "[Competitor A] vs [Competitor B]",
+                "[Competitor] alternative",
+                "[Competitor] pricing",
             ]
         },
         "selection_criteria": {
-            "monthly_search_volume": "100-5000（ニッチだが需要あり）",
-            "keyword_difficulty": "30以下（勝てるキーワード）",
-            "commercial_intent": "中〜高",
+            "monthly_search_volume": "100–5,000 (niche but with demand)",
+            "keyword_difficulty": "30 or below (winnable keywords)",
+            "commercial_intent": "Medium–High",
         }
     },
     "content_calendar": {
-        "week_1": "ハウツー記事 × 2",
-        "week_2": "比較記事 × 1 + ユースケース記事 × 1",
-        "week_3": "ハウツー記事 × 2",
-        "week_4": "事例紹介 × 1 + まとめ記事 × 1",
+        "week_1": "How-to articles × 2",
+        "week_2": "Comparison article × 1 + use-case article × 1",
+        "week_3": "How-to articles × 2",
+        "week_4": "Case study × 1 + roundup article × 1",
     },
     "article_template": {
         "structure": [
-            "H1: [キーワード]の完全ガイド【2026年最新版】",
-            "導入: 課題の共感 + 解決策の提示",
-            "H2: [課題]の現状と問題点",
-            "H2: 解決方法3選（自社プロダクトを含む）",
-            "H2: 具体的な手順（スクショ付き）",
-            "H2: よくある質問",
-            "CTA: 無料トライアルへの誘導",
+            "H1: The Complete Guide to [Keyword] [2026 Edition]",
+            "Intro: Empathize with the problem + present solution",
+            "H2: Current state and issues with [problem]",
+            "H2: 3 solutions (include your product)",
+            "H2: Step-by-step guide (with screenshots)",
+            "H2: Frequently asked questions",
+            "CTA: Drive to free trial",
         ],
-        "word_count": "3000-5000文字",
-        "images": "最低5枚（スクショ、図解）",
-        "internal_links": "関連記事2-3本 + LP",
+        "word_count": "2,000–4,000 words",
+        "images": "Minimum 5 (screenshots, diagrams)",
+        "internal_links": "2–3 related articles + LP",
     },
     "expected_results": {
-        "month_1_3": "月間500-1000 PV",
-        "month_4_6": "月間3000-5000 PV",
-        "month_7_12": "月間10000+ PV",
-        "conversion_rate": "PV → 登録: 2-5%",
+        "month_1_3": "500–1,000 PV/month",
+        "month_4_6": "3,000–5,000 PV/month",
+        "month_7_12": "10,000+ PV/month",
+        "conversion_rate": "PV → signup: 2–5%",
     }
 }
 ```
 
-### 4.4 Product Hunt ローンチ戦略
+### 4.4 Product Hunt Launch Strategy
 
 ```python
-# Product Hunt ローンチチェックリスト
+# Product Hunt launch checklist
 product_hunt_launch = {
     "pre_launch_2weeks": [
-        "Hunter（投稿者）を見つける or 自分でHunterになる",
-        "Product Huntアカウントの活動実績を積む（コメント、投票）",
-        "ローンチ用のアセット作成:",
-        "  - ロゴ（240x240px）",
-        "  - サムネイル画像（1270x760px）× 5枚",
-        "  - 紹介動画（60秒以内、Loom推奨）",
-        "  - タグライン（60文字以内の一文）",
-        "  - 説明文（ベネフィット重視、260文字以内）",
-        "「Upcoming」ページを作成して事前フォロワー集め",
+        "Find a Hunter (submitter) or become one yourself",
+        "Build up Product Hunt account activity (comments, upvotes)",
+        "Create launch assets:",
+        "  - Logo (240x240px)",
+        "  - Thumbnail images (1270x760px) × 5",
+        "  - Intro video (under 60s; Loom recommended)",
+        "  - Tagline (one sentence, under 60 chars)",
+        "  - Description (benefit-focused, under 260 chars)",
+        "Create an 'Upcoming' page to gather pre-launch followers",
     ],
     "pre_launch_3days": [
-        "友人・知人にローンチ日を告知",
-        "Twitter/Xでカウントダウン投稿",
-        "Product Hunt コミュニティで関係構築",
-        "ローンチ日を火曜日〜木曜日に設定（競合が少ない日）",
+        "Notify friends and acquaintances of launch date",
+        "Post a countdown on Twitter/X",
+        "Build relationships in the Product Hunt community",
+        "Schedule launch for Tuesday–Thursday (less competition)",
     ],
     "launch_day": {
-        "time": "太平洋時間 12:01 AM（日本時間 17:01）",
+        "time": "12:01 AM Pacific Time (5:01 PM JST)",
         "actions": [
-            "即座にコメント欄で自己紹介と開発ストーリーを投稿",
-            "Twitter/X・LinkedIn・各SNSで告知",
-            "メーリングリストに通知メール送信",
-            "関連Slackコミュニティに共有",
-            "コメントへの返信は全て15分以内に",
-            "1時間ごとにSNSで進捗報告",
+            "Immediately post a self-introduction and origin story in the comments",
+            "Announce on Twitter/X, LinkedIn, and all social channels",
+            "Send notification email to mailing list",
+            "Share in relevant Slack communities",
+            "Reply to all comments within 15 minutes",
+            "Post progress updates on social every hour",
         ]
     },
     "post_launch": [
-        "Top 5入りしたら追加のSNS投稿",
-        "Product Hunt バッジをサイトに掲載",
-        "ローンチ結果の振り返りブログ記事を執筆",
-        "新規ユーザーへのウェルカムメール送信",
+        "Post additional social content if you make Top 5",
+        "Add the Product Hunt badge to your site",
+        "Write a launch retrospective blog post",
+        "Send a welcome email to new users",
     ],
     "success_metrics": {
         "good": "100+ upvotes, Top 10",
@@ -1353,43 +1353,43 @@ product_hunt_launch = {
 
 ---
 
-## 5. 運用自動化
+## 5. Operations Automation
 
-### 5.1 自動化マップ
+### 5.1 Automation Map
 
 ```
-1人運用の自動化マップ:
+Solo operations automation map:
 
-  ■ サポート自動化
+  ■ Support automation
   ┌──────────────────────────────────────┐
-  │ AIチャットボット (80%自動応答)        │
-  │ → 解決不可: メール通知 → 1日以内回答  │
-  │ FAQ自動更新 (月1回)                  │
+  │ AI chatbot (80% auto-resolved)       │
+  │ → Unresolved: email notification → reply within 1 day │
+  │ FAQ auto-update (monthly)            │
   └──────────────────────────────────────┘
 
-  ■ 監視自動化
+  ■ Monitoring automation
   ┌──────────────────────────────────────┐
-  │ Sentry: エラー検知 → Slack通知       │
-  │ UptimeRobot: ダウン検知 → SMS通知    │
-  │ PostHog: 使用量異常 → アラート        │
+  │ Sentry: error detection → Slack alert │
+  │ UptimeRobot: downtime detection → SMS │
+  │ PostHog: usage anomaly → alert       │
   └──────────────────────────────────────┘
 
-  ■ 課金自動化
+  ■ Billing automation
   ┌──────────────────────────────────────┐
-  │ Stripe: 請求・回収・領収書 全自動     │
-  │ Webhook: プラン変更 → DB自動更新     │
-  │ 督促メール: 自動 (Stripe設定)        │
+  │ Stripe: invoicing, collection, receipts fully automated │
+  │ Webhook: plan change → DB auto-update │
+  │ Dunning emails: automated (Stripe config) │
   └──────────────────────────────────────┘
 
-  ■ マーケ自動化
+  ■ Marketing automation
   ┌──────────────────────────────────────┐
-  │ オンボーディングメール: 自動シーケンス │
-  │ 解約防止: 利用減少検知 → 自動メール   │
-  │ NPS調査: 月1回自動送信               │
+  │ Onboarding emails: automated sequence │
+  │ Churn prevention: detect low usage → auto email │
+  │ NPS survey: auto-send monthly        │
   └──────────────────────────────────────┘
 ```
 
-### 5.2 オンボーディングメール自動化の実装
+### 5.2 Onboarding Email Automation Implementation
 
 ```typescript
 // src/lib/email/onboarding-sequence.ts
@@ -1407,35 +1407,35 @@ interface OnboardingEmail {
 const ONBOARDING_SEQUENCE: OnboardingEmail[] = [
   {
     day: 0,
-    subject: "ようこそ！最初の3分で[プロダクト名]を体験しましょう",
+    subject: "Welcome! Experience [ProductName] in your first 3 minutes",
     template: "welcome",
   },
   {
     day: 1,
-    subject: "[プロダクト名]で最も人気の機能トップ3",
+    subject: "Top 3 most popular features in [ProductName]",
     template: "top-features",
   },
   {
     day: 3,
-    subject: "まだ試していない機能がありますか？",
+    subject: "Have you tried these features yet?",
     template: "feature-discovery",
-    condition: (user) => user.usage_count < 3,  // 利用が少ないユーザーのみ
+    condition: (user) => user.usage_count < 3,  // Only for low-usage users
   },
   {
     day: 7,
-    subject: "他のユーザーはこう活用しています",
+    subject: "Here's how other users are getting value",
     template: "use-cases",
   },
   {
     day: 14,
-    subject: "Proプランで10倍の成果を出しませんか？",
+    subject: "Ready to 10x your results with the Pro plan?",
     template: "upgrade-offer",
     condition: (user) => user.plan === 'free' && user.usage_count >= 5,
   },
 ]
 
 export async function processOnboardingEmails() {
-  // Supabase Edge Function または cron job で毎日実行
+  // Run daily via Supabase Edge Function or cron job
   const { data: users } = await supabase
     .from('profiles')
     .select('*')
@@ -1453,7 +1453,7 @@ export async function processOnboardingEmails() {
     if (!emailToSend) continue
     if (emailToSend.condition && !emailToSend.condition(user)) continue
 
-    // 既に送信済みかチェック
+    // Check if already sent
     const { data: sent } = await supabase
       .from('email_log')
       .select('id')
@@ -1463,7 +1463,7 @@ export async function processOnboardingEmails() {
 
     if (sent) continue
 
-    // メール送信
+    // Send email
     await resend.emails.send({
       from: 'noreply@yourdomain.com',
       to: user.email,
@@ -1471,7 +1471,7 @@ export async function processOnboardingEmails() {
       html: renderTemplate(emailToSend.template, user),
     })
 
-    // 送信記録
+    // Log the send
     await supabase.from('email_log').insert({
       user_id: user.id,
       template: emailToSend.template,
@@ -1481,11 +1481,11 @@ export async function processOnboardingEmails() {
 }
 ```
 
-### 5.3 モニタリングダッシュボード
+### 5.3 Monitoring Dashboard
 
 ```python
-# 個人開発者向けモニタリングダッシュボード
-# 毎朝Slack/メールで送信する日次レポート
+# Monitoring dashboard for solo developers
+# Daily report sent to Slack/email every morning
 
 from datetime import datetime, timedelta
 from dataclasses import dataclass
@@ -1506,44 +1506,44 @@ class DailyReport:
 
 
 async def generate_daily_report(supabase) -> DailyReport:
-    """日次レポートの自動生成"""
+    """Auto-generate daily report"""
     today = datetime.now().date()
     yesterday = today - timedelta(days=1)
 
-    # 新規登録数
+    # New signups
     signups = await supabase.from('profiles') \
         .select('id', count='exact') \
         .gte('created_at', yesterday.isoformat()) \
         .lt('created_at', today.isoformat()) \
         .execute()
 
-    # アクティブユーザー数
+    # Active users
     active = await supabase.from('history') \
         .select('user_id', count='exact') \
         .gte('created_at', yesterday.isoformat()) \
         .execute()
 
-    # 総生成数
+    # Total generations
     generations = await supabase.from('history') \
         .select('id', count='exact') \
         .gte('created_at', yesterday.isoformat()) \
         .execute()
 
-    # APIコスト
+    # API cost
     tokens = await supabase.from('history') \
         .select('tokens_used') \
         .gte('created_at', yesterday.isoformat()) \
         .execute()
 
     total_tokens = sum(r['tokens_used'] for r in (tokens.data or []))
-    api_cost = (total_tokens / 1_000_000) * 18  # 概算 $18/MTok平均
+    api_cost = (total_tokens / 1_000_000) * 18  # Approximate $18/MTok average
 
-    # MRR計算
+    # MRR calculation
     pro_users = await supabase.from('profiles') \
         .select('id', count='exact') \
         .eq('plan', 'pro') \
         .execute()
-    mrr = (pro_users.count or 0) * 5000  # ¥5,000/月
+    mrr = (pro_users.count or 0) * 5000  # ¥5,000/month
 
     return DailyReport(
         date=yesterday.isoformat(),
@@ -1552,206 +1552,206 @@ async def generate_daily_report(supabase) -> DailyReport:
         total_generations=generations.count or 0,
         api_cost_usd=round(api_cost, 2),
         mrr_jpy=mrr,
-        churn_count=0,  # 別途計算
-        error_count=0,  # Sentryから取得
-        avg_response_time_ms=0,  # ログから計算
+        churn_count=0,  # Calculated separately
+        error_count=0,  # Pulled from Sentry
+        avg_response_time_ms=0,  # Calculated from logs
         top_feature_usage={},
     )
 
 
 def format_slack_message(report: DailyReport) -> str:
-    """Slack通知用のフォーマット"""
+    """Format for Slack notification"""
     mrr_emoji = ":chart_with_upwards_trend:" if report.mrr_jpy > 0 else ":chart:"
 
     return f"""
 *Daily Report - {report.date}*
 
 {mrr_emoji} *MRR:* ¥{report.mrr_jpy:,}
-:busts_in_silhouette: *新規登録:* {report.new_signups}人
-:zap: *アクティブ:* {report.active_users}人
-:robot_face: *AI生成:* {report.total_generations}回
-:money_with_wings: *APIコスト:* ${report.api_cost_usd}
-:warning: *エラー:* {report.error_count}件
+:busts_in_silhouette: *New signups:* {report.new_signups}
+:zap: *Active users:* {report.active_users}
+:robot_face: *AI generations:* {report.total_generations}
+:money_with_wings: *API cost:* ${report.api_cost_usd}
+:warning: *Errors:* {report.error_count}
 """
 ```
 
 ---
 
-## 6. アンチパターン
+## 6. Anti-Patterns
 
-### アンチパターン1: 過度な機能追加
+### Anti-Pattern 1: Feature Bloat
 
 ```python
-# BAD: ユーザーの全リクエストに応える
+# BAD: Responding to every user request
 def product_roadmap_bad():
     features = [
-        "AI記事生成",        # コア
-        "AI画像生成",        # 関連あるが別プロダクト
-        "チーム管理",        # 時期尚早
-        "API提供",           # まだ早い
-        "モバイルアプリ",    # 不要
-        "Slack統合",         # 数人しか要望なし
+        "AI article generation",   # Core
+        "AI image generation",     # Related but a different product
+        "Team management",         # Too early
+        "API access",              # Not yet
+        "Mobile app",              # Not needed
+        "Slack integration",       # Requested by only a few
     ]
-    # → 開発に6ヶ月、どれも中途半端
+    # → 6 months of development, nothing done well
 
-# GOOD: コア機能を磨き、需要が証明されたものだけ追加
+# GOOD: Polish the core, add only what demand has proven
 def product_roadmap_good():
-    v1 = ["AI記事生成"]  # 1機能を極める
-    v2 = ["記事のSEO最適化"]  # コアの拡張
-    v3 = ["テンプレート機能"]  # ユーザー要望 Top 1
-    # → 各バージョン2-3週間で出荷
+    v1 = ["AI article generation"]  # Master one feature
+    v2 = ["Article SEO optimization"]  # Extension of the core
+    v3 = ["Template feature"]  # #1 user request
+    # → Each version ships in 2–3 weeks
 ```
 
-### アンチパターン2: 安すぎる価格設定
+### Anti-Pattern 2: Underpricing
 
 ```python
-# BAD: 安くすれば売れると思い込む
+# BAD: Believing cheaper means more sales
 pricing_bad = {
-    "price": 500,  # ¥500/月
-    "target_users": 2000,  # 2000人必要
-    "difficulty": "2000人集めるのは200人の10倍難しい",
-    "support_load": "2000人分のサポート = 1人では無理"
+    "price": 500,  # ¥500/month
+    "target_users": 2000,  # Need 2,000 users
+    "difficulty": "Getting 2,000 users is 10x harder than getting 200",
+    "support_load": "Supporting 2,000 users = impossible for 1 person"
 }
 
-# GOOD: 価値に見合った価格設定
+# GOOD: Price to reflect value
 pricing_good = {
-    "price": 5000,  # ¥5,000/月
-    "target_users": 200,  # 200人で十分
-    "value_basis": "月5時間の作業削減 = ¥25,000の価値の20%",
-    "support_load": "200人 = 1人で十分管理可能"
+    "price": 5000,  # ¥5,000/month
+    "target_users": 200,  # 200 users is enough
+    "value_basis": "Saves 5 hours/month = ¥25,000 of value; charge 20% of that",
+    "support_load": "200 users = fully manageable solo"
 }
 ```
 
-### アンチパターン3: 技術に偏りすぎる
+### Anti-Pattern 3: Over-engineering
 
 ```python
-# BAD: 最新技術を使うことが目的化
+# BAD: Making cutting-edge technology the goal
 tech_focused_bad = {
     "stack": [
-        "Kubernetes",          # 個人開発に不要
-        "マイクロサービス",     # モノリスで十分
-        "独自MLモデル",        # API で十分
-        "GraphQL",             # REST で十分
-        "Redis Cluster",       # 単一インスタンスで十分
+        "Kubernetes",          # Not needed for solo dev
+        "Microservices",       # Monolith is fine
+        "Custom ML model",     # API is sufficient
+        "GraphQL",             # REST is fine
+        "Redis Cluster",       # Single instance is fine
     ],
-    "result": "インフラ構築に2ヶ月、プロダクトは未完成"
+    "result": "2 months building infra, product still unfinished"
 }
 
-# GOOD: 退屈な技術で素早く出荷
+# GOOD: Ship fast with boring technology
 tech_focused_good = {
     "stack": [
-        "Next.js + Vercel",    # デプロイ0秒
-        "Supabase",            # DB + Auth 一発
-        "Claude API",          # AIはAPI呼び出し
-        "Stripe",              # 課金は丸投げ
+        "Next.js + Vercel",    # Zero-config deploy
+        "Supabase",            # DB + Auth in one
+        "Claude API",          # AI via API call
+        "Stripe",              # Billing fully handled",
     ],
-    "result": "4週間でMVP完成、ユーザーに価値提供開始"
+    "result": "MVP done in 4 weeks, value delivered to users"
 }
 ```
 
-### アンチパターン4: 完璧主義
+### Anti-Pattern 4: Perfectionism
 
 ```python
-# BAD: 全てが完璧になるまでリリースしない
+# BAD: Not releasing until everything is perfect
 perfectionism_bad = {
     "blockers": [
-        "デザインがまだ完璧じゃない",
-        "エッジケースが全て処理できていない",
-        "テストカバレッジが90%に達していない",
-        "ドキュメントが完成していない",
-        "ロゴが気に入らない",
+        "The design isn't perfect yet",
+        "Not all edge cases are handled",
+        "Test coverage hasn't reached 90%",
+        "Documentation isn't complete",
+        "I don't like the logo",
     ],
-    "result": "3ヶ月経ってもリリースできず、モチベーション喪失"
+    "result": "3 months pass with no release, motivation lost"
 }
 
-# GOOD: 80%の完成度で出荷、ユーザーFBで改善
+# GOOD: Ship at 80%, improve with user feedback
 shipping_mindset_good = {
     "mvp_criteria": [
-        "コア機能が1つ動く",
-        "お金を受け取れる",
-        "致命的バグがない",
+        "One core feature works",
+        "Can accept payment",
+        "No critical bugs",
     ],
     "deferred": [
-        "デザイン改善 → ユーザーFB後",
-        "追加機能 → 需要確認後",
-        "テスト充実 → 安定稼働確認後",
+        "Design improvements → after user feedback",
+        "Additional features → after confirming demand",
+        "More tests → after confirming stable operation",
     ],
-    "result": "4週間でリリース、リアルなFBを得て改善サイクル開始"
+    "result": "Released in 4 weeks, real feedback obtained, improvement cycle begins"
 }
 ```
 
 ---
 
-## 7. 法務・税務の注意点
+## 7. Legal and Tax Considerations
 
-### 7.1 個人事業主として必要な手続き
+### 7.1 Required Steps as a Sole Proprietor
 
 ```
-開業時の手続きチェックリスト:
+Business registration checklist:
 
-  □ 開業届の提出（税務署へ、開業後1ヶ月以内）
-  □ 青色申告承認申請書の提出（開業後2ヶ月以内）
-  □ 事業用銀行口座の開設
-  □ 会計ソフトの導入（freee, マネーフォワード等）
-  □ 特定商取引法に基づく表記の準備
-  □ プライバシーポリシーの作成
-  □ 利用規約の作成
+  □ File a business commencement notification (at the tax office, within 1 month of starting)
+  □ File a blue-return tax approval application (within 2 months of starting)
+  □ Open a dedicated business bank account
+  □ Adopt accounting software (freee, Money Forward, etc.)
+  □ Prepare disclosures required by the Specified Commercial Transactions Act
+  □ Draft a Privacy Policy
+  □ Draft Terms of Service
 
-月収100万円到達時の追加手続き:
-  □ 消費税課税事業者の届出（年商1,000万円超）
-  □ インボイス発行事業者の登録検討
-  □ 法人化の検討（年利益500万円超なら有利な場合あり）
-  □ 税理士との顧問契約
+Additional steps upon reaching ¥1M/month:
+  □ Register as a consumption tax taxable entity (annual revenue over ¥10M)
+  □ Consider registering as an invoice-issuing business
+  □ Consider incorporation (may be advantageous if annual profit exceeds ¥5M)
+  □ Engage a tax accountant on a retainer basis
 ```
 
-### 7.2 利用規約・プライバシーポリシー
+### 7.2 Terms of Service and Privacy Policy
 
 ```python
-# 最低限必要な法的ドキュメント
+# Minimum required legal documents
 legal_documents = {
-    "利用規約": {
-        "必須項目": [
-            "サービスの定義と提供範囲",
-            "利用料金と支払い条件",
-            "禁止事項（不正利用、リバースエンジニアリング等）",
-            "知的財産権の帰属（AI生成物の権利）",
-            "免責事項（AI出力の正確性について）",
-            "サービスの変更・停止の権利",
-            "解約・返金ポリシー",
-            "準拠法と管轄裁判所",
+    "Terms of Service": {
+        "Required items": [
+            "Definition and scope of the service",
+            "Pricing and payment terms",
+            "Prohibited activities (fraud, reverse engineering, etc.)",
+            "Intellectual property ownership (rights to AI-generated content)",
+            "Disclaimer (regarding accuracy of AI output)",
+            "Right to modify or suspend the service",
+            "Cancellation and refund policy",
+            "Governing law and jurisdiction",
         ],
-        "AI特有の注意": [
-            "AI出力は参考情報であり、専門家のアドバイスではない旨",
-            "入力データの取り扱い（学習に使わない等）",
-            "AI出力に対する著作権の取り扱い",
+        "AI-specific considerations": [
+            "AI output is for reference only and does not constitute professional advice",
+            "How input data is handled (e.g., not used for training)",
+            "Copyright treatment of AI-generated output",
         ]
     },
-    "プライバシーポリシー": {
-        "必須項目": [
-            "収集する個人情報の種類",
-            "個人情報の利用目的",
-            "第三者提供の有無（Stripe、Supabase、AI API等）",
-            "データの保存期間",
-            "ユーザーの権利（削除要求、開示要求等）",
-            "Cookieの使用について",
-            "お問い合わせ窓口",
+    "Privacy Policy": {
+        "Required items": [
+            "Types of personal information collected",
+            "Purpose for using personal information",
+            "Whether data is shared with third parties (Stripe, Supabase, AI APIs, etc.)",
+            "Data retention period",
+            "User rights (deletion requests, disclosure requests, etc.)",
+            "Cookie usage",
+            "Contact information",
         ],
-        "GDPR対応（欧州ユーザーがいる場合）": [
-            "データ処理の法的根拠",
-            "データ保護責任者の情報",
-            "EEA域外へのデータ移転について",
-            "忘れられる権利への対応",
+        "GDPR compliance (if you have EU users)": [
+            "Legal basis for data processing",
+            "Data Protection Officer contact information",
+            "Data transfers outside the EEA",
+            "Right to erasure (right to be forgotten)",
         ]
     },
-    "特定商取引法に基づく表記": {
-        "必須項目": [
-            "事業者の氏名（法人名）",
-            "住所",
-            "電話番号",
-            "メールアドレス",
-            "販売価格",
-            "支払い方法",
-            "返品・キャンセルポリシー",
+    "Specified Commercial Transactions Act disclosures": {
+        "Required items": [
+            "Business operator name (or company name)",
+            "Address",
+            "Phone number",
+            "Email address",
+            "Sales price",
+            "Payment methods",
+            "Return and cancellation policy",
         ]
     }
 }
@@ -1759,69 +1759,69 @@ legal_documents = {
 
 ---
 
-## 8. メンタルヘルスと持続可能性
+## 8. Mental Health and Sustainability
 
-### 8.1 個人開発者のバーンアウト防止
+### 8.1 Preventing Burnout as a Solo Developer
 
 ```
-1人開発の持続可能性チェックリスト:
+Solo developer sustainability checklist:
 
-  ■ 時間管理
+  ■ Time management
   ┌──────────────────────────────────────┐
-  │ 平日: 最大6時間/日（副業なら3時間）     │
-  │ 週末: 原則休み（緊急対応のみ）          │
-  │ 有給休暇: 月1回は完全オフの日を作る     │
-  │ 深夜作業: 禁止（判断力が落ちる）        │
+  │ Weekdays: max 6 hours/day (3h if side project) │
+  │ Weekends: off in principle (emergency only)     │
+  │ Paid time off: schedule at least 1 fully-off day/month │
+  │ Late-night work: prohibited (judgment deteriorates)     │
   └──────────────────────────────────────┘
 
-  ■ 精神衛生
+  ■ Mental hygiene
   ┌──────────────────────────────────────┐
-  │ 比較しない: 他の開発者のMRRと比べない   │
-  │ 小さな勝利を祝う: 毎週の進捗を記録     │
-  │ コミュニティ: IndieHackersで仲間を作る  │
-  │ 運動: 週3回以上の運動習慣              │
+  │ Don't compare: stop comparing MRR with other devs │
+  │ Celebrate small wins: record weekly progress      │
+  │ Community: find peers on IndieHackers             │
+  │ Exercise: build a habit of 3+ workouts/week       │
   └──────────────────────────────────────┘
 
-  ■ リスク分散
+  ■ Risk diversification
   ┌──────────────────────────────────────┐
-  │ 生活費6ヶ月分の貯蓄を維持              │
-  │ 本業を維持しながら副業で始める          │
-  │ 収入源を1つのプロダクトに依存しない     │
-  │ 自動化で運用時間を最小化               │
+  │ Maintain 6 months of living expenses in savings   │
+  │ Start as a side project while keeping your day job │
+  │ Don't depend on a single product for all income   │
+  │ Automate to minimize operational time             │
   └──────────────────────────────────────┘
 ```
 
-### 8.2 週次振り返りテンプレート
+### 8.2 Weekly Retrospective Template
 
 ```python
-# 毎週金曜日に実施する振り返り
+# Retrospective to run every Friday
 weekly_review_template = {
     "metrics": {
-        "new_signups": "___人",
-        "active_users": "___人",
+        "new_signups": "___ users",
+        "active_users": "___ users",
         "mrr": "¥___",
-        "churn": "___人",
+        "churn": "___ users",
         "nps_score": "___",
-        "support_tickets": "___件",
-        "hours_worked": "___時間",
+        "support_tickets": "___ tickets",
+        "hours_worked": "___ hours",
     },
     "reflection": {
         "wins": [
-            "今週の最大の成果は何か？",
-            "ユーザーから嬉しいフィードバックはあったか？",
+            "What was the biggest win this week?",
+            "Was there any positive feedback from users?",
         ],
         "learnings": [
-            "今週学んだ最も重要なことは何か？",
-            "失敗から何を学んだか？",
+            "What was the most important thing learned this week?",
+            "What did you learn from failures?",
         ],
         "next_week": [
-            "来週の最優先タスク3つは何か？",
-            "やらないと決めたことは何か？（優先順位の低いもの）",
+            "What are the top 3 priorities for next week?",
+            "What have you decided NOT to do? (low-priority items)",
         ],
         "wellbeing": [
-            "ストレスレベル（1-10）: ___",
-            "モチベーション（1-10）: ___",
-            "十分な睡眠は取れているか？",
+            "Stress level (1–10): ___",
+            "Motivation (1–10): ___",
+            "Are you getting enough sleep?",
         ]
     }
 }
@@ -1831,77 +1831,77 @@ weekly_review_template = {
 
 ## 9. FAQ
 
-### Q1: プログラミングスキルはどの程度必要？
+### Q1: How much programming skill is required?
 
-**A:** Next.js + API呼び出しが書ければ十分。具体的には (1) React/Next.jsの基本、(2) REST APIの呼び出し（fetch/axios）、(3) Stripeの基本統合。高度なML知識は不要 — AI機能はAPI呼び出しで実現できる。学習期間は初心者でも2-3ヶ月。Cursor等のAIコーディング補助を使えば更に短縮可能。
+**A:** Being able to write Next.js + API calls is enough. Specifically: (1) React/Next.js basics, (2) calling REST APIs (fetch/axios), (3) basic Stripe integration. Advanced ML knowledge is not needed — AI features are implemented via API calls. Even a beginner can get up to speed in 2–3 months. Using AI coding assistants like Cursor can reduce that even further.
 
-### Q2: 本業を辞めるタイミングは？
+### Q2: When should I quit my day job?
 
-**A:** 3条件が揃うまで辞めない。(1) MRRが生活費の1.5倍以上（月収50万円なら MRR 75万円）、(2) 月次成長率が安定（3ヶ月連続で正の成長）、(3) チャーン率が5%以下に安定。多くの成功者は副業で始めて12-18ヶ月かけて移行している。焦って辞めると判断を誤る。
+**A:** Don't quit until three conditions are met: (1) MRR is at least 1.5× your living expenses (e.g., if you spend ¥500K/month, MRR must be ¥750K), (2) month-over-month growth is stable (positive growth for 3 consecutive months), (3) monthly churn rate is stable below 5%. Many successful solo developers start as a side project and transition over 12–18 months. Quitting in a hurry leads to poor decisions.
 
-### Q3: 競合が出てきたらどうする？
+### Q3: What do I do when a competitor appears?
 
-**A:** 3つの対応策。(1) 顧客の声に集中 — 競合を見ずにユーザーフィードバックに基づいて改善、(2) ニッチ深化 — 更に特定セグメントに絞り込む（「AI記事」→「AI不動産記事」等）、(3) ワークフロー統合 — 単機能→ワークフローへ進化させてスイッチングコストを上げる。個人開発者の最大の武器は「速さ」。大企業が数ヶ月かかる変更を数日で実行できる。
+**A:** Three responses: (1) Focus on customer voices — improve based on user feedback, not competitor watching; (2) Double down on niche — narrow your focus even further (e.g., "AI articles" → "AI real-estate articles"); (3) Workflow integration — evolve from a single feature to a workflow to increase switching costs. A solo developer's biggest advantage is speed. Changes that take a large company months can be executed in days.
 
-### Q4: AIモデルのアップデートにどう対応する？
+### Q4: How do I keep up with AI model updates?
 
-**A:** モデル依存を最小化する設計が鍵。(1) プロンプトとビジネスロジックを分離する、(2) モデル切り替えが1行の変更で済むようにする、(3) 出力フォーマットのバリデーションを設ける。新モデルが出たら数時間のテストで切り替え可能にしておく。最悪のケースに備え、複数モデルプロバイダー（Claude + GPT-4）のフォールバック構成にしておくと安心。
+**A:** The key is designing to minimize model dependency: (1) separate prompts from business logic; (2) make model swaps a one-line change; (3) add validation for output format. When a new model arrives, be ready to switch with a few hours of testing. For worst-case scenarios, build a multi-provider fallback (Claude + GPT-4) for peace of mind.
 
-### Q5: 法人化すべきタイミングは？
+### Q5: When should I incorporate?
 
-**A:** 年間利益が500万円を超えたら法人化を検討する。個人事業主の所得税は累進課税（最大45%+住民税10%）だが、法人税は約23%で頭打ちになるため、利益が大きいほど法人が有利。ただし、法人化には設立費用（約25万円）、決算費用（年30-50万円）、社会保険料の負担があるため、税理士に相談して具体的にシミュレーションすること。
+**A:** Consider incorporating when annual profit exceeds ¥5M. Individual income tax is progressive (up to 45% + 10% residential tax), while corporate tax caps out around 23%, making incorporation increasingly advantageous as profit grows. However, incorporation has setup costs (~¥250K), annual accounting costs (¥300K–500K/year), and social insurance obligations, so consult a tax accountant for a concrete simulation.
 
-### Q6: 海外展開はいつ・どうやって始める？
+### Q6: When and how do I expand internationally?
 
-**A:** 日本市場でPMFを達成してから。具体的なステップ: (1) UI/UXの英語化（i18n対応）、(2) 価格のUSD設定（日本より高めに設定可能なことが多い）、(3) Product Hunt英語版でローンチ、(4) 英語SEOブログの開始。市場規模が10-50倍になるため、月収1,000万円も視野に入る。ただし、サポート言語・タイムゾーン対応のコストも考慮すること。
+**A:** After achieving PMF in the Japanese market. Concrete steps: (1) Localize UI/UX into English (i18n); (2) Set pricing in USD (often possible to price higher than Japan); (3) Launch on the English-language Product Hunt; (4) Start an English SEO blog. The market size is 10–50× larger, putting ¥10M/month within reach. Factor in the cost of supporting additional languages and time zones.
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory but by actually writing code and confirming its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend solidly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-| 項目 | ポイント |
-|------|---------|
-| 目標設計 | 200人 × ¥5,000 = 月収100万円 |
-| MVP期間 | 4週間（1機能、LP、課金、デプロイ） |
-| 技術スタック | Next.js + Supabase + Claude API + Stripe + Vercel |
-| マーケティング | Build in Public + SEOブログ + Product Hunt |
-| 運用コスト | 月12万円程度（粗利88%） |
-| 最重要原則 | 1機能に集中、価値に見合った価格、自動化で運用軽量 |
-| リスク管理 | 副業で開始、6ヶ月分の貯蓄維持、法務対応 |
-| 持続可能性 | 週30時間以下、バーンアウト防止、週次振り返り |
+Knowledge of this topic is frequently applied in day-to-day development work, particularly during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [02-startup-guide.md](./02-startup-guide.md) — チーム規模への拡大
-- [../02-monetization/00-pricing-models.md](../02-monetization/00-pricing-models.md) — 価格モデル設計
-- [../01-business/00-ai-saas.md](../01-business/00-ai-saas.md) — AI SaaSプロダクト設計
+| Item | Key Point |
+|------|-----------|
+| Revenue target | 200 users × ¥5,000 = ¥1M/month |
+| MVP timeline | 4 weeks (1 feature, LP, billing, deploy) |
+| Tech stack | Next.js + Supabase + Claude API + Stripe + Vercel |
+| Marketing | Build in Public + SEO blog + Product Hunt |
+| Operating cost | ~¥120K/month (88% gross margin) |
+| Most important principle | Focus on 1 feature, price to value, automate for lean ops |
+| Risk management | Start as side project, keep 6-month savings buffer, handle legal |
+| Sustainability | Under 30 hours/week, prevent burnout, weekly retrospectives |
 
 ---
 
-## 参考文献
+## What to Read Next
 
-1. **"The Minimalist Entrepreneur" — Sahil Lavingia** — 個人開発ビジネスの哲学と実践
-2. **IndieHackers** — https://indiehackers.com — 個人開発者コミュニティと成功事例集
-3. **"Zero to Sold" — Arvid Kahl** — ブートストラップSaaSの立ち上げと売却まで
-4. **Pieter Levels (levelsio)** — https://twitter.com/levelsio — 個人開発で月収$200K+を達成した実例
-5. **"Deploy Empathy" — Michele Hansen** — 顧客インタビューの実践ガイド
-6. **Stripe Atlas** — https://stripe.com/atlas — グローバルSaaS事業の法人設立サポート
+- [02-startup-guide.md](./02-startup-guide.md) — Scaling to a team
+- [../02-monetization/00-pricing-models.md](../02-monetization/00-pricing-models.md) — Pricing model design
+- [../01-business/00-ai-saas.md](../01-business/00-ai-saas.md) — AI SaaS product design
+
+---
+
+## References
+
+1. **"The Minimalist Entrepreneur" — Sahil Lavingia** — Philosophy and practice of solo-developer businesses
+2. **IndieHackers** — https://indiehackers.com — Solo-developer community and success story collection
+3. **"Zero to Sold" — Arvid Kahl** — From bootstrapping a SaaS to an exit
+4. **Pieter Levels (levelsio)** — https://twitter.com/levelsio — Real example of a solo developer earning $200K+/month
+5. **"Deploy Empathy" — Michele Hansen** — Practical guide to customer interviews
+6. **Stripe Atlas** — https://stripe.com/atlas — Support for setting up a global SaaS business entity
