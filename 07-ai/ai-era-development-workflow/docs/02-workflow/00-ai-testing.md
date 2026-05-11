@@ -1,142 +1,142 @@
-# AIテスト ── テスト生成、カバレッジ向上
+# AI Testing -- Test Generation and Coverage Improvement
 
-> AIを活用してテストコードを効率的に生成し、テストカバレッジを大幅に向上させるための戦略と具体的な手法を体系的に学ぶ。
-
----
-
-## この章で学ぶこと
-
-1. **AIテスト生成の手法** ── 単体テスト、結合テスト、E2Eテストの自動生成パターンを習得する
-2. **カバレッジ向上戦略** ── AIを使ってテストの網羅性を効率的に高めるアプローチを学ぶ
-3. **テスト品質の検証** ── AI生成テストが本当に有効かを検証する方法を身につける
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+> Systematically learn strategies and specific techniques for efficiently generating test code with AI and significantly improving test coverage.
 
 ---
 
-## 1. AIテスト生成の全体像
+## What You Will Learn in This Chapter
 
-### 1.1 テスト生成のアプローチ分類
+1. **AI Test Generation Techniques** -- Master patterns for auto-generating unit tests, integration tests, and E2E tests
+2. **Coverage Improvement Strategies** -- Learn approaches to efficiently increase test comprehensiveness using AI
+3. **Test Quality Verification** -- Acquire methods to verify whether AI-generated tests are truly effective
+
+
+## Prerequisites
+
+Before reading this guide, having the following knowledge will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+
+---
+
+## 1. Overview of AI Test Generation
+
+### 1.1 Classification of Test Generation Approaches
 
 ```
 ┌──────────────────────────────────────────────────────┐
-│            AIテスト生成アプローチ                       │
+│          AI Test Generation Approaches                │
 │                                                      │
-│  アプローチ1: コードからテスト生成                     │
-│  ┌──────────┐    AI分析    ┌──────────────┐          │
-│  │ 実装コード │────────────►│ テストコード  │          │
-│  └──────────┘             └──────────────┘          │
-│  ・既存コードを読んでテストを逆生成                    │
-│  ・カバレッジの穴を自動検出                           │
+│  Approach 1: Generate Tests from Code                │
+│  ┌──────────────┐  AI Analysis  ┌──────────────┐    │
+│  │ Source Code   │──────────────►│  Test Code   │    │
+│  └──────────────┘               └──────────────┘    │
+│  - Reverse-generate tests by reading existing code   │
+│  - Automatically detect coverage gaps                │
 │                                                      │
-│  アプローチ2: 仕様からテスト生成（TDD）               │
-│  ┌──────────┐    AI生成    ┌──────────────┐         │
-│  │ 仕様書   │────────────►│ テストコード  │          │
-│  └──────────┘             └──────┬───────┘          │
-│                                  │ AI実装            │
-│                            ┌─────▼──────┐           │
-│                            │ 実装コード  │           │
-│                            └────────────┘           │
+│  Approach 2: Generate Tests from Specs (TDD)         │
+│  ┌──────────────┐  AI Generation ┌──────────────┐   │
+│  │ Specification│────────────────►│  Test Code   │   │
+│  └──────────────┘                └──────┬───────┘   │
+│                                         │ AI Impl   │
+│                                   ┌─────▼──────┐    │
+│                                   │ Source Code │    │
+│                                   └────────────┘    │
 │                                                      │
-│  アプローチ3: 変更差分からテスト生成                   │
-│  ┌──────────┐    AI分析    ┌──────────────┐         │
-│  │ git diff │────────────►│ 差分テスト    │          │
-│  └──────────┘             └──────────────┘          │
-│  ・変更された部分に絞ってテストを追加                  │
+│  Approach 3: Generate Tests from Change Diffs        │
+│  ┌──────────────┐  AI Analysis  ┌──────────────┐    │
+│  │  git diff    │──────────────►│  Diff Tests  │    │
+│  └──────────────┘               └──────────────┘    │
+│  - Add tests focused only on changed parts           │
 └──────────────────────────────────────────────────────┘
 ```
 
-### 1.2 テストピラミッドとAI活用
+### 1.2 Test Pyramid and AI Utilization
 
 ```
                     ┌─────┐
-                   /  E2E  \          AI活用度: 中
-                  /  テスト  \         ・シナリオ生成
-                 /───────────\        ・セレクタ生成
-                / 結合テスト   \       AI活用度: 高
-               / (Integration) \      ・API呼び出しパターン
-              /─────────────────\     ・モック生成
-             /   単体テスト      \    AI活用度: 非常に高い
-            /    (Unit Test)     \   ・関数ごとのテスト自動生成
-           /─────────────────────\  ・エッジケース網羅
+                   /  E2E  \          AI utilization: Medium
+                  /  Tests  \         - Scenario generation
+                 /───────────\        - Selector generation
+                / Integration  \      AI utilization: High
+               /    Tests       \     - API call patterns
+              /─────────────────\     - Mock generation
+             /    Unit Tests     \    AI utilization: Very High
+            /    (Unit Test)     \   - Auto-generate tests per function
+           /─────────────────────\  - Comprehensive edge cases
           /                       \
          /─────────────────────────\
-        テスト数:  多い ← ──────── → 少ない
-        実行速度:  速い ← ──────── → 遅い
+        Test count: Many ← ──────── → Few
+        Execution speed: Fast ← ──────── → Slow
 ```
 
 ---
 
-## 2. 単体テストの自動生成
+## 2. Auto-Generation of Unit Tests
 
-### コード例1: 関数からテストを生成
+### Code Example 1: Generating Tests from a Function
 
 ```python
-# 対象関数
+# Target function
 def calculate_bmi(weight_kg: float, height_m: float) -> dict:
-    """BMIを計算し、判定結果を返す"""
+    """Calculate BMI and return the assessment result"""
     if weight_kg <= 0 or height_m <= 0:
-        raise ValueError("体重と身長は正の数でなければなりません")
+        raise ValueError("Weight and height must be positive numbers")
     bmi = weight_kg / (height_m ** 2)
     if bmi < 18.5:
-        category = "低体重"
+        category = "Underweight"
     elif bmi < 25:
-        category = "普通体重"
+        category = "Normal weight"
     elif bmi < 30:
-        category = "肥満(1度)"
+        category = "Obese (Class 1)"
     else:
-        category = "肥満(2度以上)"
+        category = "Obese (Class 2+)"
     return {"bmi": round(bmi, 1), "category": category}
 
-# AIプロンプト: "calculate_bmi関数のテストを網羅的に生成して。
-#               正常系、異常系、境界値を含めて"
+# AI Prompt: "Generate comprehensive tests for the calculate_bmi function.
+#             Include normal cases, error cases, and boundary values"
 
-# AI生成テスト
+# AI-generated tests
 import pytest
 from app.health import calculate_bmi
 
 class TestCalculateBMI:
-    """BMI計算のテスト"""
+    """Tests for BMI calculation"""
 
-    # 正常系: 各カテゴリ
+    # Normal cases: Each category
     def test_underweight(self):
         result = calculate_bmi(50, 1.75)
-        assert result["category"] == "低体重"
+        assert result["category"] == "Underweight"
         assert result["bmi"] == 16.3
 
     def test_normal_weight(self):
         result = calculate_bmi(65, 1.70)
-        assert result["category"] == "普通体重"
+        assert result["category"] == "Normal weight"
         assert result["bmi"] == 22.5
 
     def test_overweight(self):
         result = calculate_bmi(85, 1.70)
-        assert result["category"] == "肥満(1度)"
+        assert result["category"] == "Obese (Class 1)"
         assert result["bmi"] == 29.4
 
     def test_obese(self):
         result = calculate_bmi(100, 1.70)
-        assert result["category"] == "肥満(2度以上)"
+        assert result["category"] == "Obese (Class 2+)"
         assert result["bmi"] == 34.6
 
-    # 境界値
+    # Boundary values
     @pytest.mark.parametrize("weight,height,expected_category", [
-        (56.6, 1.75, "低体重"),    # BMI ≈ 18.49
-        (56.7, 1.75, "普通体重"),   # BMI ≈ 18.51
-        (76.5, 1.75, "普通体重"),   # BMI ≈ 24.98
-        (76.6, 1.75, "肥満(1度)"),  # BMI ≈ 25.01
+        (56.6, 1.75, "Underweight"),       # BMI ≈ 18.49
+        (56.7, 1.75, "Normal weight"),     # BMI ≈ 18.51
+        (76.5, 1.75, "Normal weight"),     # BMI ≈ 24.98
+        (76.6, 1.75, "Obese (Class 1)"),   # BMI ≈ 25.01
     ])
     def test_boundary_values(self, weight, height, expected_category):
         result = calculate_bmi(weight, height)
         assert result["category"] == expected_category
 
-    # 異常系
+    # Error cases
     def test_negative_weight(self):
         with pytest.raises(ValueError):
             calculate_bmi(-70, 1.70)
@@ -150,13 +150,13 @@ class TestCalculateBMI:
             calculate_bmi(0, 1.70)
 ```
 
-### コード例2: APIテストの自動生成
+### Code Example 2: Auto-Generation of API Tests
 
 ```python
-# FastAPI エンドポイントからテストを生成
+# Generate tests from FastAPI endpoints
 
-# プロンプト: "以下のFastAPIエンドポイントの結合テストを生成して。
-#             httpxのAsyncClientを使い、DBはモック"
+# Prompt: "Generate integration tests for the following FastAPI endpoint.
+#          Use httpx AsyncClient and mock the DB"
 
 import pytest
 from httpx import AsyncClient, ASGITransport
@@ -165,14 +165,14 @@ from app.main import app
 
 @pytest.fixture
 def mock_db():
-    """DBモックの設定"""
+    """DB mock setup"""
     mock = AsyncMock()
-    mock.get.return_value = {"id": 1, "name": "テスト太郎", "email": "test@example.com"}
+    mock.get.return_value = {"id": 1, "name": "Test User", "email": "test@example.com"}
     return mock
 
 @pytest.mark.asyncio
 class TestUserAPI:
-    """ユーザーAPI結合テスト"""
+    """User API integration tests"""
 
     async def test_get_user_success(self, mock_db):
         transport = ASGITransport(app=app)
@@ -181,7 +181,7 @@ class TestUserAPI:
                 response = await client.get("/api/v1/users/1")
         assert response.status_code == 200
         data = response.json()
-        assert data["name"] == "テスト太郎"
+        assert data["name"] == "Test User"
 
     async def test_get_user_not_found(self, mock_db):
         mock_db.get.return_value = None
@@ -198,19 +198,19 @@ class TestUserAPI:
         assert response.status_code == 422
 ```
 
-### コード例3: Property-Based Testの生成
+### Code Example 3: Generating Property-Based Tests
 
 ```python
-# AIに Property-Based Test を生成させる
+# Have AI generate Property-Based Tests
 
-# プロンプト: "calculate_bmi関数のproperty-based testを
-#             Hypothesisライブラリで生成して"
+# Prompt: "Generate property-based tests for the calculate_bmi function
+#          using the Hypothesis library"
 
 from hypothesis import given, assume, settings
 from hypothesis.strategies import floats
 
 class TestCalculateBMIProperty:
-    """BMI計算のProperty-Based Test"""
+    """Property-Based Tests for BMI calculation"""
 
     @given(
         weight=floats(min_value=0.1, max_value=500),
@@ -218,7 +218,7 @@ class TestCalculateBMIProperty:
     )
     @settings(max_examples=1000)
     def test_bmi_always_positive(self, weight, height):
-        """BMI値は常に正の数"""
+        """BMI value is always positive"""
         result = calculate_bmi(weight, height)
         assert result["bmi"] > 0
 
@@ -227,9 +227,9 @@ class TestCalculateBMIProperty:
         height=floats(min_value=0.3, max_value=3.0),
     )
     def test_category_always_valid(self, weight, height):
-        """カテゴリは4種類のいずれか"""
+        """Category is always one of the four types"""
         result = calculate_bmi(weight, height)
-        valid_categories = {"低体重", "普通体重", "肥満(1度)", "肥満(2度以上)"}
+        valid_categories = {"Underweight", "Normal weight", "Obese (Class 1)", "Obese (Class 2+)"}
         assert result["category"] in valid_categories
 
     @given(
@@ -237,40 +237,40 @@ class TestCalculateBMIProperty:
         height=floats(min_value=0.3, max_value=3.0),
     )
     def test_negative_weight_raises(self, weight, height):
-        """負の体重はValueError"""
+        """Negative weight raises ValueError"""
         with pytest.raises(ValueError):
             calculate_bmi(weight, height)
 ```
 
-### コード例4: E2Eテストの生成
+### Code Example 4: Generating E2E Tests
 
 ```typescript
-// Playwrightを使ったE2Eテストの自動生成
+// Auto-generation of E2E tests using Playwright
 
-// プロンプト: "ログイン→商品検索→カート追加→購入のE2Eテストを生成"
+// Prompt: "Generate an E2E test for login -> product search -> add to cart -> purchase"
 
 import { test, expect } from '@playwright/test';
 
-test.describe('購入フロー', () => {
-  test('商品を検索してカートに入れ購入を完了する', async ({ page }) => {
-    // 1. ログイン
+test.describe('Purchase Flow', () => {
+  test('Search for a product, add to cart, and complete purchase', async ({ page }) => {
+    // 1. Login
     await page.goto('/login');
     await page.fill('[data-testid="email"]', 'test@example.com');
     await page.fill('[data-testid="password"]', 'password123');
     await page.click('[data-testid="login-button"]');
     await expect(page).toHaveURL('/dashboard');
 
-    // 2. 商品検索
-    await page.fill('[data-testid="search-input"]', 'TypeScript入門');
+    // 2. Product search
+    await page.fill('[data-testid="search-input"]', 'TypeScript Beginner');
     await page.press('[data-testid="search-input"]', 'Enter');
     await expect(page.locator('[data-testid="search-results"]')).toBeVisible();
 
-    // 3. カートに追加
+    // 3. Add to cart
     await page.click('[data-testid="product-card"]:first-child');
     await page.click('[data-testid="add-to-cart"]');
     await expect(page.locator('[data-testid="cart-count"]')).toHaveText('1');
 
-    // 4. 購入手続き
+    // 4. Checkout
     await page.click('[data-testid="cart-icon"]');
     await page.click('[data-testid="checkout-button"]');
     await page.fill('[data-testid="card-number"]', '4242424242424242');
@@ -278,139 +278,142 @@ test.describe('購入フロー', () => {
     await page.fill('[data-testid="card-cvc"]', '123');
     await page.click('[data-testid="confirm-purchase"]');
 
-    // 5. 完了確認
+    // 5. Confirmation
     await expect(page).toHaveURL(/\/orders\/\d+/);
     await expect(page.locator('[data-testid="order-success"]')).toBeVisible();
   });
 });
 ```
 
-### コード例5: テストカバレッジギャップの特定
+### Code Example 5: Identifying Test Coverage Gaps
 
 ```bash
-# AIにカバレッジレポートを分析させる
+# Have AI analyze the coverage report
 
-# Step 1: カバレッジレポート生成
+# Step 1: Generate coverage report
 pytest --cov=src --cov-report=json:coverage.json
 
-# Step 2: Claude Codeに分析を依頼
-claude "coverage.jsonを読んで、カバレッジが低いファイルのうち
-       ビジネスロジック的に重要なものをリストアップして。
-       各ファイルに対して追加すべきテストケースを提案して"
+# Step 2: Ask Claude Code for analysis
+claude "Read coverage.json and list files with low coverage that are
+       important from a business logic perspective.
+       Suggest test cases to add for each file"
 
-# AIの出力例:
-# 1. src/services/payment.py (カバレッジ: 45%)
-#    - 決済失敗時のリトライロジックがテストされていない
-#    - 部分返金のテストが不足
-#    - タイムアウト時の挙動テストなし
+# Example AI output:
+# 1. src/services/payment.py (Coverage: 45%)
+#    - Retry logic on payment failure is not tested
+#    - Partial refund tests are missing
+#    - No tests for timeout behavior
 #
-# 2. src/domain/order.py (カバレッジ: 62%)
-#    - 注文ステータス遷移の全パターンが網羅されていない
-#    - 同時注文の競合テストなし
+# 2. src/domain/order.py (Coverage: 62%)
+#    - Not all order status transition patterns are covered
+#    - No concurrent order conflict tests
 ```
 
 ---
 
-## 3. テスト生成ツール比較
+## 3. Test Generation Tool Comparison
 
-### 3.1 AIテスト生成ツール
+### 3.1 AI Test Generation Tools
 
-| ツール | 対応言語 | 特徴 | 精度 |
-|--------|---------|------|------|
-| Copilot (/tests) | 全般 | エディタ内で即座に生成 | 中 |
-| Claude Code | 全般 | コンテキスト理解が深い | 高 |
-| Codium AI (Qodo) | Python/JS/TS | テスト専門、提案型 | 高 |
-| Diffblue Cover | Java | JUnit自動生成 | 非常に高い |
-| EvoSuite | Java | 遺伝的アルゴリズム | 高 |
+| Tool | Supported Languages | Features | Accuracy |
+|------|---------------------|----------|----------|
+| Copilot (/tests) | General | Instant generation in editor | Medium |
+| Claude Code | General | Deep context understanding | High |
+| Codium AI (Qodo) | Python/JS/TS | Test-specialized, suggestion-based | High |
+| Diffblue Cover | Java | Automatic JUnit generation | Very High |
+| EvoSuite | Java | Genetic algorithm | High |
 
-### 3.2 テスト種類別の最適アプローチ
+### 3.2 Optimal Approach by Test Type
 
-| テスト種類 | 推奨手法 | AIの寄与度 | 人間の役割 |
-|-----------|---------|-----------|-----------|
-| 単体テスト | AIで自動生成 | 90% | 境界値の確認 |
-| 結合テスト | AIで骨格生成+人間調整 | 70% | モック設計 |
-| E2Eテスト | AIでシナリオ生成 | 60% | ユーザーフロー検証 |
-| Property Test | AIで生成 | 80% | 不変条件の定義 |
-| パフォーマンステスト | AIで雛形生成 | 50% | 閾値の決定 |
-| セキュリティテスト | 人間主導+AI補助 | 30% | 脅威モデルの設計 |
+| Test Type | Recommended Method | AI Contribution | Human Role |
+|-----------|--------------------|-----------------|------------|
+| Unit tests | Auto-generate with AI | 90% | Boundary value verification |
+| Integration tests | AI generates skeleton + human adjustment | 70% | Mock design |
+| E2E tests | AI scenario generation | 60% | User flow verification |
+| Property tests | AI generation | 80% | Invariant definition |
+| Performance tests | AI template generation | 50% | Threshold determination |
+| Security tests | Human-led + AI assistance | 30% | Threat model design |
 
 ---
 
-## 4. テスト品質の検証
+## 4. Test Quality Verification
 
 ```
 ┌──────────────────────────────────────────────────┐
-│       AI生成テストの品質検証プロセス                │
+│    Quality Verification Process for              │
+│    AI-Generated Tests                            │
 │                                                  │
-│  Step 1: ミューテーションテスト                    │
+│  Step 1: Mutation Testing                        │
 │  ┌──────────────────────────────────────────┐    │
-│  │ コードに意図的なバグを注入                 │    │
-│  │ → テストが検出できるかチェック              │    │
-│  │ → 検出率(Mutation Score)が80%以上なら合格  │    │
+│  │ Intentionally inject bugs into code       │    │
+│  │ → Check if tests can detect them          │    │
+│  │ → Pass if detection rate (Mutation Score) │    │
+│  │   is 80% or higher                        │    │
 │  └──────────────────────────────────────────┘    │
 │                                                  │
-│  Step 2: テストの独立性チェック                    │
+│  Step 2: Test Independence Check                 │
 │  ┌──────────────────────────────────────────┐    │
-│  │ テストの実行順序をランダム化               │    │
-│  │ → 順序依存の失敗がないか確認              │    │
+│  │ Randomize test execution order            │    │
+│  │ → Verify no order-dependent failures      │    │
 │  └──────────────────────────────────────────┘    │
 │                                                  │
-│  Step 3: 意味のあるアサーションか確認              │
+│  Step 3: Verify Meaningful Assertions            │
 │  ┌──────────────────────────────────────────┐    │
-│  │ assert True のような無意味なテストを検出    │    │
-│  │ → アサーション削除でテストが失敗するか     │    │
+│  │ Detect meaningless tests like assert True │    │
+│  │ → Check if test fails when assertion is   │    │
+│  │   removed                                 │    │
 │  └──────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. テスト生成の実践パターン
+## 5. Practical Patterns for Test Generation
 
-### 5.1 TDD + AI の統合ワークフロー
+### 5.1 TDD + AI Integrated Workflow
 
 ```python
-# TDD（テスト駆動開発）とAIテスト生成を組み合わせるワークフロー
+# Workflow combining TDD (Test-Driven Development) and AI test generation
 
 class TDDAIWorkflow:
     """
-    TDD + AI のハイブリッドワークフロー
+    TDD + AI Hybrid Workflow
 
-    手順:
-    1. 人間が仕様をプロンプトで記述
-    2. AIがテストコードを生成（Red）
-    3. 人間がテストの妥当性を検証
-    4. AIが実装コードを生成（Green）
-    5. AIがリファクタリングを提案（Refactor）
-    6. 人間が最終確認
+    Steps:
+    1. Human describes the specification in a prompt
+    2. AI generates test code (Red)
+    3. Human verifies the validity of the tests
+    4. AI generates implementation code (Green)
+    5. AI suggests refactoring (Refactor)
+    6. Human performs final review
     """
 
-    # Step 1: 仕様をプロンプトで記述
+    # Step 1: Describe the specification in a prompt
     SPEC_PROMPT = """
-    以下の仕様に基づいてテストを生成してください。
+    Please generate tests based on the following specification.
 
-    ## 機能: 割引計算サービス
+    ## Feature: Discount Calculation Service
 
-    ### ビジネスルール
-    1. 通常割引: 購入金額10,000円以上で5%割引
-    2. 会員割引: ゴールド会員は追加10%割引
-    3. クーポン: 有効なクーポンコードで固定額割引
-    4. 割引上限: 合計割引率は30%を超えない
-    5. 最低支払額: 割引後の金額は1円以上
+    ### Business Rules
+    1. Standard discount: 5% off for purchases of 10,000 yen or more
+    2. Member discount: Gold members get an additional 10% off
+    3. Coupon: Fixed amount discount with a valid coupon code
+    4. Discount cap: Total discount rate must not exceed 30%
+    5. Minimum payment: Amount after discount must be at least 1 yen
 
-    ### テストケース要件
-    - 各ルールの境界値テスト
-    - ルールの組み合わせテスト
-    - 異常系テスト（無効なクーポン、負の金額等）
-    - 並行アクセステスト（同一クーポンの二重使用）
+    ### Test Case Requirements
+    - Boundary value tests for each rule
+    - Combination tests for rules
+    - Error case tests (invalid coupon, negative amount, etc.)
+    - Concurrent access tests (double use of same coupon)
 
-    ## 技術仕様
+    ## Technical Specification
     - pytest + pytest-asyncio
-    - Given-When-Then形式のテスト名
-    - テストデータはファクトリパターンで生成
+    - Given-When-Then format for test names
+    - Generate test data using factory pattern
     """
 
-    # Step 2: AIが生成したテスト例
+    # Step 2: Example test generated by AI
     GENERATED_TEST = """
 import pytest
 from decimal import Decimal
@@ -418,7 +421,7 @@ from discount_service import DiscountService, DiscountRequest
 from factories import UserFactory, CouponFactory
 
 class TestDiscountService:
-    \"\"\"割引計算サービスのテスト\"\"\"
+    \"\"\"Tests for discount calculation service\"\"\"
 
     @pytest.fixture
     def service(self):
@@ -432,7 +435,7 @@ class TestDiscountService:
     def regular_user(self):
         return UserFactory.create(membership="regular")
 
-    # --- 通常割引テスト ---
+    # --- Standard Discount Tests ---
 
     def test_given_amount_below_10000_when_calculate_then_no_discount(
         self, service, regular_user
@@ -458,7 +461,7 @@ class TestDiscountService:
         assert result.discount_amount == Decimal("1000")
         assert result.final_amount == Decimal("19000")
 
-    # --- 会員割引テスト ---
+    # --- Member Discount Tests ---
 
     def test_given_gold_member_when_calculate_then_additional_10_percent(
         self, service, gold_user
@@ -469,7 +472,7 @@ class TestDiscountService:
         assert result.discount_amount == Decimal("1500")
         assert result.final_amount == Decimal("8500")
 
-    # --- 割引上限テスト ---
+    # --- Discount Cap Tests ---
 
     def test_given_max_discounts_combined_when_calculate_then_cap_at_30_percent(
         self, service, gold_user
@@ -479,11 +482,11 @@ class TestDiscountService:
             user=gold_user, amount=Decimal("10000"), coupon=coupon
         )
         result = service.calculate(request)
-        # 5% + 10% + 20% = 35% → 上限30%に制限
+        # 5% + 10% + 20% = 35% → Capped at 30%
         assert result.discount_rate <= Decimal("0.30")
         assert result.final_amount >= Decimal("7000")
 
-    # --- 最低支払額テスト ---
+    # --- Minimum Payment Tests ---
 
     def test_given_huge_discount_when_calculate_then_minimum_1_yen(
         self, service, regular_user
@@ -495,12 +498,12 @@ class TestDiscountService:
         result = service.calculate(request)
         assert result.final_amount >= Decimal("1")
 
-    # --- 異常系テスト ---
+    # --- Error Case Tests ---
 
     def test_given_negative_amount_when_calculate_then_raise_error(
         self, service, regular_user
     ):
-        with pytest.raises(ValueError, match="金額は正の値"):
+        with pytest.raises(ValueError, match="Amount must be positive"):
             DiscountRequest(user=regular_user, amount=Decimal("-100"))
 
     def test_given_expired_coupon_when_calculate_then_raise_error(
@@ -511,15 +514,15 @@ class TestDiscountService:
             user=regular_user, amount=Decimal("10000"),
             coupon=expired_coupon
         )
-        with pytest.raises(ValueError, match="クーポンは有効期限切れ"):
+        with pytest.raises(ValueError, match="Coupon has expired"):
             service.calculate(request)
     """
 ```
 
-### 5.2 テストファクトリパターン
+### 5.2 Test Factory Pattern
 
 ```python
-# AIテスト生成と相性の良いテストデータファクトリ
+# Test data factory that works well with AI test generation
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
@@ -545,7 +548,7 @@ class Coupon:
     used_count: int
 
 class UserFactory:
-    """テスト用ユーザーデータのファクトリ"""
+    """Factory for test user data"""
 
     _counter = 0
 
@@ -554,7 +557,7 @@ class UserFactory:
         cls._counter += 1
         defaults = {
             "id": str(uuid.uuid4()),
-            "name": f"テストユーザー{cls._counter}",
+            "name": f"Test User {cls._counter}",
             "email": f"test{cls._counter}@example.com",
             "membership": "regular",
             "created_at": datetime.now(),
@@ -571,7 +574,7 @@ class UserFactory:
         return [cls.create(**overrides) for _ in range(count)]
 
 class CouponFactory:
-    """テスト用クーポンデータのファクトリ"""
+    """Factory for test coupon data"""
 
     @classmethod
     def create(cls, **overrides) -> Coupon:
@@ -584,16 +587,16 @@ class CouponFactory:
             "used_count": 0,
         }
 
-        # expired=True のショートカット
+        # Shortcut for expired=True
         if overrides.pop("expired", False):
             defaults["expires_at"] = datetime.now() - timedelta(days=1)
 
-        # discount_percent のショートカット
+        # Shortcut for discount_percent
         if "discount_percent" in overrides:
             defaults["discount_type"] = "percent"
             defaults["discount_value"] = overrides.pop("discount_percent")
 
-        # discount_amount のショートカット
+        # Shortcut for discount_amount
         if "discount_amount" in overrides:
             defaults["discount_type"] = "fixed"
             defaults["discount_value"] = overrides.pop("discount_amount")
@@ -602,69 +605,69 @@ class CouponFactory:
         return Coupon(**defaults)
 ```
 
-### 5.3 テスト生成プロンプトのベストプラクティス
+### 5.3 Best Practices for Test Generation Prompts
 
 ```python
-# 高品質なテストを生成するためのプロンプトテンプレート集
+# Prompt template collection for generating high-quality tests
 
 TEST_GENERATION_PROMPTS = {
     "unit_test": """
-    以下のコードに対する単体テストを生成してください。
+    Generate unit tests for the following code.
 
-    ## 対象コード
+    ## Target Code
     {source_code}
 
-    ## テスト要件
-    1. Given-When-Then形式のテスト名
-    2. 各公開メソッドに対して最低3つのテストケース
-       - 正常系（典型的な入力）
-       - 境界値（最小/最大/空）
-       - 異常系（不正入力、例外）
-    3. テストの独立性を保証（共有状態なし）
-    4. モックは最小限（外部依存のみ）
-    5. アサーションは具体的な値を検証（assert is not None 禁止）
+    ## Test Requirements
+    1. Given-When-Then format for test names
+    2. At least 3 test cases per public method
+       - Normal case (typical input)
+       - Boundary values (min/max/empty)
+       - Error case (invalid input, exceptions)
+    3. Guarantee test independence (no shared state)
+    4. Minimize mocks (external dependencies only)
+    5. Assert specific values (no assert is not None)
 
-    ## 技術スタック
+    ## Tech Stack
     - pytest
     - unittest.mock
-    - freezegun（時刻固定）
+    - freezegun (time freezing)
     """,
 
     "integration_test": """
-    以下のサービス間の結合テストを生成してください。
+    Generate integration tests between the following services.
 
-    ## 対象サービス
+    ## Target Services
     {service_code}
 
-    ## 依存関係
+    ## Dependencies
     {dependencies}
 
-    ## テスト要件
-    1. 実際のDB（testcontainers使用）でテスト
-    2. 外部APIはモック（responses / httpx-mock）
-    3. トランザクションのロールバック確認
-    4. 並行アクセスのテスト（asyncio.gather）
-    5. エラー伝播の検証（サービスAのエラー→サービスBの挙動）
+    ## Test Requirements
+    1. Test with real DB (using testcontainers)
+    2. Mock external APIs (responses / httpx-mock)
+    3. Verify transaction rollback
+    4. Test concurrent access (asyncio.gather)
+    5. Verify error propagation (Service A error → Service B behavior)
 
-    ## 技術スタック
+    ## Tech Stack
     - pytest-asyncio
     - testcontainers-python
     - httpx-mock
     """,
 
     "snapshot_test": """
-    以下のReactコンポーネントに対するスナップショットテストを生成してください。
+    Generate snapshot tests for the following React component.
 
-    ## 対象コンポーネント
+    ## Target Component
     {component_code}
 
-    ## テスト要件
-    1. 各propsパターンでのレンダリング結果をスナップショット
-    2. インタラクション（クリック、入力）後の状態変化
-    3. ローディング、エラー、空状態の各UIステートをテスト
-    4. レスポンシブ対応（モバイル/デスクトップ）のスナップショット
+    ## Test Requirements
+    1. Snapshot rendering results for each props pattern
+    2. State changes after interactions (click, input)
+    3. Test each UI state: loading, error, empty
+    4. Responsive snapshots (mobile/desktop)
 
-    ## 技術スタック
+    ## Tech Stack
     - Vitest
     - @testing-library/react
     - @testing-library/user-event
@@ -672,22 +675,22 @@ TEST_GENERATION_PROMPTS = {
 }
 ```
 
-### 5.4 テストカバレッジ分析と改善提案
+### 5.4 Test Coverage Analysis and Improvement Suggestions
 
 ```python
-# カバレッジレポートをAIで分析して改善提案を生成
+# Analyze coverage reports with AI and generate improvement suggestions
 
 import json
 from pathlib import Path
 
 class CoverageAnalyzer:
-    """テストカバレッジをAIで分析するツール"""
+    """Tool for analyzing test coverage with AI"""
 
     def __init__(self, coverage_json_path: str):
         self.coverage_data = json.loads(Path(coverage_json_path).read_text())
 
     def analyze(self) -> dict:
-        """カバレッジデータを分析"""
+        """Analyze coverage data"""
         files = self.coverage_data.get("files", {})
 
         analysis = {
@@ -711,7 +714,7 @@ class CoverageAnalyzer:
                     "total_missing": len(missing_lines),
                 })
 
-        # 優先順位をつけてソート（カバレッジが低く、ファイルが大きいものを優先）
+        # Sort by priority (lower coverage and larger files first)
         analysis["low_coverage_files"].sort(
             key=lambda x: (x["coverage"], -x["total_missing"])
         )
@@ -719,38 +722,38 @@ class CoverageAnalyzer:
         return analysis
 
     def generate_improvement_prompt(self, analysis: dict) -> str:
-        """カバレッジ改善のためのAIプロンプトを生成"""
+        """Generate AI prompt for coverage improvement"""
         low_files = analysis["low_coverage_files"][:5]
 
         prompt = f"""
-以下のテストカバレッジ分析結果に基づいて、テスト追加の優先順位と
-具体的なテストケースを提案してください。
+Based on the following test coverage analysis results, suggest test addition
+priorities and specific test cases.
 
-## 全体カバレッジ: {analysis['total_coverage']:.1f}%
+## Overall Coverage: {analysis['total_coverage']:.1f}%
 
-## カバレッジが低いファイル（上位5件）
+## Files with Low Coverage (Top 5)
 """
         for f in low_files:
             prompt += f"""
-### {f['path']} (カバレッジ: {f['coverage']:.1f}%)
-未カバー行数: {f['total_missing']}行
-未カバー行の例: {f['missing_lines'][:10]}
+### {f['path']} (Coverage: {f['coverage']:.1f}%)
+Uncovered lines: {f['total_missing']} lines
+Example uncovered lines: {f['missing_lines'][:10]}
 """
 
         prompt += """
-## 回答形式
-1. 各ファイルの優先度（High/Medium/Low）と理由
-2. 各ファイルに追加すべきテストケースの一覧
-3. テストコードのスケルトン
+## Response Format
+1. Priority (High/Medium/Low) and reason for each file
+2. List of test cases to add for each file
+3. Test code skeleton
 """
         return prompt
 ```
 
 ---
 
-## 6. CI/CDパイプラインとの統合
+## 6. Integration with CI/CD Pipelines
 
-### 6.1 テスト自動生成パイプライン
+### 6.1 Test Auto-Generation Pipeline
 
 ```yaml
 # .github/workflows/ai-test-generation.yml
@@ -796,15 +799,15 @@ jobs:
               fs.readFileSync('coverage-analysis.json')
             );
 
-            let body = '## テストカバレッジ分析\n\n';
-            body += `全体カバレッジ: **${analysis.total_coverage}%**\n\n`;
+            let body = '## Test Coverage Analysis\n\n';
+            body += `Overall Coverage: **${analysis.total_coverage}%**\n\n`;
 
             if (analysis.uncovered_changes.length > 0) {
-              body += '### テストが不足している変更\n\n';
+              body += '### Changes with Insufficient Tests\n\n';
               for (const file of analysis.uncovered_changes) {
                 body += `- \`${file.path}\` (${file.coverage}%)\n`;
               }
-              body += '\n以下のテストを追加することを推奨します。\n';
+              body += '\nAdding the following tests is recommended.\n';
             }
 
             github.rest.issues.createComment({
@@ -826,7 +829,7 @@ jobs:
           mutmut run --paths-to-mutate=src/ \
             --tests-dir=tests/ \
             --runner="pytest -x -q" \
-            || true  # mutmutは検出されたミュータントがあるとexit 1
+            || true  # mutmut exits with 1 when mutants are detected
 
       - name: Generate mutation report
         run: mutmut results > mutation-report.txt
@@ -838,25 +841,25 @@ jobs:
             --min-score 80
 ```
 
-### 6.2 テスト品質ゲート
+### 6.2 Test Quality Gate
 
 ```python
-# テスト品質の自動チェックゲート
+# Automated test quality check gate
 
 class TestQualityGate:
-    """テスト品質の自動チェック"""
+    """Automated test quality checks"""
 
     def __init__(self, config: dict = None):
         self.config = config or {
             "min_coverage": 80,
             "min_mutation_score": 75,
             "max_test_duration_sec": 300,
-            "min_assertion_density": 1.5,  # テストあたりの最小アサーション数
-            "max_test_complexity": 10,     # テスト関数の最大サイクロマティック複雑度
+            "min_assertion_density": 1.5,  # Minimum assertions per test
+            "max_test_complexity": 10,     # Maximum cyclomatic complexity of test functions
         }
 
     def check_all(self, metrics: dict) -> dict:
-        """全てのゲートをチェック"""
+        """Check all gates"""
         results = {
             "passed": True,
             "checks": [],
@@ -881,71 +884,71 @@ class TestQualityGate:
         coverage = metrics.get("coverage", 0)
         min_cov = self.config["min_coverage"]
         return {
-            "name": "カバレッジ",
+            "name": "Coverage",
             "passed": coverage >= min_cov,
             "value": f"{coverage:.1f}%",
             "threshold": f"{min_cov}%",
-            "message": f"カバレッジが基準値（{min_cov}%）を{'達成' if coverage >= min_cov else '未達成'}",
+            "message": f"Coverage {'meets' if coverage >= min_cov else 'does not meet'} the threshold ({min_cov}%)",
         }
 
     def _check_mutation_score(self, metrics: dict) -> dict:
         score = metrics.get("mutation_score", 0)
         min_score = self.config["min_mutation_score"]
         return {
-            "name": "ミューテーションスコア",
+            "name": "Mutation Score",
             "passed": score >= min_score,
             "value": f"{score:.1f}%",
             "threshold": f"{min_score}%",
-            "message": f"テストの有効性が基準値（{min_score}%）を{'達成' if score >= min_score else '未達成'}",
+            "message": f"Test effectiveness {'meets' if score >= min_score else 'does not meet'} the threshold ({min_score}%)",
         }
 
     def _check_test_duration(self, metrics: dict) -> dict:
         duration = metrics.get("total_duration_sec", 0)
         max_dur = self.config["max_test_duration_sec"]
         return {
-            "name": "テスト実行時間",
+            "name": "Test Execution Time",
             "passed": duration <= max_dur,
-            "value": f"{duration:.0f}秒",
-            "threshold": f"{max_dur}秒以下",
-            "message": f"テスト実行時間が基準値（{max_dur}秒）を{'クリア' if duration <= max_dur else '超過'}",
+            "value": f"{duration:.0f} seconds",
+            "threshold": f"{max_dur} seconds or less",
+            "message": f"Test execution time {'is within' if duration <= max_dur else 'exceeds'} the threshold ({max_dur} seconds)",
         }
 
     def _check_assertion_density(self, metrics: dict) -> dict:
         density = metrics.get("assertion_density", 0)
         min_density = self.config["min_assertion_density"]
         return {
-            "name": "アサーション密度",
+            "name": "Assertion Density",
             "passed": density >= min_density,
             "value": f"{density:.1f}",
-            "threshold": f"{min_density}以上",
-            "message": f"テストあたりのアサーション数が{'十分' if density >= min_density else '不足'}",
+            "threshold": f"{min_density} or more",
+            "message": f"Assertions per test {'are sufficient' if density >= min_density else 'are insufficient'}",
         }
 
     def _check_test_independence(self, metrics: dict) -> dict:
         order_dependent = metrics.get("order_dependent_tests", 0)
         return {
-            "name": "テスト独立性",
+            "name": "Test Independence",
             "passed": order_dependent == 0,
-            "value": f"{order_dependent}件",
-            "threshold": "0件",
-            "message": f"実行順序に依存するテストが{order_dependent}件{'あります' if order_dependent > 0 else 'ありません'}",
+            "value": f"{order_dependent} cases",
+            "threshold": "0 cases",
+            "message": f"{'No' if order_dependent == 0 else f'{order_dependent}'} order-dependent test(s) found",
         }
 ```
 
 ---
 
-## アンチパターン
+## Anti-Patterns
 
-### アンチパターン 1: カバレッジ数字だけを追いかける
+### Anti-Pattern 1: Chasing Coverage Numbers Only
 
 ```python
-# BAD: カバレッジ100%だが意味のないテスト
+# BAD: 100% coverage but meaningless tests
 def test_create_order():
     order = create_order(user_id=1, items=[{"id": 1, "qty": 1}])
-    assert order is not None  # ← 何も検証していない！
-    # カバレッジは上がるが、バグは見つけられない
+    assert order is not None  # <- Verifies nothing!
+    # Coverage goes up, but bugs won't be found
 
-# GOOD: ビジネスルールを検証するテスト
+# GOOD: Tests that verify business rules
 def test_create_order_calculates_total():
     order = create_order(
         user_id=1,
@@ -954,72 +957,72 @@ def test_create_order_calculates_total():
             {"id": 2, "qty": 1, "price": 500},
         ]
     )
-    assert order.total == 2500  # 実際の計算結果を検証
+    assert order.total == 2500  # Verify actual calculation result
     assert order.item_count == 3
     assert order.status == OrderStatus.PENDING
 ```
 
-### アンチパターン 2: AI生成テストの無批判受け入れ
+### Anti-Pattern 2: Uncritically Accepting AI-Generated Tests
 
 ```python
-# BAD: AIが生成したテストをそのまま使う
-# AIはしばしば「実装の動作」をテストしてしまう（実装テスト）
+# BAD: Using AI-generated tests as-is
+# AI often tests "implementation behavior" (implementation tests)
 
-# AIが生成しがちな実装テスト（BAD）
+# Implementation test AI tends to generate (BAD)
 def test_calculate_discount():
-    """内部実装に依存したテスト"""
+    """Test that depends on internal implementation"""
     result = calculate_discount(1000, "SAVE10")
-    assert result == 1000 * 0.9  # ← 実装の計算式をそのまま書いている
+    assert result == 1000 * 0.9  # <- Directly replicating the implementation formula
 
-# GOOD: 仕様をテストする
+# GOOD: Test the specification
 def test_calculate_discount():
-    """10%割引クーポンで100円割引される"""
+    """10% discount coupon results in 100 yen discount"""
     result = calculate_discount(1000, "SAVE10")
-    assert result == 900  # ← 期待する「結果」を明示
+    assert result == 900  # <- Explicitly state the expected "result"
 ```
 
 
 ---
 
-## 実践演習
+## Hands-On Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement appropriate error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1028,26 +1031,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1055,7 +1058,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1066,14 +1069,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Remove by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1081,7 +1084,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1089,44 +1092,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1135,7 +1138,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1150,47 +1153,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f} seconds")
+    print(f"Efficient version:   {fast_time:.6f} seconds")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithmic complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Configuration file issues | Verify configuration file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Data volume growth | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access permissions | Verify execution user permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, transaction management |
 
-### デバッグの手順
+### Debugging Procedure
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace and identify the location
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Verify step by step**: Use log output and debuggers to validate hypotheses
+5. **Fix and regression test**: After fixing, run tests on related areas as well
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utilities
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger setup
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1198,102 +1201,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance problems:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O wait**: Review disk and network I/O status
+4. **Check concurrent connections**: Review connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem Type | Diagnostic Tool | Countermeasure |
+|-------------|----------------|----------------|
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Properly release references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexing, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes decision criteria for technology selection.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criteria | When to Prioritize | When Acceptable to Compromise |
+|----------|-------------------|-------------------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal information, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│         Architecture Selection Flow              │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  (1) Team size?                                 │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to (2)            │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  (2) Deploy frequency?                          │
+│    ├─ Once a week or less → Monolith + modular  │
+│    └─ Daily / multiple times → Go to (3)        │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  (3) Team independence?                         │
+│    ├─ High → Microservices                      │
+│    └─ Medium → Modular monolith                 │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A method that is fast in the short term may become technical debt in the long term
+- Conversely, over-engineering incurs high short-term costs and may delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies enables best-fit solutions but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction offers high reusability but can make debugging difficult
+- Low abstraction is intuitive but tends to cause code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Template for recording design decisions
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Create an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1303,17 +1306,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1321,7 +1324,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1329,15 +1332,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1345,53 +1348,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum required features
+- Automated tests only for critical paths
+- Introduce monitoring from the start
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't aim for perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernization of a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually modernize a system that has been running for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate gradually using the Strangler Fig pattern
+- Create Characterization Tests first if no existing tests
+- Use an API gateway to coexist old and new systems
+- Migrate data incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work Content | Estimated Duration | Risk |
+|-------|-------------|-------------------|------|
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration Start | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core Migration | Migrate core functionality | 6-12 months | High |
+| 5. Completion | Decommission old system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Define clear boundaries with Domain-Driven Design
+- Set ownership per team
+- Manage shared libraries using Inner Source model
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1404,20 +1407,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Verify SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1426,7 +1429,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1447,71 +1450,71 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system that requires millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Cache strategy (L1: In-memory, L2: Redis, L3: CDN)
+2. Leverage async processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Method | Effect | Implementation Cost | Application |
+|--------------------|--------|---------------------|-------------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low-Medium | High | CPU-bound cases |
 ---
 
 ## FAQ
 
-### Q1: AI生成テストはどの程度信頼できるか？
+### Q1: How reliable are AI-generated tests?
 
-AI生成テストの信頼度は「正常系で80-90%、異常系で60-70%」程度。正常系のテストは高品質だが、ドメイン固有のエッジケースやビジネスルールの境界条件はAIが見逃しやすい。ミューテーションテストで有効性を検証し、人間がドメイン知識に基づくテストケースを補完するのが理想的。
+The reliability of AI-generated tests is approximately "80-90% for normal cases, 60-70% for error cases." Normal case tests are high quality, but AI tends to miss domain-specific edge cases and boundary conditions of business rules. The ideal approach is to verify effectiveness with mutation testing and have humans supplement test cases based on domain knowledge.
 
-### Q2: テスト生成のプロンプトで最も重要なことは？
+### Q2: What is the most important thing in test generation prompts?
 
-「テストの目的を明確にすること」が最重要。「テストを生成して」だけでは汎用的なテストしか得られない。代わりに「注文キャンセル時に在庫が正しく復元されることを検証するテスト」のように、検証すべきビジネスルールを明示する。入出力の具体例を示すとさらに精度が上がる。
+"Clearly defining the purpose of the test" is most important. Saying just "generate tests" will only produce generic tests. Instead, specify the business rule to verify, such as "generate a test that verifies inventory is correctly restored when an order is canceled." Providing concrete examples of inputs and outputs further improves accuracy.
 
-### Q3: 既存のテストがないレガシーコードにAIテストを追加する方法は？
+### Q3: How do you add AI tests to legacy code with no existing tests?
 
-段階的アプローチが有効。(1) まずAIにコードを読ませて「テストの書きやすさ」を評価させる。(2) リファクタリングなしでテスト可能な部分（純粋関数等）から開始。(3) テスト困難な部分はSeams（テスト可能な接合点）を見つけてからテストを追加。(4) カバレッジを少しずつ上げながら、リファクタリングとテスト追加を並行する。
+A gradual approach is effective. (1) First, have AI read the code and assess "testability." (2) Start with parts that can be tested without refactoring (pure functions, etc.). (3) For hard-to-test parts, find Seams (testable junction points) before adding tests. (4) Gradually increase coverage while performing refactoring and test additions in parallel.
 
-### Q4: ミューテーションテストをCI/CDに導入する際のコツは？
+### Q4: Tips for introducing mutation testing into CI/CD?
 
-実行時間が長くなりがちなため、(1) 変更されたファイルのみを対象にする（全体実行は夜間バッチで）。(2) 高速なミュータントから順に実行し、タイムアウトを設定する。(3) 最初は閾値を低め（60%）に設定し、段階的に引き上げる。(4) 等価ミュータント（テストで検出不可能なミュータント）はホワイトリストに登録して除外する。Python なら mutmut、Java なら Pitest、JavaScript なら Stryker が代表的なツール。
+Since execution time tends to be long: (1) Target only changed files (run full suite as a nightly batch). (2) Execute faster mutants first and set timeouts. (3) Start with a low threshold (60%) and gradually increase it. (4) Register equivalent mutants (mutants that cannot be detected by tests) in a whitelist and exclude them. Representative tools are mutmut for Python, Pitest for Java, and Stryker for JavaScript.
 
-### Q5: テストの保守コストを削減する方法は？
+### Q5: How to reduce test maintenance costs?
 
-AIテストで特に重要な観点。(1) テストヘルパーとファクトリパターンを活用し、テストデータ作成の重複を排除する。(2) Page Object パターン（E2E）やBuilder パターンで変更に強いテストを設計する。(3) AIにテストのリファクタリングも依頼し、DRY原則を適用する。(4) フレーキー（不安定）テストを定期的に特定・修正する仕組みを構築する。(5) テストコードもプロダクションコードと同じ品質基準でレビューする。
-
----
-
-## まとめ
-
-| 項目 | 要点 |
-|------|------|
-| 生成アプローチ | コードから逆生成、仕様から生成、差分から生成の3種 |
-| テストピラミッド | 単体テストでAI活用度が最も高い（90%） |
-| 品質検証 | ミューテーションテストで生成テストの有効性を確認 |
-| ツール選定 | Copilot(速度) vs Claude Code(品質) vs Codium(専門性) |
-| カバレッジ戦略 | 数字よりビジネスルールの網羅性を重視 |
-| 注意点 | 実装テストの回避、アサーションの意味確認 |
+A particularly important consideration for AI tests. (1) Leverage test helpers and factory patterns to eliminate duplication in test data creation. (2) Design tests resilient to change using Page Object pattern (E2E) and Builder pattern. (3) Ask AI to refactor tests as well, applying the DRY principle. (4) Build a mechanism to regularly identify and fix flaky (unstable) tests. (5) Review test code with the same quality standards as production code.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [01-ai-code-review.md](./01-ai-code-review.md) ── AIコードレビューとの統合
-- [03-ai-debugging.md](./03-ai-debugging.md) ── テスト失敗時のAIデバッグ
-- [../01-ai-coding/03-ai-coding-best-practices.md](../01-ai-coding/03-ai-coding-best-practices.md) ── テスト戦略の全体像
+| Item | Key Points |
+|------|------------|
+| Generation Approaches | Three types: reverse-generate from code, generate from specs, generate from diffs |
+| Test Pyramid | AI utilization is highest for unit tests (90%) |
+| Quality Verification | Verify effectiveness of generated tests with mutation testing |
+| Tool Selection | Copilot (speed) vs Claude Code (quality) vs Codium (specialization) |
+| Coverage Strategy | Prioritize business rule comprehensiveness over numbers |
+| Cautions | Avoid implementation tests, verify assertion meaningfulness |
 
 ---
 
-## 参考文献
+## Recommended Next Guides
+
+- [01-ai-code-review.md](./01-ai-code-review.md) -- Integration with AI Code Review
+- [03-ai-debugging.md](./03-ai-debugging.md) -- AI Debugging When Tests Fail
+- [../01-ai-coding/03-ai-coding-best-practices.md](../01-ai-coding/03-ai-coding-best-practices.md) -- Overall Test Strategy
+
+---
+
+## References
 
 1. Martin Fowler, "TestPyramid," martinfowler.com, 2012. https://martinfowler.com/bliki/TestPyramid.html
 2. David R. MacIver, "Hypothesis: Property-based testing for Python," 2024. https://hypothesis.readthedocs.io/
