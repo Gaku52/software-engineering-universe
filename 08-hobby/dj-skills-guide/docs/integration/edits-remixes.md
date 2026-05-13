@@ -1,226 +1,226 @@
-# エディット・リミックス
+# Edits & Remixes
 
-**既存楽曲を改変・リミックスする技術を完全マスター**
+**Completely Master the Techniques for Modifying and Remixing Existing Tracks**
 
-エディットとリミックスは、既存の楽曲を自分なりに再構成・改変するクリエイティブな手法です。DJセット用のブートレグ、オフィシャルリミックス、マッシュアップまで、Ableton Liveを使った実践的なテクニックを学びます。
-
----
-
-## この章で学ぶこと
-
-- ✅ エディット vs リミックスの違い
-- ✅ Abletonでのステム分離
-- ✅ BPM変更とピッチ調整
-- ✅ セクションの再構成
-- ✅ エフェクトによる変化
-- ✅ オリジナル要素の追加
-- ✅ 法的な注意点（著作権）
-
-**学習時間**: 4-6時間
-**難易度**: ★★★★☆ 中上級
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [DJ用トラック制作](./dj-tools-production.md) の内容を理解していること
+Edits and remixes are creative methods for restructuring and modifying existing tracks in your own way. You'll learn practical techniques using Ableton Live, from bootlegs for DJ sets to official remixes and mashups.
 
 ---
 
-## エディット vs リミックス
+## What You'll Learn in This Chapter
 
-### エディット（Edit）
+- ✅ Edits vs remixes: the differences
+- ✅ Stem separation in Ableton
+- ✅ BPM changes and pitch adjustment
+- ✅ Section restructuring
+- ✅ Transformation through effects
+- ✅ Adding original elements
+- ✅ Legal considerations (copyright)
 
-**定義**:
+**Study Time**: 4-6 hours
+**Difficulty**: Upper Intermediate
+
+
+## Prerequisites
+
+Having the following knowledge will deepen your understanding before reading this guide:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- [DJ Track Production](./dj-tools-production.md)  content
+
+---
+
+## Edits vs Remixes
+
+### Edit
+
+**Definition**:
 ```
-= 原曲の構成やBPMを変更するが、音源は原曲のまま
+= Changes the original track's structure and BPM, but uses the original audio source
 
-変更内容:
-  - BPM調整
-  - セクション並び替え
-  - Intro/Outro延長
-  - 不要部分カット
+Changes:
+  - BPM adjustment
+  - Section rearrangement
+  - Intro/Outro extension
+  - Removing unnecessary parts
 
-追加要素:
-  - 最小限（FX、フィルター程度）
+Added elements:
+  - Minimal (FX, filters, etc.)
 ```
 
-**例**:
+**Example**:
 ```
-Original: 110 BPM、3分30秒
-Edit: 128 BPM、5分（32小節Intro追加）
-```
-
-### リミックス（Remix）
-
-**定義**:
-```
-= 原曲の一部要素を使い、新しい楽曲を制作
-
-使用要素:
-  - ボーカル（アカペラ）
-  - メロディの一部
-  - サンプル
-
-追加要素:
-  - 新しいドラム
-  - 新しいベースライン
-  - 新しいコード進行
+Original: 110 BPM, 3 min 30 sec
+Edit: 128 BPM, 5 min（Add 32-bar Intro）
 ```
 
-**例**:
+### Remix
+
+**Definition**:
+```
+= Uses some elements of the original to create a new track
+
+Elements used:
+  - Vocals (acapella)
+  - Part of the melody
+  - Samples
+
+Added elements:
+  - New drums
+  - New bassline
+  - New chord progression
+```
+
+**Example**:
 ```
 Original: Pop 110 BPM
-Remix: House 125 BPM、完全に新しいトラック（ボーカルのみ原曲）
+Remix: House 125 BPM, Completely new track (only vocals from original)
 ```
 
 ---
 
-## Abletonでのエディット
+## Editing in Ableton
 
-### Step 1: 原曲インポート
+### Step 1: Import Original Track
 
 ```
 1. File → Import Audio
-2. 原曲WAVファイルをドラッグ
-3. Audio Trackに配置
+2. Drag the original WAV file
+3. Place on Audio Track
 ```
 
-### Step 2: Warp設定
+### Step 2: Warp Settings
 
-**BPM検出**:
+**BPM Detection**:
 ```
 1. Clip View → Warp: On
-2. Segment BPM: Abletonが自動検出
-3. 確認: タップテンポで検証
-4. Warp Markerを小節頭に配置
+2. Segment BPM: Ableton auto-detects
+3. Verify: Check with tap tempo
+4. Place Warp Markers at bar heads
 ```
 
-**Warp Mode選択**:
+**Warp Mode Selection**:
 ```
-ボーカル曲: Complex Pro（最高品質）
-ドラム: Beats
-シンセ/パッド: Texture
+Vocal tracks: Complex Pro (highest quality)
+Drums: Beats
+Synths/Pads: Texture
 
-→ 音質劣化を最小限に
+-> Minimize quality degradation
 ```
 
-### Step 3: BPM変更
+### Step 3: BPM Change
 
-**例: 110 BPM → 128 BPM**:
+**Example: 110 BPM -> 128 BPM**:
 ```
 1. Clip Warp: On
-2. Segment BPM: 110（原曲）
-3. Project Tempo: 128（新BPM）
+2. Segment BPM: 110 (Original)
+3. Project Tempo: 128 (New BPM)
 
-→ Abletonが自動でストレッチ
+-> Ableton automatically stretches
 ```
 
-**ピッチ維持**:
+**Pitch Preservation**:
 ```
 Warp Mode: Complex Pro
-→ BPMは変わるが、ピッチ（キー）は変わらない
+-> BPM changes, but pitch (key) stays the same
 ```
 
-### Step 4: セクション再構成
+### Step 4: Section Restructuring
 
-**Arrangement Viewで編集**:
+**Edit in Arrangement View**:
 ```
-Original構成:
-  Intro (8小節) → Verse → Chorus → Verse → Chorus → Outro
+Original structure:
+  Intro (8bars) → Verse → Chorus → Verse → Chorus → Outro
 
-Edit構成（DJ用）:
-  32小節 Intro → Chorus → Breakdown → Chorus → 32小節 Outro
+Edit structure (for DJ):
+  32bars Intro → Chorus → Breakdown → Chorus → 32bars Outro
 
-手順:
-  1. 不要なVerse削除
-  2. Chorusを複製
-  3. Introを32小節に延長（ループ）
+Steps:
+  1. Delete unnecessary verses
+  2. Duplicate chorus
+  3. Extend Intro to 32 bars (loop)
 ```
 
-**Intro延長**:
+**Intro Extension**:
 ```
-1. Intro部分（8小節）を選択
-2. Cmd+D で複製×4回
-3. 合計32小節のIntro完成
+1. Select Intro section (8 bars)
+2. Cmd+D  to duplicate x4
+3. 32-bar Intro complete
 ```
 
 ---
 
-## リミックス制作
+## Remix Production
 
-### Step 1: アカペラ入手
+### Step 1: Obtaining Acapella
 
-**公式ステム**:
+**Official Stems**:
 ```
-- Beatport "Stems" セクション
-- アーティスト公式サイト
-- レーベル提供（リミックスコンテスト）
-```
-
-**自分で分離（非推奨、音質劣化）**:
-```
-- Spleeter（AI分離）
-- iZotope RX（有料、高品質）
+- Beatport "Stems" Section
+- Artist official site
+- Label provided (remix contests)
 ```
 
-### Step 2: 新しいトラック制作
-
-**Acapellaに合わせる**:
+**Self-separation (not recommended, quality loss)**:
 ```
-1. Acapella分析:
+- Spleeter (AI separation)
+- iZotope RX (Paid, high quality)
+```
+
+### Step 2: Creating a New Track
+
+**Match to Acapella**:
+```
+1. Acapella analysis:
    - BPM: 110
    - Key: C Major
 
-2. 新トラック設定:
-   - BPM: 125（House）
-   - Key: C Major（同じキー）
+2. New track settings:
+   - BPM: 125 (House)
+   - Key: C Major (Same key)
 ```
 
-**ドラム制作**:
+**Drum Production**:
 ```
-Houseドラム:
-  - Kick: 4つ打ち
-  - Snare: 2拍目、4拍目
-  - Hi-Hat: 16分音符
+House Drums:
+  - Kick: Four-on-the-floor
+  - Snare: Beats 2, 4
+  - Hi-Hat: 16th notes
 
-→ Acapellaを引き立てる
+-> Complement the acapella
 ```
 
-**ベースライン**:
+**Bassline**:
 ```
 Original Key: C Major
-Bassline: C2（ルート音）、4つ打ち
+Bassline: C2 (Root note), Four-on-the-floor
 
-→ シンプルに
+-> Keep it simple
 ```
 
-**コード進行**:
+**Chord Progression**:
 ```
-House定番: C - Am - F - G
-Pad音色: Warm Analog Pad
+House standard: C - Am - F - G
+Pad sound: Warm Analog Pad
 
-→ Acapellaを支える
-```
-
-### Step 3: Acapellaの配置
-
-**タイミング調整**:
-```
-1. Acapellaを Arrangement Viewに配置
-2. Warp: On、BPM 110 → 125
-3. 小節頭に整列
-4. ボーカルのフレーズとドラムが合うように調整
+-> Support the acapella
 ```
 
-**EQ処理**:
+### Step 3: Placing the Acapella
+
+**Timing Adjustment**:
+```
+1. Place acapella in Arrangement View
+2. Warp: On, BPM 110 → 125
+3. Align to bar heads
+4. Adjust so vocal phrases align with drums
+```
+
+**EQ Processing**:
 ```
 EQ Eight:
-  1. High Pass 100 Hz（ランブル除去）
-  2. Boost 3-5 kHz +2 dB（明瞭さ）
+  1. High Pass 100 Hz (Rumble removal)
+  2. Boost 3-5 kHz +2 dB (Clarity)
 
 Compressor:
   - Ratio: 3:1
@@ -229,21 +229,21 @@ Compressor:
 
 ---
 
-## マッシュアップ
+## Mashups
 
-### 2曲を組み合わせる
+### Combining Two Tracks
 
-**選曲**:
+**Track Selection**:
 ```
-Track A: Acapella（ボーカル）
-Track B: Instrumental（インスト）
+Track A: Acapella (Vocals)
+Track B: Instrumental
 
-条件:
-  - 同じキー または 隣接キー
-  - 近いBPM（±5 BPM）
+Conditions:
+  - Same key or adjacent key
+  - Close BPM (+/-5 BPM)
 ```
 
-**例**:
+**Example**:
 ```
 Track A: "Song X" Acapella
   - BPM: 120
@@ -251,76 +251,76 @@ Track A: "Song X" Acapella
 
 Track B: "Song Y" Instrumental
   - BPM: 122
-  - Key: C Major（A Minorの相対キー）
+  - Key: C Major (A Minor relative key)
 
-→ 相性◎
+-> Great compatibility
 ```
 
-### Ableton での設定
+### Ableton Setup
 
 ```
 Track 1: Song X Acapella
-  - Warp: On、BPM 120 → 122
+  - Warp: On, BPM 120 → 122
 
 Track 2: Song Y Instrumental
-  - Warp: On、BPM 122（そのまま）
+  - Warp: On, BPM 122 (as is)
 
 Project Tempo: 122 BPM
 
-→ 両方が自動で同期
+-> Both automatically sync
 ```
 
 ---
 
-## キーとピッチの調整
+## Key and Pitch Adjustment
 
-### キー変更
+### Key Change
 
 **Transpose**:
 ```
-例: A Minor → G Minor（-2 semitones）
+Example: A Minor → G Minor (-2 semitones)
 
 Clip View → Transpose: -2
 
-→ キーが変わる、音質劣化なし（Complex Pro使用時）
+-> Key changes with no quality loss (when using Complex Pro)
 ```
 
-### ピッチ補正
+### Pitch Correction
 
-**Vocal Tuner**（Ableton Suite）:
+**Vocal Tuner** (Ableton Suite):
 ```
-Acapellaに適用:
+Apply to acapella:
   - Reference: C Major
   - Correction: 50-80%
 
-→ 微妙な音程のずれを修正
+-> Correct subtle pitch deviations
 ```
 
 ---
 
-## エフェクトによる変化
+## Transformation through effects
 
 ### Filter Sweep
 
 ```
 Auto Filter:
-  - Cutoff: 200 Hz → 8000 Hz（16小節で変化）
+  - Cutoff: 200 Hz → 8000 Hz (changes over 16 bars)
   - Resonance: 30%
 
-用途:
-  - Intro/Outroで徐々に明るく
-  - ブレイクダウン→ドロップ
+Usage:
+  - Gradually brighten in Intro/Outro
+  - Breakdown -> Drop
 ```
 
 ### Reverb Throw
 
 ```
 Return Track: Reverb
-  - Decay: 8.0s（非常に長い）
+  - Decay: 8.0s (Very long)
 
-Acapellaの最後の一言だけSend 100%:
-  - 劇的な残響効果
-  - トランジションに最適
+Send only the last word of the acapella at 100%:
+  - Dramatic reverberation effect
+  - Perfect for transitions
 ```
 
 ### Stutter Effect
@@ -330,99 +330,99 @@ Beat Repeat:
   - Repeat: 1/16
   - Gate: 50%
 
-特定の1拍だけ適用:
-  - スタッタリング効果
-  - Hip Hop、EDM
+Apply to only a specific beat:
+  - Stuttering effect
+  - Hip Hop, EDM
 ```
 
 ---
 
-## 法的注意点
+## Legal Considerations
 
-### 著作権
+### Copyright
 
-**許可なしの使用**:
+**Use Without Permission**:
 ```
 ✅ OK:
-  - DJセット内でのみ使用（非販売）
-  - SoundCloud "Free Download"（個人使用）
-  - 練習目的
+  - Use only within DJ sets (not for sale)
+  - SoundCloud "Free Download" (Personal use)
+  - Practice purposes
 
 ❌ NG:
-  - 販売（iTunes、Beatport）
-  - ストリーミング配信（Spotify）
-  - YouTube収益化
+  - Sales (iTunes, Beatport)
+  - Streaming distribution (Spotify)
+  - YouTube monetization
 ```
 
-### クレジット表記
+### Credit Attribution
 
 ```
-必須:
-  - 原曲アーティスト名
-  - 原曲タイトル
+Required:
+  - Original artist name
+  - Original title
 
-例:
+Example:
   "Original Artist - Song Title (Your Name Remix)"
   "Song A vs Song B (Your Name Mashup)"
 ```
 
-### 公式リミックス
+### Official Remix
 
-**レーベル許可あり**:
+**With Label Permission**:
 ```
-✅ 全てOK:
-  - 販売
-  - ストリーミング配信
-  - リミックスコンテスト優勝
+✅ All OK:
+  - Sales
+  - Streaming distribution
+  - Remix contest victory
 
-契約:
-  - レーベルと契約書
-  - ロイヤリティ配分
+Contract:
+  - Contract with label
+  - Royalty distribution
 ```
 
 ---
 
-## 練習プロジェクト
+## Practice Projects
 
-### プロジェクト1: BPMエディット
-
-```
-難易度: ★☆☆☆☆
-
-1. お気に入りの曲（例: 100 BPM）
-2. BPMを128に変更
-3. 32小節Intro追加
-4. DJセットで使用
-
-完成目標: DJ用エディット版
-```
-
-### プロジェクト2: マッシュアップ
+### Project 1: BPM Edit
 
 ```
-難易度: ★★★☆☆
+Difficulty: ★☆☆☆☆
 
-1. Acapella入手（同じキー）
-2. Instrumental入手
-3. Abletonで組み合わせ
-4. EQ/エフェクトで仕上げ
+1. A favorite track (e.g., 100 BPM)
+2. Change BPM to 128
+3. Add 32-bar Intro
+4. Use in DJ set
 
-完成目標: 2分マッシュアップ
+Completion goal: DJ edit version
 ```
 
-### プロジェクト3: フルリミックス
+### Project 2: Mashup
 
 ```
-難易度: ★★★★☆
+Difficulty: ★★★☆☆
 
-1. 公式ステム入手（リミックスコンテスト）
-2. 新しいドラム制作
-3. 新しいベースライン
-4. オリジナルメロディ追加
-5. Acapellaを配置
-6. ミキシング・マスタリング
+1. Acapella入手 (Same key)
+2. Obtain instrumental
+3. Combine in Ableton
+4. Finish with EQ/effects
 
-完成目標: 5分フルリミックス、コンテスト応募
+Completion goal: 2-minute mashup
+```
+
+### Project 3: Full Remix
+
+```
+Difficulty: ★★★★☆
+
+1. Obtain official stems (remix contest)
+2. Create new drums
+3. New bassline
+4. Add original melody
+5. Place acapella
+6. Mixing and mastering
+
+Completion goal: 5-minute full remix, contest submission
 ```
 
 ---
@@ -430,347 +430,347 @@ Beat Repeat:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point in learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-### エディット・リミックスの核心
-
-1. **エディット**: BPM/構成変更、原音源そのまま
-2. **リミックス**: Acapella+新トラック
-3. **Warp**: Complex Proで高音質
-4. **著作権**: 個人使用のみ、販売NG（許可なし）
-5. **クレジット**: 原曲アーティスト必須
-
-### 次のステップ
-
-1. [ライブプロダクション](./live-production.md) - Session Viewでのパフォーマンス
-2. [Ableton for DJing](./ableton-for-djing.md) - DJとしてAbletonを使う
+Knowledge of this topic is frequently used in daily development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-**🎵 既存楽曲を自分なりに再構成して、セットを差別化しましょう！**
+## Summary
+
+### The Core of Edits & Remixes
+
+1. **Edit**: BPM/structure change, original source as-is
+2. **Remix**: Acapella + new track
+3. **Warp**: High quality with Complex Pro
+4. **Copyright**: Personal use only, sales prohibited (without permission)
+5. **Credit**: Original artist required
+
+### Next Steps
+
+1. [Live Production](./live-production.md) - Performance in Session View
+2. [Ableton for DJing](./ableton-for-djing.md) - Using Ableton as a DJ
 
 ---
 
-## 第2部: エディットの高度なテクニック
+**Restructure existing tracks in your own way and differentiate your sets!**
 
-### エディットの種類と分類
+---
 
-DJエディットには多くの種類があり、それぞれ異なる目的と技術を必要とします。
+## Part 2: Advanced Edit Techniques
+
+### Types and Classification of Edits
+
+There are many types of DJ edits, each requiring different purposes and techniques.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                   DJ エディットの分類体系                      │
+│                   DJ Edit Classification System                      │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  1. テンポエディット (Tempo Edit)                             │
-│     └─ BPMを変更してジャンルを超えた使用を可能にする            │
+│  1. Tempo Edit                             │
+│     └─ Change BPM to enable cross-genre use            │
 │                                                             │
-│  2. ストラクチャーエディット (Structure Edit)                  │
-│     └─ Intro/Outro追加、セクション並べ替え                    │
+│  2. Structure Edit                  │
+│     └─ Add Intro/Outro, rearrange sections                    │
 │                                                             │
-│  3. トランジションエディット (Transition Edit)                │
-│     └─ ミックス用に最適化されたイン/アウトポイント             │
+│  3. Transition Edit                │
+│     └─ In/out points optimized for mixing             │
 │                                                             │
-│  4. エクステンドエディット (Extended Edit)                     │
-│     └─ 短い曲を長くする、ループセクション追加                  │
+│  4. Extended Edit                     │
+│     └─ 短い曲を長くする、ループSection追加                  │
 │                                                             │
-│  5. クリーンエディット (Clean Edit)                           │
-│     └─ 不適切な歌詞の除去・差し替え                          │
+│  5. Clean Edit                           │
+│     └─ Remove/replace inappropriate lyrics                          │
 │                                                             │
-│  6. パーティーエディット (Party Edit)                         │
-│     └─ 盛り上がりパートを増やす、不要な間奏カット             │
+│  6. Party Edit                         │
+│     └─ Add more hype parts, cut unnecessary interludes             │
 │                                                             │
-│  7. レイヤーエディット (Layered Edit)                         │
-│     └─ ドラムやパーカッション、FXを軽く追加                   │
+│  7. Layered Edit                         │
+│     └─ Lightly add drums, percussion, and FX                   │
 │                                                             │
-│  8. キーエディット (Key Edit)                                 │
-│     └─ キーを変更して他の曲との互換性を高める                 │
+│  8. Key Edit                                 │
+│     └─ Change key to improve compatibility with other tracks                 │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### テンポエディットの高度な手法
+### Advanced Tempo Edit Techniques
 
-BPMを変更する際、単純なタイムストレッチでは音質が大幅に劣化します。以下は高品質なテンポ変更のための詳細手順です。
+When changing BPM, simple time-stretching significantly degrades quality. Below are detailed steps for high-quality tempo changes.
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│           テンポ変更の品質影響マトリクス                        │
+│           Tempo Change Quality Impact Matrix                        │
 ├─────────────┬──────────┬──────────┬──────────┬──────────────┤
-│ 変更幅       │ 音質影響  │ 推奨手法  │ 所要時間  │ 難易度       │
+│ Change Range       │ Quality Impact  │ Recommended Method  │ Time Required  │ 難易度       │
 ├─────────────┼──────────┼──────────┼──────────┼──────────────┤
-│ ±1-3 BPM   │ ほぼなし  │ Warp     │ 5分      │ ★☆☆☆☆      │
-│ ±4-8 BPM   │ 軽微     │ Warp+EQ  │ 15分     │ ★★☆☆☆      │
-│ ±9-15 BPM  │ 中程度   │ 複合手法  │ 30分     │ ★★★☆☆      │
-│ ±16-25 BPM │ 大きい   │ 再構成   │ 1-2時間  │ ★★★★☆      │
-│ ±26+ BPM   │ 甚大     │ リミックス│ 3時間+   │ ★★★★★      │
+│ ±1-3 BPM   │ Almost none  │ Warp     │ 5分      │ ★☆☆☆☆      │
+│ ±4-8 BPM   │ Slight     │ Warp+EQ  │ 15分     │ ★★☆☆☆      │
+│ ±9-15 BPM  │ Moderate   │ Combined methods  │ 30分     │ ★★★☆☆      │
+│ ±16-25 BPM │ Significant   │ Reconstruction   │ 1-2時間  │ ★★★★☆      │
+│ ±26+ BPM   │ Severe     │ リミックス│ 3時間+   │ ★★★★★      │
 └─────────────┴──────────┴──────────┴──────────┴──────────────┘
 ```
 
-#### 大幅なBPM変更（±10 BPM以上）の高品質手法
+#### High-Quality Methods for Large BPM Changes (+/-10 BPM or more)
 
 ```
-方法1: ハーフタイム/ダブルタイム変換
+Method 1: Half-time/Double-time Conversion
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-例: Hip Hop 90 BPM → House 128 BPM
+Example: Hip Hop 90 BPM → House 128 BPM
 
-Step 1: ハーフタイム解釈
-  - 90 BPM → 180 BPM（ダブルタイム解釈）
+Step 1: Half-time interpretation
+  - 90 BPM → 180 BPM（Double-time interpretation）
   
-Step 2: テンポ調整
-  - 180 BPM → 128 BPM（-52 BPM = 実質 -29%）
-  ※ これでも大きいが、元の90→128（+42%）よりはるかにマシ
+Step 2: Tempo adjustment
+  - 180 BPM → 128 BPM（-52 BPM = effectively -29%）
+  ※ これでもSignificantが、元の90→128（+42%）much better than
 
-Step 3: ドラムパターン調整
-  - ハーフタイムのスネアを活かす
-  - 4つ打ちキックを追加レイヤー
+Step 3: Drum pattern adjustment
+  - Leverage the half-time snare
+  - Four-on-the-floorKickを追加レイヤー
 
-代替方法: 分割アプローチ
-  - ボーカル/メロディ → Complex Proで128 BPMにWarp
-  - ドラム → 新規打ち込み（128 BPM House パターン）
-  - ベース → 新規演奏 or シンセで打ち込み直し
+Alternative: Split approach
+  - Vocals/Melody → Complex Proで128 BPMにWarp
+  - Drums -> New programming (128 BPM House pattern)
+  - Bass -> New performance or reprogram with synth
 ```
 
 ```
-方法2: セグメント別テンポ処理
+Method 2: Segment-by-Segment Tempo Processing
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-異なるセクションに異なるWarp設定を使用
+異なるSectionに異なるWarp設定を使 Use
 
-Verse（ボーカルメイン）:
+Verse（Vocalsメイン）:
   → Warp Mode: Complex Pro
-  → Grain Size: 大きめ（音質優先）
+  → Grain Size: Largeきめ（Quality priority）
   → Transient設定: Smooth
 
-Chorus（エネルギッシュ）:
+Chorus（Energetic）:
   → Warp Mode: Complex Pro
-  → エンベロープ: タイト
-  → 必要に応じてEQブースト
+  → Envelope: Tight
+  → EQ boost as needed
 
-ドラムブレイク:
+Drum break:
   → Warp Mode: Beats
   → Transient Loop Mode: Forward
   → Preserve: Transients
 
-パッドセクション:
+パッドSection:
   → Warp Mode: Texture
-  → Grain Size: 中程度
+  → Grain Size: Moderate
   → Flux: 50%
 ```
 
-### ストラクチャーエディットの設計パターン
+### Structure Edit Design Patterns
 
-DJプレイにおいて最も重要なエディット技術です。フロアでの実用性を最大化するための構成パターンを解説します。
+This is the most important edit technique for DJ play. We explain arrangement patterns to maximize floor practicality.
 
 ```
 ┌───────────────────────────────────────────────────────────────────┐
-│              DJ用ストラクチャーテンプレート                          │
+│              DJ Structure Templates                          │
 ├───────────────────────────────────────────────────────────────────┤
 │                                                                   │
-│ パターンA: スタンダードクラブエディット                              │
+│ Pattern A: Standard Club Edit                              │
 │ ┌────┬────┬────┬────┬────┬────┬────┬────┬────┐                   │
 │ │Intro│Build│Verse│Chor│Break│Chor│Build│Drop│Outro│              │
-│ │32小節│16  │16  │16  │16  │16  │8   │16  │32小節│               │
+│ │32bars│16  │16  │16  │16  │16  │8   │16  │32bars│               │
 │ └────┴────┴────┴────┴────┴────┴────┴────┴────┘                   │
-│ 合計: 約168小節 = 約5分20秒 @128BPM                               │
+│ Total: Approx. 168bars = Approx. 5分20秒 @128BPM                               │
 │                                                                   │
-│ パターンB: フェスティバルエディット                                  │
+│ Pattern B: Festival Edit                                  │
 │ ┌────┬────┬────┬────┬────┬────┬────┐                              │
 │ │Intro│Build│Drop│Break│Build│Drop│Outro│                         │
-│ │16小節│16  │32  │16  │16  │32  │16小節│                          │
+│ │16bars│16  │32  │16  │16  │32  │16bars│                          │
 │ └────┴────┴────┴────┴────┴────┴────┘                              │
-│ 合計: 約144小節 = 約4分30秒 @128BPM                               │
+│ Total: Approx. 144bars = Approx. 4分30秒 @128BPM                               │
 │                                                                   │
-│ パターンC: ディープ/メロディック エディット                          │
+│ Pattern C: Deep/Melodic Edit                          │
 │ ┌────┬────┬────┬────┬────┬────┬────┬────┐                        │
 │ │Intro│Atmo│Vocal│Build│Peak│Break│Vocal│Outro│                   │
-│ │32小節│16 │32  │16  │32  │16  │16  │32小節│                     │
+│ │32bars│16 │32  │16  │32  │16  │16  │32bars│                     │
 │ └────┴────┴────┴────┴────┴────┴────┴────┘                        │
-│ 合計: 約192小節 = 約6分 @128BPM                                   │
+│ Total: Approx. 192bars = Approx. 6分 @128BPM                                   │
 │                                                                   │
-│ パターンD: ラジオ/ショートエディット                                │
+│ Pattern D: Radio/Short Edit                                │
 │ ┌────┬────┬────┬────┬────┬────┐                                   │
 │ │Intro│Verse│Chor│Break│Chor│Outro│                               │
-│ │8小節│16  │16  │8   │16  │8小節│                                 │
+│ │8bars│16  │16  │8   │16  │8bars│                                 │
 │ └────┴────┴────┴────┴────┴────┘                                   │
-│ 合計: 約72小節 = 約2分15秒 @128BPM                                │
+│ Total: Approx. 72bars = Approx. 2分15秒 @128BPM                                │
 │                                                                   │
 └───────────────────────────────────────────────────────────────────┘
 ```
 
-### Intro/Outro の専門的な構築テクニック
+### Professional Intro/Outro Construction Techniques
 
 ```
-32小節 Intro の構築（128 BPM House/Techno用）
+32bars Intro  Construction（128 BPM House/Techno Use）
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-小節 1-8:   キックのみ（原曲のドラムからサンプリング）
-小節 9-16:  キック + ハイハット（原曲から抽出 or 追加）
-小節 17-24: キック + ハイハット + ベース（ローパスフィルター付き）
-小節 25-32: フルドラム + ベース + 原曲要素フェードイン
+bars 1-8:   Kickのみ（OriginalのDrumsからSampling）
+bars 9-16:  Kick + Hi-hat（Originalから抽出 or 追加）
+bars 17-24: Kick + hi-hat + bass (with low-pass filter)
+bars 25-32: フルDrums + Bass + Original要素フェードイン
 
-各レイヤーの追加タイミング:
+Layer addition timing:
   ┌─────────────────────────────────────────┐
-  │ 小節  1   8   16   24   32             │
+  │ bars  1   8   16   24   32             │
   │ Kick  ████████████████████████████████  │
   │ HiHat     ██████████████████████████    │
   │ Bass          ████████████████████      │
   │ Perc              ██████████████        │
-  │ 原曲                  ████████████      │
+  │ Original                  ████████████      │
   │ FX/Riser                  ████████      │
   └─────────────────────────────────────────┘
 
-Abletonでの実装:
-  1. 原曲のイントロ部分からキックを1拍分サンプリング
-  2. Simpler にロードしてMIDI打ち込み
-  3. 各要素をAutomationで段階的にフェードイン
-  4. Auto Filter の Frequency を 200Hz → 20kHz で自動化
+Ableton implementation:
+  1. Originalのイントロ部分からKickを1拍分Sampling
+  2. Simpler  and program via MIDI
+  3. Gradually fade in each element with automation
+  4. Auto Filter  Frequency automated from 200Hz -> 20kHz
 ```
 
-### トランジションポイントの最適化
+### Transition Point Optimization
 
 ```
-ミックスインポイントの設計:
+Mix-in point design:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-良いミックスインポイントの条件:
-  ✅ キックとベースのみ（周波数帯域が被らない）
-  ✅ メロディやボーカルがない（前の曲と干渉しない）
-  ✅ 明確な小節の頭（グリッド同期しやすい）
-  ✅ 16-32小節の余裕がある
+良いミックスインポイントのConditions:
+  ✅ Kick and bass only (frequency bands don't overlap)
+  ✅ MelodyやVocalsがない（前の曲と干渉しない）
+  ✅ 明確なbarsの頭（グリッド同期しやすい）
+  ✅ 16-32barsの余裕がある
 
-悪いミックスインポイント:
-  ❌ ボーカルが入っている（前曲のボーカルと混ざる）
-  ❌ メロディが複雑（不協和音の原因）
-  ❌ リズムが不規則（BPM同期困難）
-  ❌ エフェクトが多い（予測不能な変化）
+Bad mix-in points:
+  ❌ Vocalsが入っている（前曲のVocalsと混ざる）
+  ❌ Complex melody (causes dissonance)
+  ❌ Irregular rhythm (BPM sync difficult)
+  ❌ Many effects (unpredictable changes)
 
-Abletonでのマーキング:
+Marking in Ableton:
   1. Arrangement View → Locator追加
-  2. "MIX IN" "MIX OUT" とラベル
-  3. 各ポイントの前後4小節を確認
-  4. エクスポート時にLocatorを活用
+  2. "MIX IN" "MIX OUT"  labels
+  3. 各ポイントの前後4barsを確認
+  4. エクスポート時にLocatorを活 Use
 ```
 
 ---
 
-## 第3部: リミックスの完全制作ワークフロー
+## Part 3: Complete Remix Production Workflow
 
-### リミックス制作の全体フロー
+### Remix ProductionのFullフロー
 
 ```
 ┌───────────────────────────────────────────────────────────────────┐
-│              リミックス制作 完全ワークフロー                         │
+│              Remix Production Complete Workflow                         │
 ├───────────────────────────────────────────────────────────────────┤
 │                                                                   │
-│  Phase 1: 準備・分析（1-2時間）                                    │
-│  ├─ 原曲の詳細分析（BPM, Key, 構成, コード進行）                   │
-│  ├─ ステム入手または分離                                          │
-│  ├─ 使用するボーカルフレーズの選定                                 │
-│  └─ リミックスのコンセプト決定                                     │
+│  Phase 1: Preparation & Analysis (1-2 hours)                                    │
+│  ├─ Originalの詳細分析（BPM, Key, 構成, Chord進行）                   │
+│  ├─ Obtain or separate stems                                          │
+│  ├─ 使 UseするVocalsフレーズの選定                                 │
+│  └─ Determine remix concept                                     │
 │                                                                   │
-│  Phase 2: 基盤制作（2-3時間）                                      │
-│  ├─ ドラムプログラミング                                          │
-│  ├─ ベースライン制作                                              │
-│  ├─ コード進行の構築                                              │
-│  └─ 基本的なアレンジメント                                        │
+│  Phase 2: Foundation Production (2-3 hours)                                      │
+│  ├─ Drum programming                                          │
+│  ├─ Bassline production                                              │
+│  ├─ Chord進行 Construction                                              │
+│  └─ Basic arrangement                                        │
 │                                                                   │
-│  Phase 3: ボーカル統合（1-2時間）                                   │
-│  ├─ ボーカルのWarp/タイミング調整                                  │
-│  ├─ ピッチ補正（必要に応じて）                                    │
-│  ├─ ボーカルEQ/コンプレッション                                    │
-│  └─ ボーカルエフェクト（リバーブ、ディレイ等）                     │
+│  Phase 3: Vocals統合（1-2時間）                                   │
+│  ├─ VocalsのWarp/タイミング調整                                  │
+│  ├─ Pitch correction (as needed)                                    │
+│  ├─ VocalsEQ/Compression                                    │
+│  └─ Vocalsエフェクト（リバーブ、ディレイ等）                     │
 │                                                                   │
-│  Phase 4: アレンジメント（2-3時間）                                 │
-│  ├─ イントロ/アウトロの構築                                       │
-│  ├─ ブレイクダウンの設計                                          │
-│  ├─ ビルドアップの制作                                            │
-│  ├─ ドロップの最適化                                              │
-│  └─ トランジションの仕上げ                                        │
+│  Phase 4: Arrangement (2-3 hours)                                 │
+│  ├─ イントロ/アウトロ Construction                                       │
+│  ├─ Breakdown design                                          │
+│  ├─ Buildup production                                            │
+│  ├─ Drop optimization                                              │
+│  └─ Transition finishing                                        │
 │                                                                   │
-│  Phase 5: ミキシング（2-3時間）                                     │
-│  ├─ レベルバランス                                                │
-│  ├─ EQ処理（各トラック）                                          │
-│  ├─ コンプレッション                                              │
-│  ├─ 空間処理（リバーブ/ディレイ）                                  │
-│  └─ サイドチェイン設定                                            │
+│  Phase 5: Mixing (2-3 hours)                                     │
+│  ├─ Level balance                                                │
+│  ├─ EQ processing (each track)                                          │
+│  ├─ Compression                                              │
+│  ├─ Spatial processing (reverb/delay)                                  │
+│  └─ Sidechain setup                                            │
 │                                                                   │
-│  Phase 6: マスタリング（1時間）                                     │
-│  ├─ マスターEQ                                                    │
-│  ├─ マルチバンドコンプレッション                                   │
-│  ├─ リミッター                                                    │
-│  └─ 最終チェック（ラウドネス、モノ互換性）                         │
+│  Phase 6: Mastering (1 hour)                                     │
+│  ├─ Master EQ                                                    │
+│  ├─ マルチバンドCompression                                   │
+│  ├─ Limiter                                                    │
+│  └─ Final check (loudness, mono compatibility)                         │
 │                                                                   │
-│  合計所要時間: 9-14時間                                            │
+│  合計Time Required: 9-14時間                                            │
 └───────────────────────────────────────────────────────────────────┘
 ```
 
-### Phase 1: 原曲分析の詳細手法
+### Phase 1: Original分析の詳細手法
 
 ```
-原曲分析シート
+Original分析シート
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-基本情報:
-  アーティスト: ________________
-  曲名:        ________________
+Basic Information:
+  Artist: ________________
+  Track Name:        ________________
   BPM:         ________________
   キー:        ________________
-  ジャンル:     ________________
-  リリース年:   ________________
+  Genre:     ________________
+  Release Year:   ________________
 
-構成分析:
+Structure Analysis:
   ┌────────┬────────┬────────────────────────┐
-  │ セクション│ 小節数  │ 内容                    │
+  │ Section│ bars数  │ Content                    │
   ├────────┼────────┼────────────────────────┤
-  │ Intro   │ __小節  │                        │
-  │ Verse 1 │ __小節  │                        │
-  │ Pre-Cho │ __小節  │                        │
-  │ Chorus 1│ __小節  │                        │
-  │ Verse 2 │ __小節  │                        │
-  │ Chorus 2│ __小節  │                        │
-  │ Bridge  │ __小節  │                        │
-  │ Chorus 3│ __小節  │                        │
-  │ Outro   │ __小節  │                        │
+  │ Intro   │ __bars  │                        │
+  │ Verse 1 │ __bars  │                        │
+  │ Pre-Cho │ __bars  │                        │
+  │ Chorus 1│ __bars  │                        │
+  │ Verse 2 │ __bars  │                        │
+  │ Chorus 2│ __bars  │                        │
+  │ Bridge  │ __bars  │                        │
+  │ Chorus 3│ __bars  │                        │
+  │ Outro   │ __bars  │                        │
   └────────┴────────┴────────────────────────┘
 
-コード進行:
+Chord Progression:
   Verse:   __ - __ - __ - __
   Chorus:  __ - __ - __ - __
   Bridge:  __ - __ - __ - __
 
-使用したいボーカルフレーズ:
-  □ Verse 全体
-  □ Chorus 全体
-  □ 特定のフレーズ: ________________
-  □ フック/ワンショット: ________________
+使 UseしたいVocalsフレーズ:
+  □ Verse Full
+  □ Chorus Full
+  □ Specific phrase: ________________
+  □ Hook/One-shot: ________________
 
-リミックスコンセプト:
-  ターゲットジャンル:  ________________
-  ターゲットBPM:      ________________
-  ターゲットキー:      ________________
-  ムード/雰囲気:       ________________
+Remix Concept:
+  ターゲットGenre:  ________________
+  Target BPM:      ________________
+  Target Key:      ________________
+  Mood/Atmosphere:       ________________
 ```
 
-### Phase 2: ドラムプログラミングの詳細
+### Phase 2: Drum programmingの詳細
 
 ```
-ジャンル別ドラムパターン設計
+Genre-Specific Drum Pattern Design
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 【House (124-128 BPM)】
@@ -782,7 +782,7 @@ Abletonでのマーキング:
   OH Hat:  |. . X . |. . . . |. . X . |. . . . |
   Perc:    |. . . X |. . X . |. . . X |. . X . |
   
-  ※ 16分音符グリッド（4/4拍子、1小節 = 16ステップ）
+  ※ 16th notesグリッド（4/4拍子、1bars = 16ステップ）
 
 【Techno (128-136 BPM)】
 
@@ -807,65 +807,65 @@ Abletonでのマーキング:
   CH Hat:  |X . X X |. X X . |X . X X |. X X . |
   Shaker:  |X X X X |X X X X |X X X X |X X X X |
 
-各ドラムサウンドの推奨EQ設定:
+Recommended EQ settings for each drum sound:
   Kick:   HPF 30Hz, LPF 120Hz (sub), Boost 60Hz +3dB
   Snare:  HPF 100Hz, Body 200Hz +2dB, Crack 4kHz +3dB
   Clap:   HPF 300Hz, Presence 2kHz +2dB, Air 10kHz +1dB
   HiHat:  HPF 3kHz, Shimmer 8kHz +2dB
 ```
 
-### Phase 2 続き: ベースライン設計
+### Phase 2 Continued: Bassline Design
 
 ```
-リミックス用ベースライン設計ガイド
+リミックス UseBassライン設計ガイド
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-ベースラインの種類:
+Bassline Types:
 
-1. サブベース（Sub Bass）
-   周波数: 30-80 Hz
-   波形: サイン波
-   用途: House, Techno, 重低音系
+1. Sub Bass
+   Frequency: 30-80 Hz
+   Waveform: Sine wave
+   Usage: House, Techno, Heavy bass
    
-   Abletonでの作成:
+   Creating in Ableton:
    → Operator: Algorithm 1, Osc A = Sine
    → Filter: LP 80Hz, Resonance 0
-   → Glide: Off（クリーンなサブ）
+   → Glide: Off（Clean sub）
 
-2. リースベース（Reese Bass）
-   周波数: 40-300 Hz
-   波形: ノコギリ波 × 2（デチューン）
-   用途: DnB, Dubstep, Neurofunk
+2. Reese Bass
+   Frequency: 40-300 Hz
+   Waveform: Sawtooth x 2 (detuned)
+   Usage: DnB, Dubstep, Neurofunk
    
-   Abletonでの作成:
+   Creating in Ableton:
    → Analog: Osc1 = Saw, Osc2 = Saw
    → Osc2 Detune: +5-15 cents
    → Filter: LP 300Hz, Resonance 30%
 
-3. アシッドベース（Acid Bass）
-   周波数: 50-5000 Hz
-   波形: ノコギリ波（レゾナンス高め）
-   用途: Acid House, Acid Techno
+3. Acid Bass
+   Frequency: 50-5000 Hz
+   Waveform: Sawtooth (high resonance)
+   Usage: Acid House, Acid Techno
    
-   Abletonでの作成:
+   Creating in Ableton:
    → Analog: Osc1 = Saw
-   → Filter: LP, Cutoff をオートメーション
+   → Filter: LP, Cutoff  with automation
    → Resonance: 60-80%
-   → Env Mod: 高め
+   → Env Mod: High
 
-4. プラックベース（Pluck Bass）
-   周波数: 50-2000 Hz
-   波形: ノコギリ波（短いエンベロープ）
-   用途: Future Bass, Tropical House
+4. Pluck Bass
+   Frequency: 50-2000 Hz
+   Waveform: Sawtooth (short envelope)
+   Usage: Future Bass, Tropical House
    
-   Abletonでの作成:
+   Creating in Ableton:
    → Analog: Osc1 = Saw
    → Amp Env: A=0, D=200ms, S=0, R=100ms
    → Filter Env: A=0, D=100ms, S=20%, R=50ms
 
-ベースラインのコード対応表（Key of C Major）:
+Bassline Chord Reference Table（Key of C Major）:
   ┌──────────┬──────────┬──────────────────────┐
-  │ コード    │ ルート音  │ ベースノート           │
+  │ Chord    │ Root note  │ Bass Note           │
   ├──────────┼──────────┼──────────────────────┤
   │ C Major  │ C        │ C1, C2               │
   │ D Minor  │ D        │ D1, D2               │
@@ -876,225 +876,225 @@ Abletonでのマーキング:
   │ B Dim    │ B        │ B0, B1               │
   └──────────┴──────────┴──────────────────────┘
   
-  ※ オクターブはシンセ/スピーカー環境により調整
+  * Adjust octave based on synth/speaker environment
 ```
 
 
 ---
 
-## 第4部: ステム分離の最新技術
+## Part 4: Latest Stem Separation Technology
 
-### AI ステム分離ツール比較
+### AI Stem Separation Tool Comparison
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐
-│              ステム分離ツール 完全比較表（2025年版）                │
+│              Stem Separation Tool Complete Comparison (2025 Edition)                │
 ├──────────┬─────────┬──────────┬──────────┬─────────┬───────────┤
-│ ツール    │ 価格     │ 品質     │ 速度     │ ステム数 │ プラット   │
+│ Tool    │ Price     │ Quality     │ Speed     │ Stems │ Platform   │
 ├──────────┼─────────┼──────────┼──────────┼─────────┼───────────┤
-│ Demucs   │ 無料    │ ★★★★★  │ ★★★☆☆  │ 4-6    │ CLI       │
-│ (Meta)   │         │ 最高品質  │ GPU推奨   │         │ Win/Mac   │
+│ Demucs   │ Free    │ ★★★★★  │ ★★★☆☆  │ 4-6    │ CLI       │
+│ (Meta)   │         │ 最HighQuality  │ GPU recommended   │         │ Win/Mac   │
 ├──────────┼─────────┼──────────┼──────────┼─────────┼───────────┤
-│ Spleeter │ 無料    │ ★★★☆☆  │ ★★★★★  │ 2-5    │ CLI       │
-│ (Deezer) │         │ 標準品質  │ 高速      │         │ Win/Mac   │
+│ Spleeter │ Free    │ ★★★☆☆  │ ★★★★★  │ 2-5    │ CLI       │
+│ (Deezer) │         │ 標準Quality  │ Fast      │         │ Win/Mac   │
 ├──────────┼─────────┼──────────┼──────────┼─────────┼───────────┤
 │ iZotope  │ ¥44,000 │ ★★★★★  │ ★★★★☆  │ 制限なし│ Plugin    │
-│ RX 11    │ 年額    │ プロ品質  │ 高速      │         │ Win/Mac   │
+│ RX 11    │ Annual    │ プロQuality  │ Fast      │         │ Win/Mac   │
 ├──────────┼─────────┼──────────┼──────────┼─────────┼───────────┤
-│ LALAL.AI │ 月¥1500 │ ★★★★☆  │ ★★★★★  │ 2-8    │ Web       │
-│          │ 従量制  │ 高品質   │ 即時      │         │ ブラウザ   │
+│ LALAL.AI │ Monthly¥1500 │ ★★★★☆  │ ★★★★★  │ 2-8    │ Web       │
+│          │ Pay-per-use  │ HighQuality   │ Instant      │         │ ブラウザ   │
 ├──────────┼─────────┼──────────┼──────────┼─────────┼───────────┤
-│ Moises   │ 月¥900  │ ★★★★☆  │ ★★★★☆  │ 2-5    │ App       │
-│          │ サブスク│ 高品質   │ 高速      │         │ iOS/And   │
+│ Moises   │ Monthly¥900  │ ★★★★☆  │ ★★★★☆  │ 2-5    │ App       │
+│          │ Subscription│ HighQuality   │ Fast      │         │ iOS/And   │
 ├──────────┼─────────┼──────────┼──────────┼─────────┼───────────┤
-│ Serato   │ 内蔵    │ ★★★☆☆  │ ★★★★★  │ 4      │ DJソフト  │
-│ Stems    │ 無料    │ 実用品質 │ リアル    │         │ Win/Mac   │
+│ Serato   │ Built-in    │ ★★★☆☆  │ ★★★★★  │ 4      │ DJ Software  │
+│ Stems    │ Free    │ 実 UseQuality │ Real-time    │         │ Win/Mac   │
 ├──────────┼─────────┼──────────┼──────────┼─────────┼───────────┤
-│ djay Pro │ 内蔵    │ ★★★★☆  │ ★★★★★  │ 4      │ DJソフト  │
-│ (Neural) │ 無料    │ 高品質   │ リアル    │         │ Mac/iOS   │
+│ djay Pro │ Built-in    │ ★★★★☆  │ ★★★★★  │ 4      │ DJ Software  │
+│ (Neural) │ Free    │ HighQuality   │ Real-time    │         │ Mac/iOS   │
 └──────────┴─────────┴──────────┴──────────┴─────────┴───────────┘
 ```
 
-### Demucs の詳細使用法
+### Demucs の詳細使 Use法
 
 ```
-Demucs v4 (Hybrid Transformer) インストールと使用
+Demucs v4 (Hybrid Transformer) Instrumentalールと使 Use
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-【インストール】
+【Instrumentalール】
 $ pip install demucs
 
-【基本使用法】
+【基本使 Use法】
 $ demucs -n htdemucs "input_song.wav"
 
-【高品質モード】
+【HighQualityモード】
 $ demucs -n htdemucs_ft "input_song.wav" --two-stems vocals
 
-オプション解説:
-  -n htdemucs       : 標準モデル（4ステム）
-  -n htdemucs_ft    : ファインチューンモデル（最高品質）
-  -n htdemucs_6s    : 6ステム分離
-  --two-stems vocals: ボーカル/それ以外の2分割
-  --mp3             : MP3出力
-  --float32         : 32bit float出力（最高品質）
+Option Details:
+  -n htdemucs       : Standard model (4 stems)
+  -n htdemucs_ft    : ファインチューンモデル（最HighQuality）
+  -n htdemucs_6s    : 6-stem separation
+  --two-stems vocals: Vocals/それ以外の2分割
+  --mp3             : MP3 output
+  --float32         : 32bit float出力（最HighQuality）
 
-出力ファイル:
+Output Files:
   separated/htdemucs/song_name/
-  ├── vocals.wav      # ボーカル
-  ├── drums.wav       # ドラム
-  ├── bass.wav        # ベース
-  └── other.wav       # その他（メロディ、パッドなど）
+  ├── vocals.wav      # Vocals
+  ├── drums.wav       # Drums
+  ├── bass.wav        # Bass
+  └── other.wav       # Other (melody, pads, etc.)
 
-6ステムモデルの出力:
+6-stem model output:
   separated/htdemucs_6s/song_name/
-  ├── vocals.wav      # ボーカル
-  ├── drums.wav       # ドラム
-  ├── bass.wav        # ベース
-  ├── guitar.wav      # ギター
-  ├── piano.wav       # ピアノ
+  ├── vocals.wav      # Vocals
+  ├── drums.wav       # Drums
+  ├── bass.wav        # Bass
+  ├── guitar.wav      # Guitar
+  ├── piano.wav       # Piano
   └── other.wav       # その他
 
-GPU使用の推奨:
-  NVIDIA GPU: CUDA自動検出
-  Apple Silicon: --device mps で Metal使用
-  CPU: 自動フォールバック（遅い）
+GPU使 UseのRecommended:
+  NVIDIA GPU: CUDA auto-detection
+  Apple Silicon: --device mps で Metal使 Use
+  CPU: Automatic fallback (slow)
 ```
 
-### iZotope RX での高度なステム分離
+### Advanced Stem Separation with iZotope RX
 
 ```
-iZotope RX 11 Advanced ワークフロー
+iZotope RX 11 Advanced Workflow
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Step 1: Music Rebalance モジュール
+Step 1: Music Rebalance Module
   → 4ステム（Vocals, Bass, Drums, Other）のバランスを調整
-  → 各ステムを -inf dB にしてソロ抽出
-  → Sensitivity: 高め（精度優先）
-  → Smoothing: 中程度
+  → Solo extract each stem by setting to -inf dB
+  → Sensitivity: High（Accuracy priority）
+  → Smoothing: Moderate
 
-Step 2: 抽出したステムのクリーンアップ
-  → Spectral De-noise: 残留ノイズ除去
-  → De-bleed: 他ステムの漏れを除去
-  → De-click: クリックノイズ除去
+Step 2: Clean up extracted stems
+  → Spectral De-noise: Residual noise removal
+  → De-bleed: Remove bleed from other stems
+  → De-click: Click noise removal
 
-Step 3: ボーカル専用処理
-  → De-ess: 歯擦音制御
-  → Breath Control: ブレスノイズ調整
-  → Voice De-noise: ボーカル特化ノイズ除去
+Step 3: Vocals専 UseProcessing
+  → De-ess: Sibilance control
+  → Breath Control: Breath noise adjustment
+  → Voice De-noise: Vocals特化ノイズ除去
 
-iZotope RXの優位点:
-  ✅ スペクトログラム編集（視覚的にノイズを消せる）
-  ✅ モジュール組み合わせで段階的に品質向上
-  ✅ リアルタイムプレビュー
-  ✅ バッチ処理対応
-  ✅ DAWプラグインとして使用可能
+iZotope RX advantages:
+  ✅ Spectrogram editing (visually remove noise)
+  ✅ Module組み合わせで段階的にQuality向上
+  ✅ Real-timeタイムプレビュー
+  ✅ Batch processing support
+  ✅ DAWプラグインとして使 Use可能
 ```
 
-### ステム分離後の音質改善テクニック
+### Post-Separation Quality Improvement Techniques
 
 ```
-分離ステムの品質向上チェーン
+分離ステムのQuality向上チェーン
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-【ボーカルステム】
+【Vocalsステム】
   1. EQ Eight (Ableton)
-     → HPF: 80Hz（残留低音カット）
-     → LPF: 15kHz（アーティファクトカット）
-     → ノッチ: 分離ノイズの周波数をカット
+     → HPF: 80Hz（Residual low-end cut）
+     → LPF: 15kHz（Artifact cut）
+     → Notch: Cut separation noise frequencies
   
   2. Compressor
      → Ratio: 3:1
      → Threshold: -18dB
      → Attack: 10ms
      → Release: 100ms
-     → 分離で不安定になったダイナミクスを整える
+     → Stabilize dynamics destabilized by separation
   
-  3. Saturator（軽く）
+  3. Saturator（Lightly）
      → Drive: 2-5dB
-     → 分離で失われた倍音を補う
+     → Compensate for harmonics lost in separation
   
   4. Reverb (Return Track)
      → Decay: 1.5-2.5s
-     → 分離のアーティファクトを自然に隠す
+     → Naturally mask separation artifacts
 
-【ドラムステム】
+【Drumsステム】
   1. EQ Eight
      → HPF: 30Hz
-     → Boost: 100Hz +2dB（キック）
-     → Boost: 3-5kHz +3dB（スネア）
-     → Boost: 8-12kHz +2dB（ハイハット）
+     → Boost: 100Hz +2dB（Kick）
+     → Boost: 3-5kHz +3dB（Snare）
+     → Boost: 8-12kHz +2dB（Hi-hat）
   
   2. Transient Shaper
-     → Attack: +30%（アタックを強調）
-     → 分離で鈍ったトランジェントを回復
+     → Attack: +30%（Emphasize attack）
+     → Recover transients dulled by separation
   
   3. Parallel Compression
-     → 強くコンプした信号をブレンド
-     → パンチと迫力を復元
+     → Blend heavily compressed signal
+     → Restore punch and power
 
-【ベースステム】
+【Bassステム】
   1. EQ Eight
-     → HPF: 25Hz（超低音カット）
-     → LPF: 250Hz（上の帯域の漏れカット）
-     → Boost: 60-80Hz +2dB（サブ復元）
+     → HPF: 25Hz（Ultra-low cut）
+     → LPF: 250Hz（Cut upper band bleed）
+     → Boost: 60-80Hz +2dB（Sub restoration）
   
   2. Saturator
      → Drive: 5-10dB
-     → 小さいスピーカーでも聴こえる倍音追加
+     → Add harmonics audible on small speakers
   
   3. Compressor
      → Ratio: 4:1
-     → サステインを均一化
+     → Equalize sustain
 ```
 
 ---
 
-## 第5部: ボーカル処理の専門技術
+## 第5部: VocalsProcessingの専門技術
 
-### ボーカルチェーンの完全設計
+### Vocalsチェーンの完全設計
 
 ```
-プロフェッショナル ボーカルチェーン（リミックス用）
+プロフェッショナル Vocalsチェーン（リミックス Use）
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-信号フロー:
+Signal Flow:
   Vocal In → Gate → EQ → De-ess → Comp → Saturation
   → EQ (仕上げ) → Stereo Imaging → Send Effects
 
 ┌──────────┬──────────────────────────────────────┐
-│ 処理      │ 設定詳細                              │
+│ Processing      │ Setting Details                              │
 ├──────────┼──────────────────────────────────────┤
 │ Gate     │ Threshold: -40dB                      │
 │          │ Attack: 0.5ms                         │
 │          │ Release: 50ms                         │
-│          │ → 無音部分のノイズを除去               │
+│          │ → Remove noise from silent sections               │
 ├──────────┼──────────────────────────────────────┤
-│ EQ (前段)│ HPF: 100Hz (24dB/oct)                 │
-│          │ Cut: 200-400Hz -3dB (ムーディさ除去)   │
-│          │ Boost: 3kHz +2dB (プレゼンス)          │
-│          │ → サブトラクティブEQ中心                │
+│ EQ (Pre)│ HPF: 100Hz (24dB/oct)                 │
+│          │ Cut: 200-400Hz -3dB (Remove muddiness)   │
+│          │ Boost: 3kHz +2dB (Presence)          │
+│          │ → Subtractive EQ focused                │
 ├──────────┼──────────────────────────────────────┤
 │ De-esser │ Frequency: 6-8kHz                     │
 │          │ Threshold: -20dB                      │
 │          │ Range: -6dB                           │
-│          │ → 歯擦音を自然に制御                   │
+│          │ → Naturally control sibilance                   │
 ├──────────┼──────────────────────────────────────┤
 │ Comp     │ Ratio: 3:1                            │
 │          │ Threshold: -18dB                      │
 │          │ Attack: 5-15ms                        │
 │          │ Release: 80-150ms                     │
-│          │ Gain: +3dB (メイクアップ)              │
-│          │ → 安定したレベル                       │
+│          │ Gain: +3dB (Makeup)              │
+│          │ → Stable level                       │
 ├──────────┼──────────────────────────────────────┤
 │ Saturation│ Drive: 3-5dB                         │
 │          │ Type: Warm Tube                       │
-│          │ → 温かみと存在感を追加                  │
+│          │ → Add warmth and presence                  │
 ├──────────┼──────────────────────────────────────┤
-│ EQ (後段)│ Shelf: 10kHz +2dB (エア)              │
-│          │ → 最終的な明るさ調整                   │
+│ EQ (Post)│ Shelf: 10kHz +2dB (Air)              │
+│          │ → Final brightness adjustment                   │
 ├──────────┼──────────────────────────────────────┤
 │ Stereo   │ Width: 80-120%                        │
-│ Imaging  │ → モノ中心を維持しつつ広がりを          │
+│ Imaging  │ → Maintain mono center while adding width          │
 └──────────┴──────────────────────────────────────┘
 
 Send Effects:
@@ -1111,1005 +1111,1005 @@ Send Effects:
     → Send Level: -15dB
 ```
 
-### ボーカルチョップテクニック
+### Vocalsチョップテクニック
 
 ```
-ボーカルチョップの種類と手法
+Vocalsチョップの種類と手法
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. リズミックチョップ
-   → ボーカルを16分音符で切り刻み、リズムパターンとして使用
+1. Rhythmic Chop
+   → Vocalsを16th notesで切り刻み、リズムパターンとして使 Use
    
-   手順（Ableton）:
-   a. ボーカルクリップを選択
+   Steps (Ableton):
+   a. Vocalsクリップを選択
    b. Slice to MIDI → 1/16 Note
-   c. Drum Rackに展開される
-   d. MIDIで新しいパターンを打ち込み
+   c. Expands into Drum Rack
+   d. Program new patterns via MIDI
    
-   応用:
-   → ベロシティでダイナミクスを付ける
-   → リバースサンプルを混ぜる
-   → グリッチ的なパターンを作成
+   応 Use:
+   → Add dynamics with velocity
+   → リバースSamplesを混ぜる
+   → Create glitch-like patterns
 
-2. メロディックチョップ
-   → ボーカルのメロディをサンプラーに入れて新しいメロディを演奏
+2. Melodic Chop
+   → VocalsのMelodyをサンプラーに入れて新しいMelodyをPerformance
    
-   手順:
-   a. ボーカルの単音フレーズを切り出し
-   b. Simplerにロード
+   Steps:
+   a. Vocalsの単音フレーズを切り出し
+   b. Load into Simpler
    c. Warp: On, Mode: Complex Pro
-   d. MIDIキーボードで新しいメロディを演奏
+   d. Play new melodies with MIDI keyboard
    
-   ポイント:
-   → 母音の長いフレーズが最適（"Ahhh", "Ohhh"）
-   → フォルマントシフトに注意（極端なピッチ変更を避ける）
+   Points:
+   → Long vowel phrases are optimal（"Ahhh", "Ohhh"）
+   → Watch for formant shift (avoid extreme pitch changes)
 
-3. グラニュラーチョップ
-   → ボーカルの微小な断片を使ったテクスチャー
+3. Granular Chop
+   → Vocalsの微Smallな断片を使ったテクスチャー
    
-   手順:
-   a. Granulator II（Max for Live）にボーカルをロード
+   Steps:
+   a. Granulator II（Max for Live）にVocalsをロード
    b. Grain Size: 20-100ms
    c. Position: オートメーション
    d. Spray: 10-30%
    
-   結果: 空間的で実験的なボーカルテクスチャー
+   結果: 空間的で実験的なVocalsテクスチャー
 ```
 
 ---
 
-## 第6部: マッシュアップの高度なテクニック
+## Part 6: Advanced Mashup Techniques
 
-### マッシュアップの互換性分析
+### MashupsのCompatible性分析
 
 ```
-マッシュアップ互換性判定マトリクス
+Mashup Compatibility Assessment Matrix
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-キー互換性（カメロットホイール基準）:
+Key Compatibility (Camelot Wheel-based):
 
-  内側の輪（マイナーキー）:
+  Inner ring (Minor keys):
   1A=Abm  2A=Ebm  3A=Bbm  4A=Fm   5A=Cm   6A=Gm
   7A=Dm   8A=Am   9A=Em   10A=Bm  11A=F#m  12A=C#m
 
-  外側の輪（メジャーキー）:
+  Outer ring (Major keys):
   1B=B    2B=F#   3B=Db   4B=Ab   5B=Eb   6B=Bb
   7B=F    8B=C    9B=G    10B=D   11B=A   12B=E
 
-互換キーの関係:
+Compatible key relationships:
   ┌─────────────────────────────────────────┐
-  │         互換キー判定ルール               │
+  │         Compatible Key Assessment Rules               │
   ├─────────────────────────────────────────┤
-  │ 1. 同じ番号（8A = 8B）→ ◎ 完全互換     │
-  │ 2. 隣接番号（7A ↔ 8A ↔ 9A）→ ○ 互換  │
-  │ 3. 同じ文字（8A ↔ 8B）→ ○ 相対長短調  │
-  │ 4. 2つ離れ（6A ↔ 8A）→ △ 注意が必要   │
-  │ 5. 3つ以上離れ → ✕ 不協和音のリスク     │
+  │ 1. Same number（8A = 8B）→ ◎ Fully compatible     │
+  │ 2. Adjacent numbers（7A ↔ 8A ↔ 9A）→ ○ Compatible  │
+  │ 3. Same letter（8A ↔ 8B）→ ○ Relative major/minor  │
+  │ 4. 2 apart（6A ↔ 8A）→ △ Caution needed   │
+  │ 5. 3 or more apart → ✕ Risk of dissonance     │
   └─────────────────────────────────────────┘
 
-BPM互換性:
+BPMCompatible性:
   ┌──────────────┬──────────────────────────┐
-  │ BPM差         │ 互換性                    │
+  │ BPM Difference         │ Compatible性                    │
   ├──────────────┼──────────────────────────┤
-  │ 0 BPM        │ ◎ 完璧                    │
-  │ ±1-2 BPM    │ ○ Warpで問題なし          │
-  │ ±3-5 BPM    │ ○ Warp推奨               │
-  │ ±6-10 BPM   │ △ 音質変化あり            │
-  │ ±11-20 BPM  │ ✕ 大幅な音質劣化          │
-  │ ×2 / ÷2     │ ◎ ハーフ/ダブルタイム     │
+  │ 0 BPM        │ ◎ Perfect                    │
+  │ ±1-2 BPM    │ ○ No issues with Warp          │
+  │ ±3-5 BPM    │ ○ Warp recommended               │
+  │ ±6-10 BPM   │ △ Quality changes present            │
+  │ ±11-20 BPM  │ ✕ Significant quality degradation          │
+  │ ×2 / ÷2     │ ◎ Half/double time     │
   └──────────────┴──────────────────────────┘
 ```
 
-### 3曲以上のマッシュアップ
+### Mashups with 3+ Tracks
 
 ```
-マルチトラック マッシュアップ設計
+Multi-track Mashup Design
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-3曲マッシュアップの構成例:
+3-track mashup structure example:
 
-  Track A: ボーカル元（Acapella）
-  Track B: ドラム/リズム元（Instrumental）
-  Track C: メロディ/コード元（Instrumental）
+  Track A: Vocals元（Acapella）
+  Track B: Drums/リズム元（Instrumental）
+  Track C: Melody/Chord元（Instrumental）
 
-  周波数帯域の分離:
+  Frequency band separation:
   ┌───────────────────────────────────┐
-  │ 帯域      │ Track │ 処理         │
+  │ Band      │ Track │ Processing         │
   ├───────────┼───────┼──────────────┤
   │ Sub-Low   │ B     │ HPF 30Hz     │
-  │ 30-100Hz  │       │ ベースライン  │
+  │ 30-100Hz  │       │ Bassライン  │
   ├───────────┼───────┼──────────────┤
-  │ Low-Mid   │ B     │ ドラム + ベース│
+  │ Low-Mid   │ B     │ Drums + Bass│
   │ 100-500Hz │       │              │
   ├───────────┼───────┼──────────────┤
-  │ Mid       │ A + C │ ボーカル +    │
-  │ 500-4kHz  │       │ メロディ      │
+  │ Mid       │ A + C │ Vocals +    │
+  │ 500-4kHz  │       │ Melody      │
   ├───────────┼───────┼──────────────┤
-  │ High      │ A + C │ エア + 倍音   │
+  │ High      │ A + C │ Air + 倍音   │
   │ 4-20kHz   │       │              │
   └───────────┴───────┴──────────────┘
 
-  各トラックのEQ設定:
+  EQ settings for each track:
   Track A (Vocals):  HPF 150Hz, LPF 12kHz
   Track B (Rhythm):  Full range, but -3dB at 500-4kHz
   Track C (Melody):  HPF 300Hz, LPF 10kHz, -6dB at 100-300Hz
 
-  マスターバスの処理:
+  マスターバスのProcessing:
   → Glue Compressor: Ratio 2:1, Threshold -10dB
-  → EQ Eight: 微調整
+  → EQ Eight: Fine adjustment
   → Limiter: -0.3dB ceiling
 ```
 
 ---
 
-## 第7部: キー変更とピッチシフトの専門知識
+## Part 7: Key Change and Pitch Shift Expertise
 
-### ピッチシフトアルゴリズムの理解
+### Understanding Pitch Shift Algorithms
 
 ```
-ピッチシフト方式の比較
+Pitch Shift Method Comparison
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. タイムドメイン（PSOLA/WSOLA）
-   原理: 波形を切り貼りして周期を変更
-   長所: 低レイテンシ、CPU軽い
-   短所: 音質劣化（大きなシフトで顕著）
-   用途: リアルタイム処理、DJソフト
-   対応: Serato, rekordbox, Traktor
+1. Time Domain（PSOLA/WSOLA）
+   Principle: Cut and paste waveforms to change period
+   Pros: Low latency, light CPU
+   Cons: Quality degradation (noticeable with large shifts)
+   Usage: Real-timeタイムProcessing、DJ Software
+   Supported by: Serato, rekordbox, Traktor
 
-2. 周波数ドメイン（Phase Vocoder）
-   原理: FFTで周波数成分を分析・再合成
-   長所: 中程度のシフトで良好な品質
-   短所: フェーズの問題、金属的な音
-   用途: DAWでの処理
-   対応: Ableton Warp (Complex)
+2. Frequency Domain（Phase Vocoder）
+   Principle: Analyze and resynthesize frequency components via FFT
+   長所: Moderateのシフトで良好なQuality
+   Cons: Phase issues, metallic sound
+   Usage: DAWでのProcessing
+   Supported by: Ableton Warp (Complex)
 
-3. ハイブリッド（Phase Vocoder + Transient Detection）
-   原理: トランジェントを保護しつつ周波数シフト
-   長所: 高品質、自然な音質
-   短所: CPU負荷高、レイテンシ大
-   用途: オフライン処理、マスタリング
-   対応: Ableton Warp (Complex Pro), zplane Elastique
+3. Hybrid（Phase Vocoder + Transient Detection）
+   Principle: Frequency shift while protecting transients
+   長所: HighQuality、自然な音質
+   Cons: High CPU load, high latency
+   Usage: オフラインProcessing、マスタリング
+   Supported by: Ableton Warp (Complex Pro), zplane Elastique
 
-4. AI/ニューラルネットワーク
-   原理: 学習モデルによる音声変換
-   長所: 最高品質、自然なフォルマント
-   短所: GPU必要、処理時間長
-   用途: ボーカルピッチ補正、性別変換
-   対応: SoundID, Respeecher
+4. AI/Neural Network
+   Principle: Audio conversion via learned models
+   長所: 最HighQuality、自然なフォルマント
+   短所: GPU必要、Processing時間長
+   Usage: Vocalsピッチ補正、性別変換
+   Supported by: SoundID, Respeecher
 
-シフト量と推奨方式:
-  ±1-2半音: どの方式でもOK
-  ±3-5半音: Complex Pro推奨
-  ±6-8半音: AI方式推奨
-  ±9半音以上: 再録音を推奨
+Shift amount and recommended method:
+  ±1-2 semitones: Any method is OK
+  ±3-5 semitones: Complex Pro recommended
+  ±6-8 semitones: AI method recommended
+  ±9+ semitones: Re-recording recommended
 ```
 
-### フォルマント保持の重要性
+### Importance of Formant Preservation
 
 ```
-フォルマントとは:
+What Are Formants:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-ボーカルの「母音の特徴」を決定する共鳴周波数
+Vocalsの「Vowelの特徴」を決定する共鳴周波数
 
-  母音 "あ" (a):  F1=800Hz,  F2=1200Hz
-  母音 "い" (i):  F1=300Hz,  F2=2300Hz
-  母音 "う" (u):  F1=350Hz,  F2=800Hz
-  母音 "え" (e):  F1=500Hz,  F2=1800Hz
-  母音 "お" (o):  F1=500Hz,  F2=1000Hz
+  Vowel "あ" (a):  F1=800Hz,  F2=1200Hz
+  Vowel "い" (i):  F1=300Hz,  F2=2300Hz
+  Vowel "う" (u):  F1=350Hz,  F2=800Hz
+  Vowel "え" (e):  F1=500Hz,  F2=1800Hz
+  Vowel "お" (o):  F1=500Hz,  F2=1000Hz
 
-ピッチシフトとフォルマントの関係:
+Relationship between pitch shift and formants:
 
-  通常のピッチシフト（フォルマント連動）:
-  → ピッチを上げる → フォルマントも上がる → チップマンク化
-  → ピッチを下げる → フォルマントも下がる → 怪物ボイス化
+  Normal pitch shift (formant-linked):
+  -> Raise pitch -> Formants also rise -> Chipmunk effect
+  -> Lower pitch -> Formants also drop -> Monster voice effect
 
-  フォルマント保持ピッチシフト:
-  → ピッチを上げる → フォルマントは維持 → 自然な声
-  → ピッチを下げる → フォルマントは維持 → 自然な声
+  Formant-preserving pitch shift:
+  -> Raise pitch -> Formants maintained -> Natural voice
+  -> Lower pitch -> Formants maintained -> Natural voice
 
-  Abletonでの設定:
+  Ableton settings:
   → Clip View → Warp Mode: Complex Pro
-  → "Formants" パラメータを0に維持
-  → これによりピッチを変えてもフォルマントは保持される
+  → "Formants"  parameter maintained at 0
+  → This preserves formants even when changing pitch
 ```
 
 ---
 
-## 第8部: リミックスコンテストの攻略法
+## Part 8: Remix Contest Strategy Guide
 
-### リミックスコンテストの概要
+### Remix Contest Overview
 
 ```
-主要リミックスコンテストプラットフォーム
+主要Remix contestPlatformフォーム
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. Splice（最大手）
+1. Splice（Largest）
    URL: splice.com
-   特徴: 大手レーベル公式コンテスト多数
-   参加費: 無料（Spliceアカウント必要）
-   ステム: 高品質WAVで提供
-   審査: 一般投票 + レーベル審査
-   賞品: 公式リリース、賞金、機材
+   Features: Many official major label contests
+   Entry Fee: Free（SpliceAccount required）
+   ステム: HighQualityWAVで提供
+   Judging: Public vote + Label review
+   Prizes: Official release, prize money, equipment
 
 2. SKIO Music
    URL: skiomusic.com
-   特徴: EDM中心、著名アーティスト多数
-   参加費: 無料
-   ステム: WAV提供
-   審査: アーティスト本人が審査
-   賞品: 公式リリース、アーティストとの交流
+   Features: EDM-focused, many notable artists
+   Entry Fee: Free
+   ステム: WAV provided
+   審査: Judged by the artist themselves
+   Prizes: Official release, interaction with artist
 
 3. Metapop
    URL: metapop.com
-   特徴: ジャンル多様、教育コンテンツも充実
-   参加費: 無料
-   ステム: WAV提供
-   審査: コミュニティ + 専門家
-   賞品: プラグイン、サンプルパック
+   Features: Diverse genres, educational content
+   Entry Fee: Free
+   ステム: WAV provided
+   審査: Community + experts
+   賞品: プラグイン、Samplesパック
 
 4. Beatport LINK
    URL: beatport.com
-   特徴: プロ向け、ハイレベル
-   参加費: 無料
-   ステム: 高品質ステム
-   審査: レーベルA&R
-   賞品: 公式リリース + ロイヤリティ
+   Features: Professional, high-level
+   Entry Fee: Free
+   ステム: HighQualityステム
+   審査: Label A&R
+   Prizes: Official release + royalties
 ```
 
-### コンテスト勝利のための戦略
+### Strategies for Winning Contests
 
 ```
-リミックスコンテスト攻略 10か条
+Remix Contest 10 Commandments
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. 原曲を徹底的に分析せよ
-   → コード進行、メロディ、歌詞の意味を完全に理解
-   → 原曲のどこが魅力的かを言語化
+1. Originalを徹底的に分析せよ
+   → Chord進行、Melody、歌詞の意味を完全に理解
+   → Originalのどこが魅力的かを言語化
 
-2. 大胆にジャンルを変えよ
-   → Pop原曲 → Technoリミックス（意外性で勝負）
-   → 審査員は「驚き」を求めている
-   → 同ジャンルでの微変更は埋もれる
+2. Boldly change the genre
+   → PopOriginal → Technoリミックス（Compete with surprise）
+   → Judges are looking for "surprise"
+   → Minor changes within the same genre get buried
 
-3. ボーカルを最大限に活かせ
-   → ボーカルはリミックスの核
-   → チョップ、リバース、エフェクト処理で印象的に
-   → フックの部分は必ず使用
+3. Vocalsを最Large限に活かせ
+   → Vocalsはリミックスの核
+   → チョップ、リバース、エフェクトProcessingで印象的に
+   → フックの部分は必ず使 Use
 
-4. ミックス品質で差をつけよ
-   → アマチュアの最大の弱点はミックス品質
-   → プロ級のミキシングは即座に差別化
-   → リファレンストラックと常に比較
+4. ミックスQualityで差をつけよ
+   → アマチュアの最Largeの弱点はミックスQuality
+   → Pro-level mixing provides instant differentiation
+   → Always compare with reference tracks
 
-5. 構成で審査員を飽きさせるな
-   → 最初の30秒で惹きつける
-   → 2分以内にドロップまたは最大の展開
-   → 5-6分が理想的な長さ
+5. Don't bore judges with structure
+   → Hook them in the first 30 seconds
+   → Drop or peak development within 2 minutes
+   → 5-6 minutes is ideal length
 
-6. 締め切り前日に提出するな
-   → 3日前に完成 → 1日休む → 新鮮な耳で最終チェック
-   → 締め切りギリギリ = ミスを見逃す
+6. Don't submit the day before deadline
+   → Finish 3 days early -> Rest 1 day -> Final check with fresh ears
+   → Last minute = Miss mistakes
 
-7. メタデータを完璧に
-   → ファイル名の命名規則を厳守
-   → 必要なタグ情報を全て入力
-   → ルール違反は即失格
+7. メタデータをPerfectに
+   → Strictly follow file naming conventions
+   → Enter all required tag information
+   → Rule violations mean immediate disqualification
 
-8. SNSで積極的にプロモーション
-   → コンテストページでの「いいね」が審査に影響する場合も
-   → ティーザー動画をSNSに投稿
-   → 制作過程のストーリーを共有
+8. Actively promote on social media
+   → Likes on the contest page may affect judging
+   → Post teaser videos on social media
+   → Share the production process story
 
-9. オリジナル要素を必ず入れよ
-   → 自作メロディ、自作ドラム
-   → プリセットそのままは避ける
-   → 「この人にしか作れない」感を出す
+9. Always include original elements
+   → 自作Melody、自作Drums
+   → プリセットAs isは避ける
+   → Create a "only this person could make this" feeling
 
-10. 複数コンテストに参加せよ
-    → 1回の参加で勝つ確率は低い
-    → 経験を積むことが最重要
-    → フィードバックを次に活かす
+10. Participate in multiple contests
+    → The probability of winning with one entry is low
+    → Gaining experience is most important
+    → Apply feedback to the next attempt
 ```
 
 ---
 
-## 第9部: ブートレグ制作の完全ガイド
+## Part 9: Complete Guide to Bootleg Production
 
-### ブートレグとは
+### What Is a Bootleg
 
 ```
-ブートレグの定義と種類
+Bootleg Definition and Types
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-ブートレグ（Bootleg）:
-  = 権利者の許可なく制作された非公式リミックス/エディット
-  = DJカルチャーにおいて長い歴史を持つ
-  = 多くの有名DJがブートレグでキャリアをスタート
+Bootleg:
+  = Unofficial remix/edit produced without rights holder permission
+  = Has a long history in DJ culture
+  = Many famous DJs started their careers with bootlegs
 
-種類:
-  1. ブートレグリミックス
-     → 原曲のボーカルに新しいトラックを付ける
-     → 例: ポップス曲のハウスリミックス
+Types:
+  1. Bootleg Remix
+     → OriginalのVocalsに新しいトラックを付ける
+     → Example: House remix of a pop track
   
-  2. ブートレグマッシュアップ
-     → 2曲以上を組み合わせた新曲
-     → 例: ボーカルA + インストB
+  2. Bootleg Mashup
+     → New track combining 2+ songs
+     → Example: VocalsA + InstrumentalB
   
-  3. ブートレグエディット
-     → 原曲の構成を変更（DJユース向け）
-     → 例: イントロ追加、BPM変更
+  3. Bootleg Edit
+     → Originalの構成を変更（DJユース向け）
+     → Example: Intro addition, BPM change
   
-  4. フリップ（Flip）
-     → 原曲の雰囲気を大幅に変えたバージョン
-     → 例: バラード → アップテンポクラブトラック
+  4. Flip
+     → Originalの雰囲気をLarge幅に変えたバージョン
+     → Example: Ballad -> Up-tempo club track
 
-法的グレーゾーン:
+Legal Gray Zone:
   ┌──────────────────────────────────────────┐
-  │ 行為            │ リスク  │ 一般的な慣行  │
+  │ Action            │ Risk  │ Common Practice  │
   ├─────────────────┼─────────┼──────────────┤
-  │ 制作・自己使用   │ 低      │ ほぼ問題なし  │
-  │ DJセットで使用   │ 低-中   │ 一般的       │
-  │ 無料配布         │ 中      │ よくある      │
-  │ SoundCloud投稿   │ 中      │ 削除リスク    │
-  │ YouTube投稿      │ 中-高   │ 広告収入没収  │
-  │ 有料配信         │ 高      │ 訴訟リスク    │
-  │ Beatport販売     │ 非常に高│ 絶対NG       │
+  │ 制作・自己使 Use   │ Low      │ Almost no issues  │
+  │ Use in DJ set   │ Low-Medium   │ Common       │
+  │ Free配布         │ Medium      │ Frequent      │
+  │ SoundCloud post   │ Medium      │ 削除Risk    │
+  │ YouTube post      │ Medium-High   │ Ad revenue confiscation  │
+  │ Paid distribution         │ High      │ 訴訟Risk    │
+  │ BeatportSales     │ 非常にHigh│ Absolutely prohibited       │
   └─────────────────┴─────────┴──────────────┘
 ```
 
-### ブートレグ制作ワークフロー
+### ブートレグ制作Workflow
 
 ```
-ブートレグ制作 Step by Step
+Bootleg Production Step by Step
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Step 1: コンセプト策定
-  → どの曲をどのジャンルに変換するか
-  → ターゲットBPMとキーを決定
-  → リファレンストラック（目指す雰囲気）を選定
+Step 1: Concept Planning
+  → Which track to convert to which genre
+  → Determine target BPM and key
+  → Select reference track (target atmosphere)
 
-Step 2: 素材準備
-  a. ステム分離（Demucs推奨）
-  b. 使用するパーツの選定
-  c. 必要な追加素材の準備（ドラムサンプル、シンセ音色）
+Step 2: Material Preparation
+  a. Stem separation (Demucs recommended)
+  b. 使 Useするパーツの選定
+  c. 必要な追加素材の準備（DrumsSamples、シンセ音色）
 
-Step 3: テンプレート設定（Ableton）
+Step 3: Template Setup (Ableton)
   → Project Tempo: ターゲットBPM
-  → トラック構成:
-     Track 1: 原曲ボーカル（Warp済み）
-     Track 2: 原曲要素（使用する場合）
-     Track 3-5: 新規ドラム
-     Track 6-7: 新規ベース
-     Track 8-10: 新規シンセ/パッド
-     Track 11: FX/ライザー
+  → Track layout:
+     Track 1: OriginalVocals（Warp済み）
+     Track 2: Original要素（使 Useする場合）
+     Track 3-5: 新規Drums
+     Track 6-7: 新規Bass
+     Track 8-10: New synth/pads
+     Track 11: FX/Risers
      Return A: Reverb
      Return B: Delay
 
-Step 4: ドラム&ベース制作
-  → ターゲットジャンルのドラムパターン
-  → キーに合わせたベースライン
-  → サイドチェインコンプレッション設定
+Step 4: Drums&Bass制作
+  → ターゲットジャンルのDrumsパターン
+  → キーに合わせたBassライン
+  → サイドチェインCompression設定
 
-Step 5: コード/メロディ追加
-  → 原曲のコード進行を分析して再現
-  → または新しいコード進行を作成
-  → パッド、リード、アルペジオなど
+Step 5: Chord/Melody追加
+  → OriginalのChord進行を分析して再現
+  → またはNew chord progressionを作成
+  → Pads, leads, arpeggios, etc.
 
-Step 6: ボーカル配置
-  → Warpでタイミング調整
-  → ボーカルチェーン適用
-  → チョップ/エフェクト処理
+Step 6: Vocals配置
+  → Timing adjustment with Warp
+  → Vocalsチェーン適 Use
+  → チョップ/エフェクトProcessing
 
-Step 7: アレンジメント
-  → DJ用の構成（32小節イントロ/アウトロ）
-  → ビルドアップ/ドロップの設計
-  → トランジション部分の仕上げ
+Step 7: Arrangement
+  → DJ Useの構成（32barsイントロ/アウトロ）
+  → Buildup/drop design
+  → Transition section finishing
 
-Step 8: ミキシング&マスタリング
-  → 全トラックのレベルバランス
-  → EQ、コンプ、空間系エフェクト
-  → マスターチェーンで仕上げ
+Step 8: Mixing & Mastering
+  → 全トラックのLevel balance
+  → EQ, compression, spatial effects
+  → Finish with master chain
 ```
 
 ---
 
-## 第10部: 著作権の詳細な法的知識
+## Part 10: Detailed Copyright Legal Knowledge
 
-### 音楽著作権の構造
+### Structure of Music Copyright
 
 ```
-音楽著作権の二層構造
+Two-Layer Structure of Music Copyright
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ┌─────────────────────────────────────────────────────┐
-│                    音楽の著作権                       │
+│                    Music Copyright                       │
 ├─────────────────────┬───────────────────────────────┤
-│  著作権              │  著作隣接権                    │
+│  Copyright              │  Neighboring Rights                    │
 │  (Copyright)         │  (Neighboring Rights)         │
 ├─────────────────────┼───────────────────────────────┤
-│  楽曲そのもの         │  録音物（マスター音源）        │
-│  = 作詞・作曲         │  = 演奏・レコーディング        │
+│  The composition itself         │  Recordings (master recording)        │
+│  = Lyrics and composition         │  = Performance and recording        │
 │                     │                               │
-│  権利者:             │  権利者:                       │
-│  ・作詞家            │  ・レコード会社                 │
-│  ・作曲家            │  ・演奏者                      │
-│  ・音楽出版社        │  ・プロデューサー               │
+│  Rights holders:             │  Rights holders:                       │
+│  ・Lyricist            │  ・レChord会社                 │
+│  ・Composer            │  ・Performers                      │
+│  ・Music publisher        │  ・Producer               │
 │                     │                               │
-│  管理団体:           │  管理:                         │
-│  ・JASRAC           │  ・レコード会社が直接管理       │
-│  ・NexTone          │  ・原盤権として扱われる         │
+│  Management organizations:           │  Management:                         │
+│  ・JASRAC           │  ・レChord会社が直接管理       │
+│  ・NexTone          │  ・Treated as master rights         │
 │                     │                               │
-│  許可が必要な行為:    │  許可が必要な行為:              │
-│  ・楽曲の改変        │  ・マスター音源の使用           │
-│  ・公衆送信          │  ・サンプリング                 │
-│  ・演奏             │  ・リミックス制作               │
-│  ・複製             │  ・配信/販売                    │
+│  許可が必要なAction:    │  許可が必要なAction:              │
+│  ・Modifying compositions        │  ・マスター音源の使 Use           │
+│  ・Public transmission          │  ・Sampling                 │
+│  ・Performance             │  ・Remix production               │
+│  ・Reproduction             │  ・Distribution/Sales                    │
 └─────────────────────┴───────────────────────────────┘
 ```
 
-### リミックスに関する法的フレームワーク
+### Legal Framework for Remixes
 
 ```
-リミックス制作時の法的チェックリスト
+Remix production時の法的チェックリスト
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-□ 1. 使用素材の権利確認
-  → 原曲の著作権者は誰か
-  → 原盤権（マスター音源）の所有者は誰か
-  → サンプル使用の制限はあるか
+□ 1. 使 Use素材の権利確認
+  → OriginalのCopyright者は誰か
+  → Who owns the master rights (master recording)
+  → Samples使 Useの制限はあるか
 
-□ 2. 使用目的の確認
-  → 個人使用のみか、公開するか
-  → 非営利か、営利か
-  → ライブパフォーマンスで使用するか
+□ 2. 使 Use目的の確認
+  → Personal useのみか、公開するか
+  → Non-commercial or commercial
+  → ライブパフォーマンスで使 Useするか
 
-□ 3. 必要な許可の取得
+□ 3. Obtain necessary permissions
   ┌──────────────────┬────────────────┬─────────────────┐
-  │ 使用目的          │ 必要な許可      │ 取得先           │
+  │ 使 Use目的          │ Permission Required      │ Source           │
   ├──────────────────┼────────────────┼─────────────────┤
-  │ 個人練習          │ 不要           │ -               │
-  │ DJセット（クラブ） │ 包括契約で対応  │ JASRAC/会場     │
-  │ SoundCloud投稿    │ グレーゾーン    │ 権利者に確認     │
-  │ YouTube投稿       │ Content ID対応  │ 自動検知される   │
-  │ Spotify配信       │ 必須           │ レーベル/出版社  │
-  │ Beatport販売      │ 必須           │ レーベル契約     │
-  │ リミックスコンテスト│ コンテスト規約  │ 主催者が許可     │
+  │ Personal practice          │ Not required           │ -               │
+  │ DJ set (club) │ 包括契Approx. で対応  │ JASRAC/venue     │
+  │ SoundCloud post    │ Gray zone    │ Check with rights holder     │
+  │ YouTube post       │ Content ID detection  │ Automatically detected   │
+  │ SpotifyDistribution       │ Required           │ Label/publisher  │
+  │ BeatportSales      │ Required           │ レーベル契Approx.      │
+  │ Remix contest│ コンテスト規Approx.   │ Permitted by organizer     │
   └──────────────────┴────────────────┴─────────────────┘
 
-□ 4. クレジット表記
-  → 原曲アーティスト名
-  → 原曲タイトル
-  → "Remix" "Edit" "Bootleg" 等の表記
-  → 原曲レーベル名（可能であれば）
+□ 4. Credit attribution
+  → Original artist name
+  → Original title
+  → "Remix" "Edit" "Bootleg"  etc. notation
+  → Originalレーベル名（可能であれば）
 
-□ 5. 収益配分
-  → 公式リミックスの場合、ロイヤリティ配分を契約
-  → 一般的な配分: 原曲権利者 50-75% / リミキサー 25-50%
-  → アドバンス（前払い）の有無
+□ 5. Revenue distribution
+  → 公式リミックスの場合、Royalty distributionを契Approx. 
+  → Commonな配分: Original権利者 50-75% / リミキサー 25-50%
+  → Advance (prepayment) availability
 ```
 
-### 国際的な著作権の違い
+### 国際的なCopyrightの違い
 
 ```
-主要国の音楽リミックスに関する法的差異
+Legal Differences in Music Remixing by Major Countries
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-日本:
-  著作権法: 著作権法第27条（翻案権）
-  リミックス: 翻案にあたり、著作権者の許可必要
-  フェアユース: 制度なし（引用の要件は厳格）
-  JASRAC包括契約: クラブ/ライブ会場での演奏をカバー
-  罰則: 10年以下の懲役 or 1000万円以下の罰金
+Japan:
+  Copyright法: Copyright法第27条（翻案権）
+  リミックス: 翻案にあたり、Copyright者の許可必要
+  フェアユース: 制度なし（引 Useの要件は厳格）
+  JASRAC包括Contract: クラブ/ライブ会場でのPerformanceをカバー
+  Penalties: Up to 10 years imprisonment or up to 10 million yen fine
 
-アメリカ:
-  著作権法: Copyright Act Section 106
-  リミックス: Derivative Work、許可必要
-  フェアユース: Fair Use Doctrine（4要素テスト）
-    1. 使用の目的と性格（変容的使用か）
-    2. 原著作物の性質
-    3. 使用された部分の量と重要性
-    4. 市場への影響
-  罰則: 最大$150,000/作品の法定損害賠償
+United States:
+  Copyright法: Copyright Act Section 106
+  Remixing: Derivative Work, permission required
+  Fair Use: Fair Use Doctrine (4-factor test)
+    1. 使 Useの目的と性格（変容的使 Useか）
+    2. Nature of the original work
+    3. 使 Useされた部分の量と重要性
+    4. Market impact
+  Penalties: Up to $150,000/work in statutory damages
 
-イギリス:
-  著作権法: Copyright, Designs and Patents Act 1988
-  リミックス: Adaptation、許可必要
-  フェアディーリング: 限定的（批評、報道、教育等）
-  罰則: 無制限の罰金 + 最大10年の禁固
+United Kingdom:
+  Copyright法: Copyright, Designs and Patents Act 1988
+  Remixing: Adaptation, permission required
+  Fair Dealing: Limited (criticism, reporting, education, etc.)
+  Penalties: Unlimited fines + up to 10 years imprisonment
 
 EU:
-  指令: Copyright in the Digital Single Market Directive
-  リミックス: 許可必要（一部例外あり）
-  UGC例外: 一部加盟国でパロディ/パスティーシュ例外
+  Directive: Copyright in the Digital Single Market Directive
+  Remixing: Permission required (some exceptions)
+  UGC exception: Some member states have parody/pastiche exceptions
 ```
 
 ---
 
-## 第11部: プロのリミックス事例分析
+## Part 11: Professional Remix Case Studies
 
-### 歴史的名リミックスの分析
+### Analysis of Historic Remixes
 
 ```
 事例1: "Blue Monday" - New Order (1983)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-原曲: "Temptation" の要素を再構成
-手法: 当時としては革新的なシンセサイザーとドラムマシンの使用
-結果: 12インチシングル史上最も売れた曲に
+Original: "Temptation" の要素をReconstruction
+Method: 当時としては革新的なシンセサイザーとDrumsマシンの使 Use
+Result: Became the best-selling 12-inch single in history
 
-分析ポイント:
-  → 原曲の要素を大胆に再構成
-  → テクノロジーを活用した新しいサウンド
-  → ダンスフロアでの機能性を重視
-  → 原曲のエモーションを保持しつつ全く新しい体験を提供
+分析Points:
+  → Originalの要素をLarge胆にReconstruction
+  → テクノロジーを活 Useした新しいサウンド
+  → Emphasis on dancefloor functionality
+  → Originalのエモーションを保持しつつ全く新しい体験を提供
 
-教訓: テクノロジーの革新がリミックスの可能性を拡大する
+Lesson: Technological innovation expands remix possibilities
 ```
 
 ```
 事例2: Daft Punk "Around the World" (Motorbass Mix)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-原曲: House/Electro 121 BPM
-リミックス: ディープハウス、より暗い雰囲気
+Original: House/Electro 121 BPM
+Remix: Deep house, darker atmosphere
 
-手法:
-  → 原曲のボーカルループを主軸に
-  → テンポを若干落として（118 BPM）
-  → ディープなベースラインを追加
-  → 原曲のシンセリフをフィルター処理で変容
+Method:
+  → OriginalのVocalsループを主軸に
+  → Slightly reduced tempo（118 BPM）
+  → ディープなBassラインを追加
+  → OriginalのシンセリフをフィルターProcessingで変容
 
-分析ポイント:
-  → 同じ素材でもフィルター処理で全く異なる雰囲気に
-  → テンポの微調整がムード変化に大きく貢献
-  → 「引き算」のアプローチ（要素を減らす）
+分析Points:
+  → 同じ素材でもフィルターProcessingで全く異なる雰囲気に
+  → テンポのFine adjustmentがムード変化にLargeきく貢献
+  → "Subtraction" approach (reducing elements)
 
-教訓: リミックスは必ずしも要素を「追加」する必要はない
+Lesson: Remixes don't necessarily need to "add" elements
 ```
 
 ```
 事例3: The Weeknd "Blinding Lights" (Chromatics Remix)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-原曲: Synth-pop/R&B 171 BPM
-リミックス: Dream pop/Shoegaze、テンポダウン
+Original: Synth-pop/R&B 171 BPM
+Remix: Dream pop/Shoegaze, tempo down
 
-手法:
-  → 大幅なテンポダウン（120 BPM程度）
-  → リバーブとディレイを大量に使用
-  → ドラムを完全に差し替え
-  → ボーカルにヘビーなエフェクト処理
+Method:
+  → Significant tempo reduction（120 BPM程度）
+  → リバーブとディレイをLarge量に使 Use
+  → Drumsを完全に差し替え
+  → VocalsにヘビーなエフェクトProcessing
 
-分析ポイント:
-  → ジャンルの完全な転換
-  → 原曲の80年代感を異なる方向で解釈
-  → ボーカルメロディは維持しつつ雰囲気を一変
+分析Points:
+  → Complete genre conversion
+  → Originalの80年代感を異なる方向で解釈
+  → VocalsMelodyは維持しつつ雰囲気を一変
 
-教訓: 原曲のコアメロディを保持すれば、
-      どれだけ雰囲気を変えてもリミックスとして成立する
+教訓: OriginalのコアMelodyを保持すれば、
+      no matter how much you change the atmosphere, it works as a remix
 ```
 
-### 現代のリミックス手法トレンド
+### Modern Remix Technique Trends
 
 ```
-2024-2025年のリミックストレンド
+2024-2025 Remix Trends
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. AIアシストリミックス
-   → AIステム分離の品質向上により、公式ステム不要に
-   → AIによるボーカル変換（声質変更）
-   → AIコード認識による正確なハーモニー分析
-   → ただし: 最終的な創造性は人間が担う
+1. AI-Assisted Remixes
+   → AIステム分離のQuality向上により、公式ステムNot requiredに
+   → AIによるVocals変換（声質変更）
+   → AIChord認識による正確なハーモニー分析
+   → However: Final creativity remains with humans
 
-2. ハイパーポップ的アプローチ
-   → 極端なピッチシフト（+12半音以上）
-   → グリッチ的なボーカルチョップ
-   → 複数ジャンルの融合
-   → 「正しくない」ことが「正しい」
+2. Hyperpop Approach
+   → Extreme pitch shift (+12 semitones or more)
+   → グリッチ的なVocalsチョップ
+   → Multi-genre fusion
+   → "Wrong" is "right"
 
-3. Lo-Fi / Chill リミックス
-   → テンポダウン
-   → ビニールクラックル追加
-   → ローパスフィルターで温かみ
-   → ジャズコード進行への変換
+3. Lo-Fi / Chill Remixes
+   → Tempo down
+   → Added vinyl crackle
+   → Warmth through low-pass filter
+   → ジャズChord進行への変換
 
-4. ジャージークラブ / アフロビーツ変換
-   → 特徴的なドラムパターンへの変換
-   → 150-160 BPMのエネルギッシュなリズム
-   → TikTokでのバイラルを狙った構成
+4. Jersey Club / Afrobeats Conversion
+   → 特徴的なDrumsパターンへの変換
+   → 150-160 BPMのEnergeticなリズム
+   → Structure aimed at TikTok virality
 
-5. 90年代リバイバル
-   → 90年代ハウス/ガラージのリズムとサウンド
-   → アナログシンセの復権
-   → サンプリング中心のアプローチ
+5. 90s Revival
+   → 90s house/garage rhythms and sounds
+   → Resurgence of analog synths
+   → SamplingMedium心のアプローチ
 ```
 
 ---
 
-## 第12部: Ableton Warpの高度な設定と音質維持
+## 第12部: Ableton WarpのHigh度な設定と音質維持
 
-### Warpモードの完全解説
+### Complete Warp Mode Guide
 
 ```
-Ableton Warp モード 技術詳解
+Ableton Warp Mode Technical Details
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 1. Beats モード
    ┌────────────────────────────────────────┐
-   │ 原理: トランジェント間をストレッチ       │
-   │ 最適: ドラムループ、パーカッション       │
+   │ Principle: Stretch between transients       │
+   │ 最適: Drumsループ、パーカッション       │
    │                                        │
-   │ パラメータ:                              │
+   │ Parameters:                              │
    │  Granulation Resolution:                │
-   │   1/4  → 4分音符単位で保護              │
-   │   1/8  → 8分音符単位で保護              │
-   │   1/16 → 16分音符単位で保護（推奨）     │
-   │   Transients → 自動検出（最も自然）     │
+   │   1/4  → Protect at quarter note units              │
+   │   1/8  → Protect at 8th note units              │
+   │   1/16 → 16th notes単位で保護（推奨）     │
+   │   Transients → Auto-detect (most natural)     │
    │                                        │
    │  Transient Loop Mode:                   │
-   │   Loop Off → ストレッチ時に無音          │
-   │   Loop Forward → 前方にループ            │
-   │   Loop Back-Forth → 往復ループ          │
+   │   Loop Off → Silence when stretching          │
+   │   Loop Forward → Loop forward            │
+   │   Loop Back-Forth → Back-and-forth loop          │
    │                                        │
    │  Transient Envelope:                    │
-   │   0 → シャープ（クリック発生リスク）     │
-   │   100 → スムーズ（アタック鈍化リスク）   │
-   │   推奨: 50-80                           │
+   │   0 → シャープ（クリック発生Risk）     │
+   │   100 → スムーズ（アタック鈍化Risk）   │
+   │   Recommended: 50-80                           │
    └────────────────────────────────────────┘
 
 2. Tones モード
    ┌────────────────────────────────────────┐
-   │ 原理: グラニュラー合成ベース             │
-   │ 最適: モノフォニック楽器、ベース         │
+   │ 原理: グラニュラー合成Bass             │
+   │ 最適: モノフォニック楽器、Bass         │
    │                                        │
-   │ パラメータ:                              │
+   │ Parameters:                              │
    │  Grain Size:                            │
-   │   小 (10-30) → ピッチ精度高い            │
-   │   大 (50-100) → 音質良い（位相問題少）   │
-   │   推奨: 中程度 (30-50)                  │
+   │   Small (10-30) → ピッチ精度Highい            │
+   │   Large (50-100) → Good quality (fewer phase issues)   │
+   │   Recommended: Moderate (30-50)                  │
    │                                        │
-   │ 注意点:                                  │
-   │  → ポリフォニック素材では位相問題発生    │
-   │  → コード楽器にはComplex推奨            │
+   │ Notes:                                  │
+   │  → Phase issues occur with polyphonic material    │
+   │  → Chord楽器にはComplex推奨            │
    └────────────────────────────────────────┘
 
 3. Texture モード
    ┌────────────────────────────────────────┐
-   │ 原理: グラニュラー合成（ランダム化）     │
-   │ 最適: パッド、テクスチャー、環境音       │
+   │ Principle: Granular synthesis (randomized)     │
+   │ Best for: Pads, textures, ambient sounds       │
    │                                        │
-   │ パラメータ:                              │
+   │ Parameters:                              │
    │  Grain Size:                            │
-   │   小 → グリッチ的な質感                 │
-   │   大 → スムーズなテクスチャー           │
+   │   Small → Glitch-like texture                 │
+   │   Large → Smooth texture           │
    │                                        │
    │  Flux:                                  │
-   │   0% → 規則的（金属的になりやすい）     │
-   │   100% → ランダム（自然だがぼやける）   │
-   │   推奨: 30-60%                          │
+   │   0% → Regular (tends to sound metallic)     │
+   │   100% → Random (natural but blurry)   │
+   │   Recommended: 30-60%                          │
    └────────────────────────────────────────┘
 
 4. Re-Pitch モード
    ┌────────────────────────────────────────┐
-   │ 原理: テープ的なピッチ/テンポ連動       │
-   │ 最適: DJミックスの微調整               │
+   │ Principle: Tape-like pitch/tempo linkage       │
+   │ 最適: DJミックスのFine adjustment               │
    │                                        │
-   │ 特徴:                                   │
-   │  → テンポ変更 = ピッチ変更              │
-   │  → 音質劣化ゼロ                        │
-   │  → ±3%程度なら自然                     │
-   │  → DJプレイのピッチフェーダーと同じ原理 │
+   │ Features:                                   │
+   │  → Tempo change = Pitch change              │
+   │  → Zero quality degradation                        │
+   │  → ±3% or so is natural                     │
+   │  → Same principle as a DJ pitch fader │
    └────────────────────────────────────────┘
 
 5. Complex モード
    ┌────────────────────────────────────────┐
-   │ 原理: 複合アルゴリズム                  │
-   │ 最適: ミックス済み楽曲全般              │
+   │ Principle: Composite algorithm                  │
+   │ Best for: Mixed tracks in general              │
    │                                        │
-   │ 特徴:                                   │
-   │  → 多くの素材で良好な結果               │
-   │  → CPU負荷が高い                       │
-   │  → Complex Proの簡易版的位置づけ        │
-   │  → 設定パラメータなし（自動最適化）     │
+   │ Features:                                   │
+   │  → Good results with many materials               │
+   │  → CPU負荷がHighい                       │
+   │  → Positioned as a simplified version of Complex Pro        │
+   │  → No setting parameters (auto-optimized)     │
    └────────────────────────────────────────┘
 
-6. Complex Pro モード（最高品質）
+6. Complex Pro モード（最HighQuality）
    ┌────────────────────────────────────────┐
-   │ 原理: 高度なフェーズボコーダー           │
-   │ 最適: ボーカル、マスター音源            │
+   │ 原理: High度なフェーズボコーダー           │
+   │ 最適: Vocals、マスター音源            │
    │                                        │
-   │ パラメータ:                              │
+   │ Parameters:                              │
    │  Formants:                              │
-   │   0 → フォルマント保持（ボーカル推奨）  │
-   │   正値 → フォルマント上昇               │
-   │   負値 → フォルマント下降               │
+   │   0 → フォルマント保持（Vocals推奨）  │
+   │   正値 → Formant rise               │
+   │   負値 → Formant drop               │
    │                                        │
    │  Envelope:                              │
-   │   0 → 忠実なトランジェント保持          │
-   │   128 → スムーズ（パッド向き）          │
-   │   推奨: 64-100（ボーカル）              │
+   │   0 → Faithful transient preservation          │
+   │   128 → Smooth (suited for pads)          │
+   │   Recommended: 64-100（Vocals）              │
    │                                        │
-   │ CPU負荷: 最も高い                       │
-   │ → リアルタイム使用時は注意              │
-   │ → Freezeで対応推奨                      │
+   │ CPU負荷: 最もHighい                       │
+   │ → Real-timeタイム使 Use時は注意              │
+   │ → Freeze recommended                      │
    └────────────────────────────────────────┘
 ```
 
-### Warp Markerの高度な配置テクニック
+### Warp MarkerのHigh度な配置テクニック
 
 ```
-Warp Marker 配置のベストプラクティス
+Warp Marker Placement Best Practices
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-基本ルール:
-  1. 少ないマーカー = 自然なストレッチ
-  2. 多いマーカー = 精密だが不自然になるリスク
-  3. 小節頭にマーカー = グリッド同期の基盤
-  4. キックやスネアにマーカー = リズム精度向上
+Basic Rules:
+  1. Fewer markers = Natural stretch
+  2. 多いマーカー = 精密だが不自然になるRisk
+  3. bars頭にマーカー = グリッド同期の基盤
+  4. KickやSnareにマーカー = リズム精度向上
 
-推奨マーカー配置パターン:
+Recommended Marker Placement Patterns:
 
-  パターンA: ミニマル（推奨）
+  Pattern A: Minimal (Recommended)
   ┌──────────────────────────────────────┐
-  │ 曲頭  │ ... 8小節 ... │ ... 8小節 │
+  │ 曲頭  │ ... 8bars ... │ ... 8bars │
   │ ▼     │               ▼           ▼ │
-  │ 小節1  │              小節9       小節17│
+  │ bars1  │              bars9       bars17│
   └──────────────────────────────────────┘
-  → 8小節ごとにマーカー
-  → ルバート（テンポ揺れ）のある曲に最適
+  → 8barsごとにマーカー
+  → Best for tracks with rubato (tempo fluctuation)
 
-  パターンB: スタンダード
+  Pattern B: Standard
   ┌──────────────────────────────────────┐
-  │ 各4小節の頭にマーカー                 │
+  │ 各4barsの頭にマーカー                 │
   │ ▼   ▼   ▼   ▼   ▼   ▼   ▼   ▼    │
   │ 1   5   9   13  17  21  25  29     │
   └──────────────────────────────────────┘
-  → 4小節ごとにマーカー
-  → ほとんどの楽曲で有効
+  → 4barsごとにマーカー
+  → Effective for most tracks
 
-  パターンC: プレシジョン
+  Pattern C: Precision
   ┌──────────────────────────────────────┐
-  │ 各小節の頭（1拍目）にマーカー          │
+  │ 各barsの頭（1拍目）にマーカー          │
   │ ▼ ▼ ▼ ▼ ▼ ▼ ▼ ▼ ▼ ▼ ▼ ▼ ...     │
   │ 1 2 3 4 5 6 7 8 9 ...              │
   └──────────────────────────────────────┘
-  → 各小節にマーカー
-  → ライブ演奏の録音など、テンポが不安定な素材
+  → 各barsにマーカー
+  → ライブPerformanceの録音など、テンポが不安定な素材
 
-テンポ揺れのある楽曲のWarp手順:
-  1. 曲頭にマーカー設置（BPM基準点）
-  2. 4小節or8小節ごとにマーカー追加
-  3. Abletonのメトロノームを鳴らしながら確認
-  4. ずれている箇所のみマーカーを追加・調整
-  5. 最小限のマーカーで自然な結果を目指す
+テンポ揺れのある楽曲のWarpSteps:
+  1. Place marker at track head (BPM reference point)
+  2. 4barsor8barsごとにマーカー追加
+  3. Verify while playing Ableton's metronome
+  4. Add/adjust markers only at misaligned spots
+  5. 最Small限のマーカーで自然な結果を目指す
 ```
 
 ---
 
-## 第13部: 実践的なワークフロー集
+## 第13部: 実践的なWorkflow集
 
-### エディット制作の完全チェックリスト
+### Complete Edit Production Checklist
 
 ```
-エディット制作チェックリスト
+Edit Production Checklist
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-【準備フェーズ】
-□ 原曲のWAV/AIFF（ロスレス）を用意
-□ 原曲のBPM/キーを確認（Mixed in Key等）
-□ ターゲットBPMを決定
-□ エディットの目的を明確化（DJセット、特定のトランジション等）
-□ Abletonプロジェクトを新規作成
+[Preparation Phase]
+□ OriginalのWAV/AIFF（ロスレス）を Use意
+□ OriginalのBPM/キーを確認（Mixed in Key等）
+□ Determine target BPM
+□ Clarify edit purpose (DJ set, specific transition, etc.)
+□ Create new Ableton project
 
-【Warp フェーズ】
-□ 原曲をインポート
-□ 正確なBPMを設定（Segment BPM）
-□ Warp Mode を選択（Complex Pro推奨）
-□ Warp Markerを配置（最小限）
-□ グリッドとの同期を確認
-□ ターゲットBPMに変更
-□ 音質チェック（アーティファクトの確認）
+[Warp Phase]
+□ Originalをインポート
+□ Set accurate BPM (Segment BPM)
+□ Warp Mode  (Complex Pro recommended)
+□ Warp Markerを配置（最Small限）
+□ Verify grid sync
+□ Change to target BPM
+□ Quality check (verify artifacts)
 
-【構成フェーズ】
-□ セクション分析（Intro, Verse, Chorus等）
-□ Locatorで各セクションをマーク
-□ DJ用構成を設計
-□ 32小節Introを構築
-□ 不要セクションをカット
-□ ドロップ/ハイライトセクションを最適化
-□ 32小節Outroを構築
-□ トランジションの自然さを確認
+[Structure Phase]
+□ Section分析（Intro, Verse, Chorus等）
+□ Locatorで各Sectionをマーク
+□ DJ Use構成を設計
+□ 32barsIntroを構築
+□ Not requiredSectionをカット
+□ ドロップ/ハイライトSectionを最適化
+□ 32barsOutroを構築
+□ Verify transition naturalness
 
-【仕上げフェーズ】
-□ エフェクト追加（フィルター、リバーブ等）
-□ 全体のレベルチェック
-□ ラウドネス確認（-6 LUFS程度 for club）
-□ モノ互換性チェック
-□ 異なるスピーカーで試聴
-□ ファイル名を命名規則に従って設定
-□ WAV 16bit/44.1kHz でエクスポート
-□ MP3 320kbps も念のため用意
-□ USBドライブにコピー
+[Finishing Phase]
+□ Add effects (filter, reverb, etc.)
+□ Fullのレベルチェック
+□ Loudness check (around -6 LUFS for club)
+□ モノCompatible性チェック
+□ Listen on different speakers
+□ Set filename according to naming convention
+□ WAV 16bit/44.1kHz  export
+□ MP3 320kbps も念のため Use意
+□ Copy to USB drive
 
-【メタデータ】
-□ アーティスト名（原曲）
-□ 曲名 + (Your Name Edit) 
-□ BPM タグ
-□ キー タグ
-□ ジャンル タグ
-□ 年 タグ
-□ コメント（ミックスポイント等のメモ）
+[Metadata]
+□ アーティスト名（Original）
+□ Track name + (Your Name Edit) 
+□ BPM  tag
+□ キー  tag
+□ ジャンル  tag
+□ 年  tag
+□ Comments (notes on mix points, etc.)
 ```
 
-### ファイル命名規則
+### File Naming Convention
 
 ```
-DJ用ファイル命名規則
+DJ Useファイル命名規則
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-基本フォーマット:
+Basic Format:
   "Artist - Title (Your Name Edit Type) [BPM] [Key]"
 
-例:
+Example:
   "Disclosure - Latch (DJ Gaku Extended Edit) [128] [Am]"
   "Dua Lipa - Levitating (DJ Gaku House Remix) [124] [Dm]"
   "Track A vs Track B (DJ Gaku Mashup) [126] [Cm]"
 
-ファイル命名のルール:
-  → スペースはそのまま使用（_は使わない）
-  → 特殊文字は避ける（&、#、%等）
-  → BPMは整数で記載
-  → キーはカメロットまたは音楽キーで記載
-  → ファイル拡張子は小文字（.wav, .mp3）
+File naming rules:
+  → スペースはAs is使 Use（_は使わない）
+  → Avoid special characters (&, #, %, etc.)
+  → List BPM as an integer
+  → List key as Camelot or musical key
+  → ファイル拡張子はSmall文字（.wav, .mp3）
 ```
 
 ---
 
-## 第14部: トラブルシューティング
+## Part 14: Troubleshooting
 
-### よくある問題と解決策
+### Frequent問題と解決策
 
 ```
-問題1: Warp後に音質が悪い
+Problem 1: Poor quality after Warping
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-原因: 不適切なWarpモード or BPM変更幅が大きすぎる
+原因: 不適切なWarpモード or BPMChange RangeがLargeきすぎる
 
-解決策:
-  a. Complex Pro に変更
-  b. Envelope パラメータを調整（64-100）
-  c. BPM変更幅を小さくする
-  d. ステム分離して個別にWarp
-  e. それでもダメなら、該当セクションだけ新規制作
+Solution:
+  a. Complex Pro  change
+  b. Envelope  parameter adjustment（64-100）
+  c. BPMChange RangeをSmallさくする
+  d. Separate stems and Warp individually
+  e. それでもダメなら、該当Sectionだけ新規制作
 
-問題2: ボーカルのタイミングがずれる
+問題2: Vocalsのタイミングがずれる
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-原因: 原曲のテンポ揺れ or Warp Marker不足
+原因: Originalのテンポ揺れ or Warp Marker不足
 
-解決策:
-  a. フレーズ単位でWarp Markerを追加
-  b. ボーカルのアタック部分にマーカーを配置
-  c. 微調整は手動で（1ms単位）
-  d. Quantize機能は使わない（ボーカルが不自然になる）
+Solution:
+  a. Add Warp Markers per phrase
+  b. Vocalsのアタック部分にマーカーを配置
+  c. Fine adjustmentは手動で（1ms単位）
+  d. Quantize機能は使わない（Vocalsが不自然になる）
 
-問題3: マッシュアップで不協和音が発生
+Problem 3: Dissonance in mashups
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-原因: キーの不一致
+Cause: Key mismatch
 
-解決策:
-  a. Mixed in Key等でキーを再確認
-  b. どちらかのトラックをTranspose
-  c. カメロットホイールで互換キーを確認
-  d. EQで干渉する帯域を処理
-  e. それでも合わない場合は曲の組み合わせを変更
+Solution:
+  a. Recheck key with Mixed in Key, etc.
+  b. Transpose one of the tracks
+  c. カメロットホイールでCompatibleキーを確認
+  d. EQで干渉するBandをProcessing
+  e. If still incompatible, change track combination
 
-問題4: エクスポートしたファイルが音割れする
+Problem 4: Exported file clips/distorts
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-原因: マスターチャンネルのクリッピング
+Cause: Master channel clipping
 
-解決策:
-  a. マスターフェーダーを下げる
-  b. Limiterを挿入（Ceiling: -0.3dB）
-  c. 個別トラックのレベルを見直す
-  d. True Peakメーターで確認
-  e. Dithering: Triangular（16bit出力時）
+Solution:
+  a. Lower master fader
+  b. Insert Limiter (Ceiling: -0.3dB)
+  c. Review individual track levels
+  d. Check with True Peak meter
+  e. Dithering: Triangular（when outputting 16bit）
 
-問題5: CPUオーバーロード
+Problem 5: CPU Overload
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-原因: Complex ProのWarpが複数トラックで使用
+原因: Complex ProのWarpが複数トラックで使 Use
 
-解決策:
-  a. 使用しないトラックをFreeze
-  b. Warp済みクリップをFlat化（Consolidate）
-  c. バッファサイズを上げる（レイテンシ増加）
-  d. 不要なプラグインを無効化
-  e. 作業完了後にBounce to Audio
+Solution:
+  a. 使 UseしないトラックをFreeze
+  b. Flatten Warped clips (Consolidate)
+  c. Increase buffer size (increases latency)
+  d. Not requiredなプラグインを無効化
+  e. Bounce to Audio after work is complete
 ```
 
 ---
 
-## 第15部: 上級者向けリソースとさらなる学習
+## Part 15: Advanced Resources and Further Learning
 
-### 推奨学習リソース
+### Recommended Learning Resources
 
 ```
-書籍:
+Books:
   → "Remix: Making Art and Commerce Thrive" - Lawrence Lessig
   → "The Art of DJing" - Various Authors
   → "Ableton Live Power!" - Jon Margulies
 
-オンラインコース:
+Online Courses:
   → Skillshare: "Remixing in Ableton Live"
   → Udemy: "Complete Guide to Remixing"
-  → YouTube: "You Suck at Producing" シリーズ
+  → YouTube: "You Suck at Producing" series
   → Sonic Academy: Remix tutorials
 
-コミュニティ:
+Communities:
   → r/edmproduction (Reddit)
   → r/ableton (Reddit)
   → Ableton Forum
   → Discord: Future Producers, EDM Production
 ```
 
-### プロフェッショナルへの道
+### Path to Professional
 
 ```
-リミキサーとしてのキャリアパス
+Career Path as a Remixer
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Level 1: 初心者（0-6ヶ月）
-  → エディット制作の基本を習得
-  → 10曲以上のDJ用エディットを制作
-  → マッシュアップを3-5曲制作
-  → SoundCloudでフリーダウンロード公開
+Level 1: 初心者（0-6ヶMonthly）
+  → Master edit production basics
+  → 10曲以上のDJ Useエディットを制作
+  → Produce 3-5 mashups
+  → Publish as free downloads on SoundCloud
 
-Level 2: 中級者（6ヶ月-2年）
-  → フルリミックスを制作可能
-  → リミックスコンテストに定期的に参加
-  → ミキシング品質がプロレベルに近づく
-  → 小規模レーベルからリリース
+Level 2: Medium級者（6ヶMonthly-2年）
+  → Can produce full remixes
+  → Remix contestに定期的に参加
+  → ミキシングQualityがプロレベルに近づく
+  → Small規模レーベルからリリース
 
-Level 3: 上級者（2-4年）
-  → 公式リミックスのオファーを受ける
-  → 独自のサウンドが確立
-  → 大手レーベルのコンテストで入賞
-  → リミックスが他のDJにプレイされる
+Level 3: Advanced (2-4 years)
+  → Receive official remix offers
+  → Unique sound is established
+  → Large手レーベルのコンテストで入賞
+  → Remixes played by other DJs
 
-Level 4: プロフェッショナル（4年以上）
-  → メジャーアーティストの公式リミックス
-  → リミックスが収入源の一つに
-  → 自身のレーベル設立
-  → 後進の指導・メンタリング
+Level 4: Professional (4+ years)
+  → Official remixes for major artists
+  → Remixes become a revenue source
+  → Establish your own label
+  → Mentoring the next generation
 ```
 
 ---
 
-## 最終まとめ: エディット・リミックスマスターへの道
+## Final Summary: Path to Edit & Remix Mastery
 
-エディットとリミックスは、DJとしての個性を最も強く表現できる手段です。技術的な知識と創造性を組み合わせ、原曲を尊重しながらも自分だけの解釈を加えることで、他のDJとは一線を画すセットが構築できます。
+エディットとリミックスは、DJとしての個性を最も強く表現できる手段です。技術的な知識と創造性を組み合わせ、Originalを尊重しながらも自分だけの解釈を加えることで、他のDJとは一線を画すセットが構築できます。
 
-重要なのは、技術に溺れず、常に「フロアでどう機能するか」「リスナーにどんな体験を提供するか」を念頭に置くことです。最高のリミックスは、原曲のファンも新しいファンも同時に魅了するものです。
+重要なのは、技術に溺れず、常に「フロアでどう機能するか」「リスナーにどんな体験を提供するか」を念頭に置くことです。最Highのリミックスは、Originalのファンも新しいファンも同時に魅了するものです。
 
 ```
-エディット・リミックスの最終チェック 5項目:
+Edit & Remix Final Check - 5 Items:
 
-  □ 1. フロアテスト: 実際のDJセットで機能するか
-  □ 2. 音質: リファレンスと比較して遜色ないか
-  □ 3. オリジナリティ: 自分ならではの要素があるか
-  □ 4. 構成: 自然な展開で飽きさせないか
-  □ 5. 法的確認: 著作権的に問題ないか
+  □ 1. Floor Test: Does it function in an actual DJ set?
+  □ 2. Sound Quality: Is it comparable to references?
+  □ 3. Originality: Are there elements unique to you?
+  □ 4. Structure: Does it develop naturally without boring?
+  □ 5. 法的確認: Copyright的に問題ないか
 ```
 
 ---
 
-## 次に読むべきガイド
+## Next Guide to Read
 
-- [ライブプロダクション](./live-production.md) - 次のトピックへ進む
+- [ライブプロダクション](./live-production.md) - Proceed to the next topic
 
 ---
 
-## 参考文献
+## References
 
-- [MDN Web Docs](https://developer.mozilla.org/) - Web技術のリファレンス
-- [Wikipedia](https://ja.wikipedia.org/) - 技術概念の概要
+- [MDN Web Docs](https://developer.mozilla.org/) - Web technology reference
+- [Wikipedia](https://en.wikipedia.org/) - Technology concept overviews
