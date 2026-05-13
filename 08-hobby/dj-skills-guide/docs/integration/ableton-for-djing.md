@@ -1,1115 +1,1115 @@
-# Ableton で DJ
+# DJing with Ableton
 
 
 
-## この章で学ぶこと
+## What You'll Learn in This Chapter
 
-- [ ] 基本概念と用語の理解
-- [ ] 実装パターンとベストプラクティスの習得
-- [ ] 実務での適用方法の把握
-- [ ] トラブルシューティングの基本
-
----
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- [ ] Understanding basic concepts and terminology
+- [ ] Learning implementation patterns and best practices
+- [ ] Grasping practical application methods
+- [ ] Basics of troubleshooting
 
 ---
 
-**Ableton LiveをDJソフトウェアとして使用する方法を完全マスター**
+## Prerequisites
 
-Ableton LiveはDAW（Digital Audio Workstation）ですが、DJソフトウェアとしても非常に強力なポテンシャルを持っています。Session Viewでのビートマッチング、クロスフェーダー、エフェクトを駆使したDJセットを実現できます。本ドキュメントでは、Ableton LiveをDJソフトウェアとして活用するための包括的なガイドを提供します。初心者から上級者まで、段階的にスキルを身につけられるよう構成されています。
+Having the following knowledge will deepen your understanding before reading this guide:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 目次
+**Completely Master Using Ableton Live as DJ Software**
 
-1. [Ableton LiveがDJに適している理由](#ableton-liveがdjに適している理由)
-2. [Session ViewでのDJセットアップ](#session-viewでのdjセットアップ)
-3. [クリップでのビートマッチング](#クリップでのビートマッチング)
-4. [Warp機能の詳細](#warp機能の詳細)
-5. [クロスフェーダーとトランジション](#クロスフェーダーとトランジション)
-6. [エフェクトラックの活用](#エフェクトラックの活用)
-7. [MIDIコントローラーマッピング](#midiコントローラーマッピング)
-8. [ライブリミックスとマッシュアップ](#ライブリミックスとマッシュアップ)
-9. [シーンとFollow Actions](#シーンとfollow-actions)
-10. [ドラムラック・インストゥルメントの統合](#ドラムラックインストゥルメントの統合)
+Ableton Live is a DAW (Digital Audio Workstation), but it also has tremendous potential as DJ software. You can achieve DJ sets utilizing beatmatching in Session View, crossfaders, and effects. This document provides a comprehensive guide for using Ableton Live as DJ software. It's structured so that both beginners and advanced users can build skills step by step.
+
+---
+
+## Table of Contents
+
+1. [Why Ableton Live Is Suited for DJing](#why-ableton-live-is-suited-for-djing)
+2. [DJ Setup in Session View](#dj-setup-in-session-view)
+3. [Beatmatching with Clips](#beatmatching-with-clips)
+4. [Warp Feature Details](#warp-feature-details)
+5. [Crossfader and Transitions](#crossfader-and-transitions)
+6. [Utilizing Effect Racks](#utilizing-effect-racks)
+7. [MIDI Controller Mapping](#midi-controller-mapping)
+8. [Live Remixing and Mashups](#live-remixing-and-mashups)
+9. [Scenes and Follow Actions](#scenes-and-follow-actions)
+10. [Drum Rack and Instrument Integration](#drum-rack-and-instrument-integration)
 11. [Rekordbox vs Ableton](#rekordbox-vs-ableton)
 12. [Traktor vs Ableton](#traktor-vs-ableton)
 13. [Serato vs Ableton](#serato-vs-ableton)
-14. [ハイブリッドセットアップ](#ハイブリッドセットアップ)
-15. [オーディオルーティングの詳細](#オーディオルーティングの詳細)
-16. [キーミックスとハーモニックDJ](#キーミックスとハーモニックdj)
-17. [ライブパフォーマンスの準備](#ライブパフォーマンスの準備)
-18. [トラブルシューティング](#トラブルシューティング)
-19. [プロDJのAbleton活用事例](#プロdjのableton活用事例)
-20. [まとめ](#まとめ)
+14. [Hybrid Setups](#hybrid-setups)
+15. [Audio Routing Details](#audio-routing-details)
+16. [Key Mixing and Harmonic DJ](#key-mixing-and-harmonic-dj)
+17. [Live Performance Preparation](#live-performance-preparation)
+18. [Troubleshooting](#troubleshooting)
+19. [Pro DJ Ableton Use Cases](#pro-dj-ableton-use-cases)
+20. [Summary](#summary)
 
 ---
 
-## Ableton LiveがDJに適している理由
+## Why Ableton Live Is Suited for DJing
 
-### DAWとDJソフトの融合
+### Fusion of DAW and DJ Software
 
-Ableton Liveは、従来のDJソフトウェア（Rekordbox、Traktor、Serato）とは根本的に異なるアプローチでDJプレイを可能にします。DAWとしての制作機能とDJとしてのパフォーマンス機能を1つのソフトウェアで実現できる点が最大の特長です。
-
-```
-従来のDJワークフロー:
-  制作（DAW）→ エクスポート → DJソフトにインポート → パフォーマンス
-  ※ 制作とパフォーマンスが分離
-
-AbletonによるDJワークフロー:
-  制作 → そのままパフォーマンス
-  パフォーマンス中に制作要素を追加
-  ※ 制作とパフォーマンスがシームレス
-```
-
-### Abletonの優位性
+Ableton Live enables DJ play through a fundamentally different approach from traditional DJ software (Rekordbox, Traktor, Serato). Its greatest feature is the ability to achieve both DAW production functions and DJ performance functions in a single piece of software.
 
 ```
-1. クリエイティブな自由度:
-   - 楽曲の構成要素を個別に操作可能
-   - リアルタイムでリミックス、マッシュアップ
-   - MIDIインストゥルメントの演奏
-   - オーディオエフェクトの無限の組み合わせ
+Traditional DJ Workflow:
+  Production (DAW) -> Export -> Import to DJ Software -> Performance
+  * Production and performance are separated
 
-2. Session Viewの柔軟性:
-   - 非線形な楽曲管理
-   - 任意のクリップを任意のタイミングで再生
-   - シーンによるセクション管理
-   - Follow Actionsによる自動進行
-
-3. Warpエンジンの優秀さ:
-   - 高品質な時間伸縮アルゴリズム
-   - Complex/Complex Proモードでの自然な変換
-   - 精密なWarpマーカー配置
-   - トランジェント保持機能
-
-4. Max for Liveの拡張性:
-   - カスタムデバイスの作成
-   - 独自のDJツール開発
-   - コミュニティデバイスの活用
-   - パフォーマンス専用ツール
-
-5. オーディオルーティングの柔軟さ:
-   - 複雑なバス構成
-   - サイドチェイン
-   - パラレルプロセッシング
-   - 外部機器との連携
+Ableton DJ Workflow:
+  Production -> Perform directly
+  Add production elements during performance
+  * Production and performance are seamless
 ```
 
-### どんなDJに向いているか
+### Ableton's Advantages
 
 ```
-最適なユーザー:
-  - プロデューサー兼DJ
-  - ライブパフォーマンス志向のアーティスト
-  - オリジナル楽曲中心のセット
-  - エクスペリメンタルなスタイル
-  - A/Vパフォーマンス
+1. Creative Freedom:
+   - Can individually manipulate a track's constituent elements
+   - Real-time remixing and mashups
+   - Playing MIDI instruments
+   - Infinite combinations of audio effects
 
-あまり向かないケース:
-  - CDJプレイが中心
-  - 大量の既存楽曲をブラウズしてプレイ
-  - 従来のDJスタイルを重視
-  - クラブのハウスシステムでのプレイが多い
+2. Session View Flexibility:
+   - Non-linear track management
+   - Play any clip at any time
+   - Section management via scenes
+   - Automatic progression through Follow Actions
+
+3. Excellent Warp Engine:
+   - High-quality time-stretching algorithms
+   - Natural conversion with Complex/Complex Pro modes
+   - Precise warp marker placement
+   - Transient preservation
+
+4. Max for Live Extensibility:
+   - Custom device creation
+   - Develop your own DJ tools
+   - Community device utilization
+   - Performance-specific tools
+
+5. Flexible Audio Routing:
+   - Complex bus configurations
+   - Sidechain
+   - Parallel processing
+   - External hardware integration
+```
+
+### Who Is It Best Suited For
+
+```
+Best suited for:
+  - Producer/DJs
+  - Artists with a live performance orientation
+  - Sets centered on original tracks
+  - Experimental styles
+  - A/V performances
+
+Less suited for:
+  - CDJ-centric play
+  - Browsing and playing large existing track libraries
+  - Traditional DJ style focus
+  - Frequent play on club house systems
 ```
 
 ---
 
-## Session ViewでのDJセットアップ
+## DJ Setup in Session View
 
-### 基本トラック構成
+### Basic Track Configuration
 
-Session ViewはAbleton LiveでDJプレイを行う際の中心的なインターフェースです。以下に推奨するトラック構成を示します。
-
-```
-基本構成（2デッキ）:
-  Track 1: Deck A - メインオーディオ（左側）
-  Track 2: Deck A - ボーカル/アカペラ（左側）
-  Track 3: Deck B - メインオーディオ（右側）
-  Track 4: Deck B - ボーカル/アカペラ（右側）
-  Track 5: ドラムマシン/サンプラー
-  Track 6: シンセサイザー
-  Track 7: エフェクトリターン用
-  Track 8: マスターバスエフェクト
-
-  Return Track A: Reverb（Space Echo等）
-  Return Track B: Delay（Ping Pong Delay等）
-  Return Track C: Filter（Auto Filter等）
-  Return Track D: 特殊エフェクト（Grain Delay等）
-
-  Master Track: リミッター、メーター
-```
-
-### 拡張構成（4デッキ）
+Session View is the central interface for DJ play in Ableton Live. Below is the recommended track configuration.
 
 ```
-拡張構成:
+Basic Configuration (2 Decks):
+  Track 1: Deck A - Main Audio (Left)
+  Track 2: Deck A - Vocal/Acapella (Left)
+  Track 3: Deck B - Main Audio (Right)
+  Track 4: Deck B - Vocal/Acapella (Right)
+  Track 5: Drum Machine/Sampler
+  Track 6: Synthesizer
+  Track 7: Effect Return
+  Track 8: Master Bus Effects
+
+  Return Track A: Reverb (Space Echo, etc.)
+  Return Track B: Delay (Ping Pong Delay, etc.)
+  Return Track C: Filter (Auto Filter, etc.)
+  Return Track D: Special Effects (Grain Delay, etc.)
+
+  Master Track: Limiter, Meters
+```
+
+### Extended Configuration (4 Decks)
+
+```
+Extended Configuration:
   Track 1-2: Deck A
   Track 3-4: Deck B
-  Track 5-6: Deck C（アンビエント/パッド）
-  Track 7-8: Deck D（ループ/サンプル）
-  Track 9: ドラムラック
-  Track 10: ベースシンセ
-  Track 11: リードシンセ
-  Track 12: ボコーダー/ボーカルエフェクト
+  Track 5-6: Deck C (Ambient/Pads)
+  Track 7-8: Deck D (Loops/Samples)
+  Track 9: Drum Rack
+  Track 10: Bass Synth
+  Track 11: Lead Synth
+  Track 12: Vocoder/Vocal Effects
 
-  Return Track A-F: 各種エフェクト
-  Master Track: マスタリングチェーン
+  Return Track A-F: Various Effects
+  Master Track: Mastering Chain
 ```
 
-### クリップ配置の戦略
+### Clip Placement Strategy
 
 ```
-各トラックに楽曲をクリップとして配置:
-  - 1 Clip = 1曲（フルトラック）
-  - または 1 Clip = 1セクション（イントロ、ブレイク、ドロップ等）
+Place tracks as clips on each track:
+  - 1 Clip = 1 Track (Full Track)
+  - Or 1 Clip = 1 Section (Intro, Break, Drop, etc.)
 
-Warp設定:
-  - Warp: On（必須）
-  - Warp Mode: Complex Pro（推奨）
-  - BPM: 自動検出 → 手動微調整
-  - Launch Mode: Toggle（再生/停止切り替え）
-  - Quantization: 1 Bar（推奨）または None（フリースタイル）
+Warp Settings:
+  - Warp: On (required)
+  - Warp Mode: Complex Pro (recommended)
+  - BPM: Auto-detect -> Manual fine-tuning
+  - Launch Mode: Toggle (play/stop toggle)
+  - Quantization: 1 Bar (recommended) or None (freestyle)
 
-Scene構成:
-  Scene 1: オープニングセクション
-  Scene 2: ビルドアップ
-  Scene 3: ドロップ/ピーク
-  Scene 4: ブレイクダウン
-  Scene 5: 次の曲への移行
-  ※ 1 Scene = 複数トラックの同時トリガー
+Scene Structure:
+  Scene 1: Opening Section
+  Scene 2: Buildup
+  Scene 3: Drop/Peak
+  Scene 4: Breakdown
+  Scene 5: Transition to Next Track
+  * 1 Scene = Simultaneous trigger of multiple tracks
 ```
 
-### カラーコーディング
+### Color Coding
 
 ```
-視認性を高めるカラースキーム:
-  赤系: エネルギッシュな曲（テクノ、ハードスタイル）
-  青系: クール/ディープな曲（ディープハウス、テックハウス）
-  緑系: メロディック/アップリフティング（トランス、プログレッシブ）
-  黄系: ファンキー/グルーヴィー（ファンク、ディスコ）
-  紫系: ダーク/アンビエント（ダークテクノ、アンビエント）
-  オレンジ系: エネルギー移行（トランジション用クリップ）
+Color Scheme for Better Visibility:
+  Red: Energetic tracks (Techno, Hardstyle)
+  Blue: Cool/Deep tracks (Deep House, Tech House)
+  Green: Melodic/Uplifting (Trance, Progressive)
+  Yellow: Funky/Groovy (Funk, Disco)
+  Purple: Dark/Ambient (Dark Techno, Ambient)
+  Orange: Energy Transitions (Transition clips)
 
-トラックカラー:
-  Deck A系: 青
-  Deck B系: 赤
-  エフェクト系: 緑
-  シンセ系: 紫
+Track Colors:
+  Deck A: Blue
+  Deck B: Red
+  Effects: Green
+  Synths: Purple
 ```
 
-### テンプレートの作成
+### Template Creation
 
 ```
-DJセットテンプレートに含めるべき要素:
+Elements to Include in a DJ Set Template:
 
-1. トラック構成:
-   - 前述の基本/拡張構成をプリセット
-   - 各トラックにデフォルトエフェクトチェーン配置
-   - EQ Eight、Auto Filter、Utility を各トラックに
+1. Track Configuration:
+   - Preset the basic/extended configuration described above
+   - Place default effect chains on each track
+   - EQ Eight, Auto Filter, Utility on each track
 
-2. リターントラック:
-   - Return A: Reverb（プリセット: Large Hall）
-   - Return B: Delay（プリセット: Ping Pong 1/4）
-   - Return C: Auto Filter（LPF/HPF切り替え可能）
-   - Return D: Beat Repeat（プリセット: Stutter）
+2. Return Tracks:
+   - Return A: Reverb (Preset: Large Hall)
+   - Return B: Delay (Preset: Ping Pong 1/4)
+   - Return C: Auto Filter (LPF/HPF switchable)
+   - Return D: Beat Repeat (Preset: Stutter)
 
-3. マスタートラック:
-   - Glue Compressor（軽いグルー）
-   - EQ Eight（最終調整用）
-   - Limiter（-0.3dB シーリング）
-   - Spectrum（周波数モニター用）
+3. Master Track:
+   - Glue Compressor (light glue)
+   - EQ Eight (final adjustments)
+   - Limiter (-0.3dB ceiling)
+   - Spectrum (frequency monitoring)
 
-4. MIDIマッピング:
-   - クロスフェーダー
-   - ボリュームフェーダー
-   - EQノブ
-   - エフェクトセンド
-   - トランスポートコントロール
+4. MIDI Mapping:
+   - Crossfader
+   - Volume faders
+   - EQ knobs
+   - Effect sends
+   - Transport controls
 
-保存場所: User Library → Templates → DJ Set Template
-```
-
----
-
-## クリップでのビートマッチング
-
-### 自動同期（Warp）
-
-Ableton Liveの最大の強みの一つが、Warp機能による自動ビートマッチングです。
-
-```
-Warp On の動作:
-  → 楽曲がProject TempoにBPMが自動同期
-  → ビートマッチングの手動操作が不要
-  → 複数曲を同時に再生してもテンポが一致
-
-利点:
-  - 完璧な同期精度
-  - BPM差が大きくてもOK（80BPM vs 140BPMでも可能）
-  - テンポの自動追従
-  - ピッチ維持（Complex Pro使用時）
-
-Project Tempoの管理:
-  - セット全体のBPMを統一する場合: 固定BPM
-  - 曲ごとにBPMを変える場合: Arrangement Viewでテンポオートメーション
-  - 徐々にBPMを上げる: テンポランプ機能
-```
-
-### Warp マーカーの配置
-
-```
-正確なWarpのための手順:
-
-1. 楽曲をトラックにドラッグ
-2. Clip Viewを開く（クリップをダブルクリック）
-3. Warpボタンが ON であることを確認
-4. ダウンビート（最初の1拍目）にWarpマーカーを配置
-   - 波形上で右クリック → Set 1.1.1 Here
-5. 次の明確なビートポイントにもWarpマーカーを追加
-6. ループ再生で確認
-
-正確なWarpマーカー配置のコツ:
-  - キックドラムのトランジェントに合わせる
-  - 4小節ごとにマーカーを確認
-  - ブレイクダウン後の復帰ポイントを確認
-  - テンポチェンジがある曲は特に丁寧に
-```
-
-### マニュアル調整
-
-```
-Clip View → Segment BPM:
-  - 自動検出されたBPMの微調整
-  - 0.01BPM単位で調整可能
-  - グリッドずれの修正
-
-調整手順:
-  1. Clip View を開く
-  2. Seg. BPM の値を確認
-  3. 実際のBPMと異なる場合は手動入力
-  4. :2（半分）や x2（倍）ボタンで大きな修正
-  5. Warpマーカーのドラッグで微調整
-
-よくある問題と解決:
-  - BPMが半分/倍に検出される → :2 または x2 で修正
-  - テンポが揺れる曲 → 多数のWarpマーカーで対応
-  - ライブ録音の曲 → Complex Proモードで自然に
-  - 変拍子の曲 → 小節ごとにWarpマーカー配置
-```
-
-### ビートマッチング練習メソッド
-
-```
-段階的な練習:
-
-レベル1: 完全自動
-  - Warp On、同じBPMの曲を2曲同時再生
-  - クロスフェーダーで切り替え練習
-  - タイミング感覚を養う
-
-レベル2: テンポ差のある曲
-  - 5-10BPM差の曲を使用
-  - Project Tempoの変更タイミングを練習
-  - 自然なテンポ遷移を習得
-
-レベル3: 異ジャンル間ミックス
-  - 大きなBPM差（例: 90BPM Hip-Hop → 128BPM House）
-  - ハーフタイム/ダブルタイムの活用
-  - トランジション中のテンポ変化
-
-レベル4: Warp Off チャレンジ
-  - 1曲をWarp Off で手動ビートマッチ
-  - Clip のピッチシフトでBPM調整
-  - 本来のDJスキルとの融合
+Save Location: User Library -> Templates -> DJ Set Template
 ```
 
 ---
 
-## Warp機能の詳細
+## Beatmatching with Clips
 
-### Warpモードの比較
+### Automatic Sync (Warp)
+
+One of Ableton Live's greatest strengths is automatic beatmatching through the Warp feature.
 
 ```
-Beats モード:
-  特徴: トランジェント（アタック）を保持
-  最適: ドラムループ、リズム中心の素材
-  設定:
+Warp On Behavior:
+  -> Tracks automatically sync BPM to Project Tempo
+  -> Manual beatmatching is unnecessary
+  -> Multiple tracks stay in tempo even when played simultaneously
+
+Advantages:
+  - Perfect sync precision
+  - Works even with large BPM differences (80BPM vs 140BPM is possible)
+  - Automatic tempo following
+  - Pitch preservation (when using Complex Pro)
+
+Project Tempo Management:
+  - To unify BPM for the entire set: Fixed BPM
+  - To change BPM per track: Tempo automation in Arrangement View
+  - To gradually increase BPM: Tempo ramp function
+```
+
+### Warp Marker Placement
+
+```
+Steps for Accurate Warping:
+
+1. Drag the track onto a track
+2. Open Clip View (double-click the clip)
+3. Confirm that the Warp button is ON
+4. Place a Warp marker on the downbeat (first beat of bar 1)
+   - Right-click on waveform -> Set 1.1.1 Here
+5. Add Warp markers at the next clear beat points
+6. Confirm with loop playback
+
+Tips for Accurate Warp Marker Placement:
+  - Align with kick drum transients
+  - Check markers every 4 bars
+  - Verify the re-entry point after breakdowns
+  - Be especially careful with tracks that have tempo changes
+```
+
+### Manual Adjustment
+
+```
+Clip View -> Segment BPM:
+  - Fine-tune the auto-detected BPM
+  - Adjustable in 0.01 BPM increments
+  - Grid misalignment correction
+
+Adjustment Steps:
+  1. Open Clip View
+  2. Check the Seg. BPM value
+  3. Manually input if different from actual BPM
+  4. Use :2 (half) or x2 (double) buttons for large corrections
+  5. Fine-tune by dragging Warp markers
+
+Common Problems and Solutions:
+  - BPM detected at half/double -> Fix with :2 or x2
+  - Fluctuating tempo tracks -> Address with many Warp markers
+  - Live recorded tracks -> Use Complex Pro mode for natural results
+  - Odd time signature tracks -> Place Warp markers bar by bar
+```
+
+### Beatmatching Practice Method
+
+```
+Gradual Practice:
+
+Level 1: Fully Automatic
+  - Warp On, simultaneously play 2 tracks at the same BPM
+  - Practice switching with the crossfader
+  - Develop a sense of timing
+
+Level 2: Tracks with Tempo Differences
+  - Use tracks with 5-10 BPM difference
+  - Practice the timing of Project Tempo changes
+  - Learn natural tempo transitions
+
+Level 3: Cross-Genre Mixing
+  - Large BPM differences (e.g., 90BPM Hip-Hop -> 128BPM House)
+  - Utilize half-time/double-time
+  - Tempo changes during transitions
+
+Level 4: Warp Off Challenge
+  - Manual beatmatching with 1 track on Warp Off
+  - BPM adjustment via Clip's pitch shift
+  - Fusion with traditional DJ skills
+```
+
+---
+
+## Warp Feature Details
+
+### Warp Mode Comparison
+
+```
+Beats Mode:
+  Feature: Preserves transients (attacks)
+  Best for: Drum loops, rhythm-centric material
+  Settings:
     - Preserve: Transients
     - Transient Loop Mode: Off / Forward / Back-and-Forth
-    - Transient Envelope: 100（デフォルト）
-  DJでの使用: ドラムブレイク、パーカッションループ
+    - Transient Envelope: 100 (default)
+  DJ Use: Drum breaks, percussion loops
 
-Tones モード:
-  特徴: ピッチを保持しながら時間伸縮
-  最適: メロディ楽器、ベースライン
-  設定:
-    - Grain Size: 自動調整
-  DJでの使用: ボーカルなしのインストゥルメンタル
+Tones Mode:
+  Feature: Time-stretches while preserving pitch
+  Best for: Melodic instruments, basslines
+  Settings:
+    - Grain Size: Auto-adjust
+  DJ Use: Instrumental tracks without vocals
 
-Texture モード:
-  特徴: テクスチャー/アンビエンス保持
-  最適: パッド、アンビエントサウンド
-  設定:
-    - Grain Size: 大きめ推奨
-    - Flux: テクスチャーの揺れ
-  DJでの使用: アンビエントレイヤー、FXサウンド
+Texture Mode:
+  Feature: Preserves texture/ambience
+  Best for: Pads, ambient sounds
+  Settings:
+    - Grain Size: Larger recommended
+    - Flux: Texture variation
+  DJ Use: Ambient layers, FX sounds
 
-Re-Pitch モード:
-  特徴: レコードのように速度変更＝ピッチ変更
-  最適: ビニールサウンドの再現
-  設定: なし
-  DJでの使用: ターンテーブリスト的プレイ
+Re-Pitch Mode:
+  Feature: Speed change = pitch change, like vinyl
+  Best for: Reproducing vinyl sound
+  Settings: None
+  DJ Use: Turntablist-style play
 
-Complex モード:
-  特徴: 全帯域を総合的に処理
-  最適: 完成されたミックス、マスター音源
-  設定: なし
-  DJでの使用: 一般的なDJ用楽曲（推奨度 高）
+Complex Mode:
+  Feature: Processes all frequency bands comprehensively
+  Best for: Finished mixes, master sources
+  Settings: None
+  DJ Use: General DJ tracks (highly recommended)
 
-Complex Pro モード:
-  特徴: Complexの改良版、フォルマント保持
-  最適: ボーカル入り楽曲、マスター音源
-  設定:
-    - Formants: フォルマントシフト量
-    - Envelope: エンベロープ追従度
-  DJでの使用: ボーカル曲のDJプレイ（最推奨）
+Complex Pro Mode:
+  Feature: Improved Complex, with formant preservation
+  Best for: Tracks with vocals, master sources
+  Settings:
+    - Formants: Formant shift amount
+    - Envelope: Envelope following
+  DJ Use: DJ play of vocal tracks (most recommended)
 ```
 
-### Warpの品質最適化
+### Warp Quality Optimization
 
 ```
-高品質なWarpのためのガイドライン:
+Guidelines for High-Quality Warping:
 
-1. ソースファイルの品質:
-   - WAV/AIFF: 最高品質（推奨）
-   - FLAC: 可逆圧縮、WAVと同等
-   - MP3 320kbps: 許容範囲
-   - MP3 128kbps: 非推奨（アーティファクト発生）
+1. Source File Quality:
+   - WAV/AIFF: Highest quality (recommended)
+   - FLAC: Lossless compression, equivalent to WAV
+   - MP3 320kbps: Acceptable
+   - MP3 128kbps: Not recommended (artifacts occur)
 
-2. BPM変更幅の制限:
-   - ±5%以内: ほぼ劣化なし
-   - ±10%以内: わずかな変化
-   - ±15%以上: アーティファクトが目立つ
-   - ±20%以上: Complex Proでも劣化が顕著
+2. BPM Change Range Limits:
+   - Within +/-5%: Virtually no degradation
+   - Within +/-10%: Slight changes
+   - +/-15% or more: Artifacts become noticeable
+   - +/-20% or more: Degradation is obvious even with Complex Pro
 
-3. CPU負荷の考慮:
-   - Beats/Tones: 低負荷
-   - Complex: 中負荷
-   - Complex Pro: 高負荷
-   - 多数トラック同時使用時はBeats/Tonesを検討
+3. CPU Load Considerations:
+   - Beats/Tones: Low load
+   - Complex: Medium load
+   - Complex Pro: High load
+   - Consider Beats/Tones when using many simultaneous tracks
 
-4. プリレンダリング:
-   - 重要なトランジションはArrangement Viewで録音
-   - Freeze機能でCPU負荷軽減
-   - Consolidate（統合）でクリップを最適化
-```
-
----
-
-## クロスフェーダーとトランジション
-
-### クロスフェーダー設定
-
-```
-Mixer Section の設定:
-
-1. クロスフェーダーの有効化:
-   - Mixer Section表示（メニュー → View → Crossfader）
-   - 各トラックのCrossfade Assign:
-     Track 1-2: A側（左）
-     Track 3-4: B側（右）
-
-2. クロスフェーダーカーブ:
-   - Smooth（デフォルト）: なめらかな移行、ロングミックス向き
-   - Sharp: シャープな切り替え、カットミックス向き
-   - Constant Power: 一定のパワー、プロフェッショナル推奨
-   設定: Preferences → Mixer → Crossfade Curve
-
-3. 操作方法:
-   - MIDIコントローラーのフェーダー（推奨）
-   - マウスドラッグ
-   - キーボードショートカット（マッピング可能）
-```
-
-### 基本トランジションテクニック
-
-```
-1. ロングミックス（ブレンドトランジション）:
-
-   手順:
-   a. Deck Aで曲再生中
-   b. Deck Bの次の曲をキューポイントにセット
-   c. Deck BのLaunchボタンを押す（量子化: 1 Bar）
-   d. クロスフェーダーを16〜32小節かけてA→Bへ
-   e. EQで周波数帯域を徐々に入れ替え
-   f. Deck A完全フェードアウト
-
-   EQテクニック:
-   - 低域（Low）を先にスワップ → キックの衝突回避
-   - 中域（Mid）を徐々に移行
-   - 高域（High）は最後に移行
-   - いわゆる「EQスワップ」テクニック
-
-   適したジャンル: テックハウス、ディープハウス、プログレッシブ
-
-2. カットトランジション:
-
-   手順:
-   a. Deck Aで曲再生中
-   b. Deck Bを準備
-   c. ドロップのタイミングでクロスフェーダーを一気にB側へ
-   d. 瞬時に曲が切り替わる
-
-   コツ:
-   - 量子化を1 Barに設定
-   - 両曲のドロップタイミングを合わせる
-   - エフェクト（リバーブテイル等）で自然に聴かせる
-
-   適したジャンル: テクノ、ドラムンベース、EDM
-
-3. フィルタートランジション:
-
-   手順:
-   a. Deck AにAuto Filter（LPF）をインサート
-   b. Deck Aのカットオフを徐々に下げる（高域カット）
-   c. 同時にDeck BのAuto Filter（HPF）カットオフを上げる
-   d. 中間点で両方のフィルターが交差
-   e. Deck Bのフィルターを全開にしてDeck Aをミュート
-
-   適したジャンル: ハウス全般、テクノ
-
-4. エコーアウトトランジション:
-
-   手順:
-   a. Deck AのSend（Delay/Echo）を徐々に上げる
-   b. Deck Aのドライ音を下げていく
-   c. エコーのテイルが残っている間にDeck Bをスタート
-   d. エコーが自然に消えてDeck Bに完全移行
-
-   適したジャンル: ダブテクノ、ミニマル
-
-5. ループトランジション:
-
-   手順:
-   a. Deck Aの特定セクションをループ設定
-   b. ループ長を徐々に短くする（8bar → 4bar → 2bar → 1bar → 1/2bar）
-   c. テンションが高まった状態でDeck Bをドロップ
-   d. Deck Aのループを解除/ミュート
-
-   適したジャンル: EDM、トランス、ビッグルーム
-```
-
-### アドバンストトランジション
-
-```
-6. スプリットEQトランジション:
-
-   概念:
-   Deck Aの低域 + Deck Bの高域 → 新しいハイブリッドサウンド
-
-   手順:
-   a. Deck A: EQ Eight → Low Pass Filter（〜500Hz）
-   b. Deck B: EQ Eight → High Pass Filter（500Hz〜）
-   c. 両デッキを同時再生
-   d. 徐々にフィルターポイントを移動
-   e. 最終的にDeck Bをフルレンジに
-
-7. リバーブウォッシュトランジション:
-
-   手順:
-   a. Return TrackのReverbをLargeに設定（Decay 5-10秒）
-   b. Deck AのSend Reverbを急激に上げる
-   c. Deck Aのボリュームを急カット
-   d. リバーブテイルの中にDeck Bを静かにフェードイン
-   e. ドリーミーな移行が実現
-
-8. ビートリピートトランジション:
-
-   手順:
-   a. Deck AにBeat Repeatをインサート
-   b. Grid: 1/16 → 1/32 に徐々に変更
-   c. スタッター効果が強まる
-   d. ピーク時にDeck Bのドロップ
-   e. Beat Repeatをオフ
-
-9. サイレンストランジション:
-
-   手順:
-   a. Deck Aを急停止（または急速フェードアウト）
-   b. 0.5〜2秒の完全な無音
-   c. Deck Bをドロップで開始
-   d. インパクトの大きい切り替え
-   注意: タイミングが全て。練習が必要
+4. Pre-rendering:
+   - Record important transitions in Arrangement View
+   - Reduce CPU load with Freeze function
+   - Optimize clips with Consolidate
 ```
 
 ---
 
-## エフェクトラックの活用
+## Crossfader and Transitions
 
-### Send エフェクト（リターントラック）
+### Crossfader Setup
+
+```
+Mixer Section Settings:
+
+1. Enabling the Crossfader:
+   - Show Mixer Section (Menu -> View -> Crossfader)
+   - Crossfade Assign for each track:
+     Track 1-2: A side (Left)
+     Track 3-4: B side (Right)
+
+2. Crossfader Curve:
+   - Smooth (default): Smooth transition, suited for long mixes
+   - Sharp: Sharp switching, suited for cut mixes
+   - Constant Power: Constant power, recommended for professionals
+   Setting: Preferences -> Mixer -> Crossfade Curve
+
+3. Operation Methods:
+   - MIDI controller fader (recommended)
+   - Mouse drag
+   - Keyboard shortcuts (mappable)
+```
+
+### Basic Transition Techniques
+
+```
+1. Long Mix (Blend Transition):
+
+   Steps:
+   a. Playing a track on Deck A
+   b. Set the next track on Deck B to the cue point
+   c. Press Deck B's Launch button (quantize: 1 Bar)
+   d. Move crossfader from A to B over 16-32 bars
+   e. Gradually swap frequency bands with EQ
+   f. Complete fade out of Deck A
+
+   EQ Technique:
+   - Swap the low end (Low) first -> Avoid kick collision
+   - Gradually transition the mids (Mid)
+   - Transition the highs (High) last
+   - The so-called "EQ swap" technique
+
+   Suited genres: Tech House, Deep House, Progressive
+
+2. Cut Transition:
+
+   Steps:
+   a. Playing a track on Deck A
+   b. Prepare Deck B
+   c. At the drop timing, snap the crossfader entirely to B
+   d. Instant track switch
+
+   Tips:
+   - Set quantization to 1 Bar
+   - Align both tracks' drop timing
+   - Use effects (reverb tail, etc.) for natural sound
+
+   Suited genres: Techno, Drum and Bass, EDM
+
+3. Filter Transition:
+
+   Steps:
+   a. Insert Auto Filter (LPF) on Deck A
+   b. Gradually lower Deck A's cutoff (cutting highs)
+   c. Simultaneously raise Deck B's Auto Filter (HPF) cutoff
+   d. Both filters cross at the midpoint
+   e. Open Deck B's filter fully and mute Deck A
+
+   Suited genres: House in general, Techno
+
+4. Echo Out Transition:
+
+   Steps:
+   a. Gradually raise Deck A's Send (Delay/Echo)
+   b. Lower Deck A's dry signal
+   c. Start Deck B while the echo tail remains
+   d. Echo fades naturally as it transitions completely to Deck B
+
+   Suited genres: Dub Techno, Minimal
+
+5. Loop Transition:
+
+   Steps:
+   a. Set a loop on a specific section of Deck A
+   b. Gradually shorten the loop length (8bar -> 4bar -> 2bar -> 1bar -> 1/2bar)
+   c. Drop Deck B at the peak of tension
+   d. Release/mute the Deck A loop
+
+   Suited genres: EDM, Trance, Big Room
+```
+
+### Advanced Transitions
+
+```
+6. Split EQ Transition:
+
+   Concept:
+   Deck A's low end + Deck B's high end -> New hybrid sound
+
+   Steps:
+   a. Deck A: EQ Eight -> Low Pass Filter (~500Hz)
+   b. Deck B: EQ Eight -> High Pass Filter (500Hz~)
+   c. Play both decks simultaneously
+   d. Gradually move the filter point
+   e. Eventually bring Deck B to full range
+
+7. Reverb Wash Transition:
+
+   Steps:
+   a. Set the Return Track Reverb to Large (Decay 5-10 seconds)
+   b. Sharply raise Deck A's Send Reverb
+   c. Sharply cut Deck A's volume
+   d. Quietly fade in Deck B within the reverb tail
+   e. Achieve a dreamy transition
+
+8. Beat Repeat Transition:
+
+   Steps:
+   a. Insert Beat Repeat on Deck A
+   b. Gradually change Grid: 1/16 -> 1/32
+   c. Stutter effect intensifies
+   d. Drop Deck B at the peak
+   e. Turn off Beat Repeat
+
+9. Silence Transition:
+
+   Steps:
+   a. Abruptly stop Deck A (or rapid fade out)
+   b. 0.5-2 seconds of complete silence
+   c. Start Deck B with a drop
+   d. High-impact switch
+   Note: Timing is everything. Practice is required
+```
+
+---
+
+## Utilizing Effect Racks
+
+### Send Effects (Return Tracks)
 
 ```
 Return A: Echo / Delay
-  推奨デバイス: Echo（Ableton純正）
-  設定:
-    - Time: 1/4（BPM同期）
+  Recommended Device: Echo (Ableton native)
+  Settings:
+    - Time: 1/4 (BPM synced)
     - Feedback: 50-60%
-    - Dry/Wet: 100%（Send使用のため）
-    - Filter: On（高域カット、ハーシュさ軽減）
-    - Modulation: 微量（温かみ追加）
+    - Dry/Wet: 100% (because using Send)
+    - Filter: On (high-cut, reducing harshness)
+    - Modulation: Slight (adding warmth)
 
-  DJでの使い方:
-    - トランジション時にSendを上げてエコー効果
-    - ブレイクダウンでボーカルにエコー
-    - ドロップ前のビルドアップエフェクト
+  DJ Usage:
+    - Raise Send during transitions for echo effect
+    - Echo on vocals during breakdowns
+    - Buildup effect before drops
 
 Return B: Reverb
-  推奨デバイス: Reverb（Ableton純正）
-  設定:
-    - Decay Time: 3-5秒
+  Recommended Device: Reverb (Ableton native)
+  Settings:
+    - Decay Time: 3-5 seconds
     - Size: Large
     - Dry/Wet: 100%
-    - EQ: Low Cut 200Hz、High Cut 8kHz
-    - Density: 高め
+    - EQ: Low Cut 200Hz, High Cut 8kHz
+    - Density: Higher
 
-  DJでの使い方:
-    - 空間を広げたい時にSendを上げる
-    - ブレイクダウンで雰囲気作り
-    - トランジション時のウォッシュエフェクト
+  DJ Usage:
+    - Raise Send when you want to expand the space
+    - Atmosphere creation during breakdowns
+    - Wash effect during transitions
 
 Return C: Auto Filter
-  推奨デバイス: Auto Filter（Ableton純正）
-  設定:
-    - Filter Type: Low Pass（デフォルト）
-    - Frequency: MIDIマッピングで操作
+  Recommended Device: Auto Filter (Ableton native)
+  Settings:
+    - Filter Type: Low Pass (default)
+    - Frequency: Operated via MIDI mapping
     - Resonance: 20-30%
-    - LFO: Off（手動操作用）
+    - LFO: Off (for manual operation)
 
-  DJでの使い方:
-    - フィルタースウィープ
-    - ブレイクダウンでの周波数制限
-    - レゾナンスによるアクセント
+  DJ Usage:
+    - Filter sweeps
+    - Frequency restriction during breakdowns
+    - Accents through resonance
 
-Return D: 特殊エフェクト
-  推奨デバイス: Grain Delay / Corpus / Spectral Resonator
-  DJでの使い方:
-    - 特別な瞬間のサウンドデザイン
-    - トランジションの個性付け
-    - 実験的なサウンドテクスチャー
+Return D: Special Effects
+  Recommended Device: Grain Delay / Corpus / Spectral Resonator
+  DJ Usage:
+    - Sound design for special moments
+    - Adding personality to transitions
+    - Experimental sound textures
 ```
 
-### Insert エフェクト
+### Insert Effects
 
 ```
-各トラックに直接挿入するエフェクト:
+Effects inserted directly on each track:
 
-1. EQ Eight（必須）:
-   設定:
-     - Band 1: High Pass Filter（20-100Hz可変）
-     - Band 2: Low Shelf（100-300Hz）
-     - Band 3: Parametric Mid（300Hz-3kHz）
-     - Band 4: Parametric High-Mid（2kHz-8kHz）
-     - Band 5-8: 必要に応じて追加
+1. EQ Eight (Essential):
+   Settings:
+     - Band 1: High Pass Filter (20-100Hz variable)
+     - Band 2: Low Shelf (100-300Hz)
+     - Band 3: Parametric Mid (300Hz-3kHz)
+     - Band 4: Parametric High-Mid (2kHz-8kHz)
+     - Band 5-8: Add as needed
 
-   DJテクニック:
-     - 低域カット: キック同士の衝突回避
-     - 中域カット: ボーカル同士の衝突回避
-     - 高域ブースト: 曲の存在感を前面に
-     - アイソレーターとして使用
+   DJ Techniques:
+     - Low cut: Avoid kick collision
+     - Mid cut: Avoid vocal collision
+     - High boost: Bring a track to the forefront
+     - Use as an isolator
 
-2. Auto Filter（推奨）:
-   設定:
-     - Type: Low Pass / High Pass 切り替え
-     - Frequency: MIDIマッピング
+2. Auto Filter (Recommended):
+   Settings:
+     - Type: Low Pass / High Pass switchable
+     - Frequency: MIDI mapped
      - Resonance: 15-25%
-     - Drive: 微量（温かみ）
+     - Drive: Slight (warmth)
 
-   DJテクニック:
-     - スウィープによるビルドアップ
-     - ブレイクダウンでの低域カット
-     - トランジション時の周波数操作
+   DJ Techniques:
+     - Buildup through sweeps
+     - Low cut during breakdowns
+     - Frequency manipulation during transitions
 
-3. Utility（必須）:
-   設定:
-     - Gain: 0dB（デフォルト）
-     - Width: 100%（デフォルト）
+3. Utility (Essential):
+   Settings:
+     - Gain: 0dB (default)
+     - Width: 100% (default)
      - Mono: Off
      - Mute: Off
 
-   DJテクニック:
-     - ゲイン調整（曲間の音量差補正）
-     - 幅の操作（モノ→ステレオの効果）
-     - 位相反転（特殊効果）
+   DJ Techniques:
+     - Gain adjustment (volume difference correction between tracks)
+     - Width manipulation (mono to stereo effect)
+     - Phase inversion (special effect)
 
 4. Beat Repeat:
-   設定:
+   Settings:
      - Interval: 1 Bar
-     - Grid: 1/8（可変）
+     - Grid: 1/8 (variable)
      - Variation: 10-30%
-     - Chance: 100%（手動オン/オフ）
+     - Chance: 100% (manual on/off)
      - Gate: Off
 
-   DJテクニック:
-     - スタッター効果
-     - ビルドアップのテンション
-     - リズムのバリエーション
+   DJ Techniques:
+     - Stutter effect
+     - Buildup tension
+     - Rhythm variation
 
-5. Redux（ビットクラッシャー）:
-   設定:
-     - Downsample: 可変
-     - Bit Depth: 可変
+5. Redux (Bit Crusher):
+   Settings:
+     - Downsample: Variable
+     - Bit Depth: Variable
 
-   DJテクニック:
-     - ローファイ効果
-     - ブレイクダウンでの音質変化
-     - 90年代レイヴサウンドの演出
+   DJ Techniques:
+     - Lo-fi effect
+     - Sound quality change during breakdowns
+     - 90s rave sound creation
 ```
 
-### エフェクトラック（Effect Rack）の構築
+### Building Effect Racks
 
 ```
-DJエフェクトラック設計:
+DJ Effect Rack Design:
 
-マルチエフェクトラック:
-  Chain 1: "Clean"（バイパス）
-  Chain 2: "Filter Sweep"（Auto Filter + Reverb）
-  Chain 3: "Stutter"（Beat Repeat + Delay）
-  Chain 4: "Wash"（Reverb + Chorus + EQ）
+Multi-Effect Rack:
+  Chain 1: "Clean" (bypass)
+  Chain 2: "Filter Sweep" (Auto Filter + Reverb)
+  Chain 3: "Stutter" (Beat Repeat + Delay)
+  Chain 4: "Wash" (Reverb + Chorus + EQ)
 
-マクロ割り当て:
+Macro Assignment:
   Macro 1: Filter Frequency
   Macro 2: Reverb Send
   Macro 3: Delay Feedback
   Macro 4: Beat Repeat Grid
   Macro 5: Drive/Saturation
   Macro 6: Bit Crush Amount
-  Macro 7: Width（Stereo/Mono）
+  Macro 7: Width (Stereo/Mono)
   Macro 8: Dry/Wet Mix
 
-利点:
-  - 1つのノブで複数パラメータを同時操作
-  - MIDIコントローラーにマッピングしやすい
-  - プリセットとして保存・再利用可能
-  - パフォーマンスに集中できる
+Advantages:
+  - Simultaneously control multiple parameters with one knob
+  - Easy to map to MIDI controllers
+  - Saveable and reusable as presets
+  - Lets you focus on the performance
 ```
 
 ---
 
-## MIDIコントローラーマッピング
+## MIDI Controller Mapping
 
-### 推奨コントローラー
+### Recommended Controllers
 
 ```
-Ableton DJに最適なコントローラー:
+Controllers Best Suited for Ableton DJing:
 
 1. Akai APC40 Mk2:
-   - Session View最適化設計
-   - 8x5 クリップランチパッド
-   - フェーダー x 9
-   - エンコーダー x 8
-   - クロスフェーダー内蔵
-   価格帯: 4-5万円
+   - Designed and optimized for Session View
+   - 8x5 clip launch pads
+   - 9 faders
+   - 8 encoders
+   - Built-in crossfader
+   Price range: 40,000-50,000 yen
 
 2. Novation Launchpad Pro:
-   - 8x8 RGB パッド
-   - 圧力感知
-   - Session/Note/Device モード
-   - コンパクト
-   価格帯: 3-4万円
+   - 8x8 RGB pads
+   - Pressure sensitive
+   - Session/Note/Device modes
+   - Compact
+   Price range: 30,000-40,000 yen
 
 3. Ableton Push 3:
-   - Ableton公式コントローラー
-   - スタンドアロン使用可
-   - 8x8 パッド
-   - タッチストリップ
-   - ディスプレイ内蔵
-   価格帯: 10-15万円
+   - Ableton's official controller
+   - Standalone use possible
+   - 8x8 pads
+   - Touch strip
+   - Built-in display
+   Price range: 100,000-150,000 yen
 
-4. DJ向けカスタム構成:
-   - Launchpad（クリップトリガー）
-   - nanokontrol（フェーダー/ノブ）
-   - フットスイッチ（エフェクトオン/オフ）
-   合計価格帯: 2-3万円
+4. Custom DJ Configuration:
+   - Launchpad (clip triggering)
+   - nanoKONTROL (faders/knobs)
+   - Foot switch (effects on/off)
+   Combined price range: 20,000-30,000 yen
 ```
 
-### MIDIマッピング設定
+### MIDI Mapping Setup
 
 ```
-MIDIマッピングモード:
-  Command + M（Mac）/ Ctrl + M（Windows）
+MIDI Mapping Mode:
+  Command + M (Mac) / Ctrl + M (Windows)
 
-推奨マッピング:
+Recommended Mapping:
 
-フェーダー:
+Faders:
   Fader 1: Deck A Volume
   Fader 2: Deck B Volume
   Fader 3: Master Volume
-  Crossfader: Deck A ↔ Deck B
+  Crossfader: Deck A <-> Deck B
 
-ノブ（Deck A）:
+Knobs (Deck A):
   Knob 1: EQ High
   Knob 2: EQ Mid
   Knob 3: EQ Low
   Knob 4: Filter Frequency
 
-ノブ（Deck B）:
+Knobs (Deck B):
   Knob 5: EQ High
   Knob 6: EQ Mid
   Knob 7: EQ Low
   Knob 8: Filter Frequency
 
-パッド:
-  Pad 1-8: クリップトリガー（Deck A）
-  Pad 9-16: クリップトリガー（Deck B）
-  Pad 17-20: エフェクトオン/オフ
-  Pad 21-24: ループ長変更（1/4, 1/2, 1, 2 bar）
+Pads:
+  Pad 1-8: Clip Trigger (Deck A)
+  Pad 9-16: Clip Trigger (Deck B)
+  Pad 17-20: Effect On/Off
+  Pad 21-24: Loop Length Change (1/4, 1/2, 1, 2 bar)
 
-ボタン:
-  Button 1: Play/Stop（Deck A）
-  Button 2: Play/Stop（Deck B）
+Buttons:
+  Button 1: Play/Stop (Deck A)
+  Button 2: Play/Stop (Deck B)
   Button 3: Tap Tempo
   Button 4: Scene Launch
 
-エンコーダー:
-  Encoder 1: Send A（Delay）
-  Encoder 2: Send B（Reverb）
-  Encoder 3: Send C（Filter）
+Encoders:
+  Encoder 1: Send A (Delay)
+  Encoder 2: Send B (Reverb)
+  Encoder 3: Send C (Filter)
   Encoder 4: Beat Repeat Grid
 ```
 
-### マッピングのTips
+### Mapping Tips
 
 ```
-効率的なマッピングのコツ:
+Tips for Efficient Mapping:
 
-1. レイヤー化:
-   - Shift + ボタンで二重マッピング
-   - ページ切り替えで複数セット
-   - フットスイッチでモード切替
+1. Layering:
+   - Double mapping with Shift + button
+   - Page switching for multiple sets
+   - Mode switching with foot switch
 
-2. 感度調整:
-   - フィルター系: 対数カーブ
-   - ボリューム系: リニアカーブ
-   - エフェクト系: ユーザーカーブ
+2. Sensitivity Adjustment:
+   - Filter types: Logarithmic curve
+   - Volume types: Linear curve
+   - Effect types: User curve
 
-3. フィードバック:
-   - LEDカラーでステータス表示
-   - ノブポジションの視覚確認
-   - クリップ再生状態の表示
+3. Feedback:
+   - LED color for status display
+   - Visual confirmation of knob position
+   - Clip playback state display
 
-4. バックアップ:
-   - マッピングはLiveセットに保存される
-   - テンプレートとして別途保存推奨
-   - コントローラー固有設定はメモを残す
-```
-
----
-
-## ライブリミックスとマッシュアップ
-
-### ステムを使ったリミックス
-
-```
-ステム分離（Ableton 11.1+）:
-  - 楽曲をドラム、ベース、ボーカル、その他に分離
-  - 各ステムを個別のトラックに配置
-  - リアルタイムで各要素をオン/オフ、ミックス
-
-リミックスワークフロー:
-  1. 原曲のステムを分離
-  2. 各ステムをSession Viewのクリップとして配置
-  3. 別の曲のビートを重ねる
-  4. オリジナルのボーカル + 新しいビート = ライブリミックス
-
-例: ボーカルリミックス
-  Track 1: 原曲のボーカルステム
-  Track 2: 新しいドラムパターン（オリジナルまたは別曲のドラムステム）
-  Track 3: 新しいベースライン
-  Track 4: シンセパッド
-  → 4つを組み合わせてリアルタイムリミックス
-```
-
-### マッシュアップテクニック
-
-```
-2曲のマッシュアップ:
-
-準備:
-  - 曲A: アカペラ/ボーカル
-  - 曲B: インストゥルメンタル/ビート
-  - 同じキーまたは相性の良いキーの組み合わせ
-  - BPMを統一（Warpで自動）
-
-手順:
-  1. 曲Aのボーカルステムを抽出
-  2. 曲Bのインストゥルメンタルを用意
-  3. 両方をSession Viewに配置
-  4. EQで帯域を住み分け
-  5. リバーブ/ディレイで馴染ませる
-  6. ピッチを必要に応じて微調整（Clip: Transpose）
-
-キーの相性（カメロットホイール）:
-  完全一致: 8A + 8A（同キー）
-  隣接キー: 8A + 7A, 8A + 9A
-  パラレルキー: 8A + 8B
-  → これらの組み合わせは自然に聴こえる
-```
-
-### リアルタイムリミックスのコツ
-
-```
-パフォーマンスのコツ:
-
-1. 事前準備が重要:
-   - 使用する曲のキーとBPMをリスト化
-   - 相性の良い組み合わせをプランニング
-   - テスト済みマッシュアップをテンプレート化
-
-2. ステム管理:
-   - ボーカル: -3dBくらいでスタート
-   - ドラム: 0dB（基準）
-   - ベース: -2dB
-   - その他: -6dB
-   → バランスを取ってからパフォーマンス
-
-3. トランジションでのリミックス:
-   - 曲Aのボーカルを残しながら
-   - 曲Bのビートをフェードイン
-   - 一時的なマッシュアップ状態を経て
-   - 曲Bに完全移行
-   → 従来のDJミックスにクリエイティブな要素を追加
-
-4. ループを活用:
-   - 印象的なボーカルフレーズをループ
-   - そのループの上で新しい曲を展開
-   - ループの長さを変えてテンションを操作
+4. Backup:
+   - Mappings are saved in the Live set
+   - Recommended to save separately as a template
+   - Keep notes of controller-specific settings
 ```
 
 ---
 
-## シーンとFollow Actions
+## Live Remixing and Mashups
 
-### シーンの活用
+### Remixing with Stems
 
 ```
-シーン（Scene）:
-  - 横一列のクリップを同時にトリガー
-  - Scene Launch ボタンで一括再生
-  - DJセットの「セクション」として管理
+Stem Separation (Ableton 11.1+):
+  - Separate tracks into drums, bass, vocals, and other
+  - Place each stem on individual tracks
+  - Turn each element on/off and mix in real-time
 
-シーン構成例:
+Remix Workflow:
+  1. Separate the original track's stems
+  2. Place each stem as clips in Session View
+  3. Layer beats from another track
+  4. Original vocals + new beat = Live remix
+
+Example: Vocal Remix
+  Track 1: Original vocal stem
+  Track 2: New drum pattern (original or drum stem from another track)
+  Track 3: New bassline
+  Track 4: Synth pad
+  -> Combine 4 elements for a real-time remix
+```
+
+### Mashup Techniques
+
+```
+2-Track Mashup:
+
+Preparation:
+  - Track A: Acapella/Vocals
+  - Track B: Instrumental/Beat
+  - Same key or compatible key combination
+  - Unified BPM (automatic via Warp)
+
+Steps:
+  1. Extract the vocal stem from Track A
+  2. Prepare Track B's instrumental
+  3. Place both in Session View
+  4. Separate frequency bands with EQ
+  5. Blend with Reverb/Delay
+  6. Fine-tune pitch as needed (Clip: Transpose)
+
+Key Compatibility (Camelot Wheel):
+  Exact match: 8A + 8A (same key)
+  Adjacent key: 8A + 7A, 8A + 9A
+  Parallel key: 8A + 8B
+  -> These combinations sound natural
+```
+
+### Tips for Real-Time Remixing
+
+```
+Performance Tips:
+
+1. Preparation is Key:
+   - List the key and BPM of tracks you'll use
+   - Plan compatible combinations
+   - Template tested mashups
+
+2. Stem Management:
+   - Vocals: Start at around -3dB
+   - Drums: 0dB (reference)
+   - Bass: -2dB
+   - Other: -6dB
+   -> Balance before performing
+
+3. Remixing During Transitions:
+   - Keep Track A's vocals while
+   - Fading in Track B's beat
+   - Pass through a temporary mashup state
+   - Fully transition to Track B
+   -> Add creative elements to traditional DJ mixing
+
+4. Utilizing Loops:
+   - Loop an impressive vocal phrase
+   - Develop a new track over that loop
+   - Manipulate tension by changing the loop length
+```
+
+---
+
+## Scenes and Follow Actions
+
+### Utilizing Scenes
+
+```
+Scenes:
+  - Simultaneously trigger a horizontal row of clips
+  - One-click playback with Scene Launch button
+  - Manage as "sections" of a DJ set
+
+Scene Configuration Example:
 
 Scene 1: "Intro - Ambient"
-  - Track 1: アンビエントパッド
-  - Track 5: ドラムマシン（キック軽め）
-  - Track 6: シンセアルペジオ
+  - Track 1: Ambient pad
+  - Track 5: Drum machine (light kick)
+  - Track 6: Synth arpeggio
 
 Scene 2: "Build Up"
-  - Track 1: アンビエント → フィルター開く
-  - Track 5: ドラム（フルキット）
-  - Track 3: 次の曲のイントロ
+  - Track 1: Ambient -> Filter opens
+  - Track 5: Drums (full kit)
+  - Track 3: Next track's intro
 
 Scene 3: "Drop - Peak Time"
-  - Track 3: メイン曲フル
-  - Track 5: ドラム強化
-  - Track 9: ドラムラック追加ヒット
+  - Track 3: Main track full
+  - Track 5: Enhanced drums
+  - Track 9: Additional drum rack hits
 
 Scene 4: "Breakdown"
-  - Track 3: メイン曲のブレイクダウンセクション
-  - Track 6: シンセパッド
-  - Return Send Up: リバーブ増加
+  - Track 3: Main track's breakdown section
+  - Track 6: Synth pad
+  - Return Send Up: Increased reverb
 
 Scene 5: "Transition"
-  - Track 3: メイン曲フェードアウト
-  - Track 1: 次の曲イントロ
-  - エフェクト: エコー/リバーブ
+  - Track 3: Main track fade out
+  - Track 1: Next track intro
+  - Effects: Echo/Reverb
 ```
 
 ### Follow Actions
 
 ```
 Follow Actions:
-  クリップ再生後に自動で次のアクションを実行
+  Automatically execute the next action after clip playback
 
-設定（Clip View → Launch Box）:
-  Follow Action A: 実行するアクション
-  Follow Action B: 代替アクション
-  Follow Action Time: トリガーまでの時間
-  Chance A/B: 確率設定
+Settings (Clip View -> Launch Box):
+  Follow Action A: Action to execute
+  Follow Action B: Alternative action
+  Follow Action Time: Time until trigger
+  Chance A/B: Probability settings
 
-使用例:
+Usage Examples:
 
-1. 自動プレイリスト:
+1. Automatic Playlist:
    Follow Action: Next
-   Time: クリップの長さと同じ
-   → 曲が終わったら自動的に次のクリップへ
+   Time: Same as clip length
+   -> Automatically moves to the next clip when the track ends
 
-2. ランダムプレイ:
-   Follow Action A: Any（ランダム）
+2. Random Play:
+   Follow Action A: Any (Random)
    Time: 32 bars
-   → 32小節ごとにランダムにクリップ選択
+   -> Randomly selects a clip every 32 bars
 
-3. ビルドアップシーケンス:
-   Clip 1: 4 bars → Next
-   Clip 2: 4 bars → Next
-   Clip 3: 2 bars → Next
-   Clip 4: 1 bar → Next
-   Clip 5: 1/2 bar → Next
-   Clip 6: ドロップ（Follow Action: Stop）
-   → 自動ビルドアップ→ドロップ
+3. Buildup Sequence:
+   Clip 1: 4 bars -> Next
+   Clip 2: 4 bars -> Next
+   Clip 3: 2 bars -> Next
+   Clip 4: 1 bar -> Next
+   Clip 5: 1/2 bar -> Next
+   Clip 6: Drop (Follow Action: Stop)
+   -> Automatic buildup -> drop
 
-4. A/Bループ:
-   Clip A: Follow → Next
-   Clip B: Follow → Previous
-   → 2つのクリップを交互に再生
+4. A/B Loop:
+   Clip A: Follow -> Next
+   Clip B: Follow -> Previous
+   -> Alternately play two clips
 
-5. 確率的バリエーション:
+5. Probabilistic Variation:
    Follow Action A: Same (70%)
    Follow Action B: Next (30%)
-   → 70%で同じクリップを繰り返し、30%で次へ
+   -> 70% repeats the same clip, 30% moves to next
 ```
 
 ---
 
-## ドラムラック・インストゥルメントの統合
+## Drum Rack and Instrument Integration
 
-### ドラムラックの活用
+### Utilizing Drum Rack
 
 ```
-DJセット中にドラムラックを使用:
+Using Drum Rack During a DJ Set:
 
-設定:
+Setup:
   Track 9: Drum Rack
-  パッド配置:
-    C1: Kick（追加キック）
-    D1: Snare（クラップ/スネア）
+  Pad Layout:
+    C1: Kick (additional kick)
+    D1: Snare (clap/snare)
     E1: Closed Hi-Hat
     F1: Open Hi-Hat
     G1: Percussion 1
     A1: Percussion 2
-    B1: FX Hit 1（リバースシンバル）
-    C2: FX Hit 2（インパクト）
-    D2: FX Hit 3（ライザー）
+    B1: FX Hit 1 (Reverse Cymbal)
+    C2: FX Hit 2 (Impact)
+    D2: FX Hit 3 (Riser)
     E2: Vocal Chop 1
     F2: Vocal Chop 2
     G2: Sub Drop
 
-使い方:
-  - トランジション中にパーカッションを追加
-  - ドロップ時にインパクトヒットを追加
-  - ブレイクダウンでボーカルチョップ
-  - ビルドアップでライザーを使用
-  - サブドロップでインパクトを強化
+Usage:
+  - Add percussion during transitions
+  - Add impact hits at drops
+  - Vocal chops during breakdowns
+  - Use risers during buildups
+  - Enhance impact with sub drops
 ```
 
-### シンセサイザーの使用
+### Using Synthesizers
 
 ```
-DJセット中のシンセ活用:
+Synth Usage During DJ Sets:
 
-1. ベースシンセ（Track 10）:
-   デバイス: Wavetable / Operator
-   用途:
-     - トランジション時のベースライン追加
-     - ドロップの低域強化
-     - ブレイクダウンでのメロディックベース
+1. Bass Synth (Track 10):
+   Device: Wavetable / Operator
+   Usage:
+     - Adding basslines during transitions
+     - Low-end reinforcement at drops
+     - Melodic bass during breakdowns
 
-2. パッドシンセ（Track 11）:
-   デバイス: Wavetable / Analog
-   用途:
-     - アンビエントレイヤー
-     - トランジションの空間埋め
-     - ブレイクダウンの雰囲気作り
-     - コード進行の追加
+2. Pad Synth (Track 11):
+   Device: Wavetable / Analog
+   Usage:
+     - Ambient layers
+     - Filling space during transitions
+     - Atmosphere creation during breakdowns
+     - Adding chord progressions
 
-3. リードシンセ（Track 12）:
-   デバイス: Wavetable / Drift
-   用途:
-     - メロディの重ね
-     - フィルタースウィープ効果
-     - ビルドアップのテンション
+3. Lead Synth (Track 12):
+   Device: Wavetable / Drift
+   Usage:
+     - Melody layering
+     - Filter sweep effects
+     - Buildup tension
 ```
 
 ---
 
 ## Rekordbox vs Ableton
 
-### Rekordbox（DJ専用）
+### Rekordbox (DJ-Dedicated)
 
 ```
-利点:
-  - CDJ/XDJ完全互換（Pioneer DJエコシステム）
-  - Waveform表示（上下2段、カラー表示）
-  - Hot Cue、Memory Cue、ループ機能が豊富
-  - クラブ世界標準のフォーマット
-  - 大量の楽曲ライブラリ管理
-  - USBエクスポート機能
-  - Performance Pad（8ページ以上のパッド機能）
-  - Phase Meterによるビートマッチング補助
-  - Key Detection（楽曲のキー検出）
-  - Related Tracks（関連曲サジェスト）
-  - Cloud Library（クラウド同期）
-  - Lighting Mode（照明制御）
+Advantages:
+  - Full CDJ/XDJ compatibility (Pioneer DJ ecosystem)
+  - Waveform display (2-tier, color display)
+  - Rich Hot Cue, Memory Cue, and loop features
+  - World standard format for clubs
+  - Managing large track libraries
+  - USB export function
+  - Performance Pad (8+ pages of pad functions)
+  - Beatmatching aid via Phase Meter
+  - Key Detection
+  - Related Tracks (suggestions)
+  - Cloud Library (cloud sync)
+  - Lighting Mode (lighting control)
 
-欠点:
-  - 制作機能なし
-  - エフェクトが限定的（固定プリセット中心）
-  - カスタマイズ性が低い
-  - MIDI楽器演奏不可
-  - オーディオルーティングの自由度が低い
-  - サブスクリプション制（一部機能）
+Disadvantages:
+  - No production features
+  - Limited effects (fixed presets primarily)
+  - Low customizability
+  - No MIDI instrument playing
+  - Low audio routing flexibility
+  - Subscription-based (some features)
 ```
 
-### Ableton（DAW+DJ）
+### Ableton (DAW + DJ)
 
 ```
-利点:
-  - 制作とDJを同じソフトで実行
-  - 無限のエフェクト（VST/AU対応）
-  - MIDI楽器演奏可能
-  - Session Viewの自由度
-  - Max for Liveによる拡張
-  - 柔軟なオーディオルーティング
-  - ステム分離機能
-  - ドラムラック/サンプラー統合
-  - 買い切りライセンス
-  - 膨大なサウンドライブラリ
+Advantages:
+  - Production and DJ in the same software
+  - Infinite effects (VST/AU support)
+  - MIDI instrument playing possible
+  - Session View freedom
+  - Extension via Max for Live
+  - Flexible audio routing
+  - Stem separation feature
+  - Drum rack/sampler integration
+  - One-time purchase license
+  - Vast sound library
 
-欠点:
-  - Waveform表示なし（クリップのミニ波形のみ）
-  - CDJ非互換（USBエクスポート不可）
-  - 学習曲線が非常に高い
-  - 楽曲ライブラリ管理機能が弱い
-  - BPM/Key自動検出の精度がやや低い
-  - DJに特化した設計ではない
-  - CPUリソース消費が大きい
+Disadvantages:
+  - No waveform display (only mini clip waveforms)
+  - CDJ incompatible (no USB export)
+  - Very steep learning curve
+  - Weak track library management features
+  - Slightly lower BPM/Key auto-detection accuracy
+  - Not designed specifically for DJing
+  - High CPU resource consumption
 ```
 
-### 比較表
+### Comparison Table
 
 ```
-機能              | Rekordbox      | Ableton Live
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-ビートマッチング   | 手動 + 同期    | 自動（Warp）
-波形表示          | あり（高機能） | なし
-エフェクト        | 固定プリセット | 無限
-CDJ互換           | 完全           | なし
-制作機能          | なし           | フル
-MIDI楽器          | なし           | フル対応
-ライブラリ管理    | 優秀           | 基本的
-ステム分離        | あり           | あり
-学習コスト        | 中             | 高
-CPU負荷           | 低〜中         | 中〜高
-価格              | 無料〜月額     | 買い切り
-プロ使用率        | 非常に高い     | ニッチ
-カスタマイズ性    | 低             | 非常に高い
+Feature               | Rekordbox      | Ableton Live
+======================================================
+Beatmatching          | Manual + Sync  | Automatic (Warp)
+Waveform Display      | Yes (advanced) | No
+Effects               | Fixed Presets  | Infinite
+CDJ Compatibility     | Full           | None
+Production Features   | None           | Full
+MIDI Instruments      | None           | Full Support
+Library Management    | Excellent      | Basic
+Stem Separation       | Yes            | Yes
+Learning Cost         | Medium         | High
+CPU Load              | Low-Medium     | Medium-High
+Price                 | Free-Monthly   | One-time Purchase
+Pro Usage Rate        | Very High      | Niche
+Customizability       | Low            | Very High
 ```
 
 ---
@@ -1119,27 +1119,27 @@ CPU負荷           | 低〜中         | 中〜高
 ### Traktor Pro
 
 ```
-Traktor Proの特徴:
+Traktor Pro Features:
 
-利点:
-  - 4デッキ標準対応
-  - Remix Decks（ステムデッキ）
-  - 豊富なエフェクト（30種以上）
-  - Flux Mode（ループ中も原曲が進行）
-  - Step Sequencer内蔵
-  - Traktor Kontrol連携
-  - 安定したパフォーマンス
+Advantages:
+  - Standard 4-deck support
+  - Remix Decks (Stem Decks)
+  - Rich effects (30+ types)
+  - Flux Mode (original track progresses during loops)
+  - Built-in Step Sequencer
+  - Traktor Kontrol integration
+  - Stable performance
 
-欠点:
-  - Pioneer CDJとの互換性が限定的
-  - 開発ペースが遅い
-  - ライブラリ管理がやや古い
+Disadvantages:
+  - Limited Pioneer CDJ compatibility
+  - Slow development pace
+  - Slightly dated library management
 
 Traktor vs Ableton:
-  - TraktorはDJに特化しつつ制作的要素もある
-  - AbletonはDAWにDJ要素を追加
-  - Traktorの方がDJとして直感的
-  - Abletonの方が制作面で圧倒的
+  - Traktor is DJ-focused with some production elements
+  - Ableton adds DJ elements to a DAW
+  - Traktor is more intuitive as a DJ tool
+  - Ableton is overwhelmingly superior for production
 ```
 
 ---
@@ -1149,197 +1149,197 @@ Traktor vs Ableton:
 ### Serato DJ Pro
 
 ```
-Serato DJ Proの特徴:
+Serato DJ Pro Features:
 
-利点:
-  - スクラッチに最適（ターンテーブリスト向け）
-  - DVS（Digital Vinyl System）のパイオニア
-  - 直感的なUI
-  - 安定性が高い
-  - Expansion Packによる機能追加
-  - Flip機能（楽曲構成の変更）
+Advantages:
+  - Optimal for scratching (turntablist-oriented)
+  - Pioneer of DVS (Digital Vinyl System)
+  - Intuitive UI
+  - High stability
+  - Feature additions through Expansion Packs
+  - Flip function (changing track structure)
 
-欠点:
-  - 対応ハードウェアが必要
-  - エフェクトの数がAbletonに劣る
-  - 制作機能なし
+Disadvantages:
+  - Compatible hardware required
+  - Fewer effects than Ableton
+  - No production features
 
 Serato vs Ableton:
-  - Seratoはオープンフォーマット/ヒップホップDJに最適
-  - AbletonはエレクトロニックDJに最適
-  - スクラッチ: Seratoが圧倒的
-  - クリエイティビティ: Abletonが圧倒的
+  - Serato is best for open format/hip-hop DJs
+  - Ableton is best for electronic DJs
+  - Scratching: Serato is overwhelmingly better
+  - Creativity: Ableton is overwhelmingly better
 ```
 
 ---
 
-## ハイブリッドセットアップ
+## Hybrid Setups
 
 ### Rekordbox + Ableton
 
 ```
-ハイブリッドセットアップの構築:
+Building a Hybrid Setup:
 
-機材構成:
-  CDJ-3000 x 2: Rekordbox用
-  DJM-900NXS2: ミキサー
+Equipment:
+  CDJ-3000 x 2: For Rekordbox
+  DJM-900NXS2: Mixer
   MacBook: Ableton Live
-  Audio Interface: DJM-900のUSB または 別途インターフェース
-  MIDIコントローラー: APC40 Mk2
+  Audio Interface: DJM-900's USB or separate interface
+  MIDI Controller: APC40 Mk2
 
-接続:
-  CDJ → DJM Ch1/Ch2
-  Ableton → DJM Ch3/Ch4（USBまたはRCA）
+Connections:
+  CDJ -> DJM Ch1/Ch2
+  Ableton -> DJM Ch3/Ch4 (USB or RCA)
 
-ワークフロー:
-  1. Rekordboxで他のアーティストの曲をDJ（Ch1/Ch2）
-  2. トランジション時にAbletonのアンビエントパッドを開始（Ch3）
-  3. Abletonに切り替え（Ch3/Ch4メイン）
-  4. オリジナルトラックをライブ制作/パフォーマンス
-  5. 再びRekordboxへトランジション
+Workflow:
+  1. DJ other artists' tracks with Rekordbox (Ch1/Ch2)
+  2. Start Ableton's ambient pad during transition (Ch3)
+  3. Switch to Ableton (Ch3/Ch4 main)
+  4. Live produce/perform original tracks
+  5. Transition back to Rekordbox
 
-  → 両方の利点を最大限活用
-  → 既存曲のDJ + オリジナルパフォーマンスの融合
+  -> Maximize the advantages of both
+  -> Fusion of existing track DJing + original performance
 ```
 
-### Ableton + 外部シンセサイザー
+### Ableton + External Synthesizers
 
 ```
-ハードウェアシンセとの統合:
+Integration with Hardware Synths:
 
-機材例:
-  - Ableton Live（ホスト/シーケンサー）
-  - Roland TR-8S（ドラムマシン）
-  - Arturia MicroFreak（シンセサイザー）
-  - Korg Volca Bass（ベースシンセ）
+Equipment Example:
+  - Ableton Live (Host/Sequencer)
+  - Roland TR-8S (Drum Machine)
+  - Arturia MicroFreak (Synthesizer)
+  - Korg Volca Bass (Bass Synth)
 
-接続:
-  MIDI Out（Ableton）→ MIDI In（各機材）
-  Audio Out（各機材）→ Audio In（オーディオインターフェース）
-  → AbletonのExternal Instrumentデバイスで管理
+Connections:
+  MIDI Out (Ableton) -> MIDI In (each device)
+  Audio Out (each device) -> Audio In (Audio Interface)
+  -> Manage with Ableton's External Instrument device
 
-利点:
-  - ハードウェアの音質/フィーリング
-  - DJセット中にハードウェアを演奏
-  - 視覚的なパフォーマンス要素
-  - 独自性の高いセット
+Advantages:
+  - Hardware sound quality/feel
+  - Play hardware during DJ sets
+  - Visual performance element
+  - Highly unique sets
 ```
 
-### Ableton + VJ ソフト
+### Ableton + VJ Software
 
 ```
-映像連携:
+Video Integration:
 
-VJソフトウェア:
+VJ Software:
   - Resolume Arena
   - TouchDesigner
   - VDMX
 
-連携方法:
-  1. MIDI: AbletonのMIDI出力をVJソフトに送信
-     - ノートオン → 映像トリガー
-     - CC → エフェクトパラメータ
+Integration Methods:
+  1. MIDI: Send Ableton's MIDI output to VJ software
+     - Note On -> Video trigger
+     - CC -> Effect parameters
 
-  2. OSC: Open Sound Control プロトコル
-     - Max for Live → OSC Send
-     - より柔軟な制御
+  2. OSC: Open Sound Control protocol
+     - Max for Live -> OSC Send
+     - More flexible control
 
-  3. Syphon/Spout: 映像共有
-     - VJソフトの映像をAbletonに（参照用）
+  3. Syphon/Spout: Video sharing
+     - VJ software video to Ableton (for reference)
 
-  4. SMPTE/MTC: タイムコード同期
-     - 完全な映像・音楽同期
+  4. SMPTE/MTC: Timecode sync
+     - Complete video/music synchronization
 ```
 
 ---
 
-## オーディオルーティングの詳細
+## Audio Routing Details
 
-### 基本ルーティング
-
-```
-DJ用オーディオルーティング:
-
-マスター出力:
-  Ableton Master → Audio Interface Out 1/2 → PA System
-
-ヘッドフォンキュー:
-  Cue Track → Audio Interface Out 3/4 → Headphones
-
-設定手順:
-  1. Preferences → Audio → Output Config
-  2. Out 1/2: Master（メイン出力）
-  3. Out 3/4: Cue（ヘッドフォン）
-  4. 各トラックの Solo/Cue ボタンで切り替え
-```
-
-### キュー出力の設定
+### Basic Routing
 
 ```
-ヘッドフォンキュー（プレリスニング）:
+Audio Routing for DJ:
 
-方法1: Solo/Cue Mode
-  1. Mixer → Solo/Cue Mode を "Cue" に設定
-  2. Cue Outを Out 3/4 に設定
-  3. トラックの S ボタンでプレリスニング
-  4. Cue Volume ノブで音量調整
+Master Output:
+  Ableton Master -> Audio Interface Out 1/2 -> PA System
 
-方法2: External Output
-  1. 専用トラックを作成（"Cue Bus"）
-  2. 出力を Out 3/4 に設定
-  3. プレリスニングしたいトラックのSendで送る
-  4. より柔軟な制御が可能
+Headphone Cue:
+  Cue Track -> Audio Interface Out 3/4 -> Headphones
 
-方法3: Send/Return利用
-  1. Return Track を Out 3/4 に出力
-  2. Pre-Fader Send で接続
-  3. メインフェーダーに影響されない
-
-推奨: 方法1が最もシンプルで確実
+Setup Steps:
+  1. Preferences -> Audio -> Output Config
+  2. Out 1/2: Master (main output)
+  3. Out 3/4: Cue (headphones)
+  4. Switch with each track's Solo/Cue button
 ```
 
-### 高度なルーティング
+### Cue Output Settings
 
 ```
-マルチ出力ルーティング:
+Headphone Cue (Pre-listening):
 
-4チャンネル出力:
-  Out 1/2: Deck A → PA Left
-  Out 3/4: Deck B → PA Right
-  Out 5/6: Sub Bass → サブウーファー
+Method 1: Solo/Cue Mode
+  1. Mixer -> Set Solo/Cue Mode to "Cue"
+  2. Set Cue Out to Out 3/4
+  3. Pre-listen with the track's S button
+  4. Adjust volume with the Cue Volume knob
+
+Method 2: External Output
+  1. Create a dedicated track ("Cue Bus")
+  2. Set output to Out 3/4
+  3. Send from tracks you want to pre-listen via Send
+  4. More flexible control possible
+
+Method 3: Send/Return
+  1. Output Return Track to Out 3/4
+  2. Connect with Pre-Fader Send
+  3. Unaffected by the main fader
+
+Recommended: Method 1 is the simplest and most reliable
+```
+
+### Advanced Routing
+
+```
+Multi-Output Routing:
+
+4-Channel Output:
+  Out 1/2: Deck A -> PA Left
+  Out 3/4: Deck B -> PA Right
+  Out 5/6: Sub Bass -> Subwoofer
   Out 7/8: Headphone Cue
 
-ゾーン出力（複数スピーカーエリア）:
-  Out 1/2: メインフロア
-  Out 3/4: バー/ラウンジエリア
-  Out 5/6: 屋外エリア
-  → 各ゾーンに異なるミックスを送信
+Zone Output (Multiple Speaker Areas):
+  Out 1/2: Main Floor
+  Out 3/4: Bar/Lounge Area
+  Out 5/6: Outdoor Area
+  -> Send different mixes to each zone
 
-レコーディング:
-  Ableton内でマスター出力をレコーディング
-  → DJミックスの録音
-  → ポストプロダクションに活用
+Recording:
+  Record master output within Ableton
+  -> Record DJ mixes
+  -> Use for post-production
 ```
 
 ---
 
-## キーミックスとハーモニックDJ
+## Key Mixing and Harmonic DJ
 
-### キー検出
+### Key Detection
 
 ```
-楽曲のキー分析:
+Track Key Analysis:
 
-Ableton内蔵:
-  - Clip View → 自動Key検出
-  - 精度はやや低い
+Ableton Built-in:
+  - Clip View -> Auto Key detection
+  - Accuracy is somewhat low
 
-外部ツール推奨:
-  - Mixed In Key: 業界標準の精度
-  - Rekordbox: 独自のKey検出
-  - KeyFinder: 無料オープンソース
+External Tools Recommended:
+  - Mixed In Key: Industry-standard accuracy
+  - Rekordbox: Proprietary key detection
+  - KeyFinder: Free open source
 
-カメロットホイール:
+Camelot Wheel:
   1A = Ab minor    1B = B major
   2A = Eb minor    2B = F# major
   3A = Bb minor    3B = Db major
@@ -1354,591 +1354,591 @@ Ableton内蔵:
   12A = C# minor   12B = E major
 ```
 
-### ハーモニックミキシングルール
+### Harmonic Mixing Rules
 
 ```
-安全なキーの組み合わせ:
+Safe Key Combinations:
 
-1. 同じキー: 8A → 8A（完全一致）
-2. 隣接キー: 8A → 7A / 9A（1ステップ移動）
-3. パラレルキー: 8A → 8B（メジャー/マイナー切替）
-4. エナジーブースト: 8A → 3A（+5ステップ）
+1. Same Key: 8A -> 8A (exact match)
+2. Adjacent Key: 8A -> 7A / 9A (1-step movement)
+3. Parallel Key: 8A -> 8B (Major/Minor switch)
+4. Energy Boost: 8A -> 3A (+5 steps)
 
-避けるべき組み合わせ:
-  - 2ステップ以上離れたキー
-  - ただし、トランジション次第で可能
+Combinations to Avoid:
+  - Keys 2 or more steps apart
+  - However, possible depending on the transition
 
-Abletonでのキーシフト:
-  Clip View → Transpose（半音単位）
-  → キーを合わせるために±1-3半音シフト
-  ※ 大きなシフトは音質劣化注意
+Key Shifting in Ableton:
+  Clip View -> Transpose (semitone units)
+  -> Shift +/-1-3 semitones to match keys
+  * Be careful of audio quality degradation with large shifts
 ```
 
-### 実践的なキーミックス
+### Practical Key Mixing
 
 ```
-セットのキープランニング:
+Set Key Planning:
 
-例: テックハウスセット（2時間）
+Example: Tech House Set (2 hours)
 
 00:00 - Track 1: 5A (C minor) 124BPM
-00:06 - Track 2: 5A (C minor) 124BPM  ← 同キー
-00:12 - Track 3: 6A (G minor) 125BPM  ← +1ステップ
-00:18 - Track 4: 6B (Bb major) 125BPM ← パラレル
-00:24 - Track 5: 7B (F major) 126BPM  ← +1ステップ
-00:30 - Track 6: 7A (D minor) 126BPM  ← パラレル
+00:06 - Track 2: 5A (C minor) 124BPM  <- Same key
+00:12 - Track 3: 6A (G minor) 125BPM  <- +1 step
+00:18 - Track 4: 6B (Bb major) 125BPM <- Parallel
+00:24 - Track 5: 7B (F major) 126BPM  <- +1 step
+00:30 - Track 6: 7A (D minor) 126BPM  <- Parallel
 ...
 
-ルール:
-  - 基本は±1ステップの移動
-  - エネルギーを変えたい時にパラレルキー
-  - 大きなキーチェンジはブレイクダウンで
-  - BPM変更と同時にキー変更は避ける
+Rules:
+  - Basically move +/-1 step
+  - Use parallel key when you want to change energy
+  - Make big key changes at breakdowns
+  - Avoid changing BPM and key simultaneously
 ```
 
 ---
 
-## ライブパフォーマンスの準備
+## Live Performance Preparation
 
-### セットの構成
+### Set Structure
 
 ```
-DJセット構成プランニング:
+DJ Set Structure Planning:
 
-1時間セットの例:
+1-Hour Set Example:
 
-Phase 1: オープニング（0-15分）
+Phase 1: Opening (0-15 min)
   - BPM: 118-122
-  - エネルギー: Low-Medium
-  - 楽曲数: 3-4曲
-  - 特徴: アンビエント要素、ゆるやかなビルド
+  - Energy: Low-Medium
+  - Track count: 3-4 tracks
+  - Character: Ambient elements, gradual build
 
-Phase 2: ウォームアップ（15-30分）
+Phase 2: Warm-Up (15-30 min)
   - BPM: 122-126
-  - エネルギー: Medium
-  - 楽曲数: 4-5曲
-  - 特徴: グルーヴ確立、認知度の高い曲を織り込む
+  - Energy: Medium
+  - Track count: 4-5 tracks
+  - Character: Establishing groove, weaving in recognizable tracks
 
-Phase 3: ピークタイム（30-50分）
+Phase 3: Peak Time (30-50 min)
   - BPM: 126-130
-  - エネルギー: High
-  - 楽曲数: 5-7曲
-  - 特徴: キラートラック、最もエネルギッシュ
+  - Energy: High
+  - Track count: 5-7 tracks
+  - Character: Killer tracks, most energetic
 
-Phase 4: クロージング（50-60分）
+Phase 4: Closing (50-60 min)
   - BPM: 126-122
-  - エネルギー: Medium-Low
-  - 楽曲数: 2-3曲
-  - 特徴: エモーショナル、余韻を残す
+  - Energy: Medium-Low
+  - Track count: 2-3 tracks
+  - Character: Emotional, leaving a lasting impression
 ```
 
-### パフォーマンス前チェックリスト
+### Pre-Performance Checklist
 
 ```
-ライブ前の確認事項:
+Pre-Live Confirmation Items:
 
-技術的チェック:
-  □ オーディオインターフェースのドライバ更新
-  □ Abletonのバージョン確認（最新安定版）
-  □ バッファサイズ設定（256-512推奨）
-  □ CPU負荷テスト（全トラック同時再生）
-  □ MIDIコントローラーのマッピング確認
-  □ ヘッドフォンキュー出力テスト
-  □ マスター出力レベル確認
-  □ バックアップセット（USB/外付けHDD）
+Technical Check:
+  [ ] Audio interface driver updated
+  [ ] Ableton version confirmed (latest stable)
+  [ ] Buffer size setting (256-512 recommended)
+  [ ] CPU load test (all tracks playing simultaneously)
+  [ ] MIDI controller mapping confirmed
+  [ ] Headphone cue output tested
+  [ ] Master output level confirmed
+  [ ] Backup set (USB/external HDD)
 
-コンテンツチェック:
-  □ 全クリップのWarp確認
-  □ クリップのゲイン統一（Utility）
-  □ シーンの順序確認
-  □ Follow Actions設定確認
-  □ エフェクトプリセットの確認
-  □ テスト再生（最低30分の通しリハーサル）
+Content Check:
+  [ ] All clips' Warp confirmed
+  [ ] Clip gain unified (Utility)
+  [ ] Scene order confirmed
+  [ ] Follow Actions settings confirmed
+  [ ] Effect presets confirmed
+  [ ] Test playback (minimum 30-minute run-through rehearsal)
 
-当日チェック:
-  □ 電源供給の確認
-  □ 予備ケーブル準備
-  □ ラップトップの充電
-  □ Wi-Fi/Bluetoothオフ
-  □ 通知オフ（集中モード）
-  □ スクリーンセーバー/スリープ無効
-  □ バックアップUSBの準備
+Day-of Check:
+  [ ] Power supply confirmed
+  [ ] Spare cables prepared
+  [ ] Laptop charged
+  [ ] Wi-Fi/Bluetooth off
+  [ ] Notifications off (Focus mode)
+  [ ] Screen saver/sleep disabled
+  [ ] Backup USB prepared
 ```
 
-### バックアップ戦略
+### Backup Strategy
 
 ```
-パフォーマンスのバックアップ:
+Performance Backup:
 
-レベル1: ソフトウェアバックアップ
-  - Abletonプロジェクトの "Collect All and Save"
-  - 全オーディオファイルをプロジェクトフォルダに統合
-  - 外付けドライブにコピー
+Level 1: Software Backup
+  - Ableton project's "Collect All and Save"
+  - Consolidate all audio files into the project folder
+  - Copy to external drive
 
-レベル2: ハードウェアバックアップ
-  - USBメモリにDJミックス（プリレコーデッド）を準備
-  - CDJ用USBに主要曲をRekordbox形式で
-  - スマートフォンにプレイリスト
+Level 2: Hardware Backup
+  - USB drive with a DJ mix (pre-recorded) ready
+  - CDJ USB with main tracks in Rekordbox format
+  - Playlist on smartphone
 
-レベル3: 完全冗長化
-  - バックアップPC（同じセットファイル）
-  - バックアップオーディオインターフェース
-  - 有線接続優先（USBハブ回避）
+Level 3: Full Redundancy
+  - Backup PC (same set file)
+  - Backup audio interface
+  - Prioritize wired connections (avoid USB hubs)
 ```
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくある問題と解決策
-
-```
-1. オーディオドロップアウト/クリック音:
-   原因: CPU過負荷、バッファアンダーラン
-   解決:
-     - バッファサイズを大きくする（512→1024）
-     - 使用していないトラックをフリーズ
-     - 不要なプラグインを削除
-     - Complex Pro → Complex に変更
-     - マルチコア処理を有効化
-
-2. Warpがずれる:
-   原因: 不正確なBPM検出、Warpマーカーの位置
-   解決:
-     - 手動でBPMを入力
-     - Warpマーカーを再配置
-     - 1拍目を正確に設定
-     - ":2" / "x2" でBPM修正
-
-3. MIDIコントローラーが反応しない:
-   原因: ドライバ、マッピング、MIDI設定
-   解決:
-     - Preferences → MIDI → コントローラーがリストにあるか確認
-     - Track/Sync/Remote を適切に設定
-     - MIDIマッピングモードで再確認
-     - USBケーブル/ポートを変更
-
-4. レイテンシーが大きい:
-   原因: バッファサイズ、ドライバ
-   解決:
-     - バッファサイズを小さくする（128-256）
-     - 専用オーディオドライバ使用（ASIO/Core Audio）
-     - USBハブを使わず直接接続
-     - Driver Error Compensation を調整
-
-5. ヘッドフォンキューが聴こえない:
-   原因: ルーティング設定
-   解決:
-     - Cue Output の設定確認
-     - Solo/Cue モードが "Cue" になっているか
-     - オーディオインターフェースの出力チャンネル確認
-     - Cue Volume の確認
-
-6. クリップが同期しない:
-   原因: Warp設定、Quantize設定
-   解決:
-     - Warp が On になっているか確認
-     - Global Quantize 設定を確認（1 Bar推奨）
-     - クリップの Launch Quantize を確認
-     - Master Tempo に追従しているか確認
-
-7. 音質が劣化する:
-   原因: 過度なWarp、低品質ソース
-   解決:
-     - WAV/AIFF/FLACを使用
-     - Warp Mode をComplex Proに
-     - BPM変更幅を±10%以内に
-     - 適切なサンプルレート（44.1kHz/48kHz）
-
-8. セットファイルが開けない:
-   原因: ファイルパス、バージョン
-   解決:
-     - "Collect All and Save" を事前に実行
-     - 相対パスではなくプロジェクト内に全ファイル
-     - Abletonのバージョン互換性確認
-     - バックアップからリストア
-```
-
-### パフォーマンス最適化
+### Common Problems and Solutions
 
 ```
-CPU負荷を下げるコツ:
+1. Audio Dropouts/Clicks:
+   Cause: CPU overload, buffer underrun
+   Solution:
+     - Increase buffer size (512->1024)
+     - Freeze unused tracks
+     - Remove unnecessary plugins
+     - Change Complex Pro -> Complex
+     - Enable multicore processing
+
+2. Warp Goes Out of Sync:
+   Cause: Inaccurate BPM detection, Warp marker position
+   Solution:
+     - Manually input BPM
+     - Reposition Warp markers
+     - Set beat 1 precisely
+     - Fix BPM with ":2" / "x2"
+
+3. MIDI Controller Not Responding:
+   Cause: Driver, mapping, MIDI settings
+   Solution:
+     - Preferences -> MIDI -> Check if controller is listed
+     - Set Track/Sync/Remote appropriately
+     - Recheck in MIDI mapping mode
+     - Change USB cable/port
+
+4. High Latency:
+   Cause: Buffer size, driver
+   Solution:
+     - Reduce buffer size (128-256)
+     - Use dedicated audio driver (ASIO/Core Audio)
+     - Connect directly without USB hub
+     - Adjust Driver Error Compensation
+
+5. Can't Hear Headphone Cue:
+   Cause: Routing settings
+   Solution:
+     - Check Cue Output settings
+     - Verify Solo/Cue mode is set to "Cue"
+     - Check audio interface output channels
+     - Check Cue Volume
+
+6. Clips Won't Sync:
+   Cause: Warp settings, Quantize settings
+   Solution:
+     - Check that Warp is On
+     - Check Global Quantize setting (1 Bar recommended)
+     - Check clip's Launch Quantize
+     - Verify it's following Master Tempo
+
+7. Audio Quality Degrades:
+   Cause: Excessive Warp, low-quality source
+   Solution:
+     - Use WAV/AIFF/FLAC
+     - Set Warp Mode to Complex Pro
+     - Keep BPM change within +/-10%
+     - Use appropriate sample rate (44.1kHz/48kHz)
+
+8. Set File Won't Open:
+   Cause: File path, version
+   Solution:
+     - Run "Collect All and Save" in advance
+     - Keep all files in the project, not relative paths
+     - Check Ableton version compatibility
+     - Restore from backup
+```
+
+### Performance Optimization
+
+```
+Tips for Reducing CPU Load:
 
 1. Freeze & Flatten:
-   - 使い終わったトラックをFreeze
-   - 必要ならFlatten（完全にオーディオ化）
+   - Freeze tracks you're done with
+   - Flatten if needed (fully convert to audio)
 
-2. 不要なエフェクトの無効化:
-   - 使っていないデバイスは Deactivate
-   - リターントラックのエフェクトも確認
+2. Disable Unnecessary Effects:
+   - Deactivate devices you're not using
+   - Check return track effects too
 
-3. サンプルレートの統一:
-   - プロジェクトと同じサンプルレートのファイルを使用
-   - 変換が不要な分CPU節約
+3. Unify Sample Rates:
+   - Use files at the same sample rate as the project
+   - Saves CPU by avoiding conversion
 
-4. オーバーサンプリングの無効化:
-   - プラグインのオーバーサンプリングをオフ
-   - ライブ中は不要
+4. Disable Oversampling:
+   - Turn off plugin oversampling
+   - Not needed during live performance
 
-5. 軽量プラグインの選択:
-   - Ableton純正デバイスは最適化されている
-   - 重いサードパーティVSTは避ける
+5. Choose Lightweight Plugins:
+   - Ableton native devices are optimized
+   - Avoid heavy third-party VSTs
 
-6. RAM管理:
-   - 不要なアプリケーションを終了
-   - ブラウザを閉じる
-   - 8GB以上のRAM推奨（16GB理想）
+6. RAM Management:
+   - Close unnecessary applications
+   - Close browsers
+   - 8GB+ RAM recommended (16GB ideal)
 ```
 
 ---
 
-## プロDJのAbleton活用事例
+## Pro DJ Ableton Use Cases
 
-### 著名アーティストの使用例
+### Notable Artist Usage Examples
 
 ```
 1. Richie Hawtin:
-   スタイル: ミニマルテクノ
-   使用法:
-     - Ableton Live + カスタムMax for Liveデバイス
-     - PLAYdifferently MODEL 1 ミキサー
-     - 極めてミニマルなループベースセット
-     - リアルタイムエフェクト操作が中心
+   Style: Minimal Techno
+   Usage:
+     - Ableton Live + custom Max for Live devices
+     - PLAYdifferently MODEL 1 mixer
+     - Extremely minimal loop-based sets
+     - Centered on real-time effect manipulation
 
 2. Deadmau5:
-   スタイル: プログレッシブハウス/エレクトロ
-   使用法:
-     - Ableton Live でライブ制作的セット
-     - ハードウェアシンセとの統合
-     - 楽曲をステムに分解して再構築
-     - テクニカルなA/Vショー
+   Style: Progressive House/Electro
+   Usage:
+     - Live production-style sets with Ableton Live
+     - Integration with hardware synths
+     - Deconstructs and rebuilds tracks via stems
+     - Technical A/V shows
 
 3. Madeon:
-   スタイル: エレクトロポップ/フューチャーベース
-   使用法:
+   Style: Electro Pop/Future Bass
+   Usage:
      - Novation Launchpad + Ableton Live
-     - マッシュアップスタイルのライブセット
-     - 30-40曲のサンプルをパッドで操作
-     - "Pop Culture"のようなリアルタイムマッシュアップ
+     - Mashup-style live sets
+     - Operates 30-40 track samples with pads
+     - Real-time mashups like "Pop Culture"
 
 4. Four Tet:
-   スタイル: エレクトロニカ/ハウス
-   使用法:
-     - Ableton Live ベースのDJ/ライブハイブリッド
-     - フィールドレコーディングの即興的使用
-     - エフェクト重視のサウンドデザイン
+   Style: Electronica/House
+   Usage:
+     - Ableton Live-based DJ/live hybrid
+     - Improvisational use of field recordings
+     - Effect-focused sound design
 
 5. ODESZA:
-   スタイル: エレクトロニック/インディー
-   使用法:
-     - Ableton Live + 生楽器（ドラム、管楽器）
-     - シーケンスのトリガー + 生演奏
-     - 大規模A/Vプロダクション
+   Style: Electronic/Indie
+   Usage:
+     - Ableton Live + live instruments (drums, brass)
+     - Sequence triggering + live playing
+     - Large-scale A/V production
 
 6. Bonobo:
-   スタイル: ダウンテンポ/エレクトロニカ
-   使用法:
-     - Ableton Live + バンドメンバー
-     - ステムベースのハイブリッドDJ/ライブ
-     - 緻密なエフェクト操作
+   Style: Downtempo/Electronica
+   Usage:
+     - Ableton Live + band members
+     - Stem-based hybrid DJ/live
+     - Meticulous effect manipulation
 ```
 
-### セットアップの参考例
+### Setup Reference Examples
 
 ```
-ミニマルテクノ向けセットアップ:
-  Track 1-2: ドラムループ（キック、ハット系）
-  Track 3-4: ベースループ
-  Track 5-6: パーカッション
-  Track 7-8: テクスチャー/アンビエント
-  Track 9: ドラムラック（追加パーカッション）
-  Track 10: シンセ（ミニマルスタブ）
-  エフェクト: Delay, Reverb, Filter, Beat Repeat
+Minimal Techno Setup:
+  Track 1-2: Drum loops (kick, hat)
+  Track 3-4: Bass loops
+  Track 5-6: Percussion
+  Track 7-8: Texture/Ambient
+  Track 9: Drum Rack (additional percussion)
+  Track 10: Synth (minimal stabs)
+  Effects: Delay, Reverb, Filter, Beat Repeat
 
-プログレッシブハウス向けセットアップ:
-  Track 1-4: Deck A（ステム分離: ドラム、ベース、シンセ、ボーカル）
-  Track 5-8: Deck B（同上）
-  Track 9: パッドシンセ
-  Track 10: リードシンセ
-  Track 11: アルペジエーター
-  Track 12: ドラムラック
-  エフェクト: Reverb, Delay, Chorus, Phaser, Filter
+Progressive House Setup:
+  Track 1-4: Deck A (stem separation: drums, bass, synth, vocals)
+  Track 5-8: Deck B (same)
+  Track 9: Pad synth
+  Track 10: Lead synth
+  Track 11: Arpeggiator
+  Track 12: Drum Rack
+  Effects: Reverb, Delay, Chorus, Phaser, Filter
 
-ヒップホップ/R&B向けセットアップ:
-  Track 1-2: Deck A（曲）
-  Track 3-4: Deck B（曲）
-  Track 5: アカペラ/ボーカル
-  Track 6: サンプラー（SP-404的使い方）
-  Track 7: ドラムラック（TR-808キット）
-  Track 8: ベースシンセ
-  エフェクト: Vinyl Distortion, Simple Delay, EQ, Redux
+Hip-Hop/R&B Setup:
+  Track 1-2: Deck A (tracks)
+  Track 3-4: Deck B (tracks)
+  Track 5: Acapella/Vocals
+  Track 6: Sampler (SP-404 style usage)
+  Track 7: Drum Rack (TR-808 kit)
+  Track 8: Bass synth
+  Effects: Vinyl Distortion, Simple Delay, EQ, Redux
 ```
 
 ---
 
-## Ableton DJのワークフロー最適化
+## Ableton DJ Workflow Optimization
 
-### 楽曲準備のワークフロー
+### Track Preparation Workflow
 
 ```
-楽曲をDJセットに取り込む手順:
+Steps for Loading Tracks into a DJ Set:
 
-1. ファイル形式の確認:
-   - WAV/AIFF: そのまま使用
-   - FLAC: Abletonが直接読み込み可能
-   - MP3/AAC: 変換推奨（可能なら）
+1. Check File Format:
+   - WAV/AIFF: Use as-is
+   - FLAC: Ableton can directly import
+   - MP3/AAC: Conversion recommended (if possible)
 
-2. Warp設定:
-   a. クリップをダブルクリック → Clip View
+2. Warp Settings:
+   a. Double-click the clip -> Clip View
    b. Warp On
    c. Warp Mode: Complex Pro
-   d. BPM確認・修正
-   e. 1拍目のWarpマーカー確認
-   f. 全体を通して再生してズレがないか確認
+   d. Confirm/correct BPM
+   e. Confirm Warp marker at beat 1
+   f. Play through to check for misalignment
 
-3. ゲイン調整:
-   a. Utility デバイスをインサート
-   b. ゲインを調整して他の曲と音量を統一
-   c. 目安: ピークが -6dB 〜 -3dB
+3. Gain Adjustment:
+   a. Insert a Utility device
+   b. Adjust gain to unify volume with other tracks
+   c. Target: Peaks at -6dB to -3dB
 
-4. キューポイント設定:
-   a. ホットキューのように使いたいポイントにLocatorを配置
-   b. イントロ、ドロップ、ブレイクダウン等
+4. Cue Point Setting:
+   a. Place Locators at points you want to use like hot cues
+   b. Intro, drop, breakdown, etc.
 
-5. カラーとネーミング:
-   a. クリップに分かりやすい名前をつける
-   b. ジャンル/エネルギーに応じたカラー設定
+5. Color and Naming:
+   a. Give clips clear names
+   b. Set colors based on genre/energy
 
 6. Collect All and Save:
-   a. 定期的にプロジェクトを保存
-   b. File → Collect All and Save で全ファイルを統合
+   a. Save the project regularly
+   b. File -> Collect All and Save to consolidate all files
 ```
 
-### ライブラリ管理
+### Library Management
 
 ```
-AbletonでのDJ楽曲管理:
+DJ Track Management in Ableton:
 
-ブラウザの活用:
+Browser Usage:
   User Library/
-  ├── DJ Sets/
-  │   ├── 2024-01-Club-Night/
-  │   ├── 2024-02-Festival/
-  │   └── Templates/
-  │       ├── TechHouse_Template.als
-  │       ├── Techno_Template.als
-  │       └── Progressive_Template.als
-  ├── DJ Tracks/
-  │   ├── Tech House/
-  │   ├── Techno/
-  │   ├── Progressive/
-  │   ├── Deep House/
-  │   └── Drum and Bass/
-  └── DJ Samples/
-      ├── FX/
-      ├── Vocals/
-      ├── Drums/
-      └── Loops/
+  +-- DJ Sets/
+  |   +-- 2024-01-Club-Night/
+  |   +-- 2024-02-Festival/
+  |   +-- Templates/
+  |       +-- TechHouse_Template.als
+  |       +-- Techno_Template.als
+  |       +-- Progressive_Template.als
+  +-- DJ Tracks/
+  |   +-- Tech House/
+  |   +-- Techno/
+  |   +-- Progressive/
+  |   +-- Deep House/
+  |   +-- Drum and Bass/
+  +-- DJ Samples/
+      +-- FX/
+      +-- Vocals/
+      +-- Drums/
+      +-- Loops/
 
-ラベリングルール:
+Labeling Rules:
   [BPM]_[Key]_[Artist]_[Title]_[Energy]
-  例: 126_8A_Artist_TrackName_HIGH.wav
+  Example: 126_8A_Artist_TrackName_HIGH.wav
 
-外部ツールとの連携:
-  - Mixed In Key でキー/BPM分析
-  - ファイル名にキー情報を含める
-  - スプレッドシートでトラックリスト管理
+External Tool Integration:
+  - Key/BPM analysis with Mixed In Key
+  - Include key info in file names
+  - Manage track lists with spreadsheets
 ```
 
 ---
 
-## Max for LiveによるDJ機能拡張
+## Max for Live DJ Feature Extensions
 
-### 便利なMax for Liveデバイス
+### Useful Max for Live Devices
 
 ```
-DJに役立つMax for Liveデバイス:
+Max for Live Devices Useful for DJing:
 
-1. LFO（Max for Live Essentials）:
-   用途: パラメータの自動モジュレーション
-   例: フィルターの自動スウィープ
+1. LFO (Max for Live Essentials):
+   Purpose: Automatic parameter modulation
+   Example: Automatic filter sweep
 
 2. Map8:
-   用途: 8つのマクロで複数パラメータを制御
-   例: 1ノブでフィルター+リバーブ+ゲインを同時操作
+   Purpose: Control multiple parameters with 8 macros
+   Example: Simultaneously operate filter + reverb + gain with 1 knob
 
 3. Envelope Follower:
-   用途: 音声入力に基づくパラメータ制御
-   例: キックに合わせてサイドチェインエフェクト
+   Purpose: Parameter control based on audio input
+   Example: Sidechain effects synced to the kick
 
 4. Buffer Shuffler:
-   用途: リアルタイムバッファー操作
-   例: グリッチ/スタッター効果
+   Purpose: Real-time buffer manipulation
+   Example: Glitch/stutter effects
 
 5. XY Pad:
-   用途: 2次元パラメータ制御
-   例: X軸=フィルター、Y軸=リバーブ
+   Purpose: 2D parameter control
+   Example: X-axis = filter, Y-axis = reverb
 
 6. Multi Map:
-   用途: 1つのパラメータで複数デバイスを制御
-   例: マスターフェーダーで全エフェクトを同時操作
+   Purpose: Control multiple devices with one parameter
+   Example: Simultaneously operate all effects with the master fader
 
-7. カスタムDJデバイス（コミュニティ）:
-   - BPM表示ウィジェット
-   - Key表示デバイス
-   - 波形ディスプレイ
-   - トランジションタイマー
+7. Custom DJ Devices (Community):
+   - BPM display widget
+   - Key display device
+   - Waveform display
+   - Transition timer
 ```
 
-### カスタムデバイスの作成
+### Custom Device Creation
 
 ```
-DJに特化したカスタムデバイスの例:
+Example of DJ-Specific Custom Device:
 
 "DJ Transition Helper":
-  機能:
-    - クロスフェーダーカーブのカスタム
-    - EQスワップの自動化
-    - フィルタートランジションの補助
-    - BPM表示
+  Features:
+    - Custom crossfader curves
+    - EQ swap automation
+    - Filter transition assistance
+    - BPM display
 
-  作成手順:
-    1. Max for Live Editor を開く
-    2. Audio Effect として作成
-    3. クロスフェーダー用パラメータを設定
-    4. カーブをカスタマイズ（exponential等）
-    5. メーター/表示UIを追加
-    6. 保存して Rack 内に配置
+  Creation Steps:
+    1. Open Max for Live Editor
+    2. Create as Audio Effect
+    3. Set up crossfader parameters
+    4. Customize curves (exponential, etc.)
+    5. Add meter/display UI
+    6. Save and place inside a Rack
 ```
 
 ---
 
-## 高度なセッション管理
+## Advanced Session Management
 
-### プロジェクト構成の最適化
-
-```
-大規模DJセット（2-4時間）のプロジェクト構成:
-
-方法1: 1プロジェクト・全曲
-  利点: シームレスな操作
-  欠点: CPU負荷、起動時間
-  推奨: 20曲以下
-
-方法2: 複数プロジェクトの切り替え
-  利点: CPU負荷分散
-  欠点: 切り替え時の空白
-  推奨: セットの大きなセクション切り替え時
-
-方法3: セクション分割 + プリレコード
-  利点: 最も安定
-  欠点: 自由度が下がる
-  推奨: フェスティバルなど確実性重視
-
-方法4: ステムベースアプローチ
-  利点: 少ないトラック数で多様な表現
-  欠点: 準備に時間がかかる
-  推奨: クリエイティブなライブセット
-```
-
-### テンポオートメーション
+### Project Structure Optimization
 
 ```
-セット全体のテンポ管理:
+Project Structure for Large DJ Sets (2-4 hours):
+
+Method 1: 1 Project, All Tracks
+  Advantages: Seamless operation
+  Disadvantages: CPU load, startup time
+  Recommended: 20 tracks or fewer
+
+Method 2: Switching Between Multiple Projects
+  Advantages: Distributed CPU load
+  Disadvantages: Gap during switching
+  Recommended: When switching major set sections
+
+Method 3: Section Split + Pre-record
+  Advantages: Most stable
+  Disadvantages: Reduced freedom
+  Recommended: Festivals and other reliability-focused situations
+
+Method 4: Stem-Based Approach
+  Advantages: Diverse expression with fewer tracks
+  Disadvantages: Time-consuming preparation
+  Recommended: Creative live sets
+```
+
+### Tempo Automation
+
+```
+Tempo Management for the Entire Set:
 
 Session View:
-  - Master Tempo を手動で変更
-  - Tap Tempo でリアルタイム調整
-  - MIDIマッピングでノブ操作
+  - Manually change Master Tempo
+  - Real-time adjustment with Tap Tempo
+  - Knob operation via MIDI mapping
 
 Arrangement View:
-  - テンポオートメーションを描画
-  - 精密なテンポカーブ
-  - ランプアップ/ダウンの設定
+  - Draw tempo automation
+  - Precise tempo curves
+  - Ramp up/down settings
 
-ハイブリッド:
-  - 基本はSession Viewで操作
-  - 重要なテンポ変化はArrangementで事前設定
-  - BPM Follower（Max for Live）で自動追従
+Hybrid:
+  - Primarily operate in Session View
+  - Pre-set important tempo changes in Arrangement
+  - Auto-follow with BPM Follower (Max for Live)
 ```
 
 ---
 
-## 録音とアーカイブ
+## Recording and Archiving
 
-### DJミックスの録音
+### Recording DJ Mixes
 
 ```
-Ableton内でのミックス録音:
+Recording Mixes Within Ableton:
 
-方法1: Arrangement Viewで録音
-  1. Session → Arrangement の録音ボタン
-  2. Session Viewで通常通りDJ
-  3. 全操作がArrangement Viewに記録
-  4. 後からエクスポート
+Method 1: Record in Arrangement View
+  1. Session -> Arrangement record button
+  2. DJ as usual in Session View
+  3. All operations are recorded in Arrangement View
+  4. Export afterward
 
-方法2: リサンプリングトラック
-  1. 新規Audio Trackを作成
+Method 2: Resampling Track
+  1. Create a new Audio Track
   2. Input: "Resampling"
-  3. Arm（録音待機）ボタンを押す
-  4. 録音開始 → DJプレイ → 録音停止
-  5. クリップとして保存される
+  3. Press Arm (record standby) button
+  4. Start recording -> DJ play -> Stop recording
+  5. Saved as a clip
 
-方法3: 外部レコーダー
-  1. マスター出力を外部レコーダーにも送信
-  2. 独立した録音（安全）
-  3. 後でインポートして編集
+Method 3: External Recorder
+  1. Send master output to an external recorder as well
+  2. Independent recording (safe)
+  3. Import and edit later
 
-ポストプロダクション:
-  - 不要部分のカット
-  - レベルの均一化（Compressor/Limiter）
-  - フェードイン/フェードアウト
-  - メタデータの追加
-  - エクスポート（WAV 16bit/44.1kHzまたはMP3 320kbps）
+Post-Production:
+  - Cut unnecessary parts
+  - Level normalization (Compressor/Limiter)
+  - Fade in/fade out
+  - Add metadata
+  - Export (WAV 16bit/44.1kHz or MP3 320kbps)
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Perform input data validation
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic Implementation Template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1947,26 +1947,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should be raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced Patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1974,7 +1974,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1985,14 +1985,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -2000,7 +2000,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -2008,44 +2008,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance Optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -2054,7 +2054,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -2069,76 +2069,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be conscious of algorithmic complexity
+- Select appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+Here is a summary of criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criteria | Prioritize When | Acceptable to Compromise When |
+|----------|----------------|------------------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed users |
+| Security | Personal data, financial data | Public data, internal use |
+| Development Speed | MVP, time to market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
-┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
-│                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
-│                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
-│                                                 │
-└─────────────────────────────────────────────────┘
++--------------------------------------------------+
+|          Architecture Selection Flow              |
++--------------------------------------------------+
+|                                                  |
+|  1. Team size?                                   |
+|    +-- Small (1-5) -> Monolith                   |
+|    +-- Large (10+) -> Go to 2                    |
+|                                                  |
+|  2. Deploy frequency?                            |
+|    +-- Once a week or less -> Monolith + modules |
+|    +-- Daily/multiple -> Go to 3                 |
+|                                                  |
+|  3. Independence between teams?                  |
+|    +-- High -> Microservices                     |
+|    +-- Medium -> Modular monolith                |
+|                                                  |
++--------------------------------------------------+
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- A short-term fast approach can become technical debt long-term
+- Conversely, over-engineering has high short-term costs and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has low learning costs
+- Adopting diverse technologies enables best-fit solutions but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction offers high reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design Decision Record Template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -2148,17 +2148,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -2166,7 +2166,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -2174,15 +2174,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -2190,53 +2190,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Practical Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to quickly release a product with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum required features
+- Automated tests only for critical paths
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't seek perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually renovating a system that has been in operation for 10+ years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate step by step using the Strangler Fig pattern
+- Create Characterization Tests first if existing tests are missing
+- Use an API gateway to coexist old and new systems
+- Perform data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work Content | Estimated Duration | Risk |
+|-------|-------------|-------------------|------|
+| 1. Research | Current state analysis, dependency identification | 2-4 weeks | Low |
+| 2. Foundation | CI/CD construction, test environment | 4-6 weeks | Low |
+| 3. Migration Start | Sequential migration from peripheral features | 3-6 months | Medium |
+| 4. Core Migration | Core feature migration | 6-12 months | High |
+| 5. Completion | Legacy system decommission | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with Large Teams
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with Domain-Driven Design
+- Assign ownership per team
+- Manage shared libraries via Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API Contract Definition Between Teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -2249,20 +2249,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Verify SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -2271,7 +2271,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage Example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -2292,120 +2292,120 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Cache strategy (L1: In-memory, L2: Redis, L3: CDN)
+2. Leverage asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Method | Effect | Implementation Cost | When to Apply |
+|--------------------|--------|---------------------|--------------|
+| In-memory Cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async Processing | Medium | Medium | I/O-heavy processing |
+| DB Optimization | High | High | Slow queries |
+| Code Optimization | Low-Medium | High | CPU-bound cases |
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point in learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-Ableton LiveをDJソフトウェアとして使用することで、制作とDJをシームレスに統合できます。従来のDJソフトウェアにはない創造性と柔軟性を手に入れる代わりに、学習コストと準備の手間が増えるトレードオフがあります。
-
-### Ableton DJの主要ポイント
-
-```
-1. Session Viewが核心:
-   - クリップベースのDJプレイ
-   - シーンによるセクション管理
-   - Follow Actionsによる自動化
-
-2. Warpが最強のツール:
-   - 自動ビートマッチング
-   - 異なるBPMの曲を自在に組み合わせ
-   - Complex Proで高品質な時間伸縮
-
-3. エフェクトの無限の可能性:
-   - Send/Insert/Rackの使い分け
-   - Max for Liveによる拡張
-   - マクロマッピングで直感的操作
-
-4. ハイブリッドの力:
-   - DJ + ライブ制作の融合
-   - ハードウェアとの連携
-   - 映像との統合
-
-5. 準備が成功の鍵:
-   - テンプレートの作成
-   - 楽曲のWarp・ゲイン統一
-   - バックアップ戦略
-   - リハーサルの徹底
-```
-
-### 学習ロードマップ
-
-```
-Step 1（1-2週間）: 基本操作
-  - Session Viewの理解
-  - クリップのWarp設定
-  - クロスフェーダーの使い方
-
-Step 2（2-4週間）: トランジション
-  - 基本的なブレンドトランジション
-  - EQスワップテクニック
-  - フィルタートランジション
-
-Step 3（1-2ヶ月）: エフェクトとコントローラー
-  - エフェクトラックの構築
-  - MIDIコントローラーのセットアップ
-  - Send/Returnエフェクトの活用
-
-Step 4（2-3ヶ月）: クリエイティブ要素
-  - ライブリミックス/マッシュアップ
-  - ドラムラック/シンセの統合
-  - Follow Actionsの活用
-
-Step 5（3ヶ月以降）: ハイブリッドパフォーマンス
-  - 完全なハイブリッドセットの構築
-  - ハードウェア統合
-  - 大規模パフォーマンスの準備
-```
-
-**次のステップ**: [制作者のためのDJ知識](./production-for-djs.md)
+Knowledge of this topic is frequently used in daily development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-**Ableton LiveでDJセットを構築し、唯一無二のパフォーマンスを実現しましょう！**
+## Summary
+
+Using Ableton Live as DJ software allows you to seamlessly integrate production and DJing. In exchange for creativity and flexibility unavailable in traditional DJ software, there's a trade-off of increased learning costs and preparation effort.
+
+### Key Points of Ableton DJing
+
+```
+1. Session View Is the Core:
+   - Clip-based DJ play
+   - Section management via scenes
+   - Automation through Follow Actions
+
+2. Warp Is the Most Powerful Tool:
+   - Automatic beatmatching
+   - Freely combine tracks at different BPMs
+   - High-quality time-stretching with Complex Pro
+
+3. Infinite Possibilities with Effects:
+   - Distinction between Send/Insert/Rack
+   - Extension via Max for Live
+   - Intuitive operation through macro mapping
+
+4. The Power of Hybrid:
+   - Fusion of DJ + live production
+   - Hardware integration
+   - Video integration
+
+5. Preparation Is the Key to Success:
+   - Template creation
+   - Unifying track Warp and gain
+   - Backup strategy
+   - Thorough rehearsal
+```
+
+### Learning Roadmap
+
+```
+Step 1 (1-2 weeks): Basic Operations
+  - Understanding Session View
+  - Clip Warp settings
+  - How to use the crossfader
+
+Step 2 (2-4 weeks): Transitions
+  - Basic blend transitions
+  - EQ swap techniques
+  - Filter transitions
+
+Step 3 (1-2 months): Effects and Controllers
+  - Building effect racks
+  - MIDI controller setup
+  - Utilizing Send/Return effects
+
+Step 4 (2-3 months): Creative Elements
+  - Live remixing/mashups
+  - Drum rack/synth integration
+  - Utilizing Follow Actions
+
+Step 5 (3 months onward): Hybrid Performance
+  - Building a complete hybrid set
+  - Hardware integration
+  - Preparing for large-scale performances
+```
+
+**Next Step**: [Production Knowledge for DJs](./production-for-djs.md)
 
 ---
 
-## 次に読むべきガイド
-
-- [DJ用トラック制作](./dj-tools-production.md) - 次のトピックへ進む
+**Build a DJ set with Ableton Live and create a one-of-a-kind performance!**
 
 ---
 
-## 参考文献
+## Next Guide to Read
 
-- [MDN Web Docs](https://developer.mozilla.org/) - Web技術のリファレンス
-- [Wikipedia](https://ja.wikipedia.org/) - 技術概念の概要
+- [DJ Track Production](./dj-tools-production.md) - Proceed to the next topic
+
+---
+
+## References
+
+- [MDN Web Docs](https://developer.mozilla.org/) - Web technology reference
+- [Wikipedia](https://en.wikipedia.org/) - Technology concept overviews
