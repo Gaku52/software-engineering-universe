@@ -1,331 +1,330 @@
-# 00. Fundamentals - 音楽の基礎知識
+# 00. Fundamentals - Music Foundations
 
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- [ ] 基本概念と用語の理解
-- [ ] 実装パターンとベストプラクティスの習得
-- [ ] 実務での適用方法の把握
-- [ ] トラブルシューティングの基本
+- [ ] Understanding core concepts and terminology
+- [ ] Mastering implementation patterns and best practices
+- [ ] Knowing how to apply skills in real-world scenarios
+- [ ] Fundamentals of troubleshooting
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge will deepen your understanding of this guide:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-
----
-
-DJ と楽曲制作の両方に共通する、音楽理論とオーディオの基礎知識を学びます。
-
-## このセクションで学ぶこと
-
-このセクションは、DJと楽曲制作の両方において必須となる基礎知識をカバーしています。音楽を理解し、操作するための土台となる知識です。
-
-## なぜ基礎が重要なのか
-
-- **DJ**: キーの合う曲を選び、ハーモニックミキシングを行うために必要
-- **制作**: メロディ、コード進行、リズムを作るために必要
-- **共通**: 音楽を「聴く」から「理解する」へステップアップするために必要
-
-## コンテンツ一覧
-
-### [音楽理論基礎](./music-theory.md)
-- 音階とは何か
-- 音程の理解
-- メジャーとマイナー
-- 実践的な使い方
-
-### [リズム基礎](./rhythm-basics.md)
-- 拍子とテンポ
-- 小節とフレーズ
-- リズムパターン
-- グルーヴの理解
-
-### [和声基礎](./harmony-basics.md)
-- コードとは何か
-- コード進行の基本
-- ダイアトニックコード
-- テンションとカラー
-
-### [オーディオ基礎](./audio-basics.md)
-- デジタルオーディオの仕組み
-- サンプルレートとビット深度
-- ファイルフォーマット
-- 音質の考え方
-
-### [周波数とスペクトラム](./frequency-spectrum.md)
-- 周波数帯域の理解
-- Low / Mid / High の特性
-- 楽器ごとの周波数帯域
-- EQの基礎概念
-
-### [キーとスケール](./key-scales.md)
-- キーの概念
-- スケールの種類
-- Circle of Fifths（五度圏）
-- ハーモニックミキシング入門
-
-## 学習の進め方
-
-1. **順番に読む**: できるだけ上から順番に読むことを推奨
-2. **実践と組み合わせる**: 理論だけでなく、実際に曲を聴きながら確認
-3. **繰り返し参照**: 完全に理解する必要はなく、必要な時に戻ってくる
-4. **DJ/制作と並行**: 実践セクションと並行して学ぶとより理解が深まる
-
-## 次のステップ
-
-基礎知識を一通り理解したら：
-- **DJ志向**: [DJ Basics](../dj/01-basics/) へ進む
-- **制作志向**: [Ableton Basics](../production/01-ableton-basics/) へ進む
-- **両方**: どちらから始めても OK。興味のある方から進めましょう
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 音楽の基礎理論概要
+Learn the music theory and audio fundamentals common to both DJing and music production.
 
-音楽理論は、音楽を体系的に理解するための枠組みです。DJ にとっても楽曲制作者にとっても、理論を知ることは「なぜこの組み合わせが気持ちいいのか」「なぜこのトランジションが自然に聴こえるのか」を説明し、再現する力を与えてくれます。
+## What You Will Learn in This Section
 
-### 音楽を構成する3つの基本要素
+This section covers the essential foundational knowledge required for both DJing and music production. It provides the knowledge base needed to understand and manipulate music.
 
-音楽は大きく分けて以下の3つの要素で構成されています。
+## Why Fundamentals Matter
 
-#### 1. メロディ（旋律）
+- **For DJs**: Needed to select tracks in compatible keys and perform harmonic mixing
+- **For Producers**: Needed to create melodies, chord progressions, and rhythms
+- **For Both**: Needed to level up from merely "hearing" music to truly "understanding" it
 
-メロディとは、音が時間の中で順番に鳴ることで生まれる「横方向」の音の流れです。歌のボーカルラインやシンセのリードフレーズがメロディにあたります。
+## Content List
 
-- **音高（ピッチ）**: 音の高さ。ドレミファソラシドで表される
-- **音価（デュレーション）**: 音の長さ。全音符、二分音符、四分音符など
-- **跳躍と順次進行**: 隣り合う音に移動するか（順次）、離れた音に飛ぶか（跳躍）
-- **フレーズ**: メロディの「文」にあたる単位。通常は2小節、4小節、8小節
+### [Music Theory Basics](./music-theory.md)
+- What scales are
+- Understanding intervals
+- Major and minor
+- Practical applications
 
-メロディの特徴を理解することは、DJ がトラック間の相性を判断する際に役立ちます。似たメロディラインを持つ曲同士はミックスしやすく、対照的なメロディを持つ曲は意図的なコントラストとして使えます。
+### [Rhythm Basics](./rhythm-basics.md)
+- Time signatures and tempo
+- Bars and phrases
+- Rhythm patterns
+- Understanding groove
 
-#### 2. ハーモニー（和声）
+### [Harmony Basics](./harmony-basics.md)
+- What chords are
+- Chord progression basics
+- Diatonic chords
+- Tensions and color tones
 
-ハーモニーとは、複数の音が同時に鳴ることで生まれる「縦方向」の音の重なりです。コード（和音）がハーモニーの基本単位です。
+### [Audio Basics](./audio-basics.md)
+- How digital audio works
+- Sample rate and bit depth
+- File formats
+- Thinking about sound quality
 
-- **協和音と不協和音**: 心地よく響く組み合わせと、緊張感のある組み合わせ
-- **コード進行**: 時間の中でコードが移り変わるパターン
-- **調性（トーナリティ）**: 曲全体が一つのキーを中心に構成されること
-- **転調（モジュレーション）**: 曲の途中でキーが変わること
+### [Frequency and Spectrum](./frequency-spectrum.md)
+- Understanding frequency bands
+- Characteristics of low / mid / high
+- Frequency ranges of instruments
+- Basic EQ concepts
 
-ハーモニーの知識は、ハーモニックミキシングの基盤となります。2つのトラックのコードが調和するかどうかを判断できれば、美しいトランジションが可能になります。
+### [Key and Scales](./key-scales.md)
+- The concept of keys
+- Types of scales
+- Circle of Fifths
+- Introduction to harmonic mixing
 
-#### 3. リズム（律動）
+## How to Approach Learning
 
-リズムは、音が時間の中でどのように配置されるかを決定する要素です。電子音楽においては、リズムは特に重要な役割を果たします。
+1. **Read in order**: Reading from top to bottom in sequence is recommended
+2. **Combine with practice**: Not just theory — listen to actual music and verify
+3. **Refer back frequently**: You don't need to understand everything at once; come back when needed
+4. **Learn alongside DJ/production**: Deeper understanding comes from studying alongside practical sections
 
-- **拍（ビート）**: リズムの基本的な単位
-- **テンポ**: 拍の速さ。BPM（Beats Per Minute）で表される
-- **拍子**: 拍のグループ化パターン（4/4拍子、3/4拍子など）
-- **アクセント**: 特定の拍に強調を置くこと
-- **シンコペーション**: 通常とは異なる位置にアクセントを置くこと
+## Next Steps
 
-### 音楽理論の実践的な重要性
-
-音楽理論を学ぶ目的は、試験に合格することではなく、実践で使える知識を身につけることです。以下に、DJ と制作それぞれの場面での活用例を示します。
-
-| 場面 | 理論知識の活用 |
-|------|--------------|
-| DJ：選曲 | キーの互換性を判断し、ハーモニックミキシングを実現 |
-| DJ：ミックス | BPM の近い曲を選び、ビートマッチングを容易にする |
-| DJ：エネルギー管理 | 曲のキーや構造を把握し、フロアのエネルギーを計画的に制御 |
-| 制作：メロディ作成 | スケール内の音を使って自然なメロディラインを構築 |
-| 制作：コード進行 | ダイアトニックコードの知識で説得力のある進行を作成 |
-| 制作：アレンジ | 曲の構造（イントロ、ビルドアップ、ドロップなど）を理論的に設計 |
+Once you have a general understanding of the fundamentals:
+- **DJ-focused**: Proceed to [DJ Basics](../dj/01-basics/)
+- **Production-focused**: Proceed to [Ableton Basics](../production/01-ableton-basics/)
+- **Both**: It's OK to start with either one. Go with whichever interests you more
 
 ---
 
-## リズム・テンポ・BPMの基礎
+## Overview of Music Theory Fundamentals
 
-リズムは音楽の「時間的構造」を決定する最も根本的な要素です。特に電子音楽やダンスミュージックにおいて、リズムの理解は全てのスキルの基盤となります。
+Music theory is a framework for systematically understanding music. For both DJs and music producers, knowing theory provides the ability to explain and reproduce why certain combinations feel good, and why certain transitions sound natural.
 
-### BPM（Beats Per Minute）の基礎
+### The Three Fundamental Elements of Music
 
-BPM は「1分間あたりの拍数」を表す単位で、曲のテンポ（速さ）を客観的に示す指標です。
+Music is broadly composed of the following three elements.
 
-#### BPM の基本的な計算
+#### 1. Melody
 
-- BPM 60 = 1秒に1拍
-- BPM 120 = 1秒に2拍
-- BPM 140 = 1秒に約2.33拍
-- BPM 174 = 1秒に約2.9拍
+Melody is the "horizontal" flow of sound created by notes sounding in sequence over time. Vocal lines in songs and lead phrases from synths are examples of melody.
 
-#### ジャンルごとの典型的なBPM
+- **Pitch**: The height of a note. Represented by do-re-mi-fa-sol-la-ti-do (C-D-E-F-G-A-B)
+- **Duration**: The length of a note. Whole notes, half notes, quarter notes, etc.
+- **Leaps and Stepwise Motion**: Moving to adjacent notes (stepwise) or jumping to distant notes (leaps)
+- **Phrases**: Units equivalent to "sentences" of melody. Typically 2, 4, or 8 bars
 
-電子音楽では、ジャンルごとにおおよそのBPM帯域が決まっています。これを知っておくことは、DJ における選曲やミックスの計画を立てる上で非常に重要です。
+Understanding melodic characteristics helps DJs judge compatibility between tracks. Tracks with similar melodic lines mix easily, while tracks with contrasting melodies can be used as intentional contrast.
 
-| ジャンル | BPM帯域 | 特徴 |
-|---------|---------|------|
-| Ambient / Downtempo | 60-90 | ゆったりとした雰囲気、リラックス系 |
-| Hip Hop | 80-100 | ハーフタイムのリズムが特徴的 |
-| R&B / Soul | 70-100 | グルーヴ重視、スムースなフィール |
-| Deep House | 118-125 | ゆったりとした4つ打ち、深みのあるサウンド |
-| House | 120-130 | 標準的な4つ打ち、ダンスフロアの定番 |
-| Tech House | 122-130 | ハウスとテクノの中間、グルーヴ重視 |
-| Progressive House | 126-132 | 展開が大きく、徐々にビルドアップ |
-| Trance | 128-140 | メロディアス、エモーショナルな展開 |
-| Techno | 125-145 | ミニマルで反復的、ダークな雰囲気 |
-| Hard Techno | 140-160 | 高速でアグレッシブ、インダストリアル要素 |
-| Drum & Bass | 160-180 | 高速ブレイクビーツ、ベースが特徴的 |
-| Jungle | 160-175 | 複雑なブレイクビーツ、レゲエの影響 |
-| Dubstep | 140 (Half-time 70) | ハーフタイムフィール、重いベース |
-| Garage / 2-Step | 130-140 | シャッフルリズム、スウィング感 |
+#### 2. Harmony
 
-#### BPM とミキシングの関係
+Harmony is the "vertical" layering of sound created by multiple notes sounding simultaneously. Chords are the basic unit of harmony.
 
-DJミキシングにおいて、2つのトラックのBPM差は以下のように影響します。
+- **Consonance and Dissonance**: Combinations that sound pleasant versus combinations that create tension
+- **Chord Progressions**: Patterns of chord changes over time
+- **Tonality**: The overall organization of a piece around a central key
+- **Modulation**: Changing key in the middle of a piece
 
-- **0-2 BPM差**: 自然にビートマッチング可能。微調整で同期できる
-- **2-5 BPM差**: ピッチフェーダーでの調整が必要。音質への影響は軽微
-- **5-10 BPM差**: かなりの調整が必要。キーが変わる可能性あり
-- **10 BPM以上**: テンポトランジションとして意図的に使う場合以外は推奨されない
+Knowledge of harmony is the foundation for harmonic mixing. If you can judge whether the chords of two tracks harmonize, beautiful transitions become possible.
 
-### 拍子（タイムシグネチャ）の理解
+#### 3. Rhythm
 
-拍子は、拍がどのようにグループ化されるかを定義します。分数のような表記（4/4、3/4など）で示されます。
+Rhythm is the element that determines how sounds are arranged in time. In electronic music, rhythm plays a particularly important role.
 
-#### 4/4拍子（フォーフォー）
+- **Beat**: The basic unit of rhythm
+- **Tempo**: The speed of the beat. Expressed in BPM (Beats Per Minute)
+- **Time Signature**: The grouping pattern of beats (4/4, 3/4, etc.)
+- **Accent**: Emphasizing specific beats
+- **Syncopation**: Placing accents on unusual positions
 
-電子音楽の圧倒的大多数が4/4拍子で構成されています。1小節に4つの四分音符が入る構造です。
+### Practical Importance of Music Theory
+
+The purpose of learning music theory is not to pass exams, but to acquire knowledge that can be used in practice. Below are examples of how it's applied in DJ and production contexts.
+
+| Context | Application of Theory |
+|---------|----------------------|
+| DJ: Track Selection | Judging key compatibility to achieve harmonic mixing |
+| DJ: Mixing | Selecting tracks with similar BPMs to facilitate beatmatching |
+| DJ: Energy Management | Understanding track keys and structures to systematically control floor energy |
+| Production: Melody Creation | Building natural melodic lines using notes within a scale |
+| Production: Chord Progressions | Creating convincing progressions with knowledge of diatonic chords |
+| Production: Arrangement | Theoretically designing song structure (intro, build-up, drop, etc.) |
+
+---
+
+## Rhythm, Tempo, and BPM Fundamentals
+
+Rhythm is the most fundamental element determining the "temporal structure" of music. Especially in electronic and dance music, understanding rhythm is the foundation of all skills.
+
+### BPM (Beats Per Minute) Basics
+
+BPM is a unit representing "the number of beats per minute" — an objective indicator of a track's tempo (speed).
+
+#### Basic BPM Calculations
+
+- BPM 60 = 1 beat per second
+- BPM 120 = 2 beats per second
+- BPM 140 = approximately 2.33 beats per second
+- BPM 174 = approximately 2.9 beats per second
+
+#### Typical BPM by Genre
+
+In electronic music, each genre has a general BPM range. Knowing this is extremely important for planning track selection and mixes as a DJ.
+
+| Genre | BPM Range | Characteristics |
+|-------|-----------|-----------------|
+| Ambient / Downtempo | 60-90 | Relaxed atmosphere, chill vibes |
+| Hip Hop | 80-100 | Characterized by half-time rhythms |
+| R&B / Soul | 70-100 | Groove-focused, smooth feel |
+| Deep House | 118-125 | Relaxed four-on-the-floor, deep sound |
+| House | 120-130 | Standard four-on-the-floor, dancefloor staple |
+| Tech House | 122-130 | Between house and techno, groove-focused |
+| Progressive House | 126-132 | Large-scale development, gradual build-ups |
+| Trance | 128-140 | Melodious, emotional development |
+| Techno | 125-145 | Minimal and repetitive, dark atmosphere |
+| Hard Techno | 140-160 | Fast and aggressive, industrial elements |
+| Drum & Bass | 160-180 | Fast breakbeats, distinctive bass |
+| Jungle | 160-175 | Complex breakbeats, reggae influence |
+| Dubstep | 140 (Half-time 70) | Half-time feel, heavy bass |
+| Garage / 2-Step | 130-140 | Shuffle rhythms, swing feel |
+
+#### Relationship Between BPM and Mixing
+
+In DJ mixing, the BPM difference between two tracks has the following effects:
+
+- **0-2 BPM difference**: Natural beatmatching possible. Can sync with fine adjustments
+- **2-5 BPM difference**: Pitch fader adjustment needed. Minimal impact on sound quality
+- **5-10 BPM difference**: Significant adjustment needed. Key may change
+- **10+ BPM difference**: Not recommended unless intentionally used as a tempo transition
+
+### Understanding Time Signatures
+
+Time signatures define how beats are grouped. They are written in fraction-like notation (4/4, 3/4, etc.).
+
+#### 4/4 Time (Four-Four)
+
+The overwhelming majority of electronic music is in 4/4 time. The structure has four quarter notes per bar.
 
 ```
 |  1  .  2  .  3  .  4  .  |
-|  K     S     K     S     |   ← 基本的な4つ打ちパターン
+|  K     S     K     S     |   <- Basic four-on-the-floor pattern
 ```
 
-- **K** = キック（バスドラム）
-- **S** = スネア / クラップ
-- **.** = 裏拍（オフビート、ハイハットが入ることが多い）
+- **K** = Kick (bass drum)
+- **S** = Snare / Clap
+- **.** = Offbeat (often where hi-hats go)
 
-4/4拍子の電子音楽における特徴：
-- **オンビート**: 1, 2, 3, 4（表拍）。キックドラムが配置されやすい
-- **オフビート**: それぞれの拍の間（裏拍）。ハイハットやパーカッションが配置されやすい
-- **ダウンビート**: 小節の最初の拍（1拍目）。最も強いアクセント
-- **バックビート**: 2拍目と4拍目。スネアやクラップが来ることが多い
+Characteristics of 4/4 in electronic music:
+- **On-beat**: 1, 2, 3, 4 (downbeats). Kick drums are commonly placed here
+- **Off-beat**: Between each beat (upbeats). Hi-hats and percussion are commonly placed here
+- **Downbeat**: The first beat of the bar (beat 1). The strongest accent
+- **Backbeat**: Beats 2 and 4. Snare or clap often lands here
 
-#### 3/4拍子（ワルツ）
+#### 3/4 Time (Waltz)
 
-1小節に3つの四分音符が入る構造。ダンスミュージックでは稀ですが、ワルツ系のアレンジやアンビエントで使われることがあります。
+A structure with three quarter notes per bar. Rare in dance music, but sometimes used in waltz-type arrangements and ambient music.
 
-#### 6/8拍子
+#### 6/8 Time
 
-1小節に6つの八分音符が入る構造。3つずつのグループが2組で構成されます。アフリカ系リズムやブレイクビーツの一部で見られます。
+A structure with six eighth notes per bar, organized in two groups of three. Found in some African-influenced rhythms and breakbeats.
 
-#### 変拍子
+#### Odd Time Signatures
 
-5/4、7/8 などの変則的な拍子。プログレッシブロックやエクスペリメンタル電子音楽で使用されることがあります。通常のDJ ミキシングでは避けることが多いですが、独創的なセットを作る際に活用できます。
+Irregular time signatures like 5/4, 7/8, etc. Sometimes used in progressive rock and experimental electronic music. Typically avoided in standard DJ mixing, but can be utilized for creating unique sets.
 
-### 小節とフレーズの構造
+### Bar and Phrase Structure
 
-電子音楽における楽曲構造は、小節のグループで把握するのが基本です。
+In electronic music, song structure is fundamentally understood through groups of bars.
 
-#### 基本的な階層構造
-
-```
-1拍（Beat）→ 1小節（Bar / Measure）→ フレーズ（Phrase）→ セクション（Section）→ 楽曲全体
-```
-
-- **1小節** = 4拍（4/4拍子の場合）
-- **1フレーズ** = 通常4小節または8小節
-- **1セクション** = 通常16小節または32小節
-
-#### フレーズの重要性
-
-電子音楽では、ほとんどの変化がフレーズの境界で起こります。
-
-- **4小節ごと**: パーカッションの追加・削除、フィルの挿入
-- **8小節ごと**: 新しい楽器の導入、メロディの変化
-- **16小節ごと**: セクションの変化（イントロからブレイクへ、など）
-- **32小節ごと**: 大きな構造変化（ビルドアップからドロップへ、など）
-
-DJにとって、フレーズを数える能力は極めて重要です。ミックスポイントを適切に選ぶためには、曲のフレーズ構造を正確に把握する必要があります。
-
-#### 電子音楽の典型的な楽曲構造
+#### Basic Hierarchical Structure
 
 ```
-[イントロ 16-32小節] → [ビルドアップ 8-16小節] → [ドロップ 16-32小節] →
-[ブレイクダウン 8-16小節] → [ビルドアップ 8-16小節] → [ドロップ 16-32小節] →
-[アウトロ 16-32小節]
+1 Beat -> 1 Bar (Measure) -> Phrase -> Section -> Entire Track
 ```
 
-### グルーヴとスウィング
+- **1 bar** = 4 beats (in 4/4 time)
+- **1 phrase** = typically 4 or 8 bars
+- **1 section** = typically 16 or 32 bars
 
-同じBPMでも、音の配置の微妙な違いによって「グルーヴ感」が大きく変わります。
+#### Importance of Phrases
 
-#### クオンタイズとグルーヴ
+In electronic music, most changes occur at phrase boundaries.
 
-- **ストレートタイミング**: 全ての音が正確にグリッド上に配置される。機械的でクリーンな印象
-- **スウィング**: 裏拍を僅かに遅らせることで、跳ねるようなリズム感を生む
-- **ヒューマナイズ**: 微妙なタイミングのずれを意図的に加え、人間らしい演奏感を出す
+- **Every 4 bars**: Addition/removal of percussion, fill insertion
+- **Every 8 bars**: Introduction of new instruments, melodic changes
+- **Every 16 bars**: Section changes (e.g., from intro to break)
+- **Every 32 bars**: Major structural changes (e.g., from build-up to drop)
 
-#### スウィング量の効果
+For DJs, the ability to count phrases is extremely important. Accurately understanding a track's phrase structure is essential for selecting appropriate mix points.
 
-| スウィング量 | 効果 | 使用例 |
-|-------------|------|--------|
-| 0%（ストレート） | 機械的、タイト | テクノ、トランス |
-| 10-30% | 軽い揺れ | ハウス、テックハウス |
-| 40-60% | 明確な跳ね | ガラージ、2ステップ |
-| 60-75% | トリプレットに近い | ヒップホップ、ネオソウル |
+#### Typical Song Structure in Electronic Music
+
+```
+[Intro 16-32 bars] -> [Build-up 8-16 bars] -> [Drop 16-32 bars] ->
+[Breakdown 8-16 bars] -> [Build-up 8-16 bars] -> [Drop 16-32 bars] ->
+[Outro 16-32 bars]
+```
+
+### Groove and Swing
+
+Even at the same BPM, subtle differences in note placement can dramatically change the "groove feel."
+
+#### Quantization and Groove
+
+- **Straight Timing**: All notes placed precisely on the grid. Mechanical and clean impression
+- **Swing**: Slightly delaying offbeats to create a bouncy rhythmic feel
+- **Humanize**: Intentionally adding subtle timing variations for a human-like performance feel
+
+#### Effects of Swing Amount
+
+| Swing Amount | Effect | Usage Example |
+|-------------|--------|---------------|
+| 0% (Straight) | Mechanical, tight | Techno, Trance |
+| 10-30% | Light sway | House, Tech House |
+| 40-60% | Distinct bounce | Garage, 2-Step |
+| 60-75% | Near triplet feel | Hip Hop, Neo Soul |
 
 ---
 
-## 音階・キー・ハーモニーの基礎
+## Scales, Keys, and Harmony Fundamentals
 
-音階（スケール）とキーの知識は、ハーモニックミキシングと楽曲制作の両方で不可欠な要素です。
+Knowledge of scales and keys is an essential element for both harmonic mixing and music production.
 
-### 音の基本
+### Sound Basics
 
-#### 音名（ノートネーム）
+#### Note Names
 
-西洋音楽では12の半音でオクターブが構成されています。
+In Western music, an octave consists of 12 semitones.
 
 ```
 C - C# - D - D# - E - F - F# - G - G# - A - A# - B
-ド           レ           ミ  ファ          ソ          ラ           シ
 ```
 
-- **半音（Semitone）**: 隣り合う2つの音の間隔（例：C → C#）
-- **全音（Whole Tone）**: 半音2つ分の間隔（例：C → D）
-- **オクターブ**: 12半音分の間隔。同じ音名だが高さが異なる（例：C4 → C5）
+- **Semitone**: The interval between two adjacent notes (e.g., C -> C#)
+- **Whole Tone**: An interval of two semitones (e.g., C -> D)
+- **Octave**: An interval of 12 semitones. Same note name but different pitch (e.g., C4 -> C5)
 
-#### フラットとシャープ
+#### Flats and Sharps
 
-- **シャープ（#）**: 音を半音上げる（例：F → F#）
-- **フラット（b）**: 音を半音下げる（例：B → Bb）
-- **異名同音**: 同じ音でも表記が異なる場合がある（例：C# = Db）
+- **Sharp (#)**: Raises a note by a semitone (e.g., F -> F#)
+- **Flat (b)**: Lowers a note by a semitone (e.g., B -> Bb)
+- **Enharmonic Equivalents**: The same pitch can have different names (e.g., C# = Db)
 
-### メジャースケールとマイナースケール
+### Major and Minor Scales
 
-#### メジャースケール（長音階）
+#### Major Scale
 
-明るく開放的な響きを持つスケールです。「全全半全全全半」の間隔パターンで構成されます。
+A scale with a bright, open sound. Constructed with the interval pattern "whole-whole-half-whole-whole-whole-half."
 
 ```
-Cメジャースケール:
+C Major Scale:
 C  -  D  -  E  -  F  -  G  -  A  -  B  -  C
-  全   全   半   全   全   全   半
+  W    W    H    W    W    W    H
 ```
 
-#### ナチュラルマイナースケール（自然短音階）
+#### Natural Minor Scale
 
-暗く内省的な響きを持つスケールです。「全半全全半全全」の間隔パターンで構成されます。
+A scale with a dark, introspective sound. Constructed with the interval pattern "whole-half-whole-whole-half-whole-whole."
 
 ```
-Aマイナースケール:
+A Minor Scale:
 A  -  B  -  C  -  D  -  E  -  F  -  G  -  A
-  全   半   全   全   半   全   全
+  W    H    W    W    H    W    W
 ```
 
-#### 平行調（レラティブメジャー/マイナー）
+#### Relative Major/Minor (Parallel Keys)
 
-全てのメジャーキーには、同じ音を使う「平行マイナーキー」が存在します（逆も同様）。
+Every major key has a "relative minor key" that uses the same notes (and vice versa).
 
-| メジャーキー | 平行マイナーキー | 構成音 |
-|-------------|----------------|--------|
+| Major Key | Relative Minor Key | Notes |
+|-----------|--------------------|-------|
 | C Major | A Minor | C D E F G A B |
 | G Major | E Minor | G A B C D E F# |
 | D Major | B Minor | D E F# G A B C# |
@@ -335,9 +334,9 @@ A  -  B  -  C  -  D  -  E  -  F  -  G  -  A
 | Bb Major | G Minor | Bb C D Eb F G A |
 | Eb Major | C Minor | Eb F G Ab Bb C D |
 
-### 五度圏（Circle of Fifths）
+### Circle of Fifths
 
-五度圏は、12のキー全ての関係性を円形に配置した図です。DJのハーモニックミキシングにおいて最も重要なツールの一つです。
+The Circle of Fifths is a diagram that arranges the relationships of all 12 keys in a circle. It is one of the most important tools for harmonic mixing in DJing.
 
 ```
           C
@@ -349,19 +348,19 @@ A  -  B  -  C  -  D  -  E  -  F  -  G  -  A
          F#/Gb
 ```
 
-#### 五度圏の読み方
+#### How to Read the Circle of Fifths
 
-- **時計回り**: 完全五度上（例：C → G → D → A ...）
-- **反時計回り**: 完全四度上 / 完全五度下（例：C → F → Bb → Eb ...）
-- **隣接するキー**: 互いに1つの音しか違わないため、混ぜても自然に聴こえる
-- **対角のキー**: 最も遠い関係。トランジションには不向き
+- **Clockwise**: Up a perfect fifth (e.g., C -> G -> D -> A ...)
+- **Counter-clockwise**: Up a perfect fourth / down a perfect fifth (e.g., C -> F -> Bb -> Eb ...)
+- **Adjacent keys**: Differ by only one note, so they sound natural when mixed together
+- **Opposite keys**: The most distant relationship. Not suited for transitions
 
-#### ハーモニックミキシングでの活用
+#### Application in Harmonic Mixing
 
-Camelot Wheel（カメロットホイール）は、五度圏をDJ向けに再構成したシステムです。
+The Camelot Wheel is a system that restructures the Circle of Fifths for DJ use.
 
 ```
-数字 + 文字（A=マイナー、B=メジャー）で表記
+Number + Letter (A = Minor, B = Major)
 
 1A  = Ab Minor     1B  = B Major
 2A  = Eb Minor     2B  = F# Major
@@ -377,925 +376,925 @@ Camelot Wheel（カメロットホイール）は、五度圏をDJ向けに再�
 12A = C# Minor     12B = E Major
 ```
 
-#### 互換ミキシングルール
+#### Compatible Mixing Rules
 
-Camelot Wheel上で以下の移動は、調和的なミキシングが可能です。
+The following moves on the Camelot Wheel allow for harmonious mixing:
 
-- **同じ番号**: 例）8A → 8B（A Minor → C Major）平行調への移行
-- **+1 / -1**: 例）8A → 9A（A Minor → E Minor）五度上/下への移行
-- **対角**: 例）8A → 8B → 9B（A Minor → C Major → G Major）段階的な移行
+- **Same number**: e.g., 8A -> 8B (A Minor -> C Major) — transition to relative key
+- **+1 / -1**: e.g., 8A -> 9A (A Minor -> E Minor) — transition up/down a fifth
+- **Diagonal**: e.g., 8A -> 8B -> 9B (A Minor -> C Major -> G Major) — gradual transition
 
-### コード（和音）の基礎
+### Chord Basics
 
-#### 三和音（トライアド）
+#### Triads
 
-3つの音で構成される最も基本的な和音です。
+The most basic chords, consisting of three notes.
 
-- **メジャートライアド**: 根音 + 長3度 + 完全5度（例：C-E-G）明るい響き
-- **マイナートライアド**: 根音 + 短3度 + 完全5度（例：C-Eb-G）暗い響き
-- **ディミニッシュトライアド**: 根音 + 短3度 + 減5度（例：C-Eb-Gb）不安定な響き
-- **オーギュメントトライアド**: 根音 + 長3度 + 増5度（例：C-E-G#）浮遊感のある響き
+- **Major Triad**: Root + major 3rd + perfect 5th (e.g., C-E-G) — bright sound
+- **Minor Triad**: Root + minor 3rd + perfect 5th (e.g., C-Eb-G) — dark sound
+- **Diminished Triad**: Root + minor 3rd + diminished 5th (e.g., C-Eb-Gb) — unstable sound
+- **Augmented Triad**: Root + major 3rd + augmented 5th (e.g., C-E-G#) — floating sound
 
-#### 四和音（セブンスコード）
+#### Seventh Chords
 
-三和音に7度の音を加えた4音構成の和音です。
+Four-note chords that add a seventh to a triad.
 
-- **メジャーセブンス（Maj7）**: 明るく洗練された響き（例：C-E-G-B）
-- **ドミナントセブンス（7）**: 解決感を求める緊張した響き（例：C-E-G-Bb）
-- **マイナーセブンス（m7）**: 柔らかく落ち着いた響き（例：C-Eb-G-Bb）
-- **ハーフディミニッシュ（m7b5）**: 不安定で浮遊的な響き（例：C-Eb-Gb-Bb）
+- **Major Seventh (Maj7)**: Bright and refined sound (e.g., C-E-G-B)
+- **Dominant Seventh (7)**: Tense sound seeking resolution (e.g., C-E-G-Bb)
+- **Minor Seventh (m7)**: Soft, relaxed sound (e.g., C-Eb-G-Bb)
+- **Half-Diminished (m7b5)**: Unstable, floating sound (e.g., C-Eb-Gb-Bb)
 
-#### ダイアトニックコード
+#### Diatonic Chords
 
-一つのスケール内の音だけで構成されるコードの集合を「ダイアトニックコード」と呼びます。
+A collection of chords built using only notes from a single scale is called "diatonic chords."
 
-Cメジャースケールのダイアトニックコード（三和音）:
+Diatonic chords (triads) of the C Major scale:
 
-| 度数 | コード | 構成音 | 機能 |
-|------|--------|--------|------|
-| I | C | C-E-G | トニック（安定） |
-| ii | Dm | D-F-A | サブドミナント（やや不安定） |
-| iii | Em | E-G-B | トニック代理 |
-| IV | F | F-A-C | サブドミナント（動き） |
-| V | G | G-B-D | ドミナント（緊張） |
-| vi | Am | A-C-E | トニック代理（マイナー感） |
-| vii° | Bdim | B-D-F | ドミナント代理（最も不安定） |
-
----
-
-## 音響学の基礎
-
-音楽を扱う上で、音そのものの物理的な性質を理解しておくことは重要です。DJがスピーカーシステムを操作する際にも、制作でミキシングを行う際にも、音響学の知識が助けになります。
-
-### 音とは何か
-
-音は空気の振動（疎密波）として伝わるエネルギーです。
-
-#### 音の3つの物理的要素
-
-1. **周波数（Frequency）**: 1秒間あたりの振動回数。ヘルツ（Hz）で表される。高い周波数 = 高い音
-2. **振幅（Amplitude）**: 振動の大きさ。大きい振幅 = 大きい音量
-3. **波形（Waveform）**: 振動のパターン。波形の違いが音色の違いを生む
-
-#### 人間の可聴範囲
-
-人間の耳は約20Hz～20,000Hz（20kHz）の範囲の音を聴くことができます。ただし、この範囲は年齢とともに狭くなります（特に高域が聴こえにくくなる）。
-
-| 周波数帯域 | 範囲 | 特徴 | 音楽における役割 |
-|-----------|------|------|----------------|
-| サブベース | 20-60 Hz | 体で感じる振動 | キックの重み、サブベース |
-| ベース | 60-250 Hz | 低音の力強さ | ベースライン、キックの胴鳴り |
-| ローミッド | 250-500 Hz | 暖かみ、厚み | ボーカルの低域、楽器の胴体 |
-| ミッドレンジ | 500-2000 Hz | 明瞭さ、存在感 | ボーカル、メロディ楽器 |
-| アッパーミッド | 2000-4000 Hz | エッジ、アタック | パーカッションのアタック、明瞭さ |
-| プレゼンス | 4000-6000 Hz | 存在感、鮮明さ | ボーカルの子音、シンバル |
-| ブリリアンス | 6000-20000 Hz | 空気感、輝き | ハイハット、エアー感 |
-
-### デシベル（dB）の理解
-
-音量を表す単位として最も一般的なのがデシベル（dB）です。対数スケールで表されるため、直感的に理解しにくい部分があります。
-
-#### dB の基本
-
-- **+3 dB** = 音のエネルギーが2倍
-- **+6 dB** = 音のエネルギーが4倍（体感的にはやや大きい程度）
-- **+10 dB** = 音のエネルギーが10倍（体感的には約2倍の大きさ）
-- **+20 dB** = 音のエネルギーが100倍
-
-#### DJ・制作で使用される dB スケール
-
-| スケール | 用途 | 基準（0 dB） |
-|---------|------|-------------|
-| dBFS | デジタルオーディオ | デジタル最大値（クリッピングポイント） |
-| dBu | アナログ機器 | 0.775V |
-| dBSPL | 音圧（スピーカー出力） | 人間の可聴閾値（20μPa） |
-
-#### 安全な音量レベル
-
-長時間の大音量露出は聴覚に恒久的なダメージを与えます。DJや制作者にとって耳は最も重要な道具です。
-
-| 音量（dBSPL） | 露出環境 | 安全な露出時間 |
-|--------------|---------|-------------|
-| 85 dB | 都市の交通騒音 | 8時間 |
-| 90 dB | 工場、ヘッドフォン中音量 | 2時間 |
-| 95 dB | 小型クラブ | 50分 |
-| 100 dB | ライブハウス | 15分 |
-| 105 dB | 大型クラブ | 5分 |
-| 110 dB | フェスティバル前方 | 2分未満 |
-
-### 音の伝搬と空間
-
-音は空間を通じて伝搬し、その過程で様々な影響を受けます。
-
-#### 反射と残響
-
-- **直接音**: 音源からリスナーに直接届く音
-- **初期反射**: 壁や天井で1回反射してから届く音（空間の大きさを感じさせる）
-- **残響（リバーブ）**: 多数の反射が重なり合って生じる音の余韻
-- **残響時間（RT60）**: 音が60dB減衰するまでの時間
-
-#### 音響における重要な現象
-
-| 現象 | 説明 | DJ/制作への影響 |
-|------|------|----------------|
-| 定在波 | 部屋の寸法と波長が一致して特定周波数が増幅/減衰 | ベース音域の不均一な聴こえ方 |
-| コムフィルタリング | 直接音と反射音の干渉で特定周波数が打ち消される | 位相の問題、音の薄さ |
-| マスキング | 大きな音が近い周波数の小さな音を聴こえにくくする | ミックスの明瞭さに影響 |
-| フレッチャーマンソン曲線 | 音量によって各周波数帯域の聴感が変わる | 小音量での制作時の判断ミス |
-
-### 位相（フェーズ）の基礎
-
-位相は波形の時間的な位置関係を示します。DJミキシングと音楽制作の両方で重要な概念です。
-
-#### 位相の基本
-
-- **同位相（In Phase）**: 2つの波形が同じ位置にある状態。音が増幅される
-- **逆位相（Out of Phase / 180度）**: 2つの波形が完全に逆の位置にある状態。音が打ち消し合う
-- **部分的な位相差**: 特定の周波数帯域で増幅・減衰が起こる
-
-#### DJでの位相問題
-
-2つのトラックを同時に再生する際、キックドラムなどの低域成分が逆位相になると、ベースがスカスカになる現象が起こります。これは以下の方法で対処できます。
-
-- ミックスポイントの微調整（波形を見ながら位置を合わせる）
-- EQで低域をどちらか一方に集中させる
-- ミックスの長さを調整し、位相干渉が目立つ時間を短くする
+| Degree | Chord | Notes | Function |
+|--------|-------|-------|----------|
+| I | C | C-E-G | Tonic (stable) |
+| ii | Dm | D-F-A | Subdominant (slightly unstable) |
+| iii | Em | E-G-B | Tonic substitute |
+| IV | F | F-A-C | Subdominant (movement) |
+| V | G | G-B-D | Dominant (tension) |
+| vi | Am | A-C-E | Tonic substitute (minor feel) |
+| vii° | Bdim | B-D-F | Dominant substitute (most unstable) |
 
 ---
 
-## デジタルオーディオの基礎
+## Acoustics Fundamentals
 
-現代のDJと音楽制作は、ほぼ全てがデジタルオーディオの上に成り立っています。デジタルオーディオの仕組みを理解することは、音質の問題を特定したり、最適なワークフローを構築したりする上で欠かせない知識です。
+When working with music, it is important to understand the physical properties of sound itself. Knowledge of acoustics helps whether a DJ is operating a speaker system or a producer is mixing.
 
-### アナログからデジタルへの変換（ADC）
+### What Is Sound?
 
-音は本来、連続的な空気の振動というアナログ信号です。これをコンピュータで処理するためには、デジタル信号に変換する必要があります。この変換プロセスを ADC（Analog-to-Digital Conversion）と呼びます。
+Sound is energy transmitted as vibrations (compression waves) in air.
 
-#### サンプリング
+#### Three Physical Properties of Sound
 
-アナログ信号を一定間隔で「標本化」する工程です。1秒間にどれだけの回数サンプリングするかを「サンプルレート」と呼びます。
+1. **Frequency**: The number of vibrations per second. Measured in Hertz (Hz). Higher frequency = higher pitch
+2. **Amplitude**: The magnitude of vibration. Greater amplitude = louder volume
+3. **Waveform**: The pattern of vibration. Differences in waveform create differences in timbre
 
-| サンプルレート | 用途 | 理論上の最大再生周波数 |
-|-------------|------|---------------------|
-| 44,100 Hz（44.1 kHz） | CD、多くの音楽配信 | 22,050 Hz |
-| 48,000 Hz（48 kHz） | 映像制作、一部の音楽配信 | 24,000 Hz |
-| 88,200 Hz（88.2 kHz） | ハイレゾ音源、プロ制作 | 44,100 Hz |
-| 96,000 Hz（96 kHz） | ハイレゾ音源、プロ制作 | 48,000 Hz |
-| 192,000 Hz（192 kHz） | アーカイブ、マスタリング | 96,000 Hz |
+#### Human Hearing Range
 
-#### ナイキスト定理（Nyquist Theorem）
+The human ear can hear sounds in the range of approximately 20 Hz to 20,000 Hz (20 kHz). However, this range narrows with age (especially high frequencies become harder to hear).
 
-正確に信号を再現するためには、再生したい最大周波数の最低2倍のサンプルレートが必要です。人間の可聴範囲の上限が約20kHzであるため、44.1kHzのサンプルレートは理論上、人間が聴ける全ての音を記録できることになります。
+| Frequency Band | Range | Characteristics | Role in Music |
+|----------------|-------|-----------------|---------------|
+| Sub-bass | 20-60 Hz | Vibrations felt in the body | Kick weight, sub bass |
+| Bass | 60-250 Hz | Low-end power | Basslines, kick body |
+| Low-mid | 250-500 Hz | Warmth, thickness | Vocal low end, instrument body |
+| Midrange | 500-2000 Hz | Clarity, presence | Vocals, melodic instruments |
+| Upper-mid | 2000-4000 Hz | Edge, attack | Percussion attack, clarity |
+| Presence | 4000-6000 Hz | Presence, brightness | Vocal consonants, cymbals |
+| Brilliance | 6000-20000 Hz | Air, sparkle | Hi-hats, air |
 
-ただし、ナイキスト周波数を超える成分が入力に含まれると「エイリアシング」と呼ばれるノイズが発生するため、ADC の前段でアンチエイリアシングフィルタが適用されます。
+### Understanding Decibels (dB)
 
-#### 量子化（クオンタイゼーション）
+The most common unit for measuring volume is the decibel (dB). Because it's on a logarithmic scale, it can be somewhat counterintuitive.
 
-サンプリングされた各点の振幅値を、離散的な数値に変換する工程です。この数値の精度を「ビット深度」と呼びます。
+#### dB Basics
 
-| ビット深度 | ダイナミックレンジ | 用途 |
-|-----------|------------------|------|
-| 16 bit | 約96 dB | CD、一般的な音楽配信 |
-| 24 bit | 約144 dB | プロ制作、ハイレゾ音源 |
-| 32 bit float | 約1,528 dB（理論値） | DAW内部処理、プラグイン |
+- **+3 dB** = Sound energy doubles
+- **+6 dB** = Sound energy quadruples (perceived as only slightly louder)
+- **+10 dB** = Sound energy x10 (perceived as roughly twice as loud)
+- **+20 dB** = Sound energy x100
 
-- **16 bit**: 65,536段階の振幅値を表現可能。CDクオリティとして十分な品質
-- **24 bit**: 16,777,216段階。プロの制作環境での標準。ヘッドルームに余裕があり、後処理でも劣化しにくい
-- **32 bit float**: 浮動小数点方式。DAW内部の計算で使用され、クリッピングを起こさずに処理可能
+#### dB Scales Used in DJ/Production
 
-### オーディオファイルフォーマット
+| Scale | Usage | Reference (0 dB) |
+|-------|-------|-------------------|
+| dBFS | Digital audio | Digital maximum (clipping point) |
+| dBu | Analog equipment | 0.775V |
+| dBSPL | Sound pressure (speaker output) | Human hearing threshold (20 uPa) |
 
-デジタルオーディオは様々なファイル形式で保存されます。大きく分けて、非圧縮、ロスレス圧縮、ロッシー圧縮の3種類があります。
+#### Safe Volume Levels
 
-#### 非圧縮フォーマット
+Prolonged exposure to loud volumes causes permanent hearing damage. For DJs and producers, ears are the most important tool.
 
-| フォーマット | 拡張子 | 特徴 |
-|------------|--------|------|
-| WAV | .wav | Windows標準。最も広く対応されている。メタデータのサポートが限定的 |
-| AIFF | .aif / .aiff | Mac標準。WAVとほぼ同等の品質。メタデータをより豊富に格納可能 |
+| Volume (dBSPL) | Exposure Environment | Safe Exposure Time |
+|----------------|---------------------|--------------------|
+| 85 dB | Urban traffic noise | 8 hours |
+| 90 dB | Factory, headphones at medium volume | 2 hours |
+| 95 dB | Small club | 50 minutes |
+| 100 dB | Live venue | 15 minutes |
+| 105 dB | Large club | 5 minutes |
+| 110 dB | Festival front row | Less than 2 minutes |
 
-#### ロスレス圧縮フォーマット
+### Sound Propagation and Space
 
-| フォーマット | 拡張子 | 圧縮率 | 特徴 |
-|------------|--------|--------|------|
-| FLAC | .flac | 約50-70% | オープンソース。DJ ソフトウェアの多くが対応 |
-| ALAC | .m4a | 約50-70% | Apple のロスレスコーデック。iTunes/Apple Music 対応 |
-| WavPack | .wv | 約50-75% | ハイブリッドモード（ロスレス＋ロッシー）対応 |
+Sound propagates through space and is affected in various ways during the process.
 
-#### ロッシー圧縮フォーマット
+#### Reflection and Reverberation
 
-| フォーマット | 拡張子 | 一般的なビットレート | 特徴 |
-|------------|--------|-------------------|------|
-| MP3 | .mp3 | 128-320 kbps | 最も普及しているが音質は劣る |
-| AAC | .m4a / .aac | 128-320 kbps | MP3より効率的な圧縮。Apple/YouTubeで採用 |
-| OGG Vorbis | .ogg | 128-500 kbps | オープンソース。Spotify等で採用 |
-| Opus | .opus | 64-512 kbps | 最新コーデック。低ビットレートでも高音質 |
+- **Direct Sound**: Sound that reaches the listener directly from the source
+- **Early Reflections**: Sound that reaches the listener after one reflection off walls or ceilings (creates a sense of room size)
+- **Reverberation (Reverb)**: The afterglow of sound created by multiple overlapping reflections
+- **Reverberation Time (RT60)**: The time it takes for sound to decay by 60 dB
 
-#### DJ用途でのファイル形式選択ガイド
+#### Important Acoustic Phenomena
 
-- **最高品質**: WAV または AIFF（非圧縮、44.1kHz / 16bit 以上）
-- **品質と容量のバランス**: FLAC（ロスレス圧縮、元のWAVと同等の品質で約半分の容量）
-- **許容範囲**: MP3 320kbps（プロのDJでも使用されるが、非圧縮との差は存在する）
-- **非推奨**: MP3 128kbps以下（高域の劣化が顕著、クラブのPAシステムで差が顕在化する）
+| Phenomenon | Description | Impact on DJ/Production |
+|------------|-------------|------------------------|
+| Standing Waves | Specific frequencies amplified/attenuated when room dimensions match wavelengths | Uneven bass perception |
+| Comb Filtering | Certain frequencies cancelled by interference between direct and reflected sound | Phase issues, thin sound |
+| Masking | Loud sounds make nearby frequency sounds harder to hear | Affects mix clarity |
+| Fletcher-Munson Curves | Perceived loudness of frequency bands changes with volume | Misjudgments when producing at low volumes |
 
-### ディザリング
+### Phase Basics
 
-ビット深度を下げる際（例：24bit → 16bit）に発生する量子化ノイズを軽減するための技法です。非常に小さなランダムノイズを意図的に加えることで、量子化による歪みを知覚的に目立たなくします。
+Phase indicates the temporal position relationship of waveforms. It's an important concept in both DJ mixing and music production.
 
-#### ディザリングが必要な場面
+#### Phase Fundamentals
 
-- DAW での最終バウンス（24bit 制作 → 16bit CD マスター）
-- マスタリング工程でのビット深度変換
-- リサンプリング処理
+- **In Phase**: Two waveforms at the same position. Sound is amplified
+- **Out of Phase (180 degrees)**: Two waveforms at completely opposite positions. Sounds cancel each other out
+- **Partial Phase Difference**: Amplification and attenuation occur in specific frequency bands
 
-#### ディザリングの種類
+#### Phase Issues in DJing
 
-| 種類 | 特徴 | 用途 |
-|------|------|------|
-| 矩形（Rectangular） | 最も単純。均一なノイズを追加 | 中間工程 |
-| 三角（Triangular） | 矩形より自然。多くのDAWのデフォルト | 汎用 |
-| ノイズシェーピング | 聴覚的に敏感な帯域のノイズを減らし、聴こえにくい帯域に移動 | 最終マスター |
+When playing two tracks simultaneously, if low-frequency components like kick drums are out of phase, the bass can sound thin and hollow. This can be addressed by:
 
-### レイテンシー（遅延）
-
-デジタルオーディオ処理において、入力から出力までに発生する時間的な遅延をレイテンシーと呼びます。DJと制作の両方で重要な概念です。
-
-#### レイテンシーに影響する要因
-
-- **バッファサイズ**: オーディオインターフェースのバッファが大きいほど安定するが、遅延も増える
-- **サンプルレート**: 高いサンプルレートほどレイテンシーが小さくなる
-- **処理負荷**: プラグインの数やCPU使用率が高いと遅延が増加する
-
-#### バッファサイズとレイテンシーの関係（44.1kHz時）
-
-| バッファサイズ | レイテンシー | 用途 |
-|-------------|------------|------|
-| 32 samples | 約0.7 ms | リアルタイム演奏（高CPU負荷） |
-| 64 samples | 約1.5 ms | DJ パフォーマンス、録音 |
-| 128 samples | 約2.9 ms | 制作、軽いプラグイン使用 |
-| 256 samples | 約5.8 ms | ミキシング作業 |
-| 512 samples | 約11.6 ms | 重いプラグインを使用するミキシング |
-| 1024 samples | 約23.2 ms | マスタリング、再生専用 |
-| 2048 samples | 約46.4 ms | 大規模プロジェクトの再生 |
+- Fine-tuning the mix point (aligning positions while viewing waveforms)
+- Using EQ to concentrate low frequencies in one track
+- Adjusting mix length to minimize the time phase interference is noticeable
 
 ---
 
-## DJ と楽曲制作に共通する基礎知識
+## Digital Audio Fundamentals
 
-DJと楽曲制作は異なる活動ですが、共通して必要となる知識や考え方があります。このセクションでは、両方の活動に横断的に関わる基礎概念を解説します。
+Modern DJing and music production are built almost entirely on digital audio. Understanding how digital audio works is essential knowledge for identifying sound quality issues and building optimal workflows.
 
-### ゲインステージング（Gain Staging）
+### Analog-to-Digital Conversion (ADC)
 
-ゲインステージングとは、オーディオ信号がシグナルチェーンの各段階で適切な音量レベルを維持するように管理する技法です。DJ ミキシングでも楽曲制作でも、最も基本的かつ重要なスキルの一つです。
+Sound is inherently an analog signal — continuous vibrations in air. To process it with a computer, it must be converted to a digital signal. This conversion process is called ADC (Analog-to-Digital Conversion).
 
-#### なぜゲインステージングが重要か
+#### Sampling
 
-- **クリッピングの防止**: 信号レベルが高すぎるとデジタル歪みが発生する
-- **ノイズフロアの管理**: 信号レベルが低すぎるとSN比が悪化する
-- **一貫した音量**: 各段階で適切なレベルを保つことで最終出力が安定する
-- **ヘッドルームの確保**: 後段の処理やマスタリングのための余裕を残す
+The process of "sampling" an analog signal at regular intervals. The number of times sampling occurs per second is called the "sample rate."
 
-#### DJ における適切なゲインステージング
+| Sample Rate | Usage | Theoretical Maximum Reproducible Frequency |
+|-------------|-------|---------------------------------------------|
+| 44,100 Hz (44.1 kHz) | CD, most music distribution | 22,050 Hz |
+| 48,000 Hz (48 kHz) | Video production, some music distribution | 24,000 Hz |
+| 88,200 Hz (88.2 kHz) | Hi-res audio, professional production | 44,100 Hz |
+| 96,000 Hz (96 kHz) | Hi-res audio, professional production | 48,000 Hz |
+| 192,000 Hz (192 kHz) | Archival, mastering | 96,000 Hz |
 
-```
-[トラックのゲイン調整]
-    ↓
-[チャンネルフェーダー] ← ピークメーターで -6dB ～ 0dB を目安
-    ↓
-[EQ 処理]
-    ↓
-[マスターフェーダー] ← クリッピングしないように管理
-    ↓
-[出力（PA / スピーカー）]
-```
+#### Nyquist Theorem
 
-実践的なルール：
-- 各トラックのゲインを揃える（ゲインノブで調整）
-- チャンネルフェーダーは「ユニティゲイン」（0dB 位置）を基準にする
-- マスター出力はピークで 0dBFS を超えないようにする
-- 2つのトラックが同時に鳴る場面では、合計レベルに注意する
+To accurately reproduce a signal, a sample rate of at least twice the maximum desired frequency is required. Since the upper limit of human hearing is approximately 20 kHz, a sample rate of 44.1 kHz can theoretically record all sounds humans can hear.
 
-#### 制作におけるゲインステージング
+However, if the input contains components exceeding the Nyquist frequency, noise called "aliasing" occurs, so an anti-aliasing filter is applied before the ADC stage.
 
-```
-[音源（シンセ / サンプル）] ← 出力レベルを -12dB ～ -6dB に設定
-    ↓
-[インサートエフェクト] ← 各プラグインの入出力レベルを一致させる
-    ↓
-[チャンネルフェーダー]
-    ↓
-[バス / グループ]
-    ↓
-[マスターバス] ← ピークで -6dB ～ -3dB 程度のヘッドルーム
-    ↓
-[マスタリング]
-```
+#### Quantization
 
-### ステレオとモノラル
+The process of converting the amplitude value of each sampled point into a discrete numerical value. The precision of this value is called "bit depth."
 
-音の空間的な配置に関する基本概念です。
+| Bit Depth | Dynamic Range | Usage |
+|-----------|---------------|-------|
+| 16 bit | ~96 dB | CD, general music distribution |
+| 24 bit | ~144 dB | Professional production, hi-res audio |
+| 32 bit float | ~1,528 dB (theoretical) | Internal DAW processing, plugins |
 
-#### モノラル（Mono）
+- **16 bit**: Can represent 65,536 amplitude levels. Sufficient quality for CD
+- **24 bit**: 16,777,216 levels. Standard in professional production environments. More headroom, less degradation in post-processing
+- **32 bit float**: Floating-point format. Used for internal DAW calculations, allowing processing without clipping
 
-単一のチャンネルで構成される音声信号。左右のスピーカーから同じ音が出力されます。
+### Audio File Formats
 
-- **利点**: 位相の問題が起きない、どの位置でも同じ音が聴こえる
-- **用途**: キック、ベース、リードボーカルなど中央に配置したい要素
+Digital audio is stored in various file formats, broadly divided into three categories: uncompressed, lossless compressed, and lossy compressed.
 
-#### ステレオ（Stereo）
+#### Uncompressed Formats
 
-左（L）と右（R）の2チャンネルで構成される音声信号。左右に異なる音を配置することで、空間的な広がりを表現します。
+| Format | Extension | Characteristics |
+|--------|-----------|-----------------|
+| WAV | .wav | Windows standard. Most widely supported. Limited metadata support |
+| AIFF | .aif / .aiff | Mac standard. Quality nearly identical to WAV. Can store richer metadata |
 
-- **利点**: 広がり感、臨場感、立体的な音像
-- **用途**: パッド、アンビエンス、ステレオリバーブ、パンニングされた要素
+#### Lossless Compressed Formats
 
-#### Mid/Side 処理
+| Format | Extension | Compression Ratio | Characteristics |
+|--------|-----------|-------------------|-----------------|
+| FLAC | .flac | ~50-70% | Open source. Supported by most DJ software |
+| ALAC | .m4a | ~50-70% | Apple's lossless codec. iTunes/Apple Music compatible |
+| WavPack | .wv | ~50-75% | Hybrid mode (lossless + lossy) support |
 
-ステレオ信号を「Mid（中央成分）」と「Side（左右の差分成分）」に分離して処理する技法です。
+#### Lossy Compressed Formats
 
-- **Mid**: (L + R) / 2 → 中央に定位する要素（キック、ベース、リードボーカル）
-- **Side**: (L - R) / 2 → 左右に広がる要素（アンビエンス、ステレオエフェクト）
+| Format | Extension | Typical Bitrate | Characteristics |
+|--------|-----------|-----------------|-----------------|
+| MP3 | .mp3 | 128-320 kbps | Most widely used but inferior quality |
+| AAC | .m4a / .aac | 128-320 kbps | More efficient compression than MP3. Used by Apple/YouTube |
+| OGG Vorbis | .ogg | 128-500 kbps | Open source. Used by Spotify etc. |
+| Opus | .opus | 64-512 kbps | Latest codec. High quality even at low bitrates |
 
-DJ でもマスタリングでも活用される重要な概念で、以下の場面で使われます：
-- ミックス中のベース成分の制御（Sideの低域をカット）
-- ステレオイメージの拡張（Side成分のブースト）
-- モノ互換性の確認（Mid成分のみを聴く）
+#### File Format Selection Guide for DJ Use
 
-### ダイナミクスの基礎
+- **Highest quality**: WAV or AIFF (uncompressed, 44.1 kHz / 16 bit or higher)
+- **Balance of quality and storage**: FLAC (lossless compressed, same quality as original WAV at roughly half the size)
+- **Acceptable**: MP3 320 kbps (used even by professional DJs, but differences from uncompressed exist)
+- **Not recommended**: MP3 128 kbps or lower (noticeable high-frequency degradation, differences become apparent on club PA systems)
 
-音の「大きさの変化」を扱う概念です。ダイナミクスの理解は、DJミキシングの音圧管理にも、制作のミキシング・マスタリングにも不可欠です。
+### Dithering
 
-#### ダイナミックレンジ
+A technique to reduce quantization noise that occurs when reducing bit depth (e.g., 24 bit -> 16 bit). By intentionally adding very small random noise, quantization distortion becomes perceptually less noticeable.
 
-最も小さい音と最も大きい音の差をダイナミックレンジと呼びます。
+#### When Dithering Is Needed
 
-- **クラシック音楽**: 非常に広いダイナミックレンジ（pp からff まで）
-- **ポップス/ロック**: 中程度のダイナミックレンジ
-- **電子音楽/EDM**: 比較的狭いダイナミックレンジ（音圧重視）
-- **マスタリング済みトラック**: さらにダイナミックレンジが圧縮される
+- Final bounce in a DAW (24 bit production -> 16 bit CD master)
+- Bit depth conversion during mastering
+- Resampling processes
 
-#### 基本的なダイナミクス処理
+#### Types of Dithering
 
-| 処理 | 機能 | DJ での用途 | 制作での用途 |
-|------|------|------------|------------|
-| コンプレッサー | 大きい音を抑える | マスター出力の保護 | 各トラックの音量均一化 |
-| リミッター | 一定レベル以上を通さない | PA保護、クリッピング防止 | マスタリング、音圧稼ぎ |
-| ゲート | 一定レベル以下の音を消す | - | ドラムの処理、ノイズ除去 |
-| エキスパンダー | 小さい音をさらに小さくする | - | ダイナミックレンジの拡大 |
+| Type | Characteristics | Usage |
+|------|-----------------|-------|
+| Rectangular | Simplest. Adds uniform noise | Intermediate stages |
+| Triangular | More natural than rectangular. Default in many DAWs | General purpose |
+| Noise Shaping | Reduces noise in perceptually sensitive bands and moves it to less audible bands | Final master |
 
-#### コンプレッサーの基本パラメータ
+### Latency
 
-コンプレッサーは DJ と制作の両方で最も頻繁に使われるダイナミクス処理ツールです。
+In digital audio processing, the time delay from input to output is called latency. It's an important concept in both DJing and production.
 
-- **スレッショルド（Threshold）**: コンプレッションが始まる音量レベル
-- **レシオ（Ratio）**: 圧縮の比率（例：4:1 = スレッショルドを超えた4dBが1dBに圧縮される）
-- **アタック（Attack）**: コンプレッションが効き始めるまでの時間
-- **リリース（Release）**: 音量がスレッショルド以下に戻った後、コンプレッションが解除されるまでの時間
-- **ニー（Knee）**: スレッショルド付近の圧縮の滑らかさ（ハードニー/ソフトニー）
-- **メイクアップゲイン（Makeup Gain）**: 圧縮で失われた音量を補填する
+#### Factors Affecting Latency
 
-### EQ（イコライザー）の基礎
+- **Buffer Size**: Larger audio interface buffers increase stability but also increase delay
+- **Sample Rate**: Higher sample rates result in lower latency
+- **Processing Load**: More plugins and higher CPU usage increase delay
 
-EQは周波数帯域ごとの音量を調整するツールで、DJミキサーにも制作ツールにも搭載されています。
+#### Relationship Between Buffer Size and Latency (at 44.1 kHz)
 
-#### EQの種類
-
-| 種類 | 特徴 | 用途 |
-|------|------|------|
-| パラメトリックEQ | 周波数・幅・ゲインを自由に設定 | 制作のミキシング、精密な調整 |
-| グラフィックEQ | 固定された周波数帯域のスライダー | PA調整、会場の音響補正 |
-| シェルビングEQ | 指定周波数以上/以下を一括調整 | 高域/低域のブースト/カット |
-| DJミキサーEQ | 3バンド（Lo/Mid/Hi）が一般的 | DJミキシング中のトランジション |
-
-#### DJミキサーにおけるEQの役割
-
-DJミキサーのEQは3バンド（Low、Mid、High）が基本で、各バンドの役割は以下の通りです。
-
-- **Low（低域）**: キック、ベースラインの制御。トランジション時に最も重要
-- **Mid（中域）**: ボーカル、メロディ、主要な楽器の制御
-- **High（高域）**: ハイハット、シンバル、空気感の制御
-
-DJトランジションでの典型的なEQ操作：
-1. 次のトラックの Low を完全にカット（Kill）
-2. ビートマッチングしながら徐々にフェーダーを入れる
-3. ミックスポイントで Low を入れ替える（現在のトラックの Low をカット、次のトラックの Low を入れる）
-4. 残りの帯域を徐々にクロスフェードする
+| Buffer Size | Latency | Usage |
+|-------------|---------|-------|
+| 32 samples | ~0.7 ms | Real-time performance (high CPU load) |
+| 64 samples | ~1.5 ms | DJ performance, recording |
+| 128 samples | ~2.9 ms | Production, light plugin use |
+| 256 samples | ~5.8 ms | Mixing work |
+| 512 samples | ~11.6 ms | Mixing with heavy plugins |
+| 1024 samples | ~23.2 ms | Mastering, playback only |
+| 2048 samples | ~46.4 ms | Large project playback |
 
 ---
 
-## 機材の基本概念
+## Foundational Knowledge Common to DJing and Production
 
-DJと楽曲制作で使用される機材は多岐にわたりますが、基本的なカテゴリとその役割を理解しておくことで、初めて触れる機材にも素早く対応できるようになります。
+DJing and music production are different activities, but they share certain required knowledge and approaches. This section covers fundamental concepts that span both activities.
 
-### DJ機材の基本構成
+### Gain Staging
 
-#### 最小限のDJセットアップ
+Gain staging is the technique of managing audio signal levels to maintain appropriate volume at each stage of the signal chain. It is one of the most basic yet important skills in both DJ mixing and music production.
 
-DJプレイに必要な最小構成は「2つの再生機器」と「1つのミキサー」です。
+#### Why Gain Staging Matters
 
-```
-[デッキA（音源再生）] ──→ [DJミキサー] ──→ [スピーカーシステム / PA]
-[デッキB（音源再生）] ──↗        ↓
-                              [ヘッドフォン（モニター用）]
-```
+- **Preventing clipping**: Digital distortion occurs when signal levels are too high
+- **Managing the noise floor**: Signal-to-noise ratio deteriorates when signal levels are too low
+- **Consistent volume**: Maintaining appropriate levels at each stage stabilizes final output
+- **Preserving headroom**: Leaving room for downstream processing and mastering
 
-#### 再生機器の種類と特徴
-
-| 機器カテゴリ | 代表的な製品例 | メディア | 特徴 |
-|------------|-------------|---------|------|
-| ターンテーブル | Technics SL-1200MK7 | アナログレコード | スクラッチ対応、物理的操作の楽しさ |
-| CDJ / メディアプレーヤー | Pioneer DJ CDJ-3000 | USB / SD / CD / LAN | クラブの業界標準、高い信頼性 |
-| DJコントローラー | Pioneer DJ DDJ-1000 | PC接続（USBオーディオ） | コストパフォーマンスが高い、持ち運びやすい |
-| オールインワンシステム | Pioneer DJ XDJ-RX3 | USB | PC不要、コントローラーとCDJの中間 |
-
-#### DJミキサーの基本構造
-
-DJミキサーは以下の機能を統合した機器です。
-
-- **入力チャンネル**: 各再生機器からの信号を受け入れるセクション
-- **ゲインコントロール**: 各チャンネルの入力レベルを調整
-- **EQ セクション**: 周波数帯域ごとの音量調整（通常3バンド）
-- **チャンネルフェーダー**: 各チャンネルの出力レベルを制御
-- **クロスフェーダー**: 2つのチャンネル間をスムーズに切り替え
-- **ヘッドフォンキュー**: 出力前の音をヘッドフォンでプレビュー
-- **マスターセクション**: 最終出力のレベル制御とメーター表示
-- **エフェクトセクション**: 内蔵エフェクト（機種による）
-
-### 楽曲制作機材の基本構成
-
-#### DAWを中心とした制作環境
+#### Proper Gain Staging for DJs
 
 ```
-[MIDIコントローラー] ──→
-[マイク/楽器] ──→ [オーディオI/F] ←→ [コンピュータ（DAW）]
-                                         ↓
-                                   [オーディオI/F] ──→ [モニタースピーカー]
-                                                   ──→ [ヘッドフォン]
+[Track Gain Adjustment]
+    |
+[Channel Fader] <- Aim for -6 dB to 0 dB on the peak meter
+    |
+[EQ Processing]
+    |
+[Master Fader] <- Manage to prevent clipping
+    |
+[Output (PA / Speakers)]
 ```
 
-#### 主要DAWの比較
+Practical rules:
+- Match the gain of each track (adjust with the gain knob)
+- Use the channel fader at "unity gain" (0 dB position) as the baseline
+- Keep master output below 0 dBFS on peaks
+- Pay attention to combined levels when two tracks play simultaneously
 
-| DAW | プラットフォーム | 強み | 主な用途 |
-|-----|---------------|------|---------|
-| Ableton Live | Win / Mac | セッションビュー、ライブパフォーマンス | 電子音楽、ライブ |
-| Logic Pro | Mac のみ | 高品質内蔵音源、コストパフォーマンス | オールラウンド制作 |
-| FL Studio | Win / Mac | パターンベース、ビートメイキング | ヒップホップ、EDM |
-| Pro Tools | Win / Mac | 録音・編集の業界標準 | レコーディング、ポストプロダクション |
-| Bitwig Studio | Win / Mac / Linux | モジュラー機能、柔軟なルーティング | 実験的電子音楽 |
+#### Gain Staging in Production
 
-#### オーディオインターフェースの役割
+```
+[Sound Source (Synth / Sample)] <- Set output level to -12 dB to -6 dB
+    |
+[Insert Effects] <- Match input/output levels of each plugin
+    |
+[Channel Fader]
+    |
+[Bus / Group]
+    |
+[Master Bus] <- Leave approximately -6 dB to -3 dB headroom on peaks
+    |
+[Mastering]
+```
 
-オーディオインターフェース（オーディオI/F）は、コンピュータと外部の音声機器を高品質で接続するための機器です。
+### Stereo and Mono
 
-主要な選定基準：
-- **入出力数**: 必要なマイク/楽器入力とスピーカー出力の数
-- **サンプルレート/ビット深度**: 対応する最大スペック
-- **レイテンシー**: ドライバの品質と処理速度
-- **プリアンプの品質**: マイク入力の音質に直結
-- **接続方式**: USB, Thunderbolt, PCIe など
+Basic concepts related to the spatial placement of sound.
 
-### オーディオ接続の基礎
+#### Mono
 
-機材同士を正しく接続するためには、各種コネクタとケーブルの知識が必要です。
+An audio signal consisting of a single channel. The same sound is output from both left and right speakers.
 
-#### 主要なアナログ接続
+- **Advantages**: No phase issues, same sound heard from any position
+- **Usage**: Kick, bass, lead vocals — elements to be placed in the center
 
-| コネクタ | 方式 | 信号レベル | 主な用途 |
-|---------|------|-----------|---------|
-| RCA | アンバランス | -10 dBV（民生用） | CDJ出力、DJ機器間 |
-| TRS（6.35mm） | バランス | +4 dBu（業務用） | モニタースピーカー、スタジオ機器 |
-| XLR | バランス | +4 dBu（業務用） | マイク接続、PA機器 |
-| 3.5mm TRS | アンバランス | 各種 | ヘッドフォン、モバイル機器 |
+#### Stereo
 
-#### バランスとアンバランスの違い
+An audio signal consisting of two channels: left (L) and right (R). By placing different sounds on left and right, spatial width is expressed.
 
-- **アンバランス接続**: 信号線とグランドの2芯構造。ノイズに弱いが、ケーブルが安価
-- **バランス接続**: 正相信号、逆相信号、グランドの3芯構造。ノイズに強く、長距離配線に適する
+- **Advantages**: Sense of width, immersion, three-dimensional sound image
+- **Usage**: Pads, ambience, stereo reverb, panned elements
+
+#### Mid/Side Processing
+
+A technique that separates a stereo signal into "Mid (center component)" and "Side (left-right difference component)" for processing.
+
+- **Mid**: (L + R) / 2 -> Elements positioned in the center (kick, bass, lead vocals)
+- **Side**: (L - R) / 2 -> Elements spread to left and right (ambience, stereo effects)
+
+An important concept used in both DJing and mastering, applied in the following situations:
+- Controlling bass content during mixing (cutting low frequencies in the Side)
+- Expanding the stereo image (boosting the Side component)
+- Checking mono compatibility (listening to only the Mid component)
+
+### Dynamics Fundamentals
+
+Concepts dealing with changes in volume level. Understanding dynamics is essential for both volume management in DJ mixing and mixing/mastering in production.
+
+#### Dynamic Range
+
+The difference between the quietest and loudest sound is called dynamic range.
+
+- **Classical music**: Very wide dynamic range (from pp to ff)
+- **Pop/Rock**: Moderate dynamic range
+- **Electronic music/EDM**: Relatively narrow dynamic range (loudness-focused)
+- **Mastered tracks**: Dynamic range is further compressed
+
+#### Basic Dynamics Processing
+
+| Process | Function | DJ Usage | Production Usage |
+|---------|----------|----------|------------------|
+| Compressor | Reduces loud sounds | Protecting master output | Evening out track volumes |
+| Limiter | Blocks signal above a certain level | PA protection, preventing clipping | Mastering, increasing loudness |
+| Gate | Eliminates sounds below a certain level | - | Drum processing, noise removal |
+| Expander | Makes quiet sounds even quieter | - | Expanding dynamic range |
+
+#### Basic Compressor Parameters
+
+The compressor is the most frequently used dynamics processing tool in both DJing and production.
+
+- **Threshold**: The volume level at which compression begins
+- **Ratio**: The compression ratio (e.g., 4:1 = 4 dB above threshold compressed to 1 dB)
+- **Attack**: The time before compression takes effect
+- **Release**: The time after the signal drops below threshold before compression is released
+- **Knee**: The smoothness of compression around the threshold (hard knee / soft knee)
+- **Makeup Gain**: Compensates for volume lost through compression
+
+### EQ (Equalizer) Fundamentals
+
+EQ is a tool for adjusting volume by frequency band, found in both DJ mixers and production tools.
+
+#### Types of EQ
+
+| Type | Characteristics | Usage |
+|------|-----------------|-------|
+| Parametric EQ | Freely adjustable frequency, width, and gain | Production mixing, precise adjustments |
+| Graphic EQ | Sliders for fixed frequency bands | PA adjustment, venue acoustic correction |
+| Shelving EQ | Adjusts everything above/below a specified frequency at once | Boosting/cutting highs/lows |
+| DJ Mixer EQ | Typically 3-band (Lo/Mid/Hi) | Transitions during DJ mixing |
+
+#### Role of EQ on DJ Mixers
+
+DJ mixer EQ is typically 3-band (Low, Mid, High), with each band serving the following role:
+
+- **Low**: Controls kick and bassline. Most important during transitions
+- **Mid**: Controls vocals, melody, and main instruments
+- **High**: Controls hi-hats, cymbals, and air
+
+Typical EQ operation during DJ transitions:
+1. Completely cut (kill) the Low of the incoming track
+2. Gradually bring up the fader while beatmatching
+3. Swap the Low at the mix point (cut the Low of the outgoing track, bring in the Low of the incoming track)
+4. Gradually crossfade the remaining bands
 
 ---
 
-## 音楽ジャンルの系譜
+## Equipment Fundamentals
 
-電子音楽は1970年代の実験的な音楽から始まり、現在では数百ものサブジャンルに細分化されています。DJとして活動する上で、ジャンルの歴史と関係性を理解しておくことは、選曲の幅を広げ、独自のスタイルを確立するための重要な基盤となります。
+Equipment used in DJing and music production spans many categories, but understanding the basic categories and their roles allows you to quickly adapt to new equipment.
 
-### 電子音楽の黎明期（1970年代）
+### Basic DJ Equipment Setup
 
-#### パイオニアたち
+#### Minimum DJ Setup
 
-電子音楽の歴史は、シンセサイザーの発明とともに始まりました。
-
-- **Kraftwerk**（ドイツ）: 電子音楽のパイオニア。完全に電子的な音楽制作の先駆者であり、テクノ、シンセポップ、エレクトロなど全ての電子音楽ジャンルに影響を与えた
-- **Giorgio Moroder**: ディスコとシンセサイザーを融合し、後のハウスミュージックの原型を作った
-- **Yellow Magic Orchestra（YMO）**: 日本発の電子音楽グループ。テクノポップの先駆者として世界的に影響を与えた
-
-#### 重要なシンセサイザーとドラムマシン
-
-| 機材 | 発売年 | 影響を与えたジャンル |
-|------|-------|------------------|
-| Moog Minimoog | 1970 | プログレッシブロック、シンセポップ |
-| Roland TR-808 | 1980 | ヒップホップ、エレクトロ、トラップ |
-| Roland TB-303 | 1981 | アシッドハウス、アシッドテクノ |
-| Roland TR-909 | 1983 | ハウス、テクノ |
-| Yamaha DX7 | 1983 | ポップス、R&B、シンセポップ |
-| Roland Jupiter-8 | 1981 | シンセポップ、ニューウェーブ |
-
-### ハウスミュージックの誕生と発展（1980年代～）
-
-シカゴのウェアハウスクラブで DJ Frankie Knuckles が生み出した音楽スタイルが「ハウス」の語源です。ディスコの流れを汲みつつ、ドラムマシンとシンセサイザーで制作された4つ打ちビートが特徴です。
-
-#### ハウスの主要サブジャンル
-
-| サブジャンル | BPM | 特徴 |
-|------------|-----|------|
-| Chicago House | 118-126 | ディスコ的要素、ソウルフルなボーカル |
-| Deep House | 118-125 | 深みのあるベース、メロウでアトモスフェリック |
-| Acid House | 120-130 | Roland TB-303の特徴的な「アシッド」サウンド |
-| Progressive House | 126-132 | 長い展開、壮大なブレイクダウン |
-| Tech House | 122-130 | テクノ的要素を取り入れたハウス |
-| Afro House | 120-128 | アフリカンパーカッション、トライバル要素 |
-| Melodic House | 120-128 | メロディアスなシンセ、感情的な展開 |
-| Minimal House | 120-128 | 極限まで削ぎ落とされた要素 |
-
-### テクノの誕生と発展（1980年代～）
-
-デトロイトの Juan Atkins、Derrick May、Kevin Saunderson（「ベルヴィルスリー」）が生み出した、より機械的で未来志向のサウンドです。
-
-#### テクノの主要サブジャンル
-
-| サブジャンル | BPM | 特徴 |
-|------------|-----|------|
-| Detroit Techno | 125-135 | ファンク的要素、宇宙的・未来的な雰囲気 |
-| Minimal Techno | 125-135 | 極限まで削ぎ落とされた要素、反復 |
-| Dub Techno | 120-130 | ダブ処理（リバーブ、ディレイ）を多用 |
-| Industrial Techno | 130-150 | インダストリアルの影響、ダーク、ハード |
-| Melodic Techno | 125-135 | メロディアスなシンセ、エモーショナル |
-| Hard Techno | 140-160 | 高速、アグレッシブ、歪んだサウンド |
-
-### その他の主要ジャンル系譜
-
-#### ジャングル / ドラムンベース（1990年代 UK）
-
-UKのレイヴカルチャーから生まれた高速ブレイクビーツジャンル。レゲエ/ダブの影響を強く受けています。160-180 BPMの高速テンポと、重厚で複雑なベースラインが特徴です。Liquid DnB、Neurofunk、Jump Upなどのサブジャンルに発展しました。
-
-#### トランス（1990年代 ドイツ）
-
-メロディアスなシンセパッドと長いビルドアップ、カタルシス的なブレイクダウンが特徴。128-140 BPM。Psytrance、Uplifting Trance、Progressive Tranceなど多様なサブジャンルが存在します。
-
-#### ダブステップ（2000年代 UK）
-
-ロンドン南部で誕生。140 BPMのハーフタイムリズム（体感70 BPM）と、強烈なベースドロップが特徴。後にBrostep（より攻撃的なスタイル）へと発展しました。
-
-#### ヒップホップ / トラップ
-
-ニューヨークで生まれたヒップホップは、サンプリングとブレイクビーツを基盤としています。2010年代以降、808ベースとハイハットロールを特徴とするトラップが電子音楽シーンにも大きな影響を与えています。
-
-### ジャンル系譜マップ
+The minimum setup for DJ play consists of "two playback devices" and "one mixer."
 
 ```
-ディスコ (1970s)
-  ├──→ ハウス (1980s Chicago)
-  │      ├──→ Deep House / Acid House / Progressive House
-  │      ├──→ Tech House ←─── テクノの影響
-  │      └──→ UK Garage → 2-Step → Grime / Dubstep
-  │
-  └──→ Hi-NRG → Italo Disco → Eurodance → Trance
-                                              ├──→ Psytrance
-                                              └──→ Progressive Trance
+[Deck A (Music Playback)] --> [DJ Mixer] --> [Speaker System / PA]
+[Deck B (Music Playback)] --/        |
+                              [Headphones (Monitoring)]
+```
+
+#### Types and Features of Playback Devices
+
+| Device Category | Representative Products | Media | Features |
+|----------------|------------------------|-------|----------|
+| Turntable | Technics SL-1200MK7 | Vinyl records | Scratch-capable, physical operation enjoyment |
+| CDJ / Media Player | Pioneer DJ CDJ-3000 | USB / SD / CD / LAN | Club industry standard, high reliability |
+| DJ Controller | Pioneer DJ DDJ-1000 | PC connection (USB Audio) | High cost-performance, portable |
+| All-in-One System | Pioneer DJ XDJ-RX3 | USB | No PC needed, between controller and CDJ |
+
+#### Basic DJ Mixer Structure
+
+A DJ mixer integrates the following functions:
+
+- **Input Channels**: Sections that receive signals from each playback device
+- **Gain Control**: Adjusts the input level of each channel
+- **EQ Section**: Volume adjustment by frequency band (typically 3-band)
+- **Channel Faders**: Controls the output level of each channel
+- **Crossfader**: Smoothly transitions between two channels
+- **Headphone Cue**: Previews pre-output audio through headphones
+- **Master Section**: Final output level control and meter display
+- **Effects Section**: Built-in effects (varies by model)
+
+### Basic Production Equipment Setup
+
+#### DAW-Centered Production Environment
+
+```
+[MIDI Controller] -->
+[Mic/Instrument] --> [Audio I/F] <-> [Computer (DAW)]
+                                         |
+                                   [Audio I/F] --> [Monitor Speakers]
+                                               --> [Headphones]
+```
+
+#### Major DAW Comparison
+
+| DAW | Platform | Strengths | Primary Usage |
+|-----|----------|-----------|---------------|
+| Ableton Live | Win / Mac | Session View, live performance | Electronic music, live |
+| Logic Pro | Mac only | High-quality built-in instruments, cost-performance | All-around production |
+| FL Studio | Win / Mac | Pattern-based, beatmaking | Hip Hop, EDM |
+| Pro Tools | Win / Mac | Industry standard for recording/editing | Recording, post-production |
+| Bitwig Studio | Win / Mac / Linux | Modular features, flexible routing | Experimental electronic music |
+
+#### Role of Audio Interfaces
+
+An audio interface connects your computer to external audio devices with high quality.
+
+Key selection criteria:
+- **Input/Output Count**: Number of mic/instrument inputs and speaker outputs needed
+- **Sample Rate/Bit Depth**: Maximum supported specs
+- **Latency**: Driver quality and processing speed
+- **Preamp Quality**: Directly affects microphone input sound quality
+- **Connection Type**: USB, Thunderbolt, PCIe, etc.
+
+### Audio Connection Fundamentals
+
+Proper knowledge of connectors and cables is needed to correctly connect equipment.
+
+#### Main Analog Connections
+
+| Connector | Type | Signal Level | Primary Usage |
+|-----------|------|-------------|---------------|
+| RCA | Unbalanced | -10 dBV (consumer) | CDJ output, between DJ gear |
+| TRS (6.35mm) | Balanced | +4 dBu (professional) | Monitor speakers, studio gear |
+| XLR | Balanced | +4 dBu (professional) | Mic connections, PA equipment |
+| 3.5mm TRS | Unbalanced | Various | Headphones, mobile devices |
+
+#### Difference Between Balanced and Unbalanced
+
+- **Unbalanced connection**: 2-conductor structure with signal and ground. Susceptible to noise but cables are inexpensive
+- **Balanced connection**: 3-conductor structure with positive signal, inverted signal, and ground. Noise-resistant and suitable for long cable runs
+
+---
+
+## Genealogy of Music Genres
+
+Electronic music began with experimental music in the 1970s and has now branched into hundreds of subgenres. For DJs, understanding genre history and relationships is an important foundation for expanding track selection range and establishing a unique style.
+
+### The Dawn of Electronic Music (1970s)
+
+#### Pioneers
+
+The history of electronic music began with the invention of the synthesizer.
+
+- **Kraftwerk** (Germany): Pioneers of electronic music. Trailblazers of entirely electronic music production, influencing techno, synth-pop, electro, and all electronic music genres
+- **Giorgio Moroder**: Fused disco and synthesizers, creating the prototype for later house music
+- **Yellow Magic Orchestra (YMO)**: A Japanese electronic music group. Globally influential as pioneers of technopop
+
+#### Important Synthesizers and Drum Machines
+
+| Equipment | Release Year | Genres Influenced |
+|-----------|-------------|-------------------|
+| Moog Minimoog | 1970 | Progressive rock, synth-pop |
+| Roland TR-808 | 1980 | Hip hop, electro, trap |
+| Roland TB-303 | 1981 | Acid house, acid techno |
+| Roland TR-909 | 1983 | House, techno |
+| Yamaha DX7 | 1983 | Pop, R&B, synth-pop |
+| Roland Jupiter-8 | 1981 | Synth-pop, new wave |
+
+### Birth and Evolution of House Music (1980s onward)
+
+The music style created by DJ Frankie Knuckles at the Warehouse club in Chicago is the origin of the term "house." Rooted in disco, it features four-on-the-floor beats produced with drum machines and synthesizers.
+
+#### Major House Subgenres
+
+| Subgenre | BPM | Characteristics |
+|----------|-----|-----------------|
+| Chicago House | 118-126 | Disco elements, soulful vocals |
+| Deep House | 118-125 | Deep bass, mellow and atmospheric |
+| Acid House | 120-130 | Distinctive "acid" sound of the Roland TB-303 |
+| Progressive House | 126-132 | Long development, grand breakdowns |
+| Tech House | 122-130 | House incorporating techno elements |
+| Afro House | 120-128 | African percussion, tribal elements |
+| Melodic House | 120-128 | Melodic synths, emotional development |
+| Minimal House | 120-128 | Elements stripped to the bare minimum |
+
+### Birth and Evolution of Techno (1980s onward)
+
+A more mechanical and futuristic sound created by Detroit's Juan Atkins, Derrick May, and Kevin Saunderson (the "Belleville Three").
+
+#### Major Techno Subgenres
+
+| Subgenre | BPM | Characteristics |
+|----------|-----|-----------------|
+| Detroit Techno | 125-135 | Funk elements, cosmic/futuristic atmosphere |
+| Minimal Techno | 125-135 | Elements stripped to the minimum, repetition |
+| Dub Techno | 120-130 | Heavy use of dub processing (reverb, delay) |
+| Industrial Techno | 130-150 | Industrial influence, dark, hard |
+| Melodic Techno | 125-135 | Melodic synths, emotional |
+| Hard Techno | 140-160 | Fast, aggressive, distorted sounds |
+
+### Other Major Genre Lineages
+
+#### Jungle / Drum & Bass (1990s UK)
+
+A high-speed breakbeat genre born from UK rave culture. Strongly influenced by reggae/dub. Characterized by fast tempos of 160-180 BPM and heavy, complex basslines. Evolved into subgenres like Liquid DnB, Neurofunk, and Jump Up.
+
+#### Trance (1990s Germany)
+
+Characterized by melodic synth pads, long build-ups, and cathartic breakdowns. 128-140 BPM. Diverse subgenres exist including Psytrance, Uplifting Trance, and Progressive Trance.
+
+#### Dubstep (2000s UK)
+
+Born in south London. Features a 140 BPM half-time rhythm (perceived 70 BPM) and intense bass drops. Later evolved into Brostep (a more aggressive style).
+
+#### Hip Hop / Trap
+
+Hip hop, born in New York, is based on sampling and breakbeats. From the 2010s onward, trap — characterized by 808 bass and hi-hat rolls — has had a major influence on the electronic music scene.
+
+### Genre Genealogy Map
+
+```
+Disco (1970s)
+  |---> House (1980s Chicago)
+  |      |---> Deep House / Acid House / Progressive House
+  |      |---> Tech House <--- Techno influence
+  |      '---> UK Garage -> 2-Step -> Grime / Dubstep
+  |
+  '---> Hi-NRG -> Italo Disco -> Eurodance -> Trance
+                                              |---> Psytrance
+                                              '---> Progressive Trance
 
 Kraftwerk / Electro (1970s-80s)
-  ├──→ テクノ (1980s Detroit)
-  │      ├──→ Minimal / Dub / Industrial / Hard Techno
-  │      └──→ Melodic Techno
-  └──→ Electro → Electro House → EDM / Big Room
+  |---> Techno (1980s Detroit)
+  |      |---> Minimal / Dub / Industrial / Hard Techno
+  |      '---> Melodic Techno
+  '---> Electro -> Electro House -> EDM / Big Room
 
 Hip Hop (1970s NYC)
-  ├──→ Breakbeats → Big Beat
-  ├──→ Trip Hop → Downtempo / Ambient
-  └──→ Trap → Bass Music / Hybrid Trap
+  |---> Breakbeats -> Big Beat
+  |---> Trip Hop -> Downtempo / Ambient
+  '---> Trap -> Bass Music / Hybrid Trap
 
 Reggae / Dub (Jamaica)
-  ├──→ Jungle → Drum & Bass (Liquid, Neurofunk, Jump Up)
-  └──→ Dub → Dub Techno
+  |---> Jungle -> Drum & Bass (Liquid, Neurofunk, Jump Up)
+  '---> Dub -> Dub Techno
 ```
 
 ---
 
-## 学習ロードマップ
+## Learning Roadmap
 
-DJ/音楽制作の基礎知識を効率的に習得するために、段階的な学習パスを提案します。個人の目標（DJメイン、制作メイン、両方）に合わせてカスタマイズしてください。
+To efficiently acquire foundational DJ/music production knowledge, we propose a step-by-step learning path. Customize it based on your personal goals (DJ-focused, production-focused, or both).
 
-### Phase 1: 音楽の基礎理解（目安：1-2週間）
+### Phase 1: Understanding Music Basics (Estimated: 1-2 weeks)
 
-この段階では、音楽を「感覚」ではなく「構造」として捉えられるようになることを目指します。
+At this stage, the goal is to shift from perceiving music as "feeling" to understanding it as "structure."
 
-#### 学習項目
+#### Study Items
 
-1. **リズムの基礎を理解する**
-   - BPMの概念を理解し、聴いている曲のテンポを体感できるようにする
-   - 4/4拍子の構造を理解し、小節を数えられるようにする
-   - フレーズ（4小節、8小節、16小節）の区切りを聴き取れるようにする
+1. **Understand rhythm basics**
+   - Understand the concept of BPM and be able to feel the tempo of tracks you listen to
+   - Understand 4/4 time structure and be able to count bars
+   - Be able to hear phrase boundaries (4-bar, 8-bar, 16-bar)
 
-2. **音階とキーの基礎を理解する**
-   - メジャーとマイナーの違いを聴き分けられるようにする
-   - 12個のキーの存在を知る
-   - 五度圏/Camelot Wheelの基本的な読み方を覚える
+2. **Understand scale and key basics**
+   - Be able to distinguish between major and minor by ear
+   - Know that 12 keys exist
+   - Learn the basic way to read the Circle of Fifths / Camelot Wheel
 
-3. **音の物理的な特性を理解する**
-   - 周波数帯域（低域・中域・高域）の違いを聴き分ける
-   - デシベルの基本的な概念を理解する
-   - 安全な音量レベルについて知る
+3. **Understand physical properties of sound**
+   - Distinguish between frequency bands (low, mid, high) by ear
+   - Understand the basic concept of decibels
+   - Know about safe volume levels
 
-#### 実践課題
+#### Practical Exercises
 
-- 好きな曲を10曲選び、それぞれのBPM、キー、ジャンルを調べる
-- 曲を聴きながら4小節ごとに手を叩く練習をする
-- EQ（イコライザー）で低域・中域・高域をカット/ブーストして違いを体感する
+- Choose 10 favorite tracks and look up the BPM, key, and genre of each
+- Practice clapping every 4 bars while listening to music
+- Use EQ to cut/boost low, mid, and high frequencies to feel the differences
 
-### Phase 2: デジタルオーディオとツールの理解（目安：1-2週間）
+### Phase 2: Understanding Digital Audio and Tools (Estimated: 1-2 weeks)
 
-デジタルオーディオの仕組みを理解し、ツールの使い方に慣れる段階です。
+The stage of understanding digital audio mechanics and getting comfortable with tools.
 
-#### 学習項目
+#### Study Items
 
-1. **デジタルオーディオの基礎**
-   - サンプルレートとビット深度の概念を理解する
-   - ファイルフォーマットの違い（WAV, FLAC, MP3）を理解する
-   - レイテンシーの概念を理解する
+1. **Digital audio basics**
+   - Understand the concepts of sample rate and bit depth
+   - Understand the differences between file formats (WAV, FLAC, MP3)
+   - Understand the concept of latency
 
-2. **シグナルフローとゲインステージング**
-   - 音がどのような経路を辿って出力されるかを理解する
-   - 適切なレベル管理の重要性を理解する
-   - クリッピングの防止方法を知る
+2. **Signal flow and gain staging**
+   - Understand the path audio takes to reach the output
+   - Understand the importance of proper level management
+   - Know how to prevent clipping
 
-3. **EQとダイナミクスの基礎**
-   - EQの種類と使い方を理解する
-   - コンプレッサーの基本パラメータを理解する
-   - フィルターの効果を体感する
+3. **EQ and dynamics basics**
+   - Understand the types and uses of EQ
+   - Understand the basic parameters of a compressor
+   - Experience the effect of filters
 
-#### 実践課題
+#### Practical Exercises
 
-- 自分のDJソフトウェア/DAWでオーディオ設定を確認し、最適な設定にする
-- 異なるファイルフォーマット（WAV vs MP3 128kbps）の音質を比較する
-- EQの各バンドを操作して周波数帯域ごとの効果を体感する
+- Check the audio settings in your DJ software/DAW and optimize them
+- Compare the sound quality of different file formats (WAV vs MP3 128 kbps)
+- Operate each EQ band to feel the effect on each frequency range
 
-### Phase 3: 音楽理論の実践的応用（目安：2-4週間）
+### Phase 3: Practical Application of Music Theory (Estimated: 2-4 weeks)
 
-理論知識を実際のDJ/制作作業に結びつける段階です。
+The stage of connecting theoretical knowledge to actual DJ/production work.
 
-#### DJ志向の場合
+#### For DJ-Focused Learners
 
-1. **ハーモニックミキシングの実践**
-   - 所有楽曲のキーを分析し、Camelot Wheel上でマッピングする
-   - 互換キーの楽曲同士でミックスを試す
-   - キーの変化によるエネルギー効果を体感する
+1. **Practicing harmonic mixing**
+   - Analyze the keys of your tracks and map them on the Camelot Wheel
+   - Try mixing tracks in compatible keys
+   - Experience the energy effects of key changes
 
-2. **フレーズミキシングの実践**
-   - 楽曲のフレーズ構造を分析する
-   - フレーズの境界でトランジションを開始する練習をする
-   - 32小節のミックス区間でEQトランジションを練習する
+2. **Practicing phrase mixing**
+   - Analyze the phrase structure of tracks
+   - Practice starting transitions at phrase boundaries
+   - Practice EQ transitions over 32-bar mix sections
 
-3. **エネルギー管理の実践**
-   - BPM、キー、エネルギーレベルの3軸でプレイリストを整理する
-   - 30分のミニセットを構成し、エネルギーの起伏を設計する
+3. **Practicing energy management**
+   - Organize playlists along 3 axes: BPM, key, and energy level
+   - Build a 30-minute mini-set and design the energy curve
 
-#### 制作志向の場合
+#### For Production-Focused Learners
 
-1. **コード進行の実践**
-   - ダイアトニックコードを使って基本的なコード進行を打ち込む
-   - 好きな曲のコード進行を耳コピーする
-   - 4-8小節のループを作成する
+1. **Practicing chord progressions**
+   - Program basic chord progressions using diatonic chords
+   - Transcribe chord progressions from favorite tracks by ear
+   - Create 4-8 bar loops
 
-2. **リズムプログラミングの実践**
-   - 基本的な4つ打ちビートを打ち込む
-   - ハイハットパターンのバリエーションを試す
-   - スウィングの効果を体感する
+2. **Practicing rhythm programming**
+   - Program a basic four-on-the-floor beat
+   - Try variations of hi-hat patterns
+   - Experience the effect of swing
 
-3. **アレンジメントの実践**
-   - 好きな曲の構造を分析し、セクションごとに書き出す
-   - 同じ構造で自分のオリジナルアレンジを作る
+3. **Practicing arrangement**
+   - Analyze the structure of a favorite track and list out each section
+   - Create your own original arrangement using the same structure
 
-### Phase 4: 応用と深化（継続的な学習）
+### Phase 4: Advanced Study and Deepening (Ongoing Learning)
 
-基礎を身につけた後は、より専門的な知識に進みます。
+After mastering the basics, proceed to more specialized knowledge.
 
-- **DJ**: 高度なトランジションテクニック、エフェクト活用、ライブリミックス
-- **制作**: サウンドデザイン、ミキシング、マスタリング、シンセシス
-- **共通**: 音響心理学、クラブサウンドシステム、音楽ビジネス
-
----
-
-## よくある質問（FAQ）
-
-### 基礎知識に関するFAQ
-
-#### Q: 音楽理論を学ばずにDJはできますか？
-
-**A**: はい、技術的にはBPMの合わせ方とフェーダー操作ができればDJプレイは可能です。しかし、音楽理論（特にキーとフレーズ構造）を理解することで、トランジションの品質が格段に向上します。ハーモニックミキシングができるDJとできないDJでは、聴衆に与える印象が大きく異なります。まずはCamelot Wheelの使い方だけでも覚えることを強く推奨します。
-
-#### Q: 楽譜が読めなくても音楽制作はできますか？
-
-**A**: 電子音楽の制作において、従来の楽譜の読み書きは必須ではありません。DAW（デジタルオーディオワークステーション）では、ピアノロールというグリッド上でノートを配置する方法が主流です。ただし、音程、スケール、コードの基礎概念は理解しておくべきです。これらの知識があれば、メロディやコード進行をより効率的に作成できます。
-
-#### Q: BPMの違う曲同士をミックスするにはどうすれば良いですか？
-
-**A**: 方法はいくつかあります。(1) ピッチフェーダーで一方の曲のBPMを合わせる（2-5 BPM程度の差なら自然に聞こえます）。(2) テンポトランジションとして意図的にゆっくりBPMを変化させる。(3) ブレイクダウンやアカペラ部分を利用して、テンポの変化を目立たなくする。(4) エフェクト（リバーブテール、フィルタースイープ等）で繋ぐ。大きなBPM差（10以上）の場合は、(2)-(4)の手法が実用的です。
-
-#### Q: WAVとFLACの音質に違いはありますか？
-
-**A**: FLACはロスレス（可逆圧縮）フォーマットであり、展開後のデータはWAVと完全に同一です。したがって音質に違いはありません。FLACはWAVの約50-70%のファイルサイズで同等の音質を実現するため、ストレージ効率の面で優れています。ただし、DJソフトウェアによってはFLACのデコードに若干のCPU負荷がかかるため、安定性を最優先する場合はWAVを選択するDJもいます。
-
-#### Q: 「キーが合っている」とはどういう状態ですか？
-
-**A**: 2つのトラックのキーが「合っている」状態とは、同時に再生しても不協和な響きが生じない関係にあることを指します。具体的には以下の関係が「合っている」と言えます。(1) 同じキー（例：Am と Am）。(2) 平行調（例：Am と C Major）。(3) 五度圏上で隣接するキー（例：Am と Em、Am と Dm）。Camelot Wheelを使えば、番号と文字で簡単に判断できます。
-
-#### Q: モニタースピーカーとヘッドフォン、どちらで制作すべきですか？
-
-**A**: 理想的には両方を使い分けることが推奨されます。モニタースピーカーは空間的な定位（パンニング）や低域の正確な判断に優れ、ヘッドフォンは細かいディテール（ノイズ、クリック、微細なエフェクト）の確認に優れています。制作環境の制約で一方しか使えない場合は、クローズドバックのスタジオヘッドフォン（Sony MDR-7506、Audio-Technica ATH-M50xなど）が汎用性が高くおすすめです。ただし、ヘッドフォンのみで制作する場合は、低域の判断に注意が必要です。
-
-#### Q: サンプルレートは高いほど良いのですか？
-
-**A**: 必ずしもそうとは限りません。44.1kHzは理論上、人間が聴ける全ての周波数を記録できます。より高いサンプルレート（96kHz、192kHz）は、(1) オーバーサンプリングによるアンチエイリアシングフィルタの改善、(2) ピッチシフトやタイムストレッチなどの処理における品質向上、(3) 非線形処理（ディストーション等）での高調波の正確な再現、といった利点がありますが、ファイルサイズとCPU負荷も増大します。一般的なDJ用途では44.1kHz/16bitで十分であり、制作では48kHz/24bitまたは96kHz/24bitが推奨されます。
-
-### 機材に関するFAQ
-
-#### Q: DJ機材を始めるのに最低限必要なものは何ですか？
-
-**A**: 最もコストパフォーマンスの高い入門方法は、DJコントローラー1台（Pioneer DDJ-400/DDJ-FLX4程度）とヘッドフォン、ノートPC/MacにDJソフトウェアをインストールすることです。コントローラーにはDJソフトのライセンスが付属することが多く、追加購入は不要な場合が多いです。スピーカーは家庭用のもので最初は問題ありません。
-
-#### Q: DAWは無料のものでも大丈夫ですか？
-
-**A**: はい、多くの無料DAWが高品質な制作環境を提供しています。GarageBand（Mac）、Ableton Live Lite（多くのオーディオ機器に付属）、Cakewalk by BandLab（Windows）、LMMS（クロスプラットフォーム）などが選択肢です。基礎を学び、制作に本格的に取り組みたくなってから有料DAWへの移行を検討しても遅くはありません。
+- **DJ**: Advanced transition techniques, effect usage, live remixing
+- **Production**: Sound design, mixing, mastering, synthesis
+- **Both**: Psychoacoustics, club sound systems, music business
 
 ---
 
-## 推奨リソースと参考資料
+## Frequently Asked Questions (FAQ)
 
-### 書籍
+### FAQ About Foundational Knowledge
 
-| 書籍名 | 著者 | 内容 |
-|-------|------|------|
-| How Music Works | David Byrne | 音楽の仕組みを多角的に解説 |
-| Music Theory for Electronic Music Producers | J. Allen | 電子音楽制作者向けの理論書 |
-| Last Night a DJ Saved My Life | Bill Brewster & Frank Broughton | DJカルチャーの歴史 |
-| The Dance Music Manual | Rick Snoman | ダンスミュージック制作の包括的ガイド |
-| Mixing Secrets for the Small Studio | Mike Senior | ミキシングの実践ガイド |
+#### Q: Can I DJ without learning music theory?
 
-### オンラインリソース
+**A**: Yes, technically you can DJ if you can match BPMs and operate faders. However, understanding music theory (especially keys and phrase structure) dramatically improves transition quality. There is a significant difference in audience impact between a DJ who can do harmonic mixing and one who cannot. We strongly recommend at minimum learning how to use the Camelot Wheel.
 
-| リソース | URL概要 | 内容 |
-|---------|---------|------|
-| musictheory.net | 音楽理論の無料レッスン | インタラクティブな音楽理論学習 |
-| Coursera / Music Production | オンライン講座 | 大学レベルの音楽制作コース |
-| YouTube: Andrew Huang | 音楽制作チュートリアル | 初心者にも分かりやすい解説動画 |
-| YouTube: DJ TechTools | DJテクニック | 機材レビューとテクニック解説 |
-| Splice | サンプルライブラリ | 高品質なサンプルとプリセット |
+#### Q: Can I produce music without being able to read sheet music?
 
-### コミュニティ
+**A**: In electronic music production, traditional sheet music literacy is not required. In DAWs (Digital Audio Workstations), the main method is placing notes on a grid called a piano roll. However, you should understand the basic concepts of pitch, scales, and chords. With this knowledge, you can create melodies and chord progressions more efficiently.
 
-| コミュニティ | プラットフォーム | 内容 |
-|------------|--------------|------|
-| r/DJs | Reddit | DJ全般の質問と情報交換 |
-| r/edmproduction | Reddit | 電子音楽制作の情報交換 |
-| r/Beatmatch | Reddit | DJ初心者向けの質問と回答 |
-| Ableton Forum | Ableton公式 | Ableton Liveに関する質問と情報 |
-| KVR Audio | 独立フォーラム | プラグイン、音源の情報交換 |
+#### Q: How do I mix tracks with different BPMs?
 
-### ソフトウェアツール
+**A**: There are several methods: (1) Match one track's BPM using the pitch fader (differences of 2-5 BPM sound natural). (2) Intentionally change BPM slowly as a tempo transition. (3) Use breakdowns or acapella sections to make tempo changes less noticeable. (4) Bridge with effects (reverb tails, filter sweeps, etc.). For large BPM differences (10+), methods (2)-(4) are practical.
 
-| ツール | 用途 | 特徴 |
-|-------|------|------|
-| rekordbox | DJ用楽曲管理 | Pioneer DJ機器との連携、楽曲分析 |
-| Mixed In Key | キー/BPM分析 | 高精度なキー検出、Camelot表記対応 |
-| Audacity | オーディオ編集 | 無料、基本的な編集が可能 |
-| VOCALOID / Synthesizer V | ボーカル合成 | AI音声合成による歌声生成 |
-| iZotope RX | オーディオ修復 | ノイズ除去、音声修復 |
+#### Q: Is there a sound quality difference between WAV and FLAC?
 
----
+**A**: FLAC is a lossless (reversible compression) format — the decompressed data is completely identical to WAV. Therefore, there is no difference in sound quality. FLAC achieves equivalent quality at approximately 50-70% of WAV's file size, making it superior in storage efficiency. However, some DJ software may incur slightly more CPU load when decoding FLAC, so DJs who prioritize stability may choose WAV.
 
-## 各サブページ詳細ガイド
+#### Q: What does it mean when keys are "compatible"?
 
-このセクションの各サブページについて、内容の詳細と学習ポイントを紹介します。
+**A**: When two tracks' keys are "compatible," it means they can play simultaneously without creating dissonant sounds. Specifically, the following relationships are considered "compatible": (1) Same key (e.g., Am and Am). (2) Relative key (e.g., Am and C Major). (3) Adjacent keys on the Circle of Fifths (e.g., Am and Em, Am and Dm). Using the Camelot Wheel, this can be easily determined by numbers and letters.
 
-### [音楽理論基礎](./music-theory.md) - 詳細
+#### Q: Should I produce with monitor speakers or headphones?
 
-音楽理論の全体像を俯瞰するページです。以下の内容を扱います。
+**A**: Ideally, using both is recommended. Monitor speakers excel at accurately judging spatial positioning (panning) and low frequencies, while headphones excel at checking fine details (noise, clicks, subtle effects). If you can only use one due to production environment constraints, closed-back studio headphones (Sony MDR-7506, Audio-Technica ATH-M50x, etc.) are recommended for their versatility. However, if producing only with headphones, be cautious about low-frequency judgments.
 
-- **音程（インターバル）の体系**: 半音から1オクターブまでの全ての音程の名称と特徴
-- **スケールの体系**: メジャー、マイナー（ナチュラル、ハーモニック、メロディック）、モード（ドリアン、ミクソリディアンなど）
-- **調号の読み方**: シャープ/フラットの数からキーを判定する方法
-- **転調の手法**: 共通和音転調、ピボットコード転調、直接転調など
+#### Q: Is a higher sample rate always better?
 
-**DJ向けの注目ポイント**: ハーモニックミキシングの理論的背景を深く理解できます。特にモード（教会旋法）の知識は、同じキー表記でも雰囲気が異なるトラックの理由を説明してくれます。
+**A**: Not necessarily. 44.1 kHz can theoretically record all frequencies humans can hear. Higher sample rates (96 kHz, 192 kHz) offer advantages such as: (1) improved anti-aliasing filters through oversampling, (2) better quality in pitch shifting and time stretching, (3) accurate reproduction of harmonics in nonlinear processing (distortion, etc.), but file size and CPU load also increase. For general DJ use, 44.1 kHz/16 bit is sufficient; for production, 48 kHz/24 bit or 96 kHz/24 bit is recommended.
 
-**制作向けの注目ポイント**: メロディの作成やコード進行の設計において、理論的な裏付けを持った判断ができるようになります。
+### Equipment FAQ
 
-### [リズム基礎](./rhythm-basics.md) - 詳細
+#### Q: What's the minimum equipment needed to start DJing?
 
-リズムに特化した詳細ページです。
+**A**: The most cost-effective way to start is with one DJ controller (Pioneer DDJ-400/DDJ-FLX4 range), headphones, and DJ software installed on a laptop/Mac. Controllers often include a DJ software license, so no additional purchase is needed in many cases. Home speakers are fine to start with.
 
-- **音符の種類と長さ**: 全音符から32分音符まで、付点音符、三連符
-- **リズムパターンの分析**: ジャンルごとの典型的なドラムパターン
-- **ポリリズム**: 異なる拍子が同時に進行するリズム構造
-- **グルーヴテンプレート**: MPC、SP-1200などのグルーヴの特性
+#### Q: Is a free DAW good enough?
 
-**DJ向けの注目ポイント**: ジャンルごとのリズムパターンを理解することで、トランジション時にどのタイミングでミックスすべきかの判断力が向上します。
-
-**制作向けの注目ポイント**: 機械的なビートに人間味を与えるためのスウィングやヒューマナイズの技法を学べます。
-
-### [和声基礎](./harmony-basics.md) - 詳細
-
-コードとハーモニーに特化した詳細ページです。
-
-- **コードの構成**: トライアド、セブンスコード、テンションコード、アドコード
-- **コード進行パターン**: I-V-vi-IV、ii-V-I、循環進行など
-- **コードボイシング**: クローズド/オープンボイシング、ドロップボイシング
-- **モーダルハーモニー**: モードに基づくコード構成
-
-**DJ向けの注目ポイント**: トラック間のコード進行の相性を判断する能力が身につきます。
-
-**制作向けの注目ポイント**: 効果的なコード進行の設計と、感情的な表現力のあるハーモニーの作成が可能になります。
-
-### [オーディオ基礎](./audio-basics.md) - 詳細
-
-デジタルオーディオの技術的詳細に焦点を当てたページです。
-
-- **AD/DA変換の詳細**: サンプリング定理、量子化、ディザリングの数学的背景
-- **オーディオコーデックの仕組み**: MP3、AAC、FLACの圧縮アルゴリズムの概要
-- **クロック同期**: デジタルオーディオ機器間のクロック同期の重要性
-- **ジッター**: デジタルクロックの揺らぎが音質に与える影響
-
-**DJ向けの注目ポイント**: ファイルフォーマットの選択根拠を技術的に理解し、最適なライブラリ管理ができるようになります。
-
-**制作向けの注目ポイント**: DAWの設定（サンプルレート、バッファサイズ、ビット深度）を技術的根拠に基づいて最適化できます。
-
-### [周波数とスペクトラム](./frequency-spectrum.md) - 詳細
-
-周波数帯域と音のスペクトラムに特化したページです。
-
-- **各周波数帯域の詳細な特性**: 帯域ごとの音楽的役割と問題点
-- **楽器の周波数分布**: 主要な楽器（キック、ベース、スネア、シンセなど）の周波数特性
-- **スペクトラムアナライザーの読み方**: リアルタイム分析ツールの活用法
-- **マスキングの詳細**: 周波数帯域の衝突とその解決方法
-
-**DJ向けの注目ポイント**: EQを使ったミキシング時に、どの帯域を操作すべきかの判断力が向上します。
-
-**制作向けの注目ポイント**: ミキシングにおける周波数の棲み分けと、明瞭なミックスの作成方法を学べます。
-
-### [キーとスケール](./key-scales.md) - 詳細
-
-キー、スケール、ハーモニックミキシングの実践に特化したページです。
-
-- **全12キーの詳細**: 各キーの特性と使用頻度
-- **スケールの種類**: ペンタトニック、ブルース、ハーモニックマイナー、メロディックマイナーなど
-- **Camelot Wheelの完全ガイド**: 全ての互換パターンとその効果
-- **高度なハーモニックミキシング**: エネルギーブースト、ムードチェンジなどの応用テクニック
-
-**DJ向けの注目ポイント**: Camelot Wheelを使いこなし、フロアのエネルギーをキーの操作で制御する技術を学べます。
-
-**制作向けの注目ポイント**: 様々なスケールの活用と、スケール外の音（クロマチック・アプローチ）の効果的な使い方を学べます。
-
+**A**: Yes, many free DAWs provide high-quality production environments. Options include GarageBand (Mac), Ableton Live Lite (bundled with many audio devices), Cakewalk by BandLab (Windows), and LMMS (cross-platform). It's not too late to consider upgrading to a paid DAW once you've learned the basics and want to get serious about production.
 
 ---
 
-## 実践演習
+## Recommended Resources and References
 
-### 演習1: 基本的な実装
+### Books
 
-以下の要件を満たすコードを実装してください。
+| Title | Author | Content |
+|-------|--------|---------|
+| How Music Works | David Byrne | Multi-perspective explanation of how music works |
+| Music Theory for Electronic Music Producers | J. Allen | Theory book for electronic music producers |
+| Last Night a DJ Saved My Life | Bill Brewster & Frank Broughton | History of DJ culture |
+| The Dance Music Manual | Rick Snoman | Comprehensive guide to dance music production |
+| Mixing Secrets for the Small Studio | Mike Senior | Practical mixing guide |
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+### Online Resources
+
+| Resource | URL Summary | Content |
+|----------|-----------|---------|
+| musictheory.net | Free music theory lessons | Interactive music theory learning |
+| Coursera / Music Production | Online courses | University-level music production courses |
+| YouTube: Andrew Huang | Music production tutorials | Beginner-friendly explanation videos |
+| YouTube: DJ TechTools | DJ techniques | Equipment reviews and technique guides |
+| Splice | Sample library | High-quality samples and presets |
+
+### Communities
+
+| Community | Platform | Content |
+|-----------|----------|---------|
+| r/DJs | Reddit | General DJ questions and information exchange |
+| r/edmproduction | Reddit | Electronic music production information exchange |
+| r/Beatmatch | Reddit | Questions and answers for DJ beginners |
+| Ableton Forum | Ableton Official | Questions and information about Ableton Live |
+| KVR Audio | Independent Forum | Plugin and instrument information exchange |
+
+### Software Tools
+
+| Tool | Usage | Features |
+|------|-------|----------|
+| rekordbox | DJ track management | Integration with Pioneer DJ equipment, track analysis |
+| Mixed In Key | Key/BPM analysis | High-precision key detection, Camelot notation |
+| Audacity | Audio editing | Free, basic editing capabilities |
+| VOCALOID / Synthesizer V | Vocal synthesis | AI-based singing voice generation |
+| iZotope RX | Audio restoration | Noise removal, audio repair |
+
+---
+
+## Detailed Guide for Each Sub-Page
+
+Here we introduce the details and learning points for each sub-page in this section.
+
+### [Music Theory Basics](./music-theory.md) - Details
+
+A page providing an overview of music theory as a whole. It covers:
+
+- **Interval System**: Names and characteristics of all intervals from semitone to octave
+- **Scale System**: Major, minor (natural, harmonic, melodic), modes (Dorian, Mixolydian, etc.)
+- **Reading Key Signatures**: How to determine the key from the number of sharps/flats
+- **Modulation Techniques**: Common chord modulation, pivot chord modulation, direct modulation, etc.
+
+**DJ Focus**: Provides a deep understanding of the theoretical background of harmonic mixing. Knowledge of modes (church modes) in particular explains why tracks with the same key notation can have different atmospheres.
+
+**Production Focus**: Enables theoretically grounded decisions in melody creation and chord progression design.
+
+### [Rhythm Basics](./rhythm-basics.md) - Details
+
+A detailed page focusing on rhythm.
+
+- **Types and Lengths of Notes**: From whole notes to 32nd notes, dotted notes, triplets
+- **Rhythm Pattern Analysis**: Typical drum patterns by genre
+- **Polyrhythm**: Rhythmic structures where different time signatures progress simultaneously
+- **Groove Templates**: Characteristics of MPC, SP-1200, and other grooves
+
+**DJ Focus**: Understanding rhythm patterns by genre improves your judgment of when to mix during transitions.
+
+**Production Focus**: Learn techniques for adding human feel to mechanical beats through swing and humanization.
+
+### [Harmony Basics](./harmony-basics.md) - Details
+
+A detailed page focusing on chords and harmony.
+
+- **Chord Construction**: Triads, seventh chords, tension chords, add chords
+- **Chord Progression Patterns**: I-V-vi-IV, ii-V-I, cyclic progressions, etc.
+- **Chord Voicing**: Closed/open voicing, drop voicing
+- **Modal Harmony**: Chord construction based on modes
+
+**DJ Focus**: Develops the ability to judge compatibility of chord progressions between tracks.
+
+**Production Focus**: Enables effective chord progression design and emotionally expressive harmony creation.
+
+### [Audio Basics](./audio-basics.md) - Details
+
+A page focusing on the technical details of digital audio.
+
+- **AD/DA Conversion Details**: Mathematical background of sampling theory, quantization, and dithering
+- **Audio Codec Mechanics**: Overview of compression algorithms for MP3, AAC, FLAC
+- **Clock Synchronization**: Importance of clock sync between digital audio devices
+- **Jitter**: Impact of digital clock fluctuation on sound quality
+
+**DJ Focus**: Enables technical understanding of file format selection rationale for optimal library management.
+
+**Production Focus**: Enables optimization of DAW settings (sample rate, buffer size, bit depth) based on technical reasoning.
+
+### [Frequency and Spectrum](./frequency-spectrum.md) - Details
+
+A page focusing on frequency bands and the sound spectrum.
+
+- **Detailed Characteristics of Each Frequency Band**: Musical role and problems by band
+- **Frequency Distribution of Instruments**: Frequency characteristics of major instruments (kick, bass, snare, synths, etc.)
+- **Reading a Spectrum Analyzer**: How to use real-time analysis tools
+- **Masking Details**: Frequency band collisions and their solutions
+
+**DJ Focus**: Improves your judgment of which bands to manipulate when mixing with EQ.
+
+**Production Focus**: Learn about frequency separation in mixing and how to create clear mixes.
+
+### [Key and Scales](./key-scales.md) - Details
+
+A page focusing on the practice of keys, scales, and harmonic mixing.
+
+- **All 12 Keys in Detail**: Characteristics and usage frequency of each key
+- **Types of Scales**: Pentatonic, blues, harmonic minor, melodic minor, etc.
+- **Complete Camelot Wheel Guide**: All compatible patterns and their effects
+- **Advanced Harmonic Mixing**: Applied techniques such as energy boosts and mood changes
+
+**DJ Focus**: Learn to master the Camelot Wheel and control floor energy through key manipulation.
+
+**Production Focus**: Learn to utilize various scales and the effective use of notes outside the scale (chromatic approach).
+
+
+---
+
+## Practical Exercises
+
+### Exercise 1: Basic Implementation
+
+Implement code that meets the following requirements.
+
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic Implementation Template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1304,26 +1303,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced Pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1331,7 +1330,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1342,14 +1341,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1357,7 +1356,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1365,44 +1364,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance Optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1411,7 +1410,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1426,47 +1425,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithm time complexity
+- Select appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization Error | Configuration file issues | Check configuration file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of Memory | Growing data volume | Introduce batch processing, implement pagination |
+| Permission Error | Insufficient access rights | Check execution user permissions, review settings |
+| Data Inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, transaction management |
 
-### デバッグの手順
+### Debugging Procedure
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace and identify the location
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Verify step by step**: Use log output or debugger to verify hypotheses
+5. **Fix and regression test**: After fixing, run tests on related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1474,102 +1473,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Calling: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return value: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception occurred: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O waits**: Check disk and network I/O status
+4. **Check connection count**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem Type | Diagnostic Tool | Countermeasure |
+|-------------|----------------|----------------|
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper reference release |
+| I/O bottleneck | strace, iostat | Asynchronous I/O, caching |
+| DB delay | EXPLAIN, slow query log | Indexing, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+Below is a summary of criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to Prioritize | When Compromise Is Acceptable |
+|-----------|-------------------|------------------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development Speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
-┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
-│                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
-│                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
-│                                                 │
-└─────────────────────────────────────────────────┘
++--------------------------------------------------+
+|          Architecture Selection Flow              |
++--------------------------------------------------+
+|                                                   |
+|  (1) Team size?                                   |
+|    |-- Small (1-5) -> Monolith                    |
+|    '-- Large (10+) -> Go to (2)                   |
+|                                                   |
+|  (2) Deploy frequency?                            |
+|    |-- Weekly or less -> Monolith + Module split   |
+|    '-- Daily/Multiple -> Go to (3)                |
+|                                                   |
+|  (3) Team independence?                           |
+|    |-- High -> Microservices                      |
+|    '-- Medium -> Modular Monolith                 |
+|                                                   |
++--------------------------------------------------+
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- The faster approach in the short term can become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has lower learning costs
+- Diverse technology adoption enables the right tool for the right job but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction offers high reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design Decision Recording Template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Create an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1579,17 +1578,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and problem"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1597,7 +1596,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1605,48 +1604,48 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
-            icon = "✅" if c['type'] == 'positive' else "⚠️"
+            icon = "+" if c['type'] == 'positive' else "!"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
 ```
 ---
 
-## まとめ
+## Summary
 
-このFundamentalsセクションは、DJ/音楽制作における全ての知識とスキルの土台です。ここで学んだ概念は、以降の全てのセクションで繰り返し登場します。
+This Fundamentals section is the foundation for all knowledge and skills in DJ/music production. The concepts learned here will appear repeatedly in all subsequent sections.
 
-### 最も重要なポイント
+### Most Important Points
 
-1. **リズムとBPM**: ダンスミュージックの最も基本的な要素。BPMの概念とフレーズ構造の理解が全ての出発点
-2. **キーとハーモニー**: ハーモニックミキシング（DJ）とメロディ/コード作成（制作）の基盤
-3. **周波数とEQ**: 音の物理的な特性の理解。ミキシングの品質を左右する
-4. **デジタルオーディオ**: 現代の音楽制作/DJの技術的基盤。ファイルフォーマットやレイテンシーの理解
-5. **ゲインステージング**: 適切な音量管理。シンプルだが最も重要なスキルの一つ
+1. **Rhythm and BPM**: The most basic element of dance music. Understanding BPM concepts and phrase structure is the starting point for everything
+2. **Key and Harmony**: The foundation for harmonic mixing (DJ) and melody/chord creation (production)
+3. **Frequency and EQ**: Understanding the physical characteristics of sound. Determines mixing quality
+4. **Digital Audio**: The technical foundation of modern music production/DJing. Understanding file formats and latency
+5. **Gain Staging**: Proper volume management. Simple but one of the most important skills
 
-### 次のセクションへの橋渡し
+### Bridge to the Next Section
 
-基礎を理解したら、目標に応じて次のセクションに進みましょう。
+Once you understand the fundamentals, proceed to the next section based on your goals.
 
-| 目標 | 次のセクション | 主な学習内容 |
-|------|-------------|-------------|
-| DJを始めたい | [DJ Basics](../dj/01-basics/) | 機材操作、ビートマッチング、基本トランジション |
-| 楽曲制作を始めたい | [Ableton Basics](../production/01-ableton-basics/) | DAW操作、基本的なビートメイキング |
-| 両方やりたい | どちらからでもOK | 興味のある方から始めて並行学習 |
+| Goal | Next Section | Main Learning Content |
+|------|-------------|----------------------|
+| Want to start DJing | [DJ Basics](../dj/01-basics/) | Equipment operation, beatmatching, basic transitions |
+| Want to start producing | [Ableton Basics](../production/01-ableton-basics/) | DAW operation, basic beatmaking |
+| Want to do both | Either one is fine | Start with whichever interests you and study in parallel |
 
-基礎知識は一度で完全に理解する必要はありません。実践を通じて繰り返しこのセクションに戻り、理解を深めていってください。
+You don't need to fully understand the fundamentals all at once. Come back to this section through practice, deepening your understanding over time.
 
 ---
 
-## 参考文献
+## References
 
-- [MDN Web Docs](https://developer.mozilla.org/) - Web技術のリファレンス
-- [Wikipedia](https://ja.wikipedia.org/) - 技術概念の概要
+- [MDN Web Docs](https://developer.mozilla.org/) - Web technology reference
+- [Wikipedia](https://en.wikipedia.org/) - Overview of technical concepts
