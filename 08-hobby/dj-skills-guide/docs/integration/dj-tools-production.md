@@ -1,543 +1,543 @@
-# DJ用トラック制作
+# DJ Track Production
 
-**DJセット用のオリジナルトラックとツールを作成する**
+**Create original tracks and tools for DJ sets**
 
-DJ用トラックの制作は、通常の楽曲制作とは異なる特別な配慮が必要です。32小節のIntro/Outro、ミックスポイントの設計、DJフレンドリーな構成など、実際のDJセットで使用することを前提とした制作テクニックを学びます。本ドキュメントでは、DJ用トラック制作の全工程を網羅的に解説し、初心者から上級者まで実践的に活用できるガイドを提供します。
-
----
-
-## 目次
-
-1. [この章で学ぶこと](#この章で学ぶこと)
-2. [DJ用トラックの特徴](#dj用トラックの特徴)
-3. [Intro/Outroの設計](#introoutroの設計)
-4. [ミックスポイントの設計](#ミックスポイントの設計)
-5. [ジャンル別トラック構成](#ジャンル別トラック構成)
-6. [キックドラムの設計](#キックドラムの設計)
-7. [ベースラインの設計](#ベースラインの設計)
-8. [アレンジメント構成の詳細](#アレンジメント構成の詳細)
-9. [アカペラ・インストの分離](#アカペラインストの分離)
-10. [DJ用ループ・フィルイン](#dj用ループフィルイン)
-11. [トランジションツール](#トランジションツール)
-12. [ブートレグ・エディット](#ブートレグエディット)
-13. [ミキシング・マスタリング（DJ用）](#ミキシングマスタリングdj用)
-14. [キーとBPMの選択](#キーとbpmの選択)
-15. [エクスポート設定](#エクスポート設定)
-16. [メタデータの設定](#メタデータの設定)
-17. [DJ用テンプレート作成](#dj用テンプレート作成)
-18. [配布とプロモーション](#配布とプロモーション)
-19. [よくある失敗と対処法](#よくある失敗と対処法)
-20. [実践ワークフロー](#実践ワークフロー)
-21. [まとめ](#まとめ)
+DJ track production requires special considerations different from regular music production. You'll learn production techniques designed for actual DJ set use, including 32-bar Intro/Outro, mix point design, and DJ-friendly arrangements. This document comprehensively covers the entire DJ track production process and provides a practical guide for beginners through advanced users.
 
 ---
 
-## この章で学ぶこと
+## Table of Contents
 
-- DJ対応 Intro/Outroの作り方（32小節必須）
-- ミックスポイントの設計
-- アカペラ・インストゥルメンタルの分離
-- DJ用ループ・フィルインの制作
-- トランジションツールの作成
-- ブートレグ・エディットの作り方
-- ジャンル別のDJトラック設計パターン
-- ミキシング・マスタリングのDJ特有の考慮事項
-- メタデータとファイル管理の最適化
-- DJ用テンプレートの効率的な構築
-
-**学習時間**: 3-5時間
-**難易度**: 中級
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [Ableton で DJ](./ableton-for-djing.md) の内容を理解していること
-
----
-
-## DJ用トラックの特徴
-
-### 通常のトラックとの違い
-
-**通常のトラック（リスナー向け）**:
-```
-構成: Intro → Verse → Chorus → Verse → Chorus → Bridge → Chorus → Outro
-Intro: 8-16小節（短い、すぐに楽曲の核心へ）
-Outro: 4-8小節（フェードアウトが多い）
-総尺: 3-4分（ストリーミング最適化）
-目的: 単体で完結する聴取体験
-特徴:
-  - フックが早い段階で提示される
-  - ボーカルが主役
-  - コンパクトな構成
-  - ラジオ/プレイリスト向け
-```
-
-**DJ用トラック（パフォーマンス向け）**:
-```
-構成: Intro → Buildup → Drop → Breakdown → Drop → Outro
-Intro: 32小節（長い、ミックス専用の空間）
-Outro: 32小節（次の曲へのスムーズな接続）
-総尺: 5-8分（DJミックスに最適化）
-目的: DJセットの中で他の曲と調和する
-特徴:
-  - ゆっくりと要素が追加される
-  - 明確なミックスポイント
-  - 正確なBPMグリッド
-  - キックから始まりキックで終わる
-  - エネルギーの起伏が大きい
-```
-
-### DJ用トラックの要件一覧
-
-```
-必須要件:
-  1. 32小節以上のIntro（キックから開始）
-  2. 32小節以上のOutro（キックで終了）
-  3. 正確なBPMグリッド（グリッドのズレは致命的）
-  4. 明確なキー（1つのスケール内で完結）
-  5. クリーンな低域（他のトラックとの干渉回避）
-  6. 適切なダイナミックレンジ
-  7. 高品質なマスタリング（音圧は-1dB LUFS推奨）
-
-推奨要件:
-  1. インストゥルメンタルバージョンの用意
-  2. アカペラバージョンの用意
-  3. ステム（個別パーツ）の用意
-  4. ループポイントの設計
-  5. メタデータの正確な記入
-  6. 複数のブレイクダウンポイント
-```
-
-### DJが求めるトラックの品質
-
-```
-音質面:
-  - サンプルレート: 44.1kHz / 48kHz
-  - ビット深度: 24bit（制作時）→ 16bit/24bit（配布）
-  - フォーマット: WAV / AIFF（推奨）、FLAC（許容）
-  - ラウドネス: -8 to -6 LUFS（クラブ向け）
-  - ピーク: -1 dBTP（True Peak）
-
-構成面:
-  - 8小節単位の構成（フレーズ構造の明確さ）
-  - 予測可能なアレンジメント（DJが先を読める）
-  - エネルギーの起伏が明確
-  - 低域のクリーンさ（ミックス時の干渉回避）
-
-実用面:
-  - ファイル名にBPMとキーを含める
-  - ID3タグの正確な記入
-  - BeatportやTraxsource向けの規格準拠
-  - Rekordbox / Traktor / Seratoでの動作確認
-```
+1. [What You'll Learn in This Chapter](#what-youll-learn-in-this-chapter)
+2. [Characteristics of DJ Tracks](#characteristics-of-dj-tracks)
+3. [Intro/Outro Design](#introoutro-design)
+4. [Mix Point Design](#mix-point-design)
+5. [Genre-Specific Track Structures](#genre-specific-track-structures)
+6. [Kick Drum Design](#kick-drum-design)
+7. [Bassline Design](#bassline-design)
+8. [Arrangement Structure Details](#arrangement-structure-details)
+9. [Acapella and Instrumental Separation](#acapella-and-instrumental-separation)
+10. [DJ Loops and Fills](#dj-loops-and-fills)
+11. [Transition Tools](#transition-tools)
+12. [Bootlegs and Edits](#bootlegs-and-edits)
+13. [Mixing and Mastering (For DJ)](#mixing-and-mastering-for-dj)
+14. [Key and BPM Selection](#key-and-bpm-selection)
+15. [Export Settings](#export-settings)
+16. [Metadata Settings](#metadata-settings)
+17. [DJ Template Creation](#dj-template-creation)
+18. [Distribution and Promotion](#distribution-and-promotion)
+19. [Common Mistakes and Solutions](#common-mistakes-and-solutions)
+20. [Practical Workflow](#practical-workflow)
+21. [Summary](#summary)
 
 ---
 
-## Intro/Outroの設計
+## What You'll Learn in This Chapter
 
-### 32小節ルール
+- DJ-compatible Intro/Outro creation (32 bars required)
+- Mix point design
+- Acapella and instrumental separation
+- DJ loop and fill production
+- Transition tool creation
+- Bootleg and edit creation
+- Genre-specific DJ track design patterns
+- DJ-specific mixing and mastering considerations
+- Metadata and file management optimization
+- Efficient DJ template construction
 
-**なぜ32小節か**:
+**Study Time**: 3-5 hours
+**Difficulty**: Intermediate
+
+
+## Prerequisites
+
+Having the following knowledge will deepen your understanding before reading this guide:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of [DJing with Ableton](./ableton-for-djing.md) content
+
+---
+
+## Characteristics of DJ Tracks
+
+### Differences from Regular Tracks
+
+**Regular Tracks (For Listeners)**:
 ```
-DJのミックス時間と小節数の関係:
-
-最短ミックス: 16小節（約30秒 @ 128BPM）
-  - カットミックスやスラムミックス
-  - エネルギッシュなトランジション
-  - 上級DJ向け
-
-標準ミックス: 32小節（約1分 @ 128BPM）
-  - ブレンドトランジション
-  - EQスワップ
-  - 最も一般的
-
-長めのミックス: 64小節（約2分 @ 128BPM）
-  - ディープなブレンド
-  - プログレッシブスタイル
-  - テック/ミニマル向け
-
-32小節の内訳（4フレーズ）:
-  フレーズ1 (Bar 1-8):
-    - 前の曲がまだメインで流れている
-    - 新曲のキックのみが重なり始める
-    - DJはEQで低域を制御
-
-  フレーズ2 (Bar 9-16):
-    - 前の曲のフェードアウトが進む
-    - 新曲にハイハットやパーカッションが加わる
-    - リズムの移行が明確に
-
-  フレーズ3 (Bar 17-24):
-    - 前の曲はほぼフェードアウト完了
-    - 新曲にベースラインが加わる
-    - 低域の主導権が新曲に移行
-
-  フレーズ4 (Bar 25-32):
-    - 前の曲は完全にフェードアウト
-    - 新曲にパッド、シンセ要素が追加
-    - フルドロップへの準備完了
-```
-
-### Intro の要素追加順序
-
-**Bar 1-8 (フレーズ1): キックのみ**
-```
-構成:
-  Kick: 4つ打ち（毎拍）
-  BPM: 一定（絶対にブレない）
-  音量: Peak -6dB
-
-設計のポイント:
-  - キック以外の要素は入れない
-  - DJが前の曲のキックとブレンドしやすい
-  - 低域のクリーンさが最重要
-  - テイルが短めのキックが好ましい
-  - サイドチェイン用のキックと同じパターン
-
-オプション:
-  - 非常に小さいリバーブテイル（空間認識用）
-  - ホワイトノイズの微かなレイヤー
-  - ただし、これらはあくまでサブリミナルレベル
+Structure: Intro -> Verse -> Chorus -> Verse -> Chorus -> Bridge -> Chorus -> Outro
+Intro: 8-16 bars (short, gets to the core quickly)
+Outro: 4-8 bars (often fades out)
+Total length: 3-4 minutes (optimized for streaming)
+Purpose: A self-contained listening experience
+Features:
+  - Hook presented early
+  - Vocals are the star
+  - Compact structure
+  - Radio/playlist oriented
 ```
 
-**Bar 9-16 (フレーズ2): キック + ハイハット/パーカッション**
+**DJ Tracks (For Performance)**:
 ```
-追加要素:
-  + Hi-Hat: 8分音符 or 16分音符
-  + Ride: オプション
-  + Percussion: シェイカー、タンバリン等
-
-設計のポイント:
-  - リズムのキャラクターが明確になるフレーズ
-  - ハイハットのベロシティに変化をつける
-  - グルーヴ感を確立する
-  - まだ低域は追加しない（キックのみ）
-
-バリエーション:
-  パターンA（ストレート）: HH on every 8th
-  パターンB（シャッフル）: HH with swing
-  パターンC（オフビート）: HH on off-beats only
+Structure: Intro -> Buildup -> Drop -> Breakdown -> Drop -> Outro
+Intro: 32 bars (long, dedicated space for mixing)
+Outro: 32 bars (smooth connection to the next track)
+Total length: 5-8 minutes (optimized for DJ mixing)
+Purpose: Harmonize with other tracks within a DJ set
+Features:
+  - Elements are added gradually
+  - Clear mix points
+  - Accurate BPM grid
+  - Starts with kick and ends with kick
+  - Large energy fluctuations
 ```
 
-**Bar 17-24 (フレーズ3): + ベースライン**
-```
-追加要素:
-  + Sub Bass: ルート音中心
-  + Mid Bass: オプション（軽め）
-  + Clap/Snare: オプション（2, 4拍目）
-
-設計のポイント:
-  - ベースラインは徐々に入る（フィルターオープン推奨）
-  - 低域の帯域が埋まり始める
-  - DJはここで前の曲の低域を完全にカットする
-  - ベースのルート音は曲のキーを示す
-
-テクニック:
-  - ハイパスフィルターを Bar 17 から徐々に開く
-  - Bar 17: HPF @ 200Hz → Bar 24: HPF @ 20Hz
-  - 自然なベースの導入効果
-```
-
-**Bar 25-32 (フレーズ4): + パッド/シンセ/ボーカルティーザー**
-```
-追加要素:
-  + Pad: コード進行の提示
-  + Lead Teaser: メロディの断片
-  + Vocal Snippet: ボーカルの一部（あれば）
-  + FX: ライザー、スウィープ
-
-設計のポイント:
-  - フルドロップへの期待感を作る
-  - メインのメロディやフックの「予告編」
-  - エネルギーが上昇していく感覚
-  - Bar 31-32 はライザー/FXでテンション最大
-  - Bar 32 の最後にはスネアロールやリバースFX
-
-バリエーション:
-  控えめ: パッドのみ追加
-  標準: パッド + リードティーザー
-  派手: パッド + リード + ボーカル + FX
-```
-
-**Bar 33以降: メインセクション（ドロップ）**
-```
-全要素が同時に登場:
-  - Full Drums（キック、スネア、ハイハット、パーカッション）
-  - Full Bass（サブ + ミッド）
-  - Full Synth（リード、パッド、アルペジオ）
-  - Vocal（あれば）
-  - FX（アクセント）
-
-インパクトを最大化する方法:
-  - Bar 32 の最後 1/4 拍で無音を作る（ギャップ）
-  - Bar 33 の 1拍目にキック + ベース + 全要素
-  - インパクトFX（ダウンリフター、サブドロップ）を重ねる
-  - サイドチェインが効き始める
-```
-
-### Outro の要素削除順序
-
-**Introの逆順で削除**:
-```
-メインセクション最終部:
-  全要素が鳴っている状態
-
-Bar 1-8 (Outro フレーズ1): パッド/リード削除
-  - メロディ要素を外す
-  - FXでフェードアウト効果
-  - ボーカルの最後のフレーズ
-
-Bar 9-16 (Outro フレーズ2): ベースライン削除
-  - ローパスフィルターで徐々にカット
-  - Bar 9: LPF @ 20kHz → Bar 16: LPF @ 200Hz
-  - またはボリュームフェード
-
-Bar 17-24 (Outro フレーズ3): ハイハット/パーカッション削除
-  - リズム要素を簡素化
-  - キックとミニマルなパーカッションのみ
-
-Bar 25-32 (Outro フレーズ4): キックのみ
-  - 最もミニマルな状態
-  - 次の曲のIntroとブレンドしやすい
-  - 最後のバーで自然にフェードアウト or カット
-
-重要: Outroの最後の音が完全に消えること
-  - リバーブテイルが残らない
-  - ディレイのフィードバックが残らない
-  - サブベースのリリースが残らない
-```
-
-### Introバリエーション
+### DJ Track Requirements List
 
 ```
-バリエーション1: ミニマルイントロ
-  Bar 1-16: キックのみ
-  Bar 17-32: キック + ハイハット
-  Bar 33: ドロップ（一気に全要素）
-  → テクノ、ミニマル向け
+Required:
+  1. 32+ bar Intro (starting with kick)
+  2. 32+ bar Outro (ending with kick)
+  3. Accurate BPM grid (grid misalignment is critical)
+  4. Clear key (contained within one scale)
+  5. Clean low end (avoiding interference with other tracks)
+  6. Appropriate dynamic range
+  7. High-quality mastering (-1dB LUFS recommended loudness)
 
-バリエーション2: グラデーションイントロ
-  Bar 1-8: キック
-  Bar 9-16: + ハイハット + パーカッション
-  Bar 17-24: + ベース + クラップ
-  Bar 25-32: + パッド + FX + ボーカルスニペット
-  Bar 33: ドロップ
-  → ハウス、プログレッシブ向け（最も一般的）
+Recommended:
+  1. Prepare an instrumental version
+  2. Prepare an acapella version
+  3. Prepare stems (individual parts)
+  4. Design loop points
+  5. Accurate metadata entry
+  6. Multiple breakdown points
+```
 
-バリエーション3: アトモスフェリックイントロ
-  Bar 1-16: アンビエントパッド + ノイズ
-  Bar 17-24: + キック（フィルター付き）
-  Bar 25-32: キック全開 + ベース導入
-  Bar 33: ドロップ
-  → アンビエントテクノ、ディープハウス向け
+### Quality DJ Tracks Demand
 
-バリエーション4: ブレイクビーツイントロ
-  Bar 1-8: ブレイクビーツパターン
-  Bar 9-16: + ベース
-  Bar 17-24: + シンセスタブ
-  Bar 25-32: + ボーカル + FX
-  Bar 33: 4つ打ちドロップ
-  → ブレイクス、UKガレージ向け
+```
+Sound Quality:
+  - Sample Rate: 44.1kHz / 48kHz
+  - Bit Depth: 24bit (during production) -> 16bit/24bit (distribution)
+  - Format: WAV / AIFF (recommended), FLAC (acceptable)
+  - Loudness: -8 to -6 LUFS (for clubs)
+  - Peak: -1 dBTP (True Peak)
 
-バリエーション5: ビルドアップイントロ
-  Bar 1-16: キック（ハーフタイム）
-  Bar 17-24: キック（フルタイム）+ ハイハット
-  Bar 25-28: + ベース + スネアロール開始
-  Bar 29-32: ライザー + スネアロール（加速）
-  Bar 33: ドロップ（最大インパクト）
-  → EDM、ビッグルーム向け
+Structure:
+  - 8-bar unit structure (clear phrase structure)
+  - Predictable arrangement (DJs can read ahead)
+  - Clear energy fluctuations
+  - Clean low end (avoiding interference during mixing)
+
+Practical:
+  - Include BPM and key in filename
+  - Accurate ID3 tag entry
+  - Compliance with Beatport and Traxsource standards
+  - Verified operation in Rekordbox / Traktor / Serato
 ```
 
 ---
 
-## ミックスポイントの設計
+## Intro/Outro Design
 
-### ループポイント
+### The 32-Bar Rule
 
-**Introのループポイント**:
+**Why 32 Bars**:
 ```
-DJがループできるセクションを意図的に設計:
+Relationship between DJ mix time and bar count:
 
-ループポイント1: Bar 9-16 (キック+ハイハット)
-  - 最も汎用的なループポイント
-  - DJが好きなタイミングでミックス開始
-  - Bar 9 と Bar 17 のサウンドが滑らかに接続
+Shortest mix: 16 bars (approx. 30 seconds @ 128BPM)
+  - Cut mix or slam mix
+  - Energetic transitions
+  - For advanced DJs
 
-ループポイント2: Bar 1-8 (キックのみ)
-  - 非常にクリーンなループ
-  - 長いトランジションを取りたいDJ向け
+Standard mix: 32 bars (approx. 1 minute @ 128BPM)
+  - Blend transitions
+  - EQ swap
+  - Most common
 
-ループポイント3: Bar 17-24 (キック+HH+ベース)
-  - ベースラインのグルーヴを聴かせたい場合
+Longer mix: 64 bars (approx. 2 minutes @ 128BPM)
+  - Deep blends
+  - Progressive style
+  - For tech/minimal
 
-設計上の注意:
-  - ループの先頭と末尾で音が途切れないこと
-  - リバーブやディレイのテイルがループ境界で不自然にならないこと
-  - エネルギーレベルがループ内で一定であること
-  - ループ内での微妙なバリエーション（2-4ループまで）
+32-bar breakdown (4 phrases):
+  Phrase 1 (Bar 1-8):
+    - The previous track is still playing as the main
+    - Only the new track's kick begins to layer
+    - The DJ controls the low end with EQ
 
-検証方法（Ableton）:
+  Phrase 2 (Bar 9-16):
+    - The previous track's fade-out progresses
+    - Hi-hats and percussion join the new track
+    - Rhythm transition becomes clear
+
+  Phrase 3 (Bar 17-24):
+    - The previous track is nearly faded out
+    - Bassline joins the new track
+    - Low-end dominance shifts to the new track
+
+  Phrase 4 (Bar 25-32):
+    - The previous track has completely faded out
+    - Pads and synth elements are added to the new track
+    - Ready for the full drop
+```
+
+### Intro Element Addition Order
+
+**Bar 1-8 (Phrase 1): Kick Only**
+```
+Structure:
+  Kick: Four-on-the-floor (every beat)
+  BPM: Constant (absolutely no drift)
+  Volume: Peak -6dB
+
+Design Points:
+  - No elements other than kick
+  - Easy for DJs to blend with the previous track's kick
+  - Clean low end is most important
+  - Shorter tail kicks are preferable
+  - Same pattern as the sidechain kick
+
+Options:
+  - Very subtle reverb tail (for spatial awareness)
+  - Faint white noise layer
+  - However, these should be at subliminal levels only
+```
+
+**Bar 9-16 (Phrase 2): Kick + Hi-Hat/Percussion**
+```
+Added elements:
+  + Hi-Hat: 8th note or 16th note
+  + Ride: Optional
+  + Percussion: Shaker, tambourine, etc.
+
+Design Points:
+  - Phrase where the rhythm character becomes clear
+  - Add velocity variation to hi-hats
+  - Establish groove feel
+  - Don't add low end yet (kick only)
+
+Variations:
+  Pattern A (Straight): HH on every 8th
+  Pattern B (Shuffle): HH with swing
+  Pattern C (Offbeat): HH on off-beats only
+```
+
+**Bar 17-24 (Phrase 3): + Bassline**
+```
+Added elements:
+  + Sub Bass: Centered on root note
+  + Mid Bass: Optional (light)
+  + Clap/Snare: Optional (beats 2, 4)
+
+Design Points:
+  - Bassline enters gradually (filter open recommended)
+  - The low-end frequency band begins to fill
+  - DJs will completely cut the previous track's low end here
+  - The bass root note indicates the track's key
+
+Technique:
+  - Gradually open a high-pass filter from Bar 17
+  - Bar 17: HPF @ 200Hz -> Bar 24: HPF @ 20Hz
+  - Natural bass introduction effect
+```
+
+**Bar 25-32 (Phrase 4): + Pad/Synth/Vocal Teaser**
+```
+Added elements:
+  + Pad: Chord progression introduction
+  + Lead Teaser: Melody fragment
+  + Vocal Snippet: Part of the vocal (if applicable)
+  + FX: Risers, sweeps
+
+Design Points:
+  - Create anticipation for the full drop
+  - A "preview" of the main melody or hook
+  - Sensation of energy rising
+  - Bar 31-32 has maximum tension with risers/FX
+  - End of Bar 32 has a snare roll or reverse FX
+
+Variations:
+  Subtle: Only add pad
+  Standard: Pad + lead teaser
+  Bold: Pad + lead + vocal + FX
+```
+
+**Bar 33 onward: Main Section (Drop)**
+```
+All elements appear simultaneously:
+  - Full Drums (kick, snare, hi-hat, percussion)
+  - Full Bass (sub + mid)
+  - Full Synth (lead, pad, arpeggio)
+  - Vocal (if applicable)
+  - FX (accents)
+
+Methods to maximize impact:
+  - Create silence (gap) in the last 1/4 beat of Bar 32
+  - Kick + bass + all elements on beat 1 of Bar 33
+  - Layer impact FX (downlifter, sub drop)
+  - Sidechain kicks in
+```
+
+### Outro Element Removal Order
+
+**Remove in reverse order of Intro**:
+```
+End of main section:
+  All elements playing
+
+Bar 1-8 (Outro Phrase 1): Remove pads/leads
+  - Remove melodic elements
+  - Fade-out effect with FX
+  - Final vocal phrase
+
+Bar 9-16 (Outro Phrase 2): Remove bassline
+  - Gradually cut with low-pass filter
+  - Bar 9: LPF @ 20kHz -> Bar 16: LPF @ 200Hz
+  - Or volume fade
+
+Bar 17-24 (Outro Phrase 3): Remove hi-hats/percussion
+  - Simplify rhythm elements
+  - Only kick and minimal percussion
+
+Bar 25-32 (Outro Phrase 4): Kick only
+  - Most minimal state
+  - Easy to blend with the next track's Intro
+  - Natural fade-out or cut at the last bar
+
+Important: The last sound of the Outro must completely disappear
+  - No reverb tail remaining
+  - No delay feedback remaining
+  - No sub bass release remaining
+```
+
+### Intro Variations
+
+```
+Variation 1: Minimal Intro
+  Bar 1-16: Kick only
+  Bar 17-32: Kick + Hi-Hat
+  Bar 33: Drop (all elements at once)
+  -> For Techno, Minimal
+
+Variation 2: Gradient Intro
+  Bar 1-8: Kick
+  Bar 9-16: + Hi-Hat + Percussion
+  Bar 17-24: + Bass + Clap
+  Bar 25-32: + Pad + FX + Vocal Snippet
+  Bar 33: Drop
+  -> For House, Progressive (most common)
+
+Variation 3: Atmospheric Intro
+  Bar 1-16: Ambient pad + Noise
+  Bar 17-24: + Kick (with filter)
+  Bar 25-32: Full kick + Bass introduction
+  Bar 33: Drop
+  -> For Ambient Techno, Deep House
+
+Variation 4: Breakbeat Intro
+  Bar 1-8: Breakbeat pattern
+  Bar 9-16: + Bass
+  Bar 17-24: + Synth stabs
+  Bar 25-32: + Vocal + FX
+  Bar 33: Four-on-the-floor drop
+  -> For Breaks, UK Garage
+
+Variation 5: Buildup Intro
+  Bar 1-16: Kick (half-time)
+  Bar 17-24: Kick (full-time) + Hi-Hat
+  Bar 25-28: + Bass + Snare roll begins
+  Bar 29-32: Riser + Snare roll (accelerating)
+  Bar 33: Drop (maximum impact)
+  -> For EDM, Big Room
+```
+
+---
+
+## Mix Point Design
+
+### Loop Points
+
+**Intro Loop Points**:
+```
+Intentionally design sections where DJs can loop:
+
+Loop Point 1: Bar 9-16 (Kick + Hi-Hat)
+  - The most versatile loop point
+  - DJs can start mixing at their preferred timing
+  - Sound at Bar 9 and Bar 17 connects smoothly
+
+Loop Point 2: Bar 1-8 (Kick only)
+  - Very clean loop
+  - For DJs who want long transitions
+
+Loop Point 3: Bar 17-24 (Kick + HH + Bass)
+  - When you want to showcase the bassline groove
+
+Design Notes:
+  - Sound must not cut off at the loop start and end
+  - Reverb and delay tails must not sound unnatural at loop boundaries
+  - Energy level should be consistent within the loop
+  - Subtle variations within loops (up to 2-4 loops)
+
+Verification Method (Ableton):
   1. Clip Loop: On
-  2. Loop Start: 目的のBar
-  3. Loop End: 8小節後
-  4. 10回以上ループして不自然さがないか確認
+  2. Loop Start: Target bar
+  3. Loop End: 8 bars later
+  4. Loop 10+ times to check for unnaturalness
 ```
 
-**Outroのループポイント**:
+**Outro Loop Points**:
 ```
-ループポイント1: Bar 25-32 (キックのみ)
-  - 次の曲のIntroと重ねやすい
-  - 最もクリーンな状態
+Loop Point 1: Bar 25-32 (Kick only)
+  - Easy to layer with the next track's Intro
+  - Cleanest state
 
-ループポイント2: Bar 17-24 (キック+HH)
-  - もう少しリズム要素を残したループ
+Loop Point 2: Bar 17-24 (Kick + HH)
+  - A loop with slightly more rhythm elements
 
-設計ポイント:
-  - Outroのループは無限に繰り返しても自然であること
-  - 次の曲のどのセクションとも干渉しないこと
+Design Points:
+  - Outro loops must sound natural even when repeated indefinitely
+  - Must not interfere with any section of the next track
 ```
 
-### クオンタイズ（グリッド整列）
+### Quantization (Grid Alignment)
 
-**DJ用トラックは完璧なグリッド必須**:
+**Perfect grid is essential for DJ tracks**:
 ```
-Warp設定（Ableton）:
+Warp Settings (Ableton):
   Warp: On
-  BPM: 正確に設定（例: 128.00、小数点以下も確認）
-  Warp Marker: 小節頭に正確に配置
-  モード: Beats（ドラムトラック）/ Complex Pro（マスター）
+  BPM: Set precisely (e.g., 128.00, check decimal places)
+  Warp Marker: Place precisely at bar heads
+  Mode: Beats (drum tracks) / Complex Pro (master)
 
-正確なグリッドが必要な理由:
-  1. RekordboxのBeatGrid:
-     - 正確なBPMが検出される
-     - Waveformのグリッドが一致
-     - CDJのSync機能が正しく動作
+Why accurate grids are necessary:
+  1. Rekordbox BeatGrid:
+     - Accurate BPM is detected
+     - Waveform grid aligns
+     - CDJ Sync function works correctly
 
-  2. TraktorのBeatGrid:
-     - 自動検出の精度向上
-     - Beat Jumpが正確に動作
-     - ループが正確に機能
+  2. Traktor BeatGrid:
+     - Auto-detection accuracy improves
+     - Beat Jump works accurately
+     - Loops function precisely
 
-  3. SeratoのBeatGrid:
-     - Quantize機能が正しく動作
-     - Hot CueのSnap精度向上
+  3. Serato BeatGrid:
+     - Quantize function works correctly
+     - Hot Cue snap accuracy improves
 
-グリッドのチェック方法:
-  1. DAWでメトロノームと同時再生
-  2. 曲全体を通して聴く（特に後半にズレがないか）
-  3. 最初と最後の小節でグリッド位置を確認
-  4. Rekordbox / Traktor / Serato に取り込んでグリッド確認
-  5. CDJ/DJコントローラーで実際にミックスしてテスト
+Grid Check Method:
+  1. Play simultaneously with metronome in DAW
+  2. Listen through the entire track (especially check for drift toward the end)
+  3. Verify grid position at first and last bars
+  4. Import into Rekordbox / Traktor / Serato to check grid
+  5. Actually test mixing on CDJ/DJ controller
 ```
 
-### ミックスしやすいポイントの作り方
+### Creating Mix-Friendly Points
 
 ```
-ミックスフレンドリーなセクション設計:
+Mix-Friendly Section Design:
 
-1. ブレイクダウンの長さ:
-   最低16小節のブレイクダウンを1つ以上設ける
-   → DJがこのセクションで次の曲を導入しやすい
+1. Breakdown Length:
+   Include at least one breakdown of 16+ bars
+   -> DJs can easily introduce the next track at this section
 
-2. エネルギーの谷:
-   ドロップの間に明確なエネルギーの谷を作る
-   → DJがエネルギーを制御しやすい
+2. Energy Valley:
+   Create a clear energy valley between drops
+   -> DJs can more easily control energy
 
-3. リズムの簡素化ポイント:
-   トラック中盤にキックのみのセクションを2-4小節入れる
-   → ミックスポイントとして利用可能
+3. Rhythm Simplification Point:
+   Include 2-4 bars of kick-only sections mid-track
+   -> Can be used as a mix point
 
-4. フィルタースウィープポイント:
-   ブレイクダウン前後にフィルタースウィープを設計
-   → DJのフィルターエフェクトと自然に融合
+4. Filter Sweep Point:
+   Design filter sweeps before and after breakdowns
+   -> Naturally blends with DJ filter effects
 
-5. 8小節ルール:
-   全てのセクション変化は8小節（1フレーズ）の倍数で発生
-   → DJがフレーズを読みやすい
+5. 8-Bar Rule:
+   All section changes occur in multiples of 8 bars (1 phrase)
+   -> DJs can easily read phrases
 ```
 
 ---
 
-## ジャンル別トラック構成
+## Genre-Specific Track Structures
 
-### テクノ（Tech/Peak Time Techno）
+### Techno (Tech/Peak Time Techno)
 
 ```
 BPM: 128-135
-キー: マイナーキー推奨
-総尺: 6-8分
+Key: Minor key recommended
+Total Length: 6-8 minutes
 
-構成:
-  Intro (32 bars): Kick → +HH → +Percussion → +FX
+Structure:
+  Intro (32 bars): Kick -> +HH -> +Percussion -> +FX
   Build 1 (16 bars): +Bass + Synth Stab
   Drop 1 (32 bars): Full elements
   Breakdown (16-32 bars): Atmospheric + Percussion only
   Build 2 (8-16 bars): Riser + Snare Roll
-  Drop 2 (32 bars): Full elements（+ additional layer）
-  Outro (32 bars): Elements remove → Kick only
+  Drop 2 (32 bars): Full elements (+ additional layer)
+  Outro (32 bars): Elements remove -> Kick only
 
-サウンド特徴:
-  - タイトなキック（短いテイル、パンチ重視）
-  - サブベース（ルート音、シンプル）
-  - メタリックパーカッション
-  - インダストリアルなテクスチャー
-  - リバーブスペース（ダブテクノ要素）
-  - アシッドライン（303系、オプション）
+Sound Characteristics:
+  - Tight kick (short tail, punch-focused)
+  - Sub bass (root note, simple)
+  - Metallic percussion
+  - Industrial textures
+  - Reverb space (dub techno elements)
+  - Acid line (303-style, optional)
 
-制作Tips:
-  - キックとベースのサイドチェインは深め（-12dB以上）
-  - ハイハットのベロシティバリエーション
-  - パーカッションのパンニング
-  - 空間系エフェクトを積極的に使用
-  - ミニマルでも「動き」を感じさせる
+Production Tips:
+  - Deep sidechain between kick and bass (-12dB or more)
+  - Hi-hat velocity variation
+  - Percussion panning
+  - Active use of spatial effects
+  - Create a sense of "movement" even in minimal tracks
 ```
 
-### ハウス（Tech House / Deep House）
+### House (Tech House / Deep House)
 
 ```
 BPM: 120-128
-キー: マイナー/メジャー両方
-総尺: 5-7分
+Key: Both minor/major
+Total Length: 5-7 minutes
 
-構成:
-  Intro (32 bars): Kick → +HH → +Bass → +Pad
+Structure:
+  Intro (32 bars): Kick -> +HH -> +Bass -> +Pad
   Verse/Groove (32 bars): Main groove + Vocal snippet
   Build (8-16 bars): +FX, Filter sweep
   Drop/Chorus (32 bars): Full elements + Main hook
   Breakdown (16 bars): Vocal + Pad + Minimal drums
   Drop 2 (32 bars): Full elements
-  Outro (32 bars): Elements remove → Kick only
+  Outro (32 bars): Elements remove -> Kick only
 
-サウンド特徴:
-  - ラウンドなキック（909系）
-  - ウォームなベースライン（グルーヴィー）
-  - オープン/クローズドハイハット（16分シャッフル）
-  - ボーカルチョップ/サンプル
-  - コードスタブ（ファンキー）
-  - パッド（空間的）
+Sound Characteristics:
+  - Round kick (909-style)
+  - Warm bassline (groovy)
+  - Open/closed hi-hat (16th shuffle)
+  - Vocal chops/samples
+  - Chord stabs (funky)
+  - Pad (spatial)
 
-制作Tips:
-  - グルーヴ/スウィングを14-18%程度
-  - ベースラインにバリエーション（4-8小節パターン）
-  - ボーカルサンプルの効果的な配置
-  - 空間の「広さ」を意識（ステレオイメージ）
-  - ミックスの「温かさ」（サチュレーション軽め）
+Production Tips:
+  - Groove/swing around 14-18%
+  - Bassline variation (4-8 bar patterns)
+  - Effective placement of vocal samples
+  - Be conscious of spatial "width" (stereo image)
+  - Mix "warmth" (light saturation)
 ```
 
-### プログレッシブハウス / メロディックテクノ
+### Progressive House / Melodic Techno
 
 ```
 BPM: 122-130
-キー: マイナーキー推奨
-総尺: 7-10分
+Key: Minor key recommended
+Total Length: 7-10 minutes
 
-構成:
-  Intro (32-64 bars): Kick → +HH → +Bass → +Arpeggio
+Structure:
+  Intro (32-64 bars): Kick -> +HH -> +Bass -> +Arpeggio
   Build 1 (32 bars): Gradual element addition
   Drop 1 (32 bars): Main melody + Full groove
   Breakdown 1 (32-64 bars): Atmospheric + Melody development
@@ -547,63 +547,63 @@ BPM: 122-130
   Drop 3 (16-32 bars): Final statement
   Outro (32-64 bars): Gradual element removal
 
-サウンド特徴:
-  - 長いテイルのキック
-  - 深いベースライン（進行感のある）
-  - レイヤードアルペジオ
-  - エモーショナルなパッド進行
-  - 壮大なブレイクダウン
-  - 繊細なパーカッション
+Sound Characteristics:
+  - Long-tail kick
+  - Deep bassline (with progression feel)
+  - Layered arpeggios
+  - Emotional pad progressions
+  - Grand breakdowns
+  - Delicate percussion
 
-制作Tips:
-  - 長いアレンジメントでもストーリーを持たせる
-  - 各セクションに新しい要素を追加して展開
-  - ブレイクダウンでの「溜め」を大切に
-  - オートメーションで流れるような展開
-  - リバーブの質にこだわる
+Production Tips:
+  - Maintain a story even in long arrangements
+  - Add new elements in each section to develop the track
+  - Value the "tension buildup" in breakdowns
+  - Flowing development through automation
+  - Pay attention to reverb quality
 ```
 
-### ドラムンベース
+### Drum and Bass
 
 ```
 BPM: 170-180
-キー: マイナーキー推奨
-総尺: 4-6分
+Key: Minor key recommended
+Total Length: 4-6 minutes
 
-構成:
+Structure:
   Intro (16-32 bars): Atmospheric + Half-time drums
   Build (8-16 bars): Snare roll + Riser
   Drop 1 (32 bars): Full DnB beat + Bass
   Breakdown (8-16 bars): Pad + Vocal/Melody
   Build 2 (8 bars): Riser
   Drop 2 (32 bars): Full elements + Variation
-  Outro (16-32 bars): Beat simplification → Kick/Snare only
+  Outro (16-32 bars): Beat simplification -> Kick/Snare only
 
-サウンド特徴:
-  - パワフルなキック + スネア（2ステップ）
-  - 高速ブレイクビーツ
-  - ディープなサブベース（Reese系）
-  - シャープなハイハット
-  - アグレッシブなシンセ（ニューロファンク）
-  or エモーショナルなパッド（リキッド）
+Sound Characteristics:
+  - Powerful kick + snare (2-step)
+  - High-speed breakbeats
+  - Deep sub bass (Reese-style)
+  - Sharp hi-hats
+  - Aggressive synths (neurofunk)
+  or emotional pads (liquid)
 
-制作Tips:
-  - キックとスネアのバランスが最重要
-  - ベースのサイドチェインはキック&スネア両方に
-  - 高速ブレイクビーツのプログラミング
-  - Introはハーフタイムでも可（DJが合わせやすい）
-  - Outroでビートを徐々にシンプルに
+Production Tips:
+  - Kick and snare balance is most important
+  - Sidechain bass to both kick and snare
+  - High-speed breakbeat programming
+  - Intro can be half-time (easier for DJs to match)
+  - Gradually simplify the beat in the Outro
 ```
 
-### トランス
+### Trance
 
 ```
 BPM: 136-142
-キー: マイナーキー推奨
-総尺: 7-10分
+Key: Minor key recommended
+Total Length: 7-10 minutes
 
-構成:
-  Intro (32-64 bars): Kick → +Bass → +Percussion
+Structure:
+  Intro (32-64 bars): Kick -> +Bass -> +Percussion
   Build 1 (16-32 bars): +Arpeggio + Pad
   Drop 1 (32 bars): Main melody + Full elements
   Breakdown (32-64 bars): Melodic development + Vocal
@@ -611,180 +611,180 @@ BPM: 136-142
   Drop 2 (32-64 bars): Main melody + Extra layers
   Outro (32-64 bars): Element removal
 
-サウンド特徴:
-  - パンチのあるキック
-  - ドライビングベースライン
-  - シーケンスアルペジオ（16分音符）
-  - 壮大なパッド進行
-  - エモーショナルなリード/メロディ
-  - ライザー/FXが豊富
+Sound Characteristics:
+  - Punchy kick
+  - Driving bassline
+  - Sequenced arpeggio (16th notes)
+  - Grand pad progressions
+  - Emotional lead/melody
+  - Rich risers/FX
 
-制作Tips:
-  - ブレイクダウンの美しさがトランスの核
-  - メロディの感動的な展開
-  - 段階的なエネルギーの上昇
-  - ベースラインはシンプルだがドライビング
-  - Introは64小節でも許容される
+Production Tips:
+  - The beauty of the breakdown is the core of trance
+  - Moving melodic development
+  - Gradual energy escalation
+  - Bassline is simple but driving
+  - 64-bar Intro is acceptable
 ```
 
 ---
 
-## キックドラムの設計
+## Kick Drum Design
 
-### DJ用キックの要件
-
-```
-DJ用キックドラムに求められる特性:
-
-1. パンチ:
-   - アタック（トランジェント）が明確
-   - 2-5kHz帯域にクリック要素
-   - ピーク: -6dB to -3dB
-
-2. ボディ:
-   - 60-120Hz帯域のウォームな響き
-   - 適度なサスティン（50-200ms）
-   - ジャンルに応じた太さ
-
-3. サブ:
-   - 30-60Hz帯域
-   - クリーンなサイン波
-   - 他のトラックのサブと干渉しないテイル
-
-4. テイル:
-   - 短め推奨（200-400ms）
-   - ミックス時に次のキックと重ならない
-   - ローパスフィルターでテイルの高域をカット
-
-キックのフリケンシー配分:
-  30-60Hz: サブ（基音）
-  60-120Hz: ボディ（厚み）
-  120-300Hz: ボクシーさ（カットが多い帯域）
-  300-1kHz: プレゼンス（明瞭さ）
-  1-5kHz: クリック/アタック
-  5kHz+: エア（空気感）
-```
-
-### ジャンル別キック設計
+### DJ Kick Requirements
 
 ```
-テクノキック:
-  基音: 45-55Hz
-  テイル: 短め（150-250ms）
-  キャラクター: パンチ重視、タイト
-  処理: コンプレッション強め、EQカーブ
+Characteristics required for DJ kick drums:
 
-ハウスキック:
-  基音: 50-60Hz
-  テイル: 中程度（200-350ms）
-  キャラクター: ラウンド、ウォーム（909系）
-  処理: サチュレーション軽め、自然な響き
+1. Punch:
+   - Clear attack (transient)
+   - Click element in the 2-5kHz band
+   - Peak: -6dB to -3dB
 
-トランスキック:
-  基音: 45-55Hz
-  テイル: やや長め（250-400ms）
-  キャラクター: パワフル、ドライビング
-  処理: レイヤリング（アタック + サブ）
+2. Body:
+   - Warm resonance in the 60-120Hz band
+   - Moderate sustain (50-200ms)
+   - Fatness appropriate for the genre
 
-ドラムンベースキック:
-  基音: 50-70Hz
-  テイル: 短め（100-200ms）
-  キャラクター: タイト、スナッピー
-  処理: トランジェントシェイパー、パラレルコンプ
+3. Sub:
+   - 30-60Hz band
+   - Clean sine wave
+   - Tail that doesn't interfere with other tracks' sub
+
+4. Tail:
+   - Shorter recommended (200-400ms)
+   - Doesn't overlap with the next kick when mixing
+   - Low-pass filter to cut high-end of tail
+
+Kick Frequency Distribution:
+  30-60Hz: Sub (fundamental)
+  60-120Hz: Body (thickness)
+  120-300Hz: Boxiness (often cut band)
+  300-1kHz: Presence (clarity)
+  1-5kHz: Click/Attack
+  5kHz+: Air
 ```
 
----
-
-## ベースラインの設計
-
-### DJ用ベースの要件
+### Genre-Specific Kick Design
 
 ```
-ベースラインの設計原則:
+Techno Kick:
+  Fundamental: 45-55Hz
+  Tail: Short (150-250ms)
+  Character: Punch-focused, tight
+  Processing: Heavy compression, EQ curve
 
-1. キーの明確さ:
-   - ルート音が明確
-   - DJがキーを判断しやすい
-   - Mixed In Keyの検出精度向上
+House Kick:
+  Fundamental: 50-60Hz
+  Tail: Medium (200-350ms)
+  Character: Round, warm (909-style)
+  Processing: Light saturation, natural resonance
 
-2. サブベースの管理:
-   - モノラル（センター定位）
-   - 30-80Hz帯域のクリーンさ
-   - キックとの住み分け（サイドチェイン）
+Trance Kick:
+  Fundamental: 45-55Hz
+  Tail: Slightly longer (250-400ms)
+  Character: Powerful, driving
+  Processing: Layering (attack + sub)
 
-3. パターンの予測可能性:
-   - 4小節または8小節のループパターン
-   - 1小節目のダウンビートにルート音
-   - DJがフレーズを読みやすい
-
-4. ミックス時の親和性:
-   - 他のトラックのベースと干渉しにくい
-   - フィルターでのコントロールが容易
-   - EQカットで自然に消える
-```
-
-### ジャンル別ベースパターン
-
-```
-テクノベース:
-  パターン: ルート音の繰り返し（1/4 or 1/8）
-  サウンド: サイン波 + 軽いサチュレーション
-  範囲: 1オクターブ以内
-  特徴: シンプル、ドライビング
-
-ハウスベース:
-  パターン: グルーヴィーなラインン（1/8 + シンコペーション）
-  サウンド: 909系サブ + ミッドベースレイヤー
-  範囲: 1-1.5オクターブ
-  特徴: ファンキー、ウォーム
-
-プログレッシブベース:
-  パターン: 長いノート（1/2 or 1小節）
-  サウンド: フィルタード・サブベース
-  範囲: 半オクターブ以内
-  特徴: ドリーミー、進行感
-
-ドラムンベースベース:
-  パターン: Reese系（うねり）
-  サウンド: ディストーション + フィルターモジュレーション
-  範囲: 1-2オクターブ
-  特徴: アグレッシブ、ダーク
+Drum and Bass Kick:
+  Fundamental: 50-70Hz
+  Tail: Short (100-200ms)
+  Character: Tight, snappy
+  Processing: Transient shaper, parallel comp
 ```
 
 ---
 
-## アレンジメント構成の詳細
+## Bassline Design
 
-### 8小節ルール
-
-```
-全てのセクション変化は8小節単位で管理:
-
-理由:
-  - DJはフレーズ単位（8小節）で楽曲を認識する
-  - ミックスのタイミングがフレーズ頭に合う
-  - CDJのPhase Meterが正確に表示される
-  - 予測可能なアレンジメント = DJフレンドリー
-
-悪い例:
-  Intro: 7小節 → Drop: 31小節 → Breakdown: 12小節
-  → DJがフレーズを見失う
-
-良い例:
-  Intro: 32小節 → Drop: 32小節 → Breakdown: 16小節
-  → 全て8の倍数
-
-例外:
-  - フィルイン（1-2小節の追加）は許容
-  - ただし次のセクション頭は必ずグリッドに合わせる
-```
-
-### エネルギーカーブの設計
+### DJ Bass Requirements
 
 ```
-トラック全体のエネルギーの流れ:
+Bassline Design Principles:
 
-エネルギーレベル（1-10）:
+1. Key Clarity:
+   - Clear root note
+   - Easy for DJs to identify the key
+   - Improved Mixed In Key detection accuracy
+
+2. Sub Bass Management:
+   - Mono (center panned)
+   - Clean 30-80Hz band
+   - Separation from kick (sidechain)
+
+3. Pattern Predictability:
+   - 4-bar or 8-bar loop patterns
+   - Root note on the downbeat of bar 1
+   - Easy for DJs to read phrases
+
+4. Mix Compatibility:
+   - Less likely to interfere with other tracks' bass
+   - Easy to control with filters
+   - Disappears naturally with EQ cuts
+```
+
+### Genre-Specific Bass Patterns
+
+```
+Techno Bass:
+  Pattern: Root note repetition (1/4 or 1/8)
+  Sound: Sine wave + light saturation
+  Range: Within 1 octave
+  Character: Simple, driving
+
+House Bass:
+  Pattern: Groovy line (1/8 + syncopation)
+  Sound: 909-style sub + mid-bass layer
+  Range: 1-1.5 octaves
+  Character: Funky, warm
+
+Progressive Bass:
+  Pattern: Long notes (1/2 or 1 bar)
+  Sound: Filtered sub bass
+  Range: Within half an octave
+  Character: Dreamy, progressive
+
+Drum and Bass Bass:
+  Pattern: Reese-style (undulating)
+  Sound: Distortion + filter modulation
+  Range: 1-2 octaves
+  Character: Aggressive, dark
+```
+
+---
+
+## Arrangement Structure Details
+
+### The 8-Bar Rule
+
+```
+All section changes are managed in 8-bar units:
+
+Reason:
+  - DJs perceive tracks in phrase units (8 bars)
+  - Mix timing aligns with phrase heads
+  - CDJ Phase Meter displays accurately
+  - Predictable arrangement = DJ-friendly
+
+Bad example:
+  Intro: 7 bars -> Drop: 31 bars -> Breakdown: 12 bars
+  -> DJs lose track of phrases
+
+Good example:
+  Intro: 32 bars -> Drop: 32 bars -> Breakdown: 16 bars
+  -> All multiples of 8
+
+Exception:
+  - Fills (1-2 bar additions) are acceptable
+  - However, the next section head must always align with the grid
+```
+
+### Energy Curve Design
+
+```
+Energy flow throughout the track:
+
+Energy Level (1-10):
 
 |10|                              ████
 | 9|                         ████ ████
@@ -799,669 +799,669 @@ DJ用キックドラムに求められる特性:
    |Intro|Build|Drop1|Brkdwn|Bld2|Drop2|Outro
     32bar 16bar 32bar 16bar  8bar 32bar 32bar
 
-設計ポイント:
-  - Introは低エネルギーからスタート（1-3）
-  - 段階的にエネルギーを上げる
-  - ドロップで最大エネルギー（8-10）
-  - ブレイクダウンで一旦エネルギーを下げる（3-5）
-  - 2回目のドロップは1回目と同等かそれ以上
-  - Outroは徐々にエネルギーを下げる
+Design Points:
+  - Start the Intro at low energy (1-3)
+  - Gradually increase energy
+  - Maximum energy at the drop (8-10)
+  - Temporarily lower energy at breakdowns (3-5)
+  - Second drop is equal to or greater than the first
+  - Gradually lower energy in the Outro
 ```
 
-### テンション管理
+### Tension Management
 
 ```
-テンションの作り方:
+How to create tension:
 
-ライザー（上昇FX）:
-  - ホワイトノイズのフィルタースウィープ（LP → 開く）
-  - ピッチの上昇（+12 semitones over 8 bars）
-  - ドラムロールの加速（1/8 → 1/16 → 1/32）
-  - リバーブのDecay増加
+Risers (ascending FX):
+  - White noise filter sweep (LP -> open)
+  - Pitch rise (+12 semitones over 8 bars)
+  - Drum roll acceleration (1/8 -> 1/16 -> 1/32)
+  - Increasing reverb decay
 
-ダウンリフター（下降FX）:
-  - ドロップ直前の「落とし」
-  - ピッチの下降
-  - フィルターの閉じ
-  - サブドロップ（低周波のインパクト）
+Downlifters (descending FX):
+  - The "drop" just before the drop
+  - Descending pitch
+  - Filter closing
+  - Sub drop (low frequency impact)
 
-テンションの解放:
-  - ドロップの1拍目で全テンション解放
-  - インパクトFX + キック + ベース同時開始
-  - 直前の0.5-1拍の無音が効果的
+Tension release:
+  - Release all tension on beat 1 of the drop
+  - Impact FX + kick + bass start simultaneously
+  - 0.5-1 beat of silence just before is effective
 ```
 
 ---
 
-## アカペラ・インストの分離
+## Acapella and Instrumental Separation
 
-### なぜ必要か
+### Why It's Necessary
 
-**DJ用途**:
+**DJ Uses**:
 ```
-Acapella（ボーカルのみ）:
-  - マッシュアップ素材として
-  - 他のトラックのインストに重ねる
-  - DJセットのアクセント
-  - ライブリミックスの素材
+Acapella (Vocals Only):
+  - As mashup material
+  - Layer over other tracks' instrumentals
+  - DJ set accents
+  - Live remix material
 
-Instrumental（ボーカル抜き）:
-  - ボーカルトラックの下に敷く
-  - リミックスのベーストラック
-  - BGM使用
-  - 他のアカペラを重ねる
+Instrumental (Without Vocals):
+  - Lay under vocal tracks
+  - Base track for remixes
+  - BGM use
+  - Layer other acapellas on top
 
-ステム（個別パーツ）:
-  - Drums: キック、スネア、ハイハット、パーカッション
-  - Bass: サブベース、ミッドベース
-  - Synth: リード、パッド、アルペジオ
-  - Vocal: リードボーカル、ハーモニー
-  → 4ステム形式が業界標準（Native Instruments Stems）
+Stems (Individual Parts):
+  - Drums: Kick, snare, hi-hat, percussion
+  - Bass: Sub bass, mid bass
+  - Synth: Lead, pad, arpeggio
+  - Vocal: Lead vocal, harmony
+  -> 4-stem format is the industry standard (Native Instruments Stems)
 ```
 
-### 制作段階での分離
+### Separation During Production
 
-**トラック構成の分離**:
+**Track Structure Separation**:
 ```
-DAWでのグループ構成:
+Group configuration in DAW:
 
 Group 1: DRUMS
   Track 1: Kick
   Track 2: Snare / Clap
   Track 3: Hi-Hat / Cymbals
   Track 4: Percussion
-  → Bus: Drum Bus
+  -> Bus: Drum Bus
 
 Group 2: BASS
   Track 5: Sub Bass
   Track 6: Mid Bass
-  → Bus: Bass Bus
+  -> Bus: Bass Bus
 
 Group 3: SYNTH / MUSIC
   Track 7: Lead Synth
   Track 8: Pad
   Track 9: Arpeggio
   Track 10: FX / Textures
-  → Bus: Synth Bus
+  -> Bus: Synth Bus
 
 Group 4: VOCALS
   Track 11: Lead Vocal
   Track 12: Backing Vocal
   Track 13: Vocal FX
-  → Bus: Vocal Bus
+  -> Bus: Vocal Bus
 
 Master Bus:
-  ← Drum Bus + Bass Bus + Synth Bus + Vocal Bus
+  <- Drum Bus + Bass Bus + Synth Bus + Vocal Bus
 ```
 
-**エクスポート手順**:
+**Export Procedure**:
 ```
-1. フルミックス（Original Mix）:
-   全グループ有効
+1. Full Mix (Original Mix):
+   All groups enabled
    Export: "Artist - Track Name (Original Mix).wav"
-   → メインの完成版
+   -> Main finished version
 
-2. インストゥルメンタル版:
-   Group 4（VOCALS）をミュート
+2. Instrumental Version:
+   Mute Group 4 (VOCALS)
    Export: "Artist - Track Name (Instrumental).wav"
-   → ボーカル以外の全要素
+   -> All elements except vocals
 
-3. アカペラ版:
-   Group 1-3をミュート、Group 4のみ有効
+3. Acapella Version:
+   Mute Groups 1-3, only Group 4 enabled
    Export: "Artist - Track Name (Acapella).wav"
-   → ボーカルのみ
+   -> Vocals only
 
-4. ステム版（4ステム）:
-   各グループを個別にエクスポート
+4. Stem Version (4 stems):
+   Export each group individually
    Export:
      "Artist - Track Name (Stem - Drums).wav"
      "Artist - Track Name (Stem - Bass).wav"
      "Artist - Track Name (Stem - Synth).wav"
      "Artist - Track Name (Stem - Vocals).wav"
-   → 各パーツを個別に操作可能
+   -> Each part can be manipulated individually
 
-5. DJツール版:
-   特定の要素のみ（例: Drums + Bass only）
+5. DJ Tool Version:
+   Specific elements only (e.g., Drums + Bass only)
    Export: "Artist - Track Name (Dub Mix).wav"
-   → ミニマルバージョン
+   -> Minimal version
 
-エクスポート設定:
-  Sample Rate: 44.1kHz（Beatport標準）/ 48kHz
-  Bit Depth: 24bit（推奨）/ 16bit
-  Format: WAV（推奨）/ AIFF
+Export Settings:
+  Sample Rate: 44.1kHz (Beatport standard) / 48kHz
+  Bit Depth: 24bit (recommended) / 16bit
+  Format: WAV (recommended) / AIFF
   Normalize: Off
-  Dither: Triangular（24bit→16bit変換時）
+  Dither: Triangular (when converting 24bit -> 16bit)
 ```
 
-### 後からの分離（AI分離）
+### Post-Production Separation (AI Separation)
 
 ```
-制作段階で分離していない場合:
+When not separated during production:
 
-AIベースのステム分離ツール:
-  1. Ableton 11.1+ 内蔵機能:
-     - 楽曲をドラム、ベース、ボーカル、その他に分離
-     - 品質は良好だが完全ではない
-     - CPU負荷が高い
+AI-based stem separation tools:
+  1. Ableton 11.1+ Built-in Feature:
+     - Separates tracks into drums, bass, vocals, and other
+     - Quality is good but not perfect
+     - High CPU load
 
   2. iZotope RX:
-     - Music Rebalance機能
-     - 高品質な分離
-     - プロフェッショナル向け
+     - Music Rebalance feature
+     - High-quality separation
+     - Professional-grade
 
   3. LALAL.AI:
-     - クラウドベース
-     - ステム分離に特化
-     - ボーカル分離の品質が高い
+     - Cloud-based
+     - Specialized in stem separation
+     - High vocal separation quality
 
-  4. Demucs（Meta/Facebook）:
-     - オープンソース
-     - 4ステム分離
-     - 高品質
+  4. Demucs (Meta/Facebook):
+     - Open source
+     - 4-stem separation
+     - High quality
 
-注意点:
-  - AI分離は完璧ではない（アーティファクトが残る）
-  - 制作段階での分離が最高品質
-  - DJ用途では許容範囲の品質
-  - マスタリング済み音源からの分離は品質が落ちる
+Notes:
+  - AI separation is not perfect (artifacts remain)
+  - Separation during production is the highest quality
+  - Acceptable quality for DJ use
+  - Quality drops when separating from mastered sources
 ```
 
 ---
 
-## DJ用ループ・フィルイン
+## DJ Loops and Fills
 
-### ドラムループの制作
+### Drum Loop Production
 
-**シンプルなドラムループ（8-16小節）**:
+**Simple Drum Loops (8-16 bars)**:
 ```
-基本構成:
-  Kick: 4つ打ち（毎拍）
-  Snare/Clap: 2拍目、4拍目
-  Hi-Hat (Closed): 16分音符（ベロシティ変化）
-  Hi-Hat (Open): 2小節に1回（アクセント）
-  Percussion: コンガ、ボンゴ等（グルーヴ追加）
+Basic structure:
+  Kick: Four-on-the-floor (every beat)
+  Snare/Clap: Beats 2, 4
+  Hi-Hat (Closed): 16th notes (velocity variation)
+  Hi-Hat (Open): Once every 2 bars (accent)
+  Percussion: Congas, bongos, etc. (adding groove)
 
-BPM別ループ:
-  120 BPM Loop: ディープハウス向け
-  124 BPM Loop: テックハウス向け
-  128 BPM Loop: ハウス/テクノ向け
-  132 BPM Loop: テクノ向け
-  140 BPM Loop: トランス/ハードスタイル向け
-  174 BPM Loop: ドラムンベース向け
+BPM-specific loops:
+  120 BPM Loop: For deep house
+  124 BPM Loop: For tech house
+  128 BPM Loop: For house/techno
+  132 BPM Loop: For techno
+  140 BPM Loop: For trance/hardstyle
+  174 BPM Loop: For drum and bass
 
-エクスポート設定:
-  長さ: 8小節 or 16小節
-  テイル: なし（クリーンカット）
-  フォーマット: WAV 44.1kHz/24bit
-  ファイル名: "Drum_Loop_128BPM_Aminor_YourName.wav"
-```
-
-**バリエーションループ**:
-```
-ループA（基本）: 標準パターン 8小節
-ループB（バリエーション）: 基本 + パーカッション追加 8小節
-ループC（フィル入り）: 基本 + 最後の2小節にフィル 8小節
-ループD（ミニマル）: キック + HH のみ 8小節
-
-用途:
-  - ループA: トランジションのベース
-  - ループB: エネルギー追加
-  - ループC: セクション変化の予告
-  - ループD: ミックスポイント
+Export settings:
+  Length: 8 bars or 16 bars
+  Tail: None (clean cut)
+  Format: WAV 44.1kHz/24bit
+  Filename: "Drum_Loop_128BPM_Aminor_YourName.wav"
 ```
 
-### フィルインの制作
-
-**スネアロール**:
+**Variation Loops**:
 ```
-4小節のスネアロール（ビルドアップ用）:
+Loop A (Basic): Standard pattern 8 bars
+Loop B (Variation): Basic + added percussion 8 bars
+Loop C (With Fill): Basic + fill in last 2 bars 8 bars
+Loop D (Minimal): Kick + HH only 8 bars
 
-Bar 1: 通常パターン（1/4音符スネア）
-Bar 2: 1/8音符スネア
-Bar 3: 1/16音符スネア
-Bar 4: 1/32音符スネア（ロール）
-
-追加処理:
-  - ピッチ: 徐々に上昇（+0 → +2 semitones）
-  - リバーブ: 徐々に増加
-  - ボリューム: 徐々に増加
-  - パンニング: 狭 → 広
-
-バリエーション:
-  A: クラップロール（よりオープンなサウンド）
-  B: ハイハットロール（シャープなサウンド）
-  C: パーカッションロール（ボンゴ/コンガ）
+Uses:
+  - Loop A: Base for transitions
+  - Loop B: Adding energy
+  - Loop C: Signaling section changes
+  - Loop D: Mix point
 ```
 
-**ライザー（Riser）**:
-```
-4-8小節のライザー制作:
+### Fill Production
 
-方法1: ホワイトノイズライザー
-  ソース: White Noise
-  フィルター: LP Filter
+**Snare Roll**:
+```
+4-bar snare roll (for buildups):
+
+Bar 1: Normal pattern (1/4 note snare)
+Bar 2: 1/8 note snare
+Bar 3: 1/16 note snare
+Bar 4: 1/32 note snare (roll)
+
+Additional processing:
+  - Pitch: Gradually rising (+0 -> +2 semitones)
+  - Reverb: Gradually increasing
+  - Volume: Gradually increasing
+  - Panning: Narrow -> Wide
+
+Variations:
+  A: Clap roll (more open sound)
+  B: Hi-hat roll (sharp sound)
+  C: Percussion roll (bongo/conga)
+```
+
+**Riser**:
+```
+4-8 bar riser production:
+
+Method 1: White Noise Riser
+  Source: White Noise
+  Filter: LP Filter
     Bar 1: Cutoff 200 Hz
     Bar 8: Cutoff 12000 Hz
-  ピッチ: +12 semitones over 8 bars
-  ボリューム: -20dB → -6dB
+  Pitch: +12 semitones over 8 bars
+  Volume: -20dB -> -6dB
 
-方法2: シンセライザー
-  ソース: Saw Wave
-  フィルター: LP Filter（同上）
-  ユニゾン: 4-8 voices
-  デチューン: 徐々に広がる
-  リバーブ: 増加
+Method 2: Synth Riser
+  Source: Saw Wave
+  Filter: LP Filter (same as above)
+  Unison: 4-8 voices
+  Detune: Gradually widens
+  Reverb: Increasing
 
-方法3: リバースシンバル
-  ソース: Crash Cymbal を反転
-  フェード: 徐々にフェードイン
-  リバーブ: 長め
+Method 3: Reverse Cymbal
+  Source: Crash Cymbal reversed
+  Fade: Gradual fade-in
+  Reverb: Long
 
-方法4: コンビネーション
-  全方法を重ねて壮大なライザー
-  8小節: 最大インパクト
+Method 4: Combination
+  Layer all methods for a grand riser
+  8 bars: Maximum impact
 ```
 
-**ダウンリフター（Impact/Drop FX）**:
+**Downlifter (Impact/Drop FX)**:
 ```
-ドロップ前後のインパクトFX:
+Impact FX before and after drops:
 
-サブドロップ:
-  ソース: Sine Wave
-  ピッチ: C1 → C0（1オクターブ下降、0.5秒）
-  ボリューム: 高め（インパクト感）
-  注意: サブ帯域なのでスピーカーに負荷
+Sub Drop:
+  Source: Sine Wave
+  Pitch: C1 -> C0 (1 octave descent, 0.5 seconds)
+  Volume: High (impact feel)
+  Note: Sub frequency band, puts load on speakers
 
-インパクトヒット:
-  ソース: ノイズバースト + サブ + リバーブ
-  長さ: 0.5-2秒
-  リバーブ: Large Hall、Decay 3-5秒
-  用途: ドロップの1拍目に配置
+Impact Hit:
+  Source: Noise burst + sub + reverb
+  Length: 0.5-2 seconds
+  Reverb: Large Hall, Decay 3-5 seconds
+  Use: Place on beat 1 of the drop
 
-リバースリバーブ:
-  ソース: 次のセクションの最初の音
-  処理: リバーブ → 反転
-  長さ: 2-4秒
-  用途: ドロップ直前に配置（期待感）
+Reverse Reverb:
+  Source: First sound of the next section
+  Processing: Reverb -> Reverse
+  Length: 2-4 seconds
+  Use: Place just before the drop (anticipation)
 ```
 
 ---
 
-## トランジションツール
+## Transition Tools
 
-### Filter Sweep ループ
+### Filter Sweep Loop
 
-**作り方**:
+**How to Create**:
 ```
-コード進行: Am-F-C-G（または任意のシンプル進行）
-シンセ: Wavetable / Analog Pad
+Chord Progression: Am-F-C-G (or any simple progression)
+Synth: Wavetable / Analog Pad
 Auto Filter:
   Type: Low Pass
-  LFO Rate: 1/4（BPM同期）
+  LFO Rate: 1/4 (BPM synced)
   LFO Amount: 80%
   Resonance: 20-30%
-ループ長: 16小節
-ボリューム: -6dB（ミックスで使いやすい）
+Loop Length: 16 bars
+Volume: -6dB (easy to use in mix)
 
-用途:
-  - 2曲の間に挟むトランジションツール
-  - エネルギーレベルの調整
-  - ブレイクダウン時の空間埋め
-  - アンビエントレイヤー
+Uses:
+  - Transition tool placed between two tracks
+  - Energy level adjustment
+  - Space filling during breakdowns
+  - Ambient layer
 ```
 
 ### Ambient Pad
 
-**作り方**:
+**How to Create**:
 ```
-シンセ: Analog / Wavetable Pad
+Synth: Analog / Wavetable Pad
   Oscillator: Saw + Sine
-  Filter: LP Filter、Cutoff 2000Hz
+  Filter: LP Filter, Cutoff 2000Hz
   Envelope: Attack 2000ms, Release 4000ms
   Unison: 4 voices, Detune 15%
-リバーブ: Hall、Decay 4.0-6.0s、Mix 60%
-ディレイ: 1/4 Ping Pong、Feedback 30%
-コード: 1つのコード（Cm等）を32小節維持
-ボリューム: -9dB
+Reverb: Hall, Decay 4.0-6.0s, Mix 60%
+Delay: 1/4 Ping Pong, Feedback 30%
+Chord: Sustain 1 chord (Cm, etc.) for 32 bars
+Volume: -9dB
 
-用途:
-  - ブレイクダウンの空間演出
-  - アンビエントトランジション
-  - エナジーのクールダウン
-  - 静かなセクションの背景
+Uses:
+  - Spatial ambience during breakdowns
+  - Ambient transitions
+  - Energy cooldown
+  - Background for quiet sections
 ```
 
-### ドラムツール
+### Drum Tools
 
 ```
-トランジション専用ドラムツール:
+Transition-dedicated drum tools:
 
-ツール1: キックのみループ（32小節）
-  128BPM、4つ打ちキックのみ
-  → 最もシンプルなトランジションツール
+Tool 1: Kick Only Loop (32 bars)
+  128BPM, four-on-the-floor kick only
+  -> The simplest transition tool
 
-ツール2: キック+ライド（16小節）
-  キック + ライドシンバル
-  → テクノトランジション向け
+Tool 2: Kick + Ride (16 bars)
+  Kick + ride cymbal
+  -> For techno transitions
 
-ツール3: パーカッションブレイク（8小節）
-  コンガ、ボンゴ、シェイカーのみ（キックなし）
-  → エスニック/トライバル要素の追加
+Tool 3: Percussion Break (8 bars)
+  Congas, bongos, shakers only (no kick)
+  -> Adding ethnic/tribal elements
 
-ツール4: ブレイクビーツ（8小節）
-  ファンキーなブレイクビーツパターン
-  → ブレイクス/UKガレージ的トランジション
+Tool 4: Breakbeat (8 bars)
+  Funky breakbeat pattern
+  -> Breaks/UK Garage-style transitions
 
-ツール5: ハーフタイムループ（16小節）
-  キック+スネアのハーフタイムパターン
-  → テンポ感の変化（ダブステップ的）
+Tool 5: Half-Time Loop (16 bars)
+  Kick + snare half-time pattern
+  -> Tempo feel change (dubstep-like)
 ```
 
 ---
 
-## ブートレグ・エディット
+## Bootlegs and Edits
 
-### 合法的な範囲
+### Legal Scope
 
-**ブートレグ（Bootleg）**:
+**Bootleg**:
 ```
-定義: 非公式リミックス/エディット
+Definition: Unofficial remix/edit
 
-合法的な使用:
-  - DJセット内でのみ使用（非販売）
-  - SoundCloudに「Free Download」で公開
-  - Mixcloudにアップロード（ライセンス済み）
-  - 原曲クレジット必須
-  - プロモーション用（ライブ配信等）
+Legal use:
+  - Use only within DJ sets (not for sale)
+  - Publish on SoundCloud as "Free Download"
+  - Upload to Mixcloud (licensed)
+  - Original credit required
+  - For promotion (live streaming, etc.)
 
-グレーゾーン:
-  - YouTubeへのアップロード（Content IDで検出される可能性）
-  - SoundCloudでの公開（テイクダウン要請の可能性）
+Gray area:
+  - YouTube upload (may be detected by Content ID)
+  - SoundCloud publication (possible takedown request)
 
-明確に違法:
-  - 販売（Beatport、iTunes、Amazon等）
-  - ストリーミング配信（Spotify、Apple Music等）
-  - 広告収益を得る使用
-  - 原曲クレジットなしの使用
+Clearly illegal:
+  - Sales (Beatport, iTunes, Amazon, etc.)
+  - Streaming distribution (Spotify, Apple Music, etc.)
+  - Use for advertising revenue
+  - Use without original credit
 
-リスク管理:
-  - 原曲の権利者に連絡を取ることが理想
-  - テイクダウン要請には速やかに従う
-  - 販売目的では絶対に使用しない
-  - 「Free Download / Not For Sale」を明記
+Risk management:
+  - Ideally contact the original rights holder
+  - Comply promptly with takedown requests
+  - Never use for sales purposes
+  - Clearly mark "Free Download / Not For Sale"
 ```
 
-### エディットの種類
+### Types of Edits
 
 ```
-1. BPM変更エディット:
+1. BPM Change Edit:
    Original: 110 BPM (Hip Hop)
    Edit: 128 BPM (House)
 
-   方法:
+   Method:
      Ableton Warp:
-       Complex Pro（ボーカル含む場合）
-       Beats（ドラムブレイクのみの場合）
+       Complex Pro (if vocals included)
+       Beats (if drum breaks only)
        Segment BPM: 128.00
 
-     注意: 大幅なBPM変更は音質劣化
-     推奨範囲: ±20%以内
+     Note: Significant BPM changes degrade quality
+     Recommended range: Within +/-20%
 
-2. 構成変更エディット:
+2. Structure Change Edit:
    Original:
-     Intro → Verse → Chorus → Verse → Chorus → Outro
-   Edit（DJ用）:
-     32小節 Intro → Chorus → Breakdown → Chorus → 32小節 Outro
+     Intro -> Verse -> Chorus -> Verse -> Chorus -> Outro
+   Edit (for DJ):
+     32-bar Intro -> Chorus -> Breakdown -> Chorus -> 32-bar Outro
 
-   方法:
-     - DAWで楽曲をセクションごとにカット
-     - 必要なセクションを並べ替え
-     - セクション間のクロスフェード
-     - 32小節のIntro/Outroを追加
+   Method:
+     - Cut the track into sections in the DAW
+     - Rearrange needed sections
+     - Crossfade between sections
+     - Add 32-bar Intro/Outro
 
-3. マッシュアップエディット:
-   曲A: ボーカル/アカペラ
-   曲B: インストゥルメンタル/ビート
+3. Mashup Edit:
+   Track A: Vocal/Acapella
+   Track B: Instrumental/Beat
 
-   方法:
-     - 曲Aのボーカルをステム分離
-     - 曲Bのインストを準備
-     - BPMを統一（Warp）
-     - キーを合わせる（必要に応じてTranspose）
-     - EQで帯域を住み分け
-     - ミックス&マスタリング
+   Method:
+     - Stem separate Track A's vocals
+     - Prepare Track B's instrumental
+     - Unify BPM (Warp)
+     - Match keys (Transpose as needed)
+     - Separate frequency bands with EQ
+     - Mix & Master
 
-4. 拡張エディット:
-   Original: 3分の曲
-   Edit: 6分のDJバージョン
+4. Extended Edit:
+   Original: 3-minute track
+   Edit: 6-minute DJ version
 
-   方法:
-     - Intro/Outroの追加
-     - ブレイクダウンの追加
-     - セクションの繰り返し
-     - FXの追加
+   Method:
+     - Add Intro/Outro
+     - Add breakdowns
+     - Repeat sections
+     - Add FX
 
-5. レデュースエディット:
-   Original: 7分のDJトラック
-   Edit: コアセクションのみ抽出
+5. Reduced Edit:
+   Original: 7-minute DJ track
+   Edit: Extract core sections only
 
-   方法:
-     - 不要なセクションのカット
-     - ドロップ/ハイライトのみ抽出
-     - 短いIntro/Outroを付加
+   Method:
+     - Cut unnecessary sections
+     - Extract only drops/highlights
+     - Add short Intro/Outro
 ```
 
-### エディット例の詳細
+### Edit Example Details
 
-**BPM変更の実践**:
+**BPM Change in Practice**:
 ```
-例: Hip Hop曲をHouse BPMに変更
+Example: Change a Hip Hop track to House BPM
 
 Original: "Artist - Song" 95 BPM
 Target: 124 BPM
 
-手順:
-  1. DAWにインポート
+Steps:
+  1. Import into DAW
   2. Warp Mode: Complex Pro
   3. Project Tempo: 124 BPM
-  4. Warpマーカーを全体に配置
-  5. ボーカルのピッチ確認（不自然でないか）
-  6. 必要に応じてPitch Correct
+  4. Place Warp markers throughout
+  5. Check vocal pitch (not unnatural?)
+  6. Pitch Correct if needed
 
-追加処理:
-  - 4つ打ちキックの追加（サイドチェイン付き）
-  - ベースラインの追加/変更
-  - ハイハットの追加
-  - 32小節Intro/Outroの作成
+Additional processing:
+  - Add four-on-the-floor kick (with sidechain)
+  - Add/change bassline
+  - Add hi-hats
+  - Create 32-bar Intro/Outro
 
-結果: Hip Hop曲がHouseセットで使用可能に
+Result: Hip Hop track becomes usable in a House set
 ```
 
-**構成変更の実践**:
+**Structure Change in Practice**:
 ```
-例: ポップ曲をDJエディットに変換
+Example: Convert a pop track to a DJ edit
 
-Original構成:
-  Intro (8bar) → Verse1 → Chorus1 → Verse2 → Chorus2 → Bridge → Chorus3 → Outro (4bar)
+Original Structure:
+  Intro (8bar) -> Verse1 -> Chorus1 -> Verse2 -> Chorus2 -> Bridge -> Chorus3 -> Outro (4bar)
 
-DJ Edit構成:
-  DJ Intro (32bar, kick only → elements add)
-  → Chorus1 (16bar)
-  → Breakdown (8bar, vocal snippet + pad)
-  → Build (8bar, riser + snare roll)
-  → Chorus2 (16bar, full energy)
-  → Breakdown 2 (16bar, bridge melody)
-  → Chorus3 (16bar)
-  → DJ Outro (32bar, elements remove → kick only)
+DJ Edit Structure:
+  DJ Intro (32bar, kick only -> elements add)
+  -> Chorus1 (16bar)
+  -> Breakdown (8bar, vocal snippet + pad)
+  -> Build (8bar, riser + snare roll)
+  -> Chorus2 (16bar, full energy)
+  -> Breakdown 2 (16bar, bridge melody)
+  -> Chorus3 (16bar)
+  -> DJ Outro (32bar, elements remove -> kick only)
 
-手順:
-  1. 原曲を分析（セクション、BPM、キー）
-  2. 使いたいセクションを選択
-  3. DAWで並べ替え
-  4. クロスフェードでセクション接続
-  5. DJ Intro/Outroを制作して追加
-  6. 全体のエネルギーフローを確認
-  7. ミックス&マスタリング
+Steps:
+  1. Analyze the original (sections, BPM, key)
+  2. Select desired sections
+  3. Rearrange in DAW
+  4. Connect sections with crossfades
+  5. Create and add DJ Intro/Outro
+  6. Verify overall energy flow
+  7. Mix & Master
 ```
 
 ---
 
-## ミキシング・マスタリング（DJ用）
+## Mixing and Mastering (For DJ)
 
-### ミキシングの注意点
-
-```
-DJ用トラックのミキシング特有の考慮事項:
-
-1. 低域のクリーンさ:
-   - 30Hz以下をハイパスフィルターでカット
-   - キックとベースのサイドチェイン処理
-   - 低域はモノラル（Utility: Mono below 120Hz）
-   - サブベースとキックの帯域を明確に分離
-
-   理由: DJミキシング時に2曲の低域が重なるため
-   クリーンな低域 = ミックス時の干渉が少ない
-
-2. ダイナミクスの管理:
-   - 過度なコンプレッションを避ける
-   - ピークとRMSの差: 8-12dB推奨
-   - トランジェント（キックのアタック）を保持
-   - DJミキサーのヘッドルームを確保
-
-   理由: DJミキサーでの追加処理に余裕が必要
-
-3. ステレオイメージ:
-   - 低域（120Hz以下）: モノ
-   - 中域（120Hz-5kHz）: やや狭め
-   - 高域（5kHz以上）: 広め
-   - 過度なステレオ拡張は避ける
-
-   理由: クラブのPAシステムではモノ再生の場合がある
-
-4. EQバランス:
-   - フラットに近いバランスを目指す
-   - 特定の帯域が突出しない
-   - リファレンストラックと比較
-
-   理由: DJミキサーのEQで調整されることを前提
-```
-
-### マスタリングの設定
+### Mixing Considerations
 
 ```
-DJ用トラックのマスタリング:
+Mixing considerations specific to DJ tracks:
 
-チェーン例:
-  1. EQ（リニアフェイズ）:
+1. Clean Low End:
+   - High-pass filter cut below 30Hz
+   - Sidechain processing between kick and bass
+   - Low end is mono (Utility: Mono below 120Hz)
+   - Clearly separate sub bass and kick frequency bands
+
+   Reason: Two tracks' low ends overlap during DJ mixing
+   Clean low end = Less interference when mixing
+
+2. Dynamics Management:
+   - Avoid excessive compression
+   - Peak to RMS difference: 8-12dB recommended
+   - Preserve transients (kick attack)
+   - Ensure headroom for the DJ mixer
+
+   Reason: Room needed for additional processing on the DJ mixer
+
+3. Stereo Image:
+   - Low (below 120Hz): Mono
+   - Mid (120Hz-5kHz): Slightly narrow
+   - High (above 5kHz): Wider
+   - Avoid excessive stereo expansion
+
+   Reason: Club PA systems may play back in mono
+
+4. EQ Balance:
+   - Aim for a near-flat balance
+   - No specific band should stand out
+   - Compare with reference tracks
+
+   Reason: Assumes adjustment by the DJ mixer's EQ
+```
+
+### Mastering Settings
+
+```
+Mastering for DJ tracks:
+
+Chain example:
+  1. EQ (Linear Phase):
      - HPF: 30Hz
-     - LPF: 18kHz（微かにカット）
-     - 問題帯域の修正
+     - LPF: 18kHz (subtle cut)
+     - Problem band correction
 
-  2. マルチバンドコンプレッサー:
+  2. Multiband Compressor:
      - Low (30-120Hz): Ratio 3:1, Threshold -18dB
      - Mid (120Hz-5kHz): Ratio 2:1, Threshold -12dB
      - High (5-18kHz): Ratio 2:1, Threshold -15dB
-     - 低域のタイトさ確保
+     - Ensure low-end tightness
 
-  3. ステレオイメージャー:
+  3. Stereo Imager:
      - Low: Mono
      - Mid: 100%
      - High: 110-120%
 
-  4. リミッター:
-     - Ceiling: -1.0 dBTP（True Peak）
+  4. Limiter:
+     - Ceiling: -1.0 dBTP (True Peak)
      - Target Loudness: -7 to -5 LUFS
      - Attack: Auto / Fast
 
-ラウドネス目標:
-  クラブ向け: -8 to -6 LUFS
-  ストリーミング兼用: -14 LUFS（Spotify等の正規化対応）
-  DJ用推奨: -7 LUFS（最大の互換性）
+Loudness targets:
+  Club-oriented: -8 to -6 LUFS
+  Dual streaming: -14 LUFS (Spotify normalization compatible)
+  DJ recommended: -7 LUFS (maximum compatibility)
 
-True Peak制限:
-  -1.0 dBTP: 推奨（安全マージン）
-  -0.3 dBTP: 最小限（コーデック変換考慮）
-  0 dBTP: 非推奨（クリッピングリスク）
+True Peak limits:
+  -1.0 dBTP: Recommended (safety margin)
+  -0.3 dBTP: Minimum (considering codec conversion)
+  0 dBTP: Not recommended (clipping risk)
 ```
 
-### マスタリングチェックリスト
+### Mastering Checklist
 
 ```
-マスタリング完了前のチェック:
+Pre-mastering completion check:
 
-音質チェック:
-  □ リファレンストラックとの比較
-  □ 複数のスピーカー/ヘッドフォンで確認
-  □ モノ互換性チェック（Utility: Mono）
-  □ 低域のクリーンさ確認
-  □ 高域の歪みがないか確認
-  □ 全体のバランス（スペクトラムアナライザー）
+Sound Quality Check:
+  [ ] Comparison with reference track
+  [ ] Check on multiple speakers/headphones
+  [ ] Mono compatibility check (Utility: Mono)
+  [ ] Confirm clean low end
+  [ ] Confirm no high-end distortion
+  [ ] Overall balance (spectrum analyzer)
 
-技術チェック:
-  □ ラウドネス: -8 to -6 LUFS
-  □ True Peak: -1.0 dBTP以下
-  □ サンプルレート: 44.1kHz
-  □ ビット深度: 24bit → 16bit（適切なディザリング）
-  □ DC Offset がないか
-  □ ファイルの先頭と末尾に無音がないか
+Technical Check:
+  [ ] Loudness: -8 to -6 LUFS
+  [ ] True Peak: Below -1.0 dBTP
+  [ ] Sample Rate: 44.1kHz
+  [ ] Bit Depth: 24bit -> 16bit (with proper dithering)
+  [ ] No DC Offset
+  [ ] No silence at file start and end
 
-DJチェック:
-  □ Rekordboxに取り込んでBeatGrid確認
-  □ 他のDJトラックとのミックステスト
-  □ Intro/Outroの長さ確認（32小節以上）
-  □ ループポイントの動作確認
+DJ Check:
+  [ ] Import into Rekordbox to verify BeatGrid
+  [ ] Mix test with other DJ tracks
+  [ ] Confirm Intro/Outro length (32+ bars)
+  [ ] Verify loop point operation
 ```
 
 ---
 
-## キーとBPMの選択
+## Key and BPM Selection
 
-### ジャンル別BPM
+### BPM by Genre
 
 ```
-ジャンル別の標準BPM範囲:
+Standard BPM ranges by genre:
 
-ディープハウス: 118-124 BPM
-テックハウス: 124-128 BPM
-ハウス: 120-128 BPM
-プログレッシブハウス: 122-130 BPM
-メロディックテクノ: 124-130 BPM
-テクノ: 128-135 BPM
-ピークタイムテクノ: 132-140 BPM
-ハードテクノ: 140-155 BPM
-トランス: 136-142 BPM
-アップリフティングトランス: 138-142 BPM
-サイトランス: 140-148 BPM
-ダブステップ: 140 BPM（ハーフタイム 70）
-ドラムンベース: 170-180 BPM
-ジャングル: 160-170 BPM
-ヒップホップ: 80-100 BPM
-トラップ: 130-170 BPM（ハーフタイム 65-85）
-UK ガレージ: 130-140 BPM
-ブレイクス: 125-135 BPM
-エレクトロ: 125-130 BPM
-ハードスタイル: 150-160 BPM
+Deep House: 118-124 BPM
+Tech House: 124-128 BPM
+House: 120-128 BPM
+Progressive House: 122-130 BPM
+Melodic Techno: 124-130 BPM
+Techno: 128-135 BPM
+Peak Time Techno: 132-140 BPM
+Hard Techno: 140-155 BPM
+Trance: 136-142 BPM
+Uplifting Trance: 138-142 BPM
+Psytrance: 140-148 BPM
+Dubstep: 140 BPM (half-time 70)
+Drum and Bass: 170-180 BPM
+Jungle: 160-170 BPM
+Hip-Hop: 80-100 BPM
+Trap: 130-170 BPM (half-time 65-85)
+UK Garage: 130-140 BPM
+Breaks: 125-135 BPM
+Electro: 125-130 BPM
+Hardstyle: 150-160 BPM
 
-BPM選択のアドバイス:
-  - ジャンルの中央値付近が最も汎用的
-  - 速すぎ/遅すぎは他の曲とミックスしにくい
-  - 最近のトレンドではBPMがやや上昇傾向
-  - 複数ジャンルで使いたい場合: 126-128 BPM が万能
+BPM selection advice:
+  - Near the genre's median is most versatile
+  - Too fast/too slow makes mixing with other tracks difficult
+  - Recent trends show BPM slightly increasing
+  - For multi-genre use: 126-128 BPM is all-purpose
 ```
 
-### ハーモニックミキシング対応
+### Harmonic Mixing Support
 
-**キー設定**:
+**Key Settings**:
 ```
-ハーモニックミキシングを前提とした制作:
+Production with harmonic mixing in mind:
 
-キーの明確さ:
-  - 1つのスケール（調）内で完結させる
-  - 調号変更（転調）は最小限に
-  - ルート音が明確に認識できること
-  - Mixed In Keyやkeyfinder で正確に検出されること
+Key clarity:
+  - Complete within one scale (key)
+  - Minimize key changes (modulations)
+  - Root note must be clearly recognizable
+  - Must be accurately detected by Mixed In Key or KeyFinder
 
-Camelot Wheel（カメロットホイール）:
+Camelot Wheel:
   1A = Ab minor    1B = B major
   2A = Eb minor    2B = F# major
   3A = Bb minor    3B = Db major
@@ -1475,163 +1475,163 @@ Camelot Wheel（カメロットホイール）:
   11A = F# minor   11B = A major
   12A = C# minor   12B = E major
 
-制作時のキー選択アドバイス:
-  - マイナーキー（A列）: エレクトロニックミュージックで最も一般的
-  - Am (8A): 最もポピュラー、多くの曲とミックス可能
-  - Cm (5A): テクノ/ハウスで頻出
-  - Gm (6A): ファンキーなハウスに多い
-  - Em (9A): メロディックな曲に適合
-  - メジャーキー（B列）: ハッピー/アップリフティングな曲に
+Key selection advice for production:
+  - Minor keys (A column): Most common in electronic music
+  - Am (8A): Most popular, mixable with many tracks
+  - Cm (5A): Frequent in techno/house
+  - Gm (6A): Common in funky house
+  - Em (9A): Suits melodic tracks
+  - Major keys (B column): For happy/uplifting tracks
 
-隣接キーとの互換性:
-  8A (Am) と相性の良いキー:
-    - 7A (Dm): -1ステップ
-    - 9A (Em): +1ステップ
-    - 8B (C major): パラレルキー
-  → これらのキーの曲とスムーズにミックス可能
+Compatibility with adjacent keys:
+  8A (Am) compatible keys:
+    - 7A (Dm): -1 step
+    - 9A (Em): +1 step
+    - 8B (C major): Parallel key
+  -> Smooth mixing with tracks in these keys
 ```
 
 ---
 
-## エクスポート設定
+## Export Settings
 
-### ファイルフォーマット
+### File Formats
 
 ```
-DJ用トラックのエクスポート設定:
+Export settings for DJ tracks:
 
-マスターファイル（配布用）:
+Master file (for distribution):
   Format: WAV
-  Sample Rate: 44.1 kHz（Beatport標準）
-  Bit Depth: 16 bit（CD品質）
-  Dithering: Triangular（24bit → 16bit変換時）
+  Sample Rate: 44.1 kHz (Beatport standard)
+  Bit Depth: 16 bit (CD quality)
+  Dithering: Triangular (when converting 24bit -> 16bit)
 
-高品質マスター（アーカイブ用）:
+High-quality master (for archive):
   Format: WAV
   Sample Rate: 48 kHz / 96 kHz
   Bit Depth: 24 bit
-  Dithering: なし
+  Dithering: None
 
-ストリーミング用:
-  Format: WAV → 各プラットフォームが変換
+For streaming:
+  Format: WAV -> Each platform converts
   Sample Rate: 44.1 kHz
   Bit Depth: 16 bit
 
-プロモーション用:
+For promotion:
   Format: MP3
   Bit Rate: 320 kbps CBR
   Sample Rate: 44.1 kHz
 
-ファイル命名規則:
+File naming convention:
   "Artist_Name - Track_Title (Mix_Name).wav"
-  例: "DJ_Gaku - Midnight_Drive (Original_Mix).wav"
-  例: "DJ_Gaku - Midnight_Drive (Instrumental).wav"
-  例: "DJ_Gaku - Midnight_Drive (Dub_Mix).wav"
+  Example: "DJ_Gaku - Midnight_Drive (Original_Mix).wav"
+  Example: "DJ_Gaku - Midnight_Drive (Instrumental).wav"
+  Example: "DJ_Gaku - Midnight_Drive (Dub_Mix).wav"
 ```
 
 ---
 
-## メタデータの設定
+## Metadata Settings
 
-### ID3タグ
+### ID3 Tags
 
 ```
-正確なメタデータの重要性:
+Importance of accurate metadata:
 
-必須タグ:
+Required tags:
   Title: Track Name (Mix Name)
   Artist: Artist Name
   Album: Single Name / EP Name
   Genre: Tech House / Techno / etc.
   Year: 2024
-  BPM: 128（正確に）
-  Key: Am / 8A（Camelot表記推奨）
+  BPM: 128 (accurate)
+  Key: Am / 8A (Camelot notation recommended)
   Comment: "Original Mix" / "DJ Edit"
 
-推奨タグ:
-  Label: レーベル名
+Recommended tags:
+  Label: Label name
   Catalog Number: CAT001
-  ISRC: 国際標準レコーディングコード
-  Initial Key: Am（Open Key表記）
-  Energy: 1-10（Rekordbox互換）
+  ISRC: International Standard Recording Code
+  Initial Key: Am (Open Key notation)
+  Energy: 1-10 (Rekordbox compatible)
 
-Rekordbox向けの注意:
-  - BPMは小数点以下2桁まで（例: 128.00）
-  - Keyは正確に（Am, Cm等の標準表記）
-  - Artwork: 500x500px以上
+Notes for Rekordbox:
+  - BPM to 2 decimal places (e.g., 128.00)
+  - Key must be accurate (standard notation like Am, Cm)
+  - Artwork: 500x500px or larger
 
-タグ編集ツール:
-  - Mp3tag（Windows）
-  - Kid3（Mac/Windows/Linux）
+Tag editing tools:
+  - Mp3tag (Windows)
+  - Kid3 (Mac/Windows/Linux)
   - MusicBrainz Picard
-  - Rekordbox内蔵エディター
+  - Rekordbox built-in editor
 ```
 
 ---
 
-## DJ用テンプレート作成
+## DJ Template Creation
 
-### Ableton Liveテンプレート
+### Ableton Live Template
 
 ```
-DJ Tool Template の構成:
+DJ Tool Template structure:
 
-テンプレート名: "DJ Tool Template [BPM]"
+Template name: "DJ Tool Template [BPM]"
 
-Track構成:
+Track layout:
   Track 1: Kick
-    デバイス: Drum Rack（キックサンプル）
+    Device: Drum Rack (kick samples)
     EQ: HPF 30Hz, LPF 8kHz
     Compressor: Ratio 4:1, Fast Attack
 
   Track 2: Snare/Clap
-    デバイス: Drum Rack（スネア/クラップサンプル）
+    Device: Drum Rack (snare/clap samples)
     EQ: HPF 100Hz
     Transient Shaper: Attack +3dB
 
   Track 3: Hi-Hat/Cymbals
-    デバイス: Drum Rack（HHサンプル）
+    Device: Drum Rack (HH samples)
     EQ: HPF 500Hz
-    Pan: 微妙にオフセンター
+    Pan: Slightly off-center
 
   Track 4: Percussion
-    デバイス: Drum Rack（パーカッションサンプル）
-    Pan: ステレオに広げる
+    Device: Drum Rack (percussion samples)
+    Pan: Spread in stereo
 
   Track 5: Sub Bass
-    デバイス: Operator / Wavetable（Sine Wave）
+    Device: Operator / Wavetable (Sine Wave)
     EQ: LPF 120Hz
     Utility: Mono
     Sidechain: Track 1 (Kick)
 
   Track 6: Mid Bass
-    デバイス: Wavetable（Saw/Square）
+    Device: Wavetable (Saw/Square)
     EQ: HPF 80Hz, LPF 5kHz
     Sidechain: Track 1 (Kick)
 
   Track 7: Pad/Synth
-    デバイス: Wavetable（Pad Preset）
+    Device: Wavetable (Pad Preset)
     Reverb: Hall 3.0s
     EQ: HPF 200Hz
 
   Track 8: Lead
-    デバイス: Wavetable（Lead Preset）
+    Device: Wavetable (Lead Preset)
     Delay: 1/8 Ping Pong
     EQ: HPF 300Hz
 
   Track 9: FX/Risers
-    デバイス: Simpler（FXサンプル）
+    Device: Simpler (FX samples)
     Reverb: Large Room
 
-  Track 10: Vocal（オプション）
-    デバイス: なし（オーディオ用）
+  Track 10: Vocal (optional)
+    Device: None (for audio)
     EQ: HPF 80Hz, De-esser
     Compressor: Ratio 3:1
 
 Return Tracks:
-  Return A: Reverb（Reverb: Hall 2.5s, HPF 200Hz）
-  Return B: Delay（Echo: 1/8, Feedback 40%）
-  Return C: Filter（Auto Filter: LPF, Res 20%）
+  Return A: Reverb (Reverb: Hall 2.5s, HPF 200Hz)
+  Return B: Delay (Echo: 1/8, Feedback 40%)
+  Return C: Filter (Auto Filter: LPF, Res 20%)
 
 Master Track:
   EQ Eight: HPF 30Hz
@@ -1642,46 +1642,46 @@ Tempo: [BPM]
 Time Signature: 4/4
 ```
 
-### テンプレートのバリエーション
+### Template Variations
 
 ```
-BPM別テンプレート:
-  DJ_Tool_Template_124BPM.als（テックハウス）
-  DJ_Tool_Template_128BPM.als（ハウス/テクノ）
-  DJ_Tool_Template_132BPM.als（テクノ）
-  DJ_Tool_Template_140BPM.als（トランス）
-  DJ_Tool_Template_174BPM.als（ドラムンベース）
+BPM-specific templates:
+  DJ_Tool_Template_124BPM.als (Tech House)
+  DJ_Tool_Template_128BPM.als (House/Techno)
+  DJ_Tool_Template_132BPM.als (Techno)
+  DJ_Tool_Template_140BPM.als (Trance)
+  DJ_Tool_Template_174BPM.als (Drum and Bass)
 
-ジャンル別テンプレート:
+Genre-specific templates:
   DJ_Tool_TechHouse_Template.als
   DJ_Tool_Techno_Template.als
   DJ_Tool_Progressive_Template.als
   DJ_Tool_DnB_Template.als
   DJ_Tool_Trance_Template.als
 
-目的別テンプレート:
-  DJ_Edit_Template.als（既存曲のエディット用）
-  DJ_Mashup_Template.als（マッシュアップ用）
-  DJ_Loop_Template.als（ループ制作用）
-  DJ_Transition_Template.als（トランジションツール用）
+Purpose-specific templates:
+  DJ_Edit_Template.als (for editing existing tracks)
+  DJ_Mashup_Template.als (for mashups)
+  DJ_Loop_Template.als (for loop production)
+  DJ_Transition_Template.als (for transition tools)
 ```
 
 ---
 
-## 配布とプロモーション
+## Distribution and Promotion
 
-### SoundCloud無料配布
+### SoundCloud Free Distribution
 
 ```
-SoundCloudでのDJツール配布:
+Distributing DJ tools on SoundCloud:
 
-アップロード設定:
-  1. SoundCloudにログイン
-  2. Upload → トラックをアップロード
-  3. 設定:
+Upload settings:
+  1. Log in to SoundCloud
+  2. Upload -> Upload track
+  3. Settings:
      Title: "Artist - Track Name (DJ Edit) [Free Download]"
-     Genre: 適切なジャンル
-     Tags: #FreeDownload, #DJTool, #DJEdit, #Techno, #House 等
+     Genre: Appropriate genre
+     Tags: #FreeDownload, #DJTool, #DJEdit, #Techno, #House etc.
      Description:
        "Free Download for DJs!
        BPM: 128
@@ -1697,188 +1697,188 @@ SoundCloudでのDJツール配布:
        Not for sale. Original elements by [Original Artist]."
 
      Download: Enable
-     License: Creative Commons（オリジナルの場合）
+     License: Creative Commons (for originals)
 
-  4. Artwork: 正方形（800x800px以上）
-  5. Waveformの確認
+  4. Artwork: Square (800x800px or larger)
+  5. Verify the waveform
 
-プロモーション戦略:
-  - 定期的に新しいエディット/ツールを公開
-  - SNSでDJコミュニティにシェア
-  - DJチャートに含める
-  - リポストグループに参加
-  - タグ付けでコミュニティ拡大
+Promotion strategy:
+  - Regularly publish new edits/tools
+  - Share with DJ communities on SNS
+  - Include in DJ charts
+  - Join repost groups
+  - Expand community through tagging
 ```
 
 ### Bandcamp
 
 ```
-Bandcampでの配布:
+Bandcamp distribution:
 
-設定:
-  Price: $0（Free）または Name Your Price
-  Format: WAV + MP3（自動変換）
+Settings:
+  Price: $0 (Free) or Name Your Price
+  Format: WAV + MP3 (auto-converted)
   Album Art: 1400x1400px
-  Description: BPM、キー、用途を記載
-  Tags: ジャンル、BPM、用途
+  Description: Include BPM, key, and purpose
+  Tags: Genre, BPM, purpose
 
-利点:
-  - 高品質なWAVファイルのダウンロード
-  - ファンとの直接的な繋がり
-  - 収益化の可能性（Name Your Price）
-  - プロフェッショナルなプレゼンテーション
+Advantages:
+  - High-quality WAV file downloads
+  - Direct connection with fans
+  - Monetization possibility (Name Your Price)
+  - Professional presentation
 ```
 
 ### Beatport / Traxsource
 
 ```
-商用リリース:
+Commercial release:
 
 Beatport:
-  - ディストリビューター経由（DistroKid, TuneCore, Amuse等）
+  - Through a distributor (DistroKid, TuneCore, Amuse, etc.)
   - WAV 44.1kHz/16bit
-  - メタデータの正確な記入
-  - Artwork: 1400x1400px（JPG）
-  - ジャンル分類の正確さ
+  - Accurate metadata entry
+  - Artwork: 1400x1400px (JPG)
+  - Accurate genre classification
 
 Traxsource:
-  - ハウス/ファンク系に強い
+  - Strong in house/funk genres
   - WAV 44.1kHz/16bit
-  - 同様のディストリビューター経由
+  - Through similar distributors
 
-リリース戦略:
-  - シングル: 1-2曲（Original + Instrumental）
-  - EP: 3-5曲（バリエーション）
-  - プロモ: DJプール/プロモサービス経由
+Release strategy:
+  - Single: 1-2 tracks (Original + Instrumental)
+  - EP: 3-5 tracks (variations)
+  - Promo: Via DJ pool/promo services
 ```
 
 ---
 
-## よくある失敗と対処法
+## Common Mistakes and Solutions
 
-### 失敗1: Introが短すぎる
-
-```
-問題: Introが16小節以下
-影響: DJがミックスする時間が足りない
-対処法:
-  - 最低32小節のIntroを確保
-  - 理想は64小節（余裕のあるミックス）
-  - キックのみのセクションから始める
-
-防止策:
-  テンプレートに32小節のIntroを予め設定しておく
-```
-
-### 失敗2: BPMがずれている
+### Mistake 1: Intro Is Too Short
 
 ```
-問題: グリッドが正確でない、BPMが微妙にずれている
-影響: Sync機能が正しく動作しない、手動ミックスが困難
-対処法:
-  - DAWのWarp設定を正確に（0.01BPM単位）
-  - メトロノームと全体を通して確認
-  - グリッドが小節頭に正確に一致
-  - Rekordboxで取り込んでBeatGrid確認
-  - CDJで実際にミックスしてテスト
+Problem: Intro is 16 bars or less
+Impact: Not enough time for DJs to mix
+Solution:
+  - Ensure at least 32-bar Intro
+  - Ideal is 64 bars (comfortable mixing)
+  - Start with a kick-only section
 
-防止策:
-  - MIDIで打ち込んだリズムは完璧なグリッド
-  - オーディオサンプルはWarp確認必須
-  - テンポオートメーションを使わない（DJ用）
+Prevention:
+  Pre-set a 32-bar Intro in your template
 ```
 
-### 失敗3: キーが不明瞭
+### Mistake 2: BPM Is Off
 
 ```
-問題: 複数のキーが混在、転調が多い
-影響: ハーモニックミキシングが困難
-対処法:
-  - 1つのスケール内で完結させる
-  - Mixed In Keyで分析して確認
-  - メタデータにキーを正確に記載
-  - ベースのルート音をキーと一致させる
+Problem: Grid is not accurate, BPM is slightly off
+Impact: Sync function doesn't work properly, manual mixing is difficult
+Solution:
+  - Set DAW Warp settings precisely (0.01 BPM units)
+  - Check entire track against metronome
+  - Grid must align precisely with bar heads
+  - Import into Rekordbox to verify BeatGrid
+  - Test mixing on CDJ
 
-防止策:
-  - 制作前にキーを決めて一貫させる
-  - 転調する場合は明確なセクション変化とセットで
+Prevention:
+  - MIDI-programmed rhythms have perfect grids
+  - Audio samples require Warp verification
+  - Don't use tempo automation (for DJ tracks)
 ```
 
-### 失敗4: 低域が濁っている
+### Mistake 3: Key Is Unclear
 
 ```
-問題: キックとベースが干渉、低域が不明瞭
-影響: DJミックス時に低域が暴れる
-対処法:
-  - キックとベースのサイドチェイン処理
-  - サブベースを30Hz以下でカット
-  - 低域をモノラルに
-  - EQで帯域を住み分け
+Problem: Multiple keys are mixed, too many modulations
+Impact: Harmonic mixing is difficult
+Solution:
+  - Complete within one scale
+  - Analyze with Mixed In Key to verify
+  - Accurately include key in metadata
+  - Match the bass root note to the key
 
-防止策:
-  - サイドチェインをテンプレートに組み込む
-  - Utility: Mono below 120Hz を標準装備
-  - リファレンストラックと低域を比較
+Prevention:
+  - Decide the key before production and stay consistent
+  - If modulating, do it with a clear section change
 ```
 
-### 失敗5: 音量が不均一
+### Mistake 4: Muddy Low End
 
 ```
-問題: セクション間で音量差が大きい
-影響: DJのゲイン調整が頻繁に必要
-対処法:
-  - 各セクションのラウドネスを測定
-  - マスタリングでダイナミクスを管理
-  - トラック内のゲイン統一
+Problem: Kick and bass interfere, low end is unclear
+Impact: Low end becomes unruly during DJ mixing
+Solution:
+  - Sidechain processing between kick and bass
+  - Cut sub bass below 30Hz
+  - Make low end mono
+  - Separate frequency bands with EQ
 
-防止策:
-  - ミキシング段階でバス間のバランスを確認
-  - LUFS メーターで常にモニタリング
-  - リミッターで最大レベルを制御
+Prevention:
+  - Build sidechain into your template
+  - Standard Utility: Mono below 120Hz
+  - Compare low end with reference tracks
 ```
 
-### 失敗6: エフェクトテイルの残留
+### Mistake 5: Uneven Volume
 
 ```
-問題: セクション境界でリバーブ/ディレイが途切れる or 残る
-影響: 不自然なサウンド、ミックス時の干渉
-対処法:
-  - リバーブ/ディレイのDecay/Feedbackを適切に設定
-  - Outroの最後でエフェクトを完全にフェードアウト
-  - Introの最初はドライサウンドから始める
+Problem: Large volume differences between sections
+Impact: Frequent DJ gain adjustment needed
+Solution:
+  - Measure loudness of each section
+  - Manage dynamics through mastering
+  - Unify gain within the track
 
-防止策:
-  - エフェクトのオートメーションをIntro/Outroに組み込む
-  - エクスポート時にOutro後の余分な無音を含める
-  - 最終的にトリミングで不要部分をカット
+Prevention:
+  - Verify bus balance during mixing stage
+  - Constantly monitor with LUFS meter
+  - Control maximum level with limiter
 ```
 
-### 失敗7: ステレオ幅が広すぎる
+### Mistake 6: Effect Tail Residue
 
 ```
-問題: モノ再生時に位相キャンセルが発生
-影響: クラブのPAシステム（モノサブ）で低域が消える
-対処法:
-  - Utility: Mono でモノ互換性チェック
-  - 低域（120Hz以下）はモノに
-  - 過度なステレオエンハンサーを避ける
+Problem: Reverb/delay cuts off or remains at section boundaries
+Impact: Unnatural sound, interference during mixing
+Solution:
+  - Set reverb/delay decay/feedback appropriately
+  - Completely fade out effects at the end of the Outro
+  - Start the Intro with dry sound
 
-防止策:
-  - ミキシング時にモノチェックを習慣化
-  - ステレオイメージャーは控えめに
-  - 低域モノ化をテンプレートに含める
+Prevention:
+  - Build effect automation into Intro/Outro
+  - Include extra silence after Outro when exporting
+  - Trim unnecessary parts at the end
+```
+
+### Mistake 7: Stereo Width Is Too Wide
+
+```
+Problem: Phase cancellation occurs during mono playback
+Impact: Low end disappears on club PA systems (mono sub)
+Solution:
+  - Check mono compatibility with Utility: Mono
+  - Make low end (below 120Hz) mono
+  - Avoid excessive stereo enhancers
+
+Prevention:
+  - Make mono checking a habit during mixing
+  - Use stereo imagers sparingly
+  - Include low-end mono-ization in your template
 ```
 
 ---
 
-## 実践ワークフロー
+## Practical Workflow
 
-### Step 1: テンプレート作成
+### Step 1: Create Template
 
 ```
-新規プロジェクト: "DJ Tool Template 128 BPM"
+New Project: "DJ Tool Template 128 BPM"
 
-Track構成:
+Track Layout:
   1. Kick
   2. Snare/Clap
   3. Hi-Hat
@@ -1888,7 +1888,7 @@ Track構成:
   7. Pad
   8. Lead
   9. FX
-  10. Vocal（オプション）
+  10. Vocal (optional)
 
 Return Tracks:
   A. Reverb (Hall 2.5s)
@@ -1901,150 +1901,150 @@ Master:
 Tempo: 128 BPM
 Time Signature: 4/4
 
-→ このテンプレートを保存して毎回使用
+-> Save this template and use it every time
 ```
 
-### Step 2: 32小節 Intro作成
+### Step 2: Create 32-Bar Intro
 
 ```
 Arrangement View:
 
-Bar 1-8: Kick のみ
-  → クリーン、タイト、一定
+Bar 1-8: Kick only
+  -> Clean, tight, consistent
 
 Bar 9-16: + Hi-Hat + Percussion
-  → グルーヴの確立
+  -> Establishing groove
 
 Bar 17-24: + Sub Bass + Mid Bass
-  → 低域の導入（HPF オートメーション）
+  -> Low-end introduction (HPF automation)
 
 Bar 25-32: + Pad + Lead Teaser + FX
-  → ドロップへの期待感
+  -> Anticipation for the drop
 
-Bar 33: ドロップ（全要素同時開始）
+Bar 33: Drop (all elements start simultaneously)
 ```
 
-### Step 3: メインセクション制作
+### Step 3: Main Section Production
 
 ```
-Bar 33-96: メインコンテンツ
+Bar 33-96: Main Content
 
-Drop 1 (Bar 33-64): 32小節
-  全要素がフル稼働
-  メインメロディ/フック
-  最大エネルギー
+Drop 1 (Bar 33-64): 32 bars
+  All elements in full operation
+  Main melody/hook
+  Maximum energy
 
-Breakdown (Bar 65-80): 16小節
-  ドラム軽減、パッド主体
-  ボーカル/メロディの展開
-  エネルギーの谷
+Breakdown (Bar 65-80): 16 bars
+  Reduced drums, pad-centered
+  Vocal/melody development
+  Energy valley
 
-Build (Bar 81-88): 8小節
-  ライザー、スネアロール
-  フィルタースウィープ
-  テンション上昇
+Build (Bar 81-88): 8 bars
+  Riser, snare roll
+  Filter sweep
+  Rising tension
 
-Drop 2 (Bar 89-120): 32小節
-  全要素 + 追加レイヤー
-  最大エネルギー（Drop 1以上）
-  バリエーション
+Drop 2 (Bar 89-120): 32 bars
+  All elements + additional layers
+  Maximum energy (equal to or greater than Drop 1)
+  Variations
 ```
 
-### Step 4: 32小節 Outro作成
+### Step 4: Create 32-Bar Outro
 
 ```
 Bar 121-152: Outro
 
-Bar 121-128: パッド/リード削除
-  → メロディ要素フェードアウト
+Bar 121-128: Remove pads/leads
+  -> Melodic elements fade out
 
-Bar 129-136: ベースライン削除
-  → LPFオートメーションで自然に
+Bar 129-136: Remove bassline
+  -> Naturally with LPF automation
 
-Bar 137-144: ハイハット/パーカッション削除
-  → リズム簡素化
+Bar 137-144: Remove hi-hats/percussion
+  -> Rhythm simplification
 
-Bar 145-152: キックのみ
-  → 最もクリーンな状態
+Bar 145-152: Kick only
+  -> Cleanest state
 
-最後の1-2小節: 自然なフェードアウト or クリーンカット
+Last 1-2 bars: Natural fade-out or clean cut
 ```
 
-### Step 5: エクスポートと検証
+### Step 5: Export and Verification
 
 ```
-エクスポート:
+Export:
 
 1. Original Mix:
    "Artist - Track_Name (Original Mix).wav"
    44.1 kHz, 16bit, WAV
 
 2. Instrumental:
-   ボーカルトラックミュート
+   Mute vocal track
    "Artist - Track_Name (Instrumental).wav"
 
-3. Acapella（あれば）:
-   インストトラックミュート
+3. Acapella (if applicable):
+   Mute instrument tracks
    "Artist - Track_Name (Acapella).wav"
 
-4. ステム:
-   各バスを個別エクスポート
+4. Stems:
+   Export each bus individually
    "Artist - Track_Name (Stem - Drums).wav"
    "Artist - Track_Name (Stem - Bass).wav"
    "Artist - Track_Name (Stem - Synth).wav"
    "Artist - Track_Name (Stem - Vocals).wav"
 
-検証:
-  □ Rekordboxに取り込み → BeatGrid確認
-  □ 他のトラックとミックステスト
-  □ 複数スピーカーでの聴取テスト
-  □ モノ互換性チェック
-  □ メタデータの確認
-  □ ファイル名の正確さ
+Verification:
+  [ ] Import into Rekordbox -> Verify BeatGrid
+  [ ] Mix test with other tracks
+  [ ] Listening test on multiple speakers
+  [ ] Mono compatibility check
+  [ ] Metadata verification
+  [ ] Filename accuracy
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Perform input data validation
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic Implementation Template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -2053,26 +2053,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should be raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced Patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -2080,7 +2080,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -2091,14 +2091,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -2106,7 +2106,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -2114,44 +2114,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance Optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -2160,7 +2160,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -2175,47 +2175,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be conscious of algorithmic complexity
+- Select appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization Error | Configuration file issues | Check configuration file path and format |
+| Timeout | Network latency/resource shortage | Adjust timeout values, add retry logic |
+| Out of Memory | Increased data volume | Introduce batch processing, implement pagination |
+| Permission Error | Insufficient access rights | Check execution user permissions, review settings |
+| Data Inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, transaction management |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace and identify the location
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Formulate hypotheses**: List possible causes
+4. **Step-by-step verification**: Verify hypotheses using log output and debuggers
+5. **Fix and regression test**: After fixing, also run tests on related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -2223,108 +2223,108 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator to log function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Performance Issue Diagnosis
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O waits**: Check disk and network I/O status
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Issue Type | Diagnostic Tool | Solution |
+|-----------|-----------------|----------|
+| CPU Load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory Leak | tracemalloc, objgraph | Proper reference release |
+| I/O Bottleneck | strace, iostat | Async I/O, caching |
+| DB Latency | EXPLAIN, slow query log | Indexes, query optimization |
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point in learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-### DJ用トラック制作の核心
-
-1. **32小節 Intro/Outro**: DJミックスの基盤。省略不可。
-2. **正確なBPMグリッド**: Warp設定の完璧さがプレイの質を決める。
-3. **明確なキー**: ハーモニックミキシング対応で他の曲との調和を実現。
-4. **ループポイント**: DJが自由にミックスできるセクション設計。
-5. **アカペラ/インスト/ステム**: 多様な使用方法を提供する分離エクスポート。
-6. **クリーンな低域**: ミックス時の干渉を最小限に。
-7. **適切なラウドネス**: クラブのPAシステムで最適に再生される音圧。
-8. **正確なメタデータ**: DJがトラックを正しく認識・管理できる情報。
-
-### DJとして
-
-- セットで使うトラックの構造を理解している
-- ミックスポイントがどこにあるか知っている
-- Intro/Outroの長さを把握している
-- エネルギーの流れを読める
-
-### プロデューサーとして
-
-- DJフレンドリーなトラックを制作できる
-- 自分のセットで使える独自の武器を作れる
-- 他のDJにもプレイされるトラックを作れる
-- エディット/ブートレグで幅を広げられる
-
-### 次のステップ
-
-1. [エディット・リミックス](./edits-remixes.md) - 既存曲を改変する詳細テクニック
-2. [Ableton for DJing](./ableton-for-djing.md) - AbletonでDJセットを構築
-3. [制作者のためのDJ知識](./production-for-djs.md) - DJ視点を制作に活かす
+Knowledge of this topic is frequently used in daily development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-**DJセット用のオリジナルトラックを作成して、セットを唯一無二のものにしましょう！**
+## Summary
+
+### The Core of DJ Track Production
+
+1. **32-Bar Intro/Outro**: The foundation of DJ mixing. Cannot be omitted.
+2. **Accurate BPM Grid**: Warp setting perfection determines play quality.
+3. **Clear Key**: Achieve harmony with other tracks through harmonic mixing support.
+4. **Loop Points**: Section design that allows DJs to mix freely.
+5. **Acapella/Instrumental/Stems**: Separated exports providing diverse usage methods.
+6. **Clean Low End**: Minimize interference during mixing.
+7. **Appropriate Loudness**: Loudness that plays optimally on club PA systems.
+8. **Accurate Metadata**: Information that lets DJs correctly identify and manage tracks.
+
+### As a DJ
+
+- Understand the structure of tracks used in sets
+- Know where mix points are
+- Grasp Intro/Outro lengths
+- Can read energy flow
+
+### As a Producer
+
+- Can produce DJ-friendly tracks
+- Can create unique weapons for your own sets
+- Can create tracks other DJs will also play
+- Can expand your range through edits/bootlegs
+
+### Next Steps
+
+1. [Edits & Remixes](./edits-remixes.md) - Detailed techniques for modifying existing tracks
+2. [DJing with Ableton](./ableton-for-djing.md) - Building DJ sets in Ableton
+3. [Production Knowledge for DJs](./production-for-djs.md) - Applying DJ perspective to production
 
 ---
 
-## 次に読むべきガイド
-
-- [エディット・リミックス](./edits-remixes.md) - 次のトピックへ進む
+**Create original tracks for your DJ sets and make them one-of-a-kind!**
 
 ---
 
-## 参考文献
+## Next Guide to Read
 
-- [MDN Web Docs](https://developer.mozilla.org/) - Web技術のリファレンス
-- [Wikipedia](https://ja.wikipedia.org/) - 技術概念の概要
+- [Edits & Remixes](./edits-remixes.md) - Proceed to the next topic
+
+---
+
+## References
+
+- [MDN Web Docs](https://developer.mozilla.org/) - Web technology reference
+- [Wikipedia](https://en.wikipedia.org/) - Technology concept overviews
