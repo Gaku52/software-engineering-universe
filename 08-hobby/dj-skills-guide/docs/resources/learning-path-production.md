@@ -1,177 +1,176 @@
-# 楽曲制作 学習ロードマップ
+# Music Production Learning Roadmap
 
 
+## What You Will Learn in This Chapter
 
-## この章で学ぶこと
-
-- [ ] 基本概念と用語の理解
-- [ ] 実装パターンとベストプラクティスの習得
-- [ ] 実務での適用方法の把握
-- [ ] トラブルシューティングの基本
-
----
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [DJ 学習ロードマップ](./learning-path-dj.md) の内容を理解していること
+- [ ] Understanding basic concepts and terminology
+- [ ] Mastering implementation patterns and best practices
+- [ ] Grasping practical application methods
+- [ ] Basics of troubleshooting
 
 ---
 
-Ableton Live での楽曲制作を段階的に習得するための包括的ロードマップです。DJ としてのパフォーマンスと制作の両面を強化するためには、楽曲制作スキルの体系的な学習が不可欠です。本ドキュメントでは、完全な初心者からプロフェッショナルレベルまでの道のりを、具体的なマイルストーンとともに解説します。
+## Prerequisites
+
+Having the following knowledge before reading this guide will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Understanding the content of [DJ Learning Roadmap](./learning-path-dj.md)
 
 ---
 
-## 目次
-
-1. [学習の前提と準備](#学習の前提と準備)
-2. [Phase 0: 準備期間（学習開始前）](#phase-0-準備期間学習開始前)
-3. [Phase 1: 初心者（0-6ヶ月）](#phase-1-初心者0-6ヶ月)
-4. [Phase 2: 初級（6-12ヶ月）](#phase-2-初級6-12ヶ月)
-5. [Phase 3: 中級（12-24ヶ月）](#phase-3-中級12-24ヶ月)
-6. [Phase 4: 上級（24-36ヶ月）](#phase-4-上級24-36ヶ月)
-7. [Phase 5: プロフェッショナル（36ヶ月以降）](#phase-5-プロフェッショナル36ヶ月以降)
-8. [ジャンル別学習ガイド](#ジャンル別学習ガイド)
-9. [DAW操作の詳細マスタリー](#daw操作の詳細マスタリー)
-10. [音楽理論の段階的学習](#音楽理論の段階的学習)
-11. [サウンドデザイン体系](#サウンドデザイン体系)
-12. [ミキシング技術の体系的習得](#ミキシング技術の体系的習得)
-13. [マスタリング技術](#マスタリング技術)
-14. [制作環境の構築](#制作環境の構築)
-15. [メンタルモデルと制作哲学](#メンタルモデルと制作哲学)
-16. [学習リソースとコミュニティ](#学習リソースとコミュニティ)
-17. [キャリア構築とビジネス](#キャリア構築とビジネス)
+This is a comprehensive roadmap for systematically learning music production in Ableton Live. To enhance both DJ performance and production skills, systematic learning of music production is essential. This document covers the journey from complete beginner to professional level, with specific milestones along the way.
 
 ---
 
-## 学習の前提と準備
+## Table of Contents
 
-### なぜ楽曲制作を学ぶのか
-
-DJとしてのキャリアにおいて、楽曲制作スキルを持つことには以下のメリットがあります。
-
-1. **オリジナリティの確立**: 他のDJとの差別化が可能
-2. **セットの独自性**: 自作トラックやエディットでユニークなセットが組める
-3. **収益源の多様化**: 楽曲販売、ストリーミング収入
-4. **アーティストとしてのブランド構築**: 制作者としての認知度向上
-5. **音楽への深い理解**: 曲の構造やサウンドデザインの理解が深まる
-6. **コラボレーション機会**: 他のアーティストとの共同制作
-7. **レーベルとの関係構築**: リリースを通じた業界内ネットワーク
-
-### 必要な初期投資
-
-| 項目 | 最低限 | 推奨 | プロ級 |
-|------|--------|------|--------|
-| DAW | Ableton Intro (¥12,800) | Ableton Standard (¥53,800) | Ableton Suite (¥90,800) |
-| ヘッドフォン | Audio-Technica ATH-M50x (¥18,000) | Beyerdynamic DT 770 Pro (¥22,000) | Sennheiser HD 650 (¥55,000) |
-| オーディオI/F | Focusrite Scarlett Solo (¥13,000) | Universal Audio Volt 2 (¥25,000) | RME Babyface Pro (¥120,000) |
-| MIDIキーボード | Akai MPK Mini (¥8,000) | Arturia KeyLab 49 (¥30,000) | Native Instruments S61 (¥70,000) |
-| モニタースピーカー | - | Yamaha HS5 (¥30,000/ペア) | Adam Audio A7V (¥120,000/ペア) |
-| 合計 | 約¥52,000 | 約¥161,000 | 約¥455,000 |
-
-### 学習時間の目安
-
-- **週5時間**: 趣味として楽しむペース（各フェーズ1.5倍の期間が必要）
-- **週10時間**: 標準的な学習ペース（本ドキュメントの想定）
-- **週20時間**: 集中的な学習（各フェーズを約半分の期間で習得可能）
-- **週40時間以上**: フルタイム学習（最速だが燃え尽き注意）
+1. [Learning Prerequisites and Preparation](#learning-prerequisites-and-preparation)
+2. [Phase 0: Preparation Period (Before Starting)](#phase-0-preparation-period-before-starting)
+3. [Phase 1: Beginner (0-6 Months)](#phase-1-beginner-0-6-months)
+4. [Phase 2: Elementary (6-12 Months)](#phase-2-elementary-6-12-months)
+5. [Phase 3: Intermediate (12-24 Months)](#phase-3-intermediate-12-24-months)
+6. [Phase 4: Advanced (24-36 Months)](#phase-4-advanced-24-36-months)
+7. [Phase 5: Professional (36 Months and Beyond)](#phase-5-professional-36-months-and-beyond)
+8. [Genre-Specific Learning Guide](#genre-specific-learning-guide)
+9. [Detailed DAW Operation Mastery](#detailed-daw-operation-mastery)
+10. [Progressive Music Theory Learning](#progressive-music-theory-learning)
+11. [Sound Design System](#sound-design-system)
+12. [Systematic Mixing Technique Acquisition](#systematic-mixing-technique-acquisition)
+13. [Mastering Techniques](#mastering-techniques)
+14. [Building a Production Environment](#building-a-production-environment)
+15. [Mental Models and Production Philosophy](#mental-models-and-production-philosophy)
+16. [Learning Resources and Communities](#learning-resources-and-communities)
+17. [Career Building and Business](#career-building-and-business)
 
 ---
 
-## Phase 0: 準備期間（学習開始前）
+## Learning Prerequisites and Preparation
 
-### 音楽的バックグラウンドの確認
+### Why Learn Music Production
 
-制作を始める前に、自分の音楽的バックグラウンドを把握しましょう。
+Having music production skills in your DJ career offers the following benefits:
 
-#### 楽器経験がある場合
-- その知識を活かしたアプローチが可能
-- 音楽理論の基礎は既に持っている可能性が高い
-- DAW操作の学習に集中できる
-- 演奏スキルをMIDI入力に活用
+1. **Establishing Originality**: Differentiation from other DJs
+2. **Unique Sets**: Building unique sets with original tracks and edits
+3. **Diversifying Revenue Streams**: Track sales, streaming income
+4. **Building an Artist Brand**: Increased recognition as a producer
+5. **Deeper Understanding of Music**: Deeper understanding of song structure and sound design
+6. **Collaboration Opportunities**: Joint production with other artists
+7. **Building Label Relationships**: Industry networking through releases
 
-#### 楽器経験がない場合
-- 音楽理論の基礎から並行して学ぶ必要がある
-- ステップ入力やドローイングでの打ち込みから始める
-- サンプルベースの制作が取り組みやすい
-- リズム感を養うためにドラムパッドの練習が効果的
+### Required Initial Investment
 
-### リスニングの強化
+| Item | Minimum | Recommended | Professional |
+|------|---------|-------------|-------------|
+| DAW | Ableton Intro ($99) | Ableton Standard ($449) | Ableton Suite ($749) |
+| Headphones | Audio-Technica ATH-M50x ($150) | Beyerdynamic DT 770 Pro ($180) | Sennheiser HD 650 ($450) |
+| Audio I/F | Focusrite Scarlett Solo ($110) | Universal Audio Volt 2 ($200) | RME Babyface Pro ($900) |
+| MIDI Keyboard | Akai MPK Mini ($60) | Arturia KeyLab 49 ($250) | Native Instruments S61 ($600) |
+| Monitor Speakers | - | Yamaha HS5 ($250/pair) | Adam Audio A7V ($1,000/pair) |
+| Total | ~$420 | ~$1,330 | ~$3,750 |
 
-制作を始める前に、意識的なリスニングの習慣を身につけましょう。
+### Estimated Study Time
 
-1. **構造分析リスニング**: 曲の各セクション（イントロ、ビルドアップ、ドロップ、ブレイクダウン、アウトロ）を意識して聴く
-2. **レイヤー分析リスニング**: 各楽器パート（キック、ベース、リード、パッド、ハイハット、パーカッション）を個別に聴き取る
-3. **エフェクト分析リスニング**: リバーブ、ディレイ、フィルターなどのエフェクト処理を意識する
-4. **空間分析リスニング**: 左右のパンニング、奥行き、ステレオイメージを意識する
-
-### DAWの選択とインストール
-
-本ロードマップではAbleton Liveを中心に解説しますが、他のDAWでも応用可能です。
-
-| DAW | 特徴 | 適したジャンル |
-|-----|------|---------------|
-| Ableton Live | セッションビュー、直感的な操作 | テクノ、ハウス、エレクトロニカ |
-| FL Studio | パターンベース、ビート制作に強い | ヒップホップ、トラップ、EDM |
-| Logic Pro | Apple統合、充実したサウンドライブラリ | ポップス、映画音楽、全般 |
-| Bitwig Studio | モジュラー機能、Linux対応 | 実験的電子音楽 |
-| Cubase | MIDI編集の精度、VSTサポート | オーケストラ、ポップス |
+- **5 hours/week**: Hobby pace (each phase takes 1.5x longer)
+- **10 hours/week**: Standard learning pace (assumed in this document)
+- **20 hours/week**: Intensive learning (each phase can be completed in about half the time)
+- **40+ hours/week**: Full-time learning (fastest but beware of burnout)
 
 ---
 
-## Phase 1: 初心者（0-6ヶ月）
+## Phase 0: Preparation Period (Before Starting)
 
-### 目標
+### Assessing Your Musical Background
 
-- DAWの基礎操作を完全に理解する
-- シンプルなループを安定して作成できる
-- 基本的な音楽理論を理解する
-- 制作の習慣を確立する
+Before starting production, assess your musical background.
 
-### 月別カリキュラム
+#### If You Have Instrument Experience
+- You can leverage that knowledge in your approach
+- You likely already have basic music theory knowledge
+- You can focus on learning DAW operations
+- Apply your performance skills to MIDI input
 
-#### 1ヶ月目: DAWの基本操作
+#### If You Have No Instrument Experience
+- You need to learn music theory basics in parallel
+- Start with step input and drawing for note entry
+- Sample-based production is easier to get into
+- Practicing with drum pads is effective for developing rhythm
 
-**週1-2: インターフェイスの理解**
-- Ableton Liveの画面レイアウトを覚える
-- セッションビューとアレンジメントビューの違いを理解
-- ブラウザの使い方（音色、エフェクト、サンプルの検索）
-- プロジェクトの作成、保存、管理
+### Strengthening Your Listening
 
-**週3-4: 基本操作の習得**
-- オーディオクリップの読み込みと配置
-- MIDIクリップの作成と編集
-- ウォーピング（タイムストレッチ）の基礎
-- テンポとグリッドの設定
+Develop conscious listening habits before starting production.
 
-**練習課題**:
-- サンプルを読み込んで4小節のループを作る（1日1ループ目標）
-- MIDIノートを手書きで入力してメロディを作る
-- 既存のループを組み合わせてシンプルなビートを構成
+1. **Structural Analysis Listening**: Listen while being aware of each section (intro, buildup, drop, breakdown, outro)
+2. **Layer Analysis Listening**: Isolate and listen to each instrument part (kick, bass, lead, pad, hi-hat, percussion)
+3. **Effect Analysis Listening**: Be aware of effect processing such as reverb, delay, and filters
+4. **Spatial Analysis Listening**: Be aware of left-right panning, depth, and stereo imaging
 
-#### 2ヶ月目: ドラムプログラミング
+### DAW Selection and Installation
 
-**週1-2: キックとスネア**
-- 4つ打ちキックパターンの作成
-- スネアとクラップの配置（2拍目、4拍目）
-- ベロシティの概念と効果
-- ドラムラックの使い方
+This roadmap focuses on Ableton Live, but the concepts are applicable to other DAWs.
 
-**週3-4: ハイハットとパーカッション**
-- ハイハットのパターン（8分、16分、シャッフル）
-- パーカッション要素の追加（シェイカー、タム、コンガ）
-- ゴーストノートの概念
-- スウィングとグルーヴの設定
+| DAW | Features | Suited Genres |
+|-----|----------|---------------|
+| Ableton Live | Session view, intuitive operation | Techno, House, Electronica |
+| FL Studio | Pattern-based, strong beat making | Hip Hop, Trap, EDM |
+| Logic Pro | Apple integration, rich sound library | Pop, Film Music, General |
+| Bitwig Studio | Modular features, Linux support | Experimental Electronic Music |
+| Cubase | MIDI editing precision, VST support | Orchestra, Pop |
 
-**練習課題**:
-- ジャンル別ドラムパターンの再現（ハウス、テクノ、ヒップホップ）
-- 同じパターンのベロシティだけを変えて比較
-- 4小節のドラムループを5種類作成
+---
 
-**ドラムパターンの基本テンプレート**:
+## Phase 1: Beginner (0-6 Months)
+
+### Goals
+
+- Fully understand basic DAW operations
+- Consistently create simple loops
+- Understand basic music theory
+- Establish a production habit
+
+### Monthly Curriculum
+
+#### Month 1: Basic DAW Operations
+
+**Weeks 1-2: Understanding the Interface**
+- Learn the Ableton Live screen layout
+- Understand the difference between Session View and Arrangement View
+- How to use the Browser (searching for sounds, effects, and samples)
+- Creating, saving, and managing projects
+
+**Weeks 3-4: Learning Basic Operations**
+- Loading and placing audio clips
+- Creating and editing MIDI clips
+- Basics of warping (time stretching)
+- Setting tempo and grid
+
+**Practice Exercises**:
+- Load samples and create a 4-bar loop (aim for 1 loop per day)
+- Draw MIDI notes by hand to create a melody
+- Combine existing loops to construct a simple beat
+
+#### Month 2: Drum Programming
+
+**Weeks 1-2: Kick and Snare**
+- Creating four-on-the-floor kick patterns
+- Placing snare and clap (beats 2 and 4)
+- The concept and effect of velocity
+- How to use Drum Rack
+
+**Weeks 3-4: Hi-Hats and Percussion**
+- Hi-hat patterns (8th notes, 16th notes, shuffle)
+- Adding percussion elements (shaker, tom, conga)
+- The concept of ghost notes
+- Swing and groove settings
+
+**Practice Exercises**:
+- Recreate genre-specific drum patterns (House, Techno, Hip Hop)
+- Compare the same pattern with only velocity changes
+- Create 5 different 4-bar drum loops
+
+**Basic Drum Pattern Templates**:
 
 ```
 House (120-128 BPM):
@@ -197,246 +196,246 @@ Snare: |....|X...|....|X...|
 HH:    |X.XX|X.XX|X.XX|X.XX|
 ```
 
-#### 3ヶ月目: ベースラインとシンセサイザー基礎
+#### Month 3: Basslines and Synthesizer Basics
 
-**週1-2: ベースライン作成**
-- サブベースの概念（20-80Hz）
-- シンプルなベースパターンの打ち込み
-- キックとベースの関係性
-- サイドチェインコンプレッションの基礎
+**Weeks 1-2: Creating Basslines**
+- The concept of sub-bass (20-80Hz)
+- Programming simple bass patterns
+- The relationship between kick and bass
+- Basics of sidechain compression
 
-**週3-4: シンセサイザー入門**
-- 減算合成の基本（オシレーター、フィルター、アンプ）
-- Ableton内蔵シンセ「Analog」の操作
-- プリセットの選択と微調整
-- 基本的な波形の違い（サイン波、ノコギリ波、矩形波、三角波）
+**Weeks 3-4: Introduction to Synthesizers**
+- Basics of subtractive synthesis (oscillator, filter, amp)
+- Operating Ableton's built-in synth "Analog"
+- Selecting and tweaking presets
+- Differences between basic waveforms (sine, sawtooth, square, triangle)
 
-**基本波形の特徴**:
+**Basic Waveform Characteristics**:
 
-| 波形 | 音質 | 用途 |
-|------|------|------|
-| サイン波 | 純粋、温かい | サブベース、ピュアなトーン |
-| ノコギリ波 | 明るい、豊か | リード、パッド、スーパーソー |
-| 矩形波 | 中空、木質的 | ベース、レトロサウンド |
-| 三角波 | サインとノコギリの中間 | ソフトなベース、フルート系 |
-| ノイズ | 非音程的 | パーカッション、FX、ライザー |
+| Waveform | Tone | Uses |
+|----------|------|------|
+| Sine | Pure, warm | Sub-bass, pure tones |
+| Sawtooth | Bright, rich | Leads, pads, super saw |
+| Square | Hollow, woody | Bass, retro sounds |
+| Triangle | Between sine and sawtooth | Soft bass, flute-like |
+| Noise | Non-pitched | Percussion, FX, risers |
 
-**練習課題**:
-- キーを決めて8小節のベースラインを3パターン作成
-- 同じベースラインをサイン波、ノコギリ波、矩形波で作り比較
-- プリセットを20個以上試して、お気に入りを5つ選ぶ
+**Practice Exercises**:
+- Choose a key and create 3 bassline patterns of 8 bars
+- Create the same bassline with sine, sawtooth, and square waves and compare
+- Try 20+ presets and select your 5 favorites
 
-#### 4ヶ月目: 基本エフェクト
+#### Month 4: Basic Effects
 
-**週1-2: EQとフィルター**
-- EQの基本操作（ハイパス、ローパス、ベル、シェルフ）
-- 周波数帯域の理解（低域、中域、高域）
-- フィルタースウィープの作成
-- EQで不要な周波数をカット
+**Weeks 1-2: EQ and Filters**
+- Basic EQ operations (high-pass, low-pass, bell, shelf)
+- Understanding frequency bands (low, mid, high)
+- Creating filter sweeps
+- Cutting unwanted frequencies with EQ
 
-**週3-4: リバーブとディレイ**
-- リバーブの種類（ルーム、ホール、プレート、スプリング）
-- リバーブのパラメータ（ディケイ、プリディレイ、ダンピング）
-- ディレイの種類（ピンポン、テープ、フィルタード）
-- ディレイのパラメータ（タイム、フィードバック、ドライ/ウェット）
+**Weeks 3-4: Reverb and Delay**
+- Types of reverb (room, hall, plate, spring)
+- Reverb parameters (decay, pre-delay, damping)
+- Types of delay (ping-pong, tape, filtered)
+- Delay parameters (time, feedback, dry/wet)
 
-**周波数帯域ガイド**:
+**Frequency Band Guide**:
 
-| 帯域 | 周波数 | 特徴 | 主な楽器 |
-|------|--------|------|---------|
-| サブベース | 20-60Hz | 体で感じる振動 | キック低域、サブベース |
-| ベース | 60-250Hz | 曲の土台 | ベース、キック |
-| ローミッド | 250-500Hz | 温かみ/こもり | ギター、ボーカル低域 |
-| ミッド | 500Hz-2kHz | 存在感/ボディ | ボーカル、スネア |
-| ハイミッド | 2-6kHz | 明瞭さ/アタック | ボーカル子音、ハイハット |
-| プレゼンス | 6-10kHz | 輝き/エア | シンバル、シンセ高域 |
-| エア | 10-20kHz | 開放感 | 倍音、ノイズ |
+| Band | Frequency | Characteristics | Main Instruments |
+|------|-----------|-----------------|-----------------|
+| Sub-bass | 20-60Hz | Vibrations felt in the body | Kick low end, sub-bass |
+| Bass | 60-250Hz | Foundation of the track | Bass, kick |
+| Low-mid | 250-500Hz | Warmth/muddiness | Guitar, low vocals |
+| Mid | 500Hz-2kHz | Presence/body | Vocals, snare |
+| High-mid | 2-6kHz | Clarity/attack | Vocal consonants, hi-hat |
+| Presence | 6-10kHz | Brilliance/air | Cymbal, synth high end |
+| Air | 10-20kHz | Openness | Harmonics, noise |
 
-**練習課題**:
-- 各トラックにEQを挿して不要な帯域をカット
-- リバーブのウェット量を変えて空間の違いを体感
-- ディレイのテンポ同期を使ってリズミカルなエフェクトを作る
+**Practice Exercises**:
+- Insert an EQ on each track and cut unnecessary bands
+- Vary the reverb wet amount to experience spatial differences
+- Use tempo-synced delay to create rhythmic effects
 
-#### 5ヶ月目: 簡易アレンジメント
+#### Month 5: Simple Arrangement
 
-**週1-2: セクション構成の理解**
-- イントロの作り方（要素を段階的に追加）
-- ブレイクの作り方（要素を減らして緊張感を作る）
-- ドロップの作り方（フルエナジーのセクション）
-- アウトロの作り方（DJ対応、ミックスしやすい構成）
+**Weeks 1-2: Understanding Section Structure**
+- How to create an intro (gradually adding elements)
+- How to create a break (reducing elements to build tension)
+- How to create a drop (full energy section)
+- How to create an outro (DJ-friendly, easy to mix structure)
 
-**週3-4: トランジション技法**
-- フィルターオートメーション
-- リバーブテールを使ったトランジション
-- ライザーとダウンリフター
-- ドラムフィルとブレイク
+**Weeks 3-4: Transition Techniques**
+- Filter automation
+- Transitions using reverb tails
+- Risers and downlifters
+- Drum fills and breaks
 
-**基本的な曲構成テンプレート**:
+**Basic Song Structure Templates**:
 
 ```
-House / Techno (6-8分):
-[Intro: 32小節] → [Buildup: 16小節] → [Drop 1: 32小節]
-→ [Breakdown: 16小節] → [Buildup 2: 16小節] → [Drop 2: 32小節]
-→ [Outro: 32小節]
+House / Techno (6-8 min):
+[Intro: 32 bars] -> [Buildup: 16 bars] -> [Drop 1: 32 bars]
+-> [Breakdown: 16 bars] -> [Buildup 2: 16 bars] -> [Drop 2: 32 bars]
+-> [Outro: 32 bars]
 
-EDM / Future Bass (3-4分):
-[Intro: 8小節] → [Verse: 16小節] → [Buildup: 8小節]
-→ [Drop 1: 16小節] → [Breakdown: 8小節] → [Buildup: 8小節]
-→ [Drop 2: 16小節] → [Outro: 8小節]
+EDM / Future Bass (3-4 min):
+[Intro: 8 bars] -> [Verse: 16 bars] -> [Buildup: 8 bars]
+-> [Drop 1: 16 bars] -> [Breakdown: 8 bars] -> [Buildup: 8 bars]
+-> [Drop 2: 16 bars] -> [Outro: 8 bars]
 
-Drum & Bass (5-6分):
-[Intro: 16小節] → [Build: 16小節] → [Drop 1: 32小節]
-→ [Mid Section: 16小節] → [Drop 2: 32小節] → [Outro: 16小節]
+Drum & Bass (5-6 min):
+[Intro: 16 bars] -> [Build: 16 bars] -> [Drop 1: 32 bars]
+-> [Mid Section: 16 bars] -> [Drop 2: 32 bars] -> [Outro: 16 bars]
 ```
 
-#### 6ヶ月目: 最初の完成曲
+#### Month 6: First Complete Track
 
-**週1-2: 曲作りの実践**
-- テンプレートを参考にアレンジメントを作成
-- 8小節ループを展開して曲にする
-- オートメーションでダイナミクスを加える
+**Weeks 1-2: Practical Songwriting**
+- Create an arrangement using templates as reference
+- Expand an 8-bar loop into a full track
+- Add dynamics with automation
 
-**週3-4: 仕上げと振り返り**
-- 全体のバランス調整
-- 基本的なマスタリング（リミッターで音圧調整）
-- 完成した曲を書き出し
-- 6ヶ月間の振り返りと次のフェーズの計画
+**Weeks 3-4: Finishing and Review**
+- Overall balance adjustment
+- Basic mastering (loudness adjustment with limiter)
+- Export the finished track
+- Review the past 6 months and plan for the next phase
 
-### Phase 1 必須知識の詳細
+### Phase 1 Essential Knowledge Details
 
-#### 1. Ableton Liveインターフェイス
+#### 1. Ableton Live Interface
 
-**セッションビュー**:
-- クリップの概念とトリガー方法
-- シーンの管理と一括トリガー
-- フォローアクションの基礎
-- レコーディング方法
+**Session View**:
+- Clip concepts and triggering methods
+- Scene management and batch triggering
+- Follow action basics
+- Recording methods
 
-**アレンジメントビュー**:
-- タイムライン上での編集
-- クリップの移動、コピー、分割
-- オートメーションの描画
-- ロケーターの設定
+**Arrangement View**:
+- Timeline editing
+- Moving, copying, and splitting clips
+- Drawing automation
+- Setting locators
 
-**共通操作**:
-- トラックの追加と管理（Audio / MIDI / Return / Master）
-- デバイスチェインの構成
-- グループトラックの活用
-- ショートカットキーの習得（Tab、Cmd+T、Cmd+Shift+T など）
+**Common Operations**:
+- Adding and managing tracks (Audio / MIDI / Return / Master)
+- Configuring device chains
+- Using group tracks
+- Learning shortcuts (Tab, Cmd+T, Cmd+Shift+T, etc.)
 
-#### 2. Audio/MIDI基礎
+#### 2. Audio/MIDI Fundamentals
 
-**オーディオの基礎**:
-- サンプルレートとビット深度の理解（44.1kHz/24bit が標準）
-- ウォーピングモード（Beats、Tones、Texture、Re-Pitch、Complex、Complex Pro）
-- オーディオエフェクトの挿入と順序
-- フリーズとフラットンの使い分け
+**Audio Basics**:
+- Understanding sample rate and bit depth (44.1kHz/24bit is standard)
+- Warping modes (Beats, Tones, Texture, Re-Pitch, Complex, Complex Pro)
+- Inserting audio effects and ordering
+- Freeze and Flatten usage
 
-**MIDIの基礎**:
-- MIDIノート、ベロシティ、チャンネルの概念
-- ピアノロールでの編集
-- MIDIエフェクト（Arpeggiator、Chord、Scale）
-- MIDIコントローラーのマッピング
+**MIDI Basics**:
+- Concepts of MIDI notes, velocity, and channels
+- Editing in the piano roll
+- MIDI effects (Arpeggiator, Chord, Scale)
+- MIDI controller mapping
 
-#### 3. ドラムプログラミングの詳細
+#### 3. Drum Programming Details
 
-**Drum Rackの活用**:
-- サンプルの読み込みとマッピング
-- チェインの設定
-- マクロコントロールの活用
-- レイヤリング技法
+**Using Drum Rack**:
+- Loading and mapping samples
+- Chain settings
+- Using macro controls
+- Layering techniques
 
-**グルーヴの作り方**:
-- ベロシティのバリエーション（強弱のパターン）
-- タイミングのズレ（ヒューマナイズ）
-- ゴーストノート（弱いスネアやハイハット）
-- スウィングの適用（50-75%の範囲で実験）
+**Creating Groove**:
+- Velocity variation (dynamic patterns)
+- Timing offsets (humanize)
+- Ghost notes (subtle snare and hi-hat hits)
+- Applying swing (experiment in the 50-75% range)
 
-**ドラムサウンドの選び方**:
-- キック: アタックの強さ、サブベースの量、テール長
-- スネア/クラップ: スナッピーさ、レイヤーの厚み、チューニング
-- ハイハット: オープン/クローズの比率、明るさ
-- パーカッション: リズムの複雑さに合わせた選択
+**Choosing Drum Sounds**:
+- Kick: Attack strength, sub-bass amount, tail length
+- Snare/Clap: Snappiness, layer thickness, tuning
+- Hi-hat: Open/closed ratio, brightness
+- Percussion: Selection based on rhythmic complexity
 
-#### 4. ベースライン作成の詳細
+#### 4. Bassline Creation Details
 
-**ベースの種類**:
-- サブベース: 純粋なサイン波、体で感じる低域
-- ファットベース: ノコギリ波ベース、ミッドに存在感
-- リーズベース（Reese）: デチューンしたノコギリ波、DnBの定番
-- ウォブルベース: LFOでフィルターを動かす、ダブステップ
-- アシッドベース: TB-303系、レゾナンスの効いたフィルターSweep
-- 808ベース: 長いディケイのキックをピッチ変化させる
+**Types of Bass**:
+- Sub-bass: Pure sine wave, low frequencies felt in the body
+- Fat bass: Sawtooth-based, mid-range presence
+- Reese bass: Detuned sawtooth waves, a DnB staple
+- Wobble bass: Filter modulated by LFO, dubstep style
+- Acid bass: TB-303 style, resonant filter sweep
+- 808 bass: Long-decay kick with pitch variation
 
-**ベースラインのパターン**:
-- ルートオンリー: キーのルート音のみ（テクノ向き）
-- オクターブジャンプ: 低いルートと高いルートを交互に
-- ウォーキングベース: スケール上を歩くように動く
-- シンコペーション: キックとずらしたリズムで動きを出す
-- アルペジオ: コードトーンを分散して演奏
+**Bassline Patterns**:
+- Root only: Only the root note of the key (suited for techno)
+- Octave jump: Alternating between low and high root notes
+- Walking bass: Moving stepwise along the scale
+- Syncopation: Rhythmic movement offset from the kick
+- Arpeggio: Playing chord tones in a broken pattern
 
-#### 5. 基本エフェクトの詳細
+#### 5. Basic Effects Details
 
-**EQ Eight（Ableton）**:
-- ハイパスフィルター: 不要な低域をカット（ベース以外は80-120Hzでカット）
-- ローパスフィルター: 高域を制限してダークな音に
-- ベルカーブ: 特定の周波数をブースト/カット
-- Q値: 帯域幅の調整（狭い = ピンポイント、広い = なだらか）
+**EQ Eight (Ableton)**:
+- High-pass filter: Cut unnecessary low end (cut at 80-120Hz for non-bass tracks)
+- Low-pass filter: Limit high frequencies for a darker sound
+- Bell curve: Boost/cut specific frequencies
+- Q value: Bandwidth adjustment (narrow = pinpoint, wide = gentle)
 
-**Reverb（Ableton）**:
-- Size: 空間の大きさ
-- Decay Time: 残響の長さ
-- Pre-Delay: 原音と残響の間隔
-- Diffusion: 残響の密度
-- Damping: 高域の減衰
-- Dry/Wet: 原音とエフェクトのバランス
+**Reverb (Ableton)**:
+- Size: Size of the space
+- Decay Time: Length of reverb tail
+- Pre-Delay: Gap between dry signal and reverb
+- Diffusion: Density of reverb
+- Damping: High-frequency attenuation
+- Dry/Wet: Balance between dry signal and effect
 
-**Delay（Ableton）**:
-- Delay Time: エコーの間隔（テンポ同期推奨）
-- Feedback: エコーの繰り返し回数
-- Filter: ディレイ音のトーン調整
-- Ping Pong: 左右に交互に配置
-- Dry/Wet: 原音とエフェクトのバランス
+**Delay (Ableton)**:
+- Delay Time: Echo interval (tempo sync recommended)
+- Feedback: Number of echo repetitions
+- Filter: Tone adjustment of delayed signal
+- Ping Pong: Alternating left-right placement
+- Dry/Wet: Balance between dry signal and effect
 
-### Phase 1 完成基準チェックリスト
+### Phase 1 Completion Checklist
 
-- [ ] DAWの基本操作を見ないでできる
-- [ ] MIDIノートの入力と編集がスムーズにできる
-- [ ] 4つ打ちのドラムパターンを3分以内に作れる
-- [ ] ベースラインをスケールに沿って打ち込める
-- [ ] EQ、リバーブ、ディレイを適切に使える
-- [ ] 8小節のループを30分以内に作れる
-- [ ] 最低1曲のフルトラック（3分以上）を完成させた
-- [ ] プロジェクトの管理（保存、バックアップ）ができる
+- [ ] Can perform basic DAW operations without looking up instructions
+- [ ] Can input and edit MIDI notes smoothly
+- [ ] Can create a four-on-the-floor drum pattern within 3 minutes
+- [ ] Can program a bassline following a scale
+- [ ] Can use EQ, reverb, and delay appropriately
+- [ ] Can create an 8-bar loop within 30 minutes
+- [ ] Have completed at least 1 full track (3+ minutes)
+- [ ] Can manage projects (saving, backups)
 
 ---
 
-## Phase 2: 初級（6-12ヶ月）
+## Phase 2: Elementary (6-12 Months)
 
-### 目標
+### Goals
 
-- 曲を安定して完成させる能力を身につける
-- Intro → Build → Drop → Breakdown → Outro の構成を自在に作る
-- ミキシングの基礎を習得する
-- 複数のジャンルのトラックを制作できる
+- Develop the ability to consistently finish tracks
+- Freely create Intro -> Build -> Drop -> Breakdown -> Outro structures
+- Master the basics of mixing
+- Produce tracks in multiple genres
 
-### 月別カリキュラム
+### Monthly Curriculum
 
-#### 7ヶ月目: アレンジメント技法の深化
+#### Month 7: Deepening Arrangement Techniques
 
-**週1-2: セクション間のトランジション**
-- ライザー（上昇する音）の作成と配置
-- ダウンリフター（下降する音）の使い方
-- インパクト（ドロップの頭に来る衝撃音）
-- サイレンス（一瞬の無音）の効果
+**Weeks 1-2: Transitions Between Sections**
+- Creating and placing risers (ascending sounds)
+- Using downlifters (descending sounds)
+- Impacts (impact sounds at the start of a drop)
+- Silence (momentary silence) effects
 
-**週3-4: エネルギーカーブの設計**
-- 曲全体のエネルギーレベルをグラフ化
-- テンション（緊張）とリリース（解放）のバランス
-- 反復と変化の適切な配分
-- リスナーの期待をコントロールする技法
+**Weeks 3-4: Designing Energy Curves**
+- Graphing the energy level of the entire track
+- Balancing tension and release
+- Appropriate distribution of repetition and variation
+- Techniques for controlling listener expectations
 
-**エネルギーカーブの例**:
+**Energy Curve Example**:
 ```
 Energy Level (1-10):
 
@@ -449,1171 +448,1171 @@ Energy Level (1-10):
    Intro  Build  Drop1  Break  Build  Drop2  Outro
 ```
 
-#### 8ヶ月目: ミキシング基礎
+#### Month 8: Mixing Fundamentals
 
-**週1-2: レベルバランスとパンニング**
-- フェーダーワークの基本（キックとベースから始める）
-- パンニングの原則（低域はセンター、高域は左右に広げる）
-- ヘッドルームの確保（マスターが0dBを超えないように）
-- ゲインステージングの概念
+**Weeks 1-2: Level Balance and Panning**
+- Fader work basics (start with kick and bass)
+- Panning principles (low frequencies center, high frequencies spread left-right)
+- Ensuring headroom (keep master below 0dB)
+- The concept of gain staging
 
-**週3-4: コンプレッションの基礎**
-- コンプレッサーの基本パラメータ（Threshold、Ratio、Attack、Release）
-- キックのコンプレッション（アタックを強調）
-- ベースのコンプレッション（音量を均一に）
-- サイドチェインコンプレッション（ポンピング効果）
+**Weeks 3-4: Compression Basics**
+- Basic compressor parameters (Threshold, Ratio, Attack, Release)
+- Kick compression (emphasizing attack)
+- Bass compression (evening out volume)
+- Sidechain compression (pumping effect)
 
-**コンプレッサー設定の目安**:
+**Compressor Setting Guidelines**:
 
-| 対象 | Threshold | Ratio | Attack | Release | 目的 |
-|------|-----------|-------|--------|---------|------|
-| キック | -10dB | 4:1 | 0.1ms | 50ms | アタック強調 |
-| ベース | -8dB | 3:1 | 10ms | 100ms | 音量均一化 |
-| ボーカル | -12dB | 3:1 | 5ms | 80ms | ダイナミクス制御 |
-| スネア | -6dB | 4:1 | 1ms | 30ms | パンチ追加 |
-| バスドラム | -6dB | 6:1 | 30ms | 200ms | サステイン制御 |
-| ミックスバス | -3dB | 2:1 | 10ms | 100ms | グルー効果 |
+| Target | Threshold | Ratio | Attack | Release | Purpose |
+|--------|-----------|-------|--------|---------|---------|
+| Kick | -10dB | 4:1 | 0.1ms | 50ms | Attack emphasis |
+| Bass | -8dB | 3:1 | 10ms | 100ms | Volume leveling |
+| Vocal | -12dB | 3:1 | 5ms | 80ms | Dynamic control |
+| Snare | -6dB | 4:1 | 1ms | 30ms | Adding punch |
+| Bus drum | -6dB | 6:1 | 30ms | 200ms | Sustain control |
+| Mix bus | -3dB | 2:1 | 10ms | 100ms | Glue effect |
 
-#### 9ヶ月目: シンセサイザーの応用
+#### Month 9: Applied Synthesizers
 
-**週1-2: Wavetable（Ableton）**
-- ウェーブテーブルの概念と選択
-- モジュレーションマトリックスの使い方
-- LFOによる動きの追加
-- エンベロープの詳細設定（ADSR）
+**Weeks 1-2: Wavetable (Ableton)**
+- Wavetable concepts and selection
+- Using the modulation matrix
+- Adding movement with LFO
+- Detailed envelope settings (ADSR)
 
-**週3-4: Operator（FM合成）**
-- FM合成の基本概念
-- オペレーターAとBの関係
-- アルゴリズムの選択
-- メタリックなサウンドの作成
+**Weeks 3-4: Operator (FM Synthesis)**
+- Basic concepts of FM synthesis
+- Relationship between Operator A and B
+- Algorithm selection
+- Creating metallic sounds
 
-**ADSR エンベロープの解説**:
+**ADSR Envelope Explanation**:
 
 ```
 Level
-  │  ╱╲
-  │ ╱  ╲___________
-  │╱               ╲
-  │                 ╲
-  └──────────────────── Time
+  |  /\
+  | /  \___________
+  |/               \
+  |                 \
+  +──────────────────── Time
   A   D   S        R
 
-A (Attack): 音が立ち上がるまでの時間
-D (Decay): 最大音量からサステインレベルまでの減衰時間
-S (Sustain): キーを押し続けている間の音量レベル
-R (Release): キーを離してから音が消えるまでの時間
+A (Attack): Time for the sound to reach maximum level
+D (Decay): Time to decrease from maximum to sustain level
+S (Sustain): Volume level while the key is held
+R (Release): Time for the sound to fade after key release
 ```
 
-**用途別ADSR設定例**:
-- パッド: A=500ms, D=200ms, S=80%, R=1000ms（ゆっくり立ち上がり、長い余韻）
-- プラック: A=0ms, D=300ms, S=0%, R=100ms（瞬間的に立ち上がり、すぐ減衰）
-- リード: A=5ms, D=100ms, S=70%, R=200ms（素早い立ち上がり、持続音）
-- ベース: A=0ms, D=50ms, S=90%, R=50ms（即座に立ち上がり、タイトな余韻）
+**ADSR Setting Examples by Use**:
+- Pad: A=500ms, D=200ms, S=80%, R=1000ms (slow attack, long tail)
+- Pluck: A=0ms, D=300ms, S=0%, R=100ms (instant attack, quick decay)
+- Lead: A=5ms, D=100ms, S=70%, R=200ms (fast attack, sustained tone)
+- Bass: A=0ms, D=50ms, S=90%, R=50ms (instant attack, tight tail)
 
-#### 10ヶ月目: エフェクトチェインの構築
+#### Month 10: Building Effect Chains
 
-**週1-2: エフェクトの順序**
-- 一般的なシグナルフロー: EQ → Compressor → Saturation → Modulation → Delay → Reverb
-- 順序を変えた場合の音の変化
-- パラレルプロセッシングの概念
-- リターントラックの活用
+**Weeks 1-2: Effect Order**
+- Typical signal flow: EQ -> Compressor -> Saturation -> Modulation -> Delay -> Reverb
+- How changing the order affects the sound
+- The concept of parallel processing
+- Using return tracks
 
-**週3-4: クリエイティブエフェクト**
-- ディストーション/サチュレーション
-- フェイザー、フランジャー、コーラス
-- ボコーダー
-- グリッチエフェクト
+**Weeks 3-4: Creative Effects**
+- Distortion/Saturation
+- Phaser, Flanger, Chorus
+- Vocoder
+- Glitch effects
 
-**エフェクトチェインのテンプレート**:
+**Effect Chain Templates**:
 
 ```
-ボーカルチェイン:
-[EQ] → [Compressor] → [De-Esser] → [EQ] → [Reverb(Send)]
+Vocal Chain:
+[EQ] -> [Compressor] -> [De-Esser] -> [EQ] -> [Reverb(Send)]
 
-ベースチェイン:
-[EQ(HP)] → [Compressor] → [Saturator] → [EQ] → [Utility]
+Bass Chain:
+[EQ(HP)] -> [Compressor] -> [Saturator] -> [EQ] -> [Utility]
 
-シンセリードチェイン:
-[EQ] → [Compressor] → [Chorus] → [Delay(Send)] → [Reverb(Send)]
+Synth Lead Chain:
+[EQ] -> [Compressor] -> [Chorus] -> [Delay(Send)] -> [Reverb(Send)]
 
-ドラムバスチェイン:
-[EQ] → [Glue Compressor] → [Saturator] → [Limiter]
+Drum Bus Chain:
+[EQ] -> [Glue Compressor] -> [Saturator] -> [Limiter]
 ```
 
-#### 11ヶ月目: マスタリング入門
+#### Month 11: Introduction to Mastering
 
-**週1-2: マスタリングの概念**
-- マスタリングとは何か（最終仕上げの工程）
-- ラウドネス基準の理解（LUFS）
-- リファレンストラックの使い方
-- モニタリング環境の重要性
+**Weeks 1-2: Mastering Concepts**
+- What mastering is (the final finishing process)
+- Understanding loudness standards (LUFS)
+- How to use reference tracks
+- The importance of monitoring environment
 
-**週3-4: 基本的なマスタリングチェイン**
-- EQでの最終調整
-- マルチバンドコンプレッション
-- ステレオイメージング
-- リミッターでの音圧調整
+**Weeks 3-4: Basic Mastering Chain**
+- Final adjustments with EQ
+- Multiband compression
+- Stereo imaging
+- Loudness adjustment with limiter
 
-**マスタリング目標値**:
+**Mastering Target Values**:
 
-| プラットフォーム | 推奨LUFS | True Peak | 備考 |
-|-----------------|---------|-----------|------|
-| クラブ再生 | -6 to -9 | -0.3dB | 高音圧 |
-| Spotify | -14 | -1.0dB | 標準化あり |
-| Apple Music | -16 | -1.0dB | 標準化あり |
-| YouTube | -14 | -1.0dB | 標準化あり |
-| SoundCloud | -14 | -1.0dB | 標準化なし |
-| Beatport | -6 to -9 | -0.3dB | クラブ向け |
+| Platform | Recommended LUFS | True Peak | Notes |
+|----------|-----------------|-----------|-------|
+| Club Playback | -6 to -9 | -0.3dB | High loudness |
+| Spotify | -14 | -1.0dB | Normalization applied |
+| Apple Music | -16 | -1.0dB | Normalization applied |
+| YouTube | -14 | -1.0dB | Normalization applied |
+| SoundCloud | -14 | -1.0dB | No normalization |
+| Beatport | -6 to -9 | -0.3dB | Club-oriented |
 
-#### 12ヶ月目: 制作の定着と振り返り
+#### Month 12: Establishing Production Routine and Review
 
-**週1-2: 制作ワークフローの確立**
-- テンプレートプロジェクトの作成
-- サンプルとプリセットの整理
-- 制作ルーティンの確立
-- ミキシングチェックリストの作成
+**Weeks 1-2: Establishing Production Workflow**
+- Creating template projects
+- Organizing samples and presets
+- Establishing a production routine
+- Creating a mixing checklist
 
-**週3-4: 振り返りと次のフェーズの計画**
-- 完成した曲を聴き返して分析
-- プロの曲と自分の曲を比較
-- 弱点の特定と改善計画
-- SoundCloudへの初投稿
+**Weeks 3-4: Review and Planning for Next Phase**
+- Listen back and analyze completed tracks
+- Compare your tracks with professional ones
+- Identify weaknesses and plan improvements
+- First upload to SoundCloud
 
-### Phase 2 完成基準チェックリスト
+### Phase 2 Completion Checklist
 
-- [ ] フルトラック（3-5分）を2週間以内に完成できる
-- [ ] Intro → Build → Drop → Breakdown → Outro を自在に構成できる
-- [ ] 基本的なミキシング（レベル、パン、EQ、コンプ）ができる
-- [ ] シンセのプリセットを調整してオリジナリティを出せる
-- [ ] エフェクトチェインを目的に合わせて構成できる
-- [ ] リミッターで-14 LUFSのマスタリングができる
-- [ ] 最低3曲のフルトラックを完成させた
-- [ ] SoundCloudに最低1曲アップロードした
+- [ ] Can complete a full track (3-5 min) within 2 weeks
+- [ ] Can freely construct Intro -> Build -> Drop -> Breakdown -> Outro
+- [ ] Can perform basic mixing (levels, panning, EQ, compression)
+- [ ] Can tweak synth presets to add originality
+- [ ] Can configure effect chains for specific purposes
+- [ ] Can master to -14 LUFS with a limiter
+- [ ] Have completed at least 3 full tracks
+- [ ] Have uploaded at least 1 track to SoundCloud
 
 ---
 
-## Phase 3: 中級（12-24ヶ月）
+## Phase 3: Intermediate (12-24 Months)
 
-### 目標
+### Goals
 
-- リリース可能なクオリティの曲を制作する
-- サウンドデザインの技術を習得する
-- ミキシングを完全に習得する
-- アーティストとしてのアイデンティティを確立する
+- Produce release-quality tracks
+- Master sound design techniques
+- Fully master mixing
+- Establish your identity as an artist
 
-### 重点学習項目
+### Key Learning Areas
 
-#### サウンドデザインの体系的学習
+#### Systematic Sound Design Learning
 
-**合成方式の理解**:
+**Understanding Synthesis Methods**:
 
-1. **減算合成（Subtractive）**: 倍音の豊富な波形からフィルターで不要な成分を削る
-   - 使用シンセ: Analog, Sylenth1, TAL-U-NO
-   - 適した音色: パッド、ベース、クラシックなリード
+1. **Subtractive Synthesis**: Remove unwanted components from harmonically rich waveforms using filters
+   - Synths: Analog, Sylenth1, TAL-U-NO
+   - Suited sounds: Pads, bass, classic leads
 
-2. **加算合成（Additive）**: サイン波を重ねて複雑な音色を構築する
-   - 使用シンセ: Razor, Loom
-   - 適した音色: オルガン系、ベル系、実験的なテクスチャー
+2. **Additive Synthesis**: Build complex timbres by layering sine waves
+   - Synths: Razor, Loom
+   - Suited sounds: Organ-type, bell-type, experimental textures
 
-3. **FM合成（Frequency Modulation）**: 波形同士で変調をかけてメタリックな音色を生成
-   - 使用シンセ: Operator, FM8, Dexed
-   - 適した音色: ベル、メタリックベース、エレピ
+3. **FM Synthesis (Frequency Modulation)**: Generate metallic timbres by modulating waveforms against each other
+   - Synths: Operator, FM8, Dexed
+   - Suited sounds: Bells, metallic bass, electric piano
 
-4. **ウェーブテーブル合成**: 複数の波形を時間軸で変化させる
-   - 使用シンセ: Wavetable, Serum, Vital
-   - 適した音色: 現代的なベース、リード、パッド
+4. **Wavetable Synthesis**: Morph between multiple waveforms over time
+   - Synths: Wavetable, Serum, Vital
+   - Suited sounds: Modern bass, leads, pads
 
-5. **グラニュラー合成**: サンプルを微小な粒子（グレイン）に分割して再構成
-   - 使用シンセ: Granulator II, Quanta
-   - 適した音色: アンビエントテクスチャー、パッド、実験的サウンド
+5. **Granular Synthesis**: Split samples into tiny particles (grains) and reconstruct them
+   - Synths: Granulator II, Quanta
+   - Suited sounds: Ambient textures, pads, experimental sounds
 
-6. **フィジカルモデリング**: 物理的な楽器の振る舞いをシミュレート
-   - 使用シンセ: Tension, Collision, Chromaphone
-   - 適した音色: リアルな楽器音、打楽器、弦楽器
+6. **Physical Modeling**: Simulate the behavior of physical instruments
+   - Synths: Tension, Collision, Chromaphone
+   - Suited sounds: Realistic instrument sounds, percussion, strings
 
-7. **サンプリング**: 既存の音素材を加工して新しい音色を作る
-   - 使用ツール: Simpler, Sampler, Kontakt
-   - 適した音色: あらゆる音色（元素材次第）
+7. **Sampling**: Process existing sound material to create new timbres
+   - Tools: Simpler, Sampler, Kontakt
+   - Suited sounds: Any timbre (depends on source material)
 
-#### サウンドデザインの実践テクニック
+#### Practical Sound Design Techniques
 
-**リーズベース（Reese Bass）の作り方**:
-1. ノコギリ波のオシレーターを2つ用意
-2. 片方を数セント（5-15 cent）デチューン
-3. ローパスフィルターでカットオフを調整
-4. フィルターエンベロープで動きを追加
-5. ユニゾンボイスを追加して厚みを出す
-6. ディストーションで倍音を追加
+**How to Create a Reese Bass**:
+1. Prepare two sawtooth oscillators
+2. Detune one by a few cents (5-15 cents)
+3. Adjust the low-pass filter cutoff
+4. Add movement with a filter envelope
+5. Add unison voices for thickness
+6. Add harmonics with distortion
 
-**スーパーソー（Super Saw）の作り方**:
-1. ノコギリ波のオシレーターを7-8ボイスにユニゾン
-2. デチューン量を20-40%に設定
-3. ステレオスプレッドを広げる
-4. ハイパスフィルターで低域をカット
-5. コーラスエフェクトで更に広がりを追加
-6. リバーブで空間を作る
+**How to Create a Super Saw**:
+1. Set sawtooth oscillator to 7-8 unison voices
+2. Set detune amount to 20-40%
+3. Widen the stereo spread
+4. Cut low frequencies with a high-pass filter
+5. Add further width with chorus effect
+6. Create space with reverb
 
-**ネバーストリング（Pluck/Stab）の作り方**:
-1. ノコギリ波またはスクエア波を選択
-2. フィルターエンベロープ: Attack=0, Decay=200ms, Sustain=0
-3. アンプエンベロープ: Attack=0, Decay=300ms, Sustain=0, Release=100ms
-4. レゾナンスを30-50%に設定
-5. ディレイとリバーブで空間を追加
+**How to Create a Pluck/Stab**:
+1. Select sawtooth or square wave
+2. Filter envelope: Attack=0, Decay=200ms, Sustain=0
+3. Amp envelope: Attack=0, Decay=300ms, Sustain=0, Release=100ms
+4. Set resonance to 30-50%
+5. Add space with delay and reverb
 
-#### ミキシング技術の深化
+#### Deepening Mixing Techniques
 
-**周波数帯域の住み分け**:
+**Frequency Band Separation**:
 
-各楽器が占めるべき周波数帯域を明確にすることが、クリアなミックスの鍵です。
+Clearly defining the frequency range each instrument should occupy is the key to a clear mix.
 
 ```
-20Hz   |████████████| サブベース
-60Hz   |████████████████| キック低域
-100Hz  |    ████████████████| ベース
-200Hz  |        ████████████████| キック中域
-400Hz  |            ████████████████| スネア低域
-800Hz  |                ████████████████| ボーカル低域
-1.5kHz |                    ████████████████| スネアアタック
-3kHz   |                        ████████████████| ボーカル主域
-6kHz   |                            ████████████████| ハイハット
-10kHz  |                                ████████████████| エア/シンバル
-20kHz  |                                    ████████████| 超高域
+20Hz   |████████████| Sub-bass
+60Hz   |████████████████| Kick low end
+100Hz  |    ████████████████| Bass
+200Hz  |        ████████████████| Kick mid
+400Hz  |            ████████████████| Snare low end
+800Hz  |                ████████████████| Vocal low end
+1.5kHz |                    ████████████████| Snare attack
+3kHz   |                        ████████████████| Vocal main range
+6kHz   |                            ████████████████| Hi-hat
+10kHz  |                                ████████████████| Air/Cymbal
+20kHz  |                                    ████████████| Ultra-high
 ```
 
-**ステレオフィールドの活用**:
+**Utilizing the Stereo Field**:
 
 ```
          Left                Center              Right
-100% ←─────────────────────────┼─────────────────────────→ 100%
-                              キック
-                              ベース
-                              スネア(Center)
-                              リードボーカル
-         ハイハットL ─────────┤────────── ハイハットR
-      パッドL ────────────────┤──────────────── パッドR
-   パーカッションL ───────────┤─────────── パーカッションR
-         シンセL ─────────────┤────────────── シンセR
+100% <─────────────────────────┼─────────────────────────> 100%
+                              Kick
+                              Bass
+                              Snare (Center)
+                              Lead Vocal
+         Hi-hat L ────────────┤─────────── Hi-hat R
+      Pad L ──────────────────┤──────────────── Pad R
+   Percussion L ──────────────┤──────────── Percussion R
+         Synth L ─────────────┤────────────── Synth R
 ```
 
-**ミキシングの手順**:
+**Mixing Procedure**:
 
-1. **レベル設定**: キックを-6dBに設定し、他の楽器をバランスよく配置
-2. **パンニング**: ステレオフィールドに各要素を配置
-3. **EQ（カット）**: 各トラックの不要な周波数をカット
-4. **コンプレッション**: ダイナミクスの制御
-5. **EQ（ブースト）**: 必要に応じて特定の周波数をブースト
-6. **空間エフェクト**: リバーブとディレイで奥行きを追加
-7. **オートメーション**: 時間軸での変化を追加
-8. **バスコンプレッション**: グループ単位でのまとまり
-9. **最終確認**: リファレンストラックとの比較
+1. **Level Setting**: Set kick to -6dB, then balance other instruments
+2. **Panning**: Place each element in the stereo field
+3. **EQ (Cut)**: Cut unnecessary frequencies on each track
+4. **Compression**: Control dynamics
+5. **EQ (Boost)**: Boost specific frequencies as needed
+6. **Spatial Effects**: Add depth with reverb and delay
+7. **Automation**: Add changes over time
+8. **Bus Compression**: Glue groups together
+9. **Final Check**: Compare with reference track
 
-#### アレンジメントの高度なテクニック
+#### Advanced Arrangement Techniques
 
-**テンション構築の手法**:
-- フィルタースウィープ: ローパスフィルターを徐々に開く
-- ライザー: ホワイトノイズを上昇させる
-- ドラムロール: スネアまたはハイハットの連打を加速
-- ハーモニック テンション: 不協和音から協和音への解決
-- リバースリバーブ: ドロップの直前に逆再生のリバーブ
-- サイドチェインの強調: ポンピング効果を強くする
+**Tension Building Methods**:
+- Filter sweep: Gradually open a low-pass filter
+- Riser: Ascending white noise
+- Drum roll: Accelerating snare or hi-hat rolls
+- Harmonic tension: Resolution from dissonance to consonance
+- Reverse reverb: Reversed reverb just before the drop
+- Sidechain emphasis: Increasing the pumping effect
 
-**ブレイクダウンの演出**:
-- 要素の段階的除去
-- フィルターで高域をカット
-- リバーブの増加（空間を広げる）
-- ボーカルサンプルやアンビエントテクスチャーの追加
-- テンポの微妙な変化（リタルダンドの模倣）
+**Breakdown Production**:
+- Gradual removal of elements
+- Cutting high frequencies with filters
+- Increasing reverb (expanding the space)
+- Adding vocal samples and ambient textures
+- Subtle tempo changes (simulating ritardando)
 
-### リファレンストラック分析の方法
+### Reference Track Analysis Methods
 
-**分析の手順**:
+**Analysis Procedure**:
 
-1. **構造分析**: DAWに取り込んでセクションごとにマーカーを打つ
-2. **スペクトル分析**: スペクトラムアナライザーで周波数バランスを確認
-3. **音量分析**: LUFSメーターでラウドネスの変化を追跡
-4. **要素カウント**: 各セクションで何トラック鳴っているかを数える
-5. **テクニック分析**: 使われているエフェクトやテクニックを特定
-6. **模倣制作**: 分析結果を基に同様のトラックを制作
+1. **Structural Analysis**: Import into DAW and place markers at each section
+2. **Spectral Analysis**: Check frequency balance with a spectrum analyzer
+3. **Volume Analysis**: Track loudness changes with LUFS meter
+4. **Element Count**: Count how many tracks are playing in each section
+5. **Technique Analysis**: Identify effects and techniques used
+6. **Imitation Production**: Produce a similar track based on the analysis
 
-### Phase 3 の制作ワークフロー
+### Phase 3 Production Workflow
 
-**効率的な制作プロセス**:
+**Efficient Production Process**:
 
-1. **コンセプト設定（10分）**: ジャンル、BPM、キー、ムードを決定
-2. **サウンドパレット（20分）**: 使用する音色を選定
-3. **コアループ作成（60分）**: メインのドロップセクションを制作
-4. **アレンジメント展開（90分）**: ループを曲に展開
-5. **ディテール追加（60分）**: FX、オートメーション、トランジション
-6. **ミキシング（90分）**: レベル、EQ、コンプ、空間
-7. **マスタリング（30分）**: 最終仕上げ
-8. **休憩後の確認（30分）**: 翌日に客観的に聴き直し
+1. **Concept Setting (10 min)**: Decide genre, BPM, key, and mood
+2. **Sound Palette (20 min)**: Select sounds to use
+3. **Core Loop Creation (60 min)**: Produce the main drop section
+4. **Arrangement Expansion (90 min)**: Expand the loop into a full track
+5. **Detail Addition (60 min)**: FX, automation, transitions
+6. **Mixing (90 min)**: Levels, EQ, compression, space
+7. **Mastering (30 min)**: Final finishing
+8. **Post-Break Review (30 min)**: Listen back objectively the next day
 
-**合計: 約6-7時間（2-3日に分けて制作）**
+**Total: approximately 6-7 hours (spread over 2-3 days)**
 
-### Phase 3 完成基準チェックリスト
+### Phase 3 Completion Checklist
 
-- [ ] オリジナルのサウンドデザインができる
-- [ ] プロのトラックと遜色ないミキシングができる
-- [ ] リファレンストラック分析を定期的に実施している
-- [ ] 月2曲以上のペースで完成曲を量産できる
-- [ ] SoundCloudで定期的にリリースしている
-- [ ] フィードバックを受けて改善するサイクルが確立している
-- [ ] 自分のアーティストとしてのスタイルが見え始めている
+- [ ] Can create original sound designs
+- [ ] Can achieve mixing quality comparable to professional tracks
+- [ ] Regularly perform reference track analysis
+- [ ] Can produce completed tracks at a pace of 2+ per month
+- [ ] Regularly releasing on SoundCloud
+- [ ] Have established a feedback-and-improvement cycle
+- [ ] Your artistic style is beginning to emerge
 
 ---
 
-## Phase 4: 上級（24-36ヶ月）
+## Phase 4: Advanced (24-36 Months)
 
-### 目標
+### Goals
 
-- プロレベルの制作品質を達成する
-- レーベルからのリリースを実現する
-- リミックスやコラボレーションを行う
-- ライブパフォーマンスの準備を始める
+- Achieve professional-level production quality
+- Secure releases from labels
+- Perform remixes and collaborations
+- Begin preparing for live performances
 
-### 重点学習項目
+### Key Learning Areas
 
-#### プロ級ミキシングテクニック
+#### Professional Mixing Techniques
 
-**マルチバンドコンプレッション**:
-- 帯域ごとに独立したダイナミクス処理
-- 低域の安定化（キックとベースの共存）
-- 中域の明瞭さ（ボーカルやリードの存在感）
-- 高域のコントロール（シビランスの抑制）
+**Multiband Compression**:
+- Independent dynamics processing per frequency band
+- Low-end stabilization (kick and bass coexistence)
+- Mid-range clarity (vocal and lead presence)
+- High-end control (sibilance reduction)
 
-**パラレルプロセッシング**:
-- パラレルコンプレッション（New York Compression）
-- パラレルサチュレーション
-- パラレルリバーブ
-- ドライ/ウェットのバランス調整
+**Parallel Processing**:
+- Parallel compression (New York Compression)
+- Parallel saturation
+- Parallel reverb
+- Dry/wet balance adjustment
 
-**M/S処理（Mid/Side）**:
-- ミッドとサイドの独立したEQ処理
-- サイドのみにリバーブを追加
-- ステレオイメージの精密なコントロール
-- モノ互換性の確認
+**M/S Processing (Mid/Side)**:
+- Independent EQ processing of mid and side
+- Adding reverb to the side only
+- Precise stereo image control
+- Mono compatibility checking
 
-**オートメーションの高度な活用**:
-- ボリュームオートメーション（楽曲のダイナミクス）
-- フィルターオートメーション（トランジション）
-- パンオートメーション（動きの演出）
-- エフェクトパラメータのオートメーション（ディレイフィードバック等）
-- テンポオートメーション（グラデュアルなテンポ変化）
+**Advanced Automation**:
+- Volume automation (track dynamics)
+- Filter automation (transitions)
+- Pan automation (creating movement)
+- Effect parameter automation (delay feedback, etc.)
+- Tempo automation (gradual tempo changes)
 
-#### レーベルへのデモ送信
+#### Sending Demos to Labels
 
-**デモ準備のチェックリスト**:
-1. 最低3曲のポートフォリオを用意
-2. 各曲のクオリティが統一されていること
-3. レーベルのスタイルに合った楽曲を選択
-4. WAVとMP3の両形式を準備
-5. アーティストプロフィールとプレスキット
-6. SoundCloudやBandcampのリンク
+**Demo Preparation Checklist**:
+1. Prepare a portfolio of at least 3 tracks
+2. Ensure consistent quality across all tracks
+3. Select tracks that match the label's style
+4. Prepare both WAV and MP3 formats
+5. Artist profile and press kit
+6. SoundCloud or Bandcamp links
 
-**デモ送信の手順**:
-1. ターゲットレーベルのリサーチ（過去リリース、スタイル、受付方法）
-2. デモポリシーの確認（メール、フォーム、プラットフォーム）
-3. 簡潔なメッセージの作成
-4. プライベートリンクの共有（SoundCloudプライベートリンク推奨）
-5. フォローアップ（2-4週間後）
-6. 返信がなくても落ち込まない（反応率は5-10%程度）
+**Demo Submission Procedure**:
+1. Research target labels (past releases, style, submission method)
+2. Check demo policy (email, form, platform)
+3. Write a concise message
+4. Share private links (SoundCloud private links recommended)
+5. Follow up (after 2-4 weeks)
+6. Don't get discouraged by no response (response rate is around 5-10%)
 
-**主要レーベルリスト（ジャンル別）**:
+**Major Labels by Genre**:
 
-| ジャンル | レーベル | 特徴 |
-|---------|---------|------|
-| テクノ | Drumcode | ハードテクノの最大手 |
-| テクノ | Afterlife | メロディックテクノ |
-| テクノ | mau5trap | プログレッシブ |
-| ハウス | Defected | UKハウスの老舗 |
-| ハウス | Dirtybird | テックハウス |
-| ハウス | Toolroom | テックハウス/ハウス |
-| DnB | Hospital Records | リキッドDnB |
-| DnB | RAM Records | ジャンプアップ/ニューロ |
-| ダブステップ | Disciple | ヘビーダブステップ |
-| EDM | Monstercat | 多ジャンル |
-| EDM | NCS | フリー配布系 |
+| Genre | Label | Characteristics |
+|-------|-------|-----------------|
+| Techno | Drumcode | Major hard techno label |
+| Techno | Afterlife | Melodic techno |
+| Techno | mau5trap | Progressive |
+| House | Defected | Established UK house label |
+| House | Dirtybird | Tech house |
+| House | Toolroom | Tech house/House |
+| DnB | Hospital Records | Liquid DnB |
+| DnB | RAM Records | Jump-up/Neuro |
+| Dubstep | Disciple | Heavy dubstep |
+| EDM | Monstercat | Multi-genre |
+| EDM | NCS | Free release platform |
 
-#### リミックスとコラボレーション
+#### Remixes and Collaborations
 
-**リミックスの進め方**:
-1. ステムの入手（公式リミックスコンテスト、直接依頼）
-2. オリジナルの分析（キー、BPM、構造）
-3. 新しいアプローチの計画（ジャンル変更、テンポ変更等）
-4. ボーカルやメロディの再配置
-5. 新しいビートとベースの制作
-6. ミキシングとマスタリング
-7. 権利確認と配信
+**Remix Workflow**:
+1. Obtain stems (official remix contests, direct requests)
+2. Analyze the original (key, BPM, structure)
+3. Plan a new approach (genre change, tempo change, etc.)
+4. Rearrange vocals and melodies
+5. Create new beats and bass
+6. Mixing and mastering
+7. Rights verification and distribution
 
-**コラボレーションの方法**:
-- Splice Studioでのクラウドコラボ
-- Ableton Linkでのリアルタイムセッション
-- ステムの交換
-- 役割分担（ビート担当、メロディ担当等）
+**Collaboration Methods**:
+- Cloud collaboration via Splice Studio
+- Real-time sessions with Ableton Link
+- Stem exchange
+- Role division (beat duties, melody duties, etc.)
 
-#### ライブパフォーマンスの準備
+#### Preparing for Live Performance
 
-**Ableton Liveでのライブセット構築**:
-1. セッションビューのレイアウト設計
-2. シーンの構成（各セクション = 1シーン）
-3. マクロコントロールの設定
-4. MIDIコントローラーのマッピング
-5. フェイルセーフの準備（クラッシュ対策）
+**Building a Live Set in Ableton Live**:
+1. Design session view layout
+2. Organize scenes (each section = 1 scene)
+3. Set up macro controls
+4. Map MIDI controllers
+5. Prepare failsafes (crash prevention)
 
-**Push 3の活用**:
-- パッドでのドラム演奏
-- ステップシーケンサー
-- メロディとコードの演奏
-- ミキサーコントロール
-- エフェクトの操作
+**Utilizing Push 3**:
+- Drum performance with pads
+- Step sequencer
+- Melody and chord performance
+- Mixer control
+- Effect manipulation
 
-### Phase 4 完成基準チェックリスト
+### Phase 4 Completion Checklist
 
-- [ ] プロレベルのミキシング品質を達成
-- [ ] 最低1つのレーベルからリリースを実現
-- [ ] リミックスを最低2曲制作
-- [ ] コラボレーション経験がある
-- [ ] ライブセットの準備ができている
-- [ ] アーティストとしてのブランドが確立
-
----
-
-## Phase 5: プロフェッショナル（36ヶ月以降）
-
-### 目標
-
-- 持続可能な音楽キャリアの構築
-- 多角的な収入源の確立
-- 業界内での地位の確立
-- 後進の育成
-
-### キャリア発展の方向性
-
-#### A. レコーディングアーティスト路線
-
-**活動内容**:
-- レーベルからの定期的なリリース
-- アルバム/EP制作
-- ツアーとフェスティバル出演
-- ブランドパートナーシップ
-
-**収入源**:
-- 楽曲販売（Beatport、Bandcamp）
-- ストリーミング収入（Spotify、Apple Music）
-- ライブ出演料
-- マーチャンダイズ
-- シンクライセンス（映画、CM、ゲーム）
-
-#### B. プロデューサー/コンポーザー路線
-
-**活動内容**:
-- 他アーティストへの楽曲提供
-- 映画・TV・ゲームの音楽制作
-- CM音楽の制作
-- サウンドデザイン
-
-**収入源**:
-- 制作費
-- ロイヤリティ
-- シンクライセンス
-- サンプルパック販売
-
-#### C. エデュケーター路線
-
-**活動内容**:
-- オンラインコース制作
-- YouTube/Twitch配信
-- ワークショップ開催
-- ブログ/書籍執筆
-
-**収入源**:
-- コース販売
-- 広告収入
-- スポンサーシップ
-- コンサルティング
-
-#### D. サウンドデザイナー路線
-
-**活動内容**:
-- プリセット/サンプルパック制作
-- ゲームオーディオ
-- アプリケーションサウンド
-- インスタレーション
-
-**収入源**:
-- プリセット販売
-- サンプルパック販売
-- 制作費
-- ライセンス収入
-
-### プロフェッショナルの制作ルーティン
-
-**日々のスケジュール例**:
-
-```
-08:00-09:00  リスニング＆リサーチ（新曲、トレンド分析）
-09:00-12:00  メイン制作セッション（新曲/進行中のプロジェクト）
-12:00-13:00  休憩
-13:00-15:00  ミキシング/マスタリング作業
-15:00-16:00  サウンドデザイン＆実験
-16:00-17:00  ビジネス作業（メール、SNS、マーケティング）
-17:00-18:00  学習＆スキルアップ（チュートリアル、新技法の研究）
-```
-
-### 継続的なスキルアップ
-
-- 新しいシンセサイザーやエフェクトの習得
-- 他ジャンルの技法の取り込み
-- ハードウェアシンセサイザーの導入
-- モジュラーシンセの探求
-- Max for Liveのプログラミング
-- 音響心理学の研究
-- AI支援ツールの活用
+- [ ] Achieved professional-level mixing quality
+- [ ] Secured at least 1 release from a label
+- [ ] Produced at least 2 remixes
+- [ ] Have collaboration experience
+- [ ] Live set is prepared
+- [ ] Artist brand is established
 
 ---
 
-## ジャンル別学習ガイド
+## Phase 5: Professional (36 Months and Beyond)
 
-### テクノ（Techno）
+### Goals
 
-**基本パラメータ**:
+- Build a sustainable music career
+- Establish diversified income streams
+- Establish a position within the industry
+- Mentor the next generation
+
+### Career Development Directions
+
+#### A. Recording Artist Path
+
+**Activities**:
+- Regular releases from labels
+- Album/EP production
+- Tour and festival appearances
+- Brand partnerships
+
+**Revenue Streams**:
+- Track sales (Beatport, Bandcamp)
+- Streaming income (Spotify, Apple Music)
+- Live performance fees
+- Merchandise
+- Sync licensing (film, commercials, games)
+
+#### B. Producer/Composer Path
+
+**Activities**:
+- Writing tracks for other artists
+- Music production for film, TV, and games
+- Commercial music production
+- Sound design
+
+**Revenue Streams**:
+- Production fees
+- Royalties
+- Sync licensing
+- Sample pack sales
+
+#### C. Educator Path
+
+**Activities**:
+- Online course creation
+- YouTube/Twitch streaming
+- Workshop hosting
+- Blog/book writing
+
+**Revenue Streams**:
+- Course sales
+- Ad revenue
+- Sponsorships
+- Consulting
+
+#### D. Sound Designer Path
+
+**Activities**:
+- Preset/sample pack creation
+- Game audio
+- Application sounds
+- Installations
+
+**Revenue Streams**:
+- Preset sales
+- Sample pack sales
+- Production fees
+- License income
+
+### Professional Production Routine
+
+**Daily Schedule Example**:
+
+```
+08:00-09:00  Listening & Research (new tracks, trend analysis)
+09:00-12:00  Main Production Session (new tracks/ongoing projects)
+12:00-13:00  Break
+13:00-15:00  Mixing/Mastering Work
+15:00-16:00  Sound Design & Experimentation
+16:00-17:00  Business Tasks (email, social media, marketing)
+17:00-18:00  Learning & Skill Development (tutorials, studying new techniques)
+```
+
+### Continuous Skill Development
+
+- Learning new synthesizers and effects
+- Incorporating techniques from other genres
+- Introducing hardware synthesizers
+- Exploring modular synthesis
+- Max for Live programming
+- Psychoacoustics research
+- Utilizing AI-assisted tools
+
+---
+
+## Genre-Specific Learning Guide
+
+### Techno
+
+**Basic Parameters**:
 - BPM: 125-145
-- キー: マイナーキーが主流
-- 構造: 反復的、ハイプノティック
-- 特徴: ミニマルなメロディ、重いキック、テクスチャー重視
+- Key: Minor keys predominant
+- Structure: Repetitive, hypnotic
+- Characteristics: Minimal melody, heavy kick, texture-focused
 
-**必須スキル**:
-1. キックドラムのサウンドデザイン（サイン波からの合成）
-2. ディレイとリバーブの空間作り
-3. テクスチャーレイヤリング
-4. サブトルなオートメーション
-5. モジュレーションの活用
+**Essential Skills**:
+1. Kick drum sound design (synthesis from sine waves)
+2. Spatial creation with delay and reverb
+3. Texture layering
+4. Subtle automation
+5. Utilizing modulation
 
-**キックドラム合成の手順**:
-1. サイン波オシレーターを使用
-2. ピッチエンベロープで急速な下降（200Hz → 40Hz、ディケイ50ms）
-3. アンプエンベロープ（Attack=0, Decay=200ms, Sustain=0）
-4. ディストーションで倍音を追加
-5. EQで余分な低域をカット（30Hz以下）
-6. コンプレッションでパンチを追加
+**Kick Drum Synthesis Procedure**:
+1. Use a sine wave oscillator
+2. Pitch envelope with rapid descent (200Hz -> 40Hz, decay 50ms)
+3. Amp envelope (Attack=0, Decay=200ms, Sustain=0)
+4. Add harmonics with distortion
+5. Cut excess low end with EQ (below 30Hz)
+6. Add punch with compression
 
-**テクノ制作のコツ**:
-- 引き算の美学: 要素を追加するよりも削る
-- グルーヴが命: 微細なタイミングのズレが生み出すうねり
-- テクスチャーの重要性: ノイズ、フィールドレコーディング、グラニュラー
-- 長尺を恐れない: 6-8分で徐々に変化させる
-- ハードウェアの質感: アナログシンセやドラムマシンの活用
+**Techno Production Tips**:
+- The aesthetics of subtraction: Remove rather than add elements
+- Groove is everything: The undulation created by micro-timing variations
+- The importance of texture: Noise, field recordings, granular
+- Don't fear long tracks: Gradually change over 6-8 minutes
+- Hardware character: Utilizing analog synths and drum machines
 
-### ハウス（House）
+### House
 
-**基本パラメータ**:
+**Basic Parameters**:
 - BPM: 118-130
-- キー: メジャー/マイナー両方
-- 構造: グルーヴ重視、ボーカルサンプル活用
-- 特徴: 4つ打ち、グルーヴィなベースライン、ソウルフル
+- Key: Both major and minor
+- Structure: Groove-focused, vocal sample usage
+- Characteristics: Four-on-the-floor, groovy basslines, soulful
 
-**必須スキル**:
-1. グルーヴィなベースラインの作成
-2. コードプログレッションの理解
-3. ボーカルチョップとサンプリング
-4. オフビートハイハットの打ち込み
-5. サイドチェインのポンプ感
+**Essential Skills**:
+1. Creating groovy basslines
+2. Understanding chord progressions
+3. Vocal chops and sampling
+4. Programming offbeat hi-hats
+5. Sidechain pump feel
 
-**ハウスのコードプログレッション例**:
-- **クラシックハウス**: Am - G - F - E（マイナー系）
-- **ディープハウス**: Dm7 - G7 - Cmaj7 - Fmaj7（ジャジー）
-- **プログレッシブ**: Am - F - C - G（シンプルで壮大）
-- **テックハウス**: Am - Am - Am - Am（ワンコード＋テクスチャー変化）
+**House Chord Progression Examples**:
+- **Classic House**: Am - G - F - E (minor-based)
+- **Deep House**: Dm7 - G7 - Cmaj7 - Fmaj7 (jazzy)
+- **Progressive**: Am - F - C - G (simple and epic)
+- **Tech House**: Am - Am - Am - Am (one chord + texture variation)
 
-### ドラムンベース（Drum & Bass）
+### Drum & Bass
 
-**基本パラメータ**:
+**Basic Parameters**:
 - BPM: 170-180
-- キー: マイナーキーが主流
-- 構造: 複雑なドラムパターン、重いベース
-- 特徴: 高速ブレイクビーツ、レイヤードベース
+- Key: Minor keys predominant
+- Structure: Complex drum patterns, heavy bass
+- Characteristics: High-speed breakbeats, layered bass
 
-**必須スキル**:
-1. ブレイクビーツのプログラミング
-2. リーズベースの作成
-3. タイムストレッチとチョッピング
-4. アメンブレイクの加工
-5. ハーフタイムセクションの作成
+**Essential Skills**:
+1. Breakbeat programming
+2. Creating Reese bass
+3. Time-stretching and chopping
+4. Processing the Amen break
+5. Creating half-time sections
 
-**DnBドラムパターンのコツ**:
-- 2ステップパターン: キックが1拍目、スネアが2拍目
-- ゴーストスネア: 弱いベロシティのスネアをオフビートに
-- ハイハットのバリエーション: 16分音符のパターンを変化させる
-- ブレイクの加工: タイムストレッチ、リバース、チョップ
+**DnB Drum Pattern Tips**:
+- Two-step pattern: Kick on beat 1, snare on beat 2
+- Ghost snare: Soft velocity snare on offbeats
+- Hi-hat variation: Vary 16th note patterns
+- Break processing: Time-stretch, reverse, chop
 
-### トランス（Trance）
+### Trance
 
-**基本パラメータ**:
+**Basic Parameters**:
 - BPM: 128-145
-- キー: マイナーキーが多い
-- 構造: 長尺、壮大なブレイクダウン
-- 特徴: メロディック、感情的、エピック
+- Key: Minor keys predominant
+- Structure: Long-form, epic breakdowns
+- Characteristics: Melodic, emotional, epic
 
-**必須スキル**:
-1. スーパーソーの作成
-2. 壮大なパッドサウンド
-3. アルペジオパターン
-4. ゲート処理（トランスゲート）
-5. 長いビルドアップの構築
+**Essential Skills**:
+1. Creating super saws
+2. Epic pad sounds
+3. Arpeggio patterns
+4. Gate processing (trance gate)
+5. Building long buildups
 
-### ヒップホップ/トラップ（Hip Hop / Trap）
+### Hip Hop / Trap
 
-**基本パラメータ**:
-- BPM: 70-85（ヒップホップ）、130-170（トラップ、ハーフタイム）
-- キー: マイナーキーが主流
-- 構造: ループベース、ボーカル中心
-- 特徴: 808ベース、ハイハットロール、ヘビーなキック
+**Basic Parameters**:
+- BPM: 70-85 (Hip Hop), 130-170 (Trap, half-time)
+- Key: Minor keys predominant
+- Structure: Loop-based, vocal-centric
+- Characteristics: 808 bass, hi-hat rolls, heavy kick
 
-**必須スキル**:
-1. 808ベースのデザインとミキシング
-2. ハイハットロール（トリプレット）
-3. サンプリングとチョッピング
-4. ボーカル処理（オートチューン、ダブリング）
-5. Lo-Fi処理（ビニール質感、テープ飽和）
-
----
-
-## DAW操作の詳細マスタリー
-
-### Ableton Liveの必須ショートカット
-
-**ナビゲーション**:
-
-| ショートカット | 機能 |
-|---------------|------|
-| Tab | セッション/アレンジメントビュー切替 |
-| Cmd + , | 環境設定 |
-| Cmd + D | 選択範囲を複製 |
-| Cmd + E | クリップを分割 |
-| Cmd + J | クリップを結合 |
-| Cmd + L | ループ設定 |
-| Cmd + R | リネーム |
-| Cmd + Z | 元に戻す |
-| Cmd + T | 新規MIDIトラック |
-| Cmd + Shift + T | 新規オーディオトラック |
-
-**編集**:
-
-| ショートカット | 機能 |
-|---------------|------|
-| B | ドローモード切替 |
-| 0 | クリップのアクティベート/ディアクティベート |
-| Cmd + Shift + M | MIDIクリップを挿入 |
-| A | オートメーション表示切替 |
-| Shift + クリック | オートメーションポイント追加 |
-| F | フォローモード切替 |
-| Cmd + G | グループトラック作成 |
-
-### セッションビューの活用法
-
-**クリップの組み合わせパフォーマンス**:
-- 各トラックにバリエーションを用意
-- シーンで一括切り替え
-- フォローアクションで自動展開
-- ダミークリップでオートメーション
-
-**フォローアクションの設定例**:
-- 4小節ごとに次のクリップへ（順番通り）
-- ランダムに別のクリップへ（ジェネラティブ的）
-- 確率設定で偶然性を追加
-- リターン動作で定位置に戻る
-
-### アレンジメントビューの効率的な使い方
-
-**テンプレートの作成**:
-1. よく使うトラック構成をプリセット化
-2. カラーコーディングのルールを決める
-3. グループトラックで整理
-4. リターントラックにエフェクトを設定
-5. マスタートラックにマスタリングチェインを用意
-
-**カラーコーディングの例**:
-- 赤: ドラム（キック、スネア、ハイハット）
-- オレンジ: パーカッション
-- 黄: ベース
-- 緑: シンセ（リード、パッド、プラック）
-- 青: ボーカル/サンプル
-- 紫: FX（ライザー、インパクト、テクスチャー）
-- グレー: バス/グループ
+**Essential Skills**:
+1. 808 bass design and mixing
+2. Hi-hat rolls (triplets)
+3. Sampling and chopping
+4. Vocal processing (autotune, doubling)
+5. Lo-fi processing (vinyl texture, tape saturation)
 
 ---
 
-## 音楽理論の段階的学習
+## Detailed DAW Operation Mastery
 
-### 基礎レベル（Phase 1-2で習得）
+### Ableton Live Essential Shortcuts
 
-**スケールの理解**:
+**Navigation**:
 
-| スケール | 音程 | 特徴 | 使用ジャンル |
-|---------|------|------|-------------|
-| メジャー | 全全半全全全半 | 明るい、ハッピー | ポップ、トランス |
-| マイナー | 全半全全半全全 | 暗い、悲しい | テクノ、DnB |
-| ドリアン | 全半全全全半全 | やや暗い、クール | ハウス、ジャズ |
-| ミクソリディアン | 全全半全全半全 | ブルージー | ファンク、ハウス |
-| フリジアン | 半全全全半全全 | エスニック、ダーク | プサイトランス |
-| ペンタトニック | 全全短3全短3 | 万能、調和的 | 全般 |
+| Shortcut | Function |
+|----------|----------|
+| Tab | Toggle Session/Arrangement View |
+| Cmd + , | Preferences |
+| Cmd + D | Duplicate selection |
+| Cmd + E | Split clip |
+| Cmd + J | Consolidate clips |
+| Cmd + L | Set loop |
+| Cmd + R | Rename |
+| Cmd + Z | Undo |
+| Cmd + T | New MIDI track |
+| Cmd + Shift + T | New audio track |
 
-**コードの基礎**:
+**Editing**:
 
-| コード | 構成 | 響き |
-|--------|------|------|
-| メジャー（C） | ルート + 長3度 + 完全5度 | 明るい |
-| マイナー（Cm） | ルート + 短3度 + 完全5度 | 暗い |
-| 7th（C7） | メジャー + 短7度 | ブルージー |
-| Maj7（Cmaj7） | メジャー + 長7度 | おしゃれ |
-| min7（Cm7） | マイナー + 短7度 | ジャジー |
-| sus4（Csus4） | ルート + 完全4度 + 完全5度 | 浮遊感 |
-| add9（Cadd9） | メジャー + 長9度 | モダン |
+| Shortcut | Function |
+|----------|----------|
+| B | Toggle draw mode |
+| 0 | Activate/Deactivate clip |
+| Cmd + Shift + M | Insert MIDI clip |
+| A | Toggle automation view |
+| Shift + Click | Add automation point |
+| F | Toggle follow mode |
+| Cmd + G | Create group track |
 
-### 中級レベル（Phase 3-4で習得）
+### Session View Usage
 
-**コードプログレッション**:
+**Clip Combination Performance**:
+- Prepare variations on each track
+- Batch switching with scenes
+- Automatic progression with follow actions
+- Automation with dummy clips
 
-**よく使われるプログレッション**:
-- I - V - vi - IV（ポップの王道）: C - G - Am - F
-- vi - IV - I - V（感動系）: Am - F - C - G
-- ii - V - I（ジャズの基本）: Dm7 - G7 - Cmaj7
-- i - VII - VI - VII（ダーク系）: Am - G - F - G
-- i - iv - v - i（マイナー基本）: Am - Dm - Em - Am
+**Follow Action Setting Examples**:
+- Move to next clip every 4 bars (in order)
+- Random clip change (generative-style)
+- Add randomness with probability settings
+- Return to home position with return action
 
-**テンションノートの活用**:
-- 9th: コードに色彩を追加
-- 11th: 浮遊感のあるサウンド
-- 13th: ジャジーで複雑な響き
+### Efficient Arrangement View Usage
 
-**コード転回形**:
-- 第1転回: 3度を最低音に（よりスムーズな進行）
-- 第2転回: 5度を最低音に（不安定な響き）
-- ボイスリーディング: コード間の音の動きを最小限に
+**Creating Templates**:
+1. Preset frequently used track configurations
+2. Establish color coding rules
+3. Organize with group tracks
+4. Set up effects on return tracks
+5. Prepare a mastering chain on the master track
 
-### 上級レベル（Phase 5で習得）
-
-**モーダルインターチェンジ**:
-- 同主調のスケールからコードを借用
-- 例: CメジャーキーでCマイナーからAbやEbを借用
-- サプライズ効果と感情的なインパクト
-
-**ポリリズムとポリメーター**:
-- 異なるリズムパターンの同時使用
-- 3対4、5対4などの組み合わせ
-- アフリカ音楽やプログレッシブテクノで多用
-
-**微分音とオルタナティブチューニング**:
-- 12平均律以外の音律の探求
-- デチューニングの活用
-- 民族音楽のスケール
+**Color Coding Example**:
+- Red: Drums (kick, snare, hi-hat)
+- Orange: Percussion
+- Yellow: Bass
+- Green: Synths (lead, pad, pluck)
+- Blue: Vocals/Samples
+- Purple: FX (risers, impacts, textures)
+- Gray: Bus/Groups
 
 ---
 
-## サウンドデザイン体系
+## Progressive Music Theory Learning
 
-### レイヤリングの技法
+### Foundation Level (Master in Phase 1-2)
 
-**キックドラムのレイヤリング**:
-1. サブ層: サイン波、40-60Hzのサブベース成分
-2. ボディ層: 100-200Hzの中低域
-3. アタック層: クリック音やトランジェント
-4. テール層: 残響やノイズテクスチャー
+**Understanding Scales**:
 
-**ベースのレイヤリング**:
-1. サブ層: クリーンなサイン波（モノ）
-2. ミッド層: 歪んだベース音（軽くステレオ）
-3. ハイ層: プレゼンスとグリット（ステレオ）
-4. 各層をマルチバンドで分離
+| Scale | Intervals | Characteristics | Genre Usage |
+|-------|-----------|-----------------|-------------|
+| Major | W W H W W W H | Bright, happy | Pop, Trance |
+| Minor | W H W W H W W | Dark, sad | Techno, DnB |
+| Dorian | W H W W W H W | Slightly dark, cool | House, Jazz |
+| Mixolydian | W W H W W H W | Bluesy | Funk, House |
+| Phrygian | H W W W H W W | Ethnic, dark | Psytrance |
+| Pentatonic | W W m3 W m3 | Versatile, harmonious | General |
 
-**パッドのレイヤリング**:
-1. 基本層: ウォームなアナログパッド
-2. テクスチャー層: グラニュラーやノイズ
-3. ハーモニクス層: ベルやプラック成分
-4. ムーブメント層: LFOで動きを追加
+**Chord Basics**:
 
-### リサンプリング技法
+| Chord | Structure | Sound |
+|-------|-----------|-------|
+| Major (C) | Root + Major 3rd + Perfect 5th | Bright |
+| Minor (Cm) | Root + Minor 3rd + Perfect 5th | Dark |
+| 7th (C7) | Major + Minor 7th | Bluesy |
+| Maj7 (Cmaj7) | Major + Major 7th | Sophisticated |
+| min7 (Cm7) | Minor + Minor 7th | Jazzy |
+| sus4 (Csus4) | Root + Perfect 4th + Perfect 5th | Floating |
+| add9 (Cadd9) | Major + Major 9th | Modern |
 
-**基本的なリサンプリング**:
-1. シンセで音を鳴らしてオーディオに録音
-2. 録音したオーディオを更に加工
-3. ピッチシフト、タイムストレッチ、リバース
-4. 新しい音色として再利用
+### Intermediate Level (Master in Phase 3-4)
 
-**グラニュラーリサンプリング**:
-1. 元の音をGranulator IIに読み込む
-2. グレインサイズ、ピッチ、スキャンを調整
-3. まったく新しいテクスチャーを生成
-4. パッドやアンビエンスとして活用
+**Chord Progressions**:
 
-### フォーリーとフィールドレコーディング
+**Commonly Used Progressions**:
+- I - V - vi - IV (Pop standard): C - G - Am - F
+- vi - IV - I - V (Emotional): Am - F - C - G
+- ii - V - I (Jazz basic): Dm7 - G7 - Cmaj7
+- i - VII - VI - VII (Dark): Am - G - F - G
+- i - iv - v - i (Minor basic): Am - Dm - Em - Am
 
-**制作に使えるフォーリー素材**:
-- 金属音: ドアの開閉、缶のクラッシュ → パーカッション
-- 水音: 水滴、波、泡 → テクスチャー
-- 紙音: 紙をちぎる、くしゃくしゃにする → ノイズ系FX
-- 環境音: 雨、風、街の喧騒 → アンビエンス
+**Using Tension Notes**:
+- 9th: Adds color to chords
+- 11th: Floating sound
+- 13th: Jazzy and complex voicing
 
----
+**Chord Inversions**:
+- First inversion: 3rd as the lowest note (smoother progressions)
+- Second inversion: 5th as the lowest note (unstable sound)
+- Voice leading: Minimize note movement between chords
 
-## ミキシング技術の体系的習得
+### Advanced Level (Master in Phase 5)
 
-### ゲインステージング
+**Modal Interchange**:
+- Borrowing chords from the parallel scale
+- Example: In C major, borrowing Ab or Eb from C minor
+- Surprise effect and emotional impact
 
-**概念**:
-各トラックの音量を適切に管理し、ヘッドルームを確保すること。
+**Polyrhythm and Polymeter**:
+- Simultaneous use of different rhythmic patterns
+- Combinations such as 3 against 4, 5 against 4
+- Frequently used in African music and progressive techno
 
-**手順**:
-1. 全フェーダーを0dBに設定
-2. 各トラックのクリップゲインを調整（ピーク-12dB程度）
-3. エフェクト前後で音量が大幅に変わらないように注意
-4. マスターのピークが-6dB程度になるようにバランス
-
-### EQテクニックの詳細
-
-**サブトラクティブEQ（カット中心）**:
-- 問題のある周波数を特定してカット
-- ハイパスフィルターで不要な低域を除去
-- Q幅を狭くして問題の周波数をピンポイントでカット
-- カットは何dBでも問題ない（積極的にカット）
-
-**アディティブEQ（ブースト）**:
-- ブーストは控えめに（3dB以内推奨）
-- Q幅は広めにして自然な仕上がりに
-- シェルフEQでエアー感を追加
-- ブーストよりも他のトラックのカットを検討
-
-### ダイナミクス処理の詳細
-
-**コンプレッションの種類**:
-
-| 種類 | 特徴 | 用途 |
-|------|------|------|
-| VCA | 正確、クリーン | マスターバス、全般 |
-| FET | 速い、アグレッシブ | ドラム、ボーカル |
-| Optical | スムーズ、自然 | ボーカル、ベース |
-| Variable-Mu | 温かい、グルー | マスターバス |
-| Multiband | 帯域別に制御 | マスタリング |
-
-**サイドチェインの応用**:
-- キック→ベース: 低域のぶつかりを回避
-- キック→パッド: ポンピング効果
-- ベース→パッド: 低域のクリアさ確保
-- ボーカル→シンセ: ボーカルの存在感確保
+**Microtones and Alternative Tuning**:
+- Exploring tuning systems beyond 12-tone equal temperament
+- Utilizing detuning
+- Ethnic music scales
 
 ---
 
-## マスタリング技術
+## Sound Design System
 
-### マスタリングチェインの構築
+### Layering Techniques
 
-**基本チェイン**:
+**Kick Drum Layering**:
+1. Sub layer: Sine wave, sub-bass component at 40-60Hz
+2. Body layer: Low-mid at 100-200Hz
+3. Attack layer: Click or transient
+4. Tail layer: Reverb or noise texture
+
+**Bass Layering**:
+1. Sub layer: Clean sine wave (mono)
+2. Mid layer: Distorted bass sound (slightly stereo)
+3. High layer: Presence and grit (stereo)
+4. Separate each layer with multiband processing
+
+**Pad Layering**:
+1. Base layer: Warm analog pad
+2. Texture layer: Granular or noise
+3. Harmonics layer: Bell or pluck components
+4. Movement layer: Add motion with LFO
+
+### Resampling Techniques
+
+**Basic Resampling**:
+1. Play a synth and record to audio
+2. Further process the recorded audio
+3. Pitch shift, time-stretch, reverse
+4. Reuse as a new sound
+
+**Granular Resampling**:
+1. Load the source sound into Granulator II
+2. Adjust grain size, pitch, and scan
+3. Generate entirely new textures
+4. Use as pads or ambience
+
+### Foley and Field Recording
+
+**Foley Materials for Production**:
+- Metal sounds: Door opening/closing, can crashes -> Percussion
+- Water sounds: Droplets, waves, bubbles -> Textures
+- Paper sounds: Tearing, crumpling paper -> Noise FX
+- Environmental sounds: Rain, wind, city bustle -> Ambience
+
+---
+
+## Systematic Mixing Technique Acquisition
+
+### Gain Staging
+
+**Concept**:
+Properly managing the volume of each track and ensuring headroom.
+
+**Procedure**:
+1. Set all faders to 0dB
+2. Adjust each track's clip gain (peak around -12dB)
+3. Ensure volume doesn't change drastically before and after effects
+4. Balance so the master peaks around -6dB
+
+### Detailed EQ Techniques
+
+**Subtractive EQ (Cut-focused)**:
+- Identify and cut problematic frequencies
+- Remove unnecessary low end with high-pass filter
+- Use narrow Q to pinpoint and cut problem frequencies
+- Cuts can be any amount of dB (cut aggressively)
+
+**Additive EQ (Boost)**:
+- Keep boosts conservative (within 3dB recommended)
+- Use wide Q for a natural finish
+- Add air with shelf EQ
+- Consider cutting other tracks instead of boosting
+
+### Detailed Dynamics Processing
+
+**Types of Compression**:
+
+| Type | Characteristics | Uses |
+|------|----------------|------|
+| VCA | Precise, clean | Master bus, general |
+| FET | Fast, aggressive | Drums, vocals |
+| Optical | Smooth, natural | Vocals, bass |
+| Variable-Mu | Warm, glue | Master bus |
+| Multiband | Per-band control | Mastering |
+
+**Sidechain Applications**:
+- Kick -> Bass: Avoid low-end conflicts
+- Kick -> Pad: Pumping effect
+- Bass -> Pad: Ensure low-end clarity
+- Vocal -> Synth: Ensure vocal presence
+
+---
+
+## Mastering Techniques
+
+### Building a Mastering Chain
+
+**Basic Chain**:
 
 ```
-[EQ] → [Multiband Comp] → [Stereo Imager] → [Limiter] → [Meter]
+[EQ] -> [Multiband Comp] -> [Stereo Imager] -> [Limiter] -> [Meter]
 ```
 
-**詳細チェイン**:
+**Detailed Chain**:
 
 ```
-[Utility(ゲイン調整)] → [EQ(問題修正)] → [Multiband Comp(ダイナミクス)]
-→ [Saturator(温かみ)] → [EQ(トーンシェイピング)]
-→ [Stereo Imager(ステレオ幅)] → [Limiter(音圧)] → [LUFS Meter(計測)]
+[Utility (Gain Adjust)] -> [EQ (Problem Fix)] -> [Multiband Comp (Dynamics)]
+-> [Saturator (Warmth)] -> [EQ (Tone Shaping)]
+-> [Stereo Imager (Stereo Width)] -> [Limiter (Loudness)] -> [LUFS Meter (Metering)]
 ```
 
-### マスタリングEQのガイドライン
+### Mastering EQ Guidelines
 
-| 帯域 | 処理 | 目的 |
-|------|------|------|
-| 30Hz以下 | ハイパスカット | ランブル除去 |
-| 60-100Hz | 微調整 | キックとベースのバランス |
-| 200-400Hz | カット気味 | マッドネス除去 |
-| 1-3kHz | 微調整 | 存在感の調整 |
-| 8-12kHz | ブースト気味 | エアー感の追加 |
-| 16kHz以上 | シェルフブースト | 開放感 |
+| Band | Processing | Purpose |
+|------|-----------|---------|
+| Below 30Hz | High-pass cut | Rumble removal |
+| 60-100Hz | Fine adjustment | Kick and bass balance |
+| 200-400Hz | Slight cut | Muddiness removal |
+| 1-3kHz | Fine adjustment | Presence adjustment |
+| 8-12kHz | Slight boost | Adding air |
+| Above 16kHz | Shelf boost | Openness |
 
-### ラウドネス管理
+### Loudness Management
 
-**LUFS（Loudness Units Full Scale）**:
-- Integrated LUFS: 曲全体の平均ラウドネス
-- Short-term LUFS: 3秒間の平均
-- Momentary LUFS: 400msの瞬時値
-- True Peak: 実際のピーク値
+**LUFS (Loudness Units Full Scale)**:
+- Integrated LUFS: Average loudness of the entire track
+- Short-term LUFS: 3-second average
+- Momentary LUFS: 400ms instantaneous value
+- True Peak: Actual peak value
 
-**ジャンル別目標ラウドネス**:
+**Target Loudness by Genre**:
 
-| ジャンル | Integrated LUFS | Dynamic Range |
-|---------|----------------|---------------|
-| テクノ | -7 to -9 | 4-6 LU |
-| ハウス | -8 to -10 | 5-7 LU |
+| Genre | Integrated LUFS | Dynamic Range |
+|-------|----------------|---------------|
+| Techno | -7 to -9 | 4-6 LU |
+| House | -8 to -10 | 5-7 LU |
 | DnB | -6 to -8 | 4-6 LU |
-| トランス | -7 to -9 | 6-8 LU |
-| アンビエント | -12 to -16 | 8-12 LU |
-| ヒップホップ | -8 to -10 | 5-7 LU |
+| Trance | -7 to -9 | 6-8 LU |
+| Ambient | -12 to -16 | 8-12 LU |
+| Hip Hop | -8 to -10 | 5-7 LU |
 
 ---
 
-## 制作環境の構築
+## Building a Production Environment
 
-### ホームスタジオの設計
+### Home Studio Design
 
-**基本的なセットアップ**:
+**Basic Setup**:
 
 ```
-[壁]
-  │
-  ├── [音響パネル] ─── [音響パネル]
-  │
-  ├── [モニタースピーカーL]     [モニタースピーカーR]
-  │          ↘                      ↙
-  │              [リスニングポジション]
-  │                    │
-  │              [デスク・DAW]
-  │              [MIDIキーボード]
-  │
-  ├── [音響パネル] ─── [音響パネル]
-  │
-[壁]
+[Wall]
+  |
+  +-- [Acoustic Panel] --- [Acoustic Panel]
+  |
+  +-- [Monitor Speaker L]     [Monitor Speaker R]
+  |          \                      /
+  |              [Listening Position]
+  |                    |
+  |              [Desk / DAW]
+  |              [MIDI Keyboard]
+  |
+  +-- [Acoustic Panel] --- [Acoustic Panel]
+  |
+[Wall]
 ```
 
-**モニタースピーカーの配置**:
-- 正三角形を形成（スピーカー2台と頭の位置）
-- ツイーターが耳の高さ
-- 壁から最低30cm離す
-- 左右対称に配置
+**Monitor Speaker Placement**:
+- Form an equilateral triangle (two speakers and your head position)
+- Tweeters at ear height
+- At least 30cm from walls
+- Symmetrical placement
 
-**音響処理のポイント**:
-- ファーストリフレクション（一次反射）のポイントに吸音材
-- コーナーにバストラップ（低域の溜まり対策）
-- 後方にディフューザー（散乱）
-- 過度な吸音は避ける（デッドすぎると不自然）
+**Acoustic Treatment Tips**:
+- Place absorbers at first reflection points
+- Bass traps in corners (to address low-frequency buildup)
+- Diffusers at the back
+- Avoid excessive absorption (too dead sounds unnatural)
 
-### 推奨プラグイン
+### Recommended Plugins
 
-**シンセサイザー**:
+**Synthesizers**:
 
-| プラグイン | 価格帯 | 特徴 |
-|-----------|--------|------|
-| Serum (Xfer) | ¥25,000 | ウェーブテーブル、視覚的 |
-| Vital | 無料/有料 | Serumの代替、高品質 |
-| Massive X (NI) | ¥22,000 | パワフル、テクノ向き |
-| Diva (u-he) | ¥25,000 | アナログモデリング最高峰 |
-| Phase Plant (Kilohearts) | ¥25,000 | モジュラーシンセ |
-| Pigments (Arturia) | ¥22,000 | マルチエンジン |
+| Plugin | Price Range | Features |
+|--------|------------|----------|
+| Serum (Xfer) | $189 | Wavetable, visual |
+| Vital | Free/Paid | Serum alternative, high quality |
+| Massive X (NI) | $149 | Powerful, techno-oriented |
+| Diva (u-he) | $189 | Top-tier analog modeling |
+| Phase Plant (Kilohearts) | $189 | Modular synth |
+| Pigments (Arturia) | $149 | Multi-engine |
 
-**エフェクト**:
+**Effects**:
 
-| プラグイン | 価格帯 | 用途 |
-|-----------|--------|------|
-| FabFilter Pro-Q 3 | ¥22,000 | EQ |
-| FabFilter Pro-C 2 | ¥22,000 | コンプレッサー |
-| FabFilter Pro-L 2 | ¥22,000 | リミッター |
-| Valhalla VintageVerb | ¥6,000 | リバーブ |
-| Soundtoys 5 | ¥30,000 | クリエイティブFX |
-| Izotope Ozone | ¥30,000 | マスタリング |
-
----
-
-## メンタルモデルと制作哲学
-
-### 完璧主義の克服
-
-**80/20の法則**:
-- 曲の80%は最初の20%の時間で完成する
-- 残りの20%（細部の調整）に80%の時間がかかる
-- 「十分に良い」段階で完成とする勇気を持つ
-
-**制作のブロックを克服する方法**:
-1. タイマーを設定して強制的に制作開始（25分のポモドーロ）
-2. 完成度を気にせずまず作る（ラフスケッチ）
-3. リファレンストラックを聴いてインスピレーションを得る
-4. 別のプロジェクトに切り替える
-5. DAWから離れて音楽を聴く
-6. 散歩やエクササイズで気分転換
-
-### 量と質のバランス
-
-**初期段階（Phase 1-2）**: 量を重視
-- 完成度を気にせず多くの曲を作る
-- 1曲に何週間もかけない
-- 失敗作からも学ぶ
-- 100曲作れば自然とクオリティが上がる
-
-**中期段階（Phase 3-4）**: 質を重視し始める
-- リファレンストラックとの比較を始める
-- フィードバックを積極的に求める
-- 弱点を特定して集中的に改善
-- ジャンルを絞り始める
-
-**後期段階（Phase 5）**: 量と質の両立
-- 効率的なワークフローで品質を維持しながら量産
-- テンプレートとルーティンの活用
-- コラボレーションで新しい視点を取り入れる
-- 常に新しい挑戦を続ける
-
-### フィードバックの活用
-
-**フィードバックの受け方**:
-1. 複数の人からフィードバックを求める
-2. 技術的なフィードバック（ミキシング品質）と感情的なフィードバック（曲の印象）を区別
-3. 繰り返し指摘される点を優先的に改善
-4. すべてのフィードバックに従う必要はない
-5. フィードバックを求める相手を選ぶ（同レベル以上のプロデューサー）
+| Plugin | Price Range | Use |
+|--------|------------|-----|
+| FabFilter Pro-Q 3 | $179 | EQ |
+| FabFilter Pro-C 2 | $179 | Compressor |
+| FabFilter Pro-L 2 | $179 | Limiter |
+| Valhalla VintageVerb | $50 | Reverb |
+| Soundtoys 5 | $249 | Creative FX |
+| Izotope Ozone | $249 | Mastering |
 
 ---
 
-## 学習リソースとコミュニティ
+## Mental Models and Production Philosophy
 
-### オンラインコース
+### Overcoming Perfectionism
 
-| プラットフォーム | コース | 対象レベル | 価格帯 |
-|----------------|--------|-----------|--------|
-| Coursera | Berklee音楽制作 | 初心者-中級 | 月額¥5,000 |
-| Skillshare | 各種DAWコース | 初心者 | 月額¥2,000 |
-| Udemy | Ableton完全マスター | 初心者-中級 | ¥1,500-5,000 |
-| Sonic Academy | ジャンル別制作 | 中級-上級 | 月額¥3,000 |
-| ADSR | シンセプログラミング | 中級-上級 | 月額¥2,000 |
-| Point Blank | 音楽制作全般 | 初心者-上級 | コース別 |
+**The 80/20 Rule**:
+- 80% of the track is completed in the first 20% of the time
+- The remaining 20% (fine-tuning details) takes 80% of the time
+- Have the courage to declare it finished at the "good enough" stage
 
-### YouTubeチャンネル
+**Ways to Overcome Production Block**:
+1. Set a timer and force yourself to start (25-minute Pomodoro)
+2. Create without worrying about quality (rough sketch)
+3. Listen to reference tracks for inspiration
+4. Switch to a different project
+5. Step away from the DAW and listen to music
+6. Go for a walk or exercise to change your mood
 
-| チャンネル | 内容 | 対象レベル |
-|-----------|------|-----------|
-| You Suck at Producing | 楽しくAbleton学習 | 初心者-中級 |
-| Andrew Huang | 実験的音楽制作 | 全般 |
-| Multiplier | Ableton Tips | 中級-上級 |
-| KSHMR | EDM制作テクニック | 中級 |
-| Mr. Bill | サウンドデザイン | 中級-上級 |
-| Sadowick Production | Ableton詳細解説 | 全般 |
-| Venus Theory | クリエイティブ制作 | 中級 |
-| In The Mix | ミキシング/マスタリング | 中級 |
-| Dan Worrall | 技術的解説 | 上級 |
+### Balancing Quantity and Quality
 
-### コミュニティとフォーラム
+**Early Stage (Phase 1-2)**: Prioritize quantity
+- Make many tracks without worrying about quality
+- Don't spend weeks on a single track
+- Learn from failures
+- Quality naturally improves after 100 tracks
 
-| コミュニティ | プラットフォーム | 特徴 |
-|-------------|----------------|------|
-| r/edmproduction | Reddit | 総合的な情報交換 |
-| r/ableton | Reddit | Ableton特化 |
-| Ableton Forum | 公式 | 技術的な質問 |
-| Gearslutz (Gearspace) | Web | プロ向け技術論 |
-| Discord (各種) | Discord | リアルタイム交流 |
-| KVR Audio | Web | プラグイン情報 |
-| SoundCloud | Web | 楽曲共有とフィードバック |
+**Middle Stage (Phase 3-4)**: Begin prioritizing quality
+- Start comparing with reference tracks
+- Actively seek feedback
+- Identify weaknesses and improve intensively
+- Start narrowing your genre focus
 
-### 書籍
+**Later Stage (Phase 5)**: Achieve both quantity and quality
+- Maintain quality while producing efficiently with optimized workflow
+- Leverage templates and routines
+- Gain new perspectives through collaboration
+- Continue to take on new challenges
 
-| 書籍名 | 著者 | 内容 |
-|--------|------|------|
-| Dance Music Manual | Rick Snoman | 電子音楽制作の教科書 |
-| Mixing Secrets | Mike Senior | ミキシングの決定版 |
-| Mastering Audio | Bob Katz | マスタリングのバイブル |
-| The Art of Mixing | David Gibson | ミキシングの視覚的理解 |
-| Sound Synthesis and Sampling | Martin Russ | サウンドデザインの理論 |
+### Utilizing Feedback
+
+**How to Receive Feedback**:
+1. Seek feedback from multiple people
+2. Distinguish between technical feedback (mixing quality) and emotional feedback (track impression)
+3. Prioritize improving points that are repeatedly mentioned
+4. You don't need to follow every piece of feedback
+5. Be selective about who you ask for feedback (producers at your level or above)
 
 ---
 
-## キャリア構築とビジネス
+## Learning Resources and Communities
 
-### 音楽配信と収益化
+### Online Courses
 
-**配信プラットフォーム**:
+| Platform | Course | Target Level | Price Range |
+|----------|--------|-------------|-------------|
+| Coursera | Berklee Music Production | Beginner-Intermediate | ~$50/month |
+| Skillshare | Various DAW Courses | Beginner | ~$15/month |
+| Udemy | Ableton Complete Master | Beginner-Intermediate | $12-40 |
+| Sonic Academy | Genre-Specific Production | Intermediate-Advanced | ~$25/month |
+| ADSR | Synth Programming | Intermediate-Advanced | ~$15/month |
+| Point Blank | Music Production General | Beginner-Advanced | Per course |
 
-| プラットフォーム | 用途 | 収益モデル |
-|----------------|------|-----------|
-| DistroKid | 配信代行 | 年額制 |
-| TuneCore | 配信代行 | 曲/アルバム単位 |
-| Beatport | DJ向け販売 | 売上シェア |
-| Bandcamp | 直接販売 | 売上シェア（低手数料）|
-| SoundCloud | プロモーション | Pro版で収益化 |
-| Splice | サンプル販売 | ロイヤリティ |
+### YouTube Channels
 
-### 著作権と権利管理
+| Channel | Content | Target Level |
+|---------|---------|-------------|
+| You Suck at Producing | Fun Ableton learning | Beginner-Intermediate |
+| Andrew Huang | Experimental music production | General |
+| Multiplier | Ableton Tips | Intermediate-Advanced |
+| KSHMR | EDM production techniques | Intermediate |
+| Mr. Bill | Sound design | Intermediate-Advanced |
+| Sadowick Production | Detailed Ableton tutorials | General |
+| Venus Theory | Creative production | Intermediate |
+| In The Mix | Mixing/Mastering | Intermediate |
+| Dan Worrall | Technical explanations | Advanced |
 
-**基本的な権利**:
-- 著作権: 曲を作った時点で自動的に発生
-- マスター権: レコーディングの権利
-- パブリッシング権: 楽曲の使用許諾の権利
+### Communities and Forums
 
-**サンプルの権利**:
-- ロイヤリティフリー: 購入後は自由に使用可能
-- クリエイティブコモンズ: ライセンス条件に従って使用
-- サンプルクリアランス: 原曲の許可が必要（有名曲のサンプリング）
+| Community | Platform | Features |
+|-----------|----------|----------|
+| r/edmproduction | Reddit | General information exchange |
+| r/ableton | Reddit | Ableton-specific |
+| Ableton Forum | Official | Technical questions |
+| Gearslutz (Gearspace) | Web | Professional technical discussion |
+| Discord (various) | Discord | Real-time interaction |
+| KVR Audio | Web | Plugin information |
+| SoundCloud | Web | Track sharing and feedback |
 
-### ブランディング
+### Books
 
-**アーティスト名の選び方**:
-- 検索しやすい（ユニークな名前）
-- 覚えやすい
-- 綴りが簡単
-- ドメインとSNSハンドルが取得可能
-- ジャンルのイメージと合致
-
-**プレスキットの構成**:
-1. アーティストプロフィール（短文と長文の2バージョン）
-2. 高解像度プレス写真（最低3枚）
-3. ロゴ（カラー、モノクロ）
-4. 代表曲のリンク
-5. 過去の出演歴/リリース歴
-6. SNSリンク
-7. 連絡先
+| Title | Author | Content |
+|-------|--------|---------|
+| Dance Music Manual | Rick Snoman | Electronic music production textbook |
+| Mixing Secrets | Mike Senior | The definitive mixing guide |
+| Mastering Audio | Bob Katz | The mastering bible |
+| The Art of Mixing | David Gibson | Visual understanding of mixing |
+| Sound Synthesis and Sampling | Martin Russ | Sound design theory |
 
 ---
 
-## 付録: Phase別タイムライン一覧
+## Career Building and Business
+
+### Music Distribution and Monetization
+
+**Distribution Platforms**:
+
+| Platform | Use | Revenue Model |
+|----------|-----|---------------|
+| DistroKid | Distribution service | Annual fee |
+| TuneCore | Distribution service | Per track/album |
+| Beatport | DJ-focused sales | Revenue share |
+| Bandcamp | Direct sales | Revenue share (low fees) |
+| SoundCloud | Promotion | Monetization with Pro version |
+| Splice | Sample sales | Royalties |
+
+### Copyright and Rights Management
+
+**Basic Rights**:
+- Copyright: Automatically created when a track is made
+- Master rights: Rights to the recording
+- Publishing rights: Rights to license use of the composition
+
+**Sample Rights**:
+- Royalty-free: Free to use after purchase
+- Creative Commons: Use according to license terms
+- Sample clearance: Permission from original required (sampling famous tracks)
+
+### Branding
+
+**Choosing an Artist Name**:
+- Easy to search (unique name)
+- Memorable
+- Easy to spell
+- Domain and social media handles available
+- Matches the genre image
+
+**Press Kit Components**:
+1. Artist profile (short and long versions)
+2. High-resolution press photos (at least 3)
+3. Logo (color and monochrome)
+4. Links to representative tracks
+5. Past performance/release history
+6. Social media links
+7. Contact information
+
+---
+
+## Appendix: Phase Timeline Overview
 
 ```
 Month  1  2  3  4  5  6  7  8  9 10 11 12 13-24  25-36  37+
-Phase  |←── Phase 1 ──→|←── Phase 2 ──→|← P3 →|← P4 →|P5→
-       DAW基礎          アレンジ         サウンド プロ級  キャリア
-       ドラム            ミキシング       デザイン レーベル 構築
-       ベース            マスタリング入門 ミキシング リミックス
-       エフェクト        シンセ応用       完全習得 コラボ
+Phase  |<── Phase 1 ──>|<── Phase 2 ──>|<─ P3 ─>|<─ P4 ─>|P5->
+       DAW Basics       Arrangement     Sound    Pro-Level Career
+       Drums            Mixing          Design   Labels    Building
+       Bass             Mastering Intro Full Mix  Remixes
+       Effects          Applied Synths  Mastery   Collabs
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Perform input data validation
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic Implementation Template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1622,26 +1621,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following functionality.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied Patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1649,7 +1648,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1660,14 +1659,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1675,7 +1674,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1683,44 +1682,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All applied tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance Optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1729,7 +1728,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1744,47 +1743,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f} sec")
+    print(f"Efficient version:   {fast_time:.6f} sec")
+    print(f"Speedup factor: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be conscious of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Configuration file issues | Verify configuration file path and format |
+| Timeout | Network latency/resource shortage | Adjust timeout values, add retry logic |
+| Out of memory | Data volume growth | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Verify executing user's permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, transaction management |
 
-### デバッグの手順
+### Debugging Procedure
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read stack traces and identify the location
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Formulate hypotheses**: List possible causes
+4. **Step-by-step verification**: Verify hypotheses using log output or debugger
+5. **Fix and regression test**: After fixing, also run tests on related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging Utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1792,102 +1791,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O waits**: Verify disk and network I/O conditions
+4. **Check concurrent connections**: Verify connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Issue Type | Diagnostic Tool | Solution |
+|-----------|----------------|----------|
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexing, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+Here is a summary of decision criteria for technology selection.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criterion | When to Prioritize | When Compromise is OK |
+|-----------|-------------------|----------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services with expected growth | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
-┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
-│                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
-│                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
-│                                                 │
-└─────────────────────────────────────────────────┘
++─────────────────────────────────────────────────+
+|           Architecture Selection Flow            |
++─────────────────────────────────────────────────+
+|                                                 |
+|  1. Team size?                                  |
+|    +-- Small (1-5 people) -> Monolith           |
+|    +-- Large (10+ people) -> Go to 2            |
+|                                                 |
+|  2. Deploy frequency?                           |
+|    +-- Weekly or less -> Monolith + Module split |
+|    +-- Daily/Multiple -> Go to 3                |
+|                                                 |
+|  3. Team independence?                          |
+|    +-- High -> Microservices                    |
+|    +-- Medium -> Modular Monolith               |
+|                                                 |
++─────────────────────────────────────────────────+
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Costs**
+- A short-term fast approach can become technical debt in the long run
+- Conversely, over-engineering incurs high short-term costs and causes project delays
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified tech stack has lower learning costs
+- Adopting diverse technologies allows best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction offers high reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design Decision Recording Template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1897,17 +1896,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1915,7 +1914,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1923,15 +1922,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1941,50 +1940,50 @@ class ArchitectureDecisionRecord:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-楽曲制作の学習は長い旅ですが、各フェーズで明確な目標を設定し、着実にスキルを積み上げていくことが重要です。以下のポイントを常に意識してください。
-
-1. **毎日少しずつ**: 週末にまとめてやるより、毎日30分の方が効果的
-2. **完成させる習慣**: 未完成の曲を溜めるより、シンプルでも完成させる
-3. **リファレンスを聴く**: プロの曲を分析的に聴く習慣を持つ
-4. **フィードバックを求める**: 一人で閉じこもらず、コミュニティに参加する
-5. **楽しむ**: 義務感ではなく、音楽を作ることの喜びを忘れない
-6. **健康管理**: 耳を大切にする（音量管理、休憩、耳栓の使用）
-7. **継続は力**: 才能より継続が重要、3年続ければ必ず上達する
-
-このロードマップは目安であり、個人のペースや目標に合わせて柔軟に調整してください。重要なのは、立ち止まらずに前に進み続けることです。
+Knowledge of this topic is frequently used in everyday development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-**関連リンク**:
-- [推奨練習曲](./recommended-tracks.md)
-- [プラグイン・ツール](./plugins-tools.md)
-- [サンプルパック](./sample-packs.md)
+## Summary
+
+Learning music production is a long journey, but it is important to set clear goals at each phase and steadily build up your skills. Always keep the following points in mind:
+
+1. **A little every day**: 30 minutes daily is more effective than cramming on weekends
+2. **Habit of finishing**: Rather than accumulating unfinished tracks, finish them even if simple
+3. **Listen to references**: Develop the habit of analytically listening to professional tracks
+4. **Seek feedback**: Don't isolate yourself; participate in communities
+5. **Have fun**: Don't let it become an obligation; don't forget the joy of making music
+6. **Health management**: Take care of your ears (volume management, breaks, using earplugs)
+7. **Persistence is power**: Consistency matters more than talent; you will definitely improve if you continue for 3 years
+
+This roadmap is a guideline; adjust it flexibly to match your own pace and goals. What matters most is to keep moving forward without stopping.
 
 ---
 
-## 次に読むべきガイド
-
-- [プラグイン・ツール一覧](./plugins-tools.md) - 次のトピックへ進む
+**Related Links**:
+- [Recommended Practice Tracks](./recommended-tracks.md)
+- [Plugins & Tools](./plugins-tools.md)
+- [Sample Packs](./sample-packs.md)
 
 ---
 
-## 参考文献
+## Next Guide to Read
 
-- [MDN Web Docs](https://developer.mozilla.org/) - Web技術のリファレンス
-- [Wikipedia](https://ja.wikipedia.org/) - 技術概念の概要
+- [Plugins & Tools List](./plugins-tools.md) - Proceed to the next topic
+
+---
+
+## References
+
+- [MDN Web Docs](https://developer.mozilla.org/) - Web technology reference
+- [Wikipedia](https://en.wikipedia.org/) - Overview of technical concepts
