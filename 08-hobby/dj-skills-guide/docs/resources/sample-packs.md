@@ -1,1263 +1,1263 @@
-# サンプルパック
+# Sample Packs
 
 
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- [ ] 基本概念と用語の理解
-- [ ] 実装パターンとベストプラクティスの習得
-- [ ] 実務での適用方法の把握
-- [ ] トラブルシューティングの基本
-
----
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [推奨練習曲](./recommended-tracks.md) の内容を理解していること
+- [ ] Understanding basic concepts and terminology
+- [ ] Mastering implementation patterns and best practices
+- [ ] Grasping practical application methods
+- [ ] Fundamentals of troubleshooting
 
 ---
 
-楽曲制作に使える推奨サンプルパックです。
+## Prerequisites
+
+Before reading this guide, having the following knowledge will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Recommended Tracks](./recommended-tracks.md)
 
 ---
 
-## 無料パック（初心者向け）
+A list of recommended sample packs for music production.
 
-### 1. Ableton Live 付属 Library
+---
 
-**内容**:
-- ドラム、ベース、シンセサンプル
-- Drum Rack、Instrument Rack
+## Free Packs (For Beginners)
 
-**価格**: 無料（Live付属）
+### 1. Ableton Live Built-in Library
 
-**おすすめポイント**:
-- すぐに使える
-- 高品質
+**Contents**:
+- Drum, bass, synth samples
+- Drum Rack, Instrument Rack
+
+**Price**: Free (included with Live)
+
+**Highlights**:
+- Ready to use immediately
+- High quality
 
 ---
 
 ### 2. Splice Free Sounds
 
-**内容**:
-- 毎月無料サンプル配布
-- 様々なジャンル
+**Contents**:
+- Free samples distributed monthly
+- Various genres
 
-**価格**: 無料（アカウント登録）
+**Price**: Free (account registration required)
 
-**おすすめポイント**:
-- プロ品質
-- 定期更新
+**Highlights**:
+- Professional quality
+- Regularly updated
 
 ---
 
-## 有料パック（プロクオリティ）
+## Paid Packs (Professional Quality)
 
 ### 1. Vengeance Sample Packs
 
-**内容**:
-- EDM、House、Technoサンプル
-- 数千サンプル収録
+**Contents**:
+- EDM, House, Techno samples
+- Thousands of samples included
 
-**価格**: $100-150
+**Price**: $100-150
 
-**おすすめポイント**:
-- プロ使用率高い
-- 即戦力
+**Highlights**:
+- Widely used by professionals
+- Ready for immediate use in production
 
 ---
 
 ### 2. Loopmasters
 
-**内容**:
-- ジャンル別パック豊富
-- Loops、One-Shots
+**Contents**:
+- Extensive genre-specific packs
+- Loops, One-Shots
 
-**価格**: $20-100
+**Price**: $20-100
 
-**おすすめポイント**:
-- ジャンル特化
-- 定期セール
+**Highlights**:
+- Genre-specialized
+- Regular sales
 
 ---
 
-## サンプルパック総合ガイド
+## Comprehensive Sample Pack Guide
 
-サンプルパックは現代の音楽制作において不可欠なリソースである。プロフェッショナルが録音・加工した高品質な音素材を手に入れることで、制作のスピードと品質を大幅に向上させることができる。本ガイドでは、サンプルパックの基礎知識から選び方、活用術までを網羅的に解説する。
+Sample packs are an essential resource in modern music production. By obtaining high-quality audio materials recorded and processed by professionals, you can significantly improve the speed and quality of your production. This guide comprehensively covers everything from the basics of sample packs to how to choose and utilize them.
 
-### サンプルパックとは何か
+### What Are Sample Packs
 
-サンプルパックとは、音楽制作用にあらかじめ録音・合成・加工された音声ファイルの集合体である。通常WAVまたはAIFF形式で提供され、DAW（Digital Audio Workstation）に読み込んで楽曲制作に使用する。
+A sample pack is a collection of audio files that have been pre-recorded, synthesized, or processed for music production. They are typically provided in WAV or AIFF format and loaded into a DAW (Digital Audio Workstation) for use in track creation.
 
-**サンプルパックの主な構成要素**:
+**Main Components of Sample Packs**:
 
-| カテゴリ | 内容 | 用途 |
+| Category | Contents | Use |
 |---------|------|------|
-| One-Shots | 単発のドラムヒット、楽器音 | ドラムパターン構築、サンプラー素材 |
-| Loops | 一定小節のリズム・メロディパターン | 楽曲の基盤、アレンジ素材 |
-| MIDI Files | MIDIノートデータ | 自分の音源で演奏可能 |
-| Presets | シンセサイザーの設定 | 即座にサウンドデザイン完了 |
-| Construction Kits | 楽曲パーツ一式 | 楽曲テンプレートとして利用 |
-| Multisamples | 複数ベロシティ/ピッチの録音 | リアルな楽器再現 |
+| One-Shots | Individual drum hits, instrument sounds | Building drum patterns, sampler material |
+| Loops | Rhythm/melody patterns of a set number of bars | Track foundation, arrangement material |
+| MIDI Files | MIDI note data | Playable with your own instruments |
+| Presets | Synthesizer settings | Instant sound design |
+| Construction Kits | Complete set of track parts | Use as track templates |
+| Multisamples | Recordings at multiple velocities/pitches | Realistic instrument reproduction |
 
-**主要なファイル形式**:
+**Major File Formats**:
 
-- **WAV（.wav）**: 非圧縮リニアPCM。最も汎用性が高く、全DAW対応。24bit/44.1kHz以上が標準
-- **AIFF（.aif）**: Appleが開発した非圧縮形式。Logic Pro利用者に人気
-- **FLAC（.flac）**: 可逆圧縮形式。ファイルサイズが小さく品質劣化なし
-- **MP3（.mp3）**: 非可逆圧縮。プレビュー用途のみ。制作には不向き
-- **REX/RX2（.rex2）**: Propellerhead社の形式。テンポ情報を内蔵しストレッチが容易
+- **WAV (.wav)**: Uncompressed linear PCM. Most versatile, supported by all DAWs. 24bit/44.1kHz or higher is standard
+- **AIFF (.aif)**: Uncompressed format developed by Apple. Popular among Logic Pro users
+- **FLAC (.flac)**: Lossless compression. Smaller file size with no quality degradation
+- **MP3 (.mp3)**: Lossy compression. For preview purposes only. Not suitable for production
+- **REX/RX2 (.rex2)**: Propellerhead's format. Contains embedded tempo information for easy stretching
 
-### サンプルパックの選び方
+### How to Choose Sample Packs
 
-サンプルパック選びで失敗しないためのポイントを整理する。
+Key points to avoid mistakes when selecting sample packs.
 
-**1. ジャンルとの適合性**
+**1. Genre Compatibility**
 
-自分が作りたいジャンルに特化したパックを選ぶことが最も重要である。汎用パックは便利だが、特定ジャンルの「らしさ」を出すには専門パックが効果的だ。
+Choosing a pack specialized for the genre you want to create is the most important factor. Universal packs are convenient, but specialized packs are more effective for achieving the authentic feel of a specific genre.
 
 ```
-選択フロー:
-1. 作りたいジャンルを明確にする
-2. そのジャンルの代表的プロデューサーが使用しているパックを調査
-3. デモ音源を聴いて音質・テイストを確認
-4. 小規模パックで試してから大型パックを購入
+Selection Flow:
+1. Clearly define the genre you want to create
+2. Research packs used by representative producers in that genre
+3. Listen to demo audio to check quality and taste
+4. Try a small pack before purchasing a large one
 ```
 
-**2. 音質の確認ポイント**
+**2. Audio Quality Checkpoints**
 
-- **ビットレート/サンプルレート**: 最低24bit/44.1kHz推奨
-- **ヘッドルーム**: クリッピングしていないか
-- **ノイズフロア**: 不要なノイズが混入していないか
-- **処理の度合い**: 加工済みか素の状態か（用途で使い分け）
+- **Bit Rate/Sample Rate**: Minimum 24bit/44.1kHz recommended
+- **Headroom**: Check for clipping
+- **Noise Floor**: Check for unwanted noise contamination
+- **Processing Level**: Processed or raw state (use according to purpose)
 
-**3. ライセンス形態の確認**
+**3. License Type Verification**
 
-サンプルパックには大きく分けて以下のライセンス形態がある:
+Sample packs generally come in the following license types:
 
-- **Royalty-Free**: 一度購入すれば追加ロイヤリティ不要。商用利用可
-- **Creative Commons**: 条件付き無料利用。CC0は完全自由、CC-BY は帰属表示必須
-- **Exclusive License**: 購入者のみ使用可能。他の制作者と被らない
-- **Subscription**: 月額制でアクセス。Spliceが代表例
+- **Royalty-Free**: No additional royalties after one-time purchase. Commercial use allowed
+- **Creative Commons**: Conditionally free usage. CC0 is completely free, CC-BY requires attribution
+- **Exclusive License**: Only the purchaser can use it. No overlap with other producers
+- **Subscription**: Monthly fee-based access. Splice is a representative example
 
-### サンプルパック配信プラットフォーム比較
+### Sample Pack Distribution Platform Comparison
 
-現在の主要プラットフォームを比較する。
+A comparison of the current major platforms.
 
-| プラットフォーム | 料金体系 | 特徴 | サンプル数 |
+| Platform | Pricing | Features | Sample Count |
 |----------------|---------|------|-----------|
-| Splice | 月額$9.99〜 | クレジット制で個別選択可能 | 400万以上 |
-| Loopmasters | 個別購入 | ジャンル特化パックが豊富 | 100万以上 |
-| LANDR | 月額$14.99〜 | マスタリングサービスと統合 | 200万以上 |
-| Sounds.com | 月額$14.99 | Native Instruments運営 | 150万以上 |
-| Producer Loops | 個別購入 | Construction Kit中心 | 50万以上 |
-| Sample Magic | 個別購入 | EDM/エレクトロニカ中心 | 30万以上 |
-| Black Octopus | 個別購入 | ベースミュージック強い | 20万以上 |
-| Cymatics | 無料+有料 | 無料パックが充実 | 50万以上 |
+| Splice | From $9.99/month | Credit-based individual selection | 4 million+ |
+| Loopmasters | Individual purchase | Extensive genre-specific packs | 1 million+ |
+| LANDR | From $14.99/month | Integrated with mastering service | 2 million+ |
+| Sounds.com | $14.99/month | Operated by Native Instruments | 1.5 million+ |
+| Producer Loops | Individual purchase | Construction Kit focused | 500K+ |
+| Sample Magic | Individual purchase | EDM/Electronica focused | 300K+ |
+| Black Octopus | Individual purchase | Strong in bass music | 200K+ |
+| Cymatics | Free + Paid | Extensive free packs | 500K+ |
 
-**Splice の詳細**:
+**Splice Details**:
 
-Spliceは最も人気のあるサンプルプラットフォームの一つである。月額プランでクレジットを取得し、個別のサンプルをダウンロードできるシステムだ。
+Splice is one of the most popular sample platforms. It uses a monthly subscription plan where you earn credits and can download individual samples.
 
 ```
-Splice プラン比較:
-- Sounds+（$9.99/月）: 100クレジット
-- Sounds+（$19.99/月）: 200クレジット（最も人気）
-- Sounds+（$29.99/月）: 300クレジット
+Splice Plan Comparison:
+- Sounds+ ($9.99/month): 100 credits
+- Sounds+ ($19.99/month): 200 credits (most popular)
+- Sounds+ ($29.99/month): 300 credits
 
-クレジットの仕組み:
-- One-Shot: 1クレジット
-- Loop: 1〜2クレジット
-- MIDI: 1クレジット
-- プリセット: 1〜3クレジット
-- 未使用クレジットは翌月繰越可能
+Credit System:
+- One-Shot: 1 credit
+- Loop: 1-2 credits
+- MIDI: 1 credit
+- Preset: 1-3 credits
+- Unused credits roll over to the next month
 ```
 
 ---
 
-## 主要サンプルパックメーカー詳細
+## Major Sample Pack Makers in Detail
 
 ### Vengeance Sound
 
-ドイツのManuel Schleis氏が設立した、EDMサンプルパックの最高峰ブランド。
+The premier EDM sample pack brand, founded by Manuel Schleis of Germany.
 
-**代表的パック**:
+**Representative Packs**:
 
-| パック名 | 内容 | 対象ジャンル | 価格帯 |
+| Pack Name | Contents | Target Genre | Price Range |
 |---------|------|------------|--------|
-| VEC（Vengeance Essential Clubsounds） | クラブ系総合 | House, EDM全般 | $49-69 |
-| VED（Vengeance Essential Dubstep） | ダブステップ特化 | Dubstep, Bass Music | $49-59 |
-| VEH（Vengeance Essential House） | ハウス特化 | Deep House, Tech House | $49-59 |
-| VET（Vengeance Essential Techno） | テクノ特化 | Techno, Minimal | $49-59 |
-| Vengeance Rhythm Guitars | ギターループ | 各種ジャンル | $49 |
-| Vengeance Total Dance Sounds | ダンス総合 | Dance, Pop, EDM | $49 |
-| Vengeance Vocal Essentials | ボーカルチョップ | EDM, Future Bass | $49 |
+| VEC (Vengeance Essential Clubsounds) | Club music comprehensive | House, EDM in general | $49-69 |
+| VED (Vengeance Essential Dubstep) | Dubstep specialized | Dubstep, Bass Music | $49-59 |
+| VEH (Vengeance Essential House) | House specialized | Deep House, Tech House | $49-59 |
+| VET (Vengeance Essential Techno) | Techno specialized | Techno, Minimal | $49-59 |
+| Vengeance Rhythm Guitars | Guitar loops | Various genres | $49 |
+| Vengeance Total Dance Sounds | Dance comprehensive | Dance, Pop, EDM | $49 |
+| Vengeance Vocal Essentials | Vocal chops | EDM, Future Bass | $49 |
 
-**Vengeance の特徴**:
-- 圧倒的な音圧と存在感
-- プロの現場で即戦力として使える完成度
-- ドラムサンプルの質が業界屈指
-- EDM系プロデューサーの大半が所有
-- 定期的に新バージョンをリリース
+**Vengeance Characteristics**:
+- Overwhelming loudness and presence
+- Production-ready quality for professional settings
+- Industry-leading drum sample quality
+- Owned by the vast majority of EDM producers
+- New versions released regularly
 
 ### Native Instruments
 
-ソフトウェア楽器とサンプルライブラリの最大手。
+The largest developer of software instruments and sample libraries.
 
-**主要サンプルライブラリ**:
+**Major Sample Libraries**:
 
-| 製品名 | 内容 | 特徴 |
+| Product Name | Contents | Features |
 |--------|------|------|
-| Maschine Factory Library | 総合ドラム/インストゥルメント | Maschine標準搭載 |
-| Battery Factory Library | ドラムサンプル | Battery標準搭載 |
-| Kontakt Factory Library | マルチサンプル楽器 | Kontakt標準搭載 |
-| Expansion Pack各種 | ジャンル別拡張 | Maschine/Kontakt用 |
-| Discovery Series | ワールド楽器 | Kontakt用 |
-| Abbey Road Drummer | ドラムキット | Kontakt用 |
+| Maschine Factory Library | Comprehensive drums/instruments | Included with Maschine |
+| Battery Factory Library | Drum samples | Included with Battery |
+| Kontakt Factory Library | Multisampled instruments | Included with Kontakt |
+| Various Expansion Packs | Genre-specific expansions | For Maschine/Kontakt |
+| Discovery Series | World instruments | For Kontakt |
+| Abbey Road Drummer | Drum kits | For Kontakt |
 
-**Komplete バンドルの価値**:
+**Value of the Komplete Bundle**:
 
-Native InstrumentsのKomplete は、サンプルパックを含む総合バンドルとして非常にコストパフォーマンスが高い。
+Native Instruments' Komplete offers exceptional cost-performance as a comprehensive bundle that includes sample packs.
 
 ```
-Komplete エディション比較:
-- Komplete Start（無料）: 基本的なインストゥルメント + 1,500サンプル
-- Komplete（$599）: 主要製品一式 + 25,000サンプル以上
-- Komplete Ultimate（$1,299）: 全製品 + 50,000サンプル以上
-- Komplete Collector's Edition（$1,799）: 完全版
+Komplete Edition Comparison:
+- Komplete Start (Free): Basic instruments + 1,500 samples
+- Komplete ($599): Major products suite + 25,000+ samples
+- Komplete Ultimate ($1,299): All products + 50,000+ samples
+- Komplete Collector's Edition ($1,799): Complete edition
 ```
 
 ### Output
 
-モダンでクリエイティブなサウンドを提供するメーカー。
+A maker providing modern and creative sounds.
 
-**代表的製品**:
-- **Arcade**: サブスクリプション型サンプル再生エンジン。月額$10で膨大なループライブラリにアクセス可能
-- **Exhale**: ボーカルエンジン。加工済みボーカルサンプルをリアルタイムで操作
-- **Substance**: ベースエンジン。アナログ/デジタル/アコースティックベースを統合
-- **Portal**: グラニュラーFXプラグイン。サンプルの創造的な加工に最適
+**Representative Products**:
+- **Arcade**: Subscription-based sample playback engine. Access to a vast loop library for $10/month
+- **Exhale**: Vocal engine. Manipulate processed vocal samples in real time
+- **Substance**: Bass engine. Integrates analog/digital/acoustic bass
+- **Portal**: Granular FX plugin. Ideal for creative sample processing
 
 ### Spitfire Audio
 
-オーケストラ・映画音楽系サンプルの最高峰。
+The premier brand for orchestral and film music samples.
 
-**無料ライブラリ（LABS シリーズ）**:
-- Strings: 基本的なストリングスアンサンブル
-- Soft Piano: 繊細なピアノサウンド
-- Drums: オーケストラパーカッション
-- Choir: 合唱パッド
-- Amplified Cello: エレクトリックチェロ
-- Charango: 南米弦楽器
-- Felt Piano: ミュートピアノ
-- Frozen Strings: テクスチャ系ストリングス
-- Glass Piano: クリスタルなピアノ
-- Peel Guitar: アンビエントギター
+**Free Libraries (LABS Series)**:
+- Strings: Basic string ensemble
+- Soft Piano: Delicate piano sound
+- Drums: Orchestral percussion
+- Choir: Choral pads
+- Amplified Cello: Electric cello
+- Charango: South American string instrument
+- Felt Piano: Muted piano
+- Frozen Strings: Textural strings
+- Glass Piano: Crystal-like piano
+- Peel Guitar: Ambient guitar
 
-**有料ライブラリ**:
-- Albion One（$449）: オーケストラ総合の定番
-- BBC Symphony Orchestra（$49-999）: BBCとの共同開発
-- Hans Zimmer Strings（$349）: ハンス・ジマーのストリングスサウンド
+**Paid Libraries**:
+- Albion One ($449): The definitive orchestral comprehensive library
+- BBC Symphony Orchestra ($49-999): Co-developed with the BBC
+- Hans Zimmer Strings ($349): Hans Zimmer's string sounds
 
 ---
 
-## ジャンル別おすすめサンプルパック
+## Genre-Specific Recommended Sample Packs
 
 ### House / Deep House
 
-**定番パック**:
+**Essential Packs**:
 
-| パック名 | メーカー | 内容 | 価格 |
+| Pack Name | Maker | Contents | Price |
 |---------|---------|------|------|
-| Deep House Sessions | Loopmasters | ディープハウスのループ・ワンショット | $39.95 |
-| House Underground | Sample Magic | アンダーグラウンドハウス素材 | $49.95 |
-| Deeperfect House | Deeperfect | テックハウス向け | $29.95 |
-| MDE - House Vol.1-5 | Splice | モダンハウス | 個別DL |
-| VEH Vol.1-3 | Vengeance | ハウス総合 | $49-59 |
+| Deep House Sessions | Loopmasters | Deep house loops and one-shots | $39.95 |
+| House Underground | Sample Magic | Underground house material | $49.95 |
+| Deeperfect House | Deeperfect | For tech house | $29.95 |
+| MDE - House Vol.1-5 | Splice | Modern house | Individual DL |
+| VEH Vol.1-3 | Vengeance | House comprehensive | $49-59 |
 
-**House制作で重要なサンプル要素**:
+**Key Sample Elements for House Production**:
 
 ```
-キック:
-  - 太くて丸いローエンド（60-100Hz中心）
-  - アタックはソフト〜ミディアム
-  - ディケイは中程度（150-300ms）
+Kick:
+  - Fat, round low-end (centered at 60-100Hz)
+  - Soft to medium attack
+  - Medium decay (150-300ms)
 
-ハイハット:
-  - クリスプだが耳に刺さらない
-  - オープンハットのディケイが重要
-  - 909系が定番だがオリジナルも多い
+Hi-Hat:
+  - Crisp but not piercing
+  - Open hat decay is important
+  - 909-style is standard but originals are common too
 
-クラップ/スネア:
-  - レイヤードされたクラップが標準
-  - リバーブ成分を含むものが使いやすい
+Clap/Snare:
+  - Layered claps are standard
+  - Ones with reverb content are easier to use
 
-ベースライン:
-  - サブベース + ミッドベースのレイヤー
-  - サイドチェイン用にクリーンな状態が理想
+Bassline:
+  - Sub bass + mid bass layer
+  - Ideally clean for sidechain use
 
-コード/パッド:
-  - 温かみのあるアナログ系パッド
-  - ジャズコード（7th, 9th）が多用される
+Chords/Pads:
+  - Warm analog-style pads
+  - Jazz chords (7th, 9th) are commonly used
 ```
 
 ### Techno
 
-**定番パック**:
+**Essential Packs**:
 
-| パック名 | メーカー | 内容 | 価格 |
+| Pack Name | Maker | Contents | Price |
 |---------|---------|------|------|
-| Techno Toolkit | Loopmasters | テクノ総合キット | $44.95 |
-| Berlin Techno | Sample Magic | ベルリンテクノ再現 | $49.95 |
-| VET Vol.1-3 | Vengeance | テクノ特化 | $49-59 |
-| Industrial Strength | Industrial Strength | インダストリアルテクノ | $39.95 |
-| Riemann Techno | Riemann | ハードテクノ/ミニマル | $29.95 |
+| Techno Toolkit | Loopmasters | Techno comprehensive kit | $44.95 |
+| Berlin Techno | Sample Magic | Berlin techno recreation | $49.95 |
+| VET Vol.1-3 | Vengeance | Techno specialized | $49-59 |
+| Industrial Strength | Industrial Strength | Industrial techno | $39.95 |
+| Riemann Techno | Riemann | Hard techno/minimal | $29.95 |
 
-**テクノ特有のサンプル選びのポイント**:
-- キックは低域のパンチが最重要。909クローンだけでなく、合成キックも活用
-- ハイハットはメタリックで鋭いもの。クローズドハットの微妙なバリエーションが鍵
-- パーカッションループは無機質でリピートに耐えるもの
-- アンビエンス/テクスチャは空間演出に必須
-- インダストリアル系は金属音やノイズ系サンプルが特徴
+**Techno-Specific Sample Selection Points**:
+- Kick: Low-frequency punch is paramount. Use synthesized kicks, not just 909 clones
+- Hi-Hat: Metallic and sharp. Subtle variations of closed hi-hats are key
+- Percussion loops: Mechanical and able to withstand repetition
+- Ambience/Texture: Essential for spatial production
+- Industrial: Characterized by metallic sounds and noise-based samples
 
 ### Drum & Bass / Jungle
 
-**定番パック**:
+**Essential Packs**:
 
-| パック名 | メーカー | 内容 | 価格 |
+| Pack Name | Maker | Contents | Price |
 |---------|---------|------|------|
-| DnB Dimensions | Loopmasters | 総合DnBパック | $44.95 |
-| Amen Break Collection | 各社 | アーメンブレイクのバリエーション | $15-30 |
-| Neurofunk Masterclass | Black Octopus | ニューロファンク素材 | $39.95 |
-| Liquid DnB | Loopmasters | リキッドDnB向け | $34.95 |
-| Ghost Syndicate DnB | Ghost Syndicate | ダーク系DnB | $29.95 |
+| DnB Dimensions | Loopmasters | Comprehensive DnB pack | $44.95 |
+| Amen Break Collection | Various | Amen break variations | $15-30 |
+| Neurofunk Masterclass | Black Octopus | Neurofunk material | $39.95 |
+| Liquid DnB | Loopmasters | For liquid DnB | $34.95 |
+| Ghost Syndicate DnB | Ghost Syndicate | Dark DnB | $29.95 |
 
-**DnBで必須のブレイクビーツ知識**:
+**Essential Breakbeat Knowledge for DnB**:
 
 ```
-歴史的に重要なブレイクビーツ:
-1. Amen Break（"Amen, Brother" by The Winstons, 1969）
-   - DnB/Jungleの最も重要なブレイク
-   - 6秒間のドラムソロが無限に再利用
-   - スライス、タイムストレッチ、リピッチが基本技法
+Historically Important Breakbeats:
+1. Amen Break ("Amen, Brother" by The Winstons, 1969)
+   - The most important break in DnB/Jungle
+   - A 6-second drum solo endlessly reused
+   - Slicing, time stretching, and repitching are fundamental techniques
 
-2. Think Break（"Think (About It)" by Lyn Collins, 1972）
-   - ファンキーでグルーヴィなブレイク
-   - ヒップホップでも多用
+2. Think Break ("Think (About It)" by Lyn Collins, 1972)
+   - A funky and groovy break
+   - Also widely used in hip-hop
 
-3. Apache Break（"Apache" by Incredible Bongo Band, 1973）
-   - ブレイクダンスの定番
-   - ヒップホップの原点的ブレイク
+3. Apache Break ("Apache" by Incredible Bongo Band, 1973)
+   - A breakdancing classic
+   - The foundational break of hip-hop
 
-4. Funky Drummer（James Brown, 1970）
-   - Clyde Stubblenieldのドラムパターン
-   - 最もサンプリングされたブレイクの一つ
+4. Funky Drummer (James Brown, 1970)
+   - Clyde Stubblefield's drum pattern
+   - One of the most sampled breaks ever
 
-5. Hot Pants（James Brown, 1971）
-   - ファンクの典型的パターン
-   - ジャングル初期に多用
+5. Hot Pants (James Brown, 1971)
+   - A quintessential funk pattern
+   - Widely used in early jungle
 ```
 
 ### Hip-Hop / Trap
 
-**定番パック**:
+**Essential Packs**:
 
-| パック名 | メーカー | 内容 | 価格 |
+| Pack Name | Maker | Contents | Price |
 |---------|---------|------|------|
-| KSHMR Vol.1-3 | Splice | トラップ/ヒップホップ | 個別DL |
-| Trap God | Prime Loops | モダントラップ | $39.95 |
-| 808 Warfare | BusyWorksBeats | 808ベース特化 | $29.95 |
-| Lo-Fi Hip Hop | Loopmasters | ローファイ素材 | $34.95 |
-| Boom Bap Labs | Splice | ブーンバップ | 個別DL |
+| KSHMR Vol.1-3 | Splice | Trap/hip-hop | Individual DL |
+| Trap God | Prime Loops | Modern trap | $39.95 |
+| 808 Warfare | BusyWorksBeats | 808 bass specialized | $29.95 |
+| Lo-Fi Hip Hop | Loopmasters | Lo-fi material | $34.95 |
+| Boom Bap Labs | Splice | Boom bap | Individual DL |
 
 ### Future Bass / Kawaii Bass
 
-**定番パック**:
+**Essential Packs**:
 
-| パック名 | メーカー | 内容 | 価格 |
+| Pack Name | Maker | Contents | Price |
 |---------|---------|------|------|
-| Future Bass Ultra | Cymatics | フューチャーベース総合 | $49.95 |
-| Kawaii Future Bass | Producerbox | カワイイ系素材 | $29.95 |
-| Wobble Factory | Prime Loops | ウォブルベース | $39.95 |
-| Marshmello Style Pack | 各社 | マシュメロ系サウンド | $20-40 |
-| Virtual Riot Pack | Black Octopus | ベースデザイン特化 | $44.95 |
+| Future Bass Ultra | Cymatics | Future bass comprehensive | $49.95 |
+| Kawaii Future Bass | Producerbox | Kawaii-style material | $29.95 |
+| Wobble Factory | Prime Loops | Wobble bass | $39.95 |
+| Marshmello Style Pack | Various | Marshmello-style sounds | $20-40 |
+| Virtual Riot Pack | Black Octopus | Bass design specialized | $44.95 |
 
 ---
 
-## ドラムサンプルパック完全ガイド
+## Complete Guide to Drum Sample Packs
 
-ドラムサンプルは楽曲制作において最も頻繁に使用するサンプル素材である。適切なドラムサウンドの選択は楽曲のクオリティを大きく左右する。
+Drum samples are the most frequently used sample material in music production. Selecting the right drum sounds significantly impacts the quality of a track.
 
-### ドラムマシンサンプルの基礎知識
+### Drum Machine Sample Fundamentals
 
-歴史的に重要なドラムマシンのサンプルは、今日の音楽制作でも不可欠な素材である。
+Samples from historically important drum machines remain essential materials in today's music production.
 
-**TR-808（Roland, 1980）**:
-
-```
-808の主要コンポーネント:
-- Bass Drum: サブベースとしても機能する深い低音キック
-  周波数帯: 30-80Hz中心
-  ディケイ: 可変（短い→パンチ、長い→サブベース）
-  用途: Hip-Hop, Trap, R&B
-
-- Snare Drum: ノイズ成分の多いスネア
-  周波数帯: 150-400Hz + ノイズ
-  用途: 全ジャンル対応
-
-- Hi-Hat (Closed/Open): メタリックなハイハット
-  用途: トラップの高速ハイハットロール定番
-
-- Clap: 人工的だが味のあるクラップ
-  用途: スネアとのレイヤーに最適
-
-- Cowbell: 特徴的なカウベル
-  用途: アクセント、フィル
-
-- Clave: ラテンリズムの基礎
-  用途: パーカッション
-```
-
-**TR-909（Roland, 1983）**:
+**TR-808 (Roland, 1980)**:
 
 ```
-909の主要コンポーネント:
-- Bass Drum: アナログ/デジタルハイブリッドのパンチあるキック
-  周波数帯: 40-100Hz中心
-  特徴: アタックが鋭く、コンプレッションとの相性抜群
-  用途: House, Techno, Trance の定番
+808 Main Components:
+- Bass Drum: Deep low-frequency kick that also functions as a sub bass
+  Frequency Range: Centered at 30-80Hz
+  Decay: Variable (short -> punch, long -> sub bass)
+  Use: Hip-Hop, Trap, R&B
 
-- Snare Drum: ノイズ成分が多く抜けの良いスネア
-  周波数帯: 200-500Hz + ホワイトノイズ
-  用途: ダンスミュージック全般
+- Snare Drum: Noise-heavy snare
+  Frequency Range: 150-400Hz + noise
+  Use: All-genre compatible
 
-- Hi-Hat: 実際のシンバルをサンプリング
-  特徴: 808より自然でリアル
-  用途: House, Techno
+- Hi-Hat (Closed/Open): Metallic hi-hats
+  Use: Standard for trap high-speed hi-hat rolls
 
-- Clap: レイヤードされた自然なクラップ
-  用途: バックビートの定番
+- Clap: Artificial yet characterful clap
+  Use: Perfect for layering with snare
 
-- Ride Cymbal: シンバルサンプル
-  用途: パターンのバリエーション
+- Cowbell: Distinctive cowbell
+  Use: Accents, fills
+
+- Clave: Foundation of Latin rhythms
+  Use: Percussion
 ```
 
-**LinnDrum / LM-1（Linn Electronics, 1982）**:
+**TR-909 (Roland, 1983)**:
 
 ```
-特徴:
-- 最初の実用的なデジタルドラムマシン
-- 実際のドラムを8bitサンプリング
-- Prince, Peter Gabrielが愛用
-- ローファイだが温かみのあるサウンド
-- 現在もR&B/ソウル系で人気
+909 Main Components:
+- Bass Drum: Punchy analog/digital hybrid kick
+  Frequency Range: Centered at 40-100Hz
+  Feature: Sharp attack, excellent compatibility with compression
+  Use: A staple of House, Techno, Trance
 
-主要サウンド:
-- Kick: 丸みのある自然なキック
-- Snare: リアルなスネアサウンド
-- Tom: 特徴的なタム
-- Hi-Hat: 自然なハイハット
-- Crash/Ride: シンバル類
+- Snare Drum: Noise-heavy snare with excellent cut-through
+  Frequency Range: 200-500Hz + white noise
+  Use: Dance music in general
+
+- Hi-Hat: Sampled from real cymbals
+  Feature: More natural and realistic than 808
+  Use: House, Techno
+
+- Clap: Layered, natural-sounding clap
+  Use: A backbeat staple
+
+- Ride Cymbal: Cymbal sample
+  Use: Pattern variations
 ```
 
-### ドラムサンプルのレイヤリング技術
-
-プロの現場では、複数のドラムサンプルをレイヤーして使用することが一般的である。
-
-**キックのレイヤリング**:
+**LinnDrum / LM-1 (Linn Electronics, 1982)**:
 
 ```
-3レイヤー構成（推奨）:
+Features:
+- The first practical digital drum machine
+- Real drums sampled at 8-bit
+- Used by Prince, Peter Gabriel
+- Lo-fi yet warm sound
+- Still popular in R&B/soul today
 
-Layer 1 - サブ（Sub）:
-  役割: 低域のパワーを担当
-  周波数帯: 30-80Hz
-  処理: ハイカットフィルターで100Hz以上をカット
-  サンプル例: 808キック、サイン波キック
-
-Layer 2 - ボディ（Body）:
-  役割: 中低域の存在感
-  周波数帯: 80-300Hz
-  処理: バンドパスで不要帯域をカット
-  サンプル例: アコースティックキック、加工済みキック
-
-Layer 3 - クリック/アタック（Click/Attack）:
-  役割: 高域のアタック感
-  周波数帯: 2kHz-8kHz
-  処理: ローカットで低域を除去
-  サンプル例: 木のクリック音、パーカッション
+Main Sounds:
+- Kick: Round, natural kick
+- Snare: Realistic snare sound
+- Tom: Distinctive toms
+- Hi-Hat: Natural hi-hats
+- Crash/Ride: Cymbal sounds
 ```
 
-**スネアのレイヤリング**:
+### Drum Sample Layering Techniques
+
+In professional settings, it is common practice to layer multiple drum samples.
+
+**Kick Layering**:
 
 ```
-2-3レイヤー構成:
+3-Layer Configuration (Recommended):
 
-Layer 1 - ボディ（Body）:
-  スネアの本体サウンド
-  周波数帯: 150-400Hz
+Layer 1 - Sub:
+  Role: Handles low-frequency power
+  Frequency Range: 30-80Hz
+  Processing: High-cut filter to cut above 100Hz
+  Sample Example: 808 kick, sine wave kick
 
-Layer 2 - スナッピー/ノイズ（Snappy/Noise）:
-  スネアワイヤーやノイズ成分
-  周波数帯: 4kHz-12kHz
+Layer 2 - Body:
+  Role: Mid-low frequency presence
+  Frequency Range: 80-300Hz
+  Processing: Bandpass to cut unnecessary bands
+  Sample Example: Acoustic kick, processed kick
 
-Layer 3 - トランジェント（Transient）（任意）:
-  アタックの鋭さを追加
-  短いクリック/スティックサウンド
+Layer 3 - Click/Attack:
+  Role: High-frequency attack definition
+  Frequency Range: 2kHz-8kHz
+  Processing: Low-cut to remove low frequencies
+  Sample Example: Wood click sound, percussion
+```
+
+**Snare Layering**:
+
+```
+2-3 Layer Configuration:
+
+Layer 1 - Body:
+  The main snare sound body
+  Frequency Range: 150-400Hz
+
+Layer 2 - Snappy/Noise:
+  Snare wire and noise components
+  Frequency Range: 4kHz-12kHz
+
+Layer 3 - Transient (Optional):
+  Adds attack sharpness
+  Short click/stick sound
 ```
 
 ---
 
-## シンセサンプルパック詳細ガイド
+## Detailed Guide to Synth Sample Packs
 
-シンセサイザーのサンプルパックは、楽曲に色彩とテクスチャを加えるための重要な素材である。ハードウェアシンセの実機録音からソフトシンセのプリセット録音まで、多種多様な形態が存在する。
+Synthesizer sample packs are important materials for adding color and texture to tracks. They exist in a wide variety of forms, from hardware synth recordings to software synth preset recordings.
 
-### アナログシンセサンプル
+### Analog Synth Samples
 
-ヴィンテージアナログシンセの実機録音は、デジタルでは再現が難しい温かみと質感を持つ。
+Actual recordings of vintage analog synths possess warmth and texture that are difficult to reproduce digitally.
 
-**代表的なアナログシンセサンプルパック**:
+**Representative Analog Synth Sample Packs**:
 
-| パック名 | 収録シンセ | 特徴 | 価格帯 |
+| Pack Name | Synths Included | Features | Price Range |
 |---------|----------|------|--------|
-| Arturia Analog Lab Sounds | Moog, Prophet, Juno等 | 実機モデリングベース | Analog Lab付属 |
-| Vintage Synth Pads | Juno-106, OB-Xa | 温かいパッドサウンド | $29-49 |
-| Moog Bass Collection | Minimoog, Sub37 | 太いベースサウンド | $39-59 |
-| Prophet Textures | Sequential Prophet | パッド・テクスチャ | $34.95 |
-| Oberheim Matrix Sounds | Oberheim Matrix | 80年代サウンド | $29.95 |
-| Roland Jupiter Collection | Jupiter-8, JP-8000 | 華やかなリード・パッド | $39.95 |
+| Arturia Analog Lab Sounds | Moog, Prophet, Juno, etc. | Based on hardware modeling | Included with Analog Lab |
+| Vintage Synth Pads | Juno-106, OB-Xa | Warm pad sounds | $29-49 |
+| Moog Bass Collection | Minimoog, Sub37 | Fat bass sounds | $39-59 |
+| Prophet Textures | Sequential Prophet | Pads and textures | $34.95 |
+| Oberheim Matrix Sounds | Oberheim Matrix | 80s sounds | $29.95 |
+| Roland Jupiter Collection | Jupiter-8, JP-8000 | Brilliant leads and pads | $39.95 |
 
-**アナログシンセサンプルの選び方**:
+**How to Choose Analog Synth Samples**:
 
 ```
-チェックポイント:
-1. 録音品質: 24bit/96kHz以上が理想
-2. ベロシティレイヤー: 複数の強弱が収録されているか
-3. ラウンドロビン: 同一ノートの複数バリエーション
-4. ルームアンビエンス: ドライ/ウェット別に録音されているか
-5. ノイズ/ハム: アナログならではのノイズが適度に含まれるか
+Checkpoints:
+1. Recording Quality: 24bit/96kHz or higher is ideal
+2. Velocity Layers: Are multiple dynamics recorded?
+3. Round Robin: Multiple variations of the same note
+4. Room Ambience: Recorded separately as dry/wet?
+5. Noise/Hum: Does it contain an appropriate amount of analog-characteristic noise?
 
-用途別おすすめ:
-- ベースライン → Moog系（太く温かい低音）
-- パッド/ストリングス → Juno系（繊細で透明感ある中域）
-- リード → Prophet系（エッジが効いた中高域）
-- アルペジオ → SH-101系（キレの良いモノシンセ）
+Recommendations by Use:
+- Basslines -> Moog-style (fat, warm low end)
+- Pads/Strings -> Juno-style (delicate, transparent mid-range)
+- Leads -> Prophet-style (edgy mid-highs)
+- Arpeggios -> SH-101-style (sharp mono synth)
 ```
 
-### デジタル/ウェーブテーブルシンセサンプル
+### Digital/Wavetable Synth Samples
 
-モダンなサウンドデザインではウェーブテーブルシンセのサンプルが主流である。
+Wavetable synth samples are mainstream in modern sound design.
 
-**代表的パック**:
+**Representative Packs**:
 
-| パック名 | 対応シンセ | 内容 | 価格帯 |
+| Pack Name | Compatible Synth | Contents | Price Range |
 |---------|----------|------|--------|
-| Serum Preset & Sample Pack | Xfer Serum | ウェーブテーブル + サンプル | $20-50 |
-| Massive X Expansions | NI Massive X | プリセット + ワンショット | $29-49 |
-| Vital Sound Design Pack | Matt Tytel Vital | 無料シンセ用プリセット | 無料-$30 |
-| Pigments Sound Library | Arturia Pigments | マルチエンジンプリセット | Pigments付属 |
-| Phase Plant Collections | Kilohearts Phase Plant | モジュラーシンセプリセット | $20-40 |
+| Serum Preset & Sample Pack | Xfer Serum | Wavetable + samples | $20-50 |
+| Massive X Expansions | NI Massive X | Presets + one-shots | $29-49 |
+| Vital Sound Design Pack | Matt Tytel Vital | Presets for free synth | Free-$30 |
+| Pigments Sound Library | Arturia Pigments | Multi-engine presets | Included with Pigments |
+| Phase Plant Collections | Kilohearts Phase Plant | Modular synth presets | $20-40 |
 
-**Serum サンプルパックの活用**:
+**Using Serum with Sample Packs**:
 
-Serumはサンプルパックとの連携が非常に優れたシンセサイザーである。
+Serum is a synthesizer with excellent sample pack integration.
 
 ```
-Serumでのサンプル活用方法:
+How to Use Samples with Serum:
 
-1. ウェーブテーブルインポート:
-   - WAVファイルをウェーブテーブルとして読み込み
-   - 独自のウェーブテーブルを作成可能
-   - サンプルの任意の部分をスキャン
+1. Wavetable Import:
+   - Load WAV files as wavetables
+   - Create custom wavetables
+   - Scan any part of the sample
 
-2. ノイズオシレーター:
-   - ノイズスロットにサンプルを読み込み
-   - ワンショットをノイズレイヤーとして使用
-   - ピッチトラッキング可能
+2. Noise Oscillator:
+   - Load samples into the noise slot
+   - Use one-shots as noise layers
+   - Pitch tracking available
 
-3. リサンプリング:
-   - Serum内でレンダリング
-   - 再度サンプルとしてエクスポート
-   - レイヤーを重ねて複雑なサウンド構築
+3. Resampling:
+   - Render within Serum
+   - Export again as samples
+   - Build complex sounds by stacking layers
 
-おすすめ無料Serumプリセットパック:
-- Cymatics - Serum Starter Pack（200+プリセット）
-- Virtual Riot - Serum Preset Pack（80+プリセット）
-- Surge Sounds - Free Serum Presets（50+プリセット）
+Recommended Free Serum Preset Packs:
+- Cymatics - Serum Starter Pack (200+ presets)
+- Virtual Riot - Serum Preset Pack (80+ presets)
+- Surge Sounds - Free Serum Presets (50+ presets)
 ```
 
-### FM/物理モデリングシンセサンプル
+### FM/Physical Modeling Synth Samples
 
-FM合成や物理モデリングベースのサンプルは、独特の金属的・有機的なサウンドを提供する。
+FM synthesis and physical modeling-based samples provide uniquely metallic and organic sounds.
 
-**代表的パック**:
-- **DX7 Classic Sounds**: Yamaha DX7の名機サウンドを高品質録音。エレピ、ベル、ブラスが秀逸
-- **FM Synthesis Collection**: FM合成特有の倍音豊かなサウンド集
-- **Chromaphone Sounds**: 物理モデリングによるマレット、弦楽器系サウンド
-- **Collision Textures**: 物理モデリングの衝突/共鳴サウンド
+**Representative Packs**:
+- **DX7 Classic Sounds**: High-quality recordings of the legendary Yamaha DX7 sounds. Excellent electric piano, bells, and brass
+- **FM Synthesis Collection**: A collection of harmonically rich sounds unique to FM synthesis
+- **Chromaphone Sounds**: Mallet and string-type sounds via physical modeling
+- **Collision Textures**: Collision/resonance sounds from physical modeling
 
 ---
 
-## ボーカルサンプル完全ガイド
+## Complete Guide to Vocal Samples
 
-ボーカルサンプルは楽曲に人間的な要素を加える重要な素材である。適切なボーカルサンプルの選択と加工は、トラックの印象を決定づける。
+Vocal samples are important materials that add a human element to tracks. Proper selection and processing of vocal samples can define the impression of a track.
 
-### ボーカルサンプルの種類
+### Types of Vocal Samples
 
-| 種類 | 内容 | 用途 | 代表的パック |
+| Type | Contents | Use | Representative Pack |
 |------|------|------|------------|
-| フルボーカル | 完全な歌唱フレーズ | メインボーカルトラック | Loopmasters Vocal Series |
-| ボーカルチョップ | 短くカットされた断片 | リズミカルなフック | Vengeance Vocal Essentials |
-| アドリブ/シャウト | 掛け声、叫び | アクセント、ドロップ | EDM Vocal Shouts |
-| 話し声/スピーチ | 朗読、セリフ | イントロ、間奏 | Spoken Word Collection |
-| ハーモニー | コーラスパート | バッキング | Harmony Vocals Pack |
-| ボコーダー加工済み | ロボティックボーカル | エレクトロニカ | Vocoder Essentials |
-| ウィスパー | ささやき声 | アンビエント、ASMR系 | Whisper Vocals |
+| Full Vocals | Complete sung phrases | Main vocal track | Loopmasters Vocal Series |
+| Vocal Chops | Short cut fragments | Rhythmic hooks | Vengeance Vocal Essentials |
+| Ad-libs/Shouts | Chants, shouts | Accents, drops | EDM Vocal Shouts |
+| Spoken Word/Speech | Narration, dialogue | Intros, interludes | Spoken Word Collection |
+| Harmonies | Chorus parts | Backing | Harmony Vocals Pack |
+| Vocoder-Processed | Robotic vocals | Electronica | Vocoder Essentials |
+| Whispers | Whispering voices | Ambient, ASMR-style | Whisper Vocals |
 
-### ボーカルサンプルの加工テクニック
+### Vocal Sample Processing Techniques
 
 ```
-基本的な加工チェーン:
+Basic Processing Chain:
 
-1. ピッチ補正:
-   - Melodyne/Auto-Tune で楽曲のキーに合わせる
-   - ケロケロエフェクト（ハードチューン）も意図的に使用可能
+1. Pitch Correction:
+   - Match the song's key with Melodyne/Auto-Tune
+   - Hard-tune effect (robotic tuning) can also be used intentionally
 
-2. タイミング調整:
-   - DAWのワープ/フレックスタイム機能
-   - ビートに合わせてタイミングを微調整
+2. Timing Adjustment:
+   - DAW warp/flex time functions
+   - Fine-tune timing to match the beat
 
-3. EQ処理:
-   - ハイパスフィルター（80-120Hz）で低域ノイズ除去
-   - 2-4kHz をブーストでプレゼンス強調
-   - 6-8kHz をブーストでエアー感追加
-   - ディエッサーで歯擦音を軽減
+3. EQ Processing:
+   - High-pass filter (80-120Hz) to remove low-frequency noise
+   - Boost 2-4kHz for presence
+   - Boost 6-8kHz for air
+   - De-esser to reduce sibilance
 
-4. コンプレッション:
-   - Ratio: 3:1〜6:1
-   - Attack: 5-20ms（歌唱スタイルに応じて調整）
+4. Compression:
+   - Ratio: 3:1 to 6:1
+   - Attack: 5-20ms (adjust according to singing style)
    - Release: 50-150ms
-   - 2段階コンプレッション（軽いコンプ → リミッター）
+   - Two-stage compression (light comp -> limiter)
 
-5. リバーブ/ディレイ:
-   - プレートリバーブ: 温かみのある響き
-   - ホールリバーブ: 空間の広がり
-   - ステレオディレイ: 奥行きと広がり
-   - ピンポンディレイ: リズミカルな反復
+5. Reverb/Delay:
+   - Plate Reverb: Warm resonance
+   - Hall Reverb: Spatial expansion
+   - Stereo Delay: Depth and width
+   - Ping Pong Delay: Rhythmic repetition
 
-6. クリエイティブ加工:
-   - グラニュラー: 粒子状に分解
-   - ハーフスピード: 幻想的な効果
-   - リバース: 逆再生で不思議な雰囲気
-   - フォルマントシフト: 性別/年齢の変更
-   - グリッチ: デジタルな切断効果
+6. Creative Processing:
+   - Granular: Decompose into particles
+   - Half Speed: Dreamy effect
+   - Reverse: Reverse playback for mysterious atmosphere
+   - Formant Shift: Change gender/age characteristics
+   - Glitch: Digital cut effects
 ```
 
-### ボーカルチョップの作り方
+### How to Create Vocal Chops
 
-ボーカルチョップはEDM、Future Bass、Trapなど幅広いジャンルで使用される技法である。
+Vocal chops are a technique used across a wide range of genres including EDM, Future Bass, and Trap.
 
 ```
-ボーカルチョップ制作手順:
+Vocal Chop Production Steps:
 
-Step 1: 素材の選択
-  - クリアで倍音豊かなボーカルを選ぶ
-  - ドライ（エフェクトなし）の素材が加工しやすい
-  - 母音が多い部分がメロディアスなチョップに向く
+Step 1: Selecting Material
+  - Choose clear vocals with rich harmonics
+  - Dry (no effects) material is easier to process
+  - Sections with many vowels are ideal for melodic chops
 
-Step 2: スライシング
-  - DAWのスライス機能でビートに合わせてカット
-  - Ableton: Simpler/Samplerにドラッグ→Slice
+Step 2: Slicing
+  - Cut to the beat using your DAW's slice function
+  - Ableton: Drag to Simpler/Sampler -> Slice
   - FL Studio: SliceX / Fruity Slicer
   - Logic: Quick Sampler
 
-Step 3: 並べ替え
-  - MIDIノートでチョップを自由に配置
-  - メロディを意識した並びにする
-  - リズムパターンを工夫
+Step 3: Rearranging
+  - Freely arrange chops with MIDI notes
+  - Arrange with melody in mind
+  - Design creative rhythm patterns
 
-Step 4: ピッチ調整
-  - 各チョップのピッチを楽曲のキーに合わせる
-  - ハーモニーを意識した音程配置
-  - オクターブ上下でバリエーション
+Step 4: Pitch Adjustment
+  - Match each chop's pitch to the song's key
+  - Place pitches with harmony in mind
+  - Create variations with octave shifts up/down
 
-Step 5: エフェクト処理
-  - リバーブでつなぎを滑らかに
-  - ディレイでリズミカルな効果
-  - コーラスで厚みを追加
-  - フェードイン/アウトでクリックノイズ除去
+Step 5: Effects Processing
+  - Reverb for smooth transitions
+  - Delay for rhythmic effects
+  - Chorus for added thickness
+  - Fade in/out to eliminate click noise
 ```
 
 ---
 
-## FXサンプル（効果音）ガイド
+## FX Samples (Sound Effects) Guide
 
-FXサンプルは楽曲のトランジション、ビルドアップ、ドロップなどの演出に不可欠な素材である。
+FX samples are essential materials for producing transitions, buildups, drops, and other production elements in a track.
 
-### FXサンプルのカテゴリ
+### FX Sample Categories
 
-| カテゴリ | 内容 | 用途 |
+| Category | Contents | Use |
 |---------|------|------|
-| ライザー（Riser） | 上昇する音響効果 | ビルドアップ、テンション構築 |
-| ダウンリフター（Downlifter） | 下降する音響効果 | ドロップ後のリリース |
-| インパクト（Impact） | 衝撃的な単発音 | ドロップの頭、セクション変化 |
-| スイープ（Sweep） | 帯域が移動するノイズ | トランジション |
-| テクスチャ（Texture） | 環境音、雰囲気音 | 背景、空間演出 |
-| グリッチ（Glitch） | デジタルノイズ、バグ音 | エレクトロニカ、実験的表現 |
-| フォーリー（Foley） | 生活音、環境音 | リアリティ、ローファイ感 |
-| シネマティック（Cinematic） | 映画的な効果音 | 壮大な演出、イントロ |
+| Riser | Rising sound effects | Buildups, tension building |
+| Downlifter | Descending sound effects | Release after drops |
+| Impact | Explosive one-shot sounds | Drop starts, section changes |
+| Sweep | Frequency-shifting noise | Transitions |
+| Texture | Environmental sounds, atmospheric sounds | Background, spatial production |
+| Glitch | Digital noise, bug sounds | Electronica, experimental expression |
+| Foley | Everyday sounds, environmental sounds | Realism, lo-fi feel |
+| Cinematic | Film-style sound effects | Grand production, intros |
 
-### ビルドアップ/ドロップ用FXサンプルの活用
+### Using FX Samples for Buildups and Drops
 
 ```
-ビルドアップ構成例（8〜16小節）:
+Buildup Structure Example (8-16 bars):
 
-小節1-4: 静かな導入
-  └─ ライザー開始（ホワイトノイズ系、低い音量から）
-  └─ テクスチャ追加（アンビエント系）
+Bars 1-4: Quiet Introduction
+  - Riser starts (white noise type, from low volume)
+  - Add texture (ambient type)
 
-小節5-8: テンション上昇
-  └─ ライザー音量アップ + ピッチ上昇
-  └─ スネアロール開始（4分→8分→16分）
-  └─ フィルタースイープ追加
+Bars 5-8: Rising Tension
+  - Riser volume up + pitch rising
+  - Snare roll starts (quarter -> eighth -> sixteenth notes)
+  - Add filter sweep
 
-小節9-12: クライマックス接近
-  └─ ライザーが最高潮に
-  └─ スネアロール加速（32分音符）
-  └─ ノイズスイープ全開
-  └─ EQ のハイカットを徐々に解除
+Bars 9-12: Approaching Climax
+  - Riser reaches peak
+  - Snare roll accelerates (32nd notes)
+  - Noise sweep fully open
+  - Gradually release EQ high-cut
 
-小節13-16: ブレイク/サイレンス
-  └─ 最後の1-2拍で全音停止
-  └─ リバーステール（逆再生シンバル）
-  └─ サブドロップ（低音インパクト）
+Bars 13-16: Break/Silence
+  - All sound stops in the last 1-2 beats
+  - Reverse tail (reversed cymbal)
+  - Sub drop (low-frequency impact)
 
-ドロップ:
-  └─ インパクトサンプル（大砲、爆発系）
-  └─ ダウンリフター開始
-  └─ メインリフ/ベースドロップ
+Drop:
+  - Impact sample (cannon, explosion type)
+  - Downlifter starts
+  - Main riff/bass drop
 ```
 
-### おすすめFXサンプルパック
+### Recommended FX Sample Packs
 
-| パック名 | メーカー | 内容 | 価格 |
+| Pack Name | Maker | Contents | Price |
 |---------|---------|------|------|
-| EDM FX Essentials | Vengeance | EDM用FX総合 | $49 |
-| Cinematic FX | Boom Library | 映画的効果音 | $99-199 |
-| Glitch FX | Loopmasters | グリッチ/デジタルFX | $29.95 |
-| Foley Collection | Splice | フォーリー素材 | 個別DL |
-| Transition FX | Cymatics | トランジション特化 | $29.95 |
-| White Noise Risers | Sample Magic | ライザー特化 | $19.95 |
-| Impact Collection | Black Octopus | インパクト特化 | $24.95 |
+| EDM FX Essentials | Vengeance | Comprehensive EDM FX | $49 |
+| Cinematic FX | Boom Library | Cinematic sound effects | $99-199 |
+| Glitch FX | Loopmasters | Glitch/digital FX | $29.95 |
+| Foley Collection | Splice | Foley material | Individual DL |
+| Transition FX | Cymatics | Transition specialized | $29.95 |
+| White Noise Risers | Sample Magic | Riser specialized | $19.95 |
+| Impact Collection | Black Octopus | Impact specialized | $24.95 |
 
 ---
 
-## ループパック活用ガイド
+## Loop Pack Utilization Guide
 
-ループサンプルは一定の小節数（通常1〜8小節）で完結する音楽フレーズであり、楽曲のベースとして、またアレンジの素材として広く活用される。
+Loop samples are musical phrases that complete within a set number of bars (usually 1-8 bars), widely used as the base of a track and as arrangement material.
 
-### ループの種類と特徴
+### Types and Characteristics of Loops
 
-**ドラムループ**:
-
-```
-ドラムループの種類:
-1. フルドラムループ: キック+スネア+ハイハット等の完成パターン
-   用途: 楽曲のベース、デモ制作
-   注意: ミックスの自由度は低い
-
-2. トップループ: ハイハット+パーカッションのみ
-   用途: キック/スネアは別途用意し、トップだけ追加
-   利点: ミックスの柔軟性が高い
-
-3. パーカッションループ: コンガ、ボンゴ、シェイカー等
-   用途: リズムにアクセントを追加
-   利点: ジャンルの味付けに最適
-
-4. ブレイクビーツ: 旧来のドラムパターンの切り貼り
-   用途: DnB、Hip-Hop、Jungle
-   利点: 独特のグルーヴ感
-```
-
-**メロディ/コードループ**:
+**Drum Loops**:
 
 ```
-メロディループの種類:
-1. ピアノループ: コード進行やメロディフレーズ
-   キー表示: C Major, Am 等が標準
-   BPM: 固定（DAWでストレッチ可能）
+Types of Drum Loops:
+1. Full Drum Loop: Complete patterns with kick + snare + hi-hat, etc.
+   Use: Track base, demo production
+   Note: Limited mixing flexibility
 
-2. シンセループ: パッド、アルペジオ、リード
-   特徴: エフェクト処理済みが多い
-   用途: 楽曲のメイン要素やレイヤー
+2. Top Loop: Hi-hat + percussion only
+   Use: Provide kick/snare separately, add tops only
+   Advantage: High mixing flexibility
 
-3. ギターループ: クリーン、ディストーション各種
-   特徴: 生楽器の質感が重要
-   用途: ハウス、ポップ、ローファイ
+3. Percussion Loop: Conga, bongo, shaker, etc.
+   Use: Add accents to rhythm
+   Advantage: Perfect for genre flavoring
 
-4. ストリングスループ: バイオリン、チェロ等の弦楽器
-   特徴: エモーショナルな雰囲気作り
-   用途: トランス、プログレッシブ、アンビエント
+4. Breakbeats: Cut-and-paste of classic drum patterns
+   Use: DnB, Hip-Hop, Jungle
+   Advantage: Unique groove feel
 ```
 
-**ベースループ**:
+**Melody/Chord Loops**:
 
 ```
-ベースループの種類:
-1. シンセベース: アナログ/デジタルシンセのベースライン
-2. エレキベース: 実際のベースギター演奏
-3. サブベース: 超低域に特化した低音
-4. ウォブルベース: LFOで変調されたダブステップ系
-5. アシッドベース: TB-303スタイルのレゾナントベース
+Types of Melody Loops:
+1. Piano Loop: Chord progressions and melody phrases
+   Key Display: C Major, Am, etc. is standard
+   BPM: Fixed (stretchable in DAW)
 
-選択時の注意点:
-- キー（調）の確認: 他のループとキーを合わせる
-- BPMの確認: テンポが合わないとストレッチで音質劣化
-- ルート音の確認: コード進行との整合性
+2. Synth Loop: Pads, arpeggios, leads
+   Feature: Often pre-processed with effects
+   Use: Main element or layer of a track
+
+3. Guitar Loop: Clean, distortion, and various types
+   Feature: Live instrument texture is important
+   Use: House, pop, lo-fi
+
+4. Strings Loop: Violin, cello, and other string instruments
+   Feature: Creates emotional atmosphere
+   Use: Trance, progressive, ambient
 ```
 
-### ループの合わせ方とキーマッチング
-
-楽曲制作でループを組み合わせる際に最も重要なのが、キー（調）とBPM（テンポ）の一致である。
+**Bass Loops**:
 
 ```
-キーマッチングの基本:
+Types of Bass Loops:
+1. Synth Bass: Analog/digital synth basslines
+2. Electric Bass: Actual bass guitar performance
+3. Sub Bass: Ultra-low frequency specialized bass
+4. Wobble Bass: LFO-modulated dubstep-style bass
+5. Acid Bass: TB-303-style resonant bass
 
-同じキーのループを使う:
-  例: Cm のピアノループ + Cm のベースループ = 調和
+Selection Notes:
+- Key Verification: Match the key with other loops
+- BPM Verification: Mismatched tempo causes quality loss from stretching
+- Root Note Verification: Consistency with chord progressions
+```
 
-関係調のループを組み合わせる:
-  平行調: Cm ↔ Eb Major（同じ音階を共有）
-  属調: Cm → Gm（5度上の調）
-  下属調: Cm → Fm（4度上の調）
+### Combining Loops and Key Matching
 
-キー変更テクニック:
-  - DAWのピッチシフト機能で半音単位で調整
-  - サンプラーでのトランスポーズ
-  - MIDIループなら音源側でキー変更
+The most important factors when combining loops in music production are matching the key and BPM (tempo).
 
-BPMマッチング:
-  - DAWのタイムストレッチ（±10%程度が実用範囲）
-  - エラスティックオーディオ/ワープモード
-  - 大幅なBPM変更は音質劣化に注意
-  - ハーフタイム/ダブルタイムの関係を活用
-    （例: 140BPMのDnBループを70BPMのHip-Hopで使う）
+```
+Key Matching Basics:
+
+Use loops in the same key:
+  Example: Cm piano loop + Cm bass loop = harmony
+
+Combine loops in related keys:
+  Relative Key: Cm <-> Eb Major (share the same scale)
+  Dominant Key: Cm -> Gm (key a 5th above)
+  Subdominant Key: Cm -> Fm (key a 4th above)
+
+Key Change Techniques:
+  - DAW pitch shift function for semitone adjustment
+  - Transpose in the sampler
+  - For MIDI loops, change key on the instrument side
+
+BPM Matching:
+  - DAW time stretch (approximately +/-10% is the practical range)
+  - Elastic audio/warp mode
+  - Be cautious of quality loss with large BPM changes
+  - Utilize half-time/double-time relationships
+    (Example: Use a 140BPM DnB loop in 70BPM Hip-Hop)
 ```
 
 ---
 
-## ワンショット集の選び方と活用
+## How to Choose and Use One-Shot Collections
 
-ワンショットサンプルは単発の音声ファイルであり、サンプラーやドラムマシンに読み込んで使用する最も基本的なサンプル形態である。
+One-shot samples are single-trigger audio files loaded into samplers and drum machines, making them the most basic sample format.
 
-### ワンショットの主要カテゴリ
+### Main Categories of One-Shots
 
-**ドラムワンショット**:
+**Drum One-Shots**:
 
-| 種類 | バリエーション例 | 選び方のポイント |
+| Type | Variation Examples | Selection Tips |
 |------|----------------|----------------|
-| キック | アコースティック、エレクトロニック、808、909、合成 | ジャンルに合った低域特性 |
-| スネア | アコースティック、クラップ、リムショット、電子 | 抜けと厚みのバランス |
-| ハイハット | クローズド、オープン、ペダル、ライド | 金属感とデケイ長 |
-| タム | ハイ、ミッド、ロー、フロア | フィル用のバリエーション |
-| シンバル | クラッシュ、ライド、チャイナ、スプラッシュ | 長さと明るさ |
-| パーカッション | コンガ、ボンゴ、シェイカー、タンバリン | エスニック感、アタック |
+| Kick | Acoustic, electronic, 808, 909, synthesized | Low-frequency characteristics suited to genre |
+| Snare | Acoustic, clap, rimshot, electronic | Balance of cut-through and thickness |
+| Hi-Hat | Closed, open, pedal, ride | Metallic quality and decay length |
+| Tom | High, mid, low, floor | Variations for fills |
+| Cymbal | Crash, ride, China, splash | Length and brightness |
+| Percussion | Conga, bongo, shaker, tambourine | Ethnic feel, attack |
 
-**楽器ワンショット**:
+**Instrument One-Shots**:
 
-| 種類 | 内容 | 用途 |
+| Type | Contents | Use |
 |------|------|------|
-| ピアノヒット | 単一のピアノコード/ノート | ハウス系のスタブ |
-| オーケストラヒット | オーケストラの短いアクセント | インパクト、80年代サウンド |
-| ブラスヒット | 管楽器の短い吹き | ファンク、ソウル系アクセント |
-| ギタースタブ | カッティングやミュート音 | ファンク、ハウス |
-| シンセスタブ | シンセの短いコード | EDM、トランス |
+| Piano Hit | Single piano chord/note | House-style stabs |
+| Orchestra Hit | Short orchestral accent | Impact, 80s sound |
+| Brass Hit | Short brass stab | Funk, soul accents |
+| Guitar Stab | Cutting or muted guitar sounds | Funk, house |
+| Synth Stab | Short synth chord | EDM, trance |
 
-### サンプラーでのワンショット活用
+### Using One-Shots in Samplers
 
 ```
-Ableton Simplerでの基本設定:
+Basic Setup in Ableton Simpler:
 
-1. ワンショットモード:
-   - Mode: Classic → One-Shot
-   - サンプルを最後まで再生
-   - MIDIノートの長さに関係なく全体を再生
+1. One-Shot Mode:
+   - Mode: Classic -> One-Shot
+   - Plays sample to the end
+   - Plays the entire sample regardless of MIDI note length
 
-2. ループモード:
-   - Mode: Classic → Loop
-   - サンプルの一部をループ再生
-   - パッドサウンドの持続に使用
+2. Loop Mode:
+   - Mode: Classic -> Loop
+   - Loop playback of a portion of the sample
+   - Used for sustaining pad sounds
 
-3. スライスモード:
+3. Slice Mode:
    - Mode: Slice
-   - サンプルを自動でスライス
-   - 各スライスを別々のMIDIノートに割当
+   - Automatically slices the sample
+   - Assigns each slice to a separate MIDI note
 
-4. テクスチャモード:
+4. Texture Mode:
    - Mode: Texture
-   - グラニュラー的な再生
-   - 実験的なサウンドデザイン
+   - Granular-style playback
+   - Experimental sound design
 
-重要パラメータ:
-- Attack: 0ms（パーカッション） / 5-50ms（パッド系）
-- Decay: サンプルに応じて調整
-- Sustain: ワンショットは通常0
-- Release: 10-100ms（クリックノイズ防止）
-- Filter: ローパスでハイカット、ハイパスでローカット
-- LFO: フィルターやピッチに変調を追加
+Key Parameters:
+- Attack: 0ms (percussion) / 5-50ms (pad-type)
+- Decay: Adjust according to sample
+- Sustain: Usually 0 for one-shots
+- Release: 10-100ms (to prevent click noise)
+- Filter: Low-pass for high-cut, high-pass for low-cut
+- LFO: Add modulation to filter or pitch
 ```
 
 ---
 
-## 無料サンプルパック厳選リスト
+## Curated List of Free Sample Packs
 
-質の高い無料サンプルパックを厳選してリストアップする。初心者がまず入手すべきパックから、プロも愛用する高品質パックまで幅広くカバーする。
+A curated list of high-quality free sample packs. Covering everything from packs beginners should get first to high-quality packs that professionals also use.
 
-### 完全無料の高品質パック
+### Completely Free High-Quality Packs
 
-| パック名 | 提供元 | 内容 | サンプル数 |
+| Pack Name | Provider | Contents | Sample Count |
 |---------|--------|------|-----------|
-| Cymatics Starter Pack | Cymatics | マルチジャンル総合 | 500+ |
-| LABS Collection | Spitfire Audio | オーケストラ/環境音 | 各50-200 |
-| 99 Sounds | 99Sounds.org | 効果音/環境音 | 各50-100 |
-| Bedroom Producers Blog | BPB | シンセ/ドラム | 各30-100 |
-| SampleRadar | MusicRadar | ジャンル別パック | 各50-300 |
-| Goldbaby Free Stuff | Goldbaby | ヴィンテージドラムマシン | 各20-50 |
-| Wave Alchemy Free | Wave Alchemy | ドラム/FX | 各30-80 |
-| ADSR Free Packs | ADSR | 各種サンプル | 各20-100 |
+| Cymatics Starter Pack | Cymatics | Multi-genre comprehensive | 500+ |
+| LABS Collection | Spitfire Audio | Orchestral/environmental sounds | 50-200 each |
+| 99 Sounds | 99Sounds.org | Sound effects/environmental sounds | 50-100 each |
+| Bedroom Producers Blog | BPB | Synth/drums | 30-100 each |
+| SampleRadar | MusicRadar | Genre-specific packs | 50-300 each |
+| Goldbaby Free Stuff | Goldbaby | Vintage drum machines | 20-50 each |
+| Wave Alchemy Free | Wave Alchemy | Drums/FX | 30-80 each |
+| ADSR Free Packs | ADSR | Various samples | 20-100 each |
 
-### DAW付属ライブラリの活用
+### Utilizing DAW-Included Libraries
 
-各DAWに付属するライブラリは、実はプロ品質の素材が豊富に含まれている。
+The libraries included with each DAW actually contain an abundance of professional-quality material.
 
 ```
-DAW別付属ライブラリ比較:
+DAW Library Comparison:
 
 Ableton Live Suite:
-  - Core Library: 5,000+サンプル
-  - Drum Machines: 909/808/707等の定番マシン
-  - Orchestral Instruments: 基本的なオーケストラ音源
-  - Electric Keyboards: エレピ、クラビ等
-  - Session Drums: マルチマイク収録のドラムキット
-  - サイズ: 約70GB
+  - Core Library: 5,000+ samples
+  - Drum Machines: Classic machines like 909/808/707
+  - Orchestral Instruments: Basic orchestral instruments
+  - Electric Keyboards: Electric piano, clavinet, etc.
+  - Session Drums: Multi-mic recorded drum kits
+  - Size: Approximately 70GB
 
 Logic Pro:
-  - Apple Loops: 20,000+ループ
-  - Drummer: AIドラマー機能付き
-  - Alchemy: 膨大なシンセライブラリ
-  - 追加コンテンツ: 約72GB
-  - サイズ: 約72GB（フルインストール）
+  - Apple Loops: 20,000+ loops
+  - Drummer: AI drummer feature included
+  - Alchemy: Extensive synth library
+  - Additional Content: Approximately 72GB
+  - Size: Approximately 72GB (full install)
 
 FL Studio:
   - Built-in Samples: 3,000+
-  - DirectWave: マルチサンプル楽器
-  - Fruity DX10: FM合成ドラム
-  - BooBass/3xOsc: 基本シンセ
-  - サイズ: 約2GB
+  - DirectWave: Multisampled instruments
+  - Fruity DX10: FM synthesis drums
+  - BooBass/3xOsc: Basic synths
+  - Size: Approximately 2GB
 
 Studio One:
-  - Presence XT: マルチサンプル楽器
-  - Mai Tai: アナログモデリングシンセ
-  - Impact XT: ドラムサンプラー
-  - サイズ: 約15GB（Professional）
+  - Presence XT: Multisampled instruments
+  - Mai Tai: Analog modeling synth
+  - Impact XT: Drum sampler
+  - Size: Approximately 15GB (Professional)
 ```
 
-### 無料パック入手時の注意点
+### Important Notes When Obtaining Free Packs
 
 ```
-安全な無料パック入手のチェックリスト:
+Safety Checklist for Free Pack Acquisition:
 
-1. 信頼できるソースか確認
-   ✓ 公式サイトからのダウンロード
-   ✓ 大手音楽制作サイトからの配布
-   ✗ 怪しいファイル共有サイト
-   ✗ 著作権不明のアップロード
+1. Verify the source is trustworthy
+   OK: Download from official sites
+   OK: Distribution from major music production sites
+   NG: Suspicious file-sharing sites
+   NG: Uploads with unclear copyright
 
-2. ライセンスの確認
-   ✓ 商用利用可能かどうか
-   ✓ クレジット表記の必要性
-   ✓ 再配布の可否
-   ✓ サンプルの改変が許可されているか
+2. Verify the license
+   OK: Whether commercial use is allowed
+   OK: Whether credit attribution is required
+   OK: Whether redistribution is permitted
+   OK: Whether sample modification is allowed
 
-3. ファイル形式と品質
-   ✓ WAV/AIFF形式（高品質）
-   ✗ MP3のみ（制作品質に不十分）
-   ✓ 24bit以上推奨
-   ✓ 44.1kHz以上のサンプルレート
+3. File format and quality
+   OK: WAV/AIFF format (high quality)
+   NG: MP3 only (insufficient for production quality)
+   OK: 24bit or higher recommended
+   OK: 44.1kHz or higher sample rate
 
-4. マルウェア対策
-   ✓ ダウンロード前にウイルスチェック
-   ✓ 不要な.exeファイルが含まれていないか確認
-   ✓ ZIPファイルの中身を確認してから展開
-```
-
----
-
-## サンプルパック活用術 - プロの制作テクニック
-
-サンプルパックをそのまま使うだけでは他のプロデューサーと同じサウンドになってしまう。ここでは、サンプルを自分だけのサウンドに変える実践的なテクニックを解説する。
-
-### サンプルの加工・変換テクニック
-
-**ピッチシフト & タイムストレッチ**:
-
-```
-基本的なピッチ操作:
-- 半音単位のトランスポーズ: キー合わせの基本
-- オクターブ上げ: 明るく軽い印象に
-- オクターブ下げ: 重く暗い印象に
-- 微小ピッチシフト（±5-20cent）: コーラス効果、デチューン
-
-タイムストレッチのモード:
-- ビート: ドラムループに最適。トランジェントを維持
-- トーン: メロディ/ボーカルに最適。ピッチを維持
-- テクスチャ: パッド/アンビエンスに最適。グラニュラー的
-- リピッチ: テープ的な速度変化。ピッチも変わる
-
-クリエイティブな活用:
-- 極端なストレッチ（200%以上）でアンビエントテクスチャ作成
-- ハーフスピード処理で幻想的なローファイ感
-- ダブルスピードでエネルギッシュな雰囲気
-```
-
-**リバース処理**:
-
-```
-リバースの活用例:
-1. リバースシンバル: ビルドアップの定番
-2. リバースボーカル: 神秘的な雰囲気
-3. リバースピアノ: アンビエントテクスチャ
-4. リバースキック: サブドロップの代替
-5. リバースFX: トランジション素材
-
-リバース + エフェクトチェーン:
-  元サンプル → リバース → リバーブ100%wet → 再リバース
-  = 「リバースリバーブ」効果（プリバーブ）
-```
-
-**グラニュラー処理**:
-
-```
-グラニュラーシンセシスでのサンプル変換:
-
-基本パラメータ:
-- Grain Size: 粒子の大きさ（1ms〜500ms）
-  小さい → ノイズ的、テクスチャ
-  大きい → 原音に近い、認識可能
-
-- Grain Density: 粒子の密度
-  低い → 疎ら、パルス的
-  高い → 密、滑らか
-
-- Position: 読み取り位置
-  固定 → ドローン的サウンド
-  スキャン → テクスチャが変化
-
-- Random: ランダム度合い
-  低い → 安定、予測可能
-  高い → 有機的、不確定
-
-おすすめグラニュラーツール:
-- Ableton Granulator II（Max for Live、無料）
-- Output Portal（$149）
-- Arturia Efx Fragments（$99）
-- Paul Stretch（無料、オープンソース）
-```
-
-### レイヤリングの応用テクニック
-
-```
-サンプルレイヤリングの黄金ルール:
-
-1. 周波数帯域を分担する
-   - 各レイヤーが異なる周波数帯を担当
-   - EQで重複する帯域をカット
-   - ローエンドの衝突を特に注意
-
-2. 位相（フェーズ）を確認する
-   - レイヤー間の位相干渉をチェック
-   - 波形を拡大して開始位置を揃える
-   - 位相反転ボタンでテスト
-
-3. 音量バランスを取る
-   - メインとなるレイヤーを決める
-   - サブレイヤーは控えめに
-   - ソロで聴いた時と合わせた時で印象が変わる
-
-4. グルーを追加する
-   - バスコンプレッションで一体感
-   - 共通のリバーブで空間を統一
-   - サチュレーションで倍音を追加
+4. Malware protection
+   OK: Virus check before downloading
+   OK: Confirm no unnecessary .exe files are included
+   OK: Check the contents of ZIP files before extracting
 ```
 
 ---
 
-## オリジナルサンプル作成ガイド
+## Sample Pack Utilization Techniques - Professional Production Methods
 
-既存のサンプルパックだけでなく、自分だけのオリジナルサンプルを作成することで、唯一無二のサウンドを獲得できる。
+Simply using sample packs as-is will result in the same sound as other producers. Here we explain practical techniques for transforming samples into your own unique sound.
 
-### フィールドレコーディング
+### Sample Processing and Transformation Techniques
 
-```
-フィールドレコーディングの基本:
-
-必要機材:
-- ハンディレコーダー（Zoom H5/H6、Tascam DR-40X等）
-- ステレオマイク（内蔵または外付け）
-- ウインドスクリーン（屋外録音時必須）
-- ヘッドフォン（モニタリング用）
-- SDカード（高速タイプ推奨）
-
-録音設定:
-- フォーマット: WAV 24bit/96kHz推奨
-- ゲイン: ピークが-12dB程度
-- リミッター: ONにしておく（保険として）
-
-録音テクニック:
-1. 環境音: 都市、自然、工場等の雰囲気
-2. 打撃音: 金属、木、プラスチック等を叩く
-3. 摩擦音: 表面をこする、引っかく
-4. 液体音: 水滴、注ぐ、泡立つ
-5. 機械音: モーター、ギア、電気ノイズ
-
-おすすめ録音スポット:
-- 地下鉄駅: 反響と環境音が豊富
-- 工事現場: 金属打撃音の宝庫
-- 公園: 自然音、風、鳥の声
-- キッチン: 調理器具で多彩な打撃音
-- 廃墟/倉庫: ユニークなリバーブ空間
-```
-
-### シンセサイザーでのサンプル作成
+**Pitch Shift & Time Stretch**:
 
 ```
-オリジナルドラムサンプル合成:
+Basic Pitch Operations:
+- Semitone Transposition: The basics of key matching
+- Octave Up: Creates a bright, light impression
+- Octave Down: Creates a heavy, dark impression
+- Micro Pitch Shift (+/-5-20 cents): Chorus effect, detune
 
-キック合成:
-1. オシレーター: サイン波
-2. ピッチエンベロープ: 高い音→低い音に急速ディケイ
-   開始: 300-800Hz → 終了: 30-60Hz
-   ディケイタイム: 20-100ms
-3. アンプエンベロープ: アタック0ms、ディケイ200-500ms
-4. サチュレーション: 倍音追加で存在感UP
-5. EQ: 不要な超低域（20Hz以下）をカット
+Time Stretch Modes:
+- Beats: Ideal for drum loops. Maintains transients
+- Tones: Ideal for melodies/vocals. Maintains pitch
+- Texture: Ideal for pads/ambience. Granular-style
+- Re-Pitch: Tape-style speed change. Pitch also changes
 
-スネア合成:
-1. オシレーター1: サイン波またはトライアングル波（ボディ）
-   ピッチ: 150-300Hz
-2. ノイズオシレーター: ホワイトノイズ（スナッピー）
-   フィルター: バンドパス 4-8kHz
-3. アンプエンベロープ: アタック0ms、ディケイ100-200ms
-4. ピッチエンベロープ: 微小な下降（パンチ感）
-
-ハイハット合成:
-1. オシレーター: ノイズ（ホワイトまたはメタリック）
-2. フィルター: ハイパス 6-10kHz
-3. アンプエンベロープ:
-   クローズド: ディケイ20-50ms
-   オープン: ディケイ200-500ms
-4. リングモジュレーション: 金属感追加
+Creative Applications:
+- Extreme stretching (200%+) to create ambient textures
+- Half-speed processing for a dreamy lo-fi feel
+- Double speed for energetic atmosphere
 ```
 
-### リサンプリング技法
-
-リサンプリングとは、自分が出力した音を再度録音（バウンス）して新たな素材として使用する手法である。
+**Reverse Processing**:
 
 ```
-リサンプリングのワークフロー:
+Reverse Application Examples:
+1. Reverse Cymbal: A buildup classic
+2. Reverse Vocals: Mysterious atmosphere
+3. Reverse Piano: Ambient texture
+4. Reverse Kick: Alternative to sub drop
+5. Reverse FX: Transition material
 
-基本手順:
-1. シンセやサンプラーでサウンドを作成
-2. エフェクトを通してリアルタイムで操作
-3. DAW内でバウンス（録音）
-4. 録音したオーディオを新たなサンプルとして編集
-5. 必要に応じてさらにエフェクト → 再バウンス
+Reverse + Effect Chain:
+  Original sample -> Reverse -> Reverb 100% wet -> Reverse again
+  = "Reverse Reverb" effect (pre-verb)
+```
 
-活用例:
-- ベースデザイン: Serumでウォブルベース→バウンス→スライス
-- ドラムデザイン: 複数レイヤー→グループバウンス→ワンショット化
-- パッド作成: ギターサンプル→グラニュラー→リバーブ→バウンス
-- FX作成: ボーカル→グリッチ処理→バウンス→トランジション素材
+**Granular Processing**:
+
+```
+Sample Transformation with Granular Synthesis:
+
+Basic Parameters:
+- Grain Size: Particle size (1ms-500ms)
+  Small -> Noise-like, textural
+  Large -> Close to original, recognizable
+
+- Grain Density: Particle density
+  Low -> Sparse, pulse-like
+  High -> Dense, smooth
+
+- Position: Read position
+  Fixed -> Drone-like sound
+  Scan -> Texture changes
+
+- Random: Degree of randomness
+  Low -> Stable, predictable
+  High -> Organic, unpredictable
+
+Recommended Granular Tools:
+- Ableton Granulator II (Max for Live, free)
+- Output Portal ($149)
+- Arturia Efx Fragments ($99)
+- Paul Stretch (free, open source)
+```
+
+### Advanced Layering Techniques
+
+```
+Golden Rules of Sample Layering:
+
+1. Divide frequency ranges
+   - Each layer handles a different frequency band
+   - Cut overlapping bands with EQ
+   - Pay special attention to low-end collisions
+
+2. Check phase
+   - Check phase interference between layers
+   - Zoom into waveforms and align start positions
+   - Test with phase invert button
+
+3. Balance volumes
+   - Determine the main layer
+   - Keep sub-layers subtle
+   - The impression changes between soloed and combined
+
+4. Add glue
+   - Bus compression for cohesion
+   - Shared reverb to unify the space
+   - Saturation to add harmonics
 ```
 
 ---
 
-## サンプルパックのライセンスと著作権
+## Original Sample Creation Guide
 
-サンプルパックを使用する際のライセンスと著作権に関する理解は、プロフェッショナルな音楽制作者として不可欠である。
+By creating your own original samples rather than relying solely on existing sample packs, you can obtain a truly unique sound.
 
-### ライセンスの種類と注意点
+### Field Recording
 
 ```
-ライセンス種別の詳細比較:
+Field Recording Basics:
 
-1. Royalty-Free（ロイヤリティフリー）
-   ✓ 一度の購入で永続使用可能
-   ✓ 商用楽曲に使用可能
-   ✓ ロイヤリティ支払い不要
-   ✗ 独占使用権はない（他の人も同じサンプルを使用可能）
-   ✗ サンプル単体での再販は不可
-   代表例: Splice, Loopmasters の大半
+Required Equipment:
+- Handheld recorder (Zoom H5/H6, Tascam DR-40X, etc.)
+- Stereo microphone (built-in or external)
+- Windscreen (essential for outdoor recording)
+- Headphones (for monitoring)
+- SD card (high-speed type recommended)
+
+Recording Settings:
+- Format: WAV 24bit/96kHz recommended
+- Gain: Peaks at approximately -12dB
+- Limiter: Keep ON (as insurance)
+
+Recording Techniques:
+1. Environmental sounds: City, nature, factory atmospheres
+2. Impact sounds: Hitting metal, wood, plastic, etc.
+3. Friction sounds: Rubbing, scratching surfaces
+4. Liquid sounds: Water drops, pouring, bubbling
+5. Mechanical sounds: Motors, gears, electrical noise
+
+Recommended Recording Locations:
+- Subway stations: Rich in reverb and ambient sound
+- Construction sites: A treasure trove of metallic impact sounds
+- Parks: Nature sounds, wind, birdsong
+- Kitchen: Diverse impact sounds from cooking utensils
+- Abandoned buildings/Warehouses: Unique reverb spaces
+```
+
+### Creating Samples with Synthesizers
+
+```
+Original Drum Sample Synthesis:
+
+Kick Synthesis:
+1. Oscillator: Sine wave
+2. Pitch Envelope: Rapid decay from high to low pitch
+   Start: 300-800Hz -> End: 30-60Hz
+   Decay Time: 20-100ms
+3. Amp Envelope: Attack 0ms, Decay 200-500ms
+4. Saturation: Add harmonics for more presence
+5. EQ: Cut unnecessary ultra-low frequencies (below 20Hz)
+
+Snare Synthesis:
+1. Oscillator 1: Sine wave or triangle wave (body)
+   Pitch: 150-300Hz
+2. Noise Oscillator: White noise (snappy)
+   Filter: Bandpass 4-8kHz
+3. Amp Envelope: Attack 0ms, Decay 100-200ms
+4. Pitch Envelope: Slight downward sweep (for punch)
+
+Hi-Hat Synthesis:
+1. Oscillator: Noise (white or metallic)
+2. Filter: High-pass 6-10kHz
+3. Amp Envelope:
+   Closed: Decay 20-50ms
+   Open: Decay 200-500ms
+4. Ring Modulation: Add metallic character
+```
+
+### Resampling Techniques
+
+Resampling is the technique of re-recording (bouncing) your own output to use as new material.
+
+```
+Resampling Workflow:
+
+Basic Steps:
+1. Create a sound with a synth or sampler
+2. Process through effects with real-time manipulation
+3. Bounce (record) within the DAW
+4. Edit the recorded audio as a new sample
+5. Apply more effects and re-bounce as needed
+
+Application Examples:
+- Bass Design: Create wobble bass in Serum -> Bounce -> Slice
+- Drum Design: Multiple layers -> Group bounce -> Convert to one-shots
+- Pad Creation: Guitar sample -> Granular -> Reverb -> Bounce
+- FX Creation: Vocal -> Glitch processing -> Bounce -> Transition material
+```
+
+---
+
+## Sample Pack Licensing and Copyright
+
+Understanding the licensing and copyright of sample packs is essential for professional music producers.
+
+### Types of Licenses and Important Notes
+
+```
+Detailed License Type Comparison:
+
+1. Royalty-Free
+   OK: Perpetual use after one-time purchase
+   OK: Can be used in commercial tracks
+   OK: No royalty payments required
+   NG: No exclusive usage rights (others can use the same samples)
+   NG: Cannot resell samples individually
+   Examples: Most of Splice, Loopmasters
 
 2. Creative Commons
-   CC0: パブリックドメイン。完全に自由
-   CC-BY: 帰属表示必須。作者名をクレジット
-   CC-BY-SA: 帰属表示 + 同一ライセンスで共有
-   CC-BY-NC: 帰属表示 + 非商用のみ
-   CC-BY-NC-SA: 帰属表示 + 非商用 + 同一ライセンス
-   CC-BY-ND: 帰属表示 + 改変禁止
+   CC0: Public domain. Completely free
+   CC-BY: Attribution required. Credit the creator
+   CC-BY-SA: Attribution + share under the same license
+   CC-BY-NC: Attribution + non-commercial only
+   CC-BY-NC-SA: Attribution + non-commercial + same license
+   CC-BY-ND: Attribution + no derivatives
 
-3. Exclusive（独占ライセンス）
-   ✓ 購入者のみが使用可能
-   ✓ 他のプロデューサーと被らない
-   ✗ 高価格
-   ✗ 入手困難な場合がある
+3. Exclusive
+   OK: Only the purchaser can use it
+   OK: No overlap with other producers
+   NG: Expensive
+   NG: May be difficult to obtain
 
-4. Subscription（サブスクリプション）
-   ✓ 月額固定で大量アクセス
-   ✓ 解約後もDL済みサンプルは使用可能（多くの場合）
-   ✗ 長期的にはコストが嵩む可能性
-   ✗ サービス終了リスク
+4. Subscription
+   OK: Massive access for a fixed monthly fee
+   OK: Downloaded samples remain usable after cancellation (in most cases)
+   NG: Costs may accumulate over the long term
+   NG: Service discontinuation risk
 ```
 
-### 法的に注意すべきケース
+### Legally Notable Cases
 
 ```
-トラブルを避けるために:
+To Avoid Trouble:
 
-1. サンプルの再配布禁止
-   - 購入したサンプルをそのまま第三者に渡すのはNG
-   - サンプルパックとしての再販も禁止
-   - 楽曲の一部として使う分には問題なし
+1. Redistribution of Samples is Prohibited
+   - Sharing purchased samples directly with third parties is not allowed
+   - Reselling as a sample pack is also prohibited
+   - Using as part of a track is acceptable
 
-2. Content IDとの関係
-   - YouTube等のContent IDシステムでフラグされる可能性
-   - 特にループをそのまま使用した場合にリスク高
-   - 対策: サンプルを加工して使用する
+2. Relationship with Content ID
+   - May be flagged by Content ID systems on YouTube, etc.
+   - Higher risk when using loops without modification
+   - Solution: Process samples before use
 
-3. サンプルクリアランス
-   - 有名楽曲からのサンプリングは別途クリアランスが必要
-   - サンプルパックのサンプルとは異なる法的扱い
-   - レコードからのサンプリングは特に注意
+3. Sample Clearance
+   - Sampling from famous songs requires separate clearance
+   - Different legal treatment from sample pack samples
+   - Sampling from records requires particular caution
 
-4. ゴーストプロデューサーの場合
-   - サンプルパックのライセンスが譲渡可能か確認
-   - クライアントへの楽曲納品時のライセンス問題
+4. For Ghost Producers
+   - Verify whether the sample pack license is transferable
+   - Licensing issues when delivering tracks to clients
 ```
 
 ---
 
-## サンプルライブラリの整理・管理方法
+## Sample Library Organization and Management Methods
 
-大量のサンプルパックを効率的に管理することは、制作のスピードと創造性に直結する。
+Efficiently managing a large collection of sample packs directly impacts production speed and creativity.
 
-### フォルダ構成のベストプラクティス
+### Folder Structure Best Practices
 
 ```
-推奨フォルダ構成:
+Recommended Folder Structure:
 
 Samples/
 ├── 01_Drums/
@@ -1317,167 +1317,167 @@ Samples/
 └── 08_Construction_Kits/
 ```
 
-### サンプル管理ソフトウェア
+### Sample Management Software
 
-| ソフト名 | 対応OS | 特徴 | 価格 |
+| Software | Supported OS | Features | Price |
 |---------|--------|------|------|
-| ADSR Sample Manager | Mac/Win | タグ付け、プレビュー機能 | 無料 |
-| XLN Audio XO | Mac/Win | AI分類、ドラムシーケンサー内蔵 | $149 |
-| Sononym | Mac/Win | AI類似検索 | $59 |
-| Atlas 2 | Mac/Win | ドラムサンプル分類 | $49 |
-| Splice Desktop | Mac/Win | Spliceライブラリ管理 | Splice会員無料 |
-| Loopcloud | Mac/Win | Loopmasters統合 | 月額$7.99〜 |
+| ADSR Sample Manager | Mac/Win | Tagging, preview functionality | Free |
+| XLN Audio XO | Mac/Win | AI classification, built-in drum sequencer | $149 |
+| Sononym | Mac/Win | AI similarity search | $59 |
+| Atlas 2 | Mac/Win | Drum sample classification | $49 |
+| Splice Desktop | Mac/Win | Splice library management | Free for Splice members |
+| Loopcloud | Mac/Win | Loopmasters integration | From $7.99/month |
 
-### メタデータとタグ付け
+### Metadata and Tagging
 
 ```
-効率的なタグ付けシステム:
+Efficient Tagging System:
 
-必須タグ:
-- ジャンル: House, Techno, DnB, Hip-Hop, etc.
-- 楽器: Kick, Snare, Bass, Pad, etc.
-- キー: C, C#, D, etc.（該当する場合）
-- BPM: テンポ情報
-- タイプ: One-Shot, Loop, FX
+Required Tags:
+- Genre: House, Techno, DnB, Hip-Hop, etc.
+- Instrument: Kick, Snare, Bass, Pad, etc.
+- Key: C, C#, D, etc. (where applicable)
+- BPM: Tempo information
+- Type: One-Shot, Loop, FX
 
-推奨タグ:
-- 雰囲気: Dark, Bright, Warm, Cold, Aggressive
-- エネルギー: Low, Medium, High
-- 処理状態: Dry, Wet, Processed, Raw
-- 出典: パック名/メーカー名
-- お気に入り度: ★1〜5
+Recommended Tags:
+- Mood: Dark, Bright, Warm, Cold, Aggressive
+- Energy: Low, Medium, High
+- Processing State: Dry, Wet, Processed, Raw
+- Source: Pack name/maker name
+- Favorite Rating: 1-5 stars
 
-ファイル命名規則の例:
-  [ジャンル]_[楽器]_[キー]_[BPM]_[説明].wav
-  例: House_Kick_Punchy_128.wav
-  例: Techno_HiHat_Closed_Metallic_01.wav
-  例: DnB_Bass_Cm_174_Wobble.wav
+File Naming Convention Example:
+  [Genre]_[Instrument]_[Key]_[BPM]_[Description].wav
+  Example: House_Kick_Punchy_128.wav
+  Example: Techno_HiHat_Closed_Metallic_01.wav
+  Example: DnB_Bass_Cm_174_Wobble.wav
 ```
 
 ---
 
-## 実践ワークフロー - サンプルパックから楽曲を作る
+## Practical Workflow - Creating Tracks from Sample Packs
 
-サンプルパックを活用した実践的な楽曲制作ワークフローを、ジャンル別に解説する。
+A practical track production workflow using sample packs, explained by genre.
 
-### Tech House トラック制作ワークフロー
-
-```
-Step 1: ドラムパターンの構築（15分）
-  1. 909キックをロード → 4つ打ちパターン
-  2. クラップ/スネアを2拍目と4拍目に配置
-  3. クローズドハイハットで8分/16分パターン
-  4. トップループを重ねてグルーヴ追加
-  5. パーカッション（コンガ、シェイカー）で味付け
-
-Step 2: ベースラインの作成（10分）
-  1. ベースループを試聴してキーを確認
-  2. または自分でシンセベースを打ち込み
-  3. サイドチェインコンプレッサーでキックとの共存
-  4. EQで低域の整理（キックとベースの住み分け）
-
-Step 3: メロディ/コード要素の追加（15分）
-  1. ピアノ/シンセループを試聴
-  2. キーとBPMを合わせてインポート
-  3. 必要に応じてチョップ/再配置
-  4. パッドレイヤーで空間を埋める
-
-Step 4: FX/トランジションの配置（10分）
-  1. ライザーをセクション変化前に配置
-  2. インパクトをドロップの頭に
-  3. スイープでトランジションを滑らかに
-  4. リバーステールでブレイクを演出
-
-Step 5: アレンジメント（20分）
-  1. イントロ: 16小節（キック + ハイハット → 要素追加）
-  2. ビルドアップ: 8小節（ライザー + 要素追加）
-  3. ドロップA: 16小節（全要素）
-  4. ブレイク: 8小節（ドラム抜き、パッド中心）
-  5. ドロップB: 16小節（新要素追加）
-  6. アウトロ: 16小節（要素を徐々に抜く）
-
-Step 6: ミックス/仕上げ（30分）
-  1. レベルバランス調整
-  2. EQ処理（各トラックの帯域整理）
-  3. コンプレッション（ダイナミクス制御）
-  4. 空間エフェクト（リバーブ、ディレイ）
-  5. マスターバス処理
-```
-
-### サンプルパック制作者になるためのヒント
-
-自分でサンプルパックを制作・販売することも、音楽制作スキルを活かす一つの方法である。
+### Tech House Track Production Workflow
 
 ```
-サンプルパック制作のポイント:
+Step 1: Building the Drum Pattern (15 min)
+  1. Load a 909 kick -> Four-on-the-floor pattern
+  2. Place clap/snare on beats 2 and 4
+  3. Closed hi-hat in 8th/16th note pattern
+  4. Layer a top loop for added groove
+  5. Season with percussion (conga, shaker)
 
-品質基準:
-- 24bit/44.1kHz以上で録音・書き出し
-- ノイズフロアは-60dB以下
-- ピークレベルは-3dB〜-1dB
-- フェードイン/アウトでクリックノイズ防止
-- ゼロクロッシングポイントでの編集
+Step 2: Creating the Bassline (10 min)
+  1. Audition bass loops and confirm the key
+  2. Or program your own synth bass
+  3. Sidechain compressor for coexistence with kick
+  4. EQ to organize the low end (separate kick and bass)
 
-収録数の目安:
-- 小規模パック: 100-300サンプル
-- 中規模パック: 300-800サンプル
-- 大規模パック: 800-2000+サンプル
+Step 3: Adding Melody/Chord Elements (15 min)
+  1. Audition piano/synth loops
+  2. Match key and BPM, then import
+  3. Chop/rearrange as needed
+  4. Fill the space with pad layers
 
-販売プラットフォーム:
-- Splice Creator Program（最も利用者が多い）
+Step 4: Placing FX/Transitions (10 min)
+  1. Place risers before section changes
+  2. Impacts at the start of drops
+  3. Sweeps for smooth transitions
+  4. Reverse tails to enhance breaks
+
+Step 5: Arrangement (20 min)
+  1. Intro: 16 bars (kick + hi-hat -> add elements)
+  2. Buildup: 8 bars (riser + add elements)
+  3. Drop A: 16 bars (all elements)
+  4. Break: 8 bars (drums out, pad-focused)
+  5. Drop B: 16 bars (add new elements)
+  6. Outro: 16 bars (gradually remove elements)
+
+Step 6: Mix/Finishing (30 min)
+  1. Level balance adjustment
+  2. EQ processing (frequency band organization for each track)
+  3. Compression (dynamics control)
+  4. Spatial effects (reverb, delay)
+  5. Master bus processing
+```
+
+### Tips for Becoming a Sample Pack Creator
+
+Creating and selling your own sample packs is another way to leverage your music production skills.
+
+```
+Key Points for Sample Pack Production:
+
+Quality Standards:
+- Record/export at 24bit/44.1kHz or higher
+- Noise floor below -60dB
+- Peak level at -3dB to -1dB
+- Fade in/out to prevent click noise
+- Edit at zero-crossing points
+
+Sample Count Guidelines:
+- Small pack: 100-300 samples
+- Medium pack: 300-800 samples
+- Large pack: 800-2000+ samples
+
+Sales Platforms:
+- Splice Creator Program (largest user base)
 - Loopmasters Artist Program
-- 自社サイト（Gumroad, Bandcamp等）
+- Own website (Gumroad, Bandcamp, etc.)
 - ADSR Marketplace
 
-価格設定の参考:
-- 小規模パック: $10-20
-- 中規模パック: $20-40
-- 大規模パック: $40-80
-- プレミアムパック: $80-150+
+Pricing Reference:
+- Small pack: $10-20
+- Medium pack: $20-40
+- Large pack: $40-80
+- Premium pack: $80-150+
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Perform input data validation
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic Implementation Template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1486,26 +1486,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following functionality.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced Patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1513,7 +1513,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1524,14 +1524,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1539,7 +1539,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1547,44 +1547,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance Optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1593,7 +1593,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1608,47 +1608,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f} seconds")
+    print(f"Efficient version:   {fast_time:.6f} seconds")
+    print(f"Speedup factor: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be mindful of algorithmic complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization Error | Configuration file issues | Verify configuration file path and format |
+| Timeout | Network latency/insufficient resources | Adjust timeout values, add retry logic |
+| Out of Memory | Data volume growth | Introduce batch processing, implement pagination |
+| Permission Error | Insufficient access permissions | Verify executing user permissions, review settings |
+| Data Inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Procedure
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace and identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Formulate hypotheses**: List possible causes
+4. **Verify step by step**: Verify hypotheses using log output and debuggers
+5. **Fix and regression test**: After fixing, also run tests on related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1656,102 +1656,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O waits**: Check disk and network I/O status
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
+| Issue Type | Diagnostic Tool | Solution |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU Load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory Leak | tracemalloc, objgraph | Proper release of references |
+| I/O Bottleneck | strace, iostat | Async I/O, caching |
+| DB Delay | EXPLAIN, slow query log | Indexing, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+A summary of criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criteria | When to Prioritize | When Compromise is Acceptable |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development Speed | MVP, time-to-market speed | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
-┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
-│                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
-│                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
-│                                                 │
-└─────────────────────────────────────────────────┘
++---------------------------------------------------+
+|          Architecture Selection Flow               |
++---------------------------------------------------+
+|                                                    |
+|  (1) Team size?                                    |
+|    +- Small (1-5 people) -> Monolith               |
+|    +- Large (10+ people) -> Go to (2)              |
+|                                                    |
+|  (2) Deploy frequency?                             |
+|    +- Once a week or less -> Monolith + modules    |
+|    +- Daily/multiple times -> Go to (3)            |
+|                                                    |
+|  (3) Inter-team independence?                      |
+|    +- High -> Microservices                        |
+|    +- Medium -> Modular monolith                   |
+|                                                    |
++---------------------------------------------------+
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A method that is fast in the short term can become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can cause project delays
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has lower learning costs
+- Diverse technology adoption allows the right tool for each job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction has high reusability but can make debugging difficult
+- Low abstraction is intuitive but tends to cause code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design Decision Record Template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Create an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1761,17 +1761,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1779,7 +1779,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1787,15 +1787,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
-            icon = "✅" if c['type'] == 'positive' else "⚠️"
+            icon = "OK" if c['type'] == 'positive' else "WARNING"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1803,53 +1803,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum viable features
+- Automated tests only for critical paths
+- Introduce monitoring from the early stages
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't pursue perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Legacy System Modernization
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Incrementally modernizing a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- Create Characterization Tests first if existing tests are absent
+- Use an API gateway to allow old and new systems to coexist
+- Perform data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work Content | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration Start | Migrate from peripheral functions | 3-6 months | Medium |
+| 4. Core Migration | Migrate core functionality | 6-12 months | High |
+| 5. Completion | Decommission legacy system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Large Team Development
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** Over 50 engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with Domain-Driven Design
+- Set ownership per team
+- Manage shared libraries using Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API Contract Definition Between Teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1862,20 +1862,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Verify SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1884,7 +1884,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage Example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1905,150 +1905,151 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical System
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system requiring millisecond-level responses
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Cache strategy (L1: In-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization Method | Impact | Implementation Cost | Application |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory Cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async Processing | Medium | Medium | Processing with heavy I/O waits |
+| DB Optimization | High | High | When queries are slow |
+| Code Optimization | Low-Medium | High | When CPU-bound |
 
 ---
 
-## チーム開発での活用
+## Application in Team Development
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to verify in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Are naming conventions consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Is there any performance impact?
+- [ ] Are there any security concerns?
+- [ ] Has documentation been updated?
 
-### ナレッジ共有のベストプラクティス
+### Best Practices for Knowledge Sharing
 
-| 方法 | 頻度 | 対象 | 効果 |
+| Method | Frequency | Audience | Impact |
 |------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Pair Programming | As needed | Complex tasks | Immediate feedback |
+| Tech Talks | Weekly | Entire team | Horizontal knowledge spread |
+| ADR (Decision Records) | As needed | Future members | Transparency in decision-making |
+| Retrospectives | Every 2 weeks | Entire team | Continuous improvement |
+| Mob Programming | Monthly | Important designs | Consensus building |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
-          │
-    ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
-    ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
-    └─────┼─────┘
-          │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        High Impact
+          |
+    +-----+-----+
+    | Plan | Act  |
+    | for  | imm- |
+    | later| edia-|
+    |      | tely |
+    +------+-----+
+    | Record| Next |
+    | only  | Sprint|
+    |       |      |
+    +------+-----+
+          |
+        Low Impact
+    Low Frequency  High Frequency
 ```
 ---
 
-## まとめ - サンプルパック活用の心得
+## Summary - Principles of Sample Pack Utilization
 
-サンプルパックは音楽制作の強力なツールであるが、最終的に重要なのは「どう使うか」である。
+Sample packs are a powerful tool for music production, but what ultimately matters is "how you use them."
 
 ```
-サンプルパック活用の10箇条:
+10 Commandments of Sample Pack Utilization:
 
-1. サンプルはそのまま使わず、必ず加工する
-   → 自分だけのサウンドに変換する意識
+1. Never use samples as-is; always process them
+   -> Maintain the mindset of transforming them into your own sound
 
-2. レイヤリングで立体感を出す
-   → 単体では物足りないサンプルも重ねれば強力に
+2. Create dimensionality through layering
+   -> Samples that feel lacking alone become powerful when stacked
 
-3. キーとBPMは必ず合わせる
-   → 基本を怠ると楽曲全体が崩壊する
+3. Always match key and BPM
+   -> Neglecting the basics will ruin the entire track
 
-4. 少数精鋭のパックを使い込む
-   → 大量購入より1つのパックを熟知する方が効率的
+4. Master a select few packs thoroughly
+   -> Knowing one pack deeply is more efficient than buying many
 
-5. オリジナルサンプルも作る
-   → フィールドレコーディングやシンセで独自素材を
+5. Create original samples too
+   -> Build unique material through field recording and synth design
 
-6. ライセンスを必ず確認する
-   → 商用利用の可否、クレジット表記の要否
+6. Always verify the license
+   -> Check for commercial use permissions and credit requirements
 
-7. サンプルライブラリを整理する
-   → 探す時間を制作時間に変える
+7. Organize your sample library
+   -> Turn searching time into production time
 
-8. 定期的に新しいパックを試す
-   → インスピレーションの源泉を枯渇させない
+8. Regularly try new packs
+   -> Don't let your source of inspiration run dry
 
-9. 他ジャンルのパックも活用する
-   → 予想外の組み合わせが独自性を生む
+9. Use packs from other genres too
+   -> Unexpected combinations create uniqueness
 
-10. 最終的には耳で判断する
-    → スペックやブランドより自分の耳を信頼する
+10. Ultimately, trust your ears
+    -> Trust your own ears over specs or brand names
 ```
 
 ---
 
-**次**: [プラグイン・ツール](./plugins-tools.md)
+**Next**: [Plugins & Tools](./plugins-tools.md)
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point in learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just from theory alone, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-このガイドでは以下の重要なポイントを学びました:
-
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
+Knowledge of this topic is frequently used in everyday development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- 同カテゴリの他のガイドを参照してください
+In this guide, you learned the following key points:
+
+- Understanding of basic concepts and principles
+- Practical implementation patterns
+- Best practices and important considerations
+- Real-world application methods
 
 ---
 
-## 参考文献
+## Recommended Next Guides
 
-- [MDN Web Docs](https://developer.mozilla.org/) - Web技術のリファレンス
-- [Wikipedia](https://ja.wikipedia.org/) - 技術概念の概要
+- Refer to other guides in the same category
+
+---
+
+## References
+
+- [MDN Web Docs](https://developer.mozilla.org/) - Web technology reference
+- [Wikipedia](https://en.wikipedia.org/) - Overview of technical concepts
