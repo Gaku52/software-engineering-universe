@@ -1,1008 +1,1007 @@
-# Resources - リソース
+# Resources
 
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- [ ] 基本概念と用語の理解
-- [ ] 実装パターンとベストプラクティスの習得
-- [ ] 実務での適用方法の把握
-- [ ] トラブルシューティングの基本
+- [ ] Understanding basic concepts and terminology
+- [ ] Mastering implementation patterns and best practices
+- [ ] Grasping practical application methods
+- [ ] Fundamentals of troubleshooting
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-
----
-
-学習を助けるリファレンス情報と推奨リソースをまとめています。
-
-## このセクションについて
-
-DJ と楽曲制作の学習を効率化するための、用語集、学習ロードマップ、推奨ツールなどをまとめています。ここでは単なるリンク集にとどまらず、各リソースの具体的な活用方法、選び方のポイント、実践的なワークフローへの組み込み方までを詳しく解説します。
-
-**活用方法:**
-- わからない用語を調べる
-- 学習の道筋を確認する
-- おすすめの曲やツールを探す
-- コミュニティに参加する
-- 新しいテクニックやトレンドをキャッチアップする
-- 機材購入の判断材料にする
-- 練習メニューを組み立てる
-
-**このページの構成:**
-リソースは大きく「学習系」「ツール系」「コミュニティ系」「インスピレーション系」の4カテゴリに分かれています。学習の段階に応じて、必要なリソースを組み合わせて活用してください。初心者はまず用語集とロードマップから始め、中級者以降はプラグインやサンプルパックの選定、コミュニティでのフィードバック獲得へと進むのが効果的です。
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## コンテンツ一覧
-
-### [用語集](./glossary.md)
-
-DJ と楽曲制作に関する用語を網羅的に解説。初めて出会う専門用語をすぐに調べられるように、500以上の用語を収録しています。
-
-**カテゴリー:**
-- **一般音楽用語**: BPM、キー、スケール、コード、拍子、タイムシグネチャーなど
-- **DJ用語**: ビートマッチング、クロスフェーダー、キューイング、フレーズミキシングなど
-- **制作用語**: MIDI、オーディオ、ミキシング、マスタリング、サイドチェイン、オートメーションなど
-- **機材用語**: CDJ、コントローラー、インターフェイス、モニター、ヘッドフォンなど
-- **エフェクト用語**: リバーブ、ディレイ、コンプレッサー、フィルター、フランジャーなど
-- **ジャンル用語**: House、Techno、Dubstep、Drum & Bass、Trance、Ambient など
-
-**使い方:**
-- アルファベット順で検索
-- カテゴリー別で参照
-- 関連用語へのリンクをたどって理解を深める
-- 練習中にわからない用語が出たらすぐに参照
-
-**用語集活用のベストプラクティス:**
-
-用語集は「辞書的に引く」だけでなく、能動的な学習ツールとしても活用できます。以下のような方法を試してみてください。
-
-1. **カテゴリ通読法**: あるカテゴリの用語を最初から最後まで一通り読み、全体像を把握する。例えば「エフェクト用語」を全て読むことで、どんなエフェクトが存在し、どのような場面で使われるかの概観が得られる
-2. **関連用語チェーン法**: ある用語から関連用語リンクをたどり、連鎖的に知識を広げる。「コンプレッサー」→「サイドチェイン」→「ダッキング」→「ポンピング」のように
-3. **逆引き法**: 「こういう音を出したい」「こういう効果を得たい」という目的から逆引きして該当用語を探す
-4. **フラッシュカード法**: 覚えたい用語をAnkiなどのフラッシュカードアプリに入れて定期的に復習する
-
-### [DJ 学習ロードマップ](./learning-path-dj.md)
-
-DJ スキルを段階的に習得するためのロードマップ。独学でも迷わず進められるように、各段階で身につけるべきスキル、練習方法、到達目標を明確に定義しています。
-
-**レベル別:**
-- **初心者（0-3ヶ月）**: 基礎固め - 機材の基本操作、楽曲構造の理解、基本的なトランジション
-- **初級（3-6ヶ月）**: 基本テクニック習得 - ビートマッチング、基本的なEQミキシング、セットの構成
-- **中級（6-12ヶ月）**: 応用テクニック - ハーモニックミキシング、エフェクト活用、ライブパフォーマンス
-- **上級（12ヶ月以降）**: プロフェッショナル - 独自スタイルの確立、ブランディング、ブッキング獲得
-
-**各レベルで学ぶこと:**
-- 必須スキルとその習得基準
-- 具体的な練習方法とドリル
-- 現実的な目標設定と達成指標
-- セルフチェックリスト
-
-**ロードマップの使い方の詳細:**
-
-学習ロードマップは、単に「次に何をやるか」を示すだけでなく、自分の現在地を客観的に把握するためのツールです。以下のステップで活用してください。
-
-1. **現在地の特定**: 各レベルのチェックリストを使って、自分がどの段階にいるかを確認する。全てのチェック項目をクリアしていなくても、80%程度達成していれば次のレベルに進んでよい
-2. **弱点の発見**: チェックリストで未達成の項目が、あなたの弱点です。次のレベルに進む前に、その弱点を集中的に練習することをおすすめします
-3. **練習計画の作成**: ロードマップの各段階に記載された練習方法を、週単位のスケジュールに落とし込む。毎日30分でも継続的に練習することが、週末にまとめて長時間練習するよりも効果的
-4. **進捗の記録**: 練習日誌をつけて、各スキルの上達を記録する。録音して聴き直すことで、客観的な評価が可能になる
-
-**初心者が最初の1ヶ月でやるべきこと:**
-- DAW/DJソフトの基本操作を覚える（最初の1週間）
-- 10曲以上のお気に入りの楽曲を集めて構造を分析する（イントロ、ブレイクダウン、ドロップ、アウトロの位置を確認）
-- 同じBPMの2曲を使って基本的なトランジションを100回練習する
-- 先輩DJのミックスを毎日1つ聴いて、トランジションポイントを分析する
-
-### [楽曲制作 学習ロードマップ](./learning-path-production.md)
-
-Ableton Live での楽曲制作を段階的に習得するためのロードマップ。曲を「完成させる」ことに重点を置いた実践的なカリキュラムです。
-
-**レベル別:**
-- **初心者（0-6ヶ月）**: DAWの基礎 - インターフェイス理解、基本操作、シンプルなビート制作
-- **初級（6-12ヶ月）**: 曲を完成させる - アレンジメント、基本的なミキシング、曲の構造
-- **中級（12-24ヶ月）**: クオリティ向上 - サウンドデザイン、高度なミキシング、マスタリング基礎
-- **上級（24ヶ月以降）**: プロレベル - 独自のサウンド、高品質なミックスダウン、リリース準備
-
-**各レベルで学ぶこと:**
-- 必須知識と理論的背景
-- 制作ワークフローのステップバイステップガイド
-- 完成曲の品質目標と評価基準
-- スキルチェックとセルフアセスメント
-
-**制作ロードマップ活用のコツ:**
-
-楽曲制作の学習で最も重要なのは「完成させること」です。完璧を目指して永遠に1曲を作り続けるよりも、多くの曲を完成させる方が上達が早いです。
-
-1. **最初の曲は8小節ループでOK**: 最初から壮大な曲を作ろうとせず、まずは8小節のループを作って「完成」とする。ドラム、ベース、メロディ、パッドの4要素が入っていれば十分
-2. **テンプレートを活用**: 毎回ゼロから始めるのではなく、ドラムラック、ベーストラック、メロディトラックが準備されたテンプレートを作っておく
-3. **リファレンストラック法**: プロの曲を DAW に読み込み、構造をコピーして自分のサウンドを当てはめる。これは「パクり」ではなく、効果的な学習方法
-4. **週1曲チャレンジ**: 毎週1曲を完成させるチャレンジを設定する。品質にこだわりすぎず、とにかく完成させることに集中する
-
-### [推奨練習曲](./recommended-tracks.md)
-
-DJ 練習に最適な楽曲リスト。BPM、キー、曲の構造、難易度などを考慮して厳選した楽曲を紹介しています。
-
-**カテゴリー別:**
-- **初心者向け**: シンプルな構造、一定BPMで安定したビート。4つ打ちが明確でミキシングしやすい楽曲
-- **ビートマッチング練習**: 4つ打ち、明確なビート。テンポが安定していてピッチ調整の練習に最適
-- **ハーモニックミキシング**: キー別グループ。相性の良いキー同士でグルーピングされた楽曲リスト
-- **ジャンル別**: House、Techno、Hip Hop、Drum & Bass、Trance、Dubstep など多彩なジャンル
-- **トランジション練習**: Intro/Outro が長い曲。32拍以上のイントロ/アウトロがあり、ロングミックスの練習に最適
-- **エフェクト練習**: ブレイク、ビルドアップ。エフェクティブなトランジションの練習に使える楽曲
-
-**情報:**
-- 曲名、アーティスト
-- BPM、キー（Camelot表記含む）
-- 練習ポイントと注意事項
-- 購入リンク（Beatport、Bandcamp、iTunes など）
-
-**練習曲の選び方ガイド:**
-
-効果的な練習のためには、適切な楽曲選びが重要です。以下のポイントを参考にしてください。
-
-1. **BPMの統一**: 練習を始めたばかりの段階では、同じBPMの曲同士でミキシングする。慣れてきたらBPM差2-3程度の曲に挑戦し、徐々に幅を広げていく
-2. **キーの相性**: Camelotホイールで隣接するキーの曲を組み合わせると、ハーモニックミキシングの練習になる。例: 8A の曲と 7A、9A、8B の曲
-3. **構造の予測しやすさ**: 最初は「イントロ16小節→メイン→ブレイク→メイン→アウトロ16小節」のような定型的な構造の曲を選ぶ
-4. **エネルギーレベル**: 練習セットを組むときは、エネルギーレベルの流れも考慮する。徐々に上げていく「ビルドアップ型」や、波のように上下する「ウェーブ型」などを試す
-5. **定番曲の重要性**: 各ジャンルの「定番曲」は、構造が洗練されており練習に最適。また、他のDJのミックスとの比較も容易
-
-### [サンプルパック](./sample-packs.md)
-
-楽曲制作に使える推奨サンプルパック。ジャンル、品質、コストパフォーマンスを考慮して厳選しています。
-
-**カテゴリー:**
-- **無料パック**: 初心者向けの高品質な無料サンプル
-- **有料パック**: プロクオリティのプレミアムサンプル
-- **ジャンル別**: House、Techno、Dubstep、Future Bass、Lo-Fi など
-- **楽器別**: ドラム、ベース、シンセ、ボーカル、FX
-- **Ableton専用**: Live Pack、Max for Live デバイス
-
-**情報:**
-- パック名、提供元
-- 価格（無料/有料の明記）
-- 内容（サンプル数、種類、フォーマット）
-- おすすめポイントと活用シーン
-
-**サンプルパック選びと活用の実践ガイド:**
-
-サンプルパックは現代の音楽制作において不可欠なリソースです。しかし、闇雲に集めても使いこなせません。以下の指針に従って効率的に活用しましょう。
-
-1. **量より質**: 何百ものサンプルパックを持っているよりも、厳選した10個のパックを徹底的に使い込む方が生産的。まずは各ジャンルにつき1-2個のパックで十分
-2. **整理が命**: ダウンロードしたサンプルは必ずジャンル/楽器/用途ごとにフォルダ分けする。Ableton Liveのブラウザでタグ付けすることで検索効率が劇的に向上する
-3. **レイヤリング**: 1つのサンプルをそのまま使うのではなく、複数のサンプルをレイヤーして独自のサウンドを作る。キック2つ + トップ層のように
-4. **加工を前提に**: サンプルをそのまま使うのではなく、必ず何かしらの加工（ピッチ変更、リバース、タイムストレッチ、エフェクト追加）を施して独自性を出す
-5. **ライセンスの確認**: 特に無料サンプルは、商用利用が可能かどうかを必ず確認する。ロイヤリティフリーと明記されていても、利用規約の細部を確認することが重要
-
-**おすすめの無料サンプルパック入手先:**
-- **Splice**: 月額サブスクリプションで膨大なライブラリにアクセス。使った分だけのクレジット制で無駄がない
-- **Cymatics**: 定期的に高品質な無料パックをリリース。メール登録で入手可能
-- **ADSR Sounds**: 無料サンプルコーナーが充実。プロ品質のサンプルが手に入る
-- **Bedroom Producers Blog**: 無料プラグインと無料サンプルの情報が豊富
-- **99Sounds**: 効果音やアンビエント系のサンプルが特に充実
-
-### [プラグイン・ツール一覧](./plugins-tools.md)
-
-DJ と制作に役立つソフトウェアとツール。無料から有料まで、用途別に整理して紹介しています。
-
-**DJ ツール:**
-- **DJ ソフトウェア**: Rekordbox、Serato DJ Pro、Traktor Pro 3、VirtualDJ
-- **解析ツール**: Mixed In Key（キー＆BPM解析）、KeyFinder（無料キー解析）、Rekordbox解析機能
-- **レコーディング**: Audacity（無料録音編集）、OBS Studio（配信・録画）、Ableton Live（ライブ録音）
-- **ストリーミング**: Twitch、YouTube Live、Mixcloud Live
-
-**制作ツール:**
-- **DAW**: Ableton Live、FL Studio、Logic Pro、Bitwig Studio、Studio One
-- **VST シンセ**: Serum（ウェーブテーブルシンセの定番）、Vital（無料で高機能）、Pigments（Arturia）、Massive X（Native Instruments）
-- **VST エフェクト**: FabFilter Pro-Q 3（EQ）、Valhalla VintageVerb（リバーブ）、iZotope Ozone（マスタリング）、Soundtoys（クリエイティブFX）
-- **ユーティリティ**: SPAN（無料スペクトラムアナライザー）、Youlean Loudness Meter（ラウドネス測定）、LEVELS（ミキシングチェック）
-- **サンプル管理**: Loopcloud（AI検索）、Splice（クラウドベース）、XO by XLN Audio（ドラムサンプル管理）
-
-**情報:**
-- ツール名、開発元
-- 価格（無料/有料の明記）
-- 機能概要と強み
-- 推奨用途と対象レベル
-
-**プラグイン選びの詳細ガイド:**
-
-プラグインの世界は選択肢が膨大で、初心者は何を選べばよいか迷いがちです。以下のガイドラインを参考にしてください。
-
-**初心者が最初に揃えるべきプラグイン（無料）:**
-1. **Vital（シンセ）**: 無料版でもSerum並みの機能。ウェーブテーブルシンセの基礎を学ぶのに最適
-2. **TDR Nova（EQ）**: 無料のダイナミックEQ。ミキシングの基礎を学ぶのに十分な機能
-3. **OTT（コンプレッサー）**: Abletonの定番マルチバンドコンプ。EDM制作では必須級
-4. **Valhalla Supermassive（リバーブ/ディレイ）**: 無料なのにクオリティが異常に高い。アンビエント系のサウンドデザインに
-5. **SPAN（アナライザー）**: 無料のスペクトラムアナライザー。ミックスの周波数バランスを視覚的に確認
-
-**中級者向けの投資優先順位:**
-1. **FabFilter Pro-Q 3（EQ）**: 約3万円。あらゆるミキシング作業の中心となるEQ。GUIが優秀で直感的に操作できる
-2. **Serum（シンセ）**: Splice の月額プランで入手可能。EDM制作のスタンダード
-3. **iZotope Ozone（マスタリング）**: マスタリングの品質を劇的に向上させるオールインワンプラグイン
-4. **Soundtoys 5（エフェクトバンドル）**: クリエイティブなエフェクト群。Decapitator、EchoBoy、Little AlterBoy など
-5. **FabFilter Pro-L 2（リミッター）**: マスタリング用リミッター。クリーンなラウドネス最適化
-
-### [コミュニティ](./communities.md)
-
-DJ・制作を学べるコミュニティとイベント。独学に限界を感じたとき、フィードバックが欲しいとき、仲間を見つけたいときに活用してください。
-
-**オンラインコミュニティ:**
-- **Reddit**: r/DJs（DJ全般）、r/ableton（Ableton専用）、r/edmproduction（EDM制作）、r/WeAreTheMusicMakers（ジャンル不問の制作コミュニティ）
-- **Discord**: DJ/制作サーバー多数。リアルタイムでフィードバックがもらえる
-- **Facebook**: DJグループ、制作グループ。地域別のグループも活発
-- **YouTube**: チュートリアルチャンネル。コメント欄でのQ&Aも有用
-
-**日本国内:**
-- DJ スクール（対面レッスン）
-- 制作スクール（DTMスクール）
-- コワーキングスタジオ（機材を共有して制作）
-- クラブイベント（ネットワーキングの場）
-
-**海外:**
-- Point Blank Music School（ロンドン/LA/オンライン）
-- Dubspot（閉校、教材は残存）
-- Sonic Academy（オンライン特化）
-- MasterClass（有名アーティストによるレッスン）
-
-**コミュニティ活用の具体的方法:**
-
-コミュニティに参加するだけでは成長しません。積極的に関わることで初めて価値が生まれます。
-
-1. **フィードバックループを作る**: 自分の作品やミックスを投稿して、客観的なフィードバックをもらう。批判を恐れずに公開する勇気が大切。Reddit の r/roastmytrack はそのための専用サブレディット
-2. **質問は具体的に**: 「ミキシングがうまくいきません」ではなく、「キックとベースの低域がぶつかっている気がするが、サイドチェインとEQのどちらで対処すべきか」のように具体的に質問する
-3. **他人の作品にフィードバックする**: フィードバックを与える側に立つことで、自分の耳も鍛えられる。「何が良いか」「何が改善できるか」を言語化する練習になる
-4. **定期的にイベントに参加**: オンラインでもオフラインでも、イベントへの参加は刺激になる。DJバトル、ビートメイキングコンテスト、リスニングセッションなど
-5. **メンターを見つける**: コミュニティ内で自分より上手い人を見つけて、定期的にアドバイスをもらう関係を築く
-
-### [書籍・コース](./books-courses.md)
-
-推奨の書籍とオンラインコース。体系的に学びたい人のために、信頼性の高いリソースを厳選しています。
-
-**書籍:**
-- **DJ 関連**: DJバイブル、DJテクニック本、DJ文化史
-- **音楽理論**: 音楽理論の基礎、ハーモニーとコード進行、リズムとグルーヴ
-- **制作**: Ableton Live公式ガイド、ミキシング＆マスタリング本、サウンドデザイン入門
-
-**オンラインコース:**
-- **無料**: Ableton公式チュートリアル（Learning Music、Learning Synths）、YouTube上の体系的チュートリアルシリーズ
-- **有料**: Udemy、Skillshare、Point Blank Online、Coursera の音楽制作コース
-- **サブスクリプション**: Monthly.com、Groove3、LinkedIn Learning
-
-**情報:**
-- タイトル、著者/講師
-- 価格と形態（買い切り/サブスク）
-- レベル（初級/中級/上級）
-- おすすめポイントと期待できる成果
-
-**書籍選びの詳細アドバイス:**
-
-書籍は体系的な知識を得るのに最適ですが、実践なしでは意味がありません。読書と実践を交互に行う「サンドイッチ学習法」がおすすめです。
-
-**DJ関連の必読書:**
-1. **『How to DJ Right: The Art and Science of Playing Records』（Frank Broughton & Bill Brewster）**: DJの基礎から歴史、文化まで網羅。英語だが平易な文章で読みやすい
-2. **『DJing for Dummies』**: 初心者向けの定番入門書。機材選びからテクニックまで幅広くカバー
-3. **『Last Night a DJ Saved My Life: The History of the Disc Jockey』**: DJ文化の歴史を知ることで、音楽への理解が深まる
-
-**制作関連の必読書:**
-1. **『Making Music: 74 Creative Strategies for Electronic Music Producers』（Dennis DeSantis）**: Ableton公式の制作ガイド。クリエイティブブロックの解消法を中心に
-2. **『Mixing Secrets for the Small Studio』（Mike Senior）**: ホームスタジオでのミキシング技術を詳しく解説
-3. **『Dance Music Manual: Tools, Toys, and Techniques』（Rick Snoman）**: EDM制作の百科事典的な1冊
-4. **『The Secrets of Dance Music Production』（Attack Magazine）**: ジャンル別の制作テクニックを具体的に解説
-
-**オンラインコースの選び方:**
-- **無料で始める**: まずはAbleton公式の「Learning Music」と「Learning Synths」で基礎を固める。これだけでも相当な知識が身につく
-- **YouTube で補完**: 特定のテクニックについてはYouTubeで検索。ただし情報の質にばらつきがあるので、チャンネル登録者数やコメントの内容で信頼性を判断
-- **有料コースは目的を絞って**: 「ミキシングを集中的に学びたい」「特定のジャンルの制作法を知りたい」など、目的が明確な場合に有料コースに投資する
-- **インストラクターの実績を確認**: 実際にリリース経験があるインストラクターのコースを選ぶ
-
-### [インスピレーション](./inspiration.md)
-
-創造性を刺激するリソース。アイデアが枯渇したとき、モチベーションが下がったとき、新しい方向性を探りたいときに活用してください。
-
-**アーティスト研究:**
-- 影響を受けたいDJ・プロデューサーのリスト
-- ライブセット・ミックスの構造分析
-- インタビュー・ドキュメンタリーの紹介
-- 各アーティストの特徴的なテクニックの解説
-
-**トレンド:**
-- 最新のジャンル・サブジャンルの動向
-- 人気のテクニックとサウンドデザインの傾向
-- 機材・ソフトウェアの進化と新製品情報
-- 業界全体の方向性と新しい可能性
-
-**モチベーション:**
-- 成功ストーリー - 無名から有名になったアーティストの軌跡
-- 挫折からの復活 - スランプを乗り越えた体験談
-- 継続のコツ - 長期的なモチベーション維持の方法
-- マインドセット - プロフェッショナルとしての心構え
-
-**インスピレーションを得るための実践的方法:**
-
-クリエイティブな行き詰まり（ライターズブロック/プロデューサーズブロック）は誰にでも起こります。以下の方法で乗り越えましょう。
-
-1. **ジャンル外の音楽を聴く**: 普段聴かないジャンルの音楽を意識的に聴く。クラシック、ジャズ、ワールドミュージック、映画音楽など。新しいアイデアは異なるジャンルの融合から生まれることが多い
-2. **制約を設ける**: 「3つの音色だけで曲を作る」「10分以内に8小節を完成させる」など、意図的に制約を設けることで創造性が刺激される
-3. **サンプリング的アプローチ**: 好きな曲の一部を分析し、そのエッセンス（コード進行、リズムパターン、音色の組み合わせ）を自分の作品に取り入れる
-4. **環境を変える**: いつもと違う場所で音楽を聴く、散歩中に環境音に耳を傾ける、美術館やライブに行くなど
-5. **コラボレーション**: 他のプロデューサーやミュージシャンとのコラボは、新しい視点をもたらす最も効果的な方法の一つ
+A compilation of reference information and recommended resources to support your learning.
+
+## About This Section
+
+This section compiles glossaries, learning roadmaps, recommended tools, and more to streamline learning DJ skills and music production. Rather than being a mere link collection, it provides detailed explanations on how to practically utilize each resource, tips for selection, and how to integrate them into your workflow.
+
+**How to Use:**
+- Look up unfamiliar terms
+- Check your learning path
+- Find recommended tracks and tools
+- Join communities
+- Keep up with new techniques and trends
+- Use as reference material for equipment purchases
+- Build your practice routines
+
+**Page Structure:**
+Resources are divided into four major categories: "Learning," "Tools," "Community," and "Inspiration." Combine the resources you need according to your learning stage. Beginners should start with the glossary and roadmap, while intermediate and advanced learners will benefit more from plugin and sample pack selection, and obtaining feedback through communities.
 
 ---
 
-## 活用方法
+## Table of Contents
 
-### 日常的な使い方
+### [Glossary](./glossary.md)
 
-**学習中:**
-```
-1. わからない用語が出たら用語集で確認
-2. 次に学ぶべきことをロードマップで確認
-3. 練習曲で実践
-4. 録音して振り返り
-5. コミュニティでフィードバックをもらう
-```
+A comprehensive glossary of DJ and music production terms. Over 500 terms are included so you can quickly look up any specialized terminology you encounter.
 
-**制作中:**
-```
-1. サンプルパックで素材を探す
-2. プラグインで音作り
-3. リファレンストラックと比較
-4. ミキシング・マスタリングの品質チェック
-5. インスピレーションで行き詰まり解消
-```
+**Categories:**
+- **General Music Terms**: BPM, key, scale, chord, time signature, etc.
+- **DJ Terms**: Beatmatching, crossfader, cueing, phrase mixing, etc.
+- **Production Terms**: MIDI, audio, mixing, mastering, sidechain, automation, etc.
+- **Equipment Terms**: CDJ, controller, interface, monitor, headphones, etc.
+- **Effects Terms**: Reverb, delay, compressor, filter, flanger, etc.
+- **Genre Terms**: House, Techno, Dubstep, Drum & Bass, Trance, Ambient, etc.
 
-**コミュニティ:**
-```
-1. 質問があれば掲示板やDiscordで
-2. イベントに参加して交流
-3. コースで体系的に学習
-4. 作品を公開してフィードバックを得る
-5. 他のクリエイターの作品にもフィードバックを返す
-```
+**How to Use:**
+- Search alphabetically
+- Browse by category
+- Follow links to related terms to deepen your understanding
+- Refer to it immediately when you encounter an unfamiliar term during practice
 
-### 段階別の活用ロードマップ
+**Best Practices for Using the Glossary:**
 
-**Phase 1: 入門期（最初の1ヶ月）**
-- 用語集で基本用語を一通り把握
-- DJ学習ロードマップの「初心者」セクションを熟読
-- 推奨練習曲の「初心者向け」から5曲をダウンロード
-- DJソフトウェア（Rekordbox or Serato）の無料版をインストール
-- YouTube で基本操作のチュートリアルを視聴
+The glossary can be used not just as a dictionary to look things up, but also as an active learning tool. Try the following methods:
 
-**Phase 2: 基礎固め期（2-3ヶ月目）**
-- ビートマッチングの練習を開始（推奨練習曲の「ビートマッチング練習」セクション活用）
-- 楽曲制作にも興味があれば、Ableton Live の体験版をインストール
-- Learning Music（Ableton公式無料コース）を完了
-- コミュニティ（Reddit、Discord）に参加して情報収集開始
+1. **Category Read-Through Method**: Read through all terms in a category from start to finish to grasp the overall picture. For example, reading all "Effects Terms" gives you an overview of what effects exist and when they are used
+2. **Related Term Chain Method**: Follow related term links from one term to expand your knowledge in a chain. For example: "Compressor" → "Sidechain" → "Ducking" → "Pumping"
+3. **Reverse Lookup Method**: Search for terms based on your goal, such as "I want to create this sound" or "I want to achieve this effect"
+4. **Flashcard Method**: Add terms you want to memorize to a flashcard app like Anki and review them regularly
 
-**Phase 3: 実践期（4-6ヶ月目）**
-- 15分のDJミックスを完成させる
-- 制作では最初の曲を完成させる（8小節ループでもOK）
-- サンプルパックを1-2個入手して制作に活用
-- コミュニティで初めて自分の作品を公開
-- 可能であれば小規模なイベントでDJデビュー
+### [DJ Learning Roadmap](./learning-path-dj.md)
 
-**Phase 4: 発展期（7-12ヶ月目）**
-- 30分〜1時間のDJセットを構成できるようになる
-- ハーモニックミキシングの実践
-- エフェクトを使ったクリエイティブなトランジション
-- 制作では月に1-2曲を完成させるペース
-- プラグインへの投資を開始（優先順位リスト参照）
+A roadmap for progressively acquiring DJ skills. It clearly defines the skills to learn, practice methods, and goals for each stage so you can progress confidently even when self-studying.
+
+**By Level:**
+- **Beginner (0-3 months)**: Foundation building - Basic equipment operation, understanding song structure, basic transitions
+- **Elementary (3-6 months)**: Basic technique acquisition - Beatmatching, basic EQ mixing, set construction
+- **Intermediate (6-12 months)**: Advanced techniques - Harmonic mixing, effects usage, live performance
+- **Advanced (12+ months)**: Professional - Establishing your unique style, branding, securing bookings
+
+**What You Learn at Each Level:**
+- Required skills and their mastery criteria
+- Specific practice methods and drills
+- Realistic goal setting and achievement metrics
+- Self-check checklists
+
+**Detailed Guide on Using the Roadmap:**
+
+The learning roadmap is not just about showing "what to do next" — it is a tool for objectively assessing where you currently stand. Follow these steps:
+
+1. **Identify Your Current Position**: Use the checklists at each level to determine your current stage. Even if you have not cleared all checklist items, you can move to the next level once you have achieved about 80%
+2. **Discover Weaknesses**: Unchecked items on the checklist are your weak points. We recommend focusing on those weaknesses before advancing to the next level
+3. **Create a Practice Plan**: Break down the practice methods described at each stage into a weekly schedule. Practicing consistently for even 30 minutes daily is more effective than practicing for long hours only on weekends
+4. **Track Your Progress**: Keep a practice journal to record your improvement in each skill. Recording and listening back enables objective evaluation
+
+**What Beginners Should Do in the First Month:**
+- Learn the basic operations of your DAW/DJ software (first week)
+- Collect 10+ favorite tracks and analyze their structure (identify the positions of intros, breakdowns, drops, and outros)
+- Practice basic transitions 100 times using two tracks at the same BPM
+- Listen to one mix by an experienced DJ every day and analyze the transition points
+
+### [Music Production Learning Roadmap](./learning-path-production.md)
+
+A roadmap for progressively learning music production with Ableton Live. A practical curriculum with emphasis on "finishing" tracks.
+
+**By Level:**
+- **Beginner (0-6 months)**: DAW fundamentals - Understanding the interface, basic operations, simple beat production
+- **Elementary (6-12 months)**: Finishing tracks - Arrangement, basic mixing, song structure
+- **Intermediate (12-24 months)**: Quality improvement - Sound design, advanced mixing, mastering basics
+- **Advanced (24+ months)**: Pro level - Unique sound, high-quality mixdowns, release preparation
+
+**What You Learn at Each Level:**
+- Essential knowledge and theoretical background
+- Step-by-step production workflow guides
+- Quality targets and evaluation criteria for finished tracks
+- Skill checks and self-assessment
+
+**Tips for Using the Production Roadmap:**
+
+The most important thing in learning music production is "finishing tracks." Finishing many tracks will help you improve faster than endlessly perfecting a single one.
+
+1. **Your First Track Can Be an 8-Bar Loop**: Do not try to create a grand composition right away — start by making an 8-bar loop and call it "finished." Having four elements — drums, bass, melody, and pads — is sufficient
+2. **Use Templates**: Instead of starting from scratch every time, prepare templates with drum racks, bass tracks, and melody tracks already set up
+3. **Reference Track Method**: Load a professional track into your DAW, copy its structure, and replace the sounds with your own. This is not "copying" — it is an effective learning method
+4. **One Track Per Week Challenge**: Set a challenge to finish one track per week. Focus on finishing rather than obsessing over quality
+
+### [Recommended Practice Tracks](./recommended-tracks.md)
+
+A curated list of tracks ideal for DJ practice. Tracks are carefully selected considering BPM, key, song structure, difficulty level, and more.
+
+**By Category:**
+- **For Beginners**: Simple structure, steady beat at a constant BPM. Tracks with a clear four-on-the-floor kick that are easy to mix
+- **Beatmatching Practice**: Four-on-the-floor, clear beat. Ideal for pitch adjustment practice with stable tempo
+- **Harmonic Mixing**: Grouped by key. Track lists grouped by compatible keys
+- **By Genre**: House, Techno, Hip Hop, Drum & Bass, Trance, Dubstep, and more
+- **Transition Practice**: Tracks with long intros/outros. Tracks with 32+ beat intros/outros ideal for practicing long mixes
+- **Effects Practice**: Breaks, buildups. Tracks useful for practicing creative transitions with effects
+
+**Information:**
+- Track name, artist
+- BPM, key (including Camelot notation)
+- Practice points and notes
+- Purchase links (Beatport, Bandcamp, iTunes, etc.)
+
+**Track Selection Guide:**
+
+Choosing the right tracks is essential for effective practice. Consider the following points:
+
+1. **BPM Consistency**: When just starting out, mix tracks with the same BPM. As you get comfortable, try tracks with 2-3 BPM difference and gradually widen the range
+2. **Key Compatibility**: Combining tracks with adjacent keys on the Camelot Wheel makes for great harmonic mixing practice. Example: tracks in 8A with tracks in 7A, 9A, or 8B
+3. **Predictable Structure**: Start with tracks that have a standard structure like "16-bar intro → main → break → main → 16-bar outro"
+4. **Energy Levels**: When building a practice set, consider the flow of energy levels. Try "buildup" patterns that gradually increase, or "wave" patterns that rise and fall
+5. **Importance of Classics**: "Classic" tracks in each genre have refined structures ideal for practice. They also make it easy to compare with other DJs' mixes
+
+### [Sample Packs](./sample-packs.md)
+
+Recommended sample packs for music production. Carefully curated considering genre, quality, and cost-effectiveness.
+
+**Categories:**
+- **Free Packs**: High-quality free samples for beginners
+- **Paid Packs**: Pro-quality premium samples
+- **By Genre**: House, Techno, Dubstep, Future Bass, Lo-Fi, etc.
+- **By Instrument**: Drums, bass, synth, vocals, FX
+- **Ableton Exclusive**: Live Packs, Max for Live devices
+
+**Information:**
+- Pack name, provider
+- Price (clearly marked free/paid)
+- Contents (number of samples, types, format)
+- Recommended use cases and scenarios
+
+**Practical Guide for Choosing and Using Sample Packs:**
+
+Sample packs are an essential resource in modern music production. However, collecting them randomly will not help you master them. Follow these guidelines for efficient use:
+
+1. **Quality Over Quantity**: It is more productive to thoroughly master 10 carefully selected packs than to have hundreds. Start with 1-2 packs per genre
+2. **Organization Is Key**: Always organize downloaded samples by genre/instrument/purpose into folders. Tagging in Ableton Live's browser dramatically improves search efficiency
+3. **Layering**: Rather than using a single sample as-is, layer multiple samples to create unique sounds. For example: two kicks + a top layer
+4. **Process by Default**: Rather than using samples as-is, always apply some processing (pitch change, reverse, time stretch, effects) to add originality
+5. **Check Licenses**: Especially for free samples, always verify whether commercial use is permitted. Even when labeled as royalty-free, it is important to check the fine print of the terms of use
+
+**Recommended Sources for Free Sample Packs:**
+- **Splice**: Access a vast library via monthly subscription. Credit-based system means no waste
+- **Cymatics**: Regularly releases high-quality free packs. Available via email registration
+- **ADSR Sounds**: Excellent free sample section. Access pro-quality samples
+- **Bedroom Producers Blog**: Rich information on free plugins and free samples
+- **99Sounds**: Particularly strong in sound effects and ambient samples
+
+### [Plugins & Tools Directory](./plugins-tools.md)
+
+Software and tools useful for DJ and production. Organized by purpose, from free to paid options.
+
+**DJ Tools:**
+- **DJ Software**: Rekordbox, Serato DJ Pro, Traktor Pro 3, VirtualDJ
+- **Analysis Tools**: Mixed In Key (key & BPM analysis), KeyFinder (free key analysis), Rekordbox analysis feature
+- **Recording**: Audacity (free recording/editing), OBS Studio (streaming/recording), Ableton Live (live recording)
+- **Streaming**: Twitch, YouTube Live, Mixcloud Live
+
+**Production Tools:**
+- **DAW**: Ableton Live, FL Studio, Logic Pro, Bitwig Studio, Studio One
+- **VST Synths**: Serum (the standard wavetable synth), Vital (free and feature-rich), Pigments (Arturia), Massive X (Native Instruments)
+- **VST Effects**: FabFilter Pro-Q 3 (EQ), Valhalla VintageVerb (reverb), iZotope Ozone (mastering), Soundtoys (creative FX)
+- **Utilities**: SPAN (free spectrum analyzer), Youlean Loudness Meter (loudness measurement), LEVELS (mixing check)
+- **Sample Management**: Loopcloud (AI search), Splice (cloud-based), XO by XLN Audio (drum sample management)
+
+**Information:**
+- Tool name, developer
+- Price (clearly marked free/paid)
+- Feature overview and strengths
+- Recommended use cases and target level
+
+**Detailed Plugin Selection Guide:**
+
+The world of plugins offers an overwhelming number of choices, and beginners often struggle with what to pick. Use the following guidelines:
+
+**Essential Free Plugins for Beginners:**
+1. **Vital (Synth)**: Even the free version rivals Serum in functionality. Ideal for learning wavetable synthesis basics
+2. **TDR Nova (EQ)**: A free dynamic EQ. Sufficient features for learning mixing fundamentals
+3. **OTT (Compressor)**: Ableton's go-to multiband compressor. Essential for EDM production
+4. **Valhalla Supermassive (Reverb/Delay)**: Free yet extraordinarily high quality. Great for ambient sound design
+5. **SPAN (Analyzer)**: A free spectrum analyzer. Visually check the frequency balance of your mix
+
+**Investment Priority for Intermediate Users:**
+1. **FabFilter Pro-Q 3 (EQ)**: Around $200. The central EQ for all mixing tasks. Excellent GUI for intuitive operation
+2. **Serum (Synth)**: Available via Splice's monthly plan. The standard for EDM production
+3. **iZotope Ozone (Mastering)**: An all-in-one plugin that dramatically improves mastering quality
+4. **Soundtoys 5 (Effects Bundle)**: A suite of creative effects. Includes Decapitator, EchoBoy, Little AlterBoy, etc.
+5. **FabFilter Pro-L 2 (Limiter)**: A mastering limiter. Clean loudness optimization
+
+### [Communities](./communities.md)
+
+Communities and events where you can learn DJ and production skills. Use these when you hit the limits of self-study, want feedback, or want to find peers.
+
+**Online Communities:**
+- **Reddit**: r/DJs (general DJ), r/ableton (Ableton-specific), r/edmproduction (EDM production), r/WeAreTheMusicMakers (genre-agnostic production community)
+- **Discord**: Numerous DJ/production servers. Get real-time feedback
+- **Facebook**: DJ groups, production groups. Regional groups are also active
+- **YouTube**: Tutorial channels. Q&A in the comments section is also useful
+
+**Japan-based:**
+- DJ schools (in-person lessons)
+- Production schools (DTM schools)
+- Co-working studios (shared equipment for production)
+- Club events (networking opportunities)
+
+**International:**
+- Point Blank Music School (London/LA/Online)
+- Dubspot (closed, materials still available)
+- Sonic Academy (online-focused)
+- MasterClass (lessons by renowned artists)
+
+**Specific Methods for Community Engagement:**
+
+Simply joining a community will not drive growth. Value comes from active participation.
+
+1. **Create a Feedback Loop**: Post your work or mixes to get objective feedback. Having the courage to share without fearing criticism is important. Reddit's r/roastmytrack is a dedicated subreddit for this
+2. **Ask Specific Questions**: Instead of "my mixing isn't going well," ask specifically, such as "the low frequencies of my kick and bass seem to be clashing — should I address this with sidechain or EQ?"
+3. **Give Feedback to Others**: By providing feedback, you also train your own ears. It becomes practice in articulating "what is good" and "what can be improved"
+4. **Attend Events Regularly**: Whether online or offline, participating in events provides stimulation. DJ battles, beat-making contests, listening sessions, etc.
+5. **Find a Mentor**: Find someone more skilled in the community and build a relationship where you can regularly receive advice
+
+### [Books & Courses](./books-courses.md)
+
+Recommended books and online courses. Carefully curated reliable resources for those who want to learn systematically.
+
+**Books:**
+- **DJ-Related**: DJ bibles, DJ technique books, DJ culture history
+- **Music Theory**: Music theory fundamentals, harmony and chord progressions, rhythm and groove
+- **Production**: Ableton Live official guide, mixing & mastering books, sound design introductions
+
+**Online Courses:**
+- **Free**: Ableton official tutorials (Learning Music, Learning Synths), systematic tutorial series on YouTube
+- **Paid**: Udemy, Skillshare, Point Blank Online, Coursera music production courses
+- **Subscription**: Monthly.com, Groove3, LinkedIn Learning
+
+**Information:**
+- Title, author/instructor
+- Price and format (one-time purchase/subscription)
+- Level (beginner/intermediate/advanced)
+- Recommended highlights and expected outcomes
+
+**Detailed Book Selection Advice:**
+
+Books are ideal for gaining systematic knowledge, but they are meaningless without practice. The "sandwich learning method" of alternating between reading and practice is recommended.
+
+**Essential DJ-Related Reads:**
+1. **"How to DJ Right: The Art and Science of Playing Records" (Frank Broughton & Bill Brewster)**: Covers everything from DJ fundamentals to history and culture. Written in accessible English
+2. **"DJing for Dummies"**: The classic beginner's guide. Covers a wide range from equipment selection to techniques
+3. **"Last Night a DJ Saved My Life: The History of the Disc Jockey"**: Understanding DJ culture history deepens your appreciation of music
+
+**Essential Production-Related Reads:**
+1. **"Making Music: 74 Creative Strategies for Electronic Music Producers" (Dennis DeSantis)**: Ableton's official production guide. Focuses on overcoming creative blocks
+2. **"Mixing Secrets for the Small Studio" (Mike Senior)**: Detailed explanation of mixing techniques for home studios
+3. **"Dance Music Manual: Tools, Toys, and Techniques" (Rick Snoman)**: An encyclopedic volume on EDM production
+4. **"The Secrets of Dance Music Production" (Attack Magazine)**: Practical production techniques explained by genre
+
+**How to Choose Online Courses:**
+- **Start for Free**: First, solidify your foundations with Ableton's official "Learning Music" and "Learning Synths." These alone provide considerable knowledge
+- **Supplement with YouTube**: Search YouTube for specific techniques. However, quality varies, so judge reliability by subscriber count and comment content
+- **Invest in Paid Courses with a Clear Purpose**: Invest in paid courses when you have a specific goal such as "I want to focus on learning mixing" or "I want to learn production techniques for a specific genre"
+- **Verify the Instructor's Track Record**: Choose courses from instructors who have actual release experience
+
+### [Inspiration](./inspiration.md)
+
+Resources to stimulate creativity. Use these when you run out of ideas, lose motivation, or want to explore new directions.
+
+**Artist Research:**
+- List of DJs and producers you want to draw inspiration from
+- Structural analysis of live sets and mixes
+- Interviews and documentaries
+- Explanation of each artist's distinctive techniques
+
+**Trends:**
+- Latest genre and sub-genre developments
+- Popular techniques and sound design trends
+- Equipment and software evolution and new product information
+- Industry-wide direction and new possibilities
+
+**Motivation:**
+- Success stories - Journeys of artists who rose from obscurity to fame
+- Comebacks from setbacks - Experiences of overcoming slumps
+- Tips for persistence - Methods for maintaining long-term motivation
+- Mindset - Professional attitudes and approaches
+
+**Practical Methods for Finding Inspiration:**
+
+Creative blocks (writer's block/producer's block) happen to everyone. Overcome them with these methods:
+
+1. **Listen to Music Outside Your Genre**: Consciously listen to genres you normally do not. Classical, jazz, world music, film scores, etc. New ideas often emerge from the fusion of different genres
+2. **Set Constraints**: Setting intentional constraints such as "create a track using only 3 sounds" or "complete 8 bars in 10 minutes" stimulates creativity
+3. **Sampling Approach**: Analyze parts of tracks you like and incorporate their essence (chord progressions, rhythm patterns, timbral combinations) into your own work
+4. **Change Your Environment**: Listen to music in a different location, pay attention to ambient sounds during walks, visit art galleries or live shows, etc.
+5. **Collaboration**: Collaborating with other producers or musicians is one of the most effective ways to gain new perspectives
 
 ---
 
-## おすすめの学習リソース（外部）詳細ガイド
+## How to Use
 
-### 無料リソース
+### Daily Usage
 
-**YouTube チャンネル（DJ関連）:**
+**While Learning:**
+```
+1. Look up unfamiliar terms in the glossary
+2. Check the roadmap for what to learn next
+3. Practice with recommended tracks
+4. Record and review
+5. Get feedback from the community
+```
 
-| チャンネル名 | 特徴 | おすすめ対象 | コンテンツ頻度 |
+**While Producing:**
+```
+1. Find material from sample packs
+2. Create sounds with plugins
+3. Compare with reference tracks
+4. Check mixing and mastering quality
+5. Overcome creative blocks with inspiration resources
+```
+
+**Community:**
+```
+1. Ask questions on forums or Discord
+2. Attend events and network
+3. Learn systematically through courses
+4. Share your work and get feedback
+5. Give feedback on other creators' work
+```
+
+### Stage-by-Stage Utilization Roadmap
+
+**Phase 1: Getting Started (First Month)**
+- Familiarize yourself with basic terms using the glossary
+- Read through the "Beginner" section of the DJ learning roadmap
+- Download 5 tracks from the "For Beginners" recommended practice tracks
+- Install the free version of DJ software (Rekordbox or Serato)
+- Watch basic operation tutorials on YouTube
+
+**Phase 2: Building Foundations (Months 2-3)**
+- Start beatmatching practice (use the "Beatmatching Practice" section of recommended tracks)
+- If interested in music production, install the Ableton Live trial version
+- Complete Learning Music (Ableton's official free course)
+- Join communities (Reddit, Discord) and start gathering information
+
+**Phase 3: Practical Application (Months 4-6)**
+- Complete a 15-minute DJ mix
+- In production, finish your first track (an 8-bar loop is fine)
+- Get 1-2 sample packs and use them in production
+- Share your work in a community for the first time
+- If possible, make your DJ debut at a small event
+
+**Phase 4: Development (Months 7-12)**
+- Become capable of constructing 30-minute to 1-hour DJ sets
+- Practice harmonic mixing
+- Creative transitions using effects
+- In production, maintain a pace of completing 1-2 tracks per month
+- Start investing in plugins (refer to the priority list)
+
+---
+
+## Recommended External Learning Resources - Detailed Guide
+
+### Free Resources
+
+**YouTube Channels (DJ-Related):**
+
+| Channel Name | Features | Recommended For | Content Frequency |
 |---|---|---|---|
-| DJ Carlo Atendido | テクニック解説が丁寧 | 初心者〜中級 | 週1-2回 |
-| Crossfader | DJ全般の総合チャンネル | 初心者〜上級 | 週2-3回 |
-| Ellaskins | 長年の実績がある老舗 | 初心者〜中級 | 月2-3回 |
-| Club Ready DJ School | 実践的なミキシングテクニック | 中級〜上級 | 週1回 |
-| DJ TLM TV | 機材レビューが充実 | 全レベル | 週1-2回 |
-| Phil Harris | テクノDJ特化 | 中級〜上級 | 月2-3回 |
-| Laidback Luke | プロDJの視点 | 中級〜上級 | 不定期 |
+| DJ Carlo Atendido | Thorough technique explanations | Beginner to Intermediate | 1-2 times/week |
+| Crossfader | Comprehensive DJ channel | Beginner to Advanced | 2-3 times/week |
+| Ellaskins | Long-established veteran channel | Beginner to Intermediate | 2-3 times/month |
+| Club Ready DJ School | Practical mixing techniques | Intermediate to Advanced | Once/week |
+| DJ TLM TV | Extensive equipment reviews | All levels | 1-2 times/week |
+| Phil Harris | Techno DJ focused | Intermediate to Advanced | 2-3 times/month |
+| Laidback Luke | Pro DJ perspective | Intermediate to Advanced | Irregular |
 
-**YouTube チャンネル（制作関連）:**
+**YouTube Channels (Production-Related):**
 
-| チャンネル名 | 特徴 | おすすめ対象 | コンテンツ頻度 |
+| Channel Name | Features | Recommended For | Content Frequency |
 |---|---|---|---|
-| Ableton公式 | DAWメーカーの公式チュートリアル | 初心者〜中級 | 週1回 |
-| Seed to Stage | 制作からリリースまで | 中級〜上級 | 週2回 |
-| You Suck at Producing | ユーモアを交えた解説 | 初心者〜中級 | 週1-2回 |
-| Venus Theory | サウンドデザイン特化 | 中級〜上級 | 週2回 |
-| In The Mix | ミキシング・マスタリング | 初心者〜中級 | 週1回 |
-| Andrew Huang | 実験的な制作 | 全レベル | 週2-3回 |
-| Mr. Bill | Ableton上級テクニック | 上級 | 週1回 |
-| ARTFX Studios | プロの制作ワークフロー | 中級〜上級 | 月2-3回 |
-| Zen World | EDM制作テクニック | 初心者〜中級 | 週1-2回 |
-| Oversampled | サウンドデザイン・シンセ | 中級 | 週1回 |
+| Ableton Official | Official DAW maker tutorials | Beginner to Intermediate | Once/week |
+| Seed to Stage | From production to release | Intermediate to Advanced | Twice/week |
+| You Suck at Producing | Humorous explanations | Beginner to Intermediate | 1-2 times/week |
+| Venus Theory | Sound design focused | Intermediate to Advanced | Twice/week |
+| In The Mix | Mixing and mastering | Beginner to Intermediate | Once/week |
+| Andrew Huang | Experimental production | All levels | 2-3 times/week |
+| Mr. Bill | Advanced Ableton techniques | Advanced | Once/week |
+| ARTFX Studios | Professional production workflows | Intermediate to Advanced | 2-3 times/month |
+| Zen World | EDM production techniques | Beginner to Intermediate | 1-2 times/week |
+| Oversampled | Sound design and synths | Intermediate | Once/week |
 
-**YouTube チャンネル（音楽理論）:**
+**YouTube Channels (Music Theory):**
 
-| チャンネル名 | 特徴 | おすすめ対象 |
+| Channel Name | Features | Recommended For |
 |---|---|---|
-| Adam Neely | ジャズ〜ポップの音楽理論 | 中級〜上級 |
-| 12tone | 楽曲分析 | 全レベル |
-| Rick Beato | 音楽全般の深い分析 | 中級〜上級 |
-| Music Theory for the 21st-Century Musician | 現代的な音楽理論 | 初心者〜中級 |
-| Jake Lizzio (Signals Music Studio) | ギター視点だが理論は普遍的 | 初心者〜中級 |
+| Adam Neely | Jazz to pop music theory | Intermediate to Advanced |
+| 12tone | Song analysis | All levels |
+| Rick Beato | Deep analysis of all music | Intermediate to Advanced |
+| Music Theory for the 21st-Century Musician | Modern music theory | Beginner to Intermediate |
+| Jake Lizzio (Signals Music Studio) | Guitar-oriented but theory is universal | Beginner to Intermediate |
 
-**Web サイト:**
-- **DJ TechTools（djtechtools.com）**: DJ機材レビュー、チュートリアル、業界ニュース。特に機材選びの参考として非常に有用。Mapping ファイルのダウンロードも可能
-- **Ableton公式 Learning Music（learningmusic.ableton.com）**: ブラウザ上で音楽の基礎を学べるインタラクティブなコース。ビート、ノート、コード、ベースライン、メロディ、曲の構造をステップバイステップで学習
-- **Ableton公式 Learning Synths（learningsynths.ableton.com）**: シンセサイザーの基礎をブラウザ上で学べる。オシレーター、フィルター、エンベロープ、LFOの仕組みを視覚的・聴覚的に理解
-- **Point Blank Blog（pointblankmusicschool.com/blog）**: 制作Tips、インタビュー、テクニック解説。プロの視点からの実践的なアドバイスが豊富
-- **Attack Magazine（attackmagazine.com）**: EDM制作に特化したオンラインマガジン。ジャンル別の制作ガイド、プラグインレビュー、テクニック解説
-- **Resident Advisor（ra.co）**: DJ/クラブカルチャーの総合メディア。イベント情報、DJチャート、レビュー、インタビュー
-- **MusicRadar（musicradar.com）**: 楽器・制作機材のレビュー、チュートリアル、無料サンプル配布
-- **Splice Blog（splice.com/blog）**: 制作テクニック、アーティストインタビュー、業界分析
-- **iZotope Learn（izotope.com/en/learn）**: ミキシング・マスタリングの教育コンテンツ。特にラウドネス、EQ、コンプレッションの解説が秀逸
+**Websites:**
+- **DJ TechTools (djtechtools.com)**: DJ equipment reviews, tutorials, industry news. Extremely useful for equipment selection reference. Controller mapping files also available for download
+- **Ableton Official Learning Music (learningmusic.ableton.com)**: An interactive course for learning music fundamentals in the browser. Learn beats, notes, chords, basslines, melodies, and song structure step by step
+- **Ableton Official Learning Synths (learningsynths.ableton.com)**: Learn synthesizer basics in the browser. Visually and aurally understand how oscillators, filters, envelopes, and LFOs work
+- **Point Blank Blog (pointblankmusicschool.com/blog)**: Production tips, interviews, technique explanations. Rich in practical advice from a professional perspective
+- **Attack Magazine (attackmagazine.com)**: An online magazine specializing in EDM production. Genre-specific production guides, plugin reviews, technique explanations
+- **Resident Advisor (ra.co)**: Comprehensive media for DJ/club culture. Event information, DJ charts, reviews, interviews
+- **MusicRadar (musicradar.com)**: Reviews of instruments and production equipment, tutorials, free sample distributions
+- **Splice Blog (splice.com/blog)**: Production techniques, artist interviews, industry analysis
+- **iZotope Learn (izotope.com/en/learn)**: Educational content on mixing and mastering. Particularly excellent coverage of loudness, EQ, and compression
 
-**無料オンラインコース:**
-- **Ableton Learning Music**: 音楽制作の基礎をブラウザ上で学べる（所要時間: 約2-3時間）
-- **Ableton Learning Synths**: シンセサイザーの基礎を学べる（所要時間: 約1-2時間）
-- **Coursera - Introduction to Music Production**: バークリー音楽大学による無料コース（監査モード）
-- **Kadenze - Introduction to Audio Programming**: オーディオプログラミングの基礎（監査モード無料）
+**Free Online Courses:**
+- **Ableton Learning Music**: Learn music production fundamentals in the browser (approx. 2-3 hours)
+- **Ableton Learning Synths**: Learn synthesizer basics (approx. 1-2 hours)
+- **Coursera - Introduction to Music Production**: Free course by Berklee College of Music (audit mode)
+- **Kadenze - Introduction to Audio Programming**: Audio programming fundamentals (free audit mode)
 
-### 有料リソース（推奨）
+### Paid Resources (Recommended)
 
-**オンラインスクール:**
+**Online Schools:**
 
-| スクール名 | 特徴 | 価格帯 | おすすめポイント |
+| School Name | Features | Price Range | Highlights |
 |---|---|---|---|
-| Point Blank Music School | プロによる本格的なコース | 月額$29.99〜 | カリキュラムが体系的、講師陣が豪華 |
-| Sonic Academy | 制作テクニック特化 | 月額$14.99〜 | ジャンル別コースが充実 |
-| FaderPro | プロデューサーのワークフロー | コース$49.99〜 | 実際のプロの制作プロセスを学べる |
-| Producertech | Ableton特化コース多数 | コース$29.99〜 | Ableton Live の高度なテクニック |
-| AULART | トップDJ/プロデューサーのマスタークラス | コース$29.99〜 | 業界のトップレベルから直接学べる |
-| Warp Academy | Ableton Live 専門 | 月額$19.99〜 | Max for Live も含む包括的なコース |
+| Point Blank Music School | Professional-grade courses | From $29.99/month | Systematic curriculum, outstanding instructors |
+| Sonic Academy | Production technique focused | From $14.99/month | Extensive genre-specific courses |
+| FaderPro | Producer workflow learning | From $49.99/course | Learn from actual pro production processes |
+| Producertech | Many Ableton-focused courses | From $29.99/course | Advanced Ableton Live techniques |
+| AULART | Masterclasses by top DJs/producers | From $29.99/course | Learn directly from industry leaders |
+| Warp Academy | Ableton Live specialist | From $19.99/month | Comprehensive courses including Max for Live |
 
-**サブスクリプションサービス:**
+**Subscription Services:**
 
-| サービス名 | 内容 | 価格 | おすすめポイント |
+| Service Name | Content | Price | Highlights |
 |---|---|---|---|
-| Splice Sounds | サンプル＋プラグイン月額レンタル | $9.99〜/月 | クレジット制で無駄なし、膨大なライブラリ |
-| Loopcloud | サンプル管理＋AI検索 | $7.99〜/月 | AI搭載の検索が優秀、DAW統合 |
-| Plugin Boutique | プラグイン割引・無料配布 | 無料（アカウント） | 毎月無料プラグインを配布 |
-| LANDR | マスタリング＋配信 | $4.99〜/月 | AIマスタリング、配信サービス統合 |
-| DistroKid | 音楽配信 | $22.99/年 | 最も安価な配信サービスの一つ |
+| Splice Sounds | Samples + plugin monthly rental | From $9.99/month | Credit-based system with no waste, vast library |
+| Loopcloud | Sample management + AI search | From $7.99/month | Excellent AI-powered search, DAW integration |
+| Plugin Boutique | Plugin discounts and freebies | Free (account) | Free plugin giveaways every month |
+| LANDR | Mastering + distribution | From $4.99/month | AI mastering, integrated distribution service |
+| DistroKid | Music distribution | $22.99/year | One of the most affordable distribution services |
 
 ---
 
-## リソース活用のワークフロー統合
+## Integrating Resources into Your Workflow
 
-### DJセット準備のワークフロー
+### DJ Set Preparation Workflow
 
-DJセットを準備する際のリソース活用フローを示します。
-
-```
-1. テーマ/ジャンルを決定
-   └── インスピレーション・ページで方向性を固める
-
-2. 楽曲選定
-   ├── 推奨練習曲リストから候補を選ぶ
-   ├── Beatport/Bandcamp で新曲をチェック
-   └── 他のDJのセットリストを参考にする
-
-3. 楽曲分析
-   ├── BPM/キーを解析（Mixed In Key / Rekordbox）
-   ├── 曲の構造を確認（イントロ、ドロップ、アウトロ）
-   └── 用語集で不明な点を確認
-
-4. セットリスト構成
-   ├── エネルギーフローを設計
-   ├── ハーモニックミキシングのルートを計画
-   └── トランジションポイントを決定
-
-5. 練習
-   ├── 各トランジションを繰り返し練習
-   ├── 全体を通して録音
-   └── 録音を聴いて改善点を見つける
-
-6. フィードバック
-   ├── コミュニティで録音を共有
-   └── フィードバックを次回に活かす
-```
-
-### 楽曲制作のワークフロー
-
-楽曲制作の際のリソース活用フローです。
+Here is a resource utilization flow for preparing a DJ set.
 
 ```
-1. アイデア出し
-   ├── インスピレーション・ページでアイデアを得る
-   ├── リファレンストラックを選ぶ
-   └── テーマ/ムード/ジャンルを決定
+1. Decide on theme/genre
+   └── Use the Inspiration page to solidify your direction
 
-2. 素材準備
-   ├── サンプルパックから素材を選ぶ
-   ├── シンセで音色を作る（プラグイン一覧参照）
-   └── ドラムキットを組む
+2. Track selection
+   ├── Choose candidates from the recommended practice track list
+   ├── Check new releases on Beatport/Bandcamp
+   └── Reference setlists from other DJs
 
-3. 制作（スケッチ）
-   ├── 8小節のメインループを作成
-   ├── コード進行を決定（音楽理論参照）
-   └── ベースラインとメロディを追加
+3. Track analysis
+   ├── Analyze BPM/key (Mixed In Key / Rekordbox)
+   ├── Check song structure (intro, drop, outro)
+   └── Look up any unclear points in the glossary
 
-4. アレンジメント
-   ├── イントロ→ビルドアップ→ドロップ→ブレイクダウン→アウトロ
-   ├── リファレンストラックの構造を参考に
-   └── 制作ロードマップの構造ガイドを参照
+4. Setlist construction
+   ├── Design the energy flow
+   ├── Plan the harmonic mixing route
+   └── Determine transition points
 
-5. ミキシング
-   ├── EQ、コンプレッション、リバーブなどの処理
-   ├── プラグイン一覧からツールを選択
-   └── 書籍・コースのミキシングセクション参照
+5. Practice
+   ├── Repeatedly practice each transition
+   ├── Record the entire set
+   └── Listen to the recording and identify areas for improvement
 
-6. マスタリング
-   ├── ラウドネス最適化
-   ├── 最終的な周波数バランス調整
-   └── 各配信プラットフォームの基準を確認
+6. Feedback
+   ├── Share the recording in communities
+   └── Apply feedback to next time
+```
 
-7. フィードバック＆リリース
-   ├── コミュニティで共有
-   ├── フィードバックを基に修正
-   └── 配信プラットフォームにアップロード
+### Music Production Workflow
+
+Here is a resource utilization flow for music production.
+
+```
+1. Ideation
+   ├── Get ideas from the Inspiration page
+   ├── Choose a reference track
+   └── Decide on theme/mood/genre
+
+2. Material preparation
+   ├── Select materials from sample packs
+   ├── Create sounds with synths (see plugins directory)
+   └── Build a drum kit
+
+3. Production (sketch)
+   ├── Create an 8-bar main loop
+   ├── Decide on chord progressions (see music theory)
+   └── Add bassline and melody
+
+4. Arrangement
+   ├── Intro → Buildup → Drop → Breakdown → Outro
+   ├── Reference the structure of your reference track
+   └── See the production roadmap's structure guide
+
+5. Mixing
+   ├── Apply EQ, compression, reverb, and other processing
+   ├── Select tools from the plugins directory
+   └── See the mixing section in Books & Courses
+
+6. Mastering
+   ├── Loudness optimization
+   ├── Final frequency balance adjustment
+   └── Check standards for each distribution platform
+
+7. Feedback & Release
+   ├── Share in communities
+   ├── Revise based on feedback
+   └── Upload to distribution platforms
 ```
 
 ---
 
-## 機材購入ガイド
+## Equipment Purchase Guide
 
-### 予算別おすすめセットアップ
+### Recommended Setups by Budget
 
-リソースページ内のプラグイン・ツール一覧と連携した、予算別の機材ガイドです。
+A budget-based equipment guide linked to the Plugins & Tools directory in the Resources pages.
 
-**最小構成（〜3万円）:**
-- ノートPC（既存のもので可）
-- DJソフトウェア: Rekordbox（無料版）
-- ヘッドフォン: Audio-Technica ATH-M20x（約5,000円）
-- DJコントローラー: Pioneer DDJ-FLX4（約25,000円）
+**Minimal Setup (up to ~$200):**
+- Laptop (existing one is fine)
+- DJ Software: Rekordbox (free version)
+- Headphones: Audio-Technica ATH-M20x (~$50)
+- DJ Controller: Pioneer DDJ-FLX4 (~$200)
 
-この構成で始めれば、ビートマッチング、基本的なミキシング、EQ操作、エフェクトの基礎を全て学べます。
+With this setup, you can learn beatmatching, basic mixing, EQ operation, and effects fundamentals.
 
-**標準構成（5-10万円）:**
-- DJコントローラー: Pioneer DDJ-FLX6-GT（約60,000円）または Pioneer DDJ-800（約80,000円）
-- ヘッドフォン: Pioneer HDJ-CUE1（約8,000円）
-- モニタースピーカー: JBL 104-BT（約15,000円）
-- DJソフトウェア: Rekordbox（コントローラーにライセンス付属）
+**Standard Setup ($400-800):**
+- DJ Controller: Pioneer DDJ-FLX6-GT (~$500) or Pioneer DDJ-800 (~$650)
+- Headphones: Pioneer HDJ-CUE1 (~$65)
+- Monitor Speakers: JBL 104-BT (~$120)
+- DJ Software: Rekordbox (license included with controller)
 
-**プロ志向構成（20-50万円）:**
-- CDJ: Pioneer CDJ-3000 x2（約500,000円）→ 最初はレンタルや共有スタジオ利用を推奨
-- ミキサー: Pioneer DJM-900NXS2（約250,000円）→ 同上
-- ヘッドフォン: Pioneer HDJ-X10（約30,000円）
-- 現実的な代替案: Pioneer DDJ-1000（約120,000円）でほぼ同等の操作感
+**Pro-Oriented Setup ($1,500-4,000):**
+- CDJ: Pioneer CDJ-3000 x2 (~$4,000) → Renting or using shared studios is recommended initially
+- Mixer: Pioneer DJM-900NXS2 (~$2,000) → Same as above
+- Headphones: Pioneer HDJ-X10 (~$250)
+- Realistic Alternative: Pioneer DDJ-1000 (~$900) for a nearly identical feel
 
-**制作機材の追加構成:**
-- オーディオインターフェース: Focusrite Scarlett 2i2（約15,000円）
-- MIDIキーボード: Arturia MiniLab 3（約12,000円）
-- モニタースピーカー: Yamaha HS5（ペアで約30,000円）
-- DAW: Ableton Live Intro（約12,000円）→ 後からStandard/Suiteにアップグレード可能
+**Additional Production Equipment Setup:**
+- Audio Interface: Focusrite Scarlett 2i2 (~$120)
+- MIDI Keyboard: Arturia MiniLab 3 (~$100)
+- Monitor Speakers: Yamaha HS5 (pair for ~$250)
+- DAW: Ableton Live Intro (~$100) → Can be upgraded to Standard/Suite later
 
-### 機材選びの基本原則
+### Basic Principles for Equipment Selection
 
-1. **最初は安く始める**: 高価な機材を買っても、使いこなせなければ意味がない。まずはエントリーモデルで基礎を固めてから、必要に応じてアップグレード
-2. **試してから買う**: 可能であれば楽器店やDJスクールで実際に触ってから購入する。操作感は個人の好みが大きい
-3. **中古市場を活用**: DJ機材は中古でも品質が維持されていることが多い。メルカリ、ヤフオク、デジマートなどをチェック
-4. **互換性を確認**: DJソフトウェアとコントローラーの互換性、DAWとオーディオインターフェースの互換性を事前に確認
-5. **拡張性を考慮**: 将来的なアップグレードパスがある機材を選ぶ。例えばPioneer製品はRekordboxとの統合が強み
+1. **Start Affordable**: Expensive equipment is meaningless if you cannot use it properly. First build your foundations with entry-level models, then upgrade as needed
+2. **Try Before You Buy**: If possible, try equipment at music stores or DJ schools before purchasing. Personal preference for feel varies greatly
+3. **Use the Second-Hand Market**: DJ equipment often maintains quality even when used. Check resale platforms and used gear marketplaces
+4. **Verify Compatibility**: Check compatibility between DJ software and controllers, and between DAW and audio interface beforehand
+5. **Consider Expandability**: Choose equipment with future upgrade paths. For example, Pioneer products have strong Rekordbox integration
 
 ---
 
-## ジャンル別リソースガイド
+## Genre-Specific Resource Guide
 
-各ジャンルに特化したリソースの活用法をまとめます。
+A summary of how to use resources specific to each genre.
 
 ### House Music
 
-**特徴:** 4つ打ちキック、120-130 BPM、グルーヴ重視。サブジャンルが非常に多い。
+**Characteristics:** Four-on-the-floor kick, 120-130 BPM, groove-oriented. Extremely diverse sub-genres.
 
-**学習リソース:**
-- YouTube: Defected Records チャンネル（公式ミックス、トラック分析）
-- サンプルパック: Loopmasters "House Essentials" シリーズ
-- プラグイン: Diva (u-he) でクラシックなアナログシンセサウンド
-- 推奨曲: ロードマップの House セクション参照
+**Learning Resources:**
+- YouTube: Defected Records channel (official mixes, track analysis)
+- Sample Packs: Loopmasters "House Essentials" series
+- Plugins: Diva (u-he) for classic analog synth sounds
+- Recommended Tracks: See the House section of the roadmap
 
-**House DJing のポイント:**
-- ロングミックスが基本（32小節以上のトランジション）
-- EQミキシングが重要（ローカットの使い分け）
-- グルーヴの流れを途切れさせないこと
-- フィルターを使ったスムーズなトランジション
+**House DJing Tips:**
+- Long mixes are standard (transitions of 32+ bars)
+- EQ mixing is critical (using low-cut effectively)
+- Do not interrupt the groove flow
+- Smooth transitions using filters
 
-**House 制作のポイント:**
-- キックとベースラインの関係が最重要
-- コード進行はシンプルに（2-4コード）
-- ハイハットのスウィングでグルーヴを作る
-- リバーブとディレイでスペース感を演出
+**House Production Tips:**
+- The relationship between kick and bassline is paramount
+- Keep chord progressions simple (2-4 chords)
+- Create groove with hi-hat swing
+- Create a sense of space with reverb and delay
 
 ### Techno
 
-**特徴:** 反復的でハイプノティック、125-145 BPM、音色変化が主なダイナミクス。
+**Characteristics:** Repetitive and hypnotic, 125-145 BPM, timbral changes as the main dynamic.
 
-**学習リソース:**
-- YouTube: Boiler Room アーカイブ（ライブセットの宝庫）
-- サンプルパック: Riemann Kollektion（テクノ特化の高品質パック）
-- プラグイン: Diva、TAL-U-NO-LX（アナログテクノ）、Phaseplant（モダンテクノ）
-- 推奨曲: ロードマップの Techno セクション参照
+**Learning Resources:**
+- YouTube: Boiler Room archives (a treasure trove of live sets)
+- Sample Packs: Riemann Kollektion (high-quality techno-focused packs)
+- Plugins: Diva, TAL-U-NO-LX (analog techno), Phaseplant (modern techno)
+- Recommended Tracks: See the Techno section of the roadmap
 
-**Techno DJing のポイント:**
-- フィルターとEQを使った subtle なトランジション
-- 3曲同時ミキシング（トレインレッキング回避に注意）
-- ループ機能を使ったクリエイティブなブレンド
-- エネルギーレベルのコントロールが重要
+**Techno DJing Tips:**
+- Subtle transitions using filters and EQ
+- Three-track simultaneous mixing (watch out for trainwrecking)
+- Creative blending using the loop function
+- Energy level control is critical
 
-**Techno 制作のポイント:**
-- リズムの反復とバリエーション
-- テクスチャーとアンビエンスの進化
-- サイドチェイン・コンプレッションの活用
-- ミニマルでも飽きさせない変化の付け方
+**Techno Production Tips:**
+- Rhythm repetition and variation
+- Evolution of texture and ambience
+- Effective use of sidechain compression
+- Creating engaging variation even in minimal tracks
 
 ### Drum & Bass
 
-**特徴:** 高速ブレイクビート、170-180 BPM、重低音のベースライン。
+**Characteristics:** High-speed breakbeats, 170-180 BPM, heavy basslines.
 
-**学習リソース:**
-- YouTube: UKF Drum & Bass（公式チャンネル）
-- サンプルパック: Ghost Syndicate "DnB" シリーズ
-- プラグイン: Serum（ベースデザイン）、Xfer LFO Tool（サイドチェイン）
-- 推奨曲: ロードマップの DnB セクション参照
+**Learning Resources:**
+- YouTube: UKF Drum & Bass (official channel)
+- Sample Packs: Ghost Syndicate "DnB" series
+- Plugins: Serum (bass design), Xfer LFO Tool (sidechain)
+- Recommended Tracks: See the DnB section of the roadmap
 
-**DnB DJing のポイント:**
-- ダブルドロップ（2曲同時にドロップを合わせる）
-- 高速BPMでの正確なビートマッチング
-- ジャンプアップとリキッドの使い分け
-- MCとの連携（ライブの場合）
+**DnB DJing Tips:**
+- Double drops (aligning drops from two tracks simultaneously)
+- Precise beatmatching at high BPMs
+- Distinguishing between jump-up and liquid styles
+- Coordination with MCs (in live settings)
 
-**DnB 制作のポイント:**
-- Amen Break のチョップとリアレンジ
-- ベースデザイン（Reese Bass、Neuro Bass）
-- 2ステップのドラムパターン
-- サブベースとミッドベースのレイヤリング
+**DnB Production Tips:**
+- Amen Break chopping and rearranging
+- Bass design (Reese Bass, Neuro Bass)
+- Two-step drum patterns
+- Sub-bass and mid-bass layering
 
 ### Dubstep / Bass Music
 
-**特徴:** ハーフタイムのリズム、140 BPM、重低音とアグレッシブなベースデザイン。
+**Characteristics:** Half-time rhythm, 140 BPM, heavy bass and aggressive bass design.
 
-**学習リソース:**
-- YouTube: Virtual Riot（制作チュートリアル）、Barely Alive
-- サンプルパック: Cymatics "Dubstep Monster" シリーズ
-- プラグイン: Serum（必須）、Vital、Phaseplant
-- 推奨曲: ロードマップの Dubstep セクション参照
+**Learning Resources:**
+- YouTube: Virtual Riot (production tutorials), Barely Alive
+- Sample Packs: Cymatics "Dubstep Monster" series
+- Plugins: Serum (essential), Vital, Phaseplant
+- Recommended Tracks: See the Dubstep section of the roadmap
 
-**Bass Music 制作のポイント:**
-- ウェーブテーブルシンセの徹底的な理解が必要
-- FM合成によるグロウルベース
-- Vocodex/Vocoder を使った声系ベース
-- Automation が命（フィルター、ウェーブテーブルポジション、LFO レート）
+**Bass Music Production Tips:**
+- Thorough understanding of wavetable synths is required
+- Growl bass through FM synthesis
+- Vocal-style bass using Vocodex/Vocoder
+- Automation is everything (filter, wavetable position, LFO rate)
 
 ### Trance
 
-**特徴:** エモーショナルなメロディ、136-150 BPM、ビルドアップ→ドロップの劇的な展開。
+**Characteristics:** Emotional melodies, 136-150 BPM, dramatic buildup → drop progression.
 
-**学習リソース:**
-- YouTube: Factor B Studio Sessions、Protoculture チュートリアル
-- サンプルパック: Freshly Squeezed Samples "Trance" シリーズ
-- プラグイン: Sylenth1（トランスのスタンダードシンセ）、Spire
-- 推奨曲: ロードマップの Trance セクション参照
+**Learning Resources:**
+- YouTube: Factor B Studio Sessions, Protoculture tutorials
+- Sample Packs: Freshly Squeezed Samples "Trance" series
+- Plugins: Sylenth1 (the standard trance synth), Spire
+- Recommended Tracks: See the Trance section of the roadmap
 
-**Trance 制作のポイント:**
-- スーパーソー（Supersaw）サウンドの作り方
-- アルペジオとゲートトランスのテクニック
-- ロングビルドアップの構成法
-- エモーショナルなコード進行（マイナーキーが基本）
+**Trance Production Tips:**
+- How to create supersaw sounds
+- Arpeggio and gated trance techniques
+- Long buildup construction methods
+- Emotional chord progressions (minor keys are the norm)
 
 ---
 
-## 音楽理論リソース詳細
+## Music Theory Resources in Detail
 
-### DJ向け音楽理論の基礎
+### Music Theory Basics for DJs
 
-DJにとって最低限必要な音楽理論知識をまとめます。
+A summary of the minimum music theory knowledge necessary for DJs.
 
-**キー（調）の理解:**
+**Understanding Keys:**
 
-キーは楽曲の「調性」を表します。DJミキシングにおいて、キーの相性を理解することは非常に重要です。
+A key represents the "tonality" of a track. Understanding key compatibility is very important in DJ mixing.
 
-| 表記法 | 説明 | 使用場面 |
+| Notation | Description | Use Case |
 |---|---|---|
-| 標準表記 | C Major、A Minor など | 音楽理論の文脈 |
-| Camelot表記 | 1A〜12B | DJミキシング（Mixed In Key） |
-| Open Key表記 | 1d〜12m | DJミキシング（別の表記法） |
+| Standard Notation | C Major, A Minor, etc. | Music theory contexts |
+| Camelot Notation | 1A-12B | DJ mixing (Mixed In Key) |
+| Open Key Notation | 1d-12m | DJ mixing (alternative notation) |
 
-**Camelotホイールの基本ルール:**
-- **同じ番号**: 完全に相性が良い（例: 8A → 8A）
-- **隣の番号（±1）**: 非常に相性が良い（例: 8A → 7A、8A → 9A）
-- **同じ番号のA/B切り替え**: 平行調で相性が良い（例: 8A → 8B）
-- **+7の移動**: エネルギーブースト（例: 8A → 3A）
+**Basic Rules of the Camelot Wheel:**
+- **Same number**: Perfectly compatible (e.g., 8A → 8A)
+- **Adjacent number (±1)**: Highly compatible (e.g., 8A → 7A, 8A → 9A)
+- **Same number A/B switch**: Relative key, good compatibility (e.g., 8A → 8B)
+- **+7 move**: Energy boost (e.g., 8A → 3A)
 
-**BPMの関係性:**
-- 同じBPM同士が最もミキシングしやすい
-- ±2-3 BPM の差は調整可能（ピッチフェーダーで微調整）
-- ±5% 以上の調整は音質劣化やキーの変化が目立つ
-- ハーフタイム/ダブルタイムの関係（例: 140 BPM の曲と 70 BPM の曲）は相性が良い
+**BPM Relationships:**
+- Same BPM tracks are easiest to mix
+- ±2-3 BPM difference is adjustable (fine-tune with the pitch fader)
+- Adjustments of ±5% or more cause noticeable sound quality degradation and key changes
+- Half-time/double-time relationships (e.g., a 140 BPM track and a 70 BPM track) are compatible
 
-**楽曲構造の基本パターン:**
+**Basic Song Structure Patterns:**
 ```
-典型的なEDM楽曲構造:
-Intro (16-32小節)
-→ Build-up (8-16小節)
-→ Drop/Main (16-32小節)
-→ Breakdown (16-32小節)
-→ Build-up (8-16小節)
-→ Drop/Main (16-32小節)
-→ Outro (16-32小節)
-```
-
-```
-典型的なHouse楽曲構造:
-Intro (32小節: キック+ハット)
-→ Main A (32小節: ベースライン追加)
-→ Breakdown (16-32小節: メロディ/ボーカル)
-→ Main B (32小節: フルアレンジ)
-→ Breakdown 2 (16小節)
-→ Main B' (32小節)
-→ Outro (32小節: 要素が徐々に減少)
+Typical EDM Song Structure:
+Intro (16-32 bars)
+→ Build-up (8-16 bars)
+→ Drop/Main (16-32 bars)
+→ Breakdown (16-32 bars)
+→ Build-up (8-16 bars)
+→ Drop/Main (16-32 bars)
+→ Outro (16-32 bars)
 ```
 
-### 制作向け音楽理論
+```
+Typical House Song Structure:
+Intro (32 bars: kick + hi-hat)
+→ Main A (32 bars: bassline added)
+→ Breakdown (16-32 bars: melody/vocals)
+→ Main B (32 bars: full arrangement)
+→ Breakdown 2 (16 bars)
+→ Main B' (32 bars)
+→ Outro (32 bars: elements gradually decrease)
+```
 
-**コード進行の基礎:**
+### Music Theory for Production
 
-EDM制作で頻出するコード進行パターンをまとめます。
+**Chord Progression Basics:**
 
-| 進行名 | ディグリー | 使用ジャンル | 印象 |
+A summary of commonly used chord progression patterns in EDM production.
+
+| Progression Name | Degree | Used In | Impression |
 |---|---|---|---|
-| 1-5-6-4 | I-V-vi-IV | Pop、EDM全般 | 明るく前向き |
-| 6-4-1-5 | vi-IV-I-V | Pop、Future Bass | エモーショナル |
-| 1-6-4-5 | I-vi-IV-V | Pop、Trance | クラシックな響き |
-| 2-5-1 | ii-V-I | Jazz、Deep House | おしゃれ、洗練 |
-| 1-b7-4 | I-bVII-IV | Rock、Big Room | パワフル |
-| 6-7-1 | vi-VII-I | EDM、Trance | 上昇感 |
+| 1-5-6-4 | I-V-vi-IV | Pop, EDM in general | Bright and uplifting |
+| 6-4-1-5 | vi-IV-I-V | Pop, Future Bass | Emotional |
+| 1-6-4-5 | I-vi-IV-V | Pop, Trance | Classic sound |
+| 2-5-1 | ii-V-I | Jazz, Deep House | Sophisticated, refined |
+| 1-b7-4 | I-bVII-IV | Rock, Big Room | Powerful |
+| 6-7-1 | vi-VII-I | EDM, Trance | Ascending feel |
 
-**スケール（音階）:**
+**Scales:**
 
-EDM制作でよく使われるスケールです。
+Commonly used scales in EDM production.
 
-- **メジャースケール（長音階）**: 明るい響き。Pop、Happy Hardcore
-- **ナチュラルマイナースケール（自然短音階）**: 悲しい、ダークな響き。Techno、Dark Trance
-- **ハーモニックマイナースケール**: エキゾチックな響き。Psy Trance、Middle Eastern
-- **ペンタトニックスケール**: 普遍的で使いやすい。あらゆるジャンル
-- **フリジアンスケール**: ダークで緊張感がある。Dubstep、Dark Techno
-- **ミクソリディアンスケール**: ブルージーな響き。Funk House、Disco
+- **Major Scale**: Bright sound. Pop, Happy Hardcore
+- **Natural Minor Scale**: Sad, dark sound. Techno, Dark Trance
+- **Harmonic Minor Scale**: Exotic sound. Psy Trance, Middle Eastern
+- **Pentatonic Scale**: Universal and easy to use. All genres
+- **Phrygian Scale**: Dark and tense. Dubstep, Dark Techno
+- **Mixolydian Scale**: Bluesy sound. Funk House, Disco
 
 ---
 
-## コミュニティへの貢献
+## Contributing to the Community
 
-このガイドはオープンソースプロジェクトです。
+This guide is an open-source project.
 
-**貢献方法:**
-- 誤字・脱字の修正
-- 新しい情報の追加
-- 推奨リソースの提案
-- 翻訳（英語など）
-- 楽曲リストの更新
-- プラグインレビューの追加
-- コミュニティ情報の更新
+**How to Contribute:**
+- Fix typos and errors
+- Add new information
+- Suggest recommended resources
+- Translations (English, etc.)
+- Update track lists
+- Add plugin reviews
+- Update community information
 
 **GitHub:**
-- Issues で質問・提案
-- Pull Request で改善案を提出
-- Discussions でディスカッション
+- Ask questions and make suggestions via Issues
+- Submit improvement proposals via Pull Requests
+- Join Discussions
 
-**貢献のガイドライン:**
-1. 追加する情報は、実際に自分が使って確認したものを推奨
-2. リンクは定期的に有効性を確認
-3. 価格情報は変動するため、時期を明記
-4. 主観的な評価は「個人の感想」であることを明記
-5. 著作権に配慮（楽曲のリンクは公式サービスのみ）
-
----
-
-## トラブルシューティング・FAQ
-
-### よくある質問と回答
-
-**Q: DJソフトウェアはどれを選べばいいですか？**
-A: 使用する機材によって決まることが多いです。Pioneer製品ならRekordbox、その他のコントローラーならSerato DJ Proが一般的。Traktor は Native Instruments 製品との相性が良いです。無料版を全て試してから決めることをおすすめします。
-
-**Q: Ableton Live のエディションはどれを買えばいいですか？**
-A: まずは無料の体験版（90日間、Suite機能が全て使える）を試してください。その後、Intro（約12,000円）で基本を学び、必要に応じて Standard や Suite にアップグレードするのが経済的です。学生割引（40%オフ）もあるので、該当する場合は活用しましょう。
-
-**Q: 独学でも上達できますか？**
-A: はい、このガイドのロードマップに沿って練習すれば、独学でも十分に上達可能です。ただし、コミュニティでフィードバックをもらうことで上達速度は大幅に向上します。また、ある程度のレベルに達したら、プロのレッスンを受けることでさらなるブレイクスルーが期待できます。
-
-**Q: どのくらい練習すれば人前でDJできますか？**
-A: 個人差がありますが、毎日30分の練習を3-6ヶ月続ければ、友人のパーティーやバーでのDJは可能になります。クラブでのレギュラーを持つには1-2年の経験が目安です。重要なのは時間の長さよりも練習の質です。
-
-**Q: 曲が完成しません。どうすればいいですか？**
-A: 「完成しない病」は多くのプロデューサーが経験します。対策としては：(1) タイマーを設定して期限を作る、(2) 品質のハードルを下げる（70%の完成度でOKとする）、(3) リファレンストラックの構造をコピーしてアレンジの骨格を先に作る、(4) 複数の曲を並行して進める（1曲に固執しない）。
-
-**Q: お金をかけずに始められますか？**
-A: はい。DJソフトウェア（Rekordbox、VirtualDJ）は無料版があり、DAW（GarageBand、Ableton体験版、Cakewalk）も無料で使えます。プラグインもVital、TDR Nova、OTTなど高品質な無料プラグインが豊富です。機材は中古のDDJ-200やDDJ-400が1万円台から見つかることもあります。
+**Contribution Guidelines:**
+1. Recommended to add information you have actually used and verified yourself
+2. Regularly check that links are still valid
+3. Since prices fluctuate, note the time period
+4. Clearly state that subjective evaluations are "personal opinions"
+5. Respect copyrights (only link to tracks through official services)
 
 ---
 
-## 更新情報
+## Troubleshooting & FAQ
 
-このセクションは定期的に更新されます。
+### Frequently Asked Questions
 
-**最新の情報:**
-- 新しいプラグイン・ツールのレビュー
-- コミュニティの動向と新しいコミュニティの紹介
-- おすすめの新曲・サンプルパック情報
-- イベント情報（国内外）
-- 業界トレンドの分析
-- 機材の新製品情報
+**Q: Which DJ software should I choose?**
+A: It often depends on the equipment you use. Rekordbox for Pioneer products, Serato DJ Pro for most other controllers. Traktor works well with Native Instruments products. We recommend trying all free versions before deciding.
 
-**更新頻度:**
-- 月1回の定期更新
-- 重要な新製品/サービスのリリース時は随時更新
-- コミュニティからの提案による随時更新
+**Q: Which edition of Ableton Live should I buy?**
+A: Start with the free trial (90 days with full Suite features). Then learn the basics with Intro (~$100) and upgrade to Standard or Suite as needed. A student discount (40% off) is also available if applicable.
 
----
+**Q: Can I improve through self-study?**
+A: Yes, if you follow the roadmap in this guide, you can make significant progress through self-study. However, getting feedback from communities will greatly accelerate your improvement. Also, once you reach a certain level, taking professional lessons can lead to further breakthroughs.
 
-## 学習の心構え - マインドセットガイド
+**Q: How long do I need to practice before I can DJ in front of people?**
+A: Individual differences exist, but if you practice 30 minutes daily for 3-6 months, you should be able to DJ at friends' parties or bars. Having a regular slot at a club typically requires 1-2 years of experience. The quality of practice matters more than the duration.
 
-### 成長マインドセットの重要性
+**Q: I can't finish a track. What should I do?**
+A: The "can't finish" syndrome is experienced by many producers. Countermeasures include: (1) Set a timer to create deadlines, (2) Lower your quality bar (accept 70% completion as OK), (3) Copy the structure of a reference track and build the arrangement skeleton first, (4) Work on multiple tracks in parallel (avoid fixating on one track).
 
-DJも楽曲制作も、一朝一夕には上達しません。長期的な成長を支える心構えについて解説します。
-
-**1. 比較は過去の自分とだけ:**
-SNSには上手いDJやプロデューサーの動画が溢れています。自分と比較して落ち込むのではなく、「1ヶ月前の自分」と比較してください。確実に成長しているはずです。
-
-**2. 完璧主義を手放す:**
-特に楽曲制作において、完璧を求めすぎると1曲も完成しません。「完成させることが最大の練習」という意識を持ちましょう。プロの曲でも、制作者本人は不満を持っていることがほとんどです。
-
-**3. 失敗はデータ:**
-ミキシングでトレインレック（列車事故=音がぶつかって聴けない状態）をやっても、曲のアレンジが変になっても、それは「何がうまくいかないか」を学ぶ貴重なデータです。失敗しないということは、挑戦していないということです。
-
-**4. 継続が最大の才能:**
-週に1回7時間練習するよりも、毎日1時間練習する方が効果的です。脳は睡眠中に学習内容を定着させるため、毎日の短い練習が最も効率的な上達方法です。
-
-**5. アウトプットを恐れない:**
-自分のミックスや曲を公開するのは怖いことです。しかし、アウトプットなしに客観的なフィードバックは得られません。最初は匿名で公開するのでもOKです。
-
-### 効果的な練習方法の科学
-
-音楽スキルの習得に関する研究から、効果的な練習方法が明らかになっています。
-
-**1. 意図的な練習（Deliberate Practice）:**
-ただ漠然と練習するのではなく、「今日はこのテクニックを改善する」という明確な目標を持って練習する。例えば「ビートマッチングの精度を上げる」ではなく「BPM差が5以上ある曲のビートマッチングを3秒以内に完了できるようにする」のように具体的に。
-
-**2. スペーシング効果:**
-同じ内容を1日で集中的に練習するよりも、数日に分けて練習する方が定着率が高い。ビートマッチングの練習は毎日15分ずつが理想的。
-
-**3. インターリービング:**
-複数のスキルを交互に練習する方が、1つのスキルを集中して練習するよりも長期的には効果的。例：ビートマッチング15分→EQミキシング15分→エフェクト15分のローテーション。
-
-**4. メンタルプラクティス:**
-機材の前にいなくても、頭の中でミキシングのプロセスをイメージすることで上達する。通勤中にDJミックスを聴きながら「自分ならここでトランジションする」と考えるのは立派な練習です。
-
-**5. フィードバックループ:**
-練習→録音→聴き直し→改善点の特定→再練習のサイクルを回す。客観的に自分の演奏を聴くことが、上達の最大の近道です。
+**Q: Can I get started without spending money?**
+A: Yes. DJ software (Rekordbox, VirtualDJ) has free versions, and DAWs (GarageBand, Ableton trial, Cakewalk) are also free. There are also many high-quality free plugins like Vital, TDR Nova, and OTT. Used DDJ-200s or DDJ-400s can sometimes be found for under $100.
 
 ---
 
-## 著作権とライセンスの基礎知識
+## Updates
 
-DJと楽曲制作に関わる著作権の基本を理解しておくことは重要です。
+This section is updated regularly.
 
-### DJに関する著作権
+**Latest Information:**
+- New plugin and tool reviews
+- Community developments and introductions to new communities
+- Recommended new track and sample pack information
+- Event information (domestic and international)
+- Industry trend analysis
+- New equipment product information
 
-**合法的に楽曲を入手する方法:**
-- Beatport、Juno Download、Bandcamp などの正規販売サイトで購入
-- Spotify や Apple Music はDJ使用には不適（DRM保護のため）
-- DJ Pool（BPM Supreme、DJ City など）でプロモ音源を入手
-- サブスクリプション型DJサービス（Beatport LINK、Beatsource LINK など）
-
-**クラブやイベントでのDJ:**
-- 多くの国では、会場（クラブ、バー）がJASRAC等の著作権管理団体に包括契約を結んでいる
-- 個人のDJが別途ライセンス料を払う必要は通常ない（会場に確認）
-- ただし、ライブ配信の場合は別途ライセンスが必要
-
-**ミックス音源の公開:**
-- SoundCloud、Mixcloud はDJミックスの投稿に対応（著作権処理済み）
-- YouTube は Content ID により収益化が権利者に移る場合がある
-- DJミックスの販売は原則不可（著作権者の許諾が必要）
-
-### 楽曲制作に関する著作権
-
-**サンプルの使用:**
-- ロイヤリティフリーのサンプルパック: 商用利用可能（利用規約を確認）
-- 他のアーティストの楽曲からのサンプリング: 原則、権利者の許諾が必要
-- Creative Commons ライセンスのサンプル: ライセンス条件に従って使用
-
-**自作曲の著作権:**
-- 曲を作った時点で自動的に著作権が発生
-- 著作権登録は必須ではないが、紛争時の証拠になる
-- 配信サービス（DistroKid、TuneCore）を通じてリリースすることで、公開日の記録が残る
-
-**コラボレーション時の注意:**
-- 事前に権利の配分を書面で合意する
-- スプリットシート（権利配分書）を作成する
-- 作詞・作曲・編曲・演奏それぞれの貢献を明記
+**Update Frequency:**
+- Monthly scheduled updates
+- Ad-hoc updates for important new product/service releases
+- Ad-hoc updates based on community suggestions
 
 ---
 
-## 健康管理とDJ/制作の持続可能性
+## Learning Mindset - Mindset Guide
 
-長期的にDJや制作を続けるためには、健康管理も重要なリソースです。
+### The Importance of a Growth Mindset
 
-### 聴覚の保護
+Neither DJing nor music production can be mastered overnight. Here are the attitudes that support long-term growth.
 
-**耳は最も重要な「機材」です。一度損傷すると元に戻りません。**
+**1. Only Compare with Your Past Self:**
+Social media is flooded with videos of skilled DJs and producers. Instead of comparing yourself to them and feeling discouraged, compare yourself with "yourself one month ago." You will see clear progress.
 
-- **イヤープロテクター**: クラブやイベントでは必ず着用。音質を維持しつつ音量を下げるミュージシャン用イヤープラグ（Etymotic ER20、Alpine MusicSafe Pro など）を使用
-- **制作時の音量**: 会話ができる程度の音量でモニタリング。80dB以下が推奨
-- **休憩**: 1時間の制作/DJにつき10分の「耳休め」を取る
-- **定期的な聴覚検査**: 年1回の聴覚検査を推奨
+**2. Let Go of Perfectionism:**
+Especially in music production, being too much of a perfectionist means you will never finish a single track. Maintain the mindset that "finishing is the greatest practice." Even pros are usually unsatisfied with their own tracks.
 
-### エルゴノミクス
+**3. Failure Is Data:**
+Even if you trainwreck during mixing (a "train crash" where sounds clash and become unlistenable) or your arrangement goes wrong, that is valuable data about "what does not work." Not failing means you are not challenging yourself.
 
-- **デスクの高さ**: 肘が90度になる高さに調整
-- **モニターの位置**: 目の高さにツイーターが来るように
-- **椅子**: 長時間座って制作するなら、良い椅子への投資は必須
-- **スタンディング**: 可能であれば昇降デスクを使い、立ち作業と交互に
+**4. Consistency Is the Greatest Talent:**
+Practicing 1 hour every day is more effective than practicing 7 hours once a week. The brain consolidates learning during sleep, so daily short practice sessions are the most efficient path to improvement.
 
-### メンタルヘルス
+**5. Do Not Fear Putting Your Work Out There:**
+Sharing your mixes or tracks publicly is scary. However, without output, you cannot receive objective feedback. Starting with anonymous sharing is perfectly fine.
 
-- **創造的な燃え尽き**: 定期的に音楽以外の趣味も楽しむ
-- **比較の罠**: SNSでの他者との比較を避ける
-- **コミュニティのサポート**: 孤独に制作せず、仲間との交流を大切に
-- **目標の再設定**: 定期的に自分の目標を見直し、無理のない計画を立てる
+### The Science of Effective Practice
 
+Research on music skill acquisition has revealed effective practice methods.
+
+**1. Deliberate Practice:**
+Rather than practicing aimlessly, practice with a clear goal such as "I will improve this technique today." For example, instead of "improve beatmatching accuracy," be specific: "complete beatmatching for tracks with 5+ BPM difference within 3 seconds."
+
+**2. Spacing Effect:**
+Spreading practice of the same content over several days results in higher retention than concentrated practice in a single day. Ideally, practice beatmatching for 15 minutes daily.
+
+**3. Interleaving:**
+Alternating between multiple skills is more effective long-term than concentrating on a single skill. Example: 15 minutes beatmatching → 15 minutes EQ mixing → 15 minutes effects rotation.
+
+**4. Mental Practice:**
+Even without being in front of equipment, imagining the mixing process in your mind leads to improvement. Listening to DJ mixes during your commute and thinking "I would transition here" is legitimate practice.
+
+**5. Feedback Loop:**
+Run the cycle of practice → record → listen back → identify areas for improvement → practice again. Listening to your own performance objectively is the greatest shortcut to improvement.
 
 ---
 
-## 実践演習
+## Copyright and Licensing Basics
 
-### 演習1: 基本的な実装
+Understanding the basics of copyright related to DJing and music production is important.
 
-以下の要件を満たすコードを実装してください。
+### Copyright for DJs
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**How to Legally Obtain Music:**
+- Purchase from legitimate sales sites like Beatport, Juno Download, Bandcamp
+- Spotify and Apple Music are not suitable for DJ use (due to DRM protection)
+- Obtain promo tracks from DJ Pools (BPM Supreme, DJ City, etc.)
+- Subscription-based DJ services (Beatport LINK, Beatsource LINK, etc.)
+
+**DJing at Clubs and Events:**
+- In many countries, venues (clubs, bars) have blanket agreements with copyright management organizations like JASRAC
+- Individual DJs usually do not need to pay separate licensing fees (confirm with the venue)
+- However, live streaming requires separate licensing
+
+**Publishing Mixed Sets:**
+- SoundCloud and Mixcloud support DJ mix uploads (copyright handled)
+- YouTube's Content ID may transfer monetization to rights holders
+- Selling DJ mixes is generally not allowed (requires permission from copyright holders)
+
+### Copyright for Music Production
+
+**Using Samples:**
+- Royalty-free sample packs: Commercial use permitted (check terms of use)
+- Sampling from other artists' tracks: Permission from rights holders is generally required
+- Creative Commons licensed samples: Use according to the license conditions
+
+**Copyright of Your Own Tracks:**
+- Copyright is automatically generated when you create a track
+- Copyright registration is not mandatory but serves as evidence in disputes
+- Releasing through distribution services (DistroKid, TuneCore) creates a record of the publication date
+
+**Notes on Collaboration:**
+- Agree on the distribution of rights in writing beforehand
+- Create a split sheet (rights distribution document)
+- Clearly document the contribution of each party: lyrics, composition, arrangement, and performance
+
+---
+
+## Health Management and Sustainability in DJing/Production
+
+Health management is also an important resource for continuing DJing and production long-term.
+
+### Hearing Protection
+
+**Your ears are your most important "equipment." Once damaged, they cannot be restored.**
+
+- **Ear Protectors**: Always wear them at clubs and events. Use musician-grade earplugs that reduce volume while maintaining sound quality (Etymotic ER20, Alpine MusicSafe Pro, etc.)
+- **Production Volume**: Monitor at a level where you can still hold a conversation. Below 80dB is recommended
+- **Breaks**: Take a 10-minute "ear rest" for every hour of production/DJing
+- **Regular Hearing Tests**: Annual hearing tests are recommended
+
+### Ergonomics
+
+- **Desk Height**: Adjust so your elbows are at a 90-degree angle
+- **Monitor Position**: Place tweeters at ear level
+- **Chair**: If you produce for long hours sitting down, investing in a good chair is essential
+- **Standing**: If possible, use a sit-stand desk and alternate between sitting and standing
+
+### Mental Health
+
+- **Creative Burnout**: Regularly enjoy hobbies outside of music
+- **Comparison Trap**: Avoid comparing yourself to others on social media
+- **Community Support**: Do not produce in isolation — value interaction with peers
+- **Goal Reassessment**: Regularly review your goals and create realistic plans
+
+---
+
+## Practical Exercises
+
+### Exercise 1: Basic Implementation
+
+Implement code that meets the following requirements.
+
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1011,26 +1010,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation with the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1038,7 +1037,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1049,14 +1048,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1064,7 +1063,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1072,44 +1071,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1118,7 +1117,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1133,76 +1132,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f} sec")
+    print(f"Efficient version:   {fast_time:.6f} sec")
+    print(f"Speedup ratio: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be conscious of algorithm complexity
+- Choose appropriate data structures
+- Measure effects with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+A summary of criteria for making technical choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criteria | Prioritize When | Acceptable to Compromise When |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development Speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│          Architecture Selection Flow             │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  (1) Team size?                                 │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to (2)            │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  (2) Deployment frequency?                      │
+│    ├─ Once/week or less → Monolith + Modules    │
+│    └─ Daily/multiple times → Go to (3)          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  (3) Inter-team independence?                   │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular Monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A method that is fast in the short term may become technical debt long-term
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified tech stack has lower learning costs
+- Adopting diverse technologies enables the right tool for each job but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction offers high reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1212,17 +1211,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1230,7 +1229,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1238,15 +1237,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1254,53 +1253,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Practical Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on minimum necessary features
+- Automated tests only for critical paths
+- Introduce monitoring early on
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Do not aim for perfection (YAGNI principle)
+- Obtain user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernization of a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually renovate a system that has been in operation for 10+ years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Use the Strangler Fig pattern for gradual migration
+- Create Characterization Tests first if existing tests are absent
+- Use an API gateway to allow old and new systems to coexist
+- Implement data migration incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work Content | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration Start | Sequential migration from peripheral features | 3-6 months | Medium |
+| 4. Core Migration | Migration of core features | 6-12 months | High |
+| 5. Completion | Decommission legacy system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries using domain-driven design
+- Set ownership per team
+- Manage shared libraries via Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1313,20 +1312,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Verify SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1335,7 +1334,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1356,272 +1355,272 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical System
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system requiring millisecond-level responses
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Caching strategy (L1: In-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization Method | Effect | Implementation Cost | Use Case |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory Cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async Processing | Medium | Medium | I/O-heavy processing |
+| DB Optimization | High | High | Slow queries |
+| Code Optimization | Low-Medium | High | CPU-bound cases |
 ---
 
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point in learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-このガイドでは以下の重要なポイントを学びました:
-
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
+Knowledge of this topic is frequently used in daily development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次のステップ
+## Summary
 
-リソースを活用して学習を加速：
+In this guide, we covered the following key points:
 
-1. **[用語集](./glossary.md)** をブックマーク - わからない用語があったらすぐに確認
-2. **[学習ロードマップ](./learning-path-dj.md)** で現在地を確認 - 自分のレベルを客観的に把握
-3. **[推奨練習曲](./recommended-tracks.md)** で練習開始 - 適切な楽曲で効率的に練習
-4. **[サンプルパック](./sample-packs.md)** で制作素材を確保 - 制作に必要な素材を集める
-5. **[プラグイン・ツール一覧](./plugins-tools.md)** でツールを選定 - 予算と目的に合ったツールを選ぶ
-6. **[コミュニティ](./communities.md)** に参加して交流 - フィードバックと仲間を得る
-7. **[書籍・コース](./books-courses.md)** で体系的に学習 - 独学を補完する
-8. **[インスピレーション](./inspiration.md)** で創造性を刺激 - 行き詰まったときの突破口
+- Understanding basic concepts and principles
+- Practical implementation patterns
+- Best practices and considerations
+- Real-world application methods
 
-**学習の優先順位（初心者向け）:**
+---
+
+## Next Steps
+
+Accelerate your learning by utilizing resources:
+
+1. **[Glossary](./glossary.md)** - Bookmark it and check whenever you encounter an unfamiliar term
+2. **[Learning Roadmap](./learning-path-dj.md)** - Check your current position and objectively assess your level
+3. **[Recommended Practice Tracks](./recommended-tracks.md)** - Start practicing with the right tracks
+4. **[Sample Packs](./sample-packs.md)** - Gather the materials you need for production
+5. **[Plugins & Tools Directory](./plugins-tools.md)** - Select tools that match your budget and goals
+6. **[Communities](./communities.md)** - Join and connect with others for feedback and camaraderie
+7. **[Books & Courses](./books-courses.md)** - Supplement your self-study with systematic learning
+8. **[Inspiration](./inspiration.md)** - Find a breakthrough when you are stuck
+
+**Learning Priorities (For Beginners):**
 ```
-Week 1-2: 用語集で基礎用語を把握 + DJソフト/DAWのインストール
-Week 3-4: ロードマップの初心者セクションに沿って練習開始
-Week 5-8: 推奨練習曲でビートマッチング練習
-Week 9-12: コミュニティに参加 + 最初のミックス/曲を公開
+Week 1-2: Familiarize yourself with basic terms using the glossary + Install DJ software/DAW
+Week 3-4: Start practicing along the beginner section of the roadmap
+Week 5-8: Practice beatmatching with recommended tracks
+Week 9-12: Join a community + Share your first mix/track
 ```
 
 ---
 
-## 参考リンク
+## Reference Links
 
-- [DJ スキル](../dj/) - DJテクニックの詳細解説
-- [楽曲制作](../production/) - Ableton Liveでの楽曲制作ガイド
-- [統合テクニック](../integration/) - DJと制作スキルの統合
-- [基礎知識](../00-fundamentals/) - 音楽とDJの基礎理論
+- [DJ Skills](../dj/) - Detailed explanation of DJ techniques
+- [Music Production](../production/) - Music production guide with Ableton Live
+- [Integration Techniques](../integration/) - Integrating DJ and production skills
+- [Fundamentals](../00-fundamentals/) - Music and DJ fundamentals
 
 ---
 
-## 付録: リソース一覧（クイックリファレンス）
+## Appendix: Resource Directory (Quick Reference)
 
-### 無料ツール一覧
+### Free Tools Directory
 
-| カテゴリ | ツール名 | 用途 | URL |
+| Category | Tool Name | Purpose | URL |
 |---|---|---|---|
-| DJソフト | Rekordbox (Free) | DJミキシング | rekordbox.com |
-| DJソフト | VirtualDJ (Home) | DJミキシング | virtualdj.com |
-| DAW | GarageBand | 楽曲制作（Mac） | apple.com |
-| DAW | Cakewalk by BandLab | 楽曲制作（Windows） | bandlab.com |
-| DAW | LMMS | 楽曲制作（クロスプラットフォーム） | lmms.io |
-| シンセ | Vital | ウェーブテーブルシンセ | vital.audio |
-| シンセ | Dexed | FM シンセ（DX7クローン） | asb2m10.github.io/dexed |
-| シンセ | Surge | オープンソースシンセ | surge-synthesizer.github.io |
-| シンセ | Helm | ポリフォニックシンセ | tytel.org/helm |
-| EQ | TDR Nova | ダイナミックEQ | tokyodawn.net |
-| コンプ | OTT (Xfer) | マルチバンドコンプ | xferrecords.com |
-| コンプ | TDR Kotelnikov | マスタリングコンプ | tokyodawn.net |
-| リバーブ | Valhalla Supermassive | リバーブ/ディレイ | valhalladsp.com |
-| リバーブ | OrilRiver | アルゴリズミックリバーブ | kvraudio.com |
-| アナライザ | SPAN | スペクトラムアナライザー | voxengo.com |
-| メーター | Youlean Loudness Meter | ラウドネス測定 | youlean.co |
-| キー解析 | KeyFinder | キー検出 | ibrahimshaath.co.uk/keyfinder |
-| 録音 | Audacity | 録音/編集 | audacityteam.org |
-| 配信 | OBS Studio | ライブ配信/録画 | obsproject.com |
+| DJ Software | Rekordbox (Free) | DJ Mixing | rekordbox.com |
+| DJ Software | VirtualDJ (Home) | DJ Mixing | virtualdj.com |
+| DAW | GarageBand | Music Production (Mac) | apple.com |
+| DAW | Cakewalk by BandLab | Music Production (Windows) | bandlab.com |
+| DAW | LMMS | Music Production (Cross-platform) | lmms.io |
+| Synth | Vital | Wavetable Synth | vital.audio |
+| Synth | Dexed | FM Synth (DX7 clone) | asb2m10.github.io/dexed |
+| Synth | Surge | Open Source Synth | surge-synthesizer.github.io |
+| Synth | Helm | Polyphonic Synth | tytel.org/helm |
+| EQ | TDR Nova | Dynamic EQ | tokyodawn.net |
+| Compressor | OTT (Xfer) | Multiband Compressor | xferrecords.com |
+| Compressor | TDR Kotelnikov | Mastering Compressor | tokyodawn.net |
+| Reverb | Valhalla Supermassive | Reverb/Delay | valhalladsp.com |
+| Reverb | OrilRiver | Algorithmic Reverb | kvraudio.com |
+| Analyzer | SPAN | Spectrum Analyzer | voxengo.com |
+| Meter | Youlean Loudness Meter | Loudness Measurement | youlean.co |
+| Key Analysis | KeyFinder | Key Detection | ibrahimshaath.co.uk/keyfinder |
+| Recording | Audacity | Recording/Editing | audacityteam.org |
+| Streaming | OBS Studio | Live Streaming/Recording | obsproject.com |
 
-### 有料ツール投資優先順位
+### Paid Tool Investment Priority
 
-**第1優先（最初に買うべき）:**
-1. DJコントローラー（DDJ-FLX4 〜 DDJ-800）
-2. ヘッドフォン（DJ用モニターヘッドフォン）
-3. DAW（Ableton Live Intro → Standard へのアップグレードパス）
+**Priority 1 (Buy First):**
+1. DJ Controller (DDJ-FLX4 to DDJ-800)
+2. Headphones (DJ monitor headphones)
+3. DAW (Ableton Live Intro → upgrade path to Standard)
 
-**第2優先（基礎が固まったら）:**
-1. オーディオインターフェース（Focusrite Scarlett 2i2）
-2. モニタースピーカー（Yamaha HS5）
-3. FabFilter Pro-Q 3（EQプラグイン）
+**Priority 2 (Once Foundations Are Solid):**
+1. Audio Interface (Focusrite Scarlett 2i2)
+2. Monitor Speakers (Yamaha HS5)
+3. FabFilter Pro-Q 3 (EQ plugin)
 
-**第3優先（中級者向け）:**
-1. Serum または Pigments（シンセプラグイン）
-2. iZotope Ozone（マスタリング）
-3. Splice サブスクリプション（サンプル）
-4. MIDIキーボード
+**Priority 3 (For Intermediate Users):**
+1. Serum or Pigments (synth plugin)
+2. iZotope Ozone (mastering)
+3. Splice subscription (samples)
+4. MIDI keyboard
 
-**第4優先（上級者/プロ志向）:**
-1. CDJ/XDJへの移行
-2. アナログシンセ
-3. 高品質マイク（ボーカル録音用）
-4. 音響処理パネル（部屋の調整）
+**Priority 4 (For Advanced/Pro-Oriented Users):**
+1. Transition to CDJ/XDJ
+2. Analog synthesizer
+3. High-quality microphone (for vocal recording)
+4. Acoustic treatment panels (room adjustment)
 
-### ショートカットキー集（Ableton Live）
+### Keyboard Shortcuts (Ableton Live)
 
-| 操作 | Mac | Windows |
+| Action | Mac | Windows |
 |---|---|---|
-| 再生/停止 | Space | Space |
-| 録音開始 | F9 | F9 |
-| Session/Arrangement切替 | Tab | Tab |
-| ブラウザ表示切替 | Cmd+Alt+B | Ctrl+Alt+B |
+| Play/Stop | Space | Space |
+| Start Recording | F9 | F9 |
+| Toggle Session/Arrangement | Tab | Tab |
+| Toggle Browser | Cmd+Alt+B | Ctrl+Alt+B |
 | Undo | Cmd+Z | Ctrl+Z |
 | Redo | Cmd+Shift+Z | Ctrl+Shift+Z |
-| 複製 | Cmd+D | Ctrl+D |
-| グループ化 | Cmd+G | Ctrl+G |
-| トラック追加（Audio） | Cmd+T | Ctrl+T |
-| トラック追加（MIDI） | Cmd+Shift+T | Ctrl+Shift+T |
-| 名前変更 | Cmd+R | Ctrl+R |
-| クオンタイズ | Cmd+U | Ctrl+U |
-| ループ切替 | Cmd+L | Ctrl+L |
-| 全選択 | Cmd+A | Ctrl+A |
-| 書き出し | Cmd+Shift+R | Ctrl+Shift+R |
+| Duplicate | Cmd+D | Ctrl+D |
+| Group | Cmd+G | Ctrl+G |
+| Add Track (Audio) | Cmd+T | Ctrl+T |
+| Add Track (MIDI) | Cmd+Shift+T | Ctrl+Shift+T |
+| Rename | Cmd+R | Ctrl+R |
+| Quantize | Cmd+U | Ctrl+U |
+| Toggle Loop | Cmd+L | Ctrl+L |
+| Select All | Cmd+A | Ctrl+A |
+| Export | Cmd+Shift+R | Ctrl+Shift+R |
 
-### ショートカットキー集（Rekordbox）
+### Keyboard Shortcuts (Rekordbox)
 
-| 操作 | キー |
+| Action | Key |
 |---|---|
-| 再生/一時停止 | Space |
-| キューポイント設定 | 数字キー（1-8） |
-| ループイン | I |
-| ループアウト | O |
-| テンポリセット | Shift+数字 |
-| 波形ズームイン | + |
-| 波形ズームアウト | - |
-| ブラウザ移動 | 矢印キー |
-| ロード（デッキA） | Enter |
-| ロード（デッキB） | Shift+Enter |
+| Play/Pause | Space |
+| Set Cue Point | Number keys (1-8) |
+| Loop In | I |
+| Loop Out | O |
+| Reset Tempo | Shift+Number |
+| Waveform Zoom In | + |
+| Waveform Zoom Out | - |
+| Navigate Browser | Arrow keys |
+| Load (Deck A) | Enter |
+| Load (Deck B) | Shift+Enter |
 
 ---
 
-## セッション記録テンプレート
+## Session Record Templates
 
-DJの練習やパフォーマンスを記録するためのテンプレートです。
+Templates for recording DJ practice sessions and performances.
 
-### DJ練習記録テンプレート
+### DJ Practice Record Template
 
 ```markdown
-## DJ練習記録
+## DJ Practice Record
 
-**日付**: YYYY-MM-DD
-**練習時間**: XX分
-**使用機材**: (コントローラー名、ソフトウェア)
+**Date**: YYYY-MM-DD
+**Practice Duration**: XX minutes
+**Equipment Used**: (Controller name, software)
 
-### 今日の練習テーマ
-- [ ] ビートマッチング
-- [ ] EQミキシング
-- [ ] ハーモニックミキシング
-- [ ] エフェクト
-- [ ] セット構成
-- [ ] その他: ___
+### Today's Practice Theme
+- [ ] Beatmatching
+- [ ] EQ Mixing
+- [ ] Harmonic Mixing
+- [ ] Effects
+- [ ] Set Construction
+- [ ] Other: ___
 
-### 使用楽曲
-1. 曲名 - アーティスト (BPM / Key)
-2. 曲名 - アーティスト (BPM / Key)
+### Tracks Used
+1. Track Name - Artist (BPM / Key)
+2. Track Name - Artist (BPM / Key)
 ...
 
-### うまくいったこと
+### What Went Well
 -
 
-### 改善点
+### Areas for Improvement
 -
 
-### 次回の課題
+### Goals for Next Time
 -
 
-### 録音ファイル
-- ファイル名:
+### Recording File
+- Filename:
 ```
 
-### 楽曲制作記録テンプレート
+### Music Production Record Template
 
 ```markdown
-## 制作セッション記録
+## Production Session Record
 
-**日付**: YYYY-MM-DD
-**制作時間**: XX分
-**プロジェクト名**:
-**ジャンル**:
+**Date**: YYYY-MM-DD
+**Production Time**: XX minutes
+**Project Name**:
+**Genre**:
 **BPM**:
-**キー**:
+**Key**:
 
-### 今日の作業内容
-- [ ] アイデア出し/スケッチ
-- [ ] ドラムプログラミング
-- [ ] ベースライン
-- [ ] メロディ/ハーモニー
-- [ ] アレンジメント
-- [ ] ミキシング
-- [ ] マスタリング
-- [ ] その他: ___
+### Today's Work
+- [ ] Ideation/Sketching
+- [ ] Drum Programming
+- [ ] Bassline
+- [ ] Melody/Harmony
+- [ ] Arrangement
+- [ ] Mixing
+- [ ] Mastering
+- [ ] Other: ___
 
-### 使用プラグイン
+### Plugins Used
 -
 
-### 進捗
-- 完成度: ___%
-- 次のステップ:
+### Progress
+- Completion: ___%
+- Next Step:
 
-### メモ/アイデア
+### Notes/Ideas
 -
 ```
 
 ---
 
-## 用語索引（このページで使用された主要用語）
+## Glossary Index (Key Terms Used on This Page)
 
-このREADME内で言及された主要な用語の簡易説明です。詳細は[用語集](./glossary.md)を参照してください。
+Brief explanations of key terms referenced in this README. See the [Glossary](./glossary.md) for details.
 
-| 用語 | 簡易説明 |
+| Term | Brief Explanation |
 |---|---|
-| BPM | Beats Per Minute。1分間の拍数。テンポの指標 |
-| Camelotホイール | キーの相性を数字で表すシステム |
-| ビートマッチング | 2曲のBPMを合わせるテクニック |
-| ハーモニックミキシング | キーの相性を考慮したミキシング |
-| EQ | イコライザー。周波数帯域を調整するツール |
-| サイドチェイン | ある信号で別の信号を制御する手法 |
-| DAW | Digital Audio Workstation。楽曲制作ソフト |
-| VST | Virtual Studio Technology。プラグイン規格 |
-| MIDI | Musical Instrument Digital Interface。楽器間通信規格 |
-| ウェーブテーブル | 波形テーブルを使った合成方式 |
-| ドロップ | 楽曲のクライマックス部分 |
-| ブレイクダウン | ドロップの前後の静かなセクション |
-| ビルドアップ | ドロップに向かってテンションが上がる部分 |
-| トランジション | 曲と曲のつなぎ目 |
-| マスタリング | 楽曲の最終仕上げ工程 |
-| ラウドネス | 音の大きさの知覚的指標 |
-| サンプルパック | 楽曲制作用の音素材集 |
-| ロイヤリティフリー | 使用料が発生しないライセンス形態 |
+| BPM | Beats Per Minute. Number of beats per minute. An indicator of tempo |
+| Camelot Wheel | A system that represents key compatibility using numbers |
+| Beatmatching | A technique for matching the BPM of two tracks |
+| Harmonic Mixing | Mixing that considers key compatibility |
+| EQ | Equalizer. A tool for adjusting frequency bands |
+| Sidechain | A technique that uses one signal to control another |
+| DAW | Digital Audio Workstation. Music production software |
+| VST | Virtual Studio Technology. A plugin standard |
+| MIDI | Musical Instrument Digital Interface. A communication standard between instruments |
+| Wavetable | A synthesis method using wave tables |
+| Drop | The climax section of a track |
+| Breakdown | A quiet section before or after the drop |
+| Buildup | A section where tension rises toward the drop |
+| Transition | The point where one track connects to another |
+| Mastering | The final finishing process of a track |
+| Loudness | A perceptual measure of sound volume |
+| Sample Pack | A collection of sound materials for music production |
+| Royalty-Free | A licensing model where no usage fees are incurred |
 
 ---
 
-*このリソースページは、DJ と楽曲制作の学習を包括的にサポートするために作成されました。定期的に更新されますので、ブックマークしておくことをおすすめします。質問や提案がある場合は、GitHub の Issues からお気軽にどうぞ。*
+*This resource page was created to comprehensively support learning in DJing and music production. It is updated regularly, so we recommend bookmarking it. If you have questions or suggestions, please feel free to reach out through GitHub Issues.*
