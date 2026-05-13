@@ -1,962 +1,964 @@
-# オーディオ基礎
+# Audio Basics
 
-デジタルオーディオの仕組みと音質の基礎を学びます。DJ・制作の両方で重要な知識です。音というものがどのようにして電気信号に変換され、さらにデジタルデータとして保存されるのかを深く理解することで、最終的にクラブやフェスティバルで鳴らす音質を最大限に高めることができます。
+Learn the fundamentals of digital audio and sound quality. This is essential knowledge for both DJing and music production. By deeply understanding how sound is converted into electrical signals and then stored as digital data, you can ultimately maximize the sound quality delivered at clubs and festivals.
 
-## この章で学ぶこと
+## What You'll Learn in This Chapter
 
-- デジタルオーディオの仕組みと歴史的背景
-- サンプルレートとビット深度の理論と実践
-- ファイルフォーマットの違いと選択基準
-- 音質の考え方とDJ/制作での最適化
-- A/D変換・D/A変換の詳細プロセス
-- デジタルオーディオにおけるノイズと歪みの理解
-- 実務でのオーディオ設定のベストプラクティス
-- オーディオインターフェイスの役割と選び方
-- レイテンシーの概念と最適化
-- デジタルオーディオの未来と新技術
+- How digital audio works and its historical background
+- Theory and practice of sample rate and bit depth
+- Differences between file formats and selection criteria
+- Approaches to sound quality and optimization for DJ/production
+- Detailed processes of A/D and D/A conversion
+- Understanding noise and distortion in digital audio
+- Best practices for audio settings in practice
+- The role of audio interfaces and how to choose one
+- The concept of latency and its optimization
+- The future of digital audio and emerging technologies
 
-## なぜオーディオ基礎が重要なのか
+## Why Audio Basics Matter
 
-### DJの場合
+### For DJs
 
-DJにとってオーディオの基礎知識は、単に「良い音を出す」だけでなく、あらゆる現場で安定したパフォーマンスを行うための土台です。
-
-```
-重要な理由:
-1. 音質の良いファイルを選べる
-   → 低品質ファイルはクラブのスピーカーで露骨に分かる
-   → 周波数帯域の欠落がミックスに影響
-
-2. クラブの音響システムに適した設定
-   → PA/サウンドシステムの特性を理解
-   → ヘッドルームを確保してクリッピングを防ぐ
-
-3. レコーディング時の最適な設定
-   → DJミックスを録音する際のフォーマット選択
-   → Podcast/ラジオ番組の音質確保
-
-4. 現場トラブルの解決力
-   → ノイズの原因特定（グラウンドループ、デジタルノイズ等）
-   → 機材間の接続問題を理解
-
-5. 音源管理の効率化
-   → ストレージ容量と音質のバランス
-   → ライブラリの統一的な管理
-```
-
-### 制作の場合
-
-音楽制作（DTM/DAW）においては、プロジェクトの設計段階からマスタリング、最終配信まで一貫した音質管理が求められます。
+Audio fundamentals for DJs go beyond simply "getting good sound" — they form the foundation for delivering consistent performances in any venue.
 
 ```
-重要な理由:
-1. プロジェクト設定を正しく行える
-   → サンプルレート/ビット深度の選択が最終品質を決定
-   → 後から変更すると不整合が生じる可能性
+Key Reasons:
+1. Ability to select high-quality files
+   -> Low-quality files are painfully obvious on club speakers
+   -> Missing frequency ranges affect the mix
 
-2. エクスポート時の設定を理解
-   → 配信先（Spotify, Apple Music等）の要求仕様に合わせる
-   → ディザリング、リミッティングの判断
+2. Proper settings for club sound systems
+   -> Understanding PA/sound system characteristics
+   -> Ensuring headroom to prevent clipping
 
-3. マスタリング後の音質を保てる
-   → フォーマット変換時の劣化を最小化
-   → ラウドネスノーマライゼーションの理解
+3. Optimal settings for recording
+   -> Format selection when recording DJ mixes
+   -> Ensuring audio quality for podcasts/radio shows
 
-4. プラグインとの互換性
-   → VST/AUプラグインの動作条件
-   → オーバーサンプリングの活用
+4. On-site troubleshooting skills
+   -> Identifying noise sources (ground loops, digital noise, etc.)
+   -> Understanding connection issues between equipment
 
-5. コラボレーションの効率化
-   → ステムのフォーマット統一
-   → 他のエンジニアとのファイル共有
+5. Efficient source management
+   -> Balancing storage capacity and audio quality
+   -> Unified library management
 ```
 
-### 音響エンジニア/PAオペレーターの場合
+### For Production
+
+In music production (DTM/DAW), consistent quality management is required from the project design stage through mastering to final distribution.
 
 ```
-重要な理由:
-1. システム設計
-   → デジタル伝送規格（AES/EBU, Dante等）の理解
-   → クロック同期の重要性
+Key Reasons:
+1. Ability to configure project settings correctly
+   -> Sample rate/bit depth choices determine final quality
+   -> Changing them later may cause inconsistencies
 
-2. トラブルシューティング
-   → デジタルアーティファクトの特定
-   → ジッターの影響と対策
+2. Understanding export settings
+   -> Matching specifications required by distribution platforms (Spotify, Apple Music, etc.)
+   -> Making decisions on dithering and limiting
 
-3. 音質最適化
-   → DSPの処理精度の理解
-   → アナログ段との連携
+3. Maintaining audio quality after mastering
+   -> Minimizing degradation during format conversion
+   -> Understanding loudness normalization
+
+4. Plugin compatibility
+   -> Operating requirements for VST/AU plugins
+   -> Utilizing oversampling
+
+5. Efficient collaboration
+   -> Unified stem formats
+   -> File sharing with other engineers
+```
+
+### For Sound Engineers / PA Operators
+
+```
+Key Reasons:
+1. System Design
+   -> Understanding digital transmission standards (AES/EBU, Dante, etc.)
+   -> Importance of clock synchronization
+
+2. Troubleshooting
+   -> Identifying digital artifacts
+   -> Impact of jitter and countermeasures
+
+3. Audio Quality Optimization
+   -> Understanding DSP processing precision
+   -> Integration with analog stages
 ```
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will help deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## 1. 音の物理的性質
+---
 
-### 音とは何か
+## 1. Physical Properties of Sound
 
-音は空気中を伝わる圧力の波（縦波）です。この波の性質を理解することが、デジタルオーディオの基礎となります。
+### What Is Sound?
 
-```
-音の三要素:
-
-1. 周波数（Frequency）
-   - 音の高さを決定
-   - 単位: Hz（ヘルツ）= 1秒間の振動回数
-   - 低い音: 20-200 Hz
-   - 中間の音: 200-4,000 Hz
-   - 高い音: 4,000-20,000 Hz
-
-2. 振幅（Amplitude）
-   - 音の大きさを決定
-   - 単位: dB（デシベル）
-   - 人間の可聴範囲: 約0 dB ~ 130 dB（痛みの閾値）
-
-3. 波形（Waveform）
-   - 音色を決定
-   - 倍音構成によって変化
-   - 同じ周波数でもピアノとギターで音色が異なる理由
-```
-
-### 音速と波長
+Sound is a pressure wave (longitudinal wave) that propagates through air. Understanding the properties of this wave is the foundation of digital audio.
 
 ```
-音速（空気中、20℃）: 約343 m/s
+Three Elements of Sound:
 
-波長の計算:
-波長(m) = 音速(m/s) ÷ 周波数(Hz)
+1. Frequency
+   - Determines pitch
+   - Unit: Hz (Hertz) = number of vibrations per second
+   - Low sounds: 20-200 Hz
+   - Mid-range sounds: 200-4,000 Hz
+   - High sounds: 4,000-20,000 Hz
 
-例:
-- 20 Hz:     343 ÷ 20    = 17.15 m（非常に長い波長）
-- 100 Hz:    343 ÷ 100   = 3.43 m
-- 1,000 Hz:  343 ÷ 1000  = 0.343 m = 34.3 cm
-- 10,000 Hz: 343 ÷ 10000 = 0.0343 m = 3.43 cm
-- 20,000 Hz: 343 ÷ 20000 = 0.01715 m = 1.715 cm
+2. Amplitude
+   - Determines loudness
+   - Unit: dB (decibels)
+   - Human audible range: approx. 0 dB to 130 dB (pain threshold)
 
-DJにとっての意味:
-- 低音は波長が長いため、壁を回り込みやすい（回折）
-- 高音は波長が短いため、指向性が強い
-- クラブでは低音が部屋全体を包み、高音はスピーカーの正面で聴こえる
+3. Waveform
+   - Determines timbre
+   - Changes based on harmonic content
+   - Why a piano and guitar sound different at the same frequency
 ```
 
-### 倍音（ハーモニクス）
+### Speed of Sound and Wavelength
 
 ```
-基音（ファンダメンタル）と倍音の関係:
+Speed of sound (in air, 20C): approx. 343 m/s
 
-基音: 100 Hz の場合
-├── 第2倍音: 200 Hz（オクターブ上）
-├── 第3倍音: 300 Hz（オクターブ + 5度上）
-├── 第4倍音: 400 Hz（2オクターブ上）
-├── 第5倍音: 500 Hz
-├── 第6倍音: 600 Hz
-└── ...（理論上は無限に続く）
+Wavelength calculation:
+Wavelength(m) = Speed of sound(m/s) / Frequency(Hz)
 
-倍音構成と音色の関係:
-- サイン波: 倍音なし（純音）
-- 矩形波: 奇数倍音のみ（1, 3, 5, 7...）
-- のこぎり波: 全ての倍音を含む（1, 2, 3, 4...）
-- 三角波: 奇数倍音のみ（振幅が急速に減衰）
+Examples:
+- 20 Hz:     343 / 20    = 17.15 m (very long wavelength)
+- 100 Hz:    343 / 100   = 3.43 m
+- 1,000 Hz:  343 / 1000  = 0.343 m = 34.3 cm
+- 10,000 Hz: 343 / 10000 = 0.0343 m = 3.43 cm
+- 20,000 Hz: 343 / 20000 = 0.01715 m = 1.715 cm
 
-シンセサイザーとの関連:
-- サブトラクティブシンセ: 倍音豊かな波形からフィルタで削る
-- アディティブシンセ: サイン波を重ね合わせて音色を作る
-- FM シンセ: 周波数変調で複雑な倍音を生成
+What this means for DJs:
+- Low frequencies have long wavelengths, so they diffract around walls easily
+- High frequencies have short wavelengths, so they are highly directional
+- In clubs, bass fills the entire room while highs are heard mainly in front of speakers
 ```
 
-### デシベル（dB）の理解
-
-デシベルは対数スケールの単位で、オーディオの世界では様々な文脈で使われます。
+### Harmonics
 
 ```
-デシベルの種類:
+Relationship between fundamental and harmonics:
 
-1. dB SPL（Sound Pressure Level）
-   - 音圧レベル（物理的な音の大きさ）
-   - 基準: 20 μPa（人間の可聴閾値）
-   - 例: 日常会話 60 dB SPL、クラブ 100-115 dB SPL
+Fundamental: 100 Hz
++-- 2nd harmonic: 200 Hz (one octave up)
++-- 3rd harmonic: 300 Hz (one octave + a fifth up)
++-- 4th harmonic: 400 Hz (two octaves up)
++-- 5th harmonic: 500 Hz
++-- 6th harmonic: 600 Hz
++-- ... (theoretically continues infinitely)
 
-2. dBFS（decibels Full Scale）
-   - デジタルオーディオのレベル
-   - 0 dBFS = デジタルの最大値
-   - 常にマイナス値（-3 dBFS, -6 dBFS 等）
-   - 0 dBFS を超えるとクリッピング
+Relationship between harmonic content and timbre:
+- Sine wave: no harmonics (pure tone)
+- Square wave: odd harmonics only (1, 3, 5, 7...)
+- Sawtooth wave: all harmonics (1, 2, 3, 4...)
+- Triangle wave: odd harmonics only (amplitude decays rapidly)
 
-3. dBu（デシベルユニット）
-   - プロオーディオ機器のライン信号レベル
-   - 基準: 0.775 V
-   - プロ機器の標準ライン: +4 dBu
-   - コンシューマー機器: -10 dBV
+Relevance to synthesizers:
+- Subtractive synth: starts with a harmonically rich waveform and removes with filters
+- Additive synth: layers sine waves to create timbre
+- FM synth: generates complex harmonics through frequency modulation
+```
 
-4. dBV（デシベルボルト）
-   - 電圧の比較
-   - 基準: 1 V
+### Understanding Decibels (dB)
 
-デシベルの計算:
-- 電力比: dB = 10 × log₁₀(P₁/P₂)
-- 電圧比/音圧比: dB = 20 × log₁₀(V₁/V₂)
+The decibel is a logarithmic unit used in various contexts throughout the audio world.
 
-覚えておくべき値:
-- +3 dB ≈ 電力が2倍
-- +6 dB ≈ 電圧/音圧が2倍
-- +10 dB ≈ 体感的に「2倍の音量」
-- +20 dB ≈ 電圧/音圧が10倍
+```
+Types of Decibels:
+
+1. dB SPL (Sound Pressure Level)
+   - Physical loudness measurement
+   - Reference: 20 uPa (human audible threshold)
+   - Examples: conversation 60 dB SPL, club 100-115 dB SPL
+
+2. dBFS (decibels Full Scale)
+   - Digital audio level
+   - 0 dBFS = digital maximum
+   - Always a negative value (-3 dBFS, -6 dBFS, etc.)
+   - Exceeding 0 dBFS causes clipping
+
+3. dBu (decibel unit)
+   - Line signal level for professional audio equipment
+   - Reference: 0.775 V
+   - Professional equipment standard line: +4 dBu
+   - Consumer equipment: -10 dBV
+
+4. dBV (decibel volt)
+   - Voltage comparison
+   - Reference: 1 V
+
+Decibel calculations:
+- Power ratio: dB = 10 x log10(P1/P2)
+- Voltage/sound pressure ratio: dB = 20 x log10(V1/V2)
+
+Key values to remember:
+- +3 dB = approx. 2x power
+- +6 dB = approx. 2x voltage/sound pressure
+- +10 dB = perceived as "twice the volume"
+- +20 dB = approx. 10x voltage/sound pressure
 ```
 
 ---
 
-## 2. デジタルオーディオとは
+## 2. What Is Digital Audio?
 
-### アナログからデジタルへの歴史
+### History: From Analog to Digital
 
 ```
-年代        技術                    特徴
+Year        Technology              Characteristics
 ------      ---------------------   -------------------------
-1877年      フォノグラフ（蓄音機）  最初のアナログ録音
-1948年      LPレコード              溝の振動で音を記録
-1963年      カセットテープ          磁気記録、ポータブル化
-1972年      PCM録音                 初のデジタル録音技術
-1982年      CD（Compact Disc）      44.1kHz/16bit のデジタル規格
-1995年      MP3                     非可逆圧縮の普及
-1999年      DVD-Audio/SACD          ハイレゾの試み
-2003年      iTunes Music Store      デジタル配信の普及
-2015年      Tidal HiFi              ロスレスストリーミング
-2021年      Apple Music Lossless    ロスレス/空間オーディオ
-2023年~     Immersive Audio         Dolby Atmos Music の普及
+1877        Phonograph              First analog recording
+1948        LP Record               Sound recorded as groove vibrations
+1963        Cassette Tape           Magnetic recording, portable
+1972        PCM Recording           First digital recording technology
+1982        CD (Compact Disc)       44.1kHz/16bit digital standard
+1995        MP3                     Widespread lossy compression
+1999        DVD-Audio/SACD          Early hi-res attempts
+2003        iTunes Music Store      Widespread digital distribution
+2015        Tidal HiFi              Lossless streaming
+2021        Apple Music Lossless    Lossless/spatial audio
+2023~       Immersive Audio         Dolby Atmos Music adoption
 ```
 
-### アナログ音声の特徴
+### Characteristics of Analog Audio
 
 ```
-メリット:
-- 連続的な波形を自然に記録
-- 独特の温かみ（テープサチュレーション等）
-- ハードウェアの個性が音に反映
+Advantages:
+- Naturally records continuous waveforms
+- Unique warmth (tape saturation, etc.)
+- Hardware character reflected in the sound
 
-デメリット:
-- コピーするたびに劣化（世代損失）
-- 物理メディアの摩耗
-- S/N比の限界
-- 保管環境への依存
+Disadvantages:
+- Degradation with each copy (generation loss)
+- Physical media wear
+- S/N ratio limitations
+- Dependence on storage environment
 
-アナログメディアの例:
-- レコード: 溝の振動パターン
-- カセットテープ: 磁気粒子の配列
-- リールテープ: 高品質な磁気記録
-- アナログシンセサイザー: 電圧制御の連続信号
+Examples of analog media:
+- Vinyl records: groove vibration patterns
+- Cassette tapes: magnetic particle alignment
+- Reel-to-reel tape: high-quality magnetic recording
+- Analog synthesizers: continuous voltage-controlled signals
 ```
 
-### デジタル音声の特徴
+### Characteristics of Digital Audio
 
 ```
-メリット:
-- コピーしても劣化しない（完全な複製）
-- 編集・加工が容易
-- 検索・整理が効率的
-- ネットワーク伝送が可能
-- 大量保存が安価
+Advantages:
+- No degradation when copied (perfect duplication)
+- Easy to edit and process
+- Efficient searching and organization
+- Network transmission possible
+- Inexpensive mass storage
 
-デメリット:
-- サンプリングによる近似（原理的限界）
-- エイリアシングノイズの可能性
-- ジッターの影響
-- コーデックによる圧縮劣化
+Disadvantages:
+- Approximation through sampling (fundamental limitation)
+- Possibility of aliasing noise
+- Impact of jitter
+- Compression degradation from codecs
 
-デジタルメディアの例:
+Examples of digital media:
 - CD: 44.1kHz/16bit PCM
-- DVD-Audio: 最大192kHz/24bit
-- SACD: DSD（1bit/2.8224MHz）
-- ファイル: WAV, FLAC, MP3, AAC 等
-- ストリーミング: 各種フォーマット
+- DVD-Audio: up to 192kHz/24bit
+- SACD: DSD (1bit/2.8224MHz)
+- Files: WAV, FLAC, MP3, AAC, etc.
+- Streaming: various formats
 ```
 
-### A/D変換（Analog to Digital Conversion）
+### A/D Conversion (Analog to Digital Conversion)
 
-アナログ信号をデジタルデータに変換する詳細プロセス。
-
-```
-A/D変換の詳細ステップ:
-
-[アナログ信号] → [アンチエイリアシングフィルタ] → [サンプル＆ホールド]
-                                                         ↓
-                                              [量子化（A/D変換器）]
-                                                         ↓
-                                              [デジタルデータ出力]
-
-1. アンチエイリアシングフィルタ（AAF）
-   - ナイキスト周波数以上の成分を除去
-   - エイリアシングノイズの防止
-   - アナログのローパスフィルタで実装
-   - フィルタ特性が音質に影響
-
-2. サンプリング（標本化）
-   - 一定間隔でアナログ信号の値を読み取る
-   - サンプルレートで間隔が決まる
-   - 44.1kHz なら 1/44100秒 ≈ 22.68μs ごと
-
-3. サンプル＆ホールド
-   - サンプリングした瞬間の値を保持
-   - 量子化の間、値を安定させる
-   - 高速な回路が必要
-
-4. 量子化（Quantization）
-   - 連続的なアナログ値を離散的なデジタル値に変換
-   - ビット深度で精度が決まる
-   - 量子化誤差（量子化ノイズ）が発生
-
-5. エンコーディング
-   - 量子化された値をバイナリデータに変換
-   - PCM（Pulse Code Modulation）が一般的
-   - 2の補数表現が標準
-```
-
-### D/A変換（Digital to Analog Conversion）
+The detailed process of converting analog signals to digital data.
 
 ```
-D/A変換の詳細ステップ:
+Detailed A/D Conversion Steps:
 
-[デジタルデータ] → [オーバーサンプリング] → [D/A変換器]
-                                                  ↓
-                                    [リコンストラクションフィルタ]
-                                                  ↓
-                                         [アナログ信号出力]
+[Analog Signal] -> [Anti-Aliasing Filter] -> [Sample & Hold]
+                                                    |
+                                          [Quantization (A/D Converter)]
+                                                    |
+                                          [Digital Data Output]
 
-1. オーバーサンプリング
-   - 元のサンプルレートの数倍にアップサンプリング
-   - 例: 44.1kHz → 176.4kHz（4x）
-   - デジタルフィルタで補間
-   - 後段のアナログフィルタの負担を軽減
+1. Anti-Aliasing Filter (AAF)
+   - Removes components above the Nyquist frequency
+   - Prevents aliasing noise
+   - Implemented as an analog low-pass filter
+   - Filter characteristics affect sound quality
 
-2. D/A変換
-   - デジタル値をアナログ電圧に変換
-   - 変換方式: R-2Rラダー、デルタシグマ等
-   - 変換精度がD/Aコンバータの品質を決定
+2. Sampling
+   - Reads the analog signal value at regular intervals
+   - Interval determined by the sample rate
+   - At 44.1kHz: every 1/44100 seconds = approx. 22.68us
 
-3. リコンストラクションフィルタ
-   - ステップ状の出力を滑らかな波形に復元
-   - アナログのローパスフィルタ
-   - 急峻なカットオフ特性が理想
+3. Sample & Hold
+   - Holds the value at the moment of sampling
+   - Keeps the value stable during quantization
+   - Requires high-speed circuitry
 
-4. アナログ出力段
-   - バッファアンプ
-   - インピーダンスマッチング
-   - ライン出力（+4 dBu / -10 dBV）
+4. Quantization
+   - Converts continuous analog values to discrete digital values
+   - Precision determined by bit depth
+   - Quantization error (quantization noise) occurs
+
+5. Encoding
+   - Converts quantized values to binary data
+   - PCM (Pulse Code Modulation) is standard
+   - Two's complement representation is standard
 ```
 
-### PCM（Pulse Code Modulation）
+### D/A Conversion (Digital to Analog Conversion)
 
 ```
-PCMの概念:
+Detailed D/A Conversion Steps:
 
-連続的なアナログ波形:
-    ╱╲      ╱╲
-  ╱    ╲  ╱    ╲
-╱        ╲╱        ╲
+[Digital Data] -> [Oversampling] -> [D/A Converter]
+                                          |
+                              [Reconstruction Filter]
+                                          |
+                                 [Analog Signal Output]
 
-PCMでサンプリング（離散化）:
-    ┃┃      ┃┃
-  ┃┃  ┃┃  ┃┃  ┃┃
-┃┃      ┃┃      ┃┃
+1. Oversampling
+   - Upsamples to several times the original sample rate
+   - Example: 44.1kHz -> 176.4kHz (4x)
+   - Interpolated with digital filters
+   - Reduces the burden on subsequent analog filters
 
-各サンプルの値（16bit の場合）:
-サンプル1: 0000 0000 0000 0000 (= 0)
-サンプル2: 0011 1111 1111 1111 (= 16383)
-サンプル3: 0111 1111 1111 1111 (= 32767 = 最大値)
-サンプル4: 0011 1111 1111 1111 (= 16383)
-サンプル5: 0000 0000 0000 0000 (= 0)
-サンプル6: 1100 0000 0000 0001 (= -16383)
-サンプル7: 1000 0000 0000 0001 (= -32767 = 最小値)
+2. D/A Conversion
+   - Converts digital values to analog voltage
+   - Conversion methods: R-2R ladder, delta-sigma, etc.
+   - Conversion precision determines D/A converter quality
 
-PCM以外のデジタルオーディオ方式:
-- DSD（Direct Stream Digital）
-  - 1bitのパルス密度変調
-  - SACDで使用
+3. Reconstruction Filter
+   - Restores the stepped output to a smooth waveform
+   - Analog low-pass filter
+   - Ideally with steep cutoff characteristics
+
+4. Analog Output Stage
+   - Buffer amplifier
+   - Impedance matching
+   - Line output (+4 dBu / -10 dBV)
+```
+
+### PCM (Pulse Code Modulation)
+
+```
+PCM Concept:
+
+Continuous analog waveform:
+    /\      /\
+  /    \  /    \
+/        \/        \
+
+PCM sampling (discretization):
+    ||      ||
+  ||  ||  ||  ||
+||      ||      ||
+
+Value of each sample (16bit):
+Sample 1: 0000 0000 0000 0000 (= 0)
+Sample 2: 0011 1111 1111 1111 (= 16383)
+Sample 3: 0111 1111 1111 1111 (= 32767 = maximum)
+Sample 4: 0011 1111 1111 1111 (= 16383)
+Sample 5: 0000 0000 0000 0000 (= 0)
+Sample 6: 1100 0000 0000 0001 (= -16383)
+Sample 7: 1000 0000 0000 0001 (= -32767 = minimum)
+
+Digital audio methods other than PCM:
+- DSD (Direct Stream Digital)
+  - 1-bit pulse density modulation
+  - Used in SACD
   - 2.8224 MHz / 5.6448 MHz
-  - アナログに近い特性とされる
+  - Considered to have characteristics close to analog
 
-- PDM（Pulse Density Modulation）
-  - DSDの基盤技術
-  - MEMS マイクなどで使用
+- PDM (Pulse Density Modulation)
+  - Underlying technology of DSD
+  - Used in MEMS microphones, etc.
 ```
 
 ---
 
-## 3. サンプルレート（Sample Rate）
+## 3. Sample Rate
 
-### 定義と原理
+### Definition and Principles
 
-1秒間に何回音を記録するか。単位は **Hz（ヘルツ）** または **kHz（キロヘルツ）**。
-
-```
-サンプルレートの視覚的イメージ:
-
-元の波形（1kHz サイン波）:
-     ╱╲      ╱╲      ╱╲
-   ╱    ╲  ╱    ╲  ╱    ╲
-  ╱        ╲╱        ╲╱
-
-低いサンプルレートでサンプリング（少ない点で記録）:
-  ·    ·    ·    ·    ·    ·
-→ 波形の再現精度が低い
-
-高いサンプルレートでサンプリング（多い点で記録）:
-  ··· ··· ··· ··· ··· ··· ··· ···
-→ 波形の再現精度が高い
-
-数値例:
-44,100 Hz（44.1 kHz）= 1秒間に 44,100回 サンプリング
-48,000 Hz（48 kHz）  = 1秒間に 48,000回 サンプリング
-88,200 Hz（88.2 kHz）= 1秒間に 88,200回 サンプリング
-96,000 Hz（96 kHz）  = 1秒間に 96,000回 サンプリング
-176,400 Hz（176.4 kHz）= 1秒間に 176,400回 サンプリング
-192,000 Hz（192 kHz）= 1秒間に 192,000回 サンプリング
-384,000 Hz（384 kHz）= 1秒間に 384,000回 サンプリング
-```
-
-### 一般的なサンプルレート一覧
-
-| サンプルレート | 用途 | 特徴 | 再現可能最高周波数 |
-|-------------|------|------|------------------|
-| 8 kHz | 電話 | 音声のみ | 4 kHz |
-| 11.025 kHz | 低品質音声 | AM ラジオ程度 | 5.5 kHz |
-| 22.05 kHz | FM ラジオ | 中品質 | 11 kHz |
-| 32 kHz | デジタル放送 | DAB等 | 16 kHz |
-| 44.1 kHz | CD、音楽配信 | 標準、互換性高い | 22.05 kHz |
-| 48 kHz | 映像、DJ機器 | CDJ、動画の標準 | 24 kHz |
-| 88.2 kHz | マスタリング | 44.1の倍数 | 44.1 kHz |
-| 96 kHz | ハイレゾ、制作 | 高音質、容量大 | 48 kHz |
-| 176.4 kHz | 高精度マスタリング | 44.1の4倍 | 88.2 kHz |
-| 192 kHz | 最高品質 | 非常に大容量 | 96 kHz |
-| 352.8 kHz | DXD | DSD編集用 | 176.4 kHz |
-| 384 kHz | 超ハイレゾ | 研究/アーカイブ | 192 kHz |
-
-### 44.1 kHz の由来
+How many times per second the sound is recorded. The unit is **Hz (Hertz)** or **kHz (kilohertz)**.
 
 ```
-なぜ 44.1 kHz なのか？
+Visual representation of sample rate:
 
-歴史的経緯:
-1. CDの開発時（1970年代後半）
-2. 当時のデジタル記録媒体はビデオテープレコーダー
-3. NTSC方式（525走査線、29.97fps）に同期
-4. 各走査線に3サンプルを記録
-5. 525 × 29.97 × 3 ÷ 2（インターレース）≒ 44,056
-6. 実際には有効走査線 490本を使用
-7. 490 × 30 × 3 = 44,100
-8. これが44.1kHzの由来
+Original waveform (1kHz sine wave):
+     /\      /\      /\
+   /    \  /    \  /    \
+  /        \/        \/
 
-PAL方式では:
-- 625走査線、25fps
-- 588 × 25 × 3 = 44,100
-- 偶然にもNTSCと同じ値に
+Sampling at a low sample rate (recording with fewer points):
+  .    .    .    .    .    .
+-> Low waveform reproduction accuracy
 
-48 kHz の由来:
-- AES（Audio Engineering Society）が制定
-- 映像制作（放送・映画）向け
-- 44.1kHzとの変換比が非整数（不便な点）
-- プロ機器での標準規格
+Sampling at a high sample rate (recording with more points):
+  ... ... ... ... ... ... ... ...
+-> High waveform reproduction accuracy
+
+Numerical examples:
+44,100 Hz (44.1 kHz) = 44,100 samples per second
+48,000 Hz (48 kHz)   = 48,000 samples per second
+88,200 Hz (88.2 kHz) = 88,200 samples per second
+96,000 Hz (96 kHz)   = 96,000 samples per second
+176,400 Hz (176.4 kHz) = 176,400 samples per second
+192,000 Hz (192 kHz) = 192,000 samples per second
+384,000 Hz (384 kHz) = 384,000 samples per second
 ```
 
-### ナイキスト定理（ナイキスト-シャノンの定理）
+### Common Sample Rates
+
+| Sample Rate | Usage | Characteristics | Max Reproducible Frequency |
+|-------------|-------|-----------------|---------------------------|
+| 8 kHz | Telephone | Voice only | 4 kHz |
+| 11.025 kHz | Low-quality audio | AM radio quality | 5.5 kHz |
+| 22.05 kHz | FM radio | Medium quality | 11 kHz |
+| 32 kHz | Digital broadcast | DAB, etc. | 16 kHz |
+| 44.1 kHz | CD, music distribution | Standard, high compatibility | 22.05 kHz |
+| 48 kHz | Video, DJ equipment | CDJ, video standard | 24 kHz |
+| 88.2 kHz | Mastering | Multiple of 44.1 | 44.1 kHz |
+| 96 kHz | Hi-res, production | High quality, large file size | 48 kHz |
+| 176.4 kHz | High-precision mastering | 4x of 44.1 | 88.2 kHz |
+| 192 kHz | Highest quality | Very large file size | 96 kHz |
+| 352.8 kHz | DXD | For DSD editing | 176.4 kHz |
+| 384 kHz | Ultra hi-res | Research/archival | 192 kHz |
+
+### The Origin of 44.1 kHz
 
 ```
-定理の内容:
-アナログ信号をデジタルに変換する際、
-元の信号の最高周波数の2倍以上のサンプルレートが必要
+Why 44.1 kHz?
 
-数式:
-fs ≥ 2 × fmax
+Historical background:
+1. During CD development (late 1970s)
+2. Digital recording media at the time were video tape recorders
+3. Synchronized to NTSC format (525 scan lines, 29.97fps)
+4. 3 samples recorded per scan line
+5. 525 x 29.97 x 3 / 2 (interlaced) = approx. 44,056
+6. Actually used 490 active scan lines
+7. 490 x 30 x 3 = 44,100
+8. This is the origin of 44.1kHz
 
-fs: サンプルレート
-fmax: 再現したい最高周波数
+For PAL format:
+- 625 scan lines, 25fps
+- 588 x 25 x 3 = 44,100
+- Coincidentally the same value as NTSC
 
-人間の可聴域と必要なサンプルレート:
-- 可聴域: 約 20 Hz ~ 20,000 Hz
-- 必要なサンプルレート: 20,000 × 2 = 40,000 Hz 以上
-- CD規格: 44,100 Hz（余裕を持たせている）
-- ナイキスト周波数: 44,100 ÷ 2 = 22,050 Hz
-- 22,050 Hz > 20,000 Hz → 可聴域をカバー
-
-エイリアシング:
-- ナイキスト周波数以上の成分をサンプリングすると発生
-- 本来存在しない低い周波数が出現する現象
-- アンチエイリアシングフィルタで防止
-
-例:
-サンプルレート = 44.1kHz
-ナイキスト周波数 = 22.05kHz
-入力に 25kHz の成分があると:
-→ 44.1 - 25 = 19.1kHz のエイリアスノイズが発生
-→ これは可聴域内なので歪みとして聞こえる
+The origin of 48 kHz:
+- Established by AES (Audio Engineering Society)
+- Designed for video production (broadcast/film)
+- Non-integer conversion ratio with 44.1kHz (inconvenient)
+- Standard for professional equipment
 ```
 
-### オーバーサンプリングの意義
+### Nyquist Theorem (Nyquist-Shannon Sampling Theorem)
 
 ```
-なぜハイレゾ（96kHz, 192kHz等）を使うのか？
+The theorem states:
+When converting an analog signal to digital,
+a sample rate at least twice the highest frequency of the original signal is required
 
-理由1: アンチエイリアシングフィルタの負担軽減
-- 44.1kHz: 20kHz～22.05kHz の間で急激にカットする必要
-- 96kHz: 20kHz～48kHz の広い遷移帯域が使える
-- フィルタ特性が緩やかで、位相歪みが少ない
+Formula:
+fs >= 2 x fmax
 
-理由2: プラグイン処理の精度向上
-- 非線形処理（サチュレーション、コンプレッサー等）
-- 低サンプルレートだと折り返しノイズが可聴域に
-- 高サンプルレートだと折り返しが可聴域外に
+fs: sample rate
+fmax: highest frequency to be reproduced
 
-理由3: タイムストレッチ/ピッチシフトの品質
-- 元の情報量が多いほど変換品質が高い
-- DJでのテンポ変更時に有利
+Human audible range and required sample rate:
+- Audible range: approx. 20 Hz to 20,000 Hz
+- Required sample rate: 20,000 x 2 = 40,000 Hz or higher
+- CD standard: 44,100 Hz (with margin)
+- Nyquist frequency: 44,100 / 2 = 22,050 Hz
+- 22,050 Hz > 20,000 Hz -> Covers the audible range
 
-理由4: 録音時のヘッドルーム
-- 超高域の情報を保持
-- ダウンサンプリング時にフィルタ処理の余裕
+Aliasing:
+- Occurs when components above the Nyquist frequency are sampled
+- A phenomenon where non-existent lower frequencies appear
+- Prevented by anti-aliasing filters
 
-理由5: 将来のフォーマット対応
-- アーカイブ目的で高品質録音を保持
-- リマスタリング時の素材品質
-
-注意点:
-- CPU負荷が増大
-- ストレージ消費が増大
-- 人間の聴覚の限界（20kHz以上は聞こえない）
-- ブラインドテストでの差は微妙
+Example:
+Sample rate = 44.1kHz
+Nyquist frequency = 22.05kHz
+If the input contains a 25kHz component:
+-> 44.1 - 25 = 19.1kHz alias noise is generated
+-> This is within the audible range and heard as distortion
 ```
 
-### サンプルレートの推奨設定
+### The Significance of Oversampling
 
-**DJ（Rekordbox / CDJ）:**
 ```
-推奨: 48 kHz
+Why use hi-res (96kHz, 192kHz, etc.)?
 
-理由:
-- CDJ-3000/CDJ-2000NXS2 のネイティブサンプルレート
-- クラブの音響システムの標準
-- ProDJ Link のストリーミング品質
-- Rekordbox のデフォルト設定
+Reason 1: Reduced burden on anti-aliasing filters
+- 44.1kHz: Must cut sharply between 20kHz and 22.05kHz
+- 96kHz: Wide transition band available from 20kHz to 48kHz
+- Gentler filter characteristics, less phase distortion
 
-設定方法（Rekordbox）:
-1. 環境設定 > オーディオ
-2. サンプルレート: 48000 Hz
-3. ※ 44.1kHz の音源は自動的にリサンプリングされる
+Reason 2: Improved plugin processing precision
+- Non-linear processing (saturation, compressor, etc.)
+- At low sample rates, foldback noise enters the audible range
+- At high sample rates, foldback stays outside the audible range
 
-注意:
-- 44.1kHz の音源をインポートしても問題なし
-- Rekordbox が内部で適切に処理
-- 96kHz は CDJ では非サポート
+Reason 3: Time-stretch/pitch-shift quality
+- More original information means higher conversion quality
+- Advantageous when changing tempo during DJ sets
+
+Reason 4: Headroom during recording
+- Preserves ultra-high frequency information
+- Provides filter processing margin during downsampling
+
+Reason 5: Future format compatibility
+- Preserving high-quality recordings for archival purposes
+- Source quality for remastering
+
+Notes:
+- CPU load increases
+- Storage consumption increases
+- Human hearing limitations (frequencies above 20kHz are inaudible)
+- Differences in blind tests are subtle
 ```
 
-**制作（Ableton Live / Logic Pro）:**
+### Recommended Sample Rate Settings
+
+**DJ (Rekordbox / CDJ):**
 ```
-推奨: 48 kHz（基本）/ 96 kHz（高音質を求める場合）
+Recommended: 48 kHz
 
-48kHz の場合:
-- CPU負荷が低い
-- プラグインの互換性が最高
-- 映像との連携が容易
-- 最終出力が44.1kHz/48kHzなら十分
+Reasons:
+- Native sample rate of CDJ-3000/CDJ-2000NXS2
+- Club sound system standard
+- ProDJ Link streaming quality
+- Rekordbox default setting
 
-96kHz の場合:
-- 非線形プラグインの品質向上
-- ピッチシフト/タイムストレッチの精度
-- CPU負荷が約2倍に
-- 一部プラグインが非対応の場合あり
+Configuration (Rekordbox):
+1. Preferences > Audio
+2. Sample Rate: 48000 Hz
+3. * 44.1kHz sources are automatically resampled
 
-設定方法（Ableton Live）:
+Notes:
+- No issues importing 44.1kHz sources
+- Rekordbox handles the conversion internally
+- 96kHz is not supported on CDJs
+```
+
+**Production (Ableton Live / Logic Pro):**
+```
+Recommended: 48 kHz (basic) / 96 kHz (when higher quality is desired)
+
+48kHz:
+- Lower CPU load
+- Best plugin compatibility
+- Easy integration with video
+- Sufficient if final output is 44.1kHz/48kHz
+
+96kHz:
+- Improved quality for non-linear plugins
+- Better pitch shift/time stretch precision
+- Approximately 2x CPU load
+- Some plugins may not support it
+
+Configuration (Ableton Live):
 1. Preferences > Audio
 2. Sample Rate: 48000 / 96000
-3. ※ プロジェクト作成時に設定推奨
-4. ※ 途中変更は避ける（ワープマーカーがずれる可能性）
+3. * Recommended to set when creating the project
+4. * Avoid changing mid-project (warp markers may shift)
 ```
 
 ---
 
-## 4. ビット深度（Bit Depth）
+## 4. Bit Depth
 
-### 定義と原理
+### Definition and Principles
 
-音の大きさをどれだけ細かく記録するか。単位は **bit（ビット）**。
-
-```
-ビット深度と量子化レベル:
-
-8 bit  =      256 段階 (2^8)
-16 bit =   65,536 段階 (2^16)
-24 bit = 16,777,216 段階 (2^24)
-32 bit = 4,294,967,296 段階 (2^32)
-
-視覚的イメージ（量子化の精度）:
-
-8bit（粗い量子化）:
-████
-████████
-████████████
-████████████████
-████████████
-████████
-████
-→ 段差（量子化ノイズ）が大きい
-
-16bit（細かい量子化）:
-██
-████
-██████
-████████
-██████████
-████████████
-██████████████
-████████████████
-██████████████
-████████████
-██████████
-████████
-██████
-████
-██
-→ 段差が非常に小さく、滑らかに聞こえる
-
-24bit（非常に細かい量子化）:
-→ 人間の聴覚では段差を知覚不可能
-→ 録音時のノイズフロアより細かい精度
-```
-
-### ダイナミックレンジの詳細
-
-ビット深度が高いほど、**小さい音と大きい音の差（ダイナミックレンジ）**を正確に記録できます。
+How finely the loudness of sound is recorded. The unit is **bit**.
 
 ```
-ダイナミックレンジの計算:
+Bit depth and quantization levels:
 
-理論値:
-ダイナミックレンジ(dB) ≈ ビット深度 × 6.02 + 1.76
+8 bit  =      256 levels (2^8)
+16 bit =   65,536 levels (2^16)
+24 bit = 16,777,216 levels (2^24)
+32 bit = 4,294,967,296 levels (2^32)
 
-  8 bit = 8  × 6.02 + 1.76 = 49.92 dB ≈ 50 dB
- 16 bit = 16 × 6.02 + 1.76 = 98.08 dB ≈ 96 dB
- 24 bit = 24 × 6.02 + 1.76 = 146.24 dB ≈ 144 dB
- 32 bit int = 32 × 6.02 + 1.76 = 194.4 dB
+Visual representation (quantization precision):
 
-32 bit float（浮動小数点）:
-- 仮数部 24bit + 指数部 8bit
-- 有効ダイナミックレンジ: 約 1,680 dB（理論上）
-- 0 dBFS を超えても内部的にクリッピングしない
-- DAW内部処理の標準
+8bit (coarse quantization):
+xxxx
+xxxxxxxx
+xxxxxxxxxxxx
+xxxxxxxxxxxxxxxx
+xxxxxxxxxxxx
+xxxxxxxx
+xxxx
+-> Large steps (quantization noise) are significant
 
-比較（実際の環境）:
-- 静かな部屋: 約 30 dB SPL
-- 日常会話: 約 60 dB SPL
-- クラブ: 約 100-115 dB SPL
-- ジェットエンジン: 約 140 dB SPL
-- 16bit の 96dB は日常のほとんどのシーンをカバー
+16bit (fine quantization):
+xx
+xxxx
+xxxxxx
+xxxxxxxx
+xxxxxxxxxx
+xxxxxxxxxxxx
+xxxxxxxxxxxxxx
+xxxxxxxxxxxxxxxx
+xxxxxxxxxxxxxx
+xxxxxxxxxxxx
+xxxxxxxxxx
+xxxxxxxx
+xxxxxx
+xxxx
+xx
+-> Steps are very small, sounds smooth
+
+24bit (very fine quantization):
+-> Steps are imperceptible to human hearing
+-> Finer precision than the recording noise floor
 ```
 
-### 量子化ノイズとディザリング
+### Dynamic Range in Detail
+
+The higher the bit depth, the more accurately the **difference between the quietest and loudest sounds (dynamic range)** can be recorded.
 
 ```
-量子化ノイズとは:
-- アナログ値をデジタル値に丸める際の誤差
-- 信号レベルが低いほど相対的に目立つ
-- 特に16bitでフェードアウト時に気づくことがある
+Dynamic range calculation:
 
-ディザリング（Dithering）:
-- 量子化の前にわずかなランダムノイズを加える技術
-- 量子化ノイズの不快な歪みを、無害なホワイトノイズに変換
-- 特にビット深度を下げる時に重要（24bit → 16bit 等）
+Theoretical values:
+Dynamic range (dB) = Bit depth x 6.02 + 1.76
 
-ディザリングの種類:
-1. フラットディザ（TPDF - Triangular Probability Density Function）
-   - 三角分布のランダムノイズ
-   - 最もシンプルで標準的
-   - Ableton Live のデフォルト
+  8 bit = 8  x 6.02 + 1.76 = 49.92 dB = approx. 50 dB
+ 16 bit = 16 x 6.02 + 1.76 = 98.08 dB = approx. 96 dB
+ 24 bit = 24 x 6.02 + 1.76 = 146.24 dB = approx. 144 dB
+ 32 bit int = 32 x 6.02 + 1.76 = 194.4 dB
 
-2. ノイズシェーピングディザ
-   - 人間の聴覚特性に合わせてノイズを高域にシフト
-   - POW-r（Type 1, 2, 3）
+32 bit float (floating point):
+- 24-bit mantissa + 8-bit exponent
+- Effective dynamic range: approx. 1,680 dB (theoretical)
+- No internal clipping even when exceeding 0 dBFS
+- Standard for internal DAW processing
+
+Comparison (real-world environments):
+- Quiet room: approx. 30 dB SPL
+- Conversation: approx. 60 dB SPL
+- Club: approx. 100-115 dB SPL
+- Jet engine: approx. 140 dB SPL
+- 16bit's 96dB covers most everyday scenarios
+```
+
+### Quantization Noise and Dithering
+
+```
+What is quantization noise?
+- Error from rounding analog values to digital values
+- More noticeable at lower signal levels
+- Sometimes noticeable during fade-outs at 16bit
+
+Dithering:
+- A technique that adds slight random noise before quantization
+- Converts unpleasant quantization distortion into harmless white noise
+- Especially important when reducing bit depth (e.g., 24bit -> 16bit)
+
+Types of dithering:
+1. Flat dither (TPDF - Triangular Probability Density Function)
+   - Triangular distribution random noise
+   - Simplest and most standard
+   - Ableton Live default
+
+2. Noise-shaped dither
+   - Shifts noise to higher frequencies based on human hearing characteristics
+   - POW-r (Type 1, 2, 3)
    - Apogee UV22HR
    - iZotope MBIT+
-   - 聴感上のS/N比が改善
+   - Improves perceptual S/N ratio
 
-実践での適用:
-- 24bit → 16bit エクスポート時に必ずディザリング
-- 32bit float → 24bit 時はほぼ不要（差が知覚不能）
-- ディザリングは1回だけ適用（複数回は避ける）
-- マスタリングの最終段階で適用
+Practical application:
+- Always apply dithering when exporting 24bit -> 16bit
+- Virtually unnecessary for 32bit float -> 24bit (difference is imperceptible)
+- Apply dithering only once (avoid multiple applications)
+- Apply at the final mastering stage
 ```
 
-### 一般的なビット深度
+### Common Bit Depths
 
-| ビット深度 | 用途 | ダイナミックレンジ | 特徴 |
-|----------|------|------------------|------|
-| 8 bit | レガシー、チップチューン | 約 50 dB | ローファイサウンド |
-| 16 bit | CD、配信 | 約 96 dB | 十分な音質、容量小 |
-| 24 bit | 録音、制作、ハイレゾ | 約 144 dB | プロ標準、余裕あり |
-| 32 bit int | 特殊用途 | 約 194 dB | 使用頻度低 |
-| 32 bit float | DAW内部処理 | 約 1,680 dB | クリッピングしない |
-| 64 bit float | 一部DAW内部 | 実質無限 | 超高精度演算 |
+| Bit Depth | Usage | Dynamic Range | Characteristics |
+|-----------|-------|---------------|-----------------|
+| 8 bit | Legacy, chiptune | approx. 50 dB | Lo-fi sound |
+| 16 bit | CD, distribution | approx. 96 dB | Sufficient quality, small file size |
+| 24 bit | Recording, production, hi-res | approx. 144 dB | Pro standard, plenty of headroom |
+| 32 bit int | Special use | approx. 194 dB | Rarely used |
+| 32 bit float | Internal DAW processing | approx. 1,680 dB | No clipping |
+| 64 bit float | Some DAW internals | Virtually infinite | Ultra-high precision calculation |
 
-### ビット深度の推奨設定
+### Recommended Bit Depth Settings
 
-**DJ（Rekordbox）:**
+**DJ (Rekordbox):**
 ```
-推奨: 16 bit（再生音源）
+Recommended: 16 bit (for playback sources)
 
-理由:
-- 配信サイトの音源は基本16bit/24bit
-- クラブのPA環境で16bitと24bitの差は極めて小さい
-- ストレージ効率が良い
-- CDJの処理は内部で24bit/32bit
+Reasons:
+- Sources from distribution sites are typically 16bit/24bit
+- The difference between 16bit and 24bit is negligible in a club PA environment
+- Better storage efficiency
+- CDJ processes internally at 24bit/32bit
 
-録音（DJミックス）の場合:
-- 24 bit WAV で録音推奨
-- 後でマスタリングする余裕を持たせる
+For recording (DJ mixes):
+- Record in 24 bit WAV recommended
+- Leaves headroom for later mastering
 ```
 
-**制作（Ableton Live / Logic Pro）:**
+**Production (Ableton Live / Logic Pro):**
 ```
-推奨設定:
-- プロジェクト内部: 32 bit float（DAWのデフォルト）
-- 録音: 24 bit
-- エクスポート（マスター）: 24 bit WAV
-- エクスポート（配信）: 16 bit WAV + ディザリング
-- エクスポート（ストリーミング）: 24 bit WAV（最近の主流）
+Recommended settings:
+- Internal project: 32 bit float (DAW default)
+- Recording: 24 bit
+- Export (master): 24 bit WAV
+- Export (distribution): 16 bit WAV + dithering
+- Export (streaming): 24 bit WAV (current mainstream)
 
-設定方法（Ableton Live）:
+Configuration (Ableton Live):
 1. Preferences > Record/Warp/Launch
 2. Record Bit Depth: 24
-3. Export 時に Dither: Triangular を選択
+3. Select Dither: Triangular when exporting
 
-設定方法（Logic Pro）:
+Configuration (Logic Pro):
 1. Project Settings > Audio
 2. Recording Bit Depth: 24-Bit
-3. Bounce 時に Dithering: POW-r #2 を選択
+3. Select Dithering: POW-r #2 when bouncing
 ```
 
 ---
 
-## 5. ファイルフォーマット
+## 5. File Formats
 
-### 非圧縮フォーマット
+### Uncompressed Formats
 
-**WAV（Waveform Audio File Format）:**
-
-```
-特徴:
-- Microsoft/IBM が開発
-- RIFF コンテナフォーマット
-- 非圧縮 PCM データを格納
-- 最も広く対応
-
-技術的詳細:
-- ヘッダ: 44バイト（標準）
-- チャンクベースの構造
-- リトルエンディアン
-- 最大ファイルサイズ: 4GB（標準WAV）
-  - RF64/BWF: 4GB以上に対応
-
-メタデータ:
-- BWF（Broadcast Wave Format）: タイムコード等
-- LIST チャンク: タイトル、アーティスト等
-- ID3タグは非標準だが一部ソフトが対応
-
-DJ での使用:
-- Rekordbox: 完全対応
-- CDJ: 完全対応（USB経由）
-- Serato DJ: 完全対応
-- Traktor: 完全対応
-
-制作での使用:
-- 全DAWで完全対応
-- サンプルパック/ループの標準フォーマット
-- プラグインのインポート/エクスポート
-```
-
-**AIFF（Audio Interchange File Format）:**
+**WAV (Waveform Audio File Format):**
 
 ```
-特徴:
-- Apple が開発
-- IFF コンテナフォーマット
-- 非圧縮 PCM データを格納
-- Mac環境で一般的
+Characteristics:
+- Developed by Microsoft/IBM
+- RIFF container format
+- Stores uncompressed PCM data
+- Widest support
 
-技術的詳細:
-- ビッグエンディアン（WAVと逆）
-- チャンクベースの構造
-- AIFF-C: 圧縮版（あまり使われない）
+Technical details:
+- Header: 44 bytes (standard)
+- Chunk-based structure
+- Little-endian
+- Maximum file size: 4GB (standard WAV)
+  - RF64/BWF: supports files larger than 4GB
 
-メタデータ:
-- ID3v2タグをネイティブサポート
-- アートワークの埋め込みが容易
-- WAVより豊富なメタデータ
+Metadata:
+- BWF (Broadcast Wave Format): timecode, etc.
+- LIST chunk: title, artist, etc.
+- ID3 tags are non-standard but supported by some software
 
-WAVとAIFFの比較:
-| 項目 | WAV | AIFF |
+DJ usage:
+- Rekordbox: fully supported
+- CDJ: fully supported (via USB)
+- Serato DJ: fully supported
+- Traktor: fully supported
+
+Production usage:
+- Fully supported by all DAWs
+- Standard format for sample packs/loops
+- Plugin import/export
+```
+
+**AIFF (Audio Interchange File Format):**
+
+```
+Characteristics:
+- Developed by Apple
+- IFF container format
+- Stores uncompressed PCM data
+- Common in Mac environments
+
+Technical details:
+- Big-endian (opposite of WAV)
+- Chunk-based structure
+- AIFF-C: compressed version (rarely used)
+
+Metadata:
+- Native ID3v2 tag support
+- Easy artwork embedding
+- Richer metadata than WAV
+
+WAV vs AIFF comparison:
+| Item | WAV | AIFF |
 |------|-----|------|
-| 開発元 | Microsoft | Apple |
-| エンディアン | リトル | ビッグ |
-| メタデータ | 限定的 | 豊富（ID3v2） |
-| 互換性 | 最高 | 高い |
-| ファイルサイズ | 同等 | 同等 |
-| 音質 | 同等 | 同等 |
+| Developer | Microsoft | Apple |
+| Endianness | Little | Big |
+| Metadata | Limited | Rich (ID3v2) |
+| Compatibility | Highest | High |
+| File size | Equivalent | Equivalent |
+| Audio quality | Equivalent | Equivalent |
 
-推奨:
-- どちらを選んでも音質に差はない
-- Windowsメイン → WAV
-- Macメイン → AIFF（メタデータの利点）
-- 互換性重視 → WAV
+Recommendation:
+- No audio quality difference between the two
+- Windows-centric -> WAV
+- Mac-centric -> AIFF (metadata advantages)
+- Compatibility-focused -> WAV
 ```
 
-### 可逆圧縮フォーマット
+### Lossless Compression Formats
 
-**FLAC（Free Lossless Audio Codec）:**
-
-```
-特徴:
-- 2001年リリース、オープンソース
-- 可逆圧縮（ロスレス）
-- 圧縮率: 元の50-70%程度
-- デコード速度が高速
-- ストリーミングに適する
-
-技術的詳細:
-- 線形予測コーディング（LPC）ベース
-- ブロックサイズ: 1152-65535 サンプル
-- 最大: 32bit/655.35kHz/8ch
-- ストリーミング対応（シーク可能）
-- MD5チェックサム内蔵
-
-圧縮レベル（0-8）:
-- 0: 最速エンコード、最低圧縮率
-- 5: デフォルト（バランス）
-- 8: 最遅エンコード、最高圧縮率
-- デコード速度はレベルに関係なくほぼ同じ
-
-メタデータ:
-- Vorbis Comment タグ
-- アルバムアート埋め込み
-- ReplayGain 対応
-- キューシート埋め込み
-
-DJ での使用:
-- Rekordbox 6+: 対応
-- CDJ-3000: 対応（USB経由）
-- CDJ-2000NXS2: 対応
-- Serato DJ Pro: 対応
-- Traktor Pro: 対応
-
-容量比較（5分のステレオ楽曲、44.1kHz/16bit）:
-- WAV:  約 52.9 MB
-- FLAC: 約 26-37 MB（圧縮率 50-70%）
-- 100曲で約 1.6-2.6 GB の節約
-```
-
-**ALAC（Apple Lossless Audio Codec）:**
+**FLAC (Free Lossless Audio Codec):**
 
 ```
-特徴:
-- Apple が開発（2004年）
-- 2011年にオープンソース化
-- iTunes/Apple Music エコシステムで優位
-- 音質はFLACと同等
+Characteristics:
+- Released in 2001, open source
+- Lossless compression
+- Compression ratio: approx. 50-70% of original
+- Fast decoding speed
+- Suitable for streaming
 
-技術的詳細:
-- 修正線形予測
-- M4Aコンテナ（MP4ベース）
-- 最大: 32bit/384kHz
-- Apple デバイスでハードウェアデコード
+Technical details:
+- Based on Linear Predictive Coding (LPC)
+- Block size: 1152-65535 samples
+- Maximum: 32bit/655.35kHz/8ch
+- Streaming-ready (seekable)
+- Built-in MD5 checksum
 
-FLACとALACの比較:
-| 項目 | FLAC | ALAC |
+Compression levels (0-8):
+- 0: Fastest encoding, lowest compression ratio
+- 5: Default (balanced)
+- 8: Slowest encoding, highest compression ratio
+- Decoding speed is virtually the same regardless of level
+
+Metadata:
+- Vorbis Comment tags
+- Album art embedding
+- ReplayGain support
+- Cue sheet embedding
+
+DJ usage:
+- Rekordbox 6+: supported
+- CDJ-3000: supported (via USB)
+- CDJ-2000NXS2: supported
+- Serato DJ Pro: supported
+- Traktor Pro: supported
+
+Size comparison (5-minute stereo track, 44.1kHz/16bit):
+- WAV:  approx. 52.9 MB
+- FLAC: approx. 26-37 MB (50-70% compression)
+- Saves approx. 1.6-2.6 GB per 100 tracks
+```
+
+**ALAC (Apple Lossless Audio Codec):**
+
+```
+Characteristics:
+- Developed by Apple (2004)
+- Open-sourced in 2011
+- Advantageous in the iTunes/Apple Music ecosystem
+- Audio quality equivalent to FLAC
+
+Technical details:
+- Modified linear prediction
+- M4A container (MP4-based)
+- Maximum: 32bit/384kHz
+- Hardware decoding on Apple devices
+
+FLAC vs ALAC comparison:
+| Item | FLAC | ALAC |
 |------|------|------|
-| 圧縮率 | やや優秀 | やや劣る |
-| デコード速度 | 高速 | 高速 |
-| Apple対応 | iOS 11+, macOS | ネイティブ |
-| Android対応 | ネイティブ | アプリ依存 |
-| DJ ソフト | 広く対応 | 限定的 |
-| ストリーミング | 優秀 | 良好 |
+| Compression ratio | Slightly better | Slightly worse |
+| Decoding speed | Fast | Fast |
+| Apple support | iOS 11+, macOS | Native |
+| Android support | Native | App-dependent |
+| DJ software | Widely supported | Limited |
+| Streaming | Excellent | Good |
 
-推奨:
-- Apple 中心のワークフロー → ALAC
-- それ以外 → FLAC
-- DJ用途 → FLAC（互換性が高い）
+Recommendation:
+- Apple-centric workflow -> ALAC
+- Otherwise -> FLAC
+- DJ use -> FLAC (higher compatibility)
 ```
 
-### 非可逆圧縮フォーマット
+### Lossy Compression Formats
 
-**MP3（MPEG Audio Layer-3）:**
-
-```
-特徴:
-- 1993年標準化
-- 最も普及した圧縮フォーマット
-- 心理音響モデルに基づく非可逆圧縮
-- 特許は2017年に全て失効
-
-圧縮の仕組み:
-1. 聴覚マスキング効果を利用
-   - 大きな音の近くの小さな音は聞こえない
-   - 時間マスキング: 大きな音の直後の小さな音
-   - 周波数マスキング: 近い周波数の弱い音
-2. マスクされた部分のデータを削減/除去
-3. MDCT（修正離散コサイン変換）で周波数領域に変換
-4. ハフマン符号化でエンコード
-
-ビットレートモード:
-- CBR（Constant Bit Rate）: 一定のビットレート
-  - 320 kbps CBR: DJ向け推奨
-  - ファイルサイズが予測しやすい
-  - シークが高速
-
-- VBR（Variable Bit Rate）: 可変ビットレート
-  - 複雑な部分に多くのビットを割り当て
-  - 同じ音質でCBRより小さいファイル
-  - V0 ≈ 245 kbps 平均
-  - V2 ≈ 190 kbps 平均
-
-- ABR（Average Bit Rate）: 平均ビットレート
-  - VBRの一種で平均値を指定
-  - あまり使われない
-
-MP3の品質劣化ポイント:
-- 高域（16kHz以上）がカットされやすい
-- ステレオイメージの劣化
-- プリエコー（トランジェント前のアーティファクト）
-- 低ビットレートでの「シュワシュワ」音
-- 再エンコードの繰り返しで品質低下
-```
-
-**AAC（Advanced Audio Coding）:**
+**MP3 (MPEG Audio Layer-3):**
 
 ```
-特徴:
-- 1997年標準化（MPEG-2 Part 7）
-- MP3の後継として設計
-- 同ビットレートでMP3より高音質
-- Apple Music / YouTube / Instagram で使用
+Characteristics:
+- Standardized in 1993
+- Most widely adopted compression format
+- Lossy compression based on psychoacoustic models
+- All patents expired in 2017
 
-プロファイル:
-- AAC-LC（Low Complexity）: 最も一般的
-- HE-AAC（High Efficiency）: 低ビットレート向け
-  - v1: SBR（Spectral Band Replication）
-  - v2: SBR + PS（Parametric Stereo）
-- AAC-LD/ELD: 低遅延（通信向け）
-- xHE-AAC: 最新、超効率的
+How compression works:
+1. Utilizes auditory masking effects
+   - Quiet sounds near loud sounds are inaudible
+   - Temporal masking: quiet sounds right after loud sounds
+   - Frequency masking: weaker sounds at nearby frequencies
+2. Reduces/removes data for masked portions
+3. Transforms to frequency domain using MDCT (Modified Discrete Cosine Transform)
+4. Encodes with Huffman coding
 
-品質比較（主観的評価）:
-- AAC 256 kbps ≈ MP3 320 kbps
+Bitrate modes:
+- CBR (Constant Bit Rate): fixed bitrate
+  - 320 kbps CBR: recommended for DJs
+  - Predictable file sizes
+  - Fast seeking
+
+- VBR (Variable Bit Rate): variable bitrate
+  - Allocates more bits to complex passages
+  - Smaller files than CBR at same quality
+  - V0 = approx. 245 kbps average
+  - V2 = approx. 190 kbps average
+
+- ABR (Average Bit Rate): average bitrate
+  - A type of VBR with specified average
+  - Rarely used
+
+MP3 quality degradation points:
+- High frequencies (above 16kHz) are easily cut
+- Stereo image degradation
+- Pre-echo (artifacts before transients)
+- "Swishing" sounds at low bitrates
+- Quality degrades with repeated re-encoding
+```
+
+**AAC (Advanced Audio Coding):**
+
+```
+Characteristics:
+- Standardized in 1997 (MPEG-2 Part 7)
+- Designed as successor to MP3
+- Better quality than MP3 at the same bitrate
+- Used by Apple Music / YouTube / Instagram
+
+Profiles:
+- AAC-LC (Low Complexity): most common
+- HE-AAC (High Efficiency): for low bitrates
+  - v1: SBR (Spectral Band Replication)
+  - v2: SBR + PS (Parametric Stereo)
+- AAC-LD/ELD: low latency (for communication)
+- xHE-AAC: latest, ultra-efficient
+
+Quality comparison (subjective evaluation):
+- AAC 256 kbps = approx. MP3 320 kbps
 - AAC 128 kbps >> MP3 128 kbps
-- AAC は特に低ビットレートで優位
+- AAC is particularly superior at low bitrates
 
-使用場面:
+Use cases:
 - Apple Music: AAC 256 kbps
-- YouTube: AAC（動画の音声）
+- YouTube: AAC (video audio)
 - Instagram/TikTok: AAC
 - iTunes Store: AAC 256 kbps
 ```
@@ -965,132 +967,132 @@ MP3の品質劣化ポイント:
 
 ```
 OGG Vorbis:
-- Xiph.org が開発、完全オープンソース
-- 品質はAACと同等以上
-- Spotify で使用（320 kbps）
-- ゲーム業界で広く使用
+- Developed by Xiph.org, fully open source
+- Quality equal to or better than AAC
+- Used by Spotify (320 kbps)
+- Widely used in the gaming industry
 
 Opus:
-- 2012年標準化（RFC 6716）
-- 最も効率的な音声コーデック
-- 6 kbps（音声）～ 510 kbps（音楽）
-- Discord, WebRTC で使用
-- 低遅延（2.5ms～60ms）
+- Standardized in 2012 (RFC 6716)
+- Most efficient audio codec
+- 6 kbps (voice) to 510 kbps (music)
+- Used by Discord, WebRTC
+- Low latency (2.5ms to 60ms)
 
-用途比較:
-| コーデック | 主な用途 | 推奨ビットレート |
-|-----------|---------|----------------|
-| MP3 | 互換性重視 | 320 kbps |
+Use case comparison:
+| Codec | Primary Use | Recommended Bitrate |
+|-------|------------|---------------------|
+| MP3 | Compatibility-focused | 320 kbps |
 | AAC | Apple/Web | 256 kbps |
-| Vorbis | Spotify/ゲーム | 320 kbps |
-| Opus | 通信/Web | 128 kbps |
+| Vorbis | Spotify/Games | 320 kbps |
+| Opus | Communication/Web | 128 kbps |
 ```
 
-### ビットレート比較表
+### Bitrate Comparison Table
 
-| ビットレート | MP3 | AAC | Vorbis | Opus | 用途 |
-|------------|-----|-----|--------|------|------|
-| 64 kbps | 不可 | 低品質 | 低品質 | 良好 | 音声のみ |
-| 96 kbps | 不可 | 中低 | 中低 | 良好 | ポッドキャスト |
-| 128 kbps | 低品質 | 中品質 | 中品質 | 高品質 | カジュアル視聴 |
-| 192 kbps | 中品質 | 高品質 | 高品質 | 最高品質 | 一般視聴 |
-| 256 kbps | 高品質 | 最高品質 | 最高品質 | - | 配信/Apple Music |
-| 320 kbps | 最高品質 | 最高品質 | 最高品質 | - | DJ使用可 |
+| Bitrate | MP3 | AAC | Vorbis | Opus | Usage |
+|---------|-----|-----|--------|------|-------|
+| 64 kbps | Unusable | Low quality | Low quality | Good | Voice only |
+| 96 kbps | Unusable | Low-mid | Low-mid | Good | Podcasts |
+| 128 kbps | Low quality | Mid quality | Mid quality | High quality | Casual listening |
+| 192 kbps | Mid quality | High quality | High quality | Highest quality | General listening |
+| 256 kbps | High quality | Highest quality | Highest quality | - | Distribution/Apple Music |
+| 320 kbps | Highest quality | Highest quality | Highest quality | - | DJ-usable |
 
 ---
 
-## 6. ファイルサイズの計算
+## 6. File Size Calculation
 
-### 計算式（非圧縮）
-
-```
-ファイルサイズ(bytes) = サンプルレート × (ビット深度 / 8) × チャンネル数 × 秒数
-
-MB変換:
-ファイルサイズ(MB) = ファイルサイズ(bytes) / 1,048,576
-
-簡易計算式:
-ファイルサイズ(MB) ≈ サンプルレート × ビット深度 × チャンネル数 × 秒数 / 8 / 1,000,000
-```
-
-### 実例計算
+### Formula (Uncompressed)
 
 ```
-■ WAV 44.1kHz 16bit ステレオ（5分 = 300秒）:
-  44,100 × (16/8) × 2 × 300 = 52,920,000 bytes
+File size (bytes) = Sample rate x (Bit depth / 8) x Channels x Seconds
+
+MB conversion:
+File size (MB) = File size (bytes) / 1,048,576
+
+Simplified formula:
+File size (MB) = Sample rate x Bit depth x Channels x Seconds / 8 / 1,000,000
+```
+
+### Example Calculations
+
+```
+- WAV 44.1kHz 16bit Stereo (5 min = 300 sec):
+  44,100 x (16/8) x 2 x 300 = 52,920,000 bytes
   = 50.46 MB
 
-■ WAV 48kHz 24bit ステレオ（5分）:
-  48,000 × (24/8) × 2 × 300 = 86,400,000 bytes
+- WAV 48kHz 24bit Stereo (5 min):
+  48,000 x (24/8) x 2 x 300 = 86,400,000 bytes
   = 82.40 MB
 
-■ WAV 96kHz 24bit ステレオ（5分）:
-  96,000 × (24/8) × 2 × 300 = 172,800,000 bytes
+- WAV 96kHz 24bit Stereo (5 min):
+  96,000 x (24/8) x 2 x 300 = 172,800,000 bytes
   = 164.79 MB
 
-■ WAV 192kHz 32bit ステレオ（5分）:
-  192,000 × (32/8) × 2 × 300 = 460,800,000 bytes
+- WAV 192kHz 32bit Stereo (5 min):
+  192,000 x (32/8) x 2 x 300 = 460,800,000 bytes
   = 439.45 MB
 
-■ MP3 320kbps（5分）:
-  320,000 × 300 / 8 = 12,000,000 bytes
+- MP3 320kbps (5 min):
+  320,000 x 300 / 8 = 12,000,000 bytes
   = 11.44 MB
 
-■ MP3 128kbps（5分）:
-  128,000 × 300 / 8 = 4,800,000 bytes
+- MP3 128kbps (5 min):
+  128,000 x 300 / 8 = 4,800,000 bytes
   = 4.58 MB
 
-■ FLAC 44.1kHz/16bit（5分、圧縮率60%と仮定）:
-  50.46 × 0.6 = 約 30.3 MB
+- FLAC 44.1kHz/16bit (5 min, assuming 60% compression):
+  50.46 x 0.6 = approx. 30.3 MB
 
-■ AAC 256kbps（5分）:
-  256,000 × 300 / 8 = 9,600,000 bytes
+- AAC 256kbps (5 min):
+  256,000 x 300 / 8 = 9,600,000 bytes
   = 9.16 MB
 ```
 
-### ストレージ容量の見積もり（DJライブラリ）
+### Storage Capacity Estimates (DJ Library)
 
 ```
-1000曲のライブラリ（平均5分/曲）:
+Library of 1000 tracks (average 5 min/track):
 
-WAV 44.1/16:   50 MB × 1000 = 50 GB
-WAV 48/24:     82 MB × 1000 = 82 GB
-FLAC 44.1/16:  30 MB × 1000 = 30 GB
-MP3 320kbps:   12 MB × 1000 = 12 GB
-AAC 256kbps:    9 MB × 1000 =  9 GB
+WAV 44.1/16:   50 MB x 1000 = 50 GB
+WAV 48/24:     82 MB x 1000 = 82 GB
+FLAC 44.1/16:  30 MB x 1000 = 30 GB
+MP3 320kbps:   12 MB x 1000 = 12 GB
+AAC 256kbps:    9 MB x 1000 =  9 GB
 
-推奨ストレージ構成:
-- USB メモリ 64GB: MP3 320kbps で約5000曲
-- USB メモリ 128GB: FLAC で約4000曲
-- USB メモリ 256GB: WAV 44.1/16 で約5000曲
-- 外付けSSD 1TB: WAV 48/24 で約12000曲
+Recommended storage configurations:
+- USB drive 64GB: approx. 5000 tracks at MP3 320kbps
+- USB drive 128GB: approx. 4000 tracks in FLAC
+- USB drive 256GB: approx. 5000 tracks in WAV 44.1/16
+- External SSD 1TB: approx. 12000 tracks in WAV 48/24
 
-CDJ用USBメモリの注意:
-- FAT32フォーマット（4GB以下のファイル制限）
-- exFAT対応: CDJ-3000, CDJ-2000NXS2（ファームウェア依存）
-- HFS+: Pioneer DJ 機器で対応
-- フォルダ構造の深さに制限あり
+CDJ USB drive notes:
+- FAT32 format (4GB per file limit)
+- exFAT support: CDJ-3000, CDJ-2000NXS2 (firmware-dependent)
+- HFS+: supported by Pioneer DJ equipment
+- Folder structure depth is limited
 ```
 
-### ストリーミングサービスの品質比較
+### Streaming Service Quality Comparison
 
 ```
-各サービスの配信フォーマット:
+Distribution formats by service:
 
 Spotify:
 - Free: Ogg Vorbis 128 kbps
 - Premium: Ogg Vorbis 320 kbps
-- HiFi: FLAC（CD品質、一部地域）
+- HiFi: FLAC (CD quality, select regions)
 
 Apple Music:
-- AAC 256 kbps（標準）
-- ALAC 16bit/44.1kHz（ロスレス）
-- ALAC 24bit/192kHz（ハイレゾロスレス）
-- Dolby Atmos（空間オーディオ）
+- AAC 256 kbps (standard)
+- ALAC 16bit/44.1kHz (lossless)
+- ALAC 24bit/192kHz (hi-res lossless)
+- Dolby Atmos (spatial audio)
 
 Tidal:
 - HiFi: FLAC 16bit/44.1kHz
-- HiFi Plus: MQA 24bit/96kHz以上
+- HiFi Plus: MQA 24bit/96kHz+
 - Dolby Atmos
 
 Amazon Music:
@@ -1102,7 +1104,7 @@ Beatport:
 - MP3 320 kbps
 - WAV 44.1kHz/16bit
 - AIFF 44.1kHz/16bit
-- FLAC（一部）
+- FLAC (some titles)
 
 Bandcamp:
 - MP3 320 kbps / V0
@@ -1115,197 +1117,197 @@ Bandcamp:
 
 ---
 
-## 7. 音質の選び方
+## 7. Choosing Audio Quality
 
-### DJの場合
-
-```
-■ 最高品質セットアップ:
-  フォーマット: WAV 48kHz/24bit or AIFF 48kHz/24bit
-  ストレージ: SSD（USBメモリではなく）
-  メリット: 最高の音質、ヘッドルーム確保
-  デメリット: 容量大、購入コスト高
-
-■ バランス型セットアップ:
-  フォーマット: FLAC 44.1kHz/16bit
-  ストレージ: USBメモリ 128GB+
-  メリット: 高音質、容量効率良い
-  デメリット: 一部古い機材で非対応
-
-■ 互換性重視セットアップ:
-  フォーマット: MP3 320kbps CBR
-  ストレージ: USBメモリ 64GB
-  メリット: どの機材でも再生可能、容量最小
-  デメリット: 非可逆圧縮による品質低下
-
-■ 避けるべき設定:
-  × MP3 128kbps（クラブで劣化が顕著）
-  × VBR MP3（一部CDJでシーク問題）
-  × YouTube rip（低品質＋著作権問題）
-  × 違法ダウンロード（品質不明＋違法）
-  × アップコンバートされた偽ハイレゾ
-```
-
-### 偽ハイレゾの見分け方
+### For DJs
 
 ```
-偽ハイレゾとは:
-- MP3等の低品質ファイルを WAV/FLAC に変換しただけ
-- ファイルフォーマットが高品質でも中身は低品質
-- ビットレートが高くても情報量は増えない
+- Highest Quality Setup:
+  Format: WAV 48kHz/24bit or AIFF 48kHz/24bit
+  Storage: SSD (not a USB flash drive)
+  Advantages: Best audio quality, headroom assured
+  Disadvantages: Large file sizes, higher purchase costs
 
-見分け方:
-1. スペクトログラム分析
-   - Spek（無料ソフト）で周波数分析
-   - 本物のCD品質: 22kHz付近まで情報がある
-   - MP3からの変換: 16-20kHz で突然カットオフ
-   - 128kbps MP3: 16kHz で明確なカットオフ
+- Balanced Setup:
+  Format: FLAC 44.1kHz/16bit
+  Storage: USB drive 128GB+
+  Advantages: High quality, good storage efficiency
+  Disadvantages: Some older equipment may not support it
 
-2. ファイルサイズの異常
-   - WAV 44.1/16 の5分の曲 ≈ 50MB
-   - 極端に小さいWAVファイルは疑わしい
+- Compatibility-Focused Setup:
+  Format: MP3 320kbps CBR
+  Storage: USB drive 64GB
+  Advantages: Plays on any equipment, smallest file sizes
+  Disadvantages: Quality loss from lossy compression
 
-3. 購入元の信頼性
-   - Beatport, Bandcamp, Juno Download: 信頼できる
-   - 不明なサイト: 偽ハイレゾのリスク
-
-4. ツールでの検証
-   - Spek: スペクトログラム表示
-   - Audacity: スペクトラム分析
-   - foobar2000 + ABX プラグイン
+- Settings to Avoid:
+  x MP3 128kbps (degradation is obvious in clubs)
+  x VBR MP3 (seeking issues on some CDJs)
+  x YouTube rips (low quality + copyright issues)
+  x Illegal downloads (unknown quality + illegal)
+  x Upconverted fake hi-res
 ```
 
-### 制作の場合
+### How to Identify Fake Hi-Res
 
 ```
-■ プロジェクト内:
-  - サンプル/ループ: WAV 48kHz 24bit（推奨）
-  - 録音（ボーカル/楽器）: 48kHz 24bit 以上
-  - 内部処理: 32bit float（DAWのデフォルト）
-  - サンプルレートの混在は避ける（リサンプリングが発生）
+What is fake hi-res?
+- Simply converting a low-quality file like MP3 to WAV/FLAC
+- Even if the file format is high quality, the content remains low quality
+- Higher bitrate does not increase information content
 
-■ エクスポート（マスタリング前のステム）:
+How to identify:
+1. Spectrogram analysis
+   - Analyze frequencies with Spek (free software)
+   - True CD quality: information extends to around 22kHz
+   - Converted from MP3: sudden cutoff at 16-20kHz
+   - 128kbps MP3: clear cutoff at 16kHz
+
+2. Abnormal file size
+   - A 5-minute WAV 44.1/16 track should be approx. 50MB
+   - An unusually small WAV file is suspicious
+
+3. Source reliability
+   - Beatport, Bandcamp, Juno Download: trustworthy
+   - Unknown sites: risk of fake hi-res
+
+4. Verification tools
+   - Spek: spectrogram display
+   - Audacity: spectrum analysis
+   - foobar2000 + ABX plugin
+```
+
+### For Production
+
+```
+- Within projects:
+  - Samples/loops: WAV 48kHz 24bit (recommended)
+  - Recording (vocals/instruments): 48kHz 24bit or higher
+  - Internal processing: 32bit float (DAW default)
+  - Avoid mixing sample rates (resampling will occur)
+
+- Export (stems before mastering):
   - WAV 48kHz 32bit float
-  - ヘッドルーム: -6dB ~ -3dB
-  - ディザリング: 不要（32bit float → 32bit float）
+  - Headroom: -6dB to -3dB
+  - Dithering: not needed (32bit float -> 32bit float)
 
-■ エクスポート（マスタリング後）:
-  - マスター: WAV 48kHz 24bit
-  - 配信用: WAV 44.1kHz 16bit + ディザリング
+- Export (after mastering):
+  - Master: WAV 48kHz 24bit
+  - For distribution: WAV 44.1kHz 16bit + dithering
   - Spotify/Apple Music: WAV 44.1kHz/16bit or 48kHz/24bit
-  - MP3: 320kbps CBR（プロモ/参照用）
+  - MP3: 320kbps CBR (for promo/reference)
 
-■ 配信先の推奨フォーマット:
-  | 配信先 | フォーマット | 備考 |
-  |--------|------------|------|
-  | Spotify/Apple Music | WAV 44.1kHz/16bit | 内部でトランスコード |
-  | Beatport | WAV 44.1kHz/16bit | 原曲のまま販売 |
-  | Bandcamp | WAV/FLAC 44.1kHz/16bit | 複数フォーマットで提供 |
-  | SoundCloud | WAV 48kHz/24bit | 内部で128kbps変換 |
-  | YouTube | WAV 48kHz/24bit | 映像との同期 |
+- Recommended formats by distribution platform:
+  | Platform | Format | Notes |
+  |----------|--------|-------|
+  | Spotify/Apple Music | WAV 44.1kHz/16bit | Transcoded internally |
+  | Beatport | WAV 44.1kHz/16bit | Sold as original |
+  | Bandcamp | WAV/FLAC 44.1kHz/16bit | Offered in multiple formats |
+  | SoundCloud | WAV 48kHz/24bit | Converted internally to 128kbps |
+  | YouTube | WAV 48kHz/24bit | Sync with video |
 ```
 
 ---
 
-## 8. オーディオインターフェイスの基礎
+## 8. Audio Interface Basics
 
-### オーディオインターフェイスとは
-
-```
-役割:
-- A/D変換（マイク/楽器 → PC）
-- D/A変換（PC → スピーカー/ヘッドフォン）
-- PCの内蔵サウンドカードより高品質
-- 低レイテンシーでの入出力
-
-構成要素:
-┌──────────────────────────────────┐
-│       オーディオインターフェイス         │
-│                                  │
-│  [マイクプリアンプ] → [A/Dコンバータ]   │
-│  [D/Aコンバータ] → [ヘッドフォンアンプ]  │
-│  [D/Aコンバータ] → [ラインアウト]       │
-│  [クロックジェネレータ]                 │
-│  [DSP（一部機種）]                     │
-│                                  │
-│  接続: USB / Thunderbolt / PCIe    │
-└──────────────────────────────────┘
-```
-
-### DJ向けオーディオインターフェイス
+### What Is an Audio Interface?
 
 ```
-Rekordbox DJ 使用時:
-- Pioneer DJ DDJ コントローラー内蔵
+Role:
+- A/D conversion (mic/instrument -> PC)
+- D/A conversion (PC -> speakers/headphones)
+- Higher quality than built-in PC sound cards
+- Low-latency input/output
+
+Components:
++----------------------------------+
+|       Audio Interface            |
+|                                  |
+|  [Mic Preamp] -> [A/D Converter] |
+|  [D/A Converter] -> [Headphone Amp] |
+|  [D/A Converter] -> [Line Out]   |
+|  [Clock Generator]               |
+|  [DSP (some models)]             |
+|                                  |
+|  Connection: USB / Thunderbolt / PCIe |
++----------------------------------+
+```
+
+### Audio Interfaces for DJs
+
+```
+When using Rekordbox DJ:
+- Built into Pioneer DJ DDJ controllers
   - DDJ-FLX10: 24bit/48kHz
   - DDJ-1000: 24bit/44.1kHz
   - DDJ-REV7: 24bit/48kHz
 
-外部インターフェイス使用の場合:
-- Pioneer DJ Interface 2: DVSコントロール
+When using an external interface:
+- Pioneer DJ Interface 2: DVS control
 - Native Instruments Audio 2 DJ
-- Allen & Heath Xone:DB4（内蔵）
+- Allen & Heath Xone:DB4 (built-in)
 
-選択のポイント:
-1. レイテンシー（10ms以下が理想）
-2. チャンネル数（出力2系統以上: Master + Monitor）
-3. サンプルレート（48kHz対応）
-4. ドライバの安定性（ASIO/Core Audio）
-5. 耐久性（ライブ使用に耐える）
+Selection criteria:
+1. Latency (10ms or less is ideal)
+2. Channel count (2+ outputs: Master + Monitor)
+3. Sample rate (48kHz support)
+4. Driver stability (ASIO/Core Audio)
+5. Durability (must withstand live use)
 ```
 
-### 制作向けオーディオインターフェイス
+### Audio Interfaces for Production
 
 ```
-入門向け（〜3万円）:
-- Focusrite Scarlett 2i2（4th Gen）
+Entry-level (up to 30,000 yen):
+- Focusrite Scarlett 2i2 (4th Gen)
   - 24bit/192kHz
   - USB-C
-  - Air モード
+  - Air mode
 
 - Universal Audio Volt 276
   - 24bit/192kHz
-  - ビンテージコンプ内蔵
+  - Built-in vintage compressor
 
-中級（3-10万円）:
+Mid-range (30,000-100,000 yen):
 - Universal Audio Apollo Solo
   - 24bit/192kHz
   - Thunderbolt
-  - UADプラグイン対応
+  - UAD plugin support
 
 - RME Babyface Pro FS
   - 24bit/192kHz
   - USB
-  - 極めて低レイテンシー
+  - Extremely low latency
 
-プロ向け（10万円〜）:
+Professional (100,000 yen+):
 - RME Fireface UFX III
   - 24bit/192kHz
   - USB/MADI
-  - 多チャンネル
+  - Multi-channel
 
 - Apogee Symphony Desktop
   - 24bit/192kHz
   - Thunderbolt
-  - 最高クラスの変換品質
+  - Top-class conversion quality
 ```
 
-### レイテンシーの理解
+### Understanding Latency
 
 ```
-レイテンシー（遅延）とは:
-- 入力から出力までの時間差
-- ms（ミリ秒）で表す
+What is latency (delay)?
+- The time difference from input to output
+- Measured in ms (milliseconds)
 
-レイテンシーの構成要素:
-1. A/D変換遅延: 約 1ms
-2. バッファ遅延: バッファサイズ / サンプルレート
-3. DAW処理遅延: プラグイン依存
-4. D/A変換遅延: 約 1ms
+Components of latency:
+1. A/D conversion delay: approx. 1ms
+2. Buffer delay: buffer size / sample rate
+3. DAW processing delay: plugin-dependent
+4. D/A conversion delay: approx. 1ms
 
-バッファサイズとレイテンシー:
+Buffer size and latency:
 
-バッファサイズ  サンプルレート  レイテンシー（片道）
+Buffer Size     Sample Rate    Latency (one-way)
 32 samples     48kHz          0.67 ms
 64 samples     48kHz          1.33 ms
 128 samples    48kHz          2.67 ms
@@ -1314,757 +1316,756 @@ Rekordbox DJ 使用時:
 1024 samples   48kHz          21.33 ms
 2048 samples   48kHz          42.67 ms
 
-往復レイテンシー = 片道 × 2 + A/D + D/A ≈ 片道 × 2 + 2ms
+Round-trip latency = one-way x 2 + A/D + D/A = approx. one-way x 2 + 2ms
 
-推奨設定:
-- DJ パフォーマンス: 128-256 samples（5-10ms）
-- 制作（録音時）: 64-128 samples（3-5ms）
-- 制作（ミックス時）: 256-512 samples（安定重視）
-- 制作（重いプロジェクト）: 512-1024 samples
+Recommended settings:
+- DJ performance: 128-256 samples (5-10ms)
+- Production (recording): 64-128 samples (3-5ms)
+- Production (mixing): 256-512 samples (stability-focused)
+- Production (heavy projects): 512-1024 samples
 
-バッファサイズが小さいほど:
-+ レイテンシーが低い
-- CPU負荷が高い
-- ドロップアウト（音切れ）のリスク
+Smaller buffer size:
++ Lower latency
+- Higher CPU load
+- Risk of dropouts (audio glitches)
 
-バッファサイズが大きいほど:
-+ 安定動作
-+ 重いプラグインも使える
-- レイテンシーが大きい
-- リアルタイム演奏に支障
+Larger buffer size:
++ Stable operation
++ Can handle heavy plugins
+- Higher latency
+- Interferes with real-time performance
 ```
 
 ---
 
-## 9. Rekordbox の設定
+## 9. Rekordbox Settings
 
-### 音声出力設定
-
-```
-基本設定:
-1. 環境設定 > オーディオ
-2. オーディオデバイス: 使用するインターフェイス（DDJコントローラー等）
-3. サンプルレート: 48000 Hz
-4. バッファサイズ: 512 samples（レイテンシと安定性のバランス）
-
-詳細設定:
-- ビット深度: 内部24bit処理（固定）
-- マスターアウト: チャンネル1-2
-- ヘッドフォンアウト: チャンネル3-4
-- マイクイン: チャンネル5-6（対応コントローラー）
-
-トラブルシューティング:
-- 音が出ない → オーディオデバイスの選択確認
-- 音が途切れる → バッファサイズを大きく（1024等）
-- レイテンシーが大きい → バッファサイズを小さく（256等）
-- ノイズが入る → USBケーブルの確認、電源ノイズの確認
-```
-
-### インポート設定
+### Audio Output Settings
 
 ```
-基本設定:
-1. 環境設定 > 詳細
-2. ファイル解析時の品質: 高（Normal ではなく High）
-3. 自動ゲイン: オフ（手動で調整推奨）
-
-解析設定:
-- BPM解析範囲: 70-180（ジャンルに合わせて調整）
-- キー解析: オン
-- 波形表示: 全波形 + 詳細波形
-- ビートグリッド自動設定: オン
-
-推奨ファイル管理:
-1. 音源は外付けSSD/USBに集約
-2. フォルダ構造を統一
-   例:
-   /Music/
-   ├── House/
-   │   ├── Deep House/
-   │   ├── Tech House/
-   │   └── Progressive House/
-   ├── Techno/
-   │   ├── Peak Time/
-   │   ├── Melodic/
-   │   └── Minimal/
-   └── DnB/
-
-3. ファイル名規則: "アーティスト - タイトル.wav"
-4. 定期的なライブラリの整理
-5. バックアップの徹底（3-2-1ルール）
-```
-
-### レコーディング設定
-
-```
-DJミックスの録音:
-
-Rekordbox 内蔵レコーダー:
-1. 録音ボタン（画面右上）
-2. フォーマット: WAV
-3. ビット深度: 16bit / 24bit（24bit推奨）
-4. サンプルレート: プロジェクトに依存（48kHz）
-
-外部録音（推奨）:
-- Audacity で別途録音
-- オーディオインターフェイスのループバック機能
-- ミキサーの REC OUT から別デバイスへ
-
-プロフェッショナル録音:
-- Allen & Heath Xone:96 REC OUT → オーディオIF → DAW
-- Pioneer DJM-V10 Digital OUT → オーディオIF → DAW
-- 24bit/48kHz WAV で録音
-- 後処理: ノーマライズ → EQ → リミッター → 書き出し
-```
-
----
-
-## 10. Ableton Live の設定
-
-### プロジェクト設定
-
-```
-Audio Settings（Preferences > Audio）:
-1. Audio Device: 使用するオーディオインターフェイス
-2. Driver Type: Core Audio（Mac）/ ASIO（Windows）
+Basic settings:
+1. Preferences > Audio
+2. Audio Device: your interface (DDJ controller, etc.)
 3. Sample Rate: 48000 Hz
-4. Buffer Size: 512 samples（制作時）/ 128 samples（パフォーマンス時）
-5. Input/Output Config: 使用チャンネルのみ有効化
+4. Buffer Size: 512 samples (balance between latency and stability)
+
+Advanced settings:
+- Bit Depth: internal 24bit processing (fixed)
+- Master Out: channels 1-2
+- Headphone Out: channels 3-4
+- Mic In: channels 5-6 (supported controllers)
+
+Troubleshooting:
+- No sound -> Check audio device selection
+- Audio dropouts -> Increase buffer size (e.g., 1024)
+- High latency -> Decrease buffer size (e.g., 256)
+- Noise -> Check USB cable, check for power noise
+```
+
+### Import Settings
+
+```
+Basic settings:
+1. Preferences > Advanced
+2. File analysis quality: High (not Normal)
+3. Auto Gain: Off (manual adjustment recommended)
+
+Analysis settings:
+- BPM analysis range: 70-180 (adjust for genre)
+- Key analysis: On
+- Waveform display: full waveform + detailed waveform
+- Auto beat grid: On
+
+Recommended file management:
+1. Consolidate sources on an external SSD/USB
+2. Use a unified folder structure
+   Example:
+   /Music/
+   +-- House/
+   |   +-- Deep House/
+   |   +-- Tech House/
+   |   +-- Progressive House/
+   +-- Techno/
+   |   +-- Peak Time/
+   |   +-- Melodic/
+   |   +-- Minimal/
+   +-- DnB/
+
+3. File naming convention: "Artist - Title.wav"
+4. Regularly organize the library
+5. Thorough backups (3-2-1 rule)
+```
+
+### Recording Settings
+
+```
+Recording DJ mixes:
+
+Rekordbox built-in recorder:
+1. Record button (top right of screen)
+2. Format: WAV
+3. Bit depth: 16bit / 24bit (24bit recommended)
+4. Sample rate: depends on project (48kHz)
+
+External recording (recommended):
+- Record separately with Audacity
+- Audio interface loopback function
+- Mixer REC OUT to a separate device
+
+Professional recording:
+- Allen & Heath Xone:96 REC OUT -> Audio IF -> DAW
+- Pioneer DJM-V10 Digital OUT -> Audio IF -> DAW
+- Record in 24bit/48kHz WAV
+- Post-processing: Normalize -> EQ -> Limiter -> Export
+```
+
+---
+
+## 10. Ableton Live Settings
+
+### Project Settings
+
+```
+Audio Settings (Preferences > Audio):
+1. Audio Device: your audio interface
+2. Driver Type: Core Audio (Mac) / ASIO (Windows)
+3. Sample Rate: 48000 Hz
+4. Buffer Size: 512 samples (production) / 128 samples (performance)
+5. Input/Output Config: enable only channels in use
 
 Record/Warp/Launch Settings:
 1. Record Bit Depth: 24
-2. Default Warp Mode: Complex Pro（最高品質）
+2. Default Warp Mode: Complex Pro (highest quality)
 3. Default SR Conversion Mode: High Quality
 4. Clip Update Rate: High
 
 File/Folder Settings:
-1. Temporary Folder: SSD上のフォルダ
-2. Sample Editor: 外部エディタのパス
+1. Temporary Folder: a folder on an SSD
+2. Sample Editor: path to external editor
 3. Collect Files on Export: Ask
 
-CPU最適化:
-- 使用しないプラグインはフリーズ
-- 不要なセンドリターンを削除
-- オーバーサンプリングはミックスダウン時のみ
+CPU optimization:
+- Freeze unused plugins
+- Remove unused send/return channels
+- Use oversampling only during mixdown
 ```
 
-### エクスポート設定
+### Export Settings
 
 ```
-Export Audio/Video（File > Export Audio/Video）:
+Export Audio/Video (File > Export Audio/Video):
 
-■ マスタリング用ステム:
-  Rendered Track: 各トラック個別
+- Stems for mastering:
+  Rendered Track: each track individually
   File Type: WAV
-  Bit Depth: 32 Bit（Float）
+  Bit Depth: 32 Bit (Float)
   Sample Rate: 48000
   Dither Options: No Dither
   Normalize: Off
   Create Analysis File: On
 
-■ 最終マスター（配信用）:
+- Final master (for distribution):
   Rendered Track: Master
   File Type: WAV
   Bit Depth: 16
   Sample Rate: 44100
   Dither Options: Triangular
-  Normalize: Off（マスタリング済みの場合）
+  Normalize: Off (if already mastered)
 
-■ 最終マスター（高品質配信用）:
+- Final master (high-quality distribution):
   Rendered Track: Master
   File Type: WAV
   Bit Depth: 24
   Sample Rate: 48000
-  Dither Options: No Dither（24bitなら不要の場合も）
+  Dither Options: No Dither (may not be needed for 24bit)
   Normalize: Off
 
-■ プロモ/参照用:
+- Promo/reference:
   Rendered Track: Master
   File Type: MP3
   Bit Rate: 320 CBR
   Normalize: Off
 
-ディザリングの注意点:
-- 32bit float → 24bit: ディザリング不要（差が極小）
-- 32bit float → 16bit: Triangular ディザリング推奨
-- 24bit → 16bit: ディザリング必須
-- ディザリングは最後の1回だけ適用
-- マスタリングプラグインのディザと二重にならないよう注意
+Dithering notes:
+- 32bit float -> 24bit: dithering not needed (difference is minimal)
+- 32bit float -> 16bit: Triangular dithering recommended
+- 24bit -> 16bit: dithering is essential
+- Apply dithering only once at the end
+- Ensure you don't double up with mastering plugin dither
 ```
 
-### Ableton Live の内部処理
+### Ableton Live Internal Processing
 
 ```
-信号フロー:
+Signal flow:
 
-[オーディオクリップ]
-    ↓ （リサンプリング: プロジェクトSRに変換）
-[Warp エンジン]
-    ↓ （タイムストレッチ/ピッチシフト）
-[デバイスチェーン]
-    ↓ （エフェクト/インストゥルメント処理 → 32bit float）
-[ミキサー]
-    ↓ （パン、ボリューム、センド → 32bit float）
-[マスターバス]
-    ↓ （マスターエフェクト → 32bit float）
-[D/A変換 or エクスポート]
-    ↓ （ビット深度変換 + ディザリング）
-[最終出力]
+[Audio Clip]
+    | (Resampling: converted to project SR)
+[Warp Engine]
+    | (Time stretch/pitch shift)
+[Device Chain]
+    | (Effects/instruments processing -> 32bit float)
+[Mixer]
+    | (Pan, volume, sends -> 32bit float)
+[Master Bus]
+    | (Master effects -> 32bit float)
+[D/A Conversion or Export]
+    | (Bit depth conversion + dithering)
+[Final Output]
 
-全ての内部処理は 32bit float で行われる:
-- オーバーフロー（クリッピング）が発生しない
-- トラックのフェーダーを0dB以上にしても内部的にはOK
-- マスターで0dBFS以下に収めれば問題なし
-- ヘッドルームが事実上無限
+All internal processing is done in 32bit float:
+- No overflow (clipping) occurs
+- Track faders above 0dB are internally OK
+- No issues as long as the master stays below 0dBFS
+- Virtually unlimited headroom
 ```
 
 ---
 
-## 11. デジタルオーディオの品質劣化要因
+## 11. Digital Audio Quality Degradation Factors
 
-### クリッピング
+### Clipping
 
 ```
-デジタルクリッピング:
-- 信号が 0 dBFS を超えた場合に発生
-- 波形の頂点が平坦にカット（矩形化）
-- 非常に不快な歪み
-- 一度発生すると元に戻せない
+Digital clipping:
+- Occurs when the signal exceeds 0 dBFS
+- Wave peaks are flat-cut (squared off)
+- Produces very unpleasant distortion
+- Cannot be undone once it occurs
 
-アナログクリッピング:
-- アナログ回路の最大電圧を超えた場合
-- 緩やかなサチュレーション
-- 場合によっては心地よい歪み（テープサチュレーション等）
+Analog clipping:
+- Occurs when analog circuit maximum voltage is exceeded
+- Gradual saturation
+- Can sometimes be pleasant distortion (tape saturation, etc.)
 
-防止策:
-1. 録音時: -12dB ~ -6dB でピークを設定
-2. ミックス時: 各トラックのゲイン管理
-3. マスター: リミッターで0dBFS以下に制御
-4. 32bit float DAW: 内部でのクリッピングは発生しない
-   （ただし最終出力段ではクリッピングの可能性あり）
+Prevention:
+1. During recording: set peaks at -12dB to -6dB
+2. During mixing: manage gain on each track
+3. Master: control below 0dBFS with a limiter
+4. 32bit float DAW: no internal clipping occurs
+   (however, clipping is still possible at the final output stage)
 
 True Peak:
-- サンプル間ピーク（inter-sample peak）の問題
-- 個々のサンプルは0dBFS以下でも、
-  D/A変換後のアナログ波形が0dBFSを超えることがある
-- True Peak メーターで確認
-- -1 dBTP（True Peak）以下が推奨
+- The inter-sample peak problem
+- Individual samples may be below 0dBFS,
+  but the analog waveform after D/A conversion may exceed 0dBFS
+- Check with a True Peak meter
+- -1 dBTP (True Peak) or below is recommended
 ```
 
-### ジッター
+### Jitter
 
 ```
-ジッターとは:
-- サンプリングの時間的な揺らぎ
-- クロック信号の不正確さが原因
-- 音質劣化の一因
+What is jitter?
+- Temporal fluctuations in sampling timing
+- Caused by inaccuracy in the clock signal
+- A factor in audio quality degradation
 
-影響:
-- 高域のぼやけ
-- ステレオイメージの悪化
-- 全体的な透明感の低下
-- 微細だが累積的な劣化
+Impact:
+- High frequency blurring
+- Degraded stereo image
+- Reduced overall transparency
+- Subtle but cumulative degradation
 
-対策:
-1. 高品質なクロックジェネレータの使用
-2. ワードクロック同期（プロ環境）
-3. 高品質なD/Aコンバータの選択
-4. USBアイソクロナス転送の品質
-5. Thunderbolt接続（USBより安定）
+Countermeasures:
+1. Use high-quality clock generators
+2. Word clock synchronization (professional environments)
+3. Choose high-quality D/A converters
+4. USB isochronous transfer quality
+5. Thunderbolt connection (more stable than USB)
 
-DJ 環境での対策:
-- CDJの内蔵D/Aは高品質
-- DJミキサーのD/Aコンバータの品質が重要
-- デジタル接続（S/PDIF, AES/EBU）時はクロック同期
+Countermeasures in DJ environments:
+- CDJ built-in D/A converters are high quality
+- DJ mixer D/A converter quality is important
+- When using digital connections (S/PDIF, AES/EBU), synchronize clocks
 ```
 
-### 量子化歪み
+### Quantization Distortion
 
 ```
-量子化歪みとは:
-- ビット深度が不足している場合に発生
-- 特に信号レベルが低い部分で顕著
-- 「ざらつき」「粒状感」として知覚
+What is quantization distortion?
+- Occurs when bit depth is insufficient
+- Particularly noticeable at low signal levels
+- Perceived as "graininess" or "granularity"
 
-発生条件:
-- 8bit オーディオ: 顕著に聞こえる
-- 16bit: フェードアウト時にわずかに
-- 24bit: 実質的に知覚不能
-- 32bit float: 発生しない
+Conditions for occurrence:
+- 8bit audio: clearly audible
+- 16bit: slightly noticeable during fade-outs
+- 24bit: virtually imperceptible
+- 32bit float: does not occur
 
-対策:
-- 十分なビット深度で録音（24bit以上）
-- ビット深度を下げる際はディザリングを使用
-- DAW内部は32bit floatで処理
+Countermeasures:
+- Record at sufficient bit depth (24bit or higher)
+- Use dithering when reducing bit depth
+- Process internally in 32bit float within the DAW
 ```
 
-### エイリアシング
+### Aliasing
 
 ```
-エイリアシングとは:
-- ナイキスト周波数以上の成分がサンプリングされた場合
-- 本来存在しない周波数が出現
-- 非整数倍の不協和な周波数が追加される
+What is aliasing?
+- Occurs when components above the Nyquist frequency are sampled
+- Non-existent frequencies appear
+- Non-integer inharmonic frequencies are added
 
-具体例:
-サンプルレート: 44.1kHz（ナイキスト: 22.05kHz）
-入力: 23kHz のサイン波
-結果: 44.1 - 23 = 21.1kHz のエイリアスが出現
-→ 元の23kHzは聞こえないが、21.1kHzの偽の音が聞こえる
+Specific example:
+Sample rate: 44.1kHz (Nyquist: 22.05kHz)
+Input: 23kHz sine wave
+Result: 44.1 - 23 = 21.1kHz alias appears
+-> The original 23kHz is inaudible, but a false sound at 21.1kHz is heard
 
-対策:
-1. A/D変換前のアンチエイリアシングフィルタ
-2. 十分に高いサンプルレート
-3. プラグインのオーバーサンプリング機能
-4. デジタル領域でのフィルタリング
+Countermeasures:
+1. Anti-aliasing filter before A/D conversion
+2. Sufficiently high sample rate
+3. Plugin oversampling features
+4. Digital domain filtering
 
-プラグインとエイリアシング:
-- ディストーション/サチュレーション → 新しい倍音を生成
-- 生成された倍音がナイキスト周波数を超えると折り返し
-- オーバーサンプリング（2x, 4x, 8x）で対策
-- CPU負荷とのトレードオフ
+Plugins and aliasing:
+- Distortion/saturation -> generates new harmonics
+- If generated harmonics exceed the Nyquist frequency, they fold back
+- Counter with oversampling (2x, 4x, 8x)
+- Tradeoff with CPU load
 ```
 
 ---
 
-## 12. 実践：音質を比較する
+## 12. Practice: Comparing Audio Quality
 
-### 準備
+### Preparation
 
 ```
-必要なもの:
-1. 同じ曲の異なるフォーマット
+What you need:
+1. The same track in different formats
    - WAV 44.1kHz/16bit
    - FLAC 44.1kHz/16bit
    - MP3 320kbps
    - MP3 256kbps
    - MP3 128kbps
 
-2. モニター環境
-   - スタジオモニタースピーカー（推奨）
-   - 高品質ヘッドフォン（代替）
-   - ATH-M50x, DT 770 Pro, HD 650 等
+2. Monitoring environment
+   - Studio monitor speakers (recommended)
+   - High-quality headphones (alternative)
+   - ATH-M50x, DT 770 Pro, HD 650, etc.
 
-3. スペクトラムアナライザー
-   - Spek（無料、クロスプラットフォーム）
-   - Audacity のスペクトログラム表示
-   - iZotope Insight（DAWプラグイン）
+3. Spectrum analyzer
+   - Spek (free, cross-platform)
+   - Audacity spectrogram display
+   - iZotope Insight (DAW plugin)
 ```
 
-### 手順
+### Procedure
 
 ```
-Step 1: スペクトログラムの視覚的比較
+Step 1: Visual spectrogram comparison
 
-Spek を使用:
-1. WAV ファイルをドラッグ&ドロップ
-   → 22kHz 付近まで情報が表示される
-2. MP3 320kbps をドラッグ&ドロップ
-   → 20kHz 付近でカットオフ（エンコーダ依存）
-3. MP3 128kbps をドラッグ&ドロップ
-   → 16kHz 付近で明確なカットオフ
-4. FLAC をドラッグ&ドロップ
-   → WAV と完全に同一のスペクトログラム
+Using Spek:
+1. Drag & drop the WAV file
+   -> Information displayed up to around 22kHz
+2. Drag & drop MP3 320kbps
+   -> Cutoff around 20kHz (encoder-dependent)
+3. Drag & drop MP3 128kbps
+   -> Clear cutoff around 16kHz
+4. Drag & drop FLAC
+   -> Spectrogram identical to WAV
 
-Step 2: A/Bテスト（ブラインドテスト）
+Step 2: A/B test (blind test)
 
-方法:
-1. foobar2000 + ABX Comparator プラグインをインストール
-2. WAV と MP3 320kbps を比較
-3. ランダムに再生される A/B から X がどちらか当てる
-4. 統計的に有意な差があるか確認（p < 0.05）
+Method:
+1. Install foobar2000 + ABX Comparator plugin
+2. Compare WAV and MP3 320kbps
+3. Identify whether randomly played A/B matches X
+4. Check for statistically significant differences (p < 0.05)
 
-注意点:
-- 音量を完全に揃える（ReplayGain使用）
-- 短いセクション（10-30秒）で比較
-- トランジェント（打楽器のアタック）に注目
-- シンバル/ハイハットの質感に注目
-- ベースの輪郭に注目
+Notes:
+- Match volumes exactly (use ReplayGain)
+- Compare short sections (10-30 seconds)
+- Focus on transients (percussion attacks)
+- Focus on cymbal/hi-hat texture
+- Focus on bass definition
 
-Step 3: クラブ環境での比較
+Step 3: Comparison in a club environment
 
-1. Rekordbox で同じ曲の異なるフォーマットをロード
-2. A/B テスト（CUE ボタンで素早く切り替え）
-3. 大音量での違いを確認
-   - スピーカーの直前（高域の違い）
-   - フロア中央（低域の圧力）
-   - 部屋の端（反射音込みの印象）
+1. Load the same track in different formats in Rekordbox
+2. A/B test (quickly switch using CUE button)
+3. Check differences at high volume
+   - In front of speakers (high frequency differences)
+   - Center of the floor (low frequency pressure)
+   - Edge of the room (impression including reflections)
 
-Step 4: 結果の記録
-
-比較シート例:
-| 項目 | WAV | FLAC | MP3 320 | MP3 128 |
+Step 4: Record the results
+Comparison sheet example:
+| Item | WAV | FLAC | MP3 320 | MP3 128 |
 |------|-----|------|---------|---------|
-| 高域の明瞭さ | ○ | ○ | △ | × |
-| 低域の圧力 | ○ | ○ | ○ | △ |
-| ステレオ感 | ○ | ○ | △ | × |
-| トランジェント | ○ | ○ | ○ | △ |
-| 全体の空間感 | ○ | ○ | △ | × |
+| High frequency clarity | O | O | D | X |
+| Low frequency pressure | O | O | O | D |
+| Stereo image | O | O | D | X |
+| Transients | O | O | O | D |
+| Overall spaciousness | O | O | D | X |
 ```
 
 ---
 
-## 13. クロック同期とデジタル接続
+## 13. Clock Synchronization and Digital Connections
 
-### ワードクロック
-
-```
-ワードクロックとは:
-- デジタルオーディオ機器間のサンプルタイミングを同期
-- マスタークロックが基準信号を供給
-- スレーブ機器はマスターに同期
-
-必要な場面:
-- 複数のデジタルオーディオ機器を接続
-- A/D → ミキサー → D/A のチェーン
-- プロスタジオ環境
-
-接続:
-- BNC コネクタ（75Ω同軸ケーブル）
-- 終端抵抗（75Ω）の設定
-- デイジーチェーン or スター接続
-
-クラブ/DJ環境での関連:
-- CDJ → DJMミキサー: デジタル接続時はDJMがマスター
-- 複数のCDJ: 各CDJの内蔵クロックは独立
-- ProDJ Link: ネットワーク経由のBPM同期（クロック同期とは別）
-```
-
-### デジタル接続規格
+### Word Clock
 
 ```
-S/PDIF（Sony/Philips Digital Interface）:
-- コンシューマー規格
-- 同軸（RCA/75Ω）or 光（TOSLINK）
-- 最大 24bit/192kHz（同軸）
-- 最大 24bit/96kHz（光、一般的）
-- 2チャンネル
+What is word clock?
+- Synchronizes sample timing between digital audio devices
+- A master clock provides the reference signal
+- Slave devices synchronize to the master
 
-AES/EBU（AES3）:
-- プロフェッショナル規格
-- XLR コネクタ（110Ω）
-- 最大 24bit/192kHz
-- 2チャンネル
-- 長距離伝送に強い（100m+）
+When it's needed:
+- Connecting multiple digital audio devices
+- A/D -> Mixer -> D/A chains
+- Professional studio environments
 
-ADAT（Alesis Digital Audio Tape）:
-- 光ファイバー（TOSLINK コネクタ）
-- 8チャンネル @ 48kHz
-- 4チャンネル @ 96kHz（S/MUX）
-- 多チャンネルのスタジオ接続に使用
+Connections:
+- BNC connector (75 ohm coaxial cable)
+- 75 ohm termination resistor configuration
+- Daisy chain or star connection
+
+Relevance for clubs/DJs:
+- CDJ -> DJM mixer: DJM is master when digitally connected
+- Multiple CDJs: each CDJ's internal clock is independent
+- ProDJ Link: BPM sync via network (separate from clock sync)
+```
+
+### Digital Connection Standards
+
+```
+S/PDIF (Sony/Philips Digital Interface):
+- Consumer standard
+- Coaxial (RCA/75 ohm) or optical (TOSLINK)
+- Maximum 24bit/192kHz (coaxial)
+- Maximum 24bit/96kHz (optical, typical)
+- 2 channels
+
+AES/EBU (AES3):
+- Professional standard
+- XLR connector (110 ohm)
+- Maximum 24bit/192kHz
+- 2 channels
+- Strong for long-distance transmission (100m+)
+
+ADAT (Alesis Digital Audio Tape):
+- Optical fiber (TOSLINK connector)
+- 8 channels @ 48kHz
+- 4 channels @ 96kHz (S/MUX)
+- Used for multi-channel studio connections
 
 Dante:
-- Audinate 社のネットワークオーディオ規格
-- イーサネット（CAT5e/CAT6）
-- 数百チャンネル対応
-- 超低レイテンシー
-- ライブ/固定設備で普及
+- Network audio standard by Audinate
+- Ethernet (CAT5e/CAT6)
+- Supports hundreds of channels
+- Ultra-low latency
+- Widely adopted in live/fixed installations
 ```
 
 ---
 
-## 14. ラウドネスと音量管理
+## 14. Loudness and Volume Management
 
-### ラウドネスの概念
-
-```
-音量の種類:
-
-1. ピークレベル:
-   - 波形の最大振幅
-   - dBFS で計測
-   - クリッピング防止の基準
-
-2. RMS（Root Mean Square）レベル:
-   - 実効値（平均的な音量）
-   - ピークより低い値
-   - 体感音量に近い
-
-3. LUFS（Loudness Units Full Scale）:
-   - 人間の聴覚特性に基づく音量測定
-   - ITU-R BS.1770 規格
-   - 時間加重: Momentary（400ms）, Short-term（3s）, Integrated（全体）
-   - 現在のラウドネス標準
-
-4. ラウドネスレンジ（LRA）:
-   - 曲中の音量変化の幅
-   - LU（Loudness Unit）で表示
-```
-
-### 配信プラットフォームのラウドネス基準
+### The Concept of Loudness
 
 ```
-各プラットフォームの目標ラウドネス:
+Types of volume:
 
-| プラットフォーム | 目標LUFS | True Peak上限 | 備考 |
-|----------------|----------|--------------|------|
-| Spotify | -14 LUFS | -1 dBTP | ノーマライゼーション |
+1. Peak Level:
+   - Maximum waveform amplitude
+   - Measured in dBFS
+   - Reference for clipping prevention
+
+2. RMS (Root Mean Square) Level:
+   - Effective value (average volume)
+   - Lower than peak
+   - Closer to perceived loudness
+
+3. LUFS (Loudness Units Full Scale):
+   - Volume measurement based on human hearing characteristics
+   - ITU-R BS.1770 standard
+   - Time-weighted: Momentary (400ms), Short-term (3s), Integrated (overall)
+   - Current loudness standard
+
+4. Loudness Range (LRA):
+   - Range of volume variation within a track
+   - Displayed in LU (Loudness Units)
+```
+
+### Loudness Standards by Distribution Platform
+
+```
+Target loudness by platform:
+
+| Platform | Target LUFS | True Peak Limit | Notes |
+|----------|------------|-----------------|-------|
+| Spotify | -14 LUFS | -1 dBTP | Normalization |
 | Apple Music | -16 LUFS | -1 dBTP | Sound Check |
-| YouTube | -14 LUFS | -1 dBTP | 音量調整あり |
-| Tidal | -14 LUFS | -1 dBTP | ノーマライゼーション |
-| Amazon Music | -14 LUFS | -2 dBTP | 音量調整あり |
-| クラブ/DJ | -6 ~ -9 LUFS | -0.3 dBTP | ジャンル依存 |
+| YouTube | -14 LUFS | -1 dBTP | Volume adjustment applied |
+| Tidal | -14 LUFS | -1 dBTP | Normalization |
+| Amazon Music | -14 LUFS | -2 dBTP | Volume adjustment applied |
+| Club/DJ | -6 to -9 LUFS | -0.3 dBTP | Genre-dependent |
 
-注意:
-- ラウドネスノーマライゼーション対応のプラットフォームでは
-  音を上げすぎてもゲインが下げられる
-- 逆にダイナミクスのある曲はゲインが上がる
-- 結果的にダイナミクスのある曲の方が豊かに聞こえる
+Notes:
+- On platforms with loudness normalization,
+  pushing the volume too loud will result in gain reduction
+- Conversely, dynamic tracks will have gain increased
+- As a result, tracks with more dynamics can sound richer
 
-DJ向けの注意:
-- クラブ/DJ向けの楽曲は -6 ~ -9 LUFS が一般的
-- Spotify 等での配信版と DJ 版でラウドネスが異なることがある
-- Rekordbox のオートゲインは注意して使用
+DJ-specific notes:
+- Club/DJ tracks are typically -6 to -9 LUFS
+- Streaming versions and DJ versions may differ in loudness
+- Use Rekordbox auto gain with caution
 ```
 
 ---
 
-## 15. 練習方法
+## 15. Practice Exercises
 
-### 初級
-
-```
-1. ファイル形式を確認:
-   - 自分の音源ライブラリを整理
-   - フォーマット・ビットレートを確認
-   - Spek でスペクトログラムを確認
-   - 低品質ファイル（128kbps以下）を特定
-
-2. サンプルレートを統一:
-   - Rekordbox: 48kHz に設定
-   - 全音源を確認（混在していないか）
-   - リサンプリングが必要な場合はDAWで変換
-
-3. 低品質ファイルの対応:
-   - 128kbps 以下のMP3 を特定
-   - 可能なら高品質版を再購入
-   - Beatport/Bandcamp で WAV 版を入手
-   - リッピングし直す（CDから）
-```
-
-### 中級
+### Beginner
 
 ```
-1. 音質比較テスト:
-   - WAV vs MP3 320kbps の A/B テスト
-   - foobar2000 ABX Comparator で統計的に検証
-   - 自分の聴覚の限界を把握
-   - 環境（ヘッドフォン vs スピーカー）での違いを確認
+1. Check your file formats:
+   - Organize your source library
+   - Check formats and bitrates
+   - Check spectrograms with Spek
+   - Identify low-quality files (128kbps or below)
 
-2. Rekordbox 設定最適化:
-   - バッファサイズの調整（低レイテンシー vs 安定性）
-   - 解析品質を「高」に設定
-   - オートゲインの検証（使う/使わない）
-   - 波形表示のカラー設定
+2. Unify sample rates:
+   - Rekordbox: set to 48kHz
+   - Check all sources (no mix of rates)
+   - If resampling is needed, convert in a DAW
 
-3. FLAC 導入:
-   - ライブラリの WAV を FLAC に変換（容量節約）
-   - dBpoweramp / XLD（Mac）で一括変換
-   - Rekordbox での動作確認
-   - CDJ でのUSB再生テスト
-
-4. スペクトラムアナライザーの活用:
-   - Voxengo SPAN（無料プラグイン）をDAWに導入
-   - 楽曲の周波数分布を確認
-   - ジャンルごとの特徴を把握
+3. Handle low-quality files:
+   - Identify MP3 files at 128kbps or below
+   - Re-purchase higher quality versions if possible
+   - Get WAV versions from Beatport/Bandcamp
+   - Re-rip from CD
 ```
 
-### 上級
+### Intermediate
 
 ```
-1. マスタリング音源の作成:
-   - 24bit WAV でエクスポート
-   - True Peak メーターで確認（-1 dBTP 以下）
-   - LUFS メーターで確認（ターゲット値）
-   - 複数フォーマットで書き出し＆比較
+1. Audio quality comparison test:
+   - A/B test WAV vs MP3 320kbps
+   - Verify statistically with foobar2000 ABX Comparator
+   - Understand the limits of your own hearing
+   - Check differences across environments (headphones vs speakers)
 
-2. ディザリングの理解と実践:
-   - ディザリングあり/なしの比較
-   - TPDF vs ノイズシェーピングの聴き比べ
-   - 16bit + ディザリング vs 24bit の比較
-   - マスタリングチェーンでの適切な配置
+2. Optimize Rekordbox settings:
+   - Adjust buffer size (low latency vs stability)
+   - Set analysis quality to "High"
+   - Test auto gain (on/off)
+   - Configure waveform display colors
 
-3. 高解像度制作:
-   - 96kHz でプロジェクトを作成
-   - CPU負荷の変化を確認
-   - プラグインの対応状況を確認
-   - 48kHz 版とのブラインドテスト
-   - オーバーサンプリングの効果検証
+3. Adopt FLAC:
+   - Convert WAV library to FLAC (save storage)
+   - Batch convert with dBpoweramp / XLD (Mac)
+   - Test playback in Rekordbox
+   - Test USB playback on CDJs
 
-4. デジタル接続の最適化:
-   - S/PDIF / AES/EBU 接続の実践
-   - クロック同期の設定
-   - アナログ接続との比較
-   - ケーブル品質の影響テスト
-
-5. 音質劣化の検出訓練:
-   - 意図的にクリッピングを発生させて聴く
-   - エイリアシングの音を確認
-   - ジッターの影響をシミュレーション
-   - 量子化歪みを低ビット深度で体験
+4. Use spectrum analyzers:
+   - Install Voxengo SPAN (free plugin) in your DAW
+   - Check frequency distribution of tracks
+   - Learn the characteristics of each genre
 ```
 
----
-
-## 16. トラブルシューティング
-
-### よくある問題と解決策
+### Advanced
 
 ```
-■ 問題: 音が出ない
-  原因:
-  1. オーディオデバイスが正しく選択されていない
-  2. ドライバがインストールされていない
-  3. サンプルレートの不一致
-  4. チャンネルルーティングの設定ミス
+1. Create mastered sources:
+   - Export in 24bit WAV
+   - Check with True Peak meter (-1 dBTP or below)
+   - Check with LUFS meter (target values)
+   - Export in multiple formats and compare
 
-  解決策:
-  1. オーディオ設定でデバイスを再選択
-  2. メーカーサイトから最新ドライバをインストール
-  3. 全機器のサンプルレートを統一（48kHz）
-  4. 出力チャンネルの割り当てを確認
+2. Understand and practice dithering:
+   - Compare with and without dithering
+   - Listen to TPDF vs noise-shaped dithering
+   - Compare 16bit + dithering vs 24bit
+   - Proper placement in the mastering chain
 
-■ 問題: 音が途切れる（ドロップアウト）
-  原因:
-  1. バッファサイズが小さすぎる
-  2. CPU負荷が高い
-  3. USBバスの帯域不足
-  4. バックグラウンドプロセスの干渉
+3. High-resolution production:
+   - Create a project at 96kHz
+   - Check changes in CPU load
+   - Check plugin compatibility
+   - Blind test against 48kHz version
+   - Verify oversampling effects
 
-  解決策:
-  1. バッファサイズを大きくする（512 → 1024）
-  2. 不要なプラグインを無効化/フリーズ
-  3. USB3.0ポートを使用、ハブを避ける
-  4. Wi-Fi、Bluetooth、ウイルスソフトを無効化
+4. Optimize digital connections:
+   - Practice S/PDIF / AES/EBU connections
+   - Configure clock synchronization
+   - Compare with analog connections
+   - Test cable quality impact
 
-■ 問題: ノイズが入る
-  原因:
-  1. グラウンドループ
-  2. 電磁干渉（EMI）
-  3. ケーブルの劣化
-  4. バッファアンダーラン
-
-  解決策:
-  1. 全機器を同じ電源タップに接続
-  2. オーディオケーブルを電源ケーブルから離す
-  3. ケーブルを交換、バランス接続を使用
-  4. バッファサイズを増やす
-
-■ 問題: 左右の音量が違う
-  原因:
-  1. パン設定の問題
-  2. ケーブルの接触不良
-  3. インターフェイスの入力ゲイン設定
-
-  解決策:
-  1. ミキサー/DAWのパン設定を確認
-  2. ケーブルを交換して確認
-  3. 入力ゲインを左右で揃える
-
-■ 問題: 録音したファイルの音質が低い
-  原因:
-  1. サンプルレートが低い設定になっている
-  2. ビット深度が8bitや16bitになっている
-  3. 入力レベルが低すぎる
-  4. 不適切なフォーマットで保存
-
-  解決策:
-  1. 48kHz以上に設定
-  2. 24bit以上で録音
-  3. 入力レベルを-12dB〜-6dBに調整
-  4. WAV/AIFF 24bitで保存
+5. Audio degradation detection training:
+   - Intentionally create clipping and listen
+   - Confirm the sound of aliasing
+   - Simulate the impact of jitter
+   - Experience quantization distortion at low bit depths
 ```
 
 ---
 
-## 17. デジタルオーディオの未来
+## 16. Troubleshooting
 
-### 新しい技術トレンド
+### Common Problems and Solutions
 
 ```
-1. イマーシブオーディオ / 空間オーディオ:
+- Problem: No sound
+  Causes:
+  1. Audio device not correctly selected
+  2. Driver not installed
+  3. Sample rate mismatch
+  4. Channel routing misconfiguration
+
+  Solutions:
+  1. Reselect the device in audio settings
+  2. Install the latest driver from the manufacturer's site
+  3. Unify all devices to the same sample rate (48kHz)
+  4. Check output channel assignments
+
+- Problem: Audio dropouts
+  Causes:
+  1. Buffer size too small
+  2. High CPU load
+  3. Insufficient USB bus bandwidth
+  4. Background process interference
+
+  Solutions:
+  1. Increase buffer size (512 -> 1024)
+  2. Disable/freeze unnecessary plugins
+  3. Use USB 3.0 ports, avoid hubs
+  4. Disable Wi-Fi, Bluetooth, antivirus software
+
+- Problem: Noise in the audio
+  Causes:
+  1. Ground loop
+  2. Electromagnetic interference (EMI)
+  3. Cable degradation
+  4. Buffer underrun
+
+  Solutions:
+  1. Connect all devices to the same power strip
+  2. Separate audio cables from power cables
+  3. Replace cables, use balanced connections
+  4. Increase buffer size
+
+- Problem: Left/right volume imbalance
+  Causes:
+  1. Pan setting issue
+  2. Loose cable connection
+  3. Interface input gain settings
+
+  Solutions:
+  1. Check pan settings in mixer/DAW
+  2. Replace cables and test
+  3. Match input gain for left and right
+
+- Problem: Low quality recorded files
+  Causes:
+  1. Sample rate set too low
+  2. Bit depth set to 8bit or 16bit
+  3. Input level too low
+  4. Saved in an inappropriate format
+
+  Solutions:
+  1. Set to 48kHz or higher
+  2. Record at 24bit or higher
+  3. Adjust input level to -12dB to -6dB
+  4. Save as WAV/AIFF 24bit
+```
+
+---
+
+## 17. The Future of Digital Audio
+
+### New Technology Trends
+
+```
+1. Immersive Audio / Spatial Audio:
    - Dolby Atmos Music
    - Sony 360 Reality Audio
    - Apple Spatial Audio
-   - バイノーラルレンダリング
-   - オブジェクトベースオーディオ
-   - DJ でも Atmos ミックスの可能性
+   - Binaural rendering
+   - Object-based audio
+   - Potential for Atmos mixes in DJ sets
 
-2. AIベースのオーディオ処理:
-   - ステムセパレーション（ボーカル/楽器の分離）
-   - ノイズ除去
-   - マスタリングAI（LANDR, iZotope等）
-   - 自動ミキシング
-   - アップサンプリング（低品質→高品質の推定）
+2. AI-Based Audio Processing:
+   - Stem separation (vocal/instrument isolation)
+   - Noise removal
+   - AI mastering (LANDR, iZotope, etc.)
+   - Automatic mixing
+   - Upsampling (estimating high quality from low quality)
 
-3. ロスレスストリーミングの普及:
+3. Growth of Lossless Streaming:
    - Apple Music Lossless
    - Amazon Music HD
    - Tidal HiFi
-   - Spotify HiFi（予定）
-   - ネットワーク帯域の向上
+   - Spotify HiFi (planned)
+   - Improving network bandwidth
 
-4. MQA（Master Quality Authenticated）:
-   - 「折り紙」技術でハイレゾを効率圧縮
-   - 認証付き（元のスタジオマスター品質を保証）
-   - 議論あり（本当にロスレスか？）
-   - Tidal HiFi Plus で採用
+4. MQA (Master Quality Authenticated):
+   - "Origami" technology for efficient hi-res compression
+   - Authenticated (guarantees original studio master quality)
+   - Controversial (is it truly lossless?)
+   - Adopted by Tidal HiFi Plus
 
-5. 次世代コーデック:
-   - AV1 Audio (Opus 2.0的な位置づけ)
+5. Next-Generation Codecs:
+   - AV1 Audio (positioned as Opus 2.0)
    - MPEG-H 3D Audio
-   - LC3/LC3plus（Bluetooth LE Audio）
-   - 低ビットレートでの高品質化
+   - LC3/LC3plus (Bluetooth LE Audio)
+   - High quality at low bitrates
 
-6. ヘッドトラッキングと空間オーディオ:
-   - AirPods Pro / Max の空間オーディオ
-   - 頭の動きに追従する音場
-   - DJプレイの空間オーディオ配信
-   - VR/AR でのオーディオ体験
+6. Head Tracking and Spatial Audio:
+   - AirPods Pro / Max spatial audio
+   - Sound field that follows head movement
+   - Spatial audio distribution of DJ performances
+   - Audio experiences in VR/AR
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -2073,26 +2074,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -2100,7 +2101,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -2111,14 +2112,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Remove by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -2126,7 +2127,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -2134,44 +2135,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -2180,7 +2181,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -2195,76 +2196,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f} sec")
+    print(f"Efficient version:   {fast_time:.6f} sec")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be conscious of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes decision criteria for technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criteria | When to prioritize | When compromise is acceptable |
+|----------|-------------------|-------------------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
-┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
-│                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
-│                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
-│                                                 │
-└─────────────────────────────────────────────────┘
++--------------------------------------------------+
+|          Architecture Selection Flow              |
++--------------------------------------------------+
+|                                                   |
+|  1. Team size?                                    |
+|    +-- Small (1-5 people) -> Monolith             |
+|    +-- Large (10+ people) -> Go to 2              |
+|                                                   |
+|  2. Deployment frequency?                         |
+|    +-- Weekly or less -> Monolith + module split   |
+|    +-- Daily/multiple times -> Go to 3            |
+|                                                   |
+|  3. Inter-team independence?                      |
+|    +-- High -> Microservices                      |
+|    +-- Moderate -> Modular monolith               |
+|                                                   |
++--------------------------------------------------+
 ```
 
-### トレードオフの分析
+### Tradeoff Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve tradeoffs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Costs**
+- A short-term fast approach may become technical debt long-term
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified tech stack has lower learning costs
+- Adopting diverse technologies enables best-fit solutions but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction increases reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision recording template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -2274,17 +2275,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe the background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -2292,7 +2293,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -2300,15 +2301,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
-            icon = "✅" if c['type'] == 'positive' else "⚠️"
+            icon = "+" if c['type'] == 'positive' else "!"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -2318,70 +2319,70 @@ class ArchitectureDecisionRecord:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how things work.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What common mistakes do beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in daily development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-### 重要ポイントの整理
+### Key Points Overview
 
 ```
-■ サンプルレート:
-  - DJ: 48kHz（CDJ/クラブ標準）
-  - 制作: 48kHz（基本）/ 96kHz（高品質）
-  - 配信: 44.1kHz / 48kHz
+- Sample Rate:
+  - DJ: 48kHz (CDJ/club standard)
+  - Production: 48kHz (basic) / 96kHz (high quality)
+  - Distribution: 44.1kHz / 48kHz
 
-■ ビット深度:
-  - 録音: 24bit
-  - DAW内部: 32bit float
-  - 配信: 16bit（CD品質）/ 24bit（ハイレゾ）
-  - ビット深度を下げる時はディザリング
+- Bit Depth:
+  - Recording: 24bit
+  - DAW internal: 32bit float
+  - Distribution: 16bit (CD quality) / 24bit (hi-res)
+  - Apply dithering when reducing bit depth
 
-■ フォーマット:
-  - 最高品質: WAV / AIFF（非圧縮）
-  - 容量節約: FLAC（可逆圧縮、音質劣化なし）
-  - 互換性: MP3 320kbps（非可逆だが実用的）
-  - 避ける: MP3 128kbps以下
+- Format:
+  - Highest quality: WAV / AIFF (uncompressed)
+  - Storage saving: FLAC (lossless, no quality loss)
+  - Compatibility: MP3 320kbps (lossy but practical)
+  - Avoid: MP3 128kbps or below
 
-■ 設定:
-  - Rekordbox/Ableton で適切に設定
-  - バッファサイズはレイテンシーと安定性のバランス
-  - 録音は常にヘッドルームを確保
+- Settings:
+  - Configure properly in Rekordbox/Ableton
+  - Buffer size balances latency and stability
+  - Always ensure headroom during recording
 
-■ 音質管理:
-  - 信頼できるソースから音源を入手
-  - スペクトログラムで品質を確認
-  - ラウドネス基準を理解
-  - A/Bテストで耳を鍛える
+- Audio Quality Management:
+  - Obtain sources from trustworthy outlets
+  - Check quality with spectrograms
+  - Understand loudness standards
+  - Train your ears with A/B testing
 ```
 
-**次のステップ:** [周波数とスペクトラム](./frequency-spectrum.md) へ進む
+**Next Step:** Proceed to [Frequency and Spectrum](./frequency-spectrum.md)
 
 ---
 
 
-## 次に読むべきガイド
+## Recommended Next Guides
 
-- [周波数とスペクトラム](./frequency-spectrum.md) - 次のトピックへ進む
+- [Frequency and Spectrum](./frequency-spectrum.md) - Proceed to the next topic
 
 ---
 
-## 参考リンク
+## Reference Links
 
-- [周波数スペクトラム](./frequency-spectrum.md)
-- [EQ操作](../dj/03-basic-techniques/eq-operation.md)
-- マスタリング
-- [リズムの基礎](./rhythm-basics.md)
-- [音楽理論](./music-theory.md)
-- [ハーモニーの基礎](./harmony-basics.md)
+- [Frequency Spectrum](./frequency-spectrum.md)
+- [EQ Operation](../dj/03-basic-techniques/eq-operation.md)
+- Mastering
+- [Rhythm Basics](./rhythm-basics.md)
+- [Music Theory](./music-theory.md)
+- [Harmony Basics](./harmony-basics.md)
