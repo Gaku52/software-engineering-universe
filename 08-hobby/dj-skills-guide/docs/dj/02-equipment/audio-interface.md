@@ -1,1185 +1,1185 @@
-# オーディオインターフェイス
+# Audio Interface
 
-DJ用オーディオインターフェイスの選び方、セットアップ、最適化、そしてプロフェッショナルな音響環境の構築について包括的に学びます。
+A comprehensive guide to choosing, setting up, optimizing, and building a professional audio environment with DJ audio interfaces.
 
-## この章で学ぶこと
+## What You'll Learn in This Chapter
 
-- オーディオインターフェイスの基本原理と内部構造
-- DJ用途における必要性と役割の詳細
-- 接続方式の違いと選択基準（USB-A、USB-C、Thunderbolt）
-- DAC/ADCの品質指標とスペックの読み方
-- チャンネル数とDVS対応の詳細
-- 各価格帯のおすすめモデルと比較
-- Rekordbox / Serato / Traktor での詳細設定
-- レイテンシーの原理と最適化テクニック
-- 複雑な接続パターンとルーティング
-- トラブルシューティング完全ガイド
-- プロフェッショナル環境での運用ノウハウ
+- Basic principles and internal architecture of audio interfaces
+- The necessity and role of audio interfaces for DJ use
+- Differences in connection types and selection criteria (USB-A, USB-C, Thunderbolt)
+- DAC/ADC quality metrics and how to read specifications
+- Channel count and DVS compatibility details
+- Recommended models and comparisons across price ranges
+- Detailed settings for Rekordbox / Serato / Traktor
+- Latency principles and optimization techniques
+- Complex connection patterns and routing
+- Complete troubleshooting guide
+- Operational know-how for professional environments
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge will deepen your understanding before reading this guide:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-
----
-
-## なぜオーディオインターフェイスが必要か
-
-### PC内蔵サウンドカードの限界
-
-PC/Macに内蔵されているサウンドカード（オンボードオーディオ）は、一般的な音楽再生や動画視聴には十分ですが、DJ用途では多くの制約があります。
-
-```
-PC内蔵サウンドの問題点:
-
-✗ レイテンシー（遅延）が大きい（30-100ms）
-  → ビートマッチング不可能レベル
-  → エフェクト操作にタイムラグ
-  → スクラッチが追従しない
-
-✗ 音質が悪い
-  → ダイナミックレンジが狭い（90dB以下）
-  → S/N比が低い（80dB程度）
-  → 周波数特性が平坦でない
-  → PCの電源ノイズの影響を受ける
-
-✗ 入出力チャンネル不足
-  → ステレオ1系統のみ
-  → マスター/ヘッドフォン分離不可
-  → 外部機器との柔軟な接続不可
-
-✗ DVS不可
-  → Phono入力なし
-  → リアルタイムオーディオ処理に耐えない
-  → タイムコード信号の精密な処理不可
-
-✗ 安定性に欠ける
-  → OS のオーディオエンジンを共有
-  → 他のアプリの影響を受ける
-  → ドロップアウト（音切れ）が発生
-```
-
-### 専用オーディオインターフェイスのメリット
-
-```
-専用オーディオIFの利点:
-
-✓ 低レイテンシー（2-10ms）
-  → リアルタイムのスクラッチ操作
-  → エフェクトの即時反映
-  → DJソフトウェアの最適動作
-
-✓ 高音質（24bit/96kHz以上）
-  → ダイナミックレンジ 110dB以上
-  → S/N比 110dB以上
-  → フラットな周波数特性
-  → クリアな高域と深い低域
-
-✓ 複数チャンネル
-  → マスター/ブース/ヘッドフォン分離
-  → 外部エフェクター接続
-  → マルチソース入力
-
-✓ DVS対応（モデルによる）
-  → ターンテーブル直結
-  → タイムコード高精度追従
-  → アナログフィーリング
-
-✓ 安定動作
-  → 専用ドライバによる排他的制御
-  → バッファ管理の最適化
-  → ライブ現場での信頼性
-```
-
-### DJにとっての決定的な違い
-
-自宅での練習からクラブでのプレイまで、オーディオインターフェイスがどう違いを生むかを具体的に理解しましょう。
-
-```
-シナリオ1: 自宅練習
-─────────────────────
-内蔵サウンド:
-- ヘッドフォンCUEとマスターを同時出力不可
-- ビートマッチングの練習ができない
-- 音のニュアンスが分からない
-
-オーディオIF:
-- マスター＋ヘッドフォンの独立出力
-- リアルなクラブ環境をシミュレート
-- 正確なモニタリングで上達が早い
-
-シナリオ2: 配信DJ
-─────────────────────
-内蔵サウンド:
-- 配信ソフトとの音声ルーティング困難
-- マイク入力時のノイズ
-- ループバック機能なし
-
-オーディオIF:
-- 配信ソフトへの直接ルーティング
-- クリアなマイク入力
-- ループバック機能で配信ミックスが容易
-
-シナリオ3: クラブDJ
-─────────────────────
-内蔵サウンド:
-- 使用不可（レイテンシー、信頼性）
-- PA接続の端子がない
-
-オーディオIF:
-- プロ仕様のバランス出力
-- 安定した長時間動作
-- 現場のシステムに適切に接続
-```
+- Basic programming knowledge
+- Understanding of related fundamental concepts
 
 ---
 
-## 1. オーディオインターフェイスの基本原理
+## Why You Need an Audio Interface
 
-### 定義と役割
+### Limitations of Built-in PC Sound Cards
 
-```
-オーディオインターフェイス（Audio Interface）
-= PC/Mac ⇔ 音響機器の橋渡しデバイス
-
-主要な役割:
-1. デジタル → アナログ変換（DAC: Digital to Analog Converter）
-   - PCからの数値データを電気信号（音）に変換
-   - 変換品質が音質を決定的に左右
-
-2. アナログ → デジタル変換（ADC: Analog to Digital Converter）
-   - マイクやターンテーブルの電気信号をデジタルデータに変換
-   - DVSでのタイムコード読み取りに必須
-
-3. 低レイテンシー処理
-   - 専用DSPチップによるリアルタイム処理
-   - ASIO/Core Audio経由の排他的アクセス
-   - バッファ管理の最適化
-
-4. クロック同期
-   - サンプリングレートの正確な管理
-   - ジッター（時間軸の揺らぎ）の最小化
-   - 外部クロック同期対応（プロモデル）
-```
-
-### DAC/ADCの品質指標
-
-オーディオインターフェイスの音質を客観的に評価するために、以下の指標を理解することが重要です。
+The sound card (onboard audio) built into PCs/Macs is sufficient for general music playback and video watching, but has many limitations for DJ use.
 
 ```
-■ ビット深度（Bit Depth）
-─────────────────────────
-16bit: ダイナミックレンジ 96dB（CD品質）
-24bit: ダイナミックレンジ 144dB（スタジオ品質）
-32bit float: 理論上無限のダイナミックレンジ
+Problems with Built-in PC Sound:
 
-DJ用途: 24bit で十分
-→ 実際の機器のS/N比は120dB程度が上限
-→ 32bit floatは内部処理には有利だが
-  出力段のDACは24bitが一般的
+✗ High latency (30-100ms)
+  → Beat matching becomes impossible
+  → Time lag with effect operations
+  → Scratching doesn't track properly
 
-■ サンプリングレート（Sample Rate）
-─────────────────────────
-44.1kHz: CD規格、DJ標準
-48kHz: 映像系標準
-96kHz: ハイレゾ
-192kHz: オーバースペック
+✗ Poor sound quality
+  → Narrow dynamic range (below 90dB)
+  → Low S/N ratio (around 80dB)
+  → Non-flat frequency response
+  → Affected by PC power supply noise
 
-DJ用途: 44.1kHz 推奨
-→ ほとんどの楽曲が44.1kHz
-→ 高レートはCPU負荷増大
-→ レイテンシー増加のリスク
+✗ Insufficient input/output channels
+  → Only one stereo output
+  → Cannot separate master/headphone
+  → Cannot flexibly connect external devices
 
-■ ダイナミックレンジ（Dynamic Range）
-─────────────────────────
-定義: 最小音量と最大音量の差
-単位: dB (デシベル)
+✗ No DVS capability
+  → No phono input
+  → Cannot handle real-time audio processing
+  → Cannot precisely process timecode signals
 
-100dB以下: エントリーレベル
-100-110dB: ミッドレンジ
-110-120dB: ハイエンド
-120dB以上: フラッグシップ
-
-DJ用途: 105dB以上推奨
-
-■ THD+N（全高調波歪み＋ノイズ）
-─────────────────────────
-定義: 出力信号に含まれる歪みとノイズの割合
-値が小さいほど高品質
-
-0.01% 以下: エントリーレベル
-0.005% 以下: ミッドレンジ
-0.001% 以下: ハイエンド
-0.0005% 以下: フラッグシップ
-
-■ S/N比（Signal to Noise Ratio）
-─────────────────────────
-定義: 信号とノイズの比率
-値が大きいほど高品質
-
-90dB以下: エントリーレベル
-90-100dB: ミッドレンジ
-100-110dB: ハイエンド
-110dB以上: フラッグシップ
-
-■ 周波数特性（Frequency Response）
-─────────────────────────
-理想: 20Hz - 20kHz ±0.1dB
-許容: 20Hz - 20kHz ±0.5dB
-
-低域の再現性: DJにとって特に重要
-→ キックドラムの質感
-→ ベースラインの明瞭さ
+✗ Lacks stability
+  → Shares OS audio engine
+  → Affected by other applications
+  → Audio dropouts occur
 ```
 
-### 内部構造の概要
+### Benefits of a Dedicated Audio Interface
 
 ```
-オーディオインターフェイスの内部ブロック図:
+Advantages of a Dedicated Audio IF:
 
-[アナログ入力]
+✓ Low latency (2-10ms)
+  → Real-time scratch operation
+  → Instant effect response
+  → Optimal DJ software operation
+
+✓ High sound quality (24bit/96kHz and above)
+  → Dynamic range 110dB+
+  → S/N ratio 110dB+
+  → Flat frequency response
+  → Clear highs and deep lows
+
+✓ Multiple channels
+  → Master/booth/headphone separation
+  → External effector connection
+  → Multi-source input
+
+✓ DVS compatible (model dependent)
+  → Direct turntable connection
+  → High-precision timecode tracking
+  → Analog feel
+
+✓ Stable operation
+  → Exclusive control via dedicated drivers
+  → Optimized buffer management
+  → Reliability in live venues
+```
+
+### The Decisive Difference for DJs
+
+Let's understand concretely how an audio interface makes a difference from home practice to club performances.
+
+```
+Scenario 1: Home Practice
+─────────────────────
+Built-in Sound:
+- Cannot output headphone CUE and master simultaneously
+- Cannot practice beat matching
+- Cannot discern audio nuances
+
+Audio IF:
+- Independent master + headphone outputs
+- Simulate a real club environment
+- Accurate monitoring accelerates improvement
+
+Scenario 2: Streaming DJ
+─────────────────────
+Built-in Sound:
+- Difficult audio routing with streaming software
+- Noise during microphone input
+- No loopback function
+
+Audio IF:
+- Direct routing to streaming software
+- Clear microphone input
+- Loopback function makes streaming mixes easy
+
+Scenario 3: Club DJ
+─────────────────────
+Built-in Sound:
+- Unusable (latency, reliability)
+- No connectors for PA connection
+
+Audio IF:
+- Professional balanced outputs
+- Stable long-duration operation
+- Proper connection to venue systems
+```
+
+---
+
+## 1. Basic Principles of Audio Interfaces
+
+### Definition and Role
+
+```
+Audio Interface
+= Bridge device between PC/Mac ⇔ Audio equipment
+
+Primary roles:
+1. Digital → Analog Conversion (DAC: Digital to Analog Converter)
+   - Converts numerical data from PC into electrical signals (sound)
+   - Conversion quality decisively affects sound quality
+
+2. Analog → Digital Conversion (ADC: Analog to Digital Converter)
+   - Converts electrical signals from mics and turntables into digital data
+   - Essential for timecode reading in DVS
+
+3. Low-Latency Processing
+   - Real-time processing via dedicated DSP chips
+   - Exclusive access through ASIO/Core Audio
+   - Optimized buffer management
+
+4. Clock Synchronization
+   - Precise sampling rate management
+   - Minimizing jitter (timing fluctuations)
+   - External clock sync support (pro models)
+```
+
+### DAC/ADC Quality Metrics
+
+Understanding the following metrics is important for objectively evaluating audio interface sound quality.
+
+```
+■ Bit Depth
+─────────────────────────
+16bit: Dynamic range 96dB (CD quality)
+24bit: Dynamic range 144dB (studio quality)
+32bit float: Theoretically infinite dynamic range
+
+For DJ use: 24bit is sufficient
+→ Actual device S/N ratio maxes out around 120dB
+→ 32bit float is advantageous for internal processing,
+  but output DACs are typically 24bit
+
+■ Sample Rate
+─────────────────────────
+44.1kHz: CD standard, DJ standard
+48kHz: Video standard
+96kHz: Hi-res
+192kHz: Overkill
+
+For DJ use: 44.1kHz recommended
+→ Most tracks are 44.1kHz
+→ Higher rates increase CPU load
+→ Risk of increased latency
+
+■ Dynamic Range
+─────────────────────────
+Definition: Difference between minimum and maximum volume
+Unit: dB (decibels)
+
+Below 100dB: Entry level
+100-110dB: Mid-range
+110-120dB: High-end
+120dB+: Flagship
+
+For DJ use: 105dB+ recommended
+
+■ THD+N (Total Harmonic Distortion + Noise)
+─────────────────────────
+Definition: Ratio of distortion and noise in the output signal
+Smaller values = higher quality
+
+0.01% or less: Entry level
+0.005% or less: Mid-range
+0.001% or less: High-end
+0.0005% or less: Flagship
+
+■ S/N Ratio (Signal to Noise Ratio)
+─────────────────────────
+Definition: Ratio of signal to noise
+Larger values = higher quality
+
+Below 90dB: Entry level
+90-100dB: Mid-range
+100-110dB: High-end
+110dB+: Flagship
+
+■ Frequency Response
+─────────────────────────
+Ideal: 20Hz - 20kHz ±0.1dB
+Acceptable: 20Hz - 20kHz ±0.5dB
+
+Low-frequency reproduction: Especially important for DJs
+→ Kick drum texture
+→ Bassline clarity
+```
+
+### Internal Architecture Overview
+
+```
+Audio Interface Internal Block Diagram:
+
+[Analog Input]
     ↓
-[プリアンプ] ← ゲインコントロール
+[Preamp] ← Gain Control
     ↓
-[ADC] ← サンプリング＆量子化
+[ADC] ← Sampling & Quantization
     ↓
-[DSP] ← デジタル信号処理（ミキシング、ルーティング）
+[DSP] ← Digital Signal Processing (Mixing, Routing)
     ↓
-[USB/Thunderbolt コントローラ]
-    ↓↑ (双方向通信)
+[USB/Thunderbolt Controller]
+    ↓↑ (Bidirectional Communication)
 [PC/Mac]
     ↑
-[USB/Thunderbolt コントローラ]
+[USB/Thunderbolt Controller]
     ↑
-[DSP] ← デジタル信号処理
+[DSP] ← Digital Signal Processing
     ↑
-[DAC] ← デジタル→アナログ変換
+[DAC] ← Digital to Analog Conversion
     ↑
-[出力バッファ/アンプ]
+[Output Buffer/Amp]
     ↑
-[アナログ出力]
+[Analog Output]
 
-クロックジェネレーター → 全段に正確なタイミング信号を供給
-電源回路 → アナログ段とデジタル段を分離（ノイズ低減）
+Clock Generator → Supplies precise timing signals to all stages
+Power Circuit → Separates analog and digital stages (noise reduction)
 ```
 
-### DJ用途での信号フロー
+### Signal Flow for DJ Use
 
 ```
-■ コントローラーなし構成:
-PC/Mac（DJソフトウェア）
-  ↓ デジタルオーディオ（USB）
+■ Without Controller Configuration:
+PC/Mac (DJ Software)
+  ↓ Digital Audio (USB)
 Audio Interface
-  ↓ DAC変換
-  ↓ アナログ出力（RCA/TRS/XLR）
-ミキサー or アクティブスピーカー
+  ↓ DAC Conversion
+  ↓ Analog Output (RCA/TRS/XLR)
+Mixer or Active Speakers
   ↓
-スピーカー → リスナー
+Speakers → Listeners
 
-■ DVS構成:
-ターンテーブル（タイムコードバイナル）
-  ↓ アナログ信号（Phono）
-DJ Mixer（Phono入力）
+■ DVS Configuration:
+Turntable (Timecode Vinyl)
+  ↓ Analog Signal (Phono)
+DJ Mixer (Phono Input)
   ↓ REC OUT / SEND
-Audio Interface（ADC変換）
-  ↓ デジタル信号（USB）
-PC/Mac（DJソフトウェア：タイムコード解析＆楽曲再生）
-  ↓ デジタルオーディオ（USB）
-Audio Interface（DAC変換）
-  ↓ アナログ出力
-DJ Mixer（RETURN / Line入力）
-  ↓ ミックス処理
-PA System → リスナー
+Audio Interface (ADC Conversion)
+  ↓ Digital Signal (USB)
+PC/Mac (DJ Software: Timecode Analysis & Track Playback)
+  ↓ Digital Audio (USB)
+Audio Interface (DAC Conversion)
+  ↓ Analog Output
+DJ Mixer (RETURN / Line Input)
+  ↓ Mix Processing
+PA System → Listeners
 ```
 
 ---
 
-## 2. 接続方式の詳細比較
+## 2. Detailed Connection Type Comparison
 
-### USB-A（USB 2.0/3.0）
+### USB-A (USB 2.0/3.0)
 
-USB-Aは最も広く普及している接続方式で、ほぼすべてのPC/Macで利用可能です。
+USB-A is the most widely adopted connection type, available on virtually all PCs/Macs.
 
 ```
 USB 2.0 (Full Speed / High Speed):
 ─────────────────────────
-転送速度: 480 Mbps（理論値）
-実効速度: 約 280 Mbps
-レイテンシー: 5-10ms（一般的）
-電源供給: 5V / 500mA（バスパワー）
+Transfer Speed: 480 Mbps (theoretical)
+Effective Speed: ~280 Mbps
+Latency: 5-10ms (typical)
+Power Supply: 5V / 500mA (bus power)
 
-メリット:
-✓ 最も一般的で対応機器が多い
-✓ ケーブルが安価で入手容易
-✓ 5m程度までケーブル延長可能
-✓ 安定性が実証されている
-✓ ほぼすべてのオーディオIFが対応
+Pros:
+✓ Most common with widest device support
+✓ Cables are cheap and readily available
+✓ Cable extension possible up to ~5m
+✓ Proven stability
+✓ Nearly all audio IFs support it
 
-デメリット:
-✗ Thunderboltより帯域が狭い
-✗ レイテンシーがやや大きい
-✗ 多チャンネル時に帯域制限
+Cons:
+✗ Less bandwidth than Thunderbolt
+✗ Slightly higher latency
+✗ Bandwidth limitations with many channels
 
-DJ用途での評価:
-→ 2-4ch程度なら全く問題なし
-→ DVS 2デッキまでは十分
-→ 最もトラブルが少ない選択肢
+DJ Use Evaluation:
+→ No issues at all for 2-4 channels
+→ Sufficient for DVS with up to 2 decks
+→ The least troublesome option
 
 USB 3.0 (SuperSpeed):
 ─────────────────────────
-転送速度: 5 Gbps（理論値）
-実効速度: 約 3.2 Gbps
-レイテンシー: 3-8ms
-電源供給: 5V / 900mA（バスパワー）
+Transfer Speed: 5 Gbps (theoretical)
+Effective Speed: ~3.2 Gbps
+Latency: 3-8ms
+Power Supply: 5V / 900mA (bus power)
 
-メリット:
-✓ USB 2.0の10倍の帯域
-✓ 多チャンネルに余裕
-✓ USB 2.0後方互換
-✓ 電源供給量が増加
+Pros:
+✓ 10x the bandwidth of USB 2.0
+✓ Plenty of headroom for multi-channel
+✓ USB 2.0 backward compatible
+✓ Increased power supply
 
-デメリット:
-✗ 対応オーディオIFがまだ少ない
-✗ 一部の環境でドライバ互換性問題
-✗ EMI（電磁干渉）が発生する場合がある
+Cons:
+✗ Still few compatible audio IFs
+✗ Driver compatibility issues in some environments
+✗ EMI (electromagnetic interference) may occur in some cases
 
-DJ用途での評価:
-→ 将来的にはスタンダードに
-→ 現時点ではUSB 2.0で十分なケースが多い
+DJ Use Evaluation:
+→ Will become standard in the future
+→ Currently USB 2.0 is sufficient in most cases
 ```
 
-### USB-C（USB 3.1/3.2/USB4）
+### USB-C (USB 3.1/3.2/USB4)
 
-USB-Cはコネクタ形状の規格であり、内部のプロトコルは様々です。購入時には内部プロトコルも確認することが重要です。
+USB-C is a connector form factor standard, and the internal protocol varies. It's important to verify the internal protocol when purchasing.
 
 ```
-USB-C の種類と違い:
+Types and Differences of USB-C:
 ─────────────────────────
 
 USB-C (USB 2.0):
-- 転送速度: 480 Mbps
-- 実質USB 2.0をCコネクタで接続
-- 安価なケーブルで可能
-- 注意: 見た目はUSB-Cだが速度はUSB 2.0
+- Transfer Speed: 480 Mbps
+- Essentially USB 2.0 with a C connector
+- Possible with inexpensive cables
+- Note: Looks like USB-C but speed is USB 2.0
 
 USB-C (USB 3.1 Gen1 = USB 3.0):
-- 転送速度: 5 Gbps
+- Transfer Speed: 5 Gbps
 - SuperSpeed
 
 USB-C (USB 3.1 Gen2):
-- 転送速度: 10 Gbps
+- Transfer Speed: 10 Gbps
 - SuperSpeed+
 
 USB-C (USB 3.2 Gen2x2):
-- 転送速度: 20 Gbps
+- Transfer Speed: 20 Gbps
 
-USB-C (USB4 / Thunderbolt 3互換):
-- 転送速度: 40 Gbps
-- Thunderboltプロトコル利用可能
+USB-C (USB4 / Thunderbolt 3 compatible):
+- Transfer Speed: 40 Gbps
+- Thunderbolt protocol available
 
-メリット:
-✓ リバーシブルコネクタ（差し込み方向を選ばない）
-✓ 最新MacBook / PCの標準端子
-✓ Power Delivery対応（最大100W給電）
-✓ 将来性が高い
-✓ コンパクトなコネクタ
+Pros:
+✓ Reversible connector (no wrong orientation)
+✓ Standard port on latest MacBooks / PCs
+✓ Power Delivery support (up to 100W)
+✓ High future-proofing
+✓ Compact connector
 
-デメリット:
-✗ プロトコルの混在で分かりにくい
-✗ ケーブル品質の差が大きい
-✗ 変換アダプタ使用時にトラブルの可能性
-✗ 古いPCにはUSB-Cがない場合がある
+Cons:
+✗ Confusing due to mixed protocols
+✗ Large variation in cable quality
+✗ Possible issues when using adapters
+✗ Older PCs may not have USB-C
 
-DJ用途での評価:
-→ 新規購入ならUSB-C対応モデル推奨
-→ ケーブルは認証品を使用
-→ MacBookユーザーには必須
-→ レイテンシー: 3-8ms（プロトコルによる）
+DJ Use Evaluation:
+→ USB-C compatible models recommended for new purchases
+→ Use certified cables
+→ Essential for MacBook users
+→ Latency: 3-8ms (depends on protocol)
 
-ケーブル選びの注意点:
+Cable Selection Tips:
 ─────────────────────────
-✓ USB-IF認証ケーブルを使用
-✓ 必要なプロトコル（USB 3.1以上）に対応したケーブル
-✓ 長さは1-2m推奨（短いほど安定）
-✓ 安価な100均ケーブルは避ける
-✗ 充電専用ケーブルはデータ通信不可
+✓ Use USB-IF certified cables
+✓ Cable supporting the required protocol (USB 3.1 or higher)
+✓ 1-2m length recommended (shorter = more stable)
+✓ Avoid cheap dollar-store cables
+✗ Charging-only cables cannot transfer data
 ```
 
 ### Thunderbolt 3/4
 
-プロフェッショナル環境で最高のパフォーマンスを求める場合の選択肢です。
+The choice for professional environments demanding the highest performance.
 
 ```
 Thunderbolt 3:
 ─────────────────────────
-転送速度: 40 Gbps
-レイテンシー: 1-3ms
-接続: USB-Cコネクタ
-対応OS: macOS（ネイティブ）、Windows（一部）
+Transfer Speed: 40 Gbps
+Latency: 1-3ms
+Connection: USB-C connector
+Supported OS: macOS (native), Windows (partial)
 
 Thunderbolt 4:
 ─────────────────────────
-転送速度: 40 Gbps（Thunderbolt 3と同じ）
-改善点: 最低要件の厳格化、Hub対応必須
-レイテンシー: 1-3ms
-接続: USB-Cコネクタ
+Transfer Speed: 40 Gbps (same as Thunderbolt 3)
+Improvements: Stricter minimum requirements, mandatory hub support
+Latency: 1-3ms
+Connection: USB-C connector
 
-メリット:
-✓ 最速の転送速度
-✓ 最低レイテンシー（1-3ms）
-✓ 多チャンネル（32ch以上）に余裕
-✓ デイジーチェーン接続対応
-✓ プロスタジオ標準
-✓ ディスプレイ接続との共存
+Pros:
+✓ Fastest transfer speed
+✓ Lowest latency (1-3ms)
+✓ Plenty of headroom for multi-channel (32ch+)
+✓ Daisy-chain connection support
+✓ Pro studio standard
+✓ Coexists with display connections
 
-デメリット:
-✗ 対応機器が高価
-✗ Windows環境での対応が限定的
-✗ ケーブルが高価（Thunderbolt認証品）
-✗ ケーブル長制限（パッシブ: 0.8m、アクティブ: 2m）
-✗ 対応オーディオIFが限られる
+Cons:
+✗ Compatible devices are expensive
+✗ Limited support in Windows environments
+✗ Expensive cables (Thunderbolt certified)
+✗ Cable length limitations (passive: 0.8m, active: 2m)
+✗ Limited compatible audio IFs
 
-DJ用途での評価:
-→ 通常のDJ用途ではオーバースペック
-→ 大規模マルチチャンネル環境では有利
-→ プロスタジオでDJ＋レコーディング兼用なら検討
-→ コスト対効果は低い（DJ専用なら）
+DJ Use Evaluation:
+→ Overkill for typical DJ use
+→ Advantageous for large multi-channel environments
+→ Worth considering for pro studios combining DJ + recording
+→ Low cost-effectiveness (for DJ-only use)
 
-Thunderbolt対応の代表的オーディオIF:
-- Universal Audio Apollo Twin（約8万円）
-- RME Fireface UCX II（約15万円）
-- Apogee Ensemble（約20万円）
+Representative Thunderbolt Audio IFs:
+- Universal Audio Apollo Twin (~80,000 yen)
+- RME Fireface UCX II (~150,000 yen)
+- Apogee Ensemble (~200,000 yen)
 ```
 
-### 接続方式の比較まとめ
+### Connection Type Comparison Summary
 
 ```
                 USB 2.0    USB-C(3.1)  Thunderbolt
 ─────────────────────────────────────────────────
-帯域幅          480Mbps    10Gbps      40Gbps
-レイテンシー    5-10ms     3-8ms       1-3ms
-価格帯          安い       中間        高い
-対応機器数      最多       増加中      少ない
-安定性          ◎          ○           ○
-将来性          △          ◎           ◎
-DJ推奨度        ◎          ◎           △
-（コスパ考慮）
+Bandwidth       480Mbps    10Gbps      40Gbps
+Latency         5-10ms     3-8ms       1-3ms
+Price Range     Low        Medium      High
+Device Support  Most       Growing     Few
+Stability       ◎          ○           ○
+Future-proofing △          ◎           ◎
+DJ Recommend    ◎          ◎           △
+(Cost considered)
 
-結論:
-- 2026年の新規購入 → USB-C対応モデルが最適
-- 既存環境がUSB-A → USB-Aで全く問題なし
-- プロスタジオ兼用 → Thunderboltを検討
+Conclusion:
+- New purchase in 2026 → USB-C compatible model is optimal
+- Existing USB-A setup → USB-A is perfectly fine
+- Pro studio dual-use → Consider Thunderbolt
 ```
 
 ---
 
-## 3. チャンネル数とDVS対応の詳細
+## 3. Channel Count and DVS Compatibility Details
 
-### チャンネル数の考え方
+### Understanding Channel Count
 
-オーディオインターフェイスのチャンネル数は「入力数 in / 出力数 out」で表記されます。ステレオ1系統 = 2チャンネルです。
+Audio interface channel count is expressed as "inputs in / outputs out". One stereo pair = 2 channels.
 
 ```
-チャンネル数の表記:
+Channel Count Notation:
 ─────────────────────────
-「2 in / 2 out」= ステレオ入力1系統 + ステレオ出力1系統
-「4 in / 4 out」= ステレオ入力2系統 + ステレオ出力2系統
-「8 in / 8 out」= ステレオ入力4系統 + ステレオ出力4系統
+"2 in / 2 out" = 1 stereo input + 1 stereo output
+"4 in / 4 out" = 2 stereo inputs + 2 stereo outputs
+"8 in / 8 out" = 4 stereo inputs + 4 stereo outputs
 
-注意: メーカーによって「2x2」「4x4」等の表記もある
-→ 意味は同じ
+Note: Some manufacturers use "2x2", "4x4" notation
+→ Same meaning
 ```
 
-### 2 in / 2 out（基本構成）
+### 2 in / 2 out (Basic Configuration)
 
 ```
-用途:
+Use Cases:
 ─────────────────────────
-- コントローラーDJ（内蔵Audio IFの代替として）
+- Controller DJ (as a replacement for built-in audio IF)
 - Rekordbox Performance Mode
-- 配信DJ（ステレオ出力1系統で十分）
-- DJ + 制作の兼用（2ch制作環境）
+- Streaming DJ (one stereo output is sufficient)
+- DJ + production dual-use (2ch production environment)
 
-接続例:
+Connection Example:
 PC/Mac
   ↓ USB
 Audio IF (2in/2out)
-  ├── Output 1-2 → アクティブスピーカー or ミキサー
-  └── Headphone Out → ヘッドフォン
+  ├── Output 1-2 → Active speakers or mixer
+  └── Headphone Out → Headphones
 
-制約:
-✗ DVSには不向き（2デッキ制御には4in/4out必要）
-✗ マスター＋ブース出力の分離不可
-✗ 外部エフェクト Send/Return 不可
+Limitations:
+✗ Not suitable for DVS (4in/4out needed for 2-deck control)
+✗ Cannot separate master + booth outputs
+✗ No external effects Send/Return
 
-適したモデル:
-- Focusrite Scarlett 2i2（約1.5万円）
-- PreSonus AudioBox USB 96（約1万円）
-- Steinberg UR22mkII（約1.5万円）
-- Audient iD4 mkII（約2万円）
+Suitable Models:
+- Focusrite Scarlett 2i2 (~15,000 yen)
+- PreSonus AudioBox USB 96 (~10,000 yen)
+- Steinberg UR22mkII (~15,000 yen)
+- Audient iD4 mkII (~20,000 yen)
 ```
 
-### 4 in / 4 out（DVS推奨）
+### 4 in / 4 out (DVS Recommended)
 
 ```
-用途:
+Use Cases:
 ─────────────────────────
-- DVS（2デッキ）← 最も一般的なDVS構成
-- ターンテーブル × 2 + DJミキサー
-- マスター＋ヘッドフォン独立出力
-- 外部エフェクト Send/Return（1系統）
+- DVS (2 decks) ← Most common DVS configuration
+- Turntable × 2 + DJ mixer
+- Independent master + headphone output
+- External effects Send/Return (1 loop)
 
-接続例（DVS 2デッキ）:
+Connection Example (DVS 2 Decks):
 Turntable 1 → Mixer Ch1 → Send 1-2 → Audio IF Input 1-2
 Turntable 2 → Mixer Ch2 → Send 3-4 → Audio IF Input 3-4
                                           ↓ USB
-                                       PC/Mac (DVSソフト)
+                                       PC/Mac (DVS Software)
                                           ↓ USB
 Audio IF Output 1-2 → Mixer Return Ch1 → Master Out
 Audio IF Output 3-4 → Mixer Return Ch2 →
 
-チャンネル割り当て:
-Input 1-2: ターンテーブル1のタイムコード信号
-Input 3-4: ターンテーブル2のタイムコード信号
-Output 1-2: デッキA の再生音声 → ミキサーCh1
-Output 3-4: デッキB の再生音声 → ミキサーCh2
+Channel Assignment:
+Input 1-2: Turntable 1 timecode signal
+Input 3-4: Turntable 2 timecode signal
+Output 1-2: Deck A playback audio → Mixer Ch1
+Output 3-4: Deck B playback audio → Mixer Ch2
 
-適したモデル:
-- Pioneer DJ INTERFACE 2（約2.5万円）
-- Rane SL3（約4万円）
-- Native Instruments Traktor Audio 6（約3万円）
-- Denon DJ DS1（約2.5万円）
+Suitable Models:
+- Pioneer DJ INTERFACE 2 (~25,000 yen)
+- Rane SL3 (~40,000 yen)
+- Native Instruments Traktor Audio 6 (~30,000 yen)
+- Denon DJ DS1 (~25,000 yen)
 ```
 
-### 6 in / 6 out（拡張構成）
+### 6 in / 6 out (Extended Configuration)
 
 ```
-用途:
+Use Cases:
 ─────────────────────────
-- DVS 2デッキ + マスター/ブース独立出力
-- DVS 2デッキ + 外部エフェクト Send/Return
-- 3デッキDVS（やや特殊）
+- DVS 2 decks + independent master/booth output
+- DVS 2 decks + external effects Send/Return
+- 3-deck DVS (somewhat specialized)
 
-接続例:
-Input 1-2: ターンテーブル1
-Input 3-4: ターンテーブル2
-Input 5-6: 外部エフェクトリターン or 追加入力
+Connection Example:
+Input 1-2: Turntable 1
+Input 3-4: Turntable 2
+Input 5-6: External effects return or additional input
 
-Output 1-2: デッキA → ミキサー
-Output 3-4: デッキB → ミキサー
-Output 5-6: ヘッドフォンCUE or ブースモニター
+Output 1-2: Deck A → Mixer
+Output 3-4: Deck B → Mixer
+Output 5-6: Headphone CUE or booth monitor
 ```
 
-### 8 in / 8 out（プロフェッショナル）
+### 8 in / 8 out (Professional)
 
 ```
-用途:
+Use Cases:
 ─────────────────────────
-- 4デッキDVS
-- 複雑なルーティング
-- ライブPA統合
-- スタジオ録音兼用
+- 4-deck DVS
+- Complex routing
+- Live PA integration
+- Studio recording dual-use
 
-接続例（4デッキDVS）:
-Input 1-2: ターンテーブル1
-Input 3-4: ターンテーブル2
-Input 5-6: CDJ 1（DVSモード）
-Input 7-8: CDJ 2（DVSモード）
+Connection Example (4-Deck DVS):
+Input 1-2: Turntable 1
+Input 3-4: Turntable 2
+Input 5-6: CDJ 1 (DVS mode)
+Input 7-8: CDJ 2 (DVS mode)
 
-Output 1-2: デッキA
-Output 3-4: デッキB
-Output 5-6: デッキC
-Output 7-8: デッキD
+Output 1-2: Deck A
+Output 3-4: Deck B
+Output 5-6: Deck C
+Output 7-8: Deck D
 
-適したモデル:
-- RME Fireface UCX II（約15万円）
-- MOTU 828es（約12万円）
-- Focusrite Scarlett 18i20（約5万円）
+Suitable Models:
+- RME Fireface UCX II (~150,000 yen)
+- MOTU 828es (~120,000 yen)
+- Focusrite Scarlett 18i20 (~50,000 yen)
 ```
 
-### DVS対応の要件
+### DVS Compatibility Requirements
 
-DVS（Digital Vinyl System）を使用するには、オーディオインターフェイスに特別な要件があります。
+DVS (Digital Vinyl System) requires special requirements from audio interfaces.
 
 ```
-DVS対応に必要な条件:
+Conditions Required for DVS Compatibility:
 ─────────────────────────
 
-1. ソフトウェア認証
-   - Rekordbox DVS: Pioneer DJ認証機器が必要
-     → INTERFACE 2、DJM-250MK2以上
-   - Serato DVS: Serato認証機器が必要
-     → Rane SL3/SL4、Pioneer DJM-S シリーズ
-   - Traktor DVS: NI認証機器が必要
-     → Traktor Audio 6、Traktor Scratch A6
+1. Software Certification
+   - Rekordbox DVS: Requires Pioneer DJ certified devices
+     → INTERFACE 2, DJM-250MK2 or higher
+   - Serato DVS: Requires Serato certified devices
+     → Rane SL3/SL4, Pioneer DJM-S series
+   - Traktor DVS: Requires NI certified devices
+     → Traktor Audio 6, Traktor Scratch A6
 
-2. 入出力チャンネル
-   - 2デッキDVS: 最低 4in/4out
-   - 4デッキDVS: 最低 8in/8out
+2. Input/Output Channels
+   - 2-deck DVS: Minimum 4in/4out
+   - 4-deck DVS: Minimum 8in/8out
 
-3. Phono対応
-   - Phono入力対応（ターンテーブル直結の場合）
-   - Line入力のみの場合はミキサー経由が必要
-   - Phono/Line切り替えスイッチ付きが便利
+3. Phono Support
+   - Phono input support (for direct turntable connection)
+   - Line input only models require routing through a mixer
+   - Phono/Line toggle switch is convenient
 
-4. レイテンシー性能
-   - 10ms以下推奨（DVSの追従性に直結）
-   - スクラッチ操作には5ms以下が理想
-   - バッファサイズ 256 samples以下で安定動作
+4. Latency Performance
+   - 10ms or less recommended (directly affects DVS tracking)
+   - 5ms or less is ideal for scratch operations
+   - Stable operation at buffer size 256 samples or less
 
-5. ドライバ品質
-   - ASIO対応（Windows）
-   - Core Audio対応（macOS）
-   - 低レイテンシーでの安定動作
-   - 長時間連続使用での信頼性
+5. Driver Quality
+   - ASIO support (Windows)
+   - Core Audio support (macOS)
+   - Stable operation at low latency
+   - Reliability during extended continuous use
 
-DVS非対応でもDJに使えるケース:
+Cases Where Non-DVS Models Can Still Be Used for DJing:
 ─────────────────────────
-- DJコントローラーの外部出力用
-- Rekordbox Performance Modeのメイン出力
-- 配信用のオーディオ出力
-- DJ + 制作の兼用環境
+- External output for DJ controllers
+- Main output for Rekordbox Performance Mode
+- Audio output for streaming
+- DJ + production dual-use environment
 ```
 
 ---
 
-## 4. おすすめモデル徹底比較
+## 4. Thorough Recommended Model Comparison
 
-### エントリーレベル（1-2万円）
+### Entry Level (10,000-20,000 yen)
 
 #### Focusrite Scarlett 2i2 (4th Gen)
 
 ```
-価格: 約18,000円
-接続: USB-C（USB 2.0プロトコル）
-入力: 2（コンボジャック × 2: XLR/TRS）
-出力: 2（TRS 6.3mm × 2）+ ヘッドフォン
-ビット深度: 24bit
-サンプリングレート: 最大192kHz
-ダイナミックレンジ: 111dB（入力）、115dB（出力）
+Price: ~18,000 yen
+Connection: USB-C (USB 2.0 protocol)
+Input: 2 (Combo Jack × 2: XLR/TRS)
+Output: 2 (TRS 6.3mm × 2) + Headphone
+Bit Depth: 24bit
+Sample Rate: Up to 192kHz
+Dynamic Range: 111dB (input), 115dB (output)
 THD+N: -128dB
-電源: バスパワー（USB給電）
+Power: Bus powered (USB)
 
-特徴:
-✓ AIR機能（高域ブースト、ボーカル録音向け）
-✓ 自動ゲイン設定機能
-✓ ダイレクトモニタリング
-✓ 堅牢なアルミ筐体
-✓ 第4世代で大幅に音質向上
-✓ Focusrite Control 2 ソフトウェア付属
-✓ Ableton Live Lite / Pro Tools First 付属
+Features:
+✓ AIR function (high-frequency boost, for vocal recording)
+✓ Auto-gain setting function
+✓ Direct monitoring
+✓ Robust aluminum housing
+✓ Significantly improved sound quality in 4th generation
+✓ Focusrite Control 2 software included
+✓ Ableton Live Lite / Pro Tools First included
 
-DJ用途での評価:
-◎ コスパ最高のエントリーモデル
-◎ 制作環境との兼用に最適
-◎ USBバスパワーで電源不要
-○ 音質はこの価格帯でトップクラス
-✗ DVS非対応（Phono入力なし）
-✗ 2in/2outのみ（マスター＋ヘッドフォン分離不可）
-✗ DJ専用ソフトウェアの認証なし
+DJ Use Evaluation:
+◎ Best cost-performance entry model
+◎ Ideal for dual-use with production environment
+◎ No external power needed with USB bus power
+○ Sound quality is top-class in this price range
+✗ Not DVS compatible (no phono input)
+✗ 2in/2out only (cannot separate master + headphone)
+✗ No DJ-specific software certification
 
-推奨用途:
-- DJコントローラー + 外部出力向上
-- 自宅制作環境の構築
-- 配信DJのメイン出力
+Recommended Use:
+- Improved external output for DJ controllers
+- Building a home production environment
+- Main output for streaming DJs
 ```
 
 #### PreSonus AudioBox USB 96
 
 ```
-価格: 約10,000円
-接続: USB-B（USB 2.0）
-入力: 2（コンボジャック × 2）
-出力: 2（TRS 6.3mm × 2）+ ヘッドフォン
-ビット深度: 24bit
-サンプリングレート: 最大96kHz
-電源: バスパワー
+Price: ~10,000 yen
+Connection: USB-B (USB 2.0)
+Input: 2 (Combo Jack × 2)
+Output: 2 (TRS 6.3mm × 2) + Headphone
+Bit Depth: 24bit
+Sample Rate: Up to 96kHz
+Power: Bus powered
 
-DJ用途での評価:
-○ 最も安価な選択肢
-○ Studio One Artist付属
-✗ 音質はScarlettに劣る
-✗ DVS非対応
-✗ ビルドクオリティが低め
+DJ Use Evaluation:
+○ Most affordable option
+○ Studio One Artist included
+✗ Sound quality inferior to Scarlett
+✗ Not DVS compatible
+✗ Lower build quality
 ```
 
 #### Steinberg UR22C
 
 ```
-価格: 約16,000円
-接続: USB-C（USB 3.1 Gen1）
-入力: 2（コンボジャック × 2）
-出力: 2（TRS 6.3mm × 2）+ ヘッドフォン
-ビット深度: 32bit
-サンプリングレート: 最大192kHz
-電源: バスパワー or DC5V
+Price: ~16,000 yen
+Connection: USB-C (USB 3.1 Gen1)
+Input: 2 (Combo Jack × 2)
+Output: 2 (TRS 6.3mm × 2) + Headphone
+Bit Depth: 32bit
+Sample Rate: Up to 192kHz
+Power: Bus powered or DC5V
 
-特徴:
-✓ 32bit対応
-✓ dspMixFxによるDSPエフェクト
-✓ Cubase AI付属
-✓ ループバック機能
-✓ iOS対応
+Features:
+✓ 32bit support
+✓ DSP effects via dspMixFx
+✓ Cubase AI included
+✓ Loopback function
+✓ iOS compatible
 
-DJ用途での評価:
-◎ ループバック機能が配信DJに便利
-○ 32bit処理で高いヘッドルーム
-○ Yamaha/Steinbergの信頼性
-✗ DVS非対応
+DJ Use Evaluation:
+◎ Loopback function is convenient for streaming DJs
+○ High headroom with 32bit processing
+○ Yamaha/Steinberg reliability
+✗ Not DVS compatible
 ```
 
-### DJ専用モデル（2-4万円）
+### DJ-Specific Models (20,000-40,000 yen)
 
 #### Pioneer DJ INTERFACE 2
 
 ```
-価格: 約25,000円
-接続: USB-C + USB-A（付属ケーブル両方）
-入力: 2 (RCA) / DVS時: 4 (Phono/Line切替)
-出力: 2 (RCA) / DVS時: 4
-ビット深度: 24bit
-サンプリングレート: 44.1kHz / 48kHz
-電源: バスパワー
-重量: 350g
-サイズ: 110 × 110 × 30 mm
+Price: ~25,000 yen
+Connection: USB-C + USB-A (both cables included)
+Input: 2 (RCA) / DVS mode: 4 (Phono/Line switchable)
+Output: 2 (RCA) / DVS mode: 4
+Bit Depth: 24bit
+Sample Rate: 44.1kHz / 48kHz
+Power: Bus powered
+Weight: 350g
+Size: 110 × 110 × 30 mm
 
-特徴:
-✓ Rekordbox DVS完全対応（ライセンス内蔵）
-✓ Phono/Line切り替えスイッチ
-✓ MIDI出力
-✓ 超コンパクト設計
-✓ Rekordbox v7 対応
-✓ USB-C/USB-A両対応
+Features:
+✓ Full Rekordbox DVS support (license built-in)
+✓ Phono/Line toggle switch
+✓ MIDI output
+✓ Ultra-compact design
+✓ Rekordbox v7 compatible
+✓ USB-C/USB-A dual support
 
-DJ用途での評価:
-◎ Rekordbox DVSの標準選択肢
-◎ コンパクトで持ち運びに最適
-◎ Phono入力でターンテーブル直結可能
-◎ 価格対性能比が優秀
-○ DVSの追従性良好
-✗ Serato/Traktorには使えない
-✗ 44.1/48kHzのみ（ハイレゾ非対応）
-✗ 制作用途には不向き
+DJ Use Evaluation:
+◎ Standard choice for Rekordbox DVS
+◎ Compact and ideal for portability
+◎ Phono input for direct turntable connection
+◎ Excellent price-to-performance ratio
+○ Good DVS tracking responsiveness
+✗ Cannot be used with Serato/Traktor
+✗ 44.1/48kHz only (no hi-res support)
+✗ Not suitable for production use
 
-推奨用途:
-- Rekordbox DVS（2デッキ）
-- ターンテーブルDJ
-- コンパクトなモバイルDVS環境
+Recommended Use:
+- Rekordbox DVS (2 decks)
+- Turntable DJ
+- Compact mobile DVS environment
 
-Rekordbox DVS設定:
+Rekordbox DVS Setup:
 ─────────────────────────
-1. INTERFACE 2をUSB接続
-2. Rekordbox起動 → 自動認識
-3. DVSライセンスが自動アクティベート
-4. Preferences → Audio → INTERFACE 2選択
-5. DVS → Input設定
-6. タイムコードバイナルをセット
-7. Calibration実行
+1. Connect INTERFACE 2 via USB
+2. Launch Rekordbox → Auto-detected
+3. DVS license auto-activates
+4. Preferences → Audio → Select INTERFACE 2
+5. DVS → Input settings
+6. Set timecode vinyl
+7. Run Calibration
 ```
 
 #### Denon DJ DS1
 
 ```
-価格: 約25,000円
-接続: USB-B
-入力: 4 (RCA, Phono/Line切替)
-出力: 4 (RCA)
-ビット深度: 24bit
-サンプリングレート: 48kHz
-電源: バスパワー
+Price: ~25,000 yen
+Connection: USB-B
+Input: 4 (RCA, Phono/Line switchable)
+Output: 4 (RCA)
+Bit Depth: 24bit
+Sample Rate: 48kHz
+Power: Bus powered
 
-特徴:
-✓ Serato DVS対応（ライセンス内蔵）
-✓ Phono/Line切り替え
-✓ コンパクト設計
-✓ 2デッキDVS対応
+Features:
+✓ Serato DVS compatible (license built-in)
+✓ Phono/Line switching
+✓ Compact design
+✓ 2-deck DVS support
 
-DJ用途での評価:
-◎ Serato DVSのコスパ最強
-○ DS1だけでDVS環境が完成
-✗ Rekordbox/Traktorには使えない
-✗ 音質はRane SLシリーズに劣る
+DJ Use Evaluation:
+◎ Best cost-performance for Serato DVS
+○ Complete DVS environment with just the DS1
+✗ Cannot be used with Rekordbox/Traktor
+✗ Sound quality inferior to Rane SL series
 ```
 
 #### Rane SL3
 
 ```
-価格: 約40,000円（中古市場: 約15,000-25,000円）
-接続: USB-B（USB 2.0）
-入力: 6 (RCA)
-出力: 6 (RCA)
-ビット深度: 24bit
-サンプリングレート: 48kHz
-電源: バスパワー
-重量: 約600g
+Price: ~40,000 yen (used market: ~15,000-25,000 yen)
+Connection: USB-B (USB 2.0)
+Input: 6 (RCA)
+Output: 6 (RCA)
+Bit Depth: 24bit
+Sample Rate: 48kHz
+Power: Bus powered
+Weight: ~600g
 
-特徴:
-✓ Serato DVS業界標準
-✓ 3系統のステレオ入出力（AUX含む）
-✓ 超低ジッタークロック
-✓ 堅牢な筐体
-✓ Galvanic Isolation（USB絶縁）
+Features:
+✓ Serato DVS industry standard
+✓ 3 stereo input/output pairs (including AUX)
+✓ Ultra-low jitter clock
+✓ Robust housing
+✓ Galvanic Isolation (USB isolation)
 
-DJ用途での評価:
-◎ Serato DVSのプロ標準
-◎ 長年の実績と信頼性
-◎ 中古市場が豊富で入手しやすい
-○ USB絶縁でノイズに強い
-✗ USB 2.0のみ
-✗ 新品は入手困難（生産終了）
-✗ Rekordbox/Traktorには使えない
+DJ Use Evaluation:
+◎ Pro standard for Serato DVS
+◎ Years of proven track record and reliability
+◎ Abundant used market makes it easy to obtain
+○ USB isolation for strong noise resistance
+✗ USB 2.0 only
+✗ Difficult to find new (discontinued)
+✗ Cannot be used with Rekordbox/Traktor
 
-注意:
-→ 後継モデル Rane SL4 も検討
-→ 中古購入時はSeratoライセンス移行を確認
-→ USBケーブルは付属品を使用推奨
+Note:
+→ Also consider the successor model Rane SL4
+→ When buying used, confirm Serato license transfer
+→ Use the included USB cable recommended
 ```
 
 #### Native Instruments Traktor Audio 6
 
 ```
-価格: 約30,000円
-接続: USB-B（USB 2.0）
-入力: 6 (RCA, Phono/Line)
-出力: 6 (RCA)
-ビット深度: 24bit
-サンプリングレート: 96kHz
-電源: バスパワー
+Price: ~30,000 yen
+Connection: USB-B (USB 2.0)
+Input: 6 (RCA, Phono/Line)
+Output: 6 (RCA)
+Bit Depth: 24bit
+Sample Rate: 96kHz
+Power: Bus powered
 
-特徴:
-✓ Traktor DVS完全対応
-✓ Traktor Scratch Pro 2ライセンス付属
-✓ 3系統ステレオ入出力
-✓ 高品質プリアンプ
-✓ 堅牢なアルミ筐体
+Features:
+✓ Full Traktor DVS support
+✓ Traktor Scratch Pro 2 license included
+✓ 3 stereo input/output pairs
+✓ High-quality preamps
+✓ Robust aluminum housing
 
-DJ用途での評価:
-◎ Traktor DVSの標準選択肢
-◎ Traktor Scratch Pro 2付属でコスパ良好
-○ 96kHz対応で音質良好
-✗ Traktor専用（他ソフト非対応）
-✗ 生産終了品が多い
+DJ Use Evaluation:
+◎ Standard choice for Traktor DVS
+◎ Good value with Traktor Scratch Pro 2 included
+○ Good sound quality with 96kHz support
+✗ Traktor exclusive (incompatible with other software)
+✗ Many units are discontinued
 ```
 
-### プロフェッショナルモデル（5-15万円）
+### Professional Models (50,000-150,000 yen)
 
 #### RME Babyface Pro FS
 
 ```
-価格: 約120,000円
-接続: USB 2.0（USB-B, USB-C変換付属）
-入力: 4 (XLR × 2 + TRS × 2) + ADAT
-出力: 4 (XLR × 2 + TRS × 2) + ADAT + ヘッドフォン × 2
-ビット深度: 24bit
-サンプリングレート: 最大192kHz
-ダイナミックレンジ: 119dB（ADC）、121dB（DAC）
-THD+N: -112dB（ADC）、-116dB（DAC）
-電源: バスパワー
-重量: 約350g
-サイズ: 171 × 110 × 45 mm
+Price: ~120,000 yen
+Connection: USB 2.0 (USB-B, USB-C adapter included)
+Input: 4 (XLR × 2 + TRS × 2) + ADAT
+Output: 4 (XLR × 2 + TRS × 2) + ADAT + Headphone × 2
+Bit Depth: 24bit
+Sample Rate: Up to 192kHz
+Dynamic Range: 119dB (ADC), 121dB (DAC)
+THD+N: -112dB (ADC), -116dB (DAC)
+Power: Bus powered
+Weight: ~350g
+Size: 171 × 110 × 45 mm
 
-特徴:
-✓ SteadyClock FS（フェムト秒クロック）
-✓ TotalMix FX（DSPミキサーソフト）
-✓ 超低レイテンシー（48サンプル = 約1ms）
-✓ 最高クラスのDAC/ADC品質
-✓ ADAT拡張で最大12ch入出力
-✓ 2系統のヘッドフォン出力
+Features:
+✓ SteadyClock FS (femtosecond clock)
+✓ TotalMix FX (DSP mixer software)
+✓ Ultra-low latency (48 samples = ~1ms)
+✓ Highest-class DAC/ADC quality
+✓ ADAT expansion for up to 12ch I/O
+✓ 2 headphone outputs
 ✓ MIDI I/O
-✓ バスパワー動作
+✓ Bus-powered operation
 
-DJ用途での評価:
-◎ 最高の音質でDJプレイ
-◎ TotalMix FXで柔軟なルーティング
-◎ 超低レイテンシー
-◎ DJ＋制作の究極の兼用機
-○ ADAT拡張でDVS対応可能
-✗ DVSソフトウェア認証なし（別途購入必要）
-✗ 高価
-✗ Phono入力なし（ミキサー経由必要）
+DJ Use Evaluation:
+◎ DJ with the highest sound quality
+◎ Flexible routing with TotalMix FX
+◎ Ultra-low latency
+◎ Ultimate dual-use machine for DJ + production
+○ DVS possible with ADAT expansion
+✗ No DVS software certification (separate purchase required)
+✗ Expensive
+✗ No phono input (requires routing through mixer)
 
-TotalMix FXの活用:
+TotalMix FX Applications:
 ─────────────────────────
-- ハードウェアDSPによるモニターミキシング
-- チャンネルごとのEQ/コンプレッサー
-- 柔軟なルーティングマトリクス
-- ループバック機能（配信向き）
-- リモートコントロール対応
+- Monitor mixing via hardware DSP
+- Per-channel EQ/compressor
+- Flexible routing matrix
+- Loopback function (ideal for streaming)
+- Remote control support
 ```
 
 #### Universal Audio Apollo Twin X
 
 ```
-価格: 約90,000円
-接続: Thunderbolt 3 / USB-C
-入力: 2 (Unison プリアンプ) + オプティカル (ADAT/S/PDIF)
-出力: 2 (TRS) + ヘッドフォン + モニター
-ビット深度: 24bit
-サンプリングレート: 最大192kHz
-DSP: SHARC プロセッサ × 2
-電源: 外部電源アダプタ
+Price: ~90,000 yen
+Connection: Thunderbolt 3 / USB-C
+Input: 2 (Unison Preamp) + Optical (ADAT/S/PDIF)
+Output: 2 (TRS) + Headphone + Monitor
+Bit Depth: 24bit
+Sample Rate: Up to 192kHz
+DSP: SHARC Processor × 2
+Power: External power adapter
 
-特徴:
-✓ Unisonプリアンプテクノロジー
-✓ UADプラグイン（DSP処理）
-✓ 超高品質DAC
-✓ リアルタイムDSPエフェクト
-✓ Luna録音ソフトウェア付属
+Features:
+✓ Unison Preamp Technology
+✓ UAD Plugins (DSP processing)
+✓ Ultra-high quality DAC
+✓ Real-time DSP effects
+✓ Luna recording software included
 
-DJ用途での評価:
-◎ 最高クラスのDAC品質
-○ UADプラグインでDJミックスにエフェクト
-✗ DJ専用としてはオーバースペック
-✗ 外部電源が必要
-✗ DVS認証なし
-✗ Thunderbolt/USB-C専用
+DJ Use Evaluation:
+◎ Highest-class DAC quality
+○ UAD plugins for effects on DJ mixes
+✗ Overkill as a DJ-only device
+✗ External power required
+✗ No DVS certification
+✗ Thunderbolt/USB-C only
 
-推奨用途:
-- プロ制作環境 + DJ兼用
-- 最高音質を追求するDJ
-- 音響エンジニア + DJの兼業
+Recommended Use:
+- Pro production environment + DJ dual-use
+- DJs pursuing the highest sound quality
+- Audio engineers who also DJ
 ```
 
 #### MOTU M4
 
 ```
-価格: 約30,000円
-接続: USB-C（USB 2.0）
-入力: 4（コンボジャック × 2 + TRS × 2）
-出力: 4（TRS × 2）+ ヘッドフォン
-ビット深度: 24bit
-サンプリングレート: 最大192kHz
-ダイナミックレンジ: 115dB（入力）、120dB（出力）
-電源: バスパワー
+Price: ~30,000 yen
+Connection: USB-C (USB 2.0)
+Input: 4 (Combo Jack × 2 + TRS × 2)
+Output: 4 (TRS × 2) + Headphone
+Bit Depth: 24bit
+Sample Rate: Up to 192kHz
+Dynamic Range: 115dB (input), 120dB (output)
+Power: Bus powered
 
-特徴:
-✓ ESS Sabre32 DAC搭載
-✓ 価格の割に卓越した音質
-✓ カラーLCDメーター
-✓ ループバック機能
-✓ 堅牢な金属筐体
+Features:
+✓ ESS Sabre32 DAC
+✓ Outstanding sound quality for the price
+✓ Color LCD meter
+✓ Loopback function
+✓ Robust metal housing
 
-DJ用途での評価:
-◎ 3万円台で120dBのDAC性能
-◎ 4in/4outでルーティングに余裕
-○ ループバック機能で配信に対応
-✗ DVS認証なし
-✗ Phono入力なし
+DJ Use Evaluation:
+◎ 120dB DAC performance in the 30,000 yen range
+◎ 4in/4out gives routing flexibility
+○ Loopback function for streaming support
+✗ No DVS certification
+✗ No phono input
 ```
 
-### モデル比較一覧表
+### Model Comparison Table
 
 ```
 ┌───────────────────────┬────────┬──────────┬──────┬───────┬─────┬─────┐
-│ モデル                │ 価格   │ 接続     │ IN   │ OUT   │ DVS │ DR  │
+│ Model                 │ Price  │ Connect  │ IN   │ OUT   │ DVS │ DR  │
 ├───────────────────────┼────────┼──────────┼──────┼───────┼─────┼─────┤
-│ Scarlett 2i2 (4th)    │ 1.8万  │ USB-C    │ 2    │ 2+HP  │ ✗   │115dB│
-│ Steinberg UR22C       │ 1.6万  │ USB-C    │ 2    │ 2+HP  │ ✗   │---  │
-│ Pioneer INTERFACE 2   │ 2.5万  │ USB-C/A  │ 4    │ 4     │ ○Rb │---  │
-│ Denon DS1             │ 2.5万  │ USB-B    │ 4    │ 4     │ ○Sr │---  │
-│ MOTU M4               │ 3.0万  │ USB-C    │ 4    │ 4+HP  │ ✗   │120dB│
-│ NI Audio 6            │ 3.0万  │ USB-B    │ 6    │ 6     │ ○Tk │---  │
-│ Rane SL3              │ 4.0万  │ USB-B    │ 6    │ 6     │ ○Sr │---  │
-│ UA Apollo Twin X      │ 9.0万  │ TB3/USB-C│ 2+   │ 2+HP  │ ✗   │---  │
-│ RME Babyface Pro FS   │ 12万   │ USB-B    │ 4+   │ 4+HP  │ ✗   │121dB│
-│ RME Fireface UCX II   │ 15万   │ USB-C    │ 8+   │ 8+HP  │ ✗   │---  │
+│ Scarlett 2i2 (4th)    │ 18K¥   │ USB-C    │ 2    │ 2+HP  │ ✗   │115dB│
+│ Steinberg UR22C       │ 16K¥   │ USB-C    │ 2    │ 2+HP  │ ✗   │---  │
+│ Pioneer INTERFACE 2   │ 25K¥   │ USB-C/A  │ 4    │ 4     │ ○Rb │---  │
+│ Denon DS1             │ 25K¥   │ USB-B    │ 4    │ 4     │ ○Sr │---  │
+│ MOTU M4               │ 30K¥   │ USB-C    │ 4    │ 4+HP  │ ✗   │120dB│
+│ NI Audio 6            │ 30K¥   │ USB-B    │ 6    │ 6     │ ○Tk │---  │
+│ Rane SL3              │ 40K¥   │ USB-B    │ 6    │ 6     │ ○Sr │---  │
+│ UA Apollo Twin X      │ 90K¥   │ TB3/USB-C│ 2+   │ 2+HP  │ ✗   │---  │
+│ RME Babyface Pro FS   │ 120K¥  │ USB-B    │ 4+   │ 4+HP  │ ✗   │121dB│
+│ RME Fireface UCX II   │ 150K¥  │ USB-C    │ 8+   │ 8+HP  │ ✗   │---  │
 └───────────────────────┴────────┴──────────┴──────┴───────┴─────┴─────┘
 
 DVS: Rb=Rekordbox, Sr=Serato, Tk=Traktor
-DR: ダイナミックレンジ（DAC）
-HP: ヘッドフォン出力
+DR: Dynamic Range (DAC)
+HP: Headphone output
 ```
 
 ---
 
-## 5. セットアップ手順の詳細
+## 5. Detailed Setup Procedures
 
-### Windows環境でのセットアップ
+### Windows Environment Setup
 
-#### Step 1: ドライバインストール
+#### Step 1: Driver Installation
 
-Windowsではオーディオインターフェイスのドライバを手動でインストールする必要があります（一部のUSBクラスコンプライアント対応機器を除く）。
+On Windows, you need to manually install audio interface drivers (except for some USB class-compliant devices).
 
 ```
-ドライバインストール手順:
+Driver Installation Procedure:
 ─────────────────────────
 
-1. メーカー公式サイトにアクセス
+1. Visit the manufacturer's official website
    - Focusrite: focusrite.com/downloads
    - Pioneer DJ: pioneerdj.com/support
    - RME: rme-audio.de/downloads
    - NI: native-instruments.com/support
 
-2. 製品名とOSを選択
-   - Windows 10 / 11 の64bit版を選択
-   - 最新バージョンをダウンロード
+2. Select product name and OS
+   - Choose Windows 10 / 11 64-bit
+   - Download the latest version
 
-3. インストーラー実行
-   - 管理者として実行（右クリック→管理者として実行）
-   - セキュリティ警告が出たら許可
-   - インストール先はデフォルトのまま
+3. Run the installer
+   - Run as administrator (right-click → Run as administrator)
+   - Allow security warnings
+   - Keep the default installation location
 
-4. PC再起動
-   - 再起動を求められなくても再起動推奨
-   - 再起動後にドライバが有効化
+4. Restart PC
+   - Recommended to restart even if not prompted
+   - Driver activates after restart
 
-5. デバイスマネージャーで確認
-   - Windows キー + X → デバイスマネージャー
-   - 「サウンド、ビデオ、およびゲーム コントローラー」
-   - オーディオIFが表示されていることを確認
-   - 黄色い三角マーク（!）がないことを確認
+5. Verify in Device Manager
+   - Windows key + X → Device Manager
+   - "Sound, video and game controllers"
+   - Confirm audio IF is displayed
+   - Confirm no yellow triangle marks (!)
 
-6. ファームウェアアップデート（必要に応じて）
-   - メーカーのコントロールソフトから確認
-   - USBケーブルを抜かないこと
-   - 電源が安定していることを確認
+6. Firmware update (if needed)
+   - Check from manufacturer's control software
+   - Do not disconnect USB cable
+   - Ensure stable power supply
 ```
 
-#### Step 2: 物理接続
+#### Step 2: Physical Connection
 
 ```
-接続手順:
+Connection Procedure:
 ─────────────────────────
 
-1. PC の USB ポートに接続
-   - USB 3.0 ポート推奨（青いポート）
-   - USB Hub は使わない（直接接続）
-   - ケーブルはメーカー付属品を使用
+1. Connect to PC USB port
+   - USB 3.0 port recommended (blue port)
+   - Do not use USB Hub (connect directly)
+   - Use the manufacturer-supplied cable
 
-2. 電源確認
-   - バスパワー: USB接続で自動給電
-   - 外部電源: ACアダプタ接続後にUSB接続
-   - LEDランプの点灯を確認
+2. Power verification
+   - Bus power: Automatic power via USB connection
+   - External power: Connect AC adapter before USB
+   - Confirm LED light is on
 
-3. Windows認識確認
-   - タスクバーのスピーカーアイコンを右クリック
-   - 「サウンドの設定」を開く
-   - 出力デバイスにオーディオIFが表示
+3. Windows recognition check
+   - Right-click the taskbar speaker icon
+   - Open "Sound settings"
+   - Audio IF should appear in output devices
 
-4. Windows サウンド設定
-   - 出力デバイス: オーディオIF名を選択
-   - 入力デバイス: オーディオIF名を選択
-   - 音量: 最大（DJソフト側で制御するため）
+4. Windows Sound settings
+   - Output device: Select audio IF name
+   - Input device: Select audio IF name
+   - Volume: Maximum (control from DJ software side)
 
-注意:
-✗ Bluetooth ヘッドフォンをデフォルトにしない
-✗ Windows の「音質の向上」は無効に
-✗ 排他モードを有効にする
+Notes:
+✗ Don't set Bluetooth headphones as default
+✗ Disable Windows "audio enhancements"
+✗ Enable exclusive mode
 ```
 
-#### Step 3: ASIO設定
+#### Step 3: ASIO Configuration
 
 ```
-ASIO（Audio Stream Input/Output）について:
+About ASIO (Audio Stream Input/Output):
 ─────────────────────────
-- Steinbergが開発した低レイテンシーオーディオ規格
-- Windowsの標準オーディオ（WASAPI/MME）を迂回
-- オーディオIFに直接アクセスすることで低レイテンシー実現
-- DJソフトウェアでの使用を強く推奨
+- Low-latency audio standard developed by Steinberg
+- Bypasses Windows standard audio (WASAPI/MME)
+- Achieves low latency by directly accessing the audio IF
+- Strongly recommended for use with DJ software
 
-方法A: メーカー純正ASIOドライバ（推奨）
+Method A: Manufacturer's Native ASIO Driver (Recommended)
 ─────────────────────────
-- ドライバインストール時に自動的にASIO対応
-- 最も安定で低レイテンシー
-- Focusrite、RME、MOTU等は優秀なASIOドライバ付属
+- Automatically ASIO-compatible upon driver installation
+- Most stable with lowest latency
+- Focusrite, RME, MOTU, etc. include excellent ASIO drivers
 
-方法B: ASIO4ALL（代替）
+Method B: ASIO4ALL (Alternative)
 ─────────────────────────
-- 無料のユニバーサルASIOドライバ
-- 純正ASIOドライバがない場合の代替
-- asio4all.org からダウンロード
-- 一部の環境では純正より安定しない場合あり
+- Free universal ASIO driver
+- Alternative when no native ASIO driver is available
+- Download from asio4all.org
+- May be less stable than native drivers in some environments
 
-ASIO4ALL インストール手順:
-1. asio4all.org にアクセス
-2. 最新版をダウンロード
-3. インストーラー実行
-4. 「Advanced Options」でオーディオIFを選択
-5. バッファサイズ調整
+ASIO4ALL Installation Procedure:
+1. Visit asio4all.org
+2. Download the latest version
+3. Run installer
+4. Select audio IF in "Advanced Options"
+5. Adjust buffer size
 
-DJソフトでのASIO設定:
+ASIO Settings in DJ Software:
 ─────────────────────────
 Rekordbox:
   Preferences → Audio → Audio Device
-  → 純正ASIOドライバ名 or ASIO4ALL を選択
+  → Select native ASIO driver name or ASIO4ALL
 
 Serato DJ:
-  Setup → Audio → 自動検出（通常）
-  → ASIO対応デバイスが自動選択
+  Setup → Audio → Auto-detect (usually)
+  → ASIO-compatible device is auto-selected
 
 Traktor:
   Preferences → Audio Setup → Audio Device
-  → ASIO ドライバを選択
+  → Select ASIO driver
 ```
 
-### macOS環境でのセットアップ
+### macOS Environment Setup
 
-macOSはCore Audioフレームワークにより、ほとんどのオーディオインターフェイスがドライバ不要で動作します。
+macOS's Core Audio framework allows most audio interfaces to work without drivers.
 
-#### Step 1: 接続
+#### Step 1: Connection
 
 ```
-macOS接続手順:
+macOS Connection Procedure:
 ─────────────────────────
 
-1. Audio IFをUSB/Thunderbolt接続
-   - Core Audioが自動認識
-   - 追加ドライバ不要（ほとんどの場合）
+1. Connect Audio IF via USB/Thunderbolt
+   - Core Audio auto-detects
+   - No additional drivers needed (in most cases)
 
-   例外（ドライバが必要な場合）:
-   - RME製品（TotalMix FX用）
-   - Universal Audio（UAD Console用）
-   - 一部のThunderbolt機器
+   Exceptions (drivers required):
+   - RME products (for TotalMix FX)
+   - Universal Audio (for UAD Console)
+   - Some Thunderbolt devices
 
-2. システム設定で確認
-   - Apple メニュー → システム設定 → サウンド
-   - 出力: オーディオIF名が表示
-   - 入力: オーディオIF名が表示
+2. Verify in System Settings
+   - Apple menu → System Settings → Sound
+   - Output: Audio IF name should appear
+   - Input: Audio IF name should appear
 
-3. Audio MIDI設定で詳細確認
-   - アプリケーション → ユーティリティ → Audio MIDI設定
-   - オーディオIFを選択
-   - サンプリングレート: 44100Hz に設定
-   - ビット深度: 24bit に設定
+3. Verify details in Audio MIDI Setup
+   - Applications → Utilities → Audio MIDI Setup
+   - Select audio IF
+   - Sample Rate: Set to 44100Hz
+   - Bit Depth: Set to 24bit
 
-4. セキュリティ許可（macOS 13以降）
-   - 初回接続時にアクセス許可ダイアログ
-   - 「許可」を選択
-   - システム設定 → プライバシーとセキュリティ で確認
+4. Security permissions (macOS 13 and later)
+   - Access permission dialog on first connection
+   - Select "Allow"
+   - Verify in System Settings → Privacy & Security
 ```
 
-#### Step 2: DJソフトウェア設定
+#### Step 2: DJ Software Configuration
 
 ```
-Rekordbox設定:
+Rekordbox Settings:
 ─────────────────────────
-1. Rekordbox起動
-2. [環境設定] → [オーディオ]
-3. Audio Device: オーディオIF名を選択
+1. Launch Rekordbox
+2. [Preferences] → [Audio]
+3. Audio Device: Select audio IF name
 4. Buffer Size: 512 samples
 5. Sample Rate: 44100Hz
 6. Output Setting:
    - Master: Output 1-2
-   - Headphones: Output 3-4（4ch以上の場合）
-   - Booth: 使用しない or Output 5-6
+   - Headphones: Output 3-4 (for 4ch+ models)
+   - Booth: Not used or Output 5-6
 
-Serato DJ設定:
+Serato DJ Settings:
 ─────────────────────────
-1. Serato DJ起動
-2. 認証済みオーディオIFを接続 → 自動認識
+1. Launch Serato DJ
+2. Connect certified audio IF → Auto-detected
 3. Setup → Audio
    - Channels: Stereo
    - USB Buffer Size: 512 samples
    - Sample Rate: 44100Hz
 
-Traktor設定:
+Traktor Settings:
 ─────────────────────────
-1. Traktor起動
+1. Launch Traktor
 2. Preferences → Audio Setup
-3. Audio Device: Core Audio ドライバ選択
+3. Audio Device: Select Core Audio driver
 4. Sample Rate: 44100Hz
 5. Latency: 512 samples
 6. Output Routing:
@@ -1189,1370 +1189,1370 @@ Traktor設定:
 
 ---
 
-## 6. Rekordbox 7での詳細設定
+## 6. Detailed Settings in Rekordbox 7
 
-### 基本オーディオ設定
+### Basic Audio Settings
 
 ```
 Preferences → Audio:
 ─────────────────────────
 
 ■ Audio Device
-  選択肢はPCに接続されているオーディオIFが表示
+  Options shown are audio IFs connected to the PC
   - Pioneer DJ INTERFACE 2
   - Focusrite Scarlett 2i2
   - RME Babyface Pro FS
   - etc.
 
 ■ Sample Rate
-  44100Hz ← 推奨（CDと同じ規格）
-  48000Hz ← 映像系ワークフロー時
-  96000Hz ← 不要（CPU負荷大、レイテンシー増加）
+  44100Hz ← Recommended (same standard as CD)
+  48000Hz ← For video workflow
+  96000Hz ← Unnecessary (high CPU load, increased latency)
 
-  理由:
-  - ほとんどのDJ用楽曲は44.1kHzで制作
-  - サンプリングレート変換が不要
-  - CPU負荷最小
-  - レイテンシー最小
+  Reason:
+  - Most DJ tracks are produced at 44.1kHz
+  - No sample rate conversion needed
+  - Minimum CPU load
+  - Minimum latency
 
 ■ Buffer Size
-  128 samples: ~3ms（非常に低レイテンシー、高負荷）
-  256 samples: ~6ms（低レイテンシー、やや高負荷）
-  512 samples: ~12ms（バランス良好）← 推奨
-  1024 samples: ~23ms（安定、レイテンシー大）
-  2048 samples: ~46ms（最も安定、レイテンシー大）
+  128 samples: ~3ms (very low latency, high load)
+  256 samples: ~6ms (low latency, somewhat high load)
+  512 samples: ~12ms (good balance) ← Recommended
+  1024 samples: ~23ms (stable, high latency)
+  2048 samples: ~46ms (most stable, high latency)
 
-  選択指針:
-  - DVS: 256 samples 推奨（追従性重視）
-  - コントローラー: 512 samples で十分
-  - 古いPC: 1024 samples で安定動作
-  - 音切れが発生 → バッファサイズを上げる
+  Selection Guide:
+  - DVS: 256 samples recommended (tracking priority)
+  - Controller: 512 samples is sufficient
+  - Older PC: 1024 samples for stable operation
+  - If audio dropouts occur → Increase buffer size
 ```
 
-### Output Routing設定
+### Output Routing Settings
 
 ```
-■ Performance Mode（コントローラー/キーボード操作）
+■ Performance Mode (Controller/Keyboard Operation)
 
   Master Output:
     Channel: 1-2
-    → メインスピーカー/PAシステムへ
+    → To main speakers/PA system
 
   Booth Output:
-    Channel: 3-4（4ch以上のIFが必要）
-    → DJブースモニターへ
-    → マスターとは独立した音量調整
+    Channel: 3-4 (requires 4ch+ IF)
+    → To DJ booth monitors
+    → Independent volume control from master
 
   Headphones Output:
-    Channel: 3-4 or オーディオIFのHP出力
-    → CUEモニタリング用
-    → マスターの先聴き
+    Channel: 3-4 or audio IF HP output
+    → For CUE monitoring
+    → Pre-listening to master
 
 ■ DVS Mode
 
   Deck 1 Output: Channel 1-2 → Mixer Ch1 Return
   Deck 2 Output: Channel 3-4 → Mixer Ch2 Return
-  Deck 1 Input: Channel 1-2 ← Mixer Ch1 Send（タイムコード）
-  Deck 2 Input: Channel 3-4 ← Mixer Ch2 Send（タイムコード）
+  Deck 1 Input: Channel 1-2 ← Mixer Ch1 Send (timecode)
+  Deck 2 Input: Channel 3-4 ← Mixer Ch2 Send (timecode)
 
-  ※ ヘッドフォンはミキサーのHP出力を使用
-  ※ マスター出力はミキサーのマスターを使用
+  ※ Headphones use the mixer's HP output
+  ※ Master output uses the mixer's master
 ```
 
-### DVS設定（INTERFACE 2使用時）
+### DVS Settings (Using INTERFACE 2)
 
 ```
 Preferences → DVS:
 ─────────────────────────
 
-■ Input設定
-  CH1: Input 1-2（ターンテーブル1 / CDJ1のタイムコード）
-  CH2: Input 3-4（ターンテーブル2 / CDJ2のタイムコード）
+■ Input Settings
+  CH1: Input 1-2 (Turntable 1 / CDJ1 timecode)
+  CH2: Input 3-4 (Turntable 2 / CDJ2 timecode)
 
 ■ Input Type
-  Phono: ターンテーブルから直接接続する場合
-  Line: ミキサーのSend/Recから接続する場合
+  Phono: When connecting directly from turntable
+  Line: When connecting from mixer Send/Rec
 
-  注意:
-  - PhoneとLineでは信号レベルが大きく異なる
-  - 間違えるとタイムコード読み取りエラーの原因に
-  - ターンテーブル直結 = Phono（必ず）
-  - ミキサー経由 = Line
+  Note:
+  - Signal levels differ significantly between Phono and Line
+  - Incorrect setting causes timecode reading errors
+  - Direct turntable connection = Phono (always)
+  - Through mixer = Line
 
 ■ DVS Mode
-  RELATIVE: 推奨
-    - 針を落とした位置から相対的に再生
-    - 針飛びしても曲の位置がリセットされない
-    - 一般的なDJプレイに最適
+  RELATIVE: Recommended
+    - Plays relatively from where the needle is dropped
+    - Track position doesn't reset on needle skip
+    - Ideal for general DJ play
 
   ABSOLUTE:
-    - バイナルの物理的位置 = 曲の再生位置
-    - 針を12時の位置に → 曲の先頭
-    - 正確なスクラッチが可能
-    - 針飛びすると再生位置がジャンプ
+    - Physical vinyl position = track playback position
+    - Needle at 12 o'clock → Beginning of track
+    - Enables precise scratching
+    - Playback position jumps on needle skip
 
   INTERNAL:
-    - DVSを無効化（ソフトウェア内部で再生）
-    - ターンテーブルは無視される
+    - Disables DVS (playback internal to software)
+    - Turntable is ignored
 
 ■ Tracking
-  Low: 検出感度が低い（安定だが追従性低い）
-  Medium: バランス良好 ← 推奨
-  High: 検出感度が高い（追従性良いが不安定な場合あり）
+  Low: Low detection sensitivity (stable but low tracking)
+  Medium: Good balance ← Recommended
+  High: High detection sensitivity (better tracking but may be unstable)
 
-■ Calibration（キャリブレーション）
-  手順:
-  1. タイムコードバイナルをセット
-  2. ターンテーブルの針を降ろす
-  3. 再生状態で「Calibrate」ボタンクリック
-  4. Scope表示が綺麗な円を描いているか確認
-  5. 緑色 = 良好、黄色 = 注意、赤色 = 不良
+■ Calibration
+  Procedure:
+  1. Set timecode vinyl
+  2. Drop the needle on the turntable
+  3. Click "Calibrate" button during playback
+  4. Verify that the Scope display draws a clean circle
+  5. Green = Good, Yellow = Caution, Red = Poor
 
-  Scope が綺麗な円にならない場合:
-  - 針圧を確認（3.0-4.0g推奨）
-  - バイナルの状態を確認（汚れ、傷）
-  - アース接続を確認
-  - Phono/Line切り替えを確認
-  - ケーブル接続を確認
+  If Scope doesn't show a clean circle:
+  - Check tracking force (3.0-4.0g recommended)
+  - Check vinyl condition (dirt, scratches)
+  - Check ground connection
+  - Check Phono/Line switch
+  - Check cable connections
 ```
 
-### Serato DJ Proでの設定
+### Serato DJ Pro Settings
 
 ```
-Serato DJ Pro Audio設定:
+Serato DJ Pro Audio Settings:
 ─────────────────────────
 
 ■ Setup → Audio
-  Audio Device: 認証済みオーディオIF自動選択
+  Audio Device: Certified audio IF auto-selected
 
   Channels:
-  - Stereo: 2デッキ（標準）
-  - Mono: 特殊用途
+  - Stereo: 2 decks (standard)
+  - Mono: Special use
 
   USB Buffer Size:
-  - 1 (1ms): 非常に高性能PCのみ
-  - 2 (2ms): 高性能PC
-  - 5 (5ms): 標準 ← 推奨
-  - 10 (10ms): 安定重視
-  - 15 (15ms): 古いPC
+  - 1 (1ms): Very high-performance PC only
+  - 2 (2ms): High-performance PC
+  - 5 (5ms): Standard ← Recommended
+  - 10 (10ms): Stability priority
+  - 15 (15ms): Older PC
 
-■ DVS設定
+■ DVS Settings
   Vinyl Control:
   - Absolute Mode: 33RPM / 45RPM
-  - Relative Mode: 推奨
-  - Internal Mode: DVS無効
+  - Relative Mode: Recommended
+  - Internal Mode: DVS disabled
 
   Calibration:
-  - ターンテーブル再生中に「Calibrate」
-  - Scope表示確認
-  - Threshold調整（ノイズフロア設定）
+  - Click "Calibrate" during turntable playback
+  - Check Scope display
+  - Adjust Threshold (noise floor setting)
 ```
 
-### Traktor Pro 3での設定
+### Traktor Pro 3 Settings
 
 ```
-Traktor Pro 3 Audio設定:
+Traktor Pro 3 Audio Settings:
 ─────────────────────────
 
 ■ Preferences → Audio Setup
-  Audio Device: ASIO（Win）/ Core Audio（Mac）ドライバ選択
+  Audio Device: Select ASIO (Win) / Core Audio (Mac) driver
   Sample Rate: 44100Hz
-  Latency: 自動（推奨）or 手動設定
+  Latency: Auto (recommended) or manual setting
 
 ■ Output Routing
-  Mixing Mode: Internal（ソフトウェアミキシング）
+  Mixing Mode: Internal (software mixing)
 
-  Output Monitor: オーディオIF Output 1-2
-  Output Master: オーディオIF Output 3-4
+  Output Monitor: Audio IF Output 1-2
+  Output Master: Audio IF Output 3-4
 
   or
 
-  Mixing Mode: External（外部ミキサー使用）
-  Output Deck A: オーディオIF Output 1-2
-  Output Deck B: オーディオIF Output 3-4
-  Output Deck C: オーディオIF Output 5-6
-  Output Deck D: オーディオIF Output 7-8
+  Mixing Mode: External (external mixer use)
+  Output Deck A: Audio IF Output 1-2
+  Output Deck B: Audio IF Output 3-4
+  Output Deck C: Audio IF Output 5-6
+  Output Deck D: Audio IF Output 7-8
 
-■ Input Routing（DVS時）
-  Input Deck A: オーディオIF Input 1-2
-  Input Deck B: オーディオIF Input 3-4
-  Input Deck C: オーディオIF Input 5-6
-  Input Deck D: オーディオIF Input 7-8
+■ Input Routing (DVS)
+  Input Deck A: Audio IF Input 1-2
+  Input Deck B: Audio IF Input 3-4
+  Input Deck C: Audio IF Input 5-6
+  Input Deck D: Audio IF Input 7-8
 
-■ Timecode Setup（DVS時）
+■ Timecode Setup (DVS)
   Turntable Speed: 33RPM / 45RPM
   Tracking Mode: Absolute / Relative
-  Calibration: 自動キャリブレーション実行
+  Calibration: Run auto-calibration
 ```
 
 ---
 
-## 7. レイテンシーの原理と最適化
+## 7. Latency Principles and Optimization
 
-### レイテンシーとは
+### What Is Latency
 
 ```
-レイテンシー（Latency）= 処理遅延時間
+Latency = Processing Delay Time
 ─────────────────────────
 
-定義:
-音声信号が入力されてから出力されるまでの時間差
+Definition:
+The time difference between when an audio signal is input and when it is output
 
-DJにとっての重要性:
-- ジョグホイール/ターンテーブル操作の即応性
-- エフェクト操作のリアルタイム性
-- DVSのスクラッチ追従性
-- ビートマッチングの精度
+Importance for DJs:
+- Responsiveness of jog wheel/turntable operations
+- Real-time nature of effect operations
+- DVS scratch tracking
+- Beat matching precision
 
-人間の知覚との関係:
-- 0-5ms: 知覚できない（理想）
-- 5-10ms: 非常にわずかに知覚可能（DJ用に十分）
-- 10-20ms: 知覚可能だが許容範囲（通常のDJプレイ）
-- 20-30ms: はっきり知覚できる（スクラッチに影響）
-- 30ms以上: DJプレイに支障（非推奨）
+Relationship with Human Perception:
+- 0-5ms: Imperceptible (ideal)
+- 5-10ms: Very slightly perceptible (sufficient for DJing)
+- 10-20ms: Perceptible but tolerable (normal DJ play)
+- 20-30ms: Clearly perceptible (affects scratching)
+- 30ms+: Impairs DJ play (not recommended)
 ```
 
-### レイテンシーの構成要素
+### Components of Latency
 
 ```
-総レイテンシー = 入力レイテンシー + 処理レイテンシー + 出力レイテンシー
+Total Latency = Input Latency + Processing Latency + Output Latency
 
-■ 入力レイテンシー（ADC）
-  ADC変換時間 + バッファリング
-  典型的: 1-3ms
+■ Input Latency (ADC)
+  ADC conversion time + buffering
+  Typical: 1-3ms
 
-■ 処理レイテンシー（ソフトウェア）
-  DJソフトウェアの内部処理
-  = バッファサイズ / サンプリングレート × 1000
+■ Processing Latency (Software)
+  Internal processing of DJ software
+  = Buffer Size / Sample Rate × 1000
 
-  例:
+  Examples:
   512 samples / 44100Hz × 1000 = 11.6ms
   256 samples / 44100Hz × 1000 = 5.8ms
   128 samples / 44100Hz × 1000 = 2.9ms
 
-■ 出力レイテンシー（DAC）
-  バッファリング + DAC変換時間
-  典型的: 1-3ms
+■ Output Latency (DAC)
+  Buffering + DAC conversion time
+  Typical: 1-3ms
 
-■ USB転送レイテンシー
+■ USB Transfer Latency
   USB 2.0: ~1ms
   USB 3.0: ~0.5ms
   Thunderbolt: ~0.3ms
 
-合計の目安:
+Approximate Totals:
 ─────────────────────────
-バッファ 128 samples: 2.9 + 3 + 1 = ~7ms
-バッファ 256 samples: 5.8 + 3 + 1 = ~10ms
-バッファ 512 samples: 11.6 + 3 + 1 = ~16ms
-バッファ 1024 samples: 23.2 + 3 + 1 = ~27ms
+Buffer 128 samples: 2.9 + 3 + 1 = ~7ms
+Buffer 256 samples: 5.8 + 3 + 1 = ~10ms
+Buffer 512 samples: 11.6 + 3 + 1 = ~16ms
+Buffer 1024 samples: 23.2 + 3 + 1 = ~27ms
 
-※ 実際の値はオーディオIF、ドライバ品質、PC性能により異なる
-※ Round-Trip Latency（入力→処理→出力の往復）はさらに大きい
+※ Actual values vary by audio IF, driver quality, and PC performance
+※ Round-Trip Latency (input → processing → output round trip) is even larger
 ```
 
-### レイテンシー最適化手順
+### Latency Optimization Procedure
 
-#### Step 1: Buffer Size調整
-
-```
-DJソフトウェアのバッファサイズ設定:
-─────────────────────────
-
-推奨手順:
-1. まず 512 samples で開始
-2. 音切れ（クリック/ポップ）がなければ 256 に下げる
-3. 256 で安定すれば 128 を試す
-4. 音切れが発生したら一段階上げる
-
-バッファサイズとレイテンシーの関係（44100Hz）:
-  64 samples: ~1.5ms（音切れリスク大）
-  128 samples: ~2.9ms（高性能PC向け）
-  256 samples: ~5.8ms（DVS推奨）
-  512 samples: ~11.6ms（標準推奨）
-  1024 samples: ~23.2ms（安定重視）
-  2048 samples: ~46.4ms（音切れ絶対防止）
-
-用途別推奨:
-  スクラッチDJ（DVS）: 128-256 samples
-  通常のDJ Mix: 256-512 samples
-  配信DJ: 512-1024 samples（安定重視）
-  カジュアル練習: 512 samples
-```
-
-#### Step 2: Sample Rate最適化
+#### Step 1: Buffer Size Adjustment
 
 ```
-サンプリングレートとレイテンシーの関係:
+DJ Software Buffer Size Settings:
 ─────────────────────────
 
-44100Hz（推奨）:
-- CD規格と同じ
-- ほとんどのDJ楽曲のネイティブレート
-- 最小のCPU負荷
-- バッファサイズあたりのレイテンシーが基準
+Recommended Procedure:
+1. Start with 512 samples
+2. If no audio dropouts (clicks/pops), lower to 256
+3. If stable at 256, try 128
+4. If dropouts occur, go back one step
+
+Buffer Size and Latency Relationship (44100Hz):
+  64 samples: ~1.5ms (high dropout risk)
+  128 samples: ~2.9ms (for high-performance PCs)
+  256 samples: ~5.8ms (DVS recommended)
+  512 samples: ~11.6ms (standard recommended)
+  1024 samples: ~23.2ms (stability priority)
+  2048 samples: ~46.4ms (absolute dropout prevention)
+
+Recommendations by Use:
+  Scratch DJ (DVS): 128-256 samples
+  Normal DJ Mix: 256-512 samples
+  Streaming DJ: 512-1024 samples (stability priority)
+  Casual Practice: 512 samples
+```
+
+#### Step 2: Sample Rate Optimization
+
+```
+Sample Rate and Latency Relationship:
+─────────────────────────
+
+44100Hz (Recommended):
+- Same as CD standard
+- Native rate for most DJ tracks
+- Minimum CPU load
+- Baseline latency per buffer size
 
 48000Hz:
-- 映像系での標準
-- DJ用途では44.1kHzとの違いは微小
-- MV制作や映像同期時に選択
+- Standard for video
+- Minimal difference from 44.1kHz for DJ use
+- Select for music video production or video sync
 
 96000Hz:
-- ハイレゾ
-- DJ用途ではCPU負荷増大のデメリットが大きい
-- レイテンシーは改善しない（バッファサイズに依存）
-- 特別な理由がなければ不要
+- Hi-res
+- Increased CPU load is a major disadvantage for DJ use
+- Latency doesn't improve (depends on buffer size)
+- Unnecessary without special reason
 
 192kHz:
-- 完全にオーバースペック
-- DJ用途では絶対に不要
-- CPU負荷が4倍以上に
+- Complete overkill
+- Absolutely unnecessary for DJ use
+- CPU load increases 4x or more
 ```
 
-#### Step 3: PC/Mac最適化
+#### Step 3: PC/Mac Optimization
 
 ```
-Windows 最適化:
+Windows Optimization:
 ─────────────────────────
 
-■ 電源プラン設定
-  コントロールパネル → 電源オプション
-  → 「高パフォーマンス」を選択
-  → プロセッサの最小状態: 100%
-  → USBセレクティブサスペンド: 無効
+■ Power Plan Settings
+  Control Panel → Power Options
+  → Select "High Performance"
+  → Minimum processor state: 100%
+  → USB selective suspend: Disabled
 
-■ バックグラウンドプロセス管理
-  タスクマネージャー → スタートアップ
-  → 不要なアプリを「無効」に
+■ Background Process Management
+  Task Manager → Startup
+  → Set unnecessary apps to "Disabled"
 
-  特に停止すべき:
-  - クラウドストレージ同期（Dropbox、OneDrive等）
-  - ウイルス対策のリアルタイムスキャン
-  - Windows Update（DJプレイ中）
-  - Cortana / 検索インデックス
-  - 通知機能
+  Especially stop:
+  - Cloud storage sync (Dropbox, OneDrive, etc.)
+  - Antivirus real-time scanning
+  - Windows Update (during DJ play)
+  - Cortana / Search indexing
+  - Notifications
 
-■ ネットワーク設定
-  Wi-Fi: OFFにする（有線推奨）
-  Bluetooth: OFFにする
-  → 無線機器はUSBオーディオに干渉する可能性
+■ Network Settings
+  Wi-Fi: Turn OFF (wired recommended)
+  Bluetooth: Turn OFF
+  → Wireless devices can interfere with USB audio
 
-■ デバイスマネージャー設定
-  USBルートハブ → プロパティ → 電源の管理
-  → 「コンピューターでこのデバイスの電源をオフにできるようにする」のチェックを外す
+■ Device Manager Settings
+  USB Root Hub → Properties → Power Management
+  → Uncheck "Allow the computer to turn off this device to save power"
 
-■ DPC Latency対策
-  DPC Latency Checker ツールで確認
-  → 赤い棒が頻繁に出る場合:
-  - ネットワークドライバを無効化
-  - グラフィックドライバを更新
-  - BIOS設定でC-Stateを無効化
+■ DPC Latency Countermeasures
+  Check with DPC Latency Checker tool
+  → If red bars appear frequently:
+  - Disable network drivers
+  - Update graphics drivers
+  - Disable C-States in BIOS settings
 
-macOS 最適化:
+macOS Optimization:
 ─────────────────────────
 
-■ 省エネルギー設定
-  システム設定 → バッテリー / 電源アダプタ
-  → ディスプレイがオフのときにスリープしない: ON
+■ Energy Saver Settings
+  System Settings → Battery / Power Adapter
+  → Prevent sleep when display is off: ON
   → Power Nap: OFF
 
-■ Spotlight無効化（一時的）
+■ Spotlight Disable (Temporary)
   sudo mdutil -a -i off
-  （DJプレイ後に再有効化: sudo mdutil -a -i on）
+  (Re-enable after DJ play: sudo mdutil -a -i on)
 
-■ 不要アプリ終了
-  - Time Machine バックアップを一時停止
-  - iCloud同期を一時停止
-  - メール自動チェックを停止
-  - Siri を無効化
+■ Close Unnecessary Apps
+  - Pause Time Machine backup
+  - Pause iCloud sync
+  - Stop automatic mail checking
+  - Disable Siri
 
-■ Activity Monitor確認
-  CPU負荷の高いプロセスを確認
-  → kernel_task が高い場合は温度管理の問題
-  → 冷却を改善（スタンド使用等）
+■ Activity Monitor Check
+  Check processes with high CPU usage
+  → If kernel_task is high, it's a thermal management issue
+  → Improve cooling (use a stand, etc.)
 
-■ ターミナルでの最適化
-  # Spotlight一時停止
+■ Terminal Optimization
+  # Pause Spotlight
   sudo mdutil -a -i off
 
-  # スクリーンセーバー無効化（caffeinate使用）
+  # Disable screen saver (using caffeinate)
   caffeinate -d &
 ```
 
-#### Step 4: ドライバ最適化
+#### Step 4: Driver Optimization
 
 ```
-ドライバの最適化:
+Driver Optimization:
 ─────────────────────────
 
-■ 常に最新ドライバを使用
-  - メーカーサイトで定期的に確認
-  - ベータ版は避ける（安定版を使用）
-  - メジャーアップデート後は互換性確認
+■ Always Use the Latest Drivers
+  - Check manufacturer's site regularly
+  - Avoid beta versions (use stable releases)
+  - Verify compatibility after major updates
 
-■ ASIO設定の最適化（Windows）
-  メーカー純正ASIOコントロールパネル:
-  - バッファサイズ: DJソフトと同じ値に
-  - サンプリングレート: 44100Hz
-  - クロックソース: Internal
+■ ASIO Settings Optimization (Windows)
+  Manufacturer's native ASIO control panel:
+  - Buffer size: Same value as DJ software
+  - Sample rate: 44100Hz
+  - Clock source: Internal
 
-■ Core Audio設定の最適化（macOS）
-  Audio MIDI設定:
-  - クロックソース: オーディオIF（内部クロック）
-  - サンプリングレート: 44100Hz
-  - ビット深度: 24bit
+■ Core Audio Settings Optimization (macOS)
+  Audio MIDI Setup:
+  - Clock source: Audio IF (internal clock)
+  - Sample rate: 44100Hz
+  - Bit depth: 24bit
 
-■ 排他モード（Windows）
-  サウンドの設定 → オーディオIF → プロパティ
-  → 詳細 → 排他モード
-  → 「アプリケーションがこのデバイスを排他的に制御できるようにする」: ON
-  → DJソフトがオーディオIFを独占使用
-  → 他のアプリの干渉を防止
+■ Exclusive Mode (Windows)
+  Sound settings → Audio IF → Properties
+  → Advanced → Exclusive mode
+  → "Allow applications to take exclusive control of this device": ON
+  → DJ software exclusively uses the audio IF
+  → Prevents interference from other apps
 ```
 
 ---
 
-## 8. 接続パターンの詳細
+## 8. Detailed Connection Patterns
 
-### パターン1: DJコントローラー + 外部オーディオIF
+### Pattern 1: DJ Controller + External Audio IF
 
 ```
-構成図:
+Configuration Diagram:
 ─────────────────────────
-DJコントローラー（内蔵Audio IFを使わず）
-  ↓ USB（MIDI信号のみ）
-PC/Mac（DJソフトウェア）
-  ↓ USB（オーディオ）
-外部オーディオIF
-  ├── Output 1-2 → メインスピーカー（XLR/TRS）
-  └── HP Out → ヘッドフォン
+DJ Controller (not using built-in Audio IF)
+  ↓ USB (MIDI signals only)
+PC/Mac (DJ Software)
+  ↓ USB (Audio)
+External Audio IF
+  ├── Output 1-2 → Main speakers (XLR/TRS)
+  └── HP Out → Headphones
 
-メリット:
-- コントローラー内蔵IFより高音質
-- バランス出力（XLR/TRS）でPA接続に適切
-- プロフェッショナルな出力レベル
+Benefits:
+- Higher sound quality than controller's built-in IF
+- Balanced outputs (XLR/TRS) suitable for PA connection
+- Professional output levels
 
-設定ポイント:
-- DJソフトのAudio DeviceをオーディオIFに変更
-- コントローラーはMIDIデバイスとして認識
-- コントローラーの内蔵Audio IFは使用しない
+Configuration Points:
+- Change DJ software Audio Device to the audio IF
+- Controller is recognized as a MIDI device
+- Controller's built-in Audio IF is not used
 ```
 
-### パターン2: ソフトウェアDJ（コントローラーなし）
+### Pattern 2: Software DJ (No Controller)
 
 ```
-構成図:
+Configuration Diagram:
 ─────────────────────────
-PC/Mac（DJソフトウェア: キーボード/マウス操作）
+PC/Mac (DJ Software: keyboard/mouse operation)
   ↓ USB
 Audio IF (2in/2out)
-  ├── Output 1-2 → アクティブスピーカー
-  └── HP Out → ヘッドフォン（CUEモニター）
+  ├── Output 1-2 → Active speakers
+  └── HP Out → Headphones (CUE monitor)
 
-メリット:
-- 最小構成でDJが可能
-- 持ち運び最軽量
-- 低コスト
+Benefits:
+- Minimum configuration for DJing
+- Lightest for portability
+- Low cost
 
-デメリット:
-- 物理的なコントロールがない
-- ジョグホイール/フェーダーなし
-- ライブパフォーマンスには不向き
+Drawbacks:
+- No physical controls
+- No jog wheel/faders
+- Not suitable for live performance
 
-適した場面:
-- 自宅でのMix録音
-- 配信DJ
-- DJソフトウェアの学習
+Suitable Scenarios:
+- Home mix recording
+- Streaming DJ
+- Learning DJ software
 ```
 
-### パターン3: DVS 2デッキ構成
+### Pattern 3: DVS 2-Deck Configuration
 
 ```
-構成図（詳細）:
+Configuration Diagram (Detailed):
 ─────────────────────────
 
-[ターンテーブル1]    [ターンテーブル2]
-（タイムコードバイナル）（タイムコードバイナル）
+[Turntable 1]           [Turntable 2]
+(Timecode Vinyl)        (Timecode Vinyl)
       ↓ Phono              ↓ Phono
-[DJミキサー Ch1]    [DJミキサー Ch2]
+[DJ Mixer Ch1]          [DJ Mixer Ch2]
       ↓ REC OUT / SEND
-[Audio IF Input 1-2] [Audio IF Input 3-4]
-            ↓ USB（タイムコード信号をPCへ）
+[Audio IF Input 1-2]    [Audio IF Input 3-4]
+            ↓ USB (Timecode signal to PC)
       [PC/Mac: Rekordbox DVS]
-      （タイムコード解析 → 楽曲再生）
-            ↓ USB（再生音声をAudio IFへ）
-[Audio IF Output 1-2][Audio IF Output 3-4]
+      (Timecode Analysis → Track Playback)
+            ↓ USB (Playback audio to Audio IF)
+[Audio IF Output 1-2]   [Audio IF Output 3-4]
       ↓ Return/Line In
-[DJミキサー Ch1]    [DJミキサー Ch2]
-      ↓ ミキシング
-[DJミキサー Master Out]
+[DJ Mixer Ch1]          [DJ Mixer Ch2]
+      ↓ Mixing
+[DJ Mixer Master Out]
       ↓ XLR/RCA
-[PAシステム / スピーカー]
+[PA System / Speakers]
 
-必要機材:
-- ターンテーブル × 2
-- タイムコードバイナル × 2（ソフトウェア付属品）
-- DJミキサー（Send/Return or REC OUT付き）
-- DVS対応オーディオIF（4in/4out以上）
-- DVS対応ソフトウェア（ライセンス）
+Required Equipment:
+- Turntable × 2
+- Timecode Vinyl × 2 (included with software)
+- DJ Mixer (with Send/Return or REC OUT)
+- DVS-compatible audio IF (4in/4out or more)
+- DVS-compatible software (license)
 - PC/Mac
-- RCAケーブル × 4本以上
+- RCA cables × 4 or more
 
-接続のコツ:
-- ケーブルは色分けして管理
-- 左チャンネル（白）と右チャンネル（赤）を間違えない
-- アース線を必ず接続（ハム音防止）
-- ケーブル長は最短で（ノイズ低減）
+Connection Tips:
+- Color-code cables for management
+- Don't mix up left channel (white) and right channel (red)
+- Always connect the ground wire (prevents hum noise)
+- Keep cable lengths as short as possible (noise reduction)
 ```
 
-### パターン4: DVS 4デッキ構成
+### Pattern 4: DVS 4-Deck Configuration
 
 ```
-構成図:
+Configuration Diagram:
 ─────────────────────────
 
 [TT1] [TT2] [CDJ1] [CDJ2]
   ↓     ↓     ↓      ↓
-[4chミキサー Ch1-4]
-  ↓ Send/REC OUT（4系統）
+[4ch Mixer Ch1-4]
+  ↓ Send/REC OUT (4 pairs)
 [Audio IF 8in/8out]
-  Input 1-2: TT1タイムコード
-  Input 3-4: TT2タイムコード
-  Input 5-6: CDJ1タイムコード
-  Input 7-8: CDJ2タイムコード
+  Input 1-2: TT1 timecode
+  Input 3-4: TT2 timecode
+  Input 5-6: CDJ1 timecode
+  Input 7-8: CDJ2 timecode
       ↓ USB
-[PC/Mac: DJソフト 4デッキ]
+[PC/Mac: DJ Software 4 Decks]
       ↓ USB
 [Audio IF 8in/8out]
-  Output 1-2: デッキA → ミキサーCh1
-  Output 3-4: デッキB → ミキサーCh2
-  Output 5-6: デッキC → ミキサーCh3
-  Output 7-8: デッキD → ミキサーCh4
+  Output 1-2: Deck A → Mixer Ch1
+  Output 3-4: Deck B → Mixer Ch2
+  Output 5-6: Deck C → Mixer Ch3
+  Output 7-8: Deck D → Mixer Ch4
       ↓ Return
-[4chミキサー]
+[4ch Mixer]
       ↓ Master Out
-[PAシステム]
+[PA System]
 
-注意:
-- 8in/8out対応のオーディオIFが必要
-- CPU負荷が高いため高性能PCが必要
-- バッファサイズ 512 samples以上推奨
-- ケーブル管理が複雑（色分けラベル必須）
+Notes:
+- Requires an 8in/8out audio IF
+- High CPU load requires a high-performance PC
+- Buffer size of 512 samples or higher recommended
+- Cable management is complex (color-coded labels are essential)
 ```
 
-### パターン5: ハイブリッド構成
+### Pattern 5: Hybrid Configuration
 
 ```
-構成図:
+Configuration Diagram:
 ─────────────────────────
 
-[ターンテーブル（DVS）] + [CDJ（USB/HID）] + [DJコントローラー（MIDI）]
-         ↓ Phono               ↓ USB/HID             ↓ USB（MIDI）
-[DJミキサー Ch1]          [PC/Mac直結]
+[Turntable (DVS)] + [CDJ (USB/HID)] + [DJ Controller (MIDI)]
+         ↓ Phono               ↓ USB/HID             ↓ USB (MIDI)
+[DJ Mixer Ch1]          [Direct to PC/Mac]
          ↓ Send
 [Audio IF Input 1-2]
          ↓ USB
 [PC/Mac: Rekordbox]
-  - デッキA: DVS（ターンテーブル制御）
-  - デッキB: CDJ HIDモード（CDJで直接制御）
-  - デッキC/D: MIDIコントローラー制御
+  - Deck A: DVS (turntable control)
+  - Deck B: CDJ HID mode (direct CDJ control)
+  - Deck C/D: MIDI controller control
          ↓ USB
-[Audio IF Output 1-2] → ミキサー Return
-[Audio IF Output 3-4] → ミキサー or スピーカー
+[Audio IF Output 1-2] → Mixer Return
+[Audio IF Output 3-4] → Mixer or Speakers
 
-メリット:
-- 様々な入力ソースを統合
-- DJスタイルの幅が広がる
-- 段階的な機材アップグレードが可能
+Benefits:
+- Integrates various input sources
+- Expands the range of DJ styles
+- Enables gradual equipment upgrades
 ```
 
-### パターン6: 配信DJ構成
+### Pattern 6: Streaming DJ Configuration
 
 ```
-構成図:
+Configuration Diagram:
 ─────────────────────────
 
-[DJソフトウェア（Rekordbox / Serato）]
-      ↓ 内部ルーティング
-[オーディオIF（ループバック機能付き）]
-  ├── Output 1-2 → スピーカー（モニター用）
-  ├── HP Out → ヘッドフォン（CUE）
-  └── Loopback → 配信ソフト（OBS / Streamlabs）
+[DJ Software (Rekordbox / Serato)]
+      ↓ Internal Routing
+[Audio IF (with Loopback function)]
+  ├── Output 1-2 → Speakers (for monitoring)
+  ├── HP Out → Headphones (CUE)
+  └── Loopback → Streaming Software (OBS / Streamlabs)
               ↓
-[配信ソフト（OBS Studio）]
-  ├── Audio Input: オーディオIFのLoopback
-  ├── Video: Webカメラ / 画面キャプチャ
+[Streaming Software (OBS Studio)]
+  ├── Audio Input: Audio IF Loopback
+  ├── Video: Webcam / Screen Capture
   └── Output: YouTube / Twitch / Instagram Live
 
-ループバック機能がないオーディオIFの場合:
+For Audio IFs Without Loopback Function:
 ─────────────────────────
-代替方法（macOS）:
-  - BlackHole（無料仮想オーディオドライバ）
-  - Loopback by Rogue Amoeba（有料）
-  - Audio MIDI設定で集約デバイス作成
+Alternative Methods (macOS):
+  - BlackHole (free virtual audio driver)
+  - Loopback by Rogue Amoeba (paid)
+  - Create aggregate device in Audio MIDI Setup
 
-代替方法（Windows）:
-  - VoiceMeeter（無料仮想ミキサー）
+Alternative Methods (Windows):
+  - VoiceMeeter (free virtual mixer)
   - ASIO Link Pro
   - Virtual Audio Cable
 
-ループバック対応おすすめモデル:
-  - Steinberg UR22C（ループバック内蔵）
-  - MOTU M4（ループバック内蔵）
-  - RME Babyface Pro FS（TotalMix FXで柔軟に設定）
+Recommended Models with Loopback:
+  - Steinberg UR22C (built-in loopback)
+  - MOTU M4 (built-in loopback)
+  - RME Babyface Pro FS (flexibly configurable via TotalMix FX)
 ```
 
 ---
 
-## 9. トラブルシューティング完全ガイド
+## 9. Complete Troubleshooting Guide
 
-### 音が出ない
+### No Sound
 
 ```
-チェック項目と対処法:
+Checklist and Solutions:
 ─────────────────────────
 
-□ Step 1: 物理接続の確認
-  - USB ケーブルがしっかり差さっているか
-  - オーディオIF の電源LED が点灯しているか
-  - 出力ケーブル（RCA/TRS/XLR）の接続を確認
-  - スピーカーの電源がONか
-  - スピーカーの入力ソースが正しいか
-  - スピーカーのボリュームが上がっているか
+□ Step 1: Check Physical Connections
+  - Is the USB cable firmly plugged in?
+  - Is the audio IF power LED lit?
+  - Check output cable (RCA/TRS/XLR) connections
+  - Is the speaker powered on?
+  - Is the speaker input source correct?
+  - Is the speaker volume turned up?
 
-□ Step 2: OS レベルの確認
+□ Step 2: OS-Level Check
   Windows:
-  - タスクバー → サウンド設定
-  - 出力デバイスがオーディオIF名になっているか
-  - 音量がミュートされていないか
-  - デバイスマネージャーでエラーがないか
+  - Taskbar → Sound settings
+  - Is the output device set to the audio IF name?
+  - Is the volume muted?
+  - Are there errors in Device Manager?
 
   macOS:
-  - システム設定 → サウンド → 出力
-  - オーディオIF名が選択されているか
-  - 音量がゼロになっていないか
-  - Audio MIDI設定で認識されているか
+  - System Settings → Sound → Output
+  - Is the audio IF name selected?
+  - Is the volume at zero?
+  - Is it recognized in Audio MIDI Setup?
 
-□ Step 3: DJソフトウェアの確認
-  - Audio Device にオーディオIF名が選択されているか
-  - Output Channel の設定が正しいか（1-2等）
-  - マスター音量が上がっているか
-  - ミュートされていないか
-  - 楽曲がロードされて再生されているか
+□ Step 3: DJ Software Check
+  - Is the audio IF name selected in Audio Device?
+  - Is the Output Channel setting correct (1-2, etc.)?
+  - Is the master volume turned up?
+  - Is it muted?
+  - Is a track loaded and playing?
 
-□ Step 4: ドライバの確認
-  - 最新ドライバがインストールされているか
-  - ドライバの再インストールを試す
-  - PC再起動後に再接続
+□ Step 4: Driver Check
+  - Is the latest driver installed?
+  - Try reinstalling the driver
+  - Reconnect after PC restart
 
-□ Step 5: USB接続の確認
-  - 別のUSBポートに接続してみる
-  - USB Hubを外して直接接続
-  - 他のUSBデバイスを外してみる
-  - 付属USBケーブルに交換
+□ Step 5: USB Connection Check
+  - Try a different USB port
+  - Remove USB Hub and connect directly
+  - Disconnect other USB devices
+  - Switch to the included USB cable
 
-□ Step 6: ASIO設定の確認（Windows）
-  - ASIO ドライバが正しく選択されているか
-  - ASIO コントロールパネルでデバイスが認識されているか
-  - 排他モードが有効か
+□ Step 6: ASIO Settings Check (Windows)
+  - Is the correct ASIO driver selected?
+  - Is the device recognized in the ASIO control panel?
+  - Is exclusive mode enabled?
 ```
 
-### ノイズが入る
+### Noise Issues
 
 ```
-ノイズの種類と対処法:
+Types of Noise and Solutions:
 ─────────────────────────
 
-■ ハム音（ブーン / ジー という低い音）
-  原因: アース/グラウンドループ
-  対処:
-  □ ターンテーブルのアース線を接続
-  □ 全機器を同一電源タップに接続
-  □ グラウンドループアイソレーター使用
-  □ DI ボックス使用（バランス接続）
-  □ USB アイソレーター使用
+■ Hum (Low buzzing/humming sound)
+  Cause: Ground/ground loop
+  Solutions:
+  □ Connect turntable ground wire
+  □ Connect all devices to the same power strip
+  □ Use a ground loop isolator
+  □ Use a DI box (balanced connection)
+  □ Use a USB isolator
 
-■ ホワイトノイズ（サーッという音）
-  原因: ゲイン設定過大 / 低品質プリアンプ
-  対処:
-  □ 入力ゲインを適正レベルに調整
-  □ ケーブル品質を確認（シールドケーブル使用）
-  □ ケーブル長を最短に
-  □ 電磁干渉源から離す（電源アダプタ、モニター等）
+■ White Noise (Hissing sound)
+  Cause: Excessive gain / low-quality preamp
+  Solutions:
+  □ Adjust input gain to proper level
+  □ Check cable quality (use shielded cables)
+  □ Keep cable lengths as short as possible
+  □ Move away from electromagnetic interference sources (power adapters, monitors, etc.)
 
-■ デジタルノイズ（ジリジリ / ピキピキ）
-  原因: USB干渉 / EMI / クロック問題
-  対処:
-  □ USB ケーブルを高品質品に交換
-  □ USB Hub を外す
-  □ Wi-Fi / Bluetooth を OFF
-  □ 充電中のスマートフォンを離す
-  □ USB ケーブルとオーディオケーブルを離す
+■ Digital Noise (Crackling/buzzing)
+  Cause: USB interference / EMI / clock issues
+  Solutions:
+  □ Replace USB cable with a high-quality one
+  □ Remove USB Hub
+  □ Turn OFF Wi-Fi / Bluetooth
+  □ Move charging smartphones away
+  □ Separate USB cables from audio cables
 
-■ クリック/ポップ（プチプチ音）
-  原因: バッファアンダーラン / ドライバ問題
-  対処:
-  □ バッファサイズを上げる（256→512→1024）
-  □ バックグラウンドアプリを終了
-  □ ドライバを再インストール
-  □ 電源プランを「高パフォーマンス」に
-  □ DPC Latency を確認（Windows）
+■ Clicks/Pops (Popping sounds)
+  Cause: Buffer underrun / driver issues
+  Solutions:
+  □ Increase buffer size (256→512→1024)
+  □ Close background applications
+  □ Reinstall drivers
+  □ Set power plan to "High Performance"
+  □ Check DPC Latency (Windows)
 
-■ フィードバック（ハウリング）
-  原因: 入出力のループ
-  対処:
-  □ モニタリング設定を確認
-  □ ダイレクトモニタリングをOFF
-  □ DJソフトのモニター設定を確認
-  □ スピーカーの向きを調整
+■ Feedback (Howling)
+  Cause: Input/output loop
+  Solutions:
+  □ Check monitoring settings
+  □ Turn OFF direct monitoring
+  □ Check DJ software monitor settings
+  □ Adjust speaker orientation
 ```
 
-### レイテンシーが大きい
+### High Latency
 
 ```
-レイテンシー改善の手順:
+Latency Improvement Steps:
 ─────────────────────────
 
-□ Step 1: バッファサイズを下げる
+□ Step 1: Lower Buffer Size
   1024 → 512 → 256 → 128
-  音切れが発生するまで下げて、一段階戻す
+  Lower until dropouts occur, then go back one step
 
-□ Step 2: サンプリングレートを確認
-  96kHz → 44.1kHz に変更
-  （レイテンシーへの影響は限定的だがCPU負荷軽減）
+□ Step 2: Check Sample Rate
+  96kHz → Change to 44.1kHz
+  (Limited impact on latency but reduces CPU load)
 
-□ Step 3: ドライバの確認
-  Windows: ASIO ドライバを使用（WASAPI/MMEは避ける）
-  macOS: Core Audio（標準で最適化済み）
+□ Step 3: Check Drivers
+  Windows: Use ASIO driver (avoid WASAPI/MME)
+  macOS: Core Audio (optimized by default)
 
-□ Step 4: バックグラウンドアプリを終了
-  CPU使用率を10%以下に
-  メモリ使用率を50%以下に
+□ Step 4: Close Background Apps
+  Keep CPU usage below 10%
+  Keep memory usage below 50%
 
-□ Step 5: PC/Mac の最適化
-  前述の「PC/Mac最適化」セクション参照
+□ Step 5: PC/Mac Optimization
+  Refer to the "PC/Mac Optimization" section above
 
-□ Step 6: USBポートの変更
-  USB 3.0ポートに接続
-  マザーボード直結のポートを使用
+□ Step 6: Change USB Port
+  Connect to USB 3.0 port
+  Use a port directly on the motherboard
 
-□ Step 7: オーディオIFの再起動
-  USB抜き差し → DJソフト再起動
+□ Step 7: Restart Audio IF
+  Disconnect/reconnect USB → Restart DJ software
 
-□ Step 8: ドライバ再インストール
-  完全アンインストール → PC再起動 → 最新版インストール
+□ Step 8: Reinstall Drivers
+  Complete uninstall → PC restart → Install latest version
 ```
 
-### DVSが追従しない
+### DVS Not Tracking
 
 ```
-DVS トラブルシューティング:
+DVS Troubleshooting:
 ─────────────────────────
 
-□ Step 1: タイムコード信号の確認
-  DJソフトのScope/Waveform表示を確認
-  - 綺麗な円/波形 → 信号OK
-  - 歪んだ円 → 信号品質に問題
-  - 表示なし → 信号が届いていない
+□ Step 1: Check Timecode Signal
+  Check the Scope/Waveform display in DJ software
+  - Clean circle/waveform → Signal OK
+  - Distorted circle → Signal quality issue
+  - No display → Signal not reaching
 
-□ Step 2: 針圧確認
-  推奨: 3.0-4.0g（DVS用）
-  通常のリスニング用（1.5-2.5g）より重めに設定
-  → タイムコードの読み取り精度が向上
-  → 特にスクラッチ操作時に重要
+□ Step 2: Check Tracking Force
+  Recommended: 3.0-4.0g (for DVS)
+  Set heavier than normal listening (1.5-2.5g)
+  → Improves timecode reading accuracy
+  → Especially important during scratch operations
 
-□ Step 3: タイムコードバイナルの状態
-  - 汚れ: クリーニング液で清掃
-  - 傷: 深い傷があれば交換
-  - 反り: 平らな場所で保管
-  - 経年劣化: 定期的に交換（年1-2回）
+□ Step 3: Timecode Vinyl Condition
+  - Dirt: Clean with cleaning solution
+  - Scratches: Replace if deep scratches exist
+  - Warping: Store on flat surfaces
+  - Aging: Replace periodically (1-2 times per year)
 
-□ Step 4: Phono/Line 切り替え確認
-  - ターンテーブル直結 → Phono
-  - ミキサー経由 → Line
-  - 間違えると信号レベルが合わずDVS動作不良
+□ Step 4: Check Phono/Line Switch
+  - Direct turntable connection → Phono
+  - Through mixer → Line
+  - Wrong setting causes signal level mismatch and DVS malfunction
 
-□ Step 5: ケーブル確認
-  - Phono ケーブルの接触不良
-  - アース線の接続
-  - RCA ケーブルの品質
+□ Step 5: Check Cables
+  - Phono cable contact issues
+  - Ground wire connection
+  - RCA cable quality
 
-□ Step 6: Calibration再実行
-  1. 静かな環境で実行
-  2. ターンテーブルを再生状態にする
-  3. DJソフトのCalibrationボタンをクリック
-  4. Scope表示が安定するまで待つ
-  5. Threshold を適切に設定
+□ Step 6: Re-run Calibration
+  1. Run in a quiet environment
+  2. Set turntable to playback
+  3. Click the Calibration button in DJ software
+  4. Wait until Scope display stabilizes
+  5. Set Threshold appropriately
 
-□ Step 7: Tracking 設定変更
-  Medium → High に変更
-  （追従性は上がるが安定性が下がる場合あり）
+□ Step 7: Change Tracking Settings
+  Medium → Change to High
+  (Better tracking but may reduce stability)
 
-□ Step 8: バッファサイズの確認
-  DVSは低レイテンシーが重要
-  256 samples 推奨
-  512 samples でも通常は問題なし
+□ Step 8: Check Buffer Size
+  Low latency is important for DVS
+  256 samples recommended
+  512 samples is usually fine too
 
-□ Step 9: USB接続の確認
-  USB Hub を外す
-  直接接続に変更
-  別のUSBポートに接続
+□ Step 9: Check USB Connection
+  Remove USB Hub
+  Switch to direct connection
+  Try a different USB port
 ```
 
-### オーディオIFが認識されない
+### Audio IF Not Recognized
 
 ```
-認識問題の対処法:
+Solutions for Recognition Issues:
 ─────────────────────────
 
 ■ Windows
-  1. デバイスマネージャーを確認
-     - 「不明なデバイス」がないか
-     - 黄色い三角マークがないか
-  2. ドライバの完全削除と再インストール
-     - コントロールパネル → プログラムのアンインストール
-     - ドライバ関連を削除
-     - PC再起動
-     - 最新ドライバを再インストール
-  3. USBポートの変更
-     - 背面ポート（マザーボード直結）を試す
-     - USB 2.0とUSB 3.0の両方を試す
-  4. Windows Update確認
-     - 最新のWindows Updateを適用
-  5. セキュリティソフトの確認
-     - 一時的にセキュリティソフトを無効化
-     - ドライバのインストールを許可
+  1. Check Device Manager
+     - Are there any "Unknown devices"?
+     - Are there any yellow triangle marks?
+  2. Complete driver removal and reinstallation
+     - Control Panel → Uninstall a program
+     - Remove driver-related entries
+     - Restart PC
+     - Reinstall latest driver
+  3. Change USB port
+     - Try rear ports (directly on motherboard)
+     - Try both USB 2.0 and USB 3.0
+  4. Check Windows Update
+     - Apply latest Windows Updates
+  5. Check security software
+     - Temporarily disable security software
+     - Allow driver installation
 
 ■ macOS
-  1. システム設定 → サウンドで確認
-  2. Audio MIDI設定で確認
-  3. SMCリセット
-     - Intel Mac: Shift+Ctrl+Option+電源ボタン
-     - Apple Silicon: 電源ボタン10秒長押し
-  4. NVRAMリセット
-     - Intel Mac: Option+Cmd+P+R（起動音2回）
-  5. セーフモードで起動して確認
-     - Shift を押しながら起動
-  6. セキュリティ設定の確認
-     - システム設定 → プライバシーとセキュリティ
-     - オーディオIFのアクセス許可
+  1. Check in System Settings → Sound
+  2. Check in Audio MIDI Setup
+  3. SMC Reset
+     - Intel Mac: Shift+Ctrl+Option+Power button
+     - Apple Silicon: Hold power button for 10 seconds
+  4. NVRAM Reset
+     - Intel Mac: Option+Cmd+P+R (2 startup chimes)
+  5. Boot in Safe Mode to check
+     - Hold Shift while booting
+  6. Check security settings
+     - System Settings → Privacy & Security
+     - Audio IF access permissions
 
-■ 共通
-  - USBケーブルを交換
-  - 別のPCで動作確認
-  - メーカーサポートに問い合わせ
-  - ファームウェアアップデート確認
+■ Common
+  - Replace USB cable
+  - Test on another PC
+  - Contact manufacturer support
+  - Check firmware updates
 ```
 
 ---
 
-## 10. 予算別おすすめ構成
+## 10. Recommended Configurations by Budget
 
-### 1万円以下: 最小構成
-
-```
-モデル: PreSonus AudioBox USB 96
-価格: 約10,000円
-
-構成:
-PC/Mac → AudioBox USB 96 → ヘッドフォン/スピーカー
-
-用途:
-✓ DJソフトウェアの学習
-✓ 自宅での軽い練習
-✓ 内蔵サウンドカードからのアップグレード
-✗ DVS不可
-✗ クラブプレイには不向き
-
-こんな人に:
-- 「DJを始めたいけど、まずは最低限の環境で」
-- コントローラーを買う前に音質だけ改善したい
-- 制作入門にも使いたい
-```
-
-### 1.5-2万円: エントリーDJ + 制作兼用
+### Under 10,000 yen: Minimum Configuration
 
 ```
-モデル: Focusrite Scarlett 2i2 (4th Gen)
-価格: 約18,000円
+Model: PreSonus AudioBox USB 96
+Price: ~10,000 yen
 
-構成:
-PC/Mac → Scarlett 2i2 → アクティブスピーカー
-                       → ヘッドフォン
+Configuration:
+PC/Mac → AudioBox USB 96 → Headphones/Speakers
 
-用途:
-✓ DJコントローラーの外部出力向上
-✓ 制作環境（Ableton Live Lite付属）
-✓ 配信DJ
-✓ 高品質モニタリング
-✗ DVS不可
+Use Cases:
+✓ Learning DJ software
+✓ Light home practice
+✓ Upgrade from built-in sound card
+✗ No DVS
+✗ Not suitable for club play
 
-こんな人に:
-- DJも制作もやりたい
-- コントローラーDJメインだが音質にこだわりたい
-- 配信DJをやりたい
+Ideal For:
+- "I want to start DJing, but with a minimal setup first"
+- Want to improve sound quality before buying a controller
+- Want to use it for production as well
 ```
 
-### 2.5万円: Rekordbox DVS入門
+### 15,000-20,000 yen: Entry DJ + Production Dual-Use
 
 ```
-モデル: Pioneer DJ INTERFACE 2
-価格: 約25,000円
+Model: Focusrite Scarlett 2i2 (4th Gen)
+Price: ~18,000 yen
 
-構成:
-ターンテーブル×2 → DJミキサー → INTERFACE 2 → PC/Mac
-                                              → Rekordbox DVS
+Configuration:
+PC/Mac → Scarlett 2i2 → Active speakers
+                       → Headphones
 
-追加必要機材:
-- ターンテーブル × 2（中古で各1-3万円）
-- DJミキサー（中古で1-5万円）
-- タイムコードバイナル（Rekordbox付属）
-- RCAケーブル
+Use Cases:
+✓ Improved external output for DJ controllers
+✓ Production environment (Ableton Live Lite included)
+✓ Streaming DJ
+✓ High-quality monitoring
+✗ No DVS
 
-用途:
-✓ Rekordbox DVS（2デッキ）
-✓ ターンテーブルDJ
-✓ コンパクトモバイルDVS
-
-こんな人に:
-- ターンテーブルでDVSをやりたい
-- Rekordboxユーザー
-- クラブでのDVSプレイを目指す
+Ideal For:
+- Want to do both DJing and production
+- Primarily a controller DJ but care about sound quality
+- Want to do streaming DJ
 ```
 
-### 4万円: Serato DVS プロ
+### 25,000 yen: Rekordbox DVS Entry
 
 ```
-モデル: Rane SL3（中古推奨）
-価格: 約40,000円（新品）/ 約15,000-25,000円（中古）
+Model: Pioneer DJ INTERFACE 2
+Price: ~25,000 yen
 
-構成:
-ターンテーブル×2 → DJミキサー → Rane SL3 → PC/Mac
-                                            → Serato DJ Pro DVS
+Configuration:
+Turntable ×2 → DJ Mixer → INTERFACE 2 → PC/Mac
+                                        → Rekordbox DVS
 
-用途:
-✓ Serato DVS（2デッキ + AUX）
-✓ プロ仕様の安定動作
-✓ クラブ常設機材との高い互換性
+Additional Required Equipment:
+- Turntable × 2 (used: 10,000-30,000 yen each)
+- DJ Mixer (used: 10,000-50,000 yen)
+- Timecode Vinyl (included with Rekordbox)
+- RCA cables
 
-こんな人に:
-- Serato DVSのプロ環境を構築したい
-- ターンテーブルDJとして本格的に活動
-- クラブのDJ卓と同等の環境を自宅に
+Use Cases:
+✓ Rekordbox DVS (2 decks)
+✓ Turntable DJ
+✓ Compact mobile DVS
+
+Ideal For:
+- Want to do DVS with turntables
+- Rekordbox user
+- Aiming for DVS play at clubs
 ```
 
-### 10万円以上: プロフェッショナル
+### 40,000 yen: Serato DVS Pro
 
 ```
-モデル: RME Babyface Pro FS
-価格: 約120,000円
+Model: Rane SL3 (used recommended)
+Price: ~40,000 yen (new) / ~15,000-25,000 yen (used)
 
-構成:
-PC/Mac → Babyface Pro FS → モニタースピーカー（XLR）
-                          → ヘッドフォン（2系統）
-                          → ADAT拡張（オプション）
+Configuration:
+Turntable ×2 → DJ Mixer → Rane SL3 → PC/Mac
+                                      → Serato DJ Pro DVS
 
-TotalMix FXによるルーティング:
-- DJソフトの出力をリアルタイムモニタリング
-- 配信用ループバック
-- ヘッドフォンCUEとマスターの独立制御
-- DSPエフェクト（EQ、コンプ）
+Use Cases:
+✓ Serato DVS (2 decks + AUX)
+✓ Pro-grade stable operation
+✓ High compatibility with club-installed equipment
 
-用途:
-✓ 最高音質でのDJプレイ
-✓ プロ制作環境との完全な兼用
-✓ 配信の高品質化
-✓ 将来のADAT拡張でDVS対応も可能
+Ideal For:
+- Want to build a pro Serato DVS environment
+- Serious turntable DJ activities
+- Want a club-equivalent DJ setup at home
+```
 
-こんな人に:
-- 音質に一切妥協したくない
-- DJ + 音楽制作の両方を本格的に
-- 長期的な投資として最高品質の機材を
+### 100,000 yen+: Professional
+
+```
+Model: RME Babyface Pro FS
+Price: ~120,000 yen
+
+Configuration:
+PC/Mac → Babyface Pro FS → Monitor speakers (XLR)
+                          → Headphones (2 pairs)
+                          → ADAT expansion (optional)
+
+Routing via TotalMix FX:
+- Real-time monitoring of DJ software output
+- Loopback for streaming
+- Independent headphone CUE and master control
+- DSP effects (EQ, compressor)
+
+Use Cases:
+✓ DJ play with the highest sound quality
+✓ Complete dual-use with pro production environment
+✓ High-quality streaming
+✓ Future ADAT expansion for DVS capability
+
+Ideal For:
+- No compromise on sound quality
+- Serious about both DJ and music production
+- Want the highest-quality equipment as a long-term investment
 ```
 
 ---
 
-## 11. メンテナンスと長期運用
+## 11. Maintenance and Long-Term Operation
 
-### 日常のメンテナンス
+### Routine Maintenance
 
 ```
-定期的なケア:
+Regular Care:
 ─────────────────────────
 
-■ 月1回
-  - コネクタ部分の清掃（エアダスター）
-  - ケーブルの接続確認
-  - ドライバアップデートの確認
-  - ファームウェアアップデートの確認
+■ Monthly
+  - Clean connector areas (air duster)
+  - Check cable connections
+  - Check for driver updates
+  - Check for firmware updates
 
-■ 使用後毎回
-  - USB ケーブルを丁寧に抜く（コネクタを持って）
-  - 埃よけのカバーをかける
-  - 直射日光を避けて保管
-  - 湿気の少ない場所に保管
+■ After Each Use
+  - Gently unplug USB cable (hold the connector)
+  - Cover with a dust cover
+  - Store away from direct sunlight
+  - Store in a low-humidity location
 
-■ 持ち運び時
-  - 専用ケースに収納
-  - 衝撃を避ける
-  - 極端な温度変化を避ける
-  - ケーブルはきちんと巻いて収納
+■ When Transporting
+  - Store in a dedicated case
+  - Avoid impacts
+  - Avoid extreme temperature changes
+  - Coil cables neatly for storage
 ```
 
-### ファームウェアアップデート
+### Firmware Updates
 
 ```
-アップデートの手順と注意:
+Update Procedure and Precautions:
 ─────────────────────────
 
-1. メーカーサイトでリリースノートを確認
-   - バグ修正内容
-   - 新機能
-   - 互換性情報
+1. Check release notes on manufacturer's site
+   - Bug fix details
+   - New features
+   - Compatibility information
 
-2. バックアップ
-   - 現在の設定をメモまたはスクリーンショット
-   - TotalMix FX等の設定をエクスポート
+2. Backup
+   - Note or screenshot current settings
+   - Export TotalMix FX settings, etc.
 
-3. アップデート実行
-   - メーカーのアップデートツールを使用
-   - USB接続を安定させる（Hub不使用）
-   - 電源を安定させる（バッテリー駆動非推奨）
-   - アップデート中はPC操作しない
+3. Run the update
+   - Use the manufacturer's update tool
+   - Ensure stable USB connection (no Hub)
+   - Ensure stable power (avoid battery operation)
+   - Do not operate PC during update
 
-4. 確認
-   - 正常動作確認
-   - サンプリングレート設定確認
-   - DJソフトとの接続確認
-   - 音質確認
+4. Verification
+   - Confirm normal operation
+   - Check sample rate settings
+   - Verify DJ software connection
+   - Check sound quality
 ```
 
-### トラブル時の初期化
+### Factory Reset When Troubleshooting
 
 ```
-工場出荷時リセット手順（一般的）:
+Factory Reset Procedure (General):
 ─────────────────────────
 
 ■ Focusrite Scarlett
-  1. Focusrite Control をアンインストール
-  2. ドライバをアンインストール
-  3. PC再起動
-  4. 最新版をダウンロード＆インストール
-  5. Scarlett を接続
-  6. 初期設定ウィザードに従う
+  1. Uninstall Focusrite Control
+  2. Uninstall driver
+  3. Restart PC
+  4. Download and install latest version
+  5. Connect Scarlett
+  6. Follow initial setup wizard
 
 ■ RME Babyface Pro FS
-  1. TotalMix FX の設定をリセット
+  1. Reset TotalMix FX settings
      Options → Reset Mix → Total Reset
-  2. ドライバの再インストール（必要な場合）
-  3. Flash Update Tool でファームウェア確認
+  2. Reinstall driver (if needed)
+  3. Verify firmware with Flash Update Tool
 
 ■ Pioneer DJ INTERFACE 2
-  1. Pioneer DJ のドライバをアンインストール
-  2. PC再起動
-  3. 最新ドライバをインストール
-  4. INTERFACE 2 を接続
-  5. Rekordbox で再認識
+  1. Uninstall Pioneer DJ driver
+  2. Restart PC
+  3. Install latest driver
+  4. Connect INTERFACE 2
+  5. Re-detect in Rekordbox
 ```
 
 ---
 
-## 12. 高度なトピック
+## 12. Advanced Topics
 
-### マルチオーディオIFの使用
+### Using Multiple Audio IFs
 
 ```
-複数のオーディオIFを同時使用する方法:
+Methods for Simultaneously Using Multiple Audio IFs:
 ─────────────────────────
 
-■ macOS: 集約デバイス（Aggregate Device）
-  1. Audio MIDI設定を開く
-  2. 左下の「+」→「集約デバイスを作成」
-  3. 使用するオーディオIFにチェック
-  4. クロックソースを選択（1台をマスターに）
-  5. DJソフトで集約デバイスを選択
+■ macOS: Aggregate Device
+  1. Open Audio MIDI Setup
+  2. Click "+" at bottom left → "Create Aggregate Device"
+  3. Check the audio IFs to use
+  4. Select clock source (designate one as master)
+  5. Select aggregate device in DJ software
 
-  メリット:
-  - チャンネル数を増やせる
-  - 異なるオーディオIFの組み合わせ
+  Pros:
+  - Increase channel count
+  - Combine different audio IFs
 
-  デメリット:
-  - クロック同期の問題が発生する可能性
-  - レイテンシーが増加する場合あり
-  - 安定性が単体より低下
+  Cons:
+  - Potential clock sync issues
+  - Latency may increase
+  - Lower stability than single unit
 
 ■ Windows: ASIO4ALL
-  1. ASIO4ALL コントロールパネル
-  2. 複数のオーディオIFを有効化
-  3. DJソフトでASIO4ALLを選択
-  4. チャンネル割り当てを設定
+  1. ASIO4ALL control panel
+  2. Enable multiple audio IFs
+  3. Select ASIO4ALL in DJ software
+  4. Configure channel assignments
 
-  注意:
-  - 安定性はmacOSの集約デバイスより低い
-  - 可能であれば1台のマルチチャンネルIFの方が推奨
+  Note:
+  - Less stable than macOS aggregate devices
+  - A single multi-channel IF is recommended when possible
 ```
 
-### デジタル接続（ADAT / S/PDIF）
+### Digital Connections (ADAT / S/PDIF)
 
 ```
-ADAT（Alesis Digital Audio Tape）:
+ADAT (Alesis Digital Audio Tape):
 ─────────────────────────
-- 光ファイバーケーブルで接続
-- 最大8チャンネル（44.1/48kHz時）
-- 最大4チャンネル（96kHz時 = SMUX）
-- オーディオIF のチャンネル拡張に使用
+- Connected via fiber optic cable
+- Up to 8 channels (at 44.1/48kHz)
+- Up to 4 channels (at 96kHz = SMUX)
+- Used for audio IF channel expansion
 
-S/PDIF（Sony/Philips Digital Interface）:
+S/PDIF (Sony/Philips Digital Interface):
 ─────────────────────────
-- 同軸（RCA）or 光（TOSLINK）接続
-- ステレオ2チャンネル
-- CDプレーヤーやデジタルミキサーとの接続
+- Coaxial (RCA) or optical (TOSLINK) connection
+- Stereo 2 channels
+- Connection with CD players and digital mixers
 
-DJ用途での活用:
+DJ Use Applications:
 ─────────────────────────
-- ADAT対応オーディオIF + ADAT対応プリアンプ
-  → チャンネル数を大幅に拡張
-  → DVS 4デッキ環境の構築
+- ADAT-compatible audio IF + ADAT-compatible preamp
+  → Significantly expand channel count
+  → Build 4-deck DVS environment
 
-- S/PDIF対応CDJ + S/PDIF入力付きオーディオIF
-  → CDJからのデジタル接続（音質劣化なし）
+- S/PDIF-compatible CDJ + Audio IF with S/PDIF input
+  → Digital connection from CDJ (no sound quality degradation)
 ```
 
-### ワードクロック同期
+### Word Clock Synchronization
 
 ```
-ワードクロック（Word Clock）:
+Word Clock:
 ─────────────────────────
-- 複数のデジタル機器のサンプリングタイミングを同期
-- BNC ケーブルで接続
-- マスタークロック → スレーブ の構成
+- Synchronizes sampling timing of multiple digital devices
+- Connected via BNC cable
+- Master clock → Slave configuration
 
-DJ環境での使用例:
-- メインオーディオIF（マスタークロック）
-  → ADAT拡張機器（スレーブ）
-  → デジタルミキサー（スレーブ）
+Usage Example in DJ Environments:
+- Main audio IF (master clock)
+  → ADAT expansion device (slave)
+  → Digital mixer (slave)
 
-メリット:
-- ジッター低減による音質向上
-- デジタル接続時のクリック/ポップ防止
-- 大規模システムでの安定動作
+Benefits:
+- Sound quality improvement through jitter reduction
+- Prevention of clicks/pops during digital connections
+- Stable operation in large-scale systems
 
-一般的なDJ用途では:
-→ ワードクロック同期は不要（1台のオーディオIFで完結する場合）
-→ 複数デジタル機器を接続する場合のみ検討
+For Typical DJ Use:
+→ Word clock sync is unnecessary (when using a single audio IF)
+→ Only consider when connecting multiple digital devices
 ```
 
-### オーディオIFとDAWの併用
+### Dual-Use Audio IF with DAW
 
 ```
-DJ + 制作の同時使用:
+Simultaneous DJ + Production Use:
 ─────────────────────────
 
-シナリオ1: DJミックスの録音
-  DJソフト → オーディオIF → DAW（録音）
-  - DJソフトの内部録音機能を使用（最も簡単）
-  - or オーディオIFのループバックでDAWに録音
-  - or 物理的に出力→入力をケーブル接続
+Scenario 1: Recording DJ Mixes
+  DJ Software → Audio IF → DAW (recording)
+  - Use DJ software's built-in recording function (easiest)
+  - Or record to DAW via audio IF loopback
+  - Or physically connect output → input with cables
 
-シナリオ2: DJプレイ中にサンプラー/シンセを使用
-  DJソフト + DAW を同時起動
-  - Jack Audio（macOS/Linux）で内部ルーティング
-  - Ableton Link でテンポ同期
-  - オーディオIFのDSPミキサーでミックス
+Scenario 2: Using Samplers/Synths During DJ Play
+  DJ Software + DAW running simultaneously
+  - Internal routing with Jack Audio (macOS/Linux)
+  - Tempo sync with Ableton Link
+  - Mix via audio IF's DSP mixer
 
-シナリオ3: DJミックスのマスタリング
-  DJソフトで録音 → DAWでマスタリング
-  - オーディオIFの高品質DACでモニタリング
-  - リファレンスヘッドフォンで確認
-  - 適切なモニタースピーカーで確認
+Scenario 3: Mastering DJ Mixes
+  Record in DJ software → Master in DAW
+  - Monitor with audio IF's high-quality DAC
+  - Check with reference headphones
+  - Verify with proper monitor speakers
 ```
 
 ---
 
-## 13. よくある質問（FAQ）
+## 13. Frequently Asked Questions (FAQ)
 
-### Q1: DJコントローラーに内蔵のAudio IFでは不十分ですか？
-
-```
-A: 多くの場合は十分です。
-
-DDJ-FLX4、DDJ-1000、DDJ-REV7等のPioneer DJコントローラーには
-オーディオIFが内蔵されており、基本的なDJプレイには十分です。
-
-外部オーディオIFが必要になるケース:
-- DVSを使いたい（ターンテーブルDJ）
-- コントローラーの音質に不満がある
-- バランス出力（XLR/TRS）でPA接続したい
-- 制作環境と兼用したい
-- 配信用のルーティングが必要
-```
-
-### Q2: USB-CとUSB-Aの変換アダプタは使えますか？
+### Q1: Isn't the audio IF built into my DJ controller sufficient?
 
 ```
-A: 使えますが、注意が必要です。
+A: In many cases, it is sufficient.
 
-使用可能な場合:
-- USB-C to USB-A 変換アダプタ（一般的に問題なし）
-- 高品質なアダプタを使用
-- 短いアダプタ（ケーブル型ではなく直結型推奨）
+DJ controllers from Pioneer DJ like the DDJ-FLX4, DDJ-1000, and DDJ-REV7
+have built-in audio IFs that are sufficient for basic DJ play.
 
-注意点:
-- 安価なアダプタは接触不良の原因に
-- ケーブル型アダプタはノイズの原因になる場合あり
-- Thunderbolt → USB-A 変換は互換性問題が起きやすい
-- アダプタ経由でのバスパワー給電が不安定な場合あり
-
-推奨:
-- 可能であればネイティブ接続（変換なし）が最善
-- Apple純正 or 認証済みアダプタを使用
+Cases where an external audio IF is needed:
+- Want to use DVS (turntable DJ)
+- Dissatisfied with controller sound quality
+- Want balanced output (XLR/TRS) for PA connection
+- Want dual-use with a production environment
+- Need routing for streaming
 ```
 
-### Q3: レイテンシーはどこまで下げるべきですか？
+### Q2: Can I use a USB-C to USB-A adapter?
 
 ```
-A: 用途によります。
+A: Yes, but caution is needed.
 
-DVS スクラッチ: 5ms以下を目指す（バッファ 128-256）
-DVS 通常Mix: 10ms以下（バッファ 256-512）
-コントローラー: 15ms以下（バッファ 512）
-配信DJ: 20ms以下（バッファ 512-1024）
+When it works fine:
+- USB-C to USB-A adapter (generally no problems)
+- Using a high-quality adapter
+- Short adapter (direct-connect type recommended over cable type)
 
-重要:
-レイテンシーを下げすぎると音切れのリスクが増大。
-安定動作する範囲で最小のレイテンシーを見つけることが重要。
-「音切れなしの最小バッファ」が最適値。
+Cautions:
+- Cheap adapters can cause contact issues
+- Cable-type adapters may cause noise
+- Thunderbolt → USB-A conversion can have compatibility issues
+- Bus power via adapter may be unstable
+
+Recommendation:
+- Native connection (without adapters) is best when possible
+- Use Apple genuine or certified adapters
 ```
 
-### Q4: 中古のオーディオIFは大丈夫ですか？
+### Q3: How low should I get the latency?
 
 ```
-A: 条件付きで問題ありません。
+A: It depends on the use case.
 
-確認すべきこと:
-1. ドライバが現在のOSに対応しているか
-   → 古いモデルはOS対応が終了している場合あり
-2. ファームウェアが最新に更新できるか
-3. USB端子の状態（接触不良がないか）
-4. DVS機器の場合、ソフトウェアライセンスの移行が可能か
-   → Rane SL: Seratoアカウントの移行が必要
-   → INTERFACE 2: 本体にライセンス内蔵（移行不要）
-5. 物理的な損傷がないか
+DVS Scratching: Aim for 5ms or less (buffer 128-256)
+DVS Normal Mix: 10ms or less (buffer 256-512)
+Controller: 15ms or less (buffer 512)
+Streaming DJ: 20ms or less (buffer 512-1024)
 
-中古で避けるべきモデル:
-- OS対応が終了したモデル（10年以上前の製品）
-- メーカーがサポート終了した製品
-- Thunderbolt 1/2接続（最新Macで使えない場合あり）
+Important:
+Lowering latency too much increases the risk of audio dropouts.
+Finding the minimum latency within stable operation is key.
+"The smallest buffer without dropouts" is the optimal value.
 ```
 
-### Q5: iPadでDJする場合、オーディオIFは使えますか？
+### Q4: Is it okay to buy a used audio IF?
 
 ```
-A: 使えます（条件あり）。
+A: Yes, with conditions.
 
-iOS対応オーディオIF:
-- Focusrite Scarlett 2i2（USB-C接続 or Lightning→USB変換）
-- Steinberg UR22C（USB-C接続）
-- IK Multimedia iRig Pro I/O（Lightning直結）
+Things to verify:
+1. Is the driver compatible with your current OS?
+   → Older models may have ended OS support
+2. Can the firmware be updated to the latest version?
+3. USB connector condition (no contact issues?)
+4. For DVS devices, can the software license be transferred?
+   → Rane SL: Requires Serato account transfer
+   → INTERFACE 2: License built into the unit (no transfer needed)
+5. No physical damage?
+
+Models to avoid when buying used:
+- Models with ended OS support (products over 10 years old)
+- Products where manufacturer support has ended
+- Thunderbolt 1/2 connections (may not work with latest Macs)
+```
+
+### Q5: Can I use an audio IF when DJing on iPad?
+
+```
+A: Yes (with conditions).
+
+iOS-compatible Audio IFs:
+- Focusrite Scarlett 2i2 (USB-C connection or Lightning→USB adapter)
+- Steinberg UR22C (USB-C connection)
+- IK Multimedia iRig Pro I/O (direct Lightning connection)
 - Roland GO:MIXER PRO-X
 
-必要なもの:
-- Lightning → USB カメラアダプタ（Lightning iPad）
-- USB-C対応のオーディオIF（USB-C iPad直結）
-- 外部電源（バスパワー給電が不足する場合）
+What You Need:
+- Lightning → USB Camera Adapter (for Lightning iPads)
+- USB-C compatible audio IF (direct connection for USB-C iPads)
+- External power (if bus power is insufficient)
 
-対応DJアプリ:
-- djay by Algoriddim（iPad版）
-- Traktor DJ 2（iPad版）
+Compatible DJ Apps:
+- djay by Algoriddim (iPad version)
+- Traktor DJ 2 (iPad version)
 ```
 
-### Q6: オーディオIFなしでマスターとヘッドフォンを分離できますか？
+### Q6: Can I separate master and headphones without an audio IF?
 
 ```
-A: 方法はありますが制約があります。
+A: There are ways, but with limitations.
 
-方法1: DJソフトのスプリット出力
-  - Rekordbox: ステレオ出力をL/Rに分割
-  - L = マスター（モノラル）
-  - R = ヘッドフォン（モノラル）
-  - ステレオ感が失われる
+Method 1: DJ Software Split Output
+  - Rekordbox: Split stereo output into L/R
+  - L = Master (mono)
+  - R = Headphones (mono)
+  - Stereo image is lost
 
-方法2: Bluetoothスピーカー + 有線ヘッドフォン
-  - 大きなレイテンシーが発生（非推奨）
+Method 2: Bluetooth Speaker + Wired Headphones
+  - Large latency occurs (not recommended)
 
-方法3: 内蔵サウンド + 外部サウンド
-  - 内蔵出力 → スピーカー
-  - USB/Bluetooth → ヘッドフォン
-  - レイテンシーの差が問題に
+Method 3: Built-in Sound + External Sound
+  - Built-in output → Speakers
+  - USB/Bluetooth → Headphones
+  - Latency difference becomes an issue
 
-結論:
-→ 正しく分離するにはオーディオIF（2系統以上の出力）が必要
-→ 最低でもヘッドフォン出力が独立しているモデルを
+Conclusion:
+→ Proper separation requires an audio IF (2+ output pairs)
+→ At minimum, choose a model with an independent headphone output
 ```
 
 ---
 
-## 14. 用語集
+## 14. Glossary
 
 ```
 ■ ASIO (Audio Stream Input/Output)
-  Steinberg開発の低レイテンシーオーディオドライバ規格。Windows環境でDJソフトウェアを使用する際の標準。
+  Low-latency audio driver standard developed by Steinberg. The standard for using DJ software in Windows environments.
 
 ■ Core Audio
-  macOS標準のオーディオフレームワーク。低レイテンシーを実現し、ほとんどのオーディオIFが追加ドライバなしで動作。
+  macOS's standard audio framework. Achieves low latency, and most audio IFs work without additional drivers.
 
 ■ DAC (Digital to Analog Converter)
-  デジタル信号をアナログ音声に変換する回路。音質を決定する最重要コンポーネントの一つ。
+  Circuit that converts digital signals to analog audio. One of the most critical components determining sound quality.
 
 ■ ADC (Analog to Digital Converter)
-  アナログ音声をデジタル信号に変換する回路。DVSのタイムコード読み取りに必要。
+  Circuit that converts analog audio to digital signals. Required for timecode reading in DVS.
 
 ■ DVS (Digital Vinyl System)
-  タイムコードバイナルとオーディオIFを使用して、ターンテーブルでデジタル楽曲を制御するシステム。
+  System that uses timecode vinyl and an audio IF to control digital tracks with turntables.
 
-■ バッファサイズ (Buffer Size)
-  オーディオ処理で一度に扱うサンプル数。大きいほど安定だがレイテンシーが増加。
+■ Buffer Size
+  Number of samples processed at once in audio processing. Larger = more stable but increased latency.
 
-■ サンプリングレート (Sample Rate)
-  1秒あたりのサンプル数。44.1kHz = 1秒間に44,100回サンプリング。
+■ Sample Rate
+  Number of samples per second. 44.1kHz = 44,100 samples per second.
 
-■ ジッター (Jitter)
-  デジタルクロックの時間軸の揺らぎ。音質劣化の原因。高品質なクロック回路で低減。
+■ Jitter
+  Timing fluctuations in the digital clock. Causes sound quality degradation. Reduced by high-quality clock circuits.
 
-■ ダイナミックレンジ (Dynamic Range)
-  再現可能な最小音量と最大音量の差。dBで表記。値が大きいほど表現力が豊か。
+■ Dynamic Range
+  Difference between the minimum and maximum reproducible volume levels. Expressed in dB. Larger values mean richer expressiveness.
 
 ■ THD+N (Total Harmonic Distortion + Noise)
-  全高調波歪みとノイズの合計。値が小さいほど高品質。
+  Sum of total harmonic distortion and noise. Smaller values = higher quality.
 
-■ バスパワー (Bus Power)
-  USBケーブル経由で電源を供給する方式。ACアダプタ不要でポータブル。
+■ Bus Power
+  Power supply method through the USB cable. Portable without needing an AC adapter.
 
-■ ファントム電源 (Phantom Power / 48V)
-  コンデンサーマイクに必要な48Vの電源供給。DJではあまり使わないがマイク使用時に必要。
+■ Phantom Power (48V)
+  48V power supply required by condenser microphones. Rarely used for DJing but needed when using microphones.
 
-■ バランス接続 (Balanced Connection)
-  TRS/XLRケーブルによるノイズに強い接続方式。長距離ケーブルランでもノイズが乗りにくい。
+■ Balanced Connection
+  Noise-resistant connection via TRS/XLR cables. Resistant to noise even over long cable runs.
 
-■ アンバランス接続 (Unbalanced Connection)
-  RCA/TS ケーブルによる接続。短距離では問題ないが長距離でノイズが乗りやすい。
+■ Unbalanced Connection
+  Connection via RCA/TS cables. No issues over short distances but susceptible to noise over long distances.
 
-■ グラウンドループ (Ground Loop)
-  複数機器間のアース電位差により発生するハム音の原因。
+■ Ground Loop
+  Cause of hum noise from ground potential differences between multiple devices.
 
 ■ ADAT (Alesis Digital Audio Tape)
-  光ファイバーによる8チャンネルデジタルオーディオ伝送規格。チャンネル拡張に使用。
+  8-channel digital audio transmission standard via fiber optic. Used for channel expansion.
 
 ■ S/PDIF (Sony/Philips Digital Interface)
-  2チャンネルのデジタルオーディオ伝送規格。同軸（RCA）または光（TOSLINK）接続。
+  2-channel digital audio transmission standard. Coaxial (RCA) or optical (TOSLINK) connection.
 
-■ ループバック (Loopback)
-  オーディオIFの出力を仮想的に入力に戻す機能。配信時のオーディオルーティングに便利。
+■ Loopback
+  Function that virtually routes audio IF output back to its input. Convenient for audio routing during streaming.
 
-■ ダイレクトモニタリング (Direct Monitoring)
-  入力信号をソフトウェアを経由せずに直接出力する機能。ゼロレイテンシーモニタリング。
+■ Direct Monitoring
+  Function that outputs input signals directly without going through software. Zero-latency monitoring.
 
 ■ DSP (Digital Signal Processor)
-  デジタル信号処理専用のプロセッサ。オーディオIF内蔵でPCのCPU負荷を軽減。
+  Processor dedicated to digital signal processing. Built into audio IFs to reduce PC CPU load.
 ```
 
 ---
@@ -2560,103 +2560,103 @@ A: 方法はありますが制約があります。
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point in learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying how things work.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend firmly understanding the fundamental concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-### 選択のフローチャート
-
-```
-DJスタイルの確認
-├── コントローラーDJ
-│   ├── 音質にこだわらない → コントローラー内蔵IFで十分
-│   ├── 音質向上したい → Focusrite Scarlett 2i2（1.8万円）
-│   └── 配信もしたい → Steinberg UR22C（1.6万円、ループバック付き）
-│
-├── DVS DJ（ターンテーブル）
-│   ├── Rekordbox → Pioneer DJ INTERFACE 2（2.5万円）
-│   ├── Serato → Rane SL3（4万円）or Denon DS1（2.5万円）
-│   └── Traktor → NI Traktor Audio 6（3万円）
-│
-├── DJ + 制作兼用
-│   ├── 予算3万円 → MOTU M4（3万円、120dB DAC）
-│   ├── 予算10万円 → RME Babyface Pro FS（12万円）
-│   └── UADプラグイン使用 → UA Apollo Twin（9万円）
-│
-└── プロフェッショナル
-    ├── 最高音質 → RME Babyface Pro FS（12万円）
-    ├── 多チャンネル → RME Fireface UCX II（15万円）
-    └── 4デッキDVS → 8in/8out対応モデル
-```
-
-### 重要ポイントまとめ
-
-```
-■ 接続方式
-  → 新規購入はUSB-C対応モデル推奨
-  → 既存USB-A環境でも全く問題なし
-  → Thunderboltは通常のDJには不要
-
-■ チャンネル数
-  → コントローラーDJ: 2in/2out で十分
-  → DVS 2デッキ: 4in/4out 必須
-  → DVS 4デッキ: 8in/8out 必須
-
-■ レイテンシー
-  → 512 samples（~12ms）が標準推奨
-  → DVSスクラッチ: 256 samples（~6ms）推奨
-  → 音切れしない範囲で最小バッファを
-
-■ 音質指標
-  → ダイナミックレンジ 110dB以上が理想
-  → 24bit/44.1kHz が DJ標準
-  → 高スペックよりも安定動作が重要
-
-■ DVS認証
-  → ソフトウェアに合った認証モデルを選択
-  → 非認証モデルではDVS機能が使えない
-  → 購入前にソフトウェアとの互換性を必ず確認
-
-■ 運用
-  → ドライバは常に最新に保つ
-  → DJプレイ前にPC最適化を実施
-  → 予備のUSBケーブルを常備
-  → ファームウェアアップデートも定期的に
-```
+Knowledge of this topic is frequently applied in daily development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次のステップ
+## Summary
 
-DJオーディオインターフェイスの理解が深まったら、以下の章に進みましょう。
+### Selection Flowchart
 
-- **[基本テクニック](../03-basic-techniques/README.md)**: ビートマッチング、EQミックスなどDJスキルの基礎
-- **[DJミキサー](./dj-mixers.md)**: オーディオIFと組み合わせるミキサーの選び方
-- **[ターンテーブル](./turntables.md)**: DVS環境に必要なターンテーブルの詳細
-- **[ソフトウェア比較](./software-comparison.md)**: Rekordbox / Serato / Traktor の違い
-- **[ヘッドフォン](./headphones.md)**: DJモニタリングに最適なヘッドフォン選び
+```
+Check Your DJ Style
+├── Controller DJ
+│   ├── Don't care about sound quality → Controller's built-in IF is sufficient
+│   ├── Want better sound quality → Focusrite Scarlett 2i2 (18,000 yen)
+│   └── Also want to stream → Steinberg UR22C (16,000 yen, with loopback)
+│
+├── DVS DJ (Turntable)
+│   ├── Rekordbox → Pioneer DJ INTERFACE 2 (25,000 yen)
+│   ├── Serato → Rane SL3 (40,000 yen) or Denon DS1 (25,000 yen)
+│   └── Traktor → NI Traktor Audio 6 (30,000 yen)
+│
+├── DJ + Production Dual-Use
+│   ├── Budget 30,000 yen → MOTU M4 (30,000 yen, 120dB DAC)
+│   ├── Budget 100,000 yen → RME Babyface Pro FS (120,000 yen)
+│   └── Use UAD plugins → UA Apollo Twin (90,000 yen)
+│
+└── Professional
+    ├── Highest sound quality → RME Babyface Pro FS (120,000 yen)
+    ├── Multi-channel → RME Fireface UCX II (150,000 yen)
+    └── 4-deck DVS → 8in/8out compatible model
+```
+
+### Key Points Summary
+
+```
+■ Connection Type
+  → USB-C compatible model recommended for new purchases
+  → Existing USB-A environment is perfectly fine
+  → Thunderbolt is unnecessary for typical DJing
+
+■ Channel Count
+  → Controller DJ: 2in/2out is sufficient
+  → DVS 2 decks: 4in/4out required
+  → DVS 4 decks: 8in/8out required
+
+■ Latency
+  → 512 samples (~12ms) is the standard recommendation
+  → DVS scratching: 256 samples (~6ms) recommended
+  → Use the smallest buffer without dropouts
+
+■ Sound Quality Metrics
+  → Dynamic range 110dB+ is ideal
+  → 24bit/44.1kHz is the DJ standard
+  → Stable operation matters more than high specs
+
+■ DVS Certification
+  → Select a certified model matching your software
+  → DVS functions won't work with non-certified models
+  → Always verify software compatibility before purchasing
+
+■ Operation
+  → Always keep drivers up to date
+  → Optimize PC before DJ play
+  → Always have spare USB cables
+  → Periodically check for firmware updates
+```
 
 ---
 
-## 参考リンク
+## Next Steps
 
-- [ターンテーブル](./turntables.md)
-- [DJミキサー](./dj-mixers.md)
-- [CDJセットアップ](./cdj-setup.md)
-- [コントローラー](./controllers.md)
-- [ソフトウェア比較](./software-comparison.md)
-- [ビートマッチング](../03-basic-techniques/beatmatching.md)
-- [モニタースピーカー](./monitors.md)
-- [ヘッドフォン](./headphones.md)
+Once you've deepened your understanding of DJ audio interfaces, proceed to the following chapters.
+
+- **[Basic Techniques](../03-basic-techniques/README.md)**: Foundations of DJ skills including beat matching and EQ mixing
+- **[DJ Mixers](./dj-mixers.md)**: How to choose a mixer to pair with your audio IF
+- **[Turntables](./turntables.md)**: Details on turntables needed for DVS environments
+- **[Software Comparison](./software-comparison.md)**: Differences between Rekordbox / Serato / Traktor
+- **[Headphones](./headphones.md)**: Choosing the optimal headphones for DJ monitoring
+
+---
+
+## Reference Links
+
+- [Turntables](./turntables.md)
+- [DJ Mixers](./dj-mixers.md)
+- [CDJ Setup](./cdj-setup.md)
+- [Controllers](./controllers.md)
+- [Software Comparison](./software-comparison.md)
+- [Beat Matching](../03-basic-techniques/beatmatching.md)
+- [Monitor Speakers](./monitors.md)
+- [Headphones](./headphones.md)
