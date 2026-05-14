@@ -1,375 +1,375 @@
-# 和声基礎
+# Harmony Basics
 
-コードとコード進行の基礎を学び、DJ と楽曲制作の両方で活用できる知識を身につけます。和声（ハーモニー）は音楽の三要素（メロディ・リズム・ハーモニー）の中でも、楽曲の「色」や「感情」を最も直接的に決定づける要素です。DJとしてのハーモニックミキシング、プロデューサーとしてのコード進行構築、いずれにおいても和声の理解は不可欠な基盤となります。
+Learn the fundamentals of chords and chord progressions, acquiring knowledge applicable to both DJing and music production. Harmony is one of the three elements of music (melody, rhythm, and harmony) and is the element that most directly determines the "color" and "emotion" of a piece. Whether for harmonic mixing as a DJ or building chord progressions as a producer, understanding harmony is an essential foundation.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- コードとは何か：音の積み重ねの原理と種類
-- コード進行の基本：機能和声と定番パターン
-- ダイアトニックコード：調性音楽の骨格
-- セブンスコードとテンション：響きの拡張と色付け
-- 転調（Modulation）：キーの移動による感情の変化
-- コードボイシング：同じコードでも響きを変える技法
-- ジャンル別コード進行：EDM、House、Techno、Jazz、J-POP等
-- 実践的なコード聴き取りとDAWでの活用法
-- DJプレイにおけるハーモニックミキシングへの応用
+- What chords are: the principles and types of stacked notes
+- Chord progression basics: functional harmony and standard patterns
+- Diatonic chords: the backbone of tonal music
+- Seventh chords and tensions: expanding and coloring the sound
+- Modulation: emotional shifts through key changes
+- Chord voicing: techniques to change the sound of the same chord
+- Genre-specific chord progressions: EDM, House, Techno, Jazz, J-POP, etc.
+- Practical chord ear training and DAW application
+- Application to harmonic mixing in DJ performance
 
-## なぜ和声が重要なのか
+## Why Harmony Matters
 
-### DJの場合
+### For DJs
 
-和声の知識は、DJプレイの質を根本から変えます。単にBPMを合わせてビートマッチングするだけでなく、キーとコード進行の関係性を理解することで、聴衆に違和感を与えないシームレスなトランジションが可能になります。
+Knowledge of harmony fundamentally transforms the quality of DJ performance. Beyond simply matching BPMs for beatmatching, understanding the relationship between keys and chord progressions enables seamless transitions that never feel jarring to the audience.
 
-**ハーモニックミキシングの実現:**
-- 2曲のキーの相性を瞬時に判断できる
-- Camelot Wheel や Open Key Notation を使った科学的な選曲
-- メロディラインが衝突しない組み合わせを選べる
-- トランジション時にハーモニーが美しく融合する
+**Achieving Harmonic Mixing:**
+- Instantly judge the compatibility of two tracks' keys
+- Scientific track selection using the Camelot Wheel or Open Key Notation
+- Choose combinations where melody lines don't clash
+- Harmonies blend beautifully during transitions
 
-**選曲の幅が広がる:**
-- 同じキーや近親調の曲をグループ化して管理
-- エネルギーレベルだけでなく調性でもセットを構成
-- 意図的な転調で感情の起伏を演出
-- リクエスト対応時にも調性を意識した選曲が可能
+**Expanding Your Track Selection:**
+- Group and manage tracks by same key or closely related keys
+- Build sets based on tonality, not just energy level
+- Create emotional dynamics through intentional key changes
+- Make key-aware selections even when responding to requests
 
-**プロフェッショナルな差別化:**
-- 観客が「なぜこのDJは気持ちいいのか」と感じる要因の多くはハーモニー
-- レジデントDJとゲストDJの差が出やすいポイント
-- 長時間セットでも疲れないミックスが作れる
-- 録音・配信しても違和感のないミックスになる
+**Professional Differentiation:**
+- Much of why an audience feels "this DJ is amazing" comes down to harmony
+- A key differentiator between resident DJs and guest DJs
+- Create mixes that don't fatigue listeners even during long sets
+- Produce mixes that sound natural even when recorded or streamed
 
-### 制作の場合
+### For Production
 
-音楽制作において、和声は楽曲の感情的な骨格を形成します。優れたメロディがあっても、コード進行が適切でなければ曲の魅力は半減します。
+In music production, harmony forms the emotional skeleton of a track. Even with a great melody, the appeal of a song is halved without the right chord progression.
 
-**感情表現の幅が広がる:**
-- 明るさ、暗さ、切なさ、壮大さなどを意図的にコントロール
-- セクションごとに異なる感情を演出（Verse → Chorus の変化）
-- リスナーの期待を裏切る（良い意味での）コード展開
-- サブリミナルな感情誘導（映画音楽的手法）
+**Expanding Emotional Expression:**
+- Intentionally control brightness, darkness, bittersweetness, grandeur, etc.
+- Create different emotions per section (Verse to Chorus transitions)
+- Deliver chord developments that (pleasantly) defy listener expectations
+- Subliminal emotional guidance (cinematic techniques)
 
-**ジャンルの文法を理解:**
-- House の定番はマイナーセブンスやメジャーセブンス
-- Trance はサスペンデッドコードで浮遊感
-- Future Bass は複雑なテンションコード
-- Lo-Fi Hip Hop はジャジーなセブンスコード
-- Techno はミニマルなパワーコードやドローン
+**Understanding Genre Grammar:**
+- House staples are minor sevenths and major sevenths
+- Trance uses suspended chords for a floating feel
+- Future Bass features complex tension chords
+- Lo-Fi Hip Hop uses jazzy seventh chords
+- Techno favors minimal power chords and drones
 
-**リハーモナイズでオリジナリティ:**
-- 既存の進行をベースに自分だけのバリエーションを作れる
-- モーダルインターチェンジで意外性のあるコードを挿入
-- セカンダリードミナントで進行に推進力を加える
-- ペダルポイントやクリシェラインで洗練された動きを実現
+**Originality Through Reharmonization:**
+- Create your own variations based on existing progressions
+- Insert unexpected chords using modal interchange
+- Add momentum to progressions with secondary dominants
+- Achieve sophisticated movement with pedal points and cliche lines
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [周波数とスペクトラム](./frequency-spectrum.md) の内容を理解していること
-
----
-
-## 1. コードとは
-
-### 定義
-
-**コード（和音）** = 3つ以上の音を同時に鳴らしたもの
-
-音楽理論的に言えば、コードは「3度（もしくはそれに準ずる音程）を積み重ねて構築される和音」です。ただし実際の音楽制作では、3度堆積に限らないさまざまなコード（パワーコード、クラスターなど）も使われます。
-
-```
-C メジャーコード = C + E + G
-（ドとミとソを同時に鳴らす）
-
-構造の理解:
-C → E : メジャー3度（4半音）
-E → G : マイナー3度（3半音）
-C → G : 完全5度（7半音）
-```
-
-### 音程（Interval）の基礎知識
-
-コードを理解するには、まず「音程」を知る必要があります。音程とは2つの音の間の距離のことで、半音単位で測定します。
-
-```
-半音数  音程名            例（Cから）     記号
-─────────────────────────────────────────────
-0       完全1度（ユニゾン）  C → C          P1
-1       短2度              C → Db         m2
-2       長2度              C → D          M2
-3       短3度              C → Eb         m3
-4       長3度              C → E          M3
-5       完全4度            C → F          P4
-6       増4度/減5度        C → F#/Gb      A4/d5
-7       完全5度            C → G          P5
-8       短6度              C → Ab         m6
-9       長6度              C → A          M6
-10      短7度              C → Bb         m7
-11      長7度              C → B          M7
-12      完全8度（オクターブ）C → C          P8
-```
-
-**DJ・制作での音程の重要性:**
-- 完全5度（7半音）は最も協和する音程で、パワーコードの基盤
-- 長3度と短3度の違いがメジャー/マイナーの明暗を決定
-- 短2度（半音）はぶつかりやすく、ミキシング時に注意が必要
-- トライトーン（6半音）は最も不安定で、ドミナントの緊張感の源
-
-### トライアド（3和音）
-
-最も基本的なコードです。ルート（根音）に対して3度と5度を積み重ねた3つの音で構成されます。
-
-**メジャーコード（Major）:**
-```
-構造: ルート + メジャー3度（+4半音）+ 完全5度（+7半音）
-例  : C + E + G
-響き: 明るい、安定、ポジティブ
-感情: 喜び、勝利、開放感
-```
-メジャーコードは最も基本的で認知度の高いコードです。ポップミュージック、ロック、EDMのドロップなど、明るくストレートなエネルギーが必要な場面で多用されます。DJプレイでは、フロアのエネルギーを上げたい場面でメジャーキーの曲を選ぶことが効果的です。
-
-**マイナーコード（Minor）:**
-```
-構造: ルート + マイナー3度（+3半音）+ 完全5度（+7半音）
-例  : C + Eb + G
-響き: 暗い、哀愁、内省的
-感情: 悲しみ、切なさ、ノスタルジー
-```
-マイナーコードはメジャーコードの3度を半音下げたもので、これだけで響きが劇的に変わります。Techno、Dark Progressive、メランコリックなTranceなど、ダークでディープな雰囲気のジャンルではマイナーキーが支配的です。Deep Houseの多くもマイナーキーで書かれています。
-
-**ディミニッシュコード（Diminished）:**
-```
-構造: ルート + マイナー3度（+3半音）+ 減5度（+6半音）
-例  : C + Eb + Gb
-響き: 不安定、緊張、不気味
-感情: 恐怖、不安、サスペンス
-用途: パッシングコード、ドミナントの代理
-```
-ディミニッシュコードは短3度を2つ積み重ねた対称的な構造を持ちます。この対称性により、3半音ごとに同じディミニッシュコードが出現します（Cdim = Ebdim = Gbdim = Adim）。EDMではあまり直接使われませんが、映画音楽やゲーム音楽の制作では緊張感を演出するために重宝します。
-
-**オーギュメントコード（Augmented）:**
-```
-構造: ルート + メジャー3度（+4半音）+ 増5度（+8半音）
-例  : C + E + G#
-響き: 浮遊感、不思議、幻想的
-感情: 夢、不確定、神秘
-用途: トランジション、パッシングコード
-```
-オーギュメントコードは長3度を2つ積み重ねた対称的構造です。ディミニッシュ同様、4半音ごとに同じオーギュメントコードが現れます（Caug = Eaug = G#aug）。Ambient、Cinematic、実験的な電子音楽で効果的に使用されます。
-
-**サスペンデッドコード（Suspended）:**
-```
-Sus4: ルート + 完全4度（+5半音）+ 完全5度（+7半音）
-例  : C + F + G
-響き: 開放的、解決を待つ
-
-Sus2: ルート + メジャー2度（+2半音）+ 完全5度（+7半音）
-例  : C + D + G
-響き: 爽やか、クリア
-```
-サスペンデッドコードは3度を含まないため、メジャーでもマイナーでもない中性的な響きを持ちます。Tranceのパッド音やProgressive Houseのビルドアップで非常に効果的です。Sus4は「解決したい」という緊張感を生み、Sus2は開放的でモダンな響きを持ちます。
-
-**パワーコード（Power Chord / Dyad）:**
-```
-構造: ルート + 完全5度（+7半音）
-例  : C + G
-響き: 力強い、ニュートラル
-```
-厳密にはコードとは呼べない（2音のみ）ですが、ロックやメタル、そしてTechnoやIndustrial系の音楽では極めて重要です。3度を含まないため、メジャーでもマイナーでもなく、歪みをかけても濁りにくい特徴があります。
-
-### 転回形（Inversion）
-
-同じコードでも、どの音を最低音にするかで響きが変わります。
-
-```
-Cメジャーの転回形:
-
-基本形（Root Position）: C - E - G   （Cが最低音）
-第1転回形（1st Inv.）  : E - G - C   （Eが最低音）
-第2転回形（2nd Inv.）  : G - C - E   （Gが最低音）
-```
-
-**転回形の効果:**
-- 基本形: 安定感があり、力強い。ベースラインを明確にしたい時
-- 第1転回形: 柔らかく、流動的。コード間のスムーズな接続
-- 第2転回形: 浮遊感があり、不安定。パッシングコードとして効果的
-
-**ボイスリーディング（Voice Leading）との関係:**
-転回形を使う最大の理由は「ボイスリーディング」です。コードが変わる時に、各声部（上の音、真ん中の音、下の音）ができるだけ滑らかに動くようにすることで、自然な流れが生まれます。
-
-```
-悪い例（全て基本形）:
-C:  C-E-G  →  F:  F-A-C  →  G:  G-B-D
-各音が大きくジャンプ
-
-良い例（転回形を活用）:
-C:  C-E-G  →  F:  C-F-A  →  G:  B-D-G
-最小限の動きでスムーズ
-```
-
-### コードの表記法
-
-音楽制作やDJの現場では、さまざまなコード表記に出会います。
-
-```
-表記例          意味                      構成音
-─────────────────────────────────────────────────
-C              Cメジャー                  C, E, G
-Cm (Cmin, C-)  Cマイナー                  C, Eb, G
-Cdim (C°)      Cディミニッシュ            C, Eb, Gb
-Caug (C+)      Cオーギュメント            C, E, G#
-Csus4          Cサスフォー                C, F, G
-Csus2          Cサスツー                  C, D, G
-C5             Cパワーコード              C, G
-Cmaj7 (CΔ7)   Cメジャーセブンス          C, E, G, B
-Cm7 (C-7)      Cマイナーセブンス          C, Eb, G, Bb
-C7 (Cdom7)     Cドミナントセブンス        C, E, G, Bb
-Cdim7 (C°7)    Cディミニッシュセブンス    C, Eb, Gb, Bbb(A)
-Cm7♭5 (Cø7)    Cハーフディミニッシュ      C, Eb, Gb, Bb
-Cadd9          Cアドナインス              C, E, G, D
-C/E            ConE（Eがベース）          E, C, E, G
-```
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Familiarity with the content of [Frequency and Spectrum](./frequency-spectrum.md)
 
 ---
 
-## 2. ダイアトニックコード
+## 1. What Are Chords
 
-### 定義
+### Definition
 
-スケール上の各音をルートにして、そのスケール内の音だけを使って3度堆積で作られるコードの集合。これが調性音楽の骨格です。ダイアトニックコードを理解することは、コード進行を理解するための最も重要なステップです。
+**Chord (harmony)** = three or more notes sounded simultaneously
 
-### なぜダイアトニックコードが重要か
-
-1. **調性の確立**: キーの中で「自然な」コードが何かを定義する
-2. **進行の予測**: 次にどのコードが来やすいかを理論的に説明できる
-3. **作曲の基盤**: ほとんどのポップス・EDMはダイアトニックコードで構成される
-4. **ハーモニックミキシング**: 同じキーの曲同士がなぜ混ぜやすいかの根拠
-
-### C Major のダイアトニックコード（トライアド）
+In music theory terms, a chord is "a harmony constructed by stacking thirds (or similar intervals)." However, in actual music production, various chords beyond third-based stacking (power chords, clusters, etc.) are also used.
 
 ```
-度数    コード名     構成音        品質              機能
-──────────────────────────────────────────────────────────
-I       C           C-E-G        メジャー          トニック（T）
-ii      Dm          D-F-A        マイナー          サブドミナント（SD）
-iii     Em          E-G-B        マイナー          トニック代理（T）
-IV      F           F-A-C        メジャー          サブドミナント（SD）
-V       G           G-B-D        メジャー          ドミナント（D）
-vi      Am          A-C-E        マイナー          トニック代理（T）
-vii°    Bdim        B-D-F        ディミニッシュ    ドミナント代理（D）
+C Major Chord = C + E + G
+(Playing Do, Mi, and Sol simultaneously)
+
+Understanding the structure:
+C -> E : Major 3rd (4 semitones)
+E -> G : Minor 3rd (3 semitones)
+C -> G : Perfect 5th (7 semitones)
 ```
 
-### C Major のダイアトニックコード（セブンス）
+### Interval Basics
+
+To understand chords, you first need to know "intervals." An interval is the distance between two notes, measured in semitones.
 
 ```
-度数    コード名     構成音          品質
-──────────────────────────────────────────────────────────
-Imaj7   Cmaj7       C-E-G-B        メジャーセブンス
-ii7     Dm7         D-F-A-C        マイナーセブンス
-iii7    Em7         E-G-B-D        マイナーセブンス
-IVmaj7  Fmaj7       F-A-C-E        メジャーセブンス
-V7      G7          G-B-D-F        ドミナントセブンス
-vi7     Am7         A-C-E-G        マイナーセブンス
-viiø7   Bm7♭5       B-D-F-A        ハーフディミニッシュ
+Semitones  Interval Name          Example (from C)  Symbol
+-----------------------------------------------------
+0          Perfect Unison         C -> C             P1
+1          Minor 2nd              C -> Db            m2
+2          Major 2nd              C -> D             M2
+3          Minor 3rd              C -> Eb            m3
+4          Major 3rd              C -> E             M3
+5          Perfect 4th            C -> F             P4
+6          Augmented 4th/Dim 5th  C -> F#/Gb         A4/d5
+7          Perfect 5th            C -> G             P5
+8          Minor 6th              C -> Ab            m6
+9          Major 6th              C -> A             M6
+10         Minor 7th              C -> Bb            m7
+11         Major 7th              C -> B             M7
+12         Perfect Octave         C -> C             P8
 ```
 
-### ナチュラルマイナーのダイアトニックコード
+**Importance of Intervals for DJs and Producers:**
+- The perfect 5th (7 semitones) is the most consonant interval and the foundation of power chords
+- The difference between major 3rd and minor 3rd determines the brightness of major/minor
+- The minor 2nd (semitone) clashes easily and requires caution when mixing
+- The tritone (6 semitones) is the most unstable interval and the source of dominant tension
 
-マイナーキーにも固有のダイアトニックコードがあります。A Natural Minor（Aナチュラルマイナー）のダイアトニックコードを見てみましょう。
+### Triads (Three-Note Chords)
+
+The most basic chords. They consist of three notes built by stacking a 3rd and a 5th above the root.
+
+**Major Chord:**
+```
+Structure: Root + Major 3rd (+4 semitones) + Perfect 5th (+7 semitones)
+Example  : C + E + G
+Sound    : Bright, stable, positive
+Emotion  : Joy, triumph, openness
+```
+The major chord is the most fundamental and widely recognized chord. It is used extensively in pop music, rock, EDM drops, and anywhere bright, straightforward energy is needed. In DJ performance, selecting tracks in major keys is effective when you want to raise the floor's energy.
+
+**Minor Chord:**
+```
+Structure: Root + Minor 3rd (+3 semitones) + Perfect 5th (+7 semitones)
+Example  : C + Eb + G
+Sound    : Dark, melancholic, introspective
+Emotion  : Sadness, bittersweetness, nostalgia
+```
+A minor chord is simply a major chord with the 3rd lowered by a semitone, yet this alone dramatically changes the sound. Minor keys dominate in genres with dark and deep atmospheres such as Techno, Dark Progressive, and melancholic Trance. Much of Deep House is also written in minor keys.
+
+**Diminished Chord:**
+```
+Structure: Root + Minor 3rd (+3 semitones) + Diminished 5th (+6 semitones)
+Example  : C + Eb + Gb
+Sound    : Unstable, tense, eerie
+Emotion  : Fear, anxiety, suspense
+Usage    : Passing chord, dominant substitute
+```
+The diminished chord has a symmetrical structure of two stacked minor 3rds. Due to this symmetry, the same diminished chord appears every 3 semitones (Cdim = Ebdim = Gbdim = Adim). While not often used directly in EDM, it is valuable for creating tension in film and game music production.
+
+**Augmented Chord:**
+```
+Structure: Root + Major 3rd (+4 semitones) + Augmented 5th (+8 semitones)
+Example  : C + E + G#
+Sound    : Floating, mysterious, fantastical
+Emotion  : Dreamlike, uncertain, mystical
+Usage    : Transitions, passing chords
+```
+The augmented chord has a symmetrical structure of two stacked major 3rds. Like the diminished chord, the same augmented chord appears every 4 semitones (Caug = Eaug = G#aug). It is used effectively in Ambient, Cinematic, and experimental electronic music.
+
+**Suspended Chord:**
+```
+Sus4: Root + Perfect 4th (+5 semitones) + Perfect 5th (+7 semitones)
+Example: C + F + G
+Sound  : Open, awaiting resolution
+
+Sus2: Root + Major 2nd (+2 semitones) + Perfect 5th (+7 semitones)
+Example: C + D + G
+Sound  : Fresh, clear
+```
+Suspended chords contain no 3rd, giving them a neutral sound that is neither major nor minor. They are highly effective in Trance pad sounds and Progressive House buildups. Sus4 creates tension that "wants to resolve," while Sus2 has an open, modern quality.
+
+**Power Chord (Dyad):**
+```
+Structure: Root + Perfect 5th (+7 semitones)
+Example  : C + G
+Sound    : Powerful, neutral
+```
+Strictly speaking, this cannot be called a chord (only 2 notes), but it is extremely important in rock, metal, and Techno/Industrial music. Since it contains no 3rd, it is neither major nor minor, and it does not become muddy even with distortion.
+
+### Inversions
+
+The same chord sounds different depending on which note is in the bass.
 
 ```
-度数    コード名     構成音        品質              機能
-──────────────────────────────────────────────────────────
-i       Am          A-C-E        マイナー          トニック（T）
-ii°     Bdim        B-D-F        ディミニッシュ    サブドミナント（SD）
-III     C           C-E-G        メジャー          トニック代理（T）
-iv      Dm          D-F-A        マイナー          サブドミナント（SD）
-v       Em          E-G-B        マイナー          ドミナント（D）
-VI      F           F-A-C        メジャー          サブドミナント代理（SD）
-VII     G           G-B-D        メジャー          ドミナント代理（D）
+C Major inversions:
+
+Root Position     : C - E - G   (C is the lowest note)
+1st Inversion     : E - G - C   (E is the lowest note)
+2nd Inversion     : G - C - E   (G is the lowest note)
 ```
 
-**注意点:** ナチュラルマイナーではVがマイナーコードになるため、ドミナント→トニックの解決感が弱くなります。これを補うために、ハーモニックマイナー（第7音を半音上げる）が使われ、V をメジャーコード（ドミナントセブンス）にすることがあります。
+**Effect of Inversions:**
+- Root Position: Stable and powerful. Use when you want a clear bass line
+- 1st Inversion: Soft and fluid. Smooth connection between chords
+- 2nd Inversion: Floating and unstable. Effective as a passing chord
+
+**Relationship with Voice Leading:**
+The main reason for using inversions is "voice leading." By ensuring each voice part (top, middle, bottom notes) moves as smoothly as possible when chords change, a natural flow is created.
 
 ```
-A ハーモニックマイナー:
-v(Em) → V(E) に変更
-E7 → Am という強い解決が可能に
+Bad example (all root position):
+C:  C-E-G  ->  F:  F-A-C  ->  G:  G-B-D
+Each note jumps by large intervals
+
+Good example (using inversions):
+C:  C-E-G  ->  F:  C-F-A  ->  G:  B-D-G
+Smooth with minimal movement
 ```
 
-### 機能（Function）
+### Chord Notation
 
-コードは以下の3つの機能を持ちます。これは音楽における「文法」のようなもので、コード進行がなぜ自然に聞こえるか（あるいは不自然に聞こえるか）を説明します。
-
-**1. トニック（T）- 安定・解決**
-- 該当コード: I, iii, vi
-- 曲の始まりと終わりに使われる
-- 「家に帰ってきた」「着地した」感覚
-- リスナーに安心感を与える
-- EDMのドロップの最初の拍で多用
+In music production and DJ settings, you will encounter various chord notations.
 
 ```
-トニックの感覚:
-「旅が終わった」「物語のエンディング」
-DJプレイ: セットの最初と最後、ブレイクの解決時
-制作: Verse の冒頭、Chorus の着地点
+Notation        Meaning                    Notes
+-----------------------------------------------------
+C               C Major                    C, E, G
+Cm (Cmin, C-)   C Minor                    C, Eb, G
+Cdim (C°)       C Diminished               C, Eb, Gb
+Caug (C+)       C Augmented                C, E, G#
+Csus4           C Suspended 4th            C, F, G
+Csus2           C Suspended 2nd            C, D, G
+C5              C Power Chord              C, G
+Cmaj7 (C△7)    C Major 7th                C, E, G, B
+Cm7 (C-7)       C Minor 7th                C, Eb, G, Bb
+C7 (Cdom7)      C Dominant 7th             C, E, G, Bb
+Cdim7 (C°7)     C Diminished 7th           C, Eb, Gb, Bbb(A)
+Cm7♭5 (Cø7)    C Half-Diminished          C, Eb, Gb, Bb
+Cadd9           C Add 9th                  C, E, G, D
+C/E             C over E (E in bass)       E, C, E, G
 ```
 
-**2. サブドミナント（SD）- 推進・準備**
-- 該当コード: IV, ii
-- ドミナントへ向かう準備段階
-- 「出発する」「動き出す」感覚
-- 穏やかな緊張感で、次の展開を予感させる
-- ビルドアップの初期段階で効果的
+---
+
+## 2. Diatonic Chords
+
+### Definition
+
+A set of chords built by stacking thirds using only the notes from a given scale, with each scale degree serving as the root. This is the backbone of tonal music. Understanding diatonic chords is the most important step in understanding chord progressions.
+
+### Why Diatonic Chords Matter
+
+1. **Establishing Tonality**: Defines what the "natural" chords are within a key
+2. **Predicting Progressions**: Theoretically explains which chord is likely to come next
+3. **Foundation for Composition**: Most pop and EDM music is built from diatonic chords
+4. **Harmonic Mixing**: The rationale for why tracks in the same key mix well together
+
+### Diatonic Chords in C Major (Triads)
 
 ```
-サブドミナントの感覚:
-「旅に出る準備」「扉を開ける」
-DJプレイ: テンションを上げ始める選曲
-制作: Pre-Chorus、ビルドアップの導入部
+Degree  Chord Name   Notes         Quality            Function
+--------------------------------------------------------------
+I       C            C-E-G         Major              Tonic (T)
+ii      Dm           D-F-A         Minor              Subdominant (SD)
+iii     Em           E-G-B         Minor              Tonic substitute (T)
+IV      F            F-A-C         Major              Subdominant (SD)
+V       G            G-B-D         Major              Dominant (D)
+vi      Am           A-C-E         Minor              Tonic substitute (T)
+vii°    Bdim         B-D-F         Diminished         Dominant substitute (D)
 ```
 
-**3. ドミナント（D）- 緊張・解決要求**
-- 該当コード: V, vii°
-- トニックへ戻りたくなる強い引力
-- 「帰りたい」「解決したい」感覚
-- 最大の緊張感を生み出す
-- ビルドアップのクライマックスで多用
+### Diatonic Chords in C Major (Sevenths)
 
 ```
-ドミナントの感覚:
-「家が見えてきた」「あと一歩」
-DJプレイ: ドロップ直前のテンション最大化
-制作: ドロップ前、サビ前の最大緊張ポイント
+Degree  Chord Name   Notes           Quality
+--------------------------------------------------------------
+Imaj7   Cmaj7        C-E-G-B         Major 7th
+ii7     Dm7          D-F-A-C         Minor 7th
+iii7    Em7          E-G-B-D         Minor 7th
+IVmaj7  Fmaj7        F-A-C-E         Major 7th
+V7      G7           G-B-D-F         Dominant 7th
+vi7     Am7          A-C-E-G         Minor 7th
+viiø7   Bm7♭5        B-D-F-A         Half-Diminished
 ```
 
-**機能和声の進行パターン:**
+### Diatonic Chords in Natural Minor
+
+Minor keys have their own set of diatonic chords. Let's look at the diatonic chords of A Natural Minor.
 
 ```
-基本的な流れ:
-T → SD → D → T （最も自然な流れ）
-I → IV → V → I
-
-よくある流れ:
-T → D → T  （SDを省略、シンプルな解決）
-T → SD → T （ドミナントを省略、穏やかな動き）
-SD → D → T （サブドミナントから始まる、推進力のある展開）
-
-避けるべき流れ:
-D → SD    （逆行、不自然に感じやすい）
-※ ただし意図的に使えば効果的な場合もある
+Degree  Chord Name   Notes         Quality            Function
+--------------------------------------------------------------
+i       Am           A-C-E         Minor              Tonic (T)
+ii°     Bdim         B-D-F         Diminished         Subdominant (SD)
+III     C            C-E-G         Major              Tonic substitute (T)
+iv      Dm           D-F-A         Minor              Subdominant (SD)
+v       Em           E-G-B         Minor              Dominant (D)
+VI      F            F-A-C         Major              Subdominant substitute (SD)
+VII     G            G-B-D         Major              Dominant substitute (D)
 ```
 
-### 全12キーのダイアトニックコード一覧
+**Note:** In natural minor, the V chord becomes a minor chord, which weakens the resolution from dominant to tonic. To compensate, the harmonic minor scale (raising the 7th degree by a semitone) is used, turning V into a major chord (dominant seventh).
 
-DJや制作で即座に参照できるよう、主要キーのダイアトニックコードを一覧にします。
+```
+A Harmonic Minor:
+v(Em) -> V(E) is modified
+E7 -> Am enables a strong resolution
+```
+
+### Function
+
+Chords have three functions. This is like the "grammar" of music, explaining why chord progressions sound natural (or unnatural).
+
+**1. Tonic (T) - Stability / Resolution**
+- Applicable chords: I, iii, vi
+- Used at the beginning and end of a piece
+- The feeling of "coming home" or "landing"
+- Gives listeners a sense of comfort
+- Frequently used on the first beat of an EDM drop
+
+```
+The feeling of Tonic:
+"The journey is over" "The story's ending"
+DJ Performance: Beginning and end of a set, resolution of breaks
+Production: Start of a Verse, landing point of a Chorus
+```
+
+**2. Subdominant (SD) - Movement / Preparation**
+- Applicable chords: IV, ii
+- The preparatory stage before moving to dominant
+- The feeling of "departing" or "setting off"
+- Gentle tension that foreshadows the next development
+- Effective in early stages of a buildup
+
+```
+The feeling of Subdominant:
+"Preparing for a journey" "Opening the door"
+DJ Performance: Track selection that starts building tension
+Production: Pre-Chorus, introduction of a buildup
+```
+
+**3. Dominant (D) - Tension / Demand for Resolution**
+- Applicable chords: V, vii°
+- Strong gravitational pull back to tonic
+- The feeling of "wanting to return" or "wanting resolution"
+- Creates maximum tension
+- Frequently used at the climax of buildups
+
+```
+The feeling of Dominant:
+"Home is in sight" "One more step"
+DJ Performance: Maximum tension just before the drop
+Production: Peak tension point before the drop or chorus
+```
+
+**Functional Harmony Progression Patterns:**
+
+```
+Basic flow:
+T -> SD -> D -> T (The most natural flow)
+I -> IV -> V -> I
+
+Common flows:
+T -> D -> T  (SD omitted, simple resolution)
+T -> SD -> T (Dominant omitted, gentle movement)
+SD -> D -> T (Starting from subdominant, momentum-driven)
+
+Flows to avoid:
+D -> SD    (Retrograde, tends to sound unnatural)
+* However, it can be effective when used intentionally
+```
+
+### Diatonic Chords for All 12 Keys
+
+Listed here for quick reference during DJing and production.
 
 ```
 Key     I      ii     iii    IV     V      vi     vii°
-───────────────────────────────────────────────────────
+-----------------------------------------------------------
 C       C      Dm     Em     F      G      Am     Bdim
 G       G      Am     Bm     C      D      Em     F#dim
 D       D      Em     F#m    G      A      Bm     C#dim
@@ -384,22 +384,22 @@ Bb      Bb     Cm     Dm     Eb     F      Gm     Adim
 F       F      Gm     Am     Bb     C      Dm     Edim
 ```
 
-**Tip:** この表を暗記する必要はありません。重要なのはパターンを理解することです。Iの位置がわかれば、そこから各度数のコードを導き出せます。
+**Tip:** You don't need to memorize this table. What matters is understanding the pattern. Once you know where I is, you can derive the chord for each degree from there.
 
 ---
 
-## 3. コード進行の基本
+## 3. Chord Progression Basics
 
-### コード進行とは
+### What Are Chord Progressions
 
-コード進行（Chord Progression）とは、コードが時間的に連続して配置されたパターンのことです。メロディやリズムがその上に乗ることで楽曲が形成されます。優れたコード進行は、リスナーの感情を自然に導き、楽曲にストーリー性を与えます。
+A chord progression is a pattern of chords arranged sequentially over time. Melody and rhythm are layered on top to form a piece of music. A great chord progression naturally guides the listener's emotions and gives a song its narrative arc.
 
-### ローマ数字表記の利点
+### Advantages of Roman Numeral Notation
 
-コード進行をローマ数字（I, ii, IV, V など）で記述することの最大の利点は、**どのキーでも同じパターンが適用できる**ことです。
+The greatest advantage of writing chord progressions in Roman numerals (I, ii, IV, V, etc.) is that **the same pattern can be applied in any key**.
 
 ```
-I - V - vi - IV の進行:
+The I - V - vi - IV progression:
 
 Key=C : C  - G  - Am - F
 Key=G : G  - D  - Em - C
@@ -407,148 +407,148 @@ Key=D : D  - A  - Bm - G
 Key=A : A  - E  - F#m - D
 Key=Eb: Eb - Bb - Cm - Ab
 
-全て同じ感情・雰囲気を持つ
+All have the same emotion and atmosphere
 ```
 
-### 王道進行（Pop Progression）
+### The Pop Progression
 
-**I - V - vi - IV（1-5-6-4）**
+**I - V - vi - IV (1-5-6-4)**
 ```
 Key=C: C - G - Am - F
 ```
 
-世界で最も使われているコード進行と言っても過言ではありません。「4コードの曲」としてYouTubeでも有名になった進行です。
+It is no exaggeration to say this is the most-used chord progression in the world. It became famous on YouTube as the "4-chord song" progression.
 
-**特徴:**
-- 明るさと切なさのバランスが絶妙
-- 安定感がありながら感情的な動きがある
-- ループさせても飽きにくい
-- どのジャンルにも適応可能
+**Characteristics:**
+- An exquisite balance of brightness and bittersweetness
+- Stable yet emotionally moving
+- Does not become tiresome even when looped
+- Adaptable to any genre
 
-**使用例（膨大なリスト）:**
+**Usage Examples (extensive list):**
 - The Beatles - "Let It Be"
 - Journey - "Don't Stop Believin'"
 - U2 - "With or Without You"
-- Adele - "Someone Like You"（vi始まり: vi-IV-I-V）
+- Adele - "Someone Like You" (vi start: vi-IV-I-V)
 - Avicii - "Wake Me Up"
 - The Chainsmokers - "Closer"
 - Ed Sheeran - "Perfect"
-- Lady Gaga - "Poker Face"（マイナーキーver: i-v-VI-IV → Am-Em-F-C相当）
+- Lady Gaga - "Poker Face" (minor key ver: i-v-VI-IV -> Am-Em-F-C equivalent)
 
-**バリエーション:**
+**Variations:**
 ```
-vi - IV - I - V  （vi始まり: より切ない印象）
-IV - V - vi - I  （IV始まり: サブドミナントの推進力）
-I - IV - vi - V  （順番変え: やや異なるニュアンス）
+vi - IV - I - V  (vi start: more bittersweet impression)
+IV - V - vi - I  (IV start: subdominant momentum)
+I - IV - vi - V  (reordered: slightly different nuance)
 ```
 
-### カノン進行
+### Canon Progression
 
 **I - V - vi - iii - IV - I - IV - V**
 ```
 Key=C: C - G - Am - Em - F - C - F - G
 ```
 
-**特徴:**
-- パッヘルベルの「カノン ニ長調」が起源
-- ベースラインが順次下行する美しい動き
-- クラシックから現代ポップスまで普遍的
-- 8小節で完結する長めの進行
+**Characteristics:**
+- Originated from Pachelbel's "Canon in D"
+- Beautiful descending bass line movement
+- Universal from classical to modern pop
+- A longer progression that completes in 8 bars
 
-**ベースラインの動き:**
+**Bass Line Movement:**
 ```
-C → B → A → G → F → E → F → G
-（スケールを下行してから上行に転じる）
+C -> B -> A -> G -> F -> E -> F -> G
+(Descends through the scale then ascends)
 ```
-この下行ベースラインが「切なさ」と「美しさ」を生み出します。
+This descending bass line creates a sense of "bittersweetness" and "beauty."
 
-**使用例:**
+**Usage Examples:**
 - Pachelbel - "Canon in D"
-- Green Day - "Basket Case"（変形）
+- Green Day - "Basket Case" (variation)
 - Maroon 5 - "Memories"
-- 多くのJ-POPの名曲
+- Many classic J-POP songs
 
-### 循環コード / ターンアラウンド（ジャズ）
+### Turnaround (Jazz)
 
 **I - vi - ii - V**
 ```
 Key=C: C - Am - Dm - G
 ```
 
-**特徴:**
-- ジャズのスタンダード進行
-- 「循環」の名の通り、何度でも自然にループ
-- 50年代のポップス、ドゥーワップの定番
-- スムーズな和声の流れ
+**Characteristics:**
+- A jazz standard progression
+- As the name "turnaround" suggests, it loops naturally and endlessly
+- A staple of 1950s pop and doo-wop
+- Smooth harmonic flow
 
-**機能和声的な分析:**
+**Functional Harmony Analysis:**
 ```
-I(T) → vi(T代理) → ii(SD) → V(D) → [I(T)に戻る]
-T → T → SD → D → T
-この流れは機能和声の教科書的な進行
+I(T) -> vi(T substitute) -> ii(SD) -> V(D) -> [returns to I(T)]
+T -> T -> SD -> D -> T
+This flow is a textbook functional harmony progression
 ```
 
-### ツーファイブワン（ii-V-I）
+### Two-Five-One (ii-V-I)
 
 **ii - V - I**
 ```
 Key=C: Dm7 - G7 - Cmaj7
 ```
 
-ジャズにおいて最も重要なコード進行です。あらゆるジャズスタンダードに頻出し、「ジャズの文法」とも呼ばれます。
+This is the most important chord progression in jazz. It appears in virtually every jazz standard and is often called "the grammar of jazz."
 
-**特徴:**
-- 完璧な解決感（SD → D → T）
-- セブンスコードで弾くとよりジャジー
-- 任意のキーへの転調に使える
-- マイナーキーでは ii°- V - i
+**Characteristics:**
+- Perfect sense of resolution (SD -> D -> T)
+- Sounds jazzier when played with seventh chords
+- Can be used for modulation to any key
+- In minor keys: ii°- V - i
 
-**マイナーキーの ii-V-i:**
+**Minor Key ii-V-i:**
 ```
 Key=Am: Bm7♭5 - E7 - Am7
-（ハーフディミニッシュ → ドミナントセブンス → マイナーセブンス）
+(Half-Diminished -> Dominant 7th -> Minor 7th)
 ```
 
-**DJ・制作での活用:**
-- Deep House のコード展開で頻出
-- Lo-Fi Hip Hop のチルな雰囲気に
-- ジャンルを問わず「おしゃれ」な進行
-- ブリッジやアウトロでの転調の導入に
+**Application in DJing and Production:**
+- Frequently appears in Deep House chord progressions
+- Creates a chill atmosphere for Lo-Fi Hip Hop
+- A "sophisticated" progression regardless of genre
+- Useful for introducing modulations in bridges and outros
 
-### 小室進行（J-POP定番）
+### Komuro Progression (J-POP Standard)
 
 **vi - IV - V - I**
 ```
 Key=C: Am - F - G - C
-Key=Am: Am - F - G - C（相対的に i - VI - VII - III）
+Key=Am: Am - F - G - C (relatively i - VI - VII - III)
 ```
 
-**特徴:**
-- 小室哲哉が多用したことから命名
-- J-POP、アニソンで圧倒的に多い
-- マイナーから始まる哀愁感
-- 最後にメジャーで解決する希望感
+**Characteristics:**
+- Named after Tetsuya Komuro who used it extensively
+- Overwhelmingly common in J-POP and anime songs
+- Starts with minor for a sense of melancholy
+- Resolves to major at the end for a sense of hope
 
-**使用例:**
-- TM NETWORK、globe の多くの楽曲
-- 数えきれないJ-POPの名曲
-- アニメソングの定番
-- 最近のボカロ曲にも頻出
+**Usage Examples:**
+- Many songs by TM NETWORK and globe
+- Countless classic J-POP songs
+- A staple of anime songs
+- Also frequently appears in recent Vocaloid songs
 
-### アンダルシア進行
+### Andalusian Cadence
 
 **i - VII - VI - V**
 ```
 Key=Am: Am - G - F - E
 ```
 
-**特徴:**
-- フラメンコ由来のパワフルな進行
-- ベースラインが半音ずつ下行（A→G→F→E）
-- ダークで情熱的な雰囲気
-- Techno、Psy-Trance でも効果的
+**Characteristics:**
+- A powerful progression originating from Flamenco
+- Bass line descends by semitone (A->G->F->E)
+- Dark and passionate atmosphere
+- Also effective in Techno and Psy-Trance
 
-### ブルース進行（12小節ブルース）
+### Blues Progression (12-Bar Blues)
 
 ```
 | I7  | I7  | I7  | I7  |
@@ -561,941 +561,941 @@ Key=C:
 | G7  | F7  | C7  | G7  |
 ```
 
-**特徴:**
-- ブルース、R&B、ロックの根幹
-- 全てのコードがドミナントセブンス
-- 12小節で完結するフォーム
-- House、Funk 系の制作でも活用可能
+**Characteristics:**
+- The foundation of Blues, R&B, and Rock
+- All chords are dominant sevenths
+- A form that completes in 12 bars
+- Also applicable to House and Funk production
 
 ---
 
-## 4. セブンスコード（4和音）
+## 4. Seventh Chords (Four-Note Chords)
 
-### なぜセブンスコードが重要か
+### Why Seventh Chords Matter
 
-トライアド（3和音）が骨格だとすれば、セブンスコード（4和音）は「肉付け」です。7th の音を加えることで、コードに奥行き、洗練さ、ジャンル特有の色合いが生まれます。
+If triads are the skeleton, seventh chords are the "flesh." Adding the 7th note gives chords depth, sophistication, and genre-specific coloring.
 
-モダンな音楽制作（特にHouse、R&B、Neo Soul、Lo-Fi Hip Hop）では、セブンスコードはほぼ必須と言えます。DJとしても、セブンスコードを多用するジャンルを扱う際に、その響きを理解していることは選曲の精度を高めます。
+In modern music production (especially House, R&B, Neo Soul, Lo-Fi Hip Hop), seventh chords are practically essential. As a DJ, understanding the sound of seventh chords when working with genres that use them heavily also improves track selection accuracy.
 
-### メジャーセブンス（Maj7 / △7）
+### Major Seventh (Maj7 / △7)
 
 ```
 Cmaj7 = C + E + G + B
-音程: R + M3 + P5 + M7
+Intervals: R + M3 + P5 + M7
 
-響き: 洗練された、ジャジー、温かくも鮮明
-感情: 安らぎ、洗練、大人っぽさ、晴れた午後
-用途: House、R&B、Jazz、Bossa Nova、Lo-Fi、City Pop
+Sound   : Refined, jazzy, warm yet vivid
+Emotion : Serenity, sophistication, maturity, a sunny afternoon
+Usage   : House, R&B, Jazz, Bossa Nova, Lo-Fi, City Pop
 
-DAWでの入力（Cの場合）:
-ピアノロール: C3, E3, G3, B3
+DAW Input (for C):
+Piano Roll: C3, E3, G3, B3
 ```
 
-**特徴的なサウンド:**
-メジャーセブンスの最大の特徴は、ルートと7thの間に長7度（11半音）の音程があることです。この音程は非常に協和的で、「キラキラ」とした輝きを持ちます。ただし、メロディがルートのオクターブ上にある場合、7thとの半音のぶつかりが生じることがあるので注意が必要です。
+**Characteristic Sound:**
+The defining feature of the major seventh is the major 7th interval (11 semitones) between the root and the 7th. This interval is highly consonant with a "sparkling" brilliance. However, when the melody is an octave above the root, a semitone clash with the 7th can occur, so caution is needed.
 
-**ジャンル別の使い方:**
-- **House / Deep House**: パッドやローズ系のシンセでコードを鳴らす
-- **Lo-Fi Hip Hop**: ローファイなエレピにmaj7を多用
-- **City Pop**: ネオシティポップリバイバルの必須サウンド
-- **Bossa Nova**: ジョアン・ジルベルトの伝統的なスタイル
+**Genre-Specific Usage:**
+- **House / Deep House**: Play chords with pad or Rhodes-style synth sounds
+- **Lo-Fi Hip Hop**: Heavy use of maj7 on lo-fi electric piano
+- **City Pop**: An essential sound of the neo-City Pop revival
+- **Bossa Nova**: The traditional style of Joao Gilberto
 
-### ドミナントセブンス（7 / dom7）
+### Dominant Seventh (7 / dom7)
 
 ```
 C7 = C + E + G + Bb
-音程: R + M3 + P5 + m7
+Intervals: R + M3 + P5 + m7
 
-響き: ブルージー、緊張感、解決を要求
-感情: ファンキー、ソウルフル、エッジの効いた
-用途: Blues、Funk、Soul、Jazz、Gospel
+Sound   : Bluesy, tense, demanding resolution
+Emotion : Funky, soulful, edgy
+Usage   : Blues, Funk, Soul, Jazz, Gospel
 
-DAWでの入力（Cの場合）:
-ピアノロール: C3, E3, G3, Bb3
+DAW Input (for C):
+Piano Roll: C3, E3, G3, Bb3
 ```
 
-**特徴的なサウンド:**
-ドミナントセブンスには「トライトーン」（増4度/減5度）が内包されています。Cの場合、EとBbの間が6半音（トライトーン）です。このトライトーンが「解決したい」という強い引力を生み出し、V7 → I の進行で完全な解決感を得られます。
+**Characteristic Sound:**
+The dominant seventh contains a "tritone" (augmented 4th / diminished 5th). In C7, the interval between E and Bb is 6 semitones (a tritone). This tritone creates a strong pull toward resolution, delivering a complete sense of resolution in V7 -> I progressions.
 
 ```
-C7のトライトーン: E ↔ Bb（6半音）
-→ Eは上のFに解決したい
-→ BbはAに解決したい
-→ C7 → F の進行で E→F, Bb→A と解決
+Tritone in C7: E <-> Bb (6 semitones)
+-> E wants to resolve up to F
+-> Bb wants to resolve to A
+-> In C7 -> F, E->F and Bb->A resolve
 ```
 
-**重要な概念 - ドミナントモーション:**
-ドミナントセブンスは「完全4度上」のコードに解決する性質があります。
+**Important Concept - Dominant Motion:**
+A dominant seventh naturally resolves to a chord a perfect 4th above.
 ```
-G7 → C   （GからCは完全4度上 / 完全5度下）
-C7 → F   （CからFは完全4度上）
-D7 → G   （DからGは完全4度上）
+G7 -> C   (G to C is a perfect 4th up / perfect 5th down)
+C7 -> F   (C to F is a perfect 4th up)
+D7 -> G   (D to G is a perfect 4th up)
 ```
 
-### マイナーセブンス（m7 / -7）
+### Minor Seventh (m7 / -7)
 
 ```
 Cm7 = C + Eb + G + Bb
-音程: R + m3 + P5 + m7
+Intervals: R + m3 + P5 + m7
 
-響き: 落ち着いた、都会的、クール
-感情: 洗練された悲しみ、ムーディー、夜の雰囲気
-用途: Jazz、Neo Soul、Chill、Deep House、Lo-Fi
+Sound   : Calm, urban, cool
+Emotion : Refined sadness, moody, nighttime atmosphere
+Usage   : Jazz, Neo Soul, Chill, Deep House, Lo-Fi
 
-DAWでの入力（Cの場合）:
-ピアノロール: C3, Eb3, G3, Bb3
+DAW Input (for C):
+Piano Roll: C3, Eb3, G3, Bb3
 ```
 
-**特徴的なサウンド:**
-マイナーセブンスは、マイナーコードの暗さに短7度の柔らかさが加わり、「都会的な憂い」とも言える独特の雰囲気を持ちます。攻撃的な暗さではなく、洗練された暗さです。
+**Characteristic Sound:**
+The minor seventh adds the softness of a minor 7th to the darkness of a minor chord, creating a distinctive atmosphere that might be described as "urban melancholy." It is not an aggressive darkness but a refined one.
 
-**ジャンル別の使い方:**
-- **Neo Soul**: Erykah Badu、D'Angelo のサウンドの核
-- **Deep House**: ディープなパッドのコード感
-- **Lo-Fi Hip Hop**: チルで落ち着いたムード
-- **Jazz**: ii-V-I の ii として最も頻繁に使用
+**Genre-Specific Usage:**
+- **Neo Soul**: The core sound of Erykah Badu and D'Angelo
+- **Deep House**: The chord feel of deep pad sounds
+- **Lo-Fi Hip Hop**: A chill, relaxed mood
+- **Jazz**: Most frequently used as the ii in a ii-V-I
 
-### ハーフディミニッシュ（m7♭5 / ø7）
+### Half-Diminished (m7♭5 / ø7)
 
 ```
 Cm7♭5 = C + Eb + Gb + Bb
-音程: R + m3 + d5 + m7
+Intervals: R + m3 + d5 + m7
 
-響き: 不安定、ジャジー、暗いが洗練された
-感情: 緊張の中の美しさ、サスペンス
-用途: Jazz の ii-V-i（マイナーキー）、映画音楽
+Sound   : Unstable, jazzy, dark yet refined
+Emotion : Beauty within tension, suspense
+Usage   : Jazz ii-V-i (minor key), film scores
 
-DAWでの入力（Cの場合）:
-ピアノロール: C3, Eb3, Gb3, Bb3
+DAW Input (for C):
+Piano Roll: C3, Eb3, Gb3, Bb3
 ```
 
-**特徴:**
-ハーフディミニッシュは、マイナーキーの ii-V-i 進行で ii として使われる重要なコードです。完全なディミニッシュよりも柔らかく、ジャズ的な洗練さを持ちます。
+**Characteristics:**
+The half-diminished is an important chord used as the ii in minor key ii-V-i progressions. It is softer than a full diminished chord and has a jazz-like sophistication.
 
-### ディミニッシュセブンス（dim7 / °7）
+### Diminished Seventh (dim7 / °7)
 
 ```
 Cdim7 = C + Eb + Gb + A(Bbb)
-音程: R + m3 + d5 + d7（= M6）
+Intervals: R + m3 + d5 + d7 (= M6)
 
-響き: 極度の緊張、不安、恐怖
-感情: サスペンス、ホラー、ドラマチック
-用途: パッシングコード、映画音楽、ジャズ
+Sound   : Extreme tension, anxiety, fear
+Emotion : Suspense, horror, dramatic
+Usage   : Passing chord, film scores, jazz
 ```
 
-**対称的な構造:**
-ディミニッシュセブンスは短3度（3半音）を等間隔に積み重ねた対称コードです。そのため、12音中で本質的に異なるディミニッシュセブンスは3種類しか存在しません。
+**Symmetrical Structure:**
+The diminished seventh is a symmetrical chord built by stacking minor 3rds (3 semitones) at equal intervals. Therefore, there are only 3 essentially different diminished seventh chords among the 12 tones.
 
 ```
-Cdim7 = Ebdim7 = Gbdim7 = Adim7（同じ構成音の異名同音）
+Cdim7 = Ebdim7 = Gbdim7 = Adim7 (enharmonic equivalents)
 C#dim7 = Edim7 = Gdim7 = Bbdim7
 Ddim7 = Fdim7 = Abdim7 = Bdim7
 ```
 
-### セブンスコードのサマリー表
+### Seventh Chord Summary Table
 
 ```
-名称              略記      3度  5度  7度   響きの特徴
-────────────────────────────────────────────────────────
-メジャーセブンス    maj7/Δ7   M3   P5   M7   洗練、温かい輝き
-ドミナントセブンス  7/dom7    M3   P5   m7   ブルージー、解決要求
-マイナーセブンス    m7/-7     m3   P5   m7   クール、都会的
-マイナーメジャー7th  mM7      m3   P5   M7   暗いが鮮烈、ドラマチック
-ハーフディミニッシュ m7♭5/ø7   m3   d5   m7   暗く不安定、ジャジー
-ディミニッシュ7th   dim7/°7   m3   d5   d7   極度の緊張、対称的
-オーギュメント7th   aug7/+7   M3   A5   m7   浮遊、ミステリアス
+Name                  Abbrev.     3rd  5th  7th   Sound Characteristics
+------------------------------------------------------------------------
+Major 7th             maj7/△7     M3   P5   M7    Refined, warm brilliance
+Dominant 7th          7/dom7      M3   P5   m7    Bluesy, demands resolution
+Minor 7th             m7/-7       m3   P5   m7    Cool, urban
+Minor Major 7th       mM7         m3   P5   M7    Dark yet vivid, dramatic
+Half-Diminished       m7♭5/ø7     m3   d5   m7    Dark and unstable, jazzy
+Diminished 7th        dim7/°7     m3   d5   d7    Extreme tension, symmetrical
+Augmented 7th         aug7/+7     M3   A5   m7    Floating, mysterious
 ```
 
 ---
 
-## 5. テンションノート
+## 5. Tension Notes
 
-### テンションとは
+### What Are Tensions
 
-基本的な3和音や4和音に、さらに音を加えて色付けすること。テンションは「9th」「11th」「13th」として表記され、それぞれオクターブ上の2nd、4th、6thに相当します。
-
-```
-音の対応関係:
-2nd（D）= 9th（オクターブ上のD）
-4th（F）= 11th（オクターブ上のF）
-6th（A）= 13th（オクターブ上のA）
-```
-
-### アヴォイドノートの概念
-
-テンションには「使っても良いテンション」と「アヴォイドノート（避けるべき音）」があります。アヴォイドノートとは、コードトーンと短9度（短2度のオクターブ上）の関係になる音で、不協和が強すぎて和声を濁す音です。
+Adding notes beyond the basic triad or four-note chord to color the sound. Tensions are notated as "9th," "11th," and "13th," corresponding to the 2nd, 4th, and 6th an octave higher, respectively.
 
 ```
-Cmaj7のアヴォイドノート:
-4th（F）→ 3rd（E）と半音でぶつかる
-→ 11thとして使うときは #11 にするか避ける
-
-C7のアヴォイドノート:
-なし（9th、#11th、13th すべて使用可能）
-
-Dm7のアヴォイドノート:
-6th（B）→ ♭7（C）と半音でぶつかるが、
-13thとしては使用可能な場合もある
+Note Correspondence:
+2nd (D) = 9th (D one octave higher)
+4th (F) = 11th (F one octave higher)
+6th (A) = 13th (A one octave higher)
 ```
 
-**制作でのアドバイス:**
-アヴォイドノートの理論は主にジャズの文脈で発達しました。EDMやポップスの制作では、理論にこだわりすぎず「耳で判断する」ことも重要です。理論的にはアヴォイドでも、コンテキスト次第で美しく響く場合があります。
+### The Concept of Avoid Notes
 
-### 9th（ナインス）
+Among tensions, there are "usable tensions" and "avoid notes (notes to avoid)." Avoid notes are notes that create a minor 9th relationship (minor 2nd an octave up) with a chord tone, causing dissonance too strong for the harmony.
 
-**add9（アドナインス）:**
+```
+Avoid notes for Cmaj7:
+4th (F) -> clashes with 3rd (E) by a semitone
+-> When using as 11th, use #11 or avoid it
+
+Avoid notes for C7:
+None (9th, #11th, 13th are all usable)
+
+Avoid notes for Dm7:
+6th (B) -> clashes with b7 (C) by a semitone,
+though it can sometimes be used as a 13th
+```
+
+**Production Advice:**
+Avoid note theory was mainly developed in the context of jazz. In EDM and pop production, it is also important to "judge by ear" rather than being overly tied to theory. What is theoretically an avoid note may sound beautiful depending on the context.
+
+### 9th (Ninth)
+
+**add9 (Add Ninth):**
 ```
 Cadd9 = C + E + G + D
-響き: 明るく広がりのある、爽やか
-用途: ポップス、ロック、EDMのリフトアップ感
+Sound: Bright, expansive, refreshing
+Usage: Pop, rock, EDM uplift feel
 ```
-add9はセブンスを含まずに9thだけを加えたコード。シンプルながら効果的で、EDMのコード感を一段階グレードアップさせます。
+add9 is a chord with only the 9th added without including the seventh. Simple yet effective, it upgrades the chord feel of EDM by one level.
 
-**Cmaj9（メジャーナインス）:**
+**Cmaj9 (Major Ninth):**
 ```
 Cmaj9 = C + E + G + B + D
-響き: 非常に洗練された、ゴージャス
-用途: Jazz、R&B、Bossa Nova、City Pop
+Sound: Extremely refined, gorgeous
+Usage: Jazz, R&B, Bossa Nova, City Pop
 ```
 
-**Cm9（マイナーナインス）:**
+**Cm9 (Minor Ninth):**
 ```
 Cm9 = C + Eb + G + Bb + D
-響き: メランコリックだが洗練された
-用途: Neo Soul、Jazz、Deep House
+Sound: Melancholic yet refined
+Usage: Neo Soul, Jazz, Deep House
 ```
 
-**C9（ドミナントナインス）:**
+**C9 (Dominant Ninth):**
 ```
 C9 = C + E + G + Bb + D
-響き: ファンキー、ソウルフル
-用途: Funk、Soul、Gospel、Disco
+Sound: Funky, soulful
+Usage: Funk, Soul, Gospel, Disco
 ```
 
-### 11th（イレブンス）
+### 11th (Eleventh)
 
 ```
 C11 = C + E + G + Bb + D + F
-響き: 浮遊感、アンビエント、広大
-用途: Ambient、Progressive、Cinematic
+Sound: Floating, ambient, vast
+Usage: Ambient, Progressive, Cinematic
 
 Cm11 = C + Eb + G + Bb + D + F
-響き: ディープ、瞑想的
-用途: Jazz、Ambient Techno
+Sound: Deep, meditative
+Usage: Jazz, Ambient Techno
 ```
 
-**実践的な注意:**
-11thコードを全ての構成音で鳴らすと音が多すぎて濁ることがあります。実際の制作では、いくつかの音を省略（オミット）します。
+**Practical Note:**
+Playing an 11th chord with all its notes can create muddiness from too many tones. In actual production, some notes are omitted.
 
 ```
-C11の実用的なボイシング:
-C + Bb + D + F（3度と5度を省略）
-C + F + Bb + D（ルート + 4度 + ♭7 + 9度）
+Practical voicings for C11:
+C + Bb + D + F (3rd and 5th omitted)
+C + F + Bb + D (Root + 4th + b7 + 9th)
 ```
 
-### 13th（サーティーンス）
+### 13th (Thirteenth)
 
 ```
 C13 = C + E + G + Bb + D + (F) + A
-響き: ジャジー、複雑、ゴージャス
-用途: Jazz、Big Band、Fusion
+Sound: Jazzy, complex, gorgeous
+Usage: Jazz, Big Band, Fusion
 ```
 
-13thコードは理論上7つの音を含みますが、実際には5thや11thなどを省略して演奏します。
+A 13th chord theoretically contains 7 notes, but in practice the 5th and 11th are typically omitted.
 
 ```
-C13の実用的なボイシング:
-C + E + Bb + D + A（5度と11度を省略）
-C + E + Bb + A（さらにシンプルに）
+Practical voicings for C13:
+C + E + Bb + D + A (5th and 11th omitted)
+C + E + Bb + A (even simpler)
 ```
 
-### テンションの使いどころ（ジャンル別）
+### When to Use Tensions (By Genre)
 
 ```
-ジャンル          よく使うテンション       効果
-──────────────────────────────────────────────────────
-House           maj7, add9              洗練、おしゃれ
-Deep House      m9, m11                 ディープ、浮遊
-Techno          sus4, sus2              ミニマル、緊張
-Progressive     add9, sus4              壮大、展開
-Trance          sus2, sus4, add9        浮遊、エモーショナル
-Future Bass     maj9, add9, m7          キラキラ、エモい
-Lo-Fi Hip Hop   m7, m9, maj7            チル、ジャジー
-Jazz            9, 11, 13, altered      複雑、洗練
-Neo Soul        m9, maj9, 13            ソウルフル、都会的
-R&B             add9, m7, maj7          スムーズ、セクシー
-Ambient         sus2, add9, m11         広大、瞑想的
-Drum & Bass     m7, stabs               ダーク、アグレッシブ
+Genre             Common Tensions          Effect
+----------------------------------------------------------
+House             maj7, add9               Refined, sophisticated
+Deep House        m9, m11                  Deep, floating
+Techno            sus4, sus2               Minimal, tense
+Progressive       add9, sus4               Grand, expansive
+Trance            sus2, sus4, add9         Floating, emotional
+Future Bass       maj9, add9, m7           Sparkling, emotional
+Lo-Fi Hip Hop     m7, m9, maj7             Chill, jazzy
+Jazz              9, 11, 13, altered       Complex, refined
+Neo Soul          m9, maj9, 13             Soulful, urban
+R&B               add9, m7, maj7           Smooth, sensual
+Ambient           sus2, add9, m11          Vast, meditative
+Drum & Bass       m7, stabs                Dark, aggressive
 ```
 
-### テンションを使った実践的なコード進行
+### Practical Chord Progressions Using Tensions
 
-**チルなLo-Fi Hip Hop進行:**
+**Chill Lo-Fi Hip Hop Progression:**
 ```
 Dm9 - G13 - Cmaj9 - Am9
-（ii9 - V13 - Imaj9 - vi9 in C Major）
+(ii9 - V13 - Imaj9 - vi9 in C Major)
 ```
 
-**Future Bass風キラキラ進行:**
+**Future Bass Sparkle Progression:**
 ```
 Fmaj9 - G - Am7 - Em7
-（IVmaj9 - V - vi7 - iii7 in C Major）
+(IVmaj9 - V - vi7 - iii7 in C Major)
 ```
 
-**Deep House ディープ進行:**
+**Deep House Deep Progression:**
 ```
 Cm9 - Fm9 - Gm7 - Cm9
-（i9 - iv9 - v7 - i9 in C Minor）
+(i9 - iv9 - v7 - i9 in C Minor)
 ```
 
-**Neo Soul 都会的進行:**
+**Neo Soul Urban Progression:**
 ```
 Dmaj9 - Dbmaj9 - Cmaj9 - Bmaj9
-（半音下行、クロマチックアプローチ）
+(Chromatic descending approach)
 ```
 
 ---
 
-## 6. コード進行の感情マッピング
+## 6. Chord Progression Emotion Mapping
 
-### コードと感情の関係
+### The Relationship Between Chords and Emotion
 
-音楽が人間の感情に影響を与えるメカニズムは複雑ですが、コード進行は最も直接的な「感情のトリガー」として機能します。プロの作曲家やプロデューサーは、意図的にコード進行を選択して特定の感情を呼び起こします。
+The mechanism by which music affects human emotions is complex, but chord progressions function as the most direct "emotional trigger." Professional composers and producers intentionally select chord progressions to evoke specific emotions.
 
-### 明るい・ポジティブな進行
+### Bright / Positive Progressions
 
-**I - IV - V - I（クラシカルハッピー）**
+**I - IV - V - I (Classical Happy)**
 ```
 Key=C: C - F - G - C
-感情: 古典的な喜び、シンプルな幸福感
-用途: ロック、カントリー、童謡、CMソング
-特徴: 機能和声の最も基本的な形（T→SD→D→T）
+Emotion: Classical joy, simple happiness
+Usage  : Rock, country, nursery rhymes, commercial jingles
+Feature: The most basic form of functional harmony (T->SD->D->T)
 ```
 
-**I - V - vi - IV（モダンポジティブ）**
+**I - V - vi - IV (Modern Positive)**
 ```
 Key=C: C - G - Am - F
-感情: 前向きだが少し切ない、現代的な希望
-用途: ポップス、EDM、映画のテーマ
-特徴: vi（マイナー）が入ることで単純な明るさではなく深みが出る
+Emotion: Optimistic yet slightly bittersweet, modern hope
+Usage  : Pop, EDM, film themes
+Feature: The vi (minor) adds depth beyond simple brightness
 ```
 
-**I - IV - I - V（ルーズハッピー）**
+**I - IV - I - V (Laid-Back Happy)**
 ```
 Key=G: G - C - G - D
-感情: のんびりとした幸福感、夏の午後
-用途: レゲエ、サーフロック、アコースティック
-特徴: ドミナントが最後に来ることで「まだ続く」感覚
+Emotion: Relaxed happiness, a summer afternoon
+Usage  : Reggae, surf rock, acoustic
+Feature: The dominant at the end creates a "still continuing" feeling
 ```
 
-**IV - I - V - vi（サブドミナント始まりの明るさ）**
+**IV - I - V - vi (Subdominant-Start Brightness)**
 ```
 Key=C: F - C - G - Am
-感情: 推進力のある前向きさ、ドライブ感
-用途: ロックアンセム、スポーツ応援歌
-特徴: IVから始まることで「動き出す」感覚が強い
+Emotion: Forward-driving optimism, drive
+Usage  : Rock anthems, sports chants
+Feature: Starting from IV creates a strong "setting off" sensation
 ```
 
-### 暗い・メランコリックな進行
+### Dark / Melancholic Progressions
 
-**i - VII - VI - VII（ダークパワー）**
+**i - VII - VI - VII (Dark Power)**
 ```
 Key=Am: Am - G - F - G
-感情: 力強い、ダーク、決意
-用途: Techno、Dubstep、ダークEDM、映画アクションシーン
-特徴: ナチュラルマイナーのVII（メジャー）が光と影のコントラストを生む
+Emotion: Powerful, dark, determined
+Usage  : Techno, Dubstep, dark EDM, film action scenes
+Feature: The natural minor VII (major) creates light-and-shadow contrast
 ```
 
-**i - iv - VII - III（哀愁エモ）**
+**i - iv - VII - III (Melancholic Emo)**
 ```
 Key=Am: Am - Dm - G - C
-感情: 哀愁、切なさ、エモーショナル
-用途: アニソン、Trance、J-POP、ボカロ
-特徴: マイナーから始まりメジャーで終わる「暗→明」の動き
+Emotion: Melancholy, bittersweetness, emotional
+Usage  : Anime songs, Trance, J-POP, Vocaloid
+Feature: A "dark-to-bright" movement starting from minor and ending on major
 ```
 
-**i - iv - v - i（ピュアマイナー）**
+**i - iv - v - i (Pure Minor)**
 ```
 Key=Am: Am - Dm - Em - Am
-感情: 純粋な悲しみ、内省、瞑想
-用途: Ambient、ミニマル、クラシック
-特徴: 全てダイアトニックなマイナー進行で統一感がある
+Emotion: Pure sadness, introspection, meditation
+Usage  : Ambient, minimal, classical
+Feature: All diatonic minor progression with a sense of unity
 ```
 
-**i - VI - III - VII（エピックマイナー）**
+**i - VI - III - VII (Epic Minor)**
 ```
 Key=Am: Am - F - C - G
-感情: 壮大、映画的、エピック
-用途: 映画音楽、Cinematic EDM、トレーラー音楽
-特徴: マイナーのiから始まり3つのメジャーコードが続く壮大な展開
+Emotion: Grand, cinematic, epic
+Usage  : Film scores, Cinematic EDM, trailer music
+Feature: Grand development with minor i followed by three major chords
 ```
 
-**vi - V - IV - III（ロイヤルロード下行）**
+**vi - V - IV - III (Royal Road Descending)**
 ```
 Key=C: Am - G - F - Em
-感情: 切なさの中の美しさ、ノスタルジー
-用途: J-POP、バラード、映画のエンディング
-特徴: ベースラインが A→G→F→E と順次下行する
+Emotion: Beauty within sadness, nostalgia
+Usage  : J-POP, ballads, film endings
+Feature: Bass line descends stepwise A->G->F->E
 ```
 
-### 浮遊感・アンビエントな進行
+### Floating / Ambient Progressions
 
-**Imaj7 - IVmaj7 - iiim7 - vim7（フローティング）**
+**Imaj7 - IVmaj7 - iiim7 - vim7 (Floating)**
 ```
 Key=C: Cmaj7 - Fmaj7 - Em7 - Am7
-感情: 洗練された浮遊感、都会の夜景
-用途: Jazz、Neo Soul、Chill、City Pop
-特徴: セブンスコードの使用で全体的に柔らかく浮遊する
+Emotion: Refined floating sensation, city nightscape
+Usage  : Jazz, Neo Soul, Chill, City Pop
+Feature: Seventh chords throughout create an overall soft, floating quality
 ```
 
-**Imaj7 - IVmaj7（ツーコードフロート）**
+**Imaj7 - IVmaj7 (Two-Chord Float)**
 ```
-Key=C: Cmaj7 - Fmaj7（交互に繰り返す）
-感情: 極限のリラックス、瞑想的
-用途: Lo-Fi Hip Hop、Ambient、ヒーリング音楽
-特徴: たった2つのコードでも十分な表現力
-```
-
-**im9 - IVmaj9（マイナーフロート）**
-```
-Key=Dm: Dm9 - Gmaj9（交互に繰り返す）
-感情: 深い内省、夜の静けさ
-用途: Deep House、Ambient Techno、Meditation
-特徴: マイナーの暗さとメジャー9thの輝きの対比
+Key=C: Cmaj7 - Fmaj7 (alternating)
+Emotion: Ultimate relaxation, meditative
+Usage  : Lo-Fi Hip Hop, Ambient, healing music
+Feature: Sufficient expressiveness with just two chords
 ```
 
-### 緊張感・ドラマチックな進行
+**im9 - IVmaj9 (Minor Float)**
+```
+Key=Dm: Dm9 - Gmaj9 (alternating)
+Emotion: Deep introspection, nighttime stillness
+Usage  : Deep House, Ambient Techno, Meditation
+Feature: Contrast between minor darkness and major 9th brilliance
+```
 
-**i - V/VII - III - IV（シネマティック）**
+### Tense / Dramatic Progressions
+
+**i - V/VII - III - IV (Cinematic)**
 ```
 Key=Am: Am - E/G# - C - F
-感情: ドラマチック、映画的盛り上がり
-用途: 映画音楽、ゲーム音楽、Cinematic EDM
-特徴: ベースの半音進行（A→G#→...）がドラマ性を演出
+Emotion: Dramatic, cinematic intensity
+Usage  : Film scores, game music, Cinematic EDM
+Feature: Chromatic bass movement (A->G#->...) creates drama
 ```
 
-**i - bVI - bIII - bVII（エオリアンヴァンプ）**
+**i - bVI - bIII - bVII (Aeolian Vamp)**
 ```
 Key=Am: Am - F - C - G
-感情: 壮大で叙事的、スケール感
-用途: ファンタジー映画、Epic Trance、ゲーム音楽
-特徴: 全てナチュラルマイナーダイアトニック内で完結
+Emotion: Grand and epic, sense of scale
+Usage  : Fantasy films, Epic Trance, game music
+Feature: Completed entirely within the natural minor diatonic set
 ```
 
-### 感情マッピングの実用チャートまとめ
+### Emotion Mapping Practical Chart Summary
 
 ```
-感情カテゴリ        推奨キー         推奨進行                 ジャンル例
-──────────────────────────────────────────────────────────────────────
-幸福・祝福         メジャーキー      I-IV-V-I                ポップス、ロック
-希望・前向き       メジャーキー      I-V-vi-IV               EDM、ポップス
-切なさ・郷愁       マイナーキー      i-VI-III-VII            J-POP、バラード
-怒り・力強さ       マイナーキー      i-VII-VI-V              Techno、Metal
-悲しみ・内省       マイナーキー      i-iv-v-i                Ambient、クラシック
-浮遊・リラックス   メジャーキー(7th) Imaj7-IVmaj7            Lo-Fi、Chill
-緊張・サスペンス   マイナーキー      i-V-i-VII               映画音楽、ホラー
-壮大・エピック     マイナーキー      i-VI-III-VII            映画、Cinematic
-ファンキー         メジャー/マイナー  I7-IV7 (ブルース系)     Funk、Disco
-ミステリアス       マイナーキー(7th) im7-bVImaj7-bIIImaj7    Jazz、Neo Soul
+Emotion Category    Recommended Key     Recommended Progression      Genre Examples
+----------------------------------------------------------------------------------
+Happiness/Celebration Major key          I-IV-V-I                    Pop, Rock
+Hope/Optimism       Major key            I-V-vi-IV                   EDM, Pop
+Bittersweetness     Minor key            i-VI-III-VII                J-POP, Ballad
+Anger/Power         Minor key            i-VII-VI-V                  Techno, Metal
+Sadness/Introspection Minor key          i-iv-v-i                    Ambient, Classical
+Floating/Relaxation Major key (7th)      Imaj7-IVmaj7                Lo-Fi, Chill
+Tension/Suspense    Minor key            i-V-i-VII                   Film scores, Horror
+Grand/Epic          Minor key            i-VI-III-VII                Film, Cinematic
+Funky               Major/Minor          I7-IV7 (Blues-based)        Funk, Disco
+Mysterious          Minor key (7th)      im7-bVImaj7-bIIImaj7        Jazz, Neo Soul
 ```
 
 ---
 
-## 7. 転調（Modulation）
+## 7. Modulation
 
-### 転調とは
+### What Is Modulation
 
-曲の途中でキー（調性）が変わること。転調は楽曲に新鮮さ、エネルギーの変化、感情の転換をもたらす強力な手法です。DJプレイにおいても、曲間のトランジションは一種の「転調」と捉えることができます。
+Modulation is when the key (tonality) changes during a piece. Modulation brings freshness, energy shifts, and emotional transitions to a track. In DJ performance, transitions between tracks can also be thought of as a type of "modulation."
 
-### 転調の種類と特徴
+### Types and Characteristics of Modulation
 
-#### 平行調転調（Relative Key Modulation）
+#### Relative Key Modulation
 
-**C Major ↔ A Minor**
+**C Major <-> A Minor**
 ```
-同じ音を使うキー（平行調）への転調
-使う音は全く同じだが、中心音（トニック）が変わる
+Modulation to a key that uses the same notes (relative key)
+The notes are exactly the same, but the tonal center (tonic) changes
 C Major: C-D-E-F-G-A-B
-A Minor: A-B-C-D-E-F-G （同じ音）
+A Minor: A-B-C-D-E-F-G (same notes)
 
-効果: 明→暗 または 暗→明 の自然な変化
-滑らかさ: 最もスムーズ
+Effect    : Natural shift from bright to dark or dark to bright
+Smoothness: The smoothest type
 ```
 
-**DJでの活用:**
-Camelot Wheel では内側と外側の同じ番号が平行調です（例: 8A = Am、8B = C）。この関係を利用すると、明るい曲からダークな曲へ（またはその逆）スムーズに移行できます。
+**Application for DJs:**
+On the Camelot Wheel, the inner and outer circles with the same number are relative keys (e.g., 8A = Am, 8B = C). Using this relationship allows smooth transitions from bright tracks to dark tracks (or vice versa).
 
-**制作での活用:**
-- Verse をマイナー、Chorus をメジャー（平行調）にすると感情のコントラストが生まれる
-- Bridge で平行調に転調して「色が変わる」感覚を演出
-- 同じメロディでも伴奏のキーが平行調に変わるだけで印象が劇的に変化
+**Application for Production:**
+- Making the Verse minor and the Chorus the relative major creates emotional contrast
+- Modulating to the relative key in the Bridge creates a "color change" effect
+- Even the same melody dramatically changes in impression when the accompaniment shifts to the relative key
 
-#### 近親調転調（Closely Related Key Modulation）
+#### Closely Related Key Modulation
 
-**C Major → G Major（5度上 / 属調）**
+**C Major -> G Major (5th above / dominant key)**
 ```
-共通する音が多いキーへの転調
+Modulation to a key sharing many common notes
 C Major: C-D-E-F-G-A-B
 G Major: G-A-B-C-D-E-F#
 
-違い: Fが F# に変わるだけ
-効果: エネルギーが上がる、明るくなる
-滑らかさ: 非常にスムーズ
+Difference : Only F changes to F#
+Effect     : Energy rises, becomes brighter
+Smoothness : Very smooth
 ```
 
-**C Major → F Major（4度上 / 下属調）**
+**C Major -> F Major (4th above / subdominant key)**
 ```
 C Major: C-D-E-F-G-A-B
 F Major: F-G-A-Bb-C-D-E
 
-違い: Bが Bb に変わるだけ
-効果: 少し柔らかくなる、落ち着く
-滑らかさ: 非常にスムーズ
+Difference : Only B changes to Bb
+Effect     : Becomes slightly softer, more settled
+Smoothness : Very smooth
 ```
 
-**近親調の関係図:**
+**Closely Related Key Diagram:**
 ```
-        G Major（属調・5度上）
-         ↑
-F Major ← C Major → D Minor（マイナーの属調）
-（下属調）   ↓
-        A Minor（平行調）
-         ↓
-        E Minor（マイナーの下属調）
+        G Major (Dominant key / 5th above)
+         |
+F Major <- C Major -> D Minor (Minor dominant key)
+(Subdominant)  |
+        A Minor (Relative key)
+         |
+        E Minor (Minor subdominant key)
 ```
 
-**ピボットコード（共通コード）による転調:**
-近親調転調の最も自然な方法は、両方のキーに共通するコード（ピボットコード）を経由することです。
+**Modulation via Pivot Chord (Common Chord):**
+The most natural method for closely related key modulation is to pass through a chord common to both keys (pivot chord).
 
 ```
-C Major → G Major への転調:
+Modulation from C Major -> G Major:
 C Major: C  Dm  Em  F   G   Am  Bdim
 G Major: G  Am  Bm  C   D   Em  F#dim
 
-共通コード: C, Em, Am, G
-→ Am（C MajorのviでありG Majorのii）を使って転調
+Common chords: C, Em, Am, G
+-> Use Am (vi in C Major and ii in G Major) to modulate
 
-実例:
-C → Am → D → G（Dの出現でG Majorに移行）
+Example:
+C -> Am -> D -> G (the appearance of D shifts to G Major)
 ```
 
-#### 半音転調（Chromatic Modulation / Direct Modulation）
+#### Chromatic Modulation (Direct Modulation)
 
-**C Major → Db Major（半音上）**
+**C Major -> Db Major (semitone up)**
 ```
-突然キーが半音上がる
-共通する音はほとんどない
-効果: 劇的な盛り上がり、サプライズ
-滑らかさ: 突然だが効果的
-```
-
-**制作での使い方:**
-- 最終サビ（ラスサビ）の直前で半音上げる → J-POPの定番テクニック
-- ビルドアップの最後で半音上げてドロップ → EDMのエネルギーブースト
-- 繰り返しのセクションで毎回半音上げる → 段階的な盛り上がり
-
-**全音転調:**
-```
-C Major → D Major（全音上）
-効果: 半音転調より自然だが、十分にエネルギーが上がる
-用途: ロック、ポップスのサビ、EDMのドロップ
+The key suddenly moves up by a semitone
+Almost no common notes
+Effect     : Dramatic climax, surprise
+Smoothness : Sudden but effective
 ```
 
-### セカンダリードミナント（Secondary Dominant）
+**Production Usage:**
+- Raising by a semitone just before the final chorus -> a classic J-POP technique
+- Raising by a semitone at the end of a buildup for the drop -> EDM energy boost
+- Raising by a semitone each repetition -> gradual escalation
 
-厳密には「転調」ではなく「一時的な調の逸脱」ですが、コード進行に推進力とドラマ性を加える非常に重要なテクニックです。
-
-**概念:**
-ダイアトニックコード以外のドミナントセブンスを挿入して、次のコードへの解決感を強化すること。
-
+**Whole-Tone Modulation:**
 ```
-Key=C Major でのセカンダリードミナント:
-
-V7/ii  = A7  → Dm   （Dmに対するドミナント）
-V7/iii = B7  → Em   （Emに対するドミナント）
-V7/IV  = C7  → F    （Fに対するドミナント）
-V7/V   = D7  → G    （Gに対するドミナント）★最も頻用
-V7/vi  = E7  → Am   （Amに対するドミナント）
+C Major -> D Major (whole tone up)
+Effect: More natural than chromatic modulation, but still noticeably raises energy
+Usage : Rock and pop choruses, EDM drops
 ```
 
-**V7/V（ダブルドミナント）の実用例:**
-```
-C → D7 → G → C
-（I → V7/V → V → I）
+### Secondary Dominant
 
-D7はC Majorのダイアトニックコードではないが、
-Gに対するドミナントとして機能し、
-G→Cの解決をより強力にする
-```
+Not strictly a "modulation" but rather a "temporary tonal deviation," this is a very important technique for adding momentum and drama to chord progressions.
 
-**制作での活用:**
-```
-通常: C → F → G → C
-セカンダリードミナント活用: C → F → D7 → G → C
-→ D7の挿入でGへの到達がよりドラマチックに
-
-通常: C → Am → Dm → G
-セカンダリードミナント活用: C → A7 → Dm → G
-→ A7がDmへの強い引力を生み、進行に推進力が出る
-```
-
-### モーダルインターチェンジ（Modal Interchange / Borrowed Chords）
-
-他のモード（旋法）からコードを「借用」するテクニック。ダイアトニックコードだけでは表現できない色彩を加えることができます。
-
-**C Major に対するモーダルインターチェンジの例:**
+**Concept:**
+Inserting a non-diatonic dominant seventh to strengthen the sense of resolution to the next chord.
 
 ```
-借用元          借用コード      効果
-──────────────────────────────────────────────
-C Mixolydian    bVII (Bb)      ロック的な開放感
-C Dorian        iv (Fm)        柔らかい陰り
-C Aeolian       bVI (Ab)       映画的な壮大さ
-C Aeolian       bIII (Eb)      幻想的、夢想的
-C Phrygian      bII (Db)       エキゾチック、緊張
-C Lydian        #IV (F#)       浮遊、ファンタジー
+Secondary Dominants in Key=C Major:
+
+V7/ii  = A7  -> Dm   (Dominant of Dm)
+V7/iii = B7  -> Em   (Dominant of Em)
+V7/IV  = C7  -> F    (Dominant of F)
+V7/V   = D7  -> G    (Dominant of G) ★ Most frequently used
+V7/vi  = E7  -> Am   (Dominant of Am)
 ```
 
-**最も頻繁に使われるモーダルインターチェンジ:**
+**Practical Example of V7/V (Double Dominant):**
+```
+C -> D7 -> G -> C
+(I -> V7/V -> V -> I)
 
-**bVI（フラットシックス）:**
+D7 is not a diatonic chord in C Major,
+but functions as the dominant of G,
+making the G->C resolution even stronger
+```
+
+**Application in Production:**
+```
+Normal: C -> F -> G -> C
+With secondary dominant: C -> F -> D7 -> G -> C
+-> D7 insertion makes the arrival at G more dramatic
+
+Normal: C -> Am -> Dm -> G
+With secondary dominant: C -> A7 -> Dm -> G
+-> A7 creates a strong pull toward Dm, adding momentum
+```
+
+### Modal Interchange (Borrowed Chords)
+
+A technique of "borrowing" chords from other modes (scales). It adds colors that cannot be expressed with diatonic chords alone.
+
+**Modal Interchange Examples for C Major:**
+
+```
+Borrowed From       Borrowed Chord      Effect
+-----------------------------------------------
+C Mixolydian        bVII (Bb)           Rock-like openness
+C Dorian            iv (Fm)             Soft shadow
+C Aeolian           bVI (Ab)            Cinematic grandeur
+C Aeolian           bIII (Eb)           Fantastical, dreamy
+C Phrygian          bII (Db)            Exotic, tense
+C Lydian            #IV (F#)            Floating, fantasy
+```
+
+**Most Frequently Used Modal Interchanges:**
+
+**bVI (Flat Six):**
 ```
 Key=C: Ab Major
-使用例: C → Ab → Bb → C （I → bVI → bVII → I）
-効果: 映画的、壮大、予想外の展開
-用途: 映画音楽、Cinematic EDM、ゲーム音楽
-曲例: Radiohead "Creep" の一部
+Usage example: C -> Ab -> Bb -> C (I -> bVI -> bVII -> I)
+Effect: Cinematic, grand, unexpected development
+Usage : Film scores, Cinematic EDM, game music
+Track example: Parts of Radiohead's "Creep"
 ```
 
-**bVII（フラットセブン）:**
+**bVII (Flat Seven):**
 ```
 Key=C: Bb Major
-使用例: C → Bb → F → C （I → bVII → IV → I）
-効果: ロック的な開放感、男性的な力強さ
-用途: ロック、ブルース、EDMのドロップ
-曲例: The Beatles "Hey Jude" のコーダ部分
+Usage example: C -> Bb -> F -> C (I -> bVII -> IV -> I)
+Effect: Rock-like openness, masculine power
+Usage : Rock, blues, EDM drops
+Track example: The coda section of The Beatles' "Hey Jude"
 ```
 
-**iv（マイナーフォー）:**
+**iv (Minor Four):**
 ```
-Key=C: Fm（通常のIV=Fメジャーの代わり）
-使用例: C → F → Fm → C （I → IV → iv → I）
-効果: 甘く切ない、映画のエンディング的な美しさ
-用途: バラード、映画音楽、J-POP
-特徴: メジャーIVからマイナーivへの変化が「泣ける」響き
-```
-
-### DJでの転調活用
-
-#### Camelot Wheel を使った転調
-
-Camelot Wheel はDJのハーモニックミキシングの基盤となるツールです。キーを数字とアルファベット（1A〜12B）で表記し、隣接するキー同士の相性が良いことを視覚的に示します。
-
-```
-Camelot Wheel の基本ルール:
-
-同じ番号: 同キー（完全にマッチ）
-  例: 8A → 8A（Am → Am）
-
-隣の番号（+1/-1）: 近親調
-  例: 8A → 9A（Am → Em）
-  例: 8A → 7A（Am → Dm）
-
-A↔B（内外の移動）: 平行調
-  例: 8A → 8B（Am → C Major）
-
-対角（+7）: 関係なし（注意が必要）
-  例: 8A → 3A（Am → Bbm）→ ぶつかりやすい
+Key=C: Fm (replacing the usual IV=F major)
+Usage example: C -> F -> Fm -> C (I -> IV -> iv -> I)
+Effect: Sweet and bittersweet, cinematic ending-like beauty
+Usage : Ballads, film scores, J-POP
+Feature: The change from major IV to minor iv creates a "tear-jerking" sound
 ```
 
-**エネルギーコントロールのための転調戦略:**
+### Modulation in DJ Performance
+
+#### Modulation Using the Camelot Wheel
+
+The Camelot Wheel is the foundational tool for harmonic mixing in DJing. It expresses keys using numbers and letters (1A-12B), visually showing that adjacent keys are compatible.
 
 ```
-エネルギーを上げる:
-- +1（5度上）: 8A → 9A （Am → Em）  穏やかな上昇
-- +2（全音上）: 8A → 10A（Am → Bm） 明確な上昇
-- A→B（平行調）: 8A → 8B（Am → C） 暗→明への転換
+Basic Rules of the Camelot Wheel:
 
-エネルギーを維持:
-- 同じ番号: 8A → 8A（Am → Am）     キープ
-- ±1: 8A → 7A/9A                    微妙な変化
+Same number: Same key (perfect match)
+  Example: 8A -> 8A (Am -> Am)
 
-エネルギーを下げる:
-- -1（4度上）: 8A → 7A（Am → Dm）  穏やかな下降
-- B→A（平行調）: 8B → 8A（C → Am） 明→暗への転換
+Adjacent number (+1/-1): Closely related key
+  Example: 8A -> 9A (Am -> Em)
+  Example: 8A -> 7A (Am -> Dm)
+
+A<->B (inner/outer switch): Relative key
+  Example: 8A -> 8B (Am -> C Major)
+
+Diagonal (+7): Unrelated (caution needed)
+  Example: 8A -> 3A (Am -> Bbm) -> prone to clashing
 ```
 
-#### トランジション中の転調テクニック
-
-**グラデュアル転調:**
-ミックスポイントを長く取り、EQでゆっくりと次の曲のハーモニーを導入する。キーが半音〜全音違う場合でも、十分な時間をかければ違和感なく転調できる。
+**Modulation Strategies for Energy Control:**
 
 ```
-手順:
-1. 曲AのEQで高域をカット（メロディを抑える）
-2. 曲Bを低域からフェードイン
-3. 曲Aの中域もカット（コード感を消す）
-4. 曲Bの中域・高域をフェードイン
-5. 曲Aをフェードアウト
+Raising energy:
+- +1 (5th up): 8A -> 9A (Am -> Em)    Gentle rise
+- +2 (whole tone up): 8A -> 10A (Am -> Bm)  Clear rise
+- A->B (relative key): 8A -> 8B (Am -> C)   Dark-to-bright shift
 
-ポイント: コード感（中域）を重ねる時間を最短にする
+Maintaining energy:
+- Same number: 8A -> 8A (Am -> Am)     Keep
+- +/-1: 8A -> 7A/9A                    Subtle change
+
+Lowering energy:
+- -1 (4th up): 8A -> 7A (Am -> Dm)    Gentle decrease
+- B->A (relative key): 8B -> 8A (C -> Am)  Bright-to-dark shift
 ```
 
-**ピッチシフトを使った転調:**
-DJソフトウェア（rekordbox、Traktor、Serato）のキーロック＋ピッチシフト機能を使い、曲のキーを人工的に変更する方法。
+#### Modulation Techniques During Transitions
+
+**Gradual Modulation:**
+Take a long mix point and slowly introduce the next track's harmony with EQ. Even when keys differ by a semitone to a whole tone, a smooth modulation is possible with enough time.
 
 ```
-注意点:
-- ±1〜2半音程度なら音質劣化は少ない
-- ±3半音以上は音質が目立って変わる
-- ボーカル曲は特にピッチシフトの影響が出やすい
-- インストゥルメンタルやビート重視の曲なら柔軟に調整可能
+Steps:
+1. Cut highs on Track A with EQ (suppress melody)
+2. Fade in Track B from the lows
+3. Also cut mids on Track A (remove chord feel)
+4. Fade in Track B's mids and highs
+5. Fade out Track A
+
+Key point: Minimize the time where chord feels (mids) overlap
 ```
 
----
-
-## 8. コードボイシングの技法
-
-### ボイシングとは
-
-同じコードネーム（例: Cmaj7）でも、音の配置（どのオクターブにどの音を置くか、どの音を省略するか）によって響きが大きく変わります。この音の配置のことを「ボイシング」と呼びます。
-
-制作において、プロとアマチュアの差が最も出やすいのがボイシングです。DAWのピアノロールで何気なくコードを入力するだけでなく、ボイシングを意識することで楽曲のクオリティが格段に向上します。
-
-### クローズドボイシング（Close Voicing）
-
-全ての構成音を1オクターブ以内に配置するボイシング。
+**Modulation Using Pitch Shift:**
+Use the key lock + pitch shift function in DJ software (rekordbox, Traktor, Serato) to artificially change a track's key.
 
 ```
-Cmaj7 クローズドボイシング:
-C3 - E3 - G3 - B3（全て同じオクターブ内）
-
-特徴:
-- 密集した響き
-- はっきりとしたコード感
-- ピアノやエレピでの定番
-- 低音域で使うと濁りやすい
-```
-
-**制作での使い方:**
-- Lo-Fi Hip Hop のエレピパート（中音域で使用）
-- House のスタブコード（短くリズミカルに）
-- ポップスのピアノバッキング
-
-### オープンボイシング（Open Voicing）
-
-構成音を複数のオクターブにまたがって配置するボイシング。
-
-```
-Cmaj7 オープンボイシング例:
-パターン1: C2 - G3 - B3 - E4（ルートを下に、他を広げる）
-パターン2: C2 - E3 - B3 - G4（3度と7度を中心に広げる）
-パターン3: C2 - B2 - E3 - G3（ルートの近くに7thを置く）
-
-特徴:
-- 広がりのある響き
-- 透明感がある
-- パッドサウンドに最適
-- 各音が独立して聞こえやすい
-```
-
-**制作での使い方:**
-- Ambient のパッドサウンド
-- Progressive House のコードワーク
-- 映画音楽のストリングスアレンジ
-- Trance のエモーショナルなブレイクダウン
-
-### ドロップ2ボイシング（Drop 2 Voicing）
-
-ジャズギターやジャズピアノで最も一般的なボイシング技法。クローズドボイシングの上から2番目の音を1オクターブ下に「ドロップ」します。
-
-```
-Cmaj7 の場合:
-クローズド: C - E - G - B
-              上から2番目 = G
-ドロップ2:  G(下) - C - E - B
-
-具体的なピッチ:
-クローズド: C4 - E4 - G4 - B4
-ドロップ2:  G3 - C4 - E4 - B4
-
-特徴:
-- オープンボイシングの一種だが規則的
-- ジャズの定番ボイシング
-- ギターでも演奏しやすい
-- 適度な広がりと密度のバランス
-```
-
-### ルートレスボイシング（Rootless Voicing）
-
-ルート（根音）を省略したボイシング。ベースラインが別に存在する場合（バンド編成やDAWでベースパートがある場合）に効果的です。
-
-```
-Cmaj7 ルートレスボイシング:
-Type A: E - G - B（ルートを省略）
-Type B: E - B - D（3rd, 7th, 9th）← テンション追加
-
-Dm7 ルートレスボイシング:
-Type A: F - A - C（3rd, 5th, 7th）
-Type B: F - C - E（3rd, 7th, 9th）
-
-特徴:
-- 洗練された響き
-- ベースとの役割分担が明確
-- ジャズの左手ボイシングの定番
-- コードの「色」だけを効率的に伝える
-```
-
-**制作での活用:**
-- ベースラインが別トラックにある場合、コードパートはルートレスに
-- パッドやシンセのコードにルートを入れると低音が濁る場合の解決策
-- 複数の楽器でコードを分担する際のアレンジテクニック
-
-### 4th ボイシング（Quartal Voicing）
-
-3度堆積ではなく、4度の音程を積み重ねるモダンなボイシング技法。ジャズピアニストの McCoy Tyner やギタリストの Kurt Rosenwinkel が多用したことで知られます。
-
-```
-4th ボイシングの例:
-D - G - C（完全4度の積み重ね）
-E - A - D - G（完全4度の4音）
-A - D - G - C - F（完全4度の5音）
-
-特徴:
-- モダンで洗練された響き
-- 調性が曖昧になる（メジャーでもマイナーでもない）
-- パッドサウンドに最適
-- Progressive House、Ambient で効果的
-```
-
-**制作での活用:**
-```
-Ableton Live での4thボイシング入力:
-1. MIDIトラックにシンセパッド（Wavetable等）をロード
-2. ピアノロールで以下のノートを入力:
-   D3 - G3 - C4 - F4（4度堆積）
-3. サステインを長く取り、リバーブを深くかける
-4. フィルターのカットオフをゆっくりオートメーション
-→ 美しい浮遊感のあるパッドサウンドが完成
-```
-
-### ボイシングのレンジとレジスター
-
-コードをどの音域（レジスター）に配置するかは、響きの質を大きく左右します。
-
-```
-音域別の特徴:
-
-低音域（C1〜C3）:
-- 3度を含むと濁りやすい
-- 5度やオクターブは問題なし
-- ベースとルートに使用
-- パワーコードはここでOK
-
-中低音域（C3〜C4）:
-- コードが最もバランス良く響く
-- ピアノの中心域
-- クローズドボイシングの最適レンジ
-- エレピ、オルガンの定位置
-
-中高音域（C4〜C5）:
-- 明るく開放的な響き
-- パッドの上部
-- ストリングスの中心
-- コードスタブに最適
-
-高音域（C5〜C7）:
-- きらびやか、繊細
-- ベル系のテンションノート
-- ハイハットと干渉しやすい
-- 使い過ぎると耳が疲れる
-```
-
-**DJ・制作でのレジスターの活用:**
-```
-ミキシング時の注意:
-- 2曲のコードが同じレジスターで鳴ると濁る
-- EQで一方の中域を削ることで共存させる
-- コードの基本は300Hz〜3kHz付近が中心
-
-制作時のTip:
-- ベースとコードのルートが同じオクターブだと濁る
-- コードのルートはベースより1オクターブ以上上に配置
-- テンションノートはコードの上部（高い位置）に配置
-```
-
-### 実践：DAWでのボイシング改善テクニック
-
-**Before（初心者的なボイシング）:**
-```
-Cmaj7:  C3 - E3 - G3 - B3（クローズドの基本形のみ）
-Fmaj7:  F3 - A3 - C4 - E4（クローズドの基本形のみ）
-G7:     G3 - B3 - D4 - F4（クローズドの基本形のみ）
-
-問題点:
-- 全て同じボイシングで単調
-- コード間で音が大きくジャンプ
-- ベースラインが不規則
-```
-
-**After（ボイシングを改善）:**
-```
-Cmaj7:  C3 - E3 - G3 - B3（基本形）
-Fmaj7:  C3 - F3 - A3 - E4（第2転回形 + オープン）
-G7:     B2 - D3 - F3 - G3（第1転回形）
-
-改善点:
-- 共通音（C）を保持してスムーズな接続
-- 各声部の動きが最小限
-- ベースラインに流れが生まれる（C→C→B）
+Considerations:
+- Quality degradation is minimal within +/-1-2 semitones
+- At +/-3 semitones or more, quality changes become noticeable
+- Vocal tracks are particularly affected by pitch shifting
+- Instrumental or beat-focused tracks allow more flexible adjustment
 ```
 
 ---
 
-## 9. ジャンル別コード進行ガイド
+## 8. Chord Voicing Techniques
+
+### What Is Voicing
+
+Even with the same chord name (e.g., Cmaj7), the sound changes significantly depending on how the notes are arranged (which octave each note is placed in, which notes are omitted). This arrangement of notes is called "voicing."
+
+In production, voicing is where the gap between professionals and amateurs is most apparent. Rather than simply entering chords in the DAW's piano roll, being conscious of voicing dramatically improves the quality of your music.
+
+### Closed Voicing (Close Voicing)
+
+A voicing where all notes are placed within one octave.
+
+```
+Cmaj7 Closed Voicing:
+C3 - E3 - G3 - B3 (all within the same octave)
+
+Characteristics:
+- Dense sound
+- Clear chord feel
+- Standard for piano and electric piano
+- Can become muddy in lower registers
+```
+
+**Production Usage:**
+- Lo-Fi Hip Hop electric piano parts (used in the mid range)
+- House stab chords (short and rhythmic)
+- Pop piano backing
+
+### Open Voicing
+
+A voicing where notes are spread across multiple octaves.
+
+```
+Cmaj7 Open Voicing examples:
+Pattern 1: C2 - G3 - B3 - E4 (root at bottom, others spread out)
+Pattern 2: C2 - E3 - B3 - G4 (spread around 3rd and 7th)
+Pattern 3: C2 - B2 - E3 - G3 (7th placed near the root)
+
+Characteristics:
+- Spacious sound
+- Transparent quality
+- Ideal for pad sounds
+- Each note is more individually audible
+```
+
+**Production Usage:**
+- Ambient pad sounds
+- Progressive House chord work
+- String arrangements in film scores
+- Emotional breakdowns in Trance
+
+### Drop 2 Voicing
+
+The most common voicing technique in jazz guitar and jazz piano. The second note from the top of a closed voicing is "dropped" one octave lower.
+
+```
+For Cmaj7:
+Closed:  C - E - G - B
+              2nd from top = G
+Drop 2:  G(lower) - C - E - B
+
+Specific pitches:
+Closed:  C4 - E4 - G4 - B4
+Drop 2:  G3 - C4 - E4 - B4
+
+Characteristics:
+- A type of open voicing but with a systematic approach
+- Standard jazz voicing
+- Easy to play on guitar
+- Good balance of spread and density
+```
+
+### Rootless Voicing
+
+A voicing that omits the root. Effective when there is a separate bass line (in a band setting or when there is a bass part in the DAW).
+
+```
+Cmaj7 Rootless Voicing:
+Type A: E - G - B (root omitted)
+Type B: E - B - D (3rd, 7th, 9th) <- tension added
+
+Dm7 Rootless Voicing:
+Type A: F - A - C (3rd, 5th, 7th)
+Type B: F - C - E (3rd, 7th, 9th)
+
+Characteristics:
+- Refined sound
+- Clear role separation from bass
+- Standard for jazz left-hand voicing
+- Efficiently conveys just the "color" of the chord
+```
+
+**Production Application:**
+- When the bass line is on a separate track, make chord parts rootless
+- Solution when including the root in pads or synth chords causes low-end muddiness
+- Arrangement technique when distributing chords across multiple instruments
+
+### 4th Voicing (Quartal Voicing)
+
+A modern voicing technique that stacks 4ths instead of 3rds. Known for being extensively used by jazz pianist McCoy Tyner and guitarist Kurt Rosenwinkel.
+
+```
+4th Voicing examples:
+D - G - C (stacked perfect 4ths)
+E - A - D - G (four notes in perfect 4ths)
+A - D - G - C - F (five notes in perfect 4ths)
+
+Characteristics:
+- Modern and refined sound
+- Tonality becomes ambiguous (neither major nor minor)
+- Ideal for pad sounds
+- Effective in Progressive House and Ambient
+```
+
+**Production Application:**
+```
+Entering 4th Voicing in Ableton Live:
+1. Load a synth pad (Wavetable, etc.) on a MIDI track
+2. Enter the following notes in the piano roll:
+   D3 - G3 - C4 - F4 (stacked 4ths)
+3. Set long sustain and deep reverb
+4. Slowly automate filter cutoff
+-> A beautiful floating pad sound is complete
+```
+
+### Voicing Range and Register
+
+The register (pitch range) where chords are placed greatly affects the quality of the sound.
+
+```
+Characteristics by Register:
+
+Low range (C1-C3):
+- Including 3rds can cause muddiness
+- 5ths and octaves are fine
+- Used for bass and root notes
+- Power chords work well here
+
+Low-mid range (C3-C4):
+- Chords sound most balanced here
+- The central range of the piano
+- Optimal range for closed voicings
+- Standard position for electric piano and organ
+
+Upper-mid range (C4-C5):
+- Bright, open sound
+- Upper part of pads
+- Center of string sections
+- Ideal for chord stabs
+
+High range (C5-C7):
+- Brilliant, delicate
+- Bell-like tension notes
+- Can interfere with hi-hats
+- Overuse causes ear fatigue
+```
+
+**Register Application for DJs and Producers:**
+```
+Mixing considerations:
+- Two tracks' chords sounding in the same register will cause muddiness
+- Use EQ to cut the mids of one to allow coexistence
+- Chord fundamentals are centered around 300Hz-3kHz
+
+Production tips:
+- Bass and chord roots in the same octave will cause muddiness
+- Place chord roots at least 1 octave above the bass
+- Place tension notes in the upper range of the chord
+```
+
+### Practice: Voicing Improvement Techniques in the DAW
+
+**Before (Beginner-style voicing):**
+```
+Cmaj7:  C3 - E3 - G3 - B3 (root position closed only)
+Fmaj7:  F3 - A3 - C4 - E4 (root position closed only)
+G7:     G3 - B3 - D4 - F4 (root position closed only)
+
+Problems:
+- All the same voicing, monotonous
+- Large jumps between chords
+- Irregular bass line
+```
+
+**After (Improved voicing):**
+```
+Cmaj7:  C3 - E3 - G3 - B3 (root position)
+Fmaj7:  C3 - F3 - A3 - E4 (2nd inversion + open)
+G7:     B2 - D3 - F3 - G3 (1st inversion)
+
+Improvements:
+- Common tone (C) retained for smooth connection
+- Minimal movement in each voice part
+- Flow emerges in the bass line (C->C->B)
+```
+
+---
+
+## 9. Genre-Specific Chord Progression Guide
 
 ### EDM / Big Room / Electro House
 
-EDMの多くはシンプルなコード進行をループさせ、リズムとサウンドデザインで差別化します。コード進行自体は4コードのループが圧倒的に多いです。
+Much of EDM loops simple chord progressions and differentiates through rhythm and sound design. The overwhelming majority use 4-chord loops.
 
-**定番進行:**
+**Standard Progressions:**
 ```
-i - VI - III - VII（マイナーキーの王道）
+i - VI - III - VII (Minor key staple)
 Key=Am: Am - F - C - G
 
-i - VI - VII - i（シンプルマイナーループ）
+i - VI - VII - i (Simple minor loop)
 Key=Am: Am - F - G - Am
 
-I - V - vi - IV（メジャーキーのアンセム）
+I - V - vi - IV (Major key anthem)
 Key=C: C - G - Am - F
 ```
 
-**特徴的なテクニック:**
-- ドロップではコードをスーパーソー（Supersaw）で鳴らす
-- ビルドアップでは sus4 → メジャー/マイナーの解決を使う
-- ブレイクダウンではピアノやパッドでコードを長く鳴らす
-- リフト（最後の盛り上がり）で半音転調することもある
+**Characteristic Techniques:**
+- Chords played with supersaw in the drop
+- Using sus4 -> major/minor resolution in buildups
+- Long chord pads with piano or pads in the breakdown
+- Occasional semitone modulation at the lift (final climax)
 
-**サウンドデザインとの関係:**
+**Relationship with Sound Design:**
 ```
-ドロップ:
-- Supersaw: 5〜7個のデチューンしたソーウェーブを重ねる
-- コードのルートとベースは分離（ベース=サブベース単音）
-- コードは中高域（300Hz〜5kHz）に配置
+Drop:
+- Supersaw: 5-7 detuned saw waves layered
+- Chord root and bass are separated (bass = sub bass single note)
+- Chords placed in upper-mid range (300Hz-5kHz)
 
-ビルドアップ:
-- ハイパスフィルターでコードを徐々に明るく
-- sus4 → 解決のパターンを繰り返す
-- 最後にノイズスイープで最大テンション
+Buildup:
+- High-pass filter gradually brightening chords
+- Repeating sus4 -> resolution pattern
+- Noise sweep for maximum tension at the end
 ```
 
 ### Deep House / Afro House
 
-Deep HouseはEDMよりもハーモニーが重要視されるジャンルです。ジャジーなコードワークや洗練されたテンションが特徴的です。
+Deep House is a genre where harmony is more valued than in EDM. Jazzy chord work and refined tensions are characteristic.
 
-**定番進行:**
+**Standard Progressions:**
 ```
-im7 - ivm7（ツーコードループ）
+im7 - ivm7 (Two-chord loop)
 Key=Am: Am7 - Dm7
 
 im9 - IVmaj7 - VII7 - IIImaj7
@@ -1505,460 +1505,460 @@ im7 - VII7 - IIImaj7 - VImaj7
 Key=Dm: Dm7 - C7 - Fmaj7 - Bbmaj7
 ```
 
-**特徴的なテクニック:**
-- ローズ（Rhodes EP）やウーリッツァー（Wurlitzer）のエレピサウンド
-- コードスタブ（短く切ったコード）をリズミカルに配置
-- ベースラインとコードの分離が明確
-- フィルター開閉でコードの質感を変化させる
-- リバーブとディレイでスペーシーな空間を作る
+**Characteristic Techniques:**
+- Rhodes EP or Wurlitzer electric piano sounds
+- Rhythmically placed chord stabs (short-cut chords)
+- Clear separation between bass line and chords
+- Filter sweeps to change chord texture
+- Reverb and delay to create spacious atmosphere
 
 ### Techno / Minimal
 
-Technoではハーモニーは最小限に抑えられますが、だからこそ使われるコードの選択が重要です。
+In Techno, harmony is kept to a minimum, which makes the choice of chords used all the more important.
 
-**アプローチ:**
+**Approaches:**
 ```
-1. ドローン（持続音）:
-   - 1つのコード（またはルートのみ）を長時間持続
-   - フィルターやモジュレーションで変化をつける
-   - 例: Am のパッドを8小節〜16小節持続
+1. Drones (sustained tones):
+   - Sustain a single chord (or just the root) for extended periods
+   - Add variation with filters and modulation
+   - Example: Sustain an Am pad for 8-16 bars
 
-2. ミニマルリフ:
-   - 2〜3音のシンプルなフレーズをループ
-   - コード感は薄く、音程の動きで暗示
-   - 例: A - C - E のアルペジオ（Am の分散和音）
+2. Minimal riffs:
+   - Loop simple 2-3 note phrases
+   - Thin chord feel, implied through pitch movement
+   - Example: A - C - E arpeggio (Am broken chord)
 
-3. テンションの活用:
-   - sus2、sus4 をメインのハーモニーに
-   - 明確なメジャー/マイナーの判定を避ける
-   - アンビギュイティ（曖昧さ）が美学
+3. Using tensions:
+   - sus2, sus4 as the main harmony
+   - Avoid clear major/minor definitions
+   - Ambiguity as an aesthetic
 ```
 
-**サウンドデザインとの融合:**
-- アシッドベースライン（TB-303）はフィルターレゾナンスで和声感を生成
-- ディレイのフィードバックでハーモニックテクスチャーを構築
-- ドラムのピッチ選択も和声の一部として捉える
+**Fusion with Sound Design:**
+- Acid bass lines (TB-303) generate harmonic feel through filter resonance
+- Build harmonic textures with delay feedback
+- Treat drum pitch selection as part of the harmony
 
 ### Trance / Progressive Trance
 
-Tranceはエモーショナルなコード進行が最も重要なジャンルの一つです。壮大で感情的なブレイクダウンのコードワークがジャンルのアイデンティティです。
+Trance is one of the genres where emotional chord progressions are most essential. The grand, emotional chord work of breakdowns is the genre's identity.
 
-**定番進行:**
+**Standard Progressions:**
 ```
-i - VII - VI - VII（Trance王道）
+i - VII - VI - VII (Trance staple)
 Key=Am: Am - G - F - G
 
-i - III - VII - IV（エピックTrance）
+i - III - VII - IV (Epic Trance)
 Key=Am: Am - C - G - D
 
-i - v - VI - III（メランコリックTrance）
+i - v - VI - III (Melancholic Trance)
 Key=Am: Am - Em - F - C
 
-i - VI - iv - VII（Uplifting Trance）
+i - VI - iv - VII (Uplifting Trance)
 Key=Am: Am - F - Dm - G
 ```
 
-**Tranceのコードテクニック:**
+**Trance Chord Techniques:**
 ```
-1. スーパーソーパッド:
-   - 5〜9レイヤーのソーウェーブ
-   - デチューン: 10〜30 cents
-   - ユニゾンモード（Sylenth1、Serum）
+1. Supersaw pads:
+   - 5-9 layers of saw waves
+   - Detune: 10-30 cents
+   - Unison mode (Sylenth1, Serum)
 
-2. プラック（Pluck）コード:
-   - 短いアタック + フィルターエンベロープ
-   - 裏拍でリズミカルに鳴らす
-   - アルペジエーターの活用
+2. Pluck chords:
+   - Short attack + filter envelope
+   - Played rhythmically on offbeats
+   - Utilizing arpeggiators
 
-3. ブレイクダウンのピアノ:
-   - アコースティックピアノ or エレピ
-   - リバーブを深く（Hall系）
-   - ゆっくりとコードを展開
+3. Breakdown piano:
+   - Acoustic piano or electric piano
+   - Deep reverb (Hall type)
+   - Slow chord development
 ```
 
 ### Lo-Fi Hip Hop / Chill
 
-Lo-Fi Hip Hopはジャジーなコードワークが核となるジャンルです。意図的に「古い」「粗い」質感を持たせたサウンドが特徴です。
+Lo-Fi Hip Hop is a genre where jazzy chord work is at the core. It features an intentionally "old" and "rough" texture.
 
-**定番進行:**
+**Standard Progressions:**
 ```
-iim9 - V13 - Imaj9 - vim7（ジャジーループ）
+iim9 - V13 - Imaj9 - vim7 (Jazzy loop)
 Key=C: Dm9 - G13 - Cmaj9 - Am7
 
-Imaj7 - vim7 - iim7 - V7（チルなターンアラウンド）
+Imaj7 - vim7 - iim7 - V7 (Chill turnaround)
 Key=C: Cmaj7 - Am7 - Dm7 - G7
 
-IVmaj7 - iiim7 - vim9 - V9（フローティング）
+IVmaj7 - iiim7 - vim9 - V9 (Floating)
 Key=C: Fmaj7 - Em7 - Am9 - G9
 ```
 
-**Lo-Fi のコードテクニック:**
+**Lo-Fi Chord Techniques:**
 ```
-1. エレピサウンド:
-   - Rhodes EP Mark II のエミュレーション
-   - ビットクラッシャーで粗い質感
-   - テープサチュレーションで温かさ
+1. Electric piano sound:
+   - Rhodes EP Mark II emulation
+   - Bit crusher for rough texture
+   - Tape saturation for warmth
 
-2. コードのリズム:
-   - 意図的に「ルーズ」なタイミング
-   - MIDIノートのベロシティにばらつき
-   - スウィング（シャッフル）を適度に
+2. Chord rhythm:
+   - Intentionally "loose" timing
+   - Varied MIDI note velocities
+   - Moderate swing (shuffle)
 
-3. ローファイ処理:
-   - ビニルノイズ（レコードのプチプチ音）
-   - テープワウ&フラッター
-   - カットオフを低めに設定
-   - サンプルレートを下げる
-```
-
-### J-POP / アニソン / ボカロ
-
-日本のポップミュージックは独特のコード進行パターンを持ちます。西洋音楽理論をベースにしながらも、日本独自の「泣ける」進行が発達しています。
-
-**J-POP頻出進行:**
-```
-小室進行: vi - IV - V - I
-丸サ進行: IV - V - iii - vi（いわゆる「丸の内サディスティック」進行）
-王道進行: I - V - vi - IV
-カノン進行: I - V - vi - iii - IV - I - IV - V
-Just the Two of Us進行: IVmaj7 - III7 - vim7 - I7 / vim7
+3. Lo-fi processing:
+   - Vinyl noise (record crackle)
+   - Tape wow & flutter
+   - Low cutoff setting
+   - Reduced sample rate
 ```
 
-**丸サ進行の詳細:**
+### J-POP / Anime Songs / Vocaloid
+
+Japanese pop music has distinctive chord progression patterns. While based on Western music theory, uniquely Japanese "tear-jerking" progressions have developed.
+
+**Common J-POP Progressions:**
+```
+Komuro Progression: vi - IV - V - I
+Marusa Progression: IV - V - iii - vi (the "Marunouchi Sadistic" progression)
+Pop Progression: I - V - vi - IV
+Canon Progression: I - V - vi - iii - IV - I - IV - V
+Just the Two of Us Progression: IVmaj7 - III7 - vim7 - I7 / vim7
+```
+
+**Marusa Progression Details:**
 ```
 IVmaj7 - V7 - IIIm7 - VIm7
 Key=C: Fmaj7 - G7 - Em7 - Am7
 
-特徴:
-- 椎名林檎「丸の内サディスティック」から命名
-- おしゃれで都会的な響き
-- 実はジャズの ii-V の変形と見ることもできる
-- ボカロ、アニソンでも多用される
-- 最近のJ-POPの主流進行の一つ
+Characteristics:
+- Named after Sheena Ringo's "Marunouchi Sadistic"
+- Sophisticated, urban sound
+- Can also be viewed as a variation of the jazz ii-V
+- Widely used in Vocaloid and anime songs
+- One of the mainstream progressions in recent J-POP
 ```
 
-**Just the Two of Us 進行:**
+**Just the Two of Us Progression:**
 ```
 IVmaj7 - III7 - VIm7 - (I7 or V7)
 Key=C: Fmaj7 - E7 - Am7 - (C7 or G7)
 
-特徴:
-- Grover Washington Jr. の名曲から
-- セカンダリードミナント（III7=E7）がポイント
-- Am7へのドラマチックな解決
-- J-POPで非常に人気が高い
-- 瑛人「香水」などでも使用
+Characteristics:
+- From the Grover Washington Jr. classic
+- The secondary dominant (III7=E7) is the key element
+- Dramatic resolution to Am7
+- Very popular in J-POP
+- Also used in songs like Eito's "Perfume" (Kousui)
 ```
 
 ---
 
-## 10. 実践：コードを聴き取る・作る
+## 10. Practice: Hearing and Creating Chords
 
-### コードの聴き取り手順
+### Chord Transcription Steps
 
-楽曲のコード進行を耳で聴き取る（耳コピする）能力は、DJにとっても制作者にとっても極めて有用なスキルです。
+The ability to transcribe chord progressions by ear is an extremely useful skill for both DJs and producers.
 
-**基本手順:**
-
-```
-Step 1: ベース音を聴く
-- イヤホン/ヘッドホンで低音に集中
-- ベースラインのルート音を特定
-- DAWのピアノロールで確認しながら
-
-Step 2: メジャーかマイナーかを判断
-- 明るい → メジャー
-- 暗い → マイナー
-- どちらでもない → sus系やパワーコード
-
-Step 3: コードの品質を特定
-- トライアドか、セブンスか
-- テンションが入っているか
-- 転回形を使っているか
-
-Step 4: 進行パターンを確認
-- 定番パターンに当てはまるか
-- I-V-vi-IV、ii-V-I などの既知の進行か
-- 何小節で1ループか
-
-Step 5: ツールで確認
-- DAWに録音してスペクトログラムで確認
-- Melodyne や Auto-Tune で音程解析
-- コード検出プラグイン（Scaler 2、Captain Chords）で確認
-```
-
-**よくある間違いと対策:**
+**Basic Steps:**
 
 ```
-間違い1: ベース音とルートを混同
-対策: ベースが転回形の場合、ルートはベース音と異なる
-→ G/B（Gメジャーの第1転回形）のベースはBだがルートはG
+Step 1: Listen to the bass note
+- Focus on the low end with earphones/headphones
+- Identify the root note of the bass line
+- Verify using the DAW's piano roll
 
-間違い2: テンションをルートと間違える
-対策: 9thや11thが目立つ場合がある
-→ Cadd9のDの音をルートと勘違い → 本当はCがルート
+Step 2: Determine major or minor
+- Bright -> Major
+- Dark -> Minor
+- Neither -> Sus-type or power chord
 
-間違い3: マイナーキーの III をトニックと聴く
-対策: Am-F-C-G でCをI（トニック）と解釈してしまう
-→ 実際はAmがi（トニック）の可能性が高い
+Step 3: Identify the chord quality
+- Triad or seventh?
+- Are tensions included?
+- Are inversions being used?
 
-間違い4: セクション間の転調を見逃す
-対策: Verse と Chorus でキーが違うことがある
-→ 各セクションを独立して分析する
+Step 4: Check the progression pattern
+- Does it match a standard pattern?
+- Is it a known progression like I-V-vi-IV or ii-V-I?
+- How many bars per loop?
+
+Step 5: Verify with tools
+- Record into a DAW and check with a spectrogram
+- Analyze pitch with Melodyne or Auto-Tune
+- Verify with chord detection plugins (Scaler 2, Captain Chords)
 ```
 
-### DAW（Ableton Live）でコード進行を作る
+**Common Mistakes and Solutions:**
 
 ```
-方法1: ピアノロールで手動入力
-1. MIDIトラックを作成
-2. Wavetable、Analog、またはサードパーティシンセをロード
-3. ピアノロールでコードを入力
+Mistake 1: Confusing bass note with root
+Solution: When the bass uses an inversion, the root differs from the bass note
+-> G/B (G major 1st inversion) has B in bass but G is the root
+
+Mistake 2: Mistaking a tension for the root
+Solution: The 9th or 11th may be prominent
+-> Mistaking the D in Cadd9 for the root -> C is actually the root
+
+Mistake 3: Hearing III in a minor key as the tonic
+Solution: In Am-F-C-G, interpreting C as I (tonic)
+-> Am is likely actually i (tonic)
+
+Mistake 4: Missing modulation between sections
+Solution: Verse and Chorus may be in different keys
+-> Analyze each section independently
+```
+
+### Creating Chord Progressions in a DAW (Ableton Live)
+
+```
+Method 1: Manual input in the piano roll
+1. Create a MIDI track
+2. Load Wavetable, Analog, or a third-party synth
+3. Enter chords in the piano roll
    - C: C3, E3, G3
    - F: F3, A3, C4
    - G: G3, B3, D4
-4. ボイシングを調整（転回形にする）
-5. ベロシティを調整（機械的にならないよう）
-6. MIDIノートの長さを調整
+4. Adjust voicing (use inversions)
+5. Adjust velocity (to avoid sounding mechanical)
+6. Adjust MIDI note lengths
 
-方法2: コード生成プラグインを活用
-- Scaler 2: コード進行の提案・演奏
-- Captain Chords: 直感的なコード作成
-- Cthulhu: アルペジエーターとコードの組み合わせ
-- InstaChord: ワンキーでコードを演奏
+Method 2: Use chord generation plugins
+- Scaler 2: Chord progression suggestions and performance
+- Captain Chords: Intuitive chord creation
+- Cthulhu: Arpeggiator and chord combination
+- InstaChord: Play chords with a single key
 
-方法3: MIDIエフェクトの活用（Ableton）
-1. Chord MIDIエフェクトで単音からコードを生成
-2. Arpeggiator でコードを分散和音に
-3. Scale MIDIエフェクトでスケール内に矯正
-4. Random MIDIエフェクトで偶発的なテンションを追加
+Method 3: Use MIDI effects (Ableton)
+1. Generate chords from single notes with Chord MIDI effect
+2. Turn chords into arpeggios with Arpeggiator
+3. Constrain to scale with Scale MIDI effect
+4. Add accidental tensions with Random MIDI effect
 ```
 
-### コード進行のアレンジテクニック
+### Chord Progression Arrangement Techniques
 
-**リハーモナイズ（Reharmonization）:**
-既存のコード進行を別のコードに置き換えて、新しい響きを作る技法。
-
-```
-オリジナル: C - Am - F - G （I - vi - IV - V）
-リハモ例1: Cmaj7 - Am9 - Fmaj7 - G7sus4 （セブンス・テンション追加）
-リハモ例2: C - A7 - Dm7 - G7 （セカンダリードミナント挿入）
-リハモ例3: Em - Am - Dm - G （iii 代理でトニックを変更）
-リハモ例4: C - Ab - F - G （bVI モーダルインターチェンジ）
-```
-
-**ペダルポイント（Pedal Point）:**
-コードが変化しても1つの音（通常はルート）を持続させるテクニック。
+**Reharmonization:**
+A technique of replacing existing chords with different ones to create new sounds.
 
 ```
-C ペダルの例:
+Original: C - Am - F - G (I - vi - IV - V)
+Reharm 1: Cmaj7 - Am9 - Fmaj7 - G7sus4 (added 7ths and tensions)
+Reharm 2: C - A7 - Dm7 - G7 (secondary dominant inserted)
+Reharm 3: Em - Am - Dm - G (tonic changed with iii substitute)
+Reharm 4: C - Ab - F - G (bVI modal interchange)
+```
+
+**Pedal Point:**
+A technique where one note (usually the root) is sustained while chords change above it.
+
+```
+C Pedal example:
 C(C) - Dm/C - Em/C - F/C
-ベースが常にCを弾き続ける
+Bass continuously plays C
 
-効果:
-- 安定感を保ちつつコードが変化
-- ドローン的なサウンド
-- Ambient、Cinematic で効果的
-- ビルドアップでテンションを蓄積
+Effect:
+- Chords change while maintaining stability
+- Drone-like sound
+- Effective in Ambient and Cinematic
+- Accumulates tension during buildups
 ```
 
-**クリシェライン（Cliche Line）:**
-コードの中の1つの声部（通常は内声）がクロマチック（半音）で動く技法。
+**Cliche Line:**
+A technique where one voice (usually an inner voice) moves chromatically (by semitone) within a chord.
 
 ```
-Am クリシェ下行:
+Am Cliche descending:
 Am - Am(maj7)/G# - Am7/G - Am6/F#
-ベースが A → G# → G → F# と半音下行
+Bass descends A -> G# -> G -> F# by semitone
 
-Cm クリシェ上行:
+Cm Cliche ascending:
 Cm - Cm(#5) - Cm6 - Cm7
-5度が G → G# → A → Bb と半音上行
+5th ascends G -> G# -> A -> Bb by semitone
 
-効果:
-- エレガントで映画的な動き
-- 同じルートでも色が変わる
-- 映画音楽、J-POP、バラードの定番
-- ジェームズ・ボンドのテーマでも使用
+Effect:
+- Elegant, cinematic movement
+- Color changes even on the same root
+- A staple in film scores, J-POP, and ballads
+- Also used in the James Bond theme
 ```
 
-**コードの分散・アルペジオ化:**
-コードを同時に鳴らすのではなく、1音ずつ順番に鳴らすテクニック。
+**Chord Arpeggiation:**
+A technique of playing chord notes one at a time in sequence rather than simultaneously.
 
 ```
-Cmaj7 のアルペジオパターン:
+Cmaj7 Arpeggio patterns:
 
-上行: C → E → G → B → C（上）
-下行: B → G → E → C
-交互: C → G → E → B
-ランダム: E → C → B → G
+Ascending : C -> E -> G -> B -> C (upper)
+Descending: B -> G -> E -> C
+Alternating: C -> G -> E -> B
+Random    : E -> C -> B -> G
 
-アルペジオの速度による効果:
-- 遅い（1拍ずつ）: バラード、Ambient
-- 中速（8分音符）: House、Trance
-- 速い（16分音符）: EDM、Progressive
-- 非常に速い（32分音符）: Glitch、IDM
+Effect by arpeggio speed:
+- Slow (one beat each): Ballad, Ambient
+- Medium (8th notes): House, Trance
+- Fast (16th notes): EDM, Progressive
+- Very fast (32nd notes): Glitch, IDM
 ```
 
 ---
 
-## 11. 練習方法とステップアップガイド
+## 11. Practice Methods and Level-Up Guide
 
-### 初級（0〜3ヶ月）
+### Beginner (0-3 months)
 
-**目標:** メジャーとマイナーの区別、基本的なコード進行の理解
+**Goal:** Distinguish major from minor, understand basic chord progressions
 
-1. **メジャーとマイナーの聴き分け**: 好きな曲を10曲選び、各曲がメジャーキーかマイナーキーかを判断する。答え合わせはDJソフトの自動キー検出を使用
-2. **ダイアトニックコードを覚える**: まずC Major の I〜vii をピアノアプリで弾いて覚える。各コードの「明るさ」「暗さ」を体感する
-3. **簡単な進行を弾く**: I-IV-V-I をキーボードやDAWで弾く。まずはC Major で、慣れたらG Major、F Major でも
-4. **定番進行を聴く**: I-V-vi-IV の曲をSpotifyプレイリストにまとめ、同じ進行であることを確認
-5. **Camelot Wheel を覚える**: 自分のDJライブラリの曲にキー情報を付けてソートしてみる
+1. **Distinguishing Major and Minor by Ear**: Select 10 favorite songs and determine whether each is in a major or minor key. Use DJ software's automatic key detection to check your answers
+2. **Learn the Diatonic Chords**: First, play I through vii of C Major on a piano app to memorize them. Feel the "brightness" and "darkness" of each chord
+3. **Play Simple Progressions**: Play I-IV-V-I on a keyboard or in a DAW. Start in C Major, then try G Major and F Major once comfortable
+4. **Listen to Standard Progressions**: Create a Spotify playlist of I-V-vi-IV songs and confirm they share the same progression
+5. **Learn the Camelot Wheel**: Add key information to tracks in your DJ library and try sorting by key
 
-**練習のコツ:**
-- 毎日10分でもいいので「コードの音を聴く」習慣をつける
-- スマホのピアノアプリでコードを押さえて響きを体感
-- 好きな曲のコード進行をインターネットで調べる（chord + 曲名で検索）
+**Practice Tips:**
+- Build a habit of "listening to chord sounds" even for just 10 minutes daily
+- Press chords on a smartphone piano app to feel the sound
+- Look up chord progressions of your favorite songs online (search: chord + song name)
 
-### 中級（3〜12ヶ月）
+### Intermediate (3-12 months)
 
-**目標:** セブンスコードの活用、耳コピの基礎、ハーモニックミキシングの実践
+**Goal:** Use seventh chords, basics of ear training, practice harmonic mixing
 
-1. **王道進行を耳コピ**: 好きな曲のコード進行を自力で採譜。DAWで再現して答え合わせ
-2. **セブンスコードを使う**: トライアドで作った進行にmaj7、m7を追加して響きの変化を確認
-3. **ハーモニックミキシング**: 同じキーまたは近親調の曲だけでDJミックスを作成。Camelot Wheelを実戦で使う
-4. **転回形を使う**: ピアノロールでコードのボイスリーディングを改善。各音の動きを最小化
-5. **テンションに挑戦**: add9 や sus4 を進行に追加して、ジャンルに合った色付けを実践
-6. **コード進行データベースの構築**: ジャンルごとに「使えるコード進行」をメモして自分のライブラリに
+1. **Transcribe Standard Progressions by Ear**: Transcribe the chord progressions of favorite songs yourself. Recreate in a DAW and check your answers
+2. **Use Seventh Chords**: Add maj7 and m7 to progressions made with triads and observe how the sound changes
+3. **Harmonic Mixing**: Create a DJ mix using only tracks in the same key or closely related keys. Use the Camelot Wheel in practice
+4. **Use Inversions**: Improve voice leading in the piano roll. Minimize the movement of each voice
+5. **Try Tensions**: Add add9 and sus4 to progressions for genre-appropriate coloring
+6. **Build a Chord Progression Database**: Note "usable progressions" by genre in your own library
 
-**練習のコツ:**
-- 耳コピは最初の1曲が一番難しい。簡単な曲から始める
-- DAWのピアノロールで「見て」確認する習慣をつける
-- DJミックスを録音して後から聴き返し、ハーモニーの衝突がないか確認
+**Practice Tips:**
+- Ear training is hardest with the first song. Start with simple ones
+- Build a habit of "visually" confirming in the DAW's piano roll
+- Record DJ mixes and listen back to check for harmonic clashes
 
-### 上級（1年〜）
+### Advanced (1 year+)
 
-**目標:** リハーモナイズ、モーダルインターチェンジ、複雑なテンション、独自のコード進行開発
+**Goal:** Reharmonization, modal interchange, complex tensions, developing original chord progressions
 
-1. **リハーモナイズ**: 既存の進行を別のコードで置き換え。同じメロディに対して3パターン以上の進行を作る
-2. **モーダルインターチェンジ**: bVI、bVII、iv などの借用コードを使った進行を作成。映画音楽のようなドラマ性を追求
-3. **複雑なテンション**: 9th、11th、13th、altered テンションを使いこなす。ジャズスタンダードの分析
-4. **セカンダリードミナント**: V7/V、V7/vi などを自在に挿入してドラマチックな展開を作る
-5. **トライトーン代理**: ドミナントセブンスをトライトーン離れたドミナントに置き換える（ジャズの高度技法）
-6. **独自の進行を発見**: 理論を踏まえた上で「理論を破る」実験。直感と理論のバランスを取る
+1. **Reharmonize**: Replace chords in existing progressions. Create 3+ different progressions for the same melody
+2. **Modal Interchange**: Create progressions using borrowed chords like bVI, bVII, iv. Pursue cinematic drama
+3. **Complex Tensions**: Master 9th, 11th, 13th, and altered tensions. Analyze jazz standards
+4. **Secondary Dominants**: Freely insert V7/V, V7/vi, etc. to create dramatic developments
+5. **Tritone Substitution**: Replace a dominant seventh with a dominant a tritone away (an advanced jazz technique)
+6. **Discover Original Progressions**: Experiment with "breaking the rules" while grounded in theory. Balance intuition and theory
 
-**トライトーン代理（Tritone Substitution）の概要:**
+**Tritone Substitution Overview:**
 ```
-G7 → C の進行で、G7の代わりにDb7を使用
+In the G7 -> C progression, use Db7 instead of G7
 
-G7:  G-B-D-F    トライトーン: B-F
-Db7: Db-F-Ab-Cb  トライトーン: F-Cb(=B)
+G7:  G-B-D-F    Tritone: B-F
+Db7: Db-F-Ab-Cb  Tritone: F-Cb(=B)
 
-→ 同じトライトーン（B-F）を共有するため代理可能
-→ Db7 → C は半音下行で非常にスムーズ
+-> Both share the same tritone (B-F), so substitution is possible
+-> Db7 -> C descends by semitone, extremely smooth
 
-実例:
-通常:  Dm7 → G7  → Cmaj7
-代理:  Dm7 → Db7 → Cmaj7
-→ ベースが D → Db → C と半音下行する美しい動き
+Example:
+Normal:       Dm7 -> G7  -> Cmaj7
+Substitution: Dm7 -> Db7 -> Cmaj7
+-> Bass moves D -> Db -> C in a beautiful chromatic descent
 ```
 
-**練習のコツ:**
-- ジャズスタンダード（"Autumn Leaves"、"All The Things You Are" など）のコード分析
-- 映画サウンドトラックのコード進行を研究
-- 自分のオリジナル曲で実験し、「使える進行」のストックを増やす
-- 他のDJ/プロデューサーのセットリストを分析して転調パターンを学ぶ
+**Practice Tips:**
+- Analyze chord progressions of jazz standards ("Autumn Leaves," "All The Things You Are," etc.)
+- Study chord progressions in film soundtracks
+- Experiment with your own original songs and build a stock of "usable progressions"
+- Analyze other DJs'/producers' setlists to learn modulation patterns
 
 ---
 
-## よくある間違いとQ&A
+## Common Mistakes and Q&A
 
-### よくある間違い
+### Common Mistakes
 
-**1. 全てのコードを基本形で弾く**
+**1. Playing all chords in root position**
 ```
-問題: C-F-G-C を全て基本形で弾くと音がジャンプして不自然
-解決: 転回形を使ってボイスリーディングを改善
-```
-
-**2. ベースとコードのルートを同じオクターブに置く**
-```
-問題: ベースC2とコードC2-E2-G2が周波数帯で衝突し濁る
-解決: コードはC3以上に配置、ベースはC2以下に配置
+Problem : Playing C-F-G-C all in root position causes unnatural jumps
+Solution: Use inversions to improve voice leading
 ```
 
-**3. キーを無視してDJミックスする**
+**2. Placing bass and chord root in the same octave**
 ```
-問題: キーが合わない曲を重ねるとハーモニーが衝突
-解決: Camelot Wheelで隣接するキーの曲を選ぶ
-```
-
-**4. テンションを全てのコードに盛る**
-```
-問題: テンションの入れすぎで和声が過密になり、メロディの居場所がなくなる
-解決: テンションは「スパイス」。適度に使い、シンプルなコードとの対比を作る
+Problem : Bass C2 and chord C2-E2-G2 clash in the same frequency range, causing muddiness
+Solution: Place chords at C3 or above, bass at C2 or below
 ```
 
-**5. 理論に縛られすぎて耳を無視する**
+**3. DJ mixing while ignoring keys**
 ```
-問題: 理論的に正しい進行を作ったが、聴いてみると魅力がない
-解決: 最終的な判断は常に「耳」。理論は道具であってルールではない
+Problem : Layering tracks in incompatible keys causes harmonic clashing
+Solution: Select tracks in adjacent keys on the Camelot Wheel
+```
+
+**4. Overloading every chord with tensions**
+```
+Problem : Too many tensions create overcrowded harmony, leaving no room for melody
+Solution: Tensions are "spices." Use them moderately and create contrast with simple chords
+```
+
+**5. Being too bound by theory and ignoring your ears**
+```
+Problem : Created a theoretically correct progression, but it lacks appeal when heard
+Solution: The final judgment is always your "ears." Theory is a tool, not a rule
 ```
 
 ### Q&A
 
-**Q: コード進行に著作権はありますか？**
-A: コード進行自体には著作権はありません。I-V-vi-IVの進行は誰でも使えます。著作権が発生するのはメロディ、歌詞、アレンジの組み合わせです。ただし、非常に独特なコード進行+メロディの組み合わせは問題になる可能性があるため、完全なコピーは避けましょう。
+**Q: Are chord progressions copyrighted?**
+A: Chord progressions themselves are not copyrightable. Anyone can use the I-V-vi-IV progression. Copyright applies to combinations of melody, lyrics, and arrangement. However, very distinctive chord progression + melody combinations can potentially be problematic, so avoid exact copies.
 
-**Q: DJにとってコード理論はどこまで必要？**
-A: 最低限、Camelot Wheelの使い方とメジャー/マイナーの区別ができれば実用的には十分です。しかし、コード進行の理解があると、トランジションの質が格段に上がり、セット構成の自由度も増します。プロレベルを目指すなら、この文書の内容を理解しておくことを推奨します。
+**Q: How much chord theory does a DJ need?**
+A: At minimum, knowing how to use the Camelot Wheel and distinguishing major/minor is practically sufficient. However, understanding chord progressions dramatically improves transition quality and increases flexibility in set construction. If you aim for a professional level, understanding the content of this document is recommended.
 
-**Q: 制作でコード進行が思いつかない時は？**
-A: 以下の方法を試してください：(1) 好きな曲のコード進行を借用してアレンジする、(2) Scaler 2 などのプラグインで提案を受ける、(3) ランダムにダイアトニックコードを並べて試す、(4) 1つのコードから始めて「次に来て欲しい音」を直感で選ぶ、(5) 既存の進行をリハーモナイズする。
+**Q: What should I do when I can't come up with chord progressions for production?**
+A: Try the following methods: (1) Borrow and arrange chord progressions from favorite songs, (2) Get suggestions from plugins like Scaler 2, (3) Randomly arrange diatonic chords and experiment, (4) Start from one chord and intuitively choose "what you want to hear next," (5) Reharmonize existing progressions.
 
-**Q: ピアノが弾けなくてもコード理論は学べますか？**
-A: はい、DAWのピアノロールを使えば物理的にピアノを弾けなくてもコードを入力・確認できます。ただし、鍵盤（安いMIDIキーボードでも可）に触れてコードの「手の形」を覚えると理解が早くなります。25鍵のミニキーボードでも十分です。
+**Q: Can I learn chord theory without being able to play piano?**
+A: Yes, you can input and verify chords using a DAW's piano roll even without physically playing piano. However, touching a keyboard (even a cheap MIDI keyboard) and learning the "hand shapes" of chords accelerates understanding. Even a 25-key mini keyboard is sufficient.
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic Implementation Template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1967,26 +1967,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should be raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced Patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1994,7 +1994,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -2005,14 +2005,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -2020,7 +2020,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -2028,44 +2028,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance Optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -2074,7 +2074,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -2089,93 +2089,93 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be aware of algorithmic complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point in learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is most important. Understanding deepens not just through theory, but by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping ahead to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-### コア概念の復習
-
-- **コード**: 3つ以上の音の重なり。メジャー、マイナー、ディミニッシュ、オーギュメント、サスペンデッドが基本
-- **ダイアトニック**: スケールから作られる7つのコード。トニック、サブドミナント、ドミナントの3つの機能
-- **進行**: I-V-vi-IV、ii-V-I、vi-IV-V-I など定番パターンがある
-- **セブンスコード**: maj7、m7、dom7 で洗練された響きに
-- **テンション**: 9th、11th、13th で色付け。ジャンルに合わせた選択が重要
-- **転調**: 平行調、近親調、半音転調で感情の変化を演出
-- **ボイシング**: 同じコードでも音の配置で響きが変わる。転回形、オープン/クローズド
-- **ジャンル別**: EDM、House、Techno、Trance、Lo-Fi、J-POPそれぞれに特徴的な進行がある
-
-### DJ向けまとめ
-
-```
-必須知識:
-1. Camelot Wheel の読み方と活用法
-2. メジャー/マイナーキーの判別
-3. 近親調（±1）と平行調（A↔B）の概念
-4. EQを使ったトランジション中のハーモニー処理
-
-推奨知識:
-5. コード進行のパターン認識
-6. エネルギーコントロールのための転調戦略
-7. ピッチシフトの適切な使い方
-```
-
-### 制作向けまとめ
-
-```
-必須知識:
-1. ダイアトニックコードと機能和声
-2. 定番コード進行（I-V-vi-IV、ii-V-I等）
-3. ボイシングとボイスリーディング
-4. セブンスコードの使い方
-
-推奨知識:
-5. テンションノートの活用
-6. セカンダリードミナントとモーダルインターチェンジ
-7. リハーモナイズとクリシェライン
-8. ジャンル別のコード進行パターン
-```
-
-**次のステップ:** [オーディオ基礎](./audio-basics.md) へ進む
+Knowledge of this topic is frequently applied in daily development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
+## Summary
 
-## 次に読むべきガイド
+### Core Concept Review
 
-- [キーとスケール](./key-scales.md) - 次のトピックへ進む
+- **Chords**: Stacking 3 or more notes. Major, minor, diminished, augmented, and suspended are the basics
+- **Diatonic**: 7 chords built from a scale. Three functions: tonic, subdominant, dominant
+- **Progressions**: Standard patterns like I-V-vi-IV, ii-V-I, vi-IV-V-I
+- **Seventh Chords**: maj7, m7, dom7 for a refined sound
+- **Tensions**: Color with 9th, 11th, 13th. Genre-appropriate selection is key
+- **Modulation**: Create emotional shifts with relative key, closely related key, and chromatic modulation
+- **Voicing**: Same chord sounds different depending on note arrangement. Inversions, open/closed
+- **Genre-Specific**: EDM, House, Techno, Trance, Lo-Fi, J-POP each have characteristic progressions
+
+### Summary for DJs
+
+```
+Essential knowledge:
+1. How to read and use the Camelot Wheel
+2. Identifying major/minor keys
+3. Concepts of closely related keys (+/-1) and relative keys (A<->B)
+4. Handling harmony during transitions with EQ
+
+Recommended knowledge:
+5. Chord progression pattern recognition
+6. Modulation strategies for energy control
+7. Proper use of pitch shifting
+```
+
+### Summary for Producers
+
+```
+Essential knowledge:
+1. Diatonic chords and functional harmony
+2. Standard chord progressions (I-V-vi-IV, ii-V-I, etc.)
+3. Voicing and voice leading
+4. Using seventh chords
+
+Recommended knowledge:
+5. Utilizing tension notes
+6. Secondary dominants and modal interchange
+7. Reharmonization and cliche lines
+8. Genre-specific chord progression patterns
+```
+
+**Next Step:** Proceed to [Audio Basics](./audio-basics.md)
 
 ---
 
-## 参考リンク
 
-- [キーとスケール](./key-scales.md)
-- [ハーモニックミキシング](../dj/04-advanced-techniques/harmonic-mixing.md)
-- コード進行の作り方
+## Recommended Next Reading
+
+- [Keys and Scales](./key-scales.md) - Proceed to the next topic
+
+---
+
+## Reference Links
+
+- [Keys and Scales](./key-scales.md)
+- [Harmonic Mixing](../dj/04-advanced-techniques/harmonic-mixing.md)
+- How to Create Chord Progressions
