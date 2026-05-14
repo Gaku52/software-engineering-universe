@@ -1,257 +1,257 @@
-# BPMとテンポ
+# BPM and Tempo
 
-ビートマッチングの基礎となるBPMとテンポの理解を深めます。
+Deepen your understanding of BPM and tempo, the foundation of beatmatching.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- BPMの定義と計算方法
-- テンポの感じ方と身体的理解
-- ジャンル別の典型的なBPM
-- Rekordboxでの BPM確認・調整
-- BPMを耳で判断する練習
-- テンポマッチングの基礎
-- ピッチとキーの関係
-- BPMを活用したセットリスト構築
-- ハーフタイムとダブルタイムの概念
-- BPMトランジションの高度なテクニック
+- Definition and calculation of BPM
+- Feeling and physically understanding tempo
+- Typical BPM by genre
+- Checking and adjusting BPM in Rekordbox
+- Practicing BPM recognition by ear
+- Basics of tempo matching
+- Relationship between pitch and key
+- Building setlists using BPM
+- Concepts of half-time and double-time
+- Advanced BPM transition techniques
 
-## なぜBPMが重要なのか
+## Why BPM Matters
 
-**ビートマッチングの基礎:**
-- 2曲のテンポを合わせる
-- スムーズなトランジション
-- ミックスの土台
-- グルーヴの一体感を生み出す
+**Foundation of Beatmatching:**
+- Matching the tempo of two tracks
+- Smooth transitions
+- The bedrock of mixing
+- Creating a unified groove
 
-**選曲の基準:**
-- 似たBPMの曲を選ぶ
-- エネルギーの流れを作る
-- ジャンルの特性を理解
-- フロアの反応をコントロール
+**Criteria for Track Selection:**
+- Choosing tracks with similar BPM
+- Creating energy flow
+- Understanding genre characteristics
+- Controlling the dancefloor response
 
-**DJ の技術力の指標:**
-- BPMを正確に判断できることはDJの基本中の基本
-- 耳でBPMを感じ取る能力は長年の経験で培われる
-- テンポの微妙な違いを聴き分けるスキルがプロとアマの差
-- BPMの理解なくしてDJの技術的成長はあり得ない
+**An Indicator of DJ Skill:**
+- Being able to accurately determine BPM is the most fundamental DJ skill
+- The ability to feel BPM by ear is cultivated through years of experience
+- The skill to distinguish subtle tempo differences separates pros from amateurs
+- Technical growth as a DJ is impossible without understanding BPM
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will help deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-
----
-
-## 1. BPMとは
-
-### 定義
-
-**BPM = Beats Per Minute（ビーツ・パー・ミニット）**
-
-```
-1分間に何回「拍」があるか
-```
-
-BPMは音楽のテンポ（速さ）を数値化したもので、ダンスミュージックにおいて最も基本的かつ重要な指標です。すべてのビートマッチング技術はBPMの理解から始まります。
-
-### 計算例
-
-**BPM 120 の場合:**
-```
-1分間に120拍
-= 1秒間に2拍（120 ÷ 60）
-= 0.5秒ごとに1拍
-= 1拍あたり500ミリ秒
-```
-
-**BPM 128 の場合:**
-```
-1分間に128拍
-= 1秒間に約2.13拍（128 ÷ 60）
-= 約0.469秒ごとに1拍
-= 1拍あたり約469ミリ秒
-```
-
-**BPM 140 の場合:**
-```
-1分間に140拍
-= 1秒間に約2.33拍
-= 約0.43秒ごとに1拍
-= 1拍あたり約429ミリ秒
-```
-
-**BPM 174 の場合（Drum & Bass）:**
-```
-1分間に174拍
-= 1秒間に2.9拍（174 ÷ 60）
-= 約0.345秒ごとに1拍
-= 1拍あたり約345ミリ秒
-```
-
-### BPMと時間の関係
-
-DJにとって、BPMから演奏時間を計算できることは実用的に重要です。
-
-```
-1小節の長さ（秒）= 60 ÷ BPM × 4
-
-例：
-BPM 120 → 1小節 = 2.0秒
-BPM 128 → 1小節 = 約1.875秒
-BPM 130 → 1小節 = 約1.846秒
-BPM 140 → 1小節 = 約1.714秒
-BPM 174 → 1小節 = 約1.379秒
-```
-
-```
-8小節（1フレーズ）の長さ（秒）= 60 ÷ BPM × 32
-
-例：
-BPM 120 → 8小節 = 16秒
-BPM 128 → 8小節 = 15秒
-BPM 130 → 8小節 = 約14.77秒
-BPM 140 → 8小節 = 約13.71秒
-```
-
-```
-32小節（1セクション）の長さ（秒）= 60 ÷ BPM × 128
-
-例：
-BPM 120 → 32小節 = 64秒（約1分4秒）
-BPM 128 → 32小節 = 60秒（ちょうど1分）
-BPM 130 → 32小節 = 約59秒
-BPM 140 → 32小節 = 約54.86秒
-```
-
-### 手動で測る方法
-
-```
-方法1: 15秒カウント法
-1. 曲を再生
-2. ストップウォッチで15秒測る
-3. 15秒間の拍数を数える
-4. 拍数 × 4 = BPM
-
-例: 15秒で30拍
-    30 × 4 = 120 BPM
-
-例: 15秒で32拍
-    32 × 4 = 128 BPM
-```
-
-```
-方法2: 30秒カウント法（より正確）
-1. 曲を再生
-2. ストップウォッチで30秒測る
-3. 30秒間の拍数を数える
-4. 拍数 × 2 = BPM
-
-例: 30秒で64拍
-    64 × 2 = 128 BPM
-```
-
-```
-方法3: タップテンポ法
-1. 曲を再生
-2. 拍に合わせてタップ
-3. BPMカウンターアプリを使用
-4. 安定した数値が出るまでタップ
-
-推奨アプリ:
-- BPM Counter（iOS/Android）
-- Livebpm（iOS）
-- BPM Tap（Web）
-```
-
-```
-方法4: 逆算法（上級者向け）
-1. 曲の特定セクションの時間を測る
-2. そのセクションの小節数を数える
-3. 拍数 = 小節数 × 4
-4. BPM = 拍数 ÷ 秒数 × 60
-
-例: 32小節が60秒だった場合
-    拍数 = 32 × 4 = 128
-    BPM = 128 ÷ 60 × 60 = 128 BPM
-```
-
-### BPMの歴史的背景
-
-BPMという概念がDJ文化に浸透したのは1970年代後半からです。
-
-```
-1970年代以前:
-- テンポは「速い」「遅い」の感覚的な判断
-- クラシック音楽ではイタリア語の速度記号（Allegro, Andanteなど）
-- メトロノームの目盛りとしてBPMは存在していた
-
-1970年代:
-- ディスコDJがビートマッチングを始める
-- テンポを合わせる必要性からBPMの重要性が認識される
-- DJが手動でBPMを計測するようになる
-
-1980年代:
-- ドラムマシン（TR-808, TR-909）がBPM表示を搭載
-- シーケンサーの普及でBPMが制作の基準に
-- House、Technoの誕生でBPMがジャンルの特徴に
-
-1990年代:
-- BPMカウンターの登場
-- CDプレイヤーにBPM表示機能
-- DJソフトウェアの自動BPM検出
-
-2000年代以降:
-- 高精度な自動BPM解析
-- Sync機能の登場
-- AI による BPM 解析の進化
-```
+- Basic programming knowledge
+- Understanding of related fundamental concepts
 
 ---
 
-## 2. テンポの感じ方
+## 1. What Is BPM
 
-### BPM帯域別の感覚
+### Definition
 
-テンポの感覚は個人差がありますが、一般的な身体的反応を理解しておくことは重要です。
-
-#### 非常に遅いテンポ（40-70 BPM）
+**BPM = Beats Per Minute**
 
 ```
-感覚: 瞑想的、アンビエント、ゆったり
-用途: Ambient、実験音楽、映画音楽
-身体反応: 呼吸がゆっくりになる、リラックス状態
+How many "beats" occur in one minute
 ```
 
-**特徴:**
-- 通常のDJセットではあまり使われない
-- アンビエントDJやチルアウトセットで活用
-- 拍を感じにくいことも多い
-- ビートマッチングの概念が当てはまりにくい
+BPM is the numerical representation of musical tempo (speed) and is the most fundamental and important metric in dance music. All beatmatching techniques begin with understanding BPM.
 
-**代表ジャンル:**
-- Ambient: 50-70 BPM（または拍なし）
+### Calculation Examples
+
+**At BPM 120:**
+```
+120 beats per minute
+= 2 beats per second (120 / 60)
+= 1 beat every 0.5 seconds
+= 500 milliseconds per beat
+```
+
+**At BPM 128:**
+```
+128 beats per minute
+= approximately 2.13 beats per second (128 / 60)
+= approximately 1 beat every 0.469 seconds
+= approximately 469 milliseconds per beat
+```
+
+**At BPM 140:**
+```
+140 beats per minute
+= approximately 2.33 beats per second
+= approximately 1 beat every 0.43 seconds
+= approximately 429 milliseconds per beat
+```
+
+**At BPM 174 (Drum & Bass):**
+```
+174 beats per minute
+= 2.9 beats per second (174 / 60)
+= approximately 1 beat every 0.345 seconds
+= approximately 345 milliseconds per beat
+```
+
+### Relationship Between BPM and Time
+
+For DJs, being able to calculate playing time from BPM is practically important.
+
+```
+Length of 1 bar (seconds) = 60 / BPM x 4
+
+Examples:
+BPM 120 -> 1 bar = 2.0 seconds
+BPM 128 -> 1 bar = approximately 1.875 seconds
+BPM 130 -> 1 bar = approximately 1.846 seconds
+BPM 140 -> 1 bar = approximately 1.714 seconds
+BPM 174 -> 1 bar = approximately 1.379 seconds
+```
+
+```
+Length of 8 bars (1 phrase) in seconds = 60 / BPM x 32
+
+Examples:
+BPM 120 -> 8 bars = 16 seconds
+BPM 128 -> 8 bars = 15 seconds
+BPM 130 -> 8 bars = approximately 14.77 seconds
+BPM 140 -> 8 bars = approximately 13.71 seconds
+```
+
+```
+Length of 32 bars (1 section) in seconds = 60 / BPM x 128
+
+Examples:
+BPM 120 -> 32 bars = 64 seconds (approximately 1 minute 4 seconds)
+BPM 128 -> 32 bars = 60 seconds (exactly 1 minute)
+BPM 130 -> 32 bars = approximately 59 seconds
+BPM 140 -> 32 bars = approximately 54.86 seconds
+```
+
+### Manual Measurement Methods
+
+```
+Method 1: 15-Second Count Method
+1. Play a track
+2. Time 15 seconds with a stopwatch
+3. Count the beats during 15 seconds
+4. Beats x 4 = BPM
+
+Example: 30 beats in 15 seconds
+    30 x 4 = 120 BPM
+
+Example: 32 beats in 15 seconds
+    32 x 4 = 128 BPM
+```
+
+```
+Method 2: 30-Second Count Method (more accurate)
+1. Play a track
+2. Time 30 seconds with a stopwatch
+3. Count the beats during 30 seconds
+4. Beats x 2 = BPM
+
+Example: 64 beats in 30 seconds
+    64 x 2 = 128 BPM
+```
+
+```
+Method 3: Tap Tempo Method
+1. Play a track
+2. Tap along with the beat
+3. Use a BPM counter app
+4. Keep tapping until you get a stable reading
+
+Recommended apps:
+- BPM Counter (iOS/Android)
+- Livebpm (iOS)
+- BPM Tap (Web)
+```
+
+```
+Method 4: Reverse Calculation Method (advanced)
+1. Measure the duration of a specific section
+2. Count the number of bars in that section
+3. Beats = bars x 4
+4. BPM = beats / seconds x 60
+
+Example: If 32 bars take 60 seconds
+    Beats = 32 x 4 = 128
+    BPM = 128 / 60 x 60 = 128 BPM
+```
+
+### Historical Background of BPM
+
+The concept of BPM became widespread in DJ culture from the late 1970s.
+
+```
+Before the 1970s:
+- Tempo was judged by feel as "fast" or "slow"
+- Classical music used Italian tempo markings (Allegro, Andante, etc.)
+- BPM existed as metronome markings
+
+1970s:
+- Disco DJs began beatmatching
+- The importance of BPM was recognized due to the need to match tempos
+- DJs started manually measuring BPM
+
+1980s:
+- Drum machines (TR-808, TR-909) featured BPM displays
+- Sequencer adoption made BPM a production standard
+- The birth of House and Techno made BPM a genre characteristic
+
+1990s:
+- BPM counters appeared
+- CD players included BPM display features
+- DJ software with automatic BPM detection
+
+2000s onward:
+- High-precision automatic BPM analysis
+- Introduction of Sync functionality
+- Evolution of AI-based BPM analysis
+```
+
+---
+
+## 2. Feeling Tempo
+
+### Perception by BPM Range
+
+While tempo perception varies by individual, understanding general physical responses is important.
+
+#### Very Slow Tempo (40-70 BPM)
+
+```
+Feel: Meditative, ambient, relaxed
+Usage: Ambient, experimental music, film scores
+Physical response: Breathing slows down, state of relaxation
+```
+
+**Characteristics:**
+- Rarely used in typical DJ sets
+- Utilized in ambient DJ or chillout sets
+- Beats are often hard to feel
+- The concept of beatmatching may not apply
+
+**Representative genres:**
+- Ambient: 50-70 BPM (or no beat)
 - Drone: 50-70 BPM
-- 実験電子音楽: 不定
+- Experimental electronic music: variable
 
-#### 遅いテンポ（70-100 BPM）
+#### Slow Tempo (70-100 BPM)
 
 ```
-感覚: ゆったり、重い、落ち着く、グルーヴィー
-用途: Chill、Lo-Fi、Hip Hop、R&B
-身体反応: 自然な歩行ペースより遅い、頭を揺らす
+Feel: Relaxed, heavy, calm, groovy
+Usage: Chill, Lo-Fi, Hip Hop, R&B
+Physical response: Slower than natural walking pace, head nodding
 ```
 
-**特徴:**
-- リラックスした雰囲気
-- グルーヴ重視
-- ビートの1つ1つをしっかり感じる
-- ハーフタイムの感覚（70BPMは140BPMのハーフタイム）
-- バウンス感のあるリズム
+**Characteristics:**
+- Relaxed atmosphere
+- Groove-focused
+- Each beat is felt distinctly
+- Half-time feel (70 BPM is the half-time of 140 BPM)
+- Bouncy rhythm
 
-**代表ジャンル:**
+**Representative genres:**
 - Hip Hop: 80-100 BPM
 - Trip Hop: 80-95 BPM
 - Downtempo: 70-100 BPM
@@ -261,30 +261,30 @@ BPMという概念がDJ文化に浸透したのは1970年代後半からです�
 - Dub: 70-90 BPM
 - Neo Soul: 75-95 BPM
 
-**DJ的ポイント:**
+**DJ Tips:**
 ```
-- ビートマッチングは比較的容易（拍の間隔が長い）
-- EQのLow成分が重要（ベースラインが目立つ）
-- フィルターを使ったスムーズなトランジションが有効
-- 曲同士のキーの相性がよく聞こえる（テンポが遅いため）
-```
-
-#### 中間テンポ（100-130 BPM）
-
-```
-感覚: 歩くペース、踊りやすい、心地よい、自然
-用途: House、Disco、Pop、Garage
-身体反応: 自然に体が動く、リズムに乗りやすい
+- Beatmatching is relatively easy (longer intervals between beats)
+- EQ Low frequencies are important (basslines stand out)
+- Smooth transitions using filters are effective
+- Key compatibility between tracks is more audible (due to slower tempo)
 ```
 
-**特徴:**
-- 人間の心拍数（安静時60-100、運動時100-140）に近い
-- 最も踊りやすいテンポ帯
-- 幅広い層に受け入れられる
-- 長時間聴いても疲れにくい
-- 歩行のリズム（約120歩/分）に近い
+#### Mid Tempo (100-130 BPM)
 
-**代表ジャンル:**
+```
+Feel: Walking pace, danceable, comfortable, natural
+Usage: House, Disco, Pop, Garage
+Physical response: Body moves naturally, easy to ride the rhythm
+```
+
+**Characteristics:**
+- Close to human heart rate (resting 60-100, exercise 100-140)
+- The most danceable tempo range
+- Accepted by a wide audience
+- Less fatiguing over long listening sessions
+- Close to walking rhythm (approximately 120 steps/minute)
+
+**Representative genres:**
 - House: 120-130 BPM
 - Disco: 110-125 BPM
 - Tech House: 125-130 BPM
@@ -296,32 +296,32 @@ BPMという概念がDJ文化に浸透したのは1970年代後半からです�
 - Nu Disco: 115-125 BPM
 - Indie Dance: 110-125 BPM
 
-**DJ的ポイント:**
+**DJ Tips:**
 ```
-- 最もDJプレイされるテンポ帯
-- ビートマッチングの練習に最適
-- 多くのDJ機材がこのテンポ帯を基準に設計されている
-- ±5BPM以内の調整なら自然に聞こえる
-- ピッチ変更による音質劣化が少ない範囲
-```
-
-#### やや速いテンポ（130-145 BPM）
-
-```
-感覚: エネルギッシュ、興奮、高揚感
-用途: Techno、Trance、Progressive
-身体反応: 心拍数が上がる、アドレナリン分泌
+- The most commonly DJ-played tempo range
+- Ideal for beatmatching practice
+- Most DJ equipment is designed around this tempo range
+- Adjustments within +/-5 BPM sound natural
+- Minimal sound quality degradation from pitch changes
 ```
 
-**特徴:**
-- 高揚感を生み出すテンポ
-- ピークタイムに適している
-- エネルギーレベルが高い
-- 長時間プレイすると疲れる可能性
-- 夜のクラブのメインタイムに最適
+#### Moderately Fast Tempo (130-145 BPM)
 
-**代表ジャンル:**
-- Techno: 125-140 BPM（標準128-135）
+```
+Feel: Energetic, exciting, euphoric
+Usage: Techno, Trance, Progressive
+Physical response: Heart rate increases, adrenaline release
+```
+
+**Characteristics:**
+- Tempo that creates euphoria
+- Suitable for peak time
+- High energy level
+- May cause fatigue during extended play
+- Ideal for main-time at nightclubs
+
+**Representative genres:**
+- Techno: 125-140 BPM (standard 128-135)
 - Trance: 130-145 BPM
 - Progressive House: 126-132 BPM
 - Melodic Techno: 120-130 BPM
@@ -330,1350 +330,1350 @@ BPMという概念がDJ文化に浸透したのは1970年代後半からです�
 - Acid Techno: 130-140 BPM
 - EBM: 125-140 BPM
 
-**DJ的ポイント:**
+**DJ Tips:**
 ```
-- Techno/Tranceのメインテンポ帯
-- テンポの変化で大きなエネルギー効果が得られる
-- 130→135へのゆっくりした上昇が効果的
-- Master Tempoの重要性が増す（キー変化が目立つ）
-```
-
-#### 速いテンポ（145-160 BPM）
-
-```
-感覚: 猛スピード、激しい、アグレッシブ
-用途: Hardstyle、Hard Trance、一部のDubstep
-身体反応: 非常に高い興奮状態、激しいダンス
+- Main tempo range for Techno/Trance
+- Tempo changes produce significant energy effects
+- A gradual rise from 130 to 135 is effective
+- Master Tempo becomes more important (key changes become noticeable)
 ```
 
-**特徴:**
-- 高いエネルギーレベル
-- 専門的なジャンルが多い
-- ハーフタイムの感覚との使い分け
-- ピークタイムの短時間使用が効果的
+#### Fast Tempo (145-160 BPM)
 
-**代表ジャンル:**
+```
+Feel: High speed, intense, aggressive
+Usage: Hardstyle, Hard Trance, some Dubstep
+Physical response: Very high state of excitement, intense dancing
+```
+
+**Characteristics:**
+- High energy level
+- Many specialized genres
+- Interplay with half-time feel
+- Effective for short peak-time use
+
+**Representative genres:**
 - Hardstyle: 150-160 BPM
 - Hard Trance: 145-155 BPM
-- Dubstep: 140-150 BPM（ハーフタイム = 70-75 BPM感覚）
-- Trap: 140-150 BPM（ハーフタイム使用）
+- Dubstep: 140-150 BPM (half-time = 70-75 BPM feel)
+- Trap: 140-150 BPM (half-time usage)
 - Footwork: 155-165 BPM
 - UK Hardcore: 155-175 BPM
 
-#### 非常に速いテンポ（160-200+ BPM）
+#### Very Fast Tempo (160-200+ BPM)
 
 ```
-感覚: 超高速、エクストリーム、狂気的
-用途: Drum & Bass、Jungle、Hardcore、Gabber
-身体反応: 極度の興奮、特殊なダンススタイル
+Feel: Ultra-high speed, extreme, frantic
+Usage: Drum & Bass, Jungle, Hardcore, Gabber
+Physical response: Extreme excitement, specialized dance styles
 ```
 
-**特徴:**
-- 超高速
-- 専門的なジャンル
-- 高いテクニカルスキル要求
-- ハーフタイムフィールが多用される
-- コアなファンベース
+**Characteristics:**
+- Ultra-high speed
+- Specialized genres
+- High technical skill required
+- Half-time feel is frequently used
+- Dedicated fanbase
 
-**代表ジャンル:**
+**Representative genres:**
 - Drum & Bass: 170-180 BPM
 - Jungle: 160-170 BPM
 - Hardcore: 160-200 BPM
 - Gabber: 160-200+ BPM
 - Frenchcore: 190-200+ BPM
-- Speedcore: 300+ BPM（極端な例）
+- Speedcore: 300+ BPM (extreme example)
 - Breakcore: 160-300 BPM
 
-**DJ的ポイント:**
+**DJ Tips:**
 ```
-- ビートマッチングの精度がさらに重要（拍の間隔が短い）
-- 微小なズレがすぐに目立つ
-- トランジションは素早く行う必要がある
-- ハーフタイムへの切り替えテクニックが重要
-```
-
-### テンポと身体の関係
-
-テンポは人間の身体的なリズムと深い関係があります。
-
-```
-心拍数との関係:
-- 安静時の心拍数: 60-80 BPM
-- 軽い運動時: 100-120 BPM
-- 中程度の運動時: 120-140 BPM
-- 激しい運動時: 140-180 BPM
-
-音楽のテンポが心拍数に近いと共鳴が起きやすい
-→ ダンスフロアの興奮状態に合わせたテンポ選択が重要
+- Beatmatching precision is even more critical (shorter intervals between beats)
+- Minor discrepancies become immediately noticeable
+- Transitions need to be executed quickly
+- Switching to half-time technique is important
 ```
 
-```
-歩行テンポ:
-- ゆっくり歩く: 90-100 BPM
-- 普通に歩く: 110-120 BPM
-- 速歩き: 130-140 BPM
-- ジョギング: 150-170 BPM
+### Relationship Between Tempo and the Body
 
-→ テンポが歩行リズムに影響するため、
-  フロアの動きに合ったBPMを選ぶことが重要
+Tempo has a deep relationship with human physical rhythms.
+
+```
+Relationship with heart rate:
+- Resting heart rate: 60-80 BPM
+- Light exercise: 100-120 BPM
+- Moderate exercise: 120-140 BPM
+- Intense exercise: 140-180 BPM
+
+Music tempo that is close to heart rate tends to create resonance
+-> Choosing tempo that matches the dancefloor's level of excitement is important
 ```
 
 ```
-呼吸との関係:
-- リラックス時: 1呼吸に8拍（BPM 120で4秒）
-- 興奮時: 1呼吸に4拍（BPM 120で2秒）
-- ブレイクダウンで呼吸が整い
-- ドロップで呼吸が速くなる
+Walking tempo:
+- Slow walk: 90-100 BPM
+- Normal walk: 110-120 BPM
+- Fast walk: 130-140 BPM
+- Jogging: 150-170 BPM
+
+-> Since tempo influences walking rhythm,
+  choosing a BPM that matches the floor's movement is important
 ```
 
-### テンポの心理的効果
+```
+Relationship with breathing:
+- Relaxed state: 8 beats per breath (4 seconds at BPM 120)
+- Excited state: 4 beats per breath (2 seconds at BPM 120)
+- Breakdown allows breathing to settle
+- Drop causes breathing to quicken
+```
+
+### Psychological Effects of Tempo
 
 ```
-遅いテンポ（70-100 BPM）:
-- リラックス効果
-- 内省的な気分
-- グルーヴへの没入
-- 時間がゆっくり流れる感覚
+Slow tempo (70-100 BPM):
+- Relaxation effect
+- Introspective mood
+- Immersion in groove
+- Sensation of time passing slowly
 
-中間テンポ（100-130 BPM）:
-- 快適で自然な感覚
-- 社交的な雰囲気
-- 幸福感
-- 長時間の持続可能性
+Mid tempo (100-130 BPM):
+- Comfortable and natural feel
+- Social atmosphere
+- Sense of happiness
+- Long-duration sustainability
 
-速いテンポ（130-160 BPM）:
-- 興奮、高揚感
-- アドレナリン放出
-- 解放感
-- 一体感の強化
+Fast tempo (130-160 BPM):
+- Excitement, euphoria
+- Adrenaline release
+- Sense of liberation
+- Enhanced sense of unity
 
-非常に速いテンポ（160+ BPM）:
-- エクスタシー的状態
-- トランス状態に近い感覚
-- 極度のカタルシス
-- 特殊な没入体験
+Very fast tempo (160+ BPM):
+- Ecstatic state
+- Near-trance state sensation
+- Extreme catharsis
+- Unique immersive experience
 ```
 
 ---
 
-## 3. ジャンル別BPM一覧
+## 3. BPM by Genre
 
-### 詳細なBPM表
+### Detailed BPM Table
 
-| ジャンル | 典型的なBPM | 範囲 | 特徴 |
+| Genre | Typical BPM | Range | Characteristics |
 |---------|-----------|------|------|
-| **Ambient** | 70 | 50-80 | 拍が曖昧なことも多い |
-| **Dub** | 80 | 70-90 | レゲエ影響、ディープ |
-| **Reggae** | 80 | 70-90 | オフビート強調 |
-| **Hip Hop** | 90 | 80-100 | ゆったりグルーヴ |
-| **Trip Hop** | 85 | 80-95 | 暗め、アトモスフェリック |
-| **R&B** | 90 | 75-100 | スムーズ、ソウルフル |
-| **Downtempo** | 90 | 70-100 | チル、リラックス |
-| **Lo-Fi Hip Hop** | 80 | 70-90 | ノスタルジック |
-| **Neo Soul** | 85 | 75-95 | ジャジー、温かい |
-| **Disco** | 120 | 110-125 | 踊りやすい、グルーヴィー |
-| **Nu Disco** | 118 | 115-125 | 現代的ディスコ |
-| **Indie Dance** | 118 | 110-125 | インディーポップ影響 |
-| **Deep House** | 122 | 118-125 | ディープ、メロウ |
-| **Afro House** | 123 | 120-126 | アフリカンリズム |
-| **Soulful House** | 123 | 120-126 | ソウルフルボーカル |
-| **Funky House** | 125 | 122-128 | ファンキーなグルーヴ |
-| **House** | 125 | 120-130 | スタンダード、4つ打ち |
-| **Tech House** | 128 | 125-130 | テクノロジカル、ミニマル |
-| **Progressive House** | 128 | 125-130 | 長いビルドアップ |
-| **Future House** | 128 | 125-130 | ベース重視 |
-| **Melodic House** | 122 | 118-126 | メロディック、エモーショナル |
-| **Bass House** | 128 | 125-130 | 重低音 |
-| **G-House** | 125 | 122-128 | ギャングスタ的、ダーク |
-| **Techno** | 130 | 125-135 | 機械的、反復的 |
-| **Minimal Techno** | 128 | 125-132 | シンプル、削ぎ落とし |
-| **Melodic Techno** | 125 | 120-128 | メロディック、エモーショナル |
-| **Industrial Techno** | 135 | 130-140 | ハード、ダーク |
-| **Acid Techno** | 135 | 130-140 | TB-303サウンド |
-| **Detroit Techno** | 130 | 125-135 | オリジナルスタイル |
-| **Berlin Techno** | 132 | 128-138 | ハード、ミニマル |
-| **Trance** | 138 | 130-145 | メロディック、アンセム |
-| **Progressive Trance** | 132 | 128-138 | ビルドアップ重視 |
-| **Uplifting Trance** | 140 | 136-142 | ユーフォリック |
-| **Psytrance** | 145 | 140-150 | サイケデリック |
-| **Goa Trance** | 145 | 140-148 | インド影響 |
-| **Dubstep** | 140 | 138-142 | ハーフタイム、ウォブル |
-| **UK Garage** | 130 | 128-138 | シンコペーション |
-| **Trap** | 140 | 135-145 | ハーフタイム、808 |
-| **Future Bass** | 140 | 135-145 | カラフル、ポップ |
-| **Hardstyle** | 150 | 148-155 | ハードキック |
-| **Footwork** | 160 | 155-165 | シカゴ発祥 |
-| **Drum & Bass** | 174 | 170-180 | 超高速、ブレイクビート |
-| **Liquid D&B** | 174 | 170-176 | メロディック |
-| **Neurofunk** | 174 | 170-178 | ダーク、テクニカル |
-| **Jungle** | 165 | 160-170 | レゲエ影響 |
-| **Hardcore** | 170 | 160-200 | 超ハード |
-| **Gabber** | 180 | 160-200 | オランダ発祥、超激しい |
-| **Frenchcore** | 200 | 190-210 | フランス発祥 |
+| **Ambient** | 70 | 50-80 | Beat is often ambiguous |
+| **Dub** | 80 | 70-90 | Reggae influence, deep |
+| **Reggae** | 80 | 70-90 | Off-beat emphasis |
+| **Hip Hop** | 90 | 80-100 | Laid-back groove |
+| **Trip Hop** | 85 | 80-95 | Dark, atmospheric |
+| **R&B** | 90 | 75-100 | Smooth, soulful |
+| **Downtempo** | 90 | 70-100 | Chill, relaxed |
+| **Lo-Fi Hip Hop** | 80 | 70-90 | Nostalgic |
+| **Neo Soul** | 85 | 75-95 | Jazzy, warm |
+| **Disco** | 120 | 110-125 | Danceable, groovy |
+| **Nu Disco** | 118 | 115-125 | Modern disco |
+| **Indie Dance** | 118 | 110-125 | Indie pop influence |
+| **Deep House** | 122 | 118-125 | Deep, mellow |
+| **Afro House** | 123 | 120-126 | African rhythms |
+| **Soulful House** | 123 | 120-126 | Soulful vocals |
+| **Funky House** | 125 | 122-128 | Funky groove |
+| **House** | 125 | 120-130 | Standard, four-on-the-floor |
+| **Tech House** | 128 | 125-130 | Technological, minimal |
+| **Progressive House** | 128 | 125-130 | Long build-ups |
+| **Future House** | 128 | 125-130 | Bass-heavy |
+| **Melodic House** | 122 | 118-126 | Melodic, emotional |
+| **Bass House** | 128 | 125-130 | Heavy bass |
+| **G-House** | 125 | 122-128 | Gangsta-style, dark |
+| **Techno** | 130 | 125-135 | Mechanical, repetitive |
+| **Minimal Techno** | 128 | 125-132 | Simple, stripped-down |
+| **Melodic Techno** | 125 | 120-128 | Melodic, emotional |
+| **Industrial Techno** | 135 | 130-140 | Hard, dark |
+| **Acid Techno** | 135 | 130-140 | TB-303 sound |
+| **Detroit Techno** | 130 | 125-135 | Original style |
+| **Berlin Techno** | 132 | 128-138 | Hard, minimal |
+| **Trance** | 138 | 130-145 | Melodic, anthemic |
+| **Progressive Trance** | 132 | 128-138 | Build-up focused |
+| **Uplifting Trance** | 140 | 136-142 | Euphoric |
+| **Psytrance** | 145 | 140-150 | Psychedelic |
+| **Goa Trance** | 145 | 140-148 | Indian influence |
+| **Dubstep** | 140 | 138-142 | Half-time, wobble |
+| **UK Garage** | 130 | 128-138 | Syncopation |
+| **Trap** | 140 | 135-145 | Half-time, 808 |
+| **Future Bass** | 140 | 135-145 | Colorful, pop |
+| **Hardstyle** | 150 | 148-155 | Hard kick |
+| **Footwork** | 160 | 155-165 | Originated in Chicago |
+| **Drum & Bass** | 174 | 170-180 | Ultra-fast, breakbeat |
+| **Liquid D&B** | 174 | 170-176 | Melodic |
+| **Neurofunk** | 174 | 170-178 | Dark, technical |
+| **Jungle** | 165 | 160-170 | Reggae influence |
+| **Hardcore** | 170 | 160-200 | Ultra-hard |
+| **Gabber** | 180 | 160-200 | Originated in the Netherlands, ultra-intense |
+| **Frenchcore** | 200 | 190-210 | Originated in France |
 
-### BPMの近いジャンルの組み合わせ
+### Combining Genres with Similar BPM
 
-DJセットでジャンルをまたぐ場合、BPMの近いジャンルを組み合わせるとスムーズです。
-
-```
-グループ1: 70-90 BPM
-Hip Hop ↔ Lo-Fi ↔ Trip Hop ↔ Downtempo ↔ Dub ↔ Reggae
-
-グループ2: 100-115 BPM
-Electro Pop ↔ Indie Dance ↔ Disco ↔ Nu Disco
-
-グループ3: 118-126 BPM
-Deep House ↔ Soulful House ↔ House ↔ Afro House ↔ Melodic House
-
-グループ4: 125-132 BPM
-House ↔ Tech House ↔ Progressive House ↔ Techno ↔ UK Garage
-
-グループ5: 130-145 BPM
-Techno ↔ Trance ↔ Hard Techno ↔ Dubstep ↔ Trap
-
-グループ6: 140-160 BPM
-Dubstep ↔ Trap ↔ Hardstyle ↔ Footwork
-
-グループ7: 160-180 BPM
-D&B ↔ Jungle ↔ Hardcore ↔ Footwork
-```
-
-### ダブルタイム / ハーフタイムの関係
-
-BPMが倍/半分の関係にあるジャンルは、創造的にミックスできます。
+When crossing genres in a DJ set, combining genres with similar BPM creates smooth transitions.
 
 ```
-ハーフタイム ↔ ダブルタイム の関係:
+Group 1: 70-90 BPM
+Hip Hop <-> Lo-Fi <-> Trip Hop <-> Downtempo <-> Dub <-> Reggae
 
-70 BPM ←→ 140 BPM
+Group 2: 100-115 BPM
+Electro Pop <-> Indie Dance <-> Disco <-> Nu Disco
+
+Group 3: 118-126 BPM
+Deep House <-> Soulful House <-> House <-> Afro House <-> Melodic House
+
+Group 4: 125-132 BPM
+House <-> Tech House <-> Progressive House <-> Techno <-> UK Garage
+
+Group 5: 130-145 BPM
+Techno <-> Trance <-> Hard Techno <-> Dubstep <-> Trap
+
+Group 6: 140-160 BPM
+Dubstep <-> Trap <-> Hardstyle <-> Footwork
+
+Group 7: 160-180 BPM
+D&B <-> Jungle <-> Hardcore <-> Footwork
+```
+
+### Double-Time / Half-Time Relationships
+
+Genres with a double/half BPM relationship can be mixed creatively.
+
+```
+Half-time <-> Double-time relationships:
+
+70 BPM <-> 140 BPM
   Hip Hop     Dubstep/Trap
 
-75 BPM ←→ 150 BPM
+75 BPM <-> 150 BPM
   R&B         Hardstyle
 
-80 BPM ←→ 160 BPM
+80 BPM <-> 160 BPM
   Lo-Fi       Footwork/Jungle
 
-85 BPM ←→ 170 BPM
+85 BPM <-> 170 BPM
   Trip Hop    Drum & Bass
 
-87 BPM ←→ 174 BPM
+87 BPM <-> 174 BPM
   Neo Soul    D&B
 
-これは、実質同じテンポとして感じられるため、
-ジャンルを大きく跨ぐミックスが可能になる。
+These are perceived as essentially the same tempo,
+enabling mixes that bridge vastly different genres.
 ```
 
-**活用例:**
+**Usage examples:**
 ```
-例1: Hip Hop → Dubstep
-- Hip Hop 85 BPM でプレイ
-- Dubstep 170 BPM（ハーフタイムフィール = 85 BPM）
-- テンポを合わせずにクロスフェードで繋ぐ
-- ビートの「位置」が合っていれば自然に聞こえる
+Example 1: Hip Hop -> Dubstep
+- Playing Hip Hop at 85 BPM
+- Dubstep at 170 BPM (half-time feel = 85 BPM)
+- Crossfade without matching tempo
+- Sounds natural if beat "positions" are aligned
 
-例2: House → Drum & Bass
-- House 128 BPM でプレイ
-- D&B 174 BPM を次にかけたい
-- 直接のテンポマッチは不可能（差が大きすぎる）
-- 方法A: ブレイクダウンで一旦止めてから D&B をスタート
-- 方法B: 87 BPM の中間曲を挟む（ハーフタイム → ダブルタイム遷移）
+Example 2: House -> Drum & Bass
+- Playing House at 128 BPM
+- Want to play D&B at 174 BPM next
+- Direct tempo matching is impossible (too large a gap)
+- Method A: Stop during breakdown then start D&B
+- Method B: Insert an intermediate track at 87 BPM (half-time -> double-time transition)
 ```
 
 ---
 
-## 4. Rekordboxでのbpm確認と調整
+## 4. Checking and Adjusting BPM in Rekordbox
 
-### BPMの自動解析
-
-```
-1. Rekordboxを起動
-2. 曲をライブラリに追加（ドラッグ＆ドロップ）
-3. 曲を右クリック > 「解析」
-4. BPMが自動検出される
-```
-
-**精度:**
-- ほとんどの曲で正確（誤差±0.5 BPM以内）
-- 4つ打ちの曲は特に高精度
-- 複雑なリズムは誤認識することも
-- 手動で修正可能
-
-**解析の仕組み:**
-```
-Rekordboxの解析アルゴリズム:
-1. 音声信号を周波数帯域に分離
-2. 低域のトランジェント（立ち上がり）を検出
-3. トランジェント間の間隔からBPMを計算
-4. 統計的に最も確からしいBPMを出力
-5. ビートグリッドを自動生成
-```
-
-**解析設定の最適化:**
-```
-設定 > 解析:
-- 解析モード: 「ノーマル」（標準）
-  ※ 「ダイナミック」は変動BPM向け
-- BPM範囲: 「70-180」（標準）
-  ※ ジャンルに応じて変更可能
-- ビートグリッド: 「自動」
-```
-
-### BPM表示列を追加
+### Automatic BPM Analysis
 
 ```
-1. ブラウザ画面を開く
-2. カラムヘッダーを右クリック
-3. 「BPM」にチェック
-4. BPM列が表示される
+1. Launch Rekordbox
+2. Add tracks to library (drag & drop)
+3. Right-click track > "Analyze"
+4. BPM is automatically detected
 ```
 
-**追加推奨カラム:**
-```
-- BPM: テンポ
-- Key: キー（調）
-- Time: 曲の長さ
-- Rating: 評価
-- Color: カラーコード
-- Comment: コメント
-- Genre: ジャンル
-```
+**Accuracy:**
+- Accurate for most tracks (within +/-0.5 BPM margin of error)
+- Particularly high accuracy for four-on-the-floor tracks
+- Complex rhythms may be misidentified
+- Can be manually corrected
 
-### BPMでソート
-
+**How analysis works:**
 ```
-1. 「BPM」列のヘッダーをクリック
-2. BPM順に並び替え
-3. 近いBPMの曲を見つけやすい
+Rekordbox analysis algorithm:
+1. Separates audio signal into frequency bands
+2. Detects transients (attacks) in the low-frequency range
+3. Calculates BPM from intervals between transients
+4. Outputs the statistically most likely BPM
+5. Automatically generates a beat grid
 ```
 
-**活用テクニック:**
+**Optimizing analysis settings:**
 ```
-- BPMの近い曲をまとめて確認
-- セットリスト作成時にBPM順で並べる
-- ジャンル別に表示してBPM分布を確認
-- スマートプレイリストでBPM範囲指定
-```
-
-### BPMの手動修正
-
-```
-1. 曲を選択
-2. 情報パネルで「BPM」フィールドを編集
-3. 正しいBPMを入力
-4. Enter で確定
+Settings > Analysis:
+- Analysis mode: "Normal" (standard)
+  * "Dynamic" is for variable BPM
+- BPM range: "70-180" (standard)
+  * Can be changed according to genre
+- Beat grid: "Auto"
 ```
 
-**誤認識の例:**
-```
-パターン1: 半分に検出
-実際のBPM 128 → 64 と検出
-原因: キックが弱い、変則リズム
-
-パターン2: 倍に検出
-実際のBPM 128 → 256 と検出
-原因: ハイハットを拍と認識
-
-パターン3: 3/4に検出
-実際のBPM 120 → 90 と検出
-原因: 3連符のリズムパターン
-
-パターン4: 近いが不正確
-実際のBPM 128 → 126.5 と検出
-原因: テンポの微妙な揺れ
-```
-
-**修正方法:**
-```
-方法1: 直接入力
-- BPMフィールドに正しい値を入力
-
-方法2: 倍/半分ボタン
-- ×2: BPMを倍にする
-- ÷2: BPMを半分にする
-
-方法3: 再解析
-- 解析設定を変更して再解析
-- BPM範囲を制限して解析精度を上げる
-
-方法4: タップテンポ
-- 曲を再生しながらタップしてBPMを手動設定
-```
-
-### ビートグリッドの調整
+### Adding the BPM Display Column
 
 ```
-1. 曲をデッキにロード
-2. 波形画面を開く
-3. ビートグリッドがズレている場合:
-   - Shift + グリッド調整ボタン
-   - 最初の拍に合わせる
-4. BPMを微調整（±0.01単位）
+1. Open the browser screen
+2. Right-click on column headers
+3. Check "BPM"
+4. BPM column is now displayed
 ```
 
-**ビートグリッドの重要性:**
+**Additional recommended columns:**
 ```
-正確なビートグリッド = 正確なSync
-→ Hot Cueのジャンプが正確に
-→ ループが正確に
-→ ビートマッチングの補助として使える
-```
-
-**ビートグリッド調整の手順（詳細）:**
-```
-1. 曲の冒頭でグリッドの開始位置を確認
-   - 最初のキックにグリッドの線が合っているか
-   - ズレている場合、グリッドをシフト
-
-2. 曲の中盤でグリッドの精度を確認
-   - キックとグリッドのズレが蓄積していないか
-   - ズレている場合、BPM値を微調整
-
-3. 曲の終盤でも確認
-   - 最後までグリッドがズレていないか
-   - 特に長い曲（6分以上）は要注意
-
-4. テンポが変動する曲の場合
-   - 「ダイナミック」解析を使用
-   - セクションごとにグリッドを調整
-   - 複数のビートグリッドポイントを設定
+- BPM: Tempo
+- Key: Musical key
+- Time: Track length
+- Rating: Rating
+- Color: Color code
+- Comment: Comments
+- Genre: Genre
 ```
 
-### スマートプレイリストの活用
+### Sorting by BPM
 
 ```
-BPM範囲でスマートプレイリスト作成:
+1. Click the "BPM" column header
+2. Tracks are sorted by BPM
+3. Easy to find tracks with similar BPM
+```
 
-例1: House セット用
-条件: BPM 120-130 AND Genre = House
-→ 自動で該当曲がリスト表示
+**Useful techniques:**
+```
+- Review tracks grouped by similar BPM
+- Arrange by BPM when building setlists
+- View by genre to check BPM distribution
+- Use smart playlists with BPM range filters
+```
 
-例2: テンポ上昇セット
-プレイリスト1: BPM 120-125
-プレイリスト2: BPM 125-128
-プレイリスト3: BPM 128-132
-プレイリスト4: BPM 132-135
-→ 段階的にテンポを上げるセット構成
+### Manual BPM Correction
 
-例3: クロスジャンルセット
-プレイリスト: BPM 125-130
+```
+1. Select a track
+2. Edit the "BPM" field in the info panel
+3. Enter the correct BPM
+4. Press Enter to confirm
+```
+
+**Examples of misdetection:**
+```
+Pattern 1: Detected at half
+Actual BPM 128 -> Detected as 64
+Cause: Weak kick, irregular rhythm
+
+Pattern 2: Detected at double
+Actual BPM 128 -> Detected as 256
+Cause: Hi-hat recognized as beat
+
+Pattern 3: Detected at 3/4
+Actual BPM 120 -> Detected as 90
+Cause: Triplet rhythm pattern
+
+Pattern 4: Close but inaccurate
+Actual BPM 128 -> Detected as 126.5
+Cause: Subtle tempo fluctuation
+```
+
+**Correction methods:**
+```
+Method 1: Direct input
+- Enter the correct value in the BPM field
+
+Method 2: Double/Half buttons
+- x2: Double the BPM
+- /2: Halve the BPM
+
+Method 3: Re-analysis
+- Change analysis settings and re-analyze
+- Restrict BPM range to improve accuracy
+
+Method 4: Tap tempo
+- Tap along while the track plays to manually set BPM
+```
+
+### Beat Grid Adjustment
+
+```
+1. Load a track onto a deck
+2. Open the waveform view
+3. If the beat grid is misaligned:
+   - Shift + Grid adjustment button
+   - Align to the first beat
+4. Fine-tune BPM (in +/-0.01 increments)
+```
+
+**Importance of the beat grid:**
+```
+Accurate beat grid = Accurate Sync
+-> Hot Cue jumps are accurate
+-> Loops are accurate
+-> Can be used as a beatmatching aid
+```
+
+**Detailed beat grid adjustment procedure:**
+```
+1. Check grid start position at the beginning of the track
+   - Is the grid line aligned with the first kick?
+   - If misaligned, shift the grid
+
+2. Check grid accuracy at the middle of the track
+   - Is drift accumulating between kick and grid?
+   - If so, fine-tune the BPM value
+
+3. Also check at the end of the track
+   - Is the grid still aligned to the end?
+   - Pay special attention to long tracks (6+ minutes)
+
+4. For tracks with tempo variations
+   - Use "Dynamic" analysis
+   - Adjust grid per section
+   - Set multiple beat grid points
+```
+
+### Using Smart Playlists
+
+```
+Create smart playlists by BPM range:
+
+Example 1: For a House set
+Condition: BPM 120-130 AND Genre = House
+-> Matching tracks are automatically listed
+
+Example 2: Tempo escalation set
+Playlist 1: BPM 120-125
+Playlist 2: BPM 125-128
+Playlist 3: BPM 128-132
+Playlist 4: BPM 132-135
+-> Build a set that gradually increases tempo
+
+Example 3: Cross-genre set
+Playlist: BPM 125-130
 AND (Genre = House OR Genre = Techno OR Genre = Tech House)
-→ ジャンルを横断しつつBPMの近い曲を集約
+-> Aggregate tracks with similar BPM across genres
 ```
 
 ---
 
-## 5. BPMを耳で判断する練習
+## 5. Practicing BPM Recognition by Ear
 
-### レベル1: 大まかな判断
+### Level 1: Rough Estimation
 
-**目標: ±20 BPM の精度**
-
-```
-練習方法:
-1. 曲を聴く
-2. 手拍子でテンポを取る
-3. 「遅い・中間・速い」を判断
-4. Rekordboxで答え合わせ
-```
-
-**基準:**
-- 遅い: 100以下
-- 中間: 100-140
-- 速い: 140以上
-
-**練習のコツ:**
-```
-- まず体を動かして感じる
-- 頭で数えようとしない
-- 曲のジャンルからの推測も活用
-- 毎日5曲を目安に練習
-```
-
-### レベル2: ジャンルでの判断
-
-**目標: ±10 BPM の精度**
+**Goal: +/-20 BPM accuracy**
 
 ```
-練習方法:
-1. ジャンルを聞き分ける
-2. そのジャンルの典型的なBPMを想起
-   - House なら 125前後
-   - Techno なら 130前後
-   - D&B なら 174前後
-3. 微調整（そのジャンル内での速い/遅いを判断）
-4. Rekordboxで答え合わせ
+Practice method:
+1. Listen to a track
+2. Clap along with the tempo
+3. Determine "slow, mid, or fast"
+4. Check your answer in Rekordbox
 ```
 
-**チートシート:**
-```
-ジャンル判別のポイント:
-- 4つ打ち + ソウルフル → House → 125
-- 4つ打ち + 機械的 → Techno → 130
-- 4つ打ち + メロディック → Trance → 138
-- ブレイクビーツ + 高速 → D&B → 174
-- ハーフタイム + ウォブル → Dubstep → 140
-- 808 + ハーフタイム → Trap → 140
-- ヘヴィーキック → Hardstyle → 150
-```
+**Reference points:**
+- Slow: under 100
+- Mid: 100-140
+- Fast: over 140
 
-### レベル3: 正確な判断
-
-**目標: ±5 BPM の精度**
-
+**Practice tips:**
 ```
-練習方法:
-1. 15秒間拍数を数える
-2. 拍数 × 4 = BPM
-3. Rekordboxで答え合わせ
-4. 繰り返し練習
+- Start by moving your body to feel it
+- Don't try to count in your head
+- Also use genre recognition to estimate
+- Aim for 5 tracks per day as practice
 ```
 
-**精度を上げるコツ:**
-```
-- 拍を数えるときは声に出す（または心の中で）
-- 「1, 2, 3, 4, 5, 6, ...」と数える
-- 最初の拍を「0」としてカウント開始
-- ストップウォッチは正確なものを使う
-```
+### Level 2: Genre-Based Estimation
 
-### レベル4: 瞬時の判断
-
-**目標: ±2 BPM の精度**
+**Goal: +/-10 BPM accuracy**
 
 ```
-練習方法:
-1. 毎日10曲のBPMを当てる
-2. 聴いた瞬間に「これは128だ」と判断
-3. 体に染み込むまで反復
-4. 数ヶ月で身につく
+Practice method:
+1. Identify the genre
+2. Recall the typical BPM for that genre
+   - House is around 125
+   - Techno is around 130
+   - D&B is around 174
+3. Fine-tune (determine if it's fast or slow within that genre)
+4. Check your answer in Rekordbox
 ```
 
-**上級者の感覚:**
+**Cheat sheet:**
 ```
-BPM 120: 心地よい歩行ペース
-BPM 124: やや速い歩行
-BPM 126: ちょうどいいHouseのペース
-BPM 128: スタンダード、最も多い
-BPM 130: 少しプッシュする感覚
-BPM 132: テクノ的な推進力
-BPM 135: かなり速い、エネルギッシュ
-BPM 140: ハード系への入口
-```
-
-### レベル5: 超感覚的判断（マスターレベル）
-
-**目標: ±1 BPM の精度**
-
-```
-練習方法:
-1. 2曲を同時再生してズレを感じ取る
-2. どちらが速いかを即座に判断
-3. ピッチフェーダーの微調整で合わせる
-4. 数年の実践で到達
-
-この段階では:
-- 聴いた瞬間にBPMがわかる
-- 0.5 BPMの違いも感じ取れる
-- ピッチフェーダーの微調整が本能的
-- 「耳がメトロノーム」になる状態
+Genre identification tips:
+- Four-on-the-floor + soulful -> House -> 125
+- Four-on-the-floor + mechanical -> Techno -> 130
+- Four-on-the-floor + melodic -> Trance -> 138
+- Breakbeats + high speed -> D&B -> 174
+- Half-time + wobble -> Dubstep -> 140
+- 808 + half-time -> Trap -> 140
+- Heavy kick -> Hardstyle -> 150
 ```
 
-### BPM判断力を鍛えるゲーム
+### Level 3: Accurate Estimation
+
+**Goal: +/-5 BPM accuracy**
 
 ```
-ゲーム1: BPMクイズ
-- Spotifyでランダム再生
-- 聴いた瞬間にBPMを予想
-- BPMカウンターアプリで確認
-- 正解/不正解を記録
+Practice method:
+1. Count beats for 15 seconds
+2. Beats x 4 = BPM
+3. Check your answer in Rekordbox
+4. Repeat practice
+```
 
-ゲーム2: BPMマッチ
-- 2曲を用意（BPMは隠す）
-- 耳だけでどちらが速いか判断
-- 差は何BPMかを予想
-- 確認して答え合わせ
+**Tips for improving accuracy:**
+```
+- Count beats out loud (or in your head)
+- Count "1, 2, 3, 4, 5, 6, ..."
+- Start counting from "0" on the first beat
+- Use an accurate stopwatch
+```
 
-ゲーム3: BPMリレー
-- 友人DJと交互に曲をかける
-- BPMを当てる競争
-- 早く正確に答えた方がポイント
+### Level 4: Instant Recognition
 
-ゲーム4: 日常音のBPM
-- 電車の音、歩く音、時計の音
-- 日常の「ビート」のBPMを推測
-- 常にリズム感覚を鍛える
+**Goal: +/-2 BPM accuracy**
+
+```
+Practice method:
+1. Guess the BPM of 10 tracks daily
+2. Determine "this is 128" the instant you hear it
+3. Repeat until it's ingrained in your body
+4. Achievable within a few months
+```
+
+**Advanced DJ feel:**
+```
+BPM 120: Comfortable walking pace
+BPM 124: Slightly fast walk
+BPM 126: Just right for House
+BPM 128: Standard, the most common
+BPM 130: Slight push sensation
+BPM 132: Techno-like drive
+BPM 135: Quite fast, energetic
+BPM 140: Gateway to harder styles
+```
+
+### Level 5: Intuitive Recognition (Master Level)
+
+**Goal: +/-1 BPM accuracy**
+
+```
+Practice method:
+1. Play two tracks simultaneously and feel the drift
+2. Instantly determine which is faster
+3. Fine-tune with the pitch fader
+4. Achieved through years of practice
+
+At this level:
+- You know the BPM the instant you hear a track
+- You can feel a 0.5 BPM difference
+- Pitch fader fine-tuning is instinctive
+- Your ear has become a metronome
+```
+
+### Games to Train BPM Recognition
+
+```
+Game 1: BPM Quiz
+- Random play on Spotify
+- Predict the BPM the moment you hear it
+- Verify with a BPM counter app
+- Track correct/incorrect answers
+
+Game 2: BPM Match
+- Prepare two tracks (hide the BPM)
+- Determine which is faster by ear only
+- Predict the BPM difference
+- Check and verify
+
+Game 3: BPM Relay
+- Take turns playing tracks with a DJ friend
+- Compete to guess the BPM
+- Points for faster and more accurate answers
+
+Game 4: Everyday Sound BPM
+- Train sounds, footsteps, clock sounds
+- Estimate the BPM of everyday "beats"
+- Constantly train your sense of rhythm
 ```
 
 ---
 
-## 6. テンポマッチングの基礎
+## 6. Basics of Tempo Matching
 
-### ピッチフェーダーの使い方
+### Using the Pitch Fader
 
-**ピッチフェーダー（テンポフェーダー）:**
+**Pitch fader (tempo fader):**
 ```
-- 上: BPM 下げる（遅くする）
-- 中央: 元のBPM（0%）
-- 下: BPM 上げる（速くする）
+- Up: Lower BPM (slow down)
+- Center: Original BPM (0%)
+- Down: Raise BPM (speed up)
 
-※ 機種によって上下が逆の場合あり
-※ Rekordboxの設定で反転可能
-```
-
-**範囲設定:**
-```
-Rekordbox設定で選択可能:
-- ±6%（細かい調整向け）
-  → BPM 128の場合: 120.3-135.7
-- ±10%（標準）
-  → BPM 128の場合: 115.2-140.8
-- ±16%（大きな調整向け）
-  → BPM 128の場合: 107.5-148.5
-- Wide（±100%）
-  → BPM 128の場合: 0-256
+* May be reversed depending on the model
+* Can be inverted in Rekordbox settings
 ```
 
-**範囲選択のガイド:**
+**Range settings:**
 ```
-±6%: 同ジャンル内でのミックスに最適
-- 精密な調整が可能
-- 誤って大きく動かすリスクが低い
-- House → House、Techno → Techno
-
-±10%: 複数ジャンルを跨ぐセットに
-- 適度な調整範囲
-- 最も汎用的な設定
-- House → Tech House → Techno
-
-±16%: 大きなBPM差のある曲を繋ぐ時
-- ジャンルを大きく変更する場合
-- クリエイティブなミックスに
-- 音質劣化に注意（大きく変えると）
-
-Wide: 実験的なプレイ向け
-- 極端なテンポ変更が可能
-- 通常のDJプレイではあまり使わない
-- エフェクト的な使用
+Selectable in Rekordbox settings:
+- +/-6% (for fine adjustment)
+  -> At BPM 128: 120.3-135.7
+- +/-10% (standard)
+  -> At BPM 128: 115.2-140.8
+- +/-16% (for large adjustments)
+  -> At BPM 128: 107.5-148.5
+- Wide (+/-100%)
+  -> At BPM 128: 0-256
 ```
 
-### テンポマッチングの手順
-
-**基本手順:**
+**Range selection guide:**
 ```
-1. 曲Aを再生中（例: 128 BPM）
-2. 曲BをキューでBPM確認（例: 130 BPM）
-3. 曲Bのピッチフェーダーを調整（130→128）
-   - ±10%範囲の場合: 約1.5%下げる
-   - フェーダー位置: 中央より少し上
-4. ヘッドフォンで両方聴き比べ
-5. ピッタリ合ったら準備完了
-```
++/-6%: Ideal for mixing within the same genre
+- Precise adjustment possible
+- Low risk of accidentally moving too far
+- House -> House, Techno -> Techno
 
-**より詳細な手順:**
-```
-1. 曲Aのビートを聴く
-   - キックのタイミングを体で感じる
++/-10%: For sets spanning multiple genres
+- Moderate adjustment range
+- The most versatile setting
+- House -> Tech House -> Techno
 
-2. 曲Bをキューポイントでスタンバイ
-   - ヘッドフォンで曲Bのキックを確認
++/-16%: For bridging tracks with large BPM differences
+- When making major genre changes
+- For creative mixing
+- Watch for sound quality degradation (with large changes)
 
-3. BPM差を計算
-   - 差が2BPM以内: 微調整で対応
-   - 差が2-5BPM: ピッチフェーダーで調整
-   - 差が5BPM以上: 大幅な調整が必要
-
-4. ピッチフェーダーを動かす
-   - まず大まかに合わせる
-   - Rekordboxの BPM 表示を参考にする（練習時）
-
-5. ヘッドフォンで確認
-   - 両方のキックが重なるか確認
-   - ズレている場合、微調整
-   - キックが「ドドドド」とズレて聞こえたら修正
-
-6. テンポが合った状態を確認
-   - 30秒以上ズレない
-   - キックがピッタリ重なり続ける
-   - 準備完了
+Wide: For experimental play
+- Allows extreme tempo changes
+- Rarely used in normal DJ play
+- Used for effect-like purposes
 ```
 
-### ピッチ操作のパーセンテージ計算
+### Tempo Matching Procedure
 
+**Basic procedure:**
 ```
-目標BPMにするためのピッチ変更率:
-
-ピッチ変更率(%) = (目標BPM - 元のBPM) ÷ 元のBPM × 100
-
-例1: 130 BPM → 128 BPM
-(128 - 130) ÷ 130 × 100 = -1.54%
-→ ピッチを約1.5%下げる
-
-例2: 125 BPM → 128 BPM
-(128 - 125) ÷ 125 × 100 = +2.4%
-→ ピッチを約2.4%上げる
-
-例3: 120 BPM → 128 BPM
-(128 - 120) ÷ 120 × 100 = +6.67%
-→ ピッチを約6.7%上げる（±10%範囲内）
-
-例4: 140 BPM → 128 BPM
-(128 - 140) ÷ 140 × 100 = -8.57%
-→ ピッチを約8.6%下げる（±10%範囲内）
+1. Track A is playing (e.g., 128 BPM)
+2. Check Track B's BPM in cue (e.g., 130 BPM)
+3. Adjust Track B's pitch fader (130 -> 128)
+   - With +/-10% range: lower by approximately 1.5%
+   - Fader position: slightly above center
+4. Compare both in headphones
+5. When perfectly matched, preparation is complete
 ```
 
-### Sync（シンク）機能
-
-**自動同期:**
+**More detailed procedure:**
 ```
-Rekordbox の Sync ボタン:
-- 自動でBPMを合わせる
-- ビートグリッドも同期
-- 初心者に便利
+1. Listen to Track A's beat
+   - Feel the kick timing with your body
+
+2. Have Track B on standby at the cue point
+   - Confirm Track B's kick in headphones
+
+3. Calculate BPM difference
+   - Within 2 BPM: Fine adjustment
+   - 2-5 BPM: Adjust with pitch fader
+   - Over 5 BPM: Major adjustment needed
+
+4. Move the pitch fader
+   - First, roughly match
+   - Refer to Rekordbox BPM display (during practice)
+
+5. Verify in headphones
+   - Check if both kicks overlap
+   - If drifting, fine-tune
+   - If kicks sound like "thud-thud-thud" drifting apart, correct
+
+6. Confirm tempos are matched
+   - No drift for 30+ seconds
+   - Kicks remain perfectly overlapping
+   - Preparation complete
 ```
 
-**Syncの種類:**
+### Pitch Change Percentage Calculation
+
+```
+Pitch change rate to reach target BPM:
+
+Pitch change rate (%) = (Target BPM - Original BPM) / Original BPM x 100
+
+Example 1: 130 BPM -> 128 BPM
+(128 - 130) / 130 x 100 = -1.54%
+-> Lower pitch by approximately 1.5%
+
+Example 2: 125 BPM -> 128 BPM
+(128 - 125) / 125 x 100 = +2.4%
+-> Raise pitch by approximately 2.4%
+
+Example 3: 120 BPM -> 128 BPM
+(128 - 120) / 120 x 100 = +6.67%
+-> Raise pitch by approximately 6.7% (within +/-10% range)
+
+Example 4: 140 BPM -> 128 BPM
+(128 - 140) / 140 x 100 = -8.57%
+-> Lower pitch by approximately 8.6% (within +/-10% range)
+```
+
+### Sync Function
+
+**Auto synchronization:**
+```
+Rekordbox Sync button:
+- Automatically matches BPM
+- Also synchronizes beat grid
+- Convenient for beginners
+```
+
+**Types of Sync:**
 ```
 Beat Sync:
-- BPMのみを同期
-- 位相（ビートの位置）は手動
-- 中級者向け
+- Synchronizes BPM only
+- Phase (beat position) is manual
+- For intermediate users
 
 Phase Sync:
-- BPMと位相を同期
-- 完全自動で拍が合う
-- ビートグリッドの精度が重要
+- Synchronizes BPM and phase
+- Fully automatic beat alignment
+- Beat grid accuracy is crucial
 
 Tempo Sync:
-- テンポ（BPM）のみを同期
-- ビートの位置合わせは手動
-- 最も自由度が高い
+- Synchronizes only tempo (BPM)
+- Beat position alignment is manual
+- Offers the most freedom
 ```
 
-**使用の是非:**
+**Should you use it?**
 ```
-練習時: 使わない（耳を鍛える）
-本番: 状況次第（複雑なセットでは有効）
-プロの意見: 賛否両論
+During practice: Don't use it (train your ears)
+During performance: Depends on the situation (effective for complex sets)
+Pro opinion: Divided
 
-使うべき場面:
-- 3デッキ以上の同時プレイ
-- ライブリミックス
-- 機材トラブル時の応急処置
-- 非常に忙しいセット
+When to use:
+- Playing 3+ decks simultaneously
+- Live remixing
+- Emergency during equipment trouble
+- Very busy sets
 
-使わないべき場面:
-- 基礎練習
-- 耳を鍛えたい時
-- Syncに依存したくない場合
-- ビートグリッドが不正確な曲
+When not to use:
+- Basic practice
+- When training your ears
+- When you want to avoid Sync dependency
+- Tracks with inaccurate beat grids
 
-プロの見解:
-「Syncは道具の一つ。使えること自体は悪くない。
- しかし、Syncなしでもできる技術は必須。」
-```
-
-### ジョグホイールでのテンポ微調整
-
-```
-ジョグホイール（CDJ/コントローラー）:
-
-回す速さ: 一時的にテンポを変える
-- 前に回す: 一時的に速くなる
-- 後ろに回す: 一時的に遅くなる
-
-用途:
-- ビートの位相（位置）を合わせる
-- 曲が「ずれ始めた」時の修正
-- ピッチフェーダーでは合わせきれない微調整
-
-テクニック:
-1. キックがズレている方向を判断
-   - 曲Bが前にズレている → ジョグを後ろに少し
-   - 曲Bが後ろにズレている → ジョグを前に少し
-2. 「ツン」と軽く触れる程度
-3. 大きく回すと逆にズレる
-4. 慣れれば無意識にできるようになる
+Pro perspective:
+"Sync is just one tool. Being able to use it isn't bad.
+ However, having the skill to do it without Sync is essential."
 ```
 
----
+### Fine-Tuning Tempo with the Jog Wheel
 
-## 7. BPMの±幅とキーの変化
-
-### ピッチとキーの関係
-
-**Master Tempo OFF の場合:**
 ```
-BPM を上げる → キーが高くなる
-BPM を下げる → キーが低くなる
+Jog wheel (CDJ/Controller):
 
-例: C Major の曲
-+1% → キーが少し高くなる（約0.17半音）
-+3% → 約半音高くなる
-+6% → 約1音高くなる（C → D）
--3% → 約半音低くなる
--6% → 約1音低くなる（C → Bb）
-```
+Rotation speed: Temporarily changes tempo
+- Rotate forward: Temporarily speeds up
+- Rotate backward: Temporarily slows down
 
-**ピッチ変更率とキー変化の対応表:**
-```
-ピッチ変更  →  キー変化（概算）
-+1%        →  +0.17半音
-+2%        →  +0.34半音
-+3%        →  +0.51半音 ≈ 半音
-+4%        →  +0.68半音
-+5%        →  +0.85半音
-+6%        →  +1.02半音 ≈ 全音
-+8%        →  +1.36半音
-+10%       →  +1.70半音
-+12%       →  +2.04半音 ≈ 全音+半音
+Uses:
+- Aligning beat phase (position)
+- Correcting when tracks start to "drift"
+- Fine adjustment that the pitch fader alone can't achieve
 
--1%        →  -0.17半音
--3%        →  -0.51半音 ≈ 半音
--6%        →  -1.02半音 ≈ 全音
--10%       →  -1.70半音
-```
-
-### Master Tempo（キーロック）
-
-**機能:**
-```
-BPM を変えてもキーを保持
-デジタル信号処理で実現
-```
-
-**仕組み:**
-```
-通常: テンポ変更 = ピッチ変更（テープ早回しと同じ）
-Master Tempo: テンポ変更 ≠ ピッチ変更
-→ タイムストレッチング技術でキーを保持
-
-アルゴリズム:
-1. 音声信号を時間軸で伸縮
-2. ピッチ（周波数）は変えない
-3. リアルタイムで処理
-```
-
-**使用場面:**
-- BPMが大きく違う曲を繋ぐ
-- キーを合わせたいとき
-- ハーモニックミキシング重視
-- ±3%以上のテンポ変更時
-
-**音質への影響:**
-```
-±1%以内: ほぼ影響なし
-±3%以内: わずかな劣化（通常気づかない）
-±6%以内: 若干のアーティファクト（許容範囲）
-±10%以上: 明確な音質劣化（ロボット的な音）
-±15%以上: かなりの劣化（使用非推奨）
-
-最新のRekordboxは高品質なアルゴリズムを使用
-CDJ-3000 は特に高精度な Master Tempo を搭載
-```
-
-**Master Tempo ON/OFF の判断基準:**
-```
-ON にする場面:
-- ハーモニックミキシングを重視する時
-- ±3%以上のテンポ変更が必要な時
-- ボーカル曲でキーの変化を避けたい時
-- メロディックなジャンル（Trance, Melodic Techno）
-
-OFF にする場面:
-- 小さなテンポ変更（±2%以内）
-- 最高音質を維持したい時
-- ミニマルなテクノ（アーティファクトが目立つ）
-- ドラム中心の曲（キー変化が目立たない）
+Technique:
+1. Determine the direction of kick drift
+   - Track B is ahead -> Nudge jog backward slightly
+   - Track B is behind -> Nudge jog forward slightly
+2. A light touch is all you need
+3. Turning too much will cause the opposite drift
+4. With practice, you'll do this unconsciously
 ```
 
 ---
 
-## 8. 実践：BPM活用テクニック
+## 7. BPM Range and Key Changes
 
-### BPMでセットリストを組む
+### Relationship Between Pitch and Key
 
-**エネルギーカーブの基本パターン:**
-
+**With Master Tempo OFF:**
 ```
-パターン1: クラシックな山型
-オープニング:  118-120 BPM（落ち着き）
-  ↓ 徐々に上昇
-ウォームアップ: 122-125 BPM
-  ↓ さらに上昇
-ミッドタイム:   126-128 BPM
-  ↓ ピークへ
-ピークタイム:   128-132 BPM（最高潮）
-  ↓ 徐々に下降
-クールダウン:   126-128 BPM
-  ↓ 着地へ
-エンディング:   122-125 BPM（着地）
+Raising BPM -> Key goes higher
+Lowering BPM -> Key goes lower
+
+Example: A track in C Major
++1% -> Key becomes slightly higher (approximately 0.17 semitones)
++3% -> Approximately one semitone higher
++6% -> Approximately one whole tone higher (C -> D)
+-3% -> Approximately one semitone lower
+-6% -> Approximately one whole tone lower (C -> Bb)
 ```
 
+**Pitch change rate to key change correspondence table:**
 ```
-パターン2: 段階的上昇型
-開始:     120 BPM
-15分後:   122 BPM
-30分後:   125 BPM
-45分後:   128 BPM
-60分後:   130 BPM
-75分後:   132 BPM（ピーク）
-90分後:   128 BPM（クールダウン）
+Pitch change  ->  Key change (approximate)
++1%        ->  +0.17 semitone
++2%        ->  +0.34 semitone
++3%        ->  +0.51 semitone = semitone
++4%        ->  +0.68 semitone
++5%        ->  +0.85 semitone
++6%        ->  +1.02 semitone = whole tone
++8%        ->  +1.36 semitone
++10%       ->  +1.70 semitone
++12%       ->  +2.04 semitone = whole tone + semitone
+
+-1%        ->  -0.17 semitone
+-3%        ->  -0.51 semitone = semitone
+-6%        ->  -1.02 semitone = whole tone
+-10%       ->  -1.70 semitone
 ```
 
+### Master Tempo (Key Lock)
+
+**Function:**
 ```
-パターン3: 波型（プログレッシブ）
-0-20分:   120-125 BPM（第1波の上昇）
-20-30分:  122 BPM（一旦落ち着く）
-30-50分:  125-130 BPM（第2波の上昇）
-50-60分:  126 BPM（一旦落ち着く）
-60-80分:  128-135 BPM（第3波 = ピーク）
-80-90分:  125-120 BPM（クールダウン）
+Maintains the key even when BPM is changed
+Achieved through digital signal processing
 ```
 
+**How it works:**
 ```
-パターン4: ロングセット（4時間以上）
-0-60分:   Deep House 118-122 BPM
-60-120分: House 122-126 BPM
-120-180分: Tech House 126-130 BPM
-180-210分: Techno 128-132 BPM（ピーク）
-210-240分: House 126-128 BPM（クールダウン）
+Normal: Tempo change = Pitch change (same as speeding up a tape)
+Master Tempo: Tempo change != Pitch change
+-> Key is maintained through time-stretching technology
+
+Algorithm:
+1. Stretches/compresses the audio signal on the time axis
+2. Does not change pitch (frequency)
+3. Processed in real-time
 ```
 
-### BPMの変化幅
+**Use cases:**
+- Bridging tracks with large BPM differences
+- When you want to match keys
+- When prioritizing harmonic mixing
+- When tempo change exceeds +/-3%
 
-**推奨:**
+**Impact on sound quality:**
 ```
-- 隣接する曲: ±5 BPM以内（理想は±3以内）
-- 徐々に変化: 2-3 BPM ずつ
-- 急激な変化: ブレイク・ドラムロールで
-- 大幅な変化: 中間の曲を挟む
-```
+Within +/-1%: Almost no impact
+Within +/-3%: Slight degradation (usually unnoticeable)
+Within +/-6%: Some artifacts (within acceptable range)
+Over +/-10%: Clear quality degradation (robotic sound)
+Over +/-15%: Significant degradation (not recommended)
 
-**BPM変化の自然さ:**
-```
-1-2 BPM差: ほぼ気づかない（最も自然）
-3-4 BPM差: 注意深く聴けばわかる（許容範囲）
-5-6 BPM差: フロアでも感じる人がいる（テクニック必要）
-7-8 BPM差: 明確に感じる（特別なテクニックが必要）
-9-10 BPM差: かなり感じる（ブレイクを挟むべき）
-11+ BPM差: 直接のビートマッチは困難（別の方法を使う）
+Latest Rekordbox uses high-quality algorithms
+CDJ-3000 features particularly high-precision Master Tempo
 ```
 
-**例: 1時間セットのBPM推移:**
+**Criteria for Master Tempo ON/OFF:**
 ```
-曲1:  125 BPM（Deep House）
-曲2:  126 BPM（House）        +1
-曲3:  128 BPM（House）        +2
-曲4:  128 BPM（Tech House）    0
-曲5:  130 BPM（Tech House）   +2
-曲6:  130 BPM（Techno）        0
-曲7:  132 BPM（Techno）       +2
-曲8:  130 BPM（Techno）       -2（落ち着かせる）
-曲9:  128 BPM（Tech House）   -2
-曲10: 126 BPM（House）        -2
-曲11: 125 BPM（Deep House）   -1（着地）
-```
+Turn ON when:
+- Prioritizing harmonic mixing
+- Tempo change of +/-3% or more is needed
+- Want to avoid key changes in vocal tracks
+- Melodic genres (Trance, Melodic Techno)
 
-### BPMトランジションの高度なテクニック
-
-**テクニック1: ピッチライド**
-```
-1. 現在の曲: 128 BPM
-2. 次の曲: 132 BPM（元のBPMで）
-3. 次の曲のピッチを-3%に設定（128 BPM）
-4. ミックスイン
-5. 両曲のピッチを徐々に上げる
-6. 128 → 130 → 132 と滑らかに変化
-7. 最終的に次の曲を元の BPM（132）に戻す
-8. 前の曲をフェードアウト
-
-→ フロアは自然にテンポ上昇を体験
-```
-
-**テクニック2: ブレイクダウン利用**
-```
-1. 前の曲のブレイクダウン（ドラムなし）で
-2. 次の曲をミックスイン
-3. ドラムがない間にBPMを変更
-4. ドラムが戻った時には次の曲のBPMに
-
-→ テンポ変化が目立たない
-→ 大きなBPM差（±10 BPM）も可能
-```
-
-**テクニック3: エコーアウト + カットイン**
-```
-1. 前の曲にエコーエフェクトをかける
-2. エコーの残響が残っている間に
-3. 次の曲を別のBPMでスタート
-4. エコーが消える頃には完全に次の曲に
-
-→ テンポの不連続性をエコーが隠す
-→ ジャンル変更にも使える
-```
-
-**テクニック4: ダブルドロップ（同BPM）**
-```
-1. 両方の曲を同じBPMに合わせる
-2. 前の曲のドロップ終わり = 次の曲のドロップ開始
-3. クロスフェーダーで瞬時に切り替え
-4. フロアのエネルギーを維持
-
-条件:
-- 両曲のBPMが近いこと（±2 BPM以内）
-- キーの相性が良いこと
-- ドロップのエネルギーレベルが近いこと
-```
-
-**テクニック5: アカペラ/インスト利用**
-```
-1. ボーカルトラック（アカペラ）を前の曲の上に載せる
-2. 前の曲をフェードアウト
-3. アカペラのみの状態を作る
-4. 次の曲（インスト）を新しいBPMでミックスイン
-5. アカペラを次の曲のBPMに合わせる
-
-→ ボーカルがブリッジの役割を果たす
-→ BPMの大幅な変更が可能
+Turn OFF when:
+- Small tempo changes (within +/-2%)
+- Want to maintain maximum sound quality
+- Minimal techno (artifacts are noticeable)
+- Drum-focused tracks (key changes are less noticeable)
 ```
 
 ---
 
-## 9. ハーフタイムとダブルタイムの理解
+## 8. Practical BPM Techniques
 
-### ハーフタイムとは
+### Building a Setlist with BPM
 
-```
-定義: BPMは同じだが、リズムの感じ方が半分のテンポに感じられること
-
-例: Dubstep 140 BPM
-- 実際のBPMは140
-- しかしスネアは70 BPMの位置（2拍に1回）
-- 体感テンポは70 BPM
-- 4つ打ちではなく2つ打ち的なリズム
-```
-
-**ハーフタイムの例:**
-```
-Dubstep (140 BPM → 感覚70 BPM)
-キック: |X . . . X . . . |X . . . X . . . |
-スネア: |. . . . X . . . |. . . . X . . . |
-        ↑       ↑       ↑       ↑
-       拍1     拍3     拍1     拍3
-     「ドン」「タン」「ドン」「タン」（70BPMの感覚）
-
-Trap (140 BPM → 感覚70 BPM)
-同様にハーフタイムフィール
-808キック + ハイハットのロールで複雑なリズム
-```
-
-### ダブルタイムとは
+**Basic energy curve patterns:**
 
 ```
-定義: BPMは同じだが、リズムの感じ方が倍のテンポに感じられること
-
-例: 速いビートをゆっくり感じる
-- D&B 170 BPM → ドラムパターンが速い
-- しかしベースラインは85 BPM的なリズム
-- 2つの異なるテンポ感が共存
-```
-
-### ハーフタイム/ダブルタイムの活用
-
-```
-DJでの活用シナリオ:
-
-シナリオ1: House → Dubstep
-House 128 BPM → Dubstep 140 BPM (ハーフタイム = 70 BPM感覚)
-- 直接ビートマッチすることは不可能
-- しかし、Dubstepのハーフタイム感を利用すれば:
-  → Houseのブレイクダウンで速度を落とす
-  → Dubstepのイントロをフェードイン
-  → テンポの違いがハーフタイムで隠される
-
-シナリオ2: Trap → D&B
-Trap 140 BPM (ハーフ = 70) → D&B 174 BPM
-- Trapのビートを少し上げて174に
-- D&Bはフルタイムで174
-- 同じBPMだがリズムの感じ方が全く違う
-- クリエイティブなトランジションが可能
-
-シナリオ3: Hip Hop → House
-Hip Hop 85 BPM → House 128 BPM
-- 85 BPM × 1.5 ≈ 128 BPM（3:2の関係）
-- または、アカペラを利用したブリッジ
-- テンポの数学的関係を利用
-```
-
----
-
-## 10. BPMと音楽理論の関係
-
-### テンポと拍子の関係
-
-```
-4/4拍子（ダンスミュージックの標準）:
-- 4拍で1小節
-- BPMは4分音符のテンポ
-- 8分音符 = BPM × 2
-- 16分音符 = BPM × 4
-
-例: BPM 128
-- 4分音符: 128/分
-- 8分音符: 256/分
-- 16分音符: 512/分
-- ハイハットが16分音符 = 1秒間に約8.5回
+Pattern 1: Classic Arc Shape
+Opening:    118-120 BPM (calm)
+  | Gradually rising
+Warm-up:    122-125 BPM
+  | Further rising
+Mid-time:   126-128 BPM
+  | Toward the peak
+Peak time:  128-132 BPM (climax)
+  | Gradually descending
+Cool-down:  126-128 BPM
+  | Landing
+Ending:     122-125 BPM (landing)
 ```
 
 ```
-3/4拍子（ワルツ）:
-- 3拍で1小節
-- ダンスミュージックではまれ
-- 一部のエレクトロニカで使用
-
-6/8拍子:
-- 6拍で1小節（3拍×2グループ）
-- アフリカンリズムの影響
-- Afro House で使われることがある
-
-5/4拍子:
-- 5拍で1小節
-- 実験的な電子音楽
-- DJプレイでは非常に難しい
-```
-
-### テンポとグルーヴの関係
-
-```
-同じBPMでもグルーヴは異なる:
-
-スイング:
-- 拍の裏をわずかにずらす
-- ジャズ、ファンク的なグルーヴ
-- House、Garage で多用
-- 量: 50%（ストレート）〜 70%（強いスイング）
-
-シャッフル:
-- 8分音符を「長短」の組み合わせに
-- ブルース的なグルーヴ
-- スイングの極端な形
-- シカゴハウスの特徴
-
-ストレート:
-- 拍が完全に均等
-- テクノ的なグルーヴ
-- 機械的で正確
-- ミニマルテクノの特徴
-```
-
-### メトリックモジュレーション
-
-```
-定義: テンポを変えずにリズムの感じ方を変える技法
-
-例: 4分音符 → 3連符
-BPM 120 の 4分音符 = 120/分
-BPM 120 の 3連符 = 180/分（× 1.5）
-
-DJ での応用:
-- 同じBPMでリズムの密度を変える
-- 4つ打ちから3連系リズムへの移行
-- エフェクトのタイミングを変える（1/4 → 1/3）
-```
-
----
-
-## 11. 練習方法
-
-### 初級（0-1ヶ月）
-
-```
-週1-2: BPM認識の基礎
-1. 毎日5曲のBPMを当てる練習
-2. Rekordboxで BPM を確認する癖をつける
-3. ジャンル別のBPM表を暗記
-4. Syncを使わずにピッチ合わせ練習
-5. 手拍子でテンポを取る習慣
+Pattern 2: Gradual Ascent
+Start:      120 BPM
+15 min:     122 BPM
+30 min:     125 BPM
+45 min:     128 BPM
+60 min:     130 BPM
+75 min:     132 BPM (peak)
+90 min:     128 BPM (cool-down)
 ```
 
 ```
-練習ドリル（初級）:
-
-ドリル1: BPMフラッシュカード
-- 10曲をランダム再生
-- 10秒以内にBPMを予想
-- 答え合わせ
-- 正答率を記録
-
-ドリル2: ピッチ合わせ
-- 同じBPMの2曲をデッキにロード
-- 片方のピッチをランダムにずらす
-- ピッチフェーダーで元のBPMに戻す
-- 波形を見ずに耳だけで判断
-
-ドリル3: BPM体感
-- BPM 100, 120, 140 の曲を用意
-- 各テンポを体で覚える
-- 曲なしで手拍子してBPMを再現
-- メトロノームアプリで確認
-```
-
-### 中級（1-3ヶ月）
-
-```
-1. 耳だけで±5 BPM の精度
-2. 2曲のBPMを合わせて1曲再生
-3. BPM変化でエネルギーカーブを作る
-4. Master Tempo の使い分け
-5. ハーフタイム/ダブルタイムの理解
+Pattern 3: Wave Shape (Progressive)
+0-20 min:   120-125 BPM (1st wave rise)
+20-30 min:  122 BPM (settle down)
+30-50 min:  125-130 BPM (2nd wave rise)
+50-60 min:  126 BPM (settle down)
+60-80 min:  128-135 BPM (3rd wave = peak)
+80-90 min:  125-120 BPM (cool-down)
 ```
 
 ```
-練習ドリル（中級）:
-
-ドリル1: 30分ミックス
-- BPM 125-130 の曲を10曲用意
-- テンポを徐々に上げながらミックス
-- Syncなしでビートマッチング
-- 全体を録音して聴き返す
-
-ドリル2: BPMブラインドテスト
-- 友人に曲を選んでもらう
-- BPMを見ずにビートマッチング
-- 合わせた後にBPMを確認
-- 精度を記録
-
-ドリル3: テンポトランジション
-- BPM 120 → 130 を10分で移行
-- 3-4曲でスムーズに変化
-- ピッチライドテクニックを練習
-- エネルギーの変化を意識
+Pattern 4: Long Set (4+ hours)
+0-60 min:   Deep House 118-122 BPM
+60-120 min: House 122-126 BPM
+120-180 min: Tech House 126-130 BPM
+180-210 min: Techno 128-132 BPM (peak)
+210-240 min: House 126-128 BPM (cool-down)
 ```
 
-### 上級（3ヶ月以降）
+### BPM Change Range
 
+**Recommended:**
 ```
-1. 瞬時にBPMを判断（±2 BPM）
-2. ピッチ調整なしでも近いBPMの曲を選曲
-3. BPMの微調整でグルーヴを作る
-4. 異なるBPMをクリエイティブに繋ぐ
-5. ハーフタイム/ダブルタイム変換
-6. 3デッキ以上のBPM管理
+- Adjacent tracks: within +/-5 BPM (ideally within +/-3)
+- Gradual changes: 2-3 BPM at a time
+- Sudden changes: Use breaks or drum rolls
+- Large changes: Insert an intermediate track
 ```
 
+**Naturalness of BPM changes:**
 ```
-練習ドリル（上級）:
+1-2 BPM difference: Almost unnoticeable (most natural)
+3-4 BPM difference: Noticeable if listening carefully (acceptable)
+5-6 BPM difference: Some on the floor may feel it (technique required)
+7-8 BPM difference: Clearly felt (special technique needed)
+9-10 BPM difference: Very noticeable (should insert a break)
+11+ BPM difference: Direct beatmatching is difficult (use alternative methods)
+```
 
-ドリル1: ジャンルクロスオーバー
-- 3つの異なるジャンルの曲を用意
-- BPMの違いを橋渡しする方法を考える
-- 実行して録音
-- 改善点を分析
+**Example: BPM progression for a 1-hour set:**
+```
+Track 1:  125 BPM (Deep House)
+Track 2:  126 BPM (House)        +1
+Track 3:  128 BPM (House)        +2
+Track 4:  128 BPM (Tech House)    0
+Track 5:  130 BPM (Tech House)   +2
+Track 6:  130 BPM (Techno)        0
+Track 7:  132 BPM (Techno)       +2
+Track 8:  130 BPM (Techno)       -2 (settling down)
+Track 9:  128 BPM (Tech House)   -2
+Track 10: 126 BPM (House)        -2
+Track 11: 125 BPM (Deep House)   -1 (landing)
+```
 
-ドリル2: テンポラリーBPMシフト
-- 曲のブレイクダウンでBPMを一時的に変える
-- エフェクトでテンポ感を操作
-- ハーフタイム → フルタイムへの切り替え
-- フロアへの影響をシミュレーション
+### Advanced BPM Transition Techniques
 
-ドリル3: BPMなしミックス
-- BPM表示を非表示にする
-- 完全に耳だけでミックス
-- 1時間セットを完走
-- 精度と自信を確認
+**Technique 1: Pitch Ride**
+```
+1. Current track: 128 BPM
+2. Next track: 132 BPM (at original BPM)
+3. Set next track's pitch to -3% (128 BPM)
+4. Mix in
+5. Gradually raise the pitch of both tracks
+6. Smoothly transition 128 -> 130 -> 132
+7. Eventually return the next track to its original BPM (132)
+8. Fade out the previous track
+
+-> The floor naturally experiences the tempo increase
+```
+
+**Technique 2: Using the Breakdown**
+```
+1. During the previous track's breakdown (no drums)
+2. Mix in the next track
+3. Change BPM while drums are absent
+4. By the time drums return, the next track's BPM is established
+
+-> Tempo change is less noticeable
+-> Large BPM differences (+/-10 BPM) are possible
+```
+
+**Technique 3: Echo Out + Cut In**
+```
+1. Apply echo effect to the previous track
+2. While the echo reverb remains
+3. Start the next track at a different BPM
+4. By the time the echo fades, the next track is fully playing
+
+-> The echo hides the tempo discontinuity
+-> Can also be used for genre changes
+```
+
+**Technique 4: Double Drop (Same BPM)**
+```
+1. Match both tracks to the same BPM
+2. Previous track's drop end = next track's drop start
+3. Instantly switch with the crossfader
+4. Maintain the floor's energy
+
+Conditions:
+- Both tracks must have close BPM (within +/-2 BPM)
+- Key compatibility should be good
+- Drop energy levels should be similar
+```
+
+**Technique 5: Using Acapella/Instrumental**
+```
+1. Layer a vocal track (acapella) over the previous track
+2. Fade out the previous track
+3. Create an acapella-only moment
+4. Mix in the next track (instrumental) at a new BPM
+5. Match the acapella to the next track's BPM
+
+-> The vocals serve as a bridge
+-> Allows for significant BPM changes
 ```
 
 ---
 
-## 12. トラブルシューティング
+## 9. Understanding Half-Time and Double-Time
 
-### よくある問題と解決策
-
-```
-問題1: BPMを合わせたのにビートがズレる
-原因: BPMは合っているが位相（フェーズ）がズレている
-解決: ジョグホイールで微調整、キックの位置を合わせる
-
-問題2: ビートマッチング中に徐々にズレていく
-原因: BPMが完全には合っていない（0.1-0.5 BPMの差）
-解決: ピッチフェーダーをさらに微調整
-
-問題3: Rekordboxの解析BPMが明らかに間違っている
-原因: 複雑なリズム、テンポ変動、不明瞭なキック
-解決: 手動でBPMを修正、ビートグリッドを再調整
-
-問題4: テンポを大きく変えると音が不自然になる
-原因: Master Tempo のアーティファクト
-解決: テンポ差を小さくする、中間曲を挟む
-
-問題5: ハーフタイムの曲とフルタイムの曲が合わない
-原因: ハーフタイムの認識が不正確
-解決: BPMを倍/半分にして考え直す
-```
-
-### BPM関連の用語集
+### What Is Half-Time
 
 ```
-BPM (Beats Per Minute): 1分間の拍数
-テンポ (Tempo): 音楽の速さ
-ピッチ (Pitch): 音の高さ
-Master Tempo / Key Lock: テンポ変更時にキーを保持
-ハーフタイム (Half-time): 拍を半分の速さで感じるリズム
-ダブルタイム (Double-time): 拍を倍の速さで感じるリズム
-ビートグリッド (Beat Grid): 拍の位置を視覚化した格子
-Sync: 自動テンポ同期機能
-ピッチフェーダー: テンポを調整するスライダー
-ピッチベンド: 一時的にテンポを変える操作
-タップテンポ: 手でリズムを叩いてBPMを測定
-BPMカウンター: BPMを自動検出する機能
-スイング (Swing): 裏拍をずらしたグルーヴ
-メトロノーム: 正確なテンポを刻む装置
-フェーズ (Phase): 拍の位相（位置）
+Definition: The BPM stays the same, but the rhythm feels like half the tempo
+
+Example: Dubstep 140 BPM
+- Actual BPM is 140
+- But the snare is at the 70 BPM position (every 2 beats)
+- Perceived tempo is 70 BPM
+- Rhythm is more like two-on-the-floor rather than four-on-the-floor
+```
+
+**Half-time examples:**
+```
+Dubstep (140 BPM -> feels like 70 BPM)
+Kick:  |X . . . X . . . |X . . . X . . . |
+Snare: |. . . . X . . . |. . . . X . . . |
+        ^       ^       ^       ^
+       Beat 1  Beat 3  Beat 1  Beat 3
+     "Boom"  "Clap"  "Boom"  "Clap" (70 BPM feel)
+
+Trap (140 BPM -> feels like 70 BPM)
+Same half-time feel
+Complex rhythm with 808 kick + hi-hat rolls
+```
+
+### What Is Double-Time
+
+```
+Definition: The BPM stays the same, but the rhythm feels like double the tempo
+
+Example: Feeling a fast beat slowly
+- D&B 170 BPM -> Drum pattern is fast
+- But the bassline follows an 85 BPM rhythm
+- Two different tempo feelings coexist
+```
+
+### Utilizing Half-Time/Double-Time
+
+```
+DJ usage scenarios:
+
+Scenario 1: House -> Dubstep
+House 128 BPM -> Dubstep 140 BPM (half-time = 70 BPM feel)
+- Direct beatmatching is impossible
+- However, by utilizing Dubstep's half-time feel:
+  -> Slow down during the House breakdown
+  -> Fade in the Dubstep intro
+  -> The tempo difference is masked by the half-time feel
+
+Scenario 2: Trap -> D&B
+Trap 140 BPM (half = 70) -> D&B 174 BPM
+- Slightly raise Trap's beat to 174
+- D&B plays full-time at 174
+- Same BPM but completely different rhythmic feel
+- Creative transitions are possible
+
+Scenario 3: Hip Hop -> House
+Hip Hop 85 BPM -> House 128 BPM
+- 85 BPM x 1.5 = 128 BPM (3:2 ratio)
+- Or use an acapella as a bridge
+- Leverage the mathematical relationship of tempos
+```
+
+---
+
+## 10. BPM and Music Theory
+
+### Relationship Between Tempo and Time Signature
+
+```
+4/4 time signature (dance music standard):
+- 4 beats per bar
+- BPM represents quarter note tempo
+- Eighth notes = BPM x 2
+- Sixteenth notes = BPM x 4
+
+Example: BPM 128
+- Quarter notes: 128/min
+- Eighth notes: 256/min
+- Sixteenth notes: 512/min
+- Hi-hat at sixteenth notes = approximately 8.5 times per second
+```
+
+```
+3/4 time signature (Waltz):
+- 3 beats per bar
+- Rare in dance music
+- Used in some electronica
+
+6/8 time signature:
+- 6 beats per bar (3 beats x 2 groups)
+- African rhythm influence
+- Sometimes used in Afro House
+
+5/4 time signature:
+- 5 beats per bar
+- Experimental electronic music
+- Very difficult for DJ play
+```
+
+### Relationship Between Tempo and Groove
+
+```
+Same BPM can have different grooves:
+
+Swing:
+- Slightly offsets the offbeat
+- Jazz, funk-style groove
+- Commonly used in House, Garage
+- Amount: 50% (straight) to 70% (heavy swing)
+
+Shuffle:
+- Eighth notes become "long-short" combinations
+- Blues-style groove
+- Extreme form of swing
+- Characteristic of Chicago House
+
+Straight:
+- Beats are perfectly even
+- Techno-style groove
+- Mechanical and precise
+- Characteristic of Minimal Techno
+```
+
+### Metric Modulation
+
+```
+Definition: A technique that changes the rhythmic feel without changing the tempo
+
+Example: Quarter notes -> Triplets
+BPM 120 quarter notes = 120/min
+BPM 120 triplets = 180/min (x 1.5)
+
+DJ application:
+- Change rhythmic density at the same BPM
+- Transition from four-on-the-floor to triplet-based rhythm
+- Change effect timing (1/4 -> 1/3)
+```
+
+---
+
+## 11. Practice Methods
+
+### Beginner (0-1 Month)
+
+```
+Weeks 1-2: BPM recognition basics
+1. Practice guessing the BPM of 5 tracks daily
+2. Build the habit of checking BPM in Rekordbox
+3. Memorize the BPM table by genre
+4. Practice pitch matching without Sync
+5. Build the habit of clapping along with the tempo
+```
+
+```
+Practice drills (beginner):
+
+Drill 1: BPM Flash Cards
+- Random play 10 tracks
+- Predict the BPM within 10 seconds
+- Check answers
+- Record your accuracy
+
+Drill 2: Pitch Matching
+- Load two tracks with the same BPM onto decks
+- Randomly offset one track's pitch
+- Return to the original BPM using the pitch fader
+- Judge by ear only without looking at the waveform
+
+Drill 3: BPM Body Feel
+- Prepare tracks at BPM 100, 120, and 140
+- Memorize each tempo with your body
+- Clap at that BPM without music
+- Verify with a metronome app
+```
+
+### Intermediate (1-3 Months)
+
+```
+1. +/-5 BPM accuracy by ear alone
+2. Match BPM of two tracks and play as one
+3. Create energy curves through BPM changes
+4. Master Tempo usage decisions
+5. Understanding half-time/double-time
+```
+
+```
+Practice drills (intermediate):
+
+Drill 1: 30-Minute Mix
+- Prepare 10 tracks at BPM 125-130
+- Mix while gradually raising tempo
+- Beatmatch without Sync
+- Record and review the entire set
+
+Drill 2: BPM Blind Test
+- Have a friend choose tracks
+- Beatmatch without seeing the BPM
+- Check BPM after matching
+- Record your accuracy
+
+Drill 3: Tempo Transition
+- Transition from BPM 120 to 130 over 10 minutes
+- Smoothly change over 3-4 tracks
+- Practice the pitch ride technique
+- Be conscious of energy changes
+```
+
+### Advanced (3+ Months)
+
+```
+1. Instant BPM recognition (+/-2 BPM)
+2. Select tracks with similar BPM without pitch adjustment
+3. Create groove through BPM fine-tuning
+4. Creatively bridge different BPMs
+5. Half-time/double-time conversion
+6. Managing BPM across 3+ decks
+```
+
+```
+Practice drills (advanced):
+
+Drill 1: Genre Crossover
+- Prepare tracks from 3 different genres
+- Devise methods to bridge BPM differences
+- Execute and record
+- Analyze areas for improvement
+
+Drill 2: Temporary BPM Shift
+- Temporarily change BPM during a track's breakdown
+- Manipulate tempo feel with effects
+- Switch from half-time to full-time
+- Simulate the impact on the floor
+
+Drill 3: No-BPM Mix
+- Hide the BPM display
+- Mix entirely by ear
+- Complete a 1-hour set
+- Verify accuracy and confidence
+```
+
+---
+
+## 12. Troubleshooting
+
+### Common Problems and Solutions
+
+```
+Problem 1: Beat drifts even after matching BPM
+Cause: BPM is matched but phase is misaligned
+Solution: Fine-tune with the jog wheel, align kick positions
+
+Problem 2: Gradually drifts during beatmatching
+Cause: BPM is not perfectly matched (0.1-0.5 BPM difference)
+Solution: Further fine-tune the pitch fader
+
+Problem 3: Rekordbox analysis BPM is clearly wrong
+Cause: Complex rhythm, tempo variation, unclear kick
+Solution: Manually correct BPM, readjust beat grid
+
+Problem 4: Sound becomes unnatural when tempo is changed significantly
+Cause: Master Tempo artifacts
+Solution: Reduce the tempo difference, insert an intermediate track
+
+Problem 5: Half-time and full-time tracks don't align
+Cause: Inaccurate recognition of half-time
+Solution: Rethink by doubling/halving the BPM
+```
+
+### BPM-Related Glossary
+
+```
+BPM (Beats Per Minute): Number of beats per minute
+Tempo: Speed of music
+Pitch: Height of sound
+Master Tempo / Key Lock: Maintains key when changing tempo
+Half-time: Rhythm that feels at half the speed of the beat
+Double-time: Rhythm that feels at double the speed of the beat
+Beat Grid: Visual grid showing beat positions
+Sync: Automatic tempo synchronization function
+Pitch Fader: Slider that adjusts tempo
+Pitch Bend: Temporarily changing the tempo
+Tap Tempo: Measuring BPM by tapping the rhythm by hand
+BPM Counter: Function that automatically detects BPM
+Swing: Groove with offset offbeats
+Metronome: Device that keeps precise tempo
+Phase: Beat phase (position)
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1682,26 +1682,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1709,7 +1709,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1720,14 +1720,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1735,7 +1735,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1743,44 +1743,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using hashmap"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1789,7 +1789,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1804,76 +1804,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f} sec")
+    print(f"Efficient version:   {fast_time:.6f} sec")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be conscious of algorithm computational complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criteria | When to prioritize | When it's acceptable to compromise |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing Architecture Patterns
 
 ```
-┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
-├─────────────────────────────────────────────────┤
-│                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
-│                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
-│                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
-│                                                 │
-└─────────────────────────────────────────────────┘
++-------------------------------------------------+
+|          Architecture Selection Flow             |
++-------------------------------------------------+
+|                                                 |
+|  (1) Team size?                                 |
+|    +- Small (1-5 people) -> Monolith            |
+|    +- Large (10+ people) -> Go to (2)           |
+|                                                 |
+|  (2) Deploy frequency?                          |
+|    +- Once a week or less -> Monolith + modules |
+|    +- Daily/multiple times -> Go to (3)         |
+|                                                 |
+|  (3) Team independence?                         |
+|    +- High -> Microservices                     |
+|    +- Medium -> Modular Monolith                |
+|                                                 |
++-------------------------------------------------+
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Cost**
+- A short-term fast approach may become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified technology stack has lower learning costs
+- Diverse technology adoption enables the right tool for the right job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction offers high reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision recording template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1883,17 +1883,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and issues"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1901,7 +1901,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1909,15 +1909,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1925,53 +1925,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to quickly release a product with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on minimum necessary features
+- Automated tests only for critical paths
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't seek perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Legacy System Modernization
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually modernize a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- Create Characterization Tests first if no existing tests
+- Coexist old and new systems with an API Gateway
+- Implement data migration incrementally
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work Content | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration start | Sequential migration from peripheral features | 3-6 months | Medium |
+| 4. Core migration | Migration of core functionality | 6-12 months | High |
+| 5. Completion | Decommission legacy system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Large-Scale Team Development
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Use Domain-Driven Design to clarify boundaries
+- Set ownership per team
+- Manage common libraries using Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1984,20 +1984,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Verify SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -2006,7 +2006,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -2027,104 +2027,105 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical System
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system that requires millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Cache strategy (L1: In-memory, L2: Redis, L3: CDN)
+2. Leverage asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization Method | Impact | Implementation Cost | Application |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low-Medium | High | CPU-bound cases |
 
 ---
 
-## チーム開発での活用
+## Team Development Practices
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to check in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Naming conventions are consistent
+- [ ] Error handling is appropriate
+- [ ] Test coverage is sufficient
+- [ ] No performance impact
+- [ ] No security issues
+- [ ] Documentation is updated
 
-### ナレッジ共有のベストプラクティス
+### Best Practices for Knowledge Sharing
 
-| 方法 | 頻度 | 対象 | 効果 |
+| Method | Frequency | Target | Impact |
 |------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talks | Weekly | Entire team | Horizontal knowledge sharing |
+| ADR (Design Records) | As needed | Future members | Decision transparency |
+| Retrospectives | Bi-weekly | Entire team | Continuous improvement |
+| Mob programming | Monthly | Important designs | Consensus building |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
-          │
-    ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
-    ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
-    └─────┼─────┘
-          │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        High Impact
+          |
+    +-----+-----+
+    | Plan | Act  |
+    | and  | Imme-|
+    | sche-| dia- |
+    | dule | tely |
+    +-----+-----+
+    | Log  | Next |
+    | only | Spri-|
+    |      | nt   |
+    +-----+-----+
+          |
+        Low Impact
+    Low Frequency  High Frequency
 ```
 
 ---
 
-## セキュリティの考慮事項
+## Security Considerations
 
-### 一般的な脆弱性と対策
+### Common Vulnerabilities and Countermeasures
 
-| 脆弱性 | リスクレベル | 対策 | 検出方法 |
+| Vulnerability | Risk Level | Countermeasure | Detection Method |
 |--------|------------|------|---------|
-| インジェクション攻撃 | 高 | 入力値のバリデーション・パラメータ化クエリ | SAST/DAST |
-| 認証の不備 | 高 | 多要素認証・セッション管理の強化 | ペネトレーションテスト |
-| 機密データの露出 | 高 | 暗号化・アクセス制御 | セキュリティ監査 |
-| 設定の不備 | 中 | セキュリティヘッダー・最小権限の原則 | 構成スキャン |
-| ログの不足 | 中 | 構造化ログ・監査証跡 | ログ分析 |
+| Injection attacks | High | Input validation, parameterized queries | SAST/DAST |
+| Authentication flaws | High | Multi-factor authentication, session management hardening | Penetration testing |
+| Sensitive data exposure | High | Encryption, access control | Security audit |
+| Configuration flaws | Medium | Security headers, principle of least privilege | Configuration scan |
+| Insufficient logging | Medium | Structured logging, audit trails | Log analysis |
 
-### セキュアコーディングのベストプラクティス
+### Secure Coding Best Practices
 
 ```python
-# セキュアコーディング例
+# Secure coding example
 import hashlib
 import secrets
 import hmac
 from typing import Optional
 
 class SecurityUtils:
-    """セキュリティユーティリティ"""
+    """Security utilities"""
 
     @staticmethod
     def generate_token(length: int = 32) -> str:
-        """暗号学的に安全なトークン生成"""
+        """Generate a cryptographically secure token"""
         return secrets.token_urlsafe(length)
 
     @staticmethod
     def hash_password(password: str, salt: Optional[str] = None) -> tuple:
-        """パスワードのハッシュ化"""
+        """Hash a password"""
         if salt is None:
             salt = secrets.token_hex(16)
         hashed = hashlib.pbkdf2_hmac(
@@ -2137,92 +2138,92 @@ class SecurityUtils:
 
     @staticmethod
     def verify_password(password: str, hashed: str, salt: str) -> bool:
-        """パスワードの検証"""
+        """Verify a password"""
         new_hash, _ = SecurityUtils.hash_password(password, salt)
         return hmac.compare_digest(new_hash, hashed)
 
     @staticmethod
     def sanitize_input(value: str) -> str:
-        """入力値のサニタイズ"""
+        """Sanitize input value"""
         dangerous_chars = ['<', '>', '"', "'", '&', '\\']
         result = value
         for char in dangerous_chars:
             result = result.replace(char, '')
         return result.strip()
 
-# 使用例
+# Usage example
 token = SecurityUtils.generate_token()
 hashed, salt = SecurityUtils.hash_password("my_password")
 is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 ```
 
-### セキュリティチェックリスト
+### Security Checklist
 
-- [ ] 全ての入力値がバリデーションされている
-- [ ] 機密情報がログに出力されていない
-- [ ] HTTPS が強制されている
-- [ ] CORS ポリシーが適切に設定されている
-- [ ] 依存パッケージの脆弱性スキャンが実施されている
-- [ ] エラーメッセージに内部情報が含まれていない
+- [ ] All input values are validated
+- [ ] Sensitive information is not output to logs
+- [ ] HTTPS is enforced
+- [ ] CORS policy is properly configured
+- [ ] Dependency vulnerability scans have been performed
+- [ ] Error messages do not contain internal information
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-- **BPM**: 1分間の拍数、ビートマッチングの基礎
-- **テンポの感覚**: 身体的・心理的な反応を理解する
-- **ジャンル別**: House 125、Techno 130、D&B 174など
-- **Rekordbox**: 自動解析、ビートグリッド調整、スマートプレイリスト
-- **耳での判断**: 練習で±2 BPMの精度を目指す
-- **テンポマッチング**: ピッチフェーダー、ジョグホイール、Sync
-- **キーの関係**: Master Tempo でキーロック
-- **ハーフタイム/ダブルタイム**: 異なるテンポ感の理解と活用
-- **セットリスト**: BPMでエネルギーカーブを設計
-- **トランジション**: ピッチライド、ブレイクダウン利用など高度テクニック
-
-**次のステップ:** [フレーズ構造](./phrase-structure.md) でミックスポイントを学ぶ
+Knowledge of this topic is frequently used in daily development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
+## Summary
 
-## 次に読むべきガイド
+- **BPM**: Beats per minute, the foundation of beatmatching
+- **Tempo perception**: Understanding physical and psychological responses
+- **By genre**: House 125, Techno 130, D&B 174, etc.
+- **Rekordbox**: Auto-analysis, beat grid adjustment, smart playlists
+- **Ear training**: Aim for +/-2 BPM accuracy through practice
+- **Tempo matching**: Pitch fader, jog wheel, Sync
+- **Key relationship**: Key lock with Master Tempo
+- **Half-time/Double-time**: Understanding and utilizing different tempo feels
+- **Setlists**: Design energy curves with BPM
+- **Transitions**: Advanced techniques like pitch ride, breakdown usage
 
-- [DJの歴史](./dj-history.md) - 次のトピックへ進む
+**Next step:** [Phrase Structure](./phrase-structure.md) to learn about mix points
 
 ---
 
-## 参考リンク
 
-- [リズム基礎](../../00-fundamentals/rhythm-basics.md)
-- [ビートマッチング](../03-basic-techniques/beatmatching.md)
-- [ピッチコントロール](../03-basic-techniques/pitch-control.md)
-- [ジャンル別ガイド](../07-genres/)
-- [ハーモニックミキシング](../04-advanced-techniques/harmonic-mixing.md)
-- [トランジション技法](../04-advanced-techniques/transitions.md)
+## Recommended Next Guide
+
+- [DJ History](./dj-history.md) - Continue to the next topic
 
 ---
 
-## 付録: BPM計算早見表
+## Reference Links
 
-### ピッチ変更率 → BPM変換表
+- [Rhythm Basics](../../00-fundamentals/rhythm-basics.md)
+- [Beatmatching](../03-basic-techniques/beatmatching.md)
+- [Pitch Control](../03-basic-techniques/pitch-control.md)
+- [Genre Guides](../07-genres/)
+- [Harmonic Mixing](../04-advanced-techniques/harmonic-mixing.md)
+- [Transition Techniques](../04-advanced-techniques/transitions.md)
 
-**元のBPM 120 の場合:**
+---
+
+## Appendix: BPM Calculation Quick Reference
+
+### Pitch Change Rate -> BPM Conversion Table
+
+**For original BPM 120:**
 ```
 -10% = 108 BPM
 -8%  = 110.4 BPM
@@ -2243,7 +2244,7 @@ is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 +10% = 132.0 BPM
 ```
 
-**元のBPM 125 の場合:**
+**For original BPM 125:**
 ```
 -10% = 112.5 BPM
 -8%  = 115.0 BPM
@@ -2264,7 +2265,7 @@ is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 +10% = 137.5 BPM
 ```
 
-**元のBPM 128 の場合:**
+**For original BPM 128:**
 ```
 -10% = 115.2 BPM
 -8%  = 117.76 BPM
@@ -2285,7 +2286,7 @@ is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 +10% = 140.8 BPM
 ```
 
-**元のBPM 130 の場合:**
+**For original BPM 130:**
 ```
 -10% = 117.0 BPM
 -8%  = 119.6 BPM
@@ -2306,157 +2307,157 @@ is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 +10% = 143.0 BPM
 ```
 
-### 小節数 → 時間変換表
+### Bars -> Time Conversion Table
 
-**BPM 120 の場合:**
+**At BPM 120:**
 ```
-4小節   =  8秒
-8小節   = 16秒
-16小節  = 32秒
-32小節  = 64秒 （約1分4秒）
-64小節  = 128秒（約2分8秒）
-```
-
-**BPM 128 の場合:**
-```
-4小節   =  7.5秒
-8小節   = 15秒
-16小節  = 30秒
-32小節  = 60秒 （ちょうど1分）
-64小節  = 120秒（ちょうど2分）
+4 bars   =  8 seconds
+8 bars   = 16 seconds
+16 bars  = 32 seconds
+32 bars  = 64 seconds (approximately 1 minute 4 seconds)
+64 bars  = 128 seconds (approximately 2 minutes 8 seconds)
 ```
 
-**BPM 130 の場合:**
+**At BPM 128:**
 ```
-4小節   =  約7.4秒
-8小節   = 約14.8秒
-16小節  = 約29.5秒
-32小節  = 約59秒 （約1分）
-64小節  = 約118秒（約2分）
-```
-
-**BPM 140 の場合:**
-```
-4小節   =  約6.9秒
-8小節   = 約13.7秒
-16小節  = 約27.4秒
-32小節  = 約54.9秒
-64小節  = 約109.7秒（約1分50秒）
+4 bars   =  7.5 seconds
+8 bars   = 15 seconds
+16 bars  = 30 seconds
+32 bars  = 60 seconds (exactly 1 minute)
+64 bars  = 120 seconds (exactly 2 minutes)
 ```
 
-**BPM 174 の場合:**
+**At BPM 130:**
 ```
-4小節   =  約5.5秒
-8小節   = 約11秒
-16小節  = 約22.1秒
-32小節  = 約44.1秒
-64小節  = 約88.3秒（約1分28秒）
+4 bars   =  approximately 7.4 seconds
+8 bars   = approximately 14.8 seconds
+16 bars  = approximately 29.5 seconds
+32 bars  = approximately 59 seconds (approximately 1 minute)
+64 bars  = approximately 118 seconds (approximately 2 minutes)
 ```
 
-### BPM差 → ピッチ変更率 早見表
+**At BPM 140:**
+```
+4 bars   =  approximately 6.9 seconds
+8 bars   = approximately 13.7 seconds
+16 bars  = approximately 27.4 seconds
+32 bars  = approximately 54.9 seconds
+64 bars  = approximately 109.7 seconds (approximately 1 minute 50 seconds)
+```
+
+**At BPM 174:**
+```
+4 bars   =  approximately 5.5 seconds
+8 bars   = approximately 11 seconds
+16 bars  = approximately 22.1 seconds
+32 bars  = approximately 44.1 seconds
+64 bars  = approximately 88.3 seconds (approximately 1 minute 28 seconds)
+```
+
+### BPM Difference -> Pitch Change Rate Quick Reference
 
 ```
-BPM 125 → 128 : +2.4%
-BPM 126 → 128 : +1.6%
-BPM 127 → 128 : +0.8%
-BPM 128 → 125 : -2.3%
-BPM 128 → 130 : +1.6%
-BPM 128 → 132 : +3.1%
-BPM 128 → 135 : +5.5%
-BPM 130 → 128 : -1.5%
-BPM 130 → 125 : -3.8%
-BPM 130 → 132 : +1.5%
-BPM 130 → 135 : +3.8%
-BPM 132 → 128 : -3.0%
-BPM 132 → 135 : +2.3%
-BPM 135 → 128 : -5.2%
-BPM 135 → 130 : -3.7%
-BPM 135 → 140 : +3.7%
-BPM 140 → 128 : -8.6%
-BPM 140 → 135 : -3.6%
-BPM 140 → 145 : +3.6%
+BPM 125 -> 128 : +2.4%
+BPM 126 -> 128 : +1.6%
+BPM 127 -> 128 : +0.8%
+BPM 128 -> 125 : -2.3%
+BPM 128 -> 130 : +1.6%
+BPM 128 -> 132 : +3.1%
+BPM 128 -> 135 : +5.5%
+BPM 130 -> 128 : -1.5%
+BPM 130 -> 125 : -3.8%
+BPM 130 -> 132 : +1.5%
+BPM 130 -> 135 : +3.8%
+BPM 132 -> 128 : -3.0%
+BPM 132 -> 135 : +2.3%
+BPM 135 -> 128 : -5.2%
+BPM 135 -> 130 : -3.7%
+BPM 135 -> 140 : +3.7%
+BPM 140 -> 128 : -8.6%
+BPM 140 -> 135 : -3.6%
+BPM 140 -> 145 : +3.6%
 ```
 
 ---
 
-## 付録: BPMに関するFAQ
+## Appendix: BPM FAQ
 
-### Q1: BPMが小数点以下を含むのは普通ですか？
-
-```
-A: はい、完全に普通です。
-多くのダンスミュージックは整数のBPMで作られますが、
-テンポの微妙な揺れやプロダクションの特性により、
-解析結果が小数点以下を含むことがあります。
-
-例: 127.97 BPM → ほぼ128 BPM
-    125.03 BPM → ほぼ125 BPM
-
-DJプレイでは小数点以下はあまり気にしなくてOK。
-ビートマッチング時に耳で微調整します。
-```
-
-### Q2: テンポが変動する曲はどう扱いますか？
+### Q1: Is it normal for BPM to include decimal places?
 
 ```
-A: いくつかの方法があります:
+A: Yes, it is completely normal.
+Many dance music tracks are produced at integer BPMs, but
+due to subtle tempo fluctuations and production characteristics,
+analysis results may include decimals.
 
-1. Rekordboxの「ダイナミック解析」を使用
-   - テンポの変動に追従するビートグリッド生成
+Example: 127.97 BPM -> essentially 128 BPM
+    125.03 BPM -> essentially 125 BPM
 
-2. 「平均BPM」を使用
-   - 曲全体の平均テンポで管理
-   - ビートマッチング時は耳で微調整
-
-3. テンポが安定している部分でミックス
-   - テンポ変動が少ないセクションを選んで繋ぐ
-
-4. そもそもビートマッチしない
-   - フェードイン/フェードアウトで繋ぐ
-   - ブレイクを利用した切り替え
+For DJ play, you generally don't need to worry about decimals.
+Fine-tune by ear during beatmatching.
 ```
 
-### Q3: 異なるBPMの曲を繋ぐベストな方法は？
+### Q2: How do you handle tracks with variable tempo?
 
 ```
-A: BPM差に応じた方法を選びます:
+A: There are several methods:
 
-±2 BPM以内: ピッチフェーダーで直接合わせる
-±5 BPM以内: ピッチフェーダー調整 + テンポマッチング
-±10 BPM以内: ブレイクダウン利用 or ピッチライド
-±10 BPM以上: 中間曲を挟む or エコーアウト + カットイン
-倍/半分: ハーフタイム/ダブルタイム技法
+1. Use Rekordbox's "Dynamic Analysis"
+   - Generates a beat grid that follows tempo variations
+
+2. Use "Average BPM"
+   - Manage by the average tempo of the entire track
+   - Fine-tune by ear during beatmatching
+
+3. Mix during sections where the tempo is stable
+   - Choose sections with minimal tempo variation to bridge tracks
+
+4. Don't beatmatch at all
+   - Bridge with fade-in/fade-out
+   - Switch using breaks
 ```
 
-### Q4: Syncを使うのは「ズル」ですか？
+### Q3: What is the best way to bridge tracks with different BPMs?
 
 ```
-A: いいえ。Syncは道具の一つです。
+A: Choose a method based on the BPM difference:
 
-プロのDJの間でも意見は分かれますが:
-- Syncは「ビートマッチング」の代替であり、
-  DJの仕事はビートマッチングだけではない
-- 選曲、エネルギー管理、フロアリーディングこそが本質
-- しかし、Syncなしでもできる技術は持つべき
-- Syncに100%依存すると、機材トラブル時に困る
-
-結論: 使っても構わないが、耳でも合わせられる技術は必須
+Within +/-2 BPM: Match directly with the pitch fader
+Within +/-5 BPM: Pitch fader adjustment + tempo matching
+Within +/-10 BPM: Use breakdown or pitch ride
+Over +/-10 BPM: Insert an intermediate track or echo out + cut in
+Double/Half: Half-time/double-time technique
 ```
 
-### Q5: どのくらい練習すればBPMを耳で判断できますか？
+### Q4: Is using Sync "cheating"?
 
 ```
-A: 個人差がありますが、目安として:
+A: No. Sync is just one of many tools.
 
-±20 BPM精度: 1-2週間（毎日練習の場合）
-±10 BPM精度: 1-2ヶ月
-±5 BPM精度:  3-6ヶ月
-±2 BPM精度:  6ヶ月-1年
-±1 BPM精度:  1-2年以上
+Opinions are divided among professional DJs, but:
+- Sync is a substitute for "beatmatching," and
+  a DJ's job is more than just beatmatching
+- Track selection, energy management, and reading the floor are the essence
+- However, you should still have the skill to do it without Sync
+- Relying 100% on Sync will leave you stranded during equipment trouble
 
-コツ:
-- 毎日少しでも練習する
-- 基準BPM（120, 128, 130等）を体に覚え込ませる
-- 日常生活でもリズムに意識を向ける
-- 焦らず楽しんで継続する
+Conclusion: It's fine to use, but the ability to match by ear is essential
+```
+
+### Q5: How much practice does it take to judge BPM by ear?
+
+```
+A: It varies by individual, but as a guideline:
+
++/-20 BPM accuracy: 1-2 weeks (with daily practice)
++/-10 BPM accuracy: 1-2 months
++/-5 BPM accuracy:  3-6 months
++/-2 BPM accuracy:  6 months - 1 year
++/-1 BPM accuracy:  1-2+ years
+
+Tips:
+- Practice a little every day
+- Ingrain reference BPMs (120, 128, 130, etc.) into your body
+- Stay aware of rhythms in daily life
+- Don't rush; enjoy the process and keep at it
 ```
