@@ -1,254 +1,255 @@
-# DJ基本テクニック
+# DJ Basic Techniques
 
 
-## この章で学ぶこと
+## What You'll Learn in This Chapter
 
-- [ ] 基本概念と用語の理解
-- [ ] 実装パターンとベストプラクティスの習得
-- [ ] 実務での適用方法の把握
-- [ ] トラブルシューティングの基本
+- [ ] Understanding basic concepts and terminology
+- [ ] Mastering implementation patterns and best practices
+- [ ] Learning how to apply them in practice
+- [ ] Basics of troubleshooting
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will help deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
+- Basic programming knowledge
+- Understanding of related fundamental concepts
 
 ---
 
-DJの核となる実践的なテクニックを学びます。
+Learn the core practical techniques of DJing.
 
-## このセクションで学ぶこと
+## What You'll Learn in This Section
 
-- ビートマッチング（最重要）
-- ミキシング基礎
-- EQ操作
-- クロスフェーダーテクニック
-- ピッチコントロール
-- キューイング技術
-- ゲインステージング
+- Beatmatching (most important)
+- Mixing basics
+- EQ operation
+- Crossfader techniques
+- Pitch control
+- Cueing techniques
+- Gain staging
 
-## なぜ基本テクニックが重要か
+## Why Basic Techniques Matter
 
-**DJの核心:**
+**The Core of DJing:**
 ```
-基本テクニック = DJスキルの80%
-✓ ビートマッチングができれば「DJができる」
-✓ EQ操作でミックスの質が決まる
-✓ ゲインステージングで音質が変わる
-```
-
-**プロとアマチュアの差:**
-```
-アマチュア: 曲をかけるだけ
-プロ: 基本に忠実、完璧な実行
-→ 基本の反復練習が全て
+Basic techniques = 80% of DJ skills
+✓ If you can beatmatch, you "can DJ"
+✓ EQ operation determines mix quality
+✓ Gain staging changes sound quality
 ```
 
-**基本テクニックの重要性を示すピラミッド:**
+**The Difference Between Pros and Amateurs:**
+```
+Amateur: Just plays tracks
+Pro: Faithful to basics, perfect execution
+→ Repetitive practice of basics is everything
+```
+
+**Pyramid Showing the Importance of Basic Techniques:**
 ```
               ▲
              / \
             /   \
-           / 創造 \          ← ここは個性・センス
-          /  性    \
+           / Crea \          ← This is individuality & sense
+          /  tivity \
          /---------\
-        / 応用     \        ← エフェクト、ハーモニック
-       /  テクニック  \
+        / Advanced   \        ← Effects, harmonic
+       /  Techniques  \
       /---------------\
-     / 基本テクニック    \    ← ビートマッチ、EQ、ゲイン
+     / Basic Techniques  \    ← Beatmatch, EQ, gain
     /-------------------\
-   / 音楽知識・機材理解    \  ← BPM、フレーズ、信号の流れ
+   / Music Knowledge &    \  ← BPM, phrases, signal flow
+  /  Equipment Understanding\
   /-----------------------\
 ```
 
-このピラミッドが示す通り、基本テクニックは全てのDJスキルの土台です。ここが不安定だと、どんなに高度なテクニックを試みても崩れてしまいます。逆に基本が磐石であれば、応用テクニックは自然に身についていきます。
+As this pyramid shows, basic techniques are the foundation of all DJ skills. If this foundation is unstable, no matter how advanced the techniques you attempt, they will crumble. Conversely, if your basics are rock-solid, advanced techniques will come naturally.
 
 ---
 
-## 学習の順序
+## Learning Order
 
-### Step 1: ビートマッチング（最優先）
-
-```
-期間: 1-2ヶ月
-目標: 耳だけでビートを合わせる
-
-なぜ最初か:
-- DJ の最も基本的なスキル
-- これができないと何も始まらない
-- 耳を鍛える（最重要）
-```
-
-### Step 2: ミキシング基礎
+### Step 1: Beatmatching (Top Priority)
 
 ```
-期間: 2週間
-目標: スムーズな曲の切り替え
+Duration: 1-2 months
+Goal: Match beats by ear alone
 
-前提: ビートマッチングができる
-内容:
-- フェーダー操作
-- タイミングの取り方
-- トランジションの種類
+Why first:
+- The most fundamental DJ skill
+- Nothing starts without this
+- Trains your ears (most important)
 ```
 
-### Step 3: EQ操作
+### Step 2: Mixing Basics
 
 ```
-期間: 1ヶ月
-目標: EQを使った音質調整
+Duration: 2 weeks
+Goal: Smooth track transitions
 
-これで一人前:
-- Low カット/ブーストの理解
-- 音が濁らないミックス
-- クリアなサウンド
+Prerequisite: Able to beatmatch
+Content:
+- Fader operation
+- Timing techniques
+- Types of transitions
 ```
 
-### Step 4: その他のテクニック
+### Step 3: EQ Operation
 
 ```
-期間: 1-2ヶ月
-内容:
-- ピッチコントロール（微調整）
-- キューイング（次の曲の準備）
-- ゲインステージング（音量管理）
-- クロスフェーダー（スタイルによる）
+Duration: 1 month
+Goal: Sound adjustment using EQ
+
+This makes you competent:
+- Understanding Low cut/boost
+- Mixing without muddiness
+- Clear sound
+```
+
+### Step 4: Other Techniques
+
+```
+Duration: 1-2 months
+Content:
+- Pitch control (fine adjustment)
+- Cueing (preparing the next track)
+- Gain staging (volume management)
+- Crossfader (style-dependent)
 ```
 
 ---
 
-## DDJ-FLX4での実践
+## Practice with DDJ-FLX4
 
-### あなたの機材（DDJ-FLX4）
+### Your Equipment (DDJ-FLX4)
 
-**仕様:**
+**Specifications:**
 ```
-- 2チャンネル
-- Rekordbox対応
-- Smart CFX機能
-- Smart Fader機能
-- コンパクト設計
-```
-
-**このガイドとの完全一致:**
-```
-✓ Rekordbox使用（本ガイドと同じ）
-✓ 2デッキ（基礎習得に最適）
-✓ 全ての基本テクニックが実践可能
-✓ クラブ機材（CDJ）への移行も容易
+- 2 channels
+- Rekordbox compatible
+- Smart CFX function
+- Smart Fader function
+- Compact design
 ```
 
-### Smart機能について
+**Perfect Match with This Guide:**
+```
+✓ Uses Rekordbox (same as this guide)
+✓ 2 decks (ideal for learning basics)
+✓ All basic techniques can be practiced
+✓ Easy transition to club equipment (CDJ)
+```
+
+### About Smart Functions
 
 **Smart CFX:**
 ```
-クロスフェーダーでエフェクト付き切り替え
+Crossfader transition with effects
 
-使い分け:
-- 練習時: OFF（基礎を学ぶため）
-- 本番: ON（クリエイティブに）
+When to use:
+- Practice: OFF (to learn the basics)
+- Performance: ON (for creativity)
 ```
 
 **Smart Fader:**
 ```
-BPM同期、自動EQ調整
+BPM sync, automatic EQ adjustment
 
-推奨:
-- 最初の1ヶ月: 使わない（耳を鍛える）
-- 2ヶ月目以降: 活用OK
+Recommendation:
+- First month: Don't use it (train your ears)
+- After 2 months: OK to use
 ```
 
 ---
 
-## 各ファイルの内容
+## Contents of Each File
 
-### 1. [ビートマッチング](./beatmatching.md)
+### 1. [Beatmatching](./beatmatching.md)
 
-**最重要ファイル**
+**Most Important File**
 ```
-- BPMを耳で合わせる技術
-- ジョグホイールの使い方
-- ピッチフェーダー調整
-- DDJ-FLX4での練習方法
-- Syncに頼らない重要性
-```
-
-**時間配分:** このファイルに最も時間を使う
-
-### 2. [ミキシング基礎](./mixing-basics.md)
-
-```
-- フェーダー操作
-- ミックスのタイミング
-- トランジションの種類
-- フレーズミキシング
+- Technique of matching BPM by ear
+- How to use the jog wheel
+- Pitch fader adjustment
+- Practice methods with DDJ-FLX4
+- Importance of not relying on Sync
 ```
 
-### 3. [EQ操作](./eq-operation.md)
+**Time Allocation:** Spend the most time on this file
+
+### 2. [Mixing Basics](./mixing-basics.md)
 
 ```
-- 3バンドEQの理解
-- Low/Mid/High の役割
-- ミックス時のEQ調整
-- 音が濁らない方法
+- Fader operation
+- Mix timing
+- Types of transitions
+- Phrase mixing
 ```
 
-### 4. [クロスフェーダー](./crossfader.md)
+### 3. [EQ Operation](./eq-operation.md)
 
 ```
-- クロスフェーダーの使い方
-- カーブ設定
-- ミックスDJ vs スクラッチDJ
-- Smart CFXの活用
+- Understanding 3-band EQ
+- Roles of Low/Mid/High
+- EQ adjustment during mixing
+- How to avoid muddy sound
 ```
 
-### 5. [ピッチコントロール](./pitch-control.md)
+### 4. [Crossfader](./crossfader.md)
 
 ```
-- Tempo Faderの使い方
-- Master Tempoとは
-- キーチェンジの影響
-- 微調整テクニック
+- How to use the crossfader
+- Curve settings
+- Mix DJ vs Scratch DJ
+- Utilizing Smart CFX
 ```
 
-### 6. [キューイング](./cueing.md)
+### 5. [Pitch Control](./pitch-control.md)
 
 ```
-- ヘッドフォンでの確認
-- Cueボタンの使い方
-- 次の曲の準備
-- タイミングの計算
+- How to use the Tempo Fader
+- What is Master Tempo
+- Effects of key change
+- Fine adjustment techniques
 ```
 
-### 7. [ゲインステージング](./gain-staging.md)
+### 6. [Cueing](./cueing.md)
 
 ```
-- Gain/Trimの調整
-- クリッピング回避
-- 音圧の一貫性
-- Level Meterの見方
+- Checking with headphones
+- How to use the Cue button
+- Preparing the next track
+- Calculating timing
+```
+
+### 7. [Gain Staging](./gain-staging.md)
+
+```
+- Gain/Trim adjustment
+- Avoiding clipping
+- Consistency of loudness
+- How to read the Level Meter
 ```
 
 ---
 
-## 練習環境のセットアップ
+## Practice Environment Setup
 
-### 最小構成（あなたの環境）
+### Minimum Configuration (Your Environment)
 
 ```
 ✓ DDJ-FLX4
 ✓ PC/Mac
 ✓ Rekordbox 7.2.7
-✓ ヘッドフォン
-✓ スピーカー/モニター
+✓ Headphones
+✓ Speakers/Monitors
 ```
 
-### Rekordbox設定
+### Rekordbox Settings
 
-**Audio設定:**
+**Audio Settings:**
 ```
 Audio Device: DDJ-FLX4
 Sample Rate: 44100Hz
@@ -257,284 +258,284 @@ Buffer Size: 512 samples
 
 **Performance Mode:**
 ```
-Layout: 2 Deck（縦）
-Waveform: 3 Band（RGB）
-Beat Sync: OFF（練習時）
-Quantize: OFF（練習時）
+Layout: 2 Deck (vertical)
+Waveform: 3 Band (RGB)
+Beat Sync: OFF (during practice)
+Quantize: OFF (during practice)
 ```
 
 ---
 
-## 練習プレイリスト推奨
+## Recommended Practice Playlists
 
-### ビートマッチング練習用
+### For Beatmatching Practice
 
-**条件:**
+**Criteria:**
 ```
-- BPM範囲: 120-130（狭く）
-- ジャンル: 統一（House推奨）
-- 曲構造: シンプル（4つ打ち）
-- 曲数: 10-20曲
-```
-
-**理由:**
-```
-BPM範囲が狭い
-→ ピッチ調整が小さい
-→ 合わせやすい
-→ 成功体験が増える
-→ モチベーション維持
+- BPM range: 120-130 (narrow)
+- Genre: Unified (House recommended)
+- Song structure: Simple (four-on-the-floor)
+- Number of tracks: 10-20
 ```
 
-### ミックス練習用
-
-**条件:**
+**Reason:**
 ```
-- BPM範囲: 広げる（120-140）
-- ジャンル: 2-3種類
-- キー: 互換性を考慮
-- 曲構造: 明確なセクション
-```
-
----
-
-## 練習スケジュール（推奨）
-
-### Week 1-4: ビートマッチング集中
-
-```
-毎日30分-1時間
-- 同じ2曲を繰り返し
-- Sync OFF必須
-- ジョグホイールに慣れる
-- 耳だけでズレを聞き取る
+Narrow BPM range
+→ Small pitch adjustment
+→ Easier to match
+→ More successful experiences
+→ Maintaining motivation
 ```
 
-### Week 5-6: ミキシング基礎
+### For Mix Practice
 
+**Criteria:**
 ```
-毎日30分
-- ビートマッチング（15分）
-- フェーダー操作（15分）
-- スムーズなトランジション
-```
-
-### Week 7-8: EQ操作
-
-```
-毎日30分
-- ビートマッチング + ミキシング（15分）
-- EQを使ったミックス（15分）
-- Low重複回避の練習
-```
-
-### Week 9-12: 統合練習
-
-```
-毎日30分-1時間
-- 30分ミックス録音
-- 聞き返して改善点発見
-- 全テクニックの統合
+- BPM range: Wider (120-140)
+- Genre: 2-3 types
+- Key: Consider compatibility
+- Song structure: Clear sections
 ```
 
 ---
 
-## よくある質問
+## Practice Schedule (Recommended)
 
-### Q1: Syncボタンは使っていい？
-
-**A: 練習時は使わない、本番は状況次第**
+### Week 1-4: Beatmatching Intensive
 
 ```
-練習時:
-✗ Sync OFF推奨
-→ 耳を鍛える（最重要）
-→ CDJでも対応できる
-
-本番:
-○ 状況次第
-→ 3デッキ以上の複雑なミックス
-→ エフェクト多用時
-→ ただし基礎ができている前提
+30 minutes to 1 hour daily
+- Repeat with the same 2 tracks
+- Sync OFF required
+- Get used to the jog wheel
+- Detect drift by ear alone
 ```
 
-### Q2: どのくらいでビートマッチングできる？
-
-**A: 個人差あり、1-3ヶ月**
+### Week 5-6: Mixing Basics
 
 ```
-早い人: 2週間-1ヶ月
-平均: 1-2ヶ月
-じっくり型: 2-3ヶ月
-
-重要: 焦らない
-→ 毎日少しずつ
-→ 必ずできるようになる
+30 minutes daily
+- Beatmatching (15 min)
+- Fader operation (15 min)
+- Smooth transitions
 ```
 
-### Q3: DDJ-FLX4で十分？
-
-**A: 基礎習得には完璧**
+### Week 7-8: EQ Operation
 
 ```
-✓ プロと同じ基礎が学べる
-✓ CDJへの移行が容易
-✓ コンパクトで練習しやすい
-
-クラブでは:
-- CDJが標準
-- ただし操作は似ている
-- 月1回レンタルスタジオ推奨
+30 minutes daily
+- Beatmatching + Mixing (15 min)
+- Mixing with EQ (15 min)
+- Practice avoiding Low overlap
 ```
 
-### Q4: ヘッドフォンは必須？
-
-**A: 絶対必須**
+### Week 9-12: Integrated Practice
 
 ```
-理由:
-- 次の曲をCueで確認
-- ビートマッチング必須
-- フロア音と分離
-
-推奨: 密閉型（2万円前後）
-→ [DJ用ヘッドフォン](../02-equipment/headphones.md)
+30 minutes to 1 hour daily
+- Record a 30-minute mix
+- Listen back and identify areas for improvement
+- Integration of all techniques
 ```
 
 ---
 
-## ビートマッチングの基礎理論
+## Frequently Asked Questions
 
-ビートマッチングはDJテクニックの中で最も重要なスキルです。このセクションでは、詳細な解説ページ（[beatmatching.md](./beatmatching.md)）に進む前に、その理論的な背景と考え方を理解します。
+### Q1: Can I use the Sync button?
 
-### BPMとは何か（復習）
-
-BPM（Beats Per Minute）は1分間に含まれるビートの数です。DJにとってBPMは「曲のスピード」を数値化したものであり、2曲のBPMを一致させることがビートマッチングの本質です。
+**A: Don't use it during practice, depends on the situation for performances**
 
 ```
-BPMの感覚:
-  80-100 BPM  : Hip Hop、R&B（ゆったり）
- 100-120 BPM  : Pop、Downtempo（中速）
- 120-130 BPM  : House、Techno入門（標準速）
- 130-140 BPM  : Tech House、Progressive（やや速い）
- 140-150 BPM  : Trance、Hard Dance（速い）
- 150-170 BPM  : Drum & Bass（非常に速い）
- 170-180 BPM  : Jungle、Hardcore（最速域）
+During practice:
+✗ Sync OFF recommended
+→ Train your ears (most important)
+→ Be able to handle CDJs
+
+During performance:
+○ Depends on the situation
+→ Complex mixes with 3+ decks
+→ When using many effects
+→ Assumes basics are solid
 ```
 
-### なぜ手動ビートマッチングが重要か
+### Q2: How long until I can beatmatch?
 
-現代のDJソフトウェアにはSync機能が搭載されており、ボタン一つでBPMを合わせることができます。それでも手動ビートマッチングを学ぶ理由は以下の通りです。
-
-```
-理由1: 耳の訓練
-  - 音楽を「聴く力」が飛躍的に向上する
-  - 微妙なズレを感知できるようになる
-  - 音楽全体の理解が深まる
-
-理由2: 機材非依存
-  - CDJにはSync機能がないモデルも多い
-  - クラブの機材は選べない
-  - どんな環境でもプレイできる安心感
-
-理由3: 正確性
-  - Syncは完璧ではない（特に変則リズム）
-  - 手動の方が「ノリ」を合わせやすい場合がある
-  - ライブドラムやアカペラのミックスに対応可能
-
-理由4: プロフェッショナリズム
-  - 現場のDJから尊敬される
-  - 「DJとしての基礎体力」の証明
-  - トラブル対応力が格段に上がる
-```
-
-### ビートマッチングの物理的メカニズム
-
-ビートマッチングでは、2つの曲のビートタイミングを一致させます。物理的には以下のプロセスが発生しています。
+**A: Varies by individual, 1-3 months**
 
 ```
-曲A（再生中）:  |●   ●   ●   ●   ●   ●   ●   ●|
-曲B（調整前）:  |●  ●  ●  ●  ●  ●  ●  ●  ●  ●|
+Fast learners: 2 weeks to 1 month
+Average: 1-2 months
+Slow and steady: 2-3 months
 
-↓ BPMを合わせる（ピッチフェーダー）
-
-曲A（再生中）:  |●   ●   ●   ●   ●   ●   ●   ●|
-曲B（BPM一致）: |●   ●   ●   ●   ●   ●   ●   ●|
-
-↓ 位相を合わせる（ジョグホイール）
-
-曲A（再生中）:  |●   ●   ●   ●   ●   ●   ●   ●|
-曲B（完全一致）:|●   ●   ●   ●   ●   ●   ●   ●|
+Important: Don't rush
+→ A little every day
+→ You will definitely get it
 ```
 
-**BPM一致と位相一致の違い:**
-```
-BPM一致:  速度が同じ → ズレが広がらない
-位相一致: タイミングが同じ → ビートが重なる
+### Q3: Is the DDJ-FLX4 enough?
 
-BPMが合っていても位相がズレていると:
-曲A: |ドン   ドン   ドン   ドン|
-曲B: |  ドン   ドン   ドン   ドン|
-→「フランジング」や「ダブルキック」のような不自然な音になる
-
-両方合っていると:
-曲A: |ドン   ドン   ドン   ドン|
-曲B: |ドン   ドン   ドン   ドン|
-→ 力強い一体感のある音になる
-```
-
-### ビートの聴き方 - 耳の訓練法
-
-ビートマッチングで最も重要なのは「耳」です。以下のトレーニングで聴く力を養います。
+**A: Perfect for learning the basics**
 
 ```
-レベル1: キックを聴く（Week 1）
-  - 4つ打ちのキック（ドン・ドン・ドン・ドン）に集中
-  - メロディやボーカルを無視してキックだけ聴く
-  - ヘッドフォンの片耳で練習
+✓ Learn the same basics as pros
+✓ Easy transition to CDJ
+✓ Compact and easy to practice with
 
-レベル2: 2曲のキックの差を聴く（Week 2）
-  - 片耳で曲A、もう片耳で曲B
-  - 2つのキックが「1つ」に聞こえるか「2つ」に聞こえるか
-  - 「ドドン」→ ズレている、「ドン」→ 合っている
-
-レベル3: ズレの方向を聴く（Week 3-4）
-  - 曲Bが速いのか遅いのかを判断
-  - 速い場合: キックが「先に」聞こえる → ピッチを下げる
-  - 遅い場合: キックが「後に」聞こえる → ピッチを上げる
-
-レベル4: 微調整（Week 5以降）
-  - ほぼ合っている状態からの微調整
-  - ジョグホイールの軽いタッチ
-  - 0.1-0.2%のピッチ変更で完璧に合わせる
+At clubs:
+- CDJ is standard
+- But the controls are similar
+- Rental studio once a month recommended
 ```
 
-### ピッチフェーダーの操作理論
+### Q4: Are headphones essential?
 
-ピッチフェーダー（テンポフェーダー）はBPMを変更するためのスライダーです。
+**A: Absolutely essential**
 
 ```
-DDJ-FLX4のピッチフェーダー:
-  中央位置: 0%（元のBPM）
-  上方向:  マイナス（遅くなる）
-  下方向:  プラス（速くなる）
+Reason:
+- Check the next track with Cue
+- Essential for beatmatching
+- Separate from floor sound
 
-  ※機種によって方向が異なるので注意
-
-範囲設定（Rekordbox）:
-  ±6%  : 標準（最も使いやすい）
-  ±10% : 幅広いBPM対応
-  ±16% : 極端なBPM差に対応
-  ±Wide : 最大範囲（特殊用途）
-
-推奨: まずは ±6% で練習
-→ 微細なコントロールが身につく
-→ 慣れたら必要に応じて広げる
+Recommended: Closed-back type (around 20,000 yen / $150)
+→ [DJ Headphones](../02-equipment/headphones.md)
 ```
 
-**ピッチ変更とBPMの関係:**
+---
+
+## Beatmatching Fundamentals
+
+Beatmatching is the most important skill among DJ techniques. In this section, we'll understand the theoretical background and concepts before moving on to the detailed explanation page ([beatmatching.md](./beatmatching.md)).
+
+### What is BPM (Review)
+
+BPM (Beats Per Minute) is the number of beats contained in one minute. For DJs, BPM is a numerical representation of the "speed of a track," and matching the BPM of two tracks is the essence of beatmatching.
+
 ```
-元BPM 128.00 の場合:
+BPM Feel:
+  80-100 BPM  : Hip Hop, R&B (relaxed)
+ 100-120 BPM  : Pop, Downtempo (medium speed)
+ 120-130 BPM  : House, Techno intro (standard speed)
+ 130-140 BPM  : Tech House, Progressive (slightly fast)
+ 140-150 BPM  : Trance, Hard Dance (fast)
+ 150-170 BPM  : Drum & Bass (very fast)
+ 170-180 BPM  : Jungle, Hardcore (maximum speed range)
+```
+
+### Why Manual Beatmatching is Important
+
+Modern DJ software includes a Sync function that can match BPM at the press of a button. The reasons for still learning manual beatmatching are as follows.
+
+```
+Reason 1: Ear Training
+  - Your ability to "listen" to music improves dramatically
+  - You become able to detect subtle drift
+  - Your overall understanding of music deepens
+
+Reason 2: Equipment Independence
+  - Many CDJ models don't have a Sync function
+  - You can't choose club equipment
+  - Confidence that you can play in any environment
+
+Reason 3: Accuracy
+  - Sync isn't perfect (especially with irregular rhythms)
+  - Manual matching can be better for matching the "groove"
+  - Able to handle mixing live drums and acapellas
+
+Reason 4: Professionalism
+  - Respected by DJs in the field
+  - Proof of "fundamental DJ fitness"
+  - Dramatically improved troubleshooting ability
+```
+
+### Physical Mechanism of Beatmatching
+
+In beatmatching, you align the beat timing of two tracks. Physically, the following process occurs.
+
+```
+Track A (playing):    |●   ●   ●   ●   ●   ●   ●   ●|
+Track B (before adj): |●  ●  ●  ●  ●  ●  ●  ●  ●  ●|
+
+↓ Match BPM (pitch fader)
+
+Track A (playing):    |●   ●   ●   ●   ●   ●   ●   ●|
+Track B (BPM matched):|●   ●   ●   ●   ●   ●   ●   ●|
+
+↓ Match phase (jog wheel)
+
+Track A (playing):    |●   ●   ●   ●   ●   ●   ●   ●|
+Track B (fully synced):|●   ●   ●   ●   ●   ●   ●   ●|
+```
+
+**Difference Between BPM Match and Phase Match:**
+```
+BPM match:   Same speed → Drift doesn't increase
+Phase match: Same timing → Beats overlap
+
+Even if BPM matches, if phase is off:
+Track A: |BOOM   BOOM   BOOM   BOOM|
+Track B: |  BOOM   BOOM   BOOM   BOOM|
+→ Unnatural sound like "flanging" or "double kick"
+
+When both match:
+Track A: |BOOM   BOOM   BOOM   BOOM|
+Track B: |BOOM   BOOM   BOOM   BOOM|
+→ Powerful, unified sound
+```
+
+### How to Listen to Beats - Ear Training Methods
+
+The most important thing in beatmatching is your "ears." Develop your listening skills with the following training.
+
+```
+Level 1: Listen to the kick (Week 1)
+  - Focus on the four-on-the-floor kick (boom-boom-boom-boom)
+  - Ignore melody and vocals, listen only to the kick
+  - Practice with one ear of headphones
+
+Level 2: Hear the difference between two kicks (Week 2)
+  - One ear for Track A, other ear for Track B
+  - Do the two kicks sound like "one" or "two"
+  - "Ba-boom" → Off, "Boom" → Aligned
+
+Level 3: Hear the direction of drift (Week 3-4)
+  - Determine if Track B is faster or slower
+  - If faster: Kick is heard "ahead" → Lower the pitch
+  - If slower: Kick is heard "behind" → Raise the pitch
+
+Level 4: Fine adjustment (Week 5+)
+  - Fine adjustment from a nearly matched state
+  - Light touch on the jog wheel
+  - Match perfectly with 0.1-0.2% pitch change
+```
+
+### Pitch Fader Operation Theory
+
+The pitch fader (tempo fader) is a slider for changing BPM.
+
+```
+DDJ-FLX4 Pitch Fader:
+  Center position: 0% (original BPM)
+  Upward:  Minus (slower)
+  Downward: Plus (faster)
+
+  *Direction may differ by model, so be careful
+
+Range settings (Rekordbox):
+  ±6%  : Standard (most user-friendly)
+  ±10% : Wide BPM coverage
+  ±16% : For extreme BPM differences
+  ±Wide : Maximum range (special use)
+
+Recommendation: Start practicing at ±6%
+→ Develops fine control
+→ Expand as needed once comfortable
+```
+
+**Relationship Between Pitch Change and BPM:**
+```
+For original BPM of 128.00:
   +1.0% → 129.28 BPM
   +2.0% → 130.56 BPM
   +3.0% → 131.84 BPM
@@ -542,857 +543,857 @@ DDJ-FLX4のピッチフェーダー:
   -2.0% → 125.44 BPM
   -3.0% → 124.16 BPM
 
-計算式: 新BPM = 元BPM × (1 + ピッチ% / 100)
+Formula: New BPM = Original BPM × (1 + Pitch% / 100)
 ```
 
-### ジョグホイールの操作理論
+### Jog Wheel Operation Theory
 
-ジョグホイールはリアルタイムで再生位置を微調整するための回転式コントローラです。
-
-```
-DDJ-FLX4のジョグホイール:
-  天面タッチ: 再生停止（スクラッチモード時）
-  側面回転:  ピッチベンド（一時的な速度変更）
-
-操作方法:
-  時計回り（前方）:  一時的に速くなる → ビートを前に進める
-  反時計回り（後方）: 一時的に遅くなる → ビートを後ろに戻す
-
-重要ポイント:
-  - 手を離すと元のBPMに戻る
-  - 大きく回す = 大きな調整
-  - 小さく触る = 微調整
-  - 力加減が繊細さの鍵
-```
-
-**ジョグホイール vs ピッチフェーダーの使い分け:**
-```
-ジョグホイール:
-  用途: 位相の一時的な調整（ナッジ）
-  効果: 一瞬だけ速度が変わる
-  場面: ビートの位置合わせ、ズレの修正
-
-ピッチフェーダー:
-  用途: BPMの恒久的な変更
-  効果: 速度が変わったまま維持される
-  場面: 2曲のBPMを合わせる
-
-実践での使い方:
-  1. ピッチフェーダーでBPMを大まかに合わせる
-  2. ジョグホイールでビートの位置を合わせる
-  3. 微妙にズレてきたらジョグホイールで修正
-  4. ズレが広がる場合はピッチフェーダーを微調整
-```
-
----
-
-## EQミキシング概論
-
-EQ（イコライザー）操作は、ビートマッチングに次いで重要なテクニックです。2曲を同時に再生するとき、特定の帯域が重なって音が濁る問題をEQで解決します。
-
-### 3バンドEQの基本構造
-
-DJミキサーに搭載される標準的なEQは3バンド（Low / Mid / High）です。
+The jog wheel is a rotary controller for fine-tuning playback position in real time.
 
 ```
-周波数帯域の対応:
+DDJ-FLX4 Jog Wheel:
+  Top surface touch: Playback stop (in scratch mode)
+  Side rotation:     Pitch bend (temporary speed change)
 
-High（高域）: 約5kHz〜20kHz
-  対応する音: ハイハット、シンバル、シャリシャリした音
-  特徴: 空気感、明るさ、存在感
+Operation:
+  Clockwise (forward):      Temporarily faster → Push beat forward
+  Counter-clockwise (back):  Temporarily slower → Pull beat back
 
-Mid（中域）: 約250Hz〜5kHz
-  対応する音: ボーカル、メロディ、シンセリード
-  特徴: 音楽の「主役」、最も耳に入る帯域
-
-Low（低域）: 約20Hz〜250Hz
-  対応する音: キック、ベースライン、サブベース
-  特徴: 体に響く重低音、エネルギーの源
+Key Points:
+  - Returns to original BPM when you let go
+  - Large rotation = large adjustment
+  - Light touch = fine adjustment
+  - Touch sensitivity is the key to finesse
 ```
 
-### なぜEQがミキシングに不可欠か
-
+**Jog Wheel vs Pitch Fader Usage:**
 ```
-2曲同時再生の問題点:
+Jog Wheel:
+  Purpose: Temporary phase adjustment (nudging)
+  Effect: Speed changes momentarily
+  Use case: Beat position alignment, drift correction
 
-曲Aのキック    + 曲Bのキック    = 低域過多（ブーミー、歪み）
-曲Aのボーカル  + 曲Bのボーカル  = 中域衝突（不明瞭、濁り）
-曲Aのハイハット + 曲Bのハイハット = 高域過多（耳が痛い）
+Pitch Fader:
+  Purpose: Permanent BPM change
+  Effect: Speed stays changed
+  Use case: Matching BPM between two tracks
 
-EQによる解決:
-曲Aのキック + 曲BのLow OFF = 低域クリア
-→ トランジション時に曲BのLowを徐々にON、曲AのLowを徐々にOFF
-→ 低域が「入れ替わる」ことで自然な切り替え
-```
-
-### EQノブの操作感覚
-
-```
-DDJ-FLX4のEQノブ:
-  12時位置（中央）: 0dB（変化なし）
-  左に回す:        カット（最大で完全カット -∞dB）
-  右に回す:        ブースト（最大 +6〜12dB）
-
-重要な原則: カットは積極的に、ブーストは控えめに
-
-理由:
-  - カットは音を減らす → 歪みのリスクなし
-  - ブーストは音を増やす → 歪み、クリッピングのリスク
-  - プロDJの多くはブーストをほとんど使わない
-```
-
-### EQミキシングの基本パターン
-
-**パターン1: Lowスワップ（最も基本的）**
-```
-手順:
-  1. 曲Bのビートマッチング完了
-  2. 曲BのLow EQを完全カット
-  3. 曲Bのチャンネルフェーダーを開く
-  4. フレーズの切り替わりで:
-     - 曲AのLowをカット
-     - 同時に曲BのLowを12時に戻す
-  5. 曲Aをフェードアウト
-
-効果: 低域の「入れ替え」で自然なトランジション
-場面: ほぼ全てのジャンルで使用可能
-```
-
-**パターン2: フルEQスワップ（丁寧な切り替え）**
-```
-手順:
-  1. 曲BのLow/Mid/Highを全てカット
-  2. チャンネルフェーダーを開く
-  3. 段階的にEQを戻す:
-     Phase 1: High を戻す（ハイハットが入る）
-     Phase 2: Mid を戻す（メロディが入る）
-     Phase 3: Low をスワップ（キックが入れ替わる）
-  4. 曲AのEQを段階的にカット
-  5. 曲Aをフェードアウト
-
-効果: 非常にスムーズで段階的な切り替え
-場面: 長いトランジション、Progressive House
-```
-
-**パターン3: Mid/Highスワップ（素早い切り替え）**
-```
-手順:
-  1. 曲Bのビートマッチング完了
-  2. 曲BのMid/Highをカット、Lowはそのまま
-  3. フェーダーを開く（キック+ベースだけ聞こえる）
-  4. 一気にMid/Highを戻し、曲AのMid/Highをカット
-  5. 曲Aをフェードアウト
-
-効果: メロディ・ボーカルの素早い切り替え
-場面: ボーカルトラックのミックス
-```
-
-### EQ操作でよくある初心者の間違い
-
-```
-間違い1: Lowを両方残す
-  症状: ブーミーな音、スピーカーが歪む
-  対策: トランジション中は必ずどちらかのLowをカット
-
-間違い2: ブーストしすぎ
-  症状: 音が歪む、レベルメーターが赤になる
-  対策: ブーストは最小限、基本はカットで操作
-
-間違い3: EQを急に動かす
-  症状: 不自然な音の変化、聞いている人が違和感
-  対策: ゆっくり滑らかに動かす（ただしLowスワップは素早く）
-
-間違い4: EQを戻し忘れる
-  症状: 次の曲の音が薄い、何か物足りない
-  対策: トランジション後は必ず全EQを12時に戻す確認
+In practice:
+  1. Roughly match BPM with the pitch fader
+  2. Align beat position with the jog wheel
+  3. Correct with jog wheel when slight drift occurs
+  4. Fine-tune pitch fader if drift keeps widening
 ```
 
 ---
 
-## フェーダーワーク詳解
+## EQ Mixing Overview
 
-フェーダー操作はミキシングの基本動作です。チャンネルフェーダーとクロスフェーダーの2種類があり、それぞれ異なる役割を持ちます。
+EQ (equalizer) operation is the second most important technique after beatmatching. When playing two tracks simultaneously, EQ solves the problem of certain frequency bands overlapping and causing muddy sound.
 
-### チャンネルフェーダーの基礎
+### Basic Structure of 3-Band EQ
 
-チャンネルフェーダーは各デッキ（チャンネル）の音量を個別に制御するスライダーです。
-
-```
-DDJ-FLX4のチャンネルフェーダー:
-  位置: ミキサーセクション、各チャンネルの下部
-  最上部: 最大音量（0dB）
-  最下部: 無音（-∞dB）
-
-基本ポジション:
-  メインで流している曲: 最上部付近
-  フェードイン開始: 最下部から徐々に上げる
-  フェードアウト: 最上部から徐々に下げる
-```
-
-### チャンネルフェーダーの操作テクニック
-
-**ロングフェード（Long Fade）:**
-```
-所要時間: 16〜64ビート（8〜32秒）
-用途: スムーズで気づかれないトランジション
-操作: 非常にゆっくりフェーダーを動かす
-
-手順:
-  Beat 1-16:   フェーダー 0% → 30%  （かすかに聞こえ始める）
-  Beat 17-32:  フェーダー 30% → 60% （存在感が出てくる）
-  Beat 33-48:  フェーダー 60% → 85% （ほぼ均等）
-  Beat 49-64:  フェーダー 85% → 100%（完全に開く）
-
-ポイント:
-  - 直線的ではなく、最初はゆっくり、後半は速く
-  - 聴衆が気づかないうちに新しい曲が入っている状態が理想
-```
-
-**ショートフェード（Short Fade）:**
-```
-所要時間: 4〜8ビート（2〜4秒）
-用途: エネルギッシュな切り替え
-操作: 素早くフェーダーを動かす
-
-手順:
-  Beat 1-2:  フェーダー 0% → 50%
-  Beat 3-4:  フェーダー 50% → 100%
-
-ポイント:
-  - タイミングがシビア（フレーズの頭で）
-  - ビートマッチングが完璧である必要がある
-  - EQスワップと組み合わせると効果的
-```
-
-**カットイン（Cut In）:**
-```
-所要時間: 1ビート以内
-用途: ドラマチックな切り替え、サプライズ
-操作: 一瞬でフェーダーを最大に
-
-手順:
-  曲Aのブレイク直前に曲Bのフェーダーを一気に上げる
-  同時に曲Aのフェーダーを一気に下げる
-
-ポイント:
-  - フレーズの開始点で行う
-  - 両曲のキーが合っている必要がある
-  - リスクが高いが、決まると非常に効果的
-```
-
-### クロスフェーダーの操作理論
-
-クロスフェーダーは左右のチャンネルバランスを1つのスライダーで制御する機構です。
+The standard EQ equipped on DJ mixers is 3-band (Low / Mid / High).
 
 ```
-クロスフェーダーの位置と出力:
-  左端: チャンネル1のみ（100% / 0%）
-  中央: 両チャンネル均等（100% / 100%）
-  右端: チャンネル2のみ（0% / 100%）
+Frequency band correspondence:
+
+High (treble): Approx. 5kHz-20kHz
+  Corresponding sounds: Hi-hat, cymbals, sizzly sounds
+  Characteristics: Airiness, brightness, presence
+
+Mid (midrange): Approx. 250Hz-5kHz
+  Corresponding sounds: Vocals, melody, synth leads
+  Characteristics: The "star" of the music, the most audible range
+
+Low (bass): Approx. 20Hz-250Hz
+  Corresponding sounds: Kick, bassline, sub-bass
+  Characteristics: Deep bass you feel in your body, source of energy
 ```
 
-**クロスフェーダーカーブ設定:**
-```
-スムーズカーブ（Smooth / Linear）:
-  特徴: 緩やかな変化、中央で両方均等
-  用途: ミックスDJ、トランジション
-  設定: DDJ-FLX4のCROSSFADER CURVEスイッチを左側
+### Why EQ is Essential for Mixing
 
-  左端 ─────── 中央 ─────── 右端
+```
+Problems with simultaneous playback of 2 tracks:
+
+Track A's kick    + Track B's kick    = Bass overload (boomy, distortion)
+Track A's vocals  + Track B's vocals  = Mid clash (unclear, muddy)
+Track A's hi-hat  + Track B's hi-hat  = Treble overload (hurts ears)
+
+Solution with EQ:
+Track A's kick + Track B's Low OFF = Clear bass
+→ During transition, gradually turn Track B's Low ON, Track A's Low OFF
+→ Bass "swaps" for a natural transition
+```
+
+### EQ Knob Feel
+
+```
+DDJ-FLX4 EQ Knobs:
+  12 o'clock position (center): 0dB (no change)
+  Turn left:        Cut (full cut at maximum -∞dB)
+  Turn right:       Boost (maximum +6 to 12dB)
+
+Important principle: Cut aggressively, boost conservatively
+
+Reason:
+  - Cutting reduces sound → No risk of distortion
+  - Boosting adds sound → Risk of distortion, clipping
+  - Most pro DJs rarely use boost
+```
+
+### Basic EQ Mixing Patterns
+
+**Pattern 1: Low Swap (Most Basic)**
+```
+Procedure:
+  1. Beatmatching of Track B complete
+  2. Fully cut Track B's Low EQ
+  3. Open Track B's channel fader
+  4. At the phrase change:
+     - Cut Track A's Low
+     - Simultaneously return Track B's Low to 12 o'clock
+  5. Fade out Track A
+
+Effect: Natural transition through bass "swapping"
+Use case: Usable in almost all genres
+```
+
+**Pattern 2: Full EQ Swap (Careful Transition)**
+```
+Procedure:
+  1. Cut all of Track B's Low/Mid/High
+  2. Open the channel fader
+  3. Gradually restore EQ:
+     Phase 1: Restore High (hi-hats come in)
+     Phase 2: Restore Mid (melody comes in)
+     Phase 3: Swap Low (kick swaps)
+  4. Gradually cut Track A's EQ
+  5. Fade out Track A
+
+Effect: Very smooth and gradual transition
+Use case: Long transitions, Progressive House
+```
+
+**Pattern 3: Mid/High Swap (Quick Transition)**
+```
+Procedure:
+  1. Beatmatching of Track B complete
+  2. Cut Track B's Mid/High, leave Low as is
+  3. Open fader (only kick + bass are heard)
+  4. Restore Mid/High at once, cut Track A's Mid/High
+  5. Fade out Track A
+
+Effect: Quick switching of melody/vocals
+Use case: Mixing vocal tracks
+```
+
+### Common Beginner Mistakes with EQ Operation
+
+```
+Mistake 1: Leaving both Lows on
+  Symptom: Boomy sound, speakers distort
+  Fix: Always cut one side's Low during transition
+
+Mistake 2: Over-boosting
+  Symptom: Sound distorts, level meter goes red
+  Fix: Minimize boost, operate primarily with cuts
+
+Mistake 3: Moving EQ too suddenly
+  Symptom: Unnatural sound changes, listeners feel uncomfortable
+  Fix: Move slowly and smoothly (except Low swap should be quick)
+
+Mistake 4: Forgetting to reset EQ
+  Symptom: Next track sounds thin, something feels missing
+  Fix: Always confirm all EQs are back to 12 o'clock after transition
+```
+
+---
+
+## Detailed Faderwork
+
+Fader operation is a fundamental mixing action. There are two types: channel faders and crossfaders, each with different roles.
+
+### Channel Fader Basics
+
+The channel fader is a slider that individually controls the volume of each deck (channel).
+
+```
+DDJ-FLX4 Channel Faders:
+  Location: Mixer section, bottom of each channel
+  Top: Maximum volume (0dB)
+  Bottom: Silence (-∞dB)
+
+Basic positions:
+  Currently playing track: Near the top
+  Fade-in start: Gradually raise from the bottom
+  Fade-out: Gradually lower from the top
+```
+
+### Channel Fader Operation Techniques
+
+**Long Fade:**
+```
+Duration: 16-64 beats (8-32 seconds)
+Purpose: Smooth, unnoticeable transition
+Operation: Move fader very slowly
+
+Procedure:
+  Beat 1-16:   Fader 0% → 30%  (barely audible)
+  Beat 17-32:  Fader 30% → 60% (presence emerges)
+  Beat 33-48:  Fader 60% → 85% (nearly equal)
+  Beat 49-64:  Fader 85% → 100% (fully open)
+
+Points:
+  - Not linear; slow at first, faster later
+  - Ideal when the audience doesn't notice the new track coming in
+```
+
+**Short Fade:**
+```
+Duration: 4-8 beats (2-4 seconds)
+Purpose: Energetic transition
+Operation: Move fader quickly
+
+Procedure:
+  Beat 1-2:  Fader 0% → 50%
+  Beat 3-4:  Fader 50% → 100%
+
+Points:
+  - Timing is critical (at the start of a phrase)
+  - Beatmatching must be perfect
+  - Effective when combined with EQ swap
+```
+
+**Cut In:**
+```
+Duration: Within 1 beat
+Purpose: Dramatic transition, surprise
+Operation: Instantly push fader to maximum
+
+Procedure:
+  Just before Track A's break, push Track B's fader all the way up
+  Simultaneously pull Track A's fader all the way down
+
+Points:
+  - Do it at the start of a phrase
+  - Keys of both tracks need to match
+  - High risk, but very effective when it lands
+```
+
+### Crossfader Operation Theory
+
+The crossfader is a mechanism that controls the balance between left and right channels with a single slider.
+
+```
+Crossfader position and output:
+  Left end: Channel 1 only (100% / 0%)
+  Center: Both channels equal (100% / 100%)
+  Right end: Channel 2 only (0% / 100%)
+```
+
+**Crossfader Curve Settings:**
+```
+Smooth Curve (Smooth / Linear):
+  Characteristics: Gradual change, both equal at center
+  Purpose: Mix DJ, transitions
+  Setting: DDJ-FLX4 CROSSFADER CURVE switch to the left
+
+  Left end ─────── Center ─────── Right end
   Ch1: ████████████████░░░░░░░░░░░░
   Ch2: ░░░░░░░░░░░░████████████████
 
-シャープカーブ（Sharp / Cut）:
-  特徴: 端付近で急激に変化
-  用途: スクラッチ、カットイン
-  設定: DDJ-FLX4のCROSSFADER CURVEスイッチを右側
+Sharp Curve (Sharp / Cut):
+  Characteristics: Rapid change near the ends
+  Purpose: Scratching, cut-ins
+  Setting: DDJ-FLX4 CROSSFADER CURVE switch to the right
 
-  左端 ─────── 中央 ─────── 右端
+  Left end ─────── Center ─────── Right end
   Ch1: █████████████████████████░░░
   Ch2: ░░░█████████████████████████
 ```
 
-### フェーダー操作の指の使い方
+### Finger Technique for Fader Operation
 
 ```
-チャンネルフェーダー:
-  持ち方: つまみを親指と人差し指で軽く挟む
-  力加減: 力を入れすぎない（滑らかに動かすため）
-  指の位置: フェーダーのキャップの上
+Channel Fader:
+  Grip: Lightly pinch the knob with thumb and index finger
+  Pressure: Don't apply too much force (for smooth movement)
+  Finger position: On top of the fader cap
 
-クロスフェーダー:
-  ミックスDJ: 人差し指と中指で両側から挟む
-  スクラッチDJ: 人差し指だけで素早く弾く
+Crossfader:
+  Mix DJ: Pinch from both sides with index and middle fingers
+  Scratch DJ: Flick quickly with just the index finger
 
-ポイント:
-  - 手首ではなく指で操作
-  - 力まない（リラックスした状態）
-  - 視覚ではなく聴覚で確認（フェーダーを見ない）
+Points:
+  - Operate with fingers, not wrists
+  - Don't tense up (stay relaxed)
+  - Confirm by listening, not looking (don't watch the fader)
 ```
 
-### フェーダーワークとEQの連携
+### Coordination of Faderwork and EQ
 
-実際のミキシングでは、フェーダーとEQを同時に操作します。
-
-```
-典型的なトランジションの手順:
-
-1. 準備フェーズ（ミックスポイントの8小節前）
-   - 曲BのEQ: Low完全カット
-   - 曲Bのフェーダー: 0%（閉じた状態）
-   - 曲Bのビートマッチング確認
-
-2. 導入フェーズ（4小節 = 16ビート）
-   - 曲Bのフェーダー: 0% → 75% に徐々に開く
-   - この時点で曲BのHigh/Midだけ聞こえる
-   - 曲Aはそのまま
-
-3. スワップフェーズ（フレーズの変わり目）
-   - 曲AのLow: 12時 → 完全カット（素早く）
-   - 曲BのLow: 完全カット → 12時（素早く）
-   - 曲Bのフェーダー: 75% → 100%
-
-4. 撤収フェーズ（4小節）
-   - 曲Aのフェーダー: 100% → 0% に徐々に閉じる
-   - 曲AのEQ: 全て12時に戻す（次の使用のため）
-   - 曲BのEQ: 全て12時を確認
-
-所要時間: 全体で約16〜32小節（30秒〜1分）
-```
-
----
-
-## ゲインステージングの基礎理論
-
-ゲインステージング（Gain Staging）は、信号の流れ全体で適切な音量レベルを維持する技術です。
-
-### 信号の流れと各ステージ
+In actual mixing, you operate faders and EQ simultaneously.
 
 ```
-楽曲ファイル
-  ↓
-Rekordbox（ソフトウェア内部ゲイン）
-  ↓
-TRIM/GAINノブ（入力レベル調整）★ 最重要
-  ↓
-EQ（帯域ごとの調整）
-  ↓
-チャンネルフェーダー（チャンネル音量）
-  ↓
-クロスフェーダー（左右バランス）
-  ↓
-マスターレベル（最終出力）
-  ↓
-スピーカー/ヘッドフォン
-```
+Typical transition procedure:
 
-### TRIM/GAINノブの重要性
+1. Preparation Phase (8 bars before the mix point)
+   - Track B's EQ: Low fully cut
+   - Track B's fader: 0% (closed)
+   - Confirm Track B's beatmatching
 
-```
-役割: 各チャンネルの入力レベルを統一する
+2. Introduction Phase (4 bars = 16 beats)
+   - Track B's fader: 0% → 75% gradually open
+   - At this point only Track B's High/Mid are heard
+   - Track A unchanged
 
-なぜ必要か:
-  - 曲ごとに録音レベルが異なる
-  - 曲が変わるたびに音量差が出る
-  - 聴衆に不快な音量変化を与えないため
+3. Swap Phase (at the phrase change)
+   - Track A's Low: 12 o'clock → full cut (quickly)
+   - Track B's Low: full cut → 12 o'clock (quickly)
+   - Track B's fader: 75% → 100%
 
-基準:
-  - レベルメーターが0dBのやや下（-3dB〜0dB）
-  - 赤ランプ（クリッピング）が点灯しない
-  - 全チャンネルで統一感のある音量
+4. Exit Phase (4 bars)
+   - Track A's fader: 100% → 0% gradually close
+   - Track A's EQ: Return all to 12 o'clock (for next use)
+   - Track B's EQ: Confirm all at 12 o'clock
 
-DDJ-FLX4での操作:
-  - 各チャンネル上部のTRIMノブ
-  - 時計回り: 音量UP
-  - 反時計回り: 音量DOWN
-  - 曲をロードしたら最初に調整する習慣をつける
+Duration: Approximately 16-32 bars total (30 seconds to 1 minute)
 ```
 
 ---
 
-## CUEポイントの活用
+## Gain Staging Fundamentals
 
-CUEポイント（キューポイント）は、楽曲内の特定の位置にマーカーを設定し、瞬時にその地点にジャンプできる機能です。ビートマッチングやトランジションの精度を大きく向上させます。
+Gain Staging is the technique of maintaining appropriate volume levels throughout the entire signal flow.
 
-### CUEポイントの種類
-
-```
-1. テンポラリーCUE（一時CUE）
-   - CUEボタンを押すと設定される一時的なポイント
-   - 別の場所でCUEを押すと上書きされる
-   - 素早く頭出しするときに使用
-   - DDJ-FLX4: 各デッキのCUEボタン
-
-2. ホットCUE（Hot Cue）
-   - パッドに保存される永続的なCUEポイント
-   - 1曲あたり最大8個設定可能（DDJ-FLX4）
-   - 色分けで用途を区別できる
-   - Rekordboxで事前設定しておくのが一般的
-
-3. メモリーCUE（Memory Cue）
-   - Rekordboxで設定する参照用ポイント
-   - ライブラリ管理で活用
-   - 波形上に表示される
-```
-
-### ホットCUEの色分け運用ルール（推奨）
-
-プロDJの多くは、ホットCUEに色分けルールを設けて視認性を高めています。
+### Signal Flow and Each Stage
 
 ```
-推奨カラーコード:
-  赤（Hot Cue A）:   曲の開始ポイント（最初のキックが入る位置）
-  オレンジ（Hot Cue B）: ブレイクダウン開始
-  黄（Hot Cue C）:   ドロップ（サビ・盛り上がり）
-  緑（Hot Cue D）:   ボーカル開始 / メロディ開始
-  水色（Hot Cue E）:  ブリッジ・中間部
-  青（Hot Cue F）:   アウトロ開始
-  紫（Hot Cue G）:   エフェクト用（特殊ポイント）
-  ピンク（Hot Cue H）: ミックスアウトポイント
-
-このルールに統一しておくと:
-  - 初見の曲でも構造が一目でわかる
-  - ミックスポイントを瞬時に判断できる
-  - 大量のライブラリでも混乱しない
+Music file
+  ↓
+Rekordbox (internal software gain)
+  ↓
+TRIM/GAIN knob (input level adjustment) ★ Most important
+  ↓
+EQ (per-band adjustment)
+  ↓
+Channel fader (channel volume)
+  ↓
+Crossfader (left/right balance)
+  ↓
+Master level (final output)
+  ↓
+Speakers/Headphones
 ```
 
-### CUEポイントを使ったミックスの手順
+### Importance of the TRIM/GAIN Knob
 
 ```
-事前準備（自宅で）:
-  1. 全曲にホットCUEを設定する
-  2. 特にHot Cue A（開始点）とHot Cue F（アウトロ）は必須
-  3. ミックスポイント（ドロップ、ブレイク）にもCUEを置く
-  4. 波形を見ながら正確な位置に設定
+Role: Unify the input level of each channel
 
-ライブでの活用:
-  1. 曲AのアウトロCUEが近づいたら準備開始
-  2. 曲Bの開始CUE（Hot Cue A）をパッドで呼び出す
-  3. ビートマッチング → ミキシング → トランジション
-  4. 曲Bのドロップ（Hot Cue C）に合わせてLowスワップ
-```
+Why it's necessary:
+  - Recording levels differ from track to track
+  - Volume differences occur every time the track changes
+  - To avoid unpleasant volume changes for the audience
 
-### CUEジャグリング（応用テクニック）
+Reference:
+  - Level meter slightly below 0dB (-3dB to 0dB)
+  - Red light (clipping) should not illuminate
+  - Consistent volume across all channels
 
-CUEポイントを活用した高度なテクニックです。基本テクニックが身についてから挑戦しましょう。
-
-```
-CUEジャグリングとは:
-  ホットCUEを使って曲の一部を繰り返し再生するテクニック
-
-基本操作:
-  1. ドロップ部分にHot CUEを設定
-  2. パッドを叩いてCUEに戻る
-  3. テンポに合わせて叩くことでリズミカルなリプレイ
-
-活用場面:
-  - ドロップを引き延ばして盛り上げる
-  - ブレイクダウンを長くする
-  - オリジナルのリミックス的プレイ
-
-注意:
-  - タイミングが命（Quantize ONが安全）
-  - 基本テクニック完成後に練習
-  - 最初はSync + Quantize ONで感覚をつかむ
+Operation on DDJ-FLX4:
+  - TRIM knob at the top of each channel
+  - Clockwise: Volume UP
+  - Counter-clockwise: Volume DOWN
+  - Make it a habit to adjust first when loading a track
 ```
 
 ---
 
-## フレーズミキシング詳解
+## Utilizing CUE Points
 
-フレーズミキシングは、楽曲の構造（フレーズ）を理解し、フレーズの区切り目でミックスを行うテクニックです。これにより、音楽的に自然なトランジションが実現できます。
+CUE points are a function that sets markers at specific positions within a track, allowing you to instantly jump to that point. They greatly improve the accuracy of beatmatching and transitions.
 
-### フレーズとは何か
-
-```
-音楽におけるフレーズ:
-  - 楽曲を構成するまとまりのある区間
-  - 通常4小節（16ビート）または8小節（32ビート）が1フレーズ
-  - 多くのダンスミュージックは8小節×n の構造
-
-典型的な楽曲構造（House / Techno）:
-  イントロ      : 16小節（2フレーズ）
-  ビルドアップ   : 8小節（1フレーズ）
-  ドロップ1     : 16小節（2フレーズ）
-  ブレイクダウン : 16小節（2フレーズ）
-  ビルドアップ2  : 8小節（1フレーズ）
-  ドロップ2     : 16小節（2フレーズ）
-  アウトロ      : 16小節（2フレーズ）
-  合計: 約96小節（128BPMで約3分）
-```
-
-### フレーズの見つけ方
+### Types of CUE Points
 
 ```
-視覚的な方法（Rekordbox波形）:
-  - 波形の振幅変化を観察
-  - イントロ: 徐々に音が増える
-  - ドロップ: 振幅が大きい
-  - ブレイク: 振幅が小さい
-  - 小節線（ビートグリッド）を頼りにカウント
+1. Temporary CUE (Temp CUE)
+   - A temporary point set when pressing the CUE button
+   - Overwritten when CUE is pressed at another location
+   - Used for quick track cueing
+   - DDJ-FLX4: CUE button on each deck
 
-聴覚的な方法:
-  - 新しい要素が入るタイミング = フレーズの開始
-  - ハイハットが入る / 抜ける
-  - ベースラインが変わる
-  - エフェクトやFXが入る
-  - ボーカルが始まる
+2. Hot CUE
+   - Permanent CUE points saved to pads
+   - Up to 8 can be set per track (DDJ-FLX4)
+   - Color-coded to distinguish purposes
+   - Typically pre-set in Rekordbox
 
-カウントの方法:
-  「1, 2, 3, 4 | 2, 2, 3, 4 | 3, 2, 3, 4 | 4, 2, 3, 4」
-  → これで4小節（1つ目の数字が小節番号）
-  「5, 2, 3, 4 | 6, 2, 3, 4 | 7, 2, 3, 4 | 8, 2, 3, 4」
-  → これで8小節 = 1フレーズ
+3. Memory CUE
+   - Reference points set in Rekordbox
+   - Used for library management
+   - Displayed on the waveform
 ```
 
-### フレーズミキシングの実践
+### Hot CUE Color-Coding Rules (Recommended)
+
+Many pro DJs establish color-coding rules for Hot CUEs to improve visibility.
 
 ```
-ルール: フレーズの頭で操作する
+Recommended color code:
+  Red (Hot Cue A):    Track start point (where the first kick comes in)
+  Orange (Hot Cue B): Breakdown start
+  Yellow (Hot Cue C): Drop (chorus/climax)
+  Green (Hot Cue D):  Vocal start / Melody start
+  Cyan (Hot Cue E):   Bridge / Middle section
+  Blue (Hot Cue F):   Outro start
+  Purple (Hot Cue G): For effects (special points)
+  Pink (Hot Cue H):   Mix-out point
 
-良い例:
-  曲Aの8小節目の終わり → 曲Bのフェーダーを開き始める
-  曲Aの16小節目の終わり → Lowスワップを実行
-  曲Aの24小節目の終わり → 曲Aをフェードアウト完了
-
-悪い例:
-  曲の途中（3小節目など）でフェーダー操作
-  → 音楽的に不自然
-  → 聴衆が違和感を覚える
+By unifying these rules:
+  - Structure is visible at a glance, even for unfamiliar tracks
+  - Mix points can be judged instantly
+  - No confusion even with a large library
 ```
 
-**フレーズミキシングのタイムライン:**
-```
-曲A:  |===フレーズ1===|===フレーズ2===|===フレーズ3===|===フレーズ4===|
-      |               |               |               |  (フェードアウト)|
-曲B:  |               |   (フェードイン)|===フレーズ1===|===フレーズ2===|
-      |               |               |  ↑Lowスワップ  |               |
-
-時間軸: ────────────────────────────────────────→
-      0秒           15秒           30秒           45秒
-```
-
-### 32小節ミックスの完全手順
-
-最も標準的なフレーズミキシングの手順を解説します。
+### Mix Procedure Using CUE Points
 
 ```
-【準備】曲AのアウトロまたはブレイクダウンのFraser開始16小節前
-  - 曲Bを選曲、ロード
-  - Hot CueまたはCUEポイントをセット
-  - ヘッドフォンで曲Bのビートを確認
-  - ビートマッチング完了
+Advance preparation (at home):
+  1. Set Hot CUEs for all tracks
+  2. Hot Cue A (start point) and Hot Cue F (outro) are essential
+  3. Also place CUEs at mix points (drops, breaks)
+  4. Set at precise positions while viewing the waveform
 
-【Phase 1: 小節1〜8（導入）】
-  曲B: チャンネルフェーダー 0% → 60%
-  曲B: EQ Low = 完全カット、Mid/High = 12時
-  曲A: 変更なし
-  → 曲Bのハイハットとパーカッションが薄く聞こえる
+Live usage:
+  1. Start preparing when Track A's outro CUE approaches
+  2. Call up Track B's start CUE (Hot Cue A) with the pad
+  3. Beatmatch → Mix → Transition
+  4. Low swap timed to Track B's drop (Hot Cue C)
+```
 
-【Phase 2: 小節9〜16（存在感）】
-  曲B: チャンネルフェーダー 60% → 80%
-  曲A: EQ High を少しカット（-3dB程度）
-  → 曲Bの存在感が増す、曲Aの高域が引く
+### CUE Juggling (Advanced Technique)
 
-【Phase 3: 小節17〜24（スワップ）】
-  小節17の頭で:
-    曲A: EQ Low = 完全カット（素早く）
-    曲B: EQ Low = 12時に戻す（素早く）
-  曲B: チャンネルフェーダー 80% → 100%
-  曲A: チャンネルフェーダー 100% → 50%
-  → キック/ベースが曲Bに完全移行
+This is an advanced technique utilizing CUE points. Try it after mastering basic techniques.
 
-【Phase 4: 小節25〜32（撤収）】
-  曲A: チャンネルフェーダー 50% → 0%
-  曲A: EQ全てを12時に戻す
-  曲B: EQ全てが12時であることを確認
-  → 曲Bのみが再生されている状態
+```
+What is CUE juggling:
+  A technique of repeatedly playing a section of a track using Hot CUEs
 
-完了: 約1分間で自然なトランジション達成
+Basic operation:
+  1. Set a Hot CUE at the drop section
+  2. Hit the pad to return to the CUE
+  3. Rhythmic replay by hitting in time with the tempo
+
+Use cases:
+  - Extend the drop to build excitement
+  - Lengthen the breakdown
+  - Remix-style original play
+
+Caution:
+  - Timing is everything (Quantize ON is safer)
+  - Practice after completing basic techniques
+  - Start with Sync + Quantize ON to get the feel
 ```
 
 ---
 
-## トランジションの基礎パターン集
+## Detailed Phrase Mixing
 
-トランジション（曲から曲への移行）にはさまざまなパターンがあります。ジャンルや場面に応じて使い分けます。
+Phrase mixing is a technique of understanding the structure (phrases) of a track and mixing at phrase boundaries. This achieves musically natural transitions.
 
-### パターン1: ロングブレンド（Long Blend）
-
-```
-特徴: 長い時間をかけて滑らかに移行
-所要時間: 32〜64小節（約1〜2分）
-ジャンル: Progressive House、Deep House、Techno
-難易度: ★★☆☆☆
-
-手順:
-  1. 曲BのLowカット + フェーダーをゆっくり開く（16小節）
-  2. 曲Bの存在感を徐々に増す（8小節）
-  3. Lowスワップ（フレーズの頭で）
-  4. 曲Aをゆっくりフェードアウト（16小節）
-
-メリット:
-  - 最も自然、聴衆が気づかない
-  - ミスが目立ちにくい
-  - 初心者でも成功しやすい
-
-デメリット:
-  - 時間がかかる
-  - BPM差が大きいと難しい
-  - キーが合わないと長時間不協和
-```
-
-### パターン2: クイックカット（Quick Cut）
+### What is a Phrase
 
 ```
-特徴: 短時間での切り替え
-所要時間: 4〜8小節（約8〜16秒）
-ジャンル: EDM、Electro House、Hip Hop
-難易度: ★★★☆☆
+Phrases in music:
+  - Cohesive sections that make up a track
+  - Typically 4 bars (16 beats) or 8 bars (32 beats) per phrase
+  - Most dance music has a structure of 8 bars × n
 
-手順:
-  1. 曲Aのブレイク / 無音部分を見つける
-  2. そのタイミングで曲Bを一気にイン
-  3. 曲Aを素早くフェードアウト
-
-メリット:
-  - エネルギッシュな展開
-  - テンポの違う曲にも使える
-  - インパクトが強い
-
-デメリット:
-  - タイミングがシビア
-  - 失敗すると非常に目立つ
-  - ビートマッチングの精度が必要
+Typical track structure (House / Techno):
+  Intro        : 16 bars (2 phrases)
+  Buildup      : 8 bars (1 phrase)
+  Drop 1       : 16 bars (2 phrases)
+  Breakdown    : 16 bars (2 phrases)
+  Buildup 2    : 8 bars (1 phrase)
+  Drop 2       : 16 bars (2 phrases)
+  Outro        : 16 bars (2 phrases)
+  Total: About 96 bars (about 3 minutes at 128BPM)
 ```
 
-### パターン3: エコーアウト（Echo Out）
+### How to Find Phrases
 
 ```
-特徴: エフェクトを使った印象的な切り替え
-所要時間: 8〜16小節
-ジャンル: 全ジャンル
-難易度: ★★★☆☆
+Visual method (Rekordbox waveform):
+  - Observe changes in waveform amplitude
+  - Intro: Sound gradually increases
+  - Drop: Large amplitude
+  - Break: Small amplitude
+  - Count using bar lines (beat grid)
 
-手順:
-  1. 曲Aにエコー/ディレイエフェクトをかける
-  2. エフェクトのかかった状態でフェーダーを下げる
-  3. エコーの残響の中で曲Bをフェードイン
-  4. エコーが消えたら曲Bのみ
+Auditory method:
+  - Timing when new elements enter = Start of a phrase
+  - Hi-hat comes in / drops out
+  - Bassline changes
+  - Effects or FX come in
+  - Vocals begin
 
-メリット:
-  - 非常に印象的
-  - ジャンル間のブリッジに最適
-  - BPMが大きく異なる曲にも使える
-
-デメリット:
-  - エフェクト操作スキルが必要
-  - タイミングと量の加減が難しい
-  - やりすぎると安っぽくなる
+Counting method:
+  "1, 2, 3, 4 | 2, 2, 3, 4 | 3, 2, 3, 4 | 4, 2, 3, 4"
+  → This is 4 bars (first number is the bar number)
+  "5, 2, 3, 4 | 6, 2, 3, 4 | 7, 2, 3, 4 | 8, 2, 3, 4"
+  → This is 8 bars = 1 phrase
 ```
 
-### パターン4: ドロップスワップ（Drop Swap）
+### Phrase Mixing in Practice
 
 ```
-特徴: ドロップ（サビ）のタイミングで入れ替え
-所要時間: 1〜2小節（一瞬）
-ジャンル: EDM、Future Bass、Dubstep
-難易度: ★★★★☆
+Rule: Operate at the beginning of a phrase
 
-手順:
-  1. 曲Aのブレイクダウン中に曲Bを準備
-  2. 曲Aのビルドアップに合わせてカウント
-  3. ドロップの1拍目で瞬時に切り替え
-     - 曲Aのフェーダー: MAX → 0
-     - 曲Bのフェーダー: 0 → MAX
+Good examples:
+  End of Track A's 8th bar → Start opening Track B's fader
+  End of Track A's 16th bar → Execute Low swap
+  End of Track A's 24th bar → Complete Track A's fade-out
 
-メリット:
-  - 最もエネルギッシュ
-  - フロアの爆発力が凄まじい
-  - DJの腕の見せ所
-
-デメリット:
-  - 失敗のリスクが最も高い
-  - 完璧なビートマッチング必須
-  - キーの互換性も重要
+Bad examples:
+  Fader operation in the middle of a track (e.g., 3rd bar)
+  → Musically unnatural
+  → Audience feels something is off
 ```
 
-### パターン5: アカペラ/インストミックス
-
+**Phrase Mixing Timeline:**
 ```
-特徴: 一方のボーカル + 他方のインストを重ねる
-所要時間: 16〜32小節
-ジャンル: Hip Hop、R&B、Pop Mix
-難易度: ★★★★★
+Track A: |===Phrase 1===|===Phrase 2===|===Phrase 3===|===Phrase 4===|
+         |              |              |              |  (fade out)  |
+Track B: |              |  (fade in)   |===Phrase 1===|===Phrase 2===|
+         |              |              |  ↑Low swap   |              |
 
-手順:
-  1. 曲Aのボーカルセクションを特定
-  2. 曲BのEQ Midをカット（ボーカル帯域を除去）
-  3. 曲Aのボーカル + 曲Bのビート/ベースを重ねる
-  4. 徐々に曲Bのボーカルに移行
-
-メリット:
-  - 非常にクリエイティブ
-  - マッシュアップ的な効果
-  - 聴衆の驚きと感動
-
-デメリット:
-  - 事前準備が必要（キー確認必須）
-  - EQ操作の高い精度が要求される
-  - 曲の選定が非常に重要
+Timeline: ────────────────────────────────────────→
+         0 sec         15 sec         30 sec         45 sec
 ```
 
-### トランジションパターンの選択ガイド
+### Complete Procedure for a 32-Bar Mix
+
+Here is the most standard phrase mixing procedure.
 
 ```
-場面別の推奨パターン:
+[Preparation] 16 bars before the start of Track A's outro or breakdown phrase
+  - Select and load Track B
+  - Set Hot Cue or CUE point
+  - Confirm Track B's beat with headphones
+  - Beatmatching complete
 
-オープニング（序盤）:
-  → ロングブレンド（聴衆を徐々に引き込む）
+[Phase 1: Bars 1-8 (Introduction)]
+  Track B: Channel fader 0% → 60%
+  Track B: EQ Low = full cut, Mid/High = 12 o'clock
+  Track A: No change
+  → Track B's hi-hats and percussion are faintly heard
 
-ピークタイム（盛り上がり）:
-  → ドロップスワップ / クイックカット（エネルギーを維持）
+[Phase 2: Bars 9-16 (Presence)]
+  Track B: Channel fader 60% → 80%
+  Track A: EQ High slightly cut (about -3dB)
+  → Track B's presence increases, Track A's treble recedes
 
-ジャンル切り替え:
-  → エコーアウト（異なるBPM/ジャンルのブリッジ）
+[Phase 3: Bars 17-24 (Swap)]
+  At the beginning of bar 17:
+    Track A: EQ Low = full cut (quickly)
+    Track B: EQ Low = return to 12 o'clock (quickly)
+  Track B: Channel fader 80% → 100%
+  Track A: Channel fader 100% → 50%
+  → Kick/bass completely transitions to Track B
 
-チルタイム（落ち着き）:
-  → ロングブレンド（穏やかな展開）
+[Phase 4: Bars 25-32 (Exit)]
+  Track A: Channel fader 50% → 0%
+  Track A: Return all EQ to 12 o'clock
+  Track B: Confirm all EQ at 12 o'clock
+  → Only Track B is playing
 
-ラストソング:
-  → ロングブレンド + フェードアウト（余韻を残す）
+Complete: Natural transition achieved in approximately 1 minute
 ```
 
 ---
 
-## 実践練習メニュー
+## Collection of Basic Transition Patterns
 
-### 練習メニュー1: ビートマッチング基礎ドリル（毎日15分）
+Transitions (moving from one track to another) come in various patterns. Use them according to genre and situation.
+
+### Pattern 1: Long Blend
 
 ```
-準備:
-  - House曲2曲（BPM差5以内）
-  - Sync OFF、Quantize OFF
-  - ヘッドフォン装着
+Characteristics: Smooth transition over a long period
+Duration: 32-64 bars (about 1-2 minutes)
+Genre: Progressive House, Deep House, Techno
+Difficulty: ★★☆☆☆
 
-ドリル手順:
-  1. 曲Aを再生（デッキ1）
-  2. 曲Bをデッキ2にロード
-  3. CUEで曲Bの頭出し
-  4. ヘッドフォンで曲Bをモニター
-  5. ピッチフェーダーでBPMを近づける
-  6. CUEボタンでスタート→ジョグで位相合わせ
-  7. 30秒キープできたら成功
-  8. リセットして繰り返し（10回）
+Procedure:
+  1. Cut Track B's Low + slowly open fader (16 bars)
+  2. Gradually increase Track B's presence (8 bars)
+  3. Low swap (at the start of a phrase)
+  4. Slowly fade out Track A (16 bars)
 
-記録:
-  日付 | 成功回数/10 | 所要時間 | メモ
+Advantages:
+  - Most natural, audience doesn't notice
+  - Mistakes are less noticeable
+  - Easy for beginners to succeed
+
+Disadvantages:
+  - Takes time
+  - Difficult with large BPM differences
+  - Dissonance if keys don't match over long periods
+```
+
+### Pattern 2: Quick Cut
+
+```
+Characteristics: Short-time transition
+Duration: 4-8 bars (about 8-16 seconds)
+Genre: EDM, Electro House, Hip Hop
+Difficulty: ★★★☆☆
+
+Procedure:
+  1. Find a break/silent section in Track A
+  2. Bring Track B in all at once at that timing
+  3. Quickly fade out Track A
+
+Advantages:
+  - Energetic progression
+  - Can be used with tracks of different tempos
+  - Strong impact
+
+Disadvantages:
+  - Timing is critical
+  - Failure is very noticeable
+  - Requires precise beatmatching
+```
+
+### Pattern 3: Echo Out
+
+```
+Characteristics: Impressive transition using effects
+Duration: 8-16 bars
+Genre: All genres
+Difficulty: ★★★☆☆
+
+Procedure:
+  1. Apply echo/delay effect to Track A
+  2. Lower fader while effect is applied
+  3. Fade in Track B during the echo's reverb
+  4. Once the echo fades, only Track B remains
+
+Advantages:
+  - Very impressive
+  - Ideal for bridging between genres
+  - Can be used with tracks of vastly different BPM
+
+Disadvantages:
+  - Requires effect operation skills
+  - Timing and amount are difficult to calibrate
+  - Overdoing it sounds cheap
+```
+
+### Pattern 4: Drop Swap
+
+```
+Characteristics: Swapping at the drop (chorus) timing
+Duration: 1-2 bars (instant)
+Genre: EDM, Future Bass, Dubstep
+Difficulty: ★★★★☆
+
+Procedure:
+  1. Prepare Track B during Track A's breakdown
+  2. Count along with Track A's buildup
+  3. Instantly switch at beat 1 of the drop
+     - Track A's fader: MAX → 0
+     - Track B's fader: 0 → MAX
+
+Advantages:
+  - Most energetic
+  - Tremendous explosive power on the floor
+  - A showcase of the DJ's skill
+
+Disadvantages:
+  - Highest risk of failure
+  - Perfect beatmatching required
+  - Key compatibility is also important
+```
+
+### Pattern 5: Acapella/Instrumental Mix
+
+```
+Characteristics: Layering one track's vocals + another's instrumental
+Duration: 16-32 bars
+Genre: Hip Hop, R&B, Pop Mix
+Difficulty: ★★★★★
+
+Procedure:
+  1. Identify Track A's vocal section
+  2. Cut Track B's EQ Mid (remove vocal frequency range)
+  3. Layer Track A's vocals + Track B's beat/bass
+  4. Gradually transition to Track B's vocals
+
+Advantages:
+  - Very creative
+  - Mashup-like effect
+  - Audience surprise and excitement
+
+Disadvantages:
+  - Advance preparation needed (key check required)
+  - High precision EQ operation required
+  - Track selection is critically important
+```
+
+### Transition Pattern Selection Guide
+
+```
+Recommended patterns by situation:
+
+Opening (early set):
+  → Long Blend (gradually draw the audience in)
+
+Peak Time (high energy):
+  → Drop Swap / Quick Cut (maintain energy)
+
+Genre Change:
+  → Echo Out (bridge between different BPM/genres)
+
+Chill Time (calm down):
+  → Long Blend (gentle progression)
+
+Last Song:
+  → Long Blend + Fade Out (leave a lingering impression)
+```
+
+---
+
+## Practice Menus
+
+### Practice Menu 1: Beatmatching Basic Drill (15 min daily)
+
+```
+Preparation:
+  - 2 House tracks (BPM difference within 5)
+  - Sync OFF, Quantize OFF
+  - Headphones on
+
+Drill procedure:
+  1. Play Track A (Deck 1)
+  2. Load Track B on Deck 2
+  3. Cue to the beginning of Track B
+  4. Monitor Track B with headphones
+  5. Bring BPM closer with the pitch fader
+  6. Press CUE button to start → Align phase with jog
+  7. Success if you can hold it for 30 seconds
+  8. Reset and repeat (10 times)
+
+Record:
+  Date | Success/10 | Time Taken | Notes
   ─────────────────────────────────────
-  3/1  |    2/10    |  15分   | キックが聞き分けにくい
-  3/2  |    3/10    |  15分   | 少し慣れた
-  3/3  |    4/10    |  15分   | ピッチの方向がわかるように
+  3/1  |    2/10    |  15 min   | Hard to distinguish kicks
+  3/2  |    3/10    |  15 min   | Getting used to it
+  3/3  |    4/10    |  15 min   | Can tell pitch direction now
 ```
 
-### 練習メニュー2: EQスワップドリル（毎日10分）
+### Practice Menu 2: EQ Swap Drill (10 min daily)
 
 ```
-前提: ビートマッチングがある程度できる
+Prerequisite: Able to beatmatch to some degree
 
-準備:
-  - 同ジャンル2曲
-  - ビートマッチングして同時再生状態にする
+Preparation:
+  - 2 tracks of the same genre
+  - Beatmatch and play simultaneously
 
-ドリル手順:
-  1. 曲BのLowを完全カットで再生開始
-  2. 8小節後: 曲AのLowカット ＋ 曲BのLow戻す（同時に）
-  3. さらに8小節後: 曲BのLowカット ＋ 曲AのLow戻す
-  4. これを繰り返す（Lowのキャッチボール）
-  5. 慣れたらMid、Highも加える
+Drill procedure:
+  1. Start playing Track B with Low fully cut
+  2. After 8 bars: Cut Track A's Low + restore Track B's Low (simultaneously)
+  3. After another 8 bars: Cut Track B's Low + restore Track A's Low
+  4. Repeat this (Low "catch")
+  5. Once comfortable, add Mid and High
 
-チェックポイント:
-  □ スワップ時にブーミーにならないか
-  □ スワップのタイミングはフレーズの頭か
-  □ ノブの操作は素早く正確か
-  □ スワップ後の音量バランスは均等か
+Checkpoints:
+  □ Does it not get boomy during swap?
+  □ Is the swap timing at the start of a phrase?
+  □ Is the knob operation quick and accurate?
+  □ Is the volume balance even after the swap?
 ```
 
-### 練習メニュー3: 30分ノンストップミックス（週2回）
+### Practice Menu 3: 30-Minute Nonstop Mix (twice a week)
 
 ```
-準備:
-  - 8〜12曲のプレイリスト
-  - BPM範囲: 120-130（統一感重視）
-  - Rekordboxの録音機能をON
+Preparation:
+  - Playlist of 8-12 tracks
+  - BPM range: 120-130 (consistency focus)
+  - Turn ON Rekordbox recording function
 
-手順:
-  1. 1曲目スタート
-  2. 2曲目以降、学んだテクニックを全て使ってミックス
-  3. 30分間止めずに続ける
-  4. 終了後、録音を聴き返す
+Procedure:
+  1. Start track 1
+  2. From track 2 onwards, mix using all learned techniques
+  3. Continue for 30 minutes without stopping
+  4. After finishing, listen back to the recording
 
-聴き返しチェックリスト:
-  □ ビートがズレている箇所はないか
-  □ 音量の急激な変化はないか
-  □ Low重複でブーミーになっている箇所はないか
-  □ トランジションのタイミングは音楽的か
-  □ 全体的な選曲の流れは自然か
+Listen-back checklist:
+  □ Are there any spots where the beat drifts?
+  □ Are there any sudden volume changes?
+  □ Are there any spots that sound boomy from Low overlap?
+  □ Is the transition timing musical?
+  □ Is the overall track selection flow natural?
 
-改善サイクル:
-  録音 → 聴き返し → 問題箇所特定 → 次回意識して改善
-  → これを繰り返すことで確実に上達する
+Improvement cycle:
+  Record → Listen back → Identify problem areas → Consciously improve next time
+  → Repeating this cycle guarantees steady improvement
 ```
 
-### 練習メニュー4: フレーズカウント特訓（毎日5分）
+### Practice Menu 4: Phrase Counting Drill (5 min daily)
 
 ```
-目的: 曲の構造を即座に把握する力をつける
+Purpose: Build the ability to instantly grasp a track's structure
 
-方法1（音楽を聴きながら）:
-  - 好きな曲を再生
-  - 8小節ごとに手を叩く
-  - 新しいフレーズの開始を体感する
-  - 通勤・通学中でもOK
+Method 1 (while listening to music):
+  - Play a favorite track
+  - Clap every 8 bars
+  - Feel the start of new phrases
+  - OK during commute
 
-方法2（Rekordboxで）:
-  - 波形を見ながら曲を再生
-  - フレーズの開始点にMemory CUEを設定
-  - 全曲に構造マップを作る
+Method 2 (in Rekordbox):
+  - Play track while viewing the waveform
+  - Set Memory CUE at phrase start points
+  - Create a structure map for all tracks
 
-方法3（曲構成メモ）:
-  曲名: XXXX
+Method 3 (track structure notes):
+  Track: XXXX
   BPM: 128
   Key: Am
-  構成:
-    0:00 - イントロ（16小節）キックのみ
-    0:30 - ハイハット追加（8小節）
-    0:45 - メロディ導入（16小節）
-    1:15 - ブレイクダウン（16小節）
-    1:45 - ビルドアップ（8小節）
-    2:00 - ドロップ（16小節）
-    2:30 - ブレイク2（8小節）
-    2:45 - ドロップ2（16小節）
-    3:15 - アウトロ（16小節）
+  Structure:
+    0:00 - Intro (16 bars) kick only
+    0:30 - Hi-hat added (8 bars)
+    0:45 - Melody introduction (16 bars)
+    1:15 - Breakdown (16 bars)
+    1:45 - Buildup (8 bars)
+    2:00 - Drop (16 bars)
+    2:30 - Break 2 (8 bars)
+    2:45 - Drop 2 (16 bars)
+    3:15 - Outro (16 bars)
 ```
 
-### 練習メニュー5: スピードチャレンジ（週1回）
+### Practice Menu 5: Speed Challenge (once a week)
 
 ```
-目的: ビートマッチングの速度を上げる
+Purpose: Increase beatmatching speed
 
-ルール:
-  - 2曲をランダムに選択
-  - タイマーで計測
-  - ビートマッチング完了（30秒キープ）までの時間を記録
+Rules:
+  - Randomly select 2 tracks
+  - Measure with a timer
+  - Record time until beatmatching complete (30-second hold)
 
-目標タイム:
-  初心者:   5分以上  → 焦らず正確に
-  初級:     3〜5分   → 手順が身についてきた
-  中級:     1〜3分   → 耳の精度が上がっている
-  上級:     30秒〜1分 → ほぼ即座に合わせられる
-  プロ級:   15〜30秒  → CDJでも瞬時に対応
+Target times:
+  Beginner:     5+ minutes  → Don't rush, be accurate
+  Elementary:   3-5 minutes → Procedures are becoming second nature
+  Intermediate: 1-3 minutes → Ear precision is improving
+  Advanced:     30 sec-1 min → Can match almost instantly
+  Pro level:    15-30 sec   → Instant response even on CDJs
 
-記録テーブル:
-  週 | 平均タイム | ベストタイム | 使用曲のBPM差
+Record table:
+  Week | Avg Time | Best Time | BPM Diff of Tracks Used
   ─────────────────────────────────────────────
   1  |   4:30   |    3:45    |    3 BPM
   2  |   3:50   |    2:50    |    5 BPM
@@ -1405,45 +1406,45 @@ CUEジャグリングとは:
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Perform input data validation
+- Implement appropriate error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1452,26 +1453,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation and add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1479,7 +1480,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1490,14 +1491,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1505,7 +1506,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1513,44 +1514,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1559,7 +1560,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1574,47 +1575,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f} sec")
+    print(f"Efficient version:   {fast_time:.6f} sec")
+    print(f"Speedup factor: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be conscious of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
-|--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Error | Cause | Solution |
+|-------|-------|----------|
+| Initialization error | Configuration file issues | Check configuration file path and format |
+| Timeout | Network latency/resource shortage | Adjust timeout value, add retry logic |
+| Out of memory | Data volume growth | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access rights | Check execution user permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, transaction management |
 
-### デバッグの手順
+### Debugging Procedure
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace and identify the location
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Formulate hypotheses**: List possible causes
+4. **Step-by-step verification**: Verify hypotheses using log output or debugger
+5. **Fix and regression test**: After fixing, also run tests on related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1622,102 +1623,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator to log function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O waits**: Check disk and network I/O status
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
-|-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| Problem Type | Diagnostic Tool | Solution |
+|-------------|----------------|----------|
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+A summary of decision criteria for technology selection.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criteria | When to Prioritize | When to Compromise |
+|----------|-------------------|-------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed users |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market speed | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│           Architecture Selection Flow            │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  (1) Team size?                                 │
+│    ├─ Small (1-5) → Monolith                    │
+│    └─ Large (10+) → Go to (2)                   │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  (2) Deploy frequency?                          │
+│    ├─ Weekly or less → Monolith + module split   │
+│    └─ Daily/multiple → Go to (3)                │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  (3) Team independence?                         │
+│    ├─ High → Microservices                      │
+│    └─ Medium → Modular monolith                 │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs Long-term Cost**
+- Methods that are fast short-term can become technical debt long-term
+- Conversely, over-engineering has high short-term costs and causes project delays
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs Flexibility**
+- A unified technology stack has lower learning costs
+- Diverse technology adoption enables right tool for the job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction has high reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision recording template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1727,17 +1728,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe decision content"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1745,7 +1746,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1753,15 +1754,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1769,53 +1770,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum necessary features
+- Automated tests only for the critical path
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons Learned:**
+- Don't aim for perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Legacy System Modernization
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually modernize a system that has been in operation for 10+ years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate gradually using the Strangler Fig pattern
+- Create Characterization Tests first if no existing tests
+- Co-exist old and new systems with an API gateway
+- Implement data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Work Content | Estimated Duration | Risk |
+|-------|-------------|-------------------|------|
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration Start | Migrate peripheral features first | 3-6 months | Medium |
+| 4. Core Migration | Migrate core features | 6-12 months | High |
+| 5. Completion | Decommission legacy system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Large Team Development
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with Domain-Driven Design
+- Set ownership per team
+- Manage shared libraries via Inner Source
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1828,20 +1829,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """Inter-team API contract"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1850,7 +1851,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1871,104 +1872,105 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization Points:**
+1. Cache strategy (L1: In-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Method | Effectiveness | Implementation Cost | Use Case |
+|-------------------|--------------|-------------------|----------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | Slow queries |
+| Code optimization | Low-Medium | High | CPU-bound cases |
 
 ---
 
-## チーム開発での活用
+## Utilization in Team Development
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to check in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Are naming conventions consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Is there any impact on performance?
+- [ ] Are there any security concerns?
+- [ ] Has the documentation been updated?
 
-### ナレッジ共有のベストプラクティス
+### Best Practices for Knowledge Sharing
 
-| 方法 | 頻度 | 対象 | 効果 |
-|------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Method | Frequency | Target | Effect |
+|--------|-----------|--------|--------|
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talks | Weekly | Entire team | Horizontal knowledge spread |
+| ADR (Design records) | As needed | Future members | Transparency of decisions |
+| Retrospectives | Every 2 weeks | Entire team | Continuous improvement |
+| Mob programming | Monthly | Important design | Consensus building |
 
-### 技術的負債の管理
+### Technical Debt Management
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
+        Impact High
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │ Plan │ Act  │
+    │ and  │ Imme-│
+    │ sche-│ dia- │
+    │ dule │ tely │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │Record│ Next │
+    │ only │Sprint│
+    │      │      │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Impact Low
+    Frequency Low  Frequency High
 ```
 
 ---
 
-## セキュリティの考慮事項
+## Security Considerations
 
-### 一般的な脆弱性と対策
+### Common Vulnerabilities and Countermeasures
 
-| 脆弱性 | リスクレベル | 対策 | 検出方法 |
-|--------|------------|------|---------|
-| インジェクション攻撃 | 高 | 入力値のバリデーション・パラメータ化クエリ | SAST/DAST |
-| 認証の不備 | 高 | 多要素認証・セッション管理の強化 | ペネトレーションテスト |
-| 機密データの露出 | 高 | 暗号化・アクセス制御 | セキュリティ監査 |
-| 設定の不備 | 中 | セキュリティヘッダー・最小権限の原則 | 構成スキャン |
-| ログの不足 | 中 | 構造化ログ・監査証跡 | ログ分析 |
+| Vulnerability | Risk Level | Countermeasure | Detection Method |
+|--------------|-----------|----------------|-----------------|
+| Injection attacks | High | Input validation, parameterized queries | SAST/DAST |
+| Authentication flaws | High | Multi-factor auth, session management hardening | Penetration testing |
+| Sensitive data exposure | High | Encryption, access control | Security audits |
+| Configuration flaws | Medium | Security headers, principle of least privilege | Configuration scans |
+| Insufficient logging | Medium | Structured logging, audit trails | Log analysis |
 
-### セキュアコーディングのベストプラクティス
+### Secure Coding Best Practices
 
 ```python
-# セキュアコーディング例
+# Secure coding example
 import hashlib
 import secrets
 import hmac
 from typing import Optional
 
 class SecurityUtils:
-    """セキュリティユーティリティ"""
+    """Security utilities"""
 
     @staticmethod
     def generate_token(length: int = 32) -> str:
-        """暗号学的に安全なトークン生成"""
+        """Generate cryptographically secure token"""
         return secrets.token_urlsafe(length)
 
     @staticmethod
     def hash_password(password: str, salt: Optional[str] = None) -> tuple:
-        """パスワードのハッシュ化"""
+        """Hash a password"""
         if salt is None:
             salt = secrets.token_hex(16)
         hashed = hashlib.pbkdf2_hmac(
@@ -1981,50 +1983,50 @@ class SecurityUtils:
 
     @staticmethod
     def verify_password(password: str, hashed: str, salt: str) -> bool:
-        """パスワードの検証"""
+        """Verify a password"""
         new_hash, _ = SecurityUtils.hash_password(password, salt)
         return hmac.compare_digest(new_hash, hashed)
 
     @staticmethod
     def sanitize_input(value: str) -> str:
-        """入力値のサニタイズ"""
+        """Sanitize input value"""
         dangerous_chars = ['<', '>', '"', "'", '&', '\\']
         result = value
         for char in dangerous_chars:
             result = result.replace(char, '')
         return result.strip()
 
-# 使用例
+# Usage example
 token = SecurityUtils.generate_token()
 hashed, salt = SecurityUtils.hash_password("my_password")
 is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 ```
 
-### セキュリティチェックリスト
+### Security Checklist
 
-- [ ] 全ての入力値がバリデーションされている
-- [ ] 機密情報がログに出力されていない
-- [ ] HTTPS が強制されている
-- [ ] CORS ポリシーが適切に設定されている
-- [ ] 依存パッケージの脆弱性スキャンが実施されている
-- [ ] エラーメッセージに内部情報が含まれていない
+- [ ] All input values are validated
+- [ ] Sensitive information is not output in logs
+- [ ] HTTPS is enforced
+- [ ] CORS policy is properly configured
+- [ ] Vulnerability scanning of dependency packages has been performed
+- [ ] Error messages do not contain internal information
 
 ---
 
-## マイグレーションガイド
+## Migration Guide
 
-### バージョンアップ時の注意点
+### Notes for Version Upgrades
 
-| バージョン | 主な変更点 | 移行作業 | 影響範囲 |
-|-----------|-----------|---------|---------|
-| v1.x → v2.x | API設計の刷新 | エンドポイント変更 | 全クライアント |
-| v2.x → v3.x | 認証方式の変更 | トークン形式更新 | 認証関連 |
-| v3.x → v4.x | データモデル変更 | マイグレーションスクリプト実行 | DB関連 |
+| Version | Major Changes | Migration Work | Impact Scope |
+|---------|--------------|----------------|-------------|
+| v1.x → v2.x | API design overhaul | Endpoint changes | All clients |
+| v2.x → v3.x | Authentication method change | Token format update | Auth-related |
+| v3.x → v4.x | Data model change | Run migration script | DB-related |
 
-### 段階的移行の手順
+### Step-by-Step Migration Procedure
 
 ```python
-# マイグレーションスクリプトのテンプレート
+# Migration script template
 import json
 import logging
 from pathlib import Path
@@ -2034,7 +2036,7 @@ from typing import List, Dict, Callable
 logger = logging.getLogger(__name__)
 
 class MigrationRunner:
-    """段階的マイグレーション実行エンジン"""
+    """Incremental migration execution engine"""
 
     def __init__(self, migration_dir: str):
         self.migration_dir = Path(migration_dir)
@@ -2043,7 +2045,7 @@ class MigrationRunner:
 
     def register(self, version: str, description: str,
                  up: Callable, down: Callable):
-        """マイグレーションの登録"""
+        """Register a migration"""
         self.migrations.append({
             'version': version,
             'description': description,
@@ -2053,35 +2055,35 @@ class MigrationRunner:
         })
 
     def run_up(self, target_version: str = None):
-        """マイグレーションの実行（アップグレード）"""
+        """Run migrations (upgrade)"""
         for migration in self.migrations:
             if migration['version'] in self.completed:
                 continue
-            logger.info(f"実行中: {migration['version']} - "
+            logger.info(f"Running: {migration['version']} - "
                        f"{migration['description']}")
             try:
                 migration['up']()
                 self.completed.append(migration['version'])
-                logger.info(f"完了: {migration['version']}")
+                logger.info(f"Complete: {migration['version']}")
             except Exception as e:
-                logger.error(f"失敗: {migration['version']}: {e}")
+                logger.error(f"Failed: {migration['version']}: {e}")
                 raise
             if target_version and migration['version'] == target_version:
                 break
 
     def run_down(self, target_version: str):
-        """マイグレーションのロールバック"""
+        """Rollback migrations"""
         for migration in reversed(self.migrations):
             if migration['version'] not in self.completed:
                 continue
             if migration['version'] == target_version:
                 break
-            logger.info(f"ロールバック: {migration['version']}")
+            logger.info(f"Rollback: {migration['version']}")
             migration['down']()
             self.completed.remove(migration['version'])
 
     def status(self) -> Dict:
-        """マイグレーション状態の確認"""
+        """Check migration status"""
         return {
             'total': len(self.migrations),
             'completed': len(self.completed),
@@ -2094,60 +2096,60 @@ class MigrationRunner:
         }
 ```
 
-### ロールバック計画
+### Rollback Plan
 
-移行作業には必ずロールバック計画を準備してください:
+Always prepare a rollback plan for migration work:
 
-1. **データのバックアップ**: 移行前に完全バックアップを取得
-2. **テスト環境での検証**: 本番と同等の環境で事前検証
-3. **段階的なロールアウト**: カナリアリリースで段階的に展開
-4. **監視の強化**: 移行中はメトリクスの監視間隔を短縮
-5. **判断基準の明確化**: ロールバックを判断する基準を事前に定義
-
----
-
-## 用語集
-
-| 用語 | 英語表記 | 説明 |
-|------|---------|------|
-| 抽象化 | Abstraction | 複雑な実装の詳細を隠し、本質的なインターフェースのみを公開すること |
-| カプセル化 | Encapsulation | データと操作を一つの単位にまとめ、外部からのアクセスを制御すること |
-| 凝集度 | Cohesion | モジュール内の要素がどの程度関連しているかの指標 |
-| 結合度 | Coupling | モジュール間の依存関係の度合い |
-| リファクタリング | Refactoring | 外部の振る舞いを変えずにコードの内部構造を改善すること |
-| テスト駆動開発 | TDD (Test-Driven Development) | テストを先に書いてから実装するアプローチ |
-| 継続的インテグレーション | CI (Continuous Integration) | コードの変更を頻繁に統合し、自動テストで検証するプラクティス |
-| 継続的デリバリー | CD (Continuous Delivery) | いつでもリリース可能な状態を維持するプラクティス |
-| 技術的負債 | Technical Debt | 短期的な解決策を選んだことで将来的に発生する追加作業 |
-| ドメイン駆動設計 | DDD (Domain-Driven Design) | ビジネスドメインの知識に基づいてソフトウェアを設計するアプローチ |
-| マイクロサービス | Microservices | アプリケーションを小さな独立したサービスの集合として構築するアーキテクチャ |
-| サーキットブレーカー | Circuit Breaker | 障害の連鎖を防ぐための設計パターン |
-| イベント駆動 | Event-Driven | イベントの発生と処理に基づくアーキテクチャパターン |
-| 冪等性 | Idempotency | 同じ操作を複数回実行しても結果が変わらない性質 |
-| オブザーバビリティ | Observability | システムの内部状態を外部から観測可能にする能力 |
+1. **Data backup**: Take a full backup before migration
+2. **Verification in test environment**: Pre-verify in an environment equivalent to production
+3. **Gradual rollout**: Deploy gradually with canary releases
+4. **Enhanced monitoring**: Shorten metrics monitoring intervals during migration
+5. **Clear decision criteria**: Define criteria for deciding to rollback in advance
 
 ---
 
-## よくある誤解と注意点
+## Glossary
 
-### 誤解1: 「完璧な設計を最初から作るべき」
+| Term | English | Description |
+|------|---------|-------------|
+| Abstraction | Abstraction | Hiding complex implementation details and exposing only essential interfaces |
+| Encapsulation | Encapsulation | Bundling data and operations into a single unit and controlling external access |
+| Cohesion | Cohesion | A measure of how related the elements within a module are |
+| Coupling | Coupling | The degree of dependency between modules |
+| Refactoring | Refactoring | Improving the internal structure of code without changing its external behavior |
+| Test-Driven Development | TDD (Test-Driven Development) | An approach of writing tests before implementation |
+| Continuous Integration | CI (Continuous Integration) | A practice of frequently integrating code changes and verifying with automated tests |
+| Continuous Delivery | CD (Continuous Delivery) | A practice of maintaining a state where releases can be made at any time |
+| Technical Debt | Technical Debt | Additional work that arises in the future from choosing short-term solutions |
+| Domain-Driven Design | DDD (Domain-Driven Design) | An approach to designing software based on business domain knowledge |
+| Microservices | Microservices | An architecture that builds applications as a collection of small, independent services |
+| Circuit Breaker | Circuit Breaker | A design pattern to prevent cascading failures |
+| Event-Driven | Event-Driven | An architectural pattern based on event generation and processing |
+| Idempotency | Idempotency | The property that the same operation produces the same result regardless of how many times it is executed |
+| Observability | Observability | The ability to observe a system's internal state from the outside |
 
-**現実:** 完璧な設計は存在しません。要件の変化に応じて設計も進化させるべきです。最初から完璧を目指すと、過度に複雑な設計になりがちです。
+---
+
+## Common Misconceptions and Cautions
+
+### Misconception 1: "You should create a perfect design from the start"
+
+**Reality:** A perfect design doesn't exist. Design should evolve according to changing requirements. Aiming for perfection from the start tends to result in overly complex designs.
 
 > "Make it work, make it right, make it fast" — Kent Beck
 
-### 誤解2: 「最新の技術を使えば自動的に良くなる」
+### Misconception 2: "Using the latest technology automatically makes things better"
 
-**現実:** 技術選択はプロジェクトの要件に基づいて行うべきです。最新の技術が必ずしもプロジェクトに最適とは限りません。チームの習熟度、エコシステムの成熟度、サポートの持続性も考慮しましょう。
+**Reality:** Technology selection should be based on project requirements. The latest technology isn't always optimal for a project. Also consider team proficiency, ecosystem maturity, and sustainability of support.
 
-### 誤解3: 「テストは開発速度を落とす」
+### Misconception 3: "Testing slows down development"
 
-**現実:** 短期的にはテストの作成に時間がかかりますが、中長期的にはバグの早期発見、リファクタリングの安全性確保、ドキュメントとしての役割により、開発速度の向上に貢献します。
+**Reality:** While writing tests takes time in the short term, in the medium to long term, they contribute to faster development through early bug detection, safer refactoring, and serving as documentation.
 
 ```python
-# テストの ROI（投資対効果）を示す例
+# Example demonstrating test ROI (Return on Investment)
 class TestROICalculator:
-    """テスト投資対効果の計算"""
+    """Calculate test return on investment"""
 
     def __init__(self):
         self.test_writing_hours = 0
@@ -2155,16 +2157,16 @@ class TestROICalculator:
         self.debug_hours_saved = 0
 
     def add_test_investment(self, hours: float):
-        """テスト作成にかかった時間"""
+        """Time spent writing tests"""
         self.test_writing_hours += hours
 
     def add_bug_prevention(self, count: int, avg_debug_hours: float = 2.0):
-        """テストにより防いだバグ"""
+        """Bugs prevented by tests"""
         self.bugs_prevented += count
         self.debug_hours_saved += count * avg_debug_hours
 
     def calculate_roi(self) -> dict:
-        """ROIの計算"""
+        """Calculate ROI"""
         net_benefit = self.debug_hours_saved - self.test_writing_hours
         roi_percent = (net_benefit / self.test_writing_hours * 100
                       if self.test_writing_hours > 0 else 0)
@@ -2177,50 +2179,50 @@ class TestROICalculator:
         }
 ```
 
-### 誤解4: 「ドキュメントは後から書けばいい」
+### Misconception 4: "Documentation can be written later"
 
-**現実:** コードの意図や設計判断は、書いた直後が最も正確に記録できます。後回しにするほど、正確な情報を失います。
+**Reality:** The intent and design decisions of code can be recorded most accurately right after writing it. The longer you delay, the more accurate information you lose.
 
-### 誤解5: 「パフォーマンスは常に最優先」
+### Misconception 5: "Performance should always be the top priority"
 
-**現実:** 可読性と保守性を犠牲にした最適化は、長期的にはコストが高くつきます。「推測するな、計測せよ」の原則に従い、ボトルネックを特定してから最適化しましょう。
+**Reality:** Optimization at the expense of readability and maintainability costs more in the long run. Follow the principle of "Don't guess, measure" — identify bottlenecks first, then optimize.
 ---
 
-## まとめ
+## Summary
 
-このガイドでは以下の重要なポイントを学びました:
+In this guide, we learned the following important points:
 
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
-
----
-
-## 次に読むべきガイド
-
-- [ビートマッチング](./beatmatching.md) - 次のトピックへ進む
+- Understanding of basic concepts and principles
+- Practical implementation patterns
+- Best practices and cautions
+- Real-world application methods
 
 ---
 
-## 参考文献
+## Recommended Next Guides
 
-- [MDN Web Docs](https://developer.mozilla.org/) - Web技術のリファレンス
-- [Wikipedia](https://ja.wikipedia.org/) - 技術概念の概要
+- [Beatmatching](./beatmatching.md) - Proceed to the next topic
+
+---
+
+## References
+
+- [MDN Web Docs](https://developer.mozilla.org/) - Web technology reference
+- [Wikipedia](https://en.wikipedia.org/) - Overview of technical concepts
 
 
 ---
 
-## 補足: さらなる学習のために
+## Appendix: For Further Learning
 
-### このトピックの発展的な側面
+### Advanced Aspects of This Topic
 
-本ガイドで扱った内容は基礎的な部分をカバーしていますが、さらに深く学ぶための方向性をいくつか紹介します。
+The content covered in this guide addresses the fundamentals, but here are some directions for deeper study.
 
-#### 理論的な深掘り
+#### Theoretical Deep Dive
 
-このトピックの背景には、長年にわたる研究と実践の蓄積があります。基本的な概念を理解した上で、以下の方向性で学習を深めることをお勧めします:
+Behind this topic lies years of research and practice. After understanding the basic concepts, we recommend deepening your learning in the following directions:
 
-1. **歴史的な経緯の理解**: 現在のベストプラクティスがなぜそうなったのかを理解することで、より深い洞察が得られます
-2. **関連分野との接点**: 隣接する分野の知識を取り入れることで、視野が広がり、より創造的なアプローチが可能になります
-3. **最新のトレンドの把握**: 技術や手法は常に進化しています。定期的に最新の動向をチェックしましょう
+1. **Understanding historical context**: Understanding why current best practices evolved the way they did provides deeper insight
+2. **Intersections with related fields**: Incorporating knowledge from adjacent fields broadens your perspective and enables more creative approaches
+3. **Keeping up with latest trends**: Technologies and methods are constantly evolving. Regularly check the latest developments
