@@ -1,147 +1,145 @@
-# キーとスケール
+# Keys and Scales
 
-音楽のキー（調）とスケール、そしてDJに必須のハーモニックミキシングの基礎を学びます。キーの理解はDJプレイにおけるトランジションの質を劇的に向上させ、音楽制作においてはメロディ・コード・ベースラインの構築に不可欠な知識です。本章では初心者から上級者まで、段階的にキーとスケールの全体像を網羅します。
+Learn the fundamentals of musical keys, scales, and harmonic mixing essential for DJs. Understanding keys dramatically improves the quality of transitions in DJ performance, and is indispensable knowledge for constructing melodies, chords, and basslines in music production. This chapter provides a comprehensive overview of keys and scales, progressing from beginner to advanced levels.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- キーの概念と仕組み（調性の本質的理解）
-- スケールの種類と構造（メジャー、マイナー、モード、ペンタトニック等）
-- Circle of Fifths（五度圏）の完全理解
-- ハーモニックミキシングの基礎から応用
-- Camelot Keyシステムの実践的活用
-- Rekordbox / Ableton Live / Serato / Traktor でのキー管理
-- ジャンル別のキー傾向と選曲戦略
-- プロDJが実践する高度な転調テクニック
-- キー解析の精度を上げるためのワークフロー
+- Key concepts and mechanics (essential understanding of tonality)
+- Scale types and structures (major, minor, modes, pentatonic, etc.)
+- Complete understanding of the Circle of Fifths
+- Harmonic mixing from basics to advanced
+- Practical use of the Camelot Key system
+- Key management in Rekordbox / Ableton Live / Serato / Traktor
+- Key tendencies by genre and track selection strategies
+- Advanced modulation techniques used by professional DJs
+- Workflows for improving key analysis accuracy
 
-## なぜキーが重要なのか
+## Why Keys Matter
 
-### DJの場合
+### For DJs
 
-キーの理解は、DJプレイの質を根本的に変える要素です。キーを無視してミックスすると、2つの曲のメロディやベースラインが不協和音を生み出し、フロアの雰囲気を壊してしまいます。逆に、キーの合った曲同士をミックスすれば、まるで1つの曲のように自然なトランジションが実現できます。
+Understanding keys is an element that fundamentally changes the quality of DJ performance. If you mix without considering keys, the melodies and basslines of two tracks will create dissonance, ruining the atmosphere on the dance floor. Conversely, mixing tracks that are in compatible keys produces transitions as natural as if they were a single track.
 
-**具体的なメリット:**
-- キーの合う曲を繋いでハーモニックミキシングを実現
-- 不協和音を避けてスムーズなトランジション
-- エネルギーをコントロールした選曲（キーの上昇でテンションを高める等）
-- セット全体にストーリー性を持たせた構成が可能
-- マッシュアップやライブリミックスの成功率が飛躍的に向上
-- フロアの反応を読みながら直感的にキーを選択できる判断力が身につく
+**Specific Benefits:**
+- Achieve harmonic mixing by connecting tracks in compatible keys
+- Avoid dissonance for smooth transitions
+- Energy-controlled track selection (e.g., raising tension by ascending keys)
+- Create a narrative arc across an entire set
+- Dramatically improve success rates for mashups and live remixes
+- Develop the ability to intuitively select keys while reading the crowd
 
-**プロの視点:**
-世界のトップDJの多くがハーモニックミキシングを取り入れています。Armin van Buuren、Above & Beyond、deadmau5などは、キーを意識した選曲で知られています。特にTranceやProgressive Houseのようなメロディアスなジャンルでは、キーの管理がセットの完成度を大きく左右します。
+**Professional Perspective:**
+Many of the world's top DJs incorporate harmonic mixing. Armin van Buuren, Above & Beyond, and deadmau5, among others, are known for key-conscious track selection. Especially in melodic genres like Trance and Progressive House, key management significantly impacts the quality of a set.
 
-### 音楽制作の場合
+### For Music Production
 
-制作においてキーの理解は、すべてのハーモニックな要素の土台となります。正しいキーの中で作業することで、メロディ、コード進行、ベースラインが自然に調和します。
+In production, understanding keys forms the foundation for all harmonic elements. Working within the correct key ensures that melodies, chord progressions, and basslines harmonize naturally.
 
-**具体的なメリット:**
-- メロディとコードを自由に、かつ理論的に作れる
-- サンプルやループの組み合わせが容易になる
-- リミックス・マッシュアップの制作がスムーズ
-- ボーカルトラックとインストゥルメンタルの合わせが正確に
-- ジャンル特有のキー選択で狙ったムードを演出
-- コラボレーション時に共通言語として機能する
+**Specific Benefits:**
+- Create melodies and chords freely yet theoretically
+- Easier combination of samples and loops
+- Smoother remix and mashup production
+- Accurate matching of vocal tracks with instrumentals
+- Achieve the desired mood with genre-specific key selection
+- Functions as a common language during collaboration
 
-**制作での実例:**
-例えば、A Minorのキーでトラックを制作している場合、使用できる音は A, B, C, D, E, F, G の7音です。この中でコード進行を組み立て、メロディを作り、ベースラインを構築します。サンプルパックからループを選ぶ際も、A Minorまたは相性の良いキー（C Major、E Minor、D Minor等）のものを選べば、自然に調和します。
+**Production Example:**
+For instance, when producing a track in the key of A Minor, the available notes are A, B, C, D, E, F, and G. You build chord progressions, melodies, and basslines using these seven notes. When selecting loops from sample packs, choosing ones in A Minor or compatible keys (C Major, E Minor, D Minor, etc.) ensures natural harmony.
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [和声基礎](./harmony-basics.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding the content of [Harmony Basics](./harmony-basics.md)
 
 ---
 
-## 1. キー（調）とは
+## 1. What Is a Key?
 
-### 定義
+### Definition
 
-**キー** = 楽曲の中心となる音（トニック/主音）とスケール（音階）の組み合わせ
+**Key** = A combination of the central note (tonic/root) and scale of a musical piece
 
-キーは楽曲のハーモニック（和声的）な「ホームベース」を定義します。どんなに複雑なメロディやコード進行であっても、最終的にはキーの中心音に解決しようとする力が働きます。この「解決感」こそがキーの本質です。
+A key defines the harmonic "home base" of a piece of music. No matter how complex the melody or chord progression, there is always a gravitational pull toward resolving to the key's central note. This sense of "resolution" is the essence of a key.
 
 ```
-C Major = Cの音を中心としたメジャースケール（明るい響き）
-A Minor = Aの音を中心としたマイナースケール（暗い響き）
-F# Minor = F#の音を中心としたマイナースケール（メランコリックな響き）
-Bb Major = Bbの音を中心としたメジャースケール（温かい響き）
+C Major = Major scale centered on the note C (bright sound)
+A Minor = Minor scale centered on the note A (dark sound)
+F# Minor = Minor scale centered on the note F# (melancholic sound)
+Bb Major = Major scale centered on the note Bb (warm sound)
 ```
 
-### トニック（主音）の重要性
+### The Importance of the Tonic
 
-トニックは楽曲の「重力の中心」です。すべてのメロディとコード進行は、最終的にトニックに戻ろうとする傾向があります。DJがハーモニックミキシングを行う際、このトニックの関係性が鍵となります。
+The tonic is the "center of gravity" of a piece of music. All melodies and chord progressions tend to gravitate back to the tonic. When DJs perform harmonic mixing, this tonic relationship is the key factor.
 
-**トニックの聞き取り方:**
-1. 楽曲の最後の音やコードに注目する（多くの場合トニックで終わる）
-2. ベースラインの最も頻繁に現れる音を特定する
-3. 楽曲を止めたときに「まだ続きがある」と感じるか、「終わった」と感じるかで判断
-4. ドロップ（サビ）の最初の音がトニックであることが多い
+**How to Identify the Tonic:**
+1. Focus on the final note or chord of the track (in many cases, it ends on the tonic)
+2. Identify the most frequently occurring note in the bassline
+3. Judge by whether you feel "there's more to come" or "it's finished" when the track stops
+4. The first note of the drop (chorus) is often the tonic
 
-### メジャーキーとマイナーキー
+### Major Keys and Minor Keys
 
-キーは大きく分けて「メジャー（長調）」と「マイナー（短調）」の2種類があります。この区別はDJプレイにおいて極めて重要で、セットのムードを決定する基本要素です。
+Keys are broadly divided into two types: "major" and "minor." This distinction is extremely important in DJ performance and is a fundamental element that determines the mood of a set.
 
-**メジャーキー（長調）:**
-- 明るく、前向き、幸福感のある響き
-- ポップス、ハウス、トランスのアンセムに多用
-- 例: C Major, G Major, F Major, D Major, A Major
-- フロアを高揚させたいときに選択
-- EDMのビルドアップ〜ドロップで多用される
+**Major Keys:**
+- Bright, positive, happy-sounding
+- Widely used in pop, house, and trance anthems
+- Examples: C Major, G Major, F Major, D Major, A Major
+- Choose when you want to uplift the dance floor
+- Frequently used in EDM buildups and drops
 
-**メジャーキーの音程構造（全音・半音パターン）:**
+**Interval Structure of Major Keys (whole/half step pattern):**
 ```
-全 - 全 - 半 - 全 - 全 - 全 - 半
 W  - W  - H  - W  - W  - W  - H
 
-C Major の場合:
-C → D → E → F → G → A → B → C
-  全  全  半  全  全  全  半
+For C Major:
+C -> D -> E -> F -> G -> A -> B -> C
+  W    W    H    W    W    W    H
 ```
 
-**マイナーキー（短調）:**
-- 暗く、感情的、メランコリックな響き
-- テクノ、ダークハウス、ドラムンベース、ダブステップに多い
-- 例: A Minor, E Minor, D Minor, B Minor, F# Minor
-- ダークでドライビングなセットに適している
-- ベースミュージック全般で主流
+**Minor Keys:**
+- Dark, emotional, melancholic sound
+- Common in techno, dark house, drum and bass, dubstep
+- Examples: A Minor, E Minor, D Minor, B Minor, F# Minor
+- Suitable for dark, driving sets
+- Predominant across bass music genres
 
-**マイナーキーの音程構造（ナチュラルマイナー）:**
+**Interval Structure of Minor Keys (Natural Minor):**
 ```
-全 - 半 - 全 - 全 - 半 - 全 - 全
 W  - H  - W  - W  - H  - W  - W
 
-A Minor の場合:
-A → B → C → D → E → F → G → A
-  全  半  全  全  半  全  全
+For A Minor:
+A -> B -> C -> D -> E -> F -> G -> A
+  W    H    W    W    H    W    W
 ```
 
-**DJが知っておくべきポイント:**
-メジャーキーとマイナーキーの違いは、3番目の音（第3音）にあります。メジャーの第3音はルートから4半音上、マイナーの第3音はルートから3半音上です。この半音1つの違いが、楽曲の雰囲気を根本的に変えます。
+**What DJs Should Know:**
+The difference between major and minor keys lies in the third note. The major third is 4 semitones above the root, while the minor third is 3 semitones above the root. This single semitone difference fundamentally changes the mood of a track.
 
 ```
-C Major: C - E（4半音） = 明るい
-C Minor: C - Eb（3半音） = 暗い
+C Major: C - E (4 semitones) = Bright
+C Minor: C - Eb (3 semitones) = Dark
 ```
 
-### 12のキーとエンハーモニック
+### The 12 Keys and Enharmonics
 
-西洋音楽では12の異なるピッチクラスがあり、それぞれにメジャーとマイナーのキーが存在するため、理論上24個のキーがあります。
+In Western music, there are 12 distinct pitch classes, each with a major and minor key, resulting in theoretically 24 keys.
 
-**12のピッチクラス:**
+**The 12 Pitch Classes:**
 ```
 C, C#/Db, D, D#/Eb, E, F, F#/Gb, G, G#/Ab, A, A#/Bb, B
 ```
 
-**エンハーモニック（異名同音）について:**
-C# と Db は同じ音ですが、理論的な文脈によって表記が変わります。DJの実践においてはどちらの表記でも同じ意味ですが、解析ソフトによって表記が異なる場合があるので注意が必要です。
+**About Enharmonic Equivalents:**
+C# and Db are the same pitch, but the notation changes depending on the theoretical context. In DJ practice, either notation means the same thing, but be aware that analysis software may use different notations.
 
 ```
-エンハーモニックの主な例:
+Common Enharmonic Examples:
 C# = Db
 D# = Eb
 F# = Gb
@@ -149,22 +147,22 @@ G# = Ab
 A# = Bb
 ```
 
-**Rekordboxでの注意点:**
-Rekordboxはデフォルトでフラット表記（b）を使う傾向があります。Serato DJはシャープ表記（#）を使うことが多いです。同じ曲でもソフトウェアによって表記が異なることがあるため、Camelotシステムを使うことで統一的に管理できます。
+**Note for Rekordbox:**
+Rekordbox tends to default to flat notation (b). Serato DJ often uses sharp notation (#). The same track may show different notations depending on the software, so using the Camelot system provides unified management.
 
 ---
 
-## 2. スケール（音階）の詳細
+## 2. Scales in Detail
 
-### スケールとは
+### What Is a Scale?
 
-スケールとは、特定のパターンに従って並べられた音の集合です。スケールは楽曲のメロディやコード進行の素材となり、楽曲の雰囲気を決定する重要な要素です。
+A scale is a collection of notes arranged according to a specific pattern. Scales serve as the raw material for melodies and chord progressions in a piece, and are an important element that determines the mood of the music.
 
-### メジャースケール
+### Major Scale
 
-メジャースケールは最も基本的なスケールで、明るく安定した響きを持ちます。
+The major scale is the most fundamental scale, with a bright and stable sound.
 
-**全12キーのメジャースケール:**
+**Major Scales in All 12 Keys:**
 ```
 C Major:  C - D - E - F - G - A - B
 G Major:  G - A - B - C - D - E - F#
@@ -180,11 +178,11 @@ Bb Major: Bb - C - D - Eb - F - G - A
 F Major:  F - G - A - Bb - C - D - E
 ```
 
-### ナチュラルマイナースケール
+### Natural Minor Scale
 
-ナチュラルマイナースケール（自然短音階）は、メジャースケールの6番目の音から始めたものと同じ構造を持ちます。暗く感情的な響きが特徴です。
+The natural minor scale has the same structure as starting from the 6th note of a major scale. It is characterized by a dark, emotional sound.
 
-**全12キーのナチュラルマイナースケール:**
+**Natural Minor Scales in All 12 Keys:**
 ```
 A Minor:  A - B - C - D - E - F - G
 E Minor:  E - F# - G - A - B - C - D
@@ -200,113 +198,112 @@ G Minor:  G - A - Bb - C - D - Eb - F
 D Minor:  D - E - F - G - A - Bb - C
 ```
 
-### ハーモニックマイナースケール
+### Harmonic Minor Scale
 
-ナチュラルマイナーの第7音を半音上げたスケール。クラシカルで緊張感のある響きが特徴で、EDMやトランスでもしばしば使用されます。
+A scale with the 7th note of the natural minor raised by a semitone. Characterized by a classical, tension-filled sound, it is also frequently used in EDM and trance.
 
-**構造:**
+**Structure:**
 ```
-全 - 半 - 全 - 全 - 半 - 増2 - 半
 W  - H  - W  - W  - H  - 1.5 - H
 
 A Harmonic Minor: A - B - C - D - E - F - G# - A
-                    全  半  全  全  半  増2  半
+                    W   H   W   W   H  1.5   H
 ```
 
-**DJとの関連性:**
-ハーモニックマイナースケールを使った楽曲は、ナチュラルマイナーの曲とミックスできますが、第7音（この例ではG#とG）の違いにより、若干の緊張感が生じることがあります。プロDJは、この微妙な違いを意識しながら、トランジションのタイミングを選びます。
+**Relevance to DJing:**
+Tracks using the harmonic minor scale can be mixed with natural minor tracks, but the difference in the 7th note (G# vs G in this example) may create slight tension. Professional DJs are aware of this subtle difference and choose their transition timing accordingly.
 
-**ハーモニックマイナーが多用されるジャンル:**
-- Psytrance（サイケデリックトランス）
+**Genres Where Harmonic Minor Is Frequently Used:**
+- Psytrance
 - Dark Progressive House
-- Techno（特にメロディアスなサブジャンル）
+- Techno (especially melodic subgenres)
 - Middle Eastern influenced EDM
-- Hardstyle（一部のメロディックパート）
+- Hardstyle (some melodic parts)
 
-### メロディックマイナースケール
+### Melodic Minor Scale
 
-上行時と下行時で異なる音を使うスケール（クラシック理論）。ジャズや高度なEDM制作で使用されます。
+A scale that uses different notes ascending and descending (in classical theory). Used in jazz and advanced EDM production.
 
-**構造（上行形）:**
+**Structure (Ascending Form):**
 ```
-全 - 半 - 全 - 全 - 全 - 全 - 半
+W  - H  - W  - W  - W  - W  - H
 
-A Melodic Minor（上行）: A - B - C - D - E - F# - G# - A
-A Melodic Minor（下行）: A - G - F - E - D - C - B - A（ナチュラルマイナーと同じ）
+A Melodic Minor (ascending): A - B - C - D - E - F# - G# - A
+A Melodic Minor (descending): A - G - F - E - D - C - B - A (same as natural minor)
 ```
 
-**ジャズ理論でのメロディックマイナー:**
-ジャズでは上行形を上下両方向で使います。これを「ジャズ・メロディックマイナー」と呼び、多くのモダンEDMプロデューサーもこのアプローチを採用しています。
+**Melodic Minor in Jazz Theory:**
+In jazz, the ascending form is used in both directions. This is called the "jazz melodic minor," and many modern EDM producers also adopt this approach.
 
-### ペンタトニックスケール
+### Pentatonic Scale
 
-5音で構成されるスケール。シンプルで使いやすく、多くのジャンルで使用されます。
+A scale consisting of 5 notes. Simple and versatile, it is used in many genres.
 
-**メジャーペンタトニック:**
+**Major Pentatonic:**
 ```
 C Major Pentatonic: C - D - E - G - A
-（メジャースケールから4番目と7番目を省略）
+(Major scale with the 4th and 7th notes omitted)
 ```
 
-**マイナーペンタトニック:**
+**Minor Pentatonic:**
 ```
 A Minor Pentatonic: A - C - D - E - G
-（マイナースケールから2番目と6番目を省略）
+(Minor scale with the 2nd and 6th notes omitted)
 ```
 
-**DJ/制作での活用:**
-ペンタトニックスケールは「外れにくい」スケールとして知られ、即興的なフィルターやエフェクト操作の際に重要です。特にHip Hopのサンプリングソースとなるソウル、ファンク、ブルース音楽で多用されるため、Hip HopのDJにとって理解は必須です。
+**Use in DJing/Production:**
+The pentatonic scale is known as a scale that's "hard to get wrong," and is important for improvised filter and effects manipulation. Since it is heavily used in soul, funk, and blues music that serves as sampling sources for Hip Hop, understanding it is essential for Hip Hop DJs.
 
-### モード（旋法）
+### Modes
 
-メジャースケールの各音から始めることで得られる7つのモードは、それぞれ独特の雰囲気を持ち、EDMの様々なサブジャンルで活用されています。
+The 7 modes obtained by starting from each note of the major scale each have their own unique character and are utilized in various EDM subgenres.
 
-**7つのモード:**
+**The 7 Modes:**
 ```
-1. Ionian（アイオニアン）     = メジャースケールそのもの  → 明るい、安定
-2. Dorian（ドリアン）          = 2番目の音から開始       → 暗いがファンキー
-3. Phrygian（フリジアン）      = 3番目の音から開始       → スパニッシュ、エキゾチック
-4. Lydian（リディアン）        = 4番目の音から開始       → 浮遊感、幻想的
-5. Mixolydian（ミクソリディアン）= 5番目の音から開始      → ファンキー、ブルージー
-6. Aeolian（エオリアン）       = 6番目の音から開始       → ナチュラルマイナー
-7. Locrian（ロクリアン）       = 7番目の音から開始       → 不安定、まれに使用
-```
-
-**C Major スケールから派生する7つのモード:**
-```
-C Ionian:     C - D - E - F - G - A - B（明るいハウス、ポップEDM）
-D Dorian:     D - E - F - G - A - B - C（ディープハウス、テックハウス）
-E Phrygian:   E - F - G - A - B - C - D（Psytrance、ミドルイースタン）
-F Lydian:     F - G - A - B - C - D - E（アンビエント、プログレッシブ）
-G Mixolydian: G - A - B - C - D - E - F（ファンクハウス、ディスコ）
-A Aeolian:    A - B - C - D - E - F - G（テクノ、ダークハウス）
-B Locrian:    B - C - D - E - F - G - A（実験的EDM、インダストリアル）
+1. Ionian     = The major scale itself           -> Bright, stable
+2. Dorian     = Starting from the 2nd note       -> Dark but funky
+3. Phrygian   = Starting from the 3rd note       -> Spanish, exotic
+4. Lydian     = Starting from the 4th note       -> Floating, dreamy
+5. Mixolydian = Starting from the 5th note       -> Funky, bluesy
+6. Aeolian    = Starting from the 6th note       -> Natural minor
+7. Locrian    = Starting from the 7th note       -> Unstable, rarely used
 ```
 
-**ジャンルとモードの関係:**
-- **Dorian**: ディープハウスやテックハウスで非常に人気。ナチュラルマイナーより少し明るい響きで、グルーヴィーな曲に最適。Daft Punk の多くの曲がDorianモードを使用。
-- **Phrygian**: Psytrance、Middle Eastern EDM、フラメンコハウスで多用。半音で始まる独特のエキゾチックな響き。
-- **Lydian**: アンビエント、チルアウト、プログレッシブハウスで使用。#4（増4度）が浮遊感のある神秘的な雰囲気を作る。
-- **Mixolydian**: ディスコ、ファンクハウス、UK Garageで活用。メジャーに近いが、少し「攻め」のある響き。
+**The 7 Modes Derived from the C Major Scale:**
+```
+C Ionian:     C - D - E - F - G - A - B (Bright house, pop EDM)
+D Dorian:     D - E - F - G - A - B - C (Deep house, tech house)
+E Phrygian:   E - F - G - A - B - C - D (Psytrance, Middle Eastern)
+F Lydian:     F - G - A - B - C - D - E (Ambient, progressive)
+G Mixolydian: G - A - B - C - D - E - F (Funk house, disco)
+A Aeolian:    A - B - C - D - E - F - G (Techno, dark house)
+B Locrian:    B - C - D - E - F - G - A (Experimental EDM, industrial)
+```
 
-**DJが知っておくべきモードの判別法:**
-モードの厳密な判別はDJプレイ中には必要ありませんが、制作や高度なハーモニックミキシングでは役立ちます。解析ソフトは通常、メジャーまたはマイナーとしてキーを表示するため、モードの区別は耳で判断する必要があります。
+**Relationship Between Genres and Modes:**
+- **Dorian**: Very popular in deep house and tech house. Slightly brighter than natural minor, ideal for groovy tracks. Many Daft Punk tracks use the Dorian mode.
+- **Phrygian**: Widely used in Psytrance, Middle Eastern EDM, and flamenco house. The distinctive exotic sound begins with a semitone.
+- **Lydian**: Used in ambient, chill-out, and progressive house. The #4 (augmented 4th) creates a floating, mystical atmosphere.
+- **Mixolydian**: Utilized in disco, funk house, and UK Garage. Similar to major but with a slightly more "edgy" sound.
+
+**How DJs Can Identify Modes:**
+Strict mode identification is not necessary during DJ performance, but it is useful for production and advanced harmonic mixing. Analysis software typically displays keys as major or minor, so mode distinction needs to be determined by ear.
 
 ```
-判別のヒント:
-- Dorian: マイナーだが第6音が明るい（A DorianのF#に注目）
-- Phrygian: 最初の半音が特徴的（E PhrygianのE-F間）
-- Lydian: #4度の浮遊感（F LydianのBナチュラル）
-- Mixolydian: メジャーだがb7度（G MixolydianのFナチュラル）
+Identification Tips:
+- Dorian: Minor but the 6th note is bright (note the F# in A Dorian)
+- Phrygian: The opening semitone is distinctive (the E-F interval in E Phrygian)
+- Lydian: The floating quality of the #4 (the B natural in F Lydian)
+- Mixolydian: Major but with a b7 (the F natural in G Mixolydian)
 ```
 
 ---
 
-## 3. Circle of Fifths（五度圏）
+## 3. Circle of Fifths
 
-### 五度圏とは
+### What Is the Circle of Fifths?
 
-五度圏（Circle of Fifths）は、12のキーの関係性を円形に配置した図で、西洋音楽理論の最も重要なツールの1つです。DJにとっては、ハーモニックミキシングの設計図として機能します。
+The Circle of Fifths is a diagram that arranges the relationships of 12 keys in a circular layout, and is one of the most important tools in Western music theory. For DJs, it functions as a blueprint for harmonic mixing.
 
 ```
             C
@@ -318,1555 +315,1555 @@ B Locrian:    B - C - D - E - F - G - A（実験的EDM、インダストリア�
           F#/Gb
 ```
 
-**五度圏が円になる理由:**
-完全5度（7半音）ずつ上昇していくと、12回で元の音に戻ります。これは12の半音×7 = 84 = 12の倍数であることに由来します。つまり、7半音ずつ12回上がると、ちょうど7オクターブ上の同じ音に到達するのです。
+**Why the Circle of Fifths Forms a Circle:**
+Moving up by a perfect 5th (7 semitones) each time returns you to the original note after 12 steps. This is because 12 semitones x 7 = 84 = a multiple of 12. In other words, going up 7 semitones 12 times reaches exactly 7 octaves above the same note.
 
 ```
-C → G → D → A → E → B → F#/Gb → Db → Ab → Eb → Bb → F → C
-（12ステップで一周）
+C -> G -> D -> A -> E -> B -> F#/Gb -> Db -> Ab -> Eb -> Bb -> F -> C
+(12 steps to complete the circle)
 ```
 
-### 完全五度の関係
+### The Perfect Fifth Relationship
 
-時計回りに進むと、**完全五度（7半音）上**のキーになります。
-
-```
-時計回り（完全五度上）:
-C → G → D → A → E → B → F#/Gb → Db → Ab → Eb → Bb → F → C
-```
-
-反時計回りは**完全五度下（＝完全四度上）**。
+Moving clockwise gives you the key a **perfect 5th (7 semitones) up**.
 
 ```
-反時計回り（完全五度下/完全四度上）:
-C → F → Bb → Eb → Ab → Db → Gb/F# → B → E → A → D → G → C
+Clockwise (perfect 5th up):
+C -> G -> D -> A -> E -> B -> F#/Gb -> Db -> Ab -> Eb -> Bb -> F -> C
 ```
 
-**隣接キーの共通音:**
-五度圏で隣り合うキーは7音中6音が共通しています。これが、隣接キー同士のミックスがスムーズに聴こえる理由です。
+Counterclockwise gives you a **perfect 5th down (= perfect 4th up)**.
 
 ```
-C Major: C D E F G A B （7音）
-G Major: G A B C D E F# （7音）
-→ 共通音: C, D, E, G, A, B の6音（Fだけが異なる）
+Counterclockwise (perfect 5th down / perfect 4th up):
+C -> F -> Bb -> Eb -> Ab -> Db -> Gb/F# -> B -> E -> A -> D -> G -> C
+```
+
+**Common Notes Between Adjacent Keys:**
+Adjacent keys on the Circle of Fifths share 6 out of 7 notes. This is why mixes between adjacent keys sound smooth.
+
+```
+C Major: C D E F G A B (7 notes)
+G Major: G A B C D E F# (7 notes)
+-> Common notes: C, D, E, G, A, B - 6 notes (only F differs)
 
 C Major: C D E F G A B
 F Major: F G A Bb C D E
-→ 共通音: C, D, E, F, G, A の6音（Bだけが異なる）
+-> Common notes: C, D, E, F, G, A - 6 notes (only B differs)
 ```
 
-### 相対調（Relative Key）
+### Relative Keys
 
-五度圏の内側と外側は**相対調**の関係にあります。相対調は同じ音を使うが、中心音（トニック）が異なります。
+The inner and outer rings of the Circle of Fifths have a **relative key** relationship. Relative keys use the same notes but have different tonal centers (tonics).
 
-**全12組の相対調:**
+**All 12 Relative Key Pairs:**
 ```
-外側（メジャー） → 内側（マイナー）
-C Major          → A Minor
-G Major          → E Minor
-D Major          → B Minor
-A Major          → F# Minor
-E Major          → C# Minor
-B Major          → G# Minor
-F#/Gb Major      → D#/Eb Minor
-Db Major         → Bb Minor
-Ab Major         → F Minor
-Eb Major         → C Minor
-Bb Major         → G Minor
-F Major          → D Minor
-```
-
-**相対調の見つけ方:**
-- メジャーキーのルートから短3度下（3半音下）がマイナーの相対調
-- マイナーキーのルートから短3度上（3半音上）がメジャーの相対調
-
-```
-C Major → 3半音下 → A Minor
-A Minor → 3半音上 → C Major
-
-G Major → 3半音下 → E Minor
-D Minor → 3半音上 → F Major
+Outer (Major) -> Inner (Minor)
+C Major          -> A Minor
+G Major          -> E Minor
+D Major          -> B Minor
+A Major          -> F# Minor
+E Major          -> C# Minor
+B Major          -> G# Minor
+F#/Gb Major      -> D#/Eb Minor
+Db Major         -> Bb Minor
+Ab Major         -> F Minor
+Eb Major         -> C Minor
+Bb Major         -> G Minor
+F Major          -> D Minor
 ```
 
-**DJにとっての相対調の重要性:**
-相対調は使用する音が完全に同一であるため、最も安全なキーチェンジの1つです。メジャーからマイナーへ、またはその逆へ移行することで、フロアのムードを自然に変化させることができます。例えば、明るいハウスのセットから徐々にダークな雰囲気に持っていきたい場合、相対調のマイナーキーの曲に切り替えるのが効果的です。
+**How to Find Relative Keys:**
+- A minor 3rd down (3 semitones down) from a major key's root gives the relative minor
+- A minor 3rd up (3 semitones up) from a minor key's root gives the relative major
 
-### 平行調（Parallel Key）
+```
+C Major -> 3 semitones down -> A Minor
+A Minor -> 3 semitones up -> C Major
 
-同じルート音を持つメジャーとマイナーの関係を「平行調」と呼びます。相対調とは異なり、使用する音が3つ異なります。
+G Major -> 3 semitones down -> E Minor
+D Minor -> 3 semitones up -> F Major
+```
+
+**Importance of Relative Keys for DJs:**
+Relative keys use an entirely identical set of notes, making them one of the safest key changes. By transitioning from major to minor or vice versa, you can naturally change the mood of the dance floor. For example, if you want to gradually take a bright house set into a darker atmosphere, switching to a track in the relative minor key is effective.
+
+### Parallel Keys
+
+The relationship between a major and minor key sharing the same root note is called "parallel keys." Unlike relative keys, 3 notes differ between them.
 
 ```
 C Major: C D E F G A B
 C Minor: C D Eb F G Ab Bb
-→ 異なる音: E/Eb, A/Ab, B/Bb の3音
+-> Different notes: E/Eb, A/Ab, B/Bb - 3 notes
 ```
 
-**平行調の活用:**
-平行調への移行は、同じルート音を維持しながらムードを大きく変えることができます。ドラムブレイクやFXを使ったトランジション中に行うと効果的です。
+**Using Parallel Keys:**
+Transitioning to a parallel key allows you to dramatically change the mood while maintaining the same root note. This is effective when performed during drum breaks or FX transitions.
 
-### 五度圏の調号（シャープとフラット）
+### Key Signatures on the Circle of Fifths
 
-五度圏の各キーには、調号（キーシグネチャー）が対応しています。DJにとって調号の暗記は必須ではありませんが、楽譜を読む際や制作時に役立ちます。
+Each key on the Circle of Fifths corresponds to a key signature. Memorizing key signatures is not essential for DJs, but it is useful when reading sheet music or during production.
 
-**シャープ系（時計回り）:**
+**Sharp Keys (Clockwise):**
 ```
-C Major:  調号なし
-G Major:  ♯1つ（F#）
-D Major:  ♯2つ（F#, C#）
-A Major:  ♯3つ（F#, C#, G#）
-E Major:  ♯4つ（F#, C#, G#, D#）
-B Major:  ♯5つ（F#, C#, G#, D#, A#）
-F# Major: ♯6つ（F#, C#, G#, D#, A#, E#）
-```
-
-**フラット系（反時計回り）:**
-```
-C Major:  調号なし
-F Major:  ♭1つ（Bb）
-Bb Major: ♭2つ（Bb, Eb）
-Eb Major: ♭3つ（Bb, Eb, Ab）
-Ab Major: ♭4つ（Bb, Eb, Ab, Db）
-Db Major: ♭5つ（Bb, Eb, Ab, Db, Gb）
-Gb Major: ♭6つ（Bb, Eb, Ab, Db, Gb, Cb）
+C Major:  No sharps or flats
+G Major:  1 sharp (F#)
+D Major:  2 sharps (F#, C#)
+A Major:  3 sharps (F#, C#, G#)
+E Major:  4 sharps (F#, C#, G#, D#)
+B Major:  5 sharps (F#, C#, G#, D#, A#)
+F# Major: 6 sharps (F#, C#, G#, D#, A#, E#)
 ```
 
-**覚え方のコツ:**
-- シャープの追加順序: F C G D A E B（「Father Charles Goes Down And Ends Battle」）
-- フラットの追加順序: B E A D G C F（上の逆、「Battle Ends And Down Goes Charles' Father」）
+**Flat Keys (Counterclockwise):**
+```
+C Major:  No sharps or flats
+F Major:  1 flat (Bb)
+Bb Major: 2 flats (Bb, Eb)
+Eb Major: 3 flats (Bb, Eb, Ab)
+Ab Major: 4 flats (Bb, Eb, Ab, Db)
+Db Major: 5 flats (Bb, Eb, Ab, Db, Gb)
+Gb Major: 6 flats (Bb, Eb, Ab, Db, Gb, Cb)
+```
+
+**Mnemonic Tips:**
+- Order of sharps added: F C G D A E B ("Father Charles Goes Down And Ends Battle")
+- Order of flats added: B E A D G C F (reverse of the above, "Battle Ends And Down Goes Charles' Father")
 
 ---
 
-## 4. キーの相性（ハーモニックミキシング）
+## 4. Key Compatibility (Harmonic Mixing)
 
-### ハーモニックミキシングとは
+### What Is Harmonic Mixing?
 
-ハーモニックミキシングとは、キーの相性を考慮して曲を繋ぐテクニックです。1990年代後半にDJ/プロデューサーのMark Davisが「Harmonic Mixing」という概念を体系化し、Camelot Wheelという実用的なツールを開発したことで広まりました。
+Harmonic mixing is a technique of connecting tracks based on key compatibility. In the late 1990s, DJ/producer Mark Davis systematized the concept of "Harmonic Mixing" and developed the Camelot Wheel as a practical tool, which popularized the technique.
 
-現在では、Rekordbox、Serato DJ、Traktor、Virtual DJなどの主要DJソフトウェアがすべてキー解析機能を搭載しており、ハーモニックミキシングはプロ・アマを問わず広く実践されています。
+Today, all major DJ software including Rekordbox, Serato DJ, Traktor, and Virtual DJ feature key analysis capabilities, and harmonic mixing is widely practiced by both professionals and amateurs.
 
-### 相性の良いキーの組み合わせ
+### Compatible Key Combinations
 
-キーの相性には明確な段階があります。以下、相性の良い順に解説します。
+Key compatibility has clear levels. The following explains them in order of compatibility.
 
-**1. 同じキー（Perfect Match / Same Key）**
+**1. Same Key (Perfect Match)**
 ```
-C Major → C Major
-A Minor → A Minor
-最も安全で確実な組み合わせ
-メロディが重なっても不協和音が生じない
-長時間のブレンドも可能
-```
-
-**実践例:**
-同じキーの曲同士は、ロングミックス（32小節以上の長いブレンド）にも適しています。メロディやベースラインが重なっても問題ないため、初心者が最初に練習するべき組み合わせです。
-
-**注意点:**
-同じキーばかりでセットを組むと、単調に聴こえてしまう可能性があります。適度にキーチェンジを入れることで、セットにダイナミクスを持たせましょう。
-
-**2. 相対調（Relative Key）**
-```
-C Major ⇔ A Minor
-G Major ⇔ E Minor
-同じ音を使うので非常に相性が良い
-ムードの変化（明⇔暗）をスムーズに実現
+C Major -> C Major
+A Minor -> A Minor
+The safest and most reliable combination
+No dissonance even when melodies overlap
+Long blends are possible
 ```
 
-**実践例:**
-明るいPopular HouseからDeep Houseへの移行時に、相対調を使うと自然なムードチェンジが実現できます。例: G Major（明るいハウス）→ E Minor（ディープハウス）
+**Practical Example:**
+Tracks in the same key are suitable for long mixes (blends of 32 bars or more). Since overlapping melodies and basslines are not a problem, this is the combination beginners should practice first.
 
-**3. 完全五度上下（Adjacent Key / +1/-1）**
+**Note:**
+Building an entire set with only the same key can sound monotonous. Adding key changes at appropriate intervals gives dynamics to the set.
+
+**2. Relative Key**
 ```
-C Major → G Major（完全五度上、エネルギーアップ）
-C Major → F Major（完全五度下、エネルギーダウン）
-共通する音が7音中6音、非常にスムーズ
-```
-
-**実践例:**
-五度上に移動すると、わずかにエネルギーが上昇する感覚があります。セットのクライマックスに向けて少しずつキーを上げていく「キーエスカレーション」テクニックに活用できます。
-
-```
-エネルギーアップの例:
-C Major → G Major → D Major → A Major
-（五度圏を時計回りに進む = 徐々にエネルギー上昇）
-
-エネルギーダウンの例:
-A Major → D Major → G Major → C Major
-（五度圏を反時計回りに進む = 徐々にクールダウン）
+C Major <-> A Minor
+G Major <-> E Minor
+Uses the same notes, so compatibility is excellent
+Smoothly achieves mood changes (bright <-> dark)
 ```
 
-**4. 平行調（Parallel Key）**
+**Practical Example:**
+When transitioning from bright popular house to deep house, using relative keys achieves a natural mood change. Example: G Major (bright house) -> E Minor (deep house)
+
+**3. Perfect Fifth Up/Down (Adjacent Key / +1/-1)**
 ```
-C Major ⇔ C Minor
-A Minor ⇔ A Major
-同じルート音、雰囲気が劇的に変化
-3音が異なるため、ブレンド中は注意が必要
+C Major -> G Major (perfect 5th up, energy up)
+C Major -> F Major (perfect 5th down, energy down)
+6 out of 7 shared notes, very smooth
 ```
 
-**実践例:**
-ドラムブレイクやFXトランジション中に平行調に切り替えると、同じ「音の高さ」を維持しながらムードを大きく変えることができます。サプライズ効果が高い手法です。
-
-**5. 半音上（Energy Key Change / +1 Semitone）**
-```
-C Major → Db Major（半音上）
-A Minor → Bb Minor（半音上）
-共通音は少ないが、ポップスで定番の転調
-クライマックス感を演出
-```
-
-**実践例:**
-J-PopやK-Popでよく使われる「サビ前の半音上げ転調」をDJプレイでも応用できます。ただし、ブレンド中に行うと不協和が目立つため、カットイン（瞬時の切り替え）で行うのが鉄則です。
-
-### 相性の悪いキーの組み合わせ
-
-**半音の関係（2半音差のキー）:**
-```
-C Major と D Major（全音上）
-共通音が少なく、ブレンド中にメロディが衝突
-長いトランジションは避けるべき
-```
-
-**増四度（トライトーン）の関係:**
-```
-C Major と F# Major（6半音差）
-五度圏の正反対に位置
-共通音が最も少なく、強い緊張感
-「悪魔の音程」とも呼ばれる不安定な関係
-```
-
-**全音の関係:**
-```
-C Major と D Major（2半音差）
-意外と相性が悪い組み合わせ
-共通音は4音のみ
-メロディが絡むと不協和が目立つ
-```
-
-### キー相性の段階表
-
-DJが実践で参考にできる相性の段階表です。
+**Practical Example:**
+Moving a 5th up creates a subtle sense of increased energy. This can be utilized in the "key escalation" technique of gradually raising the key toward the climax of a set.
 
 ```
-相性レベル   | 関係           | 半音差 | 共通音数 | 推奨ミックス方法
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-★★★★★ 最高 | 同キー          | 0     | 7/7     | ロングミックス可
-★★★★★ 最高 | 相対調          | -     | 7/7     | ロングミックス可
-★★★★☆ 優  | 五度上下         | 7/5   | 6/7     | ロングミックス可
-★★★☆☆ 良  | 平行調          | -     | 4/7     | 短いトランジション
-★★★☆☆ 良  | 二度下(2半音下)  | 10    | 5/7     | 中程度のトランジション
-★★☆☆☆ 可  | 半音上          | 1     | 2/7     | カットイン推奨
-★☆☆☆☆ 不可 | 全音上          | 2     | 4/7     | 避けるべき
-★☆☆☆☆ 不可 | トライトーン     | 6     | 2/7     | 避けるべき
+Energy Up Example:
+C Major -> G Major -> D Major -> A Major
+(Moving clockwise on the Circle of Fifths = gradually increasing energy)
+
+Energy Down Example:
+A Major -> D Major -> G Major -> C Major
+(Moving counterclockwise on the Circle of Fifths = gradually cooling down)
+```
+
+**4. Parallel Key**
+```
+C Major <-> C Minor
+A Minor <-> A Major
+Same root note, dramatic mood change
+3 notes differ, so caution is needed during blending
+```
+
+**Practical Example:**
+Switching to a parallel key during drum breaks or FX transitions allows you to dramatically change the mood while maintaining the same "pitch level." This is a technique with high surprise impact.
+
+**5. Semitone Up (Energy Key Change / +1 Semitone)**
+```
+C Major -> Db Major (semitone up)
+A Minor -> Bb Minor (semitone up)
+Few common notes, but a classic modulation in pop music
+Creates a climactic feel
+```
+
+**Practical Example:**
+The "semitone modulation before the chorus," common in J-Pop and K-Pop, can also be applied in DJ performance. However, doing this during a blend makes dissonance noticeable, so it is a rule to use cut-ins (instant switches).
+
+### Incompatible Key Combinations
+
+**Semitone Relationship (Keys 2 Semitones Apart):**
+```
+C Major and D Major (whole tone up)
+Few common notes, melodies clash during blending
+Long transitions should be avoided
+```
+
+**Tritone Relationship:**
+```
+C Major and F# Major (6 semitones apart)
+Directly opposite on the Circle of Fifths
+Fewest common notes, strong tension
+An unstable relationship also known as the "devil's interval"
+```
+
+**Whole Tone Relationship:**
+```
+C Major and D Major (2 semitones apart)
+A surprisingly poor combination
+Only 4 common notes
+Dissonance is noticeable when melodies intertwine
+```
+
+### Key Compatibility Chart
+
+A compatibility chart DJs can reference in practice.
+
+```
+Compatibility   | Relationship     | Semitones | Common Notes | Recommended Mix Method
+================================================================================
+***** Best      | Same Key         | 0         | 7/7          | Long mix OK
+***** Best      | Relative Key     | -         | 7/7          | Long mix OK
+****  Excellent | 5th Up/Down      | 7/5       | 6/7          | Long mix OK
+***   Good      | Parallel Key     | -         | 4/7          | Short transition
+***   Good      | 2nd Down(2 semi) | 10        | 5/7          | Medium transition
+**    Fair       | Semitone Up      | 1         | 2/7          | Cut-in recommended
+*     Poor       | Whole Tone Up    | 2         | 4/7          | Should be avoided
+*     Poor       | Tritone          | 6         | 2/7          | Should be avoided
 ```
 
 ---
 
-## 5. Camelot Keyシステム
+## 5. Camelot Key System
 
-### Camelot Wheelとは
+### What Is the Camelot Wheel?
 
-Camelot Wheel（キャメロットホイール）は、Mixed In Key社のMark Davisが開発した、DJ向けのキー表記システムです。音楽理論の知識がなくても、数字とアルファベットの組み合わせでキーの相性を直感的に判断できるのが最大の特徴です。
+The Camelot Wheel is a key notation system for DJs developed by Mark Davis of Mixed In Key. Its greatest feature is that it allows intuitive judgment of key compatibility through a combination of numbers and letters, without requiring music theory knowledge.
 
-**設計思想:**
-従来の音楽キー表記（C Major、A Minor等）では、キーの相性を判断するのに五度圏の知識が必要でした。Camelotシステムは、五度圏の情報を数字（1〜12）と文字（A/B）に変換することで、「数字が同じまたは±1、文字が同じまたは切り替え」という単純なルールでハーモニックミキシングを可能にしました。
+**Design Philosophy:**
+With traditional musical key notation (C Major, A Minor, etc.), knowledge of the Circle of Fifths was required to judge key compatibility. The Camelot system converts Circle of Fifths information into numbers (1-12) and letters (A/B), enabling harmonic mixing with the simple rule of "same or +/-1 number, same or switched letter."
 
-### 表記方法
+### Notation Method
 
 ```
-数字: 1-12（Circle of Fifthsの位置に対応）
-文字: A（マイナーキー）、B（メジャーキー）
+Number: 1-12 (corresponds to position on the Circle of Fifths)
+Letter: A (minor key), B (major key)
 
-例: 8B = C Major, 8A = A Minor
+Example: 8B = C Major, 8A = A Minor
 ```
 
-### Camelot Key 完全対応表
+### Complete Camelot Key Reference Table
 
-以下の表は、全24キーのCamelot表記、Open Key表記、音楽キー表記の完全な対応を示しています。
+The following table shows the complete correspondence of all 24 keys in Camelot notation, Open Key notation, and musical key notation.
 
-| Camelot | 音楽キー | Open Key | 調号 | 雰囲気・印象 |
+| Camelot | Musical Key | Open Key | Key Sig. | Mood / Impression |
 |---------|---------|----------|------|-------------|
-| 1A | Ab Minor / G# Minor | 6m | ♭7/♯5 | 深いメランコリー |
-| 1B | B Major | 6d | ♯5 | 壮大、輝き |
-| 2A | Eb Minor / D# Minor | 7m | ♭6 | ダーク、重厚 |
-| 2B | F# Major / Gb Major | 7d | ♯6/♭6 | 神秘的、幻想的 |
-| 3A | Bb Minor | 8m | ♭5 | 憂鬱、深い感情 |
-| 3B | Db Major | 8d | ♭5 | 温かみ、ノスタルジック |
-| 4A | F Minor | 9m | ♭4 | 激しい感情、パッション |
-| 4B | Ab Major | 9d | ♭4 | 優雅、ロマンティック |
-| 5A | C Minor | 10m | ♭3 | 暗い決意、力強さ |
-| 5B | Eb Major | 10d | ♭3 | 英雄的、堂々 |
-| 6A | G Minor | 11m | ♭2 | メランコリック、ドラマティック |
-| 6B | Bb Major | 11d | ♭2 | 暖かい、ポジティブ |
-| 7A | D Minor | 12m | ♭1 | 感傷的、クール |
-| 7B | F Major | 12d | ♭1 | 明るい、牧歌的 |
-| 8A | A Minor | 1m | なし | ニュートラル、自然 |
-| 8B | C Major | 1d | なし | 純粋、明るい |
-| 9A | E Minor | 2m | ♯1 | 寂しさ、郷愁 |
-| 9B | G Major | 2d | ♯1 | 爽やか、軽快 |
-| 10A | B Minor | 3m | ♯2 | 内省的、ミステリアス |
-| 10B | D Major | 3d | ♯2 | 勝利感、エネルギッシュ |
-| 11A | F# Minor | 4m | ♯3 | ダーク、クール |
-| 11B | A Major | 4d | ♯3 | 明るい、楽観的 |
-| 12A | C# Minor / Db Minor | 5m | ♯4 | ミステリアス、深遠 |
-| 12B | E Major | 5d | ♯4 | 輝き、高揚感 |
+| 1A | Ab Minor / G# Minor | 6m | 7b/5# | Deep melancholy |
+| 1B | B Major | 6d | 5# | Grand, radiant |
+| 2A | Eb Minor / D# Minor | 7m | 6b | Dark, heavy |
+| 2B | F# Major / Gb Major | 7d | 6#/6b | Mysterious, fantastical |
+| 3A | Bb Minor | 8m | 5b | Melancholic, deep emotion |
+| 3B | Db Major | 8d | 5b | Warm, nostalgic |
+| 4A | F Minor | 9m | 4b | Intense emotion, passion |
+| 4B | Ab Major | 9d | 4b | Elegant, romantic |
+| 5A | C Minor | 10m | 3b | Dark determination, strength |
+| 5B | Eb Major | 10d | 3b | Heroic, stately |
+| 6A | G Minor | 11m | 2b | Melancholic, dramatic |
+| 6B | Bb Major | 11d | 2b | Warm, positive |
+| 7A | D Minor | 12m | 1b | Sentimental, cool |
+| 7B | F Major | 12d | 1b | Bright, pastoral |
+| 8A | A Minor | 1m | None | Neutral, natural |
+| 8B | C Major | 1d | None | Pure, bright |
+| 9A | E Minor | 2m | 1# | Lonely, nostalgic |
+| 9B | G Major | 2d | 1# | Fresh, lively |
+| 10A | B Minor | 3m | 2# | Introspective, mysterious |
+| 10B | D Major | 3d | 2# | Triumphant, energetic |
+| 11A | F# Minor | 4m | 3# | Dark, cool |
+| 11B | A Major | 4d | 3# | Bright, optimistic |
+| 12A | C# Minor / Db Minor | 5m | 4# | Mysterious, profound |
+| 12B | E Major | 5d | 4# | Radiant, euphoric |
 
-### Camelot でのミキシングルール
+### Camelot Mixing Rules
 
-Camelotシステムの真価は、そのシンプルなルールにあります。以下の4つのルールを覚えるだけで、ハーモニックミキシングが実践できます。
+The true value of the Camelot system lies in its simple rules. Just memorize the following 4 rules to practice harmonic mixing.
 
-**ルール1: 完璧にマッチ（Perfect Match / Same Key）**
+**Rule 1: Perfect Match (Same Key)**
 ```
-同じコード: 8B → 8B
-完全に同じキーなので、どんなミックスでも安全
-初心者に最も推奨される組み合わせ
-```
-
-**ルール2: エネルギーアップ（Energy Boost / +1）**
-```
-数字+1: 8B → 9B（C Major → G Major）
-五度圏を時計回りに1ステップ進む
-わずかにエネルギーが上昇する感覚
-セットのビルドアップに最適
+Same code: 8B -> 8B
+Completely the same key, so any mix is safe
+Most recommended combination for beginners
 ```
 
-**ルール3: エネルギーダウン（Energy Drop / -1）**
+**Rule 2: Energy Boost (+1)**
 ```
-数字-1: 8B → 7B（C Major → F Major）
-五度圏を反時計回りに1ステップ戻る
-わずかにエネルギーが下降する感覚
-セットのクールダウンに最適
-```
-
-**ルール4: ムード転換（Mood Change / A⇔B）**
-```
-文字切り替え: 8B ⇔ 8A（C Major ⇔ A Minor）
-メジャー⇔マイナーの切り替え
-ムードが明→暗、または暗→明に変化
-相対調の関係なので非常にスムーズ
+Number +1: 8B -> 9B (C Major -> G Major)
+One step clockwise on the Circle of Fifths
+A subtle sense of energy increase
+Ideal for set buildups
 ```
 
-**安全な組み合わせの完全リスト（8Bを起点とした場合）:**
+**Rule 3: Energy Drop (-1)**
 ```
-8B → 8B  （同キー: C Major → C Major）
-8B → 8A  （ムード転換: C Major → A Minor）
-8B → 9B  （エネルギーアップ: C Major → G Major）
-8B → 7B  （エネルギーダウン: C Major → F Major）
-8B → 9A  （+1 + ムード転換: C Major → E Minor）
-8B → 7A  （-1 + ムード転換: C Major → D Minor）
+Number -1: 8B -> 7B (C Major -> F Major)
+One step counterclockwise on the Circle of Fifths
+A subtle sense of energy decrease
+Ideal for set cooldowns
 ```
 
-### 高度なCamelotテクニック
-
-基本ルール以外にも、経験豊富なDJが使う高度なCamelotテクニックがあります。
-
-**1. ダブルドロップ（Double Drop / ±2）**
+**Rule 4: Mood Change (A<->B)**
 ```
-8B → 10B（C Major → D Major、全音上）
-数字を2つ飛ばす大胆なキーチェンジ
-共通音は5音で、やや緊張感がある
-ドラムブレイクやFXでのトランジション推奨
+Letter switch: 8B <-> 8A (C Major <-> A Minor)
+Switching between major and minor
+Mood changes from bright to dark, or dark to bright
+Very smooth since it's a relative key relationship
 ```
 
-**2. 対角線移動（Diagonal Move）**
+**Complete List of Safe Combinations (Starting from 8B):**
 ```
-8B → 9A（C Major → E Minor）
-数字+1かつ文字切り替え
-エネルギー変化とムード変化を同時に
-非常に洗練されたトランジション
-```
-
-**3. エネルギーエスカレーション（Key Escalation）**
-```
-8B → 9B → 10B → 11B → 12B → 1B → ...
-数字を1つずつ上げ続ける
-セット全体を通じて徐々にエネルギーを上げる
-ピークタイムに向けた構成に最適
+8B -> 8B  (Same Key: C Major -> C Major)
+8B -> 8A  (Mood Change: C Major -> A Minor)
+8B -> 9B  (Energy Boost: C Major -> G Major)
+8B -> 7B  (Energy Drop: C Major -> F Major)
+8B -> 9A  (+1 + Mood Change: C Major -> E Minor)
+8B -> 7A  (-1 + Mood Change: C Major -> D Minor)
 ```
 
-**4. ジグザグパターン（Zigzag Pattern）**
+### Advanced Camelot Techniques
+
+Beyond the basic rules, there are advanced Camelot techniques used by experienced DJs.
+
+**1. Double Drop (+/-2)**
 ```
-8A → 8B → 9A → 9B → 10A → 10B → ...
-マイナー→メジャー→マイナー→メジャーと交互
-ムードの揺れでセットに表情をつける
-Progressive House/Tranceで効果的
+8B -> 10B (C Major -> D Major, whole tone up)
+A bold key change skipping 2 numbers
+5 common notes, with some tension
+Transitions via drum breaks or FX recommended
 ```
 
-**5. キーの大ジャンプ（Bold Key Jump）**
+**2. Diagonal Move**
 ```
-8B → 2B（C Major → F# Major、トライトーン）
-通常は避けるべき組み合わせ
-ドラムのみのセクションやFXで橋渡し
-意図的な緊張感の演出に使用
-プロのDJが「セットの転換点」で使うことがある
+8B -> 9A (C Major -> E Minor)
+Number +1 with letter switch
+Energy change and mood change simultaneously
+A very sophisticated transition
 ```
 
-### Camelot vs Open Key表記
+**3. Key Escalation**
+```
+8B -> 9B -> 10B -> 11B -> 12B -> 1B -> ...
+Incrementing the number by one continuously
+Gradually raising energy throughout the set
+Ideal for building toward peak time
+```
 
-DJ解析ソフトによって使用される表記システムが異なります。主要な2つのシステムを比較します。
+**4. Zigzag Pattern**
+```
+8A -> 8B -> 9A -> 9B -> 10A -> 10B -> ...
+Alternating minor -> major -> minor -> major
+Adding expression to the set through mood oscillation
+Effective in Progressive House/Trance
+```
+
+**5. Bold Key Jump**
+```
+8B -> 2B (C Major -> F# Major, tritone)
+A combination that should normally be avoided
+Bridge with drum-only sections or FX
+Used for intentional tension
+Pro DJs sometimes use this at "set turning points"
+```
+
+### Camelot vs Open Key Notation
+
+Different DJ analysis software uses different notation systems. Here is a comparison of the two major systems.
 
 **Camelot Key:**
-- Mixed In Key社が開発
-- Rekordbox、Serato DJでサポート
-- 表記例: 8B, 11A, 3B
-- 数字1-12 + A(マイナー)/B(メジャー)
+- Developed by Mixed In Key
+- Supported by Rekordbox, Serato DJ
+- Notation example: 8B, 11A, 3B
+- Numbers 1-12 + A(Minor)/B(Major)
 
 **Open Key:**
-- Beatport等の音楽販売サイトで使用
-- 表記例: 1d, 4m, 8d
-- 数字1-12 + d(メジャー/dur)/m(マイナー/moll)
+- Used by music retail sites like Beatport
+- Notation example: 1d, 4m, 8d
+- Numbers 1-12 + d(Major/dur)/m(Minor/moll)
 
-**対応関係の覚え方:**
-CamelotのAとOpen KeyのmはどちらもMinorを表し、CamelotのBとOpen Keyのdはどちらもメジャーを表しますが、数字の対応は異なるため、混在させないことが重要です。
+**How to Remember the Correspondence:**
+Camelot's A and Open Key's m both represent minor, and Camelot's B and Open Key's d both represent major, but since the number correspondence is different, it's important not to mix them.
 
 ```
 Camelot 8B = Open Key 1d = C Major
 Camelot 8A = Open Key 1m = A Minor
-（数字が異なるため、どちらか一方に統一して使用する）
+(Numbers differ, so use one system consistently)
 ```
 
 ---
 
-## 6. DJソフトウェアでのキー管理
+## 6. Key Management in DJ Software
 
-### Rekordboxでのキー管理
+### Key Management in Rekordbox
 
-Rekordboxは最も広く使われているDJソフトウェアの1つで、強力なキー解析機能を備えています。
+Rekordbox is one of the most widely used DJ software applications, equipped with powerful key analysis features.
 
-#### キー解析
-
-```
-1. 曲をライブラリに追加
-2. 右クリック > 「解析」を選択
-3. BPMとキーが自動検出される
-4. ブラウザで「Key」列を表示して確認
-5. 解析精度は約85-90%（ジャンルによって変動）
-```
-
-**解析精度を上げるコツ:**
-- 高品質な音源（320kbps以上のMP3、FLAC、WAV）を使用する
-- 曲全体を解析する（部分解析は精度が落ちる）
-- ボーカルが少ないインストゥルメンタルセクションで確認する
-- 複数の解析ツール（Mixed In Key等）で確認する
-
-#### 表記の切り替え
+#### Key Analysis
 
 ```
-1. 環境設定 > 表示 を開く
-2. キー表記を選択:
-   - 音楽キー表記（C、Am など）: 音楽理論に慣れている人向け
-   - Camelot表記（8B、8A など）: ハーモニックミキシング初心者向け
-   - Open Key表記（1d、1m など）: Beatportユーザー向け
-3. 「適用」をクリック
+1. Add tracks to your library
+2. Right-click > Select "Analyze"
+3. BPM and key are automatically detected
+4. Display the "Key" column in the browser to check
+5. Analysis accuracy is approximately 85-90% (varies by genre)
 ```
 
-**推奨設定:**
-初心者にはCamelot表記を強く推奨します。数字の±1ルールだけでハーモニックミキシングが始められるため、学習コストが最も低いです。音楽理論に慣れてきたら、音楽キー表記に切り替えることで、より深い理解が得られます。
+**Tips for Improving Analysis Accuracy:**
+- Use high-quality audio files (320kbps+ MP3, FLAC, WAV)
+- Analyze the entire track (partial analysis reduces accuracy)
+- Verify on instrumental sections with fewer vocals
+- Cross-check with multiple analysis tools (Mixed In Key, etc.)
 
-#### キーでソート・フィルタ
+#### Switching Notation
 
 ```
-1. ブラウザで「Key」列のヘッダーをクリック
-2. 同じキーの曲がグループ化される
-3. スマートプレイリスト作成:
-   - 「新規プレイリスト」> 「スマートプレイリスト」
-   - 条件: Key is 8B
-   - 条件追加: BPM is between 124-128
-   - 名前: "8B House 124-128"
-4. 複数キーの条件も設定可能:
+1. Open Preferences > View
+2. Select key notation:
+   - Musical Key notation (C, Am, etc.): For those familiar with music theory
+   - Camelot notation (8B, 8A, etc.): For harmonic mixing beginners
+   - Open Key notation (1d, 1m, etc.): For Beatport users
+3. Click "Apply"
+```
+
+**Recommended Settings:**
+Camelot notation is strongly recommended for beginners. Since you can start harmonic mixing with just the +/-1 number rule, it has the lowest learning cost. Once you become comfortable with music theory, switching to musical key notation provides deeper understanding.
+
+#### Sorting and Filtering by Key
+
+```
+1. Click the "Key" column header in the browser
+2. Tracks in the same key are grouped together
+3. Create smart playlists:
+   - "New Playlist" > "Smart Playlist"
+   - Condition: Key is 8B
+   - Add condition: BPM is between 124-128
+   - Name: "8B House 124-128"
+4. Multiple key conditions can also be set:
    - Key is 8B OR Key is 8A OR Key is 9B OR Key is 7B
-   - → 8Bと相性の良いキーすべてを含むプレイリスト
+   - -> A playlist containing all keys compatible with 8B
 ```
 
-#### キーマッチング機能（Related Tracks）
+#### Key Matching Feature (Related Tracks)
 
 ```
-1. デッキに曲をロード
-2. ブラウザ画面で「Related Tracks」タブを選択
-3. キーの合う曲が自動的にリスト表示される
-4. BPMも考慮した推奨曲が表示される
-5. フィルタ条件:
-   - Same Key: 同じキーのみ
-   - Compatible: Camelotルールに基づく相性の良いキー
-   - All: すべての曲
+1. Load a track onto a deck
+2. Select the "Related Tracks" tab in the browser
+3. Tracks with compatible keys are automatically listed
+4. Recommended tracks considering BPM are also displayed
+5. Filter conditions:
+   - Same Key: Same key only
+   - Compatible: Compatible keys based on Camelot rules
+   - All: All tracks
 ```
 
-**プロのワークフロー:**
-多くのプロDJは、ギグの前にキーとBPMの両方を基準にしたスマートプレイリストを作成しています。例えば「Tech House 124-126BPM / 8A-9A-7A」のようなプレイリストを複数用意し、セット中にスムーズに切り替えられるようにしています。
+**Professional Workflow:**
+Many professional DJs create smart playlists based on both key and BPM before gigs. For example, they prepare multiple playlists like "Tech House 124-126BPM / 8A-9A-7A" for smooth switching during sets.
 
-#### キーの手動修正
+#### Manual Key Correction
 
-解析結果が正しくない場合の修正方法:
-
-```
-1. ブラウザでキー列をダブルクリック
-2. 正しいキーを手動入力（例: "Am" または "8A"）
-3. Enterで確定
-4. 手動修正した曲には印をつけておくと管理しやすい
-   - My Tag機能やコメント欄を活用
-```
-
-### Serato DJでのキー管理
-
-Serato DJもRekordboxと同等のキー解析機能を持っています。
-
-#### キー解析と表示
+How to correct analysis results when they are incorrect:
 
 ```
-1. Setup > Library + Display タブを開く
-2. "Show Key" にチェック
-3. Key Detection: "Serato DJ" を選択（デフォルト解析エンジン）
+1. Double-click the key column in the browser
+2. Manually enter the correct key (e.g., "Am" or "8A")
+3. Press Enter to confirm
+4. Marking manually corrected tracks makes management easier
+   - Use the My Tag feature or comments field
+```
+
+### Key Management in Serato DJ
+
+Serato DJ also has key analysis capabilities equivalent to Rekordbox.
+
+#### Key Analysis and Display
+
+```
+1. Open Setup > Library + Display tab
+2. Check "Show Key"
+3. Key Detection: Select "Serato DJ" (default analysis engine)
 4. Key Display:
-   - Musical Key: 音楽キー表記
-   - Camelot: Camelot表記
-   - Open Key: Open Key表記
-5. 曲を解析すると自動的にキーが検出される
+   - Musical Key: Musical key notation
+   - Camelot: Camelot notation
+   - Open Key: Open Key notation
+5. Keys are automatically detected when tracks are analyzed
 ```
 
-#### Serato特有のキー機能
+#### Serato-Specific Key Features
 
 ```
-- Key Sync: ボタン1つで次の曲のキーを自動調整
-- Key Range Filter: 特定のキー範囲の曲だけ表示
-- Key Color: キーに応じたカラーコーディング
-  - 同じキー: 緑
-  - ±1キー: 黄色
-  - 非互換キー: 赤
+- Key Sync: Automatically adjusts the next track's key with one button
+- Key Range Filter: Displays only tracks within a specific key range
+- Key Color: Color coding based on key
+  - Same key: Green
+  - +/-1 key: Yellow
+  - Incompatible key: Red
 ```
 
-**Serato Key Syncの注意点:**
-Key Syncは便利な機能ですが、ピッチ（音程）を変更するため音質が劣化する可能性があります。特に±3半音以上の変更は、音質劣化が顕著になるため注意が必要です。±1半音以内であれば、ほとんど気にならないレベルです。
+**Note on Serato Key Sync:**
+Key Sync is a convenient feature, but it changes the pitch, which may degrade audio quality. Changes of +/-3 semitones or more are particularly noticeable in quality degradation. Within +/-1 semitone, the degradation is barely perceptible.
 
-### Traktorでのキー管理
+### Key Management in Traktor
 
-Native InstrumentsのTraktorは、独自のキー解析アルゴリズムを搭載しています。
+Native Instruments' Traktor features its own key analysis algorithm.
 
-#### キー解析設定
+#### Key Analysis Settings
 
 ```
 1. Preferences > File Management
 2. Analyze New Imported Tracks: ON
-3. Store BPM and Key in File Tag: ON（ファイルタグに保存）
-4. Key Detection Range: 推奨は "Normal"
-   - "Extended" は精度が上がるが解析時間が長い
+3. Store BPM and Key in File Tag: ON (saves to file tags)
+4. Key Detection Range: "Normal" is recommended
+   - "Extended" improves accuracy but takes longer to analyze
 ```
 
-#### Traktor特有のキー機能
+#### Traktor-Specific Key Features
 
 ```
-- Key Lock（キーロック）: テンポ変更時にキーを維持
-- Key Adjust: ±12半音の範囲でキーをリアルタイム調整
-- Key Match Indicator: 両デッキのキー関係を視覚表示
-  - 緑のドット: 完全一致
-  - 黄色のドット: 近いキー（±1-2）
-  - 赤のドット: 不適合
+- Key Lock: Maintains key when changing tempo
+- Key Adjust: Real-time key adjustment in a range of +/-12 semitones
+- Key Match Indicator: Visual display of key relationships between both decks
+  - Green dot: Perfect match
+  - Yellow dot: Close key (+/-1-2)
+  - Red dot: Incompatible
 ```
 
-### Ableton Liveでのキー確認と管理
+### Key Management in Ableton Live
 
-Ableton Liveは制作とDJの両方で使用されるソフトウェアで、キー管理機能も充実しています。
+Ableton Live is software used for both production and DJing, with comprehensive key management features.
 
-#### キー解析（Live 12以降）
-
-```
-1. 曲をセッションビューにドラッグ&ドロップ
-2. クリップビューでワープ設定
-3. ファイルのメタデータからキー情報を読み取り
-4. Live 12では内蔵のキー解析機能が追加
-```
-
-#### 手動でキーを確認する方法
+#### Key Analysis (Live 12 and Later)
 
 ```
-方法1: Scale MIDIエフェクトを使う
-1. MIDIトラックを作成
-2. Scale MIDIエフェクトを追加
-3. 様々なスケール設定を試す
-4. 曲のメロディに合うスケールを見つける
-5. スケールのルート音 = 曲のキー
-
-方法2: Tunerデバイスを使う
-1. オーディオトラックにTunerデバイスを追加
-2. ベースラインやメロディをソロで再生
-3. Tunerが表示するピッチからルート音を特定
-4. メジャー/マイナーは耳で判断
-
-方法3: Spectrum Analyzerを使う
-1. オーディオトラックにSpectrumを追加
-2. ベースライン再生中の周波数ピークを確認
-3. ピーク周波数から音名を特定
-   - A = 440Hz, C = 261.6Hz, E = 329.6Hz など
+1. Drag and drop a track into Session View
+2. Set up warping in Clip View
+3. Key information is read from file metadata
+4. Live 12 added a built-in key analysis feature
 ```
 
-#### MIDI Pitchで転調
+#### How to Manually Check Key
 
 ```
-1. オーディオをMIDI変換
-   - クリップを右クリック > "Convert Harmony to New MIDI Track"
-   - または "Convert Melody to New MIDI Track"
-2. MIDIトラックにPitchエフェクトを追加
-3. Pitchノブで半音単位の転調が可能
-4. 別のキーの曲と組み合わせ可能
+Method 1: Using the Scale MIDI Effect
+1. Create a MIDI track
+2. Add the Scale MIDI effect
+3. Try various scale settings
+4. Find the scale that matches the track's melody
+5. The root note of the scale = the track's key
 
-応用テクニック:
-- Complex Pro ワープモードを使用すると音質劣化を最小限に
-- 転調量が大きいほど劣化が目立つ（±3半音まで推奨）
-- ドラム素材は転調しても問題ない（ピッチ感が薄い）
+Method 2: Using the Tuner Device
+1. Add the Tuner device to an audio track
+2. Solo play the bassline or melody
+3. Identify the root note from the pitch displayed by Tuner
+4. Determine major/minor by ear
+
+Method 3: Using Spectrum Analyzer
+1. Add Spectrum to an audio track
+2. Check the frequency peaks during bassline playback
+3. Identify the note name from the peak frequency
+   - A = 440Hz, C = 261.6Hz, E = 329.6Hz, etc.
 ```
 
-### Mixed In Keyでのキー解析
-
-Mixed In Keyは、キー解析に特化した業界標準のスタンドアロンソフトウェアです。
+#### Transposition with MIDI Pitch
 
 ```
-特徴:
-- DJソフト内蔵解析より高精度（約95%の精度を謳う）
-- エネルギーレベル（1-10）も算出
-- Camelot表記をネイティブサポート
-- Rekordbox、Serato、Traktorへの解析結果エクスポート対応
-- バッチ解析で大量の曲を一括処理
-- Key Notation: Camelot、Open Key、Musical Keyから選択
+1. Convert audio to MIDI
+   - Right-click clip > "Convert Harmony to New MIDI Track"
+   - Or "Convert Melody to New MIDI Track"
+2. Add the Pitch effect to the MIDI track
+3. The Pitch knob allows transposition in semitone increments
+4. Can be combined with tracks in different keys
+
+Advanced Techniques:
+- Using Complex Pro warp mode minimizes quality degradation
+- Larger transpositions produce more noticeable degradation (+/-3 semitones recommended)
+- Drum materials can be transposed without issues (weak pitch perception)
 ```
 
-**プロの推奨ワークフロー:**
-```
-1. 新しい曲を入手したらまずMixed In Keyで解析
-2. エネルギーレベルとキーをメタデータに書き込み
-3. Rekordbox/Serato にインポート
-4. DJソフトの解析結果とMixed In Keyの結果を比較
-5. 不一致がある場合は耳で確認して手動修正
-6. 確定したキーをタグに保存
-```
+### Key Analysis with Mixed In Key
 
----
-
-## 7. ハーモニックミキシングの実践
-
-### 準備段階: セットプランニング
-
-ハーモニックミキシングを成功させるためには、セット全体のキー構成を事前に計画することが重要です。
-
-**キーマップの作成:**
-```
-1. プレイする予定の曲をすべてリストアップ
-2. 各曲のキー（Camelot表記）とBPMを記録
-3. キーの流れを設計:
-   - オープニング: 8A（A Minor、落ち着いた雰囲気）
-   - ビルドアップ: 8A → 9A → 10A（エネルギー上昇）
-   - ピーク1: 10B → 11B（メジャーキーで最高潮）
-   - クールダウン: 11A → 10A（マイナーで落ち着き）
-   - ピーク2: 10B → 11B → 12B（再上昇）
-   - クロージング: 12A → 11A → 10A（徐々に収束）
-4. 各キーに2-3曲の候補を用意（柔軟性確保）
-```
-
-### ステップ1: キーを確認
+Mixed In Key is the industry-standard standalone software specializing in key analysis.
 
 ```
-1. 両方の曲のキーをDJソフトで確認
-2. Camelot表記で相性をチェック
-3. 以下の判断基準で適合性を確認:
-   - 同じ数字+同じ文字 → 完璧
-   - 同じ数字+異なる文字 → ムードチェンジ
-   - ±1の数字+同じ文字 → エネルギー変化
-   - ±1の数字+異なる文字 → 対角線移動
-   - それ以外 → 要注意、FXやブレイクでの対応が必要
+Features:
+- Higher precision than DJ software built-in analysis (claims approximately 95% accuracy)
+- Also calculates energy level (1-10)
+- Native Camelot notation support
+- Export analysis results to Rekordbox, Serato, and Traktor
+- Batch analysis for processing large numbers of tracks at once
+- Key Notation: Choose from Camelot, Open Key, or Musical Key
 ```
 
-### ステップ2: ミックスポイントを決める
-
+**Recommended Professional Workflow:**
 ```
-1. 前の曲のアウトロ（最後の16-32小節）を確認
-   - メロディが少ない部分を探す
-   - ドラム+ベースのみのセクションが理想
-   - FXブレイクがあれば活用
-2. 次の曲のイントロ（最初の16-32小節）を確認
-   - メロディが入ってくるタイミングを把握
-   - キック、ハイハット、パーカッションの構成を確認
-3. メロディやコードが少ない部分を選ぶ
-   - キーの相性が良ければメロディが重なっても問題ない
-   - キーが±1の場合、メロディ同士の重なりは最小限に
-4. 曲の構造（8小節/16小節/32小節単位）を意識
-   - EDMは通常8小節単位で構成が変化
-   - トランジションは16小節が標準
-```
-
-### ステップ3: EQで調整
-
-```
-1. 次の曲のLow（低音）をカット
-   - ベースの衝突を防ぐ（最も重要）
-   - 低音が二重になると「ドロドロ」した音に
-2. フェーダーを上げる
-   - チャンネルフェーダーを徐々に上げる
-   - またはクロスフェーダーをゆっくり移動
-3. Mid（中音域）も調整してメロディの衝突を避ける
-   - キーが合っていればMidは残しても問題ない
-   - キーが微妙な場合はMidもカット
-4. 徐々に前の曲をフェードアウト
-   - 前の曲のHighから先にカット（自然な消え方）
-   - 次にMidをカット
-   - 最後にLowをスワップ（前の曲のLowをカット、次の曲のLowを戻す）
-5. EQスワップの完了
-   - 次の曲がメインになる
-   - 前の曲のフェーダーを下げて完了
-```
-
-**3バンドEQスワップの黄金パターン:**
-```
-タイミング(小節) | 前の曲      | 次の曲
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-0              | Hi/Mid/Low  | -/-/-
-4              | Hi/Mid/Low  | Hi/-/-
-8              | Hi/Mid/-    | Hi/Mid/Low ← Lowスワップ
-12             | -/Mid/-     | Hi/Mid/Low
-16             | -/-/-       | Hi/Mid/Low ← 完了
-```
-
-### ステップ4: 耳で確認
-
-```
-1. ヘッドフォンで両方の曲を同時に聴く
-   - CUEボタンで次の曲をモニター
-   - マスターとCUEのバランスを調整
-2. 不協和音がないか確認
-   - メロディ同士が「ぶつかる」感覚がないか
-   - ベースラインが干渉していないか
-   - ボーカル同士が重なっていないか
-3. 違和感があれば対応:
-   - EQでMidをさらにカット
-   - ミックスポイントを変更（メロディの少ない部分へ）
-   - FX（フィルター、エコー）で一方をぼかす
-   - タイミングを調整（位相の問題かもしれない）
-4. フロアの反応も確認
-   - ハーモニックミキシングはフロアの一体感を生む
-   - 不協和音はフロアのエネルギーを下げる
-```
-
-### 実践的なセットの組み立て例
-
-以下は、2時間のハウスミュージックセットにおけるキー構成の例です。
-
-```
-時間帯     | Camelot | キー       | BPM  | 曲のタイプ
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-0:00-0:15 | 8A     | A Minor   | 122  | ディープハウス（イントロ）
-0:15-0:25 | 8B     | C Major   | 123  | メロディックハウス
-0:25-0:35 | 9B     | G Major   | 124  | ポップハウス（明るく）
-0:35-0:45 | 9A     | E Minor   | 125  | テックハウス（ムードチェンジ）
-0:45-0:55 | 10A    | B Minor   | 126  | テックハウス（エネルギー上昇）
-0:55-1:05 | 10B    | D Major   | 126  | プログレッシブ（ピーク1）
-1:05-1:15 | 11B    | A Major   | 127  | ビッグルーム（最高潮）
-1:15-1:25 | 11A    | F# Minor  | 126  | クールダウン
-1:25-1:35 | 12A    | C# Minor  | 127  | ダークプログレッシブ
-1:35-1:45 | 12B    | E Major   | 128  | アンセミック（ピーク2）
-1:45-1:55 | 12A    | C# Minor  | 126  | エモーショナル（余韻）
-1:55-2:00 | 11A    | F# Minor  | 124  | ディープ（クロージング）
+1. Analyze new tracks with Mixed In Key first
+2. Write energy level and key to metadata
+3. Import into Rekordbox/Serato
+4. Compare DJ software analysis results with Mixed In Key results
+5. If there's a discrepancy, verify by ear and manually correct
+6. Save the confirmed key to tags
 ```
 
 ---
 
-## 8. 転調テクニック
+## 7. Harmonic Mixing in Practice
 
-### DJ中に転調する方法
+### Preparation: Set Planning
 
-キーの異なる曲をスムーズに繋ぐための実践的なテクニックを紹介します。
+To succeed at harmonic mixing, it's important to plan the key structure of the entire set in advance.
 
-**1. ドラムブレイク利用（最も安全）**
+**Creating a Key Map:**
 ```
-メロディがないドラムだけのセクションで切り替え
-キーの衝突を完全に避けることができる
-テクノやハウスの多くの曲に存在するブレイクダウン部分を活用
-成功率: ほぼ100%（キーに関係なく成功）
-```
-
-**実践手順:**
-```
-1. 前の曲のドラムブレイクの開始位置を把握
-2. ブレイク開始と同時に次の曲のフェーダーを上げ始める
-3. ドラムのみのセクションでEQスワップを完了
-4. 次の曲のメロディが入る前にトランジション完了
+1. List all tracks you plan to play
+2. Record each track's key (Camelot notation) and BPM
+3. Design the key flow:
+   - Opening: 8A (A Minor, calm atmosphere)
+   - Buildup: 8A -> 9A -> 10A (energy rising)
+   - Peak 1: 10B -> 11B (climax with major keys)
+   - Cooldown: 11A -> 10A (calming with minor keys)
+   - Peak 2: 10B -> 11B -> 12B (rising again)
+   - Closing: 12A -> 11A -> 10A (gradually converging)
+4. Prepare 2-3 candidate tracks for each key (for flexibility)
 ```
 
-**2. エフェクト活用（中級テクニック）**
+### Step 1: Check the Keys
+
 ```
-Filter: ローパスフィルターで高音域をカット → メロディを隠す
-Echo: エコーで音を拡散 → ハーモニーをぼかす
-Reverb: リバーブで空間を広げる → 曲の境界を曖昧に
-Noise: ホワイトノイズのスイープでマスキング
-Backspin: バックスピンで前の曲を終了
+1. Check the keys of both tracks in your DJ software
+2. Check compatibility using Camelot notation
+3. Determine suitability based on these criteria:
+   - Same number + same letter -> Perfect
+   - Same number + different letter -> Mood change
+   - +/-1 number + same letter -> Energy change
+   - +/-1 number + different letter -> Diagonal move
+   - Anything else -> Caution required, use FX or breaks
 ```
 
-**Filter Sweepテクニック:**
+### Step 2: Determine the Mix Point
+
 ```
-1. 前の曲にローパスフィルターをかけ始める
-2. カットオフ周波数を徐々に下げる（高音域から順にカット）
-3. メロディが聞こえなくなったら次の曲を導入
-4. 次の曲にもハイパスフィルターをかけておく
-5. 次の曲のフィルターを徐々に開く
-6. 前の曲のフェーダーを下げて完了
-→ キーの不一致を目立たなくする効果的な手法
+1. Check the outro of the outgoing track (last 16-32 bars)
+   - Look for sections with little melody
+   - Sections with only drums + bass are ideal
+   - Use FX breaks if available
+2. Check the intro of the incoming track (first 16-32 bars)
+   - Understand when the melody comes in
+   - Check the kick, hi-hat, and percussion arrangement
+3. Choose sections with minimal melody or chords
+   - If keys are compatible, overlapping melodies are fine
+   - If keys are +/-1, minimize melody overlap
+4. Be aware of track structure (8-bar/16-bar/32-bar units)
+   - EDM typically changes structure in 8-bar units
+   - 16 bars is the standard transition length
 ```
 
-**3. ピッチ/キー調整（上級テクニック）**
+### Step 3: Adjust with EQ
+
 ```
-Rekordboxのキー調整機能:
-- Master Tempo ON の状態でピッチを変更
-- ±1半音: ほとんど音質劣化なし
-- ±2半音: わずかに劣化が聞こえる場合あり
-- ±3半音以上: 明確な音質劣化
+1. Cut the Low (bass) on the incoming track
+   - Prevents bass collision (most important)
+   - Double bass creates a "muddy" sound
+2. Bring up the fader
+   - Gradually raise the channel fader
+   - Or slowly move the crossfader
+3. Also adjust Mid (midrange) to avoid melody clashes
+   - If keys match, leaving the Mid is fine
+   - If key compatibility is borderline, cut the Mid too
+4. Gradually fade out the outgoing track
+   - Cut the High first (for a natural fade)
+   - Then cut the Mid
+   - Finally swap the Low (cut outgoing Low, restore incoming Low)
+5. Complete the EQ swap
+   - The incoming track becomes the main
+   - Lower the outgoing track's fader to finish
 ```
 
-**半音ずつ合わせる手順:**
+**The Golden Pattern for 3-Band EQ Swap:**
 ```
-1. 次の曲のキーを確認（例: 8A = A Minor）
-2. 前の曲のキーと比較（例: 10A = B Minor）
-3. 差分を計算（2半音の差）
-4. 次の曲のキーを-2半音（G# Minor = 1A に変更）
-   → ただし1AとBは相性が良いわけではない
-5. 代わりに前の曲を+2半音（C# Minor = 12A）に
-   → 12Aと8Aの差は4で、まだ離れている
-6. → この場合はFXやブレイクを使う方が現実的
-```
-
-**4. キーロック（Master Tempo / Key Lock）**
-```
-BPMを変えてもキー（音程）を保持する機能
-テンポ調整の自由度が大幅に向上
-多くのDJコントローラーに専用ボタンあり
-
-注意点:
-- タイムストレッチアルゴリズムによる音質変化
-- ±4BPM程度なら問題ない
-- ±8BPM以上は明確なアーティファクトが発生
-- ドラムのアタック感が鈍る場合がある
+Timing (bars) | Outgoing Track | Incoming Track
+=================================================
+0             | Hi/Mid/Low     | -/-/-
+4             | Hi/Mid/Low     | Hi/-/-
+8             | Hi/Mid/-       | Hi/Mid/Low <- Low swap
+12            | -/Mid/-        | Hi/Mid/Low
+16            | -/-/-          | Hi/Mid/Low <- Complete
 ```
 
-**5. アカペラ/ボーカルブリッジ**
+### Step 4: Verify by Ear
+
 ```
-1. アカペラ（ボーカルのみ）トラックを用意
-2. 前の曲のアウトロでアカペラを重ねる
-3. 前の曲をフェードアウト
-4. アカペラのみが残った状態で次の曲を導入
-5. 次の曲のキーに合ったアカペラを選ぶ
-→ キーの完全な切り替えを自然に行える
+1. Listen to both tracks simultaneously through headphones
+   - Monitor the incoming track with the CUE button
+   - Adjust the master and CUE balance
+2. Check for dissonance
+   - Is there a sense of melodies "clashing"?
+   - Are the basslines interfering?
+   - Are vocals overlapping?
+3. If something feels off, take action:
+   - Cut the Mid further with EQ
+   - Change the mix point (to a section with less melody)
+   - Blur one track with FX (filter, echo)
+   - Adjust timing (it might be a phase issue)
+4. Also check the crowd's response
+   - Harmonic mixing creates a sense of unity on the floor
+   - Dissonance lowers the floor's energy
 ```
 
-**6. サンプル/ジングルブリッジ**
+### Practical Set Construction Example
+
+Here is an example of key structure for a 2-hour house music set.
+
 ```
-1. DJドロップ、効果音、サイレンなどのサンプルを用意
-2. ピッチ感のないサンプル（ドラムフィル、FX等）が理想
-3. 前の曲のアウトロ → サンプル → 次の曲のイントロ
-4. キーの不一致を完全に回避
-→ ラジオDJ、Hip Hop DJ で多用されるテクニック
+Time Slot   | Camelot | Key        | BPM  | Track Type
+=========================================================
+0:00-0:15   | 8A      | A Minor    | 122  | Deep House (Intro)
+0:15-0:25   | 8B      | C Major    | 123  | Melodic House
+0:25-0:35   | 9B      | G Major    | 124  | Pop House (Bright)
+0:35-0:45   | 9A      | E Minor    | 125  | Tech House (Mood Change)
+0:45-0:55   | 10A     | B Minor    | 126  | Tech House (Energy Up)
+0:55-1:05   | 10B     | D Major    | 126  | Progressive (Peak 1)
+1:05-1:15   | 11B     | A Major    | 127  | Big Room (Climax)
+1:15-1:25   | 11A     | F# Minor   | 126  | Cooldown
+1:25-1:35   | 12A     | C# Minor   | 127  | Dark Progressive
+1:35-1:45   | 12B     | E Major    | 128  | Anthemic (Peak 2)
+1:45-1:55   | 12A     | C# Minor   | 126  | Emotional (Afterglow)
+1:55-2:00   | 11A     | F# Minor   | 124  | Deep (Closing)
 ```
 
 ---
 
-## 9. ジャンル別のキー傾向と選曲戦略
+## 8. Modulation Techniques
 
-### House（ハウス）
+### How to Modulate During a DJ Set
 
+Here are practical techniques for smoothly connecting tracks in different keys.
+
+**1. Using Drum Breaks (Safest Method)**
 ```
-よく使われるキー: A Minor(8A), C Major(8B), F Major(7B), G Minor(6A)
-BPM範囲: 118-130
-```
-
-**キー特性:**
-- メジャーキーとマイナーキーが半々程度
-- メロディアスなサブジャンル（Vocal House, Deep House）ではキー管理が特に重要
-- Tech Houseはマイナーキーが多い傾向
-- Progressive Houseは転調を効果的に使う曲が多い
-
-**選曲戦略:**
-```
-ディープハウスセットの場合:
-8A → 8B → 9B → 9A → 10A → 10B → ...
-（マイナー→メジャー→メジャー→マイナーのジグザグ）
-
-テックハウスセットの場合:
-8A → 9A → 10A → 11A → ... → 8A
-（マイナーキーを維持しながら五度圏を一周）
+Switch during drum-only sections with no melody
+Completely avoids key conflicts
+Utilize breakdown sections found in many techno and house tracks
+Success rate: Nearly 100% (succeeds regardless of key)
 ```
 
-### Techno（テクノ）
-
+**Practical Steps:**
 ```
-よく使われるキー: A Minor(8A), D Minor(7A), E Minor(9A), G Minor(6A)
-BPM範囲: 125-145
-```
-
-**キー特性:**
-- 圧倒的にマイナーキーが多い（90%以上）
-- ミニマルテクノではメロディが少ないため、キーの影響は比較的小さい
-- メロディックテクノでは逆にキー管理が極めて重要
-- インダストリアルテクノはノイズ要素が多く、キーが不明確な場合がある
-
-**選曲戦略:**
-```
-ダークテクノセットの場合:
-8A → 7A → 6A → 5A → 4A → ...
-（五度圏を反時計回り = 徐々にダークに）
-
-メロディックテクノセットの場合:
-8A → 8B → 9A → 9B → 10A → ...
-（ジグザグパターン = ムードの変化で表情をつける）
+1. Identify the start position of the drum break in the outgoing track
+2. Begin raising the incoming track's fader when the break starts
+3. Complete the EQ swap during the drum-only section
+4. Complete the transition before the incoming track's melody enters
 ```
 
-### Trance（トランス）
-
+**2. Using Effects (Intermediate Technique)**
 ```
-よく使われるキー: A Minor(8A), C Major(8B), D Major(10B), F Major(7B)
-BPM範囲: 128-150
-```
-
-**キー特性:**
-- メジャーキーとマイナーキーが混在
-- 1曲の中で転調する曲が多い（ブレイクダウン後に半音上げなど）
-- アンセミックなトランスはメジャーキーが多い
-- プログレッシブトランスはマイナーキーが主流
-- Psytranceはハーモニックマイナーやフリジアンモードが多い
-
-**選曲戦略:**
-```
-アップリフティングトランスセットの場合:
-8A → 9A → 9B → 10B → 11B → 12B → ...
-（マイナーからメジャーへ、徐々にエネルギー上昇）
-
-セット内転調の活用:
-曲自体が転調する場合、転調後のキーで次の曲を選ぶ
-例: 曲のドロップが8Aで、最後のブレイクダウンで9Aに転調
-→ 次の曲は9A, 9B, 10A, 8Aから選ぶ
+Filter: Cut high frequencies with a low-pass filter -> Hides the melody
+Echo: Spread the sound with echo -> Blurs the harmony
+Reverb: Expand the space with reverb -> Makes track boundaries ambiguous
+Noise: Mask with white noise sweep
+Backspin: End the outgoing track with a backspin
 ```
 
-### Drum and Bass（ドラムンベース）
+**Filter Sweep Technique:**
+```
+1. Start applying a low-pass filter to the outgoing track
+2. Gradually lower the cutoff frequency (cutting from high frequencies down)
+3. Once the melody is no longer audible, introduce the incoming track
+4. Also apply a high-pass filter to the incoming track
+5. Gradually open the incoming track's filter
+6. Lower the outgoing track's fader to complete
+-> An effective method for making key mismatches less noticeable
+```
+
+**3. Pitch/Key Adjustment (Advanced Technique)**
+```
+Rekordbox key adjustment feature:
+- Change pitch with Master Tempo ON
+- +/-1 semitone: Almost no quality degradation
+- +/-2 semitones: Slight degradation may be audible
+- +/-3 semitones or more: Clear quality degradation
+```
+
+**Matching by Semitone Steps:**
+```
+1. Check the incoming track's key (e.g., 8A = A Minor)
+2. Compare with the outgoing track's key (e.g., 10A = B Minor)
+3. Calculate the difference (2 semitone gap)
+4. Change the incoming track's key by -2 semitones (to G# Minor = 1A)
+   -> However, 1A and B are not necessarily compatible
+5. Instead, shift the outgoing track +2 semitones (to C# Minor = 12A)
+   -> The gap between 12A and 8A is 4, still too far apart
+6. -> In this case, using FX or breaks is more practical
+```
+
+**4. Key Lock (Master Tempo)**
+```
+A feature that preserves the key (pitch) when changing BPM
+Greatly increases freedom in tempo adjustment
+Many DJ controllers have a dedicated button for this
+
+Notes:
+- Audio quality changes due to time-stretch algorithm
+- Within +/-4 BPM is generally fine
+- +/-8 BPM or more produces noticeable artifacts
+- Drum attack may become dull in some cases
+```
+
+**5. Acapella/Vocal Bridge**
+```
+1. Prepare an acapella (vocals only) track
+2. Layer the acapella over the outgoing track's outro
+3. Fade out the outgoing track
+4. With only the acapella remaining, introduce the incoming track
+5. Choose an acapella that matches the incoming track's key
+-> Enables a natural complete key change
+```
+
+**6. Sample/Jingle Bridge**
+```
+1. Prepare samples such as DJ drops, sound effects, and sirens
+2. Samples with no pitch content (drum fills, FX, etc.) are ideal
+3. Outgoing track's outro -> Sample -> Incoming track's intro
+4. Completely avoids key mismatches
+-> A technique frequently used by radio DJs and Hip Hop DJs
+```
+
+---
+
+## 9. Key Tendencies by Genre and Track Selection Strategies
+
+### House
 
 ```
-よく使われるキー: A Minor(8A), E Minor(9A), D Minor(7A), F Minor(4A)
-BPM範囲: 160-180
+Commonly used keys: A Minor(8A), C Major(8B), F Major(7B), G Minor(6A)
+BPM range: 118-130
 ```
 
-**キー特性:**
-- マイナーキーが圧倒的に多い
-- ベースラインがキーの判断に重要な役割を果たす
-- Liquid DnBではメロディアスでキー管理が重要
-- Neurofunkではベースデザインが複雑でキーが不明確な場合がある
-- Jump-UpはシンプルなキーでE Minor(9A)が多い
+**Key Characteristics:**
+- Roughly equal split between major and minor keys
+- Key management is especially important in melodic subgenres (Vocal House, Deep House)
+- Tech House tends toward minor keys
+- Progressive House features many tracks that effectively use modulation
 
-**選曲戦略:**
+**Track Selection Strategies:**
 ```
-Liquidセットの場合:
-8A → 9A → 9B → 10A → 10B → ...
-（メロディアスな曲が多いため、丁寧なキー管理が必要）
+For a Deep House set:
+8A -> 8B -> 9B -> 9A -> 10A -> 10B -> ...
+(Zigzag of minor -> major -> major -> minor)
 
-Neurofunkセットの場合:
-キーよりもエネルギーとグルーヴの流れを優先
-ドラムブレイクでのトランジションが主
-キーの不一致はベースデザインの歪みで目立ちにくい
+For a Tech House set:
+8A -> 9A -> 10A -> 11A -> ... -> 8A
+(Complete the Circle of Fifths while staying in minor keys)
+```
+
+### Techno
+
+```
+Commonly used keys: A Minor(8A), D Minor(7A), E Minor(9A), G Minor(6A)
+BPM range: 125-145
+```
+
+**Key Characteristics:**
+- Overwhelmingly dominated by minor keys (over 90%)
+- In minimal techno, melody is sparse so key impact is relatively small
+- In melodic techno, key management is extremely important
+- In industrial techno, noise elements are heavy and keys may be unclear
+
+**Track Selection Strategies:**
+```
+For a Dark Techno set:
+8A -> 7A -> 6A -> 5A -> 4A -> ...
+(Counterclockwise on the Circle of Fifths = gradually darker)
+
+For a Melodic Techno set:
+8A -> 8B -> 9A -> 9B -> 10A -> ...
+(Zigzag pattern = adding expression through mood changes)
+```
+
+### Trance
+
+```
+Commonly used keys: A Minor(8A), C Major(8B), D Major(10B), F Major(7B)
+BPM range: 128-150
+```
+
+**Key Characteristics:**
+- Mix of major and minor keys
+- Many tracks modulate within a single song (e.g., semitone up after the breakdown)
+- Anthemic trance tends to use major keys
+- Progressive trance is predominantly in minor keys
+- Psytrance frequently uses harmonic minor and Phrygian mode
+
+**Track Selection Strategies:**
+```
+For an Uplifting Trance set:
+8A -> 9A -> 9B -> 10B -> 11B -> 12B -> ...
+(From minor to major, gradually increasing energy)
+
+Utilizing in-track modulation:
+When a track itself modulates, select the next track based on the post-modulation key
+Example: Track drop is in 8A, final breakdown modulates to 9A
+-> Choose the next track from 9A, 9B, 10A, or 8A
+```
+
+### Drum and Bass
+
+```
+Commonly used keys: A Minor(8A), E Minor(9A), D Minor(7A), F Minor(4A)
+BPM range: 160-180
+```
+
+**Key Characteristics:**
+- Overwhelmingly dominated by minor keys
+- Basslines play a crucial role in determining the key
+- In Liquid DnB, melodic content makes key management important
+- In Neurofunk, complex bass design can make keys unclear
+- Jump-Up tends toward simple keys with E Minor(9A) being common
+
+**Track Selection Strategies:**
+```
+For a Liquid set:
+8A -> 9A -> 9B -> 10A -> 10B -> ...
+(With many melodic tracks, careful key management is needed)
+
+For a Neurofunk set:
+Prioritize energy and groove flow over key
+Transitions primarily through drum breaks
+Key mismatches are less noticeable due to bass design distortion
 ```
 
 ### Hip Hop / R&B
 
 ```
-よく使われるキー: 様々（サンプリングベースのため）
-BPM範囲: 80-100（Hip Hop）、90-110（R&B）
+Commonly used keys: Various (sampling-based)
+BPM range: 80-100 (Hip Hop), 90-110 (R&B)
 ```
 
-**キー特性:**
-- サンプリングベースのためキーが非常に多様
-- キーよりグルーヴ、フロー、エネルギーを重視
-- ハーモニックミキシングはTrap/Melodic Rap系で有効
-- R&Bはメロディアスなため、キー管理が重要
-- ターンテーブリストはキーより技術（スクラッチ等）を重視
+**Key Characteristics:**
+- Keys are very diverse due to sampling-based production
+- Groove, flow, and energy are prioritized over key
+- Harmonic mixing is effective for Trap/Melodic Rap
+- R&B is melodic, making key management important
+- Turntablists prioritize technique (scratching, etc.) over key
 
-**選曲戦略:**
+**Track Selection Strategies:**
 ```
-R&Bセットの場合:
-キーベースのセット構成が効果的
-8A → 8B → 9B → 9A → ...
+For an R&B set:
+Key-based set construction is effective
+8A -> 8B -> 9B -> 9A -> ...
 
-Hip Hopセットの場合:
-キーよりもBPMとエネルギーの流れを優先
-バース（歌詞パート）が終わるタイミングでカットイン
-ビートジャグリングやスクラッチでトランジション
-```
-
-### EDM / Festival（フェスティバルEDM）
-
-```
-よく使われるキー: C Major(8B), G Major(9B), A Minor(8A), F Major(7B)
-BPM範囲: 126-132
+For a Hip Hop set:
+Prioritize BPM and energy flow over key
+Cut in at the timing when verses (lyric sections) end
+Transition with beat juggling or scratching
 ```
 
-**キー特性:**
-- メジャーキーの使用率が高い（アンセミック、ユーフォリック）
-- ドロップ前にキーが半音上がる曲が多い
-- 同じBPM帯の曲が多く、キー管理に集中しやすい
-- ビッグルームはシンプルなメロディのため、キーミスが目立ちやすい
-- Future BassやMelodic Dubstepはメジャーキーが主流
+### EDM / Festival
+
+```
+Commonly used keys: C Major(8B), G Major(9B), A Minor(8A), F Major(7B)
+BPM range: 126-132
+```
+
+**Key Characteristics:**
+- High usage rate of major keys (anthemic, euphoric)
+- Many tracks modulate up a semitone before the drop
+- Many tracks in the same BPM range, allowing focus on key management
+- Big room has simple melodies, making key mismatches very noticeable
+- Future Bass and Melodic Dubstep are predominantly in major keys
 
 ### Ambient / Downtempo
 
 ```
-よく使われるキー: D Minor(7A), A Minor(8A), E Minor(9A), C Major(8B)
-BPM範囲: 80-120
+Commonly used keys: D Minor(7A), A Minor(8A), E Minor(9A), C Major(8B)
+BPM range: 80-120
 ```
 
-**キー特性:**
-- 調性が曖昧な曲が多い（モーダルなアプローチ）
-- ロングトランジション（数分間のブレンド）が一般的
-- キーの衝突が非常に目立つジャンル（音数が少ないため）
-- Lydianモードやモーダルなアプローチが多い
-- パッドやドローンの持続音がキーを支配する
+**Key Characteristics:**
+- Many tracks have ambiguous tonality (modal approach)
+- Long transitions (several-minute blends) are common
+- Key clashes are very noticeable in this genre (due to sparse sound)
+- Lydian mode and modal approaches are common
+- Sustained pad and drone sounds dominate the key
 
-**選曲戦略:**
+**Track Selection Strategies:**
 ```
-アンビエントセットの場合:
-同じキーまたは相対調の曲で長時間ブレンド
-8A → 8B → 8A → 9A → 9B → ...
-（非常にゆっくりとしたキーの移動）
-ブレンド時間: 2-4分が一般的
+For an Ambient set:
+Long blends with tracks in the same key or relative keys
+8A -> 8B -> 8A -> 9A -> 9B -> ...
+(Very slow key movement)
+Blend time: 2-4 minutes is common
 ```
 
 ---
 
-## 10. 音楽制作におけるキーの活用
+## 10. Using Keys in Music Production
 
-### キーの選び方
+### Choosing a Key
 
-トラック制作においてキーの選択は、楽曲の雰囲気を決定する最初の重要な判断です。
+In track production, key selection is the first important decision that determines the mood of the music.
 
-**ジャンル別推奨キー:**
+**Recommended Keys by Genre:**
 ```
-ハウス系:
-- 明るいハウス: C Major(8B), G Major(9B), F Major(7B)
-- ディープハウス: A Minor(8A), D Minor(7A), G Minor(6A)
-- テックハウス: A Minor(8A), E Minor(9A), D Minor(7A)
+House:
+- Bright House: C Major(8B), G Major(9B), F Major(7B)
+- Deep House: A Minor(8A), D Minor(7A), G Minor(6A)
+- Tech House: A Minor(8A), E Minor(9A), D Minor(7A)
 
-テクノ系:
-- ダークテクノ: A Minor(8A), D Minor(7A), C Minor(5A)
-- メロディックテクノ: A Minor(8A), E Minor(9A), B Minor(10A)
-- アシッドテクノ: A Minor(8A), E Minor(9A)
+Techno:
+- Dark Techno: A Minor(8A), D Minor(7A), C Minor(5A)
+- Melodic Techno: A Minor(8A), E Minor(9A), B Minor(10A)
+- Acid Techno: A Minor(8A), E Minor(9A)
 
-トランス系:
-- アップリフティング: C Major(8B), D Major(10B), A Major(11B)
-- プログレッシブ: A Minor(8A), E Minor(9A), F# Minor(11A)
+Trance:
+- Uplifting: C Major(8B), D Major(10B), A Major(11B)
+- Progressive: A Minor(8A), E Minor(9A), F# Minor(11A)
 - Psytrance: E Phrygian, A Harmonic Minor
 ```
 
-### サンプルとループのキーマッチング
+### Key Matching for Samples and Loops
 
 ```
-1. プロジェクトのキーを決定（例: A Minor）
-2. サンプルパックからA Minorの素材を選択
-3. 相性の良いキーの素材も使用可能:
-   - C Major（相対調、完全に互換）
-   - E Minor（五度上、6/7音共通）
-   - D Minor（五度下、6/7音共通）
-4. ピッチシフトで他のキーの素材を調整:
-   - B Minorの素材 → -2半音 → A Minorに
-   - G Minorの素材 → +2半音 → A Minorに
-   - 品質: ±3半音以内推奨
+1. Determine the project key (e.g., A Minor)
+2. Select A Minor materials from sample packs
+3. Materials in compatible keys can also be used:
+   - C Major (relative key, fully compatible)
+   - E Minor (5th up, 6/7 shared notes)
+   - D Minor (5th down, 6/7 shared notes)
+4. Adjust materials in other keys with pitch shifting:
+   - B Minor material -> -2 semitones -> A Minor
+   - G Minor material -> +2 semitones -> A Minor
+   - Quality: +/-3 semitones recommended maximum
 ```
 
-### コード進行とキーの関係
+### Chord Progressions and Keys
 
-各キー内で使用できるダイアトニックコード（スケール内の音だけで構成されたコード）を理解することで、制作の幅が広がります。
+Understanding the diatonic chords (chords constructed only from notes within the scale) available in each key expands your production capabilities.
 
-**A Minor（8A）のダイアトニックコード:**
+**Diatonic Chords in A Minor (8A):**
 ```
 Am   - Bdim - C    - Dm   - Em   - F    - G
 i    - ii°  - III  - iv   - v    - VI   - VII
-マイナー→ ディミニッシュ → メジャー → マイナー → マイナー → メジャー → メジャー
+Minor -> Diminished -> Major -> Minor -> Minor -> Major -> Major
 ```
 
-**C Major（8B）のダイアトニックコード:**
+**Diatonic Chords in C Major (8B):**
 ```
 C    - Dm   - Em   - F    - G    - Am   - Bdim
 I    - ii   - iii  - IV   - V    - vi   - vii°
-メジャー → マイナー → マイナー → メジャー → メジャー → マイナー → ディミニッシュ
+Major -> Minor -> Minor -> Major -> Major -> Minor -> Diminished
 ```
 
-**EDMで人気のコード進行:**
+**Popular Chord Progressions in EDM:**
 ```
-1. vi - IV - I - V（A Minor の場合: Am - F - C - G）
-   → ポップEDM、ボーカルハウスの定番
-   → Avicii "Wake Me Up", Swedish House Mafia "Don't You Worry Child"
+1. vi - IV - I - V (In A Minor: Am - F - C - G)
+   -> Staple of pop EDM, vocal house
+   -> Avicii "Wake Me Up", Swedish House Mafia "Don't You Worry Child"
 
-2. i - VI - III - VII（A Minor の場合: Am - F - C - G）
-   → マイナーキー版、より感情的
-   → Above & Beyond の多くの楽曲
+2. i - VI - III - VII (In A Minor: Am - F - C - G)
+   -> Minor key version, more emotional
+   -> Many Above & Beyond tracks
 
-3. i - iv - v - i（A Minor の場合: Am - Dm - Em - Am）
-   → テクノ、ダークハウスの定番
-   → シンプルで力強い
+3. i - iv - v - i (In A Minor: Am - Dm - Em - Am)
+   -> Staple of techno, dark house
+   -> Simple and powerful
 
-4. I - V - vi - IV（C Major の場合: C - G - Am - F）
-   → 「Four Chord Song」、最も使われる進行
-   → David Guetta, Calvin Harris の多くの楽曲
+4. I - V - vi - IV (In C Major: C - G - Am - F)
+   -> "Four Chord Song," the most commonly used progression
+   -> Many David Guetta, Calvin Harris tracks
 
-5. i - III - VII - VI（A Minor の場合: Am - C - G - F）
-   → メロディックEDMの定番
-   → トランス、プログレッシブで多用
-```
-
-### ベースラインとキー
-
-ベースラインは楽曲のキーを定義する最も重要な要素です。
-
-```
-基本原則:
-1. ベースラインのルート音 = キーのトニック
-2. ベースはスケール内の音を使用
-3. コード進行のルート音をベースが追従
-4. キーの第5音（ドミナント）はベースラインの重要な音
-
-A Minor でのベースライン例:
-パターン1: A - A - E - E - F - F - G - G（シンプル）
-パターン2: A - C - D - E - A - G - F - E（ウォーキング）
-パターン3: A（オクターブ跳躍パターン）（テクノ的）
+5. i - III - VII - VI (In A Minor: Am - C - G - F)
+   -> Staple of melodic EDM
+   -> Widely used in trance and progressive
 ```
 
----
+### Basslines and Keys
 
-## 11. キー解析の精度向上
-
-### 解析ソフトの精度比較
+The bassline is the most important element in defining a track's key.
 
 ```
-ソフトウェア          | 推定精度 | 特徴
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Mixed In Key         | ~95%   | キー解析専門、業界標準
-Rekordbox           | ~85%   | 内蔵解析、手軽
-Serato DJ           | ~85%   | 内蔵解析、カラーコード表示
-Traktor             | ~80%   | 内蔵解析、Key Adjust機能
-KeyFinder（無料）     | ~80%   | オープンソース、無料
-Beatport解析         | ~90%   | 楽曲販売サイトの表示
-```
+Basic Principles:
+1. The root note of the bassline = the key's tonic
+2. The bass uses notes within the scale
+3. The bass follows the root notes of the chord progression
+4. The 5th note of the key (dominant) is an important note in basslines
 
-### 解析が間違いやすいケース
-
-```
-1. 曲中で転調する楽曲
-   → 解析ソフトはドミナントなキーを1つだけ返す
-   → 実際には2つ以上のキーが含まれている場合がある
-
-2. モーダルな楽曲（DorianやMixolydianなど）
-   → 解析ソフトはメジャー/マイナーの二択で判断
-   → Dorianの曲がマイナーと表示される等
-
-3. 調性が曖昧な楽曲
-   → アンビエント、エクスペリメンタル系
-   → ノイズ要素が多い楽曲
-   → 解析結果が頻繁に変わる場合は調性不明確
-
-4. ピッチシフトされた楽曲
-   → DJエディットやリミックスでピッチが変更されている
-   → 原曲のキーと異なる場合がある
-
-5. 相対調の混同
-   → C Major と A Minor は同じ音を使う
-   → 解析ソフトがどちらか一方を選ぶ（間違える可能性）
-   → 実用上はどちらでもCamelot番号が同じなので問題ない
-```
-
-### 耳でキーを判定する方法
-
-解析ソフトに頼らず、自分の耳でキーを判定するスキルは上級DJに不可欠です。
-
-**ステップ1: ルート音を見つける**
-```
-1. 楽曲のベースラインに集中する
-2. 最も頻繁に、最も安定して聞こえる低音がルート音
-3. ピアノやキーボードがあれば、その音を弾いて確認
-4. チューナーアプリで周波数を測定も可
-```
-
-**ステップ2: メジャー/マイナーを判断**
-```
-1. 楽曲の全体的な雰囲気で判断:
-   - 明るい、幸福感 → メジャー
-   - 暗い、感情的 → マイナー
-2. 第3音を聴く:
-   - ルートから4半音上 → メジャー
-   - ルートから3半音上 → マイナー
-3. コード進行のパターンで判断:
-   - I-IV-V-I パターン → メジャー
-   - i-iv-v-i パターン → マイナー
-```
-
-**ステップ3: ピアノロールで確認（制作ソフト使用時）**
-```
-1. 楽曲をDAWにインポート
-2. MIDIキーボードでルート音を探す
-3. スケールの各音を弾いて合うか確認
-4. 合わない音（スケール外の音）があればスケールの種類を特定
+Bassline Examples in A Minor:
+Pattern 1: A - A - E - E - F - F - G - G (Simple)
+Pattern 2: A - C - D - E - A - G - F - E (Walking)
+Pattern 3: A (octave jump pattern) (Techno-style)
 ```
 
 ---
 
-## 12. よくある間違いとトラブルシューティング
+## 11. Improving Key Analysis Accuracy
 
-### よくある間違い
+### Analysis Software Accuracy Comparison
 
-**間違い1: キーだけに依存してBPMを無視する**
 ```
-症状: キーは合っているが、BPMが大きく異なりテンポがおかしい
-対策: BPM差は±4以内を推奨。大きなBPM差はキーロック使用時も音質劣化
-ルール: まずBPMを合わせ、その中でキーの相性を確認する
-```
-
-**間違い2: 解析結果を100%信頼する**
-```
-症状: 解析が8Bと言っているのに、ミックスすると不協和に聞こえる
-原因: 解析精度は100%ではない（80-95%）
-対策: 最終判断は必ず耳で行う。違和感があれば手動修正
+Software              | Est. Accuracy | Features
+==========================================================
+Mixed In Key          | ~95%          | Key analysis specialist, industry standard
+Rekordbox             | ~85%          | Built-in analysis, convenient
+Serato DJ             | ~85%          | Built-in analysis, color-coded display
+Traktor               | ~80%          | Built-in analysis, Key Adjust feature
+KeyFinder (free)      | ~80%          | Open source, free
+Beatport analysis     | ~90%          | Music retail site display
 ```
 
-**間違い3: メロディの重なりを考慮しない**
+### Cases Where Analysis Is Prone to Error
+
 ```
-症状: キーは合っているのにメロディ同士が「うるさく」聞こえる
-原因: 同じキーでもメロディの密度が高いと聴覚的に混乱
-対策: メロディが少ない部分でトランジション、EQでMidを調整
+1. Tracks that modulate during the song
+   -> Analysis software returns only one dominant key
+   -> The track may actually contain two or more keys
+
+2. Modal tracks (Dorian, Mixolydian, etc.)
+   -> Analysis software makes a binary major/minor judgment
+   -> A Dorian track may be displayed as minor, etc.
+
+3. Tracks with ambiguous tonality
+   -> Ambient, experimental genres
+   -> Tracks with heavy noise elements
+   -> If analysis results frequently change, tonality is unclear
+
+4. Pitch-shifted tracks
+   -> Pitch may have been changed in DJ edits or remixes
+   -> May differ from the original track's key
+
+5. Relative key confusion
+   -> C Major and A Minor use the same notes
+   -> Analysis software picks one or the other (may be wrong)
+   -> In practice, both have the same Camelot number so it's not a problem
 ```
 
-**間違い4: Camelot番号だけ見て文字（A/B）を無視する**
+### How to Determine Key by Ear
+
+The skill to determine key by ear without relying on analysis software is essential for advanced DJs.
+
+**Step 1: Find the Root Note**
 ```
-症状: 8B → 9A と 8B → 9B を同列に扱ってしまう
-説明: 8B → 9B は五度上（エネルギーアップ）
-      8B → 9A は対角線移動（エネルギー+ムード変化）
-      どちらも使えるが、効果が異なることを意識
+1. Focus on the track's bassline
+2. The low note that appears most frequently and sounds most stable is the root
+3. If you have a piano or keyboard, play the note to verify
+4. You can also measure the frequency with a tuner app
 ```
 
-**間違い5: キーの合わない曲を長時間ブレンドする**
+**Step 2: Determine Major/Minor**
 ```
-症状: キーが±2以上離れた曲を32小節以上ブレンド
-原因: ブレンド時間が長いほど不協和音が目立つ
-対策: キーが離れている場合はショートカット（2-4小節）でトランジション
-```
-
-### トラブルシューティング
-
-**Q: Rekordboxのキー解析が間違っている場合**
-```
-A: 手動修正と確認の手順
-1. 波形画面でベースラインの動きを視覚的に確認
-2. ヘッドフォンでメロディとベースラインを注意深く聴く
-3. Mixed In Key等の別ソフトで再解析
-4. ブラウザのキー列をダブルクリックして手動入力
-5. コメント欄に「手動修正済み」とメモ
-6. 定期的にプレイリストのキー情報を監査
+1. Judge by the overall feel of the track:
+   - Bright, happy -> Major
+   - Dark, emotional -> Minor
+2. Listen for the 3rd:
+   - 4 semitones above the root -> Major
+   - 3 semitones above the root -> Minor
+3. Judge by chord progression pattern:
+   - I-IV-V-I pattern -> Major
+   - i-iv-v-i pattern -> Minor
 ```
 
-**Q: キーは合っているのに不協和に聞こえる場合**
+**Step 3: Verify with Piano Roll (When Using Production Software)**
 ```
-A: 以下の原因と対策を確認
-1. メロディの密度が高すぎる
-   → EQでMidをカット、メロディの少ない部分でミックス
-2. テンションノート（9th, 11th, 13th）の衝突
-   → スケール内の音でも組み合わせによって不協和になる
-   → ミックスポイントを変更
-3. ベースラインの衝突
-   → Lowを完全にスワップ（同時に鳴らさない）
-4. 位相の問題
-   → 同じ周波数帯の音が位相キャンセルを起こしている
-   → タイミングを微調整（ナッジ）
-5. モードの違い
-   → 片方がDorian、もう片方がAeolianの場合
-   → 第6音の違いが衝突（Dorianの#6 vs Aeolianのb6）
-```
-
-**Q: どのキーの組み合わせから始めるべきか**
-```
-A: 初心者向けの段階的アプローチ
-Step 1: 同じキーの曲だけでミックス（8A → 8A → 8A）
-Step 2: 相対調を導入（8A → 8B → 8A）
-Step 3: ±1を導入（8A → 9A → 10A）
-Step 4: 組み合わせ技（8A → 8B → 9B → 9A）
-Step 5: 大胆なキーチェンジ（FXやブレイク活用）
-```
-
-**Q: キー解析ソフトが使えない環境（アナログDJ等）**
-```
-A: 耳だけでキーを判断する方法
-1. ベースラインのルート音をハミングする
-2. スマートフォンのチューナーアプリで音名を確認
-3. 両方の曲のルート音が一致、または五度の関係ならOK
-4. 練習を重ねると、聴くだけでキーが分かるようになる
-```
-
-**Q: 解析ソフトによって結果が異なる場合**
-```
-A: 複数ソフトの結果を比較する方法
-1. Mixed In Key + Rekordbox + Serato の3つで解析
-2. 2つ以上が一致するキーを採用
-3. 全部異なる場合は耳で確認
-4. 相対調（メジャー/マイナーの混同）は実害なし
-   - 8A（A Minor）と8B（C Major）は同じ音を使うため
+1. Import the track into a DAW
+2. Find the root note with a MIDI keyboard
+3. Play each note of the scale to check if it fits
+4. If there are notes that don't fit (notes outside the scale), identify the scale type
 ```
 
 ---
 
-## 13. 練習方法と上達のロードマップ
+## 12. Common Mistakes and Troubleshooting
 
-### 初級（1-3ヶ月目）
+### Common Mistakes
 
-**目標: Camelotシステムを理解し、同じキーでミックスできる**
-
-1. **五度圏を覚える**
-   - 紙に五度圏を書いて壁に貼る
-   - 時計回り（CGDAEBF#DbAbEbBbF）を暗唱
-   - 反時計回り（CFBbEbAbDbGbBEADG）も覚える
-
-2. **Camelot表を理解する**
-   - よく使うキー（8A, 8B, 9A, 9B, 7A, 7B）を暗記
-   - 「同じ数字は安全」「±1は安全」ルールを体得
-   - 対応する音楽キーも覚え始める
-
-3. **同じキーの曲を集める**
-   - お気に入りのキー（例: 8A）の曲を20曲以上集める
-   - プレイリスト「8A Practice」を作成
-   - そのキーだけでミックス練習
-
-4. **基本練習メニュー:**
-   ```
-   練習1: 同キーミックス（8A → 8A → 8A → 8A）
-   練習2: 相対調ミックス（8A → 8B → 8A → 8B）
-   練習3: ±1ミックス（8A → 9A → 10A → 11A）
-   各練習30分、週3回以上
-   ```
-
-### 中級（3-6ヶ月目）
-
-**目標: Camelotルールを使ったセット構成ができる**
-
-1. **ハーモニックミックスの実践**
-   - ±1のキーチェンジをマスター
-   - 相対調（A⇔B）の切り替えを練習
-   - セット全体のキー設計を意識
-
-2. **エネルギーカーブの設計**
-   ```
-   練習: 30分セットの作成
-   0-10分:  8A → 9A（ウォームアップ、エネルギー上昇）
-   10-20分: 9B → 10B（メジャーキーでピーク）
-   20-30分: 10A → 9A → 8A（クールダウン）
-   ```
-
-3. **複数のトランジション手法**
-   - EQスワップ + キーマッチ
-   - フィルタースイープ + キーチェンジ
-   - ドラムブレイクでの大胆なキージャンプ
-
-4. **耳の訓練**
-   - ラジオやストリーミングで流れてくる曲のキーを当てる
-   - チューナーアプリで答え合わせ
-   - 1日10曲を目標
-
-### 上級（6ヶ月-1年目）
-
-**目標: 自由自在にキーを操り、セットにストーリーを持たせる**
-
-1. **複雑な転調パターン**
-   ```
-   例: 8B → 8A → 9A → 9B → 10B → 10A → 11A → 11B → 12B
-   メジャー→マイナー→マイナー→メジャー→...のジグザグ
-   同時にエネルギーも上昇
-   ```
-
-2. **キー調整機能の活用**
-   - ±1半音での微調整をリアルタイムで実行
-   - キーロック ON/OFF の使い分け
-   - ピッチフェーダーとキーの関係を体得
-
-3. **セット全体のキージャーニー設計**
-   ```
-   2時間セットの場合:
-   - 使用するキーの範囲を決定（例: 6A〜12B）
-   - キーの「旅」の地図を作成
-   - クライマックスのキーを決定
-   - オープニングからクロージングまでの経路を設計
-   ```
-
-4. **即興的なキー選択**
-   - フロアの反応を見てリアルタイムでキーを判断
-   - 用意した曲以外のキーへの転換も対応
-   - DJの真骨頂 = 計画と即興のバランス
-
-### マスターレベル（1年以上）
-
-**目標: キーを意識せずに自然にハーモニックミキシングができる**
-
-1. **無意識レベルのキー感覚**
-   - 曲を聴いただけでCamelot番号が浮かぶ
-   - キーの相性を考えずに「正しい」選曲ができる
-   - モードの違いも耳で判別できる
-
-2. **ルール破りの美学**
-   - 意図的にキーをぶつける演出
-   - 不協和音の緊張感を活用
-   - FXとキーチェンジの組み合わせで独自のサウンドを
-
-3. **キー以外の要素との統合**
-   - BPM + キー + エネルギー + ムード の4次元で選曲
-   - フロアの心理状態を読んだ直感的プレイ
-   - 制作者の意図を理解したうえでのリアレンジ
-
----
-
-## 14. プロDJのTipsとベストプラクティス
-
-### ライブラリ管理のTips
-
+**Mistake 1: Relying only on key while ignoring BPM**
 ```
-1. すべての曲を解析済みにする（キー+BPM）
-2. キー不明の曲はプレイリストから除外するか、手動確認後にタグ付け
-3. キー別のスマートプレイリストを作成:
-   - "8A - A Minor": 8Aの曲をすべて収集
-   - "8A Compatible": 8A + 8B + 7A + 9A の曲を収集
-4. セット前にプレイリストの「キーの流れ」を確認
-5. 曲のコメント欄にキー情報のメモ:
-   - "転調あり: 8A→9A (ブレイク後)"
-   - "キー不明確: ドラムブレイクでミックス推奨"
-   - "ボーカルキー: 8A / トラックキー: 8B"
+Symptom: Key is compatible but tempo sounds wrong due to large BPM difference
+Solution: BPM difference of +/-4 is recommended. Large BPM gaps cause quality degradation even with key lock
+Rule: Match BPM first, then check key compatibility within that range
 ```
 
-### セット構成のTips
-
+**Mistake 2: Trusting analysis results 100%**
 ```
-1. セットの最初と最後のキーを先に決める
-2. ピーク（クライマックス）のキーを決める
-3. その間を「キーの道」でつなぐ
-4. 必ず2-3曲の「バックアップ曲」を各キーに用意
-5. キーの「リセットポイント」を設ける:
-   - ドラムのみのセクションでキーをリセット
-   - 新しいキーの旅をスタート
-6. セット中にキーの流れをメモ（後で振り返り用）
+Symptom: Analysis says 8B but mixing sounds dissonant
+Cause: Analysis accuracy is not 100% (80-95%)
+Solution: Always make the final judgment by ear. Manually correct if something feels off
 ```
 
-### トランジションのTips
-
+**Mistake 3: Not considering melody overlap**
 ```
-1. 「キーが合う」だけでは不十分 - エネルギーとムードも考慮
-2. メロディアスな曲 → メロディの少ない部分でトランジション
-3. ベースラインが重い曲 → Lowは絶対に同時に鳴らさない
-4. ボーカル曲 → ボーカルが途切れるタイミングでミックス
-5. ドラムブレイクは「キーのワイルドカード」- どんなキーにも切り替え可能
-6. FXは「キーのボカシ」に使う - エコー+リバーブで不協和をマスク
+Symptom: Keys match but overlapping melodies sound "noisy"
+Cause: High melody density causes auditory confusion even in the same key
+Solution: Transition during sections with less melody, adjust Mid with EQ
 ```
 
-### よくある質問への回答
-
-**Q: ハーモニックミキシングは「必須」ですか？**
+**Mistake 4: Looking only at Camelot numbers while ignoring letters (A/B)**
 ```
-A: ジャンルによる
-- Trance, Progressive House: ほぼ必須
-- Tech House, Deep House: 強く推奨
-- Techno (ミニマル): あると良いが、なくても問題ない場合が多い
-- Hip Hop: キーよりフローを重視
-- Drum and Bass: Liquidは必須、Neurofunkは任意
-- Hardstyle/Hardcore: キーよりエネルギー管理が優先
+Symptom: Treating 8B -> 9A and 8B -> 9B as the same
+Explanation: 8B -> 9B is a 5th up (energy boost)
+             8B -> 9A is a diagonal move (energy + mood change)
+             Both are usable but have different effects
 ```
 
-**Q: キーの理論を全部覚える必要がありますか？**
+**Mistake 5: Long blending of tracks in incompatible keys**
 ```
-A: DJには以下の3つだけで十分
-1. Camelotの4つのルール（同キー、±1、A⇔B）
-2. 同じ数字 + 同じ文字 = 安全
-3. 最終判断は耳
-
-制作者は加えて以下も理解すると良い:
-- スケール構造（メジャー/マイナー）
-- ダイアトニックコード
-- 五度圏の仕組み
+Symptom: Blending tracks +/-2 or more apart for 32+ bars
+Cause: Longer blend times make dissonance more noticeable
+Solution: Use short cuts (2-4 bars) for transitions when keys are far apart
 ```
 
-**Q: Mixed In Keyは買う価値がありますか？**
+### Troubleshooting
+
+**Q: When Rekordbox key analysis is incorrect**
 ```
-A: 真剣にDJを続けるなら強く推奨
-- DJソフト内蔵解析より高精度
-- エネルギーレベルの情報も有用
-- バッチ解析で大量の曲を効率的に処理
-- 趣味レベルなら無料のKeyFinderでも代替可能
+A: Steps for manual correction and verification
+1. Visually check bassline movement in the waveform view
+2. Listen carefully to the melody and bassline through headphones
+3. Re-analyze with separate software like Mixed In Key
+4. Double-click the key column in the browser for manual input
+5. Add a "manually corrected" note in the comments field
+6. Periodically audit key information in playlists
+```
+
+**Q: When it sounds dissonant despite matching keys**
+```
+A: Check the following causes and solutions
+1. Melody density is too high
+   -> Cut Mid with EQ, mix during sections with less melody
+2. Tension note (9th, 11th, 13th) clashes
+   -> Even notes within the scale can create dissonance in certain combinations
+   -> Change the mix point
+3. Bassline collision
+   -> Swap Low completely (don't play both simultaneously)
+4. Phase issues
+   -> Sounds in the same frequency range are causing phase cancellation
+   -> Fine-tune timing (nudge)
+5. Mode differences
+   -> One track is Dorian while the other is Aeolian
+   -> The 6th note difference causes a clash (Dorian's #6 vs Aeolian's b6)
+```
+
+**Q: Which key combinations to start with**
+```
+A: Step-by-step approach for beginners
+Step 1: Mix only tracks in the same key (8A -> 8A -> 8A)
+Step 2: Introduce relative keys (8A -> 8B -> 8A)
+Step 3: Introduce +/-1 (8A -> 9A -> 10A)
+Step 4: Combined techniques (8A -> 8B -> 9B -> 9A)
+Step 5: Bold key changes (using FX and breaks)
+```
+
+**Q: When key analysis software is unavailable (analog DJ, etc.)**
+```
+A: How to determine key by ear alone
+1. Hum the root note of the bassline
+2. Check the note name with a smartphone tuner app
+3. If the root notes of both tracks match or are a 5th apart, it's OK
+4. With practice, you'll be able to identify keys just by listening
+```
+
+**Q: When analysis results differ between software**
+```
+A: How to compare results from multiple software
+1. Analyze with all three: Mixed In Key + Rekordbox + Serato
+2. Adopt the key that 2 or more agree on
+3. If all differ, verify by ear
+4. Relative key confusion (major/minor mix-up) is not harmful in practice
+   - 8A (A Minor) and 8B (C Major) use the same notes
 ```
 
 ---
 
-## 15. キーとスケールの用語集
+## 13. Practice Methods and Roadmap for Improvement
 
-| 用語 | 英語 | 意味 |
-|------|------|------|
-| キー | Key | 楽曲の調、中心音とスケールの組み合わせ |
-| スケール | Scale | 音階、特定のパターンで並んだ音の集合 |
-| トニック | Tonic | 主音、キーの中心となる音 |
-| ドミナント | Dominant | 第5音、トニックへの解決感が強い |
-| サブドミナント | Subdominant | 第4音、ドミナントへの導入 |
-| メジャー | Major | 長調、明るい響き |
-| マイナー | Minor | 短調、暗い響き |
-| 相対調 | Relative Key | 同じ音を使うメジャー/マイナーの組 |
-| 平行調 | Parallel Key | 同じルート音のメジャー/マイナーの組 |
-| 五度圏 | Circle of Fifths | キーの関係を円形に表した図 |
-| 転調 | Modulation | 曲中でキーが変わること |
-| 半音 | Semitone | 最小の音程単位（ピアノの隣接する鍵盤） |
-| 全音 | Whole Tone | 半音2つ分の音程 |
-| 不協和音 | Dissonance | 調和しない響き |
-| 協和音 | Consonance | 調和する響き |
-| ハーモニックミキシング | Harmonic Mixing | キーの相性を考慮したDJミキシング |
-| Camelot | Camelot | DJ向けのキー表記システム |
-| Open Key | Open Key | 別のDJ向けキー表記システム |
-| モード | Mode | 旋法、スケールの変形 |
-| ペンタトニック | Pentatonic | 5音スケール |
-| ダイアトニック | Diatonic | スケール内の音だけで構成された |
-| クロマティック | Chromatic | 12半音すべてを含む |
-| エンハーモニック | Enharmonic | 異名同音（C# = Db など） |
-| キーロック | Key Lock | テンポ変更時にキーを維持する機能 |
-| ピッチシフト | Pitch Shift | 音程を変更すること |
-| タイムストレッチ | Time Stretch | テンポを変更すること |
-| Key Sync | Key Sync | 自動キー調整機能 |
-| コード | Chord | 和音、3つ以上の音の同時発音 |
-| コード進行 | Chord Progression | コードの連続的な変化 |
-| アルペジオ | Arpeggio | コードの音を1つずつ順に演奏 |
+### Beginner Level (Months 1-3)
+
+**Goal: Understand the Camelot system and be able to mix in the same key**
+
+1. **Memorize the Circle of Fifths**
+   - Write the Circle of Fifths on paper and post it on the wall
+   - Recite clockwise (C G D A E B F# Db Ab Eb Bb F)
+   - Also learn counterclockwise (C F Bb Eb Ab Db Gb B E A D G)
+
+2. **Understand the Camelot Chart**
+   - Memorize commonly used keys (8A, 8B, 9A, 9B, 7A, 7B)
+   - Internalize the "same number is safe" and "+/-1 is safe" rules
+   - Start learning the corresponding musical keys
+
+3. **Collect Tracks in the Same Key**
+   - Gather 20+ tracks in your favorite key (e.g., 8A)
+   - Create a playlist: "8A Practice"
+   - Practice mixing using only that key
+
+4. **Basic Practice Menu:**
+   ```
+   Exercise 1: Same key mix (8A -> 8A -> 8A -> 8A)
+   Exercise 2: Relative key mix (8A -> 8B -> 8A -> 8B)
+   Exercise 3: +/-1 mix (8A -> 9A -> 10A -> 11A)
+   30 minutes each exercise, at least 3 times per week
+   ```
+
+### Intermediate Level (Months 3-6)
+
+**Goal: Be able to construct sets using Camelot rules**
+
+1. **Practice Harmonic Mixing**
+   - Master +/-1 key changes
+   - Practice relative key (A<->B) switching
+   - Be conscious of key design for the entire set
+
+2. **Design Energy Curves**
+   ```
+   Exercise: Create a 30-minute set
+   0-10 min:  8A -> 9A (Warm-up, energy rising)
+   10-20 min: 9B -> 10B (Peak with major keys)
+   20-30 min: 10A -> 9A -> 8A (Cooldown)
+   ```
+
+3. **Multiple Transition Methods**
+   - EQ swap + key match
+   - Filter sweep + key change
+   - Bold key jumps during drum breaks
+
+4. **Ear Training**
+   - Guess the key of tracks on radio or streaming
+   - Verify with a tuner app
+   - Aim for 10 tracks per day
+
+### Advanced Level (Months 6-12)
+
+**Goal: Freely manipulate keys and give your sets a narrative**
+
+1. **Complex Modulation Patterns**
+   ```
+   Example: 8B -> 8A -> 9A -> 9B -> 10B -> 10A -> 11A -> 11B -> 12B
+   Zigzag of major -> minor -> minor -> major -> ...
+   Energy also rises simultaneously
+   ```
+
+2. **Using Key Adjustment Features**
+   - Execute +/-1 semitone fine adjustments in real time
+   - Toggle Key Lock ON/OFF
+   - Internalize the relationship between pitch fader and key
+
+3. **Designing a Key Journey for the Entire Set**
+   ```
+   For a 2-hour set:
+   - Determine the range of keys to use (e.g., 6A to 12B)
+   - Create a "journey" map of keys
+   - Determine the climax key
+   - Design the path from opening to closing
+   ```
+
+4. **Improvisational Key Selection**
+   - Determine keys in real time based on crowd response
+   - Handle transitions to keys beyond what was prepared
+   - The essence of DJing = balancing planning and improvisation
+
+### Master Level (1 Year and Beyond)
+
+**Goal: Perform harmonic mixing naturally without consciously thinking about keys**
+
+1. **Unconscious Key Awareness**
+   - Camelot numbers come to mind just by hearing a track
+   - Able to make "correct" track selections without thinking about key compatibility
+   - Can distinguish mode differences by ear
+
+2. **The Art of Breaking Rules**
+   - Intentional key clashing for dramatic effect
+   - Utilizing dissonant tension
+   - Creating unique sounds by combining FX with key changes
+
+3. **Integrating with Other Elements**
+   - 4-dimensional track selection: BPM + Key + Energy + Mood
+   - Intuitive playing that reads the crowd's psychological state
+   - Rearrangement based on understanding the producer's intent
+
+---
+
+## 14. Pro DJ Tips and Best Practices
+
+### Library Management Tips
+
+```
+1. Have all tracks analyzed (Key + BPM)
+2. Exclude tracks with unknown keys from playlists, or tag after manual verification
+3. Create smart playlists by key:
+   - "8A - A Minor": Collect all 8A tracks
+   - "8A Compatible": Collect 8A + 8B + 7A + 9A tracks
+4. Check the "key flow" of playlists before a set
+5. Add key information notes in track comments:
+   - "Modulation: 8A->9A (after break)"
+   - "Key unclear: Recommend mixing at drum break"
+   - "Vocal key: 8A / Track key: 8B"
+```
+
+### Set Construction Tips
+
+```
+1. Decide the first and last keys of the set first
+2. Decide the peak (climax) key
+3. Connect them with a "key path"
+4. Always prepare 2-3 "backup tracks" for each key
+5. Establish "reset points" for key:
+   - Reset key during drum-only sections
+   - Start a new key journey
+6. Take notes on key flow during the set (for later review)
+```
+
+### Transition Tips
+
+```
+1. "Compatible keys" alone is not enough - consider energy and mood too
+2. Melodic tracks -> Transition during sections with less melody
+3. Tracks with heavy basslines -> Never play Lows simultaneously
+4. Vocal tracks -> Mix at the timing when vocals break
+5. Drum breaks are the "key wildcard" - you can switch to any key
+6. FX serves as "key blur" - mask dissonance with echo + reverb
+```
+
+### Answers to Frequently Asked Questions
+
+**Q: Is harmonic mixing "essential"?**
+```
+A: It depends on the genre
+- Trance, Progressive House: Nearly essential
+- Tech House, Deep House: Strongly recommended
+- Techno (minimal): Nice to have, but often fine without it
+- Hip Hop: Flow is prioritized over key
+- Drum and Bass: Essential for Liquid, optional for Neurofunk
+- Hardstyle/Hardcore: Energy management takes priority over key
+```
+
+**Q: Do I need to memorize all the key theory?**
+```
+A: For DJs, just these 3 things are enough
+1. The 4 Camelot rules (same key, +/-1, A<->B)
+2. Same number + same letter = safe
+3. The final judgment is always by ear
+
+Producers should additionally understand:
+- Scale structures (major/minor)
+- Diatonic chords
+- How the Circle of Fifths works
+```
+
+**Q: Is Mixed In Key worth buying?**
+```
+A: Strongly recommended if you're serious about DJing
+- Higher precision than DJ software built-in analysis
+- Energy level information is also useful
+- Batch analysis efficiently processes large numbers of tracks
+- For hobby-level use, the free KeyFinder is a viable alternative
+```
+
+---
+
+## 15. Keys and Scales Glossary
+
+| Term | Meaning |
+|------|------|
+| Key | The tonality of a piece; the combination of a tonal center and scale |
+| Scale | A collection of notes arranged in a specific pattern |
+| Tonic | The central note of a key |
+| Dominant | The 5th note; strong resolution tendency toward the tonic |
+| Subdominant | The 4th note; leads into the dominant |
+| Major | Bright-sounding tonality |
+| Minor | Dark-sounding tonality |
+| Relative Key | A major/minor pair sharing the same notes |
+| Parallel Key | A major/minor pair sharing the same root note |
+| Circle of Fifths | A circular diagram showing key relationships |
+| Modulation | A key change within a piece |
+| Semitone | The smallest interval unit (adjacent piano keys) |
+| Whole Tone | An interval of two semitones |
+| Dissonance | A clashing, unresolved sound |
+| Consonance | A harmonious, resolved sound |
+| Harmonic Mixing | DJ mixing technique that considers key compatibility |
+| Camelot | A key notation system for DJs |
+| Open Key | Another key notation system for DJs |
+| Mode | A variation of a scale |
+| Pentatonic | A 5-note scale |
+| Diatonic | Composed only of notes within a scale |
+| Chromatic | Containing all 12 semitones |
+| Enharmonic | Different names for the same pitch (e.g., C# = Db) |
+| Key Lock | A feature that maintains key when changing tempo |
+| Pitch Shift | Changing the pitch of audio |
+| Time Stretch | Changing the tempo of audio |
+| Key Sync | An automatic key adjustment feature |
+| Chord | A simultaneous sounding of 3 or more notes |
+| Chord Progression | A sequential series of chord changes |
+| Arpeggio | Playing the notes of a chord one at a time in sequence |
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic Implementation Template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1875,26 +1872,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Should have raised an exception"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation with the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced Patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1902,7 +1899,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1913,14 +1910,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1928,7 +1925,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1936,44 +1933,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance Optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1982,7 +1979,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1997,68 +1994,68 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f} sec")
+    print(f"Efficient version:   {fast_time:.6f} sec")
+    print(f"Speedup factor: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be conscious of algorithm complexity
+- Choose appropriate data structures
+- Measure the impact with benchmarks
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point in learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Building practical experience is the most important. Understanding deepens not just through theory, but by actually writing code and verifying how things work.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What common mistakes do beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next steps.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in professional practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-- **キー**: 楽曲の中心音とスケールの組み合わせ。24のキー（12メジャー + 12マイナー）が存在
-- **スケール**: メジャー、マイナー、ハーモニックマイナー、ペンタトニック、モードなど多種多様
-- **五度圏**: キーの関係性を示す円。隣接キーは7音中6音が共通
-- **Camelot**: DJ向けの表記システム。「同じ数字+同じ文字」「±1」「A⇔B」の3ルールでハーモニックミキシング
-- **ハーモニックミキシング**: キーを合わせてスムーズに繋ぐ技術。セットの質を劇的に向上
-- **キー解析**: Mixed In Key、Rekordbox、Serato等で自動解析。最終判断は必ず耳で
-- **実践**: 同じキーから始めて、段階的に複雑なキーチェンジに挑戦
-
-**キー管理の最重要ポイント:**
-1. すべての曲のキーを解析・確認する
-2. Camelotシステムを活用する
-3. セットのキー構成を事前に計画する
-4. 最終的な判断は常に耳で行う
-5. 練習を重ねて「キーの感覚」を身につける
-
-**次のステップ:**
-- DJ志向: [DJ Basics](../dj/01-basics/) へ
-- 制作志向: [Ableton Basics](../production/01-ableton-basics/) へ
+Knowledge of this topic is frequently applied in daily development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
+## Summary
 
-## 次に読むべきガイド
+- **Key**: The combination of a central note and scale. 24 keys exist (12 major + 12 minor)
+- **Scales**: Diverse types including major, minor, harmonic minor, pentatonic, modes, and more
+- **Circle of Fifths**: A circle showing key relationships. Adjacent keys share 6 out of 7 notes
+- **Camelot**: A notation system for DJs. Harmonic mixing with 3 rules: "same number + same letter," "+/-1," and "A<->B"
+- **Harmonic Mixing**: The technique of connecting tracks by matching keys. Dramatically improves set quality
+- **Key Analysis**: Automatic analysis with Mixed In Key, Rekordbox, Serato, etc. Always make the final judgment by ear
+- **Practice**: Start with the same key and progressively challenge more complex key changes
 
-- [音楽理論基礎](./music-theory.md) - 次のトピックへ進む
+**Most Important Points for Key Management:**
+1. Analyze and verify the key of every track
+2. Utilize the Camelot system
+3. Plan the key structure of your set in advance
+4. Always make the final judgment by ear
+5. Build a "key sense" through practice
+
+**Next Steps:**
+- DJ-oriented: Go to [DJ Basics](../dj/01-basics/)
+- Production-oriented: Go to [Ableton Basics](../production/01-ableton-basics/)
 
 ---
 
-## 参考リンク
 
-- [ハーモニックミキシング詳細](../dj/04-advanced-techniques/harmonic-mixing.md)
-- コード進行
-- [音楽理論基礎](./music-theory.md)
+## Recommended Next Guide
+
+- [Music Theory Fundamentals](./music-theory.md) - Proceed to the next topic
+
+---
+
+## Reference Links
+
+- [Harmonic Mixing Details](../dj/04-advanced-techniques/harmonic-mixing.md)
+- Chord Progressions
+- [Music Theory Fundamentals](./music-theory.md)
