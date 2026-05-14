@@ -1,1252 +1,1254 @@
-# 周波数とスペクトラム
+# Frequency and Spectrum
 
-音の周波数帯域を理解し、EQ操作やミキシングの基礎となる知識を学びます。DJにとって周波数の理解はスムーズなトランジションの鍵であり、音楽制作者にとってはミックスダウンの品質を左右する最も重要な要素です。
+Learn about audio frequency bands, which form the foundation for EQ operation and mixing. For DJs, understanding frequency is the key to smooth transitions, and for music producers, it is the most important factor affecting mixdown quality.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- 周波数の物理的な基礎と人間の聴覚特性
-- 周波数帯域の詳細な分類と各帯域の特性
-- 楽器ごとの周波数マップとスペクトラム分析
-- EQの基礎概念と各種フィルタの種類
-- DJでの実践的なEQ操作テクニック
-- 制作（DAW）での周波数管理とミキシング
-- 周波数マスキングの理解と対策
-- ピンクノイズ/ホワイトノイズと周波数特性
-- クラブの音響環境と周波数の関係
-- スペクトラムアナライザーの活用法
+- Physical fundamentals of frequency and human auditory characteristics
+- Detailed classification of frequency bands and characteristics of each band
+- Frequency maps and spectrum analysis for each instrument
+- Basic EQ concepts and types of filters
+- Practical EQ operation techniques for DJs
+- Frequency management and mixing in production (DAW)
+- Understanding and addressing frequency masking
+- Pink noise/white noise and frequency characteristics
+- Club acoustic environments and their relationship to frequency
+- How to use spectrum analyzers
 
-## なぜ周波数が重要なのか
+## Why Frequency Matters
 
-### DJの場合
-
-```
-周波数を理解するメリット:
-
-1. EQでスムーズなトランジション
-   → 低域の衝突を避け、シームレスなミックスを実現
-   → ボーカル帯域の重なりを調整
-   → 高域のハイハット同士のぶつかりを解消
-
-2. 周波数のかぶりを避ける
-   → 2曲同時再生時のマスキング問題を解決
-   → 各曲の「居場所」を周波数で分ける
-   → クリアで力強いミックスの維持
-
-3. クラブの音響に合わせた調整
-   → 部屋の共振周波数への対応
-   → PAシステムの特性を理解
-   → フロアの反応を周波数レベルで感じ取る
-
-4. ジャンル特性の理解
-   → ジャンルごとの周波数バランスの違い
-   → テクノの低域重視 vs ハウスのバランス型
-   → ヒップホップの超低域の扱い
-
-5. 音源品質の判断
-   → 低品質音源の周波数欠落を見抜く
-   → マスタリング品質の良し悪しの判断
-   → プレイリスト選曲の品質管理
-```
-
-### 制作の場合
+### For DJs
 
 ```
-周波数を理解するメリット:
+Benefits of understanding frequency:
 
-1. 各楽器の住み分け
-   → キックとベースの低域分離
-   → ボーカルとシンセの中域整理
-   → ハイハットとシンバルの高域管理
+1. Smooth transitions with EQ
+   -> Avoid low-end collisions for seamless mixes
+   -> Adjust vocal band overlap
+   -> Resolve hi-hat clashes in the high end
 
-2. ミックスダウンの基礎
-   → 帯域ごとのバランス調整
-   → スペクトラムの全体像を把握
-   → 各トラックのEQカーブ設計
+2. Avoid frequency overlap
+   -> Solve masking problems when playing two tracks simultaneously
+   -> Separate each track's "space" by frequency
+   -> Maintain a clear and powerful mix
 
-3. マスタリングの土台
-   → 全体の周波数バランス
-   → リファレンストラックとの比較
-   → ラウドネスと周波数の関係
+3. Adjust for the club's acoustics
+   -> Address room resonance frequencies
+   -> Understand PA system characteristics
+   -> Sense the floor's response at the frequency level
 
-4. サウンドデザイン
-   → シンセサイザーのフィルタ操作
-   → 倍音構成の理解
-   → レゾナンスと周波数の関係
+4. Understand genre characteristics
+   -> Differences in frequency balance by genre
+   -> Techno's low-end focus vs house's balanced approach
+   -> Handling the sub-bass in hip hop
 
-5. トラブルシューティング
-   → 不要な共振の特定と除去
-   → ハムノイズ（50/60Hz）の除去
-   → フィードバックの周波数特定
+5. Judge source quality
+   -> Detect frequency gaps in low-quality sources
+   -> Judge mastering quality
+   -> Quality control for playlist track selection
 ```
 
-### 音響エンジニア/PAオペレーターの場合
+### For Production
 
 ```
-1. システムチューニング
-   → 部屋の音響特性測定
-   → グラフィックEQでの補正
-   → クロスオーバー周波数の設定
+Benefits of understanding frequency:
 
-2. フィードバック制御
-   → ハウリング周波数の特定
-   → ノッチフィルタでの除去
-   → マイクの指向性と周波数特性
+1. Frequency separation of instruments
+   -> Low-end separation of kick and bass
+   -> Mid-range organization of vocals and synths
+   -> High-end management of hi-hats and cymbals
 
-3. サウンドチェック
-   → 各楽器の最適な周波数バランス
-   → モニターミックスの調整
-   → FOH（Front of House）の調整
+2. Mixdown fundamentals
+   -> Balance adjustment by frequency band
+   -> Grasp the overall spectrum picture
+   -> Design EQ curves for each track
+
+3. Foundation for mastering
+   -> Overall frequency balance
+   -> Comparison with reference tracks
+   -> Relationship between loudness and frequency
+
+4. Sound design
+   -> Synthesizer filter operation
+   -> Understanding harmonic structure
+   -> Relationship between resonance and frequency
+
+5. Troubleshooting
+   -> Identify and remove unwanted resonances
+   -> Remove hum noise (50/60Hz)
+   -> Identify feedback frequencies
+```
+
+### For Sound Engineers / PA Operators
+
+```
+1. System tuning
+   -> Measure room acoustic characteristics
+   -> Correct with graphic EQ
+   -> Set crossover frequencies
+
+2. Feedback control
+   -> Identify howling frequencies
+   -> Remove with notch filters
+   -> Microphone directionality and frequency response
+
+3. Sound check
+   -> Optimal frequency balance for each instrument
+   -> Monitor mix adjustment
+   -> FOH (Front of House) adjustment
 ```
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [オーディオ基礎](./audio-basics.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [Audio Basics](./audio-basics.md)
 
 ---
 
-## 1. 周波数の物理的基礎
+## 1. Physical Fundamentals of Frequency
 
-### 周波数とは
+### What Is Frequency?
 
-音の高さを表す物理量。単位は **Hz（ヘルツ）**。1秒間に振動する回数を示します。
-
-```
-基本概念:
-
-周波数(Hz) = 1秒間の振動回数
-
-例:
-100 Hz = 1秒間に100回振動する空気の波
-440 Hz = 1秒間に440回振動（A4 = ラの音）
-1,000 Hz = 1秒間に1,000回振動
-
-視覚的イメージ（1秒間）:
-
-低い音（100 Hz）:
-  ∿∿∿∿∿  （ゆっくりした波 = 少ない振動回数）
-
-高い音（1000 Hz）:
-  ∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿  （速い波 = 多い振動回数）
-
-周波数と波長の関係:
-波長(m) = 音速(m/s) ÷ 周波数(Hz)
-音速 ≈ 343 m/s（空気中、20℃）
-
-例:
-  20 Hz    → 17.15 m （部屋よりも大きい波長）
-  100 Hz   → 3.43 m  （大きなスピーカーの前面幅程度）
-  1,000 Hz → 0.343 m = 34.3 cm
-  10,000 Hz → 0.0343 m = 3.43 cm
-  20,000 Hz → 0.01715 m = 1.72 cm
-
-DJにとっての意味:
-- 低い音は波長が長い → 壁を回り込みやすい（回折）
-- 高い音は波長が短い → 直進性が強い
-- クラブでは低音が部屋全体を満たし、高音はスピーカー正面で強い
-- サブウーファーの配置が低域の質を左右する
-```
-
-### オクターブと周波数の関係
+A physical quantity that represents the pitch of sound. The unit is **Hz (Hertz)**, indicating the number of vibrations per second.
 
 ```
-オクターブ = 周波数が2倍（または1/2）の関係
+Basic concept:
 
-例: A（ラ）の音
+Frequency (Hz) = Number of vibrations per second
+
+Examples:
+100 Hz = An air wave vibrating 100 times per second
+440 Hz = Vibrating 440 times per second (A4 = the note A)
+1,000 Hz = Vibrating 1,000 times per second
+
+Visual image (1 second):
+
+Low pitch (100 Hz):
+  ∿∿∿∿∿  (Slow wave = fewer vibrations)
+
+High pitch (1000 Hz):
+  ∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿∿  (Fast wave = more vibrations)
+
+Relationship between frequency and wavelength:
+Wavelength (m) = Speed of sound (m/s) / Frequency (Hz)
+Speed of sound ≈ 343 m/s (in air, at 20°C)
+
+Examples:
+  20 Hz    -> 17.15 m (Wavelength larger than a room)
+  100 Hz   -> 3.43 m  (About the width of a large speaker's front panel)
+  1,000 Hz -> 0.343 m = 34.3 cm
+  10,000 Hz -> 0.0343 m = 3.43 cm
+  20,000 Hz -> 0.01715 m = 1.72 cm
+
+What this means for DJs:
+- Low sounds have long wavelengths -> They bend around walls easily (diffraction)
+- High sounds have short wavelengths -> They travel in a straight line
+- In clubs, low frequencies fill the entire room while highs are strongest in front of speakers
+- Subwoofer placement determines low-end quality
+```
+
+### Octaves and Frequency
+
+```
+Octave = A relationship where the frequency doubles (or halves)
+
+Example: The note A
 A0:   27.5 Hz
 A1:   55 Hz
 A2:  110 Hz
 A3:  220 Hz
-A4:  440 Hz  ← 標準チューニング
+A4:  440 Hz  <- Standard tuning
 A5:  880 Hz
 A6: 1,760 Hz
 A7: 3,520 Hz
 A8: 7,040 Hz
 
-人間の可聴域は約10オクターブ（20Hz ~ 20,000Hz）
+The human audible range spans about 10 octaves (20Hz ~ 20,000Hz)
 
-オクターブの感覚:
-- 音楽的には等間隔に感じる（ドレミファ...の1周分）
-- しかし周波数は指数的に増加
-- 100Hz → 200Hz（+100Hz で1オクターブ上）
-- 1000Hz → 2000Hz（+1000Hz で1オクターブ上）
-- 10000Hz → 20000Hz（+10000Hz で1オクターブ上）
+Perception of octaves:
+- Musically, they feel equally spaced (one cycle of Do Re Mi Fa...)
+- However, frequency increases exponentially
+- 100Hz -> 200Hz (+100Hz for one octave up)
+- 1000Hz -> 2000Hz (+1000Hz for one octave up)
+- 10000Hz -> 20000Hz (+10000Hz for one octave up)
 
-これが重要な理由:
-- EQの1オクターブ幅は周波数によって異なる
-- 低域の100Hz幅と高域の100Hz幅は全く異なる
-- 対数スケール（logスケール）で表示する理由
+Why this matters:
+- The width of one octave on an EQ differs by frequency
+- A 100Hz span in the low end and a 100Hz span in the high end are completely different
+- This is why logarithmic (log) scale displays are used
 ```
 
-### 人間の可聴域
+### Human Audible Range
 
 ```
-可聴域: 約 20 Hz ~ 20,000 Hz（20 kHz）
+Audible range: Approximately 20 Hz ~ 20,000 Hz (20 kHz)
 
-年齢による高域の低下:
-- 10代: ~20 kHz（最も広い）
-- 20代: ~18 kHz
-- 30代: ~16 kHz（高域が落ち始める）
-- 40代: ~14 kHz
-- 50代: ~12 kHz
-- 60代: ~10 kHz
-- 70代: ~8 kHz
+High-frequency decline with age:
+- Teens: ~20 kHz (widest)
+- 20s: ~18 kHz
+- 30s: ~16 kHz (high-end begins to decline)
+- 40s: ~14 kHz
+- 50s: ~12 kHz
+- 60s: ~10 kHz
+- 70s: ~8 kHz
 
-加齢性難聴（老人性難聴 / Presbycusis）:
-- 主に高域から低下
-- 不可逆的な変化
-- 騒音暴露で加速する
+Age-related hearing loss (Presbycusis):
+- Primarily declines from the high frequencies
+- Irreversible change
+- Accelerated by noise exposure
 
-DJ/ミュージシャンへの影響:
-- クラブでの長時間大音量暴露 → 聴力低下のリスク
-- 耳栓（イヤープロテクター）の使用を強く推奨
-  - 周波数特性がフラットなもの
+Impact on DJs/musicians:
+- Prolonged loud exposure in clubs -> Risk of hearing loss
+- Strongly recommended to use earplugs (ear protectors)
+  - Those with flat frequency response
   - Etymotic Research ER20
   - ACS Custom Earplugs
-  - 15-20dB程度の減衰がDJ向き
-- 定期的な聴力検査の推奨
+  - Around 15-20dB attenuation is suitable for DJs
+- Regular hearing tests are recommended
 
-等ラウドネス曲線（フレッチャー・マンソン曲線 / ISO 226）:
-- 人間の聴覚は全周波数を均等に聴いていない
-- 2-5 kHz 付近が最も感度が高い
-- 低域と高域は感度が低い
-- 小音量ではこの傾向が顕著（低音と高音が聴こえにくい）
-- 大音量では比較的フラットに聴こえる
-- クラブの大音量が「良い音」に感じる理由の一つ
+Equal-loudness contours (Fletcher-Munson curves / ISO 226):
+- Human hearing does not perceive all frequencies equally
+- Highest sensitivity around 2-5 kHz
+- Lower sensitivity at low and high frequencies
+- This tendency is more pronounced at low volumes (low and high frequencies are harder to hear)
+- At high volumes, perception becomes relatively flat
+- One reason why loud club sound "sounds good"
 ```
 
-### 等ラウドネス曲線の詳細
+### Equal-Loudness Contours in Detail
 
 ```
-等ラウドネス曲線（phon/sone）:
+Equal-loudness contours (phon/sone):
 
-音圧レベル(dB SPL)
+Sound Pressure Level (dB SPL)
   |
-90|  ＼                              ／
-  |    ＼                          ／
+90|  \                              /
+  |    \                          /
 80|      ──────────────────────── 80 phon
-  |        ＼                    ／
+  |        \                    /
 70|          ──────────────── 60 phon
-  |            ＼            ／
+  |            \            /
 60|              ──────── 40 phon
-  |                ＼  ／
+  |                \  /
 50|                  ── 20 phon
   |
-  └──────────────────────────────→ 周波数(Hz)
+  └──────────────────────────────-> Frequency (Hz)
    20  100  500  1k  4k  10k  20k
 
-読み方:
-- 各曲線は「等しい音量感」の線
-- 40 phon の曲線上にある全ての点は、
-  人間には同じ音量に聴こえる
-- 1kHz での dB SPL 値が phon 値
+How to read:
+- Each curve represents a line of "equal perceived loudness"
+- All points on the 40 phon curve
+  sound equally loud to humans
+- The dB SPL value at 1kHz equals the phon value
 
-DJにとっての意味:
-1. 小さい音量（40 phon以下）では低域が聴こえにくい
-   → ヘッドフォンモニター時は音量に注意
-   → 小さい音量でミックスチェックすると低域不足に感じる
+What this means for DJs:
+1. At low volumes (below 40 phon), low frequencies are harder to hear
+   -> Be mindful of volume when monitoring with headphones
+   -> Checking a mix at low volume makes the low end seem insufficient
 
-2. 2-5 kHz 付近は聴覚が敏感
-   → この帯域のEQ変更は体感が大きい
-   → ボーカルやスネアのアタックが目立つ理由
+2. The 2-5 kHz range is where hearing is most sensitive
+   -> EQ changes in this band feel significant
+   -> Explains why vocals and snare attacks stand out
 
-3. 大音量ほど周波数特性がフラットに
-   → クラブの大音量は理にかなっている
-   → 自宅と同じEQ設定ではクラブで低域過多になることも
+3. Frequency response becomes flatter at higher volumes
+   -> Loud club volumes make acoustic sense
+   -> The same EQ settings from home may result in excessive low end at a club
 ```
 
 ---
 
-## 2. 周波数帯域の分類
+## 2. Frequency Band Classification
 
-音楽制作とDJでは、周波数を以下のように分類します。
+In music production and DJing, frequencies are classified as follows.
 
-### 詳細な8バンド分類
+### Detailed 8-Band Classification
 
-| 帯域名 | 周波数範囲 | 特徴 | 主な楽器 | 過不足の影響 |
-|-------|----------|------|---------|------------|
-| **Sub Bass** | 20-60 Hz | 感じる音、物理的な圧力 | サブベース、キックの最低域 | 過多→こもり、不足→薄い |
-| **Bass** | 60-250 Hz | 楽曲の土台、パワー | キック、ベース | 過多→濁り、不足→弱い |
-| **Low Mid** | 250-500 Hz | 温かみ、厚み | ベース上部、ギター、男性ボーカル | 過多→こもり(Mud)、不足→薄い |
-| **Mid** | 500 Hz-2 kHz | 楽器の芯、明瞭さ | ボーカル、ギター、スネア | 過多→痛い、不足→奥まる |
-| **High Mid** | 2-4 kHz | 存在感、アタック | ボーカル子音、スネアアタック | 過多→耳障り、不足→抜けない |
-| **Presence** | 4-6 kHz | 明瞭度、前に出る | ボーカル、リードシンセ | 過多→攻撃的、不足→引っ込む |
-| **Highs** | 6-12 kHz | 明るさ、エアー感 | ハイハット、シンバル | 過多→きつい、不足→暗い |
-| **Air** | 12-20 kHz | 空間、キラキラ感 | シンバル余韻、リバーブ | 過多→細い、不足→詰まる |
+| Band Name | Frequency Range | Characteristics | Primary Instruments | Impact of Excess/Deficit |
+|-----------|----------------|-----------------|--------------------|-----------------------|
+| **Sub Bass** | 20-60 Hz | Sound you feel, physical pressure | Sub bass, lowest kick frequencies | Excess->muddy, Deficit->thin |
+| **Bass** | 60-250 Hz | Foundation of the track, power | Kick, bass | Excess->murky, Deficit->weak |
+| **Low Mid** | 250-500 Hz | Warmth, body | Upper bass, guitar, male vocals | Excess->muddy (Mud), Deficit->thin |
+| **Mid** | 500 Hz-2 kHz | Core of instruments, clarity | Vocals, guitar, snare | Excess->harsh, Deficit->recessed |
+| **High Mid** | 2-4 kHz | Presence, attack | Vocal consonants, snare attack | Excess->fatiguing, Deficit->lacks cut |
+| **Presence** | 4-6 kHz | Clarity, forward projection | Vocals, lead synth | Excess->aggressive, Deficit->recessed |
+| **Highs** | 6-12 kHz | Brightness, air | Hi-hat, cymbals | Excess->harsh, Deficit->dark |
+| **Air** | 12-20 kHz | Space, sparkle | Cymbal tails, reverb | Excess->thin, Deficit->closed |
 
-### 3バンド分類（DJ向け）
+### 3-Band Classification (DJ-Oriented)
 
-DJ機器のEQは通常3バンド構成です。
+DJ equipment EQs typically use a 3-band configuration.
 
 ```
-3バンドEQ のクロスオーバーポイント:
+3-Band EQ crossover points:
 
 Pioneer DJM-900NXS2:
-  Low / Mid 境界: 約 250 Hz
-  Mid / High 境界: 約 4 kHz
+  Low / Mid boundary: Approx. 250 Hz
+  Mid / High boundary: Approx. 4 kHz
 
 Allen & Heath Xone:96:
-  Low / Mid 境界: 約 350 Hz
-  Mid / High 境界: 約 2.5 kHz
-  ※ モデルによって異なる
+  Low / Mid boundary: Approx. 350 Hz
+  Mid / High boundary: Approx. 2.5 kHz
+  * Varies by model
 
-一般的な3バンド分類:
-  Low  : ~250 Hz 以下（キック、ベース）
-  Mid  : 250 Hz ~ 4 kHz（ボーカル、メロディ、スネア）
-  High : 4 kHz 以上（ハイハット、シンバル、空間）
+General 3-band classification:
+  Low  : Below ~250 Hz (kick, bass)
+  Mid  : 250 Hz ~ 4 kHz (vocals, melody, snare)
+  High : Above 4 kHz (hi-hat, cymbals, space)
 
-4バンドEQ（一部ミキサー）:
+4-Band EQ (some mixers):
   Low  : ~100 Hz
   Low-Mid: 100 Hz ~ 1 kHz
   High-Mid: 1 kHz ~ 10 kHz
   High : 10 kHz~
 
-注意:
-- メーカー/モデルによってクロスオーバー周波数が異なる
-- これが同じ曲でもミキサーによって「音が違う」理由の一つ
-- 自分のミキサーの周波数特性を把握することが重要
+Note:
+- Crossover frequencies differ by manufacturer/model
+- This is one reason why the "same track sounds different" on different mixers
+- It's important to understand the frequency characteristics of your own mixer
 ```
 
-### 5バンド分類（詳細分析向け）
+### 5-Band Classification (For Detailed Analysis)
 
 ```
-Sub Low:   20-80 Hz     サブベース領域
-Low:       80-300 Hz    ベース/キック主体
-Mid:       300-2,000 Hz ボーカル/メロディ主体
-High-Mid:  2,000-8,000 Hz  アタック/プレゼンス
-High:      8,000-20,000 Hz ハイハット/エアー
+Sub Low:   20-80 Hz     Sub bass region
+Low:       80-300 Hz    Bass/kick dominant
+Mid:       300-2,000 Hz Vocal/melody dominant
+High-Mid:  2,000-8,000 Hz  Attack/presence
+High:      8,000-20,000 Hz Hi-hat/air
 
-この分類はスペクトラム分析やリファレンス比較で便利
-```
-
----
-
-## 3. 各帯域の特性と役割（詳細解説）
-
-### Sub Bass（20-60 Hz）
-
-```
-物理的特性:
-- 波長: 5.7m ~ 17.1m（非常に長い）
-- 指向性がほとんどない（全方位に広がる）
-- 壁やドアを通過しやすい
-- 定在波（Standing Wave）の問題が発生しやすい
-
-音楽的特性:
-- 耳で「聴く」より体で「感じる」
-- クラブの大型スピーカー/サブウーファーで効果的
-- ヘッドフォンでは再生が難しい（特にインイヤー型）
-- 楽曲にフィジカルなインパクトを与える
-
-楽器/音源:
-- 808キック（Trap/Hip Hop の超低域キック）
-- サブベース（シンセサイザー）
-- キックドラムの最低域成分
-- ベースギターの開放弦最低音（約41Hz = E1）
-- パイプオルガンの最低域
-
-DJ向けの注意:
-- 2曲のサブベースを同時に鳴らすと位相干渉
-- モノラル再生が基本（ステレオにすると位相問題）
-- ハイパスフィルタ（HPF）で不要なサブベースをカット
-- クラブのサブウーファーの特性を把握する
-
-制作向けの注意:
-- 30Hz以下は意図的にカットすることが多い
-- DC offset の除去
-- サイドチェインコンプでキックとの住み分け
-- モノ互換性の確認（ステレオサブベースは危険）
-
-定在波の問題:
-- 部屋のサイズに対応する周波数で共振
-- 特定の位置で音が大きく/小さくなる
-- 計算: f = 343 / (2 × L)
-  例: 5mの部屋 → 34.3Hz で共振
-- 対策: 低域トラップ、リスニング位置の調整
-```
-
-### Bass（60-250 Hz）
-
-```
-物理的特性:
-- 波長: 1.4m ~ 5.7m
-- やや指向性がある
-- 部屋の音響に大きく影響される
-- フロントロードドスピーカーが効果的
-
-音楽的特性:
-- 楽曲のパワーと土台
-- キックドラムとベースラインの中心帯域
-- ダンスミュージックで最も重要な帯域
-- グルーヴ感の源泉
-
-楽器/音源と代表的周波数:
-- キックドラム: 60-100 Hz（ボディ）
-- ベースライン: 60-200 Hz（基音）
-- 男性ボーカル: 80-180 Hz（基音の最低域）
-- ピアノ左手: 80-250 Hz
-- チェロ: 65-250 Hz
-- ギター（低弦）: 80-250 Hz
-
-DJ向けの使い方:
-- トランジション時の最重要EQ操作
-- 2曲のキック/ベースを同時に鳴らさない
-- Low EQ を使ってスワップ（交換）
-- 「ベーススワップ」はDJの基本技術
-
-ベーススワップの手順:
-1. 曲Bをヘッドフォンで確認
-2. 曲BのLow EQを完全カット（-∞ or 最小）
-3. フェーダーを上げて曲Bを再生開始
-4. ビートに合わせて素早く:
-   曲AのLowを下げる ← → 曲BのLowを上げる
-5. 一瞬で切り替える「キルスイッチ」方式が効果的
-
-制作向けの注意:
-- キックとベースの周波数が衝突する最も問題が起きやすい帯域
-- サイドチェインコンプレッション: キックが鳴る瞬間にベースを圧縮
-- 周波数の住み分け: キック=60-100Hz中心、ベース=80-200Hz中心
-- ローカット: 不要な極低域をカット（HPF @ 30-40Hz）
-```
-
-### Low Mid（250-500 Hz）
-
-```
-物理的特性:
-- 波長: 0.69m ~ 1.37m
-- 部屋の残響が溜まりやすい
-- スピーカーと壁の距離に影響される
-
-音楽的特性:
-- 温かみと厚みを与える帯域
-- ベースの上部倍音
-- ギターのボディ感
-- 男性ボーカルの胸声
-
-問題が発生しやすい帯域（"Mud" = 泥）:
-- 多くの楽器のエネルギーが集中
-- 過剰蓄積すると「こもった」「モヤモヤした」音に
-- ミキシングで最もカットされることが多い帯域
-- "250-500Hzの掃除" はミキシングの基本
-
-DJ向けの使い方:
-- Mid EQの下部に影響
-- クラブの壁面反射でブーストされやすい
-- やや控えめに設定するのが安全
-- 2曲の中低域が重なると著しく濁る
-
-制作向けの対策:
-- 各トラックのLow-Mid を確認
-- 不要なトラックの250-500Hzを数dBカット
-- ハイパスフィルタの活用（ベース/キック以外はHPF @ 80-150Hz）
-- EQ カーブの例:
-  ギター: -3dB @ 300Hz（Q=1.0）
-  ボーカル: -2dB @ 350Hz（Q=0.8）
-  パッド: -4dB @ 250Hz（Q=1.2）
-```
-
-### Mid（500 Hz - 2 kHz）
-
-```
-物理的特性:
-- 波長: 17cm ~ 69cm
-- 人間の耳が最も敏感な帯域の下部
-- スピーカーの再生精度が重要
-
-音楽的特性:
-- ボーカルの中心帯域（特に800Hz-2kHz）
-- 楽器の「芯」「実体感」
-- メロディの認識に直結
-- 電話の帯域（300Hz-3.4kHz）に近い
-
-楽器/音源と代表的周波数:
-- 女性ボーカル基音: 250-1,000 Hz
-- 男性ボーカル基音: 100-500 Hz
-- ギター中心: 500-2,000 Hz
-- スネアドラム: 500-1,000 Hz（ボディ）
-- ピアノ中心: 500-4,000 Hz
-- シンセリード: ジャンル依存
-
-DJ向けの使い方:
-- ボーカル曲のトランジションで重要
-- Mid EQでボーカルの重なりを管理
-- どちらの曲のメロディを聴かせるか判断
-- インストセクションで積極的にカットしても問題少ない
-
-ボーカルトランジションの技術:
-1. 曲Aのボーカル終了を確認
-2. 曲Bのボーカル開始前にフェーダーアップ
-3. 重なる場合: 曲AのMidを下げる
-4. ボーカル同士の重なりは最も不快な衝突
-5. キーの一致も重要（不協和になる）
-
-制作向けの注意:
-- 最も「楽器が喧嘩する」帯域
-- 各楽器に「席」を用意する必要
-- パンニングとEQの組み合わせで整理
-- 1kHz付近のブーストは「鼻にかかった」音になりやすい
-- 引き算EQ（不要な帯域をカット）が基本
-```
-
-### High Mid（2-4 kHz）
-
-```
-物理的特性:
-- 波長: 8.6cm ~ 17.2cm
-- 人間の耳が最も敏感な帯域
-- 外耳道の共振周波数に近い（約2.7kHz）
-
-音楽的特性:
-- 楽器の「存在感」「輪郭」を決定
-- アタック音の核心部分
-- スネアの「パンチ」
-- ボーカルの「子音」の明瞭度
-
-この帯域が人間の聴覚にとって重要な理由:
-- 赤ちゃんの泣き声の中心帯域
-- 進化的に最も注意を向けるべき帯域
-- 言語の子音（サ行、タ行等）の認識
-- 危険を知らせる音の多くがこの帯域
-
-DJ向けの使い方:
-- High EQの下部に影響
-- パーカッションのアタック調整
-- 2曲のスネアが重なる時の管理
-- プレゼンスの調整で曲の「近さ」を制御
-
-制作向けの注意:
-- 最もデリケートな帯域
-- 過剰ブースト → 耳障り、聴き疲れ
-- 過剰カット → 抜けない、奥に引っ込む
-- ボーカルのディエッサー処理（歯擦音の制御）
-- マスタリングではこの帯域の扱いが品質を左右
-```
-
-### Presence（4-6 kHz）
-
-```
-音楽的特性:
-- ボーカルの明瞭度を決定
-- 「前に出る」「後ろに引く」感覚
-- リードシンセサイザーの存在感
-- アコースティックギターのピッキングニュアンス
-
-楽器/音源:
-- ボーカルの子音明瞭度
-- アコースティックギターのアタック
-- ストリングスのボウイングニュアンス
-- シンバルの基音部分
-- ピアノのアタック
-
-DJ向けの使い方:
-- High EQで間接的に調整
-- ボーカル曲のプレゼンス管理
-- ブーストすると曲が「前に出る」
-- カットすると「奥に引っ込む」
-
-制作向けの対策:
-- リードボーカル: わずかにブースト（+1-2dB）で前面に
-- バッキング: わずかにカット（-1-2dB）で後方に
-- シビランス（歯擦音）の問題はこの帯域に集中
-- ディエッサーの動作帯域: 4-8kHz が一般的
-```
-
-### Highs（6-12 kHz）
-
-```
-物理的特性:
-- 波長: 2.9cm ~ 5.7cm
-- 非常に指向性が強い
-- スピーカーのツイーターが担当
-- 空気吸収で距離とともに減衰
-
-音楽的特性:
-- ハイハット、シンバルの中心帯域
-- 明るさとキラキラ感（Brilliance）
-- ストリングスの倍音
-- シンセの高域倍音
-
-楽器/音源と代表的周波数:
-- クローズドハイハット: 6-10 kHz
-- オープンハイハット: 5-12 kHz
-- ライドシンバル: 3-12 kHz
-- クラッシュシンバル: 5-15 kHz
-- アコースティックギター高域: 6-12 kHz
-- ストリングス倍音: 5-12 kHz
-
-DJ向けの使い方:
-- High EQで頻繁に調整する帯域
-- 2曲のハイハットが重なる時にカット
-- トランジション時は片方の高域をカット
-- ブレイク後のドロップでハイを戻す演出
-
-テクニック「ハイハットスワップ」:
-1. 曲Aのハイハットパターンを確認
-2. 曲BのHigh EQをやや下げて再生開始
-3. ビートに合わせてスワップ:
-   曲AのHighを下げ → 曲BのHighを上げ
-4. 低域スワップと同時に行うとスムーズ
-
-制作向けの注意:
-- シビランス（歯擦音）の問題
-- ディエッサーの活用（6-10kHz帯域）
-- ハイハットとシンバルの分離
-- エアー感の付与: シェルフEQ @ 8-10kHz で +1-2dB
-```
-
-### Air（12-20 kHz）
-
-```
-物理的特性:
-- 波長: 1.7cm ~ 2.9cm
-- 極めて指向性が強い
-- 距離やケーブルで容易に減衰
-- 多くの人が加齢で聴こえなくなる帯域
-
-音楽的特性:
-- 空間感、エアー感
-- リバーブの余韻
-- シンバルの残響
-- 全体的な「開放感」
-
-DJ向けの使い方:
-- ほとんど直接的な調整は不要
-- High EQのブーストで間接的に影響
-- 音源品質の差が最も現れる帯域
-- MP3 128kbps ではこの帯域がほぼ消失
-
-制作向けの活用:
-- エアーEQ: シェルフ +1-3dB @ 12-16kHz
-- リバーブのハイカット: 12-16kHz でカット（自然な響き）
-- マスタリングでの「開放感」付与
-- 注意: ブーストしすぎると「シャリシャリ」になる
-- ナイキスト周波数（22.05kHz @ 44.1kHz SR）に近い
+This classification is useful for spectrum analysis and reference comparison
 ```
 
 ---
 
-## 4. 楽器別の周波数マップ（詳細版）
+## 3. Characteristics and Role of Each Band (Detailed)
 
-### キック（Kick Drum）
+### Sub Bass (20-60 Hz)
 
 ```
-周波数帯域マップ:
+Physical characteristics:
+- Wavelength: 5.7m ~ 17.1m (very long)
+- Almost no directionality (spreads omnidirectionally)
+- Easily passes through walls and doors
+- Standing waves are prone to occur
+
+Musical characteristics:
+- More "felt" by the body than "heard" by the ears
+- Effective with large club speakers/subwoofers
+- Difficult to reproduce with headphones (especially in-ear types)
+- Gives the track physical impact
+
+Instruments/sources:
+- 808 kick (Trap/Hip Hop ultra-low kick)
+- Sub bass (synthesizer)
+- Lowest frequency component of kick drums
+- Lowest open string note of bass guitar (approx. 41Hz = E1)
+- Lowest register of pipe organ
+
+DJ tips:
+- Phase interference when two sub bass lines play simultaneously
+- Mono playback is standard (stereo causes phase issues)
+- Use a high-pass filter (HPF) to cut unnecessary sub bass
+- Understand the characteristics of the club's subwoofer
+
+Production tips:
+- Frequencies below 30Hz are often intentionally cut
+- DC offset removal
+- Sidechain compression to separate kick and bass
+- Check mono compatibility (stereo sub bass is risky)
+
+Standing wave issues:
+- Resonance at frequencies corresponding to room dimensions
+- Sound becomes louder/quieter at specific positions
+- Formula: f = 343 / (2 x L)
+  Example: 5m room -> Resonance at 34.3Hz
+- Solutions: Bass traps, adjusting listening position
+```
+
+### Bass (60-250 Hz)
+
+```
+Physical characteristics:
+- Wavelength: 1.4m ~ 5.7m
+- Somewhat directional
+- Significantly affected by room acoustics
+- Front-loaded speakers are effective
+
+Musical characteristics:
+- Power and foundation of the track
+- Core band for kick drums and basslines
+- The most important band in dance music
+- The source of groove
+
+Instruments/sources and typical frequencies:
+- Kick drum: 60-100 Hz (body)
+- Bassline: 60-200 Hz (fundamental)
+- Male vocals: 80-180 Hz (lowest fundamental)
+- Piano left hand: 80-250 Hz
+- Cello: 65-250 Hz
+- Guitar (low strings): 80-250 Hz
+
+DJ usage:
+- The most important EQ operation during transitions
+- Don't play two kicks/basses simultaneously
+- Use Low EQ to swap (exchange)
+- "Bass swap" is a fundamental DJ technique
+
+Bass swap procedure:
+1. Check Track B on headphones
+2. Cut Track B's Low EQ completely (-inf or minimum)
+3. Bring up the channel fader to start playing Track B
+4. Quickly on the beat:
+   Lower Track A's Low <-> Raise Track B's Low
+5. A "kill switch" approach (instant swap) is effective
+
+Production tips:
+- The band where kick and bass frequency collision is most problematic
+- Sidechain compression: Compress the bass at the moment the kick hits
+- Frequency separation: Kick centered at 60-100Hz, Bass centered at 80-200Hz
+- Low cut: Cut unnecessary ultra-low frequencies (HPF @ 30-40Hz)
+```
+
+### Low Mid (250-500 Hz)
+
+```
+Physical characteristics:
+- Wavelength: 0.69m ~ 1.37m
+- Room reverb tends to accumulate
+- Affected by distance between speakers and walls
+
+Musical characteristics:
+- The band that provides warmth and body
+- Upper harmonics of bass
+- Body of the guitar
+- Chest voice of male vocals
+
+A problem-prone band ("Mud"):
+- Energy from many instruments concentrates here
+- Excessive accumulation results in a "muffled" or "hazy" sound
+- The band most often cut during mixing
+- "Cleaning up 250-500Hz" is a mixing fundamental
+
+DJ usage:
+- Affects the lower part of the Mid EQ
+- Easily boosted by club wall reflections
+- Safer to keep slightly conservative
+- Two tracks' low-mids overlapping causes significant muddiness
+
+Production solutions:
+- Check the Low-Mid of each track
+- Cut a few dB at 250-500Hz on unnecessary tracks
+- Utilize high-pass filters (HPF @ 80-150Hz for everything except bass/kick)
+- EQ curve examples:
+  Guitar: -3dB @ 300Hz (Q=1.0)
+  Vocals: -2dB @ 350Hz (Q=0.8)
+  Pad: -4dB @ 250Hz (Q=1.2)
+```
+
+### Mid (500 Hz - 2 kHz)
+
+```
+Physical characteristics:
+- Wavelength: 17cm ~ 69cm
+- Lower part of the band where human ears are most sensitive
+- Speaker reproduction accuracy is important
+
+Musical characteristics:
+- Core band of vocals (especially 800Hz-2kHz)
+- The "core" and "substance" of instruments
+- Directly related to melody recognition
+- Close to the telephone band (300Hz-3.4kHz)
+
+Instruments/sources and typical frequencies:
+- Female vocal fundamentals: 250-1,000 Hz
+- Male vocal fundamentals: 100-500 Hz
+- Guitar center: 500-2,000 Hz
+- Snare drum: 500-1,000 Hz (body)
+- Piano center: 500-4,000 Hz
+- Synth lead: Genre-dependent
+
+DJ usage:
+- Important for transitions with vocal tracks
+- Manage vocal overlap with the Mid EQ
+- Decide which track's melody to feature
+- Cutting aggressively during instrumental sections is generally fine
+
+Vocal transition techniques:
+1. Confirm when Track A's vocals end
+2. Bring up Track B's fader before its vocals start
+3. If they overlap: Lower Track A's Mid
+4. Vocal overlap is the most unpleasant type of collision
+5. Key matching is also important (to avoid dissonance)
+
+Production tips:
+- The band where instruments "compete" the most
+- Each instrument needs its own "seat"
+- Organize using panning and EQ together
+- Boosting around 1kHz tends to create a "nasal" sound
+- Subtractive EQ (cutting unwanted bands) is fundamental
+```
+
+### High Mid (2-4 kHz)
+
+```
+Physical characteristics:
+- Wavelength: 8.6cm ~ 17.2cm
+- The band where human ears are most sensitive
+- Close to the ear canal resonance frequency (approx. 2.7kHz)
+
+Musical characteristics:
+- Determines the "presence" and "definition" of instruments
+- The core of attack sounds
+- The "punch" of the snare
+- Clarity of vocal "consonants"
+
+Why this band is important for human hearing:
+- The core frequency band of a baby's cry
+- The band humans are evolutionarily most attuned to
+- Recognition of speech consonants (S, T sounds, etc.)
+- Many danger-alerting sounds fall in this band
+
+DJ usage:
+- Affects the lower part of the High EQ
+- Percussion attack adjustment
+- Managing when two snares overlap
+- Control the "closeness" of a track by adjusting presence
+
+Production tips:
+- The most delicate band
+- Excessive boost -> Fatiguing, listening fatigue
+- Excessive cut -> Lacks presence, sounds recessed
+- De-esser processing for vocals (sibilance control)
+- In mastering, handling this band determines quality
+```
+
+### Presence (4-6 kHz)
+
+```
+Musical characteristics:
+- Determines vocal clarity
+- Creates the sensation of "coming forward" or "receding"
+- Presence of lead synthesizers
+- Picking nuances of acoustic guitar
+
+Instruments/sources:
+- Vocal consonant clarity
+- Acoustic guitar attack
+- Bowing nuances of strings
+- Fundamental portion of cymbals
+- Piano attack
+
+DJ usage:
+- Adjusted indirectly via the High EQ
+- Managing presence in vocal tracks
+- Boosting makes the track "come forward"
+- Cutting makes it "recede"
+
+Production solutions:
+- Lead vocals: Slight boost (+1-2dB) to bring forward
+- Backing: Slight cut (-1-2dB) to push back
+- Sibilance issues concentrate in this band
+- De-esser operating range: 4-8kHz is typical
+```
+
+### Highs (6-12 kHz)
+
+```
+Physical characteristics:
+- Wavelength: 2.9cm ~ 5.7cm
+- Highly directional
+- Handled by the speaker's tweeter
+- Attenuates with distance due to air absorption
+
+Musical characteristics:
+- Core band for hi-hats and cymbals
+- Brightness and brilliance
+- String harmonics
+- High-frequency synth harmonics
+
+Instruments/sources and typical frequencies:
+- Closed hi-hat: 6-10 kHz
+- Open hi-hat: 5-12 kHz
+- Ride cymbal: 3-12 kHz
+- Crash cymbal: 5-15 kHz
+- Acoustic guitar highs: 6-12 kHz
+- String harmonics: 5-12 kHz
+
+DJ usage:
+- The band frequently adjusted with the High EQ
+- Cut when two hi-hats overlap
+- Cut one track's highs during transitions
+- Bring highs back on the drop after a break for dramatic effect
+
+"Hi-hat swap" technique:
+1. Identify Track A's hi-hat pattern
+2. Lower Track B's High EQ slightly and start playback
+3. Swap on the beat:
+   Lower Track A's High -> Raise Track B's High
+4. Doing this simultaneously with a low-end swap creates a smooth transition
+
+Production tips:
+- Sibilance issues
+- Use de-essers (6-10kHz band)
+- Separating hi-hats and cymbals
+- Adding air: Shelf EQ @ 8-10kHz with +1-2dB
+```
+
+### Air (12-20 kHz)
+
+```
+Physical characteristics:
+- Wavelength: 1.7cm ~ 2.9cm
+- Extremely directional
+- Easily attenuated by distance and cables
+- A band many people lose with age
+
+Musical characteristics:
+- Sense of space, airiness
+- Reverb tails
+- Cymbal sustain
+- Overall "openness"
+
+DJ usage:
+- Direct adjustment is rarely needed
+- Indirectly affected by High EQ boosts
+- The band where source quality differences are most apparent
+- This band is virtually absent in MP3 128kbps
+
+Production applications:
+- Air EQ: Shelf +1-3dB @ 12-16kHz
+- Reverb high cut: Cut at 12-16kHz (for a natural sound)
+- Adding "openness" during mastering
+- Caution: Over-boosting creates a "sizzly/brittle" sound
+- Close to the Nyquist frequency (22.05kHz @ 44.1kHz SR)
+```
+
+---
+
+## 4. Instrument Frequency Map (Detailed)
+
+### Kick Drum
+
+```
+Frequency band map:
 
 20Hz ─────── 60Hz ─────── 200Hz ─────── 1kHz ─────── 5kHz ─────── 20kHz
 │   Sub     │    Body    │   Boxiness  │  Attack   │   Click   │
 │  40-60Hz  │  60-100Hz  │  200-400Hz  │  2-5kHz   │  5-8kHz   │
-│  物理的圧力 │  太さ/パンチ │  段ボール感  │  アタック  │  クリック音 │
+│ Physical  │  Fatness/  │  Cardboard  │  Attack   │  Click    │
+│ pressure  │  punch     │  feel       │           │  sound    │
 
-ジャンル別キックの特徴:
+Kick characteristics by genre:
 ┌─────────────┬──────────────────────────────────────┐
-│ House       │ 80-120Hzにピーク、程よいアタック      │
-│ Tech House  │ 100Hz中心、タイトなアタック            │
-│ Techno      │ 50-80Hz重視、ディープな低域           │
-│ Trance      │ 60-100Hz、パンチのあるアタック        │
-│ Drum & Bass │ 80-150Hz、非常にタイト               │
-│ Trap/Hip Hop│ 808: 40-60Hz超低域、長いテール        │
-│ Dubstep     │ 50-80Hz、重厚なサブ                  │
+│ House       │ Peak at 80-120Hz, moderate attack     │
+│ Tech House  │ Centered at 100Hz, tight attack       │
+│ Techno      │ 50-80Hz emphasis, deep low end        │
+│ Trance      │ 60-100Hz, punchy attack               │
+│ Drum & Bass │ 80-150Hz, very tight                  │
+│ Trap/Hip Hop│ 808: 40-60Hz ultra-low, long tail     │
+│ Dubstep     │ 50-80Hz, massive sub                  │
 └─────────────┴──────────────────────────────────────┘
 
-EQ処理の指針:
-- HPF @ 30Hz（DC offset除去）
-- Body（60-100Hz）: キックの太さを調整
-- Boxiness（200-400Hz）: -2~4dBカットでタイトに
-- Attack（2-5kHz）: ブーストでアタック強調
-- Click（5-8kHz）: わずかにブーストでクリック追加
+EQ processing guidelines:
+- HPF @ 30Hz (DC offset removal)
+- Body (60-100Hz): Adjust kick fatness
+- Boxiness (200-400Hz): Cut -2~4dB for tightness
+- Attack (2-5kHz): Boost to emphasize attack
+- Click (5-8kHz): Slight boost to add click
 ```
 
-### ベースライン（Bass）
+### Bassline (Bass)
 
 ```
-周波数帯域マップ:
+Frequency band map:
 
 20Hz ─────── 80Hz ─────── 200Hz ─────── 500Hz ─────── 3kHz ─────── 20kHz
 │   Sub     │ Fundamental │  Harmonics  │   Upper    │ Presence  │
 │  40-80Hz  │  80-200Hz   │  200-500Hz  │  500Hz-1kHz │  1-3kHz  │
-│  サブ低域  │  音程の核   │  倍音/厚み  │  ミッドレンジ │ アタック  │
+│ Sub low   │ Pitch core  │ Harmonics/  │  Mid range │  Attack   │
+│           │             │ body        │            │           │
 
-ベースの種類と周波数特性:
-- シンセベース（Sub Bass）: 40-80Hz中心、サイン波的
-- シンセベース（Reese）: 60-200Hz、豊富な倍音
-- エレキベース: 40-250Hz基音、倍音で音色変化
-- アコースティックベース: 40-200Hz基音、ボディ共鳴
+Bass types and frequency characteristics:
+- Synth bass (Sub Bass): Centered at 40-80Hz, sine wave-like
+- Synth bass (Reese): 60-200Hz, rich harmonics
+- Electric bass: 40-250Hz fundamental, timbre varies with harmonics
+- Acoustic bass: 40-200Hz fundamental, body resonance
 
-キックとベースの住み分け:
+Kick and bass frequency separation:
 
-方法1: 周波数分離
-  キック: 60-80Hz にピーク
-  ベース: 80-120Hz にピーク
-  → 互いの基音が重ならないようにする
+Method 1: Frequency separation
+  Kick: Peak at 60-80Hz
+  Bass: Peak at 80-120Hz
+  -> Ensure their fundamentals don't overlap
 
-方法2: サイドチェインコンプ
-  キックの信号でベースを圧縮
-  → キックが鳴る瞬間だけベースが下がる
-  → テクノ/ハウスの定番テクニック
+Method 2: Sidechain compression
+  Use the kick signal to compress the bass
+  -> Bass ducks only at the moment the kick hits
+  -> A classic techno/house technique
 
-方法3: ダッキング（ボリュームオートメーション）
-  キックのタイミングでベースのボリュームを下げる
-  → より精密な制御が可能
+Method 3: Ducking (volume automation)
+  Lower bass volume at kick timing
+  -> Allows more precise control
 
-方法4: マルチバンドサイドチェイン
-  低域のみをサイドチェイン処理
-  → ベースの中高域は影響を受けない
+Method 4: Multiband sidechain
+  Apply sidechain processing only to the low end
+  -> Bass mid-highs remain unaffected
 ```
 
-### スネアドラム（Snare Drum）
+### Snare Drum
 
 ```
-周波数帯域マップ:
+Frequency band map:
 
 100Hz ─────── 300Hz ─────── 800Hz ─────── 3kHz ─────── 10kHz ─────── 20kHz
 │    Body   │    Tone    │   Punch    │   Crack   │   Snap    │
 │ 150-250Hz │ 400-800Hz  │  1-3kHz    │  3-5kHz   │  6-10kHz  │
-│   太さ    │  スネア音色 │  パンチ    │ アタック   │ スナッピー │
+│  Fatness  │ Snare tone │  Punch     │  Attack   │  Snappy   │
 
-ジャンル別スネアの特徴:
-- House: 短め、タイトなボディ、クリーンなアタック
-- Techno: リバーブ付き、暗め、工業的
-- Hip Hop: 808クラップ、レイヤード、太い
-- Drum & Bass: シャープ、タイト、高域強調
-- Rock: フルレンジ、太くてパンチがある
-- Jazz: ブラシ、繊細、ダイナミクスが広い
+Snare characteristics by genre:
+- House: Short, tight body, clean attack
+- Techno: With reverb, dark, industrial
+- Hip Hop: 808 clap, layered, fat
+- Drum & Bass: Sharp, tight, high-end emphasis
+- Rock: Full range, fat and punchy
+- Jazz: Brush, delicate, wide dynamics
 
-EQ処理の指針:
-- HPF @ 80-100Hz（不要な低域カット）
-- Body（150-250Hz）: 太さの調整
-- ボックス感（300-500Hz）: -2~3dBカット
-- Crack（3-5kHz）: ブーストでアタック強調
-- Snap（6-10kHz）: ブーストでスナッピー強調
+EQ processing guidelines:
+- HPF @ 80-100Hz (cut unnecessary low end)
+- Body (150-250Hz): Adjust fatness
+- Boxiness (300-500Hz): Cut -2~3dB
+- Crack (3-5kHz): Boost to emphasize attack
+- Snap (6-10kHz): Boost to emphasize snappy character
 ```
 
-### ハイハット（Hi-Hat）
+### Hi-Hat
 
 ```
-周波数帯域マップ:
+Frequency band map:
 
 200Hz ─────── 1kHz ─────── 5kHz ─────── 10kHz ─────── 20kHz
 │   Body    │   Ring    │    Tone    │   Sizzle  │   Air    │
 │ 200-500Hz │  1-3kHz   │   3-8kHz   │  8-15kHz  │ 15-20kHz │
-│  厚み(少)  │  リング   │ ハイハットの核 │ シャリ感  │  空気感  │
+│ Body(min) │   Ring    │ Hi-hat core│  Sizzle   │   Air    │
 
-種類別の特徴:
-- クローズドHH: 6-10kHz中心、短い
-- オープンHH: 5-12kHz、持続音あり
-- ペダルHH: 6-8kHz、最もタイト
-- ライドシンバル: 3-12kHz、ベル部分は1-4kHz
+Characteristics by type:
+- Closed HH: Centered at 6-10kHz, short
+- Open HH: 5-12kHz, sustained
+- Pedal HH: 6-8kHz, tightest
+- Ride cymbal: 3-12kHz, bell section is 1-4kHz
 
-EQ処理の指針:
-- HPF @ 200-500Hz（低域をしっかりカット）
-- リング音（1-3kHz）: 不要ならカット
-- トーン（3-8kHz）: ハイハットの主要帯域
-- シズル（8-15kHz）: シャリシャリ感の調整
-- 他の楽器との干渉: ボーカルやシンセとの住み分け
+EQ processing guidelines:
+- HPF @ 200-500Hz (firmly cut the low end)
+- Ring (1-3kHz): Cut if unnecessary
+- Tone (3-8kHz): Main hi-hat band
+- Sizzle (8-15kHz): Adjust sizzly character
+- Interference with other instruments: Separate from vocals and synths
 
-DJ向けの注意:
-- 2曲のハイハットパターンが重なると非常にうるさい
-- High EQ でどちらかをカット
-- 特にオープンハイハットの重なりは要注意
+DJ tips:
+- Two overlapping hi-hat patterns become very noisy
+- Cut one with the High EQ
+- Pay special attention to overlapping open hi-hats
 ```
 
-### ボーカル（Vocals）
+### Vocals
 
 ```
-周波数帯域マップ:
+Frequency band map:
 
 80Hz ──── 250Hz ──── 500Hz ──── 2kHz ──── 5kHz ──── 8kHz ──── 20kHz
 │ Rumble │ Warmth  │  Body   │ Clarity │Presence│Sibilance│ Air │
 │ 80-150 │ 150-300 │ 300-800 │ 1-3kHz  │ 3-6kHz │ 6-10kHz │12-16│
-│ 振動   │ 温かみ  │  厚み   │  明瞭度 │ 存在感 │ 歯擦音  │空間 │
+│Vibration│ Warmth │  Body   │ Clarity │Presence│Sibilance│Space│
 
-男性ボーカル:
-- 基音: 85-260 Hz (E2-C4)
-- 主要帯域: 100Hz-4kHz
-- 温かみ: 150-300Hz
-- 明瞭度: 1.5-3kHz
+Male vocals:
+- Fundamental: 85-260 Hz (E2-C4)
+- Main band: 100Hz-4kHz
+- Warmth: 150-300Hz
+- Clarity: 1.5-3kHz
 
-女性ボーカル:
-- 基音: 165-520 Hz (E3-C5)
-- 主要帯域: 200Hz-6kHz
-- 温かみ: 200-400Hz
-- 明瞭度: 2-5kHz
-- シビランス: 5-9kHz（より目立ちやすい）
+Female vocals:
+- Fundamental: 165-520 Hz (E3-C5)
+- Main band: 200Hz-6kHz
+- Warmth: 200-400Hz
+- Clarity: 2-5kHz
+- Sibilance: 5-9kHz (more prominent)
 
-ボーカル処理のチェーン（制作向け）:
-1. HPF @ 80-120Hz（不要な低域カット）
-2. 問題帯域のカット（200-400Hz 泥対策）
-3. 明瞭度ブースト（2-4kHz, +1-3dB）
-4. プレゼンスブースト（4-6kHz, +1-2dB）
-5. ディエッサー（5-9kHz）
-6. エアーシェルフ（12kHz+, +1-2dB）
+Vocal processing chain (for production):
+1. HPF @ 80-120Hz (cut unnecessary low end)
+2. Cut problem bands (200-400Hz mud treatment)
+3. Clarity boost (2-4kHz, +1-3dB)
+4. Presence boost (4-6kHz, +1-2dB)
+5. De-esser (5-9kHz)
+6. Air shelf (12kHz+, +1-2dB)
 
-DJ向けの注意:
-- ボーカル同士の重なりは最も不快
-- 異なるキーのボーカルが重なると不協和
-- Mid EQでボーカル帯域を管理
-- トランジション時はボーカルセクションを避ける
+DJ tips:
+- Overlapping vocals are the most unpleasant
+- Different keys overlapping causes dissonance
+- Manage the vocal band with Mid EQ
+- Avoid vocal sections during transitions
 ```
 
-### シンセサイザー
+### Synthesizer
 
 ```
-シンセの種類と周波数特性:
+Synth types and frequency characteristics:
 
-サブベースシンセ:
-  30-80Hz: ほぼ純音（サイン波）
-  倍音はほとんどない
-  モノラル推奨
+Sub bass synth:
+  30-80Hz: Nearly pure tone (sine wave)
+  Almost no harmonics
+  Mono recommended
 
-ベースシンセ（Saw/Square）:
-  60-250Hz: 基音
-  250Hz-4kHz: 豊富な倍音
-  フィルタのカットオフ位置で音色が変化
+Bass synth (Saw/Square):
+  60-250Hz: Fundamental
+  250Hz-4kHz: Rich harmonics
+  Timbre changes with filter cutoff position
 
-パッド/ストリング:
-  200Hz-8kHz: 広帯域
-  温かみ（200-500Hz）と明るさ（4-8kHz）のバランス
-  ステレオで広がる
+Pad/String:
+  200Hz-8kHz: Wide band
+  Balance between warmth (200-500Hz) and brightness (4-8kHz)
+  Spreads in stereo
 
-リードシンセ:
-  300Hz-8kHz: 中域重視
-  プレゼンス（3-6kHz）が重要
-  ポルタメントで音程が変化
+Lead synth:
+  300Hz-8kHz: Mid-range focused
+  Presence (3-6kHz) is important
+  Pitch changes with portamento
 
-アルペジオ/プラック:
-  200Hz-12kHz: トランジェント重視
-  アタック（2-5kHz）が特徴
-  リリースの長さで帯域が変化
+Arpeggio/Pluck:
+  200Hz-12kHz: Transient-focused
+  Attack (2-5kHz) is characteristic
+  Band changes with release length
 
-FXサウンド（ライザー、スイープ等）:
-  全帯域を使用可能
-  動的に帯域が変化
-  フィルタスイープが主要テクニック
-```
-
----
-
-## 5. EQの基本概念
-
-### EQの種類
-
-**パラメトリックEQ:**
-```
-パラメータ:
-1. 周波数（Frequency）: 操作する中心周波数
-2. ゲイン（Gain）: ブースト/カット量（dB）
-3. Q（Quality Factor）: 帯域幅
-   - Q = 中心周波数 ÷ 帯域幅
-   - Q が大きい = 帯域幅が狭い（ピンポイント）
-   - Q が小さい = 帯域幅が広い（なだらか）
-
-Q値の目安:
-  Q = 0.5: 非常に広い（約2.5オクターブ）
-  Q = 1.0: 広い（約1.4オクターブ）
-  Q = 2.0: 中程度（約0.7オクターブ）
-  Q = 4.0: 狭い（約0.35オクターブ）
-  Q = 8.0: 非常に狭い（約0.17オクターブ）
-  Q = 20+: ノッチフィルタ的
-
-使い分け:
-  広いQ（0.5-1.5）: 全体的なトーン調整
-  中程度（1.5-4）: 楽器の住み分け
-  狭いQ（4-10）: 問題周波数のピンポイント除去
-  非常に狭い（10+）: フィードバック除去、ノッチ処理
-```
-
-**グラフィックEQ:**
-```
-特徴:
-- 固定された周波数バンド（31バンド等）
-- 各バンドのゲインのみ調整
-- PAシステムで多用
-- 視覚的に分かりやすい
-
-一般的なバンド数:
-  5バンド: シンプルな調整
-  10バンド: 基本的な補正
-  15バンド: 2/3オクターブ
-  31バンド: 1/3オクターブ（PA標準）
-
-PA での使用:
-1. 測定マイクで部屋の特性を計測
-2. ピーク/ディップを特定
-3. グラフィックEQで補正
-4. フラットな特性に近づける
-```
-
-**シェルビングEQ:**
-```
-特徴:
-- 特定の周波数以上/以下を一括で上げ下げ
-- ハイシェルフ: 指定周波数以上を調整
-- ローシェルフ: 指定周波数以下を調整
-
-使用例:
-  ハイシェルフ +2dB @ 8kHz:
-  → 8kHz以上を全体的に+2dBブースト
-  → 明るさ/エアー感の付与
-
-  ローシェルフ -3dB @ 200Hz:
-  → 200Hz以下を全体的に-3dBカット
-  → ベースの制御、低域の整理
-
-DJミキサーのEQ:
-  Low: ローシェルフ（~250Hz以下）
-  High: ハイシェルフ（4kHz以上）
-  ※ 一部は「Kill」EQ（完全カット）
-```
-
-**フィルター:**
-```
-種類:
-1. ハイパスフィルタ（HPF / ローカット）
-   - 指定周波数以下をカット
-   - 「低い方を通さない」
-   - 不要な低域の除去に使用
-
-2. ローパスフィルタ（LPF / ハイカット）
-   - 指定周波数以上をカット
-   - 「高い方を通さない」
-   - DJエフェクトとして使用（フィルタスイープ）
-
-3. バンドパスフィルタ（BPF）
-   - 特定の帯域のみ通す
-   - 上下をカット
-   - ラジオボイス的な効果
-
-4. ノッチフィルタ（Band Reject）
-   - 特定の周波数のみカット
-   - 非常に狭いQ
-   - ハム/共振の除去
-
-スロープ（傾斜）:
-  6 dB/oct (1st order): 緩やか
-  12 dB/oct (2nd order): 一般的
-  18 dB/oct (3rd order): やや急峻
-  24 dB/oct (4th order): 急峻
-  48 dB/oct: 非常に急峻（デジタルEQ）
-
-フィルタスイープ（DJテクニック）:
-1. LPFのカットオフを20kHzからスタート
-2. 徐々にカットオフを下げていく
-3. 高域から順に消えていく
-4. 最低点でビルドアップ効果
-5. ドロップで一気にカットオフを上げる
-6. → エネルギーの解放感
-```
-
-### EQ操作の基本原則
-
-```
-■ 原則1: 引き算が基本（Subtractive EQ）
-  × ブースト（上げる）→ 位相歪み、ノイズ増加、ヘッドルーム消費
-  ○ カット（下げる）→ クリーン、自然、ヘッドルーム確保
-
-  「足りないと思ったら、他を下げてみる」
-  例: ボーカルが聴こえない → ボーカルを上げるのではなく、
-      かぶっている楽器の同帯域を下げる
-
-■ 原則2: 少しずつ調整
-  × 一気に +6dB ブースト
-  ○ +1-2dB ずつ調整して確認
-
-  人間の耳は急な変化に敏感だが、
-  徐々の変化には気づきにくい
-  → A/Bテスト（EQ ON/OFF比較）が重要
-
-■ 原則3: 全体の中で判断
-  × ソロで完璧に仕上げる
-  ○ ミックス全体の中で判断する
-
-  ソロで良い音でも、ミックスに戻すと埋もれたり浮いたりする
-  → 常にコンテキスト（文脈）の中で判断
-
-■ 原則4: 問題を特定してから操作
-  × 「何となく高域をブースト」
-  ○ 「3.5kHz付近の共振をカット」
-
-  手順:
-  1. 問題を聴覚的に特定
-  2. 狭いQでブーストしてスイープ（掃引）
-  3. 問題の周波数を特定
-  4. カットで除去
-
-■ 原則5: HPF（ハイパスフィルタ）を活用
-  ベースとキック以外の全トラックにHPF
-  不要な低域をカットすることで:
-  - ヘッドルームの確保
-  - 低域のクリアネス向上
-  - マスキングの軽減
-
-  推奨カットオフ周波数:
-  - ボーカル: 80-120Hz
-  - ギター: 80-150Hz
-  - ピアノ: 60-100Hz
-  - ハイハット: 200-500Hz
-  - シンセリード: 100-200Hz
-  - パッド: 100-200Hz
+FX sounds (risers, sweeps, etc.):
+  Can use the full frequency range
+  Band changes dynamically
+  Filter sweeps are the primary technique
 ```
 
 ---
 
-## 6. DJでの実践的なEQ使用法
+## 5. Basic EQ Concepts
 
-### トランジション時のEQ操作
+### Types of EQ
 
+**Parametric EQ:**
 ```
-■ 基本的なEQミックスの流れ:
+Parameters:
+1. Frequency: The center frequency to operate on
+2. Gain: Amount of boost/cut (dB)
+3. Q (Quality Factor): Bandwidth
+   - Q = Center frequency / Bandwidth
+   - Higher Q = Narrower bandwidth (pinpoint)
+   - Lower Q = Wider bandwidth (gentle)
 
-[準備段階]
-1. 曲Bのキューを確認（ヘッドフォン）
-2. BPMを合わせる
-3. ビートグリッドを確認
-4. 曲Bの特徴を把握（低域の量、ボーカルの有無等）
+Q value guidelines:
+  Q = 0.5: Very wide (approx. 2.5 octaves)
+  Q = 1.0: Wide (approx. 1.4 octaves)
+  Q = 2.0: Medium (approx. 0.7 octaves)
+  Q = 4.0: Narrow (approx. 0.35 octaves)
+  Q = 8.0: Very narrow (approx. 0.17 octaves)
+  Q = 20+: Notch filter-like
 
-[実行段階]
-Step 1: 低域の管理（最重要）
-  1. 曲BのLow EQを完全カット（-∞ or 最小位置）
-  2. チャンネルフェーダーを上げる
-  3. 徐々にLow EQを戻しながら、
-  4. 曲AのLowを下げていく
-  5. 「ベーススワップ」ポイントを見極める
-     → 通常は4小節or8小節の頭
-
-Step 2: 高域の調整
-  1. ハイハットの重なりを聴く
-  2. 重なって「うるさい」場合:
-     曲BのHighをやや下げる（-2~4dB）
-  3. 曲Aを抜く前にHighを戻す
-  4. シンバルクラッシュのタイミングに注意
-
-Step 3: 中域の整理
-  1. ボーカルやメロディの重なりを確認
-  2. 不協和な場合: Mid EQで片方をカット
-  3. どちらかの曲をメインに
-  4. 最終的にフェーダーで曲Aをフェードアウト
+Usage:
+  Wide Q (0.5-1.5): Overall tonal adjustment
+  Medium (1.5-4): Separating instruments
+  Narrow Q (4-10): Pinpoint removal of problem frequencies
+  Very narrow (10+): Feedback removal, notch processing
 ```
 
-### DJミキサーのEQタイプ
-
+**Graphic EQ:**
 ```
-■ アイソレーターEQ（Pioneer DJMシリーズ）:
-  - 各帯域を完全カット（-∞）可能
-  - 「Kill」スイッチ的な使い方
-  - +6dB 程度のブーストも可能
-  - トランジション時の低域スワップに最適
+Characteristics:
+- Fixed frequency bands (e.g., 31 bands)
+- Only gain per band is adjustable
+- Widely used in PA systems
+- Visually intuitive
 
-  DJM-900NXS2 のEQ特性:
-  Low: -∞ ~ +6dB (250Hz以下)
-  Mid: -∞ ~ +6dB (250Hz-4kHz)
-  High: -∞ ~ +6dB (4kHz以上)
+Common band counts:
+  5-band: Simple adjustment
+  10-band: Basic correction
+  15-band: 2/3 octave
+  31-band: 1/3 octave (PA standard)
 
-■ トラディショナルEQ（Allen & Heath等）:
-  - シェルビング/ピーキング方式
-  - カット量に制限がある場合も
-  - より音楽的な変化
-  - ロータリーノブタイプが多い
-
-  Xone:96 のEQ特性:
-  Low: ±15dB (350Hz以下)
-  Mid: ±15dB (350Hz-2.5kHz)
-  High: ±15dB (2.5kHz以上)
-  + 可変ハイパス/ローパスフィルタ
-
-■ フィルタ付きEQ:
-  - HPF/LPF スイープ機能
-  - レゾナンス（共鳴）調整可能
-  - DJエフェクトとして活用
-  - トランジションのバリエーション拡大
+PA usage:
+1. Measure room characteristics with a measurement microphone
+2. Identify peaks/dips
+3. Correct with graphic EQ
+4. Approach a flat response
 ```
 
-### ジャンル別のEQ設定ガイド
+**Shelving EQ:**
+```
+Characteristics:
+- Raises/lowers everything above/below a certain frequency
+- High shelf: Adjusts frequencies above the specified point
+- Low shelf: Adjusts frequencies below the specified point
+
+Usage examples:
+  High shelf +2dB @ 8kHz:
+  -> Boosts everything above 8kHz by +2dB overall
+  -> Adds brightness/air
+
+  Low shelf -3dB @ 200Hz:
+  -> Cuts everything below 200Hz by -3dB overall
+  -> Bass control, tidying the low end
+
+DJ mixer EQ:
+  Low: Low shelf (~250Hz and below)
+  High: High shelf (4kHz and above)
+  * Some have "Kill" EQ (complete cut)
+```
+
+**Filters:**
+```
+Types:
+1. High-pass filter (HPF / Low cut)
+   - Cuts frequencies below the specified point
+   - "Doesn't pass the low end"
+   - Used to remove unnecessary low frequencies
+
+2. Low-pass filter (LPF / High cut)
+   - Cuts frequencies above the specified point
+   - "Doesn't pass the high end"
+   - Used as a DJ effect (filter sweep)
+
+3. Band-pass filter (BPF)
+   - Passes only a specific band
+   - Cuts above and below
+   - Creates a radio voice-like effect
+
+4. Notch filter (Band Reject)
+   - Cuts only a specific frequency
+   - Very narrow Q
+   - Removes hum/resonance
+
+Slope:
+  6 dB/oct (1st order): Gentle
+  12 dB/oct (2nd order): Common
+  18 dB/oct (3rd order): Somewhat steep
+  24 dB/oct (4th order): Steep
+  48 dB/oct: Very steep (digital EQ)
+
+Filter sweep (DJ technique):
+1. Start with LPF cutoff at 20kHz
+2. Gradually lower the cutoff
+3. High frequencies disappear progressively
+4. Build-up effect at the lowest point
+5. Suddenly raise the cutoff on the drop
+6. -> A sense of energy release
+```
+
+### Fundamental Principles of EQ Operation
 
 ```
-■ House / Deep House:
-  Low  : しっかり残す（キック+ベースのグルーヴ重視）
-  Mid  : やや控えめ（温かみを残しつつスッキリ）
-  High : 明るく（ハイハットのグルーヴ）
+Principle 1: Subtractive EQ is fundamental
+  X Boost (raise) -> Phase distortion, noise increase, headroom consumed
+  O Cut (lower) -> Clean, natural, headroom preserved
 
-  トランジション:
-  - 低域スワップは確実に
-  - ボーカルハウスではMidの管理が重要
-  - フィルタスイープも効果的
+  "If something feels lacking, try lowering other things"
+  Example: Can't hear vocals -> Instead of raising vocals,
+      lower the same band in competing instruments
 
-■ Tech House:
-  Low  : タイトに（パンチ重視）
-  Mid  : グルーヴ要素を残す
-  High : パーカッションを活かす
+Principle 2: Adjust gradually
+  X +6dB boost all at once
+  O Adjust +1-2dB at a time and check
 
-  トランジション:
-  - ループを活用してLow/Highを段階的に入れ替え
-  - パーカッションパターンの重なりに注意
+  Human ears are sensitive to sudden changes,
+  but less aware of gradual changes
+  -> A/B testing (EQ ON/OFF comparison) is important
 
-■ Techno:
-  Low  : 圧力重視（サブベースの存在感）
-  Mid  : 削ってダーク（ミニマルな印象）
-  High : 控えめ（暗い雰囲気を維持）
+Principle 3: Judge within the full mix
+  X Perfect it in solo
+  O Judge within the context of the full mix
 
-  トランジション:
-  - 長めのトランジション（32小節以上）
-  - Low の段階的な入れ替え
-  - フィルタスイープでビルドアップ
+  Even if it sounds great in solo, it may get buried or stick out in the mix
+  -> Always judge within context
 
-■ Melodic Techno / Progressive:
-  Low  : バランス重視
-  Mid  : メロディを活かす
-  High : 空間感を保つ
+Principle 4: Identify the problem before making adjustments
+  X "Boost the highs just because"
+  O "Cut the resonance around 3.5kHz"
 
-  トランジション:
-  - メロディのキー一致が重要
-  - ブレイクセクションを活用
-  - リバーブ/ディレイを味方に
+  Procedure:
+  1. Identify the problem by ear
+  2. Sweep with a narrow Q boost
+  3. Identify the problem frequency
+  4. Remove with a cut
 
-■ Drum & Bass:
-  Low  : キックとサブベースのバランス
-  Mid  : ミッドレンジベースの管理
-  High : ドラムパターンの鮮明さ
+Principle 5: Utilize HPF (high-pass filter)
+  Apply HPF to all tracks except bass and kick
+  By cutting unnecessary low end:
+  - Headroom is preserved
+  - Low-end clarity improves
+  - Masking is reduced
 
-  トランジション:
-  - 高速ビート（170BPM+）のため素早い操作
-  - ダブルドロップ時のEQ管理が重要
-  - ベーススワップは特に注意
-
-■ Hip Hop / R&B:
-  Low  : 非常に重要（808ベースの圧力）
-  Mid  : ボーカル重視
-  High : 控えめ
-
-  トランジション:
-  - ボーカル同士の衝突を絶対に避ける
-  - 808の低域が重なると破綻
-  - ブレイクでの切り替えが安全
-
-■ Trance:
-  Low  : パワフル
-  Mid  : メロディとパッドのバランス
-  High : 明るくエネルギッシュ
-
-  トランジション:
-  - ブレイクダウンを活用
-  - キーマッチングが必須
-  - 長いビルドアップでEQを段階的に操作
+  Recommended cutoff frequencies:
+  - Vocals: 80-120Hz
+  - Guitar: 80-150Hz
+  - Piano: 60-100Hz
+  - Hi-hat: 200-500Hz
+  - Synth lead: 100-200Hz
+  - Pad: 100-200Hz
 ```
 
 ---
 
-## 7. 周波数マスキングの理解
+## 6. Practical EQ Usage for DJs
 
-### マスキングとは
-
-```
-定義:
-ある音の存在によって、別の音が聴こえにくくなる現象
-
-種類:
-1. 同時マスキング（Simultaneous Masking）
-   - 同じ時間に鳴る2つの音
-   - 大きい音が小さい音を隠す
-   - 近い周波数ほど強いマスキング
-
-2. 時間マスキング（Temporal Masking）
-   - 前方マスキング: 大きな音の直前の小さな音
-   - 後方マスキング: 大きな音の直後の小さな音
-   - 後方マスキングの方が持続時間が長い
-
-3. 周波数マスキング
-   - 近い周波数の音同士で発生
-   - 同じ帯域に複数の楽器が集中すると「濁り」
-   - ミキシングの最大の敵
-
-DJでのマスキング問題:
-- 2曲のキック/ベースが重なる → 低域マスキング
-- 2曲のボーカルが重なる → 中域マスキング
-- 2曲のハイハットが重なる → 高域マスキング
-→ EQ操作でこれらを解決するのがDJの技術
-```
-
-### マスキング対策の実践
+### EQ Operation During Transitions
 
 ```
-■ DJでの対策:
+Basic EQ mix workflow:
 
-1. 低域マスキング対策:
-   - ベーススワップ（一方のLowを完全カット）
-   - フェーダーではなくEQで管理
-   - 2曲の低域を同時に鳴らさない原則
+[Preparation stage]
+1. Check Track B's cue (headphones)
+2. Match the BPM
+3. Check the beat grid
+4. Understand Track B's characteristics (amount of low end, presence of vocals, etc.)
 
-2. 中域マスキング対策:
-   - ボーカルセクションの重なりを避ける
-   - Mid EQでどちらかを下げる
-   - インスト部分を利用してトランジション
+[Execution stage]
+Step 1: Low-end management (most important)
+  1. Cut Track B's Low EQ completely (-inf or minimum position)
+  2. Bring up the channel fader
+  3. Gradually restore Track B's Low EQ while
+  4. Lowering Track A's Low
+  5. Find the "bass swap" point
+     -> Usually at the start of a 4-bar or 8-bar phrase
 
-3. 高域マスキング対策:
-   - ハイハットの重なりをHighEQで管理
-   - シンバルのタイミングに注意
-   - 片方のHighをわずかにカット
+Step 2: High-end adjustment
+  1. Listen for hi-hat overlap
+  2. If they overlap and sound "noisy":
+     Lower Track B's High slightly (-2~4dB)
+  3. Restore the High before pulling out Track A
+  4. Watch for cymbal crash timing
 
-■ 制作でのマスキング対策:
+Step 3: Mid-range cleanup
+  1. Check for vocal or melody overlap
+  2. If dissonant: Cut one with Mid EQ
+  3. Make one track the main focus
+  4. Finally fade out Track A with the fader
+```
 
-1. 周波数の住み分け:
-   各楽器に「主要帯域」を割り当て、
-   他の楽器はその帯域を避ける
+### DJ Mixer EQ Types
 
-   例:
-   キック: 60-100Hz（主要）、2-5kHz（アタック）
-   ベース: 80-200Hz（主要）
-   スネア: 150-250Hz + 2-5kHz
-   ボーカル: 1-5kHz（主要）
-   ギター: 500Hz-2kHz
-   ハイハット: 6-12kHz
-   パッド: 200-800Hz + 4-8kHz
+```
+Isolator EQ (Pioneer DJM series):
+  - Can completely cut each band (-inf)
+  - "Kill" switch-like usage
+  - Also capable of about +6dB boost
+  - Ideal for low-end swaps during transitions
 
-2. サイドチェインEQ（ダイナミックEQ）:
-   - マスキングする楽器のレベルに応じて動的にEQ
-   - 例: ボーカルが鳴っている時だけシンセの1-5kHzをカット
+  DJM-900NXS2 EQ characteristics:
+  Low: -inf ~ +6dB (below 250Hz)
+  Mid: -inf ~ +6dB (250Hz-4kHz)
+  High: -inf ~ +6dB (above 4kHz)
+
+Traditional EQ (Allen & Heath, etc.):
+  - Shelving/peaking design
+  - May have limited cut range
+  - More musical changes
+  - Often rotary knob type
+
+  Xone:96 EQ characteristics:
+  Low: +/-15dB (below 350Hz)
+  Mid: +/-15dB (350Hz-2.5kHz)
+  High: +/-15dB (above 2.5kHz)
+  + Variable high-pass/low-pass filters
+
+Filter-equipped EQ:
+  - HPF/LPF sweep function
+  - Adjustable resonance
+  - Used as DJ effects
+  - Expands transition variations
+```
+
+### Genre-Specific EQ Setting Guide
+
+```
+House / Deep House:
+  Low  : Keep solid (groove of kick + bass is prioritized)
+  Mid  : Slightly restrained (keep warmth while staying clean)
+  High : Bright (hi-hat groove)
+
+  Transitions:
+  - Execute bass swaps reliably
+  - Mid management is important for vocal house
+  - Filter sweeps are also effective
+
+Tech House:
+  Low  : Tight (emphasis on punch)
+  Mid  : Keep groove elements
+  High : Bring out percussion
+
+  Transitions:
+  - Use loops to swap Low/High gradually
+  - Watch for overlapping percussion patterns
+
+Techno:
+  Low  : Emphasis on pressure (sub bass presence)
+  Mid  : Cut for darkness (minimal impression)
+  High : Subdued (maintain a dark atmosphere)
+
+  Transitions:
+  - Longer transitions (32 bars or more)
+  - Gradual low-end swap
+  - Filter sweeps for build-ups
+
+Melodic Techno / Progressive:
+  Low  : Focus on balance
+  Mid  : Feature the melody
+  High : Maintain spaciousness
+
+  Transitions:
+  - Key matching of melodies is important
+  - Utilize break sections
+  - Use reverb/delay to your advantage
+
+Drum & Bass:
+  Low  : Balance between kick and sub bass
+  Mid  : Manage mid-range bass
+  High : Clarity of drum patterns
+
+  Transitions:
+  - Fast operation due to high-speed beats (170BPM+)
+  - EQ management is crucial during double drops
+  - Pay special attention to bass swaps
+
+Hip Hop / R&B:
+  Low  : Very important (808 bass pressure)
+  Mid  : Vocal-focused
+  High : Subdued
+
+  Transitions:
+  - Absolutely avoid vocal collisions
+  - Overlapping 808 low end causes breakdown
+  - Switching during breaks is safest
+
+Trance:
+  Low  : Powerful
+  Mid  : Balance between melody and pads
+  High : Bright and energetic
+
+  Transitions:
+  - Utilize breakdowns
+  - Key matching is essential
+  - Operate EQ gradually during long build-ups
+```
+
+---
+
+## 7. Understanding Frequency Masking
+
+### What Is Masking?
+
+```
+Definition:
+A phenomenon where the presence of one sound makes another sound harder to hear
+
+Types:
+1. Simultaneous Masking
+   - Two sounds occurring at the same time
+   - The louder sound hides the quieter one
+   - Stronger masking occurs between closer frequencies
+
+2. Temporal Masking
+   - Forward masking: A quiet sound just before a loud sound
+   - Backward masking: A quiet sound just after a loud sound
+   - Backward masking lasts longer
+
+3. Frequency Masking
+   - Occurs between sounds with close frequencies
+   - Multiple instruments in the same band cause "muddiness"
+   - The biggest enemy of mixing
+
+Masking issues for DJs:
+- Two kicks/basses overlapping -> Low-end masking
+- Two vocals overlapping -> Mid-range masking
+- Two hi-hats overlapping -> High-end masking
+-> Solving these with EQ operation is the DJ's skill
+```
+
+### Practical Masking Solutions
+
+```
+For DJs:
+
+1. Low-end masking solutions:
+   - Bass swap (completely cut one track's Low)
+   - Manage with EQ, not faders
+   - Principle: Never play two low ends simultaneously
+
+2. Mid-range masking solutions:
+   - Avoid overlapping vocal sections
+   - Lower one with Mid EQ
+   - Use instrumental parts for transitions
+
+3. High-end masking solutions:
+   - Manage hi-hat overlap with High EQ
+   - Watch cymbal timing
+   - Slightly cut one track's High
+
+For Production:
+
+1. Frequency separation:
+   Assign a "primary band" to each instrument,
+   and have other instruments avoid that band
+
+   Example:
+   Kick: 60-100Hz (primary), 2-5kHz (attack)
+   Bass: 80-200Hz (primary)
+   Snare: 150-250Hz + 2-5kHz
+   Vocals: 1-5kHz (primary)
+   Guitar: 500Hz-2kHz
+   Hi-hat: 6-12kHz
+   Pad: 200-800Hz + 4-8kHz
+
+2. Sidechain EQ (Dynamic EQ):
+   - Dynamically apply EQ based on the level of the masking instrument
+   - Example: Cut synth's 1-5kHz only when vocals are playing
    - FabFilter Pro-Q, Wavesfactory Trackspacer
 
-3. ミッドサイド処理:
-   - Mid（中央）とSide（左右）を分けて処理
-   - キック/ベースはMidに集中
-   - ギター/シンセはSideに広げる
-   - 帯域ごとのステレオ幅を管理
+3. Mid/Side processing:
+   - Process Mid (center) and Side (left/right) separately
+   - Concentrate kick/bass in Mid
+   - Spread guitar/synth to Side
+   - Manage stereo width per frequency band
 
-4. パンニング:
-   - 左右の配置で分離
-   - キック、ベース、ボーカル: センター
-   - ギター、シンセ、パーカッション: 左右に振る
-   - パンと EQ の組み合わせで最大の分離
+4. Panning:
+   - Separate by left/right placement
+   - Kick, bass, vocals: Center
+   - Guitar, synth, percussion: Pan left/right
+   - Combination of panning and EQ for maximum separation
 ```
 
 ---
 
-## 8. スペクトラム分析
+## 8. Spectrum Analysis
 
-### スペクトログラムの読み方
+### How to Read a Spectrogram
 
 ```
-スペクトログラム:
-- X軸: 時間
-- Y軸: 周波数
-- 色/明るさ: 音量（エネルギー）
+Spectrogram:
+- X-axis: Time
+- Y-axis: Frequency
+- Color/brightness: Volume (energy)
 
-スペクトラムアナライザー:
-- X軸: 周波数
-- Y軸: 音量（dB）
-- リアルタイム表示
+Spectrum Analyzer:
+- X-axis: Frequency
+- Y-axis: Volume (dB)
+- Real-time display
 
-読み方の基本:
-1. ピーク（山）の位置 → 楽曲のエネルギーが集中する帯域
-2. ディップ（谷）の位置 → エネルギーが少ない帯域
-3. 全体の傾斜 → 音楽の「色合い」
-   - 右下がり: 低域重視（ダーク）
-   - フラット: バランス型
-   - 右上がり: 高域重視（ブライト）※ 稀
+Reading basics:
+1. Peak positions -> Bands where the track's energy is concentrated
+2. Dip positions -> Bands with less energy
+3. Overall slope -> The "color" of the music
+   - Sloping down to the right: Low-end focused (dark)
+   - Flat: Balanced
+   - Sloping up to the right: High-end focused (bright) * Rare
 
-ジャンルごとのスペクトラム特徴:
+Spectrum characteristics by genre:
 
 House:
   ┃█████████
@@ -1257,8 +1259,8 @@ House:
   ┃████
   ┃███
   ┃██
-  └──────────→ 20Hz → 20kHz
-  → 比較的バランスの良い右下がり
+  └──────────-> 20Hz -> 20kHz
+  -> Relatively balanced, sloping down to the right
 
 Techno:
   ┃████████████
@@ -1269,8 +1271,8 @@ Techno:
   ┃██
   ┃█
   ┃
-  └──────────→ 20Hz → 20kHz
-  → 低域に大きなエネルギー、高域控えめ
+  └──────────-> 20Hz -> 20kHz
+  -> Large energy in the low end, subdued highs
 
 Trance:
   ┃██████████
@@ -1281,466 +1283,466 @@ Trance:
   ┃█████
   ┃████
   ┃███
-  └──────────→ 20Hz → 20kHz
-  → フルレンジ、高域もしっかり
+  └──────────-> 20Hz -> 20kHz
+  -> Full range, solid highs as well
 ```
 
-### Rekordboxでの周波数確認
+### Checking Frequency in Rekordbox
 
 ```
-■ 波形表示とスペクトラム:
+Waveform display and spectrum:
 
-1. 波形カラーモード:
-   - RGB表示: 低域=赤、中域=緑、高域=青
-   - 周波数帯域のバランスが一目でわかる
-   - 赤が多い部分 = キック/ベースが強い
-   - 青が多い部分 = ハイハット/シンバルが強い
+1. Waveform color mode:
+   - RGB display: Low=red, Mid=green, High=blue
+   - Frequency band balance visible at a glance
+   - Sections with more red = strong kick/bass
+   - Sections with more blue = strong hi-hat/cymbals
 
-2. 詳細波形（Waveform Zoom）:
-   - 拡大表示でトランジェントを確認
-   - キックの位置が赤い縦線として表示
-   - ブレイクの位置を視覚的に確認
+2. Detailed waveform (Waveform Zoom):
+   - Zoom display to check transients
+   - Kick positions shown as red vertical lines
+   - Visually confirm break positions
 
-3. スペクトラムアナライザー:
-   - Performance モードで表示可能
-   - リアルタイムの周波数分布
-   - EQ操作の効果を視覚的に確認
+3. Spectrum analyzer:
+   - Available in Performance mode
+   - Real-time frequency distribution
+   - Visually confirm the effect of EQ operations
 
-■ EQプリセット活用:
+EQ preset usage:
 
-1. Preferences > Controller で EQ カーブを確認
-2. パフォーマンスEQの調整
-3. よく使う設定パターン:
-   - フラット（デフォルト）
-   - ローブースト（低域+2dB）
-   - ブライト（高域+2dB）
-   - ダーク（高域-3dB）
+1. Check EQ curves in Preferences > Controller
+2. Adjust performance EQ
+3. Common setting patterns:
+   - Flat (default)
+   - Low boost (low end +2dB)
+   - Bright (high end +2dB)
+   - Dark (high end -3dB)
 ```
 
-### Ableton Liveでの周波数確認
+### Checking Frequency in Ableton Live
 
 ```
-■ Spectrum デバイス:
+Spectrum device:
 
-設定:
-1. Audio Effects > Spectrum をトラックにドロップ
-2. Block Size: 4096（周波数解像度重視）or 1024（時間解像度重視）
+Settings:
+1. Drag Audio Effects > Spectrum onto a track
+2. Block Size: 4096 (frequency resolution priority) or 1024 (time resolution priority)
 3. Channel: L+R / L / R / Mid / Side
 4. Refresh Rate: Normal / Fast
-5. Range: 表示する dB レンジ
+5. Range: dB range to display
 
-活用法:
-- マスタートラックに配置 → 全体のバランス確認
-- 個別トラックに配置 → 各楽器の帯域確認
-- リファレンストラックと比較 → プロの音との差を分析
+Applications:
+- Place on the master track -> Check overall balance
+- Place on individual tracks -> Check each instrument's band
+- Compare with reference tracks -> Analyze differences from professional mixes
 
-■ EQ Eight:
+EQ Eight:
 
-機能:
-1. 8バンドのパラメトリックEQ
-2. 各バンドの種類を選択:
+Features:
+1. 8-band parametric EQ
+2. Select the type for each band:
    - Low Cut (12/24/48 dB/oct)
    - Low Shelf
    - Bell
    - Notch
    - High Shelf
    - High Cut (12/24/48 dB/oct)
-3. リアルタイムスペクトラム表示
-4. オーバーサンプリング機能
-5. Mid/Side モード対応
+3. Real-time spectrum display
+4. Oversampling function
+5. Mid/Side mode support
 
-使い方:
-1. Audible Range のアナライザーで周波数を確認
-2. Band 1: Low Cut @ 30-40Hz（DC除去）
-3. Band 2-7: 問題帯域のカット/必要なブースト
-4. Band 8: High Shelf でエアー感調整
+Usage:
+1. Check frequency with the Audible Range analyzer
+2. Band 1: Low Cut @ 30-40Hz (DC removal)
+3. Bands 2-7: Cut problem bands / boost as needed
+4. Band 8: High Shelf for air adjustment
 
-■ サードパーティプラグイン:
+Third-party plugins:
 
 FabFilter Pro-Q 3:
-- 業界標準のパラメトリックEQ
-- 最大24バンド
-- ダイナミックEQ機能
-- Mid/Side処理
-- リニアフェーズモード
-- スペクトラム表示が秀逸
+- Industry-standard parametric EQ
+- Up to 24 bands
+- Dynamic EQ function
+- Mid/Side processing
+- Linear phase mode
+- Excellent spectrum display
 
 iZotope Insight:
-- 包括的なメータリングプラグイン
-- スペクトログラム表示
-- ラウドネスメーター（LUFS）
-- ステレオ幅表示
-- 周波数分布のリアルタイム分析
+- Comprehensive metering plugin
+- Spectrogram display
+- Loudness meter (LUFS)
+- Stereo width display
+- Real-time frequency distribution analysis
 
-Voxengo SPAN（無料）:
-- 高品質なスペクトラムアナライザー
-- 複数チャンネル対応
-- カスタマイズ可能な表示
-- CPU 負荷が低い
+Voxengo SPAN (Free):
+- High-quality spectrum analyzer
+- Multi-channel support
+- Customizable display
+- Low CPU load
 ```
 
 ---
 
-## 9. ピンクノイズとホワイトノイズ
+## 9. Pink Noise and White Noise
 
-### ホワイトノイズ
-
-```
-定義:
-- 全周波数が均等なエネルギーを持つノイズ
-- 1Hz幅あたりのパワーが一定
-- 周波数スペクトラムがフラット
-
-聴覚的特徴:
-- 「シャーッ」という明るい音
-- テレビの砂嵐の音に近い
-- 高域が目立つ（聴覚特性のため）
-
-用途:
-- サウンドデザイン（FXライザー等）
-- シンセサイザーのノイズオシレーター
-- スネアドラムのノイズ成分
-- ハイハットの素材
-```
-
-### ピンクノイズ
+### White Noise
 
 ```
-定義:
-- オクターブあたりのエネルギーが一定のノイズ
-- 周波数が倍になるごとに -3dB
-- 1/f ノイズとも呼ばれる
+Definition:
+- Noise with equal energy across all frequencies
+- Constant power per 1Hz bandwidth
+- Flat frequency spectrum
 
-聴覚的特徴:
-- 「ザーッ」という比較的バランスの良い音
-- 自然界の多くの音に近い
-- 人間の聴覚特性に近い
+Auditory characteristics:
+- A bright "hissing" sound
+- Similar to TV static
+- Highs are prominent (due to auditory characteristics)
 
-用途:
-★ スピーカーキャリブレーション
-  1. ピンクノイズをスピーカーから再生
-  2. 測定マイクで周波数特性を計測
-  3. EQで補正
-  → フラットな再生環境を構築
-
-★ ミキシングの参考
-  1. ピンクノイズをリファレンスとして使用
-  2. 各トラックのレベルをピンクノイズに合わせる
-  3. バランスの取れたミックスの出発点
-
-★ 聴力テスト
-  1. ピンクノイズを再生
-  2. EQで帯域を強調
-  3. 自分の聴力特性を確認
+Applications:
+- Sound design (FX risers, etc.)
+- Synthesizer noise oscillator
+- Noise component of snare drums
+- Hi-hat material
 ```
 
-### ミキシングでのノイズ活用
+### Pink Noise
 
 ```
-ピンクノイズリファレンスミキシング法:
+Definition:
+- Noise with equal energy per octave
+- -3dB for every doubling of frequency
+- Also called 1/f noise
 
-手順:
-1. マスタートラックにピンクノイズを-20dBFSで配置
-2. 全トラックをミュート
-3. 1トラックずつミュート解除
-4. ピンクノイズと「溶け合う」レベルにフェーダーを設定
-5. 全トラックで繰り返す
-6. ピンクノイズをミュート
+Auditory characteristics:
+- A relatively balanced "rushing" sound
+- Close to many sounds in nature
+- Close to human auditory characteristics
 
-結果:
-- 各トラックの周波数帯域が自然にバランス
-- ミキシングの出発点として優秀
-- ここから微調整を行う
+Applications:
+* Speaker calibration
+  1. Play pink noise through speakers
+  2. Measure frequency response with a measurement microphone
+  3. Correct with EQ
+  -> Build a flat listening environment
 
-注意:
-- あくまで出発点であり、最終的には耳で判断
-- ジャンルによって「理想的なバランス」は異なる
-- ダイナミクスの要素は考慮されない
+* Mixing reference
+  1. Use pink noise as a reference
+  2. Match each track's level to the pink noise
+  3. A starting point for a balanced mix
+
+* Hearing test
+  1. Play pink noise
+  2. Emphasize bands with EQ
+  3. Check your own hearing characteristics
+```
+
+### Using Noise in Mixing
+
+```
+Pink noise reference mixing method:
+
+Procedure:
+1. Place pink noise at -20dBFS on the master track
+2. Mute all tracks
+3. Unmute one track at a time
+4. Set fader to the level where it "blends" with the pink noise
+5. Repeat for all tracks
+6. Mute the pink noise
+
+Result:
+- Each track's frequency band naturally balances out
+- Excellent as a mixing starting point
+- Make fine adjustments from here
+
+Notes:
+- This is only a starting point; ultimately judge by ear
+- The "ideal balance" varies by genre
+- Dynamic elements are not accounted for
 ```
 
 ---
 
-## 10. クラブの音響環境
+## 10. Club Acoustic Environment
 
-### クラブのサウンドシステム
+### Club Sound Systems
 
 ```
-典型的なクラブのスピーカーシステム:
+Typical club speaker system:
 
 ┌─────────────────────────────────────────┐
 │                DJ Booth                  │
-│    [ブースモニター]                       │
+│    [Booth monitors]                      │
 │                                          │
 │  ┌────────────────────────────────────┐ │
-│  │              ダンスフロア            │ │
+│  │            Dance floor             │ │
 │  │                                      │ │
-│  │  [サブウーファー]                     │ │
+│  │  [Subwoofers]                       │ │
 │  │  20-120Hz                            │ │
 │  │                                      │ │
-│  │  [ミッドベース]                      │ │
+│  │  [Mid-bass]                         │ │
 │  │  80-500Hz                            │ │
 │  │                                      │ │
-│  │  [ミッドハイ]                        │ │
+│  │  [Mid-high]                         │ │
 │  │  500Hz-6kHz                          │ │
 │  │                                      │ │
-│  │  [ツイーター]                        │ │
+│  │  [Tweeters]                         │ │
 │  │  6kHz-20kHz                          │ │
 │  └────────────────────────────────────┘ │
 │                                          │
-│  [フロントオブハウス（FOH）ミキサー]       │
+│  [Front of House (FOH) mixer]            │
 └─────────────────────────────────────────┘
 
-主要なクラブサウンドシステム:
-- Funktion-One: 深い低域、クリアな高域
-- Void Acoustics: パワフル、アグレッシブ
-- d&b audiotechnik: バランス良好、クリーン
-- L-Acoustics: ライブ/フェスティバル定番
-- Martin Audio: ワイドカバレッジ
-- Turbosound: コスパ良好
+Major club sound systems:
+- Funktion-One: Deep low end, clear highs
+- Void Acoustics: Powerful, aggressive
+- d&b audiotechnik: Well-balanced, clean
+- L-Acoustics: Live/festival standard
+- Martin Audio: Wide coverage
+- Turbosound: Good value
 
-クロスオーバー周波数:
-- サブウーファー ↔ ミッドベース: 80-120Hz
-- ミッドベース ↔ ミッドハイ: 500-800Hz
-- ミッドハイ ↔ ツイーター: 4-8kHz
+Crossover frequencies:
+- Subwoofer <-> Mid-bass: 80-120Hz
+- Mid-bass <-> Mid-high: 500-800Hz
+- Mid-high <-> Tweeter: 4-8kHz
 ```
 
-### クラブでの周波数特性の問題
+### Frequency Response Issues in Clubs
 
 ```
-典型的な問題:
+Typical issues:
 
-1. 低域の蓄積:
-   - 閉鎖空間での定在波
-   - サブウーファーの配置問題
-   - 特定の位置で低域が過剰/不足
+1. Low-end accumulation:
+   - Standing waves in enclosed spaces
+   - Subwoofer placement issues
+   - Excessive/insufficient low end at certain positions
 
-2. 中域のこもり:
-   - 壁面反射の蓄積
-   - 250-500Hz の「泥」
-   - 小さなクラブで顕著
+2. Muddy mids:
+   - Accumulated wall reflections
+   - 250-500Hz "mud"
+   - Especially noticeable in smaller clubs
 
-3. 高域の減衰:
-   - 距離による自然減衰
-   - 人体による吸収
-   - フロア後方で高域が不足
+3. High-end attenuation:
+   - Natural attenuation with distance
+   - Absorption by human bodies
+   - Insufficient highs toward the back of the floor
 
-DJとしての対応:
-1. サウンドチェック時に各帯域を確認
-2. ブースモニターとフロアの音の違いを把握
-3. フロアで実際に聴いてEQ判断
-4. 過剰な低域ブーストは避ける
-5. 必要に応じてPAエンジニアと協力
+DJ responses:
+1. Check each frequency band during sound check
+2. Understand the difference between booth monitor and floor sound
+3. Judge EQ by listening on the actual floor
+4. Avoid excessive low-end boosts
+5. Collaborate with the PA engineer as needed
 
-よくあるミス:
-× ブースでの印象だけでEQを判断
-× 低域をブーストしすぎ（フロアではさらに強調される）
-× モニタースピーカーの音量を上げすぎ
-○ フロアに出て確認する（可能であれば）
-○ PAエンジニアとコミュニケーション
-○ リミッターを超えないゲイン設定
-```
-
----
-
-## 11. 練習方法
-
-### 初級
-
-```
-1. 周波数帯域を聴き分ける:
-   - DAW（Ableton Live等）でピンクノイズを生成
-   - EQで各帯域をソロにして聴く
-   - 低域(100Hz)、中域(1kHz)、高域(8kHz)の違いを体感
-   - オンラインの周波数テストサイトを活用
-
-2. 楽器の帯域を確認:
-   - キック、スネア、ハイハットを個別に聴く
-   - EQで各帯域をカットして「何が変わるか」を確認
-   - 周波数マップと照らし合わせる
-
-3. 3バンドEQで遊ぶ:
-   - Rekordboxで曲を再生
-   - Low/Mid/Highをそれぞれ極端にカット
-   - 各帯域の影響を体感
-   - 元に戻したときの「安心感」を確認
-
-4. スペクトラムアナライザーの導入:
-   - Voxengo SPAN（無料）をインストール
-   - お気に入りの曲の周波数分布を確認
-   - ジャンルごとの違いを視覚的に理解
-```
-
-### 中級
-
-```
-1. トランジションEQ:
-   - 2曲のミックスでLowを切り替える練習
-   - ベーススワップのタイミングを研究
-   - 16小節→8小節→4小節と段階的に短く
-   - High EQの同時操作にも挑戦
-
-2. 周波数マップ作成:
-   - 自分のよくプレイする曲の帯域を図解
-   - スペクトログラムで確認
-   - キックの中心周波数、ベースラインの範囲を把握
-   - 曲の「キャラクター」を周波数で理解
-
-3. AbletonでEQ実験:
-   - 各楽器のトラックにEQ Eight を配置
-   - 帯域ごとにカット/ブーストして効果を確認
-   - マスキングが発生する帯域を特定
-   - HPFの設定値を楽器ごとに最適化
-
-4. リファレンスミキシング:
-   - プロの楽曲をリファレンスとして読み込み
-   - スペクトラム分析で自分の曲と比較
-   - 差異がある帯域をEQで補正
-   - A/B比較で改善を確認
-
-5. 耳のトレーニング:
-   - SoundGym（オンラインサービス）で聴覚訓練
-   - EQの周波数当てクイズ
-   - ブースト/カットの dB 量当て
-   - 毎日10分の練習で大きく上達
-```
-
-### 上級
-
-```
-1. パラメトリックEQの精密操作:
-   - 狭いQ（8-20）でスイープして問題周波数を特定
-   - ピンポイントのノッチカット
-   - ダイナミックEQの活用
-   - Mid/Side EQ処理
-
-2. ジャンル別の周波数特性研究:
-   - House, Techno, DnB, Hip Hop のリファレンス分析
-   - 各ジャンルの「理想的」スペクトラムバランス
-   - クロスジャンルミックス時のEQ戦略
-   - 時代によるサウンドの変化（90s vs 2020s）
-
-3. マスキング対策の実践:
-   - サイドチェインEQ/コンプの活用
-   - マルチバンドコンプレッション
-   - ミッドサイドEQ処理
-   - Trackspacer 等の自動マスキング対策ツール
-
-4. 部屋の音響測定と補正:
-   - REW（Room EQ Wizard, 無料）で測定
-   - 測定マイク（Behringer ECM8000等）で部屋を測定
-   - 定在波の特定と対策
-   - 音響パネルの配置検討
-   - Sonarworks SoundID Reference で補正
-
-5. クラブでの実践:
-   - サウンドチェック時の周波数確認
-   - PAシステムとの連携
-   - フロアでの音の確認手順の確立
-   - 録音して後で分析（自分のミックスの周波数バランス）
-
-6. マスタリングEQ:
-   - リニアフェーズEQの活用
-   - ラウドネスと周波数バランスの関係
-   - マルチバンドリミッティングの理解
-   - A/B比較のワークフロー確立
+Common mistakes:
+X Judging EQ based only on what you hear in the booth
+X Boosting the low end too much (it's amplified further on the floor)
+X Turning up monitor speakers too loud
+O Go out to the floor to check (when possible)
+O Communicate with the PA engineer
+O Set gain levels that don't exceed the limiter
 ```
 
 ---
 
-## 12. トラブルシューティング
+## 11. Practice Methods
+
+### Beginner
 
 ```
-■ 問題: ミックスがこもって聴こえる
-  原因: 250-500Hz 帯域の蓄積（Mud）
-  対策:
-  1. 各トラックのLow-Midを確認
-  2. 不要なトラックの250-500Hzをカット（-2~4dB）
-  3. HPFの設定を見直す（もう少し高く設定）
-  4. リファレンストラックと比較
+1. Distinguish frequency bands:
+   - Generate pink noise in a DAW (Ableton Live, etc.)
+   - Solo each band with EQ and listen
+   - Experience the difference between lows (100Hz), mids (1kHz), and highs (8kHz)
+   - Use online frequency test websites
 
-■ 問題: ミックスが薄く聴こえる
-  原因: 低域不足、またはLow-Midの削りすぎ
-  対策:
-  1. キック/ベースのレベルを確認
-  2. 250-500Hzを削りすぎていないか確認
-  3. ベースのモノ互換性を確認
-  4. サブベースの有無を確認
+2. Check instrument bands:
+   - Listen to kick, snare, and hi-hat individually
+   - Cut each band with EQ and see "what changes"
+   - Compare against frequency maps
 
-■ 問題: ミックスがきつい/耳が痛い
-  原因: 2-5kHz帯域の過剰ブースト
-  対策:
-  1. 各トラックの2-5kHz帯域を確認
-  2. マスターバスの該当帯域を-1~2dBカット
-  3. 個別トラックで対処（原因を特定）
-  4. モニタリング音量を下げて確認
+3. Play with 3-band EQ:
+   - Play a track in Rekordbox
+   - Drastically cut Low/Mid/High individually
+   - Experience the impact of each band
+   - Notice the "sense of relief" when returning to normal
 
-■ 問題: ハイハットがうるさい/しゃりしゃり
-  原因: 8-12kHz帯域の過剰
-  対策:
-  1. ハイハットトラックの8-12kHzをカット
-  2. サンプルの選択を見直す
-  3. ディエッサー的な処理
-  4. ダイナミックEQで制御
+4. Introduce a spectrum analyzer:
+   - Install Voxengo SPAN (free)
+   - Check the frequency distribution of your favorite tracks
+   - Visually understand differences between genres
+```
 
-■ 問題: DJミックスで低域が濁る
-  原因: 2曲のキック/ベースの同時再生
-  対策:
-  1. ベーススワップの実行
-  2. 一方のLow EQを完全カット
-  3. フェーダーではなくEQで管理
-  4. トランジションの長さを見直す
+### Intermediate
 
-■ 問題: ボーカルが埋もれて聴こえない
-  原因: 同帯域の他楽器によるマスキング
-  対策:
-  1. ボーカルの1-5kHz帯域を確認
-  2. 競合する楽器のEQで同帯域をカット
-  3. ボーカルの3-5kHzをわずかにブースト
-  4. サイドチェインEQの活用を検討
+```
+1. Transition EQ:
+   - Practice switching the Low in a 2-track mix
+   - Study bass swap timing
+   - Progressively shorten: 16 bars -> 8 bars -> 4 bars
+   - Also try simultaneous High EQ operation
+
+2. Create frequency maps:
+   - Diagram the frequency bands of tracks you often play
+   - Verify with spectrograms
+   - Understand the kick's center frequency and bassline range
+   - Understand a track's "character" through frequency
+
+3. EQ experiments in Ableton:
+   - Place EQ Eight on each instrument track
+   - Cut/boost each band and observe the effect
+   - Identify bands where masking occurs
+   - Optimize HPF settings per instrument
+
+4. Reference mixing:
+   - Load professional tracks as references
+   - Compare your tracks using spectrum analysis
+   - Correct bands with differences using EQ
+   - Confirm improvements with A/B comparison
+
+5. Ear training:
+   - Use SoundGym (online service) for auditory training
+   - EQ frequency identification quizzes
+   - Boost/cut dB amount guessing
+   - 10 minutes of daily practice leads to significant improvement
+```
+
+### Advanced
+
+```
+1. Precise parametric EQ operation:
+   - Sweep with a narrow Q (8-20) to identify problem frequencies
+   - Pinpoint notch cuts
+   - Utilize dynamic EQ
+   - Mid/Side EQ processing
+
+2. Genre-specific frequency characteristics study:
+   - Analyze references for House, Techno, DnB, Hip Hop
+   - "Ideal" spectrum balance for each genre
+   - EQ strategies for cross-genre mixing
+   - Sound evolution over time (90s vs 2020s)
+
+3. Practical masking solutions:
+   - Utilize sidechain EQ/compression
+   - Multiband compression
+   - Mid/Side EQ processing
+   - Automatic masking tools like Trackspacer
+
+4. Room acoustic measurement and correction:
+   - Measure with REW (Room EQ Wizard, free)
+   - Measure the room with a measurement mic (Behringer ECM8000, etc.)
+   - Identify standing waves and address them
+   - Plan acoustic panel placement
+   - Correct with Sonarworks SoundID Reference
+
+5. Club practice:
+   - Check frequency during sound check
+   - Coordinate with the PA system
+   - Establish a procedure for checking sound on the floor
+   - Record and analyze later (frequency balance of your mix)
+
+6. Mastering EQ:
+   - Utilize linear phase EQ
+   - Relationship between loudness and frequency balance
+   - Understanding multiband limiting
+   - Establish an A/B comparison workflow
+```
+
+---
+
+## 12. Troubleshooting
+
+```
+Problem: Mix sounds muddy
+  Cause: Accumulation in the 250-500Hz band (Mud)
+  Solution:
+  1. Check the Low-Mid of each track
+  2. Cut 250-500Hz by -2~4dB on unnecessary tracks
+  3. Reconsider HPF settings (set a bit higher)
+  4. Compare with a reference track
+
+Problem: Mix sounds thin
+  Cause: Insufficient low end, or over-cutting Low-Mid
+  Solution:
+  1. Check kick/bass levels
+  2. Check if 250-500Hz has been cut too much
+  3. Verify bass mono compatibility
+  4. Check for the presence of sub bass
+
+Problem: Mix sounds harsh / ears hurt
+  Cause: Excessive boost in the 2-5kHz band
+  Solution:
+  1. Check the 2-5kHz band of each track
+  2. Cut -1~2dB in that band on the master bus
+  3. Address on individual tracks (identify the cause)
+  4. Lower monitoring volume and check
+
+Problem: Hi-hats are noisy / sizzly
+  Cause: Excess in the 8-12kHz band
+  Solution:
+  1. Cut 8-12kHz on the hi-hat track
+  2. Reconsider sample selection
+  3. Apply de-esser-like processing
+  4. Control with dynamic EQ
+
+Problem: Low end gets muddy during DJ mix
+  Cause: Simultaneous playback of two kicks/basses
+  Solution:
+  1. Execute a bass swap
+  2. Completely cut one track's Low EQ
+  3. Manage with EQ, not faders
+  4. Reconsider transition length
+
+Problem: Vocals are buried and inaudible
+  Cause: Masking by other instruments in the same band
+  Solution:
+  1. Check the 1-5kHz band of the vocals
+  2. Cut the same band on competing instruments with EQ
+  3. Slightly boost the vocal's 3-5kHz
+  4. Consider using sidechain EQ
 ```
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1749,26 +1751,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation and add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1776,7 +1778,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1787,14 +1789,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1802,7 +1804,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1810,44 +1812,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1856,7 +1858,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1871,76 +1873,76 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f}s")
+    print(f"Efficient version:   {fast_time:.6f}s")
+    print(f"Speedup factor: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be mindful of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
-|---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Criteria | When Prioritized | When Acceptable to Compromise |
+|----------|-----------------|------------------------------|
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed user base |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│         Architecture Selection Flow              │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  (1) Team size?                                  │
+│    ├─ Small (1-5 people) -> Monolith             │
+│    └─ Large (10+ people) -> Go to (2)            │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  (2) Deploy frequency?                           │
+│    ├─ Once a week or less -> Monolith + modules  │
+│    └─ Daily/multiple times -> Go to (3)          │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  (3) Team independence?                          │
+│    ├─ High -> Microservices                      │
+│    └─ Medium -> Modular monolith                 │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs long-term costs**
+- A short-term fast approach may become technical debt in the long run
+- Conversely, over-engineering has high short-term costs and can delay the project
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs flexibility**
+- A unified tech stack has lower learning costs
+- Diverse technologies enable best-fit solutions but increase operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction offers high reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision recording template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1950,17 +1952,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1968,7 +1970,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1976,15 +1978,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1992,53 +1994,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Real-World Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum required features
+- Automated tests only for critical paths
+- Introduce monitoring early on
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't pursue perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Legacy System Modernization
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Incrementally revamp a system that has been in operation for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Migrate incrementally using the Strangler Fig pattern
+- Create Characterization Tests first if existing tests are absent
+- Use an API gateway to coexist old and new systems
+- Execute data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
-|---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| Phase | Tasks | Estimated Duration | Risk |
+|-------|-------|-------------------|------|
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration start | Migrate from peripheral functions | 3-6 months | Medium |
+| 4. Core migration | Migrate core functionality | 6-12 months | High |
+| 5. Completion | Decommission legacy system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development with a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with Domain-Driven Design
+- Assign ownership per team
+- Manage shared libraries via Inner Source
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# Inter-team API contract definition
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -2051,20 +2053,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """Inter-team API contract"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Verify SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -2073,7 +2075,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -2094,104 +2096,106 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical System
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system that requires millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Cache strategy (L1: In-memory, L2: Redis, L3: CDN)
+2. Utilize asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
-|-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| Optimization Method | Effect | Implementation Cost | Application |
+|--------------------|--------|-------------------|-------------|
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | When CPU-bound |
 
 ---
 
-## チーム開発での活用
+## Team Development Usage
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to check in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Naming conventions are consistent
+- [ ] Error handling is appropriate
+- [ ] Test coverage is sufficient
+- [ ] No performance impact
+- [ ] No security issues
+- [ ] Documentation is updated
 
-### ナレッジ共有のベストプラクティス
+### Knowledge Sharing Best Practices
 
-| 方法 | 頻度 | 対象 | 効果 |
-|------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Method | Frequency | Target | Effect |
+|--------|-----------|--------|--------|
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talk | Weekly | Entire team | Horizontal knowledge transfer |
+| ADR (Decision Record) | As needed | Future members | Decision transparency |
+| Retrospective | Every 2 weeks | Entire team | Continuous improvement |
+| Mob programming | Monthly | Important design | Consensus building |
 
-### 技術的負債の管理
+### Technical Debt Management
 
 ```
-優先度マトリクス:
+Priority matrix:
 
-        影響度 高
+        Impact High
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │Plan │ Act  │
+    │ful- │ imme-│
+    │ ly  │diate-│
+    │addr-│ ly   │
+    │ ess │      │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │Docu-│ Next │
+    │ment │Sprint│
+    │ only │      │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Impact Low
+    Freq. Low    Freq. High
 ```
 
 ---
 
-## セキュリティの考慮事項
+## Security Considerations
 
-### 一般的な脆弱性と対策
+### Common Vulnerabilities and Countermeasures
 
-| 脆弱性 | リスクレベル | 対策 | 検出方法 |
-|--------|------------|------|---------|
-| インジェクション攻撃 | 高 | 入力値のバリデーション・パラメータ化クエリ | SAST/DAST |
-| 認証の不備 | 高 | 多要素認証・セッション管理の強化 | ペネトレーションテスト |
-| 機密データの露出 | 高 | 暗号化・アクセス制御 | セキュリティ監査 |
-| 設定の不備 | 中 | セキュリティヘッダー・最小権限の原則 | 構成スキャン |
-| ログの不足 | 中 | 構造化ログ・監査証跡 | ログ分析 |
+| Vulnerability | Risk Level | Countermeasure | Detection Method |
+|--------------|-----------|----------------|-----------------|
+| Injection attacks | High | Input validation, parameterized queries | SAST/DAST |
+| Authentication flaws | High | Multi-factor authentication, session management hardening | Penetration testing |
+| Sensitive data exposure | High | Encryption, access control | Security audit |
+| Misconfiguration | Medium | Security headers, principle of least privilege | Configuration scan |
+| Insufficient logging | Medium | Structured logs, audit trail | Log analysis |
 
-### セキュアコーディングのベストプラクティス
+### Secure Coding Best Practices
 
 ```python
-# セキュアコーディング例
+# Secure coding example
 import hashlib
 import secrets
 import hmac
 from typing import Optional
 
 class SecurityUtils:
-    """セキュリティユーティリティ"""
+    """Security utilities"""
 
     @staticmethod
     def generate_token(length: int = 32) -> str:
-        """暗号学的に安全なトークン生成"""
+        """Generate a cryptographically secure token"""
         return secrets.token_urlsafe(length)
 
     @staticmethod
     def hash_password(password: str, salt: Optional[str] = None) -> tuple:
-        """パスワードのハッシュ化"""
+        """Hash a password"""
         if salt is None:
             salt = secrets.token_hex(16)
         hashed = hashlib.pbkdf2_hmac(
@@ -2204,110 +2208,110 @@ class SecurityUtils:
 
     @staticmethod
     def verify_password(password: str, hashed: str, salt: str) -> bool:
-        """パスワードの検証"""
+        """Verify a password"""
         new_hash, _ = SecurityUtils.hash_password(password, salt)
         return hmac.compare_digest(new_hash, hashed)
 
     @staticmethod
     def sanitize_input(value: str) -> str:
-        """入力値のサニタイズ"""
+        """Sanitize input value"""
         dangerous_chars = ['<', '>', '"', "'", '&', '\\']
         result = value
         for char in dangerous_chars:
             result = result.replace(char, '')
         return result.strip()
 
-# 使用例
+# Usage example
 token = SecurityUtils.generate_token()
 hashed, salt = SecurityUtils.hash_password("my_password")
 is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 ```
 
-### セキュリティチェックリスト
+### Security Checklist
 
-- [ ] 全ての入力値がバリデーションされている
-- [ ] 機密情報がログに出力されていない
-- [ ] HTTPS が強制されている
-- [ ] CORS ポリシーが適切に設定されている
-- [ ] 依存パッケージの脆弱性スキャンが実施されている
-- [ ] エラーメッセージに内部情報が含まれていない
+- [ ] All input values are validated
+- [ ] Sensitive information is not output in logs
+- [ ] HTTPS is enforced
+- [ ] CORS policy is properly configured
+- [ ] Dependency vulnerability scanning has been performed
+- [ ] Error messages do not contain internal information
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point in learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and verifying its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common beginner mistakes?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-### 周波数帯域の要点
-
-```
-■ Sub-Bass (20-60 Hz):
-  体で感じる、クラブのサブウーファー、モノラル推奨
-
-■ Bass (60-250 Hz):
-  楽曲の土台、キック/ベースの中心、DJのEQ最重要帯域
-
-■ Low-Mid (250-500 Hz):
-  温かみ、"Mud"に注意、引き算EQが基本
-
-■ Mid (500 Hz - 2 kHz):
-  楽器の芯、ボーカルの中心、人間の耳が敏感
-
-■ High-Mid (2-4 kHz):
-  存在感/アタック、最もデリケート、外耳道共振
-
-■ Presence (4-6 kHz):
-  明瞭度、前面性、ディエッシング
-
-■ Highs (6-12 kHz):
-  明るさ、ハイハット/シンバル、DJ頻出EQ操作
-
-■ Air (12-20 kHz):
-  空間感、エアー感、MP3で失われやすい
-```
-
-### EQの黄金ルール
-
-```
-1. 引き算が基本（カットから始める）
-2. 少しずつ調整（1-2dB単位）
-3. 全体の中で判断（ソロで判断しない）
-4. HPFを積極活用（不要な低域を除去）
-5. 問題を特定してから操作（闇雲にいじらない）
-6. A/B比較を忘れない（EQ ON/OFFで確認）
-7. 耳を休ませる（連続作業は判断力低下）
-```
-
-**次のステップ:** [キーとスケール](./key-scales.md) へ進む
+Knowledge of this topic is frequently applied in everyday development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
+## Summary
 
-## 次に読むべきガイド
+### Key Points on Frequency Bands
 
-- [和声基礎](./harmony-basics.md) - 次のトピックへ進む
+```
+Sub-Bass (20-60 Hz):
+  Felt by the body, club subwoofers, mono recommended
+
+Bass (60-250 Hz):
+  Foundation of the track, kick/bass center, the most important EQ band for DJs
+
+Low-Mid (250-500 Hz):
+  Warmth, watch for "Mud", subtractive EQ is fundamental
+
+Mid (500 Hz - 2 kHz):
+  Core of instruments, vocal center, human ears are sensitive here
+
+High-Mid (2-4 kHz):
+  Presence/attack, most delicate, ear canal resonance
+
+Presence (4-6 kHz):
+  Clarity, forward projection, de-essing
+
+Highs (6-12 kHz):
+  Brightness, hi-hat/cymbals, frequently used DJ EQ band
+
+Air (12-20 kHz):
+  Sense of space, airiness, easily lost in MP3
+```
+
+### Golden Rules of EQ
+
+```
+1. Subtractive is fundamental (start with cuts)
+2. Adjust gradually (in 1-2dB increments)
+3. Judge within the full mix (don't judge in solo)
+4. Actively use HPF (remove unnecessary low end)
+5. Identify the problem before adjusting (don't tweak blindly)
+6. Don't forget A/B comparison (check with EQ ON/OFF)
+7. Rest your ears (continuous work degrades judgment)
+```
+
+**Next step:** Proceed to [Key and Scales](./key-scales.md)
 
 ---
 
-## 参考リンク
 
-- [オーディオ基礎](./audio-basics.md)
-- [EQ操作](../dj/03-basic-techniques/eq-operation.md)
-- ミキシング基礎
-- 既存のEQガイド
-- [リズムの基礎](./rhythm-basics.md)
-- [音楽理論](./music-theory.md)
+## Recommended Next Guides
+
+- [Harmony Basics](./harmony-basics.md) - Proceed to the next topic
+
+---
+
+## Reference Links
+
+- [Audio Basics](./audio-basics.md)
+- [EQ Operation](../dj/03-basic-techniques/eq-operation.md)
+- Mixing Basics
+- Existing EQ Guide
+- [Rhythm Basics](./rhythm-basics.md)
+- [Music Theory](./music-theory.md)
