@@ -1,155 +1,154 @@
-# 用語集
+# Glossary
 
 
+## What You Will Learn in This Chapter
 
-## この章で学ぶこと
-
-- [ ] 基本概念と用語の理解
-- [ ] 実装パターンとベストプラクティスの習得
-- [ ] 実務での適用方法の把握
-- [ ] トラブルシューティングの基本
-
----
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [コミュニティ](./communities.md) の内容を理解していること
+- [ ] Understanding of basic concepts and terminology
+- [ ] Mastering implementation patterns and best practices
+- [ ] Grasping practical application methods
+- [ ] Basics of troubleshooting
 
 ---
 
-DJ と楽曲制作に関する用語を網羅的に解説します。
+## Prerequisites
 
-本用語集はDJ初心者からプロフェッショナルまで、幅広いレベルの方が参照できるように構成されています。各用語にはできる限り実践的な解説、パラメータの推奨値、関連用語へのクロスリファレンスを含めました。
+Having the following knowledge will help deepen your understanding before reading this guide:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content of [Communities](./communities.md)
 
 ---
 
-## 凡例
+A comprehensive guide to DJ and music production terminology.
 
-| 記号 | 意味 |
-|------|------|
-| DJ | DJプレイに関連する用語 |
-| PROD | 音楽制作（プロダクション）に関連する用語 |
-| BOTH | DJ・制作両方に関連する用語 |
-| HW | ハードウェアに関連する用語 |
-| SW | ソフトウェアに関連する用語 |
+This glossary is structured so that it can be referenced by everyone from DJ beginners to professionals. Each term includes practical explanations, recommended parameter values, and cross-references to related terms wherever possible.
+
+---
+
+## Legend
+
+| Symbol | Meaning |
+|--------|---------|
+| DJ | Terms related to DJ performance |
+| PROD | Terms related to music production |
+| BOTH | Terms related to both DJ and production |
+| HW | Terms related to hardware |
+| SW | Terms related to software |
 
 ---
 
 ## A
 
 **Ableton Live** [SW/BOTH]
-- DAW（Digital Audio Workstation）の一種
-- 楽曲制作とライブパフォーマンスに最適
-- Session View と Arrangement View の2つのビューを持つ
-- Session View: クリップベースのライブ演奏向き。各セルにオーディオ/MIDIクリップを配置し、自由な順序で再生可能
-- Arrangement View: タイムラインベースの従来型アレンジメント。楽曲の構成を時系列で編集
-- Warp機能でBPM変更やタイミング補正が可能
-- Max for Live拡張でカスタムデバイスを作成可能
-- 主要エディション: Intro（入門）、Standard（標準）、Suite（最上位）
-- ライブDJセットでの使用例: クリップをリアルタイムでトリガーし、エフェクトを適用しながらパフォーマンス
-- 関連用語: → DAW、→ Warp、→ Session View
+- A type of DAW (Digital Audio Workstation)
+- Ideal for music production and live performance
+- Features two views: Session View and Arrangement View
+- Session View: Clip-based, suited for live performance. Place audio/MIDI clips in each cell and play them in any order
+- Arrangement View: Timeline-based traditional arrangement. Edit song structure chronologically
+- Warp feature enables BPM changes and timing corrections
+- Max for Live extension allows creation of custom devices
+- Main editions: Intro (entry-level), Standard, Suite (top-tier)
+- Live DJ set usage example: Trigger clips in real-time while applying effects during performance
+- Related terms: -> DAW, -> Warp, -> Session View
 
-**Acapella（アカペラ）** [BOTH]
-- ボーカルのみのトラック
-- 楽器が一切ない純粋なボーカル素材
-- DJ用マッシュアップに使用
-- 入手方法: 公式リリース、ステム分離ソフト（iZotope RX、Demucs等）
-- BPMとキーの情報が重要（元曲と合わせる必要がある）
-- マッシュアップ制作時はキーの互換性を確認（→ Camelot Wheel参照）
-- ステム分離技術の進歩により、AIベースの高品質な抽出が可能に
-- 関連用語: → Mashup、→ Stem、→ Key
+**Acapella** [BOTH]
+- A vocal-only track
+- Pure vocal material with no instruments
+- Used for DJ mashups
+- How to obtain: Official releases, stem separation software (iZotope RX, Demucs, etc.)
+- BPM and key information are important (need to match with the original song)
+- When creating mashups, check key compatibility (-> see Camelot Wheel)
+- Advances in stem separation technology have enabled high-quality AI-based extraction
+- Related terms: -> Mashup, -> Stem, -> Key
 
 **ADAT (Alesis Digital Audio Tape)** [HW]
-- デジタルオーディオ伝送規格
-- 光ファイバーケーブル（TOSLink）を使用
-- 最大8チャンネルの同時伝送が可能（48kHz時）
-- 96kHz時は4チャンネルに減少（S/MUX方式）
-- オーディオインターフェースのチャンネル拡張に使用
-- プロスタジオでのマルチトラックレコーディングに重要
-- 関連用語: → S/PDIF、→ Audio Interface
+- Digital audio transmission standard
+- Uses fiber optic cables (TOSLink)
+- Capable of simultaneous transmission of up to 8 channels (at 48kHz)
+- Reduced to 4 channels at 96kHz (S/MUX method)
+- Used for expanding audio interface channels
+- Important for multi-track recording in professional studios
+- Related terms: -> S/PDIF, -> Audio Interface
 
 **ADSR** [PROD]
-- エンベロープの4つのパラメータの略称
-- Attack（アタック）: 音が最大レベルに達するまでの時間
-- Decay（ディケイ）: 最大レベルからサステインレベルに落ちるまでの時間
-- Sustain（サステイン）: キーを押している間の持続レベル（レベル値、時間ではない）
-- Release（リリース）: キーを離してから音が消えるまでの時間
-- シンセサイザーの音作りの基本
-- フィルターエンベロープにも同じ概念を適用
-- 推奨設定例（プラック音）: A=0ms, D=200ms, S=0%, R=100ms
-- 推奨設定例（パッド音）: A=500ms, D=1000ms, S=70%, R=2000ms
-- 関連用語: → Envelope、→ Synthesizer
+- Abbreviation for four envelope parameters
+- Attack: Time for the sound to reach maximum level
+- Decay: Time for the sound to fall from maximum level to sustain level
+- Sustain: The level maintained while the key is held (a level value, not time)
+- Release: Time for the sound to fade after the key is released
+- Fundamental to synthesizer sound design
+- The same concept applies to filter envelopes
+- Recommended settings (pluck sound): A=0ms, D=200ms, S=0%, R=100ms
+- Recommended settings (pad sound): A=500ms, D=1000ms, S=70%, R=2000ms
+- Related terms: -> Envelope, -> Synthesizer
 
-**Amplitude（アンプリチュード / 振幅）** [BOTH]
-- 音波の振れ幅、音量に直結するパラメータ
-- 単位: dB（デシベル）で表現されることが多い
-- デジタルオーディオでは0dBFSが最大値（Full Scale）
-- 0dBFSを超えるとクリッピング（歪み）が発生
-- ダイナミックレンジ: 最小振幅と最大振幅の差
-- RMS（Root Mean Square）: 平均的な振幅レベル
-- Peak: 瞬間的な最大振幅
-- ミキシングではピークとRMSの両方を監視することが重要
-- 関連用語: → dB、→ Clipping、→ Dynamic Range
+**Amplitude** [BOTH]
+- The oscillation range of a sound wave; a parameter directly related to volume
+- Unit: Often expressed in dB (decibels)
+- In digital audio, 0dBFS is the maximum value (Full Scale)
+- Exceeding 0dBFS causes clipping (distortion)
+- Dynamic Range: The difference between minimum and maximum amplitude
+- RMS (Root Mean Square): Average amplitude level
+- Peak: Instantaneous maximum amplitude
+- In mixing, it is important to monitor both peak and RMS levels
+- Related terms: -> dB, -> Clipping, -> Dynamic Range
 
-**Arrangement（アレンジメント）** [PROD]
-- 楽曲の構成・配置のこと
-- EDMの典型的な構成:
-  - Intro（導入）: 16-32小節
-  - Build-up（ビルドアップ）: 8-16小節
-  - Drop（ドロップ）: 16-32小節
-  - Breakdown（ブレイクダウン）: 16小節
-  - Second Drop: 16-32小節
-  - Outro（アウトロ）: 16-32小節
-- DJフレンドリーな楽曲はイントロ・アウトロが長め（32小節以上）
-- ラジオエディットはイントロ・アウトロが短い
-- DAWのArrangement Viewでタイムライン上に配置
-- 関連用語: → Drop、→ Breakdown、→ Phrase
+**Arrangement** [PROD]
+- The structure and layout of a song
+- Typical EDM structure:
+  - Intro: 16-32 bars
+  - Build-up: 8-16 bars
+  - Drop: 16-32 bars
+  - Breakdown: 16 bars
+  - Second Drop: 16-32 bars
+  - Outro: 16-32 bars
+- DJ-friendly tracks have longer intros and outros (32+ bars)
+- Radio edits have shorter intros and outros
+- Arranged on the timeline in a DAW's Arrangement View
+- Related terms: -> Drop, -> Breakdown, -> Phrase
 
-**Attack（アタック）** [PROD]
-- 音が立ち上がるまでの時間
-- Envelopeの最初のパラメーター
-- 短い（0-10ms）= 鋭い音、パーカッシブな質感
-- 長い（500ms+）= ゆっくりフェードイン、パッド向き
-- コンプレッサーのアタックタイム: 圧縮が効き始めるまでの時間
-  - 速いアタック（0.1-1ms）: トランジェントを抑える
-  - 遅いアタック（10-30ms）: トランジェントを通過させる（パンチ感を維持）
-- ゲートのアタックタイム: ゲートが開くまでの時間
-- 関連用語: → ADSR、→ Compressor、→ Transient
+**Attack** [PROD]
+- The time it takes for a sound to reach its peak
+- The first parameter of an Envelope
+- Short (0-10ms) = sharp sound, percussive texture
+- Long (500ms+) = slow fade-in, suited for pads
+- Compressor attack time: Time before compression takes effect
+  - Fast attack (0.1-1ms): Suppresses transients
+  - Slow attack (10-30ms): Lets transients pass through (maintains punch)
+- Gate attack time: Time for the gate to open
+- Related terms: -> ADSR, -> Compressor, -> Transient
 
-**Audio Interface（オーディオインターフェース）** [HW/BOTH]
-- コンピュータと音声機器の間を繋ぐ変換装置
-- AD/DA変換: アナログ音声をデジタルに変換（録音時）、デジタルをアナログに変換（再生時）
-- 主要スペック:
-  - サンプリングレート: 44.1kHz / 48kHz / 96kHz / 192kHz
-  - ビット深度: 16bit / 24bit / 32bit float
-  - レイテンシー: 低いほど良い（5ms以下推奨）
-  - 入出力数: 用途に応じて選択
-- 接続方式: USB、Thunderbolt、PCIe
-- DJ向け推奨機能: 複数出力（メイン + モニター）
-- 制作向け推奨機能: 高品質プリアンプ、低レイテンシー
-- 主要メーカー: Focusrite、Universal Audio、RME、MOTU
-- 関連用語: → Latency、→ Sample Rate、→ Bit Depth
+**Audio Interface** [HW/BOTH]
+- A conversion device that bridges computers and audio equipment
+- AD/DA conversion: Converts analog audio to digital (during recording), and digital to analog (during playback)
+- Key specifications:
+  - Sample rate: 44.1kHz / 48kHz / 96kHz / 192kHz
+  - Bit depth: 16bit / 24bit / 32bit float
+  - Latency: Lower is better (5ms or less recommended)
+  - I/O count: Choose based on application
+- Connection types: USB, Thunderbolt, PCIe
+- Recommended features for DJs: Multiple outputs (main + monitor)
+- Recommended features for production: High-quality preamps, low latency
+- Major manufacturers: Focusrite, Universal Audio, RME, MOTU
+- Related terms: -> Latency, -> Sample Rate, -> Bit Depth
 
-**Automation（オートメーション）** [PROD]
-- パラメーターの時間的変化を記録・再生する機能
-- DAWでフェーダー、パン、エフェクトパラメーターを自動制御
-- 描画方法: 手書き、リアルタイム録音、ステップ入力
-- ブレイクダウンでのフィルタースイープ、ビルドアップでのボリューム上昇など
-- カーブタイプ: リニア（直線）、カーブ（曲線）、ステップ（階段状）
-- DJソフトでもエフェクトオートメーションが使用可能
-- 関連用語: → DAW、→ Filter、→ Build-up
+**Automation** [PROD]
+- A feature that records and plays back parameter changes over time
+- Automatically controls faders, pan, and effect parameters in a DAW
+- Drawing methods: Freehand, real-time recording, step input
+- Examples: Filter sweeps during breakdowns, volume increases during build-ups
+- Curve types: Linear (straight), Curve (curved), Step (staircase)
+- Effect automation is also available in DJ software
+- Related terms: -> DAW, -> Filter, -> Build-up
 
 ---
 
 ## B
 
 **BPM (Beats Per Minute)** [BOTH]
-- 1分間の拍数、テンポの単位
-- ジャンル別BPMガイド:
+- The number of beats per minute; the unit of tempo
+- BPM guide by genre:
   - Ambient / Downtempo: 60-90 BPM
   - Hip Hop: 85-115 BPM
   - Deep House: 118-125 BPM
@@ -158,1699 +157,1699 @@ DJ と楽曲制作に関する用語を網羅的に解説します。
   - Trance: 128-140 BPM
   - Techno: 125-135 BPM
   - Drum and Bass: 160-180 BPM
-  - Dubstep: 140 BPM（ハーフタイム感）
+  - Dubstep: 140 BPM (half-time feel)
   - Hardstyle: 150-160 BPM
-- BPM検出: DJソフトが自動分析（Rekordbox、Traktor等）
-- ダブルBPM / ハーフBPM: 同じテンポを異なる解釈で表記（例: 140 BPM = 70 BPMのダブル）
-- BPMトランジション: 徐々にBPMを変えてジャンルを移行する技術
-- タップテンポ: 手動でBPMを測定する方法
-- 関連用語: → Beatmatching、→ Sync、→ Tempo
+- BPM detection: DJ software automatically analyzes (Rekordbox, Traktor, etc.)
+- Double BPM / Half BPM: The same tempo expressed with different interpretations (e.g., 140 BPM = double of 70 BPM)
+- BPM transition: A technique of gradually changing BPM to shift between genres
+- Tap tempo: A method of manually measuring BPM
+- Related terms: -> Beatmatching, -> Sync, -> Tempo
 
-**Bar（小節）** [BOTH]
-- 楽曲の時間的な区切り単位
-- 4/4拍子の場合: 1小節 = 4拍
-- EDMでは4小節、8小節、16小節、32小節が構成の基本単位
-- DJミキシングでは8小節または16小節単位でのトランジションが一般的
-- 4小節 = 1ミニフレーズ
-- 8小節 = 1フレーズ
-- 16小節 = 1セクション
-- 32小節 = 1ブロック
-- 関連用語: → Phrase、→ Beat Grid
+**Bar** [BOTH]
+- A temporal division unit of a song
+- In 4/4 time: 1 bar = 4 beats
+- In EDM, 4 bars, 8 bars, 16 bars, and 32 bars are the basic structural units
+- In DJ mixing, transitions of 8 or 16 bars are common
+- 4 bars = 1 mini phrase
+- 8 bars = 1 phrase
+- 16 bars = 1 section
+- 32 bars = 1 block
+- Related terms: -> Phrase, -> Beat Grid
 
-**Beat Grid（ビートグリッド）** [DJ]
-- 楽曲のビート位置を示すグリッド
-- DJソフトが自動検出し、ビジュアル表示
-- 正確なBeat Gridがシンクやループの前提条件
-- 手動調整が必要な場合:
-  - BPMが変動する楽曲（ライブ演奏もの）
-  - 分析が不正確な場合
-  - ダウンビートの位置がずれている場合
-- Rekordboxでの調整: グリッドマーカーを手動配置
-- Dynamic Beat Grid: BPMが変化する楽曲に対応（Traktor等）
-- 関連用語: → BPM、→ Beatmatching、→ Downbeat
+**Beat Grid** [DJ]
+- A grid indicating beat positions in a track
+- DJ software automatically detects and visually displays it
+- An accurate Beat Grid is a prerequisite for sync and loops
+- Cases requiring manual adjustment:
+  - Tracks with fluctuating BPM (live recordings)
+  - When analysis is inaccurate
+  - When the downbeat position is off
+- Adjustment in Rekordbox: Manually place grid markers
+- Dynamic Beat Grid: Supports tracks with changing BPM (Traktor, etc.)
+- Related terms: -> BPM, -> Beatmatching, -> Downbeat
 
-**Beatmatching（ビートマッチング）** [DJ]
-- 2曲のBPMを合わせる技術
-- DJの最も基本的なスキル
-- ピッチフェーダーで調整
-- 手順:
-  1. 次の曲をヘッドフォンでモニタリング
-  2. ピッチフェーダーでBPMを合わせる
-  3. ジョグホイールで位相（フェーズ）を合わせる
-  4. ビートが一致したらフェーダーを操作してブレンド
-- 耳だけで行うのが伝統的な方法（アナログDJ）
-- 現代のDJソフトではSync機能で自動化可能
-- ただし手動ビートマッチングのスキルは依然として重要
-- 関連用語: → BPM、→ Sync、→ Pitch Fader
+**Beatmatching** [DJ]
+- The technique of matching the BPM of two tracks
+- The most fundamental DJ skill
+- Adjusted using the pitch fader
+- Procedure:
+  1. Monitor the next track through headphones
+  2. Match the BPM using the pitch fader
+  3. Align the phase using the jog wheel
+  4. Once the beats are aligned, operate the fader to blend
+- Doing it by ear is the traditional method (analog DJing)
+- Modern DJ software can automate this with the Sync function
+- However, manual beatmatching skills remain important
+- Related terms: -> BPM, -> Sync, -> Pitch Fader
 
-**Bass（ベース）** [BOTH]
-- 低音域楽器、楽曲の土台
-- 周波数帯域の分類:
-  - Sub Bass: 20-60 Hz（体感する低音、クラブのサブウーファーで再生）
-  - Low Bass: 60-100 Hz（ベースの基音）
-  - Mid Bass: 100-250 Hz（ベースの倍音、温かみ）
-  - Upper Bass: 250-500 Hz（濁りが出やすい帯域、注意が必要）
-- ミキシングでのベース処理:
-  - モノラル化推奨（位相の問題を避けるため）
-  - サイドチェインコンプでキックとの棲み分け
-  - ハイパスフィルターで不要な超低域をカット（30Hz以下）
-- ジャンル別のベース特徴:
-  - House: 安定したサブベース + グルーヴィーなベースライン
-  - Dubstep: 激しいワブルベース（LFOでフィルターを変調）
-  - Drum and Bass: 高速でうねるベースライン
-- 関連用語: → Sub Bass、→ Sidechain、→ EQ
+**Bass** [BOTH]
+- Low-frequency instruments; the foundation of a track
+- Frequency range classification:
+  - Sub Bass: 20-60 Hz (felt physically, reproduced by club subwoofers)
+  - Low Bass: 60-100 Hz (fundamental tone of bass)
+  - Mid Bass: 100-250 Hz (bass harmonics, warmth)
+  - Upper Bass: 250-500 Hz (frequency range prone to muddiness, requires caution)
+- Bass processing in mixing:
+  - Mono recommended (to avoid phase issues)
+  - Sidechain compression to separate bass from kick
+  - High-pass filter to cut unnecessary ultra-low frequencies (below 30Hz)
+- Bass characteristics by genre:
+  - House: Stable sub bass + groovy bassline
+  - Dubstep: Intense wobble bass (filter modulated by LFO)
+  - Drum and Bass: Fast, undulating basslines
+- Related terms: -> Sub Bass, -> Sidechain, -> EQ
 
-**Bit Depth（ビット深度）** [PROD]
-- デジタルオーディオの振幅方向の分解能
-- ビット数が高いほどダイナミックレンジが広い
-- 16bit: 96dBのダイナミックレンジ（CD品質）
-- 24bit: 144dBのダイナミックレンジ（スタジオ標準）
-- 32bit float: 事実上無限のダイナミックレンジ（内部処理用）
-- 録音時は24bit推奨（ヘッドルームに余裕がある）
-- 最終マスターは用途に応じて選択:
+**Bit Depth** [PROD]
+- The amplitude resolution of digital audio
+- Higher bit depth means wider dynamic range
+- 16bit: 96dB dynamic range (CD quality)
+- 24bit: 144dB dynamic range (studio standard)
+- 32bit float: Virtually unlimited dynamic range (for internal processing)
+- 24bit recommended for recording (provides headroom margin)
+- Choose final master based on application:
   - CD: 16bit / 44.1kHz
-  - ストリーミング: 16bit / 44.1kHz
-  - ハイレゾ: 24bit / 96kHz以上
-- ディザリング: ビット深度を下げる際にノイズを加えて量子化歪みを軽減
-- 関連用語: → Sample Rate、→ Dynamic Range、→ Dithering
+  - Streaming: 16bit / 44.1kHz
+  - Hi-Res: 24bit / 96kHz or higher
+- Dithering: Adding noise when reducing bit depth to mitigate quantization distortion
+- Related terms: -> Sample Rate, -> Dynamic Range, -> Dithering
 
-**Breakdown（ブレイクダウン）** [BOTH]
-- 楽曲の中間部で、エネルギーが一時的に低下するセクション
-- ドロップの後に位置することが多い
-- 典型的な構成要素:
-  - キック・ベースが抜ける
-  - メロディやパッドが前面に出る
-  - ボーカルチョップやFXが挿入される
-  - 次のビルドアップへの準備
-- DJにとって: トランジションのチャンスポイント
-- 長さ: 通常8-16小節
-- 関連用語: → Drop、→ Build-up、→ Arrangement
+**Breakdown** [BOTH]
+- A section in the middle of a track where energy temporarily decreases
+- Often positioned after the drop
+- Typical elements:
+  - Kick and bass drop out
+  - Melodies and pads come to the forefront
+  - Vocal chops and FX are inserted
+  - Preparation for the next build-up
+- For DJs: An opportunity point for transitions
+- Length: Usually 8-16 bars
+- Related terms: -> Drop, -> Build-up, -> Arrangement
 
-**Build-up（ビルドアップ）** [BOTH]
-- ドロップ前のテンション上昇セクション
-- テクニック:
-  - ライザー（上昇するノイズ/シンセ）
-  - スネアロール / ハイハットの加速
-  - フィルターの開放
-  - リバースクラッシュ
-  - ホワイトノイズの上昇
-  - ボリュームの段階的上昇
-- 長さ: 通常4-16小節
-- 効果的なビルドアップは、ドロップのインパクトを最大化する
-- 関連用語: → Drop、→ Riser、→ Breakdown
+**Build-up** [BOTH]
+- A tension-building section before the drop
+- Techniques:
+  - Risers (ascending noise/synth)
+  - Snare rolls / accelerating hi-hats
+  - Filter opening
+  - Reverse crashes
+  - White noise rising
+  - Gradual volume increase
+- Length: Usually 4-16 bars
+- An effective build-up maximizes the impact of the drop
+- Related terms: -> Drop, -> Riser, -> Breakdown
 
-**Bus / Buss（バス）** [PROD]
-- 複数のトラックを1つのチャンネルにまとめるルーティング
-- グループ処理に使用（ドラムバス、ボーカルバス等）
-- メリット:
-  - 一括でエフェクト処理が可能
-  - CPUリソースの節約
-  - ミキシングの効率化
-- バスコンプレッション: グループ全体を一括で圧縮してまとまりを出す
-- AUXバス: エフェクトセンド/リターンに使用
-- マスターバス: 全トラックが最終的にまとまるバス
-- 関連用語: → Compressor、→ Send/Return、→ Mixing
+**Bus / Buss** [PROD]
+- Routing that groups multiple tracks into a single channel
+- Used for group processing (drum bus, vocal bus, etc.)
+- Benefits:
+  - Batch effect processing
+  - CPU resource savings
+  - Mixing efficiency
+- Bus compression: Compressing an entire group for cohesion
+- AUX bus: Used for effect send/return
+- Master bus: The bus where all tracks ultimately converge
+- Related terms: -> Compressor, -> Send/Return, -> Mixing
 
 ---
 
 ## C
 
-**Camelot Wheel（キャメロットホイール）** [DJ]
-- ハーモニックミキシング用のキー互換性チャート
-- キーを円形に配置、数字（1-12）とアルファベット（A/B）で表記
-- Aがマイナーキー、Bがメジャーキー
-- 互換ルール:
-  - 同じ番号: 完全に互換（例: 8A → 8A）
-  - 隣接番号（同じ文字）: スムーズ（例: 8A → 7A、8A → 9A）
-  - 同じ番号の異なる文字: 平行調（例: 8A → 8B）
-  - エネルギーブースト: +1（例: 8A → 9A）
-  - エネルギーダウン: -1（例: 8A → 7A）
-  - ムードチェンジ: A↔B（例: 8A → 8B）
-- Open Key Notation: 同様のシステムだが表記が異なる
-- DJソフト（Rekordbox、Traktor等）がキーを自動分析
-- 完全に正確ではないため、最終的には耳で確認
-- 関連用語: → Key、→ Harmonic Mixing
+**Camelot Wheel** [DJ]
+- A key compatibility chart for harmonic mixing
+- Keys arranged in a circle, labeled with numbers (1-12) and letters (A/B)
+- A represents minor keys, B represents major keys
+- Compatibility rules:
+  - Same number: Fully compatible (e.g., 8A -> 8A)
+  - Adjacent numbers (same letter): Smooth (e.g., 8A -> 7A, 8A -> 9A)
+  - Same number, different letter: Parallel key (e.g., 8A -> 8B)
+  - Energy boost: +1 (e.g., 8A -> 9A)
+  - Energy down: -1 (e.g., 8A -> 7A)
+  - Mood change: A<->B (e.g., 8A -> 8B)
+- Open Key Notation: A similar system with different notation
+- DJ software (Rekordbox, Traktor, etc.) automatically analyzes keys
+- Not perfectly accurate, so always verify by ear
+- Related terms: -> Key, -> Harmonic Mixing
 
-**Channel（チャンネル）** [BOTH]
-- DJミキサー: 各デッキに対応する入力経路
-  - 一般的なDJミキサーは2ch、4chが主流
-  - 各チャンネルにEQ、フェーダー、エフェクトを装備
-- DAW: 個別のオーディオ/MIDI信号の経路
-  - モノラル: 1ch（センター定位）
-  - ステレオ: 2ch（左右に定位可能）
-  - サラウンド: 5.1ch、7.1ch等
-- ミキサーのチャンネルストリップ: ゲイン → EQ → フィルター → フェーダー の信号の流れ
-- 関連用語: → Mixer、→ EQ、→ Fader
+**Channel** [BOTH]
+- DJ mixer: Input path corresponding to each deck
+  - Common DJ mixers are mainly 2ch and 4ch
+  - Each channel is equipped with EQ, fader, and effects
+- DAW: Individual audio/MIDI signal path
+  - Mono: 1ch (center position)
+  - Stereo: 2ch (can be positioned left/right)
+  - Surround: 5.1ch, 7.1ch, etc.
+- Mixer channel strip: Signal flow of Gain -> EQ -> Filter -> Fader
+- Related terms: -> Mixer, -> EQ, -> Fader
 
-**Clipping（クリッピング）** [BOTH]
-- 音声信号が最大レベルを超えた際に発生する歪み
-- デジタルクリッピング: 0dBFSを超えると波形が切り取られる（ハードクリッピング）
-- アナログクリッピング: テープやチューブの歪み（ソフトクリッピング、温かみがある）
-- 防止策:
-  - 適切なゲインステージング
-  - リミッターの使用
-  - メーターの常時監視
-- DJプレイでは赤色インジケーターが点灯したらゲインを下げる
-- ソフトクリッピングは意図的にサチュレーションとして使用されることもある
-- 関連用語: → Gain Staging、→ Limiter、→ dB
+**Clipping** [BOTH]
+- Distortion that occurs when an audio signal exceeds the maximum level
+- Digital clipping: When exceeding 0dBFS, the waveform is cut off (hard clipping)
+- Analog clipping: Tape or tube distortion (soft clipping, adds warmth)
+- Prevention:
+  - Proper gain staging
+  - Use of limiters
+  - Constant meter monitoring
+- In DJ performance, reduce gain when the red indicator lights up
+- Soft clipping is sometimes intentionally used as saturation
+- Related terms: -> Gain Staging, -> Limiter, -> dB
 
-**Compressor（コンプレッサー）** [PROD]
-- ダイナミクスを圧縮するエフェクト
-- 音量差を減らし、音を安定させる
-- 主要パラメーター:
-  - Threshold（スレッショルド）: 圧縮が始まるレベル（dB）
-  - Ratio（レシオ）: 圧縮の比率（2:1 = 2dB超過で1dBに圧縮）
-  - Attack（アタック）: 圧縮が効き始めるまでの時間
-  - Release（リリース）: 圧縮が解除されるまでの時間
-  - Knee（ニー）: 圧縮の始まり方（ハードニー/ソフトニー）
-  - Make-up Gain: 圧縮後の音量補正
-- コンプレッサーの種類:
-  - VCA: 正確で透明（SSL Gバス等）
-  - FET: 高速で攻撃的（1176等）
-  - Optical: ゆっくりで自然（LA-2A等）
-  - Variable-Mu: 温かくて音楽的（Fairchild 670等）
-- 用途別設定ガイド:
-  - ボーカル: Ratio 3:1, Attack 10ms, Release 100ms
-  - ドラムバス: Ratio 4:1, Attack 5ms, Release 50ms
-  - マスタリング: Ratio 2:1, Attack 30ms, Release 300ms（軽い圧縮）
-- 関連用語: → Limiter、→ Dynamic Range、→ Sidechain
+**Compressor** [PROD]
+- An effect that compresses dynamics
+- Reduces volume differences and stabilizes sound
+- Key parameters:
+  - Threshold: The level at which compression begins (dB)
+  - Ratio: Compression ratio (2:1 = 2dB excess compressed to 1dB)
+  - Attack: Time before compression takes effect
+  - Release: Time for compression to release
+  - Knee: How compression begins (hard knee/soft knee)
+  - Make-up Gain: Volume compensation after compression
+- Types of compressors:
+  - VCA: Accurate and transparent (SSL G-Bus, etc.)
+  - FET: Fast and aggressive (1176, etc.)
+  - Optical: Slow and natural (LA-2A, etc.)
+  - Variable-Mu: Warm and musical (Fairchild 670, etc.)
+- Application-specific settings guide:
+  - Vocals: Ratio 3:1, Attack 10ms, Release 100ms
+  - Drum bus: Ratio 4:1, Attack 5ms, Release 50ms
+  - Mastering: Ratio 2:1, Attack 30ms, Release 300ms (light compression)
+- Related terms: -> Limiter, -> Dynamic Range, -> Sidechain
 
-**Crossfader（クロスフェーダー）** [DJ]
-- 2つのデッキ間を切り替える水平フェーダー
-- トランジションに使用
-- カーブ設定:
-  - スムーズカーブ: ミキシング向き（緩やかなブレンド）
-  - シャープカーブ: スクラッチDJ向き（瞬時に切り替わる）
-  - カスタムカーブ: ソフトウェアで調整可能
-- Innofader等の高品質交換パーツも存在
-- ヒップホップDJ、ターンテーブリストに特に重要
-- 一部のDJはクロスフェーダーを使わず、チャンネルフェーダーのみでミックス
-- 関連用語: → Fader、→ Transition、→ Scratch
+**Crossfader** [DJ]
+- A horizontal fader for switching between two decks
+- Used for transitions
+- Curve settings:
+  - Smooth curve: Suited for mixing (gradual blend)
+  - Sharp curve: Suited for scratch DJs (instant switching)
+  - Custom curve: Adjustable via software
+- High-quality replacement parts such as Innofader are available
+- Particularly important for hip-hop DJs and turntablists
+- Some DJs mix using only channel faders without the crossfader
+- Related terms: -> Fader, -> Transition, -> Scratch
 
-**Cue Point（キューポイント）** [DJ]
-- 楽曲内の特定位置に設定するマーカー
-- Hot Cue: パッドに割り当てて瞬時にジャンプ
-- Memory Cue: 位置を記録するが直接ジャンプはしない（Rekordbox）
-- 設定のベストプラクティス:
-  - Cue 1: イントロ開始
-  - Cue 2: ブレイクダウン開始
-  - Cue 3: ドロップ開始
-  - Cue 4: アウトロ開始
-  - 残り: ボーカル入り、ビルドアップ等の重要ポイント
-- 色分けで視認性を向上させる
-- 関連用語: → Hot Cue、→ Rekordbox
+**Cue Point** [DJ]
+- A marker set at a specific position within a track
+- Hot Cue: Assigned to pads for instant jumps
+- Memory Cue: Records position but does not allow direct jumps (Rekordbox)
+- Setting best practices:
+  - Cue 1: Intro start
+  - Cue 2: Breakdown start
+  - Cue 3: Drop start
+  - Cue 4: Outro start
+  - Remaining: Important points such as vocal entry, build-up, etc.
+- Use color coding to improve visibility
+- Related terms: -> Hot Cue, -> Rekordbox
 
 ---
 
 ## D
 
 **DAW (Digital Audio Workstation)** [SW/PROD]
-- デジタル音楽制作ソフトウェア
-- 録音、編集、ミキシング、マスタリングを統合
-- 主要DAW一覧:
-  - Ableton Live: ライブパフォーマンスと制作の両立
-  - FL Studio: パターンベースの直感的ワークフロー、ビートメイキングに強い
-  - Logic Pro: macOS専用、豊富な付属音源とエフェクト
-  - Pro Tools: 業界標準の録音・ミキシング環境
-  - Cubase / Nuendo: MIDI編集の先駆者、映像音響にも対応
-  - Bitwig Studio: モジュラー的な柔軟性
-  - Reason: バーチャルラック型のユニークなUI
-  - Studio One: 直感的なドラッグ&ドロップワークフロー
-- 選択基準:
-  - 用途（制作、録音、ライブ）
-  - OS対応（Windows、macOS）
-  - プラグイン互換性（VST、AU、AAX）
-  - ワークフローの好み
-  - 予算
-- 関連用語: → Plugin、→ MIDI、→ Mixing
+- Digital music production software
+- Integrates recording, editing, mixing, and mastering
+- Major DAW list:
+  - Ableton Live: Balances live performance and production
+  - FL Studio: Pattern-based intuitive workflow, strong in beatmaking
+  - Logic Pro: macOS exclusive, rich built-in instruments and effects
+  - Pro Tools: Industry-standard recording and mixing environment
+  - Cubase / Nuendo: MIDI editing pioneer, also supports film/video audio
+  - Bitwig Studio: Modular-style flexibility
+  - Reason: Unique virtual rack UI
+  - Studio One: Intuitive drag-and-drop workflow
+- Selection criteria:
+  - Application (production, recording, live)
+  - OS compatibility (Windows, macOS)
+  - Plugin compatibility (VST, AU, AAX)
+  - Workflow preference
+  - Budget
+- Related terms: -> Plugin, -> MIDI, -> Mixing
 
-**dB (Decibel / デシベル)** [BOTH]
-- 音量の相対的な単位
-- 対数スケール: 倍の音量 ≒ +6dB、10倍 ≒ +20dB
-- 種類:
-  - dBFS (Full Scale): デジタルオーディオの最大値が0dB
-  - dBSPL (Sound Pressure Level): 音圧レベル。0dBSPLが聴覚の閾値
-  - dBu: プロオーディオの電圧基準
-  - dBV: コンシューマーオーディオの電圧基準
-- ミキシングでの目安:
-  - 各トラック: -18dBFS前後（ヘッドルーム確保）
-  - マスターバス: ピーク -6dBFS ~ -3dBFS（マスタリング前）
-  - マスタリング後: ピーク -1dBFS ~ -0.3dBFS
-- DJ機材のメーター: 0dBが通常レベル、赤色は歪みの危険
-- 関連用語: → Gain Staging、→ Clipping、→ LUFS
+**dB (Decibel)** [BOTH]
+- A relative unit of volume
+- Logarithmic scale: Double the volume ≈ +6dB, 10x ≈ +20dB
+- Types:
+  - dBFS (Full Scale): Maximum value in digital audio is 0dB
+  - dBSPL (Sound Pressure Level): Sound pressure level. 0dBSPL is the threshold of hearing
+  - dBu: Voltage reference for professional audio
+  - dBV: Voltage reference for consumer audio
+- Mixing guidelines:
+  - Individual tracks: Around -18dBFS (to ensure headroom)
+  - Master bus: Peak -6dBFS to -3dBFS (before mastering)
+  - After mastering: Peak -1dBFS to -0.3dBFS
+- DJ equipment meters: 0dB is the normal level; red indicates risk of distortion
+- Related terms: -> Gain Staging, -> Clipping, -> LUFS
 
-**Decay（ディケイ）** [PROD]
-- ADSRエンベロープの2番目のパラメータ
-- 音がピークレベルからサステインレベルに落ちるまでの時間
-- 短いディケイ: パーカッシブな音（スタブ、プラック）
-- 長いディケイ: 自然な減衰（ピアノ、ベル）
-- リバーブのディケイ（Decay Time / RT60）: 残響が60dB減衰するまでの時間
-  - 短い（0.5-1秒）: タイトな空間（ルーム）
-  - 中程度（1-2秒）: 自然な空間（ホール）
-  - 長い（3秒以上）: 広大な空間（カテドラル）
-- 関連用語: → ADSR、→ Reverb、→ Envelope
+**Decay** [PROD]
+- The second parameter of the ADSR envelope
+- The time for the sound to fall from peak level to sustain level
+- Short decay: Percussive sounds (stabs, plucks)
+- Long decay: Natural decay (piano, bells)
+- Reverb decay (Decay Time / RT60): Time for reverb to decay by 60dB
+  - Short (0.5-1 second): Tight space (room)
+  - Medium (1-2 seconds): Natural space (hall)
+  - Long (3+ seconds): Vast space (cathedral)
+- Related terms: -> ADSR, -> Reverb, -> Envelope
 
-**Delay（ディレイ）** [BOTH]
-- エコー効果、音を遅延させて繰り返す
-- 主要パラメーター:
-  - Time（タイム）: 遅延時間（ms or BPM同期）
-  - Feedback（フィードバック）: 繰り返しの回数/減衰率
-  - Dry/Wet（ドライ/ウェット）: 原音とエフェクト音の比率
-  - Filter: フィードバック信号にフィルターを適用
-- ディレイの種類:
-  - Stereo Delay: 左右で異なる遅延時間（空間的広がり）
-  - Ping Pong Delay: 左右交互に繰り返す
-  - Tape Delay: テープエコーのエミュレーション（温かい質感）
-  - Analog Delay: BBD回路のエミュレーション
-  - Dub Delay: レゲエ/ダブで多用（フィードバックを大きくして発振寸前に）
-- BPM同期設定: 1/4（4分音符）、1/8（8分音符）、1/8D（付点8分）、1/16
-- DJ使用例: エコーアウトでトランジション、ボーカルにリズミカルなエコー
-- 関連用語: → Reverb、→ Time-based Effect、→ Feedback
+**Delay** [BOTH]
+- An echo effect that delays and repeats sound
+- Key parameters:
+  - Time: Delay time (ms or BPM-synced)
+  - Feedback: Number of repeats / decay rate
+  - Dry/Wet: Ratio of dry signal to effect signal
+  - Filter: Applies a filter to the feedback signal
+- Types of delay:
+  - Stereo Delay: Different delay times for left and right (spatial width)
+  - Ping Pong Delay: Alternates between left and right
+  - Tape Delay: Tape echo emulation (warm character)
+  - Analog Delay: BBD circuit emulation
+  - Dub Delay: Commonly used in reggae/dub (high feedback near self-oscillation)
+- BPM sync settings: 1/4 (quarter note), 1/8 (eighth note), 1/8D (dotted eighth), 1/16
+- DJ usage example: Echo out for transitions, rhythmic echo on vocals
+- Related terms: -> Reverb, -> Time-based Effect, -> Feedback
 
-**Distortion（ディストーション）** [PROD]
-- 意図的に信号を歪ませるエフェクト
-- 種類:
-  - Overdrive: 軽い歪み、温かみを加える
-  - Distortion: 中程度の歪み、攻撃的なサウンド
-  - Fuzz: 強烈な歪み、ファジーなテクスチャー
-  - Bitcrusher: デジタル的な歪み（ビット深度の低減）
-  - Saturation: 倍音を加えて温かみや存在感を付与
-- 用途: ベースの存在感アップ、シンセリードの攻撃性、ドラムの荒々しさ
-- 関連用語: → Saturation、→ Clipping、→ Harmonics
+**Distortion** [PROD]
+- An effect that intentionally distorts a signal
+- Types:
+  - Overdrive: Light distortion, adds warmth
+  - Distortion: Moderate distortion, aggressive sound
+  - Fuzz: Intense distortion, fuzzy texture
+  - Bitcrusher: Digital distortion (bit depth reduction)
+  - Saturation: Adds harmonics for warmth and presence
+- Uses: Enhancing bass presence, synth lead aggression, drum rawness
+- Related terms: -> Saturation, -> Clipping, -> Harmonics
 
-**Downbeat（ダウンビート）** [BOTH]
-- 小節の1拍目
-- 4/4拍子では最も強い拍
-- ビートグリッドの基準点
-- DJミキシングではダウンビートを合わせることが基本
-- 対義語: アップビート（裏拍）
-- 関連用語: → Beat Grid、→ Bar、→ Phrase
+**Downbeat** [BOTH]
+- The first beat of a bar
+- The strongest beat in 4/4 time
+- The reference point for the beat grid
+- Aligning downbeats is fundamental in DJ mixing
+- Antonym: Upbeat (offbeat)
+- Related terms: -> Beat Grid, -> Bar, -> Phrase
 
-**Drop（ドロップ）** [BOTH]
-- 楽曲のクライマックス、最もエネルギーが高いセクション
-- ビルドアップ後のエネルギー放出
-- 特徴:
-  - フルパワーのキックドラム
-  - 重いベースライン
-  - メインシンセリフ/メロディ
-  - ハイエネルギーのドラムパターン
-- ファーストドロップとセカンドドロップ（バリエーションを加える）
-- DJプレイでは、異なる曲のドロップをつなげる「ダブルドロップ」テクニックがある
-- 関連用語: → Build-up、→ Breakdown、→ Arrangement
+**Drop** [BOTH]
+- The climax of a track; the section with the highest energy
+- Energy release after the build-up
+- Characteristics:
+  - Full-power kick drum
+  - Heavy bassline
+  - Main synth riff/melody
+  - High-energy drum pattern
+- First drop and second drop (with variations added)
+- In DJ performance, the "double drop" technique connects drops from different tracks
+- Related terms: -> Build-up, -> Breakdown, -> Arrangement
 
-**Dry/Wet（ドライ/ウェット）** [BOTH]
-- エフェクトの原音（Dry）とエフェクト音（Wet）の混合比率
-- 0% = 完全にドライ（原音のみ）
-- 100% = 完全にウェット（エフェクト音のみ）
-- インサートエフェクト: Dry/Wetで調整
-- センド/リターン: Wet 100%にして、センド量で調整
-- 関連用語: → Send/Return、→ Insert
+**Dry/Wet** [BOTH]
+- The mix ratio between the original signal (Dry) and the effect signal (Wet)
+- 0% = Completely dry (original signal only)
+- 100% = Completely wet (effect signal only)
+- Insert effects: Adjusted via Dry/Wet
+- Send/Return: Set to Wet 100%, adjust via send amount
+- Related terms: -> Send/Return, -> Insert
 
-**Dynamic Range（ダイナミックレンジ）** [BOTH]
-- 最も静かな音と最も大きな音の差
-- 単位: dB
-- CDの理論的ダイナミックレンジ: 96dB（16bit）
-- 音楽制作でのダイナミックレンジ:
-  - クラシック: 広い（40-60dB）
-  - ポップス: 中程度（15-30dB）
-  - EDM: 狭い（8-15dB）← コンプレッション/リミッターで圧縮
-- ラウドネスウォー: ダイナミックレンジを極端に狭くする傾向への批判
-- 関連用語: → Compressor、→ Limiter、→ LUFS
+**Dynamic Range** [BOTH]
+- The difference between the quietest and loudest sounds
+- Unit: dB
+- Theoretical dynamic range of CD: 96dB (16bit)
+- Dynamic range in music production:
+  - Classical: Wide (40-60dB)
+  - Pop: Moderate (15-30dB)
+  - EDM: Narrow (8-15dB) <- Compressed with compression/limiters
+- Loudness War: Criticism of the trend to extremely narrow dynamic range
+- Related terms: -> Compressor, -> Limiter, -> LUFS
 
 ---
 
 ## E
 
-**EQ (Equalizer / イコライザー)** [BOTH]
-- 周波数帯域ごとに音量を調整するエフェクト
-- DJミキサーのEQ:
-  - Hi (高域): 約5kHz以上（シンバル、エアー感）
-  - Mid (中域): 約250Hz-5kHz（ボーカル、シンセ、スネア）
-  - Low (低域): 約250Hz以下（キック、ベース）
-  - DJミキシングで最も重要なツール
-  - ロータリーEQ vs. フェーダーEQ
-- DAWのEQ種類:
-  - Parametric EQ: 周波数、ゲイン、Q幅を自由に設定
-  - Graphic EQ: 固定周波数帯をスライダーで調整
-  - Shelving EQ: 指定周波数より上/下を一括調整
-  - Dynamic EQ: 信号レベルに応じてEQが変化
-- EQテクニック:
-  - カットを優先: ブーストより先にカットで不要な周波数を除去
-  - スイープ: Q幅を狭くしてブーストし、問題の周波数を探す
-  - ハイパスフィルター: ほぼ全トラックに適用（キック以外は30-80Hzでカット）
-  - 周波数マスキングの解消: 同じ帯域で競合するトラックを整理
-- 関連用語: → Filter、→ Frequency、→ Mixing
+**EQ (Equalizer)** [BOTH]
+- An effect that adjusts volume by frequency band
+- DJ mixer EQ:
+  - Hi (high range): Approximately 5kHz and above (cymbals, air)
+  - Mid (mid range): Approximately 250Hz-5kHz (vocals, synths, snare)
+  - Low (low range): Approximately 250Hz and below (kick, bass)
+  - The most important tool in DJ mixing
+  - Rotary EQ vs. Fader EQ
+- DAW EQ types:
+  - Parametric EQ: Freely set frequency, gain, and Q width
+  - Graphic EQ: Adjust fixed frequency bands with sliders
+  - Shelving EQ: Adjust everything above/below a specified frequency
+  - Dynamic EQ: EQ changes according to signal level
+- EQ techniques:
+  - Prioritize cuts: Remove unwanted frequencies with cuts before boosting
+  - Sweep: Narrow the Q width and boost to find problem frequencies
+  - High-pass filter: Apply to nearly all tracks (cut at 30-80Hz except kick)
+  - Resolving frequency masking: Organize tracks competing in the same frequency range
+- Related terms: -> Filter, -> Frequency, -> Mixing
 
-**Envelope（エンベロープ）** [PROD]
-- 音の時間的変化を定義するパラメータ群
+**Envelope** [PROD]
+- A set of parameters defining how sound changes over time
 - ADSR: Attack, Decay, Sustain, Release
-- 適用対象:
-  - アンプリチュードエンベロープ: 音量の変化
-  - フィルターエンベロープ: フィルター周波数の変化
-  - ピッチエンベロープ: ピッチの変化
-- モジュレーションソースとして使用
-- DAWではオートメーションエンベロープとしても使用
-- 関連用語: → ADSR、→ Modulation、→ LFO
+- Application targets:
+  - Amplitude envelope: Changes in volume
+  - Filter envelope: Changes in filter frequency
+  - Pitch envelope: Changes in pitch
+- Used as a modulation source
+- Also used as automation envelopes in DAWs
+- Related terms: -> ADSR, -> Modulation, -> LFO
 
-**Effects / FX（エフェクト）** [BOTH]
-- 音声を加工するプロセッサー
-- 空間系: Reverb、Delay、Chorus
-- ダイナミクス系: Compressor、Limiter、Gate、Expander
-- モジュレーション系: Chorus、Flanger、Phaser
-- フィルター系: EQ、Filter、Wah
-- 歪み系: Distortion、Overdrive、Saturation、Bitcrusher
-- ピッチ系: Pitch Shifter、Harmonizer
-- 時間系: Time Stretch、Reverse
-- DJエフェクト: Echo、Reverb、Flanger、Filter、Roll、Brake
-- エフェクトチェーンの順序が重要（例: EQ → Compressor → Reverb）
-- 関連用語: → Plugin、→ Insert、→ Send/Return
+**Effects / FX** [BOTH]
+- Processors that modify audio
+- Spatial: Reverb, Delay, Chorus
+- Dynamics: Compressor, Limiter, Gate, Expander
+- Modulation: Chorus, Flanger, Phaser
+- Filter: EQ, Filter, Wah
+- Distortion: Distortion, Overdrive, Saturation, Bitcrusher
+- Pitch: Pitch Shifter, Harmonizer
+- Time: Time Stretch, Reverse
+- DJ effects: Echo, Reverb, Flanger, Filter, Roll, Brake
+- The order of the effect chain is important (e.g., EQ -> Compressor -> Reverb)
+- Related terms: -> Plugin, -> Insert, -> Send/Return
 
 ---
 
 ## F
 
-**Fader（フェーダー）** [BOTH]
-- 音量を調整するスライダー
-- DJミキサーのフェーダー:
-  - チャンネルフェーダー: 各デッキの音量（縦型）
-  - クロスフェーダー: デッキ間のブレンド（横型）
-  - フェーダーカーブ: リニア / ログ（対数）/ カスタム
-- DAWのフェーダー:
-  - トラックフェーダー: 各トラックの音量
-  - マスターフェーダー: 最終出力レベル
-  - Unity Gain: 0dBの位置（増減なし）
-- 関連用語: → Crossfader、→ Gain Staging、→ Mixer
+**Fader** [BOTH]
+- A slider that adjusts volume
+- DJ mixer faders:
+  - Channel fader: Volume for each deck (vertical)
+  - Crossfader: Blend between decks (horizontal)
+  - Fader curve: Linear / Log (logarithmic) / Custom
+- DAW faders:
+  - Track fader: Volume for each track
+  - Master fader: Final output level
+  - Unity Gain: The 0dB position (no increase or decrease)
+- Related terms: -> Crossfader, -> Gain Staging, -> Mixer
 
-**Feedback（フィードバック）** [BOTH]
-- 出力信号を入力に戻すこと
-- ディレイのフィードバック: 繰り返しの回数と減衰を制御
-  - 低い値: 数回で消える
-  - 高い値: 多数の繰り返し（100%で無限リピート→自己発振）
-- ハウリング: マイクとスピーカー間の不要なフィードバック
-- 意図的なフィードバック: ダブミュージックのエフェクト技法
-- 関連用語: → Delay、→ Dub
+**Feedback** [BOTH]
+- Returning the output signal to the input
+- Delay feedback: Controls the number of repeats and decay
+  - Low value: Dies out after a few repeats
+  - High value: Many repeats (100% = infinite repeat -> self-oscillation)
+- Howling: Unwanted feedback between microphone and speaker
+- Intentional feedback: Effect technique in dub music
+- Related terms: -> Delay, -> Dub
 
-**Filter（フィルター）** [BOTH]
-- 特定の周波数をカット/ブーストするプロセッサー
-- フィルターの種類:
-  - Low Pass Filter (LPF): 設定周波数より上をカット。高域を削る。温かくこもった音に
-  - High Pass Filter (HPF): 設定周波数より下をカット。低域を削る。軽くすっきりした音に
-  - Band Pass Filter (BPF): 設定周波数付近のみ通過。電話のような質感
-  - Notch Filter: 特定の狭い帯域のみカット（ハムノイズ除去等）
-  - Comb Filter: 一定間隔の周波数をカット/ブースト（フランジャー効果に関連）
-- 主要パラメーター:
-  - Cutoff Frequency（カットオフ周波数）: フィルターの効果が始まる周波数
-  - Resonance / Q: カットオフ付近の強調度合い（高くすると発振に近づく）
-  - Slope / Roll-off: 減衰の急峻さ（6dB/oct、12dB/oct、24dB/oct等）
-- DJでの使用:
-  - フィルタースイープ: ノブを徐々に回してドラマチックなトランジション
-  - HPF: ブレイクダウンでキック/ベースを抜く
-  - LPF: 曲を遠ざける、ビルドアップの開始
-- シンセサイザーのフィルター:
-  - モーグラダーフィルター: 温かい24dB/oct ローパス
-  - MS-20フィルター: 攻撃的なレゾナンス
-  - オーバーハイムフィルター: クリーンなステートバリアブル
-- 関連用語: → EQ、→ Resonance、→ Cutoff
+**Filter** [BOTH]
+- A processor that cuts/boosts specific frequencies
+- Types of filters:
+  - Low Pass Filter (LPF): Cuts above the set frequency. Removes high frequencies. Creates a warm, muffled sound
+  - High Pass Filter (HPF): Cuts below the set frequency. Removes low frequencies. Creates a light, clean sound
+  - Band Pass Filter (BPF): Only passes frequencies near the set frequency. Telephone-like quality
+  - Notch Filter: Cuts only a specific narrow band (for hum noise removal, etc.)
+  - Comb Filter: Cuts/boosts frequencies at regular intervals (related to flanger effect)
+- Key parameters:
+  - Cutoff Frequency: The frequency where the filter effect begins
+  - Resonance / Q: Degree of emphasis near the cutoff (higher values approach oscillation)
+  - Slope / Roll-off: Steepness of attenuation (6dB/oct, 12dB/oct, 24dB/oct, etc.)
+- DJ usage:
+  - Filter sweep: Gradually turn the knob for dramatic transitions
+  - HPF: Remove kick/bass during breakdowns
+  - LPF: Push a track into the background, start of build-ups
+- Synthesizer filters:
+  - Moog Ladder Filter: Warm 24dB/oct low-pass
+  - MS-20 Filter: Aggressive resonance
+  - Oberheim Filter: Clean state-variable
+- Related terms: -> EQ, -> Resonance, -> Cutoff
 
 **FL Studio** [SW/PROD]
-- Image-Line社のDAW、旧称 FruityLoops
-- パターンベースのワークフローが特徴
-- Channel Rack: 各楽器のステップシーケンサー/ピアノロール
-- Playlist: パターンをタイムラインに配置
-- Mixer: 最大125トラック、柔軟なルーティング
-- Edison: 内蔵オーディオエディター
-- Lifetime Free Updates（永久無料アップデート）が特徴的
-- ビートメイキング、ヒップホップ、EDM制作で人気
-- エディション: Fruity（基本）、Producer（標準）、Signature（上位）、All Plugins Bundle
-- 関連用語: → DAW、→ Step Sequencer、→ Piano Roll
+- A DAW by Image-Line, formerly known as FruityLoops
+- Characterized by a pattern-based workflow
+- Channel Rack: Step sequencer/piano roll for each instrument
+- Playlist: Place patterns on the timeline
+- Mixer: Up to 125 tracks, flexible routing
+- Edison: Built-in audio editor
+- Notable for Lifetime Free Updates
+- Popular for beatmaking, hip-hop, and EDM production
+- Editions: Fruity (basic), Producer (standard), Signature (advanced), All Plugins Bundle
+- Related terms: -> DAW, -> Step Sequencer, -> Piano Roll
 
-**Frequency（周波数）** [BOTH]
-- 音の高さを決定する物理的パラメータ
-- 単位: Hz（ヘルツ）= 1秒あたりの振動数
-- 可聴域: 20 Hz - 20,000 Hz（20kHz）
-- 周波数帯域の分類:
-  - Sub Bass: 20-60 Hz（体で感じる低音）
-  - Bass: 60-250 Hz（ベース、キックの基音）
-  - Low Mid: 250-500 Hz（温かみ、箱鳴り感）
-  - Mid: 500-2,000 Hz（ボーカルの基音、楽器の胴鳴り）
-  - Upper Mid: 2,000-5,000 Hz（プレゼンス、明瞭さ）
-  - Presence: 5,000-8,000 Hz（子音の明瞭さ、金属感）
-  - Brilliance: 8,000-16,000 Hz（空気感、シンバルの輝き）
-  - Ultra High: 16,000-20,000 Hz（超高域、加齢とともに聞こえにくくなる）
-- 音楽的な音高との関係:
-  - A4（ラ）= 440 Hz（標準チューニング）
-  - 1オクターブ上 = 周波数が2倍
-  - 1オクターブ下 = 周波数が1/2
-- 関連用語: → EQ、→ Filter、→ Harmonics
+**Frequency** [BOTH]
+- A physical parameter that determines the pitch of sound
+- Unit: Hz (Hertz) = number of vibrations per second
+- Audible range: 20 Hz - 20,000 Hz (20kHz)
+- Frequency band classification:
+  - Sub Bass: 20-60 Hz (low frequencies felt physically)
+  - Bass: 60-250 Hz (bass, kick fundamentals)
+  - Low Mid: 250-500 Hz (warmth, boxiness)
+  - Mid: 500-2,000 Hz (vocal fundamentals, instrument body)
+  - Upper Mid: 2,000-5,000 Hz (presence, clarity)
+  - Presence: 5,000-8,000 Hz (consonant clarity, metallic quality)
+  - Brilliance: 8,000-16,000 Hz (air, cymbal sparkle)
+  - Ultra High: 16,000-20,000 Hz (ultra-high range, becomes harder to hear with age)
+- Relationship to musical pitch:
+  - A4 = 440 Hz (standard tuning)
+  - One octave up = frequency doubled
+  - One octave down = frequency halved
+- Related terms: -> EQ, -> Filter, -> Harmonics
 
 ---
 
 ## G
 
-**Gain（ゲイン）** [BOTH]
-- 信号の増幅量、音量の調整
-- DJミキサーのGain/Trimノブ: 入力レベルの調整（最初の調整ポイント）
-- ゲインステージング: 信号経路全体で適切なレベルを維持する手法
-  - 各段階で過大にも過小にもならないようにする
-  - デジタルでは0dBFSを超えないように注意
-  - 各プラグイン間でレベルを揃える
-- Unity Gain: 入力と出力が同じレベル（0dB増減なし）
-- ゲインの種類:
-  - Input Gain: 入力レベル調整
-  - Make-up Gain: コンプレッサー後の音量補正
-  - Output Gain: 最終出力レベル
-  - Staging Gain: プラグインチェーン内の各段階での調整
-- 関連用語: → Gain Staging、→ Trim、→ dB
+**Gain** [BOTH]
+- Signal amplification; volume adjustment
+- DJ mixer Gain/Trim knob: Input level adjustment (the first adjustment point)
+- Gain staging: The technique of maintaining appropriate levels throughout the signal path
+  - Ensure levels are neither too high nor too low at each stage
+  - In digital, be careful not to exceed 0dBFS
+  - Keep levels consistent between plugins
+- Unity Gain: Input and output at the same level (0dB, no change)
+- Types of gain:
+  - Input Gain: Input level adjustment
+  - Make-up Gain: Volume compensation after compression
+  - Output Gain: Final output level
+  - Staging Gain: Adjustment at each stage within the plugin chain
+- Related terms: -> Gain Staging, -> Trim, -> dB
 
-**Gain Staging（ゲインステージング）** [BOTH]
-- 信号経路全体で適切な音量レベルを維持する手法
-- 目的:
-  - ノイズフロアを最小化
-  - クリッピングを防止
-  - ダイナミックレンジの最大活用
-  - プラグインの最適動作ポイントの維持
-- 推奨手順:
-  1. 録音レベル: ピーク -18dBFS ~ -12dBFS
-  2. 各トラック: フェーダー Unity Gain（0dB）で適切なレベル
-  3. プラグイン入出力: 同じレベルを維持
-  4. バス: ピーク -6dBFS程度
-  5. マスター: ピーク -6dBFS（マスタリング前）
-- DAWの32bit float内部処理: 理論上クリッピングしないが、プラグインの入力でクリップする可能性あり
-- 関連用語: → dB、→ Clipping、→ Headroom
+**Gain Staging** [BOTH]
+- The technique of maintaining appropriate volume levels throughout the signal path
+- Objectives:
+  - Minimize noise floor
+  - Prevent clipping
+  - Maximize dynamic range utilization
+  - Maintain optimal operating points for plugins
+- Recommended procedure:
+  1. Recording level: Peak -18dBFS to -12dBFS
+  2. Individual tracks: Appropriate level at fader Unity Gain (0dB)
+  3. Plugin input/output: Maintain the same level
+  4. Bus: Peak around -6dBFS
+  5. Master: Peak -6dBFS (before mastering)
+- DAW 32bit float internal processing: Theoretically no clipping, but plugins may clip at their inputs
+- Related terms: -> dB, -> Clipping, -> Headroom
 
-**Gate / Noise Gate（ゲート / ノイズゲート）** [PROD]
-- 指定レベル以下の信号をカットするエフェクト
-- ノイズ除去に使用
-- 主要パラメーター:
-  - Threshold: ゲートが開くレベル
-  - Attack: ゲートが開く速さ
-  - Hold: ゲートが開いている最短時間
-  - Release: ゲートが閉じる速さ
-  - Range: 閉じた時の減衰量（-inf～0dB）
-- 用途:
-  - ドラム録音のかぶり除去
-  - ボーカルの息ノイズ除去
-  - クリエイティブなリズミカルカット（トランスゲート）
-- サイドチェインゲート: 別のソースでゲートの開閉を制御
-- 関連用語: → Compressor、→ Sidechain、→ Threshold
+**Gate / Noise Gate** [PROD]
+- An effect that cuts signals below a specified level
+- Used for noise removal
+- Key parameters:
+  - Threshold: Level at which the gate opens
+  - Attack: Speed at which the gate opens
+  - Hold: Minimum time the gate stays open
+  - Release: Speed at which the gate closes
+  - Range: Amount of attenuation when closed (-inf to 0dB)
+- Uses:
+  - Removing bleed from drum recordings
+  - Removing breath noise from vocals
+  - Creative rhythmic cuts (trance gate)
+- Sidechain gate: Controls gate opening/closing with another source
+- Related terms: -> Compressor, -> Sidechain, -> Threshold
 
-**Groove（グルーヴ）** [BOTH]
-- 楽曲のリズム的な「ノリ」「うねり」の感覚
-- タイミングの微妙なずれ（スウィング）が生み出すフィーリング
-- グルーヴの要素:
-  - タイミング: ジャストから微妙にずらす
-  - ベロシティ: 強弱のパターン
-  - アーティキュレーション: 音の長さの変化
-- DAWでの適用:
-  - Groove Template: 既存のグルーヴパターンを適用
-  - Swing: 偶数拍を遅らせる（50%=ジャスト、67%=トリプレット感）
-  - Humanize: ランダムなタイミング変化を加える
-- ハウスミュージックやファンクで特に重要な概念
-- 関連用語: → Swing、→ Quantize、→ Velocity
+**Groove** [BOTH]
+- The rhythmic "feel" or "swing" of a track
+- A feeling created by subtle timing deviations (swing)
+- Elements of groove:
+  - Timing: Slightly off from strict timing
+  - Velocity: Patterns of strong and weak beats
+  - Articulation: Variations in note length
+- Application in DAWs:
+  - Groove Template: Apply existing groove patterns
+  - Swing: Delay even beats (50% = straight, 67% = triplet feel)
+  - Humanize: Add random timing variations
+- A particularly important concept in house music and funk
+- Related terms: -> Swing, -> Quantize, -> Velocity
 
 ---
 
 ## H
 
-**Harmonic Mixing（ハーモニックミキシング）** [DJ]
-- キーを考慮したミキシング
-- 音楽的に調和する曲を繋ぐ
-- Camelot Wheel使用
-- 基本原則:
-  - 同じキー同士: 最も安全
-  - 近接キー: スムーズなトランジション
-  - 遠いキー: 不協和が生じる可能性
-- テクニック:
-  - キーロック使用時のピッチ変更（±1-2半音まで推奨）
-  - キーの異なる曲をEQで分離してブレンド
-  - ブレイクダウン部分でキーの違いが目立ちにくい
-- 注意点: ソフトウェアのキー分析は100%正確ではない
-- 関連用語: → Camelot Wheel、→ Key、→ Transition
+**Harmonic Mixing** [DJ]
+- Mixing with key compatibility in mind
+- Connecting tracks that harmonically match
+- Uses the Camelot Wheel
+- Basic principles:
+  - Same key: Safest
+  - Adjacent keys: Smooth transitions
+  - Distant keys: Potential dissonance
+- Techniques:
+  - Pitch changes with key lock (recommended within +/-1-2 semitones)
+  - Blending tracks with different keys by separating with EQ
+  - Key differences are less noticeable during breakdown sections
+- Note: Software key analysis is not 100% accurate
+- Related terms: -> Camelot Wheel, -> Key, -> Transition
 
-**Harmonics（倍音 / ハーモニクス）** [PROD]
-- 基音の整数倍の周波数を持つ音
-- 音色（ティンバー）を決定する重要な要素
-- 倍音構成:
-  - 第1倍音（基音）: f（周波数そのもの）
-  - 第2倍音: 2f（1オクターブ上）
-  - 第3倍音: 3f（1オクターブ+5度上）
-  - 第4倍音: 4f（2オクターブ上）
-  - 以降、整数倍で続く
-- 偶数倍音: 温かく、音楽的（チューブアンプの特性）
-- 奇数倍音: 硬く、攻撃的（ディストーションの特性）
-- サチュレーション: 倍音を付加して音を豊かにする
-- ハーモニックディストーション: 意図的な倍音付加
-- 関連用語: → Saturation、→ Distortion、→ Frequency
+**Harmonics** [PROD]
+- Sounds with frequencies that are integer multiples of the fundamental
+- An important factor determining timbre
+- Harmonic structure:
+  - 1st harmonic (fundamental): f (the frequency itself)
+  - 2nd harmonic: 2f (one octave up)
+  - 3rd harmonic: 3f (one octave + a fifth up)
+  - 4th harmonic: 4f (two octaves up)
+  - Continues in integer multiples
+- Even harmonics: Warm and musical (tube amp characteristics)
+- Odd harmonics: Hard and aggressive (distortion characteristics)
+- Saturation: Enriches sound by adding harmonics
+- Harmonic distortion: Intentional addition of harmonics
+- Related terms: -> Saturation, -> Distortion, -> Frequency
 
-**Headphones（ヘッドフォン）** [HW/BOTH]
-- DJ用とモニタリング用で特性が異なる
-- DJ用ヘッドフォンの特徴:
-  - 密閉型: 外部ノイズを遮断
-  - 高耐久: クラブ環境での使用に耐える
-  - スイベルイヤーカップ: 片耳モニタリング
-  - 高い遮音性: 大音量環境でも使用可能
-  - 代表機種: Pioneer HDJ-X10、Sennheiser HD 25、V-MODA Crossfade
-- モニタリング用（制作）:
-  - 開放型: 自然な音場（ゆるやかな外音の出入り）
-  - 平坦な周波数特性: 色付けのない音
-  - 代表機種: Beyerdynamic DT 990 Pro、AKG K712 Pro、Sennheiser HD 600
-- 関連用語: → Monitoring、→ Cue
+**Headphones** [HW/BOTH]
+- Characteristics differ between DJ and monitoring use
+- DJ headphone features:
+  - Closed-back: Blocks external noise
+  - High durability: Withstands club environments
+  - Swivel ear cups: One-ear monitoring
+  - High isolation: Usable in high-volume environments
+  - Representative models: Pioneer HDJ-X10, Sennheiser HD 25, V-MODA Crossfade
+- Monitoring (production):
+  - Open-back: Natural soundstage (gentle external sound leakage)
+  - Flat frequency response: Uncolored sound
+  - Representative models: Beyerdynamic DT 990 Pro, AKG K712 Pro, Sennheiser HD 600
+- Related terms: -> Monitoring, -> Cue
 
-**Headroom（ヘッドルーム）** [BOTH]
-- 信号レベルと最大許容レベル（0dBFS）の間の余裕
-- クリッピングを防ぐための安全マージン
-- 推奨ヘッドルーム:
-  - ミキシング中: 各トラック -18dBFS ~ -12dBFS
-  - マスターバス（マスタリング前）: -6dBFS ~ -3dBFS
-  - マスタリング後: -1dBFS ~ -0.1dBFS
-- ヘッドルームが不足すると: クリッピング、歪み
-- ヘッドルームが過剰だと: S/N比（信号対雑音比）が低下
-- 関連用語: → Gain Staging、→ Clipping、→ dB
+**Headroom** [BOTH]
+- The margin between the signal level and the maximum allowable level (0dBFS)
+- A safety margin to prevent clipping
+- Recommended headroom:
+  - During mixing: Individual tracks -18dBFS to -12dBFS
+  - Master bus (before mastering): -6dBFS to -3dBFS
+  - After mastering: -1dBFS to -0.1dBFS
+- Insufficient headroom: Clipping, distortion
+- Excessive headroom: Reduced S/N ratio (signal-to-noise ratio)
+- Related terms: -> Gain Staging, -> Clipping, -> dB
 
-**High Pass Filter（ハイパスフィルター / HPF）** [BOTH]
-- 指定周波数より低い成分をカットするフィルター
-- 別名: ローカットフィルター
-- 用途:
-  - 不要な超低域の除去（ランブル、マイクノイズ等）
-  - ミキシングでの周波数帯域の整理
-  - DJプレイでのトランジション（ベースを抜く）
-- 推奨カットオフ周波数:
-  - ボーカル: 80-120 Hz
-  - ギター: 80-100 Hz
-  - シンセリード: 100-200 Hz
-  - ハイハット: 200-400 Hz
-  - キック: 使用しない（基音が低域にある）
-- スロープ: 12dB/oct または 24dB/oct が一般的
-- 関連用語: → Filter、→ Low Pass Filter、→ EQ
+**High Pass Filter (HPF)** [BOTH]
+- A filter that cuts components below a specified frequency
+- Also known as: Low-cut filter
+- Uses:
+  - Removing unnecessary ultra-low frequencies (rumble, mic noise, etc.)
+  - Organizing frequency ranges in mixing
+  - Transitions in DJ performance (removing bass)
+- Recommended cutoff frequencies:
+  - Vocals: 80-120 Hz
+  - Guitar: 80-100 Hz
+  - Synth lead: 100-200 Hz
+  - Hi-hat: 200-400 Hz
+  - Kick: Not used (fundamental is in the low range)
+- Slope: 12dB/oct or 24dB/oct is common
+- Related terms: -> Filter, -> Low Pass Filter, -> EQ
 
-**Hot Cue（ホットキュー）** [DJ]
-- 曲内の特定ポイントを保存
-- 瞬時にジャンプ可能
-- Rekordboxで8個まで設定可能
-- CDJ-3000では最大8つのホットキューに対応
-- 色分けによる管理:
-  - 赤: イントロ/ドロップ
-  - 青: ブレイクダウン
-  - 緑: ビルドアップ
-  - 黄: ボーカルイン
-  - 等、自分のルールで統一
-- パフォーマンス中の使用:
-  - リミックスパフォーマンス
-  - ルーティンの構築
-  - 即興的なアレンジメント変更
-- 関連用語: → Cue Point、→ Rekordbox、→ Performance Pads
+**Hot Cue** [DJ]
+- Saves specific points within a track
+- Allows instant jumps
+- Up to 8 can be set in Rekordbox
+- CDJ-3000 supports up to 8 hot cues
+- Management by color coding:
+  - Red: Intro/Drop
+  - Blue: Breakdown
+  - Green: Build-up
+  - Yellow: Vocal in
+  - Etc., standardize with your own rules
+- Usage during performance:
+  - Remix performances
+  - Building routines
+  - Improvised arrangement changes
+- Related terms: -> Cue Point, -> Rekordbox, -> Performance Pads
 
 ---
 
 ## I
 
-**Insert（インサート）** [PROD]
-- エフェクトの接続方式の一つ
-- 信号経路に直列にエフェクトを挿入する
-- Dry/Wetノブで原音とのバランスを調整
-- インサート vs. センド/リターン:
-  - インサート: 個別トラックに直接適用（EQ、コンプレッサー等）
-  - センド/リターン: 複数トラックで共有（リバーブ、ディレイ等）
-- インサート順序の重要性:
-  - 一般的な順序: EQ → Compressor → Saturation → EQ → Limiter
-  - 順序を変えると結果が変わる
-- 関連用語: → Send/Return、→ Dry/Wet、→ Effects
+**Insert** [PROD]
+- One type of effect connection method
+- Inserts an effect in series into the signal path
+- Balance with the original signal is adjusted via the Dry/Wet knob
+- Insert vs. Send/Return:
+  - Insert: Applied directly to individual tracks (EQ, compressor, etc.)
+  - Send/Return: Shared across multiple tracks (reverb, delay, etc.)
+- Importance of insert order:
+  - Common order: EQ -> Compressor -> Saturation -> EQ -> Limiter
+  - Changing the order changes the result
+- Related terms: -> Send/Return, -> Dry/Wet, -> Effects
 
-**Isolator（アイソレーター）** [DJ]
-- DJミキサーの高品位なEQの一種
-- 各帯域を完全にカット（-∞ dB）可能
-- 通常のEQよりも急峻なフィルターカーブ
-- 3バンド（Hi/Mid/Low）が一般的
-- ロータリーミキサーで多く採用（Allen & Heath、Bozure等）
-- テクノ、ハウスDJに人気
-- 使用例:
-  - ベースの完全カット/追加でトランジション
-  - 各帯域を独立して操作するミキシング
-  - 劇的なフィルター効果
-- 関連用語: → EQ、→ Mixer、→ Filter
+**Isolator** [DJ]
+- A high-quality type of EQ found on DJ mixers
+- Capable of completely cutting each band (-infinity dB)
+- Steeper filter curves than standard EQ
+- Typically 3-band (Hi/Mid/Low)
+- Commonly found on rotary mixers (Allen & Heath, Bozure, etc.)
+- Popular with techno and house DJs
+- Usage examples:
+  - Transitions by completely cutting/adding bass
+  - Mixing by independently manipulating each band
+  - Dramatic filter effects
+- Related terms: -> EQ, -> Mixer, -> Filter
 
 ---
 
 ## J
 
-**Jitter（ジッター）** [HW/PROD]
-- デジタルオーディオにおけるクロック信号の時間的なゆらぎ
-- 高いジッターは音質劣化の原因
-  - 高域の粗さ
-  - ステレオイメージの不安定さ
-  - 全体的な解像度の低下
-- ジッター対策:
-  - 高品質なワードクロック（ジェネレーター）の使用
-  - 安定した電源環境
-  - 高品質なデジタルケーブルの使用
-- 現代のオーディオインターフェースではジッターは十分に低い
-- 関連用語: → Word Clock、→ Audio Interface、→ Sample Rate
+**Jitter** [HW/PROD]
+- Temporal fluctuation of the clock signal in digital audio
+- High jitter causes audio quality degradation
+  - Roughness in high frequencies
+  - Unstable stereo image
+  - Overall reduced resolution
+- Jitter countermeasures:
+  - Use of high-quality word clock (generator)
+  - Stable power supply environment
+  - Use of high-quality digital cables
+- Jitter is sufficiently low in modern audio interfaces
+- Related terms: -> Word Clock, -> Audio Interface, -> Sample Rate
 
-**Jog Wheel（ジョグホイール）** [HW/DJ]
-- DJコントローラーやCDJに搭載されたホイール型操作デバイス
-- 機能:
-  - ピッチベンド: ホイールを触って一時的に速度を変更（ビート合わせ）
-  - スクラッチ: ヒップホップDJのスクラッチ技法
-  - トラックのシーク: 楽曲内の位置を探す
-  - ループの微調整
-- 種類:
-  - メカニカルジョグ: 物理的に回転する（CDJ-3000等）
-  - タッチセンシティブジョグ: 静電容量式（触れると反応）
-  - モーターライズドジョグ: モーター駆動で実際のレコードの感触を再現
-- サイズ: 大きいほど精密な操作が可能（CDJは206mm、コントローラーは100-150mm）
-- 関連用語: → Beatmatching、→ Scratch、→ CDJ
+**Jog Wheel** [HW/DJ]
+- A wheel-type control device mounted on DJ controllers and CDJs
+- Functions:
+  - Pitch bend: Temporarily change speed by touching the wheel (beat alignment)
+  - Scratch: Hip-hop DJ scratch techniques
+  - Track seeking: Navigate to positions within a track
+  - Fine-tuning loops
+- Types:
+  - Mechanical jog: Physically rotates (CDJ-3000, etc.)
+  - Touch-sensitive jog: Capacitive type (responds to touch)
+  - Motorized jog: Motor-driven to replicate the feel of actual records
+- Size: Larger allows more precise control (CDJ is 206mm, controllers are 100-150mm)
+- Related terms: -> Beatmatching, -> Scratch, -> CDJ
 
 ---
 
 ## K
 
-**Key（キー / 調）** [BOTH]
-- 楽曲の音階、調性
-- 例: C Major（ハ長調）、A Minor（イ短調）
-- メジャーキー: 明るい響き
-- マイナーキー: 暗い、憂いのある響き
-- キー検出ソフト: Mixed In Key、Rekordbox、Traktor
-- キーの表記法:
-  - 標準表記: C, D, E, F, G, A, B + Major/Minor
-  - Camelot: 1A-12A（マイナー）、1B-12B（メジャー）
-  - Open Key: 1m-12m（マイナー）、1d-12d（メジャー）
-- キー変更（Key Lock / Master Tempo）:
-  - BPM変更時にキーを維持する機能
-  - 大幅な変更は音質劣化を伴う（±2半音以内推奨）
-- 関連用語: → Camelot Wheel、→ Harmonic Mixing、→ Scale
+**Key** [BOTH]
+- The musical scale and tonality of a track
+- Examples: C Major, A Minor
+- Major key: Bright sound
+- Minor key: Dark, melancholic sound
+- Key detection software: Mixed In Key, Rekordbox, Traktor
+- Key notation systems:
+  - Standard notation: C, D, E, F, G, A, B + Major/Minor
+  - Camelot: 1A-12A (minor), 1B-12B (major)
+  - Open Key: 1m-12m (minor), 1d-12d (major)
+- Key change (Key Lock / Master Tempo):
+  - A feature that maintains the key when changing BPM
+  - Significant changes involve audio quality degradation (recommended within +/-2 semitones)
+- Related terms: -> Camelot Wheel, -> Harmonic Mixing, -> Scale
 
-**Kick（キック）** [BOTH]
-- バスドラム、楽曲の土台
-- 4つ打ち: 毎拍にキック（ハウス、テクノの基本パターン）
-- キックの構成要素:
-  - クリック/アタック: 音の立ち上がり部分（3-8kHz）。パンチ感を決める
-  - ボディ: 中低域の厚み（80-250Hz）。存在感
-  - サブ: 超低域の響き（40-80Hz）。クラブでの体感
-  - テール: キックの余韻の長さ
-- ジャンル別キックの特徴:
-  - House: 中程度のアタック、温かいボディ、適度なテール
-  - Techno: 鋭いアタック、タイトなボディ、短いテール
-  - Trance: 長めのテール、強いサブ
-  - Hardstyle: 強烈なディストーション、長いテール
-- キックのレイヤリング: アタック用とボディ用の音を重ねて理想のキックを作る
-- サイドチェインソースとして最も一般的
-- 関連用語: → Sidechain、→ Bass、→ Four on the Floor
+**Kick** [BOTH]
+- Bass drum; the foundation of a track
+- Four-on-the-floor: Kick on every beat (basic pattern for house, techno)
+- Kick components:
+  - Click/Attack: The onset of the sound (3-8kHz). Determines punch
+  - Body: Mid-low thickness (80-250Hz). Presence
+  - Sub: Ultra-low resonance (40-80Hz). Physical sensation in clubs
+  - Tail: The length of the kick's decay
+- Kick characteristics by genre:
+  - House: Moderate attack, warm body, moderate tail
+  - Techno: Sharp attack, tight body, short tail
+  - Trance: Longer tail, strong sub
+  - Hardstyle: Intense distortion, long tail
+- Kick layering: Stacking attack and body sounds to create the ideal kick
+- The most common sidechain source
+- Related terms: -> Sidechain, -> Bass, -> Four on the Floor
 
 ---
 
 ## L
 
-**Latency（レイテンシー / 遅延）** [BOTH]
-- 入力から出力までの信号処理にかかる時間
-- 単位: ms（ミリ秒）
-- 種類:
-  - バッファレイテンシー: オーディオバッファサイズに依存
-  - ドライバレイテンシー: オーディオドライバの処理遅延
-  - ラウンドトリップレイテンシー: 入力→処理→出力の往復時間
-- 推奨値:
-  - ライブ演奏 / DJing: 5ms以下
-  - 録音: 10ms以下
-  - ミキシング: 重要度低（ただしプラグイン遅延補正は必要）
-- バッファサイズとの関係:
-  - 小さいバッファ（64-128サンプル）: 低レイテンシーだがCPU負荷が高い
-  - 大きいバッファ（512-1024サンプル）: 高レイテンシーだがCPU負荷が低い
-- ドライバの影響: ASIO（Windows）、Core Audio（macOS）が低レイテンシー
-- 関連用語: → Audio Interface、→ Buffer Size、→ ASIO
+**Latency** [BOTH]
+- The time required for signal processing from input to output
+- Unit: ms (milliseconds)
+- Types:
+  - Buffer latency: Depends on audio buffer size
+  - Driver latency: Processing delay from the audio driver
+  - Round-trip latency: Total time from input -> processing -> output
+- Recommended values:
+  - Live performance / DJing: 5ms or less
+  - Recording: 10ms or less
+  - Mixing: Low priority (though plugin delay compensation is needed)
+- Relationship with buffer size:
+  - Small buffer (64-128 samples): Low latency but high CPU load
+  - Large buffer (512-1024 samples): High latency but low CPU load
+- Driver impact: ASIO (Windows), Core Audio (macOS) provide low latency
+- Related terms: -> Audio Interface, -> Buffer Size, -> ASIO
 
 **LFO (Low Frequency Oscillator)** [PROD]
-- 低周波オシレーター、可聴域以下の周波数で変調する
-- 周波数範囲: 通常 0.01Hz - 30Hz
-- モジュレーションソースとして使用
-- 波形の種類:
-  - Sine（サイン）: 滑らかな変化
-  - Triangle（トライアングル）: 直線的な変化
-  - Square（スクエア）: 急激なオン/オフ
-  - Saw（ソー）: 一方向に上昇/下降
-  - Sample & Hold（S&H）: ランダムなステップ変化
-- 適用先:
-  - ピッチ: ビブラート効果
-  - フィルター: ワブルベース（ダブステップ）、フィルタースイープ
-  - アンプリチュード: トレモロ効果
-  - パン: オートパン
-- BPM同期: テンポに合わせてLFOの速度を同期
-- 関連用語: → Modulation、→ Oscillator、→ Filter
+- A low-frequency oscillator that modulates below the audible range
+- Frequency range: Typically 0.01Hz - 30Hz
+- Used as a modulation source
+- Waveform types:
+  - Sine: Smooth variation
+  - Triangle: Linear variation
+  - Square: Abrupt on/off
+  - Saw: Ascending/descending in one direction
+  - Sample & Hold (S&H): Random step changes
+- Application targets:
+  - Pitch: Vibrato effect
+  - Filter: Wobble bass (dubstep), filter sweep
+  - Amplitude: Tremolo effect
+  - Pan: Auto-pan
+- BPM sync: Synchronize LFO speed to the tempo
+- Related terms: -> Modulation, -> Oscillator, -> Filter
 
-**Limiter（リミッター）** [PROD]
-- コンプレッサーの極端な形、レシオが∞:1
-- 設定したスレッショルドを絶対に超えない
-- マスタリングの最終段で使用
-- 主要パラメーター:
-  - Ceiling（シーリング）: 最大出力レベル（-0.1dBFS ~ -1dBFS推奨）
-  - Threshold: 圧縮が始まるレベル
-  - Release: 圧縮解除の速さ（自動が一般的）
-  - Gain: 入力ゲイン（ラウドネスの調整）
-- ブリックウォールリミッター: 絶対に超えないリミッター
-- ルックアヘッド: 数ms先の信号を先読みして正確に制限
-- マスタリングでの目安:
-  - ゲインリダクション: 最大3-6dB（やりすぎると歪む）
-  - 最終出力: -1dBFS ~ -0.3dBFS
-- 関連用語: → Compressor、→ Mastering、→ LUFS
+**Limiter** [PROD]
+- An extreme form of compressor with an infinity:1 ratio
+- Never exceeds the set threshold
+- Used at the final stage of mastering
+- Key parameters:
+  - Ceiling: Maximum output level (-0.1dBFS to -1dBFS recommended)
+  - Threshold: Level at which compression begins
+  - Release: Speed of compression release (auto is common)
+  - Gain: Input gain (loudness adjustment)
+- Brickwall limiter: A limiter that absolutely never exceeds the ceiling
+- Lookahead: Reads a few ms ahead of the signal for precise limiting
+- Mastering guidelines:
+  - Gain reduction: Maximum 3-6dB (excessive causes distortion)
+  - Final output: -1dBFS to -0.3dBFS
+- Related terms: -> Compressor, -> Mastering, -> LUFS
 
 **Logic Pro** [SW/PROD]
-- Apple社のmacOS専用DAW
-- 特徴:
-  - 豊富な付属音源: Alchemy（シンセ）、Drum Machine Designer、Sampler
-  - 高品質エフェクトプラグイン
-  - Flex Time / Flex Pitch: タイミングとピッチの編集
-  - Smart Tempo: BPM自動検出と適応
-  - Drummer: AIドラマーによるリアルなドラムパターン生成
-  - Spatial Audio / Dolby Atmos対応
-- Logic Pro for iPad: iPad版が利用可能
-- 価格: 買い切り型（サブスクリプションも選択可能）
-- EDM制作での強み: 豊富なループライブラリ、Alchemyシンセの品質
-- 関連用語: → DAW、→ Plugin、→ MIDI
+- Apple's macOS-exclusive DAW
+- Features:
+  - Rich built-in instruments: Alchemy (synth), Drum Machine Designer, Sampler
+  - High-quality effect plugins
+  - Flex Time / Flex Pitch: Timing and pitch editing
+  - Smart Tempo: Automatic BPM detection and adaptation
+  - Drummer: Realistic drum pattern generation by AI drummer
+  - Spatial Audio / Dolby Atmos support
+- Logic Pro for iPad: iPad version available
+- Pricing: One-time purchase (subscription also available)
+- Strengths in EDM production: Rich loop library, Alchemy synth quality
+- Related terms: -> DAW, -> Plugin, -> MIDI
 
-**Loop（ループ）** [BOTH]
-- 繰り返し再生
-- DJプレイでの使用:
-  - 曲を延長してミキシングの時間を確保
-  - ブレイクダウンやイントロをループで延長
-  - ループサイズ: 1拍、2拍、1小節、2小節、4小節等
-  - ループイン/アウト: 手動でループ範囲を設定
-  - オートループ: ボタン一つでビートグリッドに合ったループを設定
-- 制作での使用:
-  - サンプルのループポイント設定
-  - パターン（ドラムループ、ベースループ等）の作成
-  - ループライブラリ: Splice、Loopmasters等のサービスからループ素材を入手
-- 関連用語: → Beat Grid、→ Phrase、→ Sample
+**Loop** [BOTH]
+- Repeated playback
+- Usage in DJ performance:
+  - Extend a track to create time for mixing
+  - Loop breakdowns or intros for extension
+  - Loop sizes: 1 beat, 2 beats, 1 bar, 2 bars, 4 bars, etc.
+  - Loop in/out: Manually set the loop range
+  - Auto loop: Set a beat grid-aligned loop with a single button
+- Usage in production:
+  - Setting loop points for samples
+  - Creating patterns (drum loops, bass loops, etc.)
+  - Loop libraries: Obtain loop material from services like Splice, Loopmasters, etc.
+- Related terms: -> Beat Grid, -> Phrase, -> Sample
 
 **LUFS (Loudness Units Full Scale)** [BOTH]
-- ラウドネス（聴感上の音量）の単位
-- 人間の聴覚特性を考慮した測定方式
-- ストリーミングプラットフォームの基準:
-  - Spotify: -14 LUFS（ラウドネスノーマライゼーション適用）
+- A unit of loudness (perceived volume)
+- A measurement method that accounts for human hearing characteristics
+- Streaming platform standards:
+  - Spotify: -14 LUFS (loudness normalization applied)
   - Apple Music: -16 LUFS
   - YouTube: -14 LUFS
   - Tidal: -14 LUFS
-- マスタリングでの目安:
-  - ストリーミング向け: -14 LUFS ~ -12 LUFS
-  - クラブ向け: -8 LUFS ~ -6 LUFS
-  - ポッドキャスト: -16 LUFS ~ -14 LUFS
-- 測定の種類:
-  - Integrated: 楽曲全体の平均
-  - Short-term: 直近3秒の平均
-  - Momentary: 直近400msの瞬間値
-- 関連用語: → Mastering、→ Limiter、→ Dynamic Range
+- Mastering guidelines:
+  - For streaming: -14 LUFS to -12 LUFS
+  - For clubs: -8 LUFS to -6 LUFS
+  - Podcasts: -16 LUFS to -14 LUFS
+- Measurement types:
+  - Integrated: Average across the entire track
+  - Short-term: Average over the last 3 seconds
+  - Momentary: Instantaneous value over the last 400ms
+- Related terms: -> Mastering, -> Limiter, -> Dynamic Range
 
 ---
 
 ## M
 
-**Mashup（マッシュアップ）** [DJ]
-- 2曲以上の楽曲を組み合わせて新しい曲を作る手法
-- 基本パターン:
-  - ボーカル + インストゥルメンタル: 異なる曲のアカペラとインストを組み合わせ
-  - ドロップの差し替え: イントロはA曲、ドロップはB曲
-  - レイヤリング: 複数の要素を同時に重ねる
-- 成功のポイント:
-  - BPMの一致（または近い値）
-  - キーの互換性（Camelot Wheel参照）
-  - エネルギーレベルの一致
-  - EQで帯域の棲み分けを行う
-- ツール: Ableton Live、Audacity、DJ上でのリアルタイムマッシュアップ
-- 関連用語: → Acapella、→ Key、→ BPM
+**Mashup** [DJ]
+- A technique of combining two or more tracks to create a new one
+- Basic patterns:
+  - Vocal + Instrumental: Combining acapella and instrumental from different tracks
+  - Drop replacement: Intro from track A, drop from track B
+  - Layering: Stacking multiple elements simultaneously
+- Keys to success:
+  - Matching BPM (or close values)
+  - Key compatibility (see Camelot Wheel)
+  - Matching energy levels
+  - Using EQ to separate frequency ranges
+- Tools: Ableton Live, Audacity, real-time mashups during DJ sets
+- Related terms: -> Acapella, -> Key, -> BPM
 
-**Mastering（マスタリング）** [PROD]
-- 楽曲制作の最終工程
-- 目的:
-  - 音量の最適化（ラウドネス）
-  - 周波数バランスの調整
-  - ステレオイメージの最終調整
-  - 複数曲間の一貫性確保（アルバム制作）
-  - 配信フォーマットへの変換
-- 典型的なマスタリングチェーン:
-  1. EQ: 全体の周波数バランス調整
-  2. Multiband Compressor: 帯域別のダイナミクス制御
-  3. Stereo Enhancer: ステレオ幅の調整
-  4. Limiter: 最終的な音圧上げ
-  5. Dithering: ビット深度変換時の処理
-- AI マスタリング: LANDR、eMastered等のオンラインサービス
-- 推奨出力レベル: -1dBFS True Peak、-14 LUFS Integrated（ストリーミング向け）
-- 関連用語: → Limiter、→ LUFS、→ EQ
+**Mastering** [PROD]
+- The final stage of music production
+- Objectives:
+  - Volume optimization (loudness)
+  - Frequency balance adjustment
+  - Final stereo image adjustment
+  - Ensuring consistency across multiple tracks (album production)
+  - Conversion to distribution formats
+- Typical mastering chain:
+  1. EQ: Overall frequency balance adjustment
+  2. Multiband Compressor: Band-specific dynamics control
+  3. Stereo Enhancer: Stereo width adjustment
+  4. Limiter: Final loudness maximization
+  5. Dithering: Processing during bit depth conversion
+- AI mastering: Online services like LANDR, eMastered, etc.
+- Recommended output level: -1dBFS True Peak, -14 LUFS Integrated (for streaming)
+- Related terms: -> Limiter, -> LUFS, -> EQ
 
 **MIDI (Musical Instrument Digital Interface)** [BOTH]
-- 音楽情報のデジタル伝送規格
-- 伝送するデータ:
-  - Note On/Off: 音の開始と終了
-  - Velocity: 鍵盤を押す強さ（0-127）
-  - CC (Control Change): ノブやフェーダーの値（0-127）
-  - Program Change: 音色の切り替え
-  - Pitch Bend: ピッチの連続変化
-  - Aftertouch: 鍵盤を押した後の圧力変化
-- MIDI 2.0: 2020年発表の新規格
-  - 解像度の向上: 7bitから16/32bitへ
-  - 双方向通信
-  - プロファイル対応
-- 接続方式:
-  - DIN 5pin: 伝統的なMIDIケーブル
-  - USB-MIDI: 現代の標準
-  - Bluetooth MIDI: ワイヤレス接続
-- MIDIコントローラー: DJコントローラー、キーボード、パッドコントローラー等
-- MIDIマッピング: コントローラーの各部にソフトウェア機能を割り当て
-- 関連用語: → DAW、→ Controller、→ Velocity
+- A digital transmission standard for musical information
+- Transmitted data:
+  - Note On/Off: Start and end of notes
+  - Velocity: Strength of key press (0-127)
+  - CC (Control Change): Knob and fader values (0-127)
+  - Program Change: Sound preset switching
+  - Pitch Bend: Continuous pitch change
+  - Aftertouch: Pressure change after key press
+- MIDI 2.0: New standard announced in 2020
+  - Increased resolution: From 7bit to 16/32bit
+  - Bidirectional communication
+  - Profile support
+- Connection methods:
+  - DIN 5pin: Traditional MIDI cable
+  - USB-MIDI: Modern standard
+  - Bluetooth MIDI: Wireless connection
+- MIDI controllers: DJ controllers, keyboards, pad controllers, etc.
+- MIDI mapping: Assigning software functions to each part of a controller
+- Related terms: -> DAW, -> Controller, -> Velocity
 
-**Mixer / DJ Mixer（ミキサー）** [HW/DJ]
-- 複数の音声信号を混合する機器
-- DJミキサーの主要メーカーと機種:
-  - Pioneer DJ DJM-900NXS2: 業界標準の4chミキサー
-  - Pioneer DJ DJM-V10: 6ch、高音質
-  - Allen & Heath Xone:96: アナログサウンド、フィルター重視
-  - MODEL 1 by Richie Hawtin: ロータリーミキサー
-- チャンネルストリップの信号フロー:
-  - Input Selector → Trim/Gain → EQ/Isolator → Filter → Channel Fader → Crossfader → Master
-- エフェクトセクション:
-  - Beat FX: テンポ同期エフェクト
-  - Sound Color FX: ノブ一つで操作するエフェクト
-- 出力:
-  - Master Out: メインスピーカーへ
-  - Booth Out: DJブースのモニターへ
-  - Rec Out: 録音機器へ
-- 関連用語: → EQ、→ Crossfader、→ Channel
+**Mixer / DJ Mixer** [HW/DJ]
+- A device that blends multiple audio signals
+- Major DJ mixer manufacturers and models:
+  - Pioneer DJ DJM-900NXS2: Industry-standard 4ch mixer
+  - Pioneer DJ DJM-V10: 6ch, high audio quality
+  - Allen & Heath Xone:96: Analog sound, filter-focused
+  - MODEL 1 by Richie Hawtin: Rotary mixer
+- Channel strip signal flow:
+  - Input Selector -> Trim/Gain -> EQ/Isolator -> Filter -> Channel Fader -> Crossfader -> Master
+- Effects section:
+  - Beat FX: Tempo-synced effects
+  - Sound Color FX: Single-knob effects
+- Outputs:
+  - Master Out: To main speakers
+  - Booth Out: To DJ booth monitors
+  - Rec Out: To recording equipment
+- Related terms: -> EQ, -> Crossfader, -> Channel
 
-**Mixing（ミキシング）** [BOTH]
-- 複数トラックのバランス調整
-- DJミキシング:
-  - 2曲以上をシームレスに繋ぐ技術
-  - テクニック: ブレンド、カット、フィルタースイープ、エコーアウト
-  - 目標: フロアのエネルギーを維持・コントロール
-- プロダクションミキシング:
-  - 各トラックの音量、パン、EQ、エフェクトを調整
-  - ステップ:
-    1. ゲインステージング
-    2. パンニング（ステレオ配置）
-    3. EQ処理（帯域の整理）
-    4. コンプレッション（ダイナミクス制御）
-    5. エフェクト処理（空間、モジュレーション等）
-    6. オートメーション（時間的変化）
-- EQ, Compressor, Reverb使用
-- マスタリング前の工程
-- 関連用語: → EQ、→ Compressor、→ Panning
+**Mixing** [BOTH]
+- Balancing multiple tracks
+- DJ mixing:
+  - The technique of seamlessly connecting two or more tracks
+  - Techniques: Blend, cut, filter sweep, echo out
+  - Goal: Maintain and control floor energy
+- Production mixing:
+  - Adjusting volume, pan, EQ, and effects for each track
+  - Steps:
+    1. Gain staging
+    2. Panning (stereo placement)
+    3. EQ processing (frequency organization)
+    4. Compression (dynamics control)
+    5. Effects processing (spatial, modulation, etc.)
+    6. Automation (temporal changes)
+- Uses EQ, Compressor, Reverb
+- The stage before mastering
+- Related terms: -> EQ, -> Compressor, -> Panning
 
-**Modulation（モジュレーション / 変調）** [PROD]
-- パラメーターを時間的に変化させること
-- モジュレーションソース:
-  - LFO: 周期的な変化
-  - Envelope: 音の発音に連動した変化
-  - Velocity: 鍵盤の打鍵の強さに連動
-  - Aftertouch: 鍵盤を押し続ける圧力に連動
-  - Mod Wheel: 手動制御
-- モジュレーションの対象（デスティネーション）:
-  - ピッチ → ビブラート
-  - フィルター → ワウワウ、ワブル
-  - アンプリチュード → トレモロ
-  - パン → オートパン
-  - エフェクトパラメーター → 動的なエフェクト変化
-- モジュレーションマトリクス: ソースとデスティネーションを自由に接続
-- 関連用語: → LFO、→ Envelope、→ Synthesizer
+**Modulation** [PROD]
+- Changing a parameter over time
+- Modulation sources:
+  - LFO: Periodic changes
+  - Envelope: Changes linked to note onset
+  - Velocity: Linked to key press strength
+  - Aftertouch: Linked to sustained key pressure
+  - Mod Wheel: Manual control
+- Modulation destinations:
+  - Pitch -> Vibrato
+  - Filter -> Wah-wah, wobble
+  - Amplitude -> Tremolo
+  - Pan -> Auto-pan
+  - Effect parameters -> Dynamic effect changes
+- Modulation matrix: Freely connect sources and destinations
+- Related terms: -> LFO, -> Envelope, -> Synthesizer
 
-**Monitor / Monitoring（モニター / モニタリング）** [BOTH]
-- DJモニタリング:
-  - CUE/PFLボタン: ヘッドフォンで次の曲をプレビュー
-  - ブースモニター: DJブースのスピーカー
-  - スプリットキュー: ヘッドフォンの左右で異なるチャンネルを聴く
-- スタジオモニタリング:
-  - ニアフィールドモニター: デスクトップに置く小型スピーカー
-  - ミッドフィールドモニター: 中距離用
-  - サブウーファー: 超低域の確認用
-- モニタースピーカーの選び方:
-  - フラットな周波数特性
-  - 部屋のサイズに合ったサイズ
-  - 適切なセッティング（イヤーレベル、等辺三角形配置）
-- 代表的なモニタースピーカー: YAMAHA HS シリーズ、ADAM Audio、Genelec、KRK
-- 関連用語: → Headphones、→ EQ、→ Mixing
+**Monitor / Monitoring** [BOTH]
+- DJ monitoring:
+  - CUE/PFL button: Preview the next track through headphones
+  - Booth monitor: Speakers in the DJ booth
+  - Split cue: Listen to different channels in left/right headphones
+- Studio monitoring:
+  - Nearfield monitors: Small speakers placed on the desk
+  - Midfield monitors: For medium distance
+  - Subwoofer: For checking ultra-low frequencies
+- How to choose monitor speakers:
+  - Flat frequency response
+  - Size appropriate for the room
+  - Proper setup (ear level, equilateral triangle placement)
+- Representative monitor speakers: YAMAHA HS series, ADAM Audio, Genelec, KRK
+- Related terms: -> Headphones, -> EQ, -> Mixing
 
 ---
 
 ## N
 
-**Noise（ノイズ）** [BOTH]
-- 音楽における意図的・非意図的な雑音
-- ノイズの種類:
-  - White Noise: 全周波数が等しいエネルギー（シーッという音）
-  - Pink Noise: 低域が強い（自然なヒスノイズに近い）
-  - Brown Noise: さらに低域が強い（ゴーッという深い音）
-- 音楽制作での使用:
-  - ライザー/スイープ: ビルドアップの緊張感
-  - ハイハットのレイヤー: シズル感を追加
-  - パッドのテクスチャー: ノイズを混ぜて質感を加える
-  - アンビエントサウンド: 環境音として使用
-- 不要なノイズ:
-  - ヒスノイズ: アナログ機器のバックグラウンドノイズ
-  - ハムノイズ: 電源由来のノイズ（50Hz/60Hz）
-  - クリック/ポップ: デジタル接続の問題
-- ノイズ除去ツール: iZotope RX、Waves NS1
-- 関連用語: → Build-up、→ Filter、→ Gate
+**Noise** [BOTH]
+- Intentional or unintentional sound artifacts in music
+- Types of noise:
+  - White Noise: Equal energy across all frequencies (hissing sound)
+  - Pink Noise: Stronger in low frequencies (close to natural hiss noise)
+  - Brown Noise: Even stronger in low frequencies (deep rumbling sound)
+- Usage in music production:
+  - Risers/sweeps: Build-up tension
+  - Hi-hat layering: Add sizzle
+  - Pad textures: Mix in noise to add character
+  - Ambient sounds: Used as environmental sounds
+- Unwanted noise:
+  - Hiss noise: Background noise from analog equipment
+  - Hum noise: Power supply noise (50Hz/60Hz)
+  - Clicks/pops: Digital connection issues
+- Noise removal tools: iZotope RX, Waves NS1
+- Related terms: -> Build-up, -> Filter, -> Gate
 
-**Normalization（ノーマライゼーション）** [PROD]
-- オーディオのレベルを基準値に揃える処理
-- ピークノーマライゼーション: ピークが指定レベル（通常0dBFS or -1dBFS）になるように全体を調整
-- ラウドネスノーマライゼーション: 聴感上の音量（LUFS）を基準に調整
-- ストリーミングサービスのラウドネスノーマライゼーション:
-  - 基準より大きい曲: 音量を下げる
-  - 基準より小さい曲: 音量を上げる（または上げない場合もある）
-- 注意: ノーマライゼーションはダイナミクスを変えない（コンプレッションとは異なる）
-- 関連用語: → LUFS、→ Mastering、→ Dynamic Range
+**Normalization** [PROD]
+- Processing that adjusts audio levels to a reference value
+- Peak normalization: Adjusts the entire signal so the peak reaches a specified level (usually 0dBFS or -1dBFS)
+- Loudness normalization: Adjusts based on perceived loudness (LUFS)
+- Streaming service loudness normalization:
+  - Tracks louder than the standard: Volume reduced
+  - Tracks quieter than the standard: Volume raised (or sometimes not)
+- Note: Normalization does not change dynamics (different from compression)
+- Related terms: -> LUFS, -> Mastering, -> Dynamic Range
 
 ---
 
 ## O
 
-**Oscillator（オシレーター / 発振器）** [PROD]
-- シンセサイザーの音源部分、波形を生成する
-- 基本波形:
-  - Sine（サイン波）: 純音、倍音なし。サブベースに最適
-  - Saw（ノコギリ波）: 全ての倍音を含む。リードやパッドに
-  - Square（矩形波）: 奇数倍音のみ。中空的な響き
-  - Triangle（三角波）: 奇数倍音が弱い。ソフトな響き
-  - Noise（ノイズ）: ランダムな波形。パーカッションやSFXに
-- 高度な合成方式:
-  - Wavetable: 波形テーブルを切り替えて音色変化（Serum、Massive等）
-  - FM Synthesis: オシレーター同士で変調（DX7、FM8等）
-  - Additive: 倍音を個別にコントロール
-  - Physical Modeling: 物理モデルによる音合成
-  - Granular: 音を粒子に分解して再構成
-- デチューン: 複数オシレーターの微妙なピッチずれで厚みを出す
-- ユニゾン: 同じ音程で複数のオシレーターを重ねる（Super Saw等）
-- 関連用語: → Synthesizer、→ Waveform、→ LFO
+**Oscillator** [PROD]
+- The sound source part of a synthesizer; generates waveforms
+- Basic waveforms:
+  - Sine wave: Pure tone, no harmonics. Ideal for sub bass
+  - Saw (sawtooth wave): Contains all harmonics. For leads and pads
+  - Square wave: Only odd harmonics. Hollow sound
+  - Triangle wave: Weak odd harmonics. Soft sound
+  - Noise: Random waveform. For percussion and SFX
+- Advanced synthesis methods:
+  - Wavetable: Sound changes by switching through wave tables (Serum, Massive, etc.)
+  - FM Synthesis: Oscillators modulate each other (DX7, FM8, etc.)
+  - Additive: Individual control of harmonics
+  - Physical Modeling: Sound synthesis based on physical models
+  - Granular: Decomposes sound into particles and reconstructs
+- Detune: Slight pitch offset between multiple oscillators for thickness
+- Unison: Layering multiple oscillators at the same pitch (Super Saw, etc.)
+- Related terms: -> Synthesizer, -> Waveform, -> LFO
 
-**Outro（アウトロ）** [BOTH]
-- 楽曲の終結部分
-- DJフレンドリーなアウトロ:
-  - 徐々に要素が減っていく
-  - 16-32小節の長さ
-  - キックとハイハットのみが残る
-  - 次の曲のイントロとブレンドしやすい
-- DJミキシングでの重要性:
-  - 前の曲のアウトロと次の曲のイントロを重ねるのが基本テクニック
-  - アウトロが短い曲はミキシングが難しい（カットインが必要）
-- 対義語: → Intro
-- 関連用語: → Arrangement、→ Transition、→ Phrase
+**Outro** [BOTH]
+- The closing section of a track
+- DJ-friendly outro:
+  - Elements gradually decrease
+  - 16-32 bars in length
+  - Only kick and hi-hat remain
+  - Easy to blend with the next track's intro
+- Importance in DJ mixing:
+  - The basic technique is to overlap the previous track's outro with the next track's intro
+  - Tracks with short outros are harder to mix (require cut-ins)
+- Antonym: -> Intro
+- Related terms: -> Arrangement, -> Transition, -> Phrase
 
-**Oversampling（オーバーサンプリング）** [PROD]
-- サンプリングレートを一時的に上げて処理する技術
-- 目的: エイリアシング（折り返し雑音）の低減
-- 使用場面:
-  - ディストーション/サチュレーションプラグイン
-  - リミッター/マキシマイザー
-  - シンセサイザーの内部処理
-- 倍率: 2x、4x、8x、16x等
-- トレードオフ: CPU負荷の増加
-- 2x-4xで十分な場合がほとんど
-- 関連用語: → Sample Rate、→ Aliasing、→ Distortion
+**Oversampling** [PROD]
+- A technique that temporarily increases the sampling rate for processing
+- Purpose: Reducing aliasing (foldback noise)
+- Usage scenarios:
+  - Distortion/saturation plugins
+  - Limiters/maximizers
+  - Synthesizer internal processing
+- Multipliers: 2x, 4x, 8x, 16x, etc.
+- Trade-off: Increased CPU load
+- 2x-4x is sufficient in most cases
+- Related terms: -> Sample Rate, -> Aliasing, -> Distortion
 
 ---
 
 ## P
 
-**Pad（パッド）** [PROD]
-- 持続する和音、楽曲の背景的なサウンド
-- ステレオ幅: 80-100%（広がりを持たせる）
-- パッドの制作テクニック:
-  - 長いアタック（500ms+）でゆっくり立ち上げる
-  - リバーブを深くかけて空間を作る
-  - LFOでフィルターを緩やかに動かして動的な質感に
-  - レイヤリング: 複数のパッドを重ねて厚みを出す
-  - ノイズを少量混ぜてテクスチャーを加える
-- ジャンル別のパッド特徴:
-  - Ambient: 長く持続する、空間的
-  - Trance: 壮大で感情的なコードパッド
-  - Lo-Fi: ビンテージ感のあるテープサチュレーション
-- ミキシングのポイント:
-  - サイドチェインで軽くポンピングさせるとグルーヴ感が出る
-  - EQで低域をカットしてベースと干渉させない
-  - リバーブのプリディレイで原音を明瞭に保つ
-- 関連用語: → Reverb、→ Sidechain、→ LFO
+**Pad** [PROD]
+- Sustained chords; background sound of a track
+- Stereo width: 80-100% (to provide spread)
+- Pad production techniques:
+  - Long attack (500ms+) for a slow build
+  - Apply deep reverb to create space
+  - Gently move the filter with LFO for dynamic texture
+  - Layering: Stack multiple pads for thickness
+  - Mix in a small amount of noise to add texture
+- Pad characteristics by genre:
+  - Ambient: Long sustain, spatial
+  - Trance: Grand, emotional chord pads
+  - Lo-Fi: Vintage feel with tape saturation
+- Mixing tips:
+  - Light sidechain pumping adds groove
+  - Cut low frequencies with EQ to avoid interference with bass
+  - Use reverb pre-delay to keep the dry signal clear
+- Related terms: -> Reverb, -> Sidechain, -> LFO
 
-**Panning（パンニング）** [PROD]
-- ステレオフィールド内での音の左右配置
-- パンポット: -100%（左）～ 0%（センター）～ +100%（右）
-- 基本的な配置ルール:
-  - センター: キック、ベース、ボーカル、スネア（低域はセンターが基本）
-  - やや左右: タム、シンセリード
-  - 広め: ハイハット、パッド、コーラス、ストリングス
-  - 極端な左右: 特殊効果、パーカッション、アンビエント要素
-- パンニングの法則:
-  - LRパン: 左右にパンするとセンターが3dB下がる（補正が必要な場合あり）
-  - 等パワーパンニング: センターの音量低下を自動補正
-- ステレオイメージの確認:
-  - モノ互換性チェック: モノに畳んだときに位相キャンセルが起きないか確認
-  - ゴニオメーター: ステレオの位相と広がりを視覚化するメーター
-- オートパン: LFOで左右に自動的に揺らす
-- 関連用語: → Stereo、→ Mixing、→ Phase
+**Panning** [PROD]
+- Left/right placement of sound within the stereo field
+- Pan pot: -100% (left) to 0% (center) to +100% (right)
+- Basic placement rules:
+  - Center: Kick, bass, vocals, snare (low frequencies are center by default)
+  - Slightly left/right: Toms, synth leads
+  - Wider: Hi-hats, pads, chorus, strings
+  - Extreme left/right: Special effects, percussion, ambient elements
+- Panning laws:
+  - LR pan: Panning left/right drops the center by 3dB (correction may be needed)
+  - Equal power panning: Automatically compensates for center volume drop
+- Stereo image verification:
+  - Mono compatibility check: Verify no phase cancellation occurs when summed to mono
+  - Goniometer: A meter that visualizes stereo phase and spread
+- Auto-pan: Automatically sweeps left/right using LFO
+- Related terms: -> Stereo, -> Mixing, -> Phase
 
-**Performance Pads（パフォーマンスパッド）** [HW/DJ]
-- DJコントローラーやCDJに搭載されたタッチパッド
-- 機能モード:
-  - Hot Cue: キューポイントのトリガー
-  - Loop: ループの開始/終了
-  - Sampler: サンプルの再生
-  - Slicer: ビートをスライスして再構成
-  - Beat Jump: 指定拍数分のジャンプ
-  - Roll: ドラムロール的なリピート効果
-  - Pad FX: パッドにエフェクトを割り当て
-- ベロシティ対応: 押す強さで音量や効果が変化
-- CDJ-3000: 8つのパフォーマンスパッド
-- 関連用語: → Hot Cue、→ Loop、→ Sampler
+**Performance Pads** [HW/DJ]
+- Touch pads mounted on DJ controllers and CDJs
+- Function modes:
+  - Hot Cue: Trigger cue points
+  - Loop: Start/end loops
+  - Sampler: Play samples
+  - Slicer: Slice and rearrange beats
+  - Beat Jump: Jump by specified beat counts
+  - Roll: Drum roll-like repeat effect
+  - Pad FX: Assign effects to pads
+- Velocity-sensitive: Volume and effect intensity change based on press strength
+- CDJ-3000: 8 performance pads
+- Related terms: -> Hot Cue, -> Loop, -> Sampler
 
-**Phase（フェーズ / 位相）** [BOTH]
-- 波形の時間的なずれ
-- DJプレイでの位相:
-  - ビートの位相: 2曲のビートが一致しているかどうか
-  - 位相がずれると: ビートが「フランジング」して聞こえる
-  - 位相合わせ: ジョグホイールで微調整
-- 音楽制作での位相:
-  - 位相キャンセル: 同じ音の波形が逆位相で打ち消し合う
-  - 位相の反転: 極性を反転して問題を解消
-  - マルチマイク録音での位相のずれ: 距離差による到達時間の違い
-- フェイザーエフェクト: 位相をずらした信号を原音に混ぜて独特のスイープ効果
-- 関連用語: → Panning、→ Stereo、→ Beatmatching
+**Phase** [BOTH]
+- The temporal offset of a waveform
+- Phase in DJ performance:
+  - Beat phase: Whether beats of two tracks are aligned
+  - When out of phase: Beats sound "flanged"
+  - Phase alignment: Fine-tuned with the jog wheel
+- Phase in music production:
+  - Phase cancellation: Waveforms of the same sound cancel each other when out of phase
+  - Phase inversion: Reversing polarity to resolve issues
+  - Phase offset in multi-mic recording: Timing differences due to distance
+- Phaser effect: Mixing a phase-shifted signal with the original for a unique sweep effect
+- Related terms: -> Panning, -> Stereo, -> Beatmatching
 
-**Phrase（フレーズ）** [BOTH]
-- 音楽の一区切り
-- 通常8小節（EDMの場合）
-- DJミキシング: フレーズ単位でミックスするのが基本
-- フレーズの構造（EDM典型例）:
-  - 4小節 × 2 = 1フレーズ（8小節）
-  - 2フレーズ = 1セクション（16小節）
-  - 2セクション = 1ブロック（32小節）
-- フレーズの変わり目を意識したDJミキシング:
-  - 新しいフレーズの開始に合わせて次の曲を入れる
-  - エネルギーの変化はフレーズ単位で起こることが多い
-- Rekordboxのフレーズ分析機能: 楽曲の構成を色分け表示
-- 関連用語: → Bar、→ Arrangement、→ Transition
+**Phrase** [BOTH]
+- A musical section
+- Usually 8 bars (in EDM)
+- DJ mixing: Mixing in phrase units is fundamental
+- Phrase structure (typical EDM example):
+  - 4 bars x 2 = 1 phrase (8 bars)
+  - 2 phrases = 1 section (16 bars)
+  - 2 sections = 1 block (32 bars)
+- Phrase-aware DJ mixing:
+  - Start the next track at the beginning of a new phrase
+  - Energy changes often occur in phrase units
+- Rekordbox phrase analysis feature: Color-coded display of track structure
+- Related terms: -> Bar, -> Arrangement, -> Transition
 
-**Pitch（ピッチ / 音程）** [BOTH]
-- 音の高さ
-- 単位: Hz（物理的）、半音/セント（音楽的）
-- 1オクターブ = 12半音
-- 1半音 = 100セント
-- DJプレイでのピッチ操作:
-  - ピッチフェーダー: BPM変更（通常±6%、±10%、±16%の範囲）
-  - ピッチベンド: 一時的な速度変更（ビート合わせ）
-  - Key Lock / Master Tempo: BPMを変えてもピッチ（キー）を維持
-- 制作でのピッチ操作:
-  - ピッチシフト: 音の高さを変更
-  - ピッチエンベロープ: キック等の音頭で使用（キックの「プッ」という音）
-  - オートチューン: ボーカルのピッチ補正
-- 関連用語: → Key、→ BPM、→ Semitone
+**Pitch** [BOTH]
+- The height of a sound
+- Units: Hz (physical), semitones/cents (musical)
+- 1 octave = 12 semitones
+- 1 semitone = 100 cents
+- Pitch operations in DJ performance:
+  - Pitch fader: BPM change (typically +/-6%, +/-10%, +/-16% range)
+  - Pitch bend: Temporary speed change (beat alignment)
+  - Key Lock / Master Tempo: Maintains pitch (key) when changing BPM
+- Pitch operations in production:
+  - Pitch shift: Changes the pitch of a sound
+  - Pitch envelope: Used for kicks and similar sounds (the "punch" sound of a kick)
+  - Auto-Tune: Vocal pitch correction
+- Related terms: -> Key, -> BPM, -> Semitone
 
-**Plugin（プラグイン）** [SW/PROD]
-- DAWの機能を拡張するソフトウェア
-- プラグイン形式:
-  - VST / VST3 (Virtual Studio Technology): Windows / macOS対応
-  - AU (Audio Units): macOS専用
-  - AAX (Avid Audio eXtension): Pro Tools専用
-  - CLAP: 新しいオープン規格
-- プラグインの種類:
-  - インストゥルメント（音源）: シンセサイザー、サンプラー
-  - エフェクト: EQ、コンプレッサー、リバーブ等
-  - ユーティリティ: メーター、アナライザー
-- 代表的なプラグイン:
-  - Serum（Xfer）: ウェーブテーブルシンセ
-  - Massive X（Native Instruments）: ウェーブテーブルシンセ
-  - Omnisphere（Spectrasonics）: マルチ音源
-  - Pro-Q 3（FabFilter）: パラメトリックEQ
-  - Pro-L 2（FabFilter）: リミッター
-  - Valhalla VintageVerb: リバーブ
-- 関連用語: → DAW、→ VST、→ Synthesizer
+**Plugin** [SW/PROD]
+- Software that extends DAW functionality
+- Plugin formats:
+  - VST / VST3 (Virtual Studio Technology): Windows / macOS compatible
+  - AU (Audio Units): macOS exclusive
+  - AAX (Avid Audio eXtension): Pro Tools exclusive
+  - CLAP: New open standard
+- Plugin types:
+  - Instruments (sound sources): Synthesizers, samplers
+  - Effects: EQ, compressor, reverb, etc.
+  - Utilities: Meters, analyzers
+- Representative plugins:
+  - Serum (Xfer): Wavetable synth
+  - Massive X (Native Instruments): Wavetable synth
+  - Omnisphere (Spectrasonics): Multi-source
+  - Pro-Q 3 (FabFilter): Parametric EQ
+  - Pro-L 2 (FabFilter): Limiter
+  - Valhalla VintageVerb: Reverb
+- Related terms: -> DAW, -> VST, -> Synthesizer
 
 ---
 
 ## Q
 
-**Quantize（クォンタイズ）** [BOTH]
-- ノート/イベントのタイミングをグリッドに合わせる機能
-- DJソフトのクォンタイズ:
-  - ホットキューやループのトリガーを拍に自動吸着
-  - Rekordbox/Traktor: 設定でオン/オフ可能
-  - オンの場合: ボタンを押すとき最も近い拍にスナップ
-  - オフの場合: ボタンを押した瞬間に即座に反応（より正確な手動操作が必要）
-- DAWのクォンタイズ:
-  - MIDIノートのタイミング補正
-  - クォンタイズ量: 100%=完全にグリッド、50%=半分だけ吸着
-  - クォンタイズグリッド: 1/4、1/8、1/16、1/32等
-  - スウィングクォンタイズ: 偶数拍を遅らせてグルーヴ感を付与
-- オーディオクォンタイズ: Flex Time（Logic）、Warp（Ableton）
-- 関連用語: → Groove、→ Swing、→ MIDI
+**Quantize** [BOTH]
+- A feature that snaps note/event timing to a grid
+- DJ software quantize:
+  - Automatically snaps hot cue and loop triggers to beats
+  - Rekordbox/Traktor: Can be toggled on/off in settings
+  - When on: Snaps to the nearest beat when a button is pressed
+  - When off: Responds instantly when the button is pressed (requires more precise manual operation)
+- DAW quantize:
+  - MIDI note timing correction
+  - Quantize amount: 100% = fully on grid, 50% = half-way snapped
+  - Quantize grid: 1/4, 1/8, 1/16, 1/32, etc.
+  - Swing quantize: Delays even beats to add groove
+- Audio quantize: Flex Time (Logic), Warp (Ableton)
+- Related terms: -> Groove, -> Swing, -> MIDI
 
 ---
 
 ## R
 
 **Rekordbox** [SW/DJ]
-- Pioneer DJ公式DJソフトウェア
-- 楽曲管理、分析、DJプレイを統合
-- 主要機能:
-  - 楽曲分析: BPM、キー、フレーズ、波形の自動検出
-  - プレイリスト管理: タグ、コメント、レーティング
-  - Hot Cue / Memory Cue: キューポイントの設定
-  - My Tag: カスタムタグによる分類
-  - Related Tracks: 関連楽曲の自動提案
-- 動作モード:
-  - Export Mode: CDJ/XDJへのデータ書き出し
-  - Performance Mode: PCでDJプレイ
-  - Cloud Library: クラウドで楽曲ライブラリを同期
-- CDJ/XDJとの連携が最大の強み
-- 関連用語: → CDJ、→ Hot Cue、→ BPM
+- Pioneer DJ's official DJ software
+- Integrates track management, analysis, and DJ performance
+- Key features:
+  - Track analysis: Automatic detection of BPM, key, phrases, and waveforms
+  - Playlist management: Tags, comments, ratings
+  - Hot Cue / Memory Cue: Cue point settings
+  - My Tag: Classification using custom tags
+  - Related Tracks: Automatic suggestion of related tracks
+- Operating modes:
+  - Export Mode: Data export to CDJ/XDJ
+  - Performance Mode: DJ performance on PC
+  - Cloud Library: Sync track library via cloud
+- Integration with CDJ/XDJ is its greatest strength
+- Related terms: -> CDJ, -> Hot Cue, -> BPM
 
-**Release（リリース）** [PROD]
-- ADSRエンベロープの最後のパラメータ
-- キーを離してから音が消えるまでの時間
-- 短いリリース（10-50ms）: 音がすぐに消える（タイトな音）
-- 長いリリース（500ms-2s）: 音が余韻を持って消える（パッド、ストリングス）
-- コンプレッサーのリリース:
-  - 速いリリース: 圧縮からすぐに解放（パンピング効果に注意）
-  - 遅いリリース: 滑らかな圧縮解除
-  - オートリリース: 信号に応じて自動調整
-- 関連用語: → ADSR、→ Envelope、→ Compressor
+**Release** [PROD]
+- The last parameter of the ADSR envelope
+- The time for the sound to fade after the key is released
+- Short release (10-50ms): Sound disappears quickly (tight sound)
+- Long release (500ms-2s): Sound fades with sustain (pads, strings)
+- Compressor release:
+  - Fast release: Quick release from compression (watch for pumping effect)
+  - Slow release: Smooth release from compression
+  - Auto release: Automatically adjusts based on the signal
+- Related terms: -> ADSR, -> Envelope, -> Compressor
 
-**Resonance（レゾナンス）** [PROD]
-- フィルターのカットオフ周波数付近を強調するパラメータ
-- 別名: Q（Qファクター）
-- 効果:
-  - 低い値: 緩やかなフィルター効果
-  - 中程度: カットオフ付近にピークが生まれ、音に特性が出る
-  - 高い値: 鋭いピーク、発振に近づく（自己発振）
-- 自己発振: レゾナンスを最大にするとフィルターが独自の音を発する（サイン波に近い）
-- アシッドベース（TB-303サウンド）: 高いレゾナンスが特徴
-- 関連用語: → Filter、→ Cutoff、→ Synthesizer
+**Resonance** [PROD]
+- A parameter that emphasizes frequencies near the filter's cutoff frequency
+- Also known as: Q (Q factor)
+- Effects:
+  - Low value: Gentle filter effect
+  - Moderate value: A peak is created near the cutoff, adding character to the sound
+  - High value: Sharp peak, approaching oscillation (self-oscillation)
+- Self-oscillation: When resonance is at maximum, the filter produces its own sound (close to a sine wave)
+- Acid bass (TB-303 sound): Characterized by high resonance
+- Related terms: -> Filter, -> Cutoff, -> Synthesizer
 
-**Reverb（リバーブ）** [BOTH]
-- 残響効果、音が空間で反射する様子をシミュレート
-- 空間の深さを作る
-- リバーブの種類:
-  - Hall: 大きなホールの残響。壮大なサウンド
-  - Room: 小さい部屋の残響。自然で控えめ
-  - Plate: 金属板の振動による残響。ボーカルに人気
-  - Spring: スプリングの振動。ギターアンプで有名
-  - Chamber: エコーチャンバーの残響
-  - Shimmer: ピッチシフトを加えたリバーブ。幻想的
-  - Convolution: 実在の空間のインパルスレスポンスを使用。リアル
-- 主要パラメーター:
-  - Decay Time / RT60: 残響が60dB減衰するまでの時間
-  - Pre-delay: 原音からリバーブ開始までの遅延（明瞭さの確保）
-  - Damping: 高域の減衰速度（暗い/明るいリバーブ）
-  - Size: 空間の大きさ
-  - Dry/Wet: 原音とリバーブの比率
-  - Early Reflections: 初期反射音
-- DJエフェクトとしてのリバーブ:
-  - トランジション時に残響を深くして空間を演出
-  - ブレイクダウンで幻想的な雰囲気を作る
-- 関連用語: → Delay、→ Pre-delay、→ Decay
+**Reverb** [BOTH]
+- A reverberation effect that simulates how sound reflects in a space
+- Creates depth and space
+- Types of reverb:
+  - Hall: Large hall reverberation. Grand sound
+  - Room: Small room reverberation. Natural and subtle
+  - Plate: Metal plate vibration reverberation. Popular for vocals
+  - Spring: Spring vibration. Famous in guitar amps
+  - Chamber: Echo chamber reverberation
+  - Shimmer: Reverb with added pitch shifting. Ethereal
+  - Convolution: Uses impulse responses of real spaces. Realistic
+- Key parameters:
+  - Decay Time / RT60: Time for reverb to decay by 60dB
+  - Pre-delay: Delay from the original sound to the reverb onset (for clarity)
+  - Damping: High-frequency decay speed (dark/bright reverb)
+  - Size: Space size
+  - Dry/Wet: Ratio of original sound to reverb
+  - Early Reflections: Initial reflection sounds
+- Reverb as a DJ effect:
+  - Deepening reverberation during transitions for atmosphere
+  - Creating an ethereal ambiance during breakdowns
+- Related terms: -> Delay, -> Pre-delay, -> Decay
 
-**Riser（ライザー）** [PROD]
-- ビルドアップで使用される上昇する効果音
-- 種類:
-  - ノイズライザー: ホワイトノイズのフィルタースイープ
-  - シンセライザー: ピッチが上昇するシンセ音
-  - リバースクラッシュ: シンバルの逆再生
-  - FXライザー: 特殊なサウンドデザイン
-- 作成方法:
-  - ホワイトノイズ + オートメーションでフィルターを開く
-  - ピッチオートメーションで段階的に上昇
-  - リバーブのテールを反転して使用
-- テンション構築の重要な要素
-- 関連用語: → Build-up、→ Noise、→ Automation
+**Riser** [PROD]
+- An ascending sound effect used in build-ups
+- Types:
+  - Noise riser: White noise filter sweep
+  - Synth riser: Synth sound with ascending pitch
+  - Reverse crash: Reversed cymbal playback
+  - FX riser: Specialized sound design
+- Creation methods:
+  - White noise + automation to open the filter
+  - Pitch automation for gradual ascent
+  - Reverse the tail of a reverb for use
+- An important element for building tension
+- Related terms: -> Build-up, -> Noise, -> Automation
 
 ---
 
 ## S
 
-**Sample（サンプル）** [BOTH]
-- 既存の音を録音・切り出した素材
-- サンプルの種類:
-  - ワンショット: 単発の音（キック、スネア、クラップ等）
-  - ループ: 繰り返し可能なフレーズ
-  - フレーズ: メロディやボーカルの断片
-- サンプルパック: 用途別にまとめたサンプル集
-  - 入手先: Splice、Loopmasters、LANDR Samples、サンプルパック販売サイト
-- サンプリング: 既存の楽曲から音を引用して新しい曲に使用
-  - 著作権に注意（クリアランスが必要な場合がある）
-  - クリエイティブコモンズやロイヤリティフリーの素材を活用
-- 関連用語: → Loop、→ Sampler、→ Splice
+**Sample** [BOTH]
+- Material recorded and extracted from existing sounds
+- Types of samples:
+  - One-shot: Single sounds (kick, snare, clap, etc.)
+  - Loop: Repeatable phrases
+  - Phrase: Melody or vocal fragments
+- Sample packs: Collections of samples organized by purpose
+  - Sources: Splice, Loopmasters, LANDR Samples, sample pack retailers
+- Sampling: Using sounds from existing tracks in new music
+  - Be mindful of copyright (clearance may be required)
+  - Utilize Creative Commons and royalty-free materials
+- Related terms: -> Loop, -> Sampler, -> Splice
 
-**Sample Rate（サンプリングレート）** [PROD]
-- 1秒あたりのサンプル数、デジタルオーディオの時間方向の分解能
-- 単位: Hz（ヘルツ）
-- ナイキスト定理: サンプリングレートの1/2まで再現可能
-- 主要なサンプリングレート:
-  - 44.1kHz: CD標準、再現上限22.05kHz
-  - 48kHz: 映像標準、再現上限24kHz
-  - 96kHz: ハイレゾ、再現上限48kHz
-  - 192kHz: スタジオ録音、再現上限96kHz
-- 制作時の推奨: 44.1kHz or 48kHz（最終用途に合わせる）
-- 高サンプリングレートの利点:
-  - プラグイン処理の精度向上
-  - エイリアシングの低減
-  - タイムストレッチ/ピッチシフトの品質向上
-- デメリット: ファイルサイズとCPU負荷の増加
-- 関連用語: → Bit Depth、→ Audio Interface、→ Oversampling
+**Sample Rate** [PROD]
+- The number of samples per second; the time-domain resolution of digital audio
+- Unit: Hz (Hertz)
+- Nyquist theorem: Can reproduce up to 1/2 of the sampling rate
+- Major sampling rates:
+  - 44.1kHz: CD standard, upper limit 22.05kHz
+  - 48kHz: Video standard, upper limit 24kHz
+  - 96kHz: Hi-Res, upper limit 48kHz
+  - 192kHz: Studio recording, upper limit 96kHz
+- Recommended for production: 44.1kHz or 48kHz (match to the final use case)
+- Benefits of high sampling rates:
+  - Improved plugin processing accuracy
+  - Reduced aliasing
+  - Better quality for time-stretching/pitch-shifting
+- Drawbacks: Increased file size and CPU load
+- Related terms: -> Bit Depth, -> Audio Interface, -> Oversampling
 
-**Saturation（サチュレーション）** [PROD]
-- 信号に倍音を加えて温かみや存在感を付与するエフェクト
-- ディストーションの穏やかな形
-- 種類:
-  - Tape Saturation: テープ録音のエミュレーション。温かみとグルー感
-  - Tube Saturation: チューブアンプのエミュレーション。偶数倍音が豊か
-  - Transistor Saturation: トランジスタ回路。奇数倍音が目立つ
-  - Digital Saturation: ソフトクリッピング
-- 用途:
-  - ドラムバスに: グルー感（一体感）を付与
-  - ベースに: 小さいスピーカーでも聞こえるように倍音を追加
-  - マスターに: 軽く適用して温かみを加える
-  - ボーカルに: 存在感とエッジを追加
-- 関連用語: → Distortion、→ Harmonics、→ Compression
+**Saturation** [PROD]
+- An effect that adds harmonics to a signal for warmth and presence
+- A mild form of distortion
+- Types:
+  - Tape Saturation: Tape recording emulation. Warmth and glue
+  - Tube Saturation: Tube amp emulation. Rich even harmonics
+  - Transistor Saturation: Transistor circuit. Prominent odd harmonics
+  - Digital Saturation: Soft clipping
+- Uses:
+  - On drum bus: Adds glue (cohesion)
+  - On bass: Adds harmonics so it can be heard on small speakers
+  - On master: Light application for warmth
+  - On vocals: Adds presence and edge
+- Related terms: -> Distortion, -> Harmonics, -> Compression
 
-**Scratch（スクラッチ）** [DJ]
-- レコードやジョグホイールを手で操作して音を出すDJ技法
-- ヒップホップDJの基本技術
-- 基本テクニック:
-  - Baby Scratch: 前後に動かす基本（フェーダー操作なし）
-  - Chirp: クロスフェーダーを使ったカット技法
-  - Flare: フェーダーのクリック操作で音を刻む
-  - Crab: 複数の指でフェーダーを弾く高速カット
-  - Transformer: フェーダーのオン/オフを高速で繰り返す
-  - Orbit: 前後の動きとフェーダー操作の組み合わせ
-- 必要な機材:
-  - ターンテーブル or スクラッチ対応コントローラー
-  - 鋭いカーブのクロスフェーダー
-  - スクラッチ用レコード（バトルブレイクス）
-- 関連用語: → Crossfader、→ Turntable、→ Jog Wheel
+**Scratch** [DJ]
+- A DJ technique of manually manipulating records or jog wheels to produce sound
+- A fundamental hip-hop DJ technique
+- Basic techniques:
+  - Baby Scratch: Basic back-and-forth movement (no fader operation)
+  - Chirp: A cut technique using the crossfader
+  - Flare: Chopping sound with fader click operations
+  - Crab: High-speed cuts by flicking the fader with multiple fingers
+  - Transformer: Rapidly toggling fader on/off
+  - Orbit: Combination of back-and-forth movement and fader operation
+- Required equipment:
+  - Turntable or scratch-compatible controller
+  - Crossfader with a sharp curve
+  - Scratch records (battle breaks)
+- Related terms: -> Crossfader, -> Turntable, -> Jog Wheel
 
-**Send/Return（センド/リターン）** [PROD]
-- エフェクトを複数トラックで共有する接続方式
-- センド: 各トラックからエフェクトバスに信号を送る
-- リターン: エフェクト処理された信号をミキサーに戻す
-- メリット:
-  - CPU効率: 1つのリバーブを全トラックで共有
-  - 一貫性: 同じ空間に配置する効果
-  - 柔軟性: 各トラックのセンド量を個別に調整
-- 使い方:
-  - リバーブをセンド/リターンに配置（Wet 100%）
-  - ディレイをセンド/リターンに配置
-  - 各トラックからセンド量を調整
-- インサートとの使い分け:
-  - EQ、コンプレッサー → インサート
-  - リバーブ、ディレイ → センド/リターン
-- 関連用語: → Insert、→ Bus、→ Reverb
+**Send/Return** [PROD]
+- A connection method for sharing effects across multiple tracks
+- Send: Routes signal from each track to an effect bus
+- Return: Returns the processed signal to the mixer
+- Benefits:
+  - CPU efficiency: Share one reverb across all tracks
+  - Consistency: Effect of placing sounds in the same space
+  - Flexibility: Individually adjust send amounts for each track
+- How to use:
+  - Place reverb on send/return (Wet 100%)
+  - Place delay on send/return
+  - Adjust send amounts from each track
+- Choosing between insert and send/return:
+  - EQ, compressor -> Insert
+  - Reverb, delay -> Send/Return
+- Related terms: -> Insert, -> Bus, -> Reverb
 
-**Sidechain（サイドチェイン）** [PROD]
-- 他のトラックに反応するエフェクト制御
-- 最も一般的な用途: キックに合わせてベースやパッドの音量を下げる
-- サイドチェインコンプレッション:
-  - キックをトリガー（サイドチェインソース）にする
-  - ベース/パッドのコンプレッサーにキック信号を入力
-  - キックが鳴るたびにベース/パッドの音量が自動的に下がる
-  - 結果: キックとベースが明確に分離、ポンピング効果でグルーヴ感
-- 設定例:
-  - Ratio: 4:1 ~ 10:1
-  - Attack: 0.1-1ms（速め）
-  - Release: BPMに合わせて調整（100-300ms）
-  - Threshold: ポンピングの深さを調整
-- サイドチェイン専用プラグイン: LFOTool、VolumeShaper、Kickstart
-- ダッキング: ボーカルが入ったときに楽器の音量を下げる（ポッドキャスト/放送で使用）
-- 関連用語: → Compressor、→ Kick、→ Groove
+**Sidechain** [PROD]
+- Effect control that responds to another track
+- Most common use: Lowering the volume of bass or pads in sync with the kick
+- Sidechain compression:
+  - Use the kick as the trigger (sidechain source)
+  - Input the kick signal to the bass/pad compressor
+  - Each time the kick plays, the bass/pad volume automatically drops
+  - Result: Clear separation of kick and bass, pumping effect for groove
+- Setting example:
+  - Ratio: 4:1 to 10:1
+  - Attack: 0.1-1ms (fast)
+  - Release: Adjust to BPM (100-300ms)
+  - Threshold: Adjust the depth of pumping
+- Dedicated sidechain plugins: LFOTool, VolumeShaper, Kickstart
+- Ducking: Lowering instrument volume when vocals come in (used in podcasts/broadcasting)
+- Related terms: -> Compressor, -> Kick, -> Groove
 
-**Stem（ステム）** [BOTH]
-- 楽曲の各要素（ドラム、ベース、メロディ、ボーカル等）を個別に分離したトラック
-- DJ向けステム:
-  - Native Instruments Stemフォーマット: 4つのステム（ドラム、ベース、メロディ、ボーカル）
-  - AIベースのリアルタイムステム分離: djay Pro、Traktor Pro等
-  - ステムDJing: 各ステムの音量を個別に操作しながらミックス
-- 制作向けステム:
-  - マスタリング用のステムミックス: ドラム、ベース、シンセ、ボーカル等を個別に書き出し
-  - リミックス用: オリジナルのステムをリミックスアーティストに提供
-- ステム分離技術の進歩:
-  - Demucs（Meta）、Spleeter（Deezer）等のAIモデル
-  - 品質は年々向上しているが、完全な分離はまだ難しい
-- 関連用語: → Acapella、→ Mixing、→ Remix
+**Stem** [BOTH]
+- Individual tracks separating each element of a song (drums, bass, melody, vocals, etc.)
+- DJ stems:
+  - Native Instruments Stem format: 4 stems (drums, bass, melody, vocals)
+  - AI-based real-time stem separation: djay Pro, Traktor Pro, etc.
+  - Stem DJing: Mixing while individually controlling the volume of each stem
+- Production stems:
+  - Stem mixes for mastering: Export drums, bass, synths, vocals, etc. individually
+  - For remixes: Provide original stems to remix artists
+- Advances in stem separation technology:
+  - AI models such as Demucs (Meta), Spleeter (Deezer), etc.
+  - Quality improves year by year, but complete separation is still challenging
+- Related terms: -> Acapella, -> Mixing, -> Remix
 
-**Sync（シンク）** [DJ]
-- 自動でBPMを同期する機能
-- DJ初心者に便利
-- Sync機能の種類:
-  - Tempo Sync: BPMを合わせる
-  - Beat Sync: BPMと位相を合わせる
-  - Phase Sync: 位相のみを合わせる
-- 議論:
-  - 賛成派: ミキシング以外のクリエイティブな要素に集中できる
-  - 反対派: 手動ビートマッチングはDJの基本スキル
-  - 現実: プロDJの多くがSync機能を使用しつつ、手動調整も併用
-- Syncが効かない場合:
-  - ビートグリッドが不正確
-  - BPMが変動する楽曲
-  - テンポの大幅に異なる曲同士
-- 関連用語: → BPM、→ Beatmatching、→ Beat Grid
+**Sync** [DJ]
+- A feature that automatically synchronizes BPM
+- Convenient for beginner DJs
+- Types of Sync features:
+  - Tempo Sync: Matches BPM
+  - Beat Sync: Matches BPM and phase
+  - Phase Sync: Matches phase only
+- Debate:
+  - Proponents: Allows focus on creative elements beyond mixing
+  - Opponents: Manual beatmatching is a fundamental DJ skill
+  - Reality: Many professional DJs use Sync while also making manual adjustments
+- Cases where Sync doesn't work:
+  - Inaccurate beat grid
+  - Tracks with fluctuating BPM
+  - Tracks with vastly different tempos
+- Related terms: -> BPM, -> Beatmatching, -> Beat Grid
 
-**Synthesizer（シンセサイザー）** [PROD]
-- 電子的に音を合成する楽器/ソフトウェア
-- 合成方式:
-  - Subtractive（減算合成）: 波形をフィルターで削る（最も基本的）
-  - Additive（加算合成）: 倍音を個別に積み上げる
-  - FM（周波数変調）: オシレーター同士で変調
-  - Wavetable: 波形テーブルのモーフィング
-  - Granular（粒状合成）: 音を微細な粒に分解して再構成
-  - Physical Modeling: 物理法則に基づいた音合成
-- 基本的な信号フロー:
-  - Oscillator（波形生成）→ Filter（周波数調整）→ Amplifier（音量調整）→ Output
-  - 各段階にEnvelopeやLFOでモジュレーションを適用
-- 代表的なソフトシンセ:
-  - Serum: ウェーブテーブル方式の定番
-  - Massive X: 幅広い音作り
-  - Vital: 無料で高品質なウェーブテーブルシンセ
-  - Diva（u-he）: アナログエミュレーション
-  - Pigments（Arturia）: 多機能ハイブリッドシンセ
-- 関連用語: → Oscillator、→ Filter、→ ADSR
+**Synthesizer** [PROD]
+- An instrument/software that electronically synthesizes sound
+- Synthesis methods:
+  - Subtractive: Shapes waveforms by filtering (most basic)
+  - Additive: Builds up individual harmonics
+  - FM (Frequency Modulation): Oscillators modulate each other
+  - Wavetable: Morphing through wave tables
+  - Granular: Decomposes sound into tiny grains and reconstructs
+  - Physical Modeling: Sound synthesis based on physical laws
+- Basic signal flow:
+  - Oscillator (waveform generation) -> Filter (frequency adjustment) -> Amplifier (volume adjustment) -> Output
+  - Modulation applied via Envelope and LFO at each stage
+- Representative soft synths:
+  - Serum: The standard wavetable synth
+  - Massive X: Versatile sound design
+  - Vital: High-quality free wavetable synth
+  - Diva (u-he): Analog emulation
+  - Pigments (Arturia): Multi-featured hybrid synth
+- Related terms: -> Oscillator, -> Filter, -> ADSR
 
 ---
 
 ## T
 
-**Tempo（テンポ）** [BOTH]
-- 楽曲の速さ、BPMで表す
-- テンポの分類:
-  - Largo: 非常にゆっくり（40-60 BPM）
-  - Adagio: ゆっくり（66-76 BPM）
-  - Moderato: 中程度（108-120 BPM）
-  - Allegro: 速い（120-156 BPM）
-  - Presto: 非常に速い（168-200 BPM）
-- DJプレイでのテンポ操作:
-  - テンポスライダー/ピッチフェーダーで調整
-  - テンポトランジション: 徐々にBPMを変えてジャンルを移行
-  - テンポマスター: 複数デッキの基準となるテンポ設定
-- 関連用語: → BPM、→ Pitch、→ Sync
+**Tempo** [BOTH]
+- The speed of a track, expressed in BPM
+- Tempo classification:
+  - Largo: Very slow (40-60 BPM)
+  - Adagio: Slow (66-76 BPM)
+  - Moderato: Moderate (108-120 BPM)
+  - Allegro: Fast (120-156 BPM)
+  - Presto: Very fast (168-200 BPM)
+- Tempo operations in DJ performance:
+  - Adjust with tempo slider/pitch fader
+  - Tempo transition: Gradually change BPM to shift between genres
+  - Tempo master: Setting the reference tempo for multiple decks
+- Related terms: -> BPM, -> Pitch, -> Sync
 
 **Traktor** [SW/DJ]
-- Native Instruments社のDJソフトウェア
-- 特徴:
-  - Stemデッキ: ステムの個別操作に対応
-  - エフェクト: 豊富な内蔵エフェクト
-  - Remix Decks: サンプル操作とリミックス
-  - Flux Mode: エフェクトやループ操作後に元の位置に戻る
-  - 柔軟なMIDIマッピング: 高度なカスタマイズ
-- エディション:
-  - Traktor Pro: フルバージョン
-  - Traktor DJ: モバイル版
-  - Traktor LE: 入門版（コントローラー付属）
-- 関連用語: → Rekordbox、→ Stem、→ MIDI
+- DJ software by Native Instruments
+- Features:
+  - Stem Decks: Supports individual stem manipulation
+  - Effects: Rich built-in effects
+  - Remix Decks: Sample manipulation and remixing
+  - Flux Mode: Returns to the original position after effect or loop operations
+  - Flexible MIDI mapping: Advanced customization
+- Editions:
+  - Traktor Pro: Full version
+  - Traktor DJ: Mobile version
+  - Traktor LE: Entry version (bundled with controllers)
+- Related terms: -> Rekordbox, -> Stem, -> MIDI
 
-**Transient（トランジェント）** [PROD]
-- 音の冒頭部分にある鋭いアタック成分
-- パーカッシブな音の特に重要な要素
-- トランジェントシェイパー:
-  - アタックの強調: パンチ感のアップ
-  - アタックの抑制: 柔らかくする
-  - サステインの調整: 余韻の長さをコントロール
-- コンプレッサーのアタックタイムとの関係:
-  - 速いアタック: トランジェントを抑える
-  - 遅いアタック: トランジェントを通過させる（パンチ感維持）
-- トランジェントデザイン: 音の立ち上がりをEQやサチュレーションで加工
-- 関連用語: → Attack、→ Compressor、→ Kick
+**Transient** [PROD]
+- A sharp attack component at the onset of a sound
+- A particularly important element in percussive sounds
+- Transient shaper:
+  - Attack emphasis: Increases punch
+  - Attack suppression: Softens the sound
+  - Sustain adjustment: Controls the length of the tail
+- Relationship with compressor attack time:
+  - Fast attack: Suppresses transients
+  - Slow attack: Lets transients pass through (maintains punch)
+- Transient design: Processing the onset of sound with EQ and saturation
+- Related terms: -> Attack, -> Compressor, -> Kick
 
-**Transition（トランジション）** [DJ]
-- 曲から曲への切り替え
-- 主要テクニック:
-  - ブレンド/ロングミックス: 両曲を長時間重ねる（16-32小節）
-  - カットイン: 瞬時に曲を切り替える
-  - フィルタースイープ: LPF/HPFで徐々に切り替え
-  - エコーアウト: ディレイ/リバーブで前の曲を消す
-  - バッキンスピン: レコードを逆回転させる演出
-  - ダブルドロップ: 2曲のドロップを同時に再生
-  - アカペラミックス: ボーカルを活用したトランジション
-- トランジションのタイミング:
-  - フレーズの切れ目に合わせる
-  - エネルギーの流れを意識する
-  - ブレイクダウンやアウトロを活用
-- 関連用語: → Filter、→ Delay、→ Phrase
+**Transition** [DJ]
+- Switching from one track to another
+- Main techniques:
+  - Blend/Long mix: Overlapping both tracks for an extended period (16-32 bars)
+  - Cut-in: Instantly switching tracks
+  - Filter sweep: Gradually switching with LPF/HPF
+  - Echo out: Fading out the previous track with delay/reverb
+  - Backspin: A dramatic effect of spinning the record backwards
+  - Double drop: Playing drops from two tracks simultaneously
+  - Acapella mix: Transitions utilizing vocals
+- Transition timing:
+  - Align with phrase boundaries
+  - Be mindful of energy flow
+  - Utilize breakdowns and outros
+- Related terms: -> Filter, -> Delay, -> Phrase
 
-**Trim（トリム）** [DJ]
-- ゲイン調整、入力レベルの設定
-- DJミキサーの最初の調整ポイント
-- 曲ごとに録音レベルが異なるため、Trimで揃える
-- 調整の目安:
-  - メーターが0dB付近で適正
-  - 赤色に入らないようにする
-  - ピーク時に余裕を持たせる
-- ゲインマッチング: 2曲の音量を揃える基本操作
-- 関連用語: → Gain、→ Gain Staging、→ Mixer
+**Trim** [DJ]
+- Gain adjustment; input level setting
+- The first adjustment point on a DJ mixer
+- Used to equalize levels because recording levels differ per track
+- Adjustment guidelines:
+  - The meter should be around 0dB for proper levels
+  - Keep it out of the red
+  - Allow headroom at peak
+- Gain matching: The basic operation of equalizing the volume of two tracks
+- Related terms: -> Gain, -> Gain Staging, -> Mixer
 
 ---
 
 ## U
 
-**USB（ユニバーサル・シリアル・バス）** [HW]
-- デジタル機器の接続規格
-- DJにおけるUSBの用途:
-  - USBメモリ: CDJに楽曲を持ち込む最も一般的な方法
-  - USBハブ: 複数デバイスの接続
-  - USB-MIDI: コントローラーとPCの接続
-  - USBオーディオ: オーディオインターフェースの接続
-- USB規格:
-  - USB 2.0: 480Mbps（オーディオインターフェースには十分）
-  - USB 3.0/3.1: 5-10Gbps（高チャンネル数のインターフェース向け）
-  - USB-C: 新しいコネクタ形状、Thunderbolt互換も
-- CDJ用USBメモリの推奨:
-  - USB 3.0対応
-  - 読み込み速度が速いもの
-  - FAT32 or exFATフォーマット
-  - 容量: 32GB-128GB推奨
-- 関連用語: → CDJ、→ Audio Interface、→ MIDI
+**USB (Universal Serial Bus)** [HW]
+- A digital device connection standard
+- USB uses in DJing:
+  - USB drive: The most common way to bring tracks to CDJs
+  - USB hub: Connecting multiple devices
+  - USB-MIDI: Connecting controllers and PCs
+  - USB audio: Connecting audio interfaces
+- USB standards:
+  - USB 2.0: 480Mbps (sufficient for audio interfaces)
+  - USB 3.0/3.1: 5-10Gbps (for high-channel-count interfaces)
+  - USB-C: New connector form factor, also Thunderbolt compatible
+- Recommended USB drives for CDJs:
+  - USB 3.0 compatible
+  - Fast read speed
+  - FAT32 or exFAT format
+  - Capacity: 32GB-128GB recommended
+- Related terms: -> CDJ, -> Audio Interface, -> MIDI
 
-**Unison（ユニゾン）** [PROD]
-- 同じ音程で複数の声（ボイス）を重ねること
-- シンセサイザーのユニゾンモード:
-  - 複数のオシレーターを同じ音程で重ねる
-  - 各ボイスに微妙なデチューンを加えて厚みを出す
-  - ステレオスプレッドで左右に広げる
-- Super Saw: ユニゾン+デチューンの代表的な音色
-  - トランスやEDMのリード/コードに多用
-  - 7-16ボイスが一般的
-- CPU負荷: ボイス数に比例して増加
-- 関連用語: → Oscillator、→ Synthesizer、→ Detune
+**Unison** [PROD]
+- Layering multiple voices at the same pitch
+- Synthesizer unison mode:
+  - Layer multiple oscillators at the same pitch
+  - Add subtle detune to each voice for thickness
+  - Spread across the stereo field with stereo spread
+- Super Saw: A classic sound using unison + detune
+  - Widely used for trance and EDM leads/chords
+  - 7-16 voices is typical
+- CPU load: Increases proportionally with voice count
+- Related terms: -> Oscillator, -> Synthesizer, -> Detune
 
 ---
 
 ## V
 
-**Velocity（ベロシティ）** [PROD]
-- MIDIにおける鍵盤の打鍵の強さ
-- 値の範囲: 0-127
-- 音量だけでなく、フィルターやエンベロープのモジュレーションソースとしても使用
-- ドラムパターンでのベロシティ:
-  - 強い拍: 100-127
-  - 通常の拍: 70-90
-  - ゴースト / 弱い拍: 30-50
-  - ベロシティの変化がグルーヴ感を生む
-- ベロシティカーブ: MIDIコントローラーの感度調整
-  - リニア: 均等な反応
-  - ソフト: 弱い打鍵で高い値
-  - ハード: 強く叩かないと高い値にならない
-- 関連用語: → MIDI、→ Groove、→ Dynamics
+**Velocity** [PROD]
+- The strength of key press in MIDI
+- Value range: 0-127
+- Used not only for volume but also as a modulation source for filters and envelopes
+- Velocity in drum patterns:
+  - Strong beats: 100-127
+  - Normal beats: 70-90
+  - Ghost / weak beats: 30-50
+  - Velocity variation creates groove
+- Velocity curve: MIDI controller sensitivity adjustment
+  - Linear: Even response
+  - Soft: High values from light key press
+  - Hard: High values only from strong key press
+- Related terms: -> MIDI, -> Groove, -> Dynamics
 
-**Vocoder（ボコーダー）** [PROD]
-- 声の特性を楽器音に適用するエフェクト
-- 仕組み:
-  - モジュレーター: 入力音声（通常はボーカル）
-  - キャリア: シンセサイザー音
-  - ボーカルの周波数特性をシンセ音に転写
-- 「ロボットボイス」的なサウンドが特徴
-- Daft Punkの楽曲で有名
-- 類似エフェクト:
-  - トークボックス: チューブを通して口の形で音を変える（物理的）
-  - オートチューン: ピッチ補正だがクリエイティブに使用可能
-- 関連用語: → Synthesizer、→ Filter、→ Modulation
+**Vocoder** [PROD]
+- An effect that applies vocal characteristics to instrumental sounds
+- How it works:
+  - Modulator: Input audio (usually vocals)
+  - Carrier: Synthesizer sound
+  - Transfers the frequency characteristics of vocals onto the synth sound
+- Characterized by a "robot voice" sound
+- Famous from Daft Punk tracks
+- Similar effects:
+  - Talkbox: Shapes sound through a tube using mouth movements (physical)
+  - Auto-Tune: Pitch correction but can be used creatively
+- Related terms: -> Synthesizer, -> Filter, -> Modulation
 
 **VST (Virtual Studio Technology)** [SW/PROD]
-- Steinberg社が開発したプラグイン規格
-- 最も広く普及したプラグイン形式
-- バージョン:
-  - VST2: 長年の標準（現在は新規開発が終了）
-  - VST3: 現行の標準規格
-    - 可変I/O対応
-    - サイドチェイン入力のサポート
-    - 無音時のCPU負荷軽減
-- 対応プラットフォーム: Windows、macOS
-- VSTi: インストゥルメント（音源）プラグイン
-- VSTfx: エフェクトプラグイン
-- 関連用語: → Plugin、→ DAW、→ AU
+- A plugin standard developed by Steinberg
+- The most widely adopted plugin format
+- Versions:
+  - VST2: Long-time standard (new development has ended)
+  - VST3: Current standard
+    - Variable I/O support
+    - Sidechain input support
+    - Reduced CPU load during silence
+- Supported platforms: Windows, macOS
+- VSTi: Instrument (sound source) plugins
+- VSTfx: Effect plugins
+- Related terms: -> Plugin, -> DAW, -> AU
 
 ---
 
 ## W
 
-**Warp（ワープ）** [SW/PROD]
-- Ableton Liveの機能
-- BPM変更、タイミング調整
+**Warp** [SW/PROD]
+- A feature in Ableton Live
+- BPM changes, timing adjustment
 - Warp Mode:
-  - Beats: パーカッシブな素材に最適
-  - Tones: メロディ楽器に最適
-  - Texture: パッドやアンビエント素材に最適
-  - Re-Pitch: ピッチを変えずにストレッチ（レコードの速度変更と同じ）
-  - Complex: 複雑な素材（ミックスされたトラック等）
-  - Complex Pro: 最高品質だがCPU負荷が高い
-- Warp Marker: オーディオの特定ポイントをグリッドに固定
-- DJワークフロー: Warpで全曲を同一BPMに合わせてシームレスにミックス
-- 関連用語: → Ableton Live、→ BPM、→ Time Stretch
+  - Beats: Best for percussive material
+  - Tones: Best for melodic instruments
+  - Texture: Best for pads and ambient material
+  - Re-Pitch: Stretch without changing pitch (same as changing record speed)
+  - Complex: For complex material (mixed tracks, etc.)
+  - Complex Pro: Highest quality but high CPU load
+- Warp Marker: Locks specific points in audio to the grid
+- DJ workflow: Use Warp to align all tracks to the same BPM for seamless mixing
+- Related terms: -> Ableton Live, -> BPM, -> Time Stretch
 
-**Waveform（波形）** [BOTH]
-- 音の振幅を時間軸でグラフ化したもの
-- DJソフトの波形表示:
-  - 全体波形: 楽曲全体の構成を俯瞰
-  - 詳細波形: 現在再生中の付近を拡大
-  - 色分け: 周波数帯域別に色を変える（Rekordbox等）
-  - ビートマーカー: 拍の位置を表示
-- 基本波形（シンセサイザー）:
-  - サイン波: 滑らかな曲線
-  - ノコギリ波: 上昇して急降下
-  - 矩形波: 上下の切り替え
-  - 三角波: 直線的な上下
-- 波形を見ることで:
-  - ドロップの位置が視覚的にわかる
-  - エネルギーの変化を把握できる
-  - ビートの位相を目視で確認できる
-- 関連用語: → Oscillator、→ Beat Grid、→ Amplitude
+**Waveform** [BOTH]
+- A graph of sound amplitude over time
+- Waveform display in DJ software:
+  - Full waveform: Overview of the entire track structure
+  - Detailed waveform: Zoomed view of the current playback area
+  - Color coding: Colors change by frequency band (Rekordbox, etc.)
+  - Beat markers: Display beat positions
+- Basic waveforms (synthesizer):
+  - Sine wave: Smooth curve
+  - Sawtooth wave: Rises and drops sharply
+  - Square wave: Alternates up and down
+  - Triangle wave: Linear up and down
+- What waveforms reveal:
+  - Drop positions are visually identifiable
+  - Energy changes can be understood
+  - Beat phase can be visually confirmed
+- Related terms: -> Oscillator, -> Beat Grid, -> Amplitude
 
 ---
 
 ## X
 
-**XLR（エックスエルアール）** [HW]
-- プロオーディオで標準的なバランス接続コネクタ
-- 3ピン構成: グランド、ホット（+）、コールド（-）
-- バランス接続の利点:
-  - ノイズ耐性が高い（ノイズキャンセル原理）
-  - 長距離配線に強い（数十メートルでも劣化が少ない）
-  - プロの現場では必須
-- 用途:
-  - マイクの接続
-  - DJミキサー → パワーアンプ
-  - モニタースピーカーへの接続
-  - PA機器間の接続
-- XLRとフォーンの違い:
-  - XLR: ロック機構あり、バランス接続の標準
-  - TRS（フォーン）: バランス接続可能だがロック機構なし
-- 関連用語: → Audio Interface、→ Monitor、→ Mixer
+**XLR** [HW]
+- A balanced connection connector standard in professional audio
+- 3-pin configuration: Ground, Hot (+), Cold (-)
+- Benefits of balanced connections:
+  - High noise resistance (noise cancellation principle)
+  - Strong for long-distance wiring (minimal degradation over tens of meters)
+  - Essential in professional settings
+- Uses:
+  - Microphone connections
+  - DJ mixer -> Power amplifier
+  - Monitor speaker connections
+  - PA equipment connections
+- Difference between XLR and phone:
+  - XLR: Has a locking mechanism, standard for balanced connections
+  - TRS (phone): Capable of balanced connection but no locking mechanism
+- Related terms: -> Audio Interface, -> Monitor, -> Mixer
 
 ---
 
 ## Y
 
-**Y Cable / Y Splitter（Yケーブル / Yスプリッター）** [HW]
-- 1つの信号を2つに分岐するケーブル
-- 用途:
-  - ステレオ出力をモノ2系統に分割
-  - ヘッドフォン出力の分岐
-  - 信号の分配
-- 注意点:
-  - インピーダンスの問題: 分岐により負荷が変わる
-  - 信号レベルの低下: 分岐により若干レベルが下がる場合がある
-  - バランス/アンバランスの混在に注意
-- TRS to 2×TS: ステレオをLRに分割（最も一般的）
-- RCA Y Cable: 家庭用オーディオやDJ機器で使用
-- 関連用語: → XLR、→ Audio Interface、→ TRS
+**Y Cable / Y Splitter** [HW]
+- A cable that splits one signal into two
+- Uses:
+  - Splitting stereo output into two mono lines
+  - Headphone output splitting
+  - Signal distribution
+- Cautions:
+  - Impedance issues: Load changes due to splitting
+  - Signal level drop: Levels may slightly decrease due to splitting
+  - Be careful about mixing balanced/unbalanced connections
+- TRS to 2xTS: Splitting stereo into L/R (most common)
+- RCA Y Cable: Used with consumer audio and DJ equipment
+- Related terms: -> XLR, -> Audio Interface, -> TRS
 
 ---
 
 ## Z
 
-**Zero Crossing（ゼロクロッシング）** [PROD]
-- 波形が0（無音レベル）を横切るポイント
-- オーディオ編集で重要な概念:
-  - カットポイント: ゼロクロッシングでカットするとクリックノイズが発生しない
-  - ループポイント: ループの開始/終了をゼロクロッシングに合わせる
-  - フェードイン/アウト: 短いフェードでもゼロクロッシングを意識
-- DAWのスナップ機能: ゼロクロッシングに自動スナップする設定がある
-- サンプル編集では必須の知識
-- 関連用語: → Sample、→ Loop、→ Waveform
+**Zero Crossing** [PROD]
+- A point where the waveform crosses zero (silent level)
+- An important concept in audio editing:
+  - Cut point: Cutting at zero crossings prevents click noise
+  - Loop point: Align loop start/end to zero crossings
+  - Fade in/out: Be mindful of zero crossings even with short fades
+- DAW snap feature: Settings available to automatically snap to zero crossings
+- Essential knowledge for sample editing
+- Related terms: -> Sample, -> Loop, -> Waveform
 
-**Zone（ゾーン）** [BOTH]
-- 音楽やDJの文脈での「領域」
-- 周波数ゾーン:
-  - Low Zone: 20-250 Hz（ベース域）
-  - Mid Zone: 250-4000 Hz（中域）
-  - High Zone: 4000-20000 Hz（高域）
-- DJのエネルギーゾーン:
-  - ウォーミングアップ: 低エネルギー、序盤の雰囲気作り
-  - ピークタイム: 最大エネルギー、メインフロアの盛り上がり
-  - クロージング: エネルギーを徐々に下げる、余韻を残す
-- DAWのサンプラーのキーゾーン: 鍵盤の範囲にサンプルを割り当て
-- 関連用語: → Frequency、→ EQ、→ Arrangement
+**Zone** [BOTH]
+- "Area" or "region" in the context of music and DJing
+- Frequency zones:
+  - Low Zone: 20-250 Hz (bass range)
+  - Mid Zone: 250-4000 Hz (mid range)
+  - High Zone: 4000-20000 Hz (high range)
+- DJ energy zones:
+  - Warm-up: Low energy, setting the mood early on
+  - Peak time: Maximum energy, main floor excitement
+  - Closing: Gradually lower energy, leave a lasting impression
+- DAW sampler key zones: Assign samples to keyboard ranges
+- Related terms: -> Frequency, -> EQ, -> Arrangement
 
 ---
 
-## 付録: よく使う略語一覧
+## Appendix: Common Abbreviations
 
-| 略語 | 正式名称 | 意味 |
+| Abbreviation | Full Name | Meaning |
 |------|----------|------|
-| BPM | Beats Per Minute | 1分間の拍数 |
-| DAW | Digital Audio Workstation | 音楽制作ソフト |
-| EQ | Equalizer | イコライザー |
-| LFO | Low Frequency Oscillator | 低周波オシレーター |
-| MIDI | Musical Instrument Digital Interface | 音楽情報伝送規格 |
-| LUFS | Loudness Units Full Scale | ラウドネス単位 |
-| HPF | High Pass Filter | ハイパスフィルター |
-| LPF | Low Pass Filter | ローパスフィルター |
-| BPF | Band Pass Filter | バンドパスフィルター |
-| ADSR | Attack, Decay, Sustain, Release | エンベロープの4要素 |
-| RMS | Root Mean Square | 実効値 |
-| S/N | Signal to Noise Ratio | 信号対雑音比 |
-| dBFS | Decibels Full Scale | デジタルオーディオの音量単位 |
-| VST | Virtual Studio Technology | プラグイン規格 |
-| AU | Audio Units | macOSプラグイン規格 |
-| AAX | Avid Audio eXtension | Pro Toolsプラグイン規格 |
-| ADAT | Alesis Digital Audio Tape | デジタル伝送規格 |
-| USB | Universal Serial Bus | デジタル接続規格 |
-| XLR | - | バランス接続コネクタ |
-| TRS | Tip Ring Sleeve | フォーンプラグ |
-| CC | Control Change | MIDIコントロールチェンジ |
-| FX | Effects | エフェクト |
+| BPM | Beats Per Minute | Number of beats per minute |
+| DAW | Digital Audio Workstation | Music production software |
+| EQ | Equalizer | Equalizer |
+| LFO | Low Frequency Oscillator | Low frequency oscillator |
+| MIDI | Musical Instrument Digital Interface | Musical information transmission standard |
+| LUFS | Loudness Units Full Scale | Loudness unit |
+| HPF | High Pass Filter | High pass filter |
+| LPF | Low Pass Filter | Low pass filter |
+| BPF | Band Pass Filter | Band pass filter |
+| ADSR | Attack, Decay, Sustain, Release | Four envelope elements |
+| RMS | Root Mean Square | Root mean square |
+| S/N | Signal to Noise Ratio | Signal-to-noise ratio |
+| dBFS | Decibels Full Scale | Digital audio volume unit |
+| VST | Virtual Studio Technology | Plugin standard |
+| AU | Audio Units | macOS plugin standard |
+| AAX | Avid Audio eXtension | Pro Tools plugin standard |
+| ADAT | Alesis Digital Audio Tape | Digital transmission standard |
+| USB | Universal Serial Bus | Digital connection standard |
+| XLR | - | Balanced connection connector |
+| TRS | Tip Ring Sleeve | Phone plug |
+| CC | Control Change | MIDI control change |
+| FX | Effects | Effects |
 
 ---
 
-**次のステップ**: [学習ロードマップ](./learning-path-dj.md)
+**Next step**: [Learning Roadmap](./learning-path-dj.md)
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point in learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not just through theory but by actually practicing and confirming how things work firsthand.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What common mistakes do beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-このガイドでは以下の重要なポイントを学びました:
-
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
+Knowledge of this topic is frequently used in everyday work. It becomes particularly important during activities such as performance preparation and equipment setup.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [インスピレーション](./inspiration.md) - 次のトピックへ進む
+In this guide, we learned the following key points:
+
+- Understanding of basic concepts and principles
+- Practical implementation patterns
+- Best practices and considerations
+- Practical application methods
 
 ---
 
-## 参考文献
+## Recommended Next Guides
 
-- [MDN Web Docs](https://developer.mozilla.org/) - Web技術のリファレンス
-- [Wikipedia](https://ja.wikipedia.org/) - 技術概念の概要
+- [Inspiration](./inspiration.md) - Proceed to the next topic
+
+---
+
+## References
+
+- [MDN Web Docs](https://developer.mozilla.org/) - Web technology reference
+- [Wikipedia](https://en.wikipedia.org/) - Overview of technical concepts
