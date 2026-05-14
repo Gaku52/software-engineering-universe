@@ -1,188 +1,187 @@
-# DJ 学習ロードマップ
+# DJ Learning Roadmap
 
 
+## What You Will Learn in This Chapter
 
-## この章で学ぶこと
-
-- [ ] 基本概念と用語の理解
-- [ ] 実装パターンとベストプラクティスの習得
-- [ ] 実務での適用方法の把握
-- [ ] トラブルシューティングの基本
-
----
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [インスピレーション](./inspiration.md) の内容を理解していること
+- [ ] Understanding basic concepts and terminology
+- [ ] Mastering implementation patterns and best practices
+- [ ] Grasping practical application methods
+- [ ] Fundamentals of troubleshooting
 
 ---
 
-DJ スキルを段階的に習得するためのロードマップです。
+## Prerequisites
+
+Having the following knowledge before reading this guide will help deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of the content in [Inspiration](./inspiration.md)
 
 ---
 
-## 初心者（0-3ヶ月）
-
-### 目標
-- ビートマッチング基礎
-- 基本的なミキシング
-
-### 必須スキル
-1. BPM理解
-2. フレーズ構造
-3. ピッチコントロール
-4. キューイング
-5. クロスフェーダー操作
-
-### 練習方法
-- 毎日30分練習
-- 同じBPMの曲でビートマッチング
-- 10曲のミックス録音
-
-### 目標設定
-- 15分ミックス完成
-- ビートマッチング成功率70%
+A roadmap for acquiring DJ skills step by step.
 
 ---
 
-## 初級（3-6ヶ月）
+## Beginner (0-3 Months)
 
-### 目標
-- 安定したミキシング
-- EQ操作
+### Goals
+- Beat matching fundamentals
+- Basic mixing
 
-### 必須スキル
-1. EQ 3バンド操作
-2. ゲインステージング
-3. トランジション技法
-4. Hot Cue活用
-5. 選曲基礎
+### Essential Skills
+1. BPM understanding
+2. Phrase structure
+3. Pitch control
+4. Cueing
+5. Crossfader operation
 
-### 練習方法
-- 毎日1時間練習
-- 異なるBPMの曲（±5 BPM）
-- 30分ミックス録音
+### Practice Methods
+- Practice 30 minutes daily
+- Beat match songs at the same BPM
+- Record mixes of 10 songs
 
-### 目標設定
-- 30分ミックス完成
-- ビートマッチング成功率90%
-- スムーズなトランジション
-
----
-
-## 中級（6-12ヶ月）
-
-### 目標
-- ハーモニックミキシング
-- エフェクト活用
-
-### 必須スキル
-1. ハーモニックミキシング
-2. エフェクト（Echo, Reverb, Filter）
-3. ループ・Hot Cue応用
-4. エネルギーカーブ管理
-5. フロアリーディング
-
-### 練習方法
-- 毎日1-2時間練習
-- キーを考慮したミックス
-- 60分セット録音
-
-### 目標設定
-- 60分フルセット完成
-- ハーモニックミキシング成功
-- オープンデッキ挑戦
+### Goal Setting
+- Complete a 15-minute mix
+- Beat matching success rate of 70%
 
 ---
 
-## 上級（12ヶ月以降）
+## Elementary (3-6 Months)
 
-### 目標
-- プロフェッショナルレベル
-- ギグ獲得
+### Goals
+- Stable mixing
+- EQ operation
 
-### 必須スキル
-1. 高度なトランジション
-2. ライブリミックス
-3. マッシュアップ
-4. 3-4デッキミックス
-5. キャリア構築
+### Essential Skills
+1. 3-band EQ operation
+2. Gain staging
+3. Transition techniques
+4. Hot Cue utilization
+5. Track selection basics
 
-### 練習方法
-- 毎日2時間以上練習
-- オリジナルミックス制作
-- ライブ配信
+### Practice Methods
+- Practice 1 hour daily
+- Songs with different BPMs (±5 BPM)
+- Record 30-minute mixes
 
-### 目標設定
-- SoundCloudに月1ミックスアップロード
-- ギグ獲得
-- レジデンシー獲得
-
----
-
-## DJ学習の全体像と心構え
-
-### DJとは何か — 根本的な理解
-
-DJは単に曲を流す人ではありません。DJは「音楽キュレーター」であり「空間デザイナー」です。フロアにいる人々の気分、エネルギー、そして時間の流れを音楽で設計する職人です。技術的なスキルはもちろん重要ですが、最終的には「人を踊らせる」「人の心を動かす」という目的に向かってすべてのスキルが集約されます。
-
-DJの役割は多岐にわたります。クラブDJ、バーDJ、ウェディングDJ、フェスティバルDJ、ラジオDJ、ストリーミングDJ、モバイルDJなど、活動の場によってフォーカスすべきスキルセットは異なります。しかし、根幹にある「音楽への深い愛情と理解」は共通しています。
-
-### 学習に対する正しいマインドセット
-
-DJスキルの習得は一朝一夕には達成できません。以下のマインドセットを持つことが継続的な成長につながります。
-
-**成長思考（Growth Mindset）を持つ**
-- 失敗は学びの機会である
-- 他のDJと比較するのではなく、昨日の自分と比較する
-- 完璧を求めず、継続的な改善を目指す
-- ミスを恐れずに実験する精神を持つ
-
-**練習の質を重視する**
-- だらだらと長時間練習するより、集中した短時間の練習が効果的
-- 毎回の練習に明確な目標を設定する
-- 練習内容を記録し、振り返りを行う
-- 録音して客観的にフィードバックする習慣をつける
-
-**コミュニティへの参加**
-- 同じ志を持つ仲間を見つける
-- 先輩DJからアドバイスを受ける
-- SNSやフォーラムで情報交換する
-- ローカルのDJイベントに足を運ぶ
-
-### 学習の進め方 — 効率的なアプローチ
-
-DJスキルの習得において、効率的な学習順序が存在します。基礎を固めないまま応用に進むと、後から修正するのに余計な時間がかかります。
-
-**ステップ1: 音楽リテラシーの構築（Week 1-2）**
-まずは音楽そのものへの理解を深めます。BPM（Beats Per Minute）の概念、小節とフレーズの構造、楽曲のセクション（イントロ、ブレイクダウン、ビルドアップ、ドロップ、アウトロ）を耳で識別できるようになることが最初のゴールです。
-
-**ステップ2: 機材の基本操作（Week 2-4）**
-選択した機材（DJコントローラー、CDJ、ターンテーブルなど）の基本操作を習得します。各ノブ、フェーダー、ボタンの役割を理解し、ブラインドタッチに近い感覚で操作できるようになることを目指します。
-
-**ステップ3: ビートマッチングの基礎（Week 4-8）**
-DJの最も基本的なスキルであるビートマッチングを練習します。最初はソフトウェアの波形表示に頼りながら、徐々にヘッドフォンモニタリングだけで合わせられるようになることを目指します。
-
-**ステップ4: ミキシングの実践（Week 8-12）**
-ビートマッチングができるようになったら、実際のミキシングに進みます。EQの使い方、フェーダーの操作、トランジションのタイミングなどを総合的に練習します。
+### Goal Setting
+- Complete a 30-minute mix
+- Beat matching success rate of 90%
+- Smooth transitions
 
 ---
 
-## 初心者フェーズ詳細ガイド（0-3ヶ月）
+## Intermediate (6-12 Months)
 
-### Week 1-2: 音楽の基礎知識を固める
+### Goals
+- Harmonic mixing
+- Effect utilization
 
-#### BPM（Beats Per Minute）の完全理解
+### Essential Skills
+1. Harmonic mixing
+2. Effects (Echo, Reverb, Filter)
+3. Advanced loop & Hot Cue usage
+4. Energy curve management
+5. Floor reading
 
-BPMは音楽のテンポを示す数値であり、DJにとって最も基本的かつ重要な概念です。1分間に何回ビート（拍）が鳴るかを表しています。
+### Practice Methods
+- Practice 1-2 hours daily
+- Mix with key consideration
+- Record 60-minute sets
 
-**主要ジャンルのBPM範囲**
+### Goal Setting
+- Complete a 60-minute full set
+- Achieve harmonic mixing success
+- Challenge open deck events
 
-| ジャンル | BPM範囲 | 代表的なBPM |
+---
+
+## Advanced (12 Months and Beyond)
+
+### Goals
+- Professional level
+- Getting gigs
+
+### Essential Skills
+1. Advanced transitions
+2. Live remixing
+3. Mashups
+4. 3-4 deck mixing
+5. Career building
+
+### Practice Methods
+- Practice 2+ hours daily
+- Create original mixes
+- Live streaming
+
+### Goal Setting
+- Upload 1 mix per month to SoundCloud
+- Get gigs
+- Obtain a residency
+
+---
+
+## The Big Picture and Mindset for DJ Learning
+
+### What Is a DJ — A Fundamental Understanding
+
+A DJ is not simply someone who plays tracks. A DJ is a "music curator" and a "spatial designer." They are artisans who design the mood, energy, and flow of time through music for the people on the dance floor. While technical skills are certainly important, ultimately all skills converge toward the goal of "making people dance" and "moving people's hearts."
+
+The DJ's role spans many areas. Club DJs, bar DJs, wedding DJs, festival DJs, radio DJs, streaming DJs, mobile DJs — the skill set to focus on differs depending on the venue of activity. However, a "deep love for and understanding of music" is common to all.
+
+### The Right Mindset for Learning
+
+Acquiring DJ skills cannot be accomplished overnight. Having the following mindset leads to continuous growth.
+
+**Adopt a Growth Mindset**
+- Failure is a learning opportunity
+- Compare yourself to who you were yesterday, not to other DJs
+- Aim for continuous improvement rather than perfection
+- Have the spirit to experiment without fearing mistakes
+
+**Prioritize Practice Quality**
+- Focused short practice sessions are more effective than unfocused long ones
+- Set clear goals for each practice session
+- Record practice content and conduct reviews
+- Build the habit of recording and objectively reviewing feedback
+
+**Community Participation**
+- Find peers who share the same aspirations
+- Receive advice from experienced DJs
+- Exchange information on social media and forums
+- Attend local DJ events
+
+### How to Approach Learning — An Efficient Method
+
+There is an efficient learning sequence for acquiring DJ skills. If you move to advanced topics without solidifying the fundamentals, it will take extra time to correct later.
+
+**Step 1: Building Music Literacy (Week 1-2)**
+First, deepen your understanding of music itself. The initial goal is to be able to identify by ear the concept of BPM (Beats Per Minute), the structure of bars and phrases, and song sections (intro, breakdown, buildup, drop, outro).
+
+**Step 2: Basic Equipment Operation (Week 2-4)**
+Learn the basic operation of your chosen equipment (DJ controller, CDJ, turntable, etc.). Aim to understand the role of each knob, fader, and button, and to operate them with near-blind-touch proficiency.
+
+**Step 3: Beat Matching Fundamentals (Week 4-8)**
+Practice beat matching, the most fundamental DJ skill. Start by relying on the software's waveform display and gradually work toward matching by headphone monitoring alone.
+
+**Step 4: Mixing in Practice (Week 8-12)**
+Once you can beat match, move on to actual mixing. Practice EQ usage, fader operation, and transition timing in a comprehensive manner.
+
+---
+
+## Beginner Phase Detailed Guide (0-3 Months)
+
+### Week 1-2: Solidifying Music Fundamentals
+
+#### Complete Understanding of BPM (Beats Per Minute)
+
+BPM is a numerical value indicating the tempo of music and is the most basic and important concept for DJs. It represents how many beats occur per minute.
+
+**BPM Ranges by Major Genre**
+
+| Genre | BPM Range | Typical BPM |
 |---------|---------|------------|
 | Ambient / Downtempo | 60-90 | 75 |
 | Hip Hop | 85-115 | 90 |
@@ -205,576 +204,576 @@ BPMは音楽のテンポを示す数値であり、DJにとって最も基本的
 | Funk | 100-130 | 115 |
 | Latin House | 120-128 | 125 |
 
-BPMを体で感じる訓練として、以下の練習が有効です。
+The following exercises are effective for training your body to feel BPM.
 
-1. **タッピング練習**: 曲を聴きながら机を叩いてビートに合わせる。メトロノームアプリで確認する
-2. **BPM当てクイズ**: 曲を聴いてBPMを予想し、ソフトウェアで確認する
-3. **体感BPMの構築**: 120 BPM、128 BPM、140 BPMなどの代表的なテンポを体に染み込ませる
+1. **Tapping Practice**: Tap a desk to the beat while listening to a track. Verify with a metronome app
+2. **BPM Guessing Quiz**: Listen to a track and guess the BPM, then verify with software
+3. **Building Instinctive BPM Sense**: Internalize representative tempos like 120 BPM, 128 BPM, and 140 BPM
 
-#### フレーズ構造の理解
+#### Understanding Phrase Structure
 
-ダンスミュージックの多くは、4小節（16拍）または8小節（32拍）を1フレーズとして構成されています。このフレーズの切れ目を正確に把握することが、スムーズなミキシングの鍵です。
+Most dance music is structured with 4 bars (16 beats) or 8 bars (32 beats) as one phrase. Accurately identifying phrase boundaries is the key to smooth mixing.
 
-**典型的な楽曲構造（EDMの場合）**
-
-```
-Intro (16-32小節)
-  → Buildup (8-16小節)
-    → Drop 1 (16-32小節)
-      → Breakdown (8-16小節)
-        → Buildup (8-16小節)
-          → Drop 2 (16-32小節)
-            → Outro (16-32小節)
-```
-
-**House / Techno の典型的構造**
+**Typical Song Structure (EDM)**
 
 ```
-Intro (16-32小節) - キック + 徐々に要素追加
-  → Main Section A (32小節) - フルグルーヴ
-    → Breakdown (16小節) - キック抜き、メロディ強調
-      → Build (8-16小節) - テンション上昇
-        → Main Section B (32小節) - フルグルーヴ再開
-          → Outro (16-32小節) - 要素減少
+Intro (16-32 bars)
+  → Buildup (8-16 bars)
+    → Drop 1 (16-32 bars)
+      → Breakdown (8-16 bars)
+        → Buildup (8-16 bars)
+          → Drop 2 (16-32 bars)
+            → Outro (16-32 bars)
 ```
 
-フレーズを数える練習は非常に重要です。毎日5曲以上、フレーズの区切りに手を叩く練習をしましょう。最初は意識して数えますが、やがて無意識にフレーズの境目がわかるようになります。
+**Typical House / Techno Structure**
 
-#### 耳を鍛えるトレーニング
+```
+Intro (16-32 bars) - Kick + gradual element addition
+  → Main Section A (32 bars) - Full groove
+    → Breakdown (16 bars) - No kick, melody emphasis
+      → Build (8-16 bars) - Rising tension
+        → Main Section B (32 bars) - Full groove resumes
+          → Outro (16-32 bars) - Elements decrease
+```
 
-DJにとって耳は最も重要なツールです。以下のトレーニングを日課にしましょう。
+Practicing phrase counting is extremely important. Practice clapping at phrase boundaries for at least 5 songs every day. At first you will count consciously, but eventually you will instinctively sense where phrases end.
 
-**周波数帯域の聴き分け**
-- 低域（20-200Hz）: キックドラム、ベースライン
-- 中低域（200-800Hz）: ベースの倍音、ボーカルの温かみ
-- 中域（800-3kHz）: ボーカル、リード、スネア
-- 中高域（3-8kHz）: ハイハット、シンバル、アタック
-- 高域（8-20kHz）: 空気感、エアー、きらめき
+#### Ear Training
 
-**リスニング練習の方法**
-1. お気に入りの曲を高品質ヘッドフォンで聴く
-2. 低域だけに集中して聴く → 中域だけ → 高域だけ
-3. 各楽器のパートを個別に追いかけて聴く
-4. ミックスの中で各要素がどこに配置されているか（パンニング）を意識する
+For a DJ, the ears are the most important tool. Make the following training part of your daily routine.
 
-### Week 3-4: 機材の基本操作を習得する
+**Distinguishing Frequency Bands**
+- Low (20-200Hz): Kick drum, bassline
+- Low-mid (200-800Hz): Bass harmonics, vocal warmth
+- Mid (800-3kHz): Vocals, leads, snare
+- Upper-mid (3-8kHz): Hi-hats, cymbals, attack
+- High (8-20kHz): Air, shimmer, brilliance
 
-#### DJコントローラーの各部名称と機能
+**Listening Practice Methods**
+1. Listen to your favorite tracks with high-quality headphones
+2. Focus on the low end only → mid only → high end only
+3. Follow individual instrument parts within the mix
+4. Be conscious of where each element is placed in the mix (panning)
 
-DJコントローラーは大きく分けて以下のセクションで構成されています。
+### Week 3-4: Learning Basic Equipment Operation
 
-**デッキセクション（左右各1つ）**
-- **ジョグホイール**: 曲の再生位置を微調整する円形のホイール。スクラッチにも使用
-- **Play/Pauseボタン**: 曲の再生・一時停止
-- **Cueボタン**: キューポイントの設定・呼び出し
-- **Hot Cueパッド**: 複数のキューポイントを保存・呼び出し
-- **ピッチフェーダー**: 曲のテンポを上下させる縦型フェーダー
-- **Syncボタン**: 自動BPM同期（練習初期は使用OK、徐々に手動に移行）
-- **Loopコントロール**: ループの設定・解除・長さ変更
-- **エフェクトボタン/ノブ**: 各種エフェクトの適用
+#### DJ Controller Component Names and Functions
 
-**ミキサーセクション（中央）**
-- **チャンネルフェーダー**: 各デッキの音量を個別に調整
-- **クロスフェーダー**: 左右のデッキ間で音量バランスを調整
-- **EQ（イコライザー）ノブ**: Hi / Mid / Low の3バンドで周波数帯域ごとの音量を調整
-- **ゲインノブ（Trim）**: 入力信号のレベルを調整
-- **フィルターノブ**: ハイパスフィルター / ローパスフィルターの適用
-- **ヘッドフォンキューボタン**: どのチャンネルをヘッドフォンでモニタリングするか選択
-- **ヘッドフォンボリューム**: モニター音量の調整
-- **マスターボリューム**: 出力全体の音量
+DJ controllers are broadly divided into the following sections.
 
-#### ソフトウェアのセットアップと基本操作
+**Deck Section (one on each side)**
+- **Jog Wheel**: A circular wheel for fine-adjusting playback position. Also used for scratching
+- **Play/Pause Button**: Play/pause the track
+- **Cue Button**: Set/recall cue points
+- **Hot Cue Pads**: Save and recall multiple cue points
+- **Pitch Fader**: A vertical fader for adjusting the track's tempo up or down
+- **Sync Button**: Automatic BPM sync (OK to use in early practice, gradually transition to manual)
+- **Loop Controls**: Set/release loops and change loop length
+- **Effect Buttons/Knobs**: Apply various effects
 
-主要DJソフトウェアの特徴を理解しましょう。
+**Mixer Section (center)**
+- **Channel Faders**: Individually adjust the volume of each deck
+- **Crossfader**: Adjust the volume balance between left and right decks
+- **EQ (Equalizer) Knobs**: Adjust volume by frequency band with 3 bands: Hi / Mid / Low
+- **Gain Knob (Trim)**: Adjust input signal level
+- **Filter Knob**: Apply high-pass filter / low-pass filter
+- **Headphone Cue Buttons**: Select which channel to monitor through headphones
+- **Headphone Volume**: Adjust monitor volume
+- **Master Volume**: Overall output volume
 
-**rekordbox（Pioneer DJ）**
-- Pioneer DJ製コントローラーとの連携が最も優れている
-- 楽曲解析が高精度
-- エクスポートモードでCDJへの楽曲転送が可能
-- 無料版でも基本的なDJ機能が利用可能
+#### Software Setup and Basic Operation
+
+Let's understand the features of the major DJ software.
+
+**rekordbox (Pioneer DJ)**
+- Best integration with Pioneer DJ controllers
+- High-precision track analysis
+- Export mode enables track transfer to CDJs
+- Basic DJ features available even in the free version
 
 **Serato DJ**
-- 直感的なインターフェース
-- スクラッチDJ、ヒップホップDJに人気
-- 多くのサードパーティ製コントローラーに対応
-- ライブラリ管理が使いやすい
+- Intuitive interface
+- Popular among scratch DJs and hip-hop DJs
+- Supports many third-party controllers
+- Easy-to-use library management
 
-**Traktor Pro（Native Instruments）**
-- 高度なエフェクトエンジン
-- Stemデッキ機能（楽曲を4パートに分離）
-- MIDIマッピングの柔軟性が高い
-- テクノ、テックハウス系DJに人気
+**Traktor Pro (Native Instruments)**
+- Advanced effects engine
+- Stem deck feature (separates tracks into 4 parts)
+- Highly flexible MIDI mapping
+- Popular among techno and tech house DJs
 
 **VirtualDJ**
-- 初心者に優しいインターフェース
-- ビデオミキシング対応
-- AIによる自動ミックス機能
-- 幅広いコントローラー互換性
+- Beginner-friendly interface
+- Video mixing support
+- AI-powered automatic mix feature
+- Wide controller compatibility
 
-**ソフトウェアセットアップの基本手順**
-1. ソフトウェアをダウンロード・インストール
-2. コントローラーを接続（USBケーブル）
-3. オーディオ設定を確認（サウンドカード、出力先）
-4. 楽曲ライブラリをインポート
-5. 楽曲の解析を実行（BPM、キー、波形表示）
-6. コントローラーのマッピングを確認
-7. ヘッドフォン出力とマスター出力の設定を確認
+**Basic Software Setup Procedure**
+1. Download and install the software
+2. Connect the controller (USB cable)
+3. Verify audio settings (sound card, output destination)
+4. Import your music library
+5. Run track analysis (BPM, key, waveform display)
+6. Verify controller mapping
+7. Confirm headphone output and master output settings
 
-### Week 5-8: ビートマッチングの徹底練習
+### Week 5-8: Intensive Beat Matching Practice
 
-#### ビートマッチングとは
+#### What Is Beat Matching
 
-ビートマッチングとは、再生中の2つの楽曲のテンポ（BPM）と位相（ビートの位置）を完全に一致させる技術です。デジタル時代のSyncボタンが自動で行うことを、手動で行うスキルです。
+Beat matching is the technique of perfectly aligning the tempo (BPM) and phase (beat position) of two playing tracks. It is manually performing what the digital-era Sync button does automatically.
 
-なぜSyncに頼らず手動でビートマッチングを学ぶべきなのか。
+Why you should learn manual beat matching instead of relying on Sync:
 
-1. **耳が鍛えられる**: 微細なテンポのズレを聞き分けられるようになる
-2. **機材に依存しない**: どんな環境でもDJできる汎用性
-3. **トラブル対応力**: Syncが正確に機能しないケースへの対応
-4. **表現力の向上**: テンポを微妙にずらす「グルーヴ」を作れる
-5. **プロとしての信頼性**: 基本スキルがあることの証明
+1. **Trains your ears**: You develop the ability to hear subtle tempo discrepancies
+2. **Equipment independence**: Versatility to DJ in any environment
+3. **Troubleshooting ability**: Handling cases where Sync doesn't function accurately
+4. **Improved expression**: Ability to create "groove" by subtly shifting tempo
+5. **Professional credibility**: Proof of fundamental skills
 
-#### ビートマッチングの手順（ステップバイステップ）
+#### Beat Matching Procedure (Step by Step)
 
-**ステップ1: キューポイントの設定**
-次に流したい曲の最初のキック（ダウンビート）にキューポイントを設定します。正確なキックの頭を見つけるため、波形を拡大して確認しましょう。
+**Step 1: Setting the Cue Point**
+Set a cue point at the first kick (downbeat) of the next track you want to play. Zoom in on the waveform to find the precise head of the kick.
 
-**ステップ2: ピッチフェーダーの粗調整**
-ピッチフェーダーを使って、次の曲のBPMを現在再生中の曲のBPMに近づけます。
+**Step 2: Coarse Pitch Fader Adjustment**
+Use the pitch fader to bring the BPM of the next track close to the BPM of the currently playing track.
 
-**ステップ3: キューでの送り出し**
-フレーズの頭（通常はフレーズの1拍目）に合わせてCueボタンを押し、次の曲を送り出します。
+**Step 3: Launching from the Cue**
+Press the Cue button at the head of the phrase (usually the first beat of the phrase) to launch the next track.
 
-**ステップ4: ヘッドフォンでのモニタリング**
-片耳でヘッドフォン（次の曲）、もう片耳でスピーカー（現在の曲）を聴きます。2つのキックドラムがズレていないか確認します。
+**Step 4: Headphone Monitoring**
+Listen to the headphones (next track) with one ear and the speakers (current track) with the other. Check whether the two kick drums are drifting.
 
-**ステップ5: テンポの微調整**
-キックのタイミングがずれている場合、ピッチフェーダーを微調整します。
-- 次の曲が速い場合 → ピッチフェーダーを下げる（テンポを遅くする）
-- 次の曲が遅い場合 → ピッチフェーダーを上げる（テンポを速くする）
+**Step 5: Fine Tempo Adjustment**
+If the kick timing is off, make fine adjustments to the pitch fader.
+- If the next track is too fast → Lower the pitch fader (slow down the tempo)
+- If the next track is too slow → Raise the pitch fader (speed up the tempo)
 
-**ステップ6: 位相の微調整（ナッジング）**
-テンポは合っているが、ビートの位置がわずかにずれている場合、ジョグホイールを軽く触って位相を合わせます。
-- 次の曲が遅れている → ジョグホイールを順方向に軽く押す
-- 次の曲が先行している → ジョグホイールを逆方向に軽く押す
+**Step 6: Phase Fine-Tuning (Nudging)**
+If the tempo is matched but the beat positions are slightly offset, lightly touch the jog wheel to align the phase.
+- If the next track is behind → Lightly push the jog wheel forward
+- If the next track is ahead → Lightly push the jog wheel backward
 
-**ステップ7: 確認と維持**
-ビートが合ったら、しばらくモニタリングを続けて安定しているか確認します。アナログ機材ではテンポが徐々にずれることがあるため、継続的な微調整が必要です。
+**Step 7: Verification and Maintenance**
+Once the beats are aligned, continue monitoring for a while to confirm stability. On analog equipment, tempo can gradually drift, so continuous fine adjustment is necessary.
 
-#### ビートマッチング練習プログラム
+#### Beat Matching Practice Program
 
-**Week 5: 同BPMでの練習**
-- 同じBPMの曲を2曲ロード
-- キックの位相を合わせる練習を繰り返す
-- 目標: 30秒以内にビートを合わせる
-- 1セッション20回以上繰り返す
+**Week 5: Practice at the Same BPM**
+- Load 2 tracks with the same BPM
+- Repeatedly practice aligning the kick phase
+- Goal: Align beats within 30 seconds
+- Repeat 20+ times per session
 
-**Week 6: ±3 BPM差での練習**
-- BPMが3以内の差がある2曲を使用
-- ピッチフェーダーでテンポを合わせてからビートを合わせる
-- 目標: 1分以内にビートを合わせる
+**Week 6: Practice at ±3 BPM Difference**
+- Use 2 tracks with a BPM difference within 3
+- Match tempo with the pitch fader, then align the beats
+- Goal: Align beats within 1 minute
 
-**Week 7: ±5 BPM差での練習**
-- BPMが5以内の差がある2曲を使用
-- より大きなピッチ調整に慣れる
-- 目標: 1分以内にビートを合わせて16小節維持
+**Week 7: Practice at ±5 BPM Difference**
+- Use 2 tracks with a BPM difference within 5
+- Get accustomed to larger pitch adjustments
+- Goal: Align beats within 1 minute and maintain for 16 bars
 
-**Week 8: 実践的なミキシング練習**
-- 8曲のプレイリストを作成
-- 順番にミキシングして15分セットを完成させる
-- 録音して自分で聴き返す
-- 改善点を3つ以上リストアップ
+**Week 8: Practical Mixing Practice**
+- Create a playlist of 8 tracks
+- Mix them in order to complete a 15-minute set
+- Record and listen back
+- List 3 or more areas for improvement
 
-### Week 9-12: 基本的なミキシングテクニック
+### Week 9-12: Basic Mixing Techniques
 
-#### フェーダーを使ったトランジション
+#### Fader-Based Transitions
 
-**ロングミックス（16-32小節）**
-最もベーシックなトランジション方法です。次の曲のイントロを現在の曲のアウトロに重ねて、ゆっくりとフェーダーを移行します。
-
-```
-曲A: ████████████████████▓▓▓▓▓▓▓▓░░░░
-曲B:                 ░░░░▓▓▓▓▓▓▓▓████████████████████
-     ←────────── 16-32小節 ──────────→
-```
-
-手順:
-1. 曲Bのビートを曲Aに合わせる
-2. 曲Aのフレーズの切れ目で曲Bをスタート
-3. 曲Bのチャンネルフェーダーをゆっくり上げる
-4. 同時に曲AのEQ Lowを徐々に下げる（ベースラインの衝突を避ける）
-5. 曲Bが十分なボリュームになったら曲Aのフェーダーを下げる
-6. 曲Aを完全にフェードアウト
-
-**カットミックス（1-4小節）**
-エネルギッシュなトランジションに使用します。フレーズの切れ目で一気に曲を切り替えます。
+**Long Mix (16-32 bars)**
+The most basic transition method. Layer the intro of the next track over the outro of the current track and slowly move the faders.
 
 ```
-曲A: ████████████████████│
-曲B:                     │████████████████████
-                         ↑
-                     カットポイント
+Track A: ████████████████████▓▓▓▓▓▓▓▓░░░░
+Track B:                 ░░░░▓▓▓▓▓▓▓▓████████████████████
+         ←────────── 16-32 bars ──────────→
 ```
 
-**スワップベース（EQスワップ）**
-2つの曲の低域を入れ替えるテクニックです。
+Steps:
+1. Match Track B's beat to Track A
+2. Start Track B at a phrase boundary of Track A
+3. Slowly raise Track B's channel fader
+4. Simultaneously lower Track A's EQ Low gradually (to avoid bassline collision)
+5. Once Track B reaches sufficient volume, lower Track A's fader
+6. Completely fade out Track A
+
+**Cut Mix (1-4 bars)**
+Used for energetic transitions. Switch tracks at once at a phrase boundary.
 
 ```
-曲A Low: ████████▓▓▓▓░░░░
-曲B Low: ░░░░▓▓▓▓████████
+Track A: ████████████████████│
+Track B:                     │████████████████████
+                             ↑
+                         Cut point
 ```
 
-1. 曲Bのビートを合わせてフェーダーを上げる
-2. 曲BのEQ Lowをゼロにした状態でミックス
-3. フレーズの切れ目で、曲AのLowをゼロにすると同時に曲BのLowを上げる
-4. これにより低域の衝突なくスムーズに移行
+**Bass Swap (EQ Swap)**
+A technique for swapping the low-end between two tracks.
+
+```
+Track A Low: ████████▓▓▓▓░░░░
+Track B Low: ░░░░▓▓▓▓████████
+```
+
+1. Match Track B's beat and raise the fader
+2. Mix with Track B's EQ Low at zero
+3. At a phrase boundary, zero out Track A's Low while simultaneously raising Track B's Low
+4. This enables a smooth transition without low-end collision
 
 ---
 
-## 機材の選び方 — 初心者向け完全ガイド
+## Equipment Selection — Complete Beginner's Guide
 
-### 予算別おすすめ機材構成
+### Recommended Equipment by Budget
 
-#### エントリーレベル（3-5万円）
+#### Entry Level (30,000-50,000 yen)
 
-**最小構成**
-- DJコントローラー（2チャンネル）: Pioneer DJ DDJ-FLX4 または Numark Mixtrack Platinum FX
-- ヘッドフォン: Audio-Technica ATH-M50x または Sony MDR-7506
-- ノートパソコン（既存のもので可）
+**Minimum Setup**
+- DJ Controller (2-channel): Pioneer DJ DDJ-FLX4 or Numark Mixtrack Platinum FX
+- Headphones: Audio-Technica ATH-M50x or Sony MDR-7506
+- Laptop (your existing one is fine)
 
-**DDJ-FLX4の特徴**
-- rekordbox / Serato DJ Lite 両対応
-- Bluetooth接続でスマートフォンとも連携可能
-- コンパクトで持ち運びやすい
-- Stem機能（PC接続時）
-- USB-C対応
+**DDJ-FLX4 Features**
+- Compatible with both rekordbox and Serato DJ Lite
+- Bluetooth connectivity for smartphone integration
+- Compact and portable
+- Stem feature (when connected to PC)
+- USB-C support
 
-**Numark Mixtrack Platinum FXの特徴**
-- Serato DJ Lite対応
-- ジョグホイールにLCDディスプレイ搭載
-- エフェクトパドル搭載
-- 比較的大きなジョグホイール
+**Numark Mixtrack Platinum FX Features**
+- Serato DJ Lite compatible
+- LCD display on jog wheels
+- Effect paddles included
+- Relatively large jog wheels
 
-#### 中級レベル（8-15万円）
+#### Intermediate Level (80,000-150,000 yen)
 
-**推奨構成**
-- DJコントローラー: Pioneer DJ DDJ-800 または Denon DJ MC7000
-- ヘッドフォン: Pioneer DJ HDJ-X7 または Sennheiser HD 25
-- モニタースピーカー: KRK Rokit 5 G4 ペア または JBL 305P MkII ペア
+**Recommended Setup**
+- DJ Controller: Pioneer DJ DDJ-800 or Denon DJ MC7000
+- Headphones: Pioneer DJ HDJ-X7 or Sennheiser HD 25
+- Monitor Speakers: KRK Rokit 5 G4 pair or JBL 305P MkII pair
 
-**DDJ-800の特徴**
-- rekordbox専用
-- CDJに近い操作感（クラブ向け準備に最適）
-- 大型ジョグホイール
-- 独立したエフェクトセクション
-- Sound Color FX搭載
+**DDJ-800 Features**
+- rekordbox exclusive
+- Operation feel close to CDJs (ideal for club preparation)
+- Large jog wheels
+- Independent effects section
+- Sound Color FX included
 
-#### プロフェッショナルレベル（20万円以上）
+#### Professional Level (200,000 yen and above)
 
-**クラブスタンダード構成**
-- CDJ-3000 × 2台 + DJM-900NXS2（または DJM-V10）
-- ヘッドフォン: Pioneer DJ HDJ-X10 または V-MODA Crossfade M-100
-- モニタースピーカー: Adam Audio T7V ペア
+**Club Standard Setup**
+- CDJ-3000 x 2 + DJM-900NXS2 (or DJM-V10)
+- Headphones: Pioneer DJ HDJ-X10 or V-MODA Crossfade M-100
+- Monitor Speakers: Adam Audio T7V pair
 
-**オールインワン構成**
-- Pioneer DJ XDJ-XZ または Denon DJ Prime 4+
-- プロ級の機能を一体型で実現
-- USBメモリで楽曲再生可能（PCレス）
+**All-in-One Setup**
+- Pioneer DJ XDJ-XZ or Denon DJ Prime 4+
+- Pro-level features in a single unit
+- USB drive playback (PC-less)
 
-### ヘッドフォン選びのポイント
+### Key Points for Choosing Headphones
 
-DJヘッドフォンは一般的なリスニング用ヘッドフォンとは求められる特性が異なります。
+DJ headphones require different characteristics from typical listening headphones.
 
-**必須の特性**
-- **遮音性**: クラブの大音量環境でもモニタリングできる高い遮音性
-- **耐久性**: 繰り返しの折り曲げや落下に耐える堅牢な構造
-- **回転機構**: イヤーカップが回転し、片耳モニタリングが可能
-- **着脱式ケーブル**: ケーブルが断線しても交換可能
-- **フラットな音質**: 過度な低域ブーストがなく、正確なモニタリングが可能
+**Essential Characteristics**
+- **Isolation**: High isolation to enable monitoring even in loud club environments
+- **Durability**: Robust construction that withstands repeated bending and drops
+- **Swivel Mechanism**: Ear cups that rotate for single-ear monitoring
+- **Detachable Cable**: Replaceable cables in case of wire breakage
+- **Flat Sound**: Accurate monitoring without excessive low-end boost
 
-**おすすめヘッドフォン比較**
+**Recommended Headphone Comparison**
 
-| モデル | 価格帯 | 特徴 | おすすめ用途 |
+| Model | Price Range | Features | Recommended Use |
 |-------|--------|------|-------------|
-| Sennheiser HD 25 | 2万円 | 業界標準、軽量、高遮音性 | クラブDJ |
-| Pioneer DJ HDJ-X5 | 1万円 | コスパ良好、バランスの取れた音質 | 入門者 |
-| Pioneer DJ HDJ-X7 | 2万円 | 高音質、快適な装着感 | 中級者 |
-| Pioneer DJ HDJ-X10 | 3.5万円 | 最高峰の音質と装着感 | プロ |
-| Audio-Technica ATH-M50x | 1.5万円 | 定番モニターヘッドフォン | 制作兼用 |
-| V-MODA Crossfade M-100 | 2.5万円 | 耐久性が極めて高い | ツアーDJ |
+| Sennheiser HD 25 | 20,000 yen | Industry standard, lightweight, high isolation | Club DJ |
+| Pioneer DJ HDJ-X5 | 10,000 yen | Great value, balanced sound | Beginners |
+| Pioneer DJ HDJ-X7 | 20,000 yen | High sound quality, comfortable fit | Intermediate |
+| Pioneer DJ HDJ-X10 | 35,000 yen | Best-in-class sound and comfort | Professional |
+| Audio-Technica ATH-M50x | 15,000 yen | Classic monitor headphones | Production/DJ dual use |
+| V-MODA Crossfade M-100 | 25,000 yen | Extremely high durability | Touring DJ |
 
-### 最初の100曲を集める方法
+### How to Collect Your First 100 Tracks
 
-DJを始めるにあたって、最低でも100曲のライブラリを構築しましょう。
+When starting as a DJ, build a library of at least 100 tracks.
 
-**楽曲入手先**
-1. **Beatport**: EDM、テクノ、ハウスに強い最大のDJ向け楽曲ストア
-2. **Juno Download**: UK系ダンスミュージックに強い
-3. **Bandcamp**: インディペンデントなアーティストの楽曲が豊富
-4. **Traxsource**: ハウス、ディスコに特化
-5. **Amazon Music / iTunes**: メジャーレーベルの楽曲
-6. **DJ Record Pool**: BPM Supreme、DJ City、Club Killers など定額制サービス
+**Track Sources**
+1. **Beatport**: The largest DJ-oriented music store, strong in EDM, techno, and house
+2. **Juno Download**: Strong in UK-based dance music
+3. **Bandcamp**: Rich in independent artist tracks
+4. **Traxsource**: Specialized in house and disco
+5. **Amazon Music / iTunes**: Major label tracks
+6. **DJ Record Pools**: Subscription services like BPM Supreme, DJ City, Club Killers
 
-**ファイル形式の推奨**
-- WAV（非圧縮）: 最高品質だがファイルサイズが大きい
-- AIFF（非圧縮）: WAVと同等品質、メタデータ管理が容易
-- FLAC（可逆圧縮）: 音質劣化なしでファイルサイズを50%程度に圧縮
-- MP3 320kbps: 最低限の品質。可能ならFLAC以上を推奨
+**Recommended File Formats**
+- WAV (uncompressed): Highest quality but large file size
+- AIFF (uncompressed): Same quality as WAV, easier metadata management
+- FLAC (lossless compression): No quality loss with approximately 50% file size reduction
+- MP3 320kbps: Minimum acceptable quality. FLAC or above recommended when possible
 
-**ライブラリ構築のコツ**
-- まずは自分が好きなジャンルを中心に集める
-- BPMの近い曲をグループ化してクレートに保存
-- 各曲の「使いどころ」をメモしておく（オープニング向け、ピークタイム向けなど）
-- 定期的に新曲をチェックして追加する習慣をつける
-
----
-
-## 最初の練習メニュー（12週間プログラム）
-
-### Week 1-2: 基礎固め
-
-**毎日の練習メニュー（30分）**
-
-```
-05分: ウォームアップ - 好きな曲を流してEQを操作する
-10分: BPMトレーニング - 5曲のBPMを耳だけで推測する
-10分: フレーズカウント - 3曲のフレーズの切れ目を把握する
-05分: ジョグホイール操作 - キューポイントの正確な設定練習
-```
-
-**週末の拡大練習（60分）**
-
-```
-10分: 復習 - 平日の練習内容を振り返る
-20分: 波形読み取り - 波形表示を見ながら楽曲構造を理解する
-20分: 機材操作 - 全ボタン・ノブの操作を確認
-10分: 録音テスト - 簡単なミックスを録音して確認
-```
-
-### Week 3-4: ビートマッチング導入
-
-**毎日の練習メニュー（45分）**
-
-```
-05分: ウォームアップ
-15分: ビートマッチング基礎 - 同BPMの曲で位相合わせ
-15分: ピッチフェーダー操作 - ±2%の範囲でテンポ調整
-10分: Cueからのスタート練習 - タイミングを合わせてCueリリース
-```
-
-### Week 5-6: ビートマッチング強化
-
-**毎日の練習メニュー（60分）**
-
-```
-05分: ウォームアップ
-20分: ビートマッチング - ±3 BPMの曲で練習
-15分: ビート維持 - 32小節間ビートのズレなしを維持
-10分: フェーダー操作 - チャンネルフェーダーの滑らかな操作
-10分: 録音・振り返り
-```
-
-### Week 7-8: 基本ミキシング
-
-**毎日の練習メニュー（60分）**
-
-```
-05分: ウォームアップ
-20分: ロングミックス練習 - 16小節のトランジション
-15分: EQ操作 - Low EQスワップを中心に
-10分: 4曲ミニセット - 4曲を連続でミックス
-10分: 録音・振り返り
-```
-
-### Week 9-10: ミキシング応用
-
-**毎日の練習メニュー（60分）**
-
-```
-05分: ウォームアップ
-15分: 多様なトランジション - ロングミックス、カットミックス、EQスワップ
-15分: フィルター活用 - HPF/LPFを使ったトランジション
-15分: 8曲セット構築 - ストーリー性のある選曲
-10分: 録音・振り返り
-```
-
-### Week 11-12: 総合練習
-
-**毎日の練習メニュー（60-90分）**
-
-```
-05分: ウォームアップ
-30分: 15分ミックスセットの完成を目指す
-15分: 苦手な部分の集中練習
-15分: 新しい曲の探索と試聴
-10分: 録音・振り返り・改善点メモ
-```
-
-**12週間の到達目標チェックリスト**
-- [ ] BPMを±5の精度で推測できる
-- [ ] フレーズの切れ目を正確にカウントできる
-- [ ] ビートマッチングを60秒以内に完了できる
-- [ ] 32小節以上ビートのズレなしを維持できる
-- [ ] ロングミックスでスムーズなトランジションができる
-- [ ] EQスワップが自然にできる
-- [ ] 15分のミックスセットを完成できる
-- [ ] ヘッドフォンモニタリングが自然にできる
-- [ ] 基本的なフィルター操作ができる
-- [ ] 録音した自分のミックスを客観的に評価できる
+**Tips for Building Your Library**
+- Start by collecting tracks from genres you love
+- Group tracks with similar BPMs into crates
+- Note the "use case" for each track (for openers, peak time, etc.)
+- Build a habit of regularly checking for and adding new tracks
 
 ---
 
-## 中級者フェーズ詳細ガイド（3-12ヶ月）
+## First Practice Menu (12-Week Program)
 
-### ミキシング応用テクニック
+### Week 1-2: Building Foundations
 
-初心者フェーズで基本的なトランジションを習得したら、より高度なミキシングテクニックに進みます。中級者フェーズでは、単にトランジションを成功させるだけでなく、音楽的に豊かで表現力のあるミキシングを目指します。
-
-#### ダブルドロップ（Doubling）
-
-ダブルドロップは、2つの曲のドロップ（最もエネルギーの高いセクション）を同時に再生するテクニックです。正しく実行すれば、フロアに爆発的なエネルギーをもたらします。
-
-**実行手順**
-1. 2曲のBPMとキーを事前に確認する（キーの互換性が重要）
-2. 両方の曲をビルドアップセクションの同じ位置に合わせる
-3. ビルドアップ中に両曲を同時再生する
-4. ドロップの瞬間に両曲のフェーダーを全開にする
-5. 一方の曲のEQ Low を下げ、もう一方のLowを全開にする（低域衝突回避）
-6. 数フレーズ後、どちらかの曲をフェードアウトして単一楽曲に戻す
-
-**注意点**
-- キーが合わない楽曲同士でのダブルドロップは音が濁る
-- 低域を両方とも全開にしないこと（音割れの原因）
-- ボーカル同士が重なると聞き取りにくくなるため、インスト系の楽曲が向いている
-
-#### スピンバック
-
-ジョグホイールを逆方向に素早く回して、レコードが逆再生されるような効果を出すテクニックです。曲の切れ目やサプライズ演出に使われます。
-
-**活用場面**
-- ジャンルの急激な切り替え
-- テンポの大きく異なる曲への移行
-- ドラマチックな演出効果
-- ミスの緊急リカバリー
-
-**実行のコツ**
-- スピンバックする直前にエフェクト（リバーブなど）を軽くかけると余韻が自然
-- スピンバック後のミュート（無音）は0.5-1秒に収める
-- 次の曲のCueを正確にセットしておくこと
-
-#### テンポトランジション
-
-異なるBPMのジャンルをスムーズに行き来する技術です。例えばHouse（128 BPM）からDrum & Bass（174 BPM）、またはTechno（130 BPM）からHip Hop（90 BPM）への移行などです。
-
-**方法1: グラデーション変化**
-ピッチフェーダーを使って、数曲かけて徐々にBPMを変化させる方法です。
+**Daily Practice Menu (30 minutes)**
 
 ```
-曲1: 128 BPM (House)
-曲2: 132 BPM (+4)
-曲3: 136 BPM (+4)
-曲4: 140 BPM (+4) → ここでジャンル転換点
-曲5: 145 BPM (Trance)
+05 min: Warm-up - Play a favorite track and practice EQ operation
+10 min: BPM Training - Guess the BPM of 5 tracks by ear alone
+10 min: Phrase Counting - Identify phrase boundaries in 3 tracks
+05 min: Jog Wheel Operation - Practice precise cue point setting
 ```
 
-**方法2: ハーフタイム / ダブルタイム**
-BPMの倍数関係を利用した方法です。例えば128 BPMのHouseは、実質的に64 BPMのハーフタイムと捉えることもできます。
+**Weekend Extended Practice (60 minutes)**
 
-| 元BPM | ハーフタイム | ダブルタイム |
+```
+10 min: Review - Reflect on weekday practice content
+20 min: Waveform Reading - Understand song structure while viewing waveforms
+20 min: Equipment Operation - Confirm operation of all buttons and knobs
+10 min: Recording Test - Record a simple mix and review
+```
+
+### Week 3-4: Beat Matching Introduction
+
+**Daily Practice Menu (45 minutes)**
+
+```
+05 min: Warm-up
+15 min: Beat Matching Basics - Phase alignment with same-BPM tracks
+15 min: Pitch Fader Operation - Tempo adjustment within ±2% range
+10 min: Cue Launch Practice - Release cue with correct timing
+```
+
+### Week 5-6: Beat Matching Reinforcement
+
+**Daily Practice Menu (60 minutes)**
+
+```
+05 min: Warm-up
+20 min: Beat Matching - Practice with ±3 BPM tracks
+15 min: Beat Maintenance - Maintain zero drift for 32 bars
+10 min: Fader Operation - Smooth channel fader operation
+10 min: Record and Review
+```
+
+### Week 7-8: Basic Mixing
+
+**Daily Practice Menu (60 minutes)**
+
+```
+05 min: Warm-up
+20 min: Long Mix Practice - 16-bar transitions
+15 min: EQ Operation - Focus on Low EQ swap
+10 min: 4-Track Mini Set - Mix 4 tracks consecutively
+10 min: Record and Review
+```
+
+### Week 9-10: Applied Mixing
+
+**Daily Practice Menu (60 minutes)**
+
+```
+05 min: Warm-up
+15 min: Diverse Transitions - Long mix, cut mix, EQ swap
+15 min: Filter Utilization - Transitions using HPF/LPF
+15 min: 8-Track Set Building - Track selection with narrative flow
+10 min: Record and Review
+```
+
+### Week 11-12: Comprehensive Practice
+
+**Daily Practice Menu (60-90 minutes)**
+
+```
+05 min: Warm-up
+30 min: Aim to complete a 15-minute mix set
+15 min: Focused practice on weak areas
+15 min: Exploring and auditioning new tracks
+10 min: Record, review, and note improvements
+```
+
+**12-Week Achievement Checklist**
+- [ ] Can estimate BPM within ±5 accuracy
+- [ ] Can accurately count phrase boundaries
+- [ ] Can complete beat matching within 60 seconds
+- [ ] Can maintain zero beat drift for 32+ bars
+- [ ] Can perform smooth transitions with long mixes
+- [ ] Can execute EQ swaps naturally
+- [ ] Can complete a 15-minute mix set
+- [ ] Can perform headphone monitoring naturally
+- [ ] Can perform basic filter operations
+- [ ] Can objectively evaluate recorded mixes
+
+---
+
+## Intermediate Phase Detailed Guide (3-12 Months)
+
+### Applied Mixing Techniques
+
+Once you have mastered basic transitions in the beginner phase, it is time to advance to more sophisticated mixing techniques. In the intermediate phase, the goal is not just to execute successful transitions, but to achieve musically rich and expressive mixing.
+
+#### Double Drop (Doubling)
+
+A double drop is a technique where the drops (the highest energy sections) of two tracks are played simultaneously. When executed correctly, it delivers explosive energy to the dance floor.
+
+**Execution Steps**
+1. Check both tracks' BPM and key in advance (key compatibility is important)
+2. Align both tracks to the same position in the buildup section
+3. Play both tracks simultaneously during the buildup
+4. Open both faders fully at the moment of the drop
+5. Lower the EQ Low of one track while keeping the other's Low at full (to avoid low-end collision)
+6. After a few phrases, fade out one track to return to a single track
+
+**Notes**
+- Double drops with key-incompatible tracks will produce a muddy sound
+- Do not open the low end of both tracks fully (causes clipping)
+- Overlapping vocals become difficult to hear, so instrumental tracks are better suited
+
+#### Spinback
+
+A technique of quickly spinning the jog wheel in reverse to create the effect of a record playing backward. Used at track transitions and for surprise effects.
+
+**Use Cases**
+- Abrupt genre changes
+- Transitioning to a track with a significantly different tempo
+- Dramatic performance effects
+- Emergency recovery from mistakes
+
+**Execution Tips**
+- Lightly applying an effect (such as reverb) just before the spinback creates a natural decay
+- Keep the silence after the spinback to 0.5-1 second
+- Have the cue for the next track set accurately
+
+#### Tempo Transition
+
+The technique of smoothly moving between genres with different BPMs. For example, transitioning from House (128 BPM) to Drum & Bass (174 BPM), or from Techno (130 BPM) to Hip Hop (90 BPM).
+
+**Method 1: Gradual Change**
+Use the pitch fader to gradually change BPM over several tracks.
+
+```
+Track 1: 128 BPM (House)
+Track 2: 132 BPM (+4)
+Track 3: 136 BPM (+4)
+Track 4: 140 BPM (+4) → Genre transition point here
+Track 5: 145 BPM (Trance)
+```
+
+**Method 2: Half Time / Double Time**
+A method utilizing the BPM multiplier relationship. For example, House at 128 BPM can also be perceived as 64 BPM half time.
+
+| Original BPM | Half Time | Double Time |
 |-------|-----------|------------|
 | 90 BPM (Hip Hop) | 45 BPM | 180 BPM (Hardcore) |
 | 128 BPM (House) | 64 BPM | 256 BPM |
 | 140 BPM (Dubstep) | 70 BPM | 280 BPM |
 | 174 BPM (DnB) | 87 BPM (Hip Hop) | 348 BPM |
 
-この関係を利用すれば、DnB（174 BPM）からHip Hop（87 BPM）へスムーズに移行できます。
+Using this relationship, you can smoothly transition from DnB (174 BPM) to Hip Hop (87 BPM).
 
-**方法3: ブレイクポイント・トランジション**
-ブレイクダウンやアンビエントセクションを利用してBPMの変化を聴かせなくする方法です。
+**Method 3: Breakpoint Transition**
+A method that uses breakdowns or ambient sections to mask BPM changes.
 
-1. 曲Aのブレイクダウンに入る
-2. 曲Aのキック、パーカッションがなくなった状態で
-3. 曲Bを別のBPMでスタート（アンビエントなイントロから）
-4. 曲Aをフェードアウト
-5. 曲Bのビートが入るタイミングで新しいBPMが自然に確立
+1. Enter Track A's breakdown
+2. While Track A's kick and percussion are absent
+3. Start Track B at a different BPM (from an ambient intro)
+4. Fade out Track A
+5. The new BPM is naturally established when Track B's beat kicks in
 
-### エフェクト活用の完全ガイド
+### Complete Guide to Effect Usage
 
-DJミキサーやDJソフトウェアには多数のエフェクトが搭載されています。これらを効果的に使うことで、トランジションをよりスムーズにし、パフォーマンスに独自の色を加えることができます。
+DJ mixers and DJ software come equipped with numerous effects. Using these effectively makes transitions smoother and adds a unique character to your performance.
 
-#### 基本エフェクト一覧と使い方
+#### Basic Effects List and Usage
 
-**ディレイ / エコー（Delay / Echo）**
-音を反復させるエフェクトです。BPMに同期させて使用するのが基本です。
+**Delay / Echo**
+An effect that repeats sound. The standard approach is to sync it to the BPM.
 
-- **用途**: トランジション時の余韻追加、ブレイクダウンでの空間演出
-- **設定の目安**: 1/4拍（4分音符）が最も自然、1/2拍でゆったり、1/8拍でマシンガン的
-- **注意点**: フィードバック量を上げすぎると制御不能になる
-- **応用**: エコーアウト（曲の最後にエコーを残しながらフェードアウト）
+- **Use**: Adding sustain during transitions, spatial effects during breakdowns
+- **Setting Guide**: 1/4 beat (quarter note) is most natural, 1/2 beat for a relaxed feel, 1/8 beat for a machine-gun effect
+- **Caution**: Excessive feedback can become uncontrollable
+- **Advanced**: Echo out (fading out while leaving echo trails at the end of a track)
 
-**リバーブ（Reverb）**
-残響を追加するエフェクトです。空間の広さを演出します。
+**Reverb**
+An effect that adds reverberation. Creates a sense of spatial depth.
 
-- **用途**: ブレイクダウンでの空間演出、ドロップ直前のテンション
-- **設定の目安**: ルームリバーブ（狭い）からホールリバーブ（広い）まで場面に応じて使い分け
-- **注意点**: かけすぎると音がぼやけて低域が濁る
-- **応用**: ドロップの直前にリバーブを最大にし、ドロップの瞬間に一気にカット → インパクト大
+- **Use**: Spatial effects during breakdowns, tension just before the drop
+- **Setting Guide**: Use room reverb (small) to hall reverb (large) depending on the situation
+- **Caution**: Overuse makes the sound blurry and muddies the low end
+- **Advanced**: Maximize reverb just before the drop, then cut it all at once at the drop moment → major impact
 
-**フィルター（Filter）**
-ハイパスフィルター（HPF）とローパスフィルター（LPF）の2種類が基本です。
+**Filter**
+Two basic types: High-Pass Filter (HPF) and Low-Pass Filter (LPF).
 
-- **HPF**: 低域をカットし、高域だけを残す。曲を「薄く」する効果
-- **LPF**: 高域をカットし、低域だけを残す。曲を「こもらせる」効果
-- **用途**: 最も頻繁に使われるエフェクト。トランジション全般に活用
-- **テクニック**: フレーズの8小節前からゆっくりHPFをかけ、次の曲のドロップに合わせて解放
+- **HPF**: Cuts the low end, leaving only the highs. Creates a "thinning" effect
+- **LPF**: Cuts the high end, leaving only the lows. Creates a "muffled" effect
+- **Use**: The most frequently used effect. Applied across all transitions
+- **Technique**: Slowly apply HPF starting 8 bars before the phrase, then release it at the next track's drop
 
-**フランジャー（Flanger）**
-ジェットサウンドのようなうねりを生み出すエフェクトです。
+**Flanger**
+An effect that produces a jet-like sweeping sound.
 
-- **用途**: ビルドアップでのテンション構築、アクセント
-- **設定の目安**: BPMに同期させて1/2拍または1拍周期
-- **注意点**: 長時間かけると聴き疲れを起こすため、短時間で効果的に使う
+- **Use**: Tension building during buildups, accents
+- **Setting Guide**: Sync to BPM at 1/2 beat or 1 beat cycle
+- **Caution**: Extended use causes listener fatigue, so use it briefly and effectively
 
-**ビットクラッシャー（Bit Crusher）**
-デジタル的にノイズを追加し、ローファイサウンドを作るエフェクトです。
+**Bit Crusher**
+An effect that digitally adds noise to create a lo-fi sound.
 
-- **用途**: ドロップでのインパクト、ブレイクビーツ的な質感の追加
-- **設定の目安**: 軽くかける（ビット数を少し下げる）のが基本
-- **注意点**: 強くかけすぎると不快な音になる
+- **Use**: Impact on drops, adding a breakbeat-like texture
+- **Setting Guide**: Applying lightly (slightly reducing bit depth) is standard
+- **Caution**: Too much becomes unpleasant
 
-#### Sound Color FX（Pioneer DJミキサー固有）
+#### Sound Color FX (Pioneer DJ Mixer Exclusive)
 
-Pioneer DJのDJMシリーズに搭載されている独自のエフェクトカテゴリです。
+A unique effect category found in Pioneer DJ's DJM series.
 
-- **Space**: リバーブ系エフェクト
-- **Dub Echo**: ダブ音楽風のエコー
-- **Sweep**: フィルタースイープ効果
-- **Noise**: ホワイトノイズの追加（ビルドアップに最適）
-- **Gate/Comp**: ゲートコンプレッション効果
-- **Crush**: 歪み系エフェクト
+- **Space**: Reverb-type effect
+- **Dub Echo**: Dub music-style echo
+- **Sweep**: Filter sweep effect
+- **Noise**: White noise addition (ideal for buildups)
+- **Gate/Comp**: Gate compression effect
+- **Crush**: Distortion-type effect
 
-#### エフェクトの組み合わせテクニック
+#### Effect Combination Techniques
 
-**ビルドアップ定番コンボ**
-1. フレーズ開始: HPFをゆっくり閉じ始める
-2. 4小節前: ノイズエフェクトを徐々に追加
-3. 2小節前: フランジャーを軽くかける
-4. 1小節前: リバーブを最大に
-5. ドロップの瞬間: 全エフェクトを一気にカット → ドロップの衝撃
+**Classic Buildup Combo**
+1. Phrase start: Begin slowly closing the HPF
+2. 4 bars before: Gradually add noise effect
+3. 2 bars before: Lightly apply flanger
+4. 1 bar before: Maximize reverb
+5. Drop moment: Cut all effects at once → drop impact
 
-**ブレイクダウン演出コンボ**
-1. キックが抜ける: リバーブを追加
-2. メロディが浮かび上がる: エコーを1/4拍で追加
-3. 静かな部分: フィルターでさらに薄く
-4. 再構築: 徐々にフィルターを解放しながらエフェクトもカット
+**Breakdown Performance Combo**
+1. Kick drops out: Add reverb
+2. Melody emerges: Add echo at 1/4 beat
+3. Quiet section: Thin further with filter
+4. Rebuild: Gradually release the filter while cutting effects
 
-### ハーモニックミキシング完全ガイド
+### Complete Guide to Harmonic Mixing
 
-ハーモニックミキシングとは、楽曲のキー（調）を考慮してミックスする技法です。キーの相性が良い曲同士をつなげることで、トランジション時の不協和音を防ぎ、音楽的に美しいミックスを実現します。
+Harmonic mixing is a technique of mixing while considering the key (tonality) of tracks. By connecting tracks with compatible keys, you prevent dissonance during transitions and achieve musically beautiful mixes.
 
-#### キーの基礎知識
+#### Key Fundamentals
 
-音楽のキーは、メジャー（長調）とマイナー（短調）に分かれ、それぞれ12のキーが存在します。DJの世界では「Camelot Wheel」（キャメロットホイール）というシステムが広く使われています。
+Musical keys are divided into major and minor, with 12 keys in each. In the DJ world, the "Camelot Wheel" system is widely used.
 
 **Camelot Wheel**
 
@@ -791,11 +790,11 @@ Pioneer DJのDJMシリーズに搭載されている独自のエフェクトカ�
         2B (Gb Major)
 ```
 
-内側のリング（A）がマイナーキー、外側のリング（B）がメジャーキーです。
+The inner ring (A) represents minor keys, and the outer ring (B) represents major keys.
 
-**Camelot Wheel 全キー対応表**
+**Camelot Wheel Full Key Reference**
 
-| Camelot | キー（メジャー） | Camelot | キー（マイナー） |
+| Camelot | Key (Major) | Camelot | Key (Minor) |
 |---------|---------------|---------|---------------|
 | 1B | B Major | 1A | Ab Minor |
 | 2B | F# Major | 2A | Eb Minor |
@@ -810,877 +809,877 @@ Pioneer DJのDJMシリーズに搭載されている独自のエフェクトカ�
 | 11B | A Major | 11A | F# Minor |
 | 12B | E Major | 12A | C# Minor |
 
-#### 互換性のルール
+#### Compatibility Rules
 
-Camelot Wheelでは、以下のルールに従ってキーの互換性を判断します。
+In the Camelot Wheel, key compatibility is determined by the following rules.
 
-**ルール1: 同じ番号**
-同じ番号のAとBは互換性がある（例: 8A と 8B = A Minor と C Major）
+**Rule 1: Same Number**
+A and B with the same number are compatible (e.g., 8A and 8B = A Minor and C Major)
 
-**ルール2: 隣接する番号（±1）**
-番号が1つ違いのキーは互換性がある（例: 8A と 7A、8A と 9A）
+**Rule 2: Adjacent Numbers (±1)**
+Keys with a number difference of 1 are compatible (e.g., 8A and 7A, 8A and 9A)
 
-**ルール3: 同じ番号のメジャー/マイナー間**
-同じ番号のメジャーとマイナーは互換性がある（例: 8A と 8B）
+**Rule 3: Major/Minor Within the Same Number**
+Major and minor keys with the same number are compatible (e.g., 8A and 8B)
 
-**互換性マップの例（8A = A Minor 基準）**
+**Compatibility Map Example (Based on 8A = A Minor)**
 
 ```
-互換性あり:
+Compatible:
   7A (D Minor) ← 8A (A Minor) → 9A (E Minor)
                      ↕
                   8B (C Major)
 ```
 
-#### ハーモニックミキシングの実践
+#### Harmonic Mixing in Practice
 
-**ソフトウェアでのキー解析**
-rekordbox、Serato DJ、Traktor、Mixed In Key などのソフトウェアが楽曲のキーを自動解析します。ただし自動解析の精度は100%ではないため（概ね80-90%程度）、不自然に感じたら耳で確認することが大切です。
+**Key Analysis with Software**
+Software such as rekordbox, Serato DJ, Traktor, and Mixed In Key automatically analyzes track keys. However, automatic analysis accuracy is not 100% (roughly 80-90%), so if something sounds unnatural, it is important to verify by ear.
 
-**Mixed In Key の活用**
-Mixed In Key は楽曲のキーとBPMを高精度で解析する専用ソフトウェアです。楽曲のファイル名やタグにCamelot番号を自動付与できるため、DJ時のキー確認が容易になります。
+**Using Mixed In Key**
+Mixed In Key is a dedicated software that analyzes track keys and BPM with high precision. It can automatically assign Camelot numbers to file names or tags, making it easy to check keys during a DJ set.
 
-**セットリスト構築の例**
+**Setlist Construction Example**
 
 ```
 1. Track A (8A, 124 BPM) - A Minor
-2. Track B (8B, 125 BPM) - C Major → 同番号メジャー/マイナー間移行
-3. Track C (9B, 126 BPM) - G Major → 隣接番号移行
-4. Track D (9A, 126 BPM) - E Minor → 同番号メジャー/マイナー間移行
-5. Track E (10A, 127 BPM) - B Minor → 隣接番号移行
+2. Track B (8B, 125 BPM) - C Major → Same-number major/minor transition
+3. Track C (9B, 126 BPM) - G Major → Adjacent number transition
+4. Track D (9A, 126 BPM) - E Minor → Same-number major/minor transition
+5. Track E (10A, 127 BPM) - B Minor → Adjacent number transition
 ```
 
-### DJのための音楽理論入門
+### Music Theory Basics for DJs
 
-ハーモニックミキシングをさらに深く理解するために、基本的な音楽理論の知識を身につけましょう。
+To deepen your understanding of harmonic mixing, let's learn some basic music theory.
 
-#### スケール（音階）の基礎
+#### Scale Fundamentals
 
-**メジャースケール（長音階）**
-明るく開放的な響きを持つスケールです。ドレミファソラシド（C Major Scale）が代表例です。
+**Major Scale**
+A scale with a bright, open sound. The C Major Scale (Do-Re-Mi-Fa-Sol-La-Ti-Do) is the classic example.
 
-構成: 全音-全音-半音-全音-全音-全音-半音
+Pattern: Whole-Whole-Half-Whole-Whole-Whole-Half
 
-**マイナースケール（短音階）**
-暗く哀愁のある響きを持つスケールです。ラシドレミファソラ（A Natural Minor Scale）が代表例です。
+**Minor Scale**
+A scale with a dark, melancholic sound. The A Natural Minor Scale (La-Ti-Do-Re-Mi-Fa-Sol-La) is the classic example.
 
-構成: 全音-半音-全音-全音-半音-全音-全音
+Pattern: Whole-Half-Whole-Whole-Half-Whole-Whole
 
-#### コード（和音）の基礎
+#### Chord Fundamentals
 
-ダンスミュージックでよく使われるコード進行を知っておくと、ミキシング時の判断に役立ちます。
+Knowing the chord progressions commonly used in dance music helps with mixing decisions.
 
-**よく使われるコード進行**
-- I - V - vi - IV（ポップ / EDM定番進行）: 例 C - G - Am - F
-- i - III - VII - VI（マイナー系EDM定番）: 例 Am - C - G - F
-- i - iv - v（テクノ / ミニマル系）: 例 Am - Dm - Em
-- vi - IV - I - V（感動系 / トランス系）: 例 Am - F - C - G
+**Commonly Used Chord Progressions**
+- I - V - vi - IV (Pop / EDM standard): e.g., C - G - Am - F
+- i - III - VII - VI (Minor EDM standard): e.g., Am - C - G - F
+- i - iv - v (Techno / minimal): e.g., Am - Dm - Em
+- vi - IV - I - V (Emotional / trance): e.g., Am - F - C - G
 
-#### テンション・リリースの原理
+#### The Principle of Tension and Release
 
-音楽には「緊張（テンション）」と「解放（リリース）」のサイクルがあります。DJはこのサイクルをセット全体で管理します。
+Music has cycles of "tension" and "release." DJs manage this cycle throughout their entire set.
 
-**テンションを高める要素**
-- BPMの上昇
-- キーの上昇（例: 8A → 9A → 10A）
-- ノイズやライザーの追加
-- フィルタースイープ
-- 音数の増加
+**Elements That Build Tension**
+- BPM increase
+- Key rise (e.g., 8A → 9A → 10A)
+- Addition of noise and risers
+- Filter sweeps
+- Increasing number of sounds
 
-**リリースを生む要素**
-- ドロップの解放
-- ブレイクダウンの静寂
-- キーの下降
-- 音数の減少
-- 空間系エフェクトの追加
+**Elements That Create Release**
+- Drop release
+- Breakdown silence
+- Key descent
+- Decreasing number of sounds
+- Addition of spatial effects
 
-### エネルギーカーブの管理
+### Energy Curve Management
 
-60分以上のDJセットにおいて、エネルギーの流れを設計することは非常に重要です。単調に高エネルギーの曲を流し続けると、フロアは疲弊します。緩急をつけることで、セット全体にストーリー性が生まれます。
+In a DJ set lasting 60 minutes or more, designing the flow of energy is extremely important. If you continuously play high-energy tracks, the floor will become fatigued. By creating contrast, a narrative emerges across the entire set.
 
-#### 基本的なエネルギーカーブ
+#### Basic Energy Curves
 
-**クラブDJセット（2時間）の典型的なカーブ**
-
-```
-エネルギー
-  高 │          ╱╲     ╱╲╱╲
-     │        ╱    ╲  ╱      ╲
-     │      ╱      ╲╱        ╲
-     │    ╱                    ╲
-  低 │──╱                      ╲──
-     └──────────────────────────────
-       0   30   60   90   120 (分)
-       OP  Mid  Peak  Peak  Close
-```
-
-**フェスティバルセット（1時間）の典型的なカーブ**
+**Club DJ Set (2 hours) Typical Curve**
 
 ```
-エネルギー
-  高 │    ╱╲  ╱╲╱╲╱╲  ╱╲
-     │  ╱    ╲╱        ╲╱  ╲
-     │╱                      ╲
-  低 │──                    ──
-     └──────────────────────────
-       0   15   30   45   60 (分)
+Energy
+  High│          ╱╲     ╱╲╱╲
+      │        ╱    ╲  ╱      ╲
+      │      ╱      ╲╱        ╲
+      │    ╱                    ╲
+  Low │──╱                      ╲──
+      └──────────────────────────────
+        0   30   60   90   120 (min)
+        OP  Mid  Peak  Peak  Close
 ```
 
-#### フロアリーディングの基本
-
-フロアリーディングとは、フロアにいるオーディエンスの反応を読み取り、選曲やミキシングに反映する能力です。
-
-**オーディエンスの反応を読むポイント**
-- 踊っている人の割合（全体の何%が踊っているか）
-- 手が上がっているか、体が動いているか
-- バーに人が集まっているか（フロアが閑散としている兆候）
-- 歓声やリアクションの有無
-- スマートフォンを触っている人の割合（退屈のサイン）
-
-**反応が良いときの対応**
-- エネルギーレベルを維持または少し上げる
-- 同じジャンル・テイストの曲を続ける
-- 新しい要素を少しずつ追加して飽きさせない
-
-**反応が悪いときの対応**
-- ジャンルを変えてみる
-- BPMを変えてみる（速すぎ/遅すぎの可能性）
-- 誰もが知っているクラシック曲を投入する
-- エネルギーレベルを下げてリセットしてから再構築
-
-### パフォーマンス力を高めるテクニック
-
-DJはただ曲を流すだけでなく、パフォーマーとしての存在感も重要です。
-
-#### ルーピングの創造的活用
-
-**基本ループの種類**
-- **4拍ループ**: 最も基本的なループ。セクションの延長に使用
-- **8拍ループ**: 自然なループ。フレーズの区切りを維持しやすい
-- **2拍ループ**: テンション構築に使用。ビルドアップの延長
-- **1拍ループ**: 強烈なテンション。スタッターエフェクト的
-- **1/2拍ループ**: マシンガン的リピート。ドロップ直前の演出に最適
-
-**ループを使ったビルドアップテクニック**
+**Festival Set (1 hour) Typical Curve**
 
 ```
-8拍ループ → 4拍ループ → 2拍ループ → 1拍ループ → 1/2拍 → ドロップ！
-(長い)                                    (短い)    (開放)
+Energy
+  High│    ╱╲  ╱╲╱╲╱╲  ╱╲
+      │  ╱    ╲╱        ╲╱  ╲
+      │╱                      ╲
+  Low │──                    ──
+      └──────────────────────────
+        0   15   30   45   60 (min)
 ```
 
-このようにループの長さを段階的に短くしていくことで、テンションが自然に高まり、ドロップの解放感が倍増します。
+#### Floor Reading Basics
 
-#### Hot Cueの戦略的活用
+Floor reading is the ability to read the audience's reactions on the dance floor and reflect that in your track selection and mixing.
 
-Hot Cueは楽曲の特定の位置に瞬時にジャンプできる機能です。
+**Key Points for Reading Audience Reactions**
+- What percentage of the crowd is dancing
+- Are hands in the air, are bodies moving
+- Are people gathering at the bar (a sign of an empty floor)
+- Presence of cheers and reactions
+- Percentage of people looking at their smartphones (a sign of boredom)
 
-**Hot Cue設定の推奨パターン**
-- **Cue 1（赤）**: 曲の先頭 / 最初のキック
-- **Cue 2（黄）**: ブレイクダウンの開始点
-- **Cue 3（青）**: ドロップの開始点
-- **Cue 4（緑）**: ボーカルサンプル / 印象的なフレーズの開始点
-- **Cue 5（紫）**: アウトロの開始点
-- **Cue 6-8**: その他のお気に入りポイント
+**When the Response Is Good**
+- Maintain or slightly increase the energy level
+- Continue with tracks of the same genre/vibe
+- Gradually add new elements to prevent monotony
 
-**Hot Cueを使ったリミックス的プレイ**
-Hot Cueを駆使して、楽曲の構成を即興で再構築するプレイスタイルです。
+**When the Response Is Poor**
+- Try changing genres
+- Try changing BPM (may be too fast/too slow)
+- Drop a classic track everyone knows
+- Lower the energy level to reset, then rebuild
 
-例: ドロップ → Hot Cueでブレイクダウンに飛ぶ → 再びドロップに飛ぶ → 別の曲のドロップにカット
+### Techniques to Enhance Performance
 
-### 楽曲制作入門 — DJから制作への橋渡し
+A DJ is not just playing tracks — their presence as a performer is also important.
 
-DJとして経験を積むと、自分だけのオリジナル楽曲を作りたいという欲求が自然と湧いてきます。ここでは、DJの知識を活かした楽曲制作の入門を紹介します。
+#### Creative Use of Looping
 
-#### DAW（Digital Audio Workstation）の選び方
+**Basic Loop Types**
+- **4-beat loop**: The most basic loop. Used for section extension
+- **8-beat loop**: A natural loop. Easy to maintain phrase boundaries
+- **2-beat loop**: Used for tension building. Extending buildups
+- **1-beat loop**: Intense tension. Stutter effect-like
+- **1/2-beat loop**: Machine-gun repeat. Ideal for effects just before the drop
 
-| DAW | 特徴 | DJ向きの理由 | 価格帯 |
+**Buildup Technique Using Loops**
+
+```
+8-beat loop → 4-beat loop → 2-beat loop → 1-beat loop → 1/2-beat → Drop!
+(long)                                      (short)      (release)
+```
+
+By progressively shortening the loop length, tension naturally builds, and the sense of release at the drop is multiplied.
+
+#### Strategic Use of Hot Cues
+
+Hot Cues allow you to instantly jump to specific positions in a track.
+
+**Recommended Hot Cue Setting Pattern**
+- **Cue 1 (Red)**: Start of the track / first kick
+- **Cue 2 (Yellow)**: Breakdown start point
+- **Cue 3 (Blue)**: Drop start point
+- **Cue 4 (Green)**: Start of a vocal sample / memorable phrase
+- **Cue 5 (Purple)**: Outro start point
+- **Cue 6-8**: Other favorite points
+
+**Remix-Style Play Using Hot Cues**
+A play style where you use Hot Cues to improvise and reconstruct a track's structure on the fly.
+
+Example: Drop → Jump to breakdown with Hot Cue → Jump back to drop → Cut to another track's drop
+
+### Introduction to Music Production — Bridging from DJ to Producer
+
+As you gain experience as a DJ, the desire to create your own original tracks will naturally emerge. Here we introduce an introduction to music production leveraging DJ knowledge.
+
+#### Choosing a DAW (Digital Audio Workstation)
+
+| DAW | Features | Why It's Good for DJs | Price Range |
 |-----|------|------------|--------|
-| Ableton Live | ライブパフォーマンスに強い | Sessionビューがライブ向き、DJブリッジとして最適 | 1-8万円 |
-| FL Studio | 直感的なパターンベース | ビートメイクが簡単、生涯無料アップデート | 1-5万円 |
-| Logic Pro | Apple純正、充実の音源 | Mac環境なら最もコスパが良い | 3万円 |
-| Cubase | 高度なオーディオ編集 | ミキシング、マスタリングに強い | 1-6万円 |
+| Ableton Live | Strong for live performance | Session View is live-oriented, ideal as a DJ bridge | 10,000-80,000 yen |
+| FL Studio | Intuitive pattern-based workflow | Easy beat making, lifetime free updates | 10,000-50,000 yen |
+| Logic Pro | Apple's native DAW with extensive sound library | Best value on Mac | 30,000 yen |
+| Cubase | Advanced audio editing | Strong in mixing and mastering | 10,000-60,000 yen |
 
-#### エディット / ブートレグの制作
+#### Creating Edits / Bootlegs
 
-DJにとって最も取り組みやすい制作は、既存楽曲のエディットです。
+The most accessible form of production for DJs is editing existing tracks.
 
-**イントロエディット**
-クラブプレイ向けに、楽曲に長いイントロを追加する編集です。
+**Intro Edits**
+Editing tracks to add a long intro for club play.
 
-手順:
-1. DAWに楽曲を読み込む
-2. 楽曲のキックパターンをループして16-32小節のイントロを作成
-3. 既存のイントロと接続
-4. 書き出し（WAV or AIFF）
+Steps:
+1. Load the track into a DAW
+2. Loop the track's kick pattern to create a 16-32 bar intro
+3. Connect it to the existing intro
+4. Export (WAV or AIFF)
 
-**リエディット**
-楽曲の構成を変更する編集です。例えば、ブレイクダウンを短くしたり、ドロップを延長したりします。
+**Re-edits**
+Editing the structure of a track. For example, shortening the breakdown or extending the drop.
 
-**ブートレグ / マッシュアップ**
-2つ以上の楽曲を組み合わせた非公式リミックスです。
+**Bootlegs / Mashups**
+Unofficial remixes combining two or more tracks.
 
-手順:
-1. キーとBPMの合う2曲を選ぶ
-2. 曲Aのアカペラ（ボーカル）を抽出（Stem分離ツール使用）
-3. 曲Bのインスト（ボーカル抜き）と組み合わせる
-4. タイミングとキーを微調整
-5. EQで周波数帯域の衝突を解消
-6. 書き出し
-
----
-
-## 中級者の練習プログラム（13-24週）
-
-### Week 13-16: ハーモニックミキシング導入
-
-**毎日の練習メニュー（90分）**
-
-```
-10分: ウォームアップ + キー確認作業
-20分: Camelot Wheelに基づくトランジション練習
-20分: エフェクト基礎 - ディレイ、リバーブの使い方
-20分: 8曲セット（キーを考慮した選曲）
-20分: 録音・分析・改善計画
-```
-
-### Week 17-20: エフェクト＆パフォーマンス
-
-**毎日の練習メニュー（90分）**
-
-```
-10分: ウォームアップ
-20分: エフェクトコンボ練習 - ビルドアップ演出
-20分: ループテクニック - ループサイズ変更の練習
-20分: 30分セット（エフェクト・ループ込み）
-20分: 録音・分析
-```
-
-### Week 21-24: 総合力向上
-
-**毎日の練習メニュー（120分）**
-
-```
-10分: ウォームアップ
-30分: 60分セットの前半を構築
-30分: 60分セットの後半を構築
-20分: フロアリーディングの模擬練習（友人を招いて）
-20分: 苦手テクニックの集中練習
-10分: 録音・分析・次回の課題設定
-```
-
-**24週間到達目標チェックリスト**
-- [ ] Camelot Wheelを暗記し、キーの互換性を即座に判断できる
-- [ ] ハーモニックミキシングで不協和音なくトランジションできる
-- [ ] ディレイ、リバーブ、フィルターを音楽的に使える
-- [ ] ループを使ったビルドアップを自然に実行できる
-- [ ] Hot Cueを活用した創造的なプレイができる
-- [ ] 60分のフルセットをストーリー性をもって構築できる
-- [ ] エネルギーカーブを意識したセット構成ができる
-- [ ] 3種類以上のトランジション方法を使い分けられる
-- [ ] テンポトランジションが自然にできる
-- [ ] 簡単なエディット / リエディットをDAWで制作できる
+Steps:
+1. Select 2 tracks with matching key and BPM
+2. Extract the acapella (vocals) from Track A (using a stem separation tool)
+3. Combine with Track B's instrumental (vocals removed)
+4. Fine-tune timing and key
+5. Resolve frequency band collisions with EQ
+6. Export
 
 ---
 
-## 上級者フェーズ詳細ガイド（12ヶ月以降）
+## Intermediate Practice Program (Week 13-24)
 
-### 高度なトランジション技法
+### Week 13-16: Harmonic Mixing Introduction
 
-上級者として、あらゆるシチュエーションに対応できるトランジションの引き出しを持つことが求められます。
+**Daily Practice Menu (90 minutes)**
 
-#### 3デッキ・4デッキミキシング
+```
+10 min: Warm-up + key verification work
+20 min: Transition practice based on the Camelot Wheel
+20 min: Effects basics - using delay and reverb
+20 min: 8-track set (key-conscious track selection)
+20 min: Record, analyze, and plan improvements
+```
 
-2デッキを超えた複数デッキのミキシングは、DJパフォーマンスの表現力を格段に高めます。
+### Week 17-20: Effects & Performance
 
-**3デッキの活用パターン**
+**Daily Practice Menu (90 minutes)**
 
-| デッキ | 役割 | 用途例 |
+```
+10 min: Warm-up
+20 min: Effect combo practice - buildup performance
+20 min: Loop techniques - practicing loop size changes
+20 min: 30-minute set (including effects and loops)
+20 min: Record and analyze
+```
+
+### Week 21-24: Overall Skill Enhancement
+
+**Daily Practice Menu (120 minutes)**
+
+```
+10 min: Warm-up
+30 min: Build the first half of a 60-minute set
+30 min: Build the second half of a 60-minute set
+20 min: Simulated floor reading practice (invite friends)
+20 min: Focused practice on weak techniques
+10 min: Record, analyze, and set tasks for next session
+```
+
+**24-Week Achievement Checklist**
+- [ ] Have the Camelot Wheel memorized and can instantly judge key compatibility
+- [ ] Can transition without dissonance using harmonic mixing
+- [ ] Can use delay, reverb, and filter musically
+- [ ] Can naturally execute buildups using loops
+- [ ] Can perform creative play using Hot Cues
+- [ ] Can construct a 60-minute full set with narrative flow
+- [ ] Can design set structure with energy curves in mind
+- [ ] Can use 3 or more transition methods interchangeably
+- [ ] Can execute tempo transitions naturally
+- [ ] Can create simple edits / re-edits in a DAW
+
+---
+
+## Advanced Phase Detailed Guide (12 Months and Beyond)
+
+### Advanced Transition Techniques
+
+As an advanced DJ, you need a repertoire of transitions to handle any situation.
+
+#### 3-Deck and 4-Deck Mixing
+
+Multi-deck mixing beyond 2 decks dramatically enhances the expressiveness of DJ performances.
+
+**3-Deck Usage Patterns**
+
+| Deck | Role | Use Example |
 |--------|------|--------|
-| デッキA | メインプレイ | 現在再生中のメイントラック |
-| デッキB | 次の曲準備 | トランジション先の楽曲 |
-| デッキC | アカペラ/ループ | ボーカル、パーカッション、FXループ |
+| Deck A | Main play | Currently playing main track |
+| Deck B | Next track preparation | Track for the transition |
+| Deck C | Acapella/Loop | Vocals, percussion, FX loops |
 
-**3デッキ使用例: アカペラレイヤー**
-1. デッキAでインスト楽曲を再生
-2. デッキCに別の楽曲のアカペラ（Stem分離で抽出）をロード
-3. デッキCのアカペラをデッキAの上にレイヤー → 即席マッシュアップ
-4. デッキBで次のトランジション先を準備
-5. デッキAからデッキBにトランジションしつつ、デッキCのアカペラをフェードアウト
+**3-Deck Example: Acapella Layer**
+1. Play an instrumental track on Deck A
+2. Load the acapella (extracted via stem separation) of another track on Deck C
+3. Layer Deck C's acapella over Deck A → instant mashup
+4. Prepare the next transition target on Deck B
+5. Transition from Deck A to Deck B while fading out Deck C's acapella
 
-**4デッキの活用パターン**
+**4-Deck Usage Patterns**
 
-| デッキ | 役割 |
+| Deck | Role |
 |--------|------|
-| デッキA | メインビート/ベースライン |
-| デッキB | メロディ/パッド |
-| デッキC | アカペラ/ボーカル |
-| デッキD | パーカッション/FX |
+| Deck A | Main beat/bassline |
+| Deck B | Melody/pads |
+| Deck C | Acapella/vocals |
+| Deck D | Percussion/FX |
 
-4デッキを駆使すると、DJプレイはほぼライブリミックスに近い領域に達します。各デッキの音量、EQ、エフェクトを同時にコントロールする高度なマルチタスク能力が求められます。
+With 4 decks in use, DJ play approaches a near-live-remix level. It requires advanced multitasking ability to simultaneously control the volume, EQ, and effects of each deck.
 
-#### スクラッチング（ターンテーブリズム）
+#### Scratching (Turntablism)
 
-ターンテーブリストとしてのスクラッチ技術は、ヒップホップDJやオープンフォーマットDJにとって必須のスキルです。
+Scratch technique as a turntablist is an essential skill for hip-hop DJs and open-format DJs.
 
-**基本スクラッチの種類**
+**Basic Scratch Types**
 
-**ベイビースクラッチ**
-最も基本的なスクラッチ。レコード（ジョグホイール）を前後に動かすだけのシンプルな技法。クロスフェーダーは操作しません。
+**Baby Scratch**
+The most basic scratch. Simply moving the record (jog wheel) back and forth. No crossfader operation.
 
-**フォワードスクラッチ**
-レコードを前方向に動かす際にクロスフェーダーを開き、戻す際に閉じる技法。前方向の音だけが聞こえます。
+**Forward Scratch**
+A technique where the crossfader is opened when moving the record forward and closed on the return. Only the forward sound is heard.
 
-**チャープスクラッチ**
-フォワードスクラッチの逆。クロスフェーダーを開いた状態からスタートし、前方向にスクラッチしながらクロスフェーダーを閉じ、戻す際に開く技法。
+**Chirp Scratch**
+The reverse of the forward scratch. Starting with the crossfader open, you close it while scratching forward and open it on the return.
 
-**トランスフォームスクラッチ**
-レコードを一定速度で動かしながら、クロスフェーダーを高速で開閉する技法。「タタタタ」という断続的な音が特徴。
+**Transform Scratch**
+A technique of rapidly opening and closing the crossfader while moving the record at a constant speed. Characterized by a stuttering "ta-ta-ta-ta" sound.
 
-**フレアスクラッチ**
-クロスフェーダーを開いた状態から、レコードを動かしている最中にクロスフェーダーを素早く閉じて開く技法。1回閉じるのが「ワンクリックフレア」、2回閉じるのが「ツークリックフレア」。
+**Flare Scratch**
+A technique of quickly closing and opening the crossfader while the record is in motion, starting from an open position. Closing once is a "one-click flare," closing twice is a "two-click flare."
 
-**クラブスクラッチ**
-フレアスクラッチの変形。行きと帰りの両方でフレアを行う技法。
+**Crab Scratch**
+A variation of the flare scratch. Performing flares on both the forward and return motions.
 
-**スクラッチ練習のロードマップ**
-1. Month 1: ベイビースクラッチを安定させる
-2. Month 2: フォワード / チャープを習得
-3. Month 3: トランスフォームを習得（BPMに同期）
-4. Month 4-6: フレアスクラッチを習得
-5. Month 6+: コンビネーション、フリースタイル
+**Scratch Practice Roadmap**
+1. Month 1: Stabilize baby scratch
+2. Month 2: Master forward / chirp
+3. Month 3: Master transform (synced to BPM)
+4. Month 4-6: Master flare scratch
+5. Month 6+: Combinations, freestyle
 
-#### ライブリミックスの技法
+#### Live Remix Techniques
 
-ライブリミックスとは、DJプレイ中に楽曲をリアルタイムで再構築する技法です。Stemデッキ、サンプラー、エフェクトを駆使して、オリジナルの楽曲を即興で変化させます。
+Live remixing is the technique of reconstructing tracks in real time during a DJ performance. Using Stem decks, samplers, and effects, you transform original tracks through improvisation.
 
-**Stemデッキの活用**
-Traktor ProのStemデッキ機能やrekordboxのStem機能を使うと、楽曲を以下の4パートに分離してコントロールできます。
+**Using Stem Decks**
+Traktor Pro's Stem deck feature and rekordbox's Stem feature allow you to separate tracks into the following 4 parts for individual control.
 
-- ドラム
-- ベース
-- メロディ / シンセ
-- ボーカル
+- Drums
+- Bass
+- Melody / Synth
+- Vocals
 
-各パートの音量やエフェクトを個別に操作できるため、例えば「曲Aのドラムとベースに、曲Bのメロディとボーカルを組み合わせる」といった即興リミックスが可能です。
+Since you can independently control each part's volume and effects, improvised remixes such as "combining Track A's drums and bass with Track B's melody and vocals" become possible.
 
-**サンプラーの活用**
-DJソフトウェアに内蔵されたサンプラーを使って、事前に準備したサンプル（ボーカルショット、FX、ドラムフィル、シンセスタブなど）をリアルタイムで再生します。
+**Using the Sampler**
+Use the sampler built into DJ software to play back pre-prepared samples (vocal shots, FX, drum fills, synth stabs, etc.) in real time.
 
-サンプラーに準備すべきサンプルの例:
-- ビルドアップ用ライザーFX（3-4種類）
-- ドロップ用インパクトFX（2-3種類）
-- ボーカルショット（「Let's go!」「Drop it!」など）
-- サイレン / ホーン
-- パーカッションループ（コンガ、ボンゴ、シェイカー）
-- アンビエントパッド
+Examples of samples to prepare in the sampler:
+- Riser FX for buildups (3-4 varieties)
+- Impact FX for drops (2-3 varieties)
+- Vocal shots ("Let's go!" "Drop it!" etc.)
+- Sirens / horns
+- Percussion loops (congas, bongos, shakers)
+- Ambient pads
 
 ---
 
-## プロフェッショナル活動への道
+## The Path to Professional Activity
 
-### ギグの獲得方法
+### How to Get Gigs
 
-DJとしてのキャリアを築くための最初のステップは、人前でプレイする機会を得ることです。
+The first step in building a DJ career is getting opportunities to play in front of people.
 
-#### 段階的なギグ獲得戦略
+#### Staged Gig Acquisition Strategy
 
-**ステージ1: 無償プレイ期間（0-6ヶ月）**
-- 友人のパーティーでDJを担当する
-- 自宅でのDJストリーミング配信を開始する
-- 地元のバーやカフェに「BGM DJ」として売り込む
-- DJスクールの発表会やオープンデッキに参加する
+**Stage 1: Unpaid Play Period (0-6 months)**
+- Handle DJ duties at friends' parties
+- Start DJ streaming from home
+- Pitch yourself as a "BGM DJ" to local bars and cafes
+- Participate in DJ school showcases and open deck events
 
-**ステージ2: ローカルシーンへの参入（6-12ヶ月）**
-- 地元のクラブのオープンデッキイベントに参加
-- 他のDJのオープニングアクトを引き受ける
-- 自主イベントを企画する（小規模バーを借りて）
-- DJコンテストやバトルに参加する
+**Stage 2: Entering the Local Scene (6-12 months)**
+- Participate in open deck events at local clubs
+- Take opening act slots for other DJs
+- Organize your own events (rent a small bar)
+- Enter DJ contests and battles
 
-**ステージ3: レギュラー獲得（12-24ヶ月）**
-- クラブのプロモーターやオーガナイザーとの関係構築
-- レジデントDJとしての枠を獲得
-- 他の地域のイベントにゲスト出演
-- フェスティバルへの応募
+**Stage 3: Getting Regular Slots (12-24 months)**
+- Build relationships with club promoters and organizers
+- Secure a resident DJ position
+- Guest appearances at events in other areas
+- Apply to festivals
 
-**ステージ4: 活動範囲の拡大（24ヶ月以降）**
-- 国内ツアー
-- 海外ギグへの挑戦
-- レーベルやエージェンシーとの契約
-- フェスティバルのメインステージを目指す
+**Stage 4: Expanding Your Reach (24 months and beyond)**
+- National tours
+- International gig opportunities
+- Contracts with labels and agencies
+- Aim for festival main stages
 
-#### クラブへのアプローチ方法
+#### How to Approach Clubs
 
-**事前リサーチ**
-1. ターゲットとなるクラブの音楽ポリシーを調査する
-2. そのクラブで活動するDJのスタイルを把握する
-3. イベントのタイムテーブルを確認し、どの時間帯に合うか分析する
-4. プロモーターやブッキングマネージャーの連絡先を確認する
+**Preliminary Research**
+1. Research the target club's music policy
+2. Understand the style of DJs active at that club
+3. Check event timetables and analyze which time slots fit you
+4. Find the promoter's or booking manager's contact information
 
-**デモミックスの準備**
-1. ターゲットのクラブに合った60-90分のミックスを録音する
-2. 高音質で録音する（WAV / 320kbps MP3以上）
-3. Mixcloud やSoundCloud にアップロードする
-4. トラックリストを添付する
+**Preparing a Demo Mix**
+1. Record a 60-90 minute mix suited to the target club
+2. Record in high quality (WAV / 320kbps MP3 or above)
+3. Upload to Mixcloud or SoundCloud
+4. Include a tracklist
 
-**コンタクト方法**
-- SNS（Instagram、Twitter）のDMが最も一般的
-- メールでの問い合わせ（プロフェッショナルな文面で）
-- 直接クラブに足を運び、スタッフと関係を構築する
-- 既にそのクラブで活動しているDJからの紹介が最も効果的
+**Contact Methods**
+- DMs on social media (Instagram, Twitter) are most common
+- Email inquiry (with a professional message)
+- Visit the club directly and build relationships with staff
+- Referrals from DJs already active at that club are the most effective
 
-#### イベントオーガナイザーとしてのスキル
+#### Event Organizer Skills
 
-自分でイベントを企画・運営するスキルは、DJキャリアの構築において非常に有効です。
+The ability to plan and manage your own events is extremely valuable in building a DJ career.
 
-**イベント企画の基本ステップ**
-1. コンセプトの決定（ジャンル、テーマ、ターゲット層）
-2. 会場の確保（バー、クラブ、レンタルスペース）
-3. 出演者のブッキング（メインDJ + サポートDJ）
-4. フライヤー / ポスターのデザイン
-5. SNSでの告知・プロモーション
-6. チケット販売の設定
-7. 音響・照明の確認
-8. 当日の運営（タイムテーブル管理、受付、トラブル対応）
-9. イベント後のフォローアップ（写真・動画の共有、次回告知）
+**Basic Event Planning Steps**
+1. Decide on the concept (genre, theme, target audience)
+2. Secure a venue (bar, club, rental space)
+3. Book performers (main DJ + support DJs)
+4. Design flyers / posters
+5. Promote on social media
+6. Set up ticket sales
+7. Confirm sound and lighting
+8. Day-of operations (timetable management, reception, troubleshooting)
+9. Post-event follow-up (share photos/videos, announce next event)
 
-**予算計画のテンプレート**
+**Budget Planning Template**
 
-| 項目 | 概算費用 |
+| Item | Estimated Cost |
 |------|---------|
-| 会場レンタル | 3-10万円 |
-| 音響レンタル（必要な場合） | 2-5万円 |
-| 出演者ギャランティ | 1-10万円 |
-| フライヤー印刷 | 0.5-1万円 |
-| 飲料仕入れ（持ち込み可の場合） | 2-5万円 |
-| その他（装飾、消耗品等） | 1-2万円 |
-| **合計** | **9.5-33万円** |
+| Venue rental | 30,000-100,000 yen |
+| Sound equipment rental (if needed) | 20,000-50,000 yen |
+| Performer fees | 10,000-100,000 yen |
+| Flyer printing | 5,000-10,000 yen |
+| Beverage procurement (if BYO allowed) | 20,000-50,000 yen |
+| Miscellaneous (decorations, supplies, etc.) | 10,000-20,000 yen |
+| **Total** | **95,000-330,000 yen** |
 
-### DJブランディング戦略
+### DJ Branding Strategy
 
-DJとしてのキャリアを長期的に発展させるには、個人ブランドの構築が不可欠です。
+Building a personal brand is essential for long-term DJ career development.
 
-#### DJ名の決め方
+#### Choosing a DJ Name
 
-- 覚えやすく、発音しやすい名前を選ぶ
-- 検索で一意に特定できる名前が理想（既存の有名DJと被らないこと）
-- ドメイン名やSNSアカウントが取得可能か確認する
-- 自分の音楽性やパーソナリティを反映した名前
-- 長すぎない（2-3音節が理想）
+- Choose a name that is memorable and easy to pronounce
+- Ideally a name uniquely identifiable in search results (not overlapping with existing famous DJs)
+- Check if the domain name and social media accounts are available
+- A name that reflects your musical style and personality
+- Not too long (2-3 syllables is ideal)
 
-#### SNS戦略
+#### Social Media Strategy
 
-**各プラットフォームの活用法**
+**How to Use Each Platform**
 
-| プラットフォーム | 主な用途 | 投稿頻度目安 |
+| Platform | Primary Use | Suggested Posting Frequency |
 |---------------|---------|------------|
-| Instagram | ビジュアルブランディング、ストーリーズでの日常共有 | 週3-5回 |
-| TikTok | ショートクリップでの楽曲紹介、テクニック披露 | 週3-5回 |
-| YouTube | ミックス動画、チュートリアル、機材レビュー | 月2-4回 |
-| SoundCloud | ミックスのアップロード | 月1-2回 |
-| Mixcloud | 長尺ミックスのアーカイブ | 月1-2回 |
-| Twitter/X | リアルタイムの情報発信、コミュニティ交流 | 毎日 |
-| Twitch | ライブDJ配信 | 週1-2回 |
+| Instagram | Visual branding, sharing daily life via Stories | 3-5 times per week |
+| TikTok | Short clips for track introductions and technique showcases | 3-5 times per week |
+| YouTube | Mix videos, tutorials, equipment reviews | 2-4 times per month |
+| SoundCloud | Uploading mixes | 1-2 times per month |
+| Mixcloud | Archiving long-form mixes | 1-2 times per month |
+| Twitter/X | Real-time updates, community interaction | Daily |
+| Twitch | Live DJ streaming | 1-2 times per week |
 
-**コンテンツ戦略のアイデア**
-- DJセットのハイライトクリップ（30秒-1分）
-- ビフォーアフター（トランジション解説）
-- 新譜レビュー・おすすめトラック紹介
-- 練習風景のタイムラプス
-- 機材紹介・セットアップ紹介
-- 他のDJとのコラボ・Back to Back解説
-- 質問コーナー / Q&A
-- イベントレポート
+**Content Strategy Ideas**
+- Highlight clips of DJ sets (30 seconds - 1 minute)
+- Before-and-after (transition breakdowns)
+- New release reviews and recommended track introductions
+- Time-lapse of practice sessions
+- Equipment and setup introductions
+- Collaborations with other DJs and Back to Back breakdowns
+- Q&A sessions
+- Event reports
 
-#### ウェブサイトとEPK（Electronic Press Kit）
+#### Website and EPK (Electronic Press Kit)
 
-プロとして活動するなら、自分のウェブサイトとEPKは必須です。
+A personal website and EPK are essential for professional activity.
 
-**EPKに含めるべき要素**
-1. プロフィール写真（高解像度、プロフェッショナル）
-2. バイオグラフィー（3段落程度: 短縮版 + 詳細版）
-3. ジャンル / スタイルの説明
-4. 過去の出演実績
-5. デモミックスへのリンク（2-3本）
-6. SNSリンク一覧
-7. テクニカルライダー（必要な機材リスト）
-8. 連絡先（ブッキング用メールアドレス）
-9. 高解像度のプレス写真（複数パターン）
+**Elements to Include in an EPK**
+1. Profile photo (high resolution, professional)
+2. Biography (approximately 3 paragraphs: short version + detailed version)
+3. Genre / style description
+4. Past performance history
+5. Links to demo mixes (2-3)
+6. Social media links
+7. Technical rider (required equipment list)
+8. Contact information (booking email address)
+9. High-resolution press photos (multiple variations)
 
-### 収益化の方法
+### Monetization Methods
 
-DJとして収入を得る方法は多岐にわたります。ギグのギャランティだけでなく、複数の収入源を確保することが安定したキャリアにつながります。
+There are many ways to earn income as a DJ. Securing multiple revenue streams beyond just gig fees leads to a more stable career.
 
-#### 収入源の多角化
+#### Diversifying Revenue Streams
 
-**1. ギグ（ライブプレイ）**
-- クラブでのレギュラー / ゲスト出演
-- プライベートパーティー（企業イベント、ウェディング、誕生日）
-- フェスティバル出演
-- ブランドイベント / 企業イベント
+**1. Gigs (Live Play)**
+- Regular/guest appearances at clubs
+- Private parties (corporate events, weddings, birthdays)
+- Festival appearances
+- Brand events / corporate events
 
-**ギグのギャランティ目安（日本市場）**
+**Gig Fee Estimates (Japan Market)**
 
-| レベル | クラブギグ | プライベートイベント |
+| Level | Club Gig | Private Event |
 |--------|----------|-----------------|
-| 新人 | 0-1万円 | 1-3万円 |
-| ローカル中堅 | 1-5万円 | 3-10万円 |
-| 人気DJ | 5-20万円 | 10-50万円 |
-| トップDJ | 20-100万円+ | 50-200万円+ |
+| Newcomer | 0-10,000 yen | 10,000-30,000 yen |
+| Local mid-tier | 10,000-50,000 yen | 30,000-100,000 yen |
+| Popular DJ | 50,000-200,000 yen | 100,000-500,000 yen |
+| Top DJ | 200,000-1,000,000+ yen | 500,000-2,000,000+ yen |
 
-**2. 楽曲制作・リリース**
-- オリジナル楽曲のリリース（ストリーミング収益）
-- リミックス制作の依頼
-- 他アーティストへの楽曲提供
-- サンプルパック販売
+**2. Music Production & Releases**
+- Original track releases (streaming revenue)
+- Remix production commissions
+- Providing tracks to other artists
+- Sample pack sales
 
-**3. オンライン活動**
-- ストリーミング配信（Twitch サブスクリプション / 投げ銭）
-- YouTubeの広告収益
-- オンラインDJレッスン
-- DJ関連コンテンツの有料配信
+**3. Online Activities**
+- Streaming (Twitch subscriptions / tips)
+- YouTube ad revenue
+- Online DJ lessons
+- Paid DJ-related content
 
-**4. 関連サービス**
-- DJスクール / ワークショップ講師
-- 機材のレビュー・コンサルティング
-- イベントの音響オペレーター
-- 音楽コンサルタント（店舗BGM選曲など）
+**4. Related Services**
+- DJ school / workshop instructor
+- Equipment review and consulting
+- Event sound operator
+- Music consultant (retail BGM curation, etc.)
 
-**5. ブランドパートナーシップ**
-- 機材メーカーとのスポンサー契約
-- 飲料ブランドとのコラボレーション
-- ファッションブランドとのタイアップ
-- 音楽プラットフォームとのアンバサダー契約
+**5. Brand Partnerships**
+- Sponsorship deals with equipment manufacturers
+- Collaborations with beverage brands
+- Tie-ups with fashion brands
+- Ambassador contracts with music platforms
 
 ---
 
-## 推奨リソース一覧
+## Recommended Resources
 
-### 書籍
+### Books
 
-| タイトル | 著者 | 内容 |
+| Title | Author | Description |
 |---------|------|------|
-| How To DJ Right | Frank Broughton, Bill Brewster | DJの歴史と技術の包括的なガイド |
-| Last Night a DJ Saved My Life | Bill Brewster | DJカルチャーの歴史書 |
-| DJing For Dummies | John Steventon | 初心者向け総合ガイド |
-| The Manual (How to Have a Number One the Easy Way) | The KLF | 音楽制作の古典的ガイド |
-| 月刊Sound & Recording Magazine | - | 音楽制作全般の日本語雑誌 |
+| How To DJ Right | Frank Broughton, Bill Brewster | A comprehensive guide to DJ history and technique |
+| Last Night a DJ Saved My Life | Bill Brewster | A history of DJ culture |
+| DJing For Dummies | John Steventon | Comprehensive beginner's guide |
+| The Manual (How to Have a Number One the Easy Way) | The KLF | A classic guide to music production |
+| Sound & Recording Magazine (Monthly) | - | Japanese-language music production magazine |
 
-### オンライン学習プラットフォーム
+### Online Learning Platforms
 
-| プラットフォーム | 特徴 | 料金 |
+| Platform | Features | Cost |
 |---------------|------|------|
-| DJ TechTools | 記事・チュートリアル豊富 | 無料 |
-| Digital DJ Tips | ビデオチュートリアル | 有料メンバーシップ |
-| Crossfader | YouTube無料チュートリアル | 無料 |
-| Udemy | DJコース各種 | 有料（セール時1,500-2,000円程度） |
-| Skillshare | DJ・音楽制作コース | 月額制 |
-| Point Blank Music School | プロ向けオンラインDJコース | 有料 |
+| DJ TechTools | Extensive articles and tutorials | Free |
+| Digital DJ Tips | Video tutorials | Paid membership |
+| Crossfader | Free YouTube tutorials | Free |
+| Udemy | Various DJ courses | Paid (around 1,500-2,000 yen during sales) |
+| Skillshare | DJ and music production courses | Monthly subscription |
+| Point Blank Music School | Pro-level online DJ courses | Paid |
 
-### YouTubeチャンネル
+### YouTube Channels
 
-| チャンネル名 | コンテンツ内容 |
+| Channel Name | Content |
 |------------|-------------|
-| DJ TechTools | 機材レビュー、テクニック解説 |
-| Crossfader | DJ基礎から応用まで幅広い |
-| Carlo Atendido | テクニック解説、パフォーマンス映像 |
-| Laidback Luke | プロDJの視点からのアドバイス |
-| Boiler Room | 世界中のDJセットのアーカイブ |
-| DJ Sounds | CDJ/DJM操作の高品質映像 |
-| Club Ready DJ School | 初心者向けチュートリアル |
+| DJ TechTools | Equipment reviews, technique breakdowns |
+| Crossfader | Wide range from DJ basics to advanced |
+| Carlo Atendido | Technique breakdowns, performance footage |
+| Laidback Luke | Advice from a professional DJ's perspective |
+| Boiler Room | DJ set archives from around the world |
+| DJ Sounds | High-quality CDJ/DJM operation footage |
+| Club Ready DJ School | Beginner-oriented tutorials |
 
-### コミュニティ・フォーラム
+### Communities & Forums
 
-- **Reddit**: r/DJs, r/Beatmatch（初心者向け）, r/DJSetups
-- **Discord**: 多数のDJコミュニティサーバーが存在
-- **DJ TechTools Forum**: 技術的な議論が活発
-- **地元のDJコミュニティ**: Facebook グループやLINEグループ
+- **Reddit**: r/DJs, r/Beatmatch (for beginners), r/DJSetups
+- **Discord**: Numerous DJ community servers exist
+- **DJ TechTools Forum**: Active technical discussions
+- **Local DJ communities**: Facebook groups and LINE groups
 
-### 楽曲チャート・発見ツール
+### Track Charts & Discovery Tools
 
-| ツール | 用途 |
+| Tool | Use |
 |-------|------|
-| Beatport Top 100 | 各ジャンルの人気チャート |
-| 1001Tracklists | 有名DJのプレイリスト |
-| Tunebat | BPM・キー検索 |
-| Shazam | 曲の特定 |
-| SoundCloud Weekly | 新曲の発見 |
-| Spotify DJ Mixes | キュレーションされたDJミックス |
-| RA (Resident Advisor) | DJチャート、レビュー、イベント情報 |
+| Beatport Top 100 | Popular charts by genre |
+| 1001Tracklists | Playlists from famous DJs |
+| Tunebat | BPM and key search |
+| Shazam | Track identification |
+| SoundCloud Weekly | Discovering new tracks |
+| Spotify DJ Mixes | Curated DJ mixes |
+| RA (Resident Advisor) | DJ charts, reviews, event information |
 
-### DJ機材メーカー公式リソース
+### Official Resources from DJ Equipment Manufacturers
 
-- **Pioneer DJ**: 公式チュートリアル動画、rekordbox使い方ガイド
-- **Native Instruments**: Traktor Pro チュートリアル、サウンドパック
-- **Denon DJ**: Engine DJ ガイド、製品チュートリアル
-- **Serato**: 公式ブログ、ビデオチュートリアル
-- **Allen & Heath**: ミキサー技術ガイド
-
----
-
-## 年間学習計画テンプレート
-
-以下は、1年間でDJ初心者からセミプロレベルに到達するための学習計画テンプレートです。自分のペースに合わせて調整してください。
-
-### 第1四半期（Month 1-3）: 基礎構築期
-
-**Month 1: 音楽理解＋機材習熟**
-
-| 週 | 目標 | 日課（30分） | 週末拡大（60分） |
-|---|------|-------------|---------------|
-| W1 | BPM理解 | BPMタッピング、ジャンル学習 | 機材開封・セットアップ |
-| W2 | フレーズ理解 | フレーズカウント、楽曲構造分析 | ソフトウェア操作習得 |
-| W3 | 機材操作 | ボタン・ノブの操作練習 | 最初のミックス録音 |
-| W4 | 基本操作統合 | キュー設定、再生操作 | 4曲ミニセット挑戦 |
-
-**Month 2: ビートマッチング集中**
-
-| 週 | 目標 | 日課（45分） | 週末拡大（90分） |
-|---|------|-------------|---------------|
-| W5 | 同BPMマッチ | 同BPM曲での位相合わせ | ビートマッチング20回反復 |
-| W6 | ±3 BPMマッチ | ピッチフェーダー微調整 | 連続ミキシング5曲挑戦 |
-| W7 | ±5 BPMマッチ | ビート維持32小節 | 10曲セット構築 |
-| W8 | 総合練習 | ビートマッチ+フェーダー | 15分セット録音 |
-
-**Month 3: 基本ミキシング実践**
-
-| 週 | 目標 | 日課（60分） | 週末拡大（90分） |
-|---|------|-------------|---------------|
-| W9 | ロングミックス | 16小節トランジション練習 | 20分セット構築 |
-| W10 | EQミキシング | Low EQスワップ、フィルター | 異なるトランジション3種類 |
-| W11 | 選曲の基礎 | ジャンル内の流れ構築 | 30分セット挑戦 |
-| W12 | 第1四半期総括 | 苦手分野の復習 | 30分セット録音・自己評価 |
-
-**第1四半期の到達目標**
-- ビートマッチングが60秒以内に完了できる
-- 30分のミックスセットが構築できる
-- 基本的なEQミキシングができる
-- 100曲以上のライブラリが構築されている
-
-### 第2四半期（Month 4-6）: スキル深化期
-
-**Month 4: ハーモニックミキシング**
-
-| 週 | 目標 | 日課（60分） | 週末拡大（120分） |
-|---|------|-------------|----------------|
-| W13 | Camelot Wheel学習 | キー解析・分類作業 | キー互換ミックス練習 |
-| W14 | キー互換トランジション | Camelotルール適用 | 45分セット（キー考慮） |
-| W15 | エフェクト基礎 | ディレイ・リバーブ | エフェクト付きトランジション |
-| W16 | 統合練習 | ハーモニック+エフェクト | 60分フルセット挑戦 |
-
-**Month 5: パフォーマンス力強化**
-
-| 週 | 目標 | 日課（90分） | 週末拡大（120分） |
-|---|------|-------------|----------------|
-| W17 | ループテクニック | ループサイズ変更練習 | ループ活用セット録音 |
-| W18 | Hot Cue応用 | Hot Cue設定・活用 | 即興リミックス練習 |
-| W19 | エフェクトコンボ | ビルドアップ演出 | 友人を招いてプレイ |
-| W20 | パフォーマンス統合 | 全テクニック統合練習 | 60分パフォーマンスセット |
-
-**Month 6: 実践準備**
-
-| 週 | 目標 | 日課（90分） | 週末拡大（120分） |
-|---|------|-------------|----------------|
-| W21 | フロアリーディング | 仮想フロアリーディング | オープンデッキ参加準備 |
-| W22 | セット構成 | エネルギーカーブ設計 | 90分セット構築 |
-| W23 | 録音・編集 | デモミックス録音 | SoundCloud投稿 |
-| W24 | 第2四半期総括 | 弱点の集中復習 | 60分セット完璧仕上げ |
-
-**第2四半期の到達目標**
-- ハーモニックミキシングが自然にできる
-- エフェクトを音楽的に活用できる
-- 60分のセットを自信をもって披露できる
-- デモミックスが完成し、オンラインに公開されている
-
-### 第3四半期（Month 7-9）: 実践デビュー期
-
-**主な取り組み**
-- オープンデッキイベントへの参加（月1-2回）
-- ライブストリーミング配信の開始（週1回）
-- SNSアカウントの開設と定期投稿の開始
-- 楽曲制作（エディット / ブートレグ）の着手
-- DJコミュニティへの積極的な参加
-
-**Month 7-9の週間スケジュールテンプレート**
-
-```
-月: 新曲チェック・ライブラリ更新（60分）
-火: テクニック練習（90分）
-水: 楽曲制作 / エディット（60分）
-木: セット構築練習（90分）
-金: 休息 / 音楽リスニング
-土: ライブ配信 or イベント参加
-日: 録音・分析・SNS投稿
-```
-
-### 第4四半期（Month 10-12）: キャリア構築期
-
-**主な取り組み**
-- クラブへのアプローチ開始
-- 自主イベントの企画・開催
-- EPK（Electronic Press Kit）の作成
-- ウェブサイトの構築
-- 他のDJとのネットワーキング強化
-- 楽曲制作スキルの深化
-
-**Month 10-12の到達目標チェックリスト**
-- [ ] クラブやバーで3回以上のギグ経験
-- [ ] ライブ配信のレギュラーが確立
-- [ ] SNSフォロワーが一定数に達する
-- [ ] 自主イベントを1回以上開催
-- [ ] EPKとウェブサイトが完成
-- [ ] 5本以上のミックスがオンラインに公開
-- [ ] 3曲以上のエディット / ブートレグが完成
-- [ ] 地元のDJコミュニティに認知される
-- [ ] 90分以上のセットを自信をもってプレイできる
-- [ ] 複数のジャンルに対応できる選曲力
+- **Pioneer DJ**: Official tutorial videos, rekordbox user guides
+- **Native Instruments**: Traktor Pro tutorials, sound packs
+- **Denon DJ**: Engine DJ guides, product tutorials
+- **Serato**: Official blog, video tutorials
+- **Allen & Heath**: Mixer technical guides
 
 ---
 
-## DJの耳を守る — 聴覚保護ガイド
+## Annual Learning Plan Template
 
-DJにとって耳は最も大切な資産です。クラブやフェスティバルの大音量環境で長時間過ごすことによる聴覚へのダメージを防ぐために、聴覚保護は必須です。
+The following is a learning plan template for reaching semi-professional level from DJ beginner in one year. Adjust to your own pace.
 
-### 耳栓（イヤープロテクター）の選び方
+### Q1 (Month 1-3): Foundation Building Period
 
-**音楽用イヤープロテクターの特徴**
-通常のフォーム耳栓とは異なり、音楽用イヤープロテクターは全周波数帯域を均等に減衰させるフラットアッテネーションを採用しています。これにより、音量は下がるものの音質は維持されます。
+**Month 1: Music Understanding + Equipment Proficiency**
 
-**おすすめ製品**
+| Week | Goal | Daily Routine (30 min) | Weekend Extended (60 min) |
+|---|------|-------------|---------------|
+| W1 | BPM understanding | BPM tapping, genre study | Unboxing and setup |
+| W2 | Phrase understanding | Phrase counting, song structure analysis | Software operation learning |
+| W3 | Equipment operation | Button and knob practice | Record first mix |
+| W4 | Basic operation integration | Cue setting, playback operation | Attempt 4-track mini set |
 
-| 製品名 | 減衰量 | 特徴 | 価格帯 |
+**Month 2: Beat Matching Focus**
+
+| Week | Goal | Daily Routine (45 min) | Weekend Extended (90 min) |
+|---|------|-------------|---------------|
+| W5 | Same-BPM matching | Phase alignment with same-BPM tracks | 20 beat matching repetitions |
+| W6 | ±3 BPM matching | Fine pitch fader adjustment | Attempt 5-track continuous mixing |
+| W7 | ±5 BPM matching | Maintain beat for 32 bars | Build a 10-track set |
+| W8 | Comprehensive practice | Beat match + fader work | Record a 15-minute set |
+
+**Month 3: Basic Mixing Practice**
+
+| Week | Goal | Daily Routine (60 min) | Weekend Extended (90 min) |
+|---|------|-------------|---------------|
+| W9 | Long mix | 16-bar transition practice | Build a 20-minute set |
+| W10 | EQ mixing | Low EQ swap, filter | 3 different transition types |
+| W11 | Track selection basics | Building flow within a genre | Attempt a 30-minute set |
+| W12 | Q1 summary | Review weak areas | Record and self-evaluate a 30-minute set |
+
+**Q1 Achievement Goals**
+- Can complete beat matching within 60 seconds
+- Can build a 30-minute mix set
+- Can perform basic EQ mixing
+- Have a library of 100+ tracks
+
+### Q2 (Month 4-6): Skill Deepening Period
+
+**Month 4: Harmonic Mixing**
+
+| Week | Goal | Daily Routine (60 min) | Weekend Extended (120 min) |
+|---|------|-------------|----------------|
+| W13 | Camelot Wheel study | Key analysis and classification | Key-compatible mix practice |
+| W14 | Key-compatible transitions | Applying Camelot rules | 45-minute set (key-conscious) |
+| W15 | Effects basics | Delay and reverb | Transitions with effects |
+| W16 | Integrated practice | Harmonic + effects | Attempt a 60-minute full set |
+
+**Month 5: Performance Enhancement**
+
+| Week | Goal | Daily Routine (90 min) | Weekend Extended (120 min) |
+|---|------|-------------|----------------|
+| W17 | Loop techniques | Loop size change practice | Record a set with loops |
+| W18 | Hot Cue applications | Hot Cue setup and usage | Improvised remix practice |
+| W19 | Effect combos | Buildup performance | Play for friends |
+| W20 | Performance integration | Integrated technique practice | 60-minute performance set |
+
+**Month 6: Practical Preparation**
+
+| Week | Goal | Daily Routine (90 min) | Weekend Extended (120 min) |
+|---|------|-------------|----------------|
+| W21 | Floor reading | Simulated floor reading | Open deck event preparation |
+| W22 | Set construction | Energy curve design | Build a 90-minute set |
+| W23 | Recording and editing | Demo mix recording | SoundCloud upload |
+| W24 | Q2 summary | Focused review of weaknesses | Perfect a 60-minute set |
+
+**Q2 Achievement Goals**
+- Can perform harmonic mixing naturally
+- Can use effects musically
+- Can confidently present a 60-minute set
+- Demo mix is complete and published online
+
+### Q3 (Month 7-9): Practical Debut Period
+
+**Main Activities**
+- Participate in open deck events (1-2 times per month)
+- Start live streaming (once per week)
+- Open social media accounts and begin regular posting
+- Begin music production (edits / bootlegs)
+- Actively participate in DJ communities
+
+**Week 7-9 Weekly Schedule Template**
+
+```
+Mon: New track check and library update (60 min)
+Tue: Technique practice (90 min)
+Wed: Music production / editing (60 min)
+Thu: Set building practice (90 min)
+Fri: Rest / music listening
+Sat: Live stream or event participation
+Sun: Record, analyze, and post on social media
+```
+
+### Q4 (Month 10-12): Career Building Period
+
+**Main Activities**
+- Begin approaching clubs
+- Plan and hold self-organized events
+- Create an EPK (Electronic Press Kit)
+- Build a website
+- Strengthen networking with other DJs
+- Deepen music production skills
+
+**Month 10-12 Achievement Checklist**
+- [ ] 3+ gig experiences at clubs or bars
+- [ ] Established a regular live stream
+- [ ] Reached a certain number of social media followers
+- [ ] Organized at least 1 self-hosted event
+- [ ] EPK and website are complete
+- [ ] 5+ mixes published online
+- [ ] 3+ edits / bootlegs completed
+- [ ] Recognized in the local DJ community
+- [ ] Can confidently play a 90+ minute set
+- [ ] Have the track selection ability to cover multiple genres
+
+---
+
+## Protecting Your Ears as a DJ — Hearing Protection Guide
+
+For DJs, ears are the most precious asset. Hearing protection is essential to prevent damage from prolonged exposure to loud environments at clubs and festivals.
+
+### Choosing Ear Plugs (Ear Protectors)
+
+**Features of Musician's Ear Protectors**
+Unlike standard foam earplugs, musician's ear protectors use flat attenuation that reduces all frequency bands equally. This lowers the volume while maintaining sound quality.
+
+**Recommended Products**
+
+| Product Name | Attenuation | Features | Price Range |
 |--------|--------|------|--------|
-| Etymotic ER20XS | 20dB | 定番のミュージシャン用 | 3,000円 |
-| Alpine MusicSafe Pro | 16/19/22dB | 3段階の減衰フィルター交換式 | 4,000円 |
-| Loop Experience | 18dB | デザイン性が高い | 4,500円 |
-| ACS Custom | 15-25dB | カスタムモールド、最高品質 | 3-5万円 |
+| Etymotic ER20XS | 20dB | The go-to for musicians | 3,000 yen |
+| Alpine MusicSafe Pro | 16/19/22dB | 3-level interchangeable attenuation filters | 4,000 yen |
+| Loop Experience | 18dB | Stylish design | 4,500 yen |
+| ACS Custom | 15-25dB | Custom-molded, highest quality | 30,000-50,000 yen |
 
-### 安全な音量レベルの目安
+### Safe Volume Level Guidelines
 
-| 環境 | 典型的な音量 | 安全な暴露時間 |
+| Environment | Typical Volume | Safe Exposure Time |
 |------|------------|-------------|
-| 通常の会話 | 60-70 dB | 制限なし |
-| クラブ（フロア） | 95-110 dB | 15分-4時間 |
-| クラブ（DJブース） | 90-100 dB | 2-8時間 |
-| フェスティバル（前方） | 100-115 dB | 15分-2時間 |
-| ヘッドフォン（最大音量） | 100-110 dB | 15分-2時間 |
+| Normal conversation | 60-70 dB | No limit |
+| Club (floor) | 95-110 dB | 15 min - 4 hours |
+| Club (DJ booth) | 90-100 dB | 2-8 hours |
+| Festival (front) | 100-115 dB | 15 min - 2 hours |
+| Headphones (max volume) | 100-110 dB | 15 min - 2 hours |
 
-**予防のための行動指針**
-- DJブースでは必ず音楽用イヤープロテクターを着用する
-- ヘッドフォンのモニタリング音量は必要最小限にする
-- 連続してプレイする場合は、30分ごとに短い休憩を取る
-- 耳鳴りや聴覚の違和感を感じたら、すぐに静かな環境に移動する
-- 年に1回は聴力検査を受ける
-
----
-
-## よくある失敗と対策
-
-### 初心者がよくやるミス
-
-**ミス1: 音量が大きすぎる / 赤ランプ点灯**
-マスター出力のレベルメーターが常に赤（クリッピング）の状態でプレイすること。音割れの原因であり、スピーカーを壊す可能性もあります。
-
-対策: レベルメーターは黄色の範囲を上限とし、赤には絶対に触れないようにする。ゲインステージングを正しく行う。
-
-**ミス2: ベースラインの衝突**
-2つの曲のベースを同時に全開にしてミックスすること。低域が衝突して濁った音になります。
-
-対策: トランジション中は必ずどちらかのEQ Lowを下げる。EQスワップの技術を習得する。
-
-**ミス3: フレーズがずれたミックスイン**
-曲のフレーズの途中でミックスを始めること。音楽的に不自然な印象を与えます。
-
-対策: 常にフレーズの頭（8小節または16小節の1拍目）でミックスを開始する。フレーズカウントを徹底する。
-
-**ミス4: 長すぎるトランジション**
-2つの曲を不必要に長く重ねてしまうこと。音がぶつかり合い、混沌とした印象を与えます。
-
-対策: トランジションの適切な長さを意識する。16-32小節が基本。練習時に録音して確認する。
-
-**ミス5: 選曲の一貫性がない**
-エネルギーレベルやジャンルが急に変わりすぎて、フロアの流れが途切れること。
-
-対策: セットリストを事前に準備する。BPMとキーの流れを事前に確認する。フロアの反応を見ながら柔軟に対応する。
-
-**ミス6: 機材トラブルへの準備不足**
-ケーブルの接続不良、ソフトウェアのクラッシュ、USBメモリのエラーなど、予期せぬトラブルへの対応ができないこと。
-
-対策:
-- バックアップUSBメモリを必ず持参する
-- ケーブル類のスペアを用意する
-- ソフトウェアのバージョンを最新に保つ
-- 事前に機材チェックの時間を確保する
-- トラブル発生時の緊急対応プランを持っておく（別のデッキから即座に曲を再生するなど）
+**Preventive Action Guidelines**
+- Always wear musician's ear protectors in the DJ booth
+- Keep headphone monitoring volume to the minimum necessary
+- Take short breaks every 30 minutes during continuous play
+- If you experience tinnitus or hearing discomfort, immediately move to a quiet environment
+- Get a hearing test once a year
 
 ---
 
-## DJ用語集
+## Common Mistakes and Solutions
 
-| 用語 | 英語 | 意味 |
+### Mistakes Beginners Often Make
+
+**Mistake 1: Volume Too Loud / Red LEDs Lit**
+Playing with the master output level meter constantly in the red (clipping). This causes distortion and can damage speakers.
+
+Solution: Keep the level meter within the yellow range and never let it reach red. Perform proper gain staging.
+
+**Mistake 2: Bassline Collision**
+Mixing with the bass of both tracks fully open simultaneously. The low end collides and the sound becomes muddy.
+
+Solution: Always lower the EQ Low of one track during transitions. Master the EQ swap technique.
+
+**Mistake 3: Mix-In at Wrong Phrase Point**
+Starting a mix in the middle of a phrase. This creates a musically unnatural impression.
+
+Solution: Always start the mix at the head of a phrase (the first beat of an 8-bar or 16-bar phrase). Commit to thorough phrase counting.
+
+**Mistake 4: Transitions That Are Too Long**
+Overlapping two tracks for an unnecessarily long time. The sounds clash and create a chaotic impression.
+
+Solution: Be conscious of appropriate transition length. 16-32 bars is standard. Record during practice and review.
+
+**Mistake 5: Inconsistent Track Selection**
+Energy levels or genres changing too abruptly, breaking the flow of the floor.
+
+Solution: Prepare setlists in advance. Check BPM and key flow beforehand. Respond flexibly based on floor reactions.
+
+**Mistake 6: Unprepared for Equipment Troubles**
+Being unable to respond to unexpected issues like cable connection failures, software crashes, or USB memory errors.
+
+Solution:
+- Always bring a backup USB drive
+- Have spare cables ready
+- Keep software versions up to date
+- Secure time for pre-show equipment checks
+- Have an emergency response plan (e.g., immediately play a track from another deck)
+
+---
+
+## DJ Glossary
+
+| Term | English | Meaning |
 |------|------|------|
-| ビートマッチング | Beat Matching | 2曲のテンポと位相を合わせる技術 |
-| ビートジャグリング | Beat Juggling | 同じ曲の2枚のレコードを使ったテクニック |
-| ブレンド | Blend | 2つの曲を自然に重ね合わせること |
-| クレート | Crate | 楽曲の分類フォルダ（レコード箱が由来） |
-| キュー | Cue | 再生開始ポイントの設定・呼び出し |
-| デッドスペース | Dead Air | 曲と曲の間の無音状態（避けるべき） |
-| ドロップ | Drop | 楽曲のクライマックス部分 |
-| フロアフィラー | Floor Filler | 確実にフロアを盛り上げる定番曲 |
-| フロアキラー | Floor Killer | フロアのエネルギーを殺してしまう曲 |
-| ゲインステージング | Gain Staging | 信号レベルを適切に管理する技術 |
-| ナッジ | Nudge | ジョグホイールを軽く触ってビート位置を微調整 |
-| ピークタイム | Peak Time | イベントの最も盛り上がる時間帯 |
-| レジデント | Resident | クラブに定期的に出演するDJ |
-| B2B | Back to Back | 2人のDJが交互にプレイする形式 |
-| トランジション | Transition | 曲から曲への移行 |
-| ウォームアップ | Warm Up | メインDJの前にフロアを温める役割 |
-| クロージング | Closing | イベントの最後を締めくくるDJプレイ |
-| レコードプール | Record Pool | DJ向けの楽曲配信サービス |
-| テクニカルライダー | Technical Rider | 出演に必要な機材リスト |
-| サウンドチェック | Sound Check | 本番前の音響確認 |
+| Beat Matching | Beat Matching | The technique of aligning the tempo and phase of 2 tracks |
+| Beat Juggling | Beat Juggling | A technique using 2 copies of the same record |
+| Blend | Blend | Naturally layering 2 tracks together |
+| Crate | Crate | A classification folder for tracks (derived from record crates) |
+| Cue | Cue | Setting/recalling a playback start point |
+| Dead Air | Dead Air | Silence between tracks (should be avoided) |
+| Drop | Drop | The climax section of a track |
+| Floor Filler | Floor Filler | A classic track guaranteed to get the floor moving |
+| Floor Killer | Floor Killer | A track that kills the floor's energy |
+| Gain Staging | Gain Staging | The technique of properly managing signal levels |
+| Nudge | Nudge | Lightly touching the jog wheel to fine-adjust beat position |
+| Peak Time | Peak Time | The most energetic time slot of an event |
+| Resident | Resident | A DJ who regularly performs at a club |
+| B2B | Back to Back | A format where 2 DJs take turns playing |
+| Transition | Transition | Moving from one track to the next |
+| Warm Up | Warm Up | The role of warming up the floor before the main DJ |
+| Closing | Closing | DJ play that wraps up the end of an event |
+| Record Pool | Record Pool | A music distribution service for DJs |
+| Technical Rider | Technical Rider | A list of equipment required for a performance |
+| Sound Check | Sound Check | Pre-show audio confirmation |
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Perform input data validation
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Tests
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1689,26 +1688,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1716,7 +1715,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1727,14 +1726,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1742,7 +1741,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1750,44 +1749,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Tests
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All applied tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1796,7 +1795,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1811,47 +1810,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f} sec")
+    print(f"Efficient version:   {fast_time:.6f} sec")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key Points:**
+- Be conscious of algorithm complexity
+- Choose appropriate data structures
+- Measure effectiveness with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Configuration file issues | Verify the configuration file path and format |
+| Timeout | Network latency / insufficient resources | Adjust timeout values, add retry logic |
+| Out of memory | Growing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access permissions | Verify execution user permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Introduce locking mechanisms, manage transactions |
 
-### デバッグの手順
+### Debugging Procedure
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check the error message**: Read the stack trace to identify the location
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Formulate hypotheses**: List possible causes
+4. **Verify step by step**: Use log output or debugger to test hypotheses
+5. **Fix and regression test**: After fixing, also run tests on related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utilities
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger configuration
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1859,101 +1858,101 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance issues:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O waits**: Review disk and network I/O status
+4. **Check concurrent connections**: Review connection pool state
 
-| 問題の種類 | 診断ツール | 対策 |
+| Issue Type | Diagnostic Tool | Solution |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper reference release |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB delay | EXPLAIN, slow query log | Indexing, query optimization |
 ---
 
-## まとめ — DJ学習の成功のために
+## Summary — Keys to Success in DJ Learning
 
-DJは技術、音楽知識、パフォーマンス力、そして人との繋がりが重要な総合的なスキルです。このロードマップで示した内容は、あくまで道標です。最も大切なのは、以下の3つの原則です。
+DJing is a comprehensive skill requiring technique, music knowledge, performance ability, and connections with people. The content presented in this roadmap is merely a guide. The most important things are the following three principles.
 
-**1. 継続すること**
-毎日少しでも良いので、音楽に触れ、機材に触れ、練習する時間を確保しましょう。1日30分の練習でも、1年間続ければ182.5時間になります。これは十分にスキルを構築できる時間です。
+**1. Be Consistent**
+Even if it's just a little each day, make time to engage with music, touch your equipment, and practice. Even 30 minutes of daily practice adds up to 182.5 hours over a year. That is more than enough time to build skills.
 
-**2. 楽しむこと**
-DJは音楽への愛から始まるものです。練習が義務になってしまったら、一度立ち止まって、なぜDJを始めたかったのかを思い出しましょう。好きな音楽を好きなように流す楽しさを忘れないでください。
+**2. Have Fun**
+DJing starts from a love of music. If practice feels like a chore, take a step back and remember why you wanted to become a DJ. Never forget the joy of playing the music you love the way you want.
 
-**3. 人とつながること**
-DJは一人で完結するものではありません。フロアの人々、他のDJ、プロモーター、アーティストとの繋がりが、あなたのDJキャリアを豊かにしてくれます。積極的にコミュニティに参加し、経験を共有しましょう。
+**3. Connect with People**
+DJing is not something done in isolation. Connections with people on the dance floor, other DJs, promoters, and artists will enrich your DJ career. Actively participate in communities and share your experiences.
 
-あなたのDJジャーニーが、音楽に満ちた素晴らしいものになることを願っています。
+Wishing you a DJ journey filled with great music.
 
 ---
 
-**完了**: [楽曲制作ロードマップ](./learning-path-production.md)
+**Completed**: [Music Production Learning Roadmap](./learning-path-production.md)
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point in learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Understanding deepens not through theory alone, but by actually writing code and verifying how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What are common mistakes beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in professional work?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-このガイドでは以下の重要なポイントを学びました:
-
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
+Knowledge of this topic is frequently applied in everyday development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [楽曲制作 学習ロードマップ](./learning-path-production.md) - 次のトピックへ進む
+In this guide, we learned the following key points:
+
+- Understanding basic concepts and principles
+- Practical implementation patterns
+- Best practices and precautions
+- Methods for practical application
 
 ---
 
-## 参考文献
+## Recommended Next Guides
 
-- [MDN Web Docs](https://developer.mozilla.org/) - Web技術のリファレンス
-- [Wikipedia](https://ja.wikipedia.org/) - 技術概念の概要
+- [Music Production Learning Roadmap](./learning-path-production.md) - Proceed to the next topic
+
+---
+
+## References
+
+- [MDN Web Docs](https://developer.mozilla.org/) - Web technology reference
+- [Wikipedia](https://en.wikipedia.org/) - Overview of technical concepts
