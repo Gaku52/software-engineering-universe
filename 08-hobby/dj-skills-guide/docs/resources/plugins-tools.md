@@ -1,964 +1,964 @@
-# プラグイン・ツール一覧
+# Plugins & Tools Guide
 
 
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- [ ] 基本概念と用語の理解
-- [ ] 実装パターンとベストプラクティスの習得
-- [ ] 実務での適用方法の把握
-- [ ] トラブルシューティングの基本
-
----
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [楽曲制作 学習ロードマップ](./learning-path-production.md) の内容を理解していること
+- [ ] Understanding basic concepts and terminology
+- [ ] Learning implementation patterns and best practices
+- [ ] Grasping practical application methods
+- [ ] Troubleshooting basics
 
 ---
 
-DJ と制作に役立つソフトウェアとツールです。
+## Prerequisites
+
+Before reading this guide, having the following knowledge will deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding of [Music Production Learning Roadmap](./learning-path-production.md)
 
 ---
 
-## DJ ツール
+A list of software and tools useful for DJing and music production.
 
-### DJ ソフトウェア
+---
+
+## DJ Tools
+
+### DJ Software
 
 **Rekordbox**
-- 価格: 無料（基本機能）、月額$19（Pro）
-- 用途: Pioneer DJ機器との連携
-- おすすめ: CDJ使用者必須
+- Price: Free (basic features), $19/month (Pro)
+- Use: Integration with Pioneer DJ equipment
+- Recommended for: Essential for CDJ users
 
 **Serato DJ Pro**
-- 価格: $299（買い切り）
-- 用途: スクラッチ、Hip Hop DJ
-- おすすめ: ターンテーブリスト
+- Price: $299 (one-time purchase)
+- Use: Scratching, Hip Hop DJ
+- Recommended for: Turntablists
 
 ---
 
-### 解析ツール
+### Analysis Tools
 
 **Mixed In Key**
-- 価格: $58
-- 機能: キー分析、Camelot Wheel
-- おすすめ: ハーモニックミキシング必須
+- Price: $58
+- Features: Key analysis, Camelot Wheel
+- Recommended for: Essential for harmonic mixing
 
 **KeyFinder**
-- 価格: 無料
-- 機能: キー分析のみ
-- おすすめ: 無料で試したい人
+- Price: Free
+- Features: Key analysis only
+- Recommended for: Those who want to try for free
 
 ---
 
-## 制作ツール
+## Production Tools
 
 ### DAW
 
 **Ableton Live 12 Suite**
-- 価格: 約10万円
-- おすすめ: DJ + 制作両方
+- Price: Approx. $700
+- Recommended for: Both DJing and production
 
 **FL Studio**
-- 価格: $199-899
-- おすすめ: Hip Hop、Trap制作
+- Price: $199-899
+- Recommended for: Hip Hop, Trap production
 
 ---
 
-### VST シンセ
+### VST Synthesizers
 
 **Serum (Xfer Records)**
-- 価格: $189
-- 用途: Wavetable合成
-- おすすめ: EDM制作者必須
+- Price: $189
+- Use: Wavetable synthesis
+- Recommended for: Essential for EDM producers
 
 **Vital**
-- 価格: 無料 (Pro版あり)
-- 用途: Serumの無料代替
-- おすすめ: 初心者
+- Price: Free (Pro version available)
+- Use: Free alternative to Serum
+- Recommended for: Beginners
 
 ---
 
-### VST エフェクト
+### VST Effects
 
 **FabFilter Pro-Q 3**
-- 価格: $179
-- 用途: プロ級EQ
-- おすすめ: ミキシング精度向上
+- Price: $179
+- Use: Professional-grade EQ
+- Recommended for: Improving mixing precision
 
 **Valhalla VintageVerb**
-- 価格: $50
-- 用途: Reverb
-- おすすめ: コスパ最高
+- Price: $50
+- Use: Reverb
+- Recommended for: Best cost performance
 
 ---
 
-## プラグイン・ツール総合ガイド
+## Comprehensive Plugins & Tools Guide
 
-音楽制作・DJの世界では、ソフトウェアプラグインとツールの選択がクリエイティブな成果を大きく左右します。このガイドでは、プロフェッショナルからビギナーまで、あらゆるレベルのDJ・プロデューサーに役立つプラグインとツールを網羅的に解説します。
+In the world of music production and DJing, the choice of software plugins and tools greatly influences creative outcomes. This guide comprehensively covers plugins and tools useful for DJs and producers of all levels, from professionals to beginners.
 
-### プラグインの基本概念
+### Basic Plugin Concepts
 
-#### VSTとは何か
+#### What is VST?
 
-VST（Virtual Studio Technology）は、Steinbergが1996年に開発したオーディオプラグインのソフトウェアインターフェース規格です。DAW（Digital Audio Workstation）上でバーチャル楽器やエフェクトとして動作し、物理的なハードウェアを必要とせずに高品質な音声処理を可能にします。
+VST (Virtual Studio Technology) is a software interface standard for audio plugins developed by Steinberg in 1996. It operates as virtual instruments and effects within a DAW (Digital Audio Workstation), enabling high-quality audio processing without the need for physical hardware.
 
-主なプラグインフォーマット:
+Main plugin formats:
 
-| フォーマット | 開発元 | 対応OS | 特徴 |
+| Format | Developer | Supported OS | Features |
 |---|---|---|---|
-| VST3 | Steinberg | Windows/macOS | 業界標準、ほぼ全DAW対応 |
-| AU (Audio Units) | Apple | macOS | Logic Pro、GarageBand用 |
-| AAX | Avid | Windows/macOS | Pro Tools専用 |
-| CLAP | 自由規格 | Windows/macOS/Linux | 新世代の軽量フォーマット |
-| LV2 | 自由規格 | Linux | Linux DAW向け |
+| VST3 | Steinberg | Windows/macOS | Industry standard, supported by nearly all DAWs |
+| AU (Audio Units) | Apple | macOS | For Logic Pro, GarageBand |
+| AAX | Avid | Windows/macOS | Pro Tools exclusive |
+| CLAP | Open standard | Windows/macOS/Linux | Next-generation lightweight format |
+| LV2 | Open standard | Linux | For Linux DAWs |
 
-#### プラグインのCPU負荷について
+#### CPU Load Considerations for Plugins
 
-プラグインを選ぶ際にはCPU負荷も重要な判断基準です。特にライブパフォーマンスやDJセットでリアルタイムに使用する場合、低レイテンシで動作するプラグインを選ぶ必要があります。
+CPU load is also an important criterion when choosing plugins. Especially when using plugins in real-time for live performances or DJ sets, you need to choose plugins that operate with low latency.
 
-CPU負荷の目安:
-- **軽量（CPU使用率 1-3%）**: 基本的なEQ、コンプレッサー、ゲイン系
-- **中程度（CPU使用率 3-8%）**: リバーブ、ディレイ、モジュレーション系
-- **重め（CPU使用率 8-15%）**: 高品質シンセサイザー、コンボリューションリバーブ
-- **非常に重い（CPU使用率 15%以上）**: 物理モデリングシンセ、スペクトル解析系
+CPU load guidelines:
+- **Light (CPU usage 1-3%)**: Basic EQ, compressors, gain-related
+- **Moderate (CPU usage 3-8%)**: Reverb, delay, modulation-related
+- **Heavy (CPU usage 8-15%)**: High-quality synthesizers, convolution reverbs
+- **Very heavy (CPU usage 15%+)**: Physical modeling synths, spectral analysis-related
 
-#### プラグインのインストールと管理
+#### Plugin Installation and Management
 
-プラグインを効率的に管理するためのベストプラクティス:
+Best practices for efficiently managing plugins:
 
-1. **専用フォルダの設定**: プラグインのインストール先を統一する
-   - Windows: `C:\Program Files\VSTPlugins\` または `C:\Program Files\Common Files\VST3\`
-   - macOS: `/Library/Audio/Plug-Ins/VST3/` または `~/Library/Audio/Plug-Ins/`
-2. **バージョン管理**: アップデート前に旧バージョンのバックアップを取る
-3. **ライセンス管理**: iLok、Native Access、Plugin Allianceなどのライセンスマネージャーを活用
-4. **定期的なスキャン**: DAWのプラグインスキャンを定期実行してリストを最新に保つ
-
----
-
-## シンセサイザープラグイン詳細ガイド
-
-### ウェーブテーブルシンセサイザー
-
-ウェーブテーブル合成は、EDM・エレクトロニックミュージック制作において最も広く使われるシンセシス方式のひとつです。波形テーブル（複数の波形をスロットに並べたもの）を滑らかにモーフィングさせることで、静的な波形では得られないダイナミックで進化するサウンドを生み出します。
-
-#### Serum（Xfer Records）- 詳細解説
-
-Serumは2014年のリリース以来、EDMプロデューサーの間で事実上の標準となったウェーブテーブルシンセサイザーです。Steve Duda氏が開発し、その直感的なインターフェースと高品質なサウンドエンジンで業界を席巻しました。
-
-**主要機能の詳細:**
-
-- **ウェーブテーブルエディタ**: 自分でウェーブテーブルを描画・インポート可能。オーディオファイルからウェーブテーブルを生成する機能も搭載
-- **2基のオシレーター**: それぞれ独立したウェーブテーブルを読み込み、ユニゾン（最大16ボイス）でデチューンが可能
-- **サブオシレーター**: 基本波形（サイン、三角、鋸歯、矩形）によるサブベース生成
-- **ノイズオシレーター**: 環境音やテクスチャを追加するためのノイズジェネレーター
-- **フィルターセクション**: 多数のフィルタータイプ（ローパス、ハイパス、バンドパス、ノッチ、コム、フランジャーなど）
-- **エフェクトラック**: 10スロットのエフェクトチェーン（ディストーション、フランジャー、フェイザー、コーラス、コンプレッサー、EQ、ディレイ、リバーブなど）
-- **LFO**: 最大4基のLFO、各種波形対応、テンポ同期可能
-- **エンベロープ**: MSEG（Multi-Stage Envelope Generator）による複雑なモジュレーション
-- **マトリクスモジュレーション**: 最大32のモジュレーション接続が可能
-
-**Serumが特に優れている音色ジャンル:**
-- Dubstep: グロウルベース、ワブルベース
-- Future Bass: スーパーソウ、ボーカルチョップ風パッド
-- Riddim: ハードなベースサウンド
-- Trap: 808ベース、リード
-- Progressive House: プラック、パッド
-
-**プリセット管理のコツ:**
-- カテゴリ別にフォルダ分け（Bass、Lead、Pad、FX、Pluck）
-- 自作プリセットには接頭辞をつける（例: `MY_DubBass_01`）
-- Splice経由で追加プリセットパックを入手可能
-
-#### Vital（Matt Tytel）- 詳細解説
-
-Vitalは無料で利用できるウェーブテーブルシンセサイザーとして2020年にリリースされ、その品質の高さから「無料版Serum」と称されるほどの人気を獲得しました。オープンソースの精神に基づいたプロジェクトであり、無料版でもほぼすべてのシンセシス機能が制限なく利用可能です。
-
-**Vitalの特徴的な機能:**
-
-- **スペクトルモーフィング**: テキストからウェーブテーブルを生成する独自機能
-- **ビジュアルフィードバック**: リアルタイムで波形やスペクトルの変化を視覚的に確認
-- **3基のオシレーター**: Serumより1基多いオシレーター構成
-- **MPE対応**: MIDI Polyphonic Expression対応で、Roliなどの表現力豊かなコントローラーに対応
-- **モジュレーション**: ドラッグ&ドロップによる直感的なモジュレーションルーティング
-- **マルチバンドプロセッシング**: 内蔵エフェクトにマルチバンド処理機能
-
-**価格プラン:**
-- Basic: 無料（プリセット75個）
-- Plus: $25（プリセット250個以上）
-- Pro: $80（プリセット400個以上、テキスト-to-ウェーブテーブル機能）
-
-#### Phase Plant（Kilohearts）
-
-Phase Plantは、モジュラーアプローチを採用した次世代シンセサイザーです。
-
-**主要特徴:**
-- **モジュラー設計**: オシレーター、フィルター、エフェクトを自由に接続可能
-- **スナップイン技術**: Kilohearts社のエフェクトプラグインをモジュールとして内部に読み込み可能
-- **アナログモデリング**: バーチャルアナログオシレーターの精度が非常に高い
-- **サンプルプレイバック**: オシレーターとしてサンプルを読み込み加工可能
-- 価格: $199（Essentials）/ $399（Professional）
-
-#### Pigments（Arturia）
-
-ArturiaのPigmentsは、複数のシンセシスエンジンを1つのプラグインに統合した多機能シンセサイザーです。
-
-**搭載シンセシスエンジン:**
-- バーチャルアナログ
-- ウェーブテーブル
-- グラニュラー
-- サンプル
-- ハーモニック（加算合成）
-- FM合成（Pigments 5で追加）
-
-**特徴:**
-- 2つのエンジンをレイヤー/スプリット可能
-- Arturiaの優れたフィルターモデリング技術
-- 直感的なモジュレーション設計
-- 高品質なファクトリープリセット
-- 価格: $199
-
-### アナログモデリングシンセサイザー
-
-アナログモデリングシンセは、往年のアナログシンセサイザーの温かみのあるサウンドをソフトウェアで再現します。
-
-#### Diva（u-he）
-
-DivaはCPU負荷は高いものの、最もアナログに近いサウンドを実現するバーチャルアナログシンセです。
-
-**モデリング対象の名機:**
-- Minimoog: 太く温かいベースサウンド
-- Roland Jupiter-8: 広がりのあるパッド
-- Roland Juno-60: コーラス感のある美しいサウンド
-- Korg MS-20: アグレッシブなフィルターレゾナンス
-- Roland JP-8000: スーパーソウ
-
-**特徴:**
-- コンポーネントモデリング方式でアナログ回路を忠実に再現
-- オシレーター、フィルター、エンベロープを異なるシンセから自由に組み合わせ可能
-- CPU負荷が高いがその分サウンドクオリティは抜群
-- 価格: $189
-
-#### Repro（u-he）
-
-u-he社のReproは、Prophet-5とPro-Oneをモデリングした究極のバーチャルアナログプラグインです。
-
-- **Repro-1**: Sequential Circuits Pro-One のモデリング（モノフォニック）
-- **Repro-5**: Sequential Circuits Prophet-5 のモデリング（ポリフォニック）
-- 価格: $149
-
-#### TAL-U-NO-LX（TAL Software）
-
-Roland Juno-60のモデリングとして非常に人気が高いプラグインです。
-
-- 価格: $80
-- 特徴: 低CPU負荷、Juno特有のコーラスエフェクトを忠実に再現
-- おすすめ: レトロなシンセパッド、Lo-Fiサウンド制作
-
-### FMシンセサイザー
-
-FM（Frequency Modulation）合成は、キラキラしたベル系サウンドやメタリックなテクスチャの生成に優れています。
-
-#### FM8（Native Instruments）
-
-Yamaha DX7の精神を受け継ぐFMシンセサイザーです。
-
-- 6基のFMオペレーター
-- モーフィング機能で音色間を滑らかに変化
-- アルペジエーター搭載
-- 価格: Komplete バンドルに含まれる
-
-#### Dexed（フリーウェア）
-
-Yamaha DX7の完全なソフトウェアエミュレーションです。
-
-- 価格: 無料（オープンソース）
-- DX7の32,000以上のパッチ（SysEx形式）をロード可能
-- 6オペレーターFM合成を忠実に再現
-- おすすめ: FM合成を無料で学びたい人
+1. **Set dedicated folders**: Unify plugin installation locations
+   - Windows: `C:\Program Files\VSTPlugins\` or `C:\Program Files\Common Files\VST3\`
+   - macOS: `/Library/Audio/Plug-Ins/VST3/` or `~/Library/Audio/Plug-Ins/`
+2. **Version management**: Back up old versions before updating
+3. **License management**: Use license managers such as iLok, Native Access, and Plugin Alliance
+4. **Regular scanning**: Periodically run DAW plugin scans to keep the list up to date
 
 ---
 
-## サンプラープラグイン
+## Synthesizer Plugins Detailed Guide
 
-### サンプラーの役割
+### Wavetable Synthesizers
 
-サンプラーは録音された音素材（サンプル）を読み込み、ピッチやタイミングを変えて演奏するためのプラグインです。ドラムキット、楽器音、ボーカルチョップなど、あらゆる音をサンプリングベースで扱えます。
+Wavetable synthesis is one of the most widely used synthesis methods in EDM and electronic music production. By smoothly morphing through a wavetable (multiple waveforms arranged in slots), it creates dynamic, evolving sounds that static waveforms cannot achieve.
 
-#### Kontakt 7（Native Instruments）
+#### Serum (Xfer Records) - Detailed Overview
 
-Kontaktは業界標準のサンプラープラグインで、膨大なサードパーティ製ライブラリが利用可能です。
+Since its release in 2014, Serum has become the de facto standard wavetable synthesizer among EDM producers. Developed by Steve Duda, it took the industry by storm with its intuitive interface and high-quality sound engine.
 
-**主要機能:**
-- マルチサンプルの読み込みと高度なマッピング
-- 内蔵スクリプティングエンジン（KSP）による複雑なインストゥルメント作成
-- タイムストレッチ、グラニュラー合成
-- 複数のグループレイヤーとラウンドロビン
-- 高品質なファクトリーライブラリ（約70GBの音源）
+**Key features in detail:**
 
-**おすすめライブラリ（ジャンル別）:**
+- **Wavetable Editor**: Draw or import your own wavetables. Also features the ability to generate wavetables from audio files
+- **2 Oscillators**: Each loads independent wavetables with unison (up to 16 voices) detuning capability
+- **Sub Oscillator**: Sub-bass generation using basic waveforms (sine, triangle, sawtooth, square)
+- **Noise Oscillator**: Noise generator for adding ambient sounds and textures
+- **Filter Section**: Numerous filter types (low-pass, high-pass, band-pass, notch, comb, flanger, etc.)
+- **Effects Rack**: 10-slot effect chain (distortion, flanger, phaser, chorus, compressor, EQ, delay, reverb, etc.)
+- **LFO**: Up to 4 LFOs, various waveforms supported, tempo sync capable
+- **Envelope**: Complex modulation via MSEG (Multi-Stage Envelope Generator)
+- **Modulation Matrix**: Up to 32 modulation connections possible
 
-| ジャンル | ライブラリ名 | 開発元 | 価格帯 |
+**Genres where Serum particularly excels:**
+- Dubstep: Growl bass, wobble bass
+- Future Bass: Supersaws, vocal chop-style pads
+- Riddim: Hard bass sounds
+- Trap: 808 bass, leads
+- Progressive House: Plucks, pads
+
+**Preset management tips:**
+- Organize into category folders (Bass, Lead, Pad, FX, Pluck)
+- Use prefixes for custom presets (e.g., `MY_DubBass_01`)
+- Additional preset packs available via Splice
+
+#### Vital (Matt Tytel) - Detailed Overview
+
+Vital was released in 2020 as a free wavetable synthesizer and gained such popularity for its quality that it was dubbed the "free Serum." Based on the open-source philosophy, even the free version provides nearly all synthesis features without limitations.
+
+**Vital's distinctive features:**
+
+- **Spectral Morphing**: Unique ability to generate wavetables from text
+- **Visual Feedback**: Real-time visual confirmation of waveform and spectral changes
+- **3 Oscillators**: One more oscillator than Serum
+- **MPE Support**: MIDI Polyphonic Expression support for expressive controllers like Roli
+- **Modulation**: Intuitive drag-and-drop modulation routing
+- **Multiband Processing**: Multiband processing in built-in effects
+
+**Pricing plans:**
+- Basic: Free (75 presets)
+- Plus: $25 (250+ presets)
+- Pro: $80 (400+ presets, text-to-wavetable feature)
+
+#### Phase Plant (Kilohearts)
+
+Phase Plant is a next-generation synthesizer that adopts a modular approach.
+
+**Key features:**
+- **Modular Design**: Freely connect oscillators, filters, and effects
+- **Snap-in Technology**: Load Kilohearts effect plugins as internal modules
+- **Analog Modeling**: Highly accurate virtual analog oscillators
+- **Sample Playback**: Load and process samples as oscillators
+- Price: $199 (Essentials) / $399 (Professional)
+
+#### Pigments (Arturia)
+
+Arturia's Pigments is a multi-functional synthesizer that integrates multiple synthesis engines into one plugin.
+
+**Included synthesis engines:**
+- Virtual Analog
+- Wavetable
+- Granular
+- Sample
+- Harmonic (additive synthesis)
+- FM synthesis (added in Pigments 5)
+
+**Features:**
+- Layer/split two engines
+- Arturia's excellent filter modeling technology
+- Intuitive modulation design
+- High-quality factory presets
+- Price: $199
+
+### Analog Modeling Synthesizers
+
+Analog modeling synths reproduce the warm sound of classic analog synthesizers in software.
+
+#### Diva (u-he)
+
+Diva achieves the closest sound to analog despite high CPU load, making it a premier virtual analog synth.
+
+**Modeled classic instruments:**
+- Minimoog: Thick, warm bass sounds
+- Roland Jupiter-8: Expansive pads
+- Roland Juno-60: Beautiful sounds with chorus character
+- Korg MS-20: Aggressive filter resonance
+- Roland JP-8000: Supersaws
+
+**Features:**
+- Faithfully reproduces analog circuits using component modeling
+- Freely combine oscillators, filters, and envelopes from different synths
+- High CPU load but exceptional sound quality
+- Price: $189
+
+#### Repro (u-he)
+
+u-he's Repro is the ultimate virtual analog plugin modeling the Prophet-5 and Pro-One.
+
+- **Repro-1**: Sequential Circuits Pro-One modeling (monophonic)
+- **Repro-5**: Sequential Circuits Prophet-5 modeling (polyphonic)
+- Price: $149
+
+#### TAL-U-NO-LX (TAL Software)
+
+An extremely popular plugin modeling the Roland Juno-60.
+
+- Price: $80
+- Features: Low CPU load, faithfully reproduces the Juno's distinctive chorus effect
+- Recommended for: Retro synth pads, Lo-Fi sound production
+
+### FM Synthesizers
+
+FM (Frequency Modulation) synthesis excels at generating sparkling bell-like sounds and metallic textures.
+
+#### FM8 (Native Instruments)
+
+An FM synthesizer that carries on the spirit of the Yamaha DX7.
+
+- 6 FM operators
+- Morphing function for smooth transitions between timbres
+- Built-in arpeggiator
+- Price: Included in the Komplete bundle
+
+#### Dexed (Freeware)
+
+A complete software emulation of the Yamaha DX7.
+
+- Price: Free (open source)
+- Can load over 32,000 DX7 patches (SysEx format)
+- Faithfully reproduces 6-operator FM synthesis
+- Recommended for: Those who want to learn FM synthesis for free
+
+---
+
+## Sampler Plugins
+
+### The Role of Samplers
+
+Samplers are plugins that load recorded sound materials (samples) and play them back at different pitches and timings. They can handle any sound on a sampling basis, including drum kits, instrument sounds, and vocal chops.
+
+#### Kontakt 7 (Native Instruments)
+
+Kontakt is the industry-standard sampler plugin with a vast library of third-party content available.
+
+**Key features:**
+- Multi-sample loading and advanced mapping
+- Built-in scripting engine (KSP) for creating complex instruments
+- Time stretching, granular synthesis
+- Multiple group layers and round-robin
+- High-quality factory library (approximately 70GB of sound sources)
+
+**Recommended libraries (by genre):**
+
+| Genre | Library Name | Developer | Price Range |
 |---|---|---|---|
-| オーケストラ | Spitfire Symphony Orchestra | Spitfire Audio | $799 |
-| ピアノ | Noire | Native Instruments | $149 |
-| ギター | Shreddage 3 | Impact Soundworks | $149 |
-| エスニック | Ethno World 7 | Best Service | $389 |
-| ボーカル | Voices of Soul | Soundiron | $99 |
-| アンビエント | Pharlight | Native Instruments | $149 |
+| Orchestral | Spitfire Symphony Orchestra | Spitfire Audio | $799 |
+| Piano | Noire | Native Instruments | $149 |
+| Guitar | Shreddage 3 | Impact Soundworks | $149 |
+| Ethnic | Ethno World 7 | Best Service | $389 |
+| Vocal | Voices of Soul | Soundiron | $99 |
+| Ambient | Pharlight | Native Instruments | $149 |
 
-- 価格: $399（フル版）/ 無料（Kontakt Player、対応ライブラリのみ）
+- Price: $399 (full version) / Free (Kontakt Player, compatible libraries only)
 
-#### Battery 4（Native Instruments）
+#### Battery 4 (Native Instruments)
 
-ドラムサンプリングに特化したプラグインです。
+A plugin specialized for drum sampling.
 
-- 4×4のパッドレイアウトで直感的な操作
-- セル単位でのエフェクト処理
-- 大量のドラムキットプリセット
-- MIDIパターンライブラリ
-- 価格: $199
+- Intuitive operation with 4x4 pad layout
+- Per-cell effect processing
+- Extensive drum kit presets
+- MIDI pattern library
+- Price: $199
 
-#### EXS24 / Sampler（Apple - Logic Pro内蔵）
+#### EXS24 / Sampler (Apple - Built into Logic Pro)
 
-Logic Pro に内蔵されているサンプラーで、追加購入なしで使える強力なサンプラーです。
+A powerful sampler built into Logic Pro, available at no additional cost.
 
-- ゾーンマッピングによる詳細なサンプル配置
-- ラウンドロビン対応
-- Alchemy（Logic内蔵シンセ）との連携
-- 価格: Logic Proに含まれる
+- Detailed sample placement via zone mapping
+- Round-robin support
+- Integration with Alchemy (Logic's built-in synth)
+- Price: Included with Logic Pro
 
 ---
 
-## ドラムマシンプラグイン
+## Drum Machine Plugins
 
-### 電子ドラムサウンドの重要性
+### The Importance of Electronic Drum Sounds
 
-エレクトロニックミュージックにおいてドラムサウンドは楽曲の核となる要素です。ハードウェアドラムマシンの名機をモデリングしたプラグインから、独自のサウンドデザインが可能なものまで、用途に応じた選択が求められます。
+Drum sounds are a core element in electronic music. From plugins that model classic hardware drum machines to those that enable unique sound design, the choice depends on the intended use.
 
 #### XLN Audio XO
 
-AIを活用した革新的なドラムサンプルブラウザ兼シーケンサーです。
+An innovative AI-powered drum sample browser and sequencer.
 
-**主要特徴:**
-- **スペースビュー**: AIが数千のサンプルを類似性に基づいて2Dマップ上に配置。視覚的にサンプルを選択可能
-- **8トラックシーケンサー**: パターンプログラミングが直感的
-- **Beat Connect**: サンプルパック購入・管理プラットフォーム
-- **スマートランダマイズ**: ワンクリックで新しいビートパターンを生成
-- 価格: $149
+**Key features:**
+- **Space View**: AI arranges thousands of samples on a 2D map based on similarity. Visually select samples
+- **8-Track Sequencer**: Intuitive pattern programming
+- **Beat Connect**: Sample pack purchase and management platform
+- **Smart Randomize**: Generate new beat patterns with one click
+- Price: $149
 
 #### Roland Cloud TR-808 / TR-909
 
-Rolandの名機TR-808、TR-909をソフトウェアで完全再現したプラグインです。
+Plugins that fully recreate Roland's legendary TR-808 and TR-909 in software.
 
-**TR-808の特徴:**
-- Hip Hop、Trap の定番ドラムマシン
-- 特徴的なキック（808キック/サブベースキック）
-- カウベル、クラップ、ハイハットなどの独特なサウンド
-- 価格: Roland Cloudサブスクリプション（月額$2.99〜）
+**TR-808 features:**
+- The definitive drum machine for Hip Hop and Trap
+- Characteristic kick (808 kick/sub-bass kick)
+- Distinctive sounds including cowbell, clap, and hi-hat
+- Price: Roland Cloud subscription ($2.99/month and up)
 
-**TR-909の特徴:**
-- House、Technoの原点となったドラムマシン
-- パンチのあるキック、オープンハイハット
-- アクセントとフラムによるグルーブ感
-- 価格: Roland Cloudサブスクリプションに含まれる
+**TR-909 features:**
+- The drum machine that originated House and Techno
+- Punchy kick, open hi-hat
+- Groove from accents and flams
+- Price: Included in Roland Cloud subscription
 
 #### Sonic Academy Kick 2
 
-キックドラムのサウンドデザインに特化したプラグインです。
+A plugin specialized for kick drum sound design.
 
-- レイヤードシンセシスによるキック生成
-- クリック、ボディ、サブの各要素を個別に調整
-- ピッチエンベロープの詳細設定
-- サブベースとキックの一体型サウンド作成
-- 価格: $69
+- Kick generation through layered synthesis
+- Individual adjustment of click, body, and sub elements
+- Detailed pitch envelope settings
+- Creating integrated sub-bass and kick sounds
+- Price: $69
 
 #### D16 Group Drumazon / Nepheton
 
-TR-909（Drumazon）とTR-808（Nepheton）のハイエンドエミュレーションです。
+High-end emulations of the TR-909 (Drumazon) and TR-808 (Nepheton).
 
-- 各パーツのパラメーターを詳細に調整可能
-- 内蔵パターンシーケンサー
-- 高品質なアナログモデリング
-- 個別出力対応で柔軟なミキシング
-- 価格: 各$99
+- Detailed parameter adjustment for each part
+- Built-in pattern sequencer
+- High-quality analog modeling
+- Individual outputs for flexible mixing
+- Price: $99 each
 
 #### Arturia Spark 2
 
-複数の名機ドラムマシンを1つにまとめたバーチャルドラムマシンです。
+A virtual drum machine combining multiple classic drum machines in one.
 
-- TR-808、TR-909、LinnDrum、SP-1200など30以上のドラムマシンをモデリング
-- パターンシーケンサー搭載
-- FXセクション付き
-- 価格: Arturia V Collection に含まれる
+- Models 30+ drum machines including TR-808, TR-909, LinnDrum, SP-1200
+- Built-in pattern sequencer
+- FX section included
+- Price: Included in Arturia V Collection
 
-### ドラムマシン選びのポイント
+### Key Points for Choosing a Drum Machine
 
-ジャンル別に最適なドラムマシンプラグインの組み合わせを紹介します。
+Here are recommended drum machine plugin combinations by genre.
 
-| ジャンル | 推奨プラグイン | 理由 |
+| Genre | Recommended Plugin | Reason |
 |---|---|---|
-| Techno | Drumazon + XO | 909サウンド + パターン生成 |
-| House | TR-909 Cloud + Battery 4 | クラシックサウンド + サンプル柔軟性 |
-| Hip Hop | Nepheton + MPC Beats | 808 + MPCワークフロー |
-| Trap | Kick 2 + XO | カスタム808キック + バリエーション |
-| Drum & Bass | Battery 4 + XO | 高速ブレイクビーツ対応 |
-| Lo-Fi | SP-404 エミュ + RC-20 | ローファイテクスチャ |
+| Techno | Drumazon + XO | 909 sound + pattern generation |
+| House | TR-909 Cloud + Battery 4 | Classic sound + sample flexibility |
+| Hip Hop | Nepheton + MPC Beats | 808 + MPC workflow |
+| Trap | Kick 2 + XO | Custom 808 kick + variation |
+| Drum & Bass | Battery 4 + XO | High-speed breakbeat support |
+| Lo-Fi | SP-404 emu + RC-20 | Lo-fi texture |
 
 ---
 
-## エフェクトプラグイン詳細ガイド
+## Effects Plugins Detailed Guide
 
-エフェクトプラグインは、音の質感やキャラクターを変化させ、ミックスに深みと空間を与えるために不可欠です。ここでは各カテゴリのエフェクトプラグインを詳しく解説します。
+Effect plugins are essential for changing the texture and character of sound, adding depth and space to a mix. Here we cover effect plugins in each category in detail.
 
-### EQ（イコライザー）プラグイン
+### EQ (Equalizer) Plugins
 
-EQは周波数帯域ごとの音量を調整するツールで、ミキシングの最も基本的かつ重要なエフェクトです。
+EQ is a tool that adjusts volume by frequency band, making it the most fundamental and important effect in mixing.
 
-#### FabFilter Pro-Q 3 - 詳細解説
+#### FabFilter Pro-Q 3 - Detailed Overview
 
-Pro-Q 3は音楽制作の世界で最も信頼されているパラメトリックEQプラグインです。
+Pro-Q 3 is the most trusted parametric EQ plugin in the music production world.
 
-**主要機能:**
-- **最大24バンド**: 必要な数だけバンドを追加可能
-- **ダイナミックEQ**: 入力レベルに応じてEQが自動的に反応。コンプレッサー的な使い方が可能
-- **リニアフェーズモード**: 位相歪みのないクリーンなEQ処理
-- **ミッド/サイド処理**: ステレオの中央と左右を独立してEQ
-- **スペクトルアナライザー**: リアルタイムで周波数スペクトルを表示
-- **サイドチェーン**: 外部入力のスペクトルを重ねて表示し、マスキング問題を視覚的に確認
-- **ブリックウォールフィルター**: 急峻なカットオフが可能な96dB/octフィルター
+**Key features:**
+- **Up to 24 bands**: Add as many bands as needed
+- **Dynamic EQ**: EQ automatically responds to input level. Can be used like a compressor
+- **Linear Phase Mode**: Clean EQ processing without phase distortion
+- **Mid/Side Processing**: Independent EQ for stereo center and sides
+- **Spectrum Analyzer**: Real-time frequency spectrum display
+- **Sidechain**: Overlay external input spectrum for visual masking problem detection
+- **Brick Wall Filter**: 96dB/oct filter for steep cutoffs
 
-**実践的なEQテクニック:**
+**Practical EQ techniques:**
 
-| テクニック | 周波数帯域 | 説明 |
+| Technique | Frequency Range | Description |
 |---|---|---|
-| ハイパスフィルター | 20-80Hz | 不要な低域をカット（ボーカル、ギター等） |
-| ローカット | 30-60Hz | キック以外のトラックで超低域をクリーンアップ |
-| マッド除去 | 200-400Hz | こもった感じを除去するためのカット |
-| プレゼンス追加 | 2-5kHz | ボーカルや楽器の存在感を強調 |
-| エア追加 | 10-16kHz | シェルフEQで高域の空気感を追加 |
-| ナローカット | 任意 | 共鳴やハウリングをピンポイントで除去 |
+| High-pass filter | 20-80Hz | Cut unnecessary low frequencies (vocals, guitar, etc.) |
+| Low cut | 30-60Hz | Clean up ultra-low frequencies on tracks other than kick |
+| Mud removal | 200-400Hz | Cut to remove muddiness |
+| Adding presence | 2-5kHz | Emphasize the presence of vocals and instruments |
+| Adding air | 10-16kHz | Add high-frequency airiness with shelf EQ |
+| Narrow cut | Any | Pinpoint removal of resonance or feedback |
 
-- 価格: $179
-- おすすめ: すべてのミキシング作業に必須級
+- Price: $179
+- Recommended for: Essential for all mixing work
 
-#### TDR VOS SlickEQ（フリーウェア）
+#### TDR VOS SlickEQ (Freeware)
 
-無料ながらプロ品質のEQプラグインです。
+A professional-quality EQ plugin despite being free.
 
-- 3バンドEQ + ハイパス/ローパスフィルター
-- アナログモデリングによる温かみのあるサウンド
-- サチュレーション機能搭載
-- 価格: 無料
-- おすすめ: 無料で高品質EQを求める人
+- 3-band EQ + high-pass/low-pass filters
+- Warm sound through analog modeling
+- Saturation feature included
+- Price: Free
+- Recommended for: Those seeking a high-quality free EQ
 
-### コンプレッサープラグイン
+### Compressor Plugins
 
-コンプレッサーはダイナミクスレンジ（音量の大小の差）を制御するツールです。
+A compressor is a tool that controls dynamic range (the difference between loud and soft volumes).
 
 #### FabFilter Pro-C 2
 
-FabFilterのコンプレッサーは視覚的にわかりやすく、多機能なダイナミクスプロセッサーです。
+FabFilter's compressor is a visually intuitive, multi-featured dynamics processor.
 
-**搭載スタイル:**
-- Clean: 透明なコンプレッション
-- Classic: VCA風の汎用コンプ
-- Opto: 光学式コンプの温かいレスポンス
-- Vocal: ボーカルに最適化されたプログラム依存型
-- Mastering: マスタリング向けの精密制御
-- Bus: グループバス用のグルー効果
-- Punch: トランジェントを強調するコンプ
-- Pumping: サイドチェーンポンピング向け
+**Included styles:**
+- Clean: Transparent compression
+- Classic: VCA-style general-purpose compressor
+- Opto: Warm response of optical compression
+- Vocal: Program-dependent type optimized for vocals
+- Mastering: Precision control for mastering
+- Bus: Glue effect for group buses
+- Punch: Transient-emphasizing compression
+- Pumping: For sidechain pumping
 
-**主要パラメーター解説:**
+**Key parameter explanations:**
 
-| パラメーター | 説明 | 典型的な設定例 |
+| Parameter | Description | Typical Setting |
 |---|---|---|
-| Threshold | コンプが効き始めるレベル | -20dB〜-10dB |
-| Ratio | 圧縮比 | 2:1（軽い）〜 20:1（リミッティング） |
-| Attack | コンプが効き始めるまでの時間 | 0.5ms（速い）〜 30ms（遅い） |
-| Release | コンプが解除されるまでの時間 | 50ms（速い）〜 500ms（遅い） |
-| Knee | しきい値前後のカーブの滑らかさ | ソフトニー：自然、ハードニー：積極的 |
-| Make-up Gain | 圧縮後の音量補正 | 圧縮分だけ持ち上げる |
+| Threshold | Level at which compression begins | -20dB to -10dB |
+| Ratio | Compression ratio | 2:1 (light) to 20:1 (limiting) |
+| Attack | Time before compression engages | 0.5ms (fast) to 30ms (slow) |
+| Release | Time before compression releases | 50ms (fast) to 500ms (slow) |
+| Knee | Curve smoothness around threshold | Soft knee: natural, Hard knee: aggressive |
+| Make-up Gain | Volume compensation after compression | Raise by the amount compressed |
 
-- 価格: $179
+- Price: $179
 
 #### Waves CLA-2A / CLA-76
 
-クラシックなアナログコンプレッサーのモデリングです。
+Modeling of classic analog compressors.
 
-**CLA-2A（LA-2Aモデリング）:**
-- 光学式コンプレッサーの温かいサウンド
-- シンプルな操作（Peak Reduction と Gain の2つのノブ）
-- ボーカル、ベース、アコースティック楽器に最適
-- スムーズで自然なコンプレッション
+**CLA-2A (LA-2A modeling):**
+- Warm sound of optical compressor
+- Simple operation (two knobs: Peak Reduction and Gain)
+- Ideal for vocals, bass, and acoustic instruments
+- Smooth and natural compression
 
-**CLA-76（1176モデリング）:**
-- FETコンプレッサーの攻撃的なキャラクター
-- 超高速アタック（20マイクロ秒）
-- ドラム、パーカッション、ロックボーカルに最適
-- "All Buttons In" モードで強烈なサチュレーション
+**CLA-76 (1176 modeling):**
+- Aggressive character of FET compressor
+- Ultra-fast attack (20 microseconds)
+- Ideal for drums, percussion, and rock vocals
+- "All Buttons In" mode for intense saturation
 
-- 価格: Waves バンドルに含まれる
+- Price: Included in Waves bundles
 
-### リバーブプラグイン
+### Reverb Plugins
 
-リバーブは音に空間的な響きを付加するエフェクトで、楽曲に奥行きと臨場感を与えます。
+Reverb is an effect that adds spatial ambiance to sound, giving depth and realism to a track.
 
-#### Valhalla VintageVerb - 詳細解説
+#### Valhalla VintageVerb - Detailed Overview
 
-コストパフォーマンスに優れたアルゴリズミックリバーブの定番です。
+A go-to algorithmic reverb known for its excellent cost performance.
 
-**搭載アルゴリズム:**
-- Concert Hall: コンサートホールの響き
-- Bright Hall: 明るく透明感のあるホール
-- Plate: プレートリバーブ（ボーカルに最適）
-- Room: 小さな部屋の反射
-- Chamber: エコーチャンバー
-- Random Space: 実験的な空間
-- Chorus Space: コーラス効果を含む空間
-- Ambience: 短い残響のアンビエンス
-- Sanctuary: 教会風の残響
-- NONLIN: ゲートリバーブ効果
+**Included algorithms:**
+- Concert Hall: Concert hall ambiance
+- Bright Hall: Bright, transparent hall
+- Plate: Plate reverb (ideal for vocals)
+- Room: Small room reflections
+- Chamber: Echo chamber
+- Random Space: Experimental space
+- Chorus Space: Space with chorus effect
+- Ambience: Short-decay ambience
+- Sanctuary: Church-like reverb
+- NONLIN: Gated reverb effect
 
-**リバーブの使い方ガイド:**
+**Reverb usage guide:**
 
-| ジャンル | 推奨タイプ | Decay時間 | Mix量 |
+| Genre | Recommended Type | Decay Time | Mix Amount |
 |---|---|---|---|
-| テクノ | Room / Plate | 0.5-1.5秒 | 15-25% |
-| ハウス | Hall / Plate | 1.0-2.5秒 | 20-35% |
-| トランス | Hall / Bright Hall | 2.0-4.0秒 | 25-40% |
-| アンビエント | Hall / Chamber | 3.0-8.0秒 | 40-70% |
-| ヒップホップ | Room / Plate | 0.3-1.0秒 | 10-20% |
-| ドラムンベース | Room | 0.2-0.8秒 | 10-15% |
+| Techno | Room / Plate | 0.5-1.5 sec | 15-25% |
+| House | Hall / Plate | 1.0-2.5 sec | 20-35% |
+| Trance | Hall / Bright Hall | 2.0-4.0 sec | 25-40% |
+| Ambient | Hall / Chamber | 3.0-8.0 sec | 40-70% |
+| Hip Hop | Room / Plate | 0.3-1.0 sec | 10-20% |
+| Drum & Bass | Room | 0.2-0.8 sec | 10-15% |
 
-- 価格: $50
+- Price: $50
 
 #### FabFilter Pro-R 2
 
-FabFilterのリバーブプラグインで、直感的なインターフェースと高品質な残響が特徴です。
+FabFilter's reverb plugin, featuring an intuitive interface and high-quality reverb.
 
-- インタラクティブなディケイレートEQ
-- 空間のサイズ、キャラクターを細かく調整
-- ステレオ幅のコントロール
-- 価格: $199
+- Interactive decay rate EQ
+- Fine adjustment of space size and character
+- Stereo width control
+- Price: $199
 
-#### Valhalla Supermassive（フリーウェア）
+#### Valhalla Supermassive (Freeware)
 
-Valhalla DSPが無料で提供する、巨大な残響やエコー効果を生み出すプラグインです。
+A free plugin from Valhalla DSP that creates massive reverb and echo effects.
 
-- 12以上のリバーブ/ディレイアルゴリズム
-- 無限に近い残響やシマー効果
-- アンビエント、ドローン制作に最適
-- 価格: 完全無料
+- 12+ reverb/delay algorithms
+- Near-infinite reverb and shimmer effects
+- Ideal for ambient and drone production
+- Price: Completely free
 
-### ディレイプラグイン
+### Delay Plugins
 
 #### Valhalla Delay
 
-多機能でありながら操作性に優れたディレイプラグインです。
+A multi-functional yet user-friendly delay plugin.
 
-- テープディレイ、デジタルディレイ、BBDディレイなど複数のモード
-- テンポ同期 / フリータイム設定
-- ピッチシフトディレイ（ピッチ変化を伴うディレイ）
-- ダックディレイ（入力があるときにディレイ音量が下がる）
-- 価格: $50
+- Multiple modes including tape delay, digital delay, and BBD delay
+- Tempo sync / free time settings
+- Pitch-shift delay (delay with pitch variation)
+- Duck delay (delay volume decreases when input is present)
+- Price: $50
 
 #### Soundtoys EchoBoy
 
-プロの現場で広く使われるディレイプラグインです。
+A widely used delay plugin in professional settings.
 
-- 30以上のエコースタイル（テープ、アナログ、デジタル）
-- サチュレーション内蔵で温かいサウンド
-- リズムエディターでポリリズミックなディレイパターンを作成
-- 価格: $199
+- 30+ echo styles (tape, analog, digital)
+- Built-in saturation for warm sound
+- Rhythm editor for creating polyrhythmic delay patterns
+- Price: $199
 
-### ディストーション / サチュレーションプラグイン
+### Distortion / Saturation Plugins
 
 #### Soundtoys Decapitator
 
-アナログサチュレーション/ディストーションプラグインの決定版です。
+The definitive analog saturation/distortion plugin.
 
-**搭載モデル:**
-- A（Ampex 350 プリアンプ）: 温かく滑らかなサチュレーション
-- E（Chandler/EMI TG Channel）: ブリティッシュコンソールの太さ
-- N（Neve 1057）: クラシックなNEVEの色付け
-- T（Thermionic Culture Culture Vulture）: 真空管の歪み
-- P（Pentode - 五極管）: アグレッシブなオーバードライブ
+**Included models:**
+- A (Ampex 350 Preamp): Warm, smooth saturation
+- E (Chandler/EMI TG Channel): British console fatness
+- N (Neve 1057): Classic Neve coloring
+- T (Thermionic Culture Culture Vulture): Tube distortion
+- P (Pentode): Aggressive overdrive
 
-- Punish ボタンで歪み量を極端に増加
-- ミックスノブでパラレルプロセッシング
-- 価格: $199
+- Punish button for extreme distortion increase
+- Mix knob for parallel processing
+- Price: $199
 
-#### Camel Audio CamelCrusher（フリーウェア）
+#### Camel Audio CamelCrusher (Freeware)
 
-無料のディストーション/コンプレッサーとして根強い人気があります。
+A perennially popular free distortion/compressor.
 
-- 2つの独立したディストーションモジュール（Tube / Mech）
-- 内蔵コンプレッサー
-- フィルター搭載
-- 価格: 無料（Apple買収後も無料配布継続）
+- Two independent distortion modules (Tube / Mech)
+- Built-in compressor
+- Filter included
+- Price: Free (still distributed free after Apple acquisition)
 
 #### iZotope Trash 2
 
-多機能なディストーション/サウンドデザインプラグインです。
+A multi-functional distortion/sound design plugin.
 
-- 60以上のディストーションアルゴリズム
-- マルチバンドディストーション
-- コンボリューションフィルター
-- ダイナミクス処理内蔵
-- 価格: iZotope バンドルに含まれる
+- 60+ distortion algorithms
+- Multiband distortion
+- Convolution filters
+- Built-in dynamics processing
+- Price: Included in iZotope bundles
 
 ---
 
-## ミキシングツール詳細ガイド
+## Mixing Tools Detailed Guide
 
-ミキシングは録音・制作されたトラックを1つのまとまりある楽曲に仕上げる工程です。以下では、ミキシングに特化したプラグインとツールを紹介します。
+Mixing is the process of blending recorded and produced tracks into a cohesive final song. Below are plugins and tools specialized for mixing.
 
-### チャンネルストリッププラグイン
+### Channel Strip Plugins
 
 #### SSL Native Channel Strip 2
 
-SSL（Solid State Logic）のコンソールチャンネルをモデリングしたプラグインです。
+A plugin modeling the SSL (Solid State Logic) console channel.
 
-- SSLコンソールの伝統的なEQ特性
-- ダイナミクス（コンプ+ゲート/エキスパンダー）
-- フィルターセクション
-- 価格: $299
+- Traditional SSL console EQ characteristics
+- Dynamics (compressor + gate/expander)
+- Filter section
+- Price: $299
 
 #### Waves SSL E-Channel / G-Channel
 
-WavesによるSSLチャンネルストリップのモデリングで、業界で最も使用されているプラグインのひとつです。
+Waves' SSL channel strip modeling, one of the most widely used plugins in the industry.
 
-- E-Channel: SSL E Seriesコンソールの特性（ブライトでクリア）
-- G-Channel: SSL G Seriesコンソールの特性（よりモダンでパンチのある音）
-- 各チャンネルにEQ、コンプ、ゲート、フィルターを搭載
-- 価格: Waves バンドルに含まれる
+- E-Channel: SSL E Series console characteristics (bright and clear)
+- G-Channel: SSL G Series console characteristics (more modern and punchy)
+- Each channel features EQ, compressor, gate, and filter
+- Price: Included in Waves bundles
 
-### ステレオイメージングツール
+### Stereo Imaging Tools
 
-#### iZotope Ozone Imager（フリーウェア）
+#### iZotope Ozone Imager (Freeware)
 
-ステレオ幅を視覚的に確認・調整できる無料プラグインです。
+A free plugin for visually checking and adjusting stereo width.
 
-- ステレオ幅のワイド化/ナロー化
-- ステレオベクタースコープ表示
-- 相関メーター搭載
-- 価格: 無料
+- Widen/narrow stereo width
+- Stereo vectorscope display
+- Correlation meter included
+- Price: Free
 
 #### Goodhertz CanOpener Studio
 
-ヘッドフォンミキシングを改善するクロスフィードプラグインです。
+A crossfeed plugin that improves headphone mixing.
 
-- スピーカーで聴いているかのようなステレオイメージをヘッドフォンで再現
-- クロスフィード量の調整
-- 低域補正
-- 価格: $95
-- おすすめ: ヘッドフォン環境でミキシングする全ての人
+- Recreates a speaker-like stereo image on headphones
+- Crossfeed amount adjustment
+- Low-frequency correction
+- Price: $95
+- Recommended for: Everyone mixing on headphones
 
-### メータリングプラグイン
+### Metering Plugins
 
-#### SPAN（Voxengo - フリーウェア）
+#### SPAN (Voxengo - Freeware)
 
-高品質なスペクトルアナライザーで、ミキシングの視覚的な確認に必須です。
+A high-quality spectrum analyzer essential for visual mixing verification.
 
-- リアルタイムFFTアナライザー
-- RMSおよびピークレベルメーター
-- ステレオ/ミッド/サイド表示
-- カスタマイズ可能な表示設定
-- 価格: 無料
+- Real-time FFT analyzer
+- RMS and peak level meters
+- Stereo/mid/side display
+- Customizable display settings
+- Price: Free
 
-#### Youlean Loudness Meter 2（フリーウェア）
+#### Youlean Loudness Meter 2 (Freeware)
 
-ラウドネス測定に特化した無料プラグインです。
+A free plugin specialized for loudness measurement.
 
-- LUFS（Loudness Units Full Scale）測定
-- Short-term / Integrated / Momentary ラウドネス
-- ラウドネスヒストグラム表示
-- ストリーミングサービスのラウドネス基準プリセット
+- LUFS (Loudness Units Full Scale) measurement
+- Short-term / Integrated / Momentary loudness
+- Loudness histogram display
+- Streaming service loudness standard presets
   - Spotify: -14 LUFS
   - Apple Music: -16 LUFS
   - YouTube: -14 LUFS
   - Amazon Music: -14 LUFS
-- 価格: 無料（Pro版 $29.99）
+- Price: Free (Pro version $29.99)
 
 ---
 
-## マスタリングツール詳細ガイド
+## Mastering Tools Detailed Guide
 
-マスタリングは楽曲制作の最終工程であり、ミックスダウンされたステレオファイルに最終的な調整を加え、配信や再生に最適な状態に仕上げる工程です。
+Mastering is the final stage of music production, where final adjustments are applied to the mixed-down stereo file to optimize it for distribution and playback.
 
-### 統合マスタリングスイート
+### Integrated Mastering Suites
 
 #### iZotope Ozone 11
 
-業界標準のマスタリングスイートで、AI機能を搭載した最新版です。
+The industry-standard mastering suite with AI features in its latest version.
 
-**搭載モジュール:**
-- **Master Assistant**: AIがトラックを解析して自動的にマスタリングチェーンを提案
-- **EQ**: パラメトリック + マッチングEQ
-- **ダイナミクス**: マルチバンドコンプレッサー + マルチバンドリミッター
-- **Exciter**: 倍音付加によるサチュレーション
-- **Imager**: ステレオ幅調整（帯域別）
-- **Maximizer**: IRC（Intelligent Release Control）リミッター
-- **Vintage EQ**: アナログ風EQ
-- **Vintage Compressor**: アナログ風コンプレッサー
-- **Vintage Limiter**: アナログ風リミッター
-- **Spectral Shaper**: スペクトルベースのダイナミクス処理
-- **Low End Focus**: 低域のモノ/ステレオバランス最適化
-- **Stabilizer**: 周波数バランスの自動修正
+**Included modules:**
+- **Master Assistant**: AI analyzes the track and automatically suggests a mastering chain
+- **EQ**: Parametric + matching EQ
+- **Dynamics**: Multiband compressor + multiband limiter
+- **Exciter**: Saturation through harmonic enhancement
+- **Imager**: Stereo width adjustment (per band)
+- **Maximizer**: IRC (Intelligent Release Control) limiter
+- **Vintage EQ**: Analog-style EQ
+- **Vintage Compressor**: Analog-style compressor
+- **Vintage Limiter**: Analog-style limiter
+- **Spectral Shaper**: Spectrum-based dynamics processing
+- **Low End Focus**: Low-frequency mono/stereo balance optimization
+- **Stabilizer**: Automatic frequency balance correction
 
-**Master Assistantの使い方:**
-1. マスタリングしたいトラックを再生
-2. Master Assistantがトラックを解析（約10秒）
-3. 目標ラウドネスとスタイルを選択
-4. AIが最適なチェーンとパラメーターを提案
-5. 各モジュールを手動で微調整
+**How to use Master Assistant:**
+1. Play the track you want to master
+2. Master Assistant analyzes the track (approx. 10 seconds)
+3. Select target loudness and style
+4. AI suggests optimal chain and parameters
+5. Fine-tune each module manually
 
-- 価格: $249（Standard）/ $499（Advanced）
+- Price: $249 (Standard) / $499 (Advanced)
 
-#### FabFilter Pro-L 2（リミッター）
+#### FabFilter Pro-L 2 (Limiter)
 
-マスタリング用リミッターの最高峰です。
+The pinnacle of mastering limiters.
 
-**搭載アルゴリズム:**
-- Transparent: 最も透明なリミッティング
-- Punchy: トランジェントを保持するリミッティング
-- Dynamic: ダイナミクスを保持しながらリミッティング
-- Allround: 汎用的なリミッティング
-- Aggressive: 積極的なリミッティング
-- Bus: グループバス用
-- Safe: 安全でクリーンなリミッティング
-- Wall: ブリックウォールリミッティング
+**Included algorithms:**
+- Transparent: Most transparent limiting
+- Punchy: Limiting that preserves transients
+- Dynamic: Limiting while preserving dynamics
+- Allround: General-purpose limiting
+- Aggressive: Aggressive limiting
+- Bus: For group buses
+- Safe: Safe, clean limiting
+- Wall: Brick wall limiting
 
-**ラウドネスメーター機能:**
-- True Peak測定
-- LUFS測定（Short-term / Integrated）
-- ラウドネスターゲット設定（-14 LUFS for Spotify等）
-- クリッピング検知
+**Loudness meter features:**
+- True Peak measurement
+- LUFS measurement (Short-term / Integrated)
+- Loudness target setting (-14 LUFS for Spotify, etc.)
+- Clipping detection
 
-- 価格: $199
+- Price: $199
 
-### リファレンスツール
+### Reference Tools
 
 #### ADPTR Audio Metric AB
 
-マスタリング時にリファレンストラック（参考曲）と自分の曲を比較するためのツールです。
+A tool for comparing your track with a reference track during mastering.
 
-- ワンクリックでリファレンスとの切り替え
-- ラウドネスマッチ（音量差を自動補正して正確な比較）
-- スペクトル比較
-- ステレオイメージ比較
-- 価格: $79
+- One-click switching between reference and your track
+- Loudness matching (automatic volume compensation for accurate comparison)
+- Spectral comparison
+- Stereo image comparison
+- Price: $79
 
-#### Reference 2（Mastering The Mix）
+#### Reference 2 (Mastering The Mix)
 
-リファレンストラックとの詳細比較が可能なプラグインです。
+A plugin that enables detailed comparison with reference tracks.
 
-- トーナルバランスの比較
-- ステレオ幅の比較
-- コンプレッション量の比較
-- パンチ（トランジェント）の比較
-- 価格: $99
+- Tonal balance comparison
+- Stereo width comparison
+- Compression amount comparison
+- Punch (transient) comparison
+- Price: $99
 
 ---
 
-## ユーティリティプラグイン
+## Utility Plugins
 
-### ピッチ補正
+### Pitch Correction
 
-#### Auto-Tune Pro（Antares）
+#### Auto-Tune Pro (Antares)
 
-業界標準のピッチ補正プラグインです。
+The industry-standard pitch correction plugin.
 
-- リアルタイムピッチ補正（ライブ使用可）
-- グラフモードでの精密ピッチ編集
-- ナチュラルモード（自然な補正）とクラシックモード（T-Painエフェクト）
-- Flex-Tune: 歌手のビブラートや表現を保持しながら補正
-- 価格: $399（買い切り）/ 月額$24.99
+- Real-time pitch correction (usable for live performance)
+- Precise pitch editing in graph mode
+- Natural mode (natural correction) and Classic mode (T-Pain effect)
+- Flex-Tune: Corrects while preserving the singer's vibrato and expression
+- Price: $399 (one-time purchase) / $24.99/month
 
-#### Melodyne 5（Celemony）
+#### Melodyne 5 (Celemony)
 
-最も精密なピッチ/タイム編集ツールです。
+The most precise pitch/time editing tool.
 
-**エディション比較:**
+**Edition comparison:**
 
-| 機能 | Essential | Assistant | Editor | Studio |
+| Feature | Essential | Assistant | Editor | Studio |
 |---|---|---|---|---|
-| ピッチ補正 | 基本 | 高度 | 高度 | 高度 |
-| タイム編集 | 基本 | 高度 | 高度 | 高度 |
-| マルチトラック | 不可 | 不可 | 不可 | 可能 |
-| DNA（ポリフォニック編集） | 不可 | 不可 | 可能 | 可能 |
-| コード認識 | 不可 | 不可 | 可能 | 可能 |
-| 価格 | $99 | $249 | $499 | $849 |
+| Pitch correction | Basic | Advanced | Advanced | Advanced |
+| Time editing | Basic | Advanced | Advanced | Advanced |
+| Multi-track | No | No | No | Yes |
+| DNA (polyphonic editing) | No | No | Yes | Yes |
+| Chord recognition | No | No | Yes | Yes |
+| Price | $99 | $249 | $499 | $849 |
 
-### ボコーダー / ボーカルエフェクト
+### Vocoder / Vocal Effects
 
 #### iZotope VocalSynth 2
 
-ボーカルに様々なシンセシス効果を加えるプラグインです。
+A plugin that adds various synthesis effects to vocals.
 
-- 5つのボーカルエンジン（Vocoder、Compuvox、Polyvox、Talkbox、Biovox）
-- Inter-plugin Communication（iZotope製品間の連携）
-- Abyss（サブハーモニック生成）
-- 価格: $199
+- 5 vocal engines (Vocoder, Compuvox, Polyvox, Talkbox, Biovox)
+- Inter-plugin Communication (integration between iZotope products)
+- Abyss (sub-harmonic generation)
+- Price: $199
 
-### チューナー / アナライザー
+### Tuner / Analyzer
 
-#### LEVELS（Mastering The Mix）
+#### LEVELS (Mastering The Mix)
 
-マスタリング前のチェックリストとして機能するメータリングプラグインです。
+A metering plugin that functions as a pre-mastering checklist.
 
-- ピーク / True Peak チェック
-- ラウドネス（LUFS）チェック
-- ダイナミックレンジチェック
-- ステレオフィールドチェック
-- 低域バランスチェック
-- 位相相関チェック
-- 価格: $69
+- Peak / True Peak check
+- Loudness (LUFS) check
+- Dynamic range check
+- Stereo field check
+- Low-frequency balance check
+- Phase correlation check
+- Price: $69
 
 ---
 
-## 無料プラグイン厳選ガイド
+## Curated Free Plugins Guide
 
-予算が限られている初心者や、追加投資を抑えたいプロデューサーのために、無料で入手可能な高品質プラグインを厳選して紹介します。
+For beginners on a budget or producers looking to minimize additional investment, here is a curated selection of high-quality plugins available for free.
 
-### 無料シンセサイザー
+### Free Synthesizers
 
-| プラグイン名 | タイプ | 特徴 | 評価 |
+| Plugin Name | Type | Features | Rating |
 |---|---|---|---|
-| Vital | ウェーブテーブル | Serum級の機能を無料で | 最高 |
-| Dexed | FM合成 | DX7の完全再現 | 高 |
-| Surge XT | ハイブリッド | オープンソースのフルシンセ | 最高 |
-| Helm | サブトラクティブ | シンプルで使いやすい | 中 |
-| OB-Xd | アナログモデリング | Oberheim OB-Xのモデリング | 高 |
-| TAL-NoiseMaker | サブトラクティブ | 太いサウンドの汎用シンセ | 高 |
-| Tyrell N6 | バーチャルアナログ | u-heが無料提供する高品質VA | 高 |
-| Synth1 | バーチャルアナログ | Nord Lead 2のモデリング | 中 |
+| Vital | Wavetable | Serum-level features for free | Excellent |
+| Dexed | FM synthesis | Complete DX7 recreation | High |
+| Surge XT | Hybrid | Open-source full synthesizer | Excellent |
+| Helm | Subtractive | Simple and easy to use | Medium |
+| OB-Xd | Analog modeling | Oberheim OB-X modeling | High |
+| TAL-NoiseMaker | Subtractive | Versatile synth with fat sound | High |
+| Tyrell N6 | Virtual analog | High-quality VA from u-he, free | High |
+| Synth1 | Virtual analog | Nord Lead 2 modeling | Medium |
 
-### 無料エフェクト
+### Free Effects
 
-| プラグイン名 | カテゴリ | 特徴 | 評価 |
+| Plugin Name | Category | Features | Rating |
 |---|---|---|---|
-| TDR VOS SlickEQ | EQ | プロ品質の3バンドEQ | 最高 |
-| TDR Nova | ダイナミックEQ | パラレルダイナミックEQ | 最高 |
-| Valhalla Supermassive | リバーブ/ディレイ | 壮大な空間エフェクト | 最高 |
-| OTT (Xfer) | マルチバンドコンプ | EDMの定番コンプ | 最高 |
-| CamelCrusher | ディストーション | 2段ディストーション | 高 |
-| SPAN (Voxengo) | アナライザー | 高品質FFTアナライザー | 最高 |
-| Youlean Loudness Meter | メーター | LUFS測定 | 最高 |
-| iZotope Ozone Imager | ステレオ | ステレオ幅調整 | 高 |
-| Kilohearts Essentials | 各種FX | スナップインエフェクト集 | 中 |
-| Analog Obsession 全製品 | 各種 | アナログモデリング多数 | 高 |
+| TDR VOS SlickEQ | EQ | Professional-quality 3-band EQ | Excellent |
+| TDR Nova | Dynamic EQ | Parallel dynamic EQ | Excellent |
+| Valhalla Supermassive | Reverb/Delay | Grand spatial effects | Excellent |
+| OTT (Xfer) | Multiband comp | EDM standard compressor | Excellent |
+| CamelCrusher | Distortion | Dual-stage distortion | High |
+| SPAN (Voxengo) | Analyzer | High-quality FFT analyzer | Excellent |
+| Youlean Loudness Meter | Meter | LUFS measurement | Excellent |
+| iZotope Ozone Imager | Stereo | Stereo width adjustment | High |
+| Kilohearts Essentials | Various FX | Snap-in effects collection | Medium |
+| Analog Obsession (all products) | Various | Numerous analog modeling plugins | High |
 
-### 無料プラグインだけで完結するプロダクション環境
+### Production Environment Using Only Free Plugins
 
-以下の組み合わせで、コストゼロでもプロに近い制作環境を構築できます。
+With the following combination, you can build a near-professional production environment at zero cost.
 
-**推奨無料プラグインセット:**
+**Recommended free plugin set:**
 
-1. **シンセ**: Vital（メイン）+ Surge XT（サブ）+ Dexed（FM音色）
-2. **ドラム**: MPC Beats（Akai無料版）+ サンプルパック
+1. **Synths**: Vital (main) + Surge XT (sub) + Dexed (FM tones)
+2. **Drums**: MPC Beats (Akai free version) + sample packs
 3. **EQ**: TDR VOS SlickEQ + TDR Nova
-4. **コンプレッサー**: TDR Kotelnikov + OTT
-5. **リバーブ**: Valhalla Supermassive + OrilRiver
-6. **ディレイ**: Valhalla Freq Echo（無料）
-7. **サチュレーション**: CamelCrusher + Softube Saturation Knob
-8. **分析**: SPAN + Youlean Loudness Meter
-9. **ステレオ**: iZotope Ozone Imager
-10. **DAW**: BandLab Cakewalk（Windows無料）/ GarageBand（macOS無料）
+4. **Compressor**: TDR Kotelnikov + OTT
+5. **Reverb**: Valhalla Supermassive + OrilRiver
+6. **Delay**: Valhalla Freq Echo (free)
+7. **Saturation**: CamelCrusher + Softube Saturation Knob
+8. **Analysis**: SPAN + Youlean Loudness Meter
+9. **Stereo**: iZotope Ozone Imager
+10. **DAW**: BandLab Cakewalk (free on Windows) / GarageBand (free on macOS)
 
-この構成であれば、初期投資ゼロでEDM、Hip Hop、House、Technoなど多くのジャンルの楽曲制作が可能です。
+With this setup, you can produce music across many genres including EDM, Hip Hop, House, and Techno with zero initial investment.
 
 ---
 
-## DJソフトウェア詳細ガイド
+## DJ Software Detailed Guide
 
-DJソフトウェアは、デジタルDJパフォーマンスの基盤となるツールです。各ソフトウェアには独自の強みがあり、プレイスタイルや使用機材に応じた選択が重要です。
+DJ software is the foundation of digital DJ performance. Each software has its own strengths, and choosing based on your play style and equipment is important.
 
-### 主要DJソフトウェア徹底比較
+### Major DJ Software Thorough Comparison
 
-#### Rekordbox（Pioneer DJ）- 詳細解説
+#### Rekordbox (Pioneer DJ) - Detailed Overview
 
-Pioneer DJが開発するRekordboxは、CDJ/XDJシリーズとの完全な互換性を持つDJソフトウェアです。クラブでの使用を前提に設計されており、プロDJの事実上の標準ツールとなっています。
+Rekordbox, developed by Pioneer DJ, is DJ software with full compatibility with the CDJ/XDJ series. Designed for club use, it has become the de facto standard tool for professional DJs.
 
-**動作モード:**
-- **Export モード（無料）**: 楽曲の管理・解析・プレイリスト作成。USBメモリに書き出してCDJで使用
-- **Performance モード（有料）**: PC上でのDJプレイ。DDJ コントローラーとの連携
-- **Cloud Library Sync（有料）**: クラウド経由で複数デバイス間でライブラリを同期
+**Operating modes:**
+- **Export Mode (free)**: Track management, analysis, and playlist creation. Export to USB for CDJ use
+- **Performance Mode (paid)**: DJ performance on PC. Integration with DDJ controllers
+- **Cloud Library Sync (paid)**: Sync library across multiple devices via cloud
 
-**主要機能:**
-- BPM解析の精度が業界最高水準
-- 波形表示（カラーコード付き）でミックスポイントを視覚的に判断
-- Hot Cue、Memory Cue による定位ポイント管理
-- Beat Jump、Loop スライサー
-- Related Tracks 機能（AIが関連楽曲を提案）
-- Lighting モード（照明制御連携）
+**Key features:**
+- Industry-leading BPM analysis accuracy
+- Waveform display (color-coded) for visually identifying mix points
+- Position point management via Hot Cues and Memory Cues
+- Beat Jump, Loop Slicer
+- Related Tracks feature (AI suggests related tracks)
+- Lighting mode (lighting control integration)
 
-**料金プラン:**
+**Pricing plans:**
 
-| プラン | 月額 | 主な機能 |
+| Plan | Monthly | Key Features |
 |---|---|---|
-| Free | 無料 | Export、楽曲管理、基本解析 |
-| Core | $9.99 | Performance、基本エフェクト |
-| Creative | $14.99 | サンプラー、シーケンス、DVS |
-| Professional | $19.99 | 全機能解放、Cloud Library |
+| Free | Free | Export, track management, basic analysis |
+| Core | $9.99 | Performance, basic effects |
+| Creative | $14.99 | Sampler, sequencing, DVS |
+| Professional | $19.99 | All features unlocked, Cloud Library |
 
-#### Traktor Pro 3（Native Instruments）
+#### Traktor Pro 3 (Native Instruments)
 
-Native Instrumentsが開発するTraktorは、テクニカルなDJプレイに強みを持つソフトウェアです。
+Traktor, developed by Native Instruments, is software with strengths in technical DJ performance.
 
-**主要特徴:**
-- **Stem Decks**: 4つのステム（ドラム、ベース、メロディ、ボーカル）をリアルタイムで個別操作
-- **Remix Decks**: サンプルスロットによるリアルタイムリミックス
-- **Flux Mode**: テンポ同期を維持したままスクラッチやエフェクトを適用
-- **Freeze Mode**: ループをスライスしてパッド演奏
-- **豊富なエフェクト**: 40以上のDJ向けエフェクト
-- **MIDI マッピングの自由度が極めて高い**
-- **Ableton Link 対応**（Abletonとのテンポ同期）
-- 価格: $99
+**Key features:**
+- **Stem Decks**: Independently manipulate 4 stems (drums, bass, melody, vocals) in real-time
+- **Remix Decks**: Real-time remixing via sample slots
+- **Flux Mode**: Apply scratching and effects while maintaining tempo sync
+- **Freeze Mode**: Slice loops for pad performance
+- **Rich Effects**: 40+ DJ-oriented effects
+- **Extremely high MIDI mapping flexibility**
+- **Ableton Link support** (tempo sync with Ableton)
+- Price: $99
 
-#### djay Pro AI（Algoriddim）
+#### djay Pro AI (Algoriddim)
 
-Apple Design Award受賞のDJソフトウェアで、AI機能を積極的に活用しています。
+Apple Design Award-winning DJ software that actively leverages AI features.
 
-**AI機能:**
-- **Neural Mix**: AIによるリアルタイム音声分離
-- **Automix AI**: AIが自動的にトランジションを最適化
-- Apple Music、TIDAL、SoundCloud Go+ との統合でストリーミングDJ可能
-- macOS、iOS、Android対応
-- 価格: $49.99（買い切り）/ サブスクリプション $6.99/月
+**AI features:**
+- **Neural Mix**: AI-powered real-time audio separation
+- **Automix AI**: AI automatically optimizes transitions
+- Integration with Apple Music, TIDAL, SoundCloud Go+ for streaming DJ
+- macOS, iOS, Android support
+- Price: $49.99 (one-time purchase) / Subscription $6.99/month
 
-### DJソフトウェア比較表
+### DJ Software Comparison Table
 
-| 機能 | Rekordbox | Serato | Traktor | djay Pro |
+| Feature | Rekordbox | Serato | Traktor | djay Pro |
 |---|---|---|---|---|
-| 音声分離 | 対応予定 | Stems | Stem Decks | Neural Mix |
-| CDJ連携 | 最高 | なし | なし | なし |
-| スクラッチ | 良好 | 最高 | 良好 | 良好 |
-| エフェクト数 | 30+ | 20+ | 40+ | 20+ |
-| ストリーミング | Beatport | Beatport, SC | Beatport | Apple Music他 |
-| MIDI柔軟性 | 中 | 中 | 最高 | 低 |
+| Audio separation | Coming soon | Stems | Stem Decks | Neural Mix |
+| CDJ integration | Best | None | None | None |
+| Scratching | Good | Best | Good | Good |
+| Number of effects | 30+ | 20+ | 40+ | 20+ |
+| Streaming | Beatport | Beatport, SC | Beatport | Apple Music etc. |
+| MIDI flexibility | Medium | Medium | Best | Low |
 
 ---
 
-## サンプルパック管理ツール
+## Sample Pack Management Tools
 
-### サンプルパック配信プラットフォーム
+### Sample Pack Distribution Platforms
 
 #### Splice
 
-世界最大級のサンプルパック・プリセットプラットフォームです。
+One of the world's largest sample pack and preset platforms.
 
-- **Splice Sounds**: 月額$9.99〜でサンプルをクレジット制で個別ダウンロード
-- **Splice Plugins**: Rent-to-Own で月額分割払いでプラグイン所有権取得
-- **AI検索**: 類似サウンドの検索、テキストベースの検索
+- **Splice Sounds**: Individual sample downloads via credits starting at $9.99/month
+- **Splice Plugins**: Rent-to-Own monthly installments for plugin ownership
+- **AI Search**: Similar sound search, text-based search
 
-| プラン | 月額 | クレジット数 |
+| Plan | Monthly | Credits |
 |---|---|---|
 | Starter | $9.99 | 100 |
 | Creator | $19.99 | 200 |
@@ -966,129 +966,129 @@ Apple Design Award受賞のDJソフトウェアで、AI機能を積極的に活�
 
 #### Loopcloud
 
-Loopmasters傘下のサンプル管理プラットフォームです。DAW内プラグインとしてサンプルをブラウジングでき、テンポ・キーの自動マッチ、AIによるサンプル推薦機能を搭載しています。月額$9.99〜。
+A sample management platform under Loopmasters. Features in-DAW plugin browsing, automatic tempo and key matching, and AI-powered sample recommendations. Starting at $9.99/month.
 
-### サンプルパックの整理術
+### Sample Pack Organization Tips
 
-**推奨フォルダ構造:**
+**Recommended folder structure:**
 ```
 Samples/
-├── Drums/（Kicks/Snares/HiHats/Percussion/Full_Loops）
-├── Bass/（Sub/808_Bass/Synth_Bass）
-├── Melodic/（Leads/Pads/Plucks/Keys）
-├── Vocals/（Chops/Phrases/Adlibs）
-├── FX/（Risers/Downlifters/Impacts/Textures）
-└── Loops/（Full_Beats/Top_Loops/Musical_Loops）
+├── Drums/ (Kicks/Snares/HiHats/Percussion/Full_Loops)
+├── Bass/ (Sub/808_Bass/Synth_Bass)
+├── Melodic/ (Leads/Pads/Plucks/Keys)
+├── Vocals/ (Chops/Phrases/Adlibs)
+├── FX/ (Risers/Downlifters/Impacts/Textures)
+└── Loops/ (Full_Beats/Top_Loops/Musical_Loops)
 ```
 
-**命名規則**: `[BPM]_[Key]_[Category]_[Description]_[Number].wav`
+**Naming convention**: `[BPM]_[Key]_[Category]_[Description]_[Number].wav`
 
 ---
 
-## コラボレーションツール
+## Collaboration Tools
 
 ### Splice Studio
 
-クラウドベースのプロジェクト管理ツール。DAWプロジェクトのバージョン管理・バックアップ・コラボレーター共有が可能です。Ableton Live、FL Studio、Logic Pro対応。
+A cloud-based project management tool. Enables version control, backup, and collaborator sharing for DAW projects. Supports Ableton Live, FL Studio, and Logic Pro.
 
 ### BandLab
 
-無料のオンラインDAW兼コラボレーションプラットフォーム。ブラウザベースでリアルタイムコラボレーション、200以上のバーチャル楽器とエフェクト、SNS機能を搭載。完全無料で利用可能です。
+A free online DAW and collaboration platform. Features browser-based real-time collaboration, 200+ virtual instruments and effects, and social networking functionality. Completely free to use.
 
 ### Audiomovers Listento
 
-リアルタイムで高音質オーディオをストリーミング共有するプラグイン。リモートミキシング/マスタリングセッションに最適。月額$9.99。
+A plugin for streaming high-quality audio in real-time. Ideal for remote mixing/mastering sessions. $9.99/month.
 
 ---
 
-## プラグイン管理の実践ガイド
+## Plugin Management Practical Guide
 
-### ライセンスマネージャー一覧
+### License Manager List
 
-| マネージャー | 管理対象 | 方式 | 価格 |
+| Manager | Managed Products | Method | Price |
 |---|---|---|---|
-| iLok License Manager | Avid、Soundtoys、FabFilter等 | USBドングル/クラウド | ドングル$49.99 |
-| Native Access 2 | NI製品、Kontaktライブラリ | オンライン認証 | 無料 |
-| Plugin Alliance Hub | PA製品 | オンライン認証 | 無料 |
-| Arturia Software Center | Arturia製品 | オンライン認証 | 無料 |
-| Roland Cloud Manager | Roland Cloud製品 | サブスクリプション | 無料 |
+| iLok License Manager | Avid, Soundtoys, FabFilter, etc. | USB dongle/cloud | Dongle $49.99 |
+| Native Access 2 | NI products, Kontakt libraries | Online authentication | Free |
+| Plugin Alliance Hub | PA products | Online authentication | Free |
+| Arturia Software Center | Arturia products | Online authentication | Free |
+| Roland Cloud Manager | Roland Cloud products | Subscription | Free |
 
-### DAW別プラグイン管理のコツ
+### DAW-Specific Plugin Management Tips
 
-- **Ableton Live**: プラグインブラウザのお気に入り（星マーク）、Audio Effect Rackでプリセットチェーン保存
-- **FL Studio**: Plugin Managerでスキャン・分類、お気に入りリスト作成
-- **Logic Pro**: Audio Units Managerで有効/無効切り替え、チャンネルストリップ設定の保存
+- **Ableton Live**: Plugin browser favorites (star mark), save preset chains with Audio Effect Rack
+- **FL Studio**: Scan and categorize with Plugin Manager, create favorites list
+- **Logic Pro**: Enable/disable with Audio Units Manager, save channel strip settings
 
 ---
 
-## おすすめセットアップ例
+## Recommended Setup Examples
 
-### ビギナー向け（予算: 0円）
+### For Beginners (Budget: $0)
 
-無料プラグインのみで構築。Vital + Surge XT + Dexed（シンセ）、TDR VOS SlickEQ + OTT + Valhalla Supermassive + CamelCrusher（エフェクト）、SPAN + Youlean Loudness Meter（分析）、GarageBand / Cakewalk（DAW）。
+Built entirely with free plugins. Vital + Surge XT + Dexed (synths), TDR VOS SlickEQ + OTT + Valhalla Supermassive + CamelCrusher (effects), SPAN + Youlean Loudness Meter (analysis), GarageBand / Cakewalk (DAW).
 
-### 中級者向け（予算: 5〜15万円）
+### For Intermediate Users (Budget: $500-1,500)
 
-有料プラグインを追加。Serum（$189）、FabFilter Pro-Q 3（$179）、Valhalla VintageVerb + Delay（$100）、XO（$149）、Splice月額サブスク。DAWはAbleton Live Standard（$349）またはFL Studio Producer（$199）。
+Adding paid plugins. Serum ($189), FabFilter Pro-Q 3 ($179), Valhalla VintageVerb + Delay ($100), XO ($149), Splice monthly subscription. DAW: Ableton Live Standard ($349) or FL Studio Producer ($199).
 
-### プロフェッショナル向け（予算: 30万円以上）
+### For Professionals (Budget: $3,000+)
 
-Ableton Live 12 Suite + FabFilter Total Bundle（$999）+ Soundtoys 5（$499）+ iZotope Ozone 11 Advanced（$499）+ Arturia V Collection（$599）+ Kontakt 7（$399）+ 各種専門プラグイン。
+Ableton Live 12 Suite + FabFilter Total Bundle ($999) + Soundtoys 5 ($499) + iZotope Ozone 11 Advanced ($499) + Arturia V Collection ($599) + Kontakt 7 ($399) + various specialized plugins.
 
-### プラグインバンドルのコスパ比較
+### Plugin Bundle Cost-Performance Comparison
 
-| バンドル | 含まれる数 | バンドル価格 | 割引率 |
+| Bundle | Included Count | Bundle Price | Discount Rate |
 |---|---|---|---|
 | FabFilter Total Bundle | 14 | $999 | 58% |
 | Soundtoys 5 Effect Rack | 21 | $499 | 67% |
 | Arturia V Collection | 30+ | $599 | 88% |
 | NI Komplete 15 Standard | 100+ | $599 | 82%+ |
-| Waves Mercury | 180+ | $599（セール時） | 96% |
+| Waves Mercury | 180+ | $599 (on sale) | 96% |
 
-**購入タイミング**: ブラックフライデー（11月末）が年間最大の割引。Wavesは常にセール中で定価購入は避けるべきです。
+**Best time to buy**: Black Friday (late November) offers the biggest annual discounts. Waves is perpetually on sale, so avoid buying at full price.
 
 
 ---
 
-## 実践演習
+## Practical Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that meets the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Perform input data validation
+- Implement proper error handling
+- Create test code as well
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main data processing logic"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1097,26 +1097,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Should have raised an exception"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation by adding the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1124,7 +1124,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1135,14 +1135,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1150,7 +1150,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1158,44 +1158,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1204,7 +1204,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1219,47 +1219,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Inefficient version: {slow_time:.4f} sec")
+    print(f"Efficient version:   {fast_time:.6f} sec")
+    print(f"Speedup: {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be aware of algorithm computational complexity
+- Choose appropriate data structures
+- Measure results with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Configuration file issues | Check configuration file path and format |
+| Timeout | Network latency/resource shortage | Adjust timeout values, add retry logic |
+| Out of memory | Increased data volume | Implement batch processing, pagination |
+| Permission error | Insufficient access rights | Check user permissions, review settings |
+| Data inconsistency | Concurrent processing conflicts | Implement locking mechanisms, transaction management |
 
-### デバッグの手順
+### Debugging Procedure
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read stack traces to identify the location
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Verify step by step**: Use log output or debuggers to verify hypotheses
+5. **Fix and regression test**: After fixing, run tests on related areas as well
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utilities
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger setup
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1267,102 +1267,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Calling: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return value: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Issues
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance problems:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify bottlenecks**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check I/O wait**: Check disk and network I/O status
+4. **Check concurrent connections**: Check connection pool status
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem Type | Diagnostic Tool | Countermeasure |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper reference release |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexing, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+Here is a summary of decision criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criteria | When to Prioritize | When to Compromise |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin panels, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services with expected growth | Internal tools, fixed users |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, time-to-market | Quality-focused, mission-critical |
 
-### アーキテクチャパターンの選択
+### Architecture Pattern Selection
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│          Architecture Selection Flow             │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  (1) Team size?                                 │
+│    ├─ Small (1-5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to (2)            │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  (2) Deploy frequency?                          │
+│    ├─ Weekly or less → Monolith + modular split │
+│    └─ Daily/multiple → Go to (3)                │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  (3) Team independence?                         │
+│    ├─ High → Microservices                      │
+│    └─ Moderate → Modular monolith               │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Technical decisions always involve trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs. Long-term Costs**
+- A faster approach in the short term can become technical debt long-term
+- Conversely, over-engineering incurs high short-term costs and delays projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs. Flexibility**
+- A unified tech stack has lower learning costs
+- Diverse technology adoption enables best-fit choices but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of Abstraction**
+- High abstraction offers high reusability but can make debugging difficult
+- Low abstraction is intuitive but prone to code duplication
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1372,17 +1372,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and challenges"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1390,7 +1390,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1398,15 +1398,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Context\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
-            icon = "✅" if c['type'] == 'positive' else "⚠️"
+            icon = "+" if c['type'] == 'positive' else "!"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1414,53 +1414,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Practical Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum necessary features
+- Automated tests only for critical paths
+- Introduce monitoring early
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't aim for perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Legacy System Modernization
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Gradually renewing a system that has been operating for over 10 years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Gradual migration using the Strangler Fig pattern
+- Create Characterization Tests first if existing tests are absent
+- API gateway for coexistence of old and new systems
+- Implement data migration in stages
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work Content | Estimated Duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Current state analysis, dependency mapping | 2-4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4-6 weeks | Low |
+| 3. Migration start | Sequential migration starting from peripheral features | 3-6 months | Medium |
+| 4. Core migration | Migration of core features | 6-12 months | High |
+| 5. Completion | Decommission legacy system | 2-4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Large Team Development
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with Domain-Driven Design
+- Set ownership per team
+- Manage shared libraries via Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1473,20 +1473,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1495,7 +1495,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1516,104 +1516,104 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical System
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** System requiring millisecond-level response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Cache strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Leveraging asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization Method | Effect | Implementation Cost | Application |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | I/O-heavy processing |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low-Medium | High | When CPU-bound |
 
 ---
 
-## チーム開発での活用
+## Team Development Practices
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to verify in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Naming conventions are consistent
+- [ ] Error handling is appropriate
+- [ ] Test coverage is sufficient
+- [ ] No performance impact
+- [ ] No security concerns
+- [ ] Documentation is updated
 
-### ナレッジ共有のベストプラクティス
+### Knowledge Sharing Best Practices
 
-| 方法 | 頻度 | 対象 | 効果 |
+| Method | Frequency | Target | Effect |
 |------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talks | Weekly | Entire team | Horizontal knowledge spread |
+| ADR (Decision Records) | As needed | Future members | Decision transparency |
+| Retrospectives | Biweekly | Entire team | Continuous improvement |
+| Mob programming | Monthly | Important designs | Consensus building |
 
-### 技術的負債の管理
+### Technical Debt Management
 
 ```
-優先度マトリクス:
+Priority Matrix:
 
-        影響度 高
-          │
+        Impact High
+          |
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │ Plan │ Act │
+    │ for  │ imme│
+    │ later│diately│
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │Record│ Next│
+    │ only │Sprint│
+    │      │     │
     └─────┼─────┘
-          │
-        影響度 低
-    発生頻度 低  発生頻度 高
+          |
+        Impact Low
+    Frequency Low  Frequency High
 ```
 
 ---
 
-## セキュリティの考慮事項
+## Security Considerations
 
-### 一般的な脆弱性と対策
+### Common Vulnerabilities and Countermeasures
 
-| 脆弱性 | リスクレベル | 対策 | 検出方法 |
+| Vulnerability | Risk Level | Countermeasure | Detection Method |
 |--------|------------|------|---------|
-| インジェクション攻撃 | 高 | 入力値のバリデーション・パラメータ化クエリ | SAST/DAST |
-| 認証の不備 | 高 | 多要素認証・セッション管理の強化 | ペネトレーションテスト |
-| 機密データの露出 | 高 | 暗号化・アクセス制御 | セキュリティ監査 |
-| 設定の不備 | 中 | セキュリティヘッダー・最小権限の原則 | 構成スキャン |
-| ログの不足 | 中 | 構造化ログ・監査証跡 | ログ分析 |
+| Injection attacks | High | Input validation, parameterized queries | SAST/DAST |
+| Authentication flaws | High | Multi-factor auth, session management hardening | Penetration testing |
+| Sensitive data exposure | High | Encryption, access control | Security audit |
+| Misconfiguration | Medium | Security headers, principle of least privilege | Configuration scan |
+| Insufficient logging | Medium | Structured logging, audit trails | Log analysis |
 
-### セキュアコーディングのベストプラクティス
+### Secure Coding Best Practices
 
 ```python
-# セキュアコーディング例
+# Secure coding example
 import hashlib
 import secrets
 import hmac
 from typing import Optional
 
 class SecurityUtils:
-    """セキュリティユーティリティ"""
+    """Security utilities"""
 
     @staticmethod
     def generate_token(length: int = 32) -> str:
-        """暗号学的に安全なトークン生成"""
+        """Generate cryptographically secure token"""
         return secrets.token_urlsafe(length)
 
     @staticmethod
     def hash_password(password: str, salt: Optional[str] = None) -> tuple:
-        """パスワードのハッシュ化"""
+        """Hash a password"""
         if salt is None:
             salt = secrets.token_hex(16)
         hashed = hashlib.pbkdf2_hmac(
@@ -1626,50 +1626,50 @@ class SecurityUtils:
 
     @staticmethod
     def verify_password(password: str, hashed: str, salt: str) -> bool:
-        """パスワードの検証"""
+        """Verify a password"""
         new_hash, _ = SecurityUtils.hash_password(password, salt)
         return hmac.compare_digest(new_hash, hashed)
 
     @staticmethod
     def sanitize_input(value: str) -> str:
-        """入力値のサニタイズ"""
+        """Sanitize input value"""
         dangerous_chars = ['<', '>', '"', "'", '&', '\\']
         result = value
         for char in dangerous_chars:
             result = result.replace(char, '')
         return result.strip()
 
-# 使用例
+# Usage example
 token = SecurityUtils.generate_token()
 hashed, salt = SecurityUtils.hash_password("my_password")
 is_valid = SecurityUtils.verify_password("my_password", hashed, salt)
 ```
 
-### セキュリティチェックリスト
+### Security Checklist
 
-- [ ] 全ての入力値がバリデーションされている
-- [ ] 機密情報がログに出力されていない
-- [ ] HTTPS が強制されている
-- [ ] CORS ポリシーが適切に設定されている
-- [ ] 依存パッケージの脆弱性スキャンが実施されている
-- [ ] エラーメッセージに内部情報が含まれていない
+- [ ] All input values are validated
+- [ ] Sensitive information is not output to logs
+- [ ] HTTPS is enforced
+- [ ] CORS policy is properly configured
+- [ ] Dependency vulnerability scanning is performed
+- [ ] Error messages do not contain internal information
 
 ---
 
-## マイグレーションガイド
+## Migration Guide
 
-### バージョンアップ時の注意点
+### Version Upgrade Notes
 
-| バージョン | 主な変更点 | 移行作業 | 影響範囲 |
+| Version | Major Changes | Migration Work | Impact Scope |
 |-----------|-----------|---------|---------|
-| v1.x → v2.x | API設計の刷新 | エンドポイント変更 | 全クライアント |
-| v2.x → v3.x | 認証方式の変更 | トークン形式更新 | 認証関連 |
-| v3.x → v4.x | データモデル変更 | マイグレーションスクリプト実行 | DB関連 |
+| v1.x to v2.x | API design overhaul | Endpoint changes | All clients |
+| v2.x to v3.x | Authentication method change | Token format update | Auth-related |
+| v3.x to v4.x | Data model change | Run migration scripts | DB-related |
 
-### 段階的移行の手順
+### Step-by-Step Migration Procedure
 
 ```python
-# マイグレーションスクリプトのテンプレート
+# Migration script template
 import json
 import logging
 from pathlib import Path
@@ -1679,7 +1679,7 @@ from typing import List, Dict, Callable
 logger = logging.getLogger(__name__)
 
 class MigrationRunner:
-    """段階的マイグレーション実行エンジン"""
+    """Step-by-step migration execution engine"""
 
     def __init__(self, migration_dir: str):
         self.migration_dir = Path(migration_dir)
@@ -1688,7 +1688,7 @@ class MigrationRunner:
 
     def register(self, version: str, description: str,
                  up: Callable, down: Callable):
-        """マイグレーションの登録"""
+        """Register a migration"""
         self.migrations.append({
             'version': version,
             'description': description,
@@ -1698,35 +1698,35 @@ class MigrationRunner:
         })
 
     def run_up(self, target_version: str = None):
-        """マイグレーションの実行（アップグレード）"""
+        """Run migrations (upgrade)"""
         for migration in self.migrations:
             if migration['version'] in self.completed:
                 continue
-            logger.info(f"実行中: {migration['version']} - "
+            logger.info(f"Running: {migration['version']} - "
                        f"{migration['description']}")
             try:
                 migration['up']()
                 self.completed.append(migration['version'])
-                logger.info(f"完了: {migration['version']}")
+                logger.info(f"Completed: {migration['version']}")
             except Exception as e:
-                logger.error(f"失敗: {migration['version']}: {e}")
+                logger.error(f"Failed: {migration['version']}: {e}")
                 raise
             if target_version and migration['version'] == target_version:
                 break
 
     def run_down(self, target_version: str):
-        """マイグレーションのロールバック"""
+        """Rollback migrations"""
         for migration in reversed(self.migrations):
             if migration['version'] not in self.completed:
                 continue
             if migration['version'] == target_version:
                 break
-            logger.info(f"ロールバック: {migration['version']}")
+            logger.info(f"Rolling back: {migration['version']}")
             migration['down']()
             self.completed.remove(migration['version'])
 
     def status(self) -> Dict:
-        """マイグレーション状態の確認"""
+        """Check migration status"""
         return {
             'total': len(self.migrations),
             'completed': len(self.completed),
@@ -1739,69 +1739,69 @@ class MigrationRunner:
         }
 ```
 
-### ロールバック計画
+### Rollback Plan
 
-移行作業には必ずロールバック計画を準備してください:
+Always prepare a rollback plan for migration work:
 
-1. **データのバックアップ**: 移行前に完全バックアップを取得
-2. **テスト環境での検証**: 本番と同等の環境で事前検証
-3. **段階的なロールアウト**: カナリアリリースで段階的に展開
-4. **監視の強化**: 移行中はメトリクスの監視間隔を短縮
-5. **判断基準の明確化**: ロールバックを判断する基準を事前に定義
+1. **Data backup**: Take a complete backup before migration
+2. **Test environment verification**: Pre-verify in an environment equivalent to production
+3. **Gradual rollout**: Deploy gradually with canary releases
+4. **Enhanced monitoring**: Shorten metric monitoring intervals during migration
+5. **Clear decision criteria**: Define rollback criteria in advance
 ---
 
-## まとめ: プラグイン選びの基本原則
+## Summary: Fundamental Principles of Plugin Selection
 
-1. **まず無料プラグインで学ぶ**: Vital、Surge XT、TDR SlickEQ等で基本を習得
-2. **ジャンルに合ったプラグインを優先**: 汎用的なものより特化型を選ぶ
-3. **EQとコンプレッサーに投資する**: FabFilter Pro-Q 3 は最初の有料プラグインとして最適
-4. **バンドルのセール時を狙う**: 定価で買わず、ブラックフライデー等を待つ
-5. **デモ版を必ず試す**: ほとんどのプラグインに無料トライアルがある
-6. **CPU負荷を考慮する**: ライブパフォーマンスで使用する場合は特に重要
-7. **プリセットを活用する**: まずプリセットを起点にして、そこから調整を学ぶ
-8. **少数精鋭で深く使いこなす**: 100個のプラグインを浅く使うより、10個を深く使いこなす方が効果的
+1. **Learn with free plugins first**: Master the basics with Vital, Surge XT, TDR SlickEQ, etc.
+2. **Prioritize plugins suited to your genre**: Choose specialized over general-purpose
+3. **Invest in EQ and compressor**: FabFilter Pro-Q 3 is ideal as your first paid plugin
+4. **Wait for bundle sales**: Don't buy at full price; wait for Black Friday, etc.
+5. **Always try demo versions**: Most plugins offer free trials
+6. **Consider CPU load**: Especially important when using for live performances
+7. **Leverage presets**: Start from presets and learn adjustments from there
+8. **Master a few deeply**: Deeply mastering 10 plugins is more effective than shallowly using 100
 
 ---
 
-**次**: [コミュニティ](./communities.md)
+**Next**: [Communities](./communities.md)
 
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important. Understanding deepens not just through theory but by actually writing and verifying code.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What common mistakes do beginners make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend thoroughly understanding the basic concepts explained in this guide before moving to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-このガイドでは以下の重要なポイントを学びました:
-
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
+Knowledge of this topic is frequently used in daily development work. It becomes particularly important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [推奨練習曲](./recommended-tracks.md) - 次のトピックへ進む
+In this guide, we learned the following key points:
+
+- Understanding basic concepts and principles
+- Practical implementation patterns
+- Best practices and considerations
+- Practical application methods
 
 ---
 
-## 参考文献
+## Recommended Next Guides
 
-- [MDN Web Docs](https://developer.mozilla.org/) - Web技術のリファレンス
-- [Wikipedia](https://ja.wikipedia.org/) - 技術概念の概要
+- [Recommended Practice Tracks](./recommended-tracks.md) - Proceed to the next topic
+
+---
+
+## References
+
+- [MDN Web Docs](https://developer.mozilla.org/) - Web technology reference
+- [Wikipedia](https://en.wikipedia.org/) - Overview of technical concepts
