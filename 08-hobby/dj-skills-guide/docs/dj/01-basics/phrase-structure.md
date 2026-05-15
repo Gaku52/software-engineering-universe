@@ -1,187 +1,188 @@
-# フレーズ構造
+# Phrase Structure
 
-音楽の「句読点」となるフレーズを理解し、最適なミックスポイントを見つけます。フレーズ構造の理解は、DJとして最も重要な基礎スキルの一つであり、スムーズなトランジション、エネルギー管理、そしてフロアコントロールのすべての土台となります。
+Understand the phrases that act as "punctuation marks" in music, and find the optimal mix points. Understanding phrase structure is one of the most important foundational skills for a DJ, forming the basis for smooth transitions, energy management, and floor control.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- 拍・小節・フレーズの関係と音楽理論的背景
-- 4小節、8小節、16小節、32小節の各フレーズ長の特性と使い分け
-- フレーズの切れ目を聴き取るための具体的テクニック
-- Rekordboxでのマーキングとフレーズ分析の実践
-- ミックスポイントの見つけ方と判断基準
-- フレーズカウントの段階的練習方法
-- ジャンル別フレーズパターンの詳細分析
-- プロDJのフレーズ活用術と応用テクニック
-- フレーズを活用したクリエイティブなミックス手法
-- フレーズ構造の歴史的背景と音楽制作者の意図
+- The relationship between beats, bars, and phrases, and the music-theoretical background
+- Characteristics and uses of 4-bar, 8-bar, 16-bar, and 32-bar phrase lengths
+- Specific techniques for hearing phrase boundaries
+- Practical use of marking and phrase analysis in Rekordbox
+- How to find mix points and the criteria for judgment
+- A step-by-step practice method for phrase counting
+- Detailed analysis of phrase patterns by genre
+- Phrase utilization techniques and advanced techniques used by professional DJs
+- Creative mixing methods using phrases
+- Historical background of phrase structure and the intent of music producers
 
-## なぜフレーズが重要なのか
+## Why Phrases Are Important
 
-### スムーズなミックスの基盤
+### The Foundation of a Smooth Mix
 
-フレーズ構造を理解することは、DJミックスの品質を決定づける最も基本的な要素です。フレーズの切れ目で曲を繋ぐと、リスナーにとって自然で心地よいトランジションになります。逆に、フレーズの途中で無理に繋ごうとすると、音楽の流れが途切れ、フロアのエネルギーが失われます。
+Understanding phrase structure is the most fundamental element that determines the quality of a DJ mix. Connecting tracks at phrase boundaries creates transitions that feel natural and comfortable to listeners. Conversely, trying to force a connection in the middle of a phrase interrupts the flow of the music and causes the floor's energy to be lost.
 
-**スムーズなミックスのための原則:**
-- フレーズの切れ目（通常8小節ごと）で繋ぐと自然な流れが維持される
-- セクションの変わり目（Intro→Verse、Verse→Drop等）を意識してミックスポイントを選ぶ
-- 中途半端な場所で繋ぐと、聴いている人に「ズレ」や「違和感」を与える
-- 音楽の「呼吸」（テンション→リリース）のサイクルを理解して活用する
-- プロDJは常にフレーズ単位で次の展開を考えながらミックスしている
+**Principles for a smooth mix:**
+- Connecting at phrase boundaries (normally every 8 bars) maintains a natural flow
+- Choose mix points being conscious of section changes (Intro→Verse, Verse→Drop, etc.)
+- Connecting at a halfway point gives listeners a sense of "displacement" or "awkwardness"
+- Understand and utilize the cycle of "breath" in music (tension→release)
+- Professional DJs always mix while thinking ahead to the next development in phrase units
 
-**なぜ「自然」に聞こえるのか:**
+**Why it sounds "natural":**
 
-人間の脳は音楽のパターンを無意識に認識しています。ダンスミュージックを聴き慣れたリスナーは、8小節や16小節の区切りを体感的に理解しており、その区切りで新しい要素が加わることを「期待」しています。この期待に沿った形でトランジションを行うことで、「自然」で「スムーズ」な印象を与えるのです。
+The human brain unconsciously recognizes music patterns. Listeners accustomed to dance music intuitively understand the divisions at 8 and 16 bars, and "expect" new elements to be added at those divisions. By performing transitions in a way that meets these expectations, you create an impression that is "natural" and "smooth."
 
-### 予測可能性とDJの判断力
+### Predictability and the DJ's Judgment
 
-フレーズ構造を理解していると、曲の次の展開を高い精度で予測できるようになります。これはDJにとって決定的に重要なスキルです。
+Understanding phrase structure allows you to predict the next development in a track with high accuracy. This is a critically important skill for a DJ.
 
-**予測可能性がもたらす利点:**
-- 次の展開が予測できるため、ミックスの準備を余裕を持って行える
-- ミックスのタイミングを正確に計画し、実行できる
-- 曲のブレイクやドロップのタイミングを事前に把握できる
-- 観客も音楽の流れに身を委ねやすく、一体感が生まれる
-- トラブルが起きても、フレーズの区切りまでにリカバリーする時間を確保できる
+**Benefits that predictability brings:**
+- Because you can predict the next development, you can prepare for the mix with plenty of time
+- You can accurately plan and execute the timing of mixes
+- You can know the timing of a track's breaks and drops in advance
+- The audience can more easily surrender to the flow of the music, creating a sense of unity
+- Even if something goes wrong, you can secure time to recover before the phrase boundary
 
-**プロDJの思考プロセス:**
+**The thought process of a professional DJ:**
 
-プロのDJは常に「今フレーズの何小節目にいるか」を意識しています。例えば「今5小節目だから、あと3小節でフレーズが終わる。次のフレーズの頭で次の曲をスタートさせよう」という判断を瞬時に行っています。この思考が自動化されるまで練習することが、フレーズトレーニングの最終目標です。
+Professional DJs are always conscious of "which bar of the phrase I'm in right now." For example, they instantly make judgments like "I'm at bar 5, so the phrase ends in 3 more bars. I'll start the next track at the top of the next phrase." The final goal of phrase training is to practice until this thinking becomes automatic.
 
-### 音楽制作者の意図を読む
+### Reading the Intent of Music Producers
 
-ダンスミュージックのプロデューサーは、DJがミックスしやすいようにフレーズ構造を設計しています。Intro、Outro、ブレイクなどのセクションは、DJが繋ぎやすいように意図的に配置されています。フレーズ構造を理解することは、制作者の意図を正しく読み取り、曲のポテンシャルを最大限に引き出すことにつながります。
+Producers of dance music design phrase structure to make it easy for DJs to mix. Sections like the Intro, Outro, and break are intentionally placed to make them easy for DJs to connect. Understanding phrase structure leads to correctly reading the producer's intent and drawing out the maximum potential of a track.
 
-**制作者が意図的に設計している要素:**
-- Introの長さ（通常16〜32小節）はミックスインの時間を確保するため
-- Outroの長さもミックスアウト用に設計されている
-- ブレイクの直前にFXやフィルが入るのは「次の展開」の合図
-- ドロップの直前にスネアビルドが入るのはエネルギーの蓄積を示す
-- キックが抜ける場所は、別の曲のキックを重ねるためのスペース
+**Elements intentionally designed by producers:**
+- The length of the Intro (usually 16–32 bars) secures time for mix-ins
+- The length of the Outro is also designed for mix-outs
+- FX and fills that come right before a break are a signal of "the next development"
+- The snare build right before a drop indicates an accumulation of energy
+- Places where the kick drops out are space for layering the kick from another track
 
-### フレーズ理解がDJキャリアに与える影響
+### Impact of Phrase Understanding on DJ Careers
 
-フレーズの理解度は、DJとしてのレベルを如実に反映します。ベッドルームDJからクラブDJ、フェスティバルDJへとステップアップする過程で、フレーズに対する理解と活用能力は飛躍的に向上していきます。
+The degree of phrase understanding is a direct reflection of your level as a DJ. As you step up from bedroom DJ to club DJ to festival DJ, your understanding and ability to utilize phrases improves dramatically.
 
-**レベル別のフレーズ理解度:**
-- ベッドルームDJ: フレーズの概念を理解し、8小節を数えられる
-- バーDJ: フレーズの切れ目を無意識に感じ、適切なタイミングでミックスできる
-- クラブDJ: フレーズ構造を活用してエネルギーカーブを設計できる
-- フェスティバルDJ: フレーズを自在に操り、予想外の展開でも対応できる
+**Phrase understanding by level:**
+- Bedroom DJ: Understands the concept of phrases, can count 8 bars
+- Bar DJ: Intuitively feels phrase boundaries and can mix at appropriate timings
+- Club DJ: Can design an energy curve using phrase structure
+- Festival DJ: Can manipulate phrases freely and respond even to unexpected developments
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Before reading this guide, having the following knowledge will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [DJマインドセット - プロフェッショナルDJとして成長するための心構えと哲学](./dj-mindset.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related fundamental concepts
+- Understanding the content of [DJ Mindset - The Mindset and Philosophy for Growing as a Professional DJ](./dj-mindset.md)
 
 ---
 
-## 1. 拍・小節・フレーズの階層
+## 1. The Hierarchy of Beat, Bar, and Phrase
 
-### 基本単位の理解
+### Understanding the Basic Units
 
-音楽の時間構造は、階層的に組織されています。最小単位の「拍」から最大の「セクション」まで、それぞれの単位が上位の単位を構成する入れ子構造になっています。
+The time structure of music is organized hierarchically. From the smallest unit of the "beat" to the largest "section," each unit forms a nested structure that constitutes the unit above it.
 
 ```
-拍（Beat）
-  ↓ 4拍で
-小節（Bar / Measure）
-  ↓ 4〜8小節で
-フレーズ（Phrase）
-  ↓ 2〜4フレーズで
-セクション（Section）
-  ↓ 複数セクションで
-曲全体（Track）
+Beat
+  ↓ 4 beats form
+Bar (Measure)
+  ↓ 4–8 bars form
+Phrase
+  ↓ 2–4 phrases form
+Section
+  ↓ Multiple sections form
+The entire track
 ```
 
-この階層を理解することが、音楽の構造を把握するための第一歩です。各階層について詳しく見ていきましょう。
+Understanding this hierarchy is the first step to grasping the structure of music. Let's look at each layer in detail.
 
-### 拍（Beat）
+### Beat
 
-**定義:**
+**Definition:**
 ```
-リズムの最小単位
-時計の「チクタク」のように、等間隔で刻まれる基本パルス
-手拍子の1回分、メトロノームの1クリック分に相当
+The smallest unit of rhythm
+A basic pulse that is ticked at equal intervals, like the "tick-tock" of a clock
+Equivalent to one handclap or one click of a metronome
 ```
 
-**4/4拍子の例:**
+**Example of 4/4 time:**
 ```
 1  2  3  4
 ♩  ♩  ♩  ♩
 ↑        ↑
-強拍    弱拍
+Downbeat  Upbeat
 ```
 
-**拍の詳細な分類:**
+**Detailed classification of beats:**
 
-4/4拍子では、4つの拍にはそれぞれ「重み」があります。この重みの違いを理解することは、リズムを正確に把握するために重要です。
-
-```
-拍1（ダウンビート）: 最も強い拍。小節の始まり。キックドラムが置かれる
-拍2: 比較的弱い拍。スネアやクラップが置かれることが多い
-拍3: 中程度の強さ。キックドラムが置かれることが多い
-拍4: 弱い拍。スネアやクラップが置かれることが多い
-```
-
-**裏拍（Off-beat）の重要性:**
-
-各拍の間にある「裏拍」も重要な要素です。特にダンスミュージックでは、ハイハットやパーカッションが裏拍に配置されることが多く、グルーヴ感を生み出しています。
+In 4/4 time, the four beats each have their own "weight." Understanding the differences in these weights is important for accurately grasping rhythm.
 
 ```
-表拍: 1  .  2  .  3  .  4  .
-裏拍: .  &  .  &  .  &  .  &
-HH:   x  x  x  x  x  x  x  x
-Kick: X  .  .  .  X  .  .  .
-Snr:  .  .  X  .  .  .  X  .
+Beat 1 (Downbeat): The strongest beat. The beginning of the bar. Where the kick drum is placed
+Beat 2: A relatively weak beat. Often where a snare or clap is placed
+Beat 3: Moderate strength. Often where the kick drum is placed
+Beat 4: A weak beat. Often where a snare or clap is placed
 ```
 
-**さらに細かい分割:**
+**The importance of the off-beat:**
 
-16分音符や32分音符のレベルまで分割すると、ハイハットのパターンやフィルインの細かなリズムが理解できます。
+The "off-beat" between each beat is also an important element. Especially in dance music, hi-hats and percussion are often placed on the off-beat, creating the groove feel.
 
 ```
-16分音符での1小節:
+On-beat:  1  .  2  .  3  .  4  .
+Off-beat: .  &  .  &  .  &  .  &
+HH:       x  x  x  x  x  x  x  x
+Kick:     X  .  .  .  X  .  .  .
+Snr:      .  .  X  .  .  .  X  .
+```
+
+**Further subdivisions:**
+
+Dividing down to the level of 16th notes or 32nd notes allows you to understand the detailed rhythms of hi-hat patterns and fill-ins.
+
+```
+One bar in 16th notes:
 1 e & a  2 e & a  3 e & a  4 e & a
 ↑       ↑       ↑       ↑
-拍の頭   拍の頭   拍の頭   拍の頭
+Beat    Beat    Beat    Beat
+head    head    head    head
 ```
 
-### 小節（Bar / Measure）
+### Bar (Measure)
 
-**定義:**
+**Definition:**
 ```
-拍子記号によって区切られた音楽の基本単位
-4/4拍子なら4拍で1小節
-3/4拍子なら3拍で1小節（ワルツ）
-ダンスミュージックは基本的に4/4拍子
+A basic unit of music divided by the time signature
+In 4/4 time, 4 beats = 1 bar
+In 3/4 time, 3 beats = 1 bar (waltz)
+Dance music is basically in 4/4 time
 ```
 
-**なぜ4/4拍子が主流なのか:**
+**Why 4/4 time is dominant:**
 
-ダンスミュージックにおいて4/4拍子が圧倒的に主流である理由は複数あります。まず、4拍子は人間の歩行リズムに近く、体を動かしやすい。次に、偶数拍子は対称的な構造を作りやすく、反復パターンの構築に適している。さらに、DJミックスにおいてBPMの同期が容易であるという実用的な利点もあります。
+There are multiple reasons why 4/4 time is overwhelmingly dominant in dance music. First, 4/4 time is close to the human walking rhythm and makes it easy to move your body. Next, even time signatures make it easy to create symmetrical structures, suitable for building repetitive patterns. Furthermore, there is the practical advantage that BPM synchronization is easy in DJ mixing.
 
-**表記と理解:**
+**Notation and understanding:**
 ```
 |1 2 3 4|1 2 3 4|1 2 3 4|1 2 3 4|
- 1小節目  2小節目  3小節目  4小節目
+  Bar 1   Bar 2   Bar 3   Bar 4
 ```
 
-**小節の中のリズムパターン（House系の典型例）:**
+**Rhythm pattern within a bar (typical House example):**
 ```
-小節の構造:
+Bar structure:
 |K . S . K . S .|
  1 & 2 & 3 & 4 &
 
-K = Kick（キック）
-S = Snare/Clap（スネア/クラップ）
-. = 空白またはハイハット
+K = Kick
+S = Snare/Clap
+. = Empty or hi-hat
 ```
 
-**4つ打ちの小節パターン:**
+**Four-on-the-floor bar pattern:**
 ```
 Kick:  X . . . X . . . X . . . X . . .
 Snr:   . . . . . . X . . . . . . . X .
@@ -189,912 +190,912 @@ HH:    . X . X . X . X . X . X . X . X
 Bass:  X . . . . . X . . . X . . . . .
 ```
 
-**小節をカウントする際のコツ:**
-- キックドラムの「ドン」で1拍目を感じる
-- スネアやクラップで2拍目・4拍目を確認する
-- 1小節は約1.9秒（BPM126の場合）、約2秒（BPM120の場合）
-- 4小節でおよそ8秒、8小節でおよそ15秒が目安
+**Tips for counting bars:**
+- Feel beat 1 from the "thud" of the kick drum
+- Confirm beats 2 and 4 from the snare or clap
+- One bar is about 1.9 seconds (at BPM 126), about 2 seconds (at BPM 120)
+- 4 bars is about 8 seconds, 8 bars is about 15 seconds as a rough guide
 
-### フレーズ（Phrase）
+### Phrase
 
-**定義:**
+**Definition:**
 ```
-音楽的なまとまりを持った複数小節の集合
-ダンスミュージックでは通常8小節が1フレーズ
-音楽の「文章」に相当する単位
+A collection of multiple bars that have a musical coherence
+In dance music, normally 8 bars = 1 phrase
+A unit equivalent to a "sentence" in music
 ```
 
-フレーズは音楽における「意味のまとまり」です。言語に例えるなら、拍が「文字」、小節が「単語」、フレーズが「文章」に相当します。1つのフレーズの中で、音楽的なアイデアが提示され、展開され、解決（または次のフレーズへの橋渡し）が行われます。
+A phrase is a "meaningful unit" in music. Using language as an analogy, beats are "letters," bars are "words," and phrases are "sentences." Within one phrase, a musical idea is presented, developed, and resolved (or bridges to the next phrase).
 
-**例（8小節 = 1フレーズ）:**
+**Example (8 bars = 1 phrase):**
 ```
 |1234|1234|1234|1234|1234|1234|1234|1234|
-  1    2    3    4    5    6    7    8小節
-└────────────── 1フレーズ ──────────────┘
+  1    2    3    4    5    6    7    8 bars
+└────────────── 1 phrase ───────────────┘
 ```
 
-**フレーズの内部構造:**
+**Internal structure of a phrase:**
 
-8小節フレーズの内部には、さらに細かい構造があります。一般的には以下のような展開パターンを持ちます。
-
-```
-小節1-2: テーマの提示（問いかけ）
-小節3-4: テーマの発展（応答）
-小節5-6: クライマックスへの展開
-小節7-8: 解決または次のフレーズへの移行
-
-具体例（House track）:
-小節1-2: メインリフが鳴る
-小節3-4: 同じリフに少し変化が加わる
-小節5-6: 新しい要素（パーカッション等）が加わる
-小節7-8: フィルインやFXで次のフレーズを予告
-```
-
-**フレーズの時間的な長さ（BPM別）:**
-```
-BPM 120: 8小節 = 16秒
-BPM 125: 8小節 = 15.36秒
-BPM 128: 8小節 = 15秒
-BPM 130: 8小節 = 14.77秒
-BPM 140: 8小節 = 13.71秒
-BPM 150: 8小節 = 12.8秒
-BPM 170: 8小節 = 11.29秒（Drum and Bass）
-BPM 174: 8小節 = 11.03秒（Drum and Bass）
-```
-
-### セクション（Section）
-
-**定義:**
-```
-複数のフレーズで構成される、曲の大きな構造単位
-Intro、Verse、Build、Drop、Break、Outro など
-通常2〜4フレーズ（16〜32小節）で構成
-```
-
-セクションは曲の「章」に相当する大きな構造単位です。各セクションには明確な役割があり、曲全体のストーリーを構成しています。
-
-**典型的なセクションとその役割:**
-```
-Intro:  曲の導入。DJミックス用のスペース。キックとリズム中心
-Verse:  メインの展開部分。メロディやボーカルが入る
-Build:  ドロップへの準備。テンションが高まっていく
-Drop:   クライマックス。最大のエネルギーポイント
-Break:  休息。エネルギーを一度落として次の展開に備える
-Outro:  曲の終結部。DJミックスアウト用のスペース
-```
-
-### 階層構造の全体像
+An 8-bar phrase has a more detailed structure within it. It generally follows a developmental pattern like the following:
 
 ```
-曲全体（約5-7分、BPM128の場合）
-├── Intro（32小節 = 4フレーズ = 約60秒）
-│   ├── フレーズ1: キックのみ
-│   ├── フレーズ2: ハイハット追加
-│   ├── フレーズ3: ベースライン追加
-│   └── フレーズ4: パーカッション追加
-├── Build（16小節 = 2フレーズ = 約30秒）
-│   ├── フレーズ5: テンション上昇開始
-│   └── フレーズ6: スネアビルド
-├── Drop 1（32小節 = 4フレーズ = 約60秒）
-│   ├── フレーズ7: メインリフ全開
-│   ├── フレーズ8: バリエーション
-│   ├── フレーズ9: メインリフ繰り返し
-│   └── フレーズ10: 変化を加える
-├── Break（16小節 = 2フレーズ = 約30秒）
-│   ├── フレーズ11: キック抜き、アトモスフェリック
-│   └── フレーズ12: 徐々に要素を戻す
-├── Build 2（8-16小節 = 1-2フレーズ）
-│   └── フレーズ13: 短いビルドアップ
-├── Drop 2（32小節 = 4フレーズ = 約60秒）
-│   ├── フレーズ14-17: Drop 1の変奏
-│   └── （より激しい展開の場合も）
-└── Outro（32小節 = 4フレーズ = 約60秒）
-    ├── フレーズ18: 要素を徐々に減らす
-    ├── フレーズ19: ベース抜き
-    ├── フレーズ20: パーカッション抜き
-    └── フレーズ21: キックのみで終了
+Bars 1–2: Presentation of the theme (question)
+Bars 3–4: Development of the theme (response)
+Bars 5–6: Development toward the climax
+Bars 7–8: Resolution or transition to the next phrase
+
+Concrete example (House track):
+Bars 1–2: Main riff sounds
+Bars 3–4: Slight variation added to the same riff
+Bars 5–6: New elements (percussion, etc.) are added
+Bars 7–8: Fill-in and FX announce the next phrase
+```
+
+**Duration of a phrase (by BPM):**
+```
+BPM 120: 8 bars = 16 seconds
+BPM 125: 8 bars = 15.36 seconds
+BPM 128: 8 bars = 15 seconds
+BPM 130: 8 bars = 14.77 seconds
+BPM 140: 8 bars = 13.71 seconds
+BPM 150: 8 bars = 12.8 seconds
+BPM 170: 8 bars = 11.29 seconds (Drum and Bass)
+BPM 174: 8 bars = 11.03 seconds (Drum and Bass)
+```
+
+### Section
+
+**Definition:**
+```
+A large structural unit of a track composed of multiple phrases
+Intro, Verse, Build, Drop, Break, Outro, etc.
+Usually composed of 2–4 phrases (16–32 bars)
+```
+
+A section is a large structural unit equivalent to a "chapter" in a track. Each section has a clear role and makes up the story of the entire track.
+
+**Typical sections and their roles:**
+```
+Intro:  Introduction of the track. Space for DJ mix-in. Kick and rhythm-centered
+Verse:  Main development section. Where melody or vocals come in
+Build:  Preparation for the drop. Tension builds up
+Drop:   Climax. The highest energy point
+Break:  Rest. Energy drops once to prepare for the next development
+Outro:  Conclusion of the track. Space for DJ mix-out
+```
+
+### Overview of the Hierarchical Structure
+
+```
+Entire track (about 5–7 minutes, at BPM 128)
+├── Intro (32 bars = 4 phrases = about 60 seconds)
+│   ├── Phrase 1: Kick only
+│   ├── Phrase 2: Hi-hat added
+│   ├── Phrase 3: Bassline added
+│   └── Phrase 4: Percussion added
+├── Build (16 bars = 2 phrases = about 30 seconds)
+│   ├── Phrase 5: Tension starts to rise
+│   └── Phrase 6: Snare build
+├── Drop 1 (32 bars = 4 phrases = about 60 seconds)
+│   ├── Phrase 7: Main riff at full power
+│   ├── Phrase 8: Variation
+│   ├── Phrase 9: Main riff repeated
+│   └── Phrase 10: Adding changes
+├── Break (16 bars = 2 phrases = about 30 seconds)
+│   ├── Phrase 11: No kick, atmospheric
+│   └── Phrase 12: Gradually restore elements
+├── Build 2 (8–16 bars = 1–2 phrases)
+│   └── Phrase 13: Short build-up
+├── Drop 2 (32 bars = 4 phrases = about 60 seconds)
+│   ├── Phrases 14–17: Variation on Drop 1
+│   └── (may be a more intense development)
+└── Outro (32 bars = 4 phrases = about 60 seconds)
+    ├── Phrase 18: Gradually reduce elements
+    ├── Phrase 19: No bass
+    ├── Phrase 20: No percussion
+    └── Phrase 21: Ends with kick only
 ```
 
 ---
 
-## 2. フレーズの種類
+## 2. Types of Phrases
 
-### 4小節フレーズ
+### 4-Bar Phrase
 
-**使われる場面:**
-- フィルイン（fill-in）やトランジション
-- ブレイクやブリッジ部分
-- 短いループやサンプル素材
-- Hip Hopのサンプリングフレーズ
-- EDMのビルドアップ最終段階
-- ドラムフィルやパーカッションブレイク
+**Where it's used:**
+- Fill-ins and transitions
+- Break and bridge sections
+- Short loops and sample material
+- Hip Hop sampling phrases
+- Final stage of EDM build-ups
+- Drum fills and percussion breaks
 
-**特徴と内部構造:**
+**Characteristics and internal structure:**
 ```
-短い音楽的な問いかけと答え
-|問い  |答え  |
- 2小節   2小節
+A short musical question and answer
+|Question|Answer|
+   2 bars   2 bars
 
-より詳細な構造:
-小節1: テーマ提示
-小節2: テーマの応答
-小節3: テーマの変化
-小節4: 解決 or 次への橋渡し
-```
-
-**4小節フレーズが効果的な場面:**
-
-4小節フレーズは、曲の中で「アクセント」として機能することが多いです。例えば、8小節フレーズの中間地点（小節4〜5の境目）で微妙な変化を加えることで、リスナーの注意を引きつけたり、期待感を高めたりする効果があります。
-
-```
-使用例1: ドラムフィル
-小節1-7: 通常パターン
-小節8: 4拍のスネアロール（4小節フレーズの最後の1小節に相当）
-
-使用例2: Hip Hopサンプル
-|ピアノリフ |ドラムブレイク|ピアノリフ |ドラムブレイク|
-  小節1-2      小節3-4      小節5-6      小節7-8
-  ← 4小節 →              ← 4小節 →
+More detailed structure:
+Bar 1: Theme presented
+Bar 2: Response to the theme
+Bar 3: Variation of the theme
+Bar 4: Resolution or bridge to the next
 ```
 
-**DJ実践での4小節フレーズの活用:**
+**Situations where 4-bar phrases are effective:**
 
-4小節単位でのクイックカットやスイッチングは、テクニカルなDJスタイルにおいて重要です。特にHip HopやScratch DJingでは、4小節ごとに曲を切り替えるテクニックが頻繁に使われます。
+4-bar phrases often function as "accents" within a track. For example, adding a subtle change at the midpoint of an 8-bar phrase (the boundary between bars 4 and 5) has the effect of capturing the listener's attention or heightening anticipation.
+
+```
+Usage example 1: Drum fill
+Bars 1–7: Normal pattern
+Bar 8: 4-beat snare roll (equivalent to the last bar of a 4-bar phrase)
+
+Usage example 2: Hip Hop sample
+|Piano riff |Drum break|Piano riff |Drum break|
+  Bars 1–2    Bars 3–4   Bars 5–6    Bars 7–8
+  ← 4 bars →             ← 4 bars →
+```
+
+**Using 4-bar phrases in DJ practice:**
+
+Quick cuts and switching in 4-bar units are important in technical DJ styles. Especially in Hip Hop and Scratch DJing, the technique of switching tracks every 4 bars is frequently used.
 
 ```
 Track A: |4bars|     |4bars|     |
 Track B:      |4bars|     |4bars|
-→ 4小節ごとに2曲を交互に再生
+→ Alternately playing 2 tracks every 4 bars
 ```
 
-### 8小節フレーズ（最も一般的）
+### 8-Bar Phrase (Most Common)
 
-**使われる場面:**
-- ほとんどのダンスミュージック全般
-- House、Techno、Trance、Drum and Bass
-- 標準的な展開単位として機能
-- メロディやリフの1サイクル
-- コード進行の1サイクル
-- DJミックスの基本計算単位
+**Where it's used:**
+- Most dance music genres generally
+- House, Techno, Trance, Drum and Bass
+- Functions as the standard unit of development
+- One cycle of a melody or riff
+- One cycle of a chord progression
+- The basic calculation unit for DJ mixing
 
-**構造の詳細:**
+**Detailed structure:**
 ```
-基本パターン:
-|導入    |発展    |クライマックス|解決    |
-  2小節    2小節      2小節       2小節
+Basic pattern:
+|Introduction|Development|Climax     |Resolution |
+    2 bars       2 bars     2 bars      2 bars
 
-変化パターン1（問答型）:
-|問い    |答え    |問い'   |答え'   |
-  2小節    2小節    2小節    2小節
+Variation pattern 1 (call-and-response type):
+|Question|Answer  |Question'|Answer'  |
+  2 bars   2 bars   2 bars    2 bars
 
-変化パターン2（蓄積型）:
-|基本    |+要素A  |+要素B  |フィル  |
-  2小節    2小節    2小節    2小節
+Variation pattern 2 (accumulation type):
+|Base    |+Element A|+Element B|Fill   |
+  2 bars    2 bars     2 bars    2 bars
 
-変化パターン3（テンション型）:
-|安定    |安定    |不安定  |解決    |
-  2小節    2小節    2小節    2小節
+Variation pattern 3 (tension type):
+|Stable  |Stable  |Unstable |Resolved|
+  2 bars   2 bars   2 bars   2 bars
 ```
 
-**数え方の種類:**
+**Types of counting methods:**
 ```
-方法1: 小節番号で数える
+Method 1: Count by bar number
 1, 2, 3, 4, 5, 6, 7, 8
 
-方法2: 拍子の頭で数える（DJに最も一般的）
+Method 2: Count on the head of each beat (most common for DJs)
 1-2-3-4, 2-2-3-4, 3-2-3-4, 4-2-3-4,
 5-2-3-4, 6-2-3-4, 7-2-3-4, 8-2-3-4
 
-方法3: 2小節単位で数える
-1（2小節）, 2（2小節）, 3（2小節）, 4（2小節）
+Method 3: Count in 2-bar units
+1 (2 bars), 2 (2 bars), 3 (2 bars), 4 (2 bars)
 
-方法4: 前半・後半で分ける
-前半（1-4小節）, 後半（5-8小節）
+Method 4: Divide into first half and second half
+First half (bars 1–4), Second half (bars 5–8)
 ```
 
-**8小節フレーズを構成するリズム要素の典型的な変化:**
+**Typical changes in rhythmic elements composing an 8-bar phrase:**
 ```
-小節1: キック、ハイハット開始
-小節2: 同じパターン継続
-小節3: スネア/クラップ追加またはパーカッション変化
-小節4: 微妙なバリエーション
-小節5: 新しい要素の追加（ベースライン等）
-小節6: パターンの安定化
-小節7: フィルインの予兆（ハイハットオープン等）
-小節8: フィルイン、トランジション要素
-```
-
-**プロのTip: 8小節フレーズの「重力」**
-
-経験豊富なDJは、8小節フレーズに「重力」のようなものを感じると言います。フレーズの前半（1-4小節目）は「上昇」、後半（5-8小節目）は「下降」または「解決への方向」を持っています。この感覚を身につけると、ミックスポイントの選択が直感的にできるようになります。
-
-### 16小節フレーズ
-
-**使われる場面:**
-- セクションの区切り（Intro→Verse等の移行）
-- Intro / Outroの基本単位
-- ビルドアップやブレイクダウン
-- ボーカルヴァースの1コーラス
-- DJミックスの標準的なオーバーラップ時間
-
-**構造の詳細:**
-```
-基本構造:
-8小節フレーズA + 8小節フレーズB
-= 1つの大きな16小節フレーズ
-
-パターン1（反復型）:
-|フレーズA       |フレーズA'（微変化）|
-   8小節              8小節
-
-パターン2（展開型）:
-|フレーズA（提示）|フレーズB（発展） |
-   8小節              8小節
-
-パターン3（ビルド型）:
-|低テンション    |高テンション      |
-   8小節              8小節
+Bar 1: Kick, hi-hat starts
+Bar 2: Same pattern continues
+Bar 3: Snare/clap added or percussion change
+Bar 4: Subtle variation
+Bar 5: New elements added (bassline, etc.)
+Bar 6: Pattern stabilizes
+Bar 7: Forewarning of fill-in (open hi-hat, etc.)
+Bar 8: Fill-in, transition elements
 ```
 
-**16小節の時間感覚:**
+**Pro Tip: The "Gravity" of an 8-Bar Phrase**
+
+Experienced DJs say they feel something like "gravity" in an 8-bar phrase. The first half (bars 1–4) has an "ascending" quality, while the second half (bars 5–8) has a "descending" or "resolving" direction. Once you develop this sense, choosing mix points becomes intuitive.
+
+### 16-Bar Phrase
+
+**Where it's used:**
+- Section transitions (Intro→Verse, etc.)
+- The basic unit of Intros and Outros
+- Build-ups and breakdowns
+- One chorus of a vocal verse
+- The standard overlap time for DJ mixes
+
+**Detailed structure:**
 ```
-BPM 120: 16小節 = 32秒
-BPM 125: 16小節 = 30.72秒（約30秒）
-BPM 128: 16小節 = 30秒
-BPM 130: 16小節 = 29.54秒
-```
+Basic structure:
+8-bar phrase A + 8-bar phrase B
+= One large 16-bar phrase
 
-**DJミックスにおける16小節の重要性:**
+Pattern 1 (repetition type):
+|Phrase A       |Phrase A' (slight variation)|
+   8 bars              8 bars
 
-16小節（約30秒）は、DJミックスにおいて非常に重要な時間単位です。多くのトランジションは16小節の範囲で完結するよう設計されています。理由は以下の通りです：
+Pattern 2 (developmental type):
+|Phrase A (presentation)|Phrase B (development)|
+   8 bars                     8 bars
 
-- 30秒あれば、EQを使った段階的な切り替えが十分に行える
-- リスナーが「曲が変わっている」と自然に感じるのに適切な時間
-- 短すぎず長すぎない、バランスの取れたミックス時間
-- 多くの楽曲のIntro/Outroが16小節または32小節で設計されている
-
-### 32小節フレーズ（セクション）
-
-**使われる場面:**
-- Intro、Verse、Drop、Outroなどの主要セクション
-- 曲の大きな区切りとストーリー展開
-- DJセットの構成単位としての活用
-- 長尺ミックスの計画単位
-
-**構造の詳細:**
-```
-パターン1:
-8小節 × 4 = 32小節
-フレーズA + フレーズB + フレーズC + フレーズD
-
-パターン2:
-16小節 × 2 = 32小節
-大フレーズA + 大フレーズB
-
-パターン3（典型的なDrop構造）:
-|8小節: メインリフ|8小節: 変奏|8小節: メインリフ|8小節: 展開|
+Pattern 3 (build type):
+|Low tension    |High tension      |
+   8 bars              8 bars
 ```
 
-**32小節の時間感覚:**
+**Time sense of 16 bars:**
 ```
-BPM 120: 32小節 = 64秒（約1分）
-BPM 125: 32小節 = 61.44秒（約1分）
-BPM 128: 32小節 = 60秒（ちょうど1分）
-BPM 130: 32小節 = 59.08秒（約1分）
-BPM 140: 32小節 = 54.86秒（約55秒）
-```
-
-**32小節がDJにとって重要な理由:**
-
-BPM128の曲では、32小節がちょうど1分に相当します。これは偶然ではなく、多くのダンスミュージックプロデューサーがDJの使いやすさを考慮して設計しています。1分単位で曲の構成を考えることで、セットの時間管理が容易になります。
-
-```
-例: 1時間のDJセット
-= 60分
-= 約60個の32小節セクション
-= 約15-20曲（1曲3-4分として）
+BPM 120: 16 bars = 32 seconds
+BPM 125: 16 bars = 30.72 seconds (about 30 seconds)
+BPM 128: 16 bars = 30 seconds
+BPM 130: 16 bars = 29.54 seconds
 ```
 
-### 64小節フレーズ（マクロフレーズ）
+**The importance of 16 bars in DJ mixing:**
 
-一部のジャンル（特にTrance、Progressive House）では、64小節単位の大きな構造が存在します。
+16 bars (about 30 seconds) is an extremely important time unit in DJ mixing. Many transitions are designed to complete within a 16-bar span. Here's why:
 
-**使われる場面:**
-- Tranceのビルドアップセクション
-- Progressive Houseの長大な展開
-- アンビエント系の緩やかな変化
-- フェスティバルセット向けの壮大な構成
+- 30 seconds is sufficient time to perform a gradual EQ-based transition
+- An appropriate duration for listeners to naturally feel "the track is changing"
+- A balanced mix time that is neither too short nor too long
+- Many tracks' Intros/Outros are designed in 16 or 32 bars
+
+### 32-Bar Phrase (Section)
+
+**Where it's used:**
+- Major sections such as Intro, Verse, Drop, and Outro
+- Large structural divisions and story development of a track
+- The unit of composition for a DJ set
+- The planning unit for long mixes
+
+**Detailed structure:**
+```
+Pattern 1:
+8 bars × 4 = 32 bars
+Phrase A + Phrase B + Phrase C + Phrase D
+
+Pattern 2:
+16 bars × 2 = 32 bars
+Large phrase A + Large phrase B
+
+Pattern 3 (typical Drop structure):
+|8 bars: Main riff|8 bars: Variation|8 bars: Main riff|8 bars: Development|
+```
+
+**Time sense of 32 bars:**
+```
+BPM 120: 32 bars = 64 seconds (about 1 minute)
+BPM 125: 32 bars = 61.44 seconds (about 1 minute)
+BPM 128: 32 bars = 60 seconds (exactly 1 minute)
+BPM 130: 32 bars = 59.08 seconds (about 1 minute)
+BPM 140: 32 bars = 54.86 seconds (about 55 seconds)
+```
+
+**Why 32 bars matters to a DJ:**
+
+At BPM 128, 32 bars is exactly 1 minute. This is no coincidence — many dance music producers design their tracks with this in mind to make them easy for DJs to use. Thinking about a track's structure in 1-minute units makes time management in a set much easier.
 
 ```
-64小節 = 8小節 × 8
-       = 16小節 × 4
-       = 32小節 × 2
+Example: A 1-hour DJ set
+= 60 minutes
+= Approximately 60 32-bar sections
+= Approximately 15–20 tracks (at 3–4 minutes per track)
+```
 
-BPM 138: 64小節 = 約2分12秒
+### 64-Bar Phrase (Macro Phrase)
+
+In some genres (particularly Trance and Progressive House), large structures in 64-bar units exist.
+
+**Where it's used:**
+- Build-up sections in Trance
+- Long, extended developments in Progressive House
+- Gradual changes in ambient music
+- Grand compositions for festival sets
+
+```
+64 bars = 8 bars × 8
+        = 16 bars × 4
+        = 32 bars × 2
+
+BPM 138: 64 bars = about 2 minutes 12 seconds
 ```
 
 ---
 
-## 3. フレーズの聴き取り方
+## 3. How to Hear Phrases
 
-フレーズの境界を正確に聴き取ることは、DJスキルの根幹です。ここでは、フレーズの切れ目を見つけるための具体的な手がかりを、優先度順に解説します。
+Accurately hearing phrase boundaries is the foundation of DJ skills. Here we explain the specific cues for finding phrase breaks, in order of priority.
 
-### 手がかり1: ドラムパターンの変化（最も信頼性が高い）
+### Cue 1: Changes in Drum Patterns (Most Reliable)
 
-ドラムパターンの変化は、フレーズの境界を示す最も明確な指標です。特にダンスミュージックでは、ドラムパターンがフレーズの「句読点」として機能しています。
+Changes in the drum pattern are the clearest indicators of phrase boundaries. In dance music especially, the drum pattern functions as the "punctuation mark" of a phrase.
 
-**キックドラムの変化:**
+**Changes in the kick drum:**
 ```
-通常パターン（小節1-6）:
+Normal pattern (bars 1–6):
 |K . . . K . . .|K . . . K . . .|...
 
-フレーズ終盤の変化（小節7-8）:
-パターン1: キックが抜ける
-|. . . . . . . .|→ 次のフレーズでキック復活
+Changes near the end of a phrase (bars 7–8):
+Pattern 1: The kick drops out
+|. . . . . . . .| → Kick returns at the start of the next phrase
 
-パターン2: キックパターンが変わる
-|K . K . K . K .|→ 通常と異なるリズム
+Pattern 2: The kick pattern changes
+|K . K . K . K .| → A rhythm different from normal
 
-パターン3: キックにリバーブがかかる
-|K~~~ . . . . . .|→ フレーズの終わりを示唆
+Pattern 3: Reverb is applied to the kick
+|K~~~ . . . . . .| → Suggests the end of a phrase
 ```
 
-**スネア/クラップの変化:**
+**Changes in the snare/clap:**
 ```
-通常パターン（小節1-6）:
-拍2と拍4にスネア: . S . S
+Normal pattern (bars 1–6):
+Snare on beats 2 and 4: . S . S
 
-フレーズ終盤の変化（小節7-8）:
-パターン1: スネアロール
-小節8: S S S S S S S S（16分音符のロール）
-→ 次のフレーズの合図として最も典型的
+Changes near the end of a phrase (bars 7–8):
+Pattern 1: Snare roll
+Bar 8: S S S S S S S S (16th note roll)
+→ The most typical signal for the next phrase
 
-パターン2: スネアビルド
-小節7: . S . S（通常）
-小節8: S . S S S S S S（加速するロール）
-→ ドロップの直前に多い
+Pattern 2: Snare build
+Bar 7: . S . S (normal)
+Bar 8: S . S S S S S S (accelerating roll)
+→ Common right before a drop
 
-パターン3: スネアが消える
-小節7-8: スネアなし
-→ ブレイクの直前に多い
+Pattern 3: Snare drops out
+Bars 7–8: No snare
+→ Common right before a break
 
-パターン4: リバーススネア
-小節8の最後: 「シュワーッ」と逆再生音
-→ 次のフレーズの頭にインパクトを持たせる
-```
-
-**ハイハットの変化:**
-```
-通常パターン（小節1-6）:
-クローズドハイハット: x x x x x x x x
-
-フレーズ終盤の変化（小節7-8）:
-パターン1: オープンハイハット
-小節8: x x x X（Xはオープン）
-→ 開放的な響きでフレーズの終わりを示す
-
-パターン2: ハイハットロール
-小節8: xxxxxxxxxxxxxxxx（32分音符）
-→ テンションの上昇を表現
-
-パターン3: ハイハットが消える
-小節7-8: ハイハットなし
-→ 空間を作り、次のフレーズの始まりを際立たせる
+Pattern 4: Reverse snare
+End of bar 8: a "swoosh" reverse playback sound
+→ Adds impact to the start of the next phrase
 ```
 
-**ライドシンバルとクラッシュシンバル:**
+**Changes in the hi-hat:**
 ```
-クラッシュシンバル:
-- 新しいフレーズの1拍目にクラッシュが入ることが多い
-- フレーズの始まりを明確に示す最も分かりやすい合図
+Normal pattern (bars 1–6):
+Closed hi-hat: x x x x x x x x
 
-ライドシンバル:
-- フレーズの後半でハイハットからライドに切り替わることがある
-- よりドライブ感のあるパートへの移行を示す
-```
+Changes near the end of a phrase (bars 7–8):
+Pattern 1: Open hi-hat
+Bar 8: x x x X (X is open)
+→ The open, resonant sound indicates the end of a phrase
 
-### 手がかり2: 楽器の追加・削除（アレンジメントの変化）
+Pattern 2: Hi-hat roll
+Bar 8: xxxxxxxxxxxxxxxx (32nd notes)
+→ Expresses a rise in tension
 
-楽器やサウンドレイヤーの追加・削除は、フレーズの境界で行われることが多く、聴き取りの重要な手がかりとなります。
-
-**要素の追加（ビルドアップ方向）:**
-```
-フレーズ1: キック + ハイハット
-フレーズ2: + ベースライン
-フレーズ3: + メロディ/リフ
-フレーズ4: + ボーカル/パッド/FX
-
-具体例（Tech House の Intro）:
-小節1-8:   キック、ハイハットのみ
-小節9-16:  + パーカッション（コンガ、シェイカー）
-小節17-24: + ベースライン
-小節25-32: + シンセスタブ、ボーカルサンプル
-→ 各8小節の区切りで新要素が追加される
+Pattern 3: Hi-hat drops out
+Bars 7–8: No hi-hat
+→ Creates space, makes the start of the next phrase stand out
 ```
 
-**要素の削除（ブレイクダウン方向）:**
+**Ride cymbal and crash cymbal:**
 ```
-フレーズ1: フルアレンジメント
-フレーズ2: - ドラム（キック抜き）
-フレーズ3: - ベース
-フレーズ4: メロディ/パッドのみ
+Crash cymbal:
+- A crash often occurs on the 1st beat of a new phrase
+- The clearest and most recognizable signal for the start of a phrase
 
-具体例（Progressive House の Break）:
-小節1-8:   フルトラック
-小節9-16:  キック抜き、パーカッション残り
-小節17-24: パーカッションも抜き、パッド+メロディ
-小節25-32: メロディ+FX のみ（最も静かなポイント）
+Ride cymbal:
+- The hi-hat may switch to a ride in the second half of a phrase
+- Indicates a transition to a more driving part
 ```
 
-**サブトラクティブ・アレンジメントの原則:**
+### Cue 2: Addition and Removal of Instruments (Arrangement Changes)
 
-プロのプロデューサーは「引き算のアレンジ」を重視します。すべての要素を同時に鳴らすのではなく、フレーズごとに要素を出し入れすることで、曲にダイナミクスと方向性を与えています。DJはこのパターンを理解することで、曲の展開を先読みできます。
+The addition or removal of instruments and sound layers often occurs at phrase boundaries, making this an important listening cue.
 
+**Adding elements (build-up direction):**
 ```
-よくあるパターン:
-1. 「スペースを作る」: ドロップの前にキックを抜く
-2. 「期待を高める」: ビルドアップでスネアを追加していく
-3. 「解放する」: ドロップですべての要素を一気に鳴らす
-4. 「休息を与える」: ブレイクで要素を徐々に取り除く
-```
+Phrase 1: Kick + hi-hat
+Phrase 2: + Bassline
+Phrase 3: + Melody/riff
+Phrase 4: + Vocals/pads/FX
 
-### 手がかり3: メロディやコードの変化
-
-**コード進行の変化:**
-```
-小節1-4: C → F → G → C（トニック系進行）
-小節5-8: Am → Dm → G → C（サブドミナント系進行）
-小節9-12: 新しいコード進行（新フレーズの始まり）
-
-ダンスミュージックで多いパターン:
-- 4小節で1つのコード進行サイクル
-- 8小節で2回繰り返し = 1フレーズ
-- 新フレーズで異なるコード進行 or 転調
+Concrete example (Tech House Intro):
+Bars 1–8:   Kick and hi-hat only
+Bars 9–16:  + Percussion (congas, shakers)
+Bars 17–24: + Bassline
+Bars 25–32: + Synth stabs, vocal samples
+→ New elements are added at each 8-bar boundary
 ```
 
-**メロディの変化:**
+**Removing elements (breakdown direction):**
 ```
-小節1-8: メロディA（メインテーマ）
-小節9-16: メロディB（対照的なテーマ）
-小節17-24: メロディA'（メインテーマの変奏）
-小節25-32: メロディC（クライマックスへの展開）
+Phrase 1: Full arrangement
+Phrase 2: - Drums (kick removed)
+Phrase 3: - Bass
+Phrase 4: Melody/pads only
+
+Concrete example (Progressive House Break):
+Bars 1–8:   Full track
+Bars 9–16:  Kick removed, percussion remaining
+Bars 17–24: Percussion also removed, pads + melody
+Bars 25–32: Melody + FX only (the quietest point)
 ```
 
-**ベースラインの変化:**
+**The principle of subtractive arrangement:**
+
+Professional producers emphasize "subtractive arrangement." Rather than playing all elements at once, they bring elements in and out phrase by phrase, giving the track dynamics and direction. By understanding this pattern, a DJ can anticipate a track's development in advance.
+
 ```
-フレーズの変わり目でベースラインが変化することは非常に多い
-- 新しいベースパターンへの切り替え
-- ベースの音域の変化（低い → 高い等）
-- ベースのリズムパターンの変化
-- ベースのサウンド自体の変化（フィルターの開閉等）
+Common patterns:
+1. "Create space": Remove the kick before the drop
+2. "Build anticipation": Add snares progressively during a build-up
+3. "Release": Bring in all elements at once at the drop
+4. "Give rest": Gradually remove elements during a break
 ```
 
-### 手がかり4: エフェクトやサンプル
+### Cue 3: Melody and Chord Changes
 
-**リバーブとディレイの変化:**
+**Chord progression changes:**
 ```
-フレーズの終わり（小節7-8）:
-- リバーブテイルが長くなる → 空間が広がる感覚
-- ディレイフィードバックが増える → 音が拡散する感覚
-- ハイパスフィルターが開く → 音が「持ち上がる」感覚
+Bars 1–4: C → F → G → C (tonic-based progression)
+Bars 5–8: Am → Dm → G → C (subdominant-based progression)
+Bars 9–12: New chord progression (start of a new phrase)
 
-フレーズの始まり（小節1）:
-- リバーブが突然切れる → インパクトを与える
-- ドライなサウンドに戻る → 新鮮さを演出
+Common patterns in dance music:
+- One chord progression cycle per 4 bars
+- 2 repetitions over 8 bars = 1 phrase
+- New phrase brings a different chord progression or key change
 ```
 
-**ボーカルサンプルとシャウト:**
+**Melody changes:**
 ```
-フレーズ終盤でよく使われるボーカルサンプル:
+Bars 1–8: Melody A (main theme)
+Bars 9–16: Melody B (contrasting theme)
+Bars 17–24: Melody A' (variation of the main theme)
+Bars 25–32: Melody C (development toward the climax)
+```
+
+**Bassline changes:**
+```
+Bassline changes at phrase boundaries are very common:
+- Switching to a new bass pattern
+- Change in the bass register (low → high, etc.)
+- Change in the rhythmic pattern of the bass
+- Change in the bass sound itself (opening/closing a filter, etc.)
+```
+
+### Cue 4: Effects and Samples
+
+**Changes in reverb and delay:**
+```
+End of a phrase (bars 7–8):
+- Reverb tail gets longer → a sense that the space expands
+- Delay feedback increases → a sense of sound spreading out
+- High-pass filter opens → a sense that the sound "rises"
+
+Start of a phrase (bar 1):
+- Reverb suddenly cuts off → creates impact
+- Returns to a dry sound → creates a sense of freshness
+```
+
+**Vocal samples and shouts:**
+```
+Vocal samples often used near the end of a phrase:
 - "Here we go!"
 - "Let's go!"
 - "One more time!"
 - "Are you ready?"
-- カウントダウン: "3, 2, 1..."
-→ 次のフレーズ（特にドロップ）への合図
+- Countdown: "3, 2, 1..."
+→ A signal for the next phrase (especially a drop)
 
-フレーズ開始で使われるボーカルサンプル:
-- 歌い出し
-- フック/リフレイン
-- シャウト
-→ 新しいセクションの始まりを強調
+Vocal samples used at the start of a phrase:
+- Beginning of a melody line
+- Hook/refrain
+- Shout
+→ Emphasizes the start of a new section
 ```
 
-**FX（効果音）の手がかり:**
+**FX cues:**
 ```
-ライザー（Riser）:
-- 「シュワーーーッ↑」と上昇する音
-- フレーズの後半（小節5-8）で使われることが多い
-- 次のドロップやセクションへの期待感を高める
-- 長いライザー（16小節以上）はビルドアップセクション全体で使用
+Riser:
+- A sound that ascends: "swoooosh↑"
+- Often used in the second half of a phrase (bars 5–8)
+- Builds anticipation for the next drop or section
+- Long risers (16+ bars) are used throughout the entire build-up section
 
-ダウンリフター（Downlifter）:
-- 「シュワーーーッ↓」と下降する音
-- ドロップの直後やブレイクの開始時
-- エネルギーの解放や移行を示す
+Downlifter:
+- A sound that descends: "swoooosh↓"
+- Right after a drop or at the start of a break
+- Indicates an energy release or transition
 
-インパクト音:
-- 「ドーン！」というサブベースヒット
-- フレーズの1拍目（特にドロップの頭）
-- 新しいセクションの開始を力強く示す
+Impact sound:
+- A "BOOM!" sub-bass hit
+- On beat 1 of a phrase (especially the first beat of a drop)
+- Powerfully signals the start of a new section
 
-スイープ（Sweep）:
-- フィルターが開閉する「ウワーン」という音
-- フレーズの境界をスムーズに繋ぐ
-- ハイパスからローパス、またはその逆
-```
-
-### 手がかり5: ボーカルの歌詞とフレーズ
-
-ボーカル曲では、歌詞の構造がフレーズ構造と密接に関連しています。
-
-```
-ボーカルフレーズの典型的な構造:
-小節1-2: 歌詞の1行目
-小節3-4: 歌詞の2行目
-小節5-6: 歌詞の3行目
-小節7-8: 歌詞の4行目（またはフックの繰り返し）
-
-例（4行で8小節）:
-小節1-2: "I feel the rhythm in my soul"
-小節3-4: "The beat is taking control"
-小節5-6: "Move your body, let it go"
-小節7-8: "Feel the music, feel the flow"
+Sweep:
+- A "waaah" sound from a filter opening or closing
+- Smoothly connects phrase boundaries
+- High-pass to low-pass, or the reverse
 ```
 
-### 手がかり6: 波形（視覚的な手がかり）
+### Cue 5: Vocal Lyrics and Phrases
 
-DJソフトウェアの波形表示も、フレーズの聴き取りをサポートします。
-
-```
-波形で見えるフレーズの特徴:
-- フレーズの始まりは波形が大きくなる（新要素の追加）
-- ブレイクは波形が細くなる（要素の削除）
-- ドロップは波形が一気に太くなる
-- ビルドアップは波形が徐々に太くなる
-
-Rekordboxの波形色分け:
-- 赤/オレンジ: 低音域（キック、ベース）
-- 緑: 中音域（ボーカル、メロディ）
-- 青: 高音域（ハイハット、シンバル）
-→ 色の変化でフレーズの切り替わりが視覚的に確認できる
-```
-
-### 複数の手がかりを組み合わせる
-
-実際のDJing場面では、上記の手がかりを複数組み合わせて判断します。
+In vocal tracks, the structure of the lyrics is closely linked to the phrase structure.
 
 ```
-フレーズの終わりを示す複合的なサイン:
-1. ハイハットがオープンになる（手がかり1）
-2. 同時にスネアロールが入る（手がかり1）
-3. リバーブが深くなる（手がかり4）
-4. ライザーFXが鳴り始める（手がかり4）
-5. ボーカルサンプル "Let's go!" が入る（手がかり4）
-→ これらが重なったら、ほぼ確実にフレーズの切れ目
+Typical vocal phrase structure:
+Bars 1–2: 1st line of lyrics
+Bars 3–4: 2nd line of lyrics
+Bars 5–6: 3rd line of lyrics
+Bars 7–8: 4th line of lyrics (or repetition of the hook)
 
-よくある間違い:
-× 1つの手がかりだけに頼る
-× FXの途中をフレーズの切れ目と勘違い
-× 4小節のフィルインを8小節フレーズの終わりと混同
-→ 常に複数の手がかりで確認する習慣をつける
+Example (8 bars with 4 lines):
+Bars 1–2: "I feel the rhythm in my soul"
+Bars 3–4: "The beat is taking control"
+Bars 5–6: "Move your body, let it go"
+Bars 7–8: "Feel the music, feel the flow"
+```
+
+### Cue 6: Waveform (Visual Cue)
+
+The waveform display in DJ software also supports phrase recognition.
+
+```
+Phrase characteristics visible in the waveform:
+- The start of a phrase shows a larger waveform (new elements added)
+- Breaks appear as a thinner waveform (elements removed)
+- Drops show the waveform suddenly becoming very thick
+- Build-ups show the waveform gradually thickening
+
+Rekordbox waveform color coding:
+- Red/Orange: Low frequency range (kick, bass)
+- Green: Mid frequency range (vocals, melody)
+- Blue: High frequency range (hi-hat, cymbal)
+→ Changes in color allow visual confirmation of phrase transitions
+```
+
+### Combining Multiple Cues
+
+In actual DJing situations, multiple cues are combined to make judgments.
+
+```
+Compound signs indicating the end of a phrase:
+1. Hi-hat opens (Cue 1)
+2. Snare roll enters simultaneously (Cue 1)
+3. Reverb deepens (Cue 4)
+4. Riser FX begins (Cue 4)
+5. Vocal sample "Let's go!" enters (Cue 4)
+→ When these overlap, a phrase boundary is almost certain
+
+Common mistakes:
+× Relying on only one cue
+× Mistaking an FX transition for a phrase boundary
+× Confusing a 4-bar fill-in with the end of an 8-bar phrase
+→ Develop the habit of always confirming with multiple cues
 ```
 
 ---
 
-## 4. 実践：フレーズを数える
+## 4. Practice: Counting Phrases
 
-### 基本の数え方
+### Basic Counting Method
 
-フレーズカウントは、DJの最も基本的なスキルの一つです。最初は意識的に数えなければなりませんが、練習を重ねることで無意識にカウントできるようになります。
+Phrase counting is one of the most basic DJ skills. At first, you must count consciously, but with practice, you'll be able to count unconsciously.
 
-**ステップ1: 拍を数える**
+**Step 1: Count the beats**
 ```
-まず、曲に合わせて4拍を数える練習をする
+Start by practicing counting 4 beats along with the music:
 1-2-3-4, 1-2-3-4, 1-2-3-4...
 
-コツ:
-- キックドラムの「ドン」で1拍目を確認
-- スネア/クラップで2拍目と4拍目を確認
-- メトロノームアプリで練習すると効果的
-- 最初はBPM 100-110程度の遅い曲で練習
+Tips:
+- Confirm beat 1 from the "thud" of the kick drum
+- Confirm beats 2 and 4 from the snare/clap
+- Practicing with a metronome app is effective
+- Start with slower songs at BPM 100–110
 
-よくある間違い:
-× 裏拍を1拍目と数えてしまう
-× テンポが速いと数え落とす
-× 倍速/半速で数えてしまう
-→ キックドラムを基準にすることで回避
+Common mistakes:
+× Counting the off-beat as beat 1
+× Losing count when the tempo is fast
+× Counting at double or half speed
+→ Avoid these by using the kick drum as your reference
 ```
 
-**ステップ2: 小節を数える**
+**Step 2: Count the bars**
 ```
-4拍を1小節として、小節番号を数える
+Count bar numbers, treating 4 beats as 1 bar:
 1, 2, 3, 4, 5, 6, 7, 8
-（8で終わり、次は1に戻る）
+(Ends at 8, then resets to 1)
 
-より正確な数え方:
-1-2-3-4（1小節目）
-2-2-3-4（2小節目）
-3-2-3-4（3小節目）
+More precise counting method:
+1-2-3-4 (bar 1)
+2-2-3-4 (bar 2)
+3-2-3-4 (bar 3)
 ...
-8-2-3-4（8小節目）
-→ 最初の拍で小節番号を言い、残りは「2-3-4」
+8-2-3-4 (bar 8)
+→ Say the bar number on the first beat, then "2-3-4" for the rest
 
-なぜこの数え方が有効か:
-- 小節番号を常に把握できる
-- 途中で見失っても、次の「手がかり」でリカバリーしやすい
-- 体のリズムと連動させやすい
+Why this counting method is effective:
+- You always know the current bar number
+- Even if you lose your place, it's easy to recover at the next "cue"
+- Easy to sync with your body's rhythm
 ```
 
-**ステップ3: 指で数える**
+**Step 3: Count with your fingers**
 ```
-方法1: 片手で8小節
-親指: 1小節目
-人差し指: 2小節目
-中指: 3小節目
-薬指: 4小節目
-小指: 5小節目
-→ 残りは折り返して6-8小節を数える
+Method 1: 8 bars on one hand
+Thumb: bar 1
+Index finger: bar 2
+Middle finger: bar 3
+Ring finger: bar 4
+Pinky: bar 5
+→ Then fold back to count bars 6–8
 
-方法2: 両手で使い分け
-左手: 1-4小節目（指を1本ずつ立てる）
-右手: 5-8小節目（指を1本ずつ立てる）
-→ 両手が開いたらフレーズ完了
+Method 2: Split between both hands
+Left hand: bars 1–4 (extend one finger at a time)
+Right hand: bars 5–8 (extend one finger at a time)
+→ Both hands open = phrase complete
 
-方法3: 拳カウント
-8小節ごとに拳を1つ握る
-4つの拳で32小節 = 1セクション完了
-→ 大きな構造単位を把握するのに便利
-```
-
-### テクニック：体でカウント
-
-プロDJの多くは、体の動きでフレーズカウントを行っています。これは、手がDJコントローラーやミキサーの操作で忙しいため、体の他の部分を使う必要があるからです。
-
-**足でリズム:**
-```
-方法1: 交互踏み
-左足: 1拍目、3拍目
-右足: 2拍目、4拍目
-→ 歩くようなリズムでビートを刻む
-
-方法2: つま先タップ
-右つま先: 拍ごとにタップ
-かかと: 小節の頭で踏み込む
-→ 繊細なカウントが可能
-
-方法3: 体重移動
-1-4小節: 左に体重
-5-8小節: 右に体重
-→ フレーズの前半・後半を体で感じる
+Method 3: Fist count
+Clench one fist every 8 bars
+4 fists = 32 bars = 1 section complete
+→ Convenient for grasping large structural units
 ```
 
-**頭で小節:**
-```
-方法1: うなずき
-1小節ごとに小さくうなずく
-8小節目で大きくうなずく
-→ フレーズの区切りを体感
+### Technique: Count with Your Body
 
-方法2: 首振り
-4小節ごとに首の向きを変える
-→ フレーズの前半・後半を体で区別
+Many professional DJs count phrases using body movement. This is because their hands are busy operating the DJ controller or mixer, requiring them to use other parts of their body.
 
-方法3: 肩の動き
-偶数小節で右肩を上げる
-奇数小節で左肩を上げる
-→ リズムと小節カウントを身体化
+**Mark the rhythm with your feet:**
 ```
+Method 1: Alternating steps
+Left foot: beats 1 and 3
+Right foot: beats 2 and 4
+→ Marking the beat with a walking-like rhythm
 
-**呼吸でカウント:**
-```
-4小節で吸う → 4小節で吐く = 1フレーズ
-→ 音楽の「呼吸」と自分の呼吸を同期させる
-→ 非常に自然なカウント方法
-→ 緊張時にも呼吸が安定するメリットがある
+Method 2: Toe taps
+Right toe: tap on each beat
+Heel: press down on the head of each bar
+→ Allows for fine counting
+
+Method 3: Weight shift
+Bars 1–4: shift weight to the left
+Bars 5–8: shift weight to the right
+→ Feel the first and second halves of the phrase in your body
 ```
 
-### 練習曲の選び方
-
-**初心者向け（明確なフレーズ構造を持つ曲）:**
-- 明確なドラムパターンとフレーズの切れ目
-- シンプルな構成で予測しやすい
-- House、Technoなどの4つ打ちが最適
-- BPM 120-128程度が練習に最適
-
-**推奨練習曲:**
+**Count bars with your head:**
 ```
-超初心者向け（フレーズが明確）:
+Method 1: Nodding
+Small nod each bar
+Large nod on bar 8
+→ Feel the phrase boundary in your body
+
+Method 2: Head swing
+Change the direction your head faces every 4 bars
+→ Distinguish the first and second halves of the phrase physically
+
+Method 3: Shoulder movement
+Raise the right shoulder on even-numbered bars
+Raise the left shoulder on odd-numbered bars
+→ Embody the rhythm and bar count
+```
+
+**Count with your breath:**
+```
+Inhale for 4 bars → Exhale for 4 bars = 1 phrase
+→ Synchronize the "breathing" of the music with your own breathing
+→ A very natural counting method
+→ Has the added benefit of keeping your breathing stable under pressure
+```
+
+### How to Choose Practice Tracks
+
+**For beginners (tracks with clear phrase structure):**
+- Clear drum patterns and phrase breaks
+- Simple structure that is easy to predict
+- Four-on-the-floor beats like House and Techno are ideal
+- BPM 120–128 is optimal for practice
+
+**Recommended practice tracks:**
+```
+For absolute beginners (very clear phrases):
 - Daft Punk - "One More Time" (BPM 122)
-  → 8小節フレーズが非常に明確、ボーカルがフレーズを示す
+  → 8-bar phrases are very clear; vocals indicate the phrase
 - Disclosure - "Latch" (BPM 122)
-  → ボーカルとビートの関係が分かりやすい
+  → The relationship between vocals and beat is easy to understand
 - Fisher - "Losing It" (BPM 126)
-  → Tech Houseの典型的なフレーズ構造
+  → Typical Tech House phrase structure
 
-初心者向け（標準的な構造）:
+For beginners (standard structure):
 - Adam Beyer - "Teach Me" (BPM 130)
-  → Technoの教科書的なフレーズ構造
+  → Textbook Techno phrase structure
 - CamelPhat & Elderbrook - "Cola" (BPM 123)
-  → House の標準的な8小節フレーズ
+  → Standard 8-bar House phrases
 - Bicep - "Glue" (BPM 130)
-  → 明確なフレーズの切り替わり
+  → Clear phrase transitions
 
-中級者向け（やや複雑な構造）:
+For intermediate players (somewhat complex structure):
 - Amelie Lens - "Hypnotized" (BPM 136)
-  → Technoのより速いテンポでの練習
+  → Practice at faster Techno tempos
 - Charlotte de Witte - "Doppler" (BPM 140)
-  → ハードテクノのフレーズ構造
+  → Hard Techno phrase structure
 - Peggy Gou - "Starry Night" (BPM 126)
-  → メロディックなフレーズ展開
+  → Melodic phrase development
 
-上級者向け（複雑・変則的な構造）:
+For advanced players (complex/irregular structure):
 - Aphex Twin - "Windowlicker"
-  → 不規則なフレーズ構造への対応練習
+  → Practice adapting to irregular phrase structures
 - Four Tet - "Baby"
-  → 有機的に変化するフレーズ
+  → Organically evolving phrases
 - DJ Koze - "Pick Up"
-  → 型にはまらないフレーズ展開
+  → Phrase development that defies conventional patterns
 ```
 
-### 段階的練習プログラム
+### Staged Practice Program
 
-**Week 1: 拍を感じる**
+**Week 1: Feel the beat**
 ```
-Day 1-2: メトロノームに合わせて手拍子
-  - BPM 100で開始、1-2-3-4を繰り返す
-  - 慣れたらBPMを5ずつ上げる
+Day 1–2: Clap along to a metronome
+  - Start at BPM 100, repeat 1-2-3-4
+  - Once comfortable, increase BPM by 5
 
-Day 3-4: 曲に合わせてキックを数える
-  - 好きなHouse/Techno曲を選ぶ
-  - キックの「ドン」に合わせて足踏み
-  - 1曲通しでリズムを維持する
+Day 3–4: Count the kick along with a track
+  - Choose a House/Techno track you like
+  - Step your feet in time with the kick's "thud"
+  - Maintain the rhythm for a full track
 
-Day 5-7: 裏拍を感じる
-  - ハイハットの位置を意識
-  - 表拍と裏拍を交互にカウント
-  - 「1-&-2-&-3-&-4-&」と数える
-```
-
-**Week 2: 小節を数える**
-```
-Day 1-2: 4拍で1小節を意識
-  - 曲を聴きながら小節番号をカウント
-  - 1, 2, 3, 4, 5, 6, 7, 8 → リセット
-
-Day 3-4: 小節の変わり目の変化に注目
-  - 4小節目、8小節目の変化を聴き取る
-  - スネアフィルやFXに注意
-
-Day 5-7: Rekordboxで答え合わせ
-  - 自分のカウントと波形を比較
-  - ズレがあれば原因を分析
+Day 5–7: Feel the off-beat
+  - Be aware of the hi-hat's position
+  - Count on-beats and off-beats alternately
+  - Count as "1-&-2-&-3-&-4-&"
 ```
 
-**Week 3-4: フレーズを数える**
+**Week 2: Count the bars**
 ```
-Day 1-7: 8小節フレーズの認識
-  - 8小節の区切りで何が変わるかに注目
-  - 1フレーズを通して数える練習
-  - 複数のフレーズを連続カウント
+Day 1–2: Be aware of 4 beats = 1 bar
+  - Count bar numbers while listening to a track
+  - 1, 2, 3, 4, 5, 6, 7, 8 → reset
 
-Day 8-14: 16小節・32小節の認識
-  - セクション単位でのカウント
-  - Intro、Drop、Outroの小節数を把握
-  - 曲全体の構造マップを作成
+Day 3–4: Focus on changes at bar transitions
+  - Listen for changes at bar 4 and bar 8
+  - Pay attention to snare fills and FX
+
+Day 5–7: Verify your answers in Rekordbox
+  - Compare your counting with the waveform
+  - If there are discrepancies, analyze the cause
+```
+
+**Week 3–4: Count the phrases**
+```
+Day 1–7: Recognizing 8-bar phrases
+  - Focus on what changes at 8-bar intervals
+  - Practice counting through one full phrase
+  - Practice counting multiple phrases in succession
+
+Day 8–14: Recognizing 16-bar and 32-bar phrases
+  - Counting in section units
+  - Understand the number of bars in the Intro, Drop, and Outro
+  - Create a structural map of the entire track
 ```
 
 ---
 
-## 5. Rekordboxでのフレーズマーキング
+## 5. Phrase Marking in Rekordbox
 
-### ビートグリッドの確認と調整
+### Checking and Adjusting the Beat Grid
 
-Rekordboxのビートグリッドは、フレーズ分析の基盤となる機能です。正確なビートグリッドがなければ、正確なフレーズ認識はできません。
-
-```
-ビートグリッドの基本確認手順:
-1. 曲をデッキにロード
-2. 波形ビューを拡大表示に切り替え
-3. ビートグリッド（縦線）が拍の頭に正確に合っているか確認
-4. ズレている場合は手動で調整
-5. 8小節ごとのライン（太い縦線）がフレーズの頭に合っているか確認
-```
-
-**ビートグリッドの調整方法:**
-```
-BPM が正確でない場合:
-1. Rekordbox の BPM 解析結果を確認
-2. メトロノームモードで実際のBPMと比較
-3. 必要に応じて手動でBPM値を修正
-4. 全体のグリッドが揃うまで調整
-
-ダウンビートがズレている場合:
-1. 波形の最初のキックにカーソルを合わせる
-2. 「グリッドの先頭を設定」をクリック
-3. グリッドの位置が修正される
-4. 曲全体を早送りしてズレがないか確認
-
-変則BPMの曲:
-- 一部のレコードやライブ録音はBPMが揺れる
-- このような曲はビートグリッドが完全には合わない
-- 手動でビートジャンプポイントを設定して対応
-```
-
-**フレーズ表示の設定:**
-```
-Rekordbox の設定:
-1. 環境設定 → 表示 → 波形
-2. 「ビートカウント表示」をON
-3. 「フレーズ表示」をON（対応バージョン）
-4. 小節数の表示形式を選択
-
-表示されるフレーズ情報:
-- 小節番号（1, 2, 3...）
-- フレーズ番号
-- セクション名（Intro, Chorus等）
-- BPM変化点
-```
-
-### メモリーキュー（Hot Cue）の設定
-
-Hot Cueは、DJパフォーマンス中に瞬時に特定のポイントにジャンプするための機能です。フレーズの重要なポイントにHot Cueを設定することで、ミックスの精度と柔軟性が大幅に向上します。
-
-**8小節ごとのマーキング戦略:**
-```
-基本マーキング:
-1. 再生中に8小節の頭でHot Cueボタンを押す
-2. 色を変えて識別しやすくする
-   - 赤: Intro開始点
-   - オレンジ: ビルドアップ開始点
-   - 黄: ブレイク開始点
-   - 緑: Drop開始点（最重要ポイント）
-   - 水色: Drop 2開始点
-   - 青: Outro開始点
-   - ピンク: 特殊なミックスポイント
-   - 白: その他のランドマーク
-
-プロの色分けシステム例:
-Hot Cue A（赤）: ミックスイン推奨ポイント
-Hot Cue B（緑）: Drop / メインセクション
-Hot Cue C（青）: ミックスアウト推奨ポイント
-Hot Cue D（黄）: ブレイク / 特殊ポイント
-→ この4つだけでも十分に実用的
-```
-
-**用途別の詳細設定:**
-```
-ミックスイン用:
-- Introの最初のキック
-- 16小節前のポイント（16小節ミックス用）
-- 32小節前のポイント（32小節ミックス用）
-
-ドロップ用:
-- Drop 1の1拍目
-- Drop 2の1拍目
-- ドロップ前のビルドの開始点
-
-ミックスアウト用:
-- Outroの開始点
-- 最後のドロップの終了点
-- フレーズの切れ目で自然に抜けられるポイント
-
-パフォーマンス用:
-- ボーカルの歌い出し
-- 印象的なブレイク
-- ルーピングに適したセクション
-```
-
-### マーカー機能の活用
+Rekordbox's beat grid is the foundation for phrase analysis. Without an accurate beat grid, accurate phrase recognition is impossible.
 
 ```
-マーカーの設定方法:
-1. 波形上で目的の位置にカーソルを合わせる
-2. 右クリック → 「マーカーを追加」
-3. 名前を付ける（例: "Drop 1", "Mix Out Point"）
-4. 色を選択して視認性を高める
+Basic procedure for checking the beat grid:
+1. Load the track onto a deck
+2. Switch to the expanded waveform view
+3. Confirm the beat grid (vertical lines) aligns accurately with the start of each beat
+4. If misaligned, adjust manually
+5. Confirm the lines for every 8 bars (thick vertical lines) align with the start of each phrase
+```
 
-効果的なマーカー名の付け方:
+**How to adjust the beat grid:**
+```
+If the BPM is not accurate:
+1. Check Rekordbox's BPM analysis result
+2. Compare with the actual BPM in metronome mode
+3. Manually correct the BPM value if necessary
+4. Adjust until the entire grid is aligned
+
+If the downbeat is off:
+1. Position the cursor on the first kick in the waveform
+2. Click "Set Beat Grid Start"
+3. The grid position is corrected
+4. Fast-forward through the entire track to verify there are no more misalignments
+
+Tracks with irregular BPM:
+- Some records or live recordings have fluctuating BPM
+- Beat grids cannot be perfectly aligned for these tracks
+- Handle by manually setting beat jump points
+```
+
+**Configuring the phrase display:**
+```
+Rekordbox settings:
+1. Preferences → Display → Waveform
+2. Enable "Beat Count Display"
+3. Enable "Phrase Display" (for supported versions)
+4. Select the format for bar number display
+
+Phrase information displayed:
+- Bar number (1, 2, 3...)
+- Phrase number
+- Section name (Intro, Chorus, etc.)
+- BPM change points
+```
+
+### Setting Memory Cues (Hot Cues)
+
+Hot Cues are a feature for instantly jumping to a specific point during a DJ performance. Setting Hot Cues at important phrase points significantly improves the accuracy and flexibility of your mixes.
+
+**Marking strategy for every 8 bars:**
+```
+Basic marking:
+1. Press the Hot Cue button at the start of every 8 bars during playback
+2. Change the color for easy identification:
+   - Red: Intro start point
+   - Orange: Build-up start point
+   - Yellow: Break start point
+   - Green: Drop start point (most important point)
+   - Light blue: Drop 2 start point
+   - Blue: Outro start point
+   - Pink: Special mix point
+   - White: Other landmarks
+
+Example of a professional color-coding system:
+Hot Cue A (Red): Recommended mix-in point
+Hot Cue B (Green): Drop / Main section
+Hot Cue C (Blue): Recommended mix-out point
+Hot Cue D (Yellow): Break / Special point
+→ These 4 alone are already highly practical
+```
+
+**Detailed settings by purpose:**
+```
+For mix-in:
+- The first kick in the Intro
+- The point 16 bars before the start (for 16-bar mixes)
+- The point 32 bars before the start (for 32-bar mixes)
+
+For the drop:
+- Beat 1 of Drop 1
+- Beat 1 of Drop 2
+- The start of the build leading up to the drop
+
+For mix-out:
+- The start of the Outro
+- The end point of the final drop
+- A point where you can naturally exit at a phrase boundary
+
+For performance:
+- The start of a vocal line
+- An impressive break
+- A section suitable for looping
+```
+
+### Using the Marker Feature
+
+```
+How to set markers:
+1. Position the cursor at the desired location in the waveform
+2. Right-click → "Add Marker"
+3. Give it a name (e.g., "Drop 1", "Mix Out Point")
+4. Select a color to improve visibility
+
+Tips for effective marker names:
 - "Intro Start" / "Intro End"
 - "Build Up"
 - "Drop 1" / "Drop 2"
@@ -1105,370 +1106,368 @@ Hot Cue D（黄）: ブレイク / 特殊ポイント
 - "Energy Peak"
 ```
 
-**マーカーとHot Cueの使い分け:**
+**How to differentiate between markers and Hot Cues:**
 ```
-マーカー（Cue Point）:
-- 曲の構造を把握するための「メモ」
-- 無制限に設定可能
-- パフォーマンス中はジャンプに使わない
-- 波形上に名前が表示される
+Markers (Cue Points):
+- "Notes" for understanding the structure of a track
+- Can be set without limit
+- Not used for jumping during a performance
+- Names are displayed on the waveform
 
-Hot Cue:
-- パフォーマンス中に瞬時にジャンプするためのもの
-- 最大8個（A-H）まで
-- パッドやボタンで即座にアクセス
-- 最も重要なポイントだけに設定
-```
-
-### Rekordbox Phrase Analysis（フレーズ解析機能）
-
-Rekordbox 6以降に搭載されたPhrase Analysis機能は、AIが自動的に曲のフレーズ構造を解析してくれます。
-
-```
-使い方:
-1. 楽曲を右クリック → 「フレーズ解析」
-2. 解析が完了すると波形上にフレーズが色分けされる
-3. 各色がセクション（Intro, Up, Down, Drop等）を示す
-
-表示される情報:
-- Intro（灰色）: 導入部分
-- Up（青）: エネルギーが上昇するセクション
-- Down（緑）: エネルギーが下降するセクション
-- Chorus/Drop（赤/オレンジ）: クライマックス
-- Outro（灰色）: 終結部分
-
-注意点:
-- AI解析は完璧ではない → 必ず耳で確認する
-- 特に変則的な構造の曲では誤検出がある
-- 自分の耳での判断を補助するツールとして活用する
-- 解析結果を編集・修正することも可能
+Hot Cues:
+- For instantly jumping to a point during a performance
+- Up to 8 (A–H)
+- Instantly accessible via pads or buttons
+- Set only on the most important points
 ```
 
----
+### Rekordbox Phrase Analysis
 
-## 6. ミックスポイントの見つけ方
-
-### 原則: フレーズの切れ目
-
-ミックスポイント（曲を繋ぐタイミング）は、フレーズの切れ目に設定するのが大原則です。これにより、音楽の自然な流れを維持しながらスムーズなトランジションが実現できます。
-
-**最適なミックスポイントの優先順位:**
-```
-最も自然（推奨）:
-1. 32小節の区切り → セクションチェンジ
-2. 16小節の区切り → フレーズの大きな区切り
-3. 8小節の区切り  → 基本フレーズの区切り
-
-やや不自然（状況に応じて使用）:
-4. 4小節の区切り  → クイックカット向け
-
-NG（避けるべき）:
-× 小節の途中で繋ぐ
-× フレーズの3小節目や5小節目で繋ぐ
-× ボーカルの途中で繋ぐ
-× ドラムフィルの途中で繋ぐ
-```
-
-**なぜフレーズの途中でのミックスがNGなのか:**
-```
-音楽的な理由:
-- フレーズは「文章」のようなもの。途中で切ると「意味不明」になる
-- リスナーの期待している展開が裏切られ、違和感を感じる
-- 音楽の「呼吸」が乱れ、フロアのグルーヴが途切れる
-
-技術的な理由:
-- フレーズの途中ではEQ調整が難しい
-- キーやコード進行の衝突が起きやすい
-- ドラムパターンの位相ズレが目立つ
-
-例外（意図的に使う場合）:
-- カットイン：ドロップの頭にインパクトを持たせたい時
-- ダブルドロップ：2曲のドロップを同時に鳴らす時
-- スクラッチ/トランスフォーマー：パフォーマンス的な繋ぎ
-→ これらは「意図的なルール破り」であり、基本を理解した上で行う
-```
-
-### パターン1: 32小節ミックス（ロングミックス）
-
-最もスムーズで自然なトランジション方法です。特にDeep House、Progressive House、Technoなどのジャンルで多用されます。
+The Phrase Analysis feature introduced in Rekordbox 6 and later uses AI to automatically analyze a track's phrase structure.
 
 ```
-前の曲のOutro（32小節）
-  ×
-次の曲のIntro（32小節）
-  =
-スムーズなトランジション（約1分間のオーバーラップ）
-```
+How to use it:
+1. Right-click a track → "Phrase Analysis"
+2. Once analysis is complete, the waveform is color-coded by phrase
+3. Each color indicates a section (Intro, Up, Down, Drop, etc.)
 
-**詳細な手順:**
-```
-1. 前の曲がDrop 2からOutroへ移行するタイミングを把握
-   → Outroの開始 = 要素が減り始めるポイント
+Information displayed:
+- Intro (gray): Introduction section
+- Up (blue): Section where energy is rising
+- Down (green): Section where energy is falling
+- Chorus/Drop (red/orange): Climax
+- Outro (gray): Conclusion section
 
-2. Outroの開始と同時に、次の曲のIntroをスタート
-   → 次の曲のCueボタンを押す
-
-3. 最初の8小節: 次の曲を低音量で忍ばせる
-   → フェーダーを20-30%に設定
-   → ローEQをカットして低音の衝突を防ぐ
-
-4. 9-16小節: 徐々にEQを調整
-   → 次の曲のミッドEQを少し上げる
-   → 前の曲のミッドEQを少し下げる
-
-5. 17-24小節: ローEQの切り替え
-   → 前の曲のローEQを下げる
-   → 次の曲のローEQを上げる
-   → ※この切り替えが最も重要！
-
-6. 25-32小節: 最終切り替え
-   → 前の曲のフェーダーを徐々に下げる
-   → 次の曲のフェーダーをフルに
-   → 32小節後、前の曲を完全にカット
-```
-
-**32小節ミックスのメリット:**
-```
-- 最も自然なトランジション
-- EQ調整を段階的に行える余裕がある
-- リスナーが気づかないうちに曲が変わる
-- キーの不一致も目立ちにくい
-- ミスのリカバリーがしやすい
-```
-
-**32小節ミックスのデメリット:**
-```
-- 時間がかかる（約1分）
-- Intro/Outroが短い曲には使えない
-- テンポの差が大きいと難しい
-- ループやジャンプの技術が必要な場合がある
-```
-
-### パターン2: 16小節ミックス（スタンダードミックス）
-
-多くのDJが最も頻繁に使用する、バランスの取れたミックス方法です。
-
-```
-前の曲のOutro（16小節）
-  ×
-次の曲のIntro（16小節）
-  =
-やや速いトランジション（約30秒のオーバーラップ）
-```
-
-**詳細な手順:**
-```
-1. 前の曲のOutro開始8小節前から準備
-2. Outroの16小節前で次の曲をスタート
-3. 最初の8小節: EQでローカットしながら馴染ませる
-4. 9-16小節: ローEQの切り替え + フェーダー調整
-5. 16小節で完了
-
-EQの動き:
-小節1-4:   次の曲のLow = -∞, Mid = -6dB
-小節5-8:   次の曲のLow = -∞, Mid = 0dB
-小節9-12:  ローEQ切り替え（前↓, 次↑）
-小節13-16: 前の曲のフェーダーを下げて完了
-```
-
-### パターン3: 8小節ミックス（クイックミックス）
-
-テンポの速い展開やエネルギーを維持したい場面で使用します。
-
-```
-前の曲のOutro（8小節）
-  ×
-次の曲のIntro（8小節）
-  =
-クイックミックス（約15秒のオーバーラップ）
-```
-
-**詳細な手順:**
-```
-1. 8小節前に次の曲をスタート
-2. 小節1-2: 次の曲をハイパスフィルターでそっと入れる
-3. 小節3-4: フィルターを開きながら音量を上げる
-4. 小節5-6: ローEQを一気に切り替え
-5. 小節7-8: 前の曲をフェードアウト
-
-コツ:
-- 手早い操作が必要
-- ローEQの切り替えはフレーズの区切り（小節4-5の境目）で行う
-- 慣れるまでは16小節ミックスで練習してから挑戦
-```
-
-### パターン4: ドロップtoドロップ（ダブルドロップ）
-
-最もインパクトの強いミックス方法です。特にDrum and Bass、Dubstep、Hard Technoで人気があります。
-
-```
-前の曲のDrop（最後の8小節）
-  ×
-次の曲のDrop開始
-  =
-エネルギッシュな繋ぎ（最大のインパクト）
-```
-
-**詳細な手順:**
-```
-方法1: カットイン
-1. 前の曲のドロップの最後の1拍
-2. クロスフェーダーを一気に切り替え
-3. 次の曲のドロップの頭から再生
-→ 瞬間的に曲が変わる、最もアグレッシブな方法
-
-方法2: オーバーラップ
-1. 前の曲のドロップの最後の8小節
-2. 次の曲のドロップを小音量で重ねる
-3. 4小節目でローEQを切り替え
-4. 8小節目で前の曲をカット
-→ ダブルドロップの迫力を維持しつつスムーズに
-
-方法3: ビルドからドロップ
-1. 前の曲のドロップ終了
-2. 次の曲のビルドアップをオーバーラップ
-3. ビルドアップが終わったら前の曲をカット
-4. 次の曲のドロップに突入
-→ テンションの蓄積と解放を利用
-```
-
-### パターン5: ループを使ったミックス
-
-フレーズ構造を理解した上で、ループ機能を活用するミックス方法です。
-
-```
-使い方:
-1. 前の曲のOutroの最後の4-8小節をループさせる
-2. ループ中に次の曲を準備・同期
-3. 次の曲をスタートし、EQで馴染ませる
-4. タイミングを見てループを解除 or フェードアウト
-
-メリット:
-- ミックスの時間を自由にコントロールできる
-- Outroが短い曲でも長めのミックスが可能
-- 次の曲の準備に十分な時間を確保できる
-
-注意点:
-- ループが不自然に聞こえないよう、フレーズの区切りでループを設定
-- 4小節または8小節のループが最も自然
-- 1小節や2小節のループは「機械的」に聞こえるので注意
+Notes:
+- AI analysis is not perfect → always verify with your ears
+- Tracks with irregular structures may have misdetections
+- Use it as a tool to supplement your own ear's judgment
+- It is also possible to edit and correct the analysis results
 ```
 
 ---
 
-## 7. フレーズとエネルギーカーブ
+## 6. Finding Mix Points
 
-### フレーズでのエネルギー管理
+### The Principle: Phrase Boundaries
 
-フレーズ構造を理解することで、曲のエネルギーレベルを正確に把握し、DJセット全体のエネルギーカーブを設計できるようになります。
+The fundamental rule for mix points (the timing for connecting tracks) is to set them at phrase boundaries. This allows you to achieve smooth transitions while maintaining the natural flow of the music.
 
-**エネルギーを上げる場面:**
+**Priority order for optimal mix points:**
 ```
-小節1-4: 平坦なエネルギー（基盤の確立）
-小節5-6: 徐々にエネルギーが上昇（新要素の追加）
-小節7-8: テンションのピーク（FX、フィル）
-小節9（新フレーズ）: エネルギーの解放（ドロップ等）
+Most natural (recommended):
+1. 32-bar boundary → Section change
+2. 16-bar boundary → Large phrase boundary
+3. 8-bar boundary  → Basic phrase boundary
 
-具体的な手法:
-- フィルターを徐々に開く
-- パーカッションを追加
-- リバーブを深くしてから一気にドライに
-- ライザーFXの使用
-- スネアビルドの活用
-```
+Slightly unnatural (use depending on situation):
+4. 4-bar boundary  → Suited for quick cuts
 
-**エネルギーを下げる場面:**
-```
-小節1-4: 高エネルギー（ドロップの後半）
-小節5-6: 要素の削減開始
-小節7-8: ほぼ最小限の要素
-小節9（新フレーズ）: ブレイクの始まり（静かなセクション）
-
-具体的な手法:
-- ローパスフィルターを閉じる
-- パーカッションを削除
-- リバーブを深くする
-- ダウンリフターFXの使用
-- キックを抜く
+Not recommended (avoid):
+× Connecting in the middle of a bar
+× Connecting at bar 3 or bar 5 of a phrase
+× Connecting in the middle of a vocal
+× Connecting in the middle of a drum fill
 ```
 
-**エネルギーレベルの段階:**
+**Why mixing in the middle of a phrase is not recommended:**
 ```
-レベル1（最低）: パッド/アンビエントのみ
-レベル2: + シンプルなビート
-レベル3: + ベースライン
-レベル4: + パーカッション
-レベル5: + メロディ/リフ
-レベル6: + ボーカル
-レベル7: + FX/アクセント
-レベル8（最高）: フルアレンジメント + 高エネルギー要素
-```
+Musical reasons:
+- A phrase is like a "sentence." Cutting it mid-way makes it "meaningless"
+- The development listeners are expecting is betrayed, creating a sense of unease
+- The music's "breathing" is disrupted, breaking the groove on the floor
 
-### DJセット全体でのフレーズ活用
+Technical reasons:
+- EQ adjustment is difficult in the middle of a phrase
+- Key and chord progression clashes are more likely
+- Phase shifts in the drum pattern become noticeable
 
-**オープニング（32小節×2〜4 = 約2-4分）:**
-```
-目的: フロアの注意を引き、雰囲気を作る
-フレーズ1-2: アンビエント、パッド系
-フレーズ3-4: 徐々にビートを導入
-
-エネルギーレベル: 1→2→3→4
-
-選曲のコツ:
-- BPMは控えめ（メインより5-10BPM低い）
-- 音数が少なくミステリアスな曲
-- フロアが温まるまでの「仕込み」の時間
+Exceptions (used intentionally):
+- Cut-in: When you want impact at the head of a drop
+- Double drop: When playing the drops of 2 tracks simultaneously
+- Scratch/Transformer: For performative transitions
+→ These are "intentional rule-breaking," done with an understanding of the fundamentals
 ```
 
-**ウォームアップ（32小節×4〜8 = 約4-8分）:**
+### Pattern 1: 32-Bar Mix (Long Mix)
+
+The smoothest and most natural transition method. Used frequently in genres like Deep House, Progressive House, and Techno.
+
 ```
-目的: エネルギーを段階的に上げる
-フレーズ1-4: グルーヴィーなミニマルテック
-フレーズ5-8: よりドライブ感のある曲へ
-
-エネルギーレベル: 4→5→6→6
-
-選曲のコツ:
-- リズム主体の曲から始める
-- 徐々にメロディやフックのある曲へ
-- フロアの反応を見ながら調整
+Previous track's Outro (32 bars)
+  ×
+Next track's Intro (32 bars)
+  =
+Smooth transition (about 1 minute of overlap)
+**Detailed steps:**
 ```
+1. Identify when the previous track transitions from Drop 2 to the Outro
+   → Start of Outro = the point where elements begin to decrease
 
-**ピークタイム（32小節×8〜16 = 約8-16分、複数曲）:**
-```
-目的: 最大のエネルギーを維持し、フロアを盛り上げる
-フレーズ1-8: 高エネルギー維持
-8フレーズごとに曲を変える
+2. Start the next track's Intro at the same time as the Outro begins
+   → Press the Cue button for the next track
 
-エネルギーレベル: 7→8→7→8（波を作る）
+3. First 8 bars: Sneak in the next track at a low volume
+   → Set the fader to 20–30%
+   → Cut the Low EQ to prevent bass clash
 
-選曲のコツ:
-- フロアの反応が最大の曲を投入
-- エネルギーを「山と谷」で構成（ずっと最大は疲れる）
-- 32小節ごとに微妙な変化を加える
-- 「予想外」の選曲で驚きを与える
-```
+4. Bars 9–16: Gradually adjust EQ
+   → Slightly raise the next track's Mid EQ
+   → Slightly lower the previous track's Mid EQ
 
-**クールダウン（32小節×2〜4 = 約2-4分）:**
-```
-目的: 徐々にエネルギーを下げ、着地させる
-フレーズ1-2: エネルギーを徐々に落とす
-フレーズ3-4: 静かに着地
+5. Bars 17–24: Switch the Low EQ
+   → Lower the previous track's Low EQ
+   → Raise the next track's Low EQ
+   → ※ This switch is the most critical moment!
 
-エネルギーレベル: 6→5→4→3
-
-選曲のコツ:
-- メロディアスで感情的な曲
-- テンポを少し落とす
-- ディープな雰囲気の曲へ
-- 最後の印象は特に重要（「終わりよければすべてよし」）
+6. Bars 25–32: Final switch
+   → Gradually lower the previous track's fader
+   → Bring the next track's fader to full
+   → After 32 bars, completely cut the previous track
 ```
 
-### エネルギーカーブの設計パターン
-
-**パターン1: 右肩上がり型（ウォームアップDJ向け）**
+**Advantages of a 32-bar mix:**
 ```
-エネルギー
+- The most natural transition
+- Plenty of room for gradual EQ adjustment
+- The track changes without the listener noticing
+- Key mismatches are less noticeable
+- Easy to recover from mistakes
+```
+
+**Disadvantages of a 32-bar mix:**
+```
+- Takes time (about 1 minute)
+- Cannot be used with tracks that have short Intros/Outros
+- Difficult if the tempo difference is large
+- May require looping or jump techniques
+```
+
+### Pattern 2: 16-Bar Mix (Standard Mix)
+
+A balanced mixing method that many DJs use most frequently.
+
+```
+Previous track's Outro (16 bars)
+  ×
+Next track's Intro (16 bars)
+  =
+A slightly faster transition (about 30 seconds of overlap)
+```
+
+**Detailed steps:**
+```
+1. Prepare from 8 bars before the previous track's Outro starts
+2. Start the next track 16 bars before the Outro
+3. First 8 bars: Blend using EQ with a low-cut
+4. Bars 9–16: Switch the Low EQ + adjust faders
+5. Complete at bar 16
+
+EQ movement:
+Bars 1–4:   Next track's Low = -∞, Mid = -6dB
+Bars 5–8:   Next track's Low = -∞, Mid = 0dB
+Bars 9–12:  Switch Low EQ (previous track ↓, next track ↑)
+Bars 13–16: Lower previous track's fader to complete
+```
+
+### Pattern 3: 8-Bar Mix (Quick Mix)
+
+Used when you want to maintain a fast-paced development or sustain energy.
+
+```
+Previous track's Outro (8 bars)
+  ×
+Next track's Intro (8 bars)
+  =
+Quick mix (about 15 seconds of overlap)
+```
+
+**Detailed steps:**
+```
+1. Start the next track 8 bars before
+2. Bars 1–2: Gently bring in the next track with a high-pass filter
+3. Bars 3–4: Open the filter while raising the volume
+4. Bars 5–6: Switch the Low EQ all at once
+5. Bars 7–8: Fade out the previous track
+
+Tips:
+- Quick operation is required
+- Perform the Low EQ switch at the phrase boundary (between bars 4 and 5)
+- Until you're comfortable, practice with 16-bar mixes first before attempting this
+```
+
+### Pattern 4: Drop-to-Drop (Double Drop)
+
+The most impactful mixing method. Particularly popular in Drum and Bass, Dubstep, and Hard Techno.
+
+```
+Previous track's Drop (last 8 bars)
+  ×
+Next track's Drop start
+  =
+Energetic transition (maximum impact)
+```
+
+**Detailed steps:**
+```
+Method 1: Cut-in
+1. The final beat of the previous track's drop
+2. Switch the crossfader all at once
+3. Play from the first beat of the next track's drop
+→ The track changes instantaneously; the most aggressive method
+
+Method 2: Overlap
+1. The last 8 bars of the previous track's drop
+2. Layer the next track's drop at a low volume
+3. Switch the Low EQ at bar 4
+4. Cut the previous track at bar 8
+→ Maintains the power of the double drop while transitioning smoothly
+
+Method 3: Build-to-drop
+1. Previous track's drop ends
+2. Overlap with the next track's build-up
+3. Once the build-up ends, cut the previous track
+4. Enter the next track's drop
+→ Uses the accumulation and release of tension
+```
+
+### Pattern 5: Mix Using Loops
+
+A mixing method that leverages the loop function based on an understanding of phrase structure.
+
+```
+How to use it:
+1. Loop the last 4–8 bars of the previous track's Outro
+2. Prepare and sync the next track during the loop
+3. Start the next track and blend it in with EQ
+4. At the right timing, release the loop or fade out
+
+Advantages:
+- You can freely control the duration of the mix
+- Allows for longer mixes even with tracks that have short Outros
+- Ensures enough time to prepare the next track
+
+Notes:
+- Set the loop at a phrase boundary so it doesn't sound unnatural
+- 4-bar or 8-bar loops are the most natural
+- 1-bar or 2-bar loops can sound "mechanical," so be careful
+```
+
+---
+
+## 7. Phrases and Energy Curves
+
+### Managing Energy with Phrases
+
+Understanding phrase structure allows you to accurately gauge a track's energy level and design the overall energy curve for your DJ set.
+
+**When raising energy:**
+```
+Bars 1–4: Flat energy (establishing the foundation)
+Bars 5–6: Energy gradually rises (new elements added)
+Bars 7–8: Tension peaks (FX, fills)
+Bar 9 (new phrase): Energy release (drop, etc.)
+
+Concrete techniques:
+- Gradually open a filter
+- Add percussion
+- Apply deep reverb, then suddenly go dry
+- Use riser FX
+- Utilize snare builds
+```
+
+**When lowering energy:**
+```
+Bars 1–4: High energy (second half of a drop)
+Bars 5–6: Elements start to decrease
+Bars 7–8: Nearly minimal elements
+Bar 9 (new phrase): Start of the break (quiet section)
+
+Concrete techniques:
+- Close a low-pass filter
+- Remove percussion
+- Apply deep reverb
+- Use downlifter FX
+- Remove the kick
+```
+
+**Energy level stages:**
+```
+Level 1 (lowest): Pads/ambient only
+Level 2: + Simple beat
+Level 3: + Bassline
+Level 4: + Percussion
+Level 5: + Melody/riff
+Level 6: + Vocals
+Level 7: + FX/accents
+Level 8 (highest): Full arrangement + high energy elements
+```
+
+### Using Phrases Across the Entire DJ Set
+
+**Opening (32 bars × 2–4 = about 2–4 minutes):**
+```
+Goal: Capture the floor's attention and set the atmosphere
+Phrases 1–2: Ambient, pad-based sounds
+Phrases 3–4: Gradually introduce the beat
+
+Energy level: 1→2→3→4
+
+Track selection tips:
+- BPM is restrained (5–10 BPM lower than the main set)
+- Tracks with fewer elements and a mysterious feel
+- "Warming up" time while the floor heats up
+```
+
+**Warm-up (32 bars × 4–8 = about 4–8 minutes):**
+```
+Goal: Gradually raise the energy
+Phrases 1–4: Groovy minimal techno
+Phrases 5–8: Transition to tracks with more drive
+
+Energy level: 4→5→6→6
+
+Track selection tips:
+- Start with rhythm-focused tracks
+- Gradually move toward tracks with more melody and hooks
+- Adjust while watching the floor's reaction
+```
+
+**Peak time (32 bars × 8–16 = about 8–16 minutes per track, multiple tracks):**
+```
+Goal: Maintain maximum energy and excite the floor
+Phrases 1–8: Sustain high energy
+Change tracks every 8 phrases
+
+Energy level: 7→8→7→8 (create waves)
+
+Track selection tips:
+- Play the tracks the floor responds to best
+- Structure energy with "peaks and valleys" (staying at maximum is tiring)
+- Add subtle changes every 32 bars
+- Surprise with "unexpected" track selections
+```
+
+**Cooldown (32 bars × 2–4 = about 2–4 minutes):**
+```
+Goal: Gradually lower the energy and land safely
+Phrases 1–2: Gradually decrease the energy
+Phrases 3–4: Land quietly
+
+Energy level: 6→5→4→3
+
+Track selection tips:
+- Melodic and emotional tracks
+- Slightly lower the tempo
+- Move to deeper, atmospheric tracks
+- The final impression is especially important ("all's well that ends well")
+```
+
+### Energy Curve Design Patterns
+
+**Pattern 1: Upward slope (for warm-up DJs)**
+```
+Energy
 8│                    ╱
 7│                 ╱╱
 6│              ╱╱
@@ -1480,15 +1479,15 @@ EQの動き:
  └─────────────────────
   0min    30min    60min
 
-特徴:
-- 徐々にエネルギーを上げていく
-- ウォームアップDJに最適
-- 次のDJへのバトンタッチを意識
+Characteristics:
+- Gradually raises energy
+- Ideal for warm-up DJs
+- Conscious of passing the baton to the next DJ
 ```
 
-**パターン2: 山型（メインDJ向け）**
+**Pattern 2: Mountain shape (for main DJs)**
 ```
-エネルギー
+Energy
 8│          ╱╲
 7│       ╱╱╱  ╲╲
 6│     ╱╱      ╲╲
@@ -1500,15 +1499,15 @@ EQの動き:
  └───────────────────────
   0min    30min    60min
 
-特徴:
-- ピークタイムに向かって上げ、その後下げる
-- メインDJの典型的なパターン
-- クライマックスの位置が重要（後半寄りが効果的）
+Characteristics:
+- Raise to peak time, then descend
+- Typical pattern for a main DJ
+- The position of the climax is key (placing it toward the second half is effective)
 ```
 
-**パターン3: 波型（長時間セット向け）**
+**Pattern 3: Wave shape (for long sets)**
 ```
-エネルギー
+Energy
 8│  ╱╲    ╱╲    ╱╲
 7│╱╱  ╲╱╱╱  ╲╱╱╱  ╲╲
 6│      ╱      ╱      ╲
@@ -1520,714 +1519,714 @@ EQの動き:
  └──────────────────────────
   0min    60min   120min
 
-特徴:
-- エネルギーに波を作る
-- フロアに「休息」と「爆発」を交互に与える
-- 長時間セット（2時間以上）に最適
-- 各ピークで異なる曲調を選ぶと飽きさせない
+Characteristics:
+- Creates waves in the energy
+- Alternately gives the floor "rest" and "explosions"
+- Ideal for long sets (2 hours or more)
+- Prevents boredom by choosing different musical styles at each peak
 ```
 
 ---
 
-## 8. よくあるフレーズパターン（ジャンル別詳細分析）
+## 8. Common Phrase Patterns by Genre (Detailed Analysis)
 
 ### House / Tech House
 
 ```
-典型的な構造:
-Intro:   32小節（キック→ハイハット→ベース→パーカッション）
-Verse:   32小節（ボーカルまたはメインリフ展開）
-Build:   16小節（スネアビルド、ライザー）
-Drop 1:  32小節（メインフック全開）
-Break:   16小節（キック抜き、パッド+ボーカル）
-Build 2: 8-16小節（短いビルドアップ）
-Drop 2:  32小節（Drop 1の変奏、さらに激しく）
-Outro:   32小節（要素を徐々に削除）
+Typical structure:
+Intro:   32 bars (kick→hi-hat→bass→percussion)
+Verse:   32 bars (vocal or main riff development)
+Build:   16 bars (snare build, riser)
+Drop 1:  32 bars (main hook in full force)
+Break:   16 bars (no kick, pads + vocals)
+Build 2: 8–16 bars (short build-up)
+Drop 2:  32 bars (variation of Drop 1, even more intense)
+Outro:   32 bars (gradual element removal)
 ```
 
-**合計: 約200-240小節 = 約6-7分（BPM 126-130）**
+**Total: Approximately 200–240 bars = about 6–7 minutes (BPM 126–130)**
 
-**House特有のフレーズの特徴:**
+**Phrase characteristics unique to House:**
 ```
-- 8小節の「グルーヴ」が基本
-- フレーズの変わり目でハイハットパターンが変化
-- ベースラインが8小節で1サイクル
-- ボーカルフックが4小節で繰り返される
-- フィルターの開閉がフレーズを彩る
-- パーカッション（コンガ、ボンゴ、シェイカー）のON/OFF
+- The "groove" of 8 bars is the foundation
+- Hi-hat pattern changes at phrase boundaries
+- Bassline completes 1 cycle in 8 bars
+- Vocal hook repeats every 4 bars
+- Filter open/close colors the phrases
+- Percussion (congas, bongos, shakers) ON/OFF
 ```
 
-**DJミックスのポイント:**
+**DJ mixing points:**
 ```
-推奨ミックスポイント:
-- Outro（32小節）× 次の曲のIntro（32小節）= 最も自然
-- Drop終了後のBreak開始 × 次の曲のIntro = エネルギー切り替え
+Recommended mix points:
+- Outro (32 bars) × Next track's Intro (32 bars) = most natural
+- Break start after Drop ends × Next track's Intro = energy switch
 
-注意:
-- ボーカルの被りに注意（2曲のボーカルが同時に鳴ると混乱）
-- ベースラインの衝突を避ける（ローEQの管理が重要）
-- グルーヴの「ノリ」を途切れさせない
+Notes:
+- Watch out for overlapping vocals (two simultaneous vocals causes confusion)
+- Avoid bassline clashes (Low EQ management is important)
+- Don't break the "feel" of the groove
 ```
 
 ### Techno
 
 ```
-典型的な構造:
-Intro:   32-64小節（ミニマルなビートから始まる）
-Section A: 32小節（メインリフ/テクスチャー導入）
-Build:   16-32小節（テンション上昇）
-Drop 1:  32小節（メインパート）
-Break:   16-32小節（アトモスフェリック）
-Drop 2:  32小節（変奏、より激しい展開）
-Section B: 32小節（新しい要素の導入）
-Outro:   32-64小節（要素の除去）
+Typical structure:
+Intro:     32–64 bars (starts with a minimal beat)
+Section A: 32 bars (main riff/texture introduced)
+Build:     16–32 bars (tension rises)
+Drop 1:    32 bars (main part)
+Break:     16–32 bars (atmospheric)
+Drop 2:    32 bars (variation, more intense development)
+Section B: 32 bars (introduction of new elements)
+Outro:     32–64 bars (element removal)
 ```
 
-**合計: 約250-350小節 = 約7-10分（BPM 128-140）**
+**Total: Approximately 250–350 bars = about 7–10 minutes (BPM 128–140)**
 
-**Techno特有のフレーズの特徴:**
+**Phrase characteristics unique to Techno:**
 ```
-- Houseよりも長いセクション（Introが64小節ある場合も）
-- ミニマルな変化が徐々に蓄積される
-- フレーズの変わり目はHouseほど明確でない場合がある
-- テクスチャーやノイズの変化がフレーズを示すことが多い
-- リバーブの深さの変化がフレーズのマーカーになる
-- キックの音色変化（EQやディストーション）がフレーズを区切る
+- Longer sections than House (Intros can be 64 bars)
+- Minimal changes that accumulate gradually
+- Phrase boundaries may not be as clear as in House
+- Changes in texture and noise often indicate the phrase
+- Changes in reverb depth can serve as phrase markers
+- Changes in kick drum timbre (EQ, distortion) separate phrases
 ```
 
-**Technoミックスのポイント:**
+**Techno mixing points:**
 ```
-推奨ミックス方法:
-- 長めのオーバーラップ（32-64小節）が自然
-- ハイパスフィルターを活用した段階的なブレンド
-- パーカッションとテクスチャーのレイヤリング
-- EQの3バンドすべてを使った繊細な調整
+Recommended mixing method:
+- Longer overlaps (32–64 bars) are natural
+- Gradual blending using a high-pass filter
+- Layering percussion and textures
+- Subtle adjustments using all 3 EQ bands
 
-テクノ特有のテクニック:
-- ループを使って長いミックスを作る
-- FXでテクスチャーを加えながらミックス
-- キックの音色が合う曲を選ぶ（非常に重要）
-- 無理に急がず、じっくり時間をかけてミックスする
+Techniques unique to Techno:
+- Use loops to create long mixes
+- Mix while adding texture with FX
+- Choose tracks where the kick drum timbres match (very important)
+- Don't rush; take your time and mix carefully
 ```
 
 ### Hip Hop / R&B
 
 ```
-典型的な構造:
-Intro:    4-8小節（短い導入、時にサンプルやスクラッチ）
-Verse 1:  16小節（ラップ/ボーカル1番）
-Hook:     8小節（サビ/リフレイン）
-Verse 2:  16小節（ラップ/ボーカル2番）
-Hook:     8小節（サビ繰り返し）
-Bridge:   8小節（転調やテンポ変化）
-Verse 3:  8-16小節（最後のヴァース）
-Hook:     8小節（最後のサビ）
-Outro:    4-8小節（フェードアウトや語り）
+Typical structure:
+Intro:    4–8 bars (short intro, sometimes samples or scratches)
+Verse 1:  16 bars (rap/vocal verse 1)
+Hook:     8 bars (chorus/refrain)
+Verse 2:  16 bars (rap/vocal verse 2)
+Hook:     8 bars (chorus repeat)
+Bridge:   8 bars (key change or tempo change)
+Verse 3:  8–16 bars (final verse)
+Hook:     8 bars (final chorus)
+Outro:    4–8 bars (fade out or spoken word)
 ```
 
-**合計: 約80-100小節 = 約3-4分（BPM 80-100）**
+**Total: Approximately 80–100 bars = about 3–4 minutes (BPM 80–100)**
 
-**Hip Hop特有のフレーズの特徴:**
+**Phrase characteristics unique to Hip Hop:**
 ```
-- 4小節と16小節が基本単位
-- ボーカル中心でフレーズが構成される
-- ビートが比較的シンプルでループ的
-- サンプリングによる不規則なフレーズがある場合も
-- フックの繰り返しでフレーズを把握しやすい
-- BPMが遅いため、フレーズの時間が長い
+- 4 and 16 bars are the basic units
+- Phrases are structured around vocals
+- The beat is relatively simple and loop-based
+- Irregular phrases from sampling may exist
+- Phrases are easy to grasp from the repetition of hooks
+- Because BPM is slower, phrases are longer in time
 
-注意:
-- Hip Hopは構成が変則的なことが多い
-- 歌詞の切れ目 = フレーズの切れ目
-- アカペラやスクラッチの入りに注意
+Notes:
+- Hip Hop structures are often irregular
+- Lyric breaks = phrase breaks
+- Watch out for acappella and scratch entries
 ```
 
-**Hip HopのDJミックスポイント:**
+**Hip Hop DJ mix points:**
 ```
-方法1: アウトロ→イントロ
-- 前の曲のフック終了後 × 次の曲のイントロ
-- 最もスタンダードな方法
+Method 1: Outro→Intro
+- After the previous track's hook ends × Next track's Intro
+- The most standard method
 
-方法2: ドラムブレイク活用
-- 前の曲のドラムのみのセクション × 次の曲
-- グルーヴを維持しながら自然に切り替え
+Method 2: Using drum breaks
+- Drums-only section of the previous track × Next track
+- Natural transition while maintaining the groove
 
-方法3: アカペラ→ビート
-- 前の曲のアカペラ部分 × 次の曲のビート
-- 創造的な繋ぎ方
+Method 3: Acappella→Beat
+- Acappella section of the previous track × Next track's beat
+- A creative way to connect
 
-方法4: スクラッチトランジション
-- フレーズの最後にスクラッチを入れて次の曲へ
-- テクニカルDJ向け
+Method 4: Scratch transition
+- Add a scratch at the end of the phrase to transition to the next track
+- For technical DJs
 ```
 
 ### Trance / Progressive Trance
 
 ```
-典型的な構造:
-Intro:    32-64小節（パッド、アルペジオから始まる）
-Build 1:  32-64小節（長いビルドアップ！）
-Drop 1:   32小節（メインメロディ全開）
-Break 1:  32-64小節（ドラマチックなブレイクダウン）
-Build 2:  16-32小節（より短い第2ビルド）
-Drop 2:   32小節（最もエモーショナルなパート）
-Outro:    32-64小節（要素の除去、パッドで締める）
+Typical structure:
+Intro:    32–64 bars (starts with pads, arpeggios)
+Build 1:  32–64 bars (long build-up!)
+Drop 1:   32 bars (main melody in full force)
+Break 1:  32–64 bars (dramatic breakdown)
+Build 2:  16–32 bars (shorter second build)
+Drop 2:   32 bars (the most emotional part)
+Outro:    32–64 bars (element removal, ends with pads)
 ```
 
-**合計: 約250-400小節 = 約7-12分（BPM 136-142）**
+**Total: Approximately 250–400 bars = about 7–12 minutes (BPM 136–142)**
 
-**Trance特有のフレーズの特徴:**
+**Phrase characteristics unique to Trance:**
 ```
-- ビルドアップが非常に長い（64小節＝約2分も珍しくない）
-- ドラマチックな展開と感情的な起伏
-- メロディが8-16小節で大きなフレーズを構成
-- ブレイクダウンでピアノやストリングスが入ることが多い
-- エフェクト（ゲートリバーブ等）がフレーズを彩る
-- 32-64小節単位で考えるのが基本
+- Build-ups are very long (64 bars ≈ 2 minutes is not unusual)
+- Dramatic development and emotional highs and lows
+- Melody forms large phrases of 8–16 bars
+- Breakdowns often feature piano or strings
+- Effects (gated reverb, etc.) color the phrases
+- Thinking in 32–64 bar units is the standard
 ```
 
-**Tranceミックスのポイント:**
+**Trance mixing points:**
 ```
-- 長いミックス（32-64小節）が自然
-- パッドやアルペジオのレイヤリングが効果的
-- キーの一致がHouseやTechno以上に重要
-- エモーショナルな流れを途切れさせない
-- ブレイクダウン中のミックスは避ける（感情的なピークを壊す）
+- Long mixes (32–64 bars) are natural
+- Layering pads and arpeggios is effective
+- Key matching is even more important than in House or Techno
+- Don't break the emotional flow
+- Avoid mixing during a breakdown (it ruins the emotional peak)
 ```
 
 ### Drum and Bass
 
 ```
-典型的な構造:
-Intro:    16-32小節（Amen break系のビート導入）
-Drop 1:   32小節（ベースとドラムの爆発）
-Break:    8-16小節（ブレイクビーツの変化）
-Drop 2:   32小節（変奏、より激しく）
-Bridge:   8-16小節
-Drop 3:   16-32小節（最後のドロップ）
-Outro:    16-32小節（ビートのみに戻る）
+Typical structure:
+Intro:    16–32 bars (Amen break-style beat introduced)
+Drop 1:   32 bars (explosion of bass and drums)
+Break:    8–16 bars (breakbeat variation)
+Drop 2:   32 bars (variation, even more intense)
+Bridge:   8–16 bars
+Drop 3:   16–32 bars (final drop)
+Outro:    16–32 bars (returns to beat only)
 ```
 
-**合計: 約150-200小節 = 約4-6分（BPM 170-178）**
+**Total: Approximately 150–200 bars = about 4–6 minutes (BPM 170–178)**
 
-**DnB特有のフレーズの特徴:**
+**Phrase characteristics unique to DnB:**
 ```
-- BPMが速い（170-178）ため、8小節がわずか11秒程度
-- ブレイクビーツが基本（4つ打ちではない）
-- ベースラインの変化がフレーズを区切る重要な要素
-- リーズ（Reese bass）の変化パターン
-- ドラムのフィルインが4小節ごとに入ることが多い
-- ハーフタイムセクション（実質半分のテンポ感）がある場合も
+- Because BPM is fast (170–178), 8 bars is only about 11 seconds
+- Breakbeats are the foundation (not four-on-the-floor)
+- Bassline changes are a key element separating phrases
+- The variation pattern of the Reese bass
+- Drum fill-ins often occur every 4 bars
+- Half-time sections (effectively half the tempo feel) may also exist
 ```
 
 ### Dubstep / Future Bass
 
 ```
-典型的な構造:
-Intro:    8-16小節（メロディアスな導入）
-Build:    8-16小節（急激なテンション上昇）
-Drop 1:   16小節（ウォブルベース/シンセ爆発）
-Break:    8小節（短い休息）
-Build 2:  8小節（短い再ビルド）
-Drop 2:   16小節（より激しいドロップ）
-Outro:    8-16小節
+Typical structure:
+Intro:    8–16 bars (melodic introduction)
+Build:    8–16 bars (rapid rise in tension)
+Drop 1:   16 bars (wobble bass/synth explosion)
+Break:    8 bars (short rest)
+Build 2:  8 bars (short rebuild)
+Drop 2:   16 bars (more intense drop)
+Outro:    8–16 bars
 ```
 
-**合計: 約80-120小節 = 約3-4分（BPM 140-150）**
+**Total: Approximately 80–120 bars = about 3–4 minutes (BPM 140–150)**
 
-**Dubstep特有のフレーズの特徴:**
+**Phrase characteristics unique to Dubstep:**
 ```
-- ドロップが短く強烈（16小節が標準）
-- ハーフタイムのリズムフィール
-- ベースデザインの変化がフレーズを区切る
-- FXやボーカルチョップが頻繁に使われる
-- ドロップ内部は4小節ごとにベースパターンが変化
-- ビルドアップが急で短い傾向
-```
-
----
-
-## 9. 練習方法
-
-### 初級（0-1ヶ月）
-
-**目標: 8小節を正確に数えられるようになる**
-
-```
-練習メニュー:
-1. 好きな曲で8小節を数える（1日5曲）
-   - まずキックに合わせて足踏み
-   - 次に小節番号を声に出して数える
-   - 8で終わったら1に戻る
-
-2. 指で数えながら聴く
-   - 片手の指を使って小節をカウント
-   - 慣れたら両手で16小節まで
-
-3. Rekordboxで答え合わせ
-   - 自分のカウントと波形の区切りを比較
-   - ズレがあったら原因を分析
-
-4. フレーズの切れ目を聴き取る
-   - 「何かが変わった」と感じたらメモ
-   - 変化の種類（ドラム、メロディ、FX等）を記録
-
-達成基準:
-☑ 8小節を9割以上の精度で数えられる
-☑ フレーズの切れ目に「気づく」ことができる
-☑ 3種類以上の「手がかり」を認識できる
-```
-
-**初級者がやりがちな失敗と対策:**
-```
-失敗1: 裏拍を数えてしまう
-対策: キックの「ドン」だけに集中。ハイハットは無視する
-
-失敗2: テンポが速い曲で混乱
-対策: BPM 110-120の遅い曲から始める
-
-失敗3: フレーズの途中で数を見失う
-対策: 8小節ごとにリセット。途中でわからなくなったらドラム変化を待つ
-
-失敗4: すべての曲で練習しようとする
-対策: まず1ジャンル（House推奨）に絞る
-```
-
-### 中級（1-3ヶ月）
-
-**目標: 無意識にフレーズを感じ、最適なミックスポイントを判断できる**
-
-```
-練習メニュー:
-1. 聴くだけで8小節の区切りがわかる
-   - 通勤や散歩中にダンスミュージックを聴く
-   - 8小節の頭で指を鳴らす or うなずく
-   - 正確さを自己評価
-
-2. 16小節、32小節も数える
-   - 8小節フレーズを2つで16小節
-   - 4つで32小節（セクション）
-   - セクションの変わり目を記録
-
-3. ミックスポイントを見つける練習
-   - 2曲を選んでミックスポイントを3つ以上特定
-   - それぞれのポイントでのミックス方法を考える
-   - 実際にミックスしてみて結果を評価
-
-4. Hot Cueでマーキング
-   - ライブラリの曲すべてにHot Cueを設定
-   - 統一した色分けルールを作る
-   - ミックスポイントの「お気に入り」を蓄積
-
-5. フレーズノートの作成
-   - 曲ごとのフレーズマップを紙に書く
-   - セクション、小節数、特徴をメモ
-   - 後でRekordboxのコメント欄に転記
-
-達成基準:
-☑ 聴いただけでフレーズの区切りが分かる（精度95%以上）
-☑ 32小節のセクション単位で曲の構造を把握できる
-☑ 3種類以上のミックスパターンを実践できる
-☑ Hot Cueを効果的に活用できる
-```
-
-### 上級（3ヶ月以降）
-
-**目標: フレーズを自在に操り、クリエイティブなミックスができる**
-
-```
-練習メニュー:
-1. 初見の曲でもフレーズがわかる
-   - 新曲を初めて聴いた時にリアルタイムでフレーズを把握
-   - 次の展開を予測しながら聴く
-   - 予測が外れた場合の「なぜ」を分析
-
-2. 複雑な構造の曲も理解
-   - 変則的なフレーズ構造の曲に挑戦
-   - 奇数小節フレーズ、変拍子の曲
-   - ジャンルの枠を超えた楽曲分析
-
-3. フレーズを活かしたクリエイティブなミックス
-   - ダブルドロップ
-   - フレーズの途中での意図的なカット
-   - ループを使ったフレーズの再構築
-   - 3曲以上の同時ミックス
-   - FXとフレーズの連動
-
-4. 観客の反応とフレーズの関係理解
-   - ドロップのタイミングとフロアの反応
-   - ブレイクでの「溜め」の効果
-   - エネルギーカーブの設計と実行
-
-5. フレーズ分析の高速化
-   - 30秒以内に初聴の曲のフレーズ構造を把握
-   - BPM、キー、フレーズ構造を同時に分析
-   - 曲のどの部分をどう使うかを即座に判断
-
-達成基準:
-☑ どんな曲でも10秒以内にフレーズの位置を把握
-☑ フレーズを活用した5種類以上のミックステクニック
-☑ セットの全体設計をフレーズ単位で計画できる
-☑ 観客の反応を読んでリアルタイムにフレーズ活用を変える
+- Drops are short and intense (16 bars is standard)
+- Half-time rhythmic feel
+- Bass design changes separate phrases
+- FX and vocal chops are used frequently
+- Inside the drop, the bass pattern changes every 4 bars
+- Build-ups tend to be sudden and short
 ```
 
 ---
 
-## 10. トラブルシューティング
+## 9. Practice Methods
 
-### Q: 数えている途中でわからなくなる
+### Beginner (0–1 month)
 
-```
-A: 以下のリカバリー方法を順に試す
-
-方法1: ドラムの変化を待つ
-- フィルインやブレイクが来たら、次の小節が「1」
-- スネアロールが聞こえたら、次が新フレーズ
-- クラッシュシンバルが鳴ったら、その拍が「1」
-
-方法2: 波形を見る（練習時）
-- Rekordboxの波形で現在位置を確認
-- 8小節の色分けを頼りにリセット
-- ただし本番では波形に頼りすぎない
-
-方法3: メロディの区切りで判断
-- メロディが「最初に戻った」感じがしたらフレーズの頭
-- コード進行のサイクルが一周したらフレーズの終わり
-
-方法4: 開き直ってリセット
-- 次の明確な変化点（ドロップ、ブレイク等）を待つ
-- そこを「1」としてカウントをやり直す
-- プロでも見失うことはある。重要なのは素早いリカバリー
-
-プロのTip:
-- 見失っても焦らない。フレーズの「手がかり」は必ず来る
-- 2-3フレーズ以内にリカバリーできれば実用上問題ない
-- 練習時は「わざと見失う」訓練も効果的
-```
-
-### Q: 曲によって小節数が違う
+**Goal: Be able to accurately count 8 bars**
 
 ```
-A: ジャンルと時代による違いを理解する
+Practice menu:
+1. Count 8 bars in your favorite tracks (5 tracks a day)
+   - First, step your feet to the kick
+   - Next, count the bar numbers out loud
+   - Reset to 1 after reaching 8
 
-ジャンル別の傾向:
-- House/Techno: 8小節単位が基本。非常に規則的
-- Hip Hop: 4や16小節も多い。ボーカルに依存
-- Pop: 不規則な構成もある（6小節、10小節など）
-- EDM: 4、8、16、32の倍数がほとんど
-- Jazz: フレーズ長が曲によって大きく異なる
+2. Listen while counting with your fingers
+   - Count bars using fingers on one hand
+   - Once comfortable, use both hands to count up to 16 bars
 
-対処法:
-1. まずジャンルの「標準」を把握する
-2. その曲が標準に従っているか確認
-3. 変則的な場合は、曲ごとに構造をメモ
-4. Hot CueやMarkerで変則ポイントをマーク
+3. Verify with Rekordbox
+   - Compare your count with the waveform boundaries
+   - If there are discrepancies, analyze the cause
 
-変則パターンの具体例:
-- 7小節のイントロ（1小節の「溜め」追加）
-- 12小節のヴァース（ブルース形式の影響）
-- 6小節のフック（2小節 × 3）
-- 奇数小節のブレイク（意図的な緊張感）
+4. Identify phrase breaks by ear
+   - Note any moment you feel "something changed"
+   - Record the type of change (drums, melody, FX, etc.)
 
-プロのTip:
-- 変則的な曲はHot Cueで確実にマーキング
-- Rekordboxのコメント欄に「Intro 7bars」等メモ
-- 変則曲は事前準備なしのミックスには使わない
+Achievement criteria:
+☑ Can count 8 bars with 90%+ accuracy
+☑ Can "notice" phrase breaks
+☑ Can recognize 3 or more types of "cues"
 ```
 
-### Q: 速いBPMで数えられない
-
+**Common beginner mistakes and countermeasures:**
 ```
-A: 段階的なアプローチで克服する
+Mistake 1: Counting the off-beat
+Countermeasure: Focus only on the kick's "thud." Ignore the hi-hat.
 
-ステップ1: 遅いBPM（100-110）で完璧に
-- 基本の8小節カウントを確実に身につける
-- 体のリズムを確立する
+Mistake 2: Getting confused with fast-tempo tracks
+Countermeasure: Start with slower tracks at BPM 110–120
 
-ステップ2: 中間BPM（120-128）で練習
-- House、Tech Houseの標準テンポ
-- DJingで最も使用頻度が高い帯域
+Mistake 3: Losing count in the middle of a phrase
+Countermeasure: Reset every 8 bars. If you lose your place mid-phrase, wait for a drum change.
 
-ステップ3: やや速いBPM（130-140）
-- Techno、Tranceのテンポ帯
-- カウントのスピードを上げる
-
-ステップ4: 速いBPM（140-150+）
-- Dubstep、Hard Technoのテンポ
-- ハーフタイムで数える方法も有効
-
-ステップ5: 超高速BPM（170+）
-- Drum and Bassのテンポ
-- 2拍を1拍として数える技法
-- 半分のBPM（85-87）で体を動かす
-
-コツ:
-- 体で覚えれば速度は関係なくなる
-- 速いBPMでは「2小節単位」で数えると楽
-- DnBでは「ハーフタイムフィール」（2拍 = 1拍）を活用
-- 無理に速く数えるのではなく、大きな単位で捉える
+Mistake 4: Trying to practice with every track
+Countermeasure: Start by focusing on one genre (House is recommended)
 ```
 
-### Q: 電子音楽以外のジャンルでフレーズが見つからない
+### Intermediate (1–3 months)
+
+**Goal: Feel phrases unconsciously and judge optimal mix points**
 
 ```
-A: ジャンル特有のフレーズ構造を理解する
+Practice menu:
+1. Know the 8-bar boundary just by listening
+   - Listen to dance music during your commute or a walk
+   - Snap your fingers or nod at the head of every 8 bars
+   - Self-evaluate your accuracy
 
-ポップス:
-- 歌詞のまとまりがフレーズ = 4〜8小節
-- Aメロ、Bメロ、サビという日本式の区分を活用
-- ドラムの変化よりもボーカルの区切りに注目
+2. Also count 16 and 32 bars
+   - Two 8-bar phrases = 16 bars
+   - Four 8-bar phrases = 32 bars (a section)
+   - Record section transitions
 
-ロック:
-- ギターリフの繰り返しが基本フレーズ
-- パワーコードの変化がフレーズの区切り
-- ドラムフィルインが明確なマーカー
+3. Practice finding mix points
+   - Choose 2 tracks and identify 3 or more mix points
+   - Think about the mixing method for each point
+   - Actually mix and evaluate the result
+
+4. Mark with Hot Cues
+   - Set Hot Cues on all tracks in your library
+   - Create a consistent color-coding rule
+   - Accumulate "favorite" mix points
+
+5. Create a phrase notebook
+   - Write a phrase map for each track on paper
+   - Note sections, bar counts, and characteristics
+   - Later, transfer to the Rekordbox comment field
+
+Achievement criteria:
+☑ Can identify phrase breaks just by listening (95%+ accuracy)
+☑ Can understand track structure in 32-bar section units
+☑ Can execute 3 or more types of mix patterns
+☑ Can effectively utilize Hot Cues
+```
+
+### Advanced (3 months and beyond)
+
+**Goal: Freely manipulate phrases and create creative mixes**
+
+```
+Practice menu:
+1. Understand phrases even with tracks you've never heard
+   - Grasp the phrase structure in real time the first time you hear a new track
+   - Listen while predicting the next development
+   - Analyze the "why" when predictions are wrong
+
+2. Understand tracks with complex structures
+   - Challenge tracks with irregular phrase structures
+   - Odd-bar phrases, tracks with unusual time signatures
+   - Musical analysis that transcends genre boundaries
+
+3. Creative mixing using phrases
+   - Double drop
+   - Intentional cuts in the middle of a phrase
+   - Phrase reconstruction using loops
+   - Simultaneous mixing of 3 or more tracks
+   - Synchronizing FX with phrases
+
+4. Understanding the relationship between audience reactions and phrases
+   - The timing of drops and the floor's reaction
+   - The effect of "holding back" during a break
+   - Designing and executing energy curves
+
+5. Speeding up phrase analysis
+   - Grasp the phrase structure of an unfamiliar track within 30 seconds
+   - Simultaneously analyze BPM, key, and phrase structure
+   - Instantly judge which part of the track to use and how
+
+Achievement criteria:
+☑ Can identify the phrase position in any track within 10 seconds
+☑ 5 or more types of mixing techniques utilizing phrases
+☑ Can plan the overall design of a set in phrase units
+☑ Can read the audience's reaction and change phrase utilization in real time
+```
+
+---
+
+## 10. Troubleshooting
+
+### Q: I lose count in the middle of counting
+
+```
+A: Try the following recovery methods in order
+
+Method 1: Wait for a drum change
+- If a fill-in or break comes, the next bar is "bar 1"
+- If you hear a snare roll, the next is a new phrase
+- If a crash cymbal sounds, that beat is "beat 1"
+
+Method 2: Look at the waveform (during practice)
+- Check your current position in the Rekordbox waveform
+- Use the 8-bar color coding to reset
+- However, in a live performance, don't rely on the waveform too much
+
+Method 3: Judge by melody breaks
+- If the melody feels like it's "back to the beginning," that's the head of a phrase
+- If a chord progression cycle has completed, that's the end of a phrase
+
+Method 4: Let go and reset
+- Wait for the next clear change point (drop, break, etc.)
+- Make that your "bar 1" and start counting again
+- Even professionals lose their place. What matters is a quick recovery.
+
+Pro Tip:
+- Don't panic if you lose your place. "Cues" for the phrase will definitely come.
+- If you can recover within 2–3 phrases, there's no practical problem.
+- During practice, training yourself to "deliberately lose your place" is also effective.
+```
+
+### Q: Some tracks have a different number of bars
+
+```
+A: Understand the differences by genre and era
+
+Tendencies by genre:
+- House/Techno: Based on 8-bar units. Very regular.
+- Hip Hop: 4 and 16 bars are also common. Depends on vocals.
+- Pop: Irregular structures can exist (6 bars, 10 bars, etc.)
+- EDM: Almost always a multiple of 4, 8, 16, or 32.
+- Jazz: Phrase length varies greatly by track.
+
+How to handle it:
+1. First, grasp the "standard" for the genre
+2. Check if the track follows the standard
+3. If irregular, make a note of the structure per track
+4. Mark irregular points with Hot Cues or Markers
+
+Specific examples of irregular patterns:
+- 7-bar intro (an extra bar of "buildup" added)
+- 12-bar verse (influenced by the blues form)
+- 6-bar hook (2 bars × 3)
+- Odd-bar break (intentional tension)
+
+Pro Tip:
+- Reliably mark irregular tracks with Hot Cues
+- Use the Rekordbox comment field to note things like "Intro 7bars"
+- Don't use irregular tracks in a mix without prior preparation
+```
+
+### Q: I can't count at a fast BPM
+
+```
+A: Overcome it with a staged approach
+
+Step 1: Perfect it at a slow BPM (100–110)
+- Solidly learn the basic 8-bar count
+- Establish your body's rhythm
+
+Step 2: Practice at an intermediate BPM (120–128)
+- The standard tempo for House and Tech House
+- The most frequently used range in DJing
+
+Step 3: Slightly faster BPM (130–140)
+- The tempo range for Techno and Trance
+- Increase the speed of your counting
+
+Step 4: Fast BPM (140–150+)
+- The tempo for Dubstep and Hard Techno
+- Counting in half-time is also effective
+
+Step 5: Ultra-fast BPM (170+)
+- The tempo for Drum and Bass
+- The technique of counting 2 beats as 1
+- Move your body to half the BPM (85–87)
+
+Tips:
+- If you learn it in your body, speed becomes irrelevant
+- At fast BPMs, it's easier to count in "2-bar units"
+- In DnB, use the "half-time feel" (2 beats = 1 beat)
+- Rather than trying to count quickly, think in larger units
+```
+
+### Q: I can't find the phrase in non-electronic music genres
+
+```
+A: Understand the phrase structure unique to each genre
+
+Pop:
+- Groups of lyrics = phrase = 4–8 bars
+- Use the framework of verse, pre-chorus, chorus
+- Pay attention to vocal breaks rather than drum changes
+
+Rock:
+- The repetition of a guitar riff is the basic phrase
+- Power chord changes are phrase boundaries
+- Drum fill-ins are clear markers
 
 R&B / Soul:
-- コード進行の1サイクル = 1フレーズ（4-8小節）
-- ボーカルのメリスマ（装飾音）がフレーズ終端を示す
-- グルーヴの変化に注目
+- One cycle of a chord progression = 1 phrase (4–8 bars)
+- Vocal melisma (embellishments) indicates the end of a phrase
+- Pay attention to groove changes
 
-レゲトン / ラテン:
-- デンボウリズムの2小節パターンが基本
-- 4小節フレーズが多い
-- ボーカルとビートの掛け合いでフレーズを把握
+Reggaeton / Latin:
+- The 2-bar Dembow rhythm pattern is the foundation
+- 4-bar phrases are common
+- Grasp phrases from the interplay between vocals and the beat
 
-プロのTip:
-- 電子音楽以外では「完璧なフレーズ構造」を求めすぎない
-- ある程度の柔軟性を持ってカウントする
-- ボーカルの切れ目を最優先の手がかりにする
+Pro Tip:
+- For non-electronic music, don't demand a "perfect phrase structure"
+- Count with a degree of flexibility
+- Make vocal breaks the highest-priority cue
 ```
 
-### Q: 2曲のフレーズが合わない
+### Q: The phrases of two tracks don't align
 
 ```
-A: フレーズの「同期」テクニック
+A: The "sync" technique for phrases
 
-問題: BPMは合っているのに、フレーズの「1」がズレている
-原因: 2曲のフレーズの開始位置が異なる
+Problem: The BPM matches, but the "bar 1" of the phrases is offset
+Cause: The two tracks have different phrase start positions
 
-解決法1: ループで調整
-- 次の曲のイントロを4小節ループ
-- 前の曲のフレーズの「1」に合わせてループを解除
+Solution 1: Adjust with a loop
+- Loop the next track's Intro for 4 bars
+- Release the loop to align with the "bar 1" of the previous track's phrase
 
-解決法2: ジャンプキュー
-- 次の曲をHot Cueでフレーズの頭にジャンプ
-- 前の曲のフレーズの頭に合わせてジャンプ実行
+Solution 2: Jump Cue
+- Jump to the head of a phrase in the next track using a Hot Cue
+- Execute the jump to align with the head of the previous track's phrase
 
-解決法3: 引き算で調整
-- 前の曲が8小節中の5小節目にいるなら
-- 次の曲を3小節後にスタート
-- 結果、両方のフレーズの「1」が同時に来る
+Solution 3: Adjust by subtraction
+- If you're at bar 5 of an 8-bar phrase in the previous track
+- Start the next track 3 bars later
+- Result: Both phrases' "bar 1" arrive at the same time
 
-解決法4: カットイン
-- フレーズのズレを気にせず、ドロップでカットイン
-- 前の曲を即座にカット、次の曲のドロップ1拍目から
-- ズレは問題にならない（前の曲が消えるため）
+Solution 4: Cut-in
+- Without worrying about the phrase offset, cut in at the drop
+- Cut the previous track immediately; start from beat 1 of the next track's drop
+- The offset doesn't matter (because the previous track disappears)
 
-プロのTip:
-- 曲の準備段階でフレーズの位置を確認しておく
-- 「フレーズが合う曲同士」をプレイリストにまとめる
-- 困ったらループでタイミングを合わせるのが最も確実
-```
-
----
-
-## 11. 高度なフレーズテクニック
-
-### フレーズの「借用」（Phrase Borrowing）
-
-2曲のフレーズ構造を意図的に「混ぜる」テクニックです。
-
-```
-テクニック:
-Track Aのフレーズ1-4小節 + Track Bのフレーズ5-8小節
-= 新しいハイブリッドフレーズの創造
-
-実践方法:
-1. Track AとTrack BのBPMとキーを合わせる
-2. Track Aの小節1-4を再生
-3. 小節5の頭でTrack Aをミュート、Track Bのフレーズ後半を再生
-4. 次のフレーズの頭でTrack Aに戻る（またはTrack Bを継続）
-
-注意点:
-- 両曲のキーが合っていないと不協和音になる
-- リズムパターンが大きく異なる曲同士では難しい
-- 練習が必要な上級テクニック
-```
-
-### フレーズの「拡張」と「圧縮」
-
-ループ機能を使って、フレーズの長さを操作するテクニックです。
-
-```
-フレーズの拡張:
-- 8小節フレーズの最後の4小節をループ
-- ループを繰り返すことで、8小節→12小節→16小節に「拡張」
-- ビルドアップやテンションの持続に使用
-
-フレーズの圧縮:
-- 8小節フレーズの最初の4小節で次のフレーズにジャンプ
-- 8小節→4小節に「圧縮」
-- テンポの速い展開やエネルギーの急上昇に使用
-
-ループハーフ/ダブル:
-- ループの長さを半分にする: 8小節→4小節→2小節→1小節
-- ループの長さを倍にする: 1小節→2小節→4小節→8小節
-- ビルドアップの定番テクニック
-```
-
-### フレーズとFXの同期
-
-フレーズ構造に合わせてFXを使用することで、トランジションの質を向上させます。
-
-```
-フィルター（ハイパス / ローパス）:
-フレーズの前半（小節1-4）: フィルターを徐々に開く/閉じる
-フレーズの後半（小節5-8）: フィルターを元に戻す or 急激に変化
-
-ディレイ:
-小節7-8: ディレイを深くかける
-小節1（新フレーズ）: ディレイを即座にカット → インパクト
-
-リバーブ:
-ブレイクの開始: リバーブを深くする（空間を広げる）
-ドロップの頭: リバーブを完全にカット（ドライでタイトに）
-
-フランジャー/フェイザー:
-フレーズの後半で徐々にかける → 次のフレーズで解放
-4-8小節のサイクルで使用するのが自然
-
-ビートリピーター:
-フレーズの最後の1-2小節で使用
-1/2 → 1/4 → 1/8 → 1/16 と加速
-→ 次のフレーズ（ドロップ）の直前で最大効果
-```
-
-### フレーズを使ったストーリーテリング
-
-上級DJは、フレーズ構造を使って「物語」を構築します。
-
-```
-起承転結のフレーズ設計:
-
-起（導入）: 32小節
-- 最初のフレーズで世界観を提示
-- リスナーの期待値を設定
-- 穏やかなスタート
-
-承（展開）: 64小節
-- エネルギーを段階的に上げる
-- 新しい要素を追加していく
-- リスナーの期待を高める
-
-転（転換）: 16-32小節
-- 予想外の展開（キーチェンジ、ジャンル切り替え等）
-- ブレイクや静寂を挿入
-- 最大のインパクトを狙う
-
-結（結末）: 32小節
-- エネルギーの解放（ドロップ）
-- カタルシスを提供
-- 次の「起」への橋渡し
+Pro Tip:
+- During the track preparation stage, confirm the phrase positions
+- Group "tracks with matching phrases" into a playlist
+- When in doubt, using a loop to align timing is the most reliable
 ```
 
 ---
 
-## 12. フレーズ構造の歴史と文化的背景
+## 11. Advanced Phrase Techniques
 
-### フレーズ構造の起源
+### Phrase "Borrowing"
 
-ダンスミュージックのフレーズ構造は、いくつかの音楽的伝統から影響を受けています。
-
-```
-クラシック音楽の影響:
-- 古典派の「周期構造」（8小節フレーズ）
-- ソナタ形式の「提示部・展開部・再現部」
-- 対位法的な「問いかけと応答」
-
-ブルース/ジャズの影響:
-- 12小節ブルース形式
-- ジャズの「コーラス」構造（32小節 = AABA形式）
-- コール&レスポンスの伝統
-
-ファンク/ディスコの影響:
-- ファンクの「ワンコード・グルーヴ」
-- ディスコの長尺ミックス（12インチ・シングル）
-- DJが使いやすいIntro/Outroの導入
-
-電子音楽の進化:
-- シーケンサーの8ステップ/16ステップ構造
-- ドラムマシン（TR-808, TR-909）のパターン長
-- DAWのグリッド構造（8小節ループ）
-```
-
-### フレーズ構造と心理学
-
-フレーズ構造が人間の心理に与える影響は、音楽心理学の研究で明らかになっています。
+A technique that intentionally "blends" the phrase structures of two tracks.
 
 ```
-期待と充足:
-- 人間の脳は「パターン」を認識し「予測」する
-- 8小節の繰り返しにより「次も同じ」という期待が生まれる
-- その期待が「充足」されると快感（ドーパミン）が放出
-- 期待が「裏切られる」と驚き（これも快感）が生まれる
+Technique:
+Bars 1–4 of Track A's phrase + Bars 5–8 of Track B's phrase
+= Creation of a new hybrid phrase
 
-テンションとリリース:
-- ビルドアップ（テンション蓄積）→ ドロップ（リリース）
-- このサイクルがフレーズ単位で繰り返される
-- 「溜め」が長いほど「解放」の快感が大きい
-- プロDJはこの心理を意識的にコントロールしている
+How to practice:
+1. Match the BPM and key of Track A and Track B
+2. Play bars 1–4 of Track A
+3. At the head of bar 5, mute Track A and play the second half of Track B's phrase
+4. Return to Track A at the head of the next phrase (or continue Track B)
 
-反復の心理効果:
-- 適度な反復（4-8回）は心地よさを生む
-- 過度な反復（16回以上）は飽きを生む
-- フレーズの変化が「適度な新奇性」を提供する
-- これがダンスミュージックの「8小節 → 変化 → 8小節」構造の根拠
+Notes:
+- If the keys of both tracks don't match, dissonance will occur
+- Difficult between tracks with very different rhythm patterns
+- An advanced technique that requires practice
+```
+
+### Phrase "Extension" and "Compression"
+
+A technique for manipulating phrase length using the loop function.
+
+```
+Phrase extension:
+- Loop the last 4 bars of an 8-bar phrase
+- By repeating the loop, "extend" from 8 bars → 12 bars → 16 bars
+- Used to sustain a build-up or maintain tension
+
+Phrase compression:
+- Jump to the next phrase at the first 4 bars of an 8-bar phrase
+- "Compress" from 8 bars → 4 bars
+- Used for a fast-paced development or rapid energy increase
+
+Loop half/double:
+- Halve the loop length: 8 bars → 4 bars → 2 bars → 1 bar
+- Double the loop length: 1 bar → 2 bars → 4 bars → 8 bars
+- A standard technique for build-ups
+```
+
+### Synchronizing Phrases and FX
+
+Using FX in sync with phrase structure improves the quality of transitions.
+
+```
+Filter (high-pass / low-pass):
+First half of phrase (bars 1–4): Gradually open/close the filter
+Second half of phrase (bars 5–8): Return the filter to its original state or change it rapidly
+
+Delay:
+Bars 7–8: Apply deep delay
+Bar 1 (new phrase): Cut the delay immediately → Impact
+
+Reverb:
+Start of break: Apply deep reverb (expand the space)
+Head of the drop: Cut reverb completely (dry and tight)
+
+Flanger/Phaser:
+Gradually apply in the second half of a phrase → Release at the next phrase
+Natural to use in a 4–8 bar cycle
+
+Beat Repeater:
+Use in the last 1–2 bars of a phrase
+Accelerate: 1/2 → 1/4 → 1/8 → 1/16
+→ Maximum effect immediately before the next phrase (drop)
+```
+
+### Storytelling with Phrases
+
+Advanced DJs use phrase structure to construct a "story."
+
+```
+Ki-Shō-Ten-Ketsu (Introduction-Development-Twist-Conclusion) phrase design:
+
+Ki (Introduction): 32 bars
+- Present the world of the set in the first phrase
+- Set the listener's expectations
+- A gentle start
+
+Shō (Development): 64 bars
+- Gradually raise the energy
+- Continue adding new elements
+- Build the listener's expectations
+
+Ten (Twist): 16–32 bars
+- An unexpected development (key change, genre switch, etc.)
+- Insert a break or silence
+- Aim for maximum impact
+
+Ketsu (Conclusion): 32 bars
+- Release of energy (drop)
+- Provide catharsis
+- Bridge to the next "Ki"
+```
+
+---
+
+## 12. History and Cultural Background of Phrase Structure
+
+### Origins of Phrase Structure
+
+The phrase structure of dance music has been influenced by several musical traditions.
+
+```
+Influence of classical music:
+- The "periodic structure" (8-bar phrases) of the Classical period
+- The "exposition, development, recapitulation" of sonata form
+- The contrapuntal "question and answer"
+
+Influence of blues/jazz:
+- 12-bar blues form
+- The "chorus" structure of jazz (32 bars = AABA form)
+- The tradition of call and response
+
+Influence of funk/disco:
+- The "one-chord groove" of funk
+- Long-form disco mixes (12-inch singles)
+- Introduction of Intros/Outros designed to be easy for DJs
+
+Evolution of electronic music:
+- The 8-step/16-step structure of sequencers
+- Pattern length of drum machines (TR-808, TR-909)
+- Grid structure of DAWs (8-bar loops)
+```
+
+### Phrase Structure and Psychology
+
+Research in music psychology has revealed the effects of phrase structure on human psychology.
+
+```
+Expectation and satisfaction:
+- The human brain recognizes "patterns" and "predicts"
+- Repeating 8 bars creates an expectation that "the next will be the same"
+- When that expectation is "satisfied," pleasure (dopamine) is released
+- When expectations are "betrayed," surprise occurs (also pleasurable)
+
+Tension and release:
+- Build-up (tension accumulates) → Drop (release)
+- This cycle repeats at the phrase level
+- The longer the "buildup," the greater the pleasure of the "release"
+- Professional DJs consciously control this psychology
+
+Psychological effects of repetition:
+- Moderate repetition (4–8 times) generates comfort
+- Excessive repetition (16 or more times) generates boredom
+- Phrase changes provide "moderate novelty"
+- This is the rationale for the "8 bars → change → 8 bars" structure of dance music
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement proper error handling
+- Also write test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic Implementation Template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Input value validation"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Retrieve processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -2236,26 +2235,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "An exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Applied Pattern
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Applied Pattern
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for applied patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -2263,7 +2262,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add an item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -2274,14 +2273,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -2289,7 +2288,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics information"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -2297,44 +2296,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance Optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using a hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -2343,7 +2342,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -2358,93 +2357,93 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version:  {slow_time:.4f} seconds")
+    print(f"Fast version:  {fast_time:.6f} seconds")
+    print(f"Speed-up:      {slow_time/fast_time:.0f}x faster")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be aware of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point to keep in mind when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Accumulating practical experience is the most important thing. Understanding deepens not just through theory, but by actually writing code and confirming its behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to applications. We recommend thoroughly understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in a professional context?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-### フレーズ構造の核心
-
-- **フレーズ**: 8小節が基本単位。ダンスミュージックの「文法」
-- **階層**: 拍 → 小節 → フレーズ → セクション → 曲全体
-- **聴き取り**: ドラム変化、楽器追加・削除、メロディ変化、FX、ボーカル
-- **ミックスポイント**: フレーズの切れ目（8, 16, 32小節）が鉄則
-- **練習**: 毎日カウント、体で覚える、段階的にレベルアップ
-- **応用**: エネルギーカーブの設計、ストーリーテリング、FXとの連動
-
-### フレーズマスターへのロードマップ
-
-```
-Month 1: 「数える」
-→ 8小節を正確にカウントできるようになる
-
-Month 2-3: 「感じる」
-→ 数えなくてもフレーズの区切りが分かるようになる
-
-Month 4-6: 「予測する」
-→ 次の展開を先読みしてミックスを準備できる
-
-Month 7-12: 「操る」
-→ フレーズ構造を活用してクリエイティブなミックスができる
-
-1年以降: 「自在に」
-→ フレーズが完全に体に染み込み、音楽の「呼吸」を自在に操る
-```
-
-### プロDJからのアドバイス
-
-```
-1. 「フレーズカウントは歯磨きのようなもの。毎日やれば自然にできるようになる」
-2. 「完璧を求めない。8割合っていれば十分。残りは経験で補える」
-3. 「フレーズの途中でミックスした時の違和感を覚えておくこと。
-    その感覚が、正しいタイミングを教えてくれる」
-4. 「テクノロジーに頼りすぎるな。波形やBeatgridは補助。
-    最終的には自分の耳が一番信頼できるツール」
-5. 「フレーズ構造を理解しているDJと理解していないDJの差は、
-    フロアの反応を見れば一目瞭然」
-```
-
-**次のステップ:** [曲構造の理解](./song-structure.md) でセクションを学ぶ
+Knowledge of this topic is frequently applied in day-to-day development work. It becomes particularly important during code reviews and architectural design.
 
 ---
 
+## Summary
 
-## 次に読むべきガイド
+### The Core of Phrase Structure
 
-- [曲構造の理解](./song-structure.md) - 次のトピックへ進む
+- **Phrase**: The basic unit is 8 bars. The "grammar" of dance music.
+- **Hierarchy**: Beat → Bar → Phrase → Section → Entire track
+- **Listening**: Drum changes, instrument addition/removal, melody changes, FX, vocals
+- **Mix point**: The rule is phrase breaks (8, 16, 32 bars)
+- **Practice**: Count daily, learn it in your body, level up progressively
+- **Application**: Designing energy curves, storytelling, synchronizing with FX
+
+### Roadmap to Becoming a Phrase Master
+
+```
+Month 1: "Count"
+→ Be able to accurately count 8 bars
+
+Months 2–3: "Feel"
+→ Be able to identify phrase breaks without counting
+
+Months 4–6: "Predict"
+→ Be able to read ahead and prepare mixes for the next development
+
+Months 7–12: "Manipulate"
+→ Be able to create creative mixes by leveraging phrase structure
+
+Year 1 and beyond: "Freely"
+→ Phrases become fully ingrained in your body; freely control the "breathing" of the music
+```
+
+### Advice from Professional DJs
+
+```
+1. "Phrase counting is like brushing your teeth. Do it every day and it will become natural."
+2. "Don't seek perfection. 80% correct is enough. Experience fills in the rest."
+3. "Remember the feeling of discomfort when you mix in the middle of a phrase.
+    That sensation will teach you the right timing."
+4. "Don't rely too much on technology. Waveforms and Beat Grids are aids.
+    Ultimately, your own ears are the most reliable tool."
+5. "The difference between a DJ who understands phrase structure and one who doesn't
+    is obvious just by watching the floor's reaction."
+```
+
+**Next step:** Learn about sections in [Song Structure](./song-structure.md)
 
 ---
 
-## 参考リンク
 
-- [リズム基礎](../../00-fundamentals/rhythm-basics.md)
-- [BPMとテンポ](./bpm-tempo.md)
-- [曲構造の理解](./song-structure.md)
-- [ミキシング基礎](../03-basic-techniques/mixing-basics.md)
+## What to Read Next
+
+- [Song Structure](./song-structure.md) - Proceed to the next topic
+
+---
+
+## Reference Links
+
+- [Rhythm Basics](../../00-fundamentals/rhythm-basics.md)
+- [BPM and Tempo](./bpm-tempo.md)
+- [Song Structure](./song-structure.md)
+- [Mixing Basics](../03-basic-techniques/mixing-basics.md)
