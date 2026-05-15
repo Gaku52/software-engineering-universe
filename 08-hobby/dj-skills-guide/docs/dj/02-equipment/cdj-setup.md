@@ -1,697 +1,697 @@
-# CDJセットアップ
+# CDJ Setup
 
-クラブ標準機材CDJの使い方を包括的に学びます。CDJ（Club DJ）は、世界中のクラブ、フェスティバル、イベント会場で採用されているプロフェッショナルDJプレーヤーです。本章では、CDJの歴史的背景から最新モデルの詳細な操作方法、USBメモリの準備、Pro DJ Linkネットワーク機能の活用、クラブ現場での実践的な使い方、トラブルシューティング、そして上級テクニックまで、CDJに関するあらゆる知識を網羅的に解説します。
+A comprehensive guide to using CDJs, the club-standard equipment. CDJ (Club DJ) is a professional DJ player adopted in clubs, festivals, and event venues worldwide. This chapter covers everything about CDJs — from historical background to detailed operation of the latest models, preparing USB drives, using the Pro DJ Link network function, practical use at clubs, troubleshooting, and advanced techniques.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- CDJとは何か：歴史、進化、現在のポジション
-- CDJ-3000の詳細操作方法：タッチスクリーン、Key Sync、MPEなど最新機能
-- CDJ-2000NXS2の操作方法：クラブ標準機材の完全マスター
-- USBメモリの準備：Rekordboxエクスポート、フォーマット、ファイル管理
-- Pro DJ Link機能の活用：ネットワーク接続、Beat Sync、曲情報共有
-- クラブでの実践的な使い方：サウンドチェック、セット中の注意、マナー
-- 各モデルの比較と選び方：用途別の最適な機材選択
-- 練習方法とスキルアップの道筋
-- トラブルシューティング：現場で起こりうる問題への対処法
-- 上級テクニック：Slip Mode、Quantize、Beat Jumpの応用
+- What a CDJ is: history, evolution, and its current position
+- Detailed operation of the CDJ-3000: touchscreen, Key Sync, MPE, and other latest features
+- Operating the CDJ-2000NXS2: complete mastery of the club-standard equipment
+- Preparing USB drives: Rekordbox export, formatting, file management
+- Using the Pro DJ Link function: network connection, Beat Sync, track information sharing
+- Practical use at clubs: sound check, in-set precautions, etiquette
+- Comparing models and choosing the right one: optimal equipment selection by use case
+- Practice methods and the path to skill improvement
+- Troubleshooting: how to handle problems that can occur on-site
+- Advanced techniques: applications of Slip Mode, Quantize, and Beat Jump
 
-## なぜCDJが重要なのか
+## Why CDJs Matter
 
-### クラブの世界標準
+### The World Standard for Clubs
 
-CDJは、Pioneer DJ（現AlphaTheta）が開発したデジタルDJプレーヤーであり、世界中のプロフェッショナルなDJシーンにおける事実上の標準機材です。Berghain（ベルリン）、fabric（ロンドン）、Womb（東京）、Output（ニューヨーク）など、世界的に有名なクラブのほぼすべてにCDJが常設されています。
+CDJ is a digital DJ player developed by Pioneer DJ (now AlphaTheta), and is the de facto standard equipment in professional DJ scenes around the world. Virtually all of the world's most famous clubs — Berghain (Berlin), fabric (London), Womb (Tokyo), Output (New York) — have CDJs permanently installed.
 
-**クラブ標準機材としての位置づけ:**
-- 世界中の主要クラブの95%以上にPioneer DJ製CDJが設置されている
-- 大型フェスティバル（Tomorrowland、Ultra、Sonar等）のメインステージにもCDJが使用される
-- プロモーターやブッキングエージェントは、出演DJがCDJを操作できることを前提としている
-- レジデントDJ（特定のクラブに定期出演するDJ）にとっては必須スキル
-- ゲストDJとしてクラブに呼ばれた際、CDJの操作に戸惑うことはプロとしてあり得ない
-- 自分のコントローラーを持ち込める場合もあるが、CDJでプレイできることが基本的な前提条件
+**Its position as club-standard equipment:**
+- Pioneer DJ CDJs are installed in over 95% of major clubs worldwide
+- CDJs are used on the main stages of large festivals (Tomorrowland, Ultra, Sonar, etc.)
+- Promoters and booking agents assume that performing DJs can operate CDJs
+- For resident DJs (DJs who perform regularly at a specific club), it is an essential skill
+- It is simply unacceptable as a professional to be confused by CDJ operation when invited as a guest DJ
+- While bringing your own controller is sometimes possible, being able to play on CDJs is a basic prerequisite
 
-**CDJがスタンダードとなった理由:**
-1. **信頼性**: プロフェッショナルユースに耐える堅牢な設計。24時間営業のクラブでも安定動作
-2. **スタンドアローン**: PCやラップトップなしで動作するため、ソフトウェアクラッシュのリスクがない
-3. **統一されたインターフェース**: 世界中どのクラブに行っても同じ操作体系で使える
-4. **高品質オーディオ**: 32bit/96kHz対応の高品質D/Aコンバーター搭載
-5. **ネットワーク連携**: Pro DJ Linkによる複数台の連携が可能
-6. **豊富な入力方式**: USB、SD、CD、LANなど多様なメディアに対応
+**Why CDJ became the standard:**
+1. **Reliability**: Robust design that can withstand professional use. Stable operation even in clubs open 24 hours
+2. **Standalone**: Operates without a PC or laptop, so there is no risk of software crashes
+3. **Unified interface**: The same operating system no matter which club in the world you visit
+4. **High-quality audio**: High-quality D/A converter supporting 32bit/96kHz
+5. **Network connectivity**: Multiple units can be linked via Pro DJ Link
+6. **Variety of inputs**: Supports diverse media including USB, SD, CD, and LAN
 
-### コントローラーとの根本的な違い
+### The Fundamental Difference from Controllers
 
-DJコントローラーとCDJは、見た目は似ていますが設計思想が根本的に異なります。
+DJ controllers and CDJs look similar, but their design philosophy is fundamentally different.
 
-**アーキテクチャの違い:**
+**Differences in architecture:**
 
-| 項目 | CDJ | DJコントローラー |
+| Item | CDJ | DJ Controller |
 |------|-----|-----------------|
-| **動作方式** | スタンドアローン（独立動作） | PCソフトウェアの外部操作デバイス |
-| **音源** | USBメモリ/CD/SDカードから直接再生 | PC内の音楽ファイルをソフトウェアで再生 |
-| **オーディオ出力** | 内蔵高品質D/Aコンバーター | PCのオーディオインターフェース or 内蔵 |
-| **PC依存性** | 不要（HIDモード時を除く） | 必須 |
-| **価格帯** | 1台25-45万円（2台+ミキサーで100万円超） | 3-30万円（ミキサー内蔵の場合） |
-| **堅牢性** | プロフェッショナル仕様、長寿命 | 消費者向け、使用頻度による |
-| **ジョグホイール** | 大型・高精度・高感度、ビニールモード対応 | モデルによる（小型のものも多い） |
-| **フェーダー** | 長ストローク・高精度、独立した物理フェーダー | 短ストロークのものが多い |
+| **Operation method** | Standalone (independent operation) | External control device for PC software |
+| **Audio source** | Plays directly from USB drive/CD/SD card | PC music files played via software |
+| **Audio output** | Built-in high-quality D/A converter | PC audio interface or built-in |
+| **PC dependency** | Not needed (except in HID mode) | Required |
+| **Price range** | 250,000–450,000 JPY per unit (2 units + mixer exceeds 1,000,000 JPY) | 30,000–300,000 JPY (if mixer is included) |
+| **Durability** | Professional spec, long lifespan | Consumer-grade, depends on usage frequency |
+| **Jog wheel** | Large, high-precision, high-sensitivity, vinyl mode compatible | Depends on model (many are small) |
+| **Faders** | Long-stroke, high-precision, independent physical faders | Many have short stroke |
 
-**実際の現場での違い:**
+**Differences in actual performance situations:**
 
-コントローラーDJがクラブ出演する際に直面する典型的な問題：
+Typical problems faced by controller DJs when performing at clubs:
 
-1. **ラップトップのトラブル**: ソフトウェアのフリーズ、OSのアップデート通知、バッテリー切れなど
-2. **オーディオインターフェースの問題**: ドライバーの不具合、レイテンシー、ノイズ
-3. **接続の複雑さ**: USB、オーディオケーブル、電源など複数のケーブル管理
-4. **画面の見にくさ**: 暗いクラブでラップトップの画面を見る必要がある
-5. **セットアップ時間**: コントローラー+PC+ケーブルのセットアップに時間がかかる
+1. **Laptop problems**: Software freezes, OS update notifications, battery running out, etc.
+2. **Audio interface problems**: Driver malfunctions, latency, noise
+3. **Connection complexity**: Managing multiple cables — USB, audio cables, power, etc.
+4. **Screen visibility**: Need to look at a laptop screen in a dark club
+5. **Setup time**: Takes time to set up controller + PC + cables
 
-CDJであれば、USBメモリを1本挿すだけで即座にプレイ開始できます。この「シンプルさ」と「信頼性」こそが、CDJがプロ現場で選ばれ続ける最大の理由です。
+With CDJs, you can start playing immediately by just inserting one USB drive. This "simplicity" and "reliability" is the biggest reason CDJs continue to be chosen in professional settings.
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [オーディオインターフェイス](./audio-interface.md) の内容を理解していること
-
----
-
-## 1. CDJの歴史と進化
-
-### Pioneer DJとCDJの誕生
-
-CDJの歴史は、Pioneer（現AlphaTheta/Pioneer DJ）がDJ市場に参入した1990年代初頭に遡ります。当時、DJといえばアナログレコード（バイナル）を2台のターンテーブルで操る技術が主流でした。しかし、CDという新しいメディアの登場により、デジタル音源でDJプレイを行うための機材が求められるようになりました。
-
-### CDJの進化の系譜
-
-**1994年: CDJ-500（初代CDJ）**
-- Pioneer初のDJ向けCDプレーヤー
-- CDからの直接再生に対応
-- ジョグホイールを搭載した最初のモデル
-- DJが手動でCDのピッチ（再生速度）を調整できる画期的な製品
-- 当時のDJ文化ではCDプレイは「邪道」とされ、多くのDJからの抵抗があった
-- しかし、CDの利便性（軽量、コンパクト、レコード針の劣化なし）は徐々に認知された
-
-**1999年: CDJ-1000（第一次革命）**
-- 大型ジョグホイール搭載：ターンテーブルに近い操作感を実現
-- ビニールモード：レコードを触るような感覚でスクラッチが可能に
-- この機種の登場により、CDJが「本物のDJ機材」として認められ始めた
-- 多くのクラブがCDJ-1000を導入し、CDJの普及が本格化
-- Wave表示による視覚的な楽曲確認が可能に
-
-**2003年: CDJ-1000MK2**
-- 波形表示の改良
-- Hot Cue機能の追加（3つまで）
-- Stutter Play対応
-- メモリーカード（SD）スロット追加
-
-**2006年: CDJ-1000MK3**
-- 操作性の改良
-- Wave表示の拡大
-- より高精度なBPMカウンター
-- 音質の向上（24bit D/Aコンバーター）
-
-**2009年: CDJ-2000（第二次革命 - USB対応）**
-- USB/SDメモリからの楽曲再生に対応（CDなしでプレイ可能に）
-- 大型カラー液晶ディスプレイ搭載
-- Pro DJ Link（LAN接続）に初対応
-- Rekordboxソフトウェアとの連携開始
-- この機種により「CDJ = USBで曲を再生する機材」という認識が定着
-- DJの楽曲管理がデジタルに完全移行するきっかけとなった
-- Tag List機能で次に再生する曲を事前に準備可能に
-
-**2012年: CDJ-2000nexus（NXS）**
-- Wi-Fi対応（Rekordbox連携）
-- Beat Sync機能追加
-- Slip Mode搭載
-- Quantize機能
-- 波形表示の高精細化
-- 4デッキ同期対応
-- カラー波形表示（周波数帯域ごとの色分け）
-
-**2016年: CDJ-2000NXS2（現行クラブ標準）**
-- 7インチフルカラータッチスクリーン
-- 高解像度波形表示
-- 96kHz/24bit FLAC/ALAC/WAV再生対応
-- Rekordbox dj対応（HIDモード）
-- Sound Color FX内蔵
-- Needle Search（タッチストリップ）
-- Qwerty配列キーボードでの検索
-- USB-B端子によるPC接続
-- 2つのUSBポート搭載
-- Pro DJ Link強化版
-- 現在も世界中のクラブで最も多く設置されているモデル
-
-**2020年: CDJ-3000（最新フラッグシップ）**
-- 9インチフルカラータッチスクリーン（大幅拡大）
-- MPE（Multidimensional Polyphonic Expression）対応
-- Key Sync機能（キーの自動調整）
-- Touch Cue（波形タッチで試聴）
-- USB-C端子対応
-- 高精細波形表示
-- 新開発ジョグホイール（低レイテンシー）
-- 内蔵メモリ搭載（設定の保存）
-- Stem対応の予備的機能
-- Cloud Library対応（Rekordboxクラウド連携）
-- 8つのHot Cue
-- Bluetooth接続対応
-- 新型ロータリーセレクター
-
-### CDJがDJ文化に与えた影響
-
-CDJの進化は、DJ文化そのものを大きく変革しました。
-
-**ポジティブな影響:**
-1. **楽曲管理の効率化**: 数千枚のレコードを持ち歩く必要がなくなった
-2. **参入障壁の低下**: レコード収集のコストと労力が不要に
-3. **音質の向上**: デジタル音源の高音質再生が可能に
-4. **表現の幅の拡大**: Hot Cue、Loop、Beat Jump等の機能が新しいDJスタイルを生み出した
-5. **グローバル化**: USBメモリ1本で世界中のクラブでプレイ可能に
-6. **準備の効率化**: Rekordboxでの事前準備（キュー設定、プレイリスト作成等）が可能に
-
-**議論を呼んだ点:**
-1. **Sync機能の是非**: ビートマッチングの手動スキルが不要になることへの反発
-2. **デジタルの「味気なさ」**: アナログレコードの「温かみ」が失われるという意見
-3. **スキルの評価基準の変化**: DJの技術をどう評価するかの議論
-4. **Pioneer DJ一強の市場**: 事実上の独占状態による価格設定への批判
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding the content of [Audio Interface](./audio-interface.md)
 
 ---
 
-## 2. 主要CDJモデル詳細解説
+## 1. History and Evolution of CDJs
 
-### CDJ-3000（最新フラッグシップ）
+### Pioneer DJ and the Birth of the CDJ
 
-CDJ-3000は、2020年にリリースされたPioneer DJの最新フラッグシップモデルです。CDJ-2000NXS2から4年ぶりのフルモデルチェンジとなり、ハードウェア・ソフトウェアの両面で大幅な進化を遂げています。
+The history of CDJs goes back to the early 1990s when Pioneer (now AlphaTheta/Pioneer DJ) entered the DJ market. At the time, DJing was dominated by techniques for manipulating analog records (vinyl) on two turntables. However, with the arrival of the CD as a new medium, there was demand for equipment that could DJ with digital audio sources.
 
-**基本スペック:**
+### The Lineage of CDJ Evolution
 
-| 項目 | 仕様 |
+**1994: CDJ-500 (The First CDJ)**
+- Pioneer's first CD player for DJs
+- Supports direct playback from CD
+- The first model with a jog wheel
+- A groundbreaking product that allows DJs to manually adjust the pitch (playback speed) of a CD
+- At the time, CD play was considered "inauthentic" in DJ culture, and many DJs resisted it
+- However, the convenience of CDs (lightweight, compact, no record needle wear) was gradually recognized
+
+**1999: CDJ-1000 (The First Revolution)**
+- Large jog wheel: achieved a feel close to a turntable
+- Vinyl mode: scratching became possible with a feel like touching a record
+- With the appearance of this model, CDJs began to be recognized as "real DJ equipment"
+- Many clubs adopted the CDJ-1000, and CDJ adoption accelerated
+- Visual confirmation of tracks via waveform display became possible
+
+**2003: CDJ-1000MK2**
+- Improved waveform display
+- Addition of Hot Cue function (up to 3)
+- Stutter Play support
+- Memory card (SD) slot added
+
+**2006: CDJ-1000MK3**
+- Improved operability
+- Expanded waveform display
+- More precise BPM counter
+- Improved sound quality (24-bit D/A converter)
+
+**2009: CDJ-2000 (The Second Revolution — USB support)**
+- Track playback from USB/SD memory (play possible without CD)
+- Large color LCD display
+- First to support Pro DJ Link (LAN connection)
+- Start of integration with Rekordbox software
+- This model established the perception that "CDJ = equipment that plays music via USB"
+- Became the catalyst for DJs' track management to fully transition to digital
+- Tag List function made it possible to prepare the next track in advance
+
+**2012: CDJ-2000nexus (NXS)**
+- Wi-Fi support (Rekordbox integration)
+- Beat Sync function added
+- Slip Mode included
+- Quantize function
+- Higher-resolution waveform display
+- 4-deck sync support
+- Color waveform display (color-coded by frequency band)
+
+**2016: CDJ-2000NXS2 (Current Club Standard)**
+- 7-inch full-color touchscreen
+- High-resolution waveform display
+- 96kHz/24bit FLAC/ALAC/WAV playback support
+- Rekordbox dj support (HID mode)
+- Sound Color FX built-in
+- Needle Search (touch strip)
+- Search with Qwerty keyboard layout
+- PC connection via USB-B terminal
+- Two USB ports
+- Enhanced Pro DJ Link
+- Still the most widely installed model in clubs worldwide
+
+**2020: CDJ-3000 (Latest Flagship)**
+- 9-inch full-color touchscreen (significantly enlarged)
+- MPE (Multidimensional Polyphonic Expression) support
+- Key Sync function (automatic key adjustment)
+- Touch Cue (audition by touching the waveform)
+- USB-C terminal support
+- High-resolution waveform display
+- Newly developed jog wheel (low latency)
+- Built-in memory (for saving settings)
+- Preliminary Stem support features
+- Cloud Library support (Rekordbox cloud integration)
+- 8 Hot Cues
+- Bluetooth connection support
+- New rotary selector
+
+### The Impact of CDJs on DJ Culture
+
+The evolution of CDJs has greatly transformed DJ culture itself.
+
+**Positive impacts:**
+1. **Efficient track management**: No longer need to carry thousands of records
+2. **Lower barrier to entry**: No cost or effort of record collecting required
+3. **Improved sound quality**: High-quality digital audio playback became possible
+4. **Expanded range of expression**: Functions like Hot Cue, Loop, and Beat Jump created new DJ styles
+5. **Globalization**: Playing at clubs around the world with a single USB drive
+6. **Efficient preparation**: Advance preparation in Rekordbox (cue setting, playlist creation, etc.) became possible
+
+**Points of debate:**
+1. **The pros and cons of Sync**: Backlash against Beat Sync making manual beatmatching skills unnecessary
+2. **The "sterility" of digital**: The opinion that the "warmth" of analog records is lost
+3. **Changing criteria for evaluating skill**: Debates about how to evaluate DJ technique
+4. **Pioneer DJ's market dominance**: Criticism of pricing under what is effectively a monopoly
+
+---
+
+## 2. Detailed Guide to Major CDJ Models
+
+### CDJ-3000 (Latest Flagship)
+
+The CDJ-3000 is Pioneer DJ's latest flagship model, released in 2020. It is the first full model change from the CDJ-2000NXS2 in four years, with major advances in both hardware and software.
+
+**Basic specifications:**
+
+| Item | Spec |
 |------|------|
-| ディスプレイ | 9インチ フルカラータッチスクリーン |
-| 対応メディア | USB-A、USB-C、SD、LAN |
-| CD | 非対応（CDJ-3000はCD再生機能を廃止） |
-| 対応ファイル | MP3、AAC、WAV、AIFF、FLAC、ALAC |
-| サンプリングレート | 最大96kHz/32bit |
-| D/Aコンバーター | ESS社製 32bit対応 |
-| Hot Cue | 8個 |
-| ジョグホイール | 新開発マグネット式（低レイテンシー） |
-| Tempo Fader | ストローク100mm |
-| 接続端子 | USB-A×2、USB-C×1、SD×1、LAN×1、Digital Out×1、Audio Out (RCA)×1 |
-| 寸法 | 309.5 × 114.5 × 457.2 mm |
-| 重量 | 5.8 kg |
-| 価格 | 約40万円（税込） |
+| Display | 9-inch full-color touchscreen |
+| Supported media | USB-A, USB-C, SD, LAN |
+| CD | Not supported (CD playback removed from CDJ-3000) |
+| Supported files | MP3, AAC, WAV, AIFF, FLAC, ALAC |
+| Sampling rate | Up to 96kHz/32bit |
+| D/A converter | ESS 32-bit compatible |
+| Hot Cue | 8 |
+| Jog wheel | Newly developed magnetic type (low latency) |
+| Tempo Fader | 100mm stroke |
+| Connectors | USB-A×2, USB-C×1, SD×1, LAN×1, Digital Out×1, Audio Out (RCA)×1 |
+| Dimensions | 309.5 × 114.5 × 457.2 mm |
+| Weight | 5.8 kg |
+| Price | approx. 400,000 JPY (including tax) |
 
-**CDJ-3000のデザインと筐体:**
+**CDJ-3000 design and body:**
 
-CDJ-3000は、CDJ-2000NXS2から外観デザインが大幅に刷新されました。マットブラック仕上げの筐体は、フィンガープリント（指紋）が付きにくい処理が施されており、クラブの暗い環境でも美しい外観を保ちます。
+The CDJ-3000 has a significantly revised exterior design from the CDJ-2000NXS2. The matte black body has a treatment that resists fingerprints, maintaining a clean appearance even in the dark environment of a club.
 
-天面のレイアウトは、上部に大型タッチスクリーン、中央にパフォーマンスパッド、下部にジョグホイール、右側にTempo Faderという配置です。CDJ-2000NXS2と比べてボタン配置が最適化されており、より直感的な操作が可能になっています。
+The top panel layout has a large touchscreen at the top, performance pads in the center, the jog wheel at the bottom, and the Tempo Fader on the right. Compared to the CDJ-2000NXS2, button placement has been optimized, enabling more intuitive operation.
 
-**9インチタッチスクリーンの詳細:**
+**Details of the 9-inch touchscreen:**
 
-CDJ-3000の最大の特徴のひとつが、9インチに大型化されたタッチスクリーンです。CDJ-2000NXS2の7インチから約1.7倍の表示面積となり、波形表示、ブラウザ、楽曲情報などの視認性が大幅に向上しました。
+One of the most notable features of the CDJ-3000 is the 9-inch enlarged touchscreen. With approximately 1.7 times the display area of the CDJ-2000NXS2's 7-inch screen, visibility for waveforms, the browser, and track information has improved dramatically.
 
-タッチスクリーンの操作方法：
-- **スワイプ**: 波形のスクロール、リスト表示のスクロール
-- **ピンチイン/アウト**: 波形の拡大・縮小
-- **タップ**: キューポイントの設定、楽曲の選択
-- **ロングプレス**: コンテキストメニューの表示
-- **フリック**: 高速スクロール
+Touchscreen operations:
+- **Swipe**: Scroll the waveform, scroll list views
+- **Pinch in/out**: Zoom in/out on the waveform
+- **Tap**: Set cue points, select tracks
+- **Long press**: Display context menu
+- **Flick**: Fast scroll
 
-表示モード：
-- **波形表示モード**: 楽曲の波形を大きく表示。カラー波形により周波数帯域の分布が一目でわかる
-- **ブラウザモード**: USBメモリ内の楽曲をリスト表示。アートワーク、BPM、キー、レーティング等の情報を表示
-- **情報表示モード**: 現在再生中の楽曲の詳細情報（アーティスト、アルバム、ジャンル、コメント等）
-- **設定モード**: CDJ本体の各種設定（Jog調整、Auto Cue、Master Tempo等）
+Display modes:
+- **Waveform display mode**: Displays the track waveform large. Color waveform lets you see the frequency distribution at a glance
+- **Browser mode**: Displays tracks on the USB drive as a list. Shows artwork, BPM, key, rating, and other information
+- **Information display mode**: Detailed information about the currently playing track (artist, album, genre, comment, etc.)
+- **Settings mode**: Various CDJ settings (Jog adjustment, Auto Cue, Master Tempo, etc.)
 
-**新開発ジョグホイールの進化:**
+**Evolution of the newly developed jog wheel:**
 
-CDJ-3000のジョグホイールは、従来のメカニカル式からマグネット式に変更されました。これにより以下の改善が実現しています。
+The CDJ-3000's jog wheel has been changed from the conventional mechanical type to a magnetic type. This achieves the following improvements:
 
-1. **低レイテンシー**: タッチからの応答速度が大幅に向上。微細なスクラッチも正確に追従
-2. **トルク調整**: ジョグホイールの回転抵抗（重さ）を任意に調整可能。軽い操作感からレコードに近い重さまで設定できる
-3. **長寿命**: メカニカル部品の削減により、長期間安定した操作感を維持
-4. **ビニールモード**: ジョグホイール上面のタッチセンサーにより、レコード操作に近い感覚でのスクラッチが可能
-5. **CDJモード**: ジョグホイールの外周操作でピッチベンド。中央タッチでスクラッチという使い分けが可能
+1. **Low latency**: Response speed from touch has improved significantly. Even subtle scratches are tracked accurately
+2. **Torque adjustment**: The rotational resistance (weight) of the jog wheel can be adjusted freely. Settings range from a light feel to the weight close to a record
+3. **Long lifespan**: Reduction of mechanical parts maintains stable feel over the long term
+4. **Vinyl mode**: The touch sensor on the top of the jog wheel enables scratching with a feel close to manipulating a record
+5. **CDJ mode**: Pitch bend by operating the outer rim of the jog wheel, scratching by touching the center — two distinct uses
 
-ジョグホイールのトルク調整手順：
+Jog wheel torque adjustment steps:
 ```
-1. MENU ボタンを押す
-2. UTILITY を選択
-3. JOG FEELING ADJUST を選択
-4. ADJUST でトルク（重さ）を調整
-5. -5（軽い）から +5（重い）の範囲で設定
-6. デフォルトは 0（中間）
-```
-
-**Key Sync機能（CDJ-3000の目玉機能）:**
-
-Key Sync は、CDJ-3000で新たに搭載された機能で、再生中の2曲のキー（調）を自動的に合わせることができます。従来のハーモニックミキシングでは、DJが楽曲のキーを事前に確認し、互換性のあるキーの楽曲を選曲する必要がありましたが、Key Syncにより、異なるキーの楽曲でも自動的にキーを調整してミックスすることが可能になりました。
-
-Key Syncの仕組み：
-- 楽曲のピッチ（音程）を変更することで、キーを調整する
-- Master Tempoとは異なるアルゴリズムを使用し、音質劣化を最小限に抑える
-- 最大±6半音（半オクターブ）の範囲で調整可能
-- カメロットホイール（Camelot Wheel）に基づくキー互換性を自動判定
-
-Key Syncの使い方：
-```
-1. Master デッキの楽曲を再生
-2. もう1台のCDJで次の曲をロード
-3. KEY SYNC ボタンを押す
-4. 自動的にキーが調整される
-5. 波形表示にキー変更量が表示される
-6. KEY SYNC ボタンを再度押すと解除
+1. Press the MENU button
+2. Select UTILITY
+3. Select JOG FEELING ADJUST
+4. Adjust torque (weight) with ADJUST
+5. Set in the range from -5 (light) to +5 (heavy)
+6. Default is 0 (middle)
 ```
 
-Key Syncの活用シーン：
-- ジャンルの異なる楽曲をスムーズにつなぐ場合
-- リクエスト対応で急に別キーの楽曲を再生する必要がある場合
-- 3台以上のCDJでレイヤーミックスする場合
-- マッシュアップやリミックスをライブで行う場合
+**Key Sync function (CDJ-3000 highlight feature):**
 
-Key Syncの注意点：
-- 過度なキー変更（±4半音以上）は音質に影響する
-- ボーカル曲ではキー変更が不自然に聞こえることがある
-- 元のキーを大きく変えると楽曲の雰囲気が変わる
-- あくまでツールであり、基本的なキー判別スキルは身につけておくべき
+Key Sync is a newly added function in the CDJ-3000 that can automatically match the key of two playing tracks. With conventional harmonic mixing, DJs needed to check the key of tracks in advance and select tracks with compatible keys. Key Sync makes it possible to automatically adjust the key even when mixing tracks with different keys.
 
-**Touch Cue機能:**
+How Key Sync works:
+- Adjusts the key by changing the pitch (tone) of the track
+- Uses a different algorithm from Master Tempo, minimizing sound quality degradation
+- Can adjust in a range of ±6 semitones (half an octave)
+- Automatically determines key compatibility based on the Camelot Wheel
 
-Touch Cueは、CDJ-3000の波形表示を直接タッチすることで、その位置の音をヘッドフォンで試聴できる機能です。楽曲の特定のセクション（ブレイクダウン、ドロップ、ボーカルイントロ等）を素早く確認する際に非常に便利です。
-
+How to use Key Sync:
 ```
-使い方:
-1. ヘッドフォンを接続し、CUE/MIXでモニター
-2. 波形表示上の任意の位置をタッチ&ホールド
-3. タッチした位置の音がヘッドフォンから聞こえる
-4. 指をスライドさせると再生位置が追従
-5. 指を離すと元の再生位置に戻る（Slip Mode的な動作）
+1. Play a track on the Master deck
+2. Load the next track on the other CDJ
+3. Press the KEY SYNC button
+4. The key is automatically adjusted
+5. The amount of key change is shown on the waveform display
+6. Press KEY SYNC again to release
 ```
 
-**Performance Pads（パフォーマンスパッド）:**
+Scenarios for using Key Sync:
+- When smoothly connecting tracks of different genres
+- When you need to suddenly play a track in a different key for a request
+- When layer-mixing on 3 or more CDJs
+- When doing live mashups or remixes
 
-CDJ-3000には8つのパフォーマンスパッドが搭載されています。各パッドはRGBバックライト付きで、設定されたHot Cueの色に応じて光ります。
+Notes on Key Sync:
+- Excessive key changes (±4 semitones or more) affect sound quality
+- On vocal tracks, key changes can sound unnatural
+- Changing the original key significantly changes the feel of the track
+- It is ultimately a tool — you should still develop basic key recognition skills
 
-パッドのモード：
-1. **Hot Cue モード**: 8つのキューポイントを設定・呼び出し
-2. **Beat Loop モード**: 拍数指定のオートループ（1/16〜32 Beat）
-3. **Beat Jump モード**: 指定拍数分の前後ジャンプ
-4. **Sampler モード**: Rekordboxで設定したサンプラーバンクの再生
+**Touch Cue function:**
+
+Touch Cue is a function on the CDJ-3000 that lets you audition the audio at a position by directly touching the waveform display with your headphones. It is very convenient for quickly checking specific sections of a track (breakdown, drop, vocal intro, etc.).
+
+```
+How to use:
+1. Connect headphones and monitor via CUE/MIX
+2. Touch and hold any position on the waveform display
+3. The audio at the touched position is heard through the headphones
+4. Sliding your finger causes the playback position to follow
+5. Releasing your finger returns to the original playback position (Slip Mode-like behavior)
+```
+
+**Performance Pads:**
+
+The CDJ-3000 has 8 performance pads. Each pad has an RGB backlight and lights up according to the color set for the Hot Cue.
+
+Pad modes:
+1. **Hot Cue mode**: Set/call up to 8 cue points
+2. **Beat Loop mode**: Auto loop by beat count (1/16 to 32 beats)
+3. **Beat Jump mode**: Jump forward/backward by the specified number of beats
+4. **Sampler mode**: Play sampler banks set in Rekordbox
 
 ---
 
-### CDJ-2000NXS2（現行クラブ標準）
+### CDJ-2000NXS2 (Current Club Standard)
 
-CDJ-2000NXS2は、2016年にリリースされたモデルで、現在も世界中のクラブで最も多く設置されているCDJです。CDJ-3000の登場後もその普及率は非常に高く、プロDJとして活動するなら必ず操作できるようになっておくべき機材です。
+The CDJ-2000NXS2 was released in 2016 and is still the most widely installed CDJ in clubs worldwide. Even after the CDJ-3000's appearance, its penetration rate remains very high — if you are active as a professional DJ, you must be able to operate this equipment.
 
-**基本スペック:**
+**Basic specifications:**
 
-| 項目 | 仕様 |
+| Item | Spec |
 |------|------|
-| ディスプレイ | 7インチ フルカラータッチスクリーン |
-| 対応メディア | USB-A、SD、CD、LAN |
-| 対応ファイル | MP3、AAC、WAV、AIFF、FLAC、ALAC |
-| サンプリングレート | 最大96kHz/24bit |
-| Hot Cue | 8個（A〜H） |
-| ジョグホイール | メカニカル式 206mm |
-| Tempo Fader | ストローク100mm |
-| 接続端子 | USB-A×1、USB-B×1、SD×1、LAN×1、Digital Out×1、Audio Out (RCA)×1 |
-| 寸法 | 320 × 107.4 × 457.2 mm |
-| 重量 | 5.5 kg |
-| 価格 | 約30万円（税込） |
+| Display | 7-inch full-color touchscreen |
+| Supported media | USB-A, SD, CD, LAN |
+| Supported files | MP3, AAC, WAV, AIFF, FLAC, ALAC |
+| Sampling rate | Up to 96kHz/24bit |
+| Hot Cue | 8 (A–H) |
+| Jog wheel | Mechanical type, 206mm |
+| Tempo Fader | 100mm stroke |
+| Connectors | USB-A×1, USB-B×1, SD×1, LAN×1, Digital Out×1, Audio Out (RCA)×1 |
+| Dimensions | 320 × 107.4 × 457.2 mm |
+| Weight | 5.5 kg |
+| Price | approx. 300,000 JPY (including tax) |
 
-**CDJ-2000NXS2が今も現役である理由:**
+**Why the CDJ-2000NXS2 is still in active use:**
 
-1. **圧倒的な普及率**: 世界中のクラブに設置されており、入れ替えコストが膨大
-2. **十分な機能**: プロフェッショナルなDJプレイに必要な機能はすべて搭載
-3. **安定性**: 長年の使用実績による信頼性の高さ
-4. **互換性**: 既存のPro DJ Linkネットワークとの完全互換
-5. **CDドライブ搭載**: CDからの再生が可能（CDJ-3000では廃止）
+1. **Overwhelming penetration**: Installed in clubs worldwide, and replacement costs are enormous
+2. **Sufficient functionality**: All the functions needed for professional DJ play are included
+3. **Stability**: High reliability from years of use
+4. **Compatibility**: Fully compatible with existing Pro DJ Link networks
+5. **CD drive included**: Playback from CD is possible (removed from CDJ-3000)
 
-**CDJ-2000NXS2の独自機能:**
+**Unique features of the CDJ-2000NXS2:**
 
-- **Needle Search**: プレーヤー前面のタッチストリップを指でなぞることで、楽曲の任意の位置にジャンプできる。レコードの溝に針を落とすような直感的操作
-- **Qwerty検索**: タッチスクリーン上のキーボードで楽曲名やアーティスト名を入力して検索
-- **Wave Zoom**: 波形の拡大・縮小が細かく調整可能
-- **Phase Meter**: 2台のCDJの位相（ビートのズレ）を視覚的に表示
-- **On Jog Display**: ジョグホイール中央のディスプレイに楽曲情報を表示
+- **Needle Search**: By tracing the touch strip on the front of the player with your finger, you can jump to any position in the track. An intuitive operation like dropping a needle into the groove of a record
+- **Qwerty search**: Enter track names or artist names using the keyboard on the touchscreen to search
+- **Wave Zoom**: Zoom in/out on the waveform can be finely adjusted
+- **Phase Meter**: Visually displays the phase (beat drift) between two CDJs
+- **On Jog Display**: Displays track information on the display in the center of the jog wheel
 
 ---
 
-### XDJ-1000MK2（コストパフォーマンスモデル）
+### XDJ-1000MK2 (Cost-Performance Model)
 
-XDJ-1000MK2は、CDJ-2000NXS2の機能の多くを継承しつつ、CDドライブを省略することでコストを抑えたモデルです。自宅練習用やサブ会場での使用に適しています。
+The XDJ-1000MK2 inherits many of the CDJ-2000NXS2's functions while reducing cost by omitting the CD drive. It is suitable for home practice or use in secondary venues.
 
-**基本スペック:**
+**Basic specifications:**
 
-| 項目 | 仕様 |
+| Item | Spec |
 |------|------|
-| ディスプレイ | 7インチ フルカラータッチスクリーン |
-| 対応メディア | USB-A、LAN |
-| CD | 非対応 |
-| 対応ファイル | MP3、AAC、WAV、AIFF、FLAC、ALAC |
-| Hot Cue | 8個 |
-| ジョグホイール | 206mm |
-| 価格 | 約20万円（税込） |
+| Display | 7-inch full-color touchscreen |
+| Supported media | USB-A, LAN |
+| CD | Not supported |
+| Supported files | MP3, AAC, WAV, AIFF, FLAC, ALAC |
+| Hot Cue | 8 |
+| Jog wheel | 206mm |
+| Price | approx. 200,000 JPY (including tax) |
 
-**XDJ-1000MK2の特徴:**
-- CDドライブ非搭載のため軽量・コンパクト
-- タッチスクリーンはCDJ-2000NXS2とほぼ同等
-- Pro DJ Link対応
-- Beat Sync対応
-- Rekordbox連携
-- CDJ-2000NXS2の操作体系をほぼ踏襲
+**Features of the XDJ-1000MK2:**
+- Lightweight and compact because there is no CD drive
+- Touchscreen is nearly equivalent to the CDJ-2000NXS2
+- Pro DJ Link support
+- Beat Sync support
+- Rekordbox integration
+- Almost follows the CDJ-2000NXS2's operating system
 
-**XDJ-1000MK2の注意点:**
-- SDカードスロットがない
-- USBポートが1つのみ
-- ジョグホイールの質感がCDJシリーズと若干異なる
-- CDプレイが必要な場合は不可
+**Notes on the XDJ-1000MK2:**
+- No SD card slot
+- Only one USB port
+- The jog wheel texture is slightly different from the CDJ series
+- Not suitable if CD play is required
 
 ---
 
-### XDJ-XZとオールインワンモデル
+### XDJ-XZ and All-in-One Models
 
-近年、Pioneer DJはオールインワン（プレーヤー+ミキサー一体型）モデルも積極的に展開しています。
+In recent years, Pioneer DJ has also been actively developing all-in-one (player + mixer integrated) models.
 
 **XDJ-XZ:**
-- 4チャンネルミキサー + 2デッキプレーヤーの一体型
-- CDJ-2000NXS2に近い操作感
-- Rekordbox / Serato DJ Pro 両対応
-- 自宅練習に最適
-- 価格: 約35万円
+- Integrated 4-channel mixer + 2-deck player
+- Operation feel close to CDJ-2000NXS2
+- Works with both Rekordbox and Serato DJ Pro
+- Ideal for home practice
+- Price: approx. 350,000 JPY
 
 **OPUS-QUAD:**
-- 10.1インチタッチスクリーン
-- 4デッキ対応
-- CDJ-3000の技術を反映
-- Cloud Library対応
-- 価格: 約45万円
+- 10.1-inch touchscreen
+- 4-deck support
+- Reflects CDJ-3000 technology
+- Cloud Library support
+- Price: approx. 450,000 JPY
 
 ---
 
-## 3. USBメモリの準備（Rekordboxエクスポート完全ガイド）
+## 3. Preparing USB Drives (Complete Rekordbox Export Guide)
 
-USBメモリの準備は、CDJでDJプレイを行うための最も重要な事前作業です。ここでは、Rekordboxを使用したUSBメモリへのエクスポート手順を詳細に解説します。
+Preparing USB drives is the most important preparatory work for DJ play on CDJs. Here we explain in detail the export procedure to USB drives using Rekordbox.
 
-### Rekordboxとは
+### What is Rekordbox
 
-Rekordbox は、Pioneer DJ が提供する無料のDJ楽曲管理ソフトウェアです。楽曲の解析（BPM検出、キー検出、波形生成等）、プレイリスト作成、キューポイント設定などを行い、その情報をUSBメモリにエクスポートすることで、CDJでの快適なDJプレイが可能になります。
+Rekordbox is free DJ track management software provided by Pioneer DJ. It analyzes tracks (BPM detection, key detection, waveform generation, etc.), creates playlists, and sets cue points — and by exporting this information to a USB drive, comfortable DJ play on CDJs becomes possible.
 
-**Rekordboxの主要機能:**
-- **楽曲解析**: BPM（テンポ）の自動検出、キー（調）の自動検出、波形の生成
-- **ビートグリッド**: 楽曲のビート（拍）を正確にマッピング
-- **Hot Cue設定**: 最大8つのキューポイントを設定（CDJで呼び出し可能）
-- **Memory Cue**: 楽曲内の特定位置にマーカーを設定（セクション頭など）
-- **プレイリスト管理**: フォルダ、プレイリスト、Smart Playlistで楽曲を整理
-- **タグ管理**: My Tag機能でジャンル、ムード、エナジーなどのタグを設定
-- **コメント**: 各楽曲にメモを記入可能
-- **レーティング**: 星印で楽曲を評価
-- **カラーラベル**: 視覚的なカテゴリ分け
+**Main functions of Rekordbox:**
+- **Track analysis**: Automatic BPM (tempo) detection, automatic key detection, waveform generation
+- **Beat grid**: Accurately maps the beats of a track
+- **Hot Cue settings**: Set up to 8 cue points (can be called up on CDJ)
+- **Memory Cue**: Set markers at specific positions in a track (like section starts)
+- **Playlist management**: Organize tracks with folders, playlists, and Smart Playlists
+- **Tag management**: Set tags for genre, mood, energy, etc. with the My Tag function
+- **Comments**: Write notes for each track
+- **Ratings**: Rate tracks with star ratings
+- **Color labels**: Visual categorization
 
-### Rekordboxでの楽曲解析
+### Track Analysis in Rekordbox
 
-楽曲をRekordboxにインポートしたら、まず解析を行います。解析により、BPM、キー、波形データが生成されます。
+Once you import tracks into Rekordbox, perform analysis first. Analysis generates BPM, key, and waveform data.
 
-**解析手順:**
+**Analysis procedure:**
 ```
-1. Rekordbox を起動
-2. Collection（コレクション）タブを選択
-3. 楽曲ファイルをドラッグ＆ドロップでインポート
-   - 対応形式: MP3, AAC, WAV, AIFF, FLAC, ALAC
-   - 推奨: WAV または FLAC（ロスレス）
-4. インポートした楽曲を選択
-5. 右クリック → 「トラックを解析」
-   - または上部メニュー「コレクション」→「トラックを解析」
-6. 解析が完了するまで待つ（楽曲数により数分〜数時間）
-```
-
-**解析設定の最適化:**
-```
-設定 → 解析
-  - BPM解析範囲: 70-180 BPM（ジャンルに応じて調整）
-    - Techno/House: 120-140 BPM
-    - Drum & Bass: 160-180 BPM
-    - Hip-Hop: 80-110 BPM
-  - Normal/Dynamic: Normal推奨（テンポ一定の楽曲向け）
-  - キー解析: ON
-  - Phrase解析: ON（CDJ-3000で活用可能）
+1. Launch Rekordbox
+2. Select the Collection tab
+3. Import tracks by drag and drop
+   - Supported formats: MP3, AAC, WAV, AIFF, FLAC, ALAC
+   - Recommended: WAV or FLAC (lossless)
+4. Select the imported tracks
+5. Right-click → "Analyze Tracks"
+   - Or from the top menu: "Collection" → "Analyze Tracks"
+6. Wait for analysis to complete (a few minutes to several hours depending on track count)
 ```
 
-**解析結果の確認と修正:**
-
-自動解析は非常に精度が高いですが、以下のケースで手動修正が必要になることがあります。
-
-1. **BPMが倍/半分になっている場合**: テクノの125 BPMが250 BPMと解析される等
-   - 修正方法: 楽曲を右クリック → BPM → 値を手動入力
-2. **ビートグリッドがズレている場合**: 1拍目の位置が正しくない
-   - 修正方法: 波形表示で1拍目をクリックして調整
-3. **キーが正しくない場合**: まれに検出エラーが発生
-   - 修正方法: ピアノやキーボードで確認し手動修正
-
-### ビートグリッドの重要性
-
-ビートグリッドは、楽曲のビート（拍）位置を示すマーカーです。CDJのBeat Sync、Quantize、Beat Jumpなどの機能は、すべてビートグリッドに基づいて動作するため、ビートグリッドが正確でないとこれらの機能が正しく機能しません。
-
-**ビートグリッドの確認方法:**
+**Optimizing analysis settings:**
 ```
-1. Rekordboxで楽曲を選択
-2. 波形表示を拡大
-3. ビートグリッド（縦線）がキック（バスドラム）の位置と一致しているか確認
-4. ズレている場合は手動で調整
-   - グリッドアジャスト: 全体の位置をずらす
-   - グリッドスリップ: 特定位置以降をずらす（テンポ変化のある楽曲向け）
+Settings → Analysis
+  - BPM analysis range: 70–180 BPM (adjust according to genre)
+    - Techno/House: 120–140 BPM
+    - Drum & Bass: 160–180 BPM
+    - Hip-Hop: 80–110 BPM
+  - Normal/Dynamic: Normal recommended (for tracks with constant tempo)
+  - Key analysis: ON
+  - Phrase analysis: ON (can be used on CDJ-3000)
 ```
 
-**ビートグリッドがズレていると起こる問題:**
-- Beat Syncが正しく動作しない
-- Quantizeを使ったHot Cueがビートからズレる
-- Beat Jumpが意図しない位置にジャンプする
-- CDJ上のPhase Meterが正しく表示されない
+**Checking and correcting analysis results:**
 
-### Hot Cue と Memory Cue の設定
+Automatic analysis is very accurate, but manual correction may be necessary in the following cases:
 
-CDJで効率的にDJプレイを行うためには、事前にRekordboxでHot CueとMemory Cueを設定しておくことが重要です。
+1. **BPM is double or half**: e.g., techno at 125 BPM analyzed as 250 BPM
+   - Correction: Right-click on the track → BPM → Enter value manually
+2. **Beat grid is off**: The first beat position is incorrect
+   - Correction: Click to adjust the first beat position in the waveform display
+3. **Key is incorrect**: Detection errors occur occasionally
+   - Correction: Confirm with piano or keyboard and correct manually
 
-**Hot Cueの設定戦略:**
+### The Importance of Beat Grids
 
-Hot Cueは最大8つ（A〜H）設定できます。以下は一般的な設定例です。
+Beat grids are markers that indicate the beat positions of a track. CDJ functions like Beat Sync, Quantize, and Beat Jump all operate based on beat grids, so if the beat grid is inaccurate, these functions will not work correctly.
 
+**How to check beat grids:**
 ```
-Hot Cue A（赤）: イントロ開始位置
-Hot Cue B（橙）: ブレイクダウン開始位置
-Hot Cue C（黄）: ドロップ（メインセクション）開始位置
-Hot Cue D（緑）: セカンドドロップ開始位置
-Hot Cue E（水色）: アウトロ開始位置
-Hot Cue F（青）: ボーカルセクション開始位置
-Hot Cue G（紫）: 特徴的なフレーズ（FX向け等）
-Hot Cue H（桃）: ミックスポイント（理想的なつなぎ位置）
-```
-
-色分けのルールは自分で決めて統一しておくことが重要です。クラブの暗い環境でも色を見ればセクションがわかるようにしておきましょう。
-
-**Memory Cueの設定:**
-
-Memory Cueは、楽曲の構造を把握するためのマーカーです。Hot Cueとは異なり、ボタン一つでジャンプすることはできませんが、波形表示上にマーカーとして表示され、楽曲のセクション区切りを視覚的に確認できます。
-
-```
-Memory Cue設定例:
-- イントロ開始 (0:00)
-- イントロ終了 / Verse開始
-- コーラス（サビ）開始
-- ブレイクダウン開始
-- ドロップ開始
-- 2nd Verse開始
-- 2nd ドロップ開始
-- アウトロ開始
-- 楽曲終了直前
+1. Select the track in Rekordbox
+2. Zoom in on the waveform display
+3. Check whether the beat grid (vertical lines) align with the kick (bass drum) positions
+4. If they are off, adjust manually:
+   - Grid Adjust: Shift the entire position
+   - Grid Slip: Shift from a specific position onward (for tracks with tempo changes)
 ```
 
-### プレイリストの作成と管理
+**Problems caused by inaccurate beat grids:**
+- Beat Sync does not work correctly
+- Hot Cues with Quantize are off from the beat
+- Beat Jump jumps to unintended positions
+- Phase Meter on CDJ does not display correctly
 
-CDJで効率的に楽曲を選択するためには、Rekordboxでのプレイリスト管理が不可欠です。
+### Setting Hot Cues and Memory Cues
 
-**推奨プレイリスト構成:**
+To perform DJ play efficiently on a CDJ, it is important to set Hot Cues and Memory Cues in Rekordbox in advance.
+
+**Hot Cue setting strategy:**
+
+You can set up to 8 Hot Cues (A–H). The following is a common example:
+
+```
+Hot Cue A (red): Intro start position
+Hot Cue B (orange): Breakdown start position
+Hot Cue C (yellow): Drop (main section) start position
+Hot Cue D (green): Second drop start position
+Hot Cue E (light blue): Outro start position
+Hot Cue F (blue): Vocal section start position
+Hot Cue G (purple): Characteristic phrase (for FX use, etc.)
+Hot Cue H (pink): Mix point (ideal transition position)
+```
+
+It is important to decide your own color-coding rules and keep them consistent. Make sure you can recognize a section just by looking at the color even in the dark environment of a club.
+
+**Setting Memory Cues:**
+
+Memory Cues are markers for understanding track structure. Unlike Hot Cues, you cannot jump to them with a single button press, but they appear as markers on the waveform display, allowing you to visually confirm section boundaries.
+
+```
+Memory Cue setting example:
+- Intro start (0:00)
+- Intro end / Verse start
+- Chorus start
+- Breakdown start
+- Drop start
+- 2nd Verse start
+- 2nd Drop start
+- Outro start
+- Just before track end
+```
+
+### Creating and Managing Playlists
+
+For efficiently selecting tracks on CDJs, playlist management in Rekordbox is indispensable.
+
+**Recommended playlist structure:**
 
 ```
 USB_Root/
-├── _★TONIGHT（今夜のセット用）
-│   ├── 01_オープニング
-│   ├── 02_ウォームアップ
-│   ├── 03_ピークタイム
-│   ├── 04_クロージング
-│   └── 05_アンコール/緊急用
-├── ジャンル別/
+├── _★TONIGHT (for tonight's set)
+│   ├── 01_Opening
+│   ├── 02_Warmup
+│   ├── 03_Peak Time
+│   ├── 04_Closing
+│   └── 05_Encore/Emergency
+├── By Genre/
 │   ├── Techno
 │   ├── House
 │   ├── Tech House
 │   ├── Progressive
 │   ├── Melodic Techno
 │   └── Minimal
-├── BPM帯別/
-│   ├── 120-125 BPM
-│   ├── 125-130 BPM
-│   ├── 130-135 BPM
-│   └── 135-140 BPM
-├── エナジー別/
+├── By BPM/
+│   ├── 120–125 BPM
+│   ├── 125–130 BPM
+│   ├── 130–135 BPM
+│   └── 135–140 BPM
+├── By Energy/
 │   ├── Low Energy
 │   ├── Mid Energy
 │   └── High Energy
-├── キー別/
-│   ├── 1A-3A
-│   ├── 4A-6A
-│   ├── 7A-9A
-│   ├── 10A-12A
+├── By Key/
+│   ├── 1A–3A
+│   ├── 4A–6A
+│   ├── 7A–9A
+│   ├── 10A–12A
 │   └── Minor Keys
-└── 新曲/
-    ├── 今月の新曲
-    └── チェック用
+└── New Tracks/
+    ├── This Month's New Tracks
+    └── For Review
 ```
 
-**プレイリスト作成のコツ:**
+**Tips for creating playlists:**
 
-1. **冗長性を持たせる**: 予定セット時間の2-3倍の楽曲を用意
-2. **アンカートラック**: 確実に盛り上がる「切り札」を複数準備
-3. **つなぎやすい楽曲**: 各プレイリスト内でBPM・キーの流れを考慮
-4. **Smart Playlist活用**: 条件（BPM範囲、キー、レーティング等）で自動分類
-5. **コメント活用**: 楽曲のメモ（「ドロップが強い」「ボーカル注意」等）を記入
+1. **Build in redundancy**: Prepare 2–3 times the number of tracks as your planned set time
+2. **Anchor tracks**: Prepare multiple "trump card" tracks that are sure crowd-pleasers
+3. **Easily mixable tracks**: Consider the BPM and key flow within each playlist
+4. **Use Smart Playlists**: Auto-categorize by conditions (BPM range, key, rating, etc.)
+5. **Use comments**: Write notes about tracks ("strong drop," "watch vocal," etc.)
 
-### USBメモリへのエクスポート
+### Exporting to USB Drive
 
-**エクスポート手順（詳細版）:**
+**Export procedure (detailed version):**
 
 ```
-1. USBメモリをPCに接続
-2. Rekordbox 左下の「デバイス」欄にUSBが表示されることを確認
-3. エクスポートしたいプレイリスト/フォルダを選択
-4. 右クリック → 「デバイスにエクスポート」を選択
-   - または、プレイリストをデバイスにドラッグ&ドロップ
-5. エクスポート設定の確認
-   - 「Rekordbox (Device Library Plus)」形式を選択
-   - Hot Cue、Memory Cue、ビートグリッド等のデータが含まれる
-6. エクスポート完了まで待つ
-   - 楽曲数にもよるが、数百曲で10-30分程度
-7. エクスポート完了後、USBメモリを安全に取り外す
-   - Windows: 「安全な取り外し」
-   - Mac: デバイスをイジェクト
+1. Connect USB drive to PC
+2. Confirm USB appears in "Device" section at bottom left of Rekordbox
+3. Select the playlist/folder to export
+4. Right-click → Select "Export to Device"
+   - Or drag and drop playlist to device
+5. Confirm export settings
+   - Select "Rekordbox (Device Library Plus)" format
+   - Hot Cue, Memory Cue, beat grid, etc. data will be included
+6. Wait for export to complete
+   - Depending on number of tracks, allow 10–30 minutes for several hundred tracks
+7. After export is complete, safely remove USB drive
+   - Windows: "Safely Remove Hardware"
+   - Mac: Eject the device
 ```
 
-**エクスポート時の注意点:**
-- エクスポート中にUSBメモリを抜かない（データ破損の原因）
-- 大量の楽曲を一度にエクスポートする場合は時間に余裕を持つ
-- エクスポート後、CDJに挿して正常に読み込まれるか必ず確認
-- ファイル名に特殊文字（日本語以外の特殊記号等）を使わない
+**Notes on exporting:**
+- Do not remove the USB drive during export (causes data corruption)
+- Allow enough time when exporting a large number of tracks at once
+- After exporting, always confirm that it loads correctly when inserted in a CDJ
+- Do not use special characters in filenames (special symbols other than Japanese, etc.)
 
-### 推奨USBメモリ
+### Recommended USB Drives
 
-CDJで使用するUSBメモリは、信頼性と速度が最も重要です。安価なUSBメモリは読み込み速度が遅く、楽曲のロードに時間がかかったり、最悪の場合認識されないことがあります。
+Reliability and speed are the most important factors for USB drives used with CDJs. Inexpensive USB drives have slow read speeds, causing delays in loading tracks or in the worst case not being recognized at all.
 
-**推奨スペック:**
+**Recommended specs:**
 ```
-容量:       64GB 以上（128GB推奨）
-規格:       USB 3.0 以上（USB 3.1/3.2推奨）
-読み込み速度: 150MB/s 以上
-書き込み速度: 70MB/s 以上
-フォーマット: FAT32 または exFAT
-              ※ FAT32は1ファイル4GB制限あり
-              ※ exFATは制限なし（CDJ-2000NXS2以降対応）
+Capacity:      64GB or more (128GB recommended)
+Standard:      USB 3.0 or higher (USB 3.1/3.2 recommended)
+Read speed:    150MB/s or higher
+Write speed:   70MB/s or higher
+Format:        FAT32 or exFAT
+               * FAT32 has a 4GB per-file limit
+               * exFAT has no limit (supported on CDJ-2000NXS2 and later)
 ```
 
-**推奨モデル（2024-2025年版）:**
+**Recommended models (2024–2025 edition):**
 
-| モデル | 容量 | 読み込み速度 | 特徴 |
+| Model | Capacity | Read speed | Features |
 |--------|------|------------|------|
-| SanDisk Extreme Pro | 128GB | 420MB/s | 最高速度、耐久性高い |
-| Samsung BAR Plus | 128GB | 400MB/s | 防水・耐衝撃、コンパクト |
-| Kingston DataTraveler Max | 256GB | 1,000MB/s | USB 3.2、超高速 |
-| SanDisk Ultra Fit | 64GB | 130MB/s | 超小型、紛失注意 |
-| Samsung FIT Plus | 128GB | 400MB/s | 超小型、高速 |
+| SanDisk Extreme Pro | 128GB | 420MB/s | Fastest speed, high durability |
+| Samsung BAR Plus | 128GB | 400MB/s | Waterproof, shock-resistant, compact |
+| Kingston DataTraveler Max | 256GB | 1,000MB/s | USB 3.2, ultra-fast |
+| SanDisk Ultra Fit | 64GB | 130MB/s | Ultra-compact, be careful not to lose it |
+| Samsung FIT Plus | 128GB | 400MB/s | Ultra-compact, fast |
 
-**USBメモリのフォーマット方法:**
+**How to format USB drive:**
 
 ```
-【Windows】
-1. エクスプローラーでUSBメモリを右クリック
-2. 「フォーマット」を選択
-3. ファイルシステム: exFAT（推奨）または FAT32
-4. アロケーションユニットサイズ: デフォルト
-5. クイックフォーマットにチェック
-6. 「開始」をクリック
+[Windows]
+1. Right-click the USB drive in Explorer
+2. Select "Format"
+3. File system: exFAT (recommended) or FAT32
+4. Allocation unit size: Default
+5. Check Quick Format
+6. Click "Start"
 
-【Mac】
-1. ディスクユーティリティを起動
-2. USBメモリを選択
-3. 「消去」をクリック
-4. フォーマット: ExFAT（推奨）または MS-DOS (FAT)
-5. 方式: マスター・ブート・レコード
-6. 「消去」をクリック
+[Mac]
+1. Open Disk Utility
+2. Select the USB drive
+3. Click "Erase"
+4. Format: ExFAT (recommended) or MS-DOS (FAT)
+5. Scheme: Master Boot Record
+6. Click "Erase"
 ```
 
-### バックアップ戦略
+### Backup Strategy
 
-CDJでのDJプレイにおいて、USBメモリのトラブルは最も恐れるべきリスクのひとつです。USBメモリは物理的に小さく紛失しやすい上、電子部品であるため突然故障することもあります。
+In CDJ DJ play, USB drive problems are one of the most feared risks. USB drives are physically small and easy to lose, and as electronic components, they can also fail suddenly.
 
-**USBメモリ3本体制（必須）:**
+**Three-USB system (essential):**
 ```
-USB 1（メイン）: 当日のセットに使用するメインUSB
-USB 2（バックアップ1）: メインと完全に同一内容のコピー
-USB 3（バックアップ2）: 別メーカーのUSBに同一内容のコピー
+USB 1 (Main): Main USB used for the day's set
+USB 2 (Backup 1): An exact copy of the main
+USB 3 (Backup 2): An exact copy on a different brand's USB
 
-追加推奨:
-USB 4（緊急用）: 厳選した100曲程度の「セーフリスト」
+Additional recommendation:
+USB 4 (Emergency): A curated "safe list" of about 100 tracks
 ```
 
-**バックアップのタイミング:**
-- 新しい楽曲を追加するたびにバックアップも更新
-- ギグの前日には必ず全USBの動作確認を行う
-- 少なくとも月1回はUSBメモリの健全性チェック（読み込みテスト）
+**Backup timing:**
+- Update backup every time new tracks are added
+- Always do a full USB operation check the day before a gig
+- USB drive health check (read test) at least once a month
 
-**よくあるUSBトラブルと対策:**
+**Common USB problems and countermeasures:**
 
-1. **USBが認識されない**
-   - 原因: フォーマット不正、端子の汚れ、USBの故障
-   - 対策: 別のポートを試す、端子をクリーニング、バックアップUSBを使用
+1. **USB not recognized**
+   - Cause: Incorrect format, dirty connector, USB failure
+   - Solution: Try a different port, clean connector, use backup USB
 
-2. **楽曲の読み込みが遅い**
-   - 原因: USB 2.0使用、低品質なUSBメモリ、大量の楽曲
-   - 対策: USB 3.0以上を使用、高品質なUSBメモリに変更
+2. **Slow track loading**
+   - Cause: Using USB 2.0, low-quality USB drive, large number of tracks
+   - Solution: Use USB 3.0 or higher, switch to high-quality USB drive
 
-3. **データが破損している**
-   - 原因: 安全な取り外しをせずに抜いた、USBの経年劣化
-   - 対策: Rekordboxで再エクスポート、USBメモリを新品に交換
+3. **Data corruption**
+   - Cause: Removed without safe ejection, USB age degradation
+   - Solution: Re-export in Rekordbox, replace with new USB drive
 
-4. **USBメモリを紛失した**
-   - 原因: クラブに置き忘れ、移動中の紛失
-   - 対策: バックアップUSBを常時携帯、USBに名前・連絡先を記載
+4. **Lost USB drive**
+   - Cause: Left at club, lost during transport
+   - Solution: Always carry backup USB, write your name and contact on USB
 
 ---
 
-## 4. CDJ-3000の詳細操作
+## 4. Detailed Operation of the CDJ-3000
 
-### 基本レイアウト
+### Basic Layout
 
-CDJ-3000の天面レイアウトを詳細に解説します。
+A detailed explanation of the CDJ-3000's top panel layout.
 
 ```
 ┌──────────────────────────────────────┐
-│         9インチ タッチスクリーン        │
+│         9-inch Touchscreen           │
 │    ┌──────────────────────────┐       │
-│    │   波形/ブラウザ/情報表示   │       │
+│    │  Waveform/Browser/Info   │       │
 │    └──────────────────────────┘       │
 ├──────────────────────────────────────┤
 │  [BROWSE] [TAG TRACK] [MENU/UTILITY]  │
 │                                        │
-│  Performance Pads (8個)                │
+│  Performance Pads (8)                  │
 │  [A][B][C][D][E][F][G][H]             │
 │  [HOT CUE][BEAT LOOP][BEAT JUMP]      │
 ├──────────────────────────────────────┤
 │  [SLIP]  [SHIFT]  [QUANTIZE]          │
 │         ┌──────────┐                  │
 │        ╱            ╲                 │
-│       │  ジョグホイール  │   Tempo     │
-│       │   (206mm)     │   Fader     │
+│       │  Jog Wheel   │   Tempo        │
+│       │   (206mm)    │   Fader        │
 │        ╲            ╱    [||||||||]  │
 │         └──────────┘     [||||||||]  │
 │                          [||||||||]  │
@@ -701,9 +701,9 @@ CDJ-3000の天面レイアウトを詳細に解説します。
 └──────────────────────────────────────┘
 ```
 
-### タッチスクリーン操作（詳細）
+### Touchscreen Operation (Detailed)
 
-**波形表示画面の構成:**
+**Composition of the waveform display screen:**
 
 ```
 ┌────────────────────────────────────────┐
@@ -711,12 +711,12 @@ CDJ-3000の天面レイアウトを詳細に解説します。
 │  BPM: 128.00    Key: 2A    Time: 6:32  │
 ├────────────────────────────────────────┤
 │  ▒▒▒▓▓▓▓▓▓▓▓▓████████▓▓▓▒▒▒░░░░░░░   │
-│  ←── 全体波形（Overview Waveform）──→   │
-│        ↑ 現在位置                       │
+│  ←── Overview Waveform ──→             │
+│        ↑ Current position               │
 ├────────────────────────────────────────┤
 │                                          │
 │  ▒▒▒▒▓▓▓▓████████▓▓▓▓▒▒▒▒              │
-│  ←── 拡大波形（Detail Waveform）──→     │
+│  ←── Detail Waveform ──→               │
 │                                          │
 │  |    |    |    |    |    |    |    |    │
 │  1    2    3    4    1    2    3    4    │
@@ -727,25 +727,25 @@ CDJ-3000の天面レイアウトを詳細に解説します。
 └────────────────────────────────────────┘
 ```
 
-**波形の色の意味:**
-- **赤系**: 低音域（キック、ベース）が強い部分
-- **緑系**: 中音域（ボーカル、シンセ、クラップ）が強い部分
-- **青系**: 高音域（ハイハット、シンバル、エフェクト）が強い部分
-- **白/明るい**: 全帯域で音量が大きい部分
-- **暗い/薄い**: 音量が小さい、または無音に近い部分
+**Meaning of waveform colors:**
+- **Red tones**: Parts where low frequencies (kick, bass) are strong
+- **Green tones**: Parts where mid frequencies (vocals, synths, claps) are strong
+- **Blue tones**: Parts where high frequencies (hi-hats, cymbals, effects) are strong
+- **White/bright**: Parts where volume is loud across all frequency bands
+- **Dark/faint**: Parts where volume is low, or close to silence
 
-波形の色を読めるようになると、楽曲の構造を視覚的に把握できます。例えば：
-- イントロ部分は青系が多い（ハイハット主体）
-- ドロップ部分は赤系が強い（キック+ベースが入る）
-- ブレイクダウン部分は緑系が中心（メロディ主体）
-- ビルドアップ部分は徐々に全体が明るくなる
+Being able to read the waveform colors lets you visually understand track structure. For example:
+- Intro sections have many blue tones (hi-hat focused)
+- Drop sections have strong red tones (kick + bass come in)
+- Breakdown sections are centered on green tones (melody focused)
+- Build-up sections gradually become brighter overall
 
-**ブラウザ画面の操作:**
+**Browser screen operation:**
 
-CDJ-3000のブラウザは、タッチスクリーンとロータリーセレクターの両方で操作できます。
+The CDJ-3000 browser can be operated with both the touchscreen and the rotary selector.
 
 ```
-ブラウザ画面構成:
+Browser screen layout:
 ┌──────────────────────────────────┐
 │  USB1 > Playlists > Tonight     │
 ├──────────────────────────────────┤
@@ -759,593 +759,593 @@ CDJ-3000のブラウザは、タッチスクリーンとロータリーセレク
 └──────────────────────────────────┘
 ```
 
-ブラウザでの操作：
-- **ロータリーセレクター回転**: リスト内の楽曲を上下にスクロール
-- **ロータリーセレクター押込み**: 選択した楽曲をデッキにロード
-- **BACKボタン**: 1つ上の階層に戻る
-- **TAGボタン**: 選択楽曲をTag Listに追加（次に再生する候補リスト）
-- **ソート**: BPM、キー、アーティスト名、楽曲名、レーティング等でソート可能
-- **フィルター**: キーやBPM範囲でリストを絞り込み
+Browser operations:
+- **Rotate rotary selector**: Scroll up/down through tracks in list
+- **Push rotary selector**: Load selected track to deck
+- **BACK button**: Go up one level in hierarchy
+- **TAG button**: Add selected track to Tag List (candidate list for next play)
+- **Sort**: Can sort by BPM, key, artist name, track name, rating, etc.
+- **Filter**: Narrow the list by key or BPM range
 
-**Related Tracks機能（CDJ-3000）:**
+**Related Tracks function (CDJ-3000):**
 
-CDJ-3000では、現在再生中の楽曲と相性の良い楽曲を自動的に提案する「Related Tracks」機能が搭載されています。
+The CDJ-3000 has a "Related Tracks" function that automatically suggests tracks that are compatible with the currently playing track.
 
 ```
-Related Tracksの表示基準:
-1. 同じキーまたは互換キーの楽曲
-2. 近いBPMの楽曲（±5 BPM程度）
-3. Rekordboxでの再生履歴に基づくレコメンド
-4. 同じプレイリスト内の楽曲
+Related Tracks display criteria:
+1. Tracks with the same key or compatible keys
+2. Tracks with similar BPM (approx. ±5 BPM)
+3. Recommendations based on playback history in Rekordbox
+4. Tracks within the same playlist
 ```
 
-この機能により、次にかける楽曲の選択が格段に楽になります。特にハーモニックミキシング（キーを考慮した選曲）を実践する際に非常に有効です。
+This function makes the selection of the next track to play much easier. It is particularly effective when practicing harmonic mixing (track selection with key in mind).
 
 ---
 
-## 5. CDJ-2000NXS2の詳細操作
+## 5. Detailed Operation of the CDJ-2000NXS2
 
-### 基本操作フロー
+### Basic Operation Flow
 
-CDJ-2000NXS2でDJプレイを行うための基本的な操作フローを、ステップバイステップで解説します。
+A step-by-step explanation of the basic operation flow for DJ play on the CDJ-2000NXS2.
 
-**曲のロード:**
+**Loading a track:**
 ```
-1. USBメモリをCDJ上部のUSBスロットに挿入
-   - 挿入方向に注意（力を入れすぎない）
-   - 認識完了まで数秒待つ（画面にUSBアイコンが表示される）
-2. BROWSE ボタンを押してブラウザ画面を開く
-3. ロータリーセレクターを回してプレイリスト/フォルダを選択
-4. ロータリーセレクターを押し込んでフォルダに入る
-5. 楽曲を選択してロータリーセレクターを押し込み
-6. 楽曲がデッキにロードされる
-   - 波形が表示される
-   - BPM、キー情報が表示される
-   - Hot Cueが設定済みの場合、パッドが光る
-```
-
-**再生と基本コントロール:**
-```
-1. PLAY/PAUSE ボタンで再生開始
-2. CUE ボタンの動作：
-   - 停止中にCUEを押す: 現在位置にキューポイントを設定
-   - 再生中にCUEを押す: キューポイントに戻って一時停止
-   - CUEを押し続ける: キューポイントから再生（離すと停止）
-   - CUEを押してからPLAYを押す: キューポイントからの連続再生
-3. ジョグホイール操作：
-   - VINYL MODE ON: 上面タッチでスクラッチ、外周でピッチベンド
-   - VINYL MODE OFF: 全面でピッチベンド
-4. Tempo Fader: BPM（再生速度）の調整
-   - 上: 速くなる
-   - 下: 遅くなる
-   - 中央: 原曲のBPM
-   - TEMPO RANGE: ±6% / ±10% / ±16% / WIDE（±100%）
+1. Insert USB drive into USB slot on top of CDJ
+   - Note insertion direction (do not force)
+   - Wait a few seconds for recognition (USB icon appears on screen)
+2. Press the BROWSE button to open the browser screen
+3. Rotate rotary selector to select playlist/folder
+4. Push rotary selector to enter folder
+5. Select track and push rotary selector
+6. Track loads to deck
+   - Waveform is displayed
+   - BPM and key information are displayed
+   - If Hot Cues are set, pads light up
 ```
 
-### Hot Cue操作（詳細）
-
-CDJ-2000NXS2のHot Cue操作を詳しく解説します。
-
-**Hot Cueの設定方法:**
+**Playback and basic controls:**
 ```
-1. 曲を再生中または停止中に、任意の位置で HOT CUE / CALL ボタンを押す
-2. パッド A〜H のいずれかを押す
-3. その位置にHot Cueが設定される
-4. パッドがRekordboxで設定した色（またはデフォルト色）に光る
-
-注意点:
-- すでにHot Cueが設定されているパッドを押すと、その位置にジャンプする
-- Hot Cueを上書きしたい場合は、まず削除してから再設定
-```
-
-**Hot Cueの削除方法:**
-```
-1. HOT CUE / CALL ボタンがONの状態で
-2. SHIFT + 削除したいパッド を押す
-3. そのパッドのHot Cueが削除される
-
-注意: CDJ上で削除したHot CueはUSBメモリ上のデータにも反映される
-      Rekordboxで再エクスポートすると復元可能
+1. Press PLAY/PAUSE to start playback
+2. CUE button behavior:
+   - Press CUE while stopped: Sets cue point at current position
+   - Press CUE while playing: Returns to cue point and pauses
+   - Hold CUE: Plays from cue point (stops when released)
+   - Press CUE then PLAY: Continuous playback from cue point
+3. Jog wheel operation:
+   - VINYL MODE ON: Touch top surface to scratch, outer rim for pitch bend
+   - VINYL MODE OFF: Entire surface for pitch bend
+4. Tempo Fader: Adjust BPM (playback speed)
+   - Up: Faster
+   - Down: Slower
+   - Center: Original BPM
+   - TEMPO RANGE: ±6% / ±10% / ±16% / WIDE (±100%)
 ```
 
-**Hot Cue活用のプロテクニック:**
+### Hot Cue Operation (Detailed)
 
-1. **ダブルドロップ**: 2つの楽曲のドロップにそれぞれHot Cueを設定し、同時にドロップを鳴らす
-2. **インスタントリスタート**: 曲の頭にHot Cue Aを設定し、ミスした場合に即座にリスタート
-3. **フレーズスキップ**: 各セクションの頭にHot Cueを設定し、不要なセクションをスキップ
-4. **ループ入口マーク**: ループに入りたい位置にHot Cueを設定し、正確なタイミングでループを開始
+A detailed explanation of Hot Cue operation on the CDJ-2000NXS2.
 
-### Loop操作（詳細）
-
-CDJ-2000NXS2のLoop機能は、楽曲の特定セクションを繰り返し再生するための機能です。
-
-**オートループ:**
+**How to set Hot Cues:**
 ```
-操作手順:
-1. 再生中に LOOP ボタン（数字付き）を押す
-2. 選択した拍数でループが開始される
-3. 利用可能なループ長:
-   - 1/32 Beat（超短ループ、マシンガン効果）
+1. During playback or while stopped, press HOT CUE / CALL button at any position
+2. Press any of pads A–H
+3. A Hot Cue is set at that position
+4. The pad lights up in the color set in Rekordbox (or default color)
+
+Notes:
+- Pressing a pad that already has a Hot Cue set will jump to that position
+- To overwrite a Hot Cue, delete first and then reset
+```
+
+**How to delete Hot Cues:**
+```
+1. With HOT CUE / CALL button in the ON state
+2. Press SHIFT + the pad you want to delete
+3. The Hot Cue for that pad is deleted
+
+Note: Hot Cues deleted on the CDJ are also reflected in the data on the USB drive
+      Can be restored by re-exporting from Rekordbox
+```
+
+**Pro techniques for using Hot Cues:**
+
+1. **Double drop**: Set Hot Cues at the drop of two tracks and trigger both drops simultaneously
+2. **Instant restart**: Set Hot Cue A at the start of the track for an immediate restart if you make a mistake
+3. **Phrase skip**: Set Hot Cues at the start of each section to skip unnecessary sections
+4. **Loop entry marker**: Set a Hot Cue at the position to enter the loop for precise loop start timing
+
+### Loop Operation (Detailed)
+
+The Loop function on the CDJ-2000NXS2 is for repeating a specific section of a track.
+
+**Auto loop:**
+```
+Operating steps:
+1. Press a LOOP button (with number) during playback
+2. Loop starts at the selected number of beats
+3. Available loop lengths:
+   - 1/32 Beat (ultra-short loop, machine gun effect)
    - 1/16 Beat
-   - 1/8 Beat（スタッター効果）
+   - 1/8 Beat (stutter effect)
    - 1/4 Beat
    - 1/2 Beat
-   - 1 Beat（1拍ループ）
-   - 2 Beat（半小節ループ）
-   - 4 Beat（1小節ループ）= 最もよく使う
-   - 8 Beat（2小節ループ）
-   - 16 Beat（4小節ループ）
-   - 32 Beat（8小節ループ）
+   - 1 Beat (1-bar loop)
+   - 2 Beat (half-bar loop)
+   - 4 Beat (1-bar loop) = most commonly used
+   - 8 Beat (2-bar loop)
+   - 16 Beat (4-bar loop)
+   - 32 Beat (8-bar loop)
 
-ループ長の変更:
-- LOOP 1/2X: ループ長を半分に（4 Beat → 2 Beat）
-- LOOP 2X: ループ長を倍に（4 Beat → 8 Beat）
+Changing loop length:
+- LOOP 1/2X: Halve the loop length (4 Beat → 2 Beat)
+- LOOP 2X: Double the loop length (4 Beat → 8 Beat)
 ```
 
-**マニュアルループ:**
+**Manual loop:**
 ```
-操作手順:
-1. LOOP IN ボタンを押す（ループ開始位置を設定）
-2. LOOP OUT ボタンを押す（ループ終了位置を設定）
-3. ループ再生が開始される
-4. RELOOP/EXIT ボタンでループON/OFF切り替え
+Operating steps:
+1. Press LOOP IN button (sets loop start position)
+2. Press LOOP OUT button (sets loop end position)
+3. Loop playback starts
+4. Press RELOOP/EXIT to toggle loop ON/OFF
 
-活用シーン:
-- 楽曲の特定フレーズだけを繰り返したい場合
-- 4小節や8小節の区切りでない位置でループしたい場合
-- ブレイクダウン部分を延長したい場合
-```
-
-**Active Loop（アクティブループ）:**
-```
-Rekordboxで事前にループを設定し、再生時に自動的にループが有効になる機能
-
-設定方法（Rekordbox側）:
-1. 楽曲の任意の位置でLoop In/Outを設定
-2. ループマーカーを右クリック
-3. 「Active Loop」にチェック
-4. USBにエクスポート
-
-CDJでの動作:
-- 再生がActive Loopの位置に到達すると自動的にループ開始
-- ミックスのタイミング調整に非常に便利
-- アウトロ部分に設定しておくと、次の曲の準備時間を確保できる
+Use cases:
+- When you want to repeat only a specific phrase of a track
+- When you want to loop at a position not on a 4-bar or 8-bar boundary
+- When you want to extend the breakdown section
 ```
 
-### Beat Jump操作
-
-Beat Jumpは、指定した拍数分だけ再生位置を前後にジャンプさせる機能です。楽曲のセクション移動やフレーズの頭出しに活用します。
-
-**操作方法:**
+**Active Loop:**
 ```
-1. BEAT JUMP パッド切り替えボタンを押す
-2. パッドにBeat Jump値が割り当てられる
-3. 前方ジャンプ: 右側のパッドを押す
-4. 後方ジャンプ: 左側のパッドを押す
+A function that pre-sets a loop in Rekordbox so it automatically activates during playback
 
-利用可能なジャンプ値:
-- 1 Beat: 微調整用
-- 2 Beat: 微調整用
-- 4 Beat: 1小節ジャンプ
-- 8 Beat: 2小節ジャンプ
-- 16 Beat: 4小節ジャンプ（フレーズ単位）
-- 32 Beat: 8小節ジャンプ（セクション単位）
+Setting method (in Rekordbox):
+1. Set Loop In/Out at any position in the track
+2. Right-click the loop marker
+3. Check "Active Loop"
+4. Export to USB
+
+Behavior on CDJ:
+- Loop automatically starts when playback reaches the Active Loop position
+- Very convenient for timing mix adjustments
+- Setting it in the outro gives you time to prepare for the next track
 ```
 
-**Beat Jump活用のプロテクニック:**
+### Beat Jump Operation
 
-1. **フレーズ頭出し**: 32 Beatジャンプでセクションの頭にすばやく移動
-2. **ミックスポイント調整**: 4 Beatジャンプで小節単位のタイミング調整
-3. **ビルドアップスキップ**: 不要なビルドアップセクションを飛ばしてドロップへ直行
-4. **アウトロ延長**: 後方ジャンプでアウトロ部分を戻り、ミックス時間を確保
+Beat Jump is a function that jumps the playback position forward or backward by a specified number of beats. Used for moving between track sections and finding the head of phrases.
+
+**How to operate:**
+```
+1. Press Beat Jump pad switch button
+2. Beat Jump values are assigned to pads
+3. Forward jump: Press right-side pad
+4. Backward jump: Press left-side pad
+
+Available jump values:
+- 1 Beat: For fine adjustment
+- 2 Beat: For fine adjustment
+- 4 Beat: 1-bar jump
+- 8 Beat: 2-bar jump
+- 16 Beat: 4-bar jump (by phrase)
+- 32 Beat: 8-bar jump (by section)
+```
+
+**Pro techniques for using Beat Jump:**
+
+1. **Phrase head-finding**: Use 32-Beat jump to quickly move to the start of a section
+2. **Mix point adjustment**: Use 4-Beat jump to adjust timing in bar units
+3. **Build-up skip**: Skip unnecessary build-up sections and go directly to the drop
+4. **Outro extension**: Jump backward in the outro to secure more mixing time
 
 ### Needle Search
 
-CDJ-2000NXS2のNeedle Searchは、プレーヤー前面にある細長いタッチストリップです。指で触れた位置に楽曲の再生位置がジャンプします。
+The Needle Search on the CDJ-2000NXS2 is a long, narrow touch strip on the front of the player. Touching it with your finger jumps the playback position to that position.
 
 ```
-操作方法:
-1. タッチストリップの左端 = 楽曲の先頭
-2. タッチストリップの右端 = 楽曲の末尾
-3. 指で触れた位置に即座にジャンプ
-4. 指をスライドさせると再生位置が追従
+How to operate:
+1. Left end of touch strip = start of track
+2. Right end of touch strip = end of track
+3. Immediately jumps to the position touched
+4. Sliding your finger causes the playback position to follow
 
-活用シーン:
-- 楽曲のおおまかなセクションに素早くジャンプ
-- Hot Cueを設定していない楽曲でのセクション移動
-- 楽曲の後半部分を素早くチェック
+Use cases:
+- Quickly jump to a rough section of a track
+- Moving between sections of a track without Hot Cues set
+- Quickly checking the latter half of a track
 
-注意点:
-- 精密なポジショニングには向かない（Hot CueやBeat Jumpを使用）
-- 再生中に触れると音が一瞬途切れる可能性がある
-- Quantize ONの場合、ビートグリッドに合わせてジャンプ
+Notes:
+- Not suitable for precise positioning (use Hot Cue or Beat Jump)
+- Audio may cut out momentarily if touched during playback
+- With Quantize ON, jumps align to beat grid
 ```
 
 ---
 
-## 6. Pro DJ Link（ネットワーク機能）詳細解説
+## 6. Detailed Guide to Pro DJ Link (Network Function)
 
-### Pro DJ Linkとは
+### What is Pro DJ Link
 
-Pro DJ Linkは、Pioneer DJが開発した、CDJ、DJミキサー、およびPCをLANケーブルで接続するネットワーク技術です。この技術により、複数のCDJ間で楽曲データの共有、BPM同期、ビートグリッド同期などが可能になります。
+Pro DJ Link is a network technology developed by Pioneer DJ for connecting CDJs, DJ mixers, and PCs via LAN cables. This technology enables track data sharing, BPM sync, and beat grid sync between multiple CDJs.
 
-### ネットワーク接続の構成
+### Network Connection Configuration
 
-**基本構成（2台構成）:**
+**Basic configuration (2-unit setup):**
 ```
-CDJ-1 ──── LAN ──── DJミキサー ──── LAN ──── CDJ-2
-                      (HUB機能内蔵)
+CDJ-1 ──── LAN ──── DJ Mixer ──── LAN ──── CDJ-2
+                   (with built-in HUB)
 
-接続手順:
-1. CDJ-1のLINK端子 → DJミキサーのLINK端子1（LANケーブル）
-2. CDJ-2のLINK端子 → DJミキサーのLINK端子2（LANケーブル）
-3. 電源を入れると自動的にネットワークが構築される
-4. 各CDJの画面にPro DJ Linkアイコンが表示される
+Connection steps:
+1. CDJ-1 LINK terminal → DJ mixer LINK terminal 1 (LAN cable)
+2. CDJ-2 LINK terminal → DJ mixer LINK terminal 2 (LAN cable)
+3. The network is built automatically when power is turned on
+4. Pro DJ Link icon is displayed on each CDJ's screen
 ```
 
-**4台構成（大規模セットアップ）:**
+**4-unit configuration (large-scale setup):**
 ```
 CDJ-1 ──── LAN ──┐
 CDJ-2 ──── LAN ──┤
-CDJ-3 ──── LAN ──┼── スイッチングHUB ──── DJミキサー
+CDJ-3 ──── LAN ──┼── Switching HUB ──── DJ Mixer
 CDJ-4 ──── LAN ──┘
 
-※ DJミキサーのLINK端子が足りない場合はスイッチングHUBを使用
-※ 100BASE-TX対応のHUBを推奨（ギガビット対応は不要）
+* Use a switching HUB if the DJ mixer's LINK terminals are insufficient
+* 100BASE-TX compatible HUB recommended (Gigabit is not necessary)
 ```
 
-**Rekordbox連携構成:**
+**Rekordbox integrated configuration:**
 ```
 CDJ-1 ──── LAN ──┐
-CDJ-2 ──── LAN ──┼── DJミキサー ──── LAN ──── PC（Rekordbox）
-                                          USB接続でも可
+CDJ-2 ──── LAN ──┼── DJ Mixer ──── LAN ──── PC (Rekordbox)
+                                    USB connection also possible
 
-この構成により:
-- PCのRekordboxライブラリにCDJから直接アクセス可能
-- USBメモリなしでPCの楽曲を再生可能
-- Rekordboxの波形表示がCDJに反映される
+With this configuration:
+- CDJs can directly access the PC's Rekordbox library
+- PC tracks can be played without a USB drive
+- Rekordbox waveform display is reflected on CDJs
 ```
 
-### Pro DJ Linkの機能詳細
+### Pro DJ Link Feature Details
 
-**USB共有（1本のUSBを複数台で共有）:**
+**USB sharing (sharing 1 USB drive across multiple units):**
 
-Pro DJ Linkの最も便利な機能のひとつが、1本のUSBメモリを複数のCDJで共有する機能です。
-
-```
-動作原理:
-1. CDJ-1にUSBメモリを挿入
-2. CDJ-2のブラウザで「LINK」を選択
-3. CDJ-1のUSBメモリの内容がCDJ-2から見える
-4. CDJ-2から楽曲をロードして再生可能
-
-メリット:
-- USBメモリの節約（1本で複数台対応）
-- 全CDJから同じプレイリストにアクセスできる
-- B2Bプレイ時に1本のUSBを共有できる
-
-注意点:
-- ネットワーク経由のため、ロード時間がやや長くなる
-- USBを挿したCDJの電源を切ると、他のCDJからもアクセス不可になる
-- 安定性のため、各CDJに独自のUSBを挿すことを推奨
-```
-
-**Beat Sync（ビート同期）:**
-
-Beat Syncは、Pro DJ Link経由で2台以上のCDJのBPMとビートを自動的に同期させる機能です。
+One of the most convenient features of Pro DJ Link is the ability to share a single USB drive across multiple CDJs.
 
 ```
-操作方法:
-1. Master デッキを決定:
-   - 先に再生している楽曲のCDJが自動的にMasterになる
-   - または手動でMASTER ボタンを押してMasterを設定
-2. Sync させたいCDJ で SYNC ボタンを押す
-3. 自動的にBPMが Masterと一致する
-4. ビートグリッドも同期される（Phase Lock）
+How it works:
+1. Insert USB drive into CDJ-1
+2. Select "LINK" in CDJ-2 browser
+3. Contents of CDJ-1's USB drive are visible from CDJ-2
+4. Can load and play tracks from CDJ-2
 
-Syncの精度:
-- BPMは小数点第2位まで正確に同期
-- ビートグリッドの位相も自動調整
-- Quantize ON の場合、完璧な同期が実現
+Benefits:
+- Save on USB drives (1 unit handles multiple CDJs)
+- All CDJs can access the same playlist
+- During B2B play, one USB can be shared
 
-Sync解除:
-- SYNC ボタンをもう一度押す
-- Tempo Faderを動かす（自動解除）
+Notes:
+- As it is via network, load time is slightly longer
+- If the CDJ with the USB inserted is turned off, other CDJs cannot access it either
+- For stability, it is recommended that each CDJ has its own USB inserted
 ```
 
-**Beat Sync使用の是非について:**
+**Beat Sync:**
 
-Beat Syncの使用については、DJ界で長年議論が続いています。
-
-```
-【Sync使用を推奨する場面】
-- B2Bプレイ時（相手のテンポに即座に合わせる必要がある場合）
-- 3台以上のCDJを同時に使用するセット
-- ループやエフェクトを多用するセット
-- 大型フェスティバルなど緊張する場面でのバックアップ
-- テンポが大きく異なる楽曲をミックスする場合
-
-【Sync を使わない方が良い場面】
-- 練習時（ビートマッチングスキルの習得のため）
-- クラシックなDJプレイを追求する場合
-- テンポの揺れを活かしたグルーヴを作りたい場合
-- アナログレコードとCDJを混在させるセット
-
-【プロDJの見解】
-- 「道具は使えるだけ使え。ただし、道具なしでもプレイできるスキルは必須」
-- 「Syncを使うか使わないかよりも、選曲とフロアとのコミュニケーションが重要」
-- 「ビートマッチングの基本ができた上で、より高度な表現のためにSyncを活用する」
-```
-
-**Phase Meter（位相メーター）:**
-
-Phase Meterは、CDJ-2000NXS2以降で表示される、2台のCDJのビートの位相差を視覚的に示すインジケーターです。
+Beat Sync is a function that automatically synchronizes the BPM and beats of two or more CDJs via Pro DJ Link.
 
 ```
-表示の見方:
-- 中央: 完全に位相が一致している状態
-- 左にずれ: こちらのCDJが先行している
-- 右にずれ: こちらのCDJが遅れている
-- ゲージの長さ: ズレの大きさ
+How to operate:
+1. Determine the Master deck:
+   - The CDJ with the earlier playing track automatically becomes Master
+   - Or manually set Master by pressing the MASTER button
+2. Press SYNC button on the CDJ you want to sync
+3. BPM automatically matches Master
+4. Beat grid is also synchronized (Phase Lock)
 
-活用方法:
-1. 耳でのビートマッチングの補助として使用
-2. Beat Sync使用時の確認用
-3. ズレが大きい場合、ジョグホイールで微調整
-4. 完全一致を目指す必要はない（わずかなズレはグルーヴ感を生む場合もある）
+Sync accuracy:
+- BPM is accurately synced to 2 decimal places
+- Phase of beat grid is also automatically adjusted
+- With Quantize ON, perfect sync is achieved
+
+Releasing Sync:
+- Press the SYNC button again
+- Move the Tempo Fader (automatically released)
 ```
 
-### Pro DJ Linkのトラブルと対策
+**On the pros and cons of using Beat Sync:**
 
-**接続トラブル:**
+The use of Beat Sync has been debated in the DJ world for many years.
+
 ```
-症状: LINKアイコンが表示されない
-対策:
-1. LANケーブルの接続を確認（カチッと音がするまで差し込む）
-2. LANケーブルを交換（ケーブル断線の可能性）
-3. CDJとミキサーを再起動
-4. スイッチングHUBを使用している場合、HUBも再起動
+[Situations where using Sync is recommended]
+- B2B play (when you need to immediately match the other DJ's tempo)
+- Sets using 3 or more CDJs simultaneously
+- Sets using many loops or effects
+- As backup in high-pressure situations like large festivals
+- When mixing tracks with very different tempos
+
+[Situations where it's better not to use Sync]
+- During practice (to develop beatmatching skills)
+- When pursuing classic DJ play
+- When you want to create groove using slight tempo fluctuations
+- Sets mixing analog records and CDJs
+
+[Views of professional DJs]
+- "Use every tool you have. But skills to play without tools are essential."
+- "More important than whether you use Sync or not is your track selection and communication with the floor."
+- "After mastering the basics of beatmatching, use Sync for higher-level expression."
 ```
 
-**USB共有トラブル:**
+**Phase Meter:**
+
+The Phase Meter, displayed on CDJ-2000NXS2 and later models, is an indicator that visually shows the phase difference of beats between two CDJs.
+
 ```
-症状: LINK経由で他のCDJのUSBが見えない
-対策:
-1. 両方のCDJでPro DJ Linkが有効か確認
-2. USBを挿し直す
-3. ファームウェアのバージョンを確認（異なるバージョン間で互換性問題あり）
-4. LINKではなく、各CDJに直接USBを挿して運用
+How to read the display:
+- Center: Phases are perfectly aligned
+- Shift left: This CDJ is ahead
+- Shift right: This CDJ is behind
+- Length of gauge: Size of the drift
+
+How to use:
+1. Use as assistance for ear-based beatmatching
+2. For confirmation when using Beat Sync
+3. If drift is large, fine-adjust with jog wheel
+4. Perfect alignment is not always necessary (slight drift can create groove)
+```
+
+### Pro DJ Link Problems and Solutions
+
+**Connection problems:**
+```
+Symptom: LINK icon not displayed
+Solutions:
+1. Check LAN cable connection (push until it clicks)
+2. Replace LAN cable (possible cable break)
+3. Restart CDJs and mixer
+4. If using a switching HUB, restart the HUB as well
+```
+
+**USB sharing problems:**
+```
+Symptom: Cannot see another CDJ's USB via LINK
+Solutions:
+1. Check that Pro DJ Link is enabled on both CDJs
+2. Re-insert the USB drive
+3. Check firmware versions (compatibility issues between different versions)
+4. Insert USB directly into each CDJ instead of using LINK
 ```
 
 ---
 
-## 7. クラブでの実践ガイド
+## 7. Practical Guide for Clubs
 
-### ギグ前の準備チェックリスト
+### Pre-Gig Preparation Checklist
 
-クラブでのDJプレイを成功させるためには、入念な事前準備が不可欠です。
+Thorough advance preparation is essential for successful DJ play at a club.
 
-**前日までの準備:**
+**Preparation up to the day before:**
 ```
-□ セットリスト（候補リスト）の作成
-□ Rekordboxでの楽曲解析・ビートグリッド確認
-□ Hot Cue / Memory Cueの設定
-□ USBメモリへのエクスポート
-□ バックアップUSBの作成
-□ 全USBメモリの動作確認（自宅のCDJまたはRekordboxで）
-□ ヘッドフォンの動作確認
-□ 変換プラグ（3.5mm → 6.3mm）の携帯
-□ 会場の情報確認（アクセス、入り時間、機材構成）
-□ 前のDJ/後のDJの音楽性の確認
-```
-
-**持ち物チェックリスト:**
-```
-必須:
-□ USBメモリ × 3本以上
-□ ヘッドフォン
-□ ヘッドフォン変換プラグ（1/4インチ → ミニプラグ、またはその逆）
-□ 身分証明書（入場用）
-
-推奨:
-□ バックアップのヘッドフォン
-□ USBメモリケース
-□ 耳栓（セット前後のリスニング保護用）
-□ タオル（汗対策）
-□ ペンとメモ（セットリスト記録用）
-□ モバイルバッテリー（スマホ充電用）
-□ 名刺（ネットワーキング用）
+□ Create setlist (candidate list)
+□ Track analysis and beat grid check in Rekordbox
+□ Set Hot Cue / Memory Cue
+□ Export to USB drive
+□ Create backup USB
+□ Confirm all USB drives work (on home CDJ or in Rekordbox)
+□ Check headphones work
+□ Carry headphone adapter (3.5mm → 6.3mm)
+□ Confirm venue information (access, arrival time, equipment setup)
+□ Check music style of previous DJ / next DJ
 ```
 
-### 会場到着時の確認
-
-クラブに到着したら、まず機材の確認を行います。これはプロDJとして必ず行うべきルーティンです。
-
-**機材チェック:**
+**What to bring checklist:**
 ```
-1. CDJの確認:
-   □ 機種の確認（CDJ-3000 / CDJ-2000NXS2 / その他）
-   □ 台数の確認（2台 / 3台 / 4台）
-   □ 動作確認（電源が入るか、画面は正常か）
-   □ USBポートの確認（壊れていないか）
-   □ ジョグホイールの確認（正常に動作するか）
-   □ ファームウェアバージョンの確認
+Essential:
+□ USB drives × 3 or more
+□ Headphones
+□ Headphone adapter (1/4 inch → mini plug, or reverse)
+□ ID (for entry)
 
-2. ミキサーの確認:
-   □ 機種の確認（DJM-900NXS2 / DJM-V10 / その他）
-   □ チャンネル数の確認
-   □ エフェクトの確認
-   □ ヘッドフォン端子の確認（ジャック形状）
-   □ クロスフェーダーの確認
-
-3. モニター環境:
-   □ ブースモニターの位置と音量
-   □ ヘッドフォンモニターの確認
-   □ メインスピーカーの音がブースに回り込んでいないか
-
-4. ネットワーク:
-   □ Pro DJ Link接続の確認
-   □ LANケーブルの確認
+Recommended:
+□ Backup headphones
+□ USB drive case
+□ Earplugs (for ear protection before/after set)
+□ Towel (for sweat)
+□ Pen and notepad (for recording setlist)
+□ Mobile battery (for phone charging)
+□ Business cards (for networking)
 ```
 
-### サウンドチェック
+### Checks Upon Arriving at Venue
 
-サウンドチェックは、自分の音を適切な音量・音質でフロアに届けるための重要な手順です。
+When you arrive at the club, first check the equipment. This is a routine that should always be done as a professional DJ.
 
-**サウンドチェック手順（詳細版）:**
+**Equipment check:**
 ```
-1. 自分のUSBメモリをCDJに挿入し、認識を確認
-2. よく知っている楽曲をロード（音質確認のため、普段聴き慣れた曲が最適）
-3. ミキサーの設定を確認:
-   - すべてのEQ（HIGH/MID/LOW）を12時（ニュートラル）位置
-   - チャンネルフェーダーを下げた状態
-   - クロスフェーダーを中央
-   - エフェクトはすべてOFF
-   - TRIM/GAINを12時位置
-4. チャンネルフェーダーを徐々に上げる
-5. TRIM/GAINで適切なレベルに調整
-   - チャンネルメーターが0dBの周辺で振れるように
-   - マスターメーターがクリッピング（赤ランプ）しないように
-6. EQを確認:
-   - LOW: 低音の量感が適切か（ブーミーすぎないか、不足していないか）
-   - MID: ボーカルやシンセの存在感が適切か
-   - HIGH: ハイハットやシンバルの抜けが良いか
-7. ブースモニターの音量を適切に調整
-   - 大きすぎると疲れる、小さすぎるとビートマッチングが難しい
-   - 理想: フロアの音とブースモニターのバランスが取れている
-```
+1. CDJ check:
+   □ Confirm model (CDJ-3000 / CDJ-2000NXS2 / other)
+   □ Confirm number of units (2 / 3 / 4)
+   □ Confirm operation (does power turn on, is screen normal)
+   □ Check USB ports (not broken)
+   □ Check jog wheel (operating normally)
+   □ Check firmware version
 
-**サウンドチェック時のプロTips:**
-```
-- サウンドチェックは前のDJのセット中にはやらない
-  （前のDJのプレイ中にゲイン調整等をするのは非常に失礼）
-- 交代のタイミングで素早く行う
-- 低音の確認は特に重要（クラブのサウンドシステムは低音が強調される傾向がある）
-- ヘッドフォンの音量も事前にチェック
-- 可能であれば、フロアに出て自分の音を確認する
+2. Mixer check:
+   □ Confirm model (DJM-900NXS2 / DJM-V10 / other)
+   □ Confirm number of channels
+   □ Check effects
+   □ Check headphone jack (jack shape)
+   □ Check crossfader
+
+3. Monitor environment:
+   □ Position and volume of booth monitor
+   □ Check headphone monitoring
+   □ Ensure main speaker audio is not bleeding into booth
+
+4. Network:
+   □ Confirm Pro DJ Link connection
+   □ Check LAN cables
 ```
 
-### セット中の操作マナーと注意事項
+### Sound Check
 
-**前のDJとの交代:**
+A sound check is an important step for delivering your audio to the floor at the appropriate volume and quality.
+
+**Sound check procedure (detailed version):**
 ```
-1. 前のDJの最後の曲を確認（BPMとキー）
-2. USBメモリを空いているCDJに挿入
-3. つなぎの曲を選んでロード
-4. 前のDJに合図（アイコンタクトまたは軽いタッチ）
-5. スムーズにミックスを引き継ぐ
-6. 前のDJのEQ設定をリセット（フラットに戻す）
-
-重要: 前のDJの曲を急に切らない。必ずミックスでつなぐ。
-      セット時間が押している場合でも、最低限のトランジションは行う。
-```
-
-**セット中の機材操作:**
-```
-推奨事項:
-- USBメモリの抜き差しは、そのCDJが再生中でないことを確認してから
-- 曲のロード中（波形読み込み中）はジョグホイールに触らない
-- ドリンクは機材から離れた位置に置く
-- ケーブルを引っ掛けないよう、足元にも注意
-- 暗い環境でもパッドの色やBPM表示で状況を把握
-
-避けるべき操作:
-- 再生中のCDJからUSBを抜く（楽曲が突然止まる）
-- EQを極端な位置まで回す（特にLOWのブースト、音響機材の破損リスク）
-- マスターボリュームを許可なく変更する
-  （マスターはPAエンジニアの管轄。DJが勝手に変更しない）
-- クロスフェーダーカーブを勝手に変更する
-  （次のDJの操作に影響する）
+1. Insert your USB drive into CDJ and confirm recognition
+2. Load a track you know well (a track you're familiar with hearing is ideal for checking audio quality)
+3. Check mixer settings:
+   - All EQ (HIGH/MID/LOW) at 12 o'clock (neutral) position
+   - Channel fader lowered
+   - Crossfader at center
+   - All effects OFF
+   - TRIM/GAIN at 12 o'clock position
+4. Gradually raise the channel fader
+5. Adjust to appropriate level with TRIM/GAIN
+   - Channel meter swinging around 0dB
+   - Master meter not clipping (red light)
+6. Check EQ:
+   - LOW: Is the amount of bass appropriate (not too boomy, not lacking)?
+   - MID: Is the presence of vocals and synths appropriate?
+   - HIGH: Is there good clarity in hi-hats and cymbals?
+7. Adjust booth monitor volume appropriately
+   - Too loud causes fatigue; too quiet makes beatmatching difficult
+   - Ideal: Balance between the floor audio and booth monitor audio
 ```
 
-**フロアの反応を見ながらの調整:**
+**Pro tips for sound check:**
 ```
-フロアが盛り上がっている場合:
-- エナジーを維持する選曲を続ける
-- BPMを大きく変えない
-- ドロップの強い楽曲を連続させる
-- ループを活用してクライマックスを延長
-
-フロアが冷めている場合:
-- BPMを少し下げてグルーヴを変える
-- 知名度の高い楽曲をプレイ
-- エフェクトを控えめにしてシンプルなミックスに
-- ブレイクダウンを長めに取って空気を変える
-
-B2Bプレイの場合:
-- 相手のDJの選曲傾向を尊重する
-- キーやBPMの急激な変化を避ける
-- アイコンタクトで交代のタイミングを合わせる
-- 1曲ずつ交代か2曲ずつ交代か事前に決めておく
+- Do not do a sound check during the previous DJ's set
+  (Adjusting gain etc. while the previous DJ is playing is very disrespectful)
+- Do it quickly during the changeover
+- Checking low frequencies is especially important (club sound systems tend to emphasize bass)
+- Also pre-check headphone volume
+- If possible, go out to the floor to check your own sound
 ```
 
-### セット終了時のマナー
+### Operating Etiquette and Precautions During a Set
 
-次のDJへの配慮は、プロフェッショナルとしての基本中の基本です。
-
-**終了時チェックリスト:**
+**Handoff from the previous DJ:**
 ```
-□ 最後の曲のフェーダーを徐々に下げる（急にカットしない）
-□ EQ を全てフラット（12時位置）に戻す
-□ エフェクトを全てOFFにする
-□ クロスフェーダーを中央に戻す
-□ Tempo Fader を 0%（中央）に戻す
-□ TRIM/GAIN を 12時位置に戻す
-□ Beat Sync をOFFにする
-□ Quantize をデフォルト設定に戻す
-□ 自分のUSBメモリを抜く
-□ ヘッドフォンを外す
-□ 次のDJに軽く挨拶・握手
+1. Confirm the previous DJ's last track (BPM and key)
+2. Insert USB drive into available CDJ
+3. Select and load a track for the transition
+4. Signal to the previous DJ (eye contact or light touch)
+5. Take over the mix smoothly
+6. Reset the previous DJ's EQ settings (return to flat)
 
-やってはいけないこと:
-- 機材をリセットせずに去る
-- USBメモリを挿したまま去る
-- 次のDJの準備を妨げる
-- セット時間を大幅にオーバーする
+Important: Do not abruptly cut the previous DJ's track. Always transition with a mix.
+           Even if set time is running over, perform at least a minimal transition.
+```
+
+**Equipment operation during a set:**
+```
+Recommended:
+- When swapping USB drives, confirm that CDJ is not playing first
+- Do not touch jog wheel while track is loading (waveform loading)
+- Keep drinks away from the equipment
+- Also watch your feet so you don't catch on cables
+- Even in dark environments, understand the situation through pad colors and BPM display
+
+Operations to avoid:
+- Removing USB from a playing CDJ (track will suddenly stop)
+- Turning EQ to extreme positions (especially LOW boost, risk of damaging sound system)
+- Changing master volume without permission
+  (Master is under the PA engineer's jurisdiction. DJs should not change it without authorization)
+- Changing crossfader curve without permission
+  (Affects the next DJ's operation)
+```
+
+**Adjustments while watching the floor's reaction:**
+```
+When the floor is energetic:
+- Continue selecting tracks that maintain energy
+- Do not change BPM drastically
+- Chain tracks with strong drops
+- Use loops to extend the climax
+
+When the floor is cooling down:
+- Slightly lower BPM to change the groove
+- Play well-known tracks
+- Keep effects minimal for a simpler mix
+- Take a longer breakdown to change the atmosphere
+
+For B2B play:
+- Respect the other DJ's track selection tendencies
+- Avoid sudden changes in key or BPM
+- Coordinate handoff timing with eye contact
+- Decide in advance whether to alternate every 1 or 2 tracks
+```
+
+### Etiquette When Ending a Set
+
+Consideration for the next DJ is the most fundamental aspect of professionalism.
+
+**End-of-set checklist:**
+```
+□ Gradually lower the last track's fader (do not abruptly cut)
+□ Return all EQ to flat (12 o'clock position)
+□ Turn all effects OFF
+□ Return crossfader to center
+□ Return Tempo Fader to 0% (center)
+□ Return TRIM/GAIN to 12 o'clock position
+□ Turn Beat Sync OFF
+□ Return Quantize to default setting
+□ Remove your USB drive
+□ Remove headphones
+□ Give a brief greeting/handshake to the next DJ
+
+Things not to do:
+- Leave without resetting the equipment
+- Leave USB drive inserted
+- Obstruct the next DJ's preparation
+- Go significantly over set time
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement appropriate error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1354,26 +1354,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1381,7 +1381,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1392,14 +1392,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1407,7 +1407,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1415,44 +1415,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1461,7 +1461,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1476,47 +1476,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup:      {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be aware of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured settings file | Check settings file path and format |
+| Timeout | Network delay / resource shortage | Adjust timeout value, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access permissions | Check execution user permissions, review settings |
+| Data inconsistency | Race condition in concurrent processing | Introduce locking mechanism, transaction management |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace and identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Stepwise verification**: Use log output and debuggers to verify hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger setup
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1524,102 +1524,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Problems
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance problems:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check for I/O waiting**: Check the status of disk and network I/O
+4. **Check concurrent connections**: Check the state of the connection pool
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem type | Diagnostic tool | Countermeasure |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criteria | When to prioritize | When you can compromise |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed users |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-first, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│              Architecture Selection Flow         │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. Team size?                                  │
+│    ├─ Small (1–5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to 2              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. Deployment frequency?                        │
+│    ├─ Weekly or less → Monolith + module split   │
+│    └─ Daily/multiple times → Go to 3             │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. Independence between teams?                  │
+│    ├─ High → Microservices                       │
+│    └─ Moderate → Modular monolith                │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs long-term costs**
+- The faster short-term approach can become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows the right tool for each job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction has high reusability, but can make debugging difficult
+- Low abstraction is intuitive, but code duplication tends to occur
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1629,17 +1629,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and issues"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1647,7 +1647,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1655,15 +1655,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1671,53 +1671,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Practical Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum necessary features
+- Automated tests only for the critical path
+- Introduce monitoring from early on
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't aim for perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Incrementally revamping a system that has been running for 10+ years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Use the Strangler Fig pattern for phased migration
+- If there are no existing tests, create Characterization Tests first
+- Use an API gateway to coexist old and new systems
+- Implement data migration in phases
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work | Estimated duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Current state analysis, understanding dependencies | 2–4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4–6 weeks | Low |
+| 3. Migration start | Migrate peripheral features first | 3–6 months | Medium |
+| 4. Core migration | Migrate core functions | 6–12 months | High |
+| 5. Completion | Retire the old system | 2–4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development in a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with domain-driven design
+- Set ownership per team
+- Manage common libraries using the Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1730,20 +1730,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1752,7 +1752,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1773,106 +1773,106 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system requiring millisecond response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Using asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization method | Effect | Implementation cost | Application |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | Processing with lots of I/O wait |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low–Medium | High | CPU-bound cases |
 
 ---
 
-## チーム開発での活用
+## Team Development Applications
 
-### コードレビューのチェックリスト
+### Code Review Checklist
 
-このトピックに関連するコードレビューで確認すべきポイント:
+Points to check in code reviews related to this topic:
 
-- [ ] 命名規則が一貫しているか
-- [ ] エラーハンドリングが適切か
-- [ ] テストカバレッジは十分か
-- [ ] パフォーマンスへの影響はないか
-- [ ] セキュリティ上の問題はないか
-- [ ] ドキュメントは更新されているか
+- [ ] Is naming convention consistent?
+- [ ] Is error handling appropriate?
+- [ ] Is test coverage sufficient?
+- [ ] Is there any performance impact?
+- [ ] Are there any security issues?
+- [ ] Is documentation updated?
 
-### ナレッジ共有のベストプラクティス
+### Best Practices for Knowledge Sharing
 
-| 方法 | 頻度 | 対象 | 効果 |
+| Method | Frequency | Target | Effect |
 |------|------|------|------|
-| ペアプログラミング | 随時 | 複雑なタスク | 即時のフィードバック |
-| テックトーク | 週1回 | チーム全体 | 知識の水平展開 |
-| ADR (設計記録) | 都度 | 将来のメンバー | 意思決定の透明性 |
-| 振り返り | 2週間ごと | チーム全体 | 継続的改善 |
-| モブプログラミング | 月1回 | 重要な設計 | 合意形成 |
+| Pair programming | As needed | Complex tasks | Immediate feedback |
+| Tech talk | Weekly | Whole team | Horizontal spread of knowledge |
+| ADR (design record) | Each time | Future members | Transparency of decisions |
+| Retrospective | Every 2 weeks | Whole team | Continuous improvement |
+| Mob programming | Monthly | Important designs | Building consensus |
 
-### 技術的負債の管理
+### Managing Technical Debt
 
 ```
-優先度マトリクス:
+Priority matrix:
 
-        影響度 高
+        High impact
           │
     ┌─────┼─────┐
-    │ 計画 │ 即座 │
-    │ 的に │ に   │
-    │ 対応 │ 対応 │
+    │Plan │ Act  │
+    │to   │ now  │
+    │fix  │      │
     ├─────┼─────┤
-    │ 記録 │ 次の │
-    │ のみ │ Sprint│
-    │     │ で   │
+    │Record│Next │
+    │ only │Sprint│
+    │     │     │
     └─────┼─────┘
           │
-        影響度 低
-    発生頻度 低  発生頻度 高
+        Low impact
+    Low frequency   High frequency
 ```
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Not just theory — understanding deepens when you actually write code and confirm how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend fully understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-このガイドでは以下の重要なポイントを学びました:
-
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [DJコントローラー](./controllers.md) - 次のトピックへ進む
+In this guide, we learned the following important points:
+
+- Understanding basic concepts and principles
+- Practical implementation patterns
+- Best practices and things to watch out for
+- How to apply this knowledge in practice
 
 ---
 
-## 参考文献
+## What to Read Next
 
-- [MDN Web Docs](https://developer.mozilla.org/) - Web技術のリファレンス
-- [Wikipedia](https://ja.wikipedia.org/) - 技術概念の概要
+- [DJ Controllers](./controllers.md) - Continue to the next topic
+
+---
+
+## References
+
+- [MDN Web Docs](https://developer.mozilla.org/) - Reference for web technologies
+- [Wikipedia](https://en.wikipedia.org/) - Overview of technical concepts
