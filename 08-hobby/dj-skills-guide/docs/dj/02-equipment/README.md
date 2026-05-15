@@ -1,253 +1,253 @@
-# 02. DJ Equipment - DJ機材ガイド
+# 02. DJ Equipment - DJ Equipment Guide
 
 
-## この章で学ぶこと
+## What You Will Learn
 
-- [ ] 基本概念と用語の理解
-- [ ] 実装パターンとベストプラクティスの習得
-- [ ] 実務での適用方法の把握
-- [ ] トラブルシューティングの基本
+- [ ] Understanding basic concepts and terminology
+- [ ] Learning implementation patterns and best practices
+- [ ] Understanding how to apply knowledge in practice
+- [ ] Fundamentals of troubleshooting
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-
----
-
-Rekordbox 7.2.7 と各種 DJ 機材の使い方を学びます。
-
-## このセクションで学ぶこと
-
-- DJ機材の種類と選び方
-- Rekordbox の基本設定
-- コントローラー、CDJ、ターンテーブルの使い方
-- DJミキサーの操作
-- ヘッドフォン・モニター環境の構築
-- オーディオインターフェイスの接続
-
-## なぜ機材知識が重要なのか
-
-**適切な選択:**
-- 自分のスタイルに合った機材
-- 予算内で最適な構成
-- 将来を見据えた投資
-
-**トラブル対応:**
-- 機材トラブルに対処できる
-- クラブの機材を使いこなせる
-- セットアップを素早く行える
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## DJ機材の全体像 - 歴史から現在まで
+Learn how to use Rekordbox 7.2.7 and various DJ equipment.
 
-### DJの歴史と機材の進化
+## What You Will Learn in This Section
 
-DJという文化は1970年代のニューヨーク・ブロンクスで誕生しました。ヒップホップの父と呼ばれる DJ Kool Herc がブレイクビートを発見し、2枚のレコードを使って同じフレーズを繰り返す「ブレイクビート・ジャグリング」を編み出したのが始まりです。当時の機材はシンプルなターンテーブル2台とミキサー1台だけでしたが、この基本構成は現代のDJセットアップにも脈々と受け継がれています。
+- Types of DJ equipment and how to choose them
+- Basic Rekordbox settings
+- How to use controllers, CDJs, and turntables
+- DJ mixer operation
+- Building a headphone and monitor environment
+- Connecting audio interfaces
 
-**1970年代 - アナログ黎明期:**
+## Why Equipment Knowledge Matters
+
+**Making the right choices:**
+- Equipment suited to your style
+- Optimal configuration within budget
+- Investment with the future in mind
+
+**Handling problems:**
+- Ability to deal with equipment issues
+- Ability to use club equipment effectively
+- Ability to set up quickly
+
+---
+
+## Overview of DJ Equipment - From History to the Present
+
+### The History of DJing and Equipment Evolution
+
+DJ culture was born in the Bronx, New York in the 1970s. DJ Kool Herc, known as the father of hip-hop, discovered breakbeats and invented "breakbeat juggling" — repeating the same phrase using two copies of a record. The equipment at the time was simple: two turntables and a mixer. This basic configuration lives on in modern DJ setups.
+
+**1970s - The Analog Dawn:**
 ```
-機材構成:
-├── ターンテーブル: Technics SL-1100 / SL-1200（1972年発売）
-├── ミキサー: Bozak CMA-10-2DL（初のDJ用ミキサー）
-├── レコード: 12インチ シングル盤
-├── アンプ: 一般的なHi-Fiアンプ
-└── スピーカー: PA スピーカーシステム
+Equipment setup:
+├── Turntables: Technics SL-1100 / SL-1200 (released 1972)
+├── Mixer: Bozak CMA-10-2DL (the first dedicated DJ mixer)
+├── Records: 12-inch singles
+├── Amplifier: Standard Hi-Fi amplifier
+└── Speakers: PA speaker system
 
-特徴:
-- すべてがアナログ
-- BPM表示なし（耳で合わせる）
-- エフェクトなし（純粋なミキシング）
-- レコードの物理的操作がすべて
-```
-
-**1980年代 - ミキサーの進化とスクラッチ文化:**
-```
-機材構成:
-├── ターンテーブル: Technics SL-1200MK2（1979年発売、DJ標準機）
-├── ミキサー: Rane TTM シリーズ / Vestax PMC
-├── エフェクター: 外付けディレイ/リバーブ
-├── サンプラー: Akai MPC60 / E-mu SP-1200
-└── ヘッドフォン: Sennheiser HD25（1988年発売）
-
-特徴:
-- スクラッチ技術の確立（Grandmaster Flash, Grand Wizard Theodore）
-- クロスフェーダーの登場
-- バトルDJカルチャーの誕生（DMC World Championship 1985年〜）
-- ターンテーブリズムが芸術形態として認知される
-```
-
-**1990年代 - CDの登場とデジタル化の始まり:**
-```
-機材構成:
-├── CDJ: Pioneer CDJ-500（1994年発売、初のCDJ）
-├── CDJ: Pioneer CDJ-1000（2001年発売、CD-DJ の革命）
-├── ミキサー: Pioneer DJM-500 / DJM-600
-├── エフェクター: Pioneer EFX-500 / Kaoss Pad
-└── レコーディング: MD（ミニディスク）/ DAT
-
-特徴:
-- CDでのDJプレイが可能に
-- ループ機能の登場
-- デジタルエフェクトの充実
-- BPMカウンターの搭載
+Characteristics:
+- Everything was analog
+- No BPM display (matched by ear)
+- No effects (pure mixing)
+- All about physical manipulation of records
 ```
 
-**2000年代 - ソフトウェア革命:**
+**1980s - Mixer Evolution and Scratch Culture:**
 ```
-機材構成:
-├── ソフトウェア: Traktor（2000年）、Serato Scratch Live（2004年）
-├── DVS: タイムコードバイナル + オーディオインターフェイス
-├── CDJ: Pioneer CDJ-2000（2009年発売）
-├── ミキサー: Pioneer DJM-800 / DJM-2000
-├── コントローラー: 初期のMIDIコントローラー
-└── PC/Mac: ラップトップDJ の普及
+Equipment setup:
+├── Turntables: Technics SL-1200MK2 (released 1979, the DJ standard)
+├── Mixers: Rane TTM series / Vestax PMC
+├── Effects units: External delay/reverb
+├── Samplers: Akai MPC60 / E-mu SP-1200
+└── Headphones: Sennheiser HD25 (released 1988)
 
-特徴:
-- PCを使ったDJの普及
-- デジタルバイナルシステム（DVS）の確立
-- ファイル管理の効率化
-- エフェクトの大幅な拡充
+Characteristics:
+- Establishment of scratch techniques (Grandmaster Flash, Grand Wizard Theodore)
+- Introduction of the crossfader
+- Birth of battle DJ culture (DMC World Championship from 1985)
+- Turntablism recognized as an art form
 ```
 
-**2010年代 - コントローラー全盛期:**
+**1990s - The Arrival of CDs and the Beginning of Digitization:**
 ```
-機材構成:
-├── コントローラー: Pioneer DDJ-SB / DDJ-SR / DDJ-SZ
+Equipment setup:
+├── CDJ: Pioneer CDJ-500 (released 1994, the first CDJ)
+├── CDJ: Pioneer CDJ-1000 (released 2001, a revolution in CD-DJing)
+├── Mixers: Pioneer DJM-500 / DJM-600
+├── Effects units: Pioneer EFX-500 / Kaoss Pad
+└── Recording: MD (MiniDisc) / DAT
+
+Characteristics:
+- DJing with CDs became possible
+- Introduction of loop functions
+- Abundance of digital effects
+- BPM counter included
+```
+
+**2000s - The Software Revolution:**
+```
+Equipment setup:
+├── Software: Traktor (2000), Serato Scratch Live (2004)
+├── DVS: Timecode vinyl + audio interface
+├── CDJ: Pioneer CDJ-2000 (released 2009)
+├── Mixers: Pioneer DJM-800 / DJM-2000
+├── Controllers: Early MIDI controllers
+└── PC/Mac: Spread of laptop DJing
+
+Characteristics:
+- Widespread adoption of PC-based DJing
+- Establishment of Digital Vinyl Systems (DVS)
+- Efficient file management
+- Major expansion of effects
+```
+
+**2010s - The Controller Era:**
+```
+Equipment setup:
+├── Controllers: Pioneer DDJ-SB / DDJ-SR / DDJ-SZ
 ├── CDJ: Pioneer CDJ-2000NXS / CDJ-2000NXS2
-├── ミキサー: Pioneer DJM-900NXS / DJM-900NXS2
-├── ソフトウェア: Rekordbox DJ / Serato DJ Pro / Traktor Pro
-├── ストリーミング: Beatport LINK / SoundCloud Go+
-└── ワイヤレス: Bluetooth スピーカー
+├── Mixers: Pioneer DJM-900NXS / DJM-900NXS2
+├── Software: Rekordbox DJ / Serato DJ Pro / Traktor Pro
+├── Streaming: Beatport LINK / SoundCloud Go+
+└── Wireless: Bluetooth speakers
 
-特徴:
-- DJコントローラーの爆発的普及
-- Rekordbox が DJ ソフトウェアとして急成長
-- クラウドライブラリの登場
-- SNS でのDJミックス配信
+Characteristics:
+- Explosive growth in DJ controllers
+- Rekordbox grew rapidly as DJ software
+- Emergence of cloud libraries
+- DJ mix streaming on social media
 ```
 
-**2020年代 - 現在（ハイブリッド時代）:**
+**2020s - Present (The Hybrid Era):**
 ```
-機材構成:
-├── コントローラー: Pioneer DDJ-FLX4 / DDJ-1000 / DDJ-REV7
-├── CDJ: Pioneer CDJ-3000（2020年発売）
-├── オールインワン: Pioneer XDJ-XZ / XDJ-RX3 / Denon Prime 4+
-├── ミキサー: Pioneer DJM-A9 / Rane SEVENTY-TWO MK2
-├── ソフトウェア: Rekordbox 7.2.7 / Serato DJ Pro 3
-├── ストリーミング統合: 各ソフトにストリーミング機能内蔵
-└── AI機能: BPM/Key自動解析の高精度化、楽曲レコメンデーション
+Equipment setup:
+├── Controllers: Pioneer DDJ-FLX4 / DDJ-1000 / DDJ-REV7
+├── CDJ: Pioneer CDJ-3000 (released 2020)
+├── All-in-one: Pioneer XDJ-XZ / XDJ-RX3 / Denon Prime 4+
+├── Mixers: Pioneer DJM-A9 / Rane SEVENTY-TWO MK2
+├── Software: Rekordbox 7.2.7 / Serato DJ Pro 3
+├── Integrated streaming: Streaming features built into all major software
+└── AI features: High-precision BPM/Key analysis, track recommendations
 
-特徴:
-- スタンドアロン機の充実（PC不要でDJ可能）
-- AI・機械学習によるトラック分析
-- ハイレゾ音源対応
-- クラウドライブラリの本格運用
+Characteristics:
+- Mature standalone units (DJ without a PC)
+- Track analysis using AI and machine learning
+- Hi-res audio support
+- Full-scale cloud library operation
 ```
 
-### 機材カテゴリの全体マップ
+### Overall Map of Equipment Categories
 
-DJ機材は大きく以下のカテゴリに分類されます。それぞれの役割と関係性を理解することが、最適なセットアップへの第一歩です。
+DJ equipment is broadly classified into the following categories. Understanding the role and relationship of each is the first step toward an optimal setup.
 
 ```
 ┌─────────────────────────────────────────────────┐
-│                DJ機材カテゴリマップ                  │
+│              DJ Equipment Category Map           │
 ├─────────────────────────────────────────────────┤
 │                                                  │
-│  【入力機器】          【ミキシング】    【出力機器】  │
+│  [INPUT DEVICES]       [MIXING]    [OUTPUT]      │
 │  ┌──────────┐      ┌──────────┐   ┌──────────┐ │
-│  │ターンテーブル│──→ │          │ → │メインSP   │ │
+│  │Turntable │──→   │          │ → │Main SP    │ │
 │  └──────────┘      │          │   └──────────┘ │
 │  ┌──────────┐      │  DJ      │   ┌──────────┐ │
-│  │CDJ/XDJ    │──→ │ ミキサー  │ → │モニターSP │ │
+│  │CDJ/XDJ   │──→   │ Mixer    │ → │Monitor SP │ │
 │  └──────────┘      │          │   └──────────┘ │
 │  ┌──────────┐      │          │   ┌──────────┐ │
-│  │メディア     │──→ │          │ → │ヘッドフォン│ │
-│  │プレーヤー   │      └──────────┘   └──────────┘ │
+│  │Media     │──→   │          │ → │Headphones │ │
+│  │Player    │      └──────────┘   └──────────┘ │
 │  └──────────┘          ↑  ↓                      │
 │                    ┌──────────┐                   │
-│  【オールインワン】  │エフェクター│                   │
+│  [ALL-IN-ONE]      │Effects   │                   │
 │  ┌──────────┐      └──────────┘                   │
-│  │DJコント    │          ↑                         │
-│  │ローラー    │──→ ┌──────────┐                   │
+│  │DJ        │          ↑                         │
+│  │Controller│──→   ┌──────────┐                   │
 │  └──────────┘      │ PC/Mac   │                   │
 │  ┌──────────┐      │(Rekordbox│                   │
-│  │スタンド    │      │ 等)      │                   │
-│  │アロン機    │      └──────────┘                   │
+│  │Standalone│      │ etc.)    │                   │
+│  │Unit      │      └──────────┘                   │
 │  └──────────┘                                     │
 └─────────────────────────────────────────────────┘
 ```
 
-### 最小構成（自宅練習）
+### Minimal Setup (Home Practice)
 
 ```
 ✓ PC/Mac
 ✓ Rekordbox 7.2.7
-✓ DJコントローラー（オールインワン）
-✓ ヘッドフォン
-✓ スピーカー（PCスピーカーでも可）
+✓ DJ controller (all-in-one)
+✓ Headphones
+✓ Speakers (PC speakers are fine)
 
-予算: 約5-10万円
+Budget: approx. 50,000–100,000 JPY
 ```
 
-### 標準構成（自宅・小規模イベント）
+### Standard Setup (Home / Small Events)
 
 ```
 ✓ PC/Mac
 ✓ Rekordbox 7.2.7
-✓ DJコントローラー（DDJ-800, DDJ-FLX6など）
-✓ オーディオインターフェイス（内蔵または外付け）
-✓ DJ用ヘッドフォン
-✓ モニタースピーカー
+✓ DJ controller (DDJ-800, DDJ-FLX6, etc.)
+✓ Audio interface (built-in or external)
+✓ DJ headphones
+✓ Monitor speakers
 
-予算: 約10-20万円
+Budget: approx. 100,000–200,000 JPY
 ```
 
-### プロ構成（クラブ・フェス）
+### Professional Setup (Club / Festival)
 
 ```
-✓ PC/Mac（バックアップ用も）
-✓ Rekordbox 7.2.7（クラウド同期）
+✓ PC/Mac (backup unit as well)
+✓ Rekordbox 7.2.7 (cloud sync)
 ✓ CDJ-3000 × 2
 ✓ DJM-900NXS2 / DJM-A9
-✓ DJ用ヘッドフォン（予備も）
-✓ USBメモリ × 3（バックアップ）
+✓ DJ headphones (plus spares)
+✓ USB drives × 3 (backups)
 
-予算: 約100-150万円（個人所有の場合）
+Budget: approx. 1,000,000–1,500,000 JPY (if personally owned)
 ```
 
 ---
 
-## DJコントローラー徹底比較
+## DJ Controllers - In-Depth Comparison
 
-DJコントローラーは、ターンテーブル、CDJ、ミキサーの機能をすべて1台に集約した機材です。PCと接続してDJソフトウェアをコントロールするため、初心者にとって最もコストパフォーマンスが高い選択肢です。
+A DJ controller integrates the functions of turntables, CDJs, and a mixer all into one unit. Because it connects to a PC to control DJ software, it offers the best cost performance for beginners.
 
-### コントローラーの基本構造
+### Basic Structure of a Controller
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│                  DJコントローラー構造図                 │
+│             DJ Controller Structure Diagram          │
 ├─────────────────────────────────────────────────────┤
 │                                                      │
-│  【左デッキ】              │  【右デッキ】             │
-│  ┌───────────┐            │  ┌───────────┐          │
-│  │ ジョグホイール│            │  │ ジョグホイール│          │
-│  │  (Deck A)   │            │  │  (Deck B)   │          │
-│  └───────────┘            │  └───────────┘          │
-│                            │                          │
-│  [PLAY] [CUE] [SYNC]     │  [PLAY] [CUE] [SYNC]    │
-│                            │                          │
-│  パフォーマンスパッド:       │  パフォーマンスパッド:     │
-│  [1][2][3][4]             │  [1][2][3][4]            │
-│  [5][6][7][8]             │  [5][6][7][8]            │
-│                            │                          │
-│  Tempo Slider |||         │  Tempo Slider |||        │
-│                            │                          │
-├────────────【ミキサー部】─────────────────────────────┤
+│  [LEFT DECK]               │  [RIGHT DECK]           │
+│  ┌───────────┐             │  ┌───────────┐          │
+│  │ Jog Wheel  │             │  │ Jog Wheel  │          │
+│  │  (Deck A)  │             │  │  (Deck B)  │          │
+│  └───────────┘             │  └───────────┘          │
+│                             │                          │
+│  [PLAY] [CUE] [SYNC]       │  [PLAY] [CUE] [SYNC]    │
+│                             │                          │
+│  Performance Pads:          │  Performance Pads:       │
+│  [1][2][3][4]              │  [1][2][3][4]            │
+│  [5][6][7][8]              │  [5][6][7][8]            │
+│                             │                          │
+│  Tempo Slider |||          │  Tempo Slider |||        │
+│                             │                          │
+├────────────[MIXER SECTION]──────────────────────────┤
 │                                                      │
 │  Ch.A        Ch.B                                    │
 │  HI  ◎       ◎  HI                                  │
@@ -265,449 +265,449 @@ DJコントローラーは、ターンテーブル、CDJ、ミキサーの機能
 └─────────────────────────────────────────────────────┘
 ```
 
-### Pioneer DDJ シリーズ完全比較表
+### Pioneer DDJ Series Full Comparison
 
-Pioneer DJ のコントローラーは DDJ（Digital DJ）シリーズとしてラインナップされています。各モデルの特徴を詳しく比較します。
+Pioneer DJ's controllers are marketed as the DDJ (Digital DJ) series. Here is a detailed comparison of each model.
 
-#### エントリーモデル
+#### Entry-Level Models
 
-**DDJ-FLX4（2022年発売）- 最新の入門機:**
+**DDJ-FLX4 (released 2022) - The Latest Beginner Unit:**
 ```
-価格帯: 約35,000円
-対応ソフト: Rekordbox / Serato DJ Lite
-接続: USB-C（バスパワー対応）
-チャンネル: 2ch
-ジョグホイール: 非接触検知式
-パフォーマンスパッド: 8個×2
-エフェクト: Smart Fader, Smart CFX
-サイズ: 482 × 272.4 × 58.5 mm
-重量: 2.1 kg
+Price range: approx. 35,000 JPY
+Compatible software: Rekordbox / Serato DJ Lite
+Connection: USB-C (bus power supported)
+Channels: 2ch
+Jog wheel: Non-contact detection
+Performance pads: 8 × 2
+Effects: Smart Fader, Smart CFX
+Size: 482 × 272.4 × 58.5 mm
+Weight: 2.1 kg
 
-長所:
-+ USB-C 接続（iPad/iPhoneにも対応）
-+ Smart Fader で初心者でもスムーズなトランジション
-+ 軽量コンパクトで持ち運び容易
-+ マルチソフト対応
-+ バスパワーで電源アダプタ不要
+Pros:
++ USB-C connection (also compatible with iPad/iPhone)
++ Smart Fader enables smooth transitions even for beginners
++ Lightweight and compact, easy to carry
++ Multi-software support
++ Bus power — no power adapter needed
 
-短所:
-- ジョグホイールが小さい（感度もやや低い）
-- マスターアウトがミニジャック
-- 拡張性に乏しい
-- EQ が2バンド（HI/LOW）のみ
+Cons:
+- Small jog wheel (sensitivity is also somewhat low)
+- Master out is mini-jack
+- Limited expandability
+- EQ is only 2-band (HI/LOW)
 
-おすすめ: DJ入門者、モバイルDJ、趣味DJ
-```
-
-**DDJ-400（2018年発売）- ロングセラー入門機:**
-```
-価格帯: 約30,000円（生産終了、中古市場）
-対応ソフト: Rekordbox
-接続: USB-B
-チャンネル: 2ch
-ジョグホイール: 非接触検知式
-パフォーマンスパッド: 8個×2
-エフェクト: Beat FX
-サイズ: 482 × 272.4 × 58.5 mm
-重量: 2.1 kg
-
-長所:
-+ CDJ配列に準拠したレイアウト
-+ Beat FX搭載
-+ Rekordbox完全対応
-+ Tutorial機能内蔵
-+ 大量の情報・レビューが存在
-
-短所:
-- USB-B接続（やや旧式）
-- Rekordbox専用
-- 生産終了（入手困難になりつつある）
-- マスターアウトがミニジャック
-
-おすすめ: Rekordbox ユーザー、CDJ への移行を見据える方
+Recommended for: DJ beginners, mobile DJs, hobbyist DJs
 ```
 
-#### ミドルレンジモデル
-
-**DDJ-800（2019年発売）- 中級者の定番:**
+**DDJ-400 (released 2018) - Long-Selling Entry Model:**
 ```
-価格帯: 約100,000円
-対応ソフト: Rekordbox
-接続: USB-B
-チャンネル: 2ch
-ジョグホイール: 大型ジョグ（On Jog Display搭載）
-パフォーマンスパッド: 8個×2
-エフェクト: Beat FX / Sound Color FX
-サイズ: 621.6 × 344.4 × 75.4 mm
-重量: 4.8 kg
+Price range: approx. 30,000 JPY (discontinued, secondary market)
+Compatible software: Rekordbox
+Connection: USB-B
+Channels: 2ch
+Jog wheel: Non-contact detection
+Performance pads: 8 × 2
+Effects: Beat FX
+Size: 482 × 272.4 × 58.5 mm
+Weight: 2.1 kg
 
-長所:
-+ On Jog Display で楽曲情報表示
-+ CDJ-2000NXS2 に近い操作感
-+ 独立したBeat FX セクション
-+ XLR マスターアウト搭載
-+ 高品質なサウンドカード内蔵
+Pros:
++ Layout follows CDJ arrangement
++ Beat FX included
++ Fully compatible with Rekordbox
++ Built-in Tutorial function
++ Large amount of information and reviews available
 
-短所:
-- 2chのみ（4ch非対応）
-- やや大きめで持ち運びに不便
-- Rekordbox専用
+Cons:
+- USB-B connection (somewhat outdated)
+- Rekordbox only
+- Discontinued (becoming harder to obtain)
+- Master out is mini-jack
 
-おすすめ: ステップアップを目指す中級者、小規模イベント出演者
-```
-
-**DDJ-FLX6（2020年発売）- 4chマルチソフト対応:**
-```
-価格帯: 約60,000円
-対応ソフト: Rekordbox / Serato DJ Pro
-接続: USB-B
-チャンネル: 4ch
-ジョグホイール: 大型ジョグ
-パフォーマンスパッド: 8個×2
-エフェクト: Jog Cutter, Merge FX
-サイズ: 726.3 × 339.3 × 74.2 mm
-重量: 5.2 kg
-
-長所:
-+ 4ch対応で複雑なミックスが可能
-+ Rekordbox / Serato 両対応
-+ Merge FX でドラマチックなトランジション
-+ Jog Cutter でスクラッチ風エフェクト
-+ コストパフォーマンスが高い
-
-短所:
-- ジョグホイールの質感がやや安っぽい
-- On Jog Display なし
-- XLR 出力なし
-
-おすすめ: マルチジャンルDJ、4ch ミキシングを試したい方
+Recommended for: Rekordbox users, those planning to move to CDJs
 ```
 
-#### ハイエンドモデル
+#### Mid-Range Models
 
-**DDJ-1000（2018年発売）- プロフェッショナル向け:**
+**DDJ-800 (released 2019) - The Intermediate Standard:**
 ```
-価格帯: 約120,000円
-対応ソフト: Rekordbox
-接続: USB-B
-チャンネル: 4ch
-ジョグホイール: CDJ-2000NXS2 同等サイズ（On Jog Display搭載）
-パフォーマンスパッド: 8個×2
-エフェクト: Beat FX / Sound Color FX 全搭載
-サイズ: 726.3 × 339.3 × 74.2 mm
-重量: 5.9 kg
+Price range: approx. 100,000 JPY
+Compatible software: Rekordbox
+Connection: USB-B
+Channels: 2ch
+Jog wheel: Large jog (with On Jog Display)
+Performance pads: 8 × 2
+Effects: Beat FX / Sound Color FX
+Size: 621.6 × 344.4 × 75.4 mm
+Weight: 4.8 kg
 
-長所:
-+ CDJ-2000NXS2 と同等のジョグホイール
-+ フルサイズ On Jog Display
-+ 4ch 対応、XLR 出力
-+ クラブ機材への移行がスムーズ
-+ エフェクト14種類搭載
+Pros:
++ On Jog Display shows track information
++ Feel close to CDJ-2000NXS2
++ Dedicated Beat FX section
++ XLR master out included
++ High-quality built-in sound card
 
-短所:
-- 大型で自宅設置にスペース必要
-- Rekordbox専用
-- 価格がやや高め
+Cons:
+- 2ch only (no 4ch support)
+- Somewhat large, inconvenient to carry
+- Rekordbox only
 
-おすすめ: プロ志向のDJ、クラブ出演を見据える方
-```
-
-**DDJ-REV7（2021年発売）- スクラッチDJ向けフラグシップ:**
-```
-価格帯: 約200,000円
-対応ソフト: Serato DJ Pro
-接続: USB-B
-チャンネル: 2ch
-ジョグホイール: モーター駆動（ターンテーブル感覚）
-パフォーマンスパッド: 8個×2 + Stem パッド
-エフェクト: Stem機能、22種類エフェクト
-ディスプレイ: 7インチ×2（On Jog Display）
-サイズ: 726.3 × 339.3 × 107.4 mm
-重量: 9.7 kg
-
-長所:
-+ モーター駆動ジョグでリアルなスクラッチ体験
-+ STEMS機能でボーカル/ドラム/ベース/メロディ分離
-+ 7インチディスプレイ搭載
-+ バトルDJに最適
-+ ハイエンドなビルドクオリティ
-
-短所:
-- 非常に高価
-- 重量級で持ち運び困難
-- Serato DJ Pro 専用
-- 2ch限定
-
-おすすめ: スクラッチDJ、バトルDJ、ターンテーブリスト
+Recommended for: Intermediate DJs aiming to step up, small-event performers
 ```
 
-### 他メーカーのDJコントローラー
+**DDJ-FLX6 (released 2020) - 4ch Multi-Software Support:**
+```
+Price range: approx. 60,000 JPY
+Compatible software: Rekordbox / Serato DJ Pro
+Connection: USB-B
+Channels: 4ch
+Jog wheel: Large jog
+Performance pads: 8 × 2
+Effects: Jog Cutter, Merge FX
+Size: 726.3 × 339.3 × 74.2 mm
+Weight: 5.2 kg
 
-Pioneer DJ 以外にも優れたコントローラーメーカーが存在します。
+Pros:
++ 4ch support enables complex mixes
++ Works with both Rekordbox and Serato
++ Merge FX for dramatic transitions
++ Jog Cutter for scratch-style effects
++ High cost performance
+
+Cons:
+- Jog wheel feel is somewhat cheap
+- No On Jog Display
+- No XLR output
+
+Recommended for: Multi-genre DJs, those wanting to try 4ch mixing
+```
+
+#### High-End Models
+
+**DDJ-1000 (released 2018) - For Professionals:**
+```
+Price range: approx. 120,000 JPY
+Compatible software: Rekordbox
+Connection: USB-B
+Channels: 4ch
+Jog wheel: CDJ-2000NXS2 equivalent size (with On Jog Display)
+Performance pads: 8 × 2
+Effects: Beat FX / Sound Color FX all included
+Size: 726.3 × 339.3 × 74.2 mm
+Weight: 5.9 kg
+
+Pros:
++ Jog wheel equivalent to CDJ-2000NXS2
++ Full-size On Jog Display
++ 4ch support, XLR output
++ Smooth transition to club equipment
++ 14 effects included
+
+Cons:
+- Large, requires space for home installation
+- Rekordbox only
+- Somewhat expensive
+
+Recommended for: Pro-oriented DJs, those planning to play at clubs
+```
+
+**DDJ-REV7 (released 2021) - Flagship for Scratch DJs:**
+```
+Price range: approx. 200,000 JPY
+Compatible software: Serato DJ Pro
+Connection: USB-B
+Channels: 2ch
+Jog wheel: Motor-driven (turntable feel)
+Performance pads: 8 × 2 + Stem pads
+Effects: Stems feature, 22 effects
+Display: 7 inches × 2 (On Jog Display)
+Size: 726.3 × 339.3 × 107.4 mm
+Weight: 9.7 kg
+
+Pros:
++ Motor-driven jog for a realistic scratch experience
++ STEMS feature separates vocals/drums/bass/melody
++ 7-inch display
++ Ideal for battle DJs
++ High-end build quality
+
+Cons:
+- Very expensive
+- Heavy, difficult to transport
+- Serato DJ Pro only
+- 2ch only
+
+Recommended for: Scratch DJs, battle DJs, turntablists
+```
+
+### DJ Controllers from Other Manufacturers
+
+There are excellent controller manufacturers beyond Pioneer DJ.
 
 **Denon DJ:**
 ```
-MC6000MK2: プロ向け4ch（約80,000円）
-MC4000: 中級向け2ch（約50,000円）
-特徴: 堅牢な作り、独自のEngine DJ ソフトウェア
+MC6000MK2: Pro 4ch (approx. 80,000 JPY)
+MC4000: Mid-level 2ch (approx. 50,000 JPY)
+Features: Robust build, proprietary Engine DJ software
 ```
 
 **Native Instruments:**
 ```
-Traktor Kontrol S4 MK3: 4ch フラグシップ（約100,000円）
-Traktor Kontrol S2 MK3: 2ch スタンダード（約40,000円）
-特徴: Traktor Pro と完全統合、Stems対応、高品質ジョグ
+Traktor Kontrol S4 MK3: 4ch flagship (approx. 100,000 JPY)
+Traktor Kontrol S2 MK3: 2ch standard (approx. 40,000 JPY)
+Features: Fully integrated with Traktor Pro, Stems support, high-quality jog
 ```
 
 **Numark:**
 ```
-Mixtrack Pro FX: 入門向け（約30,000円）
-Mixtrack Platinum FX: 中級向け（約40,000円）
-特徴: Serato DJ Lite 対応、コストパフォーマンス重視
+Mixtrack Pro FX: Entry-level (approx. 30,000 JPY)
+Mixtrack Platinum FX: Mid-level (approx. 40,000 JPY)
+Features: Serato DJ Lite support, value-focused
 ```
 
 **Roland:**
 ```
-DJ-707M: モバイルPA統合型（約120,000円）
-DJ-505: Serato DJ Pro + TR-S ドラムマシン（約80,000円）
-特徴: 独自のドラムマシン統合、PA出力内蔵
+DJ-707M: Mobile PA integrated (approx. 120,000 JPY)
+DJ-505: Serato DJ Pro + TR-S drum machine (approx. 80,000 JPY)
+Features: Proprietary drum machine integration, built-in PA output
 ```
 
 ---
 
-## ターンテーブル vs CDJ vs コントローラー - 徹底比較
+## Turntables vs CDJs vs Controllers - In-Depth Comparison
 
-DJ機材の選択は、自分のスタイル、予算、目標によって大きく変わります。ここでは3つの主要なDJ機材カテゴリを多角的に比較します。
+The choice of DJ equipment varies greatly depending on your style, budget, and goals. Here we compare the three main categories of DJ equipment from multiple angles.
 
-### 操作性比較
+### Operability Comparison
 
 ```
 ┌──────────────┬───────────────┬───────────────┬───────────────┐
-│ 項目          │ ターンテーブル │ CDJ           │ コントローラー │
+│ Item          │ Turntable     │ CDJ           │ Controller    │
 ├──────────────┼───────────────┼───────────────┼───────────────┤
-│ 学習難易度    │ ★★★★★        │ ★★★☆☆        │ ★★☆☆☆        │
-│ 直感的操作    │ ★★★★★        │ ★★★★☆        │ ★★★☆☆        │
-│ スクラッチ    │ ★★★★★        │ ★★☆☆☆        │ ★★★☆☆（※）   │
-│ ループ操作    │ ★☆☆☆☆        │ ★★★★★        │ ★★★★★        │
-│ エフェクト    │ ★☆☆☆☆（外付）│ ★★★★☆        │ ★★★★★        │
-│ BPM表示      │ なし           │ あり           │ あり           │
-│ 波形表示      │ なし           │ あり           │ あり（PC画面） │
-│ ピッチ精度    │ アナログ連続   │ デジタル精密   │ デジタル精密   │
-│ 触覚フィード  │ 最高           │ 良好           │ 機種による     │
-│ バック        │                │               │               │
+│ Learning curve│ ★★★★★        │ ★★★☆☆        │ ★★☆☆☆        │
+│ Intuitive feel│ ★★★★★        │ ★★★★☆        │ ★★★☆☆        │
+│ Scratching    │ ★★★★★        │ ★★☆☆☆        │ ★★★☆☆ (*)    │
+│ Loop control  │ ★☆☆☆☆        │ ★★★★★        │ ★★★★★        │
+│ Effects       │ ★☆☆☆☆(ext.)  │ ★★★★☆        │ ★★★★★        │
+│ BPM display   │ None          │ Yes           │ Yes           │
+│ Waveform view │ None          │ Yes           │ Yes (PC screen)│
+│ Pitch accuracy│ Analog smooth │ Digital precise│ Digital precise│
+│ Tactile       │ Best          │ Good          │ Varies by model│
+│ feedback      │               │               │               │
 └──────────────┴───────────────┴───────────────┴───────────────┘
-※ DDJ-REV7 はモーター駆動でターンテーブルに近いスクラッチが可能
+* DDJ-REV7 has motor-driven jog that enables scratching close to a turntable
 ```
 
-### コスト比較（2ch セットアップ）
+### Cost Comparison (2ch setup)
 
 ```
 ┌──────────────┬───────────────┬───────────────┬───────────────┐
-│ 項目          │ ターンテーブル │ CDJ           │ コントローラー │
+│ Item          │ Turntable     │ CDJ           │ Controller    │
 ├──────────────┼───────────────┼───────────────┼───────────────┤
-│ プレーヤー    │ SL-1200MK7    │ CDJ-3000      │ DDJ-1000      │
-│              │ ×2 = 約16万円 │ ×2 = 約56万円 │ 約12万円       │
-│ ミキサー      │ DJM-S11       │ DJM-A9        │ （内蔵）       │
-│              │ 約22万円      │ 約30万円      │               │
-│ カートリッジ  │ Ortofon       │ 不要          │ 不要           │
-│              │ ×2 = 約2万円  │               │               │
-│ AI/DVS       │ DVS AI        │ 不要          │ 不要           │
-│              │ 約8万円       │               │               │
+│ Player        │ SL-1200MK7   │ CDJ-3000      │ DDJ-1000      │
+│              │ ×2 = ~160,000 │ ×2 = ~560,000 │ ~120,000 JPY  │
+│ Mixer         │ DJM-S11      │ DJM-A9        │ (built-in)    │
+│              │ ~220,000 JPY  │ ~300,000 JPY  │               │
+│ Cartridge     │ Ortofon      │ Not needed    │ Not needed     │
+│              │ ×2 = ~20,000  │               │               │
+│ AI/DVS        │ DVS AI        │ Not needed    │ Not needed     │
+│              │ ~80,000 JPY   │               │               │
 │              │               │               │               │
-│ 合計         │ 約48万円      │ 約86万円      │ 約12万円       │
-│ PC必要       │ DVS時のみ     │ 不要          │ 必要           │
-│ ランニング   │ レコード/針   │ USBメモリ     │ ソフト月額     │
-│ コスト       │ 購入費        │               │               │
+│ Total         │ ~480,000 JPY │ ~860,000 JPY  │ ~120,000 JPY  │
+│ PC required   │ DVS only      │ Not needed    │ Required       │
+│ Running costs │ Records/stylus│ USB drives    │ Software fee   │
+│              │ purchase      │               │               │
 └──────────────┴───────────────┴───────────────┴───────────────┘
 ```
 
-### それぞれの魅力と向いている人
+### The Appeal of Each and Who They Suit
 
-**ターンテーブル派:**
+**Turntable fans:**
 ```
-魅力:
-- レコードという物理メディアの温かみと質感
-- スクラッチの圧倒的な表現力
-- ジャケットを手に取る喜び（ディグの楽しさ）
-- アナログならではの偶発性とライブ感
-- DJ文化のルーツに触れる体験
+Appeal:
+- The warmth and texture of records as a physical medium
+- Overwhelming expressiveness of scratching
+- The joy of holding album covers (the pleasure of digging)
+- The spontaneity and live feel unique to analog
+- An experience connecting with the roots of DJ culture
 
-向いている人:
-- ヒップホップ / ターンテーブリズムに興味がある
-- スクラッチ技術を極めたい
-- レコード収集が好き
-- アナログの質感にこだわりたい
-- DJ の歴史や文化に敬意を持っている
-```
-
-**CDJ派:**
-```
-魅力:
-- クラブの業界標準機材（世界中のクラブに設置）
-- PC不要でスタンドアロン運用可能
-- 大型ジョグホイールの高い操作性
-- 圧倒的な信頼性と耐久性
-- プロフェッショナルな見た目と存在感
-
-向いている人:
-- クラブDJ / フェスDJ を目指す
-- テクノ / ハウス / EDM をプレイ
-- PCトラブルのリスクを排除したい
-- プロ機材に投資できる予算がある
-- クラブ出演の機会がある、または予定がある
+Who it suits:
+- Those interested in hip-hop / turntablism
+- Those wanting to master scratch techniques
+- Record collectors
+- Those who care about the analog texture
+- Those who have respect for the history and culture of DJing
 ```
 
-**コントローラー派:**
+**CDJ fans:**
 ```
-魅力:
-- オールインワンで最もコスパが良い
-- ソフトウェアの機能をフル活用可能
-- コンパクトで持ち運びやすい
-- 初心者に優しい（SYNC機能、波形表示など）
-- 多彩なエフェクトとパフォーマンスパッド
+Appeal:
+- Industry-standard equipment for clubs (installed in clubs worldwide)
+- Can operate standalone without a PC
+- High operability of the large jog wheel
+- Overwhelming reliability and durability
+- Professional appearance and presence
 
-向いている人:
-- DJ入門者
-- 自宅DJ / 配信DJ
-- 予算を抑えたい
-- 多機能を使いこなしたい
-- デジタル操作に抵抗がない
+Who it suits:
+- Aspiring club DJs / festival DJs
+- Playing techno / house / EDM
+- Those wanting to eliminate the risk of PC problems
+- Those with budget to invest in professional equipment
+- Those who have or plan to have club performance opportunities
+```
+
+**Controller fans:**
+```
+Appeal:
+- All-in-one with the best cost performance
+- Can make full use of software features
+- Compact and easy to carry
+- Beginner-friendly (SYNC function, waveform display, etc.)
+- Wide variety of effects and performance pads
+
+Who it suits:
+- DJ beginners
+- Home DJs / streaming DJs
+- Those wanting to keep costs down
+- Those wanting to use many features
+- Those comfortable with digital operation
 ```
 
 ---
 
-## コンテンツ一覧
+## Content List
 
-### [DJコントローラー](./controllers.md)
+### [DJ Controllers](./controllers.md)
 
-初心者に最適なオールインワン機材。
+The all-in-one equipment most suitable for beginners.
 
-**学べること:**
-- コントローラーとは何か
-- 初心者向けおすすめモデル
-- DDJ シリーズの比較
-- セットアップ方法
-- Rekordbox との接続
+**What you will learn:**
+- What a controller is
+- Recommended models for beginners
+- Comparison of the DDJ series
+- Setup methods
+- Connecting to Rekordbox
 
-**おすすめ機材:**
-- DDJ-400（入門）
-- DDJ-FLX4（入門+）
-- DDJ-800（中級）
-- DDJ-1000（上級）
+**Recommended equipment:**
+- DDJ-400 (entry)
+- DDJ-FLX4 (entry+)
+- DDJ-800 (intermediate)
+- DDJ-1000 (advanced)
 
-### [CDJセットアップ](./cdj-setup.md)
+### [CDJ Setup](./cdj-setup.md)
 
-クラブ標準機材の使い方。
+How to use club-standard equipment.
 
-**学べること:**
-- CDJとは何か
-- CDJ-3000 の操作方法
-- CDJ-2000NXS2 の操作方法
-- USBメモリの準備
-- Link機能の活用
+**What you will learn:**
+- What a CDJ is
+- How to operate the CDJ-3000
+- How to operate the CDJ-2000NXS2
+- Preparing USB drives
+- Using the Link function
 
-**対応モデル:**
+**Compatible models:**
 - CDJ-3000
 - CDJ-2000NXS2
 - CDJ-900NXS
 - XDJ-1000MK2
 
-### [ターンテーブル](./turntables.md)
+### [Turntables](./turntables.md)
 
-アナログDJの基礎。
+The fundamentals of analog DJing.
 
-**学べること:**
-- ターンテーブルの種類
-- Technics SL-1200の使い方
-- レコードの扱い方
-- カートリッジと針
-- DVS（Digital Vinyl System）
+**What you will learn:**
+- Types of turntables
+- How to use the Technics SL-1200
+- How to handle records
+- Cartridges and needles
+- DVS (Digital Vinyl System)
 
-**対応モデル:**
+**Compatible models:**
 - Technics SL-1200MK7
 - Pioneer PLX-1000
 - Reloop RP-8000
 
-### [DJミキサー](./dj-mixers.md)
+### [DJ Mixers](./dj-mixers.md)
 
-音をミックスする心臓部。
+The heart of the mix.
 
-**学べること:**
-- ミキサーの構造
-- DJM シリーズの使い方
-- チャンネルフェーダー
-- クロスフェーダー
-- エフェクト機能
+**What you will learn:**
+- Mixer structure
+- How to use the DJM series
+- Channel faders
+- Crossfader
+- Effects functions
 
-**対応モデル:**
+**Compatible models:**
 - DJM-900NXS2
 - DJM-A9
 - DJM-S11
 - DJM-750MK2
 
-### [ソフトウェア比較](./software-comparison.md)
+### [Software Comparison](./software-comparison.md)
 
-DJ ソフトウェアの選び方。
+How to choose DJ software.
 
-**学べること:**
-- Rekordbox の特徴
-- Serato DJ Pro との比較
-- Traktor Pro との比較
-- VirtualDJ との比較
-- どのソフトを選ぶべきか
+**What you will learn:**
+- Features of Rekordbox
+- Comparison with Serato DJ Pro
+- Comparison with Traktor Pro
+- Comparison with VirtualDJ
+- Which software you should choose
 
-**対応ソフト:**
+**Compatible software:**
 - Rekordbox 7.2.7
 - Serato DJ Pro
 - Traktor Pro 3
 - VirtualDJ
 
-### [ヘッドフォン](./headphones.md)
+### [Headphones](./headphones.md)
 
-DJ 用ヘッドフォンの選び方。
+How to choose DJ headphones.
 
-**学べること:**
-- DJ用ヘッドフォンの条件
-- おすすめモデル
-- 密閉型 vs 開放型
-- 片耳モニタリング
-- メンテナンス方法
+**What you will learn:**
+- Requirements for DJ headphones
+- Recommended models
+- Closed-back vs open-back
+- Single-ear monitoring
+- Maintenance
 
-**おすすめモデル:**
+**Recommended models:**
 - Sennheiser HD25
 - Pioneer HDJ-X10
 - Audio-Technica ATH-M50x
 - V-MODA Crossfade M-100
 
-### [モニタースピーカー](./monitors.md)
+### [Monitor Speakers](./monitors.md)
 
-自宅練習用スピーカー。
+Speakers for home practice.
 
-**学べること:**
-- モニタースピーカーとは
-- おすすめモデル
-- スピーカーの配置
-- 音響調整
-- 予算別の選び方
+**What you will learn:**
+- What monitor speakers are
+- Recommended models
+- Speaker placement
+- Acoustic adjustment
+- Choosing by budget
 
-**おすすめモデル:**
+**Recommended models:**
 - YAMAHA HS5
 - KRK Rokit 5 G4
 - JBL 305P MkII
 - Adam Audio T5V
 
-### [オーディオインターフェイス](./audio-interface.md)
+### [Audio Interface](./audio-interface.md)
 
-PC と DJ機材を繋ぐ。
+Connecting your PC to DJ equipment.
 
-**学べること:**
-- オーディオインターフェイスの役割
-- 必要な入出力数
-- Rekordbox での設定
-- レイテンシの調整
-- おすすめモデル
+**What you will learn:**
+- The role of an audio interface
+- Required number of inputs/outputs
+- Settings in Rekordbox
+- Adjusting latency
+- Recommended models
 
-**おすすめモデル:**
+**Recommended models:**
 - Focusrite Scarlett 2i2
 - RME Babyface Pro FS
 - Native Instruments Komplete Audio 6
@@ -715,310 +715,310 @@ PC と DJ機材を繋ぐ。
 
 ---
 
-## 学習の順序
+## Learning Order
 
-### 初心者（0-3ヶ月）
-
-```
-1. DJコントローラー
-   - 基本操作を学ぶ
-   - Rekordbox との接続
-
-2. ヘッドフォン
-   - DJ用ヘッドフォンを選ぶ
-   - キューイング練習
-
-3. モニタースピーカー（予算があれば）
-   - 自宅練習環境の構築
-```
-
-### 中級者（3-12ヶ月）
+### Beginners (0–3 months)
 
 ```
-1. CDJ セットアップ
-   - クラブ機材に慣れる
-   - USBメモリでのプレイ
+1. DJ Controller
+   - Learn basic operations
+   - Connect to Rekordbox
 
-2. DJミキサー
-   - ミキサーの詳細機能
-   - エフェクトの活用
+2. Headphones
+   - Choose DJ headphones
+   - Practice cueing
 
-3. オーディオインターフェイス
-   - より高音質な環境
+3. Monitor speakers (if budget allows)
+   - Build a home practice environment
 ```
 
-### 上級者（12ヶ月以降）
+### Intermediate (3–12 months)
 
 ```
-1. ターンテーブル（興味があれば）
-   - アナログの魅力
-   - スクラッチ技術
+1. CDJ Setup
+   - Get used to club equipment
+   - Play using USB drives
 
-2. プロ機材の理解
-   - CDJ-3000、DJM-A9
-   - 最新技術の習得
+2. DJ Mixer
+   - Detailed mixer functions
+   - Using effects
 
-3. ソフトウェアの使い分け
-   - 状況に応じた選択
+3. Audio Interface
+   - Higher quality audio environment
 ```
 
----
-
-## スタンドアロンDJシステム徹底解説
-
-近年急速に普及しているスタンドアロンDJシステムは、PCを必要とせずに単体でDJプレイが可能な機材です。コントローラーの手軽さとCDJの独立性を兼ね備えた、現代DJの新しい選択肢として注目されています。
-
-### スタンドアロン機の利点と仕組み
-
-スタンドアロンDJシステムは、内部にプロセッサとオペレーティングシステムを搭載しており、楽曲の解析、波形表示、エフェクト処理をすべて本体内で完結します。USBメモリやSSD、場合によってはストリーミングサービスから楽曲を読み込み、PC接続なしでフルスペックのDJプレイが可能です。
+### Advanced (12+ months)
 
 ```
-スタンドアロン機のメリット:
-├── PCトラブルの完全排除
-│   - OS アップデートによる不具合
-│   - ソフトウェアクラッシュ
-│   - バッテリー切れの心配
-│   - ドライバーの互換性問題
-├── セットアップの高速化
-│   - USB差し込みですぐプレイ開始
-│   - ケーブル本数の削減
-│   - 設置スペースの節約
-├── 信頼性の向上
-│   - 専用ハードウェアの安定性
-│   - 長時間稼働への耐性
-│   - 現場でのトラブルリスク低減
-└── 携帯性の向上
-    - PC + コントローラーより省スペース
-    - 電源とUSBメモリだけで運用可能
-    - 移動時の荷物削減
-```
+1. Turntables (if interested)
+   - The appeal of analog
+   - Scratch techniques
 
-### 主要スタンドアロン機の比較
+2. Understanding professional equipment
+   - CDJ-3000, DJM-A9
+   - Learning the latest technology
 
-**Pioneer XDJ-XZ（2020年発売）- プロ仕様オールインワン:**
-```
-価格帯: 約280,000円
-プレーヤー: 4ch（2デッキ物理 + 2デッキソフトウェア）
-ディスプレイ: 7インチタッチスクリーン×2
-ジョグホイール: フルサイズ206mm
-エフェクト: Beat FX 14種類 + Sound Color FX 4種類
-出力: XLR バランス、RCA
-サイズ: 872.4 × 477.4 × 118.6 mm
-重量: 12.0 kg
-
-特徴:
-+ CDJ-2000NXS2 + DJM-900NXS2 相当の操作性
-+ Rekordbox / Serato DJ Pro 両対応（PC接続時）
-+ スタンドアロン + PCハイブリッド運用
-+ Pro DJ Link対応で外部CDJとの連携可能
-+ クラブグレードのサウンドクオリティ
-
-使用シーン: クラブ常設、プロDJ、大規模イベント
-```
-
-**Pioneer XDJ-RX3（2021年発売）- バランス型スタンドアロン:**
-```
-価格帯: 約200,000円
-プレーヤー: 2ch
-ディスプレイ: 10.1インチタッチスクリーン
-ジョグホイール: 大型ジョグ
-エフェクト: Beat FX + Sound Color FX
-出力: XLR バランス、RCA
-サイズ: 726.3 × 417.1 × 118.3 mm
-重量: 8.4 kg
-
-特徴:
-+ 10.1インチの大型タッチスクリーン
-+ 楽曲ブラウズが快適
-+ Rekordbox クラウドライブラリ対応
-+ USBメモリからの高速読み込み
-+ コンパクトで持ち運び可能
-
-使用シーン: 中規模イベント、ラウンジ、自宅スタジオ
-```
-
-**Denon DJ Prime 4+（2023年発売）- 革新的4ch スタンドアロン:**
-```
-価格帯: 約250,000円
-プレーヤー: 4ch
-ディスプレイ: 10.1インチHDマルチタッチスクリーン
-ジョグホイール: 6インチメタルジョグ
-エフェクト: 多数搭載
-ストリーミング: Wi-Fi内蔵、各種ストリーミング対応
-出力: XLR バランス、RCA、Zone出力
-サイズ: 688.4 × 457 × 128.5 mm
-重量: 9.65 kg
-
-特徴:
-+ Wi-Fi内蔵でストリーミング直接再生
-+ 4ch独立デッキで高度なミキシング
-+ Engine DJ OS搭載
-+ STEMSリアルタイム分離対応
-+ Zone出力で複数エリアの音声管理
-
-使用シーン: モバイルDJ、ウェディングDJ、多目的イベント
-```
-
-**Denon DJ SC LIVE 4（2023年発売）- エントリースタンドアロン:**
-```
-価格帯: 約150,000円
-プレーヤー: 4ch
-ディスプレイ: 7インチタッチスクリーン
-スピーカー: 内蔵スピーカー搭載
-ストリーミング: Wi-Fi内蔵
-出力: XLR バランス、RCA
-重量: 6.86 kg
-
-特徴:
-+ 内蔵スピーカーで場所を選ばない練習
-+ Wi-Fi内蔵でストリーミング対応
-+ 4chデッキ
-+ 比較的軽量コンパクト
-+ Amazon Music / TIDAL / Beatport 等対応
-
-使用シーン: 自宅練習、小規模パーティー、アウトドアイベント
-```
-
-### スタンドアロン機の選び方フローチャート
-
-```
-Q1: 予算はいくら？
-├── 15万円以下 → Denon SC LIVE 4
-├── 15-22万円  → Pioneer XDJ-RX3
-├── 22-28万円  → Denon Prime 4+
-└── 28万円以上 → Pioneer XDJ-XZ
-
-Q2: チャンネル数は？
-├── 2chで十分  → XDJ-RX3
-└── 4ch必要    → XDJ-XZ / Prime 4+
-
-Q3: ストリーミング利用する？
-├── はい → Denon DJ 製品（Wi-Fi内蔵）
-└── いいえ → Pioneer DJ 製品（USB運用メイン）
-
-Q4: PC連携も重視？
-├── はい → XDJ-XZ（Rekordbox/Serato対応）
-└── いいえ → 各機種スタンドアロン運用
+3. Using software selectively
+   - Choose according to the situation
 ```
 
 ---
 
-## ケーブル・接続端子の完全ガイド
+## Standalone DJ Systems - In-Depth Guide
 
-DJ機材のセットアップにおいて、ケーブルと接続端子の知識は見落とされがちですが極めて重要です。適切なケーブル選択は音質に直結し、誤った接続はノイズや機材の故障の原因になります。
+Standalone DJ systems, which have rapidly spread in recent years, allow DJ performances without needing a PC. They combine the ease of a controller with the independence of a CDJ, and are attracting attention as a new choice for modern DJs.
 
-### オーディオケーブルの種類
+### Benefits and Mechanism of Standalone Units
 
-**RCA（アンバランス接続）:**
+Standalone DJ systems have a built-in processor and operating system, handling track analysis, waveform display, and effects processing entirely within the unit itself. They load tracks from USB drives, SSDs, or in some cases streaming services, and can perform full-spec DJ sets without a PC connection.
+
 ```
-用途: 家庭用オーディオ機器、エントリーDJ機材
-端子: 赤白のピンプラグ
-特徴:
-- 最も一般的な接続方式
-- ケーブル長 3m 以下推奨（ノイズの影響を受けやすい）
-- アンバランス伝送のため外部ノイズに弱い
-- コントローラーのマスターアウトに多い
-
-推奨ケーブル:
-- Mogami 2534（プロ定番）
-- Oyaide d+ RCA Class B（DJ向け）
-- AudioQuest Evergreen（コスパ良好）
-
-接続例: DDJ-FLX4 → RCA → パワードスピーカー
+Benefits of standalone units:
+├── Complete elimination of PC problems
+│   - Issues caused by OS updates
+│   - Software crashes
+│   - No battery life worries
+│   - Driver compatibility issues
+├── Faster setup
+│   - Insert USB and start playing immediately
+│   - Fewer cables
+│   - Space savings
+├── Improved reliability
+│   - Stability of dedicated hardware
+│   - Resistance to long hours of operation
+│   - Reduced risk of on-site problems
+└── Improved portability
+    - Less space than PC + controller
+    - Can run with just power and USB drive
+    - Less to carry when traveling
 ```
 
-**XLR（バランス接続）:**
-```
-用途: プロオーディオ、クラブ、ライブPA
-端子: 3ピン XLR（キャノン端子）
-特徴:
-- バランス伝送でノイズに強い
-- 長距離伝送可能（100m以上も可）
-- プロ機材の標準出力端子
-- 誤接続を防ぐロック機構付き
-- ファンタム電源（+48V）の供給も可能
+### Comparison of Major Standalone Units
 
-推奨ケーブル:
-- Mogami 2549 + Neutrik端子
-- CANARE L-4E6S（超定番）
+**Pioneer XDJ-XZ (released 2020) - Pro-Grade All-in-One:**
+```
+Price range: approx. 280,000 JPY
+Players: 4ch (2 physical decks + 2 software decks)
+Display: 7-inch touchscreen × 2
+Jog wheel: Full-size 206mm
+Effects: Beat FX 14 types + Sound Color FX 4 types
+Output: XLR balanced, RCA
+Size: 872.4 × 477.4 × 118.6 mm
+Weight: 12.0 kg
+
+Features:
++ CDJ-2000NXS2 + DJM-900NXS2 equivalent operability
++ Rekordbox / Serato DJ Pro both supported (when connected to PC)
++ Standalone + PC hybrid operation
++ Pro DJ Link support for connecting with external CDJs
++ Club-grade sound quality
+
+Use cases: Club permanent installation, professional DJs, large-scale events
+```
+
+**Pioneer XDJ-RX3 (released 2021) - Balanced Standalone:**
+```
+Price range: approx. 200,000 JPY
+Players: 2ch
+Display: 10.1-inch touchscreen
+Jog wheel: Large jog
+Effects: Beat FX + Sound Color FX
+Output: XLR balanced, RCA
+Size: 726.3 × 417.1 × 118.3 mm
+Weight: 8.4 kg
+
+Features:
++ Large 10.1-inch touchscreen
++ Comfortable track browsing
++ Rekordbox cloud library support
++ Fast loading from USB drive
++ Compact and portable
+
+Use cases: Medium-scale events, lounges, home studios
+```
+
+**Denon DJ Prime 4+ (released 2023) - Innovative 4ch Standalone:**
+```
+Price range: approx. 250,000 JPY
+Players: 4ch
+Display: 10.1-inch HD multi-touch screen
+Jog wheel: 6-inch metal jog
+Effects: Many included
+Streaming: Built-in Wi-Fi, supports various streaming services
+Output: XLR balanced, RCA, Zone output
+Size: 688.4 × 457 × 128.5 mm
+Weight: 9.65 kg
+
+Features:
++ Built-in Wi-Fi for direct streaming playback
++ 4 independent decks for advanced mixing
++ Engine DJ OS
++ Real-time STEMS separation support
++ Zone output for managing audio in multiple areas
+
+Use cases: Mobile DJs, wedding DJs, multipurpose events
+```
+
+**Denon DJ SC LIVE 4 (released 2023) - Entry-Level Standalone:**
+```
+Price range: approx. 150,000 JPY
+Players: 4ch
+Display: 7-inch touchscreen
+Speakers: Built-in speakers
+Streaming: Built-in Wi-Fi
+Output: XLR balanced, RCA
+Weight: 6.86 kg
+
+Features:
++ Built-in speakers allow practice anywhere
++ Built-in Wi-Fi for streaming support
++ 4ch decks
++ Relatively lightweight and compact
++ Supports Amazon Music / TIDAL / Beatport, etc.
+
+Use cases: Home practice, small parties, outdoor events
+```
+
+### Flowchart for Choosing a Standalone Unit
+
+```
+Q1: What is your budget?
+├── Under 150,000 JPY  → Denon SC LIVE 4
+├── 150,000–220,000    → Pioneer XDJ-RX3
+├── 220,000–280,000    → Denon Prime 4+
+└── Over 280,000 JPY   → Pioneer XDJ-XZ
+
+Q2: How many channels do you need?
+├── 2ch is sufficient  → XDJ-RX3
+└── 4ch needed         → XDJ-XZ / Prime 4+
+
+Q3: Will you use streaming?
+├── Yes → Denon DJ products (built-in Wi-Fi)
+└── No  → Pioneer DJ products (mainly USB operation)
+
+Q4: Is PC integration also important?
+├── Yes → XDJ-XZ (Rekordbox/Serato support)
+└── No  → Standalone operation on any model
+```
+
+---
+
+## Complete Guide to Cables and Connectors
+
+Knowledge of cables and connectors in DJ equipment setup is often overlooked but is extremely important. Choosing the right cable directly affects sound quality, and incorrect connections can cause noise or equipment failure.
+
+### Types of Audio Cables
+
+**RCA (Unbalanced connection):**
+```
+Uses: Home audio equipment, entry-level DJ equipment
+Connector: Red and white pin plugs
+Features:
+- The most common connection method
+- Cable length under 3m recommended (susceptible to noise)
+- Unbalanced transmission is weak against external noise
+- Common on controller master outputs
+
+Recommended cables:
+- Mogami 2534 (professional standard)
+- Oyaide d+ RCA Class B (DJ-oriented)
+- AudioQuest Evergreen (good value)
+
+Connection example: DDJ-FLX4 → RCA → powered speakers
+```
+
+**XLR (Balanced connection):**
+```
+Uses: Pro audio, clubs, live PA
+Connector: 3-pin XLR (cannon connector)
+Features:
+- Balanced transmission, resistant to noise
+- Long-distance transmission possible (100m+ possible)
+- Standard output connector on professional equipment
+- Locking mechanism to prevent accidental disconnection
+- Can also supply phantom power (+48V)
+
+Recommended cables:
+- Mogami 2549 + Neutrik connectors
+- CANARE L-4E6S (an absolute standard)
 - Oyaide d+ XLR Class B
 
-接続例: DJM-A9 → XLR → パワーアンプ → スピーカー
+Connection example: DJM-A9 → XLR → power amplifier → speakers
 ```
 
-**TRS（バランス接続 - フォーン端子）:**
+**TRS (Balanced connection - phone connector):**
 ```
-用途: モニタースピーカー、ヘッドフォン
-端子: 6.3mm / 3.5mm ステレオフォーン
-特徴:
-- バランス伝送対応（TRS = Tip-Ring-Sleeve）
-- モニタースピーカー入力に多い
-- ヘッドフォン接続にも使用
-- TSフォーン（モノラル）と区別が必要
+Uses: Monitor speakers, headphones
+Connector: 6.3mm / 3.5mm stereo phone
+Features:
+- Supports balanced transmission (TRS = Tip-Ring-Sleeve)
+- Common on monitor speaker inputs
+- Also used for headphone connections
+- Must be distinguished from TS phone (mono)
 
-推奨ケーブル:
-- Mogami 2534 + Neutrik TRSプラグ
-- Hosa Pro（コスパ重視）
+Recommended cables:
+- Mogami 2534 + Neutrik TRS plug
+- Hosa Pro (value-focused)
 
-接続例: オーディオI/F → TRS → モニタースピーカー
-```
-
-**USB（デジタル接続）:**
-```
-用途: PC-コントローラー間、MIDI機器
-端子タイプ:
-- USB-A: PC側の標準端子
-- USB-B: DJコントローラーに多い（DDJ-1000など）
-- USB-C: 最新機材の標準（DDJ-FLX4、MacBook）
-- USB Micro-B: 旧型コントローラー
-
-注意点:
-- USBハブは避ける（レイテンシ増大の原因）
-- USB 3.0以上を推奨（データ転送速度）
-- ケーブル長は2m以下推奨
-- バスパワー機器は電力供給に注意
-
-接続例: MacBook USB-C → DDJ-FLX4 USB-C
+Connection example: Audio I/F → TRS → monitor speakers
 ```
 
-### 接続端子の対応表
+**USB (Digital connection):**
+```
+Uses: PC-to-controller, MIDI devices
+Connector types:
+- USB-A: Standard connector on PC side
+- USB-B: Common on DJ controllers (DDJ-1000, etc.)
+- USB-C: Standard on latest equipment (DDJ-FLX4, MacBook)
+- USB Micro-B: Older controllers
+
+Notes:
+- Avoid USB hubs (cause of increased latency)
+- USB 3.0 or higher recommended (data transfer speed)
+- Cable length under 2m recommended
+- Watch power supply for bus-powered devices
+
+Connection example: MacBook USB-C → DDJ-FLX4 USB-C
+```
+
+### Connector Compatibility Table
 
 ```
 ┌─────────────────┬────────────────┬────────────┬──────────────┐
-│ 端子タイプ       │ 伝送方式        │ 推奨距離   │ 主な用途      │
+│ Connector type   │ Transmission   │ Rec. length│ Main use     │
 ├─────────────────┼────────────────┼────────────┼──────────────┤
-│ RCA             │ アンバランス     │ ~3m        │ 家庭用/入門   │
-│ XLR             │ バランス         │ ~100m      │ プロ/クラブ   │
-│ TRS 6.3mm      │ バランス         │ ~10m       │ モニター/HP   │
-│ TS 6.3mm       │ アンバランス     │ ~3m        │ 楽器接続      │
-│ 3.5mm ミニ      │ アンバランス     │ ~1.5m      │ ヘッドフォン   │
-│ USB-B/C        │ デジタル         │ ~2m        │ PC接続        │
-│ HDMI            │ デジタル         │ ~5m        │ 映像出力      │
-│ 光デジタル       │ デジタル         │ ~5m        │ S/PDIF        │
-│ Ethernet        │ デジタル         │ ~100m      │ Pro DJ Link   │
+│ RCA             │ Unbalanced     │ ~3m        │ Home/entry    │
+│ XLR             │ Balanced       │ ~100m      │ Pro/club      │
+│ TRS 6.3mm       │ Balanced       │ ~10m       │ Monitor/HP    │
+│ TS 6.3mm        │ Unbalanced     │ ~3m        │ Instrument    │
+│ 3.5mm mini      │ Unbalanced     │ ~1.5m      │ Headphones    │
+│ USB-B/C         │ Digital        │ ~2m        │ PC connection │
+│ HDMI            │ Digital        │ ~5m        │ Video output  │
+│ Optical digital  │ Digital       │ ~5m        │ S/PDIF        │
+│ Ethernet        │ Digital        │ ~100m      │ Pro DJ Link   │
 └─────────────────┴────────────────┴────────────┴──────────────┘
 ```
 
-### 実践的な配線ダイアグラム
+### Practical Wiring Diagrams
 
-**自宅DJブース配線例:**
+**Home DJ booth wiring example:**
 ```
 ┌──────────┐  USB-C   ┌──────────┐  RCA    ┌──────────┐
-│ MacBook  │─────────→│DDJ-FLX4  │────────→│ スピーカー │
-│ Pro      │          │          │  (白赤)  │ (L/R)    │
+│ MacBook  │─────────→│DDJ-FLX4  │────────→│ Speakers │
+│ Pro      │          │          │(red/wht) │ (L/R)    │
 └──────────┘          │          │          └──────────┘
                       │          │
                       │   HP OUT │  3.5mm   ┌──────────┐
-                      │          │─────────→│ヘッドフォン│
+                      │          │─────────→│Headphones│
                       └──────────┘          └──────────┘
 
-電源:
-- MacBook: USB-C PD充電器
-- DDJ-FLX4: USBバスパワー（電源不要）
-- スピーカー: AC電源（パワードスピーカーの場合）
+Power:
+- MacBook: USB-C PD charger
+- DDJ-FLX4: USB bus power (no adapter needed)
+- Speakers: AC power (for powered speakers)
 ```
 
-**クラブDJブース配線例:**
+**Club DJ booth wiring example:**
 ```
 ┌──────────┐  LAN     ┌──────────┐  LAN    ┌──────────┐
 │ CDJ-3000 │─────────→│          │←────────│ CDJ-3000 │
@@ -1026,12 +1026,12 @@ DJ機材のセットアップにおいて、ケーブルと接続端子の知識
 └──────────┘          │          │          └──────────┘
      ↑                │          │               ↑
    USB-A              │          │             USB-A
-   (USBメモリ)         │          │            (USBメモリ)
+  (USB drive)         │          │            (USB drive)
                       │   XLR    │
                       │  MASTER  │
                       │    ↓     │
                 ┌──────────────────┐
-                │  パワーアンプ      │
+                │   Power Amp      │
                 └────────┬─────────┘
                          │ Speakon
                     ┌────┴────┐
@@ -1041,385 +1041,385 @@ DJ機材のセットアップにおいて、ケーブルと接続端子の知識
               │SP    │  │SP    │
               └──────┘  └──────┘
 
-モニター系統:
-DJM-A9 BOOTH OUT (XLR) → モニタースピーカー
-DJM-A9 PHONES OUT (6.3mm TRS) → DJヘッドフォン
+Monitor routing:
+DJM-A9 BOOTH OUT (XLR) → Monitor speaker
+DJM-A9 PHONES OUT (6.3mm TRS) → DJ headphones
 ```
 
 ---
 
-## DJ機材のメンテナンスと保守
+## DJ Equipment Maintenance and Care
 
-長く機材を使い続けるためには、日常的なメンテナンスが欠かせません。プロDJの多くは機材の手入れを怠らず、パフォーマンスの安定性を確保しています。
+Regular maintenance is essential for keeping equipment in good working order over the long term. Many professional DJs never neglect equipment care, ensuring stable performance.
 
-### コントローラーのメンテナンス
+### Controller Maintenance
 
-**日常ケア（使用後毎回）:**
+**Daily care (after each use):**
 ```
-1. ジョグホイールの清掃
-   - 柔らかいマイクロファイバークロスで拭く
-   - 汗や油分を丁寧に除去
-   - 回転部分に液体が入らないよう注意
-   - 指紋が蓄積すると感度低下の原因に
+1. Cleaning the jog wheel
+   - Wipe with a soft microfiber cloth
+   - Carefully remove sweat and oils
+   - Be careful not to let liquid into the rotating parts
+   - Accumulated fingerprints cause reduced sensitivity
 
-2. フェーダーの保護
-   - 使用後はダストカバーを掛ける
-   - クロスフェーダー周辺のホコリを除去
-   - エアダスターでスリット内のゴミを吹き飛ばす
-   - カバーがない場合は布やタオルで代用
+2. Protecting the faders
+   - Place a dust cover after use
+   - Remove dust around the crossfader
+   - Blow debris out of the slot with an air duster
+   - If no cover, use a cloth or towel as substitute
 
-3. パッドの清掃
-   - シリコンパッドの表面を拭く
-   - 強く押し込まないよう優しく清掃
-   - 汚れがひどい場合は中性洗剤を薄めた液で
+3. Cleaning the pads
+   - Wipe the surface of the silicone pads
+   - Clean gently without pressing hard
+   - For stubborn dirt, use diluted mild detergent
 
-4. 端子の確認
-   - USB端子の接触不良チェック
-   - RCA/XLR端子の酸化確認
-   - 端子カバーの装着（未使用時）
-```
-
-**月次ケア:**
-```
-1. フェーダーのメンテナンス
-   - 接点復活剤（DeoxIT F5）をフェーダーに少量塗布
-   - フェーダーを数十回往復させて馴染ませる
-   - 余分な液体は拭き取る
-
-2. ファームウェアアップデート確認
-   - メーカーサイトで最新バージョンをチェック
-   - アップデートがあれば適用
-   - アップデート前にバックアップ推奨
-
-3. 全体的な動作確認
-   - 全ボタン・ノブの反応チェック
-   - 全LEDの点灯確認
-   - オーディオ出力のチェック（左右バランス含む）
+4. Checking connectors
+   - Check USB connector for poor contact
+   - Check RCA/XLR connectors for oxidation
+   - Attach connector covers (when not in use)
 ```
 
-### ターンテーブルのメンテナンス
-
-ターンテーブルはアナログ機器であるため、メカニカルな部品の定期的なメンテナンスが特に重要です。
-
+**Monthly care:**
 ```
-日常ケア:
-├── レコード再生前
-│   ├── ターンテーブルマットのホコリ除去
-│   ├── スタイラス（針先）の確認
-│   ├── アンチスケーティングの設定確認
-│   └── トーンアームの高さ・角度確認
-├── レコード再生後
-│   ├── スタイラスの清掃（専用ブラシ使用）
-│   ├── レコードを内袋に戻す
-│   ├── ダストカバーを閉じる
-│   └── トーンアームをレストに戻す
-└── 保管時
-    ├── ダストカバー必須
-    ├── 直射日光を避ける
-    ├── 水平設置の確認
-    └── 振動のない場所に設置
+1. Fader maintenance
+   - Apply a small amount of contact cleaner (DeoxIT F5) to the fader
+   - Move the fader back and forth dozens of times to work it in
+   - Wipe off excess liquid
 
-定期メンテナンス（3-6ヶ月ごと）:
-├── ドライブベルトの状態確認（ベルトドライブの場合）
-├── プラッターのクリーニング
-├── トーンアームベアリングの確認
-├── 接地（アース）線の接続確認
-├── カートリッジの取り付け状態確認
-├── 針圧の再調整
-└── 電源ケーブルの損傷チェック
+2. Firmware update check
+   - Check the manufacturer's website for the latest version
+   - Apply updates if available
+   - Backup recommended before updating
+
+3. Overall operation check
+   - Check response of all buttons and knobs
+   - Check all LEDs light up
+   - Check audio output (including left/right balance)
 ```
 
-### スタイラス（レコード針）の寿命と交換時期
+### Turntable Maintenance
+
+Since turntables are analog equipment, regular maintenance of mechanical parts is especially important.
 
 ```
-針の種類と寿命目安:
+Daily care:
+├── Before playing records
+│   ├── Remove dust from the turntable mat
+│   ├── Check the stylus (needle tip)
+│   ├── Check anti-skating setting
+│   └── Check tonearm height and angle
+├── After playing records
+│   ├── Clean the stylus (use a dedicated brush)
+│   ├── Return record to its inner sleeve
+│   ├── Close the dust cover
+│   └── Return tonearm to rest position
+└── During storage
+    ├── Dust cover is essential
+    ├── Avoid direct sunlight
+    ├── Confirm level placement
+    └── Store in a location free from vibration
+
+Periodic maintenance (every 3–6 months):
+├── Check drive belt condition (for belt-drive models)
+├── Clean the platter
+├── Check tonearm bearings
+├── Check grounding wire connection
+├── Check cartridge mounting condition
+├── Re-adjust tracking force
+└── Check power cable for damage
+```
+
+### Stylus (Record Needle) Lifespan and Replacement Timing
+
+```
+Needle types and estimated lifespan:
 ┌──────────────────┬──────────────────┬────────────┐
-│ 針の種類          │ 寿命目安          │ 交換費用    │
+│ Needle type       │ Est. lifespan    │ Replacement│
 ├──────────────────┼──────────────────┼────────────┤
-│ 丸針（Spherical） │ 約300-500時間     │ 5,000-15,000円│
-│ 楕円針（Elliptical）│ 約500-800時間    │ 8,000-25,000円│
-│ 超楕円針          │ 約800-1200時間    │ 15,000-40,000円│
-│ ラインコンタクト  │ 約1000-1500時間   │ 20,000-60,000円│
+│ Spherical         │ ~300–500 hours   │ 5,000–15,000 JPY│
+│ Elliptical        │ ~500–800 hours   │ 8,000–25,000 JPY│
+│ Hyperelliptical   │ ~800–1200 hours  │ 15,000–40,000 JPY│
+│ Line contact      │ ~1000–1500 hours │ 20,000–60,000 JPY│
 └──────────────────┴──────────────────┴────────────┘
 
-交換のサイン:
-- 高音域の歪み増加
-- トラッキング不良（針飛び）
-- 音量の低下
-- ノイズの増加
-- 目視で針先の摩耗が確認できる（ルーペ推奨）
+Signs of replacement needed:
+- Increased distortion in high frequencies
+- Poor tracking (skipping)
+- Drop in volume
+- Increased noise
+- Visible wear on needle tip (magnifier recommended)
 
-DJ用途の推奨カートリッジ:
-- Ortofon Concorde DJ S: スクラッチ向け高追従性
-- Ortofon Concorde Club: クラブプレイ向けバランス型
-- Shure M44-7: 生産終了だが伝説的DJ針（中古高値）
-- Audio-Technica AT-XP7: コスパ優秀な現行品
+Recommended cartridges for DJ use:
+- Ortofon Concorde DJ S: High-tracking for scratching
+- Ortofon Concorde Club: Balanced for club play
+- Shure M44-7: Discontinued but legendary DJ needle (high second-hand value)
+- Audio-Technica AT-XP7: Current model with excellent value
 ```
 
 ---
 
-## Rekordbox 7.2.7 機材設定詳細ガイド
+## Rekordbox 7.2.7 Equipment Setup Detailed Guide
 
-Rekordbox は Pioneer DJ が提供する DJ ソフトウェアで、楽曲管理からDJパフォーマンスまでを一元的にカバーします。ここでは各種機材との接続設定を詳しく解説します。
+Rekordbox is DJ software provided by Pioneer DJ that covers everything from music management to DJ performance in one place. Here we explain in detail the connection settings for various equipment.
 
-### Rekordbox のモードと機材対応
+### Rekordbox Modes and Equipment Support
 
 ```
-Rekordbox の動作モード:
+Rekordbox operating modes:
 ┌──────────────────────────────────────────────────────┐
 │                                                       │
-│  EXPORT モード                                        │
-│  ├── USBメモリへの楽曲エクスポート                      │
-│  ├── CDJ/XDJ で使用するための準備                      │
-│  └── 対応機材: CDJ-3000, CDJ-2000NXS2, XDJ-1000MK2   │
+│  EXPORT MODE                                          │
+│  ├── Export tracks to USB drive                       │
+│  ├── Prepare for use on CDJ/XDJ                       │
+│  └── Compatible equipment: CDJ-3000, CDJ-2000NXS2, XDJ-1000MK2│
 │                                                       │
-│  PERFORMANCE モード                                    │
-│  ├── PCをDJプレーヤーとして使用                         │
-│  ├── コントローラーでPCを操作                           │
-│  └── 対応機材: DDJ-FLX4, DDJ-800, DDJ-1000           │
+│  PERFORMANCE MODE                                     │
+│  ├── Use PC as DJ player                              │
+│  ├── Control PC with controller                       │
+│  └── Compatible equipment: DDJ-FLX4, DDJ-800, DDJ-1000│
 │                                                       │
-│  EDIT モード                                           │
-│  ├── 楽曲の編集・加工                                  │
-│  ├── ビートグリッドの調整                              │
-│  └── 対応: 全モード共通                               │
+│  EDIT MODE                                            │
+│  ├── Edit and process tracks                          │
+│  ├── Adjust beat grids                                │
+│  └── Compatible: All modes                           │
 │                                                       │
-│  CLOUD LIBRARY モード                                  │
-│  ├── クラウドでのライブラリ同期                         │
-│  ├── 複数デバイス間の楽曲共有                          │
-│  └── Creative/Professional プラン必要                  │
+│  CLOUD LIBRARY MODE                                   │
+│  ├── Sync library via cloud                           │
+│  ├── Share tracks between multiple devices            │
+│  └── Requires Creative/Professional plan              │
 │                                                       │
 └──────────────────────────────────────────────────────┘
 ```
 
-### コントローラー接続設定（DDJ-FLX4 の例）
+### Controller Connection Settings (DDJ-FLX4 Example)
 
 ```
-手順:
-1. Rekordbox を起動（最新版 7.2.7 にアップデート済みであること）
-2. DDJ-FLX4 を USB-C ケーブルで PC に接続
-3. 自動認識 → PERFORMANCE モードに自動切替
+Steps:
+1. Launch Rekordbox (ensure it is updated to the latest version 7.2.7)
+2. Connect DDJ-FLX4 to PC with USB-C cable
+3. Auto-recognized → automatically switches to PERFORMANCE MODE
 
-初期設定の確認:
-├── 環境設定 → オーディオ
-│   ├── オーディオデバイス: DDJ-FLX4
-│   ├── サンプルレート: 44.1 kHz（標準）/ 48 kHz（推奨）
-│   ├── バッファサイズ: 512 samples（標準）
-│   │   ※ レイテンシが気になる場合は 256 に下げる
-│   │   ※ 音切れする場合は 1024 に上げる
-│   └── オーディオ出力チャンネル:
+Initial settings check:
+├── Preferences → Audio
+│   ├── Audio device: DDJ-FLX4
+│   ├── Sample rate: 44.1 kHz (standard) / 48 kHz (recommended)
+│   ├── Buffer size: 512 samples (standard)
+│   │   * Lower to 256 if you are bothered by latency
+│   │   * Increase to 1024 if you experience audio dropouts
+│   └── Audio output channels:
 │       ├── Master: DDJ-FLX4 Master Out
 │       └── Headphones: DDJ-FLX4 Phones Out
 │
-├── 環境設定 → コントローラー
-│   ├── DDJ-FLX4 が認識されていることを確認
-│   ├── MIDI マッピング: デフォルト（カスタマイズ可）
-│   └── ジョグホイール感度: お好みで調整
+├── Preferences → Controller
+│   ├── Confirm DDJ-FLX4 is recognized
+│   ├── MIDI mapping: Default (customizable)
+│   └── Jog wheel sensitivity: Adjust to preference
 │
-└── 環境設定 → 表示
-    ├── 波形表示: フルサイズ推奨
-    ├── BPM表示: 小数点1桁
-    └── Key表示: Camelot 表記推奨
+└── Preferences → Display
+    ├── Waveform display: Full size recommended
+    ├── BPM display: 1 decimal place
+    └── Key display: Camelot notation recommended
 ```
 
-### CDJ接続設定（EXPORT モード）
+### CDJ Connection Settings (EXPORT MODE)
 
 ```
-USBメモリの準備:
-1. USBメモリのフォーマット
-   - FAT32 またはHFS+（Mac）
-   - exFAT は CDJ-3000 のみ対応
-   - 容量: 16GB-128GB 推奨
-   - USB 3.0 以上推奨（読み込み速度）
+Preparing the USB drive:
+1. Format the USB drive
+   - FAT32 or HFS+ (Mac)
+   - exFAT is only supported on CDJ-3000
+   - Capacity: 16GB–128GB recommended
+   - USB 3.0 or higher recommended (read speed)
 
-2. 楽曲のエクスポート
-   - Rekordbox で楽曲を選択
-   - プレイリスト単位でエクスポート推奨
-   - 「デバイスパネル」にUSBメモリが表示される
-   - ドラッグ＆ドロップでエクスポート
+2. Exporting tracks
+   - Select tracks in Rekordbox
+   - Export by playlist is recommended
+   - USB drive appears in "Device Panel"
+   - Export by drag and drop
 
-3. エクスポート時の注意点
-   - 楽曲の解析が完了していること
-   - ビートグリッドが正確であること
-   - キュー/ループポイントが設定済みであること
-   - ジャケット画像が埋め込まれていると見やすい
+3. Notes on exporting
+   - Ensure track analysis is complete
+   - Ensure beat grids are accurate
+   - Cue/loop points should be set
+   - Embedded album art makes browsing easier
 
-Pro DJ Link 接続:
-- CDJ と PC を LAN ケーブルで接続
-- HUB 経由で複数台接続可能
-- Rekordbox 側でPro DJ Link を有効化
-- CDJからRekordboxのライブラリを直接ブラウズ可能
+Pro DJ Link connection:
+- Connect CDJ and PC with LAN cable
+- Multiple units can be connected via a hub
+- Enable Pro DJ Link on the Rekordbox side
+- Can browse Rekordbox library directly from CDJ
 ```
 
-### オーディオ設定の最適化
+### Optimizing Audio Settings
 
-レイテンシ（遅延）はDJパフォーマンスの快適性に直結します。適切な設定を見つけることが重要です。
+Latency (delay) directly affects the comfort of DJ performance. Finding the right settings is important.
 
 ```
-レイテンシの目安:
+Latency guidelines:
 ┌────────────────┬──────────────┬────────────────────┐
-│ バッファサイズ   │ レイテンシ    │ 適性                │
+│ Buffer size     │ Latency      │ Suitability         │
 ├────────────────┼──────────────┼────────────────────┤
-│ 64 samples     │ ~1.5ms       │ 超低遅延（高負荷）   │
-│ 128 samples    │ ~3ms         │ プロ向け             │
-│ 256 samples    │ ~6ms         │ 高性能PC向け         │
-│ 512 samples    │ ~12ms        │ 標準（推奨）          │
-│ 1024 samples   │ ~23ms        │ 低スペックPC         │
-│ 2048 samples   │ ~46ms        │ 負荷最小（遅延大）    │
+│ 64 samples     │ ~1.5ms       │ Ultra-low (high load)│
+│ 128 samples    │ ~3ms         │ For professionals    │
+│ 256 samples    │ ~6ms         │ High-performance PC  │
+│ 512 samples    │ ~12ms        │ Standard (recommended)│
+│ 1024 samples   │ ~23ms        │ Lower-spec PC        │
+│ 2048 samples   │ ~46ms        │ Min. load (high lag)  │
 └────────────────┴──────────────┴────────────────────┘
 
-※ サンプルレート 44.1kHz の場合の概算値
-※ 体感で遅延を感じるのは約 20ms 以上
+* Approximate values at sample rate 44.1kHz
+* Latency is perceptible when approx. 20ms or more
 
-PC最適化のヒント:
-- 不要なアプリケーションを終了
-- Wi-Fi / Bluetooth を無効化（干渉防止）
-- 電源設定を「高パフォーマンス」に
-- ウイルススキャンのスケジュールを外す
-- Windowsの場合: ASIO ドライバを使用
-- Macの場合: Core Audio で十分な性能
+PC optimization tips:
+- Close unnecessary applications
+- Disable Wi-Fi / Bluetooth (prevent interference)
+- Set power options to "High Performance"
+- Schedule virus scans outside performance time
+- Windows: Use ASIO driver
+- Mac: Core Audio provides sufficient performance
 ```
 
 ---
 
-## DJ用USBメモリ運用ガイド
+## DJ USB Drive Operation Guide
 
-クラブやイベントでのDJプレイにおいて、USBメモリは楽曲を持ち運ぶ最も重要なメディアです。トラブルなく本番を迎えるために、USBメモリの選択から運用まで体系的に理解しましょう。
+At clubs and events, the USB drive is the most important media for carrying your music. To avoid problems at a live set, systematically understand everything from choosing a USB drive to how to use it.
 
-### USBメモリの選び方
-
-```
-推奨スペック:
-├── 容量: 32GB - 128GB
-│   ├── 32GB: 約2,000-3,000曲（WAV/AIFF 44.1kHz/16bit）
-│   ├── 64GB: 約5,000-7,000曲
-│   └── 128GB: 約10,000-15,000曲
-├── 規格: USB 3.0 以上
-│   ├── USB 2.0: 読み込み速度 ~30MB/s（遅い）
-│   ├── USB 3.0: 読み込み速度 ~100MB/s（推奨）
-│   └── USB 3.1: 読み込み速度 ~300MB/s（最速）
-├── フォーマット:
-│   ├── FAT32: 最も互換性が高い（4GB以上の単一ファイル不可）
-│   ├── exFAT: CDJ-3000 / CDJ-2000NXS2 対応
-│   └── HFS+: Mac環境のみ（非推奨）
-└── 形状: コンパクトで紛失しにくい形状
-    ├── ストラップホール付きがベスト
-    ├── キャップレス（スライド式/回転式）推奨
-    └── LED付きで動作確認しやすい
-
-おすすめUSBメモリ:
-1. SanDisk Ultra Fit 64GB USB 3.1（約1,500円）
-   - 超小型、高速、信頼性高い
-2. Samsung BAR Plus 128GB USB 3.1（約2,500円）
-   - メタルボディで頑丈、防水
-3. Kingston DataTraveler Exodia 64GB USB 3.2（約1,200円）
-   - コスパ最強、キャップ付き
-```
-
-### バックアップ運用の鉄則
+### Choosing a USB Drive
 
 ```
-USBメモリ運用の3本柱:
+Recommended specs:
+├── Capacity: 32GB – 128GB
+│   ├── 32GB: approx. 2,000–3,000 tracks (WAV/AIFF 44.1kHz/16bit)
+│   ├── 64GB: approx. 5,000–7,000 tracks
+│   └── 128GB: approx. 10,000–15,000 tracks
+├── Standard: USB 3.0 or higher
+│   ├── USB 2.0: read speed ~30MB/s (slow)
+│   ├── USB 3.0: read speed ~100MB/s (recommended)
+│   └── USB 3.1: read speed ~300MB/s (fastest)
+├── Format:
+│   ├── FAT32: Best compatibility (cannot handle single files over 4GB)
+│   ├── exFAT: Supported on CDJ-3000 / CDJ-2000NXS2
+│   └── HFS+: Mac environment only (not recommended)
+└── Form factor: Compact and hard to lose
+    ├── With strap hole is best
+    ├── Capless (sliding/rotating) recommended
+    └── LED indicator makes it easy to confirm operation
+
+Recommended USB drives:
+1. SanDisk Ultra Fit 64GB USB 3.1 (approx. 1,500 JPY)
+   - Ultra-compact, fast, highly reliable
+2. Samsung BAR Plus 128GB USB 3.1 (approx. 2,500 JPY)
+   - Metal body, durable, waterproof
+3. Kingston DataTraveler Exodia 64GB USB 3.2 (approx. 1,200 JPY)
+   - Best value, has cap
+```
+
+### The Three Pillars of Backup Operation
+
+```
+The 3 pillars of USB drive operation:
 ┌──────────────────────────────────────────────────┐
-│ 1. メイン USB（常用）                              │
-│    - 当日プレイする全楽曲を格納                     │
-│    - Rekordbox で最新エクスポート済み                │
-│    - 会場到着前に動作確認済み                        │
+│ 1. Main USB (everyday use)                        │
+│    - Contains all tracks for the day              │
+│    - Latest export completed in Rekordbox          │
+│    - Confirmed working before arriving at venue    │
 ├──────────────────────────────────────────────────┤
-│ 2. バックアップ USB（予備）                         │
-│    - メインと完全同一の内容                         │
-│    - 別のUSBメモリに同時エクスポート                 │
-│    - メイン故障時の即座の切り替え                    │
+│ 2. Backup USB (spare)                             │
+│    - Identical content to main                    │
+│    - Simultaneously exported to separate USB drive │
+│    - Instant swap if main fails                   │
 ├──────────────────────────────────────────────────┤
-│ 3. エマージェンシー USB（緊急用）                    │
-│    - 定番曲・安全牌を厳選                           │
-│    - 50-100曲程度のコンパクトセット                  │
-│    - 機材トラブル時の最終手段                        │
-│    - 常にDJバッグに入れておく                       │
+│ 3. Emergency USB (for emergencies)                │
+│    - Carefully curated selection of reliable tracks│
+│    - Compact set of 50–100 tracks                  │
+│    - Last resort when equipment problems occur     │
+│    - Always keep in DJ bag                        │
 └──────────────────────────────────────────────────┘
 
-運用フロー:
-1. 自宅で楽曲準備 → Rekordbox でプレイリスト作成
-2. メインUSBにエクスポート → 動作確認
-3. バックアップUSBに同内容をエクスポート
-4. エマージェンシーUSBは月1回更新
-5. 全USBを会場に持参
-6. 会場到着後、CDJでメインUSBの読み込みテスト
-7. プレイ開始
+Operation flow:
+1. Prepare tracks at home → Create playlist in Rekordbox
+2. Export to main USB → Confirm operation
+3. Export same content to backup USB
+4. Update emergency USB once a month
+5. Bring all USBs to venue
+6. After arriving at venue, test loading main USB on CDJ
+7. Start playing
 ```
 
 ---
 
-## DJ機材購入ガイド - 予算別おすすめセットアップ
+## DJ Equipment Purchase Guide - Recommended Setups by Budget
 
-機材選びは予算とのバランスが重要です。ここでは予算別に最適なセットアップを具体的に提案します。
+Balancing equipment choices with your budget is important. Here we make specific suggestions for the optimal setup at each budget level.
 
-### 予算3万円コース（超入門）
+### 30,000 JPY Course (Super Beginner)
 
 ```
-セット内容:
-├── DDJ-FLX4: 約35,000円
-├── ヘッドフォン: Audio-Technica ATH-M20x: 約6,000円
-└── 合計: 約41,000円
+Set contents:
+├── DDJ-FLX4: approx. 35,000 JPY
+├── Headphones: Audio-Technica ATH-M20x: approx. 6,000 JPY
+└── Total: approx. 41,000 JPY
 
-※ PCは既存のものを使用
-※ スピーカーは PC内蔵 or 既存のものを利用
-※ Rekordbox は無料版で PERFORMANCE モード利用可能
+* Use existing PC
+* Use built-in PC speakers or existing speakers
+* Rekordbox free version can be used in PERFORMANCE MODE
 
-このセットでできること:
-- 2ch ミキシングの基本習得
-- ビートマッチング練習
-- エフェクト操作の習得
-- Rekordbox の楽曲管理
-- SNS配信用ミックスの録音
+What you can do with this set:
+- Learn the basics of 2ch mixing
+- Beat matching practice
+- Learning effects operation
+- Track management in Rekordbox
+- Recording mixes for social media streaming
 
-制約:
-- 出力音質はPC環境に依存
-- マスターアウトがミニジャック
-- 外部イベントでの使用は音質面で不十分
+Limitations:
+- Output audio quality depends on PC environment
+- Master out is mini-jack
+- Not sufficient audio quality for external events
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement appropriate error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1428,26 +1428,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1455,7 +1455,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1466,14 +1466,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1481,7 +1481,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1489,44 +1489,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1535,7 +1535,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1550,47 +1550,47 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup:      {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be aware of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 
 ---
 
-## トラブルシューティング
+## Troubleshooting
 
-### よくあるエラーと解決策
+### Common Errors and Solutions
 
-| エラー | 原因 | 解決策 |
+| Error | Cause | Solution |
 |--------|------|--------|
-| 初期化エラー | 設定ファイルの不備 | 設定ファイルのパスと形式を確認 |
-| タイムアウト | ネットワーク遅延/リソース不足 | タイムアウト値の調整、リトライ処理の追加 |
-| メモリ不足 | データ量の増大 | バッチ処理の導入、ページネーションの実装 |
-| 権限エラー | アクセス権限の不足 | 実行ユーザーの権限確認、設定の見直し |
-| データ不整合 | 並行処理の競合 | ロック機構の導入、トランザクション管理 |
+| Initialization error | Misconfigured settings file | Check settings file path and format |
+| Timeout | Network delay / resource shortage | Adjust timeout value, add retry logic |
+| Out of memory | Increasing data volume | Introduce batch processing, implement pagination |
+| Permission error | Insufficient access permissions | Check execution user permissions, review settings |
+| Data inconsistency | Race condition in concurrent processing | Introduce locking mechanism, transaction management |
 
-### デバッグの手順
+### Debugging Steps
 
-1. **エラーメッセージの確認**: スタックトレースを読み、発生箇所を特定する
-2. **再現手順の確立**: 最小限のコードでエラーを再現する
-3. **仮説の立案**: 考えられる原因をリストアップする
-4. **段階的な検証**: ログ出力やデバッガを使って仮説を検証する
-5. **修正と回帰テスト**: 修正後、関連する箇所のテストも実行する
+1. **Check error messages**: Read the stack trace and identify where the error occurred
+2. **Establish reproduction steps**: Reproduce the error with minimal code
+3. **Form hypotheses**: List possible causes
+4. **Stepwise verification**: Use log output and debuggers to verify hypotheses
+5. **Fix and regression test**: After fixing, also run tests for related areas
 
 ```python
-# デバッグ用ユーティリティ
+# Debugging utility
 import logging
 import traceback
 from functools import wraps
 
-# ロガーの設定
+# Logger setup
 logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -1598,102 +1598,102 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def debug_decorator(func):
-    """関数の入出力をログ出力するデコレータ"""
+    """Decorator that logs function input/output"""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        logger.debug(f"呼び出し: {func.__name__}(args={args}, kwargs={kwargs})")
+        logger.debug(f"Call: {func.__name__}(args={args}, kwargs={kwargs})")
         try:
             result = func(*args, **kwargs)
-            logger.debug(f"戻り値: {func.__name__} -> {result}")
+            logger.debug(f"Return: {func.__name__} -> {result}")
             return result
         except Exception as e:
-            logger.error(f"例外発生: {func.__name__}: {e}")
+            logger.error(f"Exception in: {func.__name__}: {e}")
             logger.error(traceback.format_exc())
             raise
     return wrapper
 
 @debug_decorator
 def process_data(items):
-    """データ処理（デバッグ対象）"""
+    """Data processing (debug target)"""
     if not items:
-        raise ValueError("空のデータ")
+        raise ValueError("Empty data")
     return [item * 2 for item in items]
 ```
 
-### パフォーマンス問題の診断
+### Diagnosing Performance Problems
 
-パフォーマンス問題が発生した場合の診断手順:
+Steps for diagnosing performance problems:
 
-1. **ボトルネックの特定**: プロファイリングツールで計測
-2. **メモリ使用量の確認**: メモリリークの有無をチェック
-3. **I/O待ちの確認**: ディスクやネットワークI/Oの状況を確認
-4. **同時接続数の確認**: コネクションプールの状態を確認
+1. **Identify the bottleneck**: Measure with profiling tools
+2. **Check memory usage**: Check for memory leaks
+3. **Check for I/O waiting**: Check the status of disk and network I/O
+4. **Check concurrent connections**: Check the state of the connection pool
 
-| 問題の種類 | 診断ツール | 対策 |
+| Problem type | Diagnostic tool | Countermeasure |
 |-----------|-----------|------|
-| CPU負荷 | cProfile, py-spy | アルゴリズム改善、並列化 |
-| メモリリーク | tracemalloc, objgraph | 参照の適切な解放 |
-| I/Oボトルネック | strace, iostat | 非同期I/O、キャッシュ |
-| DB遅延 | EXPLAIN, slow query log | インデックス、クエリ最適化 |
+| CPU load | cProfile, py-spy | Algorithm improvement, parallelization |
+| Memory leak | tracemalloc, objgraph | Proper release of references |
+| I/O bottleneck | strace, iostat | Async I/O, caching |
+| DB latency | EXPLAIN, slow query log | Indexes, query optimization |
 
 ---
 
-## 設計判断ガイド
+## Design Decision Guide
 
-### 選択基準マトリクス
+### Selection Criteria Matrix
 
-技術選択を行う際の判断基準を以下にまとめます。
+The following summarizes the criteria for making technology choices.
 
-| 判断基準 | 重視する場合 | 妥協できる場合 |
+| Criteria | When to prioritize | When you can compromise |
 |---------|------------|-------------|
-| パフォーマンス | リアルタイム処理、大規模データ | 管理画面、バッチ処理 |
-| 保守性 | 長期運用、チーム開発 | プロトタイプ、短期プロジェクト |
-| スケーラビリティ | 成長が見込まれるサービス | 社内ツール、固定ユーザー |
-| セキュリティ | 個人情報、金融データ | 公開データ、社内利用 |
-| 開発速度 | MVP、市場投入スピード | 品質重視、ミッションクリティカル |
+| Performance | Real-time processing, large-scale data | Admin screens, batch processing |
+| Maintainability | Long-term operation, team development | Prototypes, short-term projects |
+| Scalability | Services expected to grow | Internal tools, fixed users |
+| Security | Personal data, financial data | Public data, internal use |
+| Development speed | MVP, speed to market | Quality-first, mission-critical |
 
-### アーキテクチャパターンの選択
+### Choosing an Architecture Pattern
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              アーキテクチャ選択フロー              │
+│              Architecture Selection Flow         │
 ├─────────────────────────────────────────────────┤
 │                                                 │
-│  ① チーム規模は？                                │
-│    ├─ 小規模（1-5人）→ モノリス                   │
-│    └─ 大規模（10人+）→ ②へ                       │
+│  1. Team size?                                  │
+│    ├─ Small (1–5 people) → Monolith             │
+│    └─ Large (10+ people) → Go to 2              │
 │                                                 │
-│  ② デプロイ頻度は？                               │
-│    ├─ 週1回以下 → モノリス + モジュール分割         │
-│    └─ 毎日/複数回 → ③へ                          │
+│  2. Deployment frequency?                        │
+│    ├─ Weekly or less → Monolith + module split   │
+│    └─ Daily/multiple times → Go to 3             │
 │                                                 │
-│  ③ チーム間の独立性は？                            │
-│    ├─ 高い → マイクロサービス                      │
-│    └─ 中程度 → モジュラーモノリス                   │
+│  3. Independence between teams?                  │
+│    ├─ High → Microservices                       │
+│    └─ Moderate → Modular monolith                │
 │                                                 │
 └─────────────────────────────────────────────────┘
 ```
 
-### トレードオフの分析
+### Trade-off Analysis
 
-技術的な判断には必ずトレードオフが伴います。以下の観点で分析を行いましょう:
+Every technical decision involves trade-offs. Analyze from the following perspectives:
 
-**1. 短期 vs 長期のコスト**
-- 短期的に速い方法が長期的には技術的負債になることがある
-- 逆に、過剰な設計は短期的なコストが高く、プロジェクトの遅延を招く
+**1. Short-term vs long-term costs**
+- The faster short-term approach can become technical debt in the long term
+- Conversely, over-engineering has high short-term costs and can delay projects
 
-**2. 一貫性 vs 柔軟性**
-- 統一された技術スタックは学習コストが低い
-- 多様な技術の採用は適材適所が可能だが、運用コストが増加
+**2. Consistency vs flexibility**
+- A unified technology stack has lower learning costs
+- Adopting diverse technologies allows the right tool for each job, but increases operational costs
 
-**3. 抽象化のレベル**
-- 高い抽象化は再利用性が高いが、デバッグが困難になる場合がある
-- 低い抽象化は直感的だが、コードの重複が発生しやすい
+**3. Level of abstraction**
+- High abstraction has high reusability, but can make debugging difficult
+- Low abstraction is intuitive, but code duplication tends to occur
 
 ```python
-# 設計判断の記録テンプレート
+# Design decision record template
 class ArchitectureDecisionRecord:
-    """ADR (Architecture Decision Record) の作成"""
+    """Creating an ADR (Architecture Decision Record)"""
 
     def __init__(self, title: str):
         self.title = title
@@ -1703,17 +1703,17 @@ class ArchitectureDecisionRecord:
         self.alternatives = []
 
     def set_context(self, context: str):
-        """背景と課題の記述"""
+        """Describe background and issues"""
         self.context = context
         return self
 
     def set_decision(self, decision: str):
-        """決定内容の記述"""
+        """Describe the decision"""
         self.decision = decision
         return self
 
     def add_consequence(self, consequence: str, positive: bool = True):
-        """結果の追加"""
+        """Add a consequence"""
         self.consequences.append({
             'description': consequence,
             'type': 'positive' if positive else 'negative'
@@ -1721,7 +1721,7 @@ class ArchitectureDecisionRecord:
         return self
 
     def add_alternative(self, name: str, reason_rejected: str):
-        """却下した代替案の追加"""
+        """Add a rejected alternative"""
         self.alternatives.append({
             'name': name,
             'reason_rejected': reason_rejected
@@ -1729,15 +1729,15 @@ class ArchitectureDecisionRecord:
         return self
 
     def to_markdown(self) -> str:
-        """Markdown形式で出力"""
+        """Output in Markdown format"""
         md = f"# ADR: {self.title}\n\n"
-        md += f"## 背景\n{self.context}\n\n"
-        md += f"## 決定\n{self.decision}\n\n"
-        md += "## 結果\n"
+        md += f"## Background\n{self.context}\n\n"
+        md += f"## Decision\n{self.decision}\n\n"
+        md += "## Consequences\n"
         for c in self.consequences:
             icon = "✅" if c['type'] == 'positive' else "⚠️"
             md += f"- {icon} {c['description']}\n"
-        md += "\n## 却下した代替案\n"
+        md += "\n## Rejected Alternatives\n"
         for a in self.alternatives:
             md += f"- **{a['name']}**: {a['reason_rejected']}\n"
         return md
@@ -1745,53 +1745,53 @@ class ArchitectureDecisionRecord:
 
 ---
 
-## 実務での適用シナリオ
+## Practical Application Scenarios
 
-### シナリオ1: スタートアップでのMVP開発
+### Scenario 1: MVP Development at a Startup
 
-**状況:** 限られたリソースで素早くプロダクトをリリースする必要がある
+**Situation:** Need to release a product quickly with limited resources
 
-**アプローチ:**
-- シンプルなアーキテクチャを選択
-- 必要最小限の機能に集中
-- 自動テストはクリティカルパスのみ
-- モニタリングは早期から導入
+**Approach:**
+- Choose a simple architecture
+- Focus on the minimum necessary features
+- Automated tests only for the critical path
+- Introduce monitoring from early on
 
-**学んだ教訓:**
-- 完璧を求めすぎない（YAGNI原則）
-- ユーザーフィードバックを早期に取得
-- 技術的負債は意識的に管理する
+**Lessons learned:**
+- Don't aim for perfection (YAGNI principle)
+- Get user feedback early
+- Manage technical debt consciously
 
-### シナリオ2: レガシーシステムのモダナイゼーション
+### Scenario 2: Modernizing a Legacy System
 
-**状況:** 10年以上運用されているシステムを段階的に刷新する
+**Situation:** Incrementally revamping a system that has been running for 10+ years
 
-**アプローチ:**
-- Strangler Fig パターンで段階的に移行
-- 既存のテストがない場合はCharacterization Testを先に作成
-- APIゲートウェイで新旧システムを共存
-- データ移行は段階的に実施
+**Approach:**
+- Use the Strangler Fig pattern for phased migration
+- If there are no existing tests, create Characterization Tests first
+- Use an API gateway to coexist old and new systems
+- Implement data migration in phases
 
-| フェーズ | 作業内容 | 期間目安 | リスク |
+| Phase | Work | Estimated duration | Risk |
 |---------|---------|---------|--------|
-| 1. 調査 | 現状分析、依存関係の把握 | 2-4週間 | 低 |
-| 2. 基盤 | CI/CD構築、テスト環境 | 4-6週間 | 低 |
-| 3. 移行開始 | 周辺機能から順次移行 | 3-6ヶ月 | 中 |
-| 4. コア移行 | 中核機能の移行 | 6-12ヶ月 | 高 |
-| 5. 完了 | 旧システム廃止 | 2-4週間 | 中 |
+| 1. Investigation | Current state analysis, understanding dependencies | 2–4 weeks | Low |
+| 2. Foundation | CI/CD setup, test environment | 4–6 weeks | Low |
+| 3. Migration start | Migrate peripheral features first | 3–6 months | Medium |
+| 4. Core migration | Migrate core functions | 6–12 months | High |
+| 5. Completion | Retire the old system | 2–4 weeks | Medium |
 
-### シナリオ3: 大規模チームでの開発
+### Scenario 3: Development in a Large Team
 
-**状況:** 50人以上のエンジニアが同一プロダクトを開発する
+**Situation:** 50+ engineers developing the same product
 
-**アプローチ:**
-- ドメイン駆動設計で境界を明確化
-- チームごとにオーナーシップを設定
-- 共通ライブラリはInner Source方式で管理
-- APIファーストで設計し、チーム間の依存を最小化
+**Approach:**
+- Clarify boundaries with domain-driven design
+- Set ownership per team
+- Manage common libraries using the Inner Source approach
+- Design API-first to minimize inter-team dependencies
 
 ```python
-# チーム間のAPI契約定義
+# API contract definition between teams
 from dataclasses import dataclass
 from typing import List, Optional
 from enum import Enum
@@ -1804,20 +1804,20 @@ class Priority(Enum):
 
 @dataclass
 class APIContract:
-    """チーム間のAPI契約"""
+    """API contract between teams"""
     endpoint: str
     method: str
     owner_team: str
     consumers: List[str]
-    sla_ms: int  # レスポンスタイムSLA
+    sla_ms: int  # Response time SLA
     priority: Priority
 
     def validate_sla(self, actual_ms: int) -> bool:
-        """SLA準拠の確認"""
+        """Check SLA compliance"""
         return actual_ms <= self.sla_ms
 
     def to_openapi(self) -> dict:
-        """OpenAPI形式で出力"""
+        """Output in OpenAPI format"""
         return {
             'path': self.endpoint,
             'method': self.method,
@@ -1826,7 +1826,7 @@ class APIContract:
             'x-sla-ms': self.sla_ms
         }
 
-# 使用例
+# Usage example
 contracts = [
     APIContract(
         endpoint="/api/v1/users",
@@ -1847,60 +1847,60 @@ contracts = [
 ]
 ```
 
-### シナリオ4: パフォーマンスクリティカルなシステム
+### Scenario 4: Performance-Critical Systems
 
-**状況:** ミリ秒単位のレスポンスが求められるシステム
+**Situation:** A system requiring millisecond response times
 
-**最適化ポイント:**
-1. キャッシュ戦略（L1: インメモリ、L2: Redis、L3: CDN）
-2. 非同期処理の活用
-3. コネクションプーリング
-4. クエリ最適化とインデックス設計
+**Optimization points:**
+1. Caching strategy (L1: in-memory, L2: Redis, L3: CDN)
+2. Using asynchronous processing
+3. Connection pooling
+4. Query optimization and index design
 
-| 最適化手法 | 効果 | 実装コスト | 適用場面 |
+| Optimization method | Effect | Implementation cost | Application |
 |-----------|------|-----------|---------|
-| インメモリキャッシュ | 高 | 低 | 頻繁にアクセスされるデータ |
-| CDN | 高 | 低 | 静的コンテンツ |
-| 非同期処理 | 中 | 中 | I/O待ちが多い処理 |
-| DB最適化 | 高 | 高 | クエリが遅い場合 |
-| コード最適化 | 低-中 | 高 | CPU律速の場合 |
+| In-memory cache | High | Low | Frequently accessed data |
+| CDN | High | Low | Static content |
+| Async processing | Medium | Medium | Processing with lots of I/O wait |
+| DB optimization | High | High | When queries are slow |
+| Code optimization | Low–Medium | High | CPU-bound cases |
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Not just theory — understanding deepens when you actually write code and confirm how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend fully understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-このガイドでは以下の重要なポイントを学びました:
-
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [オーディオインターフェイス](./audio-interface.md) - 次のトピックへ進む
+In this guide, we learned the following important points:
+
+- Understanding basic concepts and principles
+- Practical implementation patterns
+- Best practices and things to watch out for
+- How to apply this knowledge in practice
 
 ---
 
-## 参考文献
+## What to Read Next
 
-- [MDN Web Docs](https://developer.mozilla.org/) - Web技術のリファレンス
-- [Wikipedia](https://ja.wikipedia.org/) - 技術概念の概要
+- [Audio Interface](./audio-interface.md) - Continue to the next topic
+
+---
+
+## References
+
+- [MDN Web Docs](https://developer.mozilla.org/) - Reference for web technologies
+- [Wikipedia](https://en.wikipedia.org/) - Overview of technical concepts
