@@ -1,276 +1,276 @@
-# キューイング（Cueing）
+# Cueing
 
-ヘッドフォンでの次の曲の準備、Cueの使い方を体系的に学びます。キューイングはDJプレイの根幹を成すスキルであり、これを正確かつ迅速に行えるかどうかが、プロフェッショナルなDJとアマチュアDJを分ける最も重要な要素の一つです。
-
----
-
-## この章で学ぶこと
-
-- キューイングの定義と歴史的背景
-- Cueボタンの基本操作と応用テクニック
-- ヘッドフォンモニタリングの理論と実践
-- 曲の頭出しの精密なテクニック
-- DDJ-FLX4での実践ワークフロー
-- ミックスの準備とタイミング管理
-- Hot Cue、Memory Cue、Slip Cueの活用
-- ジャンル別キューイングアプローチ
-- トラブルシューティングと上級テクニック
-
-
-## 前提知識
-
-このガイドを読む前に、以下の知識があると理解が深まります:
-
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [クロスフェーダー完全ガイド](./crossfader.md) の内容を理解していること
+Learn a systematic approach to preparing your next track through headphones and using Cue points effectively. Cueing is a foundational DJ skill — your ability to execute it accurately and quickly is one of the most important factors separating professional DJs from amateurs.
 
 ---
 
-## なぜキューイングが重要か
+## What You Will Learn
 
-### DJパフォーマンスの本質
+- The definition and historical background of cueing
+- Basic Cue button operations and advanced techniques
+- Theory and practice of headphone monitoring
+- Precise techniques for finding the correct track start point
+- Practical workflow on the DDJ-FLX4
+- Mix preparation and timing management
+- Using Hot Cues, Memory Cues, and Slip Cues
+- Genre-specific cueing approaches
+- Troubleshooting and advanced techniques
 
-DJの仕事は単に曲を再生することではありません。連続的な音楽体験を構築し、フロアのエネルギーを途切れさせないことが最も重要な使命です。キューイングは、そのためのバックステージでの準備作業であり、観客には見えない部分ですが、パフォーマンスの品質を根本的に左右します。
+
+## Prerequisites
+
+Before reading this guide, the following knowledge will help deepen your understanding:
+
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Familiarity with the content in [Crossfader Complete Guide](./crossfader.md)
+
+---
+
+## Why Cueing Matters
+
+### The Essence of DJ Performance
+
+A DJ's job is not simply playing tracks. Your most important mission is to build a continuous musical experience and keep the energy on the floor from dropping. Cueing is the backstage preparation work that makes this possible — invisible to the audience, but fundamentally determining the quality of your performance.
 
 ```
-プロフェッショナルDJのワークフロー:
+Professional DJ Workflow:
 ┌──────────────────────────────────────────────┐
-│ 1. 現在の曲を再生中                              │
-│ 2. フロアの反応を観察                            │
-│ 3. 次の曲を選曲（ジャンル・BPM・キー考慮）          │
-│ 4. ヘッドフォンでCue確認（モニタリング）             │
-│ 5. ビートマッチング & フレーズ合わせ                 │
-│ 6. 適切なタイミングでミックス開始                    │
-│ 7. クロスフェード / EQ遷移                        │
-│ 8. ミックス完了 → Step 1に戻る                    │
+│ 1. Current track is playing                      │
+│ 2. Observe the floor's reaction                  │
+│ 3. Select next track (consider genre, BPM, key)  │
+│ 4. Confirm in headphones via Cue (monitoring)    │
+│ 5. Beatmatching & phrase alignment               │
+│ 6. Begin mix at the right timing                 │
+│ 7. Crossfade / EQ transition                     │
+│ 8. Mix complete → return to Step 1               │
 └──────────────────────────────────────────────┘
 
-このサイクルの中で、Step 3〜5がキューイングに該当。
-所要時間: 初心者 = 60〜90秒 / 中級者 = 30〜45秒 / 上級者 = 10〜20秒
+Steps 3–5 in this cycle correspond to cueing.
+Time required: Beginner = 60–90 sec / Intermediate = 30–45 sec / Advanced = 10–20 sec
 ```
 
-### ダンスフロアへの影響
+### Impact on the Dance Floor
 
-キューイングの質は直接的にフロアの雰囲気に影響します。
-
-```
-良いキューイング:
-✓ 次の曲が完璧に準備されている
-✓ ビートが正確に合っている
-✓ フレーズの頭同士が揃っている
-✓ スムーズなトランジション
-✓ フロアのエネルギーが途切れない
-✓ 観客が曲の切り替わりに気づかないほど自然
-
-悪いキューイング:
-✗ 次の曲を探している間に沈黙が発生
-✗ ビートがズレた状態でミックスしてしまう
-✗ 間違ったCueポイントから再生してしまう
-✗ フレーズがズレて不自然なミックスになる
-✗ フロアのテンションが急降下
-✗ 観客がDJブースを不安そうに見る
-```
-
-### キューイングスキルのレベル別特徴
+The quality of your cueing directly affects the atmosphere on the floor.
 
 ```
-レベル1（初心者）:
-- 曲をロードするだけで精一杯
-- Cueポイントの意味を理解していない
-- ヘッドフォンモニタリングが不安定
-- 準備に1分以上かかる
-- ミックスのタイミングが遅い
+Good cueing:
+✓ Next track is perfectly prepared
+✓ Beats are accurately matched
+✓ Phrase heads are aligned
+✓ Smooth transition
+✓ Floor energy never drops
+✓ So natural the audience barely notices the track change
 
-レベル2（初中級者）:
-- Cueポイントの設定ができる
-- ヘッドフォンで次の曲を確認できる
-- ビートマッチングと連携できる
-- 準備に30〜60秒かかる
-- たまにタイミングを外す
-
-レベル3（中級者）:
-- Hot Cueを活用している
-- 複数の候補曲を素早く試聴できる
-- 20〜30秒で準備完了
-- フレーズの頭を正確に捉えられる
-- ほぼ安定したミックスができる
-
-レベル4（上級者）:
-- 瞬時にCue操作ができる（10〜20秒）
-- 3曲以上先の選曲も視野に入れている
-- Hot Cueでクリエイティブなプレイができる
-- どんな状況でも冷静にキューイングできる
-- ライブリミックスやマッシュアップにも対応
-
-レベル5（プロフェッショナル）:
-- 体に染みついた無意識レベルの操作
-- 曲の構造を瞬時に把握
-- 選曲→ロード→Cue→ミックスが流れるように
-- フロアの状況に応じて柔軟にプランを変更
-- テクニカルトラブルにも瞬時に対応
+Bad cueing:
+✗ Silence while searching for the next track
+✗ Mixing while beats are out of sync
+✗ Playing from the wrong Cue point
+✗ Phrases out of sync, creating an awkward mix
+✗ Floor tension drops sharply
+✗ Audience looks anxiously at the DJ booth
 ```
 
----
-
-## 1. キューイングとは
-
-### 定義と基本概念
-
-キューイング（Cueing）とは、DJが次に再生する曲をヘッドフォンを通じて事前に確認し、現在再生中の曲とスムーズにミックスするための準備作業全体を指します。語源は英語の「Cue」（合図、きっかけ）であり、舞台芸術の用語から派生しています。
+### Cueing Skill Levels
 
 ```
-キューイング（Cueing）の構成要素:
+Level 1 (Beginner):
+- Struggling just to load a track
+- Does not understand the meaning of Cue points
+- Unstable headphone monitoring
+- Takes over 1 minute to prepare
+- Mix timing is slow
 
-1. 選曲（Track Selection）
-   - フロアの反応を読む
-   - BPM・キーの適合性を判断
-   - エネルギーレベルの計画
-   - ジャンルの流れを考慮
+Level 2 (Lower-Intermediate):
+- Can set Cue points
+- Can preview the next track in headphones
+- Can coordinate with beatmatching
+- Takes 30–60 seconds to prepare
+- Occasionally misses timing
 
-2. ロード（Loading）
-   - トラックをデッキにロード
-   - 波形の確認
-   - BPM・キー情報の確認
+Level 3 (Intermediate):
+- Uses Hot Cues effectively
+- Can quickly audition multiple candidate tracks
+- Ready in 20–30 seconds
+- Can accurately catch phrase heads
+- Mostly stable mixing
 
-3. 頭出し（Cue Point Setting）
-   - 適切な再生開始位置の特定
-   - Cueポイントの設定
-   - ビートの頭の確認
+Level 4 (Advanced):
+- Can execute Cue operations instantly (10–20 seconds)
+- Plans 3+ tracks ahead
+- Can use Hot Cues for creative play
+- Stays calm under any cueing conditions
+- Handles live remixes and mashups
 
-4. モニタリング（Monitoring）
-   - ヘッドフォンでの試聴
-   - 音質の確認
-   - 曲構造の把握
-
-5. ビートマッチング準備（Beat Preparation）
-   - BPM合わせ
-   - ビートの位相合わせ
-   - フレーズの同期
-
-6. タイミング計算（Timing Calculation）
-   - ミックスインのタイミング決定
-   - フレーズの残り時間計算
-   - トランジション方法の決定
-```
-
-### キューイングの歴史
-
-キューイングの技術は、DJの歴史とともに進化してきました。
-
-```
-1940〜1960年代: ラジオDJ時代
-- 2台のターンテーブルを使用
-- ヘッドフォンでの事前確認が基本
-- 物理的にレコードの溝を目で確認
-- ニードルドロップ（針を直接溝に落とす）技術
-
-1970年代: ディスコ時代
-- Francis Grassoが「ビートマッチング」を確立
-- ヘッドフォンモニタリングの重要性が認識される
-- Cue機能付きミキサーの登場
-- 片耳ヘッドフォンスタイルの確立
-
-1980〜1990年代: ヒップホップ・テクノ時代
-- スクラッチDJによるCueの革新的使用
-- テクノDJによる精密なビートマッチング
-- CDJの登場とデジタルCueの始まり
-- Hot Cueの概念の萌芽
-
-2000年代: デジタルDJ革命
-- Serato / Traktor の登場
-- ソフトウェアベースのCueポイント管理
-- 波形表示による視覚的なCue設定
-- Hot Cue / Memory Cueの標準化
-
-2010年代〜現在: 現代のDJ環境
-- Rekordbox / Serato DJ Pro の高度化
-- クラウドベースのライブラリ管理
-- AIによる自動Cueポイント検出
-- Sync機能との併用
-- ストリーミングサービスとの連携
-```
-
-### アナログ時代のキューイング vs デジタル時代のキューイング
-
-アナログとデジタルの違いを理解することは、キューイングの本質を理解する上で重要です。
-
-```
-アナログ（ターンテーブル + バイナル）:
-┌─────────────────────────────────────────┐
-│ 1. レコードを選ぶ（棚から取り出す）          │
-│ 2. ターンテーブルに載せる                   │
-│ 3. 針を落とす位置を目で推測                  │
-│ 4. ヘッドフォンで確認しながら手で回す          │
-│ 5. ビートの頭を「感じて」特定                │
-│ 6. 手で押さえて待機                        │
-│ 7. タイミングを見て手を離す                  │
-│ 8. ピッチフェーダーで微調整                  │
-│                                          │
-│ 特徴:                                     │
-│ - 触覚的なフィードバック                    │
-│ - 職人的なスキルが必要                      │
-│ - ミスした場合のリカバリーが難しい             │
-│ - 物理的な制約（レコードの重さ、針の状態）      │
-│ - しかし、最も「グルーヴ」を感じられる方法      │
-└─────────────────────────────────────────┘
-
-デジタル（CDJ / DJコントローラー）:
-┌─────────────────────────────────────────┐
-│ 1. ライブラリから曲を検索                    │
-│ 2. デッキにロード（ワンクリック/タッチ）       │
-│ 3. 波形表示で位置を視覚的に確認               │
-│ 4. Cueボタンで正確な位置設定                 │
-│ 5. BPM表示で数値を確認                      │
-│ 6. Hot Cueで瞬時にジャンプ                  │
-│ 7. Sync機能との併用も可能                   │
-│ 8. 波形のズームで微細な調整                  │
-│                                          │
-│ 特徴:                                     │
-│ - 視覚的なフィードバック                    │
-│ - 精密な操作が可能                         │
-│ - ミスからのリカバリーが容易                  │
-│ - 大量の曲を持ち運べる                      │
-│ - ただし、操作が機械的になりやすい             │
-└─────────────────────────────────────────┘
+Level 5 (Professional):
+- Operations are instinctive and unconscious
+- Grasps track structure instantly
+- Track selection → load → Cue → mix flows seamlessly
+- Adjusts plans flexibly based on the floor
+- Responds instantly to technical problems
 ```
 
 ---
 
-## 2. Cueボタンの詳細解説
+## 1. What Is Cueing
 
-### Cueボタンの基本機能
+### Definition and Core Concepts
 
-Cueボタンは、DJコントローラーやCDJにおいて最も頻繁に使用されるボタンの一つです。その機能を正確に理解することが、スムーズなDJプレイの基盤となります。
-
-```
-Cueボタンの3つの基本動作:
-
-1. テンポラリーCue（Temporary Cue）
-   - 一時停止中にCueを押す → その位置がCueポイントとして設定される
-   - Cueポイントが設定済みの状態で押す → Cueポイントに戻って一時停止
-   - 重要: 再生中にCueを押すと、Cueポイントに戻る（リセット動作）
-
-2. Cue Play（キュープレイ）
-   - Cueボタンを押し続ける → Cueポイントから再生が始まる
-   - ボタンを離す → Cueポイントに戻って一時停止
-   - 用途: ビートの確認、タイミングの練習
-
-3. Cue + Play（キューアンドプレイ）
-   - Cueボタンを押してからPlayボタンを押す
-   - Cueポイントから通常再生が開始される
-   - 最も基本的なミックス開始方法
-```
-
-### DDJ-FLX4のCueボタン配置と操作
+Cueing refers to the entire preparation process by which a DJ previews the next track through headphones and gets ready to mix it smoothly with the currently playing track. The word comes from the English "Cue" (signal, prompt), derived from performing arts terminology.
 
 ```
-DDJ-FLX4 デッキ操作部 レイアウト:
+Components of Cueing:
+
+1. Track Selection
+   - Read the floor's reaction
+   - Assess BPM and key compatibility
+   - Plan energy level arc
+   - Consider genre flow
+
+2. Loading
+   - Load track onto a deck
+   - Review the waveform
+   - Confirm BPM and key information
+
+3. Cue Point Setting (Finding the Head)
+   - Identify the appropriate playback start position
+   - Set the Cue point
+   - Confirm the beat downbeat
+
+4. Monitoring
+   - Preview in headphones
+   - Confirm audio quality
+   - Understand track structure
+
+5. Beat Preparation
+   - BPM matching
+   - Beat phase alignment
+   - Phrase synchronization
+
+6. Timing Calculation
+   - Decide when to mix in
+   - Calculate remaining time in the phrase
+   - Determine transition method
+```
+
+### History of Cueing
+
+Cueing technique has evolved alongside the history of DJing.
+
+```
+1940s–1960s: Radio DJ era
+- Two turntables in use
+- Previewing via headphones was standard
+- Visually locating groove positions on the record
+- Needle-drop technique (placing the needle directly into a groove)
+
+1970s: Disco era
+- Francis Grasso established "beatmatching"
+- Importance of headphone monitoring recognized
+- Mixers with Cue functionality appeared
+- Single-ear headphone monitoring style established
+
+1980s–1990s: Hip-Hop and Techno era
+- Scratch DJs revolutionized Cue usage
+- Techno DJs developed precise beatmatching
+- CDJs appeared; digital Cue points began
+- Seeds of the Hot Cue concept planted
+
+2000s: Digital DJ revolution
+- Serato and Traktor introduced
+- Software-based Cue point management
+- Waveform display enabled visual Cue setting
+- Hot Cues and Memory Cues standardized
+
+2010s–present: Modern DJ environment
+- Rekordbox and Serato DJ Pro highly advanced
+- Cloud-based library management
+- AI-assisted automatic Cue point detection
+- Combined use with Sync functionality
+- Integration with streaming services
+```
+
+### Analog vs. Digital Cueing
+
+Understanding the difference between analog and digital helps you grasp the essence of cueing.
+
+```
+Analog (Turntable + Vinyl):
+┌─────────────────────────────────────────┐
+│ 1. Choose a record (pull from shelf)     │
+│ 2. Place on turntable                    │
+│ 3. Estimate needle drop position visually│
+│ 4. Manually spin while listening in headphones │
+│ 5. "Feel" for the beat downbeat          │
+│ 6. Hold with your hand and wait          │
+│ 7. Release at the right moment           │
+│ 8. Fine-tune with pitch fader            │
+│                                          │
+│ Characteristics:                         │
+│ - Tactile feedback                       │
+│ - Requires artisanal skill               │
+│ - Recovery from mistakes is difficult    │
+│ - Physical constraints (record weight, needle condition) │
+│ - But the most "groovy" way to feel the music │
+└─────────────────────────────────────────┘
+
+Digital (CDJ / DJ Controller):
+┌─────────────────────────────────────────┐
+│ 1. Search library for track              │
+│ 2. Load onto deck (one click/touch)      │
+│ 3. Visually confirm position on waveform │
+│ 4. Set precise position with Cue button  │
+│ 5. Confirm BPM numerically               │
+│ 6. Jump instantly with Hot Cue           │
+│ 7. Can also use Sync function            │
+│ 8. Fine-tune with waveform zoom          │
+│                                          │
+│ Characteristics:                         │
+│ - Visual feedback                        │
+│ - Precise operation possible             │
+│ - Recovery from mistakes is easy         │
+│ - Carry a large library                  │
+│ - But operations can become mechanical   │
+└─────────────────────────────────────────┘
+```
+
+---
+
+## 2. Cue Button Deep Dive
+
+### Basic Cue Button Functions
+
+The Cue button is one of the most frequently used buttons on a DJ controller or CDJ. Understanding its function precisely is the foundation of smooth DJ play.
+
+```
+Three Basic Cue Button Behaviors:
+
+1. Temporary Cue
+   - Press Cue while paused → current position is set as the Cue point
+   - Press Cue when a Cue point is already set → returns to Cue point and pauses
+   - Important: pressing Cue during playback returns you to the Cue point (reset behavior)
+
+2. Cue Play
+   - Hold Cue button → playback starts from the Cue point
+   - Release button → returns to Cue point and pauses
+   - Use case: confirming the beat, practicing timing
+
+3. Cue + Play
+   - Press Cue button, then press Play button
+   - Normal playback starts from the Cue point
+   - The most basic way to begin a mix
+```
+
+### DDJ-FLX4 Cue Button Layout and Operation
+
+```
+DDJ-FLX4 Deck Controls Layout:
 
           Deck A                    Deck B
 ┌─────────────────────┐  ┌─────────────────────┐
 │                     │  │                     │
-│   [◎ ジョグホイール]  │  │   [◎ ジョグホイール]  │
+│   [◎ Jog Wheel]     │  │   [◎ Jog Wheel]     │
 │                     │  │                     │
 │  [SHIFT] [CUE] [▶]  │  │  [SHIFT] [CUE] [▶]  │
 │                     │  │                     │
@@ -281,76 +281,76 @@ DDJ-FLX4 デッキ操作部 レイアウト:
 │  [Tempo Fader ↕]    │  │  [Tempo Fader ↕]    │
 └─────────────────────┘  └─────────────────────┘
 
-CUEボタンの物理的な位置:
-- ジョグホイールの下、Playボタンの左
-- 直感的に手が届く位置に配置
-- 押しやすい大きめのボタン
+CUE Button Physical Position:
+- Below the jog wheel, to the left of the Play button
+- Positioned within intuitive reach
+- A larger, easy-to-press button
 ```
 
-### Cueボタンの詳細な動作モード
+### Detailed Cue Button Operation Modes
 
-DJソフトウェア（Rekordbox）の設定によって、Cueボタンの動作が異なります。
+The behavior of the Cue button varies depending on settings in the DJ software (Rekordbox).
 
 ```
-モード1: CDJ モード（デフォルト）
+Mode 1: CDJ Mode (Default)
 ┌──────────────────────────────────────────────┐
-│ 停止中にCueを押す:                              │
-│   → 現在位置がCueポイントとして設定               │
+│ Press Cue while stopped:                       │
+│   → Current position set as Cue point          │
 │                                               │
-│ 再生中にCueを押す:                              │
-│   → Cueポイントに戻って停止                      │
+│ Press Cue during playback:                     │
+│   → Returns to Cue point and stops             │
 │                                               │
-│ Cueを押し続ける:                               │
-│   → Cueポイントから再生（離すと戻る）              │
+│ Hold Cue:                                      │
+│   → Plays from Cue point (returns when released) │
 │                                               │
-│ Cue押し続け中にPlayも押す:                       │
-│   → Cueを離しても再生が続く                      │
-│   → 最もスムーズなスタート方法                     │
+│ Press Play while holding Cue:                  │
+│   → Playback continues even after releasing Cue │
+│   → The smoothest way to start                 │
 └──────────────────────────────────────────────┘
 
-モード2: Pioneer CDJ互換モード
+Mode 2: Pioneer CDJ Compatible Mode
 ┌──────────────────────────────────────────────┐
-│ 基本動作はCDJモードと同じ                        │
-│ 追加機能:                                      │
-│ - SHIFT + Cue: 現在位置をCueポイントに設定        │
-│   （再生を止めずに設定可能）                       │
-│ - Back Cue: Cueポイントの微調整が可能             │
+│ Basic behavior same as CDJ Mode               │
+│ Additional features:                           │
+│ - SHIFT + Cue: sets current position as Cue   │
+│   point (can set without stopping playback)    │
+│ - Back Cue: allows fine adjustment of Cue point│
 └──────────────────────────────────────────────┘
 ```
 
-### Cueポイントの設定テクニック
+### Cue Point Setting Techniques
 
-正確なCueポイントを設定するためのテクニックを詳しく解説します。
+Detailed techniques for setting accurate Cue points.
 
 ```
-テクニック1: ゼロクロッシング法
+Technique 1: Zero-Crossing Method
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. 曲を再生して、開始したい位置の少し前で停止
-2. ジョグホイールを使って波形を細かく確認
-3. 波形がゼロライン（中央）を横切る直前の位置を探す
-4. その位置でCueボタンを押す
-5. ポイント: クリック音（プチノイズ）が発生しない位置を選ぶ
+1. Play the track and pause slightly before the desired start point
+2. Use the jog wheel to examine the waveform closely
+3. Find the position just before the waveform crosses the zero line (center)
+4. Press the Cue button at that position
+5. Key point: choose a position that does not produce a click (pop noise)
 
-波形イメージ:
-    ┌─ ここでCue設定（ゼロクロッシング直前）
+Waveform illustration:
+    ┌─ Set Cue here (just before zero crossing)
     ↓
    ╱╲    ╱╲    ╱╲
-──────────────────── ゼロライン
+──────────────────── Zero line
   ╲╱    ╲╱    ╲╱
 ```
 
 ```
-テクニック2: ビートの頭合わせ法
+Technique 2: Beat Head Alignment Method
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. 曲を再生して、キック（バスドラム）の位置を確認
-2. キックの最初の音の直前で停止
-3. ジョグホイールで微調整
-4. Cueボタンで設定
-5. Cue長押しで確認 → キックの頭から再生されるか確認
+1. Play the track and identify the position of the kick (bass drum)
+2. Stop just before the very first kick sound
+3. Fine-tune with the jog wheel
+4. Set with the Cue button
+5. Hold Cue to verify → confirm playback starts from the kick head
 
-波形でのキックの見え方:
+How a kick looks on the waveform:
 │                   │
-│█                  │ ← キックの波形は大きくて急峻
+│█                  │ ← Kick waveform is large and steep
 │██                 │
 │███                │
 │████               │
@@ -360,935 +360,935 @@ DJソフトウェア（Rekordbox）の設定によって、Cueボタンの動作
 │██                 │
 │█                  │
 │                   │
-↑ ここにCue設定
+↑ Set Cue here
 ```
 
 ```
-テクニック3: フレーズの頭出し法
+Technique 3: Phrase Head Method
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. 曲の構造を把握（Rekordboxの波形全体を確認）
-2. イントロ、ブレイクダウン、ドロップなどのセクション境界を特定
-3. ミックスに使いたいセクションの頭にCueを設定
-4. フレーズの「1拍目の頭」に正確に合わせる
+1. Understand the track structure (review the full waveform in Rekordbox)
+2. Identify section boundaries: intro, breakdown, drop, etc.
+3. Set Cue at the head of the section you want to mix into
+4. Align precisely to the "beat 1" of the phrase
 
-曲構造の例（EDM）:
+Example track structure (EDM):
 [Intro 16bar] → [Buildup 8bar] → [Drop 16bar] → [Break 8bar] → [Drop2 16bar] → [Outro 16bar]
 ↑              ↑                ↑               ↑              ↑               ↑
-Cue候補1       Cue候補2         Cue候補3        Cue候補4       Cue候補5        Cue候補6
+Cue option 1   Cue option 2    Cue option 3    Cue option 4   Cue option 5    Cue option 6
 ```
 
-### SHIFT + Cueの活用
+### Using SHIFT + Cue
 
-DDJ-FLX4では、SHIFTキーとCueボタンを組み合わせることで追加機能が使えます。
+On the DDJ-FLX4, combining the SHIFT key with the Cue button unlocks additional functions.
 
 ```
-SHIFT + CUE の動作:
+SHIFT + CUE Behavior:
 ┌──────────────────────────────────────────────┐
-│ 再生中に SHIFT + CUE:                          │
-│   → 再生を止めずにCueポイントを現在位置に更新      │
-│   → ライブ中にCueポイントを変更したい時に便利       │
+│ SHIFT + CUE during playback:                   │
+│   → Updates the Cue point to current position  │
+│     without stopping playback                  │
+│   → Useful when you want to change Cue point   │
+│     on the fly during a live performance        │
 │                                               │
-│ 停止中に SHIFT + CUE:                          │
-│   → 曲の先頭（0:00）に戻る                      │
-│   → Cueポイントのリセットではない                 │
+│ SHIFT + CUE while stopped:                     │
+│   → Returns to the beginning of the track (0:00) │
+│   → Does NOT reset the Cue point               │
 │                                               │
-│ 活用シーン:                                     │
-│ - ミックス中に「ここからの方がいい」と思った時       │
-│ - Hot Cueを設定し忘れたポイントを即座に記録         │
-│ - 練習中のCueポイント試行錯誤                     │
+│ Use cases:                                     │
+│ - When you realize mid-mix "this point is better" │
+│ - Instantly recording a Hot Cue you forgot to set │
+│ - Experimenting with Cue point placement during practice │
 └──────────────────────────────────────────────┘
 ```
 
 ---
 
-## 3. ヘッドフォンモニタリング完全ガイド
+## 3. Complete Headphone Monitoring Guide
 
-### モニタリングの基本原理
+### Fundamental Principles of Monitoring
 
-DJにとってヘッドフォンモニタリングは、外科医にとってのモニター画面に相当します。現在フロアに流れている音と、次にミックスする曲の音を同時に、または切り替えて聴くことで、完璧なトランジションを実現します。
+For a DJ, headphone monitoring is the equivalent of a monitor screen for a surgeon. By listening to the currently playing track and the upcoming mix track — either simultaneously or by switching — you achieve a perfect transition.
 
 ```
-DJモニタリングの信号経路:
+DJ Monitoring Signal Path:
 
-Deck A → Channel A → Master Out → スピーカー（フロア）
+Deck A → Channel A → Master Out → Speakers (floor)
                    ↘
-                    Headphone Bus → ヘッドフォン
+                    Headphone Bus → Headphones
                    ↗
-Deck B → Channel B → (フェーダー下 = フロアに出ない)
+Deck B → Channel B → (fader down = not heard on floor)
 
-ポイント:
-- ヘッドフォンバスは、チャンネルフェーダーの位置に関係なく
-  Cueボタンで選択したデッキの音を聴ける
-- Master OutとCue Outを独立して制御できる
-- これにより「フロアに聞こえない音」をDJだけが聴ける
+Key point:
+- The headphone bus lets you hear whichever deck you select via the Cue button,
+  regardless of channel fader position
+- Master Out and Cue Out are independently controlled
+- This lets you hear audio the floor cannot hear
 ```
 
-### Headphone Mixing ノブの詳細
+### Headphone Mixing Knob in Detail
 
-DDJ-FLX4のHeadphone Mixingノブは、マスター出力とCue出力のバランスを制御します。
+The Headphone Mixing knob on the DDJ-FLX4 controls the balance between the master output and the Cue output.
 
 ```
-DDJ-FLX4 Headphone セクション:
+DDJ-FLX4 Headphones Section:
 ┌──────────────────────────────────────────────┐
 │                                               │
 │     HEADPHONES LEVEL                          │
-│         [○]  ← ヘッドフォン音量               │
+│         [○]  ← Headphone volume              │
 │                                               │
 │     HEADPHONES MIXING                         │
 │    CUE ←  [○]  → MASTER                      │
 │                                               │
 │     CUE SELECT                                │
-│    [A] [B]  ← Cue対象デッキ選択               │
+│    [A] [B]  ← Select which deck to cue       │
 │                                               │
 └──────────────────────────────────────────────┘
 
-ノブの位置と効果:
+Knob positions and their effects:
 
-位置: 完全にCUE側（左に振り切り）
+Position: Fully CUE side (turned all the way left)
 ┌────────────────────┐
-│ ヘッドフォン出力:    │
+│ Headphone output:   │
 │ CUE = 100%          │
 │ MASTER = 0%         │
 │                     │
-│ 用途:               │
-│ ・次の曲の選曲       │
-│ ・曲の雰囲気確認     │
-│ ・静かな環境での試聴  │
+│ Use cases:          │
+│ · Track selection   │
+│ · Checking the vibe │
+│ · Auditioning quietly│
 └────────────────────┘
 
-位置: やや CUE寄り（7:3くらい）
+Position: Slightly CUE side (~7:3)
 ┌────────────────────┐
-│ ヘッドフォン出力:    │
+│ Headphone output:   │
 │ CUE = 70%           │
 │ MASTER = 30%        │
 │                     │
-│ 用途:               │
-│ ・ビートマッチング   │
-│ ・フレーズ合わせ     │
-│ ・実践的なミックス準備│
+│ Use cases:          │
+│ · Beatmatching      │
+│ · Phrase alignment  │
+│ · Practical mix prep│
 └────────────────────┘
 
-位置: 中央（5:5）
+Position: Center (5:5)
 ┌────────────────────┐
-│ ヘッドフォン出力:    │
+│ Headphone output:   │
 │ CUE = 50%           │
 │ MASTER = 50%        │
 │                     │
-│ 用途:               │
-│ ・ミックス中の確認   │
-│ ・バランスチェック    │
-│ ・ビート合わせの微調整│
+│ Use cases:          │
+│ · Checking during mix│
+│ · Balance check     │
+│ · Fine beat alignment│
 └────────────────────┘
 
-位置: やや MASTER寄り（3:7くらい）
+Position: Slightly MASTER side (~3:7)
 ┌────────────────────┐
-│ ヘッドフォン出力:    │
+│ Headphone output:   │
 │ CUE = 30%           │
 │ MASTER = 70%        │
 │                     │
-│ 用途:               │
-│ ・ミックス結果の確認  │
-│ ・フロア音の確認     │
-│ ・仕上がりチェック    │
+│ Use cases:          │
+│ · Checking mix result│
+│ · Monitoring floor  │
+│ · Final quality check│
 └────────────────────┘
 
-位置: 完全にMASTER側（右に振り切り）
+Position: Fully MASTER side (turned all the way right)
 ┌────────────────────┐
-│ ヘッドフォン出力:    │
+│ Headphone output:   │
 │ CUE = 0%            │
 │ MASTER = 100%       │
 │                     │
-│ 用途:               │
-│ ・フロア音の確認     │
-│ ・スピーカーの音を    │
-│  ヘッドフォンで再現   │
-│ ・音質チェック       │
+│ Use cases:          │
+│ · Monitoring floor  │
+│ · Reproducing speaker│
+│   sound in headphones│
+│ · Audio quality check│
 └────────────────────┘
 ```
 
-### モニタリングスタイル別テクニック
+### Monitoring Style Techniques
 
-DJのモニタリングスタイルは大きく3つに分かれます。
+DJ monitoring styles fall into three main categories.
 
 ```
-スタイル1: 片耳モニタリング（最もポピュラー）
+Style 1: Single-Ear Monitoring (Most Popular)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-方法:
-- ヘッドフォンを片耳だけにかける
-- 片耳: ヘッドフォン（Cue音）
-- もう片耳: スピーカー（Master音）
+Method:
+- Wear headphones over only one ear
+- One ear: headphones (Cue audio)
+- Other ear: speakers (Master audio)
 
-メリット:
-✓ 両方の音を物理的に分離して聴ける
-✓ フロアの音量感を直接体感できる
-✓ 直感的にビートを合わせやすい
-✓ 周囲の状況（観客の反応）も把握できる
+Advantages:
+✓ Physically separate both sounds
+✓ Directly experience the floor volume level
+✓ Intuitively easy to align the beat
+✓ Remain aware of surroundings (audience reactions)
 
-デメリット:
-✗ 長時間だと首が疲れる
-✗ ヘッドフォンが落ちやすい
-✗ 音量バランスが難しい（スピーカーの方が大きい）
-✗ 聴覚への偏った負担
+Disadvantages:
+✗ Neck fatigue over long sessions
+✗ Headphones can slip off
+✗ Volume balance is tricky (speakers are louder)
+✗ Uneven strain on hearing
 
-プロのTips:
-・ヘッドフォンの音量は、スピーカーの音と
-  同程度になるよう調整する
-・ヘッドフォンの開放耳側を下向きに傾けると
-  落ちにくい
-・片耳ずつ交互に使うと疲労が分散される
+Pro Tips:
+· Adjust headphone volume to roughly match the speaker level
+· Tilting the open-ear side of the headphones downward helps prevent slipping
+· Alternating which ear you use reduces fatigue
 ```
 
 ```
-スタイル2: 両耳モニタリング（ノブでミックス）
+Style 2: Both-Ears Monitoring (Mix with Knob)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-方法:
-- ヘッドフォンを両耳にかける
-- Headphone Mixingノブでバランス調整
-- CueとMasterを電気的にミックスして聴く
+Method:
+- Wear headphones over both ears
+- Adjust balance with the Headphone Mixing knob
+- Listen to an electrically mixed blend of Cue and Master
 
-メリット:
-✓ 首の負担がない
-✓ 外音の影響を受けにくい
-✓ 細かい音の違いを聴き取りやすい
-✓ 静かな環境でも練習しやすい
+Advantages:
+✓ No neck strain
+✓ Less affected by ambient sound
+✓ Easier to hear subtle audio differences
+✓ Great for quiet home practice
 
-デメリット:
-✗ フロアの実際の音量感が分からない
-✗ 観客の反応が見えにくい（視覚はOKだが音が聞こえない）
-✗ ノブの操作が追加で必要
+Disadvantages:
+✗ Cannot gauge the actual floor volume level
+✗ Harder to read audience reactions (visually fine, but no ambient sound)
+✗ Requires additional knob operation
 
-プロのTips:
-・ビートマッチング時はCUE寄りに
-・ミックス結果確認時はMASTER寄りに
-・頻繁にノブを動かすことに慣れる
-・自宅練習にはこのスタイルが最適
+Pro Tips:
+· Move toward CUE side when beatmatching
+· Move toward MASTER side when checking mix results
+· Get comfortable constantly adjusting the knob
+· Ideal for home practice
 ```
 
 ```
-スタイル3: ノーヘッドフォンモニタリング（上級者向け）
+Style 3: No-Headphone Monitoring (Advanced)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-方法:
-- ヘッドフォンを使わない（または最小限）
-- DJブースのモニタースピーカーのみで判断
-- 波形表示と経験に頼る
+Method:
+- No headphones (or minimal use)
+- Rely solely on DJ booth monitor speakers
+- Depend on waveform display and experience
 
-メリット:
-✓ 完全にフリーハンド
-✓ フロアの音を100%体感
-✓ パフォーマンスの自由度が最大
+Advantages:
+✓ Completely hands-free
+✓ 100% immersed in the floor's sound
+✓ Maximum performance freedom
 
-デメリット:
-✗ 非常に高いスキルが必要
-✗ 静かな曲の確認が困難
-✗ 初心者にはまったく推奨されない
+Disadvantages:
+✗ Requires extremely high skill
+✗ Difficult to preview quiet tracks
+✗ Not recommended for beginners at all
 
-使用する場面:
-・極端に短いトランジション
-・すでに曲の構造を完璧に把握している場合
-・Back to Back時にヘッドフォンを渡す場合
-・Sync機能との併用時
+When to use:
+· Extremely short transitions
+· When you have the track structure perfectly memorized
+· When passing headphones to another DJ during B2B
+· When combined with Sync function
 
-注意:
-この方法は上級者専用です。初心者〜中級者は
-必ずヘッドフォンモニタリングを行ってください。
+Note:
+This approach is for advanced DJs only. Beginners to intermediates
+must always use headphone monitoring.
 ```
 
-### ヘッドフォン音量の適切な設定
+### Setting the Right Headphone Volume
 
-ヘッドフォンの音量設定は、DJ作業の効率と聴覚の健康の両方に影響します。
+Headphone volume affects both the efficiency of your DJ work and the health of your hearing.
 
 ```
-音量設定のガイドライン:
+Volume Setting Guidelines:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. 基準音量の設定方法:
-   a. スピーカーの音量を通常のプレイレベルにする
-   b. ヘッドフォンを片耳にかける
-   c. Headphone Levelノブを最小から徐々に上げる
-   d. スピーカーの音と同程度に聞こえたらストップ
-   e. そこから少しだけ上げる（+2〜3dB程度）
+1. How to set your reference volume:
+   a. Set speaker volume to your normal play level
+   b. Place headphones over one ear
+   c. Slowly raise the Headphone Level knob from minimum
+   d. Stop when it sounds roughly as loud as the speakers
+   e. Raise just a little more (+2–3 dB)
 
-2. 環境別推奨音量:
-   - 自宅練習: 低めでOK（スピーカーも小さいので）
-   - 小規模クラブ: 中程度
-   - 大規模クラブ: やや高め（スピーカーが非常に大きいため）
-   - 野外フェス: 高め（環境音が大きいため）
+2. Recommended volume by environment:
+   - Home practice: Low is fine (speakers are also small)
+   - Small club: Moderate
+   - Large club: Slightly higher (speakers are very loud)
+   - Outdoor festival: Higher (much ambient noise)
 
-3. 聴覚保護の注意点:
-   ⚠ 長時間の大音量モニタリングは難聴の原因
-   ⚠ 30分に1回はヘッドフォンを外して休憩
-   ⚠ イヤーモニター（IEM）を使う場合は特に注意
-   ⚠ 耳鳴りを感じたら音量を下げる
-   ⚠ プロDJでも聴覚障害に悩む人は多い
+3. Hearing protection notes:
+   ⚠ Long-term high-volume monitoring causes hearing loss
+   ⚠ Take headphones off for a break every 30 minutes
+   ⚠ Be especially careful with in-ear monitors (IEMs)
+   ⚠ If you hear ringing, turn the volume down
+   ⚠ Even professional DJs commonly suffer hearing issues
 ```
 
 ---
 
-## 4. 曲の頭出し（Cue Point Setting）詳細
+## 4. Track Cue Point Setting — Deep Dive
 
-### Cueポイント設定の重要性
+### Why Cue Point Accuracy Matters
 
-正確なCueポイントは、スムーズなミックスの第一歩です。Cueポイントがわずかでもズレていると、ビートの頭が合わず、ミックスが不自然になります。
-
-```
-Cueポイントの精度による影響:
-
-精度 ±0ms（完璧）:
-→ キックの頭が完璧に揃う
-→ ミックスが非常にクリーン
-→ 聴いていて気持ちが良い
-
-精度 ±10ms:
-→ ほぼ問題なし
-→ 人間の耳では区別しにくい
-→ プロレベル
-
-精度 ±50ms:
-→ わずかな「フラム」感が出る
-→ 注意して聴くと気づく
-→ 中級者レベル
-
-精度 ±100ms:
-→ 明らかにズレて聞こえる
-→ ダブルキックのように聞こえる
-→ 修正が必要
-
-精度 ±200ms以上:
-→ 完全にズレている
-→ リズムが崩壊
-→ フロアに出してはいけないレベル
-
-※ 参考: 128BPMの1ビート = 約469ms
-  1ビートの半分 = 約234ms
-```
-
-### 自動Cueポイント（Auto Cue）
-
-Rekordboxの自動Cue機能について詳しく解説します。
+An accurate Cue point is the first step to a smooth mix. Even a slight offset in your Cue point means the beat downbeat won't land right, making the mix sound unnatural.
 
 ```
-Rekordbox Auto Cue の仕組み:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Impact of Cue Point Accuracy:
 
-検出アルゴリズム:
-1. 曲の先頭から波形を解析
-2. 一定の音量レベルを超えた最初の位置を検出
-3. その位置をCueポイントとして自動設定
+Accuracy ±0 ms (perfect):
+→ Kicks align perfectly
+→ Very clean mix
+→ Feels great to listen to
 
-設定可能な閾値:
-- -36dB: 非常に小さな音でも検出（繊細なイントロ対応）
-- -42dB: 標準的な検出レベル
-- -48dB: かなり小さい音でも検出
-- -54dB: 最も敏感な設定
-- -60dB: ほぼ無音でも検出
-- -66dB: 極めて敏感
-- -72dB / -78dB: 超高感度（通常不要）
+Accuracy ±10 ms:
+→ Almost no problem
+→ Hard for the human ear to distinguish
+→ Professional level
 
-推奨設定:
-- EDM / House: -36dB〜-42dB（キックが明確なため）
-- Ambient / Chill: -48dB〜-54dB（静かなイントロが多い）
-- Hip-Hop: -36dB（ビートが明確）
-- Techno: -36dB（キックが支配的）
+Accuracy ±50 ms:
+→ Slight "flam" sensation
+→ Noticeable when listening carefully
+→ Intermediate level
 
-注意点:
-⚠ 自動Cueは「音が出始める位置」であって
-  「ビートの頭」とは限らない
-⚠ ノイズやリバーブのテールを誤検出する場合がある
-⚠ フェードインで始まる曲は不正確になりやすい
-⚠ 重要な曲は必ず手動で確認・修正すること
+Accuracy ±100 ms:
+→ Clearly sounds off
+→ Sounds like a double-kick
+→ Needs correction
+
+Accuracy ±200 ms or more:
+→ Completely off
+→ Rhythm collapses
+→ Not suitable for the floor
+
+※ Reference: 1 beat at 128 BPM ≈ 469 ms
+  Half a beat ≈ 234 ms
 ```
 
-### 手動Cueポイント設定の詳細手順
+### Auto Cue (Automatic Cue Point)
+
+A detailed look at Rekordbox's automatic Cue function.
 
 ```
-Step 1: 曲のロードと全体確認
+How Rekordbox Auto Cue Works:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. 曲をデッキにロード
-2. Rekordboxの波形全体を確認
-3. 曲の構造（セクション分け）を把握
-4. 自動設定されたCueポイントの位置を確認
 
-Step 2: 再生して確認
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. Playボタンで再生開始
-2. ヘッドフォンで音を確認
-3. ミックスに使いたいポイントの少し前で一時停止
-4. ジョグホイールで前後に微調整
+Detection algorithm:
+1. Analyzes the waveform from the beginning of the track
+2. Detects the first position that exceeds a set volume threshold
+3. Automatically sets that position as the Cue point
 
-Step 3: 精密な位置調整
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. ジョグホイールの外周（スクラッチ面）で粗調整
-2. ジョグホイールの外周をゆっくり回して微調整
-3. 波形のズーム表示で視覚的に確認
-4. キックの立ち上がりの直前に位置を合わせる
+Configurable thresholds:
+- -36 dB: Detects even very quiet audio (for delicate intros)
+- -42 dB: Standard detection level
+- -48 dB: Detects fairly quiet audio
+- -54 dB: More sensitive setting
+- -60 dB: Detects near-silence
+- -66 dB: Extremely sensitive
+- -72 dB / -78 dB: Ultra-high sensitivity (rarely needed)
 
-Step 4: Cueポイントの設定と確認
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. 位置が決まったらCueボタンを押す
-2. Cueボタンを長押しして再生確認
-3. キックの頭から正確に再生されるか確認
-4. ズレている場合はジョグホイールで再調整
-5. 再度Cueボタンで設定
-6. 納得いくまで繰り返す
+Recommended settings:
+- EDM / House: -36 dB to -42 dB (kicks are clear)
+- Ambient / Chill: -48 dB to -54 dB (quiet intros are common)
+- Hip-Hop: -36 dB (beats are clear)
+- Techno: -36 dB (kick-dominant)
 
-Step 5: 保存（Rekordbox）
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- Rekordboxでは、設定したCueポイントは自動保存
-- USBエクスポート時にも引き継がれる
-- 次回ロード時に同じ位置から始められる
+Important notes:
+⚠ Auto Cue marks "where audio begins," not necessarily
+  "the beat downbeat"
+⚠ May misdetect noise or reverb tails
+⚠ Tracks that fade in tend to be inaccurate
+⚠ Always manually verify and correct for important tracks
 ```
 
-### Rekordboxでの事前Cueポイント設定
-
-パフォーマンス前にRekordboxで事前にCueポイントを設定しておくことで、現場での作業を大幅に削減できます。
+### Detailed Manual Cue Point Setting Process
 
 ```
-Rekordbox事前準備のワークフロー:
+Step 1: Load and review the full track
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Load track onto a deck
+2. Review the full waveform in Rekordbox
+3. Understand the track structure (identify sections)
+4. Note the position of the automatically set Cue point
+
+Step 2: Play and confirm
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Press Play to start playback
+2. Confirm audio in headphones
+3. Pause slightly before the point you want to mix from
+4. Fine-adjust position with the jog wheel
+
+Step 3: Precise position adjustment
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Use the outer edge of the jog wheel for coarse adjustment
+2. Slowly rotate the outer edge for fine adjustment
+3. Visually confirm with zoomed waveform view
+4. Align position just before the kick's attack
+
+Step 4: Set and verify Cue point
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Once position is decided, press the Cue button
+2. Hold the Cue button and verify playback
+3. Confirm playback starts exactly from the kick head
+4. If off, re-adjust with the jog wheel
+5. Press Cue again to re-set
+6. Repeat until satisfied
+
+Step 5: Save (Rekordbox)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- In Rekordbox, set Cue points are automatically saved
+- They carry over when exported to USB
+- Same position will be recalled on next load
+```
+
+### Pre-Setting Cue Points in Rekordbox
+
+Pre-setting Cue points in Rekordbox before a performance drastically reduces in-session workload.
+
+```
+Rekordbox Pre-Preparation Workflow:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. ライブラリに曲を追加
-2. 波形解析を実行（自動）
-3. 各曲を再生して構造を確認
-4. 以下のポイントにCue/Hot Cueを設定:
+1. Add tracks to your library
+2. Run waveform analysis (automatic)
+3. Play each track and review its structure
+4. Set Cue / Hot Cues at the following points:
 
-設定すべきポイント:
+Points to set:
 ┌─────────────────────────────────────────┐
-│ Memory Cue 1: 曲の開始点                    │
-│   → ミックスインの基本位置                   │
+│ Memory Cue 1: Track start point          │
+│   → Base position for mixing in          │
 │                                           │
-│ Memory Cue 2: メインセクション開始点          │
-│   → ドロップやサビの頭                      │
+│ Memory Cue 2: Main section start         │
+│   → Head of the drop or chorus           │
 │                                           │
-│ Memory Cue 3: ブレイクダウン開始点            │
-│   → エネルギーの変化点                      │
+│ Memory Cue 3: Breakdown start            │
+│   → Energy transition point              │
 │                                           │
-│ Memory Cue 4: アウトロ開始点                 │
-│   → ミックスアウトの準備タイミング             │
+│ Memory Cue 4: Outro start                │
+│   → When to start preparing to mix out   │
 │                                           │
-│ Memory Cue 5: ミックスアウトポイント          │
-│   → フェードアウトやカットの位置              │
+│ Memory Cue 5: Mix-out point              │
+│   → Position for fade-out or cut         │
 │                                           │
-│ Hot Cue A: メインミックスインポイント         │
-│   → 最も頻繁に使う開始位置                   │
+│ Hot Cue A: Main mix-in point             │
+│   → Most frequently used start position  │
 │                                           │
-│ Hot Cue B: ドロップ                        │
-│   → 即座にドロップに飛びたい時用              │
+│ Hot Cue B: Drop                          │
+│   → For jumping instantly to the drop    │
 │                                           │
-│ Hot Cue C: ボーカル開始点                   │
-│   → ボーカルが入る位置（あれば）              │
+│ Hot Cue C: Vocal start point             │
+│   → Where vocals enter (if applicable)   │
 │                                           │
-│ Hot Cue D: 特殊用途                        │
-│   → スクラッチ、ループ、エフェクト用          │
+│ Hot Cue D: Special-purpose               │
+│   → For scratching, looping, effects     │
 └─────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. ビートマッチング準備の詳細
+## 5. Beat Preparation in Detail
 
-### ビートマッチングとキューイングの連携
+### How Cueing and Beatmatching Work Together
 
-キューイングとビートマッチングは密接に関連しています。正確なCueポイントの設定がなければ、ビートマッチングも正確にできません。
+Cueing and beatmatching are closely connected. Without an accurate Cue point, you cannot beatmatch accurately either.
 
 ```
-キューイング → ビートマッチング 連携フロー:
+Cueing → Beatmatching Integration Flow:
 
-Phase 1: 準備（キューイング）
+Phase 1: Preparation (Cueing)
 ┌──────────────────────────────────────┐
-│ 1. 次の曲を選択                        │
-│ 2. デッキにロード                      │
-│ 3. Cueボタンで試聴                     │
-│ 4. BPMを確認                          │
-│ 5. Cueポイントを設定/確認              │
-│ 6. Tempo Faderで大まかにBPM合わせ       │
+│ 1. Select next track                  │
+│ 2. Load onto deck                     │
+│ 3. Preview with Cue button            │
+│ 4. Confirm BPM                        │
+│ 5. Set / confirm Cue point            │
+│ 6. Roughly match BPM with Tempo Fader │
 └──────────────────────────────────────┘
         ↓
-Phase 2: ビートマッチング
+Phase 2: Beatmatching
 ┌──────────────────────────────────────┐
-│ 1. Cue長押しでビートを確認             │
-│ 2. ジョグホイールで位相を合わせる       │
-│ 3. Tempo Faderで微調整               │
-│ 4. ヘッドフォンで両方の音を聴き比べ     │
-│ 5. ビートが合ったことを確認            │
+│ 1. Hold Cue to confirm beat           │
+│ 2. Use jog wheel to align phase       │
+│ 3. Fine-tune with Tempo Fader         │
+│ 4. Compare both sounds in headphones  │
+│ 5. Confirm beats are matched          │
 └──────────────────────────────────────┘
         ↓
-Phase 3: ミックス実行
+Phase 3: Execute Mix
 ┌──────────────────────────────────────┐
-│ 1. フレーズの頭を待つ                  │
-│ 2. Playボタンで再生開始               │
-│ 3. チャンネルフェーダーを上げる         │
-│ 4. EQでクロスフェード                 │
-│ 5. ミックス完了                       │
+│ 1. Wait for phrase head               │
+│ 2. Press Play to start               │
+│ 3. Raise channel fader               │
+│ 4. EQ crossfade                      │
+│ 5. Mix complete                      │
 └──────────────────────────────────────┘
 ```
 
-### Step 1: 次の曲のロードとBPM確認
+### Step 1: Loading the Next Track and Checking BPM
 
 ```
-曲のロードタイミング:
+When to Load a Track:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-良いタイミング:
-- 現在の曲のドロップが始まった直後
-  → フロアが盛り上がっている間に準備
-  → 十分な準備時間がある（通常30〜60秒）
+Good timing:
+- Right after the current track's drop starts
+  → The floor is energized, giving you preparation time
+  → Typically 30–60 seconds to prepare
 
-- 現在の曲のメインセクション中盤
-  → 曲が安定しているので安心して準備できる
-  → まだ時間に余裕がある
+- Mid-point of the current track's main section
+  → Track is stable, so you can prepare comfortably
+  → Still plenty of time
 
-悪いタイミング:
-- 現在の曲のアウトロが始まってから
-  → 時間が足りない！パニックの原因
-  → 焦ってミスが増える
+Bad timing:
+- After the outro of the current track has started
+  → Not enough time! Causes panic
+  → Rushing increases mistakes
 
-- 現在の曲のブレイクダウン中
-  → フロアの注目がDJに向きやすい
-  → 次の展開に集中すべき時間
+- During the current track's breakdown
+  → The floor's attention turns toward the DJ
+  → Time to focus on the upcoming section
 
-BPM確認のポイント:
+BPM Check Key Points:
 ┌──────────────────────────────────────┐
-│ 現在の曲A: 128 BPM                    │
-│ 次の曲B:  126 BPM                    │
-│ 差: 2 BPM                            │
+│ Current track A: 128 BPM              │
+│ Next track B:  126 BPM               │
+│ Difference: 2 BPM                    │
 │                                       │
-│ → Tempo Faderで +2BPM調整            │
-│ → または曲Aを -1BPM、曲Bを +1BPM     │
-│ → 差が4BPM以内なら無理なくマッチ可能    │
-│ → 差が8BPM以上は別のアプローチが必要    │
+│ → Adjust with Tempo Fader: +2 BPM    │
+│ → Or: -1 BPM on A, +1 BPM on B       │
+│ → Difference within 4 BPM: matchable │
+│ → Difference 8+ BPM: different approach needed │
 └──────────────────────────────────────┘
 ```
 
-### Step 2: Cueでの試聴と曲構造の把握
+### Step 2: Auditioning and Understanding Track Structure
 
 ```
-ヘッドフォンでの試聴チェックリスト:
+Headphone Audition Checklist:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-□ ビートの確認
-  - キックのパターンは？（Four on the floor / ブレイクビーツ etc.）
-  - BPMは表示通りか？（稀に解析ミスがある）
-  - スウィングやシャッフルはあるか？
+□ Beat check
+  - What is the kick pattern? (Four on the floor / breakbeat, etc.)
+  - Is the BPM as displayed? (Occasionally analysis errors occur)
+  - Is there swing or shuffle?
 
-□ キーの確認
-  - Rekordbox画面でキー表示を確認
-  - 現在の曲とのキーの相性は？（Camelot Wheel参照）
-  - トランジション時に不協和音が出ないか？
+□ Key check
+  - Confirm key display on Rekordbox screen
+  - Compatible with the current track's key? (See Camelot Wheel)
+  - Will there be dissonance during the transition?
 
-□ エネルギーレベルの確認
-  - 現在の曲と比べてエネルギーは上がる？下がる？
-  - フロアの現在の状態に合っているか？
-  - セットの流れに合っているか？
+□ Energy level check
+  - Does it feel higher or lower energy than the current track?
+  - Does it match the current state of the floor?
+  - Does it fit the flow of the set?
 
-□ 曲構造の確認
-  - イントロの長さは？
-  - ドロップ/サビまでの時間は？
-  - ボーカルの有無と位置は？
-  - アウトロの長さは？
+□ Track structure check
+  - How long is the intro?
+  - How long until the drop / chorus?
+  - Is there a vocal, and where?
+  - How long is the outro?
 
-□ 音質の確認
-  - 音量レベルは適切か？（ゲイン調整の必要性）
-  - 低音が強すぎ/弱すぎないか？
-  - 歪みやノイズはないか？
+□ Audio quality check
+  - Is the volume level appropriate? (Need gain adjustment?)
+  - Is the low-end too strong or too weak?
+  - Any distortion or noise?
 ```
 
-### Step 3: ビートの確認テクニック
+### Step 3: Beat Confirmation Technique
 
 ```
-テクニック: Cue長押しビート確認法
+Technique: Hold-Cue Beat Confirmation Method
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-手順:
-1. Headphone MixingノブをCUE寄り（7:3程度）に設定
-2. 現在の曲（Master）がスピーカーから聞こえる状態
-3. 次の曲のCueボタンを長押し
-4. ヘッドフォンで次の曲のビートを確認
-5. スピーカーから聞こえる現在の曲のビートと比較
-6. 離すとCueポイントに戻る → もう一度試す
+Procedure:
+1. Set Headphone Mixing knob toward CUE (~7:3)
+2. Current track (Master) playing through speakers
+3. Hold Cue button on the next track
+4. Hear the next track's beat in headphones
+5. Compare with the current track's beat from speakers
+6. Release to return to Cue point → try again
 
-判断ポイント:
+Judgment:
 ┌──────────────────────────────────────────┐
-│ ビートが合っている:                         │
-│ → キックの「ドン」が重なって聞こえる          │
-│ → 1つのキックに聞こえる                     │
-│ → リズムが安定して聞こえる                   │
+│ Beats are matched:                         │
+│ → The kicks "boom" overlap in your ears   │
+│ → Sounds like a single kick               │
+│ → Rhythm sounds stable                    │
 │                                            │
-│ ビートが速い（次の曲のBPMが高い）:            │
-│ → 次の曲のキックが先に聞こえる               │
-│ → 徐々にズレが大きくなる                     │
-│ → Tempo Faderを下げる                      │
+│ Beat too fast (next track's BPM is higher):│
+│ → Next track's kick lands first            │
+│ → Drift grows over time                    │
+│ → Lower the Tempo Fader                   │
 │                                            │
-│ ビートが遅い（次の曲のBPMが低い）:            │
-│ → 次の曲のキックが遅れて聞こえる             │
-│ → 徐々にズレが大きくなる                     │
-│ → Tempo Faderを上げる                      │
+│ Beat too slow (next track's BPM is lower): │
+│ → Next track's kick lags behind            │
+│ → Drift grows over time                    │
+│ → Raise the Tempo Fader                   │
 │                                            │
-│ ビートが半拍ズレている:                      │
-│ → キックとキックの間に聞こえる               │
-│ → 「ドンドンドンドン」が「ドドドド」になる     │
-│ → ジョグホイールで半拍分調整                 │
+│ Beat is half a beat off:                   │
+│ → Kicks land between the other's beats    │
+│ → "Boom boom boom boom" becomes "bo-bo-bo-bo" │
+│ → Adjust jog wheel by half a beat         │
 └──────────────────────────────────────────┘
 ```
 
 ---
 
-## 6. タイミング管理の技術
+## 6. The Art of Timing Management
 
-### フレーズの理解
+### Understanding Phrases
 
-タイミング管理の基盤は「フレーズ」の理解です。ほぼすべてのダンスミュージックは、4小節（4 bars）または8小節（8 bars）を1つの単位として構成されています。
+The foundation of timing management is understanding "phrases." Nearly all dance music is structured in units of 4 bars or 8 bars.
 
 ```
-フレーズの基本構造:
+Basic Phrase Structure:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1 beat = 1拍
-4 beats = 1 bar（1小節）
-4 bars = 1 short phrase（ショートフレーズ）
-8 bars = 1 phrase（フレーズ）※最も一般的
-16 bars = 1 section（セクション）
-32 bars = 1 long section（ロングセクション）
+1 beat = 1 count
+4 beats = 1 bar (measure)
+4 bars = 1 short phrase
+8 bars = 1 phrase ※ most common
+16 bars = 1 section
+32 bars = 1 long section
 
-128 BPMでの時間換算:
-1 beat = 0.469秒
-1 bar = 1.875秒
-4 bars = 7.5秒
-8 bars = 15秒
-16 bars = 30秒
-32 bars = 60秒
+Time conversion at 128 BPM:
+1 beat = 0.469 sec
+1 bar = 1.875 sec
+4 bars = 7.5 sec
+8 bars = 15 sec
+16 bars = 30 sec
+32 bars = 60 sec
 
-ジャンル別 BPM での時間換算（8 bars）:
-- 90 BPM (Hip-Hop): 約21.3秒
-- 100 BPM (R&B): 約19.2秒
-- 120 BPM (Deep House): 約16秒
-- 126 BPM (House): 約15.2秒
-- 128 BPM (EDM): 約15秒
-- 130 BPM (Progressive House): 約14.8秒
-- 140 BPM (Trance): 約13.7秒
-- 150 BPM (Hardstyle): 約12.8秒
-- 170 BPM (Drum & Bass): 約11.3秒
-- 174 BPM (Drum & Bass): 約11秒
+8-bar time conversion at various BPMs:
+- 90 BPM (Hip-Hop): ~21.3 sec
+- 100 BPM (R&B): ~19.2 sec
+- 120 BPM (Deep House): ~16 sec
+- 126 BPM (House): ~15.2 sec
+- 128 BPM (EDM): ~15 sec
+- 130 BPM (Progressive House): ~14.8 sec
+- 140 BPM (Trance): ~13.7 sec
+- 150 BPM (Hardstyle): ~12.8 sec
+- 170 BPM (Drum & Bass): ~11.3 sec
+- 174 BPM (Drum & Bass): ~11 sec
 ```
 
-### ミックスタイミングの計算
+### Calculating Mix Timing
 
 ```
-タイミング逆算法:
+Reverse-Engineering Timing:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-例: 128 BPM の曲で、32 bars のトランジション
+Example: 32-bar transition in a 128 BPM track
 
-Step 1: トランジション時間の計算
-32 bars × (4 beats / bar) × (60 / 128 BPM) = 60秒
+Step 1: Calculate transition duration
+32 bars × (4 beats / bar) × (60 / 128 BPM) = 60 seconds
 
-Step 2: ミックス開始タイミングの決定
-現在の曲のアウトロが始まる32 bars前にミックス開始
-= アウトロ開始の60秒前
+Step 2: Determine when to begin the mix
+Start mixing 32 bars before the current track's outro begins
+= 60 seconds before the outro starts
 
-Step 3: 準備完了タイムライン
+Step 3: Preparation-complete timeline
 ┌──────────────────────────────────────────┐
-│ -120秒: 次の曲の候補を決める                │
-│ -90秒:  次の曲をロード                     │
-│ -75秒:  Cueで試聴、BPM調整開始             │
-│ -60秒:  ビートマッチング完了                │
-│ -45秒:  フレーズの頭を把握                  │
-│ -30秒:  ミックス開始準備完了                │
-│ -15秒:  最終確認                          │
-│  0秒:   ミックスイン開始（フレーズの頭）      │
-│ +30秒:  EQトランジション実行中              │
-│ +60秒:  ミックス完了、曲Aフェードアウト完了   │
+│ -120 sec: Decide on next track candidate  │
+│ -90 sec:  Load next track                 │
+│ -75 sec:  Preview via Cue, start BPM match│
+│ -60 sec:  Beatmatching complete           │
+│ -45 sec:  Identify phrase head            │
+│ -30 sec:  Fully ready to mix              │
+│ -15 sec:  Final check                     │
+│  0 sec:   Mix in (at phrase head)         │
+│ +30 sec:  EQ transition in progress       │
+│ +60 sec:  Mix complete, Track A faded out │
 └──────────────────────────────────────────┘
 ```
 
-### Rekordbox波形でのタイミング把握
+### Reading Timing from the Rekordbox Waveform
 
 ```
-Rekordbox波形表示の読み方:
+How to Read the Rekordbox Waveform:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-波形の種類:
-1. 全体波形（上部）: 曲の全体構造を表示
-   - 白/グレーの縦線: ビートグリッド
-   - 太い縦線: 小節の頭
-   - 色の濃淡: 音量レベル
-   - 赤い三角: Cueポイント
-   - 再生位置の表示
+Types of waveform views:
+1. Overview waveform (top): Shows the full track structure
+   - White/grey vertical lines: beat grid
+   - Thick vertical lines: bar heads
+   - Color intensity: volume level
+   - Red triangle: Cue point
+   - Playback position indicator
 
-2. 拡大波形（メイン）: 現在位置の詳細表示
-   - 波形の色: 周波数帯域を表す
-     - 青: 低音（キック、ベース）
-     - 緑: 中音（ボーカル、メロディ）
-     - 赤/オレンジ: 高音（ハイハット、シンバル）
-   - ビートグリッド線: 拍の位置を視覚化
+2. Zoomed waveform (main): Detailed view of the current position
+   - Waveform color represents frequency band:
+     - Blue: low-end (kick, bass)
+     - Green: mid-range (vocal, melody)
+     - Red/orange: high-end (hi-hat, cymbal)
+   - Beat grid lines: visualize beat positions
 
-3. フレーズ表示: 小節のカウント
-   - 数字表示で現在の小節位置がわかる
-   - セクションの切り替わりが視覚的にわかる
+3. Phrase display: Bar count
+   - Numeric display shows current bar position
+   - Section transitions are visually clear
 
-タイミング把握のコツ:
+Tips for reading timing:
 ┌──────────────────────────────────────────┐
-│ 1. 全体波形でアウトロの位置を確認              │
-│ 2. アウトロまでの残り小節数を読み取る           │
-│ 3. 32 bars前 = ミックス開始のタイミング        │
-│ 4. 拡大波形でフレーズの頭を確認               │
-│ 5. カウントダウンしながら準備                  │
+│ 1. Find the outro position in overview    │
+│ 2. Read how many bars remain to the outro │
+│ 3. 32 bars before = when to mix in        │
+│ 4. Confirm phrase head in zoomed waveform │
+│ 5. Count down and prepare                 │
 │                                             │
-│ ビジュアルヒント:                             │
-│ - 波形が急に小さくなる = ブレイクダウン         │
-│ - 波形が急に大きくなる = ドロップ/ビルドアップ   │
-│ - 波形の色が変わる = 楽器構成の変化            │
-│ - 規則的なパターン = ループセクション           │
+│ Visual hints:                               │
+│ - Waveform suddenly smaller = breakdown    │
+│ - Waveform suddenly larger = drop/buildup  │
+│ - Waveform color changes = instrument change│
+│ - Regular pattern = loop section           │
 └──────────────────────────────────────────┘
 ```
 
-### フレーズカウントの実践
+### Practical Phrase Counting
 
 ```
-フレーズカウントの方法:
+How to Count Phrases:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-方法1: 頭の中でカウント
-「1, 2, 3, 4 | 2, 2, 3, 4 | 3, 2, 3, 4 | 4, 2, 3, 4 |
-  5, 2, 3, 4 | 6, 2, 3, 4 | 7, 2, 3, 4 | 8, 2, 3, 4 」
-= 8 bars = 1フレーズ完了
+Method 1: Count in your head
+"1, 2, 3, 4 | 2, 2, 3, 4 | 3, 2, 3, 4 | 4, 2, 3, 4 |
+  5, 2, 3, 4 | 6, 2, 3, 4 | 7, 2, 3, 4 | 8, 2, 3, 4"
+= 8 bars = 1 phrase complete
 
-ポイント:
-- 最初の数字が小節番号
-- 「2, 3, 4」はその小節内の拍
-- 8小節で1フレーズ
+Key points:
+- The first number is the bar number
+- "2, 3, 4" are the beats within that bar
+- 8 bars = 1 phrase
 
-方法2: Rekordbox波形のビートカウンター
-- 画面上に表示されるバーカウントを活用
-- 自分でカウントする手間が省ける
-- ただし、波形に頼りすぎないこと（体でも感じる）
+Method 2: Rekordbox waveform beat counter
+- Use the bar count displayed on screen
+- Saves you from counting manually
+- However, don't become overly dependent on the waveform (also feel it physically)
 
-方法3: 身体でカウント
-- 頭を4回振る = 1 bar
-- それを8回繰り返す = 1フレーズ
-- 身体で覚えると無意識にカウントできるようになる
+Method 3: Count with your body
+- Nod your head 4 times = 1 bar
+- Repeat 8 times = 1 phrase
+- Once you internalize this physically, you count without thinking
 
-プロのTips:
-「フレーズの変わり目」の特徴:
-- 新しい楽器が加わる/外れる
-- フィルイン（ドラムロール）が入る
-- 効果音（リバース、スイープ）が入る
-- ボーカルの新しいフレーズが始まる
-- エネルギーレベルが変化する
-これらの変化を聴き取ることで、カウントの精度が上がる
+Pro Tips:
+"Phrase boundary" characteristics:
+- A new instrument enters or drops out
+- A fill (drum roll) appears
+- Sound effects (reverse, sweep) appear
+- A new vocal phrase begins
+- Energy level changes
+Listening for these changes raises the accuracy of your counting
 ```
 
 ---
 
-## 7. DDJ-FLX4での実践ワークフロー
+## 7. Practical Workflow on the DDJ-FLX4
 
-### DDJ-FLX4の概要とキューイング関連機能
+### DDJ-FLX4 Overview and Cueing-Related Features
 
-DDJ-FLX4はPioneer DJのエントリーレベルコントローラーですが、キューイングに必要な機能はすべて備えています。
+The DDJ-FLX4 is an entry-level Pioneer DJ controller, but it has everything you need for cueing.
 
 ```
-DDJ-FLX4 キューイング関連の物理コントロール:
+DDJ-FLX4 Physical Controls Related to Cueing:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. CUEボタン（各デッキ×2）
-   - 位置: ジョグホイール下部
-   - 機能: 前述のCue操作全般
-   - LED: 点灯でCueポイント設定済みを示す
+1. CUE Button (×2 per deck)
+   - Location: Below the jog wheel
+   - Function: All Cue operations described above
+   - LED: Lights when a Cue point is set
 
-2. PLAYボタン（各デッキ×2）
-   - 位置: CUEボタンの横
-   - 機能: 再生/一時停止
-   - LED: 再生中は点灯
+2. PLAY Button (×2 per deck)
+   - Location: Next to the CUE button
+   - Function: Play / Pause
+   - LED: Lights during playback
 
-3. SHIFTボタン（各デッキ×2）
-   - 位置: CUEボタンの隣
-   - 機能: 他のボタンとの組み合わせで追加機能
+3. SHIFT Button (×2 per deck)
+   - Location: Next to the CUE button
+   - Function: Enables additional features in combination with other buttons
 
-4. ジョグホイール（各デッキ×2）
-   - 上面: スクラッチ/サーチ
-   - 外周: ピッチベンド
-   - 機能: Cueポイントの微調整に使用
+4. Jog Wheel (×2 per deck)
+   - Top surface: Scratch / search
+   - Outer edge: Pitch bend
+   - Function: Used for fine-tuning Cue point position
 
-5. Performance Pads（各デッキ×8）
-   - 位置: ジョグホイール下部
-   - Hot Cueモード: 各パッドにCueポイントを割当
-   - 最大8つのHot Cueを設定可能
+5. Performance Pads (×8 per deck)
+   - Location: Below the jog wheel
+   - Hot Cue mode: Assigns Cue points to individual pads
+   - Up to 8 Hot Cues can be set
 
-6. HEADPHONES LEVELノブ
-   - 位置: フロントパネル
-   - 機能: ヘッドフォン音量調整
+6. HEADPHONES LEVEL Knob
+   - Location: Front panel
+   - Function: Headphone volume control
 
-7. HEADPHONES MIXINGノブ
-   - 位置: フロントパネル
-   - 機能: CUE/MASTERバランス調整
+7. HEADPHONES MIXING Knob
+   - Location: Front panel
+   - Function: CUE/MASTER balance control
 
-8. CUE SELECT ボタン（A / B）
-   - 位置: ミキサー部
-   - 機能: ヘッドフォンで聴くデッキを選択
-   - 両方押し: 両デッキの音をミックスして聴ける
+8. CUE SELECT Buttons (A / B)
+   - Location: Mixer section
+   - Function: Select which deck to monitor in headphones
+   - Both pressed: Can hear a mix of both decks in headphones
 
-9. TEMPO FADER（各デッキ×2）
-   - 位置: 各デッキ横
-   - 機能: BPM調整（±8% / ±16% / ±50%）
+9. TEMPO FADER (×2 per deck)
+   - Location: Side of each deck
+   - Function: BPM adjustment (±8% / ±16% / ±50%)
 ```
 
-### 練習1: Cue操作の基礎習得
+### Exercise 1: Mastering Basic Cue Operations
 
 ```
-練習1-A: Cueポイント設定の反復練習
+Exercise 1-A: Repetitive Cue Point Setting Practice
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-目標: Cueポイントを正確に設定できるようになる
-所要時間: 15分
-必要なもの: 任意の曲1曲
+Goal: Be able to set Cue points accurately
+Duration: 15 minutes
+Materials: Any single track
 
-手順:
-1. 曲をDeck Aにロード
-2. Playで再生開始
-3. 10秒ほど再生して一時停止
-4. ジョグホイールでビートの頭に合わせる
-5. CUEボタンを押してCueポイントを設定
-6. CUEボタンを長押しして確認
-   → キックの頭から再生されるか？
-7. ズレていればジョグホイールで微調整→再設定
-8. 曲の別の位置で繰り返す（最低10回）
+Steps:
+1. Load track onto Deck A
+2. Press Play
+3. Play for about 10 seconds and pause
+4. Use jog wheel to align to beat head
+5. Press CUE to set the Cue point
+6. Hold CUE to verify
+   → Does playback start from the kick head?
+7. If off, fine-adjust with jog wheel → re-set
+8. Repeat at different positions in the track (at least 10 times)
 
-チェックポイント:
-□ Cueボタンを押した時の動作を理解したか？
-□ ビートの頭に正確に合わせられるか？
-□ Cue長押しで確認する習慣がついたか？
-□ ジョグホイールでの微調整ができるか？
+Checkpoints:
+□ Do you understand what happens when you press Cue?
+□ Can you accurately align to the beat head?
+□ Are you in the habit of verifying by holding Cue?
+□ Can you fine-adjust with the jog wheel?
 
-よくあるミス:
-✗ 再生中にCueを押してしまう（位置がリセットされる）
-✗ ビートの頭ではなく中途半端な位置に設定
-✗ 確認（長押し）せずに次に進んでしまう
+Common mistakes:
+✗ Pressing Cue during playback (position resets)
+✗ Setting Cue at an imprecise position, not the beat head
+✗ Moving on without verifying (holding Cue)
 ```
 
 ```
-練習1-B: CUE → PLAY のスムーズな切り替え
+Exercise 1-B: Smooth CUE → PLAY Switching
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-目標: Cueポイントからの再生開始をスムーズにする
-所要時間: 10分
+Goal: Make starting playback from Cue point smooth
+Duration: 10 minutes
 
-手順:
-1. Cueポイントを設定済みの曲を用意
-2. CUEボタンを長押し → 再生される
-3. 長押ししたままPLAYボタンも押す
-4. CUEボタンを離す → 再生が続く！
-5. これを「Cue Play」テクニックと呼ぶ
-6. 10回繰り返して体に覚えさせる
+Steps:
+1. Have a track with a set Cue point ready
+2. Hold CUE button → playback starts
+3. While holding, also press PLAY button
+4. Release CUE button → playback continues!
+5. This is called the "Cue Play" technique
+6. Repeat 10 times until it becomes muscle memory
 
-ポイント:
-- CUE長押し → PLAY押す → CUE離す
-  この3ステップの順番が重要
-- PLAYを先に押してからCUEを離すこと
-- 逆にすると再生が止まる
+Key points:
+- Hold CUE → press PLAY → release CUE
+  The order of these three steps matters
+- Press PLAY before releasing CUE
+- Reversing the order stops playback
 
-応用:
-- メトロノームアプリと合わせて練習
-- ビートの頭に合わせてCue Playを実行
-- 「1, 2, 3, 4」のカウントに合わせる練習
+Advanced practice:
+- Practice along with a metronome app
+- Execute Cue Play on the beat head
+- Practice aligning to a "1, 2, 3, 4" count
 ```
 
-### 練習2: ヘッドフォンモニタリングの習得
+### Exercise 2: Mastering Headphone Monitoring
 
 ```
-練習2-A: Headphone Mixing ノブの操作
+Exercise 2-A: Headphone Mixing Knob Operation
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-目標: ノブのどの位置でどう聞こえるか体感する
-所要時間: 10分
+Goal: Experience how each knob position sounds
+Duration: 10 minutes
 
-手順:
-1. Deck Aに曲をロードして再生
-2. Deck Bに別の曲をロード（再生しない）
-3. Deck BのCUE SELECTボタンをON
-4. Deck BのCUEボタンを押す（Cueから再生状態）
-5. Headphone Mixingノブを以下のように動かす:
+Steps:
+1. Load a track onto Deck A and play it
+2. Load a different track onto Deck B (don't play it)
+3. Press CUE SELECT button for Deck B
+4. Press Deck B CUE button (playing from Cue)
+5. Move the Headphone Mixing knob as follows:
 
-   a. 完全にCUE側 → Deck Bだけ聞こえる
-   b. やや CUE寄り → Deck Bメイン + Deck Aうっすら
-   c. 中央 → 両方同じ音量で聞こえる
-   d. やや MASTER寄り → Deck Aメイン + Deck Bうっすら
-   e. 完全にMASTER側 → Deck Aだけ聞こえる
+   a. Fully CUE → Only Deck B audible
+   b. Slightly CUE → Deck B main + faint Deck A
+   c. Center → Both at equal volume
+   d. Slightly MASTER → Deck A main + faint Deck B
+   e. Fully MASTER → Only Deck A audible
 
-6. 各位置での聞こえ方の違いを意識して記憶する
+6. Consciously register how the sound changes at each position
 
-チェックポイント:
-□ ノブの各位置での音の変化が理解できたか？
-□ ビートマッチングに最適な位置はどこか把握したか？
-□ 選曲時に最適な位置はどこか把握したか？
+Checkpoints:
+□ Did you understand the audio change at each knob position?
+□ Did you identify the ideal position for beatmatching?
+□ Did you identify the ideal position for track selection?
 ```
 
 ```
-練習2-B: 片耳モニタリングの練習
+Exercise 2-B: Single-Ear Monitoring Practice
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-目標: 片耳ヘッドフォンでのモニタリングに慣れる
-所要時間: 15分
+Goal: Get comfortable with single-ear headphone monitoring
+Duration: 15 minutes
 
-手順:
-1. スピーカーから曲Aを再生
-2. ヘッドフォンを片耳だけにかける
-3. Headphone MixingノブをCUE側に
-4. もう一方のデッキに曲Bをロード
-5. CUEボタンを押して曲Bを試聴
-6. 片耳: 曲B（ヘッドフォン）/ 片耳: 曲A（スピーカー）
-7. この状態でビートを比較してみる
+Steps:
+1. Play Track A through speakers
+2. Place headphones over only one ear
+3. Set Headphone Mixing knob to CUE side
+4. Load Track B onto the other deck
+5. Press CUE to preview Track B
+6. One ear: Track B (headphones) / One ear: Track A (speakers)
+7. Compare the beats in this configuration
 
-慣れるためのステップ:
-1. まずは同じ曲を両デッキにロード → 完全に同じビート
-2. 次にBPMが同じ別の曲を試す → ビートの頭を合わせる
-3. BPMが少し異なる曲を試す → ズレを感じ取る
-4. BPMが大きく異なる曲を試す → 違いを明確に認識
+Progression steps:
+1. First, load the same track on both decks → identical beats
+2. Try a different track with the same BPM → align beat heads
+3. Try a track with a slightly different BPM → feel the drift
+4. Try a track with a very different BPM → clearly recognize the difference
 
-プロのTips:
-・左耳と右耳、どちらにヘッドフォンをかけるか
-  自分の利き耳を把握して決める
-・ヘッドフォンの位置は肩に落としておくスタイルも
-  あり（素早く片耳に持ってこれる）
-・首にかけるスタイルも定番（瞬時に耳に当てられる）
+Pro Tips:
+· Figure out which ear (left or right) is your dominant ear
+  and decide accordingly
+· Letting the headphones rest on your shoulder is also a style
+  (you can quickly bring them to one ear)
+· Hanging them around your neck is also classic (instant access)
 ```
 
-### 練習3: ビートマッチング with Cue
+### Exercise 3: Beatmatching with Cue
 
 ```
-練習3: 完全なキューイング→ビートマッチングフロー
+Exercise 3: Full Cueing → Beatmatching Flow
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-目標: 選曲からミックスまでの一連の流れを体得する
-所要時間: 30分
-使用曲: BPMが近い曲を5〜6曲用意
+Goal: Internalize the complete sequence from track selection to mix
+Duration: 30 minutes
+Tracks: Prepare 5–6 tracks with similar BPMs
 
-ラウンド1（ウォームアップ）:
-1. Deck Aに曲をロード、再生
-2. Deck Bに曲をロード
-3. BPMを目視で確認
-4. Tempo Faderで大まかにBPM合わせ
-5. CUEで試聴
-6. ビートの頭を合わせる
-7. CUE + PLAY でミックス開始
-8. チャンネルフェーダーで遷移
-9. 所要時間を計測 → 目標: 60秒以内
+Round 1 (Warm-up):
+1. Load a track onto Deck A, play it
+2. Load a track onto Deck B
+3. Visually confirm the BPM
+4. Roughly match BPM with Tempo Fader
+5. Preview via CUE
+6. Align beat heads
+7. Mix in with CUE + PLAY
+8. Transition with channel fader
+9. Time yourself → Target: under 60 seconds
 
-ラウンド2（スピードアップ）:
-1. 上記を繰り返し
-2. 所要時間を計測 → 目標: 45秒以内
-3. より正確なビートマッチングを意識
+Round 2 (Speed up):
+1. Repeat the above
+2. Time yourself → Target: under 45 seconds
+3. Focus on more accurate beatmatching
 
-ラウンド3（実践レベル）:
-1. 上記を繰り返し
-2. 所要時間を計測 → 目標: 30秒以内
-3. フレーズの頭を意識したミックス
-4. EQを使ったスムーズな遷移
+Round 3 (Practice level):
+1. Repeat the above
+2. Time yourself → Target: under 30 seconds
+3. Be aware of phrase-head mixing
+4. Smooth transition using EQ
 
-記録表:
+Record sheet:
 ┌─────┬────────┬───────┬────────────┐
-│回数  │所要時間 │ビート精度│ミックスの質  │
+│Attempt│Time  │Beat Accuracy│Mix Quality│
 ├─────┼────────┼───────┼────────────┤
 │ 1    │        │ /10    │ /10         │
 │ 2    │        │ /10    │ /10         │
@@ -1303,906 +1303,905 @@ DDJ-FLX4 キューイング関連の物理コントロール:
 └─────┴────────┴───────┴────────────┘
 ```
 
-### 練習4: タイミング管理
+### Exercise 4: Timing Management
 
 ```
-練習4: フレーズに合わせたミックスタイミング
+Exercise 4: Phrase-Aligned Mix Timing
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-目標: フレーズの頭にぴったり合ったミックスを実現
-所要時間: 20分
+Goal: Achieve mixes that land exactly on phrase heads
+Duration: 20 minutes
 
-手順:
-1. Deck Aで曲を再生
-2. フレーズをカウントする
-   「1, 2, 3, 4 | 2, 2, 3, 4 | ... | 8, 2, 3, 4」
-3. 次のフレーズの「1」でDeck Bのミックスを開始
-4. フレーズの頭が揃ったミックスができたか確認
+Steps:
+1. Play a track on Deck A
+2. Count the phrases:
+   "1, 2, 3, 4 | 2, 2, 3, 4 | ... | 8, 2, 3, 4"
+3. Begin Deck B mix on the "1" of the next phrase
+4. Confirm whether the phrase heads aligned
 
-段階的な練習:
+Progressive practice:
 ┌──────────────────────────────────────────┐
-│ Level 1: 同じ曲同士でフレーズ合わせ         │
-│ → ビートもBPMも同じなので、               │
-│   フレーズの頭合わせだけに集中              │
+│ Level 1: Phrase alignment with same track │
+│ → Same beat and BPM, so focus             │
+│   purely on aligning phrase heads         │
 │                                           │
-│ Level 2: BPMが同じ異なる曲でフレーズ合わせ   │
-│ → ビートマッチングは不要だが、              │
-│   フレーズ構造が異なるので注意              │
+│ Level 2: Phrase alignment with different tracks at same BPM │
+│ → No beatmatching needed, but             │
+│   phrase structures differ — stay alert   │
 │                                           │
-│ Level 3: BPMが近い曲でフレーズ合わせ        │
-│ → ビートマッチング + フレーズ合わせ          │
-│   実践的なミックス                         │
+│ Level 3: Phrase alignment with similar-BPM tracks │
+│ → Beatmatching + phrase alignment         │
+│   Practical mixing                        │
 │                                           │
-│ Level 4: BPMが異なる曲でフレーズ合わせ      │
-│ → ピッチ調整 + ビートマッチング             │
-│   + フレーズ合わせの総合練習               │
+│ Level 4: Phrase alignment with different-BPM tracks │
+│ → Pitch adjustment + beatmatching         │
+│   + phrase alignment: comprehensive practice │
 └──────────────────────────────────────────┘
 ```
 
 ---
 
-## 8. よくある失敗と対処法
+## 8. Common Mistakes and How to Fix Them
 
-### 失敗1: Cueポイントがズレている
+### Mistake 1: Cue Point Is Off
 
-DJプレイにおいて最も頻繁に発生するミスの一つです。Cueポイントがビートの頭からわずかでもズレていると、ミックス開始時にビートが合わず、不自然なサウンドになります。
+One of the most frequent mistakes in DJ play. Even a slight offset from the beat head causes the mix to start out of sync.
 
 ```
-原因の詳細分析:
+Detailed Root Cause Analysis:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-原因1: 自動Cue検出の誤差
-- Rekordboxの自動Cue検出は完璧ではない
-- 特にフェードインやアンビエントなイントロを持つ曲で誤検出
-- 音量が非常に小さい部分をスキップしてしまう場合がある
-- ドラムではなくパッドやストリングスの立ち上がりを検出する場合
+Cause 1: Auto Cue detection error
+- Rekordbox's auto Cue detection is not perfect
+- Especially prone to misfires on tracks with fade-in or ambient intros
+- Can skip sections with very low volume
+- May detect pad or string attacks instead of the drum
 
-原因2: ビートグリッドのズレ
-- BPM解析が正しくても、グリッドの開始位置がズレている場合
-- 特にイントロにフリーテンポの部分がある曲で発生しやすい
-- リミックスやエディットバージョンで発生しやすい
-- ライブ録音の曲ではBPM自体が揺らいでいる場合がある
+Cause 2: Beat grid offset
+- Even if the BPM analysis is correct, the grid start position may be off
+- Particularly common for tracks with free-tempo intro sections
+- More common with remixes or edit versions
+- Live recordings may have fluctuating BPM
 
-原因3: 手動設定時の操作ミス
-- ジョグホイールの操作が粗すぎる
-- 停止状態と再生状態を混同している
-- 焦って設定してしまい確認を怠る
+Cause 3: Manual setting error
+- Jog wheel movements too coarse
+- Confusion between stopped and playing states
+- Rushing the setting and skipping verification
 
-対処法:
+Fixes:
 ┌──────────────────────────────────────────┐
-│ 即座の対処:                                │
-│ 1. ジョグホイールで再生位置を微調整           │
-│ 2. 一時停止 → ジョグで位置合わせ → Cue再設定  │
-│ 3. Cue長押しで確認してからミックスに進む       │
+│ Immediate fix:                             │
+│ 1. Fine-adjust playback position with jog wheel │
+│ 2. Pause → jog wheel alignment → re-set Cue │
+│ 3. Always hold Cue to verify before mixing  │
 │                                            │
-│ 予防策:                                     │
-│ 1. Rekordboxで事前にCueポイントを確認・修正    │
-│ 2. ビートグリッドの手動調整を習慣にする        │
-│ 3. Hot Cueに正確な位置を保存しておく          │
-│ 4. 本番前にすべてのCueポイントを再確認         │
-│ 5. 自動Cue設定は参考程度にし、必ず手動確認     │
+│ Prevention:                                │
+│ 1. Verify and correct Cue points in Rekordbox before performance │
+│ 2. Habitually manually adjust the beat grid │
+│ 3. Save accurate positions in Hot Cues      │
+│ 4. Re-check all Cue points before a set     │
+│ 5. Treat Auto Cue as a reference only; always manually verify │
 └──────────────────────────────────────────┘
 ```
 
-### 失敗2: ヘッドフォンモニタリングのバランスミス
+### Mistake 2: Headphone Monitoring Balance Error
 
 ```
-症状と原因:
+Symptoms and Causes:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-症状1: Cue音が聞こえない
-原因: CUE SELECTボタンが押されていない
-     Headphone Levelが低すぎる
-     Headphone MixingがMASTER側に振り切り
-対処: CUE SELECTを確認、音量とバランスを調整
+Symptom 1: Can't hear the Cue audio
+Cause: CUE SELECT button not pressed
+       Headphone Level too low
+       Headphone Mixing turned fully to MASTER side
+Fix: Check CUE SELECT, adjust volume and balance
 
-症状2: Master音が聞こえない（ヘッドフォンで）
-原因: Headphone MixingがCUE側に振り切り
-対処: ノブを中央寄りに調整
-     または片耳にしてスピーカー音を直接聞く
+Symptom 2: Can't hear Master audio (in headphones)
+Cause: Headphone Mixing turned fully to CUE side
+Fix: Move knob toward center
+     Or use single-ear monitoring, listening to speakers directly
 
-症状3: 両方聞こえるが音量差が大きすぎる
-原因: ゲイン設定の差、曲自体の音量差
-対処: 各チャンネルのGainノブで音量を揃える
-     ヘッドフォンミキシングのバランスを微調整
+Symptom 3: Both audible but with large volume difference
+Cause: Gain setting difference, volume difference between tracks
+Fix: Equalize volumes with each channel's Gain knob
+     Fine-adjust the headphone mixing balance
 
-症状4: ヘッドフォンの音が歪む
-原因: Headphone Levelが高すぎる
-対処: 音量を下げる。歪んだ状態では正確な判断不可能
+Symptom 4: Headphone audio is distorting
+Cause: Headphone Level is too high
+Fix: Lower the volume. Accurate judgment is impossible when audio is distorted.
 
-プロのTips:
-・ヘッドフォンの音量は「ギリギリ聞こえる」レベルが理想
-・大音量環境では音量を上げたくなるが、我慢する
-・ミックス確認時だけ一時的に音量を上げて即戻す
-・イヤープラグ（耳栓）を使ってスピーカー音を
-  減衰させる方法もプロでは一般的
+Pro Tips:
+· Ideal headphone volume is "just barely audible"
+· Resist the urge to blast the volume in loud environments
+· Temporarily raise volume for mix checking, then immediately lower it
+· Using earplugs to attenuate speaker sound is common among professionals
 ```
 
-### 失敗3: Cue OFF 忘れ
+### Mistake 3: Forgetting to Turn Off Cue
 
-ビートマッチングが完了した後、ヘッドフォンのCueをOFFにし忘れるミスです。
+Forgetting to turn off the headphone Cue after beatmatching is complete.
 
 ```
-何が起こるか:
+What Happens:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. ミックス中にヘッドフォンから両方の曲が聞こえ続ける
-2. ヘッドフォンの音に惑わされて判断を誤る
-3. フロアの音と異なる音がヘッドフォンから流れて混乱
-4. 次の曲の準備に入れない（Cueが前の曲のまま）
+1. Both tracks keep playing in headphones during the mix
+2. Confused by headphone audio and make wrong judgments
+3. Audio in headphones differs from the floor, causing disorientation
+4. Can't start preparing the next track (Cue still on previous track)
 
-対処法:
+Fix:
 ┌──────────────────────────────────────────┐
-│ ルーティンの確立:                             │
+│ Establish a routine:                       │
 │                                            │
-│ ミックス開始のチェックリスト:                   │
-│ □ ビートマッチング完了                        │
-│ □ フレーズの頭を確認                          │
-│ □ Play開始                                 │
-│ □ チャンネルフェーダーを上げ始める              │
-│ □ ★ CUE SELECT を OFF にする ★              │
-│ □ Headphone Mixingを MASTER寄りに           │
-│ □ ミックス結果をヘッドフォンまたはスピーカーで確認│
+│ Mix-start checklist:                       │
+│ □ Beatmatching complete                   │
+│ □ Phrase head confirmed                   │
+│ □ Play started                            │
+│ □ Channel fader raised                    │
+│ □ ★ Turn off CUE SELECT ★                │
+│ □ Move Headphone Mixing toward MASTER     │
+│ □ Confirm mix result in headphones or speakers │
 │                                            │
-│ 習慣化のコツ:                                │
-│ ・「Play → CUE OFF」をセットで覚える           │
-│ ・身体的なルーティンにする                     │
-│  （右手でPlay → 左手でCUE SELECT OFF）        │
-│ ・練習時から意識的にこの流れを反復              │
+│ Tips for building the habit:               │
+│ · Memorize "Play → CUE OFF" as a paired action │
+│ · Make it a physical routine               │
+│   (Right hand presses Play → Left hand turns off CUE SELECT) │
+│ · Consciously repeat this flow during practice │
 └──────────────────────────────────────────┘
 ```
 
-### 失敗4: 準備が間に合わない
+### Mistake 4: Preparation Doesn't Make It in Time
 
 ```
-原因の分析:
+Root Cause Analysis:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-原因1: 選曲に時間がかかりすぎ
-- ライブラリが整理されていない
-- 次の曲の候補が決まっていない
-- BPMやキーのフィルタリングを使っていない
-- 選択肢が多すぎて迷う
+Cause 1: Too much time spent on track selection
+- Library not organized
+- Next track candidate not decided in advance
+- Not using BPM or key filters
+- Too many options causing hesitation
 
-原因2: ビートマッチングに時間がかかる
-- スキル不足（練習量が足りない）
-- BPM差が大きすぎる曲を選んでしまった
-- ビートグリッドが不正確
-- 集中力の低下
+Cause 2: Beatmatching takes too long
+- Insufficient skill (not enough practice)
+- Selected a track with too large a BPM difference
+- Beat grid inaccurate
+- Loss of focus
 
-原因3: タイミングの逆算ができていない
-- 現在の曲の残り時間を把握していない
-- フレーズ構造を理解していない
-- 準備開始のタイミングが遅い
+Cause 3: Unable to reverse-engineer timing
+- Not aware of remaining time in current track
+- Don't understand phrase structure
+- Too late to start preparing
 
-対処法:
+Fixes:
 ┌──────────────────────────────────────────┐
-│ 事前準備:                                   │
-│ 1. プレイリストを事前に作成（BPM順/キー順）    │
-│ 2. 曲の構造をRekordboxで事前に確認            │
-│ 3. CueポイントとHot Cueを事前設定            │
-│ 4. 候補曲を3〜4曲先まで決めておく             │
+│ Advance preparation:                       │
+│ 1. Create playlists in advance (sorted by BPM/key) │
+│ 2. Pre-check track structures in Rekordbox │
+│ 3. Pre-set Cue points and Hot Cues        │
+│ 4. Decide 3–4 tracks ahead               │
 │                                            │
-│ 現場での対処:                                │
-│ 1. 準備が間に合わなければ無理にミックスしない    │
-│ 2. 曲Aのループ機能を使って時間を稼ぐ           │
-│ 3. エフェクト（リバーブなど）でつなぎを演出      │
-│ 4. 最悪の場合、カットイン（一気に切り替え）      │
-│ 5. 「安全な曲」（必ず合う曲）を用意しておく      │
+│ On-the-spot fixes:                         │
+│ 1. Don't force a mix if not ready          │
+│ 2. Use loop on Track A to buy time         │
+│ 3. Use effects (reverb, etc.) to fill the gap │
+│ 4. As a last resort, cut in directly      │
+│ 5. Keep a "safe track" (one that always works) ready │
 │                                            │
-│ 長期的な改善:                                │
-│ 1. 毎日15分のキューイング練習                 │
-│ 2. ビートマッチングの速度を意識的に上げる       │
-│ 3. 選曲の判断を早くする練習                   │
-│ 4. ライブラリの整理を定期的に行う              │
+│ Long-term improvement:                     │
+│ 1. 15 minutes of cueing practice every day │
+│ 2. Consciously increase beatmatching speed │
+│ 3. Practice making faster track selection decisions │
+│ 4. Regularly organize your library         │
 └──────────────────────────────────────────┘
 ```
 
-### 失敗5: 間違ったデッキにロードしてしまう
+### Mistake 5: Loading onto the Wrong Deck
 
 ```
-状況:
-再生中のデッキに新しい曲をロードしてしまい、
-フロアに流れている曲が突然変わる（または止まる）
+Situation:
+Accidentally loading a new track onto the playing deck,
+causing the floor track to suddenly change (or cut out)
 
-原因:
-- デッキの左右を間違える
-- 焦りで確認を怠る
-- 画面表示を見ていない
+Causes:
+- Mixing up left and right decks
+- Skipping verification due to panic
+- Not watching the screen
 
-対処法:
+Fixes:
 ┌──────────────────────────────────────────┐
-│ 即座の対処:                                │
-│ 1. Ctrl+Z（Undo）で元に戻す（Rekordbox）     │
-│ 2. 素早くもう一度正しい曲をロードし直す        │
-│ 3. 落ち着いてフロアに影響がないか確認          │
+│ Immediate fix:                             │
+│ 1. Ctrl+Z (Undo) to revert (Rekordbox)    │
+│ 2. Quickly reload the correct track        │
+│ 3. Calmly check whether the floor was affected │
 │                                            │
-│ 予防策:                                     │
-│ 1. ロード前に必ず「どのデッキに入れるか」確認    │
-│ 2. Rekordboxの「ロード確認」設定をONにする     │
-│    → 再生中デッキへのロード時に警告が出る       │
-│ 3. 色分け（Deck A = 青、Deck B = 赤）を意識    │
-│ 4. ロード操作のルーティンを確立する            │
+│ Prevention:                                │
+│ 1. Always confirm "which deck" before loading │
+│ 2. Enable "load confirmation" setting in Rekordbox │
+│    → Warning shown when loading onto a playing deck │
+│ 3. Be aware of color coding (Deck A = blue, Deck B = red) │
+│ 4. Establish a loading routine             │
 └──────────────────────────────────────────┘
 ```
 
-### 失敗6: フレーズがズレた状態でミックスを開始してしまう
+### Mistake 6: Starting the Mix with Phrases Out of Alignment
 
 ```
-症状:
-ビートは合っているのに、曲の展開が不自然に聞こえる
+Symptom:
+Beats are matched, but the track progression sounds unnatural
 
-原因:
+Causes:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-- フレーズの「1拍目」同士が揃っていない
-- 曲Aの5小節目と曲Bの1小節目でミックスしている
-- 結果: ビルドアップ中にドロップが入る等の不整合
+- The "beat 1" of each phrase is not aligned
+- Mixing from bar 5 of Track A into bar 1 of Track B
+- Result: Drop fires during a buildup, etc.
 
-正しいフレーズ同期:
-曲A: [1][2][3][4][5][6][7][8] | [1][2][3][4][5][6][7][8] |
-曲B:                          [1][2][3][4][5][6][7][8] |
-                              ↑ ここでミックスイン（フレーズの頭同士）
+Correct phrase sync:
+Track A: [1][2][3][4][5][6][7][8] | [1][2][3][4][5][6][7][8] |
+Track B:                          [1][2][3][4][5][6][7][8] |
+                                  ↑ Mix in here (aligned phrase heads)
 
-間違ったフレーズ同期:
-曲A: [1][2][3][4][5][6][7][8] | [1][2][3][4][5][6][7][8] |
-曲B:              [1][2][3][4][5][6][7][8] |
-                  ↑ フレーズの途中でミックスイン（不自然）
+Incorrect phrase sync:
+Track A: [1][2][3][4][5][6][7][8] | [1][2][3][4][5][6][7][8] |
+Track B:              [1][2][3][4][5][6][7][8] |
+                      ↑ Mix in mid-phrase (sounds unnatural)
 
-対処法:
-1. ミックスイン前に必ずフレーズをカウント
-2. Rekordboxの小節カウントを活用
-3. 曲の構造変化（フィルイン等）をヒントにする
-4. 慣れないうちは8小節の倍数でミックスイン
+Fixes:
+1. Always count phrases before mixing in
+2. Use Rekordbox bar count
+3. Use structure changes (fills, etc.) as cues
+4. Until comfortable, mix in on multiples of 8 bars
 ```
 
 ---
 
-## 9. 上級テクニック
+## 9. Advanced Techniques
 
-### Hot Cue（ホットキュー）の活用
+### Hot Cue Usage
 
-Hot Cueは、曲中の複数のポイントに即座にジャンプできるDJの強力なツールです。DDJ-FLX4では最大8つのHot Cueを各曲に設定できます。
+Hot Cues are a powerful DJ tool for jumping instantly to multiple points within a track. The DDJ-FLX4 allows up to 8 Hot Cues per track.
 
 ```
-Hot Cueの基本:
+Hot Cue Basics:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-設定方法:
-1. Performance PadsをHot Cueモードに設定
-2. 曲を再生して目的の位置で一時停止
-3. 対応するパッドを押す → Hot Cueが設定される
-4. 次回そのパッドを押す → 瞬時にその位置から再生
+How to set:
+1. Switch Performance Pads to Hot Cue mode
+2. Play the track and pause at the target position
+3. Press the corresponding pad → Hot Cue is set
+4. Next time you press that pad → instantly jumps to that position and plays
 
-DDJ-FLX4 Performance Pads（Hot Cueモード）:
+DDJ-FLX4 Performance Pads (Hot Cue mode):
 ┌─────┬─────┬─────┬─────┐
-│ [1] │ [2] │ [3] │ [4] │  ← Hot Cue A〜D
+│ [1] │ [2] │ [3] │ [4] │  ← Hot Cue A–D
 ├─────┼─────┼─────┼─────┤
-│ [5] │ [6] │ [7] │ [8] │  ← Hot Cue E〜H
+│ [5] │ [6] │ [7] │ [8] │  ← Hot Cue E–H
 └─────┴─────┴─────┴─────┘
 
-推奨設定パターン:
+Recommended assignment patterns:
 
-パターン1: セクション型（EDM向け）
-[1] Intro開始    [2] Buildup    [3] Drop    [4] Break
-[5] Drop2        [6] Outro      [7] 予備    [8] 予備
+Pattern 1: Section-based (for EDM)
+[1] Intro start    [2] Buildup    [3] Drop    [4] Break
+[5] Drop 2         [6] Outro      [7] spare   [8] spare
 
-パターン2: ミックスポイント型（House向け）
-[1] Main Cue     [2] ミックスイン最適点  [3] ドロップ  [4] アウトロ
-[5] ループ用      [6] ボーカル頭         [7] 予備      [8] 予備
+Pattern 2: Mix-point-based (for House)
+[1] Main Cue  [2] Best mix-in point  [3] Drop  [4] Outro
+[5] Loop use  [6] Vocal head         [7] spare [8] spare
 
-パターン3: パフォーマンス型（Hip-Hop / Open Format向け）
-[1] イントロ      [2] サビ頭        [3] フック      [4] ドロップ
-[5] スクラッチ用  [6] コールバック用  [7] アウトロ    [8] 次曲連結点
+Pattern 3: Performance-based (for Hip-Hop / Open Format)
+[1] Intro      [2] Chorus head    [3] Hook       [4] Drop
+[5] Scratch use [6] Call-back use  [7] Outro      [8] Next-track link point
 ```
 
 ```
-Hot Cueの実践的な活用法:
+Practical Hot Cue Uses:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. 即座のドロップイン
-   → 曲のドロップにHot Cueを設定
-   → フロアのテンションが下がった時に即座にドロップから再生
-   → イントロを飛ばして直接盛り上がるポイントへ
+1. Instant drop-in
+   → Set a Hot Cue at the drop
+   → Jump instantly to the drop when the floor's energy dips
+   → Skip the intro and go straight to the peak moment
 
-2. ライブリミックス
-   → 同じ曲の複数のセクションにHot Cueを設定
-   → パッドを叩いてセクション間をジャンプ
-   → オリジナルとは異なる構成で曲を再構成
+2. Live remix
+   → Set Hot Cues at multiple sections of the same track
+   → Tap pads to jump between sections
+   → Reconstruct the track in a different order than original
 
-3. マッシュアップ
-   → 2つの曲のそれぞれのセクションにHot Cueを設定
-   → 交互にジャンプしてマッシュアップを作る
-   → ボーカルとインストを組み合わせる
+3. Mashup
+   → Set Hot Cues at sections of two different tracks
+   → Alternate jumps to create a mashup
+   → Combine vocal and instrumental elements
 
-4. スムーズなミックスイン
-   → 曲のベストなミックスインポイントにHot Cueを設定
-   → ワンタッチでそのポイントからスタート
-   → ビートの頭が保証されているので安心
+4. Smooth mix-in
+   → Set a Hot Cue at the best mix-in point of a track
+   → Start from that point with a single touch
+   → Beat downbeat is guaranteed, so confidence is high
 
-5. エマージェンシーCue（緊急用）
-   → すべての曲のHot Cue 1に「安全な開始点」を設定
-   → トラブル時に即座にリカバリー可能
-   → ビートマッチングしやすいキックイントロの頭
+5. Emergency Cue
+   → Set a "safe start point" at Hot Cue 1 for every track
+   → Enables instant recovery in case of trouble
+   → Head of a kick-intro that's easy to beatmatch
 ```
 
-### Memory Cue（メモリーキュー）の活用
+### Memory Cue Usage
 
-Memory Cueは、Rekordbox固有の機能で、Hot Cueとは異なる用途で使われます。
+Memory Cues are a Rekordbox-specific feature used differently from Hot Cues.
 
 ```
-Memory Cue vs Hot Cue の違い:
+Memory Cue vs. Hot Cue Comparison:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ┌──────────────┬─────────────────┬─────────────────┐
 │              │ Hot Cue          │ Memory Cue       │
 ├──────────────┼─────────────────┼─────────────────┤
-│ 設定数       │ 最大8個           │ 無制限           │
-│ パッドから   │ 直接トリガー可能   │ 不可             │
-│ ジャンプ     │ 即座にジャンプ     │ 波形上のマーカー  │
-│ 主な用途     │ パフォーマンス中   │ 事前分析・メモ    │
-│ 色分け       │ パッド色で判別     │ マーカー色で判別  │
-│ CDJ互換     │ CDJ-3000等で使用  │ CDJ-3000等で表示  │
-│ 削除リスク   │ 誤操作で上書き     │ 意図的に削除のみ  │
+│ Number       │ Max 8            │ Unlimited        │
+│ Pad trigger  │ Direct trigger   │ Not possible     │
+│ Jump         │ Instant jump     │ Marker on waveform│
+│ Primary use  │ During performance│ Pre-analysis/notes│
+│ Color coding │ Pad color        │ Marker color     │
+│ CDJ compat.  │ CDJ-3000 etc.   │ CDJ-3000 display │
+│ Deletion risk│ Overwrite by mistake│ Only intentional│
 └──────────────┴─────────────────┴─────────────────┘
 
-Memory Cueの推奨設定:
+Recommended Memory Cue settings:
 ┌──────────────────────────────────────────┐
-│ ○ 赤: セクション開始点                      │
-│   → イントロ、バース、コーラス等の頭          │
+│ ○ Red: Section start points               │
+│   → Head of intro, verse, chorus, etc.   │
 │                                            │
-│ ○ オレンジ: エネルギー変化点                  │
-│   → ビルドアップ開始、ブレイクダウン開始        │
+│ ○ Orange: Energy transition points        │
+│   → Buildup start, breakdown start        │
 │                                            │
-│ ○ 黄: ボーカル位置                          │
-│   → ボーカルが入る/出るポイント               │
+│ ○ Yellow: Vocal positions                 │
+│   → Where vocals enter / exit             │
 │                                            │
-│ ○ 緑: ミックスポイント                       │
-│   → ミックスインに最適な位置                  │
+│ ○ Green: Mix points                       │
+│   → Best positions to mix in              │
 │                                            │
-│ ○ 青: ミックスアウトポイント                  │
-│   → フェードアウトやカットの位置               │
+│ ○ Blue: Mix-out points                    │
+│   → Positions for fade-out or cut         │
 │                                            │
-│ ○ 紫: 注意ポイント                          │
-│   → BPMが変わる位置、突然の無音など           │
+│ ○ Purple: Warning points                  │
+│   → Where BPM changes, sudden silence, etc.│
 └──────────────────────────────────────────┘
 ```
 
-### Slip Cue（スリップキュー）
+### Slip Cue
 
-Slip Cue（スリップモード中のCue操作）は、デジタルDJならではの高度なテクニックです。
+Slip Cue (Cue operation in Slip mode) is an advanced technique unique to digital DJing.
 
 ```
-Slip Cueの仕組み:
+How Slip Cue Works:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-通常のCue:
-再生位置: ──→──→──→ [CUE] ──戻る→ Cueポイント
-                            [CUE離す] ──停止
+Normal Cue:
+Playback position: ──→──→──→ [CUE] ──back→ Cue point
+                                    [Release CUE] ──stopped
 
-Slip Mode中のCue:
-表面上:   ──→──→──→ [CUE] ──戻る→ Cueポイント
-裏で:     ──→──→──→──→──→──→──→ （曲は進行中）
-                            [CUE離す] ──→ 本来の位置から再生
+Cue in Slip Mode:
+Surface:    ──→──→──→ [CUE] ──back→ Cue point
+Underneath: ──→──→──→──→──→──→──→ (track continues progressing)
+                              [Release CUE] ──→ resumes from actual position
 
-つまり:
-- Cueで一時的にCueポイントに戻っている間も
-  バックグラウンドで曲の再生位置は進んでいる
-- Cueを離すと、「もしCueを押さなかったら
-  今ここにいたはず」の位置から再生が続く
-- 外から見ると何も起きなかったかのように聞こえる
+In other words:
+- While the surface appears to return to the Cue point,
+  the background playback position keeps advancing
+- When you release Cue, playback resumes from "where it would have been
+  if you hadn't pressed Cue"
+- From the outside, it sounds as if nothing happened
 
-活用シーン:
+Use cases:
 ┌──────────────────────────────────────────┐
-│ 1. ビート確認の安全な方法                    │
-│    → Slip ON → Cue長押しでビート確認         │
-│    → 離しても曲の位置は正常                  │
-│    → ミックスの流れを崩さない                 │
+│ 1. Safe beat verification                  │
+│    → Slip ON → Hold Cue to check beat     │
+│    → Release without disrupting track position │
+│    → Doesn't break the mix flow           │
 │                                            │
-│ 2. スクラッチ中のタイムキーピング              │
-│    → Slip ON → スクラッチしても              │
-│    → 離せば元の位置に戻る                    │
-│    → スクラッチDJの必須テクニック             │
+│ 2. Timekeeping during scratching          │
+│    → Slip ON → Scratch freely             │
+│    → Release to snap back to proper position │
+│    → Essential scratch DJ technique       │
 │                                            │
-│ 3. エフェクト適用時の安全ネット               │
-│    → Slip ON → 大胆なエフェクトを試す        │
-│    → 失敗しても元に戻れる                    │
+│ 3. Safety net for effects                  │
+│    → Slip ON → Try bold effects           │
+│    → Can return to normal if it fails     │
 │                                            │
-│ 4. Hot Cueジャンプの保険                    │
-│    → Slip ON → Hot Cueでジャンプ            │
-│    → 気に入らなければ離して元に戻る           │
+│ 4. Insurance for Hot Cue jumps            │
+│    → Slip ON → Jump with Hot Cue         │
+│    → Release to return if you don't like it │
 └──────────────────────────────────────────┘
 
-DDJ-FLX4でのSlipモード:
-- SHIFT + PAD MODE ボタンでSlipモードに切替
-- ジョグホイール上面のタッチ操作にも適用される
-- スリップ中はRekordbox画面に「SLIP」表示
+Slip mode on DDJ-FLX4:
+- SHIFT + PAD MODE button switches to Slip mode
+- Also applies to jog wheel top-surface touch operations
+- "SLIP" appears on the Rekordbox screen while active
 ```
 
-### Quantize（クオンタイズ）機能との連携
+### Using Quantize with Cueing
 
-クオンタイズ機能は、キューイングの精度を自動的に向上させる強力なサポート機能です。
+Quantize is a powerful support feature that automatically improves cueing accuracy.
 
 ```
-Quantize の仕組み:
+How Quantize Works:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Quantize ON の場合:
-- Cueボタン、Hot Cue、ループ等のトリガーが
-  自動的にビートグリッドの最寄りの拍に合わせられる
-- 人間の操作タイミングの誤差を自動補正
+With Quantize ON:
+- Triggers for Cue button, Hot Cue, loops, etc. are
+  automatically snapped to the nearest beat in the beat grid
+- Automatically corrects human timing errors
 
-例:
-ビートグリッド: [1]---[2]---[3]---[4]---
-実際の操作:          ↑ ここで押した（拍の間）
-Quantize補正:    ↑ こっちに自動調整（最寄りの拍）
+Example:
+Beat grid: [1]---[2]---[3]---[4]---
+Actual press:    ↑ pressed here (between beats)
+Quantize snap: ↑ auto-adjusted here (nearest beat)
 
-設定:
-- Quantize解像度: 1拍 / 1/2拍 / 1/4拍 / 1/8拍
-- 推奨: 1拍（最も自然な補正）
+Settings:
+- Quantize resolution: 1 beat / 1/2 beat / 1/4 beat / 1/8 beat
+- Recommended: 1 beat (most natural correction)
 
-メリット:
-✓ Cue操作のタイミングが自動的にビートに合う
-✓ Hot Cueのトリガーがビートの頭に合う
-✓ ミックスインのタイミングが正確になる
-✓ 初心者のミスを大幅に減らせる
+Advantages:
+✓ Cue operations automatically land on the beat
+✓ Hot Cue triggers land on the beat head
+✓ Mix-in timing becomes precise
+✓ Greatly reduces beginner mistakes
 
-デメリット:
-✗ ビートグリッドが不正確な場合は逆効果
-✗ 意図的なオフビートトリガーができない
-✗ スウィングやシャッフルのある曲では不自然
-✗ テクニックの上達を妨げる可能性
+Disadvantages:
+✗ Counterproductive if the beat grid is inaccurate
+✗ Intentional off-beat triggers become impossible
+✗ Unnatural for tracks with swing or shuffle
+✗ May hinder skill development
 
-プロのTips:
-・練習時はQuantize OFFで操作感を磨く
-・本番ではQuantize ONで安全性を確保
-・ビートグリッドが正確であることが前提条件
-・スクラッチDJは基本的にQuantize OFF
+Pro Tips:
+· Practice with Quantize OFF to sharpen your feel
+· Use Quantize ON in a live set for safety
+· Accurate beat grid is a prerequisite
+· Scratch DJs generally use Quantize OFF
 ```
 
 ---
 
-## 10. ジャンル別キューイングアプローチ
+## 10. Genre-Specific Cueing Approaches
 
 ### House / Tech House
 
 ```
-特徴:
-- BPM: 120〜130
-- 曲構造: 比較的規則的、長いイントロ/アウトロ
-- キック: Four on the floor（4つ打ち）
-- イントロ/アウトロ: 16〜32 bars（ミックスしやすい）
+Characteristics:
+- BPM: 120–130
+- Track structure: Relatively regular, long intros/outros
+- Kick: Four on the floor
+- Intro/outro: 16–32 bars (easy to mix)
 
-キューイングのポイント:
+Cueing key points:
 ┌──────────────────────────────────────────┐
-│ 1. イントロの頭にCueを設定                   │
-│    → 最初のキックの頭に正確に合わせる          │
+│ 1. Set Cue at head of intro               │
+│    → Align precisely to first kick head   │
 │                                            │
-│ 2. ロングミックスが基本                      │
-│    → 32〜64 bars のトランジションが一般的     │
-│    → 早めのキューイング開始が必要              │
+│ 2. Long mixes are standard                │
+│    → Transitions of 32–64 bars typical   │
+│    → Start cueing early                   │
 │                                            │
-│ 3. EQミックスとの連携                        │
-│    → LOWを徐々にスワップするスタイルが主流      │
-│    → Cueで低域の特徴を事前に把握しておく       │
+│ 3. Coordinate with EQ mixing              │
+│    → Gradually swapping LOWs is the main style │
+│    → Pre-check low-end characteristics via Cue │
 │                                            │
-│ 4. キーの重要性                             │
-│    → ハーモニックミキシングが効果的             │
-│    → Cue試聴時にキーの相性を必ず確認          │
+│ 4. Key is important                       │
+│    → Harmonic mixing is effective         │
+│    → Always check key compatibility via Cue │
 └──────────────────────────────────────────┘
 ```
 
 ### Techno
 
 ```
-特徴:
-- BPM: 125〜145（サブジャンルにより幅広い）
-- 曲構造: ミニマルなものからダイナミックなものまで
-- キック: 強力なFour on the floor
-- ループ的な展開が多い
+Characteristics:
+- BPM: 125–145 (wide range depending on sub-genre)
+- Track structure: Ranges from minimal to dynamic
+- Kick: Powerful four on the floor
+- Often loop-based progression
 
-キューイングのポイント:
+Cueing key points:
 ┌──────────────────────────────────────────┐
-│ 1. キックの存在感を確認                      │
-│    → Technoはキックが命                     │
-│    → 2曲のキックが干渉しないか確認            │
+│ 1. Verify kick presence                   │
+│    → Kick is everything in Techno         │
+│    → Check whether two kicks interfere    │
 │                                            │
-│ 2. ループポイントの設定                      │
-│    → Technoはループとの親和性が高い            │
-│    → 4 bar / 8 bar ループを多用             │
+│ 2. Setting loop points                    │
+│    → Techno pairs well with loops         │
+│    → 4-bar / 8-bar loops are common       │
 │                                            │
-│ 3. 長時間ブレンド                           │
-│    → 2〜3分のロングブレンドも珍しくない        │
-│    → 早い段階でキューイングを開始              │
+│ 3. Extended blending                      │
+│    → 2–3 minute long blends are not unusual │
+│    → Start cueing at an early stage        │
 │                                            │
-│ 4. エフェクトとの連携                        │
-│    → リバーブ、ディレイを多用                 │
-│    → Cue時にエフェクトの相性も確認            │
+│ 4. Coordinate with effects                │
+│    → Reverb and delay used heavily        │
+│    → Check effect compatibility during Cue│
 └──────────────────────────────────────────┘
 ```
 
 ### EDM / Big Room
 
 ```
-特徴:
-- BPM: 126〜132
-- 曲構造: イントロ→ビルドアップ→ドロップが明確
-- エネルギー変化が劇的
-- ブレイクとドロップの対比が大きい
+Characteristics:
+- BPM: 126–132
+- Track structure: Clearly defined intro → buildup → drop
+- Dramatic energy changes
+- Large contrast between break and drop
 
-キューイングのポイント:
+Cueing key points:
 ┌──────────────────────────────────────────┐
-│ 1. ドロップの位置が最重要                    │
-│    → Hot CueにDropの位置を必ず設定           │
-│    → ドロップ直前のビルドアップも重要          │
+│ 1. Drop position is most critical         │
+│    → Always set a Hot Cue at the Drop    │
+│    → The buildup just before the drop matters too │
 │                                            │
-│ 2. 短いトランジションが主流                   │
-│    → 8〜16 bars のクイックミックス            │
-│    → 正確なタイミングが求められる              │
+│ 2. Short transitions are the norm         │
+│    → Quick mixes of 8–16 bars            │
+│    → Precise timing required              │
 │                                            │
-│ 3. ブレイクダウン同士を重ねる技法             │
-│    → 曲Aのアウトロ（静か） + 曲Bのイントロ     │
-│    → Cueでエネルギーレベルを事前に確認         │
+│ 3. Layering breakdowns                    │
+│    → Track A outro (quiet) + Track B intro │
+│    → Pre-check energy levels via Cue       │
 │                                            │
-│ 4. ボーカルの重なりに注意                    │
-│    → EDMはボーカルが多い                    │
-│    → 2つのボーカルが重なると不快              │
-│    → Cue試聴でボーカル位置を把握              │
+│ 4. Watch for vocal overlaps               │
+│    → EDM often features vocals            │
+│    → Two vocals overlapping sounds bad    │
+│    → Identify vocal positions via Cue     │
 └──────────────────────────────────────────┘
 ```
 
 ### Hip-Hop / R&B
 
 ```
-特徴:
-- BPM: 70〜100（ハーフタイムで140〜200の場合もある）
-- 曲構造: ヴァース・コーラス構造
-- ボーカル/ラップが主体
-- テンポの変化が大きい
+Characteristics:
+- BPM: 70–100 (can be 140–200 in half-time)
+- Track structure: Verse-chorus structure
+- Vocal/rap-centric
+- Large tempo variation between tracks
 
-キューイングのポイント:
+Cueing key points:
 ┌──────────────────────────────────────────┐
-│ 1. ボーカルの開始位置が重要                   │
-│    → イントロの長さが曲によって大きく異なる     │
-│    → ボーカルが始まる位置にHot Cueを設定       │
+│ 1. Vocal start point is key               │
+│    → Intro length varies greatly by track │
+│    → Set a Hot Cue at where vocals start  │
 │                                            │
-│ 2. カットイン/スラムの多用                    │
-│    → ロングミックスよりカットインが主流         │
-│    → 正確なCueポイントが特に重要              │
+│ 2. Heavy use of cut-ins and slams         │
+│    → Cut-ins are more common than long mixes │
+│    → Accurate Cue points are especially critical │
 │                                            │
-│ 3. BPMの大きな変化に対応                     │
-│    → 70BPM → 90BPM など大きなジャンプ         │
-│    → スピーチやMC中にロード・準備              │
+│ 3. Handle large BPM changes               │
+│    → Big jumps like 70 BPM → 90 BPM      │
+│    → Load and prepare during speech or MC │
 │                                            │
-│ 4. スクラッチとの連携                        │
-│    → スクラッチ用のCueポイント設定が必要        │
-│    → 特定の音（「Fresh」「Yeah」等）の位置      │
+│ 4. Coordinate with scratching             │
+│    → Cue points for scratch use needed    │
+│    → Positions for specific sounds ("Fresh," "Yeah," etc.) │
 └──────────────────────────────────────────┘
 ```
 
 ### Drum & Bass
 
 ```
-特徴:
-- BPM: 170〜180
-- 曲構造: ブレイクビーツ基調
-- テンポが速いため準備時間が短い
-- ドラムパターンが複雑
+Characteristics:
+- BPM: 170–180
+- Track structure: Breakbeat-based
+- Fast tempo means very little prep time
+- Complex drum patterns
 
-キューイングのポイント:
+Cueing key points:
 ┌──────────────────────────────────────────┐
-│ 1. 高速テンポへの対応                        │
-│    → 8 bars = 約11秒（170BPM）             │
-│    → 非常に短い準備時間                      │
-│    → Hot Cueの事前設定が必須                 │
+│ 1. Handle the fast tempo                  │
+│    → 8 bars ≈ 11 seconds at 170 BPM      │
+│    → Very short preparation window       │
+│    → Pre-setting Hot Cues is essential   │
 │                                            │
-│ 2. ブレイクビーツの位相合わせ                  │
-│    → 4つ打ちと異なりキックのパターンが複雑      │
-│    → スネアの位置を基準にすることもある         │
+│ 2. Breakbeat phase alignment              │
+│    → Unlike four-on-the-floor, kick patterns are complex │
+│    → Can use snare position as reference  │
 │                                            │
-│ 3. ダブルドロップ技法                        │
-│    → 2曲のドロップを同時に重ねる技法           │
-│    → Hot Cue設定がフロア感を決める             │
+│ 3. Double drop technique                  │
+│    → Layering the drops of two tracks simultaneously │
+│    → Hot Cue placement determines the floor impact │
 │                                            │
-│ 4. ハーフタイム/ダブルタイム切替               │
-│    → 85BPMのHip-HopとD&Bの切替              │
-│    → BPMを2倍/半分にする発想                 │
+│ 4. Half-time / double-time switching      │
+│    → Switching between 85 BPM Hip-Hop and D&B │
+│    → Think in terms of doubling/halving BPM │
 └──────────────────────────────────────────┘
 ```
 
 ---
 
-## 11. トラブルシューティング
+## 11. Troubleshooting
 
-### ハードウェアトラブル
+### Hardware Issues
 
 ```
-トラブル1: ヘッドフォンから音が出ない
+Issue 1: No sound from headphones
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-チェックリスト:
-□ ヘッドフォンプラグが正しく挿さっているか
-□ HEADPHONES LEVELノブが上がっているか
-□ CUE SELECTボタンが押されているか
-□ HEADPHONES MIXINGノブが適切な位置か
-□ ヘッドフォン自体が壊れていないか
-□ ヘッドフォンケーブルが断線していないか
-□ DJソフトウェアのオーディオ設定は正しいか
+Checklist:
+□ Is the headphone plug fully inserted?
+□ Is the HEADPHONES LEVEL knob turned up?
+□ Is the CUE SELECT button pressed?
+□ Is the HEADPHONES MIXING knob in a suitable position?
+□ Is the headphone itself broken?
+□ Is the headphone cable disconnected?
+□ Is the DJ software audio setting correct?
 
-対処手順:
-1. まずHEADPHONES LEVELを最大にしてみる
-2. CUE SELECTボタンをAとBの両方押してみる
-3. HEADPHONES MIXINGノブを中央にする
-4. それでも聞こえなければプラグを抜き差し
-5. 別のヘッドフォンで試す
-6. ソフトウェアのオーディオ出力設定を確認
+Resolution steps:
+1. First, turn HEADPHONES LEVEL to maximum
+2. Try pressing both A and B CUE SELECT buttons
+3. Set HEADPHONES MIXING knob to center
+4. If still no sound, unplug and re-plug
+5. Try a different pair of headphones
+6. Check audio output settings in software
 ```
 
 ```
-トラブル2: CUEボタンが反応しない
+Issue 2: CUE button is unresponsive
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-チェックリスト:
-□ DJコントローラーとPCの接続は正常か
-□ USBケーブルが外れていないか
-□ DJソフトウェアがコントローラーを認識しているか
-□ MIDIマッピングが正しいか
+Checklist:
+□ Is the connection between DJ controller and PC normal?
+□ Is the USB cable disconnected?
+□ Does the DJ software recognize the controller?
+□ Is the MIDI mapping correct?
 
-対処手順:
-1. USBケーブルの抜き差し
-2. DJソフトウェアの再起動
-3. コントローラーの電源OFF→ON
-4. 別のUSBポートを試す
-5. ドライバの再インストール（最終手段）
+Resolution steps:
+1. Unplug and re-plug the USB cable
+2. Restart the DJ software
+3. Power cycle the controller (off → on)
+4. Try a different USB port
+5. Reinstall the driver (last resort)
 
-緊急対処:
-- ソフトウェア上のCUEボタンをマウスクリック
-- キーボードショートカットを使用
-- 別のコントローラーに切り替え（あれば）
+Emergency fix:
+- Click the on-screen CUE button with a mouse
+- Use keyboard shortcuts
+- Switch to another controller (if available)
 ```
 
 ```
-トラブル3: ジョグホイールの反応が悪い
+Issue 3: Jog wheel is unresponsive
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-症状:
-- スクラッチが反応しない
-- ピッチベンドが効かない
-- 微調整ができない
+Symptoms:
+- Scratch is unresponsive
+- Pitch bend doesn't work
+- Fine adjustment is impossible
 
-原因:
-- ジョグホイール上面のタッチセンサーの汚れ
-- 手が乾燥しすぎてタッチ検知されない
-- ソフトウェア設定の問題
+Causes:
+- Dirt on the jog wheel top surface touch sensor
+- Hands too dry to be detected
+- Software setting issue
 
-対処:
-1. ジョグホイールを清潔な布で拭く
-2. 手を少し湿らせてみる
-3. ジョグホイールのモード設定を確認
-   （Vinyl mode / CDJ mode の切替）
-4. ソフトウェアでジョグホイールの感度設定を調整
+Fixes:
+1. Wipe jog wheel with a clean cloth
+2. Slightly moisten your hands
+3. Check jog wheel mode setting
+   (Vinyl mode / CDJ mode toggle)
+4. Adjust jog wheel sensitivity in software settings
 ```
 
-### ソフトウェアトラブル
+### Software Issues
 
 ```
-トラブル4: BPM解析が不正確
+Issue 4: BPM analysis is inaccurate
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-症状:
-- 表示BPMが実際のBPMと異なる
-- 半分のBPM（または倍のBPM）で表示される
-- ビートグリッドがズレている
+Symptoms:
+- Displayed BPM differs from actual BPM
+- Displayed at half BPM (or double BPM)
+- Beat grid is off
 
-原因と対処:
+Causes and fixes:
 ┌──────────────────────────────────────────┐
-│ BPMが半分/倍で表示される:                    │
-│ → Rekordboxで手動でBPMを2倍/半分に修正       │
-│ → 例: 85BPM表示 → 実際は170BPM (D&B)        │
+│ Displayed at half/double BPM:             │
+│ → Manually correct to 2× or ½ in Rekordbox │
+│ → Example: Displays 85 BPM → actually 170 BPM (D&B) │
 │                                            │
-│ BPMが完全に間違っている:                      │
-│ → Rekordboxで手動BPM入力                    │
-│ → 「TAP」機能でBPMを手動計測                 │
-│ → 曲を再解析してみる                         │
+│ BPM is completely wrong:                  │
+│ → Manually enter BPM in Rekordbox         │
+│ → Use TAP function to measure BPM manually │
+│ → Try re-analyzing the track              │
 │                                            │
-│ ビートグリッドがズレている:                    │
-│ → Rekordboxのグリッド編集モードで修正          │
-│ → 最初のビートの位置を手動で調整              │
-│ → グリッドロック機能で固定                    │
+│ Beat grid is off:                         │
+│ → Fix in Rekordbox grid edit mode         │
+│ → Manually adjust position of first beat  │
+│ → Lock with grid lock function            │
 └──────────────────────────────────────────┘
 ```
 
 ```
-トラブル5: 曲のロードに時間がかかる
+Issue 5: Track takes a long time to load
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-原因:
-- USBメモリの読み込み速度が遅い
-- 大容量のWAV/AIFFファイルを使用
-- PCのスペック不足
-- ライブラリのデータベースが肥大化
+Causes:
+- USB memory read speed is slow
+- Using large WAV/AIFF files
+- PC specs insufficient
+- Library database has grown very large
 
-対処:
-1. USB 3.0以上のメモリを使用
-2. ファイル形式をAAC/MP3に変換（音質と速度のトレード）
-3. SSDのPCを使用
-4. Rekordboxのデータベースを最適化
-5. 不要な曲をライブラリから削除
+Fixes:
+1. Use USB 3.0 or higher memory
+2. Convert to AAC/MP3 (trade-off between quality and speed)
+3. Use a PC with SSD
+4. Optimize the Rekordbox database
+5. Delete unnecessary tracks from the library
 
-緊急対処:
-- 前の曲をループさせて時間を稼ぐ
-- エフェクトで場をつなぐ
-- 予備のUSBメモリを用意しておく
+Emergency fix:
+- Loop the previous track to buy time
+- Use effects to fill the gap
+- Keep a backup USB memory handy
 ```
 
 ---
 
-## 12. キューイングの練習プラン
+## 12. Cueing Practice Plan
 
-### 初心者向け30日間プラン
-
-```
-Week 1: 基本操作の習得
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Day 1-2: CUEボタンの基本
-- Cueポイントの設定と確認を50回練習
-- Cue長押しの感覚を体に覚える
-- CUE → PLAY の操作を習得
-
-Day 3-4: ヘッドフォンモニタリング
-- Headphone Mixingノブの各位置を体験
-- 片耳モニタリングの練習
-- CUE SELECTの使い方を習得
-
-Day 5-7: 頭出しの精度向上
-- 10曲以上のCueポイントを手動設定
-- ゼロクロッシング法を練習
-- ビートの頭合わせ法を練習
-
-Week 2: ビートマッチングとの連携
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Day 8-10: Cue + ビートマッチング
-- 同じBPMの曲でCue→ミックスの練習
-- 所要時間を計測（目標: 60秒以内）
-- 10回連続で成功するまで練習
-
-Day 11-14: タイミング管理
-- フレーズカウントの練習
-- フレーズの頭でミックスインする練習
-- 準備時間の短縮（目標: 45秒以内）
-
-Week 3: Hot Cueとフレーズ
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Day 15-17: Hot Cueの設定
-- 全曲にHot Cueを設定
-- Hot Cueモードの操作に慣れる
-- Hot Cueからのミックス開始を練習
-
-Day 18-21: フレーズ合わせの精度
-- 8 barフレーズを意識したミックス
-- 曲構造の把握を素早くする練習
-- EQと組み合わせたミックス
-
-Week 4: 実践練習
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Day 22-25: 30分セット練習
-- 30分間ノンストップでミックス
-- 最低6曲をスムーズにつなぐ
-- 録音して後から聴き直す
-
-Day 26-28: 弱点克服
-- 録音を聴いて問題点を特定
-- 問題のあるトランジションを集中的に練習
-- 苦手なジャンルの曲でも練習
-
-Day 29-30: 総合テスト
-- 1時間セットの練習
-- 12曲以上を使用
-- 録音して自己評価
-```
-
-### 中級者向けスキルアップメニュー
+### 30-Day Plan for Beginners
 
 ```
-毎日の基礎練習（15分）:
+Week 1: Master Basic Operations
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-1. スピードチャレンジ（5分）
-   - ロード → Cue設定 → ビートマッチ → ミックス
-   - 目標タイム: 20秒以内
-   - 5回連続で計測
+Day 1–2: CUE button basics
+- Practice setting and verifying Cue points 50 times
+- Get your hands to remember the feel of holding Cue
+- Master the CUE → PLAY operation
 
-2. フレーズ精度チャレンジ（5分）
-   - フレーズの頭にぴったり合わせる練習
-   - 録音して確認
-   - ズレが0.5秒以内を目指す
+Day 3–4: Headphone monitoring
+- Experience each Headphone Mixing knob position
+- Practice single-ear monitoring
+- Master the use of CUE SELECT
 
-3. ブラインドチャレンジ（5分）
-   - ランダム再生で曲を決定
-   - 初見の曲でのキューイング速度を測定
-   - 曲の構造把握力を鍛える
+Day 5–7: Improve cue point accuracy
+- Manually set Cue points for 10+ tracks
+- Practice the zero-crossing method
+- Practice the beat head alignment method
+
+Week 2: Integration with Beatmatching
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Day 8–10: Cue + beatmatching
+- Practice Cue → mix flow with same-BPM tracks
+- Time yourself (target: under 60 seconds)
+- Practice until 10 consecutive successes
+
+Day 11–14: Timing management
+- Practice phrase counting
+- Practice mixing in on phrase heads
+- Reduce preparation time (target: under 45 seconds)
+
+Week 3: Hot Cues and Phrases
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Day 15–17: Setting Hot Cues
+- Set Hot Cues for all tracks
+- Get comfortable with Hot Cue mode operation
+- Practice starting mixes from Hot Cues
+
+Day 18–21: Phrase alignment accuracy
+- Phrase-conscious mixing with 8-bar awareness
+- Practice identifying track structure quickly
+- Mix combined with EQ
+
+Week 4: Practical Practice
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Day 22–25: 30-minute set practice
+- Mix non-stop for 30 minutes
+- Smoothly connect at least 6 tracks
+- Record and listen back
+
+Day 26–28: Address weak points
+- Listen to recording and identify problems
+- Focus practice on problematic transitions
+- Also practice with genres you find difficult
+
+Day 29–30: Comprehensive test
+- Practice a 1-hour set
+- Use 12+ tracks
+- Record and self-evaluate
+```
+
+### Skill-Up Menu for Intermediate Players
+
+```
+Daily Fundamentals (15 minutes):
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Speed challenge (5 minutes)
+   - Load → set Cue → beatmatch → mix
+   - Target time: under 20 seconds
+   - Time yourself 5 consecutive rounds
+
+2. Phrase accuracy challenge (5 minutes)
+   - Practice landing perfectly on phrase heads
+   - Record and verify
+   - Aim for offset under 0.5 seconds
+
+3. Blind challenge (5 minutes)
+   - Track determined by random play
+   - Measure cueing speed with an unseen track
+   - Train your ability to quickly understand track structure
 ```
 
 ---
 
-## 13. キューイングに関するFAQ
+## 13. Cueing FAQ
 
-### 初心者からの質問
-
-```
-Q: Sync機能があるのにキューイングを学ぶ必要はありますか？
-A: はい、絶対に必要です。
-
-理由:
-1. Syncはビートの位相を合わせるだけ
-   → Cueポイント設定、フレーズ合わせ、
-     タイミング管理は手動で行う必要がある
-
-2. Syncが正しく機能しない場合がある
-   → BPM解析の誤り、ビートグリッドのズレ
-   → 手動でのリカバリースキルが必須
-
-3. プロの現場ではSyncに頼れない場面がある
-   → 異なるシステムでのプレイ
-   → Sync非対応の機材（アナログ）
-
-4. キューイングスキルはDJの基礎体力
-   → これなしにはクリエイティブなプレイは不可能
-```
+### Questions from Beginners
 
 ```
-Q: ヘッドフォンは必ず必要ですか？
-A: 99%の場合、はい。
+Q: Is it necessary to learn cueing when Sync is available?
+A: Yes, absolutely.
 
-例外的にヘッドフォンなしでプレイする場合:
-- 完全に曲の構造を暗記している場合
-- Sync + Quantizeで自動化している場合
-- モニタースピーカーが十分に良い場合
-- 非常に短いセット（2-3曲）の場合
+Reasons:
+1. Sync only aligns the beat phase
+   → Cue point setting, phrase alignment, and
+     timing management must be done manually
 
-しかし:
-- 練習段階では必ずヘッドフォンを使用すべき
-- プロでも99%の場面でヘッドフォンを使用
-- ヘッドフォンなしは「できる」のであって「すべき」ではない
+2. Sync does not always work correctly
+   → BPM analysis errors, beat grid offsets
+   → Manual recovery skills are essential
+
+3. In professional settings, you can't always rely on Sync
+   → Playing on different systems
+   → Analog equipment without Sync
+
+4. Cueing skill is a DJ's basic fitness
+   → Without it, creative play is impossible
 ```
 
 ```
-Q: Cueポイントは曲のどこに設定すべきですか？
-A: 用途によります。
+Q: Are headphones absolutely necessary?
+A: In 99% of cases, yes.
 
-最も一般的な設定:
-→ 最初のキック（Four on the floor）の頭
+Exceptions (playing without headphones):
+- When you have the track structure perfectly memorized
+- When automation via Sync + Quantize is in place
+- When monitor speakers are of sufficient quality
+- For a very short set (2–3 tracks)
 
-ジャンルによる変化:
-→ EDM: ビルドアップの開始点（ドロップの16-32 bars前）
-→ House: 最初のキックの頭
-→ Hip-Hop: 最初のボーカル/ラップの直前
-→ Techno: 最初のキックの頭
-→ D&B: 最初のブレイクビーツの頭
-
-状況による変化:
-→ クイックミックス: ドロップの頭
-→ ロングミックス: イントロの頭
-→ パフォーマンス: 観客が反応するポイント
+However:
+- During the learning stage, always use headphones
+- Professionals use headphones in 99% of situations
+- Playing without headphones is something you "can do," not something you "should do"
 ```
 
 ```
-Q: Hot Cueの数はいくつが適切ですか？
-A: 3〜5個が最もバランスが良いです。
+Q: Where in the track should I set my Cue point?
+A: It depends on the use case.
 
-推奨:
-- 最低限: 3個（イントロ、ドロップ、アウトロ）
-- 標準: 5個（上記 + ブレイクダウン、ボーカル頭）
-- フル活用: 8個（上級者向け、パフォーマンスプレイ）
+Most common setting:
+→ Head of the first kick (four on the floor)
 
-注意:
-- 多すぎると管理が大変になる
-- どのパッドが何かを覚えられなくなる
-- 色分けを統一してルールを作ることが重要
+Variations by genre:
+→ EDM: Buildup start point (16–32 bars before the drop)
+→ House: Head of first kick
+→ Hip-Hop: Just before the first vocal/rap
+→ Techno: Head of first kick
+→ D&B: Head of first breakbeat
+
+Variations by situation:
+→ Quick mix: Head of the drop
+→ Long mix: Head of the intro
+→ Performance: Point the audience reacts to
+```
+
+```
+Q: How many Hot Cues is the right amount?
+A: 3–5 is the most balanced.
+
+Recommendations:
+- Minimum: 3 (intro, drop, outro)
+- Standard: 5 (above + breakdown, vocal head)
+- Full use: 8 (for advanced players doing performance sets)
+
+Notes:
+- Too many makes management difficult
+- Hard to remember which pad is what
+- Creating a unified color-coded system is important
 ```
 
 ---
@@ -2210,128 +2209,128 @@ A: 3〜5個が最もバランスが良いです。
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Building practical experience is most important. Understanding deepens not just through theory but through actually using the techniques and confirming how they work.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Jumping to advanced techniques before mastering the basics. We recommend solidly understanding the fundamental concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this knowledge applied in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Cueing knowledge is applied constantly in real-world DJ performance — particularly during transitions, set preparation, and live response to the floor.
 
 ---
 
-## まとめ
+## Summary
 
-### キューイングの核心
+### The Core of Cueing
 
-キューイングは、DJプレイにおける「見えない準備作業」であり、その質がパフォーマンス全体の品質を決定します。
-
-```
-キューイングで最も重要な5つの要素:
-
-1. 正確なCueポイント設定
-   → ビートの頭に正確に合わせる
-   → 事前にRekordboxで準備する
-   → Hot Cueを活用する
-
-2. ヘッドフォンモニタリングの習熟
-   → 片耳スタイルをマスターする
-   → Headphone Mixingノブを適切に使う
-   → 適切な音量設定を知る
-
-3. フレーズの理解と活用
-   → 8 barフレーズを意識する
-   → フレーズの頭同士を合わせる
-   → 曲構造を素早く把握する
-
-4. タイミング管理
-   → 逆算して準備を開始する
-   → 焦らず計画的に作業する
-   → ループやエフェクトで時間を稼ぐ
-
-5. 練習と経験の蓄積
-   → 毎日15分の基礎練習
-   → 録音して自己評価する
-   → 様々なジャンルで練習する
-```
-
-### スキルアップのロードマップ
+Cueing is the "invisible preparation work" of DJ play, and its quality determines the overall quality of your performance.
 
 ```
-初心者（0〜3ヶ月）:
-□ CUEボタンの基本操作をマスター
-□ ヘッドフォンモニタリングに慣れる
-□ 60秒以内にキューイング完了
-□ 同じBPMの曲でスムーズなミックス
+The 5 Most Important Elements of Cueing:
 
-初中級者（3〜6ヶ月）:
-□ Hot Cueを全曲に設定
-□ 45秒以内にキューイング完了
-□ フレーズの頭を意識したミックス
-□ 異なるBPMの曲間でもミックス
+1. Accurate Cue point setting
+   → Align precisely to the beat head
+   → Prepare in advance with Rekordbox
+   → Make use of Hot Cues
 
-中級者（6〜12ヶ月）:
-□ 30秒以内にキューイング完了
-□ 曲構造の瞬時の把握
-□ EQミックスとの連携
-□ 30分以上のノンストップセット
+2. Mastery of headphone monitoring
+   → Master the single-ear style
+   → Use the Headphone Mixing knob appropriately
+   → Know the right volume settings
 
-上級者（1年〜）:
-□ 20秒以内にキューイング完了
-□ 3曲以上先の選曲計画
-□ ライブリミックス・マッシュアップ
-□ あらゆる環境での安定したプレイ
-□ Slip Cue等の高度なテクニック活用
+3. Understanding and applying phrases
+   → Be aware of 8-bar phrases
+   → Align phrase heads
+   → Quickly grasp track structure
+
+4. Timing management
+   → Work backwards and start preparing early
+   → Work calmly and systematically
+   → Buy time with loops and effects
+
+5. Accumulating practice and experience
+   → 15 minutes of basic practice every day
+   → Record and self-evaluate
+   → Practice with a variety of genres
 ```
 
-### 最終チェックリスト
+### Skill-Up Roadmap
 
 ```
-キューイングの自己評価チェックリスト:
+Beginner (0–3 months):
+□ Master CUE button basics
+□ Get comfortable with headphone monitoring
+□ Complete cueing in under 60 seconds
+□ Smooth mix with same-BPM tracks
+
+Lower-Intermediate (3–6 months):
+□ Set Hot Cues on all tracks
+□ Complete cueing in under 45 seconds
+□ Phrase-head-aware mixing
+□ Mix between tracks at different BPMs
+
+Intermediate (6–12 months):
+□ Complete cueing in under 30 seconds
+□ Instantly grasp track structure
+□ Coordinate with EQ mixing
+□ 30-minute+ non-stop sets
+
+Advanced (1 year+):
+□ Complete cueing in under 20 seconds
+□ Plan 3+ tracks ahead
+□ Live remixes and mashups
+□ Stable play in any environment
+□ Use advanced techniques like Slip Cue
+```
+
+### Final Checklist
+
+```
+Cueing Self-Assessment Checklist:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-基礎（初心者）:
-□ Cueボタンの3つの動作を理解している
-□ Cueポイントを手動で設定できる
-□ ヘッドフォンでCue音を聴ける
-□ CUE SELECTボタンを適切に使える
-□ Headphone Mixingノブの効果を理解している
+Basics (Beginner):
+□ Understand the three Cue button behaviors
+□ Can set Cue points manually
+□ Can hear Cue audio in headphones
+□ Can use CUE SELECT button appropriately
+□ Understand the effect of the Headphone Mixing knob
 
-応用（中級者）:
-□ Hot Cueを活用している
-□ フレーズの頭でミックスインできる
-□ 30秒以内に準備完了できる
-□ 曲の構造を素早く把握できる
-□ 複数の候補曲を素早く試聴できる
+Applied (Intermediate):
+□ Using Hot Cues effectively
+□ Can mix in on phrase heads
+□ Can be ready in under 30 seconds
+□ Can quickly grasp track structure
+□ Can quickly audition multiple candidate tracks
 
-上級（プロ向け）:
-□ Slip Cueを使いこなしている
-□ Quantizeの適切な使い分けができる
-□ Memory Cueを体系的に設定している
-□ ジャンルに合わせたアプローチができる
-□ トラブルシューティングを迅速に行える
-□ フロアの状況に応じて柔軟に対応できる
+Advanced (Professional):
+□ Using Slip Cue proficiently
+□ Can appropriately choose when to use Quantize
+□ Setting Memory Cues systematically
+□ Can adapt approach for different genres
+□ Can troubleshoot quickly
+□ Can respond flexibly to floor conditions
 ```
 
-**次のステップ:** [ゲインステージング](./gain-staging.md) で音量管理を学ぶ
+**Next step:** Learn volume management in [Gain Staging](./gain-staging.md)
 
 ---
 
 
-## 次に読むべきガイド
+## Next Guide to Read
 
-- [EQ操作](./eq-operation.md) - 次のトピックへ進む
+- [EQ Operation](./eq-operation.md) - Continue to the next topic
 
 ---
 
-## 参考リンク
+## Reference Links
 
-- [ビートマッチング](./beatmatching.md)
-- [ミキシング基礎](./mixing-basics.md)
-- [DJ用ヘッドフォン](../02-equipment/headphones.md)
-- EQの基礎
-- エフェクトの使い方
+- [Beatmatching](./beatmatching.md)
+- [Mixing Basics](./mixing-basics.md)
+- [DJ Headphones](../02-equipment/headphones.md)
+- EQ Fundamentals
+- Using Effects
