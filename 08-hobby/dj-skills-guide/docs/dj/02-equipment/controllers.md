@@ -1,1584 +1,1584 @@
-# DJコントローラー
+# DJ Controllers
 
-DJコントローラーは、デジタルDJの世界に足を踏み入れるための最も効率的かつ実用的なデバイスです。ミキサー、ジョグホイール、各種コントロールがひとつの筐体に集約されたオールインワン機材であり、PCやMacと接続するだけで本格的なDJプレイが可能になります。本章では、DJコントローラーの基礎知識から選び方、各モデルの詳細比較、セットアップ方法、そして実践的な操作テクニックまでを網羅的に解説します。
+A DJ controller is the most efficient and practical device for entering the world of digital DJing. It is an all-in-one unit that integrates a mixer, jog wheels, and various controls into a single body — simply connect it to a PC or Mac to start performing full-featured DJ sets. This chapter covers everything from the basics of DJ controllers to how to choose one, detailed comparisons of each model, setup methods, and practical operation techniques.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- DJコントローラーの定義と歴史的背景
-- コントローラーの内部構成と各パーツの役割
-- 初心者から上級者まで対応するおすすめモデルの徹底比較
-- Pioneer DJ DDJシリーズを中心としたラインナップ解説
-- 他メーカー（Native Instruments、Numark、Denon DJ、Roland、Hercules）の選択肢
-- セットアップ方法とトラブルシューティング
-- Rekordbox / Serato DJ / Traktor との接続と設定
-- ジョグホイール、フェーダー、EQ、エフェクトの基本操作
-- パフォーマンスパッドの活用法
-- コントローラーDJからCDJ/ターンテーブルへの移行戦略
-- メンテナンスと長期的な機材管理
+- The definition and historical background of DJ controllers
+- The internal composition of a controller and the role of each part
+- Thorough comparisons of recommended models for everyone from beginners to advanced players
+- An overview of the Pioneer DJ DDJ series lineup
+- Options from other manufacturers (Native Instruments, Numark, Denon DJ, Roland, Hercules)
+- Setup methods and troubleshooting
+- Connection and settings with Rekordbox / Serato DJ / Traktor
+- Basic operation of jog wheels, faders, EQ, and effects
+- How to use performance pads
+- Strategy for transitioning from controller DJing to CDJ/turntable
+- Maintenance and long-term equipment management
 
-## なぜコントローラーから始めるべきか
+## Why You Should Start with a Controller
 
-### 初心者に最適な理由
+### Why It Is Ideal for Beginners
 
-DJコントローラーが入門機材として圧倒的に支持されている理由は複数あります。
+There are multiple reasons why DJ controllers are overwhelmingly supported as entry-level equipment.
 
-**1. オールインワン設計**
+**1. All-in-one design**
 
-従来のDJセットアップでは、CDJ（もしくはターンテーブル）2台とDJミキサー1台を個別に購入する必要がありました。CDJ-3000が1台約30万円、DJM-900NXS2が約25万円とすると、フルセットで85万円以上の投資が必要です。一方、DJコントローラーはこれらの機能をひとつの筐体に集約しており、3万円台から本格的なDJプレイが始められます。
+With traditional DJ setups, you needed to purchase CDJs (or turntables) and a DJ mixer separately. With a CDJ-3000 at approximately 300,000 JPY per unit and a DJM-900NXS2 at approximately 250,000 JPY, a full set requires an investment of 850,000 JPY or more. In contrast, a DJ controller integrates all these functions into a single unit, and you can start a full DJ experience from the 30,000 JPY range.
 
-**2. ソフトウェアとの完全統合**
+**2. Full integration with software**
 
-DJコントローラーはDJソフトウェアの専用コントローラーとして設計されているため、接続するだけで全てのボタン、ノブ、フェーダーが自動的にマッピングされます。MIDIマッピングの設定に時間を費やす必要がなく、箱から出してすぐにプレイを始められるのは大きなメリットです。
+Because a DJ controller is designed as a dedicated controller for DJ software, every button, knob, and fader is automatically mapped when you connect it. Not having to spend time setting up MIDI mappings, and being able to start playing right out of the box, is a major benefit.
 
-**3. 練習環境の構築が容易**
+**3. Easy to build a practice environment**
 
-自宅の机の上にノートPCとコントローラーを置くだけで、いつでも練習できる環境が整います。CDJセットアップでは大きなスペースが必要ですが、コントローラーならコンパクトに収まります。深夜でもヘッドフォンで練習でき、録音機能を使って自分のMIXを客観的に確認することもできます。
+Just place your laptop and controller on a desk at home, and you have an environment where you can practice at any time. CDJ setups require a large space, but a controller fits compactly. You can practice late at night with headphones and objectively review your mixes using the recording function.
 
-**4. コストパフォーマンスの高さ**
+**4. High cost performance**
 
-3万円台のエントリーモデルでも、BPM同期、Hot Cue、ループ、エフェクトなど、プロが現場で使う機能のほとんどが搭載されています。「まずは試してみたい」という段階で大きな投資をする必要がないため、挫折した場合のリスクも小さく済みます。
+Even entry-level models in the 30,000 JPY range come with most of the functions professionals use in the field — BPM sync, Hot Cue, loops, effects, and more. Since you do not need to make a large investment at the "I want to try it first" stage, the risk if you give up is also small.
 
-**5. 持ち運びの利便性**
+**5. Portability**
 
-多くのDJコントローラーは軽量でコンパクトなため、バッグに入れて持ち運ぶことができます。友人のパーティーやイベントに気軽に持参でき、実践経験を積む機会が増えます。
+Many DJ controllers are lightweight and compact, so they can be carried in a bag. You can easily bring them to a friend's party or event, increasing opportunities to gain practical experience.
 
-### CDJへの移行も容易
+### Also Easy to Transition to CDJs
 
-DJコントローラーで身につけたスキルは、クラブ標準機材であるCDJへの移行時にそのまま活かせます。
+The skills you develop on a DJ controller can be directly applied when transitioning to CDJs, the club-standard equipment.
 
-**操作体系の共通点:**
-- ジョグホイールの操作感（ピッチベンド、スクラッチ）はCDJと同様の設計思想に基づいている
-- EQの3バンド構成（Hi/Mid/Low）はDJM系ミキサーと同じ
-- Hot Cue、ループ、エフェクトのワークフローは共通
-- テンポフェーダーの挙動もCDJと基本的に同じ
+**Common features of the operating system:**
+- Jog wheel operation (pitch bend, scratch) is based on the same design philosophy as CDJs
+- The 3-band EQ structure (Hi/Mid/Low) is the same as DJM-series mixers
+- Workflows for Hot Cue, loops, and effects are shared
+- Tempo fader behavior is also basically the same as CDJs
 
-**スキルの転用性:**
-- BeatmatchingのEarトレーニングはハードウェアに依存しない
-- 楽曲構成の理解（フレーズ、ブレイク、ドロップ）は機材を問わない
-- 選曲センスとフロアリーディングの能力は完全に移行可能
-- エフェクトの使いどころやEQミキシングの感覚も共通
+**Transferability of skills:**
+- Ear training for beatmatching does not depend on hardware
+- Understanding of track structure (phrases, breaks, drops) applies to any equipment
+- Track selection sense and floor reading ability are fully transferable
+- The feel for timing effects and EQ mixing is also shared
 
-**段階的な移行プラン:**
-1. コントローラーで基礎スキルを習得（3-6ヶ月）
-2. スタジオやDJスクールでCDJに触れる機会を作る
-3. CDJのUSBメディアでの楽曲管理に慣れる
-4. クラブでの実践を通じてCDJ操作を完全習得
+**Phased transition plan:**
+1. Acquire basic skills on a controller (3–6 months)
+2. Create opportunities to touch CDJs at studios or DJ schools
+3. Get used to track management on USB media for CDJs
+4. Fully master CDJ operation through actual club performances
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [CDJセットアップ](./cdj-setup.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Understanding the content of [CDJ Setup](./cdj-setup.md)
 
 ---
 
-## 1. DJコントローラーとは
+## 1. What Is a DJ Controller
 
-### 定義と概要
+### Definition and Overview
 
-DJコントローラーとは、DJソフトウェアを物理的に操作するための専用ハードウェアデバイスです。内部にはオーディオインターフェイスが内蔵されており、PCやMacとUSBケーブル1本で接続するだけで、高品質なオーディオ出力とハードウェアコントロールの両方が実現できます。
+A DJ controller is a dedicated hardware device for physically operating DJ software. It has a built-in audio interface and by connecting to a PC or Mac with a single USB cable, both high-quality audio output and hardware control can be achieved.
 
 ```
 ┌─────────────────────────────────────────────────┐
-│              DJコントローラーシステム              │
+│              DJ Controller System                │
 │                                                   │
-│  PC/Mac ──USB──→ DJコントローラー ──RCA──→ スピーカー│
+│  PC/Mac ──USB──→ DJ Controller ──RCA──→ Speakers │
 │    │                    │                          │
-│    │                    ├──→ ヘッドフォン出力        │
+│    │                    ├──→ Headphone output       │
 │    │                    │                          │
-│    └── DJソフトウェア    └── オーディオI/F内蔵       │
-│       (Rekordbox等)        (MIDIコントローラー)     │
+│    └── DJ software      └── Built-in audio I/F    │
+│       (Rekordbox, etc.)    (MIDI controller)      │
 └─────────────────────────────────────────────────┘
 ```
 
-### 歴史的背景
+### Historical Background
 
-DJコントローラーの歴史は、デジタルDJの黎明期と密接に関連しています。
+The history of DJ controllers is closely related to the dawn of digital DJing.
 
-**2000年代初頭: MIDIコントローラーの登場**
-最初期のDJコントローラーは、汎用MIDIコントローラーをDJソフトウェアにマッピングしたものでした。Hercules DJ Console（2003年頃）やNumark Total Control（2006年）などが先駆的な製品として登場しました。この時代のコントローラーはオーディオインターフェイスが別途必要で、レイテンシーの問題もありました。
+**Early 2000s: The arrival of MIDI controllers**
+The earliest DJ controllers were generic MIDI controllers mapped to DJ software. Pioneering products appeared such as the Hercules DJ Console (around 2003) and Numark Total Control (2006). Controllers of this era required a separate audio interface, and there were also latency issues.
 
-**2008-2012年: 専用コントローラーの確立**
-Native InstrumentsがTraktor Kontrol S4を発表し、オーディオインターフェイス内蔵の4チャンネルコントローラーという概念を確立しました。Pioneer DJもDDJ-T1/S1でコントローラー市場に参入し、業界の方向性が大きく変わりました。
+**2008–2012: Establishment of dedicated controllers**
+Native Instruments announced the Traktor Kontrol S4, establishing the concept of a 4-channel controller with built-in audio interface. Pioneer DJ also entered the controller market with the DDJ-T1/S1, greatly changing the direction of the industry.
 
-**2013-2017年: DDJシリーズの台頭**
-Pioneer DJのDDJ-SRやDDJ-SXシリーズがSerato DJ用コントローラーとして大ヒットし、DDJ-RBやDDJ-RRがRekordbox DJ対応コントローラーとして市場を席巻しました。この時期にDJコントローラーの市場シェアが急拡大しました。
+**2013–2017: The rise of the DDJ series**
+Pioneer DJ's DDJ-SR and DDJ-SX series were big hits as controllers for Serato DJ, and the DDJ-RB and DDJ-RR dominated the market as Rekordbox DJ-compatible controllers. The market share of DJ controllers expanded rapidly during this period.
 
-**2018-2021年: DDJ-400の革命**
-2018年に発売されたDDJ-400は、約3万円という価格で本格的なDJ体験を提供し、世界中で爆発的な人気を獲得しました。コロナ禍で自宅でのDJが注目を集めたことも追い風となり、DJコントローラー市場は過去最大の成長を遂げました。
+**2018–2021: The DDJ-400 revolution**
+Released in 2018, the DDJ-400 offered a genuine DJ experience for approximately 30,000 JPY, gaining explosive popularity worldwide. The growing interest in home DJing during the COVID-19 pandemic was also a tailwind, and the DJ controller market achieved its greatest growth ever.
 
-**2022年以降: マルチプラットフォーム化**
-DDJ-FLXシリーズの登場により、1台のコントローラーでRekordboxとSerato DJの両方に対応するマルチプラットフォーム戦略が主流になりました。また、スマートフォンやタブレットとの連携機能も強化されています。
+**2022 and beyond: Multi-platform approach**
+With the arrival of the DDJ-FLX series, the multi-platform strategy of a single controller supporting both Rekordbox and Serato DJ became mainstream. Connectivity features with smartphones and tablets have also been strengthened.
 
-### 内部構成と各パーツの詳細
+### Detailed Internal Composition and Parts
 
-DJコントローラーは多数のコンポーネントで構成されています。それぞれの役割と仕組みを理解することで、より効果的な操作が可能になります。
+A DJ controller is composed of numerous components. Understanding the role and mechanism of each enables more effective operation.
 
-**ジョグホイール（Jog Wheel）× 2**
+**Jog Wheel × 2**
 
-ジョグホイールはDJコントローラーの中核となるインターフェイスです。アナログレコードのターンテーブルプラッターを模した円形のコントロールで、以下の機能を提供します。
+The jog wheel is the core interface of a DJ controller. It is a circular control modeled on the platter of an analog record turntable, providing the following functions:
 
-- **Vinyl Mode（バイナルモード）:** ジョグホイールの上面に触れることで楽曲の再生を一時停止し、回転させることでスクラッチ操作が可能。ターンテーブリストスタイルのDJに不可欠
-- **CDJ Mode:** ジョグホイールの上面に触れても再生は停止せず、回転させることでピッチベンド（テンポの微調整）が行える。Beatmatchingでの微調整に使用
-- **楽曲サーチ:** 再生停止状態でジョグホイールを回すことで、楽曲内の任意の位置にすばやく移動できる
-- **感度調整:** 多くのモデルでジョグホイールの感度（抵抗感）を調整可能。自分のプレイスタイルに合わせた設定が重要
+- **Vinyl Mode**: Touching the top surface of the jog wheel pauses playback, and rotating it enables scratching. Essential for turntablist-style DJing
+- **CDJ Mode**: Touching the top surface does not stop playback, and rotating it allows pitch bend (fine tempo adjustment). Used for fine-tuning in beatmatching
+- **Track search**: Rotating the jog wheel while playback is stopped moves quickly to any position in the track
+- **Sensitivity adjustment**: Many models allow adjustment of jog wheel sensitivity (resistance). Setting it to match your play style is important
 
-上位モデル（DDJ-1000やDDJ-REV7）では、メカニカルプラッター（モーター駆動）を搭載し、実際のレコードに近い回転抵抗を再現しています。エントリーモデルでは静電容量式のタッチセンサーが一般的で、軽量かつ低コストで基本的なジョグ操作を実現しています。
+Higher-end models (DDJ-1000 and DDJ-REV7) have a mechanical platter (motor-driven), reproducing the rotational resistance close to actual records. Entry models commonly use electrostatic capacitance touch sensors, which are lightweight, low-cost, and achieve basic jog operations.
 
-**チャンネルフェーダー × 2（またはそれ以上）**
+**Channel Faders × 2 (or more)**
 
-各デッキの音量を個別に制御するスライダーです。フェーダーの長さ（ストローク）は操作の精密さに直結し、上位モデルほど長いストロークが採用されています。
+Sliders that individually control the volume of each deck. The length (stroke) of the fader directly relates to the precision of operation, with higher-end models adopting longer strokes.
 
-- DDJ-400: 約40mmストローク
-- DDJ-800: 約45mmストローク
-- DDJ-1000: 約60mmストローク（クラブ機材に近い）
+- DDJ-400: approx. 40mm stroke
+- DDJ-800: approx. 45mm stroke
+- DDJ-1000: approx. 60mm stroke (close to club equipment)
 
-フェーダーカーブの設定により、音量の変化特性を調整できます。
+The fader curve setting allows adjustment of the volume change characteristics.
 
-- **リニアカーブ:** フェーダー位置に比例して均等に音量が変化。ミキシング向き
-- **エクスポネンシャルカーブ:** フェーダーの上端付近で急激に音量が上がる。素早いカットに向き
+- **Linear curve**: Volume changes evenly in proportion to fader position. Suitable for mixing
+- **Exponential curve**: Volume rises sharply near the top end of the fader. Suitable for quick cuts
 
-**クロスフェーダー × 1**
+**Crossfader × 1**
 
-左右のデッキ間の音量バランスを1本のスライダーで制御します。クロスフェーダーの用途はプレイスタイルによって大きく異なります。
+Controls the volume balance between the left and right decks with a single slider. The use of the crossfader varies greatly depending on play style.
 
-- **ミキシングスタイル:** クロスフェーダーを中央に固定し、チャンネルフェーダーとEQでトランジションを行う。ハウス、テクノ、トランスなどのジャンルで主流
-- **スクラッチスタイル:** クロスフェーダーを素早く左右に切ることで、スクラッチやカットを実現。ヒップホップ、ターンテーブリズムで必須
-- **クロスフェーダーカーブ設定:** スムーズ（ゆるやかな変化）からシャープ（即座にカット）まで調整可能
+- **Mixing style**: Fix the crossfader at center and perform transitions with channel faders and EQ. Mainstream for genres like house, techno, and trance
+- **Scratch style**: Quickly cutting the crossfader left and right achieves scratches and cuts. Essential for hip-hop and turntablism
+- **Crossfader curve setting**: Adjustable from smooth (gradual change) to sharp (instant cut)
 
-**EQノブ × 6（3バンド × 2チャンネル）**
+**EQ Knobs × 6 (3 bands × 2 channels)**
 
-各チャンネルの周波数帯域を独立して制御する回転ノブです。DJミキシングにおいて最も重要なコントロールのひとつです。
+Rotating knobs that independently control the frequency bands of each channel. One of the most important controls in DJ mixing.
 
-- **Hi（高音域）:** 約10kHz以上。シンバル、ハイハット、ボーカルのシビランス（歯擦音）に影響
-- **Mid（中音域）:** 約250Hz - 10kHz。ボーカル、シンセリード、ギターなどのメロディー楽器に影響
-- **Low（低音域）:** 約250Hz以下。キック、ベースライン、サブベースに影響
+- **Hi (high frequency)**: Above approximately 10kHz. Affects cymbals, hi-hats, and vocal sibilance
+- **Mid (mid frequency)**: Approximately 250Hz–10kHz. Affects vocals, synth leads, guitars, and other melodic instruments
+- **Low (low frequency)**: Below approximately 250Hz. Affects kick, basslines, and sub-bass
 
-EQの操作は「ブースト」（増幅）と「カット」（減衰）の両方が可能ですが、DJミキシングでは基本的に**カット主体**で操作することが推奨されます。ブーストを多用するとクリッピング（音割れ）やフィードバックの原因になります。
+Both boost (amplification) and cut (attenuation) are possible with EQ operation, but in DJ mixing it is generally recommended to operate mainly by **cutting**. Heavy use of boost causes clipping (distortion) and feedback.
 
-**トリムノブ（GAIN）× 2**
+**Trim Knob (GAIN) × 2**
 
-各チャンネルに入力される信号のゲイン（入力レベル）を調整します。楽曲ごとに録音レベルが異なるため、トリムノブでレベルを揃えることが、クリーンなミキシングの第一歩です。
+Adjusts the gain (input level) of the signal entering each channel. Since the recording level differs for each track, aligning levels with the trim knob is the first step to clean mixing.
 
-- マスターレベルメーターでピーク付近（-3dB程度）に設定するのが理想
-- 赤いクリップインジケーターが点灯しないよう注意
-- ゲインステージング（信号経路全体のレベル管理）を意識することが重要
+- Ideal to set near peak (around -3dB) on the master level meter
+- Watch out for the red clip indicator lighting up
+- It is important to be aware of gain staging (managing levels throughout the signal chain)
 
-**パフォーマンスパッド × 8-16**
+**Performance Pads × 8–16**
 
-各デッキに配置されたゴム製のパッドで、モードに応じて様々な機能を提供します。
+Rubber pads placed on each deck, providing various functions depending on mode.
 
-- **Hot Cue モード:** 楽曲内の任意のポイントに瞬時にジャンプ。8つまでのCueポイントを設定・呼び出し
-- **Pad FX モード:** パッドを押している間だけエフェクトを適用。リアルタイムなエフェクト操作に最適
-- **Beat Jump モード:** 指定したビート数だけ前後にジャンプ。1/4拍から32拍まで設定可能
-- **Sampler モード:** プリロードした音声サンプル（ボイス、効果音、ジングルなど）をトリガー
-- **Loop モード:** 指定した長さのループを即座に作成・解除。1/16拍から32拍まで
-- **Key Shift モード:** 楽曲のキー（音程）をリアルタイムで変更。ハーモニックミキシングに活用
+- **Hot Cue mode**: Instantly jump to any point in the track. Set and call up to 8 cue points
+- **Pad FX mode**: Apply effects only while a pad is held. Ideal for real-time effect operation
+- **Beat Jump mode**: Jump forward or backward by a specified number of beats. Configurable from 1/4 beat to 32 beats
+- **Sampler mode**: Trigger pre-loaded audio samples (voices, sound effects, jingles, etc.)
+- **Loop mode**: Instantly create/cancel a loop of a specified length. From 1/16 beat to 32 beats
+- **Key Shift mode**: Change the key (pitch) of a track in real time. Used for harmonic mixing
 
-**テンポフェーダー（ピッチフェーダー）× 2**
+**Tempo Fader (Pitch Fader) × 2**
 
-楽曲の再生速度（BPM）を調整するスライダーです。Beatmatching（2曲のテンポを合わせる技術）の根幹となるコントロールです。
+A slider for adjusting the playback speed (BPM) of a track. The fundamental control for beatmatching (the technique of aligning the tempo of two tracks).
 
-- 調整範囲は通常±6%、±10%、±16%、WIDEから選択可能
-- 範囲が狭いほど微調整が精密になり、範囲が広いほど大幅なBPM変更が可能
-- 中央位置が元のBPM（±0%）で、上にスライドするとBPMが下がり、下にスライドするとBPMが上がる（CDJと同じ極性）
+- Adjustment range is normally selectable from ±6%, ±10%, ±16%, WIDE
+- The narrower the range, the more precise fine adjustment becomes; the wider the range, the larger the BPM change possible
+- The center position is the original BPM (±0%), sliding up decreases BPM, and sliding down increases BPM (same polarity as CDJ)
 
-**ブラウズセクション**
+**Browse Section**
 
-DJソフトウェアのライブラリ（楽曲リスト）を操作するためのコントロール群です。
+A group of controls for operating the DJ software library (track list).
 
-- **ロータリーエンコーダー:** 回して楽曲リストをスクロール、押してフォルダを開く/閉じる
-- **LOADボタン:** 選択した楽曲を対応するデッキにロード
-- **BACK/FWDボタン:** ライブラリのフォルダ階層を移動
+- **Rotary encoder**: Rotate to scroll the track list, push to open/close folders
+- **LOAD button**: Load the selected track to the corresponding deck
+- **BACK/FWD button**: Navigate folder hierarchy in the library
 
-**エフェクトセクション**
+**Effects Section**
 
-DJソフトウェア内蔵のエフェクトをハードウェアで制御するコントロール群です。
+A group of controls for operating the DJ software's built-in effects with hardware.
 
-- **Beat FX:** ディレイ、リバーブ、エコー、フランジャーなど、ビートに同期したエフェクト
-- **Color FX（Sound Color FX）:** フィルター、ノイズ、クラッシュなど、ノブひとつで操作できるエフェクト
-- **FXセレクト:** 使用するエフェクトの種類を切り替え
-- **FX量（Depth/Wet-Dry）:** エフェクトのかかり具合を調整
+- **Beat FX**: Effects synchronized to the beat, such as delay, reverb, echo, and flanger
+- **Color FX (Sound Color FX)**: Effects that can be operated with a single knob, such as filter, noise, and crush
+- **FX select**: Switch between types of effects to use
+- **FX amount (Depth/Wet-Dry)**: Adjust the intensity of the effect
 
-**背面パネルの接続端子**
+**Rear Panel Connectors**
 
-- **USB Type-B/C:** PCとの接続（オーディオ＋MIDI）
-- **MASTER OUT（RCA）:** メインスピーカーへの出力
-- **MASTER OUT（XLR/TRS）:** 上位モデルにはバランス出力を搭載
-- **BOOTH OUT:** ブースモニター用の独立した出力
-- **PHONES（1/4インチ/3.5mm）:** ヘッドフォン出力
-- **MIC IN:** マイク入力（MC用途やアナウンス用）
-- **AUX IN:** 外部音源の入力
-- **電源端子:** ACアダプターまたはUSBバスパワー
+- **USB Type-B/C**: PC connection (audio + MIDI)
+- **MASTER OUT (RCA)**: Output to main speakers
+- **MASTER OUT (XLR/TRS)**: Higher-end models have balanced output
+- **BOOTH OUT**: Independent output for booth monitors
+- **PHONES (1/4 inch / 3.5mm)**: Headphone output
+- **MIC IN**: Microphone input (for MC use or announcements)
+- **AUX IN**: External audio source input
+- **Power terminal**: AC adapter or USB bus power
 
 ---
 
-## 2. おすすめモデル徹底比較
+## 2. Thorough Model Comparison
 
-DJコントローラーの選択は、予算、目標、使用シーン、対応ソフトウェアなど複数の要素を考慮して決定する必要があります。ここではPioneer DJのDDJシリーズを中心に、各モデルの特徴を詳しく解説します。
+Choosing a DJ controller requires considering multiple factors: budget, goals, intended use, and compatible software. Here we explain the features of each model in detail, centered on Pioneer DJ's DDJ series.
 
-### DDJ-400（入門の定番）
+### DDJ-400 (The Classic Entry Model)
 
-**価格帯:** 約30,000-35,000円
-**対象:** 完全初心者、DJに興味を持ち始めた人
-**対応ソフトウェア:** Rekordbox DJ
-**チャンネル数:** 2チャンネル
-**ジョグホイール:** 静電容量式（小径）
-**パフォーマンスパッド:** 各デッキ8パッド
+**Price range:** approx. 30,000–35,000 JPY
+**Target:** Complete beginners, people who have just started to be interested in DJing
+**Compatible software:** Rekordbox DJ
+**Number of channels:** 2 channels
+**Jog wheel:** Electrostatic capacitance (small diameter)
+**Performance pads:** 8 pads per deck
 
-DDJ-400は2018年の発売以来、世界中で最も売れたDJコントローラーのひとつです。その理由は、低価格ながらDJに必要な機能を過不足なく搭載している点にあります。
+The DDJ-400 has been one of the best-selling DJ controllers in the world since its release in 2018. The reason is that it is equipped with exactly the functions needed for DJing at a low price.
 
-**主な特徴と機能:**
+**Main features and functions:**
 
-1. **チュートリアル機能:** Rekordboxと連動したインタラクティブチュートリアルが内蔵されており、BeatmatchingやEQミキシングの基本操作をステップバイステップで学べます。DJ初心者にとって、この機能だけでも大きな価値があります。
+1. **Tutorial function**: Built-in interactive tutorial linked with Rekordbox, allowing you to learn basic operations like beatmatching and EQ mixing step by step. For DJ beginners, this function alone has great value.
 
-2. **Beat Sync:** ボタンひとつで2曲のBPMを自動同期できるSync機能を搭載。最初はSync機能に頼りながら、選曲やEQ操作に集中して学ぶことができます。慣れてきたらSyncを外してマニュアルBeatmatchingの練習に移行するのが理想的な学習パスです。
+2. **Beat Sync**: Equipped with Sync function that can automatically synchronize the BPM of two tracks with a single button. You can start by relying on Sync while focusing on learning track selection and EQ operation. An ideal learning path is to then transition to manual beatmatching practice by turning Sync off once you get used to it.
 
-3. **FXセクション:** Beat FXボタンを搭載し、エコー、リバーブ、フランジャーなどの基本エフェクトにアクセスできます。FXの適用タイミングやかかり具合を学ぶのに十分な機能が揃っています。
+3. **FX section**: Equipped with Beat FX buttons, giving access to basic effects like echo, reverb, and flanger. It has all the functions needed to learn effect timing and intensity.
 
-4. **コンパクトな筐体:** 幅482mm × 奥行272.4mm × 高さ58.4mmで、重量は約2.1kg。ノートPCの横に余裕をもって設置でき、持ち運びも容易です。
+4. **Compact body**: 482mm × 272.4mm × 58.4mm, weighing approximately 2.1kg. Can be comfortably placed next to a laptop, and is easy to carry.
 
-5. **USBバスパワー:** ACアダプター不要で、USBケーブル1本で給電と通信の両方が行えます。セットアップの手間が最小限で済みます。
+5. **USB bus power**: No AC adapter required — power and communication are both handled by a single USB cable. Setup effort is minimized.
 
-**DDJ-400の限界と注意点:**
-- ジョグホイールが小径で軽いため、CDJの操作感とはかなり異なる
-- マスターアウトがRCAのみで、XLRバランス出力がない
-- ブースアウトがないため、モニター環境の構築に制約がある
-- Rekordbox専用で、Serato DJやTraktorでは使用不可
-- MIDI出力非対応のため、外部機器の制御には使えない
+**Limitations and notes for the DDJ-400:**
+- Jog wheel is small and light, so it feels quite different from a CDJ
+- Master out is RCA only, no XLR balanced output
+- No booth out, which limits building a monitor environment
+- Rekordbox-only; cannot be used with Serato DJ or Traktor
+- No MIDI output, so it cannot be used to control external equipment
 
-**向いているユースケース:**
-- 自宅での練習と学習
-- 友人宅でのカジュアルなパーティー
-- DJスクールでの基礎トレーニング
-- 配信（Twitch、YouTube Live、MixcloudなどでのDJ配信）
+**Suitable use cases:**
+- Home practice and learning
+- Casual parties at a friend's place
+- Basic training at a DJ school
+- Streaming (DJ streaming on Twitch, YouTube Live, Mixcloud, etc.)
 
-### DDJ-FLX4（最新エントリーモデル）
+### DDJ-FLX4 (Latest Entry Model)
 
-**価格帯:** 約25,000-30,000円
-**対象:** 予算重視の初心者、複数ソフトウェアを試したい人
-**対応ソフトウェア:** Rekordbox DJ、Serato DJ Lite
-**チャンネル数:** 2チャンネル
-**ジョグホイール:** 静電容量式（小径）
-**パフォーマンスパッド:** 各デッキ8パッド
+**Price range:** approx. 25,000–30,000 JPY
+**Target:** Budget-conscious beginners, those wanting to try multiple software
+**Compatible software:** Rekordbox DJ, Serato DJ Lite
+**Number of channels:** 2 channels
+**Jog wheel:** Electrostatic capacitance (small diameter)
+**Performance pads:** 8 pads per deck
 
-DDJ-FLX4はDDJ-400の後継的な位置づけで、マルチプラットフォーム対応が最大の特徴です。
+The DDJ-FLX4 is positioned as a successor to the DDJ-400, with multi-platform support as its biggest feature.
 
-**主な特徴と機能:**
+**Main features and functions:**
 
-1. **マルチソフトウェア対応:** RekordboxとSerato DJ Liteの両方に対応。将来的にどちらのソフトウェアをメインにするか決めかねている初心者にとって、両方を試せるのは大きなメリットです。
+1. **Multi-software support**: Works with both Rekordbox and Serato DJ Lite. For beginners who have not decided which software to make their main one, being able to try both is a major benefit.
 
-2. **Smart CFX:** ノブひとつで複数のエフェクトを組み合わせた複合エフェクトを適用できる機能。初心者でも直感的にプロフェッショナルなサウンドエフェクトを実現できます。
+2. **Smart CFX**: Function that applies a composite effect combining multiple effects with a single knob. Even beginners can intuitively achieve professional-sounding effects.
 
-3. **Smart Fader:** クロスフェーダーの操作に連動して自動的にエフェクトが適用される機能。トランジションを効果的に演出できます。
+3. **Smart Fader**: Function that automatically applies effects in conjunction with crossfader operation. Can effectively enhance transitions.
 
-4. **Bluetooth接続:** スマートフォンやタブレットからBluetoothで音声を入力可能。友人のスマホから直接音楽を流すことができます。
+4. **Bluetooth connection**: Can input audio via Bluetooth from a smartphone or tablet. You can directly play music from a friend's phone.
 
-5. **PC/Mac不要モード:** 対応アプリを使ってiPhoneやiPadから直接コントロール可能（一部制限あり）。
+5. **No PC/Mac required mode**: Can be directly controlled from iPhone or iPad using compatible apps (with some limitations).
 
-**DDJ-FLX4 vs DDJ-400の比較:**
+**DDJ-FLX4 vs DDJ-400 comparison:**
 
-| 項目 | DDJ-FLX4 | DDJ-400 |
+| Item | DDJ-FLX4 | DDJ-400 |
 |------|----------|---------|
-| 価格 | 約25,000円 | 約30,000円 |
-| 対応ソフト | Rekordbox + Serato | Rekordbox のみ |
-| Smart CFX | あり | なし |
-| Bluetooth | あり | なし |
-| ビルドクオリティ | やや簡素 | 標準的 |
-| エフェクト操作 | Smart CFX中心 | Beat FXボタン |
+| Price | approx. 25,000 JPY | approx. 30,000 JPY |
+| Compatible software | Rekordbox + Serato | Rekordbox only |
+| Smart CFX | Yes | No |
+| Bluetooth | Yes | No |
+| Build quality | Somewhat simple | Standard |
+| Effects operation | Smart CFX-centered | Beat FX buttons |
 
-### DDJ-FLX6-GT（中級エントリー）
+### DDJ-FLX6-GT (Mid-Level Entry)
 
-**価格帯:** 約50,000-60,000円
-**対象:** 長く使いたい初心者、4デッキに興味がある人
-**対応ソフトウェア:** Rekordbox DJ、Serato DJ Pro
-**チャンネル数:** 4チャンネル
-**ジョグホイール:** 静電容量式（中径）
-**パフォーマンスパッド:** 各デッキ16パッド
+**Price range:** approx. 50,000–60,000 JPY
+**Target:** Beginners who want to use it for a long time, those interested in 4 decks
+**Compatible software:** Rekordbox DJ, Serato DJ Pro
+**Number of channels:** 4 channels
+**Jog wheel:** Electrostatic capacitance (medium diameter)
+**Performance pads:** 16 pads per deck
 
-DDJ-FLX6-GTは、入門機を超えた本格的な機能を持ちながらも手の届きやすい価格帯に位置するミドルレンジモデルです。
+The DDJ-FLX6-GT is a mid-range model with features beyond an entry model while remaining accessible in price.
 
-**主な特徴と機能:**
+**Main features and functions:**
 
-1. **4デッキ対応:** ソフトウェア上で4つのデッキを同時に操作可能。2つの物理デッキを切り替えて使用するため、操作に慣れが必要ですが、3曲以上の同時ミキシングやマッシュアップなど高度なプレイが可能になります。
+1. **4-deck support**: Can simultaneously operate 4 decks in software. Since two physical decks are switched for use, it takes some getting used to, but advanced play such as mixing 3 or more tracks simultaneously or mashups becomes possible.
 
-2. **Merge FX:** 2曲のトランジションを劇的に演出する統合エフェクト機能。Build Up、Drop、Breakなどのプリセットが用意されており、ボタンひとつでプロフェッショナルなトランジションが可能です。
+2. **Merge FX**: Integrated effects function that dramatically enhances transitions between two tracks. Presets like Build Up, Drop, and Break are available, and professional transitions are possible with a single button.
 
-3. **Jog Cue:** ジョグホイールのディスプレイに楽曲情報やCueポイントが表示される機能。視覚的なフィードバックが操作の精度を向上させます。
+3. **Jog Cue**: Function that displays track information and cue points on the jog wheel display. Visual feedback improves operational accuracy.
 
-4. **16パフォーマンスパッド:** 各デッキに16個のパッドを搭載。Hot Cue、Beat Jump、Sampler、Key Shiftなど、より多くのパフォーマンス機能に同時にアクセスできます。
+4. **16 performance pads**: Each deck has 16 pads. More performance functions such as Hot Cue, Beat Jump, Sampler, and Key Shift can be accessed simultaneously.
 
-5. **Serato DJ Pro対応:** 有料版のSerato DJ Proがそのまま使えるため、追加のソフトウェアライセンスが不要です（通常約15,000円相当）。
+5. **Serato DJ Pro support**: The paid version of Serato DJ Pro can be used as-is, so no additional software license is needed (normally equivalent to about 15,000 JPY).
 
-**DDJ-FLX6-GTの活用シーン:**
-- 自宅での本格練習
-- 小規模なイベントやパーティーでのDJプレイ
-- 配信でのマルチデッキパフォーマンス
-- マッシュアップやリミックスの制作補助
+**Use cases for the DDJ-FLX6-GT:**
+- Serious practice at home
+- DJ play at small events and parties
+- Multi-deck performances in streams
+- Assistance in creating mashups and remixes
 
-### DDJ-800（本格派中級機）
+### DDJ-800 (Serious Mid-Range)
 
-**価格帯:** 約80,000-95,000円
-**対象:** 本格的にDJを始めたい人、現場での使用を視野に入れている人
-**対応ソフトウェア:** Rekordbox DJ
-**チャンネル数:** 2チャンネル
-**ジョグホイール:** 静電容量式（大径・高品質）
-**パフォーマンスパッド:** 各デッキ8パッド
+**Price range:** approx. 80,000–95,000 JPY
+**Target:** Those wanting to start DJing seriously, those planning for field use
+**Compatible software:** Rekordbox DJ
+**Number of channels:** 2 channels
+**Jog wheel:** Electrostatic capacitance (large diameter, high quality)
+**Performance pads:** 8 pads per deck
 
-DDJ-800は「コンパクトでクラブ級」をコンセプトに設計された中級機で、CDJに近い操作感と高品質なオーディオ出力を両立しています。
+The DDJ-800 is a mid-range model designed with the concept of "compact yet club-grade," combining a feel close to CDJs with high-quality audio output.
 
-**主な特徴と機能:**
+**Main features and functions:**
 
-1. **大径ジョグホイール:** DDJ-400と比較して大幅に大きく重いジョグホイールを搭載。CDJ-2000NXS2に近い操作感で、CDJへの移行を見据えた練習が可能です。
+1. **Large jog wheel**: Equipped with a significantly larger and heavier jog wheel compared to the DDJ-400. With a feel close to the CDJ-2000NXS2, practice that anticipates a transition to CDJs is possible.
 
-2. **On Jog Display:** ジョグホイールの中央にLCDディスプレイを搭載。楽曲の波形、再生位置、BPM、Hot Cue情報がリアルタイムで表示され、PCの画面を見なくても直感的な操作が可能です。
+2. **On Jog Display**: LCD display mounted in the center of the jog wheel. Track waveform, playback position, BPM, and Hot Cue information are displayed in real time, enabling intuitive operation without looking at the PC screen.
 
-3. **Beat FXセクション:** CDJMシリーズミキサーと同等のBeat FXセクションを搭載。エコー、リバーブ、フランジャー、トランスフォーマーなど、本格的なエフェクト操作が可能です。
+3. **Beat FX section**: Beat FX section equivalent to the CDJM series mixer. Full-featured effects like echo, reverb, flanger, and transformer are possible.
 
-4. **高品質オーディオインターフェイス:** 24bit/44.1kHz対応の高品質DAコンバーターを搭載。マスターアウトにはXLRバランス出力も備え、PA機材との接続にも対応します。
+4. **High-quality audio interface**: High-quality DA converter supporting 24bit/44.1kHz. Master out also has XLR balanced output, enabling connection to PA equipment.
 
-5. **独立ブースアウト:** メインアウトとは別にブースモニター用の出力を備えており、クラブのような本格的なモニタリング環境を構築できます。
+5. **Independent booth out**: Has a separate output for booth monitors, allowing you to build a full monitoring environment like a club.
 
-**DDJ-800を選ぶべき人:**
-- CDJへの移行を具体的に計画している
-- 小規模なクラブやバーでのレギュラーDJを目指している
-- オーディオ品質に妥協したくない
-- 2チャンネルに絞って操作の精度を追求したい
+**Who should choose the DDJ-800:**
+- Those with concrete plans to transition to CDJs
+- Those aiming to be a regular DJ at small clubs or bars
+- Those who do not want to compromise on audio quality
+- Those who want to pursue precision of operation focused on 2 channels
 
-### DDJ-1000（プロ志向の最上位コントローラー）
+### DDJ-1000 (Top Controller for the Pro-Oriented)
 
-**価格帯:** 約120,000-140,000円
-**対象:** プロ志向のDJ、CDJの代替機を求める人
-**対応ソフトウェア:** Rekordbox DJ
-**チャンネル数:** 4チャンネル
-**ジョグホイール:** メカニカルプラッター（モーター駆動・大径フルサイズ）
-**パフォーマンスパッド:** 各デッキ8パッド
+**Price range:** approx. 120,000–140,000 JPY
+**Target:** Pro-oriented DJs, those seeking a CDJ alternative
+**Compatible software:** Rekordbox DJ
+**Number of channels:** 4 channels
+**Jog wheel:** Mechanical platter (motor-driven, large diameter full-size)
+**Performance pads:** 8 pads per deck
 
-DDJ-1000はPioneer DJコントローラーラインナップのフラッグシップモデルであり、CDJ-2000NXS2 + DJM-900NXS2のセットアップに最も近い操作感を実現しています。
+The DDJ-1000 is the flagship model of Pioneer DJ's controller lineup, achieving the operating feel closest to a CDJ-2000NXS2 + DJM-900NXS2 setup.
 
-**主な特徴と機能:**
+**Main features and functions:**
 
-1. **フルサイズメカニカルジョグ:** CDJ-2000NXS2と同じ大きさのジョグホイールを搭載し、モーター駆動による本格的な回転抵抗を再現。バイナルモードでのスクラッチ操作からCDJモードでの微細なピッチベンドまで、クラブ機材と遜色ない操作感を提供します。
+1. **Full-size mechanical jog**: Equipped with a jog wheel the same size as the CDJ-2000NXS2, reproducing authentic rotational resistance by motor drive. From scratch operations in vinyl mode to fine pitch bends in CDJ mode, it provides an operating feel that is comparable to club equipment.
 
-2. **On Jog Display:** 各ジョグホイールにフルカラーLCDディスプレイを搭載。波形表示、再生位置、CueポイントがCDJ-3000のような見やすさで表示されます。
+2. **On Jog Display**: Full-color LCD display on each jog wheel. Waveform display, playback position, and cue points are shown with the same visibility as the CDJ-3000.
 
-3. **4チャンネルミキサーセクション:** DJM-900NXS2を彷彿とさせる本格的な4チャンネルミキサーセクション。独立したトリム、3バンドEQ、Color FXノブ、チャンネルフェーダーが各チャンネルに配置されています。
+3. **4-channel mixer section**: Full-featured 4-channel mixer section reminiscent of the DJM-900NXS2. Independent trim, 3-band EQ, Color FX knob, and channel fader are arranged on each channel.
 
-4. **Sound Color FX:** DJMシリーズと同じSound Color FXを搭載。Filter、Noise、Dub Echo、Pitch、Crushなどのエフェクトをノブひとつで操作できます。
+4. **Sound Color FX**: Equipped with the same Sound Color FX as the DJM series. Effects like Filter, Noise, Dub Echo, Pitch, and Crush can be operated with a single knob.
 
-5. **Beat FX:** フルサイズのBeat FXセクションを搭載。エフェクトの種類、ビートフラクション、チャンネルアサインを独立したコントロールで操作可能です。
+5. **Beat FX**: Equipped with a full-size Beat FX section. The type of effect, beat fraction, and channel assignment can be operated with independent controls.
 
-6. **XLRマスターアウト:** バランス接続に対応したXLRマスターアウトを搭載。PAシステムとの直接接続が可能で、小〜中規模のイベントではこのコントローラーだけで十分なサウンドクオリティを実現できます。
+6. **XLR master out**: Equipped with XLR master out supporting balanced connection. Direct connection to PA systems is possible, and for small to medium events, this controller alone can achieve sufficient sound quality.
 
-7. **60mmテンポフェーダー:** CDJと同じ60mmストロークのテンポフェーダーを搭載。マニュアルBeatmatchingの精密な操作が可能です。
+7. **60mm tempo fader**: Equipped with the same 60mm stroke tempo fader as CDJs. Precise manual beatmatching is possible.
 
 **DDJ-1000 vs CDJ-2000NXS2 + DJM-900NXS2:**
 
-| 項目 | DDJ-1000 | CDJ + DJM セット |
+| Item | DDJ-1000 | CDJ + DJM set |
 |------|----------|------------------|
-| 価格 | 約13万円 | 約85万円 |
-| 重量 | 約5.5kg | 約25kg（合計） |
-| 可搬性 | 優秀 | 車が必要 |
-| オーディオ品質 | 高品質 | スタジオ級 |
-| ジョグ感 | CDJに近い | CDJそのもの |
-| USB対応 | PC必須 | USB単体動作 |
-| クラブでの使用 | 要確認 | 世界標準 |
+| Price | approx. 130,000 JPY | approx. 850,000 JPY |
+| Weight | approx. 5.5kg | approx. 25kg (total) |
+| Portability | Excellent | Requires a vehicle |
+| Audio quality | High quality | Studio grade |
+| Jog feel | Close to CDJ | CDJ itself |
+| USB support | PC required | USB standalone operation |
+| Use at clubs | Confirm first | World standard |
 
-### DDJ-REV7（スクラッチ特化モデル）
+### DDJ-REV7 (Scratch-Specialized Model)
 
-**価格帯:** 約170,000-190,000円
-**対象:** ターンテーブリスト、スクラッチDJ、バトルDJ
-**対応ソフトウェア:** Serato DJ Pro
-**チャンネル数:** 2チャンネル
-**ジョグホイール:** モーター駆動プラッター（レコード感触再現）
+**Price range:** approx. 170,000–190,000 JPY
+**Target:** Turntablists, scratch DJs, battle DJs
+**Compatible software:** Serato DJ Pro
+**Number of channels:** 2 channels
+**Jog wheel:** Motor-driven platter (reproduces record feel)
 
-DDJ-REV7はターンテーブリズムに特化した革新的なコントローラーです。
+The DDJ-REV7 is an innovative controller specialized for turntablism.
 
-**主な特徴:**
-1. **モーター駆動プラッター:** 実際のレコードターンテーブルに近い回転感とトルクを再現。フィンガータッチでの正確なスクラッチ操作が可能
-2. **バトルスタイルレイアウト:** テンポフェーダーが水平に配置されたバトルDJ向けレイアウト
-3. **Serato DJ Pro専用:** スクラッチDJに最も支持されているSerato DJ Proとの完全統合
-4. **MAGVEL FADER PRO:** 非接触型の高耐久クロスフェーダーを搭載。数百万回の操作に耐える設計
-5. **22インチモーター駆動プラッター:** レコードサイズに近い大径プラッターで、ターンテーブルからの移行もスムーズ
+**Main features:**
+1. **Motor-driven platter**: Reproduces the rotation feel and torque close to an actual record turntable. Precise scratch operations with fingertip touch are possible
+2. **Battle-style layout**: Battle DJ-oriented layout with the tempo fader placed horizontally
+3. **Serato DJ Pro exclusive**: Full integration with Serato DJ Pro, the most supported software by scratch DJs
+4. **MAGVEL FADER PRO**: Equipped with a non-contact high-durability crossfader. Designed to withstand millions of operations
+5. **22-inch motor-driven platter**: Large-diameter platter close to record size, making the transition from turntables smooth
 
 ---
 
-## 3. 他メーカーのDJコントローラー
+## 3. DJ Controllers from Other Manufacturers
 
-Pioneer DJ以外にも、優れたDJコントローラーを製造しているメーカーがあります。それぞれの特徴と代表モデルを紹介します。
+In addition to Pioneer DJ, there are other manufacturers producing excellent DJ controllers. Here we introduce the features and representative models of each.
 
-### Native Instruments（NI）
+### Native Instruments (NI)
 
-**代表モデル: Traktor Kontrol S2 MK3 / S3 / S4 MK3**
+**Representative models: Traktor Kontrol S2 MK3 / S3 / S4 MK3**
 
-Native InstrumentsはTraktorシリーズDJソフトウェアの開発元であり、ハードウェアとソフトウェアの統合度が非常に高いのが特徴です。
+Native Instruments is the developer of the Traktor series of DJ software, and the high degree of integration between hardware and software is a defining feature.
 
-- **Traktor Kontrol S2 MK3（約35,000円）:** 2チャンネルの入門〜中級モデル。Traktor Pro 3が付属
-- **Traktor Kontrol S3（約50,000円）:** 4チャンネル対応。Stems機能でボーカル、ドラム、ベース、その他を個別制御可能
-- **Traktor Kontrol S4 MK3（約80,000円）:** モーター駆動ジョグ搭載のフラッグシップ。ハプティックフィードバック機能で針飛びやレコードの質感を再現
+- **Traktor Kontrol S2 MK3 (approx. 35,000 JPY)**: Entry to intermediate 2-channel model. Traktor Pro 3 included
+- **Traktor Kontrol S3 (approx. 50,000 JPY)**: 4-channel support. Stems function allows individual control of vocals, drums, bass, and other elements
+- **Traktor Kontrol S4 MK3 (approx. 80,000 JPY)**: Flagship with motor-driven jog. Haptic feedback function reproduces the feel of needle skipping and records
 
-**Traktorの強み:**
-- Stems機能（AI楽曲分離）が業界最先端
-- Remix Deckで創造的なライブリミックスが可能
-- Flux Mode（一時的な操作後に元の位置に自動復帰）
-- 柔軟なMIDIマッピングとカスタマイズ性
+**Traktor's strengths:**
+- Stems function (AI track separation) is the industry's most advanced
+- Creative live remixing possible with Remix Decks
+- Flux Mode (automatic return to original position after temporary operations)
+- Flexible MIDI mapping and customizability
 
 ### Numark
 
-**代表モデル: Mixtrack Pro FX / Mixtrack Platinum FX**
+**Representative models: Mixtrack Pro FX / Mixtrack Platinum FX**
 
-Numarkはエントリーレベルのコントローラーに強みを持つメーカーで、学生やカジュアルDJに人気があります。
+Numark is a manufacturer with strengths in entry-level controllers, popular among students and casual DJs.
 
-- **Mixtrack Pro FX（約20,000円）:** Serato DJ Lite対応の入門機。パドルスタイルのジョグホイールが特徴
-- **Mixtrack Platinum FX（約30,000円）:** ジョグホイールにディスプレイを搭載。Serato DJ Lite対応
-- **NS4FX（約45,000円）:** 4チャンネル対応の中級機
+- **Mixtrack Pro FX (approx. 20,000 JPY)**: Entry model supporting Serato DJ Lite. Characterized by a paddle-style jog wheel
+- **Mixtrack Platinum FX (approx. 30,000 JPY)**: Display on jog wheel. Serato DJ Lite support
+- **NS4FX (approx. 45,000 JPY)**: Intermediate 4-channel model
 
-**Numarkの強み:**
-- 低価格帯でのコストパフォーマンスが高い
-- 独自のEFX Paddleによる直感的なエフェクト操作
-- Serato DJとの互換性
+**Numark's strengths:**
+- High cost performance in the low price range
+- Intuitive effects operation with proprietary EFX Paddle
+- Compatibility with Serato DJ
 
 ### Denon DJ
 
-**代表モデル: MC4000 / MC6000MK2**
+**Representative models: MC4000 / MC6000MK2**
 
-Denon DJはPioneer DJの主要な競合メーカーで、特にスタンドアローン機材（Prime 4、SC6000）で注目されています。コントローラー分野でも独自の製品を展開しています。
+Denon DJ is Pioneer DJ's main competing manufacturer, attracting attention especially for standalone equipment (Prime 4, SC6000). They also offer unique products in the controller field.
 
-- **MC4000（約50,000円）:** Serato DJ Pro対応の4チャンネルコントローラー
-- **独自のプラッター技術:** 高品質なジョグホイールと独自のタッチ感
+- **MC4000 (approx. 50,000 JPY)**: 4-channel controller supporting Serato DJ Pro
+- **Proprietary platter technology**: High-quality jog wheel with a unique touch feel
 
 ### Roland
 
-**代表モデル: DJ-202 / DJ-505 / DJ-707M / DJ-808**
+**Representative models: DJ-202 / DJ-505 / DJ-707M / DJ-808**
 
-Rolandは音楽制作機材メーカーとして長い歴史を持ち、DJコントローラーにもシンセサイザーやドラムマシンの技術を融合させた独自の製品を展開しています。
+Roland has a long history as a music production equipment manufacturer, and develops unique DJ controllers that fuse synthesizer and drum machine technology.
 
-- **DJ-505（約60,000円）:** TR-808/TR-909のドラムマシン機能を内蔵。ライブパフォーマンス志向
-- **DJ-707M（約80,000円）:** ポータブルPA機能内蔵。ウェディングDJやモバイルDJに最適
-- **TR-S（内蔵ドラムマシン）:** Rolandの伝説的なドラムマシンサウンドをDJプレイ中にリアルタイムで演奏可能
+- **DJ-505 (approx. 60,000 JPY)**: Has built-in TR-808/TR-909 drum machine functionality. Live performance-oriented
+- **DJ-707M (approx. 80,000 JPY)**: Built-in portable PA function. Ideal for wedding DJs and mobile DJs
+- **TR-S (built-in drum machine)**: Roland's legendary drum machine sounds can be performed in real time during DJ play
 
 ### Hercules
 
-**代表モデル: DJControl Inpulse 500 / DJControl Starlight**
+**Representative models: DJControl Inpulse 500 / DJControl Starlight**
 
-Herculesはヨーロッパ発のDJコントローラーメーカーで、特に超入門レベルの製品に強みがあります。
+Hercules is a European DJ controller manufacturer with strengths in super entry-level products.
 
-- **DJControl Starlight（約8,000円）:** ポケットサイズの超小型コントローラー。LEDライト内蔵
-- **DJControl Inpulse 200（約12,000円）:** 超入門レベル。ビートマッチングガイド機能付き
-- **DJControl Inpulse 500（約30,000円）:** 本格的な入門機。Serato DJ Lite / DJUCED対応
-
----
-
-## 4. モデル選びの判断基準
-
-### 予算別おすすめ
-
-**〜3万円（まず試したい人）:**
-- DDJ-FLX4 → マルチプラットフォーム対応で汎用性が高い
-- Hercules Inpulse 200 → 最小投資でDJを体験
-
-**3-5万円（しっかり始めたい人）:**
-- DDJ-400 → Rekordbox専用だが信頼性と情報量が圧倒的
-- Numark Mixtrack Platinum FX → Serato派向け
-- Traktor Kontrol S2 MK3 → Traktor派向け
-
-**5-10万円（本気で上達したい人）:**
-- DDJ-FLX6-GT → 4デッキ + マルチソフト対応
-- DDJ-800 → CDJへの移行を見据えた高品質機
-- Traktor Kontrol S3 → Stems機能で創造的なプレイ
-
-**10万円以上（プロ志向）:**
-- DDJ-1000 → CDJに最も近い操作感
-- DDJ-REV7 → スクラッチDJの最高峰
-- Traktor Kontrol S4 MK3 → モーター駆動ジョグ + Stems
-
-### ジャンル別おすすめ
-
-**ハウス・テクノ:** DDJ-800 / DDJ-1000（長時間のスムーズミキシングに最適なジョグとEQ）
-**ヒップホップ:** DDJ-REV7（スクラッチ特化）/ DDJ-1000（汎用性）
-**EDM / Future Bass:** DDJ-FLX6-GT（エフェクト多用のパフォーマンス向き）
-**オープンフォーマット:** DDJ-1000（4チャンネルでジャンルレスなプレイ）
-**レゲエ / ダブ:** DDJ-800 + 外部エフェクター（ディレイ/リバーブ重視）
-
-### 使用シーン別おすすめ
-
-**自宅練習のみ:** DDJ-FLX4 / DDJ-400（コンパクトで十分な機能）
-**友人のパーティー:** DDJ-FLX6-GT（持ち運び可能で多機能）
-**小規模バー/ラウンジ:** DDJ-800（XLR出力 + 高品質オーディオ）
-**クラブイベント:** DDJ-1000（CDJに近い操作感で現場対応力が高い）
-**ウェディング/企業イベント:** Roland DJ-707M（PA機能内蔵）
-**配信:** DDJ-FLX4 / DDJ-400（USBバスパワーでシンプルなセットアップ）
+- **DJControl Starlight (approx. 8,000 JPY)**: Pocket-sized ultra-compact controller. Built-in LED lights
+- **DJControl Inpulse 200 (approx. 12,000 JPY)**: Super entry-level. With beatmatching guide function
+- **DJControl Inpulse 500 (approx. 30,000 JPY)**: Serious entry-level model. Serato DJ Lite / DJUCED support
 
 ---
 
-## 5. セットアップ方法の詳細
+## 4. Criteria for Choosing a Model
 
-DJコントローラーのセットアップは比較的シンプルですが、最適な環境を構築するためにはいくつかの重要なポイントがあります。ここでは、初回セットアップからトラブルシューティングまで、段階的に解説します。
+### Recommendations by Budget
 
-### 必要なもの（チェックリスト）
+**Up to 30,000 JPY (for those wanting to try first):**
+- DDJ-FLX4 → Multi-platform support for versatility
+- Hercules Inpulse 200 → Experience DJing with minimal investment
+
+**30,000–50,000 JPY (for those wanting to start seriously):**
+- DDJ-400 → Overwhelming reliability and information resources, though Rekordbox-only
+- Numark Mixtrack Platinum FX → For Serato fans
+- Traktor Kontrol S2 MK3 → For Traktor fans
+
+**50,000–100,000 JPY (for those wanting to improve seriously):**
+- DDJ-FLX6-GT → 4 decks + multi-software support
+- DDJ-800 → High-quality model anticipating CDJ transition
+- Traktor Kontrol S3 → Creative play with Stems function
+
+**100,000 JPY or more (pro-oriented):**
+- DDJ-1000 → Closest operating feel to CDJ
+- DDJ-REV7 → The pinnacle for scratch DJs
+- Traktor Kontrol S4 MK3 → Motor-driven jog + Stems
+
+### Recommendations by Genre
+
+**House / Techno**: DDJ-800 / DDJ-1000 (optimal jog and EQ for long smooth mixing)
+**Hip-hop**: DDJ-REV7 (scratch-specialized) / DDJ-1000 (versatility)
+**EDM / Future Bass**: DDJ-FLX6-GT (suited for heavy effects performance)
+**Open format**: DDJ-1000 (genre-less play with 4 channels)
+**Reggae / Dub**: DDJ-800 + external effects (emphasizing delay/reverb)
+
+### Recommendations by Use Case
+
+**Home practice only**: DDJ-FLX4 / DDJ-400 (compact with sufficient functions)
+**Friends' parties**: DDJ-FLX6-GT (portable and multi-functional)
+**Small bar/lounge**: DDJ-800 (XLR output + high-quality audio)
+**Club events**: DDJ-1000 (high adaptability in the field with feel close to CDJ)
+**Wedding/corporate events**: Roland DJ-707M (built-in PA function)
+**Streaming**: DDJ-FLX4 / DDJ-400 (simple setup with USB bus power)
+
+---
+
+## 5. Detailed Setup Methods
+
+DJ controller setup is relatively simple, but there are several important points to build an optimal environment. Here we explain step by step from initial setup to troubleshooting.
+
+### What You Need (Checklist)
 
 ```
-必須アイテム:
-□ PC/Mac（推奨スペック: Core i5以上、8GB RAM以上、SSD搭載）
-□ DJコントローラー本体
-□ USBケーブル（通常付属）
-□ DJソフトウェア（Rekordbox / Serato DJ / Traktor）
-□ ヘッドフォン（モニター用、密閉型推奨）
-□ スピーカー（アクティブスピーカー推奨）
-□ 音源ファイル（MP3 320kbps以上、またはWAV/AIFF/FLAC）
+Essential items:
+□ PC/Mac (recommended specs: Core i5 or higher, 8GB RAM or more, SSD)
+□ DJ controller
+□ USB cable (usually included)
+□ DJ software (Rekordbox / Serato DJ / Traktor)
+□ Headphones (for monitoring, closed-back recommended)
+□ Speakers (active speakers recommended)
+□ Audio files (MP3 320kbps or higher, or WAV/AIFF/FLAC)
 
-推奨アイテム:
-□ ヘッドフォンスプリッター（1/4インチ→3.5mm変換）
-□ RCAケーブル（スピーカー接続用、予備として）
-□ ノートPCスタンド（目線の高さ調整）
-□ コントローラースタンド（適切な高さで操作するため）
-□ 電源タップ（充分なコンセント数を確保）
-□ 外付けHDD/SSD（大量の楽曲ライブラリ用）
+Recommended items:
+□ Headphone splitter (1/4 inch → 3.5mm adapter)
+□ RCA cable (for speaker connection, as spare)
+□ Laptop stand (adjust to eye level)
+□ Controller stand (to operate at appropriate height)
+□ Power strip (ensure sufficient number of outlets)
+□ External HDD/SSD (for large music libraries)
 ```
 
-### PC/Macの推奨スペック
+### Recommended PC/Mac Specs
 
-DJソフトウェアを快適に動作させるために、以下のスペックを推奨します。
+The following specs are recommended for comfortable DJ software operation.
 
-**最低要件:**
-- CPU: Intel Core i5（第8世代以降）またはAMD Ryzen 5
+**Minimum requirements:**
+- CPU: Intel Core i5 (8th gen or later) or AMD Ryzen 5
 - RAM: 8GB
-- ストレージ: SSD 256GB以上
-- USB: USB 3.0ポート1つ以上
-- OS: Windows 10/11（64bit）またはmacOS 12以降
+- Storage: SSD 256GB or more
+- USB: At least one USB 3.0 port
+- OS: Windows 10/11 (64-bit) or macOS 12 or later
 
-**推奨要件:**
-- CPU: Intel Core i7/i9 またはApple M1/M2/M3
-- RAM: 16GB以上
-- ストレージ: SSD 512GB以上（楽曲ライブラリを本体に保存する場合は1TB以上）
-- USB: USB 3.0ポート2つ以上（外付けドライブとコントローラー用）
-- OS: 最新バージョンのWindows/macOS
+**Recommended requirements:**
+- CPU: Intel Core i7/i9 or Apple M1/M2/M3
+- RAM: 16GB or more
+- Storage: SSD 512GB or more (1TB or more if storing music library on the unit itself)
+- USB: Two or more USB 3.0 ports (for external drive and controller)
+- OS: Latest version of Windows/macOS
 
-**注意: CPU負荷について**
+**Note: CPU load**
 
-DJソフトウェアはリアルタイム処理を行うため、CPU使用率の急激な上昇は音声のドロップアウト（プチプチ音やノイズ）の原因になります。特に以下の状況でCPU負荷が高くなるため注意が必要です。
+Because DJ software performs real-time processing, a sudden spike in CPU usage causes audio dropouts (crackling sounds or noise). Be aware that CPU load increases particularly in the following situations:
 
-- 複数のエフェクトを同時に適用している場合
-- 4デッキ同時再生時
-- 波形表示を高解像度で行っている場合
-- バックグラウンドで他のアプリケーションが動作している場合
-- ウイルススキャンソフトがリアルタイムスキャンを行っている場合
+- When multiple effects are applied simultaneously
+- During simultaneous 4-deck playback
+- When displaying waveforms at high resolution
+- When other applications are running in the background
+- When antivirus software is performing real-time scanning
 
-### 初回セットアップ手順（Rekordbox + DDJシリーズ）
+### Initial Setup Steps (Rekordbox + DDJ Series)
 
-**Step 1: Rekordboxのインストール**
+**Step 1: Installing Rekordbox**
 
-1. Pioneer DJの公式サイト（rekordbox.com）からRekordboxの最新版をダウンロード
-2. ダウンロードしたインストーラーを実行し、画面の指示に従ってインストール
-3. 初回起動時にPioneer DJアカウントでログイン（無料アカウントでOK）
-4. ライセンスの確認（対応コントローラーを接続するとHardware Unlockが有効に）
+1. Download the latest version of Rekordbox from the Pioneer DJ official site (rekordbox.com)
+2. Run the downloaded installer and follow the on-screen instructions to install
+3. Log in with your Pioneer DJ account on first launch (free account is fine)
+4. Confirm license (Hardware Unlock becomes active when connecting a compatible controller)
 
-**Step 2: ドライバーのインストール（Windowsのみ）**
+**Step 2: Installing drivers (Windows only)**
 
-Windowsの場合は専用のASIOドライバーが必要です。
+A dedicated ASIO driver is required for Windows.
 
-1. Pioneer DJの公式サイトから対応モデルのドライバーをダウンロード
-2. インストール前にコントローラーをPCから切断しておく
-3. ドライバーをインストールし、PCを再起動
-4. 再起動後にコントローラーをUSB接続
+1. Download the driver for your compatible model from the Pioneer DJ official site
+2. Disconnect the controller from your PC before installing
+3. Install the driver and restart your PC
+4. After restarting, connect the controller via USB
 
-macOSの場合はドライバーのインストールは通常不要で、USB接続するだけで認識されます（Core Audio対応）。
+For macOS, driver installation is normally not required — it is recognized simply by USB connection (Core Audio compatible).
 
-**Step 3: コントローラーの接続**
+**Step 3: Connecting the controller**
 
-1. コントローラーをUSBケーブルでPCに接続
-2. コントローラーの電源を入れる（USBバスパワーモデルは接続と同時に起動）
-3. Rekordboxを起動し、右下のステータスバーでコントローラーが認識されていることを確認
-4. 「Performance」モードに切り替え
+1. Connect the controller to the PC with a USB cable
+2. Turn on the controller's power (USB bus power models start up at the same time as connection)
+3. Launch Rekordbox and confirm the controller is recognized in the status bar at the bottom right
+4. Switch to "Performance" mode
 
-**Step 4: オーディオ設定**
+**Step 4: Audio settings**
 
-1. Rekordboxの「環境設定」→「オーディオ」を開く
-2. オーディオデバイスにDJコントローラーが選択されていることを確認
-3. サンプルレート: 44.1kHz（標準）または 48kHz
-4. バッファサイズ: 256サンプル（推奨）。音声のドロップアウトが発生する場合は512に上げる
-5. マスターアウトとヘッドフォンアウトの割り当てを確認
+1. Open "Preferences" → "Audio" in Rekordbox
+2. Confirm the DJ controller is selected as the audio device
+3. Sample rate: 44.1kHz (standard) or 48kHz
+4. Buffer size: 256 samples (recommended). Increase to 512 if audio dropouts occur
+5. Confirm master out and headphone out assignments
 
-**Step 5: スピーカーとヘッドフォンの接続**
+**Step 5: Connecting speakers and headphones**
 
-1. コントローラー背面のMASTER OUT（RCA）にスピーカーケーブルを接続
-2. スピーカーの電源を入れ、ボリュームを最小位置にしておく
-3. ヘッドフォンをコントローラー前面のPHONES端子に接続
-4. コントローラーのMASTER VOLUMEとHEADPHONES VOLUMEを最小位置にしておく
+1. Connect speaker cable to MASTER OUT (RCA) on the rear of the controller
+2. Turn on the speakers and set volume to minimum position
+3. Connect headphones to the PHONES terminal on the front of the controller
+4. Set controller's MASTER VOLUME and HEADPHONES VOLUME to minimum position
 
-**Step 6: 動作確認**
+**Step 6: Operation check**
 
-1. Rekordboxに楽曲をドラッグ&ドロップでインポート
-2. 楽曲を選択し、LOADボタンでデッキにロード
-3. PLAYボタンで再生開始
-4. MASTER VOLUMEを徐々に上げてスピーカーから音が出ることを確認
-5. HEADPHONES VOLUMEを上げてヘッドフォンから音が聞こえることを確認
-6. ジョグホイール、フェーダー、EQが正常に動作することを確認
+1. Import tracks to Rekordbox by drag and drop
+2. Select a track and load it to a deck using the LOAD button
+3. Start playback with the PLAY button
+4. Gradually raise MASTER VOLUME and confirm sound comes from speakers
+5. Raise HEADPHONES VOLUME and confirm sound is heard in headphones
+6. Confirm jog wheel, faders, and EQ all operate normally
 
-### Serato DJでのセットアップ
+### Setup with Serato DJ
 
-Serato DJ対応モデル（DDJ-FLX4、DDJ-FLX6-GT、DDJ-REV7など）の場合は以下の手順です。
+For Serato DJ-compatible models (DDJ-FLX4, DDJ-FLX6-GT, DDJ-REV7, etc.) follow these steps:
 
-1. serato.com からSerato DJをダウンロード・インストール
-2. 対応コントローラーをUSB接続すると自動的にSerato DJ ProまたはLiteがアクティベート
-3. Serato DJを起動し、コントローラーの認識を確認
-4. 「Setup」画面でオーディオ設定を確認
-5. 楽曲をドラッグ&ドロップでライブラリに追加
-6. 動作確認
+1. Download and install Serato DJ from serato.com
+2. Serato DJ Pro or Lite automatically activates when a compatible controller is connected via USB
+3. Launch Serato DJ and confirm controller recognition
+4. Confirm audio settings in the "Setup" screen
+5. Add tracks to library by drag and drop
+6. Operation check
 
-### Traktorでのセットアップ
+### Setup with Traktor
 
-Native Instruments製コントローラーの場合：
+For Native Instruments controllers:
 
-1. Native Accessからtraktor Pro 3をダウンロード・インストール
-2. コントローラーをUSB接続
-3. Traktorを起動し、「Preferences」→「Audio Setup」でオーディオデバイスを確認
-4. 「Controller Manager」でMIDIマッピングが正しく読み込まれていることを確認
-5. レイテンシー設定を調整（推奨: 5-10ms）
+1. Download and install Traktor Pro 3 from Native Access
+2. Connect controller via USB
+3. Launch Traktor and check the audio device under "Preferences" → "Audio Setup"
+4. Confirm MIDI mapping is loaded correctly under "Controller Manager"
+5. Adjust latency settings (recommended: 5–10ms)
 
-### よくあるトラブルと解決策
+### Common Problems and Solutions
 
-**トラブル1: コントローラーが認識されない**
-
-```
-原因と対策:
-1. USBケーブルの不良 → 別のケーブルを試す
-2. USBハブ経由で接続 → PC本体のUSBポートに直接接続
-3. ドライバー未インストール（Windows）→ 最新ドライバーをインストール
-4. USBポートの電力不足 → USB 3.0ポートを使用
-5. 他のUSBデバイスとの競合 → 不要なUSBデバイスを取り外す
-6. OSのセキュリティ設定 → 「システム環境設定」→「セキュリティとプライバシー」で許可
-```
-
-**トラブル2: 音が出ない**
+**Problem 1: Controller not recognized**
 
 ```
-原因と対策:
-1. マスターボリュームがゼロ → コントローラーとソフトウェアの両方のボリュームを確認
-2. オーディオ設定が誤り → DJソフトウェアのオーディオ設定を再確認
-3. スピーカーの電源が入っていない → スピーカーの電源とボリュームを確認
-4. RCAケーブルの接続不良 → ケーブルを抜き差し、左右の接続を確認
-5. 別のアプリが音声デバイスを占有 → 他のオーディオアプリを閉じる
+Causes and solutions:
+1. Defective USB cable → Try a different cable
+2. Connected via USB hub → Connect directly to PC's USB port
+3. Driver not installed (Windows) → Install latest driver
+4. Insufficient USB port power → Use a USB 3.0 port
+5. Conflict with other USB devices → Remove unnecessary USB devices
+6. OS security settings → Allow in "System Preferences" → "Security & Privacy"
 ```
 
-**トラブル3: 音声にノイズやドロップアウトが発生する**
+**Problem 2: No sound**
 
 ```
-原因と対策:
-1. バッファサイズが小さすぎる → 256→512→1024と段階的に上げてみる
-2. CPU負荷が高い → 不要なアプリケーションを閉じる
-3. USBの帯域不足 → USB 3.0ポートに変更、USBハブを使わない
-4. Wi-Fiが干渉 → Wi-Fiをオフにしてみる（特にBluetoothも）
-5. ウイルスソフトのリアルタイムスキャン → DJソフトウェアを除外リストに追加
-6. 省電力設定 → 「高パフォーマンス」モードに切り替え
+Causes and solutions:
+1. Master volume at zero → Check volume on both controller and software
+2. Incorrect audio settings → Re-check audio settings in DJ software
+3. Speakers not powered on → Check speaker power and volume
+4. Poor RCA cable connection → Unplug/re-plug cable, check left/right connections
+5. Another app is occupying the audio device → Close other audio apps
 ```
 
-**トラブル4: ジョグホイールの感度がおかしい**
+**Problem 3: Noise or dropouts in audio**
 
 ```
-原因と対策:
-1. Vinyl/CDJモードの切り替え → 現在のモードを確認
-2. ジョグホイールの表面が汚れている → クリーニングクロスで清掃
-3. ソフトウェアの設定 → DJソフトウェアのジョグ感度設定を調整
-4. 静電気の問題 → 手の乾燥を防ぐ（冬場に多い）
+Causes and solutions:
+1. Buffer size too small → Try increasing stepwise: 256 → 512 → 1024
+2. CPU load too high → Close unnecessary applications
+3. Insufficient USB bandwidth → Change to USB 3.0 port, avoid USB hubs
+4. Wi-Fi interference → Try turning off Wi-Fi (especially Bluetooth too)
+5. Antivirus real-time scan → Add DJ software to exclusion list
+6. Power saving mode → Switch to "High performance" mode
 ```
 
----
-
-## 6. 基本操作の実践ガイド
-
-ここからは、DJコントローラーの各コントロールを実際のDJプレイでどう使うかを、具体的なシチュエーションと共に解説します。
-
-### ジョグホイールの操作テクニック
-
-**ピッチベンド（テンポ微調整）**
-
-Beatmatchingの際に、テンポフェーダーで大まかにBPMを合わせた後、ジョグホイールの側面を軽く回して微調整を行います。
+**Problem 4: Jog wheel sensitivity is off**
 
 ```
-操作のコツ:
-- 側面（エッジ部分）を使う → 上面に触れるとVinylモードでは再生が止まる
-- 時計回りに軽く押す → テンポが一時的に速くなる（前に進む）
-- 反時計回りに軽く押す → テンポが一時的に遅くなる（後ろに下がる）
-- 力加減は非常に繊細に → 大きく回すとBeatがズレる
-- BPMの差が0.1-0.3程度の微差を修正するイメージ
-```
-
-**スクラッチ操作**
-
-Vinylモードでジョグホイールの上面に手を置き、レコードのように前後に動かすことでスクラッチ音を生成します。
-
-```
-基本スクラッチ:
-1. Baby Scratch: 前後に単純に動かす。最も基本的なスクラッチ
-2. Tear Scratch: 前に速く、後ろに遅く（または逆）。リズミカルな効果
-3. Chirp Scratch: スクラッチとクロスフェーダーカットの組み合わせ
-4. Transform Scratch: クロスフェーダーを高速で開閉しながらスクラッチ
-5. Flare Scratch: クロスフェーダーをバウンドさせるテクニック
-```
-
-**頭出し（Cue操作）**
-
-楽曲の特定のポイントに正確に合わせるための操作です。
-
-```
-手順:
-1. ジョグホイールを回して楽曲内の目的の位置に移動
-2. 波形を見ながらビートの頭（キックの先頭）に合わせる
-3. CUEボタンを押してCueポイントを設定
-4. CUEボタンを押すとその位置に即座に戻る
-5. CUEを押しながら離すと再生、離すとCueポイントに戻る
-```
-
-### フェーダー操作の実践
-
-**チャンネルフェーダーを使ったトランジション**
-
-ハウスやテクノなど、スムーズなミキシングが求められるジャンルでは、チャンネルフェーダーを使った段階的なトランジションが基本です。
-
-```
-スムーズトランジション（64ビートの場合）:
-1. [0-16拍] 次の曲をヘッドフォンでモニタリング、BPMを合わせる
-2. [17-32拍] 次の曲のチャンネルフェーダーを1/4程度上げる（Low EQはカット）
-3. [33-48拍] 両曲のフェーダーを3/4程度、EQで帯域を調整
-4. [49-56拍] 前の曲のフェーダーを徐々に下げる
-5. [57-64拍] 前の曲のフェーダーを0に、次の曲のフェーダーをフルに
-```
-
-**クロスフェーダーを使ったカット**
-
-ヒップホップやスクラッチDJでは、クロスフェーダーの素早い操作が不可欠です。
-
-```
-クイックカット:
-1. クロスフェーダーカーブを「シャープ」に設定
-2. Aデッキで楽曲を再生（クロスフェーダーはA側）
-3. Bデッキにスクラッチ用の音源をセット
-4. クロスフェーダーを素早くB側に切る → スクラッチ音が出る
-5. すぐにA側に戻す → 元の楽曲に戻る
-6. このカット操作をリズミカルに繰り返す
-```
-
-### EQミキシングの基礎
-
-EQを使ったミキシングは、DJプレイの品質を大きく左右する重要なテクニックです。
-
-**Bass Swap（ベーススワップ）**
-
-最も基本的かつ効果的なEQミキシング技法です。低音域が2曲同時に鳴ると音がぶつかって濁るため、ベースラインを入れ替えるタイミングで素早くスワップします。
-
-```
-Bass Swap手順:
-1. 次の曲のLow EQをフルカット（-∞）にして曲を再生開始
-2. 現在の曲と次の曲がビートマッチした状態で混ぜ始める
-3. フレーズの切り替わり（8小節、16小節の区切り）で:
-   - 次の曲のLow EQを12時（センター）に戻す
-   - 同時に、前の曲のLow EQをフルカット
-4. この操作をワンアクションで行う（両手を使って同時に回す）
-```
-
-**EQフィルタリングテクニック**
-
-各帯域を段階的に調整することで、自然なトランジションを実現します。
-
-```
-段階的EQトランジション:
-Phase 1（導入）:
-  - 次の曲: Hi=12時, Mid=12時, Low=-∞ で投入
-  - 前の曲: Hi=12時, Mid=12時, Low=12時（変更なし）
-
-Phase 2（ブレンド）:
-  - 次の曲: Hi=12時, Mid=12時, Low=-∞ → 徐々に戻す
-  - 前の曲: Hi=12時→やや下げ, Mid=12時, Low=12時→やや下げ
-
-Phase 3（スワップ）:
-  - 次の曲: Hi=12時, Mid=12時, Low=12時
-  - 前の曲: Hi=下げ, Mid=下げ, Low=-∞
-
-Phase 4（フェードアウト）:
-  - 前の曲のフェーダーを0に
-```
-
-**よくあるEQの間違い:**
-- Low EQを2曲同時にフルにしてベースが濁る → 必ずどちらかをカット
-- ブーストを多用してクリッピング → カット主体で操作
-- トランジション中にEQの操作を忘れて急にベースが重なる → 事前に計画を立てる
-- Mid EQを触りすぎてボーカルが不自然に聞こえる → Mid EQは控えめに
-
-### エフェクトの活用
-
-DJコントローラーには様々なエフェクトが搭載されていますが、効果的に使うにはタイミングと量の感覚が重要です。
-
-**Echo（エコー）**
-
-最も多用されるエフェクトのひとつ。楽曲をフェードアウトさせる際や、ブレイクの演出に使います。
-
-```
-Echoの基本的な使い方:
-1. Beat FXでEchoを選択
-2. ビートフラクション（効果の間隔）を設定:
-   - 1/1: 1拍ごとのエコー（最も一般的）
-   - 3/4: ドットエコー（跳ねるようなリズム）
-   - 1/2: 半拍ごとの速いエコー
-3. FXレベルノブでWet/Dry比を調整
-4. 楽曲のフレーズ終わりで適用し、自然なフェードアウトを演出
-```
-
-**Filter（フィルター）**
-
-Sound Color FXの代表格。ハイパスフィルターとローパスフィルターを使い分けます。
-
-```
-Filterの活用シーン:
-- ハイパス: 低音をカットして「薄い」サウンドに → ブレイクの演出
-- ローパス: 高音をカットして「こもった」サウンドに → 期待感の演出
-- フィルターを徐々に開く: ビルドアップで盛り上げる定番テクニック
-- フィルターの急開放: ドロップの瞬間に一気にフィルターを開いてインパクトを出す
-```
-
-**Reverb（リバーブ）**
-
-空間の広がりを演出するエフェクト。トランジションの仕上げやブレイクの演出に活用します。
-
-```
-Reverbの注意点:
-- かけすぎると音が濁る → 最大でもWet 50%程度に留める
-- 低音にReverbをかけるとベースが崩壊する → Hi/Midにのみ適用がベター
-- 長いリバーブテイルは次の曲のドロップとぶつかる → タイミングに注意
-```
-
-**Flanger（フランジャー）**
-
-ジェット機のような独特のうねりを生成するエフェクト。トランジション中の一時的な演出に効果的です。
-
-```
-Flangerの使い方:
-- ビルドアップ中に徐々にDepthを上げる
-- ドロップの直前にピークに達するよう調整
-- ドロップと同時にFXをオフ → インパクトの対比を演出
-- 長時間使うと耳障りになるため、8-16小節程度が目安
+Causes and solutions:
+1. Vinyl/CDJ mode switch → Check current mode
+2. Jog wheel surface is dirty → Clean with a cleaning cloth
+3. Software settings → Adjust jog sensitivity in DJ software settings
+4. Static electricity issue → Prevent dryness of hands (common in winter)
 ```
 
 ---
 
-## 7. パフォーマンスパッドの活用法
+## 6. Practical Guide to Basic Operations
 
-パフォーマンスパッドはDJコントローラーならではの強力な武器です。CDJにもパッドは搭載されていますが、コントローラーのパッドはソフトウェアとの統合度が高く、より多彩な活用が可能です。
+From here, we explain how to use each control of a DJ controller in actual DJ play, along with specific situations.
 
-### Hot Cueの戦略的な設定
+### Jog Wheel Operation Techniques
 
-Hot Cueは楽曲内の特定のポイントに瞬時にジャンプする機能です。事前に適切なポイントにCueを設定しておくことで、ライブパフォーマンスの幅が大きく広がります。
+**Pitch bend (fine tempo adjustment)**
 
-```
-推奨Hot Cue設定（8ポイント）:
-Cue 1: イントロの最初のビート（曲の開始ポイント）
-Cue 2: ブレイクダウンの開始点
-Cue 3: ビルドアップの開始点
-Cue 4: メインドロップ（サビ）の開始点
-Cue 5: 2回目のドロップ開始点
-Cue 6: アウトロの開始点
-Cue 7: ボーカル開始点（あれば）
-Cue 8: 特徴的なフレーズや効果音のポイント
-```
-
-**Hot Cueの色分け（Rekordbox）:**
-
-Rekordboxでは各Hot Cueに色を割り当てることができます。統一したカラーコーディングを採用することで、初見の楽曲でもCueポイントの役割が一目で分かります。
+During beatmatching, after roughly aligning the BPM with the tempo fader, use the side of the jog wheel to lightly rotate and make fine adjustments.
 
 ```
-カラーコーディング例:
-緑: イントロ・スタートポイント
-赤: ドロップ（サビ）
-黄: ブレイクダウン
-青: ビルドアップ
-紫: ボーカルパート
-オレンジ: アウトロ
-ピンク: 特殊ポイント（効果音、ブレイクなど）
-白: 予備
+Operation tips:
+- Use the side (edge) → Touching the top surface stops playback in Vinyl mode
+- Lightly push clockwise → Tempo temporarily speeds up (moves forward)
+- Lightly push counter-clockwise → Tempo temporarily slows down (moves back)
+- Force sensitivity is very delicate → Rotating too much causes beat drift
+- Think of it as correcting small differences of 0.1–0.3 BPM
 ```
 
-### Beat Jumpの活用
+**Scratch operation**
 
-Beat Jumpは指定した拍数だけ楽曲の再生位置を前後にジャンプさせる機能です。
-
-```
-Beat Jumpの活用シーン:
-- 16小節ジャンプ: イントロやアウトロを飛ばして時間を調整
-- 32小節ジャンプ: 楽曲の大きなセクションを素早く移動
-- 1小節ジャンプ: ループポイントの微調整
-- 4小節ジャンプ: フレーズ単位での位置調整
-```
-
-### Samplerモードの活用
-
-サンプラーには音声ファイルをプリロードしておき、パッドを押すだけで再生できます。
+In Vinyl mode, place your hand on the top of the jog wheel and move it forward and backward like a record to generate scratch sounds.
 
 ```
-よく使うサンプル例:
-- DJタグ（自分のDJ名を読み上げたボイス）
-- サイレン音やホイッスル
-- エアホーン
-- ドラムフィル
-- ボーカルシャウト（"Let's Go!", "Put Your Hands Up!"など）
-- スクラッチサウンド
-- トランジション用効果音（ライザー、ダウンリフターなど）
+Basic scratches:
+1. Baby Scratch: Simply move back and forth. The most basic scratch
+2. Tear Scratch: Fast forward, slow back (or reverse). Rhythmic effect
+3. Chirp Scratch: Combination of scratch and crossfader cut
+4. Transform Scratch: Scratch while rapidly opening and closing crossfader
+5. Flare Scratch: Technique of bouncing the crossfader
 ```
 
-### ループテクニック
+**Cueing**
 
-ループ機能を使って楽曲の一部分を繰り返し再生することで、トランジションの時間を稼いだり、独自のアレンジを加えたりできます。
-
-```
-ループの基本操作:
-1. IN ボタン: ループの開始点を設定
-2. OUT ボタン: ループの終了点を設定（自動的にループ再生開始）
-3. ループ解除: RELOOPボタンで通常再生に戻る
-4. ループ長の変更: ループ中にHALF/DOUBLEボタンでループ長を半分/倍に
-
-オートループ:
-- パッドを1回押すだけで指定した長さのループを即座に作成
-- 1/16, 1/8, 1/4, 1/2, 1, 2, 4, 8, 16, 32 拍のプリセット
-```
-
-**ループの活用テクニック:**
+Operation for accurately aligning to a specific point in a track.
 
 ```
-1. トランジションループ:
-   前の曲のアウトロを4小節ループにして、
-   次の曲を投入する時間を確保する
+Steps:
+1. Rotate jog wheel to move to target position in track
+2. Align with the start of the beat (beginning of kick) while watching the waveform
+3. Press CUE button to set cue point
+4. Pressing CUE button instantly returns to that position
+5. Hold CUE to play, release to return to cue point
+```
 
-2. ビルドアップループ:
-   ドロップ直前のフレーズをループし、
-   ループ長を段階的に半分にしていく（4拍→2拍→1拍→1/2拍）
-   最後にループ解除してドロップに突入 → 大きなインパクト
+### Practical Fader Operation
 
-3. ブレイクループ:
-   楽曲のブレイク部分（静かなパート）をループし、
-   MCや次の展開への「溜め」を作る
+**Transition using channel faders**
 
-4. ドラムロール効果:
-   ドラムヒットの部分を非常に短いループ（1/16拍）にすると
-   マシンガンのようなドラムロール効果が得られる
+For genres that require smooth mixing like house and techno, a gradual transition using channel faders is the basic approach.
+
+```
+Smooth transition (over 64 beats):
+1. [0–16 beats] Monitor next track with headphones, match BPM
+2. [17–32 beats] Raise next track's channel fader to about 1/4 (Low EQ cut)
+3. [33–48 beats] Both faders at about 3/4, adjust frequency bands with EQ
+4. [49–56 beats] Gradually lower previous track's fader
+5. [57–64 beats] Previous track fader to 0, next track fader to full
+```
+
+**Cuts using the crossfader**
+
+For hip-hop and scratch DJing, fast crossfader operation is essential.
+
+```
+Quick cut:
+1. Set crossfader curve to "sharp"
+2. Play a track on Deck A (crossfader on A side)
+3. Set scratch audio source on Deck B
+4. Quickly cut crossfader to B side → Scratch sound plays
+5. Immediately return to A side → Returns to original track
+6. Repeat this cut operation rhythmically
+```
+
+### Basics of EQ Mixing
+
+EQ mixing is an important technique that greatly affects the quality of DJ play.
+
+**Bass Swap**
+
+The most basic and effective EQ mixing technique. When the low frequency of two tracks plays simultaneously, the sound clashes and becomes muddy — so quickly swap basslines at the moment of transition.
+
+```
+Bass Swap steps:
+1. Start playing next track with Low EQ cut to maximum (-∞)
+2. Start mixing with both tracks beatmatched
+3. At phrase transitions (8-bar, 16-bar boundaries):
+   - Return next track's Low EQ to 12 o'clock (center)
+   - Simultaneously cut previous track's Low EQ to full cut
+4. Perform this operation in one action (use both hands to turn simultaneously)
+```
+
+**EQ filtering techniques**
+
+Achieve natural transitions by adjusting each frequency band in stages.
+
+```
+Staged EQ transition:
+Phase 1 (Introduction):
+  - Next track: Hi=12, Mid=12, Low=-∞ (bring in)
+  - Previous track: Hi=12, Mid=12, Low=12 (no change)
+
+Phase 2 (Blend):
+  - Next track: Hi=12, Mid=12, Low=-∞ → gradually restore
+  - Previous track: Hi=12→slightly lower, Mid=12, Low=12→slightly lower
+
+Phase 3 (Swap):
+  - Next track: Hi=12, Mid=12, Low=12
+  - Previous track: Hi=lower, Mid=lower, Low=-∞
+
+Phase 4 (Fade out):
+  - Previous track fader to 0
+```
+
+**Common EQ mistakes:**
+- Both tracks at full Low EQ makes the bass muddy → Always cut one of them
+- Heavy use of boost causes clipping → Operate mainly by cutting
+- Forgetting EQ operation mid-transition and suddenly overlapping bass → Plan in advance
+- Touching Mid EQ too much makes vocals sound unnatural → Be restrained with Mid EQ
+
+### Using Effects
+
+DJ controllers come with a variety of effects, but a sense of timing and amount is important for using them effectively.
+
+**Echo**
+
+One of the most frequently used effects. Used to fade out a track or to enhance a break.
+
+```
+Basic usage of Echo:
+1. Select Echo in Beat FX
+2. Set beat fraction (interval of effect):
+   - 1/1: Echo every beat (most common)
+   - 3/4: Dot echo (bouncy rhythm)
+   - 1/2: Fast echo every half beat
+3. Adjust Wet/Dry ratio with FX level knob
+4. Apply at the end of a track phrase for a natural fade-out
+```
+
+**Filter**
+
+The representative Sound Color FX. Use high-pass and low-pass filters.
+
+```
+Filter use cases:
+- High-pass: Cut low frequencies for a "thin" sound → for break effects
+- Low-pass: Cut high frequencies for a "muffled" sound → for building anticipation
+- Gradually opening the filter: A classic technique for building up in a build-up
+- Sudden filter open: Open the filter all at once at the moment of the drop for impact
+```
+
+**Reverb**
+
+An effect that creates a sense of spatial breadth. Used to finish transitions or to enhance breaks.
+
+```
+Notes on Reverb:
+- Too much makes the sound muddy → Keep wet to about 50% at most
+- Reverb on low frequencies destroys the bass → Better to apply only to Hi/Mid
+- Long reverb tails clash with the next track's drop → Be careful of timing
+```
+
+**Flanger**
+
+An effect that creates a distinctive jet-engine-like wobble. Effective as a temporary effect during transitions.
+
+```
+How to use Flanger:
+- Gradually increase Depth during a build-up
+- Adjust to reach peak just before the drop
+- Turn FX off at the same time as the drop → Create contrast of impact
+- Using it for too long becomes irritating — about 8–16 bars is a guideline
 ```
 
 ---
 
-## 8. ヘッドフォンモニタリングの技術
+## 7. How to Use Performance Pads
 
-DJにとってヘッドフォンは「もうひとつの耳」であり、適切なモニタリング技術はプレイの品質に直結します。
+Performance pads are a powerful weapon unique to DJ controllers. CDJs also have pads, but controller pads are more highly integrated with software, enabling more diverse applications.
 
-### CUE/MIXの概念
+### Strategic Setting of Hot Cues
 
-DJコントローラーにはヘッドフォンのモニタリングを制御する2つの主要なコントロールがあります。
+Hot Cue is a function for instantly jumping to a specific point in a track. Setting appropriate cue points in advance greatly expands the scope of live performance.
+
+```
+Recommended Hot Cue settings (8 points):
+Cue 1: First beat of intro (track start point)
+Cue 2: Start of breakdown
+Cue 3: Start of build-up
+Cue 4: Start of main drop (chorus)
+Cue 5: Start of second drop
+Cue 6: Start of outro
+Cue 7: Vocal start point (if applicable)
+Cue 8: Characteristic phrase or sound effect point
+```
+
+**Hot Cue color-coding (Rekordbox):**
+
+In Rekordbox, you can assign a color to each Hot Cue. By adopting a unified color coding, you can tell the role of cue points at a glance even for tracks you haven't seen before.
+
+```
+Color coding example:
+Green: Intro/start point
+Red: Drop (chorus)
+Yellow: Breakdown
+Blue: Build-up
+Purple: Vocal section
+Orange: Outro
+Pink: Special points (sound effects, breaks, etc.)
+White: Reserve
+```
+
+### Using Beat Jump
+
+Beat Jump is a function that jumps the track's playback position forward or backward by a specified number of beats.
+
+```
+Beat Jump use cases:
+- 16-bar jump: Skip intro or outro to adjust time
+- 32-bar jump: Quickly move to large sections of a track
+- 1-bar jump: Fine adjustment of loop points
+- 4-bar jump: Position adjustment in phrase units
+```
+
+### Using Sampler Mode
+
+Audio files can be pre-loaded into the sampler and played just by pressing a pad.
+
+```
+Common sample examples:
+- DJ tag (voice reading out your DJ name)
+- Siren sounds or whistles
+- Air horn
+- Drum fills
+- Vocal shouts ("Let's Go!", "Put Your Hands Up!", etc.)
+- Scratch sounds
+- Transition sound effects (risers, downlifters, etc.)
+```
+
+### Loop Techniques
+
+Using the loop function to repeatedly play a section of a track allows you to gain time for transitions or add your own arrangements.
+
+```
+Basic loop operation:
+1. IN button: Set loop start point
+2. OUT button: Set loop end point (loop playback starts automatically)
+3. Cancel loop: Return to normal playback with RELOOP button
+4. Change loop length: Halve/double loop length with HALF/DOUBLE button during loop
+
+Auto loop:
+- Instantly create a loop of specified length with a single pad press
+- Presets: 1/16, 1/8, 1/4, 1/2, 1, 2, 4, 8, 16, 32 beats
+```
+
+**Loop application techniques:**
+
+```
+1. Transition loop:
+   Put the previous track's outro in a 4-bar loop,
+   to secure time to bring in the next track
+
+2. Build-up loop:
+   Loop the phrase just before the drop,
+   progressively halve the loop length (4 beats → 2 → 1 → 1/2)
+   Release the loop and hit the drop at the end → Major impact
+
+3. Break loop:
+   Loop the break section (quiet part) of a track,
+   creating a "pause" for an MC or the next development
+
+4. Drum roll effect:
+   A very short loop (1/16 beat) of a drum hit produces
+   a machine-gun-like drum roll effect
+```
+
+---
+
+## 8. Headphone Monitoring Technique
+
+For DJs, headphones are "another ear," and proper monitoring technique directly affects play quality.
+
+### The CUE/MIX Concept
+
+DJ controllers have two main controls for controlling headphone monitoring.
 
 ```
 HEADPHONES CUE/MIX:
-- CUE側: デッキで選択したチャンネルのプレビュー音声のみが聞こえる
-- MIX側: マスターアウト（スピーカーから出ている音）が聞こえる
-- 中間位置: CUEとMIXがブレンドされて聞こえる
+- CUE side: Only the preview audio of the channel selected on the deck is heard
+- MIX side: The master out (sound coming from speakers) is heard
+- Middle position: CUE and MIX are blended and heard
 
 HEADPHONES LEVEL:
-- ヘッドフォンの音量を調整
-- スピーカーの音量に合わせて適切なレベルに設定
+- Adjust headphone volume
+- Set to appropriate level to match speaker volume
 ```
 
-### モニタリングスタイル
+### Monitoring Styles
 
-**片耳モニタリング（最も一般的）:**
-ヘッドフォンの片側を耳に当て、もう片方の耳でスピーカーの音を聞く方法です。
-
-```
-メリット:
-- CUE音とマスター音を同時に独立して聞ける
-- Beatmatchingの際にズレを直感的に感じ取れる
-- クラブでのモニター環境が不十分な場合でも対応可能
-
-コツ:
-- 右耳でヘッドフォン（CUE）、左耳でスピーカー（MIX）が一般的
-- ヘッドフォンの音量はスピーカーとバランスが取れるレベルに
-- 長時間のプレイでは耳を入れ替えて聴覚疲労を分散
-```
-
-**ヘッドフォンMIXモニタリング:**
-CUE/MIXノブを中間に設定し、ヘッドフォン内でCUE音とマスター音をブレンドして聞く方法です。
+**Single-ear monitoring (most common):**
+Placing one side of the headphone to the ear and listening to the speaker sound with the other ear.
 
 ```
-メリット:
-- 両耳でモニタリングできるため音質が良い
-- 騒音の激しい環境でも正確な判断が可能
-- 長時間のプレイで聴覚への負担が少ない
+Benefits:
+- Can independently hear CUE audio and master audio simultaneously
+- Can intuitively feel the drift during beatmatching
+- Can handle situations where the club monitor environment is inadequate
 
-デメリット:
-- CUE音とマスター音が混ざるため、慣れが必要
-- フェーダーの位置によって聞こえ方が変わる
+Tips:
+- Right ear for headphones (CUE), left ear for speakers (MIX) is common
+- Headphone volume at a level balanced with speakers
+- During long sets, alternate ears to distribute listening fatigue
 ```
 
-### ヘッドフォンの選び方
-
-DJヘッドフォンに求められる要素は、一般的な音楽リスニング用とは異なります。
-
-```
-DJ用ヘッドフォンの要件:
-1. 密閉型（外部ノイズの遮断が必須）
-2. 片耳使用に対応（回転ハウジング）
-3. 高い遮音性（クラブの大音量下で使用するため）
-4. 丈夫なケーブル（カール型推奨）
-5. 交換可能なイヤーパッド
-6. フラットな周波数特性（低音の量感よりも正確さ重視）
-
-定番モデル:
-- Pioneer DJ HDJ-X10: プロ仕様の最上位モデル（約30,000円）
-- Pioneer DJ HDJ-CUE1: コスパ最高の入門モデル（約7,000円）
-- Sennheiser HD 25: 業界標準のクラシックモデル（約20,000円）
-- Audio-Technica ATH-M50x: 高い解像度のスタジオモデル（約20,000円）
-- V-MODA Crossfade M-100: 頑丈さと音質のバランス（約30,000円）
-```
-
----
-
-## 9. コントローラーDJからCDJへの移行ガイド
-
-DJコントローラーで基礎を身につけた後、多くのDJがクラブ標準機材であるCDJセットアップへの移行を考えます。ここでは、スムーズな移行のための具体的な戦略とアドバイスを提供します。
-
-### 移行のタイミング
-
-CDJへの移行を検討すべきサインは以下の通りです。
+**Headphone MIX monitoring:**
+Setting the CUE/MIX knob in the middle to blend CUE audio and master audio inside the headphones.
 
 ```
-移行を検討するタイミング:
-1. コントローラーの操作に完全に慣れ、無意識で基本操作ができるようになった
-2. クラブやイベントでDJをする機会が増えてきた
-3. マニュアルBeatmatching（Sync無し）が安定してできるようになった
-4. 自分のDJスタイルが確立されてきた
-5. コントローラーの機能的な限界を感じ始めた（オーディオ品質、接続性など）
-6. DJとしての活動を本格的に仕事にしたいと考え始めた
+Benefits:
+- Better audio quality as both ears can monitor
+- Accurate judgment is possible even in loud environments
+- Less burden on hearing during long sets
+
+Disadvantages:
+- Takes getting used to because CUE and master audio are mixed
+- How it sounds changes depending on fader position
 ```
 
-### コントローラーとCDJの主要な違い
+### Choosing Headphones
 
-CDJへの移行で最も戸惑うポイントを事前に把握しておくことが重要です。
-
-**1. ジョグホイールの感触**
-
-CDJ-3000やCDJ-2000NXS2のジョグホイールは、コントローラーのそれとは重量感や抵抗感が大きく異なります。DDJ-1000を除くほとんどのコントローラーは軽量なジョグホイールを搭載しているため、CDJの重いジョグに戸惑うことがあります。
+The requirements for DJ headphones differ from those for general music listening.
 
 ```
-対策:
-- DJスタジオやスクールでCDJに触れる機会を定期的に作る
-- DDJ-1000を所有している場合はジョグ感度を重めに設定して練習
-- 最初は控えめなジョグ操作から始め、徐々に感覚を掴む
-- CDJのジョグ感度設定（ADJUST）を自分の好みに合わせることも重要
-```
+Requirements for DJ headphones:
+1. Closed-back (blocking external noise is essential)
+2. Single-ear use supported (rotating housing)
+3. High sound isolation (used under the high volume of clubs)
+4. Sturdy cable (coiled cable recommended)
+5. Replaceable ear pads
+6. Flat frequency response (emphasize accuracy over bass quantity)
 
-**2. USBメディアでの楽曲管理**
-
-コントローラーではPC上のRekordboxライブラリから直接楽曲を選択しますが、CDJではUSBメモリやSDカードにエクスポートした楽曲を使用します。
-
-```
-USBエクスポートの手順（Rekordbox）:
-1. Rekordboxでプレイリストを作成
-2. USBメモリをPCに接続（USB 3.0、FAT32またはexFATフォーマット推奨）
-3. デバイスパネルにUSBメモリが表示される
-4. プレイリストをUSBメモリにドラッグ&ドロップ
-5. エクスポートが完了するまで待つ（楽曲数により数分〜数十分）
-6. Rekordboxの「安全な取り外し」を使ってUSBを取り外す
-
-注意点:
-- USBメモリの品質が重要 → 信頼性の高いメーカー（SanDisk、Samsung等）を使用
-- 楽曲の解析（波形、BPM、キー）は事前にRekordboxで完了させておく
-- Hot Cue、ループ、メモリーCueの設定もUSBに保存される
-- バックアップUSBを必ず用意する（現場でUSB故障のリスクに備える）
-```
-
-**3. DJMミキサーの操作**
-
-コントローラーではミキサーセクションが一体化していますが、CDJセットアップでは独立したDJMミキサーを使用します。ミキサーの操作感やエフェクトの挙動が微妙に異なる場合があります。
-
-```
-DJMミキサーとの主な違い:
-- EQの効き方がソフトウェアEQとは異なる（アナログ回路による）
-- Sound Color FXの質感がより豊か
-- Beat FXのタイミングがわずかに異なる場合がある
-- チャンネルフェーダーとクロスフェーダーの物理的な質感が異なる
-- トリムノブのゲインカーブが異なる
-```
-
-**4. モニター環境の違い**
-
-クラブではブースモニタースピーカーからの音を頼りにDJをします。自宅のスピーカーとは全く異なる音環境です。
-
-```
-クラブでのモニタリング対策:
-- ブースモニターの位置と角度を確認する
-- ヘッドフォンモニタリングに過度に依存しない
-- メインスピーカーとブースモニターの時間差（ディレイ）を意識する
-- フロアに出て自分の音を確認する習慣をつける
-```
-
-### 移行練習プログラム
-
-```
-Phase 1（1-2ヶ月目）: 基本操作の確認
-- DJスタジオでCDJに週1回触れる
-- USBメディアでの楽曲ロードに慣れる
-- ジョグホイールの操作感の違いを体で覚える
-- CDJのメニュー操作を習得する
-
-Phase 2（3-4ヶ月目）: Beatmatchingの再練習
-- CDJのジョグでマニュアルBeatmatchingを練習
-- テンポフェーダーの感度の違いに慣れる
-- DJMミキサーのEQでのミキシング練習
-- Sound Color FXとBeat FXの操作を習得
-
-Phase 3（5-6ヶ月目）: 実践準備
-- 30分のDJセットをCDJで通して練習
-- 様々なジャンルの曲でトランジション練習
-- トラブル対応のシミュレーション（USB認識不良、楽曲未解析など）
-- 友人の前でCDJでのデモプレイ
-
-Phase 4（7ヶ月目以降）: 実践投入
-- 小規模なイベントでCDJデビュー
-- 現場のフィードバックを基に改善
-- レギュラーDJとしての活動を確立
+Classic models:
+- Pioneer DJ HDJ-X10: Professional-spec top-of-the-line model (approx. 30,000 JPY)
+- Pioneer DJ HDJ-CUE1: Best value entry model (approx. 7,000 JPY)
+- Sennheiser HD 25: Industry-standard classic model (approx. 20,000 JPY)
+- Audio-Technica ATH-M50x: High-resolution studio model (approx. 20,000 JPY)
+- V-MODA Crossfade M-100: Balance of durability and audio quality (approx. 30,000 JPY)
 ```
 
 ---
 
-## 10. メンテナンスと機材管理
+## 9. Guide to Transitioning from Controller to CDJ
 
-DJコントローラーは精密な電子機器であり、適切なメンテナンスを行うことで長期間にわたって性能を維持できます。
+After developing the basics on a DJ controller, many DJs consider transitioning to a CDJ setup, the club-standard equipment. Here we provide specific strategies and advice for a smooth transition.
 
-### 日常的なメンテナンス
+### When to Transition
 
-**クリーニング:**
-
-```
-日常クリーニング（使用後毎回）:
-1. マイクロファイバークロスで表面の指紋や汚れを拭き取る
-2. ジョグホイールの表面を丁寧に清掃（静電容量センサーの精度に影響）
-3. フェーダー溝にたまったホコリをエアダスターで除去
-4. ノブ類の根元に付着した汚れを綿棒で除去
-
-月次メンテナンス:
-1. 接点クリーナーでフェーダーのメンテナンス（専用品を使用）
-2. ノブを外して内部のホコリを除去
-3. 背面端子の接触不良チェック
-4. USBケーブルの断線チェック
-5. ボタンの動作確認（押下感や反応の劣化がないか）
-```
-
-**フェーダーのメンテナンス:**
-
-フェーダーは最も摩耗しやすいパーツです。特にクロスフェーダーは激しい操作にさらされるため、定期的なメンテナンスが重要です。
+Signs to consider transitioning to CDJs:
 
 ```
-フェーダーケアの手順:
-1. フェーダーを端から端までゆっくりスライドさせ、引っかかりがないか確認
-2. ガリ音（スクラッチノイズ）が出る場合は接点クリーナーを微量スプレー
-3. クリーナー塗布後、フェーダーを何度も往復させて馴染ませる
-4. 過剰なクリーナーはティッシュで除去
-5. 改善しない場合はフェーダーの交換を検討（多くのモデルでユーザー交換可能）
-
-注意:
-- シリコンスプレーや潤滑油はフェーダーに使用しない（導電部を損傷する）
-- 接点復活剤は電子機器専用のものを使用する
-- CRC-556などの汎用潤滑剤は絶対に使わない
+When to consider transitioning:
+1. Completely comfortable with controller operation and can do basic operations unconsciously
+2. Opportunities to DJ at clubs and events have increased
+3. Manual beatmatching (without Sync) is consistently stable
+4. Your own DJ style has been established
+5. Starting to feel the functional limitations of a controller (audio quality, connectivity, etc.)
+6. Starting to think seriously about making DJing a full-time job
 ```
 
-### 持ち運び時の注意
+### Key Differences Between Controllers and CDJs
+
+It is important to understand in advance the most confusing points when transitioning to CDJs.
+
+**1. Jog wheel feel**
+
+The jog wheel of the CDJ-3000 or CDJ-2000NXS2 has a very different weight and resistance from that of a controller. Since most controllers except the DDJ-1000 have lightweight jog wheels, you may be confused by the heavier jog of a CDJ.
 
 ```
-安全な持ち運びのポイント:
-1. 専用ケースまたはパッド付きバッグを使用する
-2. ジョグホイールに衝撃が加わらないよう、クッション材で保護
-3. フェーダーやノブに横方向の力がかからないよう、面を上にして運ぶ
-4. 温度差が激しい環境では結露に注意（冬場の車内→暖かい室内など）
-5. USBケーブルは別途収納し、端子に負荷がかからないようにする
-
-おすすめのケース:
-- MAGMA CTRL Case: DDJシリーズ専用設計。ジャストフィット
-- UDG Creator: 軽量で丈夫。様々なサイズに対応
-- Decksaver: 本体カバー（ケースではなく保護カバー）。自宅保管時にも有効
+Countermeasures:
+- Regularly create opportunities to touch CDJs at DJ studios or schools
+- If you own a DDJ-1000, practice with jog sensitivity set heavier
+- Start with restrained jog operations and gradually get a feel for it
+- It is also important to adjust CDJ jog sensitivity settings (ADJUST) to your preference
 ```
 
-### ファームウェアの更新
+**2. Track management on USB media**
 
-DJコントローラーのファームウェアは定期的にアップデートが配信されます。バグ修正や新機能の追加が含まれるため、常に最新版を適用することを推奨します。
-
-```
-ファームウェア更新の手順（Pioneer DJ）:
-1. Pioneer DJの公式サイトで最新ファームウェアを確認
-2. 現在のファームウェアバージョンを確認（Rekordboxの環境設定から確認可能）
-3. 更新が必要な場合、ファームウェアファイルをダウンロード
-4. コントローラーをUSBで接続し、DJソフトウェアを閉じる
-5. ファームウェアアップデーターを実行
-6. 更新中はUSBケーブルを抜かない、電源を切らない
-7. 更新完了後、動作確認を行う
-```
-
-### 長期保管時の注意
+With a controller, you select tracks directly from the Rekordbox library on your PC, but with CDJs you use tracks exported to a USB drive or SD card.
 
 ```
-長期保管（1ヶ月以上使用しない場合）:
-1. 表面を丁寧にクリーニングしてから保管
-2. Decksaverなどの保護カバーを被せる
-3. 直射日光の当たらない場所に保管
-4. 高温多湿を避ける（温度15-25℃、湿度40-60%が理想）
-5. 乾燥剤をケース内に入れておく（結露防止）
-6. 月1回程度は通電してフェーダーやノブを動かす（固着防止）
+USB export steps (Rekordbox):
+1. Create a playlist in Rekordbox
+2. Connect USB drive to PC (USB 3.0, FAT32 or exFAT format recommended)
+3. USB drive appears in device panel
+4. Drag and drop playlist to USB drive
+5. Wait for export to complete (a few minutes to several tens of minutes depending on track count)
+6. Use "Safe Remove" in Rekordbox to remove the USB
+
+Notes:
+- Quality of USB drive is important → Use from reputable manufacturers (SanDisk, Samsung, etc.)
+- Track analysis (waveform, BPM, key) should be completed in Rekordbox in advance
+- Hot Cue, loop, and Memory Cue settings are also saved to USB
+- Always prepare a backup USB (to be prepared for risk of USB failure in the field)
 ```
 
----
+**3. DJM mixer operation**
 
-## 11. 配信DJのためのコントローラー活用
-
-近年、TwitchやYouTube Live、MixcloudなどのプラットフォームでのDJ配信が急速に普及しています。DJコントローラーは配信DJのための最適なツールです。
-
-### 配信に必要な機材構成
+With a controller, the mixer section is integrated, but with a CDJ setup, an independent DJM mixer is used. The feel of mixer operation and behavior of effects may differ subtly.
 
 ```
-基本構成:
-□ DJコントローラー（DDJ-400 / DDJ-FLX4など）
-□ PC/Mac（DJソフト + 配信ソフトの同時動作が必要 → スペック余裕を持つ）
-□ 配信ソフト（OBS Studio推奨 / Streamlabs OBS）
-□ Webカメラ（1080p以上推奨）
-□ 照明（LEDリングライト等）
-□ マイク（配信中のトーク用、任意）
-
-音声ルーティング:
-□ 仮想オーディオデバイス（Loopback / VB-Audio Virtual Cable / BlackHole）
-  → DJソフトのオーディオ出力を配信ソフトに送るために必要
-□ または、コントローラーのオーディオ出力をオーディオインターフェイス経由でPCに戻す
+Main differences from DJM mixer:
+- EQ effect is different from software EQ (analog circuit)
+- Sound Color FX texture is richer
+- Beat FX timing may differ slightly
+- Physical texture of channel faders and crossfader is different
+- Trim knob gain curve is different
 ```
 
-### OBS Studioでの設定
+**4. Monitor environment differences**
+
+In a club, you DJ using the sound from booth monitor speakers. The sound environment is completely different from your home speakers.
 
 ```
-音声設定:
-1. DJソフトウェアのマスターアウトを仮想オーディオデバイスに設定
-2. OBSの「音声入力キャプチャ」で仮想オーディオデバイスを選択
-3. ヘッドフォンアウトはコントローラーのPHONES出力を使用（配信には乗らない）
-4. 音声レベルを確認し、クリッピングしていないことを確認
-
-映像設定:
-1. Webカメラをソースとして追加
-2. DJソフトウェアの画面キャプチャをソースとして追加（任意）
-3. オーバーレイ（トラック名表示、チャンネルロゴなど）を設定
-4. シーン切り替えで複数のカメラアングルを使い分け
-
-配信設定:
-- ビットレート: 4500-6000 kbps（1080p 30fpsの場合）
-- オーディオビットレート: 320 kbps（音質重視）
-- エンコーダー: x264 / NVENC（GPU搭載の場合）
+Monitoring countermeasures in clubs:
+- Confirm position and angle of booth monitors
+- Do not rely excessively on headphone monitoring
+- Be aware of the time delay (delay) between main speakers and booth monitors
+- Develop the habit of going out to the floor to confirm your own sound
 ```
 
-### 配信DJ特有のテクニック
+### Transition Practice Program
 
 ```
-1. 著作権への配慮:
-   - Twitch: 著作権に厳しい。VOD自動ミュートのリスクあり
-   - Mixcloud: 著作権クリアなプラットフォーム（DJ配信に最適）
-   - YouTube: Content IDによる収益化制限のリスク
-   - 著作権フリーの楽曲やレーベル許諾のある楽曲の使用を検討
+Phase 1 (months 1–2): Confirming basic operations
+- Touch CDJs at a DJ studio once a week
+- Get used to loading tracks with USB media
+- Physically remember the difference in jog wheel feel
+- Master CDJ menu operation
 
-2. チャットとの連動:
-   - リクエストに応える → 事前に幅広いジャンルの楽曲を準備
-   - トラック名を表示するオーバーレイを設定
-   - セットリストを共有する
+Phase 2 (months 3–4): Re-practicing beatmatching
+- Practice manual beatmatching with CDJ jog
+- Get used to the difference in tempo fader sensitivity
+- Practice mixing with EQ on a DJM mixer
+- Master Sound Color FX and Beat FX operation
 
-3. ビジュアル演出:
-   - 照明の色をジャンルやムードに合わせて変更
-   - Webカメラのアングルを工夫（手元のアップ、全体ショットなど）
-   - Rekordboxのビジュアル機能（Lyric表示など）を活用
+Phase 3 (months 5–6): Practical preparation
+- Run through a 30-minute DJ set on CDJs
+- Transition practice with tracks from various genres
+- Simulate troubleshooting (USB recognition failure, unanalyzed tracks, etc.)
+- Demo play on CDJs in front of friends
 
-4. パフォーマンスの工夫:
-   - 視聴者が見ていて楽しいDJプレイを意識
-   - トランジションやエフェクト操作を大きく見せる
-   - MCを入れて視聴者とコミュニケーション
-   - タイムテーブルを事前告知して視聴者を集める
+Phase 4 (7 months and beyond): Put into practice
+- CDJ debut at a small event
+- Improve based on field feedback
+- Establish activity as a regular DJ
 ```
 
 ---
 
-## 12. プロDJのワークフローとTips
+## 10. Maintenance and Equipment Management
 
-プロフェッショナルDJが実践しているワークフローやテクニックを紹介します。これらのTipsは初心者にも応用可能であり、DJとしての成長を加速させるものです。
+A DJ controller is a precision electronic device, and proper maintenance can maintain performance over the long term.
 
-### 楽曲管理のベストプラクティス
+### Routine Maintenance
 
-```
-ライブラリ整理の基本ルール:
-1. フォルダ構成を統一する:
-   ジャンル > サブジャンル > BPM帯 の階層が一般的
-   例: House > Deep House > 120-124 BPM
-
-2. プレイリスト戦略:
-   - ジャンル別プレイリスト
-   - BPM帯別プレイリスト
-   - エネルギーレベル別プレイリスト（Low/Mid/High/Peak）
-   - イベント固有のプレイリスト
-   - 「最近追加」「お気に入り」「鉄板」などの管理用プレイリスト
-
-3. 楽曲メタデータの管理:
-   - BPMは必ず正確に設定（Rekordboxの自動解析後に手動確認）
-   - キー情報を付加（ハーモニックミキシングの準備）
-   - コメント欄にメモ（「ドロップが強い」「イントロが長い」など）
-   - レーティング（星評価）で楽曲の出来を管理
-   - Myタグで独自の分類（「オープナー向き」「ピークタイム」「クロージング」など）
-
-4. 定期的なメンテナンス:
-   - 月に1回はライブラリを整理する時間を確保
-   - 不要な楽曲を削除（プレイ回数0の楽曲は定期的に見直す）
-   - 新曲の追加は計画的に（週に10-20曲程度のペースで消化）
-```
-
-### セットの構成方法
+**Cleaning:**
 
 ```
-DJセットの基本構成（2時間の場合）:
+Daily cleaning (after each use):
+1. Wipe fingerprints and dirt from surfaces with a microfiber cloth
+2. Carefully clean the jog wheel surface (affects electrostatic capacitance sensor accuracy)
+3. Remove dust accumulated in fader slots with an air duster
+4. Remove dirt accumulated at the base of knobs with a cotton swab
 
-1. オープニング（0-20分）:
-   - 穏やかでアンビエントな楽曲から開始
-   - BPMは低め（110-120程度）
-   - フロアにいる人の反応を見ながらペースを調整
-   - 最初の数曲で「今日のDJはこういう雰囲気だ」と伝える
-
-2. ウォームアップ（20-40分）:
-   - 徐々にエネルギーレベルを上げる
-   - BPMを少しずつ上げていく（120-126程度）
-   - 認知度の高い楽曲を散りばめて親しみやすさを出す
-
-3. ミッドセット（40-80分）:
-   - エネルギーレベルを安定させる
-   - BPMは安定（125-128程度）
-   - 冒険的な選曲や実験的なミックスを試す余裕のあるパート
-   - フロアの温度をキープしつつ、起伏を作る
-
-4. ピークタイム（80-100分）:
-   - セットのハイライト
-   - 最もエネルギーの高い楽曲を投入
-   - アンセムやキラーチューンをここで使う
-   - トランジションを大胆に、エフェクトも派手に使う
-
-5. クロージング（100-120分）:
-   - 徐々にエネルギーを下げる
-   - 感動的なメロディーや余韻のある楽曲で締める
-   - 最後の1曲は特別な意味を持たせる（思い出に残る1曲）
-   - 次のDJへの引き継ぎを意識（急にBPMや雰囲気を変えない）
+Monthly maintenance:
+1. Fader maintenance with contact cleaner (use dedicated product)
+2. Remove knobs and remove internal dust
+3. Check rear terminal contacts for poor connection
+4. Check USB cable for breakage
+5. Confirm button operation (check for deterioration in feel or response)
 ```
 
-### 現場でのトラブル対策
+**Fader maintenance:**
+
+Faders are the most wear-prone parts. The crossfader in particular is subject to intense operation, so regular maintenance is important.
 
 ```
-準備しておくべき対策:
+Fader care steps:
+1. Slowly slide fader from end to end to check for any catching
+2. If there is scratching noise (audio noise), spray a tiny amount of contact cleaner
+3. After applying cleaner, move fader back and forth many times to work it in
+4. Remove excess cleaner with tissue
+5. If there is no improvement, consider replacing the fader (user-replaceable on many models)
 
-1. USBメモリのバックアップ:
-   - メインUSBとバックアップUSBを必ず2本用意
-   - 異なるメーカーのUSBを使用（同じロットの初期不良リスクを回避）
-   - 定期的にデータの整合性を確認
-
-2. PCのバックアップ（コントローラー使用時）:
-   - 予備のUSBケーブル
-   - ACアダプター（USBバスパワーの場合でも充電用に）
-   - DJソフトウェアの設定ファイルのバックアップ
-   - 予備のPCがあれば理想的
-
-3. ネットワーク環境:
-   - Wi-FiとBluetoothはオフにする（干渉防止）
-   - OS自動更新をオフにする（プレイ中の再起動防止）
-   - 省電力モードを無効にする
-
-4. 音声トラブル:
-   - 予備のRCAケーブル/XLRケーブルを持参
-   - 変換アダプター各種（RCA→XLR、3.5mm→1/4インチなど）
-   - シンプルなミキサーやDIボックスを予備として持参（上級者）
-
-5. 心構え:
-   - トラブルは必ず起きるものと心得る
-   - 慌てずに原因を切り分ける
-   - 最悪の場合はスマートフォンからの再生に切り替える覚悟を持つ
-   - 事前にPAエンジニアと打ち合わせをしておく
+Notes:
+- Do not use silicone spray or lubricant on faders (damages conductive parts)
+- Use contact cleaner specifically for electronic equipment
+- Never use general-purpose lubricants like CRC-556
 ```
 
-### 上達のための練習方法
+### Precautions When Transporting
 
 ```
-効果的な練習プログラム:
+Points for safe transport:
+1. Use a dedicated case or padded bag
+2. Protect jog wheel from impact with cushioning material
+3. Carry with face up so that lateral force is not applied to faders and knobs
+4. In environments with large temperature differences, watch for condensation (winter car interior → warm room, etc.)
+5. Store USB cables separately so no load is placed on connectors
 
-毎日の練習（30分-1時間）:
-1. マニュアルBeatmatching（Sync OFF）で5曲連続ミックス
-2. EQスワップのみでのトランジション練習（フェーダーを使わない）
-3. Hot Cueの設定と活用の練習
-4. 新曲のプレビューとライブラリへの追加
-
-週次練習（2-3時間）:
-1. 30分のミニセットを録音し、後で聞き直す
-2. 普段やらないジャンルのミックスに挑戦
-3. エフェクトのタイミング練習
-4. ハーモニックミキシングの練習（Camelotホイールの活用）
-
-月次課題:
-1. 1時間のフルセットを通して録音
-2. MixcloudやSoundCloudにアップロードして他者のフィードバックを受ける
-3. プロDJのMIXを聴いて分析（トランジション技法、選曲の流れ）
-4. DJイベントに足を運んで現場の雰囲気を体感
-5. 新しいテクニックやエフェクトの組み合わせを実験
+Recommended cases:
+- MAGMA CTRL Case: Designed specifically for DDJ series. A perfect fit
+- UDG Creator: Lightweight and sturdy. Compatible with various sizes
+- Decksaver: Body cover (not a case, but a protective cover). Effective for home storage too
 ```
 
-### Beatmatchingのステップアップ練習
+### Firmware Updates
 
-マニュアルBeatmatchingはDJの最も基本的なスキルです。段階的に練習することで確実に上達できます。
-
-```
-Level 1: 同BPMの2曲を合わせる
-- 全く同じBPMの2曲（例: 128 BPM同士）を使う
-- テンポフェーダーを同じ位置に合わせてスタート
-- ジョグホイールで位相（ビートの頭）を合わせる練習に集中
-- 目標: ビートの頭が1分間ズレずに維持できる
-
-Level 2: 近いBPMの2曲を合わせる
-- BPM差が2-3程度の2曲を使う（例: 126と128）
-- テンポフェーダーで大まかに合わせ、ジョグで微調整
-- 聞き分けのポイント: キックのズレ、ハイハットのフラム感
-- 目標: 30秒以内にBeatmatchできる
-
-Level 3: 離れたBPMの2曲を合わせる
-- BPM差が5以上の2曲（例: 122と128）
-- テンポフェーダーの大幅な調整が必要
-- ピッチ変更による音質変化にも注意
-- 目標: 1分以内にBeatmatchできる
-
-Level 4: Sync無し、波形表示無しでBeatmatch
-- DJソフトウェアの波形表示を非表示にする
-- BPM表示もオフにする
-- 完全に耳だけを頼りにBeatmatch
-- 目標: プロレベルの精度を耳だけで実現
-```
-
-### ハーモニックミキシングの基礎
-
-楽曲のキー（調性）を意識したミキシングにより、トランジション中の不協和音を避け、美しいブレンドを実現できます。
+Firmware updates are periodically released for DJ controllers. They include bug fixes and new features, so it is recommended to always apply the latest version.
 
 ```
-Camelotホイール:
-楽曲のキーを数字とアルファベット（例: 8A, 11B）で表現するシステム
+Firmware update steps (Pioneer DJ):
+1. Check for latest firmware on Pioneer DJ official site
+2. Check current firmware version (can be confirmed from Rekordbox preferences)
+3. If an update is needed, download the firmware file
+4. Connect controller via USB and close DJ software
+5. Run the firmware updater
+6. During update, do not remove USB cable or turn off power
+7. After update is complete, confirm operation
+```
 
-ルール:
-1. 同じキーの楽曲同士は常に調和する（例: 8A → 8A）
-2. 隣接するキー（±1）も調和する（例: 8A → 7A, 9A）
-3. AとBの切り替え（同じ数字）も調和する（例: 8A → 8B）
-4. 1つ飛びのキー変更はエネルギーの変化を感じさせる（例: 8A → 10A）
+### Precautions for Long-Term Storage
 
-実践的な活用:
-- Rekordboxでキー情報を解析済みの楽曲を使用
-- プレイリストをキー順にソートして準備
-- トランジション中は2曲のキーが調和する組み合わせを選ぶ
-- Energy Boost: +1（例: 8A → 9A）で段階的にエネルギーを上げる
-- Mood Change: A→B（例: 8A → 8B）でメジャー/マイナーを切り替え
+```
+Long-term storage (when not using for 1 month or more):
+1. Clean surfaces carefully before storage
+2. Place a protective cover like Decksaver
+3. Store away from direct sunlight
+4. Avoid high temperature and humidity (ideally 15–25°C, 40–60% humidity)
+5. Place desiccant inside case (prevent condensation)
+6. Turn on power about once a month and move faders and knobs (prevent seizing)
 ```
 
 ---
 
-## 13. 中古コントローラーの購入ガイド
+## 11. Using Controllers for Streaming DJs
 
-予算を抑えたい場合、中古のDJコントローラーは有力な選択肢です。ただし、注意すべきポイントがあります。
+In recent years, DJ streaming on platforms like Twitch, YouTube Live, and Mixcloud has rapidly spread. DJ controllers are the optimal tool for streaming DJs.
 
-### 中古購入時のチェックポイント
-
-```
-外観チェック:
-□ 筐体の傷、凹み、割れがないか
-□ ジョグホイールの表面に深い傷がないか
-□ ノブやボタンが欠損していないか
-□ ラベルやプリントが剥がれていないか
-
-動作チェック:
-□ 全てのボタンが正常に反応するか
-□ フェーダーにガリ音（ノイズ）がないか
-□ クロスフェーダーのスムーズさ
-□ ジョグホイールのタッチセンサーが正常か
-□ すべてのノブが滑らかに回転するか
-□ USBポートの接触不良がないか
-□ オーディオ出力にノイズがないか
-□ LEDインジケーターが全て正常に点灯するか
-
-確認事項:
-□ 付属品（USBケーブル、ACアダプター）の有無
-□ ソフトウェアライセンスの移行可否
-□ 購入からの使用期間と使用頻度
-□ 屋外使用やクラブ使用の有無（過酷な環境での使用は劣化が早い）
-□ メーカー保証の残期間
-```
-
-### おすすめの中古購入ルート
+### Equipment Configuration for Streaming
 
 ```
-1. フリマアプリ（メルカリ、ラクマ）:
-   - 個人間取引のため価格は安い傾向
-   - 動作保証がない場合が多い → 返品・返金条件を事前確認
-   - 発送時の梱包が不十分な場合がある
+Basic configuration:
+□ DJ controller (DDJ-400 / DDJ-FLX4, etc.)
+□ PC/Mac (DJ software + streaming software need to run simultaneously → allow for specs headroom)
+□ Streaming software (OBS Studio recommended / Streamlabs OBS)
+□ Web camera (1080p or higher recommended)
+□ Lighting (LED ring light, etc.)
+□ Microphone (for talking during stream, optional)
 
-2. 中古楽器店（イシバシ楽器、サウンドハウス中古等）:
-   - 動作チェック済みで信頼性が高い
-   - 保証期間がある場合が多い
-   - フリマアプリよりやや高め
+Audio routing:
+□ Virtual audio device (Loopback / VB-Audio Virtual Cable / BlackHole)
+  → Needed to send DJ software audio output to streaming software
+□ Or, return controller audio output to PC via audio interface
+```
 
-3. ハードオフ:
-   - ジャンク品は安いが動作保証なし
-   - 状態の良い中古品もある
-   - 実物を確認してから購入できる
+### Settings in OBS Studio
 
-4. 知人からの譲渡:
-   - 使用状況を直接確認できる
-   - 価格交渉がしやすい
-   - アフターサポート（使い方のアドバイスなど）も期待できる
+```
+Audio settings:
+1. Set DJ software master out to virtual audio device
+2. Select virtual audio device in OBS "Audio Input Capture"
+3. Use controller's PHONES output for headphone out (does not go into stream)
+4. Check audio levels and confirm not clipping
+
+Video settings:
+1. Add webcam as source
+2. Add DJ software screen capture as source (optional)
+3. Set up overlays (track name display, channel logo, etc.)
+4. Use scene switching to alternate between multiple camera angles
+
+Streaming settings:
+- Bitrate: 4500–6000 kbps (for 1080p 30fps)
+- Audio bitrate: 320 kbps (for audio quality priority)
+- Encoder: x264 / NVENC (if GPU equipped)
+```
+
+### Techniques Unique to Streaming DJs
+
+```
+1. Regarding copyright:
+   - Twitch: Strict about copyright. Risk of automatic VOD muting
+   - Mixcloud: Copyright-clear platform (ideal for DJ streaming)
+   - YouTube: Risk of monetization restriction by Content ID
+   - Consider using copyright-free tracks or tracks with label permission
+
+2. Interaction with chat:
+   - Respond to requests → Prepare tracks from a wide range of genres in advance
+   - Set up an overlay displaying track names
+   - Share your setlist
+
+3. Visual production:
+   - Change lighting color to match genre or mood
+   - Be creative with webcam angles (close-up of hands, full shot, etc.)
+   - Use Rekordbox's visual features (Lyric display, etc.)
+
+4. Performance ideas:
+   - Be conscious of DJ play that is enjoyable to watch
+   - Make transitions and effects operations visually larger
+   - Use MC to communicate with viewers
+   - Announce timetable in advance to gather viewers
+```
+
+---
+
+## 12. Pro DJ Workflows and Tips
+
+Here we introduce workflows and techniques practiced by professional DJs. These tips can also be applied by beginners and will accelerate growth as a DJ.
+
+### Best Practices for Track Management
+
+```
+Basic rules for organizing your library:
+1. Unify folder structure:
+   Genre > Sub-genre > BPM range hierarchy is common
+   Example: House > Deep House > 120–124 BPM
+
+2. Playlist strategy:
+   - Playlists by genre
+   - Playlists by BPM range
+   - Playlists by energy level (Low/Mid/High/Peak)
+   - Event-specific playlists
+   - Management playlists like "Recently added," "Favorites," "Sure bets"
+
+3. Track metadata management:
+   - Always set BPM accurately (manual check after Rekordbox auto analysis)
+   - Add key information (preparation for harmonic mixing)
+   - Notes in comment field ("strong drop," "long intro," etc.)
+   - Manage track quality with ratings (star ratings)
+   - Custom classification with My Tags ("good for opener," "peak time," "closing," etc.)
+
+4. Regular maintenance:
+   - Secure time once a month to organize the library
+   - Delete unnecessary tracks (periodically review tracks with 0 play count)
+   - Adding new tracks is planned (pace of about 10–20 tracks per week)
+```
+
+### How to Structure a Set
+
+```
+Basic DJ set structure (2 hours):
+
+1. Opening (0–20 minutes):
+   - Start with calm, ambient tracks
+   - BPM on the lower side (around 110–120)
+   - Adjust pace while watching the reaction of people on the floor
+   - Convey "this is the vibe for tonight's DJ" with the first few tracks
+
+2. Warm-up (20–40 minutes):
+   - Gradually raise energy level
+   - Slowly increase BPM (around 120–126)
+   - Scatter well-known tracks to create familiarity
+
+3. Mid-set (40–80 minutes):
+   - Stabilize energy level
+   - Stable BPM (around 125–128)
+   - A section with room to try adventurous track selections or experimental mixes
+   - Keep floor temperature while creating peaks and valleys
+
+4. Peak time (80–100 minutes):
+   - Set highlight
+   - Bring in the highest-energy tracks
+   - Use anthems and killer tunes here
+   - Bold transitions, use effects liberally
+
+5. Closing (100–120 minutes):
+   - Gradually lower energy
+   - Close with emotional melodies and lingering tracks
+   - Give special meaning to the last track (a memorable one)
+   - Be aware of handoff to next DJ (don't suddenly change BPM or atmosphere)
+```
+
+### Troubleshooting on Site
+
+```
+Countermeasures to prepare:
+
+1. USB drive backups:
+   - Always prepare both a main USB and a backup USB
+   - Use different manufacturers' USBs (to avoid same-lot initial failure risk)
+   - Regularly confirm data integrity
+
+2. PC backups (when using controller):
+   - Spare USB cable
+   - AC adapter (for charging even with USB bus power)
+   - Backup of DJ software settings files
+   - Spare PC is ideal
+
+3. Network environment:
+   - Turn off Wi-Fi and Bluetooth (prevent interference)
+   - Turn off OS auto-update (prevent reboot during play)
+   - Disable power-saving mode
+
+4. Audio problems:
+   - Bring spare RCA cable/XLR cable
+   - Various adapters (RCA→XLR, 3.5mm→1/4 inch, etc.)
+   - Bring a simple mixer or DI box as backup (advanced users)
+
+5. Mindset:
+   - Know that problems will always occur
+   - Calmly identify the cause without panicking
+   - Have the resolve to switch to playback from smartphone in the worst case
+   - Brief in advance with the PA engineer
+```
+
+### Practice Methods for Improvement
+
+```
+Effective practice program:
+
+Daily practice (30 minutes – 1 hour):
+1. 5 consecutive mixes with manual beatmatching (Sync OFF)
+2. Transition practice with EQ swap only (without using faders)
+3. Practice setting and using Hot Cues
+4. Previewing new tracks and adding to library
+
+Weekly practice (2–3 hours):
+1. Record a 30-minute mini-set and listen back later
+2. Challenge yourself with genres you don't normally do
+3. Effects timing practice
+4. Harmonic mixing practice (using the Camelot Wheel)
+
+Monthly goals:
+1. Record a full 1-hour set from start to finish
+2. Upload to Mixcloud or SoundCloud to get feedback from others
+3. Listen to and analyze professional DJ mixes (transition techniques, flow of track selection)
+4. Go to DJ events to experience the atmosphere in person
+5. Experiment with new techniques and effect combinations
+```
+
+### Step-Up Practice for Beatmatching
+
+Manual beatmatching is the most basic DJ skill. Practicing step by step ensures steady improvement.
+
+```
+Level 1: Match two tracks of the same BPM
+- Use two tracks with exactly the same BPM (e.g., both 128 BPM)
+- Start with tempo faders in the same position
+- Focus on practice aligning phase (head of beat) with jog wheel
+- Goal: Keep beat heads aligned for 1 minute without drifting
+
+Level 2: Match two tracks with similar BPM
+- Use two tracks with a BPM difference of 2–3 (e.g., 126 and 128)
+- Roughly align with tempo fader, fine-tune with jog
+- Listening key points: drift of kick, flamming of hi-hats
+- Goal: Beatmatch within 30 seconds
+
+Level 3: Match two tracks with different BPM
+- Two tracks with a BPM difference of 5 or more (e.g., 122 and 128)
+- Requires large adjustment of tempo fader
+- Also pay attention to audio quality change from pitch change
+- Goal: Beatmatch within 1 minute
+
+Level 4: Beatmatch without Sync, without waveform display
+- Hide waveform display in DJ software
+- Also turn off BPM display
+- Beatmatch relying completely on ears alone
+- Goal: Achieve professional-level accuracy by ear alone
+```
+
+### Basics of Harmonic Mixing
+
+By being aware of a track's key (tonality) in mixing, you can avoid dissonance during transitions and achieve beautiful blends.
+
+```
+Camelot Wheel:
+A system that expresses track keys using numbers and letters (e.g., 8A, 11B)
+
+Rules:
+1. Tracks with the same key always harmonize (e.g., 8A → 8A)
+2. Adjacent keys (±1) also harmonize (e.g., 8A → 7A, 9A)
+3. Switching A and B (same number) also harmonizes (e.g., 8A → 8B)
+4. Skipping one key creates a sense of energy change (e.g., 8A → 10A)
+
+Practical usage:
+- Use tracks with key information already analyzed in Rekordbox
+- Sort playlists by key to prepare
+- During transitions, choose combinations where the keys of both tracks harmonize
+- Energy Boost: +1 (e.g., 8A → 9A) to gradually increase energy
+- Mood Change: A→B (e.g., 8A → 8B) to switch between major/minor
+```
+
+---
+
+## 13. Guide to Buying Used Controllers
+
+If you want to keep costs down, used DJ controllers are a strong option. However, there are points to be careful about.
+
+### Checkpoints When Buying Used
+
+```
+Exterior check:
+□ Any scratches, dents, or cracks on the body?
+□ No deep scratches on jog wheel surface?
+□ No knobs or buttons missing?
+□ Labels or prints not peeling off?
+
+Operation check:
+□ All buttons responding normally?
+□ No fader noise (audio noise)?
+□ Smoothness of crossfader?
+□ Is jog wheel touch sensor normal?
+□ Do all knobs rotate smoothly?
+□ No poor contact in USB ports?
+□ No noise in audio output?
+□ All LED indicators lighting up normally?
+
+Confirmations:
+□ Are accessories present (USB cable, AC adapter)?
+□ Can software license be transferred?
+□ Period and frequency of use since purchase?
+□ Was it used outdoors or at clubs (heavy environments cause faster deterioration)?
+□ Remaining manufacturer warranty period?
+```
+
+### Recommended Sources for Used Purchases
+
+```
+1. Flea market apps (Mercari, Rakuma):
+   - Individual transactions tend to be cheaper
+   - Often no operation guarantee → Confirm return/refund conditions in advance
+   - Packing during shipping may be insufficient
+
+2. Used music instrument stores (Ishibashi Gakki, Soundhouse Used, etc.):
+   - Operation-checked and highly reliable
+   - Often has warranty period
+   - Slightly more expensive than flea market apps
+
+3. Hard Off:
+   - Junk items are cheap but no operation guarantee
+   - Sometimes has good-condition used items
+   - Can check in person before purchasing
+
+4. Transfer from acquaintance:
+   - Can directly confirm usage history
+   - Price negotiation is easier
+   - Can also expect after-sale support (advice on how to use, etc.)
 ```
 
 
 ---
 
-## 実践演習
+## Practice Exercises
 
-### 演習1: 基本的な実装
+### Exercise 1: Basic Implementation
 
-以下の要件を満たすコードを実装してください。
+Implement code that satisfies the following requirements.
 
-**要件:**
-- 入力データの検証を行うこと
-- エラーハンドリングを適切に実装すること
-- テストコードも作成すること
+**Requirements:**
+- Validate input data
+- Implement appropriate error handling
+- Also create test code
 
 ```python
-# 演習1: 基本実装のテンプレート
+# Exercise 1: Basic implementation template
 class Exercise1:
-    """基本的な実装パターンの演習"""
+    """Exercise for basic implementation patterns"""
 
     def __init__(self):
         self.data = []
 
     def validate_input(self, value):
-        """入力値の検証"""
+        """Validate input value"""
         if value is None:
-            raise ValueError("入力値がNoneです")
+            raise ValueError("Input value is None")
         return True
 
     def process(self, value):
-        """データ処理のメインロジック"""
+        """Main logic for data processing"""
         self.validate_input(value)
         self.data.append(value)
         return self.data
 
     def get_results(self):
-        """処理結果の取得"""
+        """Get processing results"""
         return {
             'count': len(self.data),
             'data': self.data
         }
 
-# テスト
+# Test
 def test_exercise1():
     ex = Exercise1()
     assert ex.process(1) == [1]
@@ -1587,26 +1587,26 @@ def test_exercise1():
 
     try:
         ex.process(None)
-        assert False, "例外が発生するべき"
+        assert False, "Exception should have been raised"
     except ValueError:
         pass
 
-    print("全テスト合格!")
+    print("All tests passed!")
 
 test_exercise1()
 ```
 
-### 演習2: 応用パターン
+### Exercise 2: Advanced Patterns
 
-基本実装を拡張して、以下の機能を追加してください。
+Extend the basic implementation to add the following features.
 
 ```python
-# 演習2: 応用パターン
+# Exercise 2: Advanced patterns
 from typing import List, Dict, Optional
 from datetime import datetime
 
 class AdvancedExercise:
-    """応用パターンの演習"""
+    """Exercise for advanced patterns"""
 
     def __init__(self, max_size: int = 100):
         self._items: List[Dict] = []
@@ -1614,7 +1614,7 @@ class AdvancedExercise:
         self._created_at = datetime.now()
 
     def add(self, key: str, value: any) -> bool:
-        """アイテムの追加（サイズ制限付き）"""
+        """Add item (with size limit)"""
         if len(self._items) >= self._max_size:
             return False
         self._items.append({
@@ -1625,14 +1625,14 @@ class AdvancedExercise:
         return True
 
     def find(self, key: str) -> Optional[Dict]:
-        """キーによる検索"""
+        """Search by key"""
         for item in reversed(self._items):
             if item['key'] == key:
                 return item
         return None
 
     def remove(self, key: str) -> bool:
-        """キーによる削除"""
+        """Delete by key"""
         for i, item in enumerate(self._items):
             if item['key'] == key:
                 self._items.pop(i)
@@ -1640,7 +1640,7 @@ class AdvancedExercise:
         return False
 
     def stats(self) -> Dict:
-        """統計情報"""
+        """Statistics"""
         return {
             'total_items': len(self._items),
             'max_size': self._max_size,
@@ -1648,44 +1648,44 @@ class AdvancedExercise:
             'uptime': str(datetime.now() - self._created_at)
         }
 
-# テスト
+# Test
 def test_advanced():
     ex = AdvancedExercise(max_size=3)
     assert ex.add("a", 1) == True
     assert ex.add("b", 2) == True
     assert ex.add("c", 3) == True
-    assert ex.add("d", 4) == False  # サイズ制限
+    assert ex.add("d", 4) == False  # Size limit
     assert ex.find("b")['value'] == 2
     assert ex.remove("b") == True
     assert ex.find("b") is None
     stats = ex.stats()
     assert stats['total_items'] == 2
-    print("応用テスト全合格!")
+    print("All advanced tests passed!")
 
 test_advanced()
 ```
 
-### 演習3: パフォーマンス最適化
+### Exercise 3: Performance Optimization
 
-以下のコードのパフォーマンスを改善してください。
+Improve the performance of the following code.
 
 ```python
-# 演習3: パフォーマンス最適化
+# Exercise 3: Performance optimization
 import time
 from functools import lru_cache
 
-# 最適化前（O(n^2)）
+# Before optimization (O(n^2))
 def slow_search(data: list, target: int) -> int:
-    """非効率な検索"""
+    """Inefficient search"""
     for i in range(len(data)):
         for j in range(i + 1, len(data)):
             if data[i] + data[j] == target:
                 return (i, j)
     return (-1, -1)
 
-# 最適化後（O(n)）
+# After optimization (O(n))
 def fast_search(data: list, target: int) -> tuple:
-    """ハッシュマップを使った効率的な検索"""
+    """Efficient search using hash map"""
     seen = {}
     for i, num in enumerate(data):
         complement = target - num
@@ -1694,7 +1694,7 @@ def fast_search(data: list, target: int) -> tuple:
         seen[num] = i
     return (-1, -1)
 
-# ベンチマーク
+# Benchmark
 def benchmark():
     import random
     data = list(range(5000))
@@ -1709,93 +1709,294 @@ def benchmark():
     result2 = fast_search(data, target)
     fast_time = time.time() - start
 
-    print(f"非効率版: {slow_time:.4f}秒")
-    print(f"効率版:   {fast_time:.6f}秒")
-    print(f"高速化率: {slow_time/fast_time:.0f}倍")
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup:      {slow_time/fast_time:.0f}x")
 
 benchmark()
 ```
 
-**ポイント:**
-- アルゴリズムの計算量を意識する
-- 適切なデータ構造を選択する
-- ベンチマークで効果を測定する
+**Key points:**
+- Be aware of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
 ---
 
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Not just theory — understanding deepens when you actually write code and confirm how it works.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend fully understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-DJコントローラーは、DJキャリアの出発点として最適な機材です。本章で解説した内容を振り返ると、以下のポイントが重要です。
+A DJ controller is the ideal equipment as a starting point for a DJ career. Looking back at what was covered in this chapter, the following points are important.
 
-### 機材選びのまとめ
+### Equipment Selection Summary
 
-| レベル | おすすめ機材 | 価格帯 | 特徴 |
+| Level | Recommended equipment | Price range | Features |
 |--------|-------------|--------|------|
-| 入門 | DDJ-FLX4 / DDJ-400 | 2.5-3.5万円 | 最低投資で本格DJを体験 |
-| 中級入門 | DDJ-FLX6-GT | 5-6万円 | 4デッキ対応で長く使える |
-| 中級 | DDJ-800 | 8-9.5万円 | CDJ移行を見据えた高品質 |
-| 上級 | DDJ-1000 | 12-14万円 | CDJに最も近い操作感 |
-| スクラッチ | DDJ-REV7 | 17-19万円 | ターンテーブリズム特化 |
+| Entry | DDJ-FLX4 / DDJ-400 | 25,000–35,000 JPY | Experience full DJing with minimum investment |
+| Mid entry | DDJ-FLX6-GT | 50,000–60,000 JPY | 4 decks, durable long-term use |
+| Intermediate | DDJ-800 | 80,000–95,000 JPY | High quality anticipating CDJ transition |
+| Advanced | DDJ-1000 | 120,000–140,000 JPY | Closest operating feel to CDJ |
+| Scratch | DDJ-REV7 | 170,000–190,000 JPY | Specialized for turntablism |
 
-### スキルアップの道筋
+### Path to Skill Improvement
 
 ```
-Step 1: 基本操作の習得（1-3ヶ月）
-  → 楽曲のロード、再生、停止、Cueポイントの設定
-  → Sync機能を使ったミキシング
-  → EQの基本（Bass Swap）
+Step 1: Mastering basic operations (1–3 months)
+  → Loading tracks, playback, stop, setting cue points
+  → Mixing using Sync function
+  → EQ basics (Bass Swap)
 
-Step 2: マニュアルBeatmatching（3-6ヶ月）
-  → Sync OFF でのテンポ合わせ
-  → ジョグホイールでの微調整
-  → ヘッドフォンモニタリングの習得
+Step 2: Manual beatmatching (3–6 months)
+  → Tempo matching with Sync OFF
+  → Fine adjustment with jog wheel
+  → Learning headphone monitoring
 
-Step 3: 表現力の向上（6-12ヶ月）
-  → エフェクトの効果的な使用
-  → ループとHot Cueの活用
-  → ハーモニックミキシング
-  → セット構成の理論と実践
+Step 3: Improving expressiveness (6–12 months)
+  → Effective use of effects
+  → Using loops and Hot Cues
+  → Harmonic mixing
+  → Theory and practice of set construction
 
-Step 4: プロレベルへの到達（1年以上）
-  → 波形を見ずにBeatmatch
-  → フロアリーディングと即興対応
-  → CDJ/ターンテーブルへの移行
-  → 自分のスタイルの確立
+Step 4: Reaching professional level (1 year or more)
+  → Beatmatch without looking at waveforms
+  → Floor reading and improvised response
+  → Transition to CDJ/turntable
+  → Establishing your own style
 ```
 
-### 最後に: DJコントローラーを最大限に活用するために
+### Finally: To Make the Most of Your DJ Controller
 
-DJコントローラーは「練習機材」ではなく、プロの現場でも十分に活用できる立派なDJ機材です。コントローラーだからといって引け目を感じる必要はありません。重要なのは機材のブランドや価格ではなく、その機材を使って何を表現するかです。
+A DJ controller is not just "practice equipment" — it is perfectly capable of being used in professional settings. There is no need to feel inferior just because you use a controller. What matters is not the brand or price of the equipment, but what you express using that equipment.
 
-日々の練習を積み重ね、多くの音楽を聴き、人前でプレイする経験を重ねることで、DJとしてのスキルは確実に向上します。最初は小さなパーティーでのDJから始め、徐々に活動の場を広げていきましょう。
+By accumulating daily practice, listening to lots of music, and building up experience performing in front of people, your skills as a DJ will certainly improve. Start with DJing at small parties, and gradually expand the scope of your activity.
 
-**次のステップ:** [CDJセットアップ](./cdj-setup.md) でクラブ機材を学ぶ
+**Next step:** Learn about club equipment in [CDJ Setup](./cdj-setup.md)
 
 ---
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [DJミキサー](./dj-mixers.md) - 次のトピックへ進む
+- [DJ Mixers](./dj-mixers.md) - Continue to the next topic
 
 ---
 
-## 参考文献
+## References
 
-- [MDN Web Docs](https://developer.mozilla.org/) - Web技術のリファレンス
-- [Wikipedia](https://ja.wikipedia.org/) - 技術概念の概要
+- [MDN Web Docs](https://developer.mozilla.org/) - Reference for web technologies
+- [Wikipedia](https://en.wikipedia.org/) - Overview of technical concepts
+Extend the basic implementation to add the following features.
+
+```python
+# Exercise 2: Advanced patterns
+from typing import List, Dict, Optional
+from datetime import datetime
+
+class AdvancedExercise:
+    """Exercise for advanced patterns"""
+
+    def __init__(self, max_size: int = 100):
+        self._items: List[Dict] = []
+        self._max_size = max_size
+        self._created_at = datetime.now()
+
+    def add(self, key: str, value: any) -> bool:
+        """Add item (with size limit)"""
+        if len(self._items) >= self._max_size:
+            return False
+        self._items.append({
+            'key': key,
+            'value': value,
+            'timestamp': datetime.now().isoformat()
+        })
+        return True
+
+    def find(self, key: str) -> Optional[Dict]:
+        """Search by key"""
+        for item in reversed(self._items):
+            if item['key'] == key:
+                return item
+        return None
+
+    def remove(self, key: str) -> bool:
+        """Delete by key"""
+        for i, item in enumerate(self._items):
+            if item['key'] == key:
+                self._items.pop(i)
+                return True
+        return False
+
+    def stats(self) -> Dict:
+        """Statistics"""
+        return {
+            'total_items': len(self._items),
+            'max_size': self._max_size,
+            'usage_percent': len(self._items) / self._max_size * 100,
+            'uptime': str(datetime.now() - self._created_at)
+        }
+
+# Test
+def test_advanced():
+    ex = AdvancedExercise(max_size=3)
+    assert ex.add("a", 1) == True
+    assert ex.add("b", 2) == True
+    assert ex.add("c", 3) == True
+    assert ex.add("d", 4) == False  # Size limit
+    assert ex.find("b")['value'] == 2
+    assert ex.remove("b") == True
+    assert ex.find("b") is None
+    stats = ex.stats()
+    assert stats['total_items'] == 2
+    print("All advanced tests passed!")
+
+test_advanced()
+```
+
+### Exercise 3: Performance Optimization
+
+Improve the performance of the following code.
+
+```python
+# Exercise 3: Performance optimization
+import time
+from functools import lru_cache
+
+# Before optimization (O(n^2))
+def slow_search(data: list, target: int) -> int:
+    """Inefficient search"""
+    for i in range(len(data)):
+        for j in range(i + 1, len(data)):
+            if data[i] + data[j] == target:
+                return (i, j)
+    return (-1, -1)
+
+# After optimization (O(n))
+def fast_search(data: list, target: int) -> tuple:
+    """Efficient search using hash map"""
+    seen = {}
+    for i, num in enumerate(data):
+        complement = target - num
+        if complement in seen:
+            return (seen[complement], i)
+        seen[num] = i
+    return (-1, -1)
+
+# Benchmark
+def benchmark():
+    import random
+    data = list(range(5000))
+    random.shuffle(data)
+    target = data[100] + data[4000]
+
+    start = time.time()
+    result1 = slow_search(data, target)
+    slow_time = time.time() - start
+
+    start = time.time()
+    result2 = fast_search(data, target)
+    fast_time = time.time() - start
+
+    print(f"Slow version: {slow_time:.4f}s")
+    print(f"Fast version: {fast_time:.6f}s")
+    print(f"Speedup:      {slow_time/fast_time:.0f}x")
+
+benchmark()
+```
+
+**Key points:**
+- Be aware of algorithm complexity
+- Choose appropriate data structures
+- Measure the effect with benchmarks
+---
+
+
+## FAQ
+
+### Q1: What is the most important point when learning this topic?
+
+Gaining practical experience is the most important thing. Not just theory — understanding deepens when you actually write code and confirm how it works.
+
+### Q2: What mistakes do beginners often make?
+
+Skipping the basics and jumping to advanced topics. We recommend fully understanding the basic concepts explained in this guide before moving on to the next step.
+
+### Q3: How is this used in practice?
+
+Knowledge of this topic is frequently used in day-to-day development work. It becomes especially important during code reviews and architecture design.
+
+---
+
+## Summary
+
+A DJ controller is the ideal equipment as a starting point for a DJ career. Looking back at what was covered in this chapter, the following points are important.
+
+### Equipment Selection Summary
+
+| Level | Recommended equipment | Price range | Features |
+|--------|-------------|--------|------|
+| Entry | DDJ-FLX4 / DDJ-400 | 25,000–35,000 JPY | Experience full DJing with minimum investment |
+| Mid entry | DDJ-FLX6-GT | 50,000–60,000 JPY | 4 decks, durable long-term use |
+| Intermediate | DDJ-800 | 80,000–95,000 JPY | High quality anticipating CDJ transition |
+| Advanced | DDJ-1000 | 120,000–140,000 JPY | Closest operating feel to CDJ |
+| Scratch | DDJ-REV7 | 170,000–190,000 JPY | Specialized for turntablism |
+
+### Path to Skill Improvement
+
+```
+Step 1: Mastering basic operations (1–3 months)
+  → Loading tracks, playback, stop, setting cue points
+  → Mixing using Sync function
+  → EQ basics (Bass Swap)
+
+Step 2: Manual beatmatching (3–6 months)
+  → Tempo matching with Sync OFF
+  → Fine adjustment with jog wheel
+  → Learning headphone monitoring
+
+Step 3: Improving expressiveness (6–12 months)
+  → Effective use of effects
+  → Using loops and Hot Cues
+  → Harmonic mixing
+  → Theory and practice of set construction
+
+Step 4: Reaching professional level (1 year or more)
+  → Beatmatch without looking at waveforms
+  → Floor reading and improvised response
+  → Transition to CDJ/turntable
+  → Establishing your own style
+```
+
+### Finally: To Make the Most of Your DJ Controller
+
+A DJ controller is not just "practice equipment" — it is perfectly capable of being used in professional settings. There is no need to feel inferior just because you use a controller. What matters is not the brand or price of the equipment, but what you express using that equipment.
+
+By accumulating daily practice, listening to lots of music, and building up experience performing in front of people, your skills as a DJ will certainly improve. Start with DJing at small parties, and gradually expand the scope of your activity.
+
+**Next step:** Learn about club equipment in [CDJ Setup](./cdj-setup.md)
+
+---
+
+## What to Read Next
+
+- [DJ Mixers](./dj-mixers.md) - Continue to the next topic
+
+---
+
+## References
+
+- [MDN Web Docs](https://developer.mozilla.org/) - Reference for web technologies
+- [Wikipedia](https://en.wikipedia.org/) - Overview of technical concepts
