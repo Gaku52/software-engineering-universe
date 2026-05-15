@@ -1,479 +1,483 @@
-# ビートマッチング
+# Beatmatching
 
-DJの最も重要な基礎スキル、ビートマッチングを完全マスターします。本章では、理論的な理解から実践的なテクニック、そしてプロフェッショナルレベルの精度に至るまでを包括的に解説します。
+Master beatmatching — the most fundamental DJ skill. This chapter provides a comprehensive guide covering everything from theoretical understanding to practical techniques and professional-level precision.
 
-## この章で学ぶこと
+## What You Will Learn
 
-- ビートマッチングとは何か：定義、歴史的背景、音楽的意味
-- なぜ最も重要なスキルなのか：Sync機能がある時代においても不可欠な理由
-- 耳でビートを聞き取る方法：聴覚トレーニングの段階的アプローチ
-- ジョグホイールの使い方：タッチ感度、操作の精密さ、体の使い方
-- Tempo Fader（ピッチフェーダー）の調整：粗調整から微調整まで
-- DDJ-FLX4での実践：コントローラー固有の特性を活かした操作
-- 段階的な練習方法：Week 1からWeek 12+までのロードマップ
-- よくある失敗と対処法：初心者が陥りがちなミスとその解決策
-- ジャンル別ビートマッチングの特性：House、Techno、Drum & Bassなど
-- プロDJが実践する高度なビートマッチングテクニック
+- What beatmatching is: definition, historical background, and musical significance
+- Why it is the most important skill: why it remains indispensable even in the age of Sync
+- How to hear beats by ear: a step-by-step approach to auditory training
+- How to use the jog wheel: touch sensitivity, operational precision, and body mechanics
+- Adjusting the Tempo Fader (pitch fader): from coarse to fine adjustments
+- Practical application on the DDJ-FLX4: leveraging controller-specific characteristics
+- Step-by-step practice methods: a roadmap from Week 1 to Week 12+
+- Common mistakes and fixes: errors beginners tend to make and how to resolve them
+- Genre-specific beatmatching characteristics: House, Techno, Drum & Bass, and more
+- Advanced beatmatching techniques used by professional DJs
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-
----
-
-## ビートマッチングの歴史と文化的背景
-
-### ディスコからクラブカルチャーへ
-
-ビートマッチングの技術は、1970年代のディスコシーンで生まれました。DJとして最も初期にビートマッチングを体系化したのは、Francis Grassoです。彼はニューヨークのクラブ「The Sanctuary」で、2台のターンテーブルを使って曲と曲のBPMを合わせ、途切れなく音楽を流すスタイルを確立しました。
-
-```
-ビートマッチングの歴史年表:
-
-1970年代初頭: Francis Grasso がビートマッチングの原型を開発
-    → ニューヨークのディスコシーンで活躍
-    → 2台のターンテーブル + ミキサーという基本構成の確立
-
-1977年: Larry Levan が Paradise Garage をオープン
-    → ビートマッチングを芸術の域に高める
-    → 「ジャーニー」と呼ばれる長時間のシームレスなミックス
-
-1980年代: シカゴハウス、デトロイトテクノの誕生
-    → Frankie Knuckles（The Warehouse）
-    → ビートマッチングが電子音楽の基礎技術として定着
-    → BPMが一定の楽曲制作が主流に
-
-1990年代: レイブカルチャーの世界的な広がり
-    → CDJ-500（1994年）の登場でCDでのDJが可能に
-    → ビニール（レコード）からCDへの過渡期
-    → ビートマッチングのスキルがDJの評価基準に
-
-2000年代: デジタルDJの台頭
-    → Serato Scratch Live（2004年）
-    → Traktor（Native Instruments）
-    → BPM表示機能の登場で視覚的な補助が可能に
-
-2010年代以降: Sync機能の普及
-    → 「Syncを使うかどうか」論争
-    → ビートマッチングの文化的価値が再評価される
-    → 基礎スキルとしての重要性は不変
-```
-
-### なぜ今もビートマッチングが尊重されるのか
-
-デジタル技術が進歩した現代においても、手動ビートマッチングのスキルはDJコミュニティで高く評価されます。これは単なる伝統主義ではなく、実践的な理由があります。
-
-```
-手動ビートマッチングが重要な5つの理由:
-
-1. 音楽的感性の発達
-   - BPMの微妙な揺らぎを感じ取れるようになる
-   - 曲のグルーヴ、ノリを体感的に理解できる
-   - ミックスの「気持ちよさ」を追求する感覚が養われる
-   - 機械的な正確さだけでなく、音楽的な正確さを身につける
-
-2. 機材への非依存性
-   - CDJ-2000NXS2でもCDJ-900NXSでもCDJ-350でも対応可能
-   - Sync機能の精度が低い機材や古い機材でも問題なし
-   - 機材トラブル（BPM検出エラーなど）に対処できる
-   - どんなクラブ、どんなフェスティバルでも自信を持ってプレイ
-
-3. プロフェッショナルとしての信頼
-   - クラブオーナーやプロモーターからの評価
-   - 他のDJからのリスペクト
-   - レジデントDJとしての採用で有利
-   - ブッキングエージェントが重視するスキルのひとつ
-
-4. 創造的自由度の向上
-   - BPM表示に頼らず曲を選べる（直感的な選曲）
-   - ライブリミックスやマッシュアップの際に柔軟に対応
-   - 予期しない展開（リクエスト対応など）にもスムーズに移行
-   - アナログレコードでのDJプレイの可能性
-
-5. 脳と体の統合トレーニング
-   - 聴覚、触覚、認知の同時トレーニング
-   - マルチタスク能力の向上
-   - 集中力と持続力の鍛錬
-   - ライブパフォーマンスでのプレゼンス向上
-```
+- Basic programming knowledge
+- Understanding of related foundational concepts
 
 ---
 
-## なぜビートマッチングが最重要か
+## History and Cultural Background of Beatmatching
 
-### DJの定義としてのビートマッチング
+### From Disco to Club Culture
 
-ビートマッチングはDJの「存在意義」そのものです。曲と曲をシームレスにつなぐことこそがDJの最も基本的な仕事であり、その核心技術がビートマッチングです。
+The technique of beatmatching was born in the disco scene of the 1970s. Francis Grasso was among the earliest DJs to systematize beatmatching. At the New York club "The Sanctuary," he established the style of using two turntables to match the BPM of one song to another, creating a seamless, uninterrupted flow of music.
 
 ```
-ビートマッチングの重要性のピラミッド:
+Timeline of Beatmatching History:
+
+Early 1970s: Francis Grasso develops the prototype of beatmatching
+    → Active in New York's disco scene
+    → Establishes the basic setup of two turntables + mixer
+
+1977: Larry Levan opens Paradise Garage
+    → Elevates beatmatching to an art form
+    → Creates long, seamless mixes known as "journeys"
+
+1980s: Birth of Chicago House and Detroit Techno
+    → Frankie Knuckles (The Warehouse)
+    → Beatmatching becomes established as a foundational technique for electronic music
+    → Tracks produced with consistent BPM become mainstream
+
+1990s: Global spread of rave culture
+    → CDJ-500 (1994) makes CD-based DJing possible
+    → Transitional period from vinyl to CD
+    → Beatmatching skill becomes a benchmark for DJs
+
+2000s: Rise of digital DJing
+    → Serato Scratch Live (2004)
+    → Traktor (Native Instruments)
+    → On-screen BPM display enables visual assistance
+
+2010s onward: Widespread adoption of Sync
+    → Debate over "whether to use Sync"
+    → Cultural value of beatmatching is reevaluated
+    → Its importance as a foundational skill remains unchanged
+```
+
+### Why Beatmatching Is Still Respected Today
+
+Even in the modern age of advanced digital technology, manual beatmatching is highly valued in the DJ community. This is not mere traditionalism — there are practical reasons for it.
+
+```
+5 Reasons Manual Beatmatching Matters:
+
+1. Development of musical sensibility
+   - You become able to perceive subtle fluctuations in BPM
+   - You develop a physical understanding of a track's groove and feel
+   - You cultivate the sense to pursue the "sweetness" of a mix
+   - You acquire not just mechanical accuracy, but musical accuracy
+
+2. Independence from equipment
+   - Works on any CDJ: CDJ-2000NXS2, CDJ-900NXS, CDJ-350
+   - No problem with gear that has low-quality Sync or older gear
+   - Able to handle equipment issues (e.g., BPM detection errors)
+   - Confident to play at any club or festival
+
+3. Professional credibility
+   - Respected by club owners and promoters
+   - Earns respect from other DJs
+   - Advantageous when applying for resident DJ positions
+   - One of the skills valued by booking agents
+
+4. Greater creative freedom
+   - Can select tracks without relying on BPM display (intuitive track selection)
+   - Flexible handling during live remixes and mashups
+   - Smooth transitions to unexpected situations (e.g., handling requests)
+   - Opens up the possibility of DJing with analog records
+
+5. Integrated training of brain and body
+   - Simultaneous training of hearing, touch, and cognition
+   - Improves multitasking ability
+   - Builds concentration and endurance
+   - Enhances presence during live performance
+```
+
+---
+
+## Why Beatmatching Is the Most Important Skill
+
+### Beatmatching as the Definition of DJing
+
+Beatmatching is the very "reason for being" of a DJ. Seamlessly connecting one track to another is the most fundamental job of a DJ, and beatmatching is its core technique.
+
+```
+The Pyramid of Beatmatching Importance:
 
             ┌─────────┐
-            │ 創造性  │ ← ここに至るのが最終目標
-            │ 表現力  │
+            │Creativity│ ← The ultimate goal is to reach here
+            │Expression│
             ├─────────┤
-            │ EQ・FX  │ ← ビートマッチングの上に積む
-            │エフェクト│
+            │ EQ · FX │ ← Built on top of beatmatching
+            │ Effects  │
             ├─────────┤
-            │フレーズ │ ← ビートマッチングと密接
-            │マッチング│
+            │ Phrase  │ ← Closely tied to beatmatching
+            │Matching │
             ├─────────┤
-            │ビート   │ ← ★ 最も基礎的なスキル
-            │マッチング│    全てはここから始まる
+            │  Beat   │ ← ★ The most foundational skill
+            │Matching │    Everything starts here
             └─────────┘
 
-ビートマッチングができなければ:
-✗ ミキシングが不可能（曲がバラバラに聞こえる）
-✗ フロアの雰囲気が壊れる（踊れなくなる）
-✗ 他のテクニックを積み上げられない
-✗ プロとして認められない
+Without beatmatching:
+✗ Mixing is impossible (tracks sound disconnected)
+✗ The floor atmosphere is destroyed (people can't dance)
+✗ Other techniques cannot be built upon
+✗ You won't be recognized as a professional
 
-ビートマッチングができれば:
-✓ 最低限のDJプレイが可能
-✓ ダンスフロアのエネルギーを維持できる
-✓ 次のスキルを学ぶ土台ができる
-✓ DJとしての自信が生まれる
+With beatmatching:
+✓ Minimum viable DJ performance is possible
+✓ The energy of the dance floor can be maintained
+✓ A foundation for learning the next skills is established
+✓ Confidence as a DJ is born
 ```
 
-### Syncボタンがあるのになぜ手動で学ぶのか
+### Why Learn Manual Beatmatching When Sync Exists?
 
-現代のDJコントローラーやDJソフトウェアにはSync機能が標準搭載されています。ボタンひとつでBPMを自動的に合わせてくれる便利な機能ですが、それでも手動ビートマッチングを学ぶべき理由は明確です。
-
-```
-Sync機能の限界:
-
-1. BPM検出エラー
-   - ソフトウェアが正しいBPMを検出できないことがある
-   - 例: 実際は130 BPMなのに65 BPMと検出（半分のテンポ）
-   - 例: シンコペーションの多い曲でBPMが揺れる
-   - 例: ブレイクビーツやジャズ的なリズムの曲で誤検出
-   - 例: テンポチェンジのある曲で追従できない
-
-2. ビートグリッドの不正確さ
-   - アナログ録音のレコードをリッピングした音源
-   - ライブ演奏が含まれる楽曲
-   - テンポの「ゆらぎ」があるディスコやファンク
-   - 手動でビートグリッドを修正する必要がある
-
-3. クラブ標準のCDJでの対応
-   - 多くのクラブのCDJはSync非搭載または使いにくい
-   - CDJ-2000NXS2にはSync機能があるが、
-     USBの楽曲分析が必要で準備に時間がかかる
-   - Rekordboxで分析済みの楽曲のみ対応
-   - 他のDJからUSBを借りた場合はSync不可
-
-4. 音楽的な判断力の欠如
-   - Sync機能は「数値的に正しいBPM」を合わせるだけ
-   - 曲のグルーヴやスウィング感は考慮されない
-   - 人間の耳が感じる「ノリの合致」は数値だけでは表現できない
-   - プロDJはしばしばBPMを微妙にオフセットして
-     2曲間のグルーヴを最適化する
-
-5. パフォーマンスとしての価値
-   - 手動でビートマッチングをしているDJは
-     観客やオーガナイザーから高く評価される
-   - 「本物のDJ」としてのブランディング
-   - ライブストリーミングでの視覚的なアピール
-```
-
-### プロDJの証言
-
-世界的に活躍するDJたちも、手動ビートマッチングの重要性を強調しています。
+Modern DJ controllers and software come standard with Sync functionality. It's a convenient feature that automatically matches BPM at the push of a button, but there are clear reasons to learn manual beatmatching even so.
 
 ```
-Carl Cox（レジェンドDJ / Techno, House）:
-「Syncボタンは便利なツールだ。だが、手動でできることが大前提だ。
- 車のオートマ免許だけでは、マニュアル車が運転できないのと同じだ。
- 基礎がなければ、どんなツールも使いこなせない」
+Limitations of Sync:
 
-Richie Hawtin（Technoパイオニア / Plastikman）:
-「テクノロジーは積極的に使うべきだ。ただし、
- それは基礎スキルの上に積み重ねるものだ。
- ビートマッチングができずにSyncを使うのは、
- 泳げないのに海に飛び込むようなものだ」
+1. BPM detection errors
+   - Software sometimes fails to detect the correct BPM
+   - Example: a track that is actually 130 BPM gets detected as 65 BPM (half the tempo)
+   - Example: BPM fluctuates on tracks with heavy syncopation
+   - Example: incorrect detection on breakbeats or jazz-influenced rhythms
+   - Example: cannot keep up with tracks that have tempo changes
 
-Nina Kraviz（Techno / DJ, プロデューサー）:
-「ビニールでDJを学んだことが私のスタイルの基盤になっている。
- 手でビートを合わせる感覚は、音楽との対話そのものだ」
+2. Inaccurate beat grids
+   - Audio sources ripped from analog recordings
+   - Tracks containing live performances
+   - Disco and funk with "human swing" in the tempo
+   - Beat grids must be corrected manually
 
-DJ EZ（UK Garage / Bassline）:
-「3台のターンテーブルを手動で合わせるのが私のスタイル。
- Syncなんて使ったことがない。手の感覚が全てだ」
+3. Dealing with club-standard CDJs
+   - Many club CDJs do not have Sync or it is inconvenient to use
+   - CDJ-2000NXS2 has Sync, but it requires USB track analysis
+     which takes time to prepare
+   - Only works with tracks analyzed in Rekordbox
+   - Sync is unavailable when borrowing a USB from another DJ
 
-Peggy Gou（House / Techno）:
-「最初はSyncを使っていたけど、手動に切り替えてから
- DJとしての成長が加速した。音楽の聴き方が根本的に変わった」
+4. Lack of musical judgment
+   - Sync only matches the "numerically correct BPM"
+   - The groove and swing feel of a track are not considered
+   - The "rhythmic lock" felt by the human ear cannot be expressed by numbers alone
+   - Professional DJs often intentionally offset BPM slightly
+     to optimize the groove between two tracks
+
+5. Value as a performance
+   - DJs who beatmatch manually are highly regarded
+     by audiences and organizers
+   - Branding as a "real DJ"
+   - Visual appeal in live streaming
+```
+
+### Testimonials from Professional DJs
+
+DJs who are active worldwide also emphasize the importance of manual beatmatching.
+
+```
+Carl Cox (Legend DJ / Techno, House):
+"The Sync button is a convenient tool. But being able to do it
+ manually is a prerequisite. It's the same as having an automatic
+ driver's license — you still can't drive a manual car.
+ Without the fundamentals, you can't master any tool."
+
+Richie Hawtin (Techno Pioneer / Plastikman):
+"Technology should be actively embraced. However,
+ it is something to be built on top of fundamental skills.
+ Using Sync without being able to beatmatch is like
+ jumping into the ocean without knowing how to swim."
+
+Nina Kraviz (Techno / DJ, Producer):
+"Learning to DJ on vinyl became the foundation of my style.
+ The feeling of matching beats by hand is a dialogue with the music itself."
+
+DJ EZ (UK Garage / Bassline):
+"Manually matching three turntables is my style.
+ I've never used Sync. The feeling in my hands is everything."
+
+Peggy Gou (House / Techno):
+"I used Sync at first, but after switching to manual,
+ my growth as a DJ accelerated. My way of listening to music
+ fundamentally changed."
 ```
 
 ---
 
-## 1. ビートマッチングとは
+## 1. What Is Beatmatching
 
-### 定義と本質
+### Definition and Essence
 
-ビートマッチングとは、2曲（またはそれ以上）のBPM（Beats Per Minute: 1分間あたりの拍数）と、ビートの位相（Phase: 拍が鳴るタイミング）を一致させる技術です。これにより、複数の曲が同時に再生されても、リズムが乱れず自然に聞こえるようになります。
+Beatmatching is the technique of aligning the BPM (Beats Per Minute) and phase (the timing at which beats occur) of two or more tracks. This allows multiple tracks to be played simultaneously without any rhythmic disruption, sounding natural.
 
 ```
-ビートマッチングの構成要素:
+Components of Beatmatching:
 
 ┌──────────────────────────────────────────────┐
-│          ビートマッチング                      │
+│              Beatmatching                     │
 │                                              │
 │  ┌────────────────┐  ┌────────────────┐     │
-│  │  BPMマッチング  │  │ 位相マッチング  │     │
-│  │ (Speed Match)   │  │ (Phase Match)  │     │
+│  │  BPM Matching  │  │ Phase Matching │     │
+│  │ (Speed Match)  │  │ (Phase Match)  │     │
 │  │                │  │                │     │
-│  │ 2曲の速度を    │  │ 2曲のビートが  │     │
-│  │ 同じにする     │  │ 同時に鳴る     │     │
-│  │                │  │ ようにする     │     │
-│  │ 使用ツール:    │  │ 使用ツール:    │     │
-│  │ Tempo Fader    │  │ ジョグホイール  │     │
-│  │ (ピッチ        │  │ (一時的な      │     │
-│  │  フェーダー)   │  │  速度調整)     │     │
+│  │ Make the speeds│  │ Make the beats │     │
+│  │ of 2 tracks    │  │ of 2 tracks    │     │
+│  │ the same       │  │ hit at the     │     │
+│  │                │  │ same time      │     │
+│  │ Tools used:    │  │ Tools used:    │     │
+│  │ Tempo Fader    │  │ Jog wheel      │     │
+│  │ (pitch fader)  │  │ (temporary     │     │
+│  │                │  │ speed adjust.) │     │
 │  └────────────────┘  └────────────────┘     │
 │                                              │
-│  両方が揃って初めて「ビートマッチ」と呼べる    │
+│  Only when both are aligned can it be        │
+│  called a "beatmatch"                        │
 └──────────────────────────────────────────────┘
 ```
 
-### BPMマッチングの詳細
+### Details of BPM Matching
 
-BPMマッチングは、2曲の再生速度を同一にする作業です。デジタルDJでは画面上にBPMが数値表示されるため、視覚的に確認しながら調整できますが、最終的な判断は必ず耳で行います。
-
-```
-BPMマッチングの原理:
-
-曲A（マスター）: 128.0 BPM → 変更しない（基準）
-曲B（スレーブ）: 126.0 BPM → 128.0 BPMに変更する
-
-Tempo Faderの操作:
-  曲Bの元のBPM: 126.0
-  目標BPM:      128.0
-  差分:         +2.0 BPM
-  変更率:       2.0 / 126.0 = +1.587%
-
-  → Deck BのTempo Faderを約+1.6%に設定
-
-注意点:
-  - BPM表示の精度はソフトウェアによって異なる
-  - 小数点以下の表示が128.0でも実際は128.04かもしれない
-  - 最終的には必ず耳で微調整する
-  - 数値が合っていても耳で聞くとズレることがある
-```
-
-### 位相マッチング（Phase Matching）の詳細
-
-BPMが同じでも、ビートのタイミング（位相）がずれていると、2曲のキックが別々に聞こえてしまいます。位相マッチングは、このタイミングのズレを修正する作業です。
+BPM matching is the process of making the playback speeds of two tracks identical. With digital DJing, BPM is displayed numerically on screen so you can verify it visually while adjusting, but the final judgment must always be made by ear.
 
 ```
-位相のズレの例:
+Principle of BPM Matching:
 
-● = キック（ベースドラム）の発音タイミング
+Track A (Master): 128.0 BPM → Do not change (reference)
+Track B (Slave):  126.0 BPM → Change to 128.0 BPM
 
-完全にズレている状態:
-曲A: ●───●───●───●───●───●───●───●───
-曲B: ──●───●───●───●───●───●───●───●──
-     ↑ キックが交互に鳴る → 「ドドドドドド」 → 違和感
+Tempo Fader operation:
+  Track B's original BPM: 126.0
+  Target BPM:             128.0
+  Difference:             +2.0 BPM
+  Change rate:            2.0 / 126.0 = +1.587%
 
-少しズレている状態:
-曲A: ●───●───●───●───●───●───●───●───
-曲B: ─●───●───●───●───●───●───●───●──
-     ↑ キックが微妙にダブる → 「ドゥドゥドゥドゥ」 → 気持ち悪い
+  → Set Deck B's Tempo Fader to approximately +1.6%
 
-完全に一致している状態:
-曲A: ●───●───●───●───●───●───●───●───
-曲B: ●───●───●───●───●───●───●───●───
-     ↑ キックが完全に重なる → 「ドン ドン ドン ドン」 → 1つの音に聞こえる
+Notes:
+  - The accuracy of the BPM display varies by software
+  - Even if the display shows 128.0, the actual value may be 128.04
+  - Always fine-tune by ear in the end
+  - Even when the numbers match, you may hear a drift when listening
 ```
 
-### 視覚的イメージ（波形で見るビートマッチング）
+### Details of Phase Matching
 
-Rekordboxなどのソフトウェアでは、波形表示でビートのズレを視覚的に確認できます。しかし、波形に頼りすぎることは禁物です。
-
-```
-波形表示でのビートマッチング:
-
-ズレている状態（波形上）:
-曲A: │▓▓│  │▓▓│  │▓▓│  │▓▓│  │▓▓│
-曲B:   │▓▓│  │▓▓│  │▓▓│  │▓▓│  │▓▓│
-       ↑ 波形が横にずれている
-
-合っている状態（波形上）:
-曲A: │▓▓│  │▓▓│  │▓▓│  │▓▓│  │▓▓│
-曲B: │▓▓│  │▓▓│  │▓▓│  │▓▓│  │▓▓│
-     ↑ 波形が縦に揃っている
-
-重要な注意:
-- 波形を「見て」合わせるのではなく「聞いて」合わせる
-- 波形はあくまで補助的な参考情報
-- 波形が揃っていても耳で聞くとズレていることがある
-  （波形の解像度には限界があるため）
-- プロDJは波形を見ずにビートマッチングができる
-- 練習初期は波形を参考にしつつも、耳を鍛えることに集中
-```
-
-### ビートマッチングの数学的理解
-
-ビートマッチングをより深く理解するために、音楽における時間とリズムの数学的な関係を知っておくと役立ちます。
+Even if the BPM is the same, if the timing (phase) of the beats is offset, the kicks of the two tracks will sound separately. Phase matching is the process of correcting this timing offset.
 
 ```
-BPMと時間の関係:
+Example of Phase Offset:
 
-1ビート（1拍）の長さ（秒） = 60 / BPM
+● = Timing of kick (bass drum) hit
 
-例:
-  128 BPM: 1ビート = 60/128 = 0.46875秒 = 468.75ミリ秒
-  130 BPM: 1ビート = 60/130 = 0.46154秒 = 461.54ミリ秒
-  126 BPM: 1ビート = 60/126 = 0.47619秒 = 476.19ミリ秒
+Completely out of phase:
+Track A: ●───●───●───●───●───●───●───●───
+Track B: ──●───●───●───●───●───●───●───●──
+         ↑ Kicks alternate → "duh-duh-duh-duh" → feels off
 
-128 BPMと130 BPMの差:
-  1ビートあたりの時間差: 468.75 - 461.54 = 7.21ミリ秒
-  → 1ビートごとに約7ミリ秒ずつズレが蓄積
+Slightly out of phase:
+Track A: ●───●───●───●───●───●───●───●───
+Track B: ─●───●───●───●───●───●───●───●──
+         ↑ Kicks subtly double → "duh-duh-duh-duh" → feels bad
 
-  4ビート（1小節）後: 7.21 × 4 = 28.84ミリ秒のズレ
-  16ビート（4小節）後: 7.21 × 16 = 115.36ミリ秒のズレ
-  32ビート（8小節）後: 7.21 × 32 = 230.72ミリ秒のズレ
-
-  人間がズレを認識する閾値: 約20-30ミリ秒
-  → 1小節（4ビート）でもう聞き取れるレベルのズレ
-
-128 BPMと128.5 BPMの差:
-  1ビートあたりの時間差: 468.75 - 465.12 = 3.63ミリ秒
-  32ビート（8小節）後: 3.63 × 32 = 116.16ミリ秒のズレ
-  → 8小節でもかなりのズレが蓄積
-  → 0.5 BPMの差でも放置すると問題になる
-
-結論:
-  - BPMの差が0.1以下になるまで調整が必要
-  - 最終的にはBPMの差が0になるのが理想
-  - しかし「完全な0」はデジタルでも難しい
-  - だからこそ継続的な微調整（ライディング）が必要
+Perfectly aligned:
+Track A: ●───●───●───●───●───●───●───●───
+Track B: ●───●───●───●───●───●───●───●───
+         ↑ Kicks completely overlap → "BOOM BOOM BOOM BOOM" → sounds like one
 ```
 
----
+### Visual Image (Beatmatching via Waveform)
 
-## 2. ビートマッチングの2段階
-
-### Step 1: BPM（速度）を合わせる
-
-BPMマッチングは、ビートマッチングの第一段階です。2曲の再生速度を揃えることで、ビートのズレが時間の経過とともに蓄積しないようにします。
+In software like Rekordbox, you can visually check beat offset via the waveform display. However, relying too heavily on the waveform is not recommended.
 
 ```
-BPMマッチングの手順:
+Beatmatching via Waveform Display:
 
-1. マスターデッキのBPMを確認
-   - 曲A（現在スピーカーから流れている曲）のBPMを確認
-   - 例: 128.0 BPM
+Out of phase (on waveform):
+Track A: │▓▓│  │▓▓│  │▓▓│  │▓▓│  │▓▓│
+Track B:   │▓▓│  │▓▓│  │▓▓│  │▓▓│  │▓▓│
+           ↑ Waveforms are horizontally offset
 
-2. スレーブデッキのBPMを確認
-   - 曲B（次にミックスする曲）の元のBPMを確認
-   - 例: 125.0 BPM
+In phase (on waveform):
+Track A: │▓▓│  │▓▓│  │▓▓│  │▓▓│  │▓▓│
+Track B: │▓▓│  │▓▓│  │▓▓│  │▓▓│  │▓▓│
+         ↑ Waveforms are vertically aligned
 
-3. Tempo Faderで調整
-   - 曲BのTempo Faderを操作して128.0 BPMに近づける
-   - 差分: +3.0 BPM = +2.4%
-   - Tempo Faderを下方向に移動（速度を上げる）
-
-4. 数値の一致を確認
-   - Rekordbox画面で曲Bが128.0 BPMと表示されているか確認
-   - ただし、これはあくまで粗調整
-
-5. 耳での最終確認
-   - ヘッドフォンで両方の曲を聞きながら
-   - BPMが本当に一致しているか確認
-   - ズレが蓄積していたらTempo Faderを微調整
-
-BPMマッチングのコツ:
-- 最初にざっくり合わせてから微調整する
-- Tempo Faderを大きく動かすと元に戻しにくい
-- 0.5%単位で少しずつ調整するのが安全
-- 画面のBPM数値だけに頼らない
+Important notes:
+- Match by "listening," not by "looking" at the waveform
+- The waveform is purely supplementary reference information
+- Even when waveforms are aligned, you may hear a drift
+  (due to the resolution limits of the waveform display)
+- Professional DJs can beatmatch without looking at the waveform
+- In early practice, use the waveform as a reference while focusing on training your ear
 ```
 
-### Step 2: 位相（タイミング）を合わせる
+### Mathematical Understanding of Beatmatching
 
-BPMが同じになったら、次はビートの位相（Phase）を合わせます。これは、曲Bのキックが曲Aのキックと同じタイミングで鳴るように調整する作業です。
-
-```
-位相マッチングの手順:
-
-1. 曲Bの再生を開始
-   - キューポイントから再生（またはPlayボタン）
-   - この時点では曲Bはヘッドフォンでのみ聞く
-
-2. 両方のキックを同時に聞く
-   - ヘッドフォンのMixingノブを中央に
-   - 左耳で曲A（スピーカー）、右耳で曲B（ヘッドフォン）
-
-3. ズレの方向を判断
-   - 曲Bのキックが曲Aより「先」に鳴っている？
-     → 曲Bが速い（先行している）
-   - 曲Bのキックが曲Aより「後」に鳴っている？
-     → 曲Bが遅い（遅れている）
-
-4. ジョグホイールで修正
-   - 曲Bが先行: ジョグホイール上面を後方（反時計回り）に軽く触れる
-     → 曲Bが一時的に減速 → 曲Aとタイミングが合う
-   - 曲Bが遅れ: ジョグホイール上面を前方（時計回り）に軽く触れる
-     → 曲Bが一時的に加速 → 曲Aに追いつく
-
-5. 一致を確認
-   - 両方のキックが「1つの音」に聞こえるか
-   - エコーのように聞こえたらまだズレている
-   - 完全に重なるまで微調整を繰り返す
-
-位相マッチングの注意点:
-- ジョグホイールは「なでる」ように軽く触れる
-- 大きく回すと位相が大きくズレて修正が難しくなる
-- BPMが完全に一致していれば、一度位相が合えばズレない
-- BPMが微妙にずれている場合、位相は徐々にズレていく
-  → BPMの微調整（Tempo Fader）が先決
-```
-
-### BPMマッチングと位相マッチングの関係
-
-この2つは独立した作業ではなく、相互に関連しています。実際のDJプレイでは、両方を同時に行うことが求められます。
+Understanding the mathematical relationship between time and rhythm in music helps deepen your understanding of beatmatching.
 
 ```
-2段階の関係性:
+Relationship Between BPM and Time:
 
-BPMが合っていない × 位相が合っていない
-→ すぐにズレが大きくなる → ミックス不可能
+Length of 1 beat (in seconds) = 60 / BPM
 
-BPMが合っていない × 位相が合っている
-→ 一瞬は合うが、すぐにズレ始める → 持続不可能
-→ 「合わせても合わせてもズレる」状態
+Examples:
+  128 BPM: 1 beat = 60/128 = 0.46875 s = 468.75 ms
+  130 BPM: 1 beat = 60/130 = 0.46154 s = 461.54 ms
+  126 BPM: 1 beat = 60/126 = 0.47619 s = 476.19 ms
 
-BPMが合っている × 位相が合っていない
-→ ズレは一定（蓄積しない）→ ジョグホイール一発で修正可能
-→ この状態にまず持っていくのが最初の目標
+Difference between 128 BPM and 130 BPM:
+  Time difference per beat: 468.75 - 461.54 = 7.21 ms
+  → About 7 ms of drift accumulates per beat
 
-BPMが合っている × 位相が合っている
-→ 完璧なビートマッチ → 両方の曲が1つに聞こえる
-→ この状態を維持し続けるのが目標
+  After 4 beats (1 bar):  7.21 × 4 = 28.84 ms drift
+  After 16 beats (4 bars): 7.21 × 16 = 115.36 ms drift
+  After 32 beats (8 bars): 7.21 × 32 = 230.72 ms drift
 
-実践的なアプローチ:
-1. まずBPMを合わせる（Tempo Fader）
-2. 次に位相を合わせる（ジョグホイール）
-3. ズレが蓄積するならBPMを再調整
-4. ズレが蓄積しなくなったら位相の微調整
-5. 完璧に合ったらミックスを開始
+  Human perception threshold for drift: approx. 20–30 ms
+  → After just 1 bar (4 beats), the drift is already perceptible
+
+Difference between 128 BPM and 128.5 BPM:
+  Time difference per beat: 468.75 - 465.12 = 3.63 ms
+  After 32 beats (8 bars): 3.63 × 32 = 116.16 ms drift
+  → Significant drift even after 8 bars
+  → Even a 0.5 BPM difference becomes a problem if left uncorrected
+
+Conclusion:
+  - Adjustment down to 0.1 BPM difference or less is required
+  - Ideally, the BPM difference should reach 0
+  - However, a "perfect 0" is difficult even digitally
+  - That is why continuous fine adjustment (riding) is necessary
 ```
 
 ---
 
-## 3. DDJ-FLX4でのビートマッチング
+## 2. The Two Stages of Beatmatching
 
-### コントローラーレイアウトの詳細理解
+### Step 1: Match the BPM (Speed)
 
-DDJ-FLX4は、Pioneer DJが初心者向けに設計したコントローラーですが、ビートマッチングに必要な全ての機能を備えています。まず、ビートマッチングに関連する各部の位置と機能を正確に理解しましょう。
+BPM matching is the first stage of beatmatching. By equalizing the playback speeds of two tracks, you prevent beat drift from accumulating over time.
 
 ```
-DDJ-FLX4 ビートマッチング関連レイアウト:
+Steps for BPM Matching:
+
+1. Check the BPM of the master deck
+   - Check the BPM of Track A (the track currently playing through the speakers)
+   - Example: 128.0 BPM
+
+2. Check the BPM of the slave deck
+   - Check the original BPM of Track B (the next track to mix)
+   - Example: 125.0 BPM
+
+3. Adjust with the Tempo Fader
+   - Operate Track B's Tempo Fader to bring it close to 128.0 BPM
+   - Difference: +3.0 BPM = +2.4%
+   - Move the Tempo Fader downward (increase speed)
+
+4. Confirm the numbers match
+   - Check that Track B shows 128.0 BPM on the Rekordbox screen
+   - However, this is only a rough adjustment
+
+5. Final confirmation by ear
+   - Listen to both tracks on headphones
+   - Confirm that the BPMs truly match
+   - If drift is accumulating, fine-tune the Tempo Fader
+
+Tips for BPM Matching:
+- Start with a rough match, then fine-tune
+- Moving the Tempo Fader too far makes it hard to come back
+- It is safer to adjust in 0.5% increments
+- Do not rely solely on the on-screen BPM number
+```
+
+### Step 2: Match the Phase (Timing)
+
+Once the BPMs match, the next step is to match the beat phase. This is the process of adjusting Track B so its kick hits at the same moment as Track A's kick.
+
+```
+Steps for Phase Matching:
+
+1. Start playback of Track B
+   - Play from the cue point (or press the Play button)
+   - At this point, Track B is heard only through headphones
+
+2. Listen to both kicks simultaneously
+   - Set the Headphone Mixing knob to center
+   - Left ear: Track A (speakers), right ear: Track B (headphones)
+
+3. Determine the direction of the offset
+   - Is Track B's kick hitting "before" Track A's?
+     → Track B is fast (ahead)
+   - Is Track B's kick hitting "after" Track A's?
+     → Track B is slow (behind)
+
+4. Correct with the jog wheel
+   - Track B is ahead: lightly touch the jog wheel top surface backward (counterclockwise)
+     → Track B temporarily slows down → timing aligns with Track A
+   - Track B is behind: lightly touch the jog wheel top surface forward (clockwise)
+     → Track B temporarily speeds up → catches up to Track A
+
+5. Confirm alignment
+   - Do both kicks sound like "one sound"?
+   - If it sounds like an echo, there is still offset
+   - Repeat fine adjustments until they are perfectly overlapping
+
+Notes on Phase Matching:
+- Touch the jog wheel lightly, as if "stroking" it
+- Turning it too far causes a large phase shift that is hard to correct
+- If BPM is perfectly matched, once phase is aligned it will not drift
+- If BPM is slightly off, the phase will gradually drift
+  → Adjust the BPM first (Tempo Fader)
+```
+
+### The Relationship Between BPM Matching and Phase Matching
+
+These two are not independent tasks — they are interrelated. In actual DJ performance, both must be done simultaneously.
+
+```
+Relationship Between the Two Stages:
+
+BPM not matched × Phase not matched
+→ Drift becomes large immediately → Mixing is impossible
+
+BPM not matched × Phase matched
+→ Aligned for an instant, but drift starts immediately → Not sustainable
+→ The state of "no matter how many times I align it, it drifts"
+
+BPM matched × Phase not matched
+→ Drift is constant (does not accumulate) → One jog wheel action can fix it
+→ Getting to this state first is the initial goal
+
+BPM matched × Phase matched
+→ Perfect beatmatch → Both tracks sound like one
+→ Maintaining this state is the goal
+
+Practical Approach:
+1. First match the BPM (Tempo Fader)
+2. Then match the phase (jog wheel)
+3. If drift accumulates, readjust the BPM
+4. Once drift stops accumulating, fine-tune the phase
+5. Once perfectly aligned, begin the mix
+```
+
+---
+
+## 3. Beatmatching on the DDJ-FLX4
+
+### Detailed Understanding of the Controller Layout
+
+The DDJ-FLX4 is designed by Pioneer DJ for beginners, but it has all the functions needed for beatmatching. First, accurately understand the location and function of each part related to beatmatching.
+
+```
+DDJ-FLX4 Beatmatching-Related Layout:
 
 ┌─────────────────────────────────────────────┐
 │                                             │
@@ -484,9 +488,9 @@ DDJ-FLX4 ビートマッチング関連レイアウト:
 │  │   JOG     │              │   JOG     │  │
 │  │  WHEEL    │              │  WHEEL    │  │
 │  │           │              │           │  │
-│  │  上面:    │              │  上面:    │  │
-│  │  ピッチ   │              │  ピッチ   │  │
-│  │  ベンド   │              │  ベンド   │  │
+│  │  Top:     │              │  Top:     │  │
+│  │  Pitch    │              │  Pitch    │  │
+│  │  Bend     │              │  Bend     │  │
 │  │           │              │           │  │
 │  └───────────┘              └───────────┘  │
 │                                             │
@@ -522,2443 +526,2444 @@ DDJ-FLX4 ビートマッチング関連レイアウト:
 └─────────────────────────────────────────────┘
 ```
 
-### 各部の詳細な役割と操作方法
+### Detailed Role and Operation of Each Section
 
-#### ジョグホイール
+#### Jog Wheel
 
-DDJ-FLX4のジョグホイールは、ビートマッチングにおいて「位相調整」を担当する最も重要な操作部品です。
-
-```
-ジョグホイールの操作モード:
-
-1. ピッチベンド（再生中に上面をタッチ）
-   - 軽く時計回りに回す: 一時的に曲を加速
-   - 軽く反時計回りに回す: 一時的に曲を減速
-   - 手を離すと元のBPMに戻る
-   - ビートマッチング時の主な操作
-
-   力加減の目安:
-   - 極軽いタッチ: 0.1-0.3%程度の速度変化
-   - 軽いタッチ: 0.5-1.0%程度の速度変化
-   - 普通のタッチ: 1.0-3.0%程度の速度変化
-   - 強いタッチ: 3.0%以上の速度変化（やりすぎ注意）
-
-2. スクラッチ（再生中にVinylモードで上面をタッチ&回転）
-   - DDJ-FLX4ではVinylモードがデフォルトON
-   - 上面を押さえたまま回すとスクラッチ
-   - ビートマッチングでは使わない（混同注意）
-   - 設定でVinylモードをOFFにすることも可能
-
-3. 曲送り/戻し（側面を回す）
-   - 再生中: 曲の早送り/巻き戻し
-   - 停止中: 曲の特定位置にスキップ
-   - ビートマッチングではあまり使わない
-   - キューポイント設定時に使用
-
-ジョグホイールの正しい持ち方・触り方:
-- 指の腹（人差し指と中指）を使う
-- 爪は使わない（反応が不安定になる）
-- 手首はリラックス（力まない）
-- ジョグホイールの外周部分をなでるイメージ
-- 上面の中心付近は感度が高すぎるので避ける
-
-DDJ-FLX4特有の注意点:
-- ジョグホイールのサイズが小さめ（CDJ比）
-- そのため繊細なタッチが必要
-- 指1-2本で操作するのが最適
-- 手のひら全体で覆うと操作が大きくなりすぎる
-```
-
-#### Tempo Fader（ピッチフェーダー）
-
-Tempo Faderは、曲のBPM（再生速度）を変更するためのスライダーです。ビートマッチングの「BPMマッチング」段階で使用します。
+The jog wheel on the DDJ-FLX4 is the most important control part for "phase adjustment" in beatmatching.
 
 ```
-Tempo Faderの詳細:
+Jog Wheel Operation Modes:
 
-DDJ-FLX4の仕様:
-- ストローク長: 約60mm（短め）
-- 調整範囲: ±8%（デフォルト）
-- Rekordbox設定で±6%, ±10%, ±16%, WIDEに変更可能
-- 中央位置: ±0%（元のBPMのまま）
-- 上方向: マイナス（BPMが下がる = 遅くなる）
-- 下方向: プラス（BPMが上がる = 速くなる）
+1. Pitch Bend (touch the top surface while playing)
+   - Lightly turn clockwise: temporarily speeds up the track
+   - Lightly turn counterclockwise: temporarily slows down the track
+   - When you release, it returns to the original BPM
+   - The main operation during beatmatching
 
-※方向は直感と逆に感じるかもしれない
-  覚え方: 「フェーダーを押し下げる = 速度を押し上げる」
+   Guide to pressure:
+   - Very light touch: ~0.1–0.3% speed change
+   - Light touch: ~0.5–1.0% speed change
+   - Normal touch: ~1.0–3.0% speed change
+   - Strong touch: 3.0%+ speed change (be careful not to overdo it)
 
-精度の目安:
-- ストローク60mmで±8% = 16%の範囲
-- 1mm動かすと約0.27%変化
-- 128 BPMの場合、1mm ≒ 0.34 BPM
-- 微調整には指先の繊細なコントロールが必要
+2. Scratch (touch and rotate top surface while playing in Vinyl mode)
+   - Vinyl mode is ON by default on the DDJ-FLX4
+   - Pressing and rotating the top while holding = scratch
+   - Not used during beatmatching (do not confuse)
+   - Vinyl mode can be turned OFF in settings
 
-操作のコツ:
-- 親指と人差し指でつまむように持つ
-- 急に動かさない（フロアに影響）
-- 0.5mm単位で微調整する感覚を身につける
-- フェーダーの目盛りは目安、最終判断は耳
+3. Track skip (rotate the side)
+   - While playing: fast-forward / rewind
+   - While stopped: skip to a specific position in the track
+   - Rarely used during beatmatching
+   - Used when setting cue points
 
-Tempo Faderの範囲設定のガイド:
-- ±6%: 同ジャンル内でのミックスに十分
-- ±8%: 標準。ほとんどのケースで対応（推奨）
-- ±10%: ジャンルをまたぐミックスに便利
-- ±16%: 大幅なBPM変更が必要な場合
-- WIDE: 最大範囲（±100%まで可能だが実用的ではない）
+Correct way to hold and touch the jog wheel:
+- Use the pads of your fingers (index and middle finger)
+- Do not use your nails (response becomes unstable)
+- Keep your wrist relaxed (do not tense up)
+- Imagine stroking the outer edge of the jog wheel
+- Avoid the area near the center of the top surface (sensitivity is too high)
 
-注意: 範囲が広いほど1mmあたりの変化量が大きくなり、
-      微調整が困難になる。初心者は±8%推奨。
+DDJ-FLX4-specific notes:
+- Jog wheel size is smaller than CDJs
+- Therefore, delicate touch is required
+- Operating with 1–2 fingers is optimal
+- Covering it with your whole palm makes movements too large
 ```
 
-#### ヘッドフォン関連
+#### Tempo Fader (Pitch Fader)
 
-ビートマッチングにおいて、ヘッドフォンは「次の曲」をモニターするための必須アイテムです。DDJ-FLX4のヘッドフォン関連コントロールを理解しましょう。
+The Tempo Fader is a slider used to change the BPM (playback speed) of a track. It is used during the "BPM matching" stage of beatmatching.
 
 ```
-ヘッドフォンセクション:
+Tempo Fader Details:
 
-1. Headphone Cue ボタン（各チャンネル）
-   - CH1のCueボタン: Deck Aの音をヘッドフォンに送る
-   - CH2のCueボタン: Deck Bの音をヘッドフォンに送る
-   - 両方ON: 両方の音がヘッドフォンに送られる
+DDJ-FLX4 Specifications:
+- Stroke length: approx. 60 mm (shorter)
+- Adjustment range: ±8% (default)
+- Can be changed to ±6%, ±10%, ±16%, or WIDE in Rekordbox settings
+- Center position: ±0% (original BPM unchanged)
+- Upward direction: minus (BPM decreases = slows down)
+- Downward direction: plus (BPM increases = speeds up)
 
-   ビートマッチング時の使い方:
-   - 通常: 次にミックスする曲のCueをON
-   - 両方聞きたい時: 両方のCueをON
+※ The direction may feel counterintuitive
+  Memory trick: "Push the fader down = push the speed up"
 
-2. Headphone Mixing ノブ
-   - 左に回す: Master音声（スピーカーと同じ音）が多く聞こえる
-   - 中央: Master + Cue が同じ音量で聞こえる
-   - 右に回す: Cue音声（ヘッドフォン専用の音）が多く聞こえる
+Precision guide:
+- 60 mm stroke for ±8% = 16% range
+- Moving 1 mm changes speed by approx. 0.27%
+- At 128 BPM, 1 mm ≈ 0.34 BPM
+- Fine adjustment requires delicate fingertip control
 
-   ビートマッチング時の推奨位置:
-   - 位相を聞き比べる時: 中央やや右（Cue多め）
-   - ズレの方向を確認する時: 左右に動かして比較
-   - フロアの音を確認する時: 左寄り
+Operational tips:
+- Pinch the fader cap between thumb and index finger
+- Do not move it suddenly (affects the floor)
+- Develop a sense of fine-tuning in 0.5 mm increments
+- Fader markings are a guide; final judgment is by ear
 
-3. Headphone Level ノブ
-   - ヘッドフォンの音量を調整
-   - 耳を守るため適度な音量に
-   - 大きすぎると聴覚疲労で判断力が低下
+Guide to Tempo Fader Range Settings:
+- ±6%: Sufficient for mixing within the same genre
+- ±8%: Standard. Handles most cases (recommended)
+- ±10%: Convenient for cross-genre mixing
+- ±16%: For cases requiring large BPM changes
+- WIDE: Maximum range (up to ±100%, but not practical)
 
-ヘッドフォンの使い方のプロTips:
-- 片耳ヘッドフォン: 片方を耳から外してスピーカーを直接聞く
-  → 右耳: ヘッドフォン（Cue音声）
-  → 左耳: スピーカー（Master音声）
-  → プロDJの定番スタイル
+Note: The wider the range, the larger the change per mm,
+      making fine adjustment harder. ±8% is recommended for beginners.
+```
 
-- 耳当ての角度: 耳にぴったりつけず少し浮かせると
-  スピーカー音も自然に聞こえる
+#### Headphone Section
 
-- 首にかけるスタイル: ヘッドフォンを首にかけ、
-  片方のイヤーパッドだけ耳に当てる
-  → 手で押さえることで角度を微調整
+In beatmatching, headphones are an essential item for monitoring "the next track." Understand the headphone-related controls on the DDJ-FLX4.
+
+```
+Headphone Section:
+
+1. Headphone Cue Button (per channel)
+   - CH1 Cue button: sends Deck A audio to headphones
+   - CH2 Cue button: sends Deck B audio to headphones
+   - Both ON: audio from both decks is sent to headphones
+
+   How to use during beatmatching:
+   - Normally: turn on Cue for the next track to mix
+   - When you want to hear both: turn on both Cues
+
+2. Headphone Mixing Knob
+   - Turned left: more Master audio (same as speakers) is heard
+   - Center: Master + Cue heard at equal volume
+   - Turned right: more Cue audio (headphone-only audio) is heard
+
+   Recommended position during beatmatching:
+   - When comparing phase: center to slightly right (more Cue)
+   - When checking drift direction: move left and right to compare
+   - When checking floor audio: lean left
+
+3. Headphone Level Knob
+   - Adjusts the headphone volume
+   - Set to a moderate volume to protect your ears
+   - Too loud causes auditory fatigue and impairs judgment
+
+Pro Tips for headphone use:
+- One-ear headphone style: take one side off your ear and listen to speakers directly
+  → Right ear: headphones (Cue audio)
+  → Left ear: speakers (Master audio)
+  → The standard style for professional DJs
+
+- Angle of the ear cup: instead of pressing it firmly against the ear, lift it slightly
+  and you can naturally hear the speaker audio too
+
+- Neck-hanging style: hang headphones around your neck,
+  hold just one ear cup to your ear
+  → Hold it with your hand to fine-tune the angle
 ```
 
 ---
 
-## 4. ビートマッチング手順（完全版）
+## 4. Beatmatching Procedure (Complete Version)
 
-### 準備段階
+### Preparation Stage
 
-ビートマッチングの練習を始める前に、ソフトウェアとハードウェアの設定を最適化しましょう。
+Before starting beatmatching practice, optimize your software and hardware settings.
 
-#### Rekordbox設定
+#### Rekordbox Settings
 
 ```
-必須設定（ビートマッチング練習用）:
+Required Settings (for beatmatching practice):
 
 [Preferences] → [Controller] → [DDJ-FLX4]
-  - Jog Mode: Vinyl（推奨、ピッチベンドの操作感が自然）
-  - Jog Sensitivity: 中程度（デフォルトのまま）
+  - Jog Mode: Vinyl (recommended, natural feel for pitch bend operation)
+  - Jog Sensitivity: Medium (keep at default)
 
 [Preferences] → [DJ Play]
-  - Beat Sync: OFF（★必須★ 自動Syncを無効にする）
-  - Quantize: OFF（★必須★ 自動位相補正を無効にする）
-  - Beat Jump: 任意（ビートマッチングには影響しない）
+  - Beat Sync: OFF (★ Required ★ Disable auto Sync)
+  - Quantize: OFF (★ Required ★ Disable auto phase correction)
+  - Beat Jump: Optional (does not affect beatmatching)
 
 [Preferences] → [View]
-  - BPM表示: ON（練習初期の参考に）
-  - 波形表示: ON（練習初期の参考に）
-  - Phase Meter: ON（ズレの可視化、参考程度に）
+  - BPM display: ON (reference for early practice)
+  - Waveform display: ON (reference for early practice)
+  - Phase Meter: ON (visualizes drift, use as reference)
 
 [Preferences] → [Audio]
-  - Output: 正しい出力デバイスを選択
-  - Headphone: 正しいヘッドフォン出力を選択
-  - Latency: できるだけ低く（128 samples推奨）
+  - Output: select the correct output device
+  - Headphone: select the correct headphone output
+  - Latency: as low as possible (128 samples recommended)
 
-練習時に特に重要な設定:
-- Metronome: ON（BPMの基準として使える）
-  → 曲のキックではなくメトロノームに合わせる練習も有効
-  → ただし依存しすぎないこと
+Settings particularly important during practice:
+- Metronome: ON (can be used as a BPM reference)
+  → Practice aligning to the metronome rather than the track's kick
+  → However, do not become dependent on it
 
-- Key Lock (Master Tempo): OFF（練習時）
-  → BPM変更時にキーの変化を聴覚的に認識する訓練
-  → BPMを上げるとキーが上がる、下げると下がる
-  → この感覚を知っておくことは重要
+- Key Lock (Master Tempo): OFF (during practice)
+  → Train yourself to hear the pitch change when BPM changes
+  → BPM going up raises the key; going down lowers it
+  → Knowing this feeling is important
 
-- Quantize OFF が重要な理由:
-  → Quantizeがonだと再生開始時にビートグリッドに
-    自動的にスナップしてくれる
-  → 手動で位相を合わせる練習にならない
-  → まずはOFFで練習、慣れてからONを活用
+- Why Quantize OFF is important:
+  → With Quantize on, the playback start point automatically
+    snaps to the beat grid
+  → This does not train you to align the phase manually
+  → Practice with it OFF first, then use ON after getting used to it
 ```
 
-#### 曲の選択（練習用）
+#### Track Selection (for Practice)
 
-練習に使う曲の選択は、上達速度に大きく影響します。最初から難しい曲を選ぶと挫折の原因になります。
+The selection of tracks used for practice significantly affects how quickly you improve. Choosing tracks that are too difficult at the start can cause you to give up.
 
 ```
-練習用楽曲の選び方:
+How to Choose Practice Tracks:
 
-レベル1（Week 1-2用）: 最も簡単な曲
-  条件:
-  - 4つ打ち（Four-on-the-floor）のキックが明確
-  - BPMが一定（テンポチェンジなし）
-  - ブレイク（キックが抜ける部分）が短い
-  - キック以外の要素がシンプル
-  - BPM: 125-130の範囲
+Level 1 (for Week 1–2): Easiest tracks
+  Conditions:
+  - Clear four-on-the-floor kick
+  - Constant BPM (no tempo changes)
+  - Short breaks (where the kick drops out)
+  - Simple elements beyond the kick
+  - BPM: in the 125–130 range
 
-  推奨ジャンル:
-  - Tech House（テックハウス）
-  - Minimal Techno（ミニマルテクノ）
-  - Progressive House（プログレッシブハウス）
+  Recommended genres:
+  - Tech House
+  - Minimal Techno
+  - Progressive House
 
-  具体的な特徴:
-  - キックが「ドン・ドン・ドン・ドン」と規則的
-  - ハイハットが裏打ち「チッ・チッ・チッ・チッ」
-  - ベースラインがシンプル
-  - ボーカルが少ない or なし
+  Specific characteristics:
+  - Kick hits regularly: "boom boom boom boom"
+  - Off-beat hi-hat: "chi chi chi chi"
+  - Simple bassline
+  - Little or no vocals
 
-レベル2（Week 3-4用）: 少し複雑な曲
-  条件:
-  - キックが明確だが、パターンにバリエーションあり
-  - シンコペーションが少し入っている
-  - BPM: 120-135の範囲
+Level 2 (for Week 3–4): Slightly more complex tracks
+  Conditions:
+  - Kick is clear but with some variation in pattern
+  - A little syncopation
+  - BPM: in the 120–135 range
 
-  推奨ジャンル:
-  - House（ハウス全般）
-  - Melodic Techno（メロディックテクノ）
-  - Deep House（ディープハウス）
+  Recommended genres:
+  - House (general)
+  - Melodic Techno
+  - Deep House
 
-レベル3（Week 5-8用）: 実践的な曲
-  条件:
-  - 様々なパターンのキック
-  - ブレイクが長い曲も含む
-  - BPM: 115-140の範囲
+Level 3 (for Week 5–8): Practical tracks
+  Conditions:
+  - Various kick patterns
+  - Including tracks with long breaks
+  - BPM: in the 115–140 range
 
-  推奨ジャンル:
+  Recommended genres:
   - Afro House
   - Indie Dance
   - Electronica
 
-レベル4（Week 9+）: 高難度の曲
-  条件:
-  - ブレイクビーツ
-  - シンコペーション多め
-  - BPM変動あり
+Level 4 (Week 9+): High-difficulty tracks
+  Conditions:
+  - Breakbeats
+  - Heavy syncopation
+  - BPM variation
 
-  推奨ジャンル:
-  - Drum & Bass（高速）
-  - UK Garage（シャッフル）
+  Recommended genres:
+  - Drum & Bass (high speed)
+  - UK Garage (shuffle)
   - Breakbeat
 
-避けるべき曲（初心者）:
-  ✗ BPMが途中で変わる曲
-  ✗ キックが4つ打ちではない曲
-  ✗ 環境音やアンビエント（ビートが不明瞭）
-  ✗ ライブ演奏の録音（テンポの揺らぎ）
-  ✗ マッシュアップやエディット（構造が不規則）
+Tracks to avoid (for beginners):
+  ✗ Tracks where BPM changes mid-track
+  ✗ Tracks where the kick is not four-on-the-floor
+  ✗ Ambient/soundscape tracks (beat is unclear)
+  ✗ Live performance recordings (tempo fluctuation)
+  ✗ Mashups or edits (irregular structure)
 ```
 
-### Step 1: 曲Aを再生（マスターデッキ）
+### Step 1: Play Track A (Master Deck)
 
-曲Aは「マスター」として扱います。この曲のBPMとビートが基準になります。
-
-```
-曲Aの再生手順:
-
-1. Deck Aに曲をロード
-   - Rekordboxのブラウザから曲をDeck Aにドラッグ&ドロップ
-   - またはDeck Aの「LOAD」ボタンを使用
-
-2. キューポイントを確認
-   - 曲の冒頭のキックが始まる位置にHot Cueを設定
-   - 通常は曲の最初のキック（ドン）の位置
-
-3. チャンネルフェーダーを上げる（Deck A / CH1）
-   - フェーダーを最大まで上げる
-   - EQ（HI, MID, LO）は12時の位置（ニュートラル）
-
-4. Playボタンを押す
-   - 曲Aがスピーカーから再生される
-   - この曲が「基準」となる
-
-5. BPMを確認して記憶する
-   - Rekordbox画面でDeck AのBPMを確認
-   - 例: 128.0 BPM
-   - この数値が目標BPM
-
-注意点:
-- 曲AのTempo Faderは中央（±0%）のままにしておく
-- 曲Aの再生中はTempo Faderを動かさない
-- マスターのBPMを変えると混乱の原因になる
-- 例外: マスターのBPMを意図的に変更するテクニックもあるが上級者向け
-```
-
-### Step 2: 曲BのBPMを確認
-
-次にミックスする曲Bの情報を把握します。
+Track A is treated as the "master." Its BPM and beats serve as the reference.
 
 ```
-曲Bの確認手順:
+Procedure for Playing Track A:
 
-1. Deck Bに曲をロード
-   - 曲Aが再生中のまま、Deck Bに次の曲をロード
+1. Load a track onto Deck A
+   - Drag and drop the track from Rekordbox's browser onto Deck A
+   - Or use Deck A's LOAD button
 
-2. 元のBPMを確認
-   - Rekordbox画面でDeck Bの元のBPMを確認
-   - 例: 126.5 BPM
+2. Check the cue point
+   - Set a Hot Cue at the position where the kick starts at the top of the track
+   - Usually the position of the very first kick (boom)
 
-3. 差分を計算
-   - 目標: 128.0 BPM（曲AのBPM）
-   - 現在: 126.5 BPM（曲Bの元のBPM）
-   - 差分: +1.5 BPM
+3. Raise the channel fader (Deck A / CH1)
+   - Raise the fader all the way up
+   - Set EQ (HI, MID, LO) to 12 o'clock position (neutral)
 
-4. 必要な調整量を見積もる
-   - 変更率: 1.5 / 126.5 = 約+1.19%
-   - Tempo Faderを約+1.2%の位置に
+4. Press the Play button
+   - Track A plays through the speakers
+   - This track becomes the "reference"
 
-5. 曲Bのキューポイントを確認
-   - 再生を開始したい位置にキューを設定
-   - 通常はイントロの最初のキック
+5. Check and memorize the BPM
+   - Check Deck A's BPM on the Rekordbox screen
+   - Example: 128.0 BPM
+   - This number is your target BPM
 
-DDJ-FLX4のTempo Faderの目盛りの読み方:
-  ±8%の範囲で上下に動く
-  中央: 0%
-  最下部: +8%
-  最上部: -8%
-
-  +1.2%の位置 = 中央から少し下
-  目安: 全体のストロークの約7.5%分だけ下に動かす
+Notes:
+- Keep Track A's Tempo Fader at center (±0%)
+- Do not move the Tempo Fader while Track A is playing
+- Changing the master's BPM causes confusion
+- Exception: intentionally changing the master's BPM is an advanced technique
 ```
 
-### Step 3: Tempo Faderで曲BのBPMを調整
+### Step 2: Check Track B's BPM
 
-Tempo Faderを使って、曲Bの再生速度を曲Aに合わせます。
-
-```
-Tempo Fader調整の手順:
-
-1. 粗調整
-   - Deck BのTempo Faderをゆっくり下方向に動かす
-   - Rekordbox画面でBPMの変化をリアルタイムで確認
-   - 128.0 BPMに近づくまで調整
-
-2. 微調整
-   - 127.8 → 127.9 → 128.0 と段階的に近づける
-   - 1mm以下の単位で微調整
-   - 指先の感覚を使う
-
-3. 数値の確認
-   - Rekordbox画面で「128.0」と表示されているか確認
-   - 小数点以下第一位まで合っていればOK（粗調整段階）
-
-4. フェーダーの位置をメモ
-   - このフェーダー位置を体で覚える
-   - 同じBPM差の曲では同じ位置が目安になる
-
-よくあるミス:
-- Tempo Faderを動かしすぎて通り過ぎてしまう
-  → 少しずつ動かす習慣をつける
-
-- 間違った方向に動かしてしまう
-  → 上 = 遅く、下 = 速く を覚える
-
-- 曲AのTempo Faderを間違えて動かす
-  → 常にどのデッキを操作しているか確認
-  → DDJ-FLX4はデッキ表示LEDで確認可能
-
-プロのアドバイス:
-- Tempo Faderの位置は「見る」のではなく「感じる」
-- 何度も同じBPM差の曲で練習すると、
-  フェーダーの位置感覚が体に染みつく
-- BPM差に応じたフェーダー位置を
-  体で覚えることが上達の秘訣
-```
-
-### Step 4: 曲Bをヘッドフォンで再生
-
-曲BのBPMを調整したら、実際に再生してヘッドフォンでモニターします。
+Gather information about Track B, the next track to mix.
 
 ```
-ヘッドフォンモニターの手順:
+Track B Confirmation Procedure:
 
-1. Deck BのCueボタンをON
-   - ヘッドフォンで曲Bが聞こえるようになる
-   - スピーカーからは曲Aだけが流れている状態
+1. Load a track onto Deck B
+   - With Track A still playing, load the next track onto Deck B
 
-2. Headphone Mixingノブの位置
-   - まずはCue寄り（右寄り）に
-   - 曲Bだけをクリアに聞ける状態にする
+2. Check the original BPM
+   - Check Deck B's original BPM on the Rekordbox screen
+   - Example: 126.5 BPM
 
-3. 曲Bの頭出し
-   - ジョグホイール（側面）で曲Bの再生位置を
-     キックの始まる位置に合わせる
-   - Hot Cueが設定してあればCueボタンで一発
+3. Calculate the difference
+   - Target: 128.0 BPM (Track A's BPM)
+   - Current: 126.5 BPM (Track B's original BPM)
+   - Difference: +1.5 BPM
 
-4. 曲Bの再生開始
-   - 曲Aのキックに合わせてPlayボタンを押す
-   - タイミング: 曲Aの「ドン」に合わせて「ポチッ」
-   - このタイミングが位相マッチングの出発点
+4. Estimate the required adjustment amount
+   - Change rate: 1.5 / 126.5 = approx. +1.19%
+   - Set the Tempo Fader to approx. +1.2%
 
-5. チャンネルフェーダーは下げたまま
-   - Deck B のチャンネルフェーダー（CH2）は一番下
-   - スピーカーからは曲Bの音は出ない
-   - ヘッドフォンでのみ曲Bが聞こえる
+5. Check Track B's cue point
+   - Set the cue to the position where you want to start playback
+   - Usually the first kick of the intro
 
-再生開始のタイミングのコツ:
-- 曲Aの1拍目（小節の頭）に合わせて押す
-- 「1, 2, 3, 4, 1」の「1」でPlayを押す
-- 体でリズムを取りながらタイミングを図る
-- 最初は大体でOK、ジョグホイールで後から修正する
-- 完璧なタイミングで押す必要はない
-  → 後からジョグホイールで位相を修正するから
+Reading the DDJ-FLX4 Tempo Fader Scale:
+  Moves up and down within the ±8% range
+  Center: 0%
+  Bottom: +8%
+  Top: -8%
+
+  +1.2% position = slightly below center
+  Guide: move it approximately 7.5% of the total stroke downward
 ```
 
-### Step 5: ビートを聞き比べる
+### Step 3: Adjust Track B's BPM with the Tempo Fader
 
-ここからが本番です。ヘッドフォンで両方の曲を同時に聞き、ビートのズレを聞き取ります。
-
-```
-ビート聞き比べの方法:
-
-方法1: Headphone Mixing を中央にする
-  - 左耳: Master（曲A）+ Cue（曲B）
-  - 右耳: Master（曲A）+ Cue（曲B）
-  - 両方の曲がミックスされた状態で聞く
-  - ズレがあると「ドドドド」と2重に聞こえる
-
-方法2: 片耳ヘッドフォンスタイル
-  - 右耳: ヘッドフォン（Cueを曲Bに設定）
-  - 左耳: スピーカーから曲Aを聞く
-  - 左右で別々の曲を聞く
-  - プロDJの標準的なスタイル
-  - 利点: 各曲を独立して聞ける
-
-方法3: Headphone Mixingを左右に振る
-  - 素早くノブを左右に動かす
-  - 左（Master寄り）: 曲Aが大きく聞こえる
-  - 右（Cue寄り）: 曲Bが大きく聞こえる
-  - 交互に聞くことでズレの方向がわかる
-  - 「どちらが先に鳴っているか」を判断する
-
-聞き取りのポイント:
-- キック（ベースドラム）に集中する
-- ハイハットやスネアは無視（最初は）
-- メロディーやボーカルは完全に無視
-- 低音域に意識を集中させる
-- 「ドン」という音が1つに聞こえるか、
-  「ドドン」と2つに聞こえるかを判断
-
-ズレの聞き分けパターン:
-
-パターン1: 「ドン」（完璧に一致）
-  → 2つのキックが完全に重なっている
-  → 1つの音に聞こえる
-  → 何もしなくてOK
-
-パターン2: 「ドゥドン」（曲Bが少し遅い）
-  → 曲Bのキックが曲Aの後に聞こえる
-  → 曲Bを少し加速する必要がある
-  → ジョグホイールを時計回りに軽く
-
-パターン3: 「ドンドゥ」（曲Bが少し速い）
-  → 曲Bのキックが曲Aの前に聞こえる
-  → 曲Bを少し減速する必要がある
-  → ジョグホイールを反時計回りに軽く
-
-パターン4: 「ドド」（大きくズレている）
-  → ほぼ均等に2つの音が聞こえる
-  → 位相が約180度ずれている可能性
-  → 大きくジョグホイールを動かす
-  → または一度停止して再度タイミングを合わせる
-```
-
-### Step 6: ジョグホイールで位相を合わせる
-
-ズレの方向がわかったら、ジョグホイールで位相を修正します。これがビートマッチングの最も技術的な部分です。
+Use the Tempo Fader to match Track B's playback speed to Track A.
 
 ```
-位相修正の操作:
+Tempo Fader Adjustment Procedure:
 
-曲Bが遅れている場合（曲Aの後に曲Bのキックが鳴る）:
-  操作: ジョグホイール上面を時計回り（前方向）に軽くなでる
-  効果: 曲Bが一時的に加速、曲Aに追いつく
+1. Coarse adjustment
+   - Slowly move Deck B's Tempo Fader downward
+   - Monitor BPM changes in real time on the Rekordbox screen
+   - Adjust until it approaches 128.0 BPM
 
-  力加減の段階:
-  - 微妙なズレ（20ms以下）: 指先で触れる程度
-  - 小さなズレ（20-50ms）: 指の腹で軽くなでる
-  - 中くらいのズレ（50-100ms）: 指の腹でしっかりなでる
-  - 大きなズレ（100ms以上）: 指2本で押し回す
+2. Fine adjustment
+   - Approach step by step: 127.8 → 127.9 → 128.0
+   - Fine-tune in units smaller than 1 mm
+   - Use the feel of your fingertips
 
-曲Bが先行している場合（曲Aの前に曲Bのキックが鳴る）:
-  操作: ジョグホイール上面を反時計回り（後方向）に軽くなでる
-  効果: 曲Bが一時的に減速、曲Aと揃う
+3. Verify the number
+   - Check that "128.0" is displayed on the Rekordbox screen
+   - If it shows one decimal place, that is OK for the coarse adjustment stage
 
-  力加減: 上記と同様
+4. Note the fader position
+   - Memorize this fader position in your body
+   - For tracks with the same BPM difference, the same position is a guide
 
-操作の黄金ルール:
-1. 常に「少なすぎる」くらいの力で始める
-   → 足りなければもう一度触れればいい
-   → やりすぎると逆方向にズレてしまう
+Common mistakes:
+- Moving the Tempo Fader too far and overshooting
+  → Build the habit of moving it little by little
 
-2. 一度の操作で完璧を目指さない
-   → 2-3回の微調整で合わせるイメージ
-   → 「少し修正 → 聞く → 少し修正 → 聞く」
+- Moving it in the wrong direction
+  → Remember: Up = slower, Down = faster
 
-3. ジョグホイールから手を離した後に聞く
-   → 操作中は音が変化しているので判断しにくい
-   → 手を離してから数ビート聞いて判断
+- Accidentally moving Track A's Tempo Fader
+  → Always confirm which deck you are operating
+  → The DDJ-FLX4's deck indicator LED allows confirmation
 
-4. 体のリズムと連動させる
-   → 体でリズムを取りながら操作
-   → 拍の頭でジョグを触れると感覚的にわかりやすい
-
-DDJ-FLX4のジョグホイールの特性:
-- 応答速度: 良好（遅延はほぼなし）
-- 感度: 中程度（CDJ-2000NXS2よりやや高い）
-- サイズ: 小さい（繊細な操作が可能だが、大きな操作はしにくい）
-- 表面: 滑らかなプラスチック（滑りやすい）
-  → 指の腹に少し汗がある方が操作しやすい
-  → 手が乾燥している場合は指を少し湿らせる
+Pro advice:
+- "Feel" the Tempo Fader position rather than "looking" at it
+- Practicing repeatedly with tracks of the same BPM difference
+  will imprint the fader position in your body
+- The secret to improvement is memorizing fader positions
+  in your body according to the BPM difference
 ```
 
-### Step 7: 微調整とモニタリング
+### Step 4: Play Track B Through Headphones
 
-位相を合わせた後も、BPMの微妙なズレにより徐々に位相がずれていきます。この「ドリフト」を継続的に修正する技術を「ライディング（Riding）」と呼びます。
-
-```
-ライディング（継続的微調整）の技術:
-
-ドリフトの観察:
-  位相を合わせた後、以下を観察する:
-
-  1. 5秒後: まだ合っている？
-  2. 10秒後: ズレ始めていない？
-  3. 30秒後: どのくらいズレた？
-
-  ズレ方のパターン:
-  a) 全くズレない → BPMが完璧に一致 → 理想的
-  b) 徐々に曲Bが遅れる → 曲BのBPMが微妙に低い
-     → Tempo Faderをわずかに下げる（速く）
-  c) 徐々に曲Bが先行する → 曲BのBPMが微妙に高い
-     → Tempo Faderをわずかに上げる（遅く）
-
-Tempo Faderの微調整:
-  「ドリフト」が発生する場合、BPMが完全には一致していない
-
-  調整方法:
-  1. ジョグホイールで位相を合わせる
-  2. 数秒観察する
-  3. ズレの方向と速度を把握する
-  4. Tempo Faderを0.05%単位で調整
-  5. 再度位相を合わせる
-  6. また数秒観察する
-  7. ズレが解消されるまで4-6を繰り返す
-
-  目標: 30秒以上ズレないこと（初心者）
-        2分以上ズレないこと（中級者）
-        5分以上ズレないこと（上級者）
-
-ライディングの実践テクニック:
-  - 4小節ごとにチェックする習慣をつける
-  - ヘッドフォンで定期的にCueを確認
-  - 「ドン」が「ドゥン」になり始めたら即修正
-  - ズレが大きくなる前に小さく修正する
-  - 修正のタイミングは拍の頭（1拍目）がベスト
-```
-
-### Step 8: チャンネルフェーダーを上げる（ミックス開始）
-
-ビートが完璧にマッチしたら、いよいよ曲Bの音をスピーカーに出します。これが「ミックス」の始まりです。
+Once Track B's BPM is adjusted, actually play it and monitor it through headphones.
 
 ```
-ミックス開始の手順:
+Headphone Monitoring Procedure:
 
-1. 最終確認
-   - 位相が合っていることを再確認
-   - BPMドリフトがないことを確認
-   - 少なくとも8小節（16拍）以上ズレていないこと
+1. Turn ON Deck B's Cue button
+   - Track B becomes audible through headphones
+   - Only Track A is playing through the speakers
 
-2. チャンネルフェーダーの操作
-   - Deck B（CH2）のフェーダーをゆっくり上げ始める
-   - 一気に上げない！
-   - 最初は1/4程度まで
-   - スピーカーから曲Bが微かに聞こえるようになる
+2. Headphone Mixing knob position
+   - Start with it toward Cue (turned right)
+   - Make Track B clearly audible on its own
 
-3. スピーカーでの確認
-   - ヘッドフォンを外して（または片耳を外して）
-   - スピーカーから聞こえる音を確認
-   - ビートが合っているか？
-   - ズレていたらジョグホイールで即修正
+3. Cue up Track B
+   - Use the jog wheel (side) to position Track B's playhead
+     at where the kick begins
+   - If a Hot Cue is set, one press of the Cue button will do it
 
-4. 段階的にフェーダーを上げる
+4. Start Track B's playback
+   - Press the Play button in sync with Track A's kick
+   - Timing: press at the moment of Track A's "boom"
+   - This timing is the starting point for phase matching
+
+5. Keep the channel fader down
+   - Deck B's channel fader (CH2) stays at the bottom
+   - Track B's audio does not come out of the speakers
+   - Track B is heard only through headphones
+
+Tips for playback start timing:
+- Press at beat 1 (the beginning of a bar) of Track A
+- Press Play on the "1" of "1, 2, 3, 4, 1"
+- Move your body to the rhythm to gauge the timing
+- Rough timing is OK at first; you can correct the phase later with the jog wheel
+- You don't need to press at a perfect timing
+  → Because you can fix the phase afterward with the jog wheel
+```
+
+### Step 5: Compare the Beats
+
+Now it gets real. Listen to both tracks simultaneously through headphones and detect beat drift.
+
+```
+Method for Comparing Beats:
+
+Method 1: Set Headphone Mixing to center
+  - Left ear: Master (Track A) + Cue (Track B)
+  - Right ear: Master (Track A) + Cue (Track B)
+  - Listen to both tracks mixed together
+  - If there is drift, you hear a doubled "duh-duh-duh-duh"
+
+Method 2: One-ear headphone style
+  - Right ear: headphones (Cue set to Track B)
+  - Left ear: listen to Track A from the speakers
+  - Hear each track separately in left and right ears
+  - The standard style for professional DJs
+  - Advantage: each track can be heard independently
+
+Method 3: Pan the Headphone Mixing knob left and right
+  - Quickly move the knob left and right
+  - Left (toward Master): Track A sounds louder
+  - Right (toward Cue): Track B sounds louder
+  - Alternating between them tells you the drift direction
+  - Determine "which is hitting first"
+
+Listening tips:
+- Focus on the kick (bass drum)
+- Ignore hi-hats and snares (at first)
+- Completely ignore melody and vocals
+- Focus your consciousness on the low-frequency range
+- Judge whether the "boom" sounds like one hit or "boom-boom" like two
+
+Patterns for detecting drift:
+
+Pattern 1: "BOOM" (perfectly aligned)
+  → Two kicks are completely overlapping
+  → Sounds like one hit
+  → No action needed
+
+Pattern 2: "du-BOOM" (Track B slightly late)
+  → Track B's kick is heard after Track A's
+  → Track B needs a slight acceleration
+  → Lightly turn the jog wheel clockwise
+
+Pattern 3: "BOOM-du" (Track B slightly fast)
+  → Track B's kick is heard before Track A's
+  → Track B needs a slight deceleration
+  → Lightly turn the jog wheel counterclockwise
+
+Pattern 4: "BOOM-BOOM" (large offset)
+  → Roughly two equal-sounding hits
+  → Phase may be approximately 180 degrees off
+  → Rotate the jog wheel more significantly
+  → Or stop once and restart, aligning the timing again
+```
+
+### Step 6: Align the Phase with the Jog Wheel
+
+Once you know the direction of the drift, correct the phase with the jog wheel. This is the most technical part of beatmatching.
+
+```
+Phase Correction Operation:
+
+When Track B is behind (Track B's kick sounds after Track A's):
+  Action: lightly stroke the top of the jog wheel clockwise (forward)
+  Effect: Track B temporarily speeds up and catches up to Track A
+
+  Pressure guide:
+  - Tiny drift (under 20 ms): just barely touch with a fingertip
+  - Small drift (20–50 ms): lightly stroke with the pad of a finger
+  - Medium drift (50–100 ms): firmly stroke with the pad of a finger
+  - Large drift (100 ms+): push and turn with 2 fingers
+
+When Track B is ahead (Track B's kick sounds before Track A's):
+  Action: lightly stroke the top of the jog wheel counterclockwise (backward)
+  Effect: Track B temporarily slows down and aligns with Track A
+
+  Pressure guide: same as above
+
+Golden rules of operation:
+1. Always start with less force than you think you need
+   → If it's not enough, touch it again
+   → Too much force will shift it in the opposite direction
+
+2. Don't aim for perfection in one action
+   → The image is aligning it with 2–3 small corrections
+   → "Small correction → listen → small correction → listen"
+
+3. Listen after releasing the jog wheel
+   → During operation, the sound is changing so it's hard to judge
+   → Release your hand and listen for a few beats before judging
+
+4. Connect it to your body's rhythm
+   → Operate while moving your body to the rhythm
+   → Touching the jog at the start of a beat makes it easier to feel
+
+DDJ-FLX4 jog wheel characteristics:
+- Response speed: good (almost no delay)
+- Sensitivity: moderate (slightly higher than CDJ-2000NXS2)
+- Size: small (fine operation is possible, but large movements are harder)
+- Surface: smooth plastic (slippery)
+  → Slightly sweaty finger pads make operation easier
+  → If your hands are dry, slightly moisten your fingers
+```
+
+### Step 7: Fine Adjustment and Monitoring
+
+Even after aligning the phase, a subtle BPM mismatch will cause the phase to gradually drift. The technique of continuously correcting this "drift" is called "riding."
+
+```
+The Art of Riding (Continuous Fine Adjustment):
+
+Observing drift:
+  After aligning the phase, observe the following:
+
+  1. After 5 seconds: is it still aligned?
+  2. After 10 seconds: is drift starting?
+  3. After 30 seconds: how much has it drifted?
+
+  Drift patterns:
+  a) No drift at all → BPM is perfectly matched → ideal
+  b) Track B gradually falls behind → Track B's BPM is slightly low
+     → Move Tempo Fader slightly downward (faster)
+  c) Track B gradually gets ahead → Track B's BPM is slightly high
+     → Move Tempo Fader slightly upward (slower)
+
+Fine-tuning the Tempo Fader:
+  If "drift" occurs, BPM is not perfectly matched
+
+  Adjustment method:
+  1. Align the phase with the jog wheel
+  2. Observe for a few seconds
+  3. Understand the direction and speed of the drift
+  4. Adjust the Tempo Fader in 0.05% increments
+  5. Align the phase again
+  6. Observe for a few more seconds
+  7. Repeat steps 4–6 until drift is resolved
+
+  Goal: no drift for 30+ seconds (beginner)
+        no drift for 2+ minutes (intermediate)
+        no drift for 5+ minutes (advanced)
+
+Practical riding techniques:
+  - Develop the habit of checking every 4 bars
+  - Periodically check the Cue through headphones
+  - As soon as "BOOM" starts to sound like "du-boom," correct it immediately
+  - Make small corrections before drift becomes large
+  - The best timing for correction is the downbeat (beat 1)
+```
+
+### Step 8: Raise the Channel Fader (Begin the Mix)
+
+Once the beats are perfectly matched, it's time to send Track B's audio to the speakers. This is the beginning of the "mix."
+
+```
+Mix Start Procedure:
+
+1. Final check
+   - Reconfirm that the phase is aligned
+   - Confirm there is no BPM drift
+   - At least 8 bars (16 beats) without drift
+
+2. Channel fader operation
+   - Begin slowly raising Deck B's (CH2) fader
+   - Do not raise it all at once!
+   - Start by going up to about 1/4
+   - Track B can now be faintly heard from the speakers
+
+3. Check through speakers
+   - Remove headphones (or one ear) and
+   - Verify the sound coming from the speakers
+   - Are the beats aligned?
+   - If there is drift, immediately correct with the jog wheel
+
+4. Gradually raise the fader
    - 1/4 → 1/2 → 3/4 → MAX
-   - 各段階で数小節聞いてズレを確認
-   - ズレたら修正してから次の段階へ
+   - Check for drift at each stage after a few bars
+   - Correct any drift before moving to the next stage
 
-5. ミックス中の注意点
-   - 両方の曲が同時に鳴っている状態
-   - ビートが合っていないと「ドドドド」と不快な音になる
-   - フロアのお客さんはこの「ドドドド」を最も嫌う
-   - 少しでもズレを感じたら即修正
+5. Things to watch out for during the mix
+   - Both tracks are playing simultaneously
+   - If beats are not aligned, it makes an unpleasant "duh-duh-duh-duh"
+   - The audience on the floor hates this "duh-duh-duh-duh" the most
+   - At the slightest hint of drift, correct immediately
 
-6. 曲Aのフェードアウト
-   - 曲Bが完全に入ったら
-   - Deck A（CH1）のフェーダーを徐々に下げる
-   - クロスフェーダーを使う場合もある
-   - 曲Aが完全に消えたらトランジション完了
+6. Fade out Track A
+   - Once Track B is fully in
+   - Gradually lower Deck A's (CH1) fader
+   - A crossfader can also be used
+   - The transition is complete when Track A is fully silent
 
-この一連の流れが「ビートマッチング→ミックス」の基本です。
+This series of actions is the fundamentals of "beatmatching → mixing."
 ```
 
 ---
 
-## 5. 耳でビートを聞き取る方法
+## 5. How to Hear Beats by Ear
 
-### 聴覚トレーニングの重要性
+### The Importance of Auditory Training
 
-ビートマッチングは最終的に「耳」で行うスキルです。画面のBPM表示や波形は補助的な情報に過ぎません。プロDJは画面を一切見ずにビートマッチングを行うことができます。この聴覚能力は、意識的なトレーニングによって誰でも発達させることができます。
-
-```
-聴覚の発達段階:
-
-レベル1: ビートの存在を認識できる
-  - 曲のキック（ドン）が聞こえる
-  - 拍を数えられる（1, 2, 3, 4）
-  - テンポが速いか遅いか判断できる
-  → ほとんどの人が最初からこのレベル
-
-レベル2: 2曲のキックの区別ができる
-  - 2曲同時再生時に、各曲のキックを聞き分けられる
-  - 「ドン」が1つか2つか判断できる
-  - 音色の違いを認識できる
-  → 練習開始から1-2週間で到達
-
-レベル3: ズレの方向がわかる
-  - どちらの曲が速い/遅いかがわかる
-  - 曲Bが先行しているか遅れているかを判断できる
-  - ジョグホイールをどちらに回すべきか即座にわかる
-  → 練習開始から2-4週間で到達
-
-レベル4: ズレの量がわかる
-  - 微妙なズレと大きなズレの違いがわかる
-  - ジョグホイールの力加減を適切に調整できる
-  - ほぼ一発で位相を合わせられる
-  → 練習開始から1-2ヶ月で到達
-
-レベル5: 予測的な修正ができる
-  - ズレが聞こえる前にBPMの差を感じ取れる
-  - ドリフトの方向を予測して先手を打てる
-  - ほぼ無意識でビートマッチングができる
-  → 練習開始から3-6ヶ月で到達
-```
-
-### キック（ベースドラム）の聞き取り
-
-ビートマッチングでは、まずキック（ベースドラム）の音に集中します。キックは最も低い周波数帯域で鳴る、最も明確なリズム要素です。
+Beatmatching is ultimately a skill performed with "your ears." On-screen BPM displays and waveforms are merely supplementary information. Professional DJs can beatmatch without looking at the screen at all. This auditory ability can be developed by anyone through conscious training.
 
 ```
-4つ打ちキックの特徴:
+Stages of Auditory Development:
 
-4つ打ち（Four-on-the-floor）:
-  ドン・ドン・ドン・ドン
-  1    2    3    4
+Level 1: Can recognize the presence of a beat
+  - Can hear the kick (boom) in the track
+  - Can count the beats (1, 2, 3, 4)
+  - Can judge if the tempo is fast or slow
+  → Most people are already at this level from the start
 
-  1小節 = 4拍 = 4つのキック
-  これが延々と繰り返される
+Level 2: Can distinguish kicks from two tracks
+  - Can tell each track's kick apart when two play simultaneously
+  - Can judge if there are one or two "boom" sounds
+  - Can recognize the difference in tone
+  → Reachable within 1–2 weeks of practice
 
-  ジャンル別のキックの特徴:
+Level 3: Can tell the direction of drift
+  - Can tell which track is faster or slower
+  - Can judge whether Track B is ahead or behind
+  - Instantly knows which way to turn the jog wheel
+  → Reachable within 2–4 weeks of practice
+
+Level 4: Can tell the amount of drift
+  - Can tell the difference between subtle and large drift
+  - Can appropriately adjust jog wheel pressure
+  - Can align phase almost in one go
+  → Reachable within 1–2 months of practice
+
+Level 5: Can make predictive corrections
+  - Can sense BPM difference before hearing drift
+  - Can predict drift direction and get ahead of it
+  - Can beatmatch almost unconsciously
+  → Reachable within 3–6 months of practice
+```
+
+### Listening for the Kick (Bass Drum)
+
+In beatmatching, start by focusing on the kick (bass drum). The kick is the clearest rhythmic element, sounding in the lowest frequency range.
+
+```
+Characteristics of the Four-on-the-Floor Kick:
+
+Four-on-the-floor:
+  BOOM · BOOM · BOOM · BOOM
+  1      2      3      4
+
+  1 bar = 4 beats = 4 kicks
+  This repeats endlessly
+
+  Kick characteristics by genre:
 
   House:
-  - 中程度の音圧、温かい音色
-  - 「ドゥン・ドゥン・ドゥン・ドゥン」
-  - 比較的聞き取りやすい
+  - Medium sound pressure, warm tone
+  - "duh-duh-duh-duh"
+  - Relatively easy to hear
 
   Techno:
-  - 強い音圧、硬い音色
-  - 「ドッ・ドッ・ドッ・ドッ」
-  - 非常に聞き取りやすい
+  - Strong sound pressure, hard tone
+  - "dah-dah-dah-dah"
+  - Very easy to hear
 
   Trance:
-  - 中程度の音圧、丸い音色
-  - 「ドン・ドン・ドン・ドン」
-  - サブベースと混ざって聞き取りにくいことがある
+  - Medium sound pressure, round tone
+  - "BOOM-BOOM-BOOM-BOOM"
+  - Can sometimes be hard to hear when mixed with the sub-bass
 
   Drum & Bass:
-  - 不規則なパターン（4つ打ちではない）
-  - 「ドン・ッ・ドドン・ッ」
-  - ビートマッチングの難易度が高い
-
-キックの聞き取り練習:
-
-Step 1: 1曲だけで練習
-  - 曲を再生し、キックに合わせて体を動かす
-  - 指で机を叩く、足でリズムを取る
-  - 「1, 2, 3, 4」と数える
-  - キック以外の音は意識的に無視する
-
-Step 2: キックだけを追う
-  - イコライザー（EQ）でMIDとHIを下げる
-  - 低音域だけが聞こえる状態にする
-  - キックの音が際立つ
-  - この状態で体でリズムを取る
-
-Step 3: 2曲同時にキックを聞く
-  - 2曲を同時に再生（ビートマッチなしで）
-  - 各曲のキックを聞き分ける
-  - 「こっちのキック」「あっちのキック」と区別
-  - 音色の違いに注目する
+  - Irregular pattern (not four-on-the-floor)
 ```
 
-### ズレの聞き取り訓練
+  - "BOOM · · boom-BOOM · ·"
+  - High difficulty for beatmatching
 
-ビートのズレを正確に聞き取る能力は、最も重要な聴覚スキルです。以下の練習方法で、ズレの聞き取り能力を体系的に鍛えましょう。
+Kick listening practice:
 
-```
-ズレの聞き取り練習法:
+Step 1: Practice with one track
+  - Play a track and move your body to the kick
+  - Tap your finger on a desk, tap your foot to the rhythm
+  - Count "1, 2, 3, 4"
+  - Consciously ignore all sounds other than the kick
 
-練習1: 意図的にズラして聞く
-  1. 同じ曲を2つのデッキにロード
-  2. BPMは同じにする
-  3. 両方再生する
-  4. ジョグホイールで意図的にズラす
-  5. ズレた音を「覚える」
-  6. 合わせた音を「覚える」
-  7. ズラす→合わせる を繰り返す（50回以上）
+Step 2: Focus only on the kick
+  - Lower MID and HI with the equalizer (EQ)
+  - Put the track in a state where only the low range is audible
+  - The kick sound stands out
+  - Move your body to the rhythm in this state
 
-練習2: ズレの量を段階的に変える
-  1. 大きくズラす → 明らかに「ドドドド」
-  2. 中くらいにズラす → 「ドゥンドゥン」（フランジャーのような音）
-  3. 少しだけズラす → 微妙に音が太く聞こえる
-  4. 完璧に合わせる → クリアな「ドン」
-  → 3と4の違いがわかるようになるのが目標
-
-練習3: 目を閉じて操作する
-  1. 画面を見ずにビートマッチングする
-  2. 波形やBPM表示に頼らない
-  3. 耳だけで判断する
-  4. 最初はうまくいかないが必ず上達する
-
-練習4: ズレの方向当てクイズ
-  1. 友人にジョグホイールを操作してもらう
-  2. 「今、曲Bは先行？遅れ？」と判断する
-  3. 正解率を記録する
-  4. 80%以上当てられるようになれば合格
-
-人間の聴覚とズレの認識:
-  - 人間は約20-30ミリ秒のズレを認識可能
-  - 訓練された耳では10ミリ秒以下のズレも感知
-  - プロDJは5ミリ秒以下のズレを修正する
-  - この精度は訓練によってのみ獲得可能
-  - 音楽的才能よりも「練習量」が決定的に重要
+Step 3: Listen to kicks from two tracks simultaneously
+  - Play two tracks at the same time (without beatmatching)
+  - Tell the kicks of each track apart
+  - Distinguish "this track's kick" from "that track's kick"
+  - Focus on differences in tone
 ```
 
----
+### Training to Hear Drift
 
-## 6. 段階的な練習方法
-
-ビートマッチングの上達には、段階的なアプローチが効果的です。急がず、各段階をしっかりとマスターしてから次に進みましょう。
-
-### Week 1: 同じBPM、同じ曲
+The ability to accurately detect beat drift is the most important auditory skill. Use the following practice methods to systematically sharpen your drift detection ability.
 
 ```
-練習内容:
-  - 全く同じ曲をDeck AとDeck Bにロード
-  - BPMは変更しない（同じ曲なので当然同じ）
-  - 位相合わせ（ジョグホイール操作）だけに集中
+Drift Detection Practice Methods:
 
-具体的な練習メニュー（1日30分）:
+Practice 1: Intentionally drift and listen
+  1. Load the same track onto two decks
+  2. Keep BPM the same
+  3. Play both
+  4. Intentionally drift with the jog wheel
+  5. "Memorize" the drifted sound
+  6. "Memorize" the aligned sound
+  7. Repeat drift → align (50+ times)
 
-Day 1-2: ジョグホイールに慣れる
-  1. 曲Aを再生
-  2. 曲Bを再生（適当なタイミングで）
-  3. ジョグホイールで位相を合わせる
-  4. 合ったら一度停止
-  5. 再度再生して合わせる
-  6. 繰り返し（30回以上）
+Practice 2: Vary the amount of drift incrementally
+  1. Large drift → clearly hear "duh-duh-duh-duh"
+  2. Medium drift → "duh-duh-duh-duh" (flanger-like sound)
+  3. Small drift → the sound sounds subtly thicker
+  4. Perfectly aligned → clear "BOOM"
+  → The goal is to be able to tell the difference between 3 and 4
 
-  目標: ジョグホイールの回転方向と
-        曲の加速/減速の関係を体で覚える
+Practice 3: Operate with eyes closed
+  1. Beatmatch without looking at the screen
+  2. Do not rely on waveforms or BPM display
+  3. Judge by ear alone
+  4. It won't work well at first, but you will always improve
 
-Day 3-4: 速度を上げる
-  1. 合わせるまでの時間を測る
-  2. 最初は30秒かかってOK
-  3. 徐々に短くする
-  4. 15秒以内を目標
+Practice 4: "Direction guessing" quiz
+  1. Have a friend operate the jog wheel
+  2. Judge: "is Track B ahead or behind right now?"
+  3. Record your accuracy rate
+  4. Getting it right 80%+ of the time is passing grade
 
-  目標: 15秒以内に位相を合わせられる
-
-Day 5-7: 安定性を磨く
-  1. 位相を合わせた後、どのくらい持続するか
-  2. 同じBPMなので、理論上はずっと合ったまま
-  3. 10秒間ズレないことを確認
-  4. ズレたら即修正
-
-  目標: 一度合わせたら10秒以上ズレない
-
-Week 1 卒業テスト:
-  □ ジョグホイールの基本操作ができる
-  □ 15秒以内に位相を合わせられる
-  □ 合わせた位相が10秒以上持続する
-  □ ズレの方向（先行/遅れ）がわかる
-```
-
-### Week 2: 同じBPM、違う曲
-
-```
-練習内容:
-  - 同じBPMの2曲をそれぞれのデッキにロード
-  - 例: 曲A 128 BPM、曲B 128 BPM（別の曲）
-  - キックの音色が異なるため、聞き分けが必要
-  - 位相合わせに集中
-
-具体的な練習メニュー（1日30分）:
-
-Day 1-3: 音色の違うキックを聞き分ける
-  1. 2曲の音色の違いを確認
-  2. 「曲Aのキック」と「曲Bのキック」を区別する練習
-  3. 両方再生して、2つのキックを聞き分ける
-  4. ズレがあるかどうかを判断
-
-  目標: 音色の異なるキックを聞き分けられる
-
-Day 4-5: 位相合わせの精度向上
-  1. 違う曲同士で位相を合わせる
-  2. 合っている/ズレているの判断を繰り返す
-  3. 1回あたり10秒以内で合わせることを目標
-
-  目標: 10秒以内に位相を合わせられる
-
-Day 6-7: 持続時間の延長
-  1. 位相を合わせた後、30秒間モニター
-  2. ズレたら即修正
-  3. 30秒間安定させることを目標
-
-  目標: 30秒間ズレない
-
-Week 2 の追加課題:
-  - 3-4組の異なるペアで練習する
-  - 各ペアで3回ずつ成功させる
-  - ジャンルの異なるペア（House + Technoなど）も試す
-
-Week 2 卒業テスト:
-  □ 音色の異なるキックを聞き分けられる
-  □ 10秒以内に位相を合わせられる
-  □ 30秒間ズレない
-  □ 複数のペアで安定して成功する
-```
-
-### Week 3-4: BPM差1-2
-
-```
-練習内容:
-  - BPM差が1-2の2曲を使用
-  - 例: 曲A 128 BPM、曲B 126-127 BPM
-  - Tempo Faderの操作を練習
-  - BPMマッチング + 位相マッチングの両方
-
-具体的な練習メニュー:
-
-Week 3 Day 1-3: Tempo Fader の感覚を掴む
-  1. 曲BのBPMを確認（例: 127.0 BPM）
-  2. 目標BPMを確認（例: 128.0 BPM）
-  3. 差分を計算（+1.0 BPM = +0.79%）
-  4. Tempo Faderで調整
-  5. 画面のBPM表示で確認
-  6. 繰り返し（フェーダー位置を体に覚えさせる）
-
-Week 3 Day 4-7: BPM合わせ + 位相合わせ
-  1. 曲Aを再生
-  2. 曲BのBPMをTempo Faderで合わせる
-  3. 曲Bを再生
-  4. ジョグホイールで位相を合わせる
-  5. ドリフトがないか観察
-  6. ドリフトがあればTempo Faderを微調整
-  7. 1分間安定させることを目標
-
-Week 4: 精度の向上
-  1. BPM差1-2の複数のペアで練習
-  2. 各ペアで1分間安定を目標
-  3. ドリフトの修正速度を上げる
-  4. 「BPM合わせ → 位相合わせ → モニター」の
-     一連の流れをスムーズにする
-
-Week 3-4 卒業テスト:
-  □ Tempo Faderで±1-2 BPMの調整ができる
-  □ BPMマッチング + 位相マッチングを連続で行える
-  □ 1分間ズレない
-  □ ドリフトの方向と量を聞き取れる
-  □ Tempo Faderの微調整（0.1%単位）ができる
-```
-
-### Week 5-8: BPM差3-5
-
-```
-練習内容:
-  - BPM差が3-5の2曲を使用
-  - 例: 曲A 128 BPM、曲B 123-125 BPM
-  - より大きなTempo Fader調整が必要
-  - 実践的なミックスを意識した練習
-
-Week 5-6: 大きなBPM差の対応
-  1. 曲BのBPMを確認（例: 124.0 BPM）
-  2. 目標BPMを確認（例: 128.0 BPM）
-  3. 差分計算（+4.0 BPM = +3.23%）
-  4. Tempo Faderで調整
-  5. 位相合わせ
-  6. 2分間安定させることを目標
-
-Week 7-8: 実践的なミックス練習
-  1. 曲Aの適切なタイミングで曲Bの再生を開始
-  2. ビートマッチングを行う
-  3. チャンネルフェーダーを上げてミックス
-  4. 曲Aをフェードアウト
-  5. 曲Bのみが流れている状態
-  6. 次の曲Cをロードして繰り返し
-
-Week 5-8 卒業テスト:
-  □ BPM差3-5でもスムーズに合わせられる
-  □ 2分以上ズレない
-  □ ミックスの一連の流れを実行できる
-  □ 3曲以上を連続でミックスできる
-  □ フロアに出しても問題ないレベルのミックス
-```
-
-### Week 9-12: 応用と実践
-
-```
-Week 9-10: ジャンルの幅を広げる
-  - これまで練習していなかったジャンルに挑戦
-  - BPM差5以上の曲にも対応
-  - ブレイクが長い曲でのビートマッチング
-
-Week 11-12: 速度と安定性の極限化
-  - 5秒以内にビートマッチングを完了
-  - 5分以上ズレない安定性
-  - 画面を見ずに（耳だけで）ビートマッチング
-  - 3デッキ以上でのビートマッチング
-
-Week 9-12 卒業テスト:
-  □ どんなBPM差でも対応できる
-  □ 5分以上ズレない
-  □ 5秒以内にビートマッチング完了
-  □ 画面を見ずにビートマッチングできる
-  □ 30分以上の連続ミックスが安定してできる
-  □ 友人や観客の前でパフォーマンスできるレベル
+Human hearing and drift perception:
+  - Humans can perceive drift of approx. 20–30 milliseconds
+  - A trained ear can detect drift below 10 ms
+  - Professional DJs correct drift below 5 ms
+  - This level of precision can only be acquired through training
+  - "Amount of practice" is decisively more important than musical talent
 ```
 
 ---
 
-## 7. DDJ-FLX4特有のコツと最適化
+## 6. Step-by-Step Practice Method
 
-### ジョグホイールの感度設定
+A gradual approach is effective for improving beatmatching. Don't rush — fully master each stage before moving to the next.
 
-DDJ-FLX4のジョグホイールは、CDJシリーズと比較してコンパクトですが、適切な設定と操作方法を知っていれば、十分な精度でビートマッチングが可能です。
+### Week 1: Same BPM, Same Track
 
 ```
-DDJ-FLX4のジョグホイール特性:
+Practice content:
+  - Load the exact same track onto Deck A and Deck B
+  - Do not change BPM (it's the same track, so naturally the same)
+  - Focus solely on phase alignment (jog wheel operation)
 
-物理的な特徴:
-- 直径: 約128mm（CDJ-2000NXS2は約206mm）
-- 重量: 軽い（CDJのような慣性がない）
-- 表面: プラスチック製（CDJはアルミ+プラスチック）
-- 感度: タッチセンサー搭載
+Specific practice menu (30 minutes per day):
 
-感度設定（Rekordbox側）:
+Day 1–2: Get used to the jog wheel
+  1. Play Track A
+  2. Play Track B (at an arbitrary timing)
+  3. Align the phase with the jog wheel
+  4. Once aligned, stop once
+  5. Play again and align again
+  6. Repeat (30+ times)
+
+  Goal: memorize in your body the relationship between
+        the direction of jog wheel rotation and
+        the track's acceleration/deceleration
+
+Day 3–4: Increase speed
+  1. Time how long it takes to align
+  2. 30 seconds is OK at first
+  3. Gradually shorten the time
+  4. Aim for within 15 seconds
+
+  Goal: align phase within 15 seconds
+
+Day 5–7: Polish stability
+  1. After aligning the phase, see how long it holds
+  2. In theory, with the same BPM, it should stay aligned indefinitely
+  3. Confirm it does not drift for 10 seconds
+  4. If it drifts, correct immediately
+
+  Goal: once aligned, does not drift for 10+ seconds
+
+Week 1 graduation test:
+  □ Can perform basic jog wheel operation
+  □ Can align phase within 15 seconds
+  □ Aligned phase holds for 10+ seconds
+  □ Can tell the direction of drift (ahead/behind)
+```
+
+### Week 2: Same BPM, Different Tracks
+
+```
+Practice content:
+  - Load two tracks of the same BPM onto each deck
+  - Example: Track A 128 BPM, Track B 128 BPM (different track)
+  - Requires distinguishing kicks of different tone colors
+  - Focus on phase alignment
+
+Specific practice menu (30 minutes per day):
+
+Day 1–3: Distinguish kicks of different tone colors
+  1. Confirm the difference in tone between the two tracks
+  2. Practice distinguishing "Track A's kick" and "Track B's kick"
+  3. Play both and distinguish the two kicks
+  4. Judge whether there is drift or not
+
+  Goal: can distinguish kicks of different tone colors
+
+Day 4–5: Improve phase alignment accuracy
+  1. Align phase between different tracks
+  2. Repeatedly judge aligned/drifted
+  3. Aim to align within 10 seconds per attempt
+
+  Goal: align phase within 10 seconds
+
+Day 6–7: Extend duration
+  1. After aligning phase, monitor for 30 seconds
+  2. If drift occurs, correct immediately
+  3. Aim for stable alignment over 30 seconds
+
+  Goal: does not drift for 30 seconds
+
+Week 2 additional tasks:
+  - Practice with 3–4 different pairs
+  - Succeed 3 times with each pair
+  - Try pairs of different genres (House + Techno, etc.)
+
+Week 2 graduation test:
+  □ Can distinguish kicks of different tone colors
+  □ Can align phase within 10 seconds
+  □ Does not drift for 30 seconds
+  □ Succeeds consistently with multiple pairs
+```
+
+### Week 3–4: BPM Difference of 1–2
+
+```
+Practice content:
+  - Use two tracks with a BPM difference of 1–2
+  - Example: Track A 128 BPM, Track B 126–127 BPM
+  - Practice Tempo Fader operation
+  - Both BPM matching + phase matching
+
+Specific practice menu:
+
+Week 3, Day 1–3: Get a feel for the Tempo Fader
+  1. Check Track B's BPM (example: 127.0 BPM)
+  2. Check target BPM (example: 128.0 BPM)
+  3. Calculate difference (+1.0 BPM = +0.79%)
+  4. Adjust with Tempo Fader
+  5. Confirm on screen BPM display
+  6. Repeat (imprint fader position in your body)
+
+Week 3, Day 4–7: BPM matching + phase matching
+  1. Play Track A
+  2. Match Track B's BPM with Tempo Fader
+  3. Play Track B
+  4. Align phase with jog wheel
+  5. Observe for drift
+  6. If drift occurs, fine-tune Tempo Fader
+  7. Aim for stability over 1 minute
+
+Week 4: Improve precision
+  1. Practice with multiple pairs of BPM difference 1–2
+  2. Aim for 1-minute stability with each pair
+  3. Increase speed of drift correction
+  4. Smooth out the entire flow of "BPM match → phase match → monitor"
+
+Week 3–4 graduation test:
+  □ Can adjust ±1–2 BPM with Tempo Fader
+  □ Can perform BPM matching + phase matching continuously
+  □ Does not drift for 1 minute
+  □ Can hear the direction and amount of drift
+  □ Can fine-tune Tempo Fader in 0.1% increments
+```
+
+### Week 5–8: BPM Difference of 3–5
+
+```
+Practice content:
+  - Use two tracks with a BPM difference of 3–5
+  - Example: Track A 128 BPM, Track B 123–125 BPM
+  - Larger Tempo Fader adjustment needed
+  - Practice with practical mixing in mind
+
+Week 5–6: Handling larger BPM differences
+  1. Check Track B's BPM (example: 124.0 BPM)
+  2. Check target BPM (example: 128.0 BPM)
+  3. Calculate difference (+4.0 BPM = +3.23%)
+  4. Adjust with Tempo Fader
+  5. Align phase
+  6. Aim for stability over 2 minutes
+
+Week 7–8: Practical mixing practice
+  1. Start Track B at the appropriate timing during Track A
+  2. Perform beatmatching
+  3. Raise the channel fader for the mix
+  4. Fade out Track A
+  5. State where only Track B is playing
+  6. Load next Track C and repeat
+
+Week 5–8 graduation test:
+  □ Can smoothly align even with BPM difference of 3–5
+  □ Does not drift for 2+ minutes
+  □ Can execute the complete mix sequence
+  □ Can continuously mix 3+ tracks
+  □ Mix is at a level where it can be played to a floor
+```
+
+### Week 9–12: Application and Real Practice
+
+```
+Week 9–10: Broaden genre range
+  - Challenge genres you haven't practiced yet
+  - Handle tracks with BPM differences of 5 or more
+  - Beatmatching on tracks with long breaks
+
+Week 11–12: Push speed and stability to the limit
+  - Complete beatmatching within 5 seconds
+  - Stability of 5+ minutes without drift
+  - Beatmatch without looking at the screen (by ear only)
+  - Beatmatching on 3+ decks
+
+Week 9–12 graduation test:
+  □ Can handle any BPM difference
+  □ Does not drift for 5+ minutes
+  □ Beatmatching completed within 5 seconds
+  □ Can beatmatch without looking at the screen
+  □ Can perform a continuous mix of 30+ minutes stably
+  □ At a level to perform in front of friends or an audience
+```
+
+---
+
+## 7. DDJ-FLX4-Specific Tips and Optimization
+
+### Jog Wheel Sensitivity Settings
+
+The DDJ-FLX4's jog wheel is compact compared to the CDJ series, but with the right settings and technique, you can beatmatch with sufficient precision.
+
+```
+DDJ-FLX4 Jog Wheel Characteristics:
+
+Physical features:
+- Diameter: approx. 128 mm (CDJ-2000NXS2 is approx. 206 mm)
+- Weight: light (no inertia like a CDJ)
+- Surface: plastic (CDJ is aluminum + plastic)
+- Sensitivity: touch sensor equipped
+
+Sensitivity setting (in Rekordbox):
   [Preferences] → [Controller] → [Deck]
-  - Jog Sensitivity: 1-5の5段階
-    1: 最も鈍い → 大きな動きが必要
-    2: やや鈍い
-    3: 標準（推奨スタート地点）
-    4: やや敏感
-    5: 最も敏感 → 微小な動きで反応
+  - Jog Sensitivity: 5 levels from 1–5
+    1: Least sensitive → large movement required
+    2: Slightly less sensitive
+    3: Standard (recommended starting point)
+    4: Slightly sensitive
+    5: Most sensitive → reacts to tiny movements
 
-  ビートマッチング用の推奨:
-  - 初心者: 3（標準）
-    → 大きすぎる操作でも影響が抑えられる
-  - 中級者: 4（やや敏感）
-    → 微調整がしやすくなる
-  - 上級者: 4-5（敏感）
-    → 極めて繊細な操作が可能
+  Recommended for beatmatching:
+  - Beginner: 3 (standard)
+    → Limits the impact of overly large movements
+  - Intermediate: 4 (slightly sensitive)
+    → Makes fine adjustments easier
+  - Advanced: 4–5 (sensitive)
+    → Extremely delicate operation is possible
 
-Vinyl Mode の設定:
-  - ON（推奨）: 上面タッチで曲が停止/スクラッチ
-    → ビートマッチングには通常使わないが、
-      キューイング時に便利
-  - OFF: 上面タッチでピッチベンドのみ
-    → ビートマッチングに集中したい場合はこちら
-    → 誤って上面を押さえてしまっても曲が止まらない
+Vinyl Mode setting:
+  - ON (recommended): touching the top surface stops/scratches the track
+    → Not normally used during beatmatching, but
+      convenient during cueing
+  - OFF: touching the top surface only pitch bends
+    → For those who want to focus on beatmatching
+    → Even if you accidentally press the top surface, the track doesn't stop
 
-ジョグホイールの操作位置による違い:
-  ┌─────────────┐
-  │  外周（推奨）│  ← ピッチベンド操作に最適
-  │ ┌─────────┐ │     細かい制御が可能
-  │ │ 内側    │ │  ← 感度が高い
-  │ │（注意） │ │     意図しない大きな変化が起きやすい
-  │ │ ┌─────┐│ │
-  │ │ │中心 ││ │  ← 最も感度が高い
-  │ │ │     ││ │     通常は使わない
-  │ │ └─────┘│ │
-  │ └─────────┘ │
-  └─────────────┘
+Difference depending on the operating position on the jog wheel:
+  ┌─────────────────┐
+  │ Outer edge (rec.)│  ← Optimal for pitch bend operation
+  │ ┌─────────────┐ │     Fine control is possible
+  │ │  Inner area │ │  ← High sensitivity
+  │ │  (caution)  │ │     Unintended large changes can occur
+  │ │ ┌─────────┐ │ │
+  │ │ │ Center  │ │ │  ← Highest sensitivity
+  │ │ │         │ │ │     Normally not used
+  │ │ └─────────┘ │ │
+  │ └─────────────┘ │
+  └─────────────────┘
 
-プロTip: 外周の11時〜1時の位置（上部）を
-         指の腹で軽くなでるのが最も安定する操作方法
+Pro Tip: The most stable operation is to lightly stroke
+         the outer edge in the 11 o'clock to 1 o'clock position (top area)
+         with the pad of your finger
 ```
 
-### Tempo Faderの範囲と精度の最適化
+### Optimizing Tempo Fader Range and Precision
 
-DDJ-FLX4のTempo Faderは物理的なストロークが短いため、精密な操作が必要です。範囲設定を適切に行うことで、操作精度を最大化できます。
-
-```
-Tempo Fader範囲の選び方:
-
-ジャンル別推奨範囲:
-
-House / Tech House（120-130 BPM）:
-  → ±6%で十分
-  → 同ジャンル内のBPM差は通常2-3 BPM
-  → 範囲が狭い = 精度が高い = 微調整しやすい
-
-Techno（125-140 BPM）:
-  → ±8%（標準）
-  → BPM差が大きい曲もある（125と140など）
-  → 余裕を持った範囲設定
-
-Drum & Bass（170-180 BPM）:
-  → ±6%で十分
-  → ジャンル内のBPM差は小さい
-  → 高BPMでは微小な%変化でもBPM変動が大きい
-    （例: 174 BPM × 1% = 1.74 BPM）
-
-マルチジャンル:
-  → ±10%以上
-  → ジャンルを超えたトランジションに対応
-  → ただし微調整は難しくなる
-
-DDJ-FLX4でのTempo Fader操作テクニック:
-
-1. 「指のお腹」テクニック
-   - 人差し指の腹でフェーダーキャップを押さえる
-   - 上下の微小な動きで0.1%単位の調整
-   - 手首ではなく指先だけで動かす
-
-2. 「アンカーポイント」テクニック
-   - 親指でフェーダー横のコントローラー面に触れる
-   - 親指を支点にして人差し指でフェーダーを操作
-   - 手がぶれにくく安定する
-
-3. 「分割法」テクニック
-   - まず大まかに位置を決める（±1%単位）
-   - 次に微調整する（±0.1%単位）
-   - 2段階に分けることで正確性が上がる
-
-4. 「プッシュ＆リリース」テクニック
-   - フェーダーを動かしたい方向に軽く押す
-   - すぐに指を離す
-   - フェーダーの位置変化量を最小限に抑える
-   - ±0.05%程度の超微調整が可能
-```
-
-### Master Tempo（Key Lock）機能の活用
-
-Master Tempo（Key Lock）は、BPMを変更しても曲のキー（音程）が変わらない機能です。ビートマッチングの文脈でこの機能をどう使うかを理解しましょう。
+The DDJ-FLX4's Tempo Fader has a short physical stroke, requiring precise operation. You can maximize operational precision by setting the range appropriately.
 
 ```
-Master Tempo（Key Lock）の仕組み:
+How to Choose Tempo Fader Range:
 
-OFF の場合:
-  曲のBPMを上げる → キーも上がる（音が高くなる）
-  曲のBPMを下げる → キーも下がる（音が低くなる）
+Recommended range by genre:
 
-  例: 元のBPM 126.0、キー Am（Aマイナー）
-  → 128.0 BPMに上げると: キーが約半音上がる
-  → Am → A#m に近づく
-  → +1.6%の速度変化 ≒ 約+0.27半音
+House / Tech House (120–130 BPM):
+  → ±6% is sufficient
+  → BPM difference within the same genre is usually 2–3 BPM
+  → Narrower range = higher precision = easier to fine-tune
 
-ON の場合:
-  曲のBPMを上げても下げても → キーは変わらない
-  タイムストレッチ技術で音程を維持
+Techno (125–140 BPM):
+  → ±8% (standard)
+  → Some tracks have large BPM differences (125 and 140, etc.)
+  → Setting with room to spare
 
-  メリット:
-  - 曲の音程が変わらないので自然に聞こえる
-  - ハーモニックミキシング（キー合わせ）が容易
-  - ボーカル曲でピッチの変化が気にならない
+Drum & Bass (170–180 BPM):
+  → ±6% is sufficient
+  → BPM difference within the genre is small
+  → At high BPM, even a small % change results in a large BPM shift
+    (example: 174 BPM × 1% = 1.74 BPM)
 
-  デメリット:
-  - 大幅なBPM変更では音質が劣化する可能性
-  - 特に±5%以上では「アーティファクト」（不自然な音）が発生
-  - CPU負荷が増加（ただし現代のPCでは問題なし）
+Multi-genre:
+  → ±10% or more
+  → Handles transitions beyond genre boundaries
+  → However, fine adjustment becomes harder
 
-ビートマッチング練習時の推奨:
-  - 練習初期: OFF（キーの変化を意識的に聞く訓練）
-    → BPMを上げた時の「音が高くなる」感覚を覚える
-    → これが「曲が速い」ことの聴覚的サインになる
-    → ビートマッチングの耳を鍛えるのに有効
+Tempo Fader operation techniques for the DDJ-FLX4:
 
-  - 練習中期以降: ON（実践的なミックスの質を上げる）
-    → キーの不一致を気にせずBPM調整に集中
-    → より自然なミックスが可能
+1. "Finger pad" technique
+   - Press the fader cap with the pad of your index finger
+   - Tiny up/down movement adjusts in 0.1% increments
+   - Move with fingertips only, not wrist
 
-  - 本番: ON（推奨）
-    → フロアでの音質を最優先
-    → ただし±3%以内のBPM変更が理想
+2. "Anchor point" technique
+   - Touch the controller surface beside the fader with your thumb
+   - Use the thumb as a pivot and operate the fader with your index finger
+   - More stable; your hand is less likely to shake
+
+3. "Split method" technique
+   - First roughly determine the position (in ±1% increments)
+   - Then fine-tune (in ±0.1% increments)
+   - Dividing into 2 stages increases accuracy
+
+4. "Push & release" technique
+   - Lightly push the fader in the direction you want to move
+   - Immediately release your finger
+   - Minimizes the amount of fader position change
+   - Enables ultra-fine adjustment of approx. ±0.05%
 ```
 
-### DDJ-FLX4のBeatFX機能とビートマッチング
+### Using the Master Tempo (Key Lock) Feature
 
-DDJ-FLX4にはBeat FXセクションがあり、ビートマッチングが完了した状態でエフェクトを使うことで、よりクリエイティブなミックスが可能になります。
+Master Tempo (Key Lock) is a feature that prevents the track's key (pitch) from changing when BPM is changed. Understand how to use this feature in the context of beatmatching.
 
 ```
-Beat FX の基礎（ビートマッチングとの関係）:
+How Master Tempo (Key Lock) Works:
 
-ビートマッチングが完璧な状態でこそ活きるエフェクト:
+When OFF:
+  Raising BPM → Key also rises (pitch goes up)
+  Lowering BPM → Key also drops (pitch goes down)
+
+  Example: original BPM 126.0, key Am (A minor)
+  → Raising to 128.0 BPM: key rises by about a half step
+  → Am → approaching A#m
+  → +1.6% speed change ≈ approx. +0.27 semitones
+
+When ON:
+  Whether BPM is raised or lowered → Key stays the same
+  Time-stretch technology maintains pitch
+
+  Advantages:
+  - Track pitch doesn't change, so it sounds natural
+  - Harmonic mixing (key matching) is easier
+  - Pitch changes are not noticeable in vocal tracks
+
+  Disadvantages:
+```
+
+  - Significant BPM changes can degrade audio quality
+  - Particularly at ±5% or more, "artifacts" (unnatural sounds) can appear
+  - CPU load increases (though not an issue on modern PCs)
+
+Recommended for beatmatching practice:
+  - Early practice: OFF (train yourself to consciously hear the key change)
+    → Learn the feeling of "pitch going up" when BPM is raised
+    → This becomes an auditory cue that "the track is faster"
+    → Effective for developing the beatmatching ear
+
+  - Mid-practice onward: ON (improve quality of practical mixing)
+    → Focus on BPM adjustment without worrying about key mismatch
+    → More natural-sounding mixes are possible
+
+  - Live performance: ON (recommended)
+    → Prioritize sound quality on the floor
+    → Ideally keep BPM changes within ±3%
+```
+
+### DDJ-FLX4 Beat FX and Beatmatching
+
+The DDJ-FLX4 has a Beat FX section, and using effects when beatmatching is complete enables more creative mixing.
+
+```
+Beat FX Basics (Relationship with Beatmatching):
+
+Effects that shine when beatmatching is perfect:
 
 1. Echo / Delay
-   - ビートに同期したエコー効果
-   - BPMがズレているとエコーもズレて不快
-   - ビートマッチ完了後のトランジションで有効
+   - Echo effect synchronized to the beat
+   - If BPM is off, the echo is also off and sounds unpleasant
+   - Effective for transitions after beatmatching is complete
 
 2. Reverb
-   - 残響効果
-   - BPMのズレには影響されにくいが、
-     位相ズレがあると残響が濁る
+   - Reverberation effect
+   - Less affected by BPM drift, but
+     phase drift can muddy the reverb
 
 3. Filter
-   - High Pass / Low Pass フィルター
-   - ビートマッチングの精度に直接影響しないが、
-     ミックスの質を左右する
+   - High Pass / Low Pass filter
+   - Does not directly affect beatmatching precision,
+     but determines the quality of the mix
 
 4. Flanger / Phaser
-   - 位相効果
-   - ビートとの同期が重要
-   - BPMがズレていると効果が不規則になる
+   - Phase effect
+   - Synchronization with the beat is important
+   - If BPM is off, the effect becomes irregular
 
-ビートマッチングを活かしたFX活用法:
-  Step 1: ビートマッチングを完璧にする
-  Step 2: フェーダーを上げてミックス開始
-  Step 3: Echo/Delayで曲Aの最後をエコーアウト
-  Step 4: 同時に曲Bのフィルターを開いていく
-  → ドラマチックなトランジションの完成
+How to use FX effectively with beatmatching:
+  Step 1: Achieve perfect beatmatching
+  Step 2: Raise the fader to start the mix
+  Step 3: Echo/Delay to fade out Track A
+  Step 4: Simultaneously open Track B's filter
+  → A dramatic transition is complete
 
-注意: FXはビートマッチングができてから学ぶべき
-      基礎なしにFXに頼ると上達が遅れる
+Note: Learn FX after beatmatching is mastered
+      Relying on FX without the fundamentals slows your improvement
 ```
 
 ---
 
-## 8. よくある失敗と対処法
+## 8. Common Mistakes and How to Fix Them
 
-ビートマッチングの習得過程では、ほぼ全てのDJが同じような失敗を経験します。これらの失敗を知っておくことで、対処が速くなり、挫折を防ぐことができます。
+Almost all DJs experience the same kinds of mistakes when learning beatmatching. Knowing these mistakes helps you respond faster and prevents giving up.
 
-### 失敗1: BPMを合わせたのにすぐズレる
+### Mistake 1: BPM Matched but Immediately Drifts
 
-最も一般的な問題です。画面上ではBPMが同じに見えるのに、すぐにビートがズレ始めます。
-
-```
-原因の分析:
-
-原因A: BPMの小数点以下が合っていない
-  - 画面表示: 128.0 BPM（両方とも）
-  - 実際: 曲A 128.03 BPM、曲B 127.97 BPM
-  - 差: 0.06 BPM → 十分にドリフトの原因になる
-
-  対処:
-  1. 画面の数値ではなく耳を信頼する
-  2. 位相を合わせてから10秒以上観察する
-  3. ドリフトの方向を確認する
-  4. Tempo Faderを「0.05%以下の極微量」だけ動かす
-  5. 再度観察する
-  6. ドリフトがなくなるまで繰り返す
-
-原因B: Rekordboxの BPM分析が不正確
-  - 元のBPM分析にエラーがある場合
-  - 特にライブ演奏要素のある曲で発生しやすい
-
-  対処:
-  1. 曲を再分析する（Rekordboxで右クリック → Analyze Track）
-  2. ビートグリッドを手動で修正する
-  3. それでもダメなら完全に耳だけで合わせる
-
-原因C: ジョグホイールに触れてしまっている
-  - 無意識にジョグホイールの上面に手が触れている
-  - これにより曲のBPMが微妙に変化している
-
-  対処:
-  1. ジョグホイールから完全に手を離す
-  2. コントローラーの手を置く位置を意識する
-  3. ジョグホイール以外の場所に手を置く習慣をつける
-
-プロのアドバイス:
-「0.1 BPM以下の差でもドリフトは発生する。
- 完璧を目指すのではなく、ドリフトを即座に修正する
- 『ライディング』の技術を磨くことが重要」
-```
-
-### 失敗2: 合わせたつもりが合っていない
-
-ヘッドフォンで聞いて「合った」と思ったのに、スピーカーに出してみるとズレている問題です。
+The most common problem. Even though BPM looks the same on screen, the beats start drifting immediately.
 
 ```
-原因の分析:
+Cause Analysis:
 
-原因A: ヘッドフォンの音量が不適切
-  - ヘッドフォンが大きすぎて細かいズレが聞こえない
-  - またはスピーカー音量とのバランスが悪い
+Cause A: Decimal places of BPM are not matched
+  - Screen display: 128.0 BPM (both)
+  - Actual: Track A 128.03 BPM, Track B 127.97 BPM
+  - Difference: 0.06 BPM → enough to cause drift
 
-  対処:
-  1. ヘッドフォンの音量を少し下げる
-  2. スピーカーの音量とヘッドフォンの音量を揃える
-  3. 静かな環境で練習する
-  4. キック（低音）に集中して聞く
+  Fix:
+  1. Trust your ears, not the number on screen
+  2. After aligning phase, observe for 10+ seconds
+  3. Confirm the direction of drift
+  4. Move the Tempo Fader by an "extremely tiny amount below 0.05%"
+  5. Observe again
+  6. Repeat until drift disappears
 
-原因B: ヘッドフォンの遅延（Latency）
-  - USBオーディオインターフェースの遅延
-  - ソフトウェアの処理遅延
-  - ヘッドフォンとスピーカーで音が出るタイミングが微妙にずれる
+Cause B: Rekordbox BPM analysis is inaccurate
+  - An error exists in the original BPM analysis
+  - Especially likely with tracks containing live performance elements
 
-  対処:
-  1. Rekordboxの Audio Latency設定を下げる
-     （128 samples推奨）
-  2. バッファサイズを小さくする
-  3. Direct Monitoring機能がある場合は活用
-  4. 遅延を体で覚えてオフセットする（上級者向け）
+  Fix:
+  1. Re-analyze the track (right-click in Rekordbox → Analyze Track)
+  2. Manually correct the beat grid
+  3. If still no good, align entirely by ear
 
-原因C: 「フランジャー効果」に騙されている
-  - 微妙にズレている状態では、2つのキックが
-    フランジャーのような「うねり」を生む
-  - これを「合っている」と勘違いしてしまう
-  - 本当に合っている時は、音が「太くなる」のではなく
-    「1つの明確な音」になる
+Cause C: Accidentally touching the jog wheel
+  - Your hand is unconsciously touching the top of the jog wheel
+  - This subtly changes the track's BPM
 
-  対処:
-  1. 「うねり」が聞こえたら、まだズレている
-  2. 完全に1つの音に聞こえるまで調整
-  3. 意図的にズラして「うねりの音」を覚える
-  4. 「うねりがない = 合っている」と判断する
+  Fix:
+  1. Completely remove your hand from the jog wheel
+  2. Be conscious of where you place your hands on the controller
+  3. Build the habit of placing your hands somewhere other than the jog wheel
 
-原因D: 倍テンポ/半テンポの位置で合わせている
-  - 曲Bを1拍ずらした位置で合わせている
-  - 例: 曲Aの2拍目に曲Bの1拍目を合わせている
-  - 数値上は合っているが、小節の頭がずれている
-
-  対処:
-  1. 4小節単位でフレーズを意識する
-  2. 「1, 2, 3, 4」の「1」同士を合わせる
-  3. スネアやクラップのタイミングも確認
-  4. 波形表示を参考にする（このケースでは有効）
+Pro advice:
+"Even a difference below 0.1 BPM causes drift.
+ Rather than aiming for perfection, developing the
+ 'riding' technique to instantly correct drift is key."
 ```
 
-### 失敗3: ジョグホイールの調整が大きすぎる
+### Mistake 2: Think You've Aligned It But It's Off
 
-ジョグホイールの操作が粗すぎて、修正のたびにオーバーシュートしてしまう問題です。
-
-```
-原因の分析:
-
-原因A: 力みすぎ、緊張している
-  - 特に本番やプレッシャーのある状況で発生
-  - 手に力が入りすぎてジョグホイールの回転量が大きくなる
-
-  対処:
-  1. 深呼吸をする
-  2. 手首をリラックスさせる
-  3. 「なでる」感覚を思い出す
-  4. 大きく回すのではなく「触れる」程度に
-
-原因B: ジョグホイールの外周ではなく内側を使っている
-  - 内側は感度が高く、少しの動きで大きな変化
-  - 外周は感度が適度で制御しやすい
-
-  対処:
-  1. 常にジョグホイールの外周で操作する
-  2. 内側や中心には触れない
-  3. 指の位置を意識する
-
-原因C: 修正のリズムが悪い
-  - ズレを発見 → 大きく修正 → 逆方向にズレる
-    → さらに大きく修正 → またズレる → 無限ループ
-
-  対処:
-  1. 「小さく修正して、結果を確認する」を徹底
-  2. 1回の修正で完璧を目指さない
-  3. 2-3回の小さな修正で合わせるイメージ
-  4. 修正後は必ず手を離して数ビート聞く
-  5. まだズレていたらもう一度小さく修正
-
-修正の力加減テクニック:
-  微小なズレ（20ms以下）:
-  → 指先で外周に軽く触れるだけ
-  → 回転させるのではなく「スッ」と撫でる
-  → 所要時間: 0.1-0.2秒
-
-  小さなズレ（20-50ms）:
-  → 指の腹で外周を軽く撫でる
-  → 約1cm分の回転
-  → 所要時間: 0.2-0.5秒
-
-  中程度のズレ（50-100ms）:
-  → 指2本で外周をしっかり撫でる
-  → 約2-3cm分の回転
-  → 所要時間: 0.3-0.7秒
-
-  大きなズレ（100ms以上）:
-  → 一度曲Bを止めて、再度キューから再生した方が早い
-  → または大きくジョグを回して一気に修正
-```
-
-### 失敗4: どちらが先行/遅れかわからない
-
-2曲のキックが別々に聞こえるが、曲Bが先行しているのか遅れているのか判断できない問題です。
+The problem where you listen on headphones and think it's "aligned," but when you put it through the speakers it's drifted.
 
 ```
-原因の分析:
+Cause Analysis:
 
-原因A: 両方の音を均等に聞いてしまっている
-  - ヘッドフォンのMixingノブが中央で、
-    両方の音が同じ音量で聞こえる
-  - この状態ではどちらが先か判断しにくい
+Cause A: Headphone volume is inappropriate
+  - Headphones are too loud and subtle drift can't be heard
+  - Or the balance with speaker volume is off
 
-  対処法1: 「スプリットキュー」テクニック
-  1. Headphone Mixingを一瞬Cue側（右）に振る
-  2. 曲Bだけが聞こえる
-  3. スピーカーの曲Aと比較
-  4. 「曲Bのキックの方が先？後？」と判断
+  Fix:
+  1. Lower the headphone volume slightly
+  2. Match the speaker volume and headphone volume
+  3. Practice in a quiet environment
+  4. Listen intently to the kick (low frequencies)
 
-  対処法2: 「パルステスト」テクニック
-  1. ジョグホイールを時計回りに軽く触れる（加速）
-  2. ズレが小さくなった？ → 曲Bは遅れていた（正解方向）
-  3. ズレが大きくなった？ → 曲Bは先行していた（逆方向）
-  4. 反時計回りに修正
+Cause B: Headphone latency
+  - Latency from USB audio interface
+  - Software processing latency
+  - Timing of audio output is subtly different between headphones and speakers
 
-  対処法3: 「チャンネルフェーダーテスト」
-  1. 曲Bのチャンネルフェーダーを少しだけ上げる
-  2. スピーカーから曲Bが微かに聞こえる
-  3. スピーカーの曲Aのキックと比較
-  4. 曲Bのキックが先か後か判断しやすい
-  5. 判断したらフェーダーを下げて修正
+  Fix:
+  1. Lower the Audio Latency setting in Rekordbox
+     (128 samples recommended)
+  2. Reduce buffer size
+  3. Use Direct Monitoring if available
+  4. Memorize the latency in your body and offset it (for advanced users)
 
-原因B: キックの音色が似すぎている
-  - 同じプロデューサーの曲同士など
-  - キックの音色が酷似していて区別がつかない
+Cause C: Being fooled by the "flanger effect"
+  - With subtle drift, the two kicks create a flanger-like "wobble"
+  - This can be mistaken for "it's aligned"
+  - When truly aligned, the sound doesn't "get thicker" —
+    it becomes "one clear sound"
 
-  対処:
-  1. ハイハットやスネアで判断する
-  2. EQで一方の低音を少し下げて音色差を作る
-  3. 異なる音色のキックの曲を練習に使う
+  Fix:
+  1. If you hear "wobbling," it's still drifted
+  2. Adjust until you can clearly hear one sound
+  3. Intentionally drift to memorize "the sound of wobble"
+  4. Judge "no wobble = aligned"
 
-原因C: 経験不足（最も一般的）
-  - 聴覚がまだ十分に発達していない
-  - 練習を続ければ必ず改善する
+Cause D: Aligning at double-tempo/half-tempo position
+  - Aligning Track B off by 1 beat
+  - Example: aligning Track B's beat 1 to Track A's beat 2
+  - Numerically it matches but the bar start is offset
 
-  対処:
-  1. 毎日の練習を続ける
-  2. 意図的にズラして→方向を確認→合わせる を繰り返す
-  3. 「先行」と「遅れ」の音の違いを意識的に記憶する
-  4. 100回以上繰り返すと自然に聞き分けられるようになる
+  Fix:
+  1. Be aware of phrases in 4-bar units
+  2. Align the "1" of "1, 2, 3, 4" together
+  3. Also check the timing of snares and claps
+  4. Refer to the waveform display (useful in this case)
 ```
 
-### 失敗5: ブレイク（キックが抜ける部分）でリズムを見失う
+### Mistake 3: Jog Wheel Adjustment Is Too Large
 
-曲の中のブレイクダウン（キックやベースが抜ける部分）で、ビートを見失ってしまう問題です。
-
-```
-原因の分析:
-
-ブレイクの特徴:
-  - キックが一時的になくなる
-  - メロディーやパッド音だけが残る
-  - 数小節〜16小節以上続くこともある
-  - ブレイク明けにキックが戻る
-
-問題:
-  - キックがないとビートの基準がなくなる
-  - ブレイク中にBPMのドリフトが蓄積
-  - ブレイク明けにキックが戻ると大きくズレている
-
-対処法:
-
-1. ブレイク前に完璧に合わせておく
-   - ブレイクに入る前にビートマッチの精度を最大にする
-   - Tempo Faderの微調整を済ませておく
-   - ドリフトがゼロの状態でブレイクに突入
-
-2. ハイハットやパーカッションで追う
-   - ブレイク中もハイハットや軽いパーカッションは
-     残っていることが多い
-   - これらの音でビートを追い続ける
-
-3. 体でカウントを続ける
-   - キックがなくても頭の中で拍を数え続ける
-   - 体を揺らしてリズムを維持する
-   - 「1, 2, 3, 4」を止めない
-
-4. 波形表示を一時的に参考にする
-   - ブレイク中は例外的に波形を参考にしてもよい
-   - ただし完全に依存はしない
-
-5. ブレイク明けにすぐ修正する
-   - ブレイク明けの最初のキックでズレを確認
-   - ズレていたら即座にジョグホイールで修正
-   - 2-3拍以内に合わせ直す
-
-プロのテクニック:
-  - ブレイクの長さをあらかじめ把握しておく
-    → 曲を知っていることが重要
-  - ブレイク中にトランジションを行う場合は
-    ブレイク前にミックスを完了させておく
-  - フレーズマッチングを活用して
-    ブレイクのタイミングを合わせる
-```
-
-### 失敗6: 練習中にモチベーションが低下する
-
-技術的な失敗ではありませんが、多くの初心者DJが経験する重要な問題です。
+The problem where jog wheel operation is too rough and you overshoot every time you correct.
 
 ```
-モチベーション低下のパターン:
+Cause Analysis:
 
-パターン1: 「全然上手くならない」
-  - 毎日練習しているのに進歩が感じられない
+Cause A: Too much force, too tense
+  - Especially in live or high-pressure situations
+  - Too much force in your hands causes too large a jog wheel rotation
 
-  対処:
-  - 練習を録音して、1週間前の録音と比較する
-  - 必ず成長している（自分では気づきにくいだけ）
-  - 「30秒ズレない」「1分ズレない」と
-    具体的な数値目標を設定する
-  - 達成したらチェックリストにマークする
+  Fix:
+  1. Take a deep breath
+  2. Relax your wrist
+  3. Remember the "stroking" feeling
+  4. Don't rotate it wide — just "touch" it
 
-パターン2: 「Syncを使えばいいのに」
-  - 手動ビートマッチングの意味を見失う
+Cause B: Using the inside of the jog wheel instead of the outer edge
+  - The inside is highly sensitive; a small movement causes a large change
+  - The outer edge has moderate sensitivity and is easy to control
 
-  対処:
-  - CDJだけの環境でDJしてみる（友人の機材など）
-  - Sync機能を使っているDJのミックスと
-    手動ビートマッチングのDJのミックスを聞き比べる
-  - プロDJのライブ動画を見てモチベーションを上げる
+  Fix:
+  1. Always operate at the outer edge of the jog wheel
+  2. Do not touch the inside or center
+  3. Be conscious of your finger position
 
-パターン3: 「同じ曲ばかりで飽きた」
-  - 練習用の曲に飽きる
+Cause C: Poor correction rhythm
+  - Detect drift → large correction → drift in opposite direction
+    → even larger correction → drift again → infinite loop
 
-  対処:
-  - 新しい曲を2-3曲追加する（大量に変えない）
-  - 好きな曲を練習に使う（モチベーション維持）
-  - 違うジャンルを試してみる
+  Fix:
+  1. Thoroughly practice "small correction, check result"
+  2. Don't aim for perfection in one correction
+  3. The image is aligning it with 2–3 small corrections
+  4. After correcting, always release your hand and listen for a few beats
+  5. If still drifted, make another small correction
 
-パターン4: 「友人の方が上手い」
-  - 比較してしまう
+Pressure technique for correction:
+  Tiny drift (under 20 ms):
+  → Just barely touch the outer edge with a fingertip
+  → Don't rotate — "brush" it
+  → Duration: 0.1–0.2 seconds
 
-  対処:
-  - 人それぞれペースが違う
-  - 練習量と環境が異なる
-  - 過去の自分と比較する
-  - 友人に教えてもらう（一緒に練習する）
+  Small drift (20–50 ms):
+  → Lightly stroke outer edge with finger pad
+  → Approx. 1 cm of rotation
+  → Duration: 0.2–0.5 seconds
 
-上達の一般的なタイムライン:
-  1-2週目: 全然できない（正常）
-  3-4週目: 少しできる時がある（進歩の兆し）
-  5-8週目: だいたいできる（安定し始める）
-  2-3ヶ月: 安定してできる（自信がつく）
-  6ヶ月〜: 無意識にできる（体が覚えている）
+  Medium drift (50–100 ms):
+  → Firmly stroke outer edge with two finger pads
+  → Approx. 2–3 cm of rotation
+  → Duration: 0.3–0.7 seconds
 
-  この過程で何度も「停滞期」がある。
-  停滞期は次のレベルへの準備期間。
-  焦らず練習を続けることが最も重要。
+  Large drift (100 ms+):
+  → Stopping Track B and restarting from the cue is faster
+  → Or rotate the jog significantly to correct all at once
+```
+
+### Mistake 4: Can't Tell Which Is Ahead or Behind
+
+The problem where the kicks of the two tracks sound separate, but you can't tell if Track B is ahead or behind.
+
+```
+Cause Analysis:
+
+Cause A: Listening to both sounds at equal volume
+  - Headphone Mixing knob is at center and
+    both sounds are heard at the same volume
+  - In this state it's hard to judge which is first
+
+  Fix Method 1: "Split cue" technique
+  1. Momentarily push Headphone Mixing to Cue side (right)
+  2. Only Track B is heard
+  3. Compare with Track A from speakers
+  4. Judge: "Is Track B's kick first or second?"
+
+  Fix Method 2: "Pulse test" technique
+  1. Lightly touch the jog wheel clockwise (accelerate)
+  2. Did the drift get smaller? → Track B was behind (correct direction)
+  3. Did the drift get larger? → Track B was ahead (wrong direction)
+  4. Correct counterclockwise
+
+  Fix Method 3: "Channel fader test"
+  1. Raise Track B's channel fader just slightly
+  2. Track B is faintly audible from the speakers
+  3. Compare with Track A's kick from the speakers
+  4. Easier to judge if Track B's kick is first or second
+  5. Once judged, lower the fader and correct
+
+Cause B: Kick tone colors are too similar
+  - Tracks from the same producer, etc.
+  - Kick tones are so similar they can't be distinguished
+
+  Fix:
+  1. Use snare/clap to judge
+  2. Use EQ to lower the bass of one slightly and create a tonal difference
+  3. Use tracks with differently-toned kicks for practice
+
+Cause C: Lack of experience (most common)
+  - Hearing has not yet developed sufficiently
+  - Will definitely improve with continued practice
+
+  Fix:
+  1. Keep practicing daily
+  2. Repeatedly practice: intentionally drift → confirm direction → align
+  3. Consciously memorize the sound difference between "ahead" and "behind"
+  4. After 100+ repetitions, you will naturally be able to tell them apart
+```
+
+### Mistake 5: Losing Track of the Rhythm During a Break
+
+The problem where you lose your place in the beat during a breakdown section of a track (where the kick and bass drop out).
+
+```
+Cause Analysis:
+
+What breaks are:
+  - Kick is temporarily absent
+  - Only melody or pad sound remains
+  - Can last from a few bars to 16+ bars
+  - Kick returns after the break
+
+The problem:
+  - Without the kick, there is no rhythmic reference
+  - BPM drift accumulates during the break
+  - When the kick returns after the break, it's severely drifted
+
+Fixes:
+
+1. Achieve perfect alignment before the break
+   - Maximize beatmatch precision before entering the break
+   - Finish Tempo Fader fine-adjustment beforehand
+   - Enter the break with zero drift
+
+2. Follow hi-hats and percussion
+   - Hi-hats and light percussion often remain during a break
+   - Use these sounds to keep tracking the beat
+
+3. Keep counting with your body
+   - Even without a kick, keep counting beats in your head
+   - Keep swaying your body to maintain the rhythm
+   - Don't stop "1, 2, 3, 4"
+
+4. Temporarily refer to the waveform
+   - During breaks, it's OK to use the waveform as an exception
+   - However, do not become fully dependent on it
+
+5. Correct immediately after the break
+   - Check for drift on the very first kick after the break
+   - If drifted, immediately correct with the jog wheel
+   - Re-align within 2–3 beats
+
+Professional technique:
+  - Know the length of the break in advance
+    → Knowing the track is important
+  - When transitioning during a break,
+    complete the mix before the break begins
+  - Use phrase matching to time the break
+```
+
+### Mistake 6: Motivation Drops During Practice
+
+Not a technical failure, but an important problem many beginner DJs experience.
+
+```
+Patterns of Motivation Drop:
+
+Pattern 1: "I'm not getting any better at all"
+  - Practicing every day but progress is not felt
+
+  Fix:
+  - Record your practice and compare with a recording from a week ago
+  - You are definitely improving (you just can't feel it yourself)
+  - Set specific numerical goals like
+    "not drift for 30 seconds," "not drift for 1 minute"
+  - Check off the checklist when achieved
+
+Pattern 2: "Why not just use Sync?"
+  - Losing sight of the meaning of manual beatmatching
+
+  Fix:
+  - Try DJing in an environment with only CDJs (a friend's equipment, etc.)
+  - Compare the mix of a DJ using Sync with one using manual beatmatching
+  - Watch live videos of professional DJs to boost motivation
+
+Pattern 3: "I'm bored of the same tracks"
+  - Getting tired of practice tracks
+
+  Fix:
+  - Add 2–3 new tracks (don't change everything)
+  - Use your favorite tracks for practice (maintain motivation)
+  - Try a different genre
+
+Pattern 4: "My friend is better"
+  - Getting caught up in comparison
+
+  Fix:
+  - Everyone has a different pace
+  - Practice amount and environment differ
+  - Compare with your past self
+  - Get your friend to teach you (practice together)
+
+Typical improvement timeline:
+  Weeks 1–2: Can't do it at all (normal)
+  Weeks 3–4: Sometimes can do it (signs of progress)
+  Weeks 5–8: Can do it most of the time (starting to stabilize)
+  Months 2–3: Can do it consistently (gaining confidence)
+  6 months+: Can do it unconsciously (body has memorized it)
+
+  Throughout this process there will be multiple "plateaus."
+  Plateaus are preparation periods for the next level.
+  The most important thing is to continue practicing without rushing.
 ```
 
 ---
 
-## 9. 上達のためのヒントとプロのTips
+## 9. Tips and Pro Advice for Improvement
 
-### 毎日の練習ルーティン
-
-```
-効果的な練習スケジュール:
-
-推奨: 毎日30分 × 継続
-これは: 週1回3時間 × 継続 よりはるかに効果的
-
-理由:
-- 筋肉記憶（指の感覚、力加減）の定着
-- 聴覚トレーニングは短時間×高頻度が最適
-- 長時間練習は聴覚疲労で逆効果
-- 習慣化しやすい
-
-30分練習のモデルメニュー:
-
-最初の5分: ウォームアップ
-  - 曲をロード
-  - ヘッドフォンの音量調整
-  - 1曲を流してキックに合わせて体を動かす
-  - ジョグホイールを軽く触って感覚を確認
-
-次の20分: メイン練習
-  - ビートマッチング練習（5-8回のマッチング）
-  - 毎回ズレの修正時間を意識
-  - 前回より速く、正確に合わせることを目標
-  - 数回はわざとズラして修正する練習
-
-最後の5分: クールダウン
-  - 1回だけ「完璧なミックス」を目指す
-  - できたら気持ちよく終了
-  - できなくてもOK（明日また練習）
-  - 練習メモを簡単に記録
-
-練習記録の例:
-  日付: 2024/03/15
-  練習時間: 30分
-  使用曲: Track A (128 BPM) + Track B (126 BPM)
-  マッチング回数: 7回
-  最速合わせ時間: 8秒
-  安定持続時間: 1分30秒
-  メモ: Tempo Faderの微調整が改善。
-        ブレイク中のリズムキープに課題。
-```
-
-### 録音して聞き返す
+### Daily Practice Routine
 
 ```
-練習ミックスの録音方法:
+Effective Practice Schedule:
 
-Rekordboxでの録音:
+Recommended: 30 minutes daily × sustained
+This is far more effective than: 3 hours once a week × sustained
+
+Reasons:
+- Motor memory (finger feel, pressure) becomes ingrained
+- Auditory training is best done in short bursts at high frequency
+- Long practice sessions cause auditory fatigue and are counterproductive
+- Easier to turn into a habit
+
+Model menu for a 30-minute practice:
+
+First 5 minutes: Warm-up
+  - Load tracks
+  - Adjust headphone volume
+  - Play one track and move your body to the kick
+  - Lightly touch the jog wheel to check your feel
+
+Next 20 minutes: Main practice
+  - Beatmatching practice (5–8 matching attempts)
+  - Be mindful of drift correction time each attempt
+  - Aim to align faster and more accurately than last time
+  - Intentionally drift and correct for practice a few times
+
+Last 5 minutes: Cool-down
+  - Aim for "the perfect mix" just once
+  - If it goes well, finish feeling good
+  - If not, that's OK (practice again tomorrow)
+  - Briefly record practice notes
+
+Example practice notes:
+  Date: 2024/03/15
+  Practice time: 30 minutes
+  Tracks used: Track A (128 BPM) + Track B (126 BPM)
+  Matching attempts: 7
+  Fastest alignment time: 8 seconds
+  Stable duration: 1 minute 30 seconds
+  Notes: Tempo Fader fine-adjustment improved.
+         Keeping rhythm during breaks is still a challenge.
+```
+
+### Record and Review
+
+```
+How to Record Practice Mixes:
+
+Recording in Rekordbox:
   1. [Preferences] → [Recording]
-  2. 録音先フォルダを設定
-  3. フォーマット: WAV（高音質）またはAAC（軽量）
-  4. 画面上の「REC」ボタンを押して録音開始
-  5. 練習ミックスを行う
-  6. 終了時に「REC」ボタンを再度押す
+  2. Set the recording destination folder
+  3. Format: WAV (high quality) or AAC (lightweight)
+  4. Press the "REC" button on screen to start recording
+  5. Perform practice mix
+  6. Press "REC" button again when finished
 
-聞き返しのポイント:
-  1. 曲のつなぎ目に集中して聞く
-  2. ビートのズレが聞こえるか？
-  3. ズレの発生タイミングは？
-  4. ズレの方向（先行/遅れ）は？
-  5. 修正のタイミングは適切か？
-  6. 修正後の安定性は？
+Points to check when reviewing:
+  1. Focus on listening at the transitions between tracks
+  2. Can you hear beat drift?
+  3. When does drift occur?
+  4. What direction is the drift (ahead/behind)?
+  5. Is the timing of corrections appropriate?
+  6. Is stability after correction maintained?
 
-チェックリスト（録音聞き返し用）:
-  □ ビートが「ドン」と1つに聞こえる？（◯/△/×）
-  □ フランジャー効果（うねり）がない？（◯/△/×）
-  □ ミックス中のドリフトがない？（◯/△/×）
-  □ 曲の入りのタイミングは自然？（◯/△/×）
-  □ フェードイン/アウトはスムーズ？（◯/△/×）
-  □ 全体として「聞ける」ミックス？（◯/△/×）
+Checklist (for reviewing recordings):
+  □ Does the beat sound like "BOOM" as one sound? (◯/△/×)
+  □ No flanger effect (wobbling)? (◯/△/×)
+  □ No drift during the mix? (◯/△/×)
+  □ Is the track entry timing natural? (◯/△/×)
+  □ Is the fade in/out smooth? (◯/△/×)
+  □ Overall, is it a "listenable" mix? (◯/△/×)
 
-録音の活用法:
-  - 1ヶ月前の録音と現在の録音を比較する
-  - 成長が客観的にわかる
-  - 友人に聞いてもらってフィードバックをもらう
-  - SoundCloudやMixcloudにアップロードしてみる
-    → 他のDJからのコメントが参考になる
+How to use recordings:
+  - Compare a recording from a month ago with the current one
+  - Growth is objectively visible
+  - Have a friend listen and get feedback
+  - Try uploading to SoundCloud or Mixcloud
+    → Comments from other DJs can be useful as reference
 ```
 
-### 同じ曲を繰り返す
+### Practice with the Same Tracks Repeatedly
 
 ```
-なぜ同じ曲で練習すべきか:
+Why You Should Practice with the Same Tracks:
 
-理由1: 曲の構造を体で覚える
-  - ブレイクの位置、長さ
-  - キックパターンの変化
-  - ビルドアップとドロップのタイミング
-  → 曲を知っている = ビートマッチングに集中できる
+Reason 1: Your body memorizes the track structure
+  - Position and length of breaks
+  - Changes in kick pattern
+  - Timing of build-ups and drops
+  → Knowing the track = can focus on beatmatching
 
-理由2: 変数を減らす
-  - 毎回違う曲だと「曲の理解」に脳のリソースが取られる
-  - 同じ曲なら「ビートマッチング」だけに集中できる
-  - 一つのスキルを効率的に鍛えられる
+Reason 2: Reduce variables
+  - With different tracks every time, mental resources go to "understanding the track"
+  - With the same tracks, you can focus solely on "beatmatching"
+  - One skill can be efficiently sharpened
 
-理由3: 進歩が測りやすい
-  - 同じ条件での練習 = 比較が容易
-  - 「前回は20秒かかったが、今回は12秒」
-  - 数値的な進歩が実感できる
+Reason 3: Progress is easier to measure
+  - Practicing under the same conditions = easy to compare
+  - "Last time it took 20 seconds, this time it took 12 seconds"
+  - Numerical progress can be felt
 
-推奨: 最初の1ヶ月は5-10曲で固定
-  その後: 月に2-3曲ずつ追加
-  最終的に: どんな曲でも対応できるように
+Recommended: fix on 5–10 tracks for the first month
+  After that: add 2–3 tracks per month
+  Ultimately: able to handle any track
 
-初期練習用の曲選びのコツ:
-  - 好きな曲を選ぶ（飽きにくい）
-  - BPMが近い曲を選ぶ（125-130 BPMの範囲）
-  - 4つ打ちで、キックが明確な曲
-  - イントロが長い曲（練習しやすい）
-  - 構造がシンプルな曲
+Tips for choosing initial practice tracks:
+  - Choose tracks you like (less likely to get bored)
+  - Choose tracks with similar BPM (in the 125–130 range)
+  - Four-on-the-floor with a clear kick
+  - Tracks with a long intro (easier to practice)
+  - Tracks with a simple structure
 ```
 
-### プレッシャーをかける
+### Apply Pressure
 
 ```
-適度なプレッシャーの作り方:
+How to Create Appropriate Pressure:
 
-レベル1: 自分に締め切りを設ける
-  - 「今週中にBPM差3の曲で1分ズレないようにする」
-  - 達成できたら次の目標を設定
-  - タイマーを使って計測する
+Level 1: Set your own deadlines
+  - "By the end of this week, I won't drift for 1 minute with a BPM difference of 3"
+  - Set the next goal once achieved
+  - Use a timer to measure
 
-レベル2: 友人に聞いてもらう
-  - 緊張するが上達が速い
-  - 「ズレた？」とフィードバックをもらう
-  - 他の人の前で操作する経験
+Level 2: Have a friend listen
+  - Nerve-wracking but improvement is faster
+  - Get feedback like "was that drifted?"
+  - Experience operating in front of other people
 
-レベル3: 録画する
-  - 自分の手元を録画する
-  - ジョグホイールの操作を客観的に見る
-  - 無駄な動きや力みを発見できる
-  - YouTube やSNSにアップすることを目標に
+Level 3: Record yourself
+  - Record your hands on camera
+  - Objectively observe jog wheel operation
+  - Can discover unnecessary movements or tension
+  - Set a goal to post on YouTube or social media
 
-レベル4: ライブストリーミングする
-  - Twitch やYouTubeで練習をストリーミング
-  - リアルタイムの視聴者がいるプレッシャー
-  - コメントでフィードバックをもらえる
-  - 本番に近い緊張感を味わえる
+Level 4: Live stream
+  - Stream practice on Twitch or YouTube
+  - Pressure of real-time viewers
+  - Get feedback in comments
+  - Experience tension close to live performance
 
-レベル5: 小規模なイベントでDJする
-  - 友人のパーティーやBBQ
-  - 小さなバーやカフェ
-  - 10-20人規模のイベント
-  - 本番の緊張を経験する
-  - 失敗しても大丈夫な環境
+Level 5: DJ at a small event
+  - A friend's party or BBQ
+  - A small bar or cafe
+  - An event of 10–20 people
+  - Experience the tension of a real gig
+  - An environment where it's OK to make mistakes
 
-プレッシャー下での心構え:
-  - 失敗は学びの機会
-  - 完璧を求めない
-  - ズレたら冷静に修正する
-  - パニックにならない
-  - 「次のビートで合わせればいい」と考える
+Mindset under pressure:
+  - Failures are learning opportunities
+  - Don't aim for perfection
+  - Calmly correct when drift occurs
+  - Don't panic
+  - Think "I can align it on the next beat"
 ```
 
 ---
 
-## 10. Sync機能との向き合い方
+## 10. How to Approach the Sync Feature
 
-### 練習時の絶対ルール: Sync OFF
+### The Absolute Rule During Practice: Sync OFF
 
 ```
-練習時にSyncを使わない理由:
+Why Not to Use Sync During Practice:
 
-1. 耳が育たない
-   - Syncに頼ると聴覚トレーニングにならない
-   - ズレを聞き取る能力が発達しない
-   - 一度Syncに慣れると手動に戻りにくい
+1. Your ears don't develop
+   - Relying on Sync does not train your hearing
+   - The ability to detect drift does not develop
+   - Once used to Sync, it's hard to go back to manual
 
-2. ジョグホイールの感覚が身につかない
-   - 位相修正の力加減を学ぶ機会がない
-   - 体が覚えるべき操作を学べない
+2. Jog wheel feel doesn't sink in
+   - No opportunity to learn the pressure for phase correction
+   - Cannot learn operations your body should memorize
 
-3. Tempo Faderの感覚が身につかない
-   - BPM差に応じたフェーダー位置を覚えられない
-   - 微調整の精度が向上しない
+3. Tempo Fader feel doesn't sink in
+   - Cannot memorize fader positions for different BPM differences
+   - Fine-adjustment precision does not improve
 
-4. 機材変更時に困る
-   - CDJでSync機能がない/使いにくい環境
-   - 異なるDJソフトウェアへの移行
-   - 機材トラブル時の対応
+4. You'll struggle when equipment changes
+   - Environments with CDJs that lack or have unusable Sync
+   - Transitioning to different DJ software
+   - Dealing with equipment malfunctions
 
-練習時の設定チェックリスト:
+Practice settings checklist:
   □ Beat Sync: OFF
   □ Quantize: OFF
-  □ Master Tempo: OFF（練習初期）
-  □ ビートグリッド表示: 参考程度（依存しない）
-  □ BPM表示: 参考程度（依存しない）
-  □ 波形表示: 参考程度（依存しない）
+  □ Master Tempo: OFF (early practice)
+  □ Beat grid display: reference only (don't depend on it)
+  □ BPM display: reference only (don't depend on it)
+  □ Waveform display: reference only (don't depend on it)
 ```
 
-### 本番での使い分け
+### How to Use It in Live Performance
 
 ```
-Sync機能を使ってもよい場面:
+Situations where it's OK to use Sync:
 
-1. 3デッキ以上の複雑なミックス
-   - 3曲以上を同時にコントロールする場合
-   - 手動で全てのデッキをビートマッチするのは困難
-   - 1デッキをSyncで固定し、他を手動で合わせる
+1. Complex mixes with 3 or more decks
+   - When controlling 3 or more tracks simultaneously
+   - Manually beatmatching all decks is difficult
+   - Lock 1 deck with Sync, manually match the others
 
-2. エフェクト多用時
-   - ループ、エフェクト、サンプラーを駆使する場合
-   - 手がビートマッチ以外の操作で忙しい
-   - Syncで基本的なBPMを維持しつつ創造的な操作に集中
+2. When using many effects
+   - When using loops, effects, and samplers extensively
+   - Hands are busy with operations other than beatmatching
+   - Maintain basic BPM with Sync while focusing on creative operations
 
-3. ライブ楽器との同期
-   - ドラムマシンやシンセサイザーとの同期
-   - MIDI CLOCKとの連携
-   - Ableton Live との同期プレイ
+3. Syncing with live instruments
+   - Syncing with drum machines or synthesizers
+   - Linking with MIDI CLOCK
+   - Synchronized play with Ableton Live
 
-4. 極端なBPM差のトランジション
-   - 例: 128 BPMから140 BPMへの大幅な移行
-   - 手動では調整が大きすぎる
-   - Syncで段階的にBPMをシフトする
+4. Transitions with extreme BPM differences
+   - Example: large transition from 128 BPM to 140 BPM
+   - The adjustment is too large to do manually
+   - Use Sync to shift BPM gradually
 
-5. 緊急時
-   - 次の曲のBPMを間違えて準備した場合
-   - 時間がない場合
-   - 機材トラブルで手動操作が難しい場合
+5. Emergencies
+   - Prepared the next track at the wrong BPM
+   - When time is short
+   - When equipment trouble makes manual operation difficult
 
-Sync機能を使わない方がよい場面:
+Situations where you shouldn't use Sync:
 
-1. 2デッキの通常ミックス
-   - 基本的な2曲のミックスでは手動が望ましい
-   - 観客やオーガナイザーからの評価に影響
+1. Standard 2-deck mixing
+   - For basic 2-track mixing, manual is preferable
+   - Affects evaluation from audience and organizers
 
-2. ビートグリッドが不正確な曲
-   - Syncが正確に機能しない
-   - 手動の方が確実
+2. Tracks with inaccurate beat grids
+   - Sync does not function accurately
+   - Manual is more reliable
 
-3. テンポの揺らぎがある曲（ディスコ、ファンク等）
-   - Syncが曲の自然なグルーヴを破壊する可能性
-   - 手動で曲のノリに合わせた方が音楽的
+3. Tracks with tempo fluctuation (disco, funk, etc.)
+   - Sync can destroy the natural groove of the track
+   - More musical to match the track's feel manually
 
-4. ビニール（レコード）でDJする場合
-   - 当然Sync機能は使えない
-   - ターンテーブルのピッチコントロールのみ
+4. When DJing with vinyl (records)
+   - Sync is obviously unavailable
+   - Only the turntable's pitch control
 
-Syncの賢い使い方（上級者向け）:
-  - 基本は手動ビートマッチング
-  - Syncは「保険」として使う
-  - 手動で合わせた後にSyncをONにして安定させる
-  - Syncを「ツール」として使いこなす
-  - 決して「依存」しない
+The smart way to use Sync (for advanced users):
+  - Fundamentally, manual beatmatching
+  - Use Sync as "insurance"
+  - Turn Sync ON after aligning manually to stabilize
+  - Use Sync as a "tool"
+  - Never "depend" on it
 ```
 
-### プロDJのSync観
+### Professional DJs' Views on Sync
 
 ```
-Sync論争の現状（2020年代）:
-
-「Sync不要派」の意見:
-  - ビートマッチングはDJの基本中の基本
-  - Syncなしでできてこそプロ
-  - クラブのCDJでSync非搭載も多い
-  - 伝統的なDJスキルを守るべき
-
-「Sync容認派」の意見:
-  - テクノロジーの進化は受け入れるべき
-  - DJの価値は選曲やミックスの創造性にある
-  - Syncを使うことで他のクリエイティブな操作に集中できる
-  - ビートマッチングだけがDJの全てではない
-
-現在の業界コンセンサス:
-  「手動ビートマッチングができることが前提。
-   その上でSyncを使うかどうかは個人の判断。
-   ただし、手動でできない人がSyncに頼ることは
-   プロフェッショナルとして問題がある」
-
-結論:
-  → まずは手動ビートマッチングを完璧にマスターする
-  → その後、Syncを「ツール」として使いこなす
-  → 両方できるDJが最も強い
-```
-
----
-
-## 11. ジャンル別ビートマッチングの特性
-
-### House / Tech House（120-130 BPM）
-
-Houseは最もビートマッチングしやすいジャンルのひとつです。初心者が最初に練習するのに最適です。
-
-```
-House / Tech House の特性:
-
-BPM範囲: 120-130 BPM（主流は124-128）
-
-キックの特徴:
-  - 明確な4つ打ち
-  - 温かく丸みのある音色
-  - 音圧は中程度
-  - ベースラインとの分離が良い
-
-ビートマッチングの難易度: ★☆☆☆☆（最も簡単）
-
-理由:
-  - キックが規則的で聞き取りやすい
-  - BPMが安定している
-  - テンポの揺らぎがない
-  - 同ジャンル内のBPM差が小さい（2-5 BPM程度）
-
-House特有の注意点:
-  - スウィング感のあるキックパターンに注意
-    （一部のDeep Houseやジャズ系ハウス）
-  - オフビートのハイハットをキックと間違えない
-  - ベースラインが強い曲ではキックとベースを区別
-
-練習推奨曲の特徴:
-  - Fisher、Chris Lake などの明確なキック
-  - CamelPhat、Solardo などのテックハウス
-  - James Hype、Dom Dolla などのメインストリーム
-```
-
-### Techno（125-145 BPM）
-
-Technoはキックが非常に明確で、ビートマッチングの練習に適しています。ただし、BPM範囲が広いことに注意が必要です。
-
-```
-Techno の特性:
-
-BPM範囲: 125-145 BPM（サブジャンルにより大きく異なる）
-  - Melodic Techno: 125-132 BPM
-  - Peak Time Techno: 133-140 BPM
-  - Hard Techno: 140-150+ BPM
-  - Minimal Techno: 125-135 BPM
-
-キックの特徴:
-  - 非常に硬く明確な音色
-  - 音圧が高い
-  - 「ドッ・ドッ・ドッ・ドッ」という鋭い音
-  - ベースラインと分離していることが多い
-
-ビートマッチングの難易度: ★★☆☆☆（比較的簡単）
-
-理由:
-  - キックが最も聞き取りやすいジャンル
-  - 4つ打ちが基本
-  - BPMが安定している
-  - ただしBPM範囲が広いため、Tempo Faderの操作量が大きくなることも
-
-Techno特有の注意点:
-  - 高BPMのTechnoでは1%のBPM変化量が大きい
-    （140 BPM × 1% = 1.4 BPM）
-  - ハードテクノではキックのアタックが非常に短く、
-    位相のズレが目立ちやすい
-  - ミニマルテクノではキックパターンが変則的な場合がある
-  - ブレイクが少ないTechno曲は長時間の安定が求められる
-
-プロTips:
-  - Technoではキックの「アタック」（最初の瞬間）に集中
-  - 「ドッ」の「ド」の部分が合っているかを判断
-  - Amelie Lens、Charlotte de Witte、Adam Beyer
-    などの曲は練習に最適
-```
-
-### Drum & Bass（170-180 BPM）
-
-Drum & Bassは高速で、かつキックパターンが不規則なため、ビートマッチングの難易度が高いジャンルです。
-
-```
-Drum & Bass の特性:
-
-BPM範囲: 170-180 BPM（稀に160台や185+も）
-
-キックの特徴:
-  - 4つ打ちではない（ブレイクビーツ）
-  - パターン例: 「ドン・ッ・ドドン・ッ・ドン・ッ・ドドン」
-  - シンコペーションが多い
-  - スネアが2拍目と4拍目に入る
-
-ビートマッチングの難易度: ★★★★☆（難しい）
-
-理由:
-  - キックが不規則で基準にしにくい
-  - 高速のため、ズレの蓄積が速い
-  - 1 BPMの差 = 0.57%（低BPMより%が小さい）
-  - しかし高速のため体感的にはズレが早く蓄積
-
-DnB特有のビートマッチングテクニック:
-
-1. スネアを基準にする
-   - DnBのスネアは2拍目と4拍目で一定
-   - キックよりスネアの方が聞き取りやすい
-   - 「パン」という音に集中
-
-2. ハイハットを基準にする
-   - 高速で刻まれるハイハット
-   - 一定のパターンで鳴る
-   - キックよりも位相のズレが聞き取りやすい
-
-3. ベースラインを基準にする
-   - DnBのベースラインは重く特徴的
-   - ベースの「うねり」が合っているかどうかで判断
-
-4. フレーズの頭を合わせる
-   - 8小節や16小節のフレーズの頭で合わせる
-   - キックパターンの繰り返しの開始点を基準にする
-
-練習推奨:
-  - まず「リキッドDnB」（メロディックで聞きやすい）から始める
-  - 次に「ジャンプアップ」（キックが比較的明確）
-  - 最後に「ニューロファンク」（最も複雑なパターン）
-  - Calibre、Logistics、High Contrast が練習向き
-```
-
-### Trance（130-150 BPM）
-
-Tranceは4つ打ちですが、独特のキック音色とサブベースの扱いがビートマッチングに影響します。
-
-```
-Trance の特性:
-
-BPM範囲: 130-150 BPM
-  - Progressive Trance: 130-136 BPM
-  - Uplifting Trance: 136-142 BPM
-  - Psytrance: 140-150 BPM
-
-キックの特徴:
-  - 4つ打ち
-  - 丸みのある音色
-  - サブベースと重なりやすい
-  - キックの「ボディ」が長め
-
-ビートマッチングの難易度: ★★★☆☆（やや難しい）
-
-理由:
-  - キック自体は4つ打ちで聞き取りやすい
-  - しかしサブベースとの混ざりでキックが不明瞭になることがある
-  - BPM範囲が広い（特にProgressive→Psytranceの移行時）
-  - ブレイクが非常に長い曲がある（16-32小節のブレイク）
-
-Trance特有の注意点:
-  - ロングブレイク中のビートキープが最大の課題
-  - サイドチェイン（キックとベースの連動）がある曲では
-    ベースの「ポンプ」感でビートを追える
-  - Psytranceではキックが非常に速く、微小なズレが目立つ
-  - Key Lockの使用が推奨（Tranceはメロディーが重要）
-
-プロTips:
-  - Above & Beyond、Andrew Bayer の曲は練習向き
-  - Psytranceの場合、Astrix、Vini Vici の曲で練習
-  - ブレイク中はパッドやアルペジオのリズムで追う
-```
-
-### UK Garage / Bass Music（130-140 BPM）
-
-UK GarageやBass Musicは、シャッフルやスウィングのリズムがあるため、ビートマッチングに独特の難しさがあります。
-
-```
-UK Garage / Bass Music の特性:
-
-BPM範囲: 130-140 BPM
-
-キックの特徴:
-  - シャッフル/スウィングビート
-  - 「ツンツ・タンタ」のようなリズム
-  - キックの位置が4つ打ちとは異なる
-  - ツーステップの場合、キックが不規則
-
-ビートマッチングの難易度: ★★★★☆（難しい）
-
-理由:
-  - シャッフルリズムのため、「拍の頭」が感覚的にわかりにくい
-  - キックパターンが曲によって大きく異なる
-  - スウィング感を損なわずにマッチングする必要がある
-
-UK Garage特有のテクニック:
-  1. スネア/クラップを基準にする
-     - 2拍目と4拍目のスネアは安定している
-     - ここを基準にビートを合わせる
-
-  2. ハイハットのシャッフルパターンで追う
-     - 「チキチキチキ」というシャッフルパターン
-     - このパターンの位相を合わせる
-
-  3. ベースのグルーヴで判断
-     - UKGのベースラインは非常に特徴的
-     - ベースの「ウォブル」が合っているかで判断
-
-練習推奨:
-  - Disclosure、Mura Masa のトラック
-  - El-B、MJ Cole のクラシックUKG
-  - 現代のUKG: Interplanetary Criminal、Conducta
-```
-
-### Disco / Nu-Disco（110-128 BPM）
-
-DiscoやNu-Discoは、ライブ演奏の要素があるためテンポの揺らぎがあり、ビートマッチングが特に難しいジャンルです。
-
-```
-Disco / Nu-Disco の特性:
-
-BPM範囲: 110-128 BPM
-
-キックの特徴:
-  - 4つ打ち（基本的には）
-  - しかしテンポの「人間的な揺らぎ」がある
-  - ドラマーが演奏した音源の場合、BPMが微妙に変動
-  - オリジナルのディスコ曲（70-80年代）は特にテンポが不安定
-
-ビートマッチングの難易度: ★★★★★（最高難度）
-
-理由:
-  - テンポの揺らぎによりSync機能が使えない
-  - BPMが曲の中で変動する
-  - ビートグリッドが正確に設定できない
-  - 手動ビートマッチングの真の実力が試される
-
-Disco特有のテクニック:
-
-1. 「ライディング」が必須
-   - BPMが常に微妙に変動するため
-   - ジョグホイールを常に触り続ける
-   - 曲のテンポの揺らぎに合わせて微調整し続ける
-   - これが「ライディング」の本来の意味
-
-2. 曲の「クセ」を覚える
-   - 「この曲はサビで少し速くなる」
-   - 「ブリッジで0.5 BPM遅くなる」
-   - 曲ごとのテンポ変動パターンを暗記する
-
-3. フレーズ単位のマッチング
-   - 1ビート単位の完璧なマッチングよりも
-   - 4小節、8小節単位でグルーヴが合っていることを重視
-   - 多少のズレは許容しつつ、大局的に合わせる
-
-4. EQミキシングとの併用
-   - ビートが完璧に合わなくても
-   - EQで低音を切り替えることで
-   - キックの重複（ドドドド）を防ぐ
-   - 「ベースラインの受け渡し」テクニック
-
-練習推奨:
-  - Dimitri from Paris のエディット
-  - Purple Disco Machine のNu-Disco
-  - The Reflex のリエディット
-  - 最初はNu-Disco（テンポが安定）から始める
-  - 慣れたらオリジナルのディスコ曲に挑戦
+Current State of the Sync Debate (2020s):
+
+The "Sync unnecessary" camp:
+  - Beatmatching is the most fundamental DJ basic
+  - You're only a professional when you can do it without Sync
+  - Many club CDJs don't have Sync or it's not equipped
+  - The traditional DJ skills should be preserved
+
+The "Sync acceptable" camp:
+  - Technological evolution should be embraced
+  - The value of a DJ lies in track selection and creative mixing
+  - Using Sync frees you to focus on other creative operations
+  - Beatmatching alone is not all that DJing is
+
+Current industry consensus:
+  "Being able to do manual beatmatching is a prerequisite.
+   Beyond that, whether to use Sync is a personal decision.
+   However, a professional relying on Sync without being able
+   to do it manually is problematic."
+
+Conclusion:
+  → First, perfectly master manual beatmatching
+  → After that, master Sync as a "tool"
+  → The DJ who can do both is the strongest
 ```
 
 ---
 
-## 12. 上級ビートマッチングテクニック
+## 11. Genre-Specific Beatmatching Characteristics
 
-基本的なビートマッチングをマスターしたら、以下の上級テクニックに挑戦しましょう。
+### House / Tech House (120–130 BPM)
 
-### ピッチライディング（Pitch Riding）
-
-```
-ピッチライディングとは:
-
-定義:
-  ビートマッチングが完了した後、ミックス中に
-  Tempo Faderを微調整し続けるテクニック。
-
-使用場面:
-  - テンポの揺らぎがある曲のミックス
-  - 長時間のミックス（ドリフト防止）
-  - BPMの微妙な変更を伴うトランジション
-
-テクニック:
-  1. ミックス中にヘッドフォンで常にモニター
-  2. ドリフトを感じたらTempo Faderを微調整
-  3. ジョグホイールでの修正ではなく、
-     Tempo Faderで「根本原因」を修正する
-  4. ±0.02-0.05%の極微量の調整を繰り返す
-
-ピッチライディングの利点:
-  - ジョグホイールを頻繁に触らなくてよい
-  - より安定した長時間ミックスが可能
-  - プロフェッショナルな仕上がり
-
-ピッチライディングのマスター方法:
-  1. まず通常のビートマッチングを完璧にする
-  2. ドリフトの方向を「予測」する能力を養う
-  3. Tempo Faderの極微量操作を練習する
-  4. 指先の感覚を極限まで磨く
-```
-
-### ブレイクオーバー・ミキシング
+House is one of the easiest genres to beatmatch. It is ideal for beginners to practice first.
 
 ```
-ブレイクオーバー・ミキシングとは:
+House / Tech House Characteristics:
 
-定義:
-  2つの曲のブレイクダウン（キック抜け部分）を
-  同時に使ったトランジション技法。
+BPM range: 120–130 BPM (mainstream is 124–128)
 
-手順:
-  1. 曲Aがブレイクに入るタイミングを把握
-  2. 曲Bを曲Aのブレイク開始に合わせて導入
-  3. 曲Bもブレイク状態（キックなし）から入れる
-  4. 両方のブレイクが重なる
-  5. 曲Bのドロップ（キック復帰）に合わせて
-     曲Aのフェーダーを下げる
-  6. 曲Bのドロップが「新しいキック」として登場
+Kick characteristics:
+  - Clear four-on-the-floor
+  - Warm, round tone
+  - Medium sound pressure
+  - Good separation from the bassline
 
-メリット:
-  - 非常にドラマチックなトランジション
-  - フロアの緊張と解放を演出できる
-  - ビルドアップの効果が倍増
+Beatmatching difficulty: ★☆☆☆☆ (easiest)
 
-必要なスキル:
-  - ビートマッチングの完璧な精度
-  - フレーズマッチングの理解
-  - 曲の構造の暗記
-  - EQミキシングの技術
+Reasons:
+  - Kick is regular and easy to hear
+  - BPM is stable
+  - No tempo fluctuation
+  - BPM difference within the same genre is small (usually 2–5 BPM)
 
-注意点:
-  - ブレイク中のキック不在時にビートロスしないこと
-  - 両方のブレイクの長さが異なる場合の対処
-  - ドロップのタイミングが合わないと大失敗
-  - 練習が十分でない段階では試さないこと
+House-specific notes:
+  - Watch out for kick patterns with swing feel
+    (some Deep House and jazz-influenced house)
+  - Don't confuse off-beat hi-hats with kicks
+  - In tracks with a strong bassline, distinguish kicks from bass
+
+Recommended practice track characteristics:
+  - Tracks with a clear kick like Fisher, Chris Lake
+  - Tech House like CamelPhat, Solardo
+  - Mainstream like James Hype, Dom Dolla
 ```
 
-### ダブルドロップ（Double Drop）
+### Techno (125–145 BPM)
+
+Techno has a very clear kick and is well-suited for beatmatching practice. However, note that the BPM range is wide.
 
 ```
-ダブルドロップとは:
+Techno Characteristics:
 
-定義:
-  2曲のドロップ（キックが戻る瞬間）を
-  完全に同時に鳴らすテクニック。
+BPM range: 125–145 BPM (varies greatly by sub-genre)
+  - Melodic Techno: 125–132 BPM
+  - Peak Time Techno: 133–140 BPM
+  - Hard Techno: 140–150+ BPM
+  - Minimal Techno: 125–135 BPM
 
-主に使われるジャンル:
+Kick characteristics:
+  - Very hard and clear tone
+  - High sound pressure
+  - Sharp "dah-dah-dah-dah" sound
+  - Often well-separated from the bassline
+
+Beatmatching difficulty: ★★☆☆☆ (relatively easy)
+
+Reasons:
+  - Genre with the most audible kick
+  - Four-on-the-floor is standard
+  - BPM is stable
+  - However, wide BPM range means Tempo Fader operations can be large
+
+Techno-specific notes:
+  - At high Techno BPM, 1% BPM change is large
+    (140 BPM × 1% = 1.4 BPM)
+  - Hard Techno kick attacks are very short,
+    making phase drift very noticeable
+  - Minimal Techno may have irregular kick patterns
+  - Techno tracks with few breaks require sustained stability for long periods
+
+Pro Tips:
+  - In Techno, focus on the kick's "attack" (the first instant)
+  - Judge if the "dah" part of "dah" is aligned
+  - Tracks by Amelie Lens, Charlotte de Witte, Adam Beyer
+    are ideal for practice
+```
+
+### Drum & Bass (170–180 BPM)
+
+Drum & Bass is fast and has irregular kick patterns, making it a high-difficulty genre for beatmatching.
+
+```
+Drum & Bass Characteristics:
+
+BPM range: 170–180 BPM (rarely in the 160s or 185+)
+
+Kick characteristics:
+  - Not four-on-the-floor (breakbeats)
+  - Pattern example: "BOOM · · BOOM-BOOM · BOOM · · BOOM-BOOM"
+  - Heavy syncopation
+  - Snare hits on beats 2 and 4
+
+Beatmatching difficulty: ★★★★☆ (difficult)
+
+Reasons:
+  - Kick is irregular and hard to use as reference
+  - High speed means drift accumulates quickly
+  - 1 BPM difference = 0.57% (smaller % than low BPM)
+  - But at high speed, drift accumulates quickly in feel
+
+DnB-specific beatmatching techniques:
+
+1. Use the snare as reference
+   - DnB snare is steady on beats 2 and 4
+   - Snare is easier to hear than the kick
+   - Focus on the "crack" sound
+
+2. Use the hi-hat as reference
+   - Hi-hats ticking at high speed
+   - Hit in a regular pattern
+   - Phase drift is more audible than with the kick
+
+3. Use the bassline as reference
+   - DnB basslines are heavy and distinctive
+   - Judge based on whether the bass "wobble" is aligned
+
+4. Align the phrase start
+   - Align at the start of 8-bar or 16-bar phrases
+   - Use the repeat start point of the kick pattern as reference
+
+Practice recommendation:
+  - Start with "Liquid DnB" (melodic and easy to listen to)
+  - Then "Jump Up" (kick is relatively clear)
+  - Finally "Neurofunk" (most complex patterns)
+  - Calibre, Logistics, High Contrast are suitable for practice
+```
+
+### Trance (130–150 BPM)
+
+Trance is four-on-the-floor, but its unique kick tone and handling of the sub-bass affect beatmatching.
+
+```
+Trance Characteristics:
+
+BPM range: 130–150 BPM
+```
+
+  - Progressive Trance: 130–136 BPM
+  - Uplifting Trance: 136–142 BPM
+  - Psytrance: 140–150 BPM
+
+Kick characteristics:
+  - Four-on-the-floor
+  - Round tone
+  - Tends to blend with sub-bass
+  - Longer kick "body"
+
+Beatmatching difficulty: ★★★☆☆ (somewhat difficult)
+
+Reasons:
+  - The kick itself is four-on-the-floor and easy to hear
+  - However, mixing with sub-bass can make the kick unclear
+  - Wide BPM range (especially when transitioning from Progressive to Psytrance)
+  - Some tracks have very long breaks (16–32 bars)
+
+Trance-specific notes:
+  - Keeping the beat during long breaks is the biggest challenge
+  - In tracks with sidechain (kick and bass linked),
+    the bass "pumping" can be used to track the beat
+  - In Psytrance, the kick is very fast and tiny drift is noticeable
+  - Key Lock use is recommended (melody is important in Trance)
+
+Pro Tips:
+  - Tracks by Above & Beyond and Andrew Bayer are good for practice
+  - For Psytrance, practice with tracks by Astrix and Vini Vici
+  - Follow the pads and arpeggios rhythmically during breaks
+```
+
+### UK Garage / Bass Music (130–140 BPM)
+
+UK Garage and Bass Music have shuffle and swing rhythms, which creates a unique difficulty in beatmatching.
+
+```
+UK Garage / Bass Music Characteristics:
+
+BPM range: 130–140 BPM
+
+Kick characteristics:
+  - Shuffle/swing beat
+  - Rhythm like "tsun-tsu · tan-ta"
+  - Kick position differs from four-on-the-floor
+  - In two-step, the kick is irregular
+
+Beatmatching difficulty: ★★★★☆ (difficult)
+
+Reasons:
+  - With shuffle rhythm, the "start of the beat" is hard to feel intuitively
+  - Kick pattern varies greatly between tracks
+  - Must match without losing the swing feel
+
+UK Garage-specific techniques:
+  1. Use snare/clap as reference
+     - Snare on beats 2 and 4 is stable
+     - Use this as the reference to align the beat
+
+  2. Follow the hi-hat shuffle pattern
+     - The shuffle pattern "chi-ki-chi-ki-chi-ki"
+     - Align the phase of this pattern
+
+  3. Judge by the bass groove
+     - UK Garage basslines are very distinctive
+     - Judge by whether the bass "wobble" is aligned
+
+Practice recommendation:
+  - Tracks by Disclosure, Mura Masa
+  - Classic UKG by El-B, MJ Cole
+  - Modern UKG: Interplanetary Criminal, Conducta
+```
+
+### Disco / Nu-Disco (110–128 BPM)
+
+Disco and Nu-Disco have live performance elements that cause tempo fluctuation, making them particularly difficult genres for beatmatching.
+
+```
+Disco / Nu-Disco Characteristics:
+
+BPM range: 110–128 BPM
+
+Kick characteristics:
+  - Four-on-the-floor (basically)
+  - However, there is "human fluctuation" in tempo
+  - If the source was performed by a drummer, BPM fluctuates slightly
+  - Original disco tracks (70s–80s) especially have unstable tempos
+
+Beatmatching difficulty: ★★★★★ (highest difficulty)
+
+Reasons:
+  - Tempo fluctuation means Sync cannot be used
+  - BPM changes within the track
+  - Beat grids cannot be set accurately
+  - Your true manual beatmatching ability is tested
+
+Disco-specific techniques:
+
+1. "Riding" is essential
+   - Because BPM is always fluctuating subtly
+   - Keep touching the jog wheel continuously
+   - Keep fine-adjusting to match the track's tempo fluctuation
+   - This is the original meaning of "riding"
+
+2. Memorize the track's "quirks"
+   - "This track speeds up slightly in the chorus"
+   - "0.5 BPM slower at the bridge"
+   - Memorize the tempo variation pattern for each track
+
+3. Phrase-unit matching
+   - Rather than perfect matching at the beat level,
+   - Prioritize the groove being aligned over 4 or 8 bars
+   - Allow slight drift while matching on a macro level
+
+4. Combine with EQ mixing
+   - Even if the beat isn't perfectly aligned,
+   - By cutting the bass with EQ alternately,
+   - Prevent kick doubling (duh-duh-duh-duh)
+   - The "bassline handoff" technique
+
+Practice recommendation:
+  - Edits by Dimitri from Paris
+  - Nu-Disco by Purple Disco Machine
+  - Re-edits by The Reflex
+  - Start with Nu-Disco first (more stable tempo)
+  - Once comfortable, challenge original disco tracks
+```
+
+---
+
+## 12. Advanced Beatmatching Techniques
+
+Once you have mastered the basics of beatmatching, challenge yourself with the following advanced techniques.
+
+### Pitch Riding
+
+```
+What Pitch Riding Is:
+
+Definition:
+  A technique of continuously fine-adjusting the Tempo Fader
+  during a mix after beatmatching is complete.
+
+When to use:
+  - Mixing tracks with tempo fluctuation
+  - Long mixes (drift prevention)
+  - Transitions with subtle BPM changes
+
+Technique:
+  1. Monitor continuously through headphones during the mix
+  2. When you feel drift, fine-adjust the Tempo Fader
+  3. Instead of correcting with the jog wheel,
+     correct the "root cause" with the Tempo Fader
+  4. Repeat extremely small adjustments of ±0.02–0.05%
+
+Advantages of pitch riding:
+  - Don't need to frequently touch the jog wheel
+  - More stable long-term mixes are possible
+  - Professional finish
+
+How to master pitch riding:
+  1. First perfect normal beatmatching
+  2. Develop the ability to "predict" drift direction
+  3. Practice extremely small Tempo Fader operations
+  4. Polish fingertip sensitivity to the limit
+```
+
+### Breakdown Mixing
+
+```
+What Breakdown Mixing Is:
+
+Definition:
+  A transition technique that uses the breakdowns
+  (section where kick is absent) of two tracks simultaneously.
+
+Procedure:
+  1. Know the timing when Track A enters a breakdown
+  2. Introduce Track B to coincide with Track A's breakdown start
+  3. Track B also enters from a breakdown (no kick)
+  4. Both tracks' breakdowns overlap
+  5. As Track B's drop (kick return) approaches,
+     lower Track A's fader
+  6. Track B's drop appears as "the new kick"
+
+Advantages:
+  - Very dramatic transition
+  - Can create tension and release on the floor
+  - Build-up effect is doubled
+
+Required skills:
+  - Perfect beatmatching precision (most important)
+  - Understanding of phrase matching
+  - Memorization of track structure
+  - EQ mixing technique
+
+Notes:
+  - Do not lose the beat during the kick-absent break
+  - How to handle when the two breakdowns have different lengths
+  - If the drop timing is off by even a beat, it's a big failure
+  - Do not attempt this without sufficient practice
+```
+
+### Double Drop
+
+```
+What a Double Drop Is:
+
+Definition:
+  A technique of playing the drops (the moment the kick returns)
+  of two tracks at exactly the same time.
+
+Mainly used in genres:
   - Drum & Bass
   - Dubstep
   - Techno
 
-手順:
-  1. 曲Aのドロップのタイミングを把握
-  2. 曲Bのビートマッチングを完了
-  3. 曲Bのブレイクダウンを曲Aのブレイクダウンに合わせる
-  4. 両方の曲が同時にドロップする
-  5. 2曲のキックとベースが同時に炸裂
+Procedure:
+  1. Know the timing of Track A's drop
+  2. Complete beatmatching of Track B
+  3. Align Track B's breakdown to Track A's breakdown
+  4. Both tracks drop simultaneously
+  5. The kicks and bass of both tracks detonate at the same time
 
-効果:
-  - フロアが最高潮に盛り上がる瞬間
-  - 2曲の持つエネルギーが合算される
-  - DJの技術力を示すシグネチャーテクニック
+Effect:
+  - The floor reaches its peak excitement
+  - The energy of two tracks is combined
+  - A signature technique that shows a DJ's technical ability
 
-必要なスキル:
-  - 完璧なビートマッチング（最重要）
-  - 完璧なフレーズマッチング
-  - 曲の構造の完全な把握
-  - キーの相性の理解（不協和にならないこと）
+Required skills:
+  - Perfect beatmatching (most important)
+  - Perfect phrase matching
+  - Complete knowledge of track structure
+  - Understanding of key compatibility (avoid dissonance)
 
-リスク:
-  - BPMがズレているとダブルドロップが台無しになる
-  - キーが合わないと不協和音が発生
-  - タイミングが1拍でもずれると効果がなくなる
-  - 失敗すると非常に目立つ
+Risks:
+  - If BPM is off, the double drop is ruined
+  - If keys don't match, dissonance occurs
+  - If timing is even one beat off, the effect is lost
+  - Failure is very conspicuous
 
-練習方法:
-  1. まず同じ曲2枚でダブルドロップを練習
-  2. 次にキーが合う2曲で練習
-  3. ドロップの位置を完璧に暗記する
-  4. フレーズカウントを正確に行う
+Practice method:
+  1. First practice a double drop with two copies of the same track
+  2. Then practice with two tracks of compatible keys
+  3. Perfectly memorize the position of the drops
+  4. Accurately count phrases
 ```
 
-### BPMトランジション（テンポチェンジ）
+### BPM Transition (Tempo Change)
 
 ```
-BPMトランジションとは:
+What a BPM Transition Is:
 
-定義:
-  ミックス中にBPMを段階的に変更して、
-  異なるテンポのジャンルに移行するテクニック。
+Definition:
+  A technique of gradually changing BPM during a mix
+  to transition to a genre of a different tempo.
 
-使用場面:
-  - House（128 BPM）→ Techno（135 BPM）への移行
-  - Techno（135 BPM）→ DnB（174 BPM）への移行
-  - ジャンルミックスセット
-  - オープニング（低BPM）→ ピークタイム（高BPM）
+When to use:
+  - Transitioning from House (128 BPM) to Techno (135 BPM)
+  - Transitioning from Techno (135 BPM) to DnB (174 BPM)
+  - Genre-spanning sets
+  - Opening (low BPM) → Peak time (high BPM)
 
-テクニック1: 段階的BPMシフト
-  1. 曲A: 128 BPM（House）
-  2. 曲B: 130 BPM → ビートマッチング → ミックス
-  3. 曲C: 132 BPM → ビートマッチング → ミックス
-  4. 曲D: 135 BPM → ビートマッチング → ミックス
-  → 数曲かけて128→135にシフト
+Technique 1: Gradual BPM shift
+  1. Track A: 128 BPM (House)
+  2. Track B: 130 BPM → beatmatch → mix
+  3. Track C: 132 BPM → beatmatch → mix
+  4. Track D: 135 BPM → beatmatch → mix
+  → Shift from 128 to 135 over several tracks
 
-テクニック2: ブレイクを利用したジャンプ
-  1. 曲Aのブレイクに入る
-  2. ブレイク中に曲Bを全く異なるBPMで導入
-  3. 曲Aをフェードアウト
-  4. 曲Bが新しいBPMで始まる
-  → BPM差が大きい場合に有効
+Technique 2: Jump using a break
+  1. Track A enters a break
+  2. Introduce Track B at a completely different BPM during the break
+  3. Fade out Track A
+  4. Track B begins at the new BPM
+  → Effective when the BPM difference is large
 
-テクニック3: 半テンポ/倍テンポの活用
-  1. House 128 BPM の曲の上に
-  2. DnB 174 BPM の曲を「半テンポ」（87 BPM感覚）で重ねる
-  3. グルーヴの親和性を利用
-  4. フェーダー操作で切り替え
-  → 数学的に合うBPMの関係を利用
+Technique 3: Using half-tempo/double-tempo
+  1. Over a House 128 BPM track,
+  2. Layer a DnB 174 BPM track at "half-tempo" (feeling of 87 BPM)
+  3. Leverage groove affinity
+  4. Switch with fader operation
+  → Uses the mathematically compatible BPM relationship
 
-注意点:
-  - 段階的シフトは1-3 BPM/曲が限度
-  - それ以上のシフトはキーの変化が大きくなる
-    → Key Lock必須
-  - フロアの反応を見ながらペースを調整
-  - 急激なBPM変化はダンスの妨げになる
+Notes:
+  - Gradual shift limit is 1–3 BPM per track
+  - Beyond that, key changes become large
+    → Key Lock required
+  - Adjust pace while reading floor response
+  - Rapid BPM changes interfere with dancing
 ```
 
-### アナログレコードでのビートマッチング
+### Beatmatching with Analog Records
 
 ```
-ビニール（レコード）でのビートマッチング:
+Beatmatching with Vinyl (Records):
 
-アナログの特殊性:
-  - BPM表示なし（自分の耳だけが頼り）
-  - 波形表示なし
-  - ビートグリッドなし
-  - Sync機能なし
-  - ピッチ調整はターンテーブルのピッチフェーダーのみ
+Analog specifics:
+  - No BPM display (only your ears to rely on)
+  - No waveform display
+  - No beat grid
+  - No Sync function
+  - Pitch adjustment only via the turntable's pitch fader
 
-使用機材:
-  - ターンテーブル（Technics SL-1200MK7が業界標準）
-  - DJミキサー（Pioneer DJM-900NXS2など）
-  - ヘッドフォン
-  - レコード（12インチ）
+Equipment used:
+  - Turntable (Technics SL-1200MK7 is industry standard)
+  - DJ mixer (Pioneer DJM-900NXS2, etc.)
+  - Headphones
+  - Records (12-inch)
 
-操作方法:
+Operation methods:
 
-1. BPMの合わせ方
-   - ピッチフェーダーで調整（±8%が標準）
-   - BPMは完全に耳で判断
-   - 画面がないため、体感で合わせる
-   - 経験豊富なDJは±0.1%の精度で操作可能
+1. Matching BPM
+   - Adjust with the pitch fader (±8% standard)
+   - BPM is entirely judged by ear
+   - No screen, so align by feel
+   - Experienced DJs can operate with ±0.1% precision
 
-2. 位相の合わせ方
-   - レコードの上面を直接触って減速/加速
-   - 「バックスピン」（逆回転）でキューポイントに戻す
-   - レコードのレーベル部分（中心）を押さえて微調整
-   - またはプラッター（回転台）の縁を触って微調整
+2. Matching phase
+   - Directly touch the top of the record to slow down/speed up
+   - "Back-spin" (reverse) to return to the cue point
+   - Hold the center label area of the record for fine adjustment
+   - Or touch the edge of the platter (turntable) for fine adjustment
 
-3. キューイング
-   - ヘッドフォンで曲の開始位置を探す
-   - レコードを前後に揺らして「頭出し」
-   - キックの最初の音を見つける
-   - マーカーの代わりにラベルシールを使う
+3. Cueing
+   - Search for the start position of the track with headphones
+   - Rock the record back and forth to "cue up"
+   - Find the very first sound of the kick
+   - Use sticker labels instead of markers
 
-アナログ特有のスキル:
-  - 「スリップマット」の扱い
-    → レコードの下のフェルトマット
-    → レコードとプラッターの滑りを利用
-  - 「ニードルドロップ」
-    → レコードの特定位置に針を落とすテクニック
-  - 「バックキューイング」
-    → レコードを逆回転させてキューポイントに戻す
+Analog-specific skills:
+  - Handling the "slipmat"
+    → The felt mat under the record
+    → Uses the slippage between the record and platter
+  - "Needle drop"
+    → Technique of dropping the needle at a specific position on the record
+  - "Back-cueing"
+    → Reverse-spinning the record to return to the cue point
 
-プロTips:
-  - アナログDJを経験すると、デジタルDJのスキルが飛躍的に向上する
-  - 「耳だけ」で全て判断する訓練になる
-  - 手の感覚（触覚フィードバック）が極限まで磨かれる
-  - 一度はレコードでのDJを経験することを推奨
-```
-
----
-
-## 13. ビートマッチング完成の基準
-
-### 初級レベル（1ヶ月）
-
-```
-到達目標:
-  □ 同じBPM同士で位相を合わせられる
-  □ 合わせた位相が30秒間以上ズレない
-  □ ヘッドフォンでビートのズレを聞き取れる
-  □ ジョグホイールの基本操作ができる
-  □ Tempo Faderの操作方向を理解している
-  □ BPM差1-2の曲同士で合わせられる
-
-評価方法:
-  - 練習ミックスを録音して聞き返す
-  - つなぎ目で明らかなズレがないこと
-  - 友人に聞いてもらい「ズレてる？」と確認
-
-この段階でできなくてよいこと:
-  - 高速な合わせ（20秒以上かかってもOK）
-  - 長時間の安定（1分以上は求めない）
-  - 異なるジャンルの対応
-  - 画面を見ずにの操作
-```
-
-### 中級レベル（2-3ヶ月）
-
-```
-到達目標:
-  □ BPM差3-5でもスムーズに合わせられる
-  □ 合わせた状態を2分以上安定して維持できる
-  □ 10秒以内にビートマッチングを完了できる
-  □ Tempo Faderの微調整（±0.1%単位）ができる
-  □ ドリフトの方向と量を正確に聞き取れる
-  □ 3曲以上の連続ミックスが安定してできる
-  □ ミックスの一連の流れ（ビートマッチ→フェードイン→フェードアウト）を実行可能
-  □ ブレイク中もリズムをロストしない
-
-評価方法:
-  - 30分間の連続ミックスを録音
-  - 全てのつなぎ目でビートが合っていること
-  - 友人のパーティーでDJができるレベル
-
-この段階でできなくてよいこと:
-  - ジャンルを超えたミックス
-  - アナログレコードでのDJ
-  - エフェクトを多用したミックス
-  - 即興的な選曲とミックス
-```
-
-### 上級レベル（6ヶ月+）
-
-```
-到達目標:
-  □ どんなBPM差でも瞬時に合わせられる（5秒以内）
-  □ 5分以上ビートがズレない安定性
-  □ 画面を見ずに（耳だけで）ビートマッチングできる
-  □ 異なるジャンルの曲同士でもミックスできる
-  □ テンポの揺らぎがある曲でもライディングできる
-  □ 3デッキ以上でのビートマッチングが可能
-  □ ダブルドロップやBPMトランジションなどの
-     上級テクニックを実行できる
-  □ プレッシャー下（ライブ、観客の前）でも安定している
-  □ 1時間以上の連続ミックスを安定して行える
-  □ EQミキシングやFXを活用しながらビートマッチング維持
-
-評価方法:
-  - クラブやバーでのDJプレイ
-  - 1時間以上のミックスを録音し、全体を通して安定
-  - 他のDJからの評価（プロフェッショナルレベル）
-  - SoundCloudやMixcloudでの公開と反応
-
-この段階で目指すこと:
-  - 音楽的な表現としてのミックス
-  - ビートマッチングは「無意識」で行う
-  - 選曲やフロアの読みに集中できる
-  - 自分のスタイルの確立
-```
-
-### プロフェッショナルレベル（1年+）
-
-```
-到達目標:
-  □ ビートマッチングは完全に無意識で行える
-  □ アナログレコードでもビートマッチングできる
-  □ テンポの揺らぎがある曲でも自然にライディング
-  □ 即興でジャンルを横断したセットが組める
-  □ 機材が変わっても（CDJ、ターンテーブル、コントローラー）
-     同じクオリティでビートマッチングできる
-  □ ライブ演奏との同期が可能
-  □ 観客の反応に合わせた柔軟なBPM調整
-  □ エフェクトやループを活用した複雑なトランジション
-     の最中もビートが安定
-  □ 他のDJから「ビートマッチングが上手い」と言われる
-  □ 後進の指導ができる
-
-プロフェッショナルの姿勢:
-  - ビートマッチングは「できて当たり前」
-  - その上で何を表現するかが問われる
-  - 選曲、フロアリーディング、サウンドの質が勝負
-  - ビートマッチングの精度はプレイの「最低条件」
-
-練習を続ける理由:
-  - プロになってもビートマッチングの練習は続ける
-  - 新しいジャンルへの対応
-  - 新しい機材への適応
-  - 技術の維持と向上
-  - 常に「もっと上手くなれる」という意識
+Pro Tips:
+  - Experiencing analog DJing dramatically improves your digital DJ skills
+  - It becomes training to judge everything "by ear only"
+  - Tactile feedback (hand feel) is sharpened to the limit
+  - It is recommended to try DJing with records at least once
 ```
 
 ---
 
-## 14. ヘッドフォン選びとモニター環境
+## 13. Standards for Beatmatching Completion
 
-### ビートマッチングに適したヘッドフォン
+### Beginner Level (1 Month)
 
 ```
-DJヘッドフォンの選び方:
+Goals:
+  □ Can align phase between tracks of the same BPM
+  □ Aligned phase holds for 30+ seconds without drift
+  □ Can detect beat drift through headphones
+  □ Can perform basic jog wheel operation
+  □ Understands the direction of Tempo Fader operation
+  □ Can align tracks with a BPM difference of 1–2
 
-必須条件:
-  1. 密閉型（Closed-back）
-     - 外部の音を遮断
-     - クラブの大音量でもCueが聞こえる
-     - 開放型は音漏れするためDJには不向き
+Evaluation method:
+  - Record practice mix and review it
+  - No obvious drift at transitions
+  - Have a friend listen and confirm "is it drifted?"
 
-  2. 広い周波数レンジ
-     - 低音（キック）が明確に聞こえること
-     - 20Hz-20kHz以上のレンジ
+What you don't need to be able to do at this stage:
+  - Fast alignment (taking 20+ seconds is OK)
+  - Long-term stability (don't require 1 minute+)
+  - Handling different genres
+  - Operating without looking at the screen
+```
 
-  3. 高い音圧レベル（SPL）
-     - 大音量のクラブでも十分な音量が出せる
-     - 100dB以上を推奨
+### Intermediate Level (2–3 Months)
 
-  4. 丈夫な構造
-     - 片耳で使うため、可動部分が頑丈であること
-     - ケーブルが頑丈（カールコードが理想）
+```
+Goals:
+  □ Can smoothly align even with BPM difference of 3–5
+  □ Can maintain alignment stably for 2+ minutes
+  □ Can complete beatmatching within 10 seconds
+  □ Can fine-tune Tempo Fader in ±0.1% increments
+  □ Can accurately hear direction and amount of drift
+  □ Can continuously mix 3+ tracks stably
+  □ Can execute the complete mix sequence (beatmatch → fade in → fade out)
+  □ Does not lose rhythm during breaks
 
-  5. 快適な装着感
-     - 長時間使用に耐える
-     - イヤーパッドの素材と大きさ
+Evaluation method:
+  - Record a continuous 30-minute mix
+  - Beats are aligned at all transitions
+  - At a level where you can DJ at a friend's party
 
-定番モデル:
+What you don't need to be able to do at this stage:
+  - Cross-genre mixing
+  - DJing with analog records
+  - Mixes using many effects
+  - Spontaneous track selection and mixing
+```
 
-Pioneer DJ HDJ-X10（プロ仕様）:
-  - 業界標準のDJヘッドフォン
-  - 周波数: 5Hz-40kHz
-  - 最大入力: 3,500mW
-  - 片耳モニタリングに最適な回転機構
-  - 価格帯: 約30,000円
+### Advanced Level (6 Months+)
 
-Sennheiser HD 25（定番中の定番）:
-  - 30年以上の歴史を持つDJ必携モデル
-  - 周波数: 16Hz-22kHz
-  - 最大SPL: 120dB
-  - 軽量で長時間使用に最適
-  - 片耳モニタリングしやすい分割ヘッドバンド
-  - 価格帯: 約20,000円
+```
+Goals:
+  □ Can align any BPM difference instantly (within 5 seconds)
+  □ Stability of 5+ minutes without drift
+  □ Can beatmatch without looking at the screen (by ear only)
+  □ Can mix tracks of different genres
+  □ Can ride on tracks with tempo fluctuation
+  □ Beatmatching on 3+ decks is possible
+  □ Can execute advanced techniques like double drops and BPM transitions
+  □ Stable even under pressure (live, in front of an audience)
+  □ Can perform a continuous mix of 1+ hour stably
+  □ Can maintain beatmatching while using EQ mixing and FX
 
-Audio-Technica ATH-M50x（コスパ最強）:
-  - スタジオモニターにも使える汎用性
-  - 周波数: 15Hz-28kHz
-  - 優れた遮音性
-  - 初心者にも推奨
-  - 価格帯: 約15,000円
+Evaluation method:
+  - DJ performance at a club or bar
+  - Record a 1+ hour mix and it is stable throughout
+  - Evaluation from other DJs (professional level)
+  - Response to posting on SoundCloud or Mixcloud
+
+What to aim for at this stage:
+  - Mix as musical expression
+  - Beatmatching is performed "unconsciously"
+  - Can focus on track selection and reading the floor
+  - Establishing your own style
+```
+
+### Professional Level (1 Year+)
+
+```
+Goals:
+  □ Beatmatching is performed completely unconsciously
+  □ Can beatmatch with analog records
+  □ Naturally rides on tracks with tempo fluctuation
+  □ Can spontaneously build a cross-genre set
+  □ Can beatmatch at the same quality regardless of equipment
+     (CDJ, turntable, controller)
+  □ Synchronization with live instruments is possible
+  □ Flexible BPM adjustment in response to audience reaction
+  □ Beats remain stable during complex transitions
+     using effects and loops
+  □ Other DJs say "your beatmatching is great"
+  □ Can teach newcomers
+
+Professional attitude:
+  - Beatmatching is "expected to be a given"
+  - What you express on top of that is what matters
+  - Track selection, floor reading, and sound quality are the competition
+  - Beatmatching precision is the "minimum condition" for performance
+
+Reasons to keep practicing:
+  - Even as a professional, keep practicing beatmatching
+  - Adapting to new genres
+  - Adapting to new equipment
+  - Maintaining and improving technique
+  - Always having the mindset of "I can get even better"
+```
+
+---
+
+## 14. Choosing Headphones and Monitor Environment
+
+### Headphones Suitable for Beatmatching
+
+```
+How to Choose DJ Headphones:
+
+Essential conditions:
+  1. Closed-back
+     - Blocks out external sound
+     - Cue can be heard even at loud club volumes
+     - Open-back is not suitable for DJs due to sound leakage
+
+  2. Wide frequency range
+     - Low frequencies (kick) must be clearly audible
+     - 20 Hz–20 kHz or more range
+
+  3. High sound pressure level (SPL)
+     - Sufficient volume output even in loud clubs
+     - 100 dB or more recommended
+
+  4. Sturdy construction
+     - Since used one-ear style, moving parts must be durable
+     - Sturdy cable (coiled cord is ideal)
+
+  5. Comfortable fit
+     - Can withstand long periods of use
+     - Material and size of ear pads
+
+Classic models:
+
+Pioneer DJ HDJ-X10 (professional spec):
+  - Industry-standard DJ headphones
+  - Frequency: 5 Hz–40 kHz
+  - Max input: 3,500 mW
+  - Rotation mechanism optimized for one-ear monitoring
+  - Price range: approx. 30,000 JPY
+
+Sennheiser HD 25 (the classic of classics):
+  - DJ essential model with over 30 years of history
+  - Frequency: 16 Hz–22 kHz
+  - Max SPL: 120 dB
+  - Lightweight, ideal for long periods of use
+  - Split headband makes one-ear monitoring easy
+  - Price range: approx. 20,000 JPY
+
+Audio-Technica ATH-M50x (best value):
+  - Versatility that can be used for studio monitoring too
+  - Frequency: 15 Hz–28 kHz
+  - Excellent sound isolation
+  - Also recommended for beginners
+  - Price range: approx. 15,000 JPY
 
 V-MODA Crossfade M-100:
-  - スタイリッシュなデザイン
-  - 優れた低音再生
-  - 頑丈な構造
-  - 価格帯: 約25,000円
+  - Stylish design
+  - Excellent low-frequency reproduction
+  - Sturdy construction
+  - Price range: approx. 25,000 JPY
 
-練習用のヘッドフォンのコツ:
-  - 高価なヘッドフォンでなくてもOK（最初は）
-  - 最重要は「密閉型」であること
-  - キックの低音が聞こえることを確認
-  - 音漏れが少ないこと
-  - 装着感が良いこと（長時間練習のため）
+Tips for practice headphones:
+  - Expensive headphones are not necessary (at first)
+  - Most important: must be closed-back
+  - Confirm the kick's low frequencies are audible
+  - Low sound leakage
+  - Good fit (for long practice sessions)
 ```
 
-### モニター環境の最適化
+### Optimizing the Monitor Environment
 
 ```
-練習環境の構築:
+Building a Practice Environment:
 
-理想的な練習環境:
-  1. 静かな部屋（外部ノイズが少ない）
-  2. スピーカー（アクティブモニター推奨）
-  3. 適度な音量（近所迷惑にならない程度）
-  4. 安定した机やスタンド
+Ideal practice environment:
+  1. Quiet room (low external noise)
+  2. Speakers (active monitors recommended)
+  3. Moderate volume (not too loud for neighbors)
+  4. Stable desk or stand
 
-スピーカーの推奨:
-  - KRK ROKIT 5 G4（価格帯: ペアで約40,000円）
-  - JBL 305P MkII（価格帯: ペアで約30,000円）
-  - YAMAHA HS5（価格帯: ペアで約35,000円）
-  → いずれも5インチモニタースピーカー
-  → 低音のキックが明確に再生できる
+Recommended speakers:
+  - KRK ROKIT 5 G4 (price range: approx. 40,000 JPY per pair)
+  - JBL 305P MkII (price range: approx. 30,000 JPY per pair)
+  - YAMAHA HS5 (price range: approx. 35,000 JPY per pair)
+  → All are 5-inch monitor speakers
+  → Kick can be reproduced clearly with sufficient low end
 
-スピーカーなしでの練習:
-  - ヘッドフォンだけでも練習は可能
-  - ただし本番環境との違いを理解しておくこと
-  - ヘッドフォンではステレオの広がりが異なる
-  - 低音の体感が異なる（スピーカーは体で感じる）
+Practicing without speakers:
+  - Practice is possible with headphones alone
+  - However, understand the difference from a real performance environment
+  - Stereo spread is different with headphones
+  - Low frequency feel is different (speakers are felt physically)
 
-練習環境チェックリスト:
-  □ DDJ-FLX4がPCに正しく接続されている
-  □ Rekordboxが起動し、コントローラーを認識
-  □ ヘッドフォンが接続され、音が出る
-  □ スピーカーが接続され、音が出る（あれば）
-  □ 練習用の楽曲がRekordboxにインポート済み
-  □ BPM分析が完了している
-  □ 各設定（Sync OFF、Quantize OFF等）が適切
-  □ 適度な明るさの環境（暗すぎず明るすぎず）
-  □ 水分補給の準備（長時間練習のため）
+Practice environment checklist:
+  □ DDJ-FLX4 correctly connected to PC
+  □ Rekordbox launched and controller recognized
+  □ Headphones connected and audio works
+  □ Speakers connected and audio works (if available)
+  □ Practice tracks imported into Rekordbox
+  □ BPM analysis completed
+  □ Settings (Sync OFF, Quantize OFF, etc.) are appropriate
+  □ Adequate lighting (not too dark or too bright)
+  □ Hydration prepared (for long practice sessions)
 ```
 
 ---
@@ -2966,179 +2971,180 @@ V-MODA Crossfade M-100:
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important. Rather than theory alone, understanding deepens by actually operating the equipment and confirming behavior.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners commonly make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the fundamentals and jumping to advanced topics. It is recommended to thoroughly understand the basic concepts explained in this guide before proceeding to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this applied in real-world practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
+Knowledge of this topic is frequently applied in everyday development work. It becomes especially important in code reviews and architecture design.
 
 ---
 
-## まとめ
+## Summary
 
-ビートマッチングは、DJにとって最も基本的でありながら最も重要な技術です。本章で学んだ内容を振り返りましょう。
+Beatmatching is the most fundamental yet most important technique for a DJ. Let's review what we learned in this chapter.
 
 ```
-ビートマッチングの要点まとめ:
+Key Points of Beatmatching:
 
-■ 定義
-  2曲のBPM（速度）と位相（タイミング）を
-  一致させる技術。全てのDJスキルの基盤。
+■ Definition
+  The technique of matching the BPM (speed) and phase (timing)
+  of two tracks. The foundation of all DJ skills.
 
-■ 歴史
-  1970年代のディスコシーンで誕生。
-  Francis Grasso が体系化し、
-  Larry Levan、Frankie Knuckles が発展させた。
-  デジタル時代の今でも不可欠なスキル。
+■ History
+  Born in the disco scene of the 1970s.
+  Systematized by Francis Grasso,
+  and advanced by Larry Levan and Frankie Knuckles.
+  An indispensable skill even in the digital age.
 
-■ 最重要性
-  ビートマッチングなしにDJプレイは成立しない。
-  Sync機能があっても手動でできることが前提。
-  プロフェッショナルとしての信頼の基盤。
+■ Primary Importance
+  DJ play cannot be established without beatmatching.
+  Being able to do it manually is a prerequisite even with Sync.
+  The foundation of professional credibility.
 
-■ 2段階のプロセス
-  Step 1: BPMマッチング（Tempo Fader）
-  Step 2: 位相マッチング（ジョグホイール）
-  両方が揃って初めて「ビートマッチ」。
+■ Two-Stage Process
+  Step 1: BPM matching (Tempo Fader)
+  Step 2: Phase matching (jog wheel)
+  Only when both are achieved does it qualify as a "beatmatch."
 
-■ DDJ-FLX4での実践
-  ジョグホイール: 外周を指の腹で軽くなでる
-  Tempo Fader: ±8%の範囲で微調整
-  ヘッドフォン: 片耳モニタリングスタイル
+■ Practical Application on the DDJ-FLX4
+  Jog wheel: lightly stroke the outer edge with finger pads
+  Tempo Fader: fine-tune within ±8% range
+  Headphones: one-ear monitoring style
 
-■ 聴覚トレーニング
-  キック（ベースドラム）に集中して聞く。
-  ズレの方向（先行/遅れ）を判断する能力。
-  人間は20-30msのズレを認識可能。
-  訓練により5ms以下のズレも修正可能に。
+■ Auditory Training
+  Focus on listening to the kick (bass drum).
+  Ability to judge direction of drift (ahead/behind).
+  Humans can perceive drift of 20–30 ms.
+  With training, can correct drift below 5 ms.
 
-■ 練習方法
-  毎日30分の練習が最も効果的。
-  同じ曲で繰り返し練習。
-  Week 1-12の段階的アプローチ。
-  録音して聞き返すことで客観的に評価。
+■ Practice Method
+  30 minutes of daily practice is most effective.
+  Practice repeatedly with the same tracks.
+  Step-by-step approach over Weeks 1–12.
+  Record and review for objective evaluation.
 
-■ ジャンル別特性
-  House: 最も簡単（初心者推奨）
-  Techno: キックが明確で練習しやすい
-  DnB: ブレイクビーツのため高難度
-  Disco: テンポの揺らぎがあり最高難度
+■ Genre-Specific Characteristics
+  House: easiest (recommended for beginners)
+  Techno: clear kick, easy to practice
+  DnB: breakbeats make it high difficulty
+  Disco: tempo fluctuation makes it highest difficulty
 
-■ 上級テクニック
-  ピッチライディング: ミックス中のTempo Fader微調整
-  ダブルドロップ: 2曲同時ドロップ
-  BPMトランジション: テンポの段階的変更
-  アナログビートマッチ: レコードでの手動操作
+■ Advanced Techniques
+  Pitch riding: Tempo Fader fine-adjustment during mix
+  Double drop: both tracks drop simultaneously
+  BPM transition: gradual tempo change
+  Analog beatmatch: manual operation with records
 
-■ 完成の基準
-  初級（1ヶ月）: 30秒ズレない
-  中級（2-3ヶ月）: 2分以上安定、10秒以内に完了
-  上級（6ヶ月+）: 5秒以内に完了、画面を見ない
-  プロ（1年+）: 無意識でビートマッチング
+■ Standards for Completion
+  Beginner (1 month): no drift for 30 seconds
+  Intermediate (2–3 months): stable for 2+ minutes, complete within 10 seconds
+  Advanced (6 months+): complete within 5 seconds, no looking at screen
+  Professional (1 year+): beatmatching is unconscious
 
-■ 最も大切なこと
-  「毎日練習を続けること」
-  才能ではなく練習量が全てを決める。
-  100回やれば体が覚える。
-  1000回やれば無意識になる。
-  その先に「音楽的表現」がある。
+■ The Most Important Thing
+  "Keep practicing every day"
+  Practice amount — not talent — determines everything.
+  After 100 times, your body remembers it.
+  After 1,000 times, it becomes unconscious.
+  Beyond that lies "musical expression."
 ```
 
-**次のステップ:** [ミキシング基礎](./mixing-basics.md) でスムーズな曲つなぎを学ぶ
+**Next Step:** Learn smooth track transitions in [Mixing Basics](./mixing-basics.md)
 
 ---
 
 
-## 次に読むべきガイド
+## What to Read Next
 
-- [クロスフェーダー完全ガイド](./crossfader.md) - 次のトピックへ進む
-
----
-
-## 参考リンク
-
-- [BPMとテンポ](../01-basics/bpm-tempo.md) - BPMの基礎知識
-- [フレーズ構造](../01-basics/phrase-structure.md) - 曲の構造理解
-- [ピッチコントロール](./pitch-control.md) - Tempo Faderの詳細
-- [キューイング](./cueing.md) - キューポイントの設定と活用
-- [ミキシング基礎](./mixing-basics.md) - ミックスの基本テクニック
-- [DDJ-FLX4公式マニュアル](https://www.pioneerdj.com/) - Pioneer DJ公式情報
-- [Rekordbox公式サイト](https://rekordbox.com/) - DJソフトウェア情報
+- [Crossfader Complete Guide](./crossfader.md) - Move on to the next topic
 
 ---
 
-## 用語集
+## Reference Links
+
+- [BPM and Tempo](../01-basics/bpm-tempo.md) - BPM basics
+- [Phrase Structure](../01-basics/phrase-structure.md) - Understanding track structure
+- [Pitch Control](./pitch-control.md) - Detailed guide to the Tempo Fader
+- [Cueing](./cueing.md) - Setting and using cue points
+- [Mixing Basics](./mixing-basics.md) - Basic mixing techniques
+- [DDJ-FLX4 Official Manual](https://www.pioneerdj.com/) - Pioneer DJ official information
+- [Rekordbox Official Site](https://rekordbox.com/) - DJ software information
+
+---
+
+## Glossary
 
 ```
-ビートマッチング関連用語:
+Beatmatching-Related Terms:
 
 BPM (Beats Per Minute):
-  1分間あたりの拍数。テンポの単位。
+  Number of beats per minute. Unit of tempo.
 
-ビートグリッド (Beat Grid):
-  ソフトウェアが曲の拍位置を分析して
-  設定するタイミングのグリッド。
+Beat Grid:
+  A timing grid that the software analyzes and sets
+  based on the beat positions in the track.
 
-位相 (Phase):
-  ビートの時間的な位置。
-  2曲の位相が一致 = キックが同時に鳴る。
+Phase:
+  The temporal position of a beat.
+  Two tracks' phases matching = kicks hit simultaneously.
 
-ドリフト (Drift):
-  BPMの微小な差により、徐々に位相がずれていく現象。
+Drift:
+  The phenomenon where phase gradually shifts due to
+  a tiny BPM difference between two tracks.
 
-ライディング (Riding):
-  ミックス中にTempo Faderやジョグホイールで
-  継続的にビートを微調整し続けるテクニック。
+Riding:
+  The technique of continuously fine-adjusting the beat
+  during a mix using the Tempo Fader or jog wheel.
 
-ピッチベンド (Pitch Bend):
-  ジョグホイールで一時的にBPMを変化させる操作。
-  手を離すと元のBPMに戻る。
+Pitch Bend:
+  The operation of temporarily changing BPM with the jog wheel.
+  Returns to the original BPM when you release.
 
-ピッチフェーダー / Tempo Fader:
-  BPM（再生速度）を変更するためのスライダー。
+Pitch Fader / Tempo Fader:
+  A slider used to change BPM (playback speed).
 
-キュー (Cue):
-  曲の特定位置にマーカーを設定する機能。
-  ヘッドフォンでモニターする機能。
+Cue:
+  A function to set a marker at a specific position in a track.
+  Also: the function of monitoring through headphones.
 
-マスター (Master):
-  現在スピーカーから再生されている基準デッキ。
+Master:
+  The reference deck currently playing through the speakers.
 
-スレーブ (Slave):
-  次にミックスする曲のデッキ。
-  マスターに合わせてBPMと位相を調整する。
+Slave:
+  The deck of the next track to mix.
+  BPM and phase are adjusted to match the master.
 
-フレーズ (Phrase):
-  通常8小節（32拍）で構成される音楽の区切り。
-  ミックスはフレーズの頭で行うのが基本。
+Phrase:
+  A musical unit typically composed of 8 bars (32 beats).
+  Mixing is fundamentally done at the start of phrases.
 
-ブレイク / ブレイクダウン (Break / Breakdown):
-  曲中でキックやベースが抜ける部分。
-  メロディーやパッドだけが残る。
+Break / Breakdown:
+  The section of a track where the kick and bass drop out.
+  Only melody and pads remain.
 
-ドロップ (Drop):
-  ブレイク後にキックとベースが復帰する瞬間。
-  最もエネルギーが高い部分。
+Drop:
+  The moment after a breakdown when the kick and bass return.
+  The highest-energy section.
 
-クロスフェーダー (Crossfader):
-  左右のデッキの音量バランスを操作するフェーダー。
+Crossfader:
+  A fader that operates the volume balance between the left and right decks.
 
-チャンネルフェーダー (Channel Fader):
-  各デッキの音量を個別に操作するフェーダー。
+Channel Fader:
+  A fader that individually controls the volume of each deck.
 
 Key Lock / Master Tempo:
-  BPM変更時にキー（音程）が変わらない機能。
+  A feature that prevents the key (pitch) from changing when BPM changes.
 
 Quantize:
-  操作タイミングを自動的にビートグリッドに
-  スナップさせる機能。
+  A function that automatically snaps operation timing
+  to the beat grid.
 
 Sync:
-  2曲のBPMを自動的に一致させる機能。
+  A function that automatically matches the BPM of two tracks.
 ```
