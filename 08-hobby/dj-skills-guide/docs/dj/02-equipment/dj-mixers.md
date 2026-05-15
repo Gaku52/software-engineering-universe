@@ -1,592 +1,592 @@
-# DJミキサー
+# DJ Mixers
 
-DJセットアップの心臓部、ミキサーの使い方を学びます。DJミキサーは単なる音量調整機器ではなく、音楽表現の中心的なツールです。すべての音がここを通過し、EQ・フィルター・エフェクトを駆使して楽曲をシームレスにつなぎ、フロアの空気を操る――その技術の根幹がミキサー操作にあります。
+Learn how to use the mixer — the heart of a DJ setup. A DJ mixer is not merely a volume control device; it is the central tool for musical expression. All sound passes through it, and the core of the craft lies in mixer operation: shaping seamless transitions between tracks using EQ, filters, and effects to command the atmosphere on the floor.
 
-## この章で学ぶこと
+## What You Will Learn in This Chapter
 
-- DJミキサーとは何か――その役割と歴史的背景
-- DJMシリーズの詳細比較と選び方の指針
-- 他メーカー（Allen & Heath、Rane、Ecler、Formula Sound）との比較
-- ミキサーの各部名称と機能の深い理解
-- チャンネル操作の基礎から応用まで
-- クロスフェーダーの構造と各スタイルでの使い方
-- EQ操作の理論と実践テクニック
-- エフェクトの使い方（Beat FX / Sound Color FX / Send-Return）
-- ゲインステージングの重要性と正しい手順
-- Pro DJ Linkの仕組みと活用法
-- クラブでの実践的な使い方とプロトコル
-- トラブルシューティングと緊急対応
-- ミキサーのメンテナンスと寿命を延ばす方法
+- What a DJ mixer is — its role and historical background
+- Detailed comparison of the DJM series and guidelines for choosing the right model
+- Comparison with other manufacturers (Allen & Heath, Rane, Ecler, Formula Sound)
+- Deep understanding of each section and function of a mixer
+- Channel operation from basics to advanced techniques
+- Crossfader mechanics and how to use it in different styles
+- EQ theory and practical techniques
+- How to use effects (Beat FX / Sound Color FX / Send-Return)
+- The importance of gain staging and the correct procedure
+- How Pro DJ Link works and how to use it
+- Practical club usage and protocols
+- Troubleshooting and emergency responses
+- Mixer maintenance and how to extend its lifespan
 
-## なぜDJミキサーが重要か
+## Why DJ Mixers Matter
 
-**DJセットアップの中心:**
-- 全ての音がミキサーを通過する――音質の最終的なボトルネックになる
-- 音質を左右する最も重要な機材（DAC品質、アナログ回路の設計が直結）
-- エフェクトを追加してクリエイティブな表現が可能
-- 複数デッキを統合し、シームレスなトランジションを実現
-- ヘッドフォンモニタリングで次の曲の準備を行う
-- マスターアウトとブースモニターの独立制御
+**The center of a DJ setup:**
+- All sound passes through the mixer — it becomes the final bottleneck for audio quality
+- The most important piece of gear affecting sound quality (DAC quality and analog circuit design are directly tied to output)
+- Effects can be added for creative expression
+- Integrates multiple decks to achieve seamless transitions
+- Headphone monitoring allows preparation of the next track
+- Independent control of master out and booth monitor
 
-**クラブ標準としての重要性:**
-- DJM-900NXS2は世界中のクラブで標準装備されている
-- クラブDJを目指すなら、DJMシリーズの操作は必須スキル
-- レジデントDJはミキサーの全機能を熟知している必要がある
-- ゲストDJとして他のクラブに行っても、同じ操作感で対応できる
-- フェスティバルのメインステージでも同一機材が使われることが多い
+**Importance as a club standard:**
+- The DJM-900NXS2 is standard equipment in clubs worldwide
+- For anyone aiming to DJ in clubs, operating the DJM series is an essential skill
+- Resident DJs must be fully familiar with all functions of the mixer
+- Guest DJs can operate with the same feel when visiting other clubs
+- The same equipment is often used on festival main stages
 
-**プロの視点:**
-DJミキサーの理解が浅いと、以下のような問題が頻発する：
-- 音割れ（クリッピング）による音質劣化
-- 低域の重複（ダブルベース）でフロアが崩壊
-- エフェクトの過剰使用でミックスが汚くなる
-- ゲインステージングの失敗でPAエンジニアとトラブル
-- 次のDJへの引き継ぎが不適切でトランジションが台無し
+**The professional perspective:**
+A shallow understanding of DJ mixers leads to the following frequent problems:
+- Sound distortion (clipping) causing audio degradation
+- Low-frequency overlap (double bass) collapsing the floor
+- Excessive effects use making the mix muddy
+- Gain staging failures causing problems with the PA engineer
+- Improper handoff to the next DJ ruining the transition
 
 
-## 前提知識
+## Prerequisites
 
-このガイドを読む前に、以下の知識があると理解が深まります:
+Having the following knowledge before reading this guide will deepen your understanding:
 
-- 基本的なプログラミングの知識
-- 関連する基礎概念の理解
-- [DJコントローラー](./controllers.md) の内容を理解していること
+- Basic programming knowledge
+- Understanding of related foundational concepts
+- Having understood the content of [DJ Controllers](./controllers.md)
 
 ---
 
-## 1. DJミキサーとは
+## 1. What Is a DJ Mixer?
 
-### 定義と基本概念
+### Definition and Basic Concepts
 
 ```
-DJミキサー = 複数の音源をミックスするための専用機材
+DJ Mixer = Dedicated equipment for mixing multiple audio sources
 
-通常構成:
-- CDJ/ターンテーブル × 2-4台
-+ DJミキサー × 1台
-+ PAシステム（アンプ + スピーカー）
-= DJセットアップ
+Typical configuration:
+- CDJ / Turntable × 2–4 units
++ DJ Mixer × 1 unit
++ PA system (amplifier + speakers)
+= DJ setup
 ```
 
-DJミキサーは、一般的なレコーディングスタジオのミキサー（ミキシングコンソール）とは設計思想が根本的に異なります。レコーディングコンソールが多数のマイクやインストゥルメントを扱い、細かなルーティングやバス送りを行うのに対し、DJミキサーは2〜6チャンネル程度の入力を持ち、リアルタイムでの切り替えと音質調整に特化しています。
+A DJ mixer is fundamentally different in design philosophy from a general recording studio mixer (mixing console). While a recording console handles many microphones and instruments with complex routing and bus sends, a DJ mixer has around 2–6 channels of input and is specialized for real-time switching and audio adjustment.
 
-**主な機能の詳細:**
+**Detailed main functions:**
 
-| 機能 | 説明 | 重要度 |
+| Function | Description | Importance |
 |------|------|--------|
-| 音源の切り替え | 複数の音源をシームレスに切り替える | ★★★★★ |
-| EQによる音質調整 | 3バンド/4バンドで帯域ごとに調整 | ★★★★★ |
-| フィルター | HPF/LPFで周波数帯域を制限 | ★★★★☆ |
-| エフェクト | Echo, Reverb, Flangerなどの音響効果 | ★★★★☆ |
-| ヘッドフォンモニタリング | Cue機能で次の曲を事前確認 | ★★★★★ |
-| マスターアウト | メインスピーカーへの出力制御 | ★★★★★ |
-| ブースアウト | DJブース内モニターの独立制御 | ★★★★☆ |
-| レベルメーター | 各チャンネルとマスターの音量表示 | ★★★★☆ |
+| Source switching | Seamlessly switch between multiple sources | ★★★★★ |
+| EQ tone adjustment | Adjust per frequency band with 3-band / 4-band | ★★★★★ |
+| Filter | Limit frequency bands with HPF/LPF | ★★★★☆ |
+| Effects | Echo, Reverb, Flanger and other audio effects | ★★★★☆ |
+| Headphone monitoring | Pre-listen to the next track with the Cue function | ★★★★★ |
+| Master out | Output control to main speakers | ★★★★★ |
+| Booth out | Independent control of the DJ booth monitor | ★★★★☆ |
+| Level meters | Display volume for each channel and master | ★★★★☆ |
 
-### DJミキサーの歴史
+### History of DJ Mixers
 
-DJミキサーの進化は、DJカルチャーの発展と密接に関連しています。
+The evolution of DJ mixers is closely tied to the development of DJ culture.
 
-**1970年代: 黎明期**
-- DJ Kool Hercが2台のターンテーブルを使い始める
-- 初期のDJミキサーはオーディオミキサーを転用したもの
-- Bozak CMA-10-2DLが初のDJ専用ミキサーとして登場
-- ロータリーフェーダーが主流で、クロスフェーダーはまだ存在しない
+**1970s: Dawn of the era**
+- DJ Kool Herc begins using two turntables
+- Early DJ mixers were repurposed audio mixers
+- The Bozak CMA-10-2DL emerges as the first dedicated DJ mixer
+- Rotary faders were mainstream; crossfaders did not yet exist
 
-**1980年代: クロスフェーダーの登場**
-- Rane MP 2016が登場し、DJミキサーの基準を確立
-- クロスフェーダーの発明がスクラッチDJを可能にした
-- Vestax、Rane、Numarkが市場に参入
-- ヒップホップ・ターンテーブリズムが爆発的に広がる
+**1980s: Arrival of the crossfader**
+- The Rane MP 2016 emerges and establishes the benchmark for DJ mixers
+- The invention of the crossfader made scratch DJing possible
+- Vestax, Rane, and Numark enter the market
+- Hip-hop turntablism expands explosively
 
-**1990年代: デジタル化の波**
-- Pioneer DJMシリーズの誕生（DJM-500、DJM-600）
-- デジタルエフェクトの搭載が始まる
-- Allen & Heath Xone:62がテクノ・ハウスシーンで人気に
-- EQ Kill（完全カット）機能の搭載
+**1990s: The wave of digitization**
+- Birth of Pioneer's DJM series (DJM-500, DJM-600)
+- Digital effects begin to be incorporated
+- Allen & Heath Xone:62 gains popularity in the techno and house scene
+- EQ Kill (full cut) function incorporated
 
-**2000年代: クラブ標準の確立**
-- DJM-800が登場し、クラブ標準の座を確立
-- Beat FX機能の充実
-- デジタルDJ（Serato、Traktor）との連携が始まる
-- DJM-2000が登場し、タッチスクリーンを搭載
+**2000s: Establishment of the club standard**
+- DJM-800 emerges and establishes its place as the club standard
+- Beat FX functionality expands
+- Integration with digital DJ software (Serato, Traktor) begins
+- DJM-2000 emerges with touchscreen
 
-**2010年代: ネットワーク化**
-- DJM-900NXS（2012年）がクラブ標準に
-- Pro DJ Linkによるネットワーク連携
-- DJM-900NXS2（2016年）が現行標準に
-- DJM-V10（2020年）がアナログ回路重視で登場
+**2010s: Networking**
+- DJM-900NXS (2012) becomes the club standard
+- Network integration via Pro DJ Link
+- DJM-900NXS2 (2016) becomes the current standard
+- DJM-V10 (2020) emerges with focus on analog circuitry
 
-**2020年代: 次世代へ**
-- DJM-A9（2023年）が最新技術を結集
-- 96kHz/32bitオーディオ処理
-- Dolby Atmosサポート
-- AI活用のBeat解析の進化
-- ストリーミング対応の強化
+**2020s: The next generation**
+- DJM-A9 (2023) brings together the latest technologies
+- 96kHz/32-bit audio processing
+- Dolby Atmos support
+- Evolution of AI-powered beat analysis
+- Enhanced streaming support
 
-### DJミキサーの信号フロー
+### Signal Flow in a DJ Mixer
 
-ミキサー内部で音がどのように処理されるかを理解することは、正しいゲインステージングやエフェクト活用の基礎となります。
+Understanding how audio is processed inside the mixer is fundamental to correct gain staging and effective effects use.
 
 ```
-入力ソース（CDJ/ターンテーブル/PC）
+Input source (CDJ / Turntable / PC)
     ↓
-入力セレクター（Line / Phono / Digital）
+Input selector (Line / Phono / Digital)
     ↓
-A/D変換（アナログ入力の場合）
+A/D conversion (for analog inputs)
     ↓
-Trim（Gain）: 入力レベルの調整
+Trim (Gain): Input level adjustment
     ↓
-EQ セクション: Hi / Mid / Low（3バンドまたは4バンド）
+EQ section: Hi / Mid / Low (3-band or 4-band)
     ↓
-Insert エフェクト（DJM-V10のSend/Return等）
+Insert effects (DJM-V10 Send/Return, etc.)
     ↓
-Sound Color FX: チャンネルごとのエフェクト
+Sound Color FX: Per-channel effects
     ↓
-Channel Fader: チャンネル音量の制御
+Channel Fader: Channel volume control
     ↓
-クロスフェーダー（使用する場合）
+Crossfader (when used)
     ↓
-Beat FX（マスターまたはチャンネル選択）
+Beat FX (master or channel selection)
     ↓
-マスターバス: 全チャンネルのサミング
+Master bus: Summing of all channels
     ↓
-Master Level: 最終出力レベル
+Master Level: Final output level
     ↓
-D/A変換
+D/A conversion
     ↓
-Master Out（XLR/RCA）→ PAシステム
-Booth Out（XLR/TRS）→ ブースモニター
-Rec Out（RCA）→ 録音機器
+Master Out (XLR/RCA) → PA system
+Booth Out (XLR/TRS) → Booth monitor
+Rec Out (RCA) → Recording device
 ```
 
-**ポイント:** EQやColor FXはChannel Faderの前段にあるため（プリフェーダー）、Faderを上げる前にEQ調整が可能です。Beat FXはポストフェーダーで処理されるため、Faderの位置によってエフェクトのかかり具合が変わります。
+**Key point:** EQ and Color FX are placed before the Channel Fader (pre-fader), so EQ adjustments can be made before raising the Fader. Beat FX are processed post-fader, so the depth of the effect changes depending on the Fader position.
 
-### アナログとデジタルの違い
+### Analog vs. Digital
 
-現代のDJミキサーは、アナログとデジタルのハイブリッド設計が主流です。
+Modern DJ mixers predominantly use a hybrid analog/digital design.
 
-**フルアナログミキサー:**
-- 代表: Formula Sound FF-4000、Allen & Heath Xone:96（アナログセクション）
-- メリット: 温かみのある音、レイテンシーゼロ、直感的な操作感
-- デメリット: エフェクトなし（外部機器が必要）、メンテナンスが必要
-- 対象: 音質重視のDJ、ロータリーミキサー愛好者
+**Fully analog mixers:**
+- Examples: Formula Sound FF-4000, Allen & Heath Xone:96 (analog section)
+- Pros: Warm sound, zero latency, intuitive feel
+- Cons: No built-in effects (external gear required), requires maintenance
+- Target: Sound quality-focused DJs, rotary mixer enthusiasts
 
-**デジタルミキサー:**
-- 代表: DJM-900NXS2、DJM-A9
-- メリット: 多彩なエフェクト、デジタル接続、高い再現性
-- デメリット: D/A変換による微妙なレイテンシー、デジタル特有の音質
-- 対象: オールラウンドDJ、エフェクト多用するDJ
+**Digital mixers:**
+- Examples: DJM-900NXS2, DJM-A9
+- Pros: Diverse effects, digital connectivity, high reproducibility
+- Cons: Subtle latency from D/A conversion, digital-specific sound character
+- Target: All-around DJs, DJs who rely heavily on effects
 
-**ハイブリッドミキサー:**
-- 代表: DJM-V10、Allen & Heath Xone:96
-- メリット: アナログの音質とデジタルの利便性を両立
-- デメリット: 価格が高い、筐体が大きくなりがち
-- 対象: プロフェッショナルDJ、音質とエフェクトの両方を求めるDJ
+**Hybrid mixers:**
+- Examples: DJM-V10, Allen & Heath Xone:96
+- Pros: Combines analog sound quality with digital convenience
+- Cons: High price, tends to have a larger chassis
+- Target: Professional DJs, DJs who want both sound quality and effects
 
 ---
 
-## 2. DJMシリーズ詳細比較
+## 2. Detailed DJM Series Comparison
 
-Pioneer DJのDJMシリーズは、世界中のクラブで標準装備されており、DJにとって最も身近なミキサーです。各モデルの特徴を深く理解し、自分のスタイルに最適な一台を選びましょう。
+Pioneer DJ's DJM series is standard equipment in clubs worldwide, and is the most familiar mixer for DJs. Develop a deep understanding of each model's characteristics and find the one best suited to your style.
 
-### DJM-900NXS2（クラブ標準）
+### DJM-900NXS2 (Club Standard)
 
-**価格:** 約30万円（2016年発売）
-**対象:** クラブDJ全般、ゲストDJ、レジデントDJ
+**Price:** Approx. 300,000 JPY (released 2016)
+**Target:** Club DJs in general, guest DJs, resident DJs
 
-**特徴:**
+**Features:**
 ```
-✓ 世界標準のクラブミキサー
-✓ 4チャンネル
-✓ Beat FX × 14種類
-✓ Sound Color FX × 6種類
-✓ 64bit Mix プロセッサー
-✓ Pro DJ Link対応
-✓ Rekordbox連携
-✓ USB Audio Interface内蔵（2入力/2出力）
-✓ Dual USB端子（DJ交代時のスムーズな切り替え）
-✓ 96kHz/24bit デジタル処理
-```
-
-**使用クラブ:**
-- Berghain（ベルリン）※ただし一部フロアはAllen & Heath
-- fabric（ロンドン）
-- WOMB（東京）
-- Contact（東京）
-- Amnesia（イビサ）
-- Output（ニューヨーク）※閉店
-- ほぼ全ての主要クラブに設置
-
-**DJM-900NXS2が標準になった理由:**
-1. **堅牢性**: クラブの過酷な環境（高温、高湿度、振動）に耐える設計
-2. **操作性**: 直感的なレイアウトで、初見のDJでもすぐに使える
-3. **音質**: 64bitミキシングプロセッサーによる高精度な音声処理
-4. **互換性**: CDJ-2000NXS2やCDJ-3000との完全な連携
-5. **サポート**: Pioneer DJの充実したアフターサポートとパーツ供給
-6. **エフェクト**: Beat FXとSound Color FXの充実したラインナップ
-
-**プロのTips:**
-- DJM-900NXS2のEQは「Isolator」モードに変更可能。Isolatorにすると、EQの最小位置で完全に帯域がカットされる（-∞dB）
-- USB Audio Interfaceを使えば、Ableton LiveやTraktorとの連携も可能
-- Dual USBは、DJ交代時に片方のUSBポートからもう一方へシームレスに切り替えるための機能
-
-### DJM-V10（アナログサウンド重視）
-
-**価格:** 約50万円（2020年発売）
-**対象:** テクノ・ハウスDJ、長時間セット、音質重視
-
-**特徴:**
-```
-✓ 6チャンネル（DJMシリーズ最多）
-✓ 4バンドEQ（Low, Low-Mid, Hi-Mid, Hi）
-✓ Compressor内蔵（各チャンネル独立）
-✓ アナログ回路重視の設計
-✓ クロスフェーダーなし（ミックスDJ向け設計思想）
-✓ Send/Return × 2系統
-✓ Filter（HPF/LPF、レゾナンス調整可能）
-✓ Beat FX搭載
-✓ マスターアイソレーター
-✓ 超高音質（低ノイズ設計）
+✓ World-standard club mixer
+✓ 4 channels
+✓ Beat FX × 14 types
+✓ Sound Color FX × 6 types
+✓ 64-bit mix processor
+✓ Pro DJ Link compatible
+✓ Rekordbox integration
+✓ Built-in USB Audio Interface (2 in / 2 out)
+✓ Dual USB terminals (smooth DJ changeover)
+✓ 96kHz/24-bit digital processing
 ```
 
-**DJM-V10が特別な理由:**
-DJM-V10は、従来のDJMシリーズとは異なるアプローチで設計されています。テクノやハウスの長時間セットで求められる「音質の純度」を最優先にし、アナログ回路を多用した信号経路を採用しています。
+**Clubs where it is used:**
+- Berghain (Berlin) ※ some floors use Allen & Heath
+- fabric (London)
+- WOMB (Tokyo)
+- Contact (Tokyo)
+- Amnesia (Ibiza)
+- Output (New York) ※ now closed
+- Installed in virtually all major clubs
 
-**4バンドEQの利点:**
-一般的な3バンドEQと比べ、4バンドEQでは以下の精密なコントロールが可能：
+**Why the DJM-900NXS2 became the standard:**
+1. **Durability**: Designed to withstand the harsh club environment (high heat, humidity, vibration)
+2. **Operability**: Intuitive layout that even a first-time DJ can use immediately
+3. **Sound quality**: High-precision audio processing via 64-bit mixing processor
+4. **Compatibility**: Full integration with CDJ-2000NXS2 and CDJ-3000
+5. **Support**: Pioneer DJ's comprehensive after-sales support and parts supply
+6. **Effects**: A rich lineup of Beat FX and Sound Color FX
+
+**Pro tips:**
+- The EQ on the DJM-900NXS2 can be switched to "Isolator" mode. In Isolator mode, frequency bands are fully cut at the minimum EQ position (-∞dB)
+- Using the built-in USB Audio Interface, integration with Ableton Live or Traktor is also possible
+- Dual USB is a feature for seamlessly switching from one USB port to the other during a DJ changeover
+
+### DJM-V10 (Analog Sound Focused)
+
+**Price:** Approx. 500,000 JPY (released 2020)
+**Target:** Techno/house DJs, long sets, sound quality-focused DJs
+
+**Features:**
 ```
-Hi     (13kHz): ハイハット、シンバル、空気感
-Hi-Mid  (3kHz): ボーカル、シンセリード、パーカッション
-Low-Mid  (250Hz): ベースライン上部、キックの胴鳴り、ギター
-Low      (70Hz): サブベース、キックのアタック下部
+✓ 6 channels (most in the DJM series)
+✓ 4-band EQ (Low, Low-Mid, Hi-Mid, Hi)
+✓ Built-in Compressor (independent per channel)
+✓ Design prioritizing analog circuitry
+✓ No crossfader (design philosophy oriented toward mix DJs)
+✓ Send/Return × 2 systems
+✓ Filter (HPF/LPF, resonance adjustable)
+✓ Beat FX included
+✓ Master Isolator
+✓ Ultra-high audio quality (low-noise design)
 ```
 
-3バンドでは「Mid」に押し込められていた帯域を2つに分けることで、ベースラインとボーカルを独立してコントロールできます。テクノのように複雑なベースラインを持つジャンルでは、この差は大きいです。
+**Why the DJM-V10 is special:**
+The DJM-V10 is designed with a different approach from the conventional DJM series. It prioritizes "purity of sound quality" required for long techno and house sets, adopting a signal path that makes heavy use of analog circuitry.
 
-**Compressorの活用:**
-各チャンネルに独立したコンプレッサーが搭載されています。
+**Advantages of 4-band EQ:**
+Compared to typical 3-band EQ, a 4-band EQ enables the following precise control:
 ```
-用途:
-- ダイナミクスが大きい曲の音量を均一化
-- キックのアタックを制御
-- ビンテージレコードの音圧を持ち上げる
-- ライブ素材のレベル管理
+Hi       (13kHz): Hi-hats, cymbals, air
+Hi-Mid    (3kHz): Vocals, synth lead, percussion
+Low-Mid  (250Hz): Upper bassline, kick body resonance, guitar
+Low       (70Hz): Sub-bass, lower attack of kick
 ```
 
-**Send/Returnの実践活用:**
-```
-Send/Return 1: 外部エフェクター（Eventide H9、Strymon BigSkyなど）
-Send/Return 2: ループバック用（自分の出力をエフェクト経由で戻す）
+By splitting the band that was compressed into "Mid" in 3-band EQ into two, basslines and vocals can be controlled independently. For genres like techno with complex basslines, this difference is significant.
 
-接続例:
+**Using the Compressor:**
+An independent compressor is built into each channel.
+```
+Uses:
+- Leveling the volume of tracks with large dynamics
+- Controlling the attack of the kick
+- Boosting the level of vintage records
+- Level management of live material
+```
+
+**Practical use of Send/Return:**
+```
+Send/Return 1: External effects (Eventide H9, Strymon BigSky, etc.)
+Send/Return 2: For loopback (routing your output back through effects)
+
+Connection example:
 DJM-V10 Send 1 → Eventide H9 Input
 Eventide H9 Output → DJM-V10 Return 1
 
-使い方:
-1. Send Levelで送り量を調整
-2. 外部エフェクターで音を加工
-3. Return Levelで戻り量を調整
-4. Dry/Wetバランスで原音とエフェクト音の比率を制御
+How to use:
+1. Adjust the send amount with Send Level
+2. Process audio with external effects
+3. Adjust the return amount with Return Level
+4. Control the ratio of dry/wet sound with Dry/Wet balance
 ```
 
-### DJM-A9（最新フラッグシップ）
+### DJM-A9 (Latest Flagship)
 
-**価格:** 約35万円（2023年発売）
-**対象:** オールジャンルDJ、最新技術を求めるDJ
+**Price:** Approx. 350,000 JPY (released 2023)
+**Target:** All-genre DJs, DJs seeking the latest technology
 
-**特徴:**
+**Features:**
 ```
-✓ 4チャンネル
-✓ 独立エフェクト × 4（各チャンネルに独立したBeat FX）
-✓ Beat FX強化（新エフェクト追加）
-✓ Dolby Atmosサポート
-✓ 96kHz/32bit処理
-✓ 最新技術の集大成
-✓ タッチストリップ搭載
-✓ Smooth Echo機能
-✓ 4バンドEQ対応（3バンド/4バンド切替可能）
-✓ 大型カラーディスプレイ
+✓ 4 channels
+✓ Independent effects × 4 (independent Beat FX per channel)
+✓ Enhanced Beat FX (new effects added)
+✓ Dolby Atmos support
+✓ 96kHz/32-bit processing
+✓ Culmination of the latest technologies
+✓ Touch strip included
+✓ Smooth Echo function
+✓ 4-band EQ support (switchable between 3-band / 4-band)
+✓ Large color display
 ```
 
-**DJM-A9の革新点:**
+**Innovations of the DJM-A9:**
 
-1. **独立Beat FX**: 従来のDJMシリーズでは、Beat FXは1系統でチャンネルを選択して使用していました。DJM-A9では、4チャンネルそれぞれに独立したBeat FXを割り当てることが可能で、複数チャンネルに同時に異なるエフェクトをかけられます。
+1. **Independent Beat FX**: In conventional DJM series mixers, Beat FX was a single system where you selected a channel. With the DJM-A9, an independent Beat FX can be assigned to each of the 4 channels, enabling different effects to be applied to multiple channels simultaneously.
 
-2. **Smooth Echo**: DJM-A9の目玉機能の一つ。Channel Faderを下げた際に、自動的にEchoがかかり、音が自然にフェードアウトします。急にフェーダーを下げても途切れ感が少なく、スムーズなトランジションが可能。
+2. **Smooth Echo**: One of the signature features of the DJM-A9. When the Channel Fader is lowered, Echo is automatically applied and the sound naturally fades out. Even if the fader is dropped abruptly, the sense of cutoff is minimal, enabling smooth transitions.
 
-3. **タッチストリップ**: Beat FXのパラメーターをタッチストリップで直感的にコントロール可能。指を滑らせるだけでエフェクトの深さを連続的に変化させられます。
+3. **Touch strip**: Beat FX parameters can be intuitively controlled with the touch strip. Simply sliding a finger continuously changes the effect depth.
 
-4. **Dolby Atmos**: イマーシブオーディオ（空間オーディオ）に対応。対応する会場とPAシステムがあれば、立体的な音場でDJプレイが可能。
+4. **Dolby Atmos**: Supports immersive audio (spatial audio). With a compatible venue and PA system, DJ play in a three-dimensional sound field is possible.
 
-**DJM-900NXS2との比較:**
+**Comparison with DJM-900NXS2:**
 ```
                     DJM-900NXS2        DJM-A9
-発売年              2016年              2023年
-価格                約30万円            約35万円
-チャンネル数        4                   4
-EQバンド            3                   3/4切替
-Beat FX             1系統              4系統（独立）
-オーディオ処理      96kHz/24bit        96kHz/32bit
-Smooth Echo         なし               あり
-Dolby Atmos         なし               あり
-ディスプレイ        LEDセグメント       カラーディスプレイ
+Release year        2016               2023
+Price               ~300,000 JPY       ~350,000 JPY
+Channels            4                  4
+EQ bands            3                  3/4 switchable
+Beat FX             1 system           4 systems (independent)
+Audio processing    96kHz/24-bit       96kHz/32-bit
+Smooth Echo         No                 Yes
+Dolby Atmos         No                 Yes
+Display             LED segment        Color display
 ```
 
-### DJM-S11（スクラッチ特化）
+### DJM-S11 (Scratch Specialized)
 
-**価格:** 約18万円（2020年発売）
-**対象:** スクラッチDJ、バトルDJ、ターンテーブリスト
+**Price:** Approx. 180,000 JPY (released 2020)
+**Target:** Scratch DJs, battle DJs, turntablists
 
-**特徴:**
+**Features:**
 ```
-✓ 2チャンネル
-✓ Serato DJ Pro / rekordbox対応
-✓ Magvel Fader Pro搭載（最高のクロスフェーダー）
-✓ Performance Pads × 16（タッチセンサー式）
-✓ 4.3インチタッチスクリーン搭載
-✓ Bluetooth MIDI対応
-✓ スクラッチ最適化された設計
-✓ Pad Editor機能
-✓ レバーFX
-```
-
-**Magvel Fader Proの特徴:**
-DJM-S11に搭載されているMagvel Fader Proは、スクラッチDJにとって最も重要なコンポーネントです。
-```
-- 磁気式フェーダー（接触部品なし → 摩耗しない）
-- 超低レイテンシー（0.1ms以下）
-- カット時間調整可能（0.3mm〜5.5mm）
-- 反応速度がDJの動きに完全に追従
-- 数百万回の操作に耐える耐久性
+✓ 2 channels
+✓ Serato DJ Pro / rekordbox compatible
+✓ Equipped with Magvel Fader Pro (the best crossfader)
+✓ Performance Pads × 16 (touch sensor type)
+✓ 4.3-inch touchscreen
+✓ Bluetooth MIDI compatible
+✓ Design optimized for scratch
+✓ Pad Editor function
+✓ Lever FX
 ```
 
-**Performance Padsの活用:**
+**Features of the Magvel Fader Pro:**
+The Magvel Fader Pro installed in the DJM-S11 is the most important component for scratch DJs.
 ```
-Hot Cue: 楽曲の任意のポイントに瞬時にジャンプ
-Pad FX: パッドを押すだけでエフェクト適用
-Beat Jump: ビート単位で前後にジャンプ
-Beat Loop: ビート単位のループを即座に作成
-Sampler: サンプル音源のトリガー
-Key Shift: 楽曲のキーをリアルタイムで変更
-Combo Pad: 複数の機能を組み合わせ
+- Magnetic fader (no contact parts → no wear)
+- Ultra-low latency (0.1ms or less)
+- Adjustable cut time (0.3mm – 5.5mm)
+- Response speed perfectly follows the DJ's movements
+- Durability withstanding millions of operations
 ```
 
-### DJM-250MK2（エントリーモデル）
-
-**価格:** 約4万円（2017年発売）
-**対象:** 初心者、自宅練習、予算重視
-
-**特徴:**
+**Using Performance Pads:**
 ```
-✓ 2チャンネル
-✓ コンパクトな筐体
-✓ DVS対応（rekordbox DVS）
-✓ 自宅練習に最適
-✓ Magvel Fader搭載
-✓ USB Audio Interface内蔵
+Hot Cue: Instantly jump to any point in a track
+Pad FX: Apply effects simply by pressing a pad
+Beat Jump: Jump forward or backward by beat count
+Beat Loop: Instantly create a beat-synchronized loop
+Sampler: Trigger sample audio
+Key Shift: Change the track key in real time
+Combo Pad: Combine multiple functions
+```
+
+### DJM-250MK2 (Entry Model)
+
+**Price:** Approx. 40,000 JPY (released 2017)
+**Target:** Beginners, home practice, budget-conscious
+
+**Features:**
+```
+✓ 2 channels
+✓ Compact chassis
+✓ DVS compatible (rekordbox DVS)
+✓ Ideal for home practice
+✓ Magvel Fader included
+✓ Built-in USB Audio Interface
 ✓ Sound Color Filter
-✓ コストパフォーマンス最高
+✓ Best cost performance
 ```
 
-**エントリーモデルでも妥協しないポイント:**
-DJM-250MK2は価格を抑えつつも、以下の点でプロ機材の操作感を保っています：
+**Points where the entry model does not compromise:**
+The DJM-250MK2 keeps costs down while maintaining the operational feel of professional equipment in the following areas:
 ```
-- Magvel Fader: 上位モデルと同じ磁気式フェーダー
-- EQカーブ: DJM-900NXS2と同じカーブ特性
-- Sound Color Filter: 上位モデルのColor FX簡略版
-- USB Audio Interface: PC接続してDVSプレイ可能
+- Magvel Fader: Same magnetic fader as higher models
+- EQ curve: Same curve characteristics as DJM-900NXS2
+- Sound Color Filter: Simplified version of upper model Color FX
+- USB Audio Interface: Can be connected to PC for DVS play
 ```
 
-**よくある間違い:**
-- 「安いミキサーだから音が悪い」→ DJM-250MK2の音質は十分に高品質
-- 「2チャンネルでは物足りない」→ 初心者のうちは2チャンネルで十分。基礎が身についてから4チャンネルに移行しても遅くない
-- 「Beat FXがないと練習にならない」→ まずはEQミックスとフェーダーワークを完璧にすることが先決
+**Common mistakes:**
+- "The sound is bad because it's a cheap mixer" → The DJM-250MK2's sound quality is sufficiently high
+- "Two channels isn't enough" → Two channels is enough for beginners. There is no rush to move to 4 channels until the basics are down
+- "Practice isn't possible without Beat FX" → First priority is perfecting EQ mixing and fader work
 
-### DJM-S7（スクラッチ入門）
+### DJM-S7 (Scratch Entry)
 
-**価格:** 約12万円（2021年発売）
-**対象:** スクラッチDJ入門者、コンパクトなセットアップ
+**Price:** Approx. 120,000 JPY (released 2021)
+**Target:** Beginning scratch DJs, compact setups
 
-**特徴:**
+**Features:**
 ```
-✓ 2チャンネル
-✓ Serato DJ Pro / rekordbox対応
-✓ Magvel Fader搭載
+✓ 2 channels
+✓ Serato DJ Pro / rekordbox compatible
+✓ Magvel Fader included
 ✓ Performance Pads × 16
 ✓ Bluetooth MIDI
-✓ レバーFX
-✓ DJM-S11の弟分
-✓ コンパクト設計
+✓ Lever FX
+✓ The younger sibling of the DJM-S11
+✓ Compact design
 ```
 
-### DJM-450（ミドルレンジ）
+### DJM-450 (Mid-range)
 
-**価格:** 約10万円（2017年発売）
-**対象:** 中級者、クラブDJ志望者
+**Price:** Approx. 100,000 JPY (released 2017)
+**Target:** Intermediate DJs, aspiring club DJs
 
-**特徴:**
+**Features:**
 ```
-✓ 2チャンネル
-✓ Beat FX搭載（13種類）
-✓ Sound Color FX（6種類）
-✓ Magvel Fader搭載
-✓ USB Audio Interface内蔵
-✓ Pro DJ Link対応
-✓ DJM-900NXS2と同じ操作体系
-✓ 自宅とクラブの橋渡し的存在
+✓ 2 channels
+✓ Beat FX (13 types)
+✓ Sound Color FX (6 types)
+✓ Magvel Fader included
+✓ Built-in USB Audio Interface
+✓ Pro DJ Link compatible
+✓ Same operational system as DJM-900NXS2
+✓ A bridge between home and club
 ```
 
-**DJM-450をおすすめする理由:**
-DJM-450は、DJM-250MK2では物足りなくなった中級者にとって最適な選択です。Beat FXとSound Color FXを搭載しているため、クラブ標準のDJM-900NXS2と同じエフェクト操作の練習ができます。
+**Why the DJM-450 is recommended:**
+The DJM-450 is the ideal choice for intermediate DJs who have outgrown the DJM-250MK2. With Beat FX and Sound Color FX included, you can practice the same effects operations as the club-standard DJM-900NXS2.
 
-### DJM-750MK2（セミプロ向け）
+### DJM-750MK2 (Semi-Pro)
 
-**価格:** 約25万円（2017年発売、生産完了）
-**対象:** セミプロ、4チャンネルが必要なDJ
+**Price:** Approx. 250,000 JPY (released 2017, discontinued)
+**Target:** Semi-pros, DJs who need 4 channels
 
-**特徴:**
+**Features:**
 ```
-✓ 4チャンネル
-✓ Beat FX搭載
+✓ 4 channels
+✓ Beat FX included
 ✓ Sound Color FX
-✓ クラブ級の音質
-✓ Pro DJ Link対応
-✓ DVS対応
-✓ 長く使える堅牢な設計
+✓ Club-grade sound quality
+✓ Pro DJ Link compatible
+✓ DVS compatible
+✓ Robust design for long-term use
 ```
 
 ---
 
-## 3. 他メーカーのDJミキサー
+## 3. DJ Mixers from Other Manufacturers
 
-Pioneer DJが市場を支配していますが、特定のジャンルやスタイルでは他メーカーのミキサーが高い評価を得ています。
+While Pioneer DJ dominates the market, mixers from other manufacturers enjoy high acclaim in specific genres and styles.
 
-### Allen & Heath（イギリス）
+### Allen & Heath (UK)
 
 **Xone:96**
 ```
-価格: 約25万円
-チャンネル: 4 + 2 Return
-EQ: 4バンド（VCFフィルター搭載）
-フィルター: デュアルVCF（Voltage Controlled Filter）
-エフェクト: 外部エフェクト用Send/Return × 2
-特徴:
-- テクノ・ハウスDJに絶大な人気
-- VCFフィルターの滑らかさは他の追随を許さない
-- アナログ信号経路重視
-- Berghain等のアンダーグラウンドクラブで愛用
-- クロスフェーダー搭載
+Price: Approx. 250,000 JPY
+Channels: 4 + 2 Return
+EQ: 4-band (with VCF filter)
+Filter: Dual VCF (Voltage Controlled Filter)
+Effects: Send/Return × 2 for external effects
+Features:
+- Enormously popular among techno and house DJs
+- The smoothness of the VCF filter is unmatched
+- Emphasis on analog signal path
+- Beloved at underground clubs like Berghain
+- Crossfader included
 ```
 
-**Xone:92（前モデル、名機）**
+**Xone:92 (predecessor model, legendary)**
 ```
-価格: 約20万円（生産完了・中古市場で人気）
-特徴:
-- 20年以上にわたりクラブ標準として君臨した名機
-- 4バンドEQ + デュアルVCFフィルター
-- Ben Klock、Marcel Dettmannなど著名DJが愛用
-- 現在でも多くのクラブで現役
+Price: Approx. 200,000 JPY (discontinued; popular in used market)
+Features:
+- A legendary machine that reigned as the club standard for over 20 years
+- 4-band EQ + dual VCF filter
+- Favored by notable DJs including Ben Klock and Marcel Dettmann
+- Still in active use at many clubs today
 ```
 
 **Xone:43C**
 ```
-価格: 約12万円
-チャンネル: 4
-特徴:
-- USB Audio Interface内蔵
-- Xone:96のコンパクト版
-- Traktor対応
-- 自宅用として人気
+Price: Approx. 120,000 JPY
+Channels: 4
+Features:
+- Built-in USB Audio Interface
+- Compact version of the Xone:96
+- Traktor compatible
+- Popular for home use
 ```
 
-**Allen & Heathを選ぶ理由:**
-- VCFフィルターの音質が圧倒的に優れている
-- テクノ・ハウスのロングミックスに最適
-- アナログ信号経路による温かみのある音
-- 操作の「感触」がアナログ的で心地よい
-- ヨーロッパのアンダーグラウンドシーンで広く使用
+**Reasons to choose Allen & Heath:**
+- Overwhelmingly superior VCF filter sound quality
+- Ideal for long techno/house mixes
+- Warm sound from analog signal path
+- The "feel" of operation is pleasantly analog
+- Widely used in European underground scenes
 
-### Rane（アメリカ）
+### Rane (USA)
 
 **Rane SEVENTY-TWO MKII**
 ```
-価格: 約25万円
-チャンネル: 2
-特徴:
-- Serato DJ Pro公式対応
-- MAG FOUR フェーダー（超低レイテンシー）
-- 4.3インチタッチスクリーン
+Price: Approx. 250,000 JPY
+Channels: 2
+Features:
+- Official Serato DJ Pro support
+- MAG FOUR fader (ultra-low latency)
+- 4.3-inch touchscreen
 - Performance Pads × 16
-- ヒップホップ・スクラッチDJの最高峰
+- The pinnacle for hip-hop scratch DJs
 ```
 
 **Rane MP2015**
 ```
-価格: 約50万円
-チャンネル: 4
-特徴:
-- ロータリーミキサー
-- 完全アナログ信号経路
+Price: Approx. 500,000 JPY
+Channels: 4
+Features:
+- Rotary mixer
+- Fully analog signal path
 - Isolator EQ
-- ディスコ・ハウスDJの最高級機
+- The top-tier machine for disco and house DJs
 ```
 
-### Ecler（スペイン）
+### Ecler (Spain)
 
 **Ecler NUO 4.0**
 ```
-特徴:
-- ヨーロッパのクラブで人気
-- 高品質なアナログ回路
-- シンプルなデザイン
-- テクノDJに愛用される
+Features:
+- Popular at clubs in Europe
+- High-quality analog circuitry
+- Simple design
+- Beloved by techno DJs
 ```
 
-### Formula Sound（イギリス）
+### Formula Sound (UK)
 
 **Formula Sound FF-4000**
 ```
-特徴:
-- 完全アナログ・ロータリーミキサー
-- 超高音質
-- ディスコ・ファンクDJの聖器
-- 限定生産で希少価値が高い
+Features:
+- Fully analog rotary mixer
+- Ultra-high sound quality
+- The sacred instrument of disco and funk DJs
+- Limited production with high rarity value
 ```
 
-### ロータリーミキサーの世界
+### The World of Rotary Mixers
 
-ロータリーミキサーは、リニアフェーダー（縦スライダー）の代わりにロータリーノブ（回転式ノブ）を使用するミキサーです。
+Rotary mixers use rotary knobs (rotating dials) instead of linear faders (vertical sliders).
 
-**代表的なロータリーミキサー:**
+**Representative rotary mixers:**
 ```
-- Bozak AR-4: レジェンド。Larry Levan、David Mancusoが愛用
-- Rane MP2015: 現行ロータリーの最高峰
-- E&S DJR-400: フランス製の高品質ロータリー
-- Condesa Carmen: スペイン製のカスタムロータリー
-- Alpha Recording System Model 9100: ドイツ製の超高級機
+- Bozak AR-4: A legend. Beloved by Larry Levan and David Mancuso
+- Rane MP2015: The pinnacle of current rotary mixers
+- E&S DJR-400: High-quality French rotary
+- Condesa Carmen: Custom Spanish rotary
+- Alpha Recording System Model 9100: Ultra-luxury German made
 ```
 
-**ロータリーミキサーの特徴:**
+**Features of rotary mixers:**
 ```
-メリット:
-- 繊細なボリュームコントロール
-- 温かみのある音質（多くがアナログ設計）
-- ロングミックスに最適
-- 美しいクラフトマンシップ
+Pros:
+- Delicate volume control
+- Warm sound (many are analog design)
+- Ideal for long mixes
+- Beautiful craftsmanship
 
-デメリット:
-- 価格が高い（30万〜100万円以上）
-- クイックカットには不向き
-- スクラッチには使えない
-- クラブ標準ではないため、持ち込みが必要
+Cons:
+- High price (300,000 JPY to 1,000,000 JPY+)
+- Not suited for quick cuts
+- Cannot be used for scratching
+- Not a club standard; must be brought in
 ```
 
 ---
 
-## 4. ミキサーの各部名称と機能
+## 4. Mixer Sections and Functions
 
-### 基本レイアウト（DJM-900NXS2）
+### Basic Layout (DJM-900NXS2)
 
 ```
 ┌─────────────────────────────────────────┐
@@ -626,503 +626,503 @@ EQ: 4バンド（VCFフィルター搭載）
 └─────────────────────────────────────────┘
 ```
 
-### チャンネルストリップ詳細
+### Channel Strip Details
 
-**各チャンネルの構成（上から下の順序）:**
+**Configuration of each channel (from top to bottom):**
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│ Input Selector: 入力ソースの選択                       │
-│   ├─ USB (A/B): PCからのデジタル入力                   │
-│   ├─ Digital: S/PDIF等のデジタル入力                   │
-│   ├─ Line: CDJ等のライン入力                          │
-│   └─ Phono: ターンテーブルのPhono入力                  │
+│ Input Selector: Select input source                   │
+│   ├─ USB (A/B): Digital input from PC                 │
+│   ├─ Digital: Digital input such as S/PDIF            │
+│   ├─ Line: Line input from CDJ, etc.                  │
+│   └─ Phono: Phono input from turntable                │
 │                                                       │
-│ Trim（Gain）: 入力レベル調整ノブ                       │
-│   └─ 範囲: -∞ 〜 +9dB                                │
+│ Trim (Gain): Input level adjustment knob              │
+│   └─ Range: -∞ to +9dB                               │
 │                                                       │
 │ EQ Section:                                           │
-│   ├─ Hi EQ: 高域調整（中心周波数 13kHz）               │
-│   │   └─ 範囲: -26dB 〜 +6dB                         │
-│   ├─ Mid EQ: 中域調整（中心周波数 1kHz）               │
-│   │   └─ 範囲: -26dB 〜 +6dB                         │
-│   └─ Low EQ: 低域調整（中心周波数 70Hz）               │
-│       └─ 範囲: -26dB 〜 +6dB                         │
+│   ├─ Hi EQ: High frequency adjust (center 13kHz)      │
+│   │   └─ Range: -26dB to +6dB                        │
+│   ├─ Mid EQ: Mid frequency adjust (center 1kHz)       │
+│   │   └─ Range: -26dB to +6dB                        │
+│   └─ Low EQ: Low frequency adjust (center 70Hz)       │
+│       └─ Range: -26dB to +6dB                        │
 │                                                       │
-│ Color FX Knob: Sound Color FXの深さ調整               │
-│   └─ 12時位置: エフェクトなし                          │
+│ Color FX Knob: Adjust Sound Color FX depth            │
+│   └─ 12 o'clock position: No effect                  │
 │                                                       │
-│ Channel Level Meter: LEDレベル表示                     │
-│   └─ 緑(-20〜0dB) / 黄(0〜+6dB) / 赤(+6dB〜)        │
+│ Channel Level Meter: LED level display                │
+│   └─ Green (-20–0dB) / Yellow (0–+6dB) / Red (+6dB+) │
 │                                                       │
-│ Cue Button: ヘッドフォンモニターのON/OFF               │
+│ Cue Button: Headphone monitor ON/OFF                  │
 │                                                       │
-│ Channel Fader: チャンネル音量のリニアフェーダー          │
-│   └─ 範囲: -∞（最下部）〜 0dB（最上部）              │
+│ Channel Fader: Linear fader for channel volume        │
+│   └─ Range: -∞ (bottom) to 0dB (top)                 │
 └─────────────────────────────────────────────────────┘
 ```
 
-**各部の周波数特性:**
+**Frequency characteristics of each section:**
 ```
 Hi EQ (13kHz):
-  ┌──── シェルビングEQ ────┐
-  影響範囲: 約4kHz以上
-  最大ブースト: +6dB
-  最大カット: -26dB
-  完全カット（Isolator時）: -∞dB
+  ┌──── Shelving EQ ────┐
+  Affected range: Approx. 4kHz and above
+  Max boost: +6dB
+  Max cut: -26dB
+  Full cut (in Isolator mode): -∞dB
 
 Mid EQ (1kHz):
-  ┌──── ピーキングEQ ────┐
-  影響範囲: 約250Hz〜4kHz
-  Q値: 適度に広い（DJ向け）
-  最大ブースト: +6dB
-  最大カット: -26dB
+  ┌──── Peaking EQ ────┐
+  Affected range: Approx. 250Hz–4kHz
+  Q value: Moderately wide (DJ-oriented)
+  Max boost: +6dB
+  Max cut: -26dB
 
 Low EQ (70Hz):
-  ┌──── シェルビングEQ ────┐
-  影響範囲: 約250Hz以下
-  最大ブースト: +6dB
-  最大カット: -26dB
-  完全カット（Isolator時）: -∞dB
+  ┌──── Shelving EQ ────┐
+  Affected range: Approx. 250Hz and below
+  Max boost: +6dB
+  Max cut: -26dB
+  Full cut (in Isolator mode): -∞dB
 ```
 
-### レベルメーター
+### Level Meters
 
-レベルメーターは、音量の視覚的なフィードバックを提供する重要な機能です。
+Level meters are an important function that provides visual feedback on volume levels.
 
-**チャンネルレベルメーター:**
+**Channel level meter:**
 ```
-  ■ 赤 (+9dB以上) = クリッピング！絶対に避ける
-  ■ 赤 (+6dB)     = 危険ゾーン
-  ■ 黄 (+3dB)     = 注意
-  ■ 黄 (0dB)      = 目標レベル
-  ■ 緑 (-3dB)     = 良好
-  ■ 緑 (-6dB)     = 良好
-  ■ 緑 (-10dB)    = やや小さい
-  ■ 緑 (-15dB)    = 小さい
-  ■ 緑 (-20dB)    = かなり小さい
-```
-
-**マスターレベルメーター:**
-```
-  ■■ 赤: クリッピング → PAシステムに損傷の恐れ
-  ■■ 黄: ピーク付近 → 0dBを目標に
-  ■■ 緑: 安全域 → 通常のオペレーティングレベル
+  ■ Red (+9dB or above) = Clipping! Avoid at all costs
+  ■ Red (+6dB)          = Danger zone
+  ■ Yellow (+3dB)       = Caution
+  ■ Yellow (0dB)        = Target level
+  ■ Green (-3dB)        = Good
+  ■ Green (-6dB)        = Good
+  ■ Green (-10dB)       = Slightly low
+  ■ Green (-15dB)       = Low
+  ■ Green (-20dB)       = Very low
 ```
 
-**プロのTips:**
-- レベルメーターを常に監視する習慣をつける
-- チャンネルレベルが黄色に時折触れる程度が理想
-- マスターレベルが赤に入ったら、Master Levelを下げるのではなく各チャンネルのTrimを調整する
-- 2曲同時に鳴っている時、マスターレベルが上がりすぎないよう注意
+**Master level meter:**
+```
+  ■■ Red: Clipping → Risk of damage to PA system
+  ■■ Yellow: Near peak → Target 0dB
+  ■■ Green: Safe range → Normal operating level
+```
 
-### 背面パネル
+**Pro tips:**
+- Develop the habit of always monitoring the level meters
+- Ideally the channel level should occasionally touch yellow
+- If the master level goes red, adjust individual channel Trims rather than lowering Master Level
+- When two tracks are playing simultaneously, be careful that the master level does not rise too much
+
+### Rear Panel
 
 ```
 ┌─────────────────────────────────────────────────────┐
 │ Master Out:                                          │
-│   ├─ XLR (Balanced) × 2: メインスピーカーへ           │
-│   └─ RCA × 2: サブ出力                              │
+│   ├─ XLR (Balanced) × 2: To main speakers           │
+│   └─ RCA × 2: Sub output                            │
 │                                                       │
 │ Booth Out:                                           │
-│   └─ XLR or TRS × 2: DJブースモニターへ              │
+│   └─ XLR or TRS × 2: To DJ booth monitor            │
 │                                                       │
 │ Rec Out:                                             │
-│   └─ RCA × 2: 録音機器へ                            │
+│   └─ RCA × 2: To recording device                   │
 │                                                       │
-│ Channel Input (× 4チャンネル):                        │
-│   ├─ Line (RCA) × 2: CDJ等                          │
-│   ├─ Phono (RCA) × 2: ターンテーブル                  │
+│ Channel Input (× 4 channels):                        │
+│   ├─ Line (RCA) × 2: CDJ, etc.                       │
+│   ├─ Phono (RCA) × 2: Turntable                      │
 │   ├─ Digital (RCA): S/PDIF                           │
-│   └─ Ground: アース端子（ターンテーブル用）            │
+│   └─ Ground: Ground terminal (for turntable)         │
 │                                                       │
 │ USB:                                                  │
-│   ├─ USB-A × 2: DJ用（Dual USB）                     │
-│   └─ USB-B × 1: PC接続用                            │
+│   ├─ USB-A × 2: For DJ use (Dual USB)                │
+│   └─ USB-B × 1: For PC connection                    │
 │                                                       │
 │ LAN (RJ-45):                                         │
-│   └─ Pro DJ Link用                                   │
+│   └─ For Pro DJ Link                                 │
 │                                                       │
 │ MIDI:                                                 │
-│   └─ MIDI Out: 外部機器コントロール用                  │
+│   └─ MIDI Out: For controlling external devices      │
 │                                                       │
 │ Power:                                                │
-│   └─ AC入力 + 電源スイッチ                            │
+│   └─ AC input + power switch                         │
 └─────────────────────────────────────────────────────┘
 ```
 
 ---
 
-## 5. チャンネル操作
+## 5. Channel Operation
 
-### Trim（Gain）調整
+### Trim (Gain) Adjustment
 
-Trim（ゲイン）調整は、DJミキシングにおいて最も基本的かつ重要な操作です。すべてのチャンネルの入力レベルを揃えることで、ミックス時のバランスを保ちます。
+Trim (gain) adjustment is the most basic and important operation in DJ mixing. Aligning the input level of all channels ensures balance is maintained during mixing.
 
-**目的:**
+**Purpose:**
 ```
-全チャンネルの音量を揃える
-→ ミックス時の音圧を一定に保つ
-→ フロアの音量が急激に変化しない
-→ PAシステムへの負荷を一定に保つ
-```
-
-**正しい手順:**
-```
-1. チャンネルのEQをすべてフラット（12時位置）にする
-2. Color FXノブを12時位置（エフェクトなし）にする
-3. Channel Faderを最大（0dB）に上げる
-4. 曲を再生する
-5. チャンネルレベルメーターを確認する
-6. Trimノブを回して、レベルメーターが0dB付近になるよう調整
-   - 黄色ゾーンに時折触れる程度が理想
-   - 赤色ゾーン（+6dB以上）には絶対に入れない
-7. Channel Faderを下げて待機状態にする
+Align the volume of all channels
+→ Maintain consistent sound pressure during mixing
+→ Prevent abrupt volume changes on the floor
+→ Keep the load on the PA system consistent
 ```
 
-**重要なルール:**
+**Correct procedure:**
 ```
-✓ 赤ランプ（クリップ）は絶対に避ける → 音割れ、機材損傷の原因
-✓ 0dB付近が目標 → ヘッドルームを確保
-✓ 曲ごとに調整必須 → 楽曲ごとにマスタリングレベルが異なる
-✓ Channel Faderは最大でTrim調整 → 正確なレベル設定のため
-✗ Trimを上げすぎて赤に入れる → 「音圧が足りない」は別の方法で対処
-✗ Master Levelで音量を上げる → Trimかチャンネルフェーダーで調整
+1. Set all channel EQs to flat (12 o'clock position)
+2. Set the Color FX knob to 12 o'clock (no effect)
+3. Raise the Channel Fader to maximum (0dB)
+4. Play a track
+5. Check the channel level meter
+6. Rotate the Trim knob to adjust so the level meter is near 0dB
+   - Ideally it should occasionally touch the yellow zone
+   - Never allow it to enter the red zone (+6dB or above)
+7. Lower the Channel Fader to standby position
 ```
 
-**よくある間違いと対処法:**
+**Important rules:**
+```
+✓ Always avoid the red light (clip) → Causes distortion, equipment damage
+✓ Target near 0dB → Ensure headroom
+✓ Must adjust per track → Mastering levels differ per track
+✓ Adjust Trim with Channel Fader at maximum → For accurate level setting
+✗ Pushing Trim too high into the red → "Not enough loudness" should be addressed another way
+✗ Raising volume with Master Level → Adjust with Trim or channel fader
+```
 
-| 間違い | 結果 | 正しい方法 |
+**Common mistakes and corrections:**
+
+| Mistake | Result | Correct approach |
 |--------|------|------------|
-| Trimを上げすぎる | クリッピング、音割れ | 0dB付近を目標にする |
-| Channel Fader途中でTrim調整 | 不正確なレベル設定 | Fader最大でTrim調整 |
-| 曲ごとにTrimを調整しない | 音量の急変、ミックスの崩壊 | 毎曲必ず調整 |
-| Master Levelで音量を操作 | ゲインステージングの崩壊 | Master Levelは固定 |
-| EQブースト状態でTrim調整 | 実際の音量より小さく見える | EQフラットでTrim調整 |
+| Pushing Trim too high | Clipping, distortion | Target near 0dB |
+| Adjusting Trim with Channel Fader partway up | Inaccurate level setting | Adjust Trim with Fader at maximum |
+| Not adjusting Trim per track | Sudden volume changes, mix collapse | Always adjust for each track |
+| Operating Master Level for volume | Breakdown of gain staging | Keep Master Level fixed |
+| Adjusting Trim with EQ boosted | Level appears smaller than it is | Adjust Trim with EQ flat |
 
-**プロのTips:**
+**Pro tips:**
 ```
-- 「聴感」でも確認する: レベルメーターだけでなく、ヘッドフォンで実際の音量感も確認
-- Trim調整はCue再生中に行う: フロアに音を出す前にヘッドフォンでレベルチェック
-- ピーク値と平均値の違いを理解する: レベルメーターはピーク値を示す。平均的な音量は少し低い
-- ジャンルによる音圧の違い: EDMは音圧が高く、テクノはやや控えめなことが多い
-```
-
-### EQ（イコライザー）操作
-
-EQ操作は、DJミキシングの核心的なテクニックです。単なる音質調整ではなく、2つの楽曲をスムーズにつなぐための最重要ツールです。
-
-**基本:**
-```
-12時位置: フラット（原音のまま）
-右回し: ブースト（最大+6dB）
-左回し: カット（最大-26dB）
+- Also confirm by ear: Not just the level meter — check actual volume with headphones
+- Perform Trim adjustment while Cue is playing: Level-check with headphones before sending to the floor
+- Understand the difference between peak and average values: Level meters show peak values. Average volume is somewhat lower
+- Volume differences by genre: EDM tends to be louder, techno often somewhat more restrained
 ```
 
-**EQ操作の黄金ルール:**
+### EQ (Equalizer) Operation
+
+EQ operation is the core technique of DJ mixing. It is not merely tone adjustment — it is the most critical tool for seamlessly connecting two tracks.
+
+**Basics:**
 ```
-ルール1: EQは「ブーストよりカット」
-  → 不要な帯域を削ることで、必要な帯域が自然に際立つ
-  → ブーストはヘッドルームを消費するため、クリッピングのリスクが増す
-
-ルール2: 低域（Low）は絶対に重複させない
-  → 2つの曲のLowが同時に鳴ると、位相干渉で音が濁る
-  → Low域のエネルギーはスピーカーに大きな負荷をかける
-  → フロアが「ぼやける」原因の90%はLow域の重複
-
-ルール3: 中域（Mid）は「キャラクター」を決める
-  → ボーカル、シンセ、パーカッションの主要エネルギーが集中
-  → Midの操作で楽曲の「印象」が大きく変わる
-
-ルール4: 高域（Hi）は「空気感」を制御する
-  → ハイハット、シンバル、音の輝き
-  → Hi域の重複は比較的許容されやすいが、やり過ぎると「シャリシャリ」する
+12 o'clock position: Flat (original audio unchanged)
+Turn right: Boost (max +6dB)
+Turn left: Cut (max -26dB)
 ```
 
-**ミックス時の基本テクニック（Bass Swap / Low切り替え）:**
+**Golden rules for EQ operation:**
 ```
-これは最も基本的で最も重要なEQミックス手法です。
+Rule 1: "Cut rather than boost" with EQ
+  → Removing unwanted frequencies naturally brings out the desired ones
+  → Boosting consumes headroom, increasing the risk of clipping
 
-準備状態:
-  Aデッキ: 全EQフラット（メインで再生中）
-  Bデッキ: Low完全カット、Mid/Hiフラット（待機中）
+Rule 2: Never let low frequencies (Low) overlap
+  → When two tracks' Lows play simultaneously, phase interference muddies the sound
+  → Low-frequency energy puts a heavy load on speakers
+  → 90% of the cause of a "muddy" floor is overlapping Low frequencies
 
-ステップ1 - Bデッキをフェードイン:
-  1. BデッキのLowを完全にカット（-26dB）
-  2. BデッキのChannel Faderをゆっくり上げる
-  3. この時点ではBデッキの中高域だけが聞こえる
-  4. Aデッキのビートとマッチしているか確認
+Rule 3: Mid frequency (Mid) determines "character"
+  → Vocals, synths, and percussion concentrate their primary energy here
+  → Mid operations greatly change the "impression" of a track
 
-ステップ2 - Bass Swap（低域の切り替え）:
-  5. タイミングを見計らう（通常は8小節や16小節の区切り）
-  6. AデッキのLowを素早くカット（-26dB）
-  7. 同時にBデッキのLowを素早くフラットに戻す
-  8. → 低域がAからBに一瞬で切り替わる
-
-ステップ3 - Aデッキのフェードアウト:
-  9. AデッキのMidを徐々に下げる
-  10. AデッキのHiを徐々に下げる
-  11. AデッキのChannel Faderをゆっくり下げる
-  12. ミックス完了
+Rule 4: High frequency (Hi) controls "air"
+  → Hi-hats, cymbals, and the brightness of sound
+  → Hi frequency overlap is relatively tolerable, but overdoing it makes things "tinny"
 ```
 
-**応用テクニック:**
-
-**① グラデーションミックス（スムーズ切り替え）:**
+**Basic technique during mixing (Bass Swap / Low switching):**
 ```
-Bass Swapの「瞬間切り替え」ではなく、Low域を徐々に移行する手法。
+This is the most basic and most important EQ mixing method.
 
-1. BデッキLow完全カットでフェードイン
-2. AデッキLowを徐々に下げながら
-3. BデッキLowを徐々に上げる
-4. 同時にMidとHiも同様に移行
-5. 全帯域がBデッキに移行したらAデッキをフェードアウト
+Standby state:
+  Deck A: All EQ flat (playing as main track)
+  Deck B: Low fully cut, Mid/Hi flat (on standby)
 
-適したジャンル: Deep House, Techno, Progressive House
-所要時間: 16〜64小節
-```
+Step 1 - Fade in Deck B:
+  1. Fully cut Deck B's Low (-26dB)
+  2. Slowly raise Deck B's Channel Fader
+  3. At this point only Deck B's mids and highs are audible
+  4. Check if it matches Deck A's beat
 
-**② EQアイソレーション（帯域分離）:**
-```
-特定の帯域だけを残して、楽曲の要素を抽出するテクニック。
+Step 2 - Bass Swap (low frequency switch):
+  5. Judge the timing (usually at an 8-bar or 16-bar boundary)
+  6. Quickly cut Deck A's Low (-26dB)
+  7. Simultaneously quickly return Deck B's Low to flat
+  8. → The low frequency instantly switches from A to B
 
-例1: ボーカルの抽出
-  - LowとHiを完全カット
-  - Midだけ残す
-  - → ボーカルとシンセリードだけが聞こえる
-
-例2: リズムの抽出
-  - MidとHiを完全カット
-  - Lowだけ残す
-  - → キックとベースラインだけが聞こえる
-
-例3: 空気感の抽出
-  - LowとMidを完全カット
-  - Hiだけ残す
-  - → ハイハットとシンバルの「シャカシャカ」だけが聞こえる
+Step 3 - Fade out Deck A:
+  9. Gradually lower Deck A's Mid
+  10. Gradually lower Deck A's Hi
+  11. Slowly lower Deck A's Channel Fader
+  12. Mix complete
 ```
 
-**③ EQ Kill（完全カット）:**
+**Advanced techniques:**
+
+**① Gradient mix (smooth transition):**
 ```
-EQを最小位置に回して特定帯域を完全にカットする手法。
-DJM-900NXS2のISO EQモードでは、-∞dBまでカット可能。
+Rather than the "instant switch" of a Bass Swap, this method gradually shifts the Low.
 
-使い方:
-- ブレイクダウンでLow Killしてキックを消す
-- ドロップの直前でMid Killしてインパクトを作る
-- トランジション中にHi Killして「こもった」音を作る
+1. Fade in Deck B with Low fully cut
+2. While gradually lowering Deck A's Low
+3. Gradually raise Deck B's Low
+4. Similarly shift Mid and Hi
+5. Fade out Deck A once all bands have moved to Deck B
 
-注意:
-- Kill後に戻す時は「ゆっくり」が基本
-- 急に戻すと音が飛び出して不自然
-- ただし、ドロップの瞬間は「一気に戻す」のがセオリー
+Suitable genres: Deep House, Techno, Progressive House
+Duration: 16–64 bars
 ```
 
-### Filter（フィルター）
-
-フィルターは、EQとは異なるアプローチで周波数帯域を操作するツールです。DJM-900NXS2では、各チャンネルに独立したフィルターノブが搭載されています。
-
-**HPF（High Pass Filter）:**
+**② EQ isolation (frequency band separation):**
 ```
-機能: 設定した周波数より低い帯域をカットする
-操作: フィルターノブを右に回す
+A technique to extract elements of a track by leaving only a specific band.
 
-   周波数応答:
+Example 1: Extracting vocals
+  - Fully cut Low and Hi
+  - Leave only Mid
+  - → Only vocals and synth lead are heard
+
+Example 2: Extracting rhythm
+  - Fully cut Mid and Hi
+  - Leave only Low
+  - → Only kick and bassline are heard
+
+Example 3: Extracting air
+  - Fully cut Low and Mid
+  - Leave only Hi
+  - → Only the "shush" of hi-hats and cymbals is heard
+```
+
+**③ EQ Kill (full cut):**
+```
+Technique of rotating the EQ to minimum position to fully cut a specific band.
+In Isolator EQ mode on the DJM-900NXS2, cutting down to -∞dB is possible.
+
+How to use:
+- Kill Low during a breakdown to remove the kick
+- Kill Mid just before a drop to create impact
+- Kill Hi during a transition to create a "muffled" sound
+
+Note:
+- When restoring after a Kill, going "slowly" is the rule
+- Sudden restoration sounds unnatural
+- However, at the moment of a drop, the convention is to "restore all at once"
+```
+
+### Filter
+
+Filters are a tool for manipulating frequency bands with a different approach from EQ. On the DJM-900NXS2, an independent filter knob is built into each channel.
+
+**HPF (High Pass Filter):**
+```
+Function: Cuts frequencies below the set frequency
+Operation: Rotate the filter knob to the right
+
+   Frequency response:
    ┌──────────────────┐
-   │          ╱──────  │  通過
+   │          ╱──────  │  Pass
    │        ╱          │
    │      ╱            │
-   │────╱              │  カット
+   │────╱              │  Cut
    └──────────────────┘
-    低域    ↑    高域
-        カットオフ周波数
+    Low     ↑    High
+        Cutoff frequency
 
-効果:
-- 低域（キック、ベース）が消えて「軽い音」になる
-- 高域（ハイハット、シンセ）だけが残る
-- ラジオ的なエフェクト
+Effect:
+- Low frequencies (kick, bass) disappear, sound becomes "lighter"
+- Only high frequencies (hi-hat, synth) remain
+- Radio-like effect
 
-用途:
-- イントロ/アウトロでの演出
-- ブレイクダウンの演出
-- トランジション時の低域管理
-- ビルドアップの開始部分
+Uses:
+- Production during intro/outro
+- Breakdown production
+- Low frequency management during transitions
+- Beginning of a build-up
 ```
 
-**LPF（Low Pass Filter）:**
+**LPF (Low Pass Filter):**
 ```
-機能: 設定した周波数より高い帯域をカットする
-操作: フィルターノブを左に回す
+Function: Cuts frequencies above the set frequency
+Operation: Rotate the filter knob to the left
 
-   周波数応答:
+   Frequency response:
    ┌──────────────────┐
-   │──────╲            │  通過
+   │──────╲            │  Pass
    │       ╲           │
    │        ╲          │
-   │         ╲────── │  カット
+   │         ╲────── │  Cut
    └──────────────────┘
-    低域    ↑    高域
-        カットオフ周波数
+    Low     ↑    High
+        Cutoff frequency
 
-効果:
-- 高域が消えて「こもった音」になる
-- 低域（キック、ベース）だけが残る
-- 水中に潜ったような効果
+Effect:
+- High frequencies disappear, sound becomes "muffled"
+- Only low frequencies (kick, bass) remain
+- Effect like being submerged underwater
 
-用途:
-- ビルドアップのクライマックス前
-- トランジション中の演出
-- ブレイク直前のテンション作り
-- 曲の「顔出し」前の期待感演出
+Uses:
+- Before the climax of a build-up
+- Production during transitions
+- Building tension just before a break
+- Creating anticipation before a track's "reveal"
 ```
 
-**フィルターとEQの使い分け:**
+**Differences in use between filter and EQ:**
 ```
-EQ: 帯域ごとに独立して操作（3つの周波数帯を個別に制御）
-フィルター: カットオフ周波数を動かして連続的に帯域を制限
+EQ: Operate each frequency band independently (control 3 frequency ranges individually)
+Filter: Move the cutoff frequency to continuously limit frequency ranges
 
-EQが適している場面:
-- 2曲のLow域を切り替えるBass Swap
-- 特定帯域だけを強調/カット
-- 精密な周波数バランスの調整
+Where EQ is appropriate:
+- Bass Swap switching Low between two tracks
+- Emphasizing / cutting only a specific band
+- Precise frequency balance adjustment
 
-フィルターが適している場面:
-- ビルドアップの演出（LPF → 徐々にオープン → ドロップ）
-- ブレイクの演出（HPF → 低域を抜く → 高域だけの浮遊感）
-- 連続的な周波数変化を伴う演出
-- DJが1つのノブで大きな変化を作りたい時
+Where filter is appropriate:
+- Build-up production (LPF → gradually open → drop)
+- Break production (HPF → remove low → floating feel with only highs)
+- Production involving continuous frequency change
+- When a DJ wants to create a major change with a single knob
 ```
 
 ---
 
-## 6. クロスフェーダー
+## 6. Crossfader
 
-### クロスフェーダーの基本
+### Crossfader Basics
 
-クロスフェーダーは、2つの音源間のバランスを1つのスライダーで制御するための機構です。
+The crossfader is a mechanism for controlling the balance between two audio sources with a single slider.
 
 ```
-左端（A）: Aデッキのみが聞こえる
-中央: A + B が同時に聞こえる
-右端（B）: Bデッキのみが聞こえる
+Far left (A): Only Deck A is heard
+Center: A + B are heard simultaneously
+Far right (B): Only Deck B is heard
 
- A音量  ╱╲  B音量
-       ╱  ╲
-      ╱    ╲
-─────      ─────
- 左   中央   右
+ A volume  ╱╲  B volume
+         ╱  ╲
+        ╱    ╲
+─────        ─────
+ Left  Center  Right
 ```
 
-### クロスフェーダーカーブ
+### Crossfader Curve
 
-クロスフェーダーカーブは、物理的なフェーダー位置と実際の音量変化の関係を決定します。
+The crossfader curve determines the relationship between the physical fader position and the actual volume change.
 
-**DJM-900NXS2のカーブ設定:**
+**DJM-900NXS2 curve settings:**
 ```
 ┌───────────────────────────────────────────────┐
-│  ●     ●     ●     ●   カーブ選択スイッチ      │
+│  ●     ●     ●     ●   Curve selection switch  │
 └───────────────────────────────────────────────┘
   1     2     3     4
 
-カーブ1: Smooth（スムーズ）
+Curve 1: Smooth
   ┌──────────────┐
-  │     ╱╲       │  X字型のクロス
-  │   ╱    ╲     │  中央で両方50%
-  │ ╱        ╲   │  ミックス用に最適
+  │     ╱╲       │  X-shaped cross
+  │   ╱    ╲     │  Both 50% at center
+  │ ╱        ╲   │  Best for mixing
   └──────────────┘
-  用途: ハウス、テクノのロングミックス
+  Use: Long mixes in house and techno
 
-カーブ2: Medium（ミディアム）
+Curve 2: Medium
   ┌──────────────┐
-  │    ╱╲        │  やや急なカーブ
-  │   ╱  ╲       │  中央付近でも両方聞こえる
-  │  ╱    ╲      │  オールラウンド
+  │    ╱╲        │  Slightly steep curve
+  │   ╱  ╲       │  Both channels audible near center
+  │  ╱    ╲      │  All-purpose
   └──────────────┘
-  用途: 汎用
+  Use: General purpose
 
-カーブ3: Fast（ファスト）
+Curve 3: Fast
   ┌──────────────┐
-  │  ┃    ┃      │  急峻なカーブ
-  │  ┃    ┃      │  端に寄せると即座に切り替わる
-  │  ┃    ┃      │  スクラッチ向け
+  │  ┃    ┃      │  Steep curve
+  │  ┃    ┃      │  Instantly switches when pushed to edge
+  │  ┃    ┃      │  For scratching
   └──────────────┘
-  用途: スクラッチ、クイックミックス
+  Use: Scratching, quick mixing
 
-カーブ4: Sharp（シャープ）
+Curve 4: Sharp
   ┌──────────────┐
-  │ ┃      ┃     │  最も急峻
-  │ ┃      ┃     │  ほぼON/OFFスイッチ
-  │ ┃      ┃     │  バトルDJ向け
+  │ ┃      ┃     │  Steepest
+  │ ┃      ┃     │  Almost an ON/OFF switch
+  │ ┃      ┃     │  For battle DJs
   └──────────────┘
-  用途: カットスクラッチ、チャンス等
+  Use: Cut scratch, chirp, etc.
 ```
 
-### スタイル別のクロスフェーダー使用法
+### Crossfader Use by Style
 
-**ミックスDJ（House / Techno / Trance）:**
+**Mix DJs (House / Techno / Trance):**
 ```
-基本方針: クロスフェーダーは中央固定、使わない
-理由: チャンネルフェーダーとEQで十分なコントロールが可能
-設定: カーブ1（Smooth）にしておく（万が一触れても問題ない）
+Basic approach: Crossfader stays in the center — do not use it
+Reason: Sufficient control is possible with channel faders and EQ
+Setting: Keep at Curve 1 (Smooth) (no problem if accidentally touched)
 
-実際の操作:
-- チャンネルフェーダーで音量バランスを制御
-- EQで帯域ごとの切り替え
-- クロスフェーダーは触らない
+Actual operation:
+- Control volume balance with channel faders
+- Switch between bands with EQ
+- Do not touch the crossfader
 
-プロのTips:
-- 多くのテクノ・ハウスDJはクロスフェーダーを完全に無視する
-- DJM-V10にはそもそもクロスフェーダーが搭載されていない
-- クロスフェーダーを中央に固定しておけば、誤操作の心配がない
-```
-
-**スクラッチDJ（Hip-Hop / Turntablism）:**
-```
-基本方針: クロスフェーダーが主役
-設定: カーブ3（Fast）またはカーブ4（Sharp）
-
-基本テクニック:
-1. Baby Scratch: レコードを前後に動かす（クロスフェーダー不使用）
-2. Chirp Scratch: フェーダーを使ったカットスクラッチ
-3. Transform: フェーダーの高速ON/OFF
-4. Flare: フェーダーを開いたままバウンス
-5. Crab: 複数の指でフェーダーを連続的にバウンス
-6. Orbit: 2つのレコードを使った複合スクラッチ
-
-クロスフェーダーのカットラグ（カットイン距離）:
-- DJM-S11: 0.3mm〜5.5mmで調整可能
-- カットインが短いほど、素早いカットが可能
-- バトルDJは通常0.3〜1.0mmに設定
+Pro tips:
+- Many techno and house DJs completely ignore the crossfader
+- The DJM-V10 does not even have a crossfader
+- Fixing the crossfader in the center eliminates the risk of accidental operation
 ```
 
-**Open Format DJ（オープンフォーマット）:**
+**Scratch DJs (Hip-Hop / Turntablism):**
 ```
-基本方針: 状況に応じてクロスフェーダーとチャンネルフェーダーを使い分け
-設定: カーブ2（Medium）
+Basic approach: The crossfader is the star
+Setting: Curve 3 (Fast) or Curve 4 (Sharp)
 
-使い分け:
-- ジャンル切り替え時: クロスフェーダーでクイックカット
-- 同ジャンル内: チャンネルフェーダーとEQでスムーズミックス
-- Drop切り替え: クロスフェーダーでインパクトのある切り替え
+Basic techniques:
+1. Baby Scratch: Move the record back and forth (crossfader not used)
+2. Chirp Scratch: Cut scratch using the fader
+3. Transform: High-speed ON/OFF of the fader
+4. Flare: Bouncing the fader while open
+5. Crab: Continuously bouncing the fader with multiple fingers
+6. Orbit: Combined scratch using two records
+
+Crossfader cut lag (cut-in distance):
+- DJM-S11: Adjustable from 0.3mm to 5.5mm
+- Shorter cut-in allows faster cuts
+- Battle DJs normally set to 0.3–1.0mm
 ```
 
-### クロスフェーダーのアサイン
+**Open Format DJs:**
+```
+Basic approach: Use crossfader and channel faders as the situation demands
+Setting: Curve 2 (Medium)
 
-DJM-900NXS2では、各チャンネルをクロスフェーダーの左（A）または右（B）に割り当てることができます。
+How to choose:
+- Genre switches: Quick cut with crossfader
+- Within the same genre: Smooth mix with channel faders and EQ
+- Drop switches: Impactful switch with crossfader
+```
+
+### Crossfader Assign
+
+On the DJM-900NXS2, each channel can be assigned to the left (A) or right (B) side of the crossfader.
 
 ```
-アサインスイッチ（各チャンネル下部）:
+Assign switch (below each channel):
   A ── THRU ── B
 
-A: クロスフェーダー左側に割り当て
-THRU: クロスフェーダーを通さない（常にON）
-B: クロスフェーダー右側に割り当て
+A: Assigned to left side of crossfader
+THRU: Does not pass through crossfader (always ON)
+B: Assigned to right side of crossfader
 
-一般的な設定:
-CH1: A（左デッキ）
-CH2: B（右デッキ）
-CH3: THRU（サンプラー等）
-CH4: THRU（マイク等）
+Common settings:
+CH1: A (left deck)
+CH2: B (right deck)
+CH3: THRU (sampler, etc.)
+CH4: THRU (microphone, etc.)
 ```
 
 ---
@@ -1131,920 +1131,919 @@ CH4: THRU（マイク等）
 
 ### Master Out
 
-Master Outは、ミキサーからPAシステム（メインスピーカー）への最終出力です。
+Master Out is the final output from the mixer to the PA system (main speakers).
 
-**接続と設定:**
+**Connection and settings:**
 ```
-用途: フロアのメインスピーカーシステムへの送り
-接続端子:
-  - XLR（バランス接続）: プロフェッショナル標準。ノイズに強い
-  - RCA（アンバランス接続）: 簡易接続。短距離向け
-レベル: Master Level ノブで調整
-目標: PAシステムの最適入力レベル（通常0dBu〜+4dBu）
-```
-
-**Master Level設定の重要ルール:**
-```
-✓ クラブ到着時に音響エンジニアとレベルを確認する
-✓ 基本は12時位置でスタート
-✓ セット中はMaster Levelを触らない
-✓ 音量が足りないと感じたら、個別チャンネルのTrimで調整
-✓ PAエンジニアの指示には必ず従う
-✗ Master Levelを上げて「もっと大きく」は絶対NG
-✗ 前のDJよりも大きい音を出そうとしてMaster Levelを上げるのは最悪のマナー
+Use: Feed to the main speaker system on the floor
+Connection terminals:
+  - XLR (Balanced): Professional standard. Resistant to noise
+  - RCA (Unbalanced): Simple connection. For short distances
+Level: Adjust with Master Level knob
+Target: Optimal input level for PA system (typically 0dBu–+4dBu)
 ```
 
-**なぜMaster Levelを固定するべきか:**
+**Important rules for Master Level settings:**
 ```
-理由1: PAシステムの入力レベルは最適化されている
-  → 音響エンジニアがPAシステム全体で最適なゲインストラクチャーを設計
-  → Master Levelを上げるとその設計が崩れる
+✓ Confirm the level with the sound engineer upon arriving at the club
+✓ Start at 12 o'clock position as the baseline
+✓ Do not touch Master Level during the set
+✓ If you feel the volume is insufficient, adjust individual channel Trims
+✓ Always follow instructions from the PA engineer
+✗ Raising Master Level for "more volume" is absolutely forbidden
+✗ Raising Master Level to play louder than the previous DJ is the worst breach of etiquette
+```
 
-理由2: リミッターが作動する
-  → 多くのクラブのPAにはリミッターが設置されている
-  → Master Levelを上げてもリミッターが音を潰すだけで音量は上がらない
-  → 音質が劣化するだけ
+**Why Master Level should be fixed:**
+```
+Reason 1: The input level of the PA system is optimized
+  → The sound engineer has designed the optimal gain structure for the entire PA system
+  → Raising Master Level breaks that design
 
-理由3: スピーカーの保護
-  → 過大入力はスピーカーのダメージにつながる
-  → 修理費用は数十万〜数百万円
-  → DJが弁償させられるケースもある
+Reason 2: The limiter kicks in
+  → Most club PA systems have a limiter installed
+  → Even if Master Level is raised, the limiter just squashes the sound without raising volume
+  → Sound quality only degrades
 
-理由4: ダイナミクスの喪失
-  → Master Levelが高すぎると、音楽の「強弱」が失われる
-  → クラブミュージックにおけるドロップのインパクトがなくなる
+Reason 3: Speaker protection
+  → Excessive input can damage speakers
+  → Repair costs can run from tens of thousands to millions of yen
+  → There are cases where DJs are made to pay for repairs
+
+Reason 4: Loss of dynamics
+  → If Master Level is too high, the "loud and soft" of music is lost
+  → The impact of a drop in club music disappears
 ```
 
 ### Booth Out
 
-Booth Outは、DJブース内のモニタースピーカーへの出力です。Master Outとは完全に独立しています。
+Booth Out is the output to the monitor speakers in the DJ booth. It is completely independent from Master Out.
 
-**設定:**
+**Settings:**
 ```
-用途: DJブース内モニタースピーカー
-接続端子:
-  - XLR（バランス）: 標準
-  - TRS（バランス）: 代替
-レベル: Booth Level ノブで独立調整
-特徴: Master Outとは完全に独立した音量制御
-```
-
-**Booth Outの重要性:**
-```
-- DJはフロアのスピーカーの音を直接聞いているわけではない
-- DJブース内のモニターで自分のプレイを確認する
-- Booth Levelを適切に設定しないと:
-  - 小さすぎる → ミックスの確認ができない、ビートマッチングが困難
-  - 大きすぎる → 耳の疲労、難聴のリスク、フロアの音との位相差で混乱
-- 理想はフロアの音を「やや小さく」再現するレベル
+Use: Monitor speakers in the DJ booth
+Connection terminals:
+  - XLR (Balanced): Standard
+  - TRS (Balanced): Alternative
+Level: Independent adjustment with Booth Level knob
+Feature: Completely independent volume control from Master Out
 ```
 
-**プロのTips:**
+**Importance of Booth Out:**
 ```
-- 耳の保護のため、Booth Levelは控えめに
-- 長時間のセット（2時間以上）では特に注意
-- イヤープラグ（耳栓）の使用を推奨
-  → Etymotic ER20XS: DJ向けの平坦な減衰特性
-  → ACS Custom: カスタムモールドの高級イヤープラグ
-- Booth Levelは曲間に微調整してOK（Master Levelとは異なり自由に操作可能）
+- DJs are not directly hearing the floor speakers
+- They confirm their own play through the booth monitor
+- If Booth Level is not set appropriately:
+  - Too low → Cannot confirm the mix, beatmatching is difficult
+  - Too high → Ear fatigue, risk of hearing damage, confusion from phase differences with floor sound
+- Ideal level is one that reproduces the floor sound "slightly quieter"
 ```
 
-### ヘッドフォンキュー（Cue）
-
-ヘッドフォンキューシステムは、DJが次にかける曲を事前に確認するための機能です。
-
-**操作部の構成:**
+**Pro tips:**
 ```
-Cueボタン（各チャンネル）:
-  → 押すと、そのチャンネルの音がヘッドフォンに送られる
-  → 複数同時に押すことも可能（複数チャンネルをモニター）
+- Keep Booth Level modest to protect your ears
+- Especially important during long sets (2 hours or more)
+- Use of earplugs is recommended
+  → Etymotic ER20XS: Flat attenuation characteristics suited for DJs
+  → ACS Custom: High-end custom-molded earplugs
+- Booth Level can be fine-tuned between tracks (unlike Master Level, it can be freely operated)
+```
+
+### Headphone Cue
+
+The headphone cue system is a feature that allows DJs to preview the next track in advance.
+
+**Configuration of the control section:**
+```
+Cue button (per channel):
+  → Press to send that channel's audio to the headphones
+  → Multiple channels can be pressed simultaneously (monitor multiple channels)
 
 Headphone Level:
-  → ヘッドフォンの音量を調整
-  → 耳の保護のため、適度な音量に
+  → Adjust headphone volume
+  → Set to a moderate volume to protect your ears
 
 Headphone Mixing:
-  → CueとMasterのバランスを調整
-  → 左に回す: Cue（次の曲）のみ
-  → 12時: Cue + Master 半々
-  → 右に回す: Master（フロアの音）のみ
+  → Adjust balance between Cue and Master
+  → Turn left: Cue (next track) only
+  → 12 o'clock: Cue + Master at 50/50
+  → Turn right: Master (floor sound) only
 ```
 
-**実践的なCue操作:**
+**Practical Cue operation:**
 ```
-ステップ1 - 次の曲を選ぶ:
-  1. 次のチャンネルのCueボタンを押す
-  2. Headphone Mixingを左（Cue側）に回す
-  3. 次の曲をロードして再生
-  4. ヘッドフォンで曲を確認
+Step 1 - Choose the next track:
+  1. Press the Cue button on the next channel
+  2. Turn Headphone Mixing to the left (Cue side)
+  3. Load and play the next track
+  4. Check the track with headphones
 
-ステップ2 - ビートマッチング:
-  5. Headphone Mixingを12時付近に設定
-  6. 左耳: 次の曲（Cue）、右耳: フロアの音（Master）
-  7. テンポを合わせる
-  8. ビートの位相を合わせる
+Step 2 - Beatmatching:
+  5. Set Headphone Mixing near 12 o'clock
+  6. Left ear: Next track (Cue), right ear: Floor sound (Master)
+  7. Match the tempo
+  8. Match the beat phase
 
-ステップ3 - ミックスの確認:
-  9. Headphone Mixingを右（Master側）に戻す
-  10. フロアに出ている音と次の曲のバランスを確認
-  11. EQ調整を行いながらミックスイン
-  12. ミックスが完了したら、Cueボタンをオフ
+Step 3 - Confirming the mix:
+  9. Return Headphone Mixing to the right (Master side)
+  10. Confirm the balance between the sound going to the floor and the next track
+  11. Mix in while making EQ adjustments
+  12. Once the mix is complete, turn off the Cue button
 
-ヘッドフォンの使い方（物理的）:
-方法A: 片耳モニタリング
-  → ヘッドフォンの片側を耳に当て、もう片側はずらす
-  → 片耳でCue、もう片耳でフロア音を聞く
-  → 最も一般的な方法
+Physical headphone use:
+Method A: One-ear monitoring
+  → Rest one side of the headphones on your ear, shift the other side off
+  → Listen to Cue with one ear and floor sound with the other
+  → The most common method
 
-方法B: 両耳モニタリング
-  → 両耳にヘッドフォンを当て、Mixing knobでバランス
-  → 精密なビートマッチングに適している
-  → フロアの状況が分かりにくいデメリット
+Method B: Both-ear monitoring
+  → Put headphones on both ears and balance with the Mixing knob
+  → Suited for precise beatmatching
+  → Downside: Hard to gauge the floor situation
 
-方法C: ヘッドフォンなし
-  → Booth Monitorの音だけでミックスする上級テクニック
-  → BPM Syncが効く環境では可能
-  → フロアの雰囲気に集中できるメリット
+Method C: No headphones
+  → Advanced technique of mixing only with booth monitor sound
+  → Possible in environments where BPM Sync works
+  → Advantage of being able to focus on the floor atmosphere
 ```
 
 ---
 
-## 8. エフェクト
+## 8. Effects
 
-エフェクトは、DJプレイに音響的な演出を加えるための機能です。DJM-900NXS2には「Beat FX」と「Sound Color FX」の2系統のエフェクトが搭載されており、それぞれ異なる操作体系と用途を持っています。エフェクトの適切な使用は、プロフェッショナルなDJプレイと素人のプレイを分ける大きな要因の一つです。
+Effects are functions that add sonic production to DJ play. The DJM-900NXS2 has two systems of effects — "Beat FX" and "Sound Color FX" — each with different operational systems and uses. Appropriate use of effects is one of the major factors distinguishing professional DJ play from amateur play.
 
-### Beat FX（DJM-900NXS2）
+### Beat FX (DJM-900NXS2)
 
-Beat FXは、BPMに同期したエフェクトを楽曲に適用する機能です。DJM-900NXS2には14種類のBeat FXが搭載されています。
+Beat FX is a function that applies BPM-synchronized effects to tracks. The DJM-900NXS2 has 14 types of Beat FX.
 
-**全14種類のBeat FXと詳細解説:**
+**All 14 Beat FX types with detailed explanations:**
 
 ```
-1. Delay（ディレイ）
-   効果: 音を遅延させて繰り返す
-   設定: 1/8, 1/4, 1/2, 3/4, 1拍
-   用途: トランジション、ブレイク
-   Tips: 1/2拍のディレイが最も自然に聞こえる
+1. Delay
+   Effect: Delays and repeats the sound
+   Settings: 1/8, 1/4, 1/2, 3/4, 1 beat
+   Uses: Transitions, breaks
+   Tips: 1/2-beat delay sounds most natural
 
-2. Echo（エコー）
-   効果: ディレイに減衰を加えたもの
-   設定: 1/8, 1/4, 1/2, 3/4, 1拍
-   用途: 最も汎用的なエフェクト。ほぼ全てのシーンで使える
-   Tips: Echoは「安全な」エフェクト。迷ったらEchoを使え
+2. Echo
+   Effect: Delay with added decay
+   Settings: 1/8, 1/4, 1/2, 3/4, 1 beat
+   Uses: The most versatile effect. Can be used in almost any scene
+   Tips: Echo is the "safe" effect. When in doubt, use Echo
 
-3. Spiral（スパイラル）
-   効果: 上昇/下降する螺旋状のエフェクト
-   設定: 1/2, 1, 2, 4拍
-   用途: ビルドアップ、テンション上昇
-   Tips: ビルドアップ中に使うと効果的。ドロップ直前にOFF
+3. Spiral
+   Effect: Rising/falling spiral effect
+   Settings: 1/2, 1, 2, 4 beats
+   Uses: Build-ups, rising tension
+   Tips: Effective during a build-up. Turn OFF just before the drop
 
-4. Reverb（リバーブ）
-   効果: 残響を加える。広い空間を演出
-   設定: 1/8, 1/4, 1/2, 1, 2拍
-   用途: ブレイクダウン、アウトロ
-   Tips: 長いリバーブは音が濁りやすい。短めが安全
+4. Reverb
+   Effect: Adds reverb. Creates a large space feel
+   Settings: 1/8, 1/4, 1/2, 1, 2 beats
+   Uses: Breakdowns, outros
+   Tips: Long reverb can muddy the sound. Shorter is safer
 
-5. Trans（トランス）
-   効果: ゲート的に音をON/OFFする
-   設定: 1/8, 1/4, 1/2, 1拍
-   用途: リズミカルな演出、ビルドアップ
-   Tips: 1/4拍で使うとクラシックな「トランス」サウンドに
+5. Trans
+   Effect: Gates the sound ON/OFF rhythmically
+   Settings: 1/8, 1/4, 1/2, 1 beat
+   Uses: Rhythmic production, build-ups
+   Tips: Using at 1/4 beat creates a classic "trance" sound
 
-6. Filter（フィルター）
-   効果: BPMに同期したフィルタースイープ
-   設定: 1/2, 1, 2, 4拍
-   用途: 自動的に開閉するフィルター効果
-   Tips: 手動フィルターとの違いはBPM同期
+6. Filter
+   Effect: BPM-synchronized filter sweep
+   Settings: 1/2, 1, 2, 4 beats
+   Uses: Automatic opening and closing filter effect
+   Tips: The difference from manual filter is BPM sync
 
-7. Flanger（フランジャー）
-   効果: うねりのある効果（ジェット機のような音）
-   設定: 1/2, 1, 2, 4拍
-   用途: 特殊な演出、ブレイク
-   Tips: 使いすぎると耳障り。控えめに
+7. Flanger
+   Effect: Swirling effect (jet engine-like sound)
+   Settings: 1/2, 1, 2, 4 beats
+   Uses: Special production, breaks
+   Tips: Grating when overused. Use sparingly
 
-8. Phaser（フェイザー）
-   効果: 位相変化による揺れ
-   設定: 1/2, 1, 2, 4拍
-   用途: 浮遊感のある演出
-   Tips: Flangerより穏やか。ハウスに合う
+8. Phaser
+   Effect: Wavering from phase change
+   Settings: 1/2, 1, 2, 4 beats
+   Uses: Floating atmosphere production
+   Tips: Milder than Flanger. Suits house
 
-9. Pitch（ピッチ）
-   効果: ピッチを上下に変化
-   設定: 1/8, 1/4, 1/2, 1拍
-   用途: 特殊効果、テンション変化
-   Tips: やり過ぎると不快。短時間で使う
+9. Pitch
+   Effect: Changes the pitch up or down
+   Settings: 1/8, 1/4, 1/2, 1 beat
+   Uses: Special effects, tension changes
+   Tips: Unpleasant if overdone. Use briefly
 
-10. Slip Roll（スリップロール）
-    効果: ビートに同期したロール（連打）
-    設定: 1/8, 1/4, 1/2, 1拍
-    用途: ビルドアップ、フィルイン的演出
-    Tips: 1/16 → 1/8 → 1/4と短くしていくと効果的
+10. Slip Roll
+    Effect: Beat-synchronized roll (rapid repeat)
+    Settings: 1/8, 1/4, 1/2, 1 beat
+    Uses: Build-ups, fill-like production
+    Tips: Effective to shorten progressively: 1/16 → 1/8 → 1/4
 
-11. Roll（ロール）
-    効果: 音をループ再生（元の音は止まる）
-    設定: 1/16, 1/8, 1/4, 1/2, 1拍
-    用途: ドラムロール的な効果
-    Tips: Slip Rollとの違い:Rollは元の再生が止まる
+11. Roll
+    Effect: Loops the audio (original playback stops)
+    Settings: 1/16, 1/8, 1/4, 1/2, 1 beat
+    Uses: Drum roll-like effect
+    Tips: Difference from Slip Roll: Roll stops original playback
 
-12. Helix（ヘリックス）
-    効果: 螺旋状に変化するディレイ
-    設定: 1/2, 1, 2, 4拍
-    用途: 独特の空間演出
-    Tips: テクノやプログレッシブに合う
+12. Helix
+    Effect: Spiraling delay
+    Settings: 1/2, 1, 2, 4 beats
+    Uses: Unique spatial production
+    Tips: Suits techno and progressive
 
-13. Enigma Jet（エニグマジェット）
-    効果: ジェットフランジャーの進化版
-    設定: 1/2, 1, 2, 4拍
-    用途: 強烈な上昇/下降効果
-    Tips: インパクトが強いため、ここぞという時に
+13. Enigma Jet
+    Effect: Advanced version of jet flanger
+    Settings: 1/2, 1, 2, 4 beats
+    Uses: Intense rising/falling effect
+    Tips: High impact — save for the right moment
 
-14. Shimmer（シマー）
-    効果: 音にキラキラとした輝きを加える
-    設定: 1/2, 1, 2, 4拍
-    用途: 美しい空間演出
-    Tips: ピアノやパッド系の音に効果的
+14. Shimmer
+    Effect: Adds a sparkling, glittering quality
+    Settings: 1/2, 1, 2, 4 beats
+    Uses: Beautiful spatial production
+    Tips: Effective on piano and pad sounds
 ```
 
-**Beat FXの操作手順（詳細）:**
+**Beat FX operation procedure (detailed):**
 ```
-1. Beat FX Select（ロータリースイッチ）でエフェクトを選択
-   → ノブを回して目的のエフェクトに合わせる
-   → 使用中にエフェクトを変えると音が途切れるので注意
+1. Select the effect with Beat FX Select (rotary switch)
+   → Turn the knob to the desired effect
+   → Changing effects while in use can cause audio interruption
 
-2. Beat（ビート選択ボタン）で効果の長さを選択
-   → 通常は1/2拍か1拍から始める
-   → ボタンを押すたびに拍数が変わる
+2. Select the effect length with Beat (beat selection buttons)
+   → Usually start from 1/2 beat or 1 beat
+   → Pressing the button changes the beat count
 
-3. Channel Assign（チャンネルアサイン）で対象チャンネルを選択
-   → CH1〜CH4、Master、MIC から選択
-   → Masterにアサインすると全体にエフェクトがかかる
+3. Select the target channel with Channel Assign
+   → Choose from CH1–CH4, Master, MIC
+   → Assigning to Master applies the effect to everything
 
-4. Level/Depth（レベル/デプス）でエフェクトの深さを調整
-   → 12時位置: 中程度の効果
-   → 全開: 最大効果（Wet100%）
-   → 最小: 効果なし（Dry100%）
+4. Adjust the effect depth with Level/Depth
+   → 12 o'clock position: Moderate effect
+   → Full open: Maximum effect (Wet 100%)
+   → Minimum: No effect (Dry 100%)
 
-5. On/Off ボタンでエフェクトを起動/停止
-   → 押すたびにON/OFFが切り替わる
-   → タイミングが重要！ビートの頭に合わせて押す
-```
-
-**Beat FX実践テクニック集:**
-
-**テクニック1: Echo Out（エコーアウト）**
-```
-最も基本的で最も使用頻度の高いテクニック。
-曲を終わらせる時にEchoを使って自然にフェードアウトさせる。
-
-手順:
-1. Echo選択、1/2拍設定
-2. Channel Assign: 終了するチャンネルに設定
-3. Level/Depth: 12時（中程度）
-4. 小節の区切りでOn/Offボタンを押す
-5. 同時にChannel Faderを下げる
-6. Echoの残響だけが残り、自然に消えていく
-7. 残響が消えたらOFFにする
-
-ポイント:
-- Level/Depthを上げすぎると残響が長すぎて次の曲と被る
-- Faderを下げるタイミングとEcho ONのタイミングを合わせる
-- 練習あるのみ。最も使うテクニックなので完璧に
+5. Activate/deactivate the effect with On/Off button
+   → Each press toggles ON/OFF
+   → Timing is critical! Press on the beat downbeat
 ```
 
-**テクニック2: Filter Build（フィルタービルド）**
+**Beat FX practical techniques:**
+
+**Technique 1: Echo Out**
 ```
-ビルドアップでテンションを上げるテクニック。
+The most basic and most frequently used technique.
+Use Echo to naturally fade out a track when ending it.
 
-手順:
-1. Beat FXのFilterを選択
-2. 4拍に設定
-3. Level/Depthを徐々に上げる
-4. フィルターが自動で開閉し、テンションが上昇
-5. ドロップの直前でOFF
-6. → ドロップのインパクトが倍増
+Procedure:
+1. Select Echo, set to 1/2 beat
+2. Channel Assign: Set to the channel you are ending
+3. Level/Depth: 12 o'clock (moderate)
+4. Press the On/Off button at a bar boundary
+5. Simultaneously lower the Channel Fader
+6. Only the Echo reverb remains and naturally fades out
+7. Turn OFF after the reverb has faded
 
-バリエーション:
-- 4拍 → 2拍 → 1拍 → 1/2拍と短くしていく
-- → テンションの上昇速度がどんどん加速
+Points:
+- Raising Level/Depth too high leaves too long a reverb that overlaps the next track
+- Match the timing of lowering the Fader with the timing of turning Echo ON
+- Practice is everything. Perfect this as it is the most used technique
 ```
 
-**テクニック3: Reverb Wash（リバーブウォッシュ）**
+**Technique 2: Filter Build**
 ```
-ブレイクダウンで空間を広げるテクニック。
+A technique for raising tension during a build-up.
 
-手順:
-1. Reverb選択、2拍設定
-2. Level/Depthを大きめに
-3. ブレイクダウンの始まりでON
-4. 音が広い空間に包まれる効果
-5. ビルドアップの始まりでOFF
+Procedure:
+1. Select Filter in Beat FX
+2. Set to 4 beats
+3. Gradually raise Level/Depth
+4. The filter automatically opens and closes, tension rises
+5. Turn OFF just before the drop
+6. → The drop's impact is doubled
 
-注意:
-- Reverbは音を「濁らせる」ので長時間の使用は避ける
-- 次の曲とのミックス中には使わない（音が混ざって汚くなる）
+Variation:
+- Shorten progressively: 4 beats → 2 beats → 1 beat → 1/2 beat
+- → The rate of tension increase keeps accelerating
+```
+
+**Technique 3: Reverb Wash**
+```
+A technique for expanding the space during a breakdown.
+
+Procedure:
+1. Select Reverb, set to 2 beats
+2. Set Level/Depth relatively large
+3. Turn ON at the beginning of the breakdown
+4. The sound is enveloped in a large space
+5. Turn OFF at the beginning of the build-up
+
+Note:
+- Reverb "muddies" the sound, so avoid using it for too long
+- Do not use it while mixing in the next track (sound will get messy when mixed)
 ```
 
 ### Sound Color FX
 
-Sound Color FXは、各チャンネルのColor FXノブで操作するエフェクトです。Beat FXとは異なり、BPMに同期せず、ノブの回し方で自由にエフェクトの深さをコントロールできます。
+Sound Color FX are effects operated with the Color FX knob on each channel. Unlike Beat FX, they do not synchronize to BPM, and the depth of the effect can be freely controlled by how much the knob is turned.
 
-**6種類のSound Color FXと詳細解説:**
+**All 6 Sound Color FX types with detailed explanations:**
 ```
-1. Space（スペース）
-   効果: 空間系リバーブ
-   操作: ノブを12時から左右に回す
-   用途: 音に広がりと奥行きを加える
-   Tips: 穏やかなエフェクト。安全に使える
-   ジャンル適合: House, Techno, Ambient
+1. Space
+   Effect: Spatial reverb
+   Operation: Turn the knob left or right from 12 o'clock
+   Uses: Add breadth and depth to the sound
+   Tips: A mild effect. Can be used safely
+   Genre fit: House, Techno, Ambient
 
-2. Dub Echo（ダブエコー）
-   効果: ダブスタイルのディレイ
-   操作: ノブを12時から左右に回す
-   用途: レゲエ/ダブ的な遅延効果
-   Tips: トランジション中のアクセントに最適
-   ジャンル適合: Dub Techno, Deep House, Reggae
+2. Dub Echo
+   Effect: Dub-style delay
+   Operation: Turn the knob left or right from 12 o'clock
+   Uses: Reggae/dub-style delay effect
+   Tips: Ideal as an accent during transitions
+   Genre fit: Dub Techno, Deep House, Reggae
 
-3. Sweep（スウィープ）
-   効果: フィルタースイープ
-   操作: ノブを左に回す=LPF、右に回す=HPF
-   用途: ブレイク、ビルドアップ、トランジション
-   Tips: 最も汎用性が高いColor FX。初心者はこれから始めよう
-   ジャンル適合: 全ジャンル
+3. Sweep
+   Effect: Filter sweep
+   Operation: Turn left = LPF, turn right = HPF
+   Uses: Breaks, build-ups, transitions
+   Tips: The most versatile Color FX. Beginners should start with this
+   Genre fit: All genres
 
-4. Noise（ノイズ）
-   効果: ホワイトノイズを加える
-   操作: ノブを12時から左右に回す
-   用途: ビルドアップ、ライザー効果
-   Tips: ビルドアップ中に少しずつ上げると効果的
-   ジャンル適合: EDM, Trance, Big Room
+4. Noise
+   Effect: Adds white noise
+   Operation: Turn the knob left or right from 12 o'clock
+   Uses: Build-ups, riser effect
+   Tips: Effective when gradually raising during a build-up
+   Genre fit: EDM, Trance, Big Room
 
-5. Crush（クラッシュ）
-   効果: ビットクラッシャー / サンプルレート低下
-   操作: ノブを12時から左右に回す
-   用途: 音をローファイに変化させる
-   Tips: 使いすぎると不快。控えめに
-   ジャンル適合: Industrial Techno, Bass Music
+5. Crush
+   Effect: Bit crusher / sample rate reduction
+   Operation: Turn the knob left or right from 12 o'clock
+   Uses: Transforms sound to lo-fi
+   Tips: Unpleasant when overused. Use sparingly
+   Genre fit: Industrial Techno, Bass Music
 
-6. Filter（フィルター）
-   効果: HPF/LPFフィルター
-   操作: ノブを左に回す=LPF、右に回す=HPF
-   用途: Sweep同様だが、よりシンプル
-   Tips: チャンネルフィルターとの違いを理解して使い分け
-   ジャンル適合: 全ジャンル
-```
-
-**Sound Color FXの操作原則:**
-```
-✓ 12時位置: エフェクトなし（原音のまま）
-✓ 左に回す: エフェクトA（LPF系が多い）
-✓ 右に回す: エフェクトB（HPF系が多い）
-✓ 回し具合: エフェクトの深さに比例
-✓ 急激な操作を避ける: ゆっくり回すのが基本
-✗ 複数チャンネルに同時に強くかけない: 音が破綻する
-✗ ミックス中の両方の曲にColor FXをかけない: 音が汚くなる
+6. Filter
+   Effect: HPF/LPF filter
+   Operation: Turn left = LPF, turn right = HPF
+   Uses: Similar to Sweep but simpler
+   Tips: Understand the difference from channel filter and use accordingly
+   Genre fit: All genres
 ```
 
-### Beat FXとSound Color FXの使い分け
+**Sound Color FX operation principles:**
+```
+✓ 12 o'clock position: No effect (original sound unchanged)
+✓ Turn left: Effect A (often LPF type)
+✓ Turn right: Effect B (often HPF type)
+✓ How far you turn: Proportional to effect depth
+✓ Avoid sudden movements: Turning slowly is the rule
+✗ Do not apply heavily to multiple channels simultaneously: Sound will break down
+✗ Do not apply Color FX to both tracks during mixing: Sound will get messy
+```
+
+### Beat FX vs. Sound Color FX — When to Use Which
 
 ```
 Beat FX:
-- BPMに同期する → リズミカルなエフェクト
-- 1系統（DJM-900NXS2）→ 1チャンネルにしか同時にかけられない
-- ON/OFFボタンで操作 → 明確なタイミング制御
-- 深さはLevel/Depthで調整
-- 用途: トランジション、ビルドアップ、ブレイクダウン
+- Synchronized to BPM → Rhythmic effects
+- 1 system (DJM-900NXS2) → Can only be applied to 1 channel at a time
+- Operated with ON/OFF button → Clear timing control
+- Depth adjusted with Level/Depth
+- Uses: Transitions, build-ups, breakdowns
 
 Sound Color FX:
-- BPMに同期しない → 自由なタイミングで操作
-- 4系統（各チャンネル独立）→ 全チャンネルに同時にかけられる
-- ノブで連続的に操作 → なめらかな変化
-- 深さはノブの回し具合で調整
-- 用途: テクスチャーの変化、フィルタリング、空間演出
+- Not synchronized to BPM → Free timing for operation
+- 4 systems (independent per channel) → Can be applied to all channels simultaneously
+- Operated continuously with knob → Smooth changes
+- Depth adjusted by how far the knob is turned
+- Uses: Texture changes, filtering, spatial production
 ```
 
-### エフェクト使用の鉄則
+### Iron Rules for Effect Use
 
 ```
-鉄則1: 「少なく、効果的に」
-  → エフェクトは「スパイス」であり「主食」ではない
-  → 原曲の良さを引き立てるために使う
-  → 使いすぎると音楽が台無しになる
+Rule 1: "Less is more, make it effective"
+  → Effects are a "spice," not the "main course"
+  → Use them to bring out the best in the original music
+  → Overuse ruins the music
 
-鉄則2: 「適切なタイミング」
-  → ビートの区切り（8小節、16小節）でON/OFF
-  → 曲の構造（イントロ、ビルドアップ、ドロップ、ブレイク）に合わせる
-  → 闇雲にかけない
+Rule 2: "Appropriate timing"
+  → ON/OFF at beat boundaries (8-bar, 16-bar)
+  → Match to the track's structure (intro, build-up, drop, break)
+  → Do not apply randomly
 
-鉄則3: 「エフェクトを使わない勇気」
-  → プロDJほど、エフェクトの使用頻度は少ない
-  → 選曲とEQミックスが基本。エフェクトは最後の仕上げ
-  → 「何もしない」ことが最高のエフェクトになることもある
+Rule 3: "The courage not to use effects"
+  → The more professional the DJ, the less frequently they use effects
+  → Track selection and EQ mixing are the fundamentals. Effects are the final touch
+  → "Doing nothing" can sometimes be the best effect
 
-鉄則4: 「事前に練習する」
-  → 本番で初めて使うエフェクトは失敗のもと
-  → 自宅で各エフェクトの効果と操作感を完全に把握してから使う
-  → 録音して客観的に確認する
+Rule 4: "Practice in advance"
+  → Using an effect for the first time in a live set leads to failure
+  → At home, fully grasp the sound and feel of each effect before using it
+  → Record yourself and check objectively
 
-鉄則5: 「ジャンルに合ったエフェクトを選ぶ」
-  → テクノ: Echo, Reverb, Filter → 控えめで効果的
-  → EDM: Noise, Trans, Spiral → 派手な演出
-  → ハウス: Dub Echo, Space, Sweep → 温かみのある演出
-  → ヒップホップ: Echo, Reverb → シンプルに
+Rule 5: "Choose effects appropriate to the genre"
+  → Techno: Echo, Reverb, Filter → Restrained and effective
+  → EDM: Noise, Trans, Spiral → Flashy production
+  → House: Dub Echo, Space, Sweep → Warm production
+  → Hip-hop: Echo, Reverb → Keep it simple
 ```
 
-### エフェクトのよくある失敗
+### Common Mistakes with Effects
 
 ```
-失敗1: エフェクトをOFFにし忘れる
-  → 次の曲にもエフェクトがかかったまま
-  → 対策: ミックス完了後、必ずBeat FXの状態を確認
+Mistake 1: Forgetting to turn OFF the effect
+  → The effect remains applied to the next track
+  → Prevention: Always check the Beat FX status after the mix is complete
 
-失敗2: Level/Depthが大きすぎる
-  → エフェクトが強すぎて音楽が壊れる
-  → 対策: 最初は控えめに。慣れてから徐々に調整
+Mistake 2: Level/Depth is too high
+  → Effect is too strong and ruins the music
+  → Prevention: Start conservatively. Gradually adjust as you become familiar
 
-失敗3: タイミングがずれる
-  → ビートの途中でON/OFFして不自然な音に
-  → 対策: TAPボタンでBPMを確認。ビートの頭で操作
+Mistake 3: Timing is off
+  → Unnatural sound from turning ON/OFF mid-beat
+  → Prevention: Confirm BPM with TAP button. Operate on the beat downbeat
 
-失敗4: ミックス中に両方の曲にエフェクトをかける
-  → 音が混沌として聞き取れなくなる
-  → 対策: エフェクトはどちらか一方の曲にのみ適用
+Mistake 4: Applying effects to both tracks during mixing
+  → Sound becomes chaotic and incoherent
+  → Prevention: Apply effects to only one track at a time
 
-失敗5: Channel Assignを間違える
-  → 意図しないチャンネルにエフェクトがかかる
-  → 対策: ON/OFFの前に必ずChannel Assignを確認
+Mistake 5: Wrong Channel Assign
+  → Effect applied to unintended channel
+  → Prevention: Always confirm Channel Assign before ON/OFF
 ```
 
 ---
 
-## 9. ゲインステージング
+## 9. Gain Staging
 
-### ゲインステージングとは
+### What Is Gain Staging?
 
-ゲインステージングとは、音響システム全体を通じて、各段階での音量レベルを最適に保つ技術のことです。DJミキシングにおいては、入力（Trim）からマスター出力までの各段階で適切なレベルを維持することを意味します。
+Gain staging is the technique of maintaining optimal volume levels at each stage throughout an audio system. In DJ mixing, it means maintaining appropriate levels at each stage from input (Trim) to master output.
 
-**なぜゲインステージングが重要か:**
+**Why gain staging matters:**
 ```
-✓ 音割れ防止: クリッピングによる歪みを防ぐ
-✓ 音圧の一貫性: セット全体を通して均一な音量
-✓ クリアなミックス: ノイズフロアから十分離れた信号レベル
-✓ PA負荷軽減: スピーカーへの過大入力を防ぐ
-✓ ダイナミクス保存: 音楽の強弱を損なわない
-✓ 耳の保護: 急激な音量変化を防ぐ
-✓ プロフェッショナリズム: PAエンジニアとの良好な関係
+✓ Distortion prevention: Prevents clipping-caused distortion
+✓ Consistent sound pressure: Uniform volume throughout the set
+✓ Clean mix: Signal level sufficiently above the noise floor
+✓ Reduced PA load: Prevents excessive input to speakers
+✓ Dynamic preservation: Does not compromise the loud/quiet of music
+✓ Ear protection: Prevents sudden volume changes
+✓ Professionalism: Good relationship with the PA engineer
 ```
 
-### ゲインストラクチャーの理解
+### Understanding Gain Structure
 
-DJミキサーにおけるゲインストラクチャー（信号レベルの構造）を理解することが、正しいゲインステージングの第一歩です。
+Understanding the gain structure (signal level architecture) in a DJ mixer is the first step to correct gain staging.
 
 ```
-信号レベルの流れ:
+Signal level flow:
 
-入力信号: -20dBu〜+10dBu（ソースにより異なる）
+Input signal: -20dBu to +10dBu (varies by source)
     ↓
-Trim: ここで0dBに揃える（最も重要！）
+Trim: Align to 0dB here (most important!)
     ↓
-EQ: ±6dBの範囲で調整（ブーストはヘッドルームを消費）
+EQ: Adjust within ±6dB (boosts consume headroom)
     ↓
-Channel Fader: 0dB（最大）〜-∞dB（最小）
+Channel Fader: 0dB (maximum) to -∞dB (minimum)
     ↓
-マスターバス: 全チャンネルのサミング（加算）
-    ↓  ※ここで2曲同時に鳴ると+3〜+6dB上昇する可能性
-Master Level: 最終出力レベルの調整
+Master bus: Summing (addition) of all channels
+    ↓  ※ When 2 tracks play simultaneously here, can rise +3–+6dB
+Master Level: Adjust final output level
     ↓
-出力: 0dBu〜+4dBu（PAシステムの最適入力）
+Output: 0dBu–+4dBu (optimal PA system input)
 
-ヘッドルーム = クリッピングまでの余裕
-  → DJM-900NXS2のヘッドルーム: 約+18dBu
-  → 0dBで運用すれば、+18dBのヘッドルームが確保される
-  → EQブースト（+6dB）を使っても、まだ+12dBの余裕がある
+Headroom = margin until clipping
+  → DJM-900NXS2 headroom: Approx. +18dBu
+  → Operating at 0dB ensures +18dB of headroom
+  → Even using EQ boost (+6dB), still +12dB of margin
 ```
 
-### 正しいゲインステージングの手順
+### Correct Gain Staging Procedure
 
-**セットアップ時（サウンドチェック）:**
+**During setup (soundcheck):**
 ```
-1. 全てのChannel Faderを最下部（-∞）にする
-2. 全てのTrimを最小にする
-3. 全てのEQを12時位置（フラット）にする
-4. 全てのColor FXノブを12時位置にする
-5. Beat FXをOFFにする
-6. Crossfaderを中央にする
-7. Master Levelを12時位置にする（音響エンジニアと相談）
+1. Set all Channel Faders to the bottom (-∞)
+2. Set all Trims to minimum
+3. Set all EQs to 12 o'clock (flat)
+4. Set all Color FX knobs to 12 o'clock
+5. Turn Beat FX OFF
+6. Set Crossfader to center
+7. Set Master Level to 12 o'clock (consult sound engineer)
 
-8. テスト曲をCH1にロード
-9. CH1のChannel Faderを最大（0dB）にする
-10. 曲を再生する
-11. CH1のTrimを回して、レベルメーターが0dB付近になるよう調整
-12. Channel Faderを70〜80%位置に戻す
-13. マスターレベルメーターを確認
-14. 0dB付近であればOK。ずれていればMaster Levelを微調整
-15. 音響エンジニアにPAのレベルを確認してもらう
-```
-
-**ミックス中のレベル管理:**
-```
-新しい曲をロードしたら:
-1. Channel Faderを最下部にする
-2. Cueボタンを押してヘッドフォンで確認
-3. Channel Faderを最大にする（ただしフロアには出さない）
-4. Trimでレベルメーターが0dBになるよう調整
-5. Channel Faderを下げて待機
-6. ミックスイン時はChannel Faderで操作
-
-ミックス中の注意:
-✓ 2曲同時に鳴る時、マスターレベルが+3dB程度上がるのは正常
-✓ ただし赤に入ったら、各チャンネルのTrimをわずかに下げる
-✓ EQカットを活用して帯域の重複を避ける → 自然にレベル管理
-✗ Master Levelを下げて対処するのはNG
-✗ Channel Faderの位置を覚えて毎回同じ位置にするのもNG（曲ごとに違う）
+8. Load a test track to CH1
+9. Raise CH1's Channel Fader to maximum (0dB)
+10. Play the track
+11. Rotate CH1's Trim to adjust so the level meter is near 0dB
+12. Return the Channel Fader to 70–80% position
+13. Check the master level meter
+14. If it is near 0dB, that is fine. If off, fine-tune Master Level
+15. Ask the sound engineer to confirm the PA level
 ```
 
-### ジャンル別ゲインステージングの注意点
+**Level management during mixing:**
+```
+When a new track is loaded:
+1. Lower the Channel Fader to the bottom
+2. Press the Cue button and check with headphones
+3. Raise the Channel Fader to maximum (but do not send to the floor)
+4. Adjust Trim so the level meter is at 0dB
+5. Lower the Channel Fader and wait
+6. Operate with the Channel Fader when mixing in
+
+Notes during mixing:
+✓ A master level rise of about +3dB when 2 tracks play simultaneously is normal
+✓ However, if red is reached, lower each channel's Trim slightly
+✓ Actively use EQ cuts to avoid frequency overlap → naturally manages levels
+✗ Addressing this by lowering Master Level is not acceptable
+✗ Memorizing the Channel Fader position and always using the same position is also not acceptable (differs per track)
+```
+
+### Gain Staging Notes by Genre
 
 ```
-テクノ / ハウス:
-- 比較的均一な音圧の曲が多い
-- Trimの調整は安定しやすい
-- ロングミックスでは2曲の合計音量に注意
-- EQカットを積極的に活用
+Techno / House:
+- Many tracks with relatively uniform sound pressure
+- Trim adjustment tends to be stable
+- During long mixes, be careful of the combined volume of 2 tracks
+- Actively use EQ cuts
 
 EDM / Big Room:
-- ドロップとブレイクの音圧差が大きい
-- ブレイク部分でTrimを上げると、ドロップで音割れする
-- → ドロップに合わせてTrimを設定するのが正解
-- ブレイクが少し小さく聞こえても我慢
+- Large sound pressure difference between drop and break
+- Raising Trim in the break section causes clipping at the drop
+- → Setting Trim to match the drop is correct
+- Tolerate the break sounding slightly quiet
 
 Drum & Bass:
-- ベースラインのダイナミクスが大きい
-- サブベースのピークに注意
-- Trimはやや控えめに設定
+- Large dynamics in the bassline
+- Watch for peaks in the sub-bass
+- Set Trim slightly conservatively
 
-ヒップホップ / R&B:
-- 曲ごとのマスタリングレベルのばらつきが大きい
-- 特に年代の異なる曲を混ぜる時は注意
-- Trim調整を毎曲しっかり行う
+Hip-hop / R&B:
+- Large variation in mastering levels between tracks
+- Especially careful when mixing tracks from different eras
+- Carefully adjust Trim for each track
 
-レコード（アナログ）:
-- デジタル音源より音圧が低いことが多い
-- Trimを多めに上げる必要がある
-- ノイズフロア（針音、ハム）も増幅されるので注意
+Records (Analog):
+- Often lower sound pressure than digital sources
+- May need to raise Trim more
+- Noise floor (needle sound, hum) is also amplified, so be careful
 ```
 
-### PAエンジニアとのコミュニケーション
+### Communication with the PA Engineer
 
-ゲインステージングは、DJだけの問題ではなく、PAシステム全体の問題です。PAエンジニアとの良好なコミュニケーションが、最高の音質を引き出す鍵となります。
+Gain staging is not just the DJ's concern — it is an issue for the entire PA system. Good communication with the PA engineer is the key to extracting the best sound quality.
 
 ```
-到着時にPAエンジニアに確認すること:
-1. Master Levelの推奨位置
-2. PAシステムの入力感度
-3. リミッターの設定（有無と閾値）
-4. ブースモニターの状態
-5. 前のDJからの引き継ぎ状態
-6. 何か気をつけることはあるか
+What to confirm with the PA engineer upon arrival:
+1. Recommended Master Level position
+2. PA system input sensitivity
+3. Limiter settings (presence and threshold)
+4. Booth monitor status
+5. Handover state from the previous DJ
+6. Anything else to be careful about
 
-セット中にPAエンジニアに注意されたら:
-- 素直に従う（彼らはPAシステムの専門家）
-- 「Master Levelを下げてください」→ Master Levelを下げる
-- 「レベルが高いです」→ 各チャンネルのTrimを見直す
-- 「低域が出すぎです」→ Low EQを少し下げる
+If cautioned by the PA engineer during the set:
+- Comply without argument (they are PA system specialists)
+- "Please lower the Master Level" → Lower Master Level
+- "The level is high" → Review each channel's Trim
+- "Too much low end" → Lower the Low EQ slightly
 
-信頼関係を築くために:
-- ゲインステージングをしっかり行っていれば、PAエンジニアから信頼される
-- 信頼されると、より大きな音量を出してもらえることもある
-- 逆に、レベル管理ができないDJは音量を絞られる
+Building a relationship of trust:
+- If gain staging is done correctly, the PA engineer will trust you
+- That trust may result in being allowed a louder volume
+- Conversely, DJs who cannot manage levels will have their volume turned down
 ```
 
 ---
 
 ## 10. Pro DJ Link
 
-### Pro DJ Linkとは
+### What Is Pro DJ Link?
 
-Pro DJ Linkは、Pioneer DJ機材間でデジタル通信を行うためのネットワークシステムです。CDJ、DJミキサー、PCをLANケーブルで接続し、BPM情報や楽曲情報を共有します。
+Pro DJ Link is a network system for digital communication between Pioneer DJ devices. CDJs, DJ mixers, and PCs are connected via LAN cables to share BPM information and track information.
 
-### 接続構成
+### Connection Configuration
 
-**基本構成（4デッキ）:**
+**Basic configuration (4 decks):**
 ```
 CDJ-3000 (CH1)──┐
 CDJ-3000 (CH2)──┤
-CDJ-3000 (CH3)──┼── DJM-900NXS2 ── LANスイッチ ── PC (rekordbox)
+CDJ-3000 (CH3)──┼── DJM-900NXS2 ── LAN switch ── PC (rekordbox)
 CDJ-3000 (CH4)──┘       │
-                    LANケーブル
-                  (Cat5e以上推奨)
+                    LAN cable
+                  (Cat5e or better recommended)
 ```
 
-**接続手順:**
+**Connection procedure:**
 ```
-1. DJM-900NXS2のLANポートに各CDJをLANケーブルで接続
-2. DJM-900NXS2のUSBポートにUSBメモリを接続（または各CDJに直接）
-3. PCを使う場合は、LANスイッチを介してDJM-900NXS2に接続
-4. 全機器の電源を入れる
-5. 自動的にPro DJ Link通信が確立
-6. CDJの画面にリンク状態が表示される
-```
-
-**メリット:**
-```
-✓ BPM情報共有: 全CDJのBPM情報がミキサーに送られる
-✓ Beat Sync: CDJ間のBPM同期が可能
-✓ USBメモリ共有: 1本のUSBメモリを全CDJで共有
-✓ Rekordbox連携: PC上のrekordboxから直接楽曲を選択
-✓ Beat FXの同期: ミキサーのBeat FXがCDJのBPMに自動同期
-✓ 波形表示: DJM-A9ではミキサー上で波形を確認可能
-✓ トラック情報表示: 再生中の曲名・アーティスト名を共有
+1. Connect each CDJ to the DJM-900NXS2's LAN port with LAN cables
+2. Connect a USB drive to the DJM-900NXS2's USB port (or directly to each CDJ)
+3. If using a PC, connect to the DJM-900NXS2 via a LAN switch
+4. Turn on all devices
+5. Pro DJ Link communication is established automatically
+6. Link status is displayed on the CDJ screen
 ```
 
-### Pro DJ Link活用テクニック
-
-**① USBメモリ共有:**
+**Benefits:**
 ```
-通常: 各CDJにUSBメモリを挿す → 4台分必要
-Pro DJ Link: 1本のUSBをミキサーに挿す → 全CDJからアクセス可能
-
-メリット:
-- USBメモリの管理が楽
-- 途中でUSBを抜き差しする必要がない
-- 全CDJから同じライブラリにアクセス
-
-注意:
-- ネットワーク経由なので、読み込みがやや遅くなることがある
-- 大量の曲がある場合、検索に時間がかかることも
-- バックアップとして別のUSBも持参しておくのが安心
+✓ BPM information sharing: BPM data from all CDJs is sent to the mixer
+✓ Beat Sync: BPM synchronization between CDJs is possible
+✓ USB drive sharing: Share 1 USB drive across all CDJs
+✓ Rekordbox integration: Directly select tracks from rekordbox on PC to CDJ
+✓ Beat FX sync: Mixer's Beat FX automatically syncs to CDJ BPM
+✓ Waveform display: On DJM-A9, waveforms can be checked on the mixer
+✓ Track info display: Track names and artist names of playing tracks are shared
 ```
 
-**② Beat FX自動同期:**
-```
-Pro DJ LinkがないBeat FX操作:
-1. 曲のBPMを確認
-2. Beat FXのTAPボタンでBPMを手動入力
-3. ズレた場合は再度TAP
+### Pro DJ Link Practical Techniques
 
-Pro DJ Linkがある場合:
-1. CDJからBPM情報が自動送信
-2. Beat FXが自動的にBPMに同期
-3. ズレない！
+**① USB drive sharing:**
+```
+Without Pro DJ Link: Insert a USB drive in each CDJ → 4 drives needed
+With Pro DJ Link: Insert 1 USB into the mixer → Accessible from all CDJs
 
-→ より正確なBeat FXが可能
-→ TAPボタンを押す手間がなくなる
-→ ミックスに集中できる
+Benefits:
+- Easier USB drive management
+- No need to swap USBs during the set
+- Access to the same library from all CDJs
+
+Note:
+- Going via network can cause slightly slower loading
+- Searching may take time if there are many tracks
+- For peace of mind, bring a backup USB as well
 ```
 
-**③ Rekordbox連携:**
+**② Automatic Beat FX sync:**
 ```
-rekordbox（PC上）とPro DJ Linkを接続すると:
-- PC上で楽曲を選択し、CDJに直接ロード
-- 大画面でブラウジングが可能
-- プレイリストの管理がPCから可能
-- 波形表示がPC上でも確認可能
+Beat FX operation without Pro DJ Link:
+1. Check the track's BPM
+2. Manually enter BPM using the Beat FX TAP button
+3. Re-tap if it drifts
+
+With Pro DJ Link:
+1. BPM information is sent automatically from the CDJ
+2. Beat FX automatically syncs to the BPM
+3. No drifting!
+
+→ More accurate Beat FX is possible
+→ Eliminates the need to press the TAP button
+→ Can focus on mixing
+```
+
+**③ Rekordbox integration:**
+```
+Connecting rekordbox (on PC) with Pro DJ Link allows:
+- Selecting tracks on PC and loading them directly to a CDJ
+- Browsing on a large screen is possible
+- Playlist management is possible from PC
+- Waveforms can also be checked on PC
 
 Export Mode:
-- rekordboxで準備した楽曲データをUSBメモリにエクスポート
-- CDJ上でrekordboxの解析データ（BPM、波形、キューポイント等）を利用
+- Export track data prepared in rekordbox to a USB drive
+- Use rekordbox analysis data (BPM, waveforms, cue points, etc.) on the CDJ
 
 Performance Mode:
-- PCとCDJを直接接続し、PCから音を出力
-- DVSと併用可能
-- HIDモードでCDJをコントローラーとして使用
+- Connect PC and CDJ directly and output audio from PC
+- Can be used in combination with DVS
+- Use CDJ as a controller in HID mode
 ```
 
-### Pro DJ Linkのトラブルシューティング
+### Pro DJ Link Troubleshooting
 
 ```
-問題: CDJがリンクに参加できない
-原因と対策:
-  - LANケーブルが抜けている → しっかり接続を確認
-  - ケーブルが断線している → 予備ケーブルに交換
-  - CDJのPlayer Number（1-4）が重複 → 各CDJに異なる番号を設定
-  - ファームウェアが古い → 最新版にアップデート
+Problem: CDJ cannot join the link
+Causes and solutions:
+  - LAN cable disconnected → Firmly confirm connection
+  - Cable is broken → Replace with spare cable
+  - CDJ Player Numbers (1–4) are duplicated → Set different numbers on each CDJ
+  - Firmware is old → Update to latest version
 
-問題: BPM同期がずれる
-原因と対策:
-  - CDJの解析データが不正確 → rekordboxで再解析
-  - BPM範囲が外れている → CDJのBPM RANGE設定を確認
-  - ネットワーク遅延 → LANケーブルを短く、高品質なものに
+Problem: BPM sync drifts
+Causes and solutions:
+  - CDJ analysis data is inaccurate → Re-analyze in rekordbox
+  - BPM range is out of range → Check BPM RANGE settings on CDJ
+  - Network latency → Use shorter, higher-quality LAN cables
 
-問題: USBメモリが認識されない
-原因と対策:
-  - フォーマットが不正 → FAT32 または exFAT でフォーマット
-  - USBメモリの容量が大きすぎる → 128GB以下推奨
-  - USBポートの接触不良 → 別のポートを試す
+Problem: USB drive not recognized
+Causes and solutions:
+  - Incorrect format → Format as FAT32 or exFAT
+  - USB drive capacity is too large → 128GB or less recommended
+  - Poor contact on USB port → Try a different port
 ```
 
 ---
 
-## 11. クラブでの使い方
+## 11. Club Usage
 
-### 到着時チェックリスト
+### Arrival Checklist
 
-クラブに到着してからDJセットを始めるまでの手順を、プロフェッショナルなDJとして確実に行うためのチェックリストです。
-
-```
-■ ブース到着時（セットの30分以上前に）
-□ PAエンジニアに挨拶・レベル確認
-□ Master Level位置確認（現在の設定を記憶）
-□ Booth Level調整
-□ ヘッドフォン接続確認（プラグの種類：6.3mm/3.5mm）
-□ 全EQフラット確認（12時位置）
-□ 全Fader下げ確認
-□ Beat FX OFF確認
-□ Color FX全て12時確認
-□ Crossfader中央確認
-□ Input Selector確認（使用するチャンネルがLine/Digitalに正しく設定されているか）
-
-■ CDJ/ソース機器の確認
-□ CDJの電源ON確認
-□ USBメモリまたはSD挿入確認
-□ Pro DJ Link接続確認
-□ CDJのPlayer Number確認（1〜4が重複していないか）
-□ rekordbox解析データの読み込み確認
-
-■ サウンドチェック
-□ テスト曲をロード
-□ Channel Faderを最大に
-□ Trimで0dB調整
-□ EQフラット確認（ブースモニターとフロアの音を確認）
-□ Master音量がPAに適切か確認
-□ ヘッドフォンCueが正常に機能するか確認
-□ Booth Monitorの音量が適切か確認
-□ 問題があれば音響エンジニアに相談
-```
-
-### サウンドチェック手順（詳細）
+A checklist for reliably performing all steps from arriving at the club to starting the DJ set like a professional.
 
 ```
-サウンドチェックの目的:
-1. 自分のUSB/楽曲が正しく再生されることを確認
-2. ミキサーの各パラメーターが正しい位置にあることを確認
-3. 音量レベルが適切であることを確認
-4. ヘッドフォンモニターが正常に機能することを確認
-5. ブースモニターの音量が自分に合っているか確認
+■ Upon arriving at the booth (at least 30 minutes before the set)
+□ Greet PA engineer / confirm levels
+□ Confirm Master Level position (memorize current setting)
+□ Adjust Booth Level
+□ Confirm headphone connection (plug type: 6.3mm/3.5mm)
+□ Confirm all EQs are flat (12 o'clock position)
+□ Confirm all Faders are down
+□ Confirm Beat FX is OFF
+□ Confirm all Color FX at 12 o'clock
+□ Confirm Crossfader is in center
+□ Confirm Input Selector (channels you'll use are correctly set to Line/Digital)
 
-手順:
-1. 自分がよく知っている曲をロードする
-   → 音質の基準として使える曲を選ぶ
-   → マスタリングが適切な曲が望ましい
+■ Confirming CDJ/source equipment
+□ CDJ power ON confirmed
+□ USB drive or SD card inserted confirmed
+□ Pro DJ Link connection confirmed
+□ CDJ Player Numbers confirmed (1–4 not duplicated)
+□ Rekordbox analysis data loading confirmed
 
-2. CH1のChannel Faderを最大にする
-3. Trimで0dB付近に調整する
-4. Channel Faderを70〜80%に戻す
-
-5. EQを動かしてみる
-   → 各バンドが正常に機能するか確認
-   → 異音やノイズがないか確認
-   → 確認後、フラットに戻す
-
-6. Master音量を確認する
-   → ブースモニターで自分の曲を聴く
-   → フロアに出ている音を確認（可能であれば）
-   → 音量が適切でなければPAエンジニアに相談
-
-7. ヘッドフォンCueを確認する
-   → CH1のCueボタンを押す
-   → ヘッドフォンから音が出るか確認
-   → Headphone Levelを調整
-   → Headphone Mixingが正常に動作するか確認
-
-8. 問題がなければ、Channel Faderを下げて準備完了
+■ Soundcheck
+□ Load a test track
+□ Raise Channel Fader to maximum
+□ Adjust to 0dB with Trim
+□ Confirm EQ is flat (check booth monitor and floor sound)
+□ Confirm Master volume is appropriate for PA
+□ Confirm headphone Cue is functioning correctly
+□ Confirm Booth Monitor volume is appropriate
+□ If there are any problems, consult the sound engineer
 ```
 
-### DJ交代のプロトコル
-
-DJ交代は、クラブDJにおいて最も緊張する瞬間の一つです。スムーズな交代は、フロアの雰囲気を維持するために不可欠です。
-
-**交代する側（次のDJ）:**
-```
-1. 前のDJのセットの少なくとも2〜3曲前にブースに入る
-2. 静かに準備を始める（前のDJの邪魔をしない）
-3. USBメモリを空いているCDJに挿す
-4. 使用するチャンネルのTrimを確認
-5. ヘッドフォンを接続
-
-6. 前のDJに合図を送る（目で合図、軽く肩を叩くなど）
-7. 前のDJが最後の曲に入ったら、自分の1曲目を準備
-
-8. 交代のタイミング:
-   方法A: ミックス引き継ぎ
-     → 自分の曲を前のDJの最後の曲にミックスイン
-     → 前のDJがフェーダーを下げて退場
-     → 最もスムーズな方法
-
-   方法B: 曲間交代
-     → 前のDJの最後の曲が終わったら即座に自分の曲をスタート
-     → 隙間が空かないように注意
-
-   方法C: 前のDJのEcho Out後に開始
-     → 前のDJがEchoをかけてフェードアウト
-     → Echoの残響が消える前に自分の曲をスタート
-```
-
-**交代される側（前のDJ）:**
-```
-1. 終了時間を意識して最後の数曲を選曲
-2. 次のDJがブースに入ったことを確認
-3. 次のDJに合図を送る（「あと2曲」「あと1曲」など）
-4. 最後の曲を丁寧に終わらせる
-
-5. 終了後のマナー:
-   □ 自分が使ったチャンネルのFaderを下げる
-   □ EQをフラット（12時位置）に戻す
-   □ Beat FXをOFF
-   □ Color FXを12時位置に戻す
-   □ Crossfaderを中央に戻す
-   □ Trimを12時位置に戻す（上げっぱなしにしない）
-   □ USBメモリを抜く
-   □ ヘッドフォンを外す
-   □ 次のDJにスペースを譲る
-   □ 必要なら次のDJにブースの状態を簡単に説明
-
-6. 絶対にやってはいけないこと:
-   ✗ Master Levelを上げたまま退場
-   ✗ EQブーストのまま退場（次のDJの曲が爆音になる）
-   ✗ Beat FXをONのまま退場
-   ✗ 次のDJの曲に勝手にミックスを続ける
-   ✗ ブースに居座る
-```
-
-### セット中の注意事項
+### Soundcheck Procedure (Detailed)
 
 ```
-✓ Master Levelは触らない
-  → セット中にMaster Levelを操作する必要はほぼない
-  → 音量は個々のチャンネルのTrimで管理する
+Purpose of soundcheck:
+1. Confirm your USB / tracks play correctly
+2. Confirm all mixer parameters are in the correct position
+3. Confirm volume levels are appropriate
+4. Confirm headphone monitor is functioning correctly
+5. Confirm whether the booth monitor volume suits you
 
-✓ 飲み物の管理
-  → ミキサーの上に飲み物を置かない
-  → 蓋のない飲み物はブースに持ち込まない
-  → 液体がミキサーにかかると、修理費数十万円
-  → 実際に飲み物をこぼして弁償させられたケースは少なくない
+Procedure:
+1. Load a track you know well
+   → Choose a track you can use as a sonic reference
+   → A track with appropriate mastering is ideal
 
-✓ ケーブル管理
-  → ヘッドフォンケーブルを引っかけない
-  → LANケーブルやUSBケーブルに触れない
-  → 踊りすぎてケーブルを引き抜かない
+2. Raise CH1's Channel Fader to maximum
+3. Adjust to near 0dB with Trim
+4. Return Channel Fader to 70–80%
 
-✓ 機材への敬意
-  → 他人の機材（クラブの機材）を乱暴に扱わない
-  → ノブやフェーダーを無理に回さない/動かさない
-  → 汗をかいたら拭いてから操作する
+5. Try moving the EQ
+   → Confirm each band functions normally
+   → Confirm there is no noise or unusual sound
+   → Return to flat after confirming
 
-✓ フロアの確認
-  → 時折フロアの反応を見る
-  → 音量バランスがおかしくないか確認
-  → PAエンジニアからの指示がないか確認
+6. Confirm Master volume
+   → Listen to your track through the booth monitor
+   → Check the sound going to the floor (if possible)
+   → If the volume is not appropriate, consult the PA engineer
+
+7. Confirm headphone Cue
+   → Press CH1's Cue button
+   → Confirm sound comes from headphones
+   → Adjust Headphone Level
+   → Confirm Headphone Mixing functions correctly
+
+8. If no problems, lower Channel Fader and preparation is complete
 ```
 
-### クラブでのトラブル対応
+### DJ Changeover Protocol
+
+DJ changeover is one of the most tense moments in club DJing. A smooth changeover is essential for maintaining the floor atmosphere.
+
+**The incoming DJ (next DJ):**
+```
+1. Enter the booth at least 2–3 tracks before the current DJ's set ends
+2. Begin preparations quietly (do not disturb the current DJ)
+3. Insert USB drive into an available CDJ
+4. Check Trim on the channels you will use
+5. Connect headphones
+
+6. Signal the current DJ (eye contact, light tap on the shoulder, etc.)
+7. When the current DJ is into their last track, prepare your first track
+
+8. Changeover timing:
+   Method A: Mix handover
+     → Mix your track into the current DJ's last track
+     → Current DJ lowers fader and exits
+     → The smoothest method
+
+   Method B: Between-track changeover
+     → Start your track immediately when the current DJ's last track ends
+     → Be careful not to leave a gap
+
+   Method C: Start after current DJ's Echo Out
+     → Current DJ applies Echo and fades out
+     → Start your track before the Echo reverb has faded
+```
+
+**The outgoing DJ (current DJ):**
+```
+1. Be mindful of end time and select the final few tracks
+2. Confirm the incoming DJ has entered the booth
+3. Signal the incoming DJ ("2 more tracks," "1 more track," etc.)
+4. Gracefully end the final track
+
+5. Post-set etiquette:
+   □ Lower the Fader on the channel you used
+   □ Return EQ to flat (12 o'clock position)
+   □ Turn Beat FX OFF
+   □ Return Color FX to 12 o'clock position
+   □ Return Crossfader to center
+   □ Return Trim to 12 o'clock position (do not leave raised)
+   □ Remove your USB drive
+   □ Remove your headphones
+   □ Make space for the incoming DJ
+   □ If necessary, briefly explain the booth state to the incoming DJ
+
+6. Things to never do:
+   ✗ Exit leaving Master Level raised
+   ✗ Exit leaving EQ boosted (the incoming DJ's track will be blaring)
+   ✗ Exit leaving Beat FX ON
+   ✗ Continue mixing into the incoming DJ's track without permission
+   ✗ Linger in the booth
+```
+
+### Notes During the Set
 
 ```
-トラブル1: 音が出ない
-手順:
-1. Channel Faderが上がっているか確認
-2. Input Selectorが正しいか確認（Line/USB/Digital）
-3. Trimが最小になっていないか確認
-4. EQが全カットになっていないか確認
-5. Crossfaderの位置を確認
-6. Master Levelが0でないか確認
-7. CDJが再生しているか確認
-8. ケーブル接続を確認
-9. 上記すべてOKなら、PAエンジニアに連絡
+✓ Do not touch Master Level
+  → There is almost never a need to operate Master Level during the set
+  → Manage volume with individual channel Trims
 
-トラブル2: 片方のCDJからしか音が出ない
-手順:
-1. 使えないCDJの入力セレクターを確認
-2. LANケーブルの接続を確認
-3. 使えるCDJとチャンネルで対応（1台でもDJは続行可能）
-4. 落ち着いて曲を選び、次の曲との間に修復を試みる
+✓ Drink management
+  → Do not place drinks on top of the mixer
+  → Do not bring uncovered drinks into the booth
+  → Liquid spilled on the mixer means repair costs of tens of thousands of yen
+  → There are many cases of DJs actually being made to pay for spilled drinks
 
-トラブル3: ヘッドフォンから音が聞こえない
-手順:
-1. Cueボタンが押されているか確認
-2. Headphone Levelが上がっているか確認
-3. Headphone Mixingの位置を確認
-4. ヘッドフォンのプラグがしっかり挿さっているか確認
-5. ヘッドフォン自体の故障の可能性 → 予備ヘッドフォンに交換
-6. 最悪の場合、Boothモニターだけでミックス
+✓ Cable management
+  → Do not catch the headphone cable
+  → Do not touch LAN cables or USB cables
+  → Do not dance so hard you pull out a cable
 
-トラブル4: 激しいハウリング（フィードバック）
-手順:
-1. 全Channel Faderを即座に下げる
-2. Master Levelを下げる
-3. 原因を特定（マイクチャンネル、フィードバックループ等）
-4. 原因を取り除いてから徐々にレベルを戻す
-5. PAエンジニアに連絡
+✓ Respect for equipment
+  → Do not handle others' equipment (the club's equipment) roughly
+  → Do not force knobs or faders
+  → Wipe off sweat before operating
 
-トラブル5: 急に音量が大きくなった
-手順:
-1. 落ち着いて状況を把握
-2. マスターレベルメーターを確認
-3. 各チャンネルのTrimとレベルを確認
-4. EQブーストがないか確認
-5. Beat FXのLevel/Depthが上がりすぎていないか確認
-6. 必要に応じて各Trimをわずかに下げる
+✓ Checking the floor
+  → Periodically check the floor's reaction
+  → Confirm the sound balance is not off
+  → Confirm there are no instructions from the PA engineer
+```
+### Troubleshooting in the Club
+
+```
+Problem 1: No sound
+Procedure:
+1. Confirm Channel Fader is raised
+2. Confirm Input Selector is correct (Line/USB/Digital)
+3. Confirm Trim is not at minimum
+4. Confirm EQ is not fully cut
+5. Confirm Crossfader position
+6. Confirm Master Level is not at 0
+7. Confirm CDJ is playing
+8. Check cable connections
+9. If all of the above are fine, contact the PA engineer
+
+Problem 2: Sound only coming from one CDJ
+Procedure:
+1. Check the input selector on the non-working CDJ
+2. Check the LAN cable connection
+3. Use the working CDJ and channel to carry on (DJing can continue with 1 deck)
+4. Remain calm, pick tracks carefully, and attempt repair during the gap
+
+Problem 3: No sound from headphones
+Procedure:
+1. Confirm the Cue button is pressed
+2. Confirm Headphone Level is raised
+3. Check the Headphone Mixing position
+4. Confirm the headphone plug is fully inserted
+5. Possible headphone failure → Switch to spare headphones
+6. As a last resort, mix using only the booth monitor
+
+Problem 4: Severe howling (feedback)
+Procedure:
+1. Immediately lower all Channel Faders
+2. Lower Master Level
+3. Identify the cause (microphone channel, feedback loop, etc.)
+4. Remove the cause, then gradually restore levels
+5. Contact the PA engineer
+
+Problem 5: Volume suddenly became very loud
+Procedure:
+1. Calmly assess the situation
+2. Check the master level meter
+3. Check each channel's Trim and level
+4. Check for EQ boost
+5. Check if Beat FX Level/Depth has gone too high
+6. If necessary, lower each Trim slightly
 ```
 
 ---
@@ -2052,38 +2051,38 @@ DJ交代は、クラブDJにおいて最も緊張する瞬間の一つです。�
 
 ## FAQ
 
-### Q1: このトピックを学ぶ上で最も重要なポイントは何ですか？
+### Q1: What is the most important point when learning this topic?
 
-実践的な経験を積むことが最も重要です。理論だけでなく、実際にコードを書いて動作を確認することで理解が深まります。
+Gaining practical experience is the most important thing. Not just theory — understanding deepens when you actually practice and confirm how things work.
 
-### Q2: 初心者がよく陥る間違いは何ですか？
+### Q2: What mistakes do beginners often make?
 
-基礎を飛ばして応用に進むことです。このガイドで説明している基本概念をしっかり理解してから、次のステップに進むことをお勧めします。
+Skipping the basics and jumping to advanced topics. We recommend fully understanding the basic concepts explained in this guide before moving on to the next step.
 
-### Q3: 実務ではどのように活用されていますか？
+### Q3: How is this used in practice?
 
-このトピックの知識は、日常的な開発業務で頻繁に活用されます。特にコードレビューやアーキテクチャ設計の際に重要になります。
-
----
-
-## まとめ
-
-このガイドでは以下の重要なポイントを学びました:
-
-- 基本概念と原則の理解
-- 実践的な実装パターン
-- ベストプラクティスと注意点
-- 実務での活用方法
+Knowledge of this topic is frequently used in day-to-day work. It becomes especially important during performance settings and when working with professional audio systems.
 
 ---
 
-## 次に読むべきガイド
+## Summary
 
-- [DJ用ヘッドフォン完全ガイド](./headphones.md) - 次のトピックへ進む
+In this guide, the following important points were covered:
+
+- Understanding basic concepts and principles
+- Practical implementation patterns
+- Best practices and points of caution
+- How to apply this in real-world settings
 
 ---
 
-## 参考文献
+## What to Read Next
 
-- [MDN Web Docs](https://developer.mozilla.org/) - Web技術のリファレンス
-- [Wikipedia](https://ja.wikipedia.org/) - 技術概念の概要
+- [Complete Guide to DJ Headphones](./headphones.md) - Continue to the next topic
+
+---
+
+## References
+
+- [MDN Web Docs](https://developer.mozilla.org/) - Reference for web technologies
+- [Wikipedia](https://en.wikipedia.org/) - Overview of technical concepts
