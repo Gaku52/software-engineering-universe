@@ -5,6 +5,8 @@ description: Fundamentals of modern web development. Framework selection (React,
 
 # Web Development Skill
 
+> Fundamentals of modern web development. Framework selection (React, Vue, Next.js), project architecture, state management, routing, build tools, and CSS strategy best practices.
+
 ## Table of Contents
 
 ### Fundamentals (this file)
