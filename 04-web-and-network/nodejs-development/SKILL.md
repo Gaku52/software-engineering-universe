@@ -110,9 +110,61 @@ Week 3: 06 (Practical integration)
 
 ---
 
+## Async Patterns Guides
+
+Step-by-step guides on Node.js asynchronous patterns. Study in order after completing the Basics section.
+
+1. **[Callbacks in Node.js](./docs/02-async-patterns/01-callbacks.md)**
+   - Callback fundamentals and callback hell
+   - Error-first callback pattern
+   - Anti-patterns to avoid
+
+2. **[Promises in Node.js](./docs/02-async-patterns/02-promises.md)**
+   - Promise states (pending / fulfilled / rejected)
+   - `.then()` / `.catch()` chaining
+   - `Promise.all`, `Promise.race`, `Promise.allSettled`
+
+3. **[async/await in Node.js](./docs/02-async-patterns/03-async-await.md)**
+   - Writing async code in a synchronous style
+   - Error handling with try/catch
+   - Parallel execution patterns
+
+4. **[The Node.js Event Loop](./docs/02-async-patterns/04-event-loop.md)**
+   - How the event loop works
+   - Call stack, task queue, microtask queue
+   - Diagnosing performance issues
+
+---
+
+## Framework Guides
+
+Practical guides for building production-ready web applications with Express.
+
+1. **[Express Fundamentals](./docs/03-frameworks/01-express-fundamentals.md)**
+   - Core Express concepts
+   - Routing, request/response handling
+   - Project structure
+
+2. **[Middleware in Express](./docs/03-frameworks/02-middleware.md)**
+   - What middleware is and how it works
+   - Built-in, third-party, and custom middleware
+   - Middleware ordering and error middleware
+
+3. **[Building REST APIs with Express](./docs/03-frameworks/03-rest-api.md)**
+   - REST API design principles
+   - CRUD endpoints implementation
+   - Input validation and response formatting
+
+4. **[Error Handling in Node.js and Express](./docs/03-frameworks/04-error-handling.md)**
+   - Error types in Node.js
+   - Centralized error handling middleware
+   - Async error propagation
+
+---
+
 ## Detailed Guides
 
-### 1. [Express & NestJS Complete Guide](./docs/02-guides/express-nestjs.md)
+### 1. [Express & NestJS Complete Guide](./docs/02-guides/express-nestjs-complete.md)
 
 A comprehensive explanation of implementation patterns, architecture design, and dependency injection for Express and NestJS.
 
@@ -128,7 +180,7 @@ A comprehensive explanation of implementation patterns, architecture design, and
 - Test coverage: 45% → 87%
 - Bug occurrence rate: 8.2/month → 2.1/month (-74%)
 
-### 2. [Node.js Async Patterns Complete Guide](./docs/02-guides/async-patterns.md)
+### 2. [Node.js Async Patterns Complete Guide](./docs/02-guides/async-patterns-complete.md)
 
 A thorough explanation of Node.js asynchronous processing patterns from basics to advanced.
 
@@ -147,7 +199,7 @@ A thorough explanation of Node.js asynchronous processing patterns from basics t
 - Stream processing: CSV processing (1 million rows) memory usage 1.2GB → 45MB (-96%)
 - Cluster: Request throughput 850 req/s → 3,200 req/s (+276%)
 
-### 3. [Node.js Performance Optimization Complete Guide](./docs/02-guides/performance.md)
+### 3. [Node.js Performance Optimization Complete Guide](./docs/02-guides/performance-complete.md)
 
 Practical techniques for performance measurement, optimization, and scaling.
 
@@ -209,6 +261,6 @@ Practical techniques for performance measurement, optimization, and scaling.
 
 ## Summary
 
-Total: **~83,500 characters** | **3 guides**
+Total: **~83,500 characters** | **3 complete guides + 8 step-by-step guides**
 
 Provides practical patterns and best practices for Node.js development. With Express's flexibility and NestJS's enterprise-grade capabilities, deep understanding of asynchronous processing, and concrete performance optimization techniques, you'll be able to build scalable, high-performance Node.js applications.
