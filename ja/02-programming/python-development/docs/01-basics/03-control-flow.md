@@ -1,5 +1,7 @@
 # 制御フロー — 完全入門ガイド
 
+
+> if/elif/else・for/while ループ・break/continue/pass など Python の制御フローを学ぶガイド。
 ## 目次
 
 1. [概要](#概要)
