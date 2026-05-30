@@ -3,7 +3,7 @@ name: computer-science-fundamentals
 description: コンピュータサイエンスの基礎知識を網羅的にカバー。ハードウェアの仕組みからデータ表現、アルゴリズム、データ構造、計算理論、プログラミングパラダイム、ソフトウェアエンジニアリング基礎まで、エンジニアに必要な全てのCS基礎知識を体系的に解説。
 ---
 
-# Computer Science Fundamentals
+# コンピュータサイエンス基礎
 
 ## 目次
 
